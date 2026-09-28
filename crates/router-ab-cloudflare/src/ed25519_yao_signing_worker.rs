@@ -1,7 +1,7 @@
 use router_ab_core::{
     ActiveSigningWorkerStateV1, Ed25519YaoCeremonyBindingV1, Ed25519YaoDeriverRoleV1,
     Ed25519YaoEncryptedPackageV1, Ed25519YaoOperationV1, Ed25519YaoPackageKindV1,
-    Ed25519YaoRecoveryAttemptV1, OpenedShareKind, PublicDigest32, Role,
+    Ed25519YaoRecoveryAttemptV1, Ed25519YaoSessionIdV1, OpenedShareKind, PublicDigest32, Role,
     RouterAbEd25519YaoActivationPublicReceiptV1, RouterAbProtocolError, RouterAbProtocolErrorCode,
     RouterAbProtocolResult, ServerIdentityV1,
 };
@@ -1927,6 +1927,140 @@ pub(crate) fn http_staged_receipt(
     }
 }
 
+/// What a SigningWorker holds for the recovery a delivery names, in the terms
+/// every host decides a recovery delivery by. Each store maps what it keeps
+/// here, and persists what [`decide_ed25519_yao_recovery_delivery_v1`]
+/// decides.
+pub enum Ed25519YaoRecoveryHeldV1<'a> {
+    /// No recovery staged, and none promoted by this lifecycle.
+    Idle,
+    /// A recovery staged here, holding one attempt's candidate.
+    Staged {
+        lifecycle_id: &'a str,
+        session_id: Ed25519YaoSessionIdV1,
+        attempt: Ed25519YaoRecoveryAttemptV1,
+        /// The delivery carries exactly the staged attempt's packages.
+        same_deliveries: bool,
+    },
+    /// A recovery that promoted here.
+    Promoted {
+        lifecycle_id: &'a str,
+        /// The delivery carries exactly the packages that promoted.
+        same_deliveries: bool,
+    },
+}
+
+/// What a store does with a recovery delivery it did not refuse.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Ed25519YaoRecoveryDeliveryDecisionV1 {
+    /// The same deliveries again: answer from what is held.
+    AnswerHeld,
+    /// Stage this attempt over the active material, in place of any lower
+    /// attempt staged.
+    Stage,
+}
+
+/// Decides one recovery delivery from the Gateway's attempt `attempt`, on
+/// every host.
+/// - The same deliveries answer again, staged or promoted.
+/// - A staged recovery holds the highest attempt delivered to it. A lower
+///   attempt is one the Gateway has superseded, and it is refused however
+///   late it arrives. A higher attempt supersedes the staged one and takes
+///   its place, since the Gateway can no longer promote the staged one.
+/// - Another attempt of a recovery that already promoted is stale: it never
+///   replaces the material its recovery activated.
+/// - With nothing held for its lifecycle, the attempt stages.
+pub fn decide_ed25519_yao_recovery_delivery_v1(
+    held: Ed25519YaoRecoveryHeldV1<'_>,
+    lifecycle_id: &str,
+    session_id: Ed25519YaoSessionIdV1,
+    attempt: Ed25519YaoRecoveryAttemptV1,
+) -> RouterAbProtocolResult<Ed25519YaoRecoveryDeliveryDecisionV1> {
+    match held {
+        Ed25519YaoRecoveryHeldV1::Idle => Ok(Ed25519YaoRecoveryDeliveryDecisionV1::Stage),
+        Ed25519YaoRecoveryHeldV1::Promoted {
+            lifecycle_id: promoted,
+            same_deliveries,
+        } => {
+            if same_deliveries {
+                return Ok(Ed25519YaoRecoveryDeliveryDecisionV1::AnswerHeld);
+            }
+            if promoted == lifecycle_id {
+                return Err(superseded_recovery_attempt(
+                    "Signing Worker recovery was already promoted by another attempt",
+                ));
+            }
+            Ok(Ed25519YaoRecoveryDeliveryDecisionV1::Stage)
+        }
+        Ed25519YaoRecoveryHeldV1::Staged {
+            lifecycle_id: staged,
+            session_id: staged_session,
+            attempt: staged_attempt,
+            same_deliveries,
+        } => {
+            if staged != lifecycle_id {
+                return Err(invalid_lifecycle(
+                    "Signing Worker package pair conflicts with the Yao lifecycle state",
+                ));
+            }
+            let same_session = staged_session == session_id;
+            match attempt.cmp(&staged_attempt) {
+                core::cmp::Ordering::Less => Err(superseded_recovery_attempt(
+                    "Signing Worker recovery attempt was superseded by a later attempt",
+                )),
+                core::cmp::Ordering::Equal if same_session && same_deliveries => {
+                    Ok(Ed25519YaoRecoveryDeliveryDecisionV1::AnswerHeld)
+                }
+                core::cmp::Ordering::Equal => Err(invalid_lifecycle(
+                    "Signing Worker recovery attempt delivered different packages",
+                )),
+                core::cmp::Ordering::Greater if same_session => Err(invalid_lifecycle(
+                    "Signing Worker recovery session was delivered under another attempt",
+                )),
+                core::cmp::Ordering::Greater => Ok(Ed25519YaoRecoveryDeliveryDecisionV1::Stage),
+            }
+        }
+    }
+}
+
+/// What a SigningWorker holds for a recovery promotion. `matches` is the
+/// store's own check that the request names exactly what it holds.
+pub enum Ed25519YaoRecoveryPromotionHeldV1 {
+    /// No recovery staged or promoted here.
+    Nothing,
+    /// A recovery staged here.
+    Staged { matches: RouterAbProtocolResult<()> },
+    /// A recovery that promoted here.
+    Promoted { matches: RouterAbProtocolResult<()> },
+}
+
+/// What a store does with a recovery promotion it did not refuse.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Ed25519YaoRecoveryPromotionDecisionV1 {
+    /// Promote the staged candidate, retiring the material it replaces.
+    Promote,
+    /// Promoted already, by this request: answer active again.
+    Repeat,
+}
+
+/// Decides one recovery promotion, on every host: the exact staged candidate
+/// promotes, and the same promotion answers again once it has.
+pub fn decide_ed25519_yao_recovery_promotion_v1(
+    held: Ed25519YaoRecoveryPromotionHeldV1,
+) -> RouterAbProtocolResult<Ed25519YaoRecoveryPromotionDecisionV1> {
+    match held {
+        Ed25519YaoRecoveryPromotionHeldV1::Staged { matches } => {
+            matches.map(|()| Ed25519YaoRecoveryPromotionDecisionV1::Promote)
+        }
+        Ed25519YaoRecoveryPromotionHeldV1::Promoted { matches } => {
+            matches.map(|()| Ed25519YaoRecoveryPromotionDecisionV1::Repeat)
+        }
+        Ed25519YaoRecoveryPromotionHeldV1::Nothing => Err(invalid_lifecycle(
+            "recovery promotion requires an exact staged candidate",
+        )),
+    }
+}
+
 /// A recovery delivery settled against the lifecycle it meets. Every
 /// SigningWorker store settles it this way, then writes what it decides.
 pub(crate) enum SigningWorkerYaoRecoveryDeliveryV1 {
@@ -1967,59 +2101,50 @@ pub(crate) fn settle_signing_worker_yao_recovery_delivery_v1(
 ) -> RouterAbProtocolResult<SigningWorkerYaoRecoveryDeliveryV1> {
     let binding = &delivery.deriver_a.binding;
     require_operation(binding, Ed25519YaoOperationV1::Recovery)?;
+    let lifecycle_id = binding.lifecycle.lifecycle_id.as_str();
+    let session_id = binding.session_id;
     let (active_material, active_receipt) = match current {
         Some(SigningWorkerYaoDurableStateV1::Active {
             deriver_a,
             deriver_b,
             material,
             receipt,
-        }) if material.binding().operation == Ed25519YaoOperationV1::Recovery
-            && material.binding().lifecycle.lifecycle_id == binding.lifecycle.lifecycle_id =>
-        {
-            if deriver_a == delivery.deriver_a && deriver_b == delivery.deriver_b {
-                return Ok(SigningWorkerYaoRecoveryDeliveryV1::Answer(receipt));
+        }) => {
+            let held = if material.binding().operation == Ed25519YaoOperationV1::Recovery {
+                Ed25519YaoRecoveryHeldV1::Promoted {
+                    lifecycle_id: material.binding().lifecycle.lifecycle_id.as_str(),
+                    same_deliveries: deriver_a == delivery.deriver_a
+                        && deriver_b == delivery.deriver_b,
+                }
+            } else {
+                Ed25519YaoRecoveryHeldV1::Idle
+            };
+            match decide_ed25519_yao_recovery_delivery_v1(held, lifecycle_id, session_id, attempt)?
+            {
+                Ed25519YaoRecoveryDeliveryDecisionV1::AnswerHeld => {
+                    return Ok(SigningWorkerYaoRecoveryDeliveryV1::Answer(receipt));
+                }
+                Ed25519YaoRecoveryDeliveryDecisionV1::Stage => (material, receipt),
             }
-            return Err(superseded_recovery_attempt(
-                "Signing Worker recovery was already promoted by another attempt",
-            ));
         }
-        Some(SigningWorkerYaoDurableStateV1::Active {
-            material, receipt, ..
-        }) => (material, receipt),
         Some(SigningWorkerYaoDurableStateV1::RecoveryStaged {
             active_material,
             active_receipt,
             staged,
         }) => {
-            if staged.deriver_a.binding.lifecycle.lifecycle_id != binding.lifecycle.lifecycle_id {
-                return Err(invalid_lifecycle(
-                    "Signing Worker package pair conflicts with the Yao lifecycle state",
-                ));
-            }
-            let same_session = staged.deriver_a.binding.session_id == binding.session_id;
-            match attempt.cmp(&staged.attempt) {
-                core::cmp::Ordering::Less => {
-                    return Err(superseded_recovery_attempt(
-                        "Signing Worker recovery attempt was superseded by a later attempt",
-                    ));
+            let held = Ed25519YaoRecoveryHeldV1::Staged {
+                lifecycle_id: staged.deriver_a.binding.lifecycle.lifecycle_id.as_str(),
+                session_id: staged.deriver_a.binding.session_id,
+                attempt: staged.attempt,
+                same_deliveries: staged.deriver_a == delivery.deriver_a
+                    && staged.deriver_b == delivery.deriver_b,
+            };
+            match decide_ed25519_yao_recovery_delivery_v1(held, lifecycle_id, session_id, attempt)?
+            {
+                Ed25519YaoRecoveryDeliveryDecisionV1::AnswerHeld => {
+                    return Ok(SigningWorkerYaoRecoveryDeliveryV1::Answer(staged.receipt));
                 }
-                core::cmp::Ordering::Equal => {
-                    if same_session
-                        && staged.deriver_a == delivery.deriver_a
-                        && staged.deriver_b == delivery.deriver_b
-                    {
-                        return Ok(SigningWorkerYaoRecoveryDeliveryV1::Answer(staged.receipt));
-                    }
-                    return Err(invalid_lifecycle(
-                        "Signing Worker recovery attempt delivered different packages",
-                    ));
-                }
-                core::cmp::Ordering::Greater if same_session => {
-                    return Err(invalid_lifecycle(
-                        "Signing Worker recovery session was delivered under another attempt",
-                    ));
-                }
-                core::cmp::Ordering::Greater => (active_material, active_receipt),
+                Ed25519YaoRecoveryDeliveryDecisionV1::Stage => (active_material, active_receipt),
             }
         }
         Some(SigningWorkerYaoDurableStateV1::RegistrationStaged { .. }) | None => {
@@ -2067,19 +2192,40 @@ pub(crate) fn settle_signing_worker_yao_recovery_promotion_v1(
     current: Option<SigningWorkerYaoDurableStateV1>,
     request: &CloudflareEd25519YaoRecoveryPromotionRequestV1,
 ) -> RouterAbProtocolResult<SigningWorkerYaoRecoveryPromotionV1> {
-    match current {
+    let held = match &current {
         Some(SigningWorkerYaoDurableStateV1::Active {
             material, receipt, ..
         }) if material.binding().operation == Ed25519YaoOperationV1::Recovery => {
-            validate_promotion_request(request, material.binding(), &receipt)?;
-            Ok(SigningWorkerYaoRecoveryPromotionV1::Repeat { material, receipt })
+            Ed25519YaoRecoveryPromotionHeldV1::Promoted {
+                matches: validate_promotion_request(request, material.binding(), receipt),
+            }
         }
-        Some(SigningWorkerYaoDurableStateV1::RecoveryStaged {
-            active_material,
-            staged,
-            ..
-        }) => {
-            validate_promotion_request(request, staged.candidate.binding(), &staged.receipt)?;
+        Some(SigningWorkerYaoDurableStateV1::RecoveryStaged { staged, .. }) => {
+            Ed25519YaoRecoveryPromotionHeldV1::Staged {
+                matches: validate_promotion_request(
+                    request,
+                    staged.candidate.binding(),
+                    &staged.receipt,
+                ),
+            }
+        }
+        _ => Ed25519YaoRecoveryPromotionHeldV1::Nothing,
+    };
+    match (decide_ed25519_yao_recovery_promotion_v1(held)?, current) {
+        (
+            Ed25519YaoRecoveryPromotionDecisionV1::Repeat,
+            Some(SigningWorkerYaoDurableStateV1::Active {
+                material, receipt, ..
+            }),
+        ) => Ok(SigningWorkerYaoRecoveryPromotionV1::Repeat { material, receipt }),
+        (
+            Ed25519YaoRecoveryPromotionDecisionV1::Promote,
+            Some(SigningWorkerYaoDurableStateV1::RecoveryStaged {
+                active_material,
+                staged,
+                ..
+            }),
+        ) => {
             let active = SigningWorkerYaoDurableStateV1::Active {
                 deriver_a: staged.deriver_a,
                 deriver_b: staged.deriver_b,
@@ -2092,9 +2238,7 @@ pub(crate) fn settle_signing_worker_yao_recovery_promotion_v1(
                 retired: active_material,
             })
         }
-        _ => Err(invalid_lifecycle(
-            "recovery promotion requires an exact staged candidate",
-        )),
+        _ => unreachable!("the promotion decision follows the state it was made on"),
     }
 }
 

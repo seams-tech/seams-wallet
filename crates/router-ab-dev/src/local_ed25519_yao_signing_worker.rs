@@ -4,6 +4,7 @@ use std::{
 };
 
 use router_ab_cloudflare::{
+    decide_ed25519_yao_recovery_delivery_v1, decide_ed25519_yao_recovery_promotion_v1,
     public_activation_receipt_v1, reservation_record_key_from_binding_v1,
     reservation_record_key_from_material_activation_v1, settle_linked_ed25519_activation_v1,
     settle_linked_ed25519_deactivation_v1, settle_linked_ed25519_reservation_v1,
@@ -12,8 +13,11 @@ use router_ab_cloudflare::{
     CloudflareEd25519YaoInactiveReservationResponseV1,
     CloudflareEd25519YaoReservationActivationResponseV1,
     CloudflareEd25519YaoReservationDeactivationResponseV1,
-    CloudflareEd25519YaoSourcePreservingInactiveReservationRequestV1, LinkedEd25519ActivationV1,
-    LinkedEd25519DeactivationV1, LinkedEd25519ReservationV1, SigningWorkerYaoReservationStateV1,
+    CloudflareEd25519YaoSourcePreservingInactiveReservationRequestV1,
+    Ed25519YaoRecoveryDeliveryDecisionV1, Ed25519YaoRecoveryHeldV1,
+    Ed25519YaoRecoveryPromotionDecisionV1, Ed25519YaoRecoveryPromotionHeldV1,
+    LinkedEd25519ActivationV1, LinkedEd25519DeactivationV1, LinkedEd25519ReservationV1,
+    SigningWorkerYaoReservationStateV1,
 };
 use router_ab_cloudflare::{
     CloudflareSecretMaterial32V1, CloudflareServerOutputMaterialRecordV1,
@@ -1146,77 +1150,59 @@ impl LocalEd25519YaoSigningIdentityStateV1 {
         self.commit_activation_candidate(activated, recovery_attempt)
     }
 
-    /// A recovery delivery from the Gateway's attempt `attempt`, against the
-    /// recovery staged or promoted here, as the Workers SigningWorker settles
-    /// it. The same deliveries answer again. A staged recovery holds its
-    /// highest attempt: a lower one is superseded and refused, and a higher
-    /// one goes on to stage in its place. Another attempt of a promoted
-    /// recovery is stale, and anything else is refused while a recovery is
-    /// pending.
+    /// A recovery delivery from the Gateway's attempt `attempt`, settled
+    /// against the recovery staged or promoted here by the decision every
+    /// SigningWorker shares. `None` stages the attempt.
     fn settle_recovery_delivery(
         &mut self,
         deriver_a: &PendingDelivery,
         deriver_b: &PendingDelivery,
         attempt: Ed25519YaoRecoveryAttemptV1,
     ) -> RouterAbProtocolResult<Option<LocalEd25519YaoSigningWorkerActivationReceiptV1>> {
-        let lifecycle_id = &deriver_a.binding.lifecycle.lifecycle_id;
-        match &self.recovery_promotion {
+        let (held, answer) = match &self.recovery_promotion {
             Some(RecoveryPromotionState::Staged {
                 attempt: staged_attempt,
                 candidate,
-            }) => {
-                if candidate.deriver_a.binding.lifecycle.lifecycle_id != *lifecycle_id {
-                    return Err(invalid_activation(
-                        "SigningWorker recovery promotion is pending",
-                    ));
-                }
-                let same_session =
-                    candidate.deriver_a.binding.session_id == deriver_a.binding.session_id;
-                match attempt.cmp(staged_attempt) {
-                    core::cmp::Ordering::Less => Err(RouterAbProtocolError::new(
-                        RouterAbProtocolErrorCode::SupersededAttempt,
-                        "SigningWorker recovery attempt was superseded by a later attempt",
-                    )),
-                    core::cmp::Ordering::Equal => {
-                        if same_session
-                            && candidate.deriver_a == *deriver_a
-                            && candidate.deriver_b == *deriver_b
-                        {
-                            return Ok(Some(
-                                LocalEd25519YaoSigningWorkerActivationReceiptV1::Staged {
-                                    promotion: candidate.promotion.clone(),
-                                },
-                            ));
-                        }
-                        Err(invalid_activation(
-                            "SigningWorker recovery attempt delivered different packages",
-                        ))
-                    }
-                    core::cmp::Ordering::Greater if same_session => Err(invalid_activation(
-                        "SigningWorker recovery session was delivered under another attempt",
-                    )),
-                    core::cmp::Ordering::Greater => Ok(None),
-                }
-            }
+            }) => (
+                Ed25519YaoRecoveryHeldV1::Staged {
+                    lifecycle_id: candidate.deriver_a.binding.lifecycle.lifecycle_id.as_str(),
+                    session_id: candidate.deriver_a.binding.session_id,
+                    attempt: *staged_attempt,
+                    same_deliveries: candidate.deriver_a == *deriver_a
+                        && candidate.deriver_b == *deriver_b,
+                },
+                Some(&candidate.promotion),
+            ),
             Some(RecoveryPromotionState::Promoted {
                 promotion,
                 deriver_a: promoted_a,
                 deriver_b: promoted_b,
-            }) => {
-                if promoted_a == deriver_a && promoted_b == deriver_b {
-                    return Ok(Some(LocalEd25519YaoSigningWorkerActivationReceiptV1::Staged {
+            }) => (
+                Ed25519YaoRecoveryHeldV1::Promoted {
+                    lifecycle_id: promoted_a.binding.lifecycle.lifecycle_id.as_str(),
+                    same_deliveries: promoted_a == deriver_a && promoted_b == deriver_b,
+                },
+                Some(promotion),
+            ),
+            None => (Ed25519YaoRecoveryHeldV1::Idle, None),
+        };
+        match decide_ed25519_yao_recovery_delivery_v1(
+            held,
+            deriver_a.binding.lifecycle.lifecycle_id.as_str(),
+            deriver_a.binding.session_id,
+            attempt,
+        )? {
+            Ed25519YaoRecoveryDeliveryDecisionV1::AnswerHeld => {
+                let promotion = answer.ok_or_else(|| {
+                    invalid_activation("SigningWorker holds no recovery to answer")
+                })?;
+                Ok(Some(
+                    LocalEd25519YaoSigningWorkerActivationReceiptV1::Staged {
                         promotion: promotion.clone(),
-                    }));
-                }
-                if promoted_a.binding.lifecycle.lifecycle_id == *lifecycle_id {
-                    return Err(RouterAbProtocolError::new(
-                        RouterAbProtocolErrorCode::SupersededAttempt,
-                        "SigningWorker recovery was already promoted by another attempt",
-                    ));
-                }
-                Ok(None)
+                    },
+                ))
             }
-            None => Ok(None),
+            Ed25519YaoRecoveryDeliveryDecisionV1::Stage => Ok(None),
         }
     }
 
@@ -1225,28 +1211,24 @@ impl LocalEd25519YaoSigningIdentityStateV1 {
         request: LocalEd25519YaoSigningWorkerRecoveryPromotionRequestV1,
     ) -> RouterAbProtocolResult<LocalEd25519YaoSigningWorkerActivationReceiptV1> {
         validate_recovery_promotion_request(&request)?;
-        match self.recovery_promotion.as_ref() {
-            None => {
-                return Err(invalid_activation(
-                    "SigningWorker has no staged recovery candidate",
-                ))
-            }
+        let held = match self.recovery_promotion.as_ref() {
+            None => Ed25519YaoRecoveryPromotionHeldV1::Nothing,
             Some(RecoveryPromotionState::Promoted { promotion, .. }) => {
-                if promotion != &request {
-                    return Err(invalid_activation(
-                        "recovery promotion does not match the staged candidate",
-                    ));
+                Ed25519YaoRecoveryPromotionHeldV1::Promoted {
+                    matches: exact_recovery_promotion(promotion, &request),
                 }
-                return Ok(active_activation_receipt(&request));
             }
             Some(RecoveryPromotionState::Staged { candidate, .. }) => {
-                if candidate.promotion != request {
-                    return Err(invalid_activation(
-                        "recovery promotion does not match the staged candidate",
-                    ));
+                Ed25519YaoRecoveryPromotionHeldV1::Staged {
+                    matches: exact_recovery_promotion(&candidate.promotion, &request)
+                        .and_then(|()| self.validate_recovery_candidate(&candidate.next_active)),
                 }
-                self.validate_recovery_candidate(&candidate.next_active)?;
             }
+        };
+        if decide_ed25519_yao_recovery_promotion_v1(held)?
+            == Ed25519YaoRecoveryPromotionDecisionV1::Repeat
+        {
+            return Ok(active_activation_receipt(&request));
         }
         let Some(RecoveryPromotionState::Staged { candidate, .. }) = self.recovery_promotion.take()
         else {
@@ -1558,6 +1540,18 @@ impl LocalEd25519YaoSigningIdentityStateV1 {
         }
         Ok(())
     }
+}
+
+fn exact_recovery_promotion(
+    held: &LocalEd25519YaoSigningWorkerRecoveryPromotionRequestV1,
+    request: &LocalEd25519YaoSigningWorkerRecoveryPromotionRequestV1,
+) -> RouterAbProtocolResult<()> {
+    if held != request {
+        return Err(invalid_activation(
+            "recovery promotion does not match the staged candidate",
+        ));
+    }
+    Ok(())
 }
 
 fn same_signing_identity(

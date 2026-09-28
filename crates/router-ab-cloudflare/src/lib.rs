@@ -36,7 +36,8 @@ pub use ed25519_yao_lifecycle::*;
 #[cfg_attr(not(feature = "workers-rs"), allow(dead_code, unused_imports))]
 mod ed25519_yao_signing_worker;
 pub use ed25519_yao_signing_worker::{
-    build_output_activation_record_at_v1, public_activation_receipt_v1,
+    build_output_activation_record_at_v1, decide_ed25519_yao_recovery_delivery_v1,
+    decide_ed25519_yao_recovery_promotion_v1, public_activation_receipt_v1,
     reservation_record_key_from_binding_v1, reservation_record_key_from_material_activation_v1,
     settle_linked_ed25519_activation_v1, settle_linked_ed25519_deactivation_v1,
     settle_linked_ed25519_reservation_v1, source_preserving_reservation_id_v1,
@@ -51,8 +52,10 @@ pub use ed25519_yao_signing_worker::{
     CloudflareEd25519YaoReservationDeactivationResponseV1,
     CloudflareEd25519YaoSourcePreservingInactiveReservationRequestV1,
     CloudflareScopedEd25519YaoPackagePairDeliveryV1,
-    CloudflareScopedEd25519YaoRecoveryPromotionRequestV1, LinkedEd25519ActivationV1,
-    LinkedEd25519DeactivationV1, LinkedEd25519ReservationV1, SigningWorkerYaoReservationStateV1,
+    CloudflareScopedEd25519YaoRecoveryPromotionRequestV1, Ed25519YaoRecoveryDeliveryDecisionV1,
+    Ed25519YaoRecoveryHeldV1, Ed25519YaoRecoveryPromotionDecisionV1,
+    Ed25519YaoRecoveryPromotionHeldV1, LinkedEd25519ActivationV1, LinkedEd25519DeactivationV1,
+    LinkedEd25519ReservationV1, SigningWorkerYaoReservationStateV1,
     CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_ACTIVATE_RESERVATION_PATH,
     CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_DEACTIVATE_RESERVATION_PATH,
     CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_INITIAL_REGISTRATION_FINALIZATION_LOOKUP_PATH,
