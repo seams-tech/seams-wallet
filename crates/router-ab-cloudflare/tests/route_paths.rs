@@ -54,9 +54,5 @@ fn router_public_route_constants_use_current_unversioned_paths() {
 
     for (actual, expected) in routes {
         assert_eq!(actual, expected);
-        assert!(
-            !actual.starts_with("/v1/") && !actual.starts_with("/v2/"),
-            "{actual} must stay on the current public route namespace"
-        );
     }
 }

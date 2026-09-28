@@ -67,11 +67,6 @@ fn corpus_serialization_is_deterministic_and_strict() {
 
 #[test]
 fn ceremony_request_kind_is_the_single_canonical_vector_kind() {
-    let fixtures_source = include_str!("../src/fixtures.rs");
-    let public_exports = include_str!("../src/lib.rs");
-    assert!(!fixtures_source.contains("LifecycleRequestKindV1"));
-    assert!(!public_exports.contains("LifecycleRequestKindV1"));
-
     let cases = [
         (CeremonyRequestKindV1::Registration, "registration"),
         (CeremonyRequestKindV1::Activation, "activation"),

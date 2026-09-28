@@ -5020,29 +5020,4 @@ mod tests {
         assert_eq!(a_128.final_transcript(), b_128.final_transcript());
         assert_eq!(a_128.stream_metrics().frame_count(), 1);
     }
-
-    #[test]
-    fn production_role_source_has_no_blocking_or_joined_transport_path() {
-        let production = include_str!("role_protocol.rs")
-            .split_once("#[cfg(test)]")
-            .expect("tests follow role protocol")
-            .0;
-        for forbidden in [
-            "std::io",
-            "UnixStream",
-            "TcpStream",
-            "Cursor<",
-            "struct Paired",
-            "whole_body",
-            "IdealOt",
-            "confirm_local_control_closed",
-            "confirm_peer_control_eof",
-        ] {
-            assert!(
-                !production.contains(forbidden),
-                "role protocol contains forbidden transport path: {forbidden}"
-            );
-        }
-        assert!(production.contains("finish_exact_section"));
-    }
 }

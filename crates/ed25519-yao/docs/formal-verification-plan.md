@@ -722,7 +722,7 @@ Depends on: Yao Phase 0; runs alongside Yao Phase 1
       `split_y_carry_and_wrap_reconstruct_exact_export_seed`,
       `seed_shares_match_independent_zero_one_and_max_arithmetic`,
       `reconstructed_rfc8032_seed_signs_and_verifies_with_registered_key`, and
-      `source_and_ui_guards_keep_export_synthetic_seed_scoped_and_nonproduction`.
+      `compile_guards_keep_export_seed_scoped_and_private`.
 - [x] Implement `YAO-EXP-002` and freeze
       `export-evaluator-authorization-v1.md`: require distinct trusted A/B
       Ed25519 authorities, independently verify both exact 24-field role
