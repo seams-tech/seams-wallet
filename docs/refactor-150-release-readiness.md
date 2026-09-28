@@ -1,4 +1,4 @@
-# R150 release readiness (2026-09-28)
+# R150 release readiness (2026-09-29)
 
 Status: not ready for release. The work is on branch `codex/r150-do-backend`,
 which is not merged to `dev`, and nothing is deployed. This record gathers what
@@ -45,6 +45,27 @@ records each slice, its evidence and what it left open.
     reserves the new device's material from the linked device's share, and
     the Gateway follows the links back to the registration signer. The
     contract passes on all three hosts (2026-09-28).
+14. A linked device links another on a wallet with an Ed25519 signer
+    (b4f4253). At an unlock the linked device opens its own Client-root
+    envelope into a separate linking capability. That capability only seals
+    the export root to a transfer for the same wallet, key, application
+    binding and registered key. It cannot reseal a seed or a factor, and a
+    root received by transfer still cannot be forwarded. Device 3 receives
+    the export root and signs NEAR and Tempo with the wallet's keys. All
+    three linking contracts pass on all three hosts (2026-09-28).
+15. An auth-method revocation's answer is recorded in the batch that revokes
+    the method (274faf2). The record is bound to the operation fingerprint
+    and a digest of the proof, and keeps no code. An exact retry is answered
+    from it before its proof is examined again. An Email OTP code is spent
+    in that same batch, not when it is checked, so a failed commit leaves it
+    usable. The SDK retries a lost revoke answer once. On SQLite with the
+    whole signer chain, a scratch check confirmed:
+    - the spend and the record commit together;
+    - a duplicate record, a spent code or an expired code aborts the batch.
+
+    The Email OTP add-passkey contract now refuses the first commit and
+    requires both the retry and a replay to succeed. It has not run: it
+    needs a Google ID token.
 
 The lifecycle-keyed ceremony records stay in Gateway D1. That is the final
 boundary.
@@ -99,9 +120,11 @@ on each host.
     the step-up began (0.4 s in the failing run). On the VM the custody join takes 1.7 s, and
     provisioning is ready before the step-up begins.
   - Candidate, not established: provisioning's session install or signer
-    activation replaces state between the step-up's reads. Making the three
-    checks report distinct reasons would let the next failing trace name the
-    check.
+    activation replaces state between the step-up's reads.
+  - Since 2efb60a each of the three checks names its reason in the refusal,
+    so the next failing trace will say which state was missing or changed.
+    This diagnoses the failure; it does not resolve it. The contract passes on
+    the VM with the change.
 
 Each run's persisted traces are kept with the run, outside the repository.
 
@@ -177,12 +200,16 @@ their repair.
   extended contracts need the Email OTP run below. Device linking passes on
   every host, in the consolidated run too.
 - An Email OTP run with a Google ID token.
-- Linking from a linked device on a wallet with an Ed25519 signer. The
-  linked device's unlock never opens the Ed25519 export root that approving
-  needs, so this is an SDK custody decision.
-- A retry of an Email-OTP-proven revocation after its answer is lost. The
-  challenge is single-use, so the retry is refused before the Gateway finds
-  the method already revoked. This is unfinished, not accepted behavior.
+- The Email OTP run above must include the revocation's refused commit,
+  its retry on the same code and the replay (item 15). They are implemented
+  but have not run.
+- A linked-device revocation proven by Email OTP still spends its code when
+  the code is checked. A failed commit there needs a new code. Only the
+  auth-method revocation defers the spend.
+- `registration_ceremony_cas_guard` has no seeded row in the d1-signer chain.
+  The first guard that fires on a fresh database inserts the row and commits
+  instead of aborting. Registration ceremony records and the Email OTP
+  registration receipt use this guard. The fix is one seeding migration.
 - The review items the cross-owner plan leaves open. Explicit recovery
   abandonment stays deferred.
 - The new-wallet cohort, and the Phase 3 clean reset, as separately

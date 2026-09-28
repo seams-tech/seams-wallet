@@ -672,12 +672,28 @@ wallet-object build and Workers D1. What it took:
 - The Gateway finds a device's custody signer by following its links back to
   the registration signer.
 
-Not supported: linking from a linked device on a wallet with an Ed25519
-signer. Approving that link needs the unlocked Ed25519 export-root
-capability. A linked device's unlock never opens it: the device's export
-root is sealed in a client-root envelope, and only a wallet-custody-seed
-envelope establishes the capability. The approval stops with
-`wallet_unlock_required`. Changing this is an SDK custody decision.
+A linked device also links another on a wallet with an Ed25519 signer
+(b4f4253, 2026-09-28). Approving that link needs the unlocked Ed25519
+export root, and a linked device holds its root in a client-root envelope,
+not a wallet custody seed:
+- At an unlock the linked device opens its own verified client-root envelope,
+  with the factor that unlock presented, into a separate linking capability.
+  It shares the seed capability's expiry and its cleanup at lock and session
+  end.
+- The capability seals the root only to a transfer naming the same wallet,
+  wallet key, application binding and registered key. The transfer's link
+  session and recipient are authenticated as before, and the root never
+  leaves WASM.
+- It cannot reseal a wallet seed or a factor. A root received by transfer
+  still cannot be forwarded, and auth-method addition reads only the seed
+  capability.
+- The Gateway names the linked device's own Ed25519 binding as the source,
+  as it does for ECDSA.
+
+The contract links Device 2, unlocks it and has it link Device 3. Device 3
+receives the export root and signs NEAR and Tempo with the wallet's keys. It
+passes on the VM, the wallet-object build and Workers D1, as do the other two
+linking contracts.
 
 **Auth-method addition and revocation — integration and demonstrated fixes**
 
@@ -714,10 +730,25 @@ them.
 - Unverified: every addition crosses families, so each contract uses Email
   OTP and needs a Google ID token this environment does not have. Only
   type-checking has run.
-- Unfinished: an Email-OTP-proven revocation cannot be retried exactly. Its
-  challenge is single-use, so a retry after a lost answer is refused before
-  the Gateway finds the method already revoked. A passkey-proven one can be
-  retried.
+- An exact retry of a revocation receives the answer that committed
+  (274faf2, 2026-09-29):
+  - The revocation, the spend of an Email OTP code and the answer commit in
+    one batch.
+  - The answer is recorded against the operation fingerprint and a digest of
+    the proof, never the proof or its code.
+  - The Gateway answers an exact retry from that record before examining its
+    proof again. A spent code still receives the answer it earned.
+  - The code is not spent when it is checked, so a commit that fails leaves
+    it usable for the same request.
+  - The SDK retries a lost revoke answer once with the same body.
+- The Email OTP add-passkey contract refuses the first commit of its
+  Email-OTP-proven revocation, through a local Gateway fault, and loses that
+  answer. The SDK's retry must commit on the same code, and a replay must
+  receive exactly the committed answer. A scratch check on SQLite, with the
+  whole signer chain, confirmed the batch's aborts. The contract has not run
+  without a Google ID token.
+- A linked-device revocation proven by Email OTP still spends its code when
+  it is checked.
 
 For each flow, run the representative scenario through the real Gateway on
 the actual Cloudflare wallet-object build and on the VM. A Workers D1-only
