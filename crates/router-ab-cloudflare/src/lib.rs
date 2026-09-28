@@ -31,17 +31,15 @@ pub use ed25519_yao_websocket::*;
 mod ed25519_yao_lifecycle;
 #[cfg(feature = "workers-rs")]
 pub use ed25519_yao_lifecycle::*;
-#[cfg(feature = "workers-rs")]
+// A linked device's Ed25519 reservation lifecycle is shared by every host;
+// its D1 store and Worker routes are Cloudflare-only.
+#[cfg_attr(not(feature = "workers-rs"), allow(dead_code, unused_imports))]
 mod ed25519_yao_signing_worker;
-#[cfg(feature = "workers-rs")]
 pub use ed25519_yao_signing_worker::{
-    handle_cloudflare_signing_worker_ed25519_yao_activate_reservation_v1,
-    handle_cloudflare_signing_worker_ed25519_yao_deactivate_reservation_v1,
-    handle_cloudflare_signing_worker_ed25519_yao_initial_registration_finalization_lookup_v1,
-    handle_cloudflare_signing_worker_ed25519_yao_packages_v1,
-    handle_cloudflare_signing_worker_ed25519_yao_recovery_promote_v1,
-    handle_cloudflare_signing_worker_ed25519_yao_reserve_inactive_source_preserving_v1,
-    handle_cloudflare_signing_worker_ed25519_yao_reserve_inactive_v1,
+    build_output_activation_record_at_v1, public_activation_receipt_v1,
+    reservation_record_key_from_binding_v1, reservation_record_key_from_material_activation_v1,
+    settle_linked_ed25519_activation_v1, settle_linked_ed25519_deactivation_v1,
+    settle_linked_ed25519_reservation_v1, source_preserving_reservation_id_v1,
     CloudflareEd25519YaoActivateReservationRequestV1,
     CloudflareEd25519YaoDeactivateReservationRequestV1,
     CloudflareEd25519YaoInactiveReservationRequestV1,
@@ -53,7 +51,8 @@ pub use ed25519_yao_signing_worker::{
     CloudflareEd25519YaoReservationDeactivationResponseV1,
     CloudflareEd25519YaoSourcePreservingInactiveReservationRequestV1,
     CloudflareScopedEd25519YaoPackagePairDeliveryV1,
-    CloudflareScopedEd25519YaoRecoveryPromotionRequestV1,
+    CloudflareScopedEd25519YaoRecoveryPromotionRequestV1, LinkedEd25519ActivationV1,
+    LinkedEd25519DeactivationV1, LinkedEd25519ReservationV1, SigningWorkerYaoReservationStateV1,
     CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_ACTIVATE_RESERVATION_PATH,
     CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_DEACTIVATE_RESERVATION_PATH,
     CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_INITIAL_REGISTRATION_FINALIZATION_LOOKUP_PATH,
@@ -61,6 +60,16 @@ pub use ed25519_yao_signing_worker::{
     CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_RECOVERY_PROMOTE_PATH,
     CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_RESERVE_INACTIVE_PATH,
     CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_RESERVE_INACTIVE_SOURCE_PRESERVING_PATH,
+};
+#[cfg(feature = "workers-rs")]
+pub use ed25519_yao_signing_worker::{
+    handle_cloudflare_signing_worker_ed25519_yao_activate_reservation_v1,
+    handle_cloudflare_signing_worker_ed25519_yao_deactivate_reservation_v1,
+    handle_cloudflare_signing_worker_ed25519_yao_initial_registration_finalization_lookup_v1,
+    handle_cloudflare_signing_worker_ed25519_yao_packages_v1,
+    handle_cloudflare_signing_worker_ed25519_yao_recovery_promote_v1,
+    handle_cloudflare_signing_worker_ed25519_yao_reserve_inactive_source_preserving_v1,
+    handle_cloudflare_signing_worker_ed25519_yao_reserve_inactive_v1,
 };
 // A linked device's ECDSA reservation lifecycle is shared by every host;
 // its D1 store and Worker routes are Cloudflare-only.
@@ -325,12 +334,11 @@ mod router_coordinator;
 #[cfg(feature = "workers-rs")]
 pub use router_coordinator::{
     handle_cloudflare_router_ed25519_yao_execute_private_fetch_v1,
-    handle_cloudflare_router_ed25519_yao_registration_consume_private_fetch_v1,
     handle_cloudflare_router_ed25519_yao_lane_execute_private_fetch_v1,
     handle_cloudflare_router_ed25519_yao_recovery_promote_private_fetch_v1,
+    handle_cloudflare_router_ed25519_yao_registration_consume_private_fetch_v1,
     handle_cloudflare_router_ed25519_yao_source_preserving_execute_private_fetch_v1,
     CloudflareRouterEd25519YaoLaneExecuteRequestV2,
-    CloudflareRouterEd25519YaoSourcePreservingExecuteRequestV1,
 };
 mod signing_worker;
 pub use signing_worker::*;

@@ -1,4 +1,9 @@
 use router_ab_cloudflare::{
+    CloudflareEd25519YaoInactiveReservationResponseV1, CloudflareEd25519YaoPackagePairDeliveryV1,
+    CloudflareEd25519YaoSourcePreservingInactiveReservationRequestV1,
+    CloudflareRouterEd25519YaoSourcePreservingExecuteRequestV1,
+};
+use router_ab_cloudflare::{
     CloudflareEd25519YaoPairExecuteRequestV1, CloudflareEd25519YaoPairExecuteResponseV1,
     CloudflareEd25519YaoPairLookupRequestV1, CloudflareEd25519YaoPairPrepareRequestV1,
     CloudflareEd25519YaoPairStatusResponseV1, CloudflareRouterEd25519YaoExecuteRequestV2,
@@ -180,6 +185,41 @@ impl LocalRouterEd25519YaoCoordinatorV1 {
                 return Ok(replayed);
             }
         }
+        let (execution_a, completed) = match self.run_pair(config, &request, true)? {
+            LocalPairRunV1::Executed(execution_a, completed) => (execution_a, completed),
+            LocalPairRunV1::Ended(result) => return Ok(result),
+        };
+        match self.finalize(config, &request, execution_a, completed) {
+            Ok(result) => Ok(result),
+            // A later attempt took this one's place at the SigningWorker: this
+            // attempt ends, terminally, as on Workers.
+            Err(error) if error.code() == RouterAbProtocolErrorCode::SupersededAttempt => {
+                Ok(RouterEd25519YaoExecuteResultV1::rejected(
+                    RouterEd25519YaoExecuteFailureCodeV1::AttemptSuperseded,
+                ))
+            }
+            Err(_) => {
+                if let Some(replayed) = self.reconcile_completed_registration(config, &request)? {
+                    return Ok(replayed);
+                }
+                self.burn_pair(config, &request.pair_binding);
+                Ok(RouterEd25519YaoExecuteResultV1::burned(
+                    execution_id_for_pair(&request.pair_binding)?,
+                    router_ab_core::RouterEd25519YaoBurnReasonV1::ProtocolFailure,
+                ))
+            }
+        }
+    }
+
+    /// Prepares and executes one admitted pair and validates both roles'
+    /// executions. A pair that fails is burned, unless `reconcile` lets a
+    /// prior run's completed answer end the run instead.
+    fn run_pair(
+        &self,
+        config: &LocalRouterWorkerConfigV1,
+        request: &super::LocalRouterEd25519YaoPairDispatchV1,
+        reconcile: bool,
+    ) -> RouterAbProtocolResult<LocalPairRunV1> {
         let pair = request.pair_binding.clone();
         let prepare_a = CloudflareEd25519YaoPairPrepareRequestV1 {
             pair_binding: pair.clone(),
@@ -196,14 +236,15 @@ impl LocalRouterEd25519YaoCoordinatorV1 {
         let (receipt_a, receipt_b) = match self.prepare_pair(config, prepare_a, prepare_b) {
             Ok(receipts) => receipts,
             Err(_) => {
-                if let Some(replayed) = self.reconcile_completed_registration(config, &request)? {
-                    return Ok(replayed);
+                if let Some(replayed) = self.reconcile_prior_run(config, request, reconcile)? {
+                    return Ok(LocalPairRunV1::Ended(replayed));
                 }
                 self.burn_pair(config, &pair);
                 return RouterEd25519YaoExecuteResultV1::recoverable(
                     RouterEd25519YaoExecuteFailureCodeV1::ServiceUnavailable,
                     1_000,
-                );
+                )
+                .map(LocalPairRunV1::Ended);
             }
         };
         let readiness_now_ms = local_now_ms_v1()?;
@@ -225,9 +266,11 @@ impl LocalRouterEd25519YaoCoordinatorV1 {
             .is_err()
         {
             self.burn_pair(config, &pair);
-            return Ok(RouterEd25519YaoExecuteResultV1::burned(
-                execution_id_for_pair(&pair)?,
-                router_ab_core::RouterEd25519YaoBurnReasonV1::ProtocolFailure,
+            return Ok(LocalPairRunV1::Ended(
+                RouterEd25519YaoExecuteResultV1::burned(
+                    execution_id_for_pair(&pair)?,
+                    router_ab_core::RouterEd25519YaoBurnReasonV1::ProtocolFailure,
+                ),
             ));
         }
         let execution = match self
@@ -248,13 +291,15 @@ impl LocalRouterEd25519YaoCoordinatorV1 {
             ) {
             Ok(execution) => execution,
             Err(_) => {
-                if let Some(replayed) = self.reconcile_completed_registration(config, &request)? {
-                    return Ok(replayed);
+                if let Some(replayed) = self.reconcile_prior_run(config, request, reconcile)? {
+                    return Ok(LocalPairRunV1::Ended(replayed));
                 }
                 self.burn_pair(config, &pair);
-                return Ok(RouterEd25519YaoExecuteResultV1::burned(
-                    execution_id_for_pair(&pair)?,
-                    router_ab_core::RouterEd25519YaoBurnReasonV1::PeerUncertain,
+                return Ok(LocalPairRunV1::Ended(
+                    RouterEd25519YaoExecuteResultV1::burned(
+                        execution_id_for_pair(&pair)?,
+                        router_ab_core::RouterEd25519YaoBurnReasonV1::PeerUncertain,
+                    ),
                 ));
             }
         };
@@ -267,9 +312,11 @@ impl LocalRouterEd25519YaoCoordinatorV1 {
         .is_err()
         {
             self.burn_pair(config, &pair);
-            return Ok(RouterEd25519YaoExecuteResultV1::burned(
-                execution_id_for_pair(&pair)?,
-                router_ab_core::RouterEd25519YaoBurnReasonV1::ProtocolFailure,
+            return Ok(LocalPairRunV1::Ended(
+                RouterEd25519YaoExecuteResultV1::burned(
+                    execution_id_for_pair(&pair)?,
+                    router_ab_core::RouterEd25519YaoBurnReasonV1::ProtocolFailure,
+                ),
             ));
         }
         let completed = match serde_json::from_str::<Ed25519YaoRoleExecutionV1>(
@@ -278,9 +325,11 @@ impl LocalRouterEd25519YaoCoordinatorV1 {
             Ok(execution) => execution,
             Err(_) => {
                 self.burn_pair(config, &pair);
-                return Ok(RouterEd25519YaoExecuteResultV1::burned(
-                    execution_id_for_pair(&pair)?,
-                    router_ab_core::RouterEd25519YaoBurnReasonV1::ProtocolFailure,
+                return Ok(LocalPairRunV1::Ended(
+                    RouterEd25519YaoExecuteResultV1::burned(
+                        execution_id_for_pair(&pair)?,
+                        router_ab_core::RouterEd25519YaoBurnReasonV1::ProtocolFailure,
+                    ),
                 ));
             }
         };
@@ -295,31 +344,108 @@ impl LocalRouterEd25519YaoCoordinatorV1 {
         .is_err()
         {
             self.burn_pair(config, &pair);
-            return Ok(RouterEd25519YaoExecuteResultV1::burned(
-                execution_id_for_pair(&pair)?,
-                router_ab_core::RouterEd25519YaoBurnReasonV1::ProtocolFailure,
-            ));
-        }
-        match self.finalize(config, &request, execution.deriver_a_execution, completed) {
-            Ok(result) => Ok(result),
-            // A later attempt took this one's place at the SigningWorker: this
-            // attempt ends, terminally, as on Workers.
-            Err(error) if error.code() == RouterAbProtocolErrorCode::SupersededAttempt => {
-                Ok(RouterEd25519YaoExecuteResultV1::rejected(
-                    RouterEd25519YaoExecuteFailureCodeV1::AttemptSuperseded,
-                ))
-            }
-            Err(_) => {
-                if let Some(replayed) = self.reconcile_completed_registration(config, &request)? {
-                    return Ok(replayed);
-                }
-                self.burn_pair(config, &pair);
-                Ok(RouterEd25519YaoExecuteResultV1::burned(
+            return Ok(LocalPairRunV1::Ended(
+                RouterEd25519YaoExecuteResultV1::burned(
                     execution_id_for_pair(&pair)?,
                     router_ab_core::RouterEd25519YaoBurnReasonV1::ProtocolFailure,
+                ),
+            ));
+        }
+        Ok(LocalPairRunV1::Executed(
+            execution.deriver_a_execution,
+            completed,
+        ))
+    }
+
+    /// Runs a linked device's target registration and reserves its material
+    /// at the SigningWorker from the source it preserves, as the Workers
+    /// Router does. The run is not the wallet's registration: nothing records
+    /// it here, and nothing activates. A run that ends without executing its
+    /// pair answers an error, as there.
+    fn execute_source_preserving(
+        &self,
+        config: &LocalRouterWorkerConfigV1,
+        body: &[u8],
+    ) -> RouterAbProtocolResult<String> {
+        let source_request = serde_json::from_slice::<
+            CloudflareRouterEd25519YaoSourcePreservingExecuteRequestV1,
+        >(body)
+        .map_err(|error| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::MalformedWirePayload,
+                format!("local Router source-preserving Yao request is malformed: {error}"),
+            )
+        })?;
+        source_request.validate()?;
+        let participant_ids = source_request.target.participant_ids;
+        let target = serde_json::to_vec(&source_request.target).map_err(|error| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::MalformedWirePayload,
+                format!("local Router source-preserving target is invalid: {error}"),
+            )
+        })?;
+        let now_ms = local_now_ms_v1()?;
+        let request = decode_local_router_ed25519_yao_execute_request_v1(
+            &target,
+            local_recipient_set_digest_v1(config)?,
+            now_ms,
+            now_ms.saturating_add(ROUTER_AUTHORITY_TTL_MS),
+            &config.tenant_root,
+        )?;
+        request.authority.validate_at(now_ms)?;
+        // A linked target is not the wallet's registration: no prior
+        // registration run answers for it.
+        let (execution_a, execution_b) = match self.run_pair(config, &request, false)? {
+            LocalPairRunV1::Executed(execution_a, execution_b) => (execution_a, execution_b),
+            LocalPairRunV1::Ended(ended) => {
+                return Err(RouterAbProtocolError::new(
+                    RouterAbProtocolErrorCode::InvalidLifecycleState,
+                    format!(
+                        "source-preserving Router execution ended without executing its pair: {}",
+                        answer_json(&ended)?
+                    ),
                 ))
             }
-        }
+        };
+        let a = router_ab_cloudflare::ed25519_yao_activation_role_execution_v1(&execution_a)?;
+        let b = router_ab_cloudflare::ed25519_yao_activation_role_execution_v1(&execution_b)?;
+        let reservation = self
+            .client
+            .post_json_authenticated_v1::<_, CloudflareEd25519YaoInactiveReservationResponseV1>(
+                &config.signing_worker_url,
+                LocalServiceRoleV1::SigningWorker,
+                router_ab_cloudflare::CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_RESERVE_INACTIVE_SOURCE_PRESERVING_PATH,
+                &config.internal_service_auth,
+                &CloudflareEd25519YaoSourcePreservingInactiveReservationRequestV1 {
+                    // The wallet the admitted binding names, under the tenant
+                    // root this execution was admitted with.
+                    scope: router_ab_cloudflare::CloudflareSigningWorkerWalletScopeV1::from_tenant_root(
+                        &request.tenant_root.identity,
+                        &request.binding.lifecycle.account_id,
+                    )?,
+                    source_binding: source_request.source_binding,
+                    delivery: CloudflareEd25519YaoPackagePairDeliveryV1 {
+                        deriver_a: signing_worker_package_delivery(a),
+                        deriver_b: signing_worker_package_delivery(b),
+                    },
+                    participant_ids,
+                    deriver_a_client_package: a.client_package.clone(),
+                    deriver_b_client_package: b.client_package.clone(),
+                },
+            )?;
+        router_ab_cloudflare::validate_source_preserving_reservation_response_v1(
+            &reservation,
+            &request.binding,
+            participant_ids,
+            &a.client_package,
+            &b.client_package,
+        )?;
+        serde_json::to_string(&reservation).map_err(|error| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::MalformedWirePayload,
+                format!("local Router source-preserving answer is invalid: {error}"),
+            )
+        })
     }
 
     fn promote_recovery(
@@ -410,6 +536,18 @@ impl LocalRouterEd25519YaoCoordinatorV1 {
                 .map_err(|_| coordinator_error("Deriver B preparation thread panicked"))??;
             Ok((receipt_a, receipt_b))
         })
+    }
+
+    fn reconcile_prior_run(
+        &self,
+        config: &LocalRouterWorkerConfigV1,
+        request: &super::LocalRouterEd25519YaoPairDispatchV1,
+        reconcile: bool,
+    ) -> RouterAbProtocolResult<Option<RouterEd25519YaoExecuteResultV1>> {
+        if !reconcile {
+            return Ok(None);
+        }
+        self.reconcile_completed_registration(config, request)
     }
 
     fn reconcile_completed_registration(
@@ -802,6 +940,18 @@ impl LocalRouterRequestDispatcherV1 for LocalRouterEd25519YaoCoordinatorV1 {
                 )?)),
             };
         }
+        if request.path
+            == router_ab_cloudflare::CLOUDFLARE_ROUTER_ED25519_YAO_SOURCE_PRESERVING_EXECUTE_PRIVATE_REQUEST_PATH
+        {
+            return match self.execute_source_preserving(config, &request.body) {
+                Ok(body) => Ok(Some((200, body))),
+                Err(error) => Ok(Some(local_dev_http_route_error_v1(
+                    LocalServiceRoleV1::Router,
+                    &request.path,
+                    error,
+                )?)),
+            };
+        }
         if request.path != LOCAL_ROUTER_ED25519_YAO_EXECUTE_PATH {
             if request.path != LOCAL_ROUTER_ED25519_YAO_RECOVERY_PROMOTE_PATH {
                 return Ok(None);
@@ -884,6 +1034,27 @@ fn validate_recovery_promotion_receipt(
         ));
     }
     Ok(())
+}
+
+/// How one pair run ended before its result is finalized.
+enum LocalPairRunV1 {
+    /// Both roles executed, and their executions validated.
+    Executed(Ed25519YaoRoleExecutionV1, Ed25519YaoRoleExecutionV1),
+    /// The run ended with this answer: the pair burned, or a prior run's
+    /// completed answer.
+    Ended(RouterEd25519YaoExecuteResultV1),
+}
+
+/// One role's packages as the shared SigningWorker delivery carries them.
+fn signing_worker_package_delivery(
+    execution: &Ed25519YaoActivationRoleExecutionV1,
+) -> router_ab_ed25519_yao::Ed25519YaoSigningWorkerPackageDeliveryV1 {
+    router_ab_ed25519_yao::Ed25519YaoSigningWorkerPackageDeliveryV1 {
+        binding: execution.binding.clone(),
+        client_commitment: execution.client_commitment,
+        signing_worker_commitment: execution.signing_worker_commitment,
+        package: execution.signing_worker_package.clone(),
+    }
 }
 
 fn package_delivery(

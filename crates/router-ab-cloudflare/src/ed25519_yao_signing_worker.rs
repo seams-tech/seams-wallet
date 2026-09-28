@@ -13,8 +13,10 @@ use router_ab_ed25519_yao::{
 };
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+#[cfg(feature = "workers-rs")]
 use worker::{Env, Request, Response};
 
+#[cfg(feature = "workers-rs")]
 use crate::{
     cloudflare_now_unix_ms_v1, compare_and_set_cloudflare_signing_worker_private_d1_secret_v1,
     delete_cloudflare_signing_worker_output_activation_by_active_key_v1,
@@ -22,6 +24,8 @@ use crate::{
     load_cloudflare_signing_worker_private_d1_secret_v1,
     put_cloudflare_signing_worker_output_activation_record_v1,
     read_cloudflare_signing_worker_initial_registration_finalization_v1,
+};
+use crate::{
     CloudflareSecretMaterial32V1, CloudflareServerOutputMaterialRecordV1,
     CloudflareSigningWorkerOutputActivationRecordV1, CloudflareSigningWorkerRuntimeV1,
     CloudflareSigningWorkerWalletScopeV1,
@@ -259,7 +263,7 @@ pub struct CloudflareEd25519YaoSourcePreservingInactiveReservationRequestV1 {
 }
 
 impl CloudflareEd25519YaoSourcePreservingInactiveReservationRequestV1 {
-    pub(crate) fn validate(&self) -> RouterAbProtocolResult<()> {
+    pub fn validate(&self) -> RouterAbProtocolResult<()> {
         self.source_binding.validate()?;
         if self.source_binding.operation != Ed25519YaoOperationV1::Registration {
             return Err(invalid_lifecycle(
@@ -303,7 +307,7 @@ pub struct CloudflareEd25519YaoActivateReservationRequestV1 {
 }
 
 impl CloudflareEd25519YaoActivateReservationRequestV1 {
-    pub(crate) fn validate(&self) -> RouterAbProtocolResult<()> {
+    pub fn validate(&self) -> RouterAbProtocolResult<()> {
         self.binding.validate()?;
         if self.binding.operation != Ed25519YaoOperationV1::Registration {
             return Err(invalid_lifecycle(
@@ -330,7 +334,7 @@ pub struct CloudflareEd25519YaoDeactivateReservationRequestV1 {
 }
 
 impl CloudflareEd25519YaoDeactivateReservationRequestV1 {
-    pub(crate) fn validate(&self) -> RouterAbProtocolResult<()> {
+    pub fn validate(&self) -> RouterAbProtocolResult<()> {
         self.material_activation.validate()?;
         self.scope.validate()?;
         if self.scope.wallet_id != self.material_activation.material_owner {
@@ -494,7 +498,7 @@ enum SigningWorkerYaoCommandResponseV1 {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "state", rename_all = "snake_case", deny_unknown_fields)]
-pub(crate) enum SigningWorkerYaoReservationStateV1 {
+pub enum SigningWorkerYaoReservationStateV1 {
     Inactive {
         delivery: CloudflareEd25519YaoPackagePairDeliveryV1,
         participant_ids: [u16; 2],
@@ -535,7 +539,7 @@ pub(crate) enum SigningWorkerYaoReservationStateV1 {
 }
 
 impl SigningWorkerYaoReservationStateV1 {
-    pub(crate) fn validate(&self) -> RouterAbProtocolResult<()> {
+    pub fn validate(&self) -> RouterAbProtocolResult<()> {
         let (delivery, participant_ids, candidate, receipt, reservation_id) = match self {
             Self::Inactive {
                 delivery,
@@ -652,6 +656,7 @@ impl SigningWorkerYaoReservationStateV1 {
     }
 }
 
+#[cfg(feature = "workers-rs")]
 pub async fn handle_cloudflare_signing_worker_ed25519_yao_packages_v1(
     mut request: Request,
     env: &Env,
@@ -678,6 +683,7 @@ pub async fn handle_cloudflare_signing_worker_ed25519_yao_packages_v1(
     json_response(&http_response_from_command(response)?)
 }
 
+#[cfg(feature = "workers-rs")]
 pub async fn handle_cloudflare_signing_worker_ed25519_yao_initial_registration_finalization_lookup_v1(
     mut request: Request,
     env: &Env,
@@ -700,6 +706,7 @@ pub async fn handle_cloudflare_signing_worker_ed25519_yao_initial_registration_f
     json_response(&response)
 }
 
+#[cfg(feature = "workers-rs")]
 async fn read_initial_registration_finalization_v1(
     env: &Env,
     request: &CloudflareEd25519YaoInitialRegistrationFinalizationLookupRequestV1,
@@ -714,6 +721,7 @@ async fn read_initial_registration_finalization_v1(
     evaluate_initial_registration_finalization_v1(request, snapshot)
 }
 
+#[cfg(feature = "workers-rs")]
 pub(crate) fn evaluate_initial_registration_finalization_v1(
     request: &CloudflareEd25519YaoInitialRegistrationFinalizationLookupRequestV1,
     snapshot: crate::CloudflareSigningWorkerInitialRegistrationFinalizationSnapshotV1<
@@ -787,6 +795,7 @@ pub(crate) fn evaluate_initial_registration_finalization_v1(
     }
 }
 
+#[cfg(feature = "workers-rs")]
 pub async fn handle_cloudflare_signing_worker_ed25519_yao_recovery_promote_v1(
     mut request: Request,
     env: &Env,
@@ -812,6 +821,7 @@ pub async fn handle_cloudflare_signing_worker_ed25519_yao_recovery_promote_v1(
     json_response(&http_response_from_command(response)?)
 }
 
+#[cfg(feature = "workers-rs")]
 pub async fn handle_cloudflare_signing_worker_ed25519_yao_reserve_inactive_v1(
     mut request: Request,
     env: &Env,
@@ -836,6 +846,7 @@ pub async fn handle_cloudflare_signing_worker_ed25519_yao_reserve_inactive_v1(
     })
 }
 
+#[cfg(feature = "workers-rs")]
 pub async fn handle_cloudflare_signing_worker_ed25519_yao_reserve_inactive_source_preserving_v1(
     mut request: Request,
     env: &Env,
@@ -872,6 +883,7 @@ pub async fn handle_cloudflare_signing_worker_ed25519_yao_reserve_inactive_sourc
     })
 }
 
+#[cfg(feature = "workers-rs")]
 pub async fn handle_cloudflare_signing_worker_ed25519_yao_activate_reservation_v1(
     mut request: Request,
     env: &Env,
@@ -891,6 +903,7 @@ pub async fn handle_cloudflare_signing_worker_ed25519_yao_activate_reservation_v
     json_response(&CloudflareEd25519YaoReservationActivationResponseV1 { receipt })
 }
 
+#[cfg(feature = "workers-rs")]
 pub async fn handle_cloudflare_signing_worker_ed25519_yao_deactivate_reservation_v1(
     mut request: Request,
     env: &Env,
@@ -941,7 +954,7 @@ pub struct CloudflareEd25519YaoReservationDeactivationResponseV1 {
 /// A reservation of a device's Ed25519 material settled against what its
 /// record holds. Every SigningWorker store settles it this way, then writes
 /// what it decides.
-pub(crate) enum LinkedEd25519ReservationV1 {
+pub enum LinkedEd25519ReservationV1 {
     /// The same reservation again: the stored reservation answers.
     Answer(CloudflareEd25519YaoInactiveReservationResponseV1),
     /// Nothing is reserved here yet: the store combines the packages.
@@ -951,7 +964,7 @@ pub(crate) enum LinkedEd25519ReservationV1 {
 /// Settles one reservation of `reservation_id`. The same request answers
 /// from what is stored while the material is not yet active; an active or
 /// revoked reservation, or any other record, refuses it.
-pub(crate) fn settle_linked_ed25519_reservation_v1(
+pub fn settle_linked_ed25519_reservation_v1(
     current: Option<&SigningWorkerYaoReservationStateV1>,
     reservation_id: &str,
     delivery: &CloudflareEd25519YaoPackagePairDeliveryV1,
@@ -1037,7 +1050,7 @@ pub(crate) fn settle_linked_ed25519_reservation_v1(
 }
 
 /// An activation of reserved Ed25519 material settled against its record.
-pub(crate) enum LinkedEd25519ActivationV1 {
+pub enum LinkedEd25519ActivationV1 {
     /// Active already, for this request: its receipt answers.
     Answer(Ed25519YaoSigningWorkerActivationReceiptV1),
     /// Reserved and not yet active: the store activates it.
@@ -1046,7 +1059,7 @@ pub(crate) enum LinkedEd25519ActivationV1 {
 
 /// Settles one activation: only the exact reservation activates, a revoked
 /// one never does, and an active one answers again.
-pub(crate) fn settle_linked_ed25519_activation_v1(
+pub fn settle_linked_ed25519_activation_v1(
     current: &SigningWorkerYaoReservationStateV1,
     request: &CloudflareEd25519YaoActivateReservationRequestV1,
 ) -> RouterAbProtocolResult<LinkedEd25519ActivationV1> {
@@ -1115,7 +1128,7 @@ pub(crate) fn settle_linked_ed25519_activation_v1(
 }
 
 /// A revocation of reserved Ed25519 material settled against its record.
-pub(crate) enum LinkedEd25519DeactivationV1 {
+pub enum LinkedEd25519DeactivationV1 {
     /// Revoked already: the stored revocation answers.
     Revoked {
         binding: Ed25519YaoCeremonyBindingV1,
@@ -1136,7 +1149,7 @@ pub(crate) enum LinkedEd25519DeactivationV1 {
 }
 
 /// Settles one revocation of the exact activation `material_activation`.
-pub(crate) fn settle_linked_ed25519_deactivation_v1(
+pub fn settle_linked_ed25519_deactivation_v1(
     current: &SigningWorkerYaoReservationStateV1,
     material_activation: &router_ab_core::MpcMaterialActivationRefV1,
 ) -> RouterAbProtocolResult<LinkedEd25519DeactivationV1> {
@@ -1203,6 +1216,7 @@ pub(crate) fn settle_linked_ed25519_deactivation_v1(
     }
 }
 
+#[cfg(feature = "workers-rs")]
 async fn reserve_inactive_ed25519_yao_v1(
     env: &Env,
     request: &CloudflareEd25519YaoInactiveReservationRequestV1,
@@ -1234,6 +1248,7 @@ async fn reserve_inactive_ed25519_yao_v1(
 }
 
 #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
+#[cfg(feature = "workers-rs")]
 async fn reserve_source_preserving_inactive_ed25519_yao_v1(
     env: &Env,
     request: &CloudflareEd25519YaoSourcePreservingInactiveReservationRequestV1,
@@ -1261,6 +1276,7 @@ async fn reserve_source_preserving_inactive_ed25519_yao_v1(
     .await
 }
 
+#[cfg(feature = "workers-rs")]
 async fn reserve_inactive_ed25519_yao_parts_v1(
     env: &Env,
     delivery: &CloudflareEd25519YaoPackagePairDeliveryV1,
@@ -1344,6 +1360,7 @@ async fn reserve_inactive_ed25519_yao_parts_v1(
 }
 
 #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
+#[cfg(feature = "workers-rs")]
 async fn activate_ed25519_yao_reservation_v1(
     env: &Env,
     request: &CloudflareEd25519YaoActivateReservationRequestV1,
@@ -1514,6 +1531,7 @@ async fn activate_ed25519_yao_reservation_v1(
 }
 
 #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
+#[cfg(feature = "workers-rs")]
 async fn deactivate_ed25519_yao_reservation_v1(
     env: &Env,
     request: &CloudflareEd25519YaoDeactivateReservationRequestV1,
@@ -1618,6 +1636,7 @@ async fn deactivate_ed25519_yao_reservation_v1(
     ))
 }
 
+#[cfg(feature = "workers-rs")]
 pub(crate) async fn require_ed25519_material_active_v1(
     env: &Env,
     material_activation: &router_ab_core::MpcMaterialActivationRefV1,
@@ -1666,13 +1685,13 @@ fn reservation_record_key_v1(
     reservation_record_key_from_binding_v1(&delivery.deriver_a.binding)
 }
 
-pub(crate) fn reservation_record_key_from_binding_v1(
+pub fn reservation_record_key_from_binding_v1(
     binding: &Ed25519YaoCeremonyBindingV1,
 ) -> RouterAbProtocolResult<String> {
     reservation_record_key_from_material_activation_v1(binding.material_activation())
 }
 
-pub(crate) fn reservation_record_key_from_material_activation_v1(
+pub fn reservation_record_key_from_material_activation_v1(
     material_activation: &router_ab_core::MpcMaterialActivationRefV1,
 ) -> RouterAbProtocolResult<String> {
     let canonical = serde_json::to_vec(material_activation).map_err(|_| {
@@ -1682,6 +1701,7 @@ pub(crate) fn reservation_record_key_from_material_activation_v1(
     Ok(format!("ed25519/{}", encode_hex_slice(&digest)))
 }
 
+#[cfg(feature = "workers-rs")]
 async fn load_source_active_material_v1(
     env: &Env,
     source_binding: &Ed25519YaoCeremonyBindingV1,
@@ -1728,6 +1748,7 @@ async fn load_source_active_material_v1(
     }
 }
 
+#[cfg(feature = "workers-rs")]
 async fn load_source_active_material_from_lifecycle_v1(
     env: &Env,
     source_binding: &Ed25519YaoCeremonyBindingV1,
@@ -1756,7 +1777,7 @@ async fn load_source_active_material_from_lifecycle_v1(
     }
 }
 
-pub(crate) fn source_preserving_reservation_id_v1(
+pub fn source_preserving_reservation_id_v1(
     source_binding: &Ed25519YaoCeremonyBindingV1,
     delivery: &CloudflareEd25519YaoPackagePairDeliveryV1,
 ) -> RouterAbProtocolResult<String> {
@@ -2077,6 +2098,7 @@ pub(crate) fn settle_signing_worker_yao_recovery_promotion_v1(
     }
 }
 
+#[cfg(feature = "workers-rs")]
 async fn execute_signing_worker_yao_command(
     env: &Env,
     command: SigningWorkerYaoCommandV1,
@@ -2107,6 +2129,7 @@ async fn execute_signing_worker_yao_command(
     ))
 }
 
+#[cfg(feature = "workers-rs")]
 async fn execute_signing_worker_yao_d1_transition_v1(
     env: &Env,
     record_key: &str,
@@ -2145,6 +2168,7 @@ async fn execute_signing_worker_yao_d1_transition_v1(
     }
 }
 
+#[cfg(feature = "workers-rs")]
 async fn execute_signing_worker_yao_delivery_d1_transition_v1(
     env: &Env,
     record_key: &str,
@@ -2237,6 +2261,7 @@ async fn execute_signing_worker_yao_delivery_d1_transition_v1(
     }
 }
 
+#[cfg(feature = "workers-rs")]
 async fn execute_signing_worker_yao_promotion_d1_transition_v1(
     env: &Env,
     record_key: &str,
@@ -2275,6 +2300,7 @@ async fn execute_signing_worker_yao_promotion_d1_transition_v1(
     }
 }
 
+#[cfg(feature = "workers-rs")]
 pub(crate) fn combine_signing_worker_yao_packages_v1(
     env: &Env,
     delivery: &CloudflareEd25519YaoPackagePairDeliveryV1,
@@ -2306,6 +2332,7 @@ pub(crate) fn combine_signing_worker_yao_packages_v1(
     }
 }
 
+#[cfg(feature = "workers-rs")]
 async fn persist_signing_worker_yao_state_v1(
     env: &Env,
     record_key: &str,
@@ -2324,6 +2351,7 @@ async fn persist_signing_worker_yao_state_v1(
     .await
 }
 
+#[cfg(feature = "workers-rs")]
 async fn persist_signing_worker_yao_active_output_v1(
     env: &Env,
     material: &Ed25519YaoActiveSigningMaterialV1,
@@ -2334,6 +2362,7 @@ async fn persist_signing_worker_yao_active_output_v1(
     persist_cloudflare_ed25519_yao_output_activation_v1(env, &runtime, record).await
 }
 
+#[cfg(feature = "workers-rs")]
 async fn persist_cloudflare_ed25519_yao_output_activation_v1(
     env: &Env,
     _runtime: &CloudflareSigningWorkerRuntimeV1,
@@ -2353,10 +2382,27 @@ async fn persist_cloudflare_ed25519_yao_output_activation_v1(
     Ok(())
 }
 
+#[cfg(feature = "workers-rs")]
 pub(crate) fn build_output_activation_record(
     runtime: &CloudflareSigningWorkerRuntimeV1,
     yao_material: &Ed25519YaoActiveSigningMaterialV1,
     receipt: &Ed25519YaoSigningWorkerActivationReceiptV1,
+) -> RouterAbProtocolResult<CloudflareSigningWorkerOutputActivationRecordV1> {
+    build_output_activation_record_at_v1(
+        runtime,
+        yao_material,
+        receipt,
+        cloudflare_now_unix_ms_v1()?,
+    )
+}
+
+/// The output activation that Ed25519 Yao material signs with, activated at
+/// `activated_at_ms` by a host's own clock.
+pub fn build_output_activation_record_at_v1(
+    runtime: &CloudflareSigningWorkerRuntimeV1,
+    yao_material: &Ed25519YaoActiveSigningMaterialV1,
+    receipt: &Ed25519YaoSigningWorkerActivationReceiptV1,
+    activated_at_ms: u64,
 ) -> RouterAbProtocolResult<CloudflareSigningWorkerOutputActivationRecordV1> {
     validate_material_receipt(yao_material, receipt)?;
     let binding = yao_material.binding();
@@ -2383,7 +2429,7 @@ pub(crate) fn build_output_activation_record(
         PublicDigest32::new(receipt.transcript),
         PublicDigest32::new(receipt.registered_public_key),
         material_handle,
-        cloudflare_now_unix_ms_v1()?,
+        activated_at_ms,
     )?;
     let material = CloudflareServerOutputMaterialRecordV1::new(
         PublicDigest32::new(receipt.transcript),
@@ -2495,6 +2541,7 @@ fn require_same_stable_identity(
     ))
 }
 
+#[cfg(feature = "workers-rs")]
 async fn parse_request<T>(request: &mut Request) -> RouterAbProtocolResult<T>
 where
     T: serde::de::DeserializeOwned,
@@ -2505,6 +2552,7 @@ where
         .map_err(|_| invalid_lifecycle("Signing Worker Yao request JSON is malformed"))
 }
 
+#[cfg(feature = "workers-rs")]
 fn json_response<T>(value: &T) -> RouterAbProtocolResult<Response>
 where
     T: Serialize,
@@ -2525,7 +2573,7 @@ fn validate_participant_ids_v1(participant_ids: [u16; 2]) -> RouterAbProtocolRes
     Ok(())
 }
 
-pub(crate) fn public_activation_receipt_v1(
+pub fn public_activation_receipt_v1(
     binding: &Ed25519YaoCeremonyBindingV1,
     receipt: &Ed25519YaoSigningWorkerActivationReceiptV1,
 ) -> RouterAbProtocolResult<RouterAbEd25519YaoActivationPublicReceiptV1> {

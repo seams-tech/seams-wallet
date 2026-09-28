@@ -616,10 +616,15 @@ fn build_deriver_a_activation_from_effective_state(
     match request.binding.operation {
         Ed25519YaoOperationV1::Registration => {
             let identity = LocalEd25519YaoEffectiveIdentityV1::from_binding(&request.binding);
+            // A device linked to a wallet registers a fresh activation of the
+            // wallet's own identity. The tenant root derives the same
+            // contribution for it, as on Workers, and the identity's effective
+            // state stays as it is; the SigningWorker refuses a second
+            // registration activation.
             if state.deriver_a_effective.contains_key(&identity) {
-                return Err(invalid_worker_state(
-                    "Deriver A already has an effective Yao contribution for this identity",
-                ));
+                let (binding, role) =
+                    build_local_activation_deriver_a_with_server_v1(request, server)?;
+                return Ok((binding, role, None));
             }
             let epoch = Ed25519YaoStateEpochV1::new(1)?;
             let (server_y, server_tau) = server.into_parts();
@@ -669,10 +674,15 @@ fn build_deriver_b_activation_from_effective_state(
     match request.binding.operation {
         Ed25519YaoOperationV1::Registration => {
             let identity = LocalEd25519YaoEffectiveIdentityV1::from_binding(&request.binding);
+            // A device linked to a wallet registers a fresh activation of the
+            // wallet's own identity. The tenant root derives the same
+            // contribution for it, as on Workers, and the identity's effective
+            // state stays as it is; the SigningWorker refuses a second
+            // registration activation.
             if state.deriver_b_effective.contains_key(&identity) {
-                return Err(invalid_worker_state(
-                    "Deriver B already has an effective Yao contribution for this identity",
-                ));
+                let (binding, role) =
+                    build_local_activation_deriver_b_with_server_v1(request, server)?;
+                return Ok((binding, role, None));
             }
             let epoch = Ed25519YaoStateEpochV1::new(1)?;
             let (server_y, server_tau) = server.into_parts();
@@ -785,7 +795,8 @@ pub fn dispatch_local_ed25519_yao_connection_with_persistence_v1(
                 | LOCAL_DERIVER_B_ED25519_YAO_BURN_PAIR_PATH
         );
     let signing_worker_registration_route = config.role() == LocalServiceRoleV1::SigningWorker
-        && request.path == LOCAL_SIGNING_WORKER_ED25519_YAO_ACTIVATION_PACKAGES_PATH;
+        && (request.path == LOCAL_SIGNING_WORKER_ED25519_YAO_ACTIVATION_PACKAGES_PATH
+            || is_signing_worker_linking_path(&request.path));
     let signing_worker_finalization_lookup_route = config.role()
         == LocalServiceRoleV1::SigningWorker
         && request.path == LOCAL_SIGNING_WORKER_ED25519_YAO_INITIAL_REGISTRATION_FINALIZATION_PATH;
@@ -1256,8 +1267,56 @@ fn handle_yao_control_request(
             let response = host.finalize_near(admitted, active, material, now_ms)?;
             write_local_dev_http_response_v1(stream, 200, &response)
         }
+        // A linked device's Ed25519 reservation, kept beside the wallet's
+        // share and persisted with it before the reply.
+        (
+            LocalWorkerRoleConfigV1::SigningWorker(config),
+            router_ab_cloudflare::CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_RESERVE_INACTIVE_SOURCE_PRESERVING_PATH,
+        ) => {
+            let reservation = serde_json::from_slice::<
+                router_ab_cloudflare::CloudflareEd25519YaoSourcePreservingInactiveReservationRequestV1,
+            >(&request.body)?;
+            let response = state.signing_worker.reserve_linked(config, &reservation)?;
+            host.persist_state(LocalServiceRoleV1::SigningWorker, state)?;
+            write_local_dev_http_response_v1(stream, 200, &serde_json::to_string(&response)?)
+        }
+        (
+            LocalWorkerRoleConfigV1::SigningWorker(_),
+            router_ab_cloudflare::CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_ACTIVATE_RESERVATION_PATH,
+        ) => {
+            let activation = serde_json::from_slice::<
+                router_ab_cloudflare::CloudflareEd25519YaoActivateReservationRequestV1,
+            >(&request.body)?;
+            let response = state
+                .signing_worker
+                .activate_linked(&activation, now_unix_ms()?)?;
+            host.persist_state(LocalServiceRoleV1::SigningWorker, state)?;
+            write_local_dev_http_response_v1(stream, 200, &serde_json::to_string(&response)?)
+        }
+        (
+            LocalWorkerRoleConfigV1::SigningWorker(_),
+            router_ab_cloudflare::CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_DEACTIVATE_RESERVATION_PATH,
+        ) => {
+            let deactivation = serde_json::from_slice::<
+                router_ab_cloudflare::CloudflareEd25519YaoDeactivateReservationRequestV1,
+            >(&request.body)?;
+            let response = state
+                .signing_worker
+                .deactivate_linked(&deactivation, now_unix_ms()?)?;
+            host.persist_state(LocalServiceRoleV1::SigningWorker, state)?;
+            write_local_dev_http_response_v1(stream, 200, &serde_json::to_string(&response)?)
+        }
         _ => Err(io::Error::other("Yao control path is not owned by this worker").into()),
     }
+}
+
+fn is_signing_worker_linking_path(path: &str) -> bool {
+    matches!(
+        path,
+        router_ab_cloudflare::CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_RESERVE_INACTIVE_SOURCE_PRESERVING_PATH
+            | router_ab_cloudflare::CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_ACTIVATE_RESERVATION_PATH
+            | router_ab_cloudflare::CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_DEACTIVATE_RESERVATION_PATH
+    )
 }
 
 fn prepare_local_pair_role_v1(
@@ -2909,7 +2968,7 @@ fn is_yao_control_path(path: &str) -> bool {
             | LOCAL_SIGNING_WORKER_ED25519_YAO_REFRESH_DERIVER_B_PATH
             | LOCAL_SIGNING_WORKER_NORMAL_SIGNING_PREPARE_PATH
             | LOCAL_SIGNING_WORKER_NORMAL_SIGNING_PATH
-    )
+    ) || is_signing_worker_linking_path(path)
 }
 
 fn http_authority(url: &str) -> Result<&str, Box<dyn std::error::Error>> {

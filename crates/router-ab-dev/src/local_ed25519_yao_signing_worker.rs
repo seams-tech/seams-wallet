@@ -4,6 +4,18 @@ use std::{
 };
 
 use router_ab_cloudflare::{
+    public_activation_receipt_v1, reservation_record_key_from_binding_v1,
+    reservation_record_key_from_material_activation_v1, settle_linked_ed25519_activation_v1,
+    settle_linked_ed25519_deactivation_v1, settle_linked_ed25519_reservation_v1,
+    source_preserving_reservation_id_v1, CloudflareEd25519YaoActivateReservationRequestV1,
+    CloudflareEd25519YaoDeactivateReservationRequestV1,
+    CloudflareEd25519YaoInactiveReservationResponseV1,
+    CloudflareEd25519YaoReservationActivationResponseV1,
+    CloudflareEd25519YaoReservationDeactivationResponseV1,
+    CloudflareEd25519YaoSourcePreservingInactiveReservationRequestV1, LinkedEd25519ActivationV1,
+    LinkedEd25519DeactivationV1, LinkedEd25519ReservationV1, SigningWorkerYaoReservationStateV1,
+};
+use router_ab_cloudflare::{
     CloudflareSecretMaterial32V1, CloudflareServerOutputMaterialRecordV1,
     CloudflareSigningWorkerWalletScopeV1,
 };
@@ -19,6 +31,10 @@ use router_ab_ed25519_yao::recipient::signing_worker::{
 use router_ab_ed25519_yao::relay::{
     derive_registration_receipt, ActivationDeriverASigningWorkerPackage,
     ActivationDeriverBSigningWorkerPackage, ActivationPublicCommitments,
+};
+use router_ab_ed25519_yao::{
+    combine_ed25519_yao_signing_worker_packages_source_preserving_v1,
+    Ed25519YaoActiveSigningMaterialV1,
 };
 use serde::{Deserialize, Serialize};
 use signer_core::near_threshold_ed25519::verifying_share_bytes_from_signing_share_bytes;
@@ -186,9 +202,24 @@ enum RecoveryPromotionState {
 #[derive(Default)]
 pub struct LocalEd25519YaoSigningWorkerStateV1 {
     identities: BTreeMap<LocalEd25519YaoEffectiveIdentityV1, LocalEd25519YaoSigningIdentityStateV1>,
-    /// Activations a recovery replaced. None signs again, though a signature
-    /// one already made still answers.
+    /// Activations a recovery replaced or a revocation ended. None signs
+    /// again, though a signature one already made still answers.
     retired_activations: Vec<MpcMaterialActivationRefV1>,
+    /// Devices linked to a wallet here, by reservation key.
+    linked: BTreeMap<String, LocalLinkedEd25519V1>,
+}
+
+/// One device linked to a wallet here: Ed25519 material reserved from the
+/// wallet's active share, then activated or revoked beside it, as the
+/// wallet object keeps it on Workers.
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct LocalLinkedEd25519V1 {
+    record_key: String,
+    scope: CloudflareSigningWorkerWalletScopeV1,
+    state: SigningWorkerYaoReservationStateV1,
+    /// When the reservation activated here, while it is active.
+    activated_at_ms: Option<u64>,
 }
 
 #[derive(Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
@@ -198,6 +229,9 @@ pub(crate) struct LocalEd25519YaoSigningWorkerDurableStateV1 {
     recoveries: Vec<LocalEd25519YaoSigningWorkerDurableRecoveryV1>,
     #[zeroize(skip)]
     retired_activations: Vec<MpcMaterialActivationRefV1>,
+    /// Its material zeroizes itself on drop.
+    #[zeroize(skip)]
+    linked: Vec<LocalLinkedEd25519V1>,
 }
 
 /// A recovery staged or promoted at one identity, kept across restarts: the
@@ -323,6 +357,7 @@ impl LocalEd25519YaoSigningWorkerStateV1 {
             active_identities,
             recoveries,
             retired_activations: self.retired_activations.clone(),
+            linked: self.linked.values().cloned().collect(),
         })
     }
 
@@ -433,9 +468,32 @@ impl LocalEd25519YaoSigningWorkerStateV1 {
         for retired in &retired_activations {
             retired.validate()?;
         }
+        let mut linked = BTreeMap::new();
+        for entry in core::mem::take(&mut state.linked) {
+            entry.scope.validate()?;
+            entry.state.validate()?;
+            let active = matches!(
+                entry.state,
+                SigningWorkerYaoReservationStateV1::Active { .. }
+            );
+            if entry.record_key != linked_record_key(&entry.state)?
+                || active != entry.activated_at_ms.is_some()
+                || entry.activated_at_ms == Some(0)
+            {
+                return Err(invalid_activation(
+                    "persisted SigningWorker linked Ed25519 reservation is invalid",
+                ));
+            }
+            if linked.insert(entry.record_key.clone(), entry).is_some() {
+                return Err(invalid_activation(
+                    "persisted SigningWorker state contains a duplicate linked reservation",
+                ));
+            }
+        }
         Ok(Self {
             identities,
             retired_activations,
+            linked,
         })
     }
 
@@ -587,6 +645,11 @@ impl LocalEd25519YaoSigningWorkerStateV1 {
         {
             return Err(router_ab_cloudflare::signing_worker_activation_retired_error_v1());
         }
+        if let Some(linked) =
+            self.linked_normal_signing_material(config, scope, pinned_wallet_scope, metadata)?
+        {
+            return Ok(linked);
+        }
         let identity = self.identity_for_scope(scope)?;
         let state = self
             .identities
@@ -616,6 +679,374 @@ impl LocalEd25519YaoSigningWorkerStateV1 {
             CloudflareSecretMaterial32V1::new(*active.scalar),
         )?;
         Ok((active_state, material))
+    }
+
+    /// Reserves Ed25519 material for a device linked to a wallet here, from
+    /// the wallet's active share or an active linked device's, exactly as
+    /// the source binding names it. An exact retry answers the same
+    /// reservation.
+    pub fn reserve_linked(
+        &mut self,
+        config: &LocalSigningWorkerConfigV1,
+        request: &CloudflareEd25519YaoSourcePreservingInactiveReservationRequestV1,
+    ) -> RouterAbProtocolResult<CloudflareEd25519YaoInactiveReservationResponseV1> {
+        request.validate()?;
+        let delivery = &request.delivery;
+        let record_key = reservation_record_key_from_binding_v1(&delivery.deriver_a.binding)?;
+        let reservation_id =
+            source_preserving_reservation_id_v1(&request.source_binding, delivery)?;
+        if let LinkedEd25519ReservationV1::Answer(answer) = settle_linked_ed25519_reservation_v1(
+            self.linked_for_scope(&request.scope, &record_key)?
+                .map(|linked| &linked.state),
+            &reservation_id,
+            delivery,
+            request.participant_ids,
+            &request.deriver_a_client_package,
+            &request.deriver_b_client_package,
+        )? {
+            return Ok(answer);
+        }
+        let source = self.linked_source_material(&request.scope, &request.source_binding)?;
+        let private_key = parse_private_key(&config.server_output_hpke_private_key)?;
+        let (candidate, receipt) =
+            combine_ed25519_yao_signing_worker_packages_source_preserving_v1(
+                &private_key,
+                delivery.deriver_a.clone(),
+                delivery.deriver_b.clone(),
+                &source,
+            )?
+            .into_parts();
+        let activation_receipt =
+            public_activation_receipt_v1(&delivery.deriver_a.binding, &receipt)?;
+        let state = SigningWorkerYaoReservationStateV1::Inactive {
+            delivery: delivery.clone(),
+            participant_ids: request.participant_ids,
+            deriver_a_client_package: request.deriver_a_client_package.clone(),
+            deriver_b_client_package: request.deriver_b_client_package.clone(),
+            candidate,
+            receipt,
+            reservation_id: reservation_id.clone(),
+        };
+        state.validate()?;
+        self.linked.insert(
+            record_key.clone(),
+            LocalLinkedEd25519V1 {
+                record_key,
+                scope: request.scope.clone(),
+                state,
+                activated_at_ms: None,
+            },
+        );
+        Ok(CloudflareEd25519YaoInactiveReservationResponseV1 {
+            state: "inactive".to_owned(),
+            reservation_id,
+            participant_ids: request.participant_ids,
+            activation_receipt,
+            deriver_a_client_package: request.deriver_a_client_package.clone(),
+            deriver_b_client_package: request.deriver_b_client_package.clone(),
+        })
+    }
+
+    /// Activates a linked device's reserved Ed25519 material beside the
+    /// wallet's. An active reservation answers again; a revoked or retired
+    /// one never activates.
+    pub fn activate_linked(
+        &mut self,
+        request: &CloudflareEd25519YaoActivateReservationRequestV1,
+        activated_at_ms: u64,
+    ) -> RouterAbProtocolResult<CloudflareEd25519YaoReservationActivationResponseV1> {
+        request.validate()?;
+        let record_key = reservation_record_key_from_binding_v1(&request.binding)?;
+        let linked = self
+            .linked_for_scope(&request.scope, &record_key)?
+            .ok_or_else(|| {
+                invalid_normal_signing("ordinary Ed25519 material reservation is missing")
+            })?;
+        let receipt = match settle_linked_ed25519_activation_v1(&linked.state, request)? {
+            LinkedEd25519ActivationV1::Answer(receipt) => receipt,
+            LinkedEd25519ActivationV1::Activate => {
+                if self
+                    .retired_activations
+                    .contains(&request.binding.material_activation)
+                {
+                    return Err(router_ab_cloudflare::signing_worker_activation_retired_error_v1());
+                }
+                let SigningWorkerYaoReservationStateV1::Inactive {
+                    delivery,
+                    participant_ids,
+                    deriver_a_client_package,
+                    deriver_b_client_package,
+                    candidate,
+                    receipt,
+                    reservation_id,
+                } = linked.state.clone()
+                else {
+                    return Err(invalid_activation(
+                        "SigningWorker linked Ed25519 reservation is in a state this host never writes",
+                    ));
+                };
+                let active = LocalLinkedEd25519V1 {
+                    record_key: record_key.clone(),
+                    scope: request.scope.clone(),
+                    state: SigningWorkerYaoReservationStateV1::Active {
+                        delivery,
+                        participant_ids,
+                        deriver_a_client_package,
+                        deriver_b_client_package,
+                        candidate,
+                        receipt: receipt.clone(),
+                        reservation_id,
+                    },
+                    activated_at_ms: Some(activated_at_ms),
+                };
+                self.linked.insert(record_key, active);
+                receipt
+            }
+        };
+        Ok(CloudflareEd25519YaoReservationActivationResponseV1 { receipt })
+    }
+
+    /// Revokes a linked device's Ed25519 material and retires its activation
+    /// with it, so no delayed request signs with it again. The same
+    /// revocation answers again.
+    pub fn deactivate_linked(
+        &mut self,
+        request: &CloudflareEd25519YaoDeactivateReservationRequestV1,
+        now_ms: u64,
+    ) -> RouterAbProtocolResult<CloudflareEd25519YaoReservationDeactivationResponseV1> {
+        request.validate()?;
+        let record_key =
+            reservation_record_key_from_material_activation_v1(&request.material_activation)?;
+        let linked = self
+            .linked_for_scope(&request.scope, &record_key)?
+            .ok_or_else(|| {
+                invalid_normal_signing("ordinary Ed25519 material reservation is missing")
+            })?;
+        let (binding, reservation_id, revoked_at_ms) = match settle_linked_ed25519_deactivation_v1(
+            &linked.state,
+            &request.material_activation,
+        )? {
+            LinkedEd25519DeactivationV1::Revoked {
+                reservation_id,
+                revoked_at_ms,
+                ..
+            } => {
+                return Ok(CloudflareEd25519YaoReservationDeactivationResponseV1 {
+                    state: "revoked",
+                    reservation_id,
+                    material_activation: request.material_activation.clone(),
+                    revoked_at_ms,
+                })
+            }
+            LinkedEd25519DeactivationV1::Resume {
+                binding,
+                reservation_id,
+                revoked_at_ms,
+            } => (binding, reservation_id, revoked_at_ms),
+            LinkedEd25519DeactivationV1::Revoke {
+                binding,
+                reservation_id,
+            } => (binding, reservation_id, now_ms),
+        };
+        let revoked = LocalLinkedEd25519V1 {
+            record_key: record_key.clone(),
+            scope: request.scope.clone(),
+            state: SigningWorkerYaoReservationStateV1::Revoked {
+                binding,
+                reservation_id: reservation_id.clone(),
+                revoked_at_ms,
+            },
+            activated_at_ms: None,
+        };
+        self.linked.insert(record_key, revoked);
+        if !self
+            .retired_activations
+            .contains(&request.material_activation)
+        {
+            self.retired_activations
+                .push(request.material_activation.clone());
+        }
+        Ok(CloudflareEd25519YaoReservationDeactivationResponseV1 {
+            state: "revoked",
+            reservation_id,
+            material_activation: request.material_activation.clone(),
+            revoked_at_ms,
+        })
+    }
+
+    /// The linked reservation `record_key` names, which must belong to the
+    /// wallet `scope` names.
+    fn linked_for_scope(
+        &self,
+        scope: &CloudflareSigningWorkerWalletScopeV1,
+        record_key: &str,
+    ) -> RouterAbProtocolResult<Option<&LocalLinkedEd25519V1>> {
+        let Some(linked) = self.linked.get(record_key) else {
+            return Ok(None);
+        };
+        if &linked.scope != scope {
+            return Err(invalid_normal_signing(
+                "linked Ed25519 reservation belongs to another wallet",
+            ));
+        }
+        Ok(Some(linked))
+    }
+
+    /// The material a linked device's reservation is made from: the wallet's
+    /// active share, or an active linked device's.
+    fn linked_source_material(
+        &self,
+        scope: &CloudflareSigningWorkerWalletScopeV1,
+        source_binding: &Ed25519YaoCeremonyBindingV1,
+    ) -> RouterAbProtocolResult<Ed25519YaoActiveSigningMaterialV1> {
+        let source_key = reservation_record_key_from_binding_v1(source_binding)?;
+        if let Some(linked) = self.linked_for_scope(scope, &source_key)? {
+            return match &linked.state {
+                SigningWorkerYaoReservationStateV1::Active {
+                    delivery,
+                    candidate,
+                    ..
+                } if delivery.deriver_a.binding == *source_binding
+                    && candidate.binding() == source_binding =>
+                {
+                    Ok(candidate.clone())
+                }
+                SigningWorkerYaoReservationStateV1::Inactive { delivery, .. }
+                | SigningWorkerYaoReservationStateV1::Activating { delivery, .. }
+                    if delivery.deriver_a.binding == *source_binding =>
+                {
+                    Err(invalid_normal_signing(
+                        "source Ed25519 material reservation is not active",
+                    ))
+                }
+                SigningWorkerYaoReservationStateV1::Deactivating { binding, .. }
+                | SigningWorkerYaoReservationStateV1::Revoked { binding, .. }
+                    if binding == source_binding =>
+                {
+                    Err(invalid_normal_signing(
+                        "source Ed25519 material reservation is revoked",
+                    ))
+                }
+                _ => Err(RouterAbProtocolError::new(
+                    RouterAbProtocolErrorCode::ConflictingPair,
+                    "source Ed25519 material activation identity conflicts with the reservation",
+                )),
+            };
+        }
+        if self
+            .retired_activations
+            .contains(&source_binding.material_activation)
+        {
+            return Err(router_ab_cloudflare::signing_worker_activation_retired_error_v1());
+        }
+        let state = self
+            .identities
+            .get(&LocalEd25519YaoEffectiveIdentityV1::from_binding(
+                source_binding,
+            ))
+            .ok_or_else(|| {
+                RouterAbProtocolError::new(
+                    RouterAbProtocolErrorCode::MissingLocalBinding,
+                    "source Ed25519 material is missing",
+                )
+            })?;
+        let registered = state.initial_registration.as_ref().ok_or_else(|| {
+            invalid_normal_signing("SigningWorker has no registered wallet scope")
+        })?;
+        if &registered.request.scope != scope {
+            return Err(invalid_normal_signing(
+                "source Ed25519 material belongs to another wallet",
+            ));
+        }
+        let active = state.active.as_ref().ok_or_else(|| {
+            invalid_normal_signing("source Ed25519 material reservation is not active")
+        })?;
+        if active.binding != *source_binding {
+            return Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::ConflictingPair,
+                "source Ed25519 material activation identity conflicts with the lifecycle state",
+            ));
+        }
+        Ed25519YaoActiveSigningMaterialV1::from_parts(
+            *active.scalar,
+            active.binding.clone(),
+            active.state_epoch,
+            active.transcript,
+            active.registered_public_key,
+        )
+    }
+
+    /// A linked device's active material, when the scope names one: the same
+    /// shapes a registration activation signs with here.
+    fn linked_normal_signing_material(
+        &self,
+        config: &LocalSigningWorkerConfigV1,
+        scope: &NormalSigningScopeV1,
+        pinned_wallet_scope: Option<&CloudflareSigningWorkerWalletScopeV1>,
+        metadata: &router_ab_cloudflare::CloudflareRouterNormalSigningTrustedMetadataV1,
+    ) -> RouterAbProtocolResult<
+        Option<(
+            ActiveSigningWorkerStateV1,
+            CloudflareServerOutputMaterialRecordV1,
+        )>,
+    > {
+        let record_key =
+            reservation_record_key_from_material_activation_v1(&scope.material_activation)?;
+        let Some(linked) = self.linked.get(&record_key) else {
+            return Ok(None);
+        };
+        let (SigningWorkerYaoReservationStateV1::Active { candidate, .. }, Some(activated_at_ms)) =
+            (&linked.state, linked.activated_at_ms)
+        else {
+            return Err(invalid_normal_signing(
+                "linked Ed25519 material reservation is not active",
+            ));
+        };
+        let binding = candidate.binding();
+        if binding.lifecycle.account_id != scope.account_id
+            || binding.material_activation != scope.material_activation
+            || binding.lifecycle.selected_server_id != scope.signing_worker_id
+        {
+            return Err(invalid_normal_signing(
+                "normal-signing scope does not match the linked Yao activation",
+            ));
+        }
+        router_ab_cloudflare::require_signing_worker_normal_signing_wallet_scope_v1(
+            &linked.scope,
+            pinned_wallet_scope,
+            metadata,
+            &scope.account_id,
+        )?;
+        let state = ActiveSigningWorkerStateV1::new(
+            scope.account_id.clone(),
+            scope.material_activation.clone(),
+            format!(
+                "ed25519:{}",
+                bs58::encode(candidate.registered_public_key()).into_string()
+            ),
+            ServerIdentityV1::new(
+                config.signing_worker_id.clone(),
+                config.signing_worker_key_epoch.clone(),
+                config.server_output_hpke_public_key.clone(),
+            )?,
+            PublicDigest32::new(candidate.transcript()),
+            PublicDigest32::new(candidate.registered_public_key()),
+            format!(
+                "ed25519-yao/{}/{}",
+                binding.lifecycle.lifecycle_id,
+                candidate.state_epoch().get()
+            ),
+            activated_at_ms,
+        )?;
+        state.validate_for_scope(scope)?;
+        let material = CloudflareServerOutputMaterialRecordV1::new(
+            PublicDigest32::new(candidate.transcript()),
+            OpenedShareKind::XServerBase,
+            Role::Server,
+            config.signing_worker_id.clone(),
+            CloudflareSecretMaterial32V1::new(*candidate.scalar()),
+        )?;
+        Ok(Some((state, material)))
     }
 
     pub fn active_public_key(&self) -> Option<&[u8; 32]> {
@@ -1547,6 +1978,22 @@ fn parse_private_key(value: &str) -> RouterAbProtocolResult<LocalEd25519YaoRecip
 
 fn map_role_error(_: router_ab_ed25519_yao::relay::BenchmarkRoleError) -> RouterAbProtocolError {
     invalid_activation("SigningWorker recipient package validation failed")
+}
+
+/// The key a linked reservation is stored under, from the activation it
+/// reserves.
+fn linked_record_key(state: &SigningWorkerYaoReservationStateV1) -> RouterAbProtocolResult<String> {
+    match state {
+        SigningWorkerYaoReservationStateV1::Inactive { delivery, .. }
+        | SigningWorkerYaoReservationStateV1::Activating { delivery, .. }
+        | SigningWorkerYaoReservationStateV1::Active { delivery, .. } => {
+            reservation_record_key_from_binding_v1(&delivery.deriver_a.binding)
+        }
+        SigningWorkerYaoReservationStateV1::Revoked { binding, .. }
+        | SigningWorkerYaoReservationStateV1::Deactivating { binding, .. } => {
+            reservation_record_key_from_binding_v1(binding)
+        }
+    }
 }
 
 fn invalid_activation(message: &'static str) -> RouterAbProtocolError {

@@ -92,6 +92,26 @@ impl core::fmt::Debug for Ed25519YaoActiveSigningMaterialV1 {
 }
 
 impl Ed25519YaoActiveSigningMaterialV1 {
+    /// Rebuilds active material that a Signing Worker host stores as its
+    /// parts. The parts must still form valid material.
+    pub fn from_parts(
+        scalar: [u8; 32],
+        binding: Ed25519YaoCeremonyBindingV1,
+        state_epoch: Ed25519YaoStateEpochV1,
+        transcript: [u8; 32],
+        registered_public_key: [u8; 32],
+    ) -> RouterAbProtocolResult<Self> {
+        let material = Self {
+            scalar,
+            binding,
+            state_epoch,
+            transcript,
+            registered_public_key,
+        };
+        material.validate()?;
+        Ok(material)
+    }
+
     /// Validates persisted Signing Worker material.
     pub fn validate(&self) -> RouterAbProtocolResult<()> {
         self.binding.validate()?;

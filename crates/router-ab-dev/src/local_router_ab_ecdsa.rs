@@ -88,6 +88,13 @@ use router_ab_cloudflare::{
     CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PREPARE_PATH,
     SIGNING_WORKER_ECDSA_EFFECT_IN_PROGRESS_V1,
 };
+use router_ab_cloudflare::{
+    CloudflareEcdsaActivateReservationRequestV1, CloudflareEcdsaDeactivateReservationRequestV1,
+    CloudflareEcdsaSourcePreservingInactiveMaterialReservationRequestV1,
+    SigningWorkerServerOutputKeyV1, CLOUDFLARE_SIGNING_WORKER_ECDSA_ACTIVATE_RESERVATION_PATH,
+    CLOUDFLARE_SIGNING_WORKER_ECDSA_DEACTIVATE_RESERVATION_PATH,
+    CLOUDFLARE_SIGNING_WORKER_ECDSA_RESERVE_INACTIVE_SOURCE_PRESERVING_PATH,
+};
 use router_ab_core::{
     LocalServiceRoleV1, RouterAbEcdsaDerivationEvmDigestSigningResponseV1,
     RouterAbEcdsaDerivationRegistrationPurposeV1, RouterAbProtocolError, RouterAbProtocolErrorCode,
@@ -254,6 +261,29 @@ pub fn local_router_ab_ecdsa_route_v1(
                     |step| step_presign_session(signing_worker, step, &server_timing),
                 ))
             }
+            // A linked device's reservation lifecycle, which the Gateway
+            // drives with the role-shared credential, as on Workers.
+            CLOUDFLARE_SIGNING_WORKER_ECDSA_RESERVE_INACTIVE_SOURCE_PRESERVING_PATH => {
+                Some(authorized(
+                    &signing_worker.internal_service_auth,
+                    request,
+                    |reservation| {
+                        reserve_linked_ecdsa_at_signing_worker(signing_worker, reservation)
+                    },
+                ))
+            }
+            CLOUDFLARE_SIGNING_WORKER_ECDSA_ACTIVATE_RESERVATION_PATH => Some(authorized(
+                &signing_worker.internal_service_auth,
+                request,
+                |activation| activate_linked_ecdsa_at_signing_worker(signing_worker, activation),
+            )),
+            CLOUDFLARE_SIGNING_WORKER_ECDSA_DEACTIVATE_RESERVATION_PATH => Some(authorized(
+                &signing_worker.internal_service_auth,
+                request,
+                |deactivation| {
+                    deactivate_linked_ecdsa_at_signing_worker(signing_worker, deactivation)
+                },
+            )),
             _ => None,
         },
     }?;
@@ -673,6 +703,51 @@ fn activate_at_signing_worker(
         opened.activate_in_wallet_store(store, activated_at_ms)
     })?;
     json(&receipt)
+}
+
+/// Reserves a linked device's ECDSA material in the wallet's store, from the
+/// wallet's active source material there.
+fn reserve_linked_ecdsa_at_signing_worker(
+    config: &LocalSigningWorkerConfigV1,
+    reservation: CloudflareEcdsaSourcePreservingInactiveMaterialReservationRequestV1,
+) -> RouterAbProtocolResult<String> {
+    let server_key = local_signing_worker_server_output_key_v1(config)?;
+    let response = with_local_signing_worker_wallet_store_v1(config, |store, _| {
+        store.reserve_linked(&reservation, &server_key)
+    })?;
+    json(&response)
+}
+
+fn activate_linked_ecdsa_at_signing_worker(
+    config: &LocalSigningWorkerConfigV1,
+    activation: CloudflareEcdsaActivateReservationRequestV1,
+) -> RouterAbProtocolResult<String> {
+    let server_key = local_signing_worker_server_output_key_v1(config)?;
+    let activated_at_ms = local_now_ms_v1()?;
+    let response = with_local_signing_worker_wallet_store_v1(config, |store, _| {
+        store.activate_linked(&activation, &server_key, activated_at_ms)
+    })?;
+    json(&response)
+}
+
+fn deactivate_linked_ecdsa_at_signing_worker(
+    config: &LocalSigningWorkerConfigV1,
+    deactivation: CloudflareEcdsaDeactivateReservationRequestV1,
+) -> RouterAbProtocolResult<String> {
+    let now_ms = local_now_ms_v1()?;
+    let response = with_local_signing_worker_wallet_store_v1(config, |store, _| {
+        store.deactivate_linked(&deactivation, now_ms)
+    })?;
+    json(&response)
+}
+
+fn local_signing_worker_server_output_key_v1(
+    config: &LocalSigningWorkerConfigV1,
+) -> RouterAbProtocolResult<SigningWorkerServerOutputKeyV1> {
+    let runtime = CloudflareSigningWorkerRuntimeV1::new(
+        parse_cloudflare_signing_worker_bindings_v1(&config.cloudflare_env)?,
+    )?;
+    SigningWorkerServerOutputKeyV1::load(&runtime, &config.cloudflare_env)
 }
 
 /// The SigningWorker's live presignature sessions. Like a presignature
