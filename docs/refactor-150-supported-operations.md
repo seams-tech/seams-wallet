@@ -1,15 +1,19 @@
 # R150 Phase 0: currently enabled operations and their contracts
 
-Status: inventory (2026-09-26). Phase 0 of the
+Status: inventory (2026-09-26), with device-linking and auth-method scope
+confirmed 2026-09-28. Phase 0 of the
 [R150 plan](./refactor-150-regional-wallet-home-lanes.md#phase-0-ownership-inventory-and-baseline)
 asks to "record supported wallet/protocol configurations"; no such record
 existed. This lists what this repository enables today, what reaches it, where
 it is served on each host, and the contracts that cover it.
 
-It records facts, not decisions. R150 requires every enabled lifecycle and
-signing protocol to pass on both adapters. So an operation below that is
-enabled but not served on the VM is R150 work, unless it is explicitly
-excluded. The decisions needed are listed at the end.
+Implementation status and scope decisions are recorded separately. R150
+requires every enabled lifecycle and signing protocol to pass on both
+adapters. An operation enabled but not served on the VM is R150 work, unless
+explicitly excluded. Device linking and auth-method addition/revocation are
+required; their open tasks are in
+[Phase 2](./refactor-150-regional-wallet-home-lanes.md#required-device-linking-and-auth-method-work).
+The remaining decisions are listed at the end.
 
 - **"Enabled"** means a production route serves the operation and a product
   or operator surface in this repository reaches it: the SDK, hosted UI,
@@ -39,10 +43,10 @@ excluded. The decisions needed are listed at the end.
 | **ECDSA Tempo and EVM signing** | SDK `tempo.*`, `evm.*`, with a chain target | Served | Served (owner sessions, pool material) | Spec 5; intended "Transaction Signing" | `passkey.registration`, `passkey.unlock`, `passkey.presign-pool` (VM, including a finalize lost-response retry); `testEcdsaNormalSigning`; `ecdsa_derivation_normal_signing_boundaries.rs` |
 | **ECDSA presignature pool** | Automatic refill; SDK prefill | Served | Served (owner sessions) | Intended "Durable ECDSA preprocessing" | `passkey.presign-pool` (both hosts); `runEcdsaPresignSession` |
 | **Step-up signing** (Ed25519 and ECDSA) | Implicit in sensitive operations | Served | Served, including step-up presignature generation | Spec 3 "Fresh approval" | `passkey.unlock`, `passkey.registration` "sustained Tempo and Arc signing", `passkey.registration.resume` NEAR budget (VM); `email-otp.unlock`, recovery contracts |
-| **Device linking, inventory, revoke** | SDK `DevicesCapability`; account menu | Served | **Not served** (inferred) | Spec 2 "Linking a device" | No E2E here; private monorepo units |
+| **Device linking, inventory, revoke** | SDK `DevicesCapability`; account menu | Existing routes; wallet-DO integration remains to be verified | Gateway code shared; required custody-worker routes missing (inferred) | Spec 2 "Linking a device" | Required Phase 2 work: link/retry/sign/revoke E2E on wallet-DO and VM; no such E2E recorded yet |
 | **Code recovery** (passkey; Google with Email OTP) | Hosted auth menu | Served | Served for passkey recovery; Google-backed recovery not run on the VM | Spec 2 "Recovering access" | `passkey.recovery` (VM, passkey-founded cases); `google-email-otp.recovery` (excluded by the intended-wallet Playwright config) |
 | **Recovery-code management** | SDK `RecoveryCapability` | Gateway | Gateway code shared | Intended "Account Recovery" | `recovery-code-backup.browser.test.ts` |
-| **Factor add and remove** | SDK `addPasskey`, `addEmailOtp`, `revokeAuthMethod` | Gateway | Gateway code shared; not exercised on VM (inferred) | Spec 2 "Adding a sign-in method" | `passkey.add-email-otp`, `email-otp.add-passkey`, `auth-method-addition.matrix` |
+| **Factor add and remove** | SDK `addPasskey`, `addEmailOtp`, `revokeAuthMethod` | Gateway shared SQL | Gateway code shared; integration evidence pending | Spec 2 "Adding a sign-in method" | Reuse `passkey.add-email-otp`, `email-otp.add-passkey`, `auth-method-addition.matrix` for Phase 2 finalize-retry, new-method unlock/sign and revocation evidence on wallet-DO and VM |
 | **Ed25519 export** | SDK `keys.exportKeypair` | Served | Served | Intended "Key Export" | `passkey.unlock` (VM), `email-otp.unlock`, `export.flow.integration` |
 | **ECDSA export** | Same | Served | Served | Same | Same |
 
@@ -88,14 +92,12 @@ Served but not reached by any surface in this repository (inferred):
 
 ## Decisions needed
 
-1. **Device linking on the VM.** Serve it or exclude it explicitly. ECDSA
-   export, add-signer and step-up signing are served.
-2. **Scheduled refresh and availability restore.** Confirm from seams-monorepo
+1. **Scheduled refresh and availability restore.** Confirm from seams-monorepo
    whether they are enabled in the release. If they are, they are VM work; if
    not, record that.
-3. **Source retirement.** Keep it reachable as is, gate it until the drain
+2. **Source retirement.** Keep it reachable as is, gate it until the drain
    rule exists, or keep it with an explicit decision. It deletes material with
    no drain and no coverage.
-4. **Unreached code.** For Router signing lanes, the linked-device Router
+3. **Unreached code.** For Router signing lanes, the linked-device Router
    branches and ECDSA activation refresh, decide between removal and a
    recorded reason to keep them.

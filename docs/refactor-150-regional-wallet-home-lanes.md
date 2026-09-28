@@ -1,7 +1,7 @@
 # Refactor 150: automatic wallet placement and regional custody
 
 Date created: September 23, 2026
-Date revised: September 24, 2026
+Date revised: September 28, 2026
 
 Status: revised implementation plan. Managed Cloudflare hosting targets
 role-separated, SQLite-backed Durable Objects for wallet-local authoritative
@@ -78,6 +78,9 @@ Initial managed release:
   authority; travel can increase network latency.
 - Preserve registration, unlock, signing, recovery, factor, and export behavior
   for each configuration enabled in the release.
+- Include device linking, inventory and revocation, and Passkey/Email OTP
+  auth-method addition and revocation on both adapters. The required work is
+  tracked in [Phase 2](#required-device-linking-and-auth-method-work).
 - Collect operational latency and cost measurements without building travel
   profiles or a user-movement detector.
 - Provide runbooks for object failure, schema upgrades, recovery, and the
@@ -550,7 +553,8 @@ deliverables. Publishing a new adapter cannot silently create a second writer.
 ### Phase 2: complete managed backend and new-wallet cohort
 
 1. Complete the ownership changes for all enabled lifecycle operations and supported
-   protocols, including NEAR and EVM signing.
+   protocols, including NEAR and EVM signing and the device-linking and
+   auth-method tasks below.
 2. Add automatic registration placement and stable trusted routing. Verify policy
    changes, VPN use, travel, and retries cannot create another authority. Remove
    user-facing region controls and their exclusively supporting code and tests.
@@ -570,6 +574,57 @@ deliverables. Publishing a new adapter cannot silently create a second writer.
 
 Stopping new registrations is a valid rollout rollback. Existing DO wallets retain
 their committed authority; rollback never routes them to stale D1 state.
+
+#### Required device-linking and auth-method work
+
+Scope confirmed 2026-09-28: both flows are required for the managed wallet-DO
+backend and the VM reference. The [operation inventory](./refactor-150-supported-operations.md)
+records the current gaps. Preserve the existing public routes and product
+behavior; reuse the shared Gateway and role adapters.
+
+**Device linking — implementation and end-to-end integration**
+
+- [ ] Wire the existing linking flow through both backends: the Router's
+  Ed25519 source-preserving execution and the SigningWorker's ECDSA material
+  reservation, plus activation and deactivation for both curves. Add the
+  missing VM routes and make the managed path use its owning role's wallet
+  DO. Reuse shared lifecycle logic; wallet-local custody state must have no
+  D1 fallback or duplicate writer.
+- [ ] Keep link sessions, proof/nonces, credentials, authority installation
+  journals and inventory in Gateway shared SQL (Cloudflare D1; VM SQLite).
+  Preserve their atomic credential/authority commits and exact retry identity
+  across role calls. Cancellation or revocation must prevent a delayed
+  activation from restoring access. Reuse ordinary signing for the linked
+  device; unused dedicated linked-device signing branches need no new port.
+- [ ] Extend the intended-behavior contracts with a two-device NEAR/EVM flow:
+  link, lose an activation/finalization response, retry the same link, sign
+  from the new device, revoke it, and refuse fresh signing from it while the
+  original device still signs. Check inventory and unchanged wallet public
+  keys/addresses, with no duplicate authority or material allocation.
+
+**Auth-method addition and revocation — integration and demonstrated fixes**
+
+- [ ] Exercise the existing Gateway implementation through both SQL adapters.
+  Keep intents, factor proofs, auth-method/authority records and sealed
+  custody envelopes in Gateway shared SQL. Preserve atomic finalization and
+  revocation with affected sessions. Fix demonstrated adapter or lifecycle
+  gaps without moving these records into wallet DOs or creating another
+  signing implementation: addition re-seals the existing wallet custody
+  seed and retains its signing keys.
+- [ ] Extend/reuse the Passkey-to-Email-OTP and Email-OTP-to-Passkey addition
+  contracts: lose the finalize response, retry exactly, lock and unlock with
+  the new method, and sign NEAR/EVM with unchanged keys/addresses. Revoke the
+  added method and verify its access is refused while another active method
+  still works. Reuse any shared finalize fixes for device linking too.
+
+For each flow, run the representative scenario through the real Gateway on
+the actual Cloudflare wallet-object build and on the VM. A Workers D1-only
+pass does not establish DO support. Retain a repeatable artifact with the
+command, source/build identity, fault/retry evidence, signature verification
+and revocation results; prove wallet-local custody writes reached the role
+stores selected for that run. Keep checks focused on these flows, and leave
+the consolidated suite to the release milestone. These tasks remain open
+until the implementation and evidence land.
 
 ### Phase 3: clean reset and replaced-path retirement
 
@@ -601,6 +656,8 @@ The initial managed DO milestone is complete when:
 - Wallet-local state and mutations execute in their owning role stores, with no
   hidden dual writer or required global geographic directory.
 - Every enabled lifecycle and signing protocol passes its current contracts.
+- Device linking and auth-method addition/revocation pass the Phase 2 retry,
+  signing and revocation scenarios on the wallet-DO and VM backends.
 - The same domain logic passes the supported contracts through a runnable VM
   reference adapter without Cloudflare dependencies; host-specific APIs remain
   confined to adapters, and supported VM topology/recovery limits are documented.
