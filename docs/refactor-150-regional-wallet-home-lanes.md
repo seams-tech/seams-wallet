@@ -587,7 +587,7 @@ behavior; reuse the shared Gateway and role adapters.
 
 **Device linking — implementation and end-to-end integration**
 
-- [ ] Wire the existing linking flow through both backends: the Router's
+- [x] Wire the existing linking flow through both backends: the Router's
   Ed25519 source-preserving execution and the SigningWorker's ECDSA material
   reservation, plus activation and deactivation for both curves. Add the
   missing VM routes and make the managed path use its owning role's wallet
@@ -599,22 +599,45 @@ behavior; reuse the shared Gateway and role adapters.
   across role calls. Cancellation or revocation must prevent a delayed
   activation from restoring access. Reuse ordinary signing for the linked
   device; unused dedicated linked-device signing branches need no new port.
-- [ ] Extend the intended-behavior contracts with a two-device NEAR/EVM flow:
+- [x] Extend the intended-behavior contracts with a two-device NEAR/EVM flow:
   link, lose an activation/finalization response, retry the same link, sign
   from the new device, revoke it, and refuse fresh signing from it while the
   original device still signs. Check inventory and unchanged wallet public
   keys/addresses, with no duplicate authority or material allocation.
 
 Status (2026-09-28): the contract "a second device links with a passkey,
-signs NEAR and Tempo, and is revoked" covers linking, signing from the new
-device, revocation and the original device still signing, with inventory and
-key checks. It does not yet lose and retry a response.
-- It passes on Workers D1.
-- It fails on the VM: the VM Router serves no source-preserving execute
-  route, and the VM SigningWorker no reservation routes.
-- It fails on the wallet-object build: the SigningWorker reserves linked
-  material in its D1 and cannot find the wallet's source material, which
-  lives in the wallet object.
+signs NEAR and Tempo, and is revoked" passes on the VM, the wallet-object
+build and Workers D1.
+- It loses Device 2's first activation response after the Gateway has
+  activated the linked authority and both curves' material. Device 2's own
+  retry receives the identical activation: the same authority, method,
+  Wallet Session and sealed delivery. Linking still lists exactly one
+  device.
+- Device 2 then signs NEAR and Tempo with the wallet's keys. Revocation
+  refuses both, and Device 1 still signs.
+
+What changed to get there:
+- Every linking request to the SigningWorker carries the wallet scope. The
+  Router derives it from the tenant root it admitted, the Gateway from its
+  tenant and the wallet its plan names. The SigningWorker refuses a scope
+  that names another wallet than the source and target activations, and the
+  source must be that wallet's active material.
+- The reservation, activation and revocation decisions are shared by every
+  host; each host stores the result beside the wallet's material. The
+  wallet object keeps both curves in its own tables. The VM SigningWorker
+  keeps Ed25519 beside the wallet's share, in the same snapshot, and ECDSA
+  in the shared wallet store.
+- Revocation retires the linked activation on every host. A delayed
+  activation of a revoked reservation is refused, NEAR signing refuses the
+  retired activation, and no ECDSA presignature is consumed for it.
+- The VM Router serves the source-preserving execute. A VM Deriver accepts
+  a linked device's registration of the wallet's own identity, as Workers
+  Derivers do; the SigningWorker still refuses a second registration
+  activation.
+
+Not exercised by the contract: a delayed activation after revocation (the
+refusal holds by construction), and a lost answer between the Gateway and a
+role. The VM Router does not reconcile a retried source-preserving execute.
 
 **Auth-method addition and revocation — integration and demonstrated fixes**
 

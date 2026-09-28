@@ -29,6 +29,11 @@ records each slice, its evidence and what it left open.
 10. A D1 SigningWorker finalize commits only while its activation is
     unretired, so a signature made just before a recovery promoted never
     answers.
+11. Device linking runs on every host. A linked device's Ed25519 and ECDSA
+    reservations are kept with the wallet's material, every linking request
+    carries the wallet scope, and revocation retires the linked activation.
+    The linking contract, which loses an activation answer and retries it,
+    passes on the VM, the wallet-object build and Workers D1.
 
 The lifecycle-keyed ceremony records stay in Gateway D1. That is the final
 boundary.
@@ -121,8 +126,10 @@ their repair.
 
 ## Before the managed milestone
 
-- Phase 2 device linking and auth-method addition and revocation, per the
+- Phase 2 auth-method addition and revocation, per the
   [plan](./refactor-150-regional-wallet-home-lanes.md#required-device-linking-and-auth-method-work).
+  Device linking passes its contract on every host; the consolidated run
+  has not included it yet.
 - An Email OTP run with a Google ID token.
 - The review items the cross-owner plan leaves open. Explicit recovery
   abandonment stays deferred.
