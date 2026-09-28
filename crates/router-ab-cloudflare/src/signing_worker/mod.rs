@@ -108,6 +108,20 @@ pub fn signing_worker_activation_retired_error_v1() -> RouterAbProtocolError {
     )
 }
 
+/// The same refusal, for a finalize that loaded its material before the
+/// retirement and reached its commit after it: its signature never answers.
+/// Only the D1 SigningWorker can meet it; the wallet object and the VM
+/// SigningWorker load, sign and commit in one serialized step.
+pub const SIGNING_WORKER_ACTIVATION_RETIRED_AT_COMMIT_MESSAGE_V1: &str =
+    "SigningWorker activation is retired: retired after this finalize loaded its material, before it committed";
+
+pub fn signing_worker_activation_retired_at_commit_error_v1() -> RouterAbProtocolError {
+    RouterAbProtocolError::new(
+        RouterAbProtocolErrorCode::InvalidLifecycleState,
+        SIGNING_WORKER_ACTIVATION_RETIRED_AT_COMMIT_MESSAGE_V1,
+    )
+}
+
 /// Platform-neutral signer logic behind the Cloudflare transport wrapper.
 pub trait CloudflareSignerWireHandlerV1 {
     /// Handles one validated Router-to-signer wire message.

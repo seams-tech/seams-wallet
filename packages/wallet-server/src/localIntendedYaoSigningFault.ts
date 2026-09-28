@@ -18,9 +18,24 @@ export const ROUTER_AB_ED25519_SIGNING_FINALIZE_PATH_V1 = '/router-ab/ed25519/si
  *   authorized but not yet made. The Gateway's answer is a refusal.
  * - `release_signing_finalize` sends a kept finalize to the Router again,
  *   exactly, and answers with the Router's reply.
+ * - `arm_signing_worker_hold` asks the SigningWorker to hold the next NEAR
+ *   finalize of the wallet the body names after it signs and before it
+ *   commits, until its activation is retired: a finalize that loaded its
+ *   material just before a recovery promoted. Dev builds of the Workers D1
+ *   SigningWorker only; the wallet object and the VM SigningWorker sign and
+ *   commit in one step.
+ * - `read_signing_worker_hold` reads that hold's state.
  */
 type LocalIntendedYaoSigningFaultModeV1 =
-  'capture_signing_finalize' | 'withhold_signing_finalize' | 'release_signing_finalize';
+  | 'capture_signing_finalize'
+  | 'withhold_signing_finalize'
+  | 'release_signing_finalize'
+  | 'arm_signing_worker_hold'
+  | 'read_signing_worker_hold';
+
+const SIGNING_WORKER_LOCAL_INTENDED_HOLD_URL_V1 =
+  'https://signing-worker.router-ab.internal/router-ab/signing-worker/local-intended/hold';
+const ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1 = 'x-router-ab-internal-service-auth';
 
 type KeptFinalizeV1 = {
   readonly request: {
@@ -43,6 +58,8 @@ export function parseLocalIntendedYaoSigningFaultModeV1(
     case 'capture_signing_finalize':
     case 'withhold_signing_finalize':
     case 'release_signing_finalize':
+    case 'arm_signing_worker_hold':
+    case 'read_signing_worker_hold':
       return value;
     default:
       return null;
@@ -130,6 +147,37 @@ export async function releaseLocalIntendedYaoSigningFinalizeV1(
     body: await reply.text(),
     original: kept.original,
   });
+}
+
+/**
+ * Arms or reads the SigningWorker's hold on one wallet's next NEAR finalize,
+ * with the Gateway's own SigningWorker credential, and answers with the
+ * SigningWorker's reply.
+ */
+export async function commandLocalIntendedSigningWorkerHoldV1(
+  signingWorker: { fetch(request: Request): Promise<Response> },
+  credential: string | undefined,
+  mode: 'arm_signing_worker_hold' | 'read_signing_worker_hold',
+  body: unknown,
+): Promise<Response> {
+  const walletId = (body as { readonly wallet_id?: unknown } | null)?.wallet_id;
+  if (!credential || typeof walletId !== 'string' || walletId === '') {
+    return Response.json({ code: 'invalid_intended_signing_worker_hold' }, { status: 400 });
+  }
+  const reply = await signingWorker.fetch(
+    new Request(SIGNING_WORKER_LOCAL_INTENDED_HOLD_URL_V1, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        [ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1]: credential,
+      },
+      body: JSON.stringify({
+        command: mode === 'arm_signing_worker_hold' ? 'arm' : 'read',
+        wallet_id: walletId,
+      }),
+    }),
+  );
+  return Response.json({ status: reply.status, body: await reply.text() });
 }
 
 export function requestWithoutLocalIntendedYaoSigningFaultHeadersV1(request: Request): Request {

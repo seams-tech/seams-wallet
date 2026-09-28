@@ -1,6 +1,6 @@
 # R150 cross-owner Yao finalization, recovery and export
 
-Status: slices 1 to 9 implemented (2026-09-27/28, see below).
+Status: slices 1 to 10 implemented (2026-09-27/28, see below).
 - The Router owns each registration's execution record.
 - Registration and add-signer finalize through one decision row per
   lifecycle.
@@ -11,6 +11,8 @@ Status: slices 1 to 9 implemented (2026-09-27/28, see below).
 - The SigningWorker stages the candidate of a recovery's highest attempt,
   by the Gateway's attempt number, so a late superseded attempt is refused
   (slice 9, which replaces slice 8's per-attempt candidates).
+- A D1 finalize commits only while its activation is unretired, so a
+  signature made just before a recovery promoted never answers (slice 10).
 
 The lifecycle-keyed ceremony records stay in Gateway D1 next to the
 tenant-wide `router-ab-ed25519-yao:shared` record. That is the final
@@ -599,6 +601,49 @@ Under slice 8 the same late execution answered `succeeded` (above), which
 this contract now fails. Neither Router passes the SigningWorker's reason
 on, and the two Routers answer the refusal differently. The late answer goes
 to no one in production, but aligning the answers is open.
+
+### Slice 10: a D1 finalize commits only while its activation is unretired (2026-09-28)
+
+A review found an in-flight retirement race on the Workers D1 SigningWorker.
+A NEAR finalize checks retirement, loads its activation's material, signs,
+and commits its terminal answer in separate D1 statements. A recovery that
+promoted after the material loaded and before the commit retired the
+activation, yet the commit still succeeded and the signature answered. The
+slice 6 retirement contract holds requests before the Router, so it never
+stood in this window.
+- A NEAR finalize that signed with registration material now commits its
+  terminal answer only while that activation has no retirement fence,
+  checked in the insert itself. A finalize whose activation was retired
+  after its material loaded is refused as retired, and its signature never
+  answers. A finalize that committed first still answers its exact retry.
+- The wallet object and the VM SigningWorker have no such window. The
+  wallet object loads, signs and commits in one synchronous request, and the
+  VM SigningWorker serves custody requests one at a time.
+- A local-only hold lets a contract stand in the window. Dev builds of the
+  D1 SigningWorker (`local-intended-signing-hold`) can hold a wallet's next
+  NEAR finalize after it signs and before it commits, until its activation
+  is retired. The local Gateway arms and reads the hold with its own
+  SigningWorker credential. No release build and no wallet-object build has
+  it.
+
+**Evidence (2026-09-28).** A new contract passes on Workers D1: "a finalize
+that signed with the replaced material before the recovery promoted is
+refused at its commit, and the recovered wallet signs". The VM and
+wallet-object runs skip it, since the window does not exist there.
+1. The Gateway withholds the finalize of a NEAR signature authorized before
+   the recovery.
+2. The SigningWorker is asked to hold the wallet's next finalize. The
+   withheld finalize reaches the Router, and the harness waits until the
+   SigningWorker holds it, after it signed with the active material.
+3. A fresh-browser recovery promotes and retires the activation. The held
+   finalize resumes, and its commit is refused as retired after the
+   finalize loaded its material. The hold ends on the retirement.
+4. The recovered wallet signs.
+
+With the commit made unconditional again and the hold kept, the same
+contract failed at step 3: the held finalize answered 200 with its signature
+after the recovery had retired the activation. The slice 6 retirement
+contract passes again on Workers D1.
 
 ### Boundary decision: ceremony records stay in Gateway D1 (2026-09-28)
 

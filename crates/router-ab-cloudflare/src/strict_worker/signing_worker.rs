@@ -10,6 +10,7 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
         == CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_PRESIGNATURE_SESSION_INIT_PATH
         || path
             == CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_PRESIGNATURE_SESSION_STEP_PATH
+        || local_intended_gateway_path(&path)
     {
         require_cloudflare_gateway_to_signing_worker_presign_auth_request_v1(&request, &env)
     } else if path == CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_ACTIVATION_PATH
@@ -37,6 +38,14 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
         Err(err) => return cloudflare_protocol_error_response_v1(err),
     };
     match path.as_str() {
+        #[cfg(feature = "local-intended-signing-hold")]
+        crate::CLOUDFLARE_SIGNING_WORKER_LOCAL_INTENDED_HOLD_PATH => {
+            match crate::handle_cloudflare_signing_worker_local_intended_hold_v1(request, &env).await
+            {
+                Ok(response) => Ok(response),
+                Err(err) => cloudflare_protocol_error_response_v1(err),
+            }
+        }
         CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_PACKAGES_PATH => {
             match handle_cloudflare_signing_worker_ed25519_yao_packages_v1(request, &env).await {
                 Ok(response) => Ok(response),
@@ -386,4 +395,15 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
             404,
         ),
     }
+}
+
+/// A local-only route the local Gateway calls with its own credential.
+#[cfg(feature = "strict-worker-signing-worker-entrypoint")]
+fn local_intended_gateway_path(path: &str) -> bool {
+    #[cfg(feature = "local-intended-signing-hold")]
+    if path == crate::CLOUDFLARE_SIGNING_WORKER_LOCAL_INTENDED_HOLD_PATH {
+        return true;
+    }
+    let _ = path;
+    false
 }

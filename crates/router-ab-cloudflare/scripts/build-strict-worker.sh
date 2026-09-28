@@ -57,6 +57,13 @@ fi
 if [[ "$role" == "signing-worker" && "${ROUTER_AB_WALLET_DO_HARNESS:-}" == "enabled" ]]; then
   worker_features+=",wallet-do-signing-worker-harness"
 fi
+# Local only: a dev D1 SigningWorker can hold a NEAR finalize between signing
+# and committing, for the intended suite. The wallet object signs and commits
+# in one step, so it has no such hold, and no release build has it.
+if [[ "$worker_build_profile" == "dev" && "$role" == "signing-worker" \
+  && "${ROUTER_AB_WALLET_DO_HARNESS:-}" != "enabled" ]]; then
+  worker_features+=",local-intended-signing-hold"
+fi
 
 wallet_objects=false
 if [[ "${ROUTER_AB_WALLET_DO_HARNESS:-}" == "enabled" && "$role" != "tenant-root-control-plane" ]]; then

@@ -26,6 +26,9 @@ records each slice, its evidence and what it left open.
 9. Slice 9 replaces slice 8's per-attempt candidates: the SigningWorker
    stages only the candidate of a recovery's highest attempt, by the
    Gateway's attempt number, and refuses a late superseded attempt.
+10. A D1 SigningWorker finalize commits only while its activation is
+    unretired, so a signature made just before a recovery promoted never
+    answers.
 
 The lifecycle-keyed ceremony records stay in Gateway D1. That is the final
 boundary.
@@ -50,10 +53,12 @@ on each host.
 The same four contracts fail on every host (below). Each run's persisted
 traces are kept with the run, outside the repository.
 
-Slices 8 and 9 came after this run. Slice 8's contract and the retirement
+Slices 8 to 10 came after this run. Slice 8's contract and the retirement
 contract passed on all three hosts after slice 8. Slice 9 changed the late
-attempt contract to expect a refusal, and it passes on all three hosts. The
-rest of the suite was not rerun for either slice.
+attempt contract to expect a refusal, and it passes on all three hosts.
+Slice 10's contract passes on Workers D1, the only host with that window,
+and the retirement contract passes there again. The rest of the suite was not
+rerun for these slices.
 
 Not run: the 23 Email OTP and Google-backed contracts. Those flows need a
 Google ID token, and this environment has none. Minting one impersonates a

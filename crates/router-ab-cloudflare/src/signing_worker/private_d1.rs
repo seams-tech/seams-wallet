@@ -194,33 +194,56 @@ pub fn signing_worker_private_d1_from_env_v1(env: &Env) -> RouterAbProtocolResul
         .map_err(|error| map_d1_error("SigningWorker private D1 binding is missing", error))
 }
 
+/// Commits one terminal response, or answers the one already committed.
+/// `activation` names the activation whose material made the terminal: the
+/// terminal then commits only while that activation is unretired, checked in
+/// the insert itself. A finalize that loaded its material before a
+/// retirement and reaches its commit after it is refused as retired, and its
+/// signature never answers.
 pub async fn commit_cloudflare_signing_worker_terminal_response_v1(
     env: &Env,
     operation_key: &str,
     request_digest: PublicDigest32,
     response_json: &str,
     committed_at_ms: u64,
+    activation: Option<&CloudflareActiveSigningWorkerStateLookupV1>,
 ) -> RouterAbProtocolResult<CloudflareSigningWorkerTerminalResponseCommitV1> {
     require_non_empty("SigningWorker terminal operation_key", operation_key)?;
     require_non_empty("SigningWorker terminal response_json", response_json)?;
     require_positive_ms("SigningWorker terminal committed_at_ms", committed_at_ms)?;
+    let active_key = activation.map(activation_active_key_v1).transpose()?;
     let request_digest_hex = private_d1_digest_hex_v1(request_digest);
     let database = signing_worker_private_d1_from_env_v1(env)?;
     let session = database
         .with_session_constraint(D1SessionConstraint::FirstPrimary)
         .map_err(|error| map_d1_error("SigningWorker private D1 primary session failed", error))?;
-    let result = session
-        .prepare(
+    let mut values = vec![
+        js_string(operation_key),
+        js_string(&request_digest_hex),
+        js_string(response_json),
+        js_u64("SigningWorker terminal timestamp", committed_at_ms)?,
+    ];
+    let insert = match &active_key {
+        None => {
             "INSERT OR IGNORE INTO signing_worker_terminal_responses
              (operation_key, request_digest_hex, response_json, committed_at_ms)
-             VALUES (?1, ?2, ?3, ?4)",
-        )
-        .bind(&[
-            js_string(operation_key),
-            js_string(&request_digest_hex),
-            js_string(response_json),
-            js_u64("SigningWorker terminal timestamp", committed_at_ms)?,
-        ])
+             VALUES (?1, ?2, ?3, ?4)"
+        }
+        Some(active_key) => {
+            values.push(js_string(active_key));
+            "INSERT OR IGNORE INTO signing_worker_terminal_responses
+             (operation_key, request_digest_hex, response_json, committed_at_ms)
+             SELECT ?1, ?2, ?3, ?4
+             WHERE NOT EXISTS (
+               SELECT 1
+               FROM signing_worker_activation_revocation_fences
+               WHERE active_key = ?5
+             )"
+        }
+    };
+    let result = session
+        .prepare(insert)
+        .bind(&values)
         .map_err(|error| map_d1_error("SigningWorker terminal insert bind failed", error))?
         .run()
         .await
@@ -238,8 +261,18 @@ pub async fn commit_cloudflare_signing_worker_terminal_response_v1(
         .map_err(|error| map_d1_error("SigningWorker terminal replay query bind failed", error))?
         .first::<TerminalResponseRowV1>(None)
         .await
-        .map_err(|error| map_d1_error("SigningWorker terminal replay query failed", error))?
-        .ok_or_else(|| d1_error("SigningWorker terminal conflict has no stored response"))?;
+        .map_err(|error| map_d1_error("SigningWorker terminal replay query failed", error))?;
+    let Some(stored) = stored else {
+        // Nothing committed under the key, so the fence kept this terminal out.
+        if let Some(active_key) = &active_key {
+            if activation_revocation_fence_exists_v1(&session, active_key).await? {
+                return Err(crate::signing_worker_activation_retired_at_commit_error_v1());
+            }
+        }
+        return Err(d1_error(
+            "SigningWorker terminal conflict has no stored response",
+        ));
+    };
     if stored.request_digest_hex != request_digest_hex {
         return Err(RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::ReplayedLocalRequest,
@@ -1235,17 +1268,24 @@ async fn active_state_get_v1(
     Ok(CloudflareSigningWorkerPrivateD1ResponseV1::ActiveState { active_state })
 }
 
+/// The key the activation's output row and its retirement fence share.
+fn activation_active_key_v1(
+    lookup: &CloudflareActiveSigningWorkerStateLookupV1,
+) -> RouterAbProtocolResult<String> {
+    lookup.validate()?;
+    Ok(format!(
+        "active-signing-worker/{}/{}/{}",
+        lookup.account_id, lookup.material_activation_id, lookup.signing_worker_id
+    ))
+}
+
 /// Refuses a lookup whose activation is retired, before the request's own
 /// checks: a delayed request for a retired activation is refused as retired.
 pub(crate) async fn require_cloudflare_signing_worker_activation_not_retired_v1(
     env: &Env,
     lookup: &CloudflareActiveSigningWorkerStateLookupV1,
 ) -> RouterAbProtocolResult<()> {
-    lookup.validate()?;
-    let active_key = format!(
-        "active-signing-worker/{}/{}/{}",
-        lookup.account_id, lookup.material_activation_id, lookup.signing_worker_id
-    );
+    let active_key = activation_active_key_v1(lookup)?;
     let database = signing_worker_private_d1_from_env_v1(env)?;
     let session = database
         .with_session_constraint(D1SessionConstraint::FirstPrimary)
@@ -1564,6 +1604,148 @@ pub async fn execute_cloudflare_signing_worker_private_d1_request_v1(
     }?;
     response.validate_for_request(request)?;
     Ok(response)
+}
+
+/// Local only, in dev builds: the route by which the local Gateway arms a
+/// hold on one wallet's next NEAR finalize, or reads the hold's state.
+#[cfg(feature = "local-intended-signing-hold")]
+pub const CLOUDFLARE_SIGNING_WORKER_LOCAL_INTENDED_HOLD_PATH: &str =
+    "/router-ab/signing-worker/local-intended/hold";
+
+/// How long a held finalize waits for its activation's retirement.
+#[cfg(feature = "local-intended-signing-hold")]
+const LOCAL_INTENDED_HOLD_POLLS: u32 = 300;
+#[cfg(feature = "local-intended-signing-hold")]
+const LOCAL_INTENDED_HOLD_POLL_INTERVAL: std::time::Duration =
+    std::time::Duration::from_millis(500);
+
+#[cfg(feature = "local-intended-signing-hold")]
+#[derive(Debug, Deserialize)]
+#[serde(tag = "command", rename_all = "snake_case", deny_unknown_fields)]
+enum LocalIntendedHoldCommandV1 {
+    Arm { wallet_id: String },
+    Read { wallet_id: String },
+}
+
+#[cfg(feature = "local-intended-signing-hold")]
+#[derive(Debug, Deserialize, Serialize)]
+struct LocalIntendedHoldStateV1 {
+    state: Option<String>,
+}
+
+#[cfg(feature = "local-intended-signing-hold")]
+async fn local_intended_hold_session_v1(env: &Env) -> RouterAbProtocolResult<D1DatabaseSession> {
+    let database = signing_worker_private_d1_from_env_v1(env)?;
+    let session = database
+        .with_session_constraint(D1SessionConstraint::FirstPrimary)
+        .map_err(|error| map_d1_error("SigningWorker hold session failed", error))?;
+    session
+        .prepare(
+            "CREATE TABLE IF NOT EXISTS signing_worker_local_intended_holds (
+               wallet_id TEXT PRIMARY KEY,
+               state TEXT NOT NULL
+             )",
+        )
+        .run()
+        .await
+        .map_err(|error| map_d1_error("SigningWorker hold table failed", error))?;
+    Ok(session)
+}
+
+#[cfg(feature = "local-intended-signing-hold")]
+async fn local_intended_hold_state_v1(
+    session: &D1DatabaseSession,
+    wallet_id: &str,
+) -> RouterAbProtocolResult<LocalIntendedHoldStateV1> {
+    Ok(session
+        .prepare("SELECT state FROM signing_worker_local_intended_holds WHERE wallet_id = ?1")
+        .bind(&[js_string(wallet_id)])
+        .map_err(|error| map_d1_error("SigningWorker hold read bind failed", error))?
+        .first::<LocalIntendedHoldStateV1>(None)
+        .await
+        .map_err(|error| map_d1_error("SigningWorker hold read failed", error))?
+        .unwrap_or(LocalIntendedHoldStateV1 { state: None }))
+}
+
+/// Arms a hold on the wallet's next NEAR finalize, or reads the hold: none,
+/// `armed`, `holding`, `released_retired` or `released_unretired`.
+#[cfg(feature = "local-intended-signing-hold")]
+pub async fn handle_cloudflare_signing_worker_local_intended_hold_v1(
+    mut request: Request,
+    env: &Env,
+) -> RouterAbProtocolResult<Response> {
+    let command = request
+        .json::<LocalIntendedHoldCommandV1>()
+        .await
+        .map_err(|error| d1_error(format!("SigningWorker hold command is malformed: {error}")))?;
+    let session = local_intended_hold_session_v1(env).await?;
+    let wallet_id = match &command {
+        LocalIntendedHoldCommandV1::Arm { wallet_id } => {
+            require_non_empty("SigningWorker hold wallet_id", wallet_id)?;
+            session
+                .prepare(
+                    "INSERT OR REPLACE INTO signing_worker_local_intended_holds (wallet_id, state)
+                     VALUES (?1, 'armed')",
+                )
+                .bind(&[js_string(wallet_id)])
+                .map_err(|error| map_d1_error("SigningWorker hold arm bind failed", error))?
+                .run()
+                .await
+                .map_err(|error| map_d1_error("SigningWorker hold arm failed", error))?;
+            wallet_id
+        }
+        LocalIntendedHoldCommandV1::Read { wallet_id } => wallet_id,
+    };
+    let state = local_intended_hold_state_v1(&session, wallet_id).await?;
+    Response::from_json(&state)
+        .map_err(|error| d1_error(format!("SigningWorker hold state is invalid: {error}")))
+}
+
+/// Holds a NEAR finalize that has loaded its activation's material and
+/// signed, before it commits, when a hold is armed for its wallet: until the
+/// activation is retired, or the wait runs out. It stands for a finalize that
+/// loaded its material just before a recovery promoted.
+#[cfg(feature = "local-intended-signing-hold")]
+pub(crate) async fn hold_cloudflare_signing_worker_near_finalize_v1(
+    env: &Env,
+    activation: &CloudflareActiveSigningWorkerStateLookupV1,
+) -> RouterAbProtocolResult<()> {
+    let active_key = activation_active_key_v1(activation)?;
+    let session = local_intended_hold_session_v1(env).await?;
+    let claimed = session
+        .prepare(
+            "UPDATE signing_worker_local_intended_holds SET state = 'holding'
+             WHERE wallet_id = ?1 AND state = 'armed'",
+        )
+        .bind(&[js_string(&activation.account_id)])
+        .map_err(|error| map_d1_error("SigningWorker hold claim bind failed", error))?
+        .run()
+        .await
+        .map_err(|error| map_d1_error("SigningWorker hold claim failed", error))?;
+    if d1_changes(&claimed)? != 1 {
+        return Ok(());
+    }
+    let mut retired = false;
+    for _ in 0..LOCAL_INTENDED_HOLD_POLLS {
+        if activation_revocation_fence_exists_v1(&session, &active_key).await? {
+            retired = true;
+            break;
+        }
+        worker::Delay::from(LOCAL_INTENDED_HOLD_POLL_INTERVAL).await;
+    }
+    let released = if retired {
+        "released_retired"
+    } else {
+        "released_unretired"
+    };
+    session
+        .prepare("UPDATE signing_worker_local_intended_holds SET state = ?2 WHERE wallet_id = ?1")
+        .bind(&[js_string(&activation.account_id), js_string(released)])
+        .map_err(|error| map_d1_error("SigningWorker hold release bind failed", error))?
+        .run()
+        .await
+        .map_err(|error| map_d1_error("SigningWorker hold release failed", error))?;
+    Ok(())
 }
 
 #[cfg(test)]

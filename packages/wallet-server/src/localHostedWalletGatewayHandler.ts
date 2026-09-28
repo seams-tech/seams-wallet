@@ -68,6 +68,7 @@ import {
   LOCAL_INTENDED_YAO_SIGNING_FAULT_HEADER_V1,
   LOCAL_INTENDED_YAO_SIGNING_FAULT_TOKEN_HEADER_V1,
   LocalIntendedYaoSigningFaultControllerV1,
+  commandLocalIntendedSigningWorkerHoldV1,
   parseLocalIntendedYaoSigningFaultModeV1,
   parseLocalIntendedYaoSigningFaultTokenV1,
   releaseLocalIntendedYaoSigningFinalizeV1,
@@ -435,6 +436,14 @@ async function handleYaoSigningFault(
   }
   if (mode === 'release_signing_finalize') {
     return await releaseLocalIntendedYaoSigningFinalizeV1(env.MPC_ROUTER, token);
+  }
+  if (mode === 'arm_signing_worker_hold' || mode === 'read_signing_worker_hold') {
+    return await commandLocalIntendedSigningWorkerHoldV1(
+      env.SIGNING_WORKER,
+      env.ROUTER_AB_GATEWAY_TO_SIGNING_WORKER_PRESIGN_AUTH_SECRET,
+      mode,
+      await request.json().catch(() => null),
+    );
   }
   const controller = new LocalIntendedYaoSigningFaultControllerV1(
     env.MPC_ROUTER.fetch.bind(env.MPC_ROUTER),

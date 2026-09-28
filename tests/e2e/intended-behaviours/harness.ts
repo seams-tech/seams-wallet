@@ -186,6 +186,8 @@ const LOCAL_INTENDED_YAO_SIGNING_FAULT_TOKEN_HEADER_V1 =
 const ROUTER_AB_ED25519_SIGNING_FINALIZE_PATH = '/router-ab/ed25519/sign';
 /* The SigningWorker's refusal of an activation a recovery replaced. */
 const SIGNING_WORKER_ACTIVATION_RETIRED_MESSAGE = 'SigningWorker activation is retired';
+const SIGNING_WORKER_ACTIVATION_RETIRED_AT_COMMIT_MESSAGE =
+  'SigningWorker activation is retired: retired after this finalize loaded its material, before it committed';
 const LOCAL_INTENDED_YAO_EXPORT_FAULT_HEADER_V1 = 'x-seams-intended-yao-export-fault-v1';
 const LOCAL_INTENDED_YAO_EXPORT_FAULT_TOKEN_HEADER_V1 =
   'x-seams-intended-yao-export-fault-token-v1';
@@ -3063,6 +3065,94 @@ export class IntendedBehaviourHarness {
     );
   }
 
+  /**
+   * A NEAR finalize that loaded the replaced activation's material before a
+   * recovery promoted is refused at its commit, and its signature never
+   * answers. Only the Workers D1 SigningWorker signs and commits in separate
+   * steps; the wallet object and the VM SigningWorker commit in the step that
+   * loads the material. The Gateway withholds the finalize of a signature
+   * authorized before the recovery, and the SigningWorker is asked to hold
+   * the wallet's next finalize after it signs, until its activation is
+   * retired. The withheld finalize reaches the Router, and the SigningWorker
+   * holds it. The recovery promotes, retiring the activation, and the held
+   * finalize's commit is refused.
+   */
+  async recoverPasskeyWalletWhileAFinalizeHoldsTheReplacedMaterial(): Promise<void> {
+    this.recordStage('recover_passkey_wallet_while_finalize_holds_replaced_material');
+    requireLocalIntendedYaoFaultRouterOrigin(this.config.routerUrl);
+    const withheld = await this.keepNearSigningFinalize('withhold_signing_finalize');
+    const armed = await this.commandSigningWorkerHold('arm_signing_worker_hold');
+    if (armed !== 'armed') {
+      throw new Error(`The SigningWorker did not arm its finalize hold: ${armed}`);
+    }
+    const held = this.releaseNearSigningFinalize(withheld, 300_000).then(
+      (released) => ({ kind: 'answered' as const, released }),
+      (error: unknown) => ({ kind: 'failed' as const, error }),
+    );
+    await this.waitForSigningWorkerHold('holding');
+    this.recordService(
+      'the SigningWorker holds a finalize that has signed with the active material',
+    );
+    await this.recoverPasskeyWalletFromFreshBrowser();
+    const outcome = await held;
+    if (outcome.kind === 'failed') throw outcome.error;
+    const refused = outcome.released;
+    if (
+      refused.status < 400 ||
+      !refused.body.includes(SIGNING_WORKER_ACTIVATION_RETIRED_AT_COMMIT_MESSAGE)
+    ) {
+      throw new Error(
+        `A finalize held across the recovery's promotion was not refused at its commit: ${refused.status} ${refused.body}`,
+      );
+    }
+    const released = await this.commandSigningWorkerHold('read_signing_worker_hold');
+    if (released !== 'released_retired') {
+      throw new Error(`The SigningWorker's hold did not end on the retirement: ${released}`);
+    }
+    this.recordService(
+      'a finalize that signed with the replaced material before the recovery promoted was refused at its commit',
+    );
+  }
+
+  /** Arms or reads the SigningWorker's hold on this wallet's next NEAR finalize. */
+  private async commandSigningWorkerHold(
+    mode: 'arm_signing_worker_hold' | 'read_signing_worker_hold',
+  ): Promise<string | null> {
+    const response = await this.page.request.post(
+      new URL(ROUTER_AB_ED25519_SIGNING_FINALIZE_PATH, this.config.routerUrl).href,
+      {
+        headers: {
+          [LOCAL_INTENDED_YAO_SIGNING_FAULT_HEADER_V1]: mode,
+          [LOCAL_INTENDED_YAO_SIGNING_FAULT_TOKEN_HEADER_V1]: randomUUID(),
+        },
+        data: { wallet_id: this.requireRegisteredWalletForSigning().walletId },
+      },
+    );
+    if (!response.ok()) {
+      throw new Error(
+        `The SigningWorker hold command failed: ${response.status()} ${await response.text()}`,
+      );
+    }
+    const reply = requireRecord(await response.json(), 'SigningWorker hold reply');
+    const body = requireString(reply.body, 'SigningWorker hold body');
+    if (Number(reply.status) !== 200) {
+      throw new Error(`The SigningWorker refused the hold command: ${reply.status} ${body}`);
+    }
+    const state = requireRecord(JSON.parse(body), 'SigningWorker hold state').state;
+    return typeof state === 'string' ? state : null;
+  }
+
+  private async waitForSigningWorkerHold(expected: string): Promise<void> {
+    const deadline = Date.now() + 60_000;
+    let state: string | null = null;
+    while (Date.now() < deadline) {
+      state = await this.commandSigningWorkerHold('read_signing_worker_hold');
+      if (state === expected) return;
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+    throw new Error(`The SigningWorker's finalize hold stayed ${state}, not ${expected}`);
+  }
+
   /** Signs NEAR once with every finalize of it kept by the Gateway, run or withheld. */
   private async keepNearSigningFinalize(
     mode: 'capture_signing_finalize' | 'withhold_signing_finalize',
@@ -3109,7 +3199,10 @@ export class IntendedBehaviourHarness {
   }
 
   /** Sends a finalize the Gateway kept to the Router again, and reads the Router's reply. */
-  private async releaseNearSigningFinalize(token: string): Promise<{
+  private async releaseNearSigningFinalize(
+    token: string,
+    timeoutMs = 30_000,
+  ): Promise<{
     readonly status: number;
     readonly body: string;
     readonly original: { readonly status: number; readonly body: string } | null;
@@ -3122,6 +3215,7 @@ export class IntendedBehaviourHarness {
           [LOCAL_INTENDED_YAO_SIGNING_FAULT_TOKEN_HEADER_V1]: token,
         },
         data: {},
+        timeout: timeoutMs,
       },
     );
     if (!response.ok()) {
