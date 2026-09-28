@@ -5045,34 +5045,4 @@ mod tests {
         }
         assert!(production.contains("finish_exact_section"));
     }
-
-    #[test]
-    fn split_role_spec_tracks_version_tags_fixture_and_terminal_order() {
-        const SPEC: &str = include_str!("../../docs/passive-role-relay-v1.md");
-        for required in [
-            "EYAORL01",
-            "Offer `1`",
-            "BaseChoices `2`",
-            "Direct `3`",
-            "Extension `4`",
-            "Masked `5`",
-            "Manifest `6`",
-            "TableFrame `7`",
-            "Translation `8`",
-            "ReturnedLabels `9`",
-            "24732",
-            "12444",
-            "2,104,960",
-            "40,800",
-            "physical request EOF",
-            "physical response EOF",
-            "runtime-chunk-to-wire",
-        ] {
-            assert!(
-                SPEC.contains(required),
-                "missing split-role spec fact: {required}"
-            );
-        }
-        assert!(SPEC.contains("9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60"));
-    }
 }

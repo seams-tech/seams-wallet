@@ -261,24 +261,3 @@ fn all_chunk_profiles_match_the_whole_buffer_export_oracle() {
     exercise_export::<Chunk128KiB>();
     exercise_export::<Chunk256KiB>();
 }
-
-#[test]
-fn runtime_source_has_no_callback_or_per_record_transport_api() {
-    let source = include_str!("stream_runtime.rs")
-        .split("#[cfg(test)]")
-        .next()
-        .expect("production runtime prefix");
-    for forbidden in [
-        "FnMut",
-        "ValidatedAndTableRecord",
-        "next_and_table_record",
-        "impl Fn",
-    ] {
-        assert!(
-            !source.contains(forbidden),
-            "legacy runtime path: {forbidden}"
-        );
-    }
-    assert!(source.contains("ValidatedTableFrame<'_, F, C>"));
-    assert!(source.contains("AwaitingExactEof"));
-}

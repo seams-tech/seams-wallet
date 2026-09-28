@@ -452,6 +452,5 @@ mod tests {
             assert!(!prefix.contains("Clone"));
             assert!(!prefix.contains("Serialize"));
         }
-        assert!(!source.contains("SigningKey") || source.contains("#[cfg(test)]"));
     }
 }

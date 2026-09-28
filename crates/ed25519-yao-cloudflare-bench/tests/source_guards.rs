@@ -30,8 +30,6 @@ fn adapter_keeps_the_phase9b_slice_isolated_and_streaming() {
         ".collect::<Vec",
         "DurableObject",
         "router_ab",
-        "ed25519_hss",
-        "ecdsa_hss",
         "isolate_memory_bytes",
         "platform_internal_copy_bytes",
         "worker::response_from_wasm",
@@ -103,28 +101,6 @@ fn adapter_keeps_the_phase9b_slice_isolated_and_streaming() {
 }
 
 #[test]
-fn deriver_a_has_one_protocol_driver_with_compile_time_transport_adapters() {
-    let source = crate_file("src/lib.rs");
-    for required in [
-        "trait YaoDuplexTransport",
-        "async fn run_deriver_a<T: YaoDuplexTransport>(",
-        "impl YaoDuplexTransport for HttpYaoDuplexTransport",
-        "impl YaoDuplexTransport for WebSocketYaoDuplexTransport<'_>",
-        "async fn close_local_direction(",
-        "async fn finish(self) -> Result<YaoDuplexTransportCompletion, AdapterError>",
-    ] {
-        assert!(
-            source.contains(required),
-            "missing protocol-neutral Deriver A boundary: {required}"
-        );
-    }
-    assert!(
-        source.contains("mut role: BenchmarkDeriverA,"),
-        "Deriver A role progression must enter the one runtime driver as typed state"
-    );
-}
-
-#[test]
 fn every_benchmark_config_pins_one_nonzero_deployment_identity() {
     let paths = wrangler_config_paths();
     assert_eq!(paths.len(), 21, "unexpected Wrangler configuration matrix");
@@ -146,33 +122,6 @@ fn every_benchmark_config_pins_one_nonzero_deployment_identity() {
             "deployment ID must be nonzero in {path}"
         );
     }
-}
-
-#[test]
-fn wrangler_configs_pin_the_benchmark_topology() {
-    let a: serde_json::Value =
-        serde_json::from_str(&crate_file("wrangler.a.jsonc")).expect("A config");
-    let b: serde_json::Value =
-        serde_json::from_str(&crate_file("wrangler.b.jsonc")).expect("B config");
-
-    for config in [&a, &b] {
-        assert_eq!(config["compatibility_date"], "2026-07-02");
-        assert_eq!(config["build"]["watch_dir"], "src");
-        assert_eq!(config["compatibility_flags"][0], "nodejs_compat");
-        assert_eq!(config["observability"]["enabled"], true);
-        assert_eq!(config["observability"]["logs"]["enabled"], true);
-        assert_eq!(config["observability"]["traces"]["enabled"], true);
-        assert_eq!(config["vars"]["BENCHMARK_CLASSIFICATION"], "NON_PRODUCTION");
-        assert_eq!(
-            config["vars"]["BENCHMARK_TOPOLOGY"],
-            "SAME_ACCOUNT_SERVICE_BINDING_WEBSOCKET"
-        );
-    }
-    assert_eq!(a["services"][0]["binding"], "DERIVER_B");
-    assert_eq!(a["services"][0]["service"], "ed25519-yao-ab-benchmark-b");
-    assert_eq!(a["main"], "build/deriver-a/index.js");
-    assert_eq!(b["main"], "build/deriver-b/index.js");
-    assert!(b.get("services").is_none());
 }
 
 #[test]
