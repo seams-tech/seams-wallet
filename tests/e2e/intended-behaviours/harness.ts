@@ -1444,6 +1444,73 @@ export class IntendedBehaviourHarness {
   }
 
   /**
+   * Device 2: lets its first successful activation reach the Gateway, which
+   * activates the linked authority and both curves' reserved material, then
+   * drops the response. Device 2 retries its committed delivery on its own;
+   * the retry must carry the same installation receipt and receive exactly
+   * the activation that was lost, never a second authority or session.
+   */
+  async loseLinkedActivationResponseOnce(): Promise<{
+    readonly release: () => Promise<void>;
+    readonly assertReplayed: () => void;
+  }> {
+    const receiptPath = /\/wallet\/device-linking\/v1\/sessions\/[^/]+\/receipt$/;
+    type Attempt = { readonly request: string; readonly body: string };
+    let lost: Attempt | null = null;
+    let replayed: Attempt | null = null;
+    const handler = async (route: Route): Promise<void> => {
+      const request = route.request();
+      const requestBody = request.postData() ?? '';
+      if (
+        request.method() !== 'POST' ||
+        !receiptPath.test(new URL(request.url()).pathname) ||
+        !requestBody.includes('"local_authority_installation_receipt_v1"')
+      ) {
+        await route.fallback();
+        return;
+      }
+      const response = await route.fetch();
+      const attempt = { request: requestBody, body: await response.text() };
+      if (!lost && response.status() === 200) {
+        lost = attempt;
+        await route.abort('connectionreset');
+        return;
+      }
+      if (lost && !replayed) replayed = attempt;
+      await route.fulfill({ response });
+    };
+    await this.context.route('**/receipt', handler);
+    return {
+      release: async () => {
+        await this.context.unroute('**/receipt', handler);
+      },
+      assertReplayed: () => {
+        if (!lost || !replayed) {
+          throw new Error(
+            `linked-device activation expected one lost and one replayed response, saw lost=${Boolean(lost)} replayed=${Boolean(replayed)}`,
+          );
+        }
+        const lostAttempt: Attempt = lost;
+        const replayedAttempt: Attempt = replayed;
+        if (replayedAttempt.request !== lostAttempt.request) {
+          throw new Error('linked-device activation retry changed its installation receipt');
+        }
+        const activation = JSON.parse(lostAttempt.body) as {
+          readonly kind?: unknown;
+          readonly authority?: { readonly authorityId?: unknown };
+        };
+        if (activation.kind !== 'active') {
+          throw new Error(`lost linked-device activation answered ${String(activation.kind)}`);
+        }
+        expect(JSON.parse(replayedAttempt.body)).toEqual(activation);
+        this.recordService(
+          `linked-device activation lost its response and replayed authority=${String(activation.authority?.authorityId)}`,
+        );
+      },
+    };
+  }
+
+  /**
    * Device 1 revokes Device 2's exact method with a fresh assertion from its
    * own founding passkey, bound to this revocation's operation fingerprint.
    *

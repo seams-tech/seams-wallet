@@ -20,7 +20,17 @@ test('a second device links with a passkey, signs NEAR and Tempo, and is revoked
   await harness.awaitNearReady();
 
   const device2 = await harness.openLinkedDevice(browser);
-  await harness.linkDeviceWithPasskey(device2);
+  /* Device 2's activation reaches the Gateway, which activates its authority
+     and both curves' material, but the answer is lost. Device 2's own retry
+     must get that same activation: linking still lists exactly one device,
+     and the signing below uses the one set of material. */
+  const lostActivation = await device2.loseLinkedActivationResponseOnce();
+  try {
+    await harness.linkDeviceWithPasskey(device2);
+  } finally {
+    await lostActivation.release();
+  }
+  lostActivation.assertReplayed();
 
   /* Device 2's own session signs every signer family the source authority
      had, and the signatures recover to the wallet's registered keys. */
