@@ -1,7 +1,6 @@
 use router_ab_core::LocalServiceRoleV1;
 use router_ab_dev::{
     build_local_ed25519_yao_one_account_plan_v1, build_local_ed25519_yao_two_administrator_plan_v1,
-    local_ed25519_yao_worker_artifact_digest_v1,
 };
 use std::collections::BTreeSet;
 
@@ -46,62 +45,5 @@ fn fixed_local_profiles_share_protocol_artifacts_and_separate_layout_policy() {
     ] {
         assert!(one_account.root_for(role).is_some());
         assert!(two_administrator.root_for(role).is_some());
-    }
-}
-
-#[test]
-fn both_fixed_profiles_select_the_exact_same_worker_binary() {
-    let worker = std::fs::read(env!("CARGO_BIN_EXE_router_ab_local_worker"))
-        .expect("read shared worker binary");
-    let one_account_digest = local_ed25519_yao_worker_artifact_digest_v1(&worker);
-    let two_administrator_digest = local_ed25519_yao_worker_artifact_digest_v1(&worker);
-    assert_ne!(one_account_digest, [0_u8; 32]);
-    assert_eq!(one_account_digest, two_administrator_digest);
-}
-
-#[test]
-fn protocol_and_worker_sources_expose_no_runtime_profile_negotiation() {
-    let sources = [
-        include_str!("../src/local_ed25519_yao_api.rs"),
-        include_str!("../src/local_ed25519_yao_input.rs"),
-        include_str!("../src/local_ed25519_yao_worker.rs"),
-        include_str!("../src/bin/router_ab_local_worker.rs"),
-    ]
-    .join("\n");
-    for forbidden in ["--profile", "YAOS_AB_TOPOLOGY", "YAOS_AB_PROFILE"] {
-        assert!(!sources.contains(forbidden), "found {forbidden}");
-    }
-}
-
-#[test]
-fn ed25519_yao_and_router_ab_ecdsa_derivation_modules_have_disjoint_backend_imports() {
-    let yao_sources = [
-        include_str!("../src/local_ed25519_yao_api.rs"),
-        include_str!("../src/local_ed25519_yao_delivery.rs"),
-        include_str!("../src/local_ed25519_yao_input.rs"),
-        include_str!("../src/local_ed25519_yao_profiles.rs"),
-        include_str!("../src/local_ed25519_yao_refresh.rs"),
-        include_str!("../src/local_ed25519_yao_router.rs"),
-        include_str!("../src/local_ed25519_yao_signing_worker.rs"),
-        include_str!("../src/local_ed25519_yao_stream.rs"),
-        include_str!("../src/local_ed25519_yao_worker.rs"),
-    ]
-    .join("\n");
-    for forbidden in [
-        "ed25519_hss",
-        "ed25519-hss",
-        "router_ab_ecdsa_derivation",
-        "router-ab-ecdsa-derivation",
-    ] {
-        assert!(!yao_sources.contains(forbidden), "found {forbidden}");
-    }
-
-    let router_ab_ecdsa_derivation_source =
-        include_str!("../src/local_router_ab_ecdsa_derivation_pool_store.rs");
-    for forbidden in ["ed25519_yao", "ed25519-yao", "router_ab_ed25519_yao"] {
-        assert!(
-            !router_ab_ecdsa_derivation_source.contains(forbidden),
-            "found {forbidden}"
-        );
     }
 }

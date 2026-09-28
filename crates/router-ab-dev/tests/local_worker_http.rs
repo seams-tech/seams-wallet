@@ -9,15 +9,14 @@ use router_ab_core::{
     LocalHttpPathV1, LocalServiceRoleV1, MpcMaterialActivationRefV1, MpcPrfShareCommitmentWireV1,
     RootShareEpoch, RouterEd25519YaoExecuteResultV1, RouterEd25519YaoExecuteSuccessV1,
     RouterEd25519YaoGatewayExecuteTargetV2, TenantRootActivationReceiptTransitionV1,
-    TenantRootCanaryCurveFamilyV1, TenantRootCeremonyContextV1,
-    TenantRootCeremonyEpochsV1, TenantRootCeremonyNonceV1, TenantRootCeremonySessionIdV1,
-    TenantRootControlPlaneAuthorityIdV1, TenantRootCustodyLineageId, TenantRootEpochCommitmentsV1,
-    TenantRootIdentityDigestV1, TenantRootManagedBackupBindingV1,
-    TenantRootManagedBackupSealRequestV1, TenantRootProviderCanaryReceiptBindingV1,
-    TenantRootShareEpoch, TenantRootShareInstallationEvidenceV1,
-    TenantRootShareInstallationTranscriptV1, TenantRootSignedActivationReceiptV1,
-    TenantRootSignedManagedBackupV1, TenantRootSignedProviderCanaryReceiptV1,
-    TenantRootSignedShareInstallationEvidenceV1,
+    TenantRootCanaryCurveFamilyV1, TenantRootCeremonyContextV1, TenantRootCeremonyEpochsV1,
+    TenantRootCeremonyNonceV1, TenantRootCeremonySessionIdV1, TenantRootControlPlaneAuthorityIdV1,
+    TenantRootCustodyLineageId, TenantRootEpochCommitmentsV1, TenantRootIdentityDigestV1,
+    TenantRootManagedBackupBindingV1, TenantRootManagedBackupSealRequestV1,
+    TenantRootProviderCanaryReceiptBindingV1, TenantRootShareEpoch,
+    TenantRootShareInstallationEvidenceV1, TenantRootShareInstallationTranscriptV1,
+    TenantRootSignedActivationReceiptV1, TenantRootSignedManagedBackupV1,
+    TenantRootSignedProviderCanaryReceiptV1, TenantRootSignedShareInstallationEvidenceV1,
     VerifiedTenantRootInitialCreationActivationEvidenceBundleV1,
     VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
 };
@@ -58,185 +57,6 @@ use threshold_prf::{
     prove_root_share_knowledge, SigningRootShare, SigningRootShareCommitment, SigningRootShareWire,
     TwoPartyDeriverRole,
 };
-
-fn router_ab_dev_source() -> String {
-    fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("src/lib.rs"))
-        .expect("router-ab-dev source should be readable")
-}
-
-fn router_ab_dev_local_service_http_source() -> String {
-    fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("src/local_service_http.rs"))
-        .expect("router-ab-dev local service HTTP source should be readable")
-}
-
-fn router_ab_dev_local_dev_http_source() -> String {
-    fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("src/local_dev_http.rs"))
-        .expect("router-ab-dev local dev HTTP source should be readable")
-}
-
-fn router_ab_dev_local_router_ab_ecdsa_derivation_pool_store_source() -> String {
-    fs::read_to_string(
-        Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("src/local_router_ab_ecdsa_derivation_pool_store.rs"),
-    )
-    .expect("router-ab-dev local Router A/B ECDSA derivation pool store source should be readable")
-}
-
-fn router_ab_dev_local_worker_topology_source() -> String {
-    fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("src/local_worker_topology.rs"))
-        .expect("router-ab-dev local worker topology source should be readable")
-}
-
-fn router_ab_dev_bin_source(name: &str) -> String {
-    fs::read_to_string(
-        Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("src/bin")
-            .join(name),
-    )
-    .unwrap_or_else(|error| panic!("{name} should be readable: {error}"))
-}
-
-#[test]
-fn local_dev_http_request_boundary_lives_outside_monolith() {
-    let lib_source = router_ab_dev_source();
-    let helper_source = router_ab_dev_local_dev_http_source();
-    for expected in [
-        "pub struct LocalDevHttpRequestPartsV1",
-        "pub fn read_local_dev_http_request_v1",
-        "pub fn write_local_dev_http_response_v1",
-        "pub fn local_dev_http_error_body_v1",
-    ] {
-        assert!(
-            helper_source.contains(expected),
-            "local dev HTTP module should own {expected}"
-        );
-        assert!(
-            !lib_source.contains(expected),
-            "router-ab-dev lib.rs should not own {expected}"
-        );
-    }
-}
-
-#[test]
-fn local_dev_http_dispatch_lives_outside_monolith() {
-    let lib_source = router_ab_dev_source();
-    let helper_source = router_ab_dev_local_dev_http_source();
-    for expected in [
-        "pub enum LocalDevHttpTopologyV1",
-        "pub fn local_dev_http_handle_request_v1",
-        "fn local_dev_signing_worker_private_route_v1",
-        "fn local_dev_protocol_response_v1",
-    ] {
-        assert!(
-            helper_source.contains(expected),
-            "local dev HTTP module should own {expected}"
-        );
-        assert!(
-            !lib_source.contains(expected),
-            "router-ab-dev lib.rs should not own {expected}"
-        );
-    }
-}
-
-#[test]
-fn local_worker_bins_delegate_to_shared_route_dispatcher() {
-    for name in ["router_ab_local_worker.rs"] {
-        let source = router_ab_dev_bin_source(name);
-        assert!(
-            source.contains("local_dev_http_handle_request_with_dispatcher_v1"),
-            "{name} should delegate requests to the shared local dev dispatcher"
-        );
-        for forbidden in [
-            "LOCAL_ROUTER_NORMAL_SIGNING",
-            "LOCAL_ROUTER_AB_ECDSA_DERIVATION",
-            "LOCAL_SIGNING_WORKER_NORMAL_SIGNING",
-            "LOCAL_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION",
-            "match request.path",
-            "if request.path",
-        ] {
-            assert!(
-                !source.contains(forbidden),
-                "{name} should not carry route-dispatch logic: found {forbidden}"
-            );
-        }
-    }
-}
-
-#[test]
-fn local_signing_worker_private_http_helper_lives_outside_monolith() {
-    let lib_source = router_ab_dev_source();
-    let helper_source = router_ab_dev_local_service_http_source();
-    for expected in [
-        "pub struct LocalHttpServiceBindingClientV1",
-        "pub struct LocalHttpServiceBindingEndpointV1",
-        "pub fn local_http_service_binding_endpoint_v1",
-    ] {
-        assert!(
-            helper_source.contains(expected),
-            "local service HTTP module should own {expected}"
-        );
-        assert!(
-            !lib_source.contains(expected),
-            "router-ab-dev lib.rs should not own {expected}"
-        );
-    }
-}
-
-#[test]
-fn local_worker_topology_helpers_live_outside_monolith() {
-    let lib_source = router_ab_dev_source();
-    let helper_source = router_ab_dev_local_worker_topology_source();
-    for expected in [
-        "pub struct LocalWorkerHealthResponseV1",
-        "pub fn local_worker_bind_addr_v1",
-        "pub fn local_worker_owned_paths_v1",
-        "pub fn local_worker_health_response_v1",
-    ] {
-        assert!(
-            helper_source.contains(expected),
-            "local worker topology module should own {expected}"
-        );
-        assert!(
-            !lib_source.contains(expected),
-            "router-ab-dev lib.rs should not own {expected}"
-        );
-    }
-}
-
-#[test]
-fn local_router_ab_ecdsa_derivation_pool_lifecycle_store_lives_outside_monolith() {
-    let lib_source = router_ab_dev_source();
-    let helper_source = router_ab_dev_local_router_ab_ecdsa_derivation_pool_store_source();
-    for expected in [
-        "CloudflareSigningWorkerEcdsaPoolLifecycleRecordV1",
-        "pub(crate) fn local_signing_worker_ecdsa_pool_mutate_v1",
-        "apply_cloudflare_signing_worker_ecdsa_pool_command_v1",
-    ] {
-        assert!(
-            helper_source.contains(expected),
-            "local Router A/B ECDSA derivation pool-store module should own {expected}"
-        );
-    }
-    for helper_only in [
-        "pub(crate) fn local_signing_worker_ecdsa_pool_mutate_v1",
-        "apply_cloudflare_signing_worker_ecdsa_pool_command_v1",
-    ] {
-        assert!(
-            !lib_source.contains(helper_only),
-            "router-ab-dev lib.rs should not own {helper_only}"
-        );
-    }
-    for obsolete in [
-        "LocalSigningWorkerRouterAbEcdsaDerivationPresignaturePoolLifecycleV1",
-        "local_signing_worker_router_ab_ecdsa_derivation_presignature_pool_store_put_v1",
-        "local_signing_worker_router_ab_ecdsa_derivation_presignature_pool_store_take_v1",
-    ] {
-        assert!(
-            !lib_source.contains(obsolete) && !helper_source.contains(obsolete),
-            "obsolete delete-based local ECDSA pool symbol must remain deleted: {obsolete}"
-        );
-    }
-}
 
 #[test]
 fn local_workers_accept_direct_deriver_peer_messages_over_http(

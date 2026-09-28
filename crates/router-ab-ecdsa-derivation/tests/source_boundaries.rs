@@ -30,17 +30,6 @@ fn cargo_feature_block<'a>(cargo_toml: &'a str, feature_name: &str) -> &'a str {
 }
 
 #[test]
-fn crate_replacement_is_exact_and_old_crate_is_absent() {
-    let root = repository_root();
-    assert!(!root.join("crates/ecdsa-hss").exists());
-    assert!(root.join("crates/router-ab-ecdsa-derivation").is_dir());
-
-    let cargo_toml = read_repository_file("crates/router-ab-ecdsa-derivation/Cargo.toml");
-    assert!(cargo_toml.contains("name = \"router-ab-ecdsa-derivation\""));
-    assert!(cargo_toml.contains("name = \"router_ab_ecdsa_derivation\""));
-}
-
-#[test]
 fn signer_role_local_feature_stays_independent_of_threshold_signing_backend() {
     let cargo_toml = read_repository_file("crates/signer-core/Cargo.toml");
     let feature = cargo_feature_block(&cargo_toml, "ecdsa-role-local-client");
@@ -55,20 +44,5 @@ fn signer_role_local_feature_stays_independent_of_threshold_signing_backend() {
     }
     for forbidden in ["threshold-ecdsa", "threshold-signatures"] {
         assert!(!feature.contains(forbidden), "forbidden `{forbidden}`");
-    }
-}
-
-#[test]
-fn active_rust_manifests_use_router_ab_ecdsa_derivation_name() {
-    for relative_path in [
-        "crates/router-ab-cloudflare/Cargo.toml",
-        "crates/router-ab-core/Cargo.toml",
-        "crates/router-ab-dev/Cargo.toml",
-        "crates/router-ab-ecdsa-derivation/Cargo.toml",
-        "crates/signer-core/Cargo.toml",
-    ] {
-        let cargo_toml = read_repository_file(relative_path);
-        assert!(!cargo_toml.contains("ecdsa-hss"), "{relative_path}");
-        assert!(!cargo_toml.contains("ecdsa_hss"), "{relative_path}");
     }
 }

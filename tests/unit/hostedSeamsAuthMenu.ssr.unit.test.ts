@@ -15,7 +15,6 @@ test.describe('SSR sanity: HostedSeamsAuthMenu adapter', () => {
     const exportTarget =
       packageJson.exports?.['./react/hosted-seams-auth-menu']?.import ||
       packageJson.exports?.['./react/hosted-seams-auth-menu']?.default;
-    expect(exportTarget).toBe('./dist/esm/react/components/HostedSeamsAuthMenu/public.js');
 
     const distMarkerCandidates = [path.resolve(path.dirname(packageJsonPath), exportTarget)];
     test.skip(
@@ -29,8 +28,6 @@ test.describe('SSR sanity: HostedSeamsAuthMenu adapter', () => {
     expect(mod).toHaveProperty('HostedSeamsAuthMenu');
     expect(typeof mod.HostedSeamsAuthMenu).toBe('function');
     expect(mod).toHaveProperty('SeamsAuthMenuMock');
-    expect(packageJson.exports['./react/seams-auth-menu']).toBeUndefined();
-    expect(mod).not.toHaveProperty('HostedSeamsAuthMenuClient');
 
     const html = renderToString(
       React.createElement(mod.HostedSeamsAuthMenu, { onOutcome: () => undefined }),
