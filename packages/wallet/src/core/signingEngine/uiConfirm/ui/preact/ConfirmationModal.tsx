@@ -67,7 +67,9 @@ class ModalShell extends Component<ConfirmationModalProps> {
           onCancel={this.cancel}
           onClick={this.backdropClick}
         >
-          <div id={this.containerId} class="modal-container-root">
+          {/* As the dialog's first focusable element, the card takes the initial focus,
+              so opening rings no control and Tab reaches the close button next. */}
+          <div id={this.containerId} class="modal-container-root" tabIndex={-1}>
             {this.props.children}
           </div>
         </dialog>

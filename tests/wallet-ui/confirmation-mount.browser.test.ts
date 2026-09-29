@@ -574,6 +574,29 @@ test('hosted drawer keeps its compact content inside the sheet', async ({ page }
   expect(await page.evaluate(() => window.__confirmationMount.violations)).toEqual([]);
 });
 
+for (const [variant, context, closeName] of [
+  ['modal', 'standalone', 'Cancel'],
+  ['modal', 'wallet-iframe', 'Cancel'],
+  ['drawer', 'standalone', 'Dismiss confirmation'],
+] as const) {
+  test(`a ${context} ${variant} opens without a focus ring and tabs to its close button`, async ({
+    page,
+  }) => {
+    await page.evaluate(
+      ({ variant, context }) => window.__confirmationMount.mount(variant, context),
+      { variant, context },
+    );
+    const focused = await page.evaluate(() => {
+      const element = document.activeElement!;
+      return { tag: element.tagName, outline: getComputedStyle(element).outlineStyle };
+    });
+    expect(focused.tag).not.toBe('BUTTON');
+    expect(focused.outline).toBe('none');
+    await page.keyboard.press('Tab');
+    await expect(page.getByRole('button', { name: closeName, exact: true })).toBeFocused();
+  });
+}
+
 test('drawer close filters callbacks and disposes after its transition', async ({ page }) => {
   await page.locator('#opener').focus();
   const id = await page.evaluate(() => window.__confirmationMount.mount('drawer', 'standalone'));

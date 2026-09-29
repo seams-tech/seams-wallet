@@ -381,7 +381,7 @@ test('standalone modal owns focus and preserves two-phase cancellation', async (
   });
   const dialog = page.getByRole('dialog', { name: 'Confirm transaction' });
   await expect(dialog).toBeVisible();
-  await expect(dialog.getByRole('button', { name: 'Cancel', exact: true })).toBeFocused();
+  await expect(dialog.locator('.modal-container-root')).toBeFocused();
   await expect(dialog.getByRole('button', { name: 'Confirm', exact: true })).toBeEnabled();
   await page.keyboard.press('Escape');
   expect(await page.evaluate(() => window.__contentTest.cancelled)).toBe(1);
