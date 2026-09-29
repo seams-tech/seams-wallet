@@ -4497,9 +4497,25 @@ export class IntendedBehaviourHarness {
   }
 
   private async assertServicesReady(): Promise<void> {
+    // The hosted ingress admits readiness only with the benchmark token, and
+    // API requests do not pass through the context route that adds it.
+    const routerHeaders: Record<string, string> =
+      this.networkMode === 'external_staging'
+        ? { 'x-r150-benchmark-access': hostedBenchmarkAccessToken() }
+        : {};
     await assertHttpOk(this.request, this.config.appUrl, 'site');
-    await assertHttpOk(this.request, `${this.config.routerUrl}/healthz`, 'router healthz');
-    await assertHttpOk(this.request, `${this.config.routerUrl}/readyz`, 'router readyz');
+    await assertHttpOk(
+      this.request,
+      `${this.config.routerUrl}/healthz`,
+      'router healthz',
+      routerHeaders,
+    );
+    await assertHttpOk(
+      this.request,
+      `${this.config.routerUrl}/readyz`,
+      'router readyz',
+      routerHeaders,
+    );
     this.recordService('site and router ready');
   }
 
@@ -5339,11 +5355,16 @@ export const intendedTest = base.extend<{
   },
 });
 
-async function installHostedBenchmarkAccess(context: BrowserContext): Promise<void> {
+function hostedBenchmarkAccessToken(): string {
   const accessToken = process.env.SEAMS_INTENDED_BENCHMARK_ACCESS_TOKEN;
   if (!accessToken || accessToken.length < 32) {
     throw new Error('Hosted benchmark access token must contain at least 32 characters');
   }
+  return accessToken;
+}
+
+async function installHostedBenchmarkAccess(context: BrowserContext): Promise<void> {
+  const accessToken = hostedBenchmarkAccessToken();
   const gatewayUrl = process.env.SEAMS_INTENDED_ROUTER_URL;
   if (!gatewayUrl) throw new Error('Hosted benchmark Gateway URL is required');
   const gatewayOrigin = new URL(gatewayUrl).origin;
@@ -5542,12 +5563,17 @@ function scheduleServiceReadinessRetry(resolve: () => void): void {
   setTimeout(resolve, 250);
 }
 
-async function assertHttpOk(request: APIRequestContext, url: string, label: string): Promise<void> {
+async function assertHttpOk(
+  request: APIRequestContext,
+  url: string,
+  label: string,
+  headers: Record<string, string> = {},
+): Promise<void> {
   const deadline = Date.now() + 20_000;
   let lastStatus = 0;
   while (Date.now() < deadline) {
     try {
-      const response = await request.get(url, { ignoreHTTPSErrors: true, timeout: 5_000 });
+      const response = await request.get(url, { headers, ignoreHTTPSErrors: true, timeout: 5_000 });
       lastStatus = response.status();
       if (response.ok()) return;
     } catch {
