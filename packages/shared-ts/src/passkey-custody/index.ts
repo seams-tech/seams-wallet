@@ -5,4 +5,3 @@ export * from './ceremonyCommitPayload';
 export * from './credentialActivity';
 export * from './kekContext';
 export * from './envelopeIndex';
-export * from './credentialObservations';

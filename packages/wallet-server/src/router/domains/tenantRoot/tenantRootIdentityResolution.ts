@@ -173,7 +173,7 @@ function mismatch(
   return { ok: false, code, message };
 }
 
-export function findForbiddenTenantRootSelectorFieldV1(
+function findForbiddenTenantRootSelectorFieldV1(
   input: object,
 ): ForbiddenTenantRootSelectorFieldV1 | null {
   for (const field of FORBIDDEN_TENANT_ROOT_SELECTOR_FIELDS_V1) {

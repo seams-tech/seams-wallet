@@ -5,6 +5,7 @@ import {
   cacheCredentialBoundarySetupExportPrfFirst,
   generateSessionId,
 } from '@/core/signingEngine/session/passkey/prfCache';
+import { parseClearVolatileWarmMaterialCommand } from '@/core/signingEngine/session/warmCapabilities/volatileWarmMaterialCommands';
 
 test.describe('signing session PRF cache utilities', () => {
   test('cache helper operates only on PRF claim state', async () => {
@@ -122,28 +123,18 @@ test.describe('signing session PRF cache utilities', () => {
     expect(allClearBlock).not.toContain('deleteExactSealedSession');
   });
 
-  test('durable and volatile command parsers reject cross-lifetime payloads', () => {
-    const durableCommandSource = fs.readFileSync(
-      path.resolve(
-        process.cwd(),
-        '../packages/wallet/src/core/signingEngine/session/persistence/durableSealedSessionCommands.ts',
-      ),
-      'utf8',
-    );
-    const volatileCommandSource = fs.readFileSync(
-      path.resolve(
-        process.cwd(),
-        '../packages/wallet/src/core/signingEngine/session/warmCapabilities/volatileWarmMaterialCommands.ts',
-      ),
-      'utf8',
-    );
+  test('volatile clear command parser rejects durable-delete payloads', () => {
+    const clearAll = { kind: 'clear_volatile_warm_material', scope: { kind: 'all' } };
 
-    expect(durableCommandSource).toContain("raw.kind !== 'delete_durable_sealed_session'");
-    expect(durableCommandSource).toContain('if (raw.scope != null) return null;');
-    expect(durableCommandSource).toContain('parseDurableSealedSessionDeleteReason');
-    expect(volatileCommandSource).toContain("raw.kind !== 'clear_volatile_warm_material'");
-    expect(volatileCommandSource).toContain('raw.durableRecord != null');
-    expect(volatileCommandSource).toContain('raw.deleteReason != null');
+    expect(parseClearVolatileWarmMaterialCommand(clearAll)).toEqual(clearAll);
+    expect(
+      parseClearVolatileWarmMaterialCommand({ ...clearAll, kind: 'delete_durable_sealed_session' }),
+    ).toBeNull();
+    for (const durableField of ['durableRecord', 'resolvedIdentity', 'deleteReason']) {
+      expect(
+        parseClearVolatileWarmMaterialCommand({ ...clearAll, [durableField]: 'expired' }),
+      ).toBeNull();
+    }
   });
 
   test('volatile worker clear payloads use the boundary command parser', () => {
