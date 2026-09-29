@@ -33,9 +33,6 @@ import {
   parseLinkedDeviceEmailOtpChallengeStartRequestV1,
   parseLinkedDeviceEmailOtpChallengeVerifyRequestV1,
   parseLinkedDeviceEmailOtpVerificationResultV1,
-  parseActiveWalletSessionV1,
-  parseLocalAuthorityActivationFinalAckV1,
-  parseLocalAuthorityInstallationReceiptV1,
   parseLinkedDeviceSessionClaimRequestV1,
   parseLinkedDeviceSessionTransportRequestV1,
   parseLinkedDeviceTargetCredentialRegistrationV1,
@@ -43,6 +40,11 @@ import {
   parseLinkedDeviceTargetPreparationRequestV1,
   parseQrLinkedDeviceSessionPayloadV5,
 } from '@shared/device-linking/parsers';
+import { parseActiveWalletSessionV1 } from '@shared/device-linking/activeWalletSession';
+import {
+  parseLocalAuthorityActivationFinalAckV1,
+  parseLocalAuthorityInstallationReceiptV1,
+} from '@shared/device-linking/authorityActivation';
 import {
   parseLinkedDeviceEd25519ExportRootRecipientV1,
   parseLinkedDeviceEd25519ExportRootSubmissionV1,

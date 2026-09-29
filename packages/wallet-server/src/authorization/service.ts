@@ -75,7 +75,7 @@ import type { AuthorizationEvidenceRequirement } from '@shared/authorization/cap
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import type { RouterAbMpcMaterialActivationRefWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import type { RuntimePolicyScope } from '@shared/threshold/signingRootScope';
-import { parseWalletSessionOperationCredentialV1 } from '@shared/device-linking/parsers';
+import { parseWalletSessionOperationCredentialV1 } from '@shared/device-linking/activeWalletSession';
 import type { CapabilityOperationFingerprintDigest } from '@shared/authorization/operationFingerprint';
 
 export interface AuthorizationSessionPort {

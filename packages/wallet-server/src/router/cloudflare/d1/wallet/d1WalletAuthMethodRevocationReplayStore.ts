@@ -1,6 +1,6 @@
 import type { WalletAuthMethodRevocationProof } from '@shared/utils/registrationIntent';
 import type { LinkedDeviceRevokeResultV1 } from '@shared/device-linking/contracts';
-import { parseLinkedDeviceRevokeResultV1 } from '@shared/device-linking/parsers';
+import { parseLinkedDeviceRevokeResultV1 } from '@shared/device-linking/deviceManagement';
 import type { WalletRevokeAuthMethodResponse } from '../../../../core/registrationContracts';
 import { alphabetizeStringify, sha256BytesUtf8 } from '@shared/utils/digests';
 import { base64UrlEncode } from '@shared/utils/encoders';

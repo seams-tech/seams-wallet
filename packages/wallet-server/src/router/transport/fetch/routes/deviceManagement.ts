@@ -6,7 +6,7 @@ import type {
 import {
   parseLinkedDeviceListRequestV1,
   parseLinkedDeviceRevokeRequestV1,
-} from '@shared/device-linking/parsers';
+} from '@shared/device-linking/deviceManagement';
 import { parseDigestB64u, type DigestB64u } from '@shared/utils/canonicalPrimitives';
 import {
   parseWalletAuthMethodId,

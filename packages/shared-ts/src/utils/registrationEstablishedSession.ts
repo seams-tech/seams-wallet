@@ -47,7 +47,7 @@ import type {
 import {
   parseActiveWalletSessionV1,
   parseWalletSessionOperationCredentialV1,
-} from '../device-linking/parsers';
+} from '../device-linking/activeWalletSession';
 
 /**
  * The registration journal's durable session projection. It keeps the

@@ -28,7 +28,7 @@ import type {
   WalletSessionOperationCredentialV1,
   WalletCapabilitySubjectV1,
 } from '@shared/device-linking/contracts';
-import { parseWalletSessionOperationCredentialV1 } from '@shared/device-linking/parsers';
+import { parseWalletSessionOperationCredentialV1 } from '@shared/device-linking/activeWalletSession';
 export type {
   ActiveWalletSessionV1,
   WalletSessionOperationCredentialV1,

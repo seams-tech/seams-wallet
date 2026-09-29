@@ -96,7 +96,7 @@ import {
   parseLinkedDeviceOrdinaryMaterialSourceContributionV1,
 } from '@shared/device-linking/sourceContribution';
 import type { LinkedDeviceEcdsaSourcePreservingActivationReceiptV1 } from '@shared/device-linking/sourceContribution';
-import { parseLocalAuthorityActivationFinalAckV1 } from '@shared/device-linking/parsers';
+import { parseLocalAuthorityActivationFinalAckV1 } from '@shared/device-linking/authorityActivation';
 import {
   computeWalletSessionInstallationReceiptDigestB64u,
   computeWalletSessionOperationCredentialDigestB64u,

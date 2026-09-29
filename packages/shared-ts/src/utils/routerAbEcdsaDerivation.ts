@@ -54,7 +54,7 @@ import type {
 import {
   parseActiveWalletSessionV1,
   parseWalletSessionOperationCredentialV1,
-} from '../device-linking/parsers';
+} from '../device-linking/activeWalletSession';
 import {
   isEmailOtpWalletAuthAuthority,
   isPasskeyWalletAuthAuthority,

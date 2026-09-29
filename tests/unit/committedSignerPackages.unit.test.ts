@@ -3,7 +3,7 @@ import {
   parseCommittedSignerPackageSetDigestB64u,
   parseCommittedSignerPackageSetV1,
 } from '../../packages/shared-ts/src/device-linking/committedSignerPackages';
-import { parseActivateInstalledAuthorityResultV1 } from '../../packages/shared-ts/src/device-linking/parsers';
+import { parseActivateInstalledAuthorityResultV1 } from '../../packages/shared-ts/src/device-linking/authorityActivation';
 import {
   buildOrdinaryEd25519ActivationReceiptFixture,
   buildOrdinaryEd25519ClientMaterialFixture,

@@ -1,71 +1,33 @@
 import {
   delegatedWalletPermissionNamesV1,
-  parseDelegatedWalletAuthorityV1 as parseDelegatedWalletAuthorityResult,
   type DelegatedWalletAuthorityV1,
   type DelegatedWalletPermissionV1,
 } from '../authorization/delegatedAuthority';
-import {
-  parseDeviceId as parseAuthorizationDeviceId,
-  parseMpcWalletSigningQuotaId,
-  parseWalletSessionAuthorizationId,
-  parseWalletSessionId,
-  type WalletSessionAuthorizationId,
-  type WalletSessionId,
+import type {
+  WalletSessionAuthorizationId,
+  WalletSessionId,
 } from '../authorization/capabilityKinds';
-import {
-  parseLinkedDeviceEnrollmentId,
-  parseLinkedDeviceId,
-  parseLinkDeviceSessionId,
-  parseWalletKeyId,
-  type LinkedDeviceEnrollmentId,
-  type LinkedDeviceId,
-  type LinkDeviceSessionId,
-  type WalletKeyId,
+import type {
+  LinkedDeviceEnrollmentId,
+  LinkedDeviceId,
+  LinkDeviceSessionId,
+  WalletKeyId,
 } from '../signing-lanes/ids';
-import {
-  parseMpcMaterialActivationRef,
-  parseWalletAuthMethodId,
-  parseWalletAuthorityId,
-  parseWalletId,
-  parseVerifiedEmailAddress,
-  parseWebAuthnCredentialIdB64u,
-  parseWebAuthnRpId,
-  type WalletAuthMethodId,
-  type VerifiedEmailAddress,
-  type WebAuthnCredentialIdB64u,
-} from '../utils/domainIds';
-import { parseDigestB64u } from '../utils/canonicalPrimitives';
+import type { VerifiedEmailAddress, WebAuthnCredentialIdB64u } from '../utils/domainIds';
 import { parseWalletAddAuthMethodRegistrationOptions } from '../utils/addAuthMethodRegistration';
 import { base64UrlDecode, base64UrlEncode } from '../utils/base64';
-import {
-  parseLinkedDeviceWalletSessionCredentialDeliveryBindingV1,
-  parseLinkedDeviceWalletSessionCredentialDeliveryV1,
-} from './walletSessionCredentialDelivery';
-import { parseEd25519PublicKeyB64u, parseUnixMs } from '../passkey-custody/primitives';
-import {
-  parseWalletAuthorityV1,
-  parseWalletSignerActivationSetV1,
-} from '../authorization/walletAuthority';
-import { parseWalletAuthMethodRecordV2 } from '../utils/registrationIntent';
+import { parseEd25519PublicKeyB64u } from '../passkey-custody/primitives';
 import {
   type EmailOtpWalletAuthMethodDraftV1,
   type PasskeyWalletAuthMethodDraftV1,
   type WalletEmailOtpEnrollmentMaterialV1,
 } from '../utils/registrationIntent';
 import { requireRouterAbX25519PublicKey } from '../utils/routerAbPublicKeyset';
-import { parseWebAuthnAuthenticatorDeviceInfo } from '../utils/webauthnDeviceInfo';
 import {
   type LinkedDeviceApprovalV1,
   type LinkedDeviceApprovalDeliveryV1,
   type LinkedDeviceApprovalResultV1,
   type LinkedDevicePendingSessionStateV1,
-  type LinkedDeviceListRequestV1,
-  type LinkedDeviceListResultV1,
-  type OwnerDeviceSummaryV1,
-  type LinkedDeviceRevokeRequestV1,
-  type LinkedDeviceRevokeResultV1,
-  type LinkedDeviceSummaryV1,
-  type LinkedOwnerCredentialMetadataV1,
   type LinkedDeviceOwnerAuthorizationSourceV1,
   type LinkedDeviceOwnerAuthorizationRequestV1,
   type LinkedDeviceSessionClaimRequestV1,
@@ -101,33 +63,43 @@ import {
   type LinkedDeviceEmailOtpBaseFactorRequestV1,
   type LinkedDeviceEmailOtpBaseFactorResolutionV1,
   type LinkedDeviceEmailOtpBaseFactorResolutionResultV1,
-  type ActiveWalletSessionV1,
-  type ActivateInstalledAuthorityResultV1,
-  type ActivationRetryReasonV1,
-  type LinkIntegrityFailureV1,
-  type LocalAuthorityActivationFinalAckV1,
-  type LocalAuthorityInstallationReceiptV1,
-  type WalletSessionOperationCredentialV1,
-  type WalletCapabilitySubjectV1,
 } from './contracts';
 import {
   parseLinkedDeviceOrdinaryMaterialSourceContributionPreparationTupleV1,
   parseLinkedDeviceOrdinaryMaterialSourceContributionTupleV1,
 } from './sourceContribution';
 import { requireArray, requireRecord } from '../utils/validation';
-import { exactRecord, rejectUnknownFields } from '../utils/exactRecord';
+import { exactRecord } from '../utils/exactRecord';
 import {
-  wireLabeled,
   wireLiteral,
   wireNullable,
   wireObject,
-  wireResult,
   wireUnion,
   type AllTrue,
   type ParsesExactly,
   type WireParser,
 } from '../utils/wireSchema';
 import type { Variant } from '../utils/variant';
+import {
+  authorizationDeviceId,
+  credentialId,
+  digest,
+  enrollmentId,
+  linkedDeviceId,
+  parseDelegatedWalletAuthority,
+  parseNonEmptyToken,
+  parseNonNegativeSafeInteger,
+  parseTargetEmail,
+  parseUnixTime,
+  rpId,
+  sessionId,
+  walletAuthMethodId,
+  walletAuthorityId,
+  walletId,
+  walletKeyId,
+  walletSessionAuthorizationId,
+  walletSessionId,
+} from './wireFields';
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -149,36 +121,6 @@ const QR_FIELDS = [
 ] as const;
 const COMPACT_QR_FIELDS = ['v', 's', 'l', 'd', 'a', 'f', 'i', 'e'] as const;
 
-const sessionId = /* @__PURE__ */ wireResult(parseLinkDeviceSessionId);
-const walletId = /* @__PURE__ */ wireResult(parseWalletId);
-const enrollmentId = /* @__PURE__ */ wireResult(parseLinkedDeviceEnrollmentId);
-const linkedDeviceId = /* @__PURE__ */ wireResult(parseLinkedDeviceId);
-const authorizationDeviceId = /* @__PURE__ */ wireResult(parseAuthorizationDeviceId);
-const walletKeyId = /* @__PURE__ */ wireResult(parseWalletKeyId);
-const walletSessionId = /* @__PURE__ */ wireResult(parseWalletSessionId);
-const walletSessionAuthorizationId = /* @__PURE__ */ wireResult(parseWalletSessionAuthorizationId);
-const walletAuthMethodId = /* @__PURE__ */ wireResult(parseWalletAuthMethodId);
-const walletAuthorityId = /* @__PURE__ */ wireResult(parseWalletAuthorityId);
-const credentialId = /* @__PURE__ */ wireResult(parseWebAuthnCredentialIdB64u);
-const rpId = /* @__PURE__ */ wireResult(parseWebAuthnRpId);
-const quotaId = /* @__PURE__ */ wireResult(parseMpcWalletSigningQuotaId);
-const materialActivation = /* @__PURE__ */ wireResult(parseMpcMaterialActivationRef);
-const digest = /* @__PURE__ */ wireLabeled(parseDigestB64u);
-const nullableToken = /* @__PURE__ */ wireNullable(parseNonEmptyToken);
-
-// Some records name a bad field by its key alone rather than by its path.
-function keyLabeled<T>(parse: WireParser<T>): WireParser<T> {
-  return (raw, label) => parse(raw, label.slice(label.lastIndexOf('.') + 1));
-}
-
-// A list that may be empty, reported as invalid when it is not an array.
-function listOf<T>(item: WireParser<T>): WireParser<T[]> {
-  return (raw, label) => {
-    if (!Array.isArray(raw)) throw new Error(`${label} is invalid`);
-    return raw.map((entry, index) => item(entry, `${label}[${index}]`));
-  };
-}
-
 // One of the given strings; any other value is reported as unsupported.
 function supportedLiteral<V extends string>(...values: V[]): WireParser<V> {
   return (raw, label) => {
@@ -187,41 +129,9 @@ function supportedLiteral<V extends string>(...values: V[]): WireParser<V> {
   };
 }
 
-function parseLinkedDeviceRevokeWalletAuthMethodId(
-  raw: unknown,
-  label: string,
-): WalletAuthMethodId {
-  const value = walletAuthMethodId(raw, label);
-  if (value.startsWith('wallet-authority:') || value.startsWith('authority:')) {
-    throw new Error(`${label} must identify a WalletAuthMethodId`);
-  }
-  return value;
-}
-
-function parseUnixTime(raw: unknown, label: string): number {
-  try {
-    return parseUnixMs(raw, label);
-  } catch (error) {
-    throw new Error(error instanceof Error ? error.message : `${label} is invalid`);
-  }
-}
-
 function parseEmailHashHex(raw: unknown, label: string): string {
   if (typeof raw !== 'string' || !/^[0-9a-f]{64}$/.test(raw)) {
     throw new Error(`${label} must be 32 canonical lowercase hex bytes`);
-  }
-  return raw;
-}
-
-function parseNonEmptyToken(raw: unknown, label: string): string {
-  if (typeof raw !== 'string' || raw.length === 0 || raw.trim() !== raw) {
-    throw new Error(`${label} must be a non-empty canonical string`);
-  }
-  for (const character of raw) {
-    const code = character.charCodeAt(0);
-    if (/\s/.test(character) || code <= 31 || code === 127) {
-      throw new Error(`${label} must not contain whitespace or control characters`);
-    }
   }
   return raw;
 }
@@ -324,27 +234,8 @@ function parseKeyFamily(raw: unknown, label: string): 'ed25519' | 'ecdsa_secp256
   return raw;
 }
 
-function parseNonNegativeSafeInteger(raw: unknown, label: string): number {
-  if (!Number.isSafeInteger(raw) || Number(raw) < 0) {
-    throw new Error(`${label} must be a non-negative safe integer`);
-  }
-  return Number(raw);
-}
-
-function parsePositiveSafeInteger(raw: unknown, label: string): number {
-  const value = parseNonNegativeSafeInteger(raw, label);
-  if (value < 1) throw new Error(`${label} must be a positive safe integer`);
-  return value;
-}
-
 function assertExpiryAfterIssued(issuedAtMs: number, expiresAtMs: number, label: string): void {
   if (expiresAtMs <= issuedAtMs) throw new Error(`${label}.expiresAtMs must be after issuedAtMs`);
-}
-
-function parseDelegatedWalletAuthority(raw: unknown, label: string): DelegatedWalletAuthorityV1 {
-  const result = parseDelegatedWalletAuthorityResult(raw);
-  if (!result.ok) throw new Error(`${label}: ${result.error.message}`);
-  return result.value;
 }
 
 function delegatedWalletAuthorityWireValue(value: DelegatedWalletAuthorityV1): {
@@ -392,12 +283,6 @@ function passkeyTargetFactorV1() {
 
 function emailOtpTargetFactorV1() {
   return wireObject({ kind: wireLiteral('email_otp') });
-}
-
-function parseTargetEmail(raw: unknown, label: string): VerifiedEmailAddress {
-  const parsed = parseVerifiedEmailAddress(raw);
-  if (!parsed.ok) throw new Error(`${label} ${parsed.error.message}`);
-  return parsed.value;
 }
 
 function existingEnrollmentV1() {
@@ -462,125 +347,6 @@ function parseApprovedTargetFactor(
     return { kind: 'email_otp', targetEmail, enrollment };
   }
   throw new Error(`${label}.kind is unsupported`);
-}
-
-function parseWebAuthnDeviceInfo(raw: unknown, label: string) {
-  const device = parseWebAuthnAuthenticatorDeviceInfo(raw);
-  if (!device) throw new Error(`${label} is invalid`);
-  return device;
-}
-
-function linkedOwnerCredentialMetadataV1() {
-  return wireUnion('kind', [
-    wireObject({
-      kind: wireLiteral('passkey'),
-      walletAuthMethodId,
-      credentialIdB64u: credentialId,
-      device: parseWebAuthnDeviceInfo,
-    }),
-    wireObject({ kind: wireLiteral('email_otp'), walletAuthMethodId, email: parseTargetEmail }),
-  ]);
-}
-
-function parseLinkedOwnerCredentialMetadata(
-  raw: unknown,
-  label: string,
-): LinkedOwnerCredentialMetadataV1 {
-  return linkedOwnerCredentialMetadataV1()(raw, label);
-}
-
-function linkedDeviceSummaryV1() {
-  return wireObject({
-    deviceId: linkedDeviceId,
-    enrollmentId,
-    walletId,
-    credential: parseLinkedOwnerCredentialMetadata,
-    permission: parseDelegatedWalletAuthority,
-    keyManifestDigestB64u: digest,
-    coveredWalletKeys: listOf(walletKeyId),
-    state: wireLiteral('provisioning', 'active', 'suspended', 'expired', 'revoked'),
-    createdAtMs: parseUnixTime,
-    lastActivityAtMs: parseUnixTime,
-    revocationEpoch: parseNonNegativeSafeInteger,
-  });
-}
-
-export function parseLinkedDeviceSummaryV1(raw: unknown): LinkedDeviceSummaryV1 {
-  return linkedDeviceSummaryV1()(raw, 'LinkedDeviceSummaryV1');
-}
-
-function linkedDeviceListRequestV1() {
-  return wireObject({
-    kind: wireLiteral('linked_device_list_request_v1'),
-    walletId,
-    limit: parsePositiveSafeInteger,
-    cursor: nullableToken,
-  });
-}
-
-export function parseLinkedDeviceListRequestV1(raw: unknown): LinkedDeviceListRequestV1 {
-  return linkedDeviceListRequestV1()(raw, 'LinkedDeviceListRequestV1');
-}
-
-function ownerDeviceSummaryV1() {
-  return wireObject({
-    walletId,
-    walletAuthorityId,
-    credential: parseLinkedOwnerCredentialMetadata,
-    createdAtMs: parseUnixTime,
-    lastActivityAtMs: parseUnixTime,
-  });
-}
-
-// Each device reports its errors under its own record name, not its place in the list.
-function linkedDeviceListResultV1() {
-  const ownerDevice = ownerDeviceSummaryV1();
-  return wireObject({
-    devices: listOf(parseLinkedDeviceSummaryV1),
-    ownerDevices: listOf((raw) => ownerDevice(raw, 'OwnerDeviceSummaryV1')),
-    nextCursor: nullableToken,
-  });
-}
-
-export function parseLinkedDeviceListResultV1(raw: unknown): LinkedDeviceListResultV1 {
-  return linkedDeviceListResultV1()(raw, 'LinkedDeviceListResultV1');
-}
-
-function linkedDeviceRevokeRequestV1() {
-  return wireObject({
-    kind: wireLiteral('linked_device_revoke_request_v1'),
-    walletId,
-    walletAuthMethodId: parseLinkedDeviceRevokeWalletAuthMethodId,
-    requestedAtMs: parseUnixTime,
-  });
-}
-
-export function parseLinkedDeviceRevokeRequestV1(raw: unknown): LinkedDeviceRevokeRequestV1 {
-  return linkedDeviceRevokeRequestV1()(raw, 'LinkedDeviceRevokeRequestV1');
-}
-
-function linkedDeviceRevokeFailureV1() {
-  return wireObject({ kind: wireLiteral('not_found', 'conflict', 'unauthorized') });
-}
-
-function linkedDeviceRevokedV1() {
-  return wireObject({
-    kind: wireLiteral('revoked'),
-    walletAuthMethodId: parseLinkedDeviceRevokeWalletAuthMethodId,
-    authorityId: walletAuthorityId,
-    revocationEpoch: parseNonNegativeSafeInteger,
-  });
-}
-
-// Any kind other than a failure's is read as a revocation, whose keys are checked first.
-export function parseLinkedDeviceRevokeResultV1(raw: unknown): LinkedDeviceRevokeResultV1 {
-  const record = requireRecord(raw, 'LinkedDeviceRevokeResultV1');
-  const failed =
-    record.kind === 'not_found' || record.kind === 'conflict' || record.kind === 'unauthorized';
-  return (failed ? linkedDeviceRevokeFailureV1() : linkedDeviceRevokedV1())(
-    record,
-    'LinkedDeviceRevokeResultV1',
-  );
 }
 
 function parseQrPayloadRecord(record: UnknownRecord): QrLinkedDeviceSessionPayloadV5 {
@@ -1954,286 +1720,6 @@ export function buildLinkedDeviceSessionCancelClaimedRequestV1(args: {
   };
 }
 
-// The message interpolates the activation set's error object, not its message.
-function parseInstalledActivationRefs(raw: unknown, label: string) {
-  const result = parseWalletSignerActivationSetV1(raw);
-  if (!result.ok) throw new Error(`${label} ${result.error}`);
-  return result.value;
-}
-
-function localAuthorityInstallationReceiptV1() {
-  return wireObject({
-    kind: wireLiteral('local_authority_installation_receipt_v1'),
-    authorityId: keyLabeled(walletAuthorityId),
-    walletId: keyLabeled(walletId),
-    authMethodId: keyLabeled(walletAuthMethodId),
-    deviceId: keyLabeled(authorizationDeviceId),
-    packageSetDigestB64u: keyLabeled(digest),
-    installedActivationRefs: parseInstalledActivationRefs,
-    installedRecordSetDigestB64u: keyLabeled(digest),
-    targetFactorVerificationDigestB64u: keyLabeled(digest),
-    installedAtMs: keyLabeled(parseUnixTime),
-  });
-}
-
-export function parseLocalAuthorityInstallationReceiptV1(
-  raw: unknown,
-): LocalAuthorityInstallationReceiptV1 {
-  return localAuthorityInstallationReceiptV1()(raw, 'LocalAuthorityInstallationReceiptV1');
-}
-
-function walletSessionOperationCredentialV1() {
-  return wireObject(
-    {
-      kind: wireLiteral('opaque_wallet_session_operation_credential_v1'),
-      token: (raw, label): string => {
-        if (typeof raw !== 'string' || raw.length > 8192) throw new Error(`${label} is invalid`);
-        return raw;
-      },
-      walletSessionId: keyLabeled(walletSessionId),
-    },
-    (credential, label) => {
-      if (!/^wst_[A-Za-z0-9_-]{43}$/.test(credential.token)) {
-        throw new Error(`${label} opaque token is invalid`);
-      }
-    },
-  );
-}
-
-export function parseWalletSessionOperationCredentialV1(
-  raw: unknown,
-): WalletSessionOperationCredentialV1 {
-  return walletSessionOperationCredentialV1()(raw, 'WalletSessionOperationCredentialV1');
-}
-
-function capabilitySubjectKey(subject: WalletCapabilitySubjectV1): string {
-  return subject.kind === 'sign' || subject.kind === 'export_keys'
-    ? `${subject.kind}:${subject.keyFamily}:${subject.materialActivation.activationId}`
-    : subject.kind;
-}
-
-function activeWalletSessionV1() {
-  return wireObject(
-    {
-      kind: wireLiteral('active_wallet_session_v1'),
-      walletId: keyLabeled(walletId),
-      authorityId: keyLabeled(walletAuthorityId),
-      authMethodId: keyLabeled(walletAuthMethodId),
-      authorizationId: keyLabeled(walletSessionAuthorizationId),
-      quotaId: keyLabeled(quotaId),
-      authorityDigestB64u: keyLabeled(digest),
-      authorityRevocationEpoch: keyLabeled(parseNonNegativeSafeInteger),
-      capabilitySubjects: (
-        raw,
-        label,
-      ): [WalletCapabilitySubjectV1, ...WalletCapabilitySubjectV1[]] => {
-        if (!Array.isArray(raw) || raw.length === 0) throw new Error(`${label} must be non-empty`);
-        const subjects: WalletCapabilitySubjectV1[] = [];
-        for (const [index, subject] of raw.entries()) {
-          subjects.push(parseWalletCapabilitySubjectV1(subject, `capabilitySubjects[${index}]`));
-        }
-        const first = subjects[0];
-        if (!first) throw new Error(`${label} must be non-empty`);
-        return [first, ...subjects.slice(1)];
-      },
-      issuedAtMs: keyLabeled(parseUnixTime),
-      expiresAtMs: keyLabeled(parseUnixTime),
-    },
-    (session, label) => {
-      const keys = session.capabilitySubjects.map(capabilitySubjectKey);
-      if (new Set(keys).size !== keys.length) {
-        throw new Error(`${label} capability subjects repeat`);
-      }
-    },
-  );
-}
-
-export function parseActiveWalletSessionV1(raw: unknown): ActiveWalletSessionV1 {
-  return activeWalletSessionV1()(raw, 'ActiveWalletSessionV1');
-}
-
-// Hand-written: a missing field reaches its parser rather than failing as missing.
-function parseWalletCapabilitySubjectV1(raw: unknown, label: string): WalletCapabilitySubjectV1 {
-  const record = requireRecord(raw, label);
-  if (record.kind === 'link_devices' || record.kind === 'revoke_devices') {
-    rejectUnknownFields(record, ['kind'], label);
-    return { kind: record.kind };
-  }
-  if (record.kind !== 'sign' && record.kind !== 'export_keys') {
-    throw new Error(`${label}.kind is invalid`);
-  }
-  rejectUnknownFields(record, ['kind', 'keyFamily', 'materialActivation'], label);
-  if (record.keyFamily !== 'ed25519' && record.keyFamily !== 'ecdsa_secp256k1') {
-    throw new Error(`${label}.keyFamily is invalid`);
-  }
-  return {
-    kind: record.kind,
-    keyFamily: record.keyFamily,
-    materialActivation: materialActivation(
-      record.materialActivation,
-      `${label}.materialActivation`,
-    ),
-  };
-}
-
-function localAuthorityActivationFinalAckV1() {
-  return wireObject({
-    kind: wireLiteral('local_authority_activation_final_ack_v1'),
-    linkSessionId: keyLabeled(sessionId),
-    authorityId: keyLabeled(walletAuthorityId),
-    packageSetDigestB64u: keyLabeled(digest),
-    authorizationId: keyLabeled(walletSessionAuthorizationId),
-    walletSessionId: keyLabeled(walletSessionId),
-    credentialDigestB64u: keyLabeled(digest),
-    installationReceiptDigestB64u: keyLabeled(digest),
-    acknowledgedAtMs: keyLabeled(parseUnixTime),
-  });
-}
-
-export function parseLocalAuthorityActivationFinalAckV1(
-  raw: unknown,
-): LocalAuthorityActivationFinalAckV1 {
-  return localAuthorityActivationFinalAckV1()(raw, 'LocalAuthorityActivationFinalAckV1');
-}
-
-// Hand-written: a missing field reaches its parser rather than failing as missing.
-export function parseActivateInstalledAuthorityResultV1(
-  raw: unknown,
-): ActivateInstalledAuthorityResultV1 {
-  const record = requireRecord(raw, 'ActivateInstalledAuthorityResultV1');
-  switch (record.kind) {
-    case 'active': {
-      rejectUnknownFields(
-        record,
-        ['kind', 'authority', 'authMethod', 'walletSession', 'deliveryBinding', 'sealedDelivery'],
-        'ActivateInstalledAuthorityResultV1',
-      );
-      const authorityResult = parseWalletAuthorityV1(record.authority);
-      if (!authorityResult.ok || authorityResult.value.state !== 'active') {
-        throw new Error('ActivateInstalledAuthorityResultV1.authority must be active');
-      }
-      const authMethod = parseWalletAuthMethodRecordV2(record.authMethod);
-      if (!authMethod || authMethod.status !== 'active') {
-        throw new Error('ActivateInstalledAuthorityResultV1.authMethod must be active');
-      }
-      const walletSession = parseActiveWalletSessionV1(record.walletSession);
-      const deliveryBinding =
-        parseLinkedDeviceWalletSessionCredentialDeliveryBindingV1(record.deliveryBinding);
-      const sealedDelivery = parseLinkedDeviceWalletSessionCredentialDeliveryV1(
-        record.sealedDelivery,
-      );
-      if (
-        authorityResult.value.walletId !== authMethod.walletId ||
-        authorityResult.value.authorityId !== authMethod.walletAuthorityId ||
-        walletSession.walletId !== authorityResult.value.walletId ||
-        walletSession.authorityId !== authorityResult.value.authorityId ||
-        walletSession.authMethodId !== authMethod.walletAuthMethodId ||
-        walletSession.authorityDigestB64u !== authorityResult.value.authorityDigestB64u ||
-        walletSession.authorityRevocationEpoch !== authorityResult.value.revocationEpoch ||
-        deliveryBinding.namespace !== sealedDelivery.aad.namespace ||
-        deliveryBinding.orgId !== sealedDelivery.aad.orgId ||
-        deliveryBinding.projectId !== sealedDelivery.aad.projectId ||
-        deliveryBinding.envId !== sealedDelivery.aad.envId ||
-        deliveryBinding.tenantId !== sealedDelivery.aad.tenantId ||
-        deliveryBinding.principalId !== sealedDelivery.aad.principalId ||
-        sealedDelivery.aad.walletId !== walletSession.walletId ||
-        sealedDelivery.aad.authorityId !== walletSession.authorityId ||
-        sealedDelivery.aad.walletAuthMethodId !== walletSession.authMethodId ||
-        sealedDelivery.aad.authorizationId !== walletSession.authorizationId ||
-        sealedDelivery.aad.quotaId !== walletSession.quotaId ||
-        sealedDelivery.aad.issuedAtMs !== walletSession.issuedAtMs ||
-        sealedDelivery.aad.expiresAtMs !== walletSession.expiresAtMs
-      ) {
-        throw new Error('ActivateInstalledAuthorityResultV1 identities do not match');
-      }
-      return {
-        kind: 'active',
-        authority: authorityResult.value,
-        authMethod,
-        walletSession,
-        deliveryBinding,
-        sealedDelivery,
-      };
-    }
-    case 'pending_local_install':
-      rejectUnknownFields(
-        record,
-        ['kind', 'authorityId', 'reason'],
-        'ActivateInstalledAuthorityResultV1',
-      );
-      return {
-        kind: 'pending_local_install',
-        authorityId: walletAuthorityId(record.authorityId, 'authorityId'),
-        reason: activationRetryReasonV1()(record.reason, 'ActivationRetryReasonV1'),
-      };
-    case 'integrity_error':
-      rejectUnknownFields(record, ['kind', 'reason'], 'ActivateInstalledAuthorityResultV1');
-      return {
-        kind: 'integrity_error',
-        reason: parseLinkIntegrityFailureV1(record.reason),
-      };
-    default:
-      throw new Error('ActivateInstalledAuthorityResultV1.kind is invalid');
-  }
-}
-
-function activationRetryReasonV1() {
-  return wireUnion('kind', [
-    wireObject({ kind: wireLiteral('installation_receipt_not_found') }),
-    wireObject({ kind: wireLiteral('server_worker_activation_pending') }),
-    wireObject({ kind: wireLiteral('wallet_session_issuance_pending') }),
-  ]);
-}
-
-// Hand-written: a missing field reaches its parser rather than failing as missing.
-function parseLinkIntegrityFailureV1(raw: unknown): LinkIntegrityFailureV1 {
-  const record = requireRecord(raw, 'LinkIntegrityFailureV1');
-  switch (record.kind) {
-    case 'authority_id_mismatch':
-      rejectUnknownFields(
-        record,
-        ['kind', 'expectedAuthorityId', 'actualAuthorityId'],
-        'LinkIntegrityFailureV1',
-      );
-      return {
-        kind: 'authority_id_mismatch',
-        expectedAuthorityId: walletAuthorityId(record.expectedAuthorityId, 'expectedAuthorityId'),
-        actualAuthorityId: walletAuthorityId(record.actualAuthorityId, 'actualAuthorityId'),
-      };
-    case 'package_set_digest_mismatch':
-      rejectUnknownFields(
-        record,
-        ['kind', 'expectedPackageSetDigestB64u', 'actualPackageSetDigestB64u'],
-        'LinkIntegrityFailureV1',
-      );
-      return {
-        kind: 'package_set_digest_mismatch',
-        expectedPackageSetDigestB64u: digest(
-          record.expectedPackageSetDigestB64u,
-          'expectedPackageSetDigestB64u',
-        ),
-        actualPackageSetDigestB64u: digest(
-          record.actualPackageSetDigestB64u,
-          'actualPackageSetDigestB64u',
-        ),
-      };
-    case 'installation_receipt_mismatch':
-      rejectUnknownFields(record, ['kind', 'field'], 'LinkIntegrityFailureV1');
-      if (
-        record.field !== 'walletId' &&
-        record.field !== 'authMethodId' &&
-        record.field !== 'deviceId' &&
-        record.field !== 'targetFactorVerificationDigestB64u' &&
-        record.field !== 'installedActivationRefs'
-      ) {
-        throw new Error('LinkIntegrityFailureV1.field is invalid');
-      }
-      return { kind: 'installation_receipt_mismatch', field: record.field };
-    default:
-      throw new Error('LinkIntegrityFailureV1.kind is invalid');
-  }
-}
-
 type TransportRequest<K extends LinkedDeviceSessionTransportRequestV1['kind']> = Variant<
   LinkedDeviceSessionTransportRequestV1,
   'kind',
@@ -2245,16 +1731,6 @@ declare const schemasParseTheirDeclaredTypes: AllTrue<
   [
     ParsesExactly<typeof emailOtpEnrollmentSelectionV1, LinkedDeviceEmailOtpEnrollmentSelectionV1>,
     ParsesExactly<typeof emailOtpEnrollmentMaterialV1, WalletEmailOtpEnrollmentMaterialV1>,
-    ParsesExactly<typeof linkedOwnerCredentialMetadataV1, LinkedOwnerCredentialMetadataV1>,
-    ParsesExactly<typeof linkedDeviceSummaryV1, LinkedDeviceSummaryV1>,
-    ParsesExactly<typeof linkedDeviceListRequestV1, LinkedDeviceListRequestV1>,
-    ParsesExactly<typeof ownerDeviceSummaryV1, OwnerDeviceSummaryV1>,
-    ParsesExactly<typeof linkedDeviceListResultV1, LinkedDeviceListResultV1>,
-    ParsesExactly<typeof linkedDeviceRevokeRequestV1, LinkedDeviceRevokeRequestV1>,
-    ParsesExactly<
-      typeof linkedDeviceRevokeFailureV1 | typeof linkedDeviceRevokedV1,
-      LinkedDeviceRevokeResultV1
-    >,
     ParsesExactly<
       typeof linkedDeviceOwnerAuthorizationRequestV1,
       LinkedDeviceOwnerAuthorizationRequestV1
@@ -2350,10 +1826,5 @@ declare const schemasParseTheirDeclaredTypes: AllTrue<
       typeof retryCommittedDeliveryRequestV1,
       TransportRequest<'linked_device_session_retry_committed_delivery_request_v1'>
     >,
-    ParsesExactly<typeof localAuthorityInstallationReceiptV1, LocalAuthorityInstallationReceiptV1>,
-    ParsesExactly<typeof walletSessionOperationCredentialV1, WalletSessionOperationCredentialV1>,
-    ParsesExactly<typeof activeWalletSessionV1, ActiveWalletSessionV1>,
-    ParsesExactly<typeof localAuthorityActivationFinalAckV1, LocalAuthorityActivationFinalAckV1>,
-    ParsesExactly<typeof activationRetryReasonV1, ActivationRetryReasonV1>,
   ]
 >;

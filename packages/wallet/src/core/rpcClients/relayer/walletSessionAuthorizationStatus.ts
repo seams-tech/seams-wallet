@@ -7,7 +7,7 @@ import {
 import {
   parseActiveWalletSessionV1,
   parseWalletSessionOperationCredentialV1,
-} from '@shared/device-linking/parsers';
+} from '@shared/device-linking/activeWalletSession';
 import type {
   ActiveWalletSessionV1,
   WalletSessionOperationCredentialV1,

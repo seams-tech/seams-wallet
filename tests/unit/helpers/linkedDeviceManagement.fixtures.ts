@@ -52,7 +52,7 @@ import type {
 import {
   parseActiveWalletSessionV1,
   parseWalletSessionOperationCredentialV1,
-} from '../../../packages/shared-ts/src/device-linking/parsers';
+} from '../../../packages/shared-ts/src/device-linking/activeWalletSession';
 import type {
   ActiveWalletSessionV1,
   WalletSessionOperationCredentialV1,

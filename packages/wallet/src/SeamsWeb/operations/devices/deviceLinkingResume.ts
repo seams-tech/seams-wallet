@@ -26,7 +26,7 @@ import {
   type WalletId,
 } from '@shared/utils/domainIds';
 import { parseDeviceId, type DeviceId } from '@shared/authorization/capabilityKinds';
-import { parseLocalAuthorityActivationFinalAckV1 } from '@shared/device-linking/parsers';
+import { parseLocalAuthorityActivationFinalAckV1 } from '@shared/device-linking/authorityActivation';
 import type { DeviceLinkingWalletSessionAcknowledgementReplayPortV1 } from './deviceLinkingPorts';
 import type { DeviceLinkingDeliveryResumePortV1 } from './deviceLinkingAuthorityInstallation';
 
