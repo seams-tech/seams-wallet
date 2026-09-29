@@ -8,7 +8,7 @@ import type {
 import {
   deriveRouterAbEd25519YaoApplicationBindingDigestV1,
   deriveRouterAbEd25519YaoStableContextBindingV1,
-} from '@shared/utils/routerAbEd25519Yao';
+} from '@shared/utils/routerAbEd25519YaoDigests';
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
 import {
   routerAbMpcMaterialActivationRefToWire,

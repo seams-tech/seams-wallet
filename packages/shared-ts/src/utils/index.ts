@@ -25,6 +25,13 @@ export * from './secureRandomId';
 export * from './routerAbPublicKeyset';
 export * from './routerAbEcdsaDerivation';
 export * from './routerAbEd25519Yao';
+export {
+  deriveRouterAbEd25519YaoApplicationBindingDigestV1,
+  deriveRouterAbEd25519YaoExportAuthorizationDigestV1,
+  deriveRouterAbEd25519YaoExportConfirmationDigestV1,
+  deriveRouterAbEd25519YaoRuntimePolicyBindingV1,
+  deriveRouterAbEd25519YaoStableContextBindingV1,
+} from './routerAbEd25519YaoDigests';
 export * from './routerAbTraceContext';
 export * from './authenticatorOptions';
 export * from './canonicalPrimitives';

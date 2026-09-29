@@ -1,8 +1,8 @@
 import {
-  deriveRouterAbEd25519YaoStableContextBindingV1,
   type RouterAbEd25519YaoActivationBindingV1,
   type RouterAbEd25519YaoRegistrationAdmissionRequestV1,
 } from '@shared/utils/routerAbEd25519Yao';
+import { deriveRouterAbEd25519YaoStableContextBindingV1 } from '@shared/utils/routerAbEd25519YaoDigests';
 import {
   computeAddSignerNearEd25519SigningKeyId,
   findRegistrationSignerPlanNearEd25519Branch,

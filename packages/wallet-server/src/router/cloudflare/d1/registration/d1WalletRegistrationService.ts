@@ -68,10 +68,10 @@ import {
 } from '@shared/utils/routerAbNormalSigningIdentity';
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/encoders';
 import {
-  deriveRouterAbEd25519YaoRuntimePolicyBindingV1,
   sameRouterAbEd25519YaoRegistrationAdmissionRequestV1,
   type RouterAbEd25519YaoExportAuthorizationIdentityV1,
 } from '@shared/utils/routerAbEd25519Yao';
+import { deriveRouterAbEd25519YaoRuntimePolicyBindingV1 } from '@shared/utils/routerAbEd25519YaoDigests';
 import {
   parseEd25519PublicKeyB64u,
   parseSecp256k1CompressedPublicKeyB64u,

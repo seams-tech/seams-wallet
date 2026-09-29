@@ -151,12 +151,12 @@ import {
   RouterAbEd25519YaoClientSigningShareV1,
   type RouterAbEd25519YaoExportCustodyEnvelopeV1,
 } from '../../threshold/ed25519/yaoClient';
+import { parseRouterAbEd25519YaoExportAdmissionRequestV1 } from '@shared/utils/routerAbEd25519Yao';
 import {
   deriveRouterAbEd25519YaoExportAuthorizationDigestV1,
   deriveRouterAbEd25519YaoExportConfirmationDigestV1,
   deriveRouterAbEd25519YaoRuntimePolicyBindingV1,
-  parseRouterAbEd25519YaoExportAdmissionRequestV1,
-} from '@shared/utils/routerAbEd25519Yao';
+} from '@shared/utils/routerAbEd25519YaoDigests';
 import type {
   WalletRegistrationEd25519YaoBootstrapSession,
   WalletRegistrationEd25519YaoSignerRuntimeBootstrap,

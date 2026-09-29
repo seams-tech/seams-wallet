@@ -1,9 +1,6 @@
 import {
   ROUTER_AB_ED25519_YAO_EXPORT_ADMISSION_PATH_V1,
   ROUTER_AB_ED25519_YAO_EXPORT_EXECUTE_PATH_V1,
-  deriveRouterAbEd25519YaoExportAuthorizationDigestV1,
-  deriveRouterAbEd25519YaoExportConfirmationDigestV1,
-  deriveRouterAbEd25519YaoRuntimePolicyBindingV1,
   parseRouterAbEd25519YaoExportAdmissionReceiptV1,
   parseRouterAbEd25519YaoExportAdmissionRequestV1,
   parseRouterAbEd25519YaoExportExecuteRequestV1,
@@ -15,6 +12,11 @@ import {
   type RouterAbEd25519YaoExportExecuteRequestV1,
   type RouterAbEd25519YaoExportResultV1,
 } from '@shared/utils/routerAbEd25519Yao';
+import {
+  deriveRouterAbEd25519YaoExportAuthorizationDigestV1,
+  deriveRouterAbEd25519YaoExportConfirmationDigestV1,
+  deriveRouterAbEd25519YaoRuntimePolicyBindingV1,
+} from '@shared/utils/routerAbEd25519YaoDigests';
 import {
   createRouterAbTraceContextV1,
   parseRouterAbTraceContextV1,

@@ -13,7 +13,7 @@ import { deriveEvmFamilySigningKeySlotId } from '@shared/signing-lanes';
 import { base64UrlEncode } from '@shared/utils/base64';
 import { parseDigestB64u, type DigestB64u } from '@shared/utils/canonicalPrimitives';
 import { parseEcdsaThresholdKeyId } from '../session/keyMaterialBrands';
-import { deriveRouterAbEd25519YaoApplicationBindingDigestV1 } from '@shared/utils/routerAbEd25519Yao';
+import { deriveRouterAbEd25519YaoApplicationBindingDigestV1 } from '@shared/utils/routerAbEd25519YaoDigests';
 import type { ActiveEcdsaCapabilityManifest } from '../session/material/ecdsaCapabilityManifest';
 import type { LinkedEcdsaHolderRuntimeV1 } from '../session/material/linkedEcdsaHolderRuntime';
 import { prepareLinkedDeviceEcdsaSourceContributionWasm } from '../threshold/crypto/ecdsaDerivationClientWasm';
