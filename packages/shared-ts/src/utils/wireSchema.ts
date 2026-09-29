@@ -26,13 +26,19 @@ type NeverPaddingKeys<T> = {
   [K in keyof T]-?: [T[K]] extends [undefined] ? K : never;
 }[keyof T];
 
+// A parser builds a fresh value, so whether a declared type marks its fields readonly says
+// nothing about the parse; the check compares types with every field writable.
+type Writable<T> = T extends string | number | boolean | bigint | symbol | null | undefined
+  ? T
+  : { -readonly [K in keyof T]: Writable<T[K]> };
+
 /**
  * Whether parser `P`, or the parser that function `P` builds, produces exactly `T`, apart
- * from `T`'s `?: never` padding.
+ * from `T`'s `?: never` padding and readonly markers.
  */
 export type ParsesExactly<P, T> = Equal<
-  P extends () => infer Built ? WireType<Built> : WireType<P>,
-  T extends unknown ? Omit<T, NeverPaddingKeys<T>> : never
+  Writable<P extends () => infer Built ? WireType<Built> : WireType<P>>,
+  Writable<T extends unknown ? Omit<T, NeverPaddingKeys<T>> : never>
 >;
 
 /** Compiles only when every check holds; the error shows which entry is false. */
@@ -91,6 +97,11 @@ export function wireUnion<
     if (!variant) throw new Error(`${label}.${tag} is invalid`);
     return variant(record, label) as WireType<V>;
   };
+}
+
+/** `null`, or a value `parse` accepts. */
+export function wireNullable<T>(parse: WireParser<T>): WireParser<T | null> {
+  return (raw, label) => (raw === null ? null : parse(raw, label));
 }
 
 /** A non-empty array of `item`; `refine` checks rules that span the items. */
