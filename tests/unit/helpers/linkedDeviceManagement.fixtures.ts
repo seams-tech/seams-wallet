@@ -7,10 +7,8 @@ import {
   buildActiveWalletAuthorityV1,
   computeWalletAuthorityDigestB64u,
   computeWalletSignerActivationSetDigestB64u,
-  buildRevokedWalletAuthorityV1,
   buildWalletSignerActivationSetV1,
   type ActiveWalletAuthorityV1,
-  type RevokedWalletAuthorityV1,
 } from '../../../packages/shared-ts/src/authorization/walletAuthority';
 import {
   buildActiveWalletSessionQuota,
@@ -34,12 +32,10 @@ import {
   buildWalletAuthMethodRecordV2,
   type ActiveEmailOtpWalletAuthMethodRecordV2,
   type ActivePasskeyWalletAuthMethodRecordV2,
-  type WalletAuthMethodRecordV2,
 } from '../../../packages/shared-ts/src/utils/registrationIntent';
 import {
   parseLinkedDeviceEnrollmentId,
   parseLinkDeviceSessionId,
-  parseMpcMaterialActivationRef,
   parseWalletAuthMethodId,
   parseWalletAuthorityId,
   parseWalletId,
@@ -71,11 +67,6 @@ import {
 import { buildMpcMaterialActivationRefFixture } from './ecdsaMaterialRef.fixtures';
 
 const MANAGEMENT_DIGEST = parseDigestB64u(base64UrlEncode(new Uint8Array(32).fill(33)));
-
-type RevokedPasskeyWalletAuthMethodRecordV2 = Extract<
-  WalletAuthMethodRecordV2,
-  { readonly kind: 'passkey'; readonly status: 'revoked' }
->;
 
 function required<T>(
   result:
@@ -401,74 +392,6 @@ export async function buildLinkedDeviceManagementAuthorityFixture(input: {
   };
 }
 
-export async function extendFixtureAuthorityWithEcdsaSigner(
-  authority: ActiveWalletAuthorityV1,
-): Promise<ActiveWalletAuthorityV1> {
-  if (
-    authority.signerActivations.keyFamilies.length !== 1 ||
-    !authority.signerActivations.ed25519
-  ) {
-    throw new Error('fixture authority must begin with one Ed25519 signer');
-  }
-  const ecdsaSigner = {
-    kind: 'exact_administered_ecdsa_signer_v1' as const,
-    keyFamily: 'ecdsa_secp256k1' as const,
-    walletId: authority.walletId,
-    walletKeyId: `wallet-key:management-deferred-ecdsa:${authority.walletId}`,
-    thresholdPublicKey33B64u: base64UrlEncode(new Uint8Array([2, ...new Uint8Array(32).fill(48)])),
-    evmAddress: `0x${'2'.repeat(40)}`,
-  };
-  const manifest = parseExactAdministeredSignerManifestV1({
-    kind: 'exact_administered_signer_manifest_v1',
-    keyFamilies: ['ed25519', 'ecdsa_secp256k1'],
-    signers: [authority.signerActivations.ed25519.signer, ecdsaSigner],
-  });
-  const signerActivations = buildWalletSignerActivationSetV1({
-    manifest,
-    materialActivations: {
-      keyFamilies: ['ed25519', 'ecdsa_secp256k1'],
-      ed25519: authority.signerActivations.ed25519.materialActivation,
-      ecdsa: buildMpcMaterialActivationRefFixture(
-        `management-deferred-ecdsa-${authority.walletId}`,
-      ),
-    },
-  });
-  const signerActivationSetDigestB64u =
-    await computeWalletSignerActivationSetDigestB64u(signerActivations);
-  const draft = buildActiveWalletAuthorityV1({
-    kind: authority.kind,
-    authorityId: authority.authorityId,
-    walletId: authority.walletId,
-    principal: authority.principal,
-    provenance: authority.provenance,
-    permissions: authority.permissions,
-    signerActivations,
-    signerActivationSetDigestB64u,
-    authorityDigestB64u: authority.authorityDigestB64u,
-    revocationEpoch: authority.revocationEpoch,
-    createdAtMs: authority.createdAtMs,
-    updatedAtMs: authority.updatedAtMs + 1,
-    state: authority.state,
-    activatedAtMs: authority.activatedAtMs,
-  });
-  return buildActiveWalletAuthorityV1({
-    kind: draft.kind,
-    authorityId: draft.authorityId,
-    walletId: draft.walletId,
-    principal: draft.principal,
-    provenance: draft.provenance,
-    permissions: draft.permissions,
-    signerActivations: draft.signerActivations,
-    signerActivationSetDigestB64u: draft.signerActivationSetDigestB64u,
-    authorityDigestB64u: await computeWalletAuthorityDigestB64u(draft),
-    revocationEpoch: draft.revocationEpoch,
-    createdAtMs: draft.createdAtMs,
-    updatedAtMs: draft.updatedAtMs,
-    state: draft.state,
-    activatedAtMs: draft.activatedAtMs,
-  });
-}
-
 export async function extendFixtureAuthorityWithEd25519Signer(
   authority: ActiveWalletAuthorityV1,
 ): Promise<ActiveWalletAuthorityV1> {
@@ -564,91 +487,12 @@ export function buildPromotedActiveWalletSessionFixture(input: {
   });
 }
 
-export function buildRevokedLinkedDeviceAuthorityV1(
-  authority: ActiveWalletAuthorityV1,
-  revokedAtMs: number,
-): RevokedWalletAuthorityV1 {
-  return buildRevokedWalletAuthorityV1({
-    kind: authority.kind,
-    authorityId: authority.authorityId,
-    walletId: authority.walletId,
-    principal: authority.principal,
-    provenance: authority.provenance,
-    permissions: authority.permissions,
-    signerActivations: authority.signerActivations,
-    signerActivationSetDigestB64u: authority.signerActivationSetDigestB64u,
-    authorityDigestB64u: authority.authorityDigestB64u,
-    revocationEpoch: authority.revocationEpoch + 1,
-    createdAtMs: authority.createdAtMs,
-    updatedAtMs: revokedAtMs,
-    state: 'revoked',
-    activatedAtMs: authority.activatedAtMs,
-    revokedAtMs,
-  });
-}
-
-export function buildRevokedLinkedDeviceAuthMethodV1(
-  authMethod: ActivePasskeyWalletAuthMethodRecordV2,
-  revokedAtMs: number,
-): RevokedPasskeyWalletAuthMethodRecordV2 {
-  return buildRevokedPasskeyWalletAuthMethodRecord({
-    version: 'wallet_auth_method_v2',
-    walletAuthMethodId: authMethod.walletAuthMethodId,
-    walletId: authMethod.walletId,
-    walletAuthorityId: authMethod.walletAuthorityId,
-    kind: 'passkey',
-    status: 'revoked',
-    rpId: authMethod.rpId,
-    credentialIdB64u: authMethod.credentialIdB64u,
-    credentialPublicKeyB64u: authMethod.credentialPublicKeyB64u,
-    counter: authMethod.counter,
-    createdAtMs: authMethod.createdAtMs,
-    updatedAtMs: revokedAtMs,
-    activatedAtMs: authMethod.activatedAtMs,
-    revokedAtMs,
-  });
-}
-
-/** An active Email OTP sibling method on an existing fixture authority. */
-export function buildEmailOtpAuthMethodForManagementFixture(
-  authority: ActiveWalletAuthorityV1,
-  label: string,
-): ActiveEmailOtpWalletAuthMethodRecordV2 {
-  const record = buildWalletAuthMethodRecordV2({
-    version: 'wallet_auth_method_v2',
-    walletAuthMethodId: required(parseWalletAuthMethodId(`auth-method:management-${label}-email`)),
-    walletId: authority.walletId,
-    walletAuthorityId: authority.authorityId,
-    kind: 'email_otp',
-    status: 'active',
-    emailHashHex: '4'.repeat(64),
-    registrationAuthorityId: String(authority.authorityId),
-    createdAtMs: 100,
-    updatedAtMs: 200,
-    activatedAtMs: 200,
-  });
-  if (record.kind !== 'email_otp' || record.status !== 'active') {
-    throw new Error('active Email OTP fixture unexpectedly changed branch');
-  }
-  return record;
-}
-
 function buildActivePasskeyWalletAuthMethodRecord(
   input: ActivePasskeyWalletAuthMethodRecordV2,
 ): ActivePasskeyWalletAuthMethodRecordV2 {
   const record = buildWalletAuthMethodRecordV2(input);
   if (record.kind !== 'passkey' || record.status !== 'active') {
     throw new Error('active Passkey fixture unexpectedly changed branch');
-  }
-  return record;
-}
-
-function buildRevokedPasskeyWalletAuthMethodRecord(
-  input: RevokedPasskeyWalletAuthMethodRecordV2,
-): RevokedPasskeyWalletAuthMethodRecordV2 {
-  const record = buildWalletAuthMethodRecordV2(input);
-  if (record.kind !== 'passkey' || record.status !== 'revoked') {
-    throw new Error('revoked Passkey fixture unexpectedly changed branch');
   }
   return record;
 }
@@ -663,14 +507,6 @@ function buildActiveEmailOtpWalletAuthMethodRecord(
   return record;
 }
 
-export function fullOwnerPermissionsForManagementFixture(): CanonicalDelegatedWalletPermissionSetV1 {
-  return buildFullOwnerPermissionsV1();
-}
-
 export function linkedDevicePermissionsForManagementFixture(): CanonicalDelegatedWalletPermissionSetV1 {
   return buildSigningOnlyDelegatedWalletAuthorityV1().permissions;
-}
-
-export function parseManagementMaterialActivationRef(raw: string): MpcMaterialActivationRef {
-  return required(parseMpcMaterialActivationRef(raw));
 }

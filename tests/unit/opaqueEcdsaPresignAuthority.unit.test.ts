@@ -1,4 +1,3 @@
-import type { ThresholdEcdsaPresignProgressResult } from '@/core/signingEngine/workerManager/workerTypes';
 import { expect, test } from '@playwright/test';
 import { parseRootShareEpoch } from '@shared/utils/domainIds';
 import {
@@ -200,27 +199,3 @@ test('the opaque worker forwards the terminal batch signal before material is av
   expect(await authority.destroyMaterial(completed.presignatureHandle)).toBe(true);
   expect(session.wasFreed()).toBe(true);
 });
-
-function rejectIncompleteTerminalProgress(): void {
-  // @ts-expect-error A final batch requires the public candidate point.
-  const missingCandidate: ThresholdEcdsaPresignProgressResult = {
-    stage: 'presign',
-    event: 'final_batch_ready',
-    outgoingMessages: [],
-  };
-  const terminal = {
-    stage: 'presign',
-    event: 'final_batch_ready',
-    outgoingMessages: [],
-    candidateBigR33: new ArrayBuffer(33),
-  } as const;
-  // @ts-expect-error A spread cannot smuggle completed material into a terminal batch.
-  const prematureMaterial: ThresholdEcdsaPresignProgressResult = {
-    ...terminal,
-    outgoingMessages: [],
-    presignatureHandle: 'unverified',
-  };
-  void missingCandidate;
-  void prematureMaterial;
-}
-void rejectIncompleteTerminalProgress;

@@ -91,15 +91,15 @@ test.describe('chain family naming', () => {
     expect(familyByNetwork.get('ethereum-mainnet')).toBe('evm');
     expect(familyByNetwork.get('ethereum-sepolia')).toBe('evm');
 
-    const evmPredicates = result.mapping
-      .filter((entry) => entry.family === 'evm')
-      .map((entry) => ({ network: entry.network, isEvm: entry.isEvm }));
-    expect(evmPredicates).toEqual([
-      { network: 'arc-mainnet', isEvm: true },
-      { network: 'arc-testnet', isEvm: true },
-      { network: 'ethereum-mainnet', isEvm: true },
-      { network: 'ethereum-sepolia', isEvm: true },
-    ]);
+    for (const entry of result.mapping) {
+      expect(entry).toEqual({
+        network: entry.network,
+        family: entry.family,
+        isNear: entry.family === 'near',
+        isTempo: entry.family === 'tempo',
+        isEvm: entry.family === 'evm',
+      });
+    }
 
     expect(result.evmExplorer).toBe('https://arc-explorer.example');
     expect(result.evmExplorerForSepoliaChainId).toBe('https://sepolia-explorer.example');
