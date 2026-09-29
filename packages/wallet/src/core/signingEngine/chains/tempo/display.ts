@@ -61,12 +61,6 @@ function buildAbiDecodeHint(args: {
   };
 }
 
-function shortenHexAddress(address: string): string {
-  const normalized = String(address || '').trim();
-  if (!/^0x[0-9a-fA-F]{40}$/.test(normalized)) return normalized;
-  return `${normalized.slice(0, 8)}...${normalized.slice(-4)}`;
-}
-
 function buildTempoCallDetailsOperation(args: {
   rootId: string;
   call: TempoCall;
@@ -121,9 +115,9 @@ function buildTempoCallOperation(args: {
   const { call, callIndex, callCount, tx } = args;
   const id = `tempo.tx.${callIndex}`;
   const to = String(call.to || '').trim();
-  const prefix =
-    callCount > 1 ? `Transaction ${callIndex + 1} to contract ` : 'Transaction to contract ';
-  const rowLabel = `${prefix}${shortenHexAddress(to) || 'unknown contract'}`;
+  // The review shows the recipient beside this label, so the label leaves it out.
+  const rowLabel =
+    callCount > 1 ? `Transaction ${callIndex + 1} to contract` : 'Transaction to contract';
   const child = buildTempoCallDetailsOperation({ rootId: id, call, tx });
   return {
     id,

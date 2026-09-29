@@ -247,6 +247,55 @@
 :where(.seams-wallet-ui) .seams-review-function {
   color: var(--seams-colors-buttonBackground);
 }
+:where(.seams-wallet-ui) .seams-review-detail-label > span {
+  flex: 1;
+  min-width: 0;
+}
+:where(.seams-wallet-ui) .seams-review-contract {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 0.375rem;
+}
+/* A zero basis keeps the address beside the label until even its shortest form does not fit. */
+:where(.seams-wallet-ui) .seams-review-contract-value {
+  display: flex;
+  flex: 1 1 0;
+  align-items: center;
+  gap: 0.25rem;
+}
+:where(.seams-wallet-ui) .seams-review-contract-address {
+  display: flex;
+  flex: 1 1 0;
+  /* Containment makes this min-width, not the full address, the value's narrowest size. */
+  contain: inline-size;
+  /* Eight leading characters, the ellipsis and eight trailing characters. */
+  min-width: 17ch;
+  font:
+    0.75rem/1.5 ui-monospace,
+    SFMono-Regular,
+    monospace;
+  color: var(--seams-colors-textSecondary);
+  white-space: nowrap;
+}
+:where(.seams-wallet-ui) .seams-review-contract-address > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+:where(.seams-wallet-ui) .seams-review-contract-address > span:last-child {
+  flex: none;
+}
+:where(.seams-wallet-ui) .seams-review-contract-value > .seams-review-copy {
+  margin-block: -0.25rem;
+}
+@media (hover: hover) {
+  :where(.seams-wallet-ui)
+    .seams-review-contract:not(:hover, :focus-within)
+    .seams-review-copy:not(.copied)
+    > .copy-icon {
+    opacity: 0;
+  }
+}
 :where(.seams-wallet-ui) .seams-review-detail-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto;
@@ -432,6 +481,9 @@
   gap: 0.75rem;
   padding: 0.625rem 0.75rem;
 }
+:where(.seams-wallet-ui) .seams-transaction-toast > .seams-receipt-symbol {
+  border-radius: min(var(--seams-shape-control, 10px), 8px);
+}
 :where(.seams-wallet-ui) .seams-toast-progress {
   position: absolute;
   inset: 0;
@@ -514,7 +566,7 @@
 :where(.seams-wallet-ui[data-receipt-view='toast'])
   .seams-confirmation-modal
   .modal-container-root {
-  border-radius: min(var(--seams-shape-card, 16px), 16px);
+  border-radius: min(var(--seams-shape-card, 16px), 12px);
 }
 :where(.seams-wallet-ui) .seams-review-eyebrow {
   margin: 1rem 0 0.375rem;

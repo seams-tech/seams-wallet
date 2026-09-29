@@ -41,7 +41,7 @@ function shortAddress(address: string): string {
     : normalized;
 }
 
-function contractPrefix(node: TreeNode): string | undefined {
+export function contractPrefix(node: TreeNode): string | undefined {
   const match = node.label.trim().match(/^(Transaction(?:\s+\d+)?\s+to contract)\b/i);
   return match ? `${match[1]} ` : undefined;
 }

@@ -6,7 +6,7 @@ import { copySurfaceText } from './clipboard';
 import { CopyStatusIcon } from './CopyStatusIcon';
 import { ReviewDisclosure } from './ReviewDisclosure';
 import { SeamsWordmark } from './SeamsWordmark';
-import { transactionLabelTitle } from './TransactionLabel';
+import { contractPrefix, transactionLabelTitle } from './TransactionLabel';
 
 export type TransactionReviewData = {
   detailsInitiallyOpen?: boolean;
@@ -287,6 +287,23 @@ export class CopyReviewValue extends Component<{ value: string; address?: boolea
 function ReviewDetailLabel({ node }: { node: TreeNode }) {
   if (node.action || node.transaction) {
     return <>{transactionLabelTitle(node)}</>;
+  }
+  const contract = contractPrefix(node);
+  if (contract && node.contractAddress) {
+    const address = node.contractAddress;
+    // Only the head truncates, so a long address still ends in its last eight characters.
+    return (
+      <span class="seams-review-contract">
+        {contract.trim()}
+        <span class="seams-review-contract-value">
+          <bdi class="seams-review-contract-address" dir="ltr" title={address}>
+            <span>{address.slice(0, -8)}</span>
+            <span>{address.slice(-8)}</span>
+          </bdi>
+          <CopyReviewValue value={address} label={`Copy contract address ${address}`} />
+        </span>
+      </span>
+    );
   }
   if (node.fieldLabel) {
     const value = node.label.slice(node.fieldLabel.length);
