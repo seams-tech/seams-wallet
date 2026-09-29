@@ -41,7 +41,6 @@ pub use self::output::{
 pub use self::run::{run_command_v1, run_command_with_recovery_trust_v1};
 pub use self::transport::{
     ConsoleRequestV1, ConsoleResponseV1, ConsoleTransportErrorV1, ConsoleTransportV1,
-    UnavailableConsoleTransportV1,
 };
 pub use self::trust::{
     pinned_recovery_trust_bundle_v1, pinned_release_root_v1, resolve_recovery_trust_bundle_v1,
