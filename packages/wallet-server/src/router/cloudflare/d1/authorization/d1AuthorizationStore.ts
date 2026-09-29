@@ -2372,13 +2372,7 @@ export class CloudflareD1AuthorizationStore
   ): Promise<EcdsaWalletSessionAdmissionResult> {
     const result = await this.admitAuthorizedOperationRecord({
       operation: input.operation,
-      material: {
-        kind: 'ecdsa_material_activation',
-        walletId: input.material.walletId,
-        keyHandle: input.material.keyHandle,
-        runtimePolicyScope: input.material.runtimePolicyScope,
-        materialActivation: input.material.materialActivation,
-      },
+      material: input.material,
     });
     switch (result.kind) {
       case 'claimed':
