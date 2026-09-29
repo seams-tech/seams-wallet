@@ -21,7 +21,7 @@ def toHandwrittenHiddenEvalInputBoundary
     allowedOutputKind := boundary.allowed_output_kind
     context := boundary.context
     relayerKeyId := boundary.relayer_key_id
-    clientPublicKey33 := boundary.client_public_key33
+    clientPublicKey33 := boundary.derivation_client_share_public_key33
     clientShareRetryCounter := boundary.client_share_retry_counter
     expectedRelayerKeyId := boundary.expected_relayer_key_id
     yRelayer32Le := boundary.y_relayer32_le
@@ -44,7 +44,7 @@ def toHandwrittenHiddenEvalPersistedStateBoundary
     rawRootMaterialDropped := boundary.raw_root_material_dropped
     relayerKeyId := boundary.relayer_key_id
     relayerShare32 := boundary.relayer_share32
-    clientPublicKey33 := boundary.client_public_key33
+    clientPublicKey33 := boundary.derivation_client_share_public_key33
     relayerPublicKey33 := boundary.relayer_public_key33
     thresholdPublicKey33 := boundary.threshold_public_key33
     thresholdEthereumAddress20 := boundary.threshold_ethereum_address20
@@ -68,7 +68,7 @@ theorem hiddenEvalInputBoundary_matchesHandwrittenModel
         allowedOutputKind := boundary.allowed_output_kind
         context := boundary.context
         relayerKeyId := boundary.relayer_key_id
-        clientPublicKey33 := boundary.client_public_key33
+        clientPublicKey33 := boundary.derivation_client_share_public_key33
         clientShareRetryCounter := boundary.client_share_retry_counter
         expectedRelayerKeyId := boundary.expected_relayer_key_id
         yRelayer32Le := boundary.y_relayer32_le
@@ -83,7 +83,7 @@ theorem hiddenEvalPersistedStateBoundary_matchesHandwrittenModel
         rawRootMaterialDropped := boundary.raw_root_material_dropped
         relayerKeyId := boundary.relayer_key_id
         relayerShare32 := boundary.relayer_share32
-        clientPublicKey33 := boundary.client_public_key33
+        clientPublicKey33 := boundary.derivation_client_share_public_key33
         relayerPublicKey33 := boundary.relayer_public_key33
         thresholdPublicKey33 := boundary.threshold_public_key33
         thresholdEthereumAddress20 := boundary.threshold_ethereum_address20

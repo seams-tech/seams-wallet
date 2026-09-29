@@ -8,193 +8,212 @@ open RouterAbEcdsaDerivationBoundary
 
 def handwrittenStateOfGeneratedBoundary
     (boundary : GeneratedVisibleRespondBoundary)
+    (persisted : GeneratedHiddenEvalPersistedStateBoundary)
     (canonicalX32 : Bytes32)
     (clientSecrets : ClientSecretState)
     (serverSecrets : ServerSecretState) : ProtocolExecutionState :=
   {
-    boundary := toHandwrittenRespondBoundary boundary
+    boundary := toHandwrittenRespondBoundary boundary persisted
     canonicalX32 := canonicalX32
     clientSecrets := clientSecrets
     serverSecrets := serverSecrets
   }
 
 def clientVisibleBoundaryOfGeneratedBoundary
-    (boundary : GeneratedVisibleRespondBoundary) : ClientVisibleBoundary :=
-  clientVisibleBoundaryOfRespondBoundary (toHandwrittenRespondBoundary boundary)
+    (boundary : GeneratedVisibleRespondBoundary)
+    (persisted : GeneratedHiddenEvalPersistedStateBoundary) : ClientVisibleBoundary :=
+  clientVisibleBoundaryOfRespondBoundary (toHandwrittenRespondBoundary boundary persisted)
 
 def clientObservableProfileOfGeneratedBoundary
     (boundary : GeneratedVisibleRespondBoundary)
+    (persisted : GeneratedHiddenEvalPersistedStateBoundary)
     (canonicalX32 : Bytes32)
     (clientSecrets : ClientSecretState)
     (serverSecrets : ServerSecretState) : ClientObservableProfile :=
   clientObservableProfile
-    (handwrittenStateOfGeneratedBoundary boundary canonicalX32 clientSecrets serverSecrets)
+    (handwrittenStateOfGeneratedBoundary boundary persisted canonicalX32 clientSecrets serverSecrets)
 
 def serverVisibleBoundaryOfGeneratedBoundary
-    (boundary : GeneratedVisibleRespondBoundary) : ServerVisibleBoundary :=
-  serverVisibleBoundaryOfRespondBoundary (toHandwrittenRespondBoundary boundary)
+    (boundary : GeneratedVisibleRespondBoundary)
+    (persisted : GeneratedHiddenEvalPersistedStateBoundary) : ServerVisibleBoundary :=
+  serverVisibleBoundaryOfRespondBoundary (toHandwrittenRespondBoundary boundary persisted)
 
 def serverObservableProfileOfGeneratedBoundary
     (boundary : GeneratedVisibleRespondBoundary)
+    (persisted : GeneratedHiddenEvalPersistedStateBoundary)
     (canonicalX32 : Bytes32)
     (clientSecrets : ClientSecretState)
     (serverSecrets : ServerSecretState) : ServerObservableProfile :=
   serverObservableProfile
-    (handwrittenStateOfGeneratedBoundary boundary canonicalX32 clientSecrets serverSecrets)
+    (handwrittenStateOfGeneratedBoundary boundary persisted canonicalX32 clientSecrets serverSecrets)
 
 def nonExportClientViewOfGeneratedBoundary?
     (boundary : GeneratedVisibleRespondBoundary)
+    (persisted : GeneratedHiddenEvalPersistedStateBoundary)
     (canonicalX32 : Bytes32)
     (clientSecrets : ClientSecretState)
     (serverSecrets : ServerSecretState) : Option ClientObservableProfile :=
   nonExportClientView?
-    (handwrittenStateOfGeneratedBoundary boundary canonicalX32 clientSecrets serverSecrets)
+    (handwrittenStateOfGeneratedBoundary boundary persisted canonicalX32 clientSecrets serverSecrets)
 
 def explicitExportClientViewOfGeneratedBoundary?
     (boundary : GeneratedVisibleRespondBoundary)
+    (persisted : GeneratedHiddenEvalPersistedStateBoundary)
     (canonicalX32 : Bytes32)
     (clientSecrets : ClientSecretState)
     (serverSecrets : ServerSecretState) : Option ClientObservableProfile :=
   explicitExportClientView?
-    (handwrittenStateOfGeneratedBoundary boundary canonicalX32 clientSecrets serverSecrets)
+    (handwrittenStateOfGeneratedBoundary boundary persisted canonicalX32 clientSecrets serverSecrets)
 
 def nonExportServerViewOfGeneratedBoundary?
     (boundary : GeneratedVisibleRespondBoundary)
+    (persisted : GeneratedHiddenEvalPersistedStateBoundary)
     (canonicalX32 : Bytes32)
     (clientSecrets : ClientSecretState)
     (serverSecrets : ServerSecretState) : Option ServerObservableProfile :=
   nonExportServerView?
-    (handwrittenStateOfGeneratedBoundary boundary canonicalX32 clientSecrets serverSecrets)
+    (handwrittenStateOfGeneratedBoundary boundary persisted canonicalX32 clientSecrets serverSecrets)
 
 def explicitExportServerViewOfGeneratedBoundary?
     (boundary : GeneratedVisibleRespondBoundary)
+    (persisted : GeneratedHiddenEvalPersistedStateBoundary)
     (canonicalX32 : Bytes32)
     (clientSecrets : ClientSecretState)
     (serverSecrets : ServerSecretState) : Option ServerObservableProfile :=
   explicitExportServerView?
-    (handwrittenStateOfGeneratedBoundary boundary canonicalX32 clientSecrets serverSecrets)
+    (handwrittenStateOfGeneratedBoundary boundary persisted canonicalX32 clientSecrets serverSecrets)
 
 theorem clientVisibleBoundaryOfGeneratedBoundary_matches_handwritten_model
-    (boundary : GeneratedVisibleRespondBoundary) :
-    clientVisibleBoundaryOfGeneratedBoundary boundary =
-      clientVisibleBoundaryOfRespondBoundary (toHandwrittenRespondBoundary boundary) := by
+    (boundary : GeneratedVisibleRespondBoundary)
+    (persisted : GeneratedHiddenEvalPersistedStateBoundary) :
+    clientVisibleBoundaryOfGeneratedBoundary boundary persisted =
+      clientVisibleBoundaryOfRespondBoundary (toHandwrittenRespondBoundary boundary persisted) := by
   rfl
 
 theorem serverVisibleBoundaryOfGeneratedBoundary_matches_handwritten_model
-    (boundary : GeneratedVisibleRespondBoundary) :
-    serverVisibleBoundaryOfGeneratedBoundary boundary =
-      serverVisibleBoundaryOfRespondBoundary (toHandwrittenRespondBoundary boundary) := by
+    (boundary : GeneratedVisibleRespondBoundary)
+    (persisted : GeneratedHiddenEvalPersistedStateBoundary) :
+    serverVisibleBoundaryOfGeneratedBoundary boundary persisted =
+      serverVisibleBoundaryOfRespondBoundary (toHandwrittenRespondBoundary boundary persisted) := by
   rfl
 
 theorem nonExportClientViewOfGeneratedBoundary_matches_handwritten_projection
     (boundary : GeneratedVisibleRespondBoundary)
+    (persisted : GeneratedHiddenEvalPersistedStateBoundary)
     (canonicalX32 : Bytes32)
     (clientSecrets : ClientSecretState)
     (serverSecrets : ServerSecretState) :
-    nonExportClientViewOfGeneratedBoundary? boundary canonicalX32 clientSecrets serverSecrets =
+    nonExportClientViewOfGeneratedBoundary? boundary persisted canonicalX32 clientSecrets serverSecrets =
       nonExportClientView?
-        (handwrittenStateOfGeneratedBoundary boundary canonicalX32 clientSecrets serverSecrets) := by
+        (handwrittenStateOfGeneratedBoundary boundary persisted canonicalX32 clientSecrets serverSecrets) := by
   rfl
 
 theorem explicitExportClientViewOfGeneratedBoundary_matches_handwritten_projection
     (boundary : GeneratedVisibleRespondBoundary)
+    (persisted : GeneratedHiddenEvalPersistedStateBoundary)
     (canonicalX32 : Bytes32)
     (clientSecrets : ClientSecretState)
     (serverSecrets : ServerSecretState) :
-    explicitExportClientViewOfGeneratedBoundary? boundary canonicalX32 clientSecrets serverSecrets =
+    explicitExportClientViewOfGeneratedBoundary? boundary persisted canonicalX32 clientSecrets serverSecrets =
       explicitExportClientView?
-        (handwrittenStateOfGeneratedBoundary boundary canonicalX32 clientSecrets serverSecrets) := by
+        (handwrittenStateOfGeneratedBoundary boundary persisted canonicalX32 clientSecrets serverSecrets) := by
   rfl
 
 theorem nonExportServerViewOfGeneratedBoundary_matches_handwritten_projection
     (boundary : GeneratedVisibleRespondBoundary)
+    (persisted : GeneratedHiddenEvalPersistedStateBoundary)
     (canonicalX32 : Bytes32)
     (clientSecrets : ClientSecretState)
     (serverSecrets : ServerSecretState) :
-    nonExportServerViewOfGeneratedBoundary? boundary canonicalX32 clientSecrets serverSecrets =
+    nonExportServerViewOfGeneratedBoundary? boundary persisted canonicalX32 clientSecrets serverSecrets =
       nonExportServerView?
-        (handwrittenStateOfGeneratedBoundary boundary canonicalX32 clientSecrets serverSecrets) := by
+        (handwrittenStateOfGeneratedBoundary boundary persisted canonicalX32 clientSecrets serverSecrets) := by
   rfl
 
 theorem explicitExportServerViewOfGeneratedBoundary_matches_handwritten_projection
     (boundary : GeneratedVisibleRespondBoundary)
+    (persisted : GeneratedHiddenEvalPersistedStateBoundary)
     (canonicalX32 : Bytes32)
     (clientSecrets : ClientSecretState)
     (serverSecrets : ServerSecretState) :
-    explicitExportServerViewOfGeneratedBoundary? boundary canonicalX32 clientSecrets serverSecrets =
+    explicitExportServerViewOfGeneratedBoundary? boundary persisted canonicalX32 clientSecrets serverSecrets =
       explicitExportServerView?
-        (handwrittenStateOfGeneratedBoundary boundary canonicalX32 clientSecrets serverSecrets) := by
+        (handwrittenStateOfGeneratedBoundary boundary persisted canonicalX32 clientSecrets serverSecrets) := by
   rfl
 
 theorem generatedBoundary_clientCannotDeriveServerSecrets :
     ∀
       (boundary : GeneratedVisibleRespondBoundary)
+      (persisted : GeneratedHiddenEvalPersistedStateBoundary)
       (canonicalX32₁ canonicalX32₂ : Bytes32)
       (clientSecrets₁ clientSecrets₂ : ClientSecretState)
       (serverSecrets₁ serverSecrets₂ : ServerSecretState),
       statesVaryOnlyInServerSecrets
-        (handwrittenStateOfGeneratedBoundary boundary canonicalX32₁ clientSecrets₁ serverSecrets₁)
-        (handwrittenStateOfGeneratedBoundary boundary canonicalX32₂ clientSecrets₂ serverSecrets₂)
+        (handwrittenStateOfGeneratedBoundary boundary persisted canonicalX32₁ clientSecrets₁ serverSecrets₁)
+        (handwrittenStateOfGeneratedBoundary boundary persisted canonicalX32₂ clientSecrets₂ serverSecrets₂)
       →
       ClientViewsIndistinguishable
-        (clientObservableProfileOfGeneratedBoundary boundary canonicalX32₁ clientSecrets₁ serverSecrets₁)
-        (clientObservableProfileOfGeneratedBoundary boundary canonicalX32₂ clientSecrets₂ serverSecrets₂) := by
-  intro boundary canonicalX32₁ canonicalX32₂ clientSecrets₁ clientSecrets₂ serverSecrets₁ serverSecrets₂
+        (clientObservableProfileOfGeneratedBoundary boundary persisted canonicalX32₁ clientSecrets₁ serverSecrets₁)
+        (clientObservableProfileOfGeneratedBoundary boundary persisted canonicalX32₂ clientSecrets₂ serverSecrets₂) := by
+  intro boundary persisted canonicalX32₁ canonicalX32₂ clientSecrets₁ clientSecrets₂ serverSecrets₁ serverSecrets₂
   intro hVariation
   exact clientViewsIndistinguishable_of_eq
-    (clientObservableProfileOfGeneratedBoundary boundary canonicalX32₁ clientSecrets₁ serverSecrets₁)
-    (clientObservableProfileOfGeneratedBoundary boundary canonicalX32₂ clientSecrets₂ serverSecrets₂)
+    (clientObservableProfileOfGeneratedBoundary boundary persisted canonicalX32₁ clientSecrets₁ serverSecrets₁)
+    (clientObservableProfileOfGeneratedBoundary boundary persisted canonicalX32₂ clientSecrets₂ serverSecrets₂)
     (clientObservableProfile_eq_of_shared_client_boundary
-      (handwrittenStateOfGeneratedBoundary boundary canonicalX32₁ clientSecrets₁ serverSecrets₁)
-      (handwrittenStateOfGeneratedBoundary boundary canonicalX32₂ clientSecrets₂ serverSecrets₂)
+      (handwrittenStateOfGeneratedBoundary boundary persisted canonicalX32₁ clientSecrets₁ serverSecrets₁)
+      (handwrittenStateOfGeneratedBoundary boundary persisted canonicalX32₂ clientSecrets₂ serverSecrets₂)
       hVariation)
 
 theorem generatedBoundary_serverCannotDeriveClientSecrets :
     ∀
       (boundary : GeneratedVisibleRespondBoundary)
+      (persisted : GeneratedHiddenEvalPersistedStateBoundary)
       (canonicalX32₁ canonicalX32₂ : Bytes32)
       (clientSecrets₁ clientSecrets₂ : ClientSecretState)
       (serverSecrets₁ serverSecrets₂ : ServerSecretState),
       statesVaryOnlyInClientSecrets
-        (handwrittenStateOfGeneratedBoundary boundary canonicalX32₁ clientSecrets₁ serverSecrets₁)
-        (handwrittenStateOfGeneratedBoundary boundary canonicalX32₂ clientSecrets₂ serverSecrets₂)
+        (handwrittenStateOfGeneratedBoundary boundary persisted canonicalX32₁ clientSecrets₁ serverSecrets₁)
+        (handwrittenStateOfGeneratedBoundary boundary persisted canonicalX32₂ clientSecrets₂ serverSecrets₂)
       →
       ServerViewsIndistinguishable
-        (serverObservableProfileOfGeneratedBoundary boundary canonicalX32₁ clientSecrets₁ serverSecrets₁)
-        (serverObservableProfileOfGeneratedBoundary boundary canonicalX32₂ clientSecrets₂ serverSecrets₂) := by
-  intro boundary canonicalX32₁ canonicalX32₂ clientSecrets₁ clientSecrets₂ serverSecrets₁ serverSecrets₂
+        (serverObservableProfileOfGeneratedBoundary boundary persisted canonicalX32₁ clientSecrets₁ serverSecrets₁)
+        (serverObservableProfileOfGeneratedBoundary boundary persisted canonicalX32₂ clientSecrets₂ serverSecrets₂) := by
+  intro boundary persisted canonicalX32₁ canonicalX32₂ clientSecrets₁ clientSecrets₂ serverSecrets₁ serverSecrets₂
   intro hVariation
   exact serverViewsIndistinguishable_of_eq
-    (serverObservableProfileOfGeneratedBoundary boundary canonicalX32₁ clientSecrets₁ serverSecrets₁)
-    (serverObservableProfileOfGeneratedBoundary boundary canonicalX32₂ clientSecrets₂ serverSecrets₂)
+    (serverObservableProfileOfGeneratedBoundary boundary persisted canonicalX32₁ clientSecrets₁ serverSecrets₁)
+    (serverObservableProfileOfGeneratedBoundary boundary persisted canonicalX32₂ clientSecrets₂ serverSecrets₂)
     (serverObservableProfile_eq_of_shared_server_boundary
-      (handwrittenStateOfGeneratedBoundary boundary canonicalX32₁ clientSecrets₁ serverSecrets₁)
-      (handwrittenStateOfGeneratedBoundary boundary canonicalX32₂ clientSecrets₂ serverSecrets₂)
+      (handwrittenStateOfGeneratedBoundary boundary persisted canonicalX32₁ clientSecrets₁ serverSecrets₁)
+      (handwrittenStateOfGeneratedBoundary boundary persisted canonicalX32₂ clientSecrets₂ serverSecrets₂)
       hVariation)
 
 theorem generatedBoundary_serverCannotSeeClientOutputPayloads
     (leftBoundary rightBoundary : GeneratedVisibleRespondBoundary)
+    (leftPersisted rightPersisted : GeneratedHiddenEvalPersistedStateBoundary)
     (canonicalX32₁ canonicalX32₂ : Bytes32)
     (clientSecrets₁ clientSecrets₂ : ClientSecretState)
     (serverSecrets₁ serverSecrets₂ : ServerSecretState)
     (hBoundary :
-      serverVisibleBoundaryOfGeneratedBoundary leftBoundary =
-        serverVisibleBoundaryOfGeneratedBoundary rightBoundary) :
-    serverObservableProfileOfGeneratedBoundary leftBoundary canonicalX32₁ clientSecrets₁ serverSecrets₁ =
-      serverObservableProfileOfGeneratedBoundary rightBoundary canonicalX32₂ clientSecrets₂ serverSecrets₂ := by
+      serverVisibleBoundaryOfGeneratedBoundary leftBoundary leftPersisted =
+        serverVisibleBoundaryOfGeneratedBoundary rightBoundary rightPersisted) :
+    serverObservableProfileOfGeneratedBoundary leftBoundary leftPersisted canonicalX32₁ clientSecrets₁ serverSecrets₁ =
+      serverObservableProfileOfGeneratedBoundary rightBoundary rightPersisted canonicalX32₂ clientSecrets₂ serverSecrets₂ := by
   exact serverObservableProfile_eq_of_shared_server_boundary
-    (handwrittenStateOfGeneratedBoundary leftBoundary canonicalX32₁ clientSecrets₁ serverSecrets₁)
-    (handwrittenStateOfGeneratedBoundary rightBoundary canonicalX32₂ clientSecrets₂ serverSecrets₂)
+    (handwrittenStateOfGeneratedBoundary leftBoundary leftPersisted canonicalX32₁ clientSecrets₁ serverSecrets₁)
+    (handwrittenStateOfGeneratedBoundary rightBoundary rightPersisted canonicalX32₂ clientSecrets₂ serverSecrets₂)
     hBoundary
 
 theorem generatedBoundary_explicitExportIsOnlyCanonicalSecretDisclosureException
-    (boundary : GeneratedVisibleRespondBoundary) :
-    BoundaryRespectsFrozenDisclosurePolicy (toHandwrittenRespondBoundary boundary) →
+    (boundary : GeneratedVisibleRespondBoundary)
+    (persisted : GeneratedHiddenEvalPersistedStateBoundary) :
+    BoundaryRespectsFrozenDisclosurePolicy (toHandwrittenRespondBoundary boundary persisted) →
     ¬ clientBoundaryRevealsCanonicalX
-        (toHandwrittenRespondBoundary boundary).clientOutput := by
+        (toHandwrittenRespondBoundary boundary persisted).clientOutput := by
   intro hPolicy
   exact explicitExportIsOnlyCanonicalSecretDisclosureException_proved
-    (toHandwrittenRespondBoundary boundary) hPolicy
+    (toHandwrittenRespondBoundary boundary persisted) hPolicy
 
 def hiddenEvalExecutionStateOfGeneratedBoundary
     (boundary : GeneratedHiddenEvalBoundary)
