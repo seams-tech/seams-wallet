@@ -364,9 +364,10 @@ function countResidue() {
   for (const file of tracked.filter((f) => /\.(tsx?|rs)$/.test(f))) {
     const text = read(file);
     if (!text) continue;
-    citations += (
-      text.match(/^.*(\/\/|^\s*\*).*(Refactor \d+|\bR\d{3}[A-Z]?\b|Phase \d+).*$/gm) ?? []
-    ).length;
+    // "Phase N" alone is often a protocol term (the Yao circuits have phases), so only
+    // refactor numbers count.
+    citations += (text.match(/^.*(\/\/|^\s*\*).*(Refactor \d+|\bR\d{3}[A-Z]?\b).*$/gm) ?? [])
+      .length;
     if (file.endsWith('.rs'))
       allowDeadCode += (text.match(/#!?\[allow\([^\]]*\bdead_code\b/g) ?? []).length;
   }
@@ -476,7 +477,7 @@ out(
 out(`  '?: never' padding lines ${metric('neverPaddingLines', sources.neverLines)}`);
 out(`  Rust allow(dead_code) ${metric('rustAllowDeadCode', residue.allowDeadCode)}`);
 out(
-  `  refactor plan docs ${metric('refactorPlanDocs', residue.planDocs)}, ${metric('refactorPlanDocLines', residue.planDocLines)} lines; comments citing refactor or phase numbers ${metric('refactorCitations', residue.citations)}`,
+  `  refactor plan docs ${metric('refactorPlanDocs', residue.planDocs)}, ${metric('refactorPlanDocLines', residue.planDocLines)} lines; comments citing refactor numbers ${metric('refactorCitations', residue.citations)}`,
 );
 
 out();
