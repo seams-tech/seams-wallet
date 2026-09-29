@@ -34,6 +34,8 @@ use threshold_prf::{
     SigningRootShareCommitment, SigningRootShareWire, TwoPartyDeriverRole,
 };
 
+pub mod activation;
+
 pub const ISSUED_AT_MS: u64 = 1_000_000;
 pub const EXPIRES_AT_MS: u64 = 1_030_000;
 
