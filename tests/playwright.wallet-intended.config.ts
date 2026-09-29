@@ -22,6 +22,10 @@ export default defineConfig({
     trace: hostedBenchmark ? 'off' : 'retain-on-failure',
     screenshot: hostedBenchmark ? 'off' : 'only-on-failure',
     video: hostedBenchmark ? 'off' : 'retain-on-failure',
+    // Hosted probes in Cloudflare Containers lost HTTP/3 (QUIC) responses on
+    // long requests; Chromium then resent the POST after about 30 s. Both
+    // arms use HTTP/2 over TCP instead.
+    launchOptions: hostedBenchmark ? { args: ['--disable-quic'] } : {},
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
 });
