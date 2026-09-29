@@ -385,6 +385,13 @@
   font-size: 0.75rem;
   text-decoration: none;
 }
+:where(.seams-wallet-ui) .seams-receipt-explorer-row[data-opening] {
+  overflow: hidden;
+}
+/* Held at the height the wallet-iframe parent has made room for. */
+:where(.seams-wallet-ui) .seams-receipt-explorer-row.seams-receipt-explorer-driven {
+  height: var(--seams-receipt-explorer-height);
+}
 :where(.seams-wallet-ui) .seams-receipt-explorer:is(:hover, :focus-visible) {
   color: var(--seams-colors-buttonBackground);
   text-decoration: underline;

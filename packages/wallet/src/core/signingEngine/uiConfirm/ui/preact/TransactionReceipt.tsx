@@ -1,5 +1,5 @@
 /** @jsxImportSource preact */
-import { Component } from 'preact';
+import { Component, createRef } from 'preact';
 import {
   receiptDescription,
   receiptHeading,
@@ -7,6 +7,8 @@ import {
   receiptCompletedStages,
   type TransactionReceiptModel,
 } from '../transaction-receipt';
+import { announceClampedSurfaceResize } from '../confirm-surface-resize';
+import { confirmationDocumentStyles } from './confirmation-styles';
 import { ReviewDisclosure } from './ReviewDisclosure';
 import type { ExplorerUrls } from './TransactionLabel';
 import {
@@ -20,11 +22,19 @@ import {
   type TransactionReviewData,
 } from './TransactionReview';
 
-export class TransactionReceipt extends Component<{
+type TransactionReceiptProps = {
   receipt: TransactionReceiptModel;
   data: TransactionReviewData;
   explorers: ExplorerUrls;
-}> {
+};
+
+const EXPLORER_REVEAL_MS = 240;
+const EXPLORER_REVEAL_EASING = 'cubic-bezier(0.22, 1, 0.36, 1)';
+let nextExplorerRowId = 0;
+
+export class TransactionReceipt extends Component<TransactionReceiptProps> {
+  private readonly explorerRow = createRef<HTMLDivElement>();
+  private readonly explorerRowId = `seams-receipt-explorer-row-${++nextExplorerRowId}`;
   private minimize = (): void => {
     this.props.receipt.onView('toast');
   };
@@ -35,6 +45,77 @@ export class TransactionReceipt extends Component<{
     if (receiptIsPending(this.props.receipt.state)) this.minimize();
     else this.props.receipt.onDismiss();
   };
+  componentDidUpdate(previous: TransactionReceiptProps): void {
+    const { receipt } = this.props;
+    if (
+      receipt.view === 'expanded' &&
+      previous.receipt.view === 'expanded' &&
+      receipt.state.kind === 'confirmed' &&
+      previous.receipt.state.kind !== 'confirmed'
+    ) {
+      this.revealExplorerLink();
+    }
+  }
+  componentWillUnmount(): void {
+    this.releaseExplorerRow();
+  }
+  private setExplorerRowHeight = (height: number): void => {
+    const row = this.explorerRow.current;
+    if (!row) return;
+    confirmationDocumentStyles(row.ownerDocument).setDynamicDeclarations(
+      this.explorerRowId,
+      `#${this.explorerRowId}`,
+      { '--seams-receipt-explorer-height': `${height}px` },
+    );
+  };
+  private releaseExplorerRow = (): void => {
+    const row = this.explorerRow.current;
+    if (!row) return;
+    delete row.dataset.opening;
+    confirmationDocumentStyles(row.ownerDocument).deleteDynamicRule(this.explorerRowId);
+  };
+  // The explorer link arrives with confirmation. Open its row so the card grows
+  // to fit it, and bring the link in as the row opens. In a wallet iframe the
+  // parent eases the box and drives the row from the room it makes, so the
+  // card never outgrows the frame; elsewhere the row animates itself.
+  private revealExplorerLink(): void {
+    const row = this.explorerRow.current;
+    const link = row?.firstElementChild;
+    if (!row || !link) return;
+    if (row.ownerDocument.defaultView?.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      return;
+    }
+    const height = row.getBoundingClientRect().height;
+    row.dataset.opening = '';
+    const hosted = announceClampedSurfaceResize({
+      reason: 'receipt-explorer',
+      element: row,
+      fromCssPx: 0,
+      toCssPx: height,
+      drivenClasses: ['seams-receipt-explorer-driven'],
+      setHeightCssPx: this.setExplorerRowHeight,
+      onSettled: this.releaseExplorerRow,
+    });
+    if (!hosted) {
+      const opening = row.animate([{ height: '0px' }, { height: `${height}px` }], {
+        duration: EXPLORER_REVEAL_MS,
+        easing: EXPLORER_REVEAL_EASING,
+      });
+      opening.onfinish = opening.oncancel = this.releaseExplorerRow;
+    }
+    link.animate(
+      [
+        { opacity: 0, filter: 'blur(4px)', transform: 'translateY(6px)' },
+        { opacity: 1, filter: 'blur(0)', transform: 'translateY(0)' },
+      ],
+      {
+        duration: EXPLORER_REVEAL_MS,
+        delay: 60,
+        easing: EXPLORER_REVEAL_EASING,
+        fill: 'backwards',
+      },
+    );
+  }
   render() {
     const { receipt, data } = this.props;
     const heading = receiptHeading(receipt.state);
@@ -171,14 +252,16 @@ export class TransactionReceipt extends Component<{
           {receiptIsPending(receipt.state) ? 'Continue in background' : 'Done'}
         </button>
         {explorerHref && (
-          <a
-            class="seams-receipt-explorer"
-            href={explorerHref}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            View transaction <ReviewIcon kind="arrow" />
-          </a>
+          <div id={this.explorerRowId} class="seams-receipt-explorer-row" ref={this.explorerRow}>
+            <a
+              class="seams-receipt-explorer"
+              href={explorerHref}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              View transaction <ReviewIcon kind="arrow" />
+            </a>
+          </div>
         )}
         <WalletReceiptFooter />
       </div>
