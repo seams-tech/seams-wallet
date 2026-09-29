@@ -225,7 +225,14 @@ A partial report omits `--complete`. The complete
 gate requires 20 successful observations per arm and phase in every region,
 the same source revision and each arm's unchanged intended-deployment fingerprint.
 It reports nearest-rank p50/p95, paired case deltas, Gateway request and refill
-counts, and available Server-Timing coverage. It leaves cost and actual DO
+counts, and available Server-Timing coverage. Response timing percentiles
+are separated by response path. For each first/subsequent signature,
+`signatureServerTiming` sums its prepare and finalize measurements before
+calculating percentiles, and reports coverage and excluded samples. Missing,
+failed or ambiguous pairs are excluded explicitly. `ecdsa_sign_total` appears
+on both responses; pooling them understates a complete signature's server time.
+These totals exclude browser orchestration, presign waits and network time.
+Component medians do not add together. The analyzer leaves cost and actual DO
 placement unverified until independent usage and execution evidence is added.
 
 The local app ports can be moved with `SEAMS_INTENDED_APP_URL` and
@@ -452,6 +459,86 @@ product failures that stop the pilot:
 The D1 arm's earlier passes skipped the NEAR work the DO arm did, so no
 timing from before these fixes is comparable. The pilot restarts on role
 Workers, Gateways, SDK and probe image rebuilt from the fixed revision.
+
+## Completion review (2026-09-29)
+
+The backend is now merged into wallet `dev` at `e0777b0`. The comparison
+keeps the existing probe image, browser source `aca2a3a`, wallet build hash
+`60d15c1316b4154eec0b884dba168ccf0bed4603238b1b62c4590d3764701a16`
+and each arm's recorded deployment fingerprint. No comparison image was
+rebuilt from the merged source during this review. `aca2a3a` disables QUIC
+in hosted probe browsers; application recovery remains a separate concern.
+
+| Probe | Completed attempts | Disposition |
+| --- | ---: | --- |
+| APAC, `nrt13` (Tokyo) | 40/40 | Complete |
+| WEUR, `lhr15` (London) | 40/40 | Complete |
+| ENAM, `ord12` (Chicago) | 35/40 | Attempt 36 failed; four never started |
+
+ENAM is the approved US East region constraint; the actual reported location
+was Chicago. At `2026-09-29T11:33:18.962Z`, `enam-case-18-d1` started.
+At `11:34:40.697Z`, the runner recorded a 404 `unknown attempt` from the
+probe's status endpoint, with no browser output, exit code, signal or result
+artifact. The operator script then stopped the probe. Classification:
+**environment_or_infrastructure_failure, with unknown wallet-operation outcome**.
+
+The probe's in-memory attempt map cannot recover across process restarts.
+A restart is plausible, but the failure evidence does not establish its
+cause. The ledger's `probeChanged: true` is also emitted when result identity
+is absent, so it does not prove a changed boot. Read-only inspection found
+no active container and no application health errors. The instance listing
+retained the same Durable Object id, assigned at `11:34:42Z`, after the
+failure; this does not resolve the missing attempt. The historical telemetry
+query returned 403 with the current credentials, and deployment-history
+endpoints were unavailable. No replacement cohort has been started.
+
+The original ledgers, lock, collected samples and private inputs remain in
+`/Users/pta/Dev/rust/seams-wallet-r150-do-backend/.runtime/r150-hosted/`.
+Preserve that worktree: Git integration does not move ignored evidence.
+After lifecycle diagnostics resolve the failure, run one fresh bounded ENAM
+cohort in a separate directory, with the same image and arm fingerprints.
+Keep the failed cohort in the report; never combine samples across boots.
+
+Corrected results below are milliseconds, with each signature's prepare and
+finalize summed before percentiles. Each completed arm has 20 observations
+per phase. Browser elapsed includes RPC and automated confirmation.
+
+| Region / arm | First browser p50 / p95 | First server p50 / p95 | Subsequent browser p50 / p95 | Subsequent server p50 / p95 |
+| --- | ---: | ---: | ---: | ---: |
+| Tokyo D1 | 11,338 / 12,765 | 3,043 / 4,002 | 11,342 / 12,724 | 3,056 / 3,972 |
+| Tokyo DO | 8,787 / 9,929 | 1,576 / 1,870 | 8,739 / 9,720 | 1,514 / 1,626 |
+| London D1 | 18,836 / 20,341 | 7,623 / 7,923 | 18,767 / 19,627 | 7,581 / 7,884 |
+| London DO | 12,537 / 13,940 | 4,150 / 4,392 | 13,197 / 14,174 | 4,113 / 5,598 |
+
+All 230 signatures from the 115 successful attempts have complete paired
+server timing coverage, including 70 signatures in the incomplete ENAM
+cohort. Their totals were independently recalculated from the raw E2E
+artifacts. The analyzer's `--complete` gate correctly fails. Evidence:
+`.artifacts/r150/completion-20260929/comparison.json` and
+`analyzer-verification.json` in the main wallet checkout. Reproduce:
+
+```sh
+node tests/r150-hosted/analyze-samples.mjs \
+  /Users/pta/Dev/rust/seams-wallet-r150-do-backend/.runtime/r150-hosted/probe/apac \
+  /Users/pta/Dev/rust/seams-wallet-r150-do-backend/.runtime/r150-hosted/probe/weur \
+  /Users/pta/Dev/rust/seams-wallet-r150-do-backend/.runtime/r150-hosted/probe/enam \
+  --complete --output .artifacts/r150/completion-20260929/comparison.json
+```
+
+The refreshed list-rate usage estimate is **$0.6378 through
+2026-09-29T12:06:27.041Z**, including $0.5446 for containers, against the
+$25 total cap. It excludes shared monthly allowances and remains subject to
+metering delay; it is not a final bill or monthly product-cost forecast.
+Its report is `cost-report-2026-09-29T120627041Z.json` under the old worktree's
+`.artifacts/r150/hosted-pilot-20260929/` directory. No staging or production
+resources were changed.
+
+The complete system-controlled signing target remains 1–2 seconds. The
+London DO first-sign authorization/admission median alone is 3,734 ms.
+Improve that path alongside existing presign refill, then measure warm-pool,
+immediate-first-sign and burst workloads separately. Preserve producer and
+signing credential boundaries; moving waits outside the reported interval
+does not satisfy the target.
 
 After the fixes, runs from London found one more probe-side fault: on a long
 `activate`, the HTTP/3 (QUIC) response from the Cloudflare Container was

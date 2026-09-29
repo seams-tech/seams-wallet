@@ -1,7 +1,7 @@
 # R150 release readiness (2026-09-29)
 
-Status: not ready for release. The work is on branch `codex/r150-do-backend`,
-which is not merged to `dev`. Nothing is deployed to staging or production;
+Status: not ready for release. The backend is merged into `dev` at
+`e0777b0` (2026-09-29). Nothing is deployed to staging or production;
 only the isolated `r150-bench-*` comparison resources exist. This record
 gathers what the branch delivers, what the consolidated run verified on each
 host, what failed and why, and what the managed milestone still needs.
@@ -301,6 +301,25 @@ Cloudflare:
 
 ## Before the managed milestone
 
+- Complete the interrupted US East comparison after diagnosing the probe
+  failure. Tokyo and London each completed 40 attempts at browser source
+  `aca2a3a`; US East completed 35 before losing attempt 36's result. The
+  wallet-operation outcome of that attempt is unknown. Historical probe
+  telemetry is unavailable to the current Wrangler credentials. Preserve
+  the failed ledger and lock; a replacement cohort must keep the benchmark
+  image and role deployment fingerprints. See the
+  [current comparison](./refactor-150-hosted-comparison.md#completion-review-2026-09-29).
+- Meet the owner's 1–2 second limit for the complete system-controlled
+  signing path, including orchestration, authorization, presign waiting,
+  prepare/finalize and verified signature return. The corrected paired
+  server median alone is 4.150 seconds on the London DO arm, including
+  3.734 seconds in authorization/admission. Human confirmation and chain
+  broadcasting/finality are separate. The current browser measurement
+  includes RPC and automated confirmation and cannot isolate this interval.
+- Verify ECDSA activation response-loss recovery through the existing
+  exact-method resume API. A committed activation replay remains
+  credential-free; completing registration requires a fresh exact-method
+  unlock, with the same wallet and ceremony identity.
 - The review items the cross-owner plan leaves open. Explicit recovery
   abandonment stays deferred.
 - The rollout decision on the hosted pilot's results (recorded 2026-09-29;
@@ -308,18 +327,17 @@ Cloudflare:
 - If the decision is DO: a production wallet-object configuration and
   build for the managed roles. Today the wallet-object features build only
   the local harness and the isolated comparison.
-- Integration into `dev`, and seams-monorepo consuming exact package and
-  artifact versions. `dev` has 7611c56 without item 21's fix, so a `dev`
-  deployment whose Derivers run on separate hosts can fail NEAR
-  registration the same way. seams-monorepo needs b74937c or later, which
+- seams-monorepo consuming exact package and artifact versions from the
+  integrated backend. The merge includes the hosted clock-skew and joined
+  session-snapshot fixes. seams-monorepo needs b74937c or later, which
   restores the published `@seams/wallet-server/router/express` entry.
 - The new-wallet cohort, and the Phase 3 clean reset, as separately
   coordinated operations. Superseded wallet-local D1 stores and routing are
   removed only after the DO path replaces them.
 
-Against `dev`: `dev`'s five test-pruning commits are merged into this
-branch (2026-09-29, after the consolidated run); the branch is not merged
-into `dev`. Where both sides pruned the same file, the merge keeps this
+Integration history: `dev`'s five test-pruning commits were merged into the
+backend branch before its integration into `dev` at `e0777b0`. Where both
+sides pruned the same file, the earlier merge kept this
 branch's code and takes `dev`'s deletions. After the merge,
 `router-ab-cloudflare`'s native tests pass (480, none failed), as do
 `router-ab-core`'s source guards, `router-ab-ecdsa-derivation`'s boundary

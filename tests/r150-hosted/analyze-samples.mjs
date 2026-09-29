@@ -232,7 +232,14 @@ function summarizeArm(samples) {
     const durations = [];
     const gatewayRequestTotals = {};
     const presignRefillRequestTotals = {};
-    const timingValues = {};
+    const responseTimings = {};
+    const signingTotals = {
+      totalMs: [],
+      authorizationAndAdmissionMs: [],
+      proxyMs: [],
+      completionMs: [],
+    };
+    const excludedSigningSamples = [];
     let samplesWithServerTiming = 0;
     for (const sample of samples) {
       const stage = sample.artifact[phase];
@@ -241,25 +248,96 @@ function summarizeArm(samples) {
       addCounts(presignRefillRequestTotals, stage.presignRefillRequestCounts);
       if (stage.gatewayServerTimings.length > 0) samplesWithServerTiming += 1;
       for (const response of stage.gatewayServerTimings) {
+        const timingValues = (responseTimings[response.path] ??= {});
         for (const [name, elapsedMs] of Object.entries(response.stagesMs)) {
           if (!timingValues[name]) timingValues[name] = [];
           timingValues[name].push(elapsedMs);
         }
       }
+      if (phase !== 'registrationReturn') {
+        const signing = signatureServerTiming(stage);
+        if (signing.kind === 'complete') {
+          for (const [name, value] of Object.entries(signing.totals)) {
+            signingTotals[name].push(value);
+          }
+        } else {
+          excludedSigningSamples.push({ caseIndex: sample.caseIndex, reason: signing.reason });
+        }
+      }
     }
-    const serverTiming = {};
-    for (const [name, values] of Object.entries(timingValues)) {
-      serverTiming[name] = summarizeDurations(values);
+    const serverTimingByResponsePath = {};
+    for (const [responsePath, timingValues] of Object.entries(responseTimings)) {
+      const summary = {};
+      for (const [name, values] of Object.entries(timingValues)) {
+        summary[name] = summarizeDurations(values);
+      }
+      serverTimingByResponsePath[responsePath] = summary;
     }
     report.phases[phase] = {
       elapsedMs: summarizeDurations(durations),
       gatewayRequestTotals,
       presignRefillRequestTotals,
       samplesWithServerTiming,
-      serverTiming,
+      serverTimingByResponsePath,
     };
+    if (phase !== 'registrationReturn') {
+      const totals = {};
+      for (const [name, values] of Object.entries(signingTotals)) {
+        totals[name] = summarizeDurations(values);
+      }
+      report.phases[phase].signatureServerTiming = {
+        measurement: 'prepare_plus_finalize_summed_within_each_signature_before_percentiles',
+        coverage: { expected: samples.length, complete: signingTotals.totalMs.length },
+        excludedSamples: excludedSigningSamples,
+        ...totals,
+      };
+    }
   }
   return report;
+}
+
+function signatureServerTiming(stage) {
+  const preparePath = '/router-ab/ecdsa-derivation/sign/prepare';
+  const finalizePath = '/router-ab/ecdsa-derivation/sign';
+  const responses = {};
+  for (const response of stage.gatewayServerTimings) {
+    if (response.path !== preparePath && response.path !== finalizePath) continue;
+    if (responses[response.path] || stage.gatewayRequestCounts[response.path] !== 1) {
+      return { kind: 'incomplete', reason: 'ambiguous_signing_requests' };
+    }
+    if (response.status !== 200) {
+      return { kind: 'incomplete', reason: 'unsuccessful_signing_response' };
+    }
+    for (const name of [
+      'ecdsa_sign_total',
+      'ecdsa_sign_authorize',
+      'ecdsa_sign_admit',
+      'ecdsa_sign_proxy',
+    ]) {
+      if (!Number.isFinite(response.stagesMs[name])) {
+        return { kind: 'incomplete', reason: 'missing_signing_timing' };
+      }
+    }
+    responses[response.path] = response.stagesMs;
+  }
+  const prepare = responses[preparePath];
+  const finalize = responses[finalizePath];
+  if (!prepare || !finalize || !Number.isFinite(finalize.ecdsa_sign_complete)) {
+    return { kind: 'incomplete', reason: 'missing_signing_timing' };
+  }
+  return {
+    kind: 'complete',
+    totals: {
+      totalMs: prepare.ecdsa_sign_total + finalize.ecdsa_sign_total,
+      authorizationAndAdmissionMs:
+        prepare.ecdsa_sign_authorize +
+        prepare.ecdsa_sign_admit +
+        finalize.ecdsa_sign_authorize +
+        finalize.ecdsa_sign_admit,
+      proxyMs: prepare.ecdsa_sign_proxy + finalize.ecdsa_sign_proxy,
+      completionMs: finalize.ecdsa_sign_complete,
+    },
+  };
 }
 
 function addCounts(total, counts) {
