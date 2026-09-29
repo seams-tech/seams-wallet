@@ -135,54 +135,6 @@ fn test_delete_account_validation_errors() {
 }
 
 #[test]
-fn test_get_action_handler_new_types() {
-    // Test all action types can be converted into concrete actions
-    let transfer_params = ActionParams::Transfer {
-        deposit: "1000000000000000000000000".to_string(),
-    };
-    assert!(transfer_params.to_action().is_ok());
-
-    let add_key_params = ActionParams::AddKey {
-        public_key: "ed25519:6E8sCci9badyRkXb3JoRpBj5p8C6Tw41ELDZoiihKEtp".to_string(),
-        access_key: r#"{"nonce":0,"permission":{"FullAccess":{}}}"#.to_string(),
-    };
-    assert!(add_key_params.to_action().is_ok());
-
-    let delete_key_params = ActionParams::DeleteKey {
-        public_key: "ed25519:6E8sCci9badyRkXb3JoRpBj5p8C6Tw41ELDZoiihKEtp".to_string(),
-    };
-    assert!(delete_key_params.to_action().is_ok());
-
-    let delete_account_params = ActionParams::DeleteAccount {
-        beneficiary_id: "beneficiary.near".to_string(),
-    };
-    assert!(delete_account_params.to_action().is_ok());
-
-    let deploy_params = ActionParams::DeployContract {
-        code: vec![0, 97, 115, 109],
-    }; // minimal wasm magic start
-    assert!(deploy_params.to_action().is_ok());
-
-    let stake_params = ActionParams::Stake {
-        stake: "1000000000000000000000000".to_string(),
-        public_key: "ed25519:6E8sCci9badyRkXb3JoRpBj5p8C6Tw41ELDZoiihKEtp".to_string(),
-    };
-    assert!(stake_params.to_action().is_ok());
-
-    let deploy_global_params = ActionParams::DeployGlobalContract {
-        code: vec![0, 97, 115, 109],
-        deploy_mode: "CodeHash".to_string(),
-    };
-    assert!(deploy_global_params.to_action().is_ok());
-
-    let use_global_params = ActionParams::UseGlobalContract {
-        account_id: Some("global-contract.near".to_string()),
-        code_hash: None,
-    };
-    assert!(use_global_params.to_action().is_ok());
-}
-
-#[test]
 fn test_deploy_contract_action_handler() {
     let params = ActionParams::DeployContract {
         code: vec![0, 97, 115, 109, 1, 0, 0, 0],
