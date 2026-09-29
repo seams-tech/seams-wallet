@@ -1,6 +1,5 @@
 import { base64UrlDecode, base64UrlEncode } from '../utils/base64';
-import { sha256DigestB64u } from '../utils/digestEncoding';
-import { parseDigestB64u, type DigestB64u } from '../utils/canonicalPrimitives';
+import { parseDigestB64u, sha256DigestB64u, type DigestB64u } from '../utils/canonicalPrimitives';
 import { requireRecord } from '../utils/validation';
 
 const POSSESSION_CHALLENGE_DOMAIN_V1 =

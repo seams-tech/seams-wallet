@@ -11,9 +11,12 @@ import {
   type WalletAuthorityId,
   type WalletId,
 } from '../utils/domainIds';
-import { base64UrlEncode } from '../utils/base64';
-import { parseDigestB64u, type DigestB64u } from '../utils/canonicalPrimitives';
-import { alphabetizeStringify, sha256BytesUtf8 } from '../utils/digests';
+import {
+  parseDigestB64u,
+  sha256Utf8DigestB64u,
+  type DigestB64u,
+} from '../utils/canonicalPrimitives';
+import { alphabetizeStringify } from '../utils/digests';
 import {
   parseWalletAuthMethodRecordV2,
   type PendingWalletAuthMethodRecordV2,
@@ -297,12 +300,8 @@ export function parseCommittedSignerPackageSetDigestB64u(raw: unknown): DigestB6
 export async function computeCommittedSignerPackageDigestB64u(
   value: CommittedEd25519SignerPackageV1 | CommittedEcdsaSignerPackageV1,
 ): Promise<DigestB64u> {
-  return parseDigestB64u(
-    base64UrlEncode(
-      await sha256BytesUtf8(
-        alphabetizeStringify({ domain: COMMITTED_SIGNER_PACKAGE_DOMAIN_V1, package: value }),
-      ),
-    ),
+  return sha256Utf8DigestB64u(
+    alphabetizeStringify({ domain: COMMITTED_SIGNER_PACKAGE_DOMAIN_V1, package: value }),
   );
 }
 
@@ -324,7 +323,7 @@ export async function computeCommittedSignerPackageSetDigestB64u(
     input.ed25519ExportRootPackageDigestB64u,
     input.targetFactorVerificationDigestB64u,
   ];
-  return parseDigestB64u(base64UrlEncode(await sha256BytesUtf8(alphabetizeStringify(value))));
+  return sha256Utf8DigestB64u(alphabetizeStringify(value));
 }
 
 function parseEd25519Package(raw: unknown): CommittedEd25519SignerPackageV1 {

@@ -24,8 +24,7 @@ import type {
   RevokeSigningLaneV1,
 } from '@shared/signing-lanes';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
-import { parseCorrelationId } from '@shared/utils/canonicalPrimitives';
-import { sha256DigestB64u } from '@shared/utils/digestEncoding';
+import { parseCorrelationId, sha256DigestB64u } from '@shared/utils/canonicalPrimitives';
 
 export type LaneLifecycleProtocolCommitRequestV1 =
   | {

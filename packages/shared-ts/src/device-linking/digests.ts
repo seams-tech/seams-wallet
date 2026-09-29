@@ -1,16 +1,10 @@
-import { base64UrlEncode } from '../utils/base64';
-import { parseDigestB64u, type DigestB64u } from '../utils/canonicalPrimitives';
-import { alphabetizeStringify, sha256BytesUtf8 } from '../utils/digests';
 import {
-  concat,
-  lp32,
-  rawDigest,
-  rawPublicKey,
   sha256DigestB64u,
-  text,
-  u32,
-  u64,
-} from '../utils/digestEncoding';
+  sha256Utf8DigestB64u,
+  type DigestB64u,
+} from '../utils/canonicalPrimitives';
+import { alphabetizeStringify } from '../utils/digests';
+import { concat, lp32, rawDigest, rawPublicKey, text, u32, u64 } from '../utils/digestEncoding';
 import {
   delegatedWalletPermissionNamesV1,
   type DelegatedWalletAuthorityV1,
@@ -52,7 +46,7 @@ const TEXT_ENCODER = new TextEncoder();
 export async function computeWalletSessionOperationCredentialDigestB64u(
   credential: WalletSessionOperationCredentialV1,
 ): Promise<DigestB64u> {
-  return parseDigestB64u(base64UrlEncode(await sha256BytesUtf8(credential.token)));
+  return sha256Utf8DigestB64u(credential.token);
 }
 
 function encodeWalletSessionInstallationReceiptV1(
@@ -67,9 +61,7 @@ function encodeWalletSessionInstallationReceiptV1(
 export async function computeWalletSessionInstallationReceiptDigestB64u(
   receipt: LocalAuthorityInstallationReceiptV1,
 ): Promise<DigestB64u> {
-  return parseDigestB64u(
-    base64UrlEncode(await sha256BytesUtf8(encodeWalletSessionInstallationReceiptV1(receipt))),
-  );
+  return sha256Utf8DigestB64u(encodeWalletSessionInstallationReceiptV1(receipt));
 }
 
 function requirePresentString(value: string | undefined, label: string): string {

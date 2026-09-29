@@ -4,9 +4,8 @@ import {
   parsePrincipalId,
   type TenantId,
 } from '@shared/authorization/capabilityKinds';
-import { parseDigestB64u, type DigestB64u } from '@shared/utils/canonicalPrimitives';
-import { alphabetizeStringify, sha256BytesUtf8 } from '@shared/utils/digests';
-import { base64UrlEncode } from '@shared/utils/encoders';
+import { sha256Utf8DigestB64u, type DigestB64u } from '@shared/utils/canonicalPrimitives';
+import { alphabetizeStringify } from '@shared/utils/digests';
 import {
   parseSessionOrigin,
   parseVerifiedOwnerProofId,
@@ -1135,7 +1134,7 @@ function parseRequiredWalletAuthMethodId(
 }
 
 async function digestWalletUnlockValue(value: unknown): Promise<DigestB64u> {
-  return parseDigestB64u(base64UrlEncode(await sha256BytesUtf8(alphabetizeStringify(value))));
+  return sha256Utf8DigestB64u(alphabetizeStringify(value));
 }
 
 function passkeyWalletAuthAuthorityForMethod(input: {

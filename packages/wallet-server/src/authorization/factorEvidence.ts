@@ -12,15 +12,14 @@ import {
   type CapabilityOperationEnvelope,
 } from '@shared/authorization/operationFingerprint';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
-import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';
+import { sha256Utf8DigestB64u } from '@shared/utils/canonicalPrimitives';
 import {
   parseProviderSubject,
   type EmailOtpChallengeId,
   type WalletId,
   type WebAuthnCredentialIdB64u,
 } from '@shared/utils/domainIds';
-import { alphabetizeStringify, sha256BytesUtf8 } from '@shared/utils/digests';
-import { base64UrlEncode } from '@shared/utils/encoders';
+import { alphabetizeStringify } from '@shared/utils/digests';
 import { type WalletAuthAuthorityRef } from '@shared/utils/walletAuthAuthority';
 import type {
   OwnerOperationBinding,
@@ -557,9 +556,7 @@ async function digestCanonical(
   domain: string,
   value: Record<string, unknown>,
 ): Promise<DigestB64u> {
-  return parseDigestB64u(
-    base64UrlEncode(await sha256BytesUtf8(`${domain}|${alphabetizeStringify(value)}`)),
-  );
+  return sha256Utf8DigestB64u(`${domain}|${alphabetizeStringify(value)}`);
 }
 
 function requireWalletOperationEvidenceSetFields(

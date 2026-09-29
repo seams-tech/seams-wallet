@@ -21,7 +21,11 @@ import {
 } from '@shared/device-linking/digests';
 import { alphabetizeStringify } from '@shared/utils/digests';
 import { errorMessage } from '@shared/utils/errors';
-import { parseDigestB64u, type DigestB64u } from '@shared/utils/canonicalPrimitives';
+import {
+  parseDigestB64u,
+  sha256Utf8DigestB64u,
+  type DigestB64u,
+} from '@shared/utils/canonicalPrimitives';
 import { routerAbMpcMaterialActivationRefFromWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import {
   hasControlCharacter,
@@ -31,7 +35,6 @@ import {
   type WebAuthnCredentialIdB64u,
 } from '@shared/utils/domainIds';
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
-import { sha256BytesUtf8 } from '@shared/utils/digests';
 import { verifyWebAuthnRegistrationCredentialForIntent } from '../../../../core/authService/webauthn';
 import { parseClientDataJsonBase64url } from '../../../../core/authService/webauthnOidcHelpers';
 import type {
@@ -1808,17 +1811,13 @@ function isCanonicalNonemptyBase64Url(value: string): boolean {
 async function digestRegistrationV1(
   registration: LinkedDeviceTargetCredentialRegistrationV1,
 ): Promise<DigestB64u> {
-  return parseDigestB64u(
-    base64UrlEncode(
-      await sha256BytesUtf8(
-        `seams/r103/target-credential/v1\u0000${alphabetizeStringify(registration)}`,
-      ),
-    ),
+  return sha256Utf8DigestB64u(
+    `seams/r103/target-credential/v1\u0000${alphabetizeStringify(registration)}`,
   );
 }
 
 async function digestJsonV1(value: unknown): Promise<DigestB64u> {
-  return parseDigestB64u(base64UrlEncode(await sha256BytesUtf8(alphabetizeStringify(value))));
+  return sha256Utf8DigestB64u(alphabetizeStringify(value));
 }
 
 async function waitForTargetCommitV1(delayMs: number): Promise<void> {

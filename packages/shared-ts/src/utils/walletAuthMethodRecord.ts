@@ -1,7 +1,7 @@
 // A wallet's auth-method records: the stored passkey and Email OTP methods, their lifecycle,
 // and the fingerprint of a request to revoke one.
-import { type DigestB64u, parseDigestB64u } from './canonicalPrimitives';
-import { alphabetizeStringify, sha256BytesUtf8 } from './digests';
+import { sha256Utf8DigestB64u, type DigestB64u } from './canonicalPrimitives';
+import { alphabetizeStringify } from './digests';
 import {
   parseWalletAuthMethodId,
   parseWalletAuthorityId,
@@ -14,7 +14,6 @@ import {
   type WebAuthnCredentialIdB64u,
   type WebAuthnRpId,
 } from './domainIds';
-import { base64UrlEncode } from './encoders';
 import { inspectRawObject, trimString } from './registrationAuthMethodInput';
 import type { Variant } from './variant';
 
@@ -37,17 +36,13 @@ export async function computeWalletAuthMethodRevokeOperationFingerprintV1(input:
   readonly targetWalletAuthMethodId: WalletAuthMethodId;
   readonly requestedAtMs: number;
 }): Promise<DigestB64u> {
-  return parseDigestB64u(
-    base64UrlEncode(
-      await sha256BytesUtf8(
-        alphabetizeStringify({
-          version: 'wallet_auth_method_revoke_operation_v1',
-          walletId: String(input.walletId),
-          targetWalletAuthMethodId: String(input.targetWalletAuthMethodId),
-          requestedAtMs: input.requestedAtMs,
-        }),
-      ),
-    ),
+  return sha256Utf8DigestB64u(
+    alphabetizeStringify({
+      version: 'wallet_auth_method_revoke_operation_v1',
+      walletId: String(input.walletId),
+      targetWalletAuthMethodId: String(input.targetWalletAuthMethodId),
+      requestedAtMs: input.requestedAtMs,
+    }),
   );
 }
 

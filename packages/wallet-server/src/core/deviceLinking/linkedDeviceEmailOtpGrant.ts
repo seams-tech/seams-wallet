@@ -14,7 +14,11 @@
  * leaked database row cannot be replayed as the token it never contained.
  */
 import { base64UrlEncode } from '@shared/utils/base64';
-import { parseDigestB64u, type DigestB64u } from '@shared/utils/canonicalPrimitives';
+import {
+  parseDigestB64u,
+  sha256Utf8DigestB64u,
+  type DigestB64u,
+} from '@shared/utils/canonicalPrimitives';
 import { sha256BytesUtf8 } from '@shared/utils/digests';
 import {
   parseWalletAuthMethodId,
@@ -79,7 +83,7 @@ export async function computeLinkedDeviceEmailOtpChallengeBindingDigestV1(input:
     String(baseWalletAuthMethodId),
     String(input.walletAuthMethodId),
   ].join('\\u0000');
-  return parseDigestB64u(base64UrlEncode(await sha256BytesUtf8(preimage)));
+  return sha256Utf8DigestB64u(preimage);
 }
 
 type LinkedDeviceEmailOtpGrantStateV1 =
@@ -281,9 +285,7 @@ export async function computeLinkedDeviceEmailOtpGrantTokenDigestV1(
   if (!grantToken || grantToken.trim() !== grantToken) {
     throw new Error('linked-device email OTP grant token is invalid');
   }
-  return parseDigestB64u(
-    base64UrlEncode(await sha256BytesUtf8(`${GRANT_TOKEN_DIGEST_DOMAIN}\u0000${grantToken}`)),
-  );
+  return sha256Utf8DigestB64u(`${GRANT_TOKEN_DIGEST_DOMAIN}\u0000${grantToken}`);
 }
 
 /**
@@ -316,7 +318,7 @@ export async function computeLinkedDeviceEmailOtpAuthorityDigestV1(input: {
     input.enrollment.kind,
     String(baseWalletAuthMethodId),
   ].join('\u0000');
-  return parseDigestB64u(base64UrlEncode(await sha256BytesUtf8(preimage)));
+  return sha256Utf8DigestB64u(preimage);
 }
 
 /**

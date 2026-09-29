@@ -33,7 +33,7 @@ import {
   type LinkedDeviceRequestProofV1,
 } from '@shared/device-linking';
 import { base64UrlEncode } from '@shared/utils/base64';
-import { sha256DigestB64u } from '@shared/utils/digestEncoding';
+import { sha256DigestB64u } from '@shared/utils/canonicalPrimitives';
 import { secureRandomBase64Url } from '@shared/utils/secureRandomId';
 import { parseLinkDeviceSessionId, type LinkDeviceSessionId } from '@shared/signing-lanes/ids';
 import { parseLinkedDeviceEd25519ExportRootPackageV1 } from '@shared/device-linking/ed25519ExportRoot';

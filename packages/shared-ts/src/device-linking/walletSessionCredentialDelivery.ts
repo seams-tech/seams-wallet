@@ -1,6 +1,10 @@
 import { base64UrlDecode, base64UrlEncode } from '../utils/base64';
-import { parseDigestB64u, type DigestB64u } from '../utils/canonicalPrimitives';
-import { alphabetizeStringify, sha256BytesUtf8 } from '../utils/digests';
+import {
+  parseDigestB64u,
+  sha256Utf8DigestB64u,
+  type DigestB64u,
+} from '../utils/canonicalPrimitives';
+import { alphabetizeStringify } from '../utils/digests';
 import {
   parseMpcWalletSigningQuotaId,
   parsePrincipalId,
@@ -148,35 +152,23 @@ export function parseLinkedDeviceWalletSessionCredentialDeliveryBindingV1(
 export async function computeLinkedDeviceWalletSessionCredentialDeliveryAadDigestB64u(
   aad: LinkedDeviceWalletSessionCredentialDeliveryAadV1,
 ): Promise<DigestB64u> {
-  return parseDigestB64u(
-    base64UrlEncode(
-      await sha256BytesUtf8(encodeLinkedDeviceWalletSessionCredentialDeliveryAadV1(aad)),
-    ),
-  );
+  return sha256Utf8DigestB64u(encodeLinkedDeviceWalletSessionCredentialDeliveryAadV1(aad));
 }
 
 export async function computeLinkedDeviceWalletSessionCredentialEnvelopeDigestB64u(
   envelope: LinkedDeviceWalletSessionCredentialEnvelopeV1,
 ): Promise<DigestB64u> {
-  return parseDigestB64u(
-    base64UrlEncode(
-      await sha256BytesUtf8(alphabetizeStringify({ domain: DELIVERY_ENVELOPE_DOMAIN, envelope })),
-    ),
-  );
+  return sha256Utf8DigestB64u(alphabetizeStringify({ domain: DELIVERY_ENVELOPE_DOMAIN, envelope }));
 }
 
 export async function computeLinkedDeviceActivationCleanupReceiptDigestB64u(
   receipt: LinkedDeviceActivationCleanupReceiptV1,
 ): Promise<DigestB64u> {
-  return parseDigestB64u(
-    base64UrlEncode(
-      await sha256BytesUtf8(
-        alphabetizeStringify({
-          domain: 'seams/linked-device/activation-cleanup-receipt/v1',
-          receipt,
-        }),
-      ),
-    ),
+  return sha256Utf8DigestB64u(
+    alphabetizeStringify({
+      domain: 'seams/linked-device/activation-cleanup-receipt/v1',
+      receipt,
+    }),
   );
 }
 
@@ -247,15 +239,11 @@ export async function assertLinkedDeviceWalletSessionCredentialDeliveryIntegrity
   if (envelopeDigest !== delivery.envelopeDigestB64u) {
     throw new Error('linked-device Wallet Session credential delivery envelope digest is invalid');
   }
-  const recipientBindingDigest = parseDigestB64u(
-    base64UrlEncode(
-      await sha256BytesUtf8(
-        alphabetizeStringify({
-          domain: 'seams/linked-device/delivery-recipient/v1',
-          recipientPublicKey65B64u: delivery.aad.recipientPublicKey65B64u,
-        }),
-      ),
-    ),
+  const recipientBindingDigest = await sha256Utf8DigestB64u(
+    alphabetizeStringify({
+      domain: 'seams/linked-device/delivery-recipient/v1',
+      recipientPublicKey65B64u: delivery.aad.recipientPublicKey65B64u,
+    }),
   );
   if (recipientBindingDigest !== delivery.recipientBindingDigestB64u) {
     throw new Error('linked-device Wallet Session credential delivery recipient binding is invalid');

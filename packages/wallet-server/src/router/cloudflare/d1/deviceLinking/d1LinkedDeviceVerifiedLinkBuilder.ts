@@ -17,9 +17,9 @@ import {
 } from '@shared/authorization/delegatedAuthority';
 import { walletAuthorityDigestsMatchV1 } from '@shared/authorization/walletAuthority';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
-import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';
+import { sha256Utf8DigestB64u } from '@shared/utils/canonicalPrimitives';
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
-import { alphabetizeStringify, sha256BytesUtf8 } from '@shared/utils/digests';
+import { alphabetizeStringify } from '@shared/utils/digests';
 import type {
   ActiveWalletAuthMethodRecordV2,
   PasskeyWalletAuthMethodDraftV1,
@@ -178,21 +178,17 @@ export async function computeVerifiedTargetFactorVerificationDigestV1(input: {
           authorityDigestB64u: input.evidence.grant.authorityDigestB64u,
           descriptorCredentialIdB64u: input.evidence.grant.descriptorCredentialIdB64u,
         };
-  return parseDigestB64u(
-    base64UrlEncode(
-      await sha256BytesUtf8(
-        `${VERIFIED_TARGET_FACTOR_DOMAIN_V1}\u0000${alphabetizeStringify({
-          linkSessionId: input.registration.linkSessionId,
-          walletId: input.registration.walletId,
-          enrollmentId: input.registration.enrollmentId,
-          deviceId: input.registration.deviceId,
-          walletAuthMethodId: input.registration.walletAuthMethodId,
-          targetPreparationDigestB64u: input.registration.targetPreparationDigestB64u,
-          verifiedAtMs: input.verifiedAtMs,
-          evidence,
-        })}`,
-      ),
-    ),
+  return sha256Utf8DigestB64u(
+    `${VERIFIED_TARGET_FACTOR_DOMAIN_V1}\u0000${alphabetizeStringify({
+      linkSessionId: input.registration.linkSessionId,
+      walletId: input.registration.walletId,
+      enrollmentId: input.registration.enrollmentId,
+      deviceId: input.registration.deviceId,
+      walletAuthMethodId: input.registration.walletAuthMethodId,
+      targetPreparationDigestB64u: input.registration.targetPreparationDigestB64u,
+      verifiedAtMs: input.verifiedAtMs,
+      evidence,
+    })}`,
   );
 }
 

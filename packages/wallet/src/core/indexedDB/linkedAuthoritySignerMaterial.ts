@@ -6,8 +6,11 @@ import {
 } from '@shared/device-linking';
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
 import { alphabetizeStringify, sha256Bytes } from '@shared/utils/digests';
-import { sha256DigestB64u } from '@shared/utils/digestEncoding';
-import { parseDigestB64u, type DigestB64u } from '@shared/utils/canonicalPrimitives';
+import {
+  parseDigestB64u,
+  sha256DigestB64u,
+  type DigestB64u,
+} from '@shared/utils/canonicalPrimitives';
 import {
   mpcMaterialActivationRefsEqual,
   parseMpcMaterialActivationRef,

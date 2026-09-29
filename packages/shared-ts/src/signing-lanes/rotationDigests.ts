@@ -1,7 +1,7 @@
 import { base64UrlDecode, base64UrlEncode } from '../utils/base64';
-import { parseDigestB64u, type DigestB64u } from '../utils/canonicalPrimitives';
+import { parseDigestB64u, sha256DigestB64u, type DigestB64u } from '../utils/canonicalPrimitives';
 import { sha256Bytes } from '../utils/digests';
-import { concat, lp32, sha256DigestB64u, text, u32, u64 } from '../utils/digestEncoding';
+import { concat, lp32, text, u32, u64 } from '../utils/digestEncoding';
 import type { MpcMaterialActivationRef } from '../utils/domainIds';
 import type {
   AggregateLaneActivationChildReceiptV1,

@@ -1,4 +1,5 @@
 import { base64UrlDecode, base64UrlEncode } from './base64';
+import { sha256Bytes, sha256BytesUtf8 } from './digests';
 
 type CanonicalPrimitiveBrand<TName extends string> = {
   readonly __canonicalPrimitiveBrand: TName;
@@ -47,4 +48,12 @@ export function isoTimestampFromUnixMs(value: unknown): IsoTimestamp {
     throw new Error('timestamp milliseconds must be a positive safe integer');
   }
   return parseIsoTimestamp(new Date(Number(value)).toISOString());
+}
+
+export async function sha256DigestB64u(bytes: Uint8Array): Promise<DigestB64u> {
+  return parseDigestB64u(base64UrlEncode(await sha256Bytes(bytes)));
+}
+
+export async function sha256Utf8DigestB64u(text: string): Promise<DigestB64u> {
+  return parseDigestB64u(base64UrlEncode(await sha256BytesUtf8(text)));
 }

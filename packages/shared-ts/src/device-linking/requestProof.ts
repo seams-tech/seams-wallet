@@ -1,7 +1,7 @@
 import { parseLinkDeviceSessionId, type LinkDeviceSessionId } from '../signing-lanes/ids';
 import { base64UrlDecode, base64UrlEncode } from '../utils/base64';
-import { parseDigestB64u, type DigestB64u } from '../utils/canonicalPrimitives';
-import { concat, sha256DigestB64u } from '../utils/digestEncoding';
+import { parseDigestB64u, sha256DigestB64u, type DigestB64u } from '../utils/canonicalPrimitives';
+import { concat } from '../utils/digestEncoding';
 import type { LinkDevicePublicKeyB64u } from './contracts';
 
 const LINKED_DEVICE_REQUEST_PROOF_DOMAIN_V1 = 'seams/linked-device/request-proof/v1';

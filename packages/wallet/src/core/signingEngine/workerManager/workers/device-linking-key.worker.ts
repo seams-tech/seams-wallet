@@ -26,9 +26,13 @@ import {
 } from '@shared/device-linking';
 import { computeWalletSessionOperationCredentialDigestB64u } from '@shared/device-linking/digests';
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
-import { alphabetizeStringify, sha256BytesUtf8 } from '@shared/utils/digests';
+import { alphabetizeStringify } from '@shared/utils/digests';
 import { concat } from '@shared/utils/digestEncoding';
-import { parseDigestB64u, type DigestB64u } from '@shared/utils/canonicalPrimitives';
+import {
+  parseDigestB64u,
+  sha256Utf8DigestB64u,
+  type DigestB64u,
+} from '@shared/utils/canonicalPrimitives';
 import {
   parseMpcWalletSigningQuotaId,
   parseWalletSessionAuthorizationId,
@@ -566,16 +570,12 @@ const productionOrdinaryMaterialSealer: DeviceLinkingOrdinaryMaterialSealerV1 = 
     }
     const firstSignerMaterial = signerMaterials[0];
     if (!firstSignerMaterial) throw new Error('ordinary signer material set is empty');
-    const installedRecordSetDigestB64u = parseDigestB64u(
-      base64UrlEncode(
-        await sha256BytesUtf8(
-          alphabetizeStringify({
-            domain: 'seams/wallet/ordinary-authority-material-set/v1',
-            signerMaterials,
-            exportRoot,
-          }),
-        ),
-      ),
+    const installedRecordSetDigestB64u = await sha256Utf8DigestB64u(
+      alphabetizeStringify({
+        domain: 'seams/wallet/ordinary-authority-material-set/v1',
+        signerMaterials,
+        exportRoot,
+      }),
     );
     return {
       signerMaterials: [firstSignerMaterial, ...signerMaterials.slice(1)],

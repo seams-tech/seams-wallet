@@ -21,8 +21,11 @@ import {
   parseRevokeSigningLaneV1,
 } from '@shared/signing-lanes/rotationParsers';
 import { base64UrlDecode } from '@shared/utils/base64';
-import { parseDigestB64u, type DigestB64u } from '@shared/utils/canonicalPrimitives';
-import { sha256DigestB64u } from '@shared/utils/digestEncoding';
+import {
+  parseDigestB64u,
+  sha256DigestB64u,
+  type DigestB64u,
+} from '@shared/utils/canonicalPrimitives';
 import { base58Encode } from '@shared/utils/base58';
 import { parseEcdsaLifecycleId } from '@shared/utils/ecdsaCapabilityActivation';
 import {

@@ -21,9 +21,9 @@ import type { WebAuthnAuthenticationCredential } from '@/core/types/webauthn';
 import type { ManagedNonceReservation } from '@/core/rpcClients/evm/nonceBackend';
 import { toManagedNonceReservationSnapshot } from '@/core/rpcClients/evm/nonceBackend';
 import { base64UrlEncode } from '@shared/utils/base64';
-import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';
+import { parseDigestB64u, sha256Utf8DigestB64u } from '@shared/utils/canonicalPrimitives';
 import type { MpcMaterialActivationRef } from '@shared/utils/domainIds';
-import { alphabetizeStringify, sha256BytesUtf8 } from '@shared/utils/digests';
+import { alphabetizeStringify } from '@shared/utils/digests';
 import type { OperationDigestSet } from '@shared/authorization/operationFingerprint';
 import { bytesToHex } from '@/core/signingEngine/chains/evm/bytes';
 import type { WorkerOperationContext } from '@/core/signingEngine/workerManager/executeWorkerOperation';
@@ -239,9 +239,7 @@ async function buildEvmFamilyOperationDigests(input: {
       SigningSessionIds.signingOperationFingerprint(operationFingerprint),
     ),
     intentDigest: parseDigestB64u(base64UrlEncode(input.signingDigest32)),
-    displayDigest: parseDigestB64u(
-      base64UrlEncode(await sha256BytesUtf8(alphabetizeStringify(input.displayModel))),
-    ),
+    displayDigest: await sha256Utf8DigestB64u(alphabetizeStringify(input.displayModel)),
   };
 }
 
