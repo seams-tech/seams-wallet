@@ -281,6 +281,12 @@ Cloudflare:
   coordinated operations. Superseded wallet-local D1 stores and routing are
   removed only after the DO path replaces them.
 
-Against `dev`: `dev` has five test-pruning commits this branch lacks. The
-owner chose to merge `dev` into this branch after the consolidated run
-(2026-09-29).
+Against `dev`: `dev`'s five test-pruning commits are merged into this
+branch (2026-09-29, after the consolidated run); the branch is not merged
+into `dev`. Where both sides pruned the same file, the merge keeps this
+branch's code and takes `dev`'s deletions. After the merge,
+`router-ab-cloudflare`'s native tests pass (480, none failed), as do
+`router-ab-core`'s source guards, `router-ab-ecdsa-derivation`'s boundary
+test, `router-ab-dev`'s all-target check, the intended suite's type check
+and the two merged unit tests. The browser suite's type check reports two
+errors in test files the merge does not touch.

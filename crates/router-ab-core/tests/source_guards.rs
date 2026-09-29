@@ -143,38 +143,6 @@ fn library_code_does_not_log_or_debug_print() {
 }
 
 #[test]
-fn forbidden_joined_state_names_stay_in_allowlisted_modules() {
-    let forbidden_patterns = [
-        "joined d",
-        "joined_d",
-        "joined a",
-        "joined_a",
-        "joined x_client_base",
-        "joined_x_client_base",
-        "joined y_server",
-        "joined_y_server",
-        "joined tau_server",
-        "joined_tau_server",
-    ];
-
-    for path in rust_source_files() {
-        if is_allowed_invariant_model_file(&path) {
-            continue;
-        }
-
-        let source = fs::read_to_string(&path).expect("source file should read");
-        let lower = source.to_lowercase();
-        for forbidden in forbidden_patterns {
-            assert!(
-                !lower.contains(forbidden),
-                "{} contains forbidden joined-state phrase `{forbidden}` outside invariant models",
-                path.display()
-            );
-        }
-    }
-}
-
-#[test]
 fn router_boundary_does_not_import_signer_plaintext_decoder() {
     for relative_path in ["src/protocol/ecdsa_threshold_prf_request.rs"] {
         let source = read_manifest_file(relative_path);
@@ -285,17 +253,6 @@ fn ab_peer_payloads_do_not_carry_combined_or_root_secret_material() {
         assert!(
             !payload_rs.contains(forbidden),
             "A/B peer payload module imports forbidden secret-bearing type `{forbidden}`"
-        );
-    }
-}
-
-#[test]
-fn ecdsa_threshold_prf_backend_rejects_legacy_two_of_three_policy() {
-    let backend_rs = read_src_file("ecdsa_threshold_prf_backend.rs");
-    for forbidden in ["from_u16s(2, 3)", "Role::SignerB => 3"] {
-        assert!(
-            !backend_rs.contains(forbidden),
-            "fixed ECDSA threshold PRF must reject legacy 2-of-3 policy `{forbidden}`"
         );
     }
 }
@@ -457,9 +414,4 @@ fn collect_rust_files(dir: &Path, out: &mut Vec<PathBuf>) {
 
 fn is_allowed_logging_file(path: &Path) -> bool {
     path.ends_with(Path::new("src/bin/emit_contract_vectors.rs"))
-}
-
-fn is_allowed_invariant_model_file(path: &Path) -> bool {
-    path.ends_with(Path::new("src/derivation/leakage.rs"))
-        || path.ends_with(Path::new("src/derivation/material.rs"))
 }

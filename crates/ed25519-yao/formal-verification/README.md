@@ -514,7 +514,7 @@ The six named tests are
 `split_y_carry_and_wrap_reconstruct_exact_export_seed`,
 `seed_shares_match_independent_zero_one_and_max_arithmetic`,
 `reconstructed_rfc8032_seed_signs_and_verifies_with_registered_key`, and
-`source_and_ui_guards_keep_export_synthetic_seed_scoped_and_nonproduction`.
+`compile_guards_keep_export_seed_scoped_and_private`.
 
 The recovery-reference target uses public synthetic fixture bytes and permits
 variable-time host arithmetic. The separate recovery-admission lifecycle

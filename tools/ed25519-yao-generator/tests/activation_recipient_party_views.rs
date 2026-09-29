@@ -116,26 +116,3 @@ fn compile_fail_guards_enforce_move_only_disjoint_recipient_custody() {
         assert_compile_failure(&harness, source, code);
     }
 }
-
-#[test]
-fn source_guards_exclude_serializable_frames_durable_records_and_worker_scalar_accessors() {
-    let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let views = fs::read_to_string(manifest.join("src/activation_recipient_party_views.rs"))
-        .expect("read recipient views");
-    let activation = fs::read_to_string(manifest.join("src/signing_worker_activation.rs"))
-        .expect("read worker activation");
-    assert!(!views.contains("serde::"));
-    assert!(!views.contains("derive(Serialize"));
-    assert!(!views.contains("frame_bytes"));
-    assert!(!views.contains("durable_record"));
-    assert!(!views.contains("ciphertext"));
-    assert!(views.contains(
-        "pub(crate) fn build_host_only_activation_recipients_released_party_view_set_v1"
-    ));
-    assert!(
-        views.contains("pub(crate) fn build_host_only_signing_worker_activated_party_view_set_v1")
-    );
-    assert!(!activation.contains("pub const fn x_server_base"));
-    assert!(!activation.contains("pub fn x_server_base"));
-    assert!(activation.contains("pub(crate) fn host_fixture_opened_signing_worker_shares_v1"));
-}

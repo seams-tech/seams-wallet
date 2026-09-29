@@ -16,27 +16,6 @@ test('alphabetizeStringify recursively sorts object keys and preserves array ord
   );
 });
 
-test('alphabetizeStringify preserves ordinary JSON scalar encoding', () => {
-  const values: readonly unknown[] = [null, true, false, 'quoted "value"\n', 0, -12.5, [], {}];
-
-  for (const value of values) {
-    expect(alphabetizeStringify(value)).toBe(JSON.stringify(value));
-  }
-});
-
-test('alphabetizeStringify is independent of object insertion order', () => {
-  const left = {
-    walletId: 'wallet-1',
-    policy: { threshold: 2, mode: 'strict' },
-  };
-  const right = {
-    policy: { mode: 'strict', threshold: 2 },
-    walletId: 'wallet-1',
-  };
-
-  expect(alphabetizeStringify(left)).toBe(alphabetizeStringify(right));
-});
-
 test('alphabetizeStringify does not mutate or replace the input graph', () => {
   const nested = { z: 2, a: 1 };
   const arrayEntry = { d: 4, c: 3 };

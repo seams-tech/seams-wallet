@@ -1,7 +1,4 @@
 import { expect, test } from '@playwright/test';
-import { readFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { ROUTER_AB_ECDSA_DERIVATION_HEALTH_PATH } from '../../packages/shared-ts/src/utils/routerAbEcdsaDerivation';
 import { ROUTER_AB_ED25519_HEALTH_PATH } from '../../packages/shared-ts/src/utils/signingSessionSeal';
 import {
@@ -13,11 +10,6 @@ import type { CfExecutionContext } from '../../packages/wallet-server/src/router
 import type { RouterApiServiceBag } from '../../packages/wallet-server/src/router/framework/authServicePort';
 
 const fakeCtx = {} as CfExecutionContext;
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const selfHostedRouterSourcePath = resolve(
-  __dirname,
-  '../../packages/wallet-server/src/router/cloudflare/runtime/createSelfHostedCloudflareSigningWorker.ts',
-);
 
 function fakeRouterApiServiceBag(): RouterApiServiceBag {
   return {
@@ -118,21 +110,5 @@ test('hosted and self-host Cloudflare routers preserve threshold health route pa
     );
 
     expect(selfHostedResult).toEqual(hostedResult);
-  }
-});
-
-test('self-host Cloudflare signing router keeps hosted SaaS dependencies out of its direct boundary', () => {
-  const source = readFileSync(selfHostedRouterSourcePath, 'utf8');
-  for (const forbidden of [
-    'createCloudflareRouter',
-    'createCloudflareConsoleRouter',
-    './routes/apiWallets',
-    './routes/sponsoredEvmCall',
-    './routes/wellKnown',
-    './routes/sessions',
-    '@seams-internal/console-server',
-    'DerivationWalletId',
-  ]) {
-    expect(source, `forbidden self-host dependency: ${forbidden}`).not.toContain(forbidden);
   }
 });

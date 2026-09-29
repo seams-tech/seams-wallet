@@ -5,36 +5,6 @@ mod support;
 use support::{extract_function_body, read_src_file, rust_source_files};
 
 #[test]
-fn production_adapter_source_does_not_reference_joined_state_material() {
-    let forbidden_patterns = [
-        "joined d",
-        "joined_d",
-        "joined a",
-        "joined_a",
-        "joined x_client_base",
-        "joined_x_client_base",
-        "joined y_server",
-        "joined_y_server",
-        "joined tau_server",
-        "joined_tau_server",
-        "DdhHssSharedWord",
-        "DdhHiddenEvalProjectorInputs",
-    ];
-
-    for path in rust_source_files() {
-        let source = fs::read_to_string(&path).expect("source file should read");
-        let lower = source.to_lowercase();
-        for forbidden in forbidden_patterns {
-            assert!(
-                !lower.contains(&forbidden.to_lowercase()),
-                "{} contains forbidden joined-state marker `{forbidden}`",
-                path.display()
-            );
-        }
-    }
-}
-
-#[test]
 fn production_adapter_source_does_not_combine_recipient_outputs() {
     let forbidden_patterns = [
         "combine_mpc_prf_batch_outputs_with_threshold_backend_v1",

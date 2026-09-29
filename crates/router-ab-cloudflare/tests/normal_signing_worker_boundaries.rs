@@ -1,10 +1,7 @@
-use std::fs;
-
 mod support;
 
 use support::{
     extract_braced_block_after_marker, extract_function_body, extract_struct_block, read_src_file,
-    rust_source_files,
 };
 
 #[test]
@@ -103,38 +100,6 @@ fn ecdsa_lane_material_is_loaded_before_signature_preparation_or_consumption() {
         loader < pool_consume,
         "ECDSA finalize must reject stale lanes before consuming pool state"
     );
-}
-
-#[test]
-fn normal_signing_boundary_uses_signing_worker_api_names() {
-    let forbidden_patterns = [
-        "ActiveServerStateV1",
-        "RouterToServerSigningRequestV1",
-        "CloudflareServerRecipientProofBundleActivation",
-        "CloudflareServerOutputActivationReceiptV1",
-        "CloudflareServerOutputActivationRecordV1",
-        "CloudflareActiveServerStateLookupV1",
-        "CloudflareServerNormalSigningHandlerV1",
-        "build_cloudflare_router_to_server_normal_signing_request_v1",
-        "ServerOutputActivate",
-        "ServerOutputActiveStateGet",
-        "server_output_activate(",
-        "server_output_active_state_get(",
-        "active_server_state",
-        "server_material_handle",
-        "active-server/",
-    ];
-
-    for path in rust_source_files() {
-        let source = fs::read_to_string(&path).expect("source file should read");
-        for forbidden in forbidden_patterns {
-            assert!(
-                !source.contains(forbidden),
-                "{} still exposes server-labelled normal-signing API `{forbidden}`",
-                path.display()
-            );
-        }
-    }
 }
 
 #[test]
@@ -256,82 +221,6 @@ fn strict_private_worker_dispatchers_require_internal_auth_before_parsing() {
                 "{function_name} must require internal service auth before body parsing"
             );
         }
-    }
-}
-
-#[test]
-fn production_normal_signing_paths_do_not_import_joined_hss_state() {
-    let forbidden = [
-        "recover_a_from_base_shares",
-        "SigningKey::from_bytes",
-        "expand_ed25519_seed",
-        "x_client_base",
-        "\"y_server\"",
-        " y_server",
-        "y_server:",
-        "\"tau_server\"",
-        " tau_server",
-        "tau_server:",
-        "joined d",
-        "joined_d",
-        "joined a",
-        "joined_a",
-    ];
-    let functions = [
-        (
-            "lib.rs",
-            "handle_cloudflare_router_normal_signing_prepare_authenticated_public_request_v2",
-        ),
-        (
-            "lib.rs",
-            "handle_cloudflare_router_normal_signing_finalize_authenticated_public_request_v2",
-        ),
-        (
-            "lib.rs",
-            "handle_cloudflare_signing_worker_normal_signing_prepare_private_request_v2",
-        ),
-        (
-            "lib.rs",
-            "handle_cloudflare_signing_worker_normal_signing_finalize_private_request_v2",
-        ),
-        (
-            "lib.rs",
-            "handle_cloudflare_signing_worker_normal_signing_round1_prepare_private_fetch_v1",
-        ),
-        (
-            "lib.rs",
-            "handle_cloudflare_signing_worker_normal_signing_private_fetch_v1",
-        ),
-        (
-            "lib.rs",
-            "execute_cloudflare_signing_worker_normal_signing_prepare_service_call_v2",
-        ),
-        (
-            "lib.rs",
-            "execute_cloudflare_signing_worker_normal_signing_finalize_service_call_v2",
-        ),
-    ];
-
-    for (file_name, function_name) in functions {
-        let source = read_src_file(file_name);
-        let body = extract_function_body(&source, function_name);
-        for pattern in forbidden {
-            assert!(
-                !body.contains(pattern),
-                "{function_name} must not reference forbidden HSS material `{pattern}`"
-            );
-        }
-    }
-    let lib_rs = read_src_file("lib.rs");
-    let handler_body = extract_braced_block_after_marker(
-        &lib_rs,
-        "for CloudflareEd25519YaoNormalSigningHandlerV1",
-    );
-    for pattern in forbidden {
-        assert!(
-            !handler_body.contains(pattern),
-            "production normal-signing handler must not reference forbidden HSS material `{pattern}`"
-        );
     }
 }
 

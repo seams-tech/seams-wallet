@@ -1,6 +1,6 @@
 use std::collections::BTreeSet;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -396,7 +396,7 @@ fn corruption_retry_nonclaim_and_forbidden_key_boundaries_are_exact() {
 }
 
 #[test]
-fn strict_parser_cli_and_source_visibility_guards_reject_drift() {
+fn strict_parser_and_cli_reject_drift() {
     let mut mutated = COMMITTED.to_vec();
     mutated[0] = b'[';
     assert!(parse_canonical_semantic_frame_party_view_vector_corpus_json_v1(&mutated).is_err());
@@ -434,13 +434,4 @@ fn strict_parser_cli_and_source_visibility_guards_reject_drift() {
         String::from_utf8_lossy(&check.stderr)
     );
     fs::remove_file(output).expect("remove emitted corpus");
-
-    let source = fs::read_to_string(
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("src/semantic_delivery_views.rs"),
-    )
-    .expect("semantic view source");
-    assert!(!source.contains("pub fn activation_success_trace_steps_v1"));
-    assert!(!source.contains("pub fn evaluator_abort_trace_steps_v1"));
-    assert!(!source.contains("derive(Serialize"));
-    assert!(!source.contains("derive(Deserialize"));
 }

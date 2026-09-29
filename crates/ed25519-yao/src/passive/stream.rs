@@ -1010,24 +1010,6 @@ mod tests {
                 "missing digest domain {domain}"
             );
         }
-        for frozen_literal in [
-            "exactly 248 bytes",
-            "92-byte header",
-            "65,780",
-            "2,104,960",
-            "1,275",
-            "40,800",
-            "2,107,996",
-            "2,106,524",
-            "2,105,788",
-            "EYAOSTM1",
-            "EYAOTF01",
-        ] {
-            assert!(
-                specification.contains(frozen_literal),
-                "missing frozen literal {frozen_literal}"
-            );
-        }
     }
 
     fn payload(length: usize, sequence: u8) -> Vec<u8> {

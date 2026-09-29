@@ -122,17 +122,3 @@ fn compile_fail_guards_seal_joint_delta_derivation_and_move_ownership() {
         assert_compile_failure(&harness, body, code);
     }
 }
-
-#[test]
-fn root_exports_exclude_combined_delta_construction_and_application() {
-    let root = include_str!("../src/lib.rs");
-    let lifecycle = include_str!("../src/lifecycle_reference.rs");
-    let joint = include_str!("../src/joint_refresh_delta.rs");
-
-    assert!(!root.contains("HostOnlyJointRefreshDeltaV1,"));
-    assert!(!root.contains("derive_host_only_joint_refresh_delta_v1,"));
-    assert!(!root.contains("apply_host_only_joint_refresh_delta_v1,"));
-    assert!(!lifecycle.contains("pub fn apply_host_only_joint_refresh_delta_v1"));
-    assert!(joint.contains("pub(crate) struct HostOnlyJointRefreshDeltaV1"));
-    assert!(joint.contains("pub(crate) fn derive_host_only_joint_refresh_delta_v1"));
-}

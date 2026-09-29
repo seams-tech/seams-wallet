@@ -507,12 +507,11 @@ fn activation_builder_sources_have_no_oracle_kdf_or_deriver_access() {
 }
 
 #[test]
-fn fixture_module_has_no_product_or_legacy_dependency() {
+fn fixture_module_has_no_product_dependency() {
     for forbidden in [
         "router_ab_core",
         "sdk_web",
         "cloudflare",
-        "ed25519_hss",
         "wasm/",
         "apps/",
         "packages/",
