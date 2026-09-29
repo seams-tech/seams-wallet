@@ -409,3 +409,46 @@ and cross-arm bindings. It reads manifests only.
 It does not verify deployed Cloudflare state, installed secrets, the ingress
 expiry value, the actual account, or the spend cap. Confirm those separately
 before the first hosted request.
+
+## Pilot log
+
+2026-09-29, account `ba924da36f2ffc3839e8d323000b66b4`, Wrangler 4.111.0,
+`r150-bench-20260925-*` resources only.
+
+Deployed:
+- Both arms' role Workers, dry-run first. The D1 arm's final configs went
+  over its 2026-09-25 first pass; the DO arm had a first pass, then final
+  configs. Each final deploy's bindings match its manifest, and no role
+  has a `workers.dev` URL.
+- Both private Gateways, both ingresses and the probe Worker. Ingress gate
+  check on both arms: `/readyz` without the token, or with a wrong one,
+  answers 403, and with the token 204. The probe answers 401 before any
+  container starts.
+- Tenant roots under the identity the Gateway resolves: the arm's org,
+  project and environment IDs, signing root `<project>:bench`, version
+  `default`.
+
+Setup and probe bugs found before any timed attempt, all fixed:
+
+| Commit | What it fixes |
+| --- | --- |
+| c470c49 | The local bootstrap adapter's compatibility date was newer than the pinned Wrangler runtime. |
+| 08db1ff | Both Derivers used the same backup key version, and the control plane refused the tenant root. The D1 arm's stuck creation was abandoned the documented way: the same grant resent after its window. A fresh grant then reached ready. |
+| 4ceef63 | The bootstrap used the environment ID as the signing root. The Gateway resolves `<project>:<environment key>`, so registration found no active tenant root. The renderer now derives the ID and refuses a receipt whose identity digest differs. |
+| cc8451c | The probe input gave the ingress origin with a trailing slash, so the harness asked for `//readyz`. |
+| 6a05acb | The probe server did not set the app and wallet origins the ingresses accept (localhost:4201 and 4202). |
+| 98a866a | The harness's readiness check used the API request context, which the token route never sees. |
+
+The probe image was first run in local Docker against the hosted arms. Its
+own `localhost:4201` and `4202` stay inside the container. That found two
+product failures that stop the pilot:
+- **D1 arm:** every NEAR registration failed. Deriver B's start acceptance
+  was 75 ms ahead of Deriver A's Worker clock, past the shared admission's
+  zero allowance. Fixed in a8d32e0.
+- **DO arm:** the first ECDSA signature after registration was refused in
+  6 of 9 runs (`authority_digest_mismatch`, 403). NEAR provisioning
+  committed between admission's two reads. Fixed in 85b935a.
+
+The D1 arm's earlier passes skipped the NEAR work the DO arm did, so no
+timing from before these fixes is comparable. The pilot restarts on role
+Workers, Gateways, SDK and probe image rebuilt from the fixed revision.

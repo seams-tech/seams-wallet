@@ -113,6 +113,33 @@ records each slice, its evidence and what it left open.
     same code, an exact replay and two refused changed copies. With the
     passkey revocation contract, which now takes the same path, it passes
     on all three hosts (2026-09-29).
+21. Deriver B's Yao timestamps are judged with the 1 s skew the Workers
+    already allowed (a8d32e0). The shared pair-start admission from
+    7611c56, which is also on `dev`, judged B's readiness receipt and start
+    acceptance exactly by Deriver A's clock. On the hosted D1 arm every NEAR
+    registration failed there: B's acceptance arrived 75 ms ahead. Local
+    Workers share one clock, so no local run caught it. Deriver A's own
+    receipt and every expiry are still judged exactly. A dev-only switch
+    runs B's clock ahead. At 500 ms the activation completes on both builds;
+    at 1500 ms Deriver A refuses the start.
+22. A Wallet Session is admitted on the authority and method read with it
+    (85b935a). An ECDSA signing prepare re-read the authority after reading
+    the session. When NEAR provisioning committed between the two reads,
+    admission paired the old session with the extended authority and
+    refused it (`authority_digest_mismatch`, a 403). On the hosted DO arm
+    that refused the first signature after registration in 6 of 9 runs, and
+    the status reader answered 500 on the same straddle. The
+    operation-credential reader, its exhausted fallback and the status
+    reader now judge one joined snapshot, as the presignature-pool read
+    already did. All their checks are unchanged. A local-only Gateway fault
+    forces the interleaving. The new contract failed before the change with
+    the hosted 403 and passes after it.
+
+    With both, the targeted contracts pass on all three hosts at 85b935a:
+    registration, device linking (including both revocation contracts),
+    presign pool, unlock and Ed25519 Yao. That is 32 of 32 per host, and
+    `router-ab-dev` is 113 passed, none failed
+    (`.artifacts/r150/fixes-targeted-20260929/`).
 
 The lifecycle-keyed ceremony records stay in Gateway D1. That is the final
 boundary.
@@ -263,7 +290,10 @@ Cloudflare:
   request-reachable test or debug route.
 - The pilot is approved and under way: account access and the cost
   estimate were confirmed first, and pending migrations are applied to the
-  eight benchmark databases. Its results are recorded in the
+  eight benchmark databases. Both arms, their Gateways and ingresses, and
+  the probe Worker are deployed. The first smoke attempts found setup and
+  probe bugs (fixed) and the two product failures behind items 21 and 22.
+  The pilot restarts from 85b935a. Its log and results are in the
   [hosted comparison](./refactor-150-hosted-comparison.md).
 
 ## Before the managed milestone
@@ -276,7 +306,10 @@ Cloudflare:
   build for the managed roles. Today the wallet-object features build only
   the local harness and the isolated comparison.
 - Integration into `dev`, and seams-monorepo consuming exact package and
-  artifact versions.
+  artifact versions. `dev` has 7611c56 without item 21's fix, so a `dev`
+  deployment whose Derivers run on separate hosts can fail NEAR
+  registration the same way. seams-monorepo needs b74937c or later, which
+  restores the published `@seams/wallet-server/router/express` entry.
 - The new-wallet cohort, and the Phase 3 clean reset, as separately
   coordinated operations. Superseded wallet-local D1 stores and routing are
   removed only after the DO path replaces them.
