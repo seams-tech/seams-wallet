@@ -316,3 +316,14 @@ consolidated cluster before committing it.
   Rust `allow(dead_code)` that hid nothing and two dead codec modules (125 ->
   111). d416446 narrowed the citation measure to refactor numbers (274 -> 206).
   The baseline was re-recorded at `d416446`.
+- 2026-09-29: the tests found broken above were deleted (7884aa9) along with
+  three `.mjs` tests no runner picked up. Formal verification: 15bcdcf
+  recounted the ed25519-yao pins and re-rendered `fixed-reference-v1.md`;
+  f866095 dropped `just router-ab-core-fv-parity`'s nonexistent `--test
+  evidence`; 3344736 regenerated signer-core's Ed25519 anti-drift vectors,
+  which predated the Seams rename; e21cf93 and e54d863 gave router-ab-core's
+  Verus fixture a valid digest; 3e46297 made the ECDSA-derivation LLBC
+  extraction independent of the checkout path; a2c1c26 made `verus-check`
+  count the crate's own obligations. `cargo yao-fv`'s aeneas-check and the
+  ECDSA-derivation Lean boundary and privacy builds still need Mathlib
+  locally, and `phase2b-review-subject-check` needs a clean checkout.
