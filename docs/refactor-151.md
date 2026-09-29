@@ -310,9 +310,9 @@ returning scope. Prepare and finalize reuse this result, removing their separate
 scope lookups. The route retains its material-policy scope check.
 
 The narrow entry point requires a reusable-session ECDSA operation and material.
-It supplies the material discriminator explicitly, selecting the existing guarded
-ECDSA INSERT; the previous reusable route passed material without that
-discriminator through the generic API. Generic and one-use step-up admission
+It preserves the existing reusable-route material input and fresh resolver.
+The first version of this entry point explicitly selected the registration-only
+guarded INSERT; the linked-device follow-up below corrects that regression. Generic and one-use step-up admission
 remain supported through their existing entry point. NEAR and step-up retain
 their separate scope reader, which now shares the persisted projection and
 preserves its operation/source identity checks. Raw storage rows stay private
@@ -368,6 +368,87 @@ through 15:14:55 UTC, subject to accounting lag and the existing $25 cap. The
 join, trace repeated status-request owners and the full system-controlled
 critical path, then complete the deferred minimum-call-budget review before
 considering regional D1 ownership. The deeper review stays open.
+
+### Next consolidation boundary: material freshness and request ownership
+
+The 12-call cohort leaves six calls in prepare and six in finalize:
+
+| Decision | Prepare calls | Finalize calls | Required property |
+| --- | ---: | ---: | --- |
+| Joined session, authority, method, quota | 1 | 1 | Exact credential, live authority and quota identity |
+| Initial material resolution | 1 | 1 | Full activation, normal-signing scope, canonical or linked custody source |
+| Joined project/abuse policy | 1 | 1 | Fresh policy and rejection precedence |
+| Fresh material resolution | 1 | 1 | Revalidate after policy evaluation before admission |
+| Existing operation, live source, pinned scope | 1 | 1 | Exact replay identity, revocation/expiry, persisted wallet binding |
+| Claim + committed readback / durable completion | 1 | 1 | Atomic quota claim / exact response replay |
+
+The fresh material read cannot yet be removed. The existing-operation query
+checks live authorization and persisted material identity; it does not check
+that the material remains live. The conditional INSERT's signer predicate covers
+registration records only. The material resolver also resolves installed linked
+activations and follows their custody chain to the canonical signer. A session
+join or admission predicate must preserve that behavior and conflicting-signer
+checks before it can replace a resolver read.
+
+The existing three-device ECDSA-only contract exposed a `production_regression`
+in the persisted-scope checkpoint: explicitly selecting the registration-only
+INSERT guard rejected Device 3's valid linked activation with `material_mismatch`.
+The correction preserves the reusable route's established material input to
+admission and its fresh resolver. The persisted owner-scope optimization remains.
+This is a correctness correction; it adds no cache or new compatibility branch.
+The earlier 12-call hosted measurements remain historical evidence for that
+bundle, not measurements of the corrected bundle.
+
+A new behavioral scenario consumes two uses through verified signatures, then
+races two distinct operation identities for the last use. It requires one 200
+prepare and one `wallet_session_quota_exhausted` 409. Retrying both must return
+one `operation_in_progress` and one quota-exhausted response. Both prepare
+responses are deliberately dropped, so no new finalize runs. The VM checks quota
+1 → 0 and retains only the two earlier signing effects. Reproduce with
+`distinct concurrent prepares consume the last quota` in
+`passkey.presign-pool.contract.test.ts`; the existing three-device contract is
+selected by `a linked device links a third device on an ECDSA-only wallet`.
+Artifacts and reproduction commands are in
+`.artifacts/r150/d1-material-review-20260930/verification.json`; the remaining
+call inventory and historical status totals are in `call-budget.json` beside it.
+Five scenarios passed on each of Workers D1, wallet-DO, and VM (15
+scenario/profile combinations): three-device linked signing; duplicate prepare
+and lost-finalize replay with wrong-wallet refusal; last-quota contention;
+recovery retirement; and warm signing with step-up/export. Server build,
+intended-test type check, and the bloat check pass. A cached Worker profile
+mismatch was corrected; the final two VM cases used the supported port offset
+after another local stack occupied the default ports. No hosted resources were
+changed during this checkpoint.
+
+Next implementation order:
+
+1. Specify one material-freshness predicate covering canonical and installed
+   linked activations, exact owner/key/lifecycle/worker identity, custody-source
+   resolution, and ambiguity rejection. Apply it to both new claims and existing
+   operations; preserve the completed-response replay policy.
+2. Exercise retirement/revocation between policy and admission, including linked
+   devices, together with distinct operations contending for the last quota use.
+   Then replace a resolver read and measure the actual call reduction.
+3. Trace status-request owners in a fixed current SDK build. The preserved SDK
+   used for hosted comparisons has a known content hash but unproven source;
+   current source ownership alone cannot attribute those requests.
+4. Measure the complete system-controlled signing span before revisiting the
+   deferred minimum-call-budget design and regional placement.
+
+The latest hosted scope cohort observed 51 status requests containing 117 D1
+calls: registration windows 21/42, first-sign windows 12/24, and subsequent-sign
+windows 18/51. These are window totals, including background work. They do not
+identify the caller or establish a foreground dependency.
+
+Current source has an operation-scoped `WalletSessionStatusReadScope`, keyed by
+fetch implementation, normalized relay URL, credential, session, and quota.
+Registration/unlock prefill, capability inventory, and iframe exact-session
+reconciliation already share scopes internally. Warm EVM/Tempo capability
+readers each invoke a resolver that creates its own scope; signing material
+hydration also performs a deliberate later authorization read. Investigate the
+former for sharing within one public read. Preserve the latter's freshness
+boundary unless domain-state evidence supports replacing it. Avoid a global
+status cache or reuse across a signing effect, unlock, or authority transition.
 
 ### 1. Consolidate reads while preserving decision boundaries
 

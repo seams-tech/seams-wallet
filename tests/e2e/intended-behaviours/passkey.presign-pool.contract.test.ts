@@ -416,6 +416,58 @@ class ConcurrentPrepare {
   }
 }
 
+class LastQuotaPrepareRace {
+  statuses: number[] = [];
+  replayCodes: string[] = [];
+  walletId: string | null = null;
+
+  async compete(route: Route): Promise<void> {
+    const original: unknown = route.request().postDataJSON();
+    if (!isPlainObject(original) || !isPlainObject(original.scope)) {
+      throw new Error('Expected a scoped ECDSA prepare request');
+    }
+    if (typeof original.operation_id !== 'string' || typeof original.scope.wallet_id !== 'string') {
+      throw new Error('ECDSA prepare omitted its operation or wallet identity');
+    }
+    this.walletId = original.scope.wallet_id;
+    const contender = {
+      ...original,
+      operation_id: `${original.operation_id}-contender`,
+      request_id: randomUUID(),
+    };
+    const responses = await Promise.all([
+      route.fetch(),
+      route.fetch({ postData: contender }),
+    ]);
+    for (const response of responses) {
+      this.statuses.push(response.status());
+    }
+    this.statuses.sort();
+    expect(this.statuses).toEqual([200, 409]);
+    for (const response of responses) {
+      if (response.status() === 409) {
+        expect(await response.json()).toMatchObject({ code: 'wallet_session_quota_exhausted' });
+      }
+    }
+    // Retry both identities after the winner consumed the last use.
+    const retries = await Promise.all([
+      route.fetch(),
+      route.fetch({ postData: contender }),
+    ]);
+    for (const response of retries) {
+      expect(response.status()).toBe(409);
+      const payload: unknown = await response.json();
+      if (!isPlainObject(payload) || typeof payload.code !== 'string') {
+        throw new Error('Expected a denied prepare response');
+      }
+      this.replayCodes.push(payload.code);
+    }
+    this.replayCodes.sort();
+    expect(this.replayCodes).toEqual(['operation_in_progress', 'wallet_session_quota_exhausted']);
+    await route.abort('connectionclosed');
+  }
+}
+
 class LostFinalize {
   finalizations = 0;
   lost: { readonly request: Request; readonly status: number; readonly body: string } | null =
@@ -576,6 +628,52 @@ test('concurrent prepare and admitted ECDSA finalize lost_response retry preserv
     signingWorkerTerminalMatchesRetry: effectsAfterRetry ? true : null,
   };
   const artifactName = `gateway-ecdsa-finalize-lost-response-${evidence.host}.json`;
+  const artifactPath = path.resolve(testInfo.config.rootDir, '../.artifacts/r150', artifactName);
+  await mkdir(path.dirname(artifactPath), { recursive: true });
+  await writeFile(artifactPath, JSON.stringify(evidence, null, 2), 'utf8');
+  await testInfo.attach(artifactName, {
+    body: JSON.stringify(evidence, null, 2),
+    contentType: 'application/json',
+  });
+});
+
+test('distinct concurrent prepares consume the last quota use once and preserve the winning claim', async ({
+  harness,
+  context,
+}, testInfo) => {
+  await harness.registerPasskeyEcdsaOnlyWallet();
+  await harness.signTempoTransaction('post_registration');
+  await harness.signTempoTransaction('post_registration');
+  const remainingUsesBefore = await vmRemainingSigningUses();
+  if (remainingUsesBefore !== null) expect(remainingUsesBefore).toBe(1);
+  const race = new LastQuotaPrepareRace();
+  const compete = race.compete.bind(race);
+  const preparePath = '**/router-ab/ecdsa-derivation/sign/prepare';
+  await context.route(preparePath, compete);
+  try {
+    await expect(harness.signTempoTransaction('post_registration')).rejects.toThrow();
+  } finally {
+    await context.unroute(preparePath, compete);
+  }
+  if (!race.walletId) throw new Error('The final-quota prepare race was never reached');
+  expect(race.statuses).toEqual([200, 409]);
+  expect(race.replayCodes).toEqual(['operation_in_progress', 'wallet_session_quota_exhausted']);
+  const remainingUsesAfter = await vmRemainingSigningUses();
+  const effects = await vmSigningWorkerEffects(race.walletId);
+  if (remainingUsesAfter !== null) expect(remainingUsesAfter).toBe(0);
+  if (effects) expect(effects).toHaveLength(2);
+  const evidence = {
+    kind: 'gateway_ecdsa_last_quota_contention_v1',
+    host: process.env.SEAMS_INTENDED_WALLET_HOST ?? 'workers_local',
+    distinctOperationCount: 2,
+    prepareStatuses: race.statuses,
+    replayCodes: race.replayCodes,
+    remainingUsesBefore,
+    remainingUsesAfter,
+    verifiedSignaturesBeforeRace: 2,
+    signingWorkerEffectsAfterRace: effects?.length ?? null,
+  };
+  const artifactName = `gateway-ecdsa-last-quota-${evidence.host}.json`;
   const artifactPath = path.resolve(testInfo.config.rootDir, '../.artifacts/r150', artifactName);
   await mkdir(path.dirname(artifactPath), { recursive: true });
   await writeFile(artifactPath, JSON.stringify(evidence, null, 2), 'utf8');
