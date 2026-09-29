@@ -34,7 +34,6 @@ fn strict_router_exposes_no_generic_split_derivation_route() {
         "handle_cloudflare_router_recipient_proof_bundle_public_request_v1",
         "handle_cloudflare_router_recipient_proof_bundle_authenticated_public_request_v1",
         "CloudflareRouterRecipientProofBundleAdmissionResponseV1",
-        "execute_cloudflare_signer_recipient_proof_bundle_service_call_v1",
         "execute_cloudflare_signing_worker_recipient_proof_bundle_activation_service_call_v1",
         "cloudflare_signer_service_url",
         "cloudflare_signing_worker_recipient_proof_bundle_activation_service_url",

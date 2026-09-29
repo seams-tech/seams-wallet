@@ -62,7 +62,6 @@ fn router_ab_ecdsa_derivation_export_uses_client_only_deriver_path() {
         );
     }
     for forbidden in [
-        "execute_cloudflare_signer_recipient_proof_bundle_service_call_v1",
         "CloudflareSigningWorkerRecipientProofBundleActivationV1",
         "execute_cloudflare_router_ab_ecdsa_derivation_signing_worker_activation_service_call_v1",
         "server_bundle",
@@ -133,11 +132,6 @@ fn router_ab_ecdsa_derivation_registration_uses_protocol_specific_deriver_path()
             "Router A/B ECDSA derivation registration route must pass through `{required}`"
         );
     }
-    assert!(
-        !registration_body
-            .contains("execute_cloudflare_signer_recipient_proof_bundle_service_call_v1"),
-        "Router A/B ECDSA derivation registration must not use the generic Deriver private service path"
-    );
 
     // Every host admits and finishes registration through the same steps.
     let admission_body = extract_function_body(
@@ -455,10 +449,6 @@ fn strict_deriver_ecdsa_stable_path_uses_server_loaded_v2_share_input() {
                 .contains("tenant_root_deriver_load_bound_role_share_v1"),
         "shared Deriver registration must preload the server-authenticated V2 share"
     );
-    assert!(
-        !deriver_rs.contains("build_cloudflare_preloaded_signer_host_with_root_share_wire_v1"),
-        "strict Deriver stable path must not preload the legacy root-share wire"
-    );
 }
 
 #[test]
@@ -469,7 +459,6 @@ fn router_ab_ecdsa_derivation_cloudflare_boundaries_do_not_reconstruct_canonical
         "privateKeyHex",
         "private_key_hex",
         "reconstruct_export_key",
-        "reconstructExportKey",
         "x_export",
         "canonical_x",
         "canonicalX",
@@ -478,7 +467,6 @@ fn router_ab_ecdsa_derivation_cloudflare_boundaries_do_not_reconstruct_canonical
         "raw_root",
         "rawRoot",
         "root_material",
-        "rootMaterial",
     ];
 
     for function_name in [

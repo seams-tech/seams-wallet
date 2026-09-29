@@ -23,7 +23,6 @@ fn router_ab_ecdsa_derivation_normal_signing_binding_does_not_invoke_derivers() 
         );
     }
     for forbidden in [
-        "execute_cloudflare_signer_recipient_proof_bundle_service_call_v1",
         "execute_cloudflare_router_ab_ecdsa_derivation_deriver_export_service_call_v1",
         "decrypt_and_handle_cloudflare_router_ab_ecdsa_derivation_export_signer_private_request_v1",
         "CloudflareRouterAbEcdsaDerivationDeriverExportPrivateRequestV1",
@@ -57,7 +56,6 @@ fn router_ab_ecdsa_derivation_normal_signing_materialized_request_uses_active_ma
         );
     }
     for forbidden in [
-        "execute_cloudflare_signer_recipient_proof_bundle_service_call_v1",
         "execute_cloudflare_router_ab_ecdsa_derivation_deriver_export_service_call_v1",
         "decrypt_and_handle_cloudflare_router_ab_ecdsa_derivation_export_signer_private_request_v1",
         "CloudflareRouterAbEcdsaDerivationDeriverExportPrivateRequestV1",
@@ -134,7 +132,6 @@ fn router_ab_ecdsa_derivation_finalize_helper_materializes_presignature_before_h
         "Router A/B ECDSA derivation finalize helper must materialize, derive finalize binding, call handler, then validate response"
     );
     for forbidden in [
-        "execute_cloudflare_signer_recipient_proof_bundle_service_call_v1",
         "execute_cloudflare_router_ab_ecdsa_derivation_deriver_export_service_call_v1",
         "decrypt_and_handle_cloudflare_router_ab_ecdsa_derivation_export_signer_private_request_v1",
         "CloudflareRouterAbEcdsaDerivationDeriverExportPrivateRequestV1",

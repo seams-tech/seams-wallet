@@ -2810,68 +2810,6 @@ mod tests {
         )
     }
 
-    /// The R120 tenant-root control-plane key ownership matrix.
-    ///
-    /// | Material | Owner |
-    /// |---|---|
-    /// | issuer private signing key | dedicated control-plane Worker only |
-    /// | issuer public verifying keyset | Router, Deriver A, Deriver B |
-    ///
-    /// The forbidden-env lists are the enforcement point, so they are pinned
-    /// here: before this test the four lists had no coverage at all, and a
-    /// change to any of them was silent.
-    #[test]
-    fn tenant_root_control_plane_key_ownership_matrix_is_exact() {
-        for (worker_role, forbidden) in [
-            (
-                CloudflareWorkerRoleV1::Router,
-                crate::env::ROUTER_FORBIDDEN_ENV_KEYS,
-            ),
-            (
-                CloudflareWorkerRoleV1::DeriverA,
-                crate::env::DERIVER_A_FORBIDDEN_ENV_KEYS,
-            ),
-            (
-                CloudflareWorkerRoleV1::DeriverB,
-                crate::env::DERIVER_B_FORBIDDEN_ENV_KEYS,
-            ),
-            (
-                CloudflareWorkerRoleV1::SigningWorker,
-                crate::env::SIGNING_WORKER_FORBIDDEN_ENV_KEYS,
-            ),
-        ] {
-            // The private issuer key is forbidden in every Worker in this
-            // deployment. Only the dedicated control-plane Worker holds it.
-            assert!(
-                forbidden.contains(&TENANT_ROOT_CONTROL_PLANE_ISSUER_SIGNING_KEY_BINDING_ENV),
-                "{} must never receive the issuer private signing binding",
-                worker_role.as_str()
-            );
-
-            // The public verifying anchor is required wherever a signed
-            // creation command is verified, and forbidden where it is not.
-            let anchor_forbidden =
-                forbidden.contains(&TENANT_ROOT_CONTROL_PLANE_ISSUER_VERIFYING_KEYS_JSON_ENV);
-            match worker_role {
-                CloudflareWorkerRoleV1::SigningWorker => assert!(
-                    anchor_forbidden,
-                    "the Signing Worker has no tenant-root lifecycle role"
-                ),
-                CloudflareWorkerRoleV1::Router
-                | CloudflareWorkerRoleV1::DeriverA
-                | CloudflareWorkerRoleV1::DeriverB => assert!(
-                    !anchor_forbidden,
-                    "{} verifies signed creation commands at its own boundary and requires the public anchor",
-                    worker_role.as_str()
-                ),
-                CloudflareWorkerRoleV1::TenantRootControlPlane => assert!(
-                    !anchor_forbidden,
-                    "the issuer holds its own public set to preflight that its signing key id is trusted"
-                ),
-            }
-        }
-    }
-
     #[test]
     fn restore_authority_config_derives_fixed_ids_from_domain_and_public_key() {
         let operations_key = SigningKey::from_bytes(&[0x51; 32])

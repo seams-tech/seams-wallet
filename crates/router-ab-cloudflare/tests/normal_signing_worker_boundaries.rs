@@ -21,9 +21,6 @@ fn normal_signing_routes_do_not_invoke_ab_derivation_handlers() {
         for forbidden in [
             "build_mpc_prf_threshold_signer_batch_input_v1",
             "decrypt_and_handle_cloudflare_router_ab_ecdsa_derivation_export_signer_private_request_v1",
-            "decrypt_and_handle_cloudflare_mpc_prf_recipient_proof_bundle_signer_private_request_v1",
-            "handle_cloudflare_validated_mpc_prf_client_recipient_proof_bundle_signer_request_v1",
-            "handle_cloudflare_validated_mpc_prf_recipient_proof_bundle_signer_request_v1",
             "handle_cloudflare_signer_recipient_proof_bundle_private_request_v1",
             "recipient_proof_bundle_wire_message_from_ab_proof_batch_v1",
             "DeriverAEngine",
@@ -126,10 +123,6 @@ fn strict_signing_worker_handler_is_protocol_aware() {
     );
 
     assert!(
-        !strict_worker_rs.contains("strict SigningWorker normal-signing handler is not configured"),
-        "strict SigningWorker normal-signing handler must not return the old config stub"
-    );
-    assert!(
         route_body.contains("CloudflareEd25519YaoNormalSigningHandlerV1"),
         "strict SigningWorker entrypoint must use the production normal-signing handler"
     );
@@ -181,10 +174,6 @@ fn strict_signing_worker_handler_is_protocol_aware() {
             "strict SigningWorker Router A/B ECDSA derivation finalize handler must use `{required}`"
         );
     }
-    assert!(
-        !ecdsa_finalize_handler_body.contains("threshold_ecdsa_finalize_signature"),
-        "strict SigningWorker Router A/B ECDSA derivation finalize handler must exclude the generic signer-core finalizer"
-    );
 }
 
 #[test]

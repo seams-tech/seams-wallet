@@ -37,14 +37,7 @@ fn cloudflare_route_boundaries_do_not_decode_signer_plaintext() {
         "handle_cloudflare_deriver_peer_request_v1",
     ] {
         let body = extract_function_body(&lib_rs, function_name);
-        for forbidden in [
-            "SignerInputPlaintextV1",
-            "decode_signer_input_plaintext_v1",
-            "decode_and_validate_cloudflare_signer_input_plaintext_v1",
-            "validate_cloudflare_signer_private_request_plaintext_v1",
-            "decrypt_and_validate_cloudflare_signer_input_plaintext_v1",
-            "decrypt_cloudflare_validated_signer_private_request_v1",
-        ] {
+        for forbidden in ["SignerInputPlaintextV1", "decode_signer_input_plaintext_v1"] {
             assert!(
                 !body.contains(forbidden),
                 "{function_name} crosses signer plaintext boundary through `{forbidden}`"

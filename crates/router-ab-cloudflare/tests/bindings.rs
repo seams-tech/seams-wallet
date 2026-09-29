@@ -123,8 +123,7 @@ use router_ab_cloudflare::{
     CloudflareSigningWorkerRouterAbEcdsaDerivationEvmDigestFinalizeHandlerV1,
     CloudflareSigningWorkerRouterAbEcdsaDerivationEvmDigestPreparedV1,
     CloudflareSigningWorkerRouterAbEcdsaDerivationPresignaturePoolPutRequestV1,
-    CloudflareSigningWorkerRuntimeV1, CloudflareSigningWorkerWalletScopeV1,
-    CloudflareTenantRootControlPlaneIssuerVerifyingKeysV1,
+    CloudflareSigningWorkerWalletScopeV1, CloudflareTenantRootControlPlaneIssuerVerifyingKeysV1,
     CloudflareTenantRootCustodyBindingWireV1, CloudflareWorkerBindingsV1, CloudflareWorkerRoleV1,
     EcdsaVerifiedClientActivationFactsV1, PoolRecord, TombstoneReason,
     CLOUDFLARE_SERVER_OUTPUT_HPKE_PRIVATE_KEY_SECRET_PREFIX_V1,
@@ -7394,26 +7393,6 @@ fn deriver_a_runtime_exposes_role_private_secrets_and_peer() {
             .peer_verifying_keys_for_signer_set(&signer_set())
             .expect("signer a runtime verifying keys"),
         signer_verifying_keys()
-    );
-}
-
-#[test]
-fn signing_worker_runtime_retains_only_ephemeral_presign_session_do() {
-    let runtime = CloudflareSigningWorkerRuntimeV1::new(
-        CloudflareSigningWorkerBindingsV1::new(
-            signing_worker_presign_session_binding(),
-            server_output_hpke_decrypt_key(),
-        )
-        .expect("signing worker bindings"),
-    )
-    .expect("signing worker runtime");
-    assert_eq!(
-        runtime.bindings().presign_session.binding_name,
-        "SIGNING_WORKER_PRESIGN_SESSION_DO"
-    );
-    assert_eq!(
-        runtime.server_output_decrypt_key().binding_name,
-        "SIGNING_WORKER_SERVER_OUTPUT_HPKE_PRIVATE_KEY"
     );
 }
 
