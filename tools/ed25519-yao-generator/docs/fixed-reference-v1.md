@@ -256,11 +256,11 @@ Ed25519 public key: `ccd255d0b88721771947038f1a7c29b49eee3902d6aa732e5e448251537
 | `docs/output-sharing-v1.md` | 7716 | `5035da5d3669bf9a310bb4fa4299ad9eaf8ded700f5805f40f1b0893f716f5e3` |
 | `docs/circuit-ir-v1.md` | 35777 | `7124434078de370c9a31bd33efd14a8a6df15478934a8f1bba5ddc39ac73dbdd` |
 | `docs/ceremony-context-v1.md` | 8082 | `46f8cbec72b105a92a1257c267b672820e8eff4a6b12d7aa07075fd0a6f948c8` |
-| `docs/input-provenance-v1.md` | 56330 | `608ef4e276cf049fb55c790b5af93eb9a1c378c5132b5c6fd70abae275865393` |
+| `docs/input-provenance-v1.md` | 55893 | `fca145d21d06e146d0cf71b40c862128e51eed9c2246ed5a3043973d7d05bd64` |
 | `docs/semantic-artifact-lifecycle-v1.md` | 17384 | `ebb6acb308d7a56fa02d673cdf1acb1a466bb67f215ec4f20581320e8c55fe61` |
 | `docs/output-party-views-v1.md` | 38990 | `d6ed4dc130f4f6adb4e13235f16310e9e8b5e6e505647d9a236cf78240528764` |
 | `docs/evaluation-input-party-views-v1.md` | 42549 | `846cbc27617be1e701f021c9d52268e818fed26dac5c6dfe6e65e7b8fdc231f7` |
-| `docs/uniform-abort-envelope-v1.md` | 5339 | `ee34a54baee68f6fa1eb4f3e79568273890583dd83db7eb48762417a857bb546` |
+| `docs/uniform-abort-envelope-v1.md` | 5330 | `8197715865c3427d42ec49c7d869d650ecabc2a3c18db34c62203e66606d2960` |
 | `docs/evaluator-abort-state-party-views-v1.md` | 5782 | `70ae211b75295e33856d614ff6e2465c14cd17fe5c51316445118db55788d55a` |
 | `docs/authenticated-store-resolution-v1.md` | 7253 | `2c1999c2519c011c10ad0b187d78c4f51528931f0dd493247de0a8d162a97267` |
 | `docs/signing-worker-activation-v1.md` | 8358 | `af154c8deb162cf45f919f33c6dbddb62a2f985eacde1765b8be9420ef9ffd50` |
