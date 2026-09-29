@@ -22,7 +22,7 @@ import {
   parseEmailOtpProviderUserId,
   parseThresholdEd25519SessionId,
 } from '@shared/utils/domainIds';
-import { walletAuthorityDigestsMatchV1 } from '@shared/authorization/walletAuthority';
+import { sameVerifiedActiveWalletAuthorityV1 } from '@shared/authorization/walletAuthority';
 import { sameWalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
 import {
   buildEmailOtpWalletAuthAuthority,
@@ -89,25 +89,6 @@ type PromotedProjection = Extract<
   PendingWalletRecoveryCommitV1,
   { readonly stage: 'server_promoted' }
 >['projection'];
-
-async function sameVerifiedActiveWalletAuthorityV1(
-  left: WalletRecoveryCommittedProjectionV1['authority'],
-  right: WalletRecoveryCommittedProjectionV1['authority'],
-): Promise<boolean> {
-  const [leftVerified, rightVerified] = await Promise.all([
-    walletAuthorityDigestsMatchV1(left),
-    walletAuthorityDigestsMatchV1(right),
-  ]);
-  return (
-    leftVerified &&
-    rightVerified &&
-    left.authorityDigestB64u === right.authorityDigestB64u &&
-    left.signerActivationSetDigestB64u === right.signerActivationSetDigestB64u &&
-    left.createdAtMs === right.createdAtMs &&
-    left.updatedAtMs === right.updatedAtMs &&
-    left.activatedAtMs === right.activatedAtMs
-  );
-}
 
 async function sameWalletRecoveryCommittedProjectionV1(
   left: WalletRecoveryCommittedProjectionV1,

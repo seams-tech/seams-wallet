@@ -694,6 +694,29 @@ export async function walletAuthorityDigestsMatchV1(value: WalletAuthorityV1): P
   return authorityDigest === value.authorityDigestB64u;
 }
 
+/**
+ * True when both authorities' stored digests verify and agree. The authority digest does not
+ * cover the timestamps, so those must agree too.
+ */
+export async function sameVerifiedActiveWalletAuthorityV1(
+  left: ActiveWalletAuthorityV1,
+  right: ActiveWalletAuthorityV1,
+): Promise<boolean> {
+  const [leftVerified, rightVerified] = await Promise.all([
+    walletAuthorityDigestsMatchV1(left),
+    walletAuthorityDigestsMatchV1(right),
+  ]);
+  return (
+    leftVerified &&
+    rightVerified &&
+    left.authorityDigestB64u === right.authorityDigestB64u &&
+    left.signerActivationSetDigestB64u === right.signerActivationSetDigestB64u &&
+    left.createdAtMs === right.createdAtMs &&
+    left.updatedAtMs === right.updatedAtMs &&
+    left.activatedAtMs === right.activatedAtMs
+  );
+}
+
 function parseWalletAuthorityCommon(
   record: Record<string, unknown>,
 ): Omit<WalletAuthorityCommonV1, 'kind'> {

@@ -8,7 +8,7 @@ import {
   computeWalletAuthorityDigestB64u,
   computeWalletSignerActivationSetDigestB64u,
   replaceActiveWalletAuthorityEd25519MaterialActivationV1,
-  walletAuthorityDigestsMatchV1,
+  sameVerifiedActiveWalletAuthorityV1,
   type ActiveWalletAuthorityV1,
   type WalletSignerActivationSetV1,
 } from '@shared/authorization';
@@ -93,25 +93,6 @@ function requireWalletId(value: unknown): WalletId {
   const parsed = parseWalletId(value);
   if (!parsed.ok) throw new Error(parsed.error.message);
   return parsed.value;
-}
-
-export async function sameVerifiedActiveWalletAuthorityV1(
-  left: ActiveWalletAuthorityV1,
-  right: ActiveWalletAuthorityV1,
-): Promise<boolean> {
-  const [leftVerified, rightVerified] = await Promise.all([
-    walletAuthorityDigestsMatchV1(left),
-    walletAuthorityDigestsMatchV1(right),
-  ]);
-  return (
-    leftVerified &&
-    rightVerified &&
-    left.authorityDigestB64u === right.authorityDigestB64u &&
-    left.signerActivationSetDigestB64u === right.signerActivationSetDigestB64u &&
-    left.createdAtMs === right.createdAtMs &&
-    left.updatedAtMs === right.updatedAtMs &&
-    left.activatedAtMs === right.activatedAtMs
-  );
 }
 
 export function sameWalletCustodyRecoveryReplacementEnvelopeV1(

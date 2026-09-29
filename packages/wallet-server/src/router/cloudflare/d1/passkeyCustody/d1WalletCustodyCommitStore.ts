@@ -30,6 +30,7 @@ import {
   buildDelegatedWalletAuthorityV1,
   buildFullOwnerDelegatedWalletAuthorityV1,
   sameDelegatedWalletAuthorityV1,
+  sameVerifiedActiveWalletAuthorityV1,
   walletAuthorityDigestsMatchV1,
   type ActiveWalletAuthorityV1,
   type WalletEcdsaSignerActivationV1,
@@ -74,10 +75,7 @@ import {
   walletRecoveryGoogleEmailOtpAttemptKey,
   type WalletRecoveryGoogleEmailOtpFinalizationInput,
 } from './d1WalletRecoveryGoogleEmailOtpRecords';
-import {
-  sameVerifiedActiveWalletAuthorityV1,
-  sameWalletCustodyRecoveryReplacementEnvelopeV1,
-} from '../../../domains/passkeyCustody/walletRecoveryFinalization';
+import { sameWalletCustodyRecoveryReplacementEnvelopeV1 } from '../../../domains/passkeyCustody/walletRecoveryFinalization';
 import { emailOtpDeviceEnrollmentId, WALLET_EMAIL_OTP_ACTIONS } from '@shared/utils/emailOtpDomain';
 
 function sameWalletSignerActivationSetV1(
