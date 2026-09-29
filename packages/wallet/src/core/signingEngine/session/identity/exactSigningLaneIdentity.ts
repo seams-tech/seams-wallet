@@ -35,11 +35,7 @@ import {
 } from './evmFamilyEcdsaIdentity';
 import type { SigningLaneAuthBinding } from './signingLaneAuthBinding';
 import type { NearEd25519SigningKeyId } from '@shared/utils/registrationIntent';
-import {
-  SigningSessionIds,
-  type ThresholdEd25519SessionId,
-  type ThresholdSessionId,
-} from '../operationState/types';
+import { SigningSessionIds, type ThresholdEd25519SessionId } from '../operationState/types';
 import type {
   MpcWalletSigningQuotaId,
   WalletSessionId,
@@ -48,8 +44,6 @@ import type {
 type ExactSigningLaneIdentityKey = string & {
   readonly __brand: 'ExactSigningLaneIdentityKey';
 };
-
-export type NonEmptyThresholdSessionIds = readonly [ThresholdSessionId, ...ThresholdSessionId[]];
 
 type EvmFamilyEcdsaSignerBinding = {
   readonly kind: 'evm_family_ecdsa_signer';
@@ -719,15 +713,6 @@ export function nearProtocolProjectionFromExactLane(
     nearEd25519SigningKeyId: signer.nearEd25519SigningKeyId,
     signerSlot: signer.signerSlot,
   };
-}
-
-export function thresholdSessionIdsFromExactSigningLaneIdentity(
-  identity: ExactSigningLaneIdentity,
-): NonEmptyThresholdSessionIds {
-  if (isExactEcdsaSigningLaneIdentity(identity)) {
-    throw new Error('[SigningSession] ECDSA authorization has no threshold session identity');
-  }
-  return [identity.thresholdSessionId];
 }
 
 export function exactSigningLaneIdentityMatches(

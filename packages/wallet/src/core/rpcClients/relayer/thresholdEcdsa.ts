@@ -13,7 +13,6 @@ import { toWalletId, type WalletId } from '@/core/signingEngine/interfaces/ecdsa
 import type { EcdsaThresholdKeyId } from '@/core/signingEngine/session/identity/emailOtpEcdsaDerivationIdentity';
 import { toEcdsaDerivationThresholdKeyId } from '@/core/signingEngine/session/identity/emailOtpEcdsaDerivationIdentity';
 import type {
-  EcdsaClientRootPublicKey33B64u,
   DerivationClientSharePublicKey33B64u,
   EcdsaDerivationRelayerPublicKey33B64u,
 } from '@shared/threshold/ecdsaDerivationRoleLocalBootstrap';
@@ -36,13 +35,6 @@ export type EcdsaDerivationRoleLocalPublicIdentity = {
   relayerPublicKey33B64u: EcdsaDerivationRelayerPublicKey33B64u;
   groupPublicKey33B64u: string;
   ethereumAddress: string;
-};
-
-export type ThresholdEcdsaDerivationRoleLocalClientRootProof = {
-  version: 'ecdsa-derivation:role-local:first-bootstrap-root-proof:v2';
-  clientRootPublicKey33B64u: EcdsaClientRootPublicKey33B64u;
-  digest32B64u: string;
-  signature65B64u: string;
 };
 
 export type ThresholdEcdsaDerivationRoleLocalBootstrapValue = {

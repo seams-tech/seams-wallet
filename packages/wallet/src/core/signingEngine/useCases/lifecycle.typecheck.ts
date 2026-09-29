@@ -1,8 +1,6 @@
 import type {
   RegisterWalletAuth,
   RegistrationReadyLanes,
-  RestorePersistedSessionAuth,
-  RestorePersistedSessionRequest,
   SignEvmFamilyInput,
   SignNearSuccess,
   SigningSessionActivationAuth,
@@ -21,8 +19,6 @@ import type {
   WebAuthnUserHandle,
   EmailAddress,
   EmailOtpCode,
-  RestoreAttemptId,
-  RestorePersistedSessionsInput,
 } from './lifecycle';
 import type {
   CredentialIdB64u,
@@ -73,7 +69,6 @@ declare const emailOtpEcdsaWorkerHandle: Extract<
 declare const readyRecord: EcdsaRoleLocalReadyRecord;
 declare const readyEd25519Lane: ReadyEd25519Lane;
 declare const readyEcdsaLane: EcdsaUseCaseReadyLane;
-declare const chainTarget: ThresholdEcdsaChainTarget;
 declare const evmChainTarget: EvmEip155ChainTarget;
 declare const tempoChainTarget: TempoChainTarget;
 declare const expiresAtMs: UnixTimeMs;
@@ -86,7 +81,6 @@ declare const nearTransactionResult: NearTransactionWithActionsResult;
 declare const nearNep413Result: NearNep413Result;
 declare const nearDelegateActionResult: NearDelegateActionResult;
 declare const hex: Hex;
-declare const restoreAttemptId: RestoreAttemptId;
 
 const passkeyRegistration = {
   kind: 'passkey_registration',
@@ -348,51 +342,6 @@ const validNearTransactionSuccess = {
 } satisfies SignNearSuccess;
 void validNearTransactionSuccess;
 void nearDelegateActionResult;
-
-const ed25519RestoreWithChainTarget = {
-  kind: 'ed25519',
-  chainTarget,
-};
-// @ts-expect-error Ed25519 restore requests cannot carry ECDSA chain targets
-ed25519RestoreWithChainTarget satisfies RestorePersistedSessionRequest;
-
-const ecdsaRestoreWithoutChainTarget = {
-  kind: 'ecdsa',
-};
-// @ts-expect-error ECDSA restore requests require a chain target
-ecdsaRestoreWithoutChainTarget satisfies RestorePersistedSessionRequest;
-
-const missingAuthWithCredential = {
-  kind: 'missing_auth',
-  credentialId: credentialIdB64u,
-};
-// @ts-expect-error missing-auth restore state cannot carry credential identity
-missingAuthWithCredential satisfies RestorePersistedSessionAuth;
-
-const restoreInputWithRawSnapshot = {
-  restoreAttemptId,
-  walletId,
-  rpId,
-  auth: { kind: 'missing_auth' },
-  requested: [{ kind: 'ed25519' }],
-  ecdsaTargets: { kind: 'explicit', targets: [chainTarget] },
-  reason: 'page_load',
-  rawSnapshot: {},
-};
-// @ts-expect-error restore use-case inputs cannot accept raw or partial persistence snapshots
-restoreInputWithRawSnapshot satisfies RestorePersistedSessionsInput;
-
-const restoreInputWithExportReason = {
-  restoreAttemptId,
-  walletId,
-  rpId,
-  auth: { kind: 'missing_auth' },
-  requested: [{ kind: 'ed25519' }],
-  ecdsaTargets: { kind: 'explicit', targets: [chainTarget] },
-  reason: 'export',
-};
-// @ts-expect-error restored transaction sessions cannot be promoted into export authority
-restoreInputWithExportReason satisfies RestorePersistedSessionsInput;
 
 const readyReadinessWithReauth = {
   kind: 'ready',

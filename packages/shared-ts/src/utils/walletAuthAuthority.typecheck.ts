@@ -5,9 +5,7 @@ import {
   emailOtpWalletAuthAuthorityProviderUserId,
   walletAuthAuthorityRef,
   walletAuthorityBindingDigest,
-  type AuthBoundaryProof,
   type AuthFactorIdentity,
-  type AuthMethodProof,
   type EmailOtpFactorIdentity,
   type EmailOtpWalletAuthAuthority,
   type PasskeyFactorIdentity,
@@ -16,7 +14,6 @@ import {
   type WalletAuthAuthorityRef,
 } from './walletAuthAuthority';
 import {
-  parseEmailOtpChallengeId,
   parseEmailOtpProviderUserId,
   parseWalletAuthorityBindingDigest,
   parseWalletAuthMethodId,
@@ -33,7 +30,6 @@ function unwrapDomainId<T>(result: { ok: true; value: T } | { ok: false }): T {
 const rpId = unwrapDomainId(parseWebAuthnRpId('wallet.example.test'));
 const credentialIdB64u = unwrapDomainId(parseWebAuthnCredentialIdB64u('credential-id'));
 const providerUserId = unwrapDomainId(parseEmailOtpProviderUserId('google:alice'));
-const challengeId = unwrapDomainId(parseEmailOtpChallengeId('challenge-id'));
 const walletId = unwrapDomainId(parseWalletId('alice.testnet'));
 const authorityDigest = unwrapDomainId(parseWalletAuthorityBindingDigest('digest'));
 const emailHashHex = 'email-hash';
@@ -224,94 +220,3 @@ void ({
   // @ts-expect-error authority refs carry stable digest and binding identity, not raw authority data.
   authority: emailOtpAuthority,
 } satisfies WalletAuthAuthorityRef);
-
-const passkeyRegistrationProof = {
-  kind: 'passkey_registration_credential',
-  webauthnRegistration: {},
-} satisfies AuthMethodProof;
-void passkeyRegistrationProof;
-
-const googleSsoRegistrationProof = {
-  kind: 'google_sso_registration',
-  registrationAttemptId: 'attempt',
-  registrationOfferId: 'offer',
-  registrationCandidateId: 'candidate',
-} satisfies AuthMethodProof;
-void googleSsoRegistrationProof;
-
-const emailOtpChallengeProof = {
-  kind: 'email_otp_challenge',
-  challengeId,
-  otpCode: '123456',
-} satisfies AuthMethodProof;
-void emailOtpChallengeProof;
-
-void ({
-  kind: 'email_otp_challenge',
-  challengeId,
-  otpCode: '123456',
-  // @ts-expect-error Email OTP challenge proof is request-boundary data, not authority identity.
-  providerUserId,
-} satisfies AuthMethodProof);
-
-void ({
-  purpose: 'unlock',
-  proof: emailOtpChallengeProof,
-} satisfies AuthBoundaryProof);
-
-void ({
-  purpose: 'step_up',
-  proof: emailOtpChallengeProof,
-} satisfies AuthBoundaryProof);
-
-void ({
-  purpose: 'recovery',
-  proof: emailOtpChallengeProof,
-} satisfies AuthBoundaryProof);
-
-void ({
-  purpose: 'key_export',
-  proof: emailOtpChallengeProof,
-} satisfies AuthBoundaryProof);
-
-void ({
-  purpose: 'key_export',
-  proof: {
-    kind: 'passkey_assertion',
-    assertion: {},
-  },
-} satisfies AuthBoundaryProof);
-
-void ({
-  purpose: 'registration',
-  proof: {
-    // @ts-expect-error old per-operation passkey registration proof kind is deleted.
-    kind: 'passkey_registration',
-    webauthnRegistration: {},
-  },
-} satisfies AuthBoundaryProof);
-
-void ({
-  purpose: 'key_export',
-  proof: {
-    // @ts-expect-error old per-operation key-export proof kind is deleted.
-    kind: 'passkey_key_export',
-    assertion: {},
-  },
-} satisfies AuthBoundaryProof);
-
-void ({
-  purpose: 'unlock',
-  proof: {
-    kind: 'passkey_assertion',
-    assertion: {},
-    // @ts-expect-error passkey assertion proof cannot carry Email OTP challenge state.
-    challengeId,
-  },
-} satisfies AuthBoundaryProof);
-
-void ({
-  // @ts-expect-error proof purpose is explicit and limited to known operation purposes.
-  purpose: 'wallet_unlock',
-  proof: emailOtpChallengeProof,
-} satisfies AuthBoundaryProof);

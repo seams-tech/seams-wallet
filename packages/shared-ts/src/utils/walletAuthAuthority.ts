@@ -7,7 +7,6 @@ import {
   parseWalletId,
   parseWebAuthnCredentialIdB64u,
   parseWebAuthnRpId,
-  type EmailOtpChallengeId,
   type EmailOtpProviderUserId,
   type WalletAuthorityBindingDigest,
   type WalletAuthMethodId,
@@ -147,34 +146,6 @@ export function parseWalletAuthAuthorityRef(raw: unknown): WalletAuthAuthorityRe
     walletAuthMethodId: walletAuthMethodId.value,
   };
 }
-
-type AuthOperationPurpose = 'registration' | 'unlock' | 'step_up' | 'recovery' | 'key_export';
-
-export type AuthMethodProof =
-  | {
-      kind: 'passkey_registration_credential';
-      webauthnRegistration: unknown;
-    }
-  | {
-      kind: 'passkey_assertion';
-      assertion: unknown;
-    }
-  | {
-      kind: 'email_otp_challenge';
-      challengeId: EmailOtpChallengeId;
-      otpCode: string;
-    }
-  | {
-      kind: 'google_sso_registration';
-      registrationAttemptId: string;
-      registrationOfferId: string;
-      registrationCandidateId: string;
-    };
-
-export type AuthBoundaryProof = {
-  purpose: AuthOperationPurpose;
-  proof: AuthMethodProof;
-};
 
 function parseEmailOtpProvider(raw: unknown): EmailOtpProvider | null {
   const provider = String(raw || '')
