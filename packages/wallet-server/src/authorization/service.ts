@@ -15,6 +15,8 @@ import type {
   RedeemHostedWalletSeamsSessionExchangeV2Input,
   RedeemHostedWalletSeamsSessionExchangeV2Result,
   ExactWalletSessionStatusV2,
+  ExactWalletSessionStatusSnapshotV2,
+  WalletSessionAdmissionSnapshotV2,
   WalletSessionExactOperationContext,
   ResolvedHostedWalletSessionOperationCredentialV2,
   SessionOrigin,
@@ -140,6 +142,11 @@ export interface AuthorizationGrantPort {
     readonly tokenHash: DigestB64u;
     readonly nowMs: number;
   }): Promise<IssuedWalletSessionAuthorizationV2 | null>;
+  readWalletSessionAdmissionSnapshotByOperationCredential(input: {
+    readonly tenantId: TenantId;
+    readonly tokenHash: DigestB64u;
+    readonly nowMs: number;
+  }): Promise<WalletSessionAdmissionSnapshotV2 | null>;
   readWalletSessionExactOperationContextByCredential(input: {
     readonly tenantId: TenantId;
     readonly tokenHash: DigestB64u;
@@ -150,6 +157,11 @@ export interface AuthorizationGrantPort {
     readonly tokenHash: DigestB64u;
     readonly nowMs: number;
   }): Promise<ExactWalletSessionStatusV2>;
+  readExactWalletSessionStatusSnapshotByOperationCredential(input: {
+    readonly tenantId: TenantId;
+    readonly tokenHash: DigestB64u;
+    readonly nowMs: number;
+  }): Promise<ExactWalletSessionStatusSnapshotV2>;
 }
 
 export interface AuthorizedOperationPort {
@@ -629,6 +641,19 @@ export class AuthorizationService {
     });
   }
 
+  /** The session, its authority and its auth method from one read. */
+  async readWalletSessionAdmissionSnapshotByOperationCredential(input: {
+    readonly tenantId: TenantId;
+    readonly token: string;
+    readonly nowMs: number;
+  }): Promise<WalletSessionAdmissionSnapshotV2 | null> {
+    return await this.ports.grants.readWalletSessionAdmissionSnapshotByOperationCredential({
+      tenantId: input.tenantId,
+      tokenHash: await digestOpaqueValue(input.token),
+      nowMs: input.nowMs,
+    });
+  }
+
   async readLiveWalletSessionAuthorizationProjectionByCredential(input: {
     readonly tenantId: TenantId;
     readonly token: string;
@@ -674,6 +699,25 @@ export class AuthorizationService {
       return { kind: 'missing' };
     }
     return await this.ports.grants.readExactWalletSessionStatusByOperationCredential({
+      tenantId: input.tenantId,
+      tokenHash: await digestOpaqueValue(token),
+      nowMs: input.nowMs,
+    });
+  }
+
+  /** The exact status with the authority and auth method it was judged against. */
+  async readExactWalletSessionStatusSnapshotByOperationCredential(input: {
+    readonly tenantId: TenantId;
+    readonly token: string;
+    readonly nowMs: number;
+  }): Promise<ExactWalletSessionStatusSnapshotV2> {
+    let token: ReturnType<typeof parsePrimaryWalletSessionOperationCredentialToken>;
+    try {
+      token = parsePrimaryWalletSessionOperationCredentialToken(input.token);
+    } catch {
+      return { status: { kind: 'missing' }, authority: null, authMethod: null };
+    }
+    return await this.ports.grants.readExactWalletSessionStatusSnapshotByOperationCredential({
       tenantId: input.tenantId,
       tokenHash: await digestOpaqueValue(token),
       nowMs: input.nowMs,

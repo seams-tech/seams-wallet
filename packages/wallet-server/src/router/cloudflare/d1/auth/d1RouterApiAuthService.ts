@@ -2440,18 +2440,16 @@ function createD1AuthorizationSessionRouteService(
       assembly.authorizationService.issueDirectWalletSessionAuthorizationV2.bind(
         assembly.authorizationService,
       ),
+    // The session, its authority and its method come from one read, so a commit
+    // between separate reads (NEAR provisioning extending the authority) cannot
+    // pair the session with an authority it was never bound to.
     readWalletSessionAuthorizationV2ByOperationCredential: async (input) => {
-      const authorization =
-        await assembly.authorizationService.readWalletSessionAuthorizationV2ByOperationCredential(
+      const snapshot =
+        await assembly.authorizationService.readWalletSessionAdmissionSnapshotByOperationCredential(
           input,
         );
-      if (!authorization) return null;
-      const [authority, authMethod] = await Promise.all([
-        assembly.walletAuthorityStore.readById(authorization.session.authorityId),
-        assembly.walletAuthMethodStore.readByIdV2({
-          walletAuthMethodId: authorization.session.walletAuthMethodId,
-        }),
-      ]);
+      if (!snapshot) return null;
+      const { authorization, authority, authMethod } = snapshot;
       if (
         !authority ||
         authority.state !== 'active' ||
@@ -2472,17 +2470,11 @@ function createD1AuthorizationSessionRouteService(
         assembly.authorizationService,
       ),
     readExhaustedWalletSessionAuthorizationV2CandidateByOperationCredential: async (input) => {
-      const status =
-        await assembly.authorizationService.readExactWalletSessionStatusByOperationCredential(
+      const { status, authority, authMethod } =
+        await assembly.authorizationService.readExactWalletSessionStatusSnapshotByOperationCredential(
           input,
         );
       if (!isExhaustedWalletSessionStatus(status)) return null;
-      const [authority, authMethod] = await Promise.all([
-        assembly.walletAuthorityStore.readById(status.session.authorityId),
-        assembly.walletAuthMethodStore.readByIdV2({
-          walletAuthMethodId: status.session.walletAuthMethodId,
-        }),
-      ]);
       if (
         !authority ||
         authority.state !== 'active' ||

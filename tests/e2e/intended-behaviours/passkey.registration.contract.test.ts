@@ -16,6 +16,7 @@ import { parseEcdsaServerTiming } from '../../../packages/shared-ts/src/utils/ec
 import { isPlainObject } from '../../../packages/shared-ts/src/utils/validation';
 import { ECDSA_CLIENT_PRESIGNATURE_CAPACITY } from '../../../packages/wallet/src/core/signingEngine/workerManager/ecdsaPresignLifecycle';
 import { parseYaoServerTimingBuckets } from '../../../packages/wallet/src/SeamsWeb/operations/registration/registrationTiming';
+import { randomUUID } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { isHex, parseTransaction, recoverTransactionAddress } from 'viem';
@@ -589,6 +590,97 @@ test('mixed registration reconciles rejected ECDSA refill after deferred authori
     nearGate.release();
     await context.unroute(nearProvisioning, holdNear);
     await context.unroute(presignInit, rejectInitial);
+  }
+});
+
+const LOCAL_INTENDED_SESSION_ADMISSION_FAULT_HEADER_V1 =
+  'x-seams-intended-session-admission-fault-v1';
+const LOCAL_INTENDED_SESSION_ADMISSION_FAULT_TOKEN_HEADER_V1 =
+  'x-seams-intended-session-admission-fault-token-v1';
+const LOCAL_INTENDED_SESSION_ADMISSION_FAULT_PROOF_HEADER_V1 =
+  'x-seams-intended-session-admission-fault-proof-v1';
+
+/**
+ * Sends the first ECDSA signing prepare with the local Gateway fault that
+ * holds it after its Wallet Session read until another request changes the
+ * wallet's authority. The response carries the Gateway's proof.
+ */
+class SignPrepareAdmissionHold {
+  private readonly token = randomUUID();
+  requests = 0;
+  status: number | null = null;
+  proof: string | null = null;
+
+  requestCount(): number {
+    return this.requests;
+  }
+
+  expectedProof(): string {
+    return `${this.token}:held_until_authority_changed`;
+  }
+
+  async hold(route: Route): Promise<void> {
+    const request = route.request();
+    if (request.method() !== 'POST' || this.requests > 0) {
+      await route.fallback();
+      return;
+    }
+    this.requests += 1;
+    const response = await route.fetch({
+      headers: {
+        ...(await request.allHeaders()),
+        [LOCAL_INTENDED_SESSION_ADMISSION_FAULT_HEADER_V1]:
+          'hold_after_session_read_until_authority_changes',
+        [LOCAL_INTENDED_SESSION_ADMISSION_FAULT_TOKEN_HEADER_V1]: this.token,
+      },
+    });
+    this.status = response.status();
+    this.proof = response.headers()[LOCAL_INTENDED_SESSION_ADMISSION_FAULT_PROOF_HEADER_V1] ?? null;
+    await route.fulfill({ response });
+  }
+}
+
+// The first Tempo signature's prepare reads its Wallet Session while NEAR
+// provisioning is held, and the Gateway holds it there. Provisioning then
+// commits the extended authority and rebinds the session. Admission judges the
+// session, authority and method it read together, so the prepare is admitted;
+// reading the authority again would pair the session with the newer authority
+// and refuse it as a scope mismatch.
+test('a signing prepare that read its session before NEAR provisioning committed is admitted', async ({
+  harness,
+  context,
+  page,
+}) => {
+  const nearGate = new RegistrationPresignGate();
+  const nearProvisioning = '**/wallets/register/near-provisioning';
+  const holdNear = nearGate.hold.bind(nearGate);
+  const signPrepare = '**/router-ab/ecdsa-derivation/sign/prepare';
+  const admission = new SignPrepareAdmissionHold();
+  const holdAdmission = admission.hold.bind(admission);
+  await context.route(nearProvisioning, holdNear);
+  await context.route(signPrepare, holdAdmission);
+  try {
+    await harness.registerPasskeyWallet();
+    await expect.poll(nearGate.requestCount.bind(nearGate)).toBeGreaterThan(0);
+    await expect(page.getByTestId('intended-e2e-page')).toHaveAttribute(
+      'data-login-near-ready',
+      'pending',
+    );
+    const signing = harness.signTempoTransaction('post_registration');
+    await expect.poll(admission.requestCount.bind(admission)).toBe(1);
+    // The Gateway reads the session as the prepare arrives; only then does
+    // provisioning commit.
+    await page.waitForTimeout(1_000);
+    nearGate.release();
+    await signing;
+    expect(admission.status).toBe(200);
+    expect(admission.proof).toBe(admission.expectedProof());
+    await harness.awaitNearReady();
+    await harness.signTempoTransaction('post_registration');
+  } finally {
+    nearGate.release();
+    await context.unroute(nearProvisioning, holdNear);
+    await context.unroute(signPrepare, holdAdmission);
   }
 });
 

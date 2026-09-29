@@ -96,6 +96,16 @@ import {
   responseWithLocalIntendedRevokeFaultOutcomeV1,
   WALLET_REVOKE_AUTH_METHOD_PATH_PATTERN_V1,
 } from './localIntendedRevokeFault';
+import {
+  ECDSA_SIGN_PREPARE_PATH_V1,
+  LOCAL_INTENDED_SESSION_ADMISSION_FAULT_HEADER_V1,
+  LOCAL_INTENDED_SESSION_ADMISSION_FAULT_TOKEN_HEADER_V1,
+  LocalIntendedSessionAdmissionFaultDatabaseV1,
+  parseLocalIntendedSessionAdmissionFaultModeV1,
+  parseLocalIntendedSessionAdmissionFaultTokenV1,
+  requestWithoutLocalIntendedSessionAdmissionFaultHeadersV1,
+  responseWithLocalIntendedSessionAdmissionFaultOutcomeV1,
+} from './localIntendedSessionAdmissionFault';
 
 export type LocalHostedWalletGatewayEnv = CloudflareD1GatewayBaseEnv & {
   readonly WALLET_LOCAL_DEPLOYMENT_JSON: string;
@@ -333,6 +343,20 @@ export async function handleLocalHostedWalletGatewayRequestV1(
   if (revokeMode !== null || revokeToken !== null) {
     return await handleRevokeFault(request, gatewayEnv, ctx, dependencies, revokeMode, revokeToken);
   }
+  const admissionMode = request.headers.get(LOCAL_INTENDED_SESSION_ADMISSION_FAULT_HEADER_V1);
+  const admissionToken = request.headers.get(
+    LOCAL_INTENDED_SESSION_ADMISSION_FAULT_TOKEN_HEADER_V1,
+  );
+  if (admissionMode !== null || admissionToken !== null) {
+    return await handleSessionAdmissionFault(
+      request,
+      gatewayEnv,
+      ctx,
+      dependencies,
+      admissionMode,
+      admissionToken,
+    );
+  }
   const rawMode = request.headers.get(LOCAL_INTENDED_YAO_FAULT_HEADER_V1);
   const rawToken = request.headers.get(LOCAL_INTENDED_YAO_FAULT_TOKEN_HEADER_V1);
   const sanitizedRequest = requestWithoutLocalIntendedYaoFaultHeadersV1(request);
@@ -447,6 +471,46 @@ async function handleYaoRecoveryFault(
     dependencies,
   );
   return responseWithLocalIntendedYaoRecoveryFaultOutcomeV1(response, controller.outcome(), token);
+}
+
+/**
+ * Holds one ECDSA signing prepare after its Wallet Session read until another
+ * request changes the wallet's authority, and reports whether it did. Local
+ * only.
+ */
+async function handleSessionAdmissionFault(
+  request: Request,
+  env: CloudflareD1GatewayEnv,
+  ctx: CfExecutionContext,
+  dependencies: HostedWalletGatewayDependenciesV1 | undefined,
+  rawMode: string | null,
+  rawToken: string | null,
+): Promise<Response> {
+  const mode = parseLocalIntendedSessionAdmissionFaultModeV1(rawMode);
+  const token = parseLocalIntendedSessionAdmissionFaultTokenV1(rawToken);
+  const url = new URL(request.url);
+  if (
+    url.protocol !== 'http:' ||
+    url.hostname !== '127.0.0.1' ||
+    url.pathname !== ECDSA_SIGN_PREPARE_PATH_V1 ||
+    request.method !== 'POST' ||
+    !mode ||
+    !token
+  ) {
+    return Response.json({ code: 'invalid_intended_session_admission_fault' }, { status: 400 });
+  }
+  const database = new LocalIntendedSessionAdmissionFaultDatabaseV1(env.SIGNER_DB);
+  const response = await handleSplitGatewayRequest(
+    requestWithoutLocalIntendedSessionAdmissionFaultHeadersV1(request),
+    { ...env, SIGNER_DB: database },
+    ctx,
+    dependencies,
+  );
+  return responseWithLocalIntendedSessionAdmissionFaultOutcomeV1(
+    response,
+    database.outcome(),
+    token,
+  );
 }
 
 /**
