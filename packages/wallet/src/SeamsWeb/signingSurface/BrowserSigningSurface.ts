@@ -376,8 +376,8 @@ import type { RouterAbOwnerNormalSigningCredential } from '@/core/rpcClients/rel
 import {
   listExactSealedSessionsForWallet,
   readExactEd25519SealedSession,
-  type CurrentSealedSessionRecord,
 } from '@/core/signingEngine/session/persistence/sealedSessionStore';
+import { type CurrentSealedSessionRecord } from '@/core/signingEngine/session/persistence/sealedSessionRecords';
 import { ed25519DurableMaterialLocator } from '@/core/signingEngine/session/sealedRecovery/materialActivationKey';
 import { parseSigningSessionSealKeyVersion } from '@/core/signingEngine/session/keyMaterialBrands';
 import {

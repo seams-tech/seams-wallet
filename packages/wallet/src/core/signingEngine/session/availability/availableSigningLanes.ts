@@ -5,7 +5,7 @@ import {
   type NearEd25519SigningKeyId,
 } from '@shared/utils/registrationIds';
 import { parseSignerSlot } from '@shared/utils/signerSlot';
-import type { SigningSessionSealedStoreRecord } from '../persistence/sealedSessionStore';
+import type { SigningSessionSealedStoreRecord } from '../persistence/sealedSessionRecords';
 import type {
   EcdsaLaneCandidate,
   Ed25519LaneCandidate,

@@ -111,11 +111,11 @@ import {
   ed25519SealedRuntimeAuthorityRef,
   type ExactEd25519SealedSessionRuntime,
 } from '@/core/signingEngine/session/warmCapabilities/ed25519SealedSessionRuntime';
+import { listExactSealedSessionsForWallet } from '@/core/signingEngine/session/persistence/sealedSessionStore';
 import {
-  listExactSealedSessionsForWallet,
   type CurrentEcdsaSealedSessionRecord,
   type CurrentSealedSessionRecord,
-} from '@/core/signingEngine/session/persistence/sealedSessionStore';
+} from '@/core/signingEngine/session/persistence/sealedSessionRecords';
 import type { ActiveWalletSessionV1 } from '@shared/device-linking/contracts';
 
 type SigningEnginePorts = ReturnType<typeof createSigningEnginePorts>;

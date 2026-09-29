@@ -8,11 +8,13 @@ import type {
 import type { ExactWalletSessionAuthorization } from '../persistence/walletSessionAuthorizationProjection';
 import type { WorkerOperationContext } from '@/core/signingEngine/workerManager/executeWorkerOperation';
 import {
-  buildCurrentSealedSessionRecord,
-  type BuildCurrentSealedSessionRecordInput,
   type readExactSealedSession,
   type writeExactSealedSession,
 } from '@/core/signingEngine/session/persistence/sealedSessionStore';
+import {
+  buildCurrentSealedSessionRecord,
+  type BuildCurrentSealedSessionRecordInput,
+} from '@/core/signingEngine/session/persistence/sealedSessionRecords';
 import {
   persistEmailOtpEcdsaSigningSessionForRefresh,
   type EmailOtpEcdsaPublicationPorts,
