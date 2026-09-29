@@ -308,11 +308,11 @@ Cloudflare:
 - If the decision is DO: a production wallet-object configuration and
   build for the managed roles. Today the wallet-object features build only
   the local harness and the isolated comparison.
-- Integration into `dev`, and seams-monorepo consuming exact package and
-  artifact versions. `dev` has 7611c56 without item 21's fix, so a `dev`
-  deployment whose Derivers run on separate hosts can fail NEAR
-  registration the same way. seams-monorepo needs b74937c or later, which
-  restores the published `@seams/wallet-server/router/express` entry.
+- seams-monorepo consuming exact package and artifact versions. The branch
+  is merged into `dev` (e0777b0, 2026-09-29), which carries item 21's fix
+  and b74937c's restored `@seams/wallet-server/router/express` entry; no
+  release from before that merge may be used. The steps and authorization
+  points are in the [DO rollout plan](./refactor-150-do-rollout-plan.md).
 - The new-wallet cohort, and the Phase 3 clean reset, as separately
   coordinated operations. Superseded wallet-local D1 stores and routing are
   removed only after the DO path replaces them.
