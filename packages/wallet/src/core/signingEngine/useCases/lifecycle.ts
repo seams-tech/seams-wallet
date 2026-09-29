@@ -37,7 +37,6 @@ export type NonEmptyReadonlyArray<T> = readonly [T, ...T[]];
 type PositiveInt = number & { readonly __brand: 'PositiveInt' };
 export type UnixTimeMs = number & { readonly __brand: 'UnixTimeMs' };
 type IdempotencyKey = string & { readonly __brand: 'IdempotencyKey' };
-export type RestoreAttemptId = string & { readonly __brand: 'RestoreAttemptId' };
 export type Ed25519RelayerKeyId = RelayerKeyId & { readonly __curve: 'ed25519' };
 export type EcdsaRelayerKeyId = RelayerKeyId & { readonly __curve: 'ecdsa' };
 export type WarmSessionRemainingUses = number & {
