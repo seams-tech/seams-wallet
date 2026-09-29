@@ -74,10 +74,10 @@ import type {
   AuthorizationEvidencePort,
   AuthorizationGrantPort,
   AuthorizationSessionPort,
-  EcdsaMaterialActivationScope,
   AuthorizedOperationMaterialScope,
   PreparedAuthorizedOperationAdmission,
 } from '../../../../authorization/service';
+import { prepareAuthorizedOperationInsert, prepareAuthorizedOperationRead } from './authorizedOperationStatements';
 import { D1WalletStore } from '../../../../core/d1WalletStore';
 import type { D1WalletStoreScope } from '../../../../core/d1WalletStore';
 import { parseD1WalletAuthorityRow } from '../wallet/d1WalletAuthorityStore';
@@ -123,49 +123,6 @@ export type D1AuthorizationStoreOptions = {
 };
 
 type DirectV2CommitMode = { readonly kind: 'strict' } | { readonly kind: 'replayable' };
-
-const ECDSA_SIGNER_MATCH = `
-  EXISTS (
-    SELECT 1
-      FROM wallet_signers AS signer
-     WHERE signer.namespace = ?
-       AND signer.org_id = ?
-       AND signer.project_id = ?
-       AND signer.env_id = ?
-       AND signer.wallet_id = ?
-       AND signer.signer_family = 'ecdsa'
-       AND json_extract(signer.record_json, '$.walletKey.publicCapability.material_activation.material_owner') = signer.wallet_id
-       AND json_extract(signer.record_json, '$.walletKey.keyHandle') = ?
-       AND json_extract(signer.record_json, '$.walletKey.publicCapability.material_activation.kind') = ?
-       AND json_extract(signer.record_json, '$.walletKey.publicCapability.material_activation.activation_id') = ?
-       AND json_extract(signer.record_json, '$.walletKey.publicCapability.material_activation.capability') = ?
-       AND json_extract(signer.record_json, '$.walletKey.publicCapability.material_activation.material_owner') = ?
-       AND json_extract(signer.record_json, '$.walletKey.publicCapability.material_activation.key_binding') = ?
-       AND json_extract(signer.record_json, '$.walletKey.publicCapability.material_activation.lifecycle_binding') = ?
-       AND json_extract(signer.record_json, '$.walletKey.publicCapability.material_activation.signing_worker') = ?
-  )`;
-
-function ecdsaSignerMatchBindings(
-  walletSignerScope: D1WalletStoreScope,
-  material: EcdsaMaterialActivationScope,
-): readonly unknown[] {
-  const activation = material.materialActivation;
-  return [
-    walletSignerScope.namespace,
-    walletSignerScope.orgId,
-    walletSignerScope.projectId,
-    walletSignerScope.envId,
-    material.walletId,
-    material.keyHandle,
-    activation.kind,
-    activation.activation_id,
-    activation.capability,
-    activation.material_owner,
-    activation.key_binding,
-    activation.lifecycle_binding,
-    activation.signing_worker,
-  ];
-}
 
 type HostedWalletExchangeV2Row = {
   readonly namespace?: unknown;
@@ -2313,14 +2270,11 @@ export class CloudflareD1AuthorizationStore
     readonly tenantId: TenantId;
     readonly operationFingerprintDigest: CapabilityOperationFingerprintDigest;
   }): Promise<AuthorizedOperationPersistenceRecord | null> {
-    const row = await this.database
-      .prepare(
-        `SELECT * FROM authorized_operations
-          WHERE namespace = ? AND tenant_id = ? AND operation_fingerprint_digest = ?
-          LIMIT 1`,
-      )
-      .bind(this.namespace, input.tenantId, input.operationFingerprintDigest)
-      .first<D1Row>();
+    const row = await prepareAuthorizedOperationRead(
+      this.database,
+      this.namespace,
+      input,
+    ).first<D1Row>();
     return row
       ? {
           row,
@@ -2361,103 +2315,6 @@ export class CloudflareD1AuthorizationStore
     return { kind: 'operation_in_progress', operation: existing.operation };
   }
 
-  /** The statement that admits `operation`, claimed and pending. */
-  private prepareAuthorizedOperationInsert(
-    operation: AuthorizedOperation,
-    input: {
-      readonly operation: AuthorizedOperationInput;
-      readonly material?: AuthorizedOperationMaterialScope;
-    },
-  ): D1PreparedStatementLike {
-    const source = operation.authorization;
-    const quota = operation.quota;
-    const materialActivationId = input.material?.materialActivation.activation_id ?? null;
-    const values = [
-      this.namespace,
-      operation.tenantId,
-      operation.authorizedOperationId,
-      operation.auditEventId,
-      operation.operation.principalId,
-      operation.operation.capabilityId,
-      operation.operation.operation.capabilityKind,
-      operation.operation.operation.operationKind,
-      operation.operation.operationId,
-      operation.operationFingerprintDigest,
-      operation.operation.digests.laneDigest,
-      operation.operation.digests.intentDigest,
-      operation.operation.digests.displayDigest,
-      source.kind,
-      source.kind === 'authorization_grant' ? source.authorizationGrantRef.authorizationId : null,
-      source.kind === 'verified_step_up' ? source.evidenceSetDigest : null,
-      quota.kind === 'consume_reusable_wallet_session' ? quota.quotaId : null,
-      quota.kind,
-      source.kind === 'authorization_grant' ? source.authorizationGrantRef.kind : null,
-      requirePositiveInteger(input.operation.claimedAtMs, 'operation.claimedAtMs'),
-      materialActivationId,
-      input.material?.materialActivation.capability ?? null,
-      input.material?.materialActivation.material_owner ?? null,
-      input.material?.materialActivation.key_binding ?? null,
-      input.material?.materialActivation.lifecycle_binding ?? null,
-      input.material?.materialActivation.signing_worker ?? null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      source.kind === 'authorization_grant' ? this.walletSignerScope.orgId : null,
-      source.kind === 'authorization_grant' ? this.walletSignerScope.projectId : null,
-      source.kind === 'authorization_grant' ? this.walletSignerScope.envId : null,
-    ] as const;
-    return input.material?.kind === 'ecdsa_material_activation'
-      ? this.database
-          .prepare(
-            `INSERT INTO authorized_operations (
-            namespace, tenant_id, authorized_operation_id, audit_event_id,
-            principal_id, capability_id, capability_kind, operation_kind, operation_id,
-            operation_fingerprint_digest, lane_digest, intent_digest, display_digest,
-            authorization_source_kind, authorization_id, evidence_set_digest,
-            quota_id, quota_kind, authorization_grant_kind, lifecycle_kind, result_kind,
-            result_digest, result_status, result_content_type, result_body_text,
-            claimed_at_ms, completed_at_ms,
-            material_activation_id, material_activation_capability,
-            material_activation_owner, material_activation_key_binding,
-            material_activation_lifecycle_binding, material_activation_signing_worker,
-            linked_wallet_id, linked_enrollment_id, linked_device_id,
-            linked_wallet_key_id, linked_lane_id, linked_lane_share_epoch,
-            linked_revocation_epoch, linked_scope_org_id, linked_scope_project_id,
-            linked_scope_env_id
-          ) SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                    'claimed', 'pending', NULL, NULL, NULL, NULL, ?, NULL, ?,
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
-             WHERE ${ECDSA_SIGNER_MATCH}`,
-          )
-          .bind(...values, ...ecdsaSignerMatchBindings(this.walletSignerScope, input.material))
-      : this.database
-          .prepare(
-            `INSERT INTO authorized_operations (
-            namespace, tenant_id, authorized_operation_id, audit_event_id,
-            principal_id, capability_id, capability_kind, operation_kind, operation_id,
-            operation_fingerprint_digest, lane_digest, intent_digest, display_digest,
-            authorization_source_kind, authorization_id, evidence_set_digest,
-            quota_id, quota_kind, authorization_grant_kind, lifecycle_kind, result_kind,
-            result_digest, result_status, result_content_type, result_body_text,
-            claimed_at_ms, completed_at_ms,
-            material_activation_id, material_activation_capability,
-            material_activation_owner, material_activation_key_binding,
-            material_activation_lifecycle_binding, material_activation_signing_worker,
-            linked_wallet_id, linked_enrollment_id, linked_device_id,
-            linked_wallet_key_id, linked_lane_id, linked_lane_share_epoch,
-            linked_revocation_epoch, linked_scope_org_id, linked_scope_project_id,
-            linked_scope_env_id
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                    'claimed', 'pending', NULL, NULL, NULL, NULL, ?, NULL, ?,
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          )
-          .bind(...values);
-  }
-
   /**
    * The admission `admitAuthorizedOperation` would make, prepared for a batch
    * another store owns, after the same reads. It admits no ECDSA material:
@@ -2479,7 +2336,15 @@ export class CloudflareD1AuthorizationStore
     }
     return {
       kind: 'prepared',
-      statements: [this.prepareAuthorizedOperationInsert(operation, input)],
+      statements: [
+        prepareAuthorizedOperationInsert({
+          database: this.database,
+          namespace: this.namespace,
+          walletSignerScope: this.walletSignerScope,
+          operation,
+          material: null,
+        }),
+      ],
     };
   }
 
@@ -2525,10 +2390,24 @@ export class CloudflareD1AuthorizationStore
     if (existing) {
       return await this.answerExistingAuthorizedOperation(existing, operation, input.material);
     }
+    let committedRow: D1Row | null;
     try {
-      const statement = this.prepareAuthorizedOperationInsert(operation, input);
-      const result = await statement.run();
+      const statement = prepareAuthorizedOperationInsert({
+        database: this.database,
+        namespace: this.namespace,
+        walletSignerScope: this.walletSignerScope,
+        operation,
+        material: input.material ?? null,
+      });
+      const [result, readback] = await this.database.batch<D1ResultLike<D1Row>>([
+        statement,
+        prepareAuthorizedOperationRead(this.database, this.namespace, operation),
+      ]);
+      if (!result?.success || !readback?.success) {
+        throw new Error('authorized operation admission batch returned incomplete results');
+      }
       if (input.material && d1ChangedRows(result) === 0) return { kind: 'material_mismatch' };
+      committedRow = readback.results?.[0] ?? null;
     } catch (error: unknown) {
       const raced = await this.readAuthorizedOperationRecord({
         tenantId: operation.tenantId,
@@ -2541,12 +2420,8 @@ export class CloudflareD1AuthorizationStore
       if (triggerFailure) return triggerFailure;
       throw error;
     }
-    const committed = await this.readAuthorizedOperationRecord({
-      tenantId: operation.tenantId,
-      operationFingerprintDigest: operation.operationFingerprintDigest,
-    });
-    if (!committed) throw new Error('authorized operation admission could not be read back');
-    return { kind: 'claimed', operation: committed.operation };
+    if (!committedRow) throw new Error('authorized operation admission could not be read back');
+    return { kind: 'claimed', operation: await parseAuthorizedOperationRow(committedRow) };
   }
 
   private async isAuthorizedOperationSourceActive(row: D1Row, nowMs: number): Promise<boolean> {

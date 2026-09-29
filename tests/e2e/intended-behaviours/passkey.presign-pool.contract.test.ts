@@ -400,6 +400,22 @@ for (const mode of ['lost_response', 'cancelled'] as const) {
   });
 }
 
+class ConcurrentPrepare {
+  statuses: number[] = [];
+
+  async duplicate(route: Route): Promise<void> {
+    const responses = await Promise.all([route.fetch(), route.fetch()]);
+    for (const response of responses) this.statuses.push(response.status());
+    this.statuses.sort();
+    expect(this.statuses).toEqual([200, 409]);
+    const [first, second] = responses;
+    const admitted = first.status() === 200 ? first : second;
+    const rejected = first.status() === 409 ? first : second;
+    expect(await rejected.json()).toMatchObject({ code: 'operation_in_progress' });
+    await route.fulfill({ response: admitted });
+  }
+}
+
 class LostFinalize {
   finalizations = 0;
   lost: { readonly request: Request; readonly status: number; readonly body: string } | null =
@@ -463,18 +479,45 @@ async function vmSigningWorkerEffects(walletId: string): Promise<
   }
 }
 
-test('admitted ECDSA finalize lost_response retry returns the stored signature', async ({
+async function vmRemainingSigningUses(): Promise<number | null> {
+  const root = process.env.SEAMS_INTENDED_ROUTER_AB_ROOT;
+  if (process.env.SEAMS_INTENDED_WALLET_HOST !== 'vm' || !root) return null;
+  const sqliteModule: string = 'node:sqlite';
+  const { DatabaseSync } = (await import(sqliteModule)) as NodeSqliteModule;
+  const database = new DatabaseSync(
+    path.join(root, '.runtime', 'wallet-gateway', 'gateway.sqlite'),
+    { readOnly: true },
+  );
+  try {
+    // The isolated runner creates a fresh database for this single-wallet scenario.
+    const [row] = database.prepare(
+      'SELECT SUM(remaining_uses) AS remaining FROM authorization_wallet_session_quotas',
+    ).all();
+    if (!row || typeof row.remaining !== 'number') throw new Error('Expected a signing quota');
+    return row.remaining;
+  } finally {
+    database.close();
+  }
+}
+
+test('concurrent prepare and admitted ECDSA finalize lost_response retry preserve one signing effect', async ({
   harness,
   context,
 }, testInfo) => {
   const finalizePath = '**/router-ab/ecdsa-derivation/sign';
+  const preparePath = '**/router-ab/ecdsa-derivation/sign/prepare';
+  const concurrentPrepare = new ConcurrentPrepare();
+  const duplicate = concurrentPrepare.duplicate.bind(concurrentPrepare);
   const lostFinalize = new LostFinalize();
   const lose = lostFinalize.loseFirstResponse.bind(lostFinalize);
+  await harness.registerPasskeyEcdsaOnlyWallet();
+  const remainingUsesBefore = await vmRemainingSigningUses();
+  await context.route(preparePath, duplicate);
   await context.route(finalizePath, lose);
   try {
-    await harness.registerPasskeyWallet();
     await expect(harness.signTempoTransaction('post_registration')).rejects.toThrow();
   } finally {
+    await context.unroute(preparePath, duplicate);
     await context.unroute(finalizePath, lose);
   }
   const lost = lostFinalize.lost;
@@ -497,6 +540,10 @@ test('admitted ECDSA finalize lost_response retry returns the stored signature',
   // the returned signature as its terminal response: the retry claimed and
   // consumed nothing.
   const effectsAfterRetry = await vmSigningWorkerEffects(walletId);
+  const remainingUsesAfter = await vmRemainingSigningUses();
+  if (remainingUsesBefore !== null) {
+    expect(remainingUsesAfter).toBe(remainingUsesBefore - 1);
+  }
   if (effectsAfterRetry) {
     expect(effectsAfterRetry).toHaveLength(1);
     expect(effectsAfterRetry[0]?.terminal).toEqual(signature);
@@ -505,6 +552,9 @@ test('admitted ECDSA finalize lost_response retry returns the stored signature',
   const evidence = {
     kind: 'gateway_ecdsa_finalize_lost_response_retry_v1',
     host: process.env.SEAMS_INTENDED_WALLET_HOST ?? 'workers_local',
+    concurrentPrepareStatuses: concurrentPrepare.statuses,
+    remainingUsesBefore,
+    remainingUsesAfter,
     finalizationsAdmitted: lostFinalize.finalizations,
     lostResponseStatus: lost.status,
     retriedStatus: retried.status(),

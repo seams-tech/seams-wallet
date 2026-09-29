@@ -163,8 +163,72 @@ unmet, even on server-only timing. The benchmark Gateway is restored to its
 original version after the diagnostic.
 
 Server and intended-test type checks, policy adapter scenarios, and the bloat
-check pass. Next implement claim/readback batching with its concurrency/replay
-verification, then consolidate further reads and inspect status-request owners.
+check pass.
+
+### Completed checkpoint: batched claim and readback
+
+Admission now sends its guarded INSERT and committed-row SELECT in one D1
+batch. The SELECT observes the admission triggers' effects. Existing replay
+lookup, fresh material predicates, quota triggers, race recovery, and rejection
+classification remain in place. The statements live in a focused SQL module
+extracted from the authorization store. No schema or write semantics changed.
+[D1 batches](https://developers.cloudflare.com/d1/worker-api/d1-database/#batch)
+execute statements in order and roll back the sequence on statement failure.
+The pinned owner-scope projection remains a separate read.
+
+The browser contract now sends two concurrent identical prepares, loses the
+successful finalize response, and retries it exactly. Workers D1, wallet-DO,
+and VM runs each produced one 200 prepare, one `operation_in_progress` 409,
+and a successful retry with the identical stored signature. VM database
+evidence shows quota changing from 3 to 2 and exactly one SigningWorker effect
+and consumed presignature. This covers duplicate admission; concurrent distinct
+operations competing for the last quota use remain a separate planned case.
+
+Reproduce the scenario with the isolated runner and grep
+`concurrent prepare and admitted ECDSA` in
+`tests/e2e/intended-behaviours/passkey.presign-pool.contract.test.ts`.
+Use the default Workers profile, then
+`ROUTER_AB_WORKER_BUILD_PROFILE=dev ROUTER_AB_WALLET_DO_HARNESS=enabled`,
+then `SEAMS_INTENDED_WALLET_HOST=vm`. Build the corresponding role binaries
+before setting `SEAMS_INTENDED_SKIP_BUILD=1`. Missing local DO/VM binaries
+initially prevented startup; rebuilding them resolved those infrastructure
+failures. SDK/server builds, server/intended-test type checks, and the bloat
+check pass.
+
+Three hosted registrations and six verified signatures ran
+13:58:29–13:59:31 UTC on September 29, 2026, using the same preserved SDK hash
+and role Workers as the preceding diagnostics. Instrumented Gateway version:
+`43a6b97c-4329-4f6d-868c-226acf1ccb42`. Evidence is in
+`.artifacts/r150/d1-batch-20260929/`; the private reproducer is
+`.runtime/r150-d1-diagnostic/run-batch-browser.mjs`.
+
+| Per complete signature | Combined policy read | Batched claim/readback |
+| --- | ---: | ---: |
+| D1 calls, every signature | 16 | 15 |
+| SQL statements | 16 | 16 |
+| Write-bearing calls / reported row writes | 2 / 14 | 2 / 14 |
+| First-sign D1 elapsed median | 1,231 ms | 1,077 ms |
+| Subsequent-sign D1 elapsed median | 1,175 ms | 1,091 ms |
+| First-sign server median | 1,496 ms | 1,330 ms |
+| Subsequent-sign server median | 1,335 ms | 1,289 ms |
+| First-sign server range | 1,368–3,475 ms | 1,263–1,379 ms |
+| Subsequent-sign server range | 1,318–3,658 ms | 1,224–1,298 ms |
+
+All 96 statement results across the 90 signing-path D1 calls reported the APAC
+primary. SQL execution medians were 12.35 ms and 13.17 ms. Full browser-flow
+windows remained 3,526–8,863 ms for first signing and 3,552–8,133 ms for
+subsequent signing. Those windows include test/UI orchestration and background
+work; local binary builds also overlapped the diagnostic. They do not isolate
+the complete system-controlled signing span or establish the 1–2 second maximum.
+These small sequential cohorts establish the call reduction; latency changes
+remain observational.
+
+The original benchmark Gateway was restored and authenticated readiness returned
+204. Cumulative estimated benchmark cost was $0.6414 through 14:01:16 UTC, with
+the existing accounting-lag caveat and $25 cap. The ENAM failure and earlier
+regional cohorts remain separate. Next consolidate pinned-scope/finalize reads,
+trace repeated status-request owners, and isolate the remaining client-side
+critical path before reassessing placement.
 
 ### 1. Consolidate reads while preserving decision boundaries
 
@@ -172,10 +236,10 @@ verification, then consolidate further reads and inspect status-request owners.
   Both currently use the same SQL shape with different keys. Preserve rejection
   precedence and fresh policy evaluation for each operation. This should remove
   one round trip from prepare and one from finalize.
-- [ ] Consolidate the prepare claim and committed readback into one D1 batch,
-  including the pinned scope projection where its guard can be retained. Evaluate
-  `INSERT ... RETURNING` only after checking trigger effects: a returned row must
-  represent the committed state the current readback establishes.
+- [x] Consolidate the prepare claim and committed readback into one D1 batch.
+  Read back after the INSERT triggers in the same transaction.
+- [ ] Reuse the committed row's pinned scope projection where the existing
+  guard can be retained, removing its separate lookup.
 - [ ] Join the finalize operation, live authorization source, and pinned scope
   reads where they can enforce the same predicates. Preserve replay-time
   revocation, expiry, wallet/environment binding, and operation identity checks.
