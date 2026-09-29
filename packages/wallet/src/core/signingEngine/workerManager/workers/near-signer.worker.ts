@@ -79,7 +79,7 @@ let activeRequestId: string | null = null;
  *
  * Now receives both numeric enum values AND message string names from Rust
  *
- * @param messageType - Numeric ProgressMessageType enum value
+ * @param _messageType - Numeric ProgressMessageType enum value
  * @param messageTypeName - String name of the message type for debugging
  * @param step - Numeric ProgressStep enum value
  * @param stepName - String name of the step for debugging
@@ -88,7 +88,7 @@ let activeRequestId: string | null = null;
  * @param logs - Optional JSON string containing array of log messages
  */
 function sendProgressMessage(
-  messageType: number,
+  _messageType: number,
   messageTypeName: string,
   step: number,
   stepName: string,

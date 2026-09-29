@@ -358,17 +358,6 @@ function redisRawValue(resp: { type: string; value?: unknown }): unknown {
   return resp.value;
 }
 
-function parseRedisJsonObject(raw: unknown): Record<string, unknown> | null {
-  const text = String(raw ?? '').trim();
-  if (!text) return null;
-  try {
-    const parsed = JSON.parse(text);
-    return isObject(parsed) ? (parsed as Record<string, unknown>) : null;
-  } catch {
-    return null;
-  }
-}
-
 const CONSUME_ONCE_EXISTS_LUA = `
 local marker_key = KEYS[1]
 return redis.call('EXISTS', marker_key)

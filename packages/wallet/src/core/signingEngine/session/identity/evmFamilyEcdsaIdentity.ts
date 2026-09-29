@@ -11,7 +11,6 @@ import { type RouterAbEcdsaDerivationNormalSigningStateV1 } from '@shared/utils/
 import { type EcdsaActiveStateId, type MpcMaterialActivationRef } from '@shared/utils/domainIds';
 import {
   deriveEvmFamilySigningKeySlotId as deriveSharedEvmFamilySigningKeySlotId,
-  requireEvmFamilySigningKeySlotId,
   type EvmFamilySigningKeySlotId,
 } from '@shared/signing-lanes';
 import type {
@@ -330,14 +329,6 @@ function requiredString(value: unknown, field: string): string {
 
 function normalizeRpId(value: unknown): RpId {
   return requiredString(value, 'rpId') as RpId;
-}
-
-function normalizeWalletKeyId(value: unknown): EvmFamilySigningKeySlotId {
-  try {
-    return requireEvmFamilySigningKeySlotId(value);
-  } catch (error) {
-    throw new Error(`[evm-family-ecdsa] ${error instanceof Error ? error.message : String(error)}`);
-  }
 }
 
 export function deriveEvmFamilySigningKeySlotId(input: {

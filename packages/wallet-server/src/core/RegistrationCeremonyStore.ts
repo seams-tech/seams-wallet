@@ -2087,10 +2087,6 @@ function parseStoredAddAuthMethodIntent(value: unknown): StoredAddAuthMethodInte
   };
 }
 
-function hasDefinedField(obj: Record<string, unknown>, field: string): boolean {
-  return field in obj && obj[field] !== undefined;
-}
-
 function parseStoredAddAuthMethodRuntimePolicyScope(
   value: unknown,
 ): AddAuthMethodIntentV1['runtimePolicyScope'] | null {
@@ -3638,11 +3634,6 @@ type DoRequest =
       relatedKey: string;
       expectedRelated: unknown;
     };
-
-type DoConditionalGetDelResponse = {
-  matched: boolean;
-  value: unknown | null;
-};
 
 function isDurableObjectNamespaceLike(
   value: unknown,

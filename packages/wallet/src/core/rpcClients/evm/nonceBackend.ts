@@ -533,11 +533,6 @@ function normalizeBigint(value: unknown, label: string): bigint {
   }
 }
 
-function normalizeAccountId(value: unknown): string | undefined {
-  const normalized = String(value || '').trim();
-  return normalized || undefined;
-}
-
 function normalizeSessionStatusRequiredString(value: unknown, label: string): string {
   const normalized = String(value || '').trim();
   if (!normalized) {

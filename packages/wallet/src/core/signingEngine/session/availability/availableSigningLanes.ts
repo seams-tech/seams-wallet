@@ -38,10 +38,6 @@ import {
   type SigningLaneAuthBinding,
 } from '../identity/signingLaneAuthBinding';
 import {
-  type FreshStepUpRequired,
-  type StepUpExpiryState,
-} from '../operationState/stepUpFreshness';
-import {
   canonicalizeLaneFacts,
   serverIssuedGenerationFromNumber,
   type CanonicalFactSupersession,
@@ -987,40 +983,6 @@ function availableLaneUpdatedAtMs(
   lane: AvailableEcdsaSigningLane | AvailableEd25519SigningLane,
 ): number {
   return Math.floor(Number('updatedAtMs' in lane ? lane.updatedAtMs : 0) || 0);
-}
-
-function laneCandidateUpdatedAtMs(candidate: EcdsaLaneCandidate | Ed25519LaneCandidate): number {
-  return candidate.curve === 'ecdsa' ? 0 : Math.floor(Number(candidate.updatedAtMs) || 0);
-}
-
-function laneCandidateExpiry(
-  candidate: EcdsaLaneCandidate | Ed25519LaneCandidate,
-): StepUpExpiryState {
-  if (candidate.curve === 'ecdsa' && candidate.authorizationState !== 'authorized') {
-    return { kind: 'unavailable', reason: 'restored_record_has_no_expiry' };
-  }
-  const expiresAtMs =
-    candidate.curve === 'ecdsa'
-      ? candidate.authorization.runtime.expiresAtMs
-      : nullablePositiveInteger(candidate.expiresAtMs);
-  return expiresAtMs
-    ? { kind: 'known', expiresAtMs }
-    : { kind: 'unavailable', reason: 'restored_record_has_no_expiry' };
-}
-
-function laneCandidateStepUpReason(
-  candidate: EcdsaLaneCandidate | Ed25519LaneCandidate,
-): FreshStepUpRequired['reason'] {
-  switch (candidate.state) {
-    case 'expired':
-      return 'threshold_session_expired';
-    case 'exhausted':
-      return 'threshold_session_exhausted';
-    case 'ready':
-    case 'restorable':
-    case 'deferred':
-      throw new Error('[SigningEngine] lane candidate does not require fresh auth');
-  }
 }
 
 function availableLaneServerIssuedGeneration(

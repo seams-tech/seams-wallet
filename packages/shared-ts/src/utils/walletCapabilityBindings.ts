@@ -127,12 +127,6 @@ function missingObject(typeName: string): WalletCapabilityBindingParseResult<nev
   };
 }
 
-function requireWalletAuthMethodId(raw: string): WalletAuthMethodId {
-  const parsed = parseWalletAuthMethodId(raw);
-  if (parsed.ok) return parsed.value;
-  throw new Error(parsed.error.message);
-}
-
 export function parseRpId(raw: unknown): WalletCapabilityBindingParseResult<RpId> {
   const parsed = parseWebAuthnRpId(raw);
   if (!parsed.ok) return { ok: false, error: parsed.error };

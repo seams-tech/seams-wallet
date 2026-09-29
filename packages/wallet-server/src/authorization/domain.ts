@@ -1320,10 +1320,3 @@ function requireOrderedTimes(createdAtMs: number, expiresAtMs: number, label: st
     throw new Error(`${label} expiry must follow creation`);
   }
 }
-
-function requireDomainIdParse(
-  result: { readonly ok: true } | { readonly ok: false; readonly error: { message: string } },
-  label: string,
-): void {
-  if (!result.ok) throw new Error(`${label}: ${result.error.message}`);
-}

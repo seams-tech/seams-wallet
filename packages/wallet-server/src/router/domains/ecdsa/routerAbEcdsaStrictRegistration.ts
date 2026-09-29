@@ -21,7 +21,6 @@ import {
   type RouterAbEcdsaRegistrationRequestV1,
   type RouterAbEcdsaStrictForwardedRegistrationResponseV1,
   type RouterAbEcdsaVerifiedClientActivationFactsV1,
-  type RouterAbPublicDigest32V1Wire,
 } from '@shared/utils/routerAbEcdsaDerivation';
 import type { RouterAbNormalSigningAuthorizationWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import type { CorrelationId } from '@shared/utils/canonicalPrimitives';
@@ -723,26 +722,6 @@ function strictRegistrationPath(
 
 function assertNeverStrictRegistrationPurpose(value: never): never {
   throw new Error(`Unsupported strict ECDSA registration purpose: ${String(value)}`);
-}
-
-function publicDigest32Matches(
-  left: RouterAbPublicDigest32V1Wire,
-  right: RouterAbPublicDigest32V1Wire,
-): boolean {
-  return (
-    left.bytes.length === 32 &&
-    right.bytes.length === 32 &&
-    left.bytes.every((value, index) => value === right.bytes[index])
-  );
-}
-
-function activationDigestMismatchFailure(): RouterAbEcdsaStrictFailure {
-  return {
-    ok: false,
-    code: 'mpc_router_activation_digest_mismatch',
-    message: 'ECDSA activation request digest does not match the prepared journal command',
-    retryable: false,
-  };
 }
 
 function assertNeverStrictForwardBody(value: never): never {

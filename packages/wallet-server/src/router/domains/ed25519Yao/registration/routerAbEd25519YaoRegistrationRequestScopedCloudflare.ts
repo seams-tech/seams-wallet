@@ -19,14 +19,10 @@ import { json, readJson } from '../../../framework/http';
 import type {
   RouterAbEd25519YaoRegistrationAdmissionClaimV1,
   RouterAbEd25519YaoRegistrationBackendResult,
-  RouterAbEd25519YaoRegistrationBackend,
   RouterAbEd25519YaoRegistrationFailure,
   RouterAbEd25519YaoRegistrationServiceResult,
 } from './routerAbEd25519YaoRegistration';
-import {
-  InMemoryRouterAbEd25519YaoRegistrationStateV1,
-  InMemoryRouterAbEd25519YaoRegistrationService,
-} from './routerAbEd25519YaoRegistration';
+import { InMemoryRouterAbEd25519YaoRegistrationService } from './routerAbEd25519YaoRegistration';
 import {
   InMemoryRouterAbEd25519YaoRegistrationIntentAuthorizationAdapter,
   routerAbEd25519YaoBearerCredentialDigestV1,
@@ -412,18 +408,6 @@ function executionRefusal(
     case 'execution_in_progress':
       return { ok: false, status: 409, code: 'execution_in_progress', message };
   }
-}
-
-function bytesToHex(bytes: readonly number[]): string {
-  let encoded = '';
-  for (const byte of bytes) encoded += byte.toString(16).padStart(2, '0');
-  return encoded;
-}
-
-function isRegistrationFailure(
-  value: RouterAbEd25519YaoRegistrationResultV1 | RouterAbEd25519YaoRegistrationFailure,
-): value is RouterAbEd25519YaoRegistrationFailure {
-  return 'ok' in value && value.ok === false;
 }
 
 function isRetryableRegistrationBackendFailure(

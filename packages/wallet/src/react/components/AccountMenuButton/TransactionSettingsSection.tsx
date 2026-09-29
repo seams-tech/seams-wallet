@@ -8,13 +8,11 @@ const TRANSACTION_SETTINGS_ACTIVE_BACKGROUND =
 export const TransactionSettingsSection: React.FC<TransactionSettingsSectionProps> = ({
   currentConfirmConfig,
   onSetUiMode,
-  onToggleShowDetails,
   onToggleSkipClick,
   onSetDelay,
   className,
   style,
   isOpen = true,
-  theme = 'dark',
   presentation = 'menu',
 }) => {
   React.useEffect(() => {

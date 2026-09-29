@@ -83,7 +83,7 @@ type ResolvedEcdsaDerivationExportMaterial = {
 };
 
 function exportAuthorizationWire(
-  authorization: EcdsaExplicitExportOperationAuthorization,
+  _authorization: EcdsaExplicitExportOperationAuthorization,
 ): Extract<RouterAbNormalSigningAuthorizationWire, { readonly kind: 'operation_step_up' }> {
   return { kind: 'operation_step_up' };
 }

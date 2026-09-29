@@ -45,10 +45,6 @@ import {
 } from './routerAbEd25519YaoRecovery';
 export type { WarmBootstrapLinkedEd25519AuthorityReaderV1 } from './routerAbEd25519YaoRecovery';
 import {
-  parseThresholdEd25519SessionId,
-  type ThresholdEd25519SessionId,
-} from '@shared/utils/domainIds';
-import {
   runRouterAbEd25519YaoRegistrationTwoPhaseV1,
   type RouterAbEd25519YaoRegistrationTwoPhaseBackendResultV1,
   type RouterAbEd25519YaoRegistrationTwoPhaseCompletionV1,
@@ -101,20 +97,6 @@ type RecoveryResponse =
 type TraceResolution =
   | { readonly ok: true; readonly value: RouterAbTraceContextV1 }
   | { readonly ok: false; readonly message: string };
-
-type WarmRecoveryWalletSessionIdentity = {
-  readonly thresholdSessionId: ThresholdEd25519SessionId;
-};
-
-function parseWarmRecoveryWalletSessionIdentity(input: {
-  readonly thresholdSessionId: unknown;
-}): WarmRecoveryWalletSessionIdentity | null {
-  const thresholdSessionId = parseThresholdEd25519SessionId(input.thresholdSessionId);
-  if (!thresholdSessionId.ok) return null;
-  return {
-    thresholdSessionId: thresholdSessionId.value,
-  };
-}
 
 export type RouterAbEd25519YaoRecoveryRequestScopedCloudflareInputV1 = {
   readonly request: Request;

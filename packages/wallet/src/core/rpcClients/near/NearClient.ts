@@ -126,7 +126,7 @@ export class SignedTransaction {
     return base64Encode(this.encode());
   }
 
-  static decode(bytes: Uint8Array): SignedTransaction {
+  static decode(): SignedTransaction {
     // This would need borsh deserialization
     throw new Error('SignedTransaction.decode(): borsh deserialization not implemented');
   }

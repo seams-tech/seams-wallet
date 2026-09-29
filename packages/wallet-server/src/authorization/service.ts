@@ -822,8 +822,3 @@ function parseRequired<T>(
   if (!parsed.ok) throw new Error('generated authorization identifier was invalid');
   return parsed.value;
 }
-
-function requirePositiveTimestamp(value: number, label: string): number {
-  if (!Number.isSafeInteger(value) || value <= 0) throw new Error(`${label} must be positive`);
-  return value;
-}

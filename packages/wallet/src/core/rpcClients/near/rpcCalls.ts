@@ -84,10 +84,10 @@ export async function fetchNonceBlockHashAndHeight({
 }): Promise<TransactionContext> {
   // Get access key and transaction block info concurrently
   const [accessKeyInfo, txBlockInfo] = await Promise.all([
-    nearClient.viewAccessKey(nearAccountId, nearPublicKeyStr).catch((e) => {
+    nearClient.viewAccessKey(nearAccountId, nearPublicKeyStr).catch(() => {
       throw new Error(`Failed to fetch Access Key`);
     }),
-    nearClient.viewBlock({ finality: 'final' }).catch((e) => {
+    nearClient.viewBlock({ finality: 'final' }).catch(() => {
       throw new Error(`Failed to fetch Block Info`);
     }),
   ]);

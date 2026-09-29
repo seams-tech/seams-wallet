@@ -213,7 +213,6 @@ export class Secp256k1Engine {
   readonly algorithm = 'secp256k1' as const;
 
   private readonly beforeSigning?: () => void;
-  private readonly getRpId?: () => string | null;
   private readonly shouldAbort?: () => boolean;
   private readonly workerCtx: WorkerOperationContext;
 
@@ -224,7 +223,6 @@ export class Secp256k1Engine {
     workerCtx: WorkerOperationContext;
   }) {
     this.beforeSigning = opts.beforeSigning;
-    this.getRpId = opts.getRpId;
     this.shouldAbort = opts.shouldAbort;
     this.workerCtx = opts.workerCtx;
   }

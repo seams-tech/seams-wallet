@@ -71,10 +71,7 @@ import {
   type SigningRootId,
   type SigningRootVersion,
 } from '../../session/identity/emailOtpEcdsaDerivationIdentity';
-import {
-  equalEcdsaClientPresignPoolIdentity,
-  type EcdsaClientPresignPoolIdentity,
-} from '../../workerManager/ecdsaPresignPoolIdentity';
+import type { EcdsaClientPresignPoolIdentity } from '../../workerManager/ecdsaPresignPoolIdentity';
 import type {
   EcdsaClientPresignAdmissionStorage,
   EcdsaClientPresignReservationResult,

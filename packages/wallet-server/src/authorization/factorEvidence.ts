@@ -245,7 +245,7 @@ export function buildVerifiedWalletSessionEmailOtpFactorResult(
 
 /** Nominal server-only owner proofs; private constructors block browser forgery. */
 class VerifiedOwnerWalletSessionProof {
-  private readonly __proofBrand = true;
+  protected readonly __proofBrand = true;
   readonly kind = 'verified_owner_proof_v1' as const;
   readonly proofId: VerifiedOwnerProofId;
   readonly method: VerifiedOwnerProofMethod;
@@ -280,7 +280,7 @@ class VerifiedOwnerWalletSessionProof {
 }
 
 class VerifiedOwnerOperationProof {
-  private readonly __proofBrand = true;
+  protected readonly __proofBrand = true;
   readonly kind = 'verified_owner_proof_v1' as const;
   readonly proofId: VerifiedOwnerProofId;
   readonly method: VerifiedOwnerProofMethod;

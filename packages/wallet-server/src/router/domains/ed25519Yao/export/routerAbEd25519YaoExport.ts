@@ -865,7 +865,7 @@ export class InMemoryRouterAbEd25519YaoExportService implements RouterAbEd25519Y
 
   async prepareAdmitExport(
     request: RouterAbEd25519YaoExportAdmissionRequestV1,
-    authorizationIdentity: RouterAbEd25519YaoExportServerAuthorizationIdentityV1,
+    _authorizationIdentity: RouterAbEd25519YaoExportServerAuthorizationIdentityV1,
   ): Promise<RouterAbEd25519YaoExportAdmissionPreparationV1> {
     const key = exportKey(request);
     const current = this.state.exports.get(key);

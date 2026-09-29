@@ -556,11 +556,6 @@ type RouterApiOkFailure = {
   readonly message: string;
 };
 
-type RouterApiRateLimitedFailure = RouterApiOkFailure & {
-  readonly retryAfterMs?: number;
-  readonly resetAtMs?: number;
-};
-
 export type RouterApiMethodTypes = {
   applyEmailOtpServerSeal: {
     readonly input: { readonly wrappedCiphertext?: unknown };

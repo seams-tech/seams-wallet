@@ -1666,31 +1666,6 @@ export class LinkDeviceFlow {
     }
   }
 
-  private claimTargetCredentialFactorSecret(runEpoch: number): Uint8Array | null {
-    switch (this.targetCredentialActivationState.kind) {
-      case 'idle':
-        return null;
-      case 'in_progress':
-        throw new Error('Device-link target passkey activation is still in progress');
-      case 'factor_ready': {
-        if (this.targetCredentialActivationState.runEpoch !== runEpoch) {
-          throw new LinkDeviceFlowSupersededError();
-        }
-        const factorSecret = this.targetCredentialActivationState.factorSecret;
-        this.targetCredentialActivationState = {
-          kind: 'consuming',
-          runEpoch,
-          factorSecret,
-        };
-        return factorSecret;
-      }
-      case 'consuming':
-        throw new Error('Device-link target passkey activation is already being consumed');
-      default:
-        return assertNeverTargetCredentialActivationState(this.targetCredentialActivationState);
-    }
-  }
-
   private clearTargetCredentialActivationState(): void {
     const state = this.targetCredentialActivationState;
     if (state.kind === 'factor_ready' || state.kind === 'consuming') {

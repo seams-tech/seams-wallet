@@ -695,47 +695,6 @@ function transactionCandidatesAllowedByAuthPolicy<TCandidate extends { candidate
   );
 }
 
-function selectConcreteTransactionCandidate<
-  TCandidate extends ConcreteTransactionCandidate,
-  TLane extends TransactionLane,
->(args: {
-  intent: TransactionSigningIntent;
-  candidates: readonly TCandidate[];
-  buildLane: (candidate: TCandidate) => TLane;
-}): TransactionLaneSelectionResult {
-  const { intent } = args;
-  const candidates = transactionCandidatesAllowedByAuthPolicy(intent, args.candidates);
-
-  if (!candidates.length) {
-    return {
-      ok: false,
-      failure:
-        intent.authSelectionPolicy.kind === 'any'
-          ? { kind: 'no_candidate' }
-          : { kind: 'no_candidate', authMethod: intent.authSelectionPolicy.authMethod },
-    };
-  }
-
-  const selected = selectOnlyConcreteTransactionCandidate(candidates);
-  if (!selected) {
-    return {
-      ok: false,
-      failure: {
-        kind: 'ambiguous_material',
-        allowedAuthMethods: allowedAuthMethods(candidates),
-      },
-    };
-  }
-
-  return {
-    ok: true,
-    lane: args.buildLane(selected),
-    candidate: selected.candidate,
-    availableLane: selected.availableLane,
-    selectionCandidate: selected,
-  };
-}
-
 export function selectTransactionLaneFromAvailableLanes(
   state: TransactionAvailableLanesReadState,
 ): TransactionLaneSelectedState | TransactionLaneSelectionFailedState {

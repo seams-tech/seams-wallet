@@ -632,7 +632,3 @@ function resolveTrace(request: Request): TraceResolution {
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
-
-function assertNever(value: never): never {
-  throw new Error(`Unhandled export request-scoped value: ${String(value)}`);
-}

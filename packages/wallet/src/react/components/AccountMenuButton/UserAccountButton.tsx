@@ -66,7 +66,6 @@ export const UserAccountId = ({
   fullAccountId,
   emailAddress,
   isOpen,
-  theme = 'dark',
 }: {
   username: string;
   fullAccountId?: string;

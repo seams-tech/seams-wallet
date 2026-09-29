@@ -94,17 +94,12 @@ import {
   type EvmFamilySigningAuthSideEffect,
 } from './freshAuthRetryPolicy';
 import { emitEvmFamilySigningEvent, emitEvmFamilySigningOperationTrace } from './events';
-import { requiredEvmFamilyRequestSignatureUses } from './signatureUses';
 import {
   bindEvmFamilyCallerProvidedOperationIdToFingerprint,
   createEvmFamilySigningOperationIds,
   ensureEvmFamilyConfirmationOperationId,
   type EvmFamilySigningOperationIds,
 } from './operationIds';
-import {
-  deriveEvmFamilyKeyFingerprintFromPublicFacts,
-  type VerifiedEcdsaPublicFacts,
-} from '../../session/identity/evmFamilyEcdsaIdentity';
 import {
   buildPreparedEvmFamilyExecutorThresholdEcdsaState,
   type PreparedEvmFamilyPublicIdentityContinuity,
@@ -328,7 +323,6 @@ async function signEvmFamilyAttempt(
     request: args.request,
     chainTarget: args.chainTarget,
   });
-  const requiredSignatureUses = requiredEvmFamilyRequestSignatureUses(args.request);
   await ensureSealedRefreshStartupParityForTransactionSigning(
     deps.ensureSealedRefreshStartupParity,
     {
@@ -384,19 +378,6 @@ async function signEvmFamilyAttempt(
   const derivePreparedEvmFamilyKeyFingerprint = (
     _prepared: PreparedEvmFamilyEcdsaSigningSession | undefined,
   ): string | undefined => undefined;
-  const safePreparedPublicFactsFingerprint = (args: {
-    walletId: string;
-    publicFacts: VerifiedEcdsaPublicFacts;
-  }): string | undefined => {
-    try {
-      return deriveEvmFamilyKeyFingerprintFromPublicFacts({
-        walletId: args.walletId,
-        publicFacts: args.publicFacts,
-      });
-    } catch {
-      return undefined;
-    }
-  };
   let freshAuthRetrySideEffectState: EvmFamilyFreshAuthRetrySideEffectState =
     'no_auth_side_effect_started';
   const markFreshAuthRetrySideEffect = (sideEffect: EvmFamilySigningAuthSideEffect): void => {
@@ -425,9 +406,7 @@ async function signEvmFamilyAttempt(
       errorMessage,
     });
   };
-  let confirmationDisplayed = false;
   const markConfirmationDisplayed = (): SigningOperationId => {
-    confirmationDisplayed = true;
     markFreshAuthRetrySideEffect('auth_prompt_shown');
     return ensureConfirmationOperationId();
   };
@@ -630,7 +609,7 @@ async function signEvmFamilyAttempt(
     if (reResolved) return reResolved;
     throw error;
   }
-  const { signingAuthPlan, signingSessionPlan, emailOtpSigning, flowArgs } = preparedFlow;
+  const { signingAuthPlan, emailOtpSigning, flowArgs } = preparedFlow;
 
   let freshAuthRetryHandledFinalization = false;
   const retryWithFreshWalletSessionAuth = async (
@@ -758,7 +737,6 @@ async function signEvmFamilyAttempt(
   const preparedExecutorSession = getPreparedEcdsaSigningSessionIfEcdsa();
   // Ready material is produced by `resolveReadySecp256k1SigningMaterial`
   // immediately before worker use, so the prepared session carries none.
-  const preparedExecutorReadyMaterial = null;
   const requireThresholdEcdsaStepUpRuntime = () => {
     const runtime = flowArgs.thresholdEcdsaStepUpRuntime;
     if (!runtime) {

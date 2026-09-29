@@ -1,4 +1,3 @@
-import { normalizeThresholdEd25519ParticipantIds } from '@shared/threshold/participants';
 import type { WalletSessionOperationCredentialV1 } from '@shared/device-linking';
 import type { EmailOtpWorkerIssuedSessionHandle } from '@/core/platform';
 import type { WebAuthnAuthenticationCredential } from '@/core/types/webauthn';
@@ -126,10 +125,6 @@ export type BuildEcdsaSessionProvisionPlanArgs =
   | BuildPasskeyEcdsaSessionProvisionPlanArgs
   | BuildEmailOtpEcdsaSessionProvisionPlanArgs;
 
-function assertNeverEcdsaProvisionPlan(plan: never): never {
-  throw new Error(`[SigningEngine][ecdsa] unsupported ECDSA provision plan: ${String(plan)}`);
-}
-
 function requireNonEmptyString(value: unknown, field: string): string {
   const normalized = String(value ?? '').trim();
   if (!normalized) {
@@ -146,14 +141,6 @@ function requirePositiveInteger(value: unknown, field: string): number {
   const normalized = Math.floor(Number(value) || 0);
   if (normalized <= 0) {
     throw new Error(`[SigningEngine][ecdsa] ${field} must be a positive integer`);
-  }
-  return normalized;
-}
-
-function requireParticipantIds(value: unknown, field: string): readonly number[] {
-  const normalized = normalizeThresholdEd25519ParticipantIds(value);
-  if (!normalized?.length) {
-    throw new Error(`[SigningEngine][ecdsa] ${field} is required`);
   }
   return normalized;
 }

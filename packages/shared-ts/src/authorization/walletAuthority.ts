@@ -930,7 +930,7 @@ function parseEcdsaActivation(raw: unknown, label: string): WalletEcdsaSignerAct
 function parseManifestForSigner(
   raw: unknown,
   family: 'ed25519' | 'ecdsa_secp256k1',
-  label: string,
+  _label: string,
 ): ExactAdministeredSignerManifestV1 {
   return parseExactAdministeredSignerManifestV1({
     kind: 'exact_administered_signer_manifest_v1',

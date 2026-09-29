@@ -41,7 +41,6 @@ import { base64UrlDecode, base64UrlEncode } from '@shared/utils/encoders';
 import { assertEd25519YaoLaneCeremonyBindingParityV1 } from '@/core/signingEngine/threshold/crypto/ed25519YaoLaneWasm';
 import type {
   UnlockedEd25519ExportRootLinkingCapabilityV1,
-  UnlockedWalletEd25519ExportRootCapabilityV1,
   WalletCustodyCeremonyWorkerOperationMap,
 } from '../workerTypes';
 

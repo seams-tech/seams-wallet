@@ -128,15 +128,13 @@ interface AuthenticateCredentialsForChallengeB64uArgs {
  */
 export class TouchIdPrompt {
   private rpIdOverride?: string;
-  private safariGetWebauthnRegistrationFallback: boolean;
   // create() only: internal abort controller + cleanup hooks
   private abortController?: AbortController;
   private removePageAbortHandlers?: () => void;
   private removeExternalAbortListener?: () => void;
 
-  constructor(rpIdOverride?: string, safariGetWebauthnRegistrationFallback = false) {
+  constructor(rpIdOverride?: string, _safariGetWebauthnRegistrationFallback = false) {
     this.rpIdOverride = rpIdOverride;
-    this.safariGetWebauthnRegistrationFallback = safariGetWebauthnRegistrationFallback === true;
   }
 
   getRpId(): string {

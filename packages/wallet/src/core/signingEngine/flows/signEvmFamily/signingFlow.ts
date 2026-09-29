@@ -60,7 +60,6 @@ import {
   inferDigest32FromSignRequest,
   makeRequestId,
   mapSigningConfirmationProgress,
-  resolveSigningConfirmationAuth,
   resolveSigningConfirmationAuthMethod,
 } from '../shared/signingConfirmation';
 import {
@@ -707,9 +706,6 @@ export async function signEvmFamilyWithUiConfirm<TRequest, TResult extends objec
       preparation: intentPreparationTask.then(intentDigestPreparationFromEvmIntent),
     });
   }
-  type ConfirmationAuthPayload = Awaited<
-    ReturnType<typeof resolveSigningConfirmationAuth>
-  >['confirmationAuthPayload'];
   type PreparedIntent = Awaited<typeof intentPreparationTask>;
 
   let preparedStepUpAuth: EvmFamilyPreparedStepUpAuth | null = null;
@@ -730,7 +726,7 @@ export async function signEvmFamilyWithUiConfirm<TRequest, TResult extends objec
   } | null = null;
 
   const ensureReadySecp256k1SigningMaterial = async (
-    signReq: SignRequest,
+    _signReq: SignRequest,
     operation: EvmFamilyThresholdEcdsaOperation,
     operationDigests: OperationDigestSet,
   ): Promise<ReadyEcdsaSigningMaterialSource> => {

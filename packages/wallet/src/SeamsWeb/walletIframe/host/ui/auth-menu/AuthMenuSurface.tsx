@@ -1147,7 +1147,7 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, { accountMe
     );
   }
 
-  private renderOtherOptions(viewModel: AuthMenuLoginViewModel | AuthMenuRegisterViewModel) {
+  private renderOtherOptions(_viewModel: AuthMenuLoginViewModel | AuthMenuRegisterViewModel) {
     return (
       <>
         <div class="seams-scan-device-row">

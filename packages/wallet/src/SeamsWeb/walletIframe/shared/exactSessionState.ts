@@ -1216,11 +1216,6 @@ function requireNullableString(value: unknown, label: string): string | null {
   return requireNonEmptyString(value, label);
 }
 
-function requirePositiveSafeInteger(value: unknown, label: string): number {
-  if (!isPositiveSafeInteger(value)) throw new Error(`${label} must be a positive integer`);
-  return value;
-}
-
 function requireNonNegativeSafeInteger(value: unknown, label: string): number {
   if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) {
     throw new Error(`${label} must be a non-negative integer`);

@@ -99,18 +99,18 @@ const livePlan = buildUseLiveRuntimeHydrationPlan({
   materialActivation,
 });
 
-const sealedPlan = buildRehydrateMaterialActivationHydrationPlan({
+export const sealedPlan = buildRehydrateMaterialActivationHydrationPlan({
   authority,
   materialActivation,
   sealedMaterial,
 });
 
-const reauthPlan = buildReauthorizePublicAnchorHydrationPlan({
+export const reauthPlan = buildReauthorizePublicAnchorHydrationPlan({
   retirement: 'expired',
   publicReauthAnchor,
 });
 
-const blockedPlan = buildBlockedMpcCapabilityHydrationPlan({
+export const blockedPlan = buildBlockedMpcCapabilityHydrationPlan({
   capability: null,
   reason: 'missing_capability',
 });

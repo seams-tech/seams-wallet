@@ -80,10 +80,6 @@ export type EmailOtpEcdsaBootstrapAuthorization =
       routeAuth: EmailOtpEcdsaBootstrapRouteAuth;
     };
 
-function assertNever(value: never): never {
-  throw new Error(`Unexpected Email OTP route auth branch: ${String(value)}`);
-}
-
 export function buildFreshEmailOtpRoutePlan(args: {
   freshRouteFamily: 'login' | 'registration';
   operation?: WalletEmailOtpLoginOperation;

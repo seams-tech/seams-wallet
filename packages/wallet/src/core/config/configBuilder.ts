@@ -75,16 +75,6 @@ function resolveEmailOtpAuthPolicy(args: {
   );
 }
 
-function joinUrlPath(baseUrl: string, path: string): string {
-  const base = String(baseUrl || '')
-    .trim()
-    .replace(/\/+$/, '');
-  const suffix = String(path || '').trim();
-  if (!base) return '';
-  if (!suffix) return base;
-  return `${base}${suffix.startsWith('/') ? suffix : `/${suffix}`}`;
-}
-
 function resolveRegistrationNearAccountProvisioning(
   value: unknown,
 ): SeamsRegistrationNearAccountProvisioning {

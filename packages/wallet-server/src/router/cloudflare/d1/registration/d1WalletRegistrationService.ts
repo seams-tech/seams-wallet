@@ -21,7 +21,6 @@ import {
   buildWalletSignerActivationSetV1,
   computeWalletAuthorityDigestB64u,
   computeWalletSignerActivationSetDigestB64u,
-  isCombinedWalletSignerActivationSetV1,
   isActiveEcdsaWalletAuthorityV1,
   type ActiveCombinedWalletAuthorityV1,
   type ActiveEcdsaWalletAuthorityV1,
@@ -140,7 +139,6 @@ import {
   WalletRegistrationFinalizeRequest,
   WalletRegistrationFinalizeResponse,
   WalletRegistrationEcdsaActivationResponse,
-  WalletRegistrationEcdsaDerivationRespondRequest,
   type WalletRegistrationEcdsaWalletKey,
   type WalletRegistrationEd25519YaoPublicResult,
   type WalletRegistrationFinalizeSuccess,
@@ -326,7 +324,6 @@ import type {
 } from './walletRegistrationEstablishedSessionIssuer';
 import type { CloudflareD1VersionedJsonRecordReadManyEntryV1 } from '../versionedJson/d1VersionedJsonRecordStore';
 
-type RespondWalletRegistrationDerivationInput = WalletRegistrationEcdsaDerivationRespondRequest;
 type ActivateWalletRegistrationEcdsaInput = {
   readonly registrationCeremonyId: string;
   readonly ecdsa: {
@@ -1346,30 +1343,12 @@ function registrationFinalizeRecoveryFromCommittedInstallation(input: {
   };
 }
 
-function isEmailOtpWalletRegistrationFinalizeSuccess(
-  value: WalletRegistrationFinalizeResponse,
-): value is Extract<
-  WalletRegistrationFinalizeSuccess,
-  { kind: 'near_ed25519'; authMethod: { kind: 'email_otp' } }
-> {
-  return value.ok && value.kind === 'near_ed25519' && value.authMethod.kind === 'email_otp';
-}
-
 function isWalletRegistrationNearProvisioningSuccess(
   value: WalletRegistrationNearProvisioningFinalizeResponse,
 ): value is Extract<WalletRegistrationFinalizeSuccess, { kind: 'near_ed25519' }> & {
   registrationEstablishedSession: RegistrationEstablishedSessionResultV2;
 } {
   return value.ok && value.kind === 'near_ed25519' && 'registrationEstablishedSession' in value;
-}
-
-function isPasskeyWalletRegistrationFinalizeSuccess(
-  value: WalletRegistrationNearProvisioningFinalizeResponse,
-): value is Extract<
-  WalletRegistrationFinalizeSuccess,
-  { kind: 'near_ed25519'; authMethod: { kind: 'passkey' } }
-> {
-  return value.ok && value.kind === 'near_ed25519' && value.authMethod.kind === 'passkey';
 }
 
 function assertNeverD1RegistrationSessionIssuance(value: never): never {
@@ -1458,27 +1437,6 @@ function registrationWalletAuthAuthority(input: {
   readonly walletAuthMethodId: WalletAuthMethodId;
 }): WalletAuthAuthority {
   return walletAuthAuthorityFromRegistrationAuthority(input);
-}
-
-type D1RegistrationEcdsaFinalizeState =
-  | { readonly kind: 'ecdsa_registration_disabled' }
-  | {
-      readonly kind: 'ecdsa_registration_responded';
-      readonly state: StoredWalletRegistrationEvmFamilyEcdsaActivatedBranch;
-    };
-
-type D1RegistrationEd25519WalletSessionIdentity = {
-  readonly walletId: WalletId;
-  readonly nearAccountId: string;
-  readonly nearEd25519SigningKeyId: string;
-  readonly authority: WalletAuthAuthority;
-  readonly thresholdSessionId: string;
-  readonly participantIds: readonly [number, number];
-  readonly runtimePolicyScope: RuntimePolicyScope;
-};
-
-function assertNeverD1RegistrationEcdsaFinalizeState(value: never): never {
-  throw new Error(`Unexpected registration ECDSA finalize state: ${String(value)}`);
 }
 
 type RegistrationCeremonyStoreProvider = () => CloudflareD1RegistrationCeremonyIntentStore;
@@ -1596,17 +1554,6 @@ function finishD1RegistrationRouteTiming(
   recorder.entries.push({
     name: mark.name,
     durationMs: Math.max(0, Date.now() - mark.startedAtMs),
-  });
-}
-
-function appendD1RegistrationRouteTiming(
-  recorder: D1RegistrationRouteTimingRecorder,
-  name: WalletRegistrationRouteTimingName,
-  durationMs: number,
-): void {
-  recorder.entries.push({
-    name,
-    durationMs: Math.max(0, Math.round(durationMs)),
   });
 }
 
@@ -1764,32 +1711,6 @@ function registrationPreparedContextEcdsaChainTargets(
   return preparedContext.ecdsa.kind === 'evm_family_ecdsa_requested'
     ? preparedContext.ecdsa.chainTargets
     : null;
-}
-
-function registrationIntentResponseRpId(intent: RegistrationIntentV1): string | undefined {
-  return intent.authMethod.kind === 'passkey' ? intent.authMethod.rpId : undefined;
-}
-
-function registrationIntentWalletsMatch(input: {
-  readonly requestIntent: RegistrationIntentV1;
-  readonly storedIntent: RegistrationIntentV1;
-}): boolean {
-  return input.requestIntent.walletId === input.storedIntent.walletId;
-}
-
-function registrationPreparationWalletsMatch(input: {
-  readonly expectedWalletId: string;
-  readonly preparation: {
-    readonly intent: RegistrationIntentV1;
-    readonly authority: { readonly walletId: string };
-    readonly ed25519Scope: { readonly walletId: string };
-  };
-}): boolean {
-  return (
-    input.preparation.intent.walletId === input.expectedWalletId &&
-    input.preparation.authority.walletId === input.expectedWalletId &&
-    input.preparation.ed25519Scope.walletId === input.expectedWalletId
-  );
 }
 
 /**
@@ -2104,7 +2025,6 @@ function pendingEcdsaSessionActivationRecord(input: {
   readonly publicCapability: RouterAbEcdsaDerivationPublicCapabilityV1;
   readonly nowMs: number;
 }): WalletEcdsaPendingSessionActivationRecord {
-  const response = postRegistrationProofResponse(input.proof);
   const base = {
     version: 'wallet_ecdsa_pending_session_activation_v1',
     walletId: input.walletId,
@@ -3976,16 +3896,6 @@ export class CloudflareD1WalletRegistrationService {
       runtimePolicyScope,
       expiresAtMs: ceremony.expiresAtMs,
     };
-  }
-
-  private async registrationOwnerProof(input: {
-    readonly registrationCeremonyId: string;
-    readonly authMethod: WalletRegistrationFinalizeAuthMethod;
-    readonly authority: WalletAuthAuthority;
-  }): Promise<Extract<VerifiedOwnerProof, { readonly purpose: 'wallet_session' }>> {
-    const context = await this.readRegistrationOwnerProofContext(input.registrationCeremonyId);
-    if (!context) throw new Error('Registration owner proof context is unavailable');
-    return await this.registrationOwnerProofWithContext(context, input);
   }
 
   /** For callers that must read the context before finalize tombstones it. */
@@ -5943,9 +5853,6 @@ export class CloudflareD1WalletRegistrationService {
       }
       const ecdsaWalletKeys: WalletRegistrationEcdsaWalletKey[] = [];
       let ecdsaMaterialActivation: MpcMaterialActivationRef | null = null;
-      let ecdsaFinalizeState: D1RegistrationEcdsaFinalizeState = {
-        kind: 'ecdsa_registration_disabled',
-      };
       let activatedEcdsaBranch: StoredWalletRegistrationEvmFamilyEcdsaActivatedBranch | null = null;
       if (finalizeEvmFamilyEcdsa) {
         const ecdsaState = storedEcdsaBranch;
@@ -5994,10 +5901,6 @@ export class CloudflareD1WalletRegistrationService {
         ecdsaMaterialActivation = routerAbMpcMaterialActivationRefFromWire(
           ecdsaState.activation.ecdsa_activation.material_activation,
         );
-        ecdsaFinalizeState = {
-          kind: 'ecdsa_registration_responded',
-          state: ecdsaState,
-        };
       } else if (storedEcdsaBranch?.kind === 'evm_family_ecdsa_finalized') {
         const walletKeyResult = buildD1EcdsaWalletKeysFromBootstrap({
           bootstraps: storedEcdsaBranch.chainTargets.map((chainTarget) => ({

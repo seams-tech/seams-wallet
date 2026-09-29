@@ -8,7 +8,7 @@ import type {
 
 type AssertNever<T extends never> = T;
 
-type ActivationUncertaintyCannotCrossCommitBoundary = AssertNever<
+export type ActivationUncertaintyCannotCrossCommitBoundary = AssertNever<
   Extract<
     RouterAbEd25519YaoRecoveryActivationCommitInputV1['outcome'],
     { readonly kind: 'backend_uncertain' }

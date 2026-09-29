@@ -64,12 +64,10 @@ SELECT 1 WHERE changes() = 0`;
 export class D1LinkedDeviceSessionStoreV1 implements LinkedDeviceSessionStoreV1 {
   private readonly database: D1DatabaseLike;
   private readonly scope: D1LinkedDeviceSessionScopeV1;
-  private readonly now: () => number;
 
   constructor(options: D1LinkedDeviceSessionStoreOptionsV1) {
     this.database = options.database;
     this.scope = normalizeScope(options.scope);
-    this.now = options.now ?? Date.now;
   }
 
   async createUnclaimedSessionV1(

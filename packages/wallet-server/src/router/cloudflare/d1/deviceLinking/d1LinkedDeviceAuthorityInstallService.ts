@@ -112,7 +112,7 @@ import {
   type RouterAbEd25519YaoCeremonyBindingV1,
 } from '@shared/utils/routerAbEd25519Yao';
 import { routerAbMpcMaterialActivationRefFromWire } from '@shared/utils/routerAbNormalSigningIdentity';
-import { d1ChangedRows, parseD1JsonColumn } from '../../../../storage/d1Sql';
+import { parseD1JsonColumn } from '../../../../storage/d1Sql';
 import {
   D1WalletAuthorityStore,
   type D1WalletAuthorityStoreScope,
@@ -1944,39 +1944,6 @@ export class D1LinkedDeviceAuthorityInstallServiceV1 {
       expiresAtMs: issuedAtMs + ttlMs,
     };
     return input;
-  }
-
-  private async markInstalled(
-    stored: StoredInstallationRow,
-    receipt: LocalAuthorityInstallationReceiptV1,
-  ): Promise<void> {
-    const result = await this.options.database
-      .prepare(
-        `UPDATE linked_device_authority_installations
-            SET installed_record_set_digest_b64u = ?, activated_at_ms = ?, updated_at_ms = ?
-          WHERE namespace = ? AND org_id = ? AND project_id = ? AND env_id = ?
-            AND link_session_id = ? AND package_set_digest_b64u = ?
-            AND (installed_record_set_digest_b64u IS NULL OR installed_record_set_digest_b64u = ?)`,
-      )
-      .bind(
-        String(receipt.installedRecordSetDigestB64u),
-        receipt.installedAtMs,
-        receipt.installedAtMs,
-        this.options.scope.namespace,
-        this.options.scope.orgId,
-        this.options.scope.projectId,
-        this.options.scope.envId,
-        String(stored.linkSessionId),
-        String(stored.packageSetDigestB64u),
-        String(receipt.installedRecordSetDigestB64u),
-      )
-      .run();
-    if (d1ChangedRows(result) !== 1) {
-      const replay = await this.readInstallation(stored.linkSessionId);
-      if (replay?.installedRecordSetDigestB64u !== receipt.installedRecordSetDigestB64u) {
-        throw new Error('installation acknowledgement conflicts with a prior receipt');
-      }
-    }
   }
 
   private async prepareAuthorityAllocation(

@@ -71,7 +71,6 @@ import type {
 import {
   type RouterAbEd25519YaoActivationAdmissionReceiptV1,
   parseRouterAbEd25519YaoRegistrationAdmissionRequestV1,
-  parseRouterAbEd25519YaoRegistrationActivationAdmissionReceiptV1,
   type RouterAbEd25519YaoBytes32V1,
   type RouterAbEd25519YaoRegistrationAdmissionRequestV1,
 } from '@shared/utils/routerAbEd25519Yao';
@@ -146,7 +145,6 @@ const WALLET_REGISTRATION_NEAR_PROVISIONING_PATH = '/wallets/register/near-provi
 /** Managed environment id header for Router API `api_credentials` auth. */
 const ROUTER_API_ENVIRONMENT_ID_HEADER = 'X-Seams-Environment-Id';
 const WALLET_REGISTRATION_PREPARE_PATH = '/wallets/register/prepare';
-const WALLET_REGISTRATION_FINALIZE_PATH = '/wallets/register/finalize';
 const WRANGLER_WORKER_RESTARTED_MID_REQUEST = 'Your worker restarted mid-request';
 
 function utf8Bytes(value: string): number {
@@ -685,7 +683,7 @@ function readWalletRegistrationResponseField(
 function readOptionalWalletRegistrationResponseField(
   record: object,
   field: string,
-  label: string,
+  _label: string,
 ): unknown {
   if (!Object.keys(record).includes(field)) return undefined;
   return Reflect.get(record, field);

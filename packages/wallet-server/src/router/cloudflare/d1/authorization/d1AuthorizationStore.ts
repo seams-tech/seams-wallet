@@ -1,5 +1,4 @@
 import {
-  parseWalletAuthMethodId,
   parseWalletAuthorityId,
   mpcMaterialActivationRefsEqual,
   type MpcMaterialActivationRef,
@@ -227,13 +226,6 @@ const ACTIVE_V2_AUTHORITY_METHOD_EXISTS_SQL = `
        AND authority.authority_digest_b64u = ?
        AND authority.revocation_epoch = ?
   )`;
-
-function storedAuthMethodId(raw: unknown): WalletAuthMethodId | null {
-  if (raw === null || raw === undefined) return null;
-  const parsed = parseWalletAuthMethodId(raw);
-  if (!parsed.ok) throw new Error('stored Wallet Session auth-method identity is invalid');
-  return parsed.value;
-}
 
 const ACTIVE_V2_HOSTED_PARENT_PROVENANCE_SQL = `
   EXISTS (
@@ -1574,39 +1566,6 @@ export class CloudflareD1AuthorizationStore
         promotionAtMs: input.promotionAtMs,
       },
     });
-  }
-
-  private async existingWalletSessionAuthorizationV2QuotaMatches(
-    quota: ActiveWalletSessionQuota,
-  ): Promise<boolean> {
-    const row = await this.database
-      .prepare(
-        `SELECT
-           tenant_id,
-           principal_id,
-           wallet_session_id,
-           quota_id,
-           remaining_uses,
-           lifecycle_kind,
-           expires_at_ms
-         FROM authorization_wallet_session_quotas
-        WHERE namespace = ?
-          AND tenant_id = ?
-          AND quota_id = ?
-        LIMIT 1`,
-      )
-      .bind(this.namespace, quota.tenantId, String(quota.quotaId))
-      .first<D1Row>();
-    return (
-      row !== null &&
-      row.tenant_id === String(quota.tenantId) &&
-      row.principal_id === String(quota.principalId) &&
-      row.wallet_session_id === String(quota.walletSessionId) &&
-      row.quota_id === String(quota.quotaId) &&
-      row.lifecycle_kind === 'active' &&
-      integerColumn(row.remaining_uses, 'V2 quota.remainingUses') === quota.remainingUses &&
-      integerColumn(row.expires_at_ms, 'V2 quota.expiresAtMs') === quota.expiresAtMs
-    );
   }
 
   async readWalletSessionAuthorizationV2ByMint(
@@ -3028,22 +2987,6 @@ function parseOperationFingerprint(value: unknown): CapabilityOperationFingerpri
     throw new Error(
       `operation.operationFingerprintDigest: ${error instanceof Error ? error.message : String(error)}`,
     );
-  }
-}
-
-function parseDigestResult(
-  value: unknown,
-): AuthorizationParseResult<import('@shared/utils/canonicalPrimitives').DigestB64u> {
-  try {
-    return { ok: true, value: parseDigestB64u(value) };
-  } catch (error) {
-    return {
-      ok: false,
-      error: {
-        code: 'invalid',
-        message: error instanceof Error ? error.message : String(error),
-      },
-    };
   }
 }
 

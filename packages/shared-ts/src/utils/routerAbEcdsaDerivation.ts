@@ -1156,14 +1156,6 @@ function requireBase64UrlNonEmpty(value: unknown, label: string): string {
   return parsed;
 }
 
-function requireLowerHexFixed(value: unknown, label: string, byteLength: number): string {
-  const parsed = requireAsciiNonEmptyString(value, label);
-  if (!new RegExp(`^[0-9a-f]{${byteLength * 2}}$`).test(parsed)) {
-    throw new Error(`${label} must contain ${byteLength} lowercase hexadecimal bytes`);
-  }
-  return parsed;
-}
-
 function requireX25519PublicKey(value: unknown, label: string): string {
   const parsed = requireAsciiNonEmptyString(value, label);
   if (!/^x25519:[0-9a-f]{64}$/.test(parsed)) {

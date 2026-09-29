@@ -25,7 +25,6 @@ import {
 import {
   completeWalletRegistrationNearProvisioning,
   activateWalletRegistration,
-  type WalletRegistrationActivateResponseV2,
   type WalletRegistrationNearProvisioningResponseV2,
 } from '@/core/rpcClients/relayer/walletRegistration';
 import {

@@ -11,7 +11,7 @@ import {
   type NearEd25519SigningKeyId,
   type WalletId,
 } from '@shared/utils/registrationIntent';
-import { parseWebAuthnRpId, type WebAuthnRpId } from '@shared/utils/domainIds';
+import type { WebAuthnRpId } from '@shared/utils/domainIds';
 import type { RouterAbEcdsaDerivationPublicCapabilityV1 } from '@shared/utils/routerAbEcdsaDerivation';
 import { compactImplicitNearAccountId } from '@shared/utils/near';
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
@@ -258,11 +258,6 @@ type StoreWalletRegistrationComposition =
 const WALLET_SUBJECT_CHAIN_ID_KEY = 'wallet';
 const WALLET_SUBJECT_ACCOUNT_MODEL = 'wallet';
 const THRESHOLD_ECDSA_ACCOUNT_MODEL = 'threshold-ecdsa';
-function requireWebAuthnRpId(value: string): WebAuthnRpId {
-  const parsed = parseWebAuthnRpId(value);
-  if (!parsed.ok) throw new Error(parsed.error.message);
-  return parsed.value;
-}
 
 function toWalletAuthMethod(authMethod: unknown): WalletAuthMethod | null {
   if (authMethod === SIGNER_AUTH_METHODS.emailOtp) return SIGNER_AUTH_METHODS.emailOtp;

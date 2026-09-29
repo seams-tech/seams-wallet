@@ -453,7 +453,7 @@ function parseRecipientRequestTuple(
   if (!Array.isArray(value) || value.length === 0 || value.length > 2) {
     throw new Error('ordinary signer material recipient requests must contain one or two entries');
   }
-  const requests = value.map((entry, index): OrdinarySignerMaterialRecipientRequestV1 => {
+  const requests = value.map((entry): OrdinarySignerMaterialRecipientRequestV1 => {
     if (isOrdinaryEd25519RecipientRequestRecordV1(entry)) {
       if (
         entry.kind !== 'ordinary_ed25519_signer_material_recipient_request_v1' ||
@@ -523,7 +523,7 @@ function parseRecipientInputTuple(
   if (!Array.isArray(value) || value.length === 0 || value.length > 2) {
     throw new Error('ordinary signer material recipient inputs must contain one or two entries');
   }
-  const inputs = value.map((entry, index): DeviceLinkingOrdinarySignerMaterialRecipientInputV1 => {
+  const inputs = value.map((entry): DeviceLinkingOrdinarySignerMaterialRecipientInputV1 => {
     if (isOrdinaryEd25519RecipientInputRecordV1(entry)) {
       if (
         entry.kind !== 'ordinary_ed25519_signer_material_recipient_input_v1' ||

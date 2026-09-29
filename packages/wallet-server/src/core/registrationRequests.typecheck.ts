@@ -17,7 +17,6 @@ import {
   registrationIntentGrantFromString,
   walletIdFromString,
   type AddAuthMethodIntentV1,
-  type EmailOtpRegistrationProof,
   type RegistrationIntentV1,
 } from '@shared/utils/registrationIntent';
 import {

@@ -359,13 +359,6 @@ function requireBytes32(value: Uint8Array, label: string): Uint8Array {
   return value;
 }
 
-function requireBytes12(value: Uint8Array, label: string): Uint8Array {
-  if (!(value instanceof Uint8Array) || value.length !== 12) {
-    throw new Error(`${label} must contain 12 bytes`);
-  }
-  return value;
-}
-
 type RouterAbEd25519YaoPasskeyExportSeedInputV1 = {
   request: RouterAbEd25519YaoExportAdmissionRequestV1;
   transport: RouterAbEd25519YaoExportTransportV1;

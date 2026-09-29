@@ -358,21 +358,6 @@ function targetSigningWorkerRefV1(
   return parsed.value;
 }
 
-function isRegistrationBackedSourceLane(
-  laneKind: EcdsaAdditiveLaneJobV1['source']['laneKind'],
-): boolean {
-  switch (laneKind) {
-    case 'owner_passkey':
-    case 'owner_email_otp':
-    case 'recovery':
-    case 'break_glass':
-      return true;
-    case 'linked_device':
-    case 'delegated_execution':
-      return false;
-  }
-}
-
 async function resolveOwnerEcdsaSourceSignerV1(input: {
   readonly walletRegistration: EcdsaOwnerSourceSignerContinuityPortV1;
   readonly job: EcdsaAdditiveLaneJobV1;

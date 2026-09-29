@@ -1750,84 +1750,6 @@ export class SeamsWeb {
     });
   }
 
-  private emitEmailOtpRegistrationWorkerProgress(
-    onEvent: ((event: RegistrationFlowEvent) => void) | undefined,
-    args: {
-      flowId: string;
-      walletId: string;
-      challengeId?: string;
-      chainTarget: ThresholdEcdsaChainTarget;
-      progress: EmailOtpWorkerProgressEvent;
-    },
-  ): RegistrationEventPhase | null {
-    const base = {
-      flowId: args.flowId,
-      walletId: args.walletId,
-      authMethod: 'email_otp' as const,
-      ...(args.challengeId ? { requestId: args.challengeId } : {}),
-    };
-    switch (args.progress.code) {
-      case 'otp.verify.succeeded':
-        this.emitEmailOtpRegistrationEvent(onEvent, {
-          ...base,
-          phase: RegistrationEventPhase.STEP_04_OTP_VERIFY_SUCCEEDED,
-          status: 'succeeded',
-          interaction: { kind: 'otp_input', overlay: 'hide' },
-        });
-        return RegistrationEventPhase.STEP_04_OTP_VERIFY_SUCCEEDED;
-      case 'signer.email_otp.enroll.started':
-        this.emitEmailOtpRegistrationEvent(onEvent, {
-          ...base,
-          phase: RegistrationEventPhase.STEP_09_EMAIL_OTP_SIGNER_ENROLL_STARTED,
-          status: 'running',
-        });
-        return RegistrationEventPhase.STEP_09_EMAIL_OTP_SIGNER_ENROLL_STARTED;
-      case 'signer.email_otp.enroll.succeeded':
-        this.emitEmailOtpRegistrationEvent(onEvent, {
-          ...base,
-          phase: RegistrationEventPhase.STEP_09_EMAIL_OTP_SIGNER_ENROLL_SUCCEEDED,
-          status: 'succeeded',
-        });
-        return RegistrationEventPhase.STEP_09_EMAIL_OTP_SIGNER_ENROLL_SUCCEEDED;
-      case 'signer.ecdsa.bootstrap.started':
-        this.emitEmailOtpRegistrationEvent(onEvent, {
-          ...base,
-          phase: RegistrationEventPhase.STEP_10_ECDSA_SIGNER_PROVISION_STARTED,
-          status: 'running',
-          data: { chainTarget: args.chainTarget },
-        });
-        return RegistrationEventPhase.STEP_10_ECDSA_SIGNER_PROVISION_STARTED;
-      case 'signer.ecdsa.bootstrap.prepared':
-        this.emitEmailOtpRegistrationEvent(onEvent, {
-          ...base,
-          phase: RegistrationEventPhase.STEP_10_ECDSA_SIGNER_PROVISION_STARTED,
-          status: 'running',
-          message: 'Coordinating EVM signing session',
-          data: { chainTarget: args.chainTarget },
-        });
-        return RegistrationEventPhase.STEP_10_ECDSA_SIGNER_PROVISION_STARTED;
-      case 'signer.ecdsa.bootstrap.responded':
-        this.emitEmailOtpRegistrationEvent(onEvent, {
-          ...base,
-          phase: RegistrationEventPhase.STEP_10_ECDSA_SIGNER_PROVISION_STARTED,
-          status: 'running',
-          message: 'Finalizing EVM signing session',
-          data: { chainTarget: args.chainTarget },
-        });
-        return RegistrationEventPhase.STEP_10_ECDSA_SIGNER_PROVISION_STARTED;
-      case 'signer.ecdsa.bootstrap.succeeded':
-        this.emitEmailOtpRegistrationEvent(onEvent, {
-          ...base,
-          phase: RegistrationEventPhase.STEP_10_ECDSA_SIGNER_PROVISION_SUCCEEDED,
-          status: 'succeeded',
-          data: { chainTarget: args.chainTarget },
-        });
-        return RegistrationEventPhase.STEP_10_ECDSA_SIGNER_PROVISION_SUCCEEDED;
-      default:
-        return null;
-    }
-  }
-
   private emitEmailOtpUnlockWorkerProgress(
     onEvent: ((event: UnlockFlowEvent) => void) | undefined,
     args: {
@@ -2622,7 +2544,6 @@ export class SeamsWeb {
         this.emitEmailOtpUnlockEvent(args.onEvent, input);
       };
       let timingStartedAtMs = nowMs();
-      const relayUrl = String(args.relayUrl || this.configs.network.relayer.url).trim();
       const emailHashHex = await this.emailOtpEmailHashHex(args.emailOtpAuthorityEmail || '');
       recordEmailOtpUnlockTiming(unlockTiming.timings, 'emailHashLookupMs', timingStartedAtMs);
       timingStartedAtMs = nowMs();

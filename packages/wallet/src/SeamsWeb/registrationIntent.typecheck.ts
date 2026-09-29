@@ -47,7 +47,7 @@ const rpId = unwrapDomainId(parseWebAuthnRpId('wallet.example.test'));
 declare const custodyEnvelope: PasskeyCustodyEnvelopeRecord;
 declare const addSignerAuthority: ActiveWalletAuthorityV1;
 
-const ed25519Spec = {
+export const ed25519Spec = {
   accountProvisioning: implicitNearAccountProvisioning(),
   signerSlot: 1,
   participantIds: [1, 2],

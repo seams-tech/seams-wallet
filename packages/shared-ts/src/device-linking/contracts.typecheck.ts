@@ -120,7 +120,7 @@ const invalidOwnerAuthorization: LinkedDeviceOwnerAuthorizationSourceV1 = {
   stepUpEvidenceSetId: digest,
 };
 
-const invalidStepUpOwnerAuthorization: LinkedDeviceOwnerAuthorizationSourceV1 = {
+export const invalidStepUpOwnerAuthorization: LinkedDeviceOwnerAuthorizationSourceV1 = {
   // @ts-expect-error linked-device authorization requires an exact Wallet Session
   kind: 'step_up',
   evidenceSetId: digest,

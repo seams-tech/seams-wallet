@@ -72,7 +72,6 @@ import type {
   StoreEcdsaRoleLocalSigningMaterialErrorCode,
   StoreEcdsaRoleLocalSigningMaterialOutput,
 } from '../types';
-import type { EcdsaDerivationRelayerPublicKey33B64u } from '@shared/threshold/ecdsaDerivationRoleLocalBootstrap';
 import { toRpId } from '@/core/signingEngine/session/identity/evmFamilyEcdsaIdentity';
 
 type BrowserRuntimePortsDeps = {
@@ -97,14 +96,6 @@ function unavailable<T>(message: string): PlatformResult<T, 'unavailable'> {
   return { ok: false, code: 'unavailable', message };
 }
 
-type BrowserRelayerPublicIdentity = {
-  relayerKeyId: string;
-  relayerPublicKey33B64u: EcdsaDerivationRelayerPublicKey33B64u;
-  groupPublicKey33B64u: string;
-  ethereumAddress: `0x${string}`;
-  relayerShareRetryCounter: number;
-};
-
 type SignerCryptoInvocationFailure<CommandCode extends string> = Extract<
   SignerCryptoResult<never, CommandCode>,
   { ok: false; failure: 'invocation' }
@@ -127,36 +118,6 @@ function signerCryptoCommandFailure<CommandCode extends string>(
   message: string,
 ): SignerCryptoCommandFailure<CommandCode> {
   return { ok: false, failure: 'command', code, message };
-}
-
-function requiredString(value: unknown, field: string): string {
-  if (typeof value !== 'string') {
-    throw new Error(`ECDSA client bootstrap state is missing ${field}`);
-  }
-  const normalized = value.trim();
-  if (!normalized) {
-    throw new Error(`ECDSA client bootstrap state is missing ${field}`);
-  }
-  return normalized;
-}
-
-function requiredNonNegativeInteger(value: unknown, field: string): number {
-  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) {
-    throw new Error(`${field} must be a non-negative safe integer`);
-  }
-  return value;
-}
-
-function requireBase64UrlBytes(value: string, field: string, byteLength: number): string {
-  const normalized = String(value || '').trim();
-  if (!normalized) {
-    throw new Error(`${field} is required`);
-  }
-  const decoded = base64UrlDecode(normalized);
-  if (decoded.length !== byteLength) {
-    throw new Error(`${field} must decode to ${byteLength} bytes`);
-  }
-  return normalized;
 }
 
 function decodeBase64UrlArrayBuffer(value: string): ArrayBuffer {
@@ -197,27 +158,6 @@ function browserPasskeyCreationOptions(
       },
     } as AuthenticationExtensionsClientInputs,
   };
-}
-
-function parsePublicKey33B64u(value: string, field: string): string {
-  return requireBase64UrlBytes(value, field, 33);
-}
-
-function parseRelayerEcdsaDerivationPublicKey33B64u(
-  value: string,
-): EcdsaDerivationRelayerPublicKey33B64u {
-  return parsePublicKey33B64u(
-    value,
-    'ECDSA relayer DERIVATION public key',
-  ) as EcdsaDerivationRelayerPublicKey33B64u;
-}
-
-function parseEthereumAddress(value: unknown): `0x${string}` {
-  const normalized = String(value || '').trim();
-  if (!/^0x[0-9a-fA-F]{40}$/.test(normalized)) {
-    throw new Error('ECDSA relayer public identity has invalid ethereumAddress');
-  }
-  return normalized as `0x${string}`;
 }
 
 function isNativeBindingFailureMessage(message: string): boolean {
@@ -271,34 +211,6 @@ function mapFinalizeEcdsaCommandError(
     return signerCryptoCommandFailure('public_identity_mismatch', message);
   }
   return signerCryptoCommandFailure('invalid_pending_state', message);
-}
-
-function parseRelayerPublicIdentity(input: unknown): BrowserRelayerPublicIdentity {
-  if (input === null || typeof input !== 'object' || Array.isArray(input)) {
-    throw new Error('ECDSA relayer public identity must be an object');
-  }
-  const fields = Object.keys(input).sort();
-  if (
-    fields.join(',') !==
-    'ethereumAddress,groupPublicKey33B64u,relayerKeyId,relayerPublicKey33B64u,relayerShareRetryCounter'
-  ) {
-    throw new Error('ECDSA relayer public identity fields are invalid');
-  }
-  return {
-    relayerKeyId: requiredString(Reflect.get(input, 'relayerKeyId'), 'relayerKeyId'),
-    relayerPublicKey33B64u: parseRelayerEcdsaDerivationPublicKey33B64u(
-      requiredString(Reflect.get(input, 'relayerPublicKey33B64u'), 'relayerPublicKey33B64u'),
-    ),
-    groupPublicKey33B64u: parsePublicKey33B64u(
-      requiredString(Reflect.get(input, 'groupPublicKey33B64u'), 'groupPublicKey33B64u'),
-      'groupPublicKey33B64u',
-    ),
-    ethereumAddress: parseEthereumAddress(Reflect.get(input, 'ethereumAddress')),
-    relayerShareRetryCounter: requiredNonNegativeInteger(
-      Reflect.get(input, 'relayerShareRetryCounter'),
-      'relayerShareRetryCounter',
-    ),
-  };
 }
 
 function createBrowserDurableRecordStore(
@@ -738,9 +650,7 @@ function createBrowserSignerCryptoPort(
           'ECDSA client bootstrap pending blob envelope is invalid',
         );
       }
-      let relayerPublicIdentity: BrowserRelayerPublicIdentity;
       try {
-        relayerPublicIdentity = parseRelayerPublicIdentity(input.relayerPublicIdentity);
       } catch (error) {
         return signerCryptoCommandFailure('invalid_relayer_public_identity', errorMessage(error));
       }

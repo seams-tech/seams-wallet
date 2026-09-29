@@ -76,7 +76,7 @@ export function requireRouterAbEd25519NormalSigningReadyState(args: {
   requireEqual(state.signingLane.quotaId, quotaId, 'lane quotaId');
 
   const nearAccountId = requireNonEmpty(args.nearAccountId, 'nearAccountId');
-  const walletId = requireNonEmpty(
+  requireNonEmpty(
     state.signingLane.identity.signer.account.wallet.walletId,
     'state.signingLane.identity.signer.account.wallet.walletId',
   );

@@ -47,10 +47,6 @@ export type ClaimedAuthorizedOperation = AuthorizedOperation & {
   readonly completedAtMs?: never;
 };
 
-type ActiveWalletKeyRecord = WalletKeyRecord & {
-  readonly lifecycle: Extract<WalletKeyRecord['lifecycle'], { readonly state: 'active' }>;
-};
-
 type OwnerSigningLaneRecord = Extract<
   SigningLaneRecord,
   {

@@ -958,7 +958,7 @@ export async function resolveAmbiguousEcdsaActivationForSelectedAuthMethod(input
 }
 
 async function resolveBrowserCanonicalEcdsaSigningCapability(
-  args: BrowserEcdsaCapabilityReaderContext,
+  _args: BrowserEcdsaCapabilityReaderContext,
   input: Parameters<
     Parameters<typeof createSigningEnginePorts>[0]['resolveCanonicalEcdsaSigningCapability']
   >[0],

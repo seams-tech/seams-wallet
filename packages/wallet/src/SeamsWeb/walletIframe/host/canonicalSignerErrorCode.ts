@@ -164,7 +164,7 @@ function inferCanonicalCodeFromRawCode(args: {
   rawCode: string;
   requestType?: unknown;
 }): CanonicalWalletSignerErrorCode | null {
-  const { rawCode, requestType } = args;
+  const { rawCode } = args;
   if (!rawCode) return null;
 
   if (CANONICAL_SIGNER_CODES.has(rawCode as CanonicalWalletSignerErrorCode)) {
@@ -257,7 +257,7 @@ function inferCanonicalCodeFromMessage(args: {
   message: string;
   requestType?: unknown;
 }): CanonicalWalletSignerErrorCode | null {
-  const { message, requestType } = args;
+  const { message } = args;
   if (!message) return null;
 
   if (looksLikeUserCancellationMessage(message)) {

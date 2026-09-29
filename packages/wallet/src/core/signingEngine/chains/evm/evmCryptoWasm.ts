@@ -61,11 +61,6 @@ function toWasmTx(tx: Eip1559UnsignedTx): Eip1559TxWasmJson {
 const EVM_CRYPTO_WORKER_KIND = 'evmCrypto' as const;
 const EVM_CRYPTO_WORKER_TIMEOUT_MS = 20_000;
 
-function zeroizeBytes(bytes?: Uint8Array | null): void {
-  if (!(bytes instanceof Uint8Array)) return;
-  bytes.fill(0);
-}
-
 export async function computeEip1559TxHashWasm(
   tx: Eip1559UnsignedTx,
   workerCtx: WorkerOperationContext,

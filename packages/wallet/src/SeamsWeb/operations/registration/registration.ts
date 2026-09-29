@@ -14,7 +14,6 @@ import {
 import {
   planPendingNearRegistration,
   preparePendingNearRegistration,
-  pendingRegistrationIdentity,
   type PendingNearRegistrationContinuationV1,
 } from '@/core/indexedDB/pendingWalletRegistrationCommit';
 import { isObject } from '@shared/utils/validation';
@@ -170,7 +169,6 @@ import {
   type WalletRegistrationEmailOtpEnrollmentMaterial,
   type WalletRegistrationEcdsaPreparePayload,
   type WalletRegistrationSetupSuccessV2,
-  type WalletRegistrationStartResponse,
   type WalletAddSignerFinalizeResponse,
   type WalletAddSignerStartResponse,
 } from '@/core/rpcClients/relayer/walletRegistration';
@@ -269,7 +267,6 @@ import {
   passkeyWalletAuthAuthorityFromCredential,
   registrationEd25519MaterialFacts,
   registrationEstablishedEd25519Session,
-  requireDeferredNearWork,
   requireEd25519YaoRegistrationPublicResultMatches,
   requireEmailOtpEd25519YaoRegistrationPublicResultMatches,
   requireEmailOtpRegistrationEnrollmentMaterial,
@@ -2241,11 +2238,6 @@ function requireEcdsaRegistrationSetup(
   }
 }
 
-type EcdsaEnabledRegistrationStart = Extract<
-  WalletRegistrationStartResponse,
-  { kind: 'evm_family_ecdsa' | 'near_ed25519_and_evm_family_ecdsa' }
->;
-
 function registrationPasskeySignerSlot(args: RegisterEcdsaOrMixedWalletArgs): number {
   switch (args.kind) {
     case 'evm_family_ecdsa':
@@ -2277,37 +2269,6 @@ type DeferredNearCustodyWork = {
   readonly envelope: PasskeyCustodyEnvelopeRecord;
   readonly factorSecret32: ArrayBuffer;
 };
-
-function pendingRegistrationAuthFromPersistenceAuth(args: {
-  auth: RegistrationPersistenceAuth;
-  authMaterial: DeferredRegistrationFinalizeAuthMaterial;
-}): Parameters<typeof buildPendingRegistrationCommit>[0]['auth'] {
-  switch (args.auth.kind) {
-    case 'passkey':
-      if (args.authMaterial.kind !== 'passkey') {
-        throw new Error('Deferred passkey registration auth material changed');
-      }
-      return {
-        kind: 'passkey',
-        rpId: args.auth.rpId,
-        credentialIdB64u: args.authMaterial.credentialIdB64u,
-        transports: [...args.auth.credential.response.transports],
-      };
-    case 'email_otp':
-      if (args.authMaterial.kind !== 'email_otp') {
-        throw new Error('Deferred Email OTP registration auth material changed');
-      }
-      return {
-        kind: 'email_otp',
-        email: args.auth.email,
-        registrationAuthorityId: args.auth.registrationAuthorityId,
-        providerSubject: emailOtpAuthContextProviderUserId(args.auth.emailOtpAuthContext),
-        enrollment: args.authMaterial.enrollment,
-      };
-    default:
-      return assertNever(args.auth);
-  }
-}
 
 function pendingRegistrationAuthFromRegistrationInputs(args: {
   authMethod: RegistrationAuthMethodInput;

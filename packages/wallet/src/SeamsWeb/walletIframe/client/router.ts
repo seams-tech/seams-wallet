@@ -1123,12 +1123,6 @@ function hostedWalletRegistrationTransport(
   }
 }
 
-function getErrorCode(error: Error): string {
-  if (!isObject(error)) return '';
-  const code = (error as { code?: unknown }).code;
-  return typeof code === 'string' ? code : '';
-}
-
 function walletIframeSurfaceBusyError(
   detail?: WalletIframeSurfaceBusyError,
 ): Error & { code: 'wallet_iframe_surface_busy'; detail?: WalletIframeSurfaceBusyError } {

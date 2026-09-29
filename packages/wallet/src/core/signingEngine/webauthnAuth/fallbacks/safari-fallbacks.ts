@@ -276,12 +276,6 @@ function cloneBufferSource<T extends BufferSource>(value: T): T {
   return new ViewCtor(clonedBytes.buffer) as unknown as T;
 }
 
-function notAllowedError(message: string): Error {
-  const e = new Error(message);
-  Object.defineProperty(e, 'name', { value: 'NotAllowedError', configurable: true });
-  return e;
-}
-
 // Private: error classification helpers
 function isAncestorOriginError(err: unknown): boolean {
   const msg = safeMessage(err);

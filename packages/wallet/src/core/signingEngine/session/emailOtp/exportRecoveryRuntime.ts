@@ -159,14 +159,4 @@ export class EmailOtpExportRecoveryRuntime {
       buildSigningSessionRoutePlan: buildEmailOtpSigningSessionRoutePlan,
     };
   }
-
-  private signingSessionWorkerPorts() {
-    return {
-      getSignerWorkerContext: this.ports.getSignerWorkerContext,
-      requireRelayUrl: this.ports.requireRelayUrl,
-      requireSigningSessionSealGroupId: this.ports.requireSigningSessionSealGroupId,
-      resolveSelectedWalletAuthority: this.ports.resolveSelectedWalletAuthority,
-      buildSigningSessionRoutePlan: buildEmailOtpSigningSessionRoutePlan,
-    };
-  }
 }

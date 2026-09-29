@@ -152,11 +152,6 @@ type TraceEntry = {
   status?: number;
 };
 
-type WebAuthnVirtualAuthenticatorHandle = {
-  readonly client: CDPSession;
-  readonly authenticatorId: string;
-};
-
 const WEB_AUTHN_VIRTUAL_AUTHENTICATOR_OPTIONS = {
   protocol: 'ctap2',
   transport: 'internal',
@@ -1179,8 +1174,6 @@ export class IntendedBehaviourHarness {
   private readonly config: IntendedHarnessConfig;
 
   private readonly violations: string[] = [];
-
-  private webAuthnVirtualAuthenticator: WebAuthnVirtualAuthenticatorHandle | null = null;
 
   private emailOtpVerificationCount = 0;
 
@@ -4482,8 +4475,7 @@ export class IntendedBehaviourHarness {
   private async installWebAuthnVirtualAuthenticator(): Promise<void> {
     const client = await this.context.newCDPSession(this.page);
     await client.send('WebAuthn.enable');
-    const authenticatorId = await addWebAuthnVirtualAuthenticator(client);
-    this.webAuthnVirtualAuthenticator = { client, authenticatorId };
+    await addWebAuthnVirtualAuthenticator(client);
     this.recordService('webauthn virtual authenticator ready');
   }
 
@@ -7761,14 +7753,6 @@ function requireHexString(raw: unknown, label: string): `0x${string}` {
     throw new Error(`${label} must be 0x-prefixed hex`);
   }
   return value as `0x${string}`;
-}
-
-function nullableNumber(raw: unknown, label: string): number | null {
-  if (raw === null) return null;
-  if (typeof raw !== 'number' || !Number.isFinite(raw)) {
-    throw new Error(`${label} must be a finite number or null`);
-  }
-  return raw;
 }
 
 function requirePositiveInteger(raw: unknown, label: string): number {

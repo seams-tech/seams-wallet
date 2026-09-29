@@ -276,13 +276,6 @@ function storedIntentOriginMatchesRequest(
   }
 }
 
-function allocateWalletAuthMethodId(): WalletAuthMethodId {
-  const parsed = parseWalletAuthMethodId(`wallet-auth-method:${secureRandomBase64Url(32)}`);
-  if (!parsed.ok)
-    throw new Error(`Generated wallet auth-method ID is invalid: ${parsed.error.message}`);
-  return parsed.value;
-}
-
 async function resolveActiveAddAuthMethodSource(input: {
   readonly walletAuthMethodStore: Pick<D1WalletAuthMethodStore, 'readByIdV2' | 'getPasskeyV2'>;
   readonly walletId: WalletId;

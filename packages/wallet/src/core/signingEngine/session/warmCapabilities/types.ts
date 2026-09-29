@@ -5,7 +5,6 @@ import type {
   WalletSessionId,
 } from '@shared/authorization/capabilityKinds';
 import type { SigningSessionStatus } from '@/core/types/seams';
-import { SIGNER_AUTH_METHODS, type SignerAuthMethod } from '@shared/utils/signerDomain';
 import type { EcdsaSessionProvisionPlan } from './ecdsaProvisionPlan';
 import type { ActiveEcdsaCapabilityManifest } from '../material/ecdsaCapabilityManifest';
 import type { ExactEcdsaSealedRuntime } from '../material/ecdsaSealedRuntime';
@@ -41,25 +40,6 @@ import type { ExactNearEd25519WalletSessionAuthorization } from '../material/nea
 import type { ExactEd25519SealedSessionRuntime } from './ed25519SealedSessionRuntime';
 import type { MpcMaterialActivationRef, ThresholdEd25519SessionId } from '@shared/utils/domainIds';
 import type { WalletSessionOperationCredentialV1 } from '@shared/device-linking';
-
-function authMethodForThresholdEcdsaSessionSource(
-  source: ThresholdEcdsaSessionStoreSource,
-): SignerAuthMethod {
-  switch (source) {
-    case SIGNER_AUTH_METHODS.emailOtp:
-      return SIGNER_AUTH_METHODS.emailOtp;
-    case 'login':
-    case 'registration':
-    case 'manual-bootstrap':
-      return SIGNER_AUTH_METHODS.passkey;
-    default:
-      return assertNeverThresholdEcdsaSessionSource(source);
-  }
-}
-
-function assertNeverThresholdEcdsaSessionSource(value: never): never {
-  throw new Error(`Unsupported threshold ECDSA session source: ${String(value)}`);
-}
 
 export type WarmSessionCapability = 'ed25519' | 'ecdsa';
 export type WarmSessionPrfClaimState = 'missing' | 'warm' | 'expired' | 'exhausted' | 'unavailable';
