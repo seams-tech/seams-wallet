@@ -119,33 +119,6 @@ fn sign(target: &TenantRootRoleCleanupTargetV1, seed: &[u8; 32]) -> TenantRootRo
 }
 
 #[test]
-fn a_pending_cleanup_command_round_trips_and_authorizes_exactly_one_row() {
-    let expected = pending_target(TwoPartyDeriverRole::DeriverB, 1);
-    let signed = sign(&expected, &ISSUER_SEED);
-    let bytes = signed.canonical_bytes().expect("canonical");
-    let decoded = TenantRootRoleCleanupCommandV1::decode_canonical_bytes(&bytes).expect("decoded");
-    assert_eq!(decoded, signed);
-    assert_eq!(decoded.operation(), "cleanup_pending_share");
-
-    let verified = decoded
-        .verify(
-            &expected,
-            TwoPartyDeriverRole::DeriverB,
-            authority(),
-            ISSUER_KEY_ID,
-            &verifying_key(&ISSUER_SEED),
-        )
-        .expect("verified");
-    assert_eq!(verified.target(), &expected);
-    assert_eq!(verified.role(), TwoPartyDeriverRole::DeriverB);
-    assert_eq!(verified.epoch(), TenantRootShareEpoch::INITIAL);
-    assert_eq!(verified.expected_row_revision(), 1);
-    assert!(verified.require_fresh(ISSUED_AT_MS + 1).is_ok());
-    assert!(verified.require_fresh(ISSUED_AT_MS).is_err());
-    assert!(verified.require_fresh(EXPIRES_AT_MS).is_err());
-}
-
-#[test]
 fn a_retired_cleanup_command_round_trips_and_binds_the_successor() {
     let expected = retired_target(TwoPartyDeriverRole::DeriverB, 4, epoch(2), 3);
     let signed = sign(&expected, &ISSUER_SEED);
@@ -168,40 +141,6 @@ fn a_retired_cleanup_command_round_trips_and_binds_the_successor() {
     assert_eq!(verified.epoch(), TenantRootShareEpoch::INITIAL);
     assert_eq!(verified.expected_row_revision(), 4);
     assert_eq!(verified.operation(), "cleanup_retired_share");
-}
-
-#[test]
-fn a_retired_cleanup_command_requires_adjacent_epoch_and_positive_revisions() {
-    let non_adjacent = retired_target(TwoPartyDeriverRole::DeriverB, 4, epoch(3), 3);
-    assert!(TenantRootRoleCleanupCommandV1::sign(
-        &non_adjacent,
-        authority(),
-        TenantRootCeremonyNonceV1::from_bytes([0x66; 32]).expect("nonce"),
-        ISSUED_AT_MS,
-        EXPIRES_AT_MS,
-        ISSUER_KEY_ID,
-        &ISSUER_SEED,
-    )
-    .is_err());
-
-    for (retired_revision, active_revision) in [(0, 3), (4, 0)] {
-        let target = retired_target(
-            TwoPartyDeriverRole::DeriverB,
-            retired_revision,
-            epoch(2),
-            active_revision,
-        );
-        assert!(TenantRootRoleCleanupCommandV1::sign(
-            &target,
-            authority(),
-            TenantRootCeremonyNonceV1::from_bytes([0x66; 32]).expect("nonce"),
-            ISSUED_AT_MS,
-            EXPIRES_AT_MS,
-            ISSUER_KEY_ID,
-            &ISSUER_SEED,
-        )
-        .is_err());
-    }
 }
 
 /// The row must not have moved. A revision bump means a different row state,

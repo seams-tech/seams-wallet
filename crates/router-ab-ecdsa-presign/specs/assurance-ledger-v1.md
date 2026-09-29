@@ -33,13 +33,11 @@ The normative local corpus is:
 
 The exact upstream oracle is commit
 `db609be5021eb9d794f577601f422818fbdfe246`, Git tree
-`05f60d54971e2f1e417dab7191f0f5d02f82468c`. The machine-checked source and
-vector manifest is
+`05f60d54971e2f1e417dab7191f0f5d02f82468c`. The source and vector manifest is
 [`fixtures/v1/manifest.json`](../../router-ab-ecdsa-near-oracle-tests/fixtures/v1/manifest.json),
 SHA-256 `0e38983aebc110b4f0407a6b2d0349b3e398b373e0639472e1510e47113fc577`.
 It pins 23 upstream source/document files by digest and seven deterministic
-vector families. `oracle_manifest.rs` verifies the Cargo git source, commit,
-tree, every file digest, and the exact vector-ID set. The presign replay vector
+vector families. No test checks the upstream sources against it. The presign replay vector
 freezes all four role-pair cases under normalized semantic trace digest
 `2d6d2691b277b65ebd66fe81d66d0c875412747265d18c7131963f1b8ab72d06`.
 
