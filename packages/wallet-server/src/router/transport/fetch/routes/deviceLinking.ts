@@ -74,10 +74,10 @@ import {
 } from '../../../../core/deviceLinking/requestProof';
 import type {
   LinkedDeviceOwnerAuthorizationContextV1,
-  LinkedDeviceSessionRecordV1,
   LinkedDeviceSessionServiceResultV1,
   LinkedDeviceSessionServiceV1,
 } from '../../../../core/deviceLinking/linkedDeviceSession';
+import type { LinkedDeviceSessionRecordV1 } from '../../../../core/deviceLinking/linkedDeviceSessionRecord';
 import type { FetchRouterApiContext } from '../createFetchRouter';
 import { json, readJson } from '../../../framework/http';
 import { normalizeCorsOrigin } from '../../../../core/SessionService';

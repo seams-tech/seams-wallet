@@ -27,7 +27,7 @@ import type {
 } from '@shared/utils/routerAbEd25519Yao';
 import { routerAbMpcMaterialActivationRefToWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import { parseSecp256k1CompressedPublicKeyB64u } from '@shared/passkey-custody/primitives';
-import type { LinkedDeviceSessionRecordV1 } from '../../../../core/deviceLinking/linkedDeviceSession';
+import type { LinkedDeviceSessionRecordV1 } from '../../../../core/deviceLinking/linkedDeviceSessionRecord';
 import type {
   LinkedDeviceOwnerSourceChildResolutionV1,
   LinkedDeviceOwnerSourceChildResolverV1,

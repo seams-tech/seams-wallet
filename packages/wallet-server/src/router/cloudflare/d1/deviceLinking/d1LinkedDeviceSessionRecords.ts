@@ -1,7 +1,7 @@
 import {
   parseLinkedDeviceSessionRecordV1,
   type LinkedDeviceSessionRecordV1,
-} from '../../../../core/deviceLinking/linkedDeviceSession';
+} from '../../../../core/deviceLinking/linkedDeviceSessionRecord';
 import { parseDigestB64u, type DigestB64u } from '@shared/utils/canonicalPrimitives';
 import { parseWalletAuthorityId, type WalletAuthorityId } from '@shared/utils/domainIds';
 import { requireCanonicalString } from '@shared/utils/validation';

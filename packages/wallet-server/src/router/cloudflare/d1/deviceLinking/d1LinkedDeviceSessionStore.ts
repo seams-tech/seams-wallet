@@ -20,6 +20,11 @@ import type {
   LinkedDeviceSessionClaimV1,
 } from '@shared/device-linking/contracts';
 import { assertNeverLinkSessionStateV1 } from '@shared/device-linking/contracts';
+import type {
+  LinkedDeviceSessionListCursorV1,
+  LinkedDeviceSessionListPageV1,
+  LinkedDeviceSessionStoreV1,
+} from '../../../../core/deviceLinking/linkedDeviceSession';
 import {
   LinkedDeviceRetiredSessionShapeErrorV1,
   approvalTranscriptMatchesDigest,
@@ -33,12 +38,9 @@ import {
   parseLinkedDeviceSessionRecordV1,
   sessionExpiryMsV1,
   sourceContributionTranscriptMatchesDigest,
-  type LinkedDeviceSessionListCursorV1,
-  type LinkedDeviceSessionListPageV1,
   type LinkedDeviceSessionMutationResultV1,
   type LinkedDeviceSessionRecordV1,
-  type LinkedDeviceSessionStoreV1,
-} from '../../../../core/deviceLinking/linkedDeviceSession';
+} from '../../../../core/deviceLinking/linkedDeviceSessionRecord';
 import { parseLinkDeviceSessionId, type LinkDeviceSessionId } from '@shared/signing-lanes/ids';
 import { hasControlCharacter } from '@shared/utils/domainIds';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';

@@ -43,7 +43,7 @@ import type {
   D1ResultLike,
 } from '../../../../storage/tenantRoute';
 import { d1ChangedRows } from '../../../../storage/d1Sql';
-import type { LinkedDeviceSessionRecordV1 } from '../../../../core/deviceLinking/linkedDeviceSession';
+import type { LinkedDeviceSessionRecordV1 } from '../../../../core/deviceLinking/linkedDeviceSessionRecord';
 import { linkedDeviceEmailOtpDescriptorCredentialIdV1 } from '../../../../core/deviceLinking/linkedDeviceEmailOtpGrant';
 import type {
   DeviceLinkingTargetCredentialProviderV1,

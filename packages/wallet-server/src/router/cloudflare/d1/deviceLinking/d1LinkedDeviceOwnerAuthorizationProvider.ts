@@ -70,10 +70,12 @@ import type { RouterApiWalletRegistrationService } from '../../../framework/auth
 import type {
   LinkedDeviceOwnerAuthorizationContextV1,
   LinkedDeviceOwnerAuthorizationPortV1,
+} from '../../../../core/deviceLinking/linkedDeviceSession';
+import type {
   LinkedDeviceSourceKeyManifestDigestsV1,
   LinkedDeviceSessionRecordV1,
-} from '../../../../core/deviceLinking/linkedDeviceSession';
-import { sourceKeyManifestDigestForFamilyV1 } from '../../../../core/deviceLinking/linkedDeviceSession';
+} from '../../../../core/deviceLinking/linkedDeviceSessionRecord';
+import { sourceKeyManifestDigestForFamilyV1 } from '../../../../core/deviceLinking/linkedDeviceSessionRecord';
 import type {
   DeviceLinkingOwnerAuthorizationResponseV1,
   DeviceLinkingOwnerAuthorizationRouteServiceV1,

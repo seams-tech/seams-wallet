@@ -33,7 +33,7 @@ import type {
 } from '@shared/utils/routerAbEd25519Yao';
 import type { NearEd25519SigningKeyId } from '@shared/utils/registrationIds';
 import type { WalletKeyId } from '@shared/signing-lanes/ids';
-import type { LinkedDeviceSessionRecordV1 } from '../../../../core/deviceLinking/linkedDeviceSession';
+import type { LinkedDeviceSessionRecordV1 } from '../../../../core/deviceLinking/linkedDeviceSessionRecord';
 import type { ExactAdministeredSignerV1 } from '@shared/device-linking/delegatedActivationPlan';
 import type { LinkedDeviceTargetPlannerV1 } from './d1LinkedDeviceTargetCredentialProvider';
 import { normalizeLinkedDevicePasskeyTargetConfigurationV1 } from '../auth/d1RouterApiAuthConfig';

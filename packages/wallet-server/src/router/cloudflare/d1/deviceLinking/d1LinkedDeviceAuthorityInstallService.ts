@@ -50,7 +50,7 @@ import {
   buildAuthorityActiveSessionRecordV1,
   buildAuthorityPendingLocalInstallSessionRecordV1,
   type LinkedDeviceSessionRecordV1,
-} from '../../../../core/deviceLinking/linkedDeviceSession';
+} from '../../../../core/deviceLinking/linkedDeviceSessionRecord';
 import type {
   LocalAuthorityActivationFinalAckV1,
   LocalAuthorityInstallationReceiptV1,

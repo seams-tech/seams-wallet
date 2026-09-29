@@ -32,7 +32,7 @@ import type { PrincipalId } from '@shared/authorization/capabilityKinds';
 import {
   sourceKeyManifestDigestForFamilyV1,
   type LinkedDeviceSessionRecordV1,
-} from '../../../../core/deviceLinking/linkedDeviceSession';
+} from '../../../../core/deviceLinking/linkedDeviceSessionRecord';
 import type { VerifiedLinkedDeviceTargetFactorEvidenceV1 } from './d1LinkedDeviceTargetCredentialProvider';
 
 const VERIFIED_TARGET_FACTOR_DOMAIN_V1 = 'seams/linked-device/verified-target-factor/v1';
