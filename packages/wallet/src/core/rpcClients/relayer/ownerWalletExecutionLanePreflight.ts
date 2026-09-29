@@ -51,7 +51,7 @@ export async function readOwnerWalletExecutionLaneProjectionV1(input: {
   return parseOwnerWalletExecutionLaneProjectionResponseV1(raw, input.curve);
 }
 
-export function parseOwnerWalletExecutionLaneProjectionResponseV1(
+function parseOwnerWalletExecutionLaneProjectionResponseV1(
   value: unknown,
   curve: 'ed25519' | 'ecdsa_secp256k1',
 ): OwnerWalletExecutionLaneProjectionV1 {

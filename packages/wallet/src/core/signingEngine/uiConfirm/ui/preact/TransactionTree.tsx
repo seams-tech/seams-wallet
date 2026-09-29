@@ -13,7 +13,7 @@ type TreeInteractions = {
   onCopy?: (value: string) => void;
 };
 
-export type TransactionTreeProps = TreeInteractions & {
+type TransactionTreeProps = TreeInteractions & {
   node: TreeNode;
   theme: 'light' | 'dark';
   showShadow: boolean;

@@ -19,14 +19,11 @@ import type {
   ActiveEcdsaCapabilityRuntimeResolver,
 } from '../material/activeEcdsaCapabilityRuntime';
 
-export type WarmSessionCapabilityReaderSealInput = {
+type WarmSessionCapabilityReaderSealInput = {
   groupId: string;
 } | null;
 
-export type WarmSessionCapabilityReaderTouchConfirmInput = Exclude<
-  WarmSessionReadPortsInput,
-  undefined
->;
+type WarmSessionCapabilityReaderTouchConfirmInput = Exclude<WarmSessionReadPortsInput, undefined>;
 
 export type WarmCapabilityReaderPortsConfigured = {
   runtimeStatus: 'configured';
@@ -44,7 +41,7 @@ export type WarmCapabilityReaderPortsNoRuntimeStatus = {
   ) => Promise<WarmSessionStatusResult>;
 };
 
-export type WarmCapabilityReaderPorts =
+type WarmCapabilityReaderPorts =
   | WarmCapabilityReaderPortsConfigured
   | WarmCapabilityReaderPortsNoRuntimeStatus;
 
@@ -73,7 +70,7 @@ function unavailableEmailOtpWarmSessionStatus(): WarmSessionStatusResult {
   };
 }
 
-export function normalizeWarmCapabilityReaderPorts(
+function normalizeWarmCapabilityReaderPorts(
   deps: Pick<
     WarmSessionCapabilityReaderFactoryDeps,
     'touchConfirm' | 'getEmailOtpWarmSessionStatus'
@@ -110,7 +107,7 @@ export function normalizeWarmCapabilityReaderPorts(
   };
 }
 
-export function normalizeWarmSessionCapabilityReaderSeal(
+function normalizeWarmSessionCapabilityReaderSeal(
   sealInput: WarmSessionCapabilityReaderSealInput,
 ): WarmSessionCapabilityReaderSeal {
   const groupId = String(sealInput?.groupId || '').trim();

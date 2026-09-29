@@ -1,4 +1,4 @@
-export type ThresholdParticipantRole = 'client' | 'relayer';
+type ThresholdParticipantRole = 'client' | 'relayer';
 
 import { toOptionalTrimmedString } from '../utils/validation';
 
@@ -13,7 +13,7 @@ export const THRESHOLD_ED25519_2P_PARTICIPANT_IDS = [
  * Metadata describing how a participant share is derived/stored.
  * This is informational in v1 and may be used for validation/policy later.
  */
-export type ThresholdEd25519ShareDerivation =
+type ThresholdEd25519ShareDerivation =
   | 'prf_first_v1'
   | 'derived_master_secret_v1'
   | 'kv_random_v1'
@@ -28,14 +28,6 @@ export interface ThresholdEd25519ParticipantV1 {
   /** Key/share identifier understood by this participant (e.g. relayerKeyId). */
   relayerKeyId?: string;
   shareDerivation?: ThresholdEd25519ShareDerivation;
-}
-
-export const THRESHOLD_ED25519_PARTICIPANT_SET_V1 = 'threshold_ed25519_participants_v1' as const;
-
-export interface ThresholdEd25519ParticipantSetV1 {
-  version: typeof THRESHOLD_ED25519_PARTICIPANT_SET_V1;
-  groupPublicKey: string;
-  participants: ThresholdEd25519ParticipantV1[];
 }
 
 export function normalizeThresholdEd25519ParticipantId(id: unknown): number | null {
@@ -58,17 +50,6 @@ export function normalizeThresholdEd25519ParticipantIds(input: unknown): number[
   }
   out.sort((a, b) => a - b);
   return out.length ? out : null;
-}
-
-export function areThresholdEd25519ParticipantIds2p(
-  participantIds: number[] | null | undefined,
-  expected: readonly number[] = THRESHOLD_ED25519_2P_PARTICIPANT_IDS,
-): boolean {
-  const ids = normalizeThresholdEd25519ParticipantIds(participantIds);
-  const expectedIds = normalizeThresholdEd25519ParticipantIds([...expected]);
-  if (!ids || !expectedIds) return false;
-  if (ids.length !== expectedIds.length) return false;
-  return ids.every((id, i) => id === expectedIds[i]);
 }
 
 export function parseThresholdEd25519ParticipantsV1(

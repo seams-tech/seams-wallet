@@ -4,7 +4,6 @@ import type {
   WalletSessionOperationCredentialV1,
 } from '@shared/device-linking/contracts';
 import type { ActiveWalletAuthorityV1 } from '@shared/authorization/walletAuthority';
-import type { ActiveWalletAuthMethodV2 } from '../identity/ownerLaneScope';
 import type { WalletAuthAuthority } from '@shared/utils/walletAuthAuthority';
 import type { SigningLaneAuthBinding } from '../identity/signingLaneAuthBinding';
 import type { MpcCapabilityHydrationPlan } from './mpcCapabilityHydration';
@@ -14,11 +13,12 @@ import {
   buildAuthorizedNearEd25519YaoSigningPreparation,
   type NearEd25519YaoSigningPreparation,
 } from './nearEd25519YaoSigningPreparation';
+import type { ActiveWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 
 declare const hydration: MpcCapabilityHydrationPlan;
 declare const requirement: SigningLaneAuthBinding;
 declare const selectedAuthority: ActiveWalletAuthorityV1;
-declare const selectedAuthMethod: ActiveWalletAuthMethodV2;
+declare const selectedAuthMethod: ActiveWalletAuthMethodRecordV2;
 declare const selectedFactorAuthority: WalletAuthAuthority;
 declare const session: ActiveWalletSessionV1;
 declare const operationCredential: WalletSessionOperationCredentialV1;

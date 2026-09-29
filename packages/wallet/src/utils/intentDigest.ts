@@ -5,7 +5,7 @@
 import { ActionType, type ActionArgsWasm, type TransactionInputWasm } from '../core/types';
 import { base64UrlEncode } from '@shared/utils/base64';
 import { alphabetizeStringify, sha256BytesUtf8 } from '@shared/utils/digests';
-import type { AddSignerIntentV1, RegistrationIntentV1 } from '@shared/utils/registrationIntent';
+import type { AddSignerIntentV1 } from '@shared/utils/registrationIntent';
 
 export async function sha256Base64UrlUtf8(input: string): Promise<string> {
   const digest = await sha256BytesUtf8(input);
@@ -31,20 +31,6 @@ export async function computeThresholdEcdsaKeygenIntentDigest(args: {
   // challenge bytes (32 bytes) during role-local threshold ECDSA bootstrap authorization.
   const json = alphabetizeStringify({ version: 'threshold_ecdsa_keygen_v1', ...args });
   return sha256Base64UrlUtf8(json);
-}
-
-export async function computeLoginIntentDigest(args: {
-  nearAccountId: string;
-  rpId: string;
-}): Promise<string> {
-  const json = alphabetizeStringify({ kind: 'login_session', ...args });
-  return sha256Base64UrlUtf8(json);
-}
-
-export async function computeRegistrationIntentDigest(
-  intent: RegistrationIntentV1,
-): Promise<string> {
-  return sha256Base64UrlUtf8(alphabetizeStringify(intent));
 }
 
 export async function computeAddSignerIntentDigest(intent: AddSignerIntentV1): Promise<string> {

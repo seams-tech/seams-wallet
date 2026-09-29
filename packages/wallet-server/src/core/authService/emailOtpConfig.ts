@@ -16,7 +16,7 @@ export type EmailOtpConfig = {
   maxActiveChallengesPerContext: number;
 };
 
-export type AuthRateLimitPolicy = {
+type AuthRateLimitPolicy = {
   limit: number;
   windowMs: number;
 };
@@ -29,7 +29,7 @@ export type EmailOtpRateLimitScope =
 
 export type EmailOtpRateLimitPolicies = Record<EmailOtpRateLimitScope, AuthRateLimitPolicy>;
 
-export type EmailOtpConfigInput = {
+type EmailOtpConfigInput = {
   thresholdStore: AuthServiceConfigSource;
   production: boolean;
 };
@@ -38,7 +38,7 @@ function readEmailOtpConfigValue(input: EmailOtpConfigInput, name: string): stri
   return readAuthServiceConfigValue({ thresholdStore: input.thresholdStore, name });
 }
 
-export function parseConfiguredInteger(input: {
+function parseConfiguredInteger(input: {
   name: string;
   raw: string;
   defaultValue: number;
@@ -83,36 +83,6 @@ function readBooleanFlag(input: EmailOtpConfigInput, name: string): string {
 
 function isTruthyBooleanFlag(raw: string): boolean {
   return ['1', 'true', 'yes', 'on'].includes(raw.toLowerCase());
-}
-
-export function resolveRegistrationPrepareRateLimitPolicy(
-  input: EmailOtpConfigInput,
-): AuthRateLimitPolicy {
-  const defaults = input.production
-    ? { limit: 1, windowMs: 5_000 }
-    : { limit: 100, windowMs: 60_000 };
-  return {
-    limit: parseConfiguredInteger({
-      name: 'REGISTRATION_PREPARE_RATE_LIMIT_MAX',
-      raw: readAuthServiceConfigValue({
-        thresholdStore: input.thresholdStore,
-        name: 'REGISTRATION_PREPARE_RATE_LIMIT_MAX',
-      }),
-      defaultValue: defaults.limit,
-      min: 1,
-      max: 10_000,
-    }),
-    windowMs: parseConfiguredInteger({
-      name: 'REGISTRATION_PREPARE_RATE_LIMIT_WINDOW_MS',
-      raw: readAuthServiceConfigValue({
-        thresholdStore: input.thresholdStore,
-        name: 'REGISTRATION_PREPARE_RATE_LIMIT_WINDOW_MS',
-      }),
-      defaultValue: defaults.windowMs,
-      min: 1_000,
-      max: 24 * 60 * 60_000,
-    }),
-  };
 }
 
 export function resolveEmailOtpRateLimitPolicies(

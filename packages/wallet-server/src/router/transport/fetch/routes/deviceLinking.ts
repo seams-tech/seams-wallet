@@ -33,9 +33,6 @@ import {
   parseLinkedDeviceEmailOtpChallengeStartRequestV1,
   parseLinkedDeviceEmailOtpChallengeVerifyRequestV1,
   parseLinkedDeviceEmailOtpVerificationResultV1,
-  parseActiveWalletSessionV1,
-  parseLocalAuthorityActivationFinalAckV1,
-  parseLocalAuthorityInstallationReceiptV1,
   parseLinkedDeviceSessionClaimRequestV1,
   parseLinkedDeviceSessionTransportRequestV1,
   parseLinkedDeviceTargetCredentialRegistrationV1,
@@ -43,6 +40,11 @@ import {
   parseLinkedDeviceTargetPreparationRequestV1,
   parseQrLinkedDeviceSessionPayloadV5,
 } from '@shared/device-linking/parsers';
+import { parseActiveWalletSessionV1 } from '@shared/device-linking/activeWalletSession';
+import {
+  parseLocalAuthorityActivationFinalAckV1,
+  parseLocalAuthorityInstallationReceiptV1,
+} from '@shared/device-linking/authorityActivation';
 import {
   parseLinkedDeviceEd25519ExportRootRecipientV1,
   parseLinkedDeviceEd25519ExportRootSubmissionV1,
@@ -72,10 +74,10 @@ import {
 } from '../../../../core/deviceLinking/requestProof';
 import type {
   LinkedDeviceOwnerAuthorizationContextV1,
-  LinkedDeviceSessionRecordV1,
   LinkedDeviceSessionServiceResultV1,
   LinkedDeviceSessionServiceV1,
 } from '../../../../core/deviceLinking/linkedDeviceSession';
+import type { LinkedDeviceSessionRecordV1 } from '../../../../core/deviceLinking/linkedDeviceSessionRecord';
 import type { FetchRouterApiContext } from '../createFetchRouter';
 import { json, readJson } from '../../../framework/http';
 import { normalizeCorsOrigin } from '../../../../core/SessionService';
@@ -88,11 +90,12 @@ import { parseDigestB64u, type DigestB64u } from '@shared/utils/canonicalPrimiti
 import { sha256Bytes } from '@shared/utils/digests';
 import { parseLinkDeviceSessionId, type LinkDeviceSessionId } from '@shared/signing-lanes/ids';
 import type { WalletAuthMethodId, WalletId } from '@shared/utils/domainIds';
+import { requireRecord } from '@shared/utils/validation';
 
 const DEVICE_LINKING_BASE = '/wallet/device-linking/v1/sessions';
 const TARGET_PREPARATION_ROUTE_ID = 'linked_device_target_preparation';
 const TARGET_CREDENTIAL_ROUTE_ID = 'linked_device_target_credential';
-export const DEVICE_LINKING_REQUEST_PROOF_HEADER_V1 = LINKED_DEVICE_REQUEST_PROOF_HEADER_V1;
+const DEVICE_LINKING_REQUEST_PROOF_HEADER_V1 = LINKED_DEVICE_REQUEST_PROOF_HEADER_V1;
 
 export type DeviceLinkingAuthDeniedV1 = {
   readonly kind: 'denied';
@@ -123,15 +126,13 @@ export type DeviceLinkingAuthenticatedRequestV1 = {
   readonly binding: DeviceLinkingRequestBindingV1;
 };
 
-export type DeviceLinkingRequestProofV1 = LinkedDeviceRequestProofV1;
+type DeviceLinkingRequestProofV1 = LinkedDeviceRequestProofV1;
 
 export type DeviceLinkingDeviceAuthenticatedRequestV1 = {
   readonly kind: 'authorized';
   readonly body: unknown;
   readonly proof: DeviceLinkingRequestProofV1;
 };
-
-export type DeviceLinkingRouteMutationResultV1 = LinkedDeviceSessionServiceResultV1;
 
 export type DeviceLinkingTargetCredentialProviderV1 = {
   getTargetPreparationV1(
@@ -226,7 +227,7 @@ export type DeviceLinkingEmailOtpTargetFactorProviderV1 = {
   >;
 };
 
-export type DeviceLinkingInstallationReceiptPortV1 = {
+type DeviceLinkingInstallationReceiptPortV1 = {
   commitPendingAuthorityV1(input: {
     readonly input: VerifiedLinkInputV1;
     readonly nowMs: number;
@@ -721,20 +722,14 @@ async function handleSourceContribution(
     nowMs,
     ed25519ExportRootPackage,
   });
-  if (committed.kind === 'invalid_input') {
+  if (committed.kind === 'invalid_input' || committed.kind === 'conflict') {
     const failed = await service.sessionService.failBeforeCommitV1({
       linkSessionId,
       expectedRevision: recorded.record.revision,
-      error: { kind: 'package_preparation_failed', reason: committed.message },
-      nowMs,
-    });
-    return sessionResultResponse(failed);
-  }
-  if (committed.kind === 'conflict') {
-    const failed = await service.sessionService.failBeforeCommitV1({
-      linkSessionId,
-      expectedRevision: recorded.record.revision,
-      error: { kind: 'package_preparation_failed', reason: committed.message },
+      error: {
+        kind: 'package_preparation_failed',
+        reason: precommitFailureReasonV1(committed.message),
+      },
       nowMs,
     });
     return sessionResultResponse(failed);
@@ -743,6 +738,18 @@ async function handleSourceContribution(
     committed.session,
     committed.kind === 'replayed' ? 'replayed' : recorded.outcome,
   );
+}
+
+/**
+ * A precommit failure's reason is a single token. The installer's message
+ * keeps its words, joined, so the session still says what failed.
+ */
+function precommitFailureReasonV1(message: string): string {
+  const token = message
+    .trim()
+    .replace(/\s+/g, '_')
+    .replace(/[\u0000-\u001f\u007f]/g, '');
+  return token.length > 0 ? token : 'authority_commit_failed';
 }
 
 async function handleSourceContributionExecute(
@@ -1716,7 +1723,7 @@ function sessionProjectionResponse(
   return json({ ok: true, outcome, session: projectSession(record) }, { status: 200 });
 }
 
-export function targetCredentialResultResponse(
+function targetCredentialResultResponse(
   record: LinkedDeviceSessionRecordV1,
   outcome: 'applied' | 'replayed',
   targetCredential: LinkedDeviceTargetCredentialRegistrationResultV1,
@@ -2052,12 +2059,6 @@ function parseBoundary<T>(parse: () => T): T {
   } catch (error: unknown) {
     throw new DeviceLinkingInputError(errorMessage(error));
   }
-}
-
-function requireRecord(raw: unknown, field: string): Record<string, unknown> {
-  if (raw === null || typeof raw !== 'object' || Array.isArray(raw))
-    throw new Error(`${field} must be an object`);
-  return raw as Record<string, unknown>;
 }
 
 function requireExactKeys(record: Record<string, unknown>, keys: readonly string[]): void {

@@ -16,10 +16,8 @@ import type {
   WalletAuthAuthorityRef,
 } from '@shared/utils/walletAuthAuthority';
 import type { ActiveWalletAuthorityV1 } from '@shared/authorization/walletAuthority';
-import {
-  walletIdFromString,
-  type WalletAuthMethodRecordV2,
-} from '@shared/utils/registrationIntent';
+import { type ActivePasskeyWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
+import { walletIdFromString } from '@shared/utils/registrationIds';
 import type {
   MpcWalletSigningQuotaId,
   WalletSessionId,
@@ -53,7 +51,7 @@ import type { WalletEcdsaSignerRecord } from '../../../../core/WalletStore';
 import { projectActiveWalletSession } from '../../../../authorization/domain';
 import type { RouterAbEd25519YaoActiveCapabilityDescriptorV1 } from '../../../domains/ed25519Yao/recovery/routerAbEd25519YaoRecovery';
 
-export type VerifiedSyncAccountResultV1 = Extract<
+type VerifiedSyncAccountResultV1 = Extract<
   WebAuthnSyncAccountVerificationResult,
   { readonly ok: true; readonly verified: true }
 >;
@@ -84,10 +82,7 @@ type SyncAccountExactBootstrapBodyBaseV1 = {
   readonly walletAuthMethodId: WalletAuthMethodId;
   readonly walletAuthorityId: WalletAuthorityId;
   readonly foundingAuthority: ActiveWalletAuthorityV1;
-  readonly foundingAuthMethod: Extract<
-    WalletAuthMethodRecordV2,
-    { readonly kind: 'passkey'; readonly status: 'active' }
-  >;
+  readonly foundingAuthMethod: ActivePasskeyWalletAuthMethodRecordV2;
   readonly custodyKeyManifestDigestB64u: VerifiedSyncAccountResultV1['custodyKeyManifestDigestB64u'];
   readonly walletBinding: VerifiedSyncAccountResultV1['walletBinding'];
   readonly rpId: string;
@@ -123,7 +118,7 @@ type SyncAccountExactBootstrapBodyBaseV1 = {
   };
 };
 
-export type SyncAccountExactBootstrapBodyV1 = SyncAccountExactBootstrapBodyBaseV1 &
+type SyncAccountExactBootstrapBodyV1 = SyncAccountExactBootstrapBodyBaseV1 &
   (
     | {
         readonly ecdsaSession?: never;
@@ -135,15 +130,12 @@ export type SyncAccountExactBootstrapBodyV1 = SyncAccountExactBootstrapBodyBaseV
       }
   );
 
-export type SyncAccountBootstrapInputV1 = {
+type SyncAccountBootstrapInputV1 = {
   readonly ctx: FetchRouterApiContext;
   readonly result: VerifiedSyncAccountResultV1;
   readonly authority: WalletAuthAuthority;
   readonly activeAuthority: ActiveWalletAuthorityV1;
-  readonly foundingAuthMethod: Extract<
-    WalletAuthMethodRecordV2,
-    { readonly kind: 'passkey'; readonly status: 'active' }
-  >;
+  readonly foundingAuthMethod: ActivePasskeyWalletAuthMethodRecordV2;
   readonly walletAuthMethodId: WalletAuthMethodId;
   readonly authorityRef: WalletAuthAuthorityRef;
   readonly proof: Extract<VerifiedOwnerProof, { readonly purpose: 'wallet_session' }>;
@@ -159,7 +151,7 @@ export type SyncAccountBootstrapInputV1 = {
       };
 };
 
-export type SyncAccountBootstrapResultV1 =
+type SyncAccountBootstrapResultV1 =
   | { readonly kind: 'ok'; readonly body: SyncAccountExactBootstrapBodyV1 }
   | {
       readonly kind: 'already_committed';

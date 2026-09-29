@@ -1,20 +1,26 @@
 import { allocateWalletAuthMethodId } from './domainIds';
 import {
-  implicitNearAccountProvisioning,
-  sponsoredNamedNearAccountProvisioning,
-  walletIdFromString,
   type AddAuthMethodIntentV1,
   type AddSignerIntentV1,
-  type AddSignerSelection,
-  type RegistrationAuthMethodInput,
-  type RegistrationAuthority,
   type RegistrationIntentV1,
-  type RegistrationSignerPlan,
-  type RegistrationSignerSetSelection,
+} from './registrationIntent';
+import {
   type WalletAuthMethodRecord,
   type WalletAuthMethodRecordV2,
   type WalletAuthMethodRevocationProof,
-} from './registrationIntent';
+} from './walletAuthMethodRecord';
+import { walletIdFromString } from './registrationIds';
+import {
+  implicitNearAccountProvisioning,
+  sponsoredNamedNearAccountProvisioning,
+  type AddSignerSelection,
+  type RegistrationSignerPlan,
+  type RegistrationSignerSetSelection,
+} from './registrationSignerPlan';
+import {
+  type RegistrationAuthMethodInput,
+  type RegistrationAuthority,
+} from './registrationAuthMethodInput';
 import {
   parseChallengeSubjectId,
   parseEmailOtpChallengeId,

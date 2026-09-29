@@ -20,13 +20,15 @@ import type {
   DeviceLinkingSourceContributionPortV1,
 } from './deviceLinkingPorts';
 import type { LinkedDeviceManagementPortV1 } from '@/SeamsWeb/publicApi/devices';
-import type { WalletHostManagementRequestV1 } from './walletHostOwnerAuthority';
+import {
+  WalletHostOwnerRequestTransportError,
+  type WalletHostManagementRequestV1,
+} from './walletHostOwnerAuthority';
 
-export const LINKED_DEVICE_MANAGEMENT_HTTP_BASE_PATH_V1 =
-  '/wallet/device-linking/v1/devices' as const;
-export const OWNER_WALLET_SESSION_REAUTH_REQUIRED = 'owner_wallet_session_reauth_required' as const;
+const LINKED_DEVICE_MANAGEMENT_HTTP_BASE_PATH_V1 = '/wallet/device-linking/v1/devices' as const;
+const OWNER_WALLET_SESSION_REAUTH_REQUIRED = 'owner_wallet_session_reauth_required' as const;
 
-export class OwnerWalletSessionReauthRequiredError extends Error {
+class OwnerWalletSessionReauthRequiredError extends Error {
   readonly code = OWNER_WALLET_SESSION_REAUTH_REQUIRED;
 
   constructor() {
@@ -40,7 +42,7 @@ export class OwnerWalletSessionReauthRequiredError extends Error {
  * They retain the active Wallet Session credential and expose only parsed HTTP
  * boundaries to this assembly layer.
  */
-export type WalletHostCompositionDependenciesV1 = {
+type WalletHostCompositionDependenciesV1 = {
   readonly authenticator: AuthenticatorPort;
   readonly http: HttpTransport;
   readonly relayerUrl: string;
@@ -59,7 +61,7 @@ export type WalletHostCompositionDependenciesV1 = {
   readonly pollIntervalMs: number;
 };
 
-export type WalletHostCompositionV1 = {
+type WalletHostCompositionV1 = {
   readonly linkedDeviceManagement: LinkedDeviceManagementPortV1;
   readonly deviceLinkingPorts: DeviceLinkingFlowPortsAssemblyV1;
   readonly dispose: () => void;
@@ -109,14 +111,27 @@ function createWalletHostLinkedDeviceManagementPortV1(args: {
         walletAuthMethodId,
         requestedAtMs,
       });
-      const response = await args.request.request({
-        method: 'POST',
-        canonicalPath: `${LINKED_DEVICE_MANAGEMENT_HTTP_BASE_PATH_V1}/${encodeURIComponent(
-          String(walletAuthMethodId),
-        )}/revoke`,
-        body: { ...request, sourceProof },
-        walletId,
-      });
+      const send = async () =>
+        await args.request.request({
+          method: 'POST',
+          canonicalPath: `${LINKED_DEVICE_MANAGEMENT_HTTP_BASE_PATH_V1}/${encodeURIComponent(
+            String(walletAuthMethodId),
+          )}/revoke`,
+          body: { ...request, sourceProof },
+          walletId,
+        });
+      let response: Awaited<ReturnType<typeof send>>;
+      try {
+        response = await send();
+      } catch (error: unknown) {
+        /* The Gateway records a committed revocation's answer and gives it to
+           the exact same request, so an answer lost to the network is
+           recovered by sending the same body again. A Gateway answer, even a
+           refusal, is final. */
+        if (!(error instanceof WalletHostOwnerRequestTransportError)) throw error;
+        if (error.code !== 'network_error') throw error;
+        response = await send();
+      }
       return parseManagementRevokeResult(response);
     },
   };

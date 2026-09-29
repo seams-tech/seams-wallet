@@ -93,12 +93,12 @@ export type SigningOperationInteractionEvent =
   | { kind: typeof SigningOperationInteractionEventKind.AuthenticationStarted }
   | { kind: typeof SigningOperationInteractionEventKind.AuthenticationCompleted };
 
-export type CancelledSigningOperationState = Extract<
+type CancelledSigningOperationState = Extract<
   SigningOperationState,
   { kind: typeof SigningOperationStateKind.Cancelled }
 >;
 
-export type SigningOperationConfirmationState = Extract<
+type SigningOperationConfirmationState = Extract<
   SigningOperationState,
   {
     kind:
@@ -175,15 +175,15 @@ export type SigningOperationTransitionEvent = {
   reason?: string;
 };
 
-export type SigningOperationStep = {
+type SigningOperationStep = {
   from: SigningOperationState;
   to: SigningOperationState;
   command?: SigningOperationCommand;
   traceEvent: SigningOperationTransitionEvent;
 };
 
-export type SigningOperationCommandSequence = readonly SigningOperationCommand['kind'][];
-export type SigningOperationPlan = {
+type SigningOperationCommandSequence = readonly SigningOperationCommand['kind'][];
+type SigningOperationPlan = {
   kind: 'signing_operation_plan';
   sessionPlan: SigningSessionPlan;
   operation: SigningOperationContext | null;
@@ -199,27 +199,7 @@ export type SigningOperationCommandExecutor = OperationCommandExecutor<SigningOp
 export type SigningOperationTransitionObserver =
   OperationTransitionObserver<SigningOperationTransitionEvent>;
 
-export type RunSigningOperationMachineResult =
-  | {
-      ok: true;
-      finalState: Extract<
-        SigningOperationState,
-        {
-          kind:
-            | typeof SigningOperationStateKind.Completed
-            | typeof SigningOperationStateKind.Failed;
-        }
-      >;
-      steps: SigningOperationStep[];
-    }
-  | {
-      ok: false;
-      finalState: Extract<SigningOperationState, { kind: typeof SigningOperationStateKind.Failed }>;
-      steps: SigningOperationStep[];
-      error: unknown;
-    };
-
-export type RunSigningOperationCommandStepsResult =
+type RunSigningOperationCommandStepsResult =
   | {
       ok: true;
       finalState: SigningOperationState;
@@ -325,7 +305,7 @@ export function approveSigningOperationConfirmation(stateRef: SigningOperationSt
   }
 }
 
-export function beginSigningOperationAuthentication(
+function beginSigningOperationAuthentication(
   stateRef: SigningOperationStateRef,
 ): void {
   switch (stateRef.current.kind) {
@@ -366,7 +346,7 @@ export function beginSigningOperationAuthentication(
   }
 }
 
-export function completeSigningOperationAuthentication(
+function completeSigningOperationAuthentication(
   stateRef: SigningOperationStateRef,
 ): void {
   switch (stateRef.current.kind) {
@@ -512,47 +492,6 @@ export function createSigningOperationPlan(args: {
   };
 }
 
-export function createSigningOperationMachine(args: {
-  operationPlan: SigningOperationPlan;
-}): SigningOperationMachine {
-  const initialState: SigningOperationState = {
-    kind: SigningOperationStateKind.Planned,
-    plan: args.operationPlan.sessionPlan,
-  };
-
-  return {
-    initialState,
-    run() {
-      return buildSigningOperationSteps(args.operationPlan, initialState);
-    },
-  };
-}
-
-export async function runSigningOperationMachine(args: {
-  machine: SigningOperationMachine;
-  executor: SigningOperationCommandExecutor;
-  onTransition?: SigningOperationTransitionObserver;
-}): Promise<RunSigningOperationMachineResult> {
-  return await runSigningOperationSteps({
-    steps: args.machine.run(),
-    executor: args.executor,
-    onTransition: args.onTransition,
-  });
-}
-
-export async function runSigningOperationSteps(args: {
-  steps: SigningOperationStep[];
-  executor: SigningOperationCommandExecutor;
-  onTransition?: SigningOperationTransitionObserver;
-}): Promise<RunSigningOperationMachineResult> {
-  const result = await runSigningOperationCommandSteps(args);
-  if (!result.ok) return result;
-  if (result.finalState.kind !== SigningOperationStateKind.Completed) {
-    throw new Error('[SigningOperationMachine] operation ended without a terminal state');
-  }
-  return result as RunSigningOperationMachineResult;
-}
-
 export async function runSigningOperationCommandSteps(args: {
   steps: SigningOperationStep[];
   executor: SigningOperationCommandExecutor;
@@ -633,45 +572,6 @@ export function buildSigningOperationCommandSteps(
   return lastCommandIndex >= 0 ? steps.slice(0, lastCommandIndex + 1) : [];
 }
 
-export function createSigningOperationCommandTraceEvent(args: {
-  plan: Exclude<SigningSessionPlan, { kind: typeof SigningSessionPlanKind.NotReady }>;
-  commandKind: SigningOperationCommand['kind'];
-  operation?: SigningOperationContext;
-}): SigningOperationTransitionEvent | null {
-  const transition = signingOperationTransitionForCommand(args.plan, args.commandKind);
-  if (!transition) return null;
-  return {
-    event: 'signing_operation_transition',
-    from: transition.from,
-    to: transition.to,
-    command: args.commandKind,
-    ...(args.operation?.operationId ? { operationId: args.operation.operationId } : {}),
-    plan: summarizeSigningSessionPlan(args.plan),
-    lane: summarizeSigningLane(args.plan.lane),
-  };
-}
-
-export async function runSigningOperationCommandTrace<T>(args: {
-  signingSessionPlan?: SigningSessionPlan;
-  commandKind: SigningOperationCommand['kind'];
-  onTransition?: SigningOperationTransitionObserver;
-  operation?: SigningOperationContext;
-  execute: () => Promise<T>;
-}): Promise<T> {
-  const result = await args.execute();
-  const plan = args.signingSessionPlan;
-  if (!plan || plan.kind === SigningSessionPlanKind.NotReady) return result;
-  const traceEvent = createSigningOperationCommandTraceEvent({
-    plan,
-    commandKind: args.commandKind,
-    ...(args.operation ? { operation: args.operation } : {}),
-  });
-  if (traceEvent) {
-    await args.onTransition?.(traceEvent);
-  }
-  return result;
-}
-
 export async function runSigningOperationCommand<T>(args: {
   signingSessionPlan: SigningSessionPlan;
   signingOperation: SigningOperationContext;
@@ -701,7 +601,7 @@ export async function runSigningOperationCommand<T>(args: {
   return value as T;
 }
 
-export function buildSigningOperationSteps(
+function buildSigningOperationSteps(
   operationPlan: SigningOperationPlan,
   initialState: SigningOperationState = {
     kind: SigningOperationStateKind.Planned,
@@ -804,60 +704,6 @@ export function buildSigningOperationSteps(
   });
 
   return steps;
-}
-
-function signingOperationTransitionForCommand(
-  plan: Exclude<SigningSessionPlan, { kind: typeof SigningSessionPlanKind.NotReady }>,
-  commandKind: SigningOperationCommand['kind'],
-): { from: SigningOperationStateKind; to: SigningOperationStateKind } | null {
-  switch (commandKind) {
-    case SigningOperationCommandKind.ShowConfirmation:
-      return {
-        from: SigningOperationStateKind.Planned,
-        to: SigningOperationStateKind.ConfirmationApproved,
-      };
-    case SigningOperationCommandKind.RequestOtp:
-      return plan.kind === SigningSessionPlanKind.EmailOtpReauth
-        ? {
-            from: SigningOperationStateKind.ConfirmationApproved,
-            to: SigningOperationStateKind.AuthReady,
-          }
-        : null;
-    case SigningOperationCommandKind.RequestPasskey:
-      return plan.kind === SigningSessionPlanKind.PasskeyReauth
-        ? {
-            from: SigningOperationStateKind.ConfirmationApproved,
-            to: SigningOperationStateKind.AuthReady,
-          }
-        : null;
-    case SigningOperationCommandKind.ConnectThreshold:
-      return plan.kind === SigningSessionPlanKind.EmailOtpReauth ||
-        plan.kind === SigningSessionPlanKind.PasskeyReauth
-        ? {
-            from: SigningOperationStateKind.AuthReady,
-            to: SigningOperationStateKind.ThresholdConnected,
-          }
-        : null;
-    case SigningOperationCommandKind.PreparePayload:
-      return {
-        from:
-          plan.kind === SigningSessionPlanKind.WarmSession ||
-          plan.kind === SigningSessionPlanKind.OperationStepUp
-            ? SigningOperationStateKind.AuthReady
-            : SigningOperationStateKind.ThresholdConnected,
-        to: SigningOperationStateKind.PayloadPrepared,
-      };
-    case SigningOperationCommandKind.Sign:
-      return {
-        from: SigningOperationStateKind.PayloadPrepared,
-        to: SigningOperationStateKind.Signed,
-      };
-    case SigningOperationCommandKind.Cleanup:
-      return {
-        from: SigningOperationStateKind.Signed,
-        to: SigningOperationStateKind.CleanedUp,
-      };
-  }
 }
 
 function pushTransition(

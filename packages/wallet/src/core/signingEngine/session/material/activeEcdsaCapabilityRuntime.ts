@@ -38,7 +38,7 @@ export type ActiveEcdsaCapabilityRuntimeResolution =
       readonly runtime?: never;
     };
 
-export type ExactEcdsaCapabilityRuntimeResolution =
+type ExactEcdsaCapabilityRuntimeResolution =
   | {
       readonly kind: 'resolved';
       readonly manifest: ActiveEcdsaCapabilityManifest;
@@ -62,7 +62,7 @@ export type ActiveEcdsaCapabilityRuntimeReadPorts = Pick<
   readonly listExactSealedSessionsForWallet: typeof listExactSealedSessionsForWallet;
 };
 
-export type ResolveActiveEcdsaCapabilityRuntimeInput = {
+type ResolveActiveEcdsaCapabilityRuntimeInput = {
   readonly walletId: WalletId;
   readonly chainTarget: ThresholdEcdsaChainTarget;
 };
@@ -71,7 +71,7 @@ export type ActiveEcdsaCapabilityRuntimeResolver = (
   args: ResolveActiveEcdsaCapabilityRuntimeInput,
 ) => Promise<ActiveEcdsaCapabilityRuntimeResolution>;
 
-export type ResolveActiveEcdsaCapabilityRuntimeForChainInput = {
+type ResolveActiveEcdsaCapabilityRuntimeForChainInput = {
   readonly walletId: WalletId;
   readonly chain: ThresholdEcdsaChainTarget['kind'];
 };
@@ -198,7 +198,7 @@ export async function resolveActiveEcdsaCapabilityRuntime(
 ): Promise<ActiveEcdsaCapabilityRuntimeResolution> {
   const all = await listActiveManifestsForTarget({ ports, ...args });
   if (all.length === 0) return { kind: 'blocked', reason: 'missing_capability' };
-  /* R109C: several capabilities for one wallet and target used to mean the
+  /* Several capabilities for one wallet and target used to mean the
      store had conflicting records, because a wallet had one auth method. Now
      each method on an authority holds its own access projection over the same
      activation, so the caller is not guessing - it is operating as the selected

@@ -96,7 +96,7 @@ function poolFillAuthorizationBody(
   }
 }
 
-export type RouterAbEcdsaDerivationPoolFillProgress = {
+type RouterAbEcdsaDerivationPoolFillProgress = {
   ok: boolean;
   code?: string;
   message?: string;
@@ -137,7 +137,7 @@ function resolveRouterAbEcdsaDerivationPoolFillInitKeySelector(args: {
   return { ok: true, value: { keyHandle } };
 }
 
-export type RouterAbEcdsaDerivationPoolFillInitBaseArgs = {
+type RouterAbEcdsaDerivationPoolFillInitBaseArgs = {
   presignSessionId: string;
   firstMessageB64u: string;
   relayerUrl: string;
@@ -148,7 +148,7 @@ export type RouterAbEcdsaDerivationPoolFillInitBaseArgs = {
 } & RouterAbEcdsaDerivationPoolFillInitKeySelector &
   RouterAbEcdsaDerivationPoolFillAuthorization;
 
-export type RouterAbEcdsaDerivationPresignaturePoolFillInitArgs =
+type RouterAbEcdsaDerivationPresignaturePoolFillInitArgs =
   RouterAbEcdsaDerivationPoolFillInitBaseArgs & {
     poolFill: RouterAbEcdsaDerivationPresignaturePoolFill;
   };
@@ -266,7 +266,7 @@ export async function routerAbEcdsaDerivationPresignaturePoolFillInit(
   });
 }
 
-export type RouterAbEcdsaDerivationPoolFillStepArgs = {
+type RouterAbEcdsaDerivationPoolFillStepArgs = {
   relayerUrl: string;
   presignSessionId: string;
   ceremonyExpiresAtMs: number;

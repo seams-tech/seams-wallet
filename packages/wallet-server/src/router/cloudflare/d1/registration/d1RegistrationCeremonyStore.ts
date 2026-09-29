@@ -47,14 +47,14 @@ type RegistrationIntentPutInput =
   | StoredAddAuthMethodIntent
   | StoredWalletAddAuthMethodCeremony;
 
-export type RegistrationCeremonyIntentStoreConfig = {
+type RegistrationCeremonyIntentStoreConfig = {
   readonly kind: 'partitioned_d1';
   readonly database: D1DatabaseLike;
   readonly scope: D1RegistrationCeremonyRecordScope;
   readonly keyPrefix: string;
 };
 
-export type D1WalletRegistrationEcdsaCeremonyClaimV1 = {
+type D1WalletRegistrationEcdsaCeremonyClaimV1 = {
   readonly ceremony: StoredWalletRegistrationCeremony;
   readonly version: number;
 };
@@ -113,6 +113,9 @@ export class CloudflareD1RegistrationCeremonyIntentStore {
     readonly registrationCeremonyId: string;
     readonly strictRegistrationBindingJson: string;
     readonly registrationRequest: StoredWalletRegistrationEvmFamilyEcdsaResponseClaimedBranch['registrationRequest'];
+    readonly projectEnvironmentId: string;
+    readonly tenantRootIdentityDigestB64u: string;
+    readonly tenantRootCustodyLineageB64u: string;
   }): Promise<D1WalletRegistrationEcdsaCeremonyClaimV1 | null> {
     return await this.claimEcdsaBranch({
       registrationCeremonyId: input.registrationCeremonyId,
@@ -124,6 +127,9 @@ export class CloudflareD1RegistrationCeremonyIntentStore {
       patch: {
         kind: 'evm_family_ecdsa_response_claimed',
         registrationRequest: input.registrationRequest,
+        projectEnvironmentId: input.projectEnvironmentId,
+        tenantRootIdentityDigestB64u: input.tenantRootIdentityDigestB64u,
+        tenantRootCustodyLineageB64u: input.tenantRootCustodyLineageB64u,
       },
     });
   }

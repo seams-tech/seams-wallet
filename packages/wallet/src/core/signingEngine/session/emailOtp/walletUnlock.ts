@@ -26,7 +26,7 @@ import type {
   RouterAbEcdsaPostRegistrationSessionActivationResponseV1,
 } from '@shared/utils/routerAbEcdsaDerivation';
 
-export type EmailOtpWalletUnlockRecovery = {
+type EmailOtpWalletUnlockRecovery = {
   challengeId: string;
   enrollmentSealKeyVersion: string;
   unlockChallengeId: string;

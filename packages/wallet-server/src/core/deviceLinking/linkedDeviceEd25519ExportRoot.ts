@@ -9,7 +9,7 @@ import type {
 } from '@shared/device-linking/ed25519ExportRoot';
 import type { LinkDeviceSessionId } from '@shared/signing-lanes/ids';
 
-export type LinkedDeviceEd25519ExportRootConflictV1 =
+type LinkedDeviceEd25519ExportRootConflictV1 =
   | 'recipient_already_registered_with_another_key'
   | 'recipient_not_registered'
   | 'package_addressed_to_another_recipient'

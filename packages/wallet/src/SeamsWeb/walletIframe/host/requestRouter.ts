@@ -8,14 +8,14 @@ import { walletIframeRequestIdFromBoundary } from '@/core/types/walletIframeIden
 
 type WalletHostRequest<T extends ParentToChildType> = ParentToChildEnvelope & { type: T };
 
-export type BootWalletRequestType =
+type BootWalletRequestType =
   | 'PM_ACTIVATE_TRANSACTION_REVIEW'
   | 'PING'
   | 'PM_SET_CONFIG'
   | 'PM_CANCEL'
   | 'PM_SET_TRANSACTION_VIEW'
   | 'PM_TRANSACTION_BROADCAST_STARTED';
-export type NearWalletRequestType =
+type NearWalletRequestType =
   | 'PM_REGISTER_WALLET'
   | 'PM_RESUME_PENDING_ECDSA_REGISTRATION'
   | 'PM_ADD_WALLET_SIGNER'
@@ -32,7 +32,7 @@ export type NearWalletRequestType =
   | 'PM_EXECUTE_ACTION'
   | 'PM_SIGN_DELEGATE_ACTION'
   | 'PM_SIGN_NEP413';
-export type AuthWalletRequestType =
+type AuthWalletRequestType =
   | 'PM_OPEN_AUTH_MENU'
   | 'PM_CANCEL_AUTH_MENU'
   | 'PM_RESOLVE_AUTH_MENU_EXTERNAL_AUTH'
@@ -43,7 +43,7 @@ export type AuthWalletRequestType =
   | 'PM_GET_WALLET_SESSION'
   | 'PM_GET_EXACT_WALLET_SESSION_STATE'
   | 'PM_GET_RECENT_UNLOCKS';
-export type EcdsaWalletRequestType =
+type EcdsaWalletRequestType =
   | 'PM_BOOTSTRAP_THRESHOLD_ECDSA_SESSION'
   | 'PM_SIGN_TEMPO'
   | 'PM_REPORT_TEMPO_BROADCAST_ACCEPTED'
@@ -52,7 +52,7 @@ export type EcdsaWalletRequestType =
   | 'PM_REPORT_TEMPO_DROPPED_OR_REPLACED'
   | 'PM_RECONCILE_TEMPO_NONCE_LANE'
   | 'PM_PREFILL_ROUTER_AB_ECDSA_DERIVATION_PRESIGNATURE_POOL';
-export type EmailOtpWalletRequestType =
+type EmailOtpWalletRequestType =
   | 'PM_REDEEM_HOSTED_WALLET_SEAMS_SESSION'
   | 'PM_REQUEST_EMAIL_OTP_CHALLENGE'
   | 'PM_REQUEST_EMAIL_OTP_ENROLLMENT_CHALLENGE'
@@ -70,9 +70,9 @@ export type EmailOtpWalletRequestType =
   | 'PM_ACKNOWLEDGE_WALLET_RECOVERY_CODE_BACKUP'
   | 'PM_ROTATE_WALLET_RECOVERY_CODES'
   | 'PM_REQUEST_WALLET_CUSTODY_EMAIL_OTP_CHALLENGE';
-export type RecoveryWalletRequestType = 'PM_SYNC_ACCOUNT_FLOW';
-export type ExportWalletRequestType = 'PM_RESOLVE_EXACT_KEY_EXPORT_LANE' | 'PM_EXPORT_KEYPAIR_UI';
-export type DeviceLinkWalletRequestType =
+type RecoveryWalletRequestType = 'PM_SYNC_ACCOUNT_FLOW';
+type ExportWalletRequestType = 'PM_RESOLVE_EXACT_KEY_EXPORT_LANE' | 'PM_EXPORT_KEYPAIR_UI';
+type DeviceLinkWalletRequestType =
   | 'PM_HAS_PASSKEY'
   | 'PM_LIST_LINKED_DEVICES'
   | 'PM_REVOKE_LINKED_DEVICE'
@@ -82,12 +82,12 @@ export type DeviceLinkWalletRequestType =
   | 'PM_DEVICE_LINK_EMAIL_OTP_BASE_FACTOR_ACTION'
   | 'PM_CANCEL_DEVICE_LINKING'
   | 'PM_SYNC_ACCOUNT_FLOW';
-export type PreferencesWalletRequestType =
+type PreferencesWalletRequestType =
   | 'PM_SET_CONFIRM_BEHAVIOR'
   | 'PM_SET_CONFIRMATION_CONFIG'
   | 'PM_GET_CONFIRMATION_CONFIG';
 
-export type WalletHostRoute =
+type WalletHostRoute =
   | {
       kind: 'boot';
       type: BootWalletRequestType;

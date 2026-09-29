@@ -4,9 +4,12 @@ namespace RouterAbEcdsaDerivationPrivacy
 
 open RouterAbEcdsaDerivationBoundary
 
+/-- The client receives the finalize envelope with its output, so it observes the
+envelope's context binding. -/
 structure ClientVisibleBoundary where
   operation : router_ab_ecdsa_derivation.wire.ServerEvalOperation
   allowedOutputKind : router_ab_ecdsa_derivation.wire.AllowedOutputKind
+  contextBinding32 : Bytes32
   clientOutput : ClientBoundaryModel
   deriving DecidableEq, Repr
 
@@ -19,6 +22,7 @@ def clientVisibleBoundaryOfRespondBoundary
   {
     operation := boundary.operation.operation
     allowedOutputKind := boundary.operation.allowedOutputKind
+    contextBinding32 := boundary.finalize.contextBinding32
     clientOutput := boundary.clientOutput
   }
 
@@ -30,6 +34,7 @@ def serverVisibleBoundaryOfRespondBoundary
     finalizeOperation := boundary.finalize.operation
     rawRootMaterialDropped := boundary.finalize.rawRootMaterialDropped
     relayerKeyId := boundary.finalize.relayerKeyId
+    contextBinding32 := boundary.finalize.contextBinding32
     clientPublicKey33 := boundary.finalize.clientPublicKey33
     relayerPublicKey33 := boundary.finalize.relayerPublicKey33
     thresholdPublicKey33 := boundary.finalize.thresholdPublicKey33
@@ -164,6 +169,22 @@ theorem serverObservableProfile_eq_of_shared_server_boundary
     serverObservableProfile left = serverObservableProfile right := by
   simpa [serverObservableProfile, statesShareServerVisibleBoundary]
     using hBoundary
+
+/-- The server observes the context binding, so states it cannot tell apart
+agree on it. -/
+theorem statesVaryOnlyInClientSecrets_share_context_binding
+    (left right : ProtocolExecutionState)
+    (hVariation : statesVaryOnlyInClientSecrets left right) :
+    left.boundary.finalize.contextBinding32 = right.boundary.finalize.contextBinding32 := by
+  exact congrArg ServerVisibleBoundary.contextBinding32 hVariation
+
+/-- The client observes the context binding, so states it cannot tell apart
+agree on it. -/
+theorem statesVaryOnlyInServerSecrets_share_context_binding
+    (left right : ProtocolExecutionState)
+    (hVariation : statesVaryOnlyInServerSecrets left right) :
+    left.boundary.finalize.contextBinding32 = right.boundary.finalize.contextBinding32 := by
+  exact congrArg ClientVisibleBoundary.contextBinding32 hVariation
 
 theorem nonExportClientView_exists_exactly_for_non_export
     (state : ProtocolExecutionState) :

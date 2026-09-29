@@ -6,6 +6,7 @@ import {
 } from '@shared/utils/authenticatorOptions';
 import type { InitInput } from '../../../../wasm/near_signer/pkg/wasm_signer_worker.js';
 import type { Logger } from './logger';
+import type { Ed25519AuthorityScope } from '@shared/threshold/sessionPolicy';
 import type { RuntimePolicyScope } from '@shared/threshold/signingRootScope';
 import type {
   EcdsaClientRootPublicKey33B64u,
@@ -18,7 +19,7 @@ import type {
   RouterAbEcdsaDerivationNormalSigningStateV1,
 } from '@shared/utils/routerAbEcdsaDerivation';
 import type { WalletAuthAuthority } from '@shared/utils/walletAuthAuthority';
-import type { RootShareEpoch, WebAuthnRpId } from '@shared/utils/domainIds';
+import type { RootShareEpoch } from '@shared/utils/domainIds';
 import type { EvmFamilySigningKeySlotId } from '@shared/signing-lanes';
 import type { WalletSessionOperationCredentialV1 } from '@shared/device-linking';
 import type {
@@ -447,31 +448,7 @@ export type ThresholdRuntimeSnapshotExpectation = {
 
 export type ThresholdEd25519Purpose = 'near_tx' | 'nep461_delegate' | 'nep413' | string;
 
-export type ThresholdEd25519AuthorityScope =
-  | {
-      kind: 'passkey_rp';
-      rpId: WebAuthnRpId;
-      proofKind?: never;
-      email?: never;
-      provider?: never;
-      providerUserId?: never;
-      challengeId?: never;
-      googleEmailOtpRegistrationAttemptId?: never;
-      googleEmailOtpRegistrationOfferId?: never;
-      googleEmailOtpRegistrationCandidateId?: never;
-    }
-  | {
-      kind: 'email_otp';
-      provider: 'google' | 'email';
-      providerUserId: string;
-      proofKind?: never;
-      rpId?: never;
-      email?: never;
-      challengeId?: never;
-      googleEmailOtpRegistrationAttemptId?: never;
-      googleEmailOtpRegistrationOfferId?: never;
-      googleEmailOtpRegistrationCandidateId?: never;
-    };
+export type ThresholdEd25519AuthorityScope = Ed25519AuthorityScope;
 
 export type Ed25519SessionPolicy = {
   version: 'threshold_session_v1';

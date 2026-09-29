@@ -76,15 +76,19 @@ pub use self::ed25519_yao_outer::{
     ROUTER_AB_ED25519_YAO_OUTER_PROTOCOL_ID_V2,
 };
 pub use self::ed25519_yao_pair_lifecycle::{
-    admit_ed25519_yao_pair_start_v1, Ed25519YaoPairStartClaimV1, Ed25519YaoPairStartDecisionV1,
-    Ed25519YaoPreparedPairStartV1,
+    admit_ed25519_yao_pair_start_v1, burn_ed25519_yao_pair_v1, claim_ed25519_yao_pair_v1,
+    complete_ed25519_yao_pair_v1, expire_ed25519_yao_pair_v1, prepare_ed25519_yao_pair_v1,
+    reserve_ed25519_yao_pair_v1, Ed25519YaoPairClaimIdentityV1, Ed25519YaoPairRecordV1,
+    Ed25519YaoPairRejectionV1, Ed25519YaoPairReservationV1, Ed25519YaoPairStartClaimV1,
+    Ed25519YaoPairStartDecisionV1, Ed25519YaoPairStoreResultV1, Ed25519YaoPairTransitionV1,
+    Ed25519YaoPreparedPairStartV1, ED25519_YAO_PEER_MAX_FUTURE_SKEW_MS_V1,
 };
 pub use self::ed25519_yao_router::{
     ed25519_yao_encrypted_input_digest_v1, ed25519_yao_input_pair_digest_v1,
     ed25519_yao_recipient_set_digest_v1, Ed25519YaoCeremonyIdentityV1, Ed25519YaoCircuitIdV1,
     Ed25519YaoExecutionIdV1, Ed25519YaoInputPairBindingV1, Ed25519YaoProtocolIdV1,
-    Ed25519YaoRoleReadinessReceiptV1, Ed25519YaoRoleSignatureSchemeV1, Ed25519YaoRoleSignatureV1,
-    Ed25519YaoRoleStartAcceptanceV1, RouterAdmittedExecutionAuthorityV1,
+    Ed25519YaoRecoveryAttemptV1, Ed25519YaoRoleReadinessReceiptV1, Ed25519YaoRoleSignatureSchemeV1,
+    Ed25519YaoRoleSignatureV1, Ed25519YaoRoleStartAcceptanceV1, RouterAdmittedExecutionAuthorityV1,
     RouterEd25519YaoBurnReasonV1, RouterEd25519YaoExecuteFailureCodeV1,
     RouterEd25519YaoExecuteRequestV1, RouterEd25519YaoExecuteResultV1,
     RouterEd25519YaoExecuteSuccessV1, RouterEd25519YaoGatewayExecuteTargetV2,
@@ -105,8 +109,7 @@ pub use self::envelope::{
 pub use self::error::{RouterAbProtocolError, RouterAbProtocolErrorCode, RouterAbProtocolResult};
 pub use self::gate::{
     ExpensiveWorkGateContextV1, ExpensiveWorkGateDecisionV1, ExpensiveWorkKindV1,
-    GateDeferReasonV1, GatePrincipalV1, GateRejectReasonV1, RegistrationPrepareHandleV1,
-    RouterRequestPolicyClaimsV1,
+    GateDeferReasonV1, GatePrincipalV1, GateRejectReasonV1, RouterRequestPolicyClaimsV1,
 };
 pub use self::identity::{
     RoleEnvelopeAssignmentV1, ServerIdentityV1, SignerIdentityV1, SignerSetPolicyV1, SignerSetV1,
@@ -118,21 +121,19 @@ pub use self::lifecycle::{
 };
 pub use self::local::{
     execute_local_persistence_sql_seed_plan_v1, local_persistence_seed_sql_plan_v1,
-    validate_local_env_keys_v1, LocalClientRouterRequestV1, LocalDeriverAEndpointV1,
-    LocalDeriverAServiceV1, LocalDeriverBEndpointV1, LocalDeriverBServiceV1,
-    LocalDeterministicSignerEnvelopeDecryptorV1, LocalEnvSnapshotV1, LocalHttpCeremonyResultV1,
-    LocalHttpMethodV1, LocalHttpPathV1, LocalHttpRequestV1, LocalInProcessCeremonyResultV1,
-    LocalPersistenceSeedV1, LocalPersistenceSqlExecutionReceiptV1,
-    LocalPersistenceSqlSeedExecutorV1, LocalPersistenceSqlSeedPlanV1,
-    LocalPersistenceSqlStatementV1, LocalPersistenceSqlValueV1, LocalReplayCacheV1,
+    validate_local_env_keys_v1, LocalDeriverAEndpointV1, LocalDeriverAServiceV1,
+    LocalDeriverBEndpointV1, LocalDeriverBServiceV1, LocalDeterministicSignerEnvelopeDecryptorV1,
+    LocalEnvSnapshotV1, LocalHttpCeremonyResultV1, LocalHttpMethodV1, LocalHttpPathV1,
+    LocalHttpRequestV1, LocalInProcessCeremonyResultV1, LocalPersistenceSeedV1,
+    LocalPersistenceSqlExecutionReceiptV1, LocalPersistenceSqlSeedExecutorV1,
+    LocalPersistenceSqlSeedPlanV1, LocalPersistenceSqlStatementV1, LocalPersistenceSqlValueV1,
     LocalRouterDispatchV1, LocalRouterEndpointV1, LocalRouterRecipientProofBundleResponseV1,
-    LocalRouterServiceV1, LocalSealedRootShareRecordV1, LocalServiceEndpointV1, LocalServiceRoleV1,
-    LocalServiceStackV1, LocalServiceStartupV1, LocalSignerEnvelopeDecryptorV1,
-    LocalSignerHandlerContextV1, LocalSignerHandlerOutputV1,
-    LocalSignerRecipientProofBundleResponseV1, LocalSigningRootMetadataV1,
-    LocalSigningWorkerActivationReceiptV1, LocalSigningWorkerEndpointV1,
-    LocalSigningWorkerRecipientProofBundleActivationV1, LocalSigningWorkerServiceV1,
-    LocalTransportEnvelopeV1, LocalTransportRouteV1,
+    LocalRouterServiceV1, LocalSealedRootShareRecordV1, LocalServiceRoleV1, LocalServiceStackV1,
+    LocalServiceStartupV1, LocalSignerEnvelopeDecryptorV1, LocalSignerHandlerContextV1,
+    LocalSignerHandlerOutputV1, LocalSignerRecipientProofBundleResponseV1,
+    LocalSigningRootMetadataV1, LocalSigningWorkerActivationReceiptV1,
+    LocalSigningWorkerEndpointV1, LocalSigningWorkerRecipientProofBundleActivationV1,
+    LocalSigningWorkerServiceV1, LocalTransportEnvelopeV1, LocalTransportRouteV1,
 };
 pub use self::normal_signing::{
     derive_router_ab_ed25519_normal_signing_admission_material_v2,
@@ -166,8 +167,7 @@ pub use self::output::{
     ecdsa_threshold_prf_proof_batch_recipient_view_v1, encode_recipient_output_ciphertext_aad_v1,
     encode_recipient_output_ciphertext_v1, encode_recipient_proof_bundle_ciphertext_aad_v1,
     encode_recipient_proof_bundle_ciphertext_v1, encrypt_recipient_proof_bundle_payload_v1,
-    mpc_prf_batch_output_from_ab_proof_batch_v1, recipient_output_ciphertext_aad_digest_v1,
-    recipient_proof_bundle_ciphertext_aad_digest_v1, recipient_proof_bundle_ciphertext_digest_v1,
+    mpc_prf_batch_output_from_ab_proof_batch_v1, recipient_proof_bundle_ciphertext_digest_v1,
     recipient_proof_bundle_payload_from_ab_proof_batch_v1,
     recipient_proof_bundle_wire_message_from_ab_proof_batch_v1,
     verify_recipient_proof_bundle_ciphertext_payload_v1,

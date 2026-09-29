@@ -1,3 +1,6 @@
+use crate::tenant_root_role_sql::{
+    RoleSqlSessionV1, RoleSqlValue, RoleStoreResult,
+};
 use super::*;
 use router_ab_core::VerifiedTenantRootSourceRetirementCommandV1;
 
@@ -9,13 +12,13 @@ struct RetirementRow {
     retired_at_ms: i64,
 }
 
-impl CloudflareTenantRootRoleShareStoreV1 {
+impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
     /// Atomically bars new material and removes the named lineage's live role records.
     pub(crate) async fn retire_source_lineage(
         &self,
         command: &VerifiedTenantRootSourceRetirementCommandV1,
         now_ms: u64,
-    ) -> worker::Result<i64> {
+    ) -> RoleStoreResult<i64> {
         if tenant_root_protocol_role_of(self.cipher.role) != command.role() {
             return Err(store_error("source retirement role mismatch"));
         }
@@ -52,14 +55,14 @@ impl CloudflareTenantRootRoleShareStoreV1 {
             )
             .bind_refs(
                 [
-                    D1Type::Text(&identity),
-                    D1Type::Text(&lineage),
-                    D1Type::Text(command.role().as_str()),
-                    D1Type::Text(&active_receipt),
-                    D1Type::Text(&destination),
-                    D1Type::Text(&at_text),
-                    D1Type::Text(&epoch),
-                    D1Type::Text(&revision),
+                    RoleSqlValue::Text(&identity),
+                    RoleSqlValue::Text(&lineage),
+                    RoleSqlValue::Text(command.role().as_str()),
+                    RoleSqlValue::Text(&active_receipt),
+                    RoleSqlValue::Text(&destination),
+                    RoleSqlValue::Text(&at_text),
+                    RoleSqlValue::Text(&epoch),
+                    RoleSqlValue::Text(&revision),
                 ]
                 .iter(),
             )?];
@@ -72,10 +75,10 @@ impl CloudflareTenantRootRoleShareStoreV1 {
             "tenant_root_restore_refresh_attempts",
         ] {
             statements.push(self.session.prepare(&format!("DELETE FROM {table} WHERE tenant_identity_digest_hex=?1 AND custody_lineage_b64u=?2 AND {admitted}"))
-                .bind_refs([D1Type::Text(&identity),D1Type::Text(&lineage),D1Type::Text(&active_receipt),D1Type::Text(&destination)].iter())?);
+                .bind_refs([RoleSqlValue::Text(&identity),RoleSqlValue::Text(&lineage),RoleSqlValue::Text(&active_receipt),RoleSqlValue::Text(&destination)].iter())?);
         }
         statements.push(self.session.prepare(&format!("UPDATE tenant_root_recovery_attempts SET lifecycle='destroying', encrypted_material_b64u=NULL, encrypted_package_b64u=NULL, package_digest_b64u=NULL, descriptor_b64u=NULL, package_length=NULL WHERE tenant_identity_digest_hex=?1 AND custody_lineage_b64u=?2 AND lifecycle IN ('provisioning','pending','packaged') AND {admitted}"))
-            .bind_refs([D1Type::Text(&identity),D1Type::Text(&lineage),D1Type::Text(&active_receipt),D1Type::Text(&destination)].iter())?);
+            .bind_refs([RoleSqlValue::Text(&identity),RoleSqlValue::Text(&lineage),RoleSqlValue::Text(&active_receipt),RoleSqlValue::Text(&destination)].iter())?);
         self.session.batch(statements).await?;
         let row = self
             .source_retirement_row(command)
@@ -88,17 +91,17 @@ impl CloudflareTenantRootRoleShareStoreV1 {
     async fn source_retirement_row(
         &self,
         command: &VerifiedTenantRootSourceRetirementCommandV1,
-    ) -> worker::Result<Option<RetirementRow>> {
+    ) -> RoleStoreResult<Option<RetirementRow>> {
         let identity = encode_hex(command.identity_digest().as_bytes());
         let lineage = command.custody_lineage().to_base64url();
         self.session.prepare("SELECT role,active_receipt_digest_b64u,destination_receipt_digest_b64u,retired_at_ms FROM tenant_root_source_retirements WHERE tenant_identity_digest_hex=?1 AND custody_lineage_b64u=?2")
-            .bind_refs([D1Type::Text(&identity),D1Type::Text(&lineage)].iter())?.first::<RetirementRow>(None).await
+            .bind_refs([RoleSqlValue::Text(&identity),RoleSqlValue::Text(&lineage)].iter())?.first::<RetirementRow>(None).await
     }
 }
 fn require_retirement_matches(
     row: &RetirementRow,
     command: &VerifiedTenantRootSourceRetirementCommandV1,
-) -> worker::Result<()> {
+) -> RoleStoreResult<()> {
     if row.role != command.role().as_str()
         || row.active_receipt_digest_b64u
             != encode_base64url_bytes_v1(command.active_receipt_digest().as_bytes())

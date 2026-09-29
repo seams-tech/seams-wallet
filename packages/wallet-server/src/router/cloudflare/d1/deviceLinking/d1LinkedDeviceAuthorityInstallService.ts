@@ -50,7 +50,7 @@ import {
   buildAuthorityActiveSessionRecordV1,
   buildAuthorityPendingLocalInstallSessionRecordV1,
   type LinkedDeviceSessionRecordV1,
-} from '../../../../core/deviceLinking/linkedDeviceSession';
+} from '../../../../core/deviceLinking/linkedDeviceSessionRecord';
 import type {
   LocalAuthorityActivationFinalAckV1,
   LocalAuthorityInstallationReceiptV1,
@@ -78,8 +78,10 @@ import { type ExactAdministeredSignerV1 } from '@shared/device-linking/delegated
 import {
   buildWalletAuthMethodRecordV2,
   sameWalletAuthMethodRecordV2,
+  type ActiveWalletAuthMethodRecordV2,
+  type PendingWalletAuthMethodRecordV2,
   type WalletAuthMethodRecordV2,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/walletAuthMethodRecord';
 import { parseLinkDeviceSessionId, parseWalletKeyId } from '@shared/signing-lanes/ids';
 import {
   OrdinaryInactiveSignerMaterialReservationServiceV1,
@@ -94,7 +96,7 @@ import {
   parseLinkedDeviceOrdinaryMaterialSourceContributionV1,
 } from '@shared/device-linking/sourceContribution';
 import type { LinkedDeviceEcdsaSourcePreservingActivationReceiptV1 } from '@shared/device-linking/sourceContribution';
-import { parseLocalAuthorityActivationFinalAckV1 } from '@shared/device-linking/parsers';
+import { parseLocalAuthorityActivationFinalAckV1 } from '@shared/device-linking/authorityActivation';
 import {
   computeWalletSessionInstallationReceiptDigestB64u,
   computeWalletSessionOperationCredentialDigestB64u,
@@ -110,7 +112,7 @@ import {
   type RouterAbEd25519YaoCeremonyBindingV1,
 } from '@shared/utils/routerAbEd25519Yao';
 import { routerAbMpcMaterialActivationRefFromWire } from '@shared/utils/routerAbNormalSigningIdentity';
-import { d1ChangedRows, parseD1JsonColumn } from '../../../../storage/d1Sql';
+import { parseD1JsonColumn } from '../../../../storage/d1Sql';
 import {
   D1WalletAuthorityStore,
   type D1WalletAuthorityStoreScope,
@@ -252,7 +254,7 @@ export type ActivateInstalledAuthorityResultV1 =
       readonly kind: 'active';
       readonly outcome: 'activated' | 'replayed';
       readonly authority: ActiveWalletAuthorityV1;
-      readonly authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+      readonly authMethod: ActiveWalletAuthMethodRecordV2;
       readonly session: LinkedDeviceSessionRecordV1;
       readonly walletSession: IssuedWalletSessionAuthorizationV2;
       readonly deliveryBinding: LinkedDeviceWalletSessionCredentialDeliveryBindingV1;
@@ -808,10 +810,7 @@ export class D1LinkedDeviceAuthorityInstallServiceV1 {
     readonly stored: StoredInstallationRow;
     readonly receipt: LocalAuthorityInstallationReceiptV1;
     readonly expectedPendingAuthority: PendingWalletAuthorityV1;
-    readonly expectedPendingAuthMethod: Extract<
-      WalletAuthMethodRecordV2,
-      { readonly status: 'pending_local_install' }
-    >;
+    readonly expectedPendingAuthMethod: PendingWalletAuthMethodRecordV2;
     readonly nowMs: number;
   }): Promise<Extract<ActivateInstalledAuthorityResultV1, { readonly kind: 'active' }> | null> {
     const authority = await this.options.authorityStore.readById(input.stored.authorityId);
@@ -1772,7 +1771,7 @@ export class D1LinkedDeviceAuthorityInstallServiceV1 {
 
   private async readCommittedWalletSession(
     authority: ActiveWalletAuthorityV1,
-    authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>,
+    authMethod: ActiveWalletAuthMethodRecordV2,
     issuedAtMs: number,
   ): Promise<
     IssuedWalletSessionAuthorizationV2 & {
@@ -1911,7 +1910,7 @@ export class D1LinkedDeviceAuthorityInstallServiceV1 {
 
   private buildWalletSessionAuthorizationInput(
     authority: ActiveWalletAuthorityV1,
-    authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>,
+    authMethod: ActiveWalletAuthMethodRecordV2,
     issuedAtMs: number,
   ): IssueWalletSessionAuthorizationV2Input {
     const tenantId = requireParsed(parseTenantId(this.options.tenantId), 'tenantId');
@@ -1945,39 +1944,6 @@ export class D1LinkedDeviceAuthorityInstallServiceV1 {
       expiresAtMs: issuedAtMs + ttlMs,
     };
     return input;
-  }
-
-  private async markInstalled(
-    stored: StoredInstallationRow,
-    receipt: LocalAuthorityInstallationReceiptV1,
-  ): Promise<void> {
-    const result = await this.options.database
-      .prepare(
-        `UPDATE linked_device_authority_installations
-            SET installed_record_set_digest_b64u = ?, activated_at_ms = ?, updated_at_ms = ?
-          WHERE namespace = ? AND org_id = ? AND project_id = ? AND env_id = ?
-            AND link_session_id = ? AND package_set_digest_b64u = ?
-            AND (installed_record_set_digest_b64u IS NULL OR installed_record_set_digest_b64u = ?)`,
-      )
-      .bind(
-        String(receipt.installedRecordSetDigestB64u),
-        receipt.installedAtMs,
-        receipt.installedAtMs,
-        this.options.scope.namespace,
-        this.options.scope.orgId,
-        this.options.scope.projectId,
-        this.options.scope.envId,
-        String(stored.linkSessionId),
-        String(stored.packageSetDigestB64u),
-        String(receipt.installedRecordSetDigestB64u),
-      )
-      .run();
-    if (d1ChangedRows(result) !== 1) {
-      const replay = await this.readInstallation(stored.linkSessionId);
-      if (replay?.installedRecordSetDigestB64u !== receipt.installedRecordSetDigestB64u) {
-        throw new Error('installation acknowledgement conflicts with a prior receipt');
-      }
-    }
   }
 
   private async prepareAuthorityAllocation(
@@ -2137,21 +2103,7 @@ export class D1LinkedDeviceAuthorityInstallServiceV1 {
   private async readInstallationByAuthority(
     authorityId: WalletAuthorityId,
   ): Promise<StoredInstallationRow | null> {
-    const row = await this.options.database
-      .prepare(
-        `SELECT * FROM linked_device_authority_installations
-          WHERE namespace = ? AND org_id = ? AND project_id = ? AND env_id = ?
-            AND authority_id = ? LIMIT 1`,
-      )
-      .bind(
-        this.options.scope.namespace,
-        this.options.scope.orgId,
-        this.options.scope.projectId,
-        this.options.scope.envId,
-        String(authorityId),
-      )
-      .first<Readonly<Record<string, unknown>>>();
-    return row ? parseStoredInstallationRow(row) : null;
+    return await readStoredInstallationByAuthorityV1(this.options, authorityId);
   }
 
   private async readInstallationsByWallet(
@@ -2174,6 +2126,84 @@ export class D1LinkedDeviceAuthorityInstallServiceV1 {
       .all<Readonly<Record<string, unknown>>>();
     return (rows.results ?? []).map(parseStoredInstallationRow);
   }
+}
+
+async function readStoredInstallationByAuthorityV1(
+  sql: Pick<D1LinkedDeviceAuthorityInstallServiceOptionsV1, 'database' | 'scope'>,
+  authorityId: WalletAuthorityId,
+): Promise<StoredInstallationRow | null> {
+  const row = await sql.database
+    .prepare(
+      `SELECT * FROM linked_device_authority_installations
+        WHERE namespace = ? AND org_id = ? AND project_id = ? AND env_id = ?
+          AND authority_id = ? LIMIT 1`,
+    )
+    .bind(
+      sql.scope.namespace,
+      sql.scope.orgId,
+      sql.scope.projectId,
+      sql.scope.envId,
+      String(authorityId),
+    )
+    .first<Readonly<Record<string, unknown>>>();
+  return row ? parseStoredInstallationRow(row) : null;
+}
+
+/**
+ * The installed Ed25519 authority of a linked device, read from Gateway SQL
+ * alone: a linked device approving another link names its own binding as the
+ * source. Null when a link did not install the authority. An installation
+ * that does not project refuses.
+ */
+export async function readD1LinkedDeviceEd25519SourceV1(
+  sql: Pick<D1LinkedDeviceAuthorityInstallServiceOptionsV1, 'database' | 'scope'>,
+  input: {
+    readonly walletId: WalletId;
+    readonly authorityId: WalletAuthorityId;
+    readonly walletAuthMethodId: WalletAuthMethodId;
+  },
+): Promise<InstalledLinkedDeviceEd25519AuthorityProjectionV1 | null> {
+  const stored = await readStoredInstallationByAuthorityV1(sql, input.authorityId);
+  if (!stored) return null;
+  await assertStoredPackageDigest(stored);
+  const projection =
+    stored.walletId === input.walletId && stored.authMethodId === input.walletAuthMethodId
+      ? projectInstalledEd25519Authority(stored)
+      : null;
+  if (!projection) {
+    throw new Error(
+      'linked-device Ed25519 source authority does not project its installed material',
+    );
+  }
+  return projection;
+}
+
+/**
+ * The installed ECDSA authority of a linked device, read from Gateway SQL
+ * alone: a linked device approving another link contributes from it. Null
+ * when a link did not install the authority. An installation that does not
+ * project refuses, so a linked device never falls back to another device's
+ * material.
+ */
+export async function readD1LinkedDeviceEcdsaSourceV1(
+  sql: Pick<D1LinkedDeviceAuthorityInstallServiceOptionsV1, 'database' | 'scope'>,
+  input: {
+    readonly walletId: WalletId;
+    readonly authorityId: WalletAuthorityId;
+    readonly walletAuthMethodId: WalletAuthMethodId;
+  },
+): Promise<InstalledLinkedDeviceEcdsaAuthorityProjectionV1 | null> {
+  const stored = await readStoredInstallationByAuthorityV1(sql, input.authorityId);
+  if (!stored) return null;
+  await assertStoredPackageDigest(stored);
+  const projection =
+    stored.walletId === input.walletId && stored.authMethodId === input.walletAuthMethodId
+      ? projectInstalledEcdsaAuthority(stored)
+      : null;
+  if (!projection) {
+    throw new Error('linked-device ECDSA source authority does not project its installed material');
+  }
+  return projection;
 }
 
 function assertRecipientRequestsMatchManifest(input: VerifiedLinkInputV1): void {
@@ -2670,7 +2700,7 @@ async function buildActiveAuthority(
 function buildActiveAuthMethod(
   pending: CommittedAuthorityPackagesV1['authMethod'],
   activatedAtMs: number,
-): Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }> {
+): ActiveWalletAuthMethodRecordV2 {
   if (pending.kind === 'passkey') {
     const record = buildWalletAuthMethodRecordV2({
       version: 'wallet_auth_method_v2',
@@ -2714,7 +2744,7 @@ async function buildPasskeyCredentialPromotionStatements(input: {
   readonly scope: D1WalletAuthorityStoreScope;
   readonly listWalletEd25519Signers: ListWalletEd25519SignersV1;
   readonly authority: ActiveWalletAuthorityV1;
-  readonly authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+  readonly authMethod: ActiveWalletAuthMethodRecordV2;
   readonly activatedAtMs: number;
 }): Promise<readonly D1PreparedStatementLike[]> {
   if (input.authMethod.kind !== 'passkey') return [];

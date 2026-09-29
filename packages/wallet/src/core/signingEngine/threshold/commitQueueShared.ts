@@ -1,9 +1,6 @@
 import { normalizeBoundedPositiveInteger } from '@shared/utils/normalize';
 
-export type ThresholdCommitQueueErrorCode =
-  | 'commit_queue_overflow'
-  | 'commit_queue_timeout'
-  | 'cancelled';
+type ThresholdCommitQueueErrorCode = 'commit_queue_overflow' | 'commit_queue_timeout' | 'cancelled';
 
 export type ThresholdCommitQueueCancelledReason = 'cancelled' | 'queue_cleared';
 
@@ -28,7 +25,7 @@ type ThresholdCommitQueueState = {
 
 export type ThresholdCommitQueueByKey = Map<string, ThresholdCommitQueueState>;
 
-export type ThresholdCommitQueueErrorFactory = {
+type ThresholdCommitQueueErrorFactory = {
   makeOverflowError: (queueKey: string, maxQueueLength: number) => unknown;
   makeTimeoutError: (queueKey: string, timeoutMs: number) => unknown;
   makeCancelledError: (queueKey: string, reason: ThresholdCommitQueueCancelledReason) => unknown;

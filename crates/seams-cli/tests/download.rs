@@ -5,7 +5,7 @@
 mod support;
 
 use std::cell::RefCell;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use base64ct::{Base64UrlUnpadded, Encoding};
 use seams_cli::{
@@ -16,34 +16,9 @@ use seams_cli::{
 use seams_recovery_core::RecoveryHostSecretCapabilitiesV1;
 use sha2::{Digest, Sha256};
 
-struct Scratch {
-    root: PathBuf,
-}
+use support::{fixture, Scratch};
 
-impl Scratch {
-    fn new(name: &str) -> Self {
-        let root = std::env::temp_dir().join(format!("seams-cli-download-{name}"));
-        let _ = std::fs::remove_dir_all(&root);
-        std::fs::create_dir_all(&root).expect("scratch directory");
-        Self { root }
-    }
-
-    fn path(&self, name: &str) -> PathBuf {
-        self.root.join(name)
-    }
-}
-
-impl Drop for Scratch {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.root);
-    }
-}
-
-fn fixture(name: &str) -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../router-ab-core/tests/fixtures/tenant-root-recovery")
-        .join(name)
-}
+const SCRATCH_PREFIX: &str = "seams-cli-download";
 
 /// A transport that serves the committed artifact set and records reports.
 struct FixtureTransport {
@@ -160,7 +135,7 @@ fn download(scratch: &Scratch, descriptor: u16, trust_bundle: Option<PathBuf>) -
 
 #[test]
 fn a_downloaded_package_is_written_durably_and_verified_from_disk() {
-    let scratch = Scratch::new("verified");
+    let scratch = Scratch::new(SCRATCH_PREFIX, "verified");
     let package = std::fs::read(fixture("deriver-a.backup")).expect("fixture package");
     let transport = FixtureTransport::new(package);
 
@@ -204,7 +179,7 @@ fn a_downloaded_package_is_written_durably_and_verified_from_disk() {
 
 #[test]
 fn a_digest_the_service_did_not_record_is_refused_and_the_file_removed() {
-    let scratch = Scratch::new("digest-mismatch");
+    let scratch = Scratch::new(SCRATCH_PREFIX, "digest-mismatch");
     let package = std::fs::read(fixture("deriver-a.backup")).expect("fixture package");
     let transport = FixtureTransport::with_wrong_digest(package.clone());
 
@@ -241,7 +216,7 @@ fn a_digest_the_service_did_not_record_is_refused_and_the_file_removed() {
 
 #[test]
 fn the_other_roles_package_is_refused_for_this_role() {
-    let scratch = Scratch::new("wrong-role");
+    let scratch = Scratch::new(SCRATCH_PREFIX, "wrong-role");
     let package = std::fs::read(fixture("deriver-b.backup")).expect("fixture package");
     let transport = FixtureTransport::new(package);
 
@@ -266,7 +241,7 @@ fn the_other_roles_package_is_refused_for_this_role() {
 
 #[test]
 fn a_trust_bundle_that_does_not_continue_the_pin_fails_before_any_download() {
-    let scratch = Scratch::new("foreign-trust");
+    let scratch = Scratch::new(SCRATCH_PREFIX, "foreign-trust");
     let package = std::fs::read(fixture("deriver-a.backup")).expect("fixture package");
     let transport = FixtureTransport::new(package);
     // A syntactically valid bundle for a root this binary does not pin.
@@ -300,7 +275,7 @@ impl ConsoleTransportV1 for InterruptedDownloadTransport {
 
 #[test]
 fn an_interrupted_response_leaves_no_file_and_retry_installs_the_verified_package() {
-    let scratch = Scratch::new("interrupted-response");
+    let scratch = Scratch::new(SCRATCH_PREFIX, "interrupted-response");
     let (result, exit) = run_with_credential(
         |descriptor| download(&scratch, descriptor, None),
         &scratch,

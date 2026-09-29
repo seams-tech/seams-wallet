@@ -10,7 +10,7 @@ use router_ab_core::{
     RouterAbProtocolResult, RouterEd25519YaoBurnReasonV1, RouterEd25519YaoExecuteFailureCodeV1,
     RouterEd25519YaoGatewayExecuteTargetV2, TenantRootActivationReceiptBindingV1,
     TenantRootCustodyBindingV1, TenantRootDerivationNonceV1, TenantRootDerivationOperationIdV1,
-    TenantRootDerivationSessionIdV1, TenantRootDeriverIdentitiesV1,
+    TenantRootDerivationSessionIdV1, TenantRootDeriverIdentitiesV1, TenantRootIdentityV1,
     TenantRootOnlineRoleShareBindingV1, TenantRootProtocolDigestV1,
     TenantRootSignedActivationReceiptV1, TwoPartyDeriverRole,
     VerifiedTenantRootSignedActivationReceiptV1,
@@ -29,14 +29,52 @@ use threshold_prf::{
     SigningRootShareCommitment, SigningRootShareWire,
 };
 
-use crate::{CloudflareTenantRootCoordinatesV1, CloudflareTenantRootCustodyBindingWireV1};
+use crate::{
+    encode_base64url_bytes_v1, CloudflareTenantRootCoordinatesV1,
+    CloudflareTenantRootCustodyBindingWireV1,
+};
+
+/// Authenticated Gateway scope for Yao routing. The root version authorizes
+/// the operation; wallet placement uses only the stable tenant fields.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CloudflareRouterEd25519YaoTenantRootV1 {
+    pub identity: TenantRootIdentityV1,
+    pub custody_lineage_b64u: String,
+}
+
+impl CloudflareRouterEd25519YaoTenantRootV1 {
+    pub fn coordinates(&self) -> RouterAbProtocolResult<CloudflareTenantRootCoordinatesV1> {
+        let identity_digest = self.identity.digest().map_err(|error| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::MalformedWirePayload,
+                format!("Yao tenant-root identity is invalid: {error}"),
+            )
+        })?;
+        let coordinates = CloudflareTenantRootCoordinatesV1 {
+            identity_digest_b64u: encode_base64url_bytes_v1(identity_digest.as_bytes()),
+            custody_lineage_b64u: self.custody_lineage_b64u.clone(),
+        };
+        coordinates.resolve()?;
+        Ok(coordinates)
+    }
+
+    pub fn resolve(
+        &self,
+    ) -> RouterAbProtocolResult<(
+        router_ab_core::TenantRootIdentityDigestV1,
+        router_ab_core::TenantRootCustodyLineageId,
+    )> {
+        self.coordinates()?.resolve()
+    }
+}
 
 /// Server-admitted execution envelope. Tenant-root selectors and stable-context
 /// facts are supplied by the authenticated wallet server, never by the browser.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareRouterEd25519YaoExecuteRequestV2 {
-    pub tenant_root: CloudflareTenantRootCoordinatesV1,
+    pub tenant_root: CloudflareRouterEd25519YaoTenantRootV1,
     pub application: RouterAbEd25519YaoApplicationBindingFactsV1,
     pub participant_ids: [u16; 2],
     pub target: RouterEd25519YaoGatewayExecuteTargetV2,
@@ -46,6 +84,12 @@ impl CloudflareRouterEd25519YaoExecuteRequestV2 {
     pub fn validate(&self) -> RouterAbProtocolResult<()> {
         self.tenant_root.resolve()?;
         validate_participant_ids(self.participant_ids)?;
+        if self.tenant_root.identity.signing_root_id() != self.application.signing_root_id() {
+            return Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidLifecycleState,
+                "server-resolved Yao signing root does not match the application",
+            ));
+        }
         if self.application.wallet_id() != self.target.ceremony_binding().lifecycle.account_id {
             return Err(RouterAbProtocolError::new(
                 RouterAbProtocolErrorCode::InvalidLifecycleState,
@@ -169,6 +213,7 @@ pub fn cloudflare_ed25519_yao_tenant_root_bindings_v2(
 /// Builds the exact V2 context after the local or Worker boundary has
 /// authenticated the active receipt and selected server-owned application facts.
 pub fn cloudflare_ed25519_yao_tenant_root_context_v2(
+    identity: TenantRootIdentityV1,
     activation_receipt: &VerifiedTenantRootSignedActivationReceiptV1,
     derivers: TenantRootDeriverIdentitiesV1,
     application: RouterAbEd25519YaoApplicationBindingFactsV1,
@@ -177,6 +222,18 @@ pub fn cloudflare_ed25519_yao_tenant_root_context_v2(
     issued_at_ms: u64,
     expires_at_ms: u64,
 ) -> RouterAbProtocolResult<CloudflareEd25519YaoTenantRootContextV2> {
+    let identity_digest = identity.digest().map_err(|error| {
+        RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::MalformedWirePayload,
+            format!("Yao root identity is invalid: {error}"),
+        )
+    })?;
+    if identity_digest != activation_receipt.identity_digest() {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::ForbiddenLocalBinding,
+            "Yao root identity differs from active activation receipt",
+        ));
+    }
     let (custody_binding, outer_binding) = cloudflare_ed25519_yao_tenant_root_bindings_v2(
         activation_receipt,
         derivers,
@@ -185,6 +242,7 @@ pub fn cloudflare_ed25519_yao_tenant_root_context_v2(
         expires_at_ms,
     )?;
     let context = CloudflareEd25519YaoTenantRootContextV2 {
+        identity,
         custody_binding,
         outer_binding,
         application,
@@ -449,6 +507,7 @@ fn invalid_target_preface(message: impl Into<String>) -> RouterAbProtocolError {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareEd25519YaoTenantRootContextV2 {
+    pub identity: TenantRootIdentityV1,
     pub custody_binding: CloudflareTenantRootCustodyBindingWireV1,
     pub outer_binding: Ed25519YaoOuterBindingV2,
     pub application: RouterAbEd25519YaoApplicationBindingFactsV1,
@@ -465,6 +524,7 @@ impl CloudflareEd25519YaoTenantRootContextV2 {
         pair_binding.validate()?;
         if self.participant_ids[0] == 0
             || self.participant_ids[0] >= self.participant_ids[1]
+            || self.identity.signing_root_id() != self.application.signing_root_id()
             || self.outer_binding.pair_session().as_bytes() != &pair_binding.session()
             || self.outer_binding.stable_context_binding()
                 != pair_binding.binding().stable_key_context_binding
@@ -557,6 +617,43 @@ pub struct CloudflareEd25519YaoPairLookupRequestV1 {
     pub pair_digest: [u8; 32],
 }
 
+/// Stable wallet placement plus the original root and pair authorization for B.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CloudflareDeriverBWalletPairScopeV1 {
+    pub root_identity: TenantRootIdentityV1,
+    pub pair_binding: Ed25519YaoInputPairBindingV1,
+}
+
+impl CloudflareDeriverBWalletPairScopeV1 {
+    pub fn validate(&self) -> RouterAbProtocolResult<()> {
+        self.root_identity.digest().map_err(|error| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidLifecycleState,
+                format!("Deriver B wallet root identity is invalid: {error}"),
+            )
+        })?;
+        self.pair_binding.validate()?;
+        Ok(())
+    }
+}
+
+/// Router-authenticated lookup for one Deriver A wallet-owned pair.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CloudflareDeriverAWalletPairStatusRequestV1 {
+    pub root_identity: TenantRootIdentityV1,
+    pub pair_binding: Ed25519YaoInputPairBindingV1,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CloudflareDeriverAWalletPairBurnRequestV1 {
+    pub root_identity: TenantRootIdentityV1,
+    pub pair_binding: Ed25519YaoInputPairBindingV1,
+    pub execution_id: Ed25519YaoExecutionIdV1,
+}
+
 /// Sanitized role-local state returned only to the MPC Router for exact replay.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "status", rename_all = "snake_case", deny_unknown_fields)]
@@ -575,6 +672,36 @@ pub enum CloudflareEd25519YaoPairStatusResponseV1 {
     },
     Completed {
         execution: Box<Ed25519YaoRoleExecutionV1>,
+    },
+    Burned {
+        session: [u8; 32],
+        pair_digest: [u8; 32],
+    },
+    Expired {
+        session: [u8; 32],
+        pair_digest: [u8; 32],
+    },
+}
+
+/// A's scoped, durable execution outcome for Router replay.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "status", rename_all = "snake_case", deny_unknown_fields)]
+pub enum CloudflareDeriverAWalletPairOutcomeResponseV1 {
+    Missing {
+        session: [u8; 32],
+        pair_digest: [u8; 32],
+    },
+    Prepared {
+        session: [u8; 32],
+        pair_digest: [u8; 32],
+    },
+    Running {
+        session: [u8; 32],
+        pair_digest: [u8; 32],
+    },
+    Completed {
+        outcome: Box<CloudflareEd25519YaoPairExecuteResponseV1>,
+        tenant_root: Box<CloudflareEd25519YaoTenantRootContextV2>,
     },
     Burned {
         session: [u8; 32],
@@ -627,11 +754,17 @@ impl CloudflareEd25519YaoRoleFailureResponseV1 {
                 code: RouterEd25519YaoExecuteFailureCodeV1::MissingPreparation,
             };
         }
+        if error.code() == RouterAbProtocolErrorCode::SupersededAttempt {
+            return Self::Rejected {
+                code: RouterEd25519YaoExecuteFailureCodeV1::AttemptSuperseded,
+            };
+        }
         if matches!(
             error.code(),
             RouterAbProtocolErrorCode::InvalidLocalServiceConfig
                 | RouterAbProtocolErrorCode::MissingLocalBinding
                 | RouterAbProtocolErrorCode::ForbiddenLocalBinding
+                | RouterAbProtocolErrorCode::LifecycleTransitionInProgress
         ) {
             return Self::RecoverableFailure {
                 code: RouterEd25519YaoExecuteFailureCodeV1::ServiceUnavailable,

@@ -46,7 +46,7 @@ async function verifyOverlappingIntendedFaultIsolation(): Promise<void> {
   await expect(terminal.json()).resolves.toMatchObject({ status: 'burned' });
 
   const replay = await retryController.fetch(
-    routerExecuteRequest('trace-retry', '{"request":"retry"}', true),
+    routerExecuteRequest('trace-retry', '{"request":"retry"}', false),
   );
   expect(replay.ok).toBe(true);
   expect(retryController.consumeOutcome()).toEqual({
@@ -101,7 +101,7 @@ async function rejectChangedReplayAndTerminalRetry(): Promise<void> {
   await expect(replay.fetch(routerExecuteRequest('trace', 'original', false))).rejects.toThrow(
     'dropped the completed Router response',
   );
-  await expect(replay.fetch(routerExecuteRequest('trace', 'changed', true))).rejects.toThrow(
+  await expect(replay.fetch(routerExecuteRequest('trace', 'changed', false))).rejects.toThrow(
     'changed the Router request body',
   );
   expect(replay.consumeOutcome()).toEqual({

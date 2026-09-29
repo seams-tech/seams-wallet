@@ -1,5 +1,4 @@
 import {
-  encodeLinkedDeviceRequestProofV1,
   parseLinkedDeviceEmailOtpFactorReleaseEnvelopeV1,
   parseLinkedDeviceEmailOtpVerificationGrantV1,
   parseLinkDevicePublicKeyB64u,
@@ -8,7 +7,6 @@ import {
   parseWalletSessionOperationCredentialV1,
   type LinkedDeviceEmailOtpFactorReleaseEnvelopeV1,
   type LinkedDeviceEmailOtpVerificationGrantV1,
-  type LinkedDeviceRequestProofV1,
   type LinkedDeviceWalletSessionCredentialDeliveryV1,
 } from '@shared/device-linking';
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
@@ -53,7 +51,7 @@ export type DeviceLinkingWorkerEndpointV1 = {
   terminate(): void;
 };
 
-export type DeviceLinkingWorkerKeyMaterialPortV1 = DeviceLinkingKeyMaterialPortV1 & {
+type DeviceLinkingWorkerKeyMaterialPortV1 = DeviceLinkingKeyMaterialPortV1 & {
   close(): void;
 } & DeviceLinkingEmailOtpFactorReleasePortV1 &
   DeviceLinkingOrdinaryMaterialWorkerPortV1;
@@ -592,33 +590,4 @@ export function createDeviceLinkingKeyMaterialPortV1(
       return parseSignatureResult(await request(requestInput));
     },
   };
-}
-
-/** Builds the exact bytes used by the worker before Ed25519 signing. */
-export function encodeDeviceLinkingRequestForWorkerV1(input: {
-  readonly linkSessionId: LinkDeviceSessionId;
-  readonly devicePublicKeyDigestB64u: DigestB64u;
-  readonly bodyDigestB64u: DigestB64u;
-  readonly method: 'GET' | 'POST';
-  readonly canonicalPath: string;
-  readonly challengeB64u: string;
-  readonly issuedAtMs: number;
-  readonly expiresAtMs: number;
-}): Uint8Array {
-  const zeroSignature = new Uint8Array(64);
-  const proof: LinkedDeviceRequestProofV1 = {
-    kind: 'linked_device_request_proof_v1',
-    linkSessionId: input.linkSessionId,
-    devicePublicKeyDigestB64u: input.devicePublicKeyDigestB64u,
-    requestNonceB64u: input.challengeB64u,
-    method: input.method,
-    canonicalPath: input.canonicalPath,
-    bodyDigestB64u: input.bodyDigestB64u,
-    issuedAtMs: input.issuedAtMs,
-    expiresAtMs: input.expiresAtMs,
-    signatureB64u: base64UrlEncode(zeroSignature),
-  };
-  const encoded = encodeLinkedDeviceRequestProofV1(proof);
-  zeroSignature.fill(0);
-  return encoded;
 }

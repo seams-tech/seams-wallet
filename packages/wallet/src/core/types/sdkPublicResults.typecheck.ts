@@ -1,8 +1,8 @@
 import {
   nearEd25519SigningKeyIdFromString,
-  implicitNearAccountProvisioning,
   walletIdFromString,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/registrationIds';
+import { implicitNearAccountProvisioning } from '@shared/utils/registrationSignerPlan';
 import { parseImplicitNearAccountId } from '@shared/utils/near';
 import type {
   ActionResult,
@@ -186,8 +186,8 @@ const ecdsaRegistrationSuccess: RegistrationResult = {
 };
 void ecdsaRegistrationSuccess;
 
-/* Refactor 94 Phase 7. A mixed plan resolves ECDSA-ready with NEAR still
-   settling; there is no synchronous mixed result to model any more. */
+/* A mixed plan resolves ECDSA-ready with NEAR still settling; there is no
+   synchronous mixed result to model any more. */
 const mixedRegistrationPendingSuccess: RegistrationResult = {
   success: true,
   kind: 'ecdsa_wallet_registered_near_pending',

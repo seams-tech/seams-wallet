@@ -124,7 +124,7 @@ function requireCredentialId(value: string): WebAuthnCredentialIdB64u {
  * no second one-time code. Either way the worker opens the seed and reseals it;
  * only the door differs.
  */
-export type WalletCustodySealSourceV1 =
+type WalletCustodySealSourceV1 =
   | { readonly kind: 'factor_secret'; readonly existingFactorSecret: Uint8Array }
   | {
       readonly kind: 'unlocked_capability';
@@ -137,7 +137,7 @@ export type WalletCustodySealSourceV1 =
  * seed and both factor secrets stay inside WASM; only the opaque ciphertext
  * crosses back to the caller for the atomic server finalize.
  */
-export async function createPasskeyCustodyLinkEnvelope(input: {
+async function createPasskeyCustodyLinkEnvelope(input: {
   readonly registration: WalletAddAuthMethodRegistrationOptions;
   /** The server-allocated target method this envelope will belong to. */
   readonly walletAuthMethodId: WalletAuthMethodId;
@@ -241,65 +241,6 @@ export async function createPasskeyCustodyLinkEnvelope(input: {
         updatedAtMs: nowMs,
       }),
     ),
-  };
-}
-
-/**
- * Start-only add-passkey: mint the ceremony without finalizing it.
- *
- * Refactor 103 Phase 8 splits an add-auth-method ceremony across two machines.
- * Device 1 has the owner authority to start one; Device 2 holds the PRF that
- * finalizes it. `linkWalletPasskeyCustody` below does both halves in one call
- * because it runs where a single device holds both — which is exactly what
- * device linking does not have.
- *
- * So this half stops at the ceremony. It creates the intent, proves owner
- * authority freshly against that intent's digest, starts the ceremony, and
- * returns its identity — plus the custody envelope the start hands back, which
- * Device 1 holds and later seals for the linked device. It deliberately does
- * not create a credential and never accepts an existing factor secret: the
- * secret that opens that envelope is PRF.first from the assertion the caller
- * already collected, and the seed reaches Device 2 by the sealed custody
- * transfer rather than through this function.
- */
-export async function startWalletPasskeyAddAuthMethodCeremony(input: {
-  readonly relayerUrl: string;
-  readonly walletId: Parameters<typeof startWalletAddAuthMethod>[0]['walletId'];
-  readonly addAuthMethodIntentGrant: Parameters<
-    typeof startWalletAddAuthMethod
-  >[0]['addAuthMethodIntentGrant'];
-  readonly addAuthMethodIntentDigestB64u: string;
-  readonly intent: Parameters<typeof startWalletAddAuthMethod>[0]['intent'];
-  readonly auth: AddAuthMethodAuth;
-}): Promise<{
-  readonly addAuthMethodCeremonyId: string;
-  readonly registration: WalletAddAuthMethodRegistrationOptions;
-  readonly custodyEnvelope: PasskeyCustodyEnvelopeRecord;
-  readonly expiresAtMs: number;
-}> {
-  const started = await startWalletAddAuthMethod({
-    relayerUrl: input.relayerUrl,
-    walletId: input.walletId,
-    addAuthMethodIntentGrant: input.addAuthMethodIntentGrant,
-    addAuthMethodIntentDigestB64u: input.addAuthMethodIntentDigestB64u,
-    intent: input.intent,
-    auth: input.auth,
-    authority: { kind: 'passkey' },
-  });
-  if (
-    !started.registration ||
-    !started.custodyEnvelope ||
-    started.addAuthMethodCeremonyExpiresAtMs === undefined
-  ) {
-    throw new Error(
-      'Passkey add-auth-method start omitted registration options, custody envelope, or expiry',
-    );
-  }
-  return {
-    addAuthMethodCeremonyId: started.addAuthMethodCeremonyId,
-    registration: started.registration,
-    custodyEnvelope: started.custodyEnvelope,
-    expiresAtMs: started.addAuthMethodCeremonyExpiresAtMs,
   };
 }
 

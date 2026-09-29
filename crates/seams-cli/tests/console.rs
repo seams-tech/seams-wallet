@@ -12,8 +12,7 @@ use seams_cli::{
     read_console_status_v1, read_restore_status_v1, start_console_rotation_v1, ConsoleCredentialV1,
     ConsoleEndpointV1, ConsoleErrorKindV1, ConsoleRequestV1, ConsoleResponseV1,
     ConsoleRotationOutcomeV1, ConsoleTransportErrorV1, ConsoleTransportV1, DestinationBootstrapV1,
-    UnavailableConsoleTransportV1, CONSOLE_ENVIRONMENT_HEADER_V1, DESTINATION_BOOTSTRAP_HEADER_V1,
-    RESTORE_SESSION_HEADER_V1,
+    CONSOLE_ENVIRONMENT_HEADER_V1, DESTINATION_BOOTSTRAP_HEADER_V1, RESTORE_SESSION_HEADER_V1,
 };
 
 const BASE_URL: &str = "https://console.example";
@@ -297,17 +296,6 @@ fn authorization_refusal_and_server_failures_are_told_apart() {
         .expect_err("oversized")
         .message()
         .contains("size limit"));
-}
-
-#[test]
-fn this_build_has_no_transport_and_says_so() {
-    let error = read_console_status_v1(&UnavailableConsoleTransportV1, &endpoint())
-        .expect_err("no transport");
-    assert!(error.message().contains("no console transport"));
-    assert!(error
-        .message()
-        .contains("/console/tenant-root/security/status"));
-    assert!(!error.retryable());
 }
 
 #[test]

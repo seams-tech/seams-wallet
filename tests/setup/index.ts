@@ -190,7 +190,7 @@ export async function setupBasicPasskeyTest(
 
   // Execute the generic sequential setup process.
   await routePreactModules(page);
-  const authenticatorId = await executeSequentialSetup(page, config, {
+  await executeSequentialSetup(page, config, {
     skipSeamsWebInit: options.skipSeamsWebInit,
     injectWalletServiceImportMap: options.injectWalletServiceImportMap,
   });

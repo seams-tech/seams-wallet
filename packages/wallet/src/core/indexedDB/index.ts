@@ -158,7 +158,7 @@ import { UnifiedIndexedDBManager } from './unifiedIndexedDBManager';
 import { seamsWalletDB } from './singletons';
 import { SEAMS_WALLET_DB_NAME } from './schemaNames';
 
-export type IndexedDBMode = 'app' | 'wallet' | 'disabled';
+type IndexedDBMode = 'app' | 'wallet' | 'disabled';
 
 const DB_CONFIG_BY_MODE: Record<
   IndexedDBMode,
@@ -229,18 +229,6 @@ export function configureIndexedDB(args: { mode: IndexedDBMode }): {
   return {
     walletDbName: configured.walletDbName,
   };
-}
-
-export function getIndexedDBNames(): { walletDbName: string } {
-  return (
-    configured || {
-      walletDbName: seamsWalletDB.getDbName(),
-    }
-  );
-}
-
-export function isIndexedDBPersistenceDisabled(): boolean {
-  return Boolean(configured?.disabled);
 }
 
 // Export singleton instance of unified manager

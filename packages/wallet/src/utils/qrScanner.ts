@@ -3,7 +3,6 @@ import {
   type QrLinkedDeviceSessionPayloadV5,
 } from '@shared/device-linking';
 import jsQR from 'jsqr';
-import { DeviceLinkingError, DeviceLinkingErrorCode } from '../core/types/linkDevice';
 import { validateQrLinkedDeviceSessionPayloadV5 } from '../SeamsWeb/operations/devices/scanDevice';
 import type { LinkDeviceFlowEvent } from '@/core/types/sdkSentEvents';
 
@@ -11,7 +10,7 @@ import type { LinkDeviceFlowEvent } from '@/core/types/sdkSentEvents';
 // TYPES AND INTERFACES
 // ===========================
 
-export interface ScanQRCodeFlowOptions {
+interface ScanQRCodeFlowOptions {
   cameraId?: string;
   cameraConfigs?: {
     facingMode?: 'user' | 'environment';
@@ -21,7 +20,7 @@ export interface ScanQRCodeFlowOptions {
   timeout?: number; // in milliseconds, default 60000
 }
 
-export interface ScanQRCodeFlowEvents {
+interface ScanQRCodeFlowEvents {
   onEvent?: (event: LinkDeviceFlowEvent) => void;
   onQRDetected?: (qrData: QrLinkedDeviceSessionPayloadV5) => void;
   onError?: (error: Error) => void;
@@ -29,7 +28,7 @@ export interface ScanQRCodeFlowEvents {
   onScanProgress?: (duration: number) => void; // Called periodically during scanning
 }
 
-export enum ScanQRCodeFlowState {
+enum ScanQRCodeFlowState {
   IDLE = 'idle',
   INITIALIZING = 'initializing',
   SCANNING = 'scanning',
@@ -230,26 +229,6 @@ export class ScanQRCodeFlow {
     }
   }
 
-  /**
-   * Get available video devices
-   */
-  async getAvailableCameras(): Promise<MediaDeviceInfo[]> {
-    try {
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      return devices.filter((device) => device.kind === 'videoinput');
-    } catch (error) {
-      console.error('Error enumerating cameras:', error);
-      throw new Error('Failed to access camera devices');
-    }
-  }
-
-  /**
-   * Get the current media stream (for external video elements)
-   */
-  getMediaStream(): MediaStream | null {
-    return this.mediaStream;
-  }
-
   // Private methods
 
   private setState(newState: ScanQRCodeFlowState): void {
@@ -395,7 +374,7 @@ export class ScanQRCodeFlow {
  * and Firefox word it differently, so match the name first and keep the text
  * check only as a fallback for browsers that use a bare `Error`.
  */
-export function isScannerCancellationError(error: unknown): boolean {
+function isScannerCancellationError(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
   if (error.name === 'AbortError') return true;
   return /interrupted by|request was interrupted|media was removed/i.test(error.message);
@@ -408,7 +387,7 @@ export function isScannerCancellationError(error: unknown): boolean {
  * debugging text ending in a goo.gl link, which is not something to put in
  * front of a user.
  */
-export function cameraAccessFailureMessage(error: unknown): string {
+function cameraAccessFailureMessage(error: unknown): string {
   switch (error instanceof Error ? error.name : '') {
     case 'NotAllowedError':
     case 'SecurityError':
@@ -430,52 +409,6 @@ export function cameraAccessFailureMessage(error: unknown): string {
 // ===========================
 // CONVENIENCE FUNCTIONS
 // ===========================
-
-/**
- * Scan QR code from file with lazy loading
- */
-export async function scanQRCodeFromFile(file: File): Promise<QrLinkedDeviceSessionPayloadV5> {
-  // Setup canvas
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
-  if (!ctx) throw createQRError('Unable to get canvas 2D context');
-
-  // Load and process image
-  const dataUrl = await new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      if (e.target?.result) {
-        resolve(e.target.result as string);
-      } else {
-        reject(createQRError('Failed to read file'));
-      }
-    };
-    reader.onerror = () => reject(createQRError('Failed to read file'));
-    reader.readAsDataURL(file);
-  });
-
-  // Process image
-  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-    const image = new Image();
-    image.onload = () => resolve(image);
-    image.onerror = () => reject(createQRError('Failed to load image file'));
-    image.src = dataUrl;
-  });
-
-  // Scan QR code using shared logic
-  canvas.width = img.width;
-  canvas.height = img.height;
-  ctx.drawImage(img, 0, 0);
-
-  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  const qrData = await scanQRFromImageData(imageData);
-
-  if (!qrData) {
-    throw createQRError('No QR code found in image');
-  }
-
-  return parseAndValidateQRData(qrData);
-}
 
 // ===========================
 // UTILITY FUNCTIONS
@@ -508,18 +441,6 @@ export function detectFrontCamera(camera: MediaDeviceInfo): boolean {
   );
 }
 
-/**
- * Detect camera facing mode from media stream settings
- */
-export function detectCameraFacingMode(stream: MediaStream): boolean {
-  const videoTrack = stream.getVideoTracks()[0];
-  if (videoTrack) {
-    const settings = videoTrack.getSettings();
-    return settings.facingMode === 'user';
-  }
-  return false;
-}
-
 // ===========================
 // PRIVATE HELPER FUNCTIONS
 // ===========================
@@ -539,8 +460,4 @@ function parseAndValidateQRData(qrData: string): QrLinkedDeviceSessionPayloadV5 
     throw new Error('QR code contains a NEAR key, not device linking data');
   }
   return validateQrLinkedDeviceSessionPayloadV5(parseQrLinkedDeviceSessionTextV5(qrData));
-}
-
-function createQRError(message: string): DeviceLinkingError {
-  return new DeviceLinkingError(message, DeviceLinkingErrorCode.INVALID_QR_DATA, 'authorization');
 }

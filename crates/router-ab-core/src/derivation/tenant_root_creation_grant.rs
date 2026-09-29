@@ -1,6 +1,6 @@
 //! Authenticated authorization to create one tenant root.
 //!
-//! Every other R120 creation artifact is derived from authoritative state the
+//! Every other creation artifact is derived from authoritative state the
 //! control plane can read. Genesis has none: before the Started journal exists
 //! there is no Durable Object record to consult, so the authorization to create
 //! a root has to arrive as an independently signed grant.
@@ -199,6 +199,17 @@ impl TenantRootCreationGrantV1 {
     /// Returns the key id that signed this grant.
     pub fn grant_key_id(&self) -> &str {
         &self.data.grant_key_id
+    }
+
+    /// Returns the identity digest and custody lineage this grant claims,
+    /// without verifying it. Only a caller that binds the grant to an
+    /// issuer-verified record by other means may act on these values.
+    pub fn claimed_scope(
+        &self,
+    ) -> RouterAbDerivationResult<(TenantRootIdentityDigestV1, TenantRootCustodyLineageId)> {
+        let identity =
+            TenantRootIdentityV1::decode_canonical_bytes(&self.data.identity_canonical_bytes)?;
+        Ok((identity.digest()?, self.data.custody_lineage))
     }
 
     /// Returns the exact canonical signed grant bytes.

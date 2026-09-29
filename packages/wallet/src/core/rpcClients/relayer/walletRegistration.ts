@@ -1,39 +1,48 @@
 import type {
-  AddAuthMethodInput,
   AddAuthMethodIntentGrant,
   AddAuthMethodIntentCallerV1,
   AddAuthMethodIntentV1,
-  WalletAddAuthMethodEmailOtpTargetV1,
   AddSignerIntentV1,
   AddSignerIntentGrant,
-  EmailOtpRegistrationProof,
-  RegistrationAuthMethodInput,
-  RegisterWalletInput,
   RegistrationIntentGrant,
   RegistrationIntentV1,
+  WalletId,
+  WebAuthnRpId,
+} from '@shared/utils/registrationIntent';
+import type { ActiveWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
+import type {
   RegistrationNearAccountProvisioning,
   RegistrationSignerRequest,
   RegistrationSignerSetSelection,
   ResolvedRegistrationNearAccount,
-  WalletAuthMethodRecordV2,
-  WalletId,
-  WebAuthnRpId,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/registrationSignerPlan';
+import type {
+  AddAuthMethodInput,
+  WalletAddAuthMethodEmailOtpTargetV1,
+  EmailOtpRegistrationProof,
+  RegistrationAuthMethodInput,
+  RegisterWalletInput,
+} from '@shared/utils/registrationAuthMethodInput';
 import {
   addAuthMethodIntentGrantFromString,
   addSignerIntentGrantFromString,
   computeRegistrationIntentDigestB64u,
   parseAddAuthMethodIntentV1,
   parseAddSignerIntentV1,
-  normalizeRegistrationAuthMethodInput,
-  normalizeRegistrationSignerPlan,
-  registrationSignerSetSelectionFromPlan,
   sameAddAuthMethodIntentV1,
   sameAddSignerIntentV1,
-  walletIdFromString,
-  type WalletAuthMethodRevocationProof,
 } from '@shared/utils/registrationIntent';
-import type { ActiveWalletAuthorityV1 } from '@shared/authorization/walletAuthority';
+import { type WalletAuthMethodRevocationProof } from '@shared/utils/walletAuthMethodRecord';
+import { walletIdFromString } from '@shared/utils/registrationIds';
+import {
+  normalizeRegistrationSignerPlan,
+  registrationSignerSetSelectionFromPlan,
+} from '@shared/utils/registrationSignerPlan';
+import { normalizeRegistrationAuthMethodInput } from '@shared/utils/registrationAuthMethodInput';
+import {
+  parseWalletAuthorityV1,
+  type ActiveWalletAuthorityV1,
+} from '@shared/authorization/walletAuthority';
 import {
   parsePasskeyCustodyEnvelopeRecord,
   parseWalletCustodyRegistrationOutcome,
@@ -58,20 +67,18 @@ import {
   parseWebAuthnAuthenticatorDeviceInfo,
   type WebAuthnAuthenticatorDeviceInfo,
 } from '@shared/utils/webauthnDeviceInfo';
-import type { WalletSessionOperationCredentialV1 } from '@shared/device-linking';
 import type { EcdsaKeyFactsInventoryWalletSessionCredential } from '@/core/types/sdkSentEvents';
-import type {
-  MpcWalletSigningQuotaId,
-  WalletSessionAuthorizationId,
-  WalletSessionId,
-} from '@shared/authorization/capabilityKinds';
 import {
-  type RouterAbEd25519YaoActivationAdmissionReceiptV1,
   parseRouterAbEd25519YaoRegistrationAdmissionRequestV1,
-  parseRouterAbEd25519YaoRegistrationActivationAdmissionReceiptV1,
-  type RouterAbEd25519YaoBytes32V1,
   type RouterAbEd25519YaoRegistrationAdmissionRequestV1,
 } from '@shared/utils/routerAbEd25519Yao';
+import type {
+  CreateRegistrationIntentRequest,
+  WalletEd25519YaoSignerPublicResult,
+  WalletRegistrationEd25519YaoActivationReference,
+  WalletRegistrationEd25519YaoStart,
+  WalletRegistrationFinalizeAuthMethod,
+} from '@shared/utils/registrationContracts';
 import {
   parseWalletAuthAuthority,
   type WalletAuthAuthority,
@@ -115,7 +122,6 @@ import {
   buildRelayerJsonPostRequestInit,
   normalizeRelayerBaseUrl,
 } from './relayerHttp';
-import { type RegistrationSignerSetRequest } from './registrationSignerSetRequest';
 import {
   parseWalletAddSignerChainTarget,
   parseWalletAddSignerEcdsaWalletKey,
@@ -143,7 +149,6 @@ const WALLET_REGISTRATION_NEAR_PROVISIONING_PATH = '/wallets/register/near-provi
 /** Managed environment id header for Router API `api_credentials` auth. */
 const ROUTER_API_ENVIRONMENT_ID_HEADER = 'X-Seams-Environment-Id';
 const WALLET_REGISTRATION_PREPARE_PATH = '/wallets/register/prepare';
-const WALLET_REGISTRATION_FINALIZE_PATH = '/wallets/register/finalize';
 const WRANGLER_WORKER_RESTARTED_MID_REQUEST = 'Your worker restarted mid-request';
 
 function utf8Bytes(value: string): number {
@@ -311,12 +316,6 @@ async function postJson(args: {
   throw new Error('wallet registration request exhausted retry attempts');
 }
 
-export type CreateRegistrationIntentRequest = {
-  wallet: RegisterWalletInput;
-  authMethod: RegistrationAuthMethodInput;
-  signerSelection: RegistrationSignerSetRequest;
-};
-
 export type CreateRegistrationIntentResponse = {
   ok: true;
   intent: RegistrationIntentV1;
@@ -331,7 +330,7 @@ export type CancelRegistrationIntentResponse = {
   releasedServerAllocatedWalletId: boolean;
 };
 
-export type FundImplicitNearAccountForTestingResponse =
+type FundImplicitNearAccountForTestingResponse =
   | {
       ok: true;
       walletId: string;
@@ -397,7 +396,7 @@ function requireFundImplicitNearOptionalString(value: unknown, field: string): s
   return value;
 }
 
-export function parseFundImplicitNearAccountForTestingResponse(
+function parseFundImplicitNearAccountForTestingResponse(
   value: unknown,
 ): FundImplicitNearAccountForTestingResponse {
   const response = requireFundImplicitNearResponseObject(
@@ -547,11 +546,6 @@ export type WalletRegistrationRouteDiagnostics = {
   }[];
 };
 
-export type WalletRegistrationEd25519YaoStart = {
-  admissionRequest: RouterAbEd25519YaoRegistrationAdmissionRequestV1;
-  admissionReceipt: RouterAbEd25519YaoActivationAdmissionReceiptV1<'registration'>;
-};
-
 export type WalletRegistrationEcdsaPreparePayload = {
   kind: 'evm_family_ecdsa_keygen';
   chainTargets: readonly [ThresholdEcdsaChainTarget, ...ThresholdEcdsaChainTarget[]];
@@ -627,7 +621,7 @@ export type WalletRegistrationStartResponse = WalletRegistrationStartResponseBas
   );
 
 /**
- * Refactor 94C. The `/wallets/register/setup` response.
+ * The `/wallets/register/setup` response.
  *
  * `signedSetup` is opaque to the client: it is carried to routes 2 and 3 and
  * echoed verbatim, never parsed. `registrationIntentDigestB64u` is the
@@ -643,7 +637,7 @@ type WalletRegistrationSetupSuccessBase = {
   signedSetup: string;
 };
 
-export type WalletRegistrationSetupResponseV2 =
+export type WalletRegistrationSetupSuccessV2 =
   | (WalletRegistrationSetupSuccessBase & {
       kind: 'evm_family_ecdsa' | 'near_ed25519_and_evm_family_ecdsa';
       ecdsa: WalletRegistrationSetupEcdsaPreparePayload;
@@ -651,7 +645,10 @@ export type WalletRegistrationSetupResponseV2 =
   | (WalletRegistrationSetupSuccessBase & {
       kind: 'near_ed25519';
       ecdsa?: never;
-    })
+    });
+
+export type WalletRegistrationSetupResponseV2 =
+  | WalletRegistrationSetupSuccessV2
   | { ok: false; code: string; message: string; retryAfterMs?: number };
 
 function requireWalletRegistrationResponseObject(args: {
@@ -679,7 +676,7 @@ function readWalletRegistrationResponseField(
 function readOptionalWalletRegistrationResponseField(
   record: object,
   field: string,
-  label: string,
+  _label: string,
 ): unknown {
   if (!Object.keys(record).includes(field)) return undefined;
   return Reflect.get(record, field);
@@ -1328,67 +1325,6 @@ function parseWalletAddSignerEcdsaActivationResponse(
   };
 }
 
-export type WalletRegistrationFinalizeAuthMethod =
-  | {
-      kind: 'passkey';
-      credentialIdB64u: string;
-      credentialPublicKeyB64u: string;
-    }
-  | {
-      kind: 'email_otp';
-      registrationAuthorityId: string;
-    };
-
-export type WalletRegistrationEd25519YaoActivationReference = {
-  kind: 'router_ab_ed25519_yao_activation_reference_v1';
-  lifecycle_id: string;
-  session_id: RouterAbEd25519YaoBytes32V1;
-};
-
-export type WalletRegistrationEd25519YaoSignerRuntimeBootstrap = {
-  walletId: WalletId;
-  nearAccountId: string;
-  nearEd25519SigningKeyId: string;
-  authorityScope: Ed25519AuthorityScope;
-  thresholdSessionId: string;
-  authorizationId: WalletSessionAuthorizationId;
-  walletSessionId: WalletSessionId;
-  quotaId: MpcWalletSigningQuotaId;
-  expiresAtMs: number;
-  participantIds: readonly [number, number];
-  remainingUses: number;
-  signingRootId: string;
-  signingRootVersion: string;
-  runtimePolicyScope: ThresholdRuntimePolicyScope;
-  routerAbNormalSigning: RouterAbEd25519NormalSigningState;
-};
-
-/**
- * The response branch is retained alongside signer-runtime bootstrap facts.
- * A reused response carries no new credential; the caller's exact credential
- * remains the only admission proof for that existing session.
- */
-export type WalletRegistrationEd25519YaoBootstrapSession =
-  | (WalletRegistrationEd25519YaoSignerRuntimeBootstrap & {
-      sessionKind: 'issued_exact_wallet_session';
-      operationCredential: WalletSessionOperationCredentialV1;
-    })
-  | (WalletRegistrationEd25519YaoSignerRuntimeBootstrap & {
-      sessionKind: 'already_committed_exact_wallet_session';
-      operationCredential?: never;
-    });
-
-export type WalletEd25519YaoSignerPublicResult = {
-  signerSlot: number;
-  nearAccountId: string;
-  nearEd25519SigningKeyId: string;
-  publicKey: string;
-  relayerKeyId: string;
-  keyVersion: string;
-  recoveryExportCapable: true;
-  participantIds: readonly [number, number];
-};
-
 export type WalletRegistrationEd25519YaoPublicResult = WalletEd25519YaoSignerPublicResult & {
   thresholdSessionId: ThresholdEd25519SessionId;
   runtimePolicyScope: ThresholdRuntimePolicyScope;
@@ -1400,7 +1336,7 @@ type WalletRegistrationFinalizeResponseBase = {
   walletId: WalletId;
   authority: WalletAuthAuthority;
   foundingAuthority: ActiveWalletAuthorityV1;
-  foundingAuthMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+  foundingAuthMethod: ActiveWalletAuthMethodRecordV2;
   registrationDiagnostics?: WalletRegistrationRouteDiagnostics;
   /**
    * What became of the custody run that rode this leg, when one did. Absent
@@ -1428,7 +1364,7 @@ type WalletRegistrationFinalizeManifest = {
   custodyKeyManifestDigestB64u?: string;
 };
 
-export type WalletRegistrationFinalizeResponseAuthority =
+type WalletRegistrationFinalizeResponseAuthority =
   | {
       rpId: string;
       authMethod: Extract<WalletRegistrationFinalizeAuthMethod, { kind: 'passkey' }>;
@@ -1456,7 +1392,7 @@ type WalletRegistrationFinalizeSignerResult =
       ed25519?: never;
     };
 
-export type EmailOtpWalletRegistrationFinalizeResponse = WalletRegistrationFinalizeResponseBase &
+type EmailOtpWalletRegistrationFinalizeResponse = WalletRegistrationFinalizeResponseBase &
   WalletRegistrationFinalizeManifest &
   Extract<WalletRegistrationFinalizeResponseAuthority, { authMethod: { kind: 'email_otp' } }> &
   WalletRegistrationFinalizeSignerResult;
@@ -1626,14 +1562,14 @@ export type AddAuthMethodAuth =
       expectedChallengeDigestB64u: string;
     }
   | {
-      /* R103 zero-prompt handoff: owner authority carried by the active owner
-         Wallet Session. The token travels as the bearer credential, never in
-         the request body; the server resolves every identity fact from it. */
+      /* Owner authority carried by the active owner Wallet Session. The token
+         travels as the bearer credential, never in the request body; the
+         server resolves every identity fact from it. */
       kind: 'wallet_session';
       walletSessionToken: string;
     }
   | {
-      /* R109C `email_otp_to_passkey`: the source is the wallet's Email OTP
+      /* `email_otp_to_passkey`: the source is the wallet's Email OTP
          method, proved freshly by a one-time code the server verifies against
          this addition's intent digest. The digest travels so the server can
          refuse a code taken for any other operation. */
@@ -1681,7 +1617,7 @@ export type WalletAddAuthMethodStartResponse =
       ok: true;
       addAuthMethodCeremonyId: string;
       intent: AddAuthMethodIntentV1;
-      /* R109C: the Email OTP target reseals the wallet's existing seed under
+      /* The Email OTP target reseals the wallet's existing seed under
          its new factor, so this branch carries the source envelope too. Only
          the created-credential options are passkey-specific. */
       custodyEnvelope: PasskeyCustodyEnvelopeRecord;
@@ -1853,7 +1789,7 @@ function parseWalletAddAuthMethodFinalizeResponse(
   };
 }
 
-export function parseWalletAddAuthMethodStartResponse(args: {
+function parseWalletAddAuthMethodStartResponse(args: {
   readonly value: unknown;
   readonly expectedIntent: AddAuthMethodIntentV1;
 }): WalletAddAuthMethodStartResponse {
@@ -1966,7 +1902,7 @@ export type WalletAddSignerStartResponse =
       ed25519?: never;
     });
 
-export type WalletAddSignerEcdsaRespondResponse = {
+type WalletAddSignerEcdsaRespondResponse = {
   ok: true;
   addSignerCeremonyId: string;
   ecdsa: {
@@ -2000,6 +1936,8 @@ export type WalletAddSignerFinalizeResponse = {
       kind: 'evm_family_ecdsa';
       rpId: string;
       ecdsa: { walletKeys: WalletRegistrationEcdsaWalletKey[] };
+      /** The authorizing authority, extended with the added ECDSA signer. */
+      authority: ActiveWalletAuthorityV1;
       ed25519?: never;
     }
 );
@@ -2530,7 +2468,7 @@ function registrationIntentWithExpectedSetupRequest(
 }
 
 async function assertWalletRegistrationSetupRequestBindings(args: {
-  response: Extract<WalletRegistrationSetupResponseV2, { ok: true }>;
+  response: WalletRegistrationSetupSuccessV2;
   requestedWallet?: RegisterWalletInput;
   request: ReturnType<typeof normalizeWalletRegistrationSetupRequestForBinding>;
 }): Promise<void> {
@@ -2723,7 +2661,7 @@ export function parseWalletAddSignerStartResponse(args: {
   }
 }
 
-export function parseWalletAddSignerFinalizeResponse(args: {
+function parseWalletAddSignerFinalizeResponse(args: {
   value: unknown;
   expectedKind: FinalizeWalletAddSignerArgs['kind'];
 }): WalletAddSignerFinalizeResponse {
@@ -2735,7 +2673,7 @@ export function parseWalletAddSignerFinalizeResponse(args: {
   });
   assertWalletRegistrationResponseKeys(
     record,
-    ['ok', 'walletId', 'kind', 'rpId', 'credentialIdB64u', 'ed25519', 'ecdsa'],
+    ['ok', 'walletId', 'kind', 'rpId', 'credentialIdB64u', 'ed25519', 'ecdsa', 'authority'],
     responseName,
   );
   const ok = readWalletRegistrationResponseField(record, 'ok', responseName);
@@ -2757,7 +2695,8 @@ export function parseWalletAddSignerFinalizeResponse(args: {
   switch (kind) {
     case 'near_ed25519': {
       if (
-        readOptionalWalletRegistrationResponseField(record, 'ecdsa', responseName) !== undefined
+        readOptionalWalletRegistrationResponseField(record, 'ecdsa', responseName) !== undefined ||
+        readOptionalWalletRegistrationResponseField(record, 'authority', responseName) !== undefined
       ) {
         throw new Error(`${responseName} response mixed signer branches`);
       }
@@ -2800,6 +2739,16 @@ export function parseWalletAddSignerFinalizeResponse(args: {
       if (walletKeys.length === 0) {
         throw new Error(`${responseName} response has invalid walletKeys`);
       }
+      const authority = parseWalletAuthorityV1(
+        readWalletRegistrationResponseField(record, 'authority', responseName),
+      );
+      if (
+        !authority.ok ||
+        authority.value.state !== 'active' ||
+        authority.value.walletId !== walletId
+      ) {
+        throw new Error(`${responseName} response has invalid authority`);
+      }
       return {
         ok: true,
         walletId,
@@ -2808,6 +2757,7 @@ export function parseWalletAddSignerFinalizeResponse(args: {
         ecdsa: {
           walletKeys: walletKeys.map(parseWalletAddSignerEcdsaFinalizeWalletKey),
         },
+        authority: authority.value,
       };
     }
     default:
@@ -2866,12 +2816,6 @@ export type WalletRegistrationEcdsaWalletKey = {
   relayerShareRetryCounter: number;
   participantIds: readonly [number, number];
   publicCapability: RouterAbEcdsaDerivationPublicCapabilityV1;
-};
-
-export type WalletRegistrationEcdsaCompletedBootstrap = {
-  bootstrap: ThresholdEcdsaDerivationRoleLocalBootstrapValue;
-  publicIdentity: EcdsaDerivationRoleLocalPublicIdentity;
-  relayerShareRetryCounter: number;
 };
 
 type WalletRegistrationStartAuthority =
@@ -3083,8 +3027,8 @@ function parseWalletEcdsaKeyFactsInventoryResponse(args: {
 }
 
 /**
- * Refactor 94C. `POST /wallets/register/setup` — the single admitted entry
- * point replacing the grant, intent, and start calls below.
+ * `POST /wallets/register/setup` — the single admitted entry point replacing
+ * the grant, intent, and start calls below.
  *
  * It is called *before* the WebAuthn create prompt, because its response
  * carries the challenge that create must sign. The server-side preparation
@@ -3167,7 +3111,7 @@ export async function createWalletAddSignerIntent(args: {
   return parseCreateAddSignerIntentResponse(response);
 }
 
-export type RevokeWalletAuthMethodResponse =
+type RevokeWalletAuthMethodResponse =
   | {
       readonly ok: true;
       readonly walletId: WalletId;
@@ -3243,7 +3187,7 @@ function parseRevokeWalletAuthMethodResponse(value: unknown): RevokeWalletAuthMe
 }
 
 /**
- * R109C: revoke one auth method using a proof from a different active one.
+ * Revoke one auth method using a proof from a different active one.
  *
  * The route is the wallet's own auth-method management, not device linking:
  * a sibling on the same device is not a device, and the linked-device
@@ -3262,7 +3206,7 @@ export async function revokeWalletAuthMethod(args: {
   if (!walletId || !walletAuthMethodId) {
     throw new Error('auth-method revoke requires a wallet and a target method');
   }
-  const response = await postJson({
+  const request = {
     relayerUrl: args.relayerUrl,
     path: `/wallets/${encodeURIComponent(walletId)}/auth-methods/${encodeURIComponent(
       walletAuthMethodId,
@@ -3274,7 +3218,19 @@ export async function revokeWalletAuthMethod(args: {
       requestedAtMs: args.requestedAtMs,
       sourceProof: args.sourceProof,
     },
-  });
+  };
+  let response: unknown;
+  try {
+    response = await postJson(request);
+  } catch (error: unknown) {
+    /* The Gateway records a revocation's answer against this exact request
+       and spends its proof only when the revocation commits. A lost response
+       (fetch rejects with a TypeError) is recovered by asking again with the
+       same body, even when its Email OTP code is already spent. A Gateway
+       answer, even a refusal, is final. */
+    if (!(error instanceof TypeError)) throw error;
+    response = await postJson(request);
+  }
   return parseRevokeWalletAuthMethodResponse(response);
 }
 
@@ -3318,10 +3274,9 @@ export async function createWalletAddAuthMethodIntent(args: {
 }
 
 /**
- * Refactor 94C route 2. Authenticated respond: the proof the client just
- * collected against setup's challenge travels with the ECDSA registration
- * request, so one round trip both establishes the verified authority and runs
- * the Router leg.
+ * Route 2. Authenticated respond: the proof the client just collected against
+ * setup's challenge travels with the ECDSA registration request, so one round
+ * trip both establishes the verified authority and runs the Router leg.
  *
  * The result is a discriminated signer plan, not a bundle with an optional
  * Ed25519 member. A mixed plan always carries deferred NEAR work; an
@@ -3604,9 +3559,9 @@ export async function authorizeWalletRegistrationNearAdmission(
 }
 
 /**
- * Refactor 94C route 3. Activate absorbs finalize: one call carries the
- * browser-verified activation facts and the Email OTP enrollment material that
- * used to ride a separate finalize request, and returns the terminal wallet.
+ * Route 3. Activate absorbs finalize: one call carries the browser-verified
+ * activation facts and the Email OTP enrollment material that used to ride a
+ * separate finalize request, and returns the terminal wallet.
  *
  * `nearProvisioning` is a snapshot only. It never carries NEAR identifiers
  * before readiness — those appear once deferred provisioning reaches
@@ -4073,8 +4028,8 @@ export async function activateWalletRegistration(
 }
 
 /**
- * Refactor 94C route 4. The deferred NEAR completion, called once the Yao
- * computation the client started after respond has finished.
+ * Route 4. The deferred NEAR completion, called once the Yao computation the
+ * client started after respond has finished.
  *
  * One completion path serves both plans: an Ed25519-only wallet installs its
  * sole signer here, and a mixed wallet's NEAR arm lands here too. It carries
@@ -4117,7 +4072,7 @@ export type WalletRegistrationNearProvisioningResponseV2 =
       nearProvisioning?: { status: 'near_failed_retryable' };
     };
 
-export type WalletRegistrationSessionSealResponse = {
+type WalletRegistrationSessionSealResponse = {
   readonly ciphertext: string;
   readonly keyVersion: string;
   readonly expiresAtMs: number;
@@ -4652,7 +4607,7 @@ export async function finalizeWalletAddAuthMethod(
         emailOtpTarget?: never;
       }
     | {
-        /* R109C's Email OTP target: verified by its one-use grant, so the body
+        /* The Email OTP target: verified by its one-use grant, so the body
            carries the resealed envelope and no created credential. The
            enrollment target says whether this addition creates the wallet's
            shared Email enrollment or binds to the one it already has. */
@@ -4688,11 +4643,22 @@ export async function finalizeWalletAddAuthMethod(
             webauthnRegistration: args.webauthnRegistration,
             custodyEnvelope: parsePasskeyCustodyEnvelopeRecord(args.custodyEnvelope),
           };
-  const response = await postJson({
+  const request = {
     relayerUrl: args.relayerUrl,
     path: `/wallets/${encodeURIComponent(walletId)}/auth-methods/finalize`,
     body,
-  });
+  };
+  let response: unknown;
+  try {
+    response = await postJson(request);
+  } catch (error: unknown) {
+    /* The Gateway commits finalize once per ceremony and replays that outcome
+       for the exact same request, so a lost response (fetch rejects with a
+       TypeError) is recovered by asking again with the same body. A Gateway
+       answer, even a refusal, is final. */
+    if (!(error instanceof TypeError)) throw error;
+    response = await postJson(request);
+  }
   return parseWalletAddAuthMethodFinalizeResponse(response);
 }
 

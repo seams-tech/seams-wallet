@@ -42,7 +42,7 @@ export type LinkSessionOwnerApprovalUpdatesPortV1 = {
   }): Promise<LinkSessionSubscriptionV1>;
 };
 
-export type DeviceLinkingOwnerTransportOptionsV1 = {
+type DeviceLinkingOwnerTransportOptionsV1 = {
   readonly request: LinkSessionOwnerAuthenticatedRequestPortV1;
   readonly approvalUpdates: LinkSessionOwnerApprovalUpdatesPortV1;
 };

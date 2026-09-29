@@ -9,7 +9,7 @@ import type {
   WarmSessionStepUpAuthorization,
 } from '@/core/signingEngine/stepUpConfirmation/types';
 
-export type EvmFamilyEcdsaWarmSessionStepUpAuthorization = WarmSessionStepUpAuthorization<
+type EvmFamilyEcdsaWarmSessionStepUpAuthorization = WarmSessionStepUpAuthorization<
   Extract<SigningAuthPlan, { kind: 'warmSession'; curve: 'ecdsa' }>
 >;
 
@@ -21,12 +21,12 @@ export type EvmFamilyEcdsaPasskeyStepUpAuthorization = PasskeyStepUpAuthorizatio
   Extract<SigningAuthPlan, { kind: 'passkeyReauth' }>
 >;
 
-export type EvmFamilyEcdsaStepUpAuthorization =
+type EvmFamilyEcdsaStepUpAuthorization =
   | EvmFamilyEcdsaWarmSessionStepUpAuthorization
   | EvmFamilyEcdsaEmailOtpStepUpAuthorization
   | EvmFamilyEcdsaPasskeyStepUpAuthorization;
 
-export function buildEvmFamilyWarmSessionStepUpAuthorization(args: {
+function buildEvmFamilyWarmSessionStepUpAuthorization(args: {
   signingAuthPlan: Extract<SigningAuthPlan, { kind: 'warmSession'; curve: 'ecdsa' }>;
 }): EvmFamilyEcdsaWarmSessionStepUpAuthorization {
   return {
@@ -39,7 +39,7 @@ export function buildEvmFamilyWarmSessionStepUpAuthorization(args: {
   };
 }
 
-export function buildEvmFamilyEmailOtpStepUpAuthorization(args: {
+function buildEvmFamilyEmailOtpStepUpAuthorization(args: {
   signingAuthPlan: Extract<SigningAuthPlan, { kind: 'emailOtpReauth' }>;
   prompt: EmailOtpConfirmPrompt;
   confirmation: Pick<ConfirmIntentDigestSigningOperationResult, 'otpCode' | 'emailOtpChallengeId'>;
@@ -57,7 +57,7 @@ export function buildEvmFamilyEmailOtpStepUpAuthorization(args: {
   };
 }
 
-export function buildEvmFamilyPasskeyStepUpAuthorization(args: {
+function buildEvmFamilyPasskeyStepUpAuthorization(args: {
   signingAuthPlan: Extract<SigningAuthPlan, { kind: 'passkeyReauth' }>;
   confirmation: Pick<ConfirmIntentDigestSigningOperationResult, 'credential'>;
 }): EvmFamilyEcdsaPasskeyStepUpAuthorization {

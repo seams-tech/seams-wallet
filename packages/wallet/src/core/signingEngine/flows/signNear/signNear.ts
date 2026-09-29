@@ -200,7 +200,7 @@ export type SignDelegateActionResult = {
   logs?: string[];
 };
 
-export type SignNep413MessagePayload = {
+type SignNep413MessagePayload = {
   message: string;
   recipient: string;
   nonce: string;
@@ -213,7 +213,7 @@ export type SignNep413MessagePayload = {
   confirmationConfigOverride?: Partial<ConfirmationConfig>;
 };
 
-export type SignNep413MessageResult =
+type SignNep413MessageResult =
   | {
       success: true;
       accountId: string;
@@ -231,7 +231,7 @@ export type SignNep413MessageResult =
       state?: never;
     };
 
-export type SignTransactionWithActionsInput = {
+type SignTransactionWithActionsInput = {
   commandSubject: NearCommandSubject;
   transaction: TransactionInputWasm;
   rpcCall: RpcCallPayload;
@@ -249,7 +249,7 @@ type NearTransactionPublicSigningOptions = Pick<
   'confirmationConfigOverride' | 'title' | 'body' | 'onEvent' | 'signerSlot'
 >;
 
-export type SignDelegateActionInput = {
+type SignDelegateActionInput = {
   commandSubject: NearCommandSubject;
   delegate: DelegateActionInput;
   rpcCall: RpcCallPayload;
@@ -277,7 +277,7 @@ export type NearSignIntentRequest =
       args: SignNep413MessagePayload;
     };
 
-export type NearSignIntentResultByKind = {
+type NearSignIntentResultByKind = {
   transactionWithActions: SignTransactionResult;
   delegateAction: SignDelegateActionResult;
   nep413: SignNep413MessageResult;

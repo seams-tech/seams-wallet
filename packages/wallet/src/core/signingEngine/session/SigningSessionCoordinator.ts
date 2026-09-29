@@ -96,7 +96,7 @@ type ResolveEcdsaSigningSessionAuthPlanFromReadinessInput =
     readiness: EcdsaSigningSessionReadiness;
   };
 
-export type ResolveSigningSessionAuthPlanFromReadinessInput =
+type ResolveSigningSessionAuthPlanFromReadinessInput =
   | ResolveEd25519SigningSessionAuthPlanFromReadinessInput
   | ResolveEcdsaSigningSessionAuthPlanFromReadinessInput;
 
@@ -126,7 +126,7 @@ export type ResolveSigningSessionAuthPlanFromReadinessResult =
       remainingUses: number;
     };
 
-export type SigningSessionStatusPort = {
+type SigningSessionStatusPort = {
   getStatus(args: {
     walletId: WalletId | string;
     walletSessionId: WalletSessionId;
@@ -145,7 +145,7 @@ export type SigningSessionStatusPort = {
   }): Promise<void>;
 };
 
-export type SigningSessionStatusState = {
+type SigningSessionStatusState = {
   statusOverrides: Map<string, WalletSessionStatusOverride>;
 };
 
@@ -153,7 +153,7 @@ type WalletSessionStatusReadResult =
   | { readonly kind: 'authorization_missing' }
   | { readonly kind: 'status'; readonly status: SigningSessionStatus };
 
-export type SigningSessionCoordinatorDeps = WalletSessionReadinessDeps &
+type SigningSessionCoordinatorDeps = WalletSessionReadinessDeps &
   ClientWalletSessionInvalidationReadinessDeps & {
     exactWalletSessionReadPorts: ExactWalletSessionReadPorts;
     getStatus?: SigningSessionStatusReader;
@@ -164,7 +164,7 @@ export interface SigningSessionLifecycleSubscription {
   unsubscribe(): void;
 }
 
-export type SigningSessionExpiryInvalidationResult =
+type SigningSessionExpiryInvalidationResult =
   | {
       readonly kind: 'invalidated';
       readonly event: SigningSessionExpiredEvent;

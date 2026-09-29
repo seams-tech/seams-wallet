@@ -2,7 +2,6 @@ import {
   thresholdEcdsaChainTargetFromChainFamily,
   toWalletId,
 } from '../signingEngine/interfaces/ecdsaChainTarget';
-import type { MpcMaterialActivationRef } from '@shared/utils/domainIds';
 import { toRpId } from '../signingEngine/session/identity/evmFamilyEcdsaIdentity';
 import { deriveEvmFamilySigningKeySlotId, parseWalletKeyId } from '@shared/signing-lanes';
 import {
@@ -31,7 +30,6 @@ import type {
   EcdsaRoleLocalPublicFacts,
   EcdsaRoleLocalReadyRecord,
   EcdsaRoleLocalReadyStateBlob,
-  EcdsaRoleLocalSessionRecordState,
   EmailOtpEcdsaExportWorkerIssuedSessionHandle,
   EmailOtpWorkerIssuedSessionHandle,
   LoadEcdsaRoleLocalReadyRecordInput,
@@ -52,8 +50,6 @@ import type {
 } from '../types/webauthn';
 import type { ThresholdRuntimePolicyScope } from '../signingEngine/threshold/sessionPolicy';
 
-declare const materialActivation: MpcMaterialActivationRef;
-
 declare const runtime: RuntimePorts;
 declare const platformResult: PlatformResult<{ value: string }, 'failed'>;
 declare const signerResult: SignerCryptoResult<{ value: string }, 'invalid_context'>;
@@ -65,13 +61,11 @@ declare const relayerPublicKey33B64u: EcdsaDerivationRelayerPublicKey33B64u;
 declare const pendingBlob: EcdsaRoleLocalPendingStateBlob;
 declare const readyBlob: EcdsaRoleLocalReadyStateBlob;
 declare const publicFacts: EcdsaRoleLocalPublicFacts;
-declare const readyRecord: EcdsaRoleLocalReadyRecord;
 declare const runtimePolicyScope: ThresholdRuntimePolicyScope;
 declare const passkeyReadyRecord: Extract<
   EcdsaRoleLocalReadyRecord,
   { kind: 'ecdsa_role_local_ready_passkey_v1' }
 >;
-declare const requiredPrfAuthenticatorSuccess: RequiredPrfAuthenticatorSuccess;
 const walletId = toWalletId('wallet_alice');
 const evmFamilySigningKeySlotId = deriveEvmFamilySigningKeySlotId({
   walletId,
@@ -394,36 +388,7 @@ const passkeyReadyBlobRoleLocalState = {
     stateBlob: readyBlob,
   },
 };
-// @ts-expect-error passkey role-local state requires a durable material reference
-passkeyReadyBlobRoleLocalState satisfies EcdsaRoleLocalSessionRecordState;
 void passkeyReadyBlobRoleLocalState;
-
-const passkeyDurableRoleLocalState = {
-  kind: 'ready_passkey_role_local_material_v1',
-  authMethod: buildEcdsaRoleLocalPasskeyAuthMethod({
-    credentialIdB64u: 'credential',
-    rpId: toRpId('wallet.example'),
-  }),
-  publicFacts,
-  materialActivation,
-} satisfies EcdsaRoleLocalSessionRecordState;
-void passkeyDurableRoleLocalState;
-
-const reauthWithReadyBlobRoleLocalState = {
-  kind: 'reauth_required_role_local_material_v1',
-  authMethod: buildEcdsaRoleLocalEmailOtpAuthMethod({
-    authSubjectId: toEmailOtpAuthSubjectId('google:alice'),
-  }),
-  publicFacts,
-  readyRecord,
-  reason: 'expired',
-  inlineSigningMaterial: {
-    kind: 'role_local_ready_state_blob',
-    stateBlob: readyRecord.stateBlob,
-  },
-};
-// @ts-expect-error reauth-required role-local state cannot carry ready signing material
-reauthWithReadyBlobRoleLocalState satisfies EcdsaRoleLocalSessionRecordState;
 
 const passkeyReadyRecordLiteral = {
   kind: 'ecdsa_role_local_ready_passkey_v1',

@@ -24,6 +24,7 @@ const TENANT_ROOT_ROLE_CLEANUP_COMMAND_AUTH_DOMAIN_V1: &[u8] =
     b"tenant_root_role_cleanup_command_authentication_v1";
 const TENANT_ROOT_ROLE_CLEANUP_PENDING_OPERATION_V1: &[u8] = b"cleanup_pending_share";
 const TENANT_ROOT_ROLE_CLEANUP_RETIRED_OPERATION_V1: &[u8] = b"cleanup_retired_share";
+const TENANT_ROOT_ROLE_CLEANUP_CEREMONY_OPERATION_V1: &[u8] = b"cleanup_abandoned_ceremony_share";
 const TENANT_ROOT_ROLE_CLEANUP_ISSUER_KEY_ID_MAX_BYTES_V1: usize = 256;
 
 /// Exact pending-cleanup operation authenticated by a cleanup command.
@@ -31,6 +32,9 @@ pub const TENANT_ROOT_ROLE_CLEANUP_COMMAND_OPERATION_V1: &str = "cleanup_pending
 
 /// Exact retired-cleanup operation authenticated by a cleanup command.
 pub const TENANT_ROOT_ROLE_CLEANUP_RETIRED_COMMAND_OPERATION_V1: &str = "cleanup_retired_share";
+/// Operation name for an abandoned ceremony's unrecorded pending share.
+pub const TENANT_ROOT_ROLE_CLEANUP_CEREMONY_COMMAND_OPERATION_V1: &str =
+    "cleanup_abandoned_ceremony_share";
 
 /// Maximum canonical wire size accepted for one cleanup command.
 pub const TENANT_ROOT_ROLE_CLEANUP_COMMAND_MAX_BYTES_V1: usize = 16 * 1024;
@@ -53,7 +57,23 @@ pub enum TenantRootRoleCleanupTargetV1 {
         ceremony_nonce: TenantRootCeremonyNonceV1,
         installation_evidence_digest: TenantRootProtocolDigestV1,
     },
-    /// A retired row whose exact active successor is still expected.
+    /// The pending material an abandoned ceremony left for a role whose
+    /// installation the Router never recorded: a role that stopped before
+    /// checkpointing, or a command admitted before the window closed that
+    /// wrote after the abandonment fence. It is bound to the ceremony, not to
+    /// installation evidence, and names the initial epoch. The row may be
+    /// absent; cleaning it also forbids the ceremony from writing it later.
+    AbandonedCeremony {
+        identity_digest: TenantRootIdentityDigestV1,
+        custody_lineage: TenantRootCustodyLineageId,
+        role: TwoPartyDeriverRole,
+        session_id: TenantRootCeremonySessionIdV1,
+        ceremony_nonce: TenantRootCeremonyNonceV1,
+    },
+    /// A retired row, and the exact active row it must not outlive: the
+    /// role's current active epoch, which is any later one. A managed restore
+    /// can commit over an older retirement, so that epoch is erased later
+    /// against the newer active row.
     Retired {
         identity_digest: TenantRootIdentityDigestV1,
         custody_lineage: TenantRootCustodyLineageId,
@@ -69,7 +89,9 @@ impl TenantRootRoleCleanupTargetV1 {
     /// Returns the role whose row is named by this target.
     pub const fn role(&self) -> TwoPartyDeriverRole {
         match self {
-            Self::Pending { role, .. } | Self::Retired { role, .. } => *role,
+            Self::Pending { role, .. }
+            | Self::AbandonedCeremony { role, .. }
+            | Self::Retired { role, .. } => *role,
         }
     }
 
@@ -77,6 +99,9 @@ impl TenantRootRoleCleanupTargetV1 {
     pub const fn identity_digest(&self) -> TenantRootIdentityDigestV1 {
         match self {
             Self::Pending {
+                identity_digest, ..
+            }
+            | Self::AbandonedCeremony {
                 identity_digest, ..
             }
             | Self::Retired {
@@ -91,6 +116,9 @@ impl TenantRootRoleCleanupTargetV1 {
             Self::Pending {
                 custody_lineage, ..
             }
+            | Self::AbandonedCeremony {
+                custody_lineage, ..
+            }
             | Self::Retired {
                 custody_lineage, ..
             } => *custody_lineage,
@@ -101,17 +129,20 @@ impl TenantRootRoleCleanupTargetV1 {
     pub const fn epoch(&self) -> TenantRootShareEpoch {
         match self {
             Self::Pending { epoch, .. } => *epoch,
+            Self::AbandonedCeremony { .. } => TenantRootShareEpoch::INITIAL,
             Self::Retired { retired_epoch, .. } => *retired_epoch,
         }
     }
 
-    /// Returns the exact revision of the row that may be deleted.
+    /// Returns the exact revision of the row that may be deleted. An
+    /// abandoned ceremony's pending row is only ever at its initial revision.
     pub const fn expected_row_revision(&self) -> i64 {
         match self {
             Self::Pending {
                 expected_row_revision,
                 ..
             } => *expected_row_revision,
+            Self::AbandonedCeremony { .. } => 1,
             Self::Retired {
                 expected_retired_revision,
                 ..
@@ -226,6 +257,21 @@ impl TenantRootRoleCleanupCommandV1 {
                     session_id,
                     ceremony_nonce,
                     installation_evidence_digest,
+                }
+            }
+            TENANT_ROOT_ROLE_CLEANUP_CEREMONY_OPERATION_V1 => {
+                let session_id = TenantRootCeremonySessionIdV1::from_bytes(
+                    decoder.fixed_field::<16>("tenant-root role cleanup command session id")?,
+                )?;
+                let ceremony_nonce = TenantRootCeremonyNonceV1::from_bytes(
+                    decoder.fixed_field::<32>("tenant-root role cleanup command ceremony nonce")?,
+                )?;
+                TenantRootRoleCleanupTargetV1::AbandonedCeremony {
+                    identity_digest,
+                    custody_lineage,
+                    role,
+                    session_id,
+                    ceremony_nonce,
                 }
             }
             TENANT_ROOT_ROLE_CLEANUP_RETIRED_OPERATION_V1 => {
@@ -440,6 +486,9 @@ impl VerifiedTenantRootRoleCleanupCommandV1 {
                 installation_evidence_digest,
                 ..
             } => Ok(*installation_evidence_digest),
+            TenantRootRoleCleanupTargetV1::AbandonedCeremony { .. } => Err(replay_mismatch(
+                "abandoned-ceremony cleanup authorization has no installation evidence",
+            )),
             TenantRootRoleCleanupTargetV1::Retired { .. } => Err(replay_mismatch(
                 "retired cleanup authorization has no pending installation evidence",
             )),
@@ -462,9 +511,11 @@ impl VerifiedTenantRootRoleCleanupCommandV1 {
         TenantRootProtocolDigestV1::from_bytes(Sha256::digest(self.canonical_bytes()?).into())
     }
 
-    /// Requires `now_ms` to fall inside the authorized window.
+    /// Requires `now_ms` to fall inside the authorized window. The issue
+    /// instant is inside it: a command executed in the millisecond it was
+    /// issued is fresh.
     pub fn require_fresh(&self, now_ms: u64) -> RouterAbDerivationResult<()> {
-        if now_ms <= self.data.issued_at_ms || now_ms >= self.data.expires_at_ms {
+        if now_ms < self.data.issued_at_ms || now_ms >= self.data.expires_at_ms {
             return Err(malformed(
                 "tenant-root role cleanup command is outside its freshness window",
             ));
@@ -478,6 +529,9 @@ fn operation_for_target(target: &TenantRootRoleCleanupTargetV1) -> &'static str 
         TenantRootRoleCleanupTargetV1::Pending { .. } => {
             TENANT_ROOT_ROLE_CLEANUP_COMMAND_OPERATION_V1
         }
+        TenantRootRoleCleanupTargetV1::AbandonedCeremony { .. } => {
+            TENANT_ROOT_ROLE_CLEANUP_CEREMONY_COMMAND_OPERATION_V1
+        }
         TenantRootRoleCleanupTargetV1::Retired { .. } => {
             TENANT_ROOT_ROLE_CLEANUP_RETIRED_COMMAND_OPERATION_V1
         }
@@ -488,6 +542,9 @@ fn operation_bytes_for_target(target: &TenantRootRoleCleanupTargetV1) -> &'stati
     match target {
         TenantRootRoleCleanupTargetV1::Pending { .. } => {
             TENANT_ROOT_ROLE_CLEANUP_PENDING_OPERATION_V1
+        }
+        TenantRootRoleCleanupTargetV1::AbandonedCeremony { .. } => {
+            TENANT_ROOT_ROLE_CLEANUP_CEREMONY_OPERATION_V1
         }
         TenantRootRoleCleanupTargetV1::Retired { .. } => {
             TENANT_ROOT_ROLE_CLEANUP_RETIRED_OPERATION_V1
@@ -525,6 +582,7 @@ fn validate_unsigned_data(
         } => {
             require_positive_revision(*expected_row_revision, "pending row revision")?;
         }
+        TenantRootRoleCleanupTargetV1::AbandonedCeremony { .. } => {}
         TenantRootRoleCleanupTargetV1::Retired {
             retired_epoch,
             expected_retired_revision,
@@ -534,9 +592,9 @@ fn validate_unsigned_data(
         } => {
             require_positive_revision(*expected_retired_revision, "retired row revision")?;
             require_positive_revision(*expected_active_revision, "active successor revision")?;
-            if retired_epoch.next()? != *expected_active_epoch {
+            if retired_epoch >= expected_active_epoch {
                 return Err(malformed(
-                    "tenant-root role cleanup command retired and active epochs must be adjacent",
+                    "tenant-root role cleanup command retired epoch must precede its active successor",
                 ));
             }
         }
@@ -588,6 +646,14 @@ fn unsigned_canonical_bytes(
             push_field(&mut bytes, session_id.as_bytes())?;
             push_field(&mut bytes, ceremony_nonce.as_bytes())?;
             push_field(&mut bytes, installation_evidence_digest.as_bytes())?;
+        }
+        TenantRootRoleCleanupTargetV1::AbandonedCeremony {
+            session_id,
+            ceremony_nonce,
+            ..
+        } => {
+            push_field(&mut bytes, session_id.as_bytes())?;
+            push_field(&mut bytes, ceremony_nonce.as_bytes())?;
         }
         TenantRootRoleCleanupTargetV1::Retired {
             retired_epoch,

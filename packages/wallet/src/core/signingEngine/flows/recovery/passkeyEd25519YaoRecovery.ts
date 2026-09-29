@@ -10,19 +10,18 @@ import {
   normalizeRuntimePolicyScope,
   signingRootScopeFromRuntimePolicyScope,
 } from '@shared/threshold/signingRootScope';
+import { type WalletId } from '@shared/utils/registrationIntent';
 import {
   parseWalletAuthMethodRecordV2,
-  walletIdFromString,
-  type WalletAuthMethodRecordV2,
-  type WalletId,
-} from '@shared/utils/registrationIntent';
+  type ActivePasskeyWalletAuthMethodRecordV2,
+} from '@shared/utils/walletAuthMethodRecord';
+import { walletIdFromString } from '@shared/utils/registrationIds';
 import { base58Encode } from '@shared/utils/base58';
-import { nearEd25519SigningKeyIdFromString } from '@shared/utils/registrationIntent';
+import { nearEd25519SigningKeyIdFromString } from '@shared/utils/registrationIds';
 import {
   mpcMaterialActivationRefsEqual,
   parseWalletAuthMethodId,
   parseWalletAuthorityId,
-  parseThresholdEd25519SessionId,
   type MpcMaterialActivationRef,
   type ThresholdEd25519SessionId,
   type WalletAuthMethodId,
@@ -33,14 +32,13 @@ import {
   type PasskeyCustodyEnvelopeRecord,
 } from '@shared/passkey-custody';
 import { parseRouterAbEd25519NormalSigningState } from '@shared/utils/signingSessionSeal';
-import { isPlainObject } from '@shared/utils/validation';
+import { requireRecord, requireTrimmedString } from '@shared/utils/validation';
 import {
   parseWalletAuthAuthorityRef,
   type WalletAuthAuthorityRef,
 } from '@shared/utils/walletAuthAuthority';
 import {
   parseMpcWalletSigningQuotaId,
-  parseWalletSessionAuthorizationId,
   parseWalletSessionId,
 } from '@shared/authorization/capabilityKinds';
 import {
@@ -84,26 +82,12 @@ export type ParsedPasskeyEd25519YaoRecoveryDescriptorV1<
   readonly capability: ParsedYaoRecoveryCapabilityV1;
 };
 
-function requireThresholdEd25519SessionId(
-  value: unknown,
-  label: string,
-): ThresholdEd25519SessionId {
-  const parsed = parseThresholdEd25519SessionId(value);
-  if (!parsed.ok) {
-    throw new Error(`${label} is invalid`);
-  }
-  return parsed.value;
-}
-
 export type ParsedPasskeyEd25519YaoSyncResponseV1 =
   ParsedPasskeyEd25519YaoRecoveryDescriptorV1<ParsedExactYaoRecoverySessionV1> & {
     readonly walletAuthMethodId: WalletAuthMethodId;
     readonly walletAuthorityId: WalletAuthorityId;
     readonly foundingAuthority: ActiveWalletAuthorityV1;
-    readonly foundingAuthMethod: Extract<
-      WalletAuthMethodRecordV2,
-      { readonly kind: 'passkey'; readonly status: 'active' }
-    >;
+    readonly foundingAuthMethod: ActivePasskeyWalletAuthMethodRecordV2;
     readonly keyVersion: string;
     readonly credentialPublicKeyB64u: string;
     readonly walletSession: ActiveWalletSessionV1;
@@ -148,12 +132,6 @@ export function passkeyEd25519YaoLaneReferenceFromRecovery(args: {
   };
 }
 
-function requireString(value: unknown, label: string): string {
-  const parsed = typeof value === 'string' ? value.trim() : '';
-  if (!parsed) throw new Error(`${label} is required`);
-  return parsed;
-}
-
 function requirePositiveInteger(value: unknown, label: string): number {
   if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 1) {
     throw new Error(`${label} must be a positive integer`);
@@ -176,11 +154,6 @@ function requireParticipantIds(value: unknown): readonly [number, number] {
   return [Number(value[0]), Number(value[1])];
 }
 
-function requireRecord(value: unknown, label: string): Record<string, unknown> {
-  if (!isPlainObject(value)) throw new Error(`${label} must be an object`);
-  return value;
-}
-
 type Ed25519SignWalletCapabilitySubjectV1 = Extract<
   ActiveWalletSessionV1['capabilitySubjects'][number],
   { readonly kind: 'sign' }
@@ -190,49 +163,6 @@ function isEd25519SignWalletCapabilitySubject(
   subject: ActiveWalletSessionV1['capabilitySubjects'][number],
 ): subject is Ed25519SignWalletCapabilitySubjectV1 {
   return subject.kind === 'sign' && subject.keyFamily === 'ed25519';
-}
-
-function parseRecoverySession(
-  raw: Record<string, unknown>,
-  participantIds: readonly [number, number],
-  identity: {
-    readonly walletId: string;
-    readonly nearAccountId: string;
-    readonly nearEd25519SigningKeyId: string;
-  },
-): ParsedYaoRecoverySessionV1 {
-  if (raw.sessionKind !== 'opaque') throw new Error('Yao recovery session must use opaque token');
-  if (
-    requireString(raw.walletId, 'session.walletId') !== identity.walletId ||
-    requireString(raw.nearAccountId, 'session.nearAccountId') !== identity.nearAccountId ||
-    requireString(raw.nearEd25519SigningKeyId, 'session.nearEd25519SigningKeyId') !==
-      identity.nearEd25519SigningKeyId
-  ) {
-    throw new Error('Yao recovery session identity does not match the verified passkey');
-  }
-  const runtimePolicyRecord = requireRecord(raw.runtimePolicyScope, 'session.runtimePolicyScope');
-  const runtimePolicyScope = normalizeRuntimePolicyScope(runtimePolicyRecord);
-  const routerAbNormalSigning = parseRouterAbEd25519NormalSigningState(raw.routerAbNormalSigning);
-  if (!routerAbNormalSigning) throw new Error('Yao recovery session signing state is invalid');
-  const walletSessionId = parseWalletSessionId(raw.walletSessionId);
-  const authorizationId = parseWalletSessionAuthorizationId(raw.authorizationId);
-  const quotaId = parseMpcWalletSigningQuotaId(raw.quotaId);
-  if (!walletSessionId.ok || !authorizationId.ok || !quotaId.ok) {
-    throw new Error('Yao recovery Wallet Session identity is invalid');
-  }
-  return {
-    sessionKind: 'opaque',
-    walletSessionToken: requireString(raw.walletSessionToken, 'session.walletSessionToken'),
-    thresholdSessionId: requireString(raw.thresholdSessionId, 'session.thresholdSessionId'),
-    authorizationId: authorizationId.value,
-    walletSessionId: walletSessionId.value,
-    quotaId: quotaId.value,
-    expiresAtMs: requirePositiveInteger(raw.expiresAtMs, 'session.expiresAtMs'),
-    remainingUses: requirePositiveInteger(raw.remainingUses, 'session.remainingUses'),
-    runtimePolicyScope,
-    participantIds,
-    routerAbNormalSigning,
-  };
 }
 
 function parseExactRecoverySession(
@@ -257,9 +187,9 @@ function parseExactRecoverySession(
     throw new Error('sync-account signer bootstrap must not carry a Wallet Session bearer');
   }
   if (
-    requireString(raw.walletId, 'session.walletId') !== identity.walletId ||
-    requireString(raw.nearAccountId, 'session.nearAccountId') !== identity.nearAccountId ||
-    requireString(raw.nearEd25519SigningKeyId, 'session.nearEd25519SigningKeyId') !==
+    requireTrimmedString(raw.walletId, 'session.walletId') !== identity.walletId ||
+    requireTrimmedString(raw.nearAccountId, 'session.nearAccountId') !== identity.nearAccountId ||
+    requireTrimmedString(raw.nearEd25519SigningKeyId, 'session.nearEd25519SigningKeyId') !==
       identity.nearEd25519SigningKeyId
   ) {
     throw new Error('Yao recovery session identity does not match the verified passkey');
@@ -295,7 +225,7 @@ function parseExactRecoverySession(
     throw new Error('Yao recovery session does not match the exact Wallet Session');
   }
   return {
-    thresholdSessionId: requireString(raw.thresholdSessionId, 'session.thresholdSessionId'),
+    thresholdSessionId: requireTrimmedString(raw.thresholdSessionId, 'session.thresholdSessionId'),
     authorizationId: walletSession.authorizationId,
     walletSessionId: operationCredential.walletSessionId,
     quotaId: quotaId.value,
@@ -348,7 +278,7 @@ function assertEd25519YaoRecoveryDescriptorStableIdentity(
   }
 }
 
-export function assertEd25519YaoRecoveryDescriptorContinuity(
+function assertEd25519YaoRecoveryDescriptorContinuity(
   parsed: ParsedPasskeyEd25519YaoRecoveryDescriptorV1<ParsedYaoRecoverySessionBaseV1>,
 ): void {
   assertEd25519YaoRecoveryDescriptorStableIdentity(parsed);
@@ -387,9 +317,9 @@ export function parsePasskeyEd25519YaoSyncResponseV1(
   if (response.ok !== true || response.verified !== true) {
     throw new Error('sync-account response is not verified');
   }
-  const walletId = walletIdFromString(requireString(response.walletId, 'walletId'));
-  const nearAccountId = toAccountId(requireString(response.nearAccountId, 'nearAccountId'));
-  const nearEd25519SigningKeyId = requireString(
+  const walletId = walletIdFromString(requireTrimmedString(response.walletId, 'walletId'));
+  const nearAccountId = toAccountId(requireTrimmedString(response.nearAccountId, 'nearAccountId'));
+  const nearEd25519SigningKeyId = requireTrimmedString(
     response.nearEd25519SigningKeyId,
     'nearEd25519SigningKeyId',
   );
@@ -442,11 +372,11 @@ export function parsePasskeyEd25519YaoSyncResponseV1(
     nearAccountId,
     nearEd25519SigningKeyId,
     signerSlot: requirePositiveInteger(response.signerSlot, 'signerSlot'),
-    operationalPublicKey: requireString(response.publicKey, 'publicKey'),
-    relayerKeyId: requireString(threshold.relayerKeyId, 'thresholdEd25519.relayerKeyId'),
-    keyVersion: requireString(threshold.keyVersion, 'thresholdEd25519.keyVersion'),
-    credentialIdB64u: requireString(response.credentialIdB64u, 'credentialIdB64u'),
-    credentialPublicKeyB64u: requireString(
+    operationalPublicKey: requireTrimmedString(response.publicKey, 'publicKey'),
+    relayerKeyId: requireTrimmedString(threshold.relayerKeyId, 'thresholdEd25519.relayerKeyId'),
+    keyVersion: requireTrimmedString(threshold.keyVersion, 'thresholdEd25519.keyVersion'),
+    credentialIdB64u: requireTrimmedString(response.credentialIdB64u, 'credentialIdB64u'),
+    credentialPublicKeyB64u: requireTrimmedString(
       response.credentialPublicKeyB64u,
       'credentialPublicKeyB64u',
     ),
@@ -473,7 +403,7 @@ export function parsePasskeyEd25519YaoSyncResponseV1(
     operationCredential,
     walletCustody: {
       envelope: parsePasskeyCustodyEnvelopeRecord(custody.envelope),
-      storeVersion: requireString(custody.storeVersion, 'walletCustody.storeVersion'),
+      storeVersion: requireTrimmedString(custody.storeVersion, 'walletCustody.storeVersion'),
     },
   };
   assertEd25519YaoRecoveryDescriptorContinuity(parsed);

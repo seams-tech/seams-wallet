@@ -1,12 +1,14 @@
 import type { NormalizedLogger } from './logger';
-import { isObject as isObjectLoose, toOptionalTrimmedString } from '@shared/utils/validation';
+import { isObject, toOptionalTrimmedString } from '@shared/utils/validation';
 import { parseWebAuthnRpId, type WebAuthnRpId } from '@shared/utils/domainIds';
+import { parseD1JsonColumn, resolveD1DatabaseFromConfig } from '../storage/d1Sql';
 import {
-  formatD1ExecStatement,
-  parseD1JsonColumn,
-  resolveD1DatabaseFromConfig,
-} from '../storage/d1Sql';
-import type { D1DatabaseLike } from '../storage/tenantRoute';
+  D1TenantTable,
+  d1TenantScopeFromConfig,
+  ensureD1Schema,
+  type D1SchemaOptions,
+  type D1TenantStoreOptions,
+} from './d1TenantStore';
 
 export type NearPublicKeyKind = 'threshold' | 'local' | 'backup' | 'ephemeral';
 
@@ -36,34 +38,11 @@ export interface NearPublicKeyStore {
   listByUserId(userId: string): Promise<NearPublicKeyRecord[]>;
 }
 
-export interface D1NearPublicKeyStoreSchemaOptions {
-  readonly database: D1DatabaseLike;
-}
+export interface D1NearPublicKeyStoreSchemaOptions extends D1SchemaOptions {}
 
-export interface D1NearPublicKeyStoreOptions {
-  readonly database: D1DatabaseLike;
-  readonly namespace: string;
-  readonly orgId: string;
-  readonly projectId: string;
-  readonly envId: string;
-  readonly ensureSchema?: boolean;
-}
+export interface D1NearPublicKeyStoreOptions extends D1TenantStoreOptions {}
 
-type NormalizedD1NearPublicKeyStoreOptions = {
-  readonly database: D1DatabaseLike;
-  readonly namespace: string;
-  readonly orgId: string;
-  readonly projectId: string;
-  readonly envId: string;
-  readonly ensureSchema: boolean;
-};
-
-type D1NearPublicKeyScope = {
-  readonly namespace: string;
-  readonly orgId: string;
-  readonly projectId: string;
-  readonly envId: string;
-};
+const NEAR_PUBLIC_KEY_D1_STORE = 'NEAR public key store';
 
 type D1NearPublicKeyRow = {
   readonly record_json?: unknown;
@@ -112,13 +91,7 @@ export const NEAR_PUBLIC_KEY_STORE_D1_SCHEMA_SQL = Object.freeze([
 export async function ensureNearPublicKeyStoreD1Schema(
   options: D1NearPublicKeyStoreSchemaOptions,
 ): Promise<void> {
-  for (const statement of NEAR_PUBLIC_KEY_STORE_D1_SCHEMA_SQL) {
-    await options.database.exec(formatD1ExecStatement(statement));
-  }
-}
-
-function isObject(v: unknown): v is Record<string, unknown> {
-  return isObjectLoose(v);
+  await ensureD1Schema(options.database, NEAR_PUBLIC_KEY_STORE_D1_SCHEMA_SQL);
 }
 
 function parseNearPublicKeyKind(input: unknown): NearPublicKeyKind | null {
@@ -189,37 +162,6 @@ function parseNearPublicKeyRecord(raw: unknown): NearPublicKeyRecord | null {
   };
 }
 
-function requireD1ScopeString(input: unknown, field: string): string {
-  const normalized = toOptionalTrimmedString(input);
-  if (!normalized) throw new Error(`${field} is required for D1 NEAR public key store`);
-  return normalized;
-}
-
-function normalizeD1NearPublicKeyStoreOptions(
-  input: D1NearPublicKeyStoreOptions,
-): NormalizedD1NearPublicKeyStoreOptions {
-  return {
-    database: input.database,
-    namespace: requireD1ScopeString(input.namespace, 'namespace'),
-    orgId: requireD1ScopeString(input.orgId, 'orgId'),
-    projectId: requireD1ScopeString(input.projectId, 'projectId'),
-    envId: requireD1ScopeString(input.envId, 'envId'),
-    ensureSchema: input.ensureSchema !== false,
-  };
-}
-
-function d1ScopeFromConfig(input: {
-  readonly config: Record<string, unknown>;
-  readonly namespace: string;
-}): Omit<D1NearPublicKeyStoreOptions, 'database'> {
-  return {
-    namespace: requireD1ScopeString(input.namespace, 'namespace'),
-    orgId: requireD1ScopeString(input.config.orgId || input.config.ORG_ID, 'orgId'),
-    projectId: requireD1ScopeString(input.config.projectId || input.config.PROJECT_ID, 'projectId'),
-    envId: requireD1ScopeString(input.config.envId || input.config.ENV_ID, 'envId'),
-  };
-}
-
 class InMemoryNearPublicKeyStore implements NearPublicKeyStore {
   private readonly byUser = new Map<string, Map<string, NearPublicKeyRecord>>();
 
@@ -245,49 +187,35 @@ class InMemoryNearPublicKeyStore implements NearPublicKeyStore {
   }
 }
 
+/** A user's NEAR public keys, in signer-slot order; binds the scope, then the user. */
+export const NEAR_PUBLIC_KEYS_BY_USER_SQL = `SELECT record_json
+         FROM near_public_keys
+        WHERE namespace = ?
+          AND org_id = ?
+          AND project_id = ?
+          AND env_id = ?
+          AND user_id = ?
+        ORDER BY COALESCE(signer_slot, 0) ASC, created_at_ms ASC, public_key ASC`;
+
 export class D1NearPublicKeyStore implements NearPublicKeyStore {
   readonly adapterKind = 'd1';
-  private readonly database: D1DatabaseLike;
-  private readonly scope: D1NearPublicKeyScope;
-  private readonly ensureSchemaOnUse: boolean;
-  private schemaReady = false;
+  private readonly table: D1TenantTable;
 
   constructor(input: D1NearPublicKeyStoreOptions) {
-    const normalized = normalizeD1NearPublicKeyStoreOptions(input);
-    this.database = normalized.database;
-    this.scope = {
-      namespace: normalized.namespace,
-      orgId: normalized.orgId,
-      projectId: normalized.projectId,
-      envId: normalized.envId,
-    };
-    this.ensureSchemaOnUse = normalized.ensureSchema;
-  }
-
-  private async ensureSchema(): Promise<void> {
-    if (!this.ensureSchemaOnUse || this.schemaReady) return;
-    await ensureNearPublicKeyStoreD1Schema({ database: this.database });
-    this.schemaReady = true;
-  }
-
-  private bindScope(statement: string, values: readonly unknown[] = []) {
-    return this.database
-      .prepare(statement)
-      .bind(
-        this.scope.namespace,
-        this.scope.orgId,
-        this.scope.projectId,
-        this.scope.envId,
-        ...values,
-      );
+    this.table = new D1TenantTable(
+      input,
+      NEAR_PUBLIC_KEY_D1_STORE,
+      NEAR_PUBLIC_KEY_STORE_D1_SCHEMA_SQL,
+    );
   }
 
   async put(record: NearPublicKeyRecord): Promise<void> {
-    await this.ensureSchema();
+    await this.table.ensureSchema();
     const parsed = parseNearPublicKeyRecord(record);
     if (!parsed) throw new Error('Invalid near public key record');
-    await this.bindScope(
-      `INSERT INTO near_public_keys (
+    await this.table
+      .prepare(
+        `INSERT INTO near_public_keys (
         namespace,
         org_id,
         project_id,
@@ -310,34 +238,27 @@ export class D1NearPublicKeyStore implements NearPublicKeyStore {
         created_at_ms = MIN(near_public_keys.created_at_ms, EXCLUDED.created_at_ms),
         updated_at_ms = MAX(near_public_keys.updated_at_ms, EXCLUDED.updated_at_ms),
         removed_at_ms = EXCLUDED.removed_at_ms`,
-      [
-        parsed.userId,
-        parsed.publicKey,
-        parsed.kind,
-        parsed.signerSlot ?? null,
-        JSON.stringify(parsed),
-        parsed.createdAtMs,
-        parsed.updatedAtMs,
-        parsed.removedAtMs ?? null,
-      ],
-    ).run();
+        [
+          parsed.userId,
+          parsed.publicKey,
+          parsed.kind,
+          parsed.signerSlot ?? null,
+          JSON.stringify(parsed),
+          parsed.createdAtMs,
+          parsed.updatedAtMs,
+          parsed.removedAtMs ?? null,
+        ],
+      )
+      .run();
   }
 
   async listByUserId(userId: string): Promise<NearPublicKeyRecord[]> {
-    await this.ensureSchema();
+    await this.table.ensureSchema();
     const uid = toOptionalTrimmedString(userId);
     if (!uid) return [];
-    const result = await this.bindScope(
-      `SELECT record_json
-         FROM near_public_keys
-        WHERE namespace = ?
-          AND org_id = ?
-          AND project_id = ?
-          AND env_id = ?
-          AND user_id = ?
-        ORDER BY COALESCE(signer_slot, 0) ASC, created_at_ms ASC, public_key ASC`,
-      [uid],
-    ).all<D1NearPublicKeyRow>();
+    const result = await this.table
+      .prepare(NEAR_PUBLIC_KEYS_BY_USER_SQL, [uid])
+      .all<D1NearPublicKeyRow>();
     return (result.results || [])
       .map((row) => parseNearPublicKeyRecord(parseD1JsonColumn(row.record_json)))
       .filter((record): record is NearPublicKeyRecord => Boolean(record));
@@ -366,7 +287,7 @@ export function createNearPublicKeyStore(input: {
     input.logger.info('[near-public-keys] Using D1 store for NEAR public key metadata');
     return new D1NearPublicKeyStore({
       database,
-      ...d1ScopeFromConfig({ config, namespace }),
+      ...d1TenantScopeFromConfig(config, namespace, NEAR_PUBLIC_KEY_D1_STORE),
     });
   }
 

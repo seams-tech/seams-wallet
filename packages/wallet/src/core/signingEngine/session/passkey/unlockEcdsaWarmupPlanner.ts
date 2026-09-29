@@ -40,7 +40,7 @@ export type WalletUnlockSelection =
       ecdsa: true;
     };
 
-export type EcdsaUnlockBlockedReason =
+type EcdsaUnlockBlockedReason =
   | 'missing_key_handle'
   | 'invalid_key_handle'
   | 'duplicate_key_handles'
@@ -74,7 +74,7 @@ export type BlockedEcdsaSignerRecord = {
   signerId?: string;
 };
 
-export type ParsedEcdsaUnlockSignerRecord =
+type ParsedEcdsaUnlockSignerRecord =
   | ActiveEcdsaSignerRecord
   | KeyFactsInventoryRequiredEcdsaSignerRecord
   | BlockedEcdsaSignerRecord
@@ -88,7 +88,7 @@ export type ParsedEcdsaUnlockSignerRecord =
       signerId?: never;
     };
 
-export type EcdsaWarmupReadyTarget = {
+type EcdsaWarmupReadyTarget = {
   targetKey: string;
   chainTarget: ThresholdEcdsaChainTarget;
   walletKey: EvmFamilyEcdsaWalletKey;
@@ -122,7 +122,7 @@ export type ConfiguredTargetKeyCompletion =
       context?: never;
     };
 
-export type EcdsaUnlockRuntimeConfig = {
+type EcdsaUnlockRuntimeConfig = {
   allowAuthenticatedKeyFactsInventory: boolean;
   explicitKeyFactsInventoryMode: boolean;
 };
@@ -167,7 +167,7 @@ export type EcdsaWarmupPlannerResult =
       keyFactsInventoryRequiredRecords?: never;
     };
 
-export function walletUnlockSelectionIncludesEcdsa(selection: WalletUnlockSelection): boolean {
+function walletUnlockSelectionIncludesEcdsa(selection: WalletUnlockSelection): boolean {
   switch (selection.mode) {
     case 'ed25519_only':
       return false;

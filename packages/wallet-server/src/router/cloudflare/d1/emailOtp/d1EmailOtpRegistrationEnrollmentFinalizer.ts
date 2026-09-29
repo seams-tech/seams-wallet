@@ -2,7 +2,8 @@ import {
   EMAIL_OTP_INITIAL_ENROLLMENT_VERSION,
   emailOtpDeviceEnrollmentId,
 } from '@shared/utils/emailOtpDomain';
-import type { RegistrationAuthority, WalletId } from '@shared/utils/registrationIntent';
+import type { WalletId } from '@shared/utils/registrationIntent';
+import type { RegistrationAuthority } from '@shared/utils/registrationAuthMethodInput';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
 import type {
   EmailOtpAuthStateRecord,
@@ -17,7 +18,7 @@ import {
   type EmailOtpEnrollmentMaterialBoundaryInput,
 } from './d1EmailOtpRecords';
 
-export type D1EmailOtpRegistrationEnrollmentPersistence = {
+type D1EmailOtpRegistrationEnrollmentPersistence = {
   readonly enrollment: EmailOtpWalletEnrollmentRecord;
   readonly existingAuthState: EmailOtpAuthStateRecord | null;
 };
@@ -206,8 +207,8 @@ export class CloudflareD1EmailOtpRegistrationEnrollmentFinalizer {
   }
 
   /**
-   * Refactor 109C: the enrollment statements for a wallet's first Email OTP
-   * method, to commit in the batch that inserts that method.
+   * The enrollment statements for a wallet's first Email OTP method, to commit
+   * in the batch that inserts that method.
    *
    * Same construction as registration's, deliberately — the shared enrollment
    * is one record whichever operation creates it, and a second builder would

@@ -1,13 +1,8 @@
 import type { WebAuthnAllowCredential } from '@/core/signingEngine/webauthnAuth/credentials/collectAuthenticationCredentialForChallengeB64u';
-import type { WalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
-
-type ActivePasskeyWalletAuthMethod = Extract<
-  WalletAuthMethodRecordV2,
-  { readonly kind: 'passkey'; readonly status: 'active' }
->;
+import type { ActivePasskeyWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 
 export function addAuthMethodSourcePasskeyAllowCredentials(
-  sourceAuthMethod: ActivePasskeyWalletAuthMethod,
+  sourceAuthMethod: ActivePasskeyWalletAuthMethodRecordV2,
 ): [WebAuthnAllowCredential] {
   return [
     {

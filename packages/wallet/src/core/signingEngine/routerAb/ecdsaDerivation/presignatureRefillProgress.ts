@@ -1,4 +1,4 @@
-export type PresignatureRefillProgressSnapshotV1 =
+type PresignatureRefillProgressSnapshotV1 =
   | { readonly kind: 'refilling'; readonly revision: number }
   | { readonly kind: 'settled'; readonly revision: number };
 

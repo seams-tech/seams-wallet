@@ -139,21 +139,3 @@ define_e_share_message!(ClientEShareMessage);
 define_e_share_message!(SigningWorkerEShareMessage);
 define_alpha_beta_message!(ClientAlphaBetaMessage);
 define_alpha_beta_message!(SigningWorkerAlphaBetaMessage);
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn messages_have_fixed_role_and_width() {
-        let context = PresignPairContext::new(
-            SigningScopeDigest::new([6; 32]),
-            PairContextDigest::new([7; 32]),
-        );
-        let message = ClientEShareMessage::new(context, ScalarBytes::new([9; 32]));
-        let (actual_context, scalar) = message.into_parts();
-
-        assert_eq!(actual_context, context);
-        assert_eq!(scalar, [9; 32]);
-    }
-}

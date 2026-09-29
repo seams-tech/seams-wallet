@@ -5,7 +5,8 @@ use router_ab_dev::{
     local_env_materialization_plan_v1, local_worker_bind_addr_v1, parse_local_env_file_contents_v1,
     parse_local_worker_role_config_for_role_v1, LocalWorkerRoleConfigV1,
     LOCAL_DERIVER_A_ENV_FILE_V1, LOCAL_DERIVER_B_ENV_FILE_V1, LOCAL_ROUTER_ENV_FILE_V1,
-    LOCAL_SIGNING_WORKER_ENV_FILE_V1, LOCAL_WORKER_HEALTH_PATH,
+    LOCAL_SIGNING_WORKER_ENV_FILE_V1, LOCAL_TENANT_ROOT_CONTROL_PLANE_ENV_FILE_V1,
+    LOCAL_TENANT_ROOT_CONTROL_PLANE_URL_ENV_V1, LOCAL_WORKER_HEALTH_PATH,
 };
 use serde::Serialize;
 use std::{
@@ -297,15 +298,24 @@ pub fn write_materialized_envs_with_urls(
     for directory in &plan.directories {
         fs::create_dir_all(root.join(directory))?;
     }
-    for file in plan.files {
-        let contents = file
-            .contents
+    let files = plan
+        .files
+        .into_iter()
+        .map(|file| (file.path, file.contents))
+        .chain(
+            plan.tenant_root_files
+                .into_iter()
+                .map(|file| (file.path, file.contents)),
+        );
+    for (relative, contents) in files {
+        let contents = contents
             .replace("http://127.0.0.1:4100", &urls.router)
             .replace("http://127.0.0.1:4102", &urls.router)
             .replace("http://127.0.0.1:4103", &urls.deriver_a)
             .replace("http://127.0.0.1:4104", &urls.deriver_b)
-            .replace("http://127.0.0.1:4105", &urls.signing_worker);
-        let path = root.join(file.path);
+            .replace("http://127.0.0.1:4105", &urls.signing_worker)
+            .replace("http://127.0.0.1:4106", &urls.control_plane);
+        let path = root.join(relative);
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)?;
         }
@@ -320,6 +330,7 @@ pub struct LocalWorkerUrls {
     pub deriver_a: String,
     pub deriver_b: String,
     pub signing_worker: String,
+    pub control_plane: String,
 }
 
 impl LocalWorkerUrls {
@@ -337,13 +348,28 @@ impl LocalWorkerUrls {
             root,
             worker_process_spec_for_role_v1(LocalServiceRoleV1::SigningWorker)?,
         )?;
+        let control_plane = read_env_value(
+            &root.join(LOCAL_TENANT_ROOT_CONTROL_PLANE_ENV_FILE_V1),
+            LOCAL_TENANT_ROOT_CONTROL_PLANE_URL_ENV_V1,
+        )?;
         Ok(Self {
             router,
             deriver_a,
             deriver_b,
             signing_worker,
+            control_plane,
         })
     }
+}
+
+fn read_env_value(path: &Path, key: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let contents = fs::read_to_string(path)
+        .map_err(|error| format!("failed to read {}: {error}", path.display()))?;
+    parse_local_env_file_contents_v1(&contents)?
+        .into_iter()
+        .find(|(name, _)| name == key)
+        .map(|(_, value)| value)
+        .ok_or_else(|| format!("{} does not set {key}", path.display()).into())
 }
 
 fn read_router_public_url(root: &Path) -> Result<String, Box<dyn std::error::Error>> {

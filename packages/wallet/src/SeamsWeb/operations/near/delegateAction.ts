@@ -26,7 +26,7 @@ async function yieldForUiPaint(): Promise<void> {
   await Promise.resolve();
 }
 
-export interface RouterApiDelegateRequest {
+interface RouterApiDelegateRequest {
   hash: string;
   signedDelegate: SignedDelegate | WasmSignedDelegate;
 }

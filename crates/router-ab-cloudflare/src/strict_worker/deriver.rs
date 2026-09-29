@@ -15,13 +15,13 @@ use crate::tenant_root_role_runtime::{
     DERIVER_TENANT_ROOT_RESTORE_SESSION_CLEANUP_REQUEST_MAX_BYTES_V1,
 };
 use crate::{
-    build_cloudflare_ecdsa_threshold_prf_outer_request_v2,
-    build_cloudflare_preloaded_signer_host_v1, cloudflare_now_unix_ms_v1,
-    cloudflare_random_bytes_v1, load_cloudflare_active_tenant_root_role_share_v1,
+    build_cloudflare_ecdsa_threshold_prf_outer_request_v2, cloudflare_now_unix_ms_v1,
+    cloudflare_random_bytes_v1, load_cloudflare_bound_tenant_root_role_share_v1,
     CloudflareAuthenticatedSignerPrivateBootstrapRequestV1, CloudflarePeerBindingV1,
     CloudflareRootShareStartupMetadataV1,
     CLOUDFLARE_DERIVER_TENANT_ROOT_CLEANUP_PRIVATE_REQUEST_PATH,
     CLOUDFLARE_DERIVER_TENANT_ROOT_CREATE_ROLE_SHARE_PRIVATE_REQUEST_PATH,
+    CLOUDFLARE_DERIVER_TENANT_ROOT_CREATION_EVIDENCE_PRIVATE_REQUEST_PATH,
     CLOUDFLARE_DERIVER_TENANT_ROOT_INITIAL_ACTIVATION_PRIVATE_REQUEST_PATH,
     CLOUDFLARE_DERIVER_TENANT_ROOT_MANAGED_RESTORE_FORWARD_REFRESH_PRIVATE_REQUEST_PATH,
     CLOUDFLARE_DERIVER_TENANT_ROOT_MANAGED_RESTORE_PRIVATE_REQUEST_PATH,
@@ -173,7 +173,7 @@ impl StrictDeriverRuntimeV1 {
 
     fn route_error_message(&self) -> String {
         format!(
-            "{} strict Worker route must be served at {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, or {}",
+            "{} strict Worker route must be served at {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, or {}",
             self.label(),
             self.registration_private_path(),
             self.export_private_path(),
@@ -181,7 +181,9 @@ impl StrictDeriverRuntimeV1 {
             CLOUDFLARE_DERIVER_TENANT_ROOT_CREATE_ROLE_SHARE_PRIVATE_REQUEST_PATH,
             CLOUDFLARE_DERIVER_TENANT_ROOT_STATUS_PRIVATE_REQUEST_PATH,
             CLOUDFLARE_DERIVER_TENANT_ROOT_CLEANUP_PRIVATE_REQUEST_PATH,
+            crate::paths::CLOUDFLARE_DERIVER_TENANT_ROOT_PEER_PAIR_FENCE_PRIVATE_REQUEST_PATH,
             CLOUDFLARE_DERIVER_TENANT_ROOT_INITIAL_ACTIVATION_PRIVATE_REQUEST_PATH,
+            CLOUDFLARE_DERIVER_TENANT_ROOT_CREATION_EVIDENCE_PRIVATE_REQUEST_PATH,
             CLOUDFLARE_DERIVER_TENANT_ROOT_REFRESH_ACTIVATION_PRIVATE_REQUEST_PATH,
             CLOUDFLARE_DERIVER_TENANT_ROOT_REFRESH_PRIVATE_REQUEST_PATH,
             CLOUDFLARE_DERIVER_TENANT_ROOT_MANAGED_RESTORE_PRIVATE_REQUEST_PATH,
@@ -192,6 +194,27 @@ impl StrictDeriverRuntimeV1 {
             CLOUDFLARE_DERIVER_TENANT_ROOT_RESTORE_CLEANUP_PRIVATE_REQUEST_PATH,
             crate::paths::CLOUDFLARE_DERIVER_TENANT_ROOT_PREACTIVATION_CLEANUP_PRIVATE_REQUEST_PATH,
         )
+    }
+}
+
+#[cfg(any(
+    feature = "strict-worker-deriver-a-entrypoint",
+    feature = "strict-worker-deriver-b-entrypoint"
+))]
+impl crate::CloudflareDeriverSignerRuntimeV1 for StrictDeriverRuntimeV1 {
+    fn worker_role(&self) -> CloudflareWorkerRoleV1 {
+        StrictDeriverRuntimeV1::worker_role(self)
+    }
+
+    fn envelope_decrypt_key(&self) -> &CloudflareSignerEnvelopeHpkeDecryptKeyBindingSetV1 {
+        StrictDeriverRuntimeV1::envelope_decrypt_key(self)
+    }
+
+    fn peer_verifying_keys_for_signer_set(
+        &self,
+        signer_set: &SignerSetV1,
+    ) -> RouterAbProtocolResult<Vec<AbPeerMessageVerifyingKeyV1>> {
+        StrictDeriverRuntimeV1::peer_verifying_keys_for_signer_set(self, signer_set)
     }
 }
 
@@ -235,9 +258,9 @@ async fn handle_strict_deriver_fetch_v1(
         };
     }
 
-    if path == crate::tenant_root_recovery_runtime::RECOVERY_ACCESS_PATH {
+    if path == crate::tenant_root_recovery_reshare::TENANT_ROOT_RECOVERY_ACCESS_PATH_V1 {
         if request.method() != Method::Post { return Response::error("recovery access requires POST", 405); }
-        let parsed = match crate::durable_object::tenant_root_creation::decode_bounded_json_request::<crate::tenant_root_recovery_runtime::RecoveryAccessRequestV1>(&mut request, 32 * 1024).await {
+        let parsed = match crate::durable_object::tenant_root_creation::decode_bounded_json_request::<crate::tenant_root_recovery_reshare::TenantRootRecoveryAccessRequestV1>(&mut request, 32 * 1024).await {
             Ok(parsed) => parsed,
             Err(error) => return cloudflare_protocol_error_response_v1(error),
         };
@@ -247,9 +270,9 @@ async fn handle_strict_deriver_fetch_v1(
         };
     }
 
-    if path == crate::tenant_root_recovery_runtime::RECOVERY_RESHARE_PATH {
+    if path == crate::tenant_root_recovery_reshare::TENANT_ROOT_RECOVERY_RESHARE_PATH_V1 {
         if request.method() != Method::Post { return Response::error("recovery sharing requires POST", 405); }
-        let parsed = match crate::durable_object::tenant_root_creation::decode_bounded_json_request::<crate::tenant_root_recovery_runtime::RecoveryRequestV1>(&mut request, 128 * 1024).await {
+        let parsed = match crate::durable_object::tenant_root_creation::decode_bounded_json_request::<crate::tenant_root_recovery_reshare::TenantRootRecoveryReshareRequestV1>(&mut request, 128 * 1024).await {
             Ok(parsed) => parsed,
             Err(error) => return cloudflare_protocol_error_response_v1(error),
         };
@@ -467,6 +490,29 @@ async fn handle_strict_deriver_fetch_v1(
         };
     }
 
+    if path == CLOUDFLARE_DERIVER_TENANT_ROOT_CREATION_EVIDENCE_PRIVATE_REQUEST_PATH {
+        let evidence_request: crate::tenant_root_role_runtime::CloudflareDeriverTenantRootCreationEvidenceRequestV1 =
+            match parse_strict_deriver_json_v1(
+                &mut request,
+                format!("Router A/B strict {label} tenant-root creation evidence"),
+            )
+            .await?
+            {
+                Ok(parsed) => parsed,
+                Err(response) => return Ok(response),
+            };
+        return match crate::tenant_root_role_runtime::handle_cloudflare_deriver_tenant_root_creation_evidence_v1(
+            &env,
+            worker_role,
+            evidence_request,
+        )
+        .await
+        {
+            Ok(response) => Response::from_json(&response),
+            Err(error) => cloudflare_protocol_error_response_v1(error),
+        };
+    }
+
     if path == CLOUDFLARE_DERIVER_TENANT_ROOT_CLEANUP_PRIVATE_REQUEST_PATH {
         let cleanup_request: CloudflareDeriverTenantRootCleanupRequestV1 =
             match parse_strict_deriver_json_v1(
@@ -481,7 +527,32 @@ async fn handle_strict_deriver_fetch_v1(
         return match crate::tenant_root_role_runtime::handle_cloudflare_deriver_tenant_root_cleanup_v1(
             &env,
             worker_role,
+            runtime.tenant_root_peer(),
             cleanup_request,
+            now_unix_ms,
+        )
+        .await
+        {
+            Ok(response) => Response::from_json(&response),
+            Err(error) => cloudflare_protocol_error_response_v1(error),
+        };
+    }
+
+    if path == crate::paths::CLOUDFLARE_DERIVER_TENANT_ROOT_PEER_PAIR_FENCE_PRIVATE_REQUEST_PATH {
+        let fence_request: crate::tenant_root_role_runtime::CloudflareDeriverTenantRootPeerPairFenceRequestV1 =
+            match parse_strict_deriver_json_v1(
+                &mut request,
+                format!("Router A/B strict {label} tenant-root peer pair fence"),
+            )
+            .await?
+            {
+                Ok(parsed) => parsed,
+                Err(response) => return Ok(response),
+            };
+        return match crate::tenant_root_role_runtime::handle_cloudflare_deriver_tenant_root_peer_pair_fence_v1(
+            &env,
+            worker_role,
+            fence_request,
             now_unix_ms,
         )
         .await
@@ -614,7 +685,51 @@ async fn handle_strict_deriver_fetch_v1(
         };
     }
 
-    #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
+    #[cfg(feature = "wallet-do-harness")]
+    if path == CLOUDFLARE_DERIVER_A_ED25519_YAO_PREPARE_PAIR_PATH {
+        let work: crate::CloudflareEd25519YaoPairPrepareRequestV1 =
+            match parse_strict_deriver_json_v1(
+                &mut request,
+                "Deriver A wallet DO preparation".into(),
+            )
+            .await?
+            {
+                Ok(parsed) => parsed,
+                Err(response) => return Ok(response),
+            };
+        return crate::durable_object::call_deriver_a_wallet_do_work_v1(
+            &env,
+            crate::durable_object::deriver_a_wallet_do_prepare_work_path_v1(),
+            &work.pair_binding,
+            &work.tenant_root,
+            &work,
+        )
+        .await;
+    }
+
+    #[cfg(feature = "wallet-do-harness")]
+    if path == CLOUDFLARE_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH {
+        let work: crate::CloudflareEd25519YaoPairExecuteRequestV1 =
+            match parse_strict_deriver_json_v1(&mut request, "Deriver A wallet DO execution".into())
+                .await?
+            {
+                Ok(parsed) => parsed,
+                Err(response) => return Ok(response),
+            };
+        return crate::durable_object::call_deriver_a_wallet_do_work_v1(
+            &env,
+            crate::durable_object::deriver_a_wallet_do_execute_work_path_v1(),
+            &work.pair_binding,
+            &work.tenant_root,
+            &work,
+        )
+        .await;
+    }
+
+    #[cfg(all(
+        feature = "strict-worker-deriver-a-entrypoint",
+        not(feature = "wallet-do-harness")
+    ))]
     if path == CLOUDFLARE_DERIVER_A_ED25519_YAO_PREPARE_PAIR_PATH {
         return match handle_cloudflare_ed25519_yao_deriver_a_prepare_pair_v1(request, &env).await {
             Ok(response) => Ok(response),
@@ -622,7 +737,10 @@ async fn handle_strict_deriver_fetch_v1(
         };
     }
 
-    #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
+    #[cfg(all(
+        feature = "strict-worker-deriver-a-entrypoint",
+        not(feature = "wallet-do-harness")
+    ))]
     if path == CLOUDFLARE_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH {
         return match handle_cloudflare_ed25519_yao_deriver_a_execute_pair_v1(request, &env).await {
             Ok(response) => Ok(response),
@@ -630,7 +748,48 @@ async fn handle_strict_deriver_fetch_v1(
         };
     }
 
-    #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
+    #[cfg(feature = "wallet-do-harness")]
+    if path == CLOUDFLARE_DERIVER_A_ED25519_YAO_READ_PAIR_STATUS_PATH {
+        let lookup: crate::CloudflareDeriverAWalletPairStatusRequestV1 =
+            match parse_strict_deriver_json_v1(&mut request, "Deriver A wallet DO status".into())
+                .await?
+            {
+                Ok(parsed) => parsed,
+                Err(response) => return Ok(response),
+            };
+        return crate::durable_object::call_deriver_a_wallet_do_lookup_v1(
+            &env,
+            crate::durable_object::deriver_a_wallet_do_status_work_path_v1(),
+            &lookup.root_identity,
+            &lookup.pair_binding,
+            &lookup,
+        )
+        .await;
+    }
+
+    #[cfg(feature = "wallet-do-harness")]
+    if path == CLOUDFLARE_DERIVER_A_ED25519_YAO_BURN_PAIR_PATH {
+        let lookup: crate::CloudflareDeriverAWalletPairBurnRequestV1 =
+            match parse_strict_deriver_json_v1(&mut request, "Deriver A wallet DO burn".into())
+                .await?
+            {
+                Ok(parsed) => parsed,
+                Err(response) => return Ok(response),
+            };
+        return crate::durable_object::call_deriver_a_wallet_do_lookup_v1(
+            &env,
+            crate::durable_object::deriver_a_wallet_do_burn_work_path_v1(),
+            &lookup.root_identity,
+            &lookup.pair_binding,
+            &lookup,
+        )
+        .await;
+    }
+
+    #[cfg(all(
+        feature = "strict-worker-deriver-a-entrypoint",
+        not(feature = "wallet-do-harness")
+    ))]
     if path == CLOUDFLARE_DERIVER_A_ED25519_YAO_READ_PAIR_STATUS_PATH {
         return match handle_cloudflare_ed25519_yao_deriver_a_read_pair_status_v1(request, &env)
             .await
@@ -640,7 +799,10 @@ async fn handle_strict_deriver_fetch_v1(
         };
     }
 
-    #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
+    #[cfg(all(
+        feature = "strict-worker-deriver-a-entrypoint",
+        not(feature = "wallet-do-harness")
+    ))]
     if path == CLOUDFLARE_DERIVER_A_ED25519_YAO_BURN_PAIR_PATH {
         return match handle_cloudflare_ed25519_yao_deriver_a_burn_pair_v1(request, &env).await {
             Ok(response) => Ok(response),
@@ -705,56 +867,38 @@ async fn handle_strict_deriver_fetch_v1(
             };
         timing.mark("parse", total_started_at_ms);
         let preload_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
-        let (registration_request, authenticated, custody_wire) =
-            match private_request.into_authenticated_parts(&env, worker_role, now_unix_ms) {
-                Ok(parts) => parts,
-                Err(err) => return cloudflare_protocol_error_response_v1(err),
-            };
-        let public_request = match registration_request.to_threshold_prf_request() {
-            Ok(request) => request,
+        let tenant_root_host =
+            crate::tenant_root_role_runtime::CloudflareTenantRootDeriverHostV1::new(
+                &env,
+                worker_role,
+                None,
+            );
+        let random_bytes = match cloudflare_random_bytes_v1(0) {
+            Ok(bytes) => bytes,
             Err(err) => return cloudflare_protocol_error_response_v1(err),
         };
-        let outer_request = match build_cloudflare_ecdsa_threshold_prf_outer_request_v2(
-            &public_request,
-            authenticated.tenant_root_custody_binding(),
-            &custody_wire,
-        ) {
-            Ok(request) => request,
-            Err(err) => return cloudflare_protocol_error_response_v1(err),
-        };
-        let preloaded = match preload_strict_deriver_request_with_authenticated_binding_v2(
-            &env,
+        let registration = match crate::prepare_cloudflare_deriver_ecdsa_registration_v1(
+            &tenant_root_host,
             &runtime,
-            &authenticated,
+            private_request,
+            now_unix_ms,
+            random_bytes,
         )
         .await
         {
-            Ok(loaded) => loaded,
+            Ok(registration) => registration,
             Err(err) => return cloudflare_protocol_error_response_v1(err),
         };
-        let signer_bootstrap = authenticated.bootstrap;
-        let tenant_root_custody_binding = authenticated.tenant_root_custody_binding;
         timing.mark("preload", preload_started_at_ms);
         let execute_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
-        let response =
-            match decrypt_and_handle_cloudflare_router_ab_ecdsa_derivation_registration_signer_private_request_v1(
-                &env,
-                worker_role,
-                &preloaded.host,
-                registration_request,
-                signer_bootstrap,
-                tenant_root_custody_binding,
-                outer_request,
-                preloaded.tenant_root_share,
-                runtime.envelope_decrypt_key(),
-                &preloaded.root_share_metadata,
-                now_unix_ms,
-            )
-            .await
-            {
-                Ok(response) => response,
-                Err(err) => return cloudflare_protocol_error_response_v1(err),
-            };
+        let response = match registration.execute_deriver_registration(
+            &crate::CloudflareWorkerEnvReaderV1::new(&env),
+            &runtime,
+            now_unix_ms,
+        ) {
+            Ok(response) => response,
+            Err(err) => return cloudflare_protocol_error_response_v1(err),
+        };
         timing.mark("execute", execute_started_at_ms);
         timing.mark("total", total_started_at_ms);
         return strict_deriver_timed_json_response_v1(&response, &timing);
@@ -771,50 +915,33 @@ async fn handle_strict_deriver_fetch_v1(
                 Ok(parsed) => parsed,
                 Err(response) => return Ok(response),
             };
-        let (export_request, authenticated, custody_wire) =
-            match export_request.into_authenticated_parts(&env, worker_role, now_unix_ms) {
-                Ok(parts) => parts,
-                Err(err) => return cloudflare_protocol_error_response_v1(err),
-            };
-        let public_request = match export_request.to_threshold_prf_request() {
-            Ok(request) => request,
+        let tenant_root_host =
+            crate::tenant_root_role_runtime::CloudflareTenantRootDeriverHostV1::new(
+                &env,
+                worker_role,
+                None,
+            );
+        let random_bytes = match cloudflare_random_bytes_v1(0) {
+            Ok(bytes) => bytes,
             Err(err) => return cloudflare_protocol_error_response_v1(err),
         };
-        let outer_request = match build_cloudflare_ecdsa_threshold_prf_outer_request_v2(
-            &public_request,
-            authenticated.tenant_root_custody_binding(),
-            &custody_wire,
-        ) {
-            Ok(request) => request,
-            Err(err) => return cloudflare_protocol_error_response_v1(err),
-        };
-        let preloaded = match preload_strict_deriver_request_with_authenticated_binding_v2(
-            &env,
+        let export = match crate::prepare_cloudflare_deriver_ecdsa_export_v1(
+            &tenant_root_host,
             &runtime,
-            &authenticated,
+            export_request,
+            now_unix_ms,
+            random_bytes,
         )
         .await
         {
-            Ok(loaded) => loaded,
+            Ok(export) => export,
             Err(err) => return cloudflare_protocol_error_response_v1(err),
         };
-        let signer_bootstrap = authenticated.bootstrap;
-        let tenant_root_custody_binding = authenticated.tenant_root_custody_binding;
-        return match decrypt_and_handle_cloudflare_router_ab_ecdsa_derivation_export_signer_private_request_v1(
-            &env,
-            worker_role,
-            &preloaded.host,
-            export_request,
-            signer_bootstrap,
-            tenant_root_custody_binding,
-            outer_request,
-            preloaded.tenant_root_share,
-            runtime.envelope_decrypt_key(),
-            &preloaded.root_share_metadata,
+        return match export.execute_deriver_export(
+            &crate::CloudflareWorkerEnvReaderV1::new(&env),
+            &runtime,
             now_unix_ms,
-        )
-        .await
-        {
+        ) {
             Ok(response) => Response::from_json(&response),
             Err(err) => cloudflare_protocol_error_response_v1(err),
         };
@@ -935,10 +1062,11 @@ async fn preload_strict_deriver_request_with_authenticated_binding_v2(
     let root_share_metadata = host
         .root_share_startup_metadata(runtime.protocol_role(), &preload_plan.root_share_epoch)?
         .clone();
-    let tenant_root_share = load_cloudflare_active_tenant_root_role_share_v1(
+    let tenant_root_share = load_cloudflare_bound_tenant_root_role_share_v1(
         env,
         runtime.worker_role(),
         authenticated_request.tenant_root_custody_binding(),
+        &crate::tenant_root_role_d1::TenantRootRootUseAttemptV1::EcdsaOperation,
     )
     .await?;
     Ok(StrictDeriverPreloadedRequestV2 {
@@ -959,32 +1087,12 @@ async fn preload_strict_deriver_host_with_authenticated_binding_v1(
     CloudflareSignerHostPreloadPlanV1,
     CloudflarePreloadedSignerHostV1,
 )> {
-    let bootstrap = &authenticated_request.bootstrap;
-    let preload_plan = CloudflareSignerHostPreloadPlanV1::from_private_bootstrap(
-        runtime.worker_role(),
-        bootstrap,
-    )?;
-    let verifying_keys = runtime.peer_verifying_keys_for_signer_set(&preload_plan.signer_set)?;
-    let preload_input = preload_plan.to_host_preload_input(Vec::new(), verifying_keys, 0)?;
-    let root_share_metadata = CloudflareRootShareStartupMetadataV1::new(
-        preload_plan.signer_set_id.clone(),
-        runtime.protocol_role(),
-        preload_plan.local_signer.signer_id.clone(),
-        preload_plan.local_signer.key_epoch.clone(),
-        preload_plan.root_share_epoch.clone(),
-        format!(
-            "tenant-root-role-private-d1/{}/active",
-            runtime.worker_role().as_str()
-        ),
-    )?;
-    let host = build_cloudflare_preloaded_signer_host_v1(
+    crate::preload_cloudflare_deriver_signer_host_v1(
+        runtime,
+        authenticated_request,
         cloudflare_now_unix_ms_v1()?,
-        runtime.protocol_role(),
-        preload_input,
-        root_share_metadata,
         cloudflare_random_bytes_v1(0)?,
-    )?;
-    Ok((preload_plan, host))
+    )
 }
 
 #[cfg(feature = "strict-worker-deriver-b-entrypoint")]

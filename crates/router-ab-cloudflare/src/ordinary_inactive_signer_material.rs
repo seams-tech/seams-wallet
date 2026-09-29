@@ -1,17 +1,18 @@
 use crate::hpke::cloudflare_hpke_x25519_public_key_bytes_v1;
+#[cfg(feature = "workers-rs")]
 use crate::{
-    activate_cloudflare_signing_worker_server_output_v1, cloudflare_now_unix_ms_v1,
-    cloudflare_server_output_material_record_from_activation_request_v1,
+    cloudflare_now_unix_ms_v1, cloudflare_server_output_material_record_from_activation_request_v1,
     compare_and_set_cloudflare_signing_worker_private_d1_secret_v1,
-    delete_cloudflare_signing_worker_output_activation_by_active_key_v1,
-    derive_registration_source_relayer_share_v1, encode_base64url_bytes_v1,
     load_cloudflare_server_output_hpke_private_key_bytes_v1,
-    load_cloudflare_signing_worker_private_d1_secret_v1,
-    seal_cloudflare_signer_envelope_hpke_payload_v1, CloudflareEcdsaRegistrationSourceDerivationV1,
-    CloudflareSecretMaterial32V1, CloudflareServerOutputMaterialRecordV1,
-    CloudflareSignerEnvelopeHpkePublicKeyV1, CloudflareSigningWorkerOutputActivationReceiptV1,
+    load_cloudflare_signing_worker_private_d1_secret_v1, CloudflareSigningWorkerRuntimeV1,
+};
+use crate::{
+    encode_base64url_bytes_v1, seal_cloudflare_signer_envelope_hpke_payload_v1,
+    CloudflareEcdsaRegistrationSourceDerivationV1, CloudflareSecretMaterial32V1,
+    CloudflareServerOutputMaterialRecordV1, CloudflareSignerEnvelopeHpkePublicKeyV1,
+    CloudflareSigningWorkerOutputActivationReceiptV1,
     CloudflareSigningWorkerRecipientProofBundleActivationRequestV1,
-    CloudflareSigningWorkerRuntimeV1, SOURCE_PRESERVING_ECDSA_MATERIAL_HANDLE_PREFIX_V1,
+    CloudflareSigningWorkerWalletScopeV1, SOURCE_PRESERVING_ECDSA_MATERIAL_HANDLE_PREFIX_V1,
 };
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use router_ab_core::{
@@ -33,8 +34,9 @@ use router_ab_ecdsa_derivation::{
 };
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+#[cfg(feature = "workers-rs")]
 use worker::{Env, Request, Response};
-use zeroize::{Zeroize, Zeroizing};
+use zeroize::Zeroizing;
 
 pub const CLOUDFLARE_SIGNING_WORKER_ECDSA_RESERVE_INACTIVE_PATH: &str =
     "/router-ab/signing-worker/ecdsa-derivation/reserve-inactive";
@@ -85,18 +87,31 @@ impl CloudflareEcdsaInactiveMaterialReservationRequestV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareEcdsaSourcePreservingInactiveMaterialReservationRequestV1 {
+    /// The wallet whose active material is the source, and which holds the
+    /// linked material.
+    pub scope: CloudflareSigningWorkerWalletScopeV1,
     pub source_derivation: CloudflareEcdsaRegistrationSourceDerivationV1,
     pub source_contribution: LinkedDeviceEcdsaSourceContributionPackageV1,
 }
 
 impl CloudflareEcdsaSourcePreservingInactiveMaterialReservationRequestV1 {
-    fn validate(&self) -> RouterAbProtocolResult<()> {
+    pub(crate) fn validate(&self) -> RouterAbProtocolResult<()> {
+        self.scope.validate()?;
         self.source_derivation.validate()?;
         self.source_contribution.validate().map_err(|error| {
             invalid_reservation(format!(
                 "linked-device ECDSA source contribution is invalid: {error:?}"
             ))
-        })
+        })?;
+        let binding = &self.source_contribution.binding;
+        if binding.source.activation.material_owner != self.scope.wallet_id
+            || binding.target.activation.material_owner != self.scope.wallet_id
+        {
+            return Err(invalid_reservation(
+                "linked-device ECDSA reservation names another wallet",
+            ));
+        }
+        Ok(())
     }
 
     fn target_material_activation(&self) -> RouterAbProtocolResult<MpcMaterialActivationRefV1> {
@@ -109,13 +124,21 @@ impl CloudflareEcdsaSourcePreservingInactiveMaterialReservationRequestV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareEcdsaActivateReservationRequestV1 {
+    /// The wallet that owns the reserved material.
+    pub scope: CloudflareSigningWorkerWalletScopeV1,
     pub material_activation: MpcMaterialActivationRefV1,
     pub reservation_id: String,
 }
 
 impl CloudflareEcdsaActivateReservationRequestV1 {
-    fn validate(&self) -> RouterAbProtocolResult<()> {
+    pub(crate) fn validate(&self) -> RouterAbProtocolResult<()> {
+        self.scope.validate()?;
         self.material_activation.validate()?;
+        if self.material_activation.material_owner != self.scope.wallet_id {
+            return Err(invalid_reservation(
+                "ECDSA reservation activation names another wallet",
+            ));
+        }
         require_reservation_id(&self.reservation_id)
     }
 
@@ -131,12 +154,21 @@ impl CloudflareEcdsaActivateReservationRequestV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareEcdsaDeactivateReservationRequestV1 {
+    /// The wallet that owns the reserved material.
+    pub scope: CloudflareSigningWorkerWalletScopeV1,
     pub material_activation: MpcMaterialActivationRefV1,
 }
 
 impl CloudflareEcdsaDeactivateReservationRequestV1 {
-    fn validate(&self) -> RouterAbProtocolResult<()> {
-        self.material_activation.validate()
+    pub(crate) fn validate(&self) -> RouterAbProtocolResult<()> {
+        self.scope.validate()?;
+        self.material_activation.validate()?;
+        if self.material_activation.material_owner != self.scope.wallet_id {
+            return Err(invalid_reservation(
+                "ECDSA reservation deactivation names another wallet",
+            ));
+        }
+        Ok(())
     }
 }
 
@@ -167,7 +199,7 @@ pub struct CloudflareEcdsaSourcePreservingInactiveMaterialReservationResponseV1 
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct EcdsaClientPackagePairV1 {
+pub(crate) struct EcdsaClientPackagePairV1 {
     deriver_a_client_package: RoleEncryptedEnvelopeV1,
     deriver_b_client_package: RoleEncryptedEnvelopeV1,
 }
@@ -200,6 +232,7 @@ pub struct CloudflareEcdsaReservationDeactivationResponseV1 {
     pub revoked_at_ms: u64,
 }
 
+#[cfg(not(feature = "wallet-do-signing-worker-harness"))]
 enum EcdsaReservationActivationResultV1 {
     Ordinary(CloudflareSigningWorkerOutputActivationReceiptV1),
     SourcePreserving(CloudflareEcdsaSourcePreservingReservationActivationResponseV1),
@@ -207,7 +240,7 @@ enum EcdsaReservationActivationResultV1 {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "state", rename_all = "snake_case", deny_unknown_fields)]
-enum EcdsaReservationStateV1 {
+pub(crate) enum EcdsaReservationStateV1 {
     Inactive {
         registration: RouterAbEcdsaDerivationRegistrationBootstrapRequestV1,
         activation: CloudflareSigningWorkerRecipientProofBundleActivationRequestV1,
@@ -297,7 +330,20 @@ enum EcdsaReservationStateV1 {
 }
 
 impl EcdsaReservationStateV1 {
-    fn validate(&self) -> RouterAbProtocolResult<()> {
+    /// A linked device's reservation, as opposed to an ordinary one.
+    #[cfg_attr(feature = "wallet-do-signing-worker-harness", allow(dead_code))]
+    pub(crate) fn is_source_preserving(&self) -> bool {
+        matches!(
+            self,
+            Self::SourcePreservingInactive { .. }
+                | Self::SourcePreservingActivating { .. }
+                | Self::SourcePreservingActive { .. }
+                | Self::SourcePreservingRevoked { .. }
+                | Self::SourcePreservingDeactivating { .. }
+        )
+    }
+
+    pub(crate) fn validate(&self) -> RouterAbProtocolResult<()> {
         match self {
             Self::SourcePreservingInactive {
                 binding,
@@ -467,6 +513,7 @@ impl EcdsaReservationStateV1 {
     }
 }
 
+#[cfg(feature = "workers-rs")]
 pub async fn handle_cloudflare_signing_worker_ecdsa_reserve_inactive_v1(
     mut request: Request,
     env: &Env,
@@ -488,6 +535,7 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_reserve_inactive_v1(
     .map_err(|_| invalid_reservation("ECDSA inactive reservation response could not be encoded"))
 }
 
+#[cfg(feature = "workers-rs")]
 pub async fn handle_cloudflare_signing_worker_ecdsa_reserve_inactive_source_preserving_v1(
     mut request: Request,
     env: &Env,
@@ -499,7 +547,15 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_reserve_inactive_source_pres
             invalid_reservation("source-preserving ECDSA inactive reservation JSON is malformed")
         })?;
     reservation.validate()?;
+    #[cfg(feature = "wallet-do-signing-worker-harness")]
+    return crate::durable_object::call_signing_worker_wallet_do_v1(
+        env,
+        crate::durable_object::SigningWorkerWalletDoRequestV1::ReserveLinkedEcdsa(reservation),
+    )
+    .await;
+    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
     let response = reserve_source_preserving_ecdsa_inactive_v1(env, &reservation).await?;
+    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
     Response::from_json(&response).map_err(|_| {
         invalid_reservation(
             "source-preserving ECDSA inactive reservation response could not be encoded",
@@ -507,6 +563,9 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_reserve_inactive_source_pres
     })
 }
 
+/// On the wallet-object build every ECDSA reservation it activates or
+/// revokes is a linked device's, held with the wallet's material.
+#[cfg(feature = "workers-rs")]
 pub async fn handle_cloudflare_signing_worker_ecdsa_activate_reservation_v1(
     mut request: Request,
     env: &Env,
@@ -517,6 +576,16 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_activate_reservation_v1(
         .await
         .map_err(|_| invalid_reservation("ECDSA reservation activation JSON is malformed"))?;
     activation.validate()?;
+    #[cfg(feature = "wallet-do-signing-worker-harness")]
+    {
+        let _ = runtime;
+        return crate::durable_object::call_signing_worker_wallet_do_v1(
+            env,
+            crate::durable_object::SigningWorkerWalletDoRequestV1::ActivateLinkedEcdsa(activation),
+        )
+        .await;
+    }
+    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
     match activate_ecdsa_reservation_v1(env, runtime, &activation).await? {
         EcdsaReservationActivationResultV1::Ordinary(receipt) => {
             Response::from_json(&CloudflareEcdsaReservationActivationResponseV1 { receipt })
@@ -528,6 +597,7 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_activate_reservation_v1(
     .map_err(|_| invalid_reservation("ECDSA reservation response could not be encoded"))
 }
 
+#[cfg(feature = "workers-rs")]
 pub async fn handle_cloudflare_signing_worker_ecdsa_deactivate_reservation_v1(
     mut request: Request,
     env: &Env,
@@ -537,11 +607,20 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_deactivate_reservation_v1(
         .await
         .map_err(|_| invalid_reservation("ECDSA reservation deactivation JSON is malformed"))?;
     deactivation.validate()?;
+    #[cfg(feature = "wallet-do-signing-worker-harness")]
+    return crate::durable_object::call_signing_worker_wallet_do_v1(
+        env,
+        crate::durable_object::SigningWorkerWalletDoRequestV1::DeactivateLinkedEcdsa(deactivation),
+    )
+    .await;
+    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
     let response = deactivate_ecdsa_reservation_v1(env, &deactivation).await?;
+    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
     Response::from_json(&response)
         .map_err(|_| invalid_reservation("ECDSA deactivation response could not be encoded"))
 }
 
+#[cfg(feature = "workers-rs")]
 async fn reserve_ecdsa_inactive_v1(
     env: &Env,
     request: &CloudflareEcdsaInactiveMaterialReservationRequestV1,
@@ -677,6 +756,10 @@ async fn reserve_ecdsa_inactive_v1(
     ))
 }
 
+#[cfg(all(
+    feature = "workers-rs",
+    not(feature = "wallet-do-signing-worker-harness")
+))]
 async fn reserve_source_preserving_ecdsa_inactive_v1(
     env: &Env,
     request: &CloudflareEcdsaSourcePreservingInactiveMaterialReservationRequestV1,
@@ -684,16 +767,15 @@ async fn reserve_source_preserving_ecdsa_inactive_v1(
     request.validate()?;
     let target_material_activation = request.target_material_activation()?;
     let binding = &request.source_contribution.binding;
-    let binding_digest = binding.digest().map_err(|error| {
-        invalid_reservation(format!(
-            "linked-device ECDSA source contribution binding is invalid: {error:?}"
-        ))
-    })?;
+    let binding_digest = source_contribution_binding_digest_v1(binding)?;
     let record_key = reservation_record_key_v1(&target_material_activation)?;
     let reservation_id =
         source_preserving_reservation_id_v1(&target_material_activation, &binding_digest)?;
     let runtime = CloudflareSigningWorkerRuntimeV1::from_worker_env(env)?;
-    validate_source_preserving_recipient_v1(&runtime, binding)?;
+    validate_source_preserving_recipient_v1(
+        &runtime.server_output_decrypt_key().public_key,
+        binding,
+    )?;
 
     for _ in 0..3 {
         let current =
@@ -703,95 +785,53 @@ async fn reserve_source_preserving_ecdsa_inactive_v1(
                 &record_key,
             )
             .await?;
-        if let Some(current) = current.as_ref() {
-            current.value.validate()?;
-            match &current.value {
-                EcdsaReservationStateV1::SourcePreservingInactive {
-                    binding: stored_binding,
-                    source_derivation: stored_derivation,
-                    material_activation: stored_ref,
-                    reservation_id: stored_id,
-                    ..
-                }
-                | EcdsaReservationStateV1::SourcePreservingActivating {
-                    binding: stored_binding,
-                    source_derivation: stored_derivation,
-                    material_activation: stored_ref,
-                    reservation_id: stored_id,
-                    ..
-                } if stored_binding == binding
-                    && stored_derivation == &request.source_derivation
-                    && stored_ref == &target_material_activation
-                    && stored_id == &reservation_id =>
-                {
-                    return source_preserving_response_from_state_v1(&current.value, "inactive");
-                }
-                EcdsaReservationStateV1::SourcePreservingActive {
-                    binding: stored_binding,
-                    source_derivation: stored_derivation,
-                    material_activation: stored_ref,
-                    reservation_id: stored_id,
-                    ..
-                } if stored_binding == binding
-                    && stored_derivation == &request.source_derivation
-                    && stored_ref == &target_material_activation
-                    && stored_id == &reservation_id =>
-                {
-                    return Err(invalid_reservation(
-                        "source-preserving ECDSA material reservation is already active",
-                    ));
-                }
-                EcdsaReservationStateV1::SourcePreservingRevoked {
-                    binding: stored_binding,
-                    material_activation: stored_ref,
-                    reservation_id: stored_id,
-                    ..
-                } if stored_binding == binding
-                    && stored_ref == &target_material_activation
-                    && stored_id == &reservation_id =>
-                {
-                    return Err(invalid_reservation(
-                        "source-preserving ECDSA material reservation is revoked",
-                    ));
-                }
-                EcdsaReservationStateV1::Inactive { .. }
-                | EcdsaReservationStateV1::Activating { .. }
-                | EcdsaReservationStateV1::Active { .. }
-                | EcdsaReservationStateV1::Revoked { .. }
-                | EcdsaReservationStateV1::Deactivating { .. }
-                | EcdsaReservationStateV1::SourcePreservingDeactivating { .. }
-                | EcdsaReservationStateV1::SourcePreservingInactive { .. }
-                | EcdsaReservationStateV1::SourcePreservingActivating { .. }
-                | EcdsaReservationStateV1::SourcePreservingActive { .. }
-                | EcdsaReservationStateV1::SourcePreservingRevoked { .. } => {
-                    return Err(invalid_reservation(
-                        "source-preserving ECDSA material reservation conflicts with the exact activation ref",
-                    ));
-                }
-            }
+        if let LinkedEcdsaReservationV1::Answer(response) = settle_linked_ecdsa_reservation_v1(
+            current.as_ref().map(|current| &current.value),
+            request,
+            &target_material_activation,
+            &reservation_id,
+        )? {
+            return Ok(response);
         }
 
-        let (
-            target_relayer_public_key33_b64u,
-            threshold_public_key33_b64u,
-            threshold_ethereum_address20_b64u,
-            encrypted_target_server_share,
-        ) = build_source_preserving_target_outputs_v1(env, &runtime, request, &binding_digest)
-            .await?;
-        let state = EcdsaReservationStateV1::SourcePreservingInactive {
-            binding: binding.clone(),
-            source_derivation: request.source_derivation.clone(),
-            material_activation: target_material_activation.clone(),
-            reservation_id: reservation_id.clone(),
-            target_relayer_public_key33_b64u,
-            threshold_public_key33_b64u,
-            threshold_ethereum_address20_b64u,
-            encrypted_target_client_share: request
-                .source_contribution
-                .encrypted_target_client_share
-                .clone(),
-            encrypted_target_server_share,
+        let server_output_private_key =
+            Zeroizing::new(load_cloudflare_server_output_hpke_private_key_bytes_v1(
+                env,
+                runtime.server_output_decrypt_key(),
+            )?);
+        // A device linked to this wallet links another from its own active
+        // reservation; otherwise the source is the registration's material.
+        let source_record_key = reservation_record_key_v1(
+            &mpc_material_activation_from_ecdsa_ref_v1(&binding.source.activation)?,
+        )?;
+        let linked_source = load_cloudflare_signing_worker_private_d1_secret_v1::<
+            EcdsaReservationStateV1,
+        >(env, "ecdsa_inactive_reservations", &source_record_key)
+        .await?
+        .map(|stored| stored.value)
+        .filter(EcdsaReservationStateV1::is_source_preserving);
+        let source_relayer_share32 = match linked_source {
+            Some(source_state) => {
+                linked_source_relayer_share_v1(&source_state, binding, &server_output_private_key)?
+            }
+            None => {
+                let (source_client_public_key33, source_relayer_public_key33) =
+                    linked_ecdsa_source_public_keys_v1(binding)?;
+                crate::derive_registration_source_relayer_share_v1(
+                    env,
+                    &binding.source.activation,
+                    &request.source_derivation,
+                    &source_client_public_key33,
+                    &source_relayer_public_key33,
+                )
+                .await?
+            }
         };
+        let state = linked_ecdsa_inactive_state_v1(
+            request,
+            &source_relayer_share32,
+            &server_output_private_key,
+        )?;
         match compare_and_set_cloudflare_signing_worker_private_d1_secret_v1(
             env,
             "ecdsa_inactive_reservations",
@@ -812,52 +852,135 @@ async fn reserve_source_preserving_ecdsa_inactive_v1(
     ))
 }
 
-async fn build_source_preserving_target_outputs_v1(
-    env: &Env,
-    runtime: &CloudflareSigningWorkerRuntimeV1,
-    request: &CloudflareEcdsaSourcePreservingInactiveMaterialReservationRequestV1,
-    binding_digest: &[u8; 32],
-) -> RouterAbProtocolResult<(
-    String,
-    String,
-    String,
-    LinkedDeviceEcdsaEncryptedSourceContributionV1,
-)> {
-    let binding = &request.source_contribution.binding;
-    let source_client_public_key33 = decode_fixed_b64_v1(
-        "linked-device source client public key",
-        &binding.source.client_public_key33_b64u,
-    )?;
-    let source_relayer_public_key33 = decode_fixed_b64_v1(
-        "linked-device source relayer public key",
-        &binding.source.relayer_public_key33_b64u,
-    )?;
-    let source_relayer_share32 = derive_registration_source_relayer_share_v1(
-        env,
-        &binding.source.activation,
-        &request.source_derivation,
-        &source_client_public_key33,
-        &source_relayer_public_key33,
-    )
-    .await?;
+/// What one linked-device ECDSA reservation request gets, given the
+/// reservation its target activation already has. Every host decides the
+/// same way; each keeps the reservation in its own store.
+pub(crate) enum LinkedEcdsaReservationV1 {
+    /// The exact reservation exists and is not yet active: its packages again.
+    Answer(CloudflareEcdsaSourcePreservingInactiveMaterialReservationResponseV1),
+    /// The target activation has no reservation: reserve it.
+    Reserve,
+}
 
-    let mut server_output_private_key = load_cloudflare_server_output_hpke_private_key_bytes_v1(
-        env,
-        runtime.server_output_decrypt_key(),
-    )?;
+pub(crate) fn settle_linked_ecdsa_reservation_v1(
+    current: Option<&EcdsaReservationStateV1>,
+    request: &CloudflareEcdsaSourcePreservingInactiveMaterialReservationRequestV1,
+    target_material_activation: &MpcMaterialActivationRefV1,
+    reservation_id: &str,
+) -> RouterAbProtocolResult<LinkedEcdsaReservationV1> {
+    let Some(current) = current else {
+        return Ok(LinkedEcdsaReservationV1::Reserve);
+    };
+    current.validate()?;
+    let binding = &request.source_contribution.binding;
+    match current {
+        EcdsaReservationStateV1::SourcePreservingInactive {
+            binding: stored_binding,
+            source_derivation: stored_derivation,
+            material_activation: stored_ref,
+            reservation_id: stored_id,
+            ..
+        }
+        | EcdsaReservationStateV1::SourcePreservingActivating {
+            binding: stored_binding,
+            source_derivation: stored_derivation,
+            material_activation: stored_ref,
+            reservation_id: stored_id,
+            ..
+        } if stored_binding == binding
+            && stored_derivation == &request.source_derivation
+            && stored_ref == target_material_activation
+            && stored_id == reservation_id =>
+        {
+            Ok(LinkedEcdsaReservationV1::Answer(
+                source_preserving_response_from_state_v1(current, "inactive")?,
+            ))
+        }
+        EcdsaReservationStateV1::SourcePreservingActive {
+            binding: stored_binding,
+            source_derivation: stored_derivation,
+            material_activation: stored_ref,
+            reservation_id: stored_id,
+            ..
+        } if stored_binding == binding
+            && stored_derivation == &request.source_derivation
+            && stored_ref == target_material_activation
+            && stored_id == reservation_id =>
+        {
+            Err(invalid_reservation(
+                "source-preserving ECDSA material reservation is already active",
+            ))
+        }
+        EcdsaReservationStateV1::SourcePreservingRevoked {
+            binding: stored_binding,
+            material_activation: stored_ref,
+            reservation_id: stored_id,
+            ..
+        } if stored_binding == binding
+            && stored_ref == target_material_activation
+            && stored_id == reservation_id =>
+        {
+            Err(invalid_reservation(
+                "source-preserving ECDSA material reservation is revoked",
+            ))
+        }
+        EcdsaReservationStateV1::Inactive { .. }
+        | EcdsaReservationStateV1::Activating { .. }
+        | EcdsaReservationStateV1::Active { .. }
+        | EcdsaReservationStateV1::Revoked { .. }
+        | EcdsaReservationStateV1::Deactivating { .. }
+        | EcdsaReservationStateV1::SourcePreservingDeactivating { .. }
+        | EcdsaReservationStateV1::SourcePreservingInactive { .. }
+        | EcdsaReservationStateV1::SourcePreservingActivating { .. }
+        | EcdsaReservationStateV1::SourcePreservingActive { .. }
+        | EcdsaReservationStateV1::SourcePreservingRevoked { .. } => Err(invalid_reservation(
+            "source-preserving ECDSA material reservation conflicts with the exact activation ref",
+        )),
+    }
+}
+
+/// The source's client and relayer public keys, as the linked device's
+/// binding names them.
+pub(crate) fn linked_ecdsa_source_public_keys_v1(
+    binding: &LinkedDeviceEcdsaSourceContributionBindingV1,
+) -> RouterAbProtocolResult<([u8; 33], [u8; 33])> {
+    Ok((
+        decode_fixed_b64_v1(
+            "linked-device source client public key",
+            &binding.source.client_public_key33_b64u,
+        )?,
+        decode_fixed_b64_v1(
+            "linked-device source relayer public key",
+            &binding.source.relayer_public_key33_b64u,
+        )?,
+    ))
+}
+
+/// A linked device's inactive ECDSA reservation. The contribution's delta
+/// rebinds the source relayer share to the target client, preserving the
+/// wallet's key; the rebound share is sealed to this SigningWorker. Each
+/// host supplies the source share from its own store.
+pub(crate) fn linked_ecdsa_inactive_state_v1(
+    request: &CloudflareEcdsaSourcePreservingInactiveMaterialReservationRequestV1,
+    source_relayer_share32: &[u8; 32],
+    server_output_private_key: &[u8; 32],
+) -> RouterAbProtocolResult<EcdsaReservationStateV1> {
+    let binding = &request.source_contribution.binding;
+    let binding_digest = source_contribution_binding_digest_v1(binding)?;
+    let material_activation = request.target_material_activation()?;
+    let reservation_id =
+        source_preserving_reservation_id_v1(&material_activation, &binding_digest)?;
     let opened_delta = open_linked_device_ecdsa_source_contribution_v1(
         &request.source_contribution.encrypted_delta,
-        &server_output_private_key,
-        binding_digest,
+        server_output_private_key,
+        &binding_digest,
     )
     .map(Zeroizing::new)
     .map_err(|error| {
-        zeroize::Zeroize::zeroize(&mut server_output_private_key);
         invalid_reservation(format!(
             "linked-device ECDSA source contribution delta could not be opened: {error:?}"
         ))
     })?;
-    zeroize::Zeroize::zeroize(&mut server_output_private_key);
     let delta32: [u8; 32] = opened_delta.as_slice().try_into().map_err(|_| {
         invalid_reservation("linked-device ECDSA source contribution delta must be 32 bytes")
     })?;
@@ -866,6 +989,8 @@ async fn build_source_preserving_target_outputs_v1(
             "linked-device ECDSA source contribution delta is invalid: {error}"
         ))
     })?;
+    let (source_client_public_key33, source_relayer_public_key33) =
+        linked_ecdsa_source_public_keys_v1(binding)?;
     let source_identity = EcdsaLanePublicIdentityBindingV1 {
         source_client_public_key33,
         source_relayer_public_key33,
@@ -902,7 +1027,7 @@ async fn build_source_preserving_target_outputs_v1(
     let target_relayer_share32 = Zeroizing::new(rebound.into_target_relayer_share32());
     let encrypted_target_server_share = seal_linked_device_ecdsa_source_contribution_v1(
         &binding.target.signing_worker_recipient_public_key_b64u,
-        binding_digest,
+        &binding_digest,
         target_relayer_share32.as_ref(),
         random32_v1()?,
     )
@@ -911,15 +1036,323 @@ async fn build_source_preserving_target_outputs_v1(
             "linked-device ECDSA target server package could not be sealed: {error:?}"
         ))
     })?;
-    Ok((
+    let state = EcdsaReservationStateV1::SourcePreservingInactive {
+        binding: binding.clone(),
+        source_derivation: request.source_derivation.clone(),
+        material_activation,
+        reservation_id,
         target_relayer_public_key33_b64u,
         threshold_public_key33_b64u,
         threshold_ethereum_address20_b64u,
+        encrypted_target_client_share: request
+            .source_contribution
+            .encrypted_target_client_share
+            .clone(),
         encrypted_target_server_share,
-    ))
+    };
+    state.validate()?;
+    Ok(state)
 }
 
-fn source_preserving_response_from_state_v1(
+pub(crate) fn source_contribution_binding_digest_v1(
+    binding: &LinkedDeviceEcdsaSourceContributionBindingV1,
+) -> RouterAbProtocolResult<[u8; 32]> {
+    binding.digest().map_err(|error| {
+        invalid_reservation(format!(
+            "linked-device ECDSA source contribution binding is invalid: {error:?}"
+        ))
+    })
+}
+
+/// What one linked-device ECDSA activation request gets, given its
+/// reservation.
+pub(crate) enum LinkedEcdsaActivationV1 {
+    /// The reservation is already active: its answer again.
+    Answer(CloudflareEcdsaSourcePreservingReservationActivationResponseV1),
+    /// The exact reservation is not yet active: activate it.
+    Activate,
+}
+
+pub(crate) fn settle_linked_ecdsa_activation_v1(
+    current: &EcdsaReservationStateV1,
+    request: &CloudflareEcdsaActivateReservationRequestV1,
+) -> RouterAbProtocolResult<LinkedEcdsaActivationV1> {
+    current.validate()?;
+    let conflict = || {
+        invalid_reservation(
+            "source-preserving ECDSA reservation activation conflicts with the exact reservation",
+        )
+    };
+    match current {
+        EcdsaReservationStateV1::SourcePreservingActive {
+            material_activation,
+            reservation_id,
+            ..
+        } => {
+            if !request.matches(reservation_id, material_activation) {
+                return Err(conflict());
+            }
+            Ok(LinkedEcdsaActivationV1::Answer(
+                source_preserving_response_from_state_v1(current, "active")?,
+            ))
+        }
+        EcdsaReservationStateV1::SourcePreservingInactive {
+            material_activation,
+            reservation_id,
+            ..
+        }
+        | EcdsaReservationStateV1::SourcePreservingActivating {
+            material_activation,
+            reservation_id,
+            ..
+        } => {
+            if !request.matches(reservation_id, material_activation) {
+                return Err(conflict());
+            }
+            Ok(LinkedEcdsaActivationV1::Activate)
+        }
+        EcdsaReservationStateV1::SourcePreservingDeactivating {
+            material_activation,
+            reservation_id,
+            ..
+        } => {
+            if !request.matches(reservation_id, material_activation) {
+                return Err(conflict());
+            }
+            Err(invalid_reservation(
+                "source-preserving ECDSA material reservation is being deactivated",
+            ))
+        }
+        EcdsaReservationStateV1::SourcePreservingRevoked {
+            material_activation,
+            reservation_id,
+            ..
+        } => {
+            if !request.matches(reservation_id, material_activation) {
+                return Err(conflict());
+            }
+            Err(invalid_reservation(
+                "source-preserving ECDSA material reservation is revoked",
+            ))
+        }
+        _ => Err(invalid_reservation(
+            "ECDSA reservation activation names no linked-device reservation",
+        )),
+    }
+}
+
+/// What one linked-device ECDSA deactivation request gets, given its
+/// reservation.
+pub(crate) enum LinkedEcdsaDeactivationV1 {
+    /// The reservation is revoked: its answer again.
+    Revoked(CloudflareEcdsaReservationDeactivationResponseV1),
+    /// A revocation began at `revoked_at_ms`: finish it.
+    Resume {
+        binding: LinkedDeviceEcdsaSourceContributionBindingV1,
+        source_derivation: CloudflareEcdsaRegistrationSourceDerivationV1,
+        reservation_id: String,
+        revoked_at_ms: u64,
+    },
+    /// The reservation is unrevoked: revoke it.
+    Revoke {
+        binding: LinkedDeviceEcdsaSourceContributionBindingV1,
+        source_derivation: CloudflareEcdsaRegistrationSourceDerivationV1,
+        reservation_id: String,
+    },
+}
+
+pub(crate) fn settle_linked_ecdsa_deactivation_v1(
+    current: &EcdsaReservationStateV1,
+    material_activation: &MpcMaterialActivationRefV1,
+) -> RouterAbProtocolResult<LinkedEcdsaDeactivationV1> {
+    current.validate()?;
+    let (binding, source_derivation, stored_ref, reservation_id) = match current {
+        EcdsaReservationStateV1::SourcePreservingInactive {
+            binding,
+            source_derivation,
+            material_activation,
+            reservation_id,
+            ..
+        }
+        | EcdsaReservationStateV1::SourcePreservingActivating {
+            binding,
+            source_derivation,
+            material_activation,
+            reservation_id,
+            ..
+        }
+        | EcdsaReservationStateV1::SourcePreservingActive {
+            binding,
+            source_derivation,
+            material_activation,
+            reservation_id,
+            ..
+        }
+        | EcdsaReservationStateV1::SourcePreservingDeactivating {
+            binding,
+            source_derivation,
+            material_activation,
+            reservation_id,
+            ..
+        }
+        | EcdsaReservationStateV1::SourcePreservingRevoked {
+            binding,
+            source_derivation,
+            material_activation,
+            reservation_id,
+            ..
+        } => (
+            binding,
+            source_derivation,
+            material_activation,
+            reservation_id,
+        ),
+        _ => {
+            return Err(invalid_reservation(
+                "ECDSA reservation deactivation names no linked-device reservation",
+            ))
+        }
+    };
+    if stored_ref != material_activation
+        || !reservation_id_matches_source_preserving_material_activation_v1(
+            reservation_id,
+            stored_ref,
+            binding,
+        )
+    {
+        return Err(invalid_reservation(
+            "source-preserving ECDSA deactivation conflicts with the exact activation ref",
+        ));
+    }
+    Ok(match current {
+        EcdsaReservationStateV1::SourcePreservingRevoked { revoked_at_ms, .. } => {
+            LinkedEcdsaDeactivationV1::Revoked(CloudflareEcdsaReservationDeactivationResponseV1 {
+                state: "revoked",
+                reservation_id: reservation_id.clone(),
+                material_activation: stored_ref.clone(),
+                revoked_at_ms: *revoked_at_ms,
+            })
+        }
+        EcdsaReservationStateV1::SourcePreservingDeactivating { revoked_at_ms, .. } => {
+            LinkedEcdsaDeactivationV1::Resume {
+                binding: binding.clone(),
+                source_derivation: source_derivation.clone(),
+                reservation_id: reservation_id.clone(),
+                revoked_at_ms: *revoked_at_ms,
+            }
+        }
+        _ => LinkedEcdsaDeactivationV1::Revoke {
+            binding: binding.clone(),
+            source_derivation: source_derivation.clone(),
+            reservation_id: reservation_id.clone(),
+        },
+    })
+}
+
+/// The phases an inactive linked-device ECDSA reservation moves through.
+#[derive(Clone, Copy)]
+pub(crate) enum SourcePreservingPhaseV1 {
+    /// D1 only: its activation takes two writes. The wallet store
+    /// activates in one.
+    #[cfg_attr(feature = "wallet-do-signing-worker-harness", allow(dead_code))]
+    Activating,
+    Active,
+}
+
+impl EcdsaReservationStateV1 {
+    /// The same unrevoked linked-device reservation in another phase.
+    pub(crate) fn into_source_preserving_phase_v1(
+        self,
+        phase: SourcePreservingPhaseV1,
+    ) -> RouterAbProtocolResult<Self> {
+        let (
+            binding,
+            source_derivation,
+            material_activation,
+            reservation_id,
+            target_relayer_public_key33_b64u,
+            threshold_public_key33_b64u,
+            threshold_ethereum_address20_b64u,
+            encrypted_target_client_share,
+            encrypted_target_server_share,
+        ) = match self {
+            Self::SourcePreservingInactive {
+                binding,
+                source_derivation,
+                material_activation,
+                reservation_id,
+                target_relayer_public_key33_b64u,
+                threshold_public_key33_b64u,
+                threshold_ethereum_address20_b64u,
+                encrypted_target_client_share,
+                encrypted_target_server_share,
+            }
+            | Self::SourcePreservingActivating {
+                binding,
+                source_derivation,
+                material_activation,
+                reservation_id,
+                target_relayer_public_key33_b64u,
+                threshold_public_key33_b64u,
+                threshold_ethereum_address20_b64u,
+                encrypted_target_client_share,
+                encrypted_target_server_share,
+            }
+            | Self::SourcePreservingActive {
+                binding,
+                source_derivation,
+                material_activation,
+                reservation_id,
+                target_relayer_public_key33_b64u,
+                threshold_public_key33_b64u,
+                threshold_ethereum_address20_b64u,
+                encrypted_target_client_share,
+                encrypted_target_server_share,
+            } => (
+                binding,
+                source_derivation,
+                material_activation,
+                reservation_id,
+                target_relayer_public_key33_b64u,
+                threshold_public_key33_b64u,
+                threshold_ethereum_address20_b64u,
+                encrypted_target_client_share,
+                encrypted_target_server_share,
+            ),
+            _ => {
+                return Err(invalid_reservation(
+                    "ECDSA reservation is not an unrevoked linked-device reservation",
+                ))
+            }
+        };
+        Ok(match phase {
+            SourcePreservingPhaseV1::Activating => Self::SourcePreservingActivating {
+                binding,
+                source_derivation,
+                material_activation,
+                reservation_id,
+                target_relayer_public_key33_b64u,
+                threshold_public_key33_b64u,
+                threshold_ethereum_address20_b64u,
+                encrypted_target_client_share,
+                encrypted_target_server_share,
+            },
+            SourcePreservingPhaseV1::Active => Self::SourcePreservingActive {
+                binding,
+                source_derivation,
+                material_activation,
+                reservation_id,
+                target_relayer_public_key33_b64u,
+                threshold_public_key33_b64u,
+                threshold_ethereum_address20_b64u,
+                encrypted_target_client_share,
+                encrypted_target_server_share,
+            },
+        })
+    }
+}
+
+pub(crate) fn source_preserving_response_from_state_v1(
     state: &EcdsaReservationStateV1,
     response_state: &'static str,
 ) -> RouterAbProtocolResult<CloudflareEcdsaSourcePreservingInactiveMaterialReservationResponseV1> {
@@ -1141,13 +1574,13 @@ fn validate_source_preserving_envelope_v1(
     Ok(())
 }
 
-fn validate_source_preserving_recipient_v1(
-    runtime: &CloudflareSigningWorkerRuntimeV1,
+/// Refuses a contribution sealed to any key but this SigningWorker's
+/// configured server-output key.
+pub(crate) fn validate_source_preserving_recipient_v1(
+    configured_public_key: &str,
     binding: &LinkedDeviceEcdsaSourceContributionBindingV1,
 ) -> RouterAbProtocolResult<()> {
-    let configured = cloudflare_hpke_x25519_public_key_bytes_v1(
-        &runtime.server_output_decrypt_key().public_key,
-    )?;
+    let configured = cloudflare_hpke_x25519_public_key_bytes_v1(configured_public_key)?;
     let admitted = decode_fixed_b64_32_v1(
         "source-preserving ECDSA target SigningWorker recipient",
         &binding.target.signing_worker_recipient_public_key_b64u,
@@ -1161,7 +1594,7 @@ fn validate_source_preserving_recipient_v1(
     Ok(())
 }
 
-fn mpc_material_activation_from_ecdsa_ref_v1(
+pub(crate) fn mpc_material_activation_from_ecdsa_ref_v1(
     activation: &router_ab_ecdsa_client_protocol::EcdsaMaterialActivationRefV1,
 ) -> RouterAbProtocolResult<MpcMaterialActivationRefV1> {
     MpcMaterialActivationRefV1::new(
@@ -1174,7 +1607,7 @@ fn mpc_material_activation_from_ecdsa_ref_v1(
     )
 }
 
-fn source_preserving_reservation_id_v1(
+pub(crate) fn source_preserving_reservation_id_v1(
     target_material_activation: &MpcMaterialActivationRefV1,
     binding_digest: &[u8; 32],
 ) -> RouterAbProtocolResult<String> {
@@ -1309,6 +1742,10 @@ fn validate_client_package_v1(
     Ok(())
 }
 
+#[cfg(all(
+    feature = "workers-rs",
+    not(feature = "wallet-do-signing-worker-harness")
+))]
 async fn activate_ecdsa_reservation_v1(
     env: &Env,
     runtime: &CloudflareSigningWorkerRuntimeV1,
@@ -1408,7 +1845,7 @@ async fn activate_ecdsa_reservation_v1(
                         "ordinary ECDSA reservation activation conflicts with the exact reservation",
                     ));
                 }
-                let receipt = activate_cloudflare_signing_worker_server_output_v1(
+                let receipt = crate::activate_cloudflare_signing_worker_server_output_v1(
                     env,
                     runtime,
                     activation.clone(),
@@ -1474,7 +1911,7 @@ async fn activate_ecdsa_reservation_v1(
                                         "ordinary ECDSA reservation activation conflicts with the exact reservation",
                                     ));
                                 }
-                                delete_cloudflare_signing_worker_output_activation_by_active_key_v1(
+                                crate::delete_cloudflare_signing_worker_output_activation_by_active_key_v1(
                                     env,
                                     &active_key,
                                     &request.material_activation,
@@ -1519,163 +1956,54 @@ async fn activate_ecdsa_reservation_v1(
                     "ordinary ECDSA material reservation is revoked",
                 ));
             }
-            EcdsaReservationStateV1::SourcePreservingActive {
-                binding,
-                source_derivation,
-                material_activation,
-                reservation_id,
-                target_relayer_public_key33_b64u,
-                threshold_public_key33_b64u,
-                threshold_ethereum_address20_b64u,
-                encrypted_target_client_share,
-                encrypted_target_server_share,
-            } => {
-                if !request.matches(&reservation_id, &material_activation) {
-                    return Err(invalid_reservation(
-                        "source-preserving ECDSA reservation activation conflicts with the exact reservation",
+            state @ (EcdsaReservationStateV1::SourcePreservingInactive { .. }
+            | EcdsaReservationStateV1::SourcePreservingActivating { .. }
+            | EcdsaReservationStateV1::SourcePreservingActive { .. }
+            | EcdsaReservationStateV1::SourcePreservingDeactivating { .. }
+            | EcdsaReservationStateV1::SourcePreservingRevoked { .. }) => {
+                if let LinkedEcdsaActivationV1::Answer(response) =
+                    settle_linked_ecdsa_activation_v1(&state, request)?
+                {
+                    return Ok(EcdsaReservationActivationResultV1::SourcePreserving(
+                        response,
                     ));
                 }
-                let active = EcdsaReservationStateV1::SourcePreservingActive {
-                    binding,
-                    source_derivation,
-                    material_activation,
-                    reservation_id,
-                    target_relayer_public_key33_b64u,
-                    threshold_public_key33_b64u,
-                    threshold_ethereum_address20_b64u,
-                    encrypted_target_client_share,
-                    encrypted_target_server_share,
-                };
-                let source_response = source_preserving_response_from_state_v1(&active, "active")?;
-                return Ok(EcdsaReservationActivationResultV1::SourcePreserving(
-                    source_response,
-                ));
-            }
-            EcdsaReservationStateV1::SourcePreservingInactive {
-                binding,
-                source_derivation,
-                material_activation,
-                reservation_id,
-                target_relayer_public_key33_b64u,
-                threshold_public_key33_b64u,
-                threshold_ethereum_address20_b64u,
-                encrypted_target_client_share,
-                encrypted_target_server_share,
-            } => {
-                if !request.matches(&reservation_id, &material_activation) {
-                    return Err(invalid_reservation(
-                        "source-preserving ECDSA reservation activation conflicts with the exact reservation",
-                    ));
-                }
-                let activating = EcdsaReservationStateV1::SourcePreservingActivating {
-                    binding,
-                    source_derivation,
-                    material_activation,
-                    reservation_id,
-                    target_relayer_public_key33_b64u,
-                    threshold_public_key33_b64u,
-                    threshold_ethereum_address20_b64u,
-                    encrypted_target_client_share,
-                    encrypted_target_server_share,
+                // D1 activates in two writes: inactive to activating, then
+                // activating to active.
+                let next = if matches!(
+                    state,
+                    EcdsaReservationStateV1::SourcePreservingInactive { .. }
+                ) {
+                    state.into_source_preserving_phase_v1(SourcePreservingPhaseV1::Activating)?
+                } else {
+                    state.into_source_preserving_phase_v1(SourcePreservingPhaseV1::Active)?
                 };
                 match compare_and_set_cloudflare_signing_worker_private_d1_secret_v1(
                     env,
                     "ecdsa_inactive_reservations",
                     &record_key,
                     Some(current.version),
-                    &activating,
+                    &next,
                     cloudflare_now_unix_ms_v1()?,
                 )
                 .await
                 {
                     Err(error) if error.code() == RouterAbProtocolErrorCode::ConflictingPair => {
                         continue
+                    }
+                    Ok(())
+                        if matches!(
+                            next,
+                            EcdsaReservationStateV1::SourcePreservingActive { .. }
+                        ) =>
+                    {
+                        return Ok(EcdsaReservationActivationResultV1::SourcePreserving(
+                            source_preserving_response_from_state_v1(&next, "active")?,
+                        ));
                     }
                     Ok(()) => continue,
                     Err(error) => return Err(error),
                 }
-            }
-            EcdsaReservationStateV1::SourcePreservingActivating {
-                binding,
-                source_derivation,
-                material_activation,
-                reservation_id,
-                target_relayer_public_key33_b64u,
-                threshold_public_key33_b64u,
-                threshold_ethereum_address20_b64u,
-                encrypted_target_client_share,
-                encrypted_target_server_share,
-            } => {
-                if !request.matches(&reservation_id, &material_activation) {
-                    return Err(invalid_reservation(
-                        "source-preserving ECDSA reservation activation conflicts with the exact reservation",
-                    ));
-                }
-                let active = EcdsaReservationStateV1::SourcePreservingActive {
-                    binding,
-                    source_derivation,
-                    material_activation,
-                    reservation_id,
-                    target_relayer_public_key33_b64u,
-                    threshold_public_key33_b64u,
-                    threshold_ethereum_address20_b64u,
-                    encrypted_target_client_share,
-                    encrypted_target_server_share,
-                };
-                match compare_and_set_cloudflare_signing_worker_private_d1_secret_v1(
-                    env,
-                    "ecdsa_inactive_reservations",
-                    &record_key,
-                    Some(current.version),
-                    &active,
-                    cloudflare_now_unix_ms_v1()?,
-                )
-                .await
-                {
-                    Err(error) if error.code() == RouterAbProtocolErrorCode::ConflictingPair => {
-                        continue
-                    }
-                    Ok(()) => {
-                        let source_response =
-                            source_preserving_response_from_state_v1(&active, "active")?;
-                        return Ok(EcdsaReservationActivationResultV1::SourcePreserving(
-                            source_response,
-                        ));
-                    }
-                    Err(error) => return Err(error),
-                }
-            }
-            EcdsaReservationStateV1::SourcePreservingDeactivating {
-                material_activation,
-                reservation_id,
-                ..
-            } => {
-                if reservation_id != request.reservation_id
-                    || material_activation != request.material_activation
-                {
-                    return Err(invalid_reservation(
-                        "source-preserving ECDSA reservation activation conflicts with the exact reservation",
-                    ));
-                }
-                return Err(invalid_reservation(
-                    "source-preserving ECDSA material reservation is being deactivated",
-                ));
-            }
-            EcdsaReservationStateV1::SourcePreservingRevoked {
-                material_activation,
-                reservation_id,
-                ..
-            } => {
-                if reservation_id != request.reservation_id
-                    || material_activation != request.material_activation
-                {
-                    return Err(invalid_reservation(
-                        "source-preserving ECDSA reservation activation conflicts with the exact reservation",
-                    ));
-                }
-                return Err(invalid_reservation(
-                    "source-preserving ECDSA material reservation is revoked",
-                ));
             }
         }
     }
@@ -1684,6 +2012,10 @@ async fn activate_ecdsa_reservation_v1(
     ))
 }
 
+#[cfg(all(
+    feature = "workers-rs",
+    not(feature = "wallet-do-signing-worker-harness")
+))]
 async fn deactivate_ecdsa_reservation_v1(
     env: &Env,
     request: &CloudflareEcdsaDeactivateReservationRequestV1,
@@ -1718,7 +2050,7 @@ async fn deactivate_ecdsa_reservation_v1(
                         "ordinary ECDSA deactivation conflicts with the exact activation ref",
                     ));
                 }
-                delete_cloudflare_signing_worker_output_activation_by_active_key_v1(
+                crate::delete_cloudflare_signing_worker_output_activation_by_active_key_v1(
                     env,
                     &active_key,
                     &request.material_activation,
@@ -1739,7 +2071,7 @@ async fn deactivate_ecdsa_reservation_v1(
                         "ordinary ECDSA deactivation conflicts with the exact activation ref",
                     ));
                 }
-                delete_cloudflare_signing_worker_output_activation_by_active_key_v1(
+                crate::delete_cloudflare_signing_worker_output_activation_by_active_key_v1(
                     env,
                     &active_key,
                     &request.material_activation,
@@ -1821,124 +2153,82 @@ async fn deactivate_ecdsa_reservation_v1(
                     Err(error) => return Err(error),
                 }
             }
-            EcdsaReservationStateV1::SourcePreservingRevoked {
-                binding,
-                source_derivation,
-                material_activation,
-                reservation_id: stored_id,
-                revoked_at_ms,
-            } => {
-                if material_activation != request.material_activation
-                    || !reservation_id_matches_source_preserving_material_activation_v1(
-                        &stored_id,
-                        &material_activation,
-                        &binding,
-                    )
-                {
-                    return Err(invalid_reservation(
-                        "source-preserving ECDSA deactivation conflicts with the exact activation ref",
-                    ));
-                }
-                let _ = source_derivation;
-                (material_activation, revoked_at_ms, stored_id)
-            }
-            EcdsaReservationStateV1::SourcePreservingDeactivating {
-                binding,
-                source_derivation,
-                material_activation,
-                reservation_id: stored_id,
-                revoked_at_ms,
-            } => {
-                if material_activation != request.material_activation
-                    || !reservation_id_matches_source_preserving_material_activation_v1(
-                        &stored_id,
-                        &material_activation,
-                        &binding,
-                    )
-                {
-                    return Err(invalid_reservation(
-                        "source-preserving ECDSA deactivation conflicts with the exact activation ref",
-                    ));
-                }
-                let revoked = EcdsaReservationStateV1::SourcePreservingRevoked {
-                    binding,
-                    source_derivation,
-                    material_activation: material_activation.clone(),
-                    reservation_id: stored_id.clone(),
-                    revoked_at_ms,
-                };
-                match compare_and_set_cloudflare_signing_worker_private_d1_secret_v1(
-                    env,
-                    "ecdsa_inactive_reservations",
-                    &record_key,
-                    Some(current.version),
-                    &revoked,
-                    revoked_at_ms,
-                )
-                .await
-                {
-                    Err(error) if error.code() == RouterAbProtocolErrorCode::ConflictingPair => {
-                        continue
+            state @ (EcdsaReservationStateV1::SourcePreservingInactive { .. }
+            | EcdsaReservationStateV1::SourcePreservingActivating { .. }
+            | EcdsaReservationStateV1::SourcePreservingActive { .. }
+            | EcdsaReservationStateV1::SourcePreservingDeactivating { .. }
+            | EcdsaReservationStateV1::SourcePreservingRevoked { .. }) => {
+                match settle_linked_ecdsa_deactivation_v1(&state, &request.material_activation)? {
+                    LinkedEcdsaDeactivationV1::Revoked(response) => return Ok(response),
+                    // D1 revokes in two writes: to deactivating, then revoked.
+                    LinkedEcdsaDeactivationV1::Resume {
+                        binding,
+                        source_derivation,
+                        reservation_id: stored_id,
+                        revoked_at_ms,
+                    } => {
+                        let revoked = EcdsaReservationStateV1::SourcePreservingRevoked {
+                            binding,
+                            source_derivation,
+                            material_activation: request.material_activation.clone(),
+                            reservation_id: stored_id.clone(),
+                            revoked_at_ms,
+                        };
+                        match compare_and_set_cloudflare_signing_worker_private_d1_secret_v1(
+                            env,
+                            "ecdsa_inactive_reservations",
+                            &record_key,
+                            Some(current.version),
+                            &revoked,
+                            revoked_at_ms,
+                        )
+                        .await
+                        {
+                            Err(error)
+                                if error.code() == RouterAbProtocolErrorCode::ConflictingPair =>
+                            {
+                                continue
+                            }
+                            Ok(()) => (
+                                request.material_activation.clone(),
+                                revoked_at_ms,
+                                stored_id,
+                            ),
+                            Err(error) => return Err(error),
+                        }
                     }
-                    Ok(()) => (material_activation, revoked_at_ms, stored_id),
-                    Err(error) => return Err(error),
-                }
-            }
-            EcdsaReservationStateV1::SourcePreservingInactive {
-                binding,
-                source_derivation,
-                material_activation,
-                reservation_id: stored_id,
-                ..
-            }
-            | EcdsaReservationStateV1::SourcePreservingActivating {
-                binding,
-                source_derivation,
-                material_activation,
-                reservation_id: stored_id,
-                ..
-            }
-            | EcdsaReservationStateV1::SourcePreservingActive {
-                binding,
-                source_derivation,
-                material_activation,
-                reservation_id: stored_id,
-                ..
-            } => {
-                if material_activation != request.material_activation
-                    || !reservation_id_matches_source_preserving_material_activation_v1(
-                        &stored_id,
-                        &material_activation,
-                        &binding,
-                    )
-                {
-                    return Err(invalid_reservation(
-                        "source-preserving ECDSA deactivation conflicts with the exact activation ref",
-                    ));
-                }
-                let revoked_at_ms = cloudflare_now_unix_ms_v1()?;
-                let deactivating = EcdsaReservationStateV1::SourcePreservingDeactivating {
-                    binding,
-                    source_derivation,
-                    material_activation: material_activation.clone(),
-                    reservation_id: stored_id.clone(),
-                    revoked_at_ms,
-                };
-                match compare_and_set_cloudflare_signing_worker_private_d1_secret_v1(
-                    env,
-                    "ecdsa_inactive_reservations",
-                    &record_key,
-                    Some(current.version),
-                    &deactivating,
-                    revoked_at_ms,
-                )
-                .await
-                {
-                    Err(error) if error.code() == RouterAbProtocolErrorCode::ConflictingPair => {
-                        continue
+                    LinkedEcdsaDeactivationV1::Revoke {
+                        binding,
+                        source_derivation,
+                        reservation_id: stored_id,
+                    } => {
+                        let revoked_at_ms = cloudflare_now_unix_ms_v1()?;
+                        let deactivating = EcdsaReservationStateV1::SourcePreservingDeactivating {
+                            binding,
+                            source_derivation,
+                            material_activation: request.material_activation.clone(),
+                            reservation_id: stored_id,
+                            revoked_at_ms,
+                        };
+                        match compare_and_set_cloudflare_signing_worker_private_d1_secret_v1(
+                            env,
+                            "ecdsa_inactive_reservations",
+                            &record_key,
+                            Some(current.version),
+                            &deactivating,
+                            revoked_at_ms,
+                        )
+                        .await
+                        {
+                            Err(error)
+                                if error.code() == RouterAbProtocolErrorCode::ConflictingPair =>
+                            {
+                                continue
+                            }
+                            Ok(()) => continue,
+                            Err(error) => return Err(error),
+                        }
                     }
-                    Ok(()) => continue,
-                    Err(error) => return Err(error),
                 }
             }
         };
@@ -1954,6 +2244,7 @@ async fn deactivate_ecdsa_reservation_v1(
     ))
 }
 
+#[cfg(feature = "workers-rs")]
 pub(crate) async fn require_ecdsa_material_active_v1(
     env: &Env,
     material_activation: &MpcMaterialActivationRefV1,
@@ -2031,6 +2322,7 @@ pub(crate) async fn require_ecdsa_material_active_v1(
 /// active-state descriptor after rechecking the lifecycle fence and all public
 /// target identity fields. The decrypted share never leaves this module except
 /// inside the worker-owned `CloudflareServerOutputMaterialRecordV1`.
+#[cfg(feature = "workers-rs")]
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn load_source_preserving_ecdsa_material_v1(
     env: &Env,
@@ -2067,29 +2359,77 @@ pub(crate) async fn load_source_preserving_ecdsa_material_v1(
         encode_base64url_bytes_v1(&cloudflare_hpke_x25519_public_key_bytes_v1(
             &runtime.server_output_decrypt_key().public_key,
         )?);
-    let (expected_target_relayer_public_key33, binding_digest) =
-        validate_source_preserving_target_identity_v1(
-            &active,
-            material_activation,
-            signing_worker,
-            &expected_worker_recipient_public_key_b64u,
-            target_client_public_key33_b64u,
-            target_relayer_public_key33_b64u,
-            threshold_public_key33_b64u,
-            threshold_ethereum_address20_b64u,
-        )?;
-    let mut private_key = load_cloudflare_server_output_hpke_private_key_bytes_v1(
+    validate_source_preserving_target_identity_v1(
+        &active,
+        material_activation,
+        signing_worker,
+        &expected_worker_recipient_public_key_b64u,
+        target_client_public_key33_b64u,
+        target_relayer_public_key33_b64u,
+        threshold_public_key33_b64u,
+        threshold_ethereum_address20_b64u,
+    )?;
+    let private_key = Zeroizing::new(load_cloudflare_server_output_hpke_private_key_bytes_v1(
         env,
         runtime.server_output_decrypt_key(),
+    )?);
+    linked_ecdsa_active_material_v1(
+        &current.value,
+        material_activation,
+        signing_worker,
+        &private_key,
+        current.updated_at_ms,
+    )
+}
+
+/// The active state and server-output material that a linked device's
+/// active ECDSA reservation signs with. Every host builds them the same way:
+/// the target share is opened with this SigningWorker's key and must match
+/// the reserved relayer identity, and the handle marks the material as
+/// source-preserving.
+pub(crate) fn linked_ecdsa_active_material_v1(
+    state: &EcdsaReservationStateV1,
+    material_activation: &MpcMaterialActivationRefV1,
+    signing_worker: &ServerIdentityV1,
+    server_output_private_key: &[u8; 32],
+    activated_at_ms: u64,
+) -> RouterAbProtocolResult<(
+    ActiveSigningWorkerStateV1,
+    CloudflareServerOutputMaterialRecordV1,
+)> {
+    signing_worker.validate()?;
+    let active = select_source_preserving_active_reservation_v1(state, material_activation)?;
+    let expected_worker_recipient_public_key_b64u = encode_base64url_bytes_v1(
+        &cloudflare_hpke_x25519_public_key_bytes_v1(&signing_worker.recipient_encryption_key)?,
+    );
+    if active.binding.target.activation.signing_worker != signing_worker.server_id
+        || active.binding.target.activation.material_owner != material_activation.material_owner
+        || active
+            .binding
+            .target
+            .signing_worker_recipient_public_key_b64u
+            != expected_worker_recipient_public_key_b64u
+    {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+            "source-preserving ECDSA reservation SigningWorker identity does not match the active worker",
+        ));
+    }
+    let binding_digest = active.binding.digest().map_err(|error| {
+        invalid_reservation(format!(
+            "source-preserving ECDSA reservation binding digest is invalid: {error:?}"
+        ))
+    })?;
+    let expected_target_relayer_public_key33 = decode_fixed_b64_v1(
+        "source-preserving ECDSA target relayer public key",
+        active.target_relayer_public_key33_b64u,
     )?;
     let opened_share = decrypt_source_preserving_server_share_v1(
         active.encrypted_target_server_share,
-        &private_key,
+        server_output_private_key,
         &binding_digest,
         &expected_target_relayer_public_key33,
-    );
-    private_key.zeroize();
-    let opened_share = opened_share?;
+    )?;
     let material = CloudflareServerOutputMaterialRecordV1::new(
         PublicDigest32::new(binding_digest),
         OpenedShareKind::XServerBase,
@@ -2097,10 +2437,10 @@ pub(crate) async fn load_source_preserving_ecdsa_material_v1(
         signing_worker.server_id.clone(),
         opened_share,
     )?;
-    let active = ActiveSigningWorkerStateV1::new(
+    let active_state = ActiveSigningWorkerStateV1::new(
         material_activation.material_owner.clone(),
         material_activation.clone(),
-        threshold_public_key33_b64u.to_owned(),
+        active.threshold_public_key33_b64u.to_owned(),
         signing_worker.clone(),
         PublicDigest32::new(binding_digest),
         PublicDigest32::new(binding_digest),
@@ -2108,9 +2448,43 @@ pub(crate) async fn load_source_preserving_ecdsa_material_v1(
             "{SOURCE_PRESERVING_ECDSA_MATERIAL_HANDLE_PREFIX_V1}{}",
             active.reservation_id
         ),
-        current.updated_at_ms,
+        activated_at_ms,
     )?;
-    Ok((active, material))
+    Ok((active_state, material))
+}
+
+/// The relayer share of a linked device that is the source of a further
+/// link. That device's active reservation already holds the share its signing
+/// uses, rebound to its own client. The new contribution must name exactly
+/// that device's public identity, so a link can preserve only the key the
+/// source device holds. Every host opens it the same way, from its own store.
+pub(crate) fn linked_source_relayer_share_v1(
+    source_state: &EcdsaReservationStateV1,
+    binding: &LinkedDeviceEcdsaSourceContributionBindingV1,
+    server_output_private_key: &[u8; 32],
+) -> RouterAbProtocolResult<Zeroizing<[u8; 32]>> {
+    let source_activation = mpc_material_activation_from_ecdsa_ref_v1(&binding.source.activation)?;
+    let active = select_source_preserving_active_reservation_v1(source_state, &source_activation)?;
+    let source = &binding.source;
+    if source.client_public_key33_b64u != active.binding.target_client_public_key33_b64u
+        || source.relayer_public_key33_b64u != active.target_relayer_public_key33_b64u
+        || source.threshold_public_key33_b64u != active.threshold_public_key33_b64u
+        || source.threshold_ethereum_address20_b64u != active.threshold_ethereum_address20_b64u
+    {
+        return Err(invalid_reservation(
+            "linked-device ECDSA source differs from the linked device's active material",
+        ));
+    }
+    let share = decrypt_source_preserving_server_share_v1(
+        active.encrypted_target_server_share,
+        server_output_private_key,
+        &source_contribution_binding_digest_v1(active.binding)?,
+        &decode_fixed_b64_v1(
+            "linked-device source relayer public key",
+            active.target_relayer_public_key33_b64u,
+        )?,
+    )?;
+    Ok(Zeroizing::new(*share.as_bytes()))
 }
 
 fn decrypt_source_preserving_server_share_v1(
@@ -2288,7 +2662,7 @@ fn validate_source_preserving_target_identity_v1(
     Ok((expected_target_relayer_public_key33, binding_digest))
 }
 
-fn reservation_record_key_v1(
+pub(crate) fn reservation_record_key_v1(
     material_activation: &MpcMaterialActivationRefV1,
 ) -> RouterAbProtocolResult<String> {
     let canonical = serde_json::to_vec(material_activation)
@@ -2297,7 +2671,7 @@ fn reservation_record_key_v1(
     Ok(format!("ecdsa/{}", encode_hex(&digest)))
 }
 
-fn active_output_key_v1(material_activation: &MpcMaterialActivationRefV1) -> String {
+pub(crate) fn active_output_key_v1(material_activation: &MpcMaterialActivationRefV1) -> String {
     format!(
         "active-signing-worker/{}/{}/{}",
         material_activation.material_owner,

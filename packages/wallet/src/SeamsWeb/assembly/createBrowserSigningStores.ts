@@ -7,7 +7,6 @@ import type { SigningEngineStorePorts } from '@/core/signingEngine/assembly/port
 import type { EmailOtpSealedSessionStorePorts } from '@/core/signingEngine/session/emailOtp/EmailOtpWalletSessionCoordinator';
 import {
   acquireSigningSessionRestoreLease,
-  deleteDurableSealedSessionRecord,
   listExactSealedSessionsForWallet,
   listEcdsaSealedSessionsForWallet,
   releaseSigningSessionRestoreLease,
@@ -20,7 +19,7 @@ import {
   type Ed25519YaoPublicCapabilityReferenceStorePort,
 } from '@/core/signingEngine/threshold/ed25519/yaoPublicCapabilityReferences';
 
-export type BrowserSigningStorePorts = {
+type BrowserSigningStorePorts = {
   managerStores: ManagerAssemblyStores;
   signingEngineStores: SigningEngineStorePorts;
   sealedSigningSessionStore: BrowserSealedSigningSessionStorePorts;
@@ -63,7 +62,6 @@ export function createBrowserSigningStores(
       listEcdsaSealedSessionsForWallet,
       acquireSigningSessionRestoreLease,
       releaseSigningSessionRestoreLease,
-      deleteDurableSealedSessionRecord,
       updateExactSealedSessionPolicy,
     },
     ed25519YaoPublicCapabilityReferences: new IndexedDbEd25519YaoPublicCapabilityReferenceStore(

@@ -33,7 +33,7 @@
 
 import { getEmbeddedAssetVersion, getEmbeddedBase } from './base';
 
-export interface WasmLoaderOptions {
+interface WasmLoaderOptions {
   workerName: string;
   wasmUrl: URL;
   initFunction: (wasmModule?: any) => Promise<void>;

@@ -14,7 +14,7 @@ import {
 } from '@/core/signingEngine/session/keyMaterialBrands';
 import type { StoreWalletEcdsaWalletKey } from '../accountLifecycle';
 
-export type FinalizeWalletRegistrationEcdsaFamilySession = {
+type FinalizeWalletRegistrationEcdsaFamilySession = {
   chainTargets: readonly [
     WalletRegistrationEcdsaWalletKey['chainTarget'],
     ...WalletRegistrationEcdsaWalletKey['chainTarget'][],

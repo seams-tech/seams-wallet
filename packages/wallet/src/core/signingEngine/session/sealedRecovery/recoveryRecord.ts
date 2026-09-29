@@ -158,7 +158,7 @@ export type SealedRecoveryRecord =
   | PasskeyEcdsaSealedRecoveryRecord
   | EmailOtpEcdsaSealedRecoveryRecord;
 
-export type NormalizeSealedRecoveryRecordResult =
+type NormalizeSealedRecoveryRecordResult =
   | { kind: 'accepted'; record: SealedRecoveryRecord }
   | { kind: 'rejected'; rejection: RejectedSealedRecoveryRecord };
 

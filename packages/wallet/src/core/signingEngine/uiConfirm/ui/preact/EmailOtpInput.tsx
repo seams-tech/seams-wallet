@@ -9,7 +9,7 @@ export type EmailOtpResendAction =
   | { kind: 'available'; label: string; onResend: () => void }
   | { kind: 'unavailable'; label: string; onResend?: never };
 
-export type EmailOtpInputProps = {
+type EmailOtpInputProps = {
   challengeId: string;
   code: string;
   helperText: string;

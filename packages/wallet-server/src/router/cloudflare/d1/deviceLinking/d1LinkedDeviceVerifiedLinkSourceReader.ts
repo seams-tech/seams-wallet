@@ -176,17 +176,23 @@ function sourceSignerForFamilyV1(input: {
       return false;
     }
     try {
-      const wire =
-        signer.version === 'wallet_signer_ed25519_v1'
-          ? signer.activeYaoCapability.activationResult.public_receipt.material_activation
-          : signer.walletKey.publicCapability.material_activation;
-      if (
-        !mpcMaterialActivationRefsEqual(
-          routerAbMpcMaterialActivationRefFromWire(wire),
-          activation.materialActivation,
-        )
-      ) {
-        return false;
+      /* A linked device's authority activates the material its link reserved
+         for it, not the registration's: its signer is the wallet's by
+         identity alone. Any other authority names the signer's own
+         material. */
+      if (input.authority.provenance.kind !== 'device_link') {
+        const wire =
+          signer.version === 'wallet_signer_ed25519_v1'
+            ? signer.activeYaoCapability.activationResult.public_receipt.material_activation
+            : signer.walletKey.publicCapability.material_activation;
+        if (
+          !mpcMaterialActivationRefsEqual(
+            routerAbMpcMaterialActivationRefFromWire(wire),
+            activation.materialActivation,
+          )
+        ) {
+          return false;
+        }
       }
       return sourceSignerIdentityMatchesV1(signer, activation.signer);
     } catch {

@@ -1,6 +1,4 @@
 import {
-  walletIframeRequestIdFromBoundary,
-  walletIframeSurfaceIdFromBoundary,
   type WalletIframeRequestId,
   type WalletIframeSurfaceId,
 } from '@/core/types/walletIframeIdentity';
@@ -20,17 +18,7 @@ export type RequestSurfaceIdentity = {
   activationId?: never;
 };
 
-export type WalletIframeWireMessageIdentity = RequestSurfaceIdentity;
-
-export type TrustedWalletIframeInboundIdentity<
-  Identity extends WalletIframeWireMessageIdentity = WalletIframeWireMessageIdentity,
-> = {
-  kind: 'trusted_wallet_iframe_inbound_identity_v1';
-  connectionId: WalletIframeConnectionId;
-  wireIdentity: Identity;
-};
-
-export type PasskeyRegistrationPreparationReceipt = {
+type PasskeyRegistrationPreparationReceipt = {
   kind: 'passkey_registration_preparation_receipt_v1';
   expiresAtMs: number;
 };
@@ -121,7 +109,7 @@ export type ModalRegistrationConfirmSurface = OwnedWalletIframeSurface & {
   userActivation: 'wallet_confirm_button_required';
 };
 
-export type ModalTransactionReviewSurface = {
+type ModalTransactionReviewSurface = {
   readonly kind: 'modal_transaction_review';
   readonly connectionId: WalletIframeConnectionId;
   readonly identity: RequestSurfaceIdentity;
@@ -134,33 +122,33 @@ export type ModalTransactionConfirmSurface = OwnedWalletIframeSurface & {
   userActivation: 'wallet_confirm_button_required';
 };
 
-export type ModalKeyExportConfirmSurface = OwnedWalletIframeSurface & {
+type ModalKeyExportConfirmSurface = OwnedWalletIframeSurface & {
   kind: 'modal_key_export_confirm';
   identity: RequestSurfaceIdentity;
   exportKind: 'near_keypair' | 'threshold_ed25519_seed_from_yao';
   userActivation: 'wallet_confirm_button_required';
 };
 
-export type ModalUnlockConfirmSurface = OwnedWalletIframeSurface & {
+type ModalUnlockConfirmSurface = OwnedWalletIframeSurface & {
   kind: 'modal_unlock_confirm';
   identity: RequestSurfaceIdentity;
   unlockKind: 'passkey' | 'device_link';
   userActivation: 'wallet_confirm_button_required';
 };
 
-export type ModalRecoveryCodesSurface = OwnedWalletIframeSurface & {
+type ModalRecoveryCodesSurface = OwnedWalletIframeSurface & {
   kind: 'modal_recovery_codes';
   identity: RequestSurfaceIdentity;
   operation: 'show' | 'rotate';
   userActivation: 'wallet_confirm_button_required';
 };
 
-export type ModalDeviceLinkQrSurface = OwnedWalletIframeSurface & {
+type ModalDeviceLinkQrSurface = OwnedWalletIframeSurface & {
   kind: 'modal_device_link_qr';
   identity: RequestSurfaceIdentity;
 };
 
-export type ModalAuthMenuSurface = {
+type ModalAuthMenuSurface = {
   kind: 'modal_auth_menu';
   connectionId: WalletIframeConnectionId;
   identity: RequestSurfaceIdentity;
@@ -179,7 +167,7 @@ export type WalletIframeSurface =
   | ModalDeviceLinkQrSurface
   | ModalAuthMenuSurface;
 
-export type ForegroundWalletIframeSurface = Exclude<WalletIframeSurface, HiddenWalletIframeSurface>;
+type ForegroundWalletIframeSurface = Exclude<WalletIframeSurface, HiddenWalletIframeSurface>;
 
 export type WalletIframeSurfaceBusyError = {
   kind: 'wallet_iframe_surface_busy';
@@ -188,7 +176,7 @@ export type WalletIframeSurfaceBusyError = {
   retry: 'after_active_surface_finishes';
 };
 
-export type BeginForegroundWalletIframeSurfaceResult =
+type BeginForegroundWalletIframeSurfaceResult =
   | { kind: 'started'; surface: ForegroundWalletIframeSurface }
   | { kind: 'idempotent'; surface: ForegroundWalletIframeSurface }
   | { kind: 'rejected'; error: WalletIframeSurfaceBusyError };
@@ -276,43 +264,11 @@ export function walletIframeConnectionIdFromBoundary(value: unknown): WalletIfra
   return parseNonEmptyBoundaryString(value, 'connectionId') as WalletIframeConnectionId;
 }
 
-function boundaryRecord(value: unknown): Record<string, unknown> | null {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-  return value as Record<string, unknown>;
-}
-
-export function parseRequestSurfaceIdentity(value: unknown): RequestSurfaceIdentity | null {
-  const record = boundaryRecord(value);
-  if (!record || record.activationId !== undefined) return null;
-  try {
-    return {
-      kind: 'request_surface_identity_v1',
-      surfaceId: walletIframeSurfaceIdFromBoundary(record.surfaceId),
-      requestId: walletIframeRequestIdFromBoundary(record.requestId),
-    };
-  } catch {
-    return null;
-  }
-}
-
 export function requestSurfaceIdentity(args: {
   surfaceId: WalletIframeSurfaceId;
   requestId: WalletIframeRequestId;
 }): RequestSurfaceIdentity {
   return Object.freeze({ kind: 'request_surface_identity_v1', ...args });
-}
-
-export function trustedWalletIframeInboundIdentity<
-  Identity extends WalletIframeWireMessageIdentity,
->(
-  connectionId: WalletIframeConnectionId,
-  wireIdentity: Identity,
-): TrustedWalletIframeInboundIdentity<Identity> {
-  return Object.freeze({
-    kind: 'trusted_wallet_iframe_inbound_identity_v1',
-    connectionId,
-    wireIdentity,
-  });
 }
 
 export function trustedWalletIframeSurfaceMeasurementFromWire(args: {
@@ -384,7 +340,7 @@ export function modalTransactionConfirmSurface(args: {
   };
 }
 
-export function modalKeyExportConfirmSurface(args: {
+function modalKeyExportConfirmSurface(args: {
   connectionId: WalletIframeConnectionId;
   identity: RequestSurfaceIdentity;
   presentation: WalletIframeRequestSurfacePresentation;
@@ -397,7 +353,7 @@ export function modalKeyExportConfirmSurface(args: {
   };
 }
 
-export function modalUnlockConfirmSurface(args: {
+function modalUnlockConfirmSurface(args: {
   connectionId: WalletIframeConnectionId;
   identity: RequestSurfaceIdentity;
   presentation: WalletIframeRequestSurfacePresentation;
@@ -468,7 +424,7 @@ function foregroundSurfaceIdentitiesEqual(
   return requestIdentitiesEqual(left.identity, right.identity);
 }
 
-export function beginForegroundWalletIframeSurface(
+function beginForegroundWalletIframeSurface(
   current: WalletIframeSurface,
   attempted: ForegroundWalletIframeSurface,
 ): BeginForegroundWalletIframeSurfaceResult {

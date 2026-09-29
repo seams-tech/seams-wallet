@@ -38,20 +38,6 @@ export enum WorkerResponseType {
   DeriveThresholdEd25519ClientVerifyingShareFailure = 11,
 }
 
-export type ThresholdBehavior = 'strict' | 'fallback';
-export const DEFAULT_THRESHOLD_BEHAVIOR: ThresholdBehavior = 'strict';
-
-export function isThresholdBehavior(input: unknown): input is ThresholdBehavior {
-  return input === 'fallback' || input === 'strict';
-}
-
-export function resolveThresholdBehavior(
-  input?: ThresholdBehavior | null,
-  fallback: ThresholdBehavior = DEFAULT_THRESHOLD_BEHAVIOR,
-): ThresholdBehavior {
-  return isThresholdBehavior(input) ? input : fallback;
-}
-
 export const NearSignerWorkerCustomRequestType = {
   ThresholdEd25519ComputeNep413SigningDigest: 'thresholdEd25519ComputeNep413SigningDigest',
   ThresholdEd25519ComputeDelegateSigningDigest: 'thresholdEd25519ComputeDelegateSigningDigest',
@@ -66,9 +52,9 @@ export type NearSignerWorkerCustomRequestType =
   (typeof NearSignerWorkerCustomRequestType)[keyof typeof NearSignerWorkerCustomRequestType];
 
 export type SignerWorkerRequestType = WorkerRequestType | NearSignerWorkerCustomRequestType;
-export type SignerWorkerResponseType = WorkerResponseType;
+type SignerWorkerResponseType = WorkerResponseType;
 
-export interface ThresholdSignerConfig {
+interface ThresholdSignerConfig {
   /** Base URL of the Router API server (e.g. https://router-api.example.com) */
   relayerUrl: string;
   /** Identifies which relayer-held key share to use */
@@ -162,7 +148,7 @@ type DirectPrfFields = {
   wrapKeySalt?: string;
 };
 
-export type WasmDeriveThresholdEd25519ClientVerifyingShareRequest =
+type WasmDeriveThresholdEd25519ClientVerifyingShareRequest =
   StripFree<wasmModule.DeriveThresholdEd25519ClientVerifyingShareRequest> & DirectPrfFields;
 export type WasmPrepareThresholdEcdsaDerivationRoleLocalClientBootstrapRequest =
   GeneratedPrepareEcdsaClientBootstrapCommand;
@@ -172,7 +158,7 @@ export type WasmFinalizeThresholdEcdsaDerivationRoleLocalClientBootstrapRequest 
   GeneratedFinalizeEcdsaClientBootstrapCommand;
 export type WasmFinalizeThresholdEcdsaDerivationRoleLocalClientBootstrapResult =
   GeneratedFinalizeEcdsaClientBootstrapOutput;
-export interface WasmSignTransactionsWithActionsRequest {
+interface WasmSignTransactionsWithActionsRequest {
   rpcCall: RpcCallPayload;
   sessionId: string;
   createdAt?: number;
@@ -183,7 +169,7 @@ export interface WasmSignTransactionsWithActionsRequest {
   credential?: string;
 }
 
-export interface WasmSignDelegateActionRequest {
+interface WasmSignDelegateActionRequest {
   rpcCall: RpcCallPayload;
   sessionId: string;
   createdAt?: number;
@@ -201,7 +187,7 @@ export interface DelegatePayload {
   maxBlockHeight: string;
   publicKey: string;
 }
-export interface WasmSignNep413MessageRequest {
+interface WasmSignNep413MessageRequest {
   sessionId: string;
   accountId: string;
   nearPublicKey: string;
@@ -219,11 +205,10 @@ export type WasmRequestPayload =
   | WasmSignNep413MessageRequest;
 
 // WASM Worker Response Types
-export type WasmSignedTransaction = InstanceType<typeof wasmModule.WasmSignedTransaction>;
+type WasmSignedTransaction = InstanceType<typeof wasmModule.WasmSignedTransaction>;
 export type WasmSignedDelegate = wasmModule.WasmSignedDelegate;
-export type WasmDelegateAction = wasmModule.WasmDelegateAction;
-export type WasmTransactionSignResult = InstanceType<typeof wasmModule.TransactionSignResult>;
-export type WasmDelegateSignResult = wasmModule.DelegateSignResult;
+type WasmTransactionSignResult = InstanceType<typeof wasmModule.TransactionSignResult>;
+type WasmDelegateSignResult = wasmModule.DelegateSignResult;
 // wasm-bindgen may generate classes with private constructors, which breaks
 // `InstanceType<typeof Class>`. Use the class name directly for the instance type.
 export type WasmDeriveThresholdEd25519ClientVerifyingShareResult =
@@ -287,101 +272,7 @@ export const DEFAULT_CONFIRMATION_CONFIG: ConfirmationConfig = {
   autoProceedDelay: 0,
 };
 
-const WASM_CONFIRMATION_UI_MODE = {
-  Skip: 0,
-  Modal: 1,
-  Drawer: 2,
-} as const;
-
-const WASM_CONFIRMATION_BEHAVIOR = {
-  RequireClick: 0,
-  AutoProceed: 1,
-} as const;
-
-// WASM enum values for confirmation configuration.
-export type WasmConfirmationUIMode =
-  (typeof WASM_CONFIRMATION_UI_MODE)[keyof typeof WASM_CONFIRMATION_UI_MODE];
-export type WasmConfirmationBehavior =
-  (typeof WASM_CONFIRMATION_BEHAVIOR)[keyof typeof WASM_CONFIRMATION_BEHAVIOR];
-
-function assertNeverSignerWorkerConfirmation(value: never): never {
-  throw new Error(`Unsupported confirmation option: ${String(value)}`);
-}
-
-// Mapping functions to convert string literals to numeric enum values
-export const mapUIModeToWasm = (uiMode: ConfirmationUIMode): number => {
-  switch (uiMode) {
-    case 'none':
-      return WASM_CONFIRMATION_UI_MODE.Skip;
-    case 'modal':
-      return WASM_CONFIRMATION_UI_MODE.Modal;
-    // Drawer now has a dedicated WASM enum variant
-    case 'drawer':
-      return WASM_CONFIRMATION_UI_MODE.Drawer;
-    default:
-      return assertNeverSignerWorkerConfirmation(uiMode);
-  }
-};
-
-export const mapBehaviorToWasm = (behavior: ConfirmationBehavior): number => {
-  switch (behavior) {
-    case 'requireClick':
-      return WASM_CONFIRMATION_BEHAVIOR.RequireClick;
-    case 'skipClick':
-      return WASM_CONFIRMATION_BEHAVIOR.AutoProceed;
-    default:
-      return assertNeverSignerWorkerConfirmation(behavior);
-  }
-};
-export type WasmRequestResult =
-  | WasmSignedTransaction
-  | WasmSignedDelegate
-  | WasmTransactionSignResult
-  | WasmDelegateSignResult;
-
-export interface SignerWorkerMessage<
-  T extends SignerWorkerRequestType,
-  R extends WasmRequestPayload,
-> {
-  type: T;
-  payload: R;
-}
-
-/**
- * =============================
- * Worker Progress Message Types
- * =============================
- *
- * 1. PROGRESS MESSAGES (During Operation):
- *    Rust WASM → send_typed_progress_message() → TypeScript sendProgressMessage() → postMessage() → Main Thread
- *    - Used for real-time updates during long operations
- *    - Multiple progress messages can be sent per operation
- *    - Does not affect the final result
- *    - Types: ProgressMessageType, ProgressStep, ProgressStatus (auto-generated from Rust)
- *
- * 2. FINAL RESULTS (Operation Complete):
- *    Rust WASM → return value from handle_signer_message() → TypeScript worker → postMessage() → Main Thread
- *    - Contains the actual operation result (success/error)
- *    - Only one result message per operation
- *    - This is what the main thread awaits for completion
- */
-
-// === PROGRESS MESSAGE TYPES ===
-
-// Basic interface for development - actual types are auto-generated from Rust
-export type ProgressMessage = wasmModule.WorkerProgressMessage;
-
 // Type guard for basic progress message validation during development
-export function isProgressMessage(obj: unknown): obj is ProgressMessage {
-  return (
-    typeof obj === 'object' &&
-    obj !== null &&
-    typeof (obj as { message_type?: unknown }).message_type === 'string' &&
-    typeof (obj as { step?: unknown }).step === 'string' &&
-    typeof (obj as { message?: unknown }).message === 'string' &&
-    typeof (obj as { status?: unknown }).status === 'string'
-  );
-}
 
 export enum ProgressMessageType {
   REGISTRATION_PROGRESS = 'REGISTRATION_PROGRESS',
@@ -403,7 +294,7 @@ export enum ProgressStep {
   ERROR = 'error', // Rust: Error
 }
 
-export type NearWorkerProgressStatus = 'progress' | 'success' | 'error';
+type NearWorkerProgressStatus = 'progress' | 'success' | 'error';
 
 export interface NearWorkerProgressEvent {
   step: number;
@@ -414,19 +305,10 @@ export interface NearWorkerProgressEvent {
   logs?: string[];
 }
 
-export interface ProgressStepMap {
-  100: ProgressStep.PREPARATION;
-  102: ProgressStep.WEBAUTHN_AUTHENTICATION;
-  103: ProgressStep.AUTHENTICATION_COMPLETE;
-  104: ProgressStep.TRANSACTION_SIGNING_PROGRESS;
-  105: ProgressStep.TRANSACTION_SIGNING_COMPLETE;
-  106: ProgressStep.ERROR;
-}
-
 // === RESPONSE MESSAGE INTERFACES ===
 
 // Base interface for all worker responses
-export interface BaseWorkerResponse<TPayload = unknown> {
+interface BaseWorkerResponse<TPayload = unknown> {
   type: SignerWorkerResponseType;
   payload: TPayload;
 }
@@ -439,7 +321,7 @@ export interface RequestResponseMap {
   [WorkerRequestType.SignNep413Message]: wasmModule.SignNep413Result;
 }
 
-export type RequestTypeKey = keyof RequestResponseMap;
+type RequestTypeKey = keyof RequestResponseMap;
 
 // Generic success response type that uses WASM types
 export interface WorkerSuccessResponse<T extends RequestTypeKey> extends BaseWorkerResponse<
@@ -473,7 +355,7 @@ export interface WorkerErrorResponse extends BaseWorkerResponse<{
   type: SignerWorkerResponseType;
 }
 
-export enum WorkerErrorCode {
+enum WorkerErrorCode {
   WASM_INIT_FAILED = 'WASM_INIT_FAILED',
   INVALID_REQUEST = 'INVALID_REQUEST',
   TIMEOUT = 'TIMEOUT',
@@ -494,18 +376,6 @@ export type WorkerResponseForRequest<T extends RequestTypeKey> =
   | WorkerSuccessResponse<T>
   | WorkerErrorResponse
   | WorkerProgressResponse;
-
-// === CONVENIENCE TYPE ALIASES ===
-
-export type TransactionResponse = WorkerResponseForRequest<
-  typeof WorkerRequestType.SignTransactionsWithActions
->;
-export type DelegateSignResponse = WorkerResponseForRequest<
-  typeof WorkerRequestType.SignDelegateAction
->;
-export type Nep413SigningResponse = WorkerResponseForRequest<
-  typeof WorkerRequestType.SignNep413Message
->;
 
 // === TYPE GUARDS FOR GENERIC RESPONSES ===
 
@@ -543,21 +413,3 @@ export function isWorkerError<T extends RequestTypeKey>(
 }
 
 // === SPECIFIC TYPE GUARDS FOR COMMON OPERATIONS ===
-
-export function isSignTransactionsWithActionsSuccess(
-  response: TransactionResponse,
-): response is WorkerSuccessResponse<typeof WorkerRequestType.SignTransactionsWithActions> {
-  return response.type === WorkerResponseType.SignTransactionsWithActionsSuccess;
-}
-
-export function isSignDelegateActionSuccess(
-  response: DelegateSignResponse,
-): response is WorkerSuccessResponse<typeof WorkerRequestType.SignDelegateAction> {
-  return response.type === WorkerResponseType.SignDelegateActionSuccess;
-}
-
-export function isSignNep413MessageSuccess(
-  response: Nep413SigningResponse,
-): response is WorkerSuccessResponse<typeof WorkerRequestType.SignNep413Message> {
-  return response.type === WorkerResponseType.SignNep413MessageSuccess;
-}

@@ -1,6 +1,6 @@
 import type { HttpTransport } from '@/core/platform/http';
 import { DeviceLinkingError, DeviceLinkingErrorCode } from '@/core/types/linkDevice';
-import type { UnlockedWalletEd25519ExportRootCapabilityV1 } from '@/core/signingEngine/workerManager/workerTypes';
+import type { UnlockedEd25519ExportRootLinkingCapabilityV1 } from '@/core/signingEngine/workerManager/workerTypes';
 import {
   type ActiveWalletSessionV1,
   type WalletSessionOperationCredentialV1,
@@ -24,6 +24,17 @@ import { parseExactAdministeredSignerManifestV1 } from '@shared/device-linking/d
 import { awaitNearProvisioningInFlight } from '@/core/signingEngine/flows/registration/nearProvisioningRegistry';
 
 const OWNER_AUTHORIZATION_PATH = '/wallet/device-linking/v1/owner-authorization';
+
+/** An owner request that received no answer: the network failed, or it timed out. */
+export class WalletHostOwnerRequestTransportError extends Error {
+  constructor(
+    readonly code: 'network_error' | 'timeout',
+    message: string,
+  ) {
+    super(`Owner Router request failed: ${message}`);
+    this.name = 'WalletHostOwnerRequestTransportError';
+  }
+}
 
 export type WalletHostManagementRequestV1 = {
   request(input: {
@@ -52,13 +63,12 @@ export function createWalletHostOwnerAuthoritiesV1(input: {
   ) => Promise<ResolveSelectedWalletAuthorityResultV1>;
   readonly readWalletAuthenticationState: () => WalletAuthenticationState;
   /**
-   * R103 zero-prompt handoff: reads the worker-held unlocked Ed25519 export-root
-   * capability for a wallet, or undefined when none exists. Reading never
-   * prompts.
+   * Reads the worker-held unlocked Ed25519 export-root capability for a wallet,
+   * or undefined when none exists. Reading never prompts.
    */
   readonly readUnlockedEd25519ExportRootCapabilityV1: (
     walletId: WalletId,
-  ) => UnlockedWalletEd25519ExportRootCapabilityV1 | undefined;
+  ) => UnlockedEd25519ExportRootLinkingCapabilityV1 | undefined;
 }): WalletHostOwnerAuthoritiesV1 {
   const context = normalizeContext(input);
   return {
@@ -88,7 +98,7 @@ type WalletHostOwnerAuthorityContextV1 = {
   readonly readWalletAuthenticationState: () => WalletAuthenticationState;
   readonly readUnlockedEd25519ExportRootCapabilityV1: (
     walletId: WalletId,
-  ) => UnlockedWalletEd25519ExportRootCapabilityV1 | undefined;
+  ) => UnlockedEd25519ExportRootLinkingCapabilityV1 | undefined;
 };
 
 function normalizeContext(input: {
@@ -104,7 +114,7 @@ function normalizeContext(input: {
   readonly readWalletAuthenticationState: () => WalletAuthenticationState;
   readonly readUnlockedEd25519ExportRootCapabilityV1: (
     walletId: WalletId,
-  ) => UnlockedWalletEd25519ExportRootCapabilityV1 | undefined;
+  ) => UnlockedEd25519ExportRootLinkingCapabilityV1 | undefined;
 }): WalletHostOwnerAuthorityContextV1 {
   const baseUrl = String(input.relayerUrl || '')
     .trim()
@@ -114,7 +124,7 @@ function normalizeContext(input: {
 }
 
 /**
- * The R103 fail-closed preflight, exact result `wallet_unlock_required`.
+ * The fail-closed preflight, exact result `wallet_unlock_required`.
  *
  * The locked and missing-session arms run before any network I/O. The
  * export-root arm runs after the stateless owner-authorization read, because
@@ -297,7 +307,7 @@ async function requestWithCredentialV1(
     headers: { authorization: `Bearer ${walletSessionToken}` },
     ...(input.body === undefined ? {} : { body: input.body }),
   });
-  if (!response.ok) throw new Error(`Owner Router request failed: ${response.message}`);
+  if (!response.ok) throw new WalletHostOwnerRequestTransportError(response.code, response.message);
   return response.value;
 }
 

@@ -6,7 +6,7 @@ import type {
   ProfileRecord,
 } from './passkeyClientDB.types';
 
-export type ResolvedProfileAccountContext = {
+type ResolvedProfileAccountContext = {
   profileId: string;
   accountRef: AccountRef;
 };
@@ -31,14 +31,12 @@ export type ProfileLastSelectionPort = {
   listChainAccountsByProfile: (profileId: string) => Promise<ChainAccountRecord[]>;
 };
 
-export function selectPrimaryChainAccount(
-  chainAccounts: ChainAccountRecord[],
-): ChainAccountRecord | null {
+function selectPrimaryChainAccount(chainAccounts: ChainAccountRecord[]): ChainAccountRecord | null {
   if (!Array.isArray(chainAccounts) || chainAccounts.length === 0) return null;
   return chainAccounts.find((row) => !!row.isPrimary) || chainAccounts[0] || null;
 }
 
-export function selectAccountSigner(args: {
+function selectAccountSigner(args: {
   profile: ProfileRecord;
   activeSigners: AccountSignerRecord[];
   signerSlot?: number;
@@ -71,7 +69,7 @@ export async function resolveProfileAccountContextFromCandidates(
   return null;
 }
 
-export type ResolvedProfileAccountProjection = {
+type ResolvedProfileAccountProjection = {
   context: ResolvedProfileAccountContext;
   profile: ProfileRecord;
   activeSigners: AccountSignerRecord[];
@@ -113,7 +111,7 @@ export async function resolveProfileAccountProjection(
   };
 }
 
-export async function getPrimaryProfileAccountByChain(
+async function getPrimaryProfileAccountByChain(
   clientDB: {
     listChainAccountsByProfile: (profileId: string) => Promise<ChainAccountRecord[]>;
   },

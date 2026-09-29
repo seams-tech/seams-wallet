@@ -30,7 +30,7 @@ import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import type { Ed25519PublicKeyB64u } from '@shared/passkey-custody/primitives';
 import type { WalletId } from '@shared/utils/domainIds';
 import type { WalletCustodyCeremonyTransportPort } from '@/core/signingEngine/walletCustody/ceremonyStepRunner';
-import type { UnlockedWalletEd25519ExportRootCapabilityV1 } from '@/core/signingEngine/workerManager/workerTypes';
+import type { UnlockedEd25519ExportRootLinkingCapabilityV1 } from '@/core/signingEngine/workerManager/workerTypes';
 import type { WalletCustodyCeremonyWorkerOperationMap } from '@/core/signingEngine/workerManager/workerTypes';
 
 export type DeviceLinkingEd25519ExportRootIdentityV1 = {
@@ -87,7 +87,7 @@ export type DeviceLinkingEd25519ExportRootPortV1 = {
   }) => Promise<DeviceLinkingEd25519ExportRootRecipientHandleV1>;
   readonly sealForLinkedDeviceV1: (input: {
     readonly recipient: LinkedDeviceEd25519ExportRootRecipientV1;
-    readonly capability: UnlockedWalletEd25519ExportRootCapabilityV1;
+    readonly capability: UnlockedEd25519ExportRootLinkingCapabilityV1;
     readonly sealedAtMs: number;
   }) => Promise<LinkedDeviceEd25519ExportRootPackageV1>;
   readonly acceptTransferV1: (input: {

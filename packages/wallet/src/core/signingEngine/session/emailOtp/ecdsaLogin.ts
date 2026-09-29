@@ -145,7 +145,7 @@ import {
   resolveExactWalletAuthAuthority,
   type OwnerLaneScopeStores,
 } from '../identity/ownerLaneScope';
-import type { ImportWalletCustodyEcdsaContinuityInput } from '@/core/indexedDB/seamsWalletDB/ecdsaCapabilityManifestStore';
+import type { ImportWalletCustodyEcdsaContinuityInput } from '@/core/indexedDB/seamsWalletDB/walletCustodyEcdsaContinuity';
 import type { EmailOtpEcdsaCustodyContinuityV1 } from '../../workerManager/workerTypes';
 import type { ResolveSelectedWalletAuthorityResultV1 } from '@/core/indexedDB/seamsWalletDB/repositories';
 
@@ -162,16 +162,13 @@ type EmailOtpEcdsaWalletUnlockResult =
   | Extract<EmailOtpWalletUnlockResult, { operation: 'wallet_unlock' }>
   | EmailOtpWalletUnlockCapabilityResults['ecdsa'];
 
-export type EmailOtpThresholdEcdsaLoginTimingBucket =
+type EmailOtpThresholdEcdsaLoginTimingBucket =
   | 'emailOtpProofVerificationMs'
   | 'ecdsaMaterialRestoreMs'
   | 'signingSessionSealApplyMs'
   | 'warmCapabilityPersistenceMs';
 
-export type EmailOtpThresholdEcdsaLoginTimings = Record<
-  EmailOtpThresholdEcdsaLoginTimingBucket,
-  number
->;
+type EmailOtpThresholdEcdsaLoginTimings = Record<EmailOtpThresholdEcdsaLoginTimingBucket, number>;
 
 type EmailOtpEd25519YaoLoginMaterial =
   | { kind: 'not_requested' }
@@ -447,7 +444,7 @@ async function resolveEmailOtpAuthContextAuthoritySource(args: {
     throw new Error(`Email OTP authority selection is unavailable: ${selected.kind}`);
   }
   if (selected.authMethod.kind !== 'email_otp') {
-    /* R109C: a wallet can hold an Email OTP method without it being the
+    /* A wallet can hold an Email OTP method without it being the
        selected one - invariant 9 keeps the source method selected after an
        addition, so a Passkey wallet that has just added Email OTP still selects
        the Passkey. Falling straight through to the canonical boundary here
@@ -911,7 +908,7 @@ function emailOtpNonUnlockEcdsaHandleBinding(args: {
   throw new Error('Unsupported Email OTP non-unlock handle operation');
 }
 
-export function buildEmailOtpExistingKeyActivation(args: {
+function buildEmailOtpExistingKeyActivation(args: {
   existingKey: ResolvedEmailOtpExistingEcdsaKey;
   chainTarget: ThresholdEcdsaChainTarget;
   thresholdSessionId: string;
@@ -1080,7 +1077,7 @@ function resolveEmailOtpPrimaryEcdsaSessionProvisioning(
   }
 }
 
-export async function provisionEmailOtpExistingKeySessions(args: {
+async function provisionEmailOtpExistingKeySessions(args: {
   primaryExistingKey: ResolvedEmailOtpExistingEcdsaKey;
   publicationChainTargets: readonly ThresholdEcdsaChainTarget[];
   runtimePolicyScope: ThresholdRuntimePolicyScope;
@@ -1182,14 +1179,14 @@ async function provisionEmailOtpAdditionalExistingKeySessionForTarget(
   return await provisionEmailOtpExistingKeySessionForTarget(context, chainTarget);
 }
 
-export type EmailOtpEcdsaLoginAuthorityPorts = {
+type EmailOtpEcdsaLoginAuthorityPorts = {
   ownerLaneScopeStores: OwnerLaneScopeStores;
   resolveSelectedWalletAuthority: (
     walletId: string,
   ) => Promise<ResolveSelectedWalletAuthorityResultV1>;
 };
 
-export type EmailOtpEcdsaLoginPorts = EmailOtpEcdsaLoginAuthorityPorts & {
+type EmailOtpEcdsaLoginPorts = EmailOtpEcdsaLoginAuthorityPorts & {
   configs: SeamsConfigsReadonly;
   getSignerWorkerContext: () => WorkerOperationContext | null | undefined;
   loadWalletCustodyEd25519Material: (args: {
@@ -1237,20 +1234,6 @@ export type LoginEmailOtpEcdsaCapabilityForSigningArgs = {
   record?: never;
   routeAuth?: never;
   authLane?: never;
-};
-
-export type EmailOtpEcdsaTransactionStepUpInput = {
-  mode: 'transaction_step_up';
-  walletSession: WalletSessionRef;
-  chainTarget: ThresholdEcdsaChainTarget;
-  challengeId: string;
-  otpCode: string;
-  committedLane: EcdsaCommittedLane;
-  remainingUses: number;
-  record?: never;
-  routeAuth?: never;
-  authLane?: never;
-  registrationAttemptId?: never;
 };
 
 function normalizeEmailOtpEcdsaSigningRemainingUses(value: unknown): number {

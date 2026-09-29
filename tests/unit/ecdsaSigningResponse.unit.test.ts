@@ -11,6 +11,7 @@ async function unexpectedServiceCall(): Promise<never> {
 }
 
 class CompletionService implements RouterApiAuthorizedOperationService {
+  readonly readPinnedOwnerWalletScope = unexpectedServiceCall;
   readonly buildVerifiedOwnerProof = unexpectedServiceCall;
   readonly recordVerifiedWalletOperationFactorEvidenceSet = unexpectedServiceCall;
   readonly readAuthorizedOperationById = unexpectedServiceCall;

@@ -126,15 +126,6 @@ function parseEthereumAddress(value: string): `0x${string}` {
   return normalized as `0x${string}`;
 }
 
-function parseHexBytes(value: string, field: string, byteLength: number): `0x${string}` {
-  const normalized = String(value || '').trim();
-  const hexChars = byteLength * 2;
-  if (!new RegExp(`^0x[0-9a-fA-F]{${hexChars}}$`).test(normalized)) {
-    throw new Error(`[signer-core-command] ${field} must be 0x-prefixed ${byteLength}-byte hex`);
-  }
-  return normalized as `0x${string}`;
-}
-
 function parsePendingStateBlob(input: unknown): EcdsaRoleLocalPendingStateBlob {
   const record = requireSignerCoreCommandObject(input, 'ECDSA pending state blob');
   requireSignerCoreCommandFields(

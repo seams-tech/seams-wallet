@@ -2,11 +2,11 @@ import {
   WALLET_CUSTODY_ENVELOPE_VERSION_V2,
   parsePasskeyCustodyEnvelopeRecord,
   parseWalletCustodyEnvelopeOwnershipWireV1,
-  rejectUnknownFields,
-  requireRecord,
   type PasskeyCustodyEnvelopeRecord,
   type RecoveryReplacementEnvelopePayload,
 } from '@shared/passkey-custody';
+import { requireRecord } from '@shared/utils/validation';
+import { rejectUnknownFields } from '@shared/utils/exactRecord';
 
 const RECOVERY_BINDING_FIELDS = [
   'walletId',
@@ -63,18 +63,6 @@ export function buildRecoveredCustodyEnvelopeRecord(args: {
   );
   if (record.binding.kind !== 'wallet_custody_seed_v1') {
     throw new Error('custody envelope must seal the wallet custody seed');
-  }
-  return record;
-}
-
-export function buildRecoveredPasskeyCustodyEnvelopeRecord(args: {
-  readonly expectedWalletId: string;
-  readonly replacement: RecoveryReplacementEnvelopePayload;
-  readonly activatedAtMs: number;
-}): PasskeyCustodyEnvelopeRecord {
-  const record = buildRecoveredCustodyEnvelopeRecord(args);
-  if (record.factor.kind !== 'passkey') {
-    throw new Error('credential replacement must reseal under a passkey factor');
   }
   return record;
 }

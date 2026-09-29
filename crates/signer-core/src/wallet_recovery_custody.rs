@@ -1,4 +1,4 @@
-//! Wallet-scoped recovery envelope sets for Refactor 100.
+//! Wallet-scoped recovery envelope sets.
 //!
 //! A recovery code protects the whole mixed-wallet custody set through two
 //! levels:
@@ -118,7 +118,7 @@ pub struct WalletRecoveryCodeScopeV1 {
 /// sealed under that device's own factor, so it never depended on the owner
 /// credential and survives owner recovery untouched; including it here would
 /// instead let an owner recovery code reconstruct that device's material. A
-/// lost lane is revoked and reprovisioned through Refactor 102, not recovered.
+/// lost lane is revoked and reprovisioned, not recovered.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WalletRecoveryEntryScopeV1 {
     pub wallet_id: String,

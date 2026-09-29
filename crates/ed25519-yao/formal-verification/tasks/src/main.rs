@@ -3741,13 +3741,21 @@ fn count_lean_theorems(path: &Path) -> Result<usize, DynError> {
 }
 
 fn parse_verus_verified_count(output: &str) -> Result<usize, DynError> {
-    let result_line = output
+    // cargo-verus prints one result line per verified crate. When vstd is not cached it
+    // verifies vstd first, so the last line is this crate's own.
+    let result_lines = output
         .lines()
-        .find(|line| line.contains("verification results::"))
-        .ok_or("Verus output did not contain a verification result count")?;
-    if !result_line.contains(", 0 errors") {
-        return Err(format!("Verus reported a nonzero error count: {result_line}").into());
+        .filter(|line| line.contains("verification results::"))
+        .collect::<Vec<_>>();
+    if let Some(failed) = result_lines
+        .iter()
+        .find(|line| !line.contains(", 0 errors"))
+    {
+        return Err(format!("Verus reported a nonzero error count: {failed}").into());
     }
+    let result_line = result_lines
+        .last()
+        .ok_or("Verus output did not contain a verification result count")?;
     let count = result_line
         .split("verification results::")
         .nth(1)
@@ -3956,4 +3964,20 @@ fn lean_model_dir() -> PathBuf {
 
 fn lean_boundary_dir() -> PathBuf {
     formal_verification_dir().join("lean-boundary")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_verus_verified_count;
+
+    #[test]
+    fn verus_count_is_the_verified_crates_own_result() {
+        let cold_vstd = "verification results:: 1535 verified, 0 errors\n\
+                         verification results:: 27 verified, 0 errors\n";
+        assert_eq!(parse_verus_verified_count(cold_vstd).unwrap(), 27);
+
+        let failing_vstd = "verification results:: 1535 verified, 1 errors\n\
+                            verification results:: 27 verified, 0 errors\n";
+        assert!(parse_verus_verified_count(failing_vstd).is_err());
+    }
 }

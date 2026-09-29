@@ -11,109 +11,27 @@
 
 #![cfg(unix)]
 
+mod recipient_key_files;
 mod support;
 
 use std::cell::RefCell;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use base64ct::{Base64UrlUnpadded, Encoding};
-use rand_core_09::{CryptoRng, RngCore};
 use router_ab_core::{TenantRootRestoreImportEnvelopeV1, TwoPartyDeriverRole};
 use seams_cli::{
     run_command_with_recovery_trust_v1, ConsoleRequestV1, ConsoleResponseV1,
     ConsoleTransportErrorV1, ConsoleTransportV1, SeamsCommandV1, SeamsExitCodeV1, SeamsResultV1,
     SecretInputV1, DESTINATION_BOOTSTRAP_HEADER_V1, RESTORE_SESSION_HEADER_V1,
 };
-use seams_recovery_core::{
-    write_new_file_durably_v1, RecoveryHostSecretCapabilitiesV1, RecoveryKeyFileV1,
-};
+use seams_recovery_core::RecoveryHostSecretCapabilitiesV1;
+
+use recipient_key_files::{key_file, DERIVER_A_KEY_MATERIAL, DERIVER_B_KEY_MATERIAL};
+use support::{fixture, Scratch};
 
 const BOOTSTRAP: &str = "destination-bootstrap-token";
-const DERIVER_A_KEY_MATERIAL: [u8; 32] = [0xa1; 32];
-const DERIVER_B_KEY_MATERIAL: [u8; 32] = [0xb1; 32];
+const SCRATCH_PREFIX: &str = "seams-restore-drill";
 const SOURCE_CONSOLE: &str = "https://source-console.example";
-
-/// An RNG that yields fixed recipient key material first.
-struct ScriptedRng {
-    key_material: [u8; 32],
-    consumed: bool,
-    counter: u8,
-}
-
-impl ScriptedRng {
-    const fn new(key_material: [u8; 32]) -> Self {
-        Self {
-            key_material,
-            consumed: false,
-            counter: 0,
-        }
-    }
-}
-
-impl RngCore for ScriptedRng {
-    fn next_u32(&mut self) -> u32 {
-        let mut bytes = [0_u8; 4];
-        self.fill_bytes(&mut bytes);
-        u32::from_le_bytes(bytes)
-    }
-
-    fn next_u64(&mut self) -> u64 {
-        let mut bytes = [0_u8; 8];
-        self.fill_bytes(&mut bytes);
-        u64::from_le_bytes(bytes)
-    }
-
-    fn fill_bytes(&mut self, destination: &mut [u8]) {
-        if !self.consumed && destination.len() == 32 {
-            destination.copy_from_slice(&self.key_material);
-            self.consumed = true;
-            return;
-        }
-        for byte in destination.iter_mut() {
-            self.counter = self.counter.wrapping_add(1);
-            *byte = self.counter;
-        }
-    }
-}
-
-impl CryptoRng for ScriptedRng {}
-
-struct Scratch {
-    root: PathBuf,
-}
-
-impl Scratch {
-    fn new(name: &str) -> Self {
-        let root = std::env::temp_dir().join(format!("seams-restore-drill-{name}"));
-        let _ = std::fs::remove_dir_all(&root);
-        std::fs::create_dir_all(&root).expect("scratch directory");
-        Self { root }
-    }
-
-    fn path(&self, name: &str) -> PathBuf {
-        self.root.join(name)
-    }
-}
-
-impl Drop for Scratch {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.root);
-    }
-}
-
-fn fixture(name: &str) -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../router-ab-core/tests/fixtures/tenant-root-recovery")
-        .join(name)
-}
-
-fn key_file(scratch: &Scratch, role: TwoPartyDeriverRole, material: [u8; 32]) -> PathBuf {
-    let (file, _) =
-        RecoveryKeyFileV1::create(role, &mut ScriptedRng::new(material)).expect("key file");
-    let path = scratch.path(&format!("{}.key", role.as_str()));
-    write_new_file_durably_v1(&path, &file.to_bytes().expect("bytes")).expect("write key file");
-    path
-}
 
 fn json(status: u16, body: String) -> Result<ConsoleResponseV1, ConsoleTransportErrorV1> {
     Ok(ConsoleResponseV1 {
@@ -417,7 +335,7 @@ fn restore_role(
 
 #[test]
 fn a_restore_retry_reuses_the_durable_envelope_without_the_local_key() {
-    let scratch = Scratch::new("restore-retry");
+    let scratch = Scratch::new(SCRATCH_PREFIX, "restore-retry");
     let destination = Destination::new(0x66, "https://destination-one.example");
     let transport = DrillTransport::new(vec![&destination]);
     let key_a = key_file(
@@ -469,7 +387,7 @@ fn a_restore_retry_reuses_the_durable_envelope_without_the_local_key() {
 
 #[test]
 fn a_tenant_restores_with_the_source_deployment_unavailable() {
-    let scratch = Scratch::new("source-offline");
+    let scratch = Scratch::new(SCRATCH_PREFIX, "source-offline");
     let destination = Destination::new(0x66, "https://destination-one.example");
     let transport = DrillTransport::new(vec![&destination]);
     let key_a = key_file(
@@ -584,7 +502,7 @@ fn a_tenant_restores_with_the_source_deployment_unavailable() {
 
 #[test]
 fn a_refused_manifest_registration_fails_the_start_command() {
-    let scratch = Scratch::new("manifest-refused");
+    let scratch = Scratch::new(SCRATCH_PREFIX, "manifest-refused");
     let destination =
         Destination::new(0x66, "https://destination-one.example").refusing_manifests();
     let transport = DrillTransport::new(vec![&destination]);
@@ -609,7 +527,7 @@ fn a_refused_manifest_registration_fails_the_start_command() {
 
 #[test]
 fn the_same_files_restore_two_destinations_with_isolated_lineages() {
-    let scratch = Scratch::new("clone-isolation");
+    let scratch = Scratch::new(SCRATCH_PREFIX, "clone-isolation");
     let first = Destination::new(0x66, "https://destination-one.example");
     let second = Destination::new(0x77, "https://destination-two.example");
     let transport = DrillTransport::new(vec![&first, &second]);
@@ -671,7 +589,7 @@ fn the_same_files_restore_two_destinations_with_isolated_lineages() {
 
 #[test]
 fn the_other_roles_key_file_is_refused_before_the_share_is_opened() {
-    let scratch = Scratch::new("wrong-role-key");
+    let scratch = Scratch::new(SCRATCH_PREFIX, "wrong-role-key");
     let destination = Destination::new(0x66, "https://destination-one.example");
     let transport = DrillTransport::new(vec![&destination]);
     // Deriver B's key cannot restore Deriver A's share. The refusal is local:
@@ -701,7 +619,7 @@ fn the_other_roles_key_file_is_refused_before_the_share_is_opened() {
 
 #[test]
 fn bundled_restore_registers_imports_and_reuses_private_retry_state() {
-    let scratch = Scratch::new("bundled-restore");
+    let scratch = Scratch::new(SCRATCH_PREFIX, "bundled-restore");
     let destination = Destination::new(0x66, "https://same-site.example");
     let transport = DrillTransport::new(vec![&destination]);
     for name in ["manifest.json", "deriver-a.backup"] {

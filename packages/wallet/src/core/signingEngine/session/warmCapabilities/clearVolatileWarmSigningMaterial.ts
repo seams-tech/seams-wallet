@@ -14,7 +14,7 @@ import {
   type ThresholdEd25519SessionId,
 } from '@shared/utils/domainIds';
 
-export type ClearVolatileWarmSigningMaterialDeps = {
+type ClearVolatileWarmSigningMaterialDeps = {
   touchConfirm: VolatileWarmSessionMaterialClearer | VolatileWarmSessionMaterialClearAll;
   clearVolatileThresholdSessionMaterial: (
     command: ClearVolatileWarmSessionMaterialCommand,

@@ -6,8 +6,7 @@ import {
   parseWalletSessionMintId,
 } from '@shared/authorization/capabilityKinds';
 import { parseWalletAuthMethodId, parseWalletAuthorityId } from '@shared/utils/domainIds';
-import { computeWalletAuthMethodRevokeOperationFingerprintV1 } from '@shared/utils/registrationIntent';
-import type { WalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
+import type { WalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 import {
   DEFAULT_WALLET_SESSION_REMAINING_USES,
   DEFAULT_WALLET_SESSION_TTL_MS,
@@ -102,6 +101,7 @@ import {
 } from '../registration/d1RegistrationCeremonyRecords';
 import { parseWalletRegistrationSessionCommitReceiptV2 } from '../registration/walletRegistrationSessionCommitReceipt';
 import { CloudflareD1WalletRegistrationCommitStore } from '../registration/d1WalletRegistrationCommitStore';
+import { CloudflareD1Ed25519YaoLifecycleDecisionStoreV1 } from '../ed25519Yao/d1Ed25519YaoLifecycleDecisionStore';
 import { CloudflareD1WalletCustodyCommitStore } from '../passkeyCustody/d1WalletCustodyCommitStore';
 import { CloudflareD1PasskeyCustodyEnvelopeStore } from '../passkeyCustody/d1PasskeyCustodyEnvelopeStore';
 import { createD1PasskeyCustodyRouteService } from '../passkeyCustody/d1PasskeyCustodyRouteService';
@@ -147,7 +147,9 @@ import { createD1LinkedDeviceSessionServiceV1 } from '../deviceLinking/d1LinkedD
 import { D1LinkedDeviceSessionStoreV1 } from '../deviceLinking/d1LinkedDeviceSessionStore';
 import { createD1LinkedDeviceManagementServiceV1 } from '../deviceLinking/d1LinkedDeviceManagementService';
 import { D1WalletAuthorityStore } from '../wallet/d1WalletAuthorityStore';
+import { D1WalletAuthMethodRevocationReplayStoreV1 } from '../wallet/d1WalletAuthMethodRevocationReplayStore';
 import { verifyD1LinkedDeviceFreshRevokeProofV1 } from '../wallet/d1WalletAuthMethodBoundary';
+import { createD1LinkedDeviceRevocationV1 } from '../deviceLinking/d1LinkedDeviceRevocation';
 import { createD1LinkedDeviceVerifiedLinkSourceReaderV1 } from '../deviceLinking/d1LinkedDeviceVerifiedLinkSourceReader';
 import { LinkedDeviceWebAuthnRegistrationVerifierV1 } from '../deviceLinking/d1LinkedDeviceTargetCredentialProvider';
 import {
@@ -242,6 +244,7 @@ type CloudflareD1RouterApiAuthAssembly = {
   readonly identityService: CloudflareD1IdentityService;
   readonly oidcVerification: CloudflareD1OidcVerificationService;
   readonly authorizationService: AuthorizationService;
+  readonly authorizationStore: CloudflareD1AuthorizationStore;
   readonly googleEmailOtpSessions: CloudflareD1GoogleEmailOtpSessionResolver;
   readonly nearPublicKeys: CloudflareD1NearPublicKeyStore;
   readonly webAuthnAuthService: CloudflareD1WebAuthnAuthService;
@@ -315,6 +318,11 @@ type D1AuthorizationSessionRouteServiceAssembly = Pick<
   'authorizationService' | 'options' | 'walletAuthMethodStore' | 'walletAuthorityStore'
 >;
 
+type D1AuthorizedOperationRouteServiceAssembly = Pick<
+  CloudflareD1RouterApiAuthAssembly,
+  'authorizationService' | 'authorizationStore' | 'options'
+>;
+
 type D1ThresholdRuntimeRouteServiceAssembly = Pick<CloudflareD1RouterApiAuthAssembly, 'options'>;
 
 type D1NearFundingRouteServiceAssembly = Pick<
@@ -351,15 +359,15 @@ function createD1LinkedDeviceComposition(input: {
   readonly webAuthnStore: CloudflareD1WebAuthnStore;
   readonly webAuthnAuthService: CloudflareD1WebAuthnAuthService;
   /**
-   * Refactor 103 Phase 6: the R100 Email OTP pieces the linked-device Email
-   * OTP target factor composes. Left absent, `email_otp` linking fails closed
-   * at approval and the challenge routes answer 501.
+   * The Email OTP pieces the linked-device Email OTP target factor composes.
+   * Left absent, `email_otp` linking fails closed at approval and the challenge
+   * routes answer 501.
    */
   readonly emailOtpLinkedDevice?: {
     readonly issuer: Pick<CloudflareD1EmailOtpChallengeIssuer, 'create'>;
     readonly verifier: Pick<
       CloudflareD1EmailOtpChallengeVerifier,
-      'verifyExisting' | 'verifyRegistration'
+      'verifyExisting' | 'verifyExistingForBatch' | 'verifyRegistration'
     >;
     readonly enrollments: Pick<CloudflareD1EmailOtpEnrollmentStore, 'readEnrollment'>;
     readonly walletAuthMethodStore: {
@@ -422,31 +430,25 @@ function createD1LinkedDeviceComposition(input: {
       endpoint: deactivationEndpoint,
     }),
   });
-  const deviceManagement: RouterApiServiceBag['deviceManagement'] = {
+  const revokeLinkedDeviceWithFreshProof = createD1LinkedDeviceRevocationV1({
     management: deviceManagementService,
+    replays: new D1WalletAuthMethodRevocationReplayStoreV1({
+      database: input.options.database,
+      scope,
+    }),
+    authMethodStore: input.walletAuthMethodStore,
+    authorityStore,
     nowV1,
-    authenticateOwnerRequestV1: ownerRequestAuthenticator,
-    verifyFreshRevokeProofV1: async (proofInput) => {
-      const expectedOrigin = String(proofInput.request.headers.get('origin') || '').trim();
-      if (!expectedOrigin) {
-        return {
-          kind: 'denied' as const,
-          code: 'invalid' as const,
-          message: 'Fresh revocation proof requires an Origin header',
-        };
-      }
-      return await verifyD1LinkedDeviceFreshRevokeProofV1({
+    // The proof is left unspent here; an Email OTP code's spend rides in the revocation.
+    verifyProofForBatch: async (proofInput) =>
+      await verifyD1LinkedDeviceFreshRevokeProofV1({
         walletId: proofInput.walletId,
         orgId: String(input.options.orgId),
         targetWalletAuthMethodId: proofInput.targetWalletAuthMethodId,
         proof: proofInput.proof,
-        expectedOrigin,
-        verifiedAtMs: proofInput.requestedAtMs,
-        operationFingerprintDigest: await computeWalletAuthMethodRevokeOperationFingerprintV1({
-          walletId: proofInput.walletId,
-          targetWalletAuthMethodId: proofInput.targetWalletAuthMethodId,
-          requestedAtMs: proofInput.requestedAtMs,
-        }),
+        expectedOrigin: proofInput.expectedOrigin,
+        verifiedAtMs: proofInput.verifiedAtMs,
+        operationFingerprintDigest: proofInput.operationFingerprintDigest,
         walletAuthMethodStore: input.walletAuthMethodStore,
         verifyWebAuthnAuthenticationLite: async (verifyInput) => {
           const credential = parseWebAuthnAuthenticationCredential(
@@ -468,13 +470,34 @@ function createD1LinkedDeviceComposition(input: {
         ...(input.emailOtpLinkedDevice === undefined
           ? {}
           : {
-              verifyEmailOtpExisting: input.emailOtpLinkedDevice.verifier.verifyExisting.bind(
-                input.emailOtpLinkedDevice.verifier,
-              ),
+              verifyEmailOtpExistingForBatch:
+                input.emailOtpLinkedDevice.verifier.verifyExistingForBatch.bind(
+                  input.emailOtpLinkedDevice.verifier,
+                ),
               readEmailOtpEnrollment: input.emailOtpLinkedDevice.enrollments.readEnrollment.bind(
                 input.emailOtpLinkedDevice.enrollments,
               ),
             }),
+      }),
+  });
+  const deviceManagement: RouterApiServiceBag['deviceManagement'] = {
+    management: deviceManagementService,
+    nowV1,
+    authenticateOwnerRequestV1: ownerRequestAuthenticator,
+    revokeLinkedDeviceWithFreshProofV1: async (revokeInput) => {
+      const expectedOrigin = String(revokeInput.httpRequest.headers.get('origin') || '').trim();
+      if (!expectedOrigin) {
+        return {
+          kind: 'denied' as const,
+          code: 'invalid' as const,
+          message: 'Fresh revocation proof requires an Origin header',
+        };
+      }
+      return await revokeLinkedDeviceWithFreshProof({
+        request: revokeInput.request,
+        owner: revokeInput.owner,
+        proof: revokeInput.proof,
+        expectedOrigin,
       });
     },
   };
@@ -1628,6 +1651,15 @@ function createCloudflareD1RouterApiAuthAssembly(
     webAuthnStore,
     listWalletEd25519Signers: (walletId) => walletStore.listEd25519SignersForWallet({ walletId }),
     walletAuthorityStore,
+    revocationReplays: new D1WalletAuthMethodRevocationReplayStoreV1({
+      database: options.database,
+      scope: {
+        namespace: options.namespace,
+        orgId: options.orgId,
+        projectId: options.projectId,
+        envId: options.envId,
+      },
+    }),
     orgId: options.orgId,
     verifyWebAuthnAuthenticationLite: async (verifyInput) => {
       const credential = parseWebAuthnAuthenticationCredential(verifyInput.webauthn_authentication);
@@ -1644,6 +1676,13 @@ function createCloudflareD1RouterApiAuthAssembly(
         webauthn_authentication: credential,
       });
     },
+  });
+  const yaoLifecycleDecisions = new CloudflareD1Ed25519YaoLifecycleDecisionStoreV1({
+    database: options.database,
+    namespace: options.namespace,
+    orgId: options.orgId,
+    projectId: options.projectId,
+    envId: options.envId,
   });
   const walletRegistrationCommitStore = new CloudflareD1WalletRegistrationCommitStore({
     database: options.database,
@@ -1678,6 +1717,7 @@ function createCloudflareD1RouterApiAuthAssembly(
     walletCustodyCommitStore,
     walletAuthMethods,
     getLinkedDeviceEd25519AuthorityReader,
+    yaoLifecycleDecisions,
   });
   const walletAddSigners = new CloudflareD1WalletAddSignerService({
     getRegistrationCeremonyIntentStore,
@@ -1689,6 +1729,7 @@ function createCloudflareD1RouterApiAuthAssembly(
     passkeyCustodyEnvelopes,
     startSideEffects: walletAddSignerStartSideEffectStore(options),
     finalizeSideEffects: walletAddSignerFinalizeSideEffectStore(options),
+    yaoLifecycleDecisions,
   });
   const registrationIntents = new CloudflareD1RegistrationIntentService({
     getRegistrationCeremonyIntentStore,
@@ -1745,7 +1786,7 @@ function createCloudflareD1RouterApiAuthAssembly(
     serverSeal: emailOtpServerSeal,
     orgId: options.orgId,
   });
-  // Composed after the R100 Email OTP pieces so the linked-device Email OTP
+  // Composed after the Email OTP pieces so the linked-device Email OTP
   // target factor reuses this deployment's exact issuer, verifier, enrollment
   // store, and server-seal runtime — never a second OTP implementation.
   const linkedDeviceComposition = createD1LinkedDeviceComposition({
@@ -1791,6 +1832,7 @@ function createCloudflareD1RouterApiAuthAssembly(
     identityService,
     oidcVerification,
     authorizationService,
+    authorizationStore,
     googleEmailOtpSessions,
     nearPublicKeys,
     webAuthnAuthService,
@@ -1947,8 +1989,10 @@ function createD1WalletAuthMethodRouteService(
       assembly.walletAuthMethods.resolveActiveWalletSessionAuthority.bind(
         assembly.walletAuthMethods,
       ),
-    verifyWalletAuthMethodRevokeProof:
-      assembly.walletAuthMethods.verifyWalletAuthMethodRevokeProof.bind(assembly.walletAuthMethods),
+    revokeWalletAuthMethodWithFreshProof:
+      assembly.walletAuthMethods.revokeWalletAuthMethodWithFreshProof.bind(
+        assembly.walletAuthMethods,
+      ),
     verifyActivePasskeyAuthority: assembly.walletAuthMethods.verifyActivePasskeyAuthority.bind(
       assembly.walletAuthMethods,
     ),
@@ -1990,9 +2034,6 @@ function createD1WalletAuthMethodRouteService(
       assembly.walletAddSigners.getWalletAddSignerRuntimePolicyScope.bind(
         assembly.walletAddSigners,
       ),
-    revokeWalletAuthMethod: assembly.walletAuthMethods.revokeWalletAuthMethod.bind(
-      assembly.walletAuthMethods,
-    ),
     createAddAuthMethodEmailOtpChallenge:
       assembly.walletAuthMethods.createAddAuthMethodEmailOtpChallenge.bind(
         assembly.walletAuthMethods,
@@ -2399,18 +2440,16 @@ function createD1AuthorizationSessionRouteService(
       assembly.authorizationService.issueDirectWalletSessionAuthorizationV2.bind(
         assembly.authorizationService,
       ),
+    // The session, its authority and its method come from one read, so a commit
+    // between separate reads (NEAR provisioning extending the authority) cannot
+    // pair the session with an authority it was never bound to.
     readWalletSessionAuthorizationV2ByOperationCredential: async (input) => {
-      const authorization =
-        await assembly.authorizationService.readWalletSessionAuthorizationV2ByOperationCredential(
+      const snapshot =
+        await assembly.authorizationService.readWalletSessionAdmissionSnapshotByOperationCredential(
           input,
         );
-      if (!authorization) return null;
-      const [authority, authMethod] = await Promise.all([
-        assembly.walletAuthorityStore.readById(authorization.session.authorityId),
-        assembly.walletAuthMethodStore.readByIdV2({
-          walletAuthMethodId: authorization.session.walletAuthMethodId,
-        }),
-      ]);
+      if (!snapshot) return null;
+      const { authorization, authority, authMethod } = snapshot;
       if (
         !authority ||
         authority.state !== 'active' ||
@@ -2431,17 +2470,11 @@ function createD1AuthorizationSessionRouteService(
         assembly.authorizationService,
       ),
     readExhaustedWalletSessionAuthorizationV2CandidateByOperationCredential: async (input) => {
-      const status =
-        await assembly.authorizationService.readExactWalletSessionStatusByOperationCredential(
+      const { status, authority, authMethod } =
+        await assembly.authorizationService.readExactWalletSessionStatusSnapshotByOperationCredential(
           input,
         );
       if (!isExhaustedWalletSessionStatus(status)) return null;
-      const [authority, authMethod] = await Promise.all([
-        assembly.walletAuthorityStore.readById(status.session.authorityId),
-        assembly.walletAuthMethodStore.readByIdV2({
-          walletAuthMethodId: status.session.walletAuthMethodId,
-        }),
-      ]);
       if (
         !authority ||
         authority.state !== 'active' ||
@@ -2508,7 +2541,7 @@ function createD1AuthorizationSessionRouteService(
 }
 
 function createD1AuthorizedOperationRouteService(
-  assembly: D1AuthorizationSessionRouteServiceAssembly,
+  assembly: D1AuthorizedOperationRouteServiceAssembly,
 ): RouterApiServiceBag['authorizedOperations'] {
   const tenantId = parseTenantId(assembly.options.orgId);
   if (!tenantId.ok) {
@@ -2516,6 +2549,9 @@ function createD1AuthorizedOperationRouteService(
   }
   return {
     tenantId: tenantId.value,
+    readPinnedOwnerWalletScope: assembly.authorizationStore.readPinnedOwnerWalletScope.bind(
+      assembly.authorizationStore,
+    ),
     buildVerifiedOwnerProof: assembly.authorizationService.buildVerifiedOwnerProof.bind(
       assembly.authorizationService,
     ),
@@ -2532,6 +2568,14 @@ function createD1AuthorizedOperationRouteService(
     admitAuthorizedOperation: assembly.authorizationService.admitAuthorizedOperation.bind(
       assembly.authorizationService,
     ),
+    prepareAuthorizedOperationAdmission:
+      assembly.authorizationService.prepareAuthorizedOperationAdmission.bind(
+        assembly.authorizationService,
+      ),
+    classifyAuthorizedOperationAdmissionFailure:
+      assembly.authorizationService.classifyAuthorizedOperationAdmissionFailure.bind(
+        assembly.authorizationService,
+      ),
     completeAuthorizedOperation: assembly.authorizationService.completeAuthorizedOperation.bind(
       assembly.authorizationService,
     ),

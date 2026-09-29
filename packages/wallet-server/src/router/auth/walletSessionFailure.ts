@@ -1,6 +1,4 @@
-import type { SessionParseFailureReason } from '../../core/sessionValidation';
 import {
-  WALLET_SESSION_FAILURE_CODES,
   type WalletSessionFailureCode,
 } from '@shared/utils/walletSessionFailure';
 
@@ -11,27 +9,6 @@ export type WalletSessionBoundaryFailure = {
   readonly code: WalletSessionFailureCode;
   readonly message: string;
 };
-
-export function walletSessionFailureCodeFromParseReason(
-  reason: SessionParseFailureReason,
-): Exclude<
-  WalletSessionFailureCode,
-  | typeof WALLET_SESSION_FAILURE_CODES.scopeMismatch
-  | typeof WALLET_SESSION_FAILURE_CODES.unavailable
-  | typeof WALLET_SESSION_FAILURE_CODES.budgetExhausted
-> {
-  switch (reason) {
-    case 'missing':
-      return WALLET_SESSION_FAILURE_CODES.missing;
-    case 'signature_invalid':
-      return WALLET_SESSION_FAILURE_CODES.signatureInvalid;
-    case 'claims_invalid':
-    case 'not_active':
-      return WALLET_SESSION_FAILURE_CODES.claimsInvalid;
-    case 'expired':
-      return WALLET_SESSION_FAILURE_CODES.expired;
-  }
-}
 
 export function walletSessionFailureMessage(code: WalletSessionFailureCode): string {
   switch (code) {
@@ -69,13 +46,6 @@ export function walletSessionFailureStatus(code: WalletSessionFailureCode): 401 
     case 'wallet_session_unavailable':
       return 503;
   }
-}
-
-export function walletSessionParseFailure(
-  reason: SessionParseFailureReason,
-): WalletSessionBoundaryFailure {
-  const code = walletSessionFailureCodeFromParseReason(reason);
-  return walletSessionFailure(code);
 }
 
 export function walletSessionFailure(

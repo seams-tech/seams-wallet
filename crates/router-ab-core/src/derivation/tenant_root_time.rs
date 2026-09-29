@@ -5,8 +5,30 @@
 //! Ordering decisions still belong to monotonic revisions and epochs; these
 //! helpers exist so freshness and validity *windows* can be checked exactly.
 
-use super::tenant_root_recovery_artifacts::{malformed_owned, validate_rfc3339_millis};
+use super::tenant_root_recovery_artifacts::{malformed, malformed_owned, validate_rfc3339_millis};
 use super::RouterAbDerivationResult;
+
+/// Formats one instant as the RFC 3339 millisecond UTC form these contracts
+/// sign, `YYYY-MM-DDTHH:MM:SS.mmmZ`: the same string JavaScript's
+/// `Date.prototype.toISOString` gives for it, on any host.
+pub fn format_tenant_root_rfc3339_millis_v1(epoch_millis: u64) -> RouterAbDerivationResult<String> {
+    let epoch_millis = i64::try_from(epoch_millis)
+        .map_err(|_| malformed("tenant-root timestamp is out of range"))?;
+    let (days, millis_of_day) = (epoch_millis / 86_400_000, epoch_millis % 86_400_000);
+    let (year, month, day) = civil_from_days(days);
+    if !(0..=9999).contains(&year) {
+        return Err(malformed("tenant-root timestamp is outside four-digit years"));
+    }
+    let formatted = format!(
+        "{year:04}-{month:02}-{day:02}T{:02}:{:02}:{:02}.{:03}Z",
+        millis_of_day / 3_600_000,
+        millis_of_day / 60_000 % 60,
+        millis_of_day / 1_000 % 60,
+        millis_of_day % 1_000,
+    );
+    validate_rfc3339_millis(&formatted, "tenant-root timestamp")?;
+    Ok(formatted)
+}
 
 /// Converts one RFC 3339 millisecond timestamp to epoch milliseconds.
 ///
@@ -64,4 +86,20 @@ const fn days_from_civil(year: i64, month: i64, day: i64) -> i64 {
     let day_of_year = (153 * (if month > 2 { month - 3 } else { month + 9 }) + 2) / 5 + day - 1;
     let day_of_era = year_of_era * 365 + year_of_era / 4 - year_of_era / 100 + day_of_year;
     era * 146_097 + day_of_era - 719_468
+}
+
+/// The proleptic Gregorian date of one day from 1970-01-01 (Howard Hinnant's
+/// algorithm), the inverse of `days_from_civil`.
+const fn civil_from_days(days: i64) -> (i64, i64, i64) {
+    let days = days + 719_468;
+    let era = if days >= 0 { days } else { days - 146_096 } / 146_097;
+    let day_of_era = days - era * 146_097;
+    let year_of_era =
+        (day_of_era - day_of_era / 1_460 + day_of_era / 36_524 - day_of_era / 146_096) / 365;
+    let day_of_year = day_of_era - (365 * year_of_era + year_of_era / 4 - year_of_era / 100);
+    let month_index = (5 * day_of_year + 2) / 153;
+    let day = day_of_year - (153 * month_index + 2) / 5 + 1;
+    let month = if month_index < 10 { month_index + 3 } else { month_index - 9 };
+    let year = year_of_era + era * 400 + if month <= 2 { 1 } else { 0 };
+    (year, month, day)
 }

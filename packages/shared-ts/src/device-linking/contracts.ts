@@ -25,17 +25,16 @@ import type { WalletAddAuthMethodRegistrationOptions } from '../utils/addAuthMet
 import type { Ed25519PublicKeyB64u } from '../passkey-custody/primitives';
 import type {
   ActiveWalletAuthorityV1,
-  WalletAuthorityV1,
   WalletSignerActivationSetV1,
 } from '../authorization/walletAuthority';
 import type { CanonicalDelegatedWalletPermissionSetV1 } from '../authorization/delegatedAuthority';
 import type { ExactAdministeredSignerManifestV1 } from './delegatedActivationPlan';
 import type {
+  ActiveWalletAuthMethodRecordV2,
   EmailOtpWalletAuthMethodDraftV1,
   PasskeyWalletAuthMethodDraftV1,
-  WalletAuthMethodRecordV2,
-  WalletEmailOtpEnrollmentMaterialV1,
-} from '../utils/registrationIntent';
+} from '../utils/walletAuthMethodRecord';
+import type { WalletEmailOtpEnrollmentMaterialV1 } from '../utils/registrationAuthMethodInput';
 import type { VerifiedEmailAddress } from '../utils/domainIds';
 import type {
   LinkedDeviceOrdinaryMaterialSourceContributionPreparationV1,
@@ -67,7 +66,6 @@ export type {
   CommittedAuthorityPackagesV1,
   CommittedEd25519SignerPackageV1,
   CommittedEcdsaSignerPackageV1,
-  PendingWalletAuthMethodRecordV1,
   CommittedSignerPackageSetDigestInputV1,
   CommittedSignerPackageSetV1,
 } from './committedSignerPackages';
@@ -604,7 +602,7 @@ export type OwnerDeviceSummaryV1 = {
   /**
    * The authority this method belongs to.
    *
-   * R109C puts both factor families on one founding authority and lists one
+   * A founding authority can hold both factor families, and the list gives one
    * entry per active method, so a reader needs this to group the entries it was
    * given — to decide which family is still missing on THIS authority, and to
    * know which sibling would remain if one were removed. Grouping by wallet
@@ -900,7 +898,7 @@ export type LocalAuthorityInstallationReceiptV1 = {
   readonly installedAtMs: number;
 };
 
-export type RelinkRequiredReasonV1 =
+type RelinkRequiredReasonV1 =
   | { readonly kind: 'incomplete_migrated_enrollment' }
   | {
       readonly kind: 'missing_canonical_local_material';
@@ -936,8 +934,8 @@ export type ActivationRetryReasonV1 =
 export type ActivateInstalledAuthorityResultV1 =
   | {
       readonly kind: 'active';
-      readonly authority: Extract<WalletAuthorityV1, { readonly state: 'active' }>;
-      readonly authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+      readonly authority: ActiveWalletAuthorityV1;
+      readonly authMethod: ActiveWalletAuthMethodRecordV2;
       readonly walletSession: ActiveWalletSessionV1;
       readonly deliveryBinding: LinkedDeviceWalletSessionCredentialDeliveryBindingV1;
       readonly sealedDelivery: LinkedDeviceWalletSessionCredentialDeliveryV1;

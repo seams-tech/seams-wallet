@@ -3,9 +3,9 @@ import {
   addSignerIntentGrantFromString,
   computeAddAuthMethodIntentDigestB64u,
   computeAddSignerIntentDigestB64u,
-  normalizeAddAuthMethodInput,
-  normalizeAddSignerSelection,
 } from '@shared/utils/registrationIntent';
+import { normalizeAddSignerSelection } from '@shared/utils/registrationSignerPlan';
+import { normalizeAddAuthMethodInput } from '@shared/utils/registrationAuthMethodInput';
 import { secureRandomBase64Url } from '@shared/utils/secureRandomId';
 import { parseWalletAuthMethodId } from '@shared/utils/domainIds';
 import { toOptionalTrimmedString } from '@shared/utils/validation';

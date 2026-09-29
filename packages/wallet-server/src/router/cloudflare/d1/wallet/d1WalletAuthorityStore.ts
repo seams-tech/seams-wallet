@@ -30,14 +30,22 @@ import {
 } from '../../../../core/d1WalletAuthMethodStore';
 import {
   parseWalletAuthMethodRecordV2,
+  type ActiveWalletAuthMethodRecordV2,
+  type RevokedWalletAuthMethodRecordV2,
   type WalletAuthMethodRecordV2,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/walletAuthMethodRecord';
 import { d1ChangedRows, formatD1ExecStatement, parseD1JsonColumn } from '../../../../storage/d1Sql';
 import type {
   D1DatabaseLike,
   D1PreparedStatementLike,
   D1ResultLike,
 } from '../../../../storage/tenantRoute';
+import { buildWalletSessionCapabilitySubjectsV1 } from '../../../../authorization/domain';
+import {
+  prepareD1WalletPutSignerStatement,
+  type WalletSignerRecord,
+} from '../../../../core/d1WalletStore';
+import { prepareD1WalletSessionAuthorityProjectionStatements } from '../authorization/walletSessionAuthorityProjection';
 
 export type D1WalletAuthorityStoreScope = {
   readonly namespace: string;
@@ -46,23 +54,23 @@ export type D1WalletAuthorityStoreScope = {
   readonly envId: string;
 };
 
-export type WalletAuthorityPageCursorV1 = {
+type WalletAuthorityPageCursorV1 = {
   readonly updatedAtMs: number;
   readonly authorityId: WalletAuthorityId;
 };
 
-export type WalletAuthorityPageV1 = {
+type WalletAuthorityPageV1 = {
   readonly records: readonly WalletAuthorityV1[];
   readonly nextCursor: WalletAuthorityPageCursorV1 | null;
 };
 
-export type CommittedWalletAuthorityV1 = {
+type CommittedWalletAuthorityV1 = {
   readonly kind: 'committed_wallet_authority_v1';
   readonly authority: PendingWalletAuthorityV1;
   readonly authMethod: WalletAuthMethodRecordV2;
 };
 
-export type WalletAuthorityCommitResultV1 =
+type WalletAuthorityCommitResultV1 =
   | CommittedWalletAuthorityV1
   | {
       readonly kind: 'replayed';
@@ -74,32 +82,32 @@ export type WalletAuthorityCommitResultV1 =
       readonly authorityId: WalletAuthorityId;
     };
 
-export type WalletAuthorityActivationResultV1 =
+type WalletAuthorityActivationResultV1 =
   | {
       readonly kind: 'activated';
       readonly authority: ActiveWalletAuthorityV1;
-      readonly authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+      readonly authMethod: ActiveWalletAuthMethodRecordV2;
     }
   | {
       readonly kind: 'replayed';
       readonly authority: ActiveWalletAuthorityV1;
-      readonly authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+      readonly authMethod: ActiveWalletAuthMethodRecordV2;
     }
   | {
       readonly kind: 'conflict';
       readonly authorityId: WalletAuthorityId;
     };
 
-export type WalletAuthorityRevocationResultV1 =
+type WalletAuthorityRevocationResultV1 =
   | {
       readonly kind: 'revoked_method';
-      readonly authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'revoked' }>;
+      readonly authMethod: RevokedWalletAuthMethodRecordV2;
       readonly authority: WalletAuthorityV1;
     }
   | { readonly kind: 'would_remove_last_wallet_auth_method' }
   | { readonly kind: 'conflict' };
 
-export const WALLET_AUTHORITY_STORE_D1_SCHEMA_SQL = Object.freeze([
+const WALLET_AUTHORITY_STORE_D1_SCHEMA_SQL = Object.freeze([
   `
     CREATE TABLE IF NOT EXISTS wallet_authorities (
       namespace TEXT NOT NULL,
@@ -502,7 +510,7 @@ function assertActivationInput(input: {
   readonly pendingAuthority: PendingWalletAuthorityV1;
   readonly activeAuthority: ActiveWalletAuthorityV1;
   readonly pendingAuthMethod: WalletAuthMethodRecordV2;
-  readonly activeAuthMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+  readonly activeAuthMethod: ActiveWalletAuthMethodRecordV2;
 }): void {
   if (input.pendingAuthMethod.status !== 'pending_local_install') {
     throw new Error('authority activation requires a pending auth method');
@@ -724,6 +732,68 @@ function prepareAuthorityCasGuard(database: D1DatabaseLike): D1PreparedStatement
   `);
 }
 
+/**
+ * Replaces one active authority with its extension, only if the stored row is
+ * still exactly `expected`. Pair it with the CAS guard so a lost race aborts
+ * the whole batch.
+ */
+export function prepareD1WalletAuthorityExtensionStatement(input: {
+  readonly database: D1DatabaseLike;
+  readonly scope: D1WalletAuthorityStoreScope;
+  readonly expected: ActiveWalletAuthorityV1;
+  readonly next: ActiveWalletAuthorityV1;
+}): D1PreparedStatementLike {
+  return input.database
+    .prepare(
+      `UPDATE wallet_authorities
+          SET signer_activations_json = ?,
+              signer_activation_set_digest_b64u = ?,
+              authority_digest_b64u = ?,
+              record_json = ?,
+              updated_at_ms = ?
+        WHERE namespace = ? AND org_id = ? AND project_id = ? AND env_id = ?
+          AND authority_id = ?
+          AND wallet_id = ?
+          AND lifecycle_state = 'active'
+          AND signer_activation_set_digest_b64u = ?
+          AND authority_digest_b64u = ?
+          AND revocation_epoch = ?
+          AND created_at_ms = ?
+          AND updated_at_ms = ?
+          AND activated_at_ms = ?`,
+    )
+    .bind(
+      JSON.stringify(input.next.signerActivations),
+      String(input.next.signerActivationSetDigestB64u),
+      String(input.next.authorityDigestB64u),
+      JSON.stringify(input.next),
+      input.next.updatedAtMs,
+      input.scope.namespace,
+      input.scope.orgId,
+      input.scope.projectId,
+      input.scope.envId,
+      String(input.expected.authorityId),
+      String(input.expected.walletId),
+      String(input.expected.signerActivationSetDigestB64u),
+      String(input.expected.authorityDigestB64u),
+      input.expected.revocationEpoch,
+      input.expected.createdAtMs,
+      input.expected.updatedAtMs,
+      input.expected.activatedAtMs,
+    );
+}
+
+/** Aborts the batch when the preceding authority extension changed no row. */
+export function prepareD1WalletAuthorityExtensionCasGuard(
+  database: D1DatabaseLike,
+): D1PreparedStatementLike {
+  return database.prepare(`
+    INSERT INTO wallet_authority_cas_guard (guard_id)
+    SELECT 1
+     WHERE changes() = 0
+  `);
+}
+
 export class WalletAuthorityCommitConflictError extends Error {
   readonly kind = 'wallet_authority_commit_conflict';
 
@@ -767,6 +837,68 @@ export class D1WalletAuthorityStore {
     }
     await ensureWalletAuthMethodStoreD1SchemaV2({ database: this.database });
     this.schemaReady = true;
+  }
+
+  /**
+   * Commits an added signer: its signer records, the authority extended with
+   * its activation, and every live Wallet Session of that authority promoted to
+   * the extended authority, all at once. Each session keeps its identity,
+   * quota and operation-credential hash; promotion retires its hosted
+   * credentials and deletes its unredeemed hosted exchange codes.
+   */
+  async extendActiveAuthority(input: {
+    readonly expected: ActiveWalletAuthorityV1;
+    readonly next: ActiveWalletAuthorityV1;
+    readonly walletSigners: readonly WalletSignerRecord[];
+    readonly promotionAtMs: number;
+  }): Promise<void> {
+    await this.ensureSchema();
+    const statements: D1PreparedStatementLike[] = [
+      ...input.walletSigners.map((record) =>
+        prepareD1WalletPutSignerStatement({
+          database: this.database,
+          scope: this.scope,
+          record,
+        }),
+      ),
+      prepareD1WalletAuthorityExtensionStatement({
+        database: this.database,
+        scope: this.scope,
+        expected: input.expected,
+        next: input.next,
+      }),
+      prepareD1WalletAuthorityExtensionCasGuard(this.database),
+      ...prepareD1WalletSessionAuthorityProjectionStatements({
+        database: this.database,
+        scope: this.scope,
+        projection: {
+          walletId: input.next.walletId,
+          authorityId: input.next.authorityId,
+          authorityDigestB64u: input.next.authorityDigestB64u,
+          authorityRevocationEpoch: input.next.revocationEpoch,
+          capabilitySubjects: buildWalletSessionCapabilitySubjectsV1(input.next),
+          promotionAtMs: input.promotionAtMs,
+        },
+      }),
+    ];
+    let results: readonly D1ResultLike[];
+    try {
+      results = await this.database.batch<D1ResultLike>(statements);
+    } catch (error: unknown) {
+      // Only a stored authority that moved on is a lost race; any other
+      // failure is the batch's own and surfaces as it is.
+      const stored = await this.readById(input.expected.authorityId);
+      const unchanged =
+        stored?.state === 'active' &&
+        stored.authorityDigestB64u === input.expected.authorityDigestB64u &&
+        stored.revocationEpoch === input.expected.revocationEpoch &&
+        stored.updatedAtMs === input.expected.updatedAtMs;
+      if (unchanged) throw error;
+      throw new WalletAuthorityCommitConflictError(input.expected.authorityId);
+    }
+    if (results.length !== statements.length || results.some((result) => !result.success)) {
+      throw new Error('D1 wallet authority extension returned an incomplete batch result');
+    }
   }
 
   async readById(authorityId: WalletAuthorityId): Promise<WalletAuthorityV1 | null> {
@@ -886,7 +1018,7 @@ export class D1WalletAuthorityStore {
     readonly pendingAuthority: PendingWalletAuthorityV1;
     readonly activeAuthority: ActiveWalletAuthorityV1;
     readonly pendingAuthMethod: WalletAuthMethodRecordV2;
-    readonly activeAuthMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+    readonly activeAuthMethod: ActiveWalletAuthMethodRecordV2;
   }): Promise<WalletAuthorityActivationResultV1> {
     return await this.activatePendingAuthorityWithStatements(input, []);
   }
@@ -901,7 +1033,7 @@ export class D1WalletAuthorityStore {
       readonly pendingAuthority: PendingWalletAuthorityV1;
       readonly activeAuthority: ActiveWalletAuthorityV1;
       readonly pendingAuthMethod: WalletAuthMethodRecordV2;
-      readonly activeAuthMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+      readonly activeAuthMethod: ActiveWalletAuthMethodRecordV2;
     },
     additionalStatements: readonly D1PreparedStatementLike[],
   ): Promise<WalletAuthorityActivationResultV1> {
@@ -1062,6 +1194,11 @@ export class D1WalletAuthorityStore {
     readonly expectedAuthorityRevocationEpoch: number;
     readonly requestedAtMs: number;
     readonly sessionRevocationStatements?: readonly D1PreparedStatementLike[];
+    /**
+     * Run last, after the method and its authority are written, so they can
+     * read what the revocation wrote. They commit with it or not at all.
+     */
+    readonly trailingStatements?: readonly D1PreparedStatementLike[];
   }): Promise<WalletAuthorityRevocationResultV1> {
     await this.ensureSchema();
     const expectedEpoch = requireNonNegativeInteger(
@@ -1184,6 +1321,7 @@ export class D1WalletAuthorityStore {
       `,
         )
         .bind(...scopeValues(this.scope), String(authority.authorityId)),
+      ...(input.trailingStatements ?? []),
     ];
     let results: readonly D1ResultLike[];
     try {
@@ -1418,9 +1556,9 @@ function authMethodsEqual(
 }
 
 function buildRevokedAuthMethod(
-  method: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>,
+  method: ActiveWalletAuthMethodRecordV2,
   revokedAtMs: number,
-): Extract<WalletAuthMethodRecordV2, { readonly status: 'revoked' }> {
+): RevokedWalletAuthMethodRecordV2 {
   if (revokedAtMs < method.updatedAtMs) {
     throw new Error('auth method revocation time precedes the current record');
   }
@@ -1501,6 +1639,3 @@ async function buildRevokedAuthority(
     revokedAtMs: draft.revokedAtMs,
   });
 }
-
-export class D1WalletAuthorityStoreV1 extends D1WalletAuthorityStore {}
-export type CloudflareD1WalletAuthorityStore = D1WalletAuthorityStore;

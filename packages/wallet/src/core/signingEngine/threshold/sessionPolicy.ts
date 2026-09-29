@@ -8,7 +8,6 @@ import {
   MAX_WALLET_SESSION_REMAINING_USES,
   MAX_WALLET_SESSION_TTL_MS,
 } from '@shared/threshold/sessionPolicy';
-import type { WebAuthnRpId } from '@shared/utils/domainIds';
 import type {
   EmailOtpWalletAuthAuthority,
   PasskeyWalletAuthAuthority,
@@ -24,31 +23,7 @@ export type ThresholdRuntimePolicyScope = RuntimePolicyScope;
 
 export const THRESHOLD_SESSION_POLICY_VERSION = 'threshold_session_v1' as const;
 
-export type Ed25519AuthorityScope =
-  | {
-      kind: 'passkey_rp';
-      rpId: WebAuthnRpId;
-      proofKind?: never;
-      email?: never;
-      provider?: never;
-      providerUserId?: never;
-      challengeId?: never;
-      googleEmailOtpRegistrationAttemptId?: never;
-      googleEmailOtpRegistrationOfferId?: never;
-      googleEmailOtpRegistrationCandidateId?: never;
-    }
-  | {
-      kind: 'email_otp';
-      provider: 'google' | 'email';
-      providerUserId: string;
-      proofKind?: never;
-      rpId?: never;
-      email?: never;
-      challengeId?: never;
-      googleEmailOtpRegistrationAttemptId?: never;
-      googleEmailOtpRegistrationOfferId?: never;
-      googleEmailOtpRegistrationCandidateId?: never;
-    };
+export type { Ed25519AuthorityScope } from '@shared/threshold/sessionPolicy';
 
 export type Ed25519SessionPolicyAuthority = {
   kind: 'wallet_auth_authority';
@@ -119,18 +94,6 @@ type Ed25519SessionPolicyBaseParams = {
   remainingUses?: number;
 };
 
-export type BuildPasskeyEd25519SessionPolicyParams = Ed25519SessionPolicyBaseParams & {
-  authority: PasskeyWalletAuthAuthority;
-  authorityScope?: never;
-  rpId?: never;
-};
-
-export type BuildEmailOtpEd25519SessionPolicyParams = Ed25519SessionPolicyBaseParams & {
-  authority: EmailOtpWalletAuthAuthority;
-  rpId?: never;
-  authorityScope?: never;
-};
-
 type BuildExactEd25519SessionPolicyParams = Ed25519SessionPolicyBaseParams & {
   authority: WalletAuthAuthority;
   rpId?: never;
@@ -139,8 +102,8 @@ type BuildExactEd25519SessionPolicyParams = Ed25519SessionPolicyBaseParams & {
 
 // Upper bounds to avoid unbounded TTL/use values while still supporting practical
 // "login once, sign many times" sessions.
-export const THRESHOLD_SESSION_POLICY_MAX_TTL_MS = MAX_WALLET_SESSION_TTL_MS;
-export const THRESHOLD_SESSION_POLICY_MAX_USES = MAX_WALLET_SESSION_REMAINING_USES;
+const THRESHOLD_SESSION_POLICY_MAX_TTL_MS = MAX_WALLET_SESSION_TTL_MS;
+const THRESHOLD_SESSION_POLICY_MAX_USES = MAX_WALLET_SESSION_REMAINING_USES;
 export const DEFAULT_THRESHOLD_SESSION_TTL_MS = DEFAULT_WALLET_SESSION_TTL_MS;
 
 // Default policy used when callers do not specify a policy explicitly.
@@ -155,7 +118,7 @@ export const DEFAULT_THRESHOLD_SESSION_POLICY: Pick<
 
 export const DEFAULT_UNLOCK_REMAINING_USES = DEFAULT_WALLET_SESSION_REMAINING_USES;
 
-export type PositiveRemainingUses = number & {
+type PositiveRemainingUses = number & {
   readonly __brand: 'PositiveRemainingUses';
 };
 
@@ -187,7 +150,7 @@ export function clampThresholdSessionPolicy(input: { ttlMs: number; remainingUse
   };
 }
 
-export function generateThresholdSessionId(): string {
+function generateThresholdSessionId(): string {
   return secureRandomId('tsess', 32, 'threshold session IDs');
 }
 
@@ -225,40 +188,6 @@ export async function buildEd25519SessionPolicy(params: {
   });
 }
 
-export async function buildPasskeyEd25519SessionPolicy(
-  params: BuildPasskeyEd25519SessionPolicyParams,
-): Ed25519SessionPolicyBuildResult {
-  return buildExactEd25519SessionPolicy({
-    nearAccountId: params.nearAccountId,
-    nearEd25519SigningKeyId: params.nearEd25519SigningKeyId,
-    authority: params.authority,
-    relayerKeyId: params.relayerKeyId,
-    runtimePolicyScope: params.runtimePolicyScope,
-    routerAbNormalSigning: params.routerAbNormalSigning,
-    participantIds: params.participantIds,
-    thresholdSessionId: params.thresholdSessionId,
-    ttlMs: params.ttlMs,
-    remainingUses: params.remainingUses,
-  });
-}
-
-export async function buildEmailOtpEd25519SessionPolicy(
-  params: BuildEmailOtpEd25519SessionPolicyParams,
-): Ed25519SessionPolicyBuildResult {
-  return buildExactEd25519SessionPolicy({
-    nearAccountId: params.nearAccountId,
-    nearEd25519SigningKeyId: params.nearEd25519SigningKeyId,
-    authority: params.authority,
-    relayerKeyId: params.relayerKeyId,
-    runtimePolicyScope: params.runtimePolicyScope,
-    routerAbNormalSigning: params.routerAbNormalSigning,
-    participantIds: params.participantIds,
-    thresholdSessionId: params.thresholdSessionId,
-    ttlMs: params.ttlMs,
-    remainingUses: params.remainingUses,
-  });
-}
-
 async function buildExactEd25519SessionPolicy(
   params: BuildExactEd25519SessionPolicyParams,
 ): Ed25519SessionPolicyBuildResult {
@@ -284,13 +213,4 @@ async function buildExactEd25519SessionPolicy(
   };
   const sessionPolicyDigest32 = await computeEd25519SessionPolicyDigest32(policy);
   return { policy, policyJson: JSON.stringify(policy), sessionPolicyDigest32 };
-}
-
-export function isThresholdSignerMissingKeyError(err: unknown): boolean {
-  const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();
-  return (
-    msg.includes('"code":"missing_key"') ||
-    msg.includes('missing_key') ||
-    msg.includes('unknown relayerkeyid')
-  );
 }

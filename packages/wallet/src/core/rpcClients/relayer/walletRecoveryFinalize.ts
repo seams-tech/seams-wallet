@@ -18,7 +18,7 @@ import {
   parseWalletId,
   parseWalletRecoveryOperationId,
 } from '@shared/utils/domainIds';
-import type { WalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
+import type { ActivePasskeyWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 import {
   parseWalletRecoveryCommittedProjectionV1,
   type WalletRecoveryCommittedProjectionExpectationV1,
@@ -48,10 +48,7 @@ export type WalletRecoveryFinalizeResult =
       readonly kind: 'promoted';
       readonly storeVersion: string;
       readonly authority: ActiveRecoveredWalletAuthorityV1;
-      readonly authMethod: Extract<
-        WalletAuthMethodRecordV2,
-        { readonly kind: 'passkey'; readonly status: 'active' }
-      >;
+      readonly authMethod: ActivePasskeyWalletAuthMethodRecordV2;
     }
   | WalletRecoveryAttemptFailure;
 

@@ -12,11 +12,11 @@ import {
 } from '../ThresholdService/evmCryptoWasm';
 import { parseBoundaryWalletId } from './webauthnWalletBinding';
 
-export type EmailOtpUnlockEnrollmentReadResult =
+type EmailOtpUnlockEnrollmentReadResult =
   | { ok: true; enrollment: EmailOtpWalletEnrollmentRecord }
   | { ok: false; code: string; message: string };
 
-export type CreateEmailOtpUnlockChallengeRequest = {
+type CreateEmailOtpUnlockChallengeRequest = {
   walletId?: unknown;
   orgId?: unknown;
   ttlMs?: unknown;
@@ -34,7 +34,7 @@ export type CreateEmailOtpUnlockChallengeResult =
     }
   | { ok: false; code: string; message: string; lockedUntilMs?: number };
 
-export type VerifyEmailOtpUnlockProofRequest = {
+type VerifyEmailOtpUnlockProofRequest = {
   walletId?: unknown;
   orgId?: unknown;
   challengeId?: unknown;

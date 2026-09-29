@@ -149,51 +149,51 @@ type NonceLeaseBaseWithoutState = {
   txIndex?: number;
 };
 
-export type ReservedNonceLeaseState = {
+type ReservedNonceLeaseState = {
   state: typeof NonceLeaseState.Reserved;
 };
 
-export type ReleasedNonceLeaseState = {
+type ReleasedNonceLeaseState = {
   state: typeof NonceLeaseState.Released;
 };
 
-export type ExpiredNonceLeaseState = {
+type ExpiredNonceLeaseState = {
   state: typeof NonceLeaseState.Expired;
 };
 
-export type SignedNonceLeaseState = {
+type SignedNonceLeaseState = {
   state: typeof NonceLeaseState.Signed;
 };
 
-export type SignedLeaseExpiredNonceLeaseState = {
+type SignedLeaseExpiredNonceLeaseState = {
   state: typeof NonceLeaseState.SignedLeaseExpired;
 };
 
-export type BroadcastAcceptedNonceLeaseState = {
+type BroadcastAcceptedNonceLeaseState = {
   state: typeof NonceLeaseState.BroadcastAccepted;
 };
 
-export type BroadcastRejectedNonceLeaseState = {
+type BroadcastRejectedNonceLeaseState = {
   state: typeof NonceLeaseState.BroadcastRejected;
 };
 
-export type FinalizedNonceLeaseState = {
+type FinalizedNonceLeaseState = {
   state: typeof NonceLeaseState.Finalized;
 };
 
-export type DroppedNonceLeaseState = {
+type DroppedNonceLeaseState = {
   state: typeof NonceLeaseState.Dropped;
 };
 
-export type ReplacedNonceLeaseState = {
+type ReplacedNonceLeaseState = {
   state: typeof NonceLeaseState.Replaced;
 };
 
-export type ReconciledNonceLeaseState = {
+type ReconciledNonceLeaseState = {
   state: typeof NonceLeaseState.Reconciled;
 };
 
-export type NonceLeaseLifecycleState =
+type NonceLeaseLifecycleState =
   | ReservedNonceLeaseState
   | ReleasedNonceLeaseState
   | ExpiredNonceLeaseState
@@ -308,7 +308,7 @@ export type ParsedNonceLaneCoordinationRecord =
       nonce: bigint;
     };
 
-export type NonceLaneCoordinationReadFailure = {
+type NonceLaneCoordinationReadFailure = {
   ok: false;
   degradation: NonceCoordinatorDegradation;
   laneKey: string;

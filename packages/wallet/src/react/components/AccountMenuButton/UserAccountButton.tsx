@@ -61,12 +61,11 @@ export const UserAccountButton: React.FC<UserAccountButtonProps> = ({
   );
 };
 
-export const UserAccountId = ({
+const UserAccountId = ({
   username,
   fullAccountId,
   emailAddress,
   isOpen,
-  theme = 'dark',
 }: {
   username: string;
   fullAccountId?: string;

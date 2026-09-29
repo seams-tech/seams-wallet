@@ -7,7 +7,7 @@ use base64::{
     feature = "strict-worker-deriver-b-entrypoint",
     all(test, feature = "workers-rs")
 ))]
-use router_ab_core::derivation::{TenantRootRecoveryPackageV1, TenantRootRetentionKeyIdV1};
+use router_ab_core::derivation::TenantRootRetentionKeyIdV1;
 use router_ab_core::{
     RouterAbDerivationError, RouterAbDerivationErrorCode, RouterAbDerivationResult,
 };
@@ -193,16 +193,6 @@ impl CloudflareTenantRootGoogleKmsBackupProviderV1 {
     feature = "strict-worker-deriver-b-entrypoint",
     all(test, feature = "workers-rs")
 ))]
-pub(crate) enum GoogleKmsRetentionDestructionV1 {
-    Scheduled { receipt: String },
-    Destroyed { receipt: String },
-}
-
-#[cfg(any(
-    feature = "strict-worker-deriver-a-entrypoint",
-    feature = "strict-worker-deriver-b-entrypoint",
-    all(test, feature = "workers-rs")
-))]
 pub(crate) struct CloudflareTenantRootGoogleKmsRetentionKeyV1 {
     id: TenantRootRetentionKeyIdV1,
     key_ring: String,
@@ -246,8 +236,17 @@ impl CloudflareTenantRootGoogleKmsRetentionKeyV1 {
             provider,
         })
     }
+}
 
-    pub(crate) async fn provision(self) -> RouterAbDerivationResult<Self> {
+#[cfg(any(
+    feature = "strict-worker-deriver-a-entrypoint",
+    feature = "strict-worker-deriver-b-entrypoint",
+    all(test, feature = "workers-rs")
+))]
+impl crate::tenant_root_recovery_reshare::TenantRootRecoveryRetentionProviderV1
+    for CloudflareTenantRootGoogleKmsRetentionKeyV1
+{
+    async fn provision(&self) -> RouterAbDerivationResult<()> {
         let retention = self;
         let provider = &retention.provider;
         let key_ring = &retention.key_ring;
@@ -293,12 +292,12 @@ impl CloudflareTenantRootGoogleKmsRetentionKeyV1 {
                 "retention key version is not enabled SOFTWARE material",
             ));
         }
-        Ok(retention)
+        Ok(())
     }
 
-    pub(crate) async fn schedule_destruction(
+    async fn destroy(
         &self,
-    ) -> RouterAbDerivationResult<GoogleKmsRetentionDestructionV1> {
+    ) -> RouterAbDerivationResult<crate::tenant_root_recovery_reshare::TenantRootRecoveryRetentionDestructionV1> {
         let crypto_key =
             crate::env::google_cloud_kms_crypto_key_from_version_v1(&self.provider.key_version)
                 .map_err(|error| malformed(error.message()))?;
@@ -329,9 +328,9 @@ impl CloudflareTenantRootGoogleKmsRetentionKeyV1 {
         }
         match version.state.as_str() {
             "DESTROY_SCHEDULED" => {
-                Ok(GoogleKmsRetentionDestructionV1::Scheduled { receipt: current })
+                Ok(crate::tenant_root_recovery_reshare::TenantRootRecoveryRetentionDestructionV1::Scheduled { receipt: current })
             }
-            "DESTROYED" => Ok(GoogleKmsRetentionDestructionV1::Destroyed { receipt: current }),
+            "DESTROYED" => Ok(crate::tenant_root_recovery_reshare::TenantRootRecoveryRetentionDestructionV1::Destroyed { receipt: current }),
             "ENABLED" | "DISABLED" => {
                 let receipt = post_google_request_v1(
                     &format!("{endpoint}:destroy"),
@@ -347,7 +346,7 @@ impl CloudflareTenantRootGoogleKmsRetentionKeyV1 {
                 {
                     return Err(malformed("retention destruction was not scheduled"));
                 }
-                Ok(GoogleKmsRetentionDestructionV1::Scheduled { receipt })
+                Ok(crate::tenant_root_recovery_reshare::TenantRootRecoveryRetentionDestructionV1::Scheduled { receipt })
             }
             _ => Err(malformed(
                 "retention key version cannot be scheduled for destruction",
@@ -355,96 +354,16 @@ impl CloudflareTenantRootGoogleKmsRetentionKeyV1 {
         }
     }
 
-    pub(crate) async fn wrap_package(
-        &self,
-        package: &TenantRootRecoveryPackageV1,
-    ) -> RouterAbDerivationResult<Vec<u8>> {
-        self.require_package_identity(package)?;
-        let bytes = Zeroizing::new(package.to_bytes()?);
-        self.provider.seal(&self.id.binding_bytes(), &bytes).await
+    async fn seal(&self, aad: &[u8], plaintext: &[u8]) -> RouterAbDerivationResult<Vec<u8>> {
+        self.provider.seal(aad, plaintext).await
     }
 
-    pub(crate) async fn open_package(
+    async fn open(
         &self,
-        retained_ciphertext: &[u8],
-    ) -> RouterAbDerivationResult<Zeroizing<Vec<u8>>> {
-        let bytes = self
-            .provider
-            .open(&self.id.binding_bytes(), retained_ciphertext)
-            .await?;
-        let package = TenantRootRecoveryPackageV1::decode(&bytes)?;
-        self.require_package_identity(&package)?;
-        Ok(bytes)
-    }
-
-    pub(crate) async fn seal_recovery_attempt(
-        &self,
-        command: &router_ab_core::VerifiedTenantRootRecoveryReshareRoleCommandV1,
-        replay_seed: &[u8; 32],
-        active_share: &threshold_prf::SigningRootShare,
-    ) -> RouterAbDerivationResult<Vec<u8>> {
-        let aad = self.recovery_attempt_aad(command)?;
-        require_recovery_active_share(command, active_share)?;
-        let mut plaintext = Zeroizing::new(Vec::with_capacity(66));
-        plaintext.extend_from_slice(replay_seed);
-        let wire = threshold_prf::SigningRootShareWire::from_share(active_share);
-        let share_bytes = Zeroizing::new(wire.to_bytes());
-        plaintext.extend_from_slice(share_bytes.as_ref());
-        self.provider.seal(&aad, &plaintext).await
-    }
-
-    pub(crate) async fn open_recovery_attempt(
-        &self,
-        command: &router_ab_core::VerifiedTenantRootRecoveryReshareRoleCommandV1,
+        aad: &[u8],
         ciphertext: &[u8],
-    ) -> RouterAbDerivationResult<RecoveryAttemptMaterialV1> {
-        let aad = self.recovery_attempt_aad(command)?;
-        let plaintext = self.provider.open(&aad, ciphertext).await?;
-        if plaintext.len() != 32 + threshold_prf::SigningRootShareWire::LEN {
-            return Err(malformed("invalid recovery replay material length"));
-        }
-        let replay_seed = Zeroizing::new(
-            plaintext[..32]
-                .try_into()
-                .expect("checked replay seed length"),
-        );
-        let active_share = threshold_prf::SigningRootShareWire::decode_slice(&plaintext[32..])
-            .and_then(|wire| wire.to_share())
-            .map_err(|_| malformed("invalid recovery replay share"))?;
-        require_recovery_active_share(command, &active_share)?;
-        Ok(RecoveryAttemptMaterialV1 {
-            replay_seed,
-            active_share,
-        })
-    }
-
-    fn recovery_attempt_aad(
-        &self,
-        command: &router_ab_core::VerifiedTenantRootRecoveryReshareRoleCommandV1,
-    ) -> RouterAbDerivationResult<Vec<u8>> {
-        if command.role() != self.id.role()
-            || command.context().recovery_set_id() != self.id.recovery_set_id()
-        {
-            return Err(malformed("recovery attempt does not match retention key"));
-        }
-        let mut aad = b"seams/tenant-root/recovery-attempt/v1".to_vec();
-        aad.extend_from_slice(&self.id.binding_bytes());
-        aad.extend_from_slice(command.digest().as_bytes());
-        Ok(aad)
-    }
-
-    fn require_package_identity(
-        &self,
-        package: &TenantRootRecoveryPackageV1,
-    ) -> RouterAbDerivationResult<()> {
-        if package.header().recovery_set_id() != self.id.recovery_set_id()
-            || package.role() != self.id.role()
-        {
-            return Err(malformed(
-                "recovery package does not match the retention key set and role",
-            ));
-        }
-        Ok(())
+    ) -> RouterAbDerivationResult<Zeroizing<Vec<u8>>> {
+        self.provider.open(aad, ciphertext).await
     }
 }
 
@@ -750,34 +669,4 @@ fn decode_private_key_pem(value: &str) -> RouterAbDerivationResult<Zeroizing<Vec
 
 fn malformed(message: impl Into<String>) -> RouterAbDerivationError {
     RouterAbDerivationError::new(RouterAbDerivationErrorCode::MalformedInput, message)
-}
-
-#[cfg(any(
-    feature = "strict-worker-deriver-a-entrypoint",
-    feature = "strict-worker-deriver-b-entrypoint",
-    all(test, feature = "workers-rs")
-))]
-pub(crate) struct RecoveryAttemptMaterialV1 {
-    pub(crate) replay_seed: Zeroizing<[u8; 32]>,
-    pub(crate) active_share: threshold_prf::SigningRootShare,
-}
-
-#[cfg(any(
-    feature = "strict-worker-deriver-a-entrypoint",
-    feature = "strict-worker-deriver-b-entrypoint",
-    all(test, feature = "workers-rs")
-))]
-fn require_recovery_active_share(
-    command: &router_ab_core::VerifiedTenantRootRecoveryReshareRoleCommandV1,
-    active_share: &threshold_prf::SigningRootShare,
-) -> RouterAbDerivationResult<()> {
-    if active_share.id() != command.role().share_id()
-        || threshold_prf::SigningRootShareCommitment::from_share(active_share)
-            != command.context().active_share_commitment(command.role())
-    {
-        return Err(malformed(
-            "recovery attempt share differs from the authorized active commitment",
-        ));
-    }
-    Ok(())
 }

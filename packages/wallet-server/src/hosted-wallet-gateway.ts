@@ -29,6 +29,8 @@ import {
   createD1LinkedDeviceSourceContributionPreparationPlannerV1,
   D1LinkedDeviceTargetCredentialProviderV1,
   D1WalletAuthMethodStore,
+  readD1LinkedDeviceEcdsaSourceV1,
+  readD1LinkedDeviceEd25519SourceV1,
   type CloudflareD1RouterApiAuthServiceOptions,
 } from './cloud-host';
 import { loadCloudflareSignerWasmModule } from './cloud-host';
@@ -124,6 +126,8 @@ export interface CloudflareD1GatewayBaseEnv
   readonly ROUTER_AB_NORMAL_SIGNING_WORKER_ID?: string;
   readonly SIGNING_WORKER_ID?: string;
   readonly ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET?: string;
+  readonly ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET?: string;
+  readonly ROUTER_AB_GATEWAY_TO_SIGNING_WORKER_PRESIGN_AUTH_SECRET?: string;
   readonly ROUTER_AB_PREWARM_ENABLED: string;
   readonly ROUTER_AB_CEREMONY_JWT_PRIVATE_JWK?: string;
   readonly ROUTER_AB_CEREMONY_JWT_ISSUER?: string;
@@ -170,6 +174,8 @@ export interface CloudflareD1GatewayEnv extends CloudflareD1GatewayBaseEnv {
 
 export interface HostedWalletGatewayDependenciesV1 {
   readonly emailOtpDeliveryProvider?: CloudflareD1RouterApiAuthServiceOptions['emailOtpDeliveryProvider'];
+  /** Host loader for the signer WASM; defaults to the Workers module import. */
+  readonly signerWasm?: CloudflareD1RouterApiAuthServiceOptions['signerWasmModuleOrPath'];
 }
 
 type RouterApiReadyRow = {
@@ -233,9 +239,9 @@ export function createStagingEd25519YaoBackend(
     env: {
       MPC_ROUTER_URL: ROUTER_AB_MPC_ROUTER_ORIGIN,
       SIGNING_WORKER_ID: requireEnvString(env, 'SIGNING_WORKER_ID'),
-      ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET: requireEnvString(
+      ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET: requireEnvString(
         env,
-        'ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET',
+        'ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET',
       ),
       DERIVER_A_ED25519_YAO_INPUT_PUBLIC_KEY: keyEnvironment.DERIVER_A_ED25519_YAO_INPUT_PUBLIC_KEY,
       DERIVER_B_ED25519_YAO_INPUT_PUBLIC_KEY: keyEnvironment.DERIVER_B_ED25519_YAO_INPUT_PUBLIC_KEY,
@@ -355,7 +361,7 @@ async function resolveStagingDeploymentTenantRoot(
   const identity = stagingTenantRootIdentity(scope, applicationBinding, signingRootVersion);
   const tenantRoot = await tenantRootCustodyLineage.resolveActiveLineage(identity);
   if (!tenantRoot) throw new Error('Ed25519 tenant root is not active');
-  return tenantRoot;
+  return { identity, ...tenantRoot };
 }
 
 async function resolveStagingRegistrationTenantRoot(
@@ -491,7 +497,7 @@ async function createStagingRouterApiAuthComposition(
     relayerPublicKey: readEnvString(env, 'RELAYER_PUBLIC_KEY'),
     relayerPrivateKey: readEnvString(env, 'RELAYER_PRIVATE_KEY'),
     nearRpcUrl: readEnvString(env, 'NEAR_RPC_URL'),
-    signerWasmModuleOrPath: loadCloudflareSignerWasmModule,
+    signerWasmModuleOrPath: dependencies.signerWasm ?? loadCloudflareSignerWasmModule,
     accountInitialBalance: readEnvString(env, 'ACCOUNT_INITIAL_BALANCE'),
     implicitNearAccountTestFundingEnabled: readEnvString(
       env,
@@ -604,6 +610,14 @@ function stagingLinkedDeviceSessionComposition(
   const sourceChildReader = createD1LinkedDeviceOwnerSourceChildReaderV1({
     walletAuthMethodStore,
     walletStore,
+    readLinkedEd25519SourceV1: readD1LinkedDeviceEd25519SourceV1.bind(undefined, {
+      database: env.SIGNER_DB,
+      scope,
+    }),
+    readLinkedEcdsaSourceV1: readD1LinkedDeviceEcdsaSourceV1.bind(undefined, {
+      database: env.SIGNER_DB,
+      scope,
+    }),
   });
   const serviceFetch = createRouterAbServiceBindingFetch(env);
   const internalServiceAuthSecret = requireEnvString(env, 'ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET');
@@ -647,20 +661,23 @@ function stagingLinkedDeviceSessionComposition(
         reservationEndpoint: createCloudflareOrdinaryInactiveSignerMaterialReservationEndpointV1({
           fetch: serviceFetch,
           internalServiceAuthSecret,
+          tenant: scope,
         }),
         activationEndpoint: createCloudflareOrdinaryInactiveSignerMaterialActivationEndpointV1({
           fetch: serviceFetch,
           internalServiceAuthSecret,
+          tenant: scope,
         }),
         deactivationEndpoint: createCloudflareOrdinaryInactiveSignerMaterialDeactivationEndpointV1({
           fetch: serviceFetch,
           internalServiceAuthSecret,
+          tenant: scope,
         }),
       },
       sourceContributionRouter: createCloudflareLinkedDeviceEd25519SourcePreservingRouterEndpointV1(
         {
           fetch: serviceFetch,
-          internalServiceAuthSecret,
+          internalServiceAuthSecret: requireEnvString(env, 'ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET'),
           resolveTenantRoot: createStagingLinkedDeviceTenantRootResolver(
             scope,
             tenantRootCustodyLineage,
@@ -672,11 +689,11 @@ function stagingLinkedDeviceSessionComposition(
 }
 
 /**
- * The split Wallet Gateway (R105 Phase 4 cutover target): serves the Wallet
- * runtime only, holds no Console database binding, and reaches the Wallet
- * Console deployment exclusively through the exact service-binding ops.
- * The sponsored-relay route extensions stay on the Wallet Console deployment
- * until policy/sponsorship resolution operations join the binding.
+ * The split Wallet Gateway: serves the Wallet runtime only, holds no Console
+ * database binding, and reaches the Wallet Console deployment exclusively
+ * through the exact service-binding ops. The sponsored-relay route extensions
+ * stay on the Wallet Console deployment until policy/sponsorship resolution
+ * operations join the binding.
  */
 export async function createHostedWalletGatewayCompositionV1(
   env: CloudflareD1GatewayEnv,
@@ -713,7 +730,7 @@ export async function createHostedWalletGatewayCompositionV1(
       sessionCookieName: readEnvString(env, 'SESSION_COOKIE_NAME'),
       routerAbPublicKeyset: requireStagingRouterAbPublicKeyset(env),
       routerAbNormalSigningRouterProxy: {
-        internalServiceAuthSecret: requireEnvString(env, 'ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET'),
+        internalServiceAuthSecret: requireEnvString(env, 'ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET'),
         fetch: (request) => env.MPC_ROUTER.fetch(request),
       },
       routerAbEcdsaStrictPostRegistration: ecdsaStrictPostRegistration,
@@ -957,6 +974,16 @@ export function stagingSigningSessionSealOptions(
 function createStagingEcdsaPresignRuntime(
   env: CloudflareD1GatewayBaseEnv,
 ): RouterAbEcdsaPresignRuntime {
+  const presignAuthSecret = requireEnvString(
+    env,
+    'ROUTER_AB_GATEWAY_TO_SIGNING_WORKER_PRESIGN_AUTH_SECRET',
+  );
+  if (
+    presignAuthSecret === requireEnvString(env, 'ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET') ||
+    presignAuthSecret === requireEnvString(env, 'ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET')
+  ) {
+    throw new Error('Gateway-to-SigningWorker presign auth secret must be role-specific');
+  }
   return new RouterAbEcdsaPresignRuntime({
     config: {
       nodeRole: 'coordinator',
@@ -971,7 +998,7 @@ function createStagingEcdsaPresignRuntime(
       signingWorkerBaseUrl: ROUTER_AB_SIGNING_WORKER_ORIGIN,
       auth: {
         kind: 'internal_service_auth_secret',
-        secret: requireEnvString(env, 'ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET'),
+        secret: presignAuthSecret,
       },
       fetchImpl: createRouterAbServiceBindingFetch(env),
     },
@@ -1213,7 +1240,7 @@ function createStagingYaoRequestScopedRuntime(
  * This is new composition wiring over the existing authorization classes, not a
  * second authorization implementation: the same adapter the tenant runtime uses
  * is constructed here against request-scoped state instead of runtime-held
- * state, which is the dependency Refactor 93 exists to remove.
+ * state, which is the dependency this wiring exists to remove.
  */
 export function createStagingRecoveryRequestScopedDependencies(
   env: CloudflareD1GatewayBaseEnv,

@@ -11,13 +11,16 @@ import {
   type WalletAuthorityId,
   type WalletId,
 } from '../utils/domainIds';
-import { base64UrlEncode } from '../utils/base64';
-import { parseDigestB64u, type DigestB64u } from '../utils/canonicalPrimitives';
-import { alphabetizeStringify, sha256BytesUtf8 } from '../utils/digests';
+import {
+  parseDigestB64u,
+  sha256Utf8DigestB64u,
+  type DigestB64u,
+} from '../utils/canonicalPrimitives';
+import { alphabetizeStringify } from '../utils/digests';
 import {
   parseWalletAuthMethodRecordV2,
-  type WalletAuthMethodRecordV2,
-} from '../utils/registrationIntent';
+  type PendingWalletAuthMethodRecordV2,
+} from '../utils/walletAuthMethodRecord';
 import { parseWalletAuthorityV1 } from '../authorization/walletAuthority';
 import {
   parseLinkedDeviceEd25519ExportRootPackageV1,
@@ -84,15 +87,10 @@ export type CommittedSignerPackageSetV1 =
       readonly ecdsa: CommittedEcdsaSignerPackageV1;
     };
 
-export type PendingWalletAuthMethodRecordV1 = Extract<
-  WalletAuthMethodRecordV2,
-  { readonly status: 'pending_local_install' }
->;
-
 export type CommittedAuthorityPackagesV1 = {
   readonly kind: 'committed_authority_packages_v1';
   readonly authority: PendingWalletAuthorityV1;
-  readonly authMethod: PendingWalletAuthMethodRecordV1;
+  readonly authMethod: PendingWalletAuthMethodRecordV2;
   readonly signerPackages: CommittedSignerPackageSetV1;
   readonly ed25519ExportRootPackage: LinkedDeviceEd25519ExportRootPackageV1 | null;
   readonly packageSetDigestB64u: DigestB64u;
@@ -302,12 +300,8 @@ export function parseCommittedSignerPackageSetDigestB64u(raw: unknown): DigestB6
 export async function computeCommittedSignerPackageDigestB64u(
   value: CommittedEd25519SignerPackageV1 | CommittedEcdsaSignerPackageV1,
 ): Promise<DigestB64u> {
-  return parseDigestB64u(
-    base64UrlEncode(
-      await sha256BytesUtf8(
-        alphabetizeStringify({ domain: COMMITTED_SIGNER_PACKAGE_DOMAIN_V1, package: value }),
-      ),
-    ),
+  return sha256Utf8DigestB64u(
+    alphabetizeStringify({ domain: COMMITTED_SIGNER_PACKAGE_DOMAIN_V1, package: value }),
   );
 }
 
@@ -329,7 +323,7 @@ export async function computeCommittedSignerPackageSetDigestB64u(
     input.ed25519ExportRootPackageDigestB64u,
     input.targetFactorVerificationDigestB64u,
   ];
-  return parseDigestB64u(base64UrlEncode(await sha256BytesUtf8(alphabetizeStringify(value))));
+  return sha256Utf8DigestB64u(alphabetizeStringify(value));
 }
 
 function parseEd25519Package(raw: unknown): CommittedEd25519SignerPackageV1 {

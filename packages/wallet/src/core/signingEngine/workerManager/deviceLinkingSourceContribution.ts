@@ -13,41 +13,44 @@ import { deriveEvmFamilySigningKeySlotId } from '@shared/signing-lanes';
 import { base64UrlEncode } from '@shared/utils/base64';
 import { parseDigestB64u, type DigestB64u } from '@shared/utils/canonicalPrimitives';
 import { parseEcdsaThresholdKeyId } from '../session/keyMaterialBrands';
-import { deriveRouterAbEd25519YaoApplicationBindingDigestV1 } from '@shared/utils/routerAbEd25519Yao';
+import { deriveRouterAbEd25519YaoApplicationBindingDigestV1 } from '@shared/utils/routerAbEd25519YaoDigests';
 import type { ActiveEcdsaCapabilityManifest } from '../session/material/ecdsaCapabilityManifest';
+import type { LinkedEcdsaHolderRuntimeV1 } from '../session/material/linkedEcdsaHolderRuntime';
 import { prepareLinkedDeviceEcdsaSourceContributionWasm } from '../threshold/crypto/ecdsaDerivationClientWasm';
 import { openEd25519YaoLaneWorkerSourceFromUnlockedCapabilityV1 } from '../threshold/crypto/ed25519YaoLaneWasm';
 import type { WorkerOperationContext } from './executeWorkerOperation';
-import type { UnlockedWalletEd25519ExportRootCapabilityV1 } from './workerTypes';
+import type { UnlockedEd25519ExportRootLinkingCapabilityV1 } from './workerTypes';
 
-export type DeviceLinkingSourceRequestAuthenticationV1 = {
+type DeviceLinkingSourceRequestAuthenticationV1 = {
   readonly kind: 'link_session_authenticated_request_v1';
   readonly source: LinkedDeviceOwnerAuthorizationSourceV1;
   readonly proofDigestB64u: DigestB64u;
 };
 
-export type DeviceLinkingEd25519SourceContributionRuntimePortV1 = {
+type DeviceLinkingEd25519SourceContributionRuntimePortV1 = {
   produceSourceContributionV1(input: {
     readonly preparation: LinkedDeviceEd25519SourceContributionPreparationV1;
-    readonly capability: UnlockedWalletEd25519ExportRootCapabilityV1;
+    readonly capability: UnlockedEd25519ExportRootLinkingCapabilityV1;
     readonly authentication: DeviceLinkingSourceRequestAuthenticationV1;
   }): Promise<LinkedDeviceEd25519SourceContributionV1>;
 };
 
-export type DeviceLinkingEcdsaSourceContributionRuntimePortV1 = {
+type DeviceLinkingEcdsaSourceContributionRuntimePortV1 = {
   produceSourceContributionV1(input: {
     readonly preparation: LinkedDeviceEcdsaSourceContributionPreparationV1;
   }): Promise<LinkedDeviceEcdsaSourceContributionV1>;
 };
 
-export type DeviceLinkingSourceContributionRuntimePortV1 = {
+type DeviceLinkingSourceContributionRuntimePortV1 = {
   readonly ed25519: DeviceLinkingEd25519SourceContributionRuntimePortV1;
   readonly ecdsa: DeviceLinkingEcdsaSourceContributionRuntimePortV1;
 };
 
-export type DeviceLinkingEcdsaSourceContributionMetadataV1 = {
+type DeviceLinkingEcdsaSourceContributionMetadataV1 = {
   readonly walletKeyId: WalletKeyId;
   readonly sourceDerivation: LinkedDeviceEcdsaSourceDerivationV1;
+  /** Set when the source is this linked device's own holder share. */
+  readonly linkedHolderHandleId?: string;
 };
 
 export type DeviceLinkingEcdsaSourceContributionMetadataReaderV1 = (input: {
@@ -58,6 +61,10 @@ export type DeviceLinkingEcdsaSourceContributionMetadataContextV1 = {
   readonly readActiveEcdsaCapabilityManifestV1: (input: {
     readonly materialActivation: MpcMaterialActivationRef;
   }) => Promise<ActiveEcdsaCapabilityManifest>;
+  /** This device's linked ECDSA holder for the activation, if a link installed it. */
+  readonly readLinkedEcdsaHolderV1: (input: {
+    readonly materialActivation: MpcMaterialActivationRef;
+  }) => LinkedEcdsaHolderRuntimeV1 | null;
 };
 
 export function createDeviceLinkingEcdsaSourceContributionMetadataReaderV1(
@@ -65,6 +72,10 @@ export function createDeviceLinkingEcdsaSourceContributionMetadataReaderV1(
 ): DeviceLinkingEcdsaSourceContributionMetadataReaderV1 {
   return async ({ preparation }) => {
     const sourceActivation = preparation.source.activation;
+    /* A linked device contributes from its own holder share, whose metadata
+       is the normal-signing state its link activated. */
+    const linked = context.readLinkedEcdsaHolderV1({ materialActivation: sourceActivation });
+    if (linked) return linkedEcdsaSourceMetadataV1(linked, sourceActivation);
     const manifest = await context.readActiveEcdsaCapabilityManifestV1({
       materialActivation: sourceActivation,
     });
@@ -88,6 +99,36 @@ export function createDeviceLinkingEcdsaSourceContributionMetadataReaderV1(
         sourceNormalSigning: manifest.durableMaterial.routerAbEcdsaDerivationNormalSigning,
       },
     };
+  };
+}
+
+function linkedEcdsaSourceMetadataV1(
+  holder: LinkedEcdsaHolderRuntimeV1,
+  sourceActivation: MpcMaterialActivationRef,
+): DeviceLinkingEcdsaSourceContributionMetadataV1 {
+  if (!mpcMaterialActivationRefsEqual(holder.materialActivation, sourceActivation)) {
+    throw new Error('linked ECDSA holder activation does not match preparation');
+  }
+  const normalSigning = holder.activationReceipt.normalSigning;
+  const scope = normalSigning.scope;
+  const signingKeySlotId = deriveEvmFamilySigningKeySlotId({
+    walletId: holder.walletId,
+    signingRootId: scope.signing_root_id,
+    signingRootVersion: scope.signing_root_version,
+  });
+  const walletKeyId = parseWalletKeyId(`wallet-key:ecdsa:${holder.walletId}:${signingKeySlotId}`);
+  if (!walletKeyId.ok) {
+    throw new Error(`linked ECDSA source wallet key identity: ${walletKeyId.error.message}`);
+  }
+  return {
+    walletKeyId: walletKeyId.value,
+    sourceDerivation: {
+      applicationBindingDigestB64u: parseDigestB64u(scope.context.application_binding_digest_b64u),
+      clientShareRetryCounter: scope.public_identity.client_share_retry_counter,
+      ecdsaThresholdKeyId: parseEcdsaThresholdKeyId(holder.ecdsaThresholdKeyId),
+      sourceNormalSigning: normalSigning,
+    },
+    linkedHolderHandleId: holder.holderHandleId,
   };
 }
 
@@ -118,13 +159,13 @@ function walletKeyIdForActiveManifestV1(manifest: ActiveEcdsaCapabilityManifest)
   return parsed.value;
 }
 
-export type DeviceLinkingSourceContributionPortFactoryInputV1 = {
+type DeviceLinkingSourceContributionPortFactoryInputV1 = {
   readonly workerContext: WorkerOperationContext;
   readonly ed25519: DeviceLinkingEd25519SourceContributionRuntimePortV1;
   readonly readEcdsaMetadataV1: DeviceLinkingEcdsaSourceContributionMetadataReaderV1;
 };
 
-export type DeviceLinkingEd25519SourceContributionPortFactoryInputV1 = {
+type DeviceLinkingEd25519SourceContributionPortFactoryInputV1 = {
   readonly workerContext: WorkerOperationContext;
   readonly executeSourcePreservingV1: (input: {
     readonly linkSessionId: LinkedDeviceEd25519SourceContributionPreparationV1['linkSessionId'];
@@ -222,6 +263,9 @@ async function produceEcdsaSourceContributionV1(input: {
   const prepared = await prepareLinkedDeviceEcdsaSourceContributionWasm({
     preparation: input.preparation,
     workerCtx: input.workerContext,
+    ...(metadata.linkedHolderHandleId === undefined
+      ? {}
+      : { linkedHolderHandleId: metadata.linkedHolderHandleId }),
   });
   return {
     kind: 'linked_device_ecdsa_source_contribution_v1',

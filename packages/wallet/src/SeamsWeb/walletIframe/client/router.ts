@@ -274,11 +274,9 @@ import {
 } from '@shared/utils/validation';
 import { toError } from '@shared/utils/errors';
 import { secureRandomBase36 } from '@shared/utils/secureRandomId';
-import {
-  walletIdFromString,
-  type RegistrationAuthMethodInput,
-  type WalletAuthMethodRevocationProof,
-} from '@shared/utils/registrationIntent';
+import { type WalletAuthMethodRevocationProof } from '@shared/utils/walletAuthMethodRecord';
+import { walletIdFromString } from '@shared/utils/registrationIds';
+import { type RegistrationAuthMethodInput } from '@shared/utils/registrationAuthMethodInput';
 import { joinNormalizedUrl, stripTrailingSlashes } from '@shared/utils/normalize';
 import { needsExplicitActivation } from '@/utils/deviceDetection';
 import type { AuthenticatorOptions } from '@/core/types/authenticatorOptions';
@@ -307,7 +305,7 @@ import {
 // - WalletIframeRouter (this): request/response correlation, progress events,
 //   overlay display, and high-level wallet RPC helpers
 
-export interface WalletIframeRouterOptions {
+interface WalletIframeRouterOptions {
   walletOrigin: string; // e.g., https://wallet.example.com
   servicePath?: string; // default '/wallet-service'
   connectTimeoutMs?: number; // default 8000
@@ -685,7 +683,7 @@ function hostedAuthMenuAnchorMetrics(
   };
 }
 
-export const HOSTED_AUTH_MENU_ANCHOR_HEIGHT_CSS_VAR = '--seams-auth-menu-height';
+const HOSTED_AUTH_MENU_ANCHOR_HEIGHT_CSS_VAR = '--seams-auth-menu-height';
 
 function pageScrollOffsetCssPx(axis: 'x' | 'y'): number {
   if (typeof window === 'undefined') return 0;
@@ -879,7 +877,7 @@ type PostResult<T> = {
   result: T;
 };
 
-export type HostedWalletSeamsSessionSource = {
+type HostedWalletSeamsSessionSource = {
   readonly relayUrl: string;
   readonly operationCredential: WalletSessionOperationCredentialV1;
 };
@@ -1121,12 +1119,6 @@ function hostedWalletRegistrationTransport(
     default:
       return assertNeverRegistrationAuthMethod(authMethod);
   }
-}
-
-function getErrorCode(error: Error): string {
-  if (!isObject(error)) return '';
-  const code = (error as { code?: unknown }).code;
-  return typeof code === 'string' ? code : '';
 }
 
 function walletIframeSurfaceBusyError(

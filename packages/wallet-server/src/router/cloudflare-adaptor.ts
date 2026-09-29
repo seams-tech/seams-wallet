@@ -29,7 +29,7 @@ export type {
   RouterAbNormalSigningAdmissionFailureCode,
   RouterAbNormalSigningAdmissionInput,
   RouterAbNormalSigningAdmissionResult,
-} from './domains/signingOperations/routerAbPrivateSigningWorker';
+} from './domains/signingOperations/routerAbNormalSigningAdmission';
 export {
   InMemoryRouterAbNormalSigningAdmissionStore,
   createInMemoryRouterAbNormalSigningAdmissionAdapter,

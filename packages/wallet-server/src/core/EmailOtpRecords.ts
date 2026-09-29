@@ -15,11 +15,14 @@ import type {
   EmailOtpUnlockChallengeRecord,
   EmailOtpWalletEnrollmentRecord,
   GoogleEmailOtpRegistrationAttemptRecord,
+  GoogleEmailOtpRegistrationAttemptScopeInput,
   GoogleEmailOtpRegistrationOfferCandidateRecord,
   NonEmptyGoogleEmailOtpRegistrationOfferCandidates,
+  PendingGoogleEmailOtpRegistrationAttemptRecord,
 } from './EmailOtpStores';
 
-function parseJsonRecord(raw: unknown): unknown {
+/** Parses JSON text; any other value, and text that is not JSON, comes back unchanged. */
+export function parseJsonRecord(raw: unknown): unknown {
   if (typeof raw !== 'string') return raw;
   try {
     return JSON.parse(raw);
@@ -396,6 +399,50 @@ export function parseCurrentGoogleEmailOtpRegistrationAttemptRow(input: {
   if (!record || !expiresAtMs || !updatedAtMs) return null;
   if (record.expiresAtMs !== expiresAtMs || record.updatedAtMs !== updatedAtMs) return null;
   return record;
+}
+
+/** The scope as one comparable string, as D1 stores it in `runtime_policy_key`; empty when unset. */
+export function runtimePolicyScopeKey(scope: ThresholdRuntimePolicyScope | undefined): string {
+  if (!scope) return '';
+  return `${scope.orgId}\n${scope.projectId}\n${scope.envId}\n${scope.signingRootVersion}`;
+}
+
+/** A started or key-finalized attempt, not yet expired, for the subject, email and runtime scope. */
+function isLivePendingAttemptInScope(
+  record: GoogleEmailOtpRegistrationAttemptRecord,
+  input: Readonly<GoogleEmailOtpRegistrationAttemptScopeInput>,
+): record is PendingGoogleEmailOtpRegistrationAttemptRecord {
+  return (
+    record.providerSubject === input.providerSubject &&
+    record.email === input.email &&
+    record.runtimePolicyScope?.orgId === input.orgId &&
+    runtimePolicyScopeKey(record.runtimePolicyScope) ===
+      runtimePolicyScopeKey(input.runtimePolicyScope) &&
+    (record.state === 'started' || record.state === 'key_finalized') &&
+    record.expiresAtMs > input.nowMs
+  );
+}
+
+/** The pending attempt a registration with this owner binding resumes. */
+export function registrationAttemptMatchesStartedScope(
+  record: GoogleEmailOtpRegistrationAttemptRecord,
+  input: Readonly<GoogleEmailOtpRegistrationAttemptScopeInput>,
+): record is PendingGoogleEmailOtpRegistrationAttemptRecord {
+  return (
+    record.ownerProofBindingDigest === input.ownerProofBindingDigest &&
+    isLivePendingAttemptInScope(record, input)
+  );
+}
+
+/** A pending attempt that a registration with a new owner binding replaces. */
+export function registrationAttemptMatchesReplacementScope(
+  record: GoogleEmailOtpRegistrationAttemptRecord,
+  input: Readonly<GoogleEmailOtpRegistrationAttemptScopeInput>,
+): record is PendingGoogleEmailOtpRegistrationAttemptRecord {
+  return (
+    record.ownerProofBindingDigest !== input.ownerProofBindingDigest &&
+    isLivePendingAttemptInScope(record, input)
+  );
 }
 
 export function parseCurrentEmailOtpWalletEnrollmentRecord(

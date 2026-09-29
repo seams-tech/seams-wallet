@@ -75,13 +75,23 @@ function intendedWalletOriginPlugin(walletAssetHost: boolean) {
 
 type WalletOriginMiddleware = (
   request: { url?: string },
-  response: { statusCode: number; end: () => void },
+  response: {
+    statusCode: number;
+    setHeader: (name: string, value: string) => void;
+    end: (body?: string) => void;
+  },
   next: () => void,
 ) => void;
 
 function createWalletOriginMiddleware(walletAssetHost: boolean): WalletOriginMiddleware {
   return function walletOriginMiddleware(request, response, next) {
     const pathname = new URL(request.url || '/', 'http://localhost').pathname;
+    if (pathname === '/__storage-reset') {
+      response.statusCode = 200;
+      response.setHeader('content-type', 'text/html; charset=utf-8');
+      response.end('<!doctype html><title>Storage reset</title>');
+      return;
+    }
     if (walletAssetHost) {
       if (pathname === '/wallet-service' || pathname === '/wallet-service/') {
         request.url = '/wallet-service/index.html';

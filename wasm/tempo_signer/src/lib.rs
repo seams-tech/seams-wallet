@@ -1,4 +1,3 @@
-mod codec;
 mod errors;
 mod tempo_tx;
 

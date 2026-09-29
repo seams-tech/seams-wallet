@@ -23,7 +23,7 @@ import type { EmailOtpAuthStateReadResult } from './emailOtpEnrollment';
 import type { EmailOtpDeliveryResult, EmailOtpMemoryOutbox } from './emailOtpDelivery';
 import type { RateLimitResult } from './rateLimits';
 
-export type EmailOtpChallengeStoreContext = {
+type EmailOtpChallengeStoreContext = {
   challengeSubjectId: string;
   walletId: string;
   orgId: string;
@@ -34,13 +34,13 @@ export type EmailOtpChallengeStoreContext = {
   nowMs: number;
 };
 
-export type PruneExpiredEmailOtpChallengesInput = {
+type PruneExpiredEmailOtpChallengesInput = {
   challengeStore: EmailOtpChallengeStore;
   memoryOutbox: EmailOtpMemoryOutbox;
   nowMs: number;
 };
 
-export type EnforceEmailOtpActiveChallengeLimitInput = {
+type EnforceEmailOtpActiveChallengeLimitInput = {
   challengeStore: EmailOtpChallengeStore;
   memoryOutbox: EmailOtpMemoryOutbox;
   context: EmailOtpChallengeStoreContext;
@@ -60,7 +60,7 @@ export type CreateEmailOtpChallengeWithActionRequest = {
   action: EmailOtpChallengeAction;
 };
 
-export type CreatedEmailOtpChallenge = {
+type CreatedEmailOtpChallenge = {
   challengeId: string;
   issuedAtMs: number;
   expiresAtMs: number;
@@ -92,11 +92,11 @@ export type CreateEmailOtpChallengeWithActionResult =
       resetAtMs?: number;
     };
 
-export type EmailOtpChallengeEnrollmentReadResult =
+type EmailOtpChallengeEnrollmentReadResult =
   | { ok: true; enrollment: EmailOtpWalletEnrollmentRecord }
   | { ok: false; code: string; message: string };
 
-export type EmailOtpChallengeRateLimitConsumer = (input: {
+type EmailOtpChallengeRateLimitConsumer = (input: {
   scope: 'challenge';
   action: EmailOtpChallengeAction;
   userId: string;
@@ -105,7 +105,7 @@ export type EmailOtpChallengeRateLimitConsumer = (input: {
   clientIp?: string;
 }) => Promise<RateLimitResult>;
 
-export type EmailOtpChallengeDeliverySender = (input: {
+type EmailOtpChallengeDeliverySender = (input: {
   challengeId: string;
   walletId: string;
   userId: string;
@@ -117,7 +117,7 @@ export type EmailOtpChallengeDeliverySender = (input: {
   expiresAtMs: number;
 }) => Promise<EmailOtpDeliveryResult>;
 
-export type CreateEmailOtpChallengeWithActionInput = {
+type CreateEmailOtpChallengeWithActionInput = {
   request: CreateEmailOtpChallengeWithActionRequest;
   challengeStore: EmailOtpChallengeStore;
   memoryOutbox: EmailOtpMemoryOutbox;
@@ -200,7 +200,7 @@ export async function pruneExpiredEmailOtpChallengesWithStore(
   return deleted;
 }
 
-export async function enforceEmailOtpActiveChallengeLimitWithStore(
+async function enforceEmailOtpActiveChallengeLimitWithStore(
   input: EnforceEmailOtpActiveChallengeLimitInput,
 ): Promise<void> {
   const maxActive = activeChallengeLimit(input.maxActiveChallenges);

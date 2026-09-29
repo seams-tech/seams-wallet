@@ -18,7 +18,7 @@ import type {
  * unrepresentable in this request type: their factor secret is not a
  * credential, so a WebAuthn assertion is never evidence for them.
  */
-export type PasskeyEnvelopeRetrievalLocator = Omit<PasskeyCustodyEnvelopeLocator, 'factor'> & {
+type PasskeyEnvelopeRetrievalLocator = Omit<PasskeyCustodyEnvelopeLocator, 'factor'> & {
   readonly factor: Extract<WalletCustodyFactorRef, { kind: 'passkey' }>;
 };
 
@@ -118,7 +118,7 @@ function assertionCredentialIdB64u(
  * lifecycle mapping below can be tested against a verified assertion without
  * forging authenticator signatures; production callers take the default.
  */
-export type PasskeyCustodyAssertionVerifier = typeof verifyWebAuthnAuthenticationLiteWithStore;
+type PasskeyCustodyAssertionVerifier = typeof verifyWebAuthnAuthenticationLiteWithStore;
 
 export async function retrievePasskeyCustodyEnvelope(input: {
   readonly request: PasskeyCustodyEnvelopeRetrievalRequest;

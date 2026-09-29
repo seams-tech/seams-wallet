@@ -1,6 +1,6 @@
 import { base64UrlDecode, base64UrlEncode } from '../utils/base64';
-import { sha256Bytes } from '../utils/digests';
-import { parseDigestB64u, type DigestB64u } from '../utils/canonicalPrimitives';
+import { parseDigestB64u, sha256DigestB64u, type DigestB64u } from '../utils/canonicalPrimitives';
+import { requireRecord } from '../utils/validation';
 
 const POSSESSION_CHALLENGE_DOMAIN_V1 =
   'seams/wallet-recovery/ecdsa-existing-material-possession/v1';
@@ -27,13 +27,6 @@ export type WalletRecoveryEcdsaPossessionProofV1 = {
   readonly scheme: typeof POSSESSION_PROOF_SCHEME_V1;
   readonly signature64B64u: string;
 };
-
-function requireRecord(value: unknown, label: string): Record<string, unknown> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    throw new Error(`${label} must be an object`);
-  }
-  return value as Record<string, unknown>;
-}
 
 function requireExactKeys(
   record: Record<string, unknown>,
@@ -224,7 +217,7 @@ export function parseWalletRecoveryEcdsaPossessionProofV1(
   };
 }
 
-export function walletRecoveryEcdsaPossessionChallengeCanonicalBytesV1(
+function walletRecoveryEcdsaPossessionChallengeCanonicalBytesV1(
   challenge: WalletRecoveryEcdsaPossessionChallengeV1,
 ): Uint8Array {
   const parsed = parseWalletRecoveryEcdsaPossessionChallengeV1(challenge);
@@ -273,11 +266,5 @@ function expiryBytes(value: number): Uint8Array {
 export async function walletRecoveryEcdsaPossessionChallengeDigestB64uV1(
   challenge: WalletRecoveryEcdsaPossessionChallengeV1,
 ): Promise<DigestB64u> {
-  return parseDigestB64u(
-    base64UrlEncode(
-      await sha256Bytes(walletRecoveryEcdsaPossessionChallengeCanonicalBytesV1(challenge)),
-    ),
-  );
+  return sha256DigestB64u(walletRecoveryEcdsaPossessionChallengeCanonicalBytesV1(challenge));
 }
-
-export const WALLET_RECOVERY_ECDSA_POSSESSION_PROOF_SCHEME_V1 = POSSESSION_PROOF_SCHEME_V1;

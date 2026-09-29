@@ -14,7 +14,7 @@ import {
   parseWebAuthnCredentialIdB64u,
   parseWebAuthnRpId,
 } from '@shared/utils/domainIds';
-import type { WalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
+import type { WalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 
 const WALLET_ID = 'owner-lane-scope-wallet';
 const RP_ID = 'localhost';

@@ -1,0 +1,138 @@
+{
+  "$schema": "../../../node_modules/wrangler/config-schema.json",
+  "main": "../../../crates/router-ab-cloudflare/build/router/worker/shim.mjs",
+  "compatibility_date": "2026-06-12",
+  "workers_dev": false,
+  "preview_urls": false,
+  "env": {
+    "d1": {
+      "name": "r150-bench-20260925-d1-router",
+      "workers_dev": false,
+      "preview_urls": false,
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "ROUTER_TENANT_ROOT_CREATION_DO",
+            "class_name": "RouterAbTenantRootCreationDurableObject"
+          },
+          {
+            "name": "ROUTER_WALLET_DO",
+            "class_name": "RouterAbRouterWalletDurableObject"
+          }
+        ]
+      },
+      "migrations": [
+        {
+          "tag": "router_ab_router_tenant_root_creation_v1",
+          "new_sqlite_classes": ["RouterAbTenantRootCreationDurableObject"]
+        },
+        {
+          "tag": "router_ab_router_wallet_v1",
+          "new_sqlite_classes": ["RouterAbRouterWalletDurableObject"]
+        }
+      ],
+      "services": [
+        { "binding": "DERIVER_A", "service": "r150-bench-20260925-d1-deriver-a" },
+        { "binding": "DERIVER_B", "service": "r150-bench-20260925-d1-deriver-b" },
+        { "binding": "SIGNING_WORKER", "service": "r150-bench-20260925-d1-signing-worker" },
+        {
+          "binding": "TENANT_ROOT_CONTROL_PLANE",
+          "service": "r150-bench-20260925-d1-tenant-root-control-plane"
+        }
+      ],
+      "vars": {
+        "ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET_BINDING": "ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET",
+        "TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS": "60000",
+        "ROUTER_JWT_ISSUER": "__R150_BENCH_D1_INGRESS_URL__",
+        "ROUTER_JWT_AUDIENCE": "router-ab",
+        "ROUTER_JWT_JWKS_JSON": "__R150_BENCH_D1_CEREMONY_JWKS_JSON__",
+        "DERIVER_A_ENVELOPE_HPKE_KEY_EPOCH": "epoch-1",
+        "DERIVER_B_ENVELOPE_HPKE_KEY_EPOCH": "epoch-1",
+        "SIGNING_WORKER_SERVER_OUTPUT_HPKE_KEY_EPOCH": "epoch-1",
+        "DERIVER_A_ENVELOPE_HPKE_PUBLIC_KEY": "__R150_BENCH_D1_DERIVER_A_HPKE_PUBLIC_KEY__",
+        "DERIVER_B_ENVELOPE_HPKE_PUBLIC_KEY": "__R150_BENCH_D1_DERIVER_B_HPKE_PUBLIC_KEY__",
+        "DERIVER_A_PEER_VERIFYING_KEY_HEX": "__R150_BENCH_D1_DERIVER_A_PEER_VERIFYING_KEY__",
+        "DERIVER_B_PEER_VERIFYING_KEY_HEX": "__R150_BENCH_D1_DERIVER_B_PEER_VERIFYING_KEY__",
+        "SIGNING_WORKER_SERVER_OUTPUT_HPKE_PUBLIC_KEY": "__R150_BENCH_D1_SIGNING_WORKER_HPKE_PUBLIC_KEY__",
+        "DERIVER_A_PEER_BINDING": "DERIVER_A",
+        "DERIVER_B_PEER_BINDING": "DERIVER_B",
+        "SIGNING_WORKER_PEER_BINDING": "SIGNING_WORKER",
+        "TENANT_ROOT_CONTROL_PLANE_ISSUER_VERIFYING_KEYS_JSON": "__R150_BENCH_D1_ISSUER_KEYS_JSON__",
+        "TENANT_ROOT_CONTROL_PLANE_GRANT_AUTHORITY_VERIFYING_KEYS_JSON": "__R150_BENCH_D1_GRANT_KEYS_JSON__",
+        "ROUTER_TENANT_ROOT_CREATION_ROLE_VERIFYING_KEYS_JSON": "__R150_BENCH_D1_ROLE_KEYS_JSON__"
+      },
+      "secrets": {
+        "required": [
+          "ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET",
+          "ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET",
+          "ROUTER_AB_ROUTER_TO_SIGNING_WORKER_ECDSA_AUTH_SECRET"
+        ]
+      }
+    },
+    "do": {
+      "name": "r150-bench-20260925-do-router",
+      "main": "../../../crates/router-ab-cloudflare/build/wallet-do/router/worker/shim.mjs",
+      "workers_dev": false,
+      "preview_urls": false,
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "ROUTER_TENANT_ROOT_CREATION_DO",
+            "class_name": "RouterAbTenantRootCreationDurableObject"
+          },
+          {
+            "name": "ROUTER_WALLET_DO",
+            "class_name": "RouterAbRouterWalletDurableObject"
+          }
+        ]
+      },
+      "migrations": [
+        {
+          "tag": "router_ab_router_tenant_root_creation_v1",
+          "new_sqlite_classes": ["RouterAbTenantRootCreationDurableObject"]
+        },
+        {
+          "tag": "router_ab_router_wallet_v1",
+          "new_sqlite_classes": ["RouterAbRouterWalletDurableObject"]
+        }
+      ],
+      "services": [
+        { "binding": "DERIVER_A", "service": "r150-bench-20260925-do-deriver-a" },
+        { "binding": "DERIVER_B", "service": "r150-bench-20260925-do-deriver-b" },
+        { "binding": "SIGNING_WORKER", "service": "r150-bench-20260925-do-signing-worker" },
+        {
+          "binding": "TENANT_ROOT_CONTROL_PLANE",
+          "service": "r150-bench-20260925-do-tenant-root-control-plane"
+        }
+      ],
+      "vars": {
+        "ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET_BINDING": "ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET",
+        "TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS": "60000",
+        "ROUTER_JWT_ISSUER": "__R150_BENCH_DO_INGRESS_URL__",
+        "ROUTER_JWT_AUDIENCE": "router-ab",
+        "ROUTER_JWT_JWKS_JSON": "__R150_BENCH_DO_CEREMONY_JWKS_JSON__",
+        "DERIVER_A_ENVELOPE_HPKE_KEY_EPOCH": "epoch-1",
+        "DERIVER_B_ENVELOPE_HPKE_KEY_EPOCH": "epoch-1",
+        "SIGNING_WORKER_SERVER_OUTPUT_HPKE_KEY_EPOCH": "epoch-1",
+        "DERIVER_A_ENVELOPE_HPKE_PUBLIC_KEY": "__R150_BENCH_DO_DERIVER_A_HPKE_PUBLIC_KEY__",
+        "DERIVER_B_ENVELOPE_HPKE_PUBLIC_KEY": "__R150_BENCH_DO_DERIVER_B_HPKE_PUBLIC_KEY__",
+        "DERIVER_A_PEER_VERIFYING_KEY_HEX": "__R150_BENCH_DO_DERIVER_A_PEER_VERIFYING_KEY__",
+        "DERIVER_B_PEER_VERIFYING_KEY_HEX": "__R150_BENCH_DO_DERIVER_B_PEER_VERIFYING_KEY__",
+        "SIGNING_WORKER_SERVER_OUTPUT_HPKE_PUBLIC_KEY": "__R150_BENCH_DO_SIGNING_WORKER_HPKE_PUBLIC_KEY__",
+        "DERIVER_A_PEER_BINDING": "DERIVER_A",
+        "DERIVER_B_PEER_BINDING": "DERIVER_B",
+        "SIGNING_WORKER_PEER_BINDING": "SIGNING_WORKER",
+        "TENANT_ROOT_CONTROL_PLANE_ISSUER_VERIFYING_KEYS_JSON": "__R150_BENCH_DO_ISSUER_KEYS_JSON__",
+        "TENANT_ROOT_CONTROL_PLANE_GRANT_AUTHORITY_VERIFYING_KEYS_JSON": "__R150_BENCH_DO_GRANT_KEYS_JSON__",
+        "ROUTER_TENANT_ROOT_CREATION_ROLE_VERIFYING_KEYS_JSON": "__R150_BENCH_DO_ROLE_KEYS_JSON__"
+      },
+      "secrets": {
+        "required": [
+          "ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET",
+          "ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET",
+          "ROUTER_AB_ROUTER_TO_SIGNING_WORKER_ECDSA_AUTH_SECRET"
+        ]
+      }
+    }
+  }
+}

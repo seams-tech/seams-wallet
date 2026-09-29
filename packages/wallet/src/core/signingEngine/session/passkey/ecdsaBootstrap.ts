@@ -49,7 +49,7 @@ import {
 } from '../persistence/walletSessionAuthorizationProjection';
 import type { WalletAuthAuthorityRef } from '@shared/utils/walletAuthAuthority';
 
-export type ExistingEcdsaBootstrapKeyIntent = {
+type ExistingEcdsaBootstrapKeyIntent = {
   kind: 'existing_ecdsa_key';
   ecdsaThresholdKeyId: string;
   participantIds: readonly number[];
@@ -113,7 +113,7 @@ type PasskeyCredentialBootstrapAuth = {
   webauthnAuthentication?: never;
 };
 
-export type ReuseWarmEcdsaBootstrapRequest = EcdsaBootstrapRequestCommon &
+type ReuseWarmEcdsaBootstrapRequest = EcdsaBootstrapRequestCommon &
   EcdsaBootstrapTargetIdentity &
   EcdsaBootstrapRegistrationPolicy & {
     kind: 'reuse_warm_ecdsa_bootstrap';
@@ -147,7 +147,7 @@ export type PasskeyEcdsaExportBootstrapRequest = EcdsaExplicitExportBootstrapReq
   purpose: 'explicit_key_export';
 };
 
-export type PasskeyPreauthorizedEcdsaBootstrapRequest = EcdsaBootstrapExactRequestBase &
+type PasskeyPreauthorizedEcdsaBootstrapRequest = EcdsaBootstrapExactRequestBase &
   PasskeyCredentialBootstrapAuth & {
     kind: 'passkey_preauthorized_ecdsa_bootstrap';
     authorizationAuthority: WalletAuthAuthorityRef;
@@ -157,7 +157,7 @@ export type PasskeyPreauthorizedEcdsaBootstrapRequest = EcdsaBootstrapExactReque
     emailOtpAuthContext?: never;
   };
 
-export type WalletSessionReconnectEcdsaBootstrapRequest = EcdsaBootstrapExactRequestBase & {
+type WalletSessionReconnectEcdsaBootstrapRequest = EcdsaBootstrapExactRequestBase & {
   kind: 'wallet_session_reconnect_ecdsa_bootstrap';
   authorizationAuthority: WalletAuthAuthorityRef;
   routeAuth: WalletSessionOperationCredentialV1;

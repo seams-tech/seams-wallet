@@ -293,7 +293,6 @@ fn open_cloudflare_recipient_proof_bundle_hpke_plaintext_v1(
 }
 
 /// Opens and combines V2 server proof bundles for one tenant-root ECDSA activation.
-#[cfg(feature = "workers-rs")]
 pub fn cloudflare_server_output_material_record_from_ecdsa_activation_request_v2(
     request: &CloudflareRouterAbEcdsaDerivationSigningWorkerActivationRequestV1,
     private_key_bytes: &[u8],
@@ -326,7 +325,6 @@ pub fn cloudflare_server_output_material_record_from_ecdsa_refresh_request_v2(
     )
 }
 
-#[cfg(feature = "workers-rs")]
 fn cloudflare_server_output_material_record_from_stable_activation_v2(
     activation_context: &SigningWorkerActivationContextV1,
     activation: &CloudflareSigningWorkerRecipientProofBundleActivationV1,
@@ -681,7 +679,6 @@ pub(crate) fn parse_cloudflare_hpke_x25519_public_key_v1(
     Ok(public_key)
 }
 
-#[cfg(feature = "workers-rs")]
 pub(crate) fn cloudflare_hpke_x25519_public_key_bytes_v1(
     encoded: &str,
 ) -> RouterAbProtocolResult<[u8; 32]> {

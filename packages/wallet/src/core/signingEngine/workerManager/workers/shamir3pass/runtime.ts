@@ -2,7 +2,7 @@ import { resolveWasmUrl } from '@/core/walletRuntimePaths/wasm-loader';
 import type { SigningSessionSealGroupId } from '@shared/utils/signingSessionSeal';
 import { requireTrimmedString } from '@shared/utils/validation';
 
-export type Shamir3PassClientKeyHandle = {
+type Shamir3PassClientKeyHandle = {
   keyHandle: string;
 };
 

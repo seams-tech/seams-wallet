@@ -1,5 +1,5 @@
 /**
- * R103F: the one exact Wallet Session credential a signing-session operation is
+ * The one exact Wallet Session credential a signing-session operation is
  * allowed to act on.
  *
  * The wallet-wide active projection cannot answer this question. It selects a
@@ -37,17 +37,17 @@ import {
   isExactEcdsaSigningLaneIdentity,
   type ExactSigningLaneIdentity,
 } from './exactSigningLaneIdentity';
-import type { ActiveWalletAuthMethodV2 } from './ownerLaneScope';
+import type { ActiveWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 
 /** The signer material one operation needs the exact session to authorize. */
-export type RequiredExactWalletSessionSigningSubject =
+type RequiredExactWalletSessionSigningSubject =
   | { readonly keyFamily: 'ed25519'; readonly materialActivation?: never }
   | {
       readonly keyFamily: 'ecdsa_secp256k1';
       readonly materialActivation: MpcMaterialActivationRef;
     };
 
-export type ExactWalletSessionExpiryRequirement =
+type ExactWalletSessionExpiryRequirement =
   | { readonly kind: 'unexpired'; readonly nowMs: number }
   | { readonly kind: 'expired'; readonly nowMs: number };
 
@@ -69,17 +69,17 @@ export type ExactWalletSessionCredentialUnavailableReason =
   | 'wallet_session_capability_mismatch'
   | 'persistence_unavailable';
 
-export type ResolvedExactWalletSessionCredential = {
+type ResolvedExactWalletSessionCredential = {
   readonly walletId: WalletId;
   readonly authority: ActiveWalletAuthorityV1;
-  readonly authMethod: ActiveWalletAuthMethodV2;
+  readonly authMethod: ActiveWalletAuthMethodRecordV2;
   readonly session: ActiveWalletSessionV1;
   readonly operationCredential: WalletSessionOperationCredentialV1;
   readonly walletSessionId: WalletSessionId;
   readonly materialActivation: MpcMaterialActivationRef;
 };
 
-export type ExactWalletSessionCredentialResolution =
+type ExactWalletSessionCredentialResolution =
   | {
       readonly kind: 'resolved';
       readonly resolved: ResolvedExactWalletSessionCredential;
@@ -91,7 +91,7 @@ export type ExactWalletSessionCredentialResolution =
       readonly resolved?: never;
     };
 
-export type ResolveExactWalletSessionCredentialInput = {
+type ResolveExactWalletSessionCredentialInput = {
   readonly walletId: WalletId;
   readonly authMethod: SignerAuthMethod;
   readonly walletSessionId: WalletSessionId;
@@ -109,7 +109,7 @@ export type ExactWalletSessionReadPorts = {
 
 type SelectedExactWalletAuthority = {
   readonly authority: ActiveWalletAuthorityV1;
-  readonly authMethod: ActiveWalletAuthMethodV2;
+  readonly authMethod: ActiveWalletAuthMethodRecordV2;
 };
 
 function unavailable(

@@ -47,11 +47,8 @@ use router_ab_core::{
     TENANT_ROOT_SIGNED_CREATION_COMMITMENT_MAX_BYTES_V1,
     TENANT_ROOT_SIGNED_SHARE_INSTALLATION_EVIDENCE_MAX_BYTES_V1,
 };
-#[cfg(feature = "workers-rs")]
-use router_ab_core::{
-    TENANT_ROOT_ROLE_CREATION_COMMAND_MAX_BYTES_V1, TENANT_ROOT_ROLE_REFRESH_COMMAND_MAX_BYTES_V1,
-};
-#[cfg(feature = "workers-rs")]
+use router_ab_core::TENANT_ROOT_ROLE_CREATION_COMMAND_MAX_BYTES_V1;
+use router_ab_core::TENANT_ROOT_ROLE_REFRESH_COMMAND_MAX_BYTES_V1;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -68,31 +65,34 @@ use crate::{
 };
 
 #[cfg_attr(not(feature = "workers-rs"), allow(dead_code))]
-pub(crate) const CLOUDFLARE_TENANT_ROOT_CREATION_JOURNAL_PATH: &str =
+pub const CLOUDFLARE_TENANT_ROOT_CREATION_JOURNAL_PATH: &str =
     "/router-ab/internal/tenant-root/creation/v1/journal";
 /// Reads the persisted Started journal, its issuer capability, and public
 /// creation progress. Public evidence only: no scalar, share, or sealed
 /// material is ever stored here, so nothing private can be returned.
 #[cfg_attr(not(feature = "workers-rs"), allow(dead_code))]
-pub(crate) const CLOUDFLARE_TENANT_ROOT_CREATION_JOURNAL_READ_PATH: &str =
+pub const CLOUDFLARE_TENANT_ROOT_CREATION_JOURNAL_READ_PATH: &str =
     "/router-ab/internal/tenant-root/creation/v1/journal/read";
+/// The Router coordinator's read of its own creation progress.
+pub const CLOUDFLARE_TENANT_ROOT_CREATION_PROGRESS_READ_PATH: &str =
+    "/router-ab/internal/tenant-root/creation/v1/progress/read";
 #[cfg_attr(not(feature = "workers-rs"), allow(dead_code))]
-pub(crate) const CLOUDFLARE_TENANT_ROOT_CREATION_INITIAL_ACTIVATION_PATH: &str =
+pub const CLOUDFLARE_TENANT_ROOT_CREATION_INITIAL_ACTIVATION_PATH: &str =
     "/router-ab/internal/tenant-root/creation/v1/initial-activation";
 #[cfg_attr(not(feature = "workers-rs"), allow(dead_code))]
-pub(crate) const CLOUDFLARE_TENANT_ROOT_REFRESH_ACTIVATION_PATH: &str =
+pub const CLOUDFLARE_TENANT_ROOT_REFRESH_ACTIVATION_PATH: &str =
     "/router-ab/internal/tenant-root/refresh/v1/activation";
 #[cfg_attr(not(feature = "workers-rs"), allow(dead_code))]
-pub(crate) const CLOUDFLARE_TENANT_ROOT_CREATION_ACTIVE_STATE_READ_PATH: &str =
+pub const CLOUDFLARE_TENANT_ROOT_CREATION_ACTIVE_STATE_READ_PATH: &str =
     "/router-ab/internal/tenant-root/creation/v1/active-state";
 #[cfg_attr(not(feature = "workers-rs"), allow(dead_code))]
-pub(crate) const CLOUDFLARE_TENANT_ROOT_CREATION_COMMITMENT_RENDEZVOUS_PATH: &str =
+pub const CLOUDFLARE_TENANT_ROOT_CREATION_COMMITMENT_RENDEZVOUS_PATH: &str =
     "/router-ab/internal/tenant-root/creation/v1/commitment-rendezvous";
 #[cfg_attr(not(feature = "workers-rs"), allow(dead_code))]
-pub(crate) const CLOUDFLARE_TENANT_ROOT_CREATION_INSTALLATION_CHECKPOINT_PATH: &str =
+pub const CLOUDFLARE_TENANT_ROOT_CREATION_INSTALLATION_CHECKPOINT_PATH: &str =
     "/router-ab/internal/tenant-root/creation/v1/installation-checkpoint";
 #[cfg_attr(not(feature = "workers-rs"), allow(dead_code))]
-pub(crate) const CLOUDFLARE_TENANT_ROOT_CREATION_CLEANUP_CHECKPOINT_PATH: &str =
+pub const CLOUDFLARE_TENANT_ROOT_CREATION_CLEANUP_CHECKPOINT_PATH: &str =
     "/router-ab/internal/tenant-root/creation/v1/cleanup-checkpoint";
 #[cfg_attr(not(feature = "workers-rs"), allow(dead_code))]
 pub(crate) const TENANT_ROOT_CREATION_JOURNAL_STORAGE_KEY_V1: &str = "creation/v1/journal";
@@ -102,9 +102,33 @@ pub(crate) const TENANT_ROOT_CREATION_INSTALLATION_CHECKPOINT_STORAGE_KEY_V1: &s
 #[cfg_attr(not(feature = "workers-rs"), allow(dead_code))]
 pub(crate) const TENANT_ROOT_CREATION_COMMITMENT_RENDEZVOUS_STORAGE_KEY_V1: &str =
     "creation/v1/commitment-rendezvous";
-#[cfg_attr(not(feature = "workers-rs"), allow(dead_code))]
-pub(crate) const TENANT_ROOT_CREATION_CLEANUP_CHECKPOINT_STORAGE_KEY_V1: &str =
-    "creation/v1/cleanup-checkpoint";
+/// The fence that abandons an uncommitted creation.
+pub(crate) const TENANT_ROOT_CREATION_ABANDONMENT_STORAGE_KEY_V1: &str = "creation/v1/abandonment";
+/// Router -> its creation state: abandon one uncommitted creation.
+pub const CLOUDFLARE_TENANT_ROOT_CREATION_ABANDONMENT_PATH: &str =
+    "/router-ab/internal/tenant-root/creation/v1/abandon";
+
+/// When an abandonment's cleanup commands are judged: the first instant after
+/// the fence, since a command is fresh only strictly after its issue time and
+/// each is issued at the fence. Judging there, rather than at the current
+/// time, lets an interrupted abandonment finish however late it is retried.
+pub(crate) const fn tenant_root_abandonment_decided_at_ms_v1(abandoned_at_ms: u64) -> u64 {
+    abandoned_at_ms.saturating_add(1)
+}
+
+/// Where the Router checkpoints one abandoned role's cleanup.
+fn tenant_root_creation_cleanup_checkpoint_storage_key_v1(
+    role: CloudflareTenantRootCreationInstallationRoleV1,
+) -> &'static str {
+    match role {
+        CloudflareTenantRootCreationInstallationRoleV1::DeriverA => {
+            "creation/v1/cleanup-checkpoint/deriver_a"
+        }
+        CloudflareTenantRootCreationInstallationRoleV1::DeriverB => {
+            "creation/v1/cleanup-checkpoint/deriver_b"
+        }
+    }
+}
 #[cfg_attr(not(feature = "workers-rs"), allow(dead_code))]
 pub(crate) const CLOUDFLARE_TENANT_ROOT_CUTOVER_READ_PATH: &str =
     "/router-ab/internal/tenant-root/cutover/v1/read";
@@ -154,16 +178,16 @@ pub(crate) enum CloudflareTenantRootCutoverReadResponseV1 {
 }
 
 #[cfg_attr(not(feature = "workers-rs"), allow(dead_code))]
-pub(crate) const CLOUDFLARE_TENANT_ROOT_REFRESH_COMMITMENT_CHECKPOINT_PATH: &str =
+pub const CLOUDFLARE_TENANT_ROOT_REFRESH_COMMITMENT_CHECKPOINT_PATH: &str =
     "/router-ab/internal/tenant-root/refresh/v1/commitment-checkpoint";
 #[cfg_attr(not(feature = "workers-rs"), allow(dead_code))]
-pub(crate) const CLOUDFLARE_TENANT_ROOT_REFRESH_INSTALLATION_CHECKPOINT_PATH: &str =
+pub const CLOUDFLARE_TENANT_ROOT_REFRESH_INSTALLATION_CHECKPOINT_PATH: &str =
     "/router-ab/internal/tenant-root/refresh/v1/installation-checkpoint";
 #[cfg_attr(not(feature = "workers-rs"), allow(dead_code))]
-pub(crate) const CLOUDFLARE_TENANT_ROOT_REFRESH_CONTRIBUTION_RENDEZVOUS_PATH: &str =
+pub const CLOUDFLARE_TENANT_ROOT_REFRESH_CONTRIBUTION_RENDEZVOUS_PATH: &str =
     "/router-ab/internal/tenant-root/refresh/v1/contribution-rendezvous";
 #[cfg_attr(not(feature = "workers-rs"), allow(dead_code))]
-pub(crate) const TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1: &str = "refresh/v1/active-state";
+pub const TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1: &str = "refresh/v1/active-state";
 #[cfg_attr(not(feature = "workers-rs"), allow(dead_code))]
 pub(crate) const TENANT_ROOT_REFRESH_COMMITMENT_CHECKPOINT_STORAGE_KEY_V1: &str =
     "refresh/v1/commitment-checkpoint";
@@ -240,7 +264,7 @@ impl fmt::Debug for CloudflareTenantRootDestinationBootstrapRecordV1 {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
-pub(crate) enum CloudflareTenantRootDestinationBootstrapRequestV1 {
+pub enum CloudflareTenantRootDestinationBootstrapRequestV1 {
     Read {
         identity_b64u: String,
         custody_lineage_b64u: String,
@@ -254,7 +278,7 @@ pub(crate) enum CloudflareTenantRootDestinationBootstrapRequestV1 {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub(crate) enum CloudflareTenantRootDestinationBootstrapRefusalV1 {
+pub enum CloudflareTenantRootDestinationBootstrapRefusalV1 {
     Uninitialized,
     CreationInProgress,
     ActiveRootPresent,
@@ -265,7 +289,7 @@ pub(crate) enum CloudflareTenantRootDestinationBootstrapRefusalV1 {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct CloudflareTenantRootDestinationBootstrapScopeV1 {
+pub struct CloudflareTenantRootDestinationBootstrapScopeV1 {
     pub(crate) identity_b64u: String,
     pub(crate) identity_digest_b64u: String,
     pub(crate) deployment_fingerprint_b64u: String,
@@ -274,7 +298,7 @@ pub(crate) struct CloudflareTenantRootDestinationBootstrapScopeV1 {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
-pub(crate) enum CloudflareTenantRootDestinationBootstrapResponseV1 {
+pub enum CloudflareTenantRootDestinationBootstrapResponseV1 {
     ReadReady {
         scope: CloudflareTenantRootDestinationBootstrapScopeV1,
     },
@@ -737,10 +761,8 @@ const TENANT_ROOT_REFRESH_CONTRIBUTION_MAX_BASE64URL_BYTES_V1: usize =
     base64url_len_for_bytes(TENANT_ROOT_REFRESH_CONTRIBUTION_MAX_BYTES_V1);
 const TENANT_ROOT_REFRESH_CHECKPOINT_MAX_BASE64URL_BYTES_V1: usize =
     base64url_len_for_bytes(TENANT_ROOT_REFRESH_COMMITMENT_CHECKPOINT_MAX_BYTES_V1);
-#[cfg(feature = "workers-rs")]
 const TENANT_ROOT_ROLE_CREATION_COMMAND_MAX_BASE64URL_BYTES_V1: usize =
     base64url_len_for_bytes(TENANT_ROOT_ROLE_CREATION_COMMAND_MAX_BYTES_V1);
-#[cfg(feature = "workers-rs")]
 const TENANT_ROOT_ROLE_REFRESH_COMMAND_MAX_BASE64URL_BYTES_V1: usize =
     base64url_len_for_bytes(TENANT_ROOT_ROLE_REFRESH_COMMAND_MAX_BYTES_V1);
 const TENANT_ROOT_ROLE_CLEANUP_COMMAND_MAX_BASE64URL_BYTES_V1: usize =
@@ -758,6 +780,9 @@ const TENANT_ROOT_SCHEDULED_REFRESH_JITTER_DOMAIN_V1: &[u8] =
 const TENANT_ROOT_MANUAL_REFRESH_OPERATION_MAX_BYTES_V1: usize = 256;
 const TENANT_ROOT_MANUAL_REFRESH_COMPLETION_STORAGE_PREFIX_V1: &str =
     "refresh/v1/manual-completion/";
+const TENANT_ROOT_REFRESH_ABANDONMENT_STORAGE_PREFIX_V1: &str = "refresh/v1/abandoned-operation/";
+const TENANT_ROOT_MANAGED_RESTORE_COMPLETION_STORAGE_PREFIX_V1: &str =
+    "managed-restore/v1/completion/";
 pub(crate) const TENANT_ROOT_MANUAL_REFRESH_IN_PROGRESS_ERROR_V1: &str =
     "tenant_root_refresh_in_progress";
 const TENANT_ROOT_REFRESH_ATTEMPT_CONTEXT_MAX_BYTES_V1: usize = 8 * 1024;
@@ -767,16 +792,13 @@ const TENANT_ROOT_MANAGED_RESTORE_NONCE_BYTES_V1: usize = 32;
 const TENANT_ROOT_MANAGED_RESTORE_INCIDENT_AUTHORIZATION_MAX_BASE64URL_BYTES_V1: usize =
     base64url_len_for_bytes(TENANT_ROOT_MANAGED_RESTORE_INCIDENT_AUTHORIZATION_MAX_BYTES_V1);
 const TENANT_ROOT_MANAGED_RESTORE_IDENTITY_MAX_BYTES_V1: usize = 8 * 1024;
-#[cfg(feature = "workers-rs")]
 const TENANT_ROOT_MANAGED_RESTORE_IDENTITY_MAX_BASE64URL_BYTES_V1: usize =
     base64url_len_for_bytes(TENANT_ROOT_MANAGED_RESTORE_IDENTITY_MAX_BYTES_V1);
-#[cfg(feature = "workers-rs")]
 const TENANT_ROOT_MANAGED_RESTORE_ARTIFACT_MAX_BYTES_V1: usize = 48 * 1024;
 const TENANT_ROOT_MANAGED_RESTORE_CAPABILITY_MAX_BASE64URL_BYTES_V1: usize =
     base64url_len_for_bytes(TENANT_ROOT_MANAGED_RESTORE_CAPABILITY_MAX_BYTES_V1);
 const TENANT_ROOT_MANAGED_RESTORE_PUBLIC_STATE_MAX_BASE64URL_BYTES_V1: usize =
     base64url_len_for_bytes(TENANT_ROOT_MANAGED_RESTORE_PUBLIC_STATE_MAX_BYTES);
-#[cfg(feature = "workers-rs")]
 const TENANT_ROOT_MANAGED_RESTORE_ARTIFACT_MAX_BASE64URL_BYTES_V1: usize =
     base64url_len_for_bytes(TENANT_ROOT_MANAGED_RESTORE_ARTIFACT_MAX_BYTES_V1);
 const TENANT_ROOT_MANAGED_RESTORE_CHALLENGE_DOMAIN_V1: &[u8] =
@@ -784,8 +806,29 @@ const TENANT_ROOT_MANAGED_RESTORE_CHALLENGE_DOMAIN_V1: &[u8] =
 const TENANT_ROOT_MANAGED_RESTORE_ATTEMPT_DOMAIN_V1: &[u8] =
     b"tenant_root_managed_restore_authorization_attempt_v1";
 
+/// A deployment's refresh schedule: the least time between manual refreshes
+/// of one root, and the interval its scheduled refreshes run at. The Router's
+/// admission and its status report both judge by it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TenantRootRefreshScheduleV1 {
+    pub manual_interval_ms: u64,
+    pub scheduled_interval_ms: u64,
+}
+
+impl Default for TenantRootRefreshScheduleV1 {
+    fn default() -> Self {
+        Self {
+            manual_interval_ms: TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS_V1,
+            scheduled_interval_ms: TENANT_ROOT_SCHEDULED_REFRESH_INTERVAL_MS_V1,
+        }
+    }
+}
+
+/// Each root's scheduled refresh is spread over up to a day, or over the
+/// interval when that is shorter, by a jitter derived from its identity.
 pub(crate) fn tenant_root_scheduled_refresh_jitter_ms_v1(
     identity_digest: TenantRootIdentityDigestV1,
+    scheduled_interval_ms: u64,
 ) -> u64 {
     let mut hasher = Sha256::new();
     hasher.update(TENANT_ROOT_SCHEDULED_REFRESH_JITTER_DOMAIN_V1);
@@ -793,39 +836,43 @@ pub(crate) fn tenant_root_scheduled_refresh_jitter_ms_v1(
     let digest = hasher.finalize();
     let mut jitter_bytes = [0_u8; 8];
     jitter_bytes.copy_from_slice(&digest[..8]);
-    u64::from_be_bytes(jitter_bytes) % TENANT_ROOT_SCHEDULED_REFRESH_JITTER_WINDOW_MS_V1
+    u64::from_be_bytes(jitter_bytes)
+        % TENANT_ROOT_SCHEDULED_REFRESH_JITTER_WINDOW_MS_V1.min(scheduled_interval_ms.max(1))
 }
 
 pub(crate) fn tenant_root_scheduled_refresh_next_at_ms_v1(
     identity_digest: TenantRootIdentityDigestV1,
     activation_at_ms: u64,
     last_refresh_completed_at_ms: Option<u64>,
+    scheduled_interval_ms: u64,
 ) -> u64 {
     let anchor = last_refresh_completed_at_ms.unwrap_or(activation_at_ms);
     anchor
-        .saturating_add(TENANT_ROOT_SCHEDULED_REFRESH_INTERVAL_MS_V1)
-        .saturating_add(tenant_root_scheduled_refresh_jitter_ms_v1(identity_digest))
+        .saturating_add(scheduled_interval_ms)
+        .saturating_add(tenant_root_scheduled_refresh_jitter_ms_v1(
+            identity_digest,
+            scheduled_interval_ms,
+        ))
 }
 #[cfg(feature = "workers-rs")]
 const ROUTER_TENANT_ROOT_CREATION_DO_BINDING_V1: &str = "ROUTER_TENANT_ROOT_CREATION_DO";
 #[cfg(feature = "workers-rs")]
 const TENANT_ROOT_CUTOVER_OBJECT_NAME_V1: &str = "tenant-root-cutover-v1";
-#[cfg(feature = "workers-rs")]
+const TENANT_ROOT_CREATION_JOURNAL_RESPONSE_MAX_BYTES_V1: usize = 4 * 1024;
+const TENANT_ROOT_CREATION_JOURNAL_READ_RESPONSE_MAX_BYTES_V1: usize = 256 * 1024;
+const TENANT_ROOT_CREATION_PROGRESS_READ_RESPONSE_MAX_BYTES_V1: usize =
+    TENANT_ROOT_CREATION_JOURNAL_READ_RESPONSE_MAX_BYTES_V1
+        + TENANT_ROOT_CREATION_ACTIVE_STATE_READ_RESPONSE_MAX_BYTES_V1;
 const TENANT_ROOT_CREATION_REQUEST_MAX_BYTES_V1: usize =
     TENANT_ROOT_CREATION_JOURNAL_MAX_BASE64URL_BYTES_V1
         + TENANT_ROOT_CREATION_CAPABILITY_MAX_BASE64URL_BYTES_V1
         + 128;
-#[cfg(feature = "workers-rs")]
 const TENANT_ROOT_CREATION_INITIAL_ACTIVATION_REQUEST_MAX_BYTES_V1: usize =
     TENANT_ROOT_REFRESH_ACTIVE_RECEIPT_MAX_BASE64URL_BYTES_V1 + 128;
-#[cfg(feature = "workers-rs")]
 const TENANT_ROOT_CREATION_INITIAL_ACTIVATION_RESPONSE_MAX_BYTES_V1: usize = 1024;
-#[cfg(feature = "workers-rs")]
 const TENANT_ROOT_REFRESH_ACTIVATION_RESPONSE_MAX_BYTES_V1: usize = 1024;
-#[cfg(feature = "workers-rs")]
 const TENANT_ROOT_CREATION_ACTIVE_STATE_READ_REQUEST_MAX_BYTES_V1: usize =
     TENANT_ROOT_MANAGED_RESTORE_ACTIVE_STATE_REQUEST_MAX_BYTES_V1;
-#[cfg(feature = "workers-rs")]
 const TENANT_ROOT_CREATION_ACTIVE_STATE_READ_RESPONSE_MAX_BYTES_V1: usize =
     TENANT_ROOT_REFRESH_ACTIVE_RECEIPT_MAX_BASE64URL_BYTES_V1
         + TENANT_ROOT_ROLE_REFRESH_COMMAND_MAX_BASE64URL_BYTES_V1 * 2
@@ -835,65 +882,50 @@ const TENANT_ROOT_CREATION_ACTIVE_STATE_READ_RESPONSE_MAX_BYTES_V1: usize =
         + TENANT_ROOT_MANAGED_RESTORE_IDENTITY_MAX_BASE64URL_BYTES_V1
         + 16 * 1024
         + 1024;
-#[cfg(feature = "workers-rs")]
 const TENANT_ROOT_MANAGED_RESTORE_ACTIVE_STATE_REQUEST_MAX_BYTES_V1: usize =
     TENANT_ROOT_MANAGED_RESTORE_ARTIFACT_MAX_BASE64URL_BYTES_V1 * 2
         + TENANT_ROOT_MANAGED_RESTORE_INCIDENT_AUTHORIZATION_MAX_BASE64URL_BYTES_V1
         + TENANT_ROOT_MANAGED_RESTORE_IDENTITY_MAX_BASE64URL_BYTES_V1 * 2
         + TENANT_ROOT_REFRESH_ACTIVE_RECEIPT_MAX_BASE64URL_BYTES_V1 * 2
         + 16 * 1024;
-#[cfg(feature = "workers-rs")]
 const TENANT_ROOT_CREATION_COMMITMENT_REQUEST_MAX_BYTES_V1: usize =
     TENANT_ROOT_ROLE_CREATION_COMMAND_MAX_BASE64URL_BYTES_V1
         + TENANT_ROOT_CREATION_COMMITMENT_MAX_BASE64URL_BYTES_V1
         + 128;
-#[cfg(feature = "workers-rs")]
 const TENANT_ROOT_CREATION_INSTALLATION_REQUEST_MAX_BYTES_V1: usize =
     TENANT_ROOT_ROLE_CREATION_COMMAND_MAX_BASE64URL_BYTES_V1
         + TENANT_ROOT_CREATION_INSTALLATION_EVIDENCE_MAX_BASE64URL_BYTES_V1
         + 128;
-#[cfg(feature = "workers-rs")]
 const TENANT_ROOT_CREATION_CLEANUP_REQUEST_MAX_BYTES_V1: usize =
     TENANT_ROOT_ROLE_CLEANUP_COMMAND_MAX_BASE64URL_BYTES_V1
         + TENANT_ROOT_COMMAND_TERMINAL_RECEIPT_MAX_BASE64URL_BYTES_V1
         + 128;
-#[cfg(feature = "workers-rs")]
 const TENANT_ROOT_CREATION_CLEANUP_RESPONSE_MAX_BYTES_V1: usize = 1024;
-#[cfg(feature = "workers-rs")]
-#[allow(dead_code)]
 const TENANT_ROOT_CREATION_COMMITMENT_RESPONSE_MAX_BYTES_V1: usize =
     TENANT_ROOT_CREATION_COMMITMENT_MAX_BASE64URL_BYTES_V1 * 2 + 512;
-#[cfg(feature = "workers-rs")]
-#[allow(dead_code)]
 const TENANT_ROOT_CREATION_INSTALLATION_RESPONSE_MAX_BYTES_V1: usize =
     TENANT_ROOT_CREATION_INSTALLATION_EVIDENCE_MAX_BASE64URL_BYTES_V1 * 2 + 512;
-#[cfg(feature = "workers-rs")]
 const TENANT_ROOT_REFRESH_COMMITMENT_REQUEST_MAX_BYTES_V1: usize =
     TENANT_ROOT_ROLE_REFRESH_COMMAND_MAX_BASE64URL_BYTES_V1
         + TENANT_ROOT_REFRESH_COMMITMENT_MAX_BASE64URL_BYTES_V1
         + 128;
-#[cfg(feature = "workers-rs")]
 const TENANT_ROOT_REFRESH_INSTALLATION_REQUEST_MAX_BYTES_V1: usize =
     TENANT_ROOT_ROLE_REFRESH_COMMAND_MAX_BASE64URL_BYTES_V1
         + TENANT_ROOT_CREATION_INSTALLATION_EVIDENCE_MAX_BASE64URL_BYTES_V1
         + TENANT_ROOT_COMMAND_TERMINAL_RECEIPT_MAX_BASE64URL_BYTES_V1
         + 128;
-#[cfg(feature = "workers-rs")]
 const TENANT_ROOT_REFRESH_CONTRIBUTION_REQUEST_MAX_BYTES_V1: usize =
     TENANT_ROOT_ROLE_REFRESH_COMMAND_MAX_BASE64URL_BYTES_V1
         + TENANT_ROOT_REFRESH_CONTRIBUTION_MAX_BASE64URL_BYTES_V1
         + 128;
-#[cfg(feature = "workers-rs")]
 const TENANT_ROOT_REFRESH_COMMITMENT_RESPONSE_MAX_BYTES_V1: usize =
     TENANT_ROOT_REFRESH_COMMITMENT_MAX_BASE64URL_BYTES_V1 * 2 + 2048;
-#[cfg(feature = "workers-rs")]
 const TENANT_ROOT_REFRESH_INSTALLATION_RESPONSE_MAX_BYTES_V1: usize = 4096;
-#[cfg(feature = "workers-rs")]
 const TENANT_ROOT_REFRESH_CONTRIBUTION_RESPONSE_MAX_BYTES_V1: usize =
     TENANT_ROOT_REFRESH_CONTRIBUTION_MAX_BASE64URL_BYTES_V1 * 2 + 2048;
 
 #[allow(dead_code)]
-pub(crate) fn tenant_root_creation_object_name_v1(
+pub fn tenant_root_creation_object_name_v1(
     identity_digest: TenantRootIdentityDigestV1,
     custody_lineage: TenantRootCustodyLineageId,
 ) -> String {
@@ -907,27 +939,21 @@ pub(crate) fn tenant_root_creation_object_name_v1(
     )
 }
 
-#[cfg(feature = "workers-rs")]
+/// A refresh checkpoint request verified against the active state, before
+/// the checkpoint is evaluated.
 struct LoadedTenantRootRefreshRequestV1 {
     active: ValidatedTenantRootRefreshActiveStateV1,
     context: TenantRootCeremonyContextV1,
     command: VerifiedTenantRootRoleRefreshCommandV1,
     candidate_bytes: Vec<u8>,
-    role_keys: TenantRootCreationRoleVerifyingKeysV1,
-    issuer_keys: BTreeMap<String, [u8; 32]>,
-    now_ms: u64,
 }
 
-#[cfg(feature = "workers-rs")]
 struct LoadedTenantRootRefreshInstallationRequestV1 {
     active: ValidatedTenantRootRefreshActiveStateV1,
     context: TenantRootCeremonyContextV1,
     command: VerifiedTenantRootRoleRefreshCommandV1,
     candidate_bytes: Vec<u8>,
     terminal_receipt: VerifiedTenantRootRefreshInstallationReceiptV1,
-    role_keys: TenantRootCreationRoleVerifyingKeysV1,
-    issuer_keys: BTreeMap<String, [u8; 32]>,
-    now_ms: u64,
 }
 
 struct VerifiedTenantRootRefreshInstallationReceiptV1 {
@@ -976,17 +1002,6 @@ impl VerifiedTenantRootRefreshInstallationReceiptV1 {
     }
 }
 
-#[cfg(feature = "workers-rs")]
-struct LoadedTenantRootRefreshContributionRequestV1 {
-    active: ValidatedTenantRootRefreshActiveStateV1,
-    context: TenantRootCeremonyContextV1,
-    command: VerifiedTenantRootRoleRefreshCommandV1,
-    candidate_bytes: Vec<u8>,
-    role_keys: TenantRootCreationRoleVerifyingKeysV1,
-    issuer_keys: BTreeMap<String, [u8; 32]>,
-    now_ms: u64,
-}
-
 /// Fails closed unless `encoded` is exactly the base64url of `expected`.
 pub(crate) fn require_base64url_matches(
     field: &str,
@@ -1013,7 +1028,6 @@ fn authority_id_from_object_id(
     ))
 }
 
-#[cfg(feature = "workers-rs")]
 fn validate_refresh_role_command(
     encoded: &str,
     active: &ValidatedTenantRootRefreshActiveStateV1,
@@ -1044,7 +1058,6 @@ fn validate_refresh_role_command(
     Ok(command)
 }
 
-#[cfg(feature = "workers-rs")]
 fn decode_and_verify_refresh_role_command(
     bytes: &[u8],
     active: &ValidatedTenantRootRefreshActiveStateV1,
@@ -1236,9 +1249,9 @@ fn require_tenant_root_creation_authority_object_v1(
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct CloudflareTenantRootCreationJournalRequestV1 {
-    pub(crate) journal_b64u: String,
-    pub(crate) creation_capability_b64u: String,
+pub struct CloudflareTenantRootCreationJournalRequestV1 {
+    pub journal_b64u: String,
+    pub creation_capability_b64u: String,
 }
 
 impl CloudflareTenantRootCreationJournalRequestV1 {
@@ -1253,9 +1266,9 @@ impl CloudflareTenantRootCreationJournalRequestV1 {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct CloudflareTenantRootCreationJournalRecordV1 {
-    pub(crate) journal_b64u: String,
-    pub(crate) creation_capability_b64u: String,
+pub struct CloudflareTenantRootCreationJournalRecordV1 {
+    pub journal_b64u: String,
+    pub creation_capability_b64u: String,
 }
 
 #[cfg_attr(not(feature = "workers-rs"), allow(dead_code))]
@@ -1271,7 +1284,7 @@ pub(crate) struct ValidatedTenantRootCreationJournalV1 {
 }
 
 impl ValidatedTenantRootCreationJournalV1 {
-    fn response(
+    pub(crate) fn response(
         &self,
         outcome: CloudflareTenantRootCreationJournalOutcomeV1,
     ) -> CloudflareTenantRootCreationJournalResponseV1 {
@@ -1286,18 +1299,18 @@ impl ValidatedTenantRootCreationJournalV1 {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub(crate) enum CloudflareTenantRootCreationJournalOutcomeV1 {
+pub enum CloudflareTenantRootCreationJournalOutcomeV1 {
     Committed,
     Replay,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct CloudflareTenantRootCreationJournalResponseV1 {
-    pub(crate) outcome: CloudflareTenantRootCreationJournalOutcomeV1,
-    pub(crate) revision: u64,
-    pub(crate) journal_digest_b64u: String,
-    pub(crate) capability_digest_b64u: String,
+pub struct CloudflareTenantRootCreationJournalResponseV1 {
+    pub outcome: CloudflareTenantRootCreationJournalOutcomeV1,
+    pub revision: u64,
+    pub journal_digest_b64u: String,
+    pub capability_digest_b64u: String,
 }
 
 /// Asks the Durable Object for its persisted creation state.
@@ -1306,9 +1319,9 @@ pub(crate) struct CloudflareTenantRootCreationJournalResponseV1 {
 /// reached the wrong object: the stored journal must name exactly this pair.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct CloudflareTenantRootCreationJournalReadRequestV1 {
-    pub(crate) identity_digest_b64u: String,
-    pub(crate) custody_lineage_b64u: String,
+pub struct CloudflareTenantRootCreationJournalReadRequestV1 {
+    pub identity_digest_b64u: String,
+    pub custody_lineage_b64u: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -1362,11 +1375,14 @@ pub(crate) struct CloudflareTenantRootRefreshPendingV1 {
     pub(crate) lifecycle_revision: u64,
     #[serde(default)]
     pub(crate) trigger: CloudflareTenantRootRefreshTriggerV1,
+    /// When the operation's authorization expires. Past it, an operation that
+    /// holds no live attempt stops blocking other operations.
+    pub(crate) expires_at_ms: u64,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub(crate) enum CloudflareTenantRootRefreshTriggerV1 {
+pub enum CloudflareTenantRootRefreshTriggerV1 {
     Manual,
     Scheduled,
 }
@@ -1385,14 +1401,42 @@ pub(crate) struct CloudflareTenantRootRefreshCompletionV1 {
     pub(crate) response: CloudflareTenantRootRefreshActivationResponseV1,
 }
 
+/// A managed restore whose forward refresh committed, named by its exact
+/// issuer-signed public state and capability. It holds the outcome an exact
+/// retry of the restore returns, after the restore's fence is retired and
+/// later refreshes move the active state on.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct CloudflareTenantRootManagedRestoreCompletionV1 {
+    pub(crate) public_state_b64u: String,
+    pub(crate) capability_b64u: String,
+    pub(crate) response: CloudflareTenantRootRefreshActivationResponseV1,
+}
+
+/// An operation abandoned before its refresh committed: its attempt's
+/// ceremony window closed first, or its authorization expired while it held
+/// no live attempt. A retry of the operation is refused; a new operation can
+/// refresh the root.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct CloudflareTenantRootRefreshAbandonmentV1 {
+    pub(crate) operation_id: String,
+    pub(crate) abandoned_at_ms: u64,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub(crate) enum CloudflareTenantRootRefreshAdmissionOutcomeV1 {
     Admitted {
         lifecycle_revision: u64,
     },
+    /// The previous swap's retired epoch is not yet erased at both roles.
+    RetirementPending,
     Replayed {
         response: CloudflareTenantRootRefreshActivationResponseV1,
+    },
+    Abandoned {
+        abandoned_at_ms: u64,
     },
     Throttled {
         retry_at_ms: u64,
@@ -1439,6 +1483,30 @@ pub(crate) enum CloudflareTenantRootCreationActiveStateReadRequestV1 {
         custody_lineage_b64u: String,
         checkpoint: CloudflareTenantRootManagedRestoreAuthorizationCheckpointV1,
     },
+    RecordDelivery {
+        identity_digest_b64u: String,
+        custody_lineage_b64u: String,
+        activation_receipt_digest_b64u: String,
+        role: CloudflareTenantRootCreationInstallationRoleV1,
+        /// A refresh swap's acknowledgement; none for an initial activation.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        swap: Option<CloudflareTenantRootSwapAcknowledgementV1>,
+    },
+    /// One role erased a retired epoch the committed swap's record holds.
+    RecordRetirement {
+        identity_digest_b64u: String,
+        custody_lineage_b64u: String,
+        activation_receipt_digest_b64u: String,
+        role: CloudflareTenantRootCreationInstallationRoleV1,
+        retired_epoch: u64,
+        erasure: CloudflareTenantRootRetiredErasureV1,
+    },
+    ReadManagedRestoreCompletion {
+        identity_digest_b64u: String,
+        custody_lineage_b64u: String,
+        public_state_b64u: String,
+        capability_b64u: String,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -1457,6 +1525,14 @@ pub(crate) struct CloudflareTenantRootCreationActiveStateReadResponseV1 {
     pub(crate) refresh_admission: Option<CloudflareTenantRootRefreshAdmissionOutcomeV1>,
     pub(crate) last_manual_refresh_completed_at_ms: Option<u64>,
     pub(crate) last_refresh_completed_at_ms: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) delivery: Option<CloudflareTenantRootDeliveryV1>,
+    /// The refresh operation admitted and not yet completed or abandoned.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) refresh_pending: Option<CloudflareTenantRootRefreshPendingV1>,
+    /// The outcome of the completed managed restore a completion read names.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) managed_restore_completion: Option<CloudflareTenantRootRefreshActivationResponseV1>,
 }
 
 /// Readback phases supported by the durable Router checkpoints.
@@ -1481,7 +1557,6 @@ pub(crate) enum CloudflareTenantRootRefreshJobReadV1 {
     },
 }
 
-#[cfg(feature = "workers-rs")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum CloudflareTenantRootRefreshJobPhaseV1 {
     Preparing,
@@ -1492,13 +1567,15 @@ enum CloudflareTenantRootRefreshJobPhaseV1 {
 /// Public installation progress from one fully validated checkpoint.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
-pub(crate) enum CloudflareTenantRootCreationInstallationCheckpointReadStateV1 {
+pub enum CloudflareTenantRootCreationInstallationCheckpointReadStateV1 {
     None,
     OneRoleReady {
         role: CloudflareTenantRootCreationInstallationRoleV1,
         signed_evidence_b64u: String,
     },
     BothRolesReady {
+        deriver_a_signed_evidence_b64u: String,
+        deriver_b_signed_evidence_b64u: String,
         root_commitment_b64u: String,
     },
 }
@@ -1506,20 +1583,69 @@ pub(crate) enum CloudflareTenantRootCreationInstallationCheckpointReadStateV1 {
 /// Persisted creation state, public evidence only.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct CloudflareTenantRootCreationJournalReadResponseV1 {
+pub struct CloudflareTenantRootCreationJournalReadResponseV1 {
     /// Exact canonical Started journal bytes as persisted.
-    pub(crate) journal_b64u: String,
+    pub journal_b64u: String,
     /// Exact canonical issuer capability bytes as persisted.
-    pub(crate) creation_capability_b64u: String,
+    pub creation_capability_b64u: String,
     /// Control-plane revision the Started journal authenticates.
-    pub(crate) revision: u64,
+    pub revision: u64,
     /// Roles whose signed public commitment has already reached this object.
-    pub(crate) committed_roles: Vec<CloudflareTenantRootCreationInstallationRoleV1>,
+    pub committed_roles: Vec<CloudflareTenantRootCreationInstallationRoleV1>,
     /// Validated public installation checkpoint, when one exists.
-    pub(crate) installation_checkpoint:
+    pub installation_checkpoint:
         CloudflareTenantRootCreationInstallationCheckpointReadStateV1,
-    /// Whether the sole installed role was removed and this ceremony was abandoned.
-    pub(crate) cleanup_checkpointed: bool,
+    /// The abandonment fence, once the creation is abandoned.
+    pub abandonment: Option<CloudflareTenantRootCreationAbandonmentReadV1>,
+}
+
+/// Public projection of an abandoned creation: the roles installed when it was
+/// fenced, and those whose cleanup the Router has checkpointed.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CloudflareTenantRootCreationAbandonmentReadV1 {
+    pub abandoned_at_ms: u64,
+    pub installed_roles: Vec<CloudflareTenantRootCreationInstallationRoleV1>,
+    pub cleaned_roles: Vec<CloudflareTenantRootCreationInstallationRoleV1>,
+}
+
+/// The fence that abandons an uncommitted creation. Once it is written no
+/// activation, commitment or installation is accepted for the ceremony, and
+/// the roles it names are cleaned.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CloudflareTenantRootCreationAbandonmentV1 {
+    journal_digest_b64u: String,
+    identity_digest_b64u: String,
+    custody_lineage_b64u: String,
+    ceremony_context_digest_b64u: String,
+    installed_roles: Vec<CloudflareTenantRootCreationInstallationRoleV1>,
+    abandoned_at_ms: u64,
+}
+
+/// What the Router's creation state recorded when it abandoned a creation.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CloudflareTenantRootCreationAbandonmentResponseV1 {
+    pub installed_roles: Vec<CloudflareTenantRootCreationInstallationRoleV1>,
+    pub abandoned_at_ms: u64,
+    pub replayed: bool,
+}
+
+/// The Router coordinator's view of one creation.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum CloudflareTenantRootCreationProgressV1 {
+    /// No Started journal exists for this identity and lineage.
+    NotStarted,
+    /// The persisted creation state, the Router's committed activation receipt
+    /// once one exists, and whether the ceremony window is still open by the
+    /// creation state's clock.
+    Started {
+        state: CloudflareTenantRootCreationJournalReadResponseV1,
+        committed_activation_receipt_b64u: Option<String>,
+        ceremony_open: bool,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -1552,7 +1678,7 @@ pub(crate) enum CloudflareTenantRootCreationCleanupOutcomeV1 {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct CloudflareTenantRootCreationCleanupResponseV1 {
+pub struct CloudflareTenantRootCreationCleanupResponseV1 {
     pub(crate) outcome: CloudflareTenantRootCreationCleanupOutcomeV1,
     pub(crate) role: CloudflareTenantRootCreationInstallationRoleV1,
     pub(crate) cleanup_receipt_digest_b64u: String,
@@ -1871,7 +1997,7 @@ pub(crate) enum CloudflareTenantRootRestoreRefreshCheckpointRequestV1 {
 /// this state.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub(crate) enum CloudflareTenantRootRestoreRefreshDeriverDispatchV1 {
+pub enum CloudflareTenantRootRestoreRefreshDeriverDispatchV1 {
     NoneBeforeCommands,
 }
 
@@ -1946,8 +2072,6 @@ pub(crate) struct CloudflareTenantRootRefreshAttemptV1 {
 #[serde(rename_all = "snake_case")]
 pub(crate) enum CloudflareTenantRootRefreshTerminalOutcomeV1 {
     Completed,
-    Failed,
-    Aborted,
 }
 
 /// Forward-only public refresh fence. The activation path owns terminal
@@ -1967,6 +2091,14 @@ pub(crate) enum CloudflareTenantRootRefreshFenceV1 {
         attempt: CloudflareTenantRootRefreshAttemptV1,
         outcome: CloudflareTenantRootRefreshTerminalOutcomeV1,
         response: CloudflareTenantRootRefreshActivationResponseV1,
+    },
+    /// An attempt whose ceremony window closed before the Router committed
+    /// it. Its commit, rendezvous and installation checkpoints are refused
+    /// from here on, so nothing it prepared can activate. The next attempt
+    /// replaces it; each Deriver's next refresh supersedes what it left.
+    Abandoned {
+        attempt: CloudflareTenantRootRefreshAttemptV1,
+        abandoned_at_ms: u64,
     },
 }
 
@@ -2044,6 +2176,25 @@ pub(crate) enum CloudflareTenantRootManagedRestoreFenceV1 {
         capability_b64u: String,
         incident_authorization_b64u: String,
     },
+    /// A reservation whose challenge window closed before its authorization
+    /// was checkpointed. It holds back neither refresh nor a new reservation,
+    /// and a late checkpoint for it is refused.
+    Expired {
+        challenge: CloudflareTenantRootManagedRestoreAuthorizationChallengeV1,
+        attempt: CloudflareTenantRootManagedRestoreAuthorizationAttemptV1,
+        expired_at_ms: u64,
+    },
+    /// An authorized restore that a completed refresh overtook before the
+    /// restore's own forward refresh ran. That refresh needed both roles, and
+    /// the restore's capability names a state that no longer exists. It holds
+    /// back neither refresh nor a new reservation, and its late steps are
+    /// refused.
+    Superseded {
+        challenge: CloudflareTenantRootManagedRestoreAuthorizationChallengeV1,
+        attempt: CloudflareTenantRootManagedRestoreAuthorizationAttemptV1,
+        /// The lifecycle revision of the refresh that overtook it.
+        superseded_at_revision: u64,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -2054,6 +2205,228 @@ pub(crate) enum CloudflareTenantRootManagedRestoreFenceEvaluationV1 {
     Replay {
         fence: CloudflareTenantRootManagedRestoreFenceV1,
     },
+}
+
+/// Whether one Deriver has activated the Router's committed receipt.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CloudflareTenantRootRoleDeliveryV1 {
+    Pending,
+    Delivered,
+}
+
+/// Delivery of one committed activation receipt, initial or refresh, to each
+/// Deriver. The commit records both roles pending; each Deriver's
+/// acknowledged activation of that exact receipt marks it delivered. Work is
+/// admitted on the committed epoch only once both roles are delivered.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CloudflareTenantRootDeliveryV1 {
+    pub activation_receipt_digest_b64u: String,
+    pub deriver_a: CloudflareTenantRootRoleDeliveryV1,
+    pub deriver_b: CloudflareTenantRootRoleDeliveryV1,
+    /// A refresh swap's retirement of the epoch it replaced; none for an
+    /// initial activation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub retirement: Option<CloudflareTenantRootSwapRetirementV1>,
+    /// Earlier swaps' retirements this swap committed over before both roles
+    /// had erased their epochs, oldest first. Only a managed restore commits
+    /// over one: it does not wait, since the role it restores may be the one
+    /// that cannot erase. Each is erased like the swap's own, and the next
+    /// swap carries it on until both roles have.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub carried_retirements: Vec<CloudflareTenantRootCarriedRetirementV1>,
+}
+
+/// An earlier swap's retirement that a later swap committed over: that
+/// swap's committed receipt, and the retirement recorded with its delivery.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CloudflareTenantRootCarriedRetirementV1 {
+    pub activation_receipt_digest_b64u: String,
+    pub retirement: CloudflareTenantRootSwapRetirementV1,
+}
+
+/// The epoch a committed refresh swap replaced, and its retirement at each
+/// role. Each role's part is recorded with that role's delivery, from its
+/// swap acknowledgement, so a later pass needs nothing from the retired row,
+/// which may be gone. The next refresh is admitted only once both roles have
+/// erased the epoch.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CloudflareTenantRootSwapRetirementV1 {
+    pub retired_epoch: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deriver_a: Option<CloudflareTenantRootRoleRetirementV1>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deriver_b: Option<CloudflareTenantRootRoleRetirementV1>,
+}
+
+impl CloudflareTenantRootSwapRetirementV1 {
+    /// One role's part, once its swap is acknowledged.
+    pub fn role(&self, role: TwoPartyDeriverRole) -> Option<&CloudflareTenantRootRoleRetirementV1> {
+        match role {
+            TwoPartyDeriverRole::DeriverA => self.deriver_a.as_ref(),
+            TwoPartyDeriverRole::DeriverB => self.deriver_b.as_ref(),
+        }
+    }
+
+    /// Whether both roles have erased the replaced epoch.
+    pub fn erased(&self) -> bool {
+        [&self.deriver_a, &self.deriver_b]
+            .iter()
+            .all(|role| role.as_ref().is_some_and(|role| role.erasure.is_some()))
+    }
+}
+
+/// One role's retirement of a replaced epoch: the row revisions its swap
+/// acknowledged, when the Router recorded that swap, and once the epoch is
+/// erased there, that erasure. Its cleanup command names the retired row's
+/// revision, and binds to the role's current active row: the one the latest
+/// swap acknowledged, which for a carried retirement is a later swap's.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CloudflareTenantRootRoleRetirementV1 {
+    pub retired_revision: i64,
+    pub active_revision: i64,
+    pub swapped_at_ms: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub erasure: Option<CloudflareTenantRootRetiredErasureV1>,
+}
+
+/// A role's erasure of a retired epoch: its signed cleanup receipt, and the
+/// admissions recovery cancelled on the epoch there.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CloudflareTenantRootRetiredErasureV1 {
+    pub cleanup_receipt_b64u: String,
+    pub cancelled_admissions: u64,
+}
+
+/// What a Deriver's acknowledged refresh swap reports: the epoch it retired
+/// and the one it activated, with each row's revision.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CloudflareTenantRootSwapAcknowledgementV1 {
+    pub retired_epoch: u64,
+    pub retired_revision: i64,
+    pub active_epoch: u64,
+    pub active_revision: i64,
+}
+
+impl CloudflareTenantRootDeliveryV1 {
+    fn pending(activation_receipt_digest_b64u: String) -> Self {
+        Self {
+            activation_receipt_digest_b64u,
+            deriver_a: CloudflareTenantRootRoleDeliveryV1::Pending,
+            deriver_b: CloudflareTenantRootRoleDeliveryV1::Pending,
+            retirement: None,
+            carried_retirements: Vec::new(),
+        }
+    }
+
+    /// A refresh swap's delivery, which also retires the epoch it replaced.
+    /// Every retirement the replaced delivery still held unerased is carried
+    /// on with it.
+    fn pending_swap(
+        activation_receipt_digest_b64u: String,
+        retired_epoch: u64,
+        replaced: Option<&Self>,
+    ) -> Self {
+        let carried_retirements = replaced
+            .map(|replaced| {
+                let own = replaced.retirement.as_ref().map(|retirement| {
+                    CloudflareTenantRootCarriedRetirementV1 {
+                        activation_receipt_digest_b64u: replaced
+                            .activation_receipt_digest_b64u
+                            .clone(),
+                        retirement: retirement.clone(),
+                    }
+                });
+                replaced
+                    .carried_retirements
+                    .iter()
+                    .cloned()
+                    .chain(own)
+                    .filter(|carried| !carried.retirement.erased())
+                    .collect()
+            })
+            .unwrap_or_default();
+        Self {
+            retirement: Some(CloudflareTenantRootSwapRetirementV1 {
+                retired_epoch,
+                deriver_a: None,
+                deriver_b: None,
+            }),
+            carried_retirements,
+            ..Self::pending(activation_receipt_digest_b64u)
+        }
+    }
+
+    /// Every retirement this record holds: the swap's own, then each one it
+    /// carries.
+    fn retirements(&self) -> impl Iterator<Item = &CloudflareTenantRootSwapRetirementV1> {
+        self.retirement.iter().chain(
+            self.carried_retirements
+                .iter()
+                .map(|carried| &carried.retirement),
+        )
+    }
+
+    /// This record's retirement of `retired_epoch`: the swap's own, or one it
+    /// carries.
+    pub fn retirement_of(
+        &self,
+        retired_epoch: u64,
+    ) -> Option<&CloudflareTenantRootSwapRetirementV1> {
+        self.retirements()
+            .find(|retirement| retirement.retired_epoch == retired_epoch)
+    }
+
+    /// Whether this record holds a retirement of `retired_epoch`.
+    pub fn holds_retirement_of(&self, retired_epoch: u64) -> bool {
+        self.retirement_of(retired_epoch).is_some()
+    }
+
+    /// The epochs this record retires that a role has not yet erased.
+    pub fn unerased_retired_epochs(&self) -> Vec<u64> {
+        self.retirements()
+            .filter(|retirement| !retirement.erased())
+            .map(|retirement| retirement.retired_epoch)
+            .collect()
+    }
+
+    /// Whether both roles have erased every epoch this record retires.
+    pub fn retirements_erased(&self) -> bool {
+        self.retirements()
+            .all(CloudflareTenantRootSwapRetirementV1::erased)
+    }
+
+    fn retirement_of_mut(
+        &mut self,
+        retired_epoch: u64,
+    ) -> Option<&mut CloudflareTenantRootSwapRetirementV1> {
+        self.retirement
+            .iter_mut()
+            .chain(
+                self.carried_retirements
+                    .iter_mut()
+                    .map(|carried| &mut carried.retirement),
+            )
+            .find(|retirement| retirement.retired_epoch == retired_epoch)
+    }
+
+    /// The roles still waiting for the committed receipt.
+    pub fn pending_roles(&self) -> Vec<TwoPartyDeriverRole> {
+        let mut roles = Vec::with_capacity(2);
+        if self.deriver_a == CloudflareTenantRootRoleDeliveryV1::Pending {
+            roles.push(TwoPartyDeriverRole::DeriverA);
+        }
+        if self.deriver_b == CloudflareTenantRootRoleDeliveryV1::Pending {
+            roles.push(TwoPartyDeriverRole::DeriverB);
+        }
+        roles
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -2077,6 +2450,9 @@ pub(crate) struct CloudflareTenantRootRefreshActiveStateRecordV1 {
     pub(crate) last_manual_refresh_completed_at_ms: Option<u64>,
     #[serde(default)]
     pub(crate) last_refresh_completed_at_ms: Option<u64>,
+    /// Delivery of the committed receipt to each Deriver.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) delivery: Option<CloudflareTenantRootDeliveryV1>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -2181,10 +2557,10 @@ fn validate_response_digest(
     Ok(())
 }
 
-#[cfg(feature = "workers-rs")]
-#[allow(dead_code)]
-pub(crate) async fn execute_cloudflare_router_tenant_root_creation_journal_call_v1(
-    env: &worker::Env,
+/// Persists a started creation journal and its capability at the creation
+/// state and validates the recorded outcome, on any host.
+pub async fn tenant_root_creation_journal_call_v1(
+    state: &impl TenantRootCreationStateTransportV1,
     journal: &TenantRootCreationJournalV1,
     capability: &TenantRootCreationCapabilityV1,
 ) -> RouterAbProtocolResult<CloudflareTenantRootCreationJournalResponseV1> {
@@ -2206,7 +2582,6 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_creation_journal_call_
             "tenant-root creation capability does not match the submitted journal",
         ));
     }
-
     let journal_bytes = journal
         .canonical_bytes()
         .map_err(candidate_derivation_error)?;
@@ -2214,97 +2589,22 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_creation_journal_call_
         .canonical_bytes()
         .map_err(candidate_derivation_error)?;
     let capability_digest = capability.digest().map_err(candidate_derivation_error)?;
-    let object_name = tenant_root_creation_object_name_v1(identity_digest, custody_lineage);
-    let namespace = env
-        .durable_object(ROUTER_TENANT_ROOT_CREATION_DO_BINDING_V1)
-        .map_err(|error| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::MissingLocalBinding,
-                format!("tenant-root creation Durable Object namespace lookup failed: {error}"),
-            )
-        })?;
-    let object_id = namespace.id_from_name(&object_name).map_err(|error| {
-        RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-            format!("tenant-root creation Durable Object id derivation failed: {error}"),
-        )
-    })?;
-    let object_id = object_id.to_string();
-    validate_tenant_root_creation_object_binding_v1(&object_id, capability.authority_id())?;
-    let stub = namespace.get_by_name(&object_name).map_err(|error| {
-        RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-            format!("tenant-root creation Durable Object stub lookup failed: {error}"),
-        )
-    })?;
     let request = CloudflareTenantRootCreationJournalRequestV1 {
         journal_b64u: encode_base64url_bytes_v1(&journal_bytes),
         creation_capability_b64u: encode_base64url_bytes_v1(&capability_bytes),
     };
-    let request_body = serde_json::to_string(&request).map_err(|error| {
-        RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::MalformedWirePayload,
-            format!("tenant-root creation journal request JSON encoding failed: {error}"),
+    let response: CloudflareTenantRootCreationJournalResponseV1 = state
+        .creation_state_call(
+            capability.authority_id(),
+            identity_digest,
+            custody_lineage,
+            CLOUDFLARE_TENANT_ROOT_CREATION_JOURNAL_PATH,
+            "tenant-root creation journal",
+            &request,
+            TENANT_ROOT_CREATION_REQUEST_MAX_BYTES_V1,
+            TENANT_ROOT_CREATION_JOURNAL_RESPONSE_MAX_BYTES_V1,
         )
-    })?;
-    if request_body.len() > TENANT_ROOT_CREATION_REQUEST_MAX_BYTES_V1 {
-        return Err(malformed_input(
-            "tenant-root creation journal request exceeds its maximum size",
-        ));
-    }
-    let headers = worker::Headers::new();
-    headers
-        .set("content-type", "application/json")
-        .map_err(|error| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                format!("tenant-root creation journal request headers failed: {error}"),
-            )
-        })?;
-    crate::set_cloudflare_internal_service_auth_header_v1(
-        env,
-        &headers,
-        "tenant-root creation journal",
-    )?;
-    let mut init = worker::RequestInit::new();
-    init.with_method(worker::Method::Post)
-        .with_headers(headers)
-        .with_body(Some(worker::wasm_bindgen::JsValue::from_str(&request_body)));
-    let request = worker::Request::new_with_init(
-        &format!(
-            "https://router-ab-do.internal{}",
-            CLOUDFLARE_TENANT_ROOT_CREATION_JOURNAL_PATH
-        ),
-        &init,
-    )
-    .map_err(|error| {
-        RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-            format!("tenant-root creation journal request construction failed: {error}"),
-        )
-    })?;
-    let mut response = stub.fetch_with_request(request).await.map_err(|error| {
-        RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-            format!("tenant-root creation journal request failed: {error}"),
-        )
-    })?;
-    let status = response.status_code();
-    if !(200..=299).contains(&status) {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-            format!("tenant-root creation journal returned HTTP {status}"),
-        ));
-    }
-    let response = response
-        .json::<CloudflareTenantRootCreationJournalResponseV1>()
-        .await
-        .map_err(|error| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::MalformedWirePayload,
-                format!("tenant-root creation journal response JSON parse failed: {error}"),
-            )
-        })?;
+        .await?;
     validate_cloudflare_tenant_root_creation_journal_response_v1(
         &response,
         revision,
@@ -2312,6 +2612,178 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_creation_journal_call_
         capability_digest,
     )?;
     Ok(response)
+}
+
+/// Reads one tenant root's creation state, on any host.
+pub async fn tenant_root_creation_journal_read_call_v1(
+    state: &impl TenantRootCreationStateTransportV1,
+    identity_digest: TenantRootIdentityDigestV1,
+    custody_lineage: TenantRootCustodyLineageId,
+) -> RouterAbProtocolResult<CloudflareTenantRootCreationJournalReadResponseV1> {
+    let authority_id = state.creation_authority_id(identity_digest, custody_lineage)?;
+    state
+        .creation_state_call(
+            authority_id,
+            identity_digest,
+            custody_lineage,
+            CLOUDFLARE_TENANT_ROOT_CREATION_JOURNAL_READ_PATH,
+            "tenant-root creation read",
+            &CloudflareTenantRootCreationJournalReadRequestV1 {
+                identity_digest_b64u: encode_base64url_bytes_v1(identity_digest.as_bytes()),
+                custody_lineage_b64u: encode_base64url_bytes_v1(custody_lineage.as_bytes()),
+            },
+            TENANT_ROOT_CREATION_REQUEST_MAX_BYTES_V1,
+            TENANT_ROOT_CREATION_JOURNAL_READ_RESPONSE_MAX_BYTES_V1,
+        )
+        .await
+}
+
+/// Reads the Router's own progress for one creation, on any host. Unlike the
+/// journal read, a creation that has not started is an outcome, not an error.
+pub async fn tenant_root_creation_progress_read_call_v1(
+    state: &impl TenantRootCreationStateTransportV1,
+    identity_digest: TenantRootIdentityDigestV1,
+    custody_lineage: TenantRootCustodyLineageId,
+) -> RouterAbProtocolResult<CloudflareTenantRootCreationProgressV1> {
+    let authority_id = state.creation_authority_id(identity_digest, custody_lineage)?;
+    state
+        .creation_state_call(
+            authority_id,
+            identity_digest,
+            custody_lineage,
+            CLOUDFLARE_TENANT_ROOT_CREATION_PROGRESS_READ_PATH,
+            "tenant-root creation progress read",
+            &CloudflareTenantRootCreationJournalReadRequestV1 {
+                identity_digest_b64u: encode_base64url_bytes_v1(identity_digest.as_bytes()),
+                custody_lineage_b64u: encode_base64url_bytes_v1(custody_lineage.as_bytes()),
+            },
+            TENANT_ROOT_CREATION_REQUEST_MAX_BYTES_V1,
+            TENANT_ROOT_CREATION_PROGRESS_READ_RESPONSE_MAX_BYTES_V1,
+        )
+        .await
+}
+
+/// Abandons one uncommitted creation in the Router's creation state, on any
+/// host, and returns the installed roles that must then be cleaned.
+pub async fn tenant_root_creation_abandonment_call_v1(
+    state: &impl TenantRootCreationStateTransportV1,
+    identity_digest: TenantRootIdentityDigestV1,
+    custody_lineage: TenantRootCustodyLineageId,
+) -> RouterAbProtocolResult<CloudflareTenantRootCreationAbandonmentResponseV1> {
+    let authority_id = state.creation_authority_id(identity_digest, custody_lineage)?;
+    state
+        .creation_state_call(
+            authority_id,
+            identity_digest,
+            custody_lineage,
+            CLOUDFLARE_TENANT_ROOT_CREATION_ABANDONMENT_PATH,
+            "tenant-root creation abandonment",
+            &CloudflareTenantRootCreationJournalReadRequestV1 {
+                identity_digest_b64u: encode_base64url_bytes_v1(identity_digest.as_bytes()),
+                custody_lineage_b64u: encode_base64url_bytes_v1(custody_lineage.as_bytes()),
+            },
+            TENANT_ROOT_CREATION_REQUEST_MAX_BYTES_V1,
+            TENANT_ROOT_CREATION_REQUEST_MAX_BYTES_V1,
+        )
+        .await
+}
+
+#[cfg(feature = "workers-rs")]
+#[allow(dead_code)]
+pub(crate) async fn execute_cloudflare_router_tenant_root_creation_journal_call_v1(
+    env: &worker::Env,
+    journal: &TenantRootCreationJournalV1,
+    capability: &TenantRootCreationCapabilityV1,
+) -> RouterAbProtocolResult<CloudflareTenantRootCreationJournalResponseV1> {
+    tenant_root_creation_journal_call_v1(
+        &CloudflareTenantRootCreationStateTransportV1::new(env),
+        journal,
+        capability,
+    )
+    .await
+}
+
+/// Reaches the Router-owned creation state for one tenant root.
+///
+/// On Cloudflare this is the creation Durable Object, addressed by name and
+/// checked against its authority id. A VM Router serves the same operations
+/// from its own SQLite store; other VM roles reach it over HTTP.
+#[allow(async_fn_in_trait)]
+pub trait TenantRootCreationStateTransportV1 {
+    /// The creation authority id for one tenant root's creation state.
+    fn creation_authority_id(
+        &self,
+        identity_digest: TenantRootIdentityDigestV1,
+        custody_lineage: TenantRootCustodyLineageId,
+    ) -> RouterAbProtocolResult<TenantRootControlPlaneAuthorityIdV1>;
+
+    /// Executes one creation-state operation and returns its JSON response.
+    #[allow(clippy::too_many_arguments)]
+    async fn creation_state_call<TRequest: Serialize, TResponse: DeserializeOwned>(
+        &self,
+        authority_id: TenantRootControlPlaneAuthorityIdV1,
+        identity_digest: TenantRootIdentityDigestV1,
+        custody_lineage: TenantRootCustodyLineageId,
+        path: &'static str,
+        label: &'static str,
+        request: &TRequest,
+        request_max_bytes: usize,
+        response_max_bytes: usize,
+    ) -> RouterAbProtocolResult<TResponse>;
+}
+
+/// The Cloudflare creation-state transport: the creation Durable Object.
+#[cfg(feature = "workers-rs")]
+pub(crate) struct CloudflareTenantRootCreationStateTransportV1<'a> {
+    env: &'a worker::Env,
+}
+
+#[cfg(feature = "workers-rs")]
+impl<'a> CloudflareTenantRootCreationStateTransportV1<'a> {
+    pub(crate) const fn new(env: &'a worker::Env) -> Self {
+        Self { env }
+    }
+}
+
+#[cfg(feature = "workers-rs")]
+impl TenantRootCreationStateTransportV1 for CloudflareTenantRootCreationStateTransportV1<'_> {
+    fn creation_authority_id(
+        &self,
+        identity_digest: TenantRootIdentityDigestV1,
+        custody_lineage: TenantRootCustodyLineageId,
+    ) -> RouterAbProtocolResult<TenantRootControlPlaneAuthorityIdV1> {
+        Ok(derive_tenant_root_creation_authority_object_v1(
+            self.env,
+            identity_digest,
+            custody_lineage,
+        )?
+        .0)
+    }
+
+    async fn creation_state_call<TRequest: Serialize, TResponse: DeserializeOwned>(
+        &self,
+        authority_id: TenantRootControlPlaneAuthorityIdV1,
+        identity_digest: TenantRootIdentityDigestV1,
+        custody_lineage: TenantRootCustodyLineageId,
+        path: &'static str,
+        label: &'static str,
+        request: &TRequest,
+        request_max_bytes: usize,
+        response_max_bytes: usize,
+    ) -> RouterAbProtocolResult<TResponse> {
+        execute_cloudflare_router_tenant_root_creation_private_call_v1(
+            self.env,
+            authority_id,
+            identity_digest,
+            custody_lineage,
+            path,
+            label,
+            request,
+            request_max_bytes,
+            response_max_bytes,
+        )
+        .await
+    }
 }
 
 #[cfg(feature = "workers-rs")]
@@ -2362,83 +2834,60 @@ async fn execute_cloudflare_router_tenant_root_creation_private_call_v1<
         request,
         request_max_bytes,
         response_max_bytes,
-        None,
     )
     .await
 }
 
-#[cfg(feature = "workers-rs")]
-pub(crate) async fn execute_cloudflare_router_tenant_root_restore_refresh_checkpoint_call_v1(
-    env: &worker::Env,
+/// Runs one restore-refresh checkpoint operation in the destination's
+/// Router-owned creation state, which the grant names.
+pub(crate) async fn tenant_root_restore_refresh_checkpoint_call_v1(
+    state: &impl TenantRootCreationStateTransportV1,
     request: &CloudflareTenantRootRestoreRefreshCheckpointRequestV1,
 ) -> RouterAbProtocolResult<CloudflareTenantRootRestoreRefreshCheckpointResponseV1> {
     let grant_b64u = restore_refresh_checkpoint_grant_b64u_v1(request);
     let (_, grant, _) = restore_refresh_checkpoint_scope_from_grant_v1(grant_b64u)?;
     let identity_digest = grant.destination_identity_digest();
     let custody_lineage = grant.destination_lineage();
-    let (authority_id, _) =
-        derive_tenant_root_creation_authority_object_v1(env, identity_digest, custody_lineage)?;
-    execute_cloudflare_router_tenant_root_creation_private_call_v1(
-        env,
-        authority_id,
-        identity_digest,
-        custody_lineage,
-        crate::CLOUDFLARE_ROUTER_TENANT_ROOT_RESTORE_REFRESH_PRIVATE_REQUEST_PATH,
-        "tenant-root restore-refresh checkpoint",
-        request,
-        TENANT_ROOT_RESTORE_REFRESH_CHECKPOINT_REQUEST_MAX_BYTES_V1,
-        TENANT_ROOT_RESTORE_REFRESH_CHECKPOINT_RESPONSE_MAX_BYTES_V1,
-    )
-    .await
+    let authority_id = state.creation_authority_id(identity_digest, custody_lineage)?;
+    state
+        .creation_state_call(
+            authority_id,
+            identity_digest,
+            custody_lineage,
+            crate::CLOUDFLARE_ROUTER_TENANT_ROOT_RESTORE_REFRESH_PRIVATE_REQUEST_PATH,
+            "tenant-root restore-refresh checkpoint",
+            request,
+            TENANT_ROOT_RESTORE_REFRESH_CHECKPOINT_REQUEST_MAX_BYTES_V1,
+            TENANT_ROOT_RESTORE_REFRESH_CHECKPOINT_RESPONSE_MAX_BYTES_V1,
+        )
+        .await
 }
 
-#[cfg(feature = "workers-rs")]
-pub(crate) async fn execute_cloudflare_router_tenant_root_destination_bootstrap_call_v1(
-    env: &worker::Env,
+/// Reads or authenticates the destination's bootstrap authority in the
+/// Router-owned creation state, carrying the credential the caller presented.
+pub(crate) async fn tenant_root_destination_bootstrap_call_v1(
+    state: &impl TenantRootCreationStateTransportV1,
     identity_digest: TenantRootIdentityDigestV1,
     custody_lineage: TenantRootCustodyLineageId,
     request: &CloudflareTenantRootDestinationBootstrapRequestV1,
-    token_header: Option<&str>,
+    token_b64u: Option<&str>,
 ) -> RouterAbProtocolResult<CloudflareTenantRootDestinationBootstrapResponseV1> {
-    let (authority_id, object_name) =
-        derive_tenant_root_creation_authority_object_v1(env, identity_digest, custody_lineage)?;
-    let namespace = env
-        .durable_object(ROUTER_TENANT_ROOT_CREATION_DO_BINDING_V1)
-        .map_err(|error| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::MissingLocalBinding,
-                format!(
-                    "tenant-root destination bootstrap Durable Object namespace lookup failed: {error}"
-                ),
-            )
-        })?;
-    let object_id = namespace.id_from_name(&object_name).map_err(|error| {
-        RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-            format!(
-                "tenant-root destination bootstrap Durable Object id derivation failed: {error}"
-            ),
+    let authority_id = state.creation_authority_id(identity_digest, custody_lineage)?;
+    state
+        .creation_state_call(
+            authority_id,
+            identity_digest,
+            custody_lineage,
+            crate::CLOUDFLARE_ROUTER_TENANT_ROOT_DESTINATION_BOOTSTRAP_PRIVATE_REQUEST_PATH,
+            "tenant-root destination bootstrap",
+            &CloudflareTenantRootDestinationBootstrapCallV1 {
+                request: request.clone(),
+                token_b64u: token_b64u.map(str::to_owned),
+            },
+            TENANT_ROOT_DESTINATION_BOOTSTRAP_REQUEST_MAX_BYTES_V1,
+            TENANT_ROOT_DESTINATION_BOOTSTRAP_RESPONSE_MAX_BYTES_V1,
         )
-    })?;
-    let object_id = object_id.to_string();
-    validate_tenant_root_creation_object_binding_v1(&object_id, authority_id)?;
-    let stub = namespace.get_by_name(&object_name).map_err(|error| {
-        RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-            format!("tenant-root destination bootstrap Durable Object stub lookup failed: {error}"),
-        )
-    })?;
-    execute_cloudflare_router_tenant_root_stub_private_call_v1(
-        env,
-        stub,
-        crate::CLOUDFLARE_ROUTER_TENANT_ROOT_DESTINATION_BOOTSTRAP_PRIVATE_REQUEST_PATH,
-        "tenant-root destination bootstrap",
-        request,
-        TENANT_ROOT_DESTINATION_BOOTSTRAP_REQUEST_MAX_BYTES_V1,
-        TENANT_ROOT_DESTINATION_BOOTSTRAP_RESPONSE_MAX_BYTES_V1,
-        token_header,
-    )
-    .await
+        .await
 }
 
 #[cfg(feature = "workers-rs")]
@@ -2453,7 +2902,6 @@ async fn execute_cloudflare_router_tenant_root_stub_private_call_v1<
     request: &TRequest,
     request_max_bytes: usize,
     response_max_bytes: usize,
-    token_header: Option<&str>,
 ) -> RouterAbProtocolResult<TResponse> {
     let request_body = serde_json::to_string(request).map_err(|error| {
         RouterAbProtocolError::new(
@@ -2476,19 +2924,6 @@ async fn execute_cloudflare_router_tenant_root_stub_private_call_v1<
             )
         })?;
     crate::set_cloudflare_internal_service_auth_header_v1(env, &headers, label)?;
-    if let Some(token_header) = token_header {
-        headers
-            .set(
-                crate::CLOUDFLARE_ROUTER_TENANT_ROOT_DESTINATION_BOOTSTRAP_TOKEN_HEADER_V1,
-                token_header,
-            )
-            .map_err(|error| {
-                RouterAbProtocolError::new(
-                    RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                    format!("{label} credential header failed: {error}"),
-                )
-            })?;
-    }
     let mut init = worker::RequestInit::new();
     init.with_method(worker::Method::Post)
         .with_headers(headers)
@@ -2557,7 +2992,6 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_cutover_read_call_v1(
         &CloudflareTenantRootCutoverReadRequestV1 {},
         TENANT_ROOT_CUTOVER_REQUEST_MAX_BYTES_V1,
         TENANT_ROOT_CUTOVER_REQUEST_MAX_BYTES_V1,
-        None,
     )
     .await
 }
@@ -2575,7 +3009,6 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_cutover_write_call_v1(
         request,
         TENANT_ROOT_CUTOVER_REQUEST_MAX_BYTES_V1,
         TENANT_ROOT_CUTOVER_REQUEST_MAX_BYTES_V1,
-        None,
     )
     .await
 }
@@ -2816,28 +3249,27 @@ fn validate_response_lineage(
     Ok(())
 }
 
-#[cfg(feature = "workers-rs")]
-#[allow(dead_code)]
-pub(crate) async fn execute_cloudflare_router_tenant_root_creation_commitment_call_v1(
-    env: &worker::Env,
+/// Submits one role's verified creation commitment to the creation state and
+/// validates the rendezvous outcome, on any host.
+pub async fn tenant_root_creation_commitment_call_v1(
+    state: &impl TenantRootCreationStateTransportV1,
+    role_keys: &TenantRootCreationRoleVerifyingKeysV1,
     command: &VerifiedTenantRootRoleCreationCommandV1,
     commitment: &VerifiedTenantRootCreationCommitmentV1,
 ) -> RouterAbProtocolResult<CloudflareTenantRootCreationCommitmentOutcomeV1> {
     let command_bytes = command.canonical_bytes().to_vec();
     let commitment_bytes = commitment.canonical_bytes().to_vec();
-    let role_keys = read_tenant_root_creation_role_verifying_keys(env)?;
     validate_commitment_wire_for_role_command(
         &commitment_bytes,
         command,
         command.role(),
-        &role_keys,
+        role_keys,
     )?;
     let request = CloudflareTenantRootCreationCommitmentRequestV1 {
         role_creation_command_b64u: encode_base64url_bytes_v1(&command_bytes),
         signed_commitment_b64u: encode_base64url_bytes_v1(&commitment_bytes),
     };
-    let response = execute_cloudflare_router_tenant_root_creation_private_call_v1(
-        env,
+    let response = state.creation_state_call(
         command.authority_id(),
         command.identity_digest(),
         command.custody_lineage(),
@@ -2848,7 +3280,23 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_creation_commitment_ca
         TENANT_ROOT_CREATION_COMMITMENT_RESPONSE_MAX_BYTES_V1,
     )
     .await?;
-    validate_creation_commitment_response_v1(&response, command, &commitment_bytes, &role_keys)
+    validate_creation_commitment_response_v1(&response, command, &commitment_bytes, role_keys)
+}
+
+#[cfg(feature = "workers-rs")]
+#[allow(dead_code)]
+pub(crate) async fn execute_cloudflare_router_tenant_root_creation_commitment_call_v1(
+    env: &worker::Env,
+    command: &VerifiedTenantRootRoleCreationCommandV1,
+    commitment: &VerifiedTenantRootCreationCommitmentV1,
+) -> RouterAbProtocolResult<CloudflareTenantRootCreationCommitmentOutcomeV1> {
+    tenant_root_creation_commitment_call_v1(
+        &CloudflareTenantRootCreationStateTransportV1::new(env),
+        &read_tenant_root_creation_role_verifying_keys(env)?,
+        command,
+        commitment,
+    )
+    .await
 }
 
 #[allow(dead_code)]
@@ -2922,10 +3370,10 @@ fn validate_installation_response_v1(
     }
 }
 
-#[cfg(feature = "workers-rs")]
-#[allow(dead_code)]
-pub(crate) async fn execute_cloudflare_router_tenant_root_creation_installation_call_v1(
-    env: &worker::Env,
+/// Submits one role's verified installation evidence to the creation state
+/// and validates the checkpoint outcome, on any host.
+pub async fn tenant_root_creation_installation_call_v1(
+    state: &impl TenantRootCreationStateTransportV1,
     command: &VerifiedTenantRootRoleCreationCommandV1,
     evidence: &VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
 ) -> RouterAbProtocolResult<CloudflareTenantRootCreationInstallationOutcomeV1> {
@@ -2948,8 +3396,7 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_creation_installation_
         role_creation_command_b64u: encode_base64url_bytes_v1(&command_bytes),
         signed_evidence_b64u: encode_base64url_bytes_v1(evidence_bytes),
     };
-    let response = execute_cloudflare_router_tenant_root_creation_private_call_v1(
-        env,
+    let response = state.creation_state_call(
         command.authority_id(),
         command.identity_digest(),
         command.custody_lineage(),
@@ -2963,11 +3410,25 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_creation_installation_
     validate_installation_response_v1(&response, command, evidence)
 }
 
-/// Sends one verified cleanup command and its exact successful terminal receipt
-/// to the Router-owned creation object.
 #[cfg(feature = "workers-rs")]
-pub(crate) async fn execute_cloudflare_router_tenant_root_creation_cleanup_call_v1(
+#[allow(dead_code)]
+pub(crate) async fn execute_cloudflare_router_tenant_root_creation_installation_call_v1(
     env: &worker::Env,
+    command: &VerifiedTenantRootRoleCreationCommandV1,
+    evidence: &VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
+) -> RouterAbProtocolResult<CloudflareTenantRootCreationInstallationOutcomeV1> {
+    tenant_root_creation_installation_call_v1(
+        &CloudflareTenantRootCreationStateTransportV1::new(env),
+        command,
+        evidence,
+    )
+    .await
+}
+
+/// Sends one verified cleanup command and its exact successful terminal receipt
+/// to the Router-owned creation state, on any host.
+pub async fn tenant_root_creation_cleanup_call_v1(
+    state: &impl TenantRootCreationStateTransportV1,
     command: &VerifiedTenantRootRoleCleanupCommandV1,
     receipt_bytes: &[u8],
 ) -> RouterAbProtocolResult<CloudflareTenantRootCreationCleanupResponseV1> {
@@ -2983,18 +3444,14 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_creation_cleanup_call_
     let command_bytes = command
         .canonical_bytes()
         .map_err(candidate_derivation_error)?;
-    let (authority_id, _) = derive_tenant_root_creation_authority_object_v1(
-        env,
-        command.identity_digest(),
-        command.custody_lineage(),
-    )?;
+    let authority_id =
+        state.creation_authority_id(command.identity_digest(), command.custody_lineage())?;
     let request = CloudflareTenantRootCreationCleanupRequestV1 {
         cleanup_command_b64u: encode_base64url_bytes_v1(&command_bytes),
         cleanup_receipt_b64u: encode_base64url_bytes_v1(receipt_bytes),
     };
     let response: CloudflareTenantRootCreationCleanupResponseV1 =
-        execute_cloudflare_router_tenant_root_creation_private_call_v1(
-            env,
+        state.creation_state_call(
             authority_id,
             command.identity_digest(),
             command.custody_lineage(),
@@ -3020,10 +3477,9 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_creation_cleanup_call_
 }
 
 /// Sends a control-plane initial-activation receipt to the Router-owned
-/// creation object for authoritative persistence.
-#[cfg(feature = "workers-rs")]
-pub(crate) async fn execute_cloudflare_router_tenant_root_creation_initial_activation_call_v1(
-    env: &worker::Env,
+/// creation state for authoritative persistence, on any host.
+pub async fn tenant_root_creation_initial_activation_call_v1(
+    state: &impl TenantRootCreationStateTransportV1,
     receipt_bytes: &[u8],
 ) -> RouterAbProtocolResult<CloudflareTenantRootCreationInitialActivationResponseV1> {
     let receipt = TenantRootSignedActivationReceiptV1::decode_canonical_bytes(receipt_bytes)
@@ -3035,17 +3491,13 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_creation_initial_activ
         ));
     }
     let receipt_digest = receipt.digest().map_err(candidate_derivation_error)?;
-    let (authority_id, _) = derive_tenant_root_creation_authority_object_v1(
-        env,
-        receipt.identity_digest(),
-        receipt.custody_lineage(),
-    )?;
+    let authority_id =
+        state.creation_authority_id(receipt.identity_digest(), receipt.custody_lineage())?;
     let request = CloudflareTenantRootCreationInitialActivationRequestV1 {
         activation_receipt_b64u: encode_base64url_bytes_v1(receipt_bytes),
     };
     let response: CloudflareTenantRootCreationInitialActivationResponseV1 =
-        execute_cloudflare_router_tenant_root_creation_private_call_v1(
-            env,
+        state.creation_state_call(
             authority_id,
             receipt.identity_digest(),
             receipt.custody_lineage(),
@@ -3076,9 +3528,10 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_creation_initial_activ
 /// Sends a control-plane restore activation receipt to the Router-owned
 /// creation object. The object binds it to its promoted restore checkpoint
 /// before consuming the destination bootstrap authority.
-#[cfg(feature = "workers-rs")]
-pub(crate) async fn execute_cloudflare_router_tenant_root_restore_initial_activation_call_v1(
-    env: &worker::Env,
+/// Activates a restored root in the Router-owned creation state from the
+/// verified initial-creation receipt its restore promoted.
+pub(crate) async fn tenant_root_restore_initial_activation_call_v1(
+    state: &impl TenantRootCreationStateTransportV1,
     receipt_bytes: &[u8],
 ) -> RouterAbProtocolResult<CloudflareTenantRootRestoreInitialActivationResponseV1> {
     let receipt = TenantRootSignedActivationReceiptV1::decode_canonical_bytes(receipt_bytes)
@@ -3090,17 +3543,13 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_restore_initial_activa
         ));
     }
     let receipt_digest = receipt.digest().map_err(candidate_derivation_error)?;
-    let (authority_id, _) = derive_tenant_root_creation_authority_object_v1(
-        env,
-        receipt.identity_digest(),
-        receipt.custody_lineage(),
-    )?;
+    let authority_id =
+        state.creation_authority_id(receipt.identity_digest(), receipt.custody_lineage())?;
     let request = CloudflareTenantRootRestoreInitialActivationRequestV1 {
         activation_receipt_b64u: encode_base64url_bytes_v1(receipt_bytes),
     };
-    let response: CloudflareTenantRootRestoreInitialActivationResponseV1 =
-        execute_cloudflare_router_tenant_root_creation_private_call_v1(
-            env,
+    let response: CloudflareTenantRootRestoreInitialActivationResponseV1 = state
+        .creation_state_call(
             authority_id,
             receipt.identity_digest(),
             receipt.custody_lineage(),
@@ -3130,9 +3579,8 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_restore_initial_activa
 
 /// Sends a verified refresh-swap activation receipt to the Router-owned
 /// creation object after both role-private swaps have committed.
-#[cfg(feature = "workers-rs")]
-pub(crate) async fn execute_cloudflare_router_tenant_root_refresh_activation_call_v1(
-    env: &worker::Env,
+pub async fn tenant_root_refresh_activation_call_v1(
+    state: &impl TenantRootCreationStateTransportV1,
     receipt_bytes: &[u8],
 ) -> RouterAbProtocolResult<CloudflareTenantRootRefreshActivationResponseV1> {
     let receipt = TenantRootSignedActivationReceiptV1::decode_canonical_bytes(receipt_bytes)
@@ -3144,17 +3592,12 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_refresh_activation_cal
         ));
     }
     let receipt_digest = receipt.digest().map_err(candidate_derivation_error)?;
-    let (authority_id, _) = derive_tenant_root_creation_authority_object_v1(
-        env,
-        receipt.identity_digest(),
-        receipt.custody_lineage(),
-    )?;
+    let authority_id = state.creation_authority_id(receipt.identity_digest(), receipt.custody_lineage())?;
     let request = CloudflareTenantRootRefreshActivationRequestV1 {
         activation_receipt_b64u: encode_base64url_bytes_v1(receipt_bytes),
     };
     let response: CloudflareTenantRootRefreshActivationResponseV1 =
-        execute_cloudflare_router_tenant_root_creation_private_call_v1(
-            env,
+        state.creation_state_call(
             authority_id,
             receipt.identity_digest(),
             receipt.custody_lineage(),
@@ -3183,8 +3626,7 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_refresh_activation_cal
 }
 
 /// Issuer-verified active public state read from the Router-owned object.
-#[cfg(feature = "workers-rs")]
-pub(crate) struct CloudflareVerifiedTenantRootActiveStateV1 {
+pub struct CloudflareVerifiedTenantRootActiveStateV1 {
     pub(crate) activation_receipt: router_ab_core::VerifiedTenantRootSignedActivationReceiptV1,
     pub(crate) lifecycle_revision: u64,
     pub(crate) refresh_fence: CloudflareTenantRootRefreshFenceV1,
@@ -3192,42 +3634,46 @@ pub(crate) struct CloudflareVerifiedTenantRootActiveStateV1 {
     pub(crate) job: Option<CloudflareTenantRootRefreshJobReadV1>,
     pub(crate) last_manual_refresh_completed_at_ms: Option<u64>,
     pub(crate) last_refresh_completed_at_ms: Option<u64>,
+    pub(crate) delivery: Option<CloudflareTenantRootDeliveryV1>,
+    pub(crate) refresh_pending: Option<CloudflareTenantRootRefreshPendingV1>,
 }
 
-/// Reads the Router-owned active state and returns its issuer-verified receipt.
-#[cfg(feature = "workers-rs")]
-pub(crate) async fn execute_cloudflare_router_tenant_root_creation_active_state_read_call_v1(
-    env: &worker::Env,
-    identity_digest: TenantRootIdentityDigestV1,
-    custody_lineage: TenantRootCustodyLineageId,
-) -> RouterAbProtocolResult<router_ab_core::VerifiedTenantRootSignedActivationReceiptV1> {
-    Ok(
-        execute_cloudflare_router_tenant_root_creation_active_state_with_revision_read_call_v1(
-            env,
-            identity_digest,
-            custody_lineage,
-        )
-        .await?
-        .activation_receipt,
-    )
+impl CloudflareVerifiedTenantRootActiveStateV1 {
+    /// The roles still waiting for the committed receipt; empty when both have
+    /// it.
+    pub fn pending_delivery(&self) -> Vec<TwoPartyDeriverRole> {
+        self.delivery
+            .as_ref()
+            .map(CloudflareTenantRootDeliveryV1::pending_roles)
+            .unwrap_or_default()
+    }
+
+    /// The issuer-verified active activation receipt.
+    pub fn activation_receipt(&self) -> &router_ab_core::VerifiedTenantRootSignedActivationReceiptV1 {
+        &self.activation_receipt
+    }
+
+    /// The creation state's lifecycle revision for this active receipt.
+    pub const fn lifecycle_revision(&self) -> u64 {
+        self.lifecycle_revision
+    }
 }
 
-/// Reads the authoritative active receipt together with its current lifecycle revision.
-#[cfg(feature = "workers-rs")]
-pub(crate) async fn execute_cloudflare_router_tenant_root_creation_active_state_with_revision_read_call_v1(
-    env: &worker::Env,
+/// Reads the authoritative active receipt together with its current lifecycle
+/// revision, verified against the trusted issuer keys, on any host.
+pub async fn tenant_root_creation_active_state_with_revision_read_call_v1(
+    state: &impl TenantRootCreationStateTransportV1,
+    issuer_keys: &BTreeMap<String, [u8; 32]>,
     identity_digest: TenantRootIdentityDigestV1,
     custody_lineage: TenantRootCustodyLineageId,
 ) -> RouterAbProtocolResult<CloudflareVerifiedTenantRootActiveStateV1> {
-    let (authority_id, _) =
-        derive_tenant_root_creation_authority_object_v1(env, identity_digest, custody_lineage)?;
+    let authority_id = state.creation_authority_id(identity_digest, custody_lineage)?;
     let request = CloudflareTenantRootCreationActiveStateReadRequestV1::Read {
         identity_digest_b64u: encode_base64url_bytes_v1(identity_digest.as_bytes()),
         custody_lineage_b64u: custody_lineage.to_base64url(),
     };
     let response: CloudflareTenantRootCreationActiveStateReadResponseV1 =
-        execute_cloudflare_router_tenant_root_creation_private_call_v1(
-            env,
+        state.creation_state_call(
             authority_id,
             identity_digest,
             custody_lineage,
@@ -3238,105 +3684,98 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_creation_active_state_
             TENANT_ROOT_CREATION_ACTIVE_STATE_READ_RESPONSE_MAX_BYTES_V1,
         )
         .await?;
-    let response_identity_digest =
-        TenantRootIdentityDigestV1::from_bytes(decode_fixed_base64url_32(
-            "tenant-root active-state response identity digest",
-            &response.identity_digest_b64u,
-        )?);
-    if response_identity_digest != identity_digest {
-        return Err(malformed_input(
-            "tenant-root active-state response identity digest does not match the request",
-        ));
-    }
-    let response_custody_lineage = decode_lineage_b64u(
-        "tenant-root active-state response custody lineage",
-        &response.custody_lineage_b64u,
-    )?;
-    if response_custody_lineage != custody_lineage {
-        return Err(malformed_input(
-            "tenant-root active-state response custody lineage does not match the request",
-        ));
-    }
-    let receipt_bytes = decode_canonical_base64url(
-        "tenant-root active-state response activation receipt",
-        &response.activation_receipt_b64u,
-        TENANT_ROOT_REFRESH_ACTIVE_RECEIPT_MAX_BYTES_V1,
-        TENANT_ROOT_REFRESH_ACTIVE_RECEIPT_MAX_BASE64URL_BYTES_V1,
-    )?;
-    let receipt = TenantRootSignedActivationReceiptV1::decode_canonical_bytes(&receipt_bytes)
-        .map_err(candidate_derivation_error)?;
-    let issuer_keys_json = read_required_worker_var(
-        env,
-        crate::TENANT_ROOT_CONTROL_PLANE_ISSUER_VERIFYING_KEYS_JSON_ENV,
-    )?;
-    let issuer_keys = crate::env::decode_issuer_verifying_keys(&issuer_keys_json)?;
-    let issuer_verifying_key = issuer_keys.get(receipt.issuer_key_id()).ok_or_else(|| {
-        RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::ForbiddenLocalBinding,
-            "tenant-root active-state response receipt issuer is not trusted",
-        )
-    })?;
-    let receipt = receipt
-        .verify_issuer_signature(issuer_verifying_key)
-        .map_err(candidate_authorization_error)?;
-    if receipt.identity_digest() != identity_digest
-        || receipt.custody_lineage() != custody_lineage
-        || receipt.binding().authority_id() != authority_id
-    {
-        return Err(malformed_input(
-            "tenant-root active-state response receipt does not match the request authority",
-        ));
-    }
-    let response_receipt_digest = decode_lifecycle_receipt_digest(
-        "tenant-root active-state response receipt digest",
-        &response.activation_receipt_digest_b64u,
-    )?;
-    if response_receipt_digest != receipt.digest() {
-        return Err(malformed_input(
-            "tenant-root active-state response receipt digest does not match its receipt",
-        ));
-    }
-    if response.lifecycle_revision == 0
-        || response.lifecycle_revision < receipt.result_control_plane_revision()
-    {
-        return Err(malformed_input(
-            "tenant-root active-state response lifecycle revision is invalid",
-        ));
-    }
-    validate_refresh_fence(&response.fence)?;
-    validate_managed_restore_fence_shape(&response.managed_restore_fence)?;
-    validate_refresh_job_read_v1(response.job.as_ref())?;
-    Ok(CloudflareVerifiedTenantRootActiveStateV1 {
-        activation_receipt: receipt,
-        job: response.job,
-        last_manual_refresh_completed_at_ms: response.last_manual_refresh_completed_at_ms,
-        last_refresh_completed_at_ms: response.last_refresh_completed_at_ms,
-        lifecycle_revision: response.lifecycle_revision,
-        refresh_fence: response.fence,
-        managed_restore_fence: response.managed_restore_fence,
-    })
+    decode_verified_active_state_response_v1(
+        issuer_keys,
+        authority_id,
+        identity_digest,
+        custody_lineage,
+        response,
+    )
 }
 
-/// Reserves one managed-restore authorization at the Router-owned Durable
-/// Object and returns the exact persisted challenge. A terminal retry returns
-/// the challenge from that terminal fence.
+/// Reads the outcome of one completed managed restore, named by its exact
+/// issuer-signed public state and capability, with the issuer-verified active
+/// state. The outcome is `None` until that restore's forward refresh commits.
+pub async fn tenant_root_managed_restore_completion_read_call_v1(
+    state: &impl TenantRootCreationStateTransportV1,
+    issuer_keys: &BTreeMap<String, [u8; 32]>,
+    identity_digest: TenantRootIdentityDigestV1,
+    custody_lineage: TenantRootCustodyLineageId,
+    public_state_b64u: String,
+    capability_b64u: String,
+) -> RouterAbProtocolResult<(
+    Option<CloudflareTenantRootRefreshActivationResponseV1>,
+    CloudflareVerifiedTenantRootActiveStateV1,
+)> {
+    let authority_id = state.creation_authority_id(identity_digest, custody_lineage)?;
+    let request =
+        CloudflareTenantRootCreationActiveStateReadRequestV1::ReadManagedRestoreCompletion {
+            identity_digest_b64u: encode_base64url_bytes_v1(identity_digest.as_bytes()),
+            custody_lineage_b64u: custody_lineage.to_base64url(),
+            public_state_b64u,
+            capability_b64u,
+        };
+    let mut response: CloudflareTenantRootCreationActiveStateReadResponseV1 = state
+        .creation_state_call(
+            authority_id,
+            identity_digest,
+            custody_lineage,
+            CLOUDFLARE_TENANT_ROOT_CREATION_ACTIVE_STATE_READ_PATH,
+            "tenant-root managed-restore completion read",
+            &request,
+            TENANT_ROOT_CREATION_ACTIVE_STATE_READ_REQUEST_MAX_BYTES_V1,
+            TENANT_ROOT_CREATION_ACTIVE_STATE_READ_RESPONSE_MAX_BYTES_V1,
+        )
+        .await?;
+    let completed = response.managed_restore_completion.take();
+    let active = decode_verified_active_state_response_v1(
+        issuer_keys,
+        authority_id,
+        identity_digest,
+        custody_lineage,
+        response,
+    )?;
+    Ok((completed, active))
+}
+
+/// Reads the authoritative active receipt together with its current lifecycle revision.
 #[cfg(feature = "workers-rs")]
-pub(crate) async fn execute_cloudflare_router_tenant_root_managed_restore_authorization_challenge_call_v1(
+pub(crate) async fn execute_cloudflare_router_tenant_root_creation_active_state_with_revision_read_call_v1(
     env: &worker::Env,
+    identity_digest: TenantRootIdentityDigestV1,
+    custody_lineage: TenantRootCustodyLineageId,
+) -> RouterAbProtocolResult<CloudflareVerifiedTenantRootActiveStateV1> {
+    let issuer_keys = crate::env::decode_issuer_verifying_keys(&read_required_worker_var(
+        env,
+        crate::TENANT_ROOT_CONTROL_PLANE_ISSUER_VERIFYING_KEYS_JSON_ENV,
+    )?)?;
+    tenant_root_creation_active_state_with_revision_read_call_v1(
+        &CloudflareTenantRootCreationStateTransportV1::new(env),
+        &issuer_keys,
+        identity_digest,
+        custody_lineage,
+    )
+    .await
+}
+
+/// Reserves one managed-restore authorization against the Router's active
+/// state and returns the exact persisted challenge. A terminal retry returns
+/// the challenge from that terminal fence.
+pub async fn tenant_root_managed_restore_reservation_call_v1(
+    state: &impl TenantRootCreationStateTransportV1,
+    issuer_keys: &BTreeMap<String, [u8; 32]>,
     identity_digest: TenantRootIdentityDigestV1,
     custody_lineage: TenantRootCustodyLineageId,
     authorization: CloudflareTenantRootManagedRestoreAuthorizationRequestV1,
 ) -> RouterAbProtocolResult<CloudflareTenantRootManagedRestoreAuthorizationChallengeV1> {
-    let (authority_id, _) =
-        derive_tenant_root_creation_authority_object_v1(env, identity_digest, custody_lineage)?;
+    let authority_id = state.creation_authority_id(identity_digest, custody_lineage)?;
     let request = CloudflareTenantRootCreationActiveStateReadRequestV1::ReserveManagedRestore {
         identity_digest_b64u: encode_base64url_bytes_v1(identity_digest.as_bytes()),
         custody_lineage_b64u: custody_lineage.to_base64url(),
         authorization,
     };
-    let response: CloudflareTenantRootCreationActiveStateReadResponseV1 =
-        execute_cloudflare_router_tenant_root_creation_private_call_v1(
-            env,
+    let response: CloudflareTenantRootCreationActiveStateReadResponseV1 = state
+        .creation_state_call(
             authority_id,
             identity_digest,
             custody_lineage,
@@ -3348,7 +3787,7 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_managed_restore_author
         )
         .await?;
     let active = decode_verified_active_state_response_v1(
-        env,
+        issuer_keys,
         authority_id,
         identity_digest,
         custody_lineage,
@@ -3357,32 +3796,32 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_managed_restore_author
     match active.managed_restore_fence {
         CloudflareTenantRootManagedRestoreFenceV1::Reserved { challenge, .. }
         | CloudflareTenantRootManagedRestoreFenceV1::Terminal { challenge, .. } => Ok(challenge),
-        CloudflareTenantRootManagedRestoreFenceV1::Open => Err(RouterAbProtocolError::new(
+        CloudflareTenantRootManagedRestoreFenceV1::Open
+        | CloudflareTenantRootManagedRestoreFenceV1::Expired { .. }
+        | CloudflareTenantRootManagedRestoreFenceV1::Superseded { .. } => Err(RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
             "tenant-root managed-restore reservation response omitted its persisted challenge",
         )),
     }
 }
 
-/// Checkpoints the exact issuer-signed managed-restore artifacts at the
-/// Router-owned Durable Object and returns the issuer-verified active state.
-#[cfg(feature = "workers-rs")]
-pub(crate) async fn execute_cloudflare_router_tenant_root_managed_restore_authorization_checkpoint_call_v1(
-    env: &worker::Env,
+/// Checkpoints the exact issuer-signed managed-restore artifacts in the
+/// Router's creation state and returns the issuer-verified active state.
+pub async fn tenant_root_managed_restore_checkpoint_call_v1(
+    state: &impl TenantRootCreationStateTransportV1,
+    issuer_keys: &BTreeMap<String, [u8; 32]>,
     identity_digest: TenantRootIdentityDigestV1,
     custody_lineage: TenantRootCustodyLineageId,
     checkpoint: CloudflareTenantRootManagedRestoreAuthorizationCheckpointV1,
 ) -> RouterAbProtocolResult<CloudflareVerifiedTenantRootActiveStateV1> {
-    let (authority_id, _) =
-        derive_tenant_root_creation_authority_object_v1(env, identity_digest, custody_lineage)?;
+    let authority_id = state.creation_authority_id(identity_digest, custody_lineage)?;
     let request = CloudflareTenantRootCreationActiveStateReadRequestV1::CheckpointManagedRestore {
         identity_digest_b64u: encode_base64url_bytes_v1(identity_digest.as_bytes()),
         custody_lineage_b64u: custody_lineage.to_base64url(),
         checkpoint,
     };
-    let response: CloudflareTenantRootCreationActiveStateReadResponseV1 =
-        execute_cloudflare_router_tenant_root_creation_private_call_v1(
-            env,
+    let response: CloudflareTenantRootCreationActiveStateReadResponseV1 = state
+        .creation_state_call(
             authority_id,
             identity_digest,
             custody_lineage,
@@ -3394,7 +3833,50 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_managed_restore_author
         )
         .await?;
     decode_verified_active_state_response_v1(
-        env,
+        issuer_keys,
+        authority_id,
+        identity_digest,
+        custody_lineage,
+        response,
+    )
+}
+
+/// Reserves the exact refresh context and both issuer commands before either
+/// Deriver is invoked. A replay returns the already persisted attempt, so a
+/// restarted Router resumes the same session and nonce.
+pub async fn tenant_root_refresh_attempt_reservation_call_v1(
+    state: &impl TenantRootCreationStateTransportV1,
+    issuer_keys: &BTreeMap<String, [u8; 32]>,
+    identity_digest: TenantRootIdentityDigestV1,
+    custody_lineage: TenantRootCustodyLineageId,
+    refresh_context_b64u: String,
+    deriver_a_refresh_command_b64u: String,
+    deriver_b_refresh_command_b64u: String,
+    manual_operation_id: Option<String>,
+) -> RouterAbProtocolResult<CloudflareVerifiedTenantRootActiveStateV1> {
+    let authority_id = state.creation_authority_id(identity_digest, custody_lineage)?;
+    let request = CloudflareTenantRootCreationActiveStateReadRequestV1::ReserveRefresh {
+        identity_digest_b64u: encode_base64url_bytes_v1(identity_digest.as_bytes()),
+        custody_lineage_b64u: custody_lineage.to_base64url(),
+        refresh_context_b64u,
+        deriver_a_refresh_command_b64u,
+        deriver_b_refresh_command_b64u,
+        manual_operation_id,
+    };
+    let response: CloudflareTenantRootCreationActiveStateReadResponseV1 =
+        state.creation_state_call(
+            authority_id,
+            identity_digest,
+            custody_lineage,
+            CLOUDFLARE_TENANT_ROOT_CREATION_ACTIVE_STATE_READ_PATH,
+            "tenant-root refresh attempt reservation",
+            &request,
+            TENANT_ROOT_CREATION_ACTIVE_STATE_READ_REQUEST_MAX_BYTES_V1,
+            TENANT_ROOT_CREATION_ACTIVE_STATE_READ_RESPONSE_MAX_BYTES_V1,
+        )
+        .await?;
+    decode_verified_active_state_response_v1(
+        issuer_keys,
         authority_id,
         identity_digest,
         custody_lineage,
@@ -3415,42 +3897,22 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_refresh_attempt_reserv
     deriver_b_refresh_command_b64u: String,
     manual_operation_id: Option<String>,
 ) -> RouterAbProtocolResult<CloudflareVerifiedTenantRootActiveStateV1> {
-    let (authority_id, _) =
-        derive_tenant_root_creation_authority_object_v1(env, identity_digest, custody_lineage)?;
-    let request = CloudflareTenantRootCreationActiveStateReadRequestV1::ReserveRefresh {
-        identity_digest_b64u: encode_base64url_bytes_v1(identity_digest.as_bytes()),
-        custody_lineage_b64u: custody_lineage.to_base64url(),
+    tenant_root_refresh_attempt_reservation_call_v1(
+        &CloudflareTenantRootCreationStateTransportV1::new(env),
+        &worker_issuer_verifying_keys_v1(env)?,
+        identity_digest,
+        custody_lineage,
         refresh_context_b64u,
         deriver_a_refresh_command_b64u,
         deriver_b_refresh_command_b64u,
         manual_operation_id,
-    };
-    let response: CloudflareTenantRootCreationActiveStateReadResponseV1 =
-        execute_cloudflare_router_tenant_root_creation_private_call_v1(
-            env,
-            authority_id,
-            identity_digest,
-            custody_lineage,
-            CLOUDFLARE_TENANT_ROOT_CREATION_ACTIVE_STATE_READ_PATH,
-            "tenant-root refresh attempt reservation",
-            &request,
-            TENANT_ROOT_CREATION_ACTIVE_STATE_READ_REQUEST_MAX_BYTES_V1,
-            TENANT_ROOT_CREATION_ACTIVE_STATE_READ_RESPONSE_MAX_BYTES_V1,
-        )
-        .await?;
-    decode_verified_active_state_response_v1(
-        env,
-        authority_id,
-        identity_digest,
-        custody_lineage,
-        response,
     )
+    .await
 }
 
 /// Atomically admits one manual refresh before command minting or role work.
-#[cfg(feature = "workers-rs")]
-pub(crate) async fn execute_cloudflare_router_tenant_root_refresh_admission_call_v1(
-    env: &worker::Env,
+pub async fn tenant_root_refresh_admission_call_v1(
+    state: &impl TenantRootCreationStateTransportV1,
     identity_digest: TenantRootIdentityDigestV1,
     custody_lineage: TenantRootCustodyLineageId,
     operation_id: String,
@@ -3459,8 +3921,7 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_refresh_admission_call
     expires_at_ms: u64,
 ) -> RouterAbProtocolResult<CloudflareTenantRootRefreshAdmissionOutcomeV1> {
     validate_refresh_operation_id_v1(&operation_id)?;
-    let (authority_id, _) =
-        derive_tenant_root_creation_authority_object_v1(env, identity_digest, custody_lineage)?;
+    let authority_id = state.creation_authority_id(identity_digest, custody_lineage)?;
     let request = CloudflareTenantRootCreationActiveStateReadRequestV1::ReserveRefreshAdmission {
         identity_digest_b64u: encode_base64url_bytes_v1(identity_digest.as_bytes()),
         custody_lineage_b64u: custody_lineage.to_base64url(),
@@ -3470,8 +3931,7 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_refresh_admission_call
         trigger,
     };
     let response: CloudflareTenantRootCreationActiveStateReadResponseV1 =
-        execute_cloudflare_router_tenant_root_creation_private_call_v1(
-            env,
+        state.creation_state_call(
             authority_id,
             identity_digest,
             custody_lineage,
@@ -3490,9 +3950,21 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_refresh_admission_call
     })
 }
 
+/// The control-plane issuer keys this Worker trusts.
 #[cfg(feature = "workers-rs")]
-fn decode_verified_active_state_response_v1(
+fn worker_issuer_verifying_keys_v1(
     env: &worker::Env,
+) -> RouterAbProtocolResult<BTreeMap<String, [u8; 32]>> {
+    crate::env::decode_issuer_verifying_keys(&read_required_worker_var(
+        env,
+        crate::TENANT_ROOT_CONTROL_PLANE_ISSUER_VERIFYING_KEYS_JSON_ENV,
+    )?)
+}
+
+/// Verifies an active-state response against the request and the trusted
+/// issuer keys.
+fn decode_verified_active_state_response_v1(
+    issuer_keys: &BTreeMap<String, [u8; 32]>,
     authority_id: TenantRootControlPlaneAuthorityIdV1,
     identity_digest: TenantRootIdentityDigestV1,
     custody_lineage: TenantRootCustodyLineageId,
@@ -3525,11 +3997,6 @@ fn decode_verified_active_state_response_v1(
     )?;
     let receipt = TenantRootSignedActivationReceiptV1::decode_canonical_bytes(&receipt_bytes)
         .map_err(candidate_derivation_error)?;
-    let issuer_keys_json = read_required_worker_var(
-        env,
-        crate::TENANT_ROOT_CONTROL_PLANE_ISSUER_VERIFYING_KEYS_JSON_ENV,
-    )?;
-    let issuer_keys = crate::env::decode_issuer_verifying_keys(&issuer_keys_json)?;
     let issuer_verifying_key = issuer_keys.get(receipt.issuer_key_id()).ok_or_else(|| {
         RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::ForbiddenLocalBinding,
@@ -3566,6 +4033,9 @@ fn decode_verified_active_state_response_v1(
     validate_refresh_fence(&response.fence)?;
     validate_managed_restore_fence_shape(&response.managed_restore_fence)?;
     validate_refresh_job_read_v1(response.job.as_ref())?;
+    if let Some(pending) = &response.refresh_pending {
+        validate_refresh_pending_v1(pending)?;
+    }
     Ok(CloudflareVerifiedTenantRootActiveStateV1 {
         activation_receipt: receipt,
         job: response.job,
@@ -3574,7 +4044,101 @@ fn decode_verified_active_state_response_v1(
         lifecycle_revision: response.lifecycle_revision,
         refresh_fence: response.fence,
         managed_restore_fence: response.managed_restore_fence,
+        delivery: response.delivery,
+        refresh_pending: response.refresh_pending,
     })
+}
+
+/// Records that one Deriver has activated the committed receipt with this
+/// digest. An acknowledgement for a receipt that is no longer committed
+/// changes nothing.
+pub async fn tenant_root_record_delivery_call_v1(
+    state: &impl TenantRootCreationStateTransportV1,
+    issuer_keys: &BTreeMap<String, [u8; 32]>,
+    identity_digest: TenantRootIdentityDigestV1,
+    custody_lineage: TenantRootCustodyLineageId,
+    activation_receipt_digest_b64u: String,
+    role: TwoPartyDeriverRole,
+    swap: Option<CloudflareTenantRootSwapAcknowledgementV1>,
+) -> RouterAbProtocolResult<CloudflareVerifiedTenantRootActiveStateV1> {
+    active_state_record_call_v1(
+        state,
+        issuer_keys,
+        identity_digest,
+        custody_lineage,
+        "tenant-root delivery record",
+        CloudflareTenantRootCreationActiveStateReadRequestV1::RecordDelivery {
+            identity_digest_b64u: encode_base64url_bytes_v1(identity_digest.as_bytes()),
+            custody_lineage_b64u: custody_lineage.to_base64url(),
+            activation_receipt_digest_b64u,
+            role: CloudflareTenantRootCreationInstallationRoleV1::from_protocol(role),
+            swap,
+        },
+    )
+    .await
+}
+
+/// Records that one Deriver erased a retired epoch the record of the
+/// committed swap with this digest holds: the swap's own, or one it carries.
+/// A report for another receipt, or of an erasure already recorded, changes
+/// nothing.
+#[allow(clippy::too_many_arguments)]
+pub async fn tenant_root_record_retirement_call_v1(
+    state: &impl TenantRootCreationStateTransportV1,
+    issuer_keys: &BTreeMap<String, [u8; 32]>,
+    identity_digest: TenantRootIdentityDigestV1,
+    custody_lineage: TenantRootCustodyLineageId,
+    activation_receipt_digest_b64u: String,
+    role: TwoPartyDeriverRole,
+    retired_epoch: u64,
+    erasure: CloudflareTenantRootRetiredErasureV1,
+) -> RouterAbProtocolResult<CloudflareVerifiedTenantRootActiveStateV1> {
+    active_state_record_call_v1(
+        state,
+        issuer_keys,
+        identity_digest,
+        custody_lineage,
+        "tenant-root retirement record",
+        CloudflareTenantRootCreationActiveStateReadRequestV1::RecordRetirement {
+            identity_digest_b64u: encode_base64url_bytes_v1(identity_digest.as_bytes()),
+            custody_lineage_b64u: custody_lineage.to_base64url(),
+            activation_receipt_digest_b64u,
+            role: CloudflareTenantRootCreationInstallationRoleV1::from_protocol(role),
+            retired_epoch,
+            erasure,
+        },
+    )
+    .await
+}
+
+async fn active_state_record_call_v1(
+    state: &impl TenantRootCreationStateTransportV1,
+    issuer_keys: &BTreeMap<String, [u8; 32]>,
+    identity_digest: TenantRootIdentityDigestV1,
+    custody_lineage: TenantRootCustodyLineageId,
+    label: &'static str,
+    request: CloudflareTenantRootCreationActiveStateReadRequestV1,
+) -> RouterAbProtocolResult<CloudflareVerifiedTenantRootActiveStateV1> {
+    let authority_id = state.creation_authority_id(identity_digest, custody_lineage)?;
+    let response: CloudflareTenantRootCreationActiveStateReadResponseV1 = state
+        .creation_state_call(
+            authority_id,
+            identity_digest,
+            custody_lineage,
+            CLOUDFLARE_TENANT_ROOT_CREATION_ACTIVE_STATE_READ_PATH,
+            label,
+            &request,
+            TENANT_ROOT_CREATION_ACTIVE_STATE_READ_REQUEST_MAX_BYTES_V1,
+            TENANT_ROOT_CREATION_ACTIVE_STATE_READ_RESPONSE_MAX_BYTES_V1,
+        )
+        .await?;
+    decode_verified_active_state_response_v1(
+        issuer_keys,
+        authority_id,
+        identity_digest,
+        custody_lineage,
+        response,
+    )
 }
 
 fn tenant_root_creation_identity_v1(
@@ -3704,7 +4268,7 @@ fn evaluate_creation_record(
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub(crate) enum CloudflareTenantRootCreationInstallationRoleV1 {
+pub enum CloudflareTenantRootCreationInstallationRoleV1 {
     DeriverA,
     DeriverB,
 }
@@ -3854,7 +4418,6 @@ enum TenantRootCreationInstallationEvaluationV1 {
     Replay(CloudflareTenantRootCreationInstallationOutcomeV1),
 }
 
-#[cfg(feature = "workers-rs")]
 fn validate_role_creation_command(
     encoded: &str,
     journal: &ValidatedTenantRootCreationJournalV1,
@@ -4519,20 +5082,57 @@ fn installation_checkpoint_record(
     })
 }
 
+/// The exact material an abandoned role's cleanup removes. A role the fence
+/// recorded as installed is bound to its recorded installation evidence. Any
+/// other role is bound to the abandoned ceremony alone, which covers a share
+/// it wrote without checkpointing and one a command admitted before the fence
+/// finishes writing afterwards.
 fn creation_cleanup_target(
     journal: &ValidatedTenantRootCreationJournalV1,
-    installation: &ValidatedTenantRootCreationInstallationCheckpointV1,
+    abandonment: &CloudflareTenantRootCreationAbandonmentV1,
+    installation: Option<&ValidatedTenantRootCreationInstallationCheckpointV1>,
+    cleaned: CloudflareTenantRootCreationInstallationRoleV1,
 ) -> RouterAbProtocolResult<(
     TenantRootRoleCleanupTargetV1,
     CloudflareTenantRootCreationInstallationRoleV1,
 )> {
-    let ValidatedTenantRootCreationInstallationStateV1::OneRoleReady { role, evidence } =
-        &installation.state
-    else {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::ConflictingPair,
-            "tenant-root creation cleanup requires exactly one installed role",
+    let role = &cleaned.to_protocol();
+    if !abandonment.installed_roles.contains(&cleaned) {
+        return Ok((
+            TenantRootRoleCleanupTargetV1::AbandonedCeremony {
+                identity_digest: journal.identity_digest,
+                custody_lineage: journal.custody_lineage,
+                role: *role,
+                session_id: journal.ceremony_context.session_id(),
+                ceremony_nonce: journal.ceremony_context.nonce(),
+            },
+            cleaned,
         ));
+    }
+    let installation = installation.ok_or_else(|| {
+        malformed_input("tenant-root creation abandonment recorded a role with no installation")
+    })?;
+    let evidence = match &installation.state {
+        ValidatedTenantRootCreationInstallationStateV1::OneRoleReady {
+            role: installed,
+            evidence,
+        } if installed == role => evidence,
+        ValidatedTenantRootCreationInstallationStateV1::BothRolesReady { deriver_a, .. }
+            if *role == TwoPartyDeriverRole::DeriverA =>
+        {
+            deriver_a
+        }
+        ValidatedTenantRootCreationInstallationStateV1::BothRolesReady { deriver_b, .. }
+            if *role == TwoPartyDeriverRole::DeriverB =>
+        {
+            deriver_b
+        }
+        _ => {
+            return Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::ConflictingPair,
+                "tenant-root creation cleanup names a role that did not install",
+            ))
+        }
     };
     let evidence_digest = evidence
         .lifecycle_receipt_digest()
@@ -4558,7 +5158,8 @@ fn creation_cleanup_target(
 fn validate_creation_cleanup_checkpoint(
     record: CloudflareTenantRootCreationCleanupCheckpointV1,
     journal: &ValidatedTenantRootCreationJournalV1,
-    installation: &ValidatedTenantRootCreationInstallationCheckpointV1,
+    abandonment: &CloudflareTenantRootCreationAbandonmentV1,
+    installation: Option<&ValidatedTenantRootCreationInstallationCheckpointV1>,
     authority_id: TenantRootControlPlaneAuthorityIdV1,
     trusted_issuer_verifying_keys: &BTreeMap<String, [u8; 32]>,
     role_keys: &TenantRootCreationRoleVerifyingKeysV1,
@@ -4578,7 +5179,7 @@ fn validate_creation_cleanup_checkpoint(
             "tenant-root creation cleanup checkpoint scope is invalid",
         ));
     }
-    let (target, role) = creation_cleanup_target(journal, installation)?;
+    let (target, role) = creation_cleanup_target(journal, abandonment, installation, record.role)?;
     if record.role != role {
         return Err(malformed_input(
             "tenant-root creation cleanup checkpoint role is invalid",
@@ -4724,7 +5325,8 @@ fn evaluate_creation_cleanup_checkpoint(
     existing: Option<CloudflareTenantRootCreationCleanupCheckpointV1>,
     candidate: ValidatedTenantRootCreationCleanupCheckpointV1,
     journal: &ValidatedTenantRootCreationJournalV1,
-    installation: &ValidatedTenantRootCreationInstallationCheckpointV1,
+    abandonment: &CloudflareTenantRootCreationAbandonmentV1,
+    installation: Option<&ValidatedTenantRootCreationInstallationCheckpointV1>,
     authority_id: TenantRootControlPlaneAuthorityIdV1,
     trusted_issuer_verifying_keys: &BTreeMap<String, [u8; 32]>,
     role_keys: &TenantRootCreationRoleVerifyingKeysV1,
@@ -4747,6 +5349,7 @@ fn evaluate_creation_cleanup_checkpoint(
     let existing = validate_creation_cleanup_checkpoint(
         existing,
         journal,
+        abandonment,
         installation,
         authority_id,
         trusted_issuer_verifying_keys,
@@ -6176,7 +6779,6 @@ fn evaluate_restore_refresh_promoted_read_v1(
     )
 }
 
-#[cfg(feature = "workers-rs")]
 fn validate_restore_initial_activation_receipt_against_checkpoint_v1(
     activation_receipt: &router_ab_core::VerifiedTenantRootSignedActivationReceiptV1,
     checkpoint: &CloudflareTenantRootRestoreRefreshCheckpointV1,
@@ -6423,7 +7025,6 @@ pub struct RouterAbTenantRootCreationDurableObject {
     authority_object_id: String,
 }
 
-#[cfg(feature = "workers-rs")]
 struct LoadedTenantRootRoleCreationRequestV1 {
     journal: ValidatedTenantRootCreationJournalV1,
     command: VerifiedTenantRootRoleCreationCommandV1,
@@ -6463,7 +7064,7 @@ impl worker::DurableObject for RouterAbTenantRootCreationDurableObject {
                     );
                 }
                 let parsed = match decode_bounded_json_request::<
-                    CloudflareTenantRootDestinationBootstrapRequestV1,
+                    CloudflareTenantRootDestinationBootstrapCallV1,
                 >(
                     &mut request,
                     TENANT_ROOT_DESTINATION_BOOTSTRAP_REQUEST_MAX_BYTES_V1,
@@ -6478,24 +7079,7 @@ impl worker::DurableObject for RouterAbTenantRootCreationDurableObject {
                         )
                     }
                 };
-                let validated = match validate_tenant_root_destination_bootstrap_request_v1(parsed)
-                {
-                    Ok(value) => value,
-                    Err(error) => return tenant_root_creation_do_error_response(error),
-                };
-                let token = match &validated {
-                    ValidatedTenantRootDestinationBootstrapRequestV1::Read { .. } => None,
-                    ValidatedTenantRootDestinationBootstrapRequestV1::Authenticate { .. } => {
-                        match read_destination_bootstrap_token_header_v1(&request) {
-                            Ok(token) => token,
-                            Err(error) => return tenant_root_creation_do_error_response(error),
-                        }
-                    }
-                };
-                match self
-                    .read_and_evaluate_destination_bootstrap_v1(&validated, token.as_ref())
-                    .await
-                {
+                match self.destination_bootstrap_v1(parsed).await {
                     Ok(response) => worker::Response::from_json(&response),
                     Err(error) => tenant_root_creation_do_error_response(error),
                 }
@@ -6646,6 +7230,50 @@ impl worker::DurableObject for RouterAbTenantRootCreationDurableObject {
                     Err(error) => return tenant_root_creation_do_error_response(error),
                 };
                 match self.read_creation_journal(parsed).await {
+                    Ok(response) => worker::Response::from_json(&response),
+                    Err(error) => tenant_root_creation_do_error_response(error),
+                }
+            }
+            CLOUDFLARE_TENANT_ROOT_CREATION_PROGRESS_READ_PATH => {
+                if !request_has_json_content_type(&request)? {
+                    return worker::Response::error(
+                        "tenant-root creation progress request requires JSON",
+                        415,
+                    );
+                }
+                let parsed = match decode_bounded_json_request::<
+                    CloudflareTenantRootCreationJournalReadRequestV1,
+                >(
+                    &mut request, TENANT_ROOT_CREATION_REQUEST_MAX_BYTES_V1
+                )
+                .await
+                {
+                    Ok(value) => value,
+                    Err(error) => return tenant_root_creation_do_error_response(error),
+                };
+                match self.read_creation_progress(parsed).await {
+                    Ok(response) => worker::Response::from_json(&response),
+                    Err(error) => tenant_root_creation_do_error_response(error),
+                }
+            }
+            CLOUDFLARE_TENANT_ROOT_CREATION_ABANDONMENT_PATH => {
+                if !request_has_json_content_type(&request)? {
+                    return worker::Response::error(
+                        "tenant-root creation abandonment request requires JSON",
+                        415,
+                    );
+                }
+                let parsed = match decode_bounded_json_request::<
+                    CloudflareTenantRootCreationJournalReadRequestV1,
+                >(
+                    &mut request, TENANT_ROOT_CREATION_REQUEST_MAX_BYTES_V1
+                )
+                .await
+                {
+                    Ok(value) => value,
+                    Err(error) => return tenant_root_creation_do_error_response(error),
+                };
+                match self.persist_creation_abandonment(parsed).await {
                     Ok(response) => worker::Response::from_json(&response),
                     Err(error) => tenant_root_creation_do_error_response(error),
                 }
@@ -6929,8 +7557,12 @@ fn creation_installation_checkpoint_read_state_v1(
             }
         }
         ValidatedTenantRootCreationInstallationStateV1::BothRolesReady {
-            root_commitment, ..
+            deriver_a,
+            deriver_b,
+            root_commitment,
         } => CloudflareTenantRootCreationInstallationCheckpointReadStateV1::BothRolesReady {
+            deriver_a_signed_evidence_b64u: encode_base64url_bytes_v1(deriver_a.canonical_bytes()),
+            deriver_b_signed_evidence_b64u: encode_base64url_bytes_v1(deriver_b.canonical_bytes()),
             root_commitment_b64u: encode_base64url_bytes_v1(root_commitment),
         },
     }
@@ -6951,6 +7583,9 @@ fn active_state_read_response_from_record(
         managed_restore_fence: record.managed_restore_fence,
         job: None,
         refresh_admission: None,
+        delivery: record.delivery,
+        refresh_pending: record.manual_refresh_pending,
+        managed_restore_completion: None,
     }
 }
 
@@ -6959,7 +7594,7 @@ pub(crate) fn build_creation_journal_read_response(
     journal: &ValidatedTenantRootCreationJournalV1,
     rendezvous: Option<&CloudflareTenantRootCreationCommitmentRendezvousRecordV1>,
     installation_checkpoint: Option<&ValidatedTenantRootCreationInstallationCheckpointV1>,
-    cleanup_checkpointed: bool,
+    abandonment: Option<CloudflareTenantRootCreationAbandonmentReadV1>,
 ) -> RouterAbProtocolResult<CloudflareTenantRootCreationJournalReadResponseV1> {
     require_base64url_matches(
         "tenant-root creation read identity digest",
@@ -6992,218 +7627,56 @@ pub(crate) fn build_creation_journal_read_response(
         installation_checkpoint: creation_installation_checkpoint_read_state_v1(
             installation_checkpoint,
         ),
-        cleanup_checkpointed,
+        abandonment,
     })
 }
 
 #[cfg(feature = "workers-rs")]
 impl RouterAbTenantRootCreationDurableObject {
-    async fn read_and_evaluate_destination_bootstrap_v1(
+    async fn destination_bootstrap_v1(
         &self,
-        request: &ValidatedTenantRootDestinationBootstrapRequestV1,
-        token: Option<&DestinationBootstrapTokenV1>,
+        call: CloudflareTenantRootDestinationBootstrapCallV1,
     ) -> RouterAbProtocolResult<CloudflareTenantRootDestinationBootstrapResponseV1> {
-        let state = self.read_destination_bootstrap_state_v1(request).await?;
-        let authenticated_at_ms = if matches!(
-            (&state, request),
-            (
-                TenantRootDestinationBootstrapStateV1::Ready(_),
-                ValidatedTenantRootDestinationBootstrapRequestV1::Authenticate { .. }
-            )
-        ) {
-            crate::cloudflare_now_unix_ms_v1()?
-        } else {
-            0
-        };
-        Ok(evaluate_tenant_root_destination_bootstrap_request_v1(
-            &state,
-            request,
-            token,
-            authenticated_at_ms,
-        ))
-    }
-
-    async fn read_destination_bootstrap_state_v1(
-        &self,
-        request: &ValidatedTenantRootDestinationBootstrapRequestV1,
-    ) -> RouterAbProtocolResult<TenantRootDestinationBootstrapStateV1> {
-        let (identity_digest, custody_lineage) = destination_bootstrap_request_scope_v1(request);
-        if let Err(error) = require_tenant_root_creation_authority_object_v1(
-            &self.env,
-            &self.authority_object_id,
-            identity_digest,
-            custody_lineage,
-        ) {
-            if error.code() == RouterAbProtocolErrorCode::ForbiddenLocalBinding {
-                return Ok(TenantRootDestinationBootstrapStateV1::ScopeMismatch);
-            }
-            return Err(error);
-        }
-        let destroyed_record =
-            storage_get_optional::<CloudflareTenantRootDestinationBootstrapDestroyedRecordV1>(
-                &self.storage,
-                TENANT_ROOT_DESTINATION_BOOTSTRAP_DESTROYED_STORAGE_KEY_V1,
-            )
-            .await
-            .map_err(durable_storage_protocol_error)?;
-        if let Some(destroyed_record) = destroyed_record {
-            let destroyed_record =
-                validate_tenant_root_destination_bootstrap_destroyed_record_v1(destroyed_record)
-                    .map_err(stored_record_error)?;
-            if !destroyed_record.matches_request_scope(request) {
-                return Ok(TenantRootDestinationBootstrapStateV1::ScopeMismatch);
-            }
-            require_tenant_root_creation_authority_object_v1(
-                &self.env,
-                &self.authority_object_id,
-                destroyed_record.identity_digest,
-                destroyed_record.custody_lineage,
-            )
-            .map_err(stored_record_error)?;
-            return Ok(TenantRootDestinationBootstrapStateV1::Destroyed(
-                destroyed_record,
-            ));
-        }
-        let record = storage_get_optional::<CloudflareTenantRootDestinationBootstrapRecordV1>(
-            &self.storage,
-            TENANT_ROOT_DESTINATION_BOOTSTRAP_STORAGE_KEY_V1,
-        )
-        .await
-        .map_err(durable_storage_protocol_error)?;
-        let needs_provisioning = record.is_none();
-        let record = match record {
-            Some(record) => record,
-            None => {
-                let Ok(config) = self.env.var("TENANT_ROOT_DESTINATION_BOOTSTRAP_JSON") else {
-                    return Ok(TenantRootDestinationBootstrapStateV1::Uninitialized);
-                };
-                let config = config.to_string();
-                if config.len() > TENANT_ROOT_DESTINATION_BOOTSTRAP_RECORD_MAX_BYTES_V1 {
-                    return Err(malformed_input(
-                        "destination bootstrap configuration is too large",
-                    ));
+        let issuer_keys = self.issuer_verifying_keys()?;
+        let now_ms = crate::cloudflare_now_unix_ms_v1()?;
+        let configured = self
+            .env
+            .var("TENANT_ROOT_DESTINATION_BOOTSTRAP_JSON")
+            .ok()
+            .map(|value| value.to_string());
+        let env = self.env.clone();
+        let store = DurableObjectCreationStoreV1::new(&self.env, &self.authority_object_id)?;
+        let outcome = Rc::new(RefCell::new(None));
+        let outcome_for_transaction = Rc::clone(&outcome);
+        self.storage
+            .transaction(move |transaction| async move {
+                let store = store.bind(transaction);
+                let result = tenant_root_destination_bootstrap_v1(
+                    &store,
+                    &issuer_keys,
+                    move || read_tenant_root_creation_role_verifying_keys(&env),
+                    configured.as_deref(),
+                    call,
+                    now_ms,
+                )
+                .await;
+                if let Some(error) = store.take_storage_error() {
+                    return Err(error);
                 }
-                serde_json::from_str(&config).map_err(|_| {
-                    malformed_input("destination bootstrap configuration is invalid")
-                })?
-            }
-        };
-        let record = validate_tenant_root_destination_bootstrap_record_v1(record)
-            .map_err(stored_record_error)?;
-        if !record.matches_request_scope(request) {
-            return Ok(TenantRootDestinationBootstrapStateV1::ScopeMismatch);
-        }
-        require_tenant_root_creation_authority_object_v1(
-            &self.env,
-            &self.authority_object_id,
-            record.identity_digest,
-            record.custody_lineage,
-        )
-        .map_err(stored_record_error)?;
-
-        let active_record = storage_get_optional::<CloudflareTenantRootRefreshActiveStateRecordV1>(
-            &self.storage,
-            TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1,
-        )
-        .await
-        .map_err(durable_storage_protocol_error)?;
-        if active_record.is_some() {
-            let active = self
-                .load_authoritative_active_refresh_state()
-                .await
-                .map_err(stored_refresh_record_error)?;
-            if active.identity_digest != record.identity_digest
-                || active.custody_lineage != record.custody_lineage
-            {
-                return Ok(TenantRootDestinationBootstrapStateV1::ScopeMismatch);
-            }
-            return Ok(TenantRootDestinationBootstrapStateV1::ActiveRootPresent(
-                record,
-            ));
-        }
-
-        let creation_journal = storage_get_optional::<CloudflareTenantRootCreationJournalRecordV1>(
-            &self.storage,
-            TENANT_ROOT_CREATION_JOURNAL_STORAGE_KEY_V1,
-        )
-        .await
-        .map_err(durable_storage_protocol_error)?;
-        let creation_commitment =
-            storage_get_optional::<CloudflareTenantRootCreationCommitmentRendezvousRecordV1>(
-                &self.storage,
-                TENANT_ROOT_CREATION_COMMITMENT_RENDEZVOUS_STORAGE_KEY_V1,
-            )
+                outcome_for_transaction.replace(Some(result));
+                Ok(())
+            })
             .await
             .map_err(durable_storage_protocol_error)?;
-        let creation_installation =
-            storage_get_optional::<CloudflareTenantRootCreationInstallationCheckpointV1>(
-                &self.storage,
-                TENANT_ROOT_CREATION_INSTALLATION_CHECKPOINT_STORAGE_KEY_V1,
+        let result = outcome.borrow_mut().take().ok_or_else(|| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+                "tenant-root destination bootstrap transaction did not produce an outcome",
             )
-            .await
-            .map_err(durable_storage_protocol_error)?;
-        let creation_cleanup =
-            storage_get_optional::<CloudflareTenantRootCreationCleanupCheckpointV1>(
-                &self.storage,
-                TENANT_ROOT_CREATION_CLEANUP_CHECKPOINT_STORAGE_KEY_V1,
-            )
-            .await
-            .map_err(durable_storage_protocol_error)?;
-        let refresh_commitment = storage_get_optional::<String>(
-            &self.storage,
-            TENANT_ROOT_REFRESH_COMMITMENT_CHECKPOINT_STORAGE_KEY_V1,
-        )
-        .await
-        .map_err(durable_storage_protocol_error)?;
-        let refresh_installation =
-            storage_get_optional::<CloudflareTenantRootRefreshInstallationCheckpointRecordV1>(
-                &self.storage,
-                TENANT_ROOT_REFRESH_INSTALLATION_CHECKPOINT_STORAGE_KEY_V1,
-            )
-            .await
-            .map_err(durable_storage_protocol_error)?;
-        let refresh_contribution =
-            storage_get_optional::<CloudflareTenantRootRefreshContributionRendezvousRecordV1>(
-                &self.storage,
-                TENANT_ROOT_REFRESH_CONTRIBUTION_RENDEZVOUS_STORAGE_KEY_V1,
-            )
-            .await
-            .map_err(durable_storage_protocol_error)?;
-
-        let has_creation_progress = creation_journal.is_some()
-            || creation_commitment.is_some()
-            || creation_installation.is_some()
-            || creation_cleanup.is_some()
-            || refresh_commitment.is_some()
-            || refresh_installation.is_some()
-            || refresh_contribution.is_some();
-        if !has_creation_progress {
-            if needs_provisioning {
-                // Operator configuration may initialize an empty authority once. The
-                // destroyed marker above prevents reissuing consumed credentials.
-                self.storage
-                    .put(
-                        TENANT_ROOT_DESTINATION_BOOTSTRAP_STORAGE_KEY_V1,
-                        &record.record,
-                    )
-                    .await
-                    .map_err(durable_storage_protocol_error)?;
-            }
-            return Ok(TenantRootDestinationBootstrapStateV1::Ready(record));
-        }
-        if creation_journal.is_some() {
-            let read_request = CloudflareTenantRootCreationJournalReadRequestV1 {
-                identity_digest_b64u: encode_base64url_bytes_v1(identity_digest.as_bytes()),
-                custody_lineage_b64u: custody_lineage.to_base64url(),
-            };
-            self.read_creation_journal(read_request)
-                .await
-                .map_err(|error| stored_record_error(error))?;
-        }
-        Ok(TenantRootDestinationBootstrapStateV1::CreationInProgress(
-            record,
-        ))
+        })?;
+        result
     }
+
 
     async fn read_cutover_record(
         &self,
@@ -7265,1176 +7738,18 @@ impl RouterAbTenantRootCreationDurableObject {
         &self,
         request: CloudflareTenantRootRestoreRefreshCheckpointRequestV1,
     ) -> RouterAbProtocolResult<CloudflareTenantRootRestoreRefreshCheckpointResponseV1> {
-        match &request {
-            CloudflareTenantRootRestoreRefreshCheckpointRequestV1::ReadCompleted {
-                restore_refresh_grant_b64u,
-                manifest_b64u,
-            } => {
-                return self
-                    .read_completed_restore_refresh_checkpoint_v1(
-                        restore_refresh_grant_b64u,
-                        manifest_b64u,
-                    )
-                    .await;
-            }
-            CloudflareTenantRootRestoreRefreshCheckpointRequestV1::ReadPromoted {
-                restore_refresh_grant_b64u,
-                manifest_b64u,
-            } => {
-                return self
-                    .read_promoted_restore_refresh_checkpoint_v1(
-                        restore_refresh_grant_b64u,
-                        manifest_b64u,
-                    )
-                    .await;
-            }
-            _ => {}
-        }
-        let grant_b64u = restore_refresh_checkpoint_grant_b64u_v1(&request);
-        let (_, grant, _) = restore_refresh_checkpoint_scope_from_grant_v1(grant_b64u)?;
-        require_tenant_root_creation_authority_object_v1(
-            &self.env,
-            &self.authority_object_id,
-            grant.destination_identity_digest(),
-            grant.destination_lineage(),
-        )?;
         let now_ms = crate::cloudflare_now_unix_ms_v1()?;
-        let outcome: Rc<
-            RefCell<
-                Option<
-                    RouterAbProtocolResult<CloudflareTenantRootRestoreRefreshCheckpointResponseV1>,
-                >,
-            >,
-        > = Rc::new(RefCell::new(None));
+        let store = DurableObjectCreationStoreV1::new(&self.env, &self.authority_object_id)?;
+        let outcome = Rc::new(RefCell::new(None));
         let outcome_for_transaction = Rc::clone(&outcome);
         self.storage
             .transaction(move |transaction| async move {
-                let current =
-                    transaction_get_optional::<CloudflareTenantRootRestoreRefreshCheckpointV1>(
-                        &transaction,
-                        TENANT_ROOT_RESTORE_REFRESH_CHECKPOINT_STORAGE_KEY_V1,
-                    )
-                    .await?;
-                let evaluation = match evaluate_tenant_root_restore_refresh_checkpoint_v1(
-                    current.as_ref(),
-                    request,
-                    now_ms,
-                ) {
-                    Ok(evaluation) => evaluation,
-                    Err(error) => {
-                        outcome_for_transaction.replace(Some(Err(error)));
-                        return Ok(());
-                    }
-                };
-                if let CloudflareTenantRootRestoreRefreshCheckpointEvaluationV1::Commit {
-                    checkpoint,
-                } = &evaluation
-                {
-                    let encoded = serde_json::to_vec(checkpoint).map_err(|error| {
-                        worker::Error::RustError(format!(
-                            "tenant-root restore-refresh checkpoint JSON encoding failed: {error}"
-                        ))
-                    })?;
-                    if encoded.len() > TENANT_ROOT_RESTORE_REFRESH_CHECKPOINT_RESPONSE_MAX_BYTES_V1
-                    {
-                        outcome_for_transaction.replace(Some(Err(malformed_input(
-                            "tenant-root restore-refresh checkpoint exceeds its maximum size",
-                        ))));
-                        return Ok(());
-                    }
-                    transaction
-                        .put(
-                            TENANT_ROOT_RESTORE_REFRESH_CHECKPOINT_STORAGE_KEY_V1,
-                            checkpoint,
-                        )
-                        .await?;
+                let store = store.bind(transaction);
+                let result = tenant_root_restore_refresh_checkpoint_v1(&store, request, now_ms).await;
+                if let Some(error) = store.take_storage_error() {
+                    return Err(error);
                 }
-                outcome_for_transaction.replace(Some(Ok(
-                    restore_refresh_checkpoint_phase_response_v1(evaluation),
-                )));
-                Ok(())
-            })
-            .await
-            .map_err(durable_storage_protocol_error)?;
-        let response = outcome.borrow_mut().take().ok_or_else(|| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                "tenant-root restore-refresh checkpoint transaction did not produce an outcome",
-            )
-        })?;
-        response
-    }
-
-    async fn read_completed_restore_refresh_checkpoint_v1(
-        &self,
-        grant_b64u: &str,
-        manifest_b64u: &str,
-    ) -> RouterAbProtocolResult<CloudflareTenantRootRestoreRefreshCheckpointResponseV1> {
-        let (canonical_grant_b64u, grant, scope) =
-            restore_refresh_checkpoint_scope_from_grant_v1(grant_b64u)?;
-        if canonical_grant_b64u != grant_b64u {
-            return Err(malformed_input(
-                "tenant-root restore-refresh grant must use canonical bytes",
-            ));
-        }
-        require_restore_refresh_manifest_matches_grant_v1(manifest_b64u, &grant)?;
-        require_tenant_root_creation_authority_object_v1(
-            &self.env,
-            &self.authority_object_id,
-            grant.destination_identity_digest(),
-            grant.destination_lineage(),
-        )?;
-        let checkpoint = storage_get_optional::<CloudflareTenantRootRestoreRefreshCheckpointV1>(
-            &self.storage,
-            TENANT_ROOT_RESTORE_REFRESH_CHECKPOINT_STORAGE_KEY_V1,
-        )
-        .await
-        .map_err(durable_storage_protocol_error)?
-        .ok_or_else(|| {
-            restore_refresh_lifecycle_error(
-                "tenant-root restore-refresh completed checkpoint is not present",
-            )
-        })?;
-        let now_ms = crate::cloudflare_now_unix_ms_v1()?;
-        let authority_id = authority_id_from_object_id(&self.authority_object_id)?;
-        evaluate_restore_refresh_completed_read_v1(
-            &checkpoint,
-            grant_b64u,
-            &scope,
-            authority_id,
-            now_ms,
-        )
-    }
-
-    async fn read_promoted_restore_refresh_checkpoint_v1(
-        &self,
-        grant_b64u: &str,
-        manifest_b64u: &str,
-    ) -> RouterAbProtocolResult<CloudflareTenantRootRestoreRefreshCheckpointResponseV1> {
-        let (canonical_grant_b64u, grant, scope) =
-            restore_refresh_checkpoint_scope_from_grant_v1(grant_b64u)?;
-        if canonical_grant_b64u != grant_b64u {
-            return Err(malformed_input(
-                "tenant-root restore-refresh grant must use canonical bytes",
-            ));
-        }
-        require_restore_refresh_manifest_matches_grant_v1(manifest_b64u, &grant)?;
-        require_tenant_root_creation_authority_object_v1(
-            &self.env,
-            &self.authority_object_id,
-            grant.destination_identity_digest(),
-            grant.destination_lineage(),
-        )?;
-        let checkpoint = storage_get_optional::<CloudflareTenantRootRestoreRefreshCheckpointV1>(
-            &self.storage,
-            TENANT_ROOT_RESTORE_REFRESH_CHECKPOINT_STORAGE_KEY_V1,
-        )
-        .await
-        .map_err(durable_storage_protocol_error)?
-        .ok_or_else(|| {
-            restore_refresh_lifecycle_error(
-                "tenant-root restore-refresh promoted checkpoint is not present",
-            )
-        })?;
-        let now_ms = crate::cloudflare_now_unix_ms_v1()?;
-        let authority_id = authority_id_from_object_id(&self.authority_object_id)?;
-        evaluate_restore_refresh_promoted_read_v1(
-            &checkpoint,
-            grant_b64u,
-            &scope,
-            authority_id,
-            now_ms,
-        )
-    }
-
-    /// Serves the persisted creation state to an authenticated internal caller.
-    pub(crate) async fn read_creation_journal(
-        &self,
-        request: CloudflareTenantRootCreationJournalReadRequestV1,
-    ) -> RouterAbProtocolResult<CloudflareTenantRootCreationJournalReadResponseV1> {
-        let issuer_keys_json = read_required_worker_var(
-            &self.env,
-            crate::TENANT_ROOT_CONTROL_PLANE_ISSUER_VERIFYING_KEYS_JSON_ENV,
-        )?;
-        let issuer_keys = crate::env::decode_issuer_verifying_keys(&issuer_keys_json)?;
-        let authority_id = authority_id_from_object_id(&self.authority_object_id)?;
-        let journal_record = storage_get_optional::<CloudflareTenantRootCreationJournalRecordV1>(
-            &self.storage,
-            TENANT_ROOT_CREATION_JOURNAL_STORAGE_KEY_V1,
-        )
-        .await
-        .map_err(durable_storage_protocol_error)?
-        .ok_or_else(|| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                "tenant-root creation read has no Started journal",
-            )
-        })?;
-        let journal = validate_creation_record(journal_record, authority_id, &issuer_keys)
-            .map_err(stored_record_error)?;
-        let rendezvous =
-            storage_get_optional::<CloudflareTenantRootCreationCommitmentRendezvousRecordV1>(
-                &self.storage,
-                TENANT_ROOT_CREATION_COMMITMENT_RENDEZVOUS_STORAGE_KEY_V1,
-            )
-            .await
-            .map_err(durable_storage_protocol_error)?;
-        let installation_record =
-            storage_get_optional::<CloudflareTenantRootCreationInstallationCheckpointV1>(
-                &self.storage,
-                TENANT_ROOT_CREATION_INSTALLATION_CHECKPOINT_STORAGE_KEY_V1,
-            )
-            .await
-            .map_err(durable_storage_protocol_error)?;
-        let role_keys = if rendezvous.is_some() || installation_record.is_some() {
-            Some(read_tenant_root_creation_role_verifying_keys(&self.env)?)
-        } else {
-            None
-        };
-        // Progress is only reported from records that validate against the
-        // Started journal and retained role keys. A corrupt record fails the
-        // read rather than producing a misleading lifecycle projection.
-        if let (Some(record), Some(role_keys)) = (&rendezvous, role_keys.as_ref()) {
-            validate_creation_commitment_rendezvous(record.clone(), &journal, role_keys)
-                .map_err(stored_record_error)?;
-        }
-        let installation_checkpoint = match installation_record {
-            None => None,
-            Some(record) => {
-                let role_keys = role_keys.as_ref().ok_or_else(|| {
-                    RouterAbProtocolError::new(
-                        RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                        "tenant-root installation checkpoint has no role-key set",
-                    )
-                })?;
-                let commitments = require_complete_creation_commitment_rendezvous(
-                    rendezvous.clone(),
-                    &journal,
-                    role_keys,
-                )?;
-                Some(
-                    validate_installation_checkpoint(record, &journal, role_keys, &commitments)
-                        .map_err(stored_record_error)?,
-                )
-            }
-        };
-        let cleanup_checkpointed =
-            storage_get_optional::<CloudflareTenantRootCreationCleanupCheckpointV1>(
-                &self.storage,
-                TENANT_ROOT_CREATION_CLEANUP_CHECKPOINT_STORAGE_KEY_V1,
-            )
-            .await
-            .map_err(durable_storage_protocol_error)?
-            .is_some();
-        build_creation_journal_read_response(
-            &request,
-            &journal,
-            rendezvous.as_ref(),
-            installation_checkpoint.as_ref(),
-            cleanup_checkpointed,
-        )
-    }
-
-    async fn read_refresh_job_v1(
-        &self,
-        active: &ValidatedTenantRootRefreshActiveStateV1,
-    ) -> RouterAbProtocolResult<Option<CloudflareTenantRootRefreshJobReadV1>> {
-        let (attempt, executed) = match &active.record.fence {
-            CloudflareTenantRootRefreshFenceV1::Open => (None, false),
-            CloudflareTenantRootRefreshFenceV1::Reserved { attempt } => (Some(attempt), false),
-            CloudflareTenantRootRefreshFenceV1::Executed { attempt } => (Some(attempt), true),
-            CloudflareTenantRootRefreshFenceV1::Terminal { .. } => (None, false),
-        };
-        let commitment_encoded = storage_get_optional::<String>(
-            &self.storage,
-            TENANT_ROOT_REFRESH_COMMITMENT_CHECKPOINT_STORAGE_KEY_V1,
-        )
-        .await
-        .map_err(durable_storage_protocol_error)?;
-        let installation_record =
-            storage_get_optional::<CloudflareTenantRootRefreshInstallationCheckpointRecordV1>(
-                &self.storage,
-                TENANT_ROOT_REFRESH_INSTALLATION_CHECKPOINT_STORAGE_KEY_V1,
-            )
-            .await
-            .map_err(durable_storage_protocol_error)?;
-        let contribution_record =
-            storage_get_optional::<CloudflareTenantRootRefreshContributionRendezvousRecordV1>(
-                &self.storage,
-                TENANT_ROOT_REFRESH_CONTRIBUTION_RENDEZVOUS_STORAGE_KEY_V1,
-            )
-            .await
-            .map_err(durable_storage_protocol_error)?;
-
-        let Some(attempt) = attempt else {
-            if commitment_encoded.is_some()
-                || installation_record.is_some()
-                || contribution_record.is_some()
-            {
-                return Err(stored_refresh_record_error(malformed_input(
-                    "stored tenant-root refresh checkpoints do not match an active operation",
-                )));
-            }
-            return Ok(None);
-        };
-        let context =
-            decode_refresh_attempt_context_v1(attempt).map_err(stored_refresh_record_error)?;
-        let issuer_keys_json = read_required_worker_var(
-            &self.env,
-            crate::TENANT_ROOT_CONTROL_PLANE_ISSUER_VERIFYING_KEYS_JSON_ENV,
-        )?;
-        let issuer_keys = crate::env::decode_issuer_verifying_keys(&issuer_keys_json)?;
-        let expected_authority_id = authority_id_from_object_id(&self.authority_object_id)?;
-        let command_a = validate_refresh_role_command(
-            &attempt.deriver_a_refresh_command_b64u,
-            active,
-            &context,
-            TwoPartyDeriverRole::DeriverA,
-            expected_authority_id,
-            &issuer_keys,
-        )
-        .map_err(stored_refresh_record_error)?;
-        let command_b = validate_refresh_role_command(
-            &attempt.deriver_b_refresh_command_b64u,
-            active,
-            &context,
-            TwoPartyDeriverRole::DeriverB,
-            expected_authority_id,
-            &issuer_keys,
-        )
-        .map_err(stored_refresh_record_error)?;
-        let expected_scope =
-            refresh_checkpoint_scope(&command_a, active, &context, expected_authority_id)
-                .map_err(stored_refresh_record_error)?;
-        let has_checkpoint = commitment_encoded.is_some()
-            || installation_record.is_some()
-            || contribution_record.is_some();
-        let role_keys = has_checkpoint
-            .then(|| read_tenant_root_creation_role_verifying_keys(&self.env))
-            .transpose()?;
-
-        let commitment_pair = match commitment_encoded {
-            None => None,
-            Some(encoded) => {
-                let checkpoint = decode_refresh_commitment_checkpoint(&encoded)
-                    .map_err(stored_refresh_record_error)?;
-                validate_refresh_commitment_checkpoint_scope(checkpoint.scope(), &expected_scope)
-                    .map_err(stored_refresh_record_error)?;
-                let role_keys = role_keys.as_ref().ok_or_else(|| {
-                    stored_refresh_record_error(malformed_input(
-                        "stored tenant-root refresh commitment checkpoint has no role-key set",
-                    ))
-                })?;
-                match checkpoint.state() {
-                    TenantRootRefreshCommitmentCheckpointStateV1::OneRoleCommitted {
-                        role,
-                        command_digest,
-                        signed_commitment,
-                    } => {
-                        validate_refresh_checkpoint_command_digest_v1(
-                            *command_digest,
-                            *role,
-                            &command_a,
-                            &command_b,
-                        )
-                        .map_err(stored_refresh_record_error)?;
-                        let commitment =
-                            verify_refresh_commitment_wire(signed_commitment, &context, role_keys)
-                                .map_err(stored_refresh_record_error)?;
-                        if commitment.role() != *role {
-                            return Err(stored_refresh_record_error(malformed_input(
-                                "stored tenant-root refresh commitment role does not match its wire",
-                            )));
-                        }
-                        None
-                    }
-                    TenantRootRefreshCommitmentCheckpointStateV1::BothRolesCommitted {
-                        deriver_a_command_digest,
-                        deriver_b_command_digest,
-                        ..
-                    } => {
-                        validate_refresh_checkpoint_command_digest_v1(
-                            *deriver_a_command_digest,
-                            TwoPartyDeriverRole::DeriverA,
-                            &command_a,
-                            &command_b,
-                        )
-                        .and_then(|_| {
-                            validate_refresh_checkpoint_command_digest_v1(
-                                *deriver_b_command_digest,
-                                TwoPartyDeriverRole::DeriverB,
-                                &command_a,
-                                &command_b,
-                            )
-                        })
-                        .map_err(stored_refresh_record_error)?;
-                        Some(
-                            require_complete_refresh_commitment_checkpoint(
-                                &checkpoint,
-                                &context,
-                                role_keys,
-                            )
-                            .map_err(stored_refresh_record_error)?,
-                        )
-                    }
-                }
-            }
-        };
-
-        if let Some(record) = contribution_record.as_ref() {
-            let commitments = commitment_pair.as_ref().ok_or_else(|| {
-                stored_refresh_record_error(RouterAbProtocolError::new(
-                    RouterAbProtocolErrorCode::MissingPairPreparation,
-                    "tenant-root refresh contribution has no complete commitment checkpoint",
-                ))
-            })?;
-            let role_keys = role_keys.as_ref().ok_or_else(|| {
-                stored_refresh_record_error(malformed_input(
-                    "stored tenant-root refresh contribution has no role-key set",
-                ))
-            })?;
-            let contribution = validate_refresh_contribution_rendezvous(
-                record.clone(),
-                &expected_scope,
-                &context,
-                commitments,
-                role_keys,
-            )
-            .map_err(stored_refresh_record_error)?;
-            match contribution {
-                ValidatedTenantRootRefreshContributionRendezvousStateV1::OneRole {
-                    role,
-                    command_digest,
-                    ..
-                } => validate_refresh_checkpoint_command_digest_v1(
-                    command_digest,
-                    role,
-                    &command_a,
-                    &command_b,
-                ),
-                ValidatedTenantRootRefreshContributionRendezvousStateV1::BothRoles {
-                    deriver_a_command_digest,
-                    deriver_b_command_digest,
-                    ..
-                } => validate_refresh_checkpoint_command_digest_v1(
-                    deriver_a_command_digest,
-                    TwoPartyDeriverRole::DeriverA,
-                    &command_a,
-                    &command_b,
-                )
-                .and_then(|_| {
-                    validate_refresh_checkpoint_command_digest_v1(
-                        deriver_b_command_digest,
-                        TwoPartyDeriverRole::DeriverB,
-                        &command_a,
-                        &command_b,
-                    )
-                }),
-            }
-            .map_err(stored_refresh_record_error)?;
-        }
-
-        let phase = if executed {
-            let commitments = commitment_pair.as_ref().ok_or_else(|| {
-                stored_refresh_record_error(RouterAbProtocolError::new(
-                    RouterAbProtocolErrorCode::MissingPairPreparation,
-                    "tenant-root refresh installation has no complete commitment checkpoint",
-                ))
-            })?;
-            let installation_record = installation_record.ok_or_else(|| {
-                stored_refresh_record_error(RouterAbProtocolError::new(
-                    RouterAbProtocolErrorCode::MissingPairPreparation,
-                    "tenant-root executed refresh has no installation checkpoint",
-                ))
-            })?;
-            let role_keys = role_keys.as_ref().ok_or_else(|| {
-                stored_refresh_record_error(malformed_input(
-                    "stored tenant-root refresh installation checkpoint has no role-key set",
-                ))
-            })?;
-            let installation = validate_refresh_installation_checkpoint(
-                installation_record,
-                &expected_scope,
-                &context,
-                role_keys,
-                commitments,
-                &active.commitments,
-            )
-            .map_err(stored_refresh_record_error)?;
-            match &installation {
-                ValidatedTenantRootRefreshInstallationStateV1::OneRole {
-                    role,
-                    command_digest,
-                    ..
-                } => {
-                    validate_refresh_checkpoint_command_digest_v1(
-                        *command_digest,
-                        *role,
-                        &command_a,
-                        &command_b,
-                    )
-                    .map_err(stored_refresh_record_error)?;
-                    CloudflareTenantRootRefreshJobPhaseV1::Installing
-                }
-                ValidatedTenantRootRefreshInstallationStateV1::BothRoles {
-                    deriver_a_command_digest,
-                    deriver_b_command_digest,
-                    ..
-                } => {
-                    validate_refresh_checkpoint_command_digest_v1(
-                        *deriver_a_command_digest,
-                        TwoPartyDeriverRole::DeriverA,
-                        &command_a,
-                        &command_b,
-                    )
-                    .and_then(|_| {
-                        validate_refresh_checkpoint_command_digest_v1(
-                            *deriver_b_command_digest,
-                            TwoPartyDeriverRole::DeriverB,
-                            &command_a,
-                            &command_b,
-                        )
-                    })
-                    .map_err(stored_refresh_record_error)?;
-                    CloudflareTenantRootRefreshJobPhaseV1::Verifying
-                }
-            }
-        } else {
-            if installation_record.is_some() {
-                return Err(stored_refresh_record_error(malformed_input(
-                    "stored tenant-root installation checkpoint requires an executed refresh",
-                )));
-            }
-            if !has_checkpoint {
-                return Ok(None);
-            }
-            CloudflareTenantRootRefreshJobPhaseV1::Preparing
-        };
-        refresh_job_read_from_phase_v1(
-            phase,
-            attempt.manual_operation_id.clone(),
-            context.issued_at_ms(),
-        )
-        .map_err(stored_refresh_record_error)
-    }
-
-    async fn read_or_reserve_authoritative_active_state(
-        &self,
-        request: CloudflareTenantRootCreationActiveStateReadRequestV1,
-    ) -> RouterAbProtocolResult<CloudflareTenantRootCreationActiveStateReadResponseV1> {
-        let (identity_digest_b64u, custody_lineage_b64u) = match &request {
-            CloudflareTenantRootCreationActiveStateReadRequestV1::Read {
-                identity_digest_b64u,
-                custody_lineage_b64u,
-            }
-            | CloudflareTenantRootCreationActiveStateReadRequestV1::ReserveRefresh {
-                identity_digest_b64u,
-                custody_lineage_b64u,
-                ..
-            }
-            | CloudflareTenantRootCreationActiveStateReadRequestV1::ReserveRefreshAdmission {
-                identity_digest_b64u,
-                custody_lineage_b64u,
-                ..
-            }
-            | CloudflareTenantRootCreationActiveStateReadRequestV1::ReserveManagedRestore {
-                identity_digest_b64u,
-                custody_lineage_b64u,
-                ..
-            }
-            | CloudflareTenantRootCreationActiveStateReadRequestV1::CheckpointManagedRestore {
-                identity_digest_b64u,
-                custody_lineage_b64u,
-                ..
-            } => (identity_digest_b64u, custody_lineage_b64u),
-        };
-        let identity_digest = TenantRootIdentityDigestV1::from_bytes(decode_fixed_base64url_32(
-            "tenant-root active-state read identity digest",
-            identity_digest_b64u,
-        )?);
-        let custody_lineage = decode_lineage_b64u(
-            "tenant-root active-state read custody lineage",
-            custody_lineage_b64u,
-        )?;
-        require_tenant_root_creation_authority_object_v1(
-            &self.env,
-            &self.authority_object_id,
-            identity_digest,
-            custody_lineage,
-        )?;
-        let active = self.load_authoritative_active_refresh_state().await?;
-        if active.identity_digest != identity_digest || active.custody_lineage != custody_lineage {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::ForbiddenLocalBinding,
-                "tenant-root active state does not match the requested identity and custody lineage",
-            ));
-        }
-        match request {
-            CloudflareTenantRootCreationActiveStateReadRequestV1::Read { .. } => {
-                let job = self.read_refresh_job_v1(&active).await?;
-                let mut response = active_state_read_response_from_record(active.record);
-                response.job = job;
-                Ok(response)
-            }
-            CloudflareTenantRootCreationActiveStateReadRequestV1::ReserveRefreshAdmission {
-                operation_id,
-                expected_lifecycle_revision,
-                expires_at_ms,
-                trigger,
-                ..
-            } => {
-                let admission = self
-                    .reserve_refresh_admission(
-                        &active,
-                        identity_digest,
-                        custody_lineage,
-                        operation_id,
-                        expected_lifecycle_revision,
-                        expires_at_ms,
-                        trigger,
-                    )
-                    .await?;
-                let mut response = active_state_read_response_from_record(active.record);
-                response.refresh_admission = Some(admission);
-                Ok(response)
-            }
-            CloudflareTenantRootCreationActiveStateReadRequestV1::ReserveRefresh {
-                refresh_context_b64u,
-                deriver_a_refresh_command_b64u,
-                deriver_b_refresh_command_b64u,
-                manual_operation_id,
-                ..
-            } => {
-                self.reserve_refresh_attempt(
-                    active,
-                    identity_digest,
-                    custody_lineage,
-                    refresh_context_b64u,
-                    deriver_a_refresh_command_b64u,
-                    deriver_b_refresh_command_b64u,
-                    manual_operation_id,
-                )
-                .await
-            }
-            CloudflareTenantRootCreationActiveStateReadRequestV1::ReserveManagedRestore {
-                authorization,
-                ..
-            } => {
-                self.reserve_managed_restore_authorization(
-                    active,
-                    identity_digest,
-                    custody_lineage,
-                    authorization,
-                )
-                .await
-            }
-            CloudflareTenantRootCreationActiveStateReadRequestV1::CheckpointManagedRestore {
-                checkpoint,
-                ..
-            } => {
-                self.checkpoint_managed_restore_authorization(
-                    active,
-                    identity_digest,
-                    custody_lineage,
-                    checkpoint,
-                )
-                .await
-            }
-        }
-    }
-
-    async fn reserve_managed_restore_authorization(
-        &self,
-        loaded_active: ValidatedTenantRootRefreshActiveStateV1,
-        identity_digest: TenantRootIdentityDigestV1,
-        custody_lineage: TenantRootCustodyLineageId,
-        authorization: CloudflareTenantRootManagedRestoreAuthorizationRequestV1,
-    ) -> RouterAbProtocolResult<CloudflareTenantRootCreationActiveStateReadResponseV1> {
-        if loaded_active.identity_digest != identity_digest
-            || loaded_active.custody_lineage != custody_lineage
-        {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::ForbiddenLocalBinding,
-                "tenant-root managed-restore reservation identity changed",
-            ));
-        }
-        let issuer_keys_json = read_required_worker_var(
-            &self.env,
-            crate::TENANT_ROOT_CONTROL_PLANE_ISSUER_VERIFYING_KEYS_JSON_ENV,
-        )?;
-        let issuer_keys = crate::env::decode_issuer_verifying_keys(&issuer_keys_json)?;
-        let authority_id = authority_id_from_object_id(&self.authority_object_id)?;
-        let now_ms = crate::cloudflare_now_unix_ms_v1()?;
-        let outcome: Rc<
-            RefCell<
-                Option<
-                    RouterAbProtocolResult<CloudflareTenantRootCreationActiveStateReadResponseV1>,
-                >,
-            >,
-        > = Rc::new(RefCell::new(None));
-        let outcome_for_transaction = Rc::clone(&outcome);
-        self.storage
-            .transaction(move |transaction| async move {
-                let active_record = match transaction_get_optional::<
-                    CloudflareTenantRootRefreshActiveStateRecordV1,
-                >(
-                    &transaction,
-                    TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1,
-                )
-                .await
-                {
-                    Ok(Some(record)) => record,
-                    Ok(None) => {
-                        outcome_for_transaction.replace(Some(Err(
-                            RouterAbProtocolError::new(
-                                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                                "tenant-root managed-restore reservation has no authoritative active public state",
-                            ),
-                        )));
-                        return Ok(());
-                    }
-                    Err(error) => return Err(error),
-                };
-                let active = match validate_refresh_active_state_record(
-                    active_record,
-                    authority_id,
-                    &issuer_keys,
-                ) {
-                    Ok(value) => value,
-                    Err(error) => {
-                        outcome_for_transaction
-                            .replace(Some(Err(stored_refresh_record_error(error))));
-                        return Ok(());
-                    }
-                };
-                if active.identity_digest != identity_digest
-                    || active.custody_lineage != custody_lineage
-                {
-                    outcome_for_transaction.replace(Some(Err(
-                        RouterAbProtocolError::new(
-                            RouterAbProtocolErrorCode::ForbiddenLocalBinding,
-                            "tenant-root managed-restore reservation identity changed",
-                        ),
-                    )));
-                    return Ok(());
-                }
-                let journal_record = match transaction_get_optional::<
-                    CloudflareTenantRootCreationJournalRecordV1,
-                >(
-                    &transaction,
-                    TENANT_ROOT_CREATION_JOURNAL_STORAGE_KEY_V1,
-                )
-                .await
-                {
-                    Ok(Some(record)) => record,
-                    Ok(None) => {
-                        outcome_for_transaction.replace(Some(Err(
-                            RouterAbProtocolError::new(
-                                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                                "tenant-root managed-restore reservation has no Started journal",
-                            ),
-                        )));
-                        return Ok(());
-                    }
-                    Err(error) => return Err(error),
-                };
-                let journal = match validate_creation_record(journal_record, authority_id, &issuer_keys)
-                {
-                    Ok(value) => value,
-                    Err(error) => {
-                        outcome_for_transaction.replace(Some(Err(stored_record_error(error))));
-                        return Ok(());
-                    }
-                };
-                let evaluation = match reserve_managed_restore_authorization_fence_v1(
-                    &active,
-                    &journal,
-                    authorization,
-                    now_ms,
-                ) {
-                    Ok(value) => value,
-                    Err(error) => {
-                        outcome_for_transaction.replace(Some(Err(error)));
-                        return Ok(());
-                    }
-                };
-                let response_record = match evaluation {
-                    CloudflareTenantRootManagedRestoreFenceEvaluationV1::Commit { fence } => {
-                        let mut candidate = active.record.clone();
-                        candidate.managed_restore_fence = fence;
-                        if let Err(error) = validate_refresh_active_state_record(
-                            candidate.clone(),
-                            authority_id,
-                            &issuer_keys,
-                        ) {
-                            outcome_for_transaction.replace(Some(Err(error)));
-                            return Ok(());
-                        }
-                        transaction
-                            .put(
-                                TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1,
-                                &candidate,
-                            )
-                            .await?;
-                        candidate
-                    }
-                    CloudflareTenantRootManagedRestoreFenceEvaluationV1::Replay { .. } => {
-                        active.record
-                    }
-                };
-                outcome_for_transaction.replace(Some(Ok(
-                    active_state_read_response_from_record(response_record),
-                )));
-                Ok(())
-            })
-            .await
-            .map_err(durable_storage_protocol_error)?;
-        let outcome = outcome.borrow_mut().take().ok_or_else(|| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                "tenant-root managed-restore reservation transaction did not produce an outcome",
-            )
-        })?;
-        outcome
-    }
-
-    async fn checkpoint_managed_restore_authorization(
-        &self,
-        loaded_active: ValidatedTenantRootRefreshActiveStateV1,
-        identity_digest: TenantRootIdentityDigestV1,
-        custody_lineage: TenantRootCustodyLineageId,
-        checkpoint: CloudflareTenantRootManagedRestoreAuthorizationCheckpointV1,
-    ) -> RouterAbProtocolResult<CloudflareTenantRootCreationActiveStateReadResponseV1> {
-        if loaded_active.identity_digest != identity_digest
-            || loaded_active.custody_lineage != custody_lineage
-        {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::ForbiddenLocalBinding,
-                "tenant-root managed-restore checkpoint identity changed",
-            ));
-        }
-        let issuer_keys_json = read_required_worker_var(
-            &self.env,
-            crate::TENANT_ROOT_CONTROL_PLANE_ISSUER_VERIFYING_KEYS_JSON_ENV,
-        )?;
-        let issuer_keys = crate::env::decode_issuer_verifying_keys(&issuer_keys_json)?;
-        let authority_id = authority_id_from_object_id(&self.authority_object_id)?;
-        let outcome: Rc<
-            RefCell<
-                Option<
-                    RouterAbProtocolResult<CloudflareTenantRootCreationActiveStateReadResponseV1>,
-                >,
-            >,
-        > = Rc::new(RefCell::new(None));
-        let outcome_for_transaction = Rc::clone(&outcome);
-        self.storage
-            .transaction(move |transaction| async move {
-                let active_record = match transaction_get_optional::<
-                    CloudflareTenantRootRefreshActiveStateRecordV1,
-                >(
-                    &transaction,
-                    TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1,
-                )
-                .await
-                {
-                    Ok(Some(record)) => record,
-                    Ok(None) => {
-                        outcome_for_transaction.replace(Some(Err(
-                            RouterAbProtocolError::new(
-                                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                                "tenant-root managed-restore checkpoint has no authoritative active public state",
-                            ),
-                        )));
-                        return Ok(());
-                    }
-                    Err(error) => return Err(error),
-                };
-                let active = match validate_refresh_active_state_record(
-                    active_record,
-                    authority_id,
-                    &issuer_keys,
-                ) {
-                    Ok(value) => value,
-                    Err(error) => {
-                        outcome_for_transaction
-                            .replace(Some(Err(stored_refresh_record_error(error))));
-                        return Ok(());
-                    }
-                };
-                if active.identity_digest != identity_digest
-                    || active.custody_lineage != custody_lineage
-                {
-                    outcome_for_transaction.replace(Some(Err(
-                        RouterAbProtocolError::new(
-                            RouterAbProtocolErrorCode::ForbiddenLocalBinding,
-                            "tenant-root managed-restore checkpoint identity changed",
-                        ),
-                    )));
-                    return Ok(());
-                }
-                let journal_record = match transaction_get_optional::<
-                    CloudflareTenantRootCreationJournalRecordV1,
-                >(
-                    &transaction,
-                    TENANT_ROOT_CREATION_JOURNAL_STORAGE_KEY_V1,
-                )
-                .await
-                {
-                    Ok(Some(record)) => record,
-                    Ok(None) => {
-                        outcome_for_transaction.replace(Some(Err(
-                            RouterAbProtocolError::new(
-                                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                                "tenant-root managed-restore checkpoint has no Started journal",
-                            ),
-                        )));
-                        return Ok(());
-                    }
-                    Err(error) => return Err(error),
-                };
-                let journal = match validate_creation_record(journal_record, authority_id, &issuer_keys)
-                {
-                    Ok(value) => value,
-                    Err(error) => {
-                        outcome_for_transaction.replace(Some(Err(stored_record_error(error))));
-                        return Ok(());
-                    }
-                };
-                if let Err(error) = require_managed_restore_challenge_matches_started_journal_v1(
-                    &active,
-                    &journal,
-                    &checkpoint.challenge,
-                ) {
-                    outcome_for_transaction.replace(Some(Err(error)));
-                    return Ok(());
-                }
-                let evaluation = match checkpoint_managed_restore_authorization_fence_v1(
-                    &active,
-                    checkpoint,
-                ) {
-                    Ok(value) => value,
-                    Err(error) => {
-                        outcome_for_transaction.replace(Some(Err(error)));
-                        return Ok(());
-                    }
-                };
-                let response_record = match evaluation {
-                    CloudflareTenantRootManagedRestoreFenceEvaluationV1::Commit { fence } => {
-                        let mut candidate = active.record.clone();
-                        candidate.managed_restore_fence = fence;
-                        if let Err(error) = validate_refresh_active_state_record(
-                            candidate.clone(),
-                            authority_id,
-                            &issuer_keys,
-                        ) {
-                            outcome_for_transaction.replace(Some(Err(error)));
-                            return Ok(());
-                        }
-                        transaction
-                            .put(
-                                TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1,
-                                &candidate,
-                            )
-                            .await?;
-                        candidate
-                    }
-                    CloudflareTenantRootManagedRestoreFenceEvaluationV1::Replay { .. } => {
-                        active.record
-                    }
-                };
-                outcome_for_transaction.replace(Some(Ok(
-                    active_state_read_response_from_record(response_record),
-                )));
-                Ok(())
-        })
-            .await
-            .map_err(durable_storage_protocol_error)?;
-        let outcome = outcome.borrow_mut().take().ok_or_else(|| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                "tenant-root managed-restore checkpoint transaction did not produce an outcome",
-            )
-        })?;
-        outcome
-    }
-
-    async fn reserve_refresh_admission(
-        &self,
-        loaded_active: &ValidatedTenantRootRefreshActiveStateV1,
-        identity_digest: TenantRootIdentityDigestV1,
-        custody_lineage: TenantRootCustodyLineageId,
-        operation_id: String,
-        expected_lifecycle_revision: u64,
-        expires_at_ms: u64,
-        trigger: CloudflareTenantRootRefreshTriggerV1,
-    ) -> RouterAbProtocolResult<CloudflareTenantRootRefreshAdmissionOutcomeV1> {
-        validate_refresh_operation_id_v1(&operation_id)?;
-        let issuer_keys_json = read_required_worker_var(
-            &self.env,
-            crate::TENANT_ROOT_CONTROL_PLANE_ISSUER_VERIFYING_KEYS_JSON_ENV,
-        )?;
-        let issuer_keys = crate::env::decode_issuer_verifying_keys(&issuer_keys_json)?;
-        let authority_id = authority_id_from_object_id(&self.authority_object_id)?;
-        let now_ms = crate::cloudflare_now_unix_ms_v1()?;
-        let manual_refresh_interval_ms =
-            match self.env.var("TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS") {
-                Ok(value) => value
-                    .to_string()
-                    .parse::<u64>()
-                    .ok()
-                    .filter(|value| *value >= 60_000)
-                    .ok_or_else(|| {
-                        RouterAbProtocolError::new(
-                            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                            "manual refresh interval must be at least 60000 milliseconds",
-                        )
-                    })?,
-                Err(_) => TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS_V1,
-            };
-        let completion_key = manual_refresh_completion_storage_key_v1(&operation_id);
-        let outcome: Rc<
-            RefCell<Option<RouterAbProtocolResult<CloudflareTenantRootRefreshAdmissionOutcomeV1>>>,
-        > = Rc::new(RefCell::new(None));
-        let outcome_for_transaction = Rc::clone(&outcome);
-        let active_identity = loaded_active.identity_digest;
-        let active_lineage = loaded_active.custody_lineage;
-        self.storage
-            .transaction(move |transaction| async move {
-                let active_record = match transaction_get_optional::<
-                    CloudflareTenantRootRefreshActiveStateRecordV1,
-                >(
-                    &transaction,
-                    TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1,
-                )
-                .await
-                {
-                    Ok(Some(record)) => record,
-                    Ok(None) => {
-                        outcome_for_transaction.replace(Some(Err(
-                            RouterAbProtocolError::new(
-                                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                                "tenant-root manual refresh admission has no authoritative active public state",
-                            ),
-                        )));
-                        return Ok(());
-                    }
-                    Err(error) => return Err(error),
-                };
-                let active = match validate_refresh_active_state_record(
-                    active_record,
-                    authority_id,
-                    &issuer_keys,
-                ) {
-                    Ok(value) => value,
-                    Err(error) => {
-                        outcome_for_transaction
-                            .replace(Some(Err(stored_refresh_record_error(error))));
-                        return Ok(());
-                    }
-                };
-                if active.identity_digest != active_identity
-                    || active.custody_lineage != active_lineage
-                    || active.identity_digest != identity_digest
-                    || active.custody_lineage != custody_lineage
-                {
-                    outcome_for_transaction.replace(Some(Err(
-                        RouterAbProtocolError::new(
-                            RouterAbProtocolErrorCode::ForbiddenLocalBinding,
-                            "tenant-root manual refresh admission identity changed",
-                        ),
-                    )));
-                    return Ok(());
-                }
-
-                let completion = match transaction_get_optional::<
-                    CloudflareTenantRootRefreshCompletionV1,
-                >(&transaction, &completion_key)
-                .await
-                {
-                    Ok(completion) => completion,
-                    Err(error) => return Err(error),
-                };
-                let evaluation = match evaluate_refresh_admission_v1(
-                    &active.record,
-                    completion,
-                    &operation_id,
-                    trigger,
-                    active.identity_digest,
-                    active.activation_receipt.activated_at_ms(),
-                    expected_lifecycle_revision,
-                    expires_at_ms,
-                    now_ms,
-                    manual_refresh_interval_ms,
-                ) {
-                    Ok(evaluation) => evaluation,
-                    Err(error) => {
-                        outcome_for_transaction
-                            .replace(Some(Err(stored_refresh_record_error(error))));
-                        return Ok(());
-                    }
-                };
-                match evaluation {
-                    CloudflareTenantRootRefreshAdmissionEvaluationV1::Commit { pending } => {
-                        let mut candidate = active.record.clone();
-                        candidate.manual_refresh_pending = Some(pending);
-                        if let Err(error) = validate_refresh_active_state_record(
-                            candidate.clone(),
-                            authority_id,
-                            &issuer_keys,
-                        ) {
-                            outcome_for_transaction.replace(Some(Err(error)));
-                            return Ok(());
-                        }
-                        transaction
-                            .put(TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1, &candidate)
-                            .await?;
-                        outcome_for_transaction.replace(Some(Ok(
-                            CloudflareTenantRootRefreshAdmissionOutcomeV1::Admitted {
-                                lifecycle_revision: candidate.lifecycle_revision,
-                            },
-                        )));
-                    }
-                    CloudflareTenantRootRefreshAdmissionEvaluationV1::Replay { response } => {
-                        outcome_for_transaction.replace(Some(Ok(
-                            CloudflareTenantRootRefreshAdmissionOutcomeV1::Replayed {
-                                response,
-                            },
-                        )));
-                    }
-                    CloudflareTenantRootRefreshAdmissionEvaluationV1::Throttled {
-                        retry_at_ms,
-                    } => {
-                        outcome_for_transaction.replace(Some(Ok(
-                            CloudflareTenantRootRefreshAdmissionOutcomeV1::Throttled {
-                                retry_at_ms,
-                            },
-                        )));
-                    }
-                    CloudflareTenantRootRefreshAdmissionEvaluationV1::RevisionMoved => {
-                        outcome_for_transaction.replace(Some(Ok(
-                            CloudflareTenantRootRefreshAdmissionOutcomeV1::RevisionMoved,
-                        )));
-                    }
-                    CloudflareTenantRootRefreshAdmissionEvaluationV1::AuthorizationExpired => {
-                        outcome_for_transaction.replace(Some(Ok(
-                            CloudflareTenantRootRefreshAdmissionOutcomeV1::AuthorizationExpired,
-                        )));
-                    }
-                    CloudflareTenantRootRefreshAdmissionEvaluationV1::NotDue {
-                        next_run_at_ms,
-                    } => {
-                        outcome_for_transaction.replace(Some(Ok(
-                            CloudflareTenantRootRefreshAdmissionOutcomeV1::NotDue {
-                                next_run_at_ms,
-                            },
-                        )));
-                    }
-                    CloudflareTenantRootRefreshAdmissionEvaluationV1::InProgress => {
-                        outcome_for_transaction.replace(Some(Ok(
-                            CloudflareTenantRootRefreshAdmissionOutcomeV1::InProgress,
-                        )));
-                    }
-                }
+                outcome_for_transaction.replace(Some(result));
                 Ok(())
             })
             .await
@@ -8442,247 +7757,149 @@ impl RouterAbTenantRootCreationDurableObject {
         let result = outcome.borrow_mut().take().ok_or_else(|| {
             RouterAbProtocolError::new(
                 RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                "tenant-root manual refresh admission transaction did not produce an outcome",
+                "tenant-root restore-refresh checkpoint transaction did not produce an outcome",
             )
         })?;
         result
     }
 
-    async fn reserve_refresh_attempt(
+
+    async fn persist_creation_abandonment(
         &self,
-        loaded_active: ValidatedTenantRootRefreshActiveStateV1,
-        identity_digest: TenantRootIdentityDigestV1,
-        custody_lineage: TenantRootCustodyLineageId,
-        refresh_context_b64u: String,
-        deriver_a_refresh_command_b64u: String,
-        deriver_b_refresh_command_b64u: String,
-        manual_operation_id: Option<String>,
-    ) -> RouterAbProtocolResult<CloudflareTenantRootCreationActiveStateReadResponseV1> {
-        if let Some(operation_id) = &manual_operation_id {
-            validate_refresh_operation_id_v1(operation_id)?;
-        }
-        let context_bytes = decode_canonical_base64url(
-            "tenant-root refresh reservation context",
-            &refresh_context_b64u,
-            8 * 1024,
-            base64url_len_for_bytes(8 * 1024),
-        )?;
-        let context = TenantRootCeremonyContextV1::decode_canonical_bytes(&context_bytes)
-            .map_err(candidate_derivation_error)?;
-        let issuer_keys_json = read_required_worker_var(
-            &self.env,
-            crate::TENANT_ROOT_CONTROL_PLANE_ISSUER_VERIFYING_KEYS_JSON_ENV,
-        )?;
-        let issuer_keys = crate::env::decode_issuer_verifying_keys(&issuer_keys_json)?;
-        let expected_authority_id = authority_id_from_object_id(&self.authority_object_id)?;
+        request: CloudflareTenantRootCreationJournalReadRequestV1,
+    ) -> RouterAbProtocolResult<CloudflareTenantRootCreationAbandonmentResponseV1> {
+        let issuer_keys = self.issuer_verifying_keys()?;
         let now_ms = crate::cloudflare_now_unix_ms_v1()?;
-        let outcome: Rc<
-            RefCell<
-                Option<
-                    RouterAbProtocolResult<CloudflareTenantRootCreationActiveStateReadResponseV1>,
-                >,
-            >,
-        > = Rc::new(RefCell::new(None));
+        let env = self.env.clone();
+        let store = DurableObjectCreationStoreV1::new(&self.env, &self.authority_object_id)?;
+        let outcome = Rc::new(RefCell::new(None));
         let outcome_for_transaction = Rc::clone(&outcome);
-        let active_identity = loaded_active.identity_digest;
-        let active_lineage = loaded_active.custody_lineage;
-        let requested_manual_operation_id = manual_operation_id.clone();
         self.storage
             .transaction(move |transaction| async move {
-                let active_record = match transaction_get_optional::<
-                    CloudflareTenantRootRefreshActiveStateRecordV1,
-                >(
-                    &transaction,
-                    TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1,
+                let store = store.bind(transaction);
+                let result = tenant_root_creation_persist_abandonment_v1(
+                    &store,
+                    &issuer_keys,
+                    move || read_tenant_root_creation_role_verifying_keys(&env),
+                    request,
+                    now_ms,
                 )
-                .await
-                {
-                    Ok(Some(record)) => record,
-                    Ok(None) => {
-                        outcome_for_transaction.replace(Some(Err(RouterAbProtocolError::new(
-                            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                            "tenant-root refresh has no authoritative active public state",
-                        ))));
-                        return Ok(());
-                    }
-                    Err(error) => return Err(error),
-                };
-                let active = match validate_refresh_active_state_record(
-                    active_record,
-                    expected_authority_id,
-                    &issuer_keys,
-                ) {
-                    Ok(value) => value,
-                    Err(error) => {
-                        outcome_for_transaction
-                            .replace(Some(Err(stored_refresh_record_error(error))));
-                        return Ok(());
-                    }
-                };
-                if active.identity_digest != active_identity
-                    || active.custody_lineage != active_lineage
-                    || active.identity_digest != identity_digest
-                    || active.custody_lineage != custody_lineage
-                {
-                    outcome_for_transaction.replace(Some(Err(RouterAbProtocolError::new(
-                        RouterAbProtocolErrorCode::ForbiddenLocalBinding,
-                        "tenant-root refresh reservation identity changed",
-                    ))));
-                    return Ok(());
+                .await;
+                if let Some(error) = store.take_storage_error() {
+                    return Err(error);
                 }
-                let command_a = match validate_refresh_role_command(
-                    &deriver_a_refresh_command_b64u,
-                    &active,
-                    &context,
-                    TwoPartyDeriverRole::DeriverA,
-                    expected_authority_id,
-                    &issuer_keys,
-                ) {
-                    Ok(value) => value,
-                    Err(error) => {
-                        outcome_for_transaction.replace(Some(Err(error)));
-                        return Ok(());
-                    }
-                };
-                let command_b = match validate_refresh_role_command(
-                    &deriver_b_refresh_command_b64u,
-                    &active,
-                    &context,
-                    TwoPartyDeriverRole::DeriverB,
-                    expected_authority_id,
-                    &issuer_keys,
-                ) {
-                    Ok(value) => value,
-                    Err(error) => {
-                        outcome_for_transaction.replace(Some(Err(error)));
-                        return Ok(());
-                    }
-                };
-                let mut attempt =
-                    match refresh_attempt_from_commands(&context, &command_a, &command_b) {
-                        Ok(value) => value,
-                        Err(error) => {
-                            outcome_for_transaction.replace(Some(Err(error)));
-                            return Ok(());
-                        }
-                    };
-                attempt.manual_operation_id = requested_manual_operation_id.clone();
-                if let Some(operation_id) = &requested_manual_operation_id {
-                    match &active.record.manual_refresh_pending {
-                        Some(pending)
-                            if pending.operation_id == *operation_id
-                                && pending.lifecycle_revision
-                                    == active.record.lifecycle_revision => {}
-                        _ => {
-                            outcome_for_transaction.replace(Some(Err(RouterAbProtocolError::new(
-                                RouterAbProtocolErrorCode::ConflictingPair,
-                                "tenant-root manual refresh reservation is not admitted",
-                            ))));
-                            return Ok(());
-                        }
-                    }
-                    if matches!(
-                        &active.record.managed_restore_fence,
-                        CloudflareTenantRootManagedRestoreFenceV1::Reserved { .. }
-                    ) {
-                        outcome_for_transaction
-                            .replace(Some(Err(manual_refresh_in_progress_error())));
-                        return Ok(());
-                    }
-                } else if active.record.manual_refresh_pending.is_some() {
-                    outcome_for_transaction.replace(Some(Err(manual_refresh_in_progress_error())));
-                    return Ok(());
-                }
-                if let Err(error) = require_fresh_refresh_command(&command_a, &context, now_ms)
-                    .and_then(|_| require_fresh_refresh_command(&command_b, &context, now_ms))
-                {
-                    outcome_for_transaction.replace(Some(Err(error)));
-                    return Ok(());
-                }
-                let response_record = match &active.record.fence {
-                    CloudflareTenantRootRefreshFenceV1::Open => {
-                        let mut record = active.record.clone();
-                        record.fence = CloudflareTenantRootRefreshFenceV1::Reserved { attempt };
-                        transaction
-                            .put(TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1, &record)
-                            .await?;
-                        record
-                    }
-                    CloudflareTenantRootRefreshFenceV1::Reserved { attempt: stored }
-                    | CloudflareTenantRootRefreshFenceV1::Executed { attempt: stored } => {
-                        if let Err(error) = validate_refresh_attempt_packages(stored) {
-                            outcome_for_transaction.replace(Some(Err(error)));
-                            return Ok(());
-                        }
-                        if stored.manual_operation_id != requested_manual_operation_id {
-                            outcome_for_transaction
-                                .replace(Some(Err(manual_refresh_in_progress_error())));
-                            return Ok(());
-                        }
-                        active.record.clone()
-                    }
-                    CloudflareTenantRootRefreshFenceV1::Terminal {
-                        attempt: stored, ..
-                    } => {
-                        if stored == &attempt {
-                            active.record.clone()
-                        } else {
-                            let mut record = active.record.clone();
-                            record.fence = CloudflareTenantRootRefreshFenceV1::Reserved { attempt };
-                            transaction
-                                .delete(TENANT_ROOT_REFRESH_COMMITMENT_CHECKPOINT_STORAGE_KEY_V1)
-                                .await?;
-                            transaction
-                                .delete(TENANT_ROOT_REFRESH_INSTALLATION_CHECKPOINT_STORAGE_KEY_V1)
-                                .await?;
-                            transaction
-                                .delete(TENANT_ROOT_REFRESH_CONTRIBUTION_RENDEZVOUS_STORAGE_KEY_V1)
-                                .await?;
-                            transaction
-                                .put(TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1, &record)
-                                .await?;
-                            record
-                        }
-                    }
-                };
-                let response = match response_record {
-                    CloudflareTenantRootRefreshActiveStateRecordV1 {
-                        activation_receipt_b64u,
-                        activation_receipt_digest_b64u,
-                        identity_digest_b64u,
-                        custody_lineage_b64u,
-                        lifecycle_revision,
-                        fence,
-                        managed_restore_fence,
-                        last_manual_refresh_completed_at_ms,
-                        last_refresh_completed_at_ms,
-                        ..
-                    } => CloudflareTenantRootCreationActiveStateReadResponseV1 {
-                        last_manual_refresh_completed_at_ms,
-                        last_refresh_completed_at_ms,
-                        activation_receipt_b64u,
-                        activation_receipt_digest_b64u,
-                        identity_digest_b64u,
-                        custody_lineage_b64u,
-                        lifecycle_revision,
-                        fence,
-                        managed_restore_fence,
-                        job: None,
-                        refresh_admission: None,
-                    },
-                };
-                outcome_for_transaction.replace(Some(Ok(response)));
+                outcome_for_transaction.replace(Some(result));
                 Ok(())
             })
             .await
             .map_err(durable_storage_protocol_error)?;
-        let outcome = outcome.borrow_mut().take().ok_or_else(|| {
+        let result = outcome.borrow_mut().take().ok_or_else(|| {
             RouterAbProtocolError::new(
                 RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                "tenant-root refresh reservation transaction did not produce an outcome",
+                "tenant-root creation abandonment transaction did not produce an outcome",
             )
         })?;
-        outcome
+        result
+    }
+
+    async fn read_creation_progress(
+        &self,
+        request: CloudflareTenantRootCreationJournalReadRequestV1,
+    ) -> RouterAbProtocolResult<CloudflareTenantRootCreationProgressV1> {
+        let issuer_keys = self.issuer_verifying_keys()?;
+        let now_ms = crate::cloudflare_now_unix_ms_v1()?;
+        let env = self.env.clone();
+        let store = DurableObjectCreationStoreV1::new(&self.env, &self.authority_object_id)?;
+        let outcome = Rc::new(RefCell::new(None));
+        let outcome_for_transaction = Rc::clone(&outcome);
+        self.storage
+            .transaction(move |transaction| async move {
+                let store = store.bind(transaction);
+                let result = tenant_root_creation_read_progress_v1(
+                    &store,
+                    &issuer_keys,
+                    move || read_tenant_root_creation_role_verifying_keys(&env),
+                    request,
+                    now_ms,
+                )
+                .await;
+                if let Some(error) = store.take_storage_error() {
+                    return Err(error);
+                }
+                outcome_for_transaction.replace(Some(result));
+                Ok(())
+            })
+            .await
+            .map_err(durable_storage_protocol_error)?;
+        let result = outcome.borrow_mut().take().ok_or_else(|| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+                "tenant-root creation progress transaction did not produce an outcome",
+            )
+        })?;
+        result
+    }
+
+    pub(crate) async fn read_creation_journal(
+        &self,
+        request: CloudflareTenantRootCreationJournalReadRequestV1,
+    ) -> RouterAbProtocolResult<CloudflareTenantRootCreationJournalReadResponseV1> {
+        let issuer_keys = self.issuer_verifying_keys()?;
+        let env = self.env.clone();
+        let store = DurableObjectCreationStoreV1::new(&self.env, &self.authority_object_id)?;
+        let outcome = Rc::new(RefCell::new(None));
+        let outcome_for_transaction = Rc::clone(&outcome);
+        self.storage
+            .transaction(move |transaction| async move {
+                let store = store.bind(transaction);
+                let result = tenant_root_creation_read_journal_v1(&store, &issuer_keys, move || read_tenant_root_creation_role_verifying_keys(&env), request).await;
+                if let Some(error) = store.take_storage_error() {
+                    return Err(error);
+                }
+                outcome_for_transaction.replace(Some(result));
+                Ok(())
+            })
+            .await
+            .map_err(durable_storage_protocol_error)?;
+        let result = outcome.borrow_mut().take().ok_or_else(|| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+                "tenant-root creation read transaction did not produce an outcome",
+            )
+        })?;
+        result
+    }
+
+    async fn read_or_reserve_authoritative_active_state(
+        &self,
+        request: CloudflareTenantRootCreationActiveStateReadRequestV1,
+    ) -> RouterAbProtocolResult<CloudflareTenantRootCreationActiveStateReadResponseV1> {
+        let issuer_keys = self.issuer_verifying_keys()?;
+        let env = self.env.clone();
+        let schedule = refresh_schedule_v1(&self.env)?;
+        let now_ms = crate::cloudflare_now_unix_ms_v1()?;
+        let store = DurableObjectCreationStoreV1::new(&self.env, &self.authority_object_id)?;
+        let outcome = Rc::new(RefCell::new(None));
+        let outcome_for_transaction = Rc::clone(&outcome);
+        self.storage
+            .transaction(move |transaction| async move {
+                let store = store.bind(transaction);
+                let result = tenant_root_creation_active_state_read_v1(&store, &issuer_keys, move || read_tenant_root_creation_role_verifying_keys(&env), request, now_ms, schedule).await;
+                if let Some(error) = store.take_storage_error() {
+                    return Err(error);
+                }
+                outcome_for_transaction.replace(Some(result));
+                Ok(())
+            })
+            .await
+            .map_err(durable_storage_protocol_error)?;
+        let result = outcome.borrow_mut().take().ok_or_else(|| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+                "tenant-root active-state transaction did not produce an outcome",
+            )
+        })?;
+        result
     }
 
     async fn load_role_creation_request(
@@ -8734,866 +7951,179 @@ impl RouterAbTenantRootCreationDurableObject {
         &self,
         request: CloudflareTenantRootCreationJournalRequestV1,
     ) -> RouterAbProtocolResult<CloudflareTenantRootCreationJournalResponseV1> {
-        let verifying_keys_json = read_required_worker_var(
-            &self.env,
-            crate::TENANT_ROOT_CONTROL_PLANE_ISSUER_VERIFYING_KEYS_JSON_ENV,
-        )?;
-        let verifying_keys = crate::env::decode_issuer_verifying_keys(&verifying_keys_json)?;
-        let authority_id = TenantRootControlPlaneAuthorityIdV1::from_bytes(decode_lower_hex_32(
-            "tenant-root creation Durable Object id",
-            &self.authority_object_id,
-        )?);
-        let candidate =
-            validate_creation_record(request.into_record(), authority_id, &verifying_keys)?;
-        require_tenant_root_creation_authority_object_v1(
-            &self.env,
-            &self.authority_object_id,
-            candidate.identity_digest,
-            candidate.custody_lineage,
-        )?;
+        let issuer_keys = self.issuer_verifying_keys()?;
         let now_ms = crate::cloudflare_now_unix_ms_v1()?;
-        let outcome: Rc<
-            RefCell<Option<RouterAbProtocolResult<CloudflareTenantRootCreationJournalResponseV1>>>,
-        > = Rc::new(RefCell::new(None));
+        let store = DurableObjectCreationStoreV1::new(&self.env, &self.authority_object_id)?;
+        let outcome = Rc::new(RefCell::new(None));
         let outcome_for_transaction = Rc::clone(&outcome);
         self.storage
             .transaction(move |transaction| async move {
-                let existing = match transaction_get_optional::<
-                    CloudflareTenantRootCreationJournalRecordV1,
-                >(
-                    &transaction, TENANT_ROOT_CREATION_JOURNAL_STORAGE_KEY_V1
-                )
-                .await
-                {
-                    Ok(existing) => existing,
-                    Err(error) => return Err(error),
-                };
-                match evaluate_creation_record(
-                    existing,
-                    candidate,
-                    authority_id,
-                    &verifying_keys,
-                    now_ms,
-                ) {
-                    Ok(TenantRootCreationJournalEvaluationV1::Commit { record, response }) => {
-                        transaction
-                            .put(TENANT_ROOT_CREATION_JOURNAL_STORAGE_KEY_V1, &record)
-                            .await?;
-                        outcome_for_transaction.replace(Some(Ok(response)));
-                    }
-                    Ok(TenantRootCreationJournalEvaluationV1::Replay(response)) => {
-                        outcome_for_transaction.replace(Some(Ok(response)));
-                    }
-                    Err(error) => {
-                        outcome_for_transaction.replace(Some(Err(error)));
-                    }
+                let store = store.bind(transaction);
+                let result = tenant_root_creation_persist_journal_v1(&store, &issuer_keys, request, now_ms).await;
+                if let Some(error) = store.take_storage_error() {
+                    return Err(error);
                 }
+                outcome_for_transaction.replace(Some(result));
                 Ok(())
             })
             .await
             .map_err(durable_storage_protocol_error)?;
-        let outcome = outcome.borrow_mut().take().ok_or_else(|| {
+        let result = outcome.borrow_mut().take().ok_or_else(|| {
             RouterAbProtocolError::new(
                 RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
                 "tenant-root creation journal transaction did not produce an outcome",
             )
         })?;
-        outcome
+        result
     }
 
     pub(crate) async fn persist_creation_commitment_rendezvous(
         &self,
         request: CloudflareTenantRootCreationCommitmentRequestV1,
     ) -> RouterAbProtocolResult<CloudflareTenantRootCreationCommitmentResponseV1> {
-        let loaded = self
-            .load_role_creation_request(&request.role_creation_command_b64u)
-            .await?;
-        let candidate_bytes = decode_canonical_base64url(
-            "tenant-root signed creation commitment",
-            &request.signed_commitment_b64u,
-            TENANT_ROOT_SIGNED_CREATION_COMMITMENT_MAX_BYTES_V1,
-            TENANT_ROOT_CREATION_COMMITMENT_MAX_BASE64URL_BYTES_V1,
-        )?;
-        let response_candidate_bytes = candidate_bytes.clone();
-        let journal = loaded.journal;
-        let command = loaded.command;
-        let role_keys = loaded.role_keys;
-        let now_ms = loaded.now_ms;
-        let response_scope = creation_response_scope(&command, &journal)?;
-        let commitment_bytes = candidate_bytes;
-        let outcome: Rc<
-            RefCell<
-                Option<RouterAbProtocolResult<CloudflareTenantRootCreationCommitmentOutcomeV1>>,
-            >,
-        > = Rc::new(RefCell::new(None));
+        let issuer_keys = self.issuer_verifying_keys()?;
+        let role_keys = read_tenant_root_creation_role_verifying_keys(&self.env)?;
+        let now_ms = crate::cloudflare_now_unix_ms_v1()?;
+        let store = DurableObjectCreationStoreV1::new(&self.env, &self.authority_object_id)?;
+        let outcome = Rc::new(RefCell::new(None));
         let outcome_for_transaction = Rc::clone(&outcome);
         self.storage
             .transaction(move |transaction| async move {
-                let existing = match transaction_get_optional::<
-                    CloudflareTenantRootCreationCommitmentRendezvousRecordV1,
-                >(
-                    &transaction,
-                    TENANT_ROOT_CREATION_COMMITMENT_RENDEZVOUS_STORAGE_KEY_V1,
-                )
-                .await
-                {
-                    Ok(existing) => existing,
-                    Err(error) => return Err(error),
-                };
-                match evaluate_creation_commitment_rendezvous(
-                    existing,
-                    &commitment_bytes,
-                    &command,
-                    &journal,
-                    &role_keys,
-                    now_ms,
-                ) {
-                    Ok(TenantRootCreationCommitmentRendezvousEvaluationV1::Commit {
-                        rendezvous,
-                        outcome,
-                    }) => {
-                        transaction
-                            .put(
-                                TENANT_ROOT_CREATION_COMMITMENT_RENDEZVOUS_STORAGE_KEY_V1,
-                                &rendezvous,
-                            )
-                            .await?;
-                        outcome_for_transaction.replace(Some(Ok(outcome)));
-                    }
-                    Ok(TenantRootCreationCommitmentRendezvousEvaluationV1::Replay(outcome)) => {
-                        outcome_for_transaction.replace(Some(Ok(outcome)));
-                    }
-                    Err(error) => {
-                        outcome_for_transaction.replace(Some(Err(error)));
-                    }
+                let store = store.bind(transaction);
+                let result = tenant_root_creation_persist_commitment_v1(&store, &issuer_keys, &role_keys, request, now_ms).await;
+                if let Some(error) = store.take_storage_error() {
+                    return Err(error);
                 }
+                outcome_for_transaction.replace(Some(result));
                 Ok(())
             })
             .await
             .map_err(durable_storage_protocol_error)?;
-        let outcome = outcome.borrow_mut().take().ok_or_else(|| {
+        let result = outcome.borrow_mut().take().ok_or_else(|| {
             RouterAbProtocolError::new(
                 RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
                 "tenant-root creation commitment transaction did not produce an outcome",
             )
         })?;
-        commitment_response(response_scope, &response_candidate_bytes, outcome?)
+        result
     }
 
     pub(crate) async fn persist_installation_checkpoint(
         &self,
         request: CloudflareTenantRootCreationInstallationRequestV1,
     ) -> RouterAbProtocolResult<CloudflareTenantRootCreationInstallationResponseV1> {
-        let loaded = self
-            .load_role_creation_request(&request.role_creation_command_b64u)
-            .await?;
-        let evidence = validate_installation_evidence_wire(
-            &request.signed_evidence_b64u,
-            &loaded.journal.ceremony_context,
-            &loaded.role_keys,
-        )?;
-        let journal = loaded.journal;
-        let command = loaded.command;
-        let role_keys = loaded.role_keys;
-        let now_ms = loaded.now_ms;
-        let response_scope = creation_response_scope(&command, &journal)?;
-        let outcome: Rc<
-            RefCell<
-                Option<RouterAbProtocolResult<CloudflareTenantRootCreationInstallationOutcomeV1>>,
-            >,
-        > = Rc::new(RefCell::new(None));
+        let issuer_keys = self.issuer_verifying_keys()?;
+        let role_keys = read_tenant_root_creation_role_verifying_keys(&self.env)?;
+        let now_ms = crate::cloudflare_now_unix_ms_v1()?;
+        let store = DurableObjectCreationStoreV1::new(&self.env, &self.authority_object_id)?;
+        let outcome = Rc::new(RefCell::new(None));
         let outcome_for_transaction = Rc::clone(&outcome);
         self.storage
             .transaction(move |transaction| async move {
-                let commitment_record = match transaction_get_optional::<
-                    CloudflareTenantRootCreationCommitmentRendezvousRecordV1,
-                >(
-                    &transaction,
-                    TENANT_ROOT_CREATION_COMMITMENT_RENDEZVOUS_STORAGE_KEY_V1,
-                )
-                .await
-                {
-                    Ok(commitment_record) => commitment_record,
-                    Err(error) => return Err(error),
-                };
-                let commitments = match require_complete_creation_commitment_rendezvous(
-                    commitment_record,
-                    &journal,
-                    &role_keys,
-                ) {
-                    Ok(commitments) => commitments,
-                    Err(error) => {
-                        outcome_for_transaction.replace(Some(Err(error)));
-                        return Ok(());
-                    }
-                };
-                let existing = match transaction_get_optional::<
-                    CloudflareTenantRootCreationInstallationCheckpointV1,
-                >(
-                    &transaction,
-                    TENANT_ROOT_CREATION_INSTALLATION_CHECKPOINT_STORAGE_KEY_V1,
-                )
-                .await
-                {
-                    Ok(existing) => existing,
-                    Err(error) => return Err(error),
-                };
-                let cleanup = match transaction_get_optional::<
-                    CloudflareTenantRootCreationCleanupCheckpointV1,
-                >(
-                    &transaction,
-                    TENANT_ROOT_CREATION_CLEANUP_CHECKPOINT_STORAGE_KEY_V1,
-                )
-                .await
-                {
-                    Ok(cleanup) => cleanup,
-                    Err(error) => return Err(error),
-                };
-                if cleanup.is_some() {
-                    outcome_for_transaction.replace(Some(Err(RouterAbProtocolError::new(
-                        RouterAbProtocolErrorCode::ConflictingPair,
-                        "tenant-root installation cannot resume after cleanup",
-                    ))));
-                    return Ok(());
+                let store = store.bind(transaction);
+                let result = tenant_root_creation_persist_installation_v1(&store, &issuer_keys, &role_keys, request, now_ms).await;
+                if let Some(error) = store.take_storage_error() {
+                    return Err(error);
                 }
-                match evaluate_installation_checkpoint(
-                    existing,
-                    evidence,
-                    &command,
-                    &journal,
-                    &role_keys,
-                    &commitments,
-                    now_ms,
-                ) {
-                    Ok(TenantRootCreationInstallationEvaluationV1::Commit {
-                        checkpoint,
-                        outcome,
-                    }) => {
-                        transaction
-                            .put(
-                                TENANT_ROOT_CREATION_INSTALLATION_CHECKPOINT_STORAGE_KEY_V1,
-                                &checkpoint,
-                            )
-                            .await?;
-                        outcome_for_transaction.replace(Some(Ok(outcome)));
-                    }
-                    Ok(TenantRootCreationInstallationEvaluationV1::Replay(outcome)) => {
-                        outcome_for_transaction.replace(Some(Ok(outcome)));
-                    }
-                    Err(error) => {
-                        outcome_for_transaction.replace(Some(Err(error)));
-                    }
-                }
+                outcome_for_transaction.replace(Some(result));
                 Ok(())
             })
             .await
             .map_err(durable_storage_protocol_error)?;
-        let outcome = outcome.borrow_mut().take().ok_or_else(|| {
+        let result = outcome.borrow_mut().take().ok_or_else(|| {
             RouterAbProtocolError::new(
                 RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
                 "tenant-root installation checkpoint transaction did not produce an outcome",
             )
         })?;
-        installation_response(response_scope, outcome?)
+        result
     }
 
     pub(crate) async fn persist_creation_cleanup_checkpoint(
         &self,
         request: CloudflareTenantRootCreationCleanupRequestV1,
     ) -> RouterAbProtocolResult<CloudflareTenantRootCreationCleanupResponseV1> {
-        let issuer_keys_json = read_required_worker_var(
-            &self.env,
-            crate::TENANT_ROOT_CONTROL_PLANE_ISSUER_VERIFYING_KEYS_JSON_ENV,
-        )?;
-        let issuer_keys = crate::env::decode_issuer_verifying_keys(&issuer_keys_json)?;
+        let issuer_keys = self.issuer_verifying_keys()?;
         let role_keys = read_tenant_root_creation_role_verifying_keys(&self.env)?;
-        let authority_id = authority_id_from_object_id(&self.authority_object_id)?;
-        let journal_record = storage_get_optional::<CloudflareTenantRootCreationJournalRecordV1>(
-            &self.storage,
-            TENANT_ROOT_CREATION_JOURNAL_STORAGE_KEY_V1,
-        )
-        .await
-        .map_err(durable_storage_protocol_error)?
-        .ok_or_else(|| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                "tenant-root creation cleanup has no Started journal",
-            )
-        })?;
-        let journal = validate_creation_record(journal_record, authority_id, &issuer_keys)
-            .map_err(stored_record_error)?;
-        require_tenant_root_creation_authority_object_v1(
-            &self.env,
-            &self.authority_object_id,
-            journal.identity_digest,
-            journal.custody_lineage,
-        )?;
-        let now_ms = crate::cloudflare_now_unix_ms_v1()?;
-        let outcome: Rc<
-            RefCell<Option<RouterAbProtocolResult<CloudflareTenantRootCreationCleanupResponseV1>>>,
-        > = Rc::new(RefCell::new(None));
+        let store = DurableObjectCreationStoreV1::new(&self.env, &self.authority_object_id)?;
+        let outcome = Rc::new(RefCell::new(None));
         let outcome_for_transaction = Rc::clone(&outcome);
         self.storage
             .transaction(move |transaction| async move {
-                let commitment_record = match transaction_get_optional::<
-                    CloudflareTenantRootCreationCommitmentRendezvousRecordV1,
-                >(
-                    &transaction,
-                    TENANT_ROOT_CREATION_COMMITMENT_RENDEZVOUS_STORAGE_KEY_V1,
-                )
-                .await
-                {
-                    Ok(record) => record,
-                    Err(error) => return Err(error),
-                };
-                let commitments = match require_complete_creation_commitment_rendezvous(
-                    commitment_record,
-                    &journal,
-                    &role_keys,
-                ) {
-                    Ok(commitments) => commitments,
-                    Err(error) => {
-                        outcome_for_transaction.replace(Some(Err(error)));
-                        return Ok(());
-                    }
-                };
-                let installation_record = match transaction_get_optional::<
-                    CloudflareTenantRootCreationInstallationCheckpointV1,
-                >(
-                    &transaction,
-                    TENANT_ROOT_CREATION_INSTALLATION_CHECKPOINT_STORAGE_KEY_V1,
-                )
-                .await
-                {
-                    Ok(Some(record)) => record,
-                    Ok(None) => {
-                        outcome_for_transaction.replace(Some(Err(RouterAbProtocolError::new(
-                            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                            "tenant-root creation cleanup has no installation checkpoint",
-                        ))));
-                        return Ok(());
-                    }
-                    Err(error) => return Err(error),
-                };
-                let installation = match validate_installation_checkpoint(
-                    installation_record,
-                    &journal,
-                    &role_keys,
-                    &commitments,
-                ) {
-                    Ok(installation) => installation,
-                    Err(error) => {
-                        outcome_for_transaction.replace(Some(Err(stored_record_error(error))));
-                        return Ok(());
-                    }
-                };
-                let (_, role) = match creation_cleanup_target(&journal, &installation) {
-                    Ok(target) => target,
-                    Err(error) => {
-                        outcome_for_transaction.replace(Some(Err(error)));
-                        return Ok(());
-                    }
-                };
-                let candidate_record =
-                    match creation_cleanup_checkpoint_record(request, &journal, role) {
-                        Ok(record) => record,
-                        Err(error) => {
-                            outcome_for_transaction.replace(Some(Err(error)));
-                            return Ok(());
-                        }
-                    };
-                let candidate = match validate_creation_cleanup_checkpoint(
-                    candidate_record,
-                    &journal,
-                    &installation,
-                    authority_id,
-                    &issuer_keys,
-                    &role_keys,
-                ) {
-                    Ok(candidate) => candidate,
-                    Err(error) => {
-                        outcome_for_transaction.replace(Some(Err(error)));
-                        return Ok(());
-                    }
-                };
-                let existing = match transaction_get_optional::<
-                    CloudflareTenantRootCreationCleanupCheckpointV1,
-                >(
-                    &transaction,
-                    TENANT_ROOT_CREATION_CLEANUP_CHECKPOINT_STORAGE_KEY_V1,
-                )
-                .await
-                {
-                    Ok(existing) => existing,
-                    Err(error) => return Err(error),
-                };
-                match evaluate_creation_cleanup_checkpoint(
-                    existing,
-                    candidate,
-                    &journal,
-                    &installation,
-                    authority_id,
-                    &issuer_keys,
-                    &role_keys,
-                    now_ms,
-                ) {
-                    Ok(TenantRootCreationCleanupEvaluationV1::Commit {
-                        checkpoint,
-                        response,
-                    }) => {
-                        transaction
-                            .put(
-                                TENANT_ROOT_CREATION_CLEANUP_CHECKPOINT_STORAGE_KEY_V1,
-                                &checkpoint,
-                            )
-                            .await?;
-                        outcome_for_transaction.replace(Some(Ok(response)));
-                    }
-                    Ok(TenantRootCreationCleanupEvaluationV1::Replay(response)) => {
-                        outcome_for_transaction.replace(Some(Ok(response)));
-                    }
-                    Err(error) => {
-                        outcome_for_transaction.replace(Some(Err(error)));
-                    }
+                let store = store.bind(transaction);
+                let result = tenant_root_creation_persist_cleanup_v1(&store, &issuer_keys, &role_keys, request).await;
+                if let Some(error) = store.take_storage_error() {
+                    return Err(error);
                 }
+                outcome_for_transaction.replace(Some(result));
                 Ok(())
             })
             .await
             .map_err(durable_storage_protocol_error)?;
-        let outcome = outcome.borrow_mut().take().ok_or_else(|| {
+        let result = outcome.borrow_mut().take().ok_or_else(|| {
             RouterAbProtocolError::new(
                 RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
                 "tenant-root creation cleanup transaction did not produce an outcome",
             )
         })?;
-        outcome
+        result
     }
 
     pub(crate) async fn persist_initial_activation(
         &self,
         request: CloudflareTenantRootCreationInitialActivationRequestV1,
     ) -> RouterAbProtocolResult<CloudflareTenantRootCreationInitialActivationResponseV1> {
-        let issuer_keys_json = read_required_worker_var(
-            &self.env,
-            crate::TENANT_ROOT_CONTROL_PLANE_ISSUER_VERIFYING_KEYS_JSON_ENV,
-        )?;
-        let issuer_keys = crate::env::decode_issuer_verifying_keys(&issuer_keys_json)?;
-        let authority_id = authority_id_from_object_id(&self.authority_object_id)?;
-        let activation_receipt = decode_and_verify_initial_activation_receipt(
-            &request.activation_receipt_b64u,
-            &issuer_keys,
-        )?;
-        require_tenant_root_creation_authority_object_v1(
-            &self.env,
-            &self.authority_object_id,
-            activation_receipt.identity_digest(),
-            activation_receipt.custody_lineage(),
-        )?;
-        if activation_receipt.binding().authority_id() != authority_id {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::ForbiddenLocalBinding,
-                "tenant-root initial activation receipt authority does not match its Durable Object",
-            ));
-        }
-
+        let issuer_keys = self.issuer_verifying_keys()?;
         let role_keys = read_tenant_root_creation_role_verifying_keys(&self.env)?;
-        let receipt_digest = activation_receipt.digest();
-        let lifecycle_revision = activation_receipt.result_control_plane_revision();
-        let outcome: Rc<RefCell<Option<RouterAbProtocolResult<()>>>> = Rc::new(RefCell::new(None));
+        let store = DurableObjectCreationStoreV1::new(&self.env, &self.authority_object_id)?;
+        let outcome = Rc::new(RefCell::new(None));
         let outcome_for_transaction = Rc::clone(&outcome);
         self.storage
             .transaction(move |transaction| async move {
-                let journal_record =
-                    match transaction_get_optional::<CloudflareTenantRootCreationJournalRecordV1>(
-                        &transaction,
-                        TENANT_ROOT_CREATION_JOURNAL_STORAGE_KEY_V1,
-                    )
-                    .await
-                    {
-                        Ok(Some(record)) => record,
-                        Ok(None) => {
-                            outcome_for_transaction.replace(Some(Err(RouterAbProtocolError::new(
-                                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                                "tenant-root initial activation has no Started journal",
-                            ))));
-                            return Ok(());
-                        }
-                        Err(error) => return Err(error),
-                    };
-                let journal =
-                    match validate_creation_record(journal_record, authority_id, &issuer_keys) {
-                        Ok(journal) => journal,
-                        Err(error) => {
-                            outcome_for_transaction.replace(Some(Err(stored_record_error(error))));
-                            return Ok(());
-                        }
-                    };
-                let commitment_record = match transaction_get_optional::<
-                    CloudflareTenantRootCreationCommitmentRendezvousRecordV1,
-                >(
-                    &transaction,
-                    TENANT_ROOT_CREATION_COMMITMENT_RENDEZVOUS_STORAGE_KEY_V1,
-                )
-                .await
-                {
-                    Ok(record) => record,
-                    Err(error) => return Err(error),
-                };
-                let commitments = match require_complete_creation_commitment_rendezvous(
-                    commitment_record,
-                    &journal,
-                    &role_keys,
-                ) {
-                    Ok(commitments) => commitments,
-                    Err(error) => {
-                        outcome_for_transaction.replace(Some(Err(error)));
-                        return Ok(());
-                    }
-                };
-                let installation_record = match transaction_get_optional::<
-                    CloudflareTenantRootCreationInstallationCheckpointV1,
-                >(
-                    &transaction,
-                    TENANT_ROOT_CREATION_INSTALLATION_CHECKPOINT_STORAGE_KEY_V1,
-                )
-                .await
-                {
-                    Ok(Some(record)) => record,
-                    Ok(None) => {
-                        outcome_for_transaction.replace(Some(Err(RouterAbProtocolError::new(
-                            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                            "tenant-root initial activation has no installation checkpoint",
-                        ))));
-                        return Ok(());
-                    }
-                    Err(error) => return Err(error),
-                };
-                let installation = match validate_installation_checkpoint(
-                    installation_record,
-                    &journal,
-                    &role_keys,
-                    &commitments,
-                ) {
-                    Ok(installation) => installation,
-                    Err(error) => {
-                        outcome_for_transaction.replace(Some(Err(stored_record_error(error))));
-                        return Ok(());
-                    }
-                };
-                let cleanup_checkpointed = match transaction_get_optional::<
-                    CloudflareTenantRootCreationCleanupCheckpointV1,
-                >(
-                    &transaction,
-                    TENANT_ROOT_CREATION_CLEANUP_CHECKPOINT_STORAGE_KEY_V1,
-                )
-                .await
-                {
-                    Ok(cleanup) => cleanup.is_some(),
-                    Err(error) => return Err(error),
-                };
-                if cleanup_checkpointed {
-                    outcome_for_transaction.replace(Some(Err(RouterAbProtocolError::new(
-                        RouterAbProtocolErrorCode::ConflictingPair,
-                        "tenant-root initial activation cannot follow creation cleanup",
-                    ))));
-                    return Ok(());
+                let store = store.bind(transaction);
+                let result = tenant_root_creation_persist_initial_activation_v1(&store, &issuer_keys, &role_keys, request).await;
+                if let Some(error) = store.take_storage_error() {
+                    return Err(error);
                 }
-                if let Err(error) = validate_initial_activation_receipt_against_creation_state(
-                    &activation_receipt,
-                    &journal,
-                    &installation,
-                ) {
-                    outcome_for_transaction.replace(Some(Err(error)));
-                    return Ok(());
-                }
-                let candidate = match refresh_active_state_record_from_verified_receipt(
-                    activation_receipt,
-                    lifecycle_revision,
-                ) {
-                    Ok(candidate) => candidate,
-                    Err(error) => {
-                        outcome_for_transaction.replace(Some(Err(error)));
-                        return Ok(());
-                    }
-                };
-                let result = Self::persist_authoritative_active_state_in_transaction_v1(
-                    &transaction,
-                    candidate,
-                    authority_id,
-                    &issuer_keys,
-                )
-                .await;
                 outcome_for_transaction.replace(Some(result));
                 Ok(())
             })
             .await
             .map_err(durable_storage_protocol_error)?;
-        let outcome = outcome.borrow_mut().take().ok_or_else(|| {
+        let result = outcome.borrow_mut().take().ok_or_else(|| {
             RouterAbProtocolError::new(
                 RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
                 "tenant-root initial activation transaction did not produce an outcome",
             )
         })?;
-        outcome?;
-        Ok(CloudflareTenantRootCreationInitialActivationResponseV1 {
-            activation_receipt_digest_b64u: encode_base64url_bytes_v1(receipt_digest.as_bytes()),
-            lifecycle_revision,
-        })
+        result
+    }
+
+    fn issuer_verifying_keys(&self) -> RouterAbProtocolResult<BTreeMap<String, [u8; 32]>> {
+        let issuer_keys_json = read_required_worker_var(
+            &self.env,
+            crate::TENANT_ROOT_CONTROL_PLANE_ISSUER_VERIFYING_KEYS_JSON_ENV,
+        )?;
+        crate::env::decode_issuer_verifying_keys(&issuer_keys_json)
     }
 
     pub(crate) async fn persist_restore_initial_activation(
         &self,
         request: CloudflareTenantRootRestoreInitialActivationRequestV1,
     ) -> RouterAbProtocolResult<CloudflareTenantRootRestoreInitialActivationResponseV1> {
-        let issuer_keys_json = read_required_worker_var(
-            &self.env,
-            crate::TENANT_ROOT_CONTROL_PLANE_ISSUER_VERIFYING_KEYS_JSON_ENV,
-        )?;
-        let issuer_keys = crate::env::decode_issuer_verifying_keys(&issuer_keys_json)?;
-        let authority_id = authority_id_from_object_id(&self.authority_object_id)?;
-        let activation_receipt = decode_and_verify_initial_activation_receipt(
-            &request.activation_receipt_b64u,
-            &issuer_keys,
-        )?;
-        require_tenant_root_creation_authority_object_v1(
-            &self.env,
-            &self.authority_object_id,
-            activation_receipt.identity_digest(),
-            activation_receipt.custody_lineage(),
-        )?;
-        if activation_receipt.binding().authority_id() != authority_id {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::ForbiddenLocalBinding,
-                "tenant-root restore initial activation receipt authority does not match its Durable Object",
-            ));
-        }
-        let receipt_digest = activation_receipt.digest();
-        let lifecycle_revision = activation_receipt.result_control_plane_revision();
-        let outcome: Rc<
-            RefCell<
-                Option<
-                    RouterAbProtocolResult<CloudflareTenantRootRestoreInitialActivationResponseV1>,
-                >,
-            >,
-        > = Rc::new(RefCell::new(None));
+        let issuer_keys = self.issuer_verifying_keys()?;
+        let store = DurableObjectCreationStoreV1::new(&self.env, &self.authority_object_id)?;
+        let outcome = Rc::new(RefCell::new(None));
         let outcome_for_transaction = Rc::clone(&outcome);
         self.storage
             .transaction(move |transaction| async move {
-                let checkpoint = match transaction_get_optional::<
-                    CloudflareTenantRootRestoreRefreshCheckpointV1,
-                >(
-                    &transaction,
-                    TENANT_ROOT_RESTORE_REFRESH_CHECKPOINT_STORAGE_KEY_V1,
-                )
-                .await
-                {
-                    Ok(Some(checkpoint)) => checkpoint,
-                    Ok(None) => {
-                        outcome_for_transaction.replace(Some(Err(
-                            restore_refresh_lifecycle_error(
-                                "tenant-root restore initial activation has no refresh checkpoint",
-                            ),
-                        )));
-                        return Ok(());
-                    }
-                    Err(error) => return Err(error),
-                };
-                let (destination_fingerprint, restore_session_id) =
-                    match validate_restore_initial_activation_receipt_against_checkpoint_v1(
-                        &activation_receipt,
-                        &checkpoint,
-                        authority_id,
-                    ) {
-                        Ok(scope) => scope,
-                        Err(error) => {
-                            outcome_for_transaction.replace(Some(Err(error)));
-                            return Ok(());
-                        }
-                    };
-                let existing_destroyed = match transaction_get_optional::<
-                    CloudflareTenantRootDestinationBootstrapDestroyedRecordV1,
-                >(
-                    &transaction,
-                    TENANT_ROOT_DESTINATION_BOOTSTRAP_DESTROYED_STORAGE_KEY_V1,
-                )
-                .await
-                {
-                    Ok(record) => record,
-                    Err(error) => return Err(error),
-                };
-                let had_destroyed_record = existing_destroyed.is_some();
-                let existing_bootstrap = match transaction_get_optional::<
-                    CloudflareTenantRootDestinationBootstrapRecordV1,
-                >(
-                    &transaction,
-                    TENANT_ROOT_DESTINATION_BOOTSTRAP_STORAGE_KEY_V1,
-                )
-                .await
-                {
-                    Ok(record) => record,
-                    Err(error) => return Err(error),
-                };
-                let destroyed_record = if let Some(record) = existing_destroyed {
-                    let record = match validate_tenant_root_destination_bootstrap_destroyed_record_v1(record)
-                    {
-                        Ok(record) => record,
-                        Err(error) => {
-                            outcome_for_transaction.replace(Some(Err(stored_record_error(error))));
-                            return Ok(());
-                        }
-                    };
-                    let (destruction_receipt_b64u, destruction_receipt_digest_b64u) =
-                        match restore_bootstrap_destruction_receipt_v1(
-                            activation_receipt.identity_digest(),
-                            activation_receipt.custody_lineage(),
-                            destination_fingerprint,
-                            restore_session_id,
-                            &checkpoint.scope.grant_digest_b64u,
-                            receipt_digest,
-                        ) {
-                            Ok(receipt) => receipt,
-                            Err(error) => {
-                                outcome_for_transaction.replace(Some(Err(error)));
-                                return Ok(());
-                            }
-                        };
-                    if record.identity_digest != activation_receipt.identity_digest()
-                        || record.custody_lineage != activation_receipt.custody_lineage()
-                        || record.deployment_fingerprint != destination_fingerprint
-                        || record.record.activation_receipt_digest_b64u
-                            != encode_base64url_bytes_v1(receipt_digest.as_bytes())
-                        || record.record.destruction_receipt_b64u != destruction_receipt_b64u
-                        || record.record.destruction_receipt_digest_b64u
-                            != destruction_receipt_digest_b64u
-                    {
-                        outcome_for_transaction.replace(Some(Err(refresh_replay_conflict(
-                            "tenant-root restore bootstrap destruction conflicts with the accepted activation receipt",
-                        ))));
-                        return Ok(());
-                    }
-                    record.record
-                } else {
-                    let Some(bootstrap) = existing_bootstrap else {
-                        outcome_for_transaction.replace(Some(Err(
-                            RouterAbProtocolError::new(
-                                RouterAbProtocolErrorCode::InvalidLifecycleState,
-                                "tenant-root restore initial activation has no usable bootstrap authority",
-                            ),
-                        )));
-                        return Ok(());
-                    };
-                    let bootstrap = match validate_tenant_root_destination_bootstrap_record_v1(
-                        bootstrap,
-                    ) {
-                        Ok(record) => record,
-                        Err(error) => {
-                            outcome_for_transaction.replace(Some(Err(stored_record_error(error))));
-                            return Ok(());
-                        }
-                    };
-                    if bootstrap.identity_digest != activation_receipt.identity_digest()
-                        || bootstrap.custody_lineage != activation_receipt.custody_lineage()
-                        || bootstrap.deployment_fingerprint != destination_fingerprint
-                    {
-                        outcome_for_transaction.replace(Some(Err(RouterAbProtocolError::new(
-                            RouterAbProtocolErrorCode::ForbiddenLocalBinding,
-                            "tenant-root restore bootstrap authority does not match the promoted activation",
-                        ))));
-                        return Ok(());
-                    }
-                    let (destruction_receipt_b64u, destruction_receipt_digest_b64u) =
-                        match restore_bootstrap_destruction_receipt_v1(
-                            bootstrap.identity_digest,
-                            bootstrap.custody_lineage,
-                            bootstrap.deployment_fingerprint,
-                            restore_session_id,
-                            &checkpoint.scope.grant_digest_b64u,
-                            receipt_digest,
-                        ) {
-                            Ok(receipt) => receipt,
-                            Err(error) => {
-                                outcome_for_transaction.replace(Some(Err(error)));
-                                return Ok(());
-                            }
-                        };
-                    CloudflareTenantRootDestinationBootstrapDestroyedRecordV1 {
-                        identity_b64u: bootstrap.record.identity_b64u,
-                        deployment_fingerprint_b64u: bootstrap.record.deployment_fingerprint_b64u,
-                        custody_lineage_b64u: bootstrap.record.custody_lineage_b64u,
-                        activation_receipt_digest_b64u: encode_base64url_bytes_v1(
-                            receipt_digest.as_bytes(),
-                        ),
-                        destruction_receipt_b64u,
-                        destruction_receipt_digest_b64u,
-                    }
-                };
-                let encoded_destroyed_record = match serde_json::to_vec(&destroyed_record) {
-                    Ok(encoded) => encoded,
-                    Err(error) => {
-                        outcome_for_transaction.replace(Some(Err(
-                            RouterAbProtocolError::new(
-                                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                                format!(
-                                    "tenant-root restore bootstrap destruction record encoding failed: {error}"
-                                ),
-                            ),
-                        )));
-                        return Ok(());
-                    }
-                };
-                if encoded_destroyed_record.len()
-                    > TENANT_ROOT_DESTINATION_BOOTSTRAP_DESTROYED_RECORD_MAX_BYTES_V1
-                {
-                    outcome_for_transaction.replace(Some(Err(malformed_input(
-                        "tenant-root restore bootstrap destruction record exceeds its maximum size",
-                    ))));
-                    return Ok(());
+                let store = store.bind(transaction);
+                let result =
+                    tenant_root_restore_initial_activation_v1(&store, &issuer_keys, request).await;
+                if let Some(error) = store.take_storage_error() {
+                    return Err(error);
                 }
-                let candidate = match refresh_active_state_record_from_verified_receipt(
-                    activation_receipt,
-                    lifecycle_revision,
-                ) {
-                    Ok(candidate) => candidate,
-                    Err(error) => {
-                        outcome_for_transaction.replace(Some(Err(error)));
-                        return Ok(());
-                    }
-                };
-                if !had_destroyed_record {
-                if let Err(error) = Self::persist_authoritative_active_state_in_transaction_v1(
-                    &transaction,
-                    candidate,
-                    authority_id,
-                    &issuer_keys,
-                )
-                .await
-                {
-                    outcome_for_transaction.replace(Some(Err(error)));
-                    return Ok(());
-                }
-                }
-                if !had_destroyed_record {
-                    transaction
-                        .put(
-                            TENANT_ROOT_DESTINATION_BOOTSTRAP_DESTROYED_STORAGE_KEY_V1,
-                            &destroyed_record,
-                        )
-                        .await?;
-                }
-                transaction
-                    .delete(TENANT_ROOT_DESTINATION_BOOTSTRAP_STORAGE_KEY_V1)
-                    .await?;
-                outcome_for_transaction.replace(Some(Ok(
-                    CloudflareTenantRootRestoreInitialActivationResponseV1 {
-                        activation_receipt_digest_b64u: encode_base64url_bytes_v1(
-                            receipt_digest.as_bytes(),
-                        ),
-                        lifecycle_revision,
-                        destruction_receipt_b64u: destroyed_record.destruction_receipt_b64u,
-                        destruction_receipt_digest_b64u: destroyed_record
-                            .destruction_receipt_digest_b64u,
-                    },
-                )));
+                outcome_for_transaction.replace(Some(result));
                 Ok(())
             })
             .await
@@ -9607,363 +8137,36 @@ impl RouterAbTenantRootCreationDurableObject {
         result
     }
 
+
     pub(crate) async fn persist_refresh_activation(
         &self,
         request: CloudflareTenantRootRefreshActivationRequestV1,
     ) -> RouterAbProtocolResult<CloudflareTenantRootRefreshActivationResponseV1> {
-        let issuer_keys_json = read_required_worker_var(
-            &self.env,
-            crate::TENANT_ROOT_CONTROL_PLANE_ISSUER_VERIFYING_KEYS_JSON_ENV,
-        )?;
-        let issuer_keys = crate::env::decode_issuer_verifying_keys(&issuer_keys_json)?;
-        let activation_receipt = decode_and_verify_refresh_activation_receipt(
-            &request.activation_receipt_b64u,
-            &issuer_keys,
-        )?;
-        let authority_id = authority_id_from_object_id(&self.authority_object_id)?;
-        require_tenant_root_creation_authority_object_v1(
-            &self.env,
-            &self.authority_object_id,
-            activation_receipt.identity_digest(),
-            activation_receipt.custody_lineage(),
-        )?;
-        if activation_receipt.binding().authority_id() != authority_id {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::ForbiddenLocalBinding,
-                "tenant-root refresh activation receipt authority does not match its Durable Object",
-            ));
-        }
-        let receipt_digest = activation_receipt.digest();
-        let lifecycle_revision = activation_receipt.result_control_plane_revision();
-        self.persist_authoritative_active_refresh_state_v1(activation_receipt, lifecycle_revision)
-            .await?;
-        Ok(CloudflareTenantRootRefreshActivationResponseV1 {
-            activation_receipt_digest_b64u: encode_base64url_bytes_v1(receipt_digest.as_bytes()),
-            lifecycle_revision,
-        })
-    }
-
-    /// Applies the authoritative active-state write inside an existing
-    /// Durable Object transaction. The transaction owns exact replay/conflict
-    /// handling for every activation path.
-    #[cfg(feature = "workers-rs")]
-    async fn persist_authoritative_active_state_in_transaction_v1(
-        transaction: &worker::Transaction,
-        candidate: CloudflareTenantRootRefreshActiveStateRecordV1,
-        authority_id: TenantRootControlPlaneAuthorityIdV1,
-        issuer_keys: &BTreeMap<String, [u8; 32]>,
-    ) -> RouterAbProtocolResult<()> {
-        let existing = transaction_get_optional::<CloudflareTenantRootRefreshActiveStateRecordV1>(
-            transaction,
-            TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1,
-        )
-        .await
-        .map_err(durable_storage_protocol_error)?;
-        let Some(existing) = existing else {
-            transaction
-                .put(TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1, &candidate)
-                .await
-                .map_err(durable_storage_protocol_error)?;
-            return Ok(());
-        };
-        let existing_validated =
-            validate_refresh_active_state_record(existing, authority_id, issuer_keys)
-                .map_err(stored_refresh_record_error)?;
-        let existing_projection = refresh_active_state_projection(&existing_validated.record);
-        if existing_projection == refresh_active_state_projection(&candidate) {
-            Ok(())
-        } else {
-            Err(refresh_replay_conflict(
-                "tenant-root refresh active state conflicts with the accepted activation receipt",
-            ))
-        }
-    }
-
-    #[cfg(feature = "workers-rs")]
-    async fn persist_authoritative_active_refresh_state_in_transaction_v1(
-        transaction: &worker::Transaction,
-        mut candidate: CloudflareTenantRootRefreshActiveStateRecordV1,
-        authority_id: TenantRootControlPlaneAuthorityIdV1,
-        issuer_keys: &BTreeMap<String, [u8; 32]>,
-        role_keys: &TenantRootCreationRoleVerifyingKeysV1,
-        now_ms: u64,
-    ) -> RouterAbProtocolResult<()> {
-        let existing_record = transaction_get_optional::<
-            CloudflareTenantRootRefreshActiveStateRecordV1,
-        >(
-            transaction, TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1
-        )
-        .await
-        .map_err(durable_storage_protocol_error)?
-        .ok_or_else(|| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLifecycleState,
-                "tenant-root refresh activation has no authoritative active public state",
-            )
-        })?;
-        let existing =
-            validate_refresh_active_state_record(existing_record, authority_id, issuer_keys)
-                .map_err(stored_refresh_record_error)?;
-        if refresh_active_state_projection(&existing.record)
-            == refresh_active_state_projection(&candidate)
-        {
-            return Ok(());
-        }
-
-        let attempt = match &existing.record.fence {
-            CloudflareTenantRootRefreshFenceV1::Executed { attempt } => attempt.clone(),
-            CloudflareTenantRootRefreshFenceV1::Open
-            | CloudflareTenantRootRefreshFenceV1::Reserved { .. } => {
-                return Err(RouterAbProtocolError::new(
-                    RouterAbProtocolErrorCode::MissingPairPreparation,
-                    "tenant-root refresh activation requires an executed refresh attempt",
-                ));
-            }
-            CloudflareTenantRootRefreshFenceV1::Terminal { .. } => {
-                return Err(refresh_replay_conflict(
-                    "tenant-root refresh activation conflicts with the terminal refresh state",
-                ));
-            }
-        };
-        let manual_operation_id = attempt.manual_operation_id.clone();
-        apply_refresh_completion_transition_v1(
-            &existing.record,
-            &mut candidate,
-            manual_operation_id.as_deref(),
-            now_ms,
-        )?;
-        candidate.fence = CloudflareTenantRootRefreshFenceV1::Terminal {
-            attempt,
-            outcome: CloudflareTenantRootRefreshTerminalOutcomeV1::Completed,
-            response: refresh_terminal_response_from_record(&candidate),
-        };
-        candidate.managed_restore_fence = match &existing.record.managed_restore_fence {
-            CloudflareTenantRootManagedRestoreFenceV1::Open => {
-                CloudflareTenantRootManagedRestoreFenceV1::Open
-            }
-            CloudflareTenantRootManagedRestoreFenceV1::Terminal { .. } => {
-                existing.record.managed_restore_fence.clone()
-            }
-            CloudflareTenantRootManagedRestoreFenceV1::Reserved { .. } => {
-                return Err(managed_restore_conflict(
-                    "tenant-root refresh activation conflicts with a reserved managed-restore authorization",
-                ));
-            }
-        };
-
-        let candidate_state =
-            validate_refresh_active_state_record(candidate.clone(), authority_id, issuer_keys)?;
-        validate_refresh_active_state_transition_v1(&existing, &candidate_state)?;
-
-        let expected_scope =
-            refresh_activation_checkpoint_scope_v1(&existing, &candidate_state.activation_receipt)?;
-        let commitment_encoded = transaction_get_optional::<String>(
-            transaction,
-            TENANT_ROOT_REFRESH_COMMITMENT_CHECKPOINT_STORAGE_KEY_V1,
-        )
-        .await
-        .map_err(durable_storage_protocol_error)?
-        .ok_or_else(|| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::MissingPairPreparation,
-                "tenant-root refresh activation has no commitment checkpoint",
-            )
-        })?;
-        let commitment_checkpoint = decode_refresh_commitment_checkpoint(&commitment_encoded)
-            .map_err(stored_refresh_record_error)?;
-        validate_refresh_commitment_checkpoint_scope(
-            commitment_checkpoint.scope(),
-            &expected_scope,
-        )
-        .map_err(stored_refresh_record_error)?;
-        let deriver_a_commitment = commitment_checkpoint
-            .state()
-            .deriver_a_signed_commitment()
-            .ok_or_else(|| {
-                RouterAbProtocolError::new(
-                    RouterAbProtocolErrorCode::MissingPairPreparation,
-                    "tenant-root refresh activation requires both commitments",
-                )
-            })?;
-        let commitment =
-            TenantRootSignedRefreshCommitmentV1::decode_canonical_bytes(deriver_a_commitment)
-                .map_err(candidate_derivation_error)?;
-        let context = commitment.transcript().context().clone();
-        let commitments = require_complete_refresh_commitment_checkpoint(
-            &commitment_checkpoint,
-            &context,
-            role_keys,
-        )
-        .map_err(stored_refresh_record_error)?;
-        let installation_record =
-            transaction_get_optional::<CloudflareTenantRootRefreshInstallationCheckpointRecordV1>(
-                transaction,
-                TENANT_ROOT_REFRESH_INSTALLATION_CHECKPOINT_STORAGE_KEY_V1,
-            )
-            .await
-            .map_err(durable_storage_protocol_error)?
-            .ok_or_else(|| {
-                RouterAbProtocolError::new(
-                    RouterAbProtocolErrorCode::MissingPairPreparation,
-                    "tenant-root refresh activation has no installation checkpoint",
-                )
-            })?;
-        let installation = validate_refresh_installation_checkpoint(
-            installation_record,
-            &expected_scope,
-            &context,
-            role_keys,
-            &commitments,
-            &existing.commitments,
-        )
-        .map_err(stored_refresh_record_error)?;
-        let ValidatedTenantRootRefreshInstallationStateV1::BothRoles {
-            deriver_a,
-            deriver_b,
-            root_commitment,
-            ..
-        } = installation
-        else {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::MissingPairPreparation,
-                "tenant-root refresh activation requires both roles ready",
-            ));
-        };
-        let next_commitments = verify_tenant_root_refresh_installation_transition_v1(
-            &existing.commitments,
-            &commitments,
-            &deriver_a,
-            &deriver_b,
-        )
-        .map_err(candidate_derivation_error)
-        .map_err(stored_refresh_record_error)?;
-        let TenantRootActivationReceiptBindingV1::RefreshSwap(binding) =
-            candidate_state.activation_receipt.binding()
-        else {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::ForbiddenLocalBinding,
-                "tenant-root refresh activation requires a refresh-swap receipt",
-            ));
-        };
-        if &next_commitments != binding.next_commitments()
-            || root_commitment != *binding.next_commitments().root_commitment()
-            || deriver_a
-                .lifecycle_receipt_digest()
-                .map_err(candidate_derivation_error)?
-                != binding.installation_receipts().deriver_a()
-            || deriver_b
-                .lifecycle_receipt_digest()
-                .map_err(candidate_derivation_error)?
-                != binding.installation_receipts().deriver_b()
-        {
-            return Err(refresh_replay_conflict(
-                "tenant-root refresh activation receipt does not match the installation checkpoint",
-            ));
-        }
-
-        transaction
-            .put(TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1, &candidate)
-            .await
-            .map_err(durable_storage_protocol_error)?;
-        if let Some(operation_id) = manual_operation_id {
-            let completion = CloudflareTenantRootRefreshCompletionV1 {
-                operation_id: operation_id.clone(),
-                completed_at_ms: now_ms,
-                response: refresh_terminal_response_from_record(&candidate),
-            };
-            validate_refresh_completion_v1(&completion)?;
-            let completion_key = manual_refresh_completion_storage_key_v1(&operation_id);
-            transaction
-                .put(&completion_key, &completion)
-                .await
-                .map_err(durable_storage_protocol_error)?;
-        }
-        transaction
-            .delete(TENANT_ROOT_REFRESH_COMMITMENT_CHECKPOINT_STORAGE_KEY_V1)
-            .await
-            .map_err(durable_storage_protocol_error)?;
-        transaction
-            .delete(TENANT_ROOT_REFRESH_INSTALLATION_CHECKPOINT_STORAGE_KEY_V1)
-            .await
-            .map_err(durable_storage_protocol_error)?;
-        transaction
-            .delete(TENANT_ROOT_REFRESH_CONTRIBUTION_RENDEZVOUS_STORAGE_KEY_V1)
-            .await
-            .map_err(durable_storage_protocol_error)?;
-        Ok(())
-    }
-
-    /// Persists the public active state only from an already issuer-verified
-    /// activation receipt. Checkpoint routes never call this method.
-    pub(crate) async fn persist_authoritative_active_refresh_state_v1(
-        &self,
-        activation_receipt: router_ab_core::VerifiedTenantRootSignedActivationReceiptV1,
-        lifecycle_revision: u64,
-    ) -> RouterAbProtocolResult<()> {
-        let authority_id = TenantRootControlPlaneAuthorityIdV1::from_bytes(decode_lower_hex_32(
-            "tenant-root creation Durable Object id",
-            &self.authority_object_id,
-        )?);
-        require_tenant_root_creation_authority_object_v1(
-            &self.env,
-            &self.authority_object_id,
-            activation_receipt.identity_digest(),
-            activation_receipt.custody_lineage(),
-        )?;
-        if activation_receipt.binding().authority_id() != authority_id {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::ForbiddenLocalBinding,
-                "tenant-root activation receipt authority does not match its Durable Object",
-            ));
-        }
-        if activation_receipt.transition() != TenantRootActivationReceiptTransitionV1::RefreshSwap {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::ForbiddenLocalBinding,
-                "tenant-root refresh active state requires a refresh-swap receipt",
-            ));
-        }
-        if lifecycle_revision != activation_receipt.result_control_plane_revision() {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::ConflictingPair,
-                "tenant-root refresh activation revision does not match its receipt",
-            ));
-        }
-        let issuer_keys_json = read_required_worker_var(
-            &self.env,
-            crate::TENANT_ROOT_CONTROL_PLANE_ISSUER_VERIFYING_KEYS_JSON_ENV,
-        )?;
-        let issuer_keys = crate::env::decode_issuer_verifying_keys(&issuer_keys_json)?;
+        let issuer_keys = self.issuer_verifying_keys()?;
         let role_keys = read_tenant_root_creation_role_verifying_keys(&self.env)?;
         let now_ms = crate::cloudflare_now_unix_ms_v1()?;
-        let candidate = refresh_active_state_record_from_verified_receipt(
-            activation_receipt,
-            lifecycle_revision,
-        )?;
-        let outcome: Rc<RefCell<Option<RouterAbProtocolResult<()>>>> = Rc::new(RefCell::new(None));
+        let store = DurableObjectCreationStoreV1::new(&self.env, &self.authority_object_id)?;
+        let outcome = Rc::new(RefCell::new(None));
         let outcome_for_transaction = Rc::clone(&outcome);
         self.storage
             .transaction(move |transaction| async move {
-                let result = Self::persist_authoritative_active_refresh_state_in_transaction_v1(
-                    &transaction,
-                    candidate,
-                    authority_id,
-                    &issuer_keys,
-                    &role_keys,
-                    now_ms,
-                )
-                .await;
+                let store = store.bind(transaction);
+                let result = tenant_root_refresh_persist_activation_v1(&store, &issuer_keys, &role_keys, request, now_ms).await;
+                if let Some(error) = store.take_storage_error() {
+                    return Err(error);
+                }
                 outcome_for_transaction.replace(Some(result));
                 Ok(())
             })
             .await
             .map_err(durable_storage_protocol_error)?;
-        let outcome = outcome.borrow_mut().take().ok_or_else(|| {
+        let result = outcome.borrow_mut().take().ok_or_else(|| {
             RouterAbProtocolError::new(
                 RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
                 "tenant-root refresh active-state transaction did not produce an outcome",
             )
         })?;
-        outcome
+        result
     }
 
     async fn load_authoritative_active_refresh_state(
@@ -9994,827 +8197,165 @@ impl RouterAbTenantRootCreationDurableObject {
             .map_err(stored_refresh_record_error)
     }
 
-    async fn load_refresh_commitment_request(
-        &self,
-        request: CloudflareTenantRootRefreshCommitmentRequestV1,
-    ) -> RouterAbProtocolResult<LoadedTenantRootRefreshRequestV1> {
-        let active = self.load_authoritative_active_refresh_state().await?;
-        let issuer_keys_json = read_required_worker_var(
-            &self.env,
-            crate::TENANT_ROOT_CONTROL_PLANE_ISSUER_VERIFYING_KEYS_JSON_ENV,
-        )?;
-        let issuer_keys = crate::env::decode_issuer_verifying_keys(&issuer_keys_json)?;
-        let role_keys = read_tenant_root_creation_role_verifying_keys(&self.env)?;
-        let candidate_bytes = decode_canonical_base64url(
-            "tenant-root signed refresh commitment",
-            &request.signed_commitment_b64u,
-            TENANT_ROOT_REFRESH_COMMITMENT_MAX_BYTES_V1,
-            TENANT_ROOT_REFRESH_COMMITMENT_MAX_BASE64URL_BYTES_V1,
-        )?;
-        let signed = TenantRootSignedRefreshCommitmentV1::decode_canonical_bytes(&candidate_bytes)
-            .map_err(candidate_derivation_error)?;
-        let context = signed.transcript().context().clone();
-        let candidate = verify_refresh_commitment_wire(&candidate_bytes, &context, &role_keys)?;
-        let command = validate_refresh_role_command(
-            &request.role_refresh_command_b64u,
-            &active,
-            &context,
-            candidate.role(),
-            authority_id_from_object_id(&self.authority_object_id)?,
-            &issuer_keys,
-        )?;
-        if command.role() != candidate.role() {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::ForbiddenLocalBinding,
-                "tenant-root refresh commitment role does not match its command",
-            ));
-        }
-        let now_ms = crate::cloudflare_now_unix_ms_v1()?;
-        Ok(LoadedTenantRootRefreshRequestV1 {
-            active,
-            context,
-            command,
-            candidate_bytes,
-            role_keys,
-            issuer_keys,
-            now_ms,
-        })
-    }
-
-    async fn load_refresh_installation_request(
-        &self,
-        request: CloudflareTenantRootRefreshInstallationRequestV1,
-    ) -> RouterAbProtocolResult<LoadedTenantRootRefreshInstallationRequestV1> {
-        let active = self.load_authoritative_active_refresh_state().await?;
-        let issuer_keys_json = read_required_worker_var(
-            &self.env,
-            crate::TENANT_ROOT_CONTROL_PLANE_ISSUER_VERIFYING_KEYS_JSON_ENV,
-        )?;
-        let issuer_keys = crate::env::decode_issuer_verifying_keys(&issuer_keys_json)?;
-        let role_keys = read_tenant_root_creation_role_verifying_keys(&self.env)?;
-        let candidate_bytes = decode_canonical_base64url(
-            "tenant-root signed refresh installation evidence",
-            &request.signed_evidence_b64u,
-            TENANT_ROOT_SIGNED_SHARE_INSTALLATION_EVIDENCE_MAX_BYTES_V1,
-            TENANT_ROOT_CREATION_INSTALLATION_EVIDENCE_MAX_BASE64URL_BYTES_V1,
-        )?;
-        let candidate =
-            decode_and_verify_refresh_installation_evidence(&candidate_bytes, &role_keys)?;
-        let context = candidate.evidence().transcript().context().clone();
-        let command = validate_refresh_role_command(
-            &request.role_refresh_command_b64u,
-            &active,
-            &context,
-            candidate.evidence().transcript().role(),
-            authority_id_from_object_id(&self.authority_object_id)?,
-            &issuer_keys,
-        )?;
-        if command.role() != candidate.evidence().transcript().role() {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::ForbiddenLocalBinding,
-                "tenant-root refresh installation role does not match its command",
-            ));
-        }
-        let terminal_receipt_bytes = decode_canonical_base64url(
-            "tenant-root refresh terminal receipt",
-            &request.terminal_receipt_b64u,
-            TENANT_ROOT_COMMAND_TERMINAL_RECEIPT_MAX_BYTES_V1,
-            TENANT_ROOT_COMMAND_TERMINAL_RECEIPT_MAX_BASE64URL_BYTES_V1,
-        )?;
-        let terminal_receipt =
-            TenantRootCommandTerminalReceiptV1::decode_canonical_bytes(&terminal_receipt_bytes)
-                .map_err(candidate_derivation_error)?;
-        if terminal_receipt
-            .canonical_bytes()
-            .map_err(candidate_derivation_error)?
-            != terminal_receipt_bytes
-        {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::ForbiddenLocalBinding,
-                "tenant-root refresh terminal receipt is not canonical",
-            ));
-        }
-        let success = match terminal_receipt {
-            TenantRootCommandTerminalReceiptV1::Success(receipt) => receipt,
-            TenantRootCommandTerminalReceiptV1::Failure(_) => {
-                return Err(RouterAbProtocolError::new(
-                    RouterAbProtocolErrorCode::ReplayedLocalRequest,
-                    "tenant-root refresh installation requires a successful terminal receipt",
-                ));
-            }
-        };
-        let terminal_receipt = VerifiedTenantRootRefreshInstallationReceiptV1::new(
-            success,
-            &candidate_bytes,
-            &command,
-            &context,
-            &role_keys,
-        )?;
-        let now_ms = crate::cloudflare_now_unix_ms_v1()?;
-        Ok(LoadedTenantRootRefreshInstallationRequestV1 {
-            active,
-            context,
-            command,
-            candidate_bytes,
-            terminal_receipt,
-            role_keys,
-            issuer_keys,
-            now_ms,
-        })
-    }
-
-    async fn load_refresh_contribution_request(
-        &self,
-        request: CloudflareTenantRootRefreshContributionRequestV1,
-    ) -> RouterAbProtocolResult<LoadedTenantRootRefreshContributionRequestV1> {
-        let active = self.load_authoritative_active_refresh_state().await?;
-        let issuer_keys_json = read_required_worker_var(
-            &self.env,
-            crate::TENANT_ROOT_CONTROL_PLANE_ISSUER_VERIFYING_KEYS_JSON_ENV,
-        )?;
-        let issuer_keys = crate::env::decode_issuer_verifying_keys(&issuer_keys_json)?;
-        let role_keys = read_tenant_root_creation_role_verifying_keys(&self.env)?;
-        let candidate_bytes = decode_canonical_base64url(
-            "tenant-root signed refresh contribution",
-            &request.signed_contribution_b64u,
-            TENANT_ROOT_REFRESH_CONTRIBUTION_MAX_BYTES_V1,
-            TENANT_ROOT_REFRESH_CONTRIBUTION_MAX_BASE64URL_BYTES_V1,
-        )?;
-        let signed =
-            TenantRootSignedRefreshContributionV1::decode_canonical_bytes(&candidate_bytes)
-                .map_err(candidate_derivation_error)?;
-        let candidate_role = signed.envelope().source();
-        let checkpoint_encoded = storage_get_optional::<String>(
-            &self.storage,
-            TENANT_ROOT_REFRESH_COMMITMENT_CHECKPOINT_STORAGE_KEY_V1,
-        )
-        .await
-        .map_err(durable_storage_protocol_error)?
-        .ok_or_else(|| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::MissingPairPreparation,
-                "tenant-root refresh contribution has no commitment checkpoint",
-            )
-        })?;
-        let checkpoint = decode_refresh_commitment_checkpoint(&checkpoint_encoded)
-            .map_err(stored_refresh_record_error)?;
-        let commitment_bytes = checkpoint
-            .state()
-            .deriver_a_signed_commitment()
-            .ok_or_else(|| {
-                RouterAbProtocolError::new(
-                    RouterAbProtocolErrorCode::MissingPairPreparation,
-                    "tenant-root refresh contribution requires both commitments",
-                )
-            })?;
-        let commitment =
-            TenantRootSignedRefreshCommitmentV1::decode_canonical_bytes(commitment_bytes)
-                .map_err(candidate_derivation_error)?;
-        let context = commitment.transcript().context().clone();
-        let commitments =
-            require_complete_refresh_commitment_checkpoint(&checkpoint, &context, &role_keys)
-                .map_err(stored_refresh_record_error)?;
-        let expected_authority_id = authority_id_from_object_id(&self.authority_object_id)?;
-        let command = validate_refresh_role_command(
-            &request.role_refresh_command_b64u,
-            &active,
-            &context,
-            candidate_role,
-            expected_authority_id,
-            &issuer_keys,
-        )?;
-        let expected_scope =
-            refresh_checkpoint_scope(&command, &active, &context, expected_authority_id)?;
-        validate_refresh_commitment_checkpoint_scope(checkpoint.scope(), &expected_scope)
-            .map_err(stored_refresh_record_error)?;
-        verify_refresh_contribution_wire(&candidate_bytes, &context, &commitments, &role_keys)?;
-        let now_ms = crate::cloudflare_now_unix_ms_v1()?;
-        Ok(LoadedTenantRootRefreshContributionRequestV1 {
-            active,
-            context,
-            command,
-            candidate_bytes,
-            role_keys,
-            issuer_keys,
-            now_ms,
-        })
-    }
-
     pub(crate) async fn persist_refresh_commitment_checkpoint(
         &self,
         request: CloudflareTenantRootRefreshCommitmentRequestV1,
     ) -> RouterAbProtocolResult<CloudflareTenantRootRefreshCommitmentResponseV1> {
-        let loaded = self.load_refresh_commitment_request(request).await?;
-        let response_scope =
-            refresh_response_scope(&loaded.command, &loaded.active, &loaded.context)?;
-        let command_bytes = loaded.command.canonical_bytes().to_vec();
-        let candidate_bytes = loaded.candidate_bytes;
-        let context = loaded.context;
-        let role_keys = loaded.role_keys;
-        let issuer_keys = loaded.issuer_keys;
-        let expected_authority_id = authority_id_from_object_id(&self.authority_object_id)?;
-        let now_ms = loaded.now_ms;
-        let outcome: Rc<
-            RefCell<
-                Option<
-                    RouterAbProtocolResult<CloudflareTenantRootRefreshCommitmentResponseOutcomeV1>,
-                >,
-            >,
-        > = Rc::new(RefCell::new(None));
+        let issuer_keys = self.issuer_verifying_keys()?;
+        let role_keys = read_tenant_root_creation_role_verifying_keys(&self.env)?;
+        let now_ms = crate::cloudflare_now_unix_ms_v1()?;
+        let store = DurableObjectCreationStoreV1::new(&self.env, &self.authority_object_id)?;
+        let outcome = Rc::new(RefCell::new(None));
         let outcome_for_transaction = Rc::clone(&outcome);
         self.storage
             .transaction(move |transaction| async move {
-                let active_record = match transaction_get_optional::<
-                    CloudflareTenantRootRefreshActiveStateRecordV1,
-                >(
-                    &transaction,
-                    TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1,
-                )
-                .await
-                {
-                    Ok(Some(record)) => record,
-                    Ok(None) => {
-                        outcome_for_transaction.replace(Some(Err(RouterAbProtocolError::new(
-                            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                            "tenant-root refresh has no authoritative active public state",
-                        ))));
-                        return Ok(());
-                    }
-                    Err(error) => return Err(error),
-                };
-                let active = match validate_refresh_active_state_record(
-                    active_record,
-                    expected_authority_id,
-                    &issuer_keys,
-                ) {
-                    Ok(value) => value,
-                    Err(error) => {
-                        outcome_for_transaction
-                            .replace(Some(Err(stored_refresh_record_error(error))));
-                        return Ok(());
-                    }
-                };
-                let command = match decode_and_verify_refresh_role_command(
-                    &command_bytes,
-                    &active,
-                    &context,
-                    &issuer_keys,
-                    expected_authority_id,
-                ) {
-                    Ok(value) => value,
-                    Err(error) => {
-                        outcome_for_transaction.replace(Some(Err(error)));
-                        return Ok(());
-                    }
-                };
-                let existing = match transaction_get_optional::<String>(
-                    &transaction,
-                    TENANT_ROOT_REFRESH_COMMITMENT_CHECKPOINT_STORAGE_KEY_V1,
-                )
-                .await
-                {
-                    Ok(Some(encoded)) => match decode_refresh_commitment_checkpoint(&encoded) {
-                        Ok(checkpoint) => Some(checkpoint),
-                        Err(error) => {
-                            outcome_for_transaction
-                                .replace(Some(Err(stored_refresh_record_error(error))));
-                            return Ok(());
-                        }
-                    },
-                    Ok(None) => None,
-                    Err(error) => return Err(error),
-                };
-                let candidate = match verify_refresh_commitment_wire(
-                    &candidate_bytes,
-                    &context,
-                    &role_keys,
-                ) {
-                    Ok(candidate) => candidate,
-                    Err(error) => {
-                        outcome_for_transaction.replace(Some(Err(error)));
-                        return Ok(());
-                    }
-                };
-                let candidate_role = candidate.role();
-                if let Err(error) = require_refresh_fence_matches_command(&active.record.fence, &command)
-                {
-                    outcome_for_transaction.replace(Some(Err(error)));
-                    return Ok(());
+                let store = store.bind(transaction);
+                let result = tenant_root_refresh_persist_commitment_v1(&store, &issuer_keys, &role_keys, request, now_ms).await;
+                if let Some(error) = store.take_storage_error() {
+                    return Err(error);
                 }
-                if let Err(error) = require_fresh_refresh_commitment_command(
-                    existing.as_ref(),
-                    candidate_role,
-                    &command,
-                    &context,
-                    now_ms,
-                ) {
-                    outcome_for_transaction.replace(Some(Err(error)));
-                    return Ok(());
-                }
-                let active_binding = match TenantRootRefreshCommitmentCheckpointActiveBindingV1::from_verified_activation_receipt(
-                    active.activation_receipt,
-                    &active.active_pair,
-                    active.record.lifecycle_revision,
-                ) {
-                    Ok(binding) => binding,
-                    Err(error) => {
-                        outcome_for_transaction.replace(Some(Err(stored_refresh_record_error(
-                            candidate_derivation_error(error),
-                        ))));
-                        return Ok(());
-                    }
-                };
-                let deriver_a_verifying_key = match role_keys.for_role_and_key_id(
-                    TwoPartyDeriverRole::DeriverA,
-                    context.signing_key_id(TwoPartyDeriverRole::DeriverA),
-                ) {
-                    Ok(key) => key,
-                    Err(error) => {
-                        outcome_for_transaction.replace(Some(Err(error)));
-                        return Ok(());
-                    }
-                };
-                let deriver_b_verifying_key = match role_keys.for_role_and_key_id(
-                    TwoPartyDeriverRole::DeriverB,
-                    context.signing_key_id(TwoPartyDeriverRole::DeriverB),
-                ) {
-                    Ok(key) => key,
-                    Err(error) => {
-                        outcome_for_transaction.replace(Some(Err(error)));
-                        return Ok(());
-                    }
-                };
-                let has_existing_checkpoint = existing.is_some();
-                let evaluation = evaluate_tenant_root_refresh_commitment_checkpoint_v1(
-                    existing,
-                    candidate,
-                    &command,
-                    &active_binding,
-                    &context,
-                    expected_authority_id,
-                    deriver_a_verifying_key,
-                    deriver_b_verifying_key,
-                    now_ms,
-                )
-                .map_err(|error| {
-                    refresh_commitment_evaluation_error(error, has_existing_checkpoint)
-                });
-                match evaluation {
-                    Ok(TenantRootRefreshCommitmentCheckpointEvaluationV1::Commit {
-                        checkpoint,
-                        outcome,
-                    }) => {
-                        let checkpoint_b64u = match encode_refresh_commitment_checkpoint(&checkpoint)
-                        {
-                            Ok(value) => value,
-                            Err(error) => {
-                                outcome_for_transaction.replace(Some(Err(error)));
-                                return Ok(());
-                            }
-                        };
-                        let response_outcome = match refresh_commitment_response_outcome(
-                            outcome,
-                            &candidate_bytes,
-                        ) {
-                            Ok(value) => value,
-                            Err(error) => {
-                                outcome_for_transaction.replace(Some(Err(error)));
-                                return Ok(());
-                            }
-                        };
-                        let fence = match refresh_reserved_fence(&active.record.fence, &command) {
-                            Ok(value) => value,
-                            Err(error) => {
-                                outcome_for_transaction.replace(Some(Err(error)));
-                                return Ok(());
-                            }
-                        };
-                        let mut active_record = active.record.clone();
-                        active_record.fence = fence;
-                        transaction
-                            .put(
-                                TENANT_ROOT_REFRESH_COMMITMENT_CHECKPOINT_STORAGE_KEY_V1,
-                                &checkpoint_b64u,
-                            )
-                            .await?;
-                        transaction
-                            .put(
-                                TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1,
-                                &active_record,
-                            )
-                            .await?;
-                        outcome_for_transaction.replace(Some(Ok(response_outcome)));
-                    }
-                    Ok(TenantRootRefreshCommitmentCheckpointEvaluationV1::Replay(outcome)) => {
-                        match refresh_commitment_response_outcome(outcome, &candidate_bytes) {
-                            Ok(response_outcome) => {
-                                outcome_for_transaction.replace(Some(Ok(response_outcome)));
-                            }
-                            Err(error) => {
-                                outcome_for_transaction.replace(Some(Err(error)));
-                            }
-                        }
-                    }
-                    Err(error) => {
-                        outcome_for_transaction.replace(Some(Err(error)));
-                    }
-                }
+                outcome_for_transaction.replace(Some(result));
                 Ok(())
             })
             .await
             .map_err(durable_storage_protocol_error)?;
-        let evaluation = outcome.borrow_mut().take().ok_or_else(|| {
+        let result = outcome.borrow_mut().take().ok_or_else(|| {
             RouterAbProtocolError::new(
                 RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
                 "tenant-root refresh commitment transaction did not produce an outcome",
             )
-        })??;
-        let response = refresh_commitment_response(response_scope, evaluation)?;
-        Ok(response)
+        })?;
+        result
     }
 
     pub(crate) async fn persist_refresh_installation_checkpoint(
         &self,
         request: CloudflareTenantRootRefreshInstallationRequestV1,
     ) -> RouterAbProtocolResult<CloudflareTenantRootRefreshInstallationResponseV1> {
-        let loaded = self.load_refresh_installation_request(request).await?;
-        let response_scope =
-            refresh_response_scope(&loaded.command, &loaded.active, &loaded.context)?;
-        let command_bytes = loaded.command.canonical_bytes().to_vec();
-        let candidate_bytes = loaded.candidate_bytes;
-        let context = loaded.context;
-        let role_keys = loaded.role_keys;
-        let issuer_keys = loaded.issuer_keys;
-        let terminal_receipt = loaded.terminal_receipt;
-        let expected_authority_id = authority_id_from_object_id(&self.authority_object_id)?;
-        let now_ms = loaded.now_ms;
-        let outcome: Rc<
-            RefCell<
-                Option<
-                    RouterAbProtocolResult<
-                        CloudflareTenantRootRefreshInstallationResponseOutcomeV1,
-                    >,
-                >,
-            >,
-        > = Rc::new(RefCell::new(None));
+        let issuer_keys = self.issuer_verifying_keys()?;
+        let role_keys = read_tenant_root_creation_role_verifying_keys(&self.env)?;
+        let now_ms = crate::cloudflare_now_unix_ms_v1()?;
+        let store = DurableObjectCreationStoreV1::new(&self.env, &self.authority_object_id)?;
+        let outcome = Rc::new(RefCell::new(None));
         let outcome_for_transaction = Rc::clone(&outcome);
         self.storage
             .transaction(move |transaction| async move {
-                let active_record = match transaction_get_optional::<
-                    CloudflareTenantRootRefreshActiveStateRecordV1,
-                >(
-                    &transaction,
-                    TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1,
-                )
-                .await
-                {
-                    Ok(Some(record)) => record,
-                    Ok(None) => {
-                        outcome_for_transaction.replace(Some(Err(RouterAbProtocolError::new(
-                            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                            "tenant-root refresh has no authoritative active public state",
-                        ))));
-                        return Ok(());
-                    }
-                    Err(error) => return Err(error),
-                };
-                let active = match validate_refresh_active_state_record(
-                    active_record,
-                    expected_authority_id,
-                    &issuer_keys,
-                ) {
-                    Ok(value) => value,
-                    Err(error) => {
-                        outcome_for_transaction
-                            .replace(Some(Err(stored_refresh_record_error(error))));
-                        return Ok(());
-                    }
-                };
-                let command = match decode_and_verify_refresh_role_command(
-                    &command_bytes,
-                    &active,
-                    &context,
-                    &issuer_keys,
-                    expected_authority_id,
-                ) {
-                    Ok(value) => value,
-                    Err(error) => {
-                        outcome_for_transaction.replace(Some(Err(error)));
-                        return Ok(());
-                    }
-                };
-                let commitment_record = match transaction_get_optional::<String>(
-                    &transaction,
-                    TENANT_ROOT_REFRESH_COMMITMENT_CHECKPOINT_STORAGE_KEY_V1,
-                )
-                .await
-                {
-                    Ok(existing) => existing,
-                    Err(error) => return Err(error),
-                };
-                let scope = match refresh_checkpoint_scope(
-                    &command,
-                    &active,
-                    &context,
-                    expected_authority_id,
-                ) {
-                    Ok(scope) => scope,
-                    Err(error) => {
-                        outcome_for_transaction.replace(Some(Err(error)));
-                        return Ok(());
-                    }
-                };
-                let commitment_state = match commitment_record {
-                    Some(encoded) => match decode_refresh_commitment_checkpoint(&encoded) {
-                        Ok(checkpoint) => {
-                            if let Err(error) = validate_refresh_commitment_checkpoint_scope(
-                                checkpoint.scope(),
-                                &scope,
-                            ) {
-                                outcome_for_transaction
-                                    .replace(Some(Err(stored_refresh_record_error(error))));
-                                return Ok(());
-                            }
-                            match require_complete_refresh_commitment_checkpoint(
-                                &checkpoint,
-                                &context,
-                                &role_keys,
-                            ) {
-                                Ok(pair) => pair,
-                                Err(error) => {
-                                    outcome_for_transaction
-                                        .replace(Some(Err(stored_refresh_record_error(error))));
-                                    return Ok(());
-                                }
-                            }
-                        }
-                        Err(error) => {
-                            outcome_for_transaction
-                                .replace(Some(Err(stored_refresh_record_error(error))));
-                            return Ok(());
-                        }
-                    },
-                    None => {
-                        outcome_for_transaction.replace(Some(Err(RouterAbProtocolError::new(
-                            RouterAbProtocolErrorCode::MissingPairPreparation,
-                            "tenant-root refresh installation has no commitment checkpoint",
-                        ))));
-                        return Ok(());
-                    }
-                };
-                let existing = match transaction_get_optional::<
-                    CloudflareTenantRootRefreshInstallationCheckpointRecordV1,
-                >(
-                    &transaction,
-                    TENANT_ROOT_REFRESH_INSTALLATION_CHECKPOINT_STORAGE_KEY_V1,
-                )
-                .await
-                {
-                    Ok(existing) => existing,
-                    Err(error) => return Err(error),
-                };
-                match evaluate_refresh_installation_checkpoint(
-                    existing,
-                    &candidate_bytes,
-                    &command,
-                    &active,
-                    &context,
-                    &role_keys,
-                    &commitment_state,
-                    expected_authority_id,
-                    &terminal_receipt,
-                    now_ms,
-                ) {
-                    Ok(TenantRootRefreshInstallationCheckpointEvaluationV1::Commit {
-                        checkpoint,
-                        fence,
-                        outcome,
-                    }) => {
-                        let mut active_record = active.record.clone();
-                        active_record.fence = fence;
-                        transaction
-                            .put(
-                                TENANT_ROOT_REFRESH_INSTALLATION_CHECKPOINT_STORAGE_KEY_V1,
-                                &checkpoint,
-                            )
-                            .await?;
-                        transaction
-                            .put(
-                                TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1,
-                                &active_record,
-                            )
-                            .await?;
-                        outcome_for_transaction.replace(Some(Ok(outcome)));
-                    }
-                    Ok(TenantRootRefreshInstallationCheckpointEvaluationV1::Replay(outcome)) => {
-                        outcome_for_transaction.replace(Some(Ok(outcome)));
-                    }
-                    Err(error) => {
-                        outcome_for_transaction.replace(Some(Err(error)));
-                    }
+                let store = store.bind(transaction);
+                let result = tenant_root_refresh_persist_installation_v1(&store, &issuer_keys, &role_keys, request, now_ms).await;
+                if let Some(error) = store.take_storage_error() {
+                    return Err(error);
                 }
+                outcome_for_transaction.replace(Some(result));
                 Ok(())
             })
             .await
             .map_err(durable_storage_protocol_error)?;
-        let evaluation = outcome.borrow_mut().take().ok_or_else(|| {
+        let result = outcome.borrow_mut().take().ok_or_else(|| {
             RouterAbProtocolError::new(
                 RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
                 "tenant-root refresh installation transaction did not produce an outcome",
             )
-        })??;
-        let response = refresh_installation_response(response_scope, evaluation)?;
-        Ok(response)
+        })?;
+        result
     }
 
     pub(crate) async fn persist_refresh_contribution_rendezvous(
         &self,
         request: CloudflareTenantRootRefreshContributionRequestV1,
     ) -> RouterAbProtocolResult<CloudflareTenantRootRefreshContributionResponseV1> {
-        let loaded = self.load_refresh_contribution_request(request).await?;
-        let response_scope =
-            refresh_response_scope(&loaded.command, &loaded.active, &loaded.context)?;
-        let command_bytes = loaded.command.canonical_bytes().to_vec();
-        let candidate_bytes = loaded.candidate_bytes;
-        let context = loaded.context;
-        let role_keys = loaded.role_keys;
-        let issuer_keys = loaded.issuer_keys;
-        let expected_authority_id = authority_id_from_object_id(&self.authority_object_id)?;
-        let now_ms = loaded.now_ms;
-        let outcome: Rc<
-            RefCell<
-                Option<
-                    RouterAbProtocolResult<
-                        CloudflareTenantRootRefreshContributionResponseOutcomeV1,
-                    >,
-                >,
-            >,
-        > = Rc::new(RefCell::new(None));
+        let issuer_keys = self.issuer_verifying_keys()?;
+        let role_keys = read_tenant_root_creation_role_verifying_keys(&self.env)?;
+        let now_ms = crate::cloudflare_now_unix_ms_v1()?;
+        let store = DurableObjectCreationStoreV1::new(&self.env, &self.authority_object_id)?;
+        let outcome = Rc::new(RefCell::new(None));
         let outcome_for_transaction = Rc::clone(&outcome);
         self.storage
             .transaction(move |transaction| async move {
-                let active_record = match transaction_get_optional::<
-                    CloudflareTenantRootRefreshActiveStateRecordV1,
-                >(
-                    &transaction,
-                    TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1,
-                )
-                .await
-                {
-                    Ok(Some(record)) => record,
-                    Ok(None) => {
-                        outcome_for_transaction.replace(Some(Err(RouterAbProtocolError::new(
-                            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                            "tenant-root refresh has no authoritative active public state",
-                        ))));
-                        return Ok(());
-                    }
-                    Err(error) => return Err(error),
-                };
-                let active = match validate_refresh_active_state_record(
-                    active_record,
-                    expected_authority_id,
-                    &issuer_keys,
-                ) {
-                    Ok(value) => value,
-                    Err(error) => {
-                        outcome_for_transaction
-                            .replace(Some(Err(stored_refresh_record_error(error))));
-                        return Ok(());
-                    }
-                };
-                let command = match decode_and_verify_refresh_role_command(
-                    &command_bytes,
-                    &active,
-                    &context,
-                    &issuer_keys,
-                    expected_authority_id,
-                ) {
-                    Ok(value) => value,
-                    Err(error) => {
-                        outcome_for_transaction.replace(Some(Err(error)));
-                        return Ok(());
-                    }
-                };
-                let checkpoint_encoded = match transaction_get_optional::<String>(
-                    &transaction,
-                    TENANT_ROOT_REFRESH_COMMITMENT_CHECKPOINT_STORAGE_KEY_V1,
-                )
-                .await
-                {
-                    Ok(Some(encoded)) => encoded,
-                    Ok(None) => {
-                        outcome_for_transaction.replace(Some(Err(RouterAbProtocolError::new(
-                            RouterAbProtocolErrorCode::MissingPairPreparation,
-                            "tenant-root refresh contribution has no commitment checkpoint",
-                        ))));
-                        return Ok(());
-                    }
-                    Err(error) => return Err(error),
-                };
-                let checkpoint = match decode_refresh_commitment_checkpoint(&checkpoint_encoded) {
-                    Ok(checkpoint) => checkpoint,
-                    Err(error) => {
-                        outcome_for_transaction
-                            .replace(Some(Err(stored_refresh_record_error(error))));
-                        return Ok(());
-                    }
-                };
-                let scope = match refresh_checkpoint_scope(
-                    &command,
-                    &active,
-                    &context,
-                    expected_authority_id,
-                ) {
-                    Ok(scope) => scope,
-                    Err(error) => {
-                        outcome_for_transaction.replace(Some(Err(error)));
-                        return Ok(());
-                    }
-                };
-                if let Err(error) =
-                    validate_refresh_commitment_checkpoint_scope(checkpoint.scope(), &scope)
-                {
-                    outcome_for_transaction.replace(Some(Err(stored_refresh_record_error(error))));
-                    return Ok(());
+                let store = store.bind(transaction);
+                let result = tenant_root_refresh_persist_contribution_v1(&store, &issuer_keys, &role_keys, request, now_ms).await;
+                if let Some(error) = store.take_storage_error() {
+                    return Err(error);
                 }
-                let commitments = match require_complete_refresh_commitment_checkpoint(
-                    &checkpoint,
-                    &context,
-                    &role_keys,
-                ) {
-                    Ok(pair) => pair,
-                    Err(error) => {
-                        outcome_for_transaction
-                            .replace(Some(Err(stored_refresh_record_error(error))));
-                        return Ok(());
-                    }
-                };
-                let candidate = match verify_refresh_contribution_wire(
-                    &candidate_bytes,
-                    &context,
-                    &commitments,
-                    &role_keys,
-                ) {
-                    Ok(candidate) => candidate,
-                    Err(error) => {
-                        outcome_for_transaction.replace(Some(Err(error)));
-                        return Ok(());
-                    }
-                };
-                let existing = match transaction_get_optional::<
-                    CloudflareTenantRootRefreshContributionRendezvousRecordV1,
-                >(
-                    &transaction,
-                    TENANT_ROOT_REFRESH_CONTRIBUTION_RENDEZVOUS_STORAGE_KEY_V1,
-                )
-                .await
-                {
-                    Ok(existing) => existing,
-                    Err(error) => return Err(error),
-                };
-                let evaluation = evaluate_refresh_contribution_rendezvous(
-                    existing,
-                    candidate,
-                    &command,
-                    &active,
-                    &context,
-                    &commitments,
-                    &role_keys,
-                    expected_authority_id,
-                    now_ms,
-                );
-                match evaluation {
-                    Ok(TenantRootRefreshContributionRendezvousEvaluationV1::Commit {
-                        record,
-                        outcome,
-                    }) => {
-                        transaction
-                            .put(
-                                TENANT_ROOT_REFRESH_CONTRIBUTION_RENDEZVOUS_STORAGE_KEY_V1,
-                                &record,
-                            )
-                            .await?;
-                        outcome_for_transaction.replace(Some(Ok(outcome)));
-                    }
-                    Ok(TenantRootRefreshContributionRendezvousEvaluationV1::Replay(outcome)) => {
-                        outcome_for_transaction.replace(Some(Ok(outcome)));
-                    }
-                    Err(error) => {
-                        outcome_for_transaction.replace(Some(Err(error)));
-                    }
-                }
+                outcome_for_transaction.replace(Some(result));
                 Ok(())
             })
             .await
             .map_err(durable_storage_protocol_error)?;
-        let evaluation = outcome.borrow_mut().take().ok_or_else(|| {
+        let result = outcome.borrow_mut().take().ok_or_else(|| {
             RouterAbProtocolError::new(
                 RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
                 "tenant-root refresh contribution transaction did not produce an outcome",
             )
-        })??;
-        refresh_contribution_response(response_scope, evaluation)
+        })?;
+        result
+    }
+
+}
+
+/// The manual-refresh interval this Worker is configured with, or the
+/// protocol default.
+#[cfg(feature = "workers-rs")]
+#[cfg(feature = "workers-rs")]
+pub(crate) fn refresh_schedule_v1(env: &worker::Env) -> RouterAbProtocolResult<TenantRootRefreshScheduleV1> {
+    parse_tenant_root_refresh_schedule_v1(&crate::CloudflareWorkerEnvReaderV1::new(env))
+}
+
+/// The deployment's refresh schedule. `TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS`
+/// sets the least time between manual refreshes of one root, ten minutes by
+/// default; `TENANT_ROOT_SCHEDULED_REFRESH_INTERVAL_MS` sets the interval of
+/// scheduled refreshes, thirty days by default. Each is at least one minute.
+pub fn parse_tenant_root_refresh_schedule_v1(
+    reader: &impl crate::CloudflareEnvReaderV1,
+) -> RouterAbProtocolResult<TenantRootRefreshScheduleV1> {
+    let interval = |name: &str, default: u64| -> RouterAbProtocolResult<u64> {
+        match reader.get_text(name)? {
+            Some(value) => value
+                .parse::<u64>()
+                .ok()
+                .filter(|value| *value >= 60_000)
+                .ok_or_else(|| {
+                    RouterAbProtocolError::new(
+                        RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+                        format!("{name} must be at least 60000 milliseconds"),
+                    )
+                }),
+            None => Ok(default),
+        }
+    };
+    Ok(TenantRootRefreshScheduleV1 {
+        manual_interval_ms: interval(
+            "TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS",
+            TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS_V1,
+        )?,
+        scheduled_interval_ms: interval(
+            "TENANT_ROOT_SCHEDULED_REFRESH_INTERVAL_MS",
+            TENANT_ROOT_SCHEDULED_REFRESH_INTERVAL_MS_V1,
+        )?,
+    })
+}
+
+const TENANT_ROOT_RETIREMENT_GRACE_MS_ENV_V1: &str = "TENANT_ROOT_RETIREMENT_GRACE_MS";
+const TENANT_ROOT_RETIREMENT_GRACE_MS_DEFAULT_V1: u64 = 5 * 60 * 1000;
+
+/// How long the Router keeps a refresh's retired epoch after the swap before
+/// it asks each role to erase it. `TENANT_ROOT_RETIREMENT_GRACE_MS` sets it,
+/// five minutes by default and at least one second. It is policy only: a role
+/// erases the epoch only once every admission on it is settled or cancelled.
+pub fn parse_tenant_root_retirement_grace_ms_v1(
+    reader: &impl crate::CloudflareEnvReaderV1,
+) -> RouterAbProtocolResult<u64> {
+    match reader.get_text(TENANT_ROOT_RETIREMENT_GRACE_MS_ENV_V1)? {
+        Some(value) => value
+            .parse::<u64>()
+            .ok()
+            .filter(|value| *value >= 1_000)
+            .ok_or_else(|| {
+                RouterAbProtocolError::new(
+                    RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+                    format!("{TENANT_ROOT_RETIREMENT_GRACE_MS_ENV_V1} must be at least 1000 milliseconds"),
+                )
+            }),
+        None => Ok(TENANT_ROOT_RETIREMENT_GRACE_MS_DEFAULT_V1),
     }
 }
 
@@ -10847,36 +8388,6 @@ fn request_has_json_content_type(request: &worker::Request) -> worker::Result<bo
         .split(';')
         .next()
         .is_some_and(|value| value.trim().eq_ignore_ascii_case("application/json")))
-}
-
-#[cfg(feature = "workers-rs")]
-fn read_destination_bootstrap_token_header_v1(
-    request: &worker::Request,
-) -> RouterAbProtocolResult<Option<DestinationBootstrapTokenV1>> {
-    let value = request
-        .headers()
-        .get(crate::CLOUDFLARE_ROUTER_TENANT_ROOT_DESTINATION_BOOTSTRAP_TOKEN_HEADER_V1)
-        .map_err(|error| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                format!("tenant-root destination bootstrap credential header read failed: {error}"),
-            )
-        })?;
-    let Some(value) = value else {
-        return Ok(None);
-    };
-    let Ok(bytes) = decode_canonical_base64url(
-        "tenant-root destination bootstrap credential",
-        &value,
-        32,
-        base64url_len_for_bytes(32),
-    ) else {
-        return Ok(None);
-    };
-    let Ok(bytes) = <[u8; 32]>::try_from(bytes) else {
-        return Ok(None);
-    };
-    Ok(DestinationBootstrapTokenV1::from_bytes(bytes).ok())
 }
 
 #[cfg(feature = "workers-rs")]
@@ -11068,7 +8579,6 @@ pub(crate) fn validate_refresh_operation_id_v1(operation_id: &str) -> RouterAbPr
     Ok(())
 }
 
-#[cfg(feature = "workers-rs")]
 fn validate_refresh_job_read_v1(
     job: Option<&CloudflareTenantRootRefreshJobReadV1>,
 ) -> RouterAbProtocolResult<()> {
@@ -11098,7 +8608,6 @@ fn validate_refresh_job_read_v1(
     Ok(())
 }
 
-#[cfg(feature = "workers-rs")]
 fn refresh_job_read_from_phase_v1(
     phase: CloudflareTenantRootRefreshJobPhaseV1,
     job_id: Option<String>,
@@ -11142,6 +8651,28 @@ fn manual_refresh_completion_storage_key_v1(operation_id: &str) -> String {
     )
 }
 
+fn managed_restore_completion_storage_key_v1(capability_b64u: &str) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(b"tenant-root-managed-restore-completion-v1");
+    hasher.update((capability_b64u.len() as u32).to_be_bytes());
+    hasher.update(capability_b64u.as_bytes());
+    format!(
+        "{TENANT_ROOT_MANAGED_RESTORE_COMPLETION_STORAGE_PREFIX_V1}{}",
+        encode_base64url_bytes_v1(&hasher.finalize())
+    )
+}
+
+fn refresh_abandonment_storage_key_v1(operation_id: &str) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(b"tenant-root-refresh-abandonment-v1");
+    hasher.update((operation_id.len() as u32).to_be_bytes());
+    hasher.update(operation_id.as_bytes());
+    format!(
+        "{TENANT_ROOT_REFRESH_ABANDONMENT_STORAGE_PREFIX_V1}{}",
+        encode_base64url_bytes_v1(&hasher.finalize())
+    )
+}
+
 fn manual_refresh_in_progress_error() -> RouterAbProtocolError {
     RouterAbProtocolError::new(
         RouterAbProtocolErrorCode::ConflictingPair,
@@ -11158,7 +8689,144 @@ fn validate_refresh_pending_v1(
             "tenant-root manual refresh pending lifecycle revision must be positive",
         ));
     }
+    if pending.expires_at_ms == 0 {
+        return Err(malformed_input(
+            "tenant-root refresh pending authorization expiry must be positive",
+        ));
+    }
     Ok(())
+}
+
+fn validate_refresh_abandonment_v1(
+    abandonment: &CloudflareTenantRootRefreshAbandonmentV1,
+) -> RouterAbProtocolResult<()> {
+    validate_refresh_operation_id_v1(&abandonment.operation_id)?;
+    if abandonment.abandoned_at_ms == 0 {
+        return Err(malformed_input(
+            "tenant-root refresh abandonment time must be positive",
+        ));
+    }
+    Ok(())
+}
+
+/// Expires a managed-restore reservation that was never authorized.
+///
+/// A reserved challenge can be authorized only inside its own window. Once
+/// this clock has passed that window, the fence records the reservation as
+/// expired: it stops holding refresh and a new reservation back, and its late
+/// checkpoint is refused rather than accepted. An authorized (terminal)
+/// restore is never expired here; it stays recoverable through its own
+/// forward refresh.
+///
+/// Returns whether the fence changed.
+fn expire_managed_restore_reservation_v1(
+    record: &mut CloudflareTenantRootRefreshActiveStateRecordV1,
+    now_ms: u64,
+) -> bool {
+    let CloudflareTenantRootManagedRestoreFenceV1::Reserved { challenge, attempt } =
+        &record.managed_restore_fence
+    else {
+        return false;
+    };
+    if now_ms <= challenge.expires_at_ms {
+        return false;
+    }
+    record.managed_restore_fence = CloudflareTenantRootManagedRestoreFenceV1::Expired {
+        challenge: challenge.clone(),
+        attempt: attempt.clone(),
+        expired_at_ms: now_ms,
+    };
+    true
+}
+
+/// Persists [`expire_managed_restore_reservation_v1`] before a restore
+/// operation is evaluated, so the expiry holds even when that operation is
+/// then refused.
+async fn persist_managed_restore_reservation_expiry_v1<Store: TenantRootCreationStoreV1>(
+    store: &Store,
+    issuer_keys: &BTreeMap<String, [u8; 32]>,
+    active: ValidatedTenantRootRefreshActiveStateV1,
+    now_ms: u64,
+) -> RouterAbProtocolResult<ValidatedTenantRootRefreshActiveStateV1> {
+    let mut record = active.record.clone();
+    if !expire_managed_restore_reservation_v1(&mut record, now_ms) {
+        return Ok(active);
+    }
+    let expired =
+        validate_refresh_active_state_record(record.clone(), store.authority_id(), issuer_keys)?;
+    store
+        .put_json(TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1, &record)
+        .await?;
+    Ok(expired)
+}
+
+/// A late step of an authorized restore that a completed refresh overtook.
+pub(crate) fn managed_restore_superseded_error() -> RouterAbProtocolError {
+    RouterAbProtocolError::new(
+        RouterAbProtocolErrorCode::InvalidLifecycleState,
+        "tenant-root managed restore was superseded by a completed refresh before it ran; reserve a new challenge if a role is still unavailable",
+    )
+}
+
+fn managed_restore_reservation_expired_error() -> RouterAbProtocolError {
+    RouterAbProtocolError::new(
+        RouterAbProtocolErrorCode::ExpiredLocalRequest,
+        "tenant-root managed-restore reservation expired before it was authorized",
+    )
+}
+
+/// Abandons refresh work that can no longer finish, so it stops blocking the
+/// next refresh.
+///
+/// - An attempt the Router has not committed is abandoned once its ceremony
+///   window has closed by this clock. No receipt can be issued for it any
+///   more, and from here on the fence refuses its commit, rendezvous and
+///   installation checkpoints, whichever arrives first.
+/// - The admitted operation that owns it is abandoned with it.
+/// - An admitted operation holding no live attempt is abandoned once its
+///   authorization has expired.
+///
+/// Returns the operations abandoned. A managed restore in progress owns the
+/// fence, so nothing is abandoned while one is reserved.
+fn abandon_expired_refresh_v1(
+    record: &mut CloudflareTenantRootRefreshActiveStateRecordV1,
+    now_ms: u64,
+) -> RouterAbProtocolResult<Vec<String>> {
+    if matches!(
+        &record.managed_restore_fence,
+        CloudflareTenantRootManagedRestoreFenceV1::Reserved { .. }
+    ) {
+        return Ok(Vec::new());
+    }
+    let mut abandoned = Vec::new();
+    if let CloudflareTenantRootRefreshFenceV1::Reserved { attempt }
+    | CloudflareTenantRootRefreshFenceV1::Executed { attempt } = &record.fence
+    {
+        let context = decode_refresh_attempt_context_v1(attempt)?;
+        if now_ms < context.expires_at_ms() {
+            return Ok(abandoned);
+        }
+        let attempt = attempt.clone();
+        if let (Some(operation_id), Some(pending)) =
+            (&attempt.manual_operation_id, &record.manual_refresh_pending)
+        {
+            if &pending.operation_id == operation_id {
+                abandoned.push(operation_id.clone());
+                record.manual_refresh_pending = None;
+            }
+        }
+        record.fence = CloudflareTenantRootRefreshFenceV1::Abandoned {
+            attempt,
+            abandoned_at_ms: now_ms,
+        };
+    }
+    if let Some(pending) = &record.manual_refresh_pending {
+        if now_ms >= pending.expires_at_ms {
+            abandoned.push(pending.operation_id.clone());
+            record.manual_refresh_pending = None;
+        }
+    }
+    Ok(abandoned)
 }
 
 fn validate_refresh_completion_v1(
@@ -11182,8 +8850,12 @@ enum CloudflareTenantRootRefreshAdmissionEvaluationV1 {
     Commit {
         pending: CloudflareTenantRootRefreshPendingV1,
     },
+    RetirementPending,
     Replay {
         response: CloudflareTenantRootRefreshActivationResponseV1,
+    },
+    Abandoned {
+        abandoned_at_ms: u64,
     },
     Throttled {
         retry_at_ms: u64,
@@ -11199,6 +8871,7 @@ enum CloudflareTenantRootRefreshAdmissionEvaluationV1 {
 fn evaluate_refresh_admission_v1(
     record: &CloudflareTenantRootRefreshActiveStateRecordV1,
     completion: Option<CloudflareTenantRootRefreshCompletionV1>,
+    abandonment: Option<CloudflareTenantRootRefreshAbandonmentV1>,
     operation_id: &str,
     trigger: CloudflareTenantRootRefreshTriggerV1,
     identity_digest: TenantRootIdentityDigestV1,
@@ -11206,7 +8879,7 @@ fn evaluate_refresh_admission_v1(
     expected_lifecycle_revision: u64,
     expires_at_ms: u64,
     now_ms: u64,
-    manual_refresh_interval_ms: u64,
+    schedule: TenantRootRefreshScheduleV1,
 ) -> RouterAbProtocolResult<CloudflareTenantRootRefreshAdmissionEvaluationV1> {
     validate_refresh_operation_id_v1(operation_id)?;
     if let Some(completion) = completion {
@@ -11219,6 +8892,18 @@ fn evaluate_refresh_admission_v1(
         }
         return Ok(CloudflareTenantRootRefreshAdmissionEvaluationV1::Replay {
             response: completion.response,
+        });
+    }
+    if let Some(abandonment) = abandonment {
+        validate_refresh_abandonment_v1(&abandonment).map_err(stored_refresh_record_error)?;
+        if abandonment.operation_id != operation_id {
+            return Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+                "tenant-root refresh abandonment key collision",
+            ));
+        }
+        return Ok(CloudflareTenantRootRefreshAdmissionEvaluationV1::Abandoned {
+            abandoned_at_ms: abandonment.abandoned_at_ms,
         });
     }
     let already_admitted = record
@@ -11272,7 +8957,7 @@ fn evaluate_refresh_admission_v1(
         CloudflareTenantRootRefreshTriggerV1::Manual => {
             if let Some(completed_at_ms) = record.last_manual_refresh_completed_at_ms {
                 let retry_at_ms = completed_at_ms
-                    .checked_add(manual_refresh_interval_ms)
+                    .checked_add(schedule.manual_interval_ms)
                     .ok_or_else(|| {
                         RouterAbProtocolError::new(
                             RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
@@ -11291,6 +8976,7 @@ fn evaluate_refresh_admission_v1(
                 identity_digest,
                 activation_at_ms,
                 record.last_refresh_completed_at_ms,
+                schedule.scheduled_interval_ms,
             );
             if now_ms < next_run_at_ms {
                 return Ok(CloudflareTenantRootRefreshAdmissionEvaluationV1::NotDue {
@@ -11299,11 +8985,21 @@ fn evaluate_refresh_admission_v1(
             }
         }
     }
+    // A new refresh first waits for both roles to erase every epoch the
+    // record retires: the latest swap's, and any a managed restore carried.
+    if record
+        .delivery
+        .as_ref()
+        .is_some_and(|delivery| !delivery.retirements_erased())
+    {
+        return Ok(CloudflareTenantRootRefreshAdmissionEvaluationV1::RetirementPending);
+    }
     Ok(CloudflareTenantRootRefreshAdmissionEvaluationV1::Commit {
         pending: CloudflareTenantRootRefreshPendingV1 {
             operation_id: operation_id.to_owned(),
             lifecycle_revision: record.lifecycle_revision,
             trigger,
+            expires_at_ms,
         },
     })
 }
@@ -11482,10 +9178,10 @@ fn refresh_active_state_record_from_verified_receipt(
         manual_refresh_pending: None,
         last_manual_refresh_completed_at_ms: None,
         last_refresh_completed_at_ms: None,
+        delivery: None,
     })
 }
 
-#[cfg(feature = "workers-rs")]
 fn validate_refresh_active_state_transition_v1(
     existing: &ValidatedTenantRootRefreshActiveStateV1,
     candidate: &ValidatedTenantRootRefreshActiveStateV1,
@@ -11533,7 +9229,6 @@ fn validate_refresh_active_state_transition_v1(
     Ok(())
 }
 
-#[cfg(feature = "workers-rs")]
 fn refresh_activation_checkpoint_scope_v1(
     active: &ValidatedTenantRootRefreshActiveStateV1,
     activation_receipt: &router_ab_core::VerifiedTenantRootSignedActivationReceiptV1,
@@ -11733,6 +9428,7 @@ fn validate_refresh_active_state_record(
             &record.fence,
             CloudflareTenantRootRefreshFenceV1::Open
                 | CloudflareTenantRootRefreshFenceV1::Terminal { .. }
+                | CloudflareTenantRootRefreshFenceV1::Abandoned { .. }
         ) {
             return Err(manual_refresh_in_progress_error());
         }
@@ -11903,6 +9599,17 @@ fn validate_refresh_fence(
         CloudflareTenantRootRefreshFenceV1::Reserved { attempt }
         | CloudflareTenantRootRefreshFenceV1::Executed { attempt }
         | CloudflareTenantRootRefreshFenceV1::Terminal { attempt, .. } => attempt,
+        CloudflareTenantRootRefreshFenceV1::Abandoned {
+            attempt,
+            abandoned_at_ms,
+        } => {
+            if *abandoned_at_ms < decode_refresh_attempt_context_v1(attempt)?.expires_at_ms() {
+                return Err(malformed_input(
+                    "tenant-root refresh attempt was abandoned inside its ceremony window",
+                ));
+            }
+            attempt
+        }
     };
     validate_refresh_attempt_packages(attempt)?;
     let attempt_id = decode_canonical_base64url(
@@ -11993,8 +9700,10 @@ fn managed_restore_authorization_challenge_from_active_state_v1(
 }
 
 /// Reserves one managed-restore challenge/attempt or replays its exact fence.
-/// A fresh request is required only while the fence is open; an exact retry
-/// remains replayable after the original freshness window expires.
+/// A fresh request is required while the fence is open or its last
+/// reservation has expired. An exact retry replays while the reservation
+/// stands and after it is authorized; once it has expired unauthorized, the
+/// retry is refused.
 fn reserve_managed_restore_authorization_fence_v1(
     active: &ValidatedTenantRootRefreshActiveStateV1,
     started_journal: &ValidatedTenantRootCreationJournalV1,
@@ -12007,14 +9716,33 @@ fn reserve_managed_restore_authorization_fence_v1(
         ));
     }
     validate_managed_restore_fence_against_active_v1(active)?;
+    if let CloudflareTenantRootManagedRestoreFenceV1::Superseded { challenge, .. } =
+        &active.record.managed_restore_fence
+    {
+        // A retry of the overtaken restore's own request is refused, not
+        // reserved again against the state that replaced it.
+        validate_managed_restore_authorization_request_v1(&request)?;
+        if managed_restore_request_names_challenge_v1(&request, challenge) {
+            return Err(managed_restore_superseded_error());
+        }
+    }
     match &active.record.managed_restore_fence {
-        CloudflareTenantRootManagedRestoreFenceV1::Open => {
+        CloudflareTenantRootManagedRestoreFenceV1::Open
+        | CloudflareTenantRootManagedRestoreFenceV1::Expired { .. }
+        | CloudflareTenantRootManagedRestoreFenceV1::Superseded { .. } => {
             let challenge = managed_restore_authorization_challenge_from_active_state_v1(
                 active,
                 started_journal,
                 request,
             )?;
             let attempt = managed_restore_authorization_attempt_from_challenge_v1(&challenge)?;
+            if matches!(
+                &active.record.managed_restore_fence,
+                CloudflareTenantRootManagedRestoreFenceV1::Expired { challenge: expired, .. }
+                    if expired == &challenge
+            ) {
+                return Err(managed_restore_reservation_expired_error());
+            }
             if matches!(
                 active.record.fence,
                 CloudflareTenantRootRefreshFenceV1::Reserved { .. }
@@ -12080,18 +9808,26 @@ fn require_managed_restore_request_matches_terminal_challenge_v1(
     challenge: &CloudflareTenantRootManagedRestoreAuthorizationChallengeV1,
 ) -> RouterAbProtocolResult<()> {
     validate_managed_restore_authorization_request_v1(request)?;
-    if request.incident_id != challenge.incident_id
-        || request.outage_observation_digest_b64u != challenge.outage_observation_digest_b64u
-        || request.issued_at_ms != challenge.issued_at_ms
-        || request.expires_at_ms != challenge.expires_at_ms
-        || request.nonce_b64u != challenge.nonce_b64u
-        || request.unavailable_role != challenge.unavailable_role
-    {
+    if !managed_restore_request_names_challenge_v1(request, challenge) {
         return Err(managed_restore_conflict(
             "tenant-root managed-restore authorization attempt conflicts with the accepted fence",
         ));
     }
     Ok(())
+}
+
+/// Whether the operator inputs of a request are those a stored challenge was
+/// built from.
+fn managed_restore_request_names_challenge_v1(
+    request: &CloudflareTenantRootManagedRestoreAuthorizationRequestV1,
+    challenge: &CloudflareTenantRootManagedRestoreAuthorizationChallengeV1,
+) -> bool {
+    request.incident_id == challenge.incident_id
+        && request.outage_observation_digest_b64u == challenge.outage_observation_digest_b64u
+        && request.issued_at_ms == challenge.issued_at_ms
+        && request.expires_at_ms == challenge.expires_at_ms
+        && request.nonce_b64u == challenge.nonce_b64u
+        && request.unavailable_role == challenge.unavailable_role
 }
 
 /// Checkpoints exact signed public-state, capability, and incident-authorization
@@ -12153,8 +9889,21 @@ fn checkpoint_managed_restore_authorization_fence_v1(
                 },
             )
         }
+        // The authorization arrived after its reservation expired.
+        CloudflareTenantRootManagedRestoreFenceV1::Expired { challenge, attempt, .. }
+            if challenge == &checkpoint.challenge && attempt == &checkpoint.attempt =>
+        {
+            Err(managed_restore_reservation_expired_error())
+        }
+        CloudflareTenantRootManagedRestoreFenceV1::Superseded { challenge, attempt, .. }
+            if challenge == &checkpoint.challenge && attempt == &checkpoint.attempt =>
+        {
+            Err(managed_restore_superseded_error())
+        }
         CloudflareTenantRootManagedRestoreFenceV1::Reserved { .. }
-        | CloudflareTenantRootManagedRestoreFenceV1::Terminal { .. } => {
+        | CloudflareTenantRootManagedRestoreFenceV1::Terminal { .. }
+        | CloudflareTenantRootManagedRestoreFenceV1::Expired { .. }
+        | CloudflareTenantRootManagedRestoreFenceV1::Superseded { .. } => {
             Err(managed_restore_conflict(
                 "tenant-root managed-restore checkpoint conflicts with the accepted fence",
             ))
@@ -12374,6 +10123,36 @@ fn validate_managed_restore_fence_shape(
                 incident_authorization_b64u,
             )
         }
+        CloudflareTenantRootManagedRestoreFenceV1::Expired {
+            challenge,
+            attempt,
+            expired_at_ms,
+        } => {
+            validate_managed_restore_challenge_shape_v1(challenge)?;
+            validate_managed_restore_attempt_shape_v1(attempt)?;
+            require_managed_restore_attempt_matches_challenge_v1(challenge, attempt)?;
+            if *expired_at_ms <= challenge.expires_at_ms {
+                return Err(malformed_input(
+                    "tenant-root managed-restore reservation expired inside its own window",
+                ));
+            }
+            Ok(())
+        }
+        CloudflareTenantRootManagedRestoreFenceV1::Superseded {
+            challenge,
+            attempt,
+            superseded_at_revision,
+        } => {
+            validate_managed_restore_challenge_shape_v1(challenge)?;
+            validate_managed_restore_attempt_shape_v1(attempt)?;
+            require_managed_restore_attempt_matches_challenge_v1(challenge, attempt)?;
+            if *superseded_at_revision <= challenge.active_lifecycle_revision {
+                return Err(malformed_input(
+                    "tenant-root managed restore was superseded before the state it authorized",
+                ));
+            }
+            Ok(())
+        }
     }
 }
 
@@ -12404,7 +10183,11 @@ fn require_managed_restore_fence_matches_active_fields_v1(
     activation_receipt_digest: TenantRootLifecycleReceiptDigestV1,
 ) -> RouterAbProtocolResult<()> {
     let (challenge, _) = match fence {
-        CloudflareTenantRootManagedRestoreFenceV1::Open => return Ok(()),
+        // An expired or superseded restore names the state it was reserved
+        // against, which later refreshes have moved past.
+        CloudflareTenantRootManagedRestoreFenceV1::Open
+        | CloudflareTenantRootManagedRestoreFenceV1::Expired { .. }
+        | CloudflareTenantRootManagedRestoreFenceV1::Superseded { .. } => return Ok(()),
         CloudflareTenantRootManagedRestoreFenceV1::Reserved { challenge, attempt }
         | CloudflareTenantRootManagedRestoreFenceV1::Terminal {
             challenge, attempt, ..
@@ -12836,7 +10619,18 @@ fn require_refresh_fence_matches_command(
             RouterAbProtocolErrorCode::ConflictingPair,
             "tenant-root refresh operation is terminal",
         )),
+        CloudflareTenantRootRefreshFenceV1::Abandoned { .. } => {
+            Err(refresh_attempt_abandoned_error())
+        }
     }
+}
+
+/// The attempt missed its ceremony window before the Router committed it.
+pub(crate) fn refresh_attempt_abandoned_error() -> RouterAbProtocolError {
+    RouterAbProtocolError::new(
+        RouterAbProtocolErrorCode::ConflictingPair,
+        "tenant-root refresh attempt expired before its commit and was abandoned",
+    )
 }
 
 fn refresh_reserved_fence(
@@ -12859,6 +10653,9 @@ fn refresh_reserved_fence(
             RouterAbProtocolErrorCode::ConflictingPair,
             "tenant-root refresh operation has passed its commitment checkpoint",
         )),
+        CloudflareTenantRootRefreshFenceV1::Abandoned { .. } => {
+            Err(refresh_attempt_abandoned_error())
+        }
     }
 }
 
@@ -12882,6 +10679,9 @@ fn refresh_executed_fence(
             RouterAbProtocolErrorCode::ConflictingPair,
             "tenant-root refresh operation is terminal",
         )),
+        CloudflareTenantRootRefreshFenceV1::Abandoned { .. } => {
+            Err(refresh_attempt_abandoned_error())
+        }
     }
 }
 
@@ -13816,10 +11616,8 @@ fn stored_refresh_record_error(error: RouterAbProtocolError) -> RouterAbProtocol
     )
 }
 
-#[cfg(feature = "workers-rs")]
-#[allow(dead_code)]
-pub(crate) async fn execute_cloudflare_router_tenant_root_refresh_commitment_call_v1(
-    env: &worker::Env,
+pub async fn tenant_root_refresh_commitment_call_v1(
+    state: &impl TenantRootCreationStateTransportV1,
     command: &VerifiedTenantRootRoleRefreshCommandV1,
     commitment: &VerifiedTenantRootRefreshCommitmentV1,
 ) -> RouterAbProtocolResult<CloudflareTenantRootRefreshCommitmentResponseV1> {
@@ -13836,9 +11634,8 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_refresh_commitment_cal
         role_refresh_command_b64u: encode_base64url_bytes_v1(command.canonical_bytes()),
         signed_commitment_b64u: encode_base64url_bytes_v1(commitment.canonical_bytes()),
     };
-    let response = execute_cloudflare_router_tenant_root_creation_private_call_v1(
-        env,
-        authority_id,
+    let response = state.creation_state_call(
+            authority_id,
         command.identity_digest(),
         command.custody_lineage(),
         CLOUDFLARE_TENANT_ROOT_REFRESH_COMMITMENT_CHECKPOINT_PATH,
@@ -13859,10 +11656,9 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_refresh_commitment_cal
 
 /// Sends one role-signed, recipient-bound encrypted refresh contribution to the
 /// Router-owned public rendezvous after both commitments have completed.
-#[cfg(feature = "workers-rs")]
-#[allow(dead_code)]
-pub(crate) async fn execute_cloudflare_router_tenant_root_refresh_contribution_call_v1(
-    env: &worker::Env,
+pub async fn tenant_root_refresh_contribution_call_v1(
+    state: &impl TenantRootCreationStateTransportV1,
+    role_keys: &TenantRootCreationRoleVerifyingKeysV1,
     command: &VerifiedTenantRootRoleRefreshCommandV1,
     commitments: &VerifiedTenantRootRefreshCommitmentPairV1,
     contribution: &VerifiedTenantRootSignedRefreshContributionV1,
@@ -13876,16 +11672,14 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_refresh_contribution_c
             "tenant-root refresh contribution does not match its command or commitment pair",
         ));
     }
-    let role_keys = read_tenant_root_creation_role_verifying_keys(env)?;
     let contribution_bytes = contribution.canonical_bytes();
-    verify_refresh_contribution_wire(contribution_bytes, context, commitments, &role_keys)?;
+    verify_refresh_contribution_wire(contribution_bytes, context, commitments, role_keys)?;
     let request = CloudflareTenantRootRefreshContributionRequestV1 {
         role_refresh_command_b64u: encode_base64url_bytes_v1(command.canonical_bytes()),
         signed_contribution_b64u: encode_base64url_bytes_v1(contribution_bytes),
     };
-    let response = execute_cloudflare_router_tenant_root_creation_private_call_v1(
-        env,
-        command.authority_id(),
+    let response = state.creation_state_call(
+            command.authority_id(),
         command.identity_digest(),
         command.custody_lineage(),
         CLOUDFLARE_TENANT_ROOT_REFRESH_CONTRIBUTION_RENDEZVOUS_PATH,
@@ -13901,15 +11695,13 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_refresh_contribution_c
         commitments,
         context,
         contribution_bytes,
-        &role_keys,
+        role_keys,
     )?;
     Ok(response)
 }
 
-#[cfg(feature = "workers-rs")]
-#[allow(dead_code)]
-pub(crate) async fn execute_cloudflare_router_tenant_root_refresh_installation_call_v1(
-    env: &worker::Env,
+pub async fn tenant_root_refresh_installation_call_v1(
+    state: &impl TenantRootCreationStateTransportV1,
     command: &VerifiedTenantRootRoleRefreshCommandV1,
     evidence: &VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
     terminal_receipt_bytes: &[u8],
@@ -13929,9 +11721,8 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_refresh_installation_c
         signed_evidence_b64u: encode_base64url_bytes_v1(evidence.canonical_bytes()),
         terminal_receipt_b64u: encode_base64url_bytes_v1(terminal_receipt_bytes),
     };
-    let response = execute_cloudflare_router_tenant_root_creation_private_call_v1(
-        env,
-        command.authority_id(),
+    let response = state.creation_state_call(
+            command.authority_id(),
         command.identity_digest(),
         command.custody_lineage(),
         CLOUDFLARE_TENANT_ROOT_REFRESH_INSTALLATION_CHECKPOINT_PATH,
@@ -13945,7 +11736,6 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_refresh_installation_c
     Ok(response)
 }
 
-#[cfg(feature = "workers-rs")]
 fn validate_refresh_commitment_response(
     response: &CloudflareTenantRootRefreshCommitmentResponseV1,
     command: &VerifiedTenantRootRoleRefreshCommandV1,
@@ -14031,7 +11821,6 @@ fn validate_refresh_commitment_response(
     Ok(())
 }
 
-#[cfg(feature = "workers-rs")]
 fn validate_refresh_installation_response(
     response: &CloudflareTenantRootRefreshInstallationResponseV1,
     command: &VerifiedTenantRootRoleRefreshCommandV1,
@@ -14059,7 +11848,6 @@ fn validate_refresh_installation_response(
     Ok(())
 }
 
-#[cfg(feature = "workers-rs")]
 fn validate_refresh_contribution_response(
     response: &CloudflareTenantRootRefreshContributionResponseV1,
     command: &VerifiedTenantRootRoleRefreshCommandV1,
@@ -14118,7 +11906,6 @@ fn validate_refresh_contribution_response(
     Ok(())
 }
 
-#[cfg(feature = "workers-rs")]
 fn validate_refresh_response_scope<T>(
     response: &T,
     command: &VerifiedTenantRootRoleRefreshCommandV1,
@@ -14174,7 +11961,6 @@ where
     )
 }
 
-#[cfg(feature = "workers-rs")]
 trait RefreshResponseScopeView {
     fn command_digest_b64u(&self) -> &str;
     fn identity_digest_b64u(&self) -> &str;
@@ -14188,7 +11974,6 @@ trait RefreshResponseScopeView {
     fn active_activation_receipt_digest_b64u(&self) -> &str;
 }
 
-#[cfg(feature = "workers-rs")]
 impl RefreshResponseScopeView for CloudflareTenantRootRefreshCommitmentResponseV1 {
     fn command_digest_b64u(&self) -> &str {
         &self.command_digest_b64u
@@ -14222,7 +12007,6 @@ impl RefreshResponseScopeView for CloudflareTenantRootRefreshCommitmentResponseV
     }
 }
 
-#[cfg(feature = "workers-rs")]
 impl RefreshResponseScopeView for CloudflareTenantRootRefreshInstallationResponseV1 {
     fn command_digest_b64u(&self) -> &str {
         &self.command_digest_b64u
@@ -14256,7 +12040,6 @@ impl RefreshResponseScopeView for CloudflareTenantRootRefreshInstallationRespons
     }
 }
 
-#[cfg(feature = "workers-rs")]
 impl RefreshResponseScopeView for CloudflareTenantRootRefreshContributionResponseV1 {
     fn command_digest_b64u(&self) -> &str {
         &self.command_digest_b64u
@@ -14290,7 +12073,6 @@ impl RefreshResponseScopeView for CloudflareTenantRootRefreshContributionRespons
     }
 }
 
-#[cfg(feature = "workers-rs")]
 fn validate_response_fixed_bytes(
     field: &str,
     encoded: &str,
@@ -14339,6 +12121,3387 @@ const fn base64url_len_for_bytes(bytes: usize) -> usize {
             1 => 2,
             _ => 3,
         }
+}
+
+/// One tenant root's creation state as a host sees it inside a transaction:
+/// the Router-owned creation Durable Object on Cloudflare, or one row set of
+/// the VM Router's SQLite store. The operations below are the same on both
+/// hosts; each host runs them inside its own storage transaction.
+#[allow(async_fn_in_trait)]
+pub trait TenantRootCreationStoreV1 {
+    /// The creation authority id this store is authoritative for.
+    fn authority_id(&self) -> TenantRootControlPlaneAuthorityIdV1;
+    /// Rejects a request for a tenant root this store is not authoritative for.
+    fn require_scope(
+        &self,
+        identity_digest: TenantRootIdentityDigestV1,
+        custody_lineage: TenantRootCustodyLineageId,
+    ) -> RouterAbProtocolResult<()>;
+    async fn get_json<T: DeserializeOwned>(&self, key: &str) -> RouterAbProtocolResult<Option<T>>;
+    async fn put_json<T: Serialize>(&self, key: &str, value: &T) -> RouterAbProtocolResult<()>;
+    /// Removes one key; a key that is absent is left absent.
+    async fn delete(&self, key: &str) -> RouterAbProtocolResult<()>;
+}
+
+// ---------------------------------------------------------------------------
+// Refresh and managed-restore state over the host-neutral creation store
+// ---------------------------------------------------------------------------
+//
+// The authoritative active state, its refresh fence and checkpoints, and its
+// managed-restore fence, as operations over `TenantRootCreationStoreV1`. Each
+// host runs one operation inside one storage transaction, reads its own
+// configuration and clock, and passes them in. As with the creation
+// operations, a refusal is decided before anything is written.
+
+/// Loads and validates the authoritative active public state. `missing` is
+/// the refusal when none exists yet.
+async fn load_refresh_active_state_v1<Store: TenantRootCreationStoreV1>(
+    store: &Store,
+    issuer_keys: &BTreeMap<String, [u8; 32]>,
+    missing: &'static str,
+) -> RouterAbProtocolResult<ValidatedTenantRootRefreshActiveStateV1> {
+    let record = store
+        .get_json::<CloudflareTenantRootRefreshActiveStateRecordV1>(
+            TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1,
+        )
+        .await?
+        .ok_or_else(|| {
+            RouterAbProtocolError::new(RouterAbProtocolErrorCode::InvalidLocalServiceConfig, missing)
+        })?;
+    validate_refresh_active_state_record(record, store.authority_id(), issuer_keys)
+        .map_err(stored_refresh_record_error)
+}
+
+/// Projects the phase of the refresh attempt the fence holds, validating
+/// every stored checkpoint against it. Role keys are loaded only when a
+/// checkpoint exists.
+async fn read_refresh_job_v1<Store: TenantRootCreationStoreV1>(
+    store: &Store,
+    issuer_keys: &BTreeMap<String, [u8; 32]>,
+    role_keys: impl FnOnce() -> RouterAbProtocolResult<TenantRootCreationRoleVerifyingKeysV1>,
+    active: &ValidatedTenantRootRefreshActiveStateV1,
+) -> RouterAbProtocolResult<Option<CloudflareTenantRootRefreshJobReadV1>> {
+    let (attempt, executed) = match &active.record.fence {
+        CloudflareTenantRootRefreshFenceV1::Open => (None, false),
+        CloudflareTenantRootRefreshFenceV1::Reserved { attempt } => (Some(attempt), false),
+        CloudflareTenantRootRefreshFenceV1::Executed { attempt } => (Some(attempt), true),
+        CloudflareTenantRootRefreshFenceV1::Terminal { .. }
+        | CloudflareTenantRootRefreshFenceV1::Abandoned { .. } => (None, false),
+    };
+    let commitment_encoded = store
+        .get_json::<String>(TENANT_ROOT_REFRESH_COMMITMENT_CHECKPOINT_STORAGE_KEY_V1)
+        .await?;
+    let installation_record = store
+        .get_json::<CloudflareTenantRootRefreshInstallationCheckpointRecordV1>(
+            TENANT_ROOT_REFRESH_INSTALLATION_CHECKPOINT_STORAGE_KEY_V1,
+        )
+        .await?;
+    let contribution_record = store
+        .get_json::<CloudflareTenantRootRefreshContributionRendezvousRecordV1>(
+            TENANT_ROOT_REFRESH_CONTRIBUTION_RENDEZVOUS_STORAGE_KEY_V1,
+        )
+        .await?;
+
+    let Some(attempt) = attempt else {
+        if commitment_encoded.is_some()
+            || installation_record.is_some()
+            || contribution_record.is_some()
+        {
+            return Err(stored_refresh_record_error(malformed_input(
+                "stored tenant-root refresh checkpoints do not match an active operation",
+            )));
+        }
+        return Ok(None);
+    };
+    let context =
+        decode_refresh_attempt_context_v1(attempt).map_err(stored_refresh_record_error)?;
+    let expected_authority_id = store.authority_id();
+    let command_a = validate_refresh_role_command(
+        &attempt.deriver_a_refresh_command_b64u,
+        active,
+        &context,
+        TwoPartyDeriverRole::DeriverA,
+        expected_authority_id,
+        issuer_keys,
+    )
+    .map_err(stored_refresh_record_error)?;
+    let command_b = validate_refresh_role_command(
+        &attempt.deriver_b_refresh_command_b64u,
+        active,
+        &context,
+        TwoPartyDeriverRole::DeriverB,
+        expected_authority_id,
+        issuer_keys,
+    )
+    .map_err(stored_refresh_record_error)?;
+    let expected_scope =
+        refresh_checkpoint_scope(&command_a, active, &context, expected_authority_id)
+            .map_err(stored_refresh_record_error)?;
+    let has_checkpoint = commitment_encoded.is_some()
+        || installation_record.is_some()
+        || contribution_record.is_some();
+    let role_keys = has_checkpoint.then(role_keys).transpose()?;
+
+    let commitment_pair = match commitment_encoded {
+        None => None,
+        Some(encoded) => {
+            let checkpoint = decode_refresh_commitment_checkpoint(&encoded)
+                .map_err(stored_refresh_record_error)?;
+            validate_refresh_commitment_checkpoint_scope(checkpoint.scope(), &expected_scope)
+                .map_err(stored_refresh_record_error)?;
+            let role_keys = role_keys.as_ref().ok_or_else(|| {
+                stored_refresh_record_error(malformed_input(
+                    "stored tenant-root refresh commitment checkpoint has no role-key set",
+                ))
+            })?;
+            match checkpoint.state() {
+                TenantRootRefreshCommitmentCheckpointStateV1::OneRoleCommitted {
+                    role,
+                    command_digest,
+                    signed_commitment,
+                } => {
+                    validate_refresh_checkpoint_command_digest_v1(
+                        *command_digest,
+                        *role,
+                        &command_a,
+                        &command_b,
+                    )
+                    .map_err(stored_refresh_record_error)?;
+                    let commitment =
+                        verify_refresh_commitment_wire(signed_commitment, &context, role_keys)
+                            .map_err(stored_refresh_record_error)?;
+                    if commitment.role() != *role {
+                        return Err(stored_refresh_record_error(malformed_input(
+                            "stored tenant-root refresh commitment role does not match its wire",
+                        )));
+                    }
+                    None
+                }
+                TenantRootRefreshCommitmentCheckpointStateV1::BothRolesCommitted {
+                    deriver_a_command_digest,
+                    deriver_b_command_digest,
+                    ..
+                } => {
+                    validate_refresh_checkpoint_command_digest_v1(
+                        *deriver_a_command_digest,
+                        TwoPartyDeriverRole::DeriverA,
+                        &command_a,
+                        &command_b,
+                    )
+                    .and_then(|_| {
+                        validate_refresh_checkpoint_command_digest_v1(
+                            *deriver_b_command_digest,
+                            TwoPartyDeriverRole::DeriverB,
+                            &command_a,
+                            &command_b,
+                        )
+                    })
+                    .map_err(stored_refresh_record_error)?;
+                    Some(
+                        require_complete_refresh_commitment_checkpoint(
+                            &checkpoint,
+                            &context,
+                            role_keys,
+                        )
+                        .map_err(stored_refresh_record_error)?,
+                    )
+                }
+            }
+        }
+    };
+
+    if let Some(record) = contribution_record.as_ref() {
+        let commitments = commitment_pair.as_ref().ok_or_else(|| {
+            stored_refresh_record_error(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::MissingPairPreparation,
+                "tenant-root refresh contribution has no complete commitment checkpoint",
+            ))
+        })?;
+        let role_keys = role_keys.as_ref().ok_or_else(|| {
+            stored_refresh_record_error(malformed_input(
+                "stored tenant-root refresh contribution has no role-key set",
+            ))
+        })?;
+        let contribution = validate_refresh_contribution_rendezvous(
+            record.clone(),
+            &expected_scope,
+            &context,
+            commitments,
+            role_keys,
+        )
+        .map_err(stored_refresh_record_error)?;
+        match contribution {
+            ValidatedTenantRootRefreshContributionRendezvousStateV1::OneRole {
+                role,
+                command_digest,
+                ..
+            } => validate_refresh_checkpoint_command_digest_v1(
+                command_digest,
+                role,
+                &command_a,
+                &command_b,
+            ),
+            ValidatedTenantRootRefreshContributionRendezvousStateV1::BothRoles {
+                deriver_a_command_digest,
+                deriver_b_command_digest,
+                ..
+            } => validate_refresh_checkpoint_command_digest_v1(
+                deriver_a_command_digest,
+                TwoPartyDeriverRole::DeriverA,
+                &command_a,
+                &command_b,
+            )
+            .and_then(|_| {
+                validate_refresh_checkpoint_command_digest_v1(
+                    deriver_b_command_digest,
+                    TwoPartyDeriverRole::DeriverB,
+                    &command_a,
+                    &command_b,
+                )
+            }),
+        }
+        .map_err(stored_refresh_record_error)?;
+    }
+
+    let phase = if executed {
+        let commitments = commitment_pair.as_ref().ok_or_else(|| {
+            stored_refresh_record_error(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::MissingPairPreparation,
+                "tenant-root refresh installation has no complete commitment checkpoint",
+            ))
+        })?;
+        let installation_record = installation_record.ok_or_else(|| {
+            stored_refresh_record_error(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::MissingPairPreparation,
+                "tenant-root executed refresh has no installation checkpoint",
+            ))
+        })?;
+        let role_keys = role_keys.as_ref().ok_or_else(|| {
+            stored_refresh_record_error(malformed_input(
+                "stored tenant-root refresh installation checkpoint has no role-key set",
+            ))
+        })?;
+        let installation = validate_refresh_installation_checkpoint(
+            installation_record,
+            &expected_scope,
+            &context,
+            role_keys,
+            commitments,
+            &active.commitments,
+        )
+        .map_err(stored_refresh_record_error)?;
+        match &installation {
+            ValidatedTenantRootRefreshInstallationStateV1::OneRole {
+                role,
+                command_digest,
+                ..
+            } => {
+                validate_refresh_checkpoint_command_digest_v1(
+                    *command_digest,
+                    *role,
+                    &command_a,
+                    &command_b,
+                )
+                .map_err(stored_refresh_record_error)?;
+                CloudflareTenantRootRefreshJobPhaseV1::Installing
+            }
+            ValidatedTenantRootRefreshInstallationStateV1::BothRoles {
+                deriver_a_command_digest,
+                deriver_b_command_digest,
+                ..
+            } => {
+                validate_refresh_checkpoint_command_digest_v1(
+                    *deriver_a_command_digest,
+                    TwoPartyDeriverRole::DeriverA,
+                    &command_a,
+                    &command_b,
+                )
+                .and_then(|_| {
+                    validate_refresh_checkpoint_command_digest_v1(
+                        *deriver_b_command_digest,
+                        TwoPartyDeriverRole::DeriverB,
+                        &command_a,
+                        &command_b,
+                    )
+                })
+                .map_err(stored_refresh_record_error)?;
+                CloudflareTenantRootRefreshJobPhaseV1::Verifying
+            }
+        }
+    } else {
+        if installation_record.is_some() {
+            return Err(stored_refresh_record_error(malformed_input(
+                "stored tenant-root installation checkpoint requires an executed refresh",
+            )));
+        }
+        if !has_checkpoint {
+            return Ok(None);
+        }
+        CloudflareTenantRootRefreshJobPhaseV1::Preparing
+    };
+    refresh_job_read_from_phase_v1(
+        phase,
+        attempt.manual_operation_id.clone(),
+        context.issued_at_ms(),
+    )
+    .map_err(stored_refresh_record_error)
+}
+
+/// Reads the authoritative active state, or reserves a refresh admission, a
+/// refresh attempt or a managed-restore authorization against it.
+pub async fn tenant_root_creation_active_state_read_v1<Store: TenantRootCreationStoreV1>(
+    store: &Store,
+    issuer_keys: &BTreeMap<String, [u8; 32]>,
+    role_keys: impl FnOnce() -> RouterAbProtocolResult<TenantRootCreationRoleVerifyingKeysV1>,
+    request: CloudflareTenantRootCreationActiveStateReadRequestV1,
+    now_ms: u64,
+    schedule: TenantRootRefreshScheduleV1,
+) -> RouterAbProtocolResult<CloudflareTenantRootCreationActiveStateReadResponseV1> {
+    let (identity_digest_b64u, custody_lineage_b64u) = match &request {
+        CloudflareTenantRootCreationActiveStateReadRequestV1::Read {
+            identity_digest_b64u,
+            custody_lineage_b64u,
+        }
+        | CloudflareTenantRootCreationActiveStateReadRequestV1::ReserveRefresh {
+            identity_digest_b64u,
+            custody_lineage_b64u,
+            ..
+        }
+        | CloudflareTenantRootCreationActiveStateReadRequestV1::ReserveRefreshAdmission {
+            identity_digest_b64u,
+            custody_lineage_b64u,
+            ..
+        }
+        | CloudflareTenantRootCreationActiveStateReadRequestV1::ReserveManagedRestore {
+            identity_digest_b64u,
+            custody_lineage_b64u,
+            ..
+        }
+        | CloudflareTenantRootCreationActiveStateReadRequestV1::CheckpointManagedRestore {
+            identity_digest_b64u,
+            custody_lineage_b64u,
+            ..
+        }
+        | CloudflareTenantRootCreationActiveStateReadRequestV1::RecordDelivery {
+            identity_digest_b64u,
+            custody_lineage_b64u,
+            ..
+        }
+        | CloudflareTenantRootCreationActiveStateReadRequestV1::RecordRetirement {
+            identity_digest_b64u,
+            custody_lineage_b64u,
+            ..
+        }
+        | CloudflareTenantRootCreationActiveStateReadRequestV1::ReadManagedRestoreCompletion {
+            identity_digest_b64u,
+            custody_lineage_b64u,
+            ..
+        } => (identity_digest_b64u, custody_lineage_b64u),
+    };
+    let identity_digest = TenantRootIdentityDigestV1::from_bytes(decode_fixed_base64url_32(
+        "tenant-root active-state read identity digest",
+        identity_digest_b64u,
+    )?);
+    let custody_lineage = decode_lineage_b64u(
+        "tenant-root active-state read custody lineage",
+        custody_lineage_b64u,
+    )?;
+    store.require_scope(identity_digest, custody_lineage)?;
+    let active = load_refresh_active_state_v1(
+        store,
+        issuer_keys,
+        "tenant-root refresh has no authoritative active public state",
+    )
+    .await?;
+    if active.identity_digest != identity_digest || active.custody_lineage != custody_lineage {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::ForbiddenLocalBinding,
+            "tenant-root active state does not match the requested identity and custody lineage",
+        ));
+    }
+    match request {
+        CloudflareTenantRootCreationActiveStateReadRequestV1::Read { .. } => {
+            let job = read_refresh_job_v1(store, issuer_keys, role_keys, &active).await?;
+            let mut response = active_state_read_response_from_record(active.record);
+            response.job = job;
+            Ok(response)
+        }
+        CloudflareTenantRootCreationActiveStateReadRequestV1::ReserveRefreshAdmission {
+            operation_id,
+            expected_lifecycle_revision,
+            expires_at_ms,
+            trigger,
+            ..
+        } => {
+            let admission = reserve_refresh_admission_v1(
+                store,
+                issuer_keys,
+                &active,
+                identity_digest,
+                custody_lineage,
+                operation_id,
+                expected_lifecycle_revision,
+                expires_at_ms,
+                trigger,
+                now_ms,
+                schedule,
+            )
+            .await?;
+            let mut response = active_state_read_response_from_record(active.record);
+            response.refresh_admission = Some(admission);
+            Ok(response)
+        }
+        CloudflareTenantRootCreationActiveStateReadRequestV1::ReserveRefresh {
+            refresh_context_b64u,
+            deriver_a_refresh_command_b64u,
+            deriver_b_refresh_command_b64u,
+            manual_operation_id,
+            ..
+        } => {
+            reserve_refresh_attempt_v1(
+                store,
+                issuer_keys,
+                active,
+                identity_digest,
+                custody_lineage,
+                refresh_context_b64u,
+                deriver_a_refresh_command_b64u,
+                deriver_b_refresh_command_b64u,
+                manual_operation_id,
+                now_ms,
+            )
+            .await
+        }
+        CloudflareTenantRootCreationActiveStateReadRequestV1::ReserveManagedRestore {
+            authorization,
+            ..
+        } => {
+            reserve_managed_restore_authorization_v1(
+                store,
+                issuer_keys,
+                active,
+                identity_digest,
+                custody_lineage,
+                authorization,
+                now_ms,
+            )
+            .await
+        }
+        CloudflareTenantRootCreationActiveStateReadRequestV1::ReadManagedRestoreCompletion {
+            public_state_b64u,
+            capability_b64u,
+            ..
+        } => {
+            let completion = store
+                .get_json::<CloudflareTenantRootManagedRestoreCompletionV1>(
+                    &managed_restore_completion_storage_key_v1(&capability_b64u),
+                )
+                .await?;
+            let completed = match completion {
+                Some(completion)
+                    if completion.public_state_b64u == public_state_b64u
+                        && completion.capability_b64u == capability_b64u =>
+                {
+                    Some(completion.response)
+                }
+                Some(_) => {
+                    return Err(managed_restore_conflict(
+                        "tenant-root managed-restore completion does not match the restore it names",
+                    ))
+                }
+                None => None,
+            };
+            let mut response = active_state_read_response_from_record(active.record);
+            response.managed_restore_completion = completed;
+            Ok(response)
+        }
+        CloudflareTenantRootCreationActiveStateReadRequestV1::CheckpointManagedRestore {
+            checkpoint,
+            ..
+        } => {
+            checkpoint_managed_restore_authorization_v1(
+                store,
+                issuer_keys,
+                active,
+                identity_digest,
+                custody_lineage,
+                checkpoint,
+                now_ms,
+            )
+            .await
+        }
+        CloudflareTenantRootCreationActiveStateReadRequestV1::RecordDelivery {
+            activation_receipt_digest_b64u,
+            role,
+            swap,
+            ..
+        } => {
+            let active_epoch = active.active_epoch;
+            let mut record = active.record;
+            match record.delivery.as_mut() {
+                // An acknowledgement for a receipt that is no longer the
+                // committed one changes nothing.
+                Some(delivery)
+                    if delivery.activation_receipt_digest_b64u
+                        == activation_receipt_digest_b64u
+                        && record.activation_receipt_digest_b64u
+                            == activation_receipt_digest_b64u =>
+                {
+                    let (slot, retirement_slot) = match role {
+                        CloudflareTenantRootCreationInstallationRoleV1::DeriverA => (
+                            &mut delivery.deriver_a,
+                            delivery.retirement.as_mut().map(|retirement| {
+                                (retirement.retired_epoch, &mut retirement.deriver_a)
+                            }),
+                        ),
+                        CloudflareTenantRootCreationInstallationRoleV1::DeriverB => (
+                            &mut delivery.deriver_b,
+                            delivery.retirement.as_mut().map(|retirement| {
+                                (retirement.retired_epoch, &mut retirement.deriver_b)
+                            }),
+                        ),
+                    };
+                    if *slot == CloudflareTenantRootRoleDeliveryV1::Pending {
+                        match (retirement_slot, swap) {
+                            (None, None) => {}
+                            (Some((retired_epoch, retirement)), Some(swap))
+                                if swap.retired_epoch == retired_epoch
+                                    && swap.active_epoch == active_epoch.get().get()
+                                    && swap.retired_revision > 0
+                                    && swap.active_revision > 0 =>
+                            {
+                                *retirement = Some(CloudflareTenantRootRoleRetirementV1 {
+                                    retired_revision: swap.retired_revision,
+                                    active_revision: swap.active_revision,
+                                    swapped_at_ms: now_ms,
+                                    erasure: None,
+                                });
+                            }
+                            _ => {
+                                return Err(RouterAbProtocolError::new(
+                                    RouterAbProtocolErrorCode::MalformedWirePayload,
+                                    "tenant-root delivery acknowledgement does not match the committed transition",
+                                ));
+                            }
+                        }
+                        *slot = CloudflareTenantRootRoleDeliveryV1::Delivered;
+                        store
+                            .put_json(TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1, &record)
+                            .await?;
+                    }
+                }
+                _ => {}
+            }
+            Ok(active_state_read_response_from_record(record))
+        }
+        CloudflareTenantRootCreationActiveStateReadRequestV1::RecordRetirement {
+            activation_receipt_digest_b64u,
+            role,
+            retired_epoch,
+            erasure,
+            ..
+        } => {
+            if erasure.cleanup_receipt_b64u.is_empty() {
+                return Err(RouterAbProtocolError::new(
+                    RouterAbProtocolErrorCode::MalformedWirePayload,
+                    "tenant-root retirement record requires the role's cleanup receipt",
+                ));
+            }
+            let mut record = active.record;
+            // Only a retirement the committed swap's record holds is
+            // recorded, once; a later report of the same erasure changes
+            // nothing.
+            if record.activation_receipt_digest_b64u == activation_receipt_digest_b64u {
+                if let Some(retirement) = record
+                    .delivery
+                    .as_mut()
+                    .filter(|delivery| {
+                        delivery.activation_receipt_digest_b64u == activation_receipt_digest_b64u
+                    })
+                    .and_then(|delivery| delivery.retirement_of_mut(retired_epoch))
+                    .and_then(|retirement| match role {
+                        CloudflareTenantRootCreationInstallationRoleV1::DeriverA => {
+                            retirement.deriver_a.as_mut()
+                        }
+                        CloudflareTenantRootCreationInstallationRoleV1::DeriverB => {
+                            retirement.deriver_b.as_mut()
+                        }
+                    })
+                    .filter(|retirement| retirement.erasure.is_none())
+                {
+                    retirement.erasure = Some(erasure);
+                    store
+                        .put_json(TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1, &record)
+                        .await?;
+                }
+            }
+            Ok(active_state_read_response_from_record(record))
+        }
+    }
+}
+
+/// Reserves one managed-restore authorization on the active state's fence.
+async fn reserve_managed_restore_authorization_v1<Store: TenantRootCreationStoreV1>(
+    store: &Store,
+    issuer_keys: &BTreeMap<String, [u8; 32]>,
+    loaded_active: ValidatedTenantRootRefreshActiveStateV1,
+    identity_digest: TenantRootIdentityDigestV1,
+    custody_lineage: TenantRootCustodyLineageId,
+    authorization: CloudflareTenantRootManagedRestoreAuthorizationRequestV1,
+    now_ms: u64,
+) -> RouterAbProtocolResult<CloudflareTenantRootCreationActiveStateReadResponseV1> {
+    if loaded_active.identity_digest != identity_digest
+        || loaded_active.custody_lineage != custody_lineage
+    {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::ForbiddenLocalBinding,
+            "tenant-root managed-restore reservation identity changed",
+        ));
+    }
+    let authority_id = store.authority_id();
+    let active = load_refresh_active_state_v1(
+        store,
+        issuer_keys,
+        "tenant-root managed-restore reservation has no authoritative active public state",
+    )
+    .await?;
+    if active.identity_digest != identity_digest || active.custody_lineage != custody_lineage {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::ForbiddenLocalBinding,
+            "tenant-root managed-restore reservation identity changed",
+        ));
+    }
+    let active =
+        persist_managed_restore_reservation_expiry_v1(store, issuer_keys, active, now_ms).await?;
+    let journal_record = store
+        .get_json::<CloudflareTenantRootCreationJournalRecordV1>(
+            TENANT_ROOT_CREATION_JOURNAL_STORAGE_KEY_V1,
+        )
+        .await?
+        .ok_or_else(|| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+                "tenant-root managed-restore reservation has no Started journal",
+            )
+        })?;
+    let journal = validate_creation_record(journal_record, authority_id, issuer_keys)
+        .map_err(stored_record_error)?;
+    let evaluation =
+        reserve_managed_restore_authorization_fence_v1(&active, &journal, authorization, now_ms)?;
+    let response_record = match evaluation {
+        CloudflareTenantRootManagedRestoreFenceEvaluationV1::Commit { fence } => {
+            let mut candidate = active.record.clone();
+            candidate.managed_restore_fence = fence;
+            validate_refresh_active_state_record(candidate.clone(), authority_id, issuer_keys)?;
+            store
+                .put_json(TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1, &candidate)
+                .await?;
+            candidate
+        }
+        CloudflareTenantRootManagedRestoreFenceEvaluationV1::Replay { .. } => active.record,
+    };
+    Ok(active_state_read_response_from_record(response_record))
+}
+
+/// Checkpoints one issued managed-restore authorization on the fence the
+/// reservation opened.
+async fn checkpoint_managed_restore_authorization_v1<Store: TenantRootCreationStoreV1>(
+    store: &Store,
+    issuer_keys: &BTreeMap<String, [u8; 32]>,
+    loaded_active: ValidatedTenantRootRefreshActiveStateV1,
+    identity_digest: TenantRootIdentityDigestV1,
+    custody_lineage: TenantRootCustodyLineageId,
+    checkpoint: CloudflareTenantRootManagedRestoreAuthorizationCheckpointV1,
+    now_ms: u64,
+) -> RouterAbProtocolResult<CloudflareTenantRootCreationActiveStateReadResponseV1> {
+    if loaded_active.identity_digest != identity_digest
+        || loaded_active.custody_lineage != custody_lineage
+    {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::ForbiddenLocalBinding,
+            "tenant-root managed-restore checkpoint identity changed",
+        ));
+    }
+    let authority_id = store.authority_id();
+    let active = load_refresh_active_state_v1(
+        store,
+        issuer_keys,
+        "tenant-root managed-restore checkpoint has no authoritative active public state",
+    )
+    .await?;
+    if active.identity_digest != identity_digest || active.custody_lineage != custody_lineage {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::ForbiddenLocalBinding,
+            "tenant-root managed-restore checkpoint identity changed",
+        ));
+    }
+    let active =
+        persist_managed_restore_reservation_expiry_v1(store, issuer_keys, active, now_ms).await?;
+    let journal_record = store
+        .get_json::<CloudflareTenantRootCreationJournalRecordV1>(
+            TENANT_ROOT_CREATION_JOURNAL_STORAGE_KEY_V1,
+        )
+        .await?
+        .ok_or_else(|| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+                "tenant-root managed-restore checkpoint has no Started journal",
+            )
+        })?;
+    let journal = validate_creation_record(journal_record, authority_id, issuer_keys)
+        .map_err(stored_record_error)?;
+    require_managed_restore_challenge_matches_started_journal_v1(
+        &active,
+        &journal,
+        &checkpoint.challenge,
+    )?;
+    let evaluation = checkpoint_managed_restore_authorization_fence_v1(&active, checkpoint)?;
+    let response_record = match evaluation {
+        CloudflareTenantRootManagedRestoreFenceEvaluationV1::Commit { fence } => {
+            let mut candidate = active.record.clone();
+            candidate.managed_restore_fence = fence;
+            validate_refresh_active_state_record(candidate.clone(), authority_id, issuer_keys)?;
+            store
+                .put_json(TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1, &candidate)
+                .await?;
+            candidate
+        }
+        CloudflareTenantRootManagedRestoreFenceEvaluationV1::Replay { .. } => active.record,
+    };
+    Ok(active_state_read_response_from_record(response_record))
+}
+
+/// Admits one manual or scheduled refresh operation against the active state.
+#[allow(clippy::too_many_arguments)]
+async fn reserve_refresh_admission_v1<Store: TenantRootCreationStoreV1>(
+    store: &Store,
+    issuer_keys: &BTreeMap<String, [u8; 32]>,
+    loaded_active: &ValidatedTenantRootRefreshActiveStateV1,
+    identity_digest: TenantRootIdentityDigestV1,
+    custody_lineage: TenantRootCustodyLineageId,
+    operation_id: String,
+    expected_lifecycle_revision: u64,
+    expires_at_ms: u64,
+    trigger: CloudflareTenantRootRefreshTriggerV1,
+    now_ms: u64,
+    schedule: TenantRootRefreshScheduleV1,
+) -> RouterAbProtocolResult<CloudflareTenantRootRefreshAdmissionOutcomeV1> {
+    validate_refresh_operation_id_v1(&operation_id)?;
+    let authority_id = store.authority_id();
+    let completion_key = manual_refresh_completion_storage_key_v1(&operation_id);
+    let active = load_refresh_active_state_v1(
+        store,
+        issuer_keys,
+        "tenant-root manual refresh admission has no authoritative active public state",
+    )
+    .await?;
+    if active.identity_digest != loaded_active.identity_digest
+        || active.custody_lineage != loaded_active.custody_lineage
+        || active.identity_digest != identity_digest
+        || active.custody_lineage != custody_lineage
+    {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::ForbiddenLocalBinding,
+            "tenant-root manual refresh admission identity changed",
+        ));
+    }
+    let completion = store
+        .get_json::<CloudflareTenantRootRefreshCompletionV1>(&completion_key)
+        .await?;
+    let mut record = active.record.clone();
+    // An expired restore reservation no longer holds the fence, so refresh
+    // work it held back can be abandoned or admitted in the same step.
+    expire_managed_restore_reservation_v1(&mut record, now_ms);
+    let abandoned_operations = abandon_expired_refresh_v1(&mut record, now_ms)?;
+    if record.fence != active.record.fence
+        || record.manual_refresh_pending != active.record.manual_refresh_pending
+        || record.managed_restore_fence != active.record.managed_restore_fence
+    {
+        validate_refresh_active_state_record(record.clone(), authority_id, issuer_keys)?;
+        if record.fence != active.record.fence {
+            // The abandoned attempt can never use its checkpoints again.
+            store
+                .delete(TENANT_ROOT_REFRESH_COMMITMENT_CHECKPOINT_STORAGE_KEY_V1)
+                .await?;
+            store
+                .delete(TENANT_ROOT_REFRESH_INSTALLATION_CHECKPOINT_STORAGE_KEY_V1)
+                .await?;
+            store
+                .delete(TENANT_ROOT_REFRESH_CONTRIBUTION_RENDEZVOUS_STORAGE_KEY_V1)
+                .await?;
+        }
+        for abandoned_operation_id in abandoned_operations {
+            store
+                .put_json(
+                    &refresh_abandonment_storage_key_v1(&abandoned_operation_id),
+                    &CloudflareTenantRootRefreshAbandonmentV1 {
+                        operation_id: abandoned_operation_id.clone(),
+                        abandoned_at_ms: now_ms,
+                    },
+                )
+                .await?;
+        }
+        store
+            .put_json(TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1, &record)
+            .await?;
+    }
+    let abandonment = store
+        .get_json::<CloudflareTenantRootRefreshAbandonmentV1>(
+            &refresh_abandonment_storage_key_v1(&operation_id),
+        )
+        .await?;
+    let evaluation = evaluate_refresh_admission_v1(
+        &record,
+        completion,
+        abandonment,
+        &operation_id,
+        trigger,
+        active.identity_digest,
+        active.activation_receipt.activated_at_ms(),
+        expected_lifecycle_revision,
+        expires_at_ms,
+        now_ms,
+        schedule,
+    )
+    .map_err(stored_refresh_record_error)?;
+    Ok(match evaluation {
+        CloudflareTenantRootRefreshAdmissionEvaluationV1::Commit { pending } => {
+            let mut candidate = record;
+            candidate.manual_refresh_pending = Some(pending);
+            validate_refresh_active_state_record(candidate.clone(), authority_id, issuer_keys)?;
+            store
+                .put_json(TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1, &candidate)
+                .await?;
+            CloudflareTenantRootRefreshAdmissionOutcomeV1::Admitted {
+                lifecycle_revision: candidate.lifecycle_revision,
+            }
+        }
+        CloudflareTenantRootRefreshAdmissionEvaluationV1::Replay { response } => {
+            CloudflareTenantRootRefreshAdmissionOutcomeV1::Replayed { response }
+        }
+        CloudflareTenantRootRefreshAdmissionEvaluationV1::Abandoned { abandoned_at_ms } => {
+            CloudflareTenantRootRefreshAdmissionOutcomeV1::Abandoned { abandoned_at_ms }
+        }
+        CloudflareTenantRootRefreshAdmissionEvaluationV1::Throttled { retry_at_ms } => {
+            CloudflareTenantRootRefreshAdmissionOutcomeV1::Throttled { retry_at_ms }
+        }
+        CloudflareTenantRootRefreshAdmissionEvaluationV1::RevisionMoved => {
+            CloudflareTenantRootRefreshAdmissionOutcomeV1::RevisionMoved
+        }
+        CloudflareTenantRootRefreshAdmissionEvaluationV1::AuthorizationExpired => {
+            CloudflareTenantRootRefreshAdmissionOutcomeV1::AuthorizationExpired
+        }
+        CloudflareTenantRootRefreshAdmissionEvaluationV1::NotDue { next_run_at_ms } => {
+            CloudflareTenantRootRefreshAdmissionOutcomeV1::NotDue { next_run_at_ms }
+        }
+        CloudflareTenantRootRefreshAdmissionEvaluationV1::InProgress => {
+            CloudflareTenantRootRefreshAdmissionOutcomeV1::InProgress
+        }
+        CloudflareTenantRootRefreshAdmissionEvaluationV1::RetirementPending => {
+            CloudflareTenantRootRefreshAdmissionOutcomeV1::RetirementPending
+        }
+    })
+}
+
+/// Reserves one refresh attempt on the fence: both issuer-signed role
+/// commands under one context. A different attempt replaces a terminal one
+/// only together with its stale checkpoints.
+#[allow(clippy::too_many_arguments)]
+async fn reserve_refresh_attempt_v1<Store: TenantRootCreationStoreV1>(
+    store: &Store,
+    issuer_keys: &BTreeMap<String, [u8; 32]>,
+    loaded_active: ValidatedTenantRootRefreshActiveStateV1,
+    identity_digest: TenantRootIdentityDigestV1,
+    custody_lineage: TenantRootCustodyLineageId,
+    refresh_context_b64u: String,
+    deriver_a_refresh_command_b64u: String,
+    deriver_b_refresh_command_b64u: String,
+    manual_operation_id: Option<String>,
+    now_ms: u64,
+) -> RouterAbProtocolResult<CloudflareTenantRootCreationActiveStateReadResponseV1> {
+    if let Some(operation_id) = &manual_operation_id {
+        validate_refresh_operation_id_v1(operation_id)?;
+    }
+    let context_bytes = decode_canonical_base64url(
+        "tenant-root refresh reservation context",
+        &refresh_context_b64u,
+        8 * 1024,
+        base64url_len_for_bytes(8 * 1024),
+    )?;
+    let context = TenantRootCeremonyContextV1::decode_canonical_bytes(&context_bytes)
+        .map_err(candidate_derivation_error)?;
+    let expected_authority_id = store.authority_id();
+    let active = load_refresh_active_state_v1(
+        store,
+        issuer_keys,
+        "tenant-root refresh has no authoritative active public state",
+    )
+    .await?;
+    if active.identity_digest != loaded_active.identity_digest
+        || active.custody_lineage != loaded_active.custody_lineage
+        || active.identity_digest != identity_digest
+        || active.custody_lineage != custody_lineage
+    {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::ForbiddenLocalBinding,
+            "tenant-root refresh reservation identity changed",
+        ));
+    }
+    let command_a = validate_refresh_role_command(
+        &deriver_a_refresh_command_b64u,
+        &active,
+        &context,
+        TwoPartyDeriverRole::DeriverA,
+        expected_authority_id,
+        issuer_keys,
+    )?;
+    let command_b = validate_refresh_role_command(
+        &deriver_b_refresh_command_b64u,
+        &active,
+        &context,
+        TwoPartyDeriverRole::DeriverB,
+        expected_authority_id,
+        issuer_keys,
+    )?;
+    let mut attempt = refresh_attempt_from_commands(&context, &command_a, &command_b)?;
+    attempt.manual_operation_id = manual_operation_id.clone();
+    if let Some(operation_id) = &manual_operation_id {
+        match &active.record.manual_refresh_pending {
+            Some(pending)
+                if pending.operation_id == *operation_id
+                    && pending.lifecycle_revision == active.record.lifecycle_revision => {}
+            _ => {
+                return Err(RouterAbProtocolError::new(
+                    RouterAbProtocolErrorCode::ConflictingPair,
+                    "tenant-root manual refresh reservation is not admitted",
+                ));
+            }
+        }
+        if matches!(
+            &active.record.managed_restore_fence,
+            CloudflareTenantRootManagedRestoreFenceV1::Reserved { .. }
+        ) {
+            return Err(manual_refresh_in_progress_error());
+        }
+    } else if active.record.manual_refresh_pending.is_some() {
+        return Err(manual_refresh_in_progress_error());
+    }
+    require_fresh_refresh_command(&command_a, &context, now_ms)
+        .and_then(|_| require_fresh_refresh_command(&command_b, &context, now_ms))?;
+    let response_record = match &active.record.fence {
+        CloudflareTenantRootRefreshFenceV1::Open => {
+            let mut record = active.record.clone();
+            record.fence = CloudflareTenantRootRefreshFenceV1::Reserved { attempt };
+            // Never persist a state its next read would refuse.
+            validate_refresh_active_state_record(record.clone(), expected_authority_id, issuer_keys)?;
+            store
+                .put_json(TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1, &record)
+                .await?;
+            record
+        }
+        CloudflareTenantRootRefreshFenceV1::Reserved { attempt: stored }
+        | CloudflareTenantRootRefreshFenceV1::Executed { attempt: stored } => {
+            validate_refresh_attempt_packages(stored)?;
+            if stored.manual_operation_id != manual_operation_id {
+                return Err(manual_refresh_in_progress_error());
+            }
+            active.record.clone()
+        }
+        CloudflareTenantRootRefreshFenceV1::Abandoned {
+            attempt: stored, ..
+        } if stored == &attempt => {
+            return Err(refresh_attempt_abandoned_error());
+        }
+        CloudflareTenantRootRefreshFenceV1::Abandoned { .. } => {
+            let mut record = active.record.clone();
+            record.fence = CloudflareTenantRootRefreshFenceV1::Reserved { attempt };
+            // Never persist a state its next read would refuse.
+            validate_refresh_active_state_record(record.clone(), expected_authority_id, issuer_keys)?;
+            store
+                .put_json(TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1, &record)
+                .await?;
+            record
+        }
+        CloudflareTenantRootRefreshFenceV1::Terminal {
+            attempt: stored, ..
+        } => {
+            if stored == &attempt {
+                active.record.clone()
+            } else {
+                let mut record = active.record.clone();
+                record.fence = CloudflareTenantRootRefreshFenceV1::Reserved { attempt };
+                validate_refresh_active_state_record(
+                    record.clone(),
+                    expected_authority_id,
+                    issuer_keys,
+                )?;
+                store
+                    .delete(TENANT_ROOT_REFRESH_COMMITMENT_CHECKPOINT_STORAGE_KEY_V1)
+                    .await?;
+                store
+                    .delete(TENANT_ROOT_REFRESH_INSTALLATION_CHECKPOINT_STORAGE_KEY_V1)
+                    .await?;
+                store
+                    .delete(TENANT_ROOT_REFRESH_CONTRIBUTION_RENDEZVOUS_STORAGE_KEY_V1)
+                    .await?;
+                store
+                    .put_json(TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1, &record)
+                    .await?;
+                record
+            }
+        }
+    };
+    let CloudflareTenantRootRefreshActiveStateRecordV1 {
+        activation_receipt_b64u,
+        activation_receipt_digest_b64u,
+        identity_digest_b64u,
+        custody_lineage_b64u,
+        lifecycle_revision,
+        fence,
+        managed_restore_fence,
+        last_manual_refresh_completed_at_ms,
+        last_refresh_completed_at_ms,
+        delivery,
+        manual_refresh_pending,
+        ..
+    } = response_record;
+    Ok(CloudflareTenantRootCreationActiveStateReadResponseV1 {
+        last_manual_refresh_completed_at_ms,
+        last_refresh_completed_at_ms,
+        activation_receipt_b64u,
+        activation_receipt_digest_b64u,
+        identity_digest_b64u,
+        custody_lineage_b64u,
+        lifecycle_revision,
+        fence,
+        managed_restore_fence,
+        job: None,
+        refresh_admission: None,
+        refresh_pending: manual_refresh_pending,
+        managed_restore_completion: None,
+        delivery,
+    })
+}
+
+/// Makes an issuer-signed refresh-swap receipt the authoritative active
+/// state, once both roles' installations are checkpointed, and clears the
+/// attempt's checkpoints. An exact replay changes nothing.
+pub async fn tenant_root_refresh_persist_activation_v1<Store: TenantRootCreationStoreV1>(
+    store: &Store,
+    issuer_keys: &BTreeMap<String, [u8; 32]>,
+    role_keys: &TenantRootCreationRoleVerifyingKeysV1,
+    request: CloudflareTenantRootRefreshActivationRequestV1,
+    now_ms: u64,
+) -> RouterAbProtocolResult<CloudflareTenantRootRefreshActivationResponseV1> {
+    let activation_receipt = decode_and_verify_refresh_activation_receipt(
+        &request.activation_receipt_b64u,
+        issuer_keys,
+    )?;
+    let authority_id = store.authority_id();
+    store.require_scope(
+        activation_receipt.identity_digest(),
+        activation_receipt.custody_lineage(),
+    )?;
+    if activation_receipt.binding().authority_id() != authority_id {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::ForbiddenLocalBinding,
+            "tenant-root refresh activation receipt authority does not match its Durable Object",
+        ));
+    }
+    let receipt_digest = activation_receipt.digest();
+    let lifecycle_revision = activation_receipt.result_control_plane_revision();
+    if activation_receipt.transition() != TenantRootActivationReceiptTransitionV1::RefreshSwap {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::ForbiddenLocalBinding,
+            "tenant-root refresh active state requires a refresh-swap receipt",
+        ));
+    }
+    let candidate =
+        refresh_active_state_record_from_verified_receipt(activation_receipt, lifecycle_revision)?;
+    persist_refresh_active_state_v1(store, candidate, issuer_keys, role_keys, now_ms).await?;
+    Ok(CloudflareTenantRootRefreshActivationResponseV1 {
+        activation_receipt_digest_b64u: encode_base64url_bytes_v1(receipt_digest.as_bytes()),
+        lifecycle_revision,
+    })
+}
+
+async fn persist_refresh_active_state_v1<Store: TenantRootCreationStoreV1>(
+    store: &Store,
+    mut candidate: CloudflareTenantRootRefreshActiveStateRecordV1,
+    issuer_keys: &BTreeMap<String, [u8; 32]>,
+    role_keys: &TenantRootCreationRoleVerifyingKeysV1,
+    now_ms: u64,
+) -> RouterAbProtocolResult<()> {
+    let authority_id = store.authority_id();
+    let existing_record = store
+        .get_json::<CloudflareTenantRootRefreshActiveStateRecordV1>(
+            TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1,
+        )
+        .await?
+        .ok_or_else(|| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidLifecycleState,
+                "tenant-root refresh activation has no authoritative active public state",
+            )
+        })?;
+    let existing = validate_refresh_active_state_record(existing_record, authority_id, issuer_keys)
+        .map_err(stored_refresh_record_error)?;
+    if refresh_active_state_projection(&existing.record)
+        == refresh_active_state_projection(&candidate)
+    {
+        return Ok(());
+    }
+
+    let attempt = match &existing.record.fence {
+        CloudflareTenantRootRefreshFenceV1::Executed { attempt } => attempt.clone(),
+        CloudflareTenantRootRefreshFenceV1::Open
+        | CloudflareTenantRootRefreshFenceV1::Reserved { .. } => {
+            return Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::MissingPairPreparation,
+                "tenant-root refresh activation requires an executed refresh attempt",
+            ));
+        }
+        CloudflareTenantRootRefreshFenceV1::Terminal { .. } => {
+            return Err(refresh_replay_conflict(
+                "tenant-root refresh activation conflicts with the terminal refresh state",
+            ));
+        }
+        CloudflareTenantRootRefreshFenceV1::Abandoned { .. } => {
+            return Err(refresh_attempt_abandoned_error());
+        }
+    };
+    let manual_operation_id = attempt.manual_operation_id.clone();
+    // A managed restore is complete once its own forward refresh commits.
+    let completes_managed_restore = matches!(
+        &existing.record.managed_restore_fence,
+        CloudflareTenantRootManagedRestoreFenceV1::Terminal { challenge, .. }
+            if attempt.manual_operation_id.is_none()
+                && attempt.current_epoch == challenge.active_epoch
+                && attempt.expected_control_plane_revision == challenge.active_lifecycle_revision
+    );
+    apply_refresh_completion_transition_v1(
+        &existing.record,
+        &mut candidate,
+        manual_operation_id.as_deref(),
+        now_ms,
+    )?;
+    candidate.fence = CloudflareTenantRootRefreshFenceV1::Terminal {
+        attempt,
+        outcome: CloudflareTenantRootRefreshTerminalOutcomeV1::Completed,
+        response: refresh_terminal_response_from_record(&candidate),
+    };
+    // Its fence is retired then, so later refreshes and a later restore
+    // validate against the state they change; its outcome moves to a
+    // completion record, which an exact retry of the restore reads.
+    let mut managed_restore_completion = None;
+    candidate.managed_restore_fence = match &existing.record.managed_restore_fence {
+        CloudflareTenantRootManagedRestoreFenceV1::Open => {
+            CloudflareTenantRootManagedRestoreFenceV1::Open
+        }
+        CloudflareTenantRootManagedRestoreFenceV1::Terminal {
+            public_state_b64u,
+            capability_b64u,
+            ..
+        } if completes_managed_restore => {
+            managed_restore_completion = Some(CloudflareTenantRootManagedRestoreCompletionV1 {
+                public_state_b64u: public_state_b64u.clone(),
+                capability_b64u: capability_b64u.clone(),
+                response: refresh_terminal_response_from_record(&candidate),
+            });
+            CloudflareTenantRootManagedRestoreFenceV1::Open
+        }
+        // Another refresh completed before the authorized restore ran: that
+        // refresh needed both roles, and the restore's capability names the
+        // state it replaced. The restore is recorded as superseded.
+        CloudflareTenantRootManagedRestoreFenceV1::Terminal { challenge, attempt, .. } => {
+            CloudflareTenantRootManagedRestoreFenceV1::Superseded {
+                challenge: challenge.clone(),
+                attempt: attempt.clone(),
+                superseded_at_revision: candidate.lifecycle_revision,
+            }
+        }
+        // An expired or superseded restore stays on record until a new
+        // reservation replaces it.
+        CloudflareTenantRootManagedRestoreFenceV1::Expired { .. }
+        | CloudflareTenantRootManagedRestoreFenceV1::Superseded { .. } => {
+            existing.record.managed_restore_fence.clone()
+        }
+        CloudflareTenantRootManagedRestoreFenceV1::Reserved { .. } => {
+            return Err(managed_restore_conflict(
+                "tenant-root refresh activation conflicts with a reserved managed-restore authorization",
+            ));
+        }
+    };
+
+    let candidate_state =
+        validate_refresh_active_state_record(candidate.clone(), authority_id, issuer_keys)?;
+    validate_refresh_active_state_transition_v1(&existing, &candidate_state)?;
+
+    let expected_scope =
+        refresh_activation_checkpoint_scope_v1(&existing, &candidate_state.activation_receipt)?;
+    let commitment_encoded = store
+        .get_json::<String>(TENANT_ROOT_REFRESH_COMMITMENT_CHECKPOINT_STORAGE_KEY_V1)
+        .await?
+        .ok_or_else(|| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::MissingPairPreparation,
+                "tenant-root refresh activation has no commitment checkpoint",
+            )
+        })?;
+    let commitment_checkpoint = decode_refresh_commitment_checkpoint(&commitment_encoded)
+        .map_err(stored_refresh_record_error)?;
+    validate_refresh_commitment_checkpoint_scope(commitment_checkpoint.scope(), &expected_scope)
+        .map_err(stored_refresh_record_error)?;
+    let deriver_a_commitment = commitment_checkpoint
+        .state()
+        .deriver_a_signed_commitment()
+        .ok_or_else(|| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::MissingPairPreparation,
+                "tenant-root refresh activation requires both commitments",
+            )
+        })?;
+    let commitment = TenantRootSignedRefreshCommitmentV1::decode_canonical_bytes(deriver_a_commitment)
+        .map_err(candidate_derivation_error)?;
+    let context = commitment.transcript().context().clone();
+    let commitments =
+        require_complete_refresh_commitment_checkpoint(&commitment_checkpoint, &context, role_keys)
+            .map_err(stored_refresh_record_error)?;
+    let installation_record = store
+        .get_json::<CloudflareTenantRootRefreshInstallationCheckpointRecordV1>(
+            TENANT_ROOT_REFRESH_INSTALLATION_CHECKPOINT_STORAGE_KEY_V1,
+        )
+        .await?
+        .ok_or_else(|| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::MissingPairPreparation,
+                "tenant-root refresh activation has no installation checkpoint",
+            )
+        })?;
+    let installation = validate_refresh_installation_checkpoint(
+        installation_record,
+        &expected_scope,
+        &context,
+        role_keys,
+        &commitments,
+        &existing.commitments,
+    )
+    .map_err(stored_refresh_record_error)?;
+    let ValidatedTenantRootRefreshInstallationStateV1::BothRoles {
+        deriver_a,
+        deriver_b,
+        root_commitment,
+        ..
+    } = installation
+    else {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::MissingPairPreparation,
+            "tenant-root refresh activation requires both roles ready",
+        ));
+    };
+    let next_commitments = verify_tenant_root_refresh_installation_transition_v1(
+        &existing.commitments,
+        &commitments,
+        &deriver_a,
+        &deriver_b,
+    )
+    .map_err(candidate_derivation_error)
+    .map_err(stored_refresh_record_error)?;
+    let TenantRootActivationReceiptBindingV1::RefreshSwap(binding) =
+        candidate_state.activation_receipt.binding()
+    else {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::ForbiddenLocalBinding,
+            "tenant-root refresh activation requires a refresh-swap receipt",
+        ));
+    };
+    if &next_commitments != binding.next_commitments()
+        || root_commitment != *binding.next_commitments().root_commitment()
+        || deriver_a
+            .lifecycle_receipt_digest()
+            .map_err(candidate_derivation_error)?
+            != binding.installation_receipts().deriver_a()
+        || deriver_b
+            .lifecycle_receipt_digest()
+            .map_err(candidate_derivation_error)?
+            != binding.installation_receipts().deriver_b()
+    {
+        return Err(refresh_replay_conflict(
+            "tenant-root refresh activation receipt does not match the installation checkpoint",
+        ));
+    }
+    // Nothing is delivered yet: each Deriver's acknowledged activation marks
+    // its role delivered, with the revisions its retirement of the replaced
+    // epoch names.
+    candidate.delivery = Some(CloudflareTenantRootDeliveryV1::pending_swap(
+        candidate.activation_receipt_digest_b64u.clone(),
+        binding.current_epoch().get().get(),
+        existing.record.delivery.as_ref(),
+    ));
+    // A manual refresh's completion is validated before anything is written.
+    let completion = match manual_operation_id {
+        Some(operation_id) => {
+            let completion = CloudflareTenantRootRefreshCompletionV1 {
+                operation_id,
+                completed_at_ms: now_ms,
+                response: refresh_terminal_response_from_record(&candidate),
+            };
+            validate_refresh_completion_v1(&completion)?;
+            Some(completion)
+        }
+        None => None,
+    };
+
+    store
+        .put_json(TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1, &candidate)
+        .await?;
+    if let Some(completion) = completion {
+        store
+            .put_json(
+                &manual_refresh_completion_storage_key_v1(&completion.operation_id),
+                &completion,
+            )
+            .await?;
+    }
+    if let Some(completion) = managed_restore_completion {
+        store
+            .put_json(
+                &managed_restore_completion_storage_key_v1(&completion.capability_b64u),
+                &completion,
+            )
+            .await?;
+    }
+    store
+        .delete(TENANT_ROOT_REFRESH_COMMITMENT_CHECKPOINT_STORAGE_KEY_V1)
+        .await?;
+    store
+        .delete(TENANT_ROOT_REFRESH_INSTALLATION_CHECKPOINT_STORAGE_KEY_V1)
+        .await?;
+    store
+        .delete(TENANT_ROOT_REFRESH_CONTRIBUTION_RENDEZVOUS_STORAGE_KEY_V1)
+        .await?;
+    Ok(())
+}
+
+/// Checkpoints one role's refresh commitment. The first commitment reserves
+/// the fence for its attempt; an exact replay returns the recorded outcome.
+pub async fn tenant_root_refresh_persist_commitment_v1<Store: TenantRootCreationStoreV1>(
+    store: &Store,
+    issuer_keys: &BTreeMap<String, [u8; 32]>,
+    role_keys: &TenantRootCreationRoleVerifyingKeysV1,
+    request: CloudflareTenantRootRefreshCommitmentRequestV1,
+    now_ms: u64,
+) -> RouterAbProtocolResult<CloudflareTenantRootRefreshCommitmentResponseV1> {
+    let expected_authority_id = store.authority_id();
+    let loaded = {
+        let active = load_refresh_active_state_v1(
+            store,
+            issuer_keys,
+            "tenant-root refresh has no authoritative active public state",
+        )
+        .await?;
+        let candidate_bytes = decode_canonical_base64url(
+            "tenant-root signed refresh commitment",
+            &request.signed_commitment_b64u,
+            TENANT_ROOT_REFRESH_COMMITMENT_MAX_BYTES_V1,
+            TENANT_ROOT_REFRESH_COMMITMENT_MAX_BASE64URL_BYTES_V1,
+        )?;
+        let signed = TenantRootSignedRefreshCommitmentV1::decode_canonical_bytes(&candidate_bytes)
+            .map_err(candidate_derivation_error)?;
+        let context = signed.transcript().context().clone();
+        let candidate = verify_refresh_commitment_wire(&candidate_bytes, &context, role_keys)?;
+        let command = validate_refresh_role_command(
+            &request.role_refresh_command_b64u,
+            &active,
+            &context,
+            candidate.role(),
+            expected_authority_id,
+            issuer_keys,
+        )?;
+        if command.role() != candidate.role() {
+            return Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::ForbiddenLocalBinding,
+                "tenant-root refresh commitment role does not match its command",
+            ));
+        }
+        LoadedTenantRootRefreshRequestV1 {
+            active,
+            context,
+            command,
+            candidate_bytes,
+        }
+    };
+    let response_scope = refresh_response_scope(&loaded.command, &loaded.active, &loaded.context)?;
+    let command_bytes = loaded.command.canonical_bytes().to_vec();
+    let candidate_bytes = loaded.candidate_bytes;
+    let context = loaded.context;
+
+    let active = load_refresh_active_state_v1(
+        store,
+        issuer_keys,
+        "tenant-root refresh has no authoritative active public state",
+    )
+    .await?;
+    let command = decode_and_verify_refresh_role_command(
+        &command_bytes,
+        &active,
+        &context,
+        issuer_keys,
+        expected_authority_id,
+    )?;
+    let existing = match store
+        .get_json::<String>(TENANT_ROOT_REFRESH_COMMITMENT_CHECKPOINT_STORAGE_KEY_V1)
+        .await?
+    {
+        Some(encoded) => Some(
+            decode_refresh_commitment_checkpoint(&encoded).map_err(stored_refresh_record_error)?,
+        ),
+        None => None,
+    };
+    let candidate = verify_refresh_commitment_wire(&candidate_bytes, &context, role_keys)?;
+    let candidate_role = candidate.role();
+    require_refresh_fence_matches_command(&active.record.fence, &command)?;
+    require_fresh_refresh_commitment_command(
+        existing.as_ref(),
+        candidate_role,
+        &command,
+        &context,
+        now_ms,
+    )?;
+    let active_binding =
+        TenantRootRefreshCommitmentCheckpointActiveBindingV1::from_verified_activation_receipt(
+            active.activation_receipt,
+            &active.active_pair,
+            active.record.lifecycle_revision,
+        )
+        .map_err(|error| stored_refresh_record_error(candidate_derivation_error(error)))?;
+    let deriver_a_verifying_key = role_keys.for_role_and_key_id(
+        TwoPartyDeriverRole::DeriverA,
+        context.signing_key_id(TwoPartyDeriverRole::DeriverA),
+    )?;
+    let deriver_b_verifying_key = role_keys.for_role_and_key_id(
+        TwoPartyDeriverRole::DeriverB,
+        context.signing_key_id(TwoPartyDeriverRole::DeriverB),
+    )?;
+    let has_existing_checkpoint = existing.is_some();
+    let evaluation = evaluate_tenant_root_refresh_commitment_checkpoint_v1(
+        existing,
+        candidate,
+        &command,
+        &active_binding,
+        &context,
+        expected_authority_id,
+        deriver_a_verifying_key,
+        deriver_b_verifying_key,
+        now_ms,
+    )
+    .map_err(|error| refresh_commitment_evaluation_error(error, has_existing_checkpoint))?;
+    let response_outcome = match evaluation {
+        TenantRootRefreshCommitmentCheckpointEvaluationV1::Commit {
+            checkpoint,
+            outcome,
+        } => {
+            let checkpoint_b64u = encode_refresh_commitment_checkpoint(&checkpoint)?;
+            let response_outcome = refresh_commitment_response_outcome(outcome, &candidate_bytes)?;
+            let fence = refresh_reserved_fence(&active.record.fence, &command)?;
+            let mut active_record = active.record.clone();
+            active_record.fence = fence;
+            store
+                .put_json(
+                    TENANT_ROOT_REFRESH_COMMITMENT_CHECKPOINT_STORAGE_KEY_V1,
+                    &checkpoint_b64u,
+                )
+                .await?;
+            store
+                .put_json(TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1, &active_record)
+                .await?;
+            response_outcome
+        }
+        TenantRootRefreshCommitmentCheckpointEvaluationV1::Replay(outcome) => {
+            refresh_commitment_response_outcome(outcome, &candidate_bytes)?
+        }
+    };
+    refresh_commitment_response(response_scope, response_outcome)
+}
+
+/// Checkpoints one role's refresh installation with its successful terminal
+/// receipt. Both roles' installations mark the attempt executed.
+pub async fn tenant_root_refresh_persist_installation_v1<Store: TenantRootCreationStoreV1>(
+    store: &Store,
+    issuer_keys: &BTreeMap<String, [u8; 32]>,
+    role_keys: &TenantRootCreationRoleVerifyingKeysV1,
+    request: CloudflareTenantRootRefreshInstallationRequestV1,
+    now_ms: u64,
+) -> RouterAbProtocolResult<CloudflareTenantRootRefreshInstallationResponseV1> {
+    let expected_authority_id = store.authority_id();
+    let loaded = {
+        let active = load_refresh_active_state_v1(
+            store,
+            issuer_keys,
+            "tenant-root refresh has no authoritative active public state",
+        )
+        .await?;
+        let candidate_bytes = decode_canonical_base64url(
+            "tenant-root signed refresh installation evidence",
+            &request.signed_evidence_b64u,
+            TENANT_ROOT_SIGNED_SHARE_INSTALLATION_EVIDENCE_MAX_BYTES_V1,
+            TENANT_ROOT_CREATION_INSTALLATION_EVIDENCE_MAX_BASE64URL_BYTES_V1,
+        )?;
+        let candidate = decode_and_verify_refresh_installation_evidence(&candidate_bytes, role_keys)?;
+        let context = candidate.evidence().transcript().context().clone();
+        let command = validate_refresh_role_command(
+            &request.role_refresh_command_b64u,
+            &active,
+            &context,
+            candidate.evidence().transcript().role(),
+            expected_authority_id,
+            issuer_keys,
+        )?;
+        if command.role() != candidate.evidence().transcript().role() {
+            return Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::ForbiddenLocalBinding,
+                "tenant-root refresh installation role does not match its command",
+            ));
+        }
+        let terminal_receipt_bytes = decode_canonical_base64url(
+            "tenant-root refresh terminal receipt",
+            &request.terminal_receipt_b64u,
+            TENANT_ROOT_COMMAND_TERMINAL_RECEIPT_MAX_BYTES_V1,
+            TENANT_ROOT_COMMAND_TERMINAL_RECEIPT_MAX_BASE64URL_BYTES_V1,
+        )?;
+        let terminal_receipt =
+            TenantRootCommandTerminalReceiptV1::decode_canonical_bytes(&terminal_receipt_bytes)
+                .map_err(candidate_derivation_error)?;
+        if terminal_receipt
+            .canonical_bytes()
+            .map_err(candidate_derivation_error)?
+            != terminal_receipt_bytes
+        {
+            return Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::ForbiddenLocalBinding,
+                "tenant-root refresh terminal receipt is not canonical",
+            ));
+        }
+        let success = match terminal_receipt {
+            TenantRootCommandTerminalReceiptV1::Success(receipt) => receipt,
+            TenantRootCommandTerminalReceiptV1::Failure(_) => {
+                return Err(RouterAbProtocolError::new(
+                    RouterAbProtocolErrorCode::ReplayedLocalRequest,
+                    "tenant-root refresh installation requires a successful terminal receipt",
+                ));
+            }
+        };
+        let terminal_receipt = VerifiedTenantRootRefreshInstallationReceiptV1::new(
+            success,
+            &candidate_bytes,
+            &command,
+            &context,
+            role_keys,
+        )?;
+        LoadedTenantRootRefreshInstallationRequestV1 {
+            active,
+            context,
+            command,
+            candidate_bytes,
+            terminal_receipt,
+        }
+    };
+    let response_scope = refresh_response_scope(&loaded.command, &loaded.active, &loaded.context)?;
+    let command_bytes = loaded.command.canonical_bytes().to_vec();
+    let candidate_bytes = loaded.candidate_bytes;
+    let context = loaded.context;
+    let terminal_receipt = loaded.terminal_receipt;
+
+    let active = load_refresh_active_state_v1(
+        store,
+        issuer_keys,
+        "tenant-root refresh has no authoritative active public state",
+    )
+    .await?;
+    let command = decode_and_verify_refresh_role_command(
+        &command_bytes,
+        &active,
+        &context,
+        issuer_keys,
+        expected_authority_id,
+    )?;
+    let commitment_record = store
+        .get_json::<String>(TENANT_ROOT_REFRESH_COMMITMENT_CHECKPOINT_STORAGE_KEY_V1)
+        .await?;
+    let scope = refresh_checkpoint_scope(&command, &active, &context, expected_authority_id)?;
+    let commitment_state = match commitment_record {
+        Some(encoded) => {
+            let checkpoint =
+                decode_refresh_commitment_checkpoint(&encoded).map_err(stored_refresh_record_error)?;
+            validate_refresh_commitment_checkpoint_scope(checkpoint.scope(), &scope)
+                .map_err(stored_refresh_record_error)?;
+            require_complete_refresh_commitment_checkpoint(&checkpoint, &context, role_keys)
+                .map_err(stored_refresh_record_error)?
+        }
+        None => {
+            return Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::MissingPairPreparation,
+                "tenant-root refresh installation has no commitment checkpoint",
+            ));
+        }
+    };
+    let existing = store
+        .get_json::<CloudflareTenantRootRefreshInstallationCheckpointRecordV1>(
+            TENANT_ROOT_REFRESH_INSTALLATION_CHECKPOINT_STORAGE_KEY_V1,
+        )
+        .await?;
+    let outcome = match evaluate_refresh_installation_checkpoint(
+        existing,
+        &candidate_bytes,
+        &command,
+        &active,
+        &context,
+        role_keys,
+        &commitment_state,
+        expected_authority_id,
+        &terminal_receipt,
+        now_ms,
+    )? {
+        TenantRootRefreshInstallationCheckpointEvaluationV1::Commit {
+            checkpoint,
+            fence,
+            outcome,
+        } => {
+            let mut active_record = active.record.clone();
+            active_record.fence = fence;
+            store
+                .put_json(
+                    TENANT_ROOT_REFRESH_INSTALLATION_CHECKPOINT_STORAGE_KEY_V1,
+                    &checkpoint,
+                )
+                .await?;
+            store
+                .put_json(TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1, &active_record)
+                .await?;
+            outcome
+        }
+        TenantRootRefreshInstallationCheckpointEvaluationV1::Replay(outcome) => outcome,
+    };
+    refresh_installation_response(response_scope, outcome)
+}
+
+/// Checkpoints one role's refresh contribution against the complete
+/// commitment pair.
+pub async fn tenant_root_refresh_persist_contribution_v1<Store: TenantRootCreationStoreV1>(
+    store: &Store,
+    issuer_keys: &BTreeMap<String, [u8; 32]>,
+    role_keys: &TenantRootCreationRoleVerifyingKeysV1,
+    request: CloudflareTenantRootRefreshContributionRequestV1,
+    now_ms: u64,
+) -> RouterAbProtocolResult<CloudflareTenantRootRefreshContributionResponseV1> {
+    let expected_authority_id = store.authority_id();
+    let loaded = {
+        let active = load_refresh_active_state_v1(
+            store,
+            issuer_keys,
+            "tenant-root refresh has no authoritative active public state",
+        )
+        .await?;
+        let candidate_bytes = decode_canonical_base64url(
+            "tenant-root signed refresh contribution",
+            &request.signed_contribution_b64u,
+            TENANT_ROOT_REFRESH_CONTRIBUTION_MAX_BYTES_V1,
+            TENANT_ROOT_REFRESH_CONTRIBUTION_MAX_BASE64URL_BYTES_V1,
+        )?;
+        let signed =
+            TenantRootSignedRefreshContributionV1::decode_canonical_bytes(&candidate_bytes)
+                .map_err(candidate_derivation_error)?;
+        let candidate_role = signed.envelope().source();
+        let checkpoint_encoded = store
+            .get_json::<String>(TENANT_ROOT_REFRESH_COMMITMENT_CHECKPOINT_STORAGE_KEY_V1)
+            .await?
+            .ok_or_else(|| {
+                RouterAbProtocolError::new(
+                    RouterAbProtocolErrorCode::MissingPairPreparation,
+                    "tenant-root refresh contribution has no commitment checkpoint",
+                )
+            })?;
+        let checkpoint = decode_refresh_commitment_checkpoint(&checkpoint_encoded)
+            .map_err(stored_refresh_record_error)?;
+        let commitment_bytes = checkpoint
+            .state()
+            .deriver_a_signed_commitment()
+            .ok_or_else(|| {
+                RouterAbProtocolError::new(
+                    RouterAbProtocolErrorCode::MissingPairPreparation,
+                    "tenant-root refresh contribution requires both commitments",
+                )
+            })?;
+        let commitment =
+            TenantRootSignedRefreshCommitmentV1::decode_canonical_bytes(commitment_bytes)
+                .map_err(candidate_derivation_error)?;
+        let context = commitment.transcript().context().clone();
+        let commitments =
+            require_complete_refresh_commitment_checkpoint(&checkpoint, &context, role_keys)
+                .map_err(stored_refresh_record_error)?;
+        let command = validate_refresh_role_command(
+            &request.role_refresh_command_b64u,
+            &active,
+            &context,
+            candidate_role,
+            expected_authority_id,
+            issuer_keys,
+        )?;
+        let expected_scope =
+            refresh_checkpoint_scope(&command, &active, &context, expected_authority_id)?;
+        validate_refresh_commitment_checkpoint_scope(checkpoint.scope(), &expected_scope)
+            .map_err(stored_refresh_record_error)?;
+        verify_refresh_contribution_wire(&candidate_bytes, &context, &commitments, role_keys)?;
+        LoadedTenantRootRefreshRequestV1 {
+            active,
+            context,
+            command,
+            candidate_bytes,
+        }
+    };
+    let response_scope = refresh_response_scope(&loaded.command, &loaded.active, &loaded.context)?;
+    let command_bytes = loaded.command.canonical_bytes().to_vec();
+    let candidate_bytes = loaded.candidate_bytes;
+    let context = loaded.context;
+
+    let active = load_refresh_active_state_v1(
+        store,
+        issuer_keys,
+        "tenant-root refresh has no authoritative active public state",
+    )
+    .await?;
+    let command = decode_and_verify_refresh_role_command(
+        &command_bytes,
+        &active,
+        &context,
+        issuer_keys,
+        expected_authority_id,
+    )?;
+    let checkpoint_encoded = store
+        .get_json::<String>(TENANT_ROOT_REFRESH_COMMITMENT_CHECKPOINT_STORAGE_KEY_V1)
+        .await?
+        .ok_or_else(|| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::MissingPairPreparation,
+                "tenant-root refresh contribution has no commitment checkpoint",
+            )
+        })?;
+    let checkpoint = decode_refresh_commitment_checkpoint(&checkpoint_encoded)
+        .map_err(stored_refresh_record_error)?;
+    let scope = refresh_checkpoint_scope(&command, &active, &context, expected_authority_id)?;
+    validate_refresh_commitment_checkpoint_scope(checkpoint.scope(), &scope)
+        .map_err(stored_refresh_record_error)?;
+    let commitments = require_complete_refresh_commitment_checkpoint(&checkpoint, &context, role_keys)
+        .map_err(stored_refresh_record_error)?;
+    let candidate =
+        verify_refresh_contribution_wire(&candidate_bytes, &context, &commitments, role_keys)?;
+    let existing = store
+        .get_json::<CloudflareTenantRootRefreshContributionRendezvousRecordV1>(
+            TENANT_ROOT_REFRESH_CONTRIBUTION_RENDEZVOUS_STORAGE_KEY_V1,
+        )
+        .await?;
+    let outcome = match evaluate_refresh_contribution_rendezvous(
+        existing,
+        candidate,
+        &command,
+        &active,
+        &context,
+        &commitments,
+        role_keys,
+        expected_authority_id,
+        now_ms,
+    )? {
+        TenantRootRefreshContributionRendezvousEvaluationV1::Commit { record, outcome } => {
+            store
+                .put_json(TENANT_ROOT_REFRESH_CONTRIBUTION_RENDEZVOUS_STORAGE_KEY_V1, &record)
+                .await?;
+            outcome
+        }
+        TenantRootRefreshContributionRendezvousEvaluationV1::Replay(outcome) => outcome,
+    };
+    refresh_contribution_response(response_scope, outcome)
+}
+
+/// Checkpoints one role's cleanup of an abandoned creation: an issuer-signed
+/// cleanup command and that role's successful terminal receipt. A role the
+/// abandonment recorded as installed is cleaned by its installation evidence;
+/// any other role by the abandoned ceremony. An exact replay returns the
+/// recorded response.
+pub async fn tenant_root_creation_persist_cleanup_v1<Store: TenantRootCreationStoreV1>(
+    store: &Store,
+    issuer_keys: &BTreeMap<String, [u8; 32]>,
+    role_keys: &TenantRootCreationRoleVerifyingKeysV1,
+    request: CloudflareTenantRootCreationCleanupRequestV1,
+) -> RouterAbProtocolResult<CloudflareTenantRootCreationCleanupResponseV1> {
+    let authority_id = store.authority_id();
+    let journal_record = store
+        .get_json::<CloudflareTenantRootCreationJournalRecordV1>(
+            TENANT_ROOT_CREATION_JOURNAL_STORAGE_KEY_V1,
+        )
+        .await?
+        .ok_or_else(|| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+                "tenant-root creation cleanup has no Started journal",
+            )
+        })?;
+    let journal = validate_creation_record(journal_record, authority_id, issuer_keys)
+        .map_err(stored_record_error)?;
+    store.require_scope(journal.identity_digest, journal.custody_lineage)?;
+    let installation = match store
+        .get_json::<CloudflareTenantRootCreationInstallationCheckpointV1>(
+            TENANT_ROOT_CREATION_INSTALLATION_CHECKPOINT_STORAGE_KEY_V1,
+        )
+        .await?
+    {
+        None => None,
+        Some(installation_record) => {
+            let commitment_record = store
+                .get_json::<CloudflareTenantRootCreationCommitmentRendezvousRecordV1>(
+                    TENANT_ROOT_CREATION_COMMITMENT_RENDEZVOUS_STORAGE_KEY_V1,
+                )
+                .await?;
+            let commitments = require_complete_creation_commitment_rendezvous(
+                commitment_record,
+                &journal,
+                role_keys,
+            )?;
+            Some(
+                validate_installation_checkpoint(
+                    installation_record,
+                    &journal,
+                    role_keys,
+                    &commitments,
+                )
+                .map_err(stored_record_error)?,
+            )
+        }
+    };
+    // Cleanup only executes an abandonment: the fence must already exist, and
+    // it decides which material each role's cleanup targets.
+    let abandonment = store
+        .get_json::<CloudflareTenantRootCreationAbandonmentV1>(
+            TENANT_ROOT_CREATION_ABANDONMENT_STORAGE_KEY_V1,
+        )
+        .await?
+        .ok_or_else(|| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidLifecycleState,
+                "tenant-root creation cleanup requires the creation to be abandoned first",
+            )
+        })?;
+    validate_creation_abandonment_scope_v1(&abandonment, &journal)?;
+    let command_bytes = decode_canonical_base64url(
+        "tenant-root creation cleanup command",
+        &request.cleanup_command_b64u,
+        TENANT_ROOT_ROLE_CLEANUP_COMMAND_MAX_BYTES_V1,
+        TENANT_ROOT_ROLE_CLEANUP_COMMAND_MAX_BASE64URL_BYTES_V1,
+    )?;
+    let role = CloudflareTenantRootCreationInstallationRoleV1::from_protocol(
+        TenantRootRoleCleanupCommandV1::decode_canonical_bytes(&command_bytes)
+            .map_err(candidate_derivation_error)?
+            .claimed_target()
+            .role(),
+    );
+    let candidate_record = creation_cleanup_checkpoint_record(request, &journal, role)?;
+    let candidate = validate_creation_cleanup_checkpoint(
+        candidate_record,
+        &journal,
+        &abandonment,
+        installation.as_ref(),
+        authority_id,
+        issuer_keys,
+        role_keys,
+    )?;
+    // The command executes this fence: it must have been issued at it, and its
+    // freshness is judged there, so a cleanup interrupted by an outage can
+    // still be checkpointed when it finishes.
+    if candidate.authorization.issued_at_ms() != abandonment.abandoned_at_ms {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::ForbiddenLocalBinding,
+            "tenant-root creation cleanup command was not issued for this abandonment",
+        ));
+    }
+    let checkpoint_key = tenant_root_creation_cleanup_checkpoint_storage_key_v1(role);
+    let existing = store
+        .get_json::<CloudflareTenantRootCreationCleanupCheckpointV1>(checkpoint_key)
+        .await?;
+    match evaluate_creation_cleanup_checkpoint(
+        existing,
+        candidate,
+        &journal,
+        &abandonment,
+        installation.as_ref(),
+        authority_id,
+        issuer_keys,
+        role_keys,
+        tenant_root_abandonment_decided_at_ms_v1(abandonment.abandoned_at_ms),
+    )? {
+        TenantRootCreationCleanupEvaluationV1::Commit {
+            checkpoint,
+            response,
+        } => {
+            store.put_json(checkpoint_key, &checkpoint).await?;
+            Ok(response)
+        }
+        TenantRootCreationCleanupEvaluationV1::Replay(response) => Ok(response),
+    }
+}
+
+/// Persists the started journal and its creation capability once.
+pub async fn tenant_root_creation_persist_journal_v1<Store: TenantRootCreationStoreV1>(
+    store: &Store,
+    issuer_keys: &BTreeMap<String, [u8; 32]>,
+    request: CloudflareTenantRootCreationJournalRequestV1,
+    now_ms: u64,
+) -> RouterAbProtocolResult<CloudflareTenantRootCreationJournalResponseV1> {
+    let authority_id = store.authority_id();
+    let candidate = validate_creation_record(request.into_record(), authority_id, issuer_keys)?;
+    store.require_scope(candidate.identity_digest, candidate.custody_lineage)?;
+    let existing = store
+        .get_json::<CloudflareTenantRootCreationJournalRecordV1>(
+            TENANT_ROOT_CREATION_JOURNAL_STORAGE_KEY_V1,
+        )
+        .await?;
+    match evaluate_creation_record(existing, candidate, authority_id, issuer_keys, now_ms)? {
+        TenantRootCreationJournalEvaluationV1::Commit { record, response } => {
+            store
+                .put_json(TENANT_ROOT_CREATION_JOURNAL_STORAGE_KEY_V1, &record)
+                .await?;
+            Ok(response)
+        }
+        TenantRootCreationJournalEvaluationV1::Replay(response) => Ok(response),
+    }
+}
+
+/// Reads the validated creation progress. Every stored record is re-validated
+/// against the started journal; a corrupt record fails the read.
+pub async fn tenant_root_creation_read_journal_v1<Store: TenantRootCreationStoreV1>(
+    store: &Store,
+    issuer_keys: &BTreeMap<String, [u8; 32]>,
+    role_keys: impl FnOnce() -> RouterAbProtocolResult<TenantRootCreationRoleVerifyingKeysV1>,
+    request: CloudflareTenantRootCreationJournalReadRequestV1,
+) -> RouterAbProtocolResult<CloudflareTenantRootCreationJournalReadResponseV1> {
+    Ok(read_creation_journal_state_v1(store, issuer_keys, role_keys, request)
+        .await?
+        .0)
+}
+
+/// Reads and validates the persisted creation state, returning its public
+/// projection and the validated installation checkpoint behind it.
+async fn read_creation_journal_state_v1<Store: TenantRootCreationStoreV1>(
+    store: &Store,
+    issuer_keys: &BTreeMap<String, [u8; 32]>,
+    role_keys: impl FnOnce() -> RouterAbProtocolResult<TenantRootCreationRoleVerifyingKeysV1>,
+    request: CloudflareTenantRootCreationJournalReadRequestV1,
+) -> RouterAbProtocolResult<(
+    CloudflareTenantRootCreationJournalReadResponseV1,
+    Option<ValidatedTenantRootCreationInstallationCheckpointV1>,
+)> {
+    let journal_record = store
+        .get_json::<CloudflareTenantRootCreationJournalRecordV1>(
+            TENANT_ROOT_CREATION_JOURNAL_STORAGE_KEY_V1,
+        )
+        .await?
+        .ok_or_else(|| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+                "tenant-root creation read has no Started journal",
+            )
+        })?;
+    let journal = validate_creation_record(journal_record, store.authority_id(), issuer_keys)
+        .map_err(stored_record_error)?;
+    store.require_scope(journal.identity_digest, journal.custody_lineage)?;
+    let rendezvous = store
+        .get_json::<CloudflareTenantRootCreationCommitmentRendezvousRecordV1>(
+            TENANT_ROOT_CREATION_COMMITMENT_RENDEZVOUS_STORAGE_KEY_V1,
+        )
+        .await?;
+    let installation_record = store
+        .get_json::<CloudflareTenantRootCreationInstallationCheckpointV1>(
+            TENANT_ROOT_CREATION_INSTALLATION_CHECKPOINT_STORAGE_KEY_V1,
+        )
+        .await?;
+    let abandonment_record = store
+        .get_json::<CloudflareTenantRootCreationAbandonmentV1>(
+            TENANT_ROOT_CREATION_ABANDONMENT_STORAGE_KEY_V1,
+        )
+        .await?;
+    let mut cleanup_checkpoints = Vec::new();
+    if abandonment_record.is_some() {
+        for role in [
+            CloudflareTenantRootCreationInstallationRoleV1::DeriverA,
+            CloudflareTenantRootCreationInstallationRoleV1::DeriverB,
+        ] {
+            if let Some(checkpoint) = store
+                .get_json::<CloudflareTenantRootCreationCleanupCheckpointV1>(
+                    tenant_root_creation_cleanup_checkpoint_storage_key_v1(role),
+                )
+                .await?
+            {
+                cleanup_checkpoints.push((role, checkpoint));
+            }
+        }
+    }
+    // Role keys are needed only to validate progress records.
+    let role_keys = if rendezvous.is_some()
+        || installation_record.is_some()
+        || !cleanup_checkpoints.is_empty()
+    {
+        Some(role_keys()?)
+    } else {
+        None
+    };
+    // Progress is only reported from records that validate against the
+    // Started journal and retained role keys. A corrupt record fails the
+    // read rather than producing a misleading lifecycle projection.
+    if let (Some(record), Some(role_keys)) = (&rendezvous, role_keys.as_ref()) {
+        validate_creation_commitment_rendezvous(record.clone(), &journal, role_keys)
+            .map_err(stored_record_error)?;
+    }
+    let installation_checkpoint = match installation_record {
+        None => None,
+        Some(record) => {
+            let role_keys = role_keys.as_ref().ok_or_else(|| {
+                RouterAbProtocolError::new(
+                    RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+                    "tenant-root installation checkpoint has no role-key set",
+                )
+            })?;
+            let commitments =
+                require_complete_creation_commitment_rendezvous(rendezvous.clone(), &journal, role_keys)?;
+            Some(
+                validate_installation_checkpoint(record, &journal, role_keys, &commitments)
+                    .map_err(stored_record_error)?,
+            )
+        }
+    };
+    let abandonment = read_creation_abandonment_v1(
+        store.authority_id(),
+        abandonment_record,
+        cleanup_checkpoints,
+        &journal,
+        installation_checkpoint.as_ref(),
+        issuer_keys,
+        role_keys.as_ref(),
+    )?;
+    let response = build_creation_journal_read_response(
+        &request,
+        &journal,
+        rendezvous.as_ref(),
+        installation_checkpoint.as_ref(),
+        abandonment,
+    )?;
+    Ok((response, installation_checkpoint))
+}
+
+struct LoadedTenantRootRoleCreationCommandV1 {
+    journal: ValidatedTenantRootCreationJournalV1,
+    command: VerifiedTenantRootRoleCreationCommandV1,
+}
+
+async fn load_tenant_root_role_creation_command_v1<Store: TenantRootCreationStoreV1>(
+    store: &Store,
+    issuer_keys: &BTreeMap<String, [u8; 32]>,
+    command_b64u: &str,
+) -> RouterAbProtocolResult<LoadedTenantRootRoleCreationCommandV1> {
+    let authority_id = store.authority_id();
+    let journal_record = store
+        .get_json::<CloudflareTenantRootCreationJournalRecordV1>(
+            TENANT_ROOT_CREATION_JOURNAL_STORAGE_KEY_V1,
+        )
+        .await?
+        .ok_or_else(|| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+                "tenant-root role creation request has no Started journal",
+            )
+        })?;
+    let journal = validate_creation_record(journal_record, authority_id, issuer_keys)
+        .map_err(stored_record_error)?;
+    store.require_scope(journal.identity_digest, journal.custody_lineage)?;
+    let command = validate_role_creation_command(command_b64u, &journal, authority_id, issuer_keys)?;
+    Ok(LoadedTenantRootRoleCreationCommandV1 { journal, command })
+}
+
+/// Records one role's signed creation commitment in the rendezvous once.
+pub async fn tenant_root_creation_persist_commitment_v1<Store: TenantRootCreationStoreV1>(
+    store: &Store,
+    issuer_keys: &BTreeMap<String, [u8; 32]>,
+    role_keys: &TenantRootCreationRoleVerifyingKeysV1,
+    request: CloudflareTenantRootCreationCommitmentRequestV1,
+    now_ms: u64,
+) -> RouterAbProtocolResult<CloudflareTenantRootCreationCommitmentResponseV1> {
+    let loaded =
+        load_tenant_root_role_creation_command_v1(store, issuer_keys, &request.role_creation_command_b64u)
+            .await?;
+    let commitment_bytes = decode_canonical_base64url(
+        "tenant-root signed creation commitment",
+        &request.signed_commitment_b64u,
+        TENANT_ROOT_SIGNED_CREATION_COMMITMENT_MAX_BYTES_V1,
+        TENANT_ROOT_CREATION_COMMITMENT_MAX_BASE64URL_BYTES_V1,
+    )?;
+    let response_scope = creation_response_scope(&loaded.command, &loaded.journal)?;
+    require_creation_not_abandoned_v1(store, "tenant-root creation commitment").await?;
+    let existing = store
+        .get_json::<CloudflareTenantRootCreationCommitmentRendezvousRecordV1>(
+            TENANT_ROOT_CREATION_COMMITMENT_RENDEZVOUS_STORAGE_KEY_V1,
+        )
+        .await?;
+    let outcome = match evaluate_creation_commitment_rendezvous(
+        existing,
+        &commitment_bytes,
+        &loaded.command,
+        &loaded.journal,
+        role_keys,
+        now_ms,
+    )? {
+        TenantRootCreationCommitmentRendezvousEvaluationV1::Commit { rendezvous, outcome } => {
+            store
+                .put_json(TENANT_ROOT_CREATION_COMMITMENT_RENDEZVOUS_STORAGE_KEY_V1, &rendezvous)
+                .await?;
+            outcome
+        }
+        TenantRootCreationCommitmentRendezvousEvaluationV1::Replay(outcome) => outcome,
+    };
+    commitment_response(response_scope, &commitment_bytes, outcome)
+}
+
+/// Checkpoints one role's verified installation evidence once.
+pub async fn tenant_root_creation_persist_installation_v1<Store: TenantRootCreationStoreV1>(
+    store: &Store,
+    issuer_keys: &BTreeMap<String, [u8; 32]>,
+    role_keys: &TenantRootCreationRoleVerifyingKeysV1,
+    request: CloudflareTenantRootCreationInstallationRequestV1,
+    now_ms: u64,
+) -> RouterAbProtocolResult<CloudflareTenantRootCreationInstallationResponseV1> {
+    let loaded =
+        load_tenant_root_role_creation_command_v1(store, issuer_keys, &request.role_creation_command_b64u)
+            .await?;
+    let evidence = validate_installation_evidence_wire(
+        &request.signed_evidence_b64u,
+        &loaded.journal.ceremony_context,
+        role_keys,
+    )?;
+    let response_scope = creation_response_scope(&loaded.command, &loaded.journal)?;
+    let commitment_record = store
+        .get_json::<CloudflareTenantRootCreationCommitmentRendezvousRecordV1>(
+            TENANT_ROOT_CREATION_COMMITMENT_RENDEZVOUS_STORAGE_KEY_V1,
+        )
+        .await?;
+    let commitments = require_complete_creation_commitment_rendezvous(
+        commitment_record,
+        &loaded.journal,
+        role_keys,
+    )?;
+    let existing = store
+        .get_json::<CloudflareTenantRootCreationInstallationCheckpointV1>(
+            TENANT_ROOT_CREATION_INSTALLATION_CHECKPOINT_STORAGE_KEY_V1,
+        )
+        .await?;
+    require_creation_not_abandoned_v1(store, "tenant-root installation").await?;
+    let outcome = match evaluate_installation_checkpoint(
+        existing,
+        evidence,
+        &loaded.command,
+        &loaded.journal,
+        role_keys,
+        &commitments,
+        now_ms,
+    )? {
+        TenantRootCreationInstallationEvaluationV1::Commit { checkpoint, outcome } => {
+            store
+                .put_json(TENANT_ROOT_CREATION_INSTALLATION_CHECKPOINT_STORAGE_KEY_V1, &checkpoint)
+                .await?;
+            outcome
+        }
+        TenantRootCreationInstallationEvaluationV1::Replay(outcome) => outcome,
+    };
+    installation_response(response_scope, outcome)
+}
+
+/// Accepts the issuer's initial activation receipt against the completed
+/// creation state and installs the authoritative active state once.
+pub async fn tenant_root_creation_persist_initial_activation_v1<Store: TenantRootCreationStoreV1>(
+    store: &Store,
+    issuer_keys: &BTreeMap<String, [u8; 32]>,
+    role_keys: &TenantRootCreationRoleVerifyingKeysV1,
+    request: CloudflareTenantRootCreationInitialActivationRequestV1,
+) -> RouterAbProtocolResult<CloudflareTenantRootCreationInitialActivationResponseV1> {
+    let authority_id = store.authority_id();
+    let activation_receipt =
+        decode_and_verify_initial_activation_receipt(&request.activation_receipt_b64u, issuer_keys)?;
+    store.require_scope(
+        activation_receipt.identity_digest(),
+        activation_receipt.custody_lineage(),
+    )?;
+    if activation_receipt.binding().authority_id() != authority_id {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::ForbiddenLocalBinding,
+            "tenant-root initial activation receipt authority does not match its creation store",
+        ));
+    }
+    let receipt_digest = activation_receipt.digest();
+    let lifecycle_revision = activation_receipt.result_control_plane_revision();
+    let journal_record = store
+        .get_json::<CloudflareTenantRootCreationJournalRecordV1>(
+            TENANT_ROOT_CREATION_JOURNAL_STORAGE_KEY_V1,
+        )
+        .await?
+        .ok_or_else(|| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+                "tenant-root initial activation has no Started journal",
+            )
+        })?;
+    let journal = validate_creation_record(journal_record, authority_id, issuer_keys)
+        .map_err(stored_record_error)?;
+    let commitment_record = store
+        .get_json::<CloudflareTenantRootCreationCommitmentRendezvousRecordV1>(
+            TENANT_ROOT_CREATION_COMMITMENT_RENDEZVOUS_STORAGE_KEY_V1,
+        )
+        .await?;
+    let commitments =
+        require_complete_creation_commitment_rendezvous(commitment_record, &journal, role_keys)?;
+    let installation_record = store
+        .get_json::<CloudflareTenantRootCreationInstallationCheckpointV1>(
+            TENANT_ROOT_CREATION_INSTALLATION_CHECKPOINT_STORAGE_KEY_V1,
+        )
+        .await?
+        .ok_or_else(|| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+                "tenant-root initial activation has no installation checkpoint",
+            )
+        })?;
+    let installation =
+        validate_installation_checkpoint(installation_record, &journal, role_keys, &commitments)
+            .map_err(stored_record_error)?;
+    validate_initial_activation_receipt_against_creation_state(
+        &activation_receipt,
+        &journal,
+        &installation,
+    )?;
+    let mut candidate =
+        refresh_active_state_record_from_verified_receipt(activation_receipt, lifecycle_revision)?;
+    // Nothing is delivered yet: each Deriver's acknowledged activation marks
+    // its role delivered.
+    candidate.delivery = Some(CloudflareTenantRootDeliveryV1::pending(
+        candidate.activation_receipt_digest_b64u.clone(),
+    ));
+    tenant_root_creation_persist_active_state_v1(store, candidate, issuer_keys).await?;
+    Ok(CloudflareTenantRootCreationInitialActivationResponseV1 {
+        activation_receipt_digest_b64u: encode_base64url_bytes_v1(receipt_digest.as_bytes()),
+        lifecycle_revision,
+    })
+}
+
+/// Installs the authoritative active state, or accepts an exact replay.
+/// Writes the authoritative active state once. Every first activation of a
+/// creation object, initial creation and managed restore alike, passes
+/// through here, so this is where the abandonment fence is enforced.
+async fn tenant_root_creation_persist_active_state_v1<Store: TenantRootCreationStoreV1>(
+    store: &Store,
+    candidate: CloudflareTenantRootRefreshActiveStateRecordV1,
+    issuer_keys: &BTreeMap<String, [u8; 32]>,
+) -> RouterAbProtocolResult<()> {
+    require_creation_not_abandoned_v1(store, "tenant-root activation").await?;
+    let existing = store
+        .get_json::<CloudflareTenantRootRefreshActiveStateRecordV1>(
+            TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1,
+        )
+        .await?;
+    let Some(existing) = existing else {
+        return store
+            .put_json(TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1, &candidate)
+            .await;
+    };
+    let existing_validated =
+        validate_refresh_active_state_record(existing, store.authority_id(), issuer_keys)
+            .map_err(stored_refresh_record_error)?;
+    if refresh_active_state_projection(&existing_validated.record)
+        == refresh_active_state_projection(&candidate)
+    {
+        Ok(())
+    } else {
+        Err(refresh_replay_conflict(
+            "tenant-root refresh active state conflicts with the accepted activation receipt",
+        ))
+    }
+}
+
+/// Requires the stored abandonment fence to name this journal's creation.
+fn validate_creation_abandonment_scope_v1(
+    record: &CloudflareTenantRootCreationAbandonmentV1,
+    journal: &ValidatedTenantRootCreationJournalV1,
+) -> RouterAbProtocolResult<()> {
+    let context_digest = journal
+        .ceremony_context
+        .digest()
+        .map_err(candidate_derivation_error)?;
+    if record.journal_digest_b64u != encode_base64url_bytes_v1(journal.journal_digest.as_bytes())
+        || record.identity_digest_b64u
+            != encode_base64url_bytes_v1(journal.identity_digest.as_bytes())
+        || record.custody_lineage_b64u != journal.custody_lineage.to_base64url()
+        || record.ceremony_context_digest_b64u
+            != encode_base64url_bytes_v1(context_digest.as_bytes())
+    {
+        return Err(malformed_input(
+            "tenant-root creation abandonment scope is invalid",
+        ));
+    }
+    Ok(())
+}
+
+/// Refuses an operation that would advance a creation once it is abandoned.
+/// The fence and every such operation live in one creation object and each
+/// runs in one storage transaction, so abandonment and activation exclude
+/// each other.
+async fn require_creation_not_abandoned_v1<Store: TenantRootCreationStoreV1>(
+    store: &Store,
+    operation: &str,
+) -> RouterAbProtocolResult<()> {
+    if store
+        .get_json::<CloudflareTenantRootCreationAbandonmentV1>(
+            TENANT_ROOT_CREATION_ABANDONMENT_STORAGE_KEY_V1,
+        )
+        .await?
+        .is_some()
+    {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::ConflictingPair,
+            format!("{operation} cannot follow abandonment of the creation"),
+        ));
+    }
+    Ok(())
+}
+
+/// Projects the abandonment fence and the roles whose cleanup is checkpointed.
+/// Both roles are cleaned, whether or not the fence recorded them installed.
+fn read_creation_abandonment_v1(
+    authority_id: TenantRootControlPlaneAuthorityIdV1,
+    record: Option<CloudflareTenantRootCreationAbandonmentV1>,
+    cleanup_checkpoints: Vec<(
+        CloudflareTenantRootCreationInstallationRoleV1,
+        CloudflareTenantRootCreationCleanupCheckpointV1,
+    )>,
+    journal: &ValidatedTenantRootCreationJournalV1,
+    installation: Option<&ValidatedTenantRootCreationInstallationCheckpointV1>,
+    issuer_keys: &BTreeMap<String, [u8; 32]>,
+    role_keys: Option<&TenantRootCreationRoleVerifyingKeysV1>,
+) -> RouterAbProtocolResult<Option<CloudflareTenantRootCreationAbandonmentReadV1>> {
+    let Some(record) = record else {
+        return Ok(None);
+    };
+    validate_creation_abandonment_scope_v1(&record, journal).map_err(stored_record_error)?;
+    let mut cleaned_roles = Vec::new();
+    for (role, checkpoint) in cleanup_checkpoints {
+        if checkpoint.role != role {
+            return Err(stored_record_error(malformed_input(
+                "tenant-root creation cleanup checkpoint is stored under another role",
+            )));
+        }
+        let role_keys = role_keys.ok_or_else(|| {
+            stored_record_error(malformed_input(
+                "tenant-root creation cleanup checkpoint has no role-key set",
+            ))
+        })?;
+        validate_creation_cleanup_checkpoint(
+            checkpoint,
+            journal,
+            &record,
+            installation,
+            authority_id,
+            issuer_keys,
+            role_keys,
+        )
+        .map_err(stored_record_error)?;
+        cleaned_roles.push(role);
+    }
+    Ok(Some(CloudflareTenantRootCreationAbandonmentReadV1 {
+        abandoned_at_ms: record.abandoned_at_ms,
+        installed_roles: record.installed_roles,
+        cleaned_roles,
+    }))
+}
+
+/// Abandons one creation that the Router has not committed, writing the fence
+/// that stops it from advancing. Only once its ceremony window has closed:
+/// inside the window it may still finish or resume, and an ordinary retry
+/// must not cancel it. A committed creation is never abandoned.
+pub async fn tenant_root_creation_persist_abandonment_v1<Store: TenantRootCreationStoreV1>(
+    store: &Store,
+    issuer_keys: &BTreeMap<String, [u8; 32]>,
+    role_keys: impl FnOnce() -> RouterAbProtocolResult<TenantRootCreationRoleVerifyingKeysV1>,
+    request: CloudflareTenantRootCreationJournalReadRequestV1,
+    now_ms: u64,
+) -> RouterAbProtocolResult<CloudflareTenantRootCreationAbandonmentResponseV1> {
+    let (state, _) = read_creation_journal_state_v1(store, issuer_keys, role_keys, request).await?;
+    let journal = validate_creation_record(
+        CloudflareTenantRootCreationJournalRecordV1 {
+            journal_b64u: state.journal_b64u.clone(),
+            creation_capability_b64u: state.creation_capability_b64u.clone(),
+        },
+        store.authority_id(),
+        issuer_keys,
+    )?;
+    if store
+        .get_json::<CloudflareTenantRootRefreshActiveStateRecordV1>(
+            TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1,
+        )
+        .await?
+        .is_some()
+    {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::ConflictingPair,
+            "a committed tenant-root creation cannot be abandoned",
+        ));
+    }
+    if let Some(existing) = state.abandonment {
+        return Ok(CloudflareTenantRootCreationAbandonmentResponseV1 {
+            installed_roles: existing.installed_roles,
+            abandoned_at_ms: existing.abandoned_at_ms,
+            replayed: true,
+        });
+    }
+    let installed_roles = match &state.installation_checkpoint {
+        CloudflareTenantRootCreationInstallationCheckpointReadStateV1::None => Vec::new(),
+        CloudflareTenantRootCreationInstallationCheckpointReadStateV1::OneRoleReady {
+            role, ..
+        } => vec![*role],
+        CloudflareTenantRootCreationInstallationCheckpointReadStateV1::BothRolesReady { .. } => {
+            vec![
+                CloudflareTenantRootCreationInstallationRoleV1::DeriverA,
+                CloudflareTenantRootCreationInstallationRoleV1::DeriverB,
+            ]
+        }
+    };
+    if now_ms <= journal.ceremony_context.expires_at_ms() {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::InvalidLifecycleState,
+            "tenant-root creation ceremony is still open; it resumes instead of being abandoned",
+        ));
+    }
+    let record = CloudflareTenantRootCreationAbandonmentV1 {
+        journal_digest_b64u: encode_base64url_bytes_v1(journal.journal_digest.as_bytes()),
+        identity_digest_b64u: encode_base64url_bytes_v1(journal.identity_digest.as_bytes()),
+        custody_lineage_b64u: journal.custody_lineage.to_base64url(),
+        ceremony_context_digest_b64u: encode_base64url_bytes_v1(
+            journal
+                .ceremony_context
+                .digest()
+                .map_err(candidate_derivation_error)?
+                .as_bytes(),
+        ),
+        installed_roles: installed_roles.clone(),
+        abandoned_at_ms: now_ms,
+    };
+    store
+        .put_json(TENANT_ROOT_CREATION_ABANDONMENT_STORAGE_KEY_V1, &record)
+        .await?;
+    Ok(CloudflareTenantRootCreationAbandonmentResponseV1 {
+        installed_roles,
+        abandoned_at_ms: now_ms,
+        replayed: false,
+    })
+}
+
+/// Reads one creation's progress for the Router coordinator: whether it has
+/// started, its persisted state, and the committed activation receipt.
+pub async fn tenant_root_creation_read_progress_v1<Store: TenantRootCreationStoreV1>(
+    store: &Store,
+    issuer_keys: &BTreeMap<String, [u8; 32]>,
+    role_keys: impl FnOnce() -> RouterAbProtocolResult<TenantRootCreationRoleVerifyingKeysV1>,
+    request: CloudflareTenantRootCreationJournalReadRequestV1,
+    now_ms: u64,
+) -> RouterAbProtocolResult<CloudflareTenantRootCreationProgressV1> {
+    let identity_digest = TenantRootIdentityDigestV1::from_bytes(decode_fixed_base64url_32(
+        "tenant-root creation progress identity digest",
+        &request.identity_digest_b64u,
+    )?);
+    let custody_lineage = decode_lineage_b64u(
+        "tenant-root creation progress custody lineage",
+        &request.custody_lineage_b64u,
+    )?;
+    store.require_scope(identity_digest, custody_lineage)?;
+    if store
+        .get_json::<CloudflareTenantRootCreationJournalRecordV1>(
+            TENANT_ROOT_CREATION_JOURNAL_STORAGE_KEY_V1,
+        )
+        .await?
+        .is_none()
+    {
+        return Ok(CloudflareTenantRootCreationProgressV1::NotStarted);
+    }
+    let (state, _) = read_creation_journal_state_v1(store, issuer_keys, role_keys, request).await?;
+    let ceremony_open = validate_creation_record(
+        CloudflareTenantRootCreationJournalRecordV1 {
+            journal_b64u: state.journal_b64u.clone(),
+            creation_capability_b64u: state.creation_capability_b64u.clone(),
+        },
+        store.authority_id(),
+        issuer_keys,
+    )?
+    .ceremony_context
+    .expires_at_ms()
+        >= now_ms;
+    let committed_activation_receipt_b64u = match store
+        .get_json::<CloudflareTenantRootRefreshActiveStateRecordV1>(
+            TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1,
+        )
+        .await?
+    {
+        None => None,
+        Some(record) => Some(
+            validate_refresh_active_state_record(record, store.authority_id(), issuer_keys)
+                .map_err(stored_refresh_record_error)?
+                .record
+                .activation_receipt_b64u,
+        ),
+    };
+    Ok(CloudflareTenantRootCreationProgressV1::Started {
+        state,
+        committed_activation_receipt_b64u,
+        ceremony_open,
+    })
+}
+
+// ---------------------------------------------------------------------------
+// Restore into a new deployment over the host-neutral creation store
+// ---------------------------------------------------------------------------
+//
+// The destination's bootstrap authority, its restore-refresh checkpoint and
+// its restore initial activation, as operations over
+// `TenantRootCreationStoreV1`, so a Cloudflare Durable Object and a VM Router
+// serve them alike. As with the other operations, every refusal is decided
+// before anything is written.
+
+/// The Router's destination-bootstrap call to its creation state. The bearer
+/// credential its caller presented travels inside the call, so every host
+/// carries it the same way.
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct CloudflareTenantRootDestinationBootstrapCallV1 {
+    pub(crate) request: CloudflareTenantRootDestinationBootstrapRequestV1,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) token_b64u: Option<String>,
+}
+
+/// Decodes a presented bootstrap credential. A malformed one counts as
+/// absent, so authentication is refused rather than the request rejected.
+pub(crate) fn decode_destination_bootstrap_token_v1(
+    value: &str,
+) -> Option<DestinationBootstrapTokenV1> {
+    let bytes = decode_canonical_base64url(
+        "tenant-root destination bootstrap credential",
+        value,
+        32,
+        base64url_len_for_bytes(32),
+    )
+    .ok()?;
+    let bytes = <[u8; 32]>::try_from(bytes).ok()?;
+    DestinationBootstrapTokenV1::from_bytes(bytes).ok()
+}
+
+/// Answers one Read or Authenticate request against the destination's
+/// bootstrap authority. `configured_record_json` is the operator's
+/// provisioned record; the first read of an empty authority persists it.
+pub(crate) async fn tenant_root_destination_bootstrap_v1<Store: TenantRootCreationStoreV1>(
+    store: &Store,
+    issuer_keys: &BTreeMap<String, [u8; 32]>,
+    role_keys: impl FnOnce() -> RouterAbProtocolResult<TenantRootCreationRoleVerifyingKeysV1>,
+    configured_record_json: Option<&str>,
+    call: CloudflareTenantRootDestinationBootstrapCallV1,
+    now_ms: u64,
+) -> RouterAbProtocolResult<CloudflareTenantRootDestinationBootstrapResponseV1> {
+    let request = validate_tenant_root_destination_bootstrap_request_v1(call.request)?;
+    let token = match &request {
+        ValidatedTenantRootDestinationBootstrapRequestV1::Read { .. } => None,
+        ValidatedTenantRootDestinationBootstrapRequestV1::Authenticate { .. } => call
+            .token_b64u
+            .as_deref()
+            .and_then(decode_destination_bootstrap_token_v1),
+    };
+    let state = read_destination_bootstrap_state_v1(
+        store,
+        issuer_keys,
+        role_keys,
+        configured_record_json,
+        &request,
+    )
+    .await?;
+    let authenticated_at_ms = if matches!(
+        (&state, &request),
+        (
+            TenantRootDestinationBootstrapStateV1::Ready(_),
+            ValidatedTenantRootDestinationBootstrapRequestV1::Authenticate { .. }
+        )
+    ) {
+        now_ms
+    } else {
+        0
+    };
+    Ok(evaluate_tenant_root_destination_bootstrap_request_v1(
+        &state,
+        &request,
+        token.as_ref(),
+        authenticated_at_ms,
+    ))
+}
+
+async fn read_destination_bootstrap_state_v1<Store: TenantRootCreationStoreV1>(
+    store: &Store,
+    issuer_keys: &BTreeMap<String, [u8; 32]>,
+    role_keys: impl FnOnce() -> RouterAbProtocolResult<TenantRootCreationRoleVerifyingKeysV1>,
+    configured_record_json: Option<&str>,
+    request: &ValidatedTenantRootDestinationBootstrapRequestV1,
+) -> RouterAbProtocolResult<TenantRootDestinationBootstrapStateV1> {
+    let (identity_digest, custody_lineage) = destination_bootstrap_request_scope_v1(request);
+    if let Err(error) = store.require_scope(identity_digest, custody_lineage) {
+        if error.code() == RouterAbProtocolErrorCode::ForbiddenLocalBinding {
+            return Ok(TenantRootDestinationBootstrapStateV1::ScopeMismatch);
+        }
+        return Err(error);
+    }
+    if let Some(destroyed_record) = store
+        .get_json::<CloudflareTenantRootDestinationBootstrapDestroyedRecordV1>(
+            TENANT_ROOT_DESTINATION_BOOTSTRAP_DESTROYED_STORAGE_KEY_V1,
+        )
+        .await?
+    {
+        let destroyed_record =
+            validate_tenant_root_destination_bootstrap_destroyed_record_v1(destroyed_record)
+                .map_err(stored_record_error)?;
+        if !destroyed_record.matches_request_scope(request) {
+            return Ok(TenantRootDestinationBootstrapStateV1::ScopeMismatch);
+        }
+        store
+            .require_scope(
+                destroyed_record.identity_digest,
+                destroyed_record.custody_lineage,
+            )
+            .map_err(stored_record_error)?;
+        return Ok(TenantRootDestinationBootstrapStateV1::Destroyed(
+            destroyed_record,
+        ));
+    }
+    let record = store
+        .get_json::<CloudflareTenantRootDestinationBootstrapRecordV1>(
+            TENANT_ROOT_DESTINATION_BOOTSTRAP_STORAGE_KEY_V1,
+        )
+        .await?;
+    let needs_provisioning = record.is_none();
+    let record = match record {
+        Some(record) => record,
+        None => {
+            let Some(config) = configured_record_json else {
+                return Ok(TenantRootDestinationBootstrapStateV1::Uninitialized);
+            };
+            if config.len() > TENANT_ROOT_DESTINATION_BOOTSTRAP_RECORD_MAX_BYTES_V1 {
+                return Err(malformed_input(
+                    "destination bootstrap configuration is too large",
+                ));
+            }
+            serde_json::from_str(config)
+                .map_err(|_| malformed_input("destination bootstrap configuration is invalid"))?
+        }
+    };
+    let record = validate_tenant_root_destination_bootstrap_record_v1(record)
+        .map_err(stored_record_error)?;
+    if !record.matches_request_scope(request) {
+        return Ok(TenantRootDestinationBootstrapStateV1::ScopeMismatch);
+    }
+    store
+        .require_scope(record.identity_digest, record.custody_lineage)
+        .map_err(stored_record_error)?;
+
+    if store
+        .get_json::<CloudflareTenantRootRefreshActiveStateRecordV1>(
+            TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1,
+        )
+        .await?
+        .is_some()
+    {
+        let active = load_refresh_active_state_v1(
+            store,
+            issuer_keys,
+            "tenant-root destination bootstrap has no authoritative active public state",
+        )
+        .await
+        .map_err(stored_refresh_record_error)?;
+        if active.identity_digest != record.identity_digest
+            || active.custody_lineage != record.custody_lineage
+        {
+            return Ok(TenantRootDestinationBootstrapStateV1::ScopeMismatch);
+        }
+        return Ok(TenantRootDestinationBootstrapStateV1::ActiveRootPresent(
+            record,
+        ));
+    }
+    let creation_journal = store
+        .get_json::<CloudflareTenantRootCreationJournalRecordV1>(
+            TENANT_ROOT_CREATION_JOURNAL_STORAGE_KEY_V1,
+        )
+        .await?;
+    let has_creation_progress = creation_journal.is_some()
+        || store
+            .get_json::<CloudflareTenantRootCreationCommitmentRendezvousRecordV1>(
+                TENANT_ROOT_CREATION_COMMITMENT_RENDEZVOUS_STORAGE_KEY_V1,
+            )
+            .await?
+            .is_some()
+        || store
+            .get_json::<CloudflareTenantRootCreationInstallationCheckpointV1>(
+                TENANT_ROOT_CREATION_INSTALLATION_CHECKPOINT_STORAGE_KEY_V1,
+            )
+            .await?
+            .is_some()
+        || store
+            .get_json::<CloudflareTenantRootCreationAbandonmentV1>(
+                TENANT_ROOT_CREATION_ABANDONMENT_STORAGE_KEY_V1,
+            )
+            .await?
+            .is_some()
+        || store
+            .get_json::<String>(TENANT_ROOT_REFRESH_COMMITMENT_CHECKPOINT_STORAGE_KEY_V1)
+            .await?
+            .is_some()
+        || store
+            .get_json::<CloudflareTenantRootRefreshInstallationCheckpointRecordV1>(
+                TENANT_ROOT_REFRESH_INSTALLATION_CHECKPOINT_STORAGE_KEY_V1,
+            )
+            .await?
+            .is_some()
+        || store
+            .get_json::<CloudflareTenantRootRefreshContributionRendezvousRecordV1>(
+                TENANT_ROOT_REFRESH_CONTRIBUTION_RENDEZVOUS_STORAGE_KEY_V1,
+            )
+            .await?
+            .is_some();
+    if !has_creation_progress {
+        if needs_provisioning {
+            // Operator configuration may initialize an empty authority once.
+            // The destroyed marker above prevents reissuing consumed
+            // credentials.
+            store
+                .put_json(TENANT_ROOT_DESTINATION_BOOTSTRAP_STORAGE_KEY_V1, &record.record)
+                .await?;
+        }
+        return Ok(TenantRootDestinationBootstrapStateV1::Ready(record));
+    }
+    if creation_journal.is_some() {
+        tenant_root_creation_read_journal_v1(
+            store,
+            issuer_keys,
+            role_keys,
+            CloudflareTenantRootCreationJournalReadRequestV1 {
+                identity_digest_b64u: encode_base64url_bytes_v1(identity_digest.as_bytes()),
+                custody_lineage_b64u: custody_lineage.to_base64url(),
+            },
+        )
+        .await
+        .map_err(stored_record_error)?;
+    }
+    Ok(TenantRootDestinationBootstrapStateV1::CreationInProgress(
+        record,
+    ))
+}
+
+/// Admits, advances or reads the destination's restore-refresh checkpoint.
+pub(crate) async fn tenant_root_restore_refresh_checkpoint_v1<Store: TenantRootCreationStoreV1>(
+    store: &Store,
+    request: CloudflareTenantRootRestoreRefreshCheckpointRequestV1,
+    now_ms: u64,
+) -> RouterAbProtocolResult<CloudflareTenantRootRestoreRefreshCheckpointResponseV1> {
+    let read = match &request {
+        CloudflareTenantRootRestoreRefreshCheckpointRequestV1::ReadCompleted {
+            restore_refresh_grant_b64u,
+            manifest_b64u,
+        } => Some((restore_refresh_grant_b64u, manifest_b64u, false)),
+        CloudflareTenantRootRestoreRefreshCheckpointRequestV1::ReadPromoted {
+            restore_refresh_grant_b64u,
+            manifest_b64u,
+        } => Some((restore_refresh_grant_b64u, manifest_b64u, true)),
+        _ => None,
+    };
+    if let Some((grant_b64u, manifest_b64u, promoted)) = read {
+        let (canonical_grant_b64u, grant, scope) =
+            restore_refresh_checkpoint_scope_from_grant_v1(grant_b64u)?;
+        if &canonical_grant_b64u != grant_b64u {
+            return Err(malformed_input(
+                "tenant-root restore-refresh grant must use canonical bytes",
+            ));
+        }
+        require_restore_refresh_manifest_matches_grant_v1(manifest_b64u, &grant)?;
+        store.require_scope(grant.destination_identity_digest(), grant.destination_lineage())?;
+        let checkpoint = store
+            .get_json::<CloudflareTenantRootRestoreRefreshCheckpointV1>(
+                TENANT_ROOT_RESTORE_REFRESH_CHECKPOINT_STORAGE_KEY_V1,
+            )
+            .await?
+            .ok_or_else(|| {
+                restore_refresh_lifecycle_error(if promoted {
+                    "tenant-root restore-refresh promoted checkpoint is not present"
+                } else {
+                    "tenant-root restore-refresh completed checkpoint is not present"
+                })
+            })?;
+        return if promoted {
+            evaluate_restore_refresh_promoted_read_v1(
+                &checkpoint,
+                grant_b64u,
+                &scope,
+                store.authority_id(),
+                now_ms,
+            )
+        } else {
+            evaluate_restore_refresh_completed_read_v1(
+                &checkpoint,
+                grant_b64u,
+                &scope,
+                store.authority_id(),
+                now_ms,
+            )
+        };
+    }
+    let grant_b64u = restore_refresh_checkpoint_grant_b64u_v1(&request);
+    let (_, grant, _) = restore_refresh_checkpoint_scope_from_grant_v1(grant_b64u)?;
+    store.require_scope(grant.destination_identity_digest(), grant.destination_lineage())?;
+    let current = store
+        .get_json::<CloudflareTenantRootRestoreRefreshCheckpointV1>(
+            TENANT_ROOT_RESTORE_REFRESH_CHECKPOINT_STORAGE_KEY_V1,
+        )
+        .await?;
+    let evaluation =
+        evaluate_tenant_root_restore_refresh_checkpoint_v1(current.as_ref(), request, now_ms)?;
+    if let CloudflareTenantRootRestoreRefreshCheckpointEvaluationV1::Commit { checkpoint } =
+        &evaluation
+    {
+        let encoded = serde_json::to_vec(checkpoint).map_err(|error| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+                format!("tenant-root restore-refresh checkpoint JSON encoding failed: {error}"),
+            )
+        })?;
+        if encoded.len() > TENANT_ROOT_RESTORE_REFRESH_CHECKPOINT_RESPONSE_MAX_BYTES_V1 {
+            return Err(malformed_input(
+                "tenant-root restore-refresh checkpoint exceeds its maximum size",
+            ));
+        }
+        store
+            .put_json(TENANT_ROOT_RESTORE_REFRESH_CHECKPOINT_STORAGE_KEY_V1, checkpoint)
+            .await?;
+    }
+    Ok(restore_refresh_checkpoint_phase_response_v1(evaluation))
+}
+
+/// Activates a restored root from its promoted restore-refresh checkpoint.
+/// The activation writes the authoritative active state and consumes the
+/// destination's bootstrap authority, leaving only its destroyed marker; an
+/// exact retry returns the same outcome.
+pub(crate) async fn tenant_root_restore_initial_activation_v1<Store: TenantRootCreationStoreV1>(
+    store: &Store,
+    issuer_keys: &BTreeMap<String, [u8; 32]>,
+    request: CloudflareTenantRootRestoreInitialActivationRequestV1,
+) -> RouterAbProtocolResult<CloudflareTenantRootRestoreInitialActivationResponseV1> {
+    let authority_id = store.authority_id();
+    let activation_receipt =
+        decode_and_verify_initial_activation_receipt(&request.activation_receipt_b64u, issuer_keys)?;
+    store.require_scope(
+        activation_receipt.identity_digest(),
+        activation_receipt.custody_lineage(),
+    )?;
+    if activation_receipt.binding().authority_id() != authority_id {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::ForbiddenLocalBinding,
+            "tenant-root restore initial activation receipt authority does not match its creation state",
+        ));
+    }
+    let receipt_digest = activation_receipt.digest();
+    let lifecycle_revision = activation_receipt.result_control_plane_revision();
+    let checkpoint = store
+        .get_json::<CloudflareTenantRootRestoreRefreshCheckpointV1>(
+            TENANT_ROOT_RESTORE_REFRESH_CHECKPOINT_STORAGE_KEY_V1,
+        )
+        .await?
+        .ok_or_else(|| {
+            restore_refresh_lifecycle_error(
+                "tenant-root restore initial activation has no refresh checkpoint",
+            )
+        })?;
+    let (destination_fingerprint, restore_session_id) =
+        validate_restore_initial_activation_receipt_against_checkpoint_v1(
+            &activation_receipt,
+            &checkpoint,
+            authority_id,
+        )?;
+    let existing_destroyed = store
+        .get_json::<CloudflareTenantRootDestinationBootstrapDestroyedRecordV1>(
+            TENANT_ROOT_DESTINATION_BOOTSTRAP_DESTROYED_STORAGE_KEY_V1,
+        )
+        .await?;
+    let had_destroyed_record = existing_destroyed.is_some();
+    let destroyed_record = if let Some(record) = existing_destroyed {
+        let record = validate_tenant_root_destination_bootstrap_destroyed_record_v1(record)
+            .map_err(stored_record_error)?;
+        let (destruction_receipt_b64u, destruction_receipt_digest_b64u) =
+            restore_bootstrap_destruction_receipt_v1(
+                activation_receipt.identity_digest(),
+                activation_receipt.custody_lineage(),
+                destination_fingerprint,
+                restore_session_id,
+                &checkpoint.scope.grant_digest_b64u,
+                receipt_digest,
+            )?;
+        if record.identity_digest != activation_receipt.identity_digest()
+            || record.custody_lineage != activation_receipt.custody_lineage()
+            || record.deployment_fingerprint != destination_fingerprint
+            || record.record.activation_receipt_digest_b64u
+                != encode_base64url_bytes_v1(receipt_digest.as_bytes())
+            || record.record.destruction_receipt_b64u != destruction_receipt_b64u
+            || record.record.destruction_receipt_digest_b64u != destruction_receipt_digest_b64u
+        {
+            return Err(refresh_replay_conflict(
+                "tenant-root restore bootstrap destruction conflicts with the accepted activation receipt",
+            ));
+        }
+        record.record
+    } else {
+        let bootstrap = store
+            .get_json::<CloudflareTenantRootDestinationBootstrapRecordV1>(
+                TENANT_ROOT_DESTINATION_BOOTSTRAP_STORAGE_KEY_V1,
+            )
+            .await?
+            .ok_or_else(|| {
+                RouterAbProtocolError::new(
+                    RouterAbProtocolErrorCode::InvalidLifecycleState,
+                    "tenant-root restore initial activation has no usable bootstrap authority",
+                )
+            })?;
+        let bootstrap = validate_tenant_root_destination_bootstrap_record_v1(bootstrap)
+            .map_err(stored_record_error)?;
+        if bootstrap.identity_digest != activation_receipt.identity_digest()
+            || bootstrap.custody_lineage != activation_receipt.custody_lineage()
+            || bootstrap.deployment_fingerprint != destination_fingerprint
+        {
+            return Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::ForbiddenLocalBinding,
+                "tenant-root restore bootstrap authority does not match the promoted activation",
+            ));
+        }
+        let (destruction_receipt_b64u, destruction_receipt_digest_b64u) =
+            restore_bootstrap_destruction_receipt_v1(
+                bootstrap.identity_digest,
+                bootstrap.custody_lineage,
+                bootstrap.deployment_fingerprint,
+                restore_session_id,
+                &checkpoint.scope.grant_digest_b64u,
+                receipt_digest,
+            )?;
+        CloudflareTenantRootDestinationBootstrapDestroyedRecordV1 {
+            identity_b64u: bootstrap.record.identity_b64u,
+            deployment_fingerprint_b64u: bootstrap.record.deployment_fingerprint_b64u,
+            custody_lineage_b64u: bootstrap.record.custody_lineage_b64u,
+            activation_receipt_digest_b64u: encode_base64url_bytes_v1(receipt_digest.as_bytes()),
+            destruction_receipt_b64u,
+            destruction_receipt_digest_b64u,
+        }
+    };
+    let encoded_destroyed_record = serde_json::to_vec(&destroyed_record).map_err(|error| {
+        RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+            format!("tenant-root restore bootstrap destruction record encoding failed: {error}"),
+        )
+    })?;
+    if encoded_destroyed_record.len()
+        > TENANT_ROOT_DESTINATION_BOOTSTRAP_DESTROYED_RECORD_MAX_BYTES_V1
+    {
+        return Err(malformed_input(
+            "tenant-root restore bootstrap destruction record exceeds its maximum size",
+        ));
+    }
+    let candidate =
+        refresh_active_state_record_from_verified_receipt(activation_receipt, lifecycle_revision)?;
+    if !had_destroyed_record {
+        tenant_root_creation_persist_active_state_v1(store, candidate, issuer_keys).await?;
+        store
+            .put_json(
+                TENANT_ROOT_DESTINATION_BOOTSTRAP_DESTROYED_STORAGE_KEY_V1,
+                &destroyed_record,
+            )
+            .await?;
+    }
+    store
+        .delete(TENANT_ROOT_DESTINATION_BOOTSTRAP_STORAGE_KEY_V1)
+        .await?;
+    Ok(CloudflareTenantRootRestoreInitialActivationResponseV1 {
+        activation_receipt_digest_b64u: encode_base64url_bytes_v1(receipt_digest.as_bytes()),
+        lifecycle_revision,
+        destruction_receipt_b64u: destroyed_record.destruction_receipt_b64u,
+        destruction_receipt_digest_b64u: destroyed_record.destruction_receipt_digest_b64u,
+    })
+}
+
+/// Serves one creation-state operation, addressed by its route path: initial
+/// creation and its recovery, the authoritative active-state read with its
+/// refresh and managed-restore reservations, the refresh checkpoints and
+/// activation, and restore into a new deployment. Cutover is not served.
+///
+/// `destination_bootstrap_config` is the operator's provisioned bootstrap
+/// record for a destination, when this Router has one.
+///
+/// The caller runs this inside one storage transaction over `store`, so each
+/// operation's read, evaluation and write stay atomic.
+#[allow(clippy::too_many_arguments)]
+pub async fn tenant_root_creation_serve_v1<Store: TenantRootCreationStoreV1>(
+    store: &Store,
+    issuer_keys: &BTreeMap<String, [u8; 32]>,
+    role_keys: impl Fn() -> RouterAbProtocolResult<TenantRootCreationRoleVerifyingKeysV1>,
+    destination_bootstrap_config: Option<&str>,
+    path: &str,
+    request_body: &[u8],
+    now_ms: u64,
+    schedule: TenantRootRefreshScheduleV1,
+) -> RouterAbProtocolResult<Vec<u8>> {
+    fn decode<T: DeserializeOwned>(
+        label: &str,
+        body: &[u8],
+        max_bytes: usize,
+    ) -> RouterAbProtocolResult<T> {
+        if body.len() > max_bytes {
+            return Err(malformed_input(format!("{label} exceeds its maximum size")));
+        }
+        serde_json::from_slice(body)
+            .map_err(|error| malformed_input(format!("{label} JSON is invalid: {error}")))
+    }
+    fn encode<T: Serialize>(value: &T) -> RouterAbProtocolResult<Vec<u8>> {
+        serde_json::to_vec(value).map_err(|error| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::MalformedWirePayload,
+                format!("tenant-root creation-state response encoding failed: {error}"),
+            )
+        })
+    }
+    match path {
+        CLOUDFLARE_TENANT_ROOT_CREATION_JOURNAL_PATH => encode(
+            &tenant_root_creation_persist_journal_v1(
+                store,
+                issuer_keys,
+                decode(
+                    "tenant-root creation journal request",
+                    request_body,
+                    TENANT_ROOT_CREATION_REQUEST_MAX_BYTES_V1,
+                )?,
+                now_ms,
+            )
+            .await?,
+        ),
+        CLOUDFLARE_TENANT_ROOT_CREATION_JOURNAL_READ_PATH => encode(
+            &tenant_root_creation_read_journal_v1(
+                store,
+                issuer_keys,
+                &role_keys,
+                decode(
+                    "tenant-root creation read request",
+                    request_body,
+                    TENANT_ROOT_CREATION_REQUEST_MAX_BYTES_V1,
+                )?,
+            )
+            .await?,
+        ),
+        CLOUDFLARE_TENANT_ROOT_CREATION_PROGRESS_READ_PATH => encode(
+            &tenant_root_creation_read_progress_v1(
+                store,
+                issuer_keys,
+                &role_keys,
+                decode(
+                    "tenant-root creation progress request",
+                    request_body,
+                    TENANT_ROOT_CREATION_REQUEST_MAX_BYTES_V1,
+                )?,
+                now_ms,
+            )
+            .await?,
+        ),
+        CLOUDFLARE_TENANT_ROOT_CREATION_ABANDONMENT_PATH => encode(
+            &tenant_root_creation_persist_abandonment_v1(
+                store,
+                issuer_keys,
+                &role_keys,
+                decode(
+                    "tenant-root creation abandonment request",
+                    request_body,
+                    TENANT_ROOT_CREATION_REQUEST_MAX_BYTES_V1,
+                )?,
+                now_ms,
+            )
+            .await?,
+        ),
+        CLOUDFLARE_TENANT_ROOT_CREATION_COMMITMENT_RENDEZVOUS_PATH => encode(
+            &tenant_root_creation_persist_commitment_v1(
+                store,
+                issuer_keys,
+                &role_keys()?,
+                decode(
+                    "tenant-root creation commitment request",
+                    request_body,
+                    TENANT_ROOT_CREATION_COMMITMENT_REQUEST_MAX_BYTES_V1,
+                )?,
+                now_ms,
+            )
+            .await?,
+        ),
+        CLOUDFLARE_TENANT_ROOT_CREATION_INSTALLATION_CHECKPOINT_PATH => encode(
+            &tenant_root_creation_persist_installation_v1(
+                store,
+                issuer_keys,
+                &role_keys()?,
+                decode(
+                    "tenant-root installation request",
+                    request_body,
+                    TENANT_ROOT_CREATION_INSTALLATION_REQUEST_MAX_BYTES_V1,
+                )?,
+                now_ms,
+            )
+            .await?,
+        ),
+        CLOUDFLARE_TENANT_ROOT_CREATION_CLEANUP_CHECKPOINT_PATH => encode(
+            &tenant_root_creation_persist_cleanup_v1(
+                store,
+                issuer_keys,
+                &role_keys()?,
+                decode(
+                    "tenant-root creation cleanup request",
+                    request_body,
+                    TENANT_ROOT_CREATION_CLEANUP_REQUEST_MAX_BYTES_V1,
+                )?,
+            )
+            .await?,
+        ),
+        CLOUDFLARE_TENANT_ROOT_CREATION_INITIAL_ACTIVATION_PATH => encode(
+            &tenant_root_creation_persist_initial_activation_v1(
+                store,
+                issuer_keys,
+                &role_keys()?,
+                decode(
+                    "tenant-root initial activation request",
+                    request_body,
+                    TENANT_ROOT_CREATION_INITIAL_ACTIVATION_REQUEST_MAX_BYTES_V1,
+                )?,
+            )
+            .await?,
+        ),
+        CLOUDFLARE_TENANT_ROOT_CREATION_ACTIVE_STATE_READ_PATH => encode(
+            &tenant_root_creation_active_state_read_v1(
+                store,
+                issuer_keys,
+                &role_keys,
+                decode(
+                    "tenant-root active-state read request",
+                    request_body,
+                    TENANT_ROOT_CREATION_ACTIVE_STATE_READ_REQUEST_MAX_BYTES_V1,
+                )?,
+                now_ms,
+                schedule,
+            )
+            .await?,
+        ),
+        CLOUDFLARE_TENANT_ROOT_REFRESH_ACTIVATION_PATH => encode(
+            &tenant_root_refresh_persist_activation_v1(
+                store,
+                issuer_keys,
+                &role_keys()?,
+                decode(
+                    "tenant-root refresh activation request",
+                    request_body,
+                    TENANT_ROOT_CREATION_INITIAL_ACTIVATION_REQUEST_MAX_BYTES_V1,
+                )?,
+                now_ms,
+            )
+            .await?,
+        ),
+        CLOUDFLARE_TENANT_ROOT_REFRESH_COMMITMENT_CHECKPOINT_PATH => encode(
+            &tenant_root_refresh_persist_commitment_v1(
+                store,
+                issuer_keys,
+                &role_keys()?,
+                decode(
+                    "tenant-root refresh commitment request",
+                    request_body,
+                    TENANT_ROOT_REFRESH_COMMITMENT_REQUEST_MAX_BYTES_V1,
+                )?,
+                now_ms,
+            )
+            .await?,
+        ),
+        CLOUDFLARE_TENANT_ROOT_REFRESH_INSTALLATION_CHECKPOINT_PATH => encode(
+            &tenant_root_refresh_persist_installation_v1(
+                store,
+                issuer_keys,
+                &role_keys()?,
+                decode(
+                    "tenant-root refresh installation request",
+                    request_body,
+                    TENANT_ROOT_REFRESH_INSTALLATION_REQUEST_MAX_BYTES_V1,
+                )?,
+                now_ms,
+            )
+            .await?,
+        ),
+        CLOUDFLARE_TENANT_ROOT_REFRESH_CONTRIBUTION_RENDEZVOUS_PATH => encode(
+            &tenant_root_refresh_persist_contribution_v1(
+                store,
+                issuer_keys,
+                &role_keys()?,
+                decode(
+                    "tenant-root refresh contribution request",
+                    request_body,
+                    TENANT_ROOT_REFRESH_CONTRIBUTION_REQUEST_MAX_BYTES_V1,
+                )?,
+                now_ms,
+            )
+            .await?,
+        ),
+        crate::CLOUDFLARE_ROUTER_TENANT_ROOT_DESTINATION_BOOTSTRAP_PRIVATE_REQUEST_PATH => encode(
+            &tenant_root_destination_bootstrap_v1(
+                store,
+                issuer_keys,
+                &role_keys,
+                destination_bootstrap_config,
+                decode(
+                    "tenant-root destination bootstrap request",
+                    request_body,
+                    TENANT_ROOT_DESTINATION_BOOTSTRAP_REQUEST_MAX_BYTES_V1,
+                )?,
+                now_ms,
+            )
+            .await?,
+        ),
+        crate::CLOUDFLARE_ROUTER_TENANT_ROOT_RESTORE_REFRESH_PRIVATE_REQUEST_PATH => encode(
+            &tenant_root_restore_refresh_checkpoint_v1(
+                store,
+                decode(
+                    "tenant-root restore-refresh checkpoint request",
+                    request_body,
+                    TENANT_ROOT_RESTORE_REFRESH_CHECKPOINT_REQUEST_MAX_BYTES_V1,
+                )?,
+                now_ms,
+            )
+            .await?,
+        ),
+        crate::CLOUDFLARE_ROUTER_TENANT_ROOT_RESTORE_ACTIVATION_PRIVATE_REQUEST_PATH => encode(
+            &tenant_root_restore_initial_activation_v1(
+                store,
+                issuer_keys,
+                decode(
+                    "tenant-root restore activation request",
+                    request_body,
+                    TENANT_ROOT_RESTORE_INITIAL_ACTIVATION_REQUEST_MAX_BYTES_V1,
+                )?,
+            )
+            .await?,
+        ),
+        _ => Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::ForbiddenLocalBinding,
+            "this host does not serve the requested tenant-root creation-state operation",
+        )),
+    }
+}
+
+/// The creation Durable Object's storage as the shared creation store,
+/// before it is bound to one storage transaction.
+#[cfg(feature = "workers-rs")]
+struct DurableObjectCreationStoreV1 {
+    env: worker::Env,
+    authority_object_id: String,
+    authority_id: TenantRootControlPlaneAuthorityIdV1,
+}
+
+#[cfg(feature = "workers-rs")]
+impl DurableObjectCreationStoreV1 {
+    fn new(env: &worker::Env, authority_object_id: &str) -> RouterAbProtocolResult<Self> {
+        Ok(Self {
+            env: env.clone(),
+            authority_object_id: authority_object_id.to_owned(),
+            authority_id: authority_id_from_object_id(authority_object_id)?,
+        })
+    }
+
+    fn bind(self, transaction: worker::Transaction) -> OwnedDurableObjectTransactionStoreV1 {
+        OwnedDurableObjectTransactionStoreV1 {
+            transaction,
+            env: self.env,
+            authority_object_id: self.authority_object_id,
+            authority_id: self.authority_id,
+            storage_error: RefCell::new(None),
+        }
+    }
+}
+
+/// One creation-DO storage transaction as the shared creation store. A
+/// storage failure is kept so the caller aborts the transaction instead of
+/// committing a partial write.
+#[cfg(feature = "workers-rs")]
+struct OwnedDurableObjectTransactionStoreV1 {
+    transaction: worker::Transaction,
+    env: worker::Env,
+    authority_object_id: String,
+    authority_id: TenantRootControlPlaneAuthorityIdV1,
+    storage_error: RefCell<Option<String>>,
+}
+
+#[cfg(feature = "workers-rs")]
+impl OwnedDurableObjectTransactionStoreV1 {
+    fn record_storage_error(&self, error: worker::Error) -> RouterAbProtocolError {
+        let message = error.to_string();
+        self.storage_error.borrow_mut().get_or_insert(message.clone());
+        durable_storage_protocol_error(worker::Error::RustError(message))
+    }
+
+    fn take_storage_error(&self) -> Option<worker::Error> {
+        self.storage_error.borrow_mut().take().map(worker::Error::RustError)
+    }
+}
+
+#[cfg(feature = "workers-rs")]
+impl TenantRootCreationStoreV1 for OwnedDurableObjectTransactionStoreV1 {
+    fn authority_id(&self) -> TenantRootControlPlaneAuthorityIdV1 {
+        self.authority_id
+    }
+
+    fn require_scope(
+        &self,
+        identity_digest: TenantRootIdentityDigestV1,
+        custody_lineage: TenantRootCustodyLineageId,
+    ) -> RouterAbProtocolResult<()> {
+        require_tenant_root_creation_authority_object_v1(
+            &self.env,
+            &self.authority_object_id,
+            identity_digest,
+            custody_lineage,
+        )
+    }
+
+    async fn get_json<T: DeserializeOwned>(&self, key: &str) -> RouterAbProtocolResult<Option<T>> {
+        transaction_get_optional::<T>(&self.transaction, key)
+            .await
+            .map_err(|error| self.record_storage_error(error))
+    }
+
+    async fn put_json<T: Serialize>(&self, key: &str, value: &T) -> RouterAbProtocolResult<()> {
+        self.transaction
+            .put(key, value)
+            .await
+            .map_err(|error| self.record_storage_error(error))
+    }
+
+    async fn delete(&self, key: &str) -> RouterAbProtocolResult<()> {
+        self.transaction
+            .delete(key)
+            .await
+            .map(|_| ())
+            .map_err(|error| self.record_storage_error(error))
+    }
 }
 
 #[cfg(test)]
@@ -15958,7 +17121,7 @@ mod tests {
             .expect("validated journal");
         let request = read_request(&journal);
 
-        let fresh = build_creation_journal_read_response(&request, &journal, None, None, false)
+        let fresh = build_creation_journal_read_response(&request, &journal, None, None, None)
             .expect("fresh");
         assert_eq!(fresh.journal_b64u, record.journal_b64u);
         assert_eq!(
@@ -15971,7 +17134,7 @@ mod tests {
             fresh.installation_checkpoint,
             CloudflareTenantRootCreationInstallationCheckpointReadStateV1::None
         );
-        assert!(!fresh.cleanup_checkpointed);
+        assert!(fresh.abandonment.is_none());
 
         let one = rendezvous_with(
             CloudflareTenantRootCreationCommitmentRendezvousStateV1::OneRoleCommitted {
@@ -15980,7 +17143,7 @@ mod tests {
             },
         );
         let one_committed =
-            build_creation_journal_read_response(&request, &journal, Some(&one), None, false)
+            build_creation_journal_read_response(&request, &journal, Some(&one), None, None)
                 .expect("one committed");
         assert_eq!(
             one_committed.committed_roles,
@@ -16015,7 +17178,7 @@ mod tests {
             &journal,
             Some(&both),
             Some(&one_checkpoint_for_read),
-            false,
+            None,
         )
         .expect("one ready");
         assert_eq!(
@@ -16037,7 +17200,7 @@ mod tests {
             CloudflareTenantRootCreationInstallationRoleV1::DeriverB
         );
         assert_eq!(signed_evidence_b64u, expected_evidence);
-        assert!(!one_read.cleanup_checkpointed);
+        assert!(one_read.abandonment.is_none());
 
         let command_a = role_creation_command(&journal, TwoPartyDeriverRole::DeriverA);
         let both_checkpoint = match evaluate_installation_checkpoint(
@@ -16071,13 +17234,14 @@ mod tests {
             &journal,
             Some(&both),
             Some(&both_checkpoint),
-            false,
+            None,
         )
         .expect("both ready");
         assert!(matches!(
             completed.installation_checkpoint,
             CloudflareTenantRootCreationInstallationCheckpointReadStateV1::BothRolesReady {
-                root_commitment_b64u
+                root_commitment_b64u,
+                ..
             } if root_commitment_b64u == expected_root
         ));
 
@@ -16086,14 +17250,24 @@ mod tests {
             &journal,
             Some(&both),
             Some(&both_checkpoint),
-            true,
+            Some(CloudflareTenantRootCreationAbandonmentReadV1 {
+                abandoned_at_ms: 1_020_000,
+                installed_roles: vec![
+                    CloudflareTenantRootCreationInstallationRoleV1::DeriverA,
+                    CloudflareTenantRootCreationInstallationRoleV1::DeriverB,
+                ],
+                cleaned_roles: vec![CloudflareTenantRootCreationInstallationRoleV1::DeriverA],
+            }),
         )
         .expect("abandoned");
         assert!(matches!(
             abandoned.installation_checkpoint,
             CloudflareTenantRootCreationInstallationCheckpointReadStateV1::BothRolesReady { .. }
         ));
-        assert!(abandoned.cleanup_checkpointed);
+        assert_eq!(
+            abandoned.abandonment.map(|abandonment| abandonment.cleaned_roles),
+            Some(vec![CloudflareTenantRootCreationInstallationRoleV1::DeriverA])
+        );
     }
 
     /// A caller that reached the wrong object fails closed on identity or lineage.
@@ -16111,7 +17285,7 @@ mod tests {
             &journal,
             None,
             None,
-            false
+            None
         )
         .is_err());
 
@@ -16122,7 +17296,7 @@ mod tests {
             &journal,
             None,
             None,
-            false
+            None
         )
         .is_err());
 
@@ -16130,7 +17304,7 @@ mod tests {
         let mut malformed = honest;
         malformed.identity_digest_b64u = "not base64url!".to_owned();
         assert!(
-            build_creation_journal_read_response(&malformed, &journal, None, None, false).is_err()
+            build_creation_journal_read_response(&malformed, &journal, None, None, None).is_err()
         );
     }
 
@@ -16181,6 +17355,7 @@ mod tests {
             manual_refresh_pending: None,
             last_manual_refresh_completed_at_ms: None,
             last_refresh_completed_at_ms: None,
+            delivery: None,
         };
         let verifying_key = SigningKey::from_bytes(&[0x41; 32])
             .verifying_key()
@@ -17659,15 +18834,47 @@ mod tests {
         (checkpoint, commitments)
     }
 
+    fn abandonment_fixture(
+        journal: &ValidatedTenantRootCreationJournalV1,
+        installed_roles: Vec<CloudflareTenantRootCreationInstallationRoleV1>,
+    ) -> CloudflareTenantRootCreationAbandonmentV1 {
+        CloudflareTenantRootCreationAbandonmentV1 {
+            journal_digest_b64u: encode_base64url_bytes_v1(journal.journal_digest.as_bytes()),
+            identity_digest_b64u: encode_base64url_bytes_v1(journal.identity_digest.as_bytes()),
+            custody_lineage_b64u: journal.custody_lineage.to_base64url(),
+            ceremony_context_digest_b64u: encode_base64url_bytes_v1(
+                journal
+                    .ceremony_context
+                    .digest()
+                    .expect("ceremony context digest")
+                    .as_bytes(),
+            ),
+            installed_roles,
+            abandoned_at_ms: 1_000_001,
+        }
+    }
+
     fn cleanup_checkpoint_fixture(
         journal: &ValidatedTenantRootCreationJournalV1,
+        abandonment: &CloudflareTenantRootCreationAbandonmentV1,
         installation: &ValidatedTenantRootCreationInstallationCheckpointV1,
         cleanup_nonce_seed: u8,
         receipt_signer: TwoPartyDeriverRole,
         replacement_payload: Option<&[u8]>,
     ) -> CloudflareTenantRootCreationCleanupCheckpointV1 {
-        let (target, role) =
-            creation_cleanup_target(journal, installation).expect("cleanup target");
+        let ValidatedTenantRootCreationInstallationStateV1::OneRoleReady {
+            role: installed, ..
+        } = &installation.state
+        else {
+            panic!("the cleanup fixture cleans the one installed role");
+        };
+        let (target, role) = creation_cleanup_target(
+            journal,
+            abandonment,
+            Some(installation),
+            CloudflareTenantRootCreationInstallationRoleV1::from_protocol(*installed),
+        )
+        .expect("cleanup target");
         let cleanup_nonce =
             TenantRootCeremonyNonceV1::from_bytes([cleanup_nonce_seed; 32]).expect("cleanup nonce");
         let command = TenantRootRoleCleanupCommandV1::sign(
@@ -17735,8 +18942,13 @@ mod tests {
             &commitments,
         )
         .expect("installation");
+        let abandonment = abandonment_fixture(
+            &journal,
+            vec![CloudflareTenantRootCreationInstallationRoleV1::DeriverB],
+        );
         let candidate_record = cleanup_checkpoint_fixture(
             &journal,
+            &abandonment,
             &installation,
             0x83,
             TwoPartyDeriverRole::DeriverB,
@@ -17745,7 +18957,8 @@ mod tests {
         let candidate = validate_creation_cleanup_checkpoint(
             candidate_record.clone(),
             &journal,
-            &installation,
+            &abandonment,
+            Some(&installation),
             authority(0x44),
             &verifying_keys(),
             &role_keys(),
@@ -17755,7 +18968,8 @@ mod tests {
             None,
             candidate,
             &journal,
-            &installation,
+            &abandonment,
+            Some(&installation),
             authority(0x44),
             &verifying_keys(),
             &role_keys(),
@@ -17780,7 +18994,8 @@ mod tests {
         let replay_candidate = validate_creation_cleanup_checkpoint(
             candidate_record,
             &journal,
-            &installation,
+            &abandonment,
+            Some(&installation),
             authority(0x44),
             &verifying_keys(),
             &role_keys(),
@@ -17790,7 +19005,8 @@ mod tests {
             Some(checkpoint),
             replay_candidate,
             &journal,
-            &installation,
+            &abandonment,
+            Some(&installation),
             authority(0x44),
             &verifying_keys(),
             &role_keys(),
@@ -17825,9 +19041,14 @@ mod tests {
             &commitments,
         )
         .expect("installation");
+        let abandonment = abandonment_fixture(
+            &journal,
+            vec![CloudflareTenantRootCreationInstallationRoleV1::DeriverB],
+        );
 
         let mut wrong_role = cleanup_checkpoint_fixture(
             &journal,
+            &abandonment,
             &installation,
             0x83,
             TwoPartyDeriverRole::DeriverB,
@@ -17837,7 +19058,8 @@ mod tests {
         assert!(validate_creation_cleanup_checkpoint(
             wrong_role,
             &journal,
-            &installation,
+            &abandonment,
+            Some(&installation),
             authority(0x44),
             &verifying_keys(),
             &role_keys(),
@@ -17846,6 +19068,7 @@ mod tests {
 
         let wrong_signer = cleanup_checkpoint_fixture(
             &journal,
+            &abandonment,
             &installation,
             0x83,
             TwoPartyDeriverRole::DeriverA,
@@ -17854,7 +19077,8 @@ mod tests {
         assert!(validate_creation_cleanup_checkpoint(
             wrong_signer,
             &journal,
-            &installation,
+            &abandonment,
+            Some(&installation),
             authority(0x44),
             &verifying_keys(),
             &role_keys(),
@@ -17863,6 +19087,7 @@ mod tests {
 
         let wrong_payload = cleanup_checkpoint_fixture(
             &journal,
+            &abandonment,
             &installation,
             0x83,
             TwoPartyDeriverRole::DeriverB,
@@ -17871,7 +19096,8 @@ mod tests {
         assert!(validate_creation_cleanup_checkpoint(
             wrong_payload,
             &journal,
-            &installation,
+            &abandonment,
+            Some(&installation),
             authority(0x44),
             &verifying_keys(),
             &role_keys(),
@@ -17900,12 +19126,60 @@ mod tests {
             &commitments,
         )
         .expect("completed installation");
-        assert_eq!(
-            creation_cleanup_target(&journal, &completed_installation)
-                .expect_err("completed installation cannot be cleaned")
-                .code(),
-            RouterAbProtocolErrorCode::ConflictingPair
+        // Once the fence records both roles installed, each role's cleanup
+        // targets that role's own installation evidence.
+        let both_abandoned = abandonment_fixture(
+            &journal,
+            vec![
+                CloudflareTenantRootCreationInstallationRoleV1::DeriverA,
+                CloudflareTenantRootCreationInstallationRoleV1::DeriverB,
+            ],
         );
+        for role in [
+            CloudflareTenantRootCreationInstallationRoleV1::DeriverA,
+            CloudflareTenantRootCreationInstallationRoleV1::DeriverB,
+        ] {
+            let (target, targeted) = creation_cleanup_target(
+                &journal,
+                &both_abandoned,
+                Some(&completed_installation),
+                role,
+            )
+            .expect("each installed role has a cleanup target");
+            assert_eq!(targeted, role);
+            assert!(matches!(
+                target,
+                TenantRootRoleCleanupTargetV1::Pending { role: targeted, .. }
+                    if targeted == role.to_protocol()
+            ));
+        }
+        // A role the fence did not record is cleaned by the abandoned
+        // ceremony alone, never by installation evidence; a recorded role
+        // with no installation to bind has no target.
+        let (target, _) = creation_cleanup_target(
+            &journal,
+            &abandonment,
+            Some(&installation),
+            CloudflareTenantRootCreationInstallationRoleV1::DeriverA,
+        )
+        .expect("an unrecorded role has a ceremony-bound cleanup target");
+        assert_eq!(
+            target,
+            TenantRootRoleCleanupTargetV1::AbandonedCeremony {
+                identity_digest: journal.identity_digest,
+                custody_lineage: journal.custody_lineage,
+                role: TwoPartyDeriverRole::DeriverA,
+                session_id: journal.ceremony_context.session_id(),
+                ceremony_nonce: journal.ceremony_context.nonce(),
+            }
+        );
+        assert!(creation_cleanup_target(
+            &journal,
+            &abandonment,
+            None,
+            CloudflareTenantRootCreationInstallationRoleV1::DeriverB,
+        )
+        .is_err());
     }
 
     #[test]
@@ -18075,6 +19349,7 @@ mod tests {
         let first = evaluate_refresh_admission_v1(
             &record,
             None,
+            None,
             "operation-a",
             CloudflareTenantRootRefreshTriggerV1::Manual,
             identity_digest_for_record(&record),
@@ -18082,7 +19357,7 @@ mod tests {
             record.lifecycle_revision,
             u64::MAX,
             FIRST_NOW_MS,
-            TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS_V1,
+            TenantRootRefreshScheduleV1::default(),
         )
         .expect("first manual refresh admission");
         let pending = match first {
@@ -18096,6 +19371,7 @@ mod tests {
             evaluate_refresh_admission_v1(
                 &admitted,
                 None,
+                None,
                 "operation-a",
                 CloudflareTenantRootRefreshTriggerV1::Manual,
                 identity_digest_for_record(&admitted),
@@ -18103,13 +19379,14 @@ mod tests {
                 admitted.lifecycle_revision,
                 u64::MAX,
                 FIRST_NOW_MS,
-                TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS_V1,
+                TenantRootRefreshScheduleV1::default(),
             ),
             Ok(CloudflareTenantRootRefreshAdmissionEvaluationV1::Commit { .. })
         ));
         assert!(matches!(
             evaluate_refresh_admission_v1(
                 &admitted,
+                None,
                 None,
                 "operation-b",
                 CloudflareTenantRootRefreshTriggerV1::Manual,
@@ -18118,7 +19395,7 @@ mod tests {
                 admitted.lifecycle_revision,
                 u64::MAX,
                 FIRST_NOW_MS,
-                TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS_V1,
+                TenantRootRefreshScheduleV1::default(),
             ),
             Ok(CloudflareTenantRootRefreshAdmissionEvaluationV1::InProgress)
         ));
@@ -18131,6 +19408,7 @@ mod tests {
             evaluate_refresh_admission_v1(
                 &restarted,
                 None,
+                None,
                 "operation-a",
                 CloudflareTenantRootRefreshTriggerV1::Manual,
                 identity_digest_for_record(&restarted),
@@ -18138,7 +19416,7 @@ mod tests {
                 restarted.lifecycle_revision,
                 u64::MAX,
                 FIRST_NOW_MS,
-                TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS_V1,
+                TenantRootRefreshScheduleV1::default(),
             ),
             Ok(CloudflareTenantRootRefreshAdmissionEvaluationV1::Commit { .. })
         ));
@@ -18165,6 +19443,7 @@ mod tests {
             evaluate_refresh_admission_v1(
                 &recovered_completed,
                 None,
+                None,
                 "operation-b",
                 CloudflareTenantRootRefreshTriggerV1::Manual,
                 identity_digest_for_record(&recovered_completed),
@@ -18172,7 +19451,7 @@ mod tests {
                 recovered_completed.lifecycle_revision,
                 u64::MAX,
                 retry_at_ms - 1,
-                TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS_V1,
+                TenantRootRefreshScheduleV1::default(),
             ),
             Ok(CloudflareTenantRootRefreshAdmissionEvaluationV1::Throttled {
                 retry_at_ms: value
@@ -18182,6 +19461,7 @@ mod tests {
             evaluate_refresh_admission_v1(
                 &completed,
                 None,
+                None,
                 "operation-b",
                 CloudflareTenantRootRefreshTriggerV1::Manual,
                 identity_digest_for_record(&completed),
@@ -18189,7 +19469,7 @@ mod tests {
                 completed.lifecycle_revision,
                 u64::MAX,
                 retry_at_ms,
-                TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS_V1,
+                TenantRootRefreshScheduleV1::default(),
             ),
             Ok(CloudflareTenantRootRefreshAdmissionEvaluationV1::Commit { .. })
         ));
@@ -18216,6 +19496,7 @@ mod tests {
             evaluate_refresh_admission_v1(
                 &restore_active.record,
                 None,
+                None,
                 "operation-c",
                 CloudflareTenantRootRefreshTriggerV1::Manual,
                 identity_digest_for_record(&restore_active.record),
@@ -18223,7 +19504,7 @@ mod tests {
                 restore_active.record.lifecycle_revision,
                 u64::MAX,
                 1_000_250,
-                TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS_V1,
+                TenantRootRefreshScheduleV1::default(),
             ),
             Ok(CloudflareTenantRootRefreshAdmissionEvaluationV1::InProgress)
         ));
@@ -18243,6 +19524,7 @@ mod tests {
                 )
                 .expect("reload completion"),
             ),
+            None,
             "operation-a",
             CloudflareTenantRootRefreshTriggerV1::Manual,
             identity_digest_for_record(&later_state),
@@ -18250,7 +19532,7 @@ mod tests {
             later_state.lifecycle_revision,
             u64::MAX,
             retry_at_ms,
-            TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS_V1,
+            TenantRootRefreshScheduleV1::default(),
         )
         .expect("replay completed operation after a later operation");
         assert!(matches!(
@@ -18267,6 +19549,7 @@ mod tests {
             evaluate_refresh_admission_v1(
                 &other_tenant,
                 None,
+                None,
                 "operation-b",
                 CloudflareTenantRootRefreshTriggerV1::Manual,
                 identity_digest_for_record(&other_tenant),
@@ -18274,7 +19557,7 @@ mod tests {
                 other_tenant.lifecycle_revision,
                 u64::MAX,
                 FIRST_NOW_MS + 1,
-                TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS_V1,
+                TenantRootRefreshScheduleV1::default(),
             ),
             Ok(CloudflareTenantRootRefreshAdmissionEvaluationV1::Commit { .. })
         ));
@@ -18288,6 +19571,7 @@ mod tests {
             evaluate_refresh_admission_v1(
                 &record,
                 None,
+                None,
                 "unseen",
                 CloudflareTenantRootRefreshTriggerV1::Manual,
                 identity_digest_for_record(&record),
@@ -18295,13 +19579,14 @@ mod tests {
                 revision,
                 10,
                 10,
-                TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS_V1,
+                TenantRootRefreshScheduleV1::default(),
             ),
             Ok(CloudflareTenantRootRefreshAdmissionEvaluationV1::AuthorizationExpired)
         ));
         assert!(matches!(
             evaluate_refresh_admission_v1(
                 &record,
+                None,
                 None,
                 "unseen",
                 CloudflareTenantRootRefreshTriggerV1::Manual,
@@ -18310,12 +19595,13 @@ mod tests {
                 revision + 1,
                 20,
                 10,
-                TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS_V1,
+                TenantRootRefreshScheduleV1::default(),
             ),
             Ok(CloudflareTenantRootRefreshAdmissionEvaluationV1::RevisionMoved)
         ));
         let admitted = evaluate_refresh_admission_v1(
             &record,
+            None,
             None,
             "admitted",
             CloudflareTenantRootRefreshTriggerV1::Manual,
@@ -18324,7 +19610,7 @@ mod tests {
             revision,
             20,
             10,
-            TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS_V1,
+            TenantRootRefreshScheduleV1::default(),
         )
         .expect("valid authorization admits once");
         let CloudflareTenantRootRefreshAdmissionEvaluationV1::Commit { pending } = admitted else {
@@ -18337,6 +19623,7 @@ mod tests {
             evaluate_refresh_admission_v1(
                 &restarted,
                 None,
+                None,
                 "admitted",
                 CloudflareTenantRootRefreshTriggerV1::Manual,
                 identity_digest_for_record(&restarted),
@@ -18344,13 +19631,14 @@ mod tests {
                 revision,
                 20,
                 30,
-                TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS_V1,
+                TenantRootRefreshScheduleV1::default(),
             ),
             Ok(CloudflareTenantRootRefreshAdmissionEvaluationV1::Commit { .. })
         ));
         assert!(matches!(
             evaluate_refresh_admission_v1(
                 &restarted,
+                None,
                 None,
                 "admitted",
                 CloudflareTenantRootRefreshTriggerV1::Manual,
@@ -18359,7 +19647,7 @@ mod tests {
                 revision + 1,
                 1,
                 30,
-                TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS_V1,
+                TenantRootRefreshScheduleV1::default(),
             ),
             Ok(CloudflareTenantRootRefreshAdmissionEvaluationV1::Commit { .. })
         ));
@@ -18374,6 +19662,7 @@ mod tests {
             evaluate_refresh_admission_v1(
                 &record,
                 Some(completion),
+                None,
                 "admitted",
                 CloudflareTenantRootRefreshTriggerV1::Manual,
                 identity_digest_for_record(&record),
@@ -18381,7 +19670,7 @@ mod tests {
                 revision,
                 20,
                 30,
-                TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS_V1,
+                TenantRootRefreshScheduleV1::default(),
             ),
             Ok(CloudflareTenantRootRefreshAdmissionEvaluationV1::Replay { .. })
         ));
@@ -18392,21 +19681,24 @@ mod tests {
         let (record, _) = active_refresh_state_fixture();
         let identity_digest = identity_digest_for_record(&record);
         let activation_at_ms = activation_at_ms_for_record(&record);
-        let jitter = tenant_root_scheduled_refresh_jitter_ms_v1(identity_digest);
+        let interval_ms = TENANT_ROOT_SCHEDULED_REFRESH_INTERVAL_MS_V1;
+        let jitter = tenant_root_scheduled_refresh_jitter_ms_v1(identity_digest, interval_ms);
         assert!(jitter < TENANT_ROOT_SCHEDULED_REFRESH_JITTER_WINDOW_MS_V1);
         assert_eq!(
             jitter,
-            tenant_root_scheduled_refresh_jitter_ms_v1(identity_digest)
+            tenant_root_scheduled_refresh_jitter_ms_v1(identity_digest, interval_ms)
         );
 
         let next_run_at_ms = tenant_root_scheduled_refresh_next_at_ms_v1(
             identity_digest,
             activation_at_ms,
             record.last_refresh_completed_at_ms,
+            interval_ms,
         );
         assert!(matches!(
             evaluate_refresh_admission_v1(
                 &record,
+                None,
                 None,
                 "scheduled-operation",
                 CloudflareTenantRootRefreshTriggerV1::Scheduled,
@@ -18415,7 +19707,7 @@ mod tests {
                 record.lifecycle_revision,
                 u64::MAX,
                 next_run_at_ms - 1,
-                TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS_V1,
+                TenantRootRefreshScheduleV1::default(),
             ),
             Ok(CloudflareTenantRootRefreshAdmissionEvaluationV1::NotDue {
                 next_run_at_ms: observed
@@ -18424,6 +19716,7 @@ mod tests {
         let admitted = evaluate_refresh_admission_v1(
             &record,
             None,
+            None,
             "scheduled-operation",
             CloudflareTenantRootRefreshTriggerV1::Scheduled,
             identity_digest,
@@ -18431,7 +19724,7 @@ mod tests {
             record.lifecycle_revision,
             u64::MAX,
             next_run_at_ms,
-            TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS_V1,
+            TenantRootRefreshScheduleV1::default(),
         )
         .expect("scheduled refresh is admitted at its due bound");
         let CloudflareTenantRootRefreshAdmissionEvaluationV1::Commit { pending } = admitted else {
@@ -18462,6 +19755,7 @@ mod tests {
                 identity_digest,
                 activation_at_ms,
                 transitioned.last_refresh_completed_at_ms,
+                interval_ms,
             ) > next_run_at_ms
         );
 
@@ -18470,9 +19764,11 @@ mod tests {
             operation_id: "scheduled-operation".to_owned(),
             lifecycle_revision: trigger_mismatch.lifecycle_revision,
             trigger: CloudflareTenantRootRefreshTriggerV1::Scheduled,
+            expires_at_ms: u64::MAX,
         });
         let mismatch = evaluate_refresh_admission_v1(
             &trigger_mismatch,
+            None,
             None,
             "scheduled-operation",
             CloudflareTenantRootRefreshTriggerV1::Manual,
@@ -18481,7 +19777,7 @@ mod tests {
             trigger_mismatch.lifecycle_revision,
             u64::MAX,
             next_run_at_ms,
-            TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS_V1,
+            TenantRootRefreshScheduleV1::default(),
         )
         .expect_err("replay cannot change its persisted trigger");
         assert_eq!(mismatch.code(), RouterAbProtocolErrorCode::ConflictingPair);
@@ -18490,6 +19786,7 @@ mod tests {
     #[test]
     fn managed_restore_fence_reserves_checkpoints_and_replays_after_json_restart() {
         const RESERVE_NOW_MS: u64 = 1_000_250;
+        const LAST_RETRY_NOW_MS: u64 = 1_000_300;
         const EXPIRED_RETRY_NOW_MS: u64 = 1_000_301;
         let (mut active, journal, issuer_keys) = managed_restore_active_state_fixture();
         let request = managed_restore_request(0x61);
@@ -18529,19 +19826,37 @@ mod tests {
                 &active,
                 &journal,
                 request.clone(),
-                EXPIRED_RETRY_NOW_MS,
+                LAST_RETRY_NOW_MS,
             )
-            .expect("exact reservation replay after expiry"),
+            .expect("exact reservation replay inside its window"),
             CloudflareTenantRootManagedRestoreFenceEvaluationV1::Replay { fence }
                 if fence == reserved
         ));
+        let mut expired_record = active.record.clone();
+        assert!(expire_managed_restore_reservation_v1(
+            &mut expired_record,
+            EXPIRED_RETRY_NOW_MS,
+        ));
+        let expired =
+            validate_refresh_active_state_record(expired_record, authority(0x71), &issuer_keys)
+                .expect("expired managed restore");
+        let error = reserve_managed_restore_authorization_fence_v1(
+            &expired,
+            &journal,
+            request.clone(),
+            EXPIRED_RETRY_NOW_MS,
+        )
+        .expect_err("exact reservation retry after expiry");
+        assert_eq!(error.code(), RouterAbProtocolErrorCode::ExpiredLocalRequest);
 
         let (challenge, attempt) = match &reserved {
             CloudflareTenantRootManagedRestoreFenceV1::Reserved { challenge, attempt } => {
                 (challenge.clone(), attempt.clone())
             }
             CloudflareTenantRootManagedRestoreFenceV1::Open
-            | CloudflareTenantRootManagedRestoreFenceV1::Terminal { .. } => {
+            | CloudflareTenantRootManagedRestoreFenceV1::Terminal { .. }
+            | CloudflareTenantRootManagedRestoreFenceV1::Expired { .. }
+            | CloudflareTenantRootManagedRestoreFenceV1::Superseded { .. } => {
                 panic!("reservation must retain the reserved challenge")
             }
         };
@@ -18603,7 +19918,9 @@ mod tests {
                 (challenge, attempt)
             }
             CloudflareTenantRootManagedRestoreFenceV1::Open
-            | CloudflareTenantRootManagedRestoreFenceV1::Terminal { .. } => {
+            | CloudflareTenantRootManagedRestoreFenceV1::Terminal { .. }
+            | CloudflareTenantRootManagedRestoreFenceV1::Expired { .. }
+            | CloudflareTenantRootManagedRestoreFenceV1::Superseded { .. } => {
                 panic!("reservation must retain the reserved challenge")
             }
         };
@@ -18692,7 +20009,9 @@ mod tests {
                 }
             }
             CloudflareTenantRootManagedRestoreFenceV1::Open
-            | CloudflareTenantRootManagedRestoreFenceV1::Terminal { .. } => {
+            | CloudflareTenantRootManagedRestoreFenceV1::Terminal { .. }
+            | CloudflareTenantRootManagedRestoreFenceV1::Expired { .. }
+            | CloudflareTenantRootManagedRestoreFenceV1::Superseded { .. } => {
                 panic!("reservation must retain the reserved challenge")
             }
         };

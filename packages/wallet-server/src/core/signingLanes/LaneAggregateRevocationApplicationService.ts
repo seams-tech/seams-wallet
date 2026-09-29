@@ -11,7 +11,7 @@ import type { LaneLifecycleRevocationRequestV1 } from './LaneLifecycleApplicatio
 import { LaneEnrollmentRevocation } from './LaneEnrollmentRevocation';
 import type { LaneLifecycleStore } from './LaneLifecycleStore';
 
-export type LaneAggregateRevocationRequestV1 = {
+type LaneAggregateRevocationRequestV1 = {
   readonly command: RevokeLaneEnrollmentV1;
   readonly orderedChildren: readonly [
     LaneLifecycleRevocationRequestV1,
@@ -19,7 +19,7 @@ export type LaneAggregateRevocationRequestV1 = {
   ];
 };
 
-export type LaneAggregateRevocationApplicationServiceOptionsV1 = {
+type LaneAggregateRevocationApplicationServiceOptionsV1 = {
   readonly lifecycleStore: Pick<
     LaneLifecycleStore,
     'getEnrollment' | 'fenceEnrollmentRevocation' | 'listEnrollmentProductEpochs'
@@ -31,7 +31,7 @@ export type LaneAggregateRevocationApplicationServiceOptionsV1 = {
   >;
 };
 
-export interface LaneAggregateChildRevocationPortV1 {
+interface LaneAggregateChildRevocationPortV1 {
   revokeSigningLaneV1(input: LaneLifecycleRevocationRequestV1): Promise<{
     readonly outcome: 'applied' | 'replayed' | 'conflict';
   }>;

@@ -35,7 +35,7 @@ export type WalletSessionCommittedIdentityV1 = {
 };
 
 /** The credential-free retry signal shared by issuer response boundaries. */
-export type WalletSessionAlreadyCommittedResponseV1 = {
+type WalletSessionAlreadyCommittedResponseV1 = {
   readonly ok: false;
   readonly code: 'already_committed';
   readonly message: string;

@@ -1,13 +1,11 @@
 import type {
   AddSignerIntentGrant,
   AddSignerIntentV1,
-  AddSignerSelection,
   WalletId,
 } from '@shared/utils/registrationIntent';
-import {
-  computeAddSignerNearEd25519SigningKeyId,
-  registrationNearEd25519BranchKey,
-} from '@shared/utils/registrationIntent';
+import type { AddSignerSelection } from '@shared/utils/registrationSignerPlan';
+import { computeAddSignerNearEd25519SigningKeyId } from '@shared/utils/registrationIds';
+import { registrationNearEd25519BranchKey } from '@shared/utils/registrationSignerPlan';
 import {
   ROUTER_AB_ED25519_YAO_REGISTRATION_ADMISSION_PATH_V1,
   parseRouterAbEd25519YaoRegistrationActivationAdmissionReceiptV1,
@@ -19,6 +17,7 @@ import {
   deriveSigningRootId,
   normalizeRuntimePolicyScope,
 } from '@shared/threshold/signingRootScope';
+import { coerceNonNullishString } from '@shared/utils/validation';
 import {
   RouterAbEd25519YaoHttpActivationTransportV1,
   type RouterAbEd25519YaoHttpTransportConfigV1,
@@ -26,7 +25,7 @@ import {
 
 type Ed25519AddSignerSelection = Extract<AddSignerSelection, { mode: 'ed25519' }>;
 
-export type VerifiedPasskeyEd25519AddSignerIntentV1 = {
+type VerifiedPasskeyEd25519AddSignerIntentV1 = {
   kind: 'verified_passkey_ed25519_add_signer_intent_v1';
   intent: Omit<AddSignerIntentV1, 'signerSelection'> & {
     signerSelection: Ed25519AddSignerSelection;
@@ -36,14 +35,14 @@ export type VerifiedPasskeyEd25519AddSignerIntentV1 = {
   addSignerCeremonyId: string;
 };
 
-export type VerifiedPasskeyEd25519AddSignerAuthorityV1 = {
+type VerifiedPasskeyEd25519AddSignerAuthorityV1 = {
   kind: 'verified_passkey_ed25519_add_signer_authority_v1';
   walletId: WalletId;
   addSignerIntentDigestB64u: string;
   credentialIdB64u: string;
 };
 
-export type VerifiedPasskeyEd25519YaoAddSignerPreparationInputV1 = {
+type VerifiedPasskeyEd25519YaoAddSignerPreparationInputV1 = {
   kind: 'verified_passkey_ed25519_yao_add_signer_input_v1';
   verifiedIntent: VerifiedPasskeyEd25519AddSignerIntentV1;
   verifiedAuthority: VerifiedPasskeyEd25519AddSignerAuthorityV1;
@@ -55,17 +54,11 @@ export type VerifiedPasskeyEd25519YaoAddSignerPreparationInputV1 = {
   };
 };
 
-export type PreparedPasskeyEd25519YaoAddSignerV1 = {
+type PreparedPasskeyEd25519YaoAddSignerV1 = {
   kind: 'prepared_passkey_ed25519_yao_add_signer_v1';
   request: RouterAbEd25519YaoRegistrationAdmissionRequestV1;
   transportConfig: RouterAbEd25519YaoHttpTransportConfigV1;
 };
-
-function requireNonEmptyString(value: unknown, label: string): string {
-  const normalized = String(value ?? '').trim();
-  if (!normalized) throw new Error(`${label} is required`);
-  return normalized;
-}
 
 function requireMatchingString(left: string, right: string, label: string): void {
   if (left !== right) throw new Error(`${label} does not match the verified add-signer intent`);
@@ -83,18 +76,18 @@ function requireMatchingParticipantIds(
 function transportConfig(
   input: VerifiedPasskeyEd25519YaoAddSignerPreparationInputV1,
 ): RouterAbEd25519YaoHttpTransportConfigV1 {
-  const bearerToken = requireNonEmptyString(
+  const bearerToken = coerceNonNullishString(
     input.verifiedIntent.addSignerIntentGrant,
     'add-signer intent grant',
   );
   return {
-    routerOrigin: requireNonEmptyString(input.httpTransport.routerOrigin, 'Yao Router origin'),
+    routerOrigin: coerceNonNullishString(input.httpTransport.routerOrigin, 'Yao Router origin'),
     authorization: { kind: 'bearer', value: `Bearer ${bearerToken}` },
     fetch: input.httpTransport.fetch,
   };
 }
 
-export async function prepareVerifiedPasskeyEd25519YaoAddSignerV1(
+async function prepareVerifiedPasskeyEd25519YaoAddSignerV1(
   input: VerifiedPasskeyEd25519YaoAddSignerPreparationInputV1,
 ): Promise<PreparedPasskeyEd25519YaoAddSignerV1> {
   const intent = input.verifiedIntent.intent;
@@ -109,7 +102,7 @@ export async function prepareVerifiedPasskeyEd25519YaoAddSignerV1(
     input.verifiedAuthority.addSignerIntentDigestB64u,
     'Passkey authority intent digest',
   );
-  requireNonEmptyString(input.verifiedAuthority.credentialIdB64u, 'passkey credential ID');
+  coerceNonNullishString(input.verifiedAuthority.credentialIdB64u, 'passkey credential ID');
 
   const runtimePolicyScope = normalizeRuntimePolicyScope(intent.runtimePolicyScope);
   const signingRootId = deriveSigningRootId(runtimePolicyScope);
@@ -118,7 +111,7 @@ export async function prepareVerifiedPasskeyEd25519YaoAddSignerV1(
   );
   if (!parsedAdmission.ok) throw new Error(parsedAdmission.message);
   const admission = parsedAdmission.value;
-  const ceremonyId = requireNonEmptyString(
+  const ceremonyId = coerceNonNullishString(
     input.verifiedIntent.addSignerCeremonyId,
     'add-signer ceremony ID',
   );

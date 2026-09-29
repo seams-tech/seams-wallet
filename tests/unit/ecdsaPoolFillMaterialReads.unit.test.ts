@@ -87,6 +87,12 @@ async function buildPresignStepFixture() {
     authority: fixture.authority,
     authMethod: fixture.authMethod,
     retiredAtMs: null,
+    ownerWalletScope: {
+      orgId: String(session.tenantId),
+      projectId: 'presign-test',
+      projectEnvironmentId: 'test',
+      walletId: session.walletId,
+    },
   };
   return { fixture, session, materialActivation, scope, candidate, request: parsed.request };
 }
@@ -252,6 +258,9 @@ function joinedSessionRow(data: Awaited<ReturnType<typeof buildPresignStepFixtur
     session_quota_id: session.quotaId,
     session_principal_id: session.principalId,
     session_wallet_id: session.walletId,
+    session_org_id: data.candidate.ownerWalletScope.orgId,
+    session_project_id: data.candidate.ownerWalletScope.projectId,
+    session_env_id: data.candidate.ownerWalletScope.projectEnvironmentId,
     session_authority_id: session.authorityId,
     session_wallet_auth_method_id: session.walletAuthMethodId,
     session_authority_digest_b64u: session.authorityDigestB64u,

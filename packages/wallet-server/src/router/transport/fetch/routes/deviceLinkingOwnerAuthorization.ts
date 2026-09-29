@@ -30,7 +30,7 @@ import {
   buildWalletSessionCapabilitySubjectsV1,
   walletSessionCapabilitySubjectsV1Equal,
 } from '../../../../authorization/domain';
-import type { WalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
+import type { ActiveWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 import { extractBearerCredential } from '../../../auth/routerApiKeyAuth';
 import type {
   RouterApiAuthorizationSessionService,
@@ -41,10 +41,9 @@ import type { FetchRouterApiContext } from '../createFetchRouter';
 import type { DeviceLinkingAuthDeniedV1, DeviceLinkingOwnerRequestInputV1 } from './deviceLinking';
 import { json, readJson } from '../../../framework/http';
 import type { WalletExecutionLaneAuthSource } from '../../../../core/signingLanes/WalletExecutionLaneProjection';
-import { parseDigestB64u, type DigestB64u } from '@shared/utils/canonicalPrimitives';
+import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
+import { sha256DigestB64u } from '@shared/utils/canonicalPrimitives';
 import type { ExactAdministeredSignerManifestV1 } from '@shared/device-linking/delegatedActivationPlan';
-import { base64UrlEncode } from '@shared/utils/base64';
-import { sha256Bytes } from '@shared/utils/digests';
 
 export const LINKED_DEVICE_OWNER_AUTHORIZATION_PATH_V1 =
   '/wallet/device-linking/v1/owner-authorization' as const;
@@ -93,7 +92,7 @@ export type DeviceLinkingOwnerWalletSessionContextV1 =
       readonly authorityScope?: never;
     };
 
-export type DeviceLinkingOwnerRequestAuthenticationV1 =
+type DeviceLinkingOwnerRequestAuthenticationV1 =
   | {
       readonly kind: 'authorized';
       readonly body: unknown;
@@ -420,7 +419,7 @@ async function ownerContextFromExactV2AuthorizationV1(input: {
 function walletAuthAuthorityFromExactV2MethodV1(input: {
   readonly walletId: WalletId;
   readonly principalId: PrincipalId;
-  readonly authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+  readonly authMethod: ActiveWalletAuthMethodRecordV2;
 }): {
   readonly authority: WalletAuthAuthority;
   readonly authSource: WalletExecutionLaneAuthSource;
@@ -489,7 +488,7 @@ async function readClonedJson(request: Request): Promise<unknown> {
 
 async function requestBodyDigest(request: Request): Promise<DigestB64u> {
   const bytes = new Uint8Array(await request.clone().arrayBuffer());
-  return parseDigestB64u(base64UrlEncode(await sha256Bytes(bytes)));
+  return sha256DigestB64u(bytes);
 }
 
 function denied(

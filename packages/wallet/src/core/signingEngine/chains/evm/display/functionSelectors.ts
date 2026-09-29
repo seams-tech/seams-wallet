@@ -62,7 +62,7 @@ export function selectorFromHexData(data: string | undefined): string | undefine
   return deriveSelectorFromHexData(data);
 }
 
-export function resolveFunctionSignature(
+function resolveFunctionSignature(
   selector: string | undefined,
   contractAddress?: string,
 ): string | undefined {

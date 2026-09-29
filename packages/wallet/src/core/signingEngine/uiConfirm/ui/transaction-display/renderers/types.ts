@@ -4,7 +4,7 @@ import type {
   TxDisplayOperation,
 } from '@/core/signingEngine/interfaces/display';
 
-export type RenderTreeNodeType = 'folder' | 'file';
+type RenderTreeNodeType = 'folder' | 'file';
 
 export interface RenderTreeNode {
   id: string;

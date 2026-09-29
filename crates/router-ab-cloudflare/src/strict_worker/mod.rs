@@ -77,6 +77,7 @@ use crate::{
     handle_cloudflare_signing_worker_ed25519_lane_retire_private_fetch_v1,
     handle_cloudflare_signing_worker_ed25519_yao_activate_reservation_v1,
     handle_cloudflare_signing_worker_ed25519_yao_deactivate_reservation_v1,
+    handle_cloudflare_signing_worker_ed25519_yao_initial_registration_finalization_lookup_v1,
     handle_cloudflare_signing_worker_ed25519_yao_packages_v1,
     handle_cloudflare_signing_worker_ed25519_yao_recovery_promote_v1,
     handle_cloudflare_signing_worker_ed25519_yao_reserve_inactive_source_preserving_v1,
@@ -103,6 +104,7 @@ use crate::{
     CLOUDFLARE_SIGNING_WORKER_ECDSA_RESERVE_INACTIVE_SOURCE_PRESERVING_PATH,
     CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_ACTIVATE_RESERVATION_PATH,
     CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_DEACTIVATE_RESERVATION_PATH,
+    CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_INITIAL_REGISTRATION_FINALIZATION_LOOKUP_PATH,
     CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_LANE_ACTIVATE_PATH,
     CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_LANE_RETIRE_PATH,
     CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_PACKAGES_PATH,
@@ -136,7 +138,10 @@ use crate::{
 ))]
 use crate::{
     cloudflare_private_service_auth_error_response_v1,
-    require_cloudflare_internal_service_auth_request_v1, CLOUDFLARE_INTERNAL_PREWARM_PATH,
+    require_cloudflare_gateway_to_signing_worker_presign_auth_request_v1,
+    require_cloudflare_internal_service_auth_request_v1,
+    require_cloudflare_router_to_signing_worker_ecdsa_auth_request_v1,
+    CLOUDFLARE_INTERNAL_PREWARM_PATH,
 };
 #[cfg(all(
     debug_assertions,
@@ -157,8 +162,6 @@ use crate::{
 ))]
 use crate::{
     decrypt_and_handle_cloudflare_router_ab_ecdsa_derivation_activation_refresh_signer_private_request_v1,
-    decrypt_and_handle_cloudflare_router_ab_ecdsa_derivation_export_signer_private_request_v1,
-    decrypt_and_handle_cloudflare_router_ab_ecdsa_derivation_registration_signer_private_request_v1,
     CloudflareEcdsaBoundaryTimingV1, CloudflarePreloadedSignerHostV1,
     CloudflareRouterAbEcdsaDerivationDeriverActivationRefreshPrivateRequestV1,
     CloudflareRouterAbEcdsaDerivationDeriverExportPrivateRequestV1,

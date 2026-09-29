@@ -2,6 +2,11 @@ import type {
   EmailOtpAuthStateRecord,
   EmailOtpWalletEnrollmentRecord,
 } from '../../../../core/EmailOtpStores';
+import {
+  emailOtpAuthStateRows,
+  emailOtpWalletEnrollmentRows,
+  type ScopedD1Prepare,
+} from '../../../../core/emailOtpD1Statements';
 import type { D1PreparedStatementLike } from '../../../../storage/tenantRoute';
 import {
   emailOtpAuthStateRecord,
@@ -11,8 +16,6 @@ import {
   type D1EmailOtpEnrollmentRow,
   type EmailOtpAuthStatePatch,
 } from './d1EmailOtpRecords';
-
-type ScopedD1Prepare = (sql: string, values: readonly unknown[]) => D1PreparedStatementLike;
 
 export type EmailOtpAuthStateReadResult =
   | {
@@ -90,7 +93,7 @@ export class CloudflareD1EmailOtpEnrollmentStore {
    * Deletes the shared provider enrollment only once nothing references it.
    *
    * The enrollment is deliberately shared: every Email method on a wallet
-   * unwraps through it, and R109D keeps active and pending methods pointing at
+   * unwraps through it, and both active and pending methods keep pointing at
    * one row. So revoking a method must not remove it — only the disappearance
    * of its last reference may.
    *
@@ -123,15 +126,7 @@ export class CloudflareD1EmailOtpEnrollmentStore {
   }
 
   prepareDeleteEnrollmentStatement(walletId: string): D1PreparedStatementLike {
-    return this.prepare(
-      `DELETE FROM email_otp_wallet_enrollments
-        WHERE namespace = ?
-          AND org_id = ?
-          AND project_id = ?
-          AND env_id = ?
-          AND wallet_id = ?`,
-      [walletId],
-    );
+    return emailOtpWalletEnrollmentRows.delete(this.prepare, walletId);
   }
 
   async putEnrollment(record: EmailOtpWalletEnrollmentRecord): Promise<void> {
@@ -141,84 +136,20 @@ export class CloudflareD1EmailOtpEnrollmentStore {
   preparePutEnrollmentStatement(
     record: EmailOtpWalletEnrollmentRecord,
   ): D1PreparedStatementLike {
-    return this.prepare(
-      `INSERT INTO email_otp_wallet_enrollments (
-        namespace,
-        org_id,
-        project_id,
-        env_id,
-        wallet_id,
-        provider_user_id,
-        record_org_id,
-        verified_email,
-        record_json,
-        created_at_ms,
-        updated_at_ms
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT (namespace, org_id, project_id, env_id, wallet_id)
-      DO UPDATE SET
-        provider_user_id = EXCLUDED.provider_user_id,
-        record_org_id = EXCLUDED.record_org_id,
-        verified_email = EXCLUDED.verified_email,
-        record_json = EXCLUDED.record_json,
-        created_at_ms = EXCLUDED.created_at_ms,
-        updated_at_ms = EXCLUDED.updated_at_ms`,
-      [
-        record.walletId,
-        record.providerUserId,
-        record.orgId,
-        record.verifiedEmail,
-        JSON.stringify(record),
-        record.createdAtMs,
-        record.updatedAtMs,
-      ],
-    );
+    return emailOtpWalletEnrollmentRows.upsert(this.prepare, record);
   }
 
   /** Inserts the first enrollment without turning a concurrent winner into an update. */
   prepareInsertEnrollmentStatement(
     record: EmailOtpWalletEnrollmentRecord,
   ): D1PreparedStatementLike {
-    return this.prepare(
-      `INSERT INTO email_otp_wallet_enrollments (
-        namespace,
-        org_id,
-        project_id,
-        env_id,
-        wallet_id,
-        provider_user_id,
-        record_org_id,
-        verified_email,
-        record_json,
-        created_at_ms,
-        updated_at_ms
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        record.walletId,
-        record.providerUserId,
-        record.orgId,
-        record.verifiedEmail,
-        JSON.stringify(record),
-        record.createdAtMs,
-        record.updatedAtMs,
-      ],
-    );
+    return emailOtpWalletEnrollmentRows.insert(this.prepare, record);
   }
 
   async readAuthState(walletId: string): Promise<EmailOtpAuthStateRecord | null> {
-    const row = await this.prepare(
-      `SELECT record_json, updated_at_ms
-         FROM email_otp_auth_states
-        WHERE namespace = ?
-          AND org_id = ?
-          AND project_id = ?
-          AND env_id = ?
-          AND wallet_id = ?
-        LIMIT 1`,
-      [walletId],
-    ).first<D1EmailOtpAuthStateRow>();
+    const row = await emailOtpAuthStateRows
+      .select(this.prepare, walletId)
+      .first<D1EmailOtpAuthStateRow>();
     return parseEmailOtpAuthStateRow(row);
   }
 
@@ -320,35 +251,6 @@ export class CloudflareD1EmailOtpEnrollmentStore {
   }
 
   private preparePutAuthStateStatement(record: EmailOtpAuthStateRecord): D1PreparedStatementLike {
-    return this.prepare(
-      `INSERT INTO email_otp_auth_states (
-        namespace,
-        org_id,
-        project_id,
-        env_id,
-        wallet_id,
-        provider_user_id,
-        record_org_id,
-        record_json,
-        created_at_ms,
-        updated_at_ms
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT (namespace, org_id, project_id, env_id, wallet_id)
-      DO UPDATE SET
-        provider_user_id = EXCLUDED.provider_user_id,
-        record_org_id = EXCLUDED.record_org_id,
-        record_json = EXCLUDED.record_json,
-        created_at_ms = EXCLUDED.created_at_ms,
-        updated_at_ms = EXCLUDED.updated_at_ms`,
-      [
-        record.walletId,
-        record.providerUserId,
-        record.orgId,
-        JSON.stringify(record),
-        record.createdAtMs,
-        record.updatedAtMs,
-      ],
-    );
+    return emailOtpAuthStateRows.upsert(this.prepare, record);
   }
 }

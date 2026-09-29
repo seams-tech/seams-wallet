@@ -12,6 +12,20 @@ const CAS_GUARD_SQL = `INSERT INTO registration_ceremony_cas_guard (guard_id)
 SELECT 1
  WHERE changes() = 0`;
 
+/** Replaces the record when it is still at the expected version (?10) and bumps the version. */
+const UPDATE_EXPECTED_VERSION_SQL = `UPDATE ${TABLE_NAME}
+            SET version = version + 1,
+                record_json = ?7,
+                expires_at_ms = ?8,
+                updated_at_ms = ?9
+          WHERE namespace = ?1
+            AND org_id = ?2
+            AND project_id = ?3
+            AND env_id = ?4
+            AND record_scope = ?5
+            AND record_id = ?6
+            AND version = ?10`;
+
 export type D1RegistrationCeremonyRecordScope = {
   readonly namespace: string;
   readonly orgId: string;
@@ -19,26 +33,26 @@ export type D1RegistrationCeremonyRecordScope = {
   readonly envId: string;
 };
 
-export type D1RegistrationCeremonyRecordStoreOptions = {
+type D1RegistrationCeremonyRecordStoreOptions = {
   readonly database: D1DatabaseLike;
   readonly scope: D1RegistrationCeremonyRecordScope;
   readonly keyPrefix: string;
 };
 
-export type D1RegistrationCeremonyStoredRecord = {
+type D1RegistrationCeremonyStoredRecord = {
   readonly value: Record<string, unknown>;
   readonly version: number;
   readonly expiresAtMs: number;
 };
 
-export type D1RegistrationCeremonyRecordMutation = {
+type D1RegistrationCeremonyRecordMutation = {
   readonly scope: string;
   readonly id: string;
   readonly value: Record<string, unknown>;
   readonly expiresAtMs: number;
 };
 
-export type D1RegistrationCeremonyAtomicBranchClaim = {
+type D1RegistrationCeremonyAtomicBranchClaim = {
   readonly value: Record<string, unknown>;
   readonly version: number;
   readonly expiresAtMs: number;
@@ -50,7 +64,7 @@ type StoredRow = {
   readonly expires_at_ms?: unknown;
 };
 
-export class D1RegistrationCeremonyRecordConflictError extends Error {
+class D1RegistrationCeremonyRecordConflictError extends Error {
   constructor(message: string) {
     super(message);
     this.name = 'D1RegistrationCeremonyRecordConflictError';
@@ -108,14 +122,6 @@ export class D1RegistrationCeremonyRecordStore {
     throw conflict('Registration ceremony record conflicts with the stored value');
   }
 
-  async reserveExclusive(mutation: D1RegistrationCeremonyRecordMutation): Promise<boolean> {
-    const key = this.normalizeKey(mutation.scope, mutation.id);
-    const prepared = prepareValue(mutation.value, mutation.expiresAtMs);
-    if (await this.insert(key, prepared)) return true;
-    await this.get(mutation.scope, mutation.id);
-    return await this.insert(key, prepared);
-  }
-
   async updateExpected(input: {
     readonly scope: string;
     readonly id: string;
@@ -130,20 +136,7 @@ export class D1RegistrationCeremonyRecordStore {
     }
     const next = prepareValue(input.next, input.expiresAtMs);
     const result = await this.database
-      .prepare(
-        `UPDATE ${TABLE_NAME}
-            SET version = version + 1,
-                record_json = ?7,
-                expires_at_ms = ?8,
-                updated_at_ms = ?9
-          WHERE namespace = ?1
-            AND org_id = ?2
-            AND project_id = ?3
-            AND env_id = ?4
-            AND record_scope = ?5
-            AND record_id = ?6
-            AND version = ?10`,
-      )
+      .prepare(UPDATE_EXPECTED_VERSION_SQL)
       .bind(...this.bindKey(key), next.recordJson, next.expiresAtMs, Date.now(), current.version)
       .run();
     if (changes(result) !== 1) {
@@ -248,20 +241,7 @@ export class D1RegistrationCeremonyRecordStore {
     }
     const next = prepareValue(input.next, input.expiresAtMs);
     const result = await this.database
-      .prepare(
-        `UPDATE ${TABLE_NAME}
-            SET version = version + 1,
-                record_json = ?7,
-                expires_at_ms = ?8,
-                updated_at_ms = ?9
-          WHERE namespace = ?1
-            AND org_id = ?2
-            AND project_id = ?3
-            AND env_id = ?4
-            AND record_scope = ?5
-            AND record_id = ?6
-            AND version = ?10`,
-      )
+      .prepare(UPDATE_EXPECTED_VERSION_SQL)
       .bind(
         ...this.bindKey(key),
         next.recordJson,

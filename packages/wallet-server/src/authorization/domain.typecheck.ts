@@ -8,7 +8,6 @@ import type {
   MpcWalletSigningQuotaId,
   TenantId,
   WalletSessionAuthorizationId,
-  WalletSessionId,
 } from '@shared/authorization/capabilityKinds';
 import type { CapabilityOperationEnvelope } from '@shared/authorization/operationFingerprint';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';

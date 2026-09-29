@@ -11,6 +11,9 @@ import { prepareRouterAbStrictLocalRuntimeConfigs } from './prepare-local-runtim
 
 const repoRoot = process.cwd();
 const runtimeRoot = fileURLToPath(new URL('../', import.meta.url));
+const workerBuildDirectory = process.env.ROUTER_AB_WORKER_BUILD_PROFILE === 'dev'
+  ? 'build/dev'
+  : 'build';
 const options = parseArguments(process.argv.slice(2));
 const localRoot = path.resolve(
   options.root || path.join(tmpdir(), `${path.basename(repoRoot)}-wallet-router-ab`),
@@ -117,7 +120,7 @@ function assertWorkerArtifacts() {
 }
 
 function workerArtifactPath(role) {
-  return path.join(runtimeRoot, 'build', role, 'worker', 'shim.mjs');
+  return path.join(runtimeRoot, workerBuildDirectory, role, 'worker', 'shim.mjs');
 }
 
 function isMissingPath(filePath) {

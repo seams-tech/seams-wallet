@@ -52,7 +52,7 @@ import {
 import { type EcdsaRoleLocalPersistedMaterialRef } from '../keyMaterialBrands';
 import type { ActiveEcdsaCapabilityManifest } from '../material/ecdsaCapabilityManifest';
 
-export type EmailOtpEcdsaPublicationTimingBucket =
+type EmailOtpEcdsaPublicationTimingBucket =
   | 'signingSessionSealApplyMs'
   | 'warmCapabilityPersistenceMs';
 
@@ -336,7 +336,7 @@ export async function resolveEmailOtpExistingEcdsaKey(args: {
   });
 }
 
-export function buildEmailOtpEcdsaReadyPersistInput(args: {
+function buildEmailOtpEcdsaReadyPersistInput(args: {
   walletId: WalletId;
   chainTarget: ThresholdEcdsaChainTarget;
   walletSessionId: EmailOtpEcdsaReadyPersistInput['walletSessionId'];
@@ -360,7 +360,7 @@ export function buildEmailOtpEcdsaReadyPersistInput(args: {
   };
 }
 
-export function buildEmailOtpEcdsaSealBinding(args: {
+function buildEmailOtpEcdsaSealBinding(args: {
   warmThresholdSessionId: string;
   normalSigning: RouterAbEcdsaDerivationNormalSigningStateV1;
 }): {

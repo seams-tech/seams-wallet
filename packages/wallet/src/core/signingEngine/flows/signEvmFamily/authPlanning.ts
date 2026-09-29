@@ -98,7 +98,7 @@ type ResolveEvmFamilyTransactionStepUpBaseArgs = {
   onEvent?: EvmFamilyLifecycleEventCallback;
 };
 
-export type ResolveEvmFamilyTransactionStepUpArgs =
+type ResolveEvmFamilyTransactionStepUpArgs =
   | (ResolveEvmFamilyTransactionStepUpBaseArgs & {
       senderSignatureAlgorithm: 'secp256k1';
       ecdsaAuthorization: 'reusable_wallet_session';

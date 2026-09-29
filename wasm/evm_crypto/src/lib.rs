@@ -1,4 +1,3 @@
-mod codec;
 mod cose;
 mod derive;
 mod eip1559;

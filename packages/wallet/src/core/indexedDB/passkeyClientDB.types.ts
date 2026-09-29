@@ -7,9 +7,11 @@ import type {
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type { SignerAuthMethod, SignerKind, SignerSource } from '@shared/utils';
 import type {
+  EmailOtpWalletAuthMethodRecordV2,
+  PasskeyWalletAuthMethodRecordV2,
   WalletAuthMethodRecord,
   WalletAuthMethodRecordV2,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/walletAuthMethodRecord';
 import type { EmailOtpWalletAuthAuthority } from '@shared/utils/walletAuthAuthority';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import type { PasskeyCustodyEnvelopeRecord } from '@shared/passkey-custody';
@@ -64,18 +66,6 @@ export interface ProfileAuthenticatorRecord {
   syncedAt: string;
 }
 
-export type WalletPasskeyAuthenticatorLookup =
-  | {
-      kind: 'all_for_wallet';
-      walletId: WalletId;
-      credentialId?: never;
-    }
-  | {
-      kind: 'by_credential';
-      walletId: WalletId;
-      credentialId: string;
-    };
-
 export type WalletSignerLookup =
   | {
       kind: 'active_by_family';
@@ -108,8 +98,8 @@ export interface AccountRef {
   accountAddress: AccountAddress;
 }
 
-export type AccountModel = 'near-native' | 'threshold-ecdsa' | string;
-export type AccountSignerType = 'passkey' | 'threshold' | 'session' | 'recovery' | string;
+type AccountModel = 'near-native' | 'threshold-ecdsa' | string;
+type AccountSignerType = 'passkey' | 'threshold' | 'session' | 'recovery' | string;
 export type AccountSignerStatus = 'active' | 'pending' | 'revoked';
 export type { SignerAuthMethod, SignerKind, SignerSource };
 export interface AccountModelCapabilities {
@@ -146,8 +136,8 @@ export interface ProfileRecord {
   defaultSignerSlot: number;
   passkeyCredential?: PasskeyCredentialRecord;
   preferences?: UserPreferences;
-  /* Refactor 94 Phase 6. Survives reloads so a wallet that registered
-     ECDSA-ready does not come back looking NEAR-capable. */
+  /* Survives reloads so a wallet that registered ECDSA-ready does not come
+     back looking NEAR-capable. */
   nearProvisioning?: NearProvisioningState;
   createdAt: number;
   updatedAt: number;
@@ -216,12 +206,12 @@ export type WalletAuthMethodLocalPresentationV1 =
 export type LocalWalletAuthMethodProjectionV2 =
   | Readonly<{
       kind: 'passkey';
-      record: Extract<LocalWalletAuthMethodRecordV2, { readonly kind: 'passkey' }>;
+      record: PasskeyWalletAuthMethodRecordV2;
       presentation: Extract<WalletAuthMethodLocalPresentationV1, { readonly kind: 'passkey' }>;
     }>
   | Readonly<{
       kind: 'email_otp';
-      record: Extract<LocalWalletAuthMethodRecordV2, { readonly kind: 'email_otp' }>;
+      record: EmailOtpWalletAuthMethodRecordV2;
       presentation: Extract<WalletAuthMethodLocalPresentationV1, { readonly kind: 'email_otp' }>;
     }>;
 

@@ -8,12 +8,10 @@ use router_ab_core::{
     TenantRootCustodyLineageId, TenantRootIdentityDigestV1, TenantRootManagedBackupBindingV1,
     TenantRootManagedRestoreRoleV1, TenantRootOperationalErasureClaimV1, TenantRootShareEpoch,
 };
+use router_ab_core::{TenantRootSignedManagedBackupV1, VerifiedTenantRootManagedBackupV1};
+use router_ab_core::{TenantRootSignedProviderCanaryReceiptV1, VerifiedTenantRootProviderCanaryReceiptV1};
 #[cfg(feature = "workers-rs")]
-use router_ab_core::{
-    TenantRootProviderCanaryReceiptBindingV1, TenantRootSignedManagedBackupV1,
-    TenantRootSignedProviderCanaryReceiptV1, VerifiedTenantRootManagedBackupV1,
-    VerifiedTenantRootProviderCanaryReceiptV1,
-};
+use router_ab_core::TenantRootProviderCanaryReceiptBindingV1;
 
 #[cfg(feature = "workers-rs")]
 use worker::{Bucket, Conditional, Env};
@@ -28,8 +26,9 @@ const TENANT_ROOT_MANAGED_BACKUP_CANONICAL_DIGEST_METADATA_V1: &str =
 const TENANT_ROOT_MANAGED_BACKUP_WRAPPING_KEY_GENERATION_METADATA_V1: &str =
     "tenant-root-wrapping-key-generation-v1";
 
+/// Where one role's managed backup for one epoch is stored.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct TenantRootManagedBackupObjectCoordinatesV1 {
+pub struct TenantRootManagedBackupObjectCoordinatesV1 {
     identity_digest: TenantRootIdentityDigestV1,
     custody_lineage: TenantRootCustodyLineageId,
     role: TenantRootManagedRestoreRoleV1,
@@ -37,7 +36,7 @@ pub(crate) struct TenantRootManagedBackupObjectCoordinatesV1 {
 }
 
 impl TenantRootManagedBackupObjectCoordinatesV1 {
-    pub(crate) const fn new(
+    pub const fn new(
         identity_digest: TenantRootIdentityDigestV1,
         custody_lineage: TenantRootCustodyLineageId,
         role: TenantRootManagedRestoreRoleV1,
@@ -51,7 +50,7 @@ impl TenantRootManagedBackupObjectCoordinatesV1 {
         }
     }
 
-    pub(crate) const fn from_binding(binding: &TenantRootManagedBackupBindingV1) -> Self {
+    pub const fn from_binding(binding: &TenantRootManagedBackupBindingV1) -> Self {
         Self::new(
             binding.identity_digest(),
             binding.custody_lineage(),
@@ -60,7 +59,13 @@ impl TenantRootManagedBackupObjectCoordinatesV1 {
         )
     }
 
-    pub(crate) fn object_key(self) -> String {
+    /// The Deriver whose backup these coordinates name.
+    pub const fn role(self) -> TenantRootManagedRestoreRoleV1 {
+        self.role
+    }
+
+    /// The storage key for these coordinates, the same on every host.
+    pub fn object_key(self) -> String {
         format!(
             "{TENANT_ROOT_MANAGED_BACKUP_OBJECT_PREFIX_V1}/{}/{}/{}/{}.bin",
             role_name(self.role),
@@ -70,7 +75,8 @@ impl TenantRootManagedBackupObjectCoordinatesV1 {
         )
     }
 
-    pub(crate) fn provider_canary_object_key(self) -> String {
+    /// The storage key of these coordinates' provider canary object.
+    pub fn provider_canary_object_key(self) -> String {
         format!(
             "{TENANT_ROOT_MANAGED_BACKUP_OBJECT_PREFIX_V1}/{}/{}/{}/{}{}",
             role_name(self.role),
@@ -88,7 +94,7 @@ impl TenantRootManagedBackupObjectCoordinatesV1 {
 /// by the signed artifact before this value is constructed. The object
 /// generation comes from R2's immutable object metadata.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct TenantRootManagedBackupObjectMetadataV1 {
+pub struct TenantRootManagedBackupObjectMetadataV1 {
     object_key: String,
     canonical_digest: [u8; 32],
     object_generation: String,
@@ -96,7 +102,10 @@ pub(crate) struct TenantRootManagedBackupObjectMetadataV1 {
 }
 
 impl TenantRootManagedBackupObjectMetadataV1 {
-    fn new(
+    /// Metadata for one stored object. `object_generation` names the exact
+    /// write: a replay of the same object keeps it, and deleting the object
+    /// and writing it again yields a different one.
+    pub fn new(
         object_key: String,
         canonical_digest: [u8; 32],
         object_generation: String,
@@ -119,19 +128,19 @@ impl TenantRootManagedBackupObjectMetadataV1 {
         })
     }
 
-    pub(crate) fn object_key(&self) -> &str {
+    pub fn object_key(&self) -> &str {
         &self.object_key
     }
 
-    pub(crate) const fn canonical_digest(&self) -> &[u8; 32] {
+    pub const fn canonical_digest(&self) -> &[u8; 32] {
         &self.canonical_digest
     }
 
-    pub(crate) fn object_generation(&self) -> &str {
+    pub fn object_generation(&self) -> &str {
         &self.object_generation
     }
 
-    pub(crate) fn wrapping_key_generation_ref(&self) -> &str {
+    pub fn wrapping_key_generation_ref(&self) -> &str {
         &self.wrapping_key_generation_ref
     }
 }
@@ -156,7 +165,7 @@ impl CloudflareTenantRootManagedBackupPutOutcomeV1 {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub(crate) enum CloudflareTenantRootManagedBackupObjectDeletionStatusV1 {
+pub enum CloudflareTenantRootManagedBackupObjectDeletionStatusV1 {
     /// The object was present before deletion and absent in the verified read after it.
     Removed,
     /// The object was already absent before deletion and absent in the verified read after it.
@@ -166,7 +175,7 @@ pub(crate) enum CloudflareTenantRootManagedBackupObjectDeletionStatusV1 {
 /// R2 object-removal evidence with the required limitation on key erasure.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct CloudflareTenantRootManagedBackupDeletionReceiptV1 {
+pub struct CloudflareTenantRootManagedBackupDeletionReceiptV1 {
     managed_backup_object_key: String,
     provider_canary_object_key: String,
     managed_backup: CloudflareTenantRootManagedBackupObjectDeletionStatusV1,
@@ -176,6 +185,20 @@ pub(crate) struct CloudflareTenantRootManagedBackupDeletionReceiptV1 {
 }
 
 impl CloudflareTenantRootManagedBackupDeletionReceiptV1 {
+    /// Evidence that both objects at these coordinates are absent after a
+    /// delete, recording whether each was present before it.
+    pub fn from_presence(
+        coordinates: TenantRootManagedBackupObjectCoordinatesV1,
+        managed_backup_was_present: bool,
+        provider_canary_was_present: bool,
+    ) -> Self {
+        Self::new(
+            coordinates,
+            object_deletion_status(managed_backup_was_present),
+            object_deletion_status(provider_canary_was_present),
+        )
+    }
+
     fn new(
         coordinates: TenantRootManagedBackupObjectCoordinatesV1,
         managed_backup: CloudflareTenantRootManagedBackupObjectDeletionStatusV1,
@@ -233,6 +256,50 @@ where
     }
 }
 
+/// Decodes stored managed-backup bytes and verifies them against their
+/// coordinates and the role's trusted verifying key. Every host reads a
+/// managed backup through this check.
+pub fn verify_tenant_root_managed_backup_object_v1(
+    bytes: &[u8],
+    coordinates: TenantRootManagedBackupObjectCoordinatesV1,
+    trusted_role_verifying_key: &[u8; 32],
+) -> Result<VerifiedTenantRootManagedBackupV1, String> {
+    let signed = TenantRootSignedManagedBackupV1::decode_canonical_bytes(bytes)
+        .map_err(|error| error.message().to_owned())?;
+    if TenantRootManagedBackupObjectCoordinatesV1::from_binding(signed.binding()) != coordinates {
+        return Err("managed-backup artifact does not match its object coordinates".to_owned());
+    }
+    signed
+        .verify(signed.binding(), trusted_role_verifying_key)
+        .map_err(|error| error.message().to_owned())
+}
+
+/// Decodes stored provider-canary bytes and verifies them against their
+/// coordinates and the role's trusted verifying key, under the receipt's own
+/// signed binding. The control plane checks that binding against the rest of
+/// the activation evidence.
+pub fn verify_tenant_root_provider_canary_object_v1(
+    bytes: &[u8],
+    coordinates: TenantRootManagedBackupObjectCoordinatesV1,
+    trusted_role_verifying_key: &[u8; 32],
+) -> Result<VerifiedTenantRootProviderCanaryReceiptV1, String> {
+    let signed = TenantRootSignedProviderCanaryReceiptV1::decode_canonical_bytes(bytes)
+        .map_err(|error| error.message().to_owned())?;
+    if signed.identity_digest() != coordinates.identity_digest
+        || signed.custody_lineage() != coordinates.custody_lineage
+        || signed.target_epoch() != coordinates.epoch
+    {
+        return Err("provider canary artifact does not match its object coordinates".to_owned());
+    }
+    let verified = signed
+        .verify(signed.binding(), trusted_role_verifying_key)
+        .map_err(|error| error.message().to_owned())?;
+    if verified.canonical_bytes() != bytes {
+        return Err("provider canary artifact bytes are not canonical".to_owned());
+    }
+    Ok(verified)
+}
+
 #[cfg(feature = "workers-rs")]
 #[derive(Clone)]
 pub(crate) struct CloudflareTenantRootManagedBackupStoreV1 {
@@ -252,63 +319,98 @@ impl CloudflareTenantRootManagedBackupStoreV1 {
         })
     }
 
+    /// Stores one verified managed backup at its coordinates. `replaceable`
+    /// names the digests of other attempts' bytes this write may replace.
     pub(crate) async fn put_verified(
         &self,
         backup: &VerifiedTenantRootManagedBackupV1,
+        replaceable: &[[u8; 32]],
     ) -> worker::Result<CloudflareTenantRootManagedBackupPutOutcomeV1> {
         self.require_role(backup.role())?;
-        let canonical_bytes = backup.canonical_bytes();
-        let canonical_digest: [u8; 32] = Sha256::digest(canonical_bytes).into();
         let object_key =
             TenantRootManagedBackupObjectCoordinatesV1::from_binding(backup.binding()).object_key();
-        let wrapping_key_generation_ref = backup.binding().backup_key_version();
-        let created = self
-            .bucket
-            .put(object_key.clone(), canonical_bytes.to_vec())
-            .sha256(canonical_digest)
-            .custom_metadata(object_custom_metadata(
-                &canonical_digest,
-                wrapping_key_generation_ref,
-            ))
-            .only_if(Conditional {
-                etag_does_not_match: Some("*".to_owned()),
-                ..Conditional::default()
-            })
-            .execute()
-            .await?;
-        if let Some(created) = created {
-            let metadata = metadata_from_object(
-                &created,
-                &object_key,
-                &canonical_digest,
-                wrapping_key_generation_ref,
-            )?;
-            return Ok(CloudflareTenantRootManagedBackupPutOutcomeV1::Stored { metadata });
-        }
-
-        let existing = self
-            .bucket
-            .get(object_key.clone())
-            .execute()
-            .await?
-            .ok_or_else(|| backup_store_error("managed-backup write conflict disappeared"))?;
-        let existing_bytes = existing
-            .body()
-            .ok_or_else(|| backup_store_error("managed-backup replay returned no object body"))?
-            .bytes()
-            .await?;
-        if existing_bytes != canonical_bytes {
-            return Err(backup_store_error(
-                "managed-backup object key already contains different canonical bytes",
-            ));
-        }
-        let metadata = metadata_from_object(
-            &existing,
+        self.put_exclusive(
             &object_key,
-            &canonical_digest,
-            wrapping_key_generation_ref,
-        )?;
-        Ok(CloudflareTenantRootManagedBackupPutOutcomeV1::Replay { metadata })
+            backup.canonical_bytes(),
+            backup.binding().backup_key_version(),
+            replaceable,
+            "managed-backup object key already contains different canonical bytes",
+        )
+        .await
+    }
+
+    /// Writes one object at a key that must not hold other bytes. An object
+    /// holding exactly these bytes is a replay. An object whose bytes have a
+    /// digest in `replaceable` is replaced, conditionally on its exact stored
+    /// version, so a concurrent writer is never overwritten.
+    async fn put_exclusive(
+        &self,
+        object_key: &str,
+        canonical_bytes: &[u8],
+        wrapping_key_generation_ref: &str,
+        replaceable: &[[u8; 32]],
+        conflict: &'static str,
+    ) -> worker::Result<CloudflareTenantRootManagedBackupPutOutcomeV1> {
+        let canonical_digest: [u8; 32] = Sha256::digest(canonical_bytes).into();
+        let mut condition = Conditional {
+            etag_does_not_match: Some("*".to_owned()),
+            ..Conditional::default()
+        };
+        // A lost race only restarts the write; a key that keeps changing fails.
+        for _ in 0..3 {
+            let written = self
+                .bucket
+                .put(object_key.to_owned(), canonical_bytes.to_vec())
+                .sha256(canonical_digest)
+                .custom_metadata(object_custom_metadata(
+                    &canonical_digest,
+                    wrapping_key_generation_ref,
+                ))
+                .only_if(condition)
+                .execute()
+                .await?;
+            if let Some(written) = written {
+                let metadata = metadata_from_object(
+                    &written,
+                    object_key,
+                    &canonical_digest,
+                    wrapping_key_generation_ref,
+                )?;
+                return Ok(CloudflareTenantRootManagedBackupPutOutcomeV1::Stored { metadata });
+            }
+            let Some(existing) = self.bucket.get(object_key.to_owned()).execute().await? else {
+                condition = Conditional {
+                    etag_does_not_match: Some("*".to_owned()),
+                    ..Conditional::default()
+                };
+                continue;
+            };
+            let existing_bytes = existing
+                .body()
+                .ok_or_else(|| backup_store_error("managed-backup object returned no body"))?
+                .bytes()
+                .await?;
+            if existing_bytes == canonical_bytes {
+                let metadata = metadata_from_object(
+                    &existing,
+                    object_key,
+                    &canonical_digest,
+                    wrapping_key_generation_ref,
+                )?;
+                return Ok(CloudflareTenantRootManagedBackupPutOutcomeV1::Replay { metadata });
+            }
+            let existing_digest: [u8; 32] = Sha256::digest(&existing_bytes).into();
+            if !replaceable.contains(&existing_digest) {
+                return Err(backup_store_error(conflict));
+            }
+            condition = Conditional {
+                etag_matches: Some(existing.etag()),
+                ..Conditional::default()
+            };
+        }
+        Err(backup_store_error(
+            "managed-backup object kept changing while it was written",
+        ))
     }
 
     pub(crate) async fn get_verified(
@@ -343,17 +445,9 @@ impl CloudflareTenantRootManagedBackupStoreV1 {
             .ok_or_else(|| backup_store_error("managed-backup object has no body"))?
             .bytes()
             .await?;
-        let signed = TenantRootSignedManagedBackupV1::decode_canonical_bytes(&bytes)
-            .map_err(|error| backup_store_error(error.message()))?;
-        if TenantRootManagedBackupObjectCoordinatesV1::from_binding(signed.binding()) != coordinates
-        {
-            return Err(backup_store_error(
-                "managed-backup artifact does not match its object coordinates",
-            ));
-        }
-        let verified = signed
-            .verify(signed.binding(), trusted_role_verifying_key)
-            .map_err(|error| backup_store_error(error.message()))?;
+        let verified =
+            verify_tenant_root_managed_backup_object_v1(&bytes, coordinates, trusted_role_verifying_key)
+                .map_err(backup_store_error)?;
         let canonical_digest: [u8; 32] = Sha256::digest(&bytes).into();
         let metadata = metadata_from_object(
             &object,
@@ -370,6 +464,7 @@ impl CloudflareTenantRootManagedBackupStoreV1 {
         canary_bytes: &[u8],
         expected_binding: &TenantRootProviderCanaryReceiptBindingV1,
         trusted_role_verifying_key: &[u8; 32],
+        replaceable: &[[u8; 32]],
     ) -> worker::Result<CloudflareTenantRootManagedBackupPutOutcomeV1> {
         self.require_role(coordinates.role)?;
         let verified = verify_provider_canary_object_bytes_v1(
@@ -378,57 +473,14 @@ impl CloudflareTenantRootManagedBackupStoreV1 {
             expected_binding,
             trusted_role_verifying_key,
         )?;
-        let canonical_bytes = verified.canonical_bytes();
-        let canonical_digest: [u8; 32] = Sha256::digest(canonical_bytes).into();
-        let object_key = coordinates.provider_canary_object_key();
-        let wrapping_key_generation_ref = verified.provider_key_version_ref();
-        let created = self
-            .bucket
-            .put(object_key.clone(), canonical_bytes.to_vec())
-            .sha256(canonical_digest)
-            .custom_metadata(object_custom_metadata(
-                &canonical_digest,
-                wrapping_key_generation_ref,
-            ))
-            .only_if(Conditional {
-                etag_does_not_match: Some("*".to_owned()),
-                ..Conditional::default()
-            })
-            .execute()
-            .await?;
-        if let Some(created) = created {
-            let metadata = metadata_from_object(
-                &created,
-                &object_key,
-                &canonical_digest,
-                wrapping_key_generation_ref,
-            )?;
-            return Ok(CloudflareTenantRootManagedBackupPutOutcomeV1::Stored { metadata });
-        }
-
-        let existing = self
-            .bucket
-            .get(object_key.clone())
-            .execute()
-            .await?
-            .ok_or_else(|| backup_store_error("provider canary write conflict disappeared"))?;
-        let existing_bytes = existing
-            .body()
-            .ok_or_else(|| backup_store_error("provider canary replay returned no object body"))?
-            .bytes()
-            .await?;
-        if existing_bytes != canonical_bytes {
-            return Err(backup_store_error(
-                "provider canary object key already contains different canonical bytes",
-            ));
-        }
-        let metadata = metadata_from_object(
-            &existing,
-            &object_key,
-            &canonical_digest,
-            wrapping_key_generation_ref,
-        )?;
-        Ok(CloudflareTenantRootManagedBackupPutOutcomeV1::Replay { metadata })
+        self.put_exclusive(
+            &coordinates.provider_canary_object_key(),
+            verified.canonical_bytes(),
+            verified.provider_key_version_ref(),
+            replaceable,
+            "provider canary object key already contains different canonical bytes",
+        )
+        .await
     }
 
     pub(crate) async fn get_verified_provider_canary(
@@ -485,6 +537,24 @@ impl CloudflareTenantRootManagedBackupStoreV1 {
         Ok((verified, metadata))
     }
 
+    /// Reads the raw provider-canary object at these coordinates.
+    pub(crate) async fn get_provider_canary_bytes(
+        &self,
+        coordinates: TenantRootManagedBackupObjectCoordinatesV1,
+    ) -> worker::Result<Vec<u8>> {
+        self.require_role(coordinates.role)?;
+        let object = self
+            .bucket
+            .get(coordinates.provider_canary_object_key())
+            .execute()
+            .await?
+            .ok_or_else(|| backup_store_error("provider canary object does not exist"))?;
+        match object.body() {
+            Some(body) => body.bytes().await,
+            None => Err(backup_store_error("provider canary object has no body")),
+        }
+    }
+
     /// Deletes one role-local backup object and verifies both R2 keys are absent.
     pub(crate) async fn delete_coordinates(
         &self,
@@ -509,10 +579,10 @@ impl CloudflareTenantRootManagedBackupStoreV1 {
         require_r2_object_absent(&self.bucket, &provider_canary_key, "provider canary").await?;
         require_r2_object_absent(&self.bucket, &managed_backup_key, "managed-backup").await?;
 
-        Ok(CloudflareTenantRootManagedBackupDeletionReceiptV1::new(
+        Ok(CloudflareTenantRootManagedBackupDeletionReceiptV1::from_presence(
             coordinates,
-            object_deletion_status(managed_backup_was_present),
-            object_deletion_status(provider_canary_was_present),
+            managed_backup_was_present,
+            provider_canary_was_present,
         ))
     }
 
@@ -526,7 +596,6 @@ impl CloudflareTenantRootManagedBackupStoreV1 {
     }
 }
 
-#[cfg(feature = "workers-rs")]
 fn object_deletion_status(
     was_present: bool,
 ) -> CloudflareTenantRootManagedBackupObjectDeletionStatusV1 {

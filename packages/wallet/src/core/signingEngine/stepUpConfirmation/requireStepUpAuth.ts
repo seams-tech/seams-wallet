@@ -15,7 +15,7 @@ type SelectableLane = {
   authMethod: 'passkey' | 'email_otp';
 };
 
-export type RequireStepUpAuthRequest<
+type RequireStepUpAuthRequest<
   TLane extends SelectableLane,
   TOperation,
   TPasskeyAuthorization,
@@ -33,7 +33,7 @@ export type RequireStepUpAuthRequest<
   methods: StepUpMethodRunners<TLane, TOperation, TPasskeyAuthorization, TEmailOtpAuthorization>;
 };
 
-export type PreparedStepUpAuth<TPasskeyAuthorization, TEmailOtpAuthorization> =
+type PreparedStepUpAuth<TPasskeyAuthorization, TEmailOtpAuthorization> =
   | {
       method: 'warm_session';
       authorization: StepUpWarmSessionAuthorization;

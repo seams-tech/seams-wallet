@@ -1,14 +1,14 @@
-export type NearAccountFundingNotice = {
+type NearAccountFundingNotice = {
   accountId: string;
   shortAccountId: string;
 };
 
-export const NEAR_TRANSACTION_SUBMITTING_NOTICE = 'Topping up account...';
+const NEAR_TRANSACTION_SUBMITTING_NOTICE = 'Topping up account...';
 
 const NEAR_ACCOUNT_FUNDING_NOTICE_PATTERN =
   /^NEAR account ([^\s]+) needs funding before signing\.$/;
 
-export function shortenNearAccountForFundingNotice(accountId: string): string {
+function shortenNearAccountForFundingNotice(accountId: string): string {
   const value = String(accountId || '').trim();
   if (value.length <= 8) return value;
   return `${value.slice(0, 4)}...${value.slice(-4)}`;
@@ -32,7 +32,7 @@ export function parseNearAccountFundingNotice(body: string): NearAccountFundingN
   };
 }
 
-export function isNearTransactionSubmittingNotice(body: string): boolean {
+function isNearTransactionSubmittingNotice(body: string): boolean {
   return String(body || '').trim() === NEAR_TRANSACTION_SUBMITTING_NOTICE;
 }
 
@@ -56,30 +56,4 @@ function isNearAccountFundingProgressNotice(body: string): boolean {
 /** Body copy that reports work in progress rather than describing the request. */
 export function isNearSigningProgressNotice(body: string): boolean {
   return isNearTransactionSubmittingNotice(body) || isNearAccountFundingProgressNotice(body);
-}
-
-function copyTextWithTextArea(text: string): void {
-  const textArea = document.createElement('textarea');
-  textArea.value = text;
-  textArea.setAttribute('readonly', '');
-  textArea.style.position = 'fixed';
-  textArea.style.inset = '0 auto auto 0';
-  textArea.style.opacity = '0';
-  textArea.style.pointerEvents = 'none';
-  document.body.appendChild(textArea);
-  textArea.select();
-  document.execCommand('copy');
-  textArea.remove();
-}
-
-export async function copyTextToClipboard(text: string): Promise<void> {
-  const value = String(text || '').trim();
-  if (!value) return;
-  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
-    try {
-      await navigator.clipboard.writeText(value);
-      return;
-    } catch {}
-  }
-  if (typeof document !== 'undefined') copyTextWithTextArea(value);
 }

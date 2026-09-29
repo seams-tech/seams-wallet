@@ -26,6 +26,7 @@ use std::collections::BTreeMap;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const INTERNAL_AUTH_SECRET: &str = "private-d1-integration-auth";
+const GATEWAY_TO_ROUTER_AUTH_SECRET: &str = "private-d1-gateway-router-auth";
 const TENANT_ROOT_ISSUER_KEY_ID: &str = "miniflare-tenant-root-control-plane-issuer-v1";
 const TENANT_ROOT_ISSUER_SEED: [u8; 32] = [0xc1; 32];
 const TENANT_ROOT_GRANT_KEY_ID: &str = "miniflare-tenant-root-grant-authority-v1";
@@ -59,6 +60,17 @@ struct PrivateD1Fixture {
     activation_after_refresh: RequestFixture,
     second_tenant_activation: RequestFixture,
     second_tenant_activation_after_refresh: RequestFixture,
+    /// Registrations for the admission-versus-refresh races, each a fresh
+    /// ceremony against a recovery root.
+    admission_race: AdmissionRaceFixture,
+}
+
+#[derive(Serialize)]
+struct AdmissionRaceFixture {
+    held_preparation: RequestFixture,
+    after_refresh: RequestFixture,
+    while_delivery_pending: RequestFixture,
+    after_delivery: RequestFixture,
 }
 
 #[derive(Serialize)]
@@ -75,6 +87,8 @@ struct ManagedRestoreSignerFixture {
 
 #[derive(Serialize)]
 struct TenantRootCreationFixture {
+    identity: TenantRootIdentityV1,
+    second_tenant_identity: TenantRootIdentityV1,
     interrupted: TenantRootCreationRequestFixture,
     fresh: TenantRootCreationRequestFixture,
     second_tenant: TenantRootCreationRequestFixture,
@@ -86,6 +100,12 @@ struct TenantRootCreationRequestFixture {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    if let [mode, label, lifetime_ms] = args.as_slice() {
+        if mode == "--creation-grant" {
+            return print_recovery_creation_grant(label, lifetime_ms.parse()?);
+        }
+    }
     let plan = local_env_materialization_plan_v1(b"cloudflare-private-d1-integration-v1")?;
     let local_envs = local_env_maps(&plan)?;
     let router_local = role_env(&local_envs, LocalServiceRoleV1::Router)?;
@@ -148,6 +168,40 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             deriver_b_public,
             signing_worker_public,
         )?,
+        admission_race: AdmissionRaceFixture {
+            held_preparation: request_fixture(
+                "admission-race-unused",
+                [0x36; 32],
+                "held-preparation",
+                deriver_a_public,
+                deriver_b_public,
+                signing_worker_public,
+            )?,
+            after_refresh: request_fixture(
+                "admission-race-unused",
+                [0x36; 32],
+                "after-refresh",
+                deriver_a_public,
+                deriver_b_public,
+                signing_worker_public,
+            )?,
+            while_delivery_pending: request_fixture(
+                "admission-race-delivery",
+                [0x37; 32],
+                "while-pending",
+                deriver_a_public,
+                deriver_b_public,
+                signing_worker_public,
+            )?,
+            after_delivery: request_fixture(
+                "admission-race-delivery",
+                [0x37; 32],
+                "after-delivery",
+                deriver_a_public,
+                deriver_b_public,
+                signing_worker_public,
+            )?,
+        },
     };
     println!("{}", serde_json::to_string(&fixture)?);
     Ok(())
@@ -170,15 +224,17 @@ fn managed_restore_signer_fixture(signing_seed: [u8; 32]) -> ManagedRestoreSigne
 fn tenant_root_creation_fixture() -> Result<TenantRootCreationFixture, Box<dyn std::error::Error>> {
     let now_ms = u64::try_from(SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis())?;
     let identity =
-        TenantRootIdentityV1::new("org-miniflare", "project-r120", "test", "root-main", "v1")?;
+        TenantRootIdentityV1::new("org-miniflare", "project-r120", "test", "project:local", "v1")?;
     let second_tenant_identity = TenantRootIdentityV1::new(
         "org-miniflare-second",
         "project-r120-second",
         "test",
-        "root-main",
+        "project:local",
         "v1",
     )?;
     Ok(TenantRootCreationFixture {
+        identity: identity.clone(),
+        second_tenant_identity: second_tenant_identity.clone(),
         interrupted: tenant_root_creation_request(&identity, [0x22; 16], [0x33; 32], now_ms)?,
         fresh: tenant_root_creation_request(&identity, [0x23; 16], [0x34; 32], now_ms)?,
         second_tenant: tenant_root_creation_request(
@@ -188,6 +244,57 @@ fn tenant_root_creation_fixture() -> Result<TenantRootCreationFixture, Box<dyn s
             now_ms,
         )?,
     })
+}
+
+/// Prints one fresh creation grant for a recovery ceremony: its own identity,
+/// a random lineage, issued a second ago so it is already fresh, and valid
+/// for `lifetime_ms`. The harness asks for these when it needs a ceremony
+/// window that closes during the run.
+fn print_recovery_creation_grant(
+    label: &str,
+    lifetime_ms: u64,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let identity = TenantRootIdentityV1::new(
+        "org-miniflare-recovery",
+        &format!("project-{label}"),
+        "test",
+        "project:local",
+        "v1",
+    )?;
+    let mut lineage = [0_u8; 16];
+    let mut nonce = [0_u8; 32];
+    getrandom::getrandom(&mut lineage)?;
+    getrandom::getrandom(&mut nonce)?;
+    lineage[0] |= 1;
+    nonce[0] |= 1;
+    let lineage = TenantRootCustodyLineageId::from_bytes(lineage)?;
+    let issued_at_ms = u64::try_from(SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis())? - 1_000;
+    let expires_at_ms = issued_at_ms + lifetime_ms;
+    let grant = TenantRootCreationGrantV1::sign(
+        &identity,
+        lineage,
+        TenantRootCreationGrantNonceV1::from_bytes(nonce)?,
+        issued_at_ms,
+        expires_at_ms,
+        TENANT_ROOT_GRANT_KEY_ID,
+        &TENANT_ROOT_GRANT_SEED,
+    )?;
+    let identity_digest = identity.digest()?;
+    println!(
+        "{}",
+        serde_json::json!({
+            "creation_grant_b64u": base64::engine::general_purpose::URL_SAFE_NO_PAD
+                .encode(grant.canonical_bytes()?),
+            "identity_digest_b64u": base64::engine::general_purpose::URL_SAFE_NO_PAD
+                .encode(identity_digest.as_bytes()),
+            "custody_lineage_b64u": lineage.to_base64url(),
+            "identity": identity,
+            "creation_object_name":
+                router_ab_cloudflare::tenant_root_creation_object_name_v1(identity_digest, lineage),
+            "expires_at_ms": expires_at_ms,
+        })
+    );
+    Ok(())
 }
 
 fn tenant_root_creation_request(
@@ -332,6 +439,7 @@ fn cloudflare_router_env(
     let mut env = BTreeMap::from([
         ("ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET_BINDING".into(), "ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET".into()),
         ("ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET".into(), INTERNAL_AUTH_SECRET.into()),
+        ("ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET".into(), GATEWAY_TO_ROUTER_AUTH_SECRET.into()),
         ("ROUTER_JWT_ISSUER".into(), "https://issuer.example".into()),
         ("ROUTER_JWT_AUDIENCE".into(), "router-ab".into()),
         ("ROUTER_JWT_JWKS_JSON".into(), "{\"keys\":[{\"alg\":\"EdDSA\",\"crv\":\"Ed25519\",\"kid\":\"test\",\"kty\":\"OKP\",\"use\":\"sig\",\"x\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\"}]}".into()),

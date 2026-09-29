@@ -43,6 +43,9 @@ fn signer_role_local_feature_stays_independent_of_threshold_signing_backend() {
         assert!(feature.contains(required), "missing `{required}`");
     }
     for forbidden in ["threshold-ecdsa", "threshold-signatures"] {
-        assert!(!feature.contains(forbidden), "forbidden `{forbidden}`");
+        assert!(
+            !cargo_toml.contains(forbidden),
+            "signer-core must not depend on `{forbidden}`"
+        );
     }
 }

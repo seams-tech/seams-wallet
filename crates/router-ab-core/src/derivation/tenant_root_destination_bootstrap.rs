@@ -1,4 +1,4 @@
-//! Destination bootstrap authority and restore session admission (Refactor 121).
+//! Destination bootstrap authority and restore session admission.
 //!
 //! Restore targets an empty deployment, which by definition has no tenant,
 //! no owners, and no console session anyone could authenticate against. Its

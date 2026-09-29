@@ -7,10 +7,8 @@ import type {
   LaneProtocolCommitReceiptV1,
   LaneHolderPackageWireV1,
 } from '@shared/signing-lanes';
-import {
-  parseLaneProtocolCommitReceiptV1,
-  parseRotatableSigningLaneJobV1,
-} from '@shared/signing-lanes/rotationParsers';
+import { parseLaneProtocolCommitReceiptV1 } from '@shared/signing-lanes/rotationParsers';
+import { parseRotatableSigningLaneJobV1 } from '@shared/signing-lanes/rotationProtocolParsers';
 import type { RouterAbEd25519YaoCeremonyBindingV1 } from '@shared/utils/routerAbEd25519Yao';
 import { mpcMaterialActivationRefsEqual } from '@shared/utils/domainIds';
 import {

@@ -15,7 +15,7 @@ import {
 } from './nonceTypes';
 import { nonceLaneKey } from './nonceLaneKeys';
 
-export type RawNonceLaneCoordinationRecord = Record<string, unknown>;
+type RawNonceLaneCoordinationRecord = Record<string, unknown>;
 
 export function parseNonceLaneCoordinationRecord(value: unknown): NonceLaneCoordinationReadResult {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {

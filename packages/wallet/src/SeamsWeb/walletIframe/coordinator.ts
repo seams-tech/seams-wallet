@@ -40,7 +40,7 @@ function walletOriginHostname(walletOrigin: string): string {
   }
 }
 
-export interface WalletIframeCoordinatorDeps {
+interface WalletIframeCoordinatorDeps {
   configs: SeamsConfigsReadonly;
   signingEngine: WalletIframeWarmupSurface;
   userPreferences: UserPreferencesManager;

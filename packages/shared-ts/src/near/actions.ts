@@ -57,13 +57,13 @@ export interface DeployContractAction {
   code: Uint8Array | string;
 }
 
-export interface DeployGlobalContractAction {
+interface DeployGlobalContractAction {
   type: ActionType.DeployGlobalContract;
   code: Uint8Array | string;
   deployMode: 'CodeHash' | 'AccountId';
 }
 
-export interface UseGlobalContractAction {
+interface UseGlobalContractAction {
   type: ActionType.UseGlobalContract;
   accountId?: string;
   codeHash?: string;
@@ -141,7 +141,7 @@ export type ActionArgsWasm =
     }
   | { action_type: ActionType.UseGlobalContract; account_id?: string; code_hash?: string };
 
-export type RelayedSignedDelegateActionArgsWasm = {
+type RelayedSignedDelegateActionArgsWasm = {
   action_type: ActionType.SignedDelegate;
   delegate_action: RelayedDelegateAction;
   signature: Signature;
@@ -380,7 +380,7 @@ export function fromActionArgsWasm(a: ActionArgsWasm): ActionArgs {
   }
 }
 
-export function fromTransactionInputWasm(tx: TransactionInputWasm): TransactionInput {
+function fromTransactionInputWasm(tx: TransactionInputWasm): TransactionInput {
   return {
     receiverId: tx.receiverId,
     actions: tx.actions.map(fromActionArgsWasm),

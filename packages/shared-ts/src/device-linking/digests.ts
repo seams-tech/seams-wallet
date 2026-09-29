@@ -1,6 +1,10 @@
-import { base64UrlDecode, base64UrlEncode } from '../utils/base64';
-import { parseDigestB64u, type DigestB64u } from '../utils/canonicalPrimitives';
-import { alphabetizeStringify, sha256Bytes, sha256BytesUtf8 } from '../utils/digests';
+import {
+  sha256DigestB64u,
+  sha256Utf8DigestB64u,
+  type DigestB64u,
+} from '../utils/canonicalPrimitives';
+import { alphabetizeStringify } from '../utils/digests';
+import { concat, lp32, rawDigest, rawPublicKey, text, u32, u64 } from '../utils/digestEncoding';
 import {
   delegatedWalletPermissionNamesV1,
   type DelegatedWalletAuthorityV1,
@@ -42,10 +46,10 @@ const TEXT_ENCODER = new TextEncoder();
 export async function computeWalletSessionOperationCredentialDigestB64u(
   credential: WalletSessionOperationCredentialV1,
 ): Promise<DigestB64u> {
-  return parseDigestB64u(base64UrlEncode(await sha256BytesUtf8(credential.token)));
+  return sha256Utf8DigestB64u(credential.token);
 }
 
-export function encodeWalletSessionInstallationReceiptV1(
+function encodeWalletSessionInstallationReceiptV1(
   receipt: LocalAuthorityInstallationReceiptV1,
 ): string {
   return alphabetizeStringify({
@@ -57,82 +61,12 @@ export function encodeWalletSessionInstallationReceiptV1(
 export async function computeWalletSessionInstallationReceiptDigestB64u(
   receipt: LocalAuthorityInstallationReceiptV1,
 ): Promise<DigestB64u> {
-  return parseDigestB64u(
-    base64UrlEncode(await sha256BytesUtf8(encodeWalletSessionInstallationReceiptV1(receipt))),
-  );
-}
-
-function concat(parts: readonly Uint8Array[]): Uint8Array {
-  let length = 0;
-  for (const part of parts) length += part.length;
-  const output = new Uint8Array(length);
-  let offset = 0;
-  for (const part of parts) {
-    output.set(part, offset);
-    offset += part.length;
-  }
-  return output;
-}
-
-function u32(value: number, label: string): Uint8Array {
-  if (!Number.isSafeInteger(value) || value < 0 || value > 0xffffffff) {
-    throw new Error(`${label} must be a non-negative u32`);
-  }
-  return Uint8Array.from([
-    (value >>> 24) & 0xff,
-    (value >>> 16) & 0xff,
-    (value >>> 8) & 0xff,
-    value & 0xff,
-  ]);
-}
-
-function u64(value: number, label: string): Uint8Array {
-  if (!Number.isSafeInteger(value) || value < 0) {
-    throw new Error(`${label} must be a non-negative safe integer`);
-  }
-  let remaining = BigInt(value);
-  const output = new Uint8Array(8);
-  for (let index = 7; index >= 0; index -= 1) {
-    output[index] = Number(remaining & 0xffn);
-    remaining >>= 8n;
-  }
-  return output;
-}
-
-function lp32(value: Uint8Array, label: string): Uint8Array {
-  return concat([u32(value.length, `${label}.length`), value]);
-}
-
-function text(value: string, label: string): Uint8Array {
-  if (typeof value !== 'string') throw new Error(`${label} must be a string`);
-  return lp32(TEXT_ENCODER.encode(value), label);
+  return sha256Utf8DigestB64u(encodeWalletSessionInstallationReceiptV1(receipt));
 }
 
 function requirePresentString(value: string | undefined, label: string): string {
   if (value === undefined) throw new Error(`${label} is required`);
   return value;
-}
-
-function rawDigest(value: DigestB64u, label: string): Uint8Array {
-  try {
-    const decoded = base64UrlDecode(parseDigestB64u(value));
-    if (decoded.length !== 32) throw new Error('must decode to 32 bytes');
-    return decoded;
-  } catch (error) {
-    throw new Error(`${label} ${error instanceof Error ? error.message : 'is invalid'}`);
-  }
-}
-
-function rawPublicKey(value: string, label: string): Uint8Array {
-  try {
-    const decoded = base64UrlDecode(value);
-    if (decoded.length === 0 || base64UrlEncode(decoded) !== value) {
-      throw new Error('must be canonical base64url');
-    }
-    return decoded;
-  } catch (error) {
-    throw new Error(`${label} ${error instanceof Error ? error.message : 'is invalid'}`);
-  }
 }
 
 function encodeOwnerAuthorization(value: LinkedDeviceOwnerAuthorizationSourceV1): Uint8Array {
@@ -241,7 +175,7 @@ function encodeLinkedDevicePasskeyCreationOptionsV1(
   ]);
 }
 
-export function encodeLinkedDevicePasskeyTargetConfigurationV1(
+function encodeLinkedDevicePasskeyTargetConfigurationV1(
   value: LinkedDevicePasskeyTargetConfigurationFieldsV1,
 ): Uint8Array {
   return concat([
@@ -255,9 +189,7 @@ export function encodeLinkedDevicePasskeyTargetConfigurationV1(
 export async function computeLinkedDevicePasskeyTargetConfigurationDigestV1(
   value: LinkedDevicePasskeyTargetConfigurationFieldsV1,
 ): Promise<DigestB64u> {
-  return parseDigestB64u(
-    base64UrlEncode(await sha256Bytes(encodeLinkedDevicePasskeyTargetConfigurationV1(value))),
-  );
+  return sha256DigestB64u(encodeLinkedDevicePasskeyTargetConfigurationV1(value));
 }
 
 function encodeRecipientRequirement(
@@ -283,7 +215,7 @@ function encodeEd25519ExportRootPreparation(
   ]);
 }
 
-export function encodeLinkedDeviceSessionClaimV1(value: LinkedDeviceSessionClaimV1): Uint8Array {
+function encodeLinkedDeviceSessionClaimV1(value: LinkedDeviceSessionClaimV1): Uint8Array {
   return concat([
     text(CLAIM_DOMAIN, 'domain'),
     text(value.kind, 'kind'),
@@ -302,12 +234,10 @@ export function encodeLinkedDeviceSessionClaimV1(value: LinkedDeviceSessionClaim
 export async function computeLinkedDeviceSessionClaimDigestV1(
   value: LinkedDeviceSessionClaimV1,
 ): Promise<DigestB64u> {
-  return parseDigestB64u(
-    base64UrlEncode(await sha256Bytes(encodeLinkedDeviceSessionClaimV1(value))),
-  );
+  return sha256DigestB64u(encodeLinkedDeviceSessionClaimV1(value));
 }
 
-export function encodeLinkedDeviceApprovalV1(value: LinkedDeviceApprovalV1): Uint8Array {
+function encodeLinkedDeviceApprovalV1(value: LinkedDeviceApprovalV1): Uint8Array {
   return concat([
     text(APPROVAL_DOMAIN, 'domain'),
     text(value.kind, 'kind'),
@@ -336,12 +266,10 @@ export function encodeLinkedDeviceApprovalV1(value: LinkedDeviceApprovalV1): Uin
 export async function computeLinkedDeviceApprovalDigestV1(
   value: LinkedDeviceApprovalV1,
 ): Promise<DigestB64u> {
-  return parseDigestB64u(base64UrlEncode(await sha256Bytes(encodeLinkedDeviceApprovalV1(value))));
+  return sha256DigestB64u(encodeLinkedDeviceApprovalV1(value));
 }
 
-export function encodeLinkedDeviceTargetPreparationV1(
-  value: LinkedDeviceTargetPreparationV1,
-): Uint8Array {
+function encodeLinkedDeviceTargetPreparationV1(value: LinkedDeviceTargetPreparationV1): Uint8Array {
   const requirements = value.ordinarySignerMaterialRecipientRequirements.map(
     encodeRecipientRequirement,
   );
@@ -416,9 +344,7 @@ function isPasskeyTargetPreparationV1(
 export async function computeLinkedDeviceTargetPreparationDigestV1(
   value: LinkedDeviceTargetPreparationV1,
 ): Promise<DigestB64u> {
-  return parseDigestB64u(
-    base64UrlEncode(await sha256Bytes(encodeLinkedDeviceTargetPreparationV1(value))),
-  );
+  return sha256DigestB64u(encodeLinkedDeviceTargetPreparationV1(value));
 }
 
 export async function assertLinkedDeviceTargetCredentialRegistrationMatchesPreparationV1(input: {

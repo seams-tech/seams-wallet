@@ -49,7 +49,7 @@ export function requireRouterAbConfiguredSigningWorkerPrivateTransport(
   return transport;
 }
 
-export type RouterAbNormalSigningRuntimeConfig = {
+type RouterAbNormalSigningRuntimeConfig = {
   readonly policy: RouterAbNormalSigningServerPolicy;
   readonly signingWorkerTransport: RouterAbSigningWorkerPrivateTransport;
 };
@@ -64,14 +64,14 @@ export type RouterAbNormalSigningAuthorizationIdentity =
       readonly materialActivationId: MpcMaterialActivationId;
     };
 
-export type RouterAbNormalSigningPrepareReplayReservationInput = {
+type RouterAbNormalSigningPrepareReplayReservationInput = {
   readonly curve: 'ed25519' | 'ecdsa';
   readonly authorizationIdentity: RouterAbNormalSigningAuthorizationIdentity;
   readonly requestId: string;
   readonly expiresAtMs: number;
 };
 
-export type RouterAbNormalSigningPrepareReplayReservationResult =
+type RouterAbNormalSigningPrepareReplayReservationResult =
   | { readonly ok: true }
   | {
       readonly ok: false;
@@ -80,7 +80,7 @@ export type RouterAbNormalSigningPrepareReplayReservationResult =
       readonly message: string;
     };
 
-export type RouterAbClampedSessionPolicy = {
+type RouterAbClampedSessionPolicy = {
   readonly ttlMs: number;
   readonly remainingUses: number;
 };

@@ -1,6 +1,6 @@
 import type { AccountId } from '../../types/accountIds';
 
-export const NEAR_PROFILE_PREFIX = 'near-profile' as const;
+const NEAR_PROFILE_PREFIX = 'near-profile' as const;
 
 export type NearAccountProjectionProfileId = string & {
   readonly __nearAccountProjectionProfileIdBrand: unique symbol;
@@ -10,7 +10,7 @@ export type NearProfileId = NearAccountProjectionProfileId & {
   readonly __nearProfileIdBrand: unique symbol;
 };
 
-export type NearAccountProjectionProfileIdParseResult =
+type NearAccountProjectionProfileIdParseResult =
   | { readonly ok: true; readonly value: NearAccountProjectionProfileId }
   | { readonly ok: false; readonly message: string };
 

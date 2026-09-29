@@ -73,6 +73,48 @@ test('a failed finalization leaves its admitted recovery code reusable', async (
   await harness.assertConsumedRecoveryCodeReportedAsUsed();
 });
 
+test('an interrupted recovery attempt is superseded by a retry with the same code, which recovers and signs', async ({
+  harness,
+}) => {
+  await harness.registerPasskeyWallet();
+  await harness.awaitNearReady();
+  await harness.signTempoTransaction('post_registration');
+  await harness.recoverPasskeyWalletAfterInterruptedAttempt();
+  await harness.assertRecoveryAuthorityIsAdditive('passkey');
+  await harness.signNearTransaction('post_unlock');
+});
+
+test('a recovery retires the replaced activation: a delayed finalize is refused, a made signature answers, and the recovered wallet signs', async ({
+  harness,
+}) => {
+  await harness.registerPasskeyWallet();
+  await harness.awaitNearReady();
+  await harness.recoverPasskeyWalletRetiringTheReplacedActivation();
+  await harness.signNearTransaction('post_unlock');
+});
+
+test('a finalize that signed with the replaced material before the recovery promoted is refused at its commit, and the recovered wallet signs', async ({
+  harness,
+}) => {
+  test.skip(
+    !localWorkersD1SigningWorker(),
+    'Only the Workers D1 SigningWorker signs and commits in separate steps; the wallet object and the VM SigningWorker commit in the step that loads the material',
+  );
+  await harness.registerPasskeyWallet();
+  await harness.awaitNearReady();
+  await harness.recoverPasskeyWalletWhileAFinalizeHoldsTheReplacedMaterial();
+  await harness.signNearTransaction('post_unlock');
+});
+
+test('a superseded recovery attempt that reaches the SigningWorker late is refused, and the current attempt signs', async ({
+  harness,
+}) => {
+  await harness.registerPasskeyWallet();
+  await harness.awaitNearReady();
+  await harness.recoverPasskeyWalletAcrossALateSupersededAttempt();
+  await harness.signNearTransaction('post_unlock');
+});
+
 test('a committed Passkey recovery survives a lost finalization response and runtime reset', async ({
   harness,
 }) => {
@@ -94,3 +136,13 @@ test('an Email-founded wallet recovers with Passkey, adds Email OTP to the recov
 }) => {
   await verifyPasskeyRecoveryCanAddEmailOtp(harness, registerEmailOnlyWallet);
 });
+
+/** A local dev build of the Workers D1 SigningWorker, which can hold a finalize. */
+function localWorkersD1SigningWorker(): boolean {
+  return (
+    process.env.SEAMS_INTENDED_WALLET_HOST !== 'vm' &&
+    process.env.SEAMS_INTENDED_EXTERNAL_GATEWAY !== '1' &&
+    process.env.ROUTER_AB_WORKER_BUILD_PROFILE === 'dev' &&
+    process.env.ROUTER_AB_WALLET_DO_HARNESS !== 'enabled'
+  );
+}

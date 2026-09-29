@@ -1,5 +1,5 @@
 /**
- * Refactor 109C: remove one auth method using a different active one.
+ * Remove one auth method using a different active one.
  *
  * The inverse of the two addition branches, and the reason they are safe to
  * offer: a wallet that can gain a second way in must be able to lose one it no
@@ -13,13 +13,13 @@
  */
 import { toError } from '@shared/utils/errors';
 import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';
+import { type WalletId } from '@shared/utils/registrationIntent';
 import {
   parseWalletAuthMethodRecordV2,
   computeWalletAuthMethodRevokeOperationFingerprintV1,
-  walletIdFromString,
-  type WalletId,
   type WalletAuthMethodRecordV2,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/walletAuthMethodRecord';
+import { walletIdFromString } from '@shared/utils/registrationIds';
 import {
   parseWalletAuthMethodId,
   parseWebAuthnRpId,
@@ -34,7 +34,7 @@ import type { WebAuthnAllowCredential } from '@/core/signingEngine/webauthnAuth/
 import { revokeWalletAuthMethod as revokeWalletAuthMethodRoute } from '@/core/rpcClients/relayer/walletRegistration';
 import { requestEmailOtpChallenge } from './emailOtp/challenge';
 import { WALLET_EMAIL_OTP_TRANSACTION_SIGN_OPERATION } from '@shared/utils/emailOtpDomain';
-import type { WalletAuthMethodRevocationProof } from '@shared/utils/registrationIntent';
+import type { WalletAuthMethodRevocationProof } from '@shared/utils/walletAuthMethodRecord';
 import { WALLET_AUTH_METHODS, type WalletAuthMethod } from '@shared/utils/signerDomain';
 import type { RegistrationWebContext } from '@/SeamsWeb/signingSurface/types';
 import type { ProfileAuthenticatorRecord } from '@/core/indexedDB';
@@ -61,7 +61,7 @@ function webAuthnTransportsFromRaw(value: unknown): AuthenticatorTransport[] {
   );
 }
 
-export function passkeySourceCredentialsForActiveMethods(args: {
+function passkeySourceCredentialsForActiveMethods(args: {
   readonly walletId: WalletId;
   readonly authenticators: readonly ProfileAuthenticatorRecord[];
   readonly authMethods: readonly WalletAuthMethodRecordV2[];

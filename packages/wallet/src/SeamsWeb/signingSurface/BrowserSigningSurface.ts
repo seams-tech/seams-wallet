@@ -25,11 +25,9 @@ import { type WalletEmailOtpChannel } from '@shared/utils/emailOtpDomain';
 import type { UserPreferencesManager } from '@/core/signingEngine/session/userPreferences';
 import {
   exactEd25519ExportMaterialIdentity,
-  nearEd25519SignerBindingFromBoundaryFields,
   type ExactEd25519ExportMaterialIdentity,
   type ExactEd25519SigningLaneIdentity,
 } from '@/core/signingEngine/session/identity/exactSigningLaneIdentity';
-import type { ThresholdEcdsaCanonicalExportArtifact } from '@/core/signingEngine/interfaces/signing';
 import type {
   NearEmailOtpEd25519OperationStepUpCapabilityPreparation,
   NearEd25519FundingSession,
@@ -100,7 +98,6 @@ import {
   type RouterAbEd25519YaoRegistrationAdmissionRequestV1,
 } from '@shared/utils/routerAbEd25519Yao';
 import type { RouterAbTraceContextV1 } from '@shared/utils/routerAbTraceContext';
-import type { SigningRuntime } from '@/core/runtime/runtime.types';
 import type {
   SignerWorkerKind,
   SignerWorkerOperationRequest,
@@ -112,11 +109,11 @@ import type {
 } from '@/core/signingEngine/workerManager/workerTypes';
 import type { WorkerOperationContext } from '@/core/signingEngine/workerManager/executeWorkerOperation';
 import type { EcdsaClientPresignCleanupTarget } from '@/core/signingEngine/workerManager/ecdsaPresignLifecycle';
+import { IndexedDbEcdsaCapabilityManifestStore } from '@/core/indexedDB/seamsWalletDB/ecdsaCapabilityManifestStore';
 import {
   importWalletCustodyEcdsaContinuity,
-  IndexedDbEcdsaCapabilityManifestStore,
   type ImportWalletCustodyEcdsaContinuityInput,
-} from '@/core/indexedDB/seamsWalletDB/ecdsaCapabilityManifestStore';
+} from '@/core/indexedDB/seamsWalletDB/walletCustodyEcdsaContinuity';
 import {
   clearLinkedDeviceEcdsaHolderMaterialsWasm,
   destroyLinkedDeviceEcdsaHolderMaterialsWasm,
@@ -160,7 +157,6 @@ import {
 } from '@/core/signingEngine/flows/signNear/signNear';
 import {
   isConcreteAvailableSigningLane,
-  type AvailableEd25519SigningLane,
   type ConcreteAvailableEd25519SigningLane,
 } from '@/core/signingEngine/session/availability/availableSigningLanes';
 import { resolvePasskeyEd25519YaoExportContextV1 } from '@/core/signingEngine/session/passkey/ed25519YaoWarmRecovery';
@@ -197,7 +193,6 @@ import {
   classifyNearEd25519WalletSessionAuthorization,
   nearEd25519SessionMatchesMaterialActivation,
   type ExactNearEd25519WalletSessionAuthorization,
-  type NearEd25519WalletSessionAuthorizationReadResult,
   type NearEd25519YaoSigningPreparation,
 } from '@/core/signingEngine/session/material/nearEd25519YaoSigningPreparation';
 import {
@@ -258,13 +253,16 @@ import {
   parseWalletSessionAuthorizationId,
   parseWalletSessionMintId,
 } from '@shared/authorization/capabilityKinds';
-import { NEAR_ED25519_YAO_KEY_VERSION_V1 } from '@shared/utils/registrationIntent';
+import {
+  type ActiveEmailOtpWalletAuthMethodRecordV2,
+  type ActivePasskeyWalletAuthMethodRecordV2,
+} from '@shared/utils/walletAuthMethodRecord';
+import { NEAR_ED25519_YAO_KEY_VERSION_V1 } from '@shared/utils/registrationSignerPlan';
 import {
   mpcMaterialActivationRefsEqual,
   parseThresholdEd25519SessionId,
   parseWalletId,
   type MpcMaterialActivationRef,
-  type ThresholdEd25519SessionId,
 } from '@shared/utils/domainIds';
 import { sha256HexUtf8 } from '@shared/utils/digests';
 import { signingRootScopeFromRuntimePolicyScope } from '@shared/threshold/signingRootScope';
@@ -368,11 +366,10 @@ import {
   buildExactPasskeyOwnerLaneScope,
   resolveExactWalletAuthAuthority as resolveExactWalletAuthAuthorityFromActiveMethod,
   resolveExactOwnerLaneScope,
-  type ActiveWalletAuthMethodV2,
   type OwnerLaneScopeStores,
 } from '@/core/signingEngine/session/identity/ownerLaneScope';
 import { parseSignerSlot, type SignerSlot } from '@shared/utils/signerSlot';
-import { nearEd25519SigningKeyIdFromString } from '@shared/utils/registrationIntent';
+import { nearEd25519SigningKeyIdFromString } from '@shared/utils/registrationIds';
 import type { EmailOtpEd25519YaoRecoveryBootstrapV1 } from '@/core/signingEngine/workerManager/workerTypes';
 import type { RouterAbEd25519YaoActiveClientMetadataV1 } from '@/core/signingEngine/threshold/ed25519/yaoClient';
 import type { RouterAbOwnerNormalSigningCredential } from '@/core/rpcClients/relayer/routerAbNormalSigning';
@@ -425,8 +422,6 @@ import type {
 import { createBrowserRecoveryPublicDeps } from '../assembly/createBrowserRecoveryPublicDeps';
 import { createBrowserStepUpRuntime } from '../assembly/createBrowserStepUpRuntime';
 import { createBrowserWarmSessionPublicDeps } from '../assembly/createBrowserWarmSessionPublicDeps';
-import type { WasmEd25519YaoLaneClientV1 } from '@shared/signing-lanes/rotation';
-import { reconcileCanonicalEcdsaActivationWasm } from '@/core/signingEngine/threshold/crypto/ecdsaDerivationClientWasm';
 import {
   configurePasskeyCustodySessionCachePersistence,
   readPasskeyCustodySessionEnvelope,
@@ -662,7 +657,7 @@ function exactEmailOtpAuthorityRef(args: {
 }
 
 async function resolveExactEmailOtpFactorAuthority(args: {
-  readonly authMethod: Extract<ActiveWalletAuthMethodV2, { readonly kind: 'email_otp' }>;
+  readonly authMethod: ActiveEmailOtpWalletAuthMethodRecordV2;
   readonly emailHashHex: string;
   readonly providerSubject: string;
 }): Promise<EmailOtpWalletAuthAuthority> {
@@ -707,7 +702,7 @@ function requireEmailOtpNearEd25519MaterialIdentity(
 }
 
 /** Selects the exact unlocked Email OTP factor for exhausted-session step-up. */
-export async function resolveBrowserNearEd25519EmailOtpAuthorityForMaterial(args: {
+async function resolveBrowserNearEd25519EmailOtpAuthorityForMaterial(args: {
   readonly walletId: WalletId;
   readonly nearAccountId: AccountId;
   readonly identity: EmailOtpNearEd25519MaterialIdentity;
@@ -1041,63 +1036,7 @@ function assertNeverNearEd25519CapabilityRehydrationSubject(value: never): never
   throw new Error(`Unknown Ed25519 capability rehydration subject: ${String(value)}`);
 }
 
-function createDiscardingEd25519LaneClientV1(
-  client: WasmEd25519YaoLaneClientV1,
-  source: { readonly discard: () => Promise<void> },
-): WasmEd25519YaoLaneClientV1 {
-  let discarded = false;
-  const discard = async (): Promise<void> => {
-    if (discarded) return;
-    discarded = true;
-    await source.discard();
-  };
-  return {
-    prepare: async (job) => {
-      try {
-        return await client.prepare(job);
-      } catch (error: unknown) {
-        await discard();
-        throw error;
-      }
-    },
-    complete: async (input) => {
-      try {
-        return await client.complete(input);
-      } finally {
-        await discard();
-      }
-    },
-  };
-}
-
-async function reconcileWalletHostEcdsaActivationJournalV1(args: {
-  readonly store: IndexedDbEcdsaCapabilityManifestStore;
-  readonly workerCtx: WorkerOperationContext;
-  readonly walletId: WalletId;
-}): Promise<void> {
-  const listed = await args.store.listWalletActivationJournalSelectors(args.walletId);
-  if (listed.kind !== 'resolved') {
-    throw new Error(`Wallet-host ECDSA activation journal is ${listed.kind}`);
-  }
-  for (const selector of listed.selectors) {
-    const result = await reconcileCanonicalEcdsaActivationWasm({
-      workerCtx: args.workerCtx,
-      command: {
-        kind: 'reconcile_canonical_ecdsa_activation_v1',
-        capability: selector.capability,
-        authority: selector.authority,
-      },
-    });
-    if (
-      result.kind !== 'canonical_ecdsa_activation_reconciliation_absent_v1' &&
-      result.kind !== 'canonical_ecdsa_activation_reconciliation_finalized_v1'
-    ) {
-      throw new Error(`Wallet-host ECDSA activation reconciliation is ${result.kind}`);
-    }
-  }
-}
-
-export async function ensurePasskeyEd25519WarmSessionForSigning(args: {
+async function ensurePasskeyEd25519WarmSessionForSigning(args: {
   claimWarmSessionMaterial: PasskeyMpcSessionPort['claimWarmSessionMaterial'];
   rehydrateWarmSessionMaterial: PasskeyMpcSessionPort['rehydrateWarmSessionMaterial'];
   runtime: ExactEd25519SealedSessionRuntime;
@@ -1170,31 +1109,6 @@ export async function ensurePasskeyEd25519WarmSessionForSigning(args: {
     consume: false,
   });
   return claim;
-}
-
-export function nearEd25519PublicLocatorObservation(args: {
-  references: readonly Ed25519YaoPublicCapabilityLaneReferenceV1[];
-  walletId: WalletId;
-  nearAccountId: AccountId;
-  signerSlot: number;
-  thresholdSessionId: ThresholdEd25519SessionId;
-}): PasskeyEd25519YaoPublicLocatorObservationV1 {
-  const matches = args.references.filter(
-    (reference) =>
-      String(reference.walletId) === String(args.walletId) &&
-      String(reference.nearAccountId) === String(args.nearAccountId) &&
-      reference.signerSlot === args.signerSlot &&
-      String(reference.thresholdSessionId) === String(args.thresholdSessionId),
-  );
-  if (matches.length === 0) return { kind: 'missing' };
-  if (matches.length !== 1) return { kind: 'conflict' };
-  return {
-    kind: 'available',
-    walletId: String(args.walletId),
-    nearAccountId: String(args.nearAccountId),
-    signerSlot: args.signerSlot,
-    materialActivation: matches[0].materialActivation,
-  };
 }
 
 async function resolveNearEd25519PublicCapabilityMaterialActivation(args: {
@@ -1379,7 +1293,7 @@ function resolveSelectedEmailOtpEd25519ExportRootV1(args: {
 
 async function resolveLinkedPasskeyOwnerSignerSlot(args: {
   walletId: WalletId;
-  authMethod: Extract<ActiveWalletAuthMethodV2, { kind: 'passkey' }>;
+  authMethod: ActivePasskeyWalletAuthMethodRecordV2;
   signerMaterials: readonly WalletAuthoritySignerMaterialRecordV1[];
   publicLaneStore: Ed25519YaoPublicCapabilityReferenceStorePort;
 }): Promise<SignerSlot> {
@@ -1762,7 +1676,7 @@ function operationStepUpProofMatchesSelectedWalletAuthMethod(args: {
   }
 }
 
-export async function resolveExactNearEd25519WalletSessionOperationCredentialForStepUp(args: {
+async function resolveExactNearEd25519WalletSessionOperationCredentialForStepUp(args: {
   readonly walletId: WalletId;
   readonly proof: Ed25519OperationStepUpProof;
 }): Promise<WalletSessionOperationCredentialV1> {
@@ -2488,10 +2402,6 @@ export class BrowserSigningSurface {
     Promise<NearEd25519CapabilityRehydrationSubject>
   > = new Map();
   private readonly emailOtpSessions: EmailOtpWalletSessionCoordinator;
-  private readonly thresholdEcdsaExportArtifactByLane: Map<
-    string,
-    ThresholdEcdsaCanonicalExportArtifact
-  >;
   private readonly warmSigning: WarmSigningPorts;
   private readonly passkeyPublicDeps: PasskeyPublicDeps;
   private readonly warmCapabilitiesPublicDeps: WarmCapabilitiesPublicDeps;
@@ -2502,7 +2412,6 @@ export class BrowserSigningSurface {
   private readonly sealedRefreshStartupParityPromise: Promise<void>;
   private hostWarmCriticalResourcesTask: Promise<WorkerResourceWarmupDiagnostics> | null = null;
   private sealedRefreshStartupParityError: Error | null = null;
-  private readonly signingRuntime: SigningRuntime;
   private readonly runtimePorts: RuntimePorts;
   private readonly enginePorts: BrowserSigningSurfaceEnginePorts;
   private readonly ecdsaBootstrapStore: ThresholdEcdsaBootstrapStorePort;
@@ -2595,12 +2504,9 @@ export class BrowserSigningSurface {
       getNearSigningDeps: () => this.enginePorts.nearSigningDeps,
       getEvmFamilySigningDeps: () => this.enginePorts.tempoSigningDeps,
     });
-    this.signingRuntime = signingRuntime;
     runtimePortsForUiConfirm.current = signingRuntime.runtimePorts;
     const ecdsaExportArtifactStore = signingRuntime.state.ecdsaSessions;
     this.runtimePorts = signingRuntime.runtimePorts;
-    this.thresholdEcdsaExportArtifactByLane =
-      signingRuntime.state.ecdsaSessions.exportArtifactsByLane;
     const stepUpRuntime = createBrowserStepUpRuntime({
       seamsWebConfigs: this.seamsWebConfigs,
       touchIdPrompt: this.touchIdPrompt,
@@ -2809,9 +2715,9 @@ export class BrowserSigningSurface {
       session: this.enginePorts.registrationSessionDeps,
     };
 
-    /* R109C: every path that unlocks a pre-109C envelope reseals it, and the
-       reseal has nowhere to go without the relayer and the Wallet Session that
-       only the host holds. Registered once, from the one object that has both. */
+    /* Every path that unlocks an unbound envelope reseals it, and the reseal
+       has nowhere to go without the relayer and the Wallet Session that only
+       the host holds. Registered once, from the one object that has both. */
     setUnlockedCustodyEnvelopeUpgradeSinkV1((upgrade) => {
       void this.persistUpgradedWalletCustodyEnvelopeV1(upgrade);
     });
@@ -3248,14 +3154,6 @@ export class BrowserSigningSurface {
     }
   }
 
-  hasActiveNearEd25519YaoMaterial(args: {
-    readonly walletId: WalletId;
-    readonly nearAccountId: AccountId;
-    readonly materialActivation: MpcMaterialActivationRef;
-  }): boolean {
-    return this.enginePorts.ed25519YaoActiveClients.resolve(args) !== null;
-  }
-
   async readPersistedAvailableSigningLanes(
     args: Omit<ReadAvailableSigningLanesInput, 'ecdsaChainTargets'>,
   ): Promise<AvailableSigningLanes> {
@@ -3444,9 +3342,9 @@ export class BrowserSigningSurface {
   setWalletAuthenticated(
     state: Extract<WalletAuthenticationState, { kind: 'authenticated' }>,
   ): void {
-    // R103 zero-prompt handoff: switching wallets ends the previous wallet's
-    // authority here without passing through clearWalletAuthentication, so its
-    // The unlocked export-root capability is destroyed at the switch itself.
+    // Switching wallets ends the previous wallet's authority here without
+    // passing through clearWalletAuthentication, so its unlocked export-root
+    // capability is destroyed at the switch itself.
     const previous = this.walletAuthenticationState;
     if (previous.kind === 'authenticated' && String(previous.walletId) !== String(state.walletId)) {
       void this.destroyUnlockedWalletEd25519ExportRootCapabilitiesV1({
@@ -3461,8 +3359,8 @@ export class BrowserSigningSurface {
   clearWalletAuthentication(): void {
     this.walletAuthenticationRestoreGeneration += 1;
     this.walletAuthenticationState = { kind: 'signed_out' };
-    // R103 zero-prompt handoff: logout and wallet switch both land here, and
-    // both end the authority the unlocked export-root capability was scoped to.
+    // Logout and wallet switch both land here, and both end the authority the
+    // unlocked export-root capability was scoped to.
     void this.destroyUnlockedWalletEd25519ExportRootCapabilitiesV1({ kind: 'all' });
   }
 
@@ -3484,11 +3382,11 @@ export class BrowserSigningSurface {
   }
 
   /**
-   * Refactor 103 zero-prompt handoff: parks the wallet custody seed inside the
-   * ceremony worker for the lifetime of the just-activated owner Wallet
-   * Session, reusing the factor secret this registration or unlock already
-   * collected. Failure is absorbed: the wallet stays usable, and device
-   * linking fails closed with `wallet_unlock_required` until the next unlock.
+   * Parks the wallet custody seed inside the ceremony worker for the lifetime of
+   * the just-activated owner Wallet Session, reusing the factor secret this
+   * registration or unlock already collected. Failure is absorbed: the wallet
+   * stays usable, and device linking fails closed with `wallet_unlock_required`
+   * until the next unlock.
    */
   async establishUnlockedWalletEd25519ExportRootCapabilityV1(input: {
     readonly existingEnvelope: PasskeyCustodyEnvelopeRecord;
@@ -3499,7 +3397,12 @@ export class BrowserSigningSurface {
     readonly expiresAtMs: number;
   }): Promise<void> {
     try {
-      if (!isWalletCustodySeedBinding(input.existingEnvelope.binding)) return;
+      /* A linked device parks its own Client root the same way; only linking
+         accepts that capability. */
+      const binding = input.existingEnvelope.binding;
+      if (!isWalletCustodySeedBinding(binding) && binding.kind !== 'ed25519_yao_client_root_v1') {
+        return;
+      }
       const factor = input.existingEnvelope.factor;
       if (factor.kind !== 'passkey') {
         throw new Error('unlocked export-root capability requires a passkey envelope factor');
@@ -3529,7 +3432,7 @@ export class BrowserSigningSurface {
   }
 
   /**
-   * Stores a resealed pre-109C envelope under the method that opened it.
+   * Stores the reseal of an unbound envelope under the method that opened it.
    *
    * Absorbed the same way establishment is, and for the same reason: the V2 row
    * still opens the wallet, so a failure here costs a retry at the next unlock
@@ -6472,8 +6375,8 @@ export class BrowserSigningSurface {
   }
 
   /**
-   * R109C: what an owner authority needs to have its Ed25519 runtime built
-   * inside the unlock that verifies its factor.
+   * What an owner authority needs to have its Ed25519 runtime built inside the
+   * unlock that verifies its factor.
    *
    * Assembled here rather than by the caller because every field is read off
    * the exact authority projection - the identity, its runtime policy scope,
@@ -6521,7 +6424,7 @@ export class BrowserSigningSurface {
   }
 
   /**
-   * R109C: activate the runtime an owner authority's unlock built.
+   * Activate the runtime an owner authority's unlock built.
    *
    * The identity it is checked against comes from the same authority projection
    * that produced the unlock request, not from the bootstrap being checked -

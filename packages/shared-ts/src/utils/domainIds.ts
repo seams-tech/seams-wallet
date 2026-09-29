@@ -2,7 +2,7 @@ export type DomainId<TBrand extends string> = string & {
   readonly __domainIdBrand: TBrand;
 };
 
-export type DomainIdParseError = {
+type DomainIdParseError = {
   code: 'missing' | 'invalid';
   message: string;
 };
@@ -506,10 +506,6 @@ export function parseMpcMaterialActivationRef(
       signingWorker: signingWorker.value,
     }),
   };
-}
-
-export function formatWebAuthnRpIdForWire(value: WebAuthnRpId): string {
-  return value;
 }
 
 export function parseThresholdEd25519SessionId(

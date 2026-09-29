@@ -11,17 +11,17 @@ import {
   resolveThresholdRuntimePolicyScope,
 } from '../../../auth/commonRouterUtils';
 import { normalizeCorsOrigin } from '../../../../core/SessionService';
+import { buildRouterAbEd25519PrivateSigningWorkerBody } from '../../../domains/signingOperations/routerAbPrivateSigningWorker';
+import { authenticateRouterAbWalletOperationStepUpIdentity } from '../../../domains/signingOperations/routerAbOperationStepUp';
 import {
-  authenticateRouterAbWalletOperationStepUpIdentity,
   authorizeRouterAbEd25519NormalSigningRoute,
   buildRouterAbEd25519OwnerOperationStepUpPreparation,
   decideRouterAbEd25519OwnerOperationAuthorization,
   routerAbEd25519OwnerOperationFailureResult,
-  buildRouterAbEd25519PrivateSigningWorkerBody,
   parseRouterAbEd25519OperationStepUpScope,
   parseRouterAbOperationStepUpOperation,
   type RouterAbEd25519NormalSigningRoutePhase,
-} from '../../../domains/signingOperations/routerAbPrivateSigningWorker';
+} from '../../../domains/signingOperations/routerAbEd25519NormalSigningRoute';
 import {
   parseThresholdEd25519OperationStepUpGrantRequest,
   parseThresholdEd25519SessionRouteRequest,
@@ -92,7 +92,7 @@ import {
   EMAIL_OTP_CHANNEL,
   WALLET_EMAIL_OTP_TRANSACTION_SIGN_OPERATION,
 } from '@shared/utils/emailOtpDomain';
-import { walletIdFromString } from '@shared/utils/registrationIntent';
+import { walletIdFromString } from '@shared/utils/registrationIds';
 import type { RuntimePolicyScope } from '@shared/threshold/signingRootScope';
 import {
   emailOtpStatusCode,
@@ -185,6 +185,7 @@ function ed25519ReusableWalletSessionIdentity(
 
 function buildEd25519GatewayOwnerWalletSessionBinding(
   authorization: AcceptedEd25519WalletSessionAuthorization,
+  projectEnvironmentId: string,
 ) {
   const session = ed25519ReusableWalletSession(authorization);
   const runtimePolicyScope = authorization.activeMaterial.runtimePolicyScope;
@@ -199,8 +200,61 @@ function buildEd25519GatewayOwnerWalletSessionBinding(
     orgId: runtimePolicyScope.orgId,
     projectId: runtimePolicyScope.projectId,
     environment: runtimePolicyScope.envId,
+    projectEnvironmentId,
     signingWorkerId: authorization.activeMaterial.signingWorkerId,
     expiresAtMs: session.expiresAtMs,
+  };
+}
+
+async function readPinnedEd25519WalletProjectEnvironmentId(
+  ctx: FetchRouterApiContext,
+  authorization: AcceptedEd25519WalletSessionAuthorization,
+  operation: AuthorizedOperation,
+): Promise<string> {
+  const session = ed25519ReusableWalletSession(authorization);
+  const scope = authorization.activeMaterial.runtimePolicyScope;
+  const pinned = await ctx.service.authorizedOperations.readPinnedOwnerWalletScope({
+    operation,
+    walletId: session.walletId,
+  });
+  if (pinned.orgId !== scope.orgId || pinned.projectId !== scope.projectId) {
+    throw new Error('Pinned owner Wallet Session scope differs from active material');
+  }
+  return pinned.projectEnvironmentId;
+}
+
+/**
+ * The Router binding for a verified step-up: the wallet it signs for and the
+ * Console project environment of the store that claimed the operation, so
+ * the SigningWorker reaches the wallet's own storage.
+ */
+async function ed25519OperationStepUpBinding(
+  ctx: FetchRouterApiContext,
+  session: {
+    readonly sessionId: string;
+    readonly principalId: string;
+    readonly walletId: string;
+    readonly runtimePolicyScope: RuntimePolicyScope;
+  },
+  operation: AuthorizedOperation,
+): Promise<Ed25519OperationStepUpBinding> {
+  const scope = session.runtimePolicyScope;
+  const pinned = await ctx.service.authorizedOperations.readPinnedOwnerWalletScope({
+    operation,
+    walletId: requireAuthorizationValue(parseWalletId(session.walletId)),
+  });
+  if (pinned.orgId !== scope.orgId || pinned.projectId !== scope.projectId) {
+    throw new Error('Step-up wallet scope differs from the Wallet Session scope');
+  }
+  return {
+    kind: 'operation_step_up',
+    authorizationSessionId: session.sessionId,
+    orgId: scope.orgId,
+    projectId: scope.projectId,
+    environment: scope.envId,
+    projectEnvironmentId: pinned.projectEnvironmentId,
+    subjectId: session.principalId,
+    accountId: session.walletId,
   };
 }
 
@@ -223,6 +277,7 @@ type RouterAbEd25519AuthorizedOperationWire = {
         readonly org_id: string;
         readonly project_id: string;
         readonly environment: string;
+        readonly project_environment_id: string;
         readonly signing_worker_id: string;
         readonly expires_at_ms: number;
       }
@@ -232,7 +287,9 @@ type RouterAbEd25519AuthorizedOperationWire = {
         readonly org_id: string;
         readonly project_id: string;
         readonly environment: string;
+        readonly project_environment_id: string;
         readonly subject_id: string;
+        readonly account_id: string;
       };
   readonly authorized_operation:
     | Ed25519ReusableAuthorizedOperationReceipt
@@ -263,21 +320,26 @@ type RouterAbEd25519AuthorizedOperationWireInput =
         readonly orgId: string;
         readonly projectId: string;
         readonly environment: string;
+        readonly projectEnvironmentId: string;
         readonly signingWorkerId: string;
         readonly expiresAtMs: number;
       };
     }
   | {
       readonly operation: AuthorizedOperation;
-      readonly binding: {
-        readonly kind: 'operation_step_up';
-        readonly authorizationSessionId: string;
-        readonly orgId: string;
-        readonly projectId: string;
-        readonly environment: string;
-        readonly subjectId: string;
-      };
+      readonly binding: Ed25519OperationStepUpBinding;
     };
+
+type Ed25519OperationStepUpBinding = {
+  readonly kind: 'operation_step_up';
+  readonly authorizationSessionId: string;
+  readonly orgId: string;
+  readonly projectId: string;
+  readonly environment: string;
+  readonly projectEnvironmentId: string;
+  readonly subjectId: string;
+  readonly accountId: string;
+};
 
 function buildRouterAbEd25519AuthorizedOperationWire(
   input: RouterAbEd25519AuthorizedOperationWireInput,
@@ -337,6 +399,7 @@ function buildRouterAbEd25519AuthorizedOperationWire(
           org_id: input.binding.orgId,
           project_id: input.binding.projectId,
           environment: input.binding.environment,
+          project_environment_id: input.binding.projectEnvironmentId,
           signing_worker_id: input.binding.signingWorkerId,
           expires_at_ms: input.binding.expiresAtMs,
         },
@@ -359,7 +422,9 @@ function buildRouterAbEd25519AuthorizedOperationWire(
           org_id: input.binding.orgId,
           project_id: input.binding.projectId,
           environment: input.binding.environment,
+          project_environment_id: input.binding.projectEnvironmentId,
           subject_id: input.binding.subjectId,
+          account_id: input.binding.accountId,
         },
         authorized_operation: {
           kind: 'verified_step_up_authorized_operation_v1',
@@ -1113,7 +1178,7 @@ async function completeEd25519Operation(input: {
   });
 }
 
-export function replayCompletedEd25519Operation(operation: AuthorizedOperation): Response | null {
+function replayCompletedEd25519Operation(operation: AuthorizedOperation): Response | null {
   if (operation.lifecycle !== 'completed') return null;
   return new Response(authorizedOperationReplayBodyInit(operation.response), {
     status: operation.response.status,
@@ -1126,13 +1191,13 @@ export function replayCompletedEd25519Operation(operation: AuthorizedOperation):
  * operation must never fall back to the live upstream response after the
  * completion write, since that would make retries non-idempotent.
  */
-export function requireCompletedEd25519OperationResponse(operation: AuthorizedOperation): Response {
+function requireCompletedEd25519OperationResponse(operation: AuthorizedOperation): Response {
   const replay = replayCompletedEd25519Operation(operation);
   if (!replay) throw new Error('Ed25519 operation completion readback is not completed');
   return replay;
 }
 
-export function buildEd25519ReplayResponse(input: {
+function buildEd25519ReplayResponse(input: {
   readonly response: Response;
   readonly bodyText: string;
 }): AuthorizedOperationReplayResponse {
@@ -1148,7 +1213,7 @@ type Ed25519NormalSigningExecutionDecision =
   | { readonly kind: 'operation_in_progress'; readonly response: Response }
   | { readonly kind: 'replayed'; readonly response: Response };
 
-export function decideEd25519NormalSigningExecution(input: {
+function decideEd25519NormalSigningExecution(input: {
   readonly phase: RouterAbEd25519NormalSigningRoutePhase;
   readonly admissionKind: 'claimed' | 'operation_in_progress' | 'replayed';
   readonly operation: AuthorizedOperation;
@@ -1186,7 +1251,7 @@ type Ed25519OperationStepUpExecutionDecision =
   | { readonly kind: 'execute'; readonly operation: AuthorizedOperation }
   | { readonly kind: 'replay'; readonly response: Response };
 
-export function decideEd25519OperationStepUpExecution(input: {
+function decideEd25519OperationStepUpExecution(input: {
   readonly admissionKind: 'claimed' | 'operation_in_progress' | 'replayed';
   readonly operation: AuthorizedOperation;
 }): Ed25519OperationStepUpExecutionDecision {
@@ -1198,7 +1263,7 @@ export function decideEd25519OperationStepUpExecution(input: {
   return { kind: 'execute', operation: input.operation };
 }
 
-export function isRouterAbEd25519OperationInProgressResponse(input: {
+function isRouterAbEd25519OperationInProgressResponse(input: {
   readonly status: number;
   readonly bodyText: string;
 }): boolean {
@@ -1688,14 +1753,11 @@ async function handleRouterAbEd25519NormalSigningRoute(input: {
           ...input.body,
           authorized_operation: buildRouterAbEd25519AuthorizedOperationWire({
             operation: execution.operation,
-            binding: {
-              kind: 'operation_step_up',
-              authorizationSessionId: authorization.session.sessionId,
-              orgId: authorization.session.runtimePolicyScope.orgId,
-              projectId: authorization.session.runtimePolicyScope.projectId,
-              environment: authorization.session.runtimePolicyScope.envId,
-              subjectId: authorization.session.principalId,
-            },
+            binding: await ed25519OperationStepUpBinding(
+              input.ctx,
+              authorization.session,
+              execution.operation,
+            ),
           }),
         },
       });
@@ -1759,14 +1821,11 @@ async function handleRouterAbEd25519NormalSigningRoute(input: {
         ...input.body,
         authorized_operation: buildRouterAbEd25519AuthorizedOperationWire({
           operation: validatedAuthorization.operation,
-          binding: {
-            kind: 'operation_step_up',
-            authorizationSessionId: authorization.session.sessionId,
-            orgId: authorization.session.runtimePolicyScope.orgId,
-            projectId: authorization.session.runtimePolicyScope.projectId,
-            environment: authorization.session.runtimePolicyScope.envId,
-            subjectId: authorization.session.principalId,
-          },
+          binding: await ed25519OperationStepUpBinding(
+            input.ctx,
+            authorization.session,
+            validatedAuthorization.operation,
+          ),
         }),
       },
     });
@@ -1848,7 +1907,14 @@ async function handleRouterAbEd25519NormalSigningRoute(input: {
         authorized_operation: buildRouterAbEd25519AuthorizedOperationWire({
           operation: execution.operation,
           binding: {
-            ...buildEd25519GatewayOwnerWalletSessionBinding(authorization),
+            ...buildEd25519GatewayOwnerWalletSessionBinding(
+              authorization,
+              await readPinnedEd25519WalletProjectEnvironmentId(
+                input.ctx,
+                authorization,
+                execution.operation,
+              ),
+            ),
           },
         }),
       },
@@ -1909,7 +1975,14 @@ async function handleRouterAbEd25519NormalSigningRoute(input: {
       authorized_operation: buildRouterAbEd25519AuthorizedOperationWire({
         operation: validatedAuthorization.operation,
         binding: {
-          ...buildEd25519GatewayOwnerWalletSessionBinding(authorization),
+          ...buildEd25519GatewayOwnerWalletSessionBinding(
+            authorization,
+            await readPinnedEd25519WalletProjectEnvironmentId(
+              input.ctx,
+              authorization,
+              validatedAuthorization.operation,
+            ),
+          ),
         },
       }),
     },

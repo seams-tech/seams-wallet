@@ -1,25 +1,26 @@
 import { secureRandomBase64Url } from '@shared/utils/secureRandomId';
 import type { RuntimePolicyScope } from '@shared/threshold/signingRootScope';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
+import {
+  registrationAttemptMatchesReplacementScope,
+  registrationAttemptMatchesStartedScope,
+} from '../../../../core/EmailOtpRecords';
 import type {
   GoogleEmailOtpRegistrationAttemptRecord,
   NonEmptyGoogleEmailOtpRegistrationOfferCandidates,
   PendingGoogleEmailOtpRegistrationAttemptRecord,
 } from '../../../../core/EmailOtpStores';
-import type { D1PreparedStatementLike } from '../../../../storage/tenantRoute';
+import {
+  emailOtpRegistrationAttemptRows,
+  type ScopedD1Prepare,
+} from '../../../../core/emailOtpD1Statements';
 import { d1MutationChanges } from '../auth/d1RouterApiAuthBoundary';
 import {
   abandonedGoogleEmailOtpRegistrationAttemptRecord,
-  googleEmailOtpRegistrationOfferWalletIdsJson,
   parseGoogleEmailOtpRegistrationAttemptRow,
   pendingGoogleEmailOtpRegistrationAttemptWithUpdatedAt,
-  registrationAttemptMatchesReplacementScope,
-  registrationAttemptMatchesStartedScope,
-  runtimePolicyScopeKey,
   type D1EmailOtpRegistrationAttemptRow,
 } from './d1GoogleEmailOtpRegistrationRecords';
-
-type ScopedD1Prepare = (sql: string, values: readonly unknown[]) => D1PreparedStatementLike;
 
 export class CloudflareD1GoogleEmailOtpRegistrationAttemptStore {
   private readonly prepare: ScopedD1Prepare;
@@ -32,15 +33,7 @@ export class CloudflareD1GoogleEmailOtpRegistrationAttemptStore {
 
   async cleanupExpired(nowMs: number): Promise<number> {
     return d1MutationChanges(
-      await this.prepare(
-        `DELETE FROM email_otp_registration_attempts
-          WHERE namespace = ?
-            AND org_id = ?
-            AND project_id = ?
-            AND env_id = ?
-            AND (expires_at_ms <= ? OR state = 'expired')`,
-        [nowMs],
-      ).run(),
+      await emailOtpRegistrationAttemptRows.deleteExpired(this.prepare, nowMs).run(),
     );
   }
 
@@ -92,49 +85,17 @@ export class CloudflareD1GoogleEmailOtpRegistrationAttemptStore {
   }): Promise<PendingGoogleEmailOtpRegistrationAttemptRecord | null> {
     const nowMs = Date.now();
     await this.cleanupExpired(nowMs);
-    const row = await this.prepare(
-      `SELECT record_json, expires_at_ms, updated_at_ms, attempt_id
-         FROM email_otp_registration_attempts
-        WHERE namespace = ?
-          AND org_id = ?
-          AND project_id = ?
-          AND env_id = ?
-          AND provider_subject = ?
-          AND email = ?
-          AND state IN ('started', 'key_finalized')
-          AND expires_at_ms > ?
-          AND owner_proof_binding_digest = ?
-          AND runtime_org_id = ?
-          AND runtime_policy_key = ?
-        ORDER BY updated_at_ms DESC
-        LIMIT 1`,
-      [
-        input.providerSubject,
-        input.email,
-        nowMs,
-        input.ownerProofBindingDigest,
-        input.orgId,
-        runtimePolicyScopeKey(input.runtimePolicyScope),
-      ],
-    ).first<D1EmailOtpRegistrationAttemptRow>();
+    const scope = { ...input, nowMs };
+    const row = await emailOtpRegistrationAttemptRows
+      .selectStarted(this.prepare, scope)
+      .first<D1EmailOtpRegistrationAttemptRow>();
     const parsed = parseGoogleEmailOtpRegistrationAttemptRow(row);
     if (!parsed) {
       const malformedAttemptId = toOptionalTrimmedString(row?.attempt_id);
       if (malformedAttemptId) await this.delete(malformedAttemptId);
       return null;
     }
-    if (
-      !registrationAttemptMatchesStartedScope(parsed, {
-        providerSubject: input.providerSubject,
-        email: input.email,
-        orgId: input.orgId,
-        ownerProofBindingDigest: input.ownerProofBindingDigest,
-        runtimePolicyScope: input.runtimePolicyScope,
-        nowMs,
-      })
-    ) {
-      return null;
-    }
+    if (!registrationAttemptMatchesStartedScope(parsed, scope)) return null;
     const refreshed = pendingGoogleEmailOtpRegistrationAttemptWithUpdatedAt(parsed, nowMs);
     await this.put(refreshed);
     return refreshed;
@@ -149,19 +110,9 @@ export class CloudflareD1GoogleEmailOtpRegistrationAttemptStore {
     readonly nowMs: number;
     readonly failureCode: 'owner_proof_binding_replaced';
   }): Promise<void> {
-    const result = await this.prepare(
-      `SELECT record_json, expires_at_ms, updated_at_ms, attempt_id
-         FROM email_otp_registration_attempts
-        WHERE namespace = ?
-          AND org_id = ?
-          AND project_id = ?
-          AND env_id = ?
-          AND provider_subject = ?
-          AND email = ?
-          AND state IN ('started', 'key_finalized')
-          AND expires_at_ms > ?`,
-      [input.providerSubject, input.email, input.nowMs],
-    ).all<D1EmailOtpRegistrationAttemptRow>();
+    const result = await emailOtpRegistrationAttemptRows
+      .selectPending(this.prepare, input)
+      .all<D1EmailOtpRegistrationAttemptRow>();
     for (const row of result.results || []) {
       const parsed = parseGoogleEmailOtpRegistrationAttemptRow(row);
       if (!parsed) {
@@ -184,41 +135,16 @@ export class CloudflareD1GoogleEmailOtpRegistrationAttemptStore {
     readonly walletId: string;
     readonly nowMs: number;
   }): Promise<boolean> {
-    const row = await this.prepare(
-      `SELECT 1 AS found
-         FROM email_otp_registration_attempts
-        WHERE namespace = ?
-          AND org_id = ?
-          AND project_id = ?
-          AND env_id = ?
-          AND state IN ('started', 'key_finalized')
-          AND expires_at_ms > ?
-          AND (
-            wallet_id = ?
-            OR EXISTS (
-              SELECT 1
-                FROM json_each(offer_wallet_ids_json)
-               WHERE value = ?
-            )
-          )
-        LIMIT 1`,
-      [input.nowMs, input.walletId, input.walletId],
-    ).first<{ readonly found?: unknown }>();
+    const row = await emailOtpRegistrationAttemptRows
+      .selectLiveForWallet(this.prepare, input.walletId, input.nowMs)
+      .first<{ readonly found?: unknown }>();
     return Boolean(row);
   }
 
   async read(attemptId: string): Promise<GoogleEmailOtpRegistrationAttemptRecord | null> {
-    const row = await this.prepare(
-      `SELECT record_json, expires_at_ms, updated_at_ms, attempt_id
-         FROM email_otp_registration_attempts
-        WHERE namespace = ?
-          AND org_id = ?
-          AND project_id = ?
-          AND env_id = ?
-          AND attempt_id = ?
-        LIMIT 1`,
-      [attemptId],
-    ).first<D1EmailOtpRegistrationAttemptRow>();
+    const row = await emailOtpRegistrationAttemptRows
+      .select(this.prepare, attemptId)
+      .first<D1EmailOtpRegistrationAttemptRow>();
     const record = parseGoogleEmailOtpRegistrationAttemptRow(row);
     return record?.runtimePolicyScope?.orgId === this.orgId ? record : null;
   }
@@ -227,68 +153,10 @@ export class CloudflareD1GoogleEmailOtpRegistrationAttemptStore {
     if (record.runtimePolicyScope?.orgId !== this.orgId) {
       throw new Error('Google Email OTP registration attempt org scope mismatch');
     }
-    await this.prepare(
-      `INSERT INTO email_otp_registration_attempts (
-        namespace,
-        org_id,
-        project_id,
-        env_id,
-        attempt_id,
-        provider_subject,
-        email,
-        wallet_id,
-        state,
-        owner_proof_binding_digest,
-        runtime_org_id,
-        runtime_policy_key,
-        offer_wallet_ids_json,
-        record_json,
-        created_at_ms,
-        updated_at_ms,
-        expires_at_ms
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT (namespace, org_id, project_id, env_id, attempt_id)
-      DO UPDATE SET
-        provider_subject = EXCLUDED.provider_subject,
-        email = EXCLUDED.email,
-        wallet_id = EXCLUDED.wallet_id,
-        state = EXCLUDED.state,
-        owner_proof_binding_digest = EXCLUDED.owner_proof_binding_digest,
-        runtime_org_id = EXCLUDED.runtime_org_id,
-        runtime_policy_key = EXCLUDED.runtime_policy_key,
-        offer_wallet_ids_json = EXCLUDED.offer_wallet_ids_json,
-        record_json = EXCLUDED.record_json,
-        created_at_ms = EXCLUDED.created_at_ms,
-        updated_at_ms = EXCLUDED.updated_at_ms,
-        expires_at_ms = EXCLUDED.expires_at_ms`,
-      [
-        record.attemptId,
-        record.providerSubject,
-        record.email,
-        record.walletId,
-        record.state,
-        record.ownerProofBindingDigest,
-        record.runtimePolicyScope?.orgId || '',
-        runtimePolicyScopeKey(record.runtimePolicyScope),
-        googleEmailOtpRegistrationOfferWalletIdsJson(record.offerCandidates),
-        JSON.stringify(record),
-        record.createdAtMs,
-        record.updatedAtMs,
-        record.expiresAtMs,
-      ],
-    ).run();
+    await emailOtpRegistrationAttemptRows.upsert(this.prepare, record).run();
   }
 
   async delete(attemptId: string): Promise<void> {
-    await this.prepare(
-      `DELETE FROM email_otp_registration_attempts
-        WHERE namespace = ?
-          AND org_id = ?
-          AND project_id = ?
-          AND env_id = ?
-          AND attempt_id = ?`,
-      [attemptId],
-    ).run();
+    await emailOtpRegistrationAttemptRows.delete(this.prepare, attemptId).run();
   }
 }

@@ -1,6 +1,7 @@
 import { base64UrlEncode, base64UrlDecode } from '../utils/base64';
 import { parseDigestB64u, type DigestB64u } from '../utils/canonicalPrimitives';
 import { sha256Bytes } from '../utils/digests';
+import { concat } from '../utils/digestEncoding';
 import {
   buildLaneHolderParticipantRecordV1,
   buildSigningWorkerParticipantRecordV1,
@@ -19,36 +20,25 @@ import {
 } from './participants';
 
 /** Domain tags are part of the wire contract and must never be shortened. */
-export const LANE_HOLDER_PARTICIPANT_BINDING_DOMAIN_V1 =
+const LANE_HOLDER_PARTICIPANT_BINDING_DOMAIN_V1 =
   'seams/rotatable-signing-lanes/lane-holder-participant/v1' as const;
-export const SIGNING_WORKER_PARTICIPANT_BINDING_DOMAIN_V1 =
+const SIGNING_WORKER_PARTICIPANT_BINDING_DOMAIN_V1 =
   'seams/rotatable-signing-lanes/signing-worker-participant/v1' as const;
 /** The lane digest binds the fixed holder-then-SigningWorker participant set. */
-export const LANE_PARTICIPANT_SET_BINDING_DOMAIN_V1 =
+const LANE_PARTICIPANT_SET_BINDING_DOMAIN_V1 =
   'seams/rotatable-signing-lanes/lane-participant-set/v1' as const;
 
-export type LaneHolderParticipantBindingInputV1 = {
+type LaneHolderParticipantBindingInputV1 = {
   readonly participantId: LaneHolderParticipantId;
   readonly custody: LaneHolderCustodyIdentityV1;
   readonly hpkePublicKeyB64u: HpkePublicKeyB64u;
   readonly hpkePublicKeyDigestB64u: SigningWorkerRecipientKeyDigestB64u;
 };
 
-export type SigningWorkerParticipantBindingInputV1 = {
+type SigningWorkerParticipantBindingInputV1 = {
   readonly participantId: SigningWorkerParticipantId;
   readonly recipient: SigningWorkerRecipientIdentityV1;
 };
-
-function concat(parts: readonly Uint8Array[]): Uint8Array {
-  const length = parts.reduce((total, part) => total + part.length, 0);
-  const output = new Uint8Array(length);
-  let offset = 0;
-  for (const part of parts) {
-    output.set(part, offset);
-    offset += part.length;
-  }
-  return output;
-}
 
 function placeholderParticipantDigest(): LaneParticipantBindingDigestB64u {
   const parsed = parseLaneParticipantBindingDigestB64u(base64UrlEncode(new Uint8Array(32)));
@@ -68,14 +58,14 @@ function u32(value: number): Uint8Array {
   ]);
 }
 
-/** LP32(UTF8(value)) from the Refactor 102 canonical encoding. */
+/** LP32(UTF8(value)) from the canonical lane encoding. */
 export function encodeLaneCanonicalTextV1(value: string): Uint8Array {
   if (typeof value !== 'string') throw new Error('canonical text must be a string');
   const bytes = new TextEncoder().encode(value);
   return concat([u32(bytes.length), bytes]);
 }
 
-/** LP32(BASE64URL_DECODE_CANONICAL_32(value)) from the Refactor 102 encoding. */
+/** LP32(BASE64URL_DECODE_CANONICAL_32(value)) from the canonical lane encoding. */
 export function encodeLaneCanonicalDigestV1(value: DigestB64u): Uint8Array {
   const parsed = parseDigestB64u(value);
   return concat([u32(32), base64UrlDecode(parsed)]);
@@ -95,16 +85,14 @@ export function encodeLaneCanonicalU64V1(value: number): Uint8Array {
 }
 
 /** Nonempty array count encoding used by enrollment and receipt records. */
-export function encodeLaneCanonicalNonEmptyCountV1(count: number): Uint8Array {
+function encodeLaneCanonicalNonEmptyCountV1(count: number): Uint8Array {
   if (!Number.isInteger(count) || count < 1 || count > 0xffffffff) {
     throw new Error('canonical array count must be a nonempty u32');
   }
   return u32(count);
 }
 
-export function laneHolderParticipantCanonicalBytesV1(
-  input: LaneHolderParticipantRecordV1,
-): Uint8Array {
+function laneHolderParticipantCanonicalBytesV1(input: LaneHolderParticipantRecordV1): Uint8Array {
   const record = parseLaneHolderParticipantRecordV1(input);
   return concat([
     encodeLaneCanonicalTextV1(LANE_HOLDER_PARTICIPANT_BINDING_DOMAIN_V1),
@@ -116,7 +104,7 @@ export function laneHolderParticipantCanonicalBytesV1(
   ]);
 }
 
-export function signingWorkerParticipantCanonicalBytesV1(
+function signingWorkerParticipantCanonicalBytesV1(
   input: SigningWorkerParticipantRecordV1,
 ): Uint8Array {
   const record = parseSigningWorkerParticipantRecordV1(input);
@@ -139,7 +127,7 @@ function encodeCanonicalBytes(value: Uint8Array): Uint8Array {
  * binding digests are included after their canonical identity bytes so a
  * verified record cannot be substituted while retaining the same identities.
  */
-export function laneParticipantSetCanonicalBytesV1(input: {
+function laneParticipantSetCanonicalBytesV1(input: {
   readonly holderParticipant: LaneHolderParticipantRecordV1;
   readonly signingWorkerParticipant: SigningWorkerParticipantRecordV1;
 }): Uint8Array {
@@ -179,39 +167,11 @@ export async function computeLaneHolderParticipantBindingDigestV1(
   );
 }
 
-export async function computeSigningWorkerParticipantBindingDigestV1(
-  input: SigningWorkerParticipantBindingInputV1,
-): Promise<LaneParticipantBindingDigestB64u> {
-  return await digestCanonicalBytes(
-    signingWorkerParticipantCanonicalBytesV1(
-      buildSigningWorkerParticipantRecordV1({
-        ...input,
-        participantBindingDigestB64u: placeholderParticipantDigest(),
-      }),
-    ),
-  );
-}
-
 export async function computeLaneParticipantSetBindingDigestV1(input: {
   readonly holderParticipant: LaneHolderParticipantRecordV1;
   readonly signingWorkerParticipant: SigningWorkerParticipantRecordV1;
 }): Promise<LaneParticipantBindingDigestB64u> {
   return await digestCanonicalBytes(laneParticipantSetCanonicalBytesV1(input));
-}
-
-export async function buildLaneHolderParticipantRecordWithDigestV1(
-  input: LaneHolderParticipantBindingInputV1,
-): Promise<LaneHolderParticipantRecordV1> {
-  const draft = buildLaneHolderParticipantRecordV1({
-    ...input,
-    participantBindingDigestB64u: placeholderParticipantDigest(),
-  });
-  return buildLaneHolderParticipantRecordV1({
-    ...input,
-    participantBindingDigestB64u: await digestCanonicalBytes(
-      laneHolderParticipantCanonicalBytesV1(draft),
-    ),
-  });
 }
 
 export async function buildSigningWorkerParticipantRecordWithDigestV1(
@@ -227,24 +187,4 @@ export async function buildSigningWorkerParticipantRecordWithDigestV1(
       signingWorkerParticipantCanonicalBytesV1(draft),
     ),
   });
-}
-
-export async function assertLaneHolderParticipantBindingDigestV1(
-  record: LaneHolderParticipantRecordV1,
-): Promise<LaneHolderParticipantRecordV1> {
-  const expected = await digestCanonicalBytes(laneHolderParticipantCanonicalBytesV1(record));
-  if (expected !== record.participantBindingDigestB64u) {
-    throw new Error('lane holder participant binding digest mismatch');
-  }
-  return record;
-}
-
-export async function assertSigningWorkerParticipantBindingDigestV1(
-  record: SigningWorkerParticipantRecordV1,
-): Promise<SigningWorkerParticipantRecordV1> {
-  const expected = await digestCanonicalBytes(signingWorkerParticipantCanonicalBytesV1(record));
-  if (expected !== record.participantBindingDigestB64u) {
-    throw new Error('SigningWorker participant binding digest mismatch');
-  }
-  return record;
 }

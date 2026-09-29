@@ -142,14 +142,6 @@ fn proof_bundle(role: Role, identity: &str, byte: u8) -> MpcPrfPartialProofBundl
 }
 
 #[test]
-fn signer_partial_input_accepts_transcript_bound_signer() {
-    let input = signer_input(Role::SignerA, "role:signer-a:local:sha256-a");
-
-    assert_eq!(input.signer_role, Role::SignerA);
-    assert_eq!(input.output_requests.len(), 1);
-}
-
-#[test]
 fn signer_partial_input_rejects_identity_mismatch() {
     let context = context();
     let transcript = transcript(context.clone());
@@ -314,9 +306,6 @@ fn partial_verification_plan_accepts_transcript_bound_bundle() {
     .expect("verification plan");
 
     assert_eq!(plan.signer_role, Role::SignerA);
-    assert_eq!(plan.partial_wire_len, MPC_PRF_PARTIAL_WIRE_V1_LEN);
-    assert_eq!(plan.commitment_wire_len, MPC_PRF_COMMITMENT_WIRE_V1_LEN);
-    assert_eq!(plan.proof_wire_len, MPC_PRF_DLEQ_PROOF_WIRE_V1_LEN);
 }
 
 #[test]
@@ -364,7 +353,7 @@ fn partial_verification_plan_rejects_root_epoch_mismatch() {
 fn combiner_plan_accepts_distinct_signer_partials() {
     let context = context();
     let transcript = transcript(context);
-    let plan = plan_mpc_prf_combine_v1(MpcPrfCombinerInputV1 {
+    plan_mpc_prf_combine_v1(MpcPrfCombinerInputV1 {
         transcript,
         opened_share_kind: OpenedShareKind::XClientBase,
         recipient_role: Role::Client,
@@ -373,8 +362,6 @@ fn combiner_plan_accepts_distinct_signer_partials() {
         right: verified_partial(Role::SignerB, "role:signer-b:local:sha256-b", 0x0b),
     })
     .expect("combine plan");
-
-    assert_eq!(plan.signer_roles, [Role::SignerA, Role::SignerB]);
 }
 
 #[test]

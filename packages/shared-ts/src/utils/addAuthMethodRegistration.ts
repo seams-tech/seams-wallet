@@ -3,10 +3,9 @@
  *
  * This lives in the shared package because three parties read the same record:
  * the server that mints it, the browser that passes it to
- * `navigator.credentials.create`, and — since Refactor 103 Phase 8 — the
- * linked-device target preparation that carries it to Device 2. One
- * declaration, so a change to the ceremony cannot silently diverge from what a
- * linked device creates its passkey against.
+ * `navigator.credentials.create`, and the linked-device target preparation that
+ * carries it to Device 2. One declaration, so a change to the ceremony cannot
+ * silently diverge from what a linked device creates its passkey against.
  *
  * Everything here is fixed by the canonical add-auth-method ceremony: two
  * algorithms in a fixed order, a resident key, no attestation, and PRF

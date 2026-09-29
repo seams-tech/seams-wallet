@@ -53,7 +53,7 @@ export type WalletSessionOperationCredentialAdmission =
       >;
     };
 
-export type WalletSessionOperationCredentialResolution =
+type WalletSessionOperationCredentialResolution =
   | { readonly kind: 'not_found' }
   | { readonly kind: 'rejected' }
   | { readonly kind: 'admitted'; readonly admission: WalletSessionOperationCredentialAdmission };
@@ -99,6 +99,12 @@ export function resolveWalletSessionOperationCredentialAdmissionFromContext(inpu
     nowMs: input.nowMs,
   });
   if (!admission.ok || admission.keyFamily !== input.operation.keyFamily) {
+    // The response stays "scope mismatch"; the log names the refused check.
+    console.warn('[wallet-session] operation credential refused', {
+      keyFamily: input.operation.keyFamily,
+      operationKind: input.operation.operationKind,
+      error: admission.ok ? 'key_family_mismatch' : admission.error,
+    });
     return { kind: 'rejected' };
   }
   if (admission.keyFamily === 'ed25519') {
@@ -143,7 +149,7 @@ export async function resolveWalletSessionOperationCredentialAdmission(input: {
   });
 }
 
-export type WalletSessionAdministrationRequest = Pick<
+type WalletSessionAdministrationRequest = Pick<
   WalletSessionAuthorizationV2AdministrationOperation,
   'kind' | 'walletId'
 >;
@@ -158,7 +164,7 @@ export type WalletSessionAdministrationAdmission = {
   >;
 };
 
-export type WalletSessionAdministrationResolution =
+type WalletSessionAdministrationResolution =
   | { readonly kind: 'not_found' }
   | { readonly kind: 'rejected' }
   | { readonly kind: 'admitted'; readonly admission: WalletSessionAdministrationAdmission };
@@ -288,6 +294,7 @@ export async function validateEcdsaPreprocessingSession(input: {
       readonly ok: true;
       readonly kind: 'ecdsa_preprocessing_session';
       readonly session: RouterApiWalletSessionExactOperationContext['session'];
+      readonly ownerWalletScope: RouterApiWalletSessionExactOperationContext['ownerWalletScope'];
       readonly signer: Extract<
         WalletSessionAuthorizationV2AdmissionResult,
         { readonly ok: true; readonly keyFamily: 'ecdsa_secp256k1' }
@@ -333,6 +340,7 @@ export async function validateEcdsaPreprocessingSession(input: {
       ok: true,
       kind: 'ecdsa_preprocessing_session',
       session,
+      ownerWalletScope: context.ownerWalletScope,
       signer: admission.signer,
       materialActivation: admission.materialActivation,
     };
@@ -394,7 +402,7 @@ export async function validateRouterAbEcdsaDerivationWalletSessionInputs(input: 
   };
 }
 
-export type ThresholdRuntimePolicyScopeResolution =
+type ThresholdRuntimePolicyScopeResolution =
   | { ok: true; scope?: ThresholdRuntimePolicyScope }
   | {
       ok: false;
@@ -500,7 +508,7 @@ export async function resolveThresholdRuntimePolicyScope(input: {
   };
 }
 
-export async function resolveActiveRuntimePolicyScopeFromFields(input: {
+async function resolveActiveRuntimePolicyScopeFromFields(input: {
   orgProjectEnv: RouterApiProjectEnvironmentResolver | null;
   fields: Omit<ThresholdRuntimePolicyScope, 'signingRootVersion'> & {
     readonly signingRootVersion?: string;

@@ -5,7 +5,8 @@ use core::fmt;
 use sha2::{Digest, Sha256};
 
 use crate::authenticated_store::{
-    ActiveStoreStateVersionV1, StoreAuthoritySignature64V1, StoreAuthorityVerifyingKeyV1,
+    encode_registered_state, ActiveStoreStateVersionV1, StoreAuthoritySignature64V1,
+    StoreAuthorityVerifyingKeyV1,
 };
 use crate::lifecycle_domain::RegisteredLifecyclePreStateV1;
 use crate::signing_worker_activation::{
@@ -476,44 +477,10 @@ fn promotion_state_digest(
 ) -> Result<RefreshPromotionStateDigest32V1, RefreshPromotionErrorV1> {
     let mut output = Vec::new();
     push_lp32(&mut output, REFRESH_PROMOTION_STATE_DIGEST_DOMAIN_V1)?;
-    push_lp32(&mut output, state.registered_public_key.as_bytes())?;
-    push_lp32(
-        &mut output,
-        state.active_credential_binding_digest.as_bytes(),
-    )?;
-    push_lp32(
-        &mut output,
-        &state
-            .stable_scope
-            .encode()
-            .map_err(|_| RefreshPromotionErrorV1::ValueTooLong)?,
-    )?;
-    push_lp32(
-        &mut output,
-        &state.active_activation_epoch.value().to_be_bytes(),
-    )?;
-    push_lp32(&mut output, state.deriver_a_root_record.as_bytes())?;
-    push_lp32(&mut output, state.deriver_a_root_binding.as_bytes())?;
-    push_lp32(
-        &mut output,
-        &state.deriver_a_root_epoch.value().to_be_bytes(),
-    )?;
-    push_lp32(&mut output, state.deriver_a_state_record.as_bytes())?;
-    push_lp32(
-        &mut output,
-        &state.deriver_a_input_state_epoch.value().to_be_bytes(),
-    )?;
-    push_lp32(&mut output, state.deriver_b_root_record.as_bytes())?;
-    push_lp32(&mut output, state.deriver_b_root_binding.as_bytes())?;
-    push_lp32(
-        &mut output,
-        &state.deriver_b_root_epoch.value().to_be_bytes(),
-    )?;
-    push_lp32(&mut output, state.deriver_b_state_record.as_bytes())?;
-    push_lp32(
-        &mut output,
-        &state.deriver_b_input_state_epoch.value().to_be_bytes(),
-    )?;
+    // The state's fields follow the domain directly, not as one LP32 value.
+    output.extend_from_slice(
+        &encode_registered_state(state).map_err(|_| RefreshPromotionErrorV1::ValueTooLong)?,
+    );
     Ok(RefreshPromotionStateDigest32V1(
         Sha256::digest(output).into(),
     ))

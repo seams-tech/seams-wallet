@@ -94,17 +94,12 @@ import {
   type EvmFamilySigningAuthSideEffect,
 } from './freshAuthRetryPolicy';
 import { emitEvmFamilySigningEvent, emitEvmFamilySigningOperationTrace } from './events';
-import { requiredEvmFamilyRequestSignatureUses } from './signatureUses';
 import {
   bindEvmFamilyCallerProvidedOperationIdToFingerprint,
   createEvmFamilySigningOperationIds,
   ensureEvmFamilyConfirmationOperationId,
   type EvmFamilySigningOperationIds,
 } from './operationIds';
-import {
-  deriveEvmFamilyKeyFingerprintFromPublicFacts,
-  type VerifiedEcdsaPublicFacts,
-} from '../../session/identity/evmFamilyEcdsaIdentity';
 import {
   buildPreparedEvmFamilyExecutorThresholdEcdsaState,
   type PreparedEvmFamilyPublicIdentityContinuity,
@@ -328,7 +323,6 @@ async function signEvmFamilyAttempt(
     request: args.request,
     chainTarget: args.chainTarget,
   });
-  const requiredSignatureUses = requiredEvmFamilyRequestSignatureUses(args.request);
   await ensureSealedRefreshStartupParityForTransactionSigning(
     deps.ensureSealedRefreshStartupParity,
     {
@@ -384,19 +378,6 @@ async function signEvmFamilyAttempt(
   const derivePreparedEvmFamilyKeyFingerprint = (
     _prepared: PreparedEvmFamilyEcdsaSigningSession | undefined,
   ): string | undefined => undefined;
-  const safePreparedPublicFactsFingerprint = (args: {
-    walletId: string;
-    publicFacts: VerifiedEcdsaPublicFacts;
-  }): string | undefined => {
-    try {
-      return deriveEvmFamilyKeyFingerprintFromPublicFacts({
-        walletId: args.walletId,
-        publicFacts: args.publicFacts,
-      });
-    } catch {
-      return undefined;
-    }
-  };
   let freshAuthRetrySideEffectState: EvmFamilyFreshAuthRetrySideEffectState =
     'no_auth_side_effect_started';
   const markFreshAuthRetrySideEffect = (sideEffect: EvmFamilySigningAuthSideEffect): void => {
@@ -425,9 +406,7 @@ async function signEvmFamilyAttempt(
       errorMessage,
     });
   };
-  let confirmationDisplayed = false;
   const markConfirmationDisplayed = (): SigningOperationId => {
-    confirmationDisplayed = true;
     markFreshAuthRetrySideEffect('auth_prompt_shown');
     return ensureConfirmationOperationId();
   };
@@ -510,11 +489,11 @@ async function signEvmFamilyAttempt(
     args.request.senderSignatureAlgorithm === 'secp256k1'
       ? getPreparedEcdsaSigningSession()
       : undefined;
-  // R90-INV-010: a superseded preparation is discarded whole and current
-  // canonical state resolved again — once. Shared by the execute-phase retry
-  // ladder below and the pre-execute wrap, because capability resolution
-  // during auth planning and runtime creation can hit the replacement race
-  // before the executor's catch exists.
+  // A superseded preparation is discarded whole and current canonical state
+  // resolved again — once. Shared by the execute-phase retry ladder below and
+  // the pre-execute wrap, because capability resolution during auth planning
+  // and runtime creation can hit the replacement race before the executor's
+  // catch exists.
   const reResolveSupersededPreparation = async (
     error: unknown,
   ): Promise<TempoSignedResult | EvmSignedResult | null> => {
@@ -630,7 +609,7 @@ async function signEvmFamilyAttempt(
     if (reResolved) return reResolved;
     throw error;
   }
-  const { signingAuthPlan, signingSessionPlan, emailOtpSigning, flowArgs } = preparedFlow;
+  const { signingAuthPlan, emailOtpSigning, flowArgs } = preparedFlow;
 
   let freshAuthRetryHandledFinalization = false;
   const retryWithFreshWalletSessionAuth = async (
@@ -671,10 +650,9 @@ async function signEvmFamilyAttempt(
   const retryWithFreshAuth = async (
     error: unknown,
   ): Promise<TempoSignedResult | EvmSignedResult | null> => {
-    // R90-INV-010: a superseded preparation is discarded whole and current
-    // canonical state resolved again. Nothing about it is an auth problem, so
-    // it is handled before the fresh-auth ladder and prompts the user for
-    // nothing.
+    // A superseded preparation is discarded whole and current canonical state
+    // resolved again. Nothing about it is an auth problem, so it is handled
+    // before the fresh-auth ladder and prompts the user for nothing.
     if (isEvmFamilyEcdsaMaterialSupersededError(error)) {
       const reResolved = await reResolveSupersededPreparation(error);
       if (reResolved) {
@@ -758,7 +736,6 @@ async function signEvmFamilyAttempt(
   const preparedExecutorSession = getPreparedEcdsaSigningSessionIfEcdsa();
   // Ready material is produced by `resolveReadySecp256k1SigningMaterial`
   // immediately before worker use, so the prepared session carries none.
-  const preparedExecutorReadyMaterial = null;
   const requireThresholdEcdsaStepUpRuntime = () => {
     const runtime = flowArgs.thresholdEcdsaStepUpRuntime;
     if (!runtime) {

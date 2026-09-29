@@ -10,6 +10,7 @@ import type { WalletRecoveryCodeBackupRequestV1 } from '@/core/types/sdkSentEven
 import { walletIframeRequestIdFromBoundary } from '@/core/types/walletIframeIdentity';
 import type { WalletIframeSurfaceMeasurement } from '../shared/messages';
 import type { WalletHostRuntimeRequest } from './runtimeContext';
+import { requireTrimmedString } from '@shared/utils/validation';
 
 function requireRecord(value: unknown, label: string): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
@@ -18,22 +19,16 @@ function requireRecord(value: unknown, label: string): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-function requireString(value: unknown, label: string): string {
-  const normalized = typeof value === 'string' ? value.trim() : '';
-  if (!normalized) throw new Error(`${label} is required`);
-  return normalized;
-}
-
 function requireWalletId(payload: unknown): string {
   const record = requireRecord(payload, 'Recovery-code request payload');
   if (Object.prototype.hasOwnProperty.call(record, 'walletSessionToken')) {
     throw new Error('wallet iframe requests must not carry walletSessionToken');
   }
-  return requireString(record.walletId, 'Recovery-code walletId');
+  return requireTrimmedString(record.walletId, 'Recovery-code walletId');
 }
 
 function requireRelayerUrl(input: WalletHostRuntimeRequest): string {
-  return requireString(input.state.walletConfigs?.relayer?.url, 'Recovery-code relayer URL');
+  return requireTrimmedString(input.state.walletConfigs?.relayer?.url, 'Recovery-code relayer URL');
 }
 
 function postSurfaceMeasurement(

@@ -6,9 +6,7 @@ import {
   canonicalCapabilityOperationFingerprintPreimageV1,
   computeCapabilityOperationFingerprintDigest,
   parseCapabilityId,
-  parseCapabilityOperationEnvelope,
   parseCapabilityOperationId,
-  parseOperationDigestSet,
   parsePrincipalId,
   parseSigningOperationFingerprintDigest,
   parseTenantId,
@@ -44,24 +42,6 @@ function operationDigests(
     laneDigest: parseDigestB64u(input.laneDigest ?? LANE_DIGEST),
     intentDigest: parseDigestB64u(input.intentDigest ?? INTENT_DIGEST),
     displayDigest: parseDigestB64u(input.displayDigest ?? DISPLAY_DIGEST),
-  };
-}
-
-function validRawEnvelope(): Record<string, unknown> {
-  return {
-    tenantId: 'tenant-1',
-    principalId: 'principal-1',
-    capabilityId: 'capability-1',
-    operationId: 'operation-1',
-    operation: {
-      capabilityKind: 'vault_access',
-      operationKind: 'vault.proxy_use',
-    },
-    digests: {
-      laneDigest: LANE_DIGEST,
-      intentDigest: INTENT_DIGEST,
-      displayDigest: DISPLAY_DIGEST,
-    },
   };
 }
 
@@ -129,73 +109,4 @@ test('authorization operation fingerprint changes with exact operation semantics
   expect(changedIntent).not.toBe(original);
   expect(changedPrincipal).not.toBe(changedOperationId);
   expect(changedIntent).not.toBe(changedOperationId);
-});
-
-test('authorization operation envelope parser normalizes one exact boundary shape', () => {
-  const parsed = parseCapabilityOperationEnvelope(validRawEnvelope());
-  expect(parsed.ok).toBe(true);
-  if (!parsed.ok) return;
-  expect(parsed.value).toMatchObject({
-    tenantId: 'tenant-1',
-    principalId: 'principal-1',
-    capabilityId: 'capability-1',
-    operationId: 'operation-1',
-    operation: {
-      capabilityKind: 'vault_access',
-      operationKind: 'vault.proxy_use',
-    },
-    digests: {
-      laneDigest: LANE_DIGEST,
-      intentDigest: INTENT_DIGEST,
-      displayDigest: DISPLAY_DIGEST,
-    },
-  });
-});
-
-test('authorization operation envelope rejects mismatched operations and authorization fields', () => {
-  const mismatchedOperation = validRawEnvelope();
-  mismatchedOperation.operation = {
-    capabilityKind: 'vault_access',
-    operationKind: 'near.sign_transaction',
-  };
-  expect(parseCapabilityOperationEnvelope(mismatchedOperation)).toMatchObject({
-    ok: false,
-    error: { code: 'invalid' },
-  });
-
-  const authorizationCoupled = validRawEnvelope();
-  authorizationCoupled.grantId = 'grant-1';
-  expect(parseCapabilityOperationEnvelope(authorizationCoupled)).toEqual({
-    ok: false,
-    error: {
-      code: 'invalid',
-      message:
-        'capability operation envelope must contain exact identity, operation, and digest fields',
-    },
-  });
-});
-
-test('operation digest parsing rejects noncanonical and partial digest sets', () => {
-  expect(
-    parseOperationDigestSet({
-      laneDigest: 'raw-digest',
-      intentDigest: INTENT_DIGEST,
-      displayDigest: DISPLAY_DIGEST,
-    }),
-  ).toEqual({
-    ok: false,
-    error: {
-      code: 'invalid',
-      message: 'laneDigest must be a canonical 32-byte base64url digest',
-    },
-  });
-  expect(
-    parseOperationDigestSet({
-      laneDigest: LANE_DIGEST,
-      intentDigest: INTENT_DIGEST,
-    }),
-  ).toMatchObject({
-    ok: false,
-    error: { code: 'invalid' },
-  });
 });

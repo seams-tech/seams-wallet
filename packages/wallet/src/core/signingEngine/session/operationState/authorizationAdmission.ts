@@ -5,19 +5,19 @@ export type RouterAbOwnerOperationAuthorizationDecisionV1Wire =
   | RouterAbEcdsaOwnerOperationAuthorizationDecisionV1Wire
   | RouterAbEd25519OwnerOperationAuthorizationDecisionV1Wire;
 
-export const WALLET_SESSION_QUOTA_EXHAUSTED_ERROR =
+const WALLET_SESSION_QUOTA_EXHAUSTED_ERROR =
   '[WalletSessionQuotaAdmission] wallet-session quota is exhausted';
-export const WALLET_SESSION_QUOTA_IN_FLIGHT_ERROR =
+const WALLET_SESSION_QUOTA_IN_FLIGHT_ERROR =
   '[WalletSessionQuotaAdmission] wallet-session quota is reserved by an in-flight operation';
 
-export type WalletSessionQuotaAdmissionFailureSource =
+type WalletSessionQuotaAdmissionFailureSource =
   | 'local_projection'
   | 'server_prepare'
   | 'trusted_status';
 
-export type WalletSessionQuotaAdmissionRetryReason = 'exhausted' | 'stale_projection';
+type WalletSessionQuotaAdmissionRetryReason = 'exhausted' | 'stale_projection';
 
-export type WalletSessionQuotaAdmissionFailure =
+type WalletSessionQuotaAdmissionFailure =
   | {
       kind: 'exhausted';
       source: WalletSessionQuotaAdmissionFailureSource;
@@ -57,7 +57,7 @@ export type WalletSessionQuotaAdmissionDecision =
       reason?: never;
     };
 
-export type WalletSessionQuotaAdmissionQueueKey = string & {
+type WalletSessionQuotaAdmissionQueueKey = string & {
   readonly __brand: 'WalletSessionQuotaAdmissionQueueKey';
 };
 
@@ -84,13 +84,13 @@ export class WalletSessionQuotaAdmissionError extends Error {
   }
 }
 
-export function isWalletSessionQuotaAdmissionError(
+function isWalletSessionQuotaAdmissionError(
   error: unknown,
 ): error is WalletSessionQuotaAdmissionError {
   return error instanceof WalletSessionQuotaAdmissionError;
 }
 
-export function walletSessionQuotaAdmissionFailureMessage(
+function walletSessionQuotaAdmissionFailureMessage(
   failure: WalletSessionQuotaAdmissionFailure,
 ): string {
   switch (failure.kind) {
@@ -149,13 +149,6 @@ export function decideWalletSessionQuotaAdmissionFailure(
         failure,
       };
   }
-}
-
-export function decideWalletSessionQuotaAdmissionError(
-  error: unknown,
-): WalletSessionQuotaAdmissionDecision | null {
-  const failure = classifyWalletSessionQuotaAdmissionFailure(error);
-  return failure ? decideWalletSessionQuotaAdmissionFailure(failure) : null;
 }
 
 export function buildWalletSessionQuotaAdmissionQueueKey(args: {

@@ -1,22 +1,4 @@
-use router_ab_core::{
-    context_digest_v1, AccountScope, DerivationContext, QuorumPolicy, RequestKind, RootShareEpoch,
-    RouterAbDerivationErrorCode, SignerSetBinding,
-};
-
-fn sample_context() -> DerivationContext {
-    DerivationContext::new(
-        RequestKind::Registration,
-        AccountScope::new(
-            "near-testnet",
-            "alice.testnet",
-            "ed25519:11111111111111111111111111111111",
-        )
-        .expect("account scope"),
-        RootShareEpoch::new("epoch-1").expect("epoch"),
-        "ceremony-1",
-    )
-    .expect("context")
-}
+use router_ab_core::{QuorumPolicy, RouterAbDerivationErrorCode, SignerSetBinding};
 
 fn sample_signer_set() -> SignerSetBinding {
     SignerSetBinding::v1_all2(
@@ -27,26 +9,6 @@ fn sample_signer_set() -> SignerSetBinding {
         "key-epoch-b-1",
     )
     .expect("signer set")
-}
-
-#[test]
-fn context_encoding_is_stable_for_same_context() {
-    let context = sample_context();
-
-    assert_eq!(
-        context.encode_context_v1().expect("left"),
-        context.encode_context_v1().expect("right")
-    );
-}
-
-#[test]
-fn context_digest_is_stable_for_same_context() {
-    let context = sample_context();
-
-    assert_eq!(
-        context_digest_v1(&context).expect("left"),
-        context_digest_v1(&context).expect("right")
-    );
 }
 
 #[test]

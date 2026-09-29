@@ -14,7 +14,7 @@ import type {
   TxDisplayOperation,
 } from '@/core/signingEngine/interfaces/display';
 
-export type BuildTempoDisplayModelArgs = {
+type BuildTempoDisplayModelArgs = {
   request: TempoSigningRequest;
   intentDigest?: string;
   signerAccount?: string;

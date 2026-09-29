@@ -76,7 +76,7 @@ type EcdsaSelectionLaneCandidateDiagnostics = EcdsaSelectionLaneCandidateDiagnos
   source: 'canonical_capability';
 };
 
-export type EcdsaSelectionDiagnostics = {
+type EcdsaSelectionDiagnostics = {
   selectedLaneCandidate: EcdsaSelectionLaneCandidateDiagnostics;
 };
 
@@ -91,7 +91,7 @@ export type ReadyEvmFamilyEcdsaSigningSelection = ReadyEvmFamilyEcdsaSigningSele
   committedLane: EcdsaCommittedLane;
 };
 
-export type EvmFamilyEcdsaSigningSelectionResult = ReadyEvmFamilyEcdsaSigningSelection;
+type EvmFamilyEcdsaSigningSelectionResult = ReadyEvmFamilyEcdsaSigningSelection;
 
 function walletAuthWithSelectedPrimary(
   accountAuth: AccountAuthMetadata,
@@ -104,7 +104,7 @@ function walletAuthWithSelectedPrimary(
   };
 }
 
-export function resolvedEvmFamilyEcdsaSigningLaneFromCandidate(
+function resolvedEvmFamilyEcdsaSigningLaneFromCandidate(
   candidate: AuthorizedEcdsaLaneCandidate,
 ): ResolvedEvmFamilyEcdsaSigningLane {
   const buildLane =
@@ -212,11 +212,6 @@ export type EmailOtpEcdsaCommittedLane =
       authorization: ExactSealedEmailOtpEvmFamilyWalletSessionAuthorization;
       authLane: Extract<EmailOtpSigningSessionAuthLane, { curve: 'ecdsa' }>;
     };
-
-export type EmailOtpEcdsaDirectCapabilityCommittedLane = Extract<
-  EmailOtpEcdsaCommittedLane,
-  { authLane?: never }
->;
 
 export type EmailOtpEcdsaSigningSessionCommittedLane = Extract<
   EmailOtpEcdsaCommittedLane,

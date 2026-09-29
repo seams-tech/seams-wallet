@@ -28,17 +28,6 @@ function providerDelivery(
   return { kind: 'provider', status, emailHint };
 }
 
-export function parseEmailOtpProviderDelivery(args: {
-  status: unknown;
-  emailHint: unknown;
-  label: string;
-}): EmailOtpChallengeDelivery {
-  return providerDelivery(
-    parseDeliveryStatus(args.status, `${args.label}.status`),
-    requireTrimmedString(args.emailHint, `${args.label}.emailHint`),
-  );
-}
-
 export function parseEmailOtpChallengeDelivery(
   value: unknown,
   label: string,

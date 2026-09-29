@@ -34,7 +34,7 @@ export type HostedAuthMenuExternalAuthBroker = (
   request: HostedAuthMenuExternalAuthRequest,
 ) => HostedAuthMenuExternalAuthEvidence | Promise<HostedAuthMenuExternalAuthEvidence>;
 
-export type HostedAuthMenuOutcomeHandler = (outcome: HostedAuthMenuOutcome) => void;
+type HostedAuthMenuOutcomeHandler = (outcome: HostedAuthMenuOutcome) => void;
 export type HostedAuthMenuDemoEmailOtpHandler = (
   delivery: HostedAuthMenuDemoEmailOtpDelivery['delivery'],
 ) => void;

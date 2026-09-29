@@ -1,7 +1,4 @@
-import type {
-  ThresholdEcdsaBackendBinding,
-  ThresholdEcdsaDerivationRoleLocalClientState,
-} from '../../interfaces/signing';
+import type { ThresholdEcdsaBackendBinding } from '../../interfaces/signing';
 import type { EcdsaRoleLocalReadyRecord } from '@/core/platform/types';
 import {
   buildBaseEvmFamilyEcdsaKeyIdentity,
@@ -14,7 +11,6 @@ import {
   toThresholdOwnerAddress,
   type BaseEcdsaSubjectId,
   type EvmFamilyEcdsaWalletKeyFacts,
-  type EcdsaWalletSignerRecord,
   type EvmFamilyEcdsaKeyHandle,
   type EvmFamilyEcdsaKeyIdentity,
   type EvmFamilyEcdsaSessionLanePolicy,
@@ -169,23 +165,6 @@ void invalidWalletKeyWithDuplicateThresholdKeyId;
 const ecdsaKeyFacts: EvmFamilyEcdsaWalletKeyFacts = walletKey.keyFacts;
 void ecdsaKeyFacts;
 
-const ecdsaWalletSignerRecord: EcdsaWalletSignerRecord = {
-  kind: 'ecdsa_wallet_signer_record',
-  walletKey,
-  authBinding: buildPasskeyEcdsaAuthBinding({
-    rpId: 'localhost',
-    credentialIdB64u: 'credential-id',
-  }),
-};
-void ecdsaWalletSignerRecord;
-
-const invalidEcdsaWalletSignerRecordWithLooseKeyHandle: EcdsaWalletSignerRecord = {
-  ...ecdsaWalletSignerRecord,
-  // @ts-expect-error signer records carry the complete wallet key, not loose key-handle fields.
-  keyHandle,
-};
-void invalidEcdsaWalletSignerRecordWithLooseKeyHandle;
-
 const invalidPublicFactsWithKeyId: VerifiedEcdsaPublicFacts = {
   ...publicFacts,
   // @ts-expect-error public facts expose only the opaque key handle.
@@ -300,14 +279,6 @@ const invalidResolvedKeyWithSubjectId: ResolvedEvmFamilyEcdsaKey = {
 void invalidResolvedKeyWithSubjectId;
 
 declare const roleLocalReadyRecord: EcdsaRoleLocalReadyRecord;
-
-const validOpaqueRoleLocalClientState = {
-  kind: 'role_local_ready',
-  artifactKind: 'ecdsa-derivation-role-local-client-state',
-  stateBlob: roleLocalReadyRecord.stateBlob,
-  publicFacts: roleLocalReadyRecord.publicFacts,
-} satisfies ThresholdEcdsaDerivationRoleLocalClientState;
-void validOpaqueRoleLocalClientState;
 
 const invalidMetadataBackendBindingWithMaterial = {
   materialKind: 'metadata_only',

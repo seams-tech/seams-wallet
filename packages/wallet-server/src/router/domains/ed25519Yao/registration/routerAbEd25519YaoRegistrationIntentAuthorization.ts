@@ -1,18 +1,20 @@
 import {
-  deriveRouterAbEd25519YaoStableContextBindingV1,
   type RouterAbEd25519YaoActivationBindingV1,
   type RouterAbEd25519YaoRegistrationAdmissionRequestV1,
 } from '@shared/utils/routerAbEd25519Yao';
+import { deriveRouterAbEd25519YaoStableContextBindingV1 } from '@shared/utils/routerAbEd25519YaoDigests';
 import {
-  computeAddSignerNearEd25519SigningKeyId,
-  findRegistrationSignerPlanNearEd25519Branch,
-  registrationNearEd25519BranchKey,
-  registrationSignerPlanFromSelection,
   type AddSignerIntentGrant,
   type AddSignerIntentV1,
   type RegistrationIntentGrant,
   type RegistrationIntentV1,
 } from '@shared/utils/registrationIntent';
+import { computeAddSignerNearEd25519SigningKeyId } from '@shared/utils/registrationIds';
+import {
+  findRegistrationSignerPlanNearEd25519Branch,
+  registrationNearEd25519BranchKey,
+  registrationSignerPlanFromSelection,
+} from '@shared/utils/registrationSignerPlan';
 import { deriveSigningRootId } from '@shared/threshold/signingRootScope';
 import { sameRouterAbMpcMaterialActivationRef } from '@shared/utils/routerAbNormalSigningIdentity';
 import type {
@@ -60,7 +62,7 @@ export type RouterAbEd25519YaoVerifiedRegistrationIntentV1 = {
   readonly expiresAtMs: number;
 };
 
-export type RouterAbEd25519YaoVerifiedAddSignerIntentV1 = {
+type RouterAbEd25519YaoVerifiedAddSignerIntentV1 = {
   readonly kind: 'verified_add_signer_intent';
   readonly addSignerIntentGrant: AddSignerIntentGrant;
   readonly intent: AddSignerIntentV1 & {
@@ -103,7 +105,7 @@ type BearerExtractionResult =
       >;
     };
 
-export type RouterAbEd25519YaoBearerCredentialDigestResultV1 =
+type RouterAbEd25519YaoBearerCredentialDigestResultV1 =
   | { readonly ok: true; readonly digestSha256Hex: string }
   | {
       readonly ok: false;

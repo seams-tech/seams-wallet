@@ -16,7 +16,7 @@ import {
   PASSKEY_PRF_SECOND_SALT_V1,
 } from '@shared/utils/signingSessionSeal';
 import { parseWalletAuthMethodId, parseWebAuthnRpId } from '@shared/utils/domainIds';
-import type { WebAuthnRpId } from '@shared/utils/domainIds';
+import type { MpcMaterialActivationRef, WebAuthnRpId } from '@shared/utils/domainIds';
 import type {
   ActiveLaneProtocolSourceV1,
   EcdsaTargetCapabilityBindingV1,
@@ -29,10 +29,11 @@ import type { Ed25519PublicKeyB64u } from '@shared/passkey-custody/primitives';
 import type {
   RouterAbEd25519YaoActivationBindingV1,
   RouterAbEd25519YaoApplicationBindingFactsV1,
+  RouterAbEd25519YaoCeremonyBindingV1,
 } from '@shared/utils/routerAbEd25519Yao';
-import type { NearEd25519SigningKeyId } from '@shared/utils/registrationIntent';
+import type { NearEd25519SigningKeyId } from '@shared/utils/registrationIds';
 import type { WalletKeyId } from '@shared/signing-lanes/ids';
-import type { LinkedDeviceSessionRecordV1 } from '../../../../core/deviceLinking/linkedDeviceSession';
+import type { LinkedDeviceSessionRecordV1 } from '../../../../core/deviceLinking/linkedDeviceSessionRecord';
 import type { ExactAdministeredSignerV1 } from '@shared/device-linking/delegatedActivationPlan';
 import type { LinkedDeviceTargetPlannerV1 } from './d1LinkedDeviceTargetCredentialProvider';
 import { normalizeLinkedDevicePasskeyTargetConfigurationV1 } from '../auth/d1RouterApiAuthConfig';
@@ -57,6 +58,8 @@ type LinkedDeviceOwnerEd25519SourceChildResolutionV1 =
     readonly stableContextBindingB64u: string;
     readonly sourceBinding: RouterAbEd25519YaoActivationBindingV1<'registration'>;
     readonly applicationBinding: RouterAbEd25519YaoApplicationBindingFactsV1;
+    /** A linked device's own registration binding, when that device is the source. */
+    readonly linkedSourceBinding?: RouterAbEd25519YaoCeremonyBindingV1;
   };
 
 type LinkedDeviceOwnerEcdsaSourceChildResolutionV1 =
@@ -69,6 +72,8 @@ type LinkedDeviceOwnerEcdsaSourceChildResolutionV1 =
     readonly sourceServerVerifyingShare33B64u: string;
     readonly applicationBindingDigestB64u: DigestB64u;
     readonly clientShareRetryCounter: number;
+    /** A linked device's own material, when that device is the source. */
+    readonly linkedSourceMaterialActivation?: MpcMaterialActivationRef;
   };
 
 export type LinkedDeviceOwnerSourceChildResolutionV1 =

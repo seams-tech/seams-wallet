@@ -58,7 +58,7 @@ export type WalletAuthDomainDeps = {
   initWalletIframe: (walletId?: string) => Promise<WalletIframeExactSessionState>;
 };
 
-export type WalletLockDomainDeps = {
+type WalletLockDomainDeps = {
   getContext: () => LockOperationContext;
   walletIframe: {
     shouldUseWalletIframe(): boolean;
@@ -66,7 +66,7 @@ export type WalletLockDomainDeps = {
   };
 };
 
-export type WalletLogoutDomainDeps = {
+type WalletLogoutDomainDeps = {
   getContext: () => LogoutOperationContext;
   walletIframe: {
     shouldUseWalletIframe(): boolean;

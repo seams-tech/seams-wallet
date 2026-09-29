@@ -7,13 +7,13 @@ import {
   parseEnvelopeCiphertextB64u,
   parseEnvelopeNonceB64u,
   parseUnixMs,
-  rejectUnknownFields,
-  requireRecord,
 } from '../passkey-custody';
 import { parseRecoveryCodeReservationId } from './recoveryCodeReservation';
 import type { DerivedWalletRecoveryKeyId } from './recoveryCodes';
 import { parseDerivedWalletRecoveryKeyId, WALLET_RECOVERY_CODE_COUNT } from './recoveryCodes';
 import type { RecoveryCodeLifecycleState } from './recoveryEnvelopes';
+import { requireRecord } from '../utils/validation';
+import { rejectUnknownFields } from '../utils/exactRecord';
 
 /**
  * The recovery-wrapped wallet custody seed, sealed under a key derived from the
@@ -25,7 +25,7 @@ import type { RecoveryCodeLifecycleState } from './recoveryEnvelopes';
  * under that device's own factor, so it never depended on the owner credential
  * and survives owner recovery untouched; including it here would instead let an
  * owner recovery code reconstruct that device's material. A lost lane is
- * revoked and reprovisioned through Refactor 102, not recovered.
+ * revoked and reprovisioned, not recovered.
  */
 export type WalletRecoveryEnvelopeEntry = {
   custodySecretKind: 'wallet_custody_seed_v1';
@@ -441,9 +441,4 @@ export function parseWalletRecoveryEnvelopeSetRecord(
     issuedAtMs,
     updatedAtMs,
   });
-}
-
-/** A set is openable while at least one recovery-code wrap remains active. */
-export function hasOpenableRecoveryCodeWrap(set: WalletRecoveryEnvelopeSetRecord): boolean {
-  return set.manifestKekWraps.some((wrap) => wrap.lifecycle.state === 'active');
 }

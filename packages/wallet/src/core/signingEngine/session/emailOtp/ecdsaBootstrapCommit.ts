@@ -25,7 +25,7 @@ import {
   type ExactWalletSessionAuthorization,
 } from '../persistence/walletSessionAuthorizationProjection';
 
-export type CommitWorkerProvisionedThresholdEcdsaSessionDeps = {
+type CommitWorkerProvisionedThresholdEcdsaSessionDeps = {
   queueByWallet: Map<string, Promise<void>>;
   bootstrapStore: ThresholdEcdsaBootstrapStorePort;
   persistEcdsaRoleLocalReadyRecord: DurableRecordStore['persistEcdsaRoleLocalReadyRecord'];
@@ -148,7 +148,7 @@ function workerProvisionedReadyRecordForPersistence(
   }
 }
 
-export async function commitWorkerProvisionedThresholdEcdsaSession(
+async function commitWorkerProvisionedThresholdEcdsaSession(
   deps: CommitWorkerProvisionedThresholdEcdsaSessionDeps,
   args: CommitWorkerProvisionedThresholdEcdsaSessionArgs,
 ): Promise<{

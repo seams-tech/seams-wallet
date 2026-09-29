@@ -1,6 +1,5 @@
 /**
- * Refactor 103 Phase 6 — D1 persistence for linked-device Email OTP
- * verification grants.
+ * D1 persistence for linked-device Email OTP verification grants.
  *
  * A grant is issued once, after the emailed code verifies against the exact
  * link-session binding, and consumed exactly once. The CAS guard makes a lost
@@ -12,12 +11,12 @@ import {
   type LinkedDeviceEmailOtpGrantRecordV1,
 } from '../../../../core/deviceLinking/linkedDeviceEmailOtpGrant';
 import type { D1DatabaseLike, D1PreparedStatementLike } from '../../../../storage/tenantRoute';
-import type { D1LinkedDeviceSessionScopeV1 } from './d1LinkedDeviceSessionStore';
+import {
+  SESSION_CAS_GUARD_SQL,
+  type D1LinkedDeviceSessionScopeV1,
+} from './d1LinkedDeviceSessionStore';
 
 const GRANT_TABLE = 'linked_device_email_otp_grants';
-const GRANT_CAS_GUARD_SQL = `INSERT INTO linked_device_session_cas_guard (guard_id)
-SELECT 1
- WHERE changes() = 0`;
 
 export class D1LinkedDeviceEmailOtpGrantStoreV1 {
   private readonly database: D1DatabaseLike;
@@ -122,7 +121,7 @@ export class D1LinkedDeviceEmailOtpGrantStoreV1 {
           input.grantId,
           input.consumedAtMs,
         ),
-      this.database.prepare(GRANT_CAS_GUARD_SQL),
+      this.database.prepare(SESSION_CAS_GUARD_SQL),
     ];
   }
 }

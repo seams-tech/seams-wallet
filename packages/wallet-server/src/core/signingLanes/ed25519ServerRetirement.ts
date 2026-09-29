@@ -13,7 +13,7 @@ export type Ed25519ServerRetirementBindingV1 = {
   readonly identity: SigningWorkerLaneMaterialIdentityV1<'ed25519'>;
 };
 
-export type Ed25519ServerRetirementRequestV1 = {
+type Ed25519ServerRetirementRequestV1 = {
   readonly identity: SigningWorkerLaneMaterialIdentityV1<'ed25519'>;
   readonly revocationEpoch: number;
   readonly retirementReason: Ed25519ServerRetirementReceiptV1['retirementReason'];
@@ -22,7 +22,7 @@ export type Ed25519ServerRetirementRequestV1 = {
   readonly retirementEffectBindingDigestB64u: DigestB64u;
 };
 
-export type Ed25519ServerRetirementEffectV1 = {
+type Ed25519ServerRetirementEffectV1 = {
   readonly outcome: 'applied' | 'replayed';
   readonly receipt: Ed25519ServerRetirementReceiptV1;
   readonly retirementEffectBindingDigestB64u: DigestB64u;
@@ -66,13 +66,6 @@ export async function parseAndVerifyEd25519ServerRetirementEffectV1(input: {
     retirementEffectBindingDigestB64u: input.request.retirementEffectBindingDigestB64u,
     retirementReceiptDigestB64u: canonicalDigest,
   };
-}
-
-export function assertEd25519ServerRetirementReceiptMatchesRequestV1(
-  receipt: Ed25519ServerRetirementReceiptV1,
-  request: Ed25519ServerRetirementRequestV1,
-): void {
-  assertReceiptMatchesRequest(receipt, request);
 }
 
 function assertIdentityMatchesCommand(

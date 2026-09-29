@@ -9,7 +9,7 @@ import type {
   WalletId,
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 
-export type WarmSessionTransitionCapabilitySnapshot = {
+type WarmSessionTransitionCapabilitySnapshot = {
   state: WarmSessionEd25519CapabilityState['state'] | WarmSessionEcdsaCapabilityState['state'];
   thresholdSessionId: string | null;
   authState: 'present' | 'missing';
@@ -18,7 +18,7 @@ export type WarmSessionTransitionCapabilitySnapshot = {
   expiresAtMs?: number;
 };
 
-export type WarmSessionTransitionSnapshot = {
+type WarmSessionTransitionSnapshot = {
   walletId: WalletId;
   capabilities: {
     ed25519: WarmSessionTransitionCapabilitySnapshot;

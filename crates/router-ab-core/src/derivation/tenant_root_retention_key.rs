@@ -137,6 +137,56 @@ impl TenantRootRetentionKeySecretV1 {
         self.id
     }
 
+    /// Seals bytes under this key with the caller's authenticated data, for a
+    /// key store that keeps no provider of its own: the nonce, then the
+    /// ciphertext. The caller's data must bind this key's identity, and the
+    /// nonce must be fresh random bytes.
+    pub fn seal(
+        &self,
+        aad: &[u8],
+        plaintext: &[u8],
+        nonce: [u8; RETENTION_NONCE_BYTES],
+    ) -> RouterAbDerivationResult<Vec<u8>> {
+        if plaintext.is_empty() {
+            return Err(malformed("tenant root retention plaintext is empty"));
+        }
+        if nonce.iter().all(|byte| *byte == 0) {
+            return Err(malformed("tenant root retention nonce must be random"));
+        }
+        let ciphertext = ChaCha20Poly1305::new(Key::from_slice(self.secret.as_ref()))
+            .encrypt(
+                Nonce::from_slice(&nonce),
+                Payload {
+                    msg: plaintext,
+                    aad,
+                },
+            )
+            .map_err(|_| verification_failed("tenant root retention seal failed"))?;
+        let mut sealed = Vec::with_capacity(RETENTION_NONCE_BYTES + ciphertext.len());
+        sealed.extend_from_slice(&nonce);
+        sealed.extend_from_slice(&ciphertext);
+        Ok(sealed)
+    }
+
+    /// Opens bytes `seal` sealed under this key with the same authenticated
+    /// data.
+    pub fn open(&self, aad: &[u8], sealed: &[u8]) -> RouterAbDerivationResult<Zeroizing<Vec<u8>>> {
+        if sealed.len() <= RETENTION_NONCE_BYTES {
+            return Err(malformed("tenant root retention ciphertext is too short"));
+        }
+        let (nonce, ciphertext) = sealed.split_at(RETENTION_NONCE_BYTES);
+        let plaintext = ChaCha20Poly1305::new(Key::from_slice(self.secret.as_ref()))
+            .decrypt(
+                Nonce::from_slice(nonce),
+                Payload {
+                    msg: ciphertext,
+                    aad,
+                },
+            )
+            .map_err(|_| verification_failed("tenant root retention ciphertext could not be opened"))?;
+        Ok(Zeroizing::new(plaintext))
+    }
+
     /// Wraps one already tenant-encrypted package for storage.
     pub fn wrap<R>(
         &self,

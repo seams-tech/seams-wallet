@@ -556,8 +556,7 @@ type WithResolvedSubject<T> = T extends unknown
       request: EvmSigningRequest | TempoSigningRequest;
     }
   : never;
-export type ResolvedExecuteEvmFamilyTransactionArgs =
-  WithResolvedSubject<ExecuteEvmFamilyTransactionArgs>;
+type ResolvedExecuteEvmFamilyTransactionArgs = WithResolvedSubject<ExecuteEvmFamilyTransactionArgs>;
 
 export async function executeEvmFamilyTransactionLifecycle(args: {
   lifecycle: TempoLifecycleDeps;

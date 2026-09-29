@@ -11,8 +11,7 @@
 //!   a change someone should make deliberately, in one place, rather than
 //!   inheriting it from a convenience.
 //!
-//! No implementation ships in this build: a network command fails closed with
-//! an explicit message rather than silently doing nothing.
+//! The binary sends requests with `HttpsConsoleTransportV1` (`https.rs`).
 
 use std::collections::BTreeMap;
 
@@ -72,27 +71,4 @@ pub trait ConsoleTransportV1 {
     /// Sends one request and returns its response.
     fn send(&self, request: ConsoleRequestV1)
         -> Result<ConsoleResponseV1, ConsoleTransportErrorV1>;
-}
-
-/// The transport this build ships with: none.
-///
-/// Recovery commands that need the network fail closed here, naming what is
-/// missing, rather than appearing to run offline and doing nothing.
-#[derive(Debug, Clone, Copy, Default)]
-pub struct UnavailableConsoleTransportV1;
-
-impl ConsoleTransportV1 for UnavailableConsoleTransportV1 {
-    fn send(
-        &self,
-        request: ConsoleRequestV1,
-    ) -> Result<ConsoleResponseV1, ConsoleTransportErrorV1> {
-        Err(ConsoleTransportErrorV1::new(
-            format!(
-                "this build has no console transport, so {} {} cannot be sent; \
-                 use the offline commands, or build with a transport",
-                request.method, request.url
-            ),
-            false,
-        ))
-    }
 }

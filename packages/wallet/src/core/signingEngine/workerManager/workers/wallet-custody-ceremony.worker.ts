@@ -10,6 +10,7 @@ import init, {
 } from '../../../../../../../wasm/wallet_custody_ceremony/pkg/wallet_custody_ceremony.js';
 import initNearSigner, {
   ed25519_yao_client_root_transfer_recipient_v1,
+  passkey_custody_open_ed25519_yao_client_root_envelope_v1,
   passkey_custody_open_wallet_seed_v1,
   passkey_custody_reseal_wallet_seed_v1,
   passkey_custody_open_ed25519_yao_client_root_from_linked_device_v1,
@@ -39,7 +40,7 @@ import {
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/encoders';
 import { assertEd25519YaoLaneCeremonyBindingParityV1 } from '@/core/signingEngine/threshold/crypto/ed25519YaoLaneWasm';
 import type {
-  UnlockedWalletEd25519ExportRootCapabilityV1,
+  UnlockedEd25519ExportRootLinkingCapabilityV1,
   WalletCustodyCeremonyWorkerOperationMap,
 } from '../workerTypes';
 
@@ -117,10 +118,11 @@ const MAX_ACTIVE_TRANSFER_RECIPIENTS = 2;
 const ed25519ExportRootRecipients = new Map<string, WasmEd25519YaoClientRootTransferRecipientV1>();
 
 /**
- * Device 1's unlocked export-root capabilities.
+ * Unlocked export-root capabilities.
  *
- * Each entry owns a custody-seed handle opened during registration or ordinary
- * unlock, when the owner factor was already being presented. The handle stays
+ * Each entry owns a custody handle opened during registration or ordinary
+ * unlock, when the owner factor was already being presented: Device 1's
+ * custody seed, or a linked device's own Ed25519 Yao Client root. The handle stays
  * in this map for the lifetime of the owner Wallet Session that authorized it,
  * so approving a linked device later seals from here without another factor
  * prompt. The reference JavaScript holds back is the map key plus the binding
@@ -134,6 +136,9 @@ const ed25519ExportRootRecipients = new Map<string, WasmEd25519YaoClientRootTran
  */
 const MAX_ACTIVE_UNLOCKED_EXPORT_ROOT_CAPABILITIES = 4;
 type UnlockedExportRootCapabilityRecordV1 = {
+  /* A linked device's root links further devices only; the WASM handle
+     refuses it every seed or factor write. */
+  readonly source: 'wallet_custody_seed' | 'linked_device_client_root';
   readonly handle: WasmPasskeyCustodyHandleV1;
   readonly envelope: PasskeyCustodyEnvelopeRecord;
   readonly factorSecret: Uint8Array;
@@ -313,7 +318,7 @@ function bytesEqual(left: Uint8Array, right: Uint8Array): boolean {
 }
 
 function requireUnlockedExportRootCapabilityRecord(
-  capability: UnlockedWalletEd25519ExportRootCapabilityV1,
+  capability: UnlockedEd25519ExportRootLinkingCapabilityV1,
 ): UnlockedExportRootCapabilityRecordV1 {
   const capabilityHandleId = requireCapabilityFact(
     capability.capabilityHandleId,
@@ -322,6 +327,9 @@ function requireUnlockedExportRootCapabilityRecord(
   const record = unlockedExportRootCapabilities.get(capabilityHandleId);
   if (!record) {
     throw new Error('unlocked Ed25519 export-root capability is unknown or destroyed');
+  }
+  if (capabilitySourceForKind(capability.kind) !== record.source) {
+    throw new Error('unlocked Ed25519 export-root capability names another kind of handle');
   }
   if (
     String(capability.walletId) !== record.walletId ||
@@ -340,14 +348,51 @@ function requireUnlockedExportRootCapabilityRecord(
   return record;
 }
 
+function capabilitySourceForKind(
+  kind: UnlockedEd25519ExportRootLinkingCapabilityV1['kind'],
+): UnlockedExportRootCapabilityRecordV1['source'] {
+  return kind === 'unlocked_linked_device_ed25519_client_root_capability_v1'
+    ? 'linked_device_client_root'
+    : 'wallet_custody_seed';
+}
+
 function openedCustodyCapabilityLaneSourceInput(
-  capability: UnlockedWalletEd25519ExportRootCapabilityV1,
-): { readonly envelope: PasskeyCustodyEnvelopeRecord; readonly factorSecret: Uint8Array } {
+  capability: UnlockedEd25519ExportRootLinkingCapabilityV1,
+): {
+  readonly source: UnlockedExportRootCapabilityRecordV1['source'];
+  readonly envelope: PasskeyCustodyEnvelopeRecord;
+  readonly factorSecret: Uint8Array;
+} {
   const record = requireUnlockedExportRootCapabilityRecord(capability);
   return {
+    source: record.source,
     envelope: record.envelope,
     factorSecret: record.factorSecret.slice(),
   };
+}
+
+/**
+ * A linked device's root serves only the wallet key its envelope names. The
+ * lane source keeps the envelope's facts, and the preparation must name the
+ * same ones.
+ */
+function requireClientRootEnvelopeMatchesLaneSource(
+  envelope: PasskeyCustodyEnvelopeRecord,
+  expected: {
+    readonly walletKeyId: string;
+    readonly applicationBindingDigestB64u: string;
+    readonly registeredPublicKeyB64u: string;
+  },
+): void {
+  const binding = envelope.binding;
+  if (
+    binding.kind !== 'ed25519_yao_client_root_v1' ||
+    String(binding.walletKeyId) !== expected.walletKeyId ||
+    String(binding.applicationBindingDigestB64u) !== expected.applicationBindingDigestB64u ||
+    String(binding.registeredPublicKeyB64u) !== expected.registeredPublicKeyB64u
+  ) {
+    throw new Error('linked-device Ed25519 Client root names another wallet key');
+  }
 }
 
 function distinctLaneSealSeeds(): readonly [Uint8Array, Uint8Array] {
@@ -371,12 +416,16 @@ async function openEd25519YaoLaneSource(
   const opened =
     payload.kind === 'factor'
       ? {
+          source: 'factor' as const,
           envelope: parsePasskeyCustodyEnvelopeRecord(payload.envelope),
           factorSecret: toBytes(payload.factorSecret),
         }
       : openedCustodyCapabilityLaneSourceInput(payload.capability);
   const factorSecret = opened.factorSecret;
   try {
+    if (opened.source === 'linked_device_client_root' && payload.kind !== 'factor') {
+      requireClientRootEnvelopeMatchesLaneSource(opened.envelope, payload);
+    }
     const envelopeArgs = [
       factorSecret,
       custodyEnvelopeBindingJson(opened.envelope),
@@ -386,7 +435,7 @@ async function openEd25519YaoLaneSource(
       base64UrlDecode(opened.envelope.ciphertextDigestB64u),
     ] as const;
     const source =
-      payload.kind === 'factor'
+      payload.kind === 'factor' || opened.source === 'linked_device_client_root'
         ? new WasmEd25519YaoLaneSourceV1(...envelopeArgs)
         : ed25519_yao_lane_source_from_wallet_seed_v1(
             ...envelopeArgs,
@@ -841,10 +890,9 @@ async function createLinkedDeviceEd25519ExportRootRecipient(
 }
 
 /**
- * Refactor 103 zero-prompt handoff: opens the wallet custody seed envelope
- * with the factor secret already in hand from registration or ordinary
- * unlock, and parks the opened handle for the owner Wallet Session that
- * authorized it. Only the public reference crosses back.
+ * Opens the wallet custody seed envelope with the factor secret already in hand
+ * from registration or ordinary unlock, and parks the opened handle for the
+ * owner Wallet Session that authorized it. Only the public reference crosses back.
  */
 async function establishUnlockedWalletEd25519ExportRootCapability(
   request: EstablishUnlockedCustodyCapabilityRequest,
@@ -888,7 +936,18 @@ async function establishUnlockedWalletEd25519ExportRootCapability(
     if (unlockedExportRootCapabilities.size >= MAX_ACTIVE_UNLOCKED_EXPORT_ROOT_CAPABILITIES) {
       throw new Error('too many unlocked Ed25519 export-root capabilities are active');
     }
-    const handle = passkey_custody_open_wallet_seed_v1(
+    /* A linked device holds its own Client root, not the seed. Opening it here
+       is the only way its capability exists, and the handle it yields may only
+       seal that root to a further approved link. */
+    const source: UnlockedExportRootCapabilityRecordV1['source'] =
+      envelope.binding.kind === 'ed25519_yao_client_root_v1'
+        ? 'linked_device_client_root'
+        : 'wallet_custody_seed';
+    const openEnvelope =
+      source === 'linked_device_client_root'
+        ? passkey_custody_open_ed25519_yao_client_root_envelope_v1
+        : passkey_custody_open_wallet_seed_v1;
+    const handle = openEnvelope(
       existingFactorSecret,
       custodyEnvelopeBindingJson(envelope),
       base64UrlDecode(envelope.nonceB64u),
@@ -898,6 +957,7 @@ async function establishUnlockedWalletEd25519ExportRootCapability(
     );
     const capabilityHandleId = createUnlockedExportRootCapabilityHandleId();
     unlockedExportRootCapabilities.set(capabilityHandleId, {
+      source,
       handle,
       envelope,
       factorSecret: existingFactorSecret,
@@ -907,12 +967,22 @@ async function establishUnlockedWalletEd25519ExportRootCapability(
       expiresAtMs,
     });
     factorSecretStored = true;
-    /* R109C: a V2 envelope opened under its original AAD is immediately
-       resealed as V3 under the method that just authenticated. This is the only
-       place the upgrade can happen — it needs the factor secret and the exact
-       selected method at the same instant, which is precisely what an unlock
-       has and a migration never does. The caller persists what comes back;
-       until it does, the V2 row stands and the next unlock retries. */
+    /* A V2 envelope opened under its original AAD is immediately resealed as
+       V3 under the method that just authenticated. This is the only place the
+       upgrade can happen — it needs the factor secret and the exact selected
+       method at the same instant, which is precisely what an unlock has and a
+       migration never does. The caller persists what comes back; until it
+       does, the V2 row stands and the next unlock retries. */
+    if (source === 'linked_device_client_root') {
+      return {
+        kind: 'unlocked_linked_device_ed25519_client_root_capability_v1',
+        capabilityHandleId,
+        walletId,
+        walletAuthMethodId,
+        walletSessionId,
+        expiresAtMs,
+      };
+    }
     const upgradedEnvelope =
       envelope.ownership.kind === 'unbound'
         ? resealUnboundEnvelopeAsMethodBound({
@@ -937,7 +1007,7 @@ async function establishUnlockedWalletEd25519ExportRootCapability(
 }
 
 /**
- * Reseals an opened pre-109C envelope under the method that just authenticated.
+ * Reseals an opened unbound envelope under the method that just authenticated.
  *
  * The factor secret is unchanged — this is not a factor change — so the only
  * things that move are ownership, from `unbound` to the exact method, and the
@@ -1030,8 +1100,10 @@ function destroyUnlockedWalletEd25519ExportRootCapabilities(
 }
 
 /**
- * Device 1: seals the seed for one approved linked device from the unlocked
- * capability established at registration or unlock.
+ * Seals the Client root for one approved linked device from the unlocked
+ * capability established at registration or unlock: derived from Device 1's
+ * seed, or a linked device's own root. The WASM handle checks which proof it
+ * holds, and never forwards a root still fresh from a transfer.
  *
  * Every fact in the presented reference is re-verified against the record this
  * worker stored, so a caller holding a stale or foreign reference fails before
@@ -1060,8 +1132,8 @@ async function sealEd25519ExportRootForLinkedDevice(
 }
 
 /**
- * Refactor 109C: reseals the wallet seed under a new factor from the unlocked
- * capability, for an addition whose source is Email OTP.
+ * Reseals the wallet seed under a new factor from the unlocked capability, for
+ * an addition whose source is Email OTP.
  *
  * The source factor secret is already parked here — an Email unlock left it
  * with the opened handle — so the addition needs no factor release and no
@@ -1077,6 +1149,10 @@ async function resealWalletCustodyFromUnlockedCapability(
 ): Promise<unknown> {
   await initializeNearSignerWasm();
   const record = requireUnlockedExportRootCapabilityRecord(request.payload.capability);
+  if (record.source !== 'wallet_custody_seed') {
+    new Uint8Array(request.payload.replacementFactorSecret).fill(0);
+    throw new Error('only a wallet custody seed capability reseals the seed');
+  }
   const replacementFactorSecret = toBytes(request.payload.replacementFactorSecret);
   try {
     const resealed = passkey_custody_reseal_wallet_seed_v1(

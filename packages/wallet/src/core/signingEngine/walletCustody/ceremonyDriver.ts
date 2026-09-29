@@ -48,7 +48,7 @@ export type WalletCustodyCeremonyStepRunner = <T extends keyof CeremonyOperation
  * The caller keeps ownership either way — this driver hands it to the worker
  * and does not retain it.
  */
-export type WalletCustodyCeremonyCustodyInput =
+type WalletCustodyCeremonyCustodyInput =
   | {
       readonly origin: 'establish';
       readonly walletId: string;

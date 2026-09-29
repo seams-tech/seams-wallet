@@ -1,6 +1,6 @@
 import { toOptionalTrimmedString } from '@shared/utils/validation';
 
-export type NonDurableObjectThresholdStoreKind =
+type NonDurableObjectThresholdStoreKind =
   | 'in-memory'
   | 'upstash-redis-rest'
   | 'redis-tcp';

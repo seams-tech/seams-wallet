@@ -24,7 +24,7 @@ type AccountMenuRecoveryCodeExperience = Extract<
   { readonly kind: 'account_menu' }
 >;
 
-export type WalletRecoveryCodesUiRequest = Omit<AccountMenuRecoveryCodeExperience, 'kind'>;
+type WalletRecoveryCodesUiRequest = Omit<AccountMenuRecoveryCodeExperience, 'kind'>;
 
 type RecoveryCodeBackupUiOptions = {
   readonly appearance?: AppearanceConfig;

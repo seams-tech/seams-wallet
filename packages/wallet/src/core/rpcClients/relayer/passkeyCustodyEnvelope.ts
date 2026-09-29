@@ -25,7 +25,7 @@ import {
 
 const PASSKEY_CUSTODY_ENVELOPE_PATH = '/wallets/custody/envelope';
 
-export type PasskeyCustodyEnvelopeFetchResult =
+type PasskeyCustodyEnvelopeFetchResult =
   | {
       readonly kind: 'active';
       /** The sealed record is structurally validated before it reaches the worker. */
@@ -127,7 +127,7 @@ export async function fetchPasskeyCustodyEnvelope(args: {
 }
 
 /**
- * Refactor 109C: hands a resealed pre-109C envelope to the server.
+ * Hands a formerly unbound envelope, now resealed, to the server.
  *
  * The unlock that opened an `unbound` envelope has already resealed it under
  * the exact method that authenticated. This is the only thing left to do with
@@ -138,7 +138,7 @@ export async function fetchPasskeyCustodyEnvelope(args: {
  * none of them is worth surfacing to the user: the V2 row stands, the wallet
  * still opens, and the next unlock tries again. The caller logs and moves on.
  */
-export type WalletCustodyEnvelopeOwnershipUpgradeOutcome =
+type WalletCustodyEnvelopeOwnershipUpgradeOutcome =
   | { readonly kind: 'upgraded'; readonly envelopeRevision: number }
   /** The envelope already names this method — an earlier attempt landed. */
   | { readonly kind: 'already_owned' }

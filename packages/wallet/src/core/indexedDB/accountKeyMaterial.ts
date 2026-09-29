@@ -21,21 +21,21 @@ export type AccountKeyMaterialDeps = {
   keyMaterialStore: AccountKeyMaterialStorePort;
 };
 
-export type MappedAccountKeyMaterialTargetInput = {
+type MappedAccountKeyMaterialTargetInput = {
   accountRefs: AccountRef[];
   explicitProfileId?: never;
   explicitChainIdKey?: never;
   explicitAccountAddress?: never;
 };
 
-export type ExplicitAccountKeyMaterialTargetInput = {
+type ExplicitAccountKeyMaterialTargetInput = {
   accountRefs: AccountRef[];
   explicitProfileId: string;
   explicitChainIdKey: string;
   explicitAccountAddress: string;
 };
 
-export type ResolveAccountKeyMaterialTargetInput =
+type ResolveAccountKeyMaterialTargetInput =
   | MappedAccountKeyMaterialTargetInput
   | ExplicitAccountKeyMaterialTargetInput;
 
@@ -51,7 +51,7 @@ export type StoreAccountKeyMaterialInput = ResolveAccountKeyMaterialTargetInput 
   schemaVersion?: number;
 };
 
-export type ResolvedAccountKeyMaterialTarget = {
+type ResolvedAccountKeyMaterialTarget = {
   profileId: string;
   chainIdKey: string;
   accountAddress: string;

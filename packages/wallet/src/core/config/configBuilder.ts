@@ -33,11 +33,10 @@ export type BuildConfigsOptions = {
   allowDirectWalletMode?: 'wallet_host';
 };
 
-export class HostedWalletOriginRequiredError extends Error {
+class HostedWalletOriginRequiredError extends Error {
   readonly code = 'SEAMS_HOSTED_WALLET_ORIGIN_REQUIRED';
 
   constructor() {
-    // Refactor 90 Phase 0E absorbs this named boundary error into the typed config-error taxonomy.
     super(
       '[SEAMS_HOSTED_WALLET_ORIGIN_REQUIRED] Missing required config: iframeWallet.walletOrigin. Browser wallet capabilities require a hosted wallet iframe origin.',
     );
@@ -73,16 +72,6 @@ function resolveEmailOtpAuthPolicy(args: {
   throw new Error(
     `[configPresets] Invalid config: emailOtpAuthPolicy (${raw}); expected "session" or "per_operation"`,
   );
-}
-
-function joinUrlPath(baseUrl: string, path: string): string {
-  const base = String(baseUrl || '')
-    .trim()
-    .replace(/\/+$/, '');
-  const suffix = String(path || '').trim();
-  if (!base) return '';
-  if (!suffix) return base;
-  return `${base}${suffix.startsWith('/') ? suffix : `/${suffix}`}`;
 }
 
 function resolveRegistrationNearAccountProvisioning(

@@ -6,11 +6,11 @@ import type { TenantRootIdentityFieldV1, TenantRootIdentityWireV1 } from '@share
 import type { RouterApiCredentialScope } from '../../framework/apiCredentialPorts';
 
 // The exact private service-binding surface between the Wallet Gateway and
-// the Wallet Console deployment (R105 Phase 4). Five operations cross the
-// binding: API-key validation, publishable-key validation, idempotent
-// usage-event ingestion, project-environment lookup, and active tenant-root
-// lineage lookup. There is no generic SQL or query operation, and the Gateway
-// never receives the Console database.
+// the Wallet Console deployment. Five operations cross the binding: API-key
+// validation, publishable-key validation, idempotent usage-event ingestion,
+// project-environment lookup, and active tenant-root lineage lookup. There is
+// no generic SQL or query operation, and the Gateway never receives the
+// Console database.
 
 export const WALLET_CONSOLE_OPS_BASE_PATH_V1 = '/internal/wallet-console/v1';
 export const WALLET_CONSOLE_SERVICE_ORIGIN_V1 = 'https://wallet-console.internal';

@@ -42,19 +42,15 @@ import type {
   WalletAddAuthMethodStartRequest,
   WalletAddAuthMethodStartResponse,
   WalletRegistrationEcdsaFinalize,
-  WalletRegistrationEd25519YaoActivationReference,
   WalletRegistrationFinalizeSignerWork,
-  WalletRegistrationFinalizeRouteSuccess,
-  WalletRegistrationFinalizeSuccess,
-  PasskeyWalletRegistrationFinalizeAuthMethod,
-  EmailOtpWalletRegistrationFinalizeAuthMethod,
-  WalletRegistrationEcdsaDerivationRespondRequest,
 } from '../../../core/registrationContracts';
+import type {
+  EmailOtpWalletRegistrationFinalizeAuthMethod,
+  PasskeyWalletRegistrationFinalizeAuthMethod,
+  WalletRegistrationEd25519YaoActivationReference,
+} from '@shared/utils/registrationContracts';
 import type { ThresholdEcdsaChainTarget } from '../../../core/thresholdEcdsaChainTarget';
-import {
-  thresholdEcdsaChainTargetFromValue,
-  thresholdEcdsaChainTargetKey,
-} from '../../../core/thresholdEcdsaChainTarget';
+import { thresholdEcdsaChainTargetFromValue } from '../../../core/thresholdEcdsaChainTarget';
 import {
   resolveActiveRuntimePolicyScopeForEnvironment,
   resolveWalletSessionAdministrationAdmission,
@@ -112,22 +108,26 @@ import {
 import {
   addAuthMethodIntentGrantFromString,
   computeAddAuthMethodIntentDigestB64u,
-  normalizeAddAuthMethodInput,
   normalizeAddAuthMethodIntentCaller,
   addSignerIntentGrantFromString,
   computeAddSignerIntentDigestB64u,
-  normalizeEmailOtpRegistrationProof,
-  normalizeRegistrationAuthMethodInput,
-  normalizeRegistrationSignerPlan,
-  registrationSignerSetSelectionFromPlan,
-  walletIdFromString,
   type AddSignerIntentV1,
   type AddAuthMethodIntentV1,
+} from '@shared/utils/registrationIntent';
+import { walletIdFromString } from '@shared/utils/registrationIds';
+import {
+  normalizeRegistrationSignerPlan,
+  registrationSignerSetSelectionFromPlan,
   type AddSignerSelection,
-  type RegisterWalletInput,
   type RegistrationSignerPlan,
   type RegistrationSignerSetSelection,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/registrationSignerPlan';
+import {
+  normalizeAddAuthMethodInput,
+  normalizeEmailOtpRegistrationProof,
+  normalizeRegistrationAuthMethodInput,
+  type RegisterWalletInput,
+} from '@shared/utils/registrationAuthMethodInput';
 import {
   parseWalletAuthMethodId,
   parseWalletId,
@@ -143,7 +143,6 @@ import {
   ROUTER_AB_TRACE_ID_HEADER_V1,
   type RouterAbTraceContextV1,
 } from '@shared/utils/routerAbTraceContext';
-import type { RouterAbEd25519YaoGatewaySpanV1 } from '../ed25519Yao/registration/routerAbEd25519YaoHttpRegistrationBackend';
 import {
   parseHostedWalletSessionOperationCredentialToken,
   parsePrimaryWalletSessionOperationCredentialToken,
@@ -209,28 +208,6 @@ function parseRegistrationTraceContext(headers: HeaderRecord): RegistrationTrace
   return { ok: false, message: parsed.message };
 }
 
-function emitGatewayD1CommitSpan(input: {
-  logger: NormalizedRouterLogger;
-  traceId: string | null;
-  startedAt: number;
-  outcome: RouterAbEd25519YaoGatewaySpanV1['outcome'];
-}): void {
-  if (input.traceId === null) return;
-  const span: RouterAbEd25519YaoGatewaySpanV1 = {
-    event: 'router_ab_yao_gateway_span_v1',
-    span: 'gateway.d1_commit',
-    operation: 'registration',
-    outcome: input.outcome,
-    duration_ms: Math.max(0, Math.round(performance.now() - input.startedAt)),
-    trace_id: input.traceId,
-  };
-  try {
-    input.logger.info(JSON.stringify(span));
-  } catch {
-    // Observability must never change the registration response.
-  }
-}
-
 /** User-Agent of the registering request; feeds authenticator device labels. */
 function registrationUserAgentFromHeaders(headers: HeaderRecord): string | undefined {
   const raw = headers['user-agent'] ?? headers['User-Agent'];
@@ -238,16 +215,6 @@ function registrationUserAgentFromHeaders(headers: HeaderRecord): string | undef
   const trimmed = String(value || '').trim();
   return trimmed ? trimmed : undefined;
 }
-
-type PasskeyWalletRegistrationFinalizeSuccess = Extract<
-  WalletRegistrationFinalizeSuccess,
-  { authMethod: PasskeyWalletRegistrationFinalizeAuthMethod }
->;
-
-type EmailOtpWalletRegistrationFinalizeSuccess = Extract<
-  WalletRegistrationFinalizeSuccess,
-  { authMethod: EmailOtpWalletRegistrationFinalizeAuthMethod }
->;
 
 type WalletRegistrationActivateSuccessV2 = Extract<
   WalletRegistrationActivateResponseV2,
@@ -269,24 +236,8 @@ type PasskeyWalletRegistrationNearProvisioningSuccessV2 = Extract<
   { ok: true; authMethod: PasskeyWalletRegistrationFinalizeAuthMethod }
 >;
 
-function assertNeverWalletRegistrationFinalizeKind(value: never): never {
-  throw new Error(`Unsupported wallet registration finalize kind: ${String(value)}`);
-}
-
 function assertNeverWalletEcdsaInventoryAuth(value: never): never {
   throw new Error(`Unsupported wallet ECDSA inventory auth: ${String(value)}`);
-}
-
-function isPasskeyWalletRegistrationFinalizeSuccess(
-  result: WalletRegistrationFinalizeSuccess,
-): result is PasskeyWalletRegistrationFinalizeSuccess {
-  return result.authMethod.kind === 'passkey';
-}
-
-function isEmailOtpWalletRegistrationFinalizeSuccess(
-  result: WalletRegistrationFinalizeSuccess,
-): result is EmailOtpWalletRegistrationFinalizeSuccess {
-  return result.authMethod.kind === 'email_otp';
 }
 
 function isEmailOtpWalletRegistrationActivateSuccessV2(
@@ -305,48 +256,6 @@ function isPasskeyWalletRegistrationNearProvisioningSuccessV2(
   result: Extract<WalletRegistrationNearProvisioningResponseV2, { ok: true }>,
 ): result is PasskeyWalletRegistrationNearProvisioningSuccessV2 {
   return result.authMethod.kind === 'passkey';
-}
-
-function buildPasskeyWalletRegistrationFinalizeRouteSuccess(
-  result: PasskeyWalletRegistrationFinalizeSuccess,
-): WalletRegistrationFinalizeRouteSuccess {
-  switch (result.kind) {
-    case 'near_ed25519':
-      return {
-        ok: true,
-        walletId: result.walletId,
-        authority: result.authority,
-        foundingAuthority: result.foundingAuthority,
-        foundingAuthMethod: result.foundingAuthMethod,
-        registrationDiagnostics: result.registrationDiagnostics,
-        rpId: result.rpId,
-        authMethod: result.authMethod,
-        ...(result.walletCustody ? { walletCustody: result.walletCustody } : {}),
-        custodyKeyManifestDigestB64u: result.custodyKeyManifestDigestB64u,
-        kind: result.kind,
-        authorityScope: result.authorityScope,
-        accountProvisioning: result.accountProvisioning,
-        resolvedAccount: result.resolvedAccount,
-        ed25519: result.ed25519,
-      };
-    case 'evm_family_ecdsa':
-      return {
-        ok: true,
-        walletId: result.walletId,
-        authority: result.authority,
-        foundingAuthority: result.foundingAuthority,
-        foundingAuthMethod: result.foundingAuthMethod,
-        registrationDiagnostics: result.registrationDiagnostics,
-        rpId: result.rpId,
-        authMethod: result.authMethod,
-        ...(result.walletCustody ? { walletCustody: result.walletCustody } : {}),
-        custodyKeyManifestDigestB64u: result.custodyKeyManifestDigestB64u,
-        kind: result.kind,
-        ecdsa: result.ecdsa,
-      };
-    default:
-      return assertNeverWalletRegistrationFinalizeKind(result);
-  }
 }
 
 function walletRegistrationRoutePolicyServices(
@@ -410,25 +319,6 @@ function parseFundImplicitNearAccountBody(
   };
 }
 
-function exposesRegistrationRouteDiagnostics(input: RouterApiWalletRegistrationInput): boolean {
-  const raw =
-    input.headers['x-seams-benchmark-diagnostics'] ??
-    input.headers['X-Seams-Benchmark-Diagnostics'];
-  return String(raw || '').trim() === 'registration-flow';
-}
-
-function stripRegistrationRouteDiagnostics<T>(response: T): T {
-  if (
-    !isPlainObject(response) ||
-    !Object.prototype.hasOwnProperty.call(response, 'registrationDiagnostics')
-  ) {
-    return response;
-  }
-  const copy = { ...response };
-  delete copy.registrationDiagnostics;
-  return copy as T;
-}
-
 function requireWebAuthnExpectedOrigin(
   input: RouterApiWalletRegistrationInput,
 ): { ok: true; expectedOrigin: string } | { ok: false; response: RouteResponse<RouteErrorBody> } {
@@ -455,12 +345,6 @@ function requireWebAuthnRpId(
   };
 }
 
-const ECDSA_REGISTRATION_ECDSA_DERIVATION_RESPOND_FORBIDDEN_FIELDS = [
-  'clientRootProof',
-  'passkeyBootstrapAuthorization',
-  'sessionKind',
-] as const;
-
 const WALLET_REGISTRATION_ED25519_FINALIZE_FIELDS = ['activationReference'] as const;
 const WALLET_REGISTRATION_YAO_ACTIVATION_REFERENCE_FIELDS = [
   'kind',
@@ -479,22 +363,11 @@ function trimRequiredString(
   return { ok: true, value };
 }
 
-function findOwnField(raw: Record<string, unknown>, fields: readonly string[]): string | undefined {
-  return fields.find((field) => Object.prototype.hasOwnProperty.call(raw, field));
-}
-
 function findUnknownField(
   raw: Record<string, unknown>,
   allowed: readonly string[],
 ): string | undefined {
   return Object.keys(raw).find((field) => !allowed.includes(field));
-}
-
-function hasBranch(
-  body: Record<string, unknown>,
-  field: 'ed25519' | 'ecdsa' | 'emailOtpEnrollment',
-): boolean {
-  return Object.prototype.hasOwnProperty.call(body, field);
 }
 
 function parseChainTargets(raw: unknown): ParseResult<ThresholdEcdsaChainTarget[]> {
@@ -714,19 +587,6 @@ function parseCreateAddAuthMethodIntentRequest(
       caller,
     },
   };
-}
-
-function keyTargetsCoveredByPolicy(
-  keyTargets: readonly unknown[],
-  policyTargets: readonly ThresholdEcdsaChainTarget[],
-): boolean {
-  const allowed = new Set(policyTargets.map((target) => thresholdEcdsaChainTargetKey(target)));
-  for (const rawTarget of keyTargets) {
-    if (!isPlainObject(rawTarget)) return false;
-    const chainTarget = thresholdEcdsaChainTargetFromValue(rawTarget.chainTarget);
-    if (!chainTarget || !allowed.has(thresholdEcdsaChainTargetKey(chainTarget))) return false;
-  }
-  return true;
 }
 
 function parseInventoryKeyTargets(raw: unknown): ParseResult<
@@ -1286,7 +1146,7 @@ async function parseWalletAddAuthMethodStartBody(
       expectedChallengeDigestB64u,
     };
   } else if (auth.kind === 'email_otp') {
-    /* R109C `email_otp_to_passkey`: the source is the wallet's Email OTP
+    /* `email_otp_to_passkey`: the source is the wallet's Email OTP
        method. The body carries only the one-time code and the digest it was
        taken over; every identity fact — provider subject, enrollment, authority
        — is resolved from the verified challenge in the route handler, so a
@@ -1318,9 +1178,9 @@ async function parseWalletAddAuthMethodStartBody(
       expectedChallengeDigestB64u: emailExpectedDigest,
     };
   } else if (auth.kind === 'wallet_session') {
-    /* R103 zero-prompt handoff: the body names only the auth kind. Every
-       identity fact is resolved from the verified bearer admission in the
-       route handler before a service request is built. */
+    /* The body names only the auth kind. Every identity fact is resolved from
+       the verified bearer admission in the route handler before a service
+       request is built. */
     if (Object.keys(auth).length !== 1) {
       return {
         ok: false,
@@ -1386,45 +1246,6 @@ async function parseWalletAddAuthMethodStartBody(
       intent: normalizedIntent,
       auth: existingAuth,
       authority,
-    },
-  };
-}
-
-function parseWalletRegistrationEcdsaDerivationRespondRequest(
-  body: Record<string, unknown>,
-): ParseResult<WalletRegistrationEcdsaDerivationRespondRequest> {
-  const registrationCeremonyId = trimRequiredString(
-    body,
-    'registrationCeremonyId',
-    'registrationCeremonyId is required',
-  );
-  if (!registrationCeremonyId.ok) return registrationCeremonyId;
-  const ecdsa = isPlainObject(body.ecdsa) ? body.ecdsa : null;
-  if (!ecdsa || ecdsa.kind !== 'router_ab_ecdsa_registration_v1') {
-    return {
-      ok: false,
-      code: 'invalid_body',
-      message: 'strict Router A/B ECDSA registration response is required',
-    };
-  }
-  let strictRegistration: WalletRegistrationEcdsaDerivationRespondRequest['ecdsa']['strictRegistration'];
-  try {
-    strictRegistration = parseRouterAbEcdsaRegistrationRequestV1(ecdsa.strictRegistration);
-  } catch {
-    return {
-      ok: false,
-      code: 'invalid_body',
-      message: 'strict Router A/B ECDSA registration request is invalid',
-    };
-  }
-  return {
-    ok: true,
-    value: {
-      registrationCeremonyId: registrationCeremonyId.value,
-      ecdsa: {
-        kind: 'router_ab_ecdsa_registration_v1',
-        strictRegistration,
-      },
     },
   };
 }
@@ -1963,7 +1784,7 @@ function parseWalletAddAuthMethodFinalizeRequest(
     };
   }
   if (!hasRegistration && hasEnvelope) {
-    /* R109C's Email OTP target: the factor was verified by its one-use grant
+    /* The Email OTP target: the factor was verified by its one-use grant
        rather than by a created credential, so the body carries the resealed
        envelope alone. Requiring the pair here would refuse the exact request
        the finalize service now demands for this branch. */
@@ -2210,8 +2031,8 @@ export async function handleRouterApiWalletAddSignerIntent(
 }
 
 /**
- * Refactor 94C. `POST /wallets/register/setup` — the single admitted entry
- * point that replaces the bootstrap grant, the intent, and start.
+ * `POST /wallets/register/setup` — the single admitted entry point that
+ * replaces the bootstrap grant, the intent, and start.
  *
  * Authentication is the same API-credential plane the intent route used, so
  * origin and environment binding are unchanged; what is gone is the stored
@@ -2301,7 +2122,7 @@ export async function handleRouterApiWalletRegistrationSetup(
 }
 
 /**
- * Refactor 94C. `POST /wallets/register/respond` — the authenticated leg.
+ * `POST /wallets/register/respond` — the authenticated leg.
  *
  * Bearing the proof, so it is a public-plane route authorized by the signed
  * setup payload plus the WebAuthn or Email OTP proof, exactly as the
@@ -2536,8 +2357,8 @@ async function projectActivatedWallet(input: {
 }
 
 /**
- * Refactor 94C. `POST /wallets/register/activate` — activation and
- * finalization behind one Gateway operation row.
+ * `POST /wallets/register/activate` — activation and finalization behind
+ * one Gateway operation row.
  */
 export async function handleRouterApiWalletRegistrationActivate(
   input: RouterApiWalletRegistrationInput,
@@ -2665,9 +2486,9 @@ export async function handleRouterApiWalletRegistrationActivate(
 }
 
 /**
- * Refactor 94C. `POST /wallets/register/near-provisioning` — the non-blocking
- * completion the client calls after activate, once its already-running Yao
- * computation produces an activation.
+ * `POST /wallets/register/near-provisioning` — the non-blocking completion
+ * the client calls after activate, once its already-running Yao computation
+ * produces an activation.
  */
 export async function handleRouterApiWalletRegistrationNearProvisioning(
   input: RouterApiWalletRegistrationInput,
@@ -3149,7 +2970,7 @@ export async function handleRouterApiWalletAddAuthMethodStart(
       },
     };
   } else if (parsedRequest.auth.kind === 'email_otp_source_proof') {
-    /* R109C `email_otp_to_passkey`. The same rule as the assertion branch: a
+    /* `email_otp_to_passkey`. The same rule as the assertion branch: a
        same-device addition proves its source freshly, so the linked-device
        ceremony cannot borrow this path. */
     if (parsedRequest.intent.caller !== 'same_device_addition') {
@@ -3188,10 +3009,10 @@ export async function handleRouterApiWalletAddAuthMethodStart(
         'Same-device add-auth-method requires a fresh source proof, not a Wallet Session',
       );
     }
-    /* R103 zero-prompt handoff: the exact V2 administration admission proves
-       the owner Wallet Session and its link_devices authority. The session's
-       own auth method names the passkey whose custody envelope the ceremony
-       binds; the body supplies none of these facts. */
+    /* The exact V2 administration admission proves the owner Wallet Session
+       and its link_devices authority. The session's own auth method names the
+       passkey whose custody envelope the ceremony binds; the body supplies
+       none of these facts. */
     const admission = await resolveRouteExactWalletSessionAdministration(
       input,
       parsedRequest.walletId,
@@ -3282,24 +3103,20 @@ export async function handleRouterApiWalletRevokeAuthMethod(
   }
   const origin = requireWebAuthnExpectedOrigin(input);
   if (!origin.ok) return origin.response;
-  const verified = await input.services.walletRegistration.verifyWalletAuthMethodRevokeProof({
-    walletId: parsedBody.value.walletId,
-    targetWalletAuthMethodId: parsedBody.value.walletAuthMethodId,
+  /* Verification and revocation are one call: an Email OTP proof is spent
+     only in the batch that revokes, so a revocation that never commits leaves
+     its code usable for the same request. */
+  const revoked = await input.services.walletRegistration.revokeWalletAuthMethodWithFreshProof({
+    walletAuthMethodId: parsedBody.value.walletAuthMethodId,
     requestedAtMs: parsedBody.value.requestedAtMs,
     sourceProof: parsedBody.value.sourceProof,
+    subject: { kind: 'wallet_auth_method_management', walletId: walletIdFromString(walletId) },
     expectedOrigin: origin.expectedOrigin,
   });
-  if (verified.kind === 'denied') {
-    return routeError(401, 'unauthorized', verified.message);
+  if (revoked.kind === 'denied') {
+    return routeError(401, 'unauthorized', revoked.message);
   }
-  const result = await input.services.walletRegistration.revokeWalletAuthMethod({
-    ...parsedBody.value,
-    subject: { kind: 'wallet_auth_method_management', walletId: walletIdFromString(walletId) },
-    verifiedSource: {
-      walletAuthMethodId: verified.walletAuthMethodId,
-      verifiedAtMs: verified.verifiedAtMs,
-    },
-  });
+  const result = revoked.response;
   return routeJson(result.ok ? 200 : 400, result, {
     usage: result.ok ? { walletId: result.walletId } : undefined,
   });

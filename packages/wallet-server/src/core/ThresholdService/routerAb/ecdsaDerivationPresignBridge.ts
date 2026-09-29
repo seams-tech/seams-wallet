@@ -1,12 +1,6 @@
 import {
-  buildCloudflareSigningWorkerEcdsaDerivationPresignaturePoolPutRequestV1,
-  parseCloudflareSigningWorkerEcdsaDerivationPresignaturePoolPutReceiptForRequestV1,
-  parseCloudflareSigningWorkerEcdsaDerivationPresignaturePoolPutRequestV1,
   parseRouterAbEcdsaSigningWorkerProtocolExportShareEnvelopeV1,
   parseRouterAbEcdsaDerivationNormalSigningScopeV1,
-  type CloudflareSigningWorkerEcdsaDerivationPresignaturePoolPutReceiptV1Wire,
-  type CloudflareSigningWorkerEcdsaDerivationPresignaturePoolPutRequestV1Wire,
-  type RouterAbEcdsaDerivationServerPresignatureShareV1,
   type RouterAbEcdsaDerivationNormalSigningScopeV1,
   type RouterAbEcdsaSigningWorkerExportShareBindingV1,
   type RouterAbEcdsaSigningWorkerExportShareEnvelopeV1,
@@ -14,91 +8,41 @@ import {
 import { postRouterAbInternalServiceJson } from './internalServiceHttp';
 export { ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1 } from './internalServiceHttp';
 
-export const CLOUDFLARE_SIGNING_WORKER_ECDSA_DERIVATION_PRESIGNATURE_POOL_PUT_PATH =
-  '/router-ab/signing-worker/ecdsa-derivation/presignature-pool/put' as const;
-export const CLOUDFLARE_SIGNING_WORKER_ECDSA_PRESIGN_SESSION_INIT_PATH =
+const CLOUDFLARE_SIGNING_WORKER_ECDSA_PRESIGN_SESSION_INIT_PATH =
   '/router-ab/signing-worker/ecdsa-derivation/presignature-session/init' as const;
-export const CLOUDFLARE_SIGNING_WORKER_ECDSA_PRESIGN_SESSION_STEP_PATH =
+const CLOUDFLARE_SIGNING_WORKER_ECDSA_PRESIGN_SESSION_STEP_PATH =
   '/router-ab/signing-worker/ecdsa-derivation/presignature-session/step' as const;
-export const CLOUDFLARE_SIGNING_WORKER_ECDSA_LINKED_PRESIGN_SESSION_INIT_PATH =
+const CLOUDFLARE_SIGNING_WORKER_ECDSA_LINKED_PRESIGN_SESSION_INIT_PATH =
   '/router-ab/signing-worker/ecdsa-derivation/linked-device/presignature-session/init' as const;
-export const CLOUDFLARE_SIGNING_WORKER_ECDSA_LINKED_PRESIGN_SESSION_STEP_PATH =
+const CLOUDFLARE_SIGNING_WORKER_ECDSA_LINKED_PRESIGN_SESSION_STEP_PATH =
   '/router-ab/signing-worker/ecdsa-derivation/linked-device/presignature-session/step' as const;
-export const CLOUDFLARE_SIGNING_WORKER_ECDSA_LINKED_EXPORT_SHARE_PATH =
+const CLOUDFLARE_SIGNING_WORKER_ECDSA_LINKED_EXPORT_SHARE_PATH =
   '/router-ab/signing-worker/ecdsa-derivation/linked-device/export-share' as const;
-
-export type RouterAbEcdsaDerivationPresignaturePoolFillInput = {
-  scope: RouterAbEcdsaDerivationNormalSigningScopeV1;
-  presignature: RouterAbEcdsaDerivationServerPresignatureShareV1;
-  materialExpiresAtMs: number;
-};
-
-export function buildRouterAbEcdsaDerivationPresignaturePoolPutRequest(
-  input: RouterAbEcdsaDerivationPresignaturePoolFillInput,
-): CloudflareSigningWorkerEcdsaDerivationPresignaturePoolPutRequestV1Wire {
-  return parseCloudflareSigningWorkerEcdsaDerivationPresignaturePoolPutRequestV1(
-    buildCloudflareSigningWorkerEcdsaDerivationPresignaturePoolPutRequestV1({
-      scope: parseRouterAbEcdsaDerivationNormalSigningScopeV1(input.scope),
-      presignature: input.presignature,
-      expiresAtMs: input.materialExpiresAtMs,
-    }),
-  );
-}
 
 export type RouterAbEcdsaDerivationPresignaturePoolFillAuth = {
   kind: 'internal_service_auth_secret';
   secret: string;
 };
 
-export type RouterAbEcdsaDerivationPresignaturePoolFillHttpInput = {
-  signingWorkerBaseUrl: string;
-  request: CloudflareSigningWorkerEcdsaDerivationPresignaturePoolPutRequestV1Wire;
-  auth: RouterAbEcdsaDerivationPresignaturePoolFillAuth;
-  fetchImpl: typeof fetch;
-};
-
-export type RouterAbEcdsaDerivationPresignaturePoolFillHttpResult =
+export type RouterAbEcdsaPresignAuthorityV1 =
   | {
-      ok: true;
-      status: number;
-      receipt: CloudflareSigningWorkerEcdsaDerivationPresignaturePoolPutReceiptV1Wire & {
-        stored: true;
+      readonly kind: 'owner_wallet_session';
+      readonly wallet_scope: {
+        readonly org_id: string;
+        readonly project_id: string;
+        readonly project_environment_id: string;
+        readonly wallet_id: string;
       };
     }
   | {
-      ok: false;
-      code: 'already_exists';
-      message: string;
-      status: number;
-      receipt: CloudflareSigningWorkerEcdsaDerivationPresignaturePoolPutReceiptV1Wire & {
-        stored: false;
+      readonly kind: 'operation_step_up';
+      readonly wallet_scope: {
+        readonly org_id: string;
+        readonly project_id: string;
+        readonly project_environment_id: string;
+        readonly wallet_id: string;
       };
-    }
-  | {
-      ok: false;
-      code: 'http_error';
-      message: string;
-      status: number;
-      bodyText: string;
-    }
-  | {
-      ok: false;
-      code: 'invalid_response';
-      message: string;
-      status: number;
-      bodyText: string;
-    }
-  | {
-      ok: false;
-      code: 'network_error';
-      message: string;
     };
-
-function privatePoolFillUrl(signingWorkerBaseUrl: string): string {
-  const base = signingWorkerBaseUrl.trim().replace(/\/+$/, '');
-  if (!base) throw new Error('signingWorkerBaseUrl is required');
-  return `${base}${CLOUDFLARE_SIGNING_WORKER_ECDSA_DERIVATION_PRESIGNATURE_POOL_PUT_PATH}`;
-}
 
 function errorMessage(error: unknown): string {
   return String(
@@ -108,7 +52,7 @@ function errorMessage(error: unknown): string {
   );
 }
 
-export type RouterAbEcdsaPresignSessionProgress =
+type RouterAbEcdsaPresignSessionProgress =
   | {
       kind: 'continue';
       presignSessionId: string;
@@ -292,6 +236,7 @@ async function postStrictPresignSession(input: {
 export async function startRouterAbEcdsaPresignSession(input: {
   signingWorkerBaseUrl: string;
   scope: RouterAbEcdsaDerivationNormalSigningScopeV1;
+  authority: RouterAbEcdsaPresignAuthorityV1;
   presignSessionId: string;
   firstMessageB64u: string;
   ceremonyExpiresAtMs: number;
@@ -305,6 +250,7 @@ export async function startRouterAbEcdsaPresignSession(input: {
     path: CLOUDFLARE_SIGNING_WORKER_ECDSA_PRESIGN_SESSION_INIT_PATH,
     body: {
       scope: parseRouterAbEcdsaDerivationNormalSigningScopeV1(input.scope),
+      authority: input.authority,
       presign_session_id: input.presignSessionId,
       first_message_b64u: input.firstMessageB64u,
       ceremony_expires_at_ms: input.ceremonyExpiresAtMs,
@@ -319,6 +265,7 @@ export async function startRouterAbEcdsaPresignSession(input: {
 export async function stepRouterAbEcdsaPresignSession(input: {
   signingWorkerBaseUrl: string;
   scope: RouterAbEcdsaDerivationNormalSigningScopeV1;
+  authority: RouterAbEcdsaPresignAuthorityV1;
   presignSessionId: string;
   requestedStage: 'triples' | 'presign';
   outgoingMessagesB64u: string[];
@@ -333,6 +280,7 @@ export async function stepRouterAbEcdsaPresignSession(input: {
     path: CLOUDFLARE_SIGNING_WORKER_ECDSA_PRESIGN_SESSION_STEP_PATH,
     body: {
       scope: parseRouterAbEcdsaDerivationNormalSigningScopeV1(input.scope),
+      authority: input.authority,
       presign_session_id: input.presignSessionId,
       requested_stage: input.requestedStage,
       outgoing_messages_b64u: input.outgoingMessagesB64u,
@@ -398,78 +346,4 @@ export async function stepRouterAbLinkedDeviceEcdsaPresignSession(input: {
     auth: input.auth,
     fetchImpl: input.fetchImpl,
   });
-}
-
-export async function putRouterAbEcdsaDerivationPresignaturePoolFill(
-  input: RouterAbEcdsaDerivationPresignaturePoolFillHttpInput,
-): Promise<RouterAbEcdsaDerivationPresignaturePoolFillHttpResult> {
-  const request = parseCloudflareSigningWorkerEcdsaDerivationPresignaturePoolPutRequestV1(
-    input.request,
-  );
-  const url = privatePoolFillUrl(input.signingWorkerBaseUrl);
-  const response = await postRouterAbInternalServiceJson({
-    url,
-    body: request,
-    authSecret: input.auth.secret,
-    fetchImpl: input.fetchImpl,
-  });
-  if (!response.ok && response.code === 'network_error') {
-    return {
-      ok: false,
-      code: 'network_error',
-      message: `pool-fill request to ${url} failed: ${response.message}`,
-    };
-  }
-
-  if (!response.ok && response.code === 'http_error') {
-    return {
-      ok: false,
-      code: 'http_error',
-      message: response.bodyText || `pool-fill request failed with HTTP ${response.status}`,
-      status: response.status,
-      bodyText: response.bodyText,
-    };
-  }
-
-  if (!response.ok) {
-    return {
-      ok: false,
-      code: 'invalid_response',
-      message: 'pool-fill response body is not valid JSON',
-      status: response.status,
-      bodyText: response.bodyText,
-    };
-  }
-
-  let receipt: CloudflareSigningWorkerEcdsaDerivationPresignaturePoolPutReceiptV1Wire;
-  try {
-    receipt = parseCloudflareSigningWorkerEcdsaDerivationPresignaturePoolPutReceiptForRequestV1(
-      request,
-      response.json,
-    );
-  } catch (error: unknown) {
-    return {
-      ok: false,
-      code: 'invalid_response',
-      message: errorMessage(error),
-      status: response.status,
-      bodyText: response.bodyText,
-    };
-  }
-
-  if (!receipt.stored) {
-    return {
-      ok: false,
-      code: 'already_exists',
-      message: 'Router A/B ECDSA derivation presignature already exists in the SigningWorker pool',
-      status: response.status,
-      receipt: { ...receipt, stored: false },
-    };
-  }
-
-  return {
-    ok: true,
-    status: response.status,
-    receipt: { ...receipt, stored: true },
-  };
 }

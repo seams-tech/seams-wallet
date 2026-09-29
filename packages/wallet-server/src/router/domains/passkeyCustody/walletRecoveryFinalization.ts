@@ -8,7 +8,7 @@ import {
   computeWalletAuthorityDigestB64u,
   computeWalletSignerActivationSetDigestB64u,
   replaceActiveWalletAuthorityEd25519MaterialActivationV1,
-  walletAuthorityDigestsMatchV1,
+  sameVerifiedActiveWalletAuthorityV1,
   type ActiveWalletAuthorityV1,
   type WalletSignerActivationSetV1,
 } from '@shared/authorization';
@@ -29,8 +29,9 @@ import { unknownWebAuthnAuthenticatorDeviceInfo } from '@shared/utils/webauthnDe
 import {
   buildWalletAuthMethodRecordV2,
   sameWalletAuthMethodRecordV2,
+  type ActivePasskeyWalletAuthMethodRecordV2,
   type WalletAuthMethodRecordV2,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/walletAuthMethodRecord';
 import type { WalletAuthAuthorityRef } from '@shared/utils/walletAuthAuthority';
 import {
   consumeReservedRecoveryCode,
@@ -63,29 +64,10 @@ import {
 import type { WalletRecoveryEcdsaPossessionProofV1 } from '@shared/wallet-recovery/walletRecoveryEcdsaPossession';
 import type { WebAuthnCredentialBindingRecord } from '../../../core/WebAuthnCredentialBindingStore';
 
-type ActiveWalletAuthMethodRecordV2 = Extract<
-  WalletAuthMethodRecordV2,
-  { readonly status: 'active' }
->;
-
-type ActivePasskeyWalletAuthMethodRecordV2 = Extract<
-  WalletAuthMethodRecordV2,
-  { readonly kind: 'passkey'; readonly status: 'active' }
->;
-
-type ActivePasskeyCustodyEnvelopeRecord = Omit<PasskeyCustodyEnvelopeRecord, 'lifecycle'> & {
-  readonly lifecycle: Extract<
-    PasskeyCustodyEnvelopeRecord['lifecycle'],
-    { readonly state: 'active' }
-  >;
-};
-
 type ContinuityAnchorRead =
   | {
       readonly kind: 'ready';
       readonly authority: ActiveWalletAuthorityV1;
-      readonly method: ActiveWalletAuthMethodRecordV2;
-      readonly envelope: ActivePasskeyCustodyEnvelopeRecord;
       readonly authorityRef: WalletAuthAuthorityRef;
     }
   | { readonly kind: 'rejected'; readonly reason: string };
@@ -113,26 +95,7 @@ function requireWalletId(value: unknown): WalletId {
   return parsed.value;
 }
 
-async function sameVerifiedActiveWalletAuthorityV1(
-  left: ActiveWalletAuthorityV1,
-  right: ActiveWalletAuthorityV1,
-): Promise<boolean> {
-  const [leftVerified, rightVerified] = await Promise.all([
-    walletAuthorityDigestsMatchV1(left),
-    walletAuthorityDigestsMatchV1(right),
-  ]);
-  return (
-    leftVerified &&
-    rightVerified &&
-    left.authorityDigestB64u === right.authorityDigestB64u &&
-    left.signerActivationSetDigestB64u === right.signerActivationSetDigestB64u &&
-    left.createdAtMs === right.createdAtMs &&
-    left.updatedAtMs === right.updatedAtMs &&
-    left.activatedAtMs === right.activatedAtMs
-  );
-}
-
-function sameWalletCustodyRecoveryReplacementEnvelopeV1(
+export function sameWalletCustodyRecoveryReplacementEnvelopeV1(
   left: PasskeyCustodyEnvelopeRecord,
   right: PasskeyCustodyEnvelopeRecord,
 ): boolean {
@@ -197,12 +160,6 @@ function requireActivePasskeyWalletAuthMethodRecordV2(
   return method;
 }
 
-function isActivePasskeyCustodyEnvelopeRecord(
-  envelope: PasskeyCustodyEnvelopeRecord,
-): envelope is ActivePasskeyCustodyEnvelopeRecord {
-  return envelope.lifecycle.state === 'active';
-}
-
 function continuityEnvelopeLocator(
   anchor: WebAuthnRecoveryContinuityAnchorRecord,
 ): PasskeyCustodyEnvelopeLocator {
@@ -233,9 +190,9 @@ function continuityEnvelopeLocator(
 function continuityEnvelopeMatchesAnchor(
   envelope: PasskeyCustodyEnvelopeRecord,
   anchor: WebAuthnRecoveryContinuityAnchorRecord,
-): envelope is ActivePasskeyCustodyEnvelopeRecord {
+): boolean {
   if (
-    !isActivePasskeyCustodyEnvelopeRecord(envelope) ||
+    envelope.lifecycle.state !== 'active' ||
     envelope.walletId !== anchor.envelope.walletId ||
     envelope.envelopeId !== anchor.envelope.envelopeId ||
     envelope.binding.kind !== 'wallet_custody_seed_v1' ||
@@ -262,7 +219,7 @@ function continuityEnvelopeMatchesAnchor(
   }
 }
 
-async function readContinuityAnchor(input: {
+export async function readRecoveryContinuityAnchor(input: {
   readonly walletId: WalletId;
   readonly anchor: WebAuthnRecoveryContinuityAnchorRecord;
   readonly manifest: WalletRecoveryKeyManifestV1;
@@ -313,18 +270,15 @@ async function readContinuityAnchor(input: {
   if (!authorityDigest.ok) {
     return { kind: 'rejected', reason: 'the recovery continuity authority changed' };
   }
-  const authorityRef: WalletAuthAuthorityRef = {
-    kind: 'wallet_auth_authority_ref',
-    walletId: input.walletId,
-    authorityDigest: authorityDigest.value,
-    walletAuthMethodId: input.anchor.method.walletAuthMethodId,
-  };
   return {
     kind: 'ready',
     authority,
-    method,
-    envelope: envelopeLookup.envelope,
-    authorityRef,
+    authorityRef: {
+      kind: 'wallet_auth_authority_ref',
+      walletId: input.walletId,
+      authorityDigest: authorityDigest.value,
+      walletAuthMethodId: input.anchor.method.walletAuthMethodId,
+    },
   };
 }
 
@@ -346,15 +300,19 @@ async function recoveryContinuityAuthorityAfterActivation(input: {
   });
 }
 
-function parseRecoveryAuthorityDigest(authority: ActiveWalletAuthorityV1) {
+export function parseRecoveryAuthorityDigest(authority: ActiveWalletAuthorityV1) {
   const parsed = parseWalletAuthorityBindingDigest(String(authority.authorityDigestB64u));
   if (!parsed.ok) throw new Error('wallet recovery authority digest is invalid');
   return parsed.value;
 }
 
-async function buildRecoveredWalletAuthority(input: {
+export async function buildRecoveredWalletAuthority(input: {
   readonly walletId: WalletId;
-  readonly challenge: WebAuthnRecoveryRegistrationChallengeRecord;
+  readonly target: {
+    readonly recoveryOperationId: WalletRecoveryOperationId;
+    readonly targetDeviceId: DeviceId;
+    readonly targetAuthorityId: WalletAuthorityId;
+  };
   readonly continuityAuthority: ActiveWalletAuthorityV1;
   readonly manifest: WalletRecoveryKeyManifestV1;
   readonly nowMs: number;
@@ -367,15 +325,15 @@ async function buildRecoveredWalletAuthority(input: {
     await computeWalletSignerActivationSetDigestB64u(signerActivations);
   const draft: ActiveWalletAuthorityV1 = {
     kind: 'wallet_authority_v1',
-    authorityId: input.challenge.targetAuthorityId,
+    authorityId: input.target.targetAuthorityId,
     walletId: input.walletId,
     principal: {
       kind: 'owner_device',
-      deviceId: input.challenge.targetDeviceId,
+      deviceId: input.target.targetDeviceId,
     },
     provenance: {
       kind: 'wallet_recovery',
-      recoveryOperationId: input.challenge.recoveryOperationId,
+      recoveryOperationId: input.target.recoveryOperationId,
       continuityAuthorityId: input.continuityAuthority.authorityId,
     },
     permissions: buildFullOwnerPermissionsV1(),
@@ -527,34 +485,18 @@ function buildRecoveredCredentialBinding(input: {
     updatedAtMs: input.nowMs,
   };
   if (source) {
-    if (
+    const ed25519 =
       source.nearAccountId === undefined ||
       source.nearEd25519SigningKeyId === undefined ||
       source.publicKey === undefined ||
       source.signerSlot === undefined
-    ) {
-      return {
-        version: 'webauthn_credential_binding_v1',
-        rpId: input.rpId,
-        credentialIdB64u: input.credentialIdB64u,
-        userId: input.userId,
-        ...(source.relayerKeyId ? { relayerKeyId: source.relayerKeyId } : {}),
-        ...(source.keyVersion ? { keyVersion: source.keyVersion } : {}),
-        ...(typeof source.recoveryExportCapable === 'boolean'
-          ? { recoveryExportCapable: source.recoveryExportCapable }
-          : {}),
-        ...(source.clientParticipantId !== undefined
-          ? { clientParticipantId: source.clientParticipantId }
-          : {}),
-        ...(source.relayerParticipantId !== undefined
-          ? { relayerParticipantId: source.relayerParticipantId }
-          : {}),
-        ...(source.participantIds ? { participantIds: [...source.participantIds] } : {}),
-        ...(source.runtimePolicyScope ? { runtimePolicyScope: source.runtimePolicyScope } : {}),
-        createdAtMs: input.nowMs,
-        updatedAtMs: input.nowMs,
-      };
-    }
+        ? {}
+        : {
+            nearAccountId: source.nearAccountId,
+            nearEd25519SigningKeyId: source.nearEd25519SigningKeyId,
+            publicKey: source.publicKey,
+            signerSlot: source.signerSlot,
+          };
     return {
       version: 'webauthn_credential_binding_v1',
       rpId: input.rpId,
@@ -573,10 +515,7 @@ function buildRecoveredCredentialBinding(input: {
         : {}),
       ...(source.participantIds ? { participantIds: [...source.participantIds] } : {}),
       ...(source.runtimePolicyScope ? { runtimePolicyScope: source.runtimePolicyScope } : {}),
-      nearAccountId: source.nearAccountId,
-      nearEd25519SigningKeyId: source.nearEd25519SigningKeyId,
-      publicKey: source.publicKey,
-      signerSlot: source.signerSlot,
+      ...ed25519,
       createdAtMs: input.nowMs,
       updatedAtMs: input.nowMs,
     };
@@ -631,7 +570,7 @@ function buildRecoveryAuthenticatorCommit(input: {
   };
 }
 
-function buildConsumedRecoverySet(input: {
+export function buildConsumedRecoverySet(input: {
   readonly record: WalletRecoveryEnvelopeSetRecord;
   readonly reservedIndex: number;
   readonly consumedLifecycle: Extract<
@@ -756,7 +695,7 @@ export async function finalizeRecoveredWalletCredentialV1(input: {
       reason: error instanceof Error ? error.message : 'wallet recovery key manifest unavailable',
     };
   }
-  const continuity = await readContinuityAnchor({
+  const continuity = await readRecoveryContinuityAnchor({
     walletId,
     anchor: challenge.continuityAnchor,
     manifest,
@@ -871,7 +810,7 @@ export async function finalizeRecoveredWalletCredentialV1(input: {
   });
   const authority = await buildRecoveredWalletAuthority({
     walletId,
-    challenge,
+    target: challenge,
     continuityAuthority: continuity.authority,
     manifest,
     nowMs: input.nowMs,

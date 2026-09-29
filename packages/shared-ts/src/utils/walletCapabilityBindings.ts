@@ -1,5 +1,4 @@
 import {
-  formatWebAuthnRpIdForWire,
   parseWalletAuthMethodId,
   parseWalletId,
   parseWebAuthnRpId,
@@ -13,10 +12,7 @@ import {
   type ImplicitNearAccountId,
   type NamedNearAccountId,
 } from './near';
-import {
-  nearEd25519SigningKeyIdFromString,
-  type NearEd25519SigningKeyId,
-} from './registrationIntent';
+import { nearEd25519SigningKeyIdFromString, type NearEd25519SigningKeyId } from './registrationIds';
 
 export type { WebAuthnRpId };
 export type RpId = WebAuthnRpId;
@@ -74,12 +70,12 @@ export type NearEd25519SignerBinding = {
   readonly signerSlot: number;
 };
 
-export type WalletCapabilityBindingParseError = {
+type WalletCapabilityBindingParseError = {
   readonly code: 'missing' | 'invalid';
   readonly message: string;
 };
 
-export type WalletCapabilityBindingParseResult<T> =
+type WalletCapabilityBindingParseResult<T> =
   | { readonly ok: true; readonly value: T }
   | { readonly ok: false; readonly error: WalletCapabilityBindingParseError };
 
@@ -127,25 +123,13 @@ function missingObject(typeName: string): WalletCapabilityBindingParseResult<nev
   };
 }
 
-function requireWalletAuthMethodId(raw: string): WalletAuthMethodId {
-  const parsed = parseWalletAuthMethodId(raw);
-  if (parsed.ok) return parsed.value;
-  throw new Error(parsed.error.message);
-}
-
 export function parseRpId(raw: unknown): WalletCapabilityBindingParseResult<RpId> {
   const parsed = parseWebAuthnRpId(raw);
   if (!parsed.ok) return { ok: false, error: parsed.error };
   return { ok: true, value: parsed.value };
 }
 
-export function formatRpIdForWire(value: RpId): string {
-  return formatWebAuthnRpIdForWire(value);
-}
-
-export function walletIdentityFromRaw(
-  raw: unknown,
-): WalletCapabilityBindingParseResult<WalletIdentity> {
+function walletIdentityFromRaw(raw: unknown): WalletCapabilityBindingParseResult<WalletIdentity> {
   const record = objectRecord(raw);
   if (!record) return missingObject('WalletIdentity');
   const parsed = parseWalletId(record.walletId);
@@ -157,7 +141,7 @@ export function buildWalletIdentity(args: { walletId: WalletId }): WalletIdentit
   return { walletId: args.walletId };
 }
 
-export function passkeyAuthScopeFromRaw(
+function passkeyAuthScopeFromRaw(
   raw: unknown,
 ): WalletCapabilityBindingParseResult<PasskeyAuthScope> {
   const record = objectRecord(raw);
@@ -268,24 +252,6 @@ export function walletAuthMethodBindingFromRaw(
     ok: false,
     error: { code: 'invalid', message: 'WalletAuthMethodBinding kind is invalid' },
   };
-}
-
-export function currentWalletAuthMethodFromRaw(
-  raw: unknown,
-): WalletCapabilityBindingParseResult<CurrentWalletAuthMethod> {
-  const record = objectRecord(raw);
-  if (!record) return missingObject('CurrentWalletAuthMethod');
-  const kind = trimString(record.kind);
-  if (kind === 'none') return { ok: true, value: { kind: 'none' } };
-  if (kind !== 'selected') {
-    return {
-      ok: false,
-      error: { code: 'invalid', message: 'CurrentWalletAuthMethod kind is invalid' },
-    };
-  }
-  const binding = walletAuthMethodBindingFromRaw(record.binding);
-  if (!binding.ok) return binding;
-  return { ok: true, value: { kind: 'selected', binding: binding.value } };
 }
 
 export function buildNoCurrentWalletAuthMethod(): Extract<

@@ -22,8 +22,8 @@ import {
   parseEmailOtpProviderUserId,
   parseThresholdEd25519SessionId,
 } from '@shared/utils/domainIds';
-import { walletAuthorityDigestsMatchV1 } from '@shared/authorization/walletAuthority';
-import { sameWalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
+import { sameVerifiedActiveWalletAuthorityV1 } from '@shared/authorization/walletAuthority';
+import { sameWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 import {
   buildEmailOtpWalletAuthAuthority,
   walletAuthAuthorityRef,
@@ -36,10 +36,8 @@ import { computeEcdsaDerivationRoleLocalRelayerKeyId } from '@shared/threshold/e
 import { routerAbMpcMaterialActivationRefFromWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import { buildEcdsaRoleLocalPublicFacts } from '@/core/signingEngine/session/persistence/ecdsaRoleLocalRecords';
 import type { EcdsaRoleLocalPublicFacts } from '@/core/platform';
-import {
-  prepareWalletCustodyEcdsaContinuity,
-  type PreparedImportedWalletCustodyEcdsaContinuity,
-} from '@/core/indexedDB/seamsWalletDB/ecdsaCapabilityManifestStore';
+import type { PreparedImportedWalletCustodyEcdsaContinuity } from '@/core/indexedDB/seamsWalletDB/ecdsaCapabilityManifestStore';
+import { prepareWalletCustodyEcdsaContinuity } from '@/core/indexedDB/seamsWalletDB/walletCustodyEcdsaContinuity';
 import type { Ed25519YaoPublicCapabilityReferenceV1 } from '@/core/signingEngine/threshold/ed25519/yaoPublicCapabilityReferences';
 import type { WebAuthnRegistrationCredential } from '@/core/types/webauthn';
 import {
@@ -90,25 +88,6 @@ type PromotedProjection = Extract<
   { readonly stage: 'server_promoted' }
 >['projection'];
 
-async function sameVerifiedActiveWalletAuthorityV1(
-  left: WalletRecoveryCommittedProjectionV1['authority'],
-  right: WalletRecoveryCommittedProjectionV1['authority'],
-): Promise<boolean> {
-  const [leftVerified, rightVerified] = await Promise.all([
-    walletAuthorityDigestsMatchV1(left),
-    walletAuthorityDigestsMatchV1(right),
-  ]);
-  return (
-    leftVerified &&
-    rightVerified &&
-    left.authorityDigestB64u === right.authorityDigestB64u &&
-    left.signerActivationSetDigestB64u === right.signerActivationSetDigestB64u &&
-    left.createdAtMs === right.createdAtMs &&
-    left.updatedAtMs === right.updatedAtMs &&
-    left.activatedAtMs === right.activatedAtMs
-  );
-}
-
 async function sameWalletRecoveryCommittedProjectionV1(
   left: WalletRecoveryCommittedProjectionV1,
   right: WalletRecoveryCommittedProjectionV1,
@@ -157,7 +136,7 @@ function assertNeverWalletRecoveryProjection(value: never): never {
   throw new Error(`unsupported wallet recovery projection: ${String(value)}`);
 }
 
-export function committedProjectionFromPromotion(
+function committedProjectionFromPromotion(
   input: WalletRecoveryCommitPromotion,
 ): WalletRecoveryCommittedProjectionV1 {
   const recoveryOperationId = requireWalletRecoveryOperationId(input.payload.recoveryOperationId);

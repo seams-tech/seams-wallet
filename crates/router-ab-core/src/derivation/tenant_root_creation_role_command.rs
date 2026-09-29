@@ -13,6 +13,8 @@ use super::{
     TENANT_ROOT_MAX_LIFETIME_MS_V1,
 };
 
+use super::tenant_root_role_command_wire::TenantRootRoleCommandWireV1;
+
 const TENANT_ROOT_ROLE_CREATION_COMMAND_DOMAIN_V1: &[u8] = b"tenant_root_role_creation_command_v1";
 const TENANT_ROOT_ROLE_CREATION_COMMAND_AUTH_DOMAIN_V1: &[u8] =
     b"tenant_root_role_creation_command_authentication_v1";
@@ -36,6 +38,11 @@ pub const TENANT_ROOT_ROLE_CREATION_COMMAND_EXPECTED_REVISION_V1: u64 = 1;
 
 /// Maximum canonical wire size accepted for one role creation command.
 pub const TENANT_ROOT_ROLE_CREATION_COMMAND_MAX_BYTES_V1: usize = 16 * 1024;
+
+const COMMAND_WIRE: TenantRootRoleCommandWireV1 = TenantRootRoleCommandWireV1::new(
+    "tenant-root role creation command",
+    TENANT_ROOT_ROLE_CREATION_COMMAND_MAX_BYTES_V1,
+);
 
 #[derive(Clone, PartialEq, Eq)]
 struct TenantRootRoleCreationCommandDataV1 {
@@ -148,8 +155,8 @@ impl TenantRootRoleCreationCommandV1 {
                 "tenant-root role creation command wire length is invalid",
             ));
         }
-        let mut decoder = RoleCreationCommandWireDecoderV1::new(bytes);
-        decoder.require_field(TENANT_ROOT_ROLE_CREATION_COMMAND_DOMAIN_V1)?;
+        let mut decoder = COMMAND_WIRE.decoder(bytes);
+        decoder.require_domain(TENANT_ROOT_ROLE_CREATION_COMMAND_DOMAIN_V1)?;
         if decoder.field("tenant-root role creation command operation")?
             != TENANT_ROOT_ROLE_CREATION_OPERATION_V1
         {
@@ -331,7 +338,7 @@ impl TenantRootRoleCreationCommandV1 {
     /// Returns the exact canonical signed command bytes.
     pub fn canonical_bytes(&self) -> RouterAbDerivationResult<Vec<u8>> {
         let unsigned = unsigned_canonical_bytes(&self.data)?;
-        canonical_bytes_from_unsigned(unsigned, &self.data.signature)
+        COMMAND_WIRE.append_signature(unsigned, &self.data.signature)
     }
 
     /// Returns the digest of the exact canonical signed command bytes.
@@ -443,7 +450,7 @@ impl TenantRootRoleCreationCommandV1 {
             .map_err(|_| {
                 verification_failed("tenant-root role creation command signature is invalid")
             })?;
-        let canonical_bytes = canonical_bytes_from_unsigned(unsigned, &self.data.signature)?;
+        let canonical_bytes = COMMAND_WIRE.append_signature(unsigned, &self.data.signature)?;
         let digest =
             TenantRootProtocolDigestV1::from_bytes(Sha256::digest(&canonical_bytes).into())?;
         Ok(VerifiedTenantRootRoleCreationCommandV1 {
@@ -747,12 +754,12 @@ fn authorization_payload_digest(
     data: &TenantRootRoleCreationCommandDataV1,
 ) -> RouterAbDerivationResult<TenantRootProtocolDigestV1> {
     let mut bytes = Vec::new();
-    push_field(
+    COMMAND_WIRE.push_field(
         &mut bytes,
         TENANT_ROOT_ROLE_CREATION_AUTHORIZATION_PAYLOAD_DOMAIN_V1,
     )?;
     push_authorization_fields(&mut bytes, data)?;
-    push_field(&mut bytes, data.issuer_key_id.as_bytes())?;
+    COMMAND_WIRE.push_field(&mut bytes, data.issuer_key_id.as_bytes())?;
     TenantRootProtocolDigestV1::from_bytes(Sha256::digest(bytes).into())
 }
 
@@ -760,19 +767,19 @@ fn push_authorization_fields(
     bytes: &mut Vec<u8>,
     data: &TenantRootRoleCreationCommandDataV1,
 ) -> RouterAbDerivationResult<()> {
-    push_field(bytes, TENANT_ROOT_ROLE_CREATION_OPERATION_V1)?;
-    push_field(bytes, data.identity_digest.as_bytes())?;
-    push_field(bytes, data.custody_lineage.as_bytes())?;
-    push_field(bytes, data.started_journal_digest.as_bytes())?;
-    push_field(bytes, data.creation_context_digest.as_bytes())?;
-    push_role(bytes, data.role)?;
-    push_field(bytes, &data.epoch.get().get().to_be_bytes())?;
-    push_field(bytes, &data.expected_control_plane_revision.to_be_bytes())?;
-    push_field(bytes, data.session_id.as_bytes())?;
-    push_field(bytes, data.nonce.as_bytes())?;
-    push_field(bytes, data.authority_id.as_bytes())?;
-    push_field(bytes, &data.issued_at_ms.to_be_bytes())?;
-    push_field(bytes, &data.expires_at_ms.to_be_bytes())?;
+    COMMAND_WIRE.push_field(bytes, TENANT_ROOT_ROLE_CREATION_OPERATION_V1)?;
+    COMMAND_WIRE.push_field(bytes, data.identity_digest.as_bytes())?;
+    COMMAND_WIRE.push_field(bytes, data.custody_lineage.as_bytes())?;
+    COMMAND_WIRE.push_field(bytes, data.started_journal_digest.as_bytes())?;
+    COMMAND_WIRE.push_field(bytes, data.creation_context_digest.as_bytes())?;
+    COMMAND_WIRE.push_role(bytes, data.role)?;
+    COMMAND_WIRE.push_field(bytes, &data.epoch.get().get().to_be_bytes())?;
+    COMMAND_WIRE.push_field(bytes, &data.expected_control_plane_revision.to_be_bytes())?;
+    COMMAND_WIRE.push_field(bytes, data.session_id.as_bytes())?;
+    COMMAND_WIRE.push_field(bytes, data.nonce.as_bytes())?;
+    COMMAND_WIRE.push_field(bytes, data.authority_id.as_bytes())?;
+    COMMAND_WIRE.push_field(bytes, &data.issued_at_ms.to_be_bytes())?;
+    COMMAND_WIRE.push_field(bytes, &data.expires_at_ms.to_be_bytes())?;
     Ok(())
 }
 
@@ -781,24 +788,10 @@ fn unsigned_canonical_bytes(
 ) -> RouterAbDerivationResult<Vec<u8>> {
     validate_unsigned_data(data)?;
     let mut bytes = Vec::new();
-    push_field(&mut bytes, TENANT_ROOT_ROLE_CREATION_COMMAND_DOMAIN_V1)?;
+    COMMAND_WIRE.push_field(&mut bytes, TENANT_ROOT_ROLE_CREATION_COMMAND_DOMAIN_V1)?;
     push_authorization_fields(&mut bytes, data)?;
-    push_field(&mut bytes, data.authorization_payload_digest.as_bytes())?;
-    push_field(&mut bytes, data.issuer_key_id.as_bytes())?;
-    Ok(bytes)
-}
-
-fn canonical_bytes_from_unsigned(
-    unsigned: Vec<u8>,
-    signature: &[u8; 64],
-) -> RouterAbDerivationResult<Vec<u8>> {
-    if signature.iter().all(|byte| *byte == 0) {
-        return Err(malformed(
-            "tenant-root role creation command signature must be nonzero",
-        ));
-    }
-    let mut bytes = unsigned;
-    push_field(&mut bytes, signature)?;
+    COMMAND_WIRE.push_field(&mut bytes, data.authorization_payload_digest.as_bytes())?;
+    COMMAND_WIRE.push_field(&mut bytes, data.issuer_key_id.as_bytes())?;
     Ok(bytes)
 }
 
@@ -808,39 +801,10 @@ fn authentication_input(issuer_key_id: &str, unsigned: &[u8]) -> RouterAbDerivat
         issuer_key_id,
     )?;
     let mut bytes = Vec::new();
-    push_field(&mut bytes, TENANT_ROOT_ROLE_CREATION_COMMAND_AUTH_DOMAIN_V1)?;
-    push_field(&mut bytes, issuer_key_id.as_bytes())?;
-    push_field(&mut bytes, unsigned)?;
+    COMMAND_WIRE.push_field(&mut bytes, TENANT_ROOT_ROLE_CREATION_COMMAND_AUTH_DOMAIN_V1)?;
+    COMMAND_WIRE.push_field(&mut bytes, issuer_key_id.as_bytes())?;
+    COMMAND_WIRE.push_field(&mut bytes, unsigned)?;
     Ok(bytes)
-}
-
-fn push_role(bytes: &mut Vec<u8>, role: TwoPartyDeriverRole) -> RouterAbDerivationResult<()> {
-    push_field(bytes, role.as_str().as_bytes())?;
-    push_field(bytes, &role.share_id().get().get().to_be_bytes())
-}
-
-fn push_field(bytes: &mut Vec<u8>, value: &[u8]) -> RouterAbDerivationResult<()> {
-    if value.is_empty() {
-        return Err(RouterAbDerivationError::new(
-            RouterAbDerivationErrorCode::EmptyField,
-            "tenant-root role creation command field is required",
-        ));
-    }
-    let length = u32::try_from(value.len())
-        .map_err(|_| malformed("tenant-root role creation command field is too long"))?;
-    let new_len = bytes
-        .len()
-        .checked_add(4)
-        .and_then(|length| length.checked_add(value.len()))
-        .ok_or_else(|| malformed("tenant-root role creation command wire length overflows"))?;
-    if new_len > TENANT_ROOT_ROLE_CREATION_COMMAND_MAX_BYTES_V1 {
-        return Err(malformed(
-            "tenant-root role creation command wire is too long",
-        ));
-    }
-    bytes.extend_from_slice(&length.to_be_bytes());
-    bytes.extend_from_slice(value);
-    Ok(())
 }
 
 fn malformed(message: impl Into<String>) -> RouterAbDerivationError {
@@ -858,106 +822,6 @@ fn verification_failed(message: &'static str) -> RouterAbDerivationError {
     )
 }
 
-struct RoleCreationCommandWireDecoderV1<'a> {
-    bytes: &'a [u8],
-    offset: usize,
-}
-
-impl<'a> RoleCreationCommandWireDecoderV1<'a> {
-    const fn new(bytes: &'a [u8]) -> Self {
-        Self { bytes, offset: 0 }
-    }
-
-    fn field(&mut self, name: &'static str) -> RouterAbDerivationResult<&'a [u8]> {
-        let length_end = self
-            .offset
-            .checked_add(4)
-            .ok_or_else(|| malformed("tenant-root role creation command wire offset overflows"))?;
-        let length_bytes = self.bytes.get(self.offset..length_end).ok_or_else(|| {
-            malformed("tenant-root role creation command field length is truncated")
-        })?;
-        let length = u32::from_be_bytes(
-            length_bytes
-                .try_into()
-                .expect("fixed four-byte role creation command field length"),
-        ) as usize;
-        let value_end = length_end
-            .checked_add(length)
-            .ok_or_else(|| malformed("tenant-root role creation command field length overflows"))?;
-        let value = self
-            .bytes
-            .get(length_end..value_end)
-            .ok_or_else(|| malformed("tenant-root role creation command field is truncated"))?;
-        self.offset = value_end;
-        if value.is_empty() {
-            return Err(RouterAbDerivationError::new(
-                RouterAbDerivationErrorCode::EmptyField,
-                format!("{name} is required"),
-            ));
-        }
-        Ok(value)
-    }
-
-    fn require_field(&mut self, expected: &[u8]) -> RouterAbDerivationResult<()> {
-        if self.field("tenant-root role creation command domain")? != expected {
-            return Err(malformed(
-                "tenant-root role creation command domain is invalid",
-            ));
-        }
-        Ok(())
-    }
-
-    fn fixed_field<const N: usize>(
-        &mut self,
-        name: &'static str,
-    ) -> RouterAbDerivationResult<[u8; N]> {
-        self.field(name)?.try_into().map_err(|_| {
-            malformed("tenant-root role creation command fixed field length is invalid")
-        })
-    }
-
-    fn u64_field(&mut self, name: &'static str) -> RouterAbDerivationResult<u64> {
-        Ok(u64::from_be_bytes(self.fixed_field::<8>(name)?))
-    }
-
-    fn text_field(
-        &mut self,
-        name: &'static str,
-        max_bytes: usize,
-    ) -> RouterAbDerivationResult<String> {
-        let bytes = self.field(name)?;
-        if bytes.len() > max_bytes {
-            return Err(malformed(
-                "tenant-root role creation command text field is too long",
-            ));
-        }
-        core::str::from_utf8(bytes)
-            .map(str::to_owned)
-            .map_err(|_| malformed("tenant-root role creation command text field is invalid UTF-8"))
-    }
-
-    fn role(&mut self) -> RouterAbDerivationResult<TwoPartyDeriverRole> {
-        let label = self.field("tenant-root role creation command role")?;
-        let share_id = self.fixed_field::<2>("tenant-root role creation command role share id")?;
-        match (label, u16::from_be_bytes(share_id)) {
-            (b"deriver_a", 1) => Ok(TwoPartyDeriverRole::DeriverA),
-            (b"deriver_b", 2) => Ok(TwoPartyDeriverRole::DeriverB),
-            _ => Err(malformed(
-                "tenant-root role creation command role encoding is invalid",
-            )),
-        }
-    }
-
-    fn finish(self) -> RouterAbDerivationResult<()> {
-        if self.offset != self.bytes.len() {
-            return Err(malformed(
-                "tenant-root role creation command wire has trailing bytes",
-            ));
-        }
-        Ok(())
-    }
-}
-
 const TENANT_ROOT_ROLE_CREATION_COMMAND_PACKAGE_DOMAIN_V1: &[u8] =
     b"tenant_root_role_creation_command_package_v1";
 
@@ -967,6 +831,11 @@ const TENANT_ROOT_ROLE_CREATION_COMMAND_PACKAGE_DOMAIN_V1: &[u8] =
 /// journal and ceremony context preimages its digests commit to, so it is
 /// bounded well above the command's own limit.
 pub const TENANT_ROOT_ROLE_CREATION_COMMAND_PACKAGE_MAX_BYTES_V1: usize = 64 * 1024;
+
+const PACKAGE_WIRE: TenantRootRoleCommandWireV1 = TenantRootRoleCommandWireV1::new(
+    "tenant-root role creation package",
+    TENANT_ROOT_ROLE_CREATION_COMMAND_PACKAGE_MAX_BYTES_V1,
+);
 
 /// A self-contained Router-attested role creation command.
 ///
@@ -1060,12 +929,12 @@ impl TenantRootRoleCreationCommandPackageV1 {
     /// Returns the exact canonical package bytes.
     pub fn canonical_bytes(&self) -> RouterAbDerivationResult<Vec<u8>> {
         let mut bytes = Vec::new();
-        push_package_field(
+        PACKAGE_WIRE.push_field(
             &mut bytes,
             TENANT_ROOT_ROLE_CREATION_COMMAND_PACKAGE_DOMAIN_V1,
         )?;
-        push_package_field(&mut bytes, &self.started_journal.canonical_bytes()?)?;
-        push_package_field(&mut bytes, &self.command.canonical_bytes()?)?;
+        PACKAGE_WIRE.push_field(&mut bytes, &self.started_journal.canonical_bytes()?)?;
+        PACKAGE_WIRE.push_field(&mut bytes, &self.command.canonical_bytes()?)?;
         Ok(bytes)
     }
 
@@ -1077,7 +946,7 @@ impl TenantRootRoleCreationCommandPackageV1 {
                 "tenant-root role creation package wire length is invalid",
             ));
         }
-        let mut decoder = RoleCreationPackageWireDecoderV1::new(bytes);
+        let mut decoder = PACKAGE_WIRE.decoder(bytes);
         decoder.require_domain(TENANT_ROOT_ROLE_CREATION_COMMAND_PACKAGE_DOMAIN_V1)?;
         let started_journal = TenantRootCreationJournalV1::decode_canonical_bytes(
             decoder.field("tenant-root role creation package Started journal")?,
@@ -1144,88 +1013,5 @@ impl VerifiedTenantRootRoleCreationCommandPackageV1 {
     /// Consumes this package into its verified command authorization.
     pub fn into_command(self) -> VerifiedTenantRootRoleCreationCommandV1 {
         self.command
-    }
-}
-
-fn push_package_field(bytes: &mut Vec<u8>, value: &[u8]) -> RouterAbDerivationResult<()> {
-    if value.is_empty() {
-        return Err(RouterAbDerivationError::new(
-            RouterAbDerivationErrorCode::EmptyField,
-            "tenant-root role creation package field is required",
-        ));
-    }
-    let length = u32::try_from(value.len())
-        .map_err(|_| malformed("tenant-root role creation package field is too long"))?;
-    let new_len = bytes
-        .len()
-        .checked_add(4)
-        .and_then(|length| length.checked_add(value.len()))
-        .ok_or_else(|| malformed("tenant-root role creation package wire length overflows"))?;
-    if new_len > TENANT_ROOT_ROLE_CREATION_COMMAND_PACKAGE_MAX_BYTES_V1 {
-        return Err(malformed(
-            "tenant-root role creation package wire is too long",
-        ));
-    }
-    bytes.extend_from_slice(&length.to_be_bytes());
-    bytes.extend_from_slice(value);
-    Ok(())
-}
-
-struct RoleCreationPackageWireDecoderV1<'a> {
-    bytes: &'a [u8],
-    offset: usize,
-}
-
-impl<'a> RoleCreationPackageWireDecoderV1<'a> {
-    const fn new(bytes: &'a [u8]) -> Self {
-        Self { bytes, offset: 0 }
-    }
-
-    fn field(&mut self, name: &'static str) -> RouterAbDerivationResult<&'a [u8]> {
-        let length_end = self
-            .offset
-            .checked_add(4)
-            .ok_or_else(|| malformed("tenant-root role creation package wire offset overflows"))?;
-        let length_bytes = self.bytes.get(self.offset..length_end).ok_or_else(|| {
-            malformed("tenant-root role creation package field length is truncated")
-        })?;
-        let length = u32::from_be_bytes(
-            length_bytes
-                .try_into()
-                .expect("fixed four-byte role creation package field length"),
-        ) as usize;
-        let value_end = length_end
-            .checked_add(length)
-            .ok_or_else(|| malformed("tenant-root role creation package field length overflows"))?;
-        let value = self
-            .bytes
-            .get(length_end..value_end)
-            .ok_or_else(|| malformed("tenant-root role creation package field is truncated"))?;
-        self.offset = value_end;
-        if value.is_empty() {
-            return Err(RouterAbDerivationError::new(
-                RouterAbDerivationErrorCode::EmptyField,
-                format!("{name} is required"),
-            ));
-        }
-        Ok(value)
-    }
-
-    fn require_domain(&mut self, expected: &[u8]) -> RouterAbDerivationResult<()> {
-        if self.field("tenant-root role creation package domain")? != expected {
-            return Err(malformed(
-                "tenant-root role creation package domain is invalid",
-            ));
-        }
-        Ok(())
-    }
-
-    fn finish(self) -> RouterAbDerivationResult<()> {
-        if self.offset != self.bytes.len() {
-            return Err(malformed(
-                "tenant-root role creation package wire has trailing bytes",
-            ));
-        }
-        Ok(())
     }
 }

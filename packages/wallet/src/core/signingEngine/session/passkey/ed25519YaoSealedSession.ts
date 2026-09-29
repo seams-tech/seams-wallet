@@ -52,11 +52,11 @@ export function buildPasskeyEd25519RestoreMetadata(args: {
   };
 }
 
-export type PasskeyEd25519YaoSessionPersistencePort = {
+type PasskeyEd25519YaoSessionPersistencePort = {
   hydrateSigningSession(input: HydrateSigningSessionInput): Promise<void>;
 };
 
-export type PersistPasskeyEd25519YaoSessionForRefreshInput = {
+type PersistPasskeyEd25519YaoSessionForRefreshInput = {
   persistence: PasskeyEd25519YaoSessionPersistencePort;
   session: NearResolvedEd25519SigningSessionState;
   prfFirstB64u: string;

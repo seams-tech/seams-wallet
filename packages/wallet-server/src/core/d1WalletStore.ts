@@ -1,6 +1,6 @@
-import { toOptionalTrimmedString } from '@shared/utils/validation';
+import { toOptionalTrimmedString, isPlainObject } from '@shared/utils/validation';
 import { parseWalletId } from '@shared/utils/domainIds';
-import { d1ChangedRows, formatD1ExecStatement, parseD1JsonColumn } from '../storage/d1Sql';
+import { D1_BATCH_CAS_GUARD_SQL, formatD1ExecStatement, parseD1JsonColumn } from '../storage/d1Sql';
 import type { D1DatabaseLike, D1PreparedStatementLike } from '../storage/tenantRoute';
 import type { WalletId, WalletRegistrationEcdsaWalletKey } from './registrationContracts';
 import {
@@ -247,10 +247,6 @@ export async function ensureWalletStoreD1Schema(
   }
 }
 
-function isObject(value: unknown): value is Record<string, unknown> {
-  return Boolean(value && typeof value === 'object' && !Array.isArray(value));
-}
-
 function normalizeTimestampMs(value: unknown): number | null {
   const numberValue = Number(value);
   if (!Number.isFinite(numberValue) || numberValue < 0) return null;
@@ -258,7 +254,7 @@ function normalizeTimestampMs(value: unknown): number | null {
 }
 
 function parseWalletRecord(raw: unknown): WalletRecord | null {
-  if (!isObject(raw)) return null;
+  if (!isPlainObject(raw)) return null;
   if (raw.version !== 'wallet_v1') return null;
   const walletId = parseWalletId(raw.walletId);
   const createdAtMs = normalizeTimestampMs(raw.createdAtMs);
@@ -283,7 +279,7 @@ function equalBytes(left: readonly number[], right: readonly number[]): boolean 
 function parseWalletEd25519YaoActiveCapabilityRecord(
   raw: unknown,
 ): WalletEd25519YaoActiveCapabilityRecord | null {
-  if (!isObject(raw)) return null;
+  if (!isPlainObject(raw)) return null;
   const nearAccountId = toOptionalTrimmedString(raw.nearAccountId);
   if (!nearAccountId) return null;
   let runtimePolicyScope;
@@ -355,7 +351,7 @@ function parseWalletEd25519YaoActiveCapabilityRecord(
 }
 
 export function parseWalletEd25519SignerRecord(raw: unknown): WalletEd25519SignerRecord | null {
-  if (!isObject(raw) || raw.version !== 'wallet_signer_ed25519_v1') return null;
+  if (!isPlainObject(raw) || raw.version !== 'wallet_signer_ed25519_v1') return null;
   const walletId = parseWalletId(raw.walletId);
   const signerId = toOptionalTrimmedString(raw.signerId);
   const nearAccountId = toOptionalTrimmedString(raw.nearAccountId);
@@ -1184,11 +1180,18 @@ export class D1WalletStore implements WalletStore {
     }).run();
   }
 
-  async putEd25519SignerIfSlotAvailable(record: WalletEd25519SignerRecord): Promise<boolean> {
+  /**
+   * The statements that insert an Ed25519 signer into its slot, for a batch
+   * owned elsewhere. The batch aborts unless the slot was free: slot
+   * uniqueness rests on this check alone.
+   */
+  async prepareEd25519SignerIfSlotAvailableStatements(
+    record: WalletEd25519SignerRecord,
+  ): Promise<readonly D1PreparedStatementLike[]> {
     await this.ensureSchema();
     const parsed = parseWalletEd25519SignerRecord(record);
     if (!parsed) throw new Error('Invalid Ed25519 wallet signer record');
-    const result = await this.database
+    const insert = this.database
       .prepare(
         `INSERT INTO wallet_signers (
           namespace,
@@ -1232,9 +1235,8 @@ export class D1WalletStore implements WalletStore {
         this.scope.envId,
         parsed.walletId,
         parsed.signerSlot,
-      )
-      .run();
-    return d1ChangedRows(result) === 1;
+      );
+    return [insert, this.database.prepare(D1_BATCH_CAS_GUARD_SQL)];
   }
 
   async putSigners(records: readonly WalletSignerRecord[]): Promise<void> {

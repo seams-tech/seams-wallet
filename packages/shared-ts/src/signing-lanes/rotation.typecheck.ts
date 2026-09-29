@@ -1,6 +1,5 @@
 import type {
   EcdsaAdditiveLaneCreationJobV1,
-  EcdsaAdditiveLaneJobV1,
   CompleteSigningLaneRevocationV1,
   Ed25519ServerRetirementReceiptV1,
   Ed25519YaoLaneCreationJobV1,

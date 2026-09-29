@@ -6,13 +6,12 @@ use router_ab_core::{
     encode_recipient_proof_bundle_ciphertext_v1, execute_local_persistence_sql_seed_plan_v1,
     local_persistence_seed_sql_plan_v1, router_transcript_digest_v1, validate_local_env_keys_v1,
     CanonicalWireBytesV1, EcdsaThresholdPrfProofBatchPayloadV1, EncryptedPayloadV1,
-    ExpensiveWorkKindV1, LifecycleScopeV1, LocalClientRouterRequestV1, LocalDeriverAEndpointV1,
-    LocalDeriverAServiceV1, LocalDeriverBEndpointV1, LocalDeriverBServiceV1,
-    LocalDeterministicSignerEnvelopeDecryptorV1, LocalEnvSnapshotV1, LocalHttpMethodV1,
-    LocalHttpPathV1, LocalHttpRequestV1, LocalPersistenceSeedV1, LocalPersistenceSqlSeedExecutorV1,
-    LocalPersistenceSqlStatementV1, LocalPersistenceSqlValueV1, LocalReplayCacheV1,
-    LocalRouterEndpointV1, LocalRouterServiceV1, LocalSealedRootShareRecordV1,
-    LocalServiceEndpointV1, LocalServiceRoleV1, LocalServiceStackV1, LocalServiceStartupV1,
+    ExpensiveWorkKindV1, LifecycleScopeV1, LocalDeriverAEndpointV1, LocalDeriverAServiceV1,
+    LocalDeriverBEndpointV1, LocalDeriverBServiceV1, LocalDeterministicSignerEnvelopeDecryptorV1,
+    LocalEnvSnapshotV1, LocalHttpMethodV1, LocalHttpPathV1, LocalHttpRequestV1,
+    LocalPersistenceSeedV1, LocalPersistenceSqlSeedExecutorV1, LocalPersistenceSqlStatementV1,
+    LocalPersistenceSqlValueV1, LocalRouterEndpointV1, LocalRouterServiceV1,
+    LocalSealedRootShareRecordV1, LocalServiceRoleV1, LocalServiceStackV1, LocalServiceStartupV1,
     LocalSignerEnvelopeDecryptorV1, LocalSignerHandlerContextV1, LocalSignerHandlerOutputV1,
     LocalSigningRootMetadataV1, LocalSigningWorkerEndpointV1,
     LocalSigningWorkerRecipientProofBundleActivationV1, LocalTransportEnvelopeV1,
@@ -61,37 +60,6 @@ fn http_request(
 ) -> LocalHttpRequestV1 {
     LocalHttpRequestV1::new(LocalHttpMethodV1::Post, path, transport(route, kind))
         .expect("http request")
-}
-
-fn http_request_with_digest(
-    path: LocalHttpPathV1,
-    route: LocalTransportRouteV1,
-    kind: WireMessageKindV1,
-    transcript_digest: PublicDigest32,
-) -> LocalHttpRequestV1 {
-    let envelope = LocalTransportEnvelopeV1::new(route, wire_with_digest(kind, transcript_digest))
-        .expect("transport envelope");
-    LocalHttpRequestV1::new(LocalHttpMethodV1::Post, path, envelope).expect("http request")
-}
-
-fn client_router_request() -> LocalClientRouterRequestV1 {
-    LocalClientRouterRequestV1::new(
-        "lifecycle-1",
-        "request-nonce-1",
-        2_000,
-        explicit_material_activation(),
-        http_request(
-            LocalHttpPathV1::RouterToSignerA,
-            LocalTransportRouteV1::RouterToSignerA,
-            WireMessageKindV1::RouterToSignerA,
-        ),
-        http_request(
-            LocalHttpPathV1::RouterToSignerB,
-            LocalTransportRouteV1::RouterToSignerB,
-            WireMessageKindV1::RouterToSignerB,
-        ),
-    )
-    .expect("client router request")
 }
 
 fn wire_with_digest(kind: WireMessageKindV1, transcript_digest: PublicDigest32) -> WireMessageV1 {
@@ -512,24 +480,6 @@ fn signing_worker_env_snapshot() -> LocalEnvSnapshotV1 {
 }
 
 #[test]
-fn local_service_endpoint_preserves_role_branch() {
-    let router = LocalServiceEndpointV1::router(router_endpoint()).expect("router service");
-    assert_eq!(router.role(), LocalServiceRoleV1::Router);
-
-    let deriver_a =
-        LocalServiceEndpointV1::deriver_a(deriver_a_endpoint()).expect("deriver a service");
-    assert_eq!(deriver_a.role(), LocalServiceRoleV1::DeriverA);
-
-    let deriver_b =
-        LocalServiceEndpointV1::deriver_b(deriver_b_endpoint()).expect("deriver b service");
-    assert_eq!(deriver_b.role(), LocalServiceRoleV1::DeriverB);
-
-    let signing_worker = LocalServiceEndpointV1::signing_worker(signing_worker_endpoint())
-        .expect("signing worker service");
-    assert_eq!(signing_worker.role(), LocalServiceRoleV1::SigningWorker);
-}
-
-#[test]
 fn local_router_endpoint_requires_all_routing_urls() {
     let err = LocalRouterEndpointV1::new(
         "http://127.0.0.1:8787",
@@ -616,21 +566,6 @@ fn local_deriver_b_env_keys_forbid_signing_worker_activation_storage() {
 }
 
 #[test]
-fn local_env_snapshot_validates_binding_keys_for_role() {
-    let snapshot = LocalEnvSnapshotV1::new(
-        LocalServiceRoleV1::DeriverA,
-        vec![
-            "DERIVER_A_ENVELOPE_HPKE_PRIVATE_KEY".to_owned(),
-            "SIGNING_ROOT_SHARE_A_KEK".to_owned(),
-            "DERIVER_B_URL".to_owned(),
-        ],
-    )
-    .expect("deriver a env snapshot");
-
-    assert_eq!(snapshot.role, LocalServiceRoleV1::DeriverA);
-}
-
-#[test]
 fn local_env_snapshot_rejects_empty_binding_names() {
     let err = LocalEnvSnapshotV1::new(LocalServiceRoleV1::Router, vec!["".to_owned()])
         .expect_err("empty binding key must fail");
@@ -672,20 +607,6 @@ fn local_signing_worker_env_keys_require_activation_storage_and_forbid_deriver_m
     .expect_err("signing worker must reject deriver material");
 
     assert_eq!(err.code(), RouterAbProtocolErrorCode::ForbiddenLocalBinding);
-}
-
-#[test]
-fn local_persistence_seed_accepts_matching_root_metadata_and_sealed_shares() {
-    let seed = LocalPersistenceSeedV1::new(
-        signing_root_metadata(),
-        sealed_share_record(Role::SignerA),
-        sealed_share_record(Role::SignerB),
-    )
-    .expect("local persistence seed");
-
-    assert_eq!(seed.root_metadata.signer_set_id, "signer-set-v1");
-    assert_eq!(seed.deriver_a_share.signer.role, Role::SignerA);
-    assert_eq!(seed.deriver_b_share.signer.role, Role::SignerB);
 }
 
 #[test]
@@ -1230,123 +1151,6 @@ fn local_signer_b_rejects_signer_a_router_request() {
 }
 
 #[test]
-fn local_service_stack_handles_one_client_router_request() {
-    let stack = LocalServiceStackV1::new(
-        LocalServiceStartupV1::router(router_endpoint(), router_env_snapshot()).expect("router"),
-        LocalServiceStartupV1::deriver_a(
-            deriver_a_endpoint(),
-            signer_a_identity(),
-            deriver_a_env_snapshot(),
-        )
-        .expect("deriver a startup"),
-        LocalServiceStartupV1::deriver_b(
-            deriver_b_endpoint(),
-            signer_b_identity(),
-            deriver_b_env_snapshot(),
-        )
-        .expect("deriver b startup"),
-        LocalServiceStartupV1::signing_worker(
-            signing_worker_endpoint(),
-            server_identity(),
-            signing_worker_env_snapshot(),
-        )
-        .expect("signing worker startup"),
-    )
-    .expect("local service stack");
-    let result = stack
-        .handle_local_client_request(1_000, client_router_request())
-        .expect("client request");
-
-    result
-        .router_response
-        .validate()
-        .expect("router proof-bundle response validates");
-    result
-        .signing_worker_activation
-        .validate()
-        .expect("SigningWorker proof-bundle activation validates");
-}
-
-#[test]
-fn local_client_router_request_rejects_transcript_mismatch() {
-    let err = LocalClientRouterRequestV1::new(
-        "lifecycle-1",
-        "request-nonce-1",
-        2_000,
-        explicit_material_activation(),
-        http_request_with_digest(
-            LocalHttpPathV1::RouterToSignerA,
-            LocalTransportRouteV1::RouterToSignerA,
-            WireMessageKindV1::RouterToSignerA,
-            digest(0x11),
-        ),
-        http_request_with_digest(
-            LocalHttpPathV1::RouterToSignerB,
-            LocalTransportRouteV1::RouterToSignerB,
-            WireMessageKindV1::RouterToSignerB,
-            digest(0x22),
-        ),
-    )
-    .expect_err("client request transcript mismatch must fail");
-
-    assert_eq!(err.code(), RouterAbProtocolErrorCode::MalformedWirePayload);
-}
-
-#[test]
-fn local_client_router_request_rejects_expired_request() {
-    let request = client_router_request();
-    let err = request
-        .validate_at(2_000)
-        .expect_err("expired request must fail");
-
-    assert_eq!(err.code(), RouterAbProtocolErrorCode::ExpiredLocalRequest);
-}
-
-#[test]
-fn local_replay_cache_rejects_replayed_client_request_nonce() {
-    let stack = LocalServiceStackV1::new(
-        LocalServiceStartupV1::router(router_endpoint(), router_env_snapshot()).expect("router"),
-        LocalServiceStartupV1::deriver_a(
-            deriver_a_endpoint(),
-            signer_a_identity(),
-            deriver_a_env_snapshot(),
-        )
-        .expect("deriver a startup"),
-        LocalServiceStartupV1::deriver_b(
-            deriver_b_endpoint(),
-            signer_b_identity(),
-            deriver_b_env_snapshot(),
-        )
-        .expect("deriver b startup"),
-        LocalServiceStartupV1::signing_worker(
-            signing_worker_endpoint(),
-            server_identity(),
-            signing_worker_env_snapshot(),
-        )
-        .expect("signing worker startup"),
-    )
-    .expect("local service stack");
-    let mut replay_cache = LocalReplayCacheV1::new();
-
-    stack
-        .handle_local_client_request_with_replay_cache(
-            1_000,
-            &mut replay_cache,
-            client_router_request(),
-        )
-        .expect("first request");
-    let err = stack
-        .handle_local_client_request_with_replay_cache(
-            1_000,
-            &mut replay_cache,
-            client_router_request(),
-        )
-        .expect_err("replayed request must fail");
-
-    assert_eq!(err.code(), RouterAbProtocolErrorCode::ReplayedLocalRequest);
-}
-
-#[test]
 fn local_transport_route_binds_expected_wire_kind() {
     let envelope = LocalTransportEnvelopeV1::new(
         LocalTransportRouteV1::RouterToSignerA,
@@ -1504,23 +1308,6 @@ fn local_deterministic_decryptor_returns_bound_signer_input_plaintext() {
         local_router_request_digest()
     );
     assert_eq!(plaintext.selected_server_id, "server-a");
-}
-
-#[test]
-fn local_signer_handler_rejects_wrong_router_route() {
-    let signer_a = LocalDeriverAServiceV1::new(deriver_a_endpoint(), signer_a_identity())
-        .expect("deriver a service");
-    let context = signer_a_context();
-    let wrong_route = LocalTransportEnvelopeV1::new(
-        LocalTransportRouteV1::RouterToSignerB,
-        wire(WireMessageKindV1::RouterToSignerB),
-    )
-    .expect("wrong route");
-    let err = signer_a
-        .handle_router_request(context, wrong_route)
-        .expect_err("wrong route must fail");
-
-    assert_eq!(err.code(), RouterAbProtocolErrorCode::InvalidLocalRoute);
 }
 
 #[test]

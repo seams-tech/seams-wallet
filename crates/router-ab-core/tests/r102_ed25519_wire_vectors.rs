@@ -1,4 +1,4 @@
-//! Rust half of the Refactor 102 Ed25519 job and product-receipt wire contract.
+//! Rust half of the Ed25519 job and product-receipt wire contract.
 //!
 //! Regenerate only after an intentional canonical wire change:
 //! `UPDATE_R102_ED25519_WIRE_FIXTURES=1 cargo test -p router-ab-core --test r102_ed25519_wire_vectors`.

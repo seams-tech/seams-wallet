@@ -77,7 +77,6 @@ import {
   readNearAccessKeySubject,
   reconcileNearLaneState,
   refreshNearNonceAfterBroadcastRejectedState,
-  releaseAllNearNoncesFromState,
   releaseNearNonceFromState,
   reserveNearNoncesFromState,
   shouldPrefetchNearContext,
@@ -629,10 +628,6 @@ export function createNonceCoordinator(deps: NonceCoordinatorDeps): NonceCoordin
 
   const releaseNearNonce = (nonce: string): void => {
     releaseNearNonceFromState(nearState, nonce);
-  };
-
-  const releaseAllNearNonces = (): void => {
-    releaseAllNearNoncesFromState(nearState);
   };
 
   const fetchNearFreshData = async (

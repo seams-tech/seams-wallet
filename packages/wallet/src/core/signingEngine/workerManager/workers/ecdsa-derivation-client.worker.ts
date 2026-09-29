@@ -120,7 +120,6 @@ import {
 import type {
   WasmFinalizeThresholdEcdsaDerivationRoleLocalClientBootstrapRequest,
   WasmPrepareThresholdEcdsaDerivationRoleLocalClientBootstrapRequest,
-  WasmPrepareThresholdEcdsaDerivationRoleLocalClientBootstrapResult,
 } from '@/core/types/signer-worker';
 import type { EcdsaRoleLocalReadyStateBlob } from '@/core/platform';
 import {
@@ -339,11 +338,6 @@ function readWorkerString(record: Record<string, unknown>, key: string): string 
   return value.trim();
 }
 
-function zeroizeBytes(bytes?: Uint8Array | null): void {
-  if (!(bytes instanceof Uint8Array)) return;
-  bytes.fill(0);
-}
-
 function secretB64uField(prefix: string): string {
   return `${prefix}B64u`;
 }
@@ -378,14 +372,6 @@ function requireExactKeys(
   }
 }
 
-function requireSafeNonNegativeInteger(value: unknown, label: string): number {
-  const parsed = Number(value);
-  if (!Number.isSafeInteger(parsed) || parsed < 0) {
-    throw new Error(`${label} must be a non-negative safe integer`);
-  }
-  return parsed;
-}
-
 function requireEthereumAddress(value: unknown, label: string): `0x${string}` {
   const address = String(value || '').trim();
   if (!/^0x[0-9a-fA-F]{40}$/.test(address)) {
@@ -404,79 +390,6 @@ function ethereumAddressFromBase64Url(value: string): `0x${string}` {
     hex += byte.toString(16).padStart(2, '0');
   }
   return `0x${hex}`;
-}
-
-function parsePreparedClientBootstrap(
-  value: unknown,
-): WasmPrepareThresholdEcdsaDerivationRoleLocalClientBootstrapResult {
-  const record = requireRecordPayload(value);
-  requireExactKeys(
-    record,
-    ['pendingStateBlob', 'clientBootstrap', 'publicFacts'],
-    'Router A/B ECDSA prepared client bootstrap',
-  );
-  const pendingStateBlob = requireRecordPayload(record.pendingStateBlob);
-  requireExactKeys(
-    pendingStateBlob,
-    ['kind', 'curve', 'encoding', 'producer', 'stateBlobB64u'],
-    'Router A/B ECDSA pending state blob',
-  );
-  if (
-    pendingStateBlob.kind !== 'ecdsa_role_local_pending_state_blob_v1' ||
-    pendingStateBlob.curve !== 'secp256k1' ||
-    pendingStateBlob.encoding !== 'base64url' ||
-    pendingStateBlob.producer !== 'signer_core'
-  ) {
-    throw new Error('Router A/B ECDSA pending state blob metadata is invalid');
-  }
-  const clientBootstrap = requireRecordPayload(record.clientBootstrap);
-  requireExactKeys(
-    clientBootstrap,
-    [
-      'contextBinding32B64u',
-      'derivationClientSharePublicKey33B64u',
-      'clientShareRetryCounter',
-      'participantId',
-    ],
-    'Router A/B ECDSA client bootstrap',
-  );
-  if (clientBootstrap.participantId !== 1) {
-    throw new Error('Router A/B ECDSA client bootstrap participantId must be 1');
-  }
-  const publicFacts = requireRecordPayload(record.publicFacts);
-  requireExactKeys(
-    publicFacts,
-    ['derivationClientSharePublicKey33B64u', 'clientVerifyingShareB64u'],
-    'Router A/B ECDSA client public facts',
-  );
-  return {
-    pendingStateBlob: {
-      kind: 'ecdsa_role_local_pending_state_blob_v1',
-      curve: 'secp256k1',
-      encoding: 'base64url',
-      producer: 'signer_core',
-      stateBlobB64u: readNonEmptyString(pendingStateBlob, 'stateBlobB64u'),
-    },
-    clientBootstrap: {
-      contextBinding32B64u: readNonEmptyString(clientBootstrap, 'contextBinding32B64u'),
-      derivationClientSharePublicKey33B64u: readNonEmptyString(
-        clientBootstrap,
-        'derivationClientSharePublicKey33B64u',
-      ),
-      clientShareRetryCounter: requireSafeNonNegativeInteger(
-        clientBootstrap.clientShareRetryCounter,
-        'clientShareRetryCounter',
-      ),
-      participantId: 1,
-    },
-    publicFacts: {
-      derivationClientSharePublicKey33B64u: readNonEmptyString(
-        publicFacts,
-        'derivationClientSharePublicKey33B64u',
-      ),
-      clientVerifyingShareB64u: readNonEmptyString(publicFacts, 'clientVerifyingShareB64u'),
-    },
-  };
 }
 
 type RouterAbEcdsaRegistrationBinding = {
@@ -1435,6 +1348,21 @@ function prepareLinkedDeviceEcdsaSourceContribution(
   raw: unknown,
 ): PrepareLinkedDeviceEcdsaSourceContributionResultV1 {
   const request = parsePrepareLinkedDeviceEcdsaSourceContributionRequestV1(raw);
+  if (request.linkedHolderHandleId !== undefined) {
+    /* A linked device contributes from its own holder share, which the
+       holder checks against the source the preparation names. */
+    const holder = requireLinkedDeviceEcdsaHolderMaterial(request.linkedHolderHandleId);
+    return parsePrepareLinkedDeviceEcdsaSourceContributionResultV1(
+      JSON.parse(
+        holder.prepare_source_contribution(
+          JSON.stringify({
+            kind: 'linked_device_ecdsa_source_contribution_preparation_input_v1',
+            preparation: request.preparation,
+          }),
+        ),
+      ),
+    );
+  }
   const sourceMaterial = resolveLinkedDeviceEcdsaSourceMaterial(request.preparation);
   const session = new LinkedDeviceEcdsaSourceContributionSessionV1(sourceMaterial.stateBlobB64u);
   try {
@@ -1630,7 +1558,7 @@ async function openEcdsaRoleLocalSigningMaterial(
   const lookup = await ecdsaCapabilityManifestStore.lookupByMaterialActivation({
     walletId: authority.walletId,
     materialActivation,
-    // R109C: siblings can share this activation, so name the exact method.
+    // Siblings can share this activation, so name the exact method.
     authority,
   });
   if (lookup.kind === 'persistence_unavailable') {
@@ -1936,9 +1864,11 @@ function finalizeEcdsaHolderOrdinaryExport(
     request.forwardedResponse,
   );
   const material = requireLinkedDeviceEcdsaHolderMaterial(holderHandleId);
+  /* The Derivers answer an export with stable tenant-root proof bundles, as
+     they do for the explicit export ceremony. */
   const finalizationInput = {
     clientProofFinalization: {
-      kind: 'finalize_encrypted_client_proof_bundles_v1',
+      kind: 'finalize_encrypted_client_proof_bundles_v2',
       bundles: forwardedResponse.response.bundles,
     },
     signingWorkerExport: projectSigningWorkerExportForEcdsaClientProtocol(

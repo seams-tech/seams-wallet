@@ -2,18 +2,12 @@ import { base64UrlEncode } from '../utils/base64';
 import type { DigestB64u } from '../utils/canonicalPrimitives';
 import { parseDigestB64u } from '../utils/canonicalPrimitives';
 import { alphabetizeStringify, sha256BytesUtf8 } from '../utils/digests';
-import {
-  type AuthorizationParseResult,
-  type CapabilityId,
-  type CapabilityOperationId,
-  type CapabilityOperationRef,
-  type PrincipalId,
-  type TenantId,
-  parseCapabilityId,
-  parseCapabilityOperationId,
-  parseCapabilityOperationRef,
-  parsePrincipalId,
-  parseTenantId,
+import type {
+  CapabilityId,
+  CapabilityOperationId,
+  CapabilityOperationRef,
+  PrincipalId,
+  TenantId,
 } from './capabilityKinds';
 
 const CAPABILITY_OPERATION_FINGERPRINT_DOMAIN_V1 =
@@ -88,72 +82,6 @@ export function buildCapabilityOperationEnvelope<TOperation extends CapabilityOp
   });
 }
 
-export function parseCapabilityOperationEnvelope(
-  raw: unknown,
-): AuthorizationParseResult<CapabilityOperationEnvelope> {
-  if (
-    !isExactRecord(raw, [
-      'tenantId',
-      'principalId',
-      'capabilityId',
-      'operationId',
-      'operation',
-      'digests',
-    ])
-  ) {
-    return invalidResult(
-      'capability operation envelope must contain exact identity, operation, and digest fields',
-    );
-  }
-  const tenantId = parseTenantId(raw.tenantId);
-  if (!tenantId.ok) return tenantId;
-  const principalId = parsePrincipalId(raw.principalId);
-  if (!principalId.ok) return principalId;
-  const capabilityId = parseCapabilityId(raw.capabilityId);
-  if (!capabilityId.ok) return capabilityId;
-  const operationId = parseCapabilityOperationId(raw.operationId);
-  if (!operationId.ok) return operationId;
-  const operation = parseCapabilityOperationRef(raw.operation);
-  if (!operation.ok) return operation;
-  const digests = parseOperationDigestSet(raw.digests);
-  if (!digests.ok) return digests;
-  return {
-    ok: true,
-    value: buildCapabilityOperationEnvelope({
-      tenantId: tenantId.value,
-      principalId: principalId.value,
-      capabilityId: capabilityId.value,
-      operationId: operationId.value,
-      operation: operation.value,
-      digests: digests.value,
-    }),
-  };
-}
-
-export function parseOperationDigestSet(
-  raw: unknown,
-): AuthorizationParseResult<OperationDigestSet> {
-  if (!isExactRecord(raw, ['laneDigest', 'intentDigest', 'displayDigest'])) {
-    return invalidResult(
-      'operation digests must contain exact laneDigest, intentDigest, and displayDigest fields',
-    );
-  }
-  const laneDigest = parseDigest(raw.laneDigest, 'laneDigest');
-  if (!laneDigest.ok) return laneDigest;
-  const intentDigest = parseDigest(raw.intentDigest, 'intentDigest');
-  if (!intentDigest.ok) return intentDigest;
-  const displayDigest = parseDigest(raw.displayDigest, 'displayDigest');
-  if (!displayDigest.ok) return displayDigest;
-  return {
-    ok: true,
-    value: {
-      laneDigest: laneDigest.value,
-      intentDigest: intentDigest.value,
-      displayDigest: displayDigest.value,
-    },
-  };
-}
-
 export function canonicalCapabilityOperationFingerprintPreimageV1(
   envelope: CapabilityOperationEnvelope,
 ): string {
@@ -187,34 +115,4 @@ export function parseSigningOperationFingerprintDigest(value: unknown): DigestB6
     throw new Error('signing operation fingerprint must use the sha256: prefix');
   }
   return parseDigestB64u(value.slice('sha256:'.length));
-}
-
-function parseDigest(
-  value: unknown,
-  fieldName: keyof OperationDigestSet,
-): AuthorizationParseResult<DigestB64u> {
-  try {
-    return { ok: true, value: parseDigestB64u(value) };
-  } catch {
-    return invalidResult(`${fieldName} must be a canonical 32-byte base64url digest`);
-  }
-}
-
-function isExactRecord(
-  value: unknown,
-  expectedKeys: readonly string[],
-): value is Record<string, unknown> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
-  const keys = Object.keys(value);
-  return keys.length === expectedKeys.length && keys.every((key) => expectedKeys.includes(key));
-}
-
-function invalidResult<T>(message: string): AuthorizationParseResult<T> {
-  return {
-    ok: false,
-    error: {
-      code: 'invalid',
-      message,
-    },
-  };
 }

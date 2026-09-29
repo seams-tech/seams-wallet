@@ -1,7 +1,7 @@
 # Refactor 150: automatic wallet placement and regional custody
 
 Date created: September 23, 2026
-Date revised: September 24, 2026
+Date revised: September 28, 2026
 
 Status: revised implementation plan. Managed Cloudflare hosting targets
 role-separated, SQLite-backed Durable Objects for wallet-local authoritative
@@ -10,10 +10,41 @@ Regional lanes remain an alternative deployment design. Geographic relocation is
 deferred. This document does not claim that the revised architecture
 is implemented, verified, or deployed.
 
+Checkpoint (2026-09-25, branch `codex/r150-do-backend`). This records evidence,
+not completion; none of the completion criteria below is claimed.
+
+- Tenant-root creation runs as one implementation over host traits; the
+  Workers and a Cloudflare-free VM reference both run it
+  ([VM provisioning](refactor-150-vm-tenant-root-provisioning.md)).
+- The VM reference serves registration, admission and NEAR normal signing
+  through the real Wallet Gateway on Node: the passkey Ed25519 Yao browser
+  contract (`passkey.ed25519-yao-local.contract.test.ts`) passes against it
+  with `SEAMS_INTENDED_WALLET_HOST=vm`
+  ([VM setup](refactor-150-vm-reference-setup.md)).
+- Router wallet-local lanes are classified as unfinished infrastructure with
+  no product consumer ([state ownership](refactor-150-state-ownership-map.md)).
+- [Cross-owner Yao finalization](refactor-150-cross-owner-finalization.md)
+  slices 1 to 7 are implemented on branch `codex/r150-do-backend`, not
+  merged; the [release readiness record](refactor-150-release-readiness.md)
+  gives the consolidated results and what fails.
+- Awaiting design approval: [Deriver A fresh attempt](refactor-150-deriver-a-fresh-attempt.md)
+  and [bounded retirement](refactor-150-root-retirement-admission.md).
+- Open: the creation resume gap after the initiator returns (both hosts), VM
+  refresh/restore/retirement/cutover, linked-device and step-up signing on
+  the VM, measured latency and cost, the clean reset, and production custody
+  isolation review.
+
 The filename is retained for existing links. This revision supersedes the original
 mandatory Home region setting, three managed D1 lanes, and migration-first rollout.
 Existing lane implementation work must be reconciled with this plan before further
 integration; its presence does not make it a requirement of the DO architecture.
+
+The managed rollout is a clean reset: the current production wallets are
+test-only and may be erased. This removes the D1-to-DO existing-wallet conversion
+phase and compatibility routing. It does not authorize a wipe during adapter
+development. An operator must inventory exact wallet-owned resources, retained
+tenant/config/root resources, dependencies, and recovery copies before an
+explicitly coordinated reset.
 
 ## Decision and objective
 
@@ -38,7 +69,7 @@ whose ownership and latency requirements justify it.
 
 The expected benefits are automatic per-wallet routing, local transactional state
 access, and fewer serial network calls. The size of the latency benefit and total
-cost must be measured before the full conversion proceeds.
+cost must be measured before the managed rollout proceeds.
 
 ## Product behavior and scope
 
@@ -50,10 +81,13 @@ Initial managed release:
   authority; travel can increase network latency.
 - Preserve registration, unlock, signing, recovery, factor, and export behavior
   for each configuration enabled in the release.
+- Include device linking, inventory and revocation, and Passkey/Email OTP
+  auth-method addition and revocation on both adapters. The required work is
+  tracked in [Phase 2](#required-device-linking-and-auth-method-work).
 - Collect operational latency and cost measurements without building travel
   profiles or a user-movement detector.
-- Provide runbooks for object failure, schema upgrades, recovery, and staged
-  backend conversion.
+- Provide runbooks for object failure, schema upgrades, recovery, and the
+  clean-reset rollout.
 - Keep shared wallet behavior independent of Cloudflare APIs and verify it through
   a concrete VM reference path as well as the managed Cloudflare adapter.
 - Deliver a setup guide and reference configuration for each adapter, with thin
@@ -147,8 +181,9 @@ an accidental cross-region signing chain.
 Use supported jurisdiction controls when policy requires them; a latency hint is
 insufficient. Namespace and jurisdiction selection are identity-bearing decisions.
 A changed policy or hint must never silently create a second writable wallet.
-The stable DO path needs no geographic directory. Trusted policy/identity metadata
-and temporary backend-conversion routing remain necessary where applicable.
+The stable DO path needs no geographic directory. Trusted policy and identity
+metadata determine one wallet authority; the clean reset needs no temporary
+backend discriminator.
 
 ### Storage and execution boundary
 
@@ -325,6 +360,16 @@ print secrets in configuration output, logs, or error reports. Deployment checks
 cannot certify administrative independence; document the operator review required
 for host, account, key, storage, and backup isolation.
 
+Gateway-origin Yao execute, source-preserving execute, lane execute, and recovery
+promotion require `ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET` in Gateway and Router
+only. The role-shared service credential is rejected on these routes. Managed
+deployment must provision and rotate this dedicated binding in both services as
+one coordinated change, verify that A, B, and SigningWorker cannot read or rebind
+it, and keep DO production routing disabled until the Gateway-through-Router
+retry and retirement gates pass. Missing bindings fail closed.
+The local setup creates an independent persisted secret; it is never derived
+from the role-shared bearer.
+
 A single-region VM setup requires no wallet-region directory. Multi-region VM
 hosting is an optional extension with an eligible-region catalog, automatic initial
 assignment, and persistent wallet routing. Cloudflare DO placement stays in its
@@ -343,7 +388,7 @@ and [D1 pricing](https://developers.cloudflare.com/d1/platform/pricing/).
 The detailed assumptions, formulas, and account-level projections are recorded in
 [the R150 cost analysis](./refactor-150-cost-analysis.md).
 
-Before a full conversion, compare the current path and a representative DO-backed
+Before the clean-reset rollout, compare the current path and a representative DO-backed
 path using the same protocol, payload, user locations, and network conditions:
 
 - End-to-end registration and signing p50/p95, including cold and warm objects.
@@ -471,20 +516,14 @@ deliverables. Publishing a new adapter cannot silently create a second writer.
 - Classify prior lane code as required by a supported deployment, reusable for an
   actual ownership transition, or superseded. Remove superseded paths, exports,
   settings helpers, and tests in the implementation change that replaces them.
-- Inspect deployed schema/version usage before retiring any persistence artifact.
-  The new design does not authorize deleting live records or blindly dropping
-  previously applied migrations.
-- Existing wallets remain on their proven authority until a separate conversion
-  procedure establishes authorization, source fencing, target verification,
-  replay continuity, and safe activation. Do not assume SQL export or dual writes
-  is an acceptable custody transfer.
-- A new-wallet cohort may precede existing-wallet conversion. Any temporary backend
-  discriminator belongs at the trusted routing/persistence boundary, with one
-  selected authority per wallet and an explicit removal milestone after conversion.
-  There is no automatic fallback that creates fresh custody on a failed lookup.
-- If conversion cannot preserve a wallet configuration's invariants, leave it on
-  its current backend and report the blocker. A cohort rollout is not evidence
-  that existing-wallet conversion is complete.
+- Inspect deployed schema/version usage before retiring persistence artifacts.
+  Previously applied migrations remain historical facts even after a reset.
+- Inventory exact test-wallet rows, objects, jobs, and external effects separately
+  from tenant configuration and root authority. Review dependencies and recovery
+  copies before an explicit clean reset; do not delete production state as an
+  incidental implementation step.
+- Bring up the new backend with one authority per new wallet and no silent D1
+  fallback. Remove obsolete wallet-local D1 paths after replacement is verified.
 
 ## Implementation sequence and verification
 
@@ -517,7 +556,8 @@ deliverables. Publishing a new adapter cannot silently create a second writer.
 ### Phase 2: complete managed backend and new-wallet cohort
 
 1. Complete the ownership changes for all enabled lifecycle operations and supported
-   protocols, including NEAR and EVM signing.
+   protocols, including NEAR and EVM signing and the device-linking and
+   auth-method tasks below.
 2. Add automatic registration placement and stable trusted routing. Verify policy
    changes, VPN use, travel, and retries cannot create another authority. Remove
    user-facing region controls and their exclusively supporting code and tests.
@@ -538,16 +578,209 @@ deliverables. Publishing a new adapter cannot silently create a second writer.
 Stopping new registrations is a valid rollout rollback. Existing DO wallets retain
 their committed authority; rollback never routes them to stale D1 state.
 
-### Phase 3: existing-wallet conversion and cleanup
+#### Required device-linking and auth-method work
 
-1. Specify and separately review the D1-to-DO conversion procedure and retention
-   policy. Apply authority-transfer safety requirements even if the reason is
-   a backend upgrade rather than geographic relocation.
-2. Exercise failure injection and supported-protocol manifest verification before
-   moving a production wallet.
-3. Convert eligible cohorts, resolve unsupported configurations explicitly, and
-   remove obsolete routing, stores, and temporary compatibility boundaries once
-   their last dependent wallet has safely converted.
+Scope confirmed 2026-09-28: both flows are required for the managed wallet-DO
+backend and the VM reference. The [operation inventory](./refactor-150-supported-operations.md)
+records the current gaps. Preserve the existing public routes and product
+behavior; reuse the shared Gateway and role adapters.
+
+**Device linking — implementation and end-to-end integration**
+
+- [x] Wire the existing linking flow through both backends: the Router's
+  Ed25519 source-preserving execution and the SigningWorker's ECDSA material
+  reservation, plus activation and deactivation for both curves. Add the
+  missing VM routes and make the managed path use its owning role's wallet
+  DO. Reuse shared lifecycle logic; wallet-local custody state must have no
+  D1 fallback or duplicate writer.
+- [ ] Keep link sessions, proof/nonces, credentials, authority installation
+  journals and inventory in Gateway shared SQL (Cloudflare D1; VM SQLite).
+  Preserve their atomic credential/authority commits and exact retry identity
+  across role calls. Cancellation or revocation must prevent a delayed
+  activation from restoring access. Reuse ordinary signing for the linked
+  device; unused dedicated linked-device signing branches need no new port.
+- [x] Extend the intended-behavior contracts with a two-device NEAR/EVM flow:
+  link, lose an activation/finalization response, retry the same link, sign
+  from the new device, revoke it, and refuse fresh signing from it while the
+  original device still signs. Check inventory and unchanged wallet public
+  keys/addresses, with no duplicate authority or material allocation.
+
+Status (2026-09-28): the contract "a second device links with a passkey,
+signs NEAR and Tempo, and is revoked" passes on the VM, the wallet-object
+build and Workers D1.
+- It loses Device 2's first activation response after the Gateway has
+  activated the linked authority and both curves' material. Device 2's own
+  retry receives the identical activation: the same authority, method,
+  Wallet Session and sealed delivery. Linking still lists exactly one
+  device.
+- Device 2 then signs NEAR and Tempo with the wallet's keys. Revocation
+  refuses both, and Device 1 still signs.
+
+What changed to get there:
+- Every linking request to the SigningWorker carries the wallet scope. The
+  Router derives it from the tenant root it admitted, the Gateway from its
+  tenant and the wallet its plan names. The SigningWorker refuses a scope
+  that names another wallet than the source and target activations, and the
+  source must be that wallet's active material.
+- The reservation, activation and revocation decisions are shared by every
+  host; each host stores the result beside the wallet's material. The
+  wallet object keeps both curves in its own tables. The VM SigningWorker
+  keeps Ed25519 beside the wallet's share, in the same snapshot, and ECDSA
+  in the shared wallet store.
+- Revocation retires the linked activation on every host. A delayed
+  activation of a revoked reservation is refused, NEAR signing refuses the
+  retired activation, and no ECDSA presignature is consumed for it.
+- The VM Router serves the source-preserving execute. A VM Deriver accepts
+  a linked device's registration of the wallet's own identity, as Workers
+  Derivers do; the SigningWorker still refuses a second registration
+  activation.
+
+A lost Router answer to the source-preserving execute is recovered
+(2026-09-28, all three hosts):
+- The contract also loses the Router's answer to Device 1's execute, after
+  the Router ran the target registration and the SigningWorker reserved its
+  material. A local-only Gateway fault drops that answer.
+- The Gateway retries the same request once, marked as the Router's replay.
+  The Router asks both Derivers what the earlier run reached. For a pair
+  both completed, it sends the same reservation request to the SigningWorker,
+  which answers with the reservation it holds. The fault requires the
+  identical request, the replay marker and a byte-identical answer, and it
+  reports a proof the contract checks.
+- The VM Router now reconciles that replay as the Workers Routers do. A pair
+  still running or completed on one side only is burned, as on Workers D1,
+  and the execute fails instead of running twice.
+
+Not exercised by the contract: a delayed activation after revocation (the
+refusal holds by construction).
+
+Linking from an already-linked device (2026-09-28): on a wallet whose
+signers are ECDSA only, Device 2 links Device 3. All three devices then sign
+Tempo with the wallet's key. The contract "a linked device links a third
+device on an ECDSA-only wallet, which signs Tempo" passes on the VM, the
+wallet-object build and Workers D1. What it took:
+- The Gateway reads a linked device's authority by its signer's identity.
+  Its material is the one its own link reserved, not the registration's.
+- The approving device's ECDSA source is its own linked material and public
+  identity. The owner-lane checks still read the wallet's registration
+  signer.
+- The SigningWorker accepts a linked device's active reservation as the
+  source, on every host. The source share is that device's relayer share,
+  and the contribution must name exactly that device's public identity. A
+  revoked device is no source.
+- The SDK contributes from the linked device's own ECDSA share, inside WASM,
+  with the same computation and checks as for a registration share.
+- The Gateway finds a device's custody signer by following its links back to
+  the registration signer.
+
+A linked device also links another on a wallet with an Ed25519 signer
+(b4f4253, 2026-09-28). Approving that link needs the unlocked Ed25519
+export root, and a linked device holds its root in a client-root envelope,
+not a wallet custody seed:
+- At an unlock the linked device opens its own verified client-root envelope,
+  with the factor that unlock presented, into a separate linking capability.
+  It shares the seed capability's expiry and its cleanup at lock and session
+  end.
+- The capability seals the root only to a transfer naming the same wallet,
+  wallet key, application binding and registered key. The transfer's link
+  session and recipient are authenticated as before, and the root never
+  leaves WASM.
+- It cannot reseal a wallet seed or a factor. A root received by transfer
+  still cannot be forwarded, and auth-method addition reads only the seed
+  capability.
+- The Gateway names the linked device's own Ed25519 binding as the source,
+  as it does for ECDSA.
+
+The contract links Device 2, unlocks it and has it link Device 3. Device 3
+receives the export root, signs NEAR and Tempo with the wallet's keys, and
+exports both keys: the Ed25519 key from that root, and the ECDSA key from its
+own share. The ECDSA export needed one fix (793ba2d): the holder's export
+now verifies the Derivers' stable tenant-root proof bundles, as the explicit
+export ceremony does. The contract passes on the VM, the wallet-object build
+and Workers D1 (2026-09-29), as do the other two linking contracts.
+
+**Auth-method addition and revocation — integration and demonstrated fixes**
+
+- [ ] Exercise the existing Gateway implementation through both SQL adapters.
+  Keep intents, factor proofs, auth-method/authority records and sealed
+  custody envelopes in Gateway shared SQL. Preserve atomic finalization and
+  revocation with affected sessions. Fix demonstrated adapter or lifecycle
+  gaps without moving these records into wallet DOs or creating another
+  signing implementation: addition re-seals the existing wallet custody
+  seed and retains its signing keys.
+- [ ] Extend/reuse the Passkey-to-Email-OTP and Email-OTP-to-Passkey addition
+  contracts: lose the finalize response, retry exactly, lock and unlock with
+  the new method, and sign NEAR/EVM with unchanged keys/addresses. Revoke the
+  added method and verify its access is refused while another active method
+  still works. Reuse any shared finalize fixes for device linking too.
+
+Status (2026-09-28): addition and revocation touch only the Gateway's
+shared SQL. The browser reseals the custody seed, and neither the Router nor
+the SigningWorker is called, so neither backend needs a custody change for
+them.
+- The SDK now retries a lost add-auth-method finalize once with the same
+  request, which the Gateway replays. Before, a lost answer failed an
+  addition that had committed.
+- Both addition contracts now lose the finalize answer and require the
+  replay. Passkey-to-Email-OTP also revokes the added method, requires its
+  code to be refused and signs with the passkey again. Email-OTP-to-passkey
+  requires the revoked Email OTP code to be refused.
+- The refusal must come from the revocation. For a wallet registered with
+  Email OTP, the Gateway's Google verification must refuse that wallet. On
+  fresh services it answers `stale_identity_mapping`, because the
+  revocation removed the wallet's enrollment. For an added method, the
+  wallet must list no Email OTP method any more. Neither may reach an Email
+  OTP challenge, a factor release or an unlock verification.
+- Every addition crosses families, so each contract uses Email OTP. Both
+  pass on the VM, the wallet-object build and Workers D1 (2026-09-29), with
+  a Google test ID token minted by impersonating the configured test
+  service account.
+- An exact retry of a revocation receives the answer that committed
+  (274faf2, 2026-09-29):
+  - The revocation, the spend of an Email OTP code and the answer commit in
+    one batch.
+  - The answer is recorded against the operation fingerprint and a digest of
+    the proof, never the proof or its code.
+  - The Gateway answers an exact retry from that record before examining its
+    proof again. A spent code still receives the answer it earned.
+  - The code is not spent when it is checked, so a commit that fails leaves
+    it usable for the same request.
+  - The SDK retries a lost revoke answer once with the same body.
+- The Email OTP add-passkey contract refuses the first commit of its
+  Email-OTP-proven revocation, through a local Gateway fault, and loses that
+  answer. The SDK's retry must commit on the same code, and a replay must
+  receive exactly the committed answer. Changed copies of the committed
+  request, one naming another operation and one carrying another code, must
+  be refused (992c4b5). A scratch check on SQLite, with the whole signer
+  chain, confirmed the batch's aborts. The contract passes on all three
+  hosts (2026-09-29).
+- A linked-device revocation is answered the same way (2026-09-29). Its
+  code is spent in the batch that revokes the device's method, and its
+  answer is recorded there too, read from the authority row the batch
+  wrote, since the answer names the authority's new revocation epoch. The
+  SDK retries a lost device-revoke answer once. "a linked device revoked
+  with an email code across a refused commit is answered from what
+  committed" refuses the first commit, loses that answer, and requires the
+  retry on the same code, an exact replay and two refused changed copies.
+  It passes on all three hosts.
+
+For each flow, run the representative scenario through the real Gateway on
+the actual Cloudflare wallet-object build and on the VM. A Workers D1-only
+pass does not establish DO support. Retain a repeatable artifact with the
+command, source/build identity, fault/retry evidence, signature verification
+and revocation results; prove wallet-local custody writes reached the role
+stores selected for that run. Keep checks focused on these flows, and leave
+the consolidated suite to the release milestone. These tasks remain open
+until the implementation and evidence land.
+
+### Phase 3: clean reset and replaced-path retirement
+
+1. Inventory and review the exact production test-wallet resources to erase,
+   retained tenant/config/root authorities, external effects, backups, and
+   reset order. Execute the reset only as a separately coordinated operation.
+2. Verify the DO-only new-wallet path and its VM reference with failure injection
+   and supported-protocol manifest checks before enabling registrations.
+3. Remove superseded wallet-local D1 routing, stores, and compatibility code.
+   Keep intentionally shared D1 authority and applied migration history.
 
 Regional-lane deployments and optional geographic relocation have independent
 approval and acceptance gates. They are not later mandatory phases of this managed
@@ -569,6 +802,8 @@ The initial managed DO milestone is complete when:
 - Wallet-local state and mutations execute in their owning role stores, with no
   hidden dual writer or required global geographic directory.
 - Every enabled lifecycle and signing protocol passes its current contracts.
+- Device linking and auth-method addition/revocation pass the Phase 2 retry,
+  signing and revocation scenarios on the wallet-DO and VM backends.
 - The same domain logic passes the supported contracts through a runnable VM
   reference adapter without Cloudflare dependencies; host-specific APIs remain
   confined to adapters, and supported VM topology/recovery limits are documented.
@@ -581,10 +816,10 @@ The initial managed DO milestone is complete when:
 - Registration and settings expose no region selection or move controls; retired
   region UI and its exclusive dependencies have been removed from SDK and hosted
   composition, without hidden or feature-flagged remnants.
-- Existing-wallet status and conversion blockers are explicitly documented.
+- The clean-reset resource inventory and execution evidence are documented.
 
-The backend replacement is complete only after existing-wallet conversion and
-obsolete-path cleanup are also complete. Future relocation UI, movement telemetry,
+The backend replacement is complete only after the clean reset, DO-only rollout,
+and obsolete-path cleanup are complete. Future relocation UI, movement telemetry,
 provider-specific AWS/GCP deployment automation, a PostgreSQL adapter, and
 regional-lane deployment are excluded from both completion claims. The portable
 VM reference path and its shared correctness tests are required.

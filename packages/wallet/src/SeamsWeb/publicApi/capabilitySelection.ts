@@ -29,7 +29,7 @@ type VaultBrowserCapabilityOperation = Extract<
   { readonly capabilityKind: typeof CAPABILITY_KINDS.vaultAccess }
 >;
 
-export type BrowserCapabilitySelectionRequest =
+type BrowserCapabilitySelectionRequest =
   | (NearBrowserCapabilityOperation & { readonly chainTarget?: never })
   | (EvmBrowserCapabilityOperation & { readonly chainTarget: ThresholdEcdsaChainTarget })
   | (VaultBrowserCapabilityOperation & { readonly chainTarget?: never });

@@ -79,7 +79,7 @@ excluded claims.
 | OL-BIND-01 | A committed use is bound to the presignature point selected by the request. | `src/lib.rs:205-213` | Full in-kernel | 1.00 |
 | OL-INPUT-01 | Points and scalars are parsed once into precise internal values; identity points, non-canonical scalars, and zero `k` shares are rejected. | `src/lib.rs:124-183`, `src/lib.rs:330-349` | Full in-kernel | 1.00 |
 | OL-ZEROIZE-01 | Secret material, digest, entropy, and HKDF candidates are zeroized when their owner is dropped or the derivation finishes. | `src/lib.rs:60-66`, `src/lib.rs:136-144`, `src/lib.rs:299-320` | Full in-kernel | 0.99 |
-| OL-SHARE-01 | The fixed Client and SigningWorker equations reproduce the pinned NEAR semantic outputs. | `src/lib.rs:223-257`; `../router-ab-ecdsa-near-oracle-tests/tests/online_parity.rs` | Full for the pinned valid trace | 1.00 |
+| OL-SHARE-01 | The fixed Client and SigningWorker equations reproduce the pinned NEAR semantic outputs. | `src/lib.rs:223-257`; `generated_presign_fixture_matches_oracle_finalization` | Full for the pinned valid trace | 1.00 |
 | OL-LOW-S-01 | Finalization selects low-`s` without a secret-dependent branch. | `src/lib.rs:256-257` | Full in-kernel | 1.00 |
 | OL-FINAL-01 | SigningWorker verifies the final prehash signature and derives a recovery ID for the registered group public key before output. | `src/lib.rs:259-290` | Full in-kernel | 1.00 |
 | OL-PERSIST-01 | Reserve, commit, consumption, and destruction survive crashes and ambiguous delivery. | `../router-ab-ecdsa-pool/src/lib.rs:218-465`; `packages/wallet/src/core/signingEngine/workerManager/opaqueEcdsaPresignAuthority.ts`; `crates/router-ab-cloudflare/src/ecdsa_pool_lifecycle.rs` | Full local integration | 0.99 |

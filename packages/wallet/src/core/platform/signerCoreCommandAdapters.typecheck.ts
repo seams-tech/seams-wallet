@@ -22,43 +22,43 @@ type StringKeys<T> = Extract<keyof T, string>;
 type AssertNever<T extends never> = T;
 declare function expectNoExtraKeys<T extends never>(): void;
 
-type _PrepareInputNoExtraTopLevel = AssertNever<
+export type _PrepareInputNoExtraTopLevel = AssertNever<
   Exclude<
     StringKeys<PrepareEcdsaClientBootstrapInput>,
     StringKeys<RawPrepareEcdsaClientBootstrapCommand>
   >
 >;
-type _PrepareInputNoMissingTopLevel = AssertNever<
+export type _PrepareInputNoMissingTopLevel = AssertNever<
   Exclude<
     StringKeys<RawPrepareEcdsaClientBootstrapCommand>,
     StringKeys<PrepareEcdsaClientBootstrapInput>
   >
 >;
-type _PrepareContextNoExtra = AssertNever<
+export type _PrepareContextNoExtra = AssertNever<
   Exclude<
     StringKeys<PrepareEcdsaClientBootstrapInput['context']>,
     StringKeys<RawPrepareEcdsaClientBootstrapCommand['context']>
   >
 >;
-type _PrepareContextNoMissing = AssertNever<
+export type _PrepareContextNoMissing = AssertNever<
   Exclude<
     StringKeys<RawPrepareEcdsaClientBootstrapCommand['context']>,
     StringKeys<PrepareEcdsaClientBootstrapInput['context']>
   >
 >;
-type _PrepareParticipantsNoExtra = AssertNever<
+export type _PrepareParticipantsNoExtra = AssertNever<
   Exclude<
     StringKeys<PrepareEcdsaClientBootstrapInput['participants']>,
     StringKeys<RawPrepareEcdsaClientBootstrapCommand['participants']>
   >
 >;
-type _PrepareParticipantsNoMissing = AssertNever<
+export type _PrepareParticipantsNoMissing = AssertNever<
   Exclude<
     StringKeys<RawPrepareEcdsaClientBootstrapCommand['participants']>,
     StringKeys<PrepareEcdsaClientBootstrapInput['participants']>
   >
 >;
-type _ThresholdPrfSecretSourceNoExtra = AssertNever<
+export type _ThresholdPrfSecretSourceNoExtra = AssertNever<
   Exclude<
     StringKeys<ThresholdPrfXClientBaseSecretSource>,
     StringKeys<
@@ -69,7 +69,7 @@ type _ThresholdPrfSecretSourceNoExtra = AssertNever<
     >
   >
 >;
-type _ThresholdPrfSecretSourceNoMissing = AssertNever<
+export type _ThresholdPrfSecretSourceNoMissing = AssertNever<
   Exclude<
     StringKeys<
       Extract<
@@ -80,7 +80,7 @@ type _ThresholdPrfSecretSourceNoMissing = AssertNever<
     StringKeys<ThresholdPrfXClientBaseSecretSource>
   >
 >;
-type _GeneratedPrepareSecretSourceIsOnlyThresholdPrf = AssertNever<
+export type _GeneratedPrepareSecretSourceIsOnlyThresholdPrf = AssertNever<
   Extract<
     RawPrepareEcdsaClientBootstrapCommand['secretSource'],
     {
@@ -93,37 +93,37 @@ type _GeneratedPrepareSecretSourceIsOnlyThresholdPrf = AssertNever<
   >
 >;
 
-type _PrepareOutputNoExtraTopLevel = AssertNever<
+export type _PrepareOutputNoExtraTopLevel = AssertNever<
   Exclude<
     StringKeys<PrepareEcdsaClientBootstrapOutput>,
     StringKeys<RawPrepareEcdsaClientBootstrapOutput>
   >
 >;
-type _PrepareOutputNoMissingTopLevel = AssertNever<
+export type _PrepareOutputNoMissingTopLevel = AssertNever<
   Exclude<
     StringKeys<RawPrepareEcdsaClientBootstrapOutput>,
     StringKeys<PrepareEcdsaClientBootstrapOutput>
   >
 >;
-type _FinalizeInputNoExtraTopLevel = AssertNever<
+export type _FinalizeInputNoExtraTopLevel = AssertNever<
   Exclude<
     StringKeys<FinalizeEcdsaClientBootstrapInput>,
     StringKeys<RawFinalizeEcdsaClientBootstrapCommand>
   >
 >;
-type _FinalizeInputNoMissingTopLevel = AssertNever<
+export type _FinalizeInputNoMissingTopLevel = AssertNever<
   Exclude<
     StringKeys<RawFinalizeEcdsaClientBootstrapCommand>,
     StringKeys<FinalizeEcdsaClientBootstrapInput>
   >
 >;
-type _FinalizeOutputNoExtraTopLevel = AssertNever<
+export type _FinalizeOutputNoExtraTopLevel = AssertNever<
   Exclude<
     StringKeys<FinalizeEcdsaClientBootstrapOutput>,
     StringKeys<RawFinalizeEcdsaClientBootstrapOutput>
   >
 >;
-type _FinalizeOutputNoMissingTopLevel = AssertNever<
+export type _FinalizeOutputNoMissingTopLevel = AssertNever<
   Exclude<
     StringKeys<RawFinalizeEcdsaClientBootstrapOutput>,
     StringKeys<FinalizeEcdsaClientBootstrapOutput>

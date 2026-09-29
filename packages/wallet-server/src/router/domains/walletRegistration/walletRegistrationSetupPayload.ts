@@ -1,6 +1,5 @@
 /**
- * Refactor 94C. The opaque payload `/wallets/register/setup` mints and routes
- * 2 and 3 verify.
+ * The opaque payload `/wallets/register/setup` mints and routes 2 and 3 verify.
  *
  * Setup admits the application, allocates the wallet, and runs the Router
  * preparation in one request. Routes 2 and 3 then need to know that the
@@ -44,7 +43,7 @@ export type WalletRegistrationSetupVerifier = {
   >;
 };
 
-export const WALLET_REGISTRATION_SETUP_CLAIM_KIND = 'wallet_registration_setup_v1' as const;
+const WALLET_REGISTRATION_SETUP_CLAIM_KIND = 'wallet_registration_setup_v1' as const;
 
 export type WalletRegistrationSetupClaimsV1 = {
   readonly kind: typeof WALLET_REGISTRATION_SETUP_CLAIM_KIND;
@@ -108,7 +107,7 @@ export async function mintSignedWalletRegistrationSetup(
   return token as SignedSetupPayloadB64u;
 }
 
-export type WalletRegistrationSetupVerification =
+type WalletRegistrationSetupVerification =
   | { readonly ok: true; readonly claims: WalletRegistrationSetupClaimsV1 }
   | { readonly ok: false; readonly code: string; readonly message: string };
 

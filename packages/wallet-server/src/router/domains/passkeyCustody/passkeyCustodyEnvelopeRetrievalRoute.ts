@@ -49,7 +49,7 @@ export async function handlePasskeyCustodyEnvelopeRetrieval(input: {
  * status each outcome earns, and that is worth reading and testing without a
  * store, an authenticator, or an assertion.
  */
-export function passkeyCustodyEnvelopeRetrievalRouteResponse(
+function passkeyCustodyEnvelopeRetrievalRouteResponse(
   result: PasskeyCustodyEnvelopeRetrievalResult,
 ): PasskeyCustodyEnvelopeRetrievalRouteResponse {
   switch (result.kind) {

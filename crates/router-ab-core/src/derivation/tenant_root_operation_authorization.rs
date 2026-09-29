@@ -1,4 +1,4 @@
-//! Authorization for tenant derivation-root console operations (Refactor 121).
+//! Authorization for tenant derivation-root console operations.
 //!
 //! Every mutating console operation is bound to one exact server-generated
 //! record. The record's digest is what a capability signs, what a second owner

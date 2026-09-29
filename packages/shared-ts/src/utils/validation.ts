@@ -1,9 +1,4 @@
-import { normalizeOptionalTrimmedString } from './normalize';
-
-export interface ValidationResult {
-  valid: boolean;
-  error?: string;
-}
+import { normalizeOptionalTrimmedString, normalizeTrimmedString } from './normalize';
 
 export type { NearAccountValidationOptions } from './near';
 export { ensureEd25519Prefix, validateNearAccountId, isValidAccountId } from './near';
@@ -41,6 +36,37 @@ export function toOptionalTrimmedNonEmptyString(value: unknown): string | undefi
   return parsed || undefined;
 }
 
+// requireTrimmedString's check, with an error that says a non-empty string was expected.
+export function requireNonEmptyString(value: unknown, label: string): string {
+  return requireTrimmedString(value, label, 'must be a non-empty string');
+}
+
+// Canonical: non-empty, with no leading or trailing whitespace. Returned unchanged.
+export function requireCanonicalString(
+  value: unknown,
+  label: string,
+  message = 'is invalid',
+): string {
+  if (typeof value !== 'string' || value.length === 0 || value.trim() !== value) {
+    throw new Error(`${label} ${message}`);
+  }
+  return value;
+}
+
+// Stringifies any truthy value: 42 passes as '42', while 0 and false count as missing.
+export function coerceNonEmptyString(value: unknown, label: string): string {
+  const normalized = String(value || '').trim();
+  if (!normalized) throw new Error(`${label} is required`);
+  return normalized;
+}
+
+// Like coerceNonEmptyString, but only null and undefined count as missing.
+export function coerceNonNullishString(value: unknown, label: string): string {
+  const normalized = normalizeTrimmedString(value);
+  if (!normalized) throw new Error(`${label} is required`);
+  return normalized;
+}
+
 // ===========================
 // Runtime validation helpers
 // ===========================
@@ -53,24 +79,12 @@ export function isPlainObject(x: unknown): x is Record<string, unknown> {
   return isObject(x) && !Array.isArray(x);
 }
 
-export function toOptionalRecordString(
-  record: unknown,
-  key: string,
-): string | undefined {
-  if (!isPlainObject(record)) return undefined;
-  return normalizeOptionalTrimmedString(record[key]);
-}
-
 export function isString(x: unknown): x is string {
   return typeof x === 'string';
 }
 
 export function isNonEmptyString(x: unknown): x is string {
   return typeof x === 'string' && x.length > 0;
-}
-
-export function isNumber(x: unknown): x is number {
-  return typeof x === 'number';
 }
 
 export function isFiniteNumber(x: unknown): x is number {
@@ -89,33 +103,37 @@ export function isArray<T = unknown>(x: unknown): x is T[] {
   return Array.isArray(x);
 }
 
+export function asRecord(value: unknown): Record<string, unknown> | null {
+  return isPlainObject(value) ? value : null;
+}
+
+export function asRecordOrArray(value: unknown): Record<string, unknown> | null {
+  return isObject(value) ? value : null;
+}
+
+export function requireRecord(value: unknown, label: string): Record<string, unknown> {
+  if (!isPlainObject(value)) throw new Error(`${label} must be an object`);
+  return value;
+}
+
+export function requireRecordOrArray(value: unknown, label: string): Record<string, unknown> {
+  if (!isObject(value)) throw new Error(`${label} must be an object`);
+  return value;
+}
+
+// Returns a copy with only the value's own enumerable string-keyed properties.
+export function requireRecordCopy(value: unknown, label: string): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(requireRecord(value, label)));
+}
+
+export function requireArray(value: unknown, label: string): readonly unknown[] {
+  if (!Array.isArray(value)) throw new Error(`${label} must be an array`);
+  return value;
+}
+
 export function assertString(val: unknown, name = 'value'): string {
   if (typeof val !== 'string') throw new Error(`Invalid ${name}: expected string`);
   return val;
-}
-
-export function assertNumber(val: unknown, name = 'value'): number {
-  if (typeof val !== 'number' || !Number.isFinite(val))
-    throw new Error(`Invalid ${name}: expected finite number`);
-  return val;
-}
-
-export function assertBoolean(val: unknown, name = 'value'): boolean {
-  if (typeof val !== 'boolean') throw new Error(`Invalid ${name}: expected boolean`);
-  return val;
-}
-
-export function assertObject<T extends Record<string, unknown> = Record<string, unknown>>(
-  val: unknown,
-  name = 'value',
-): T {
-  if (!isObject(val)) throw new Error(`Invalid ${name}: expected object`);
-  return val as T;
-}
-
-export function assertArray<T = unknown>(val: unknown, name = 'value'): T[] {
-  if (!Array.isArray(val)) throw new Error(`Invalid ${name}: expected array`);
-  return val as T[];
 }
 
 export function stripFunctionsShallow<T extends Record<string, unknown>>(

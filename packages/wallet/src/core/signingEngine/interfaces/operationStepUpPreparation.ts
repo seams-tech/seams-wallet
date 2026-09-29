@@ -2,7 +2,7 @@ import type { TransactionContext } from '@/core/types/rpc';
 import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';
 
 declare const nearOperationStepUpHandleBrand: unique symbol;
-export type NearOperationStepUpHandle = string & {
+type NearOperationStepUpHandle = string & {
   readonly [nearOperationStepUpHandleBrand]: true;
 };
 export type NearOperationStepUpPreparationRef = {

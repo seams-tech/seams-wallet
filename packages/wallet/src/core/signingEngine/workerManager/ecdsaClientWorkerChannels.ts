@@ -54,7 +54,7 @@ import type {
   EcdsaAdditiveLaneHolderPreparationV1,
   EcdsaAdditiveLaneJobV1,
 } from '@shared/signing-lanes/rotation';
-import { parseRotatableSigningLaneJobV1 } from '@shared/signing-lanes/rotationParsers';
+import { parseRotatableSigningLaneJobV1 } from '@shared/signing-lanes/rotationProtocolParsers';
 import {
   parseLinkedDeviceEcdsaSourceContributionPackageV1,
   parseLinkedDeviceEcdsaSourceContributionPreparationV1,
@@ -68,17 +68,17 @@ export const EcdsaClientWorkerControlKind = {
   AttachPresignToOnline: 'attach_ecdsa_presign_to_online_v1',
 } as const;
 
-export type AttachEcdsaDerivationToPresignPort = {
+type AttachEcdsaDerivationToPresignPort = {
   readonly kind: typeof EcdsaClientWorkerControlKind.AttachDerivationToPresign;
   readonly port: MessagePort;
 };
 
-export type AttachLinkedHolderToPresignPort = {
+type AttachLinkedHolderToPresignPort = {
   readonly kind: typeof EcdsaClientWorkerControlKind.AttachLinkedHolderToPresign;
   readonly port: MessagePort;
 };
 
-export type AttachPresignToOnlinePort = {
+type AttachPresignToOnlinePort = {
   readonly kind: typeof EcdsaClientWorkerControlKind.AttachPresignToOnline;
   readonly port: MessagePort;
 };
@@ -306,6 +306,8 @@ export type PrepareEcdsaAdditiveLaneHolderResultV1 = EcdsaAdditiveLaneHolderPrep
 export type PrepareLinkedDeviceEcdsaSourceContributionRequestV1 = {
   readonly kind: 'prepare_linked_device_ecdsa_source_contribution_v1';
   readonly preparation: LinkedDeviceEcdsaSourceContributionPreparationV1;
+  /** Set when the source is this linked device's own holder share. */
+  readonly linkedHolderHandleId?: string;
 };
 
 export type PrepareLinkedDeviceEcdsaSourceContributionResultV1 = {
@@ -357,15 +359,27 @@ export function parsePrepareLinkedDeviceEcdsaSourceContributionRequestV1(
     throw new Error('linked-device ECDSA source contribution request must be an object');
   }
   const fields = Object.keys(raw);
-  if (fields.length !== 2 || !fields.includes('kind') || !fields.includes('preparation')) {
+  const linkedHolder = fields.includes('linkedHolderHandleId');
+  if (
+    fields.length !== (linkedHolder ? 3 : 2) ||
+    !fields.includes('kind') ||
+    !fields.includes('preparation')
+  ) {
     throw new Error('linked-device ECDSA source contribution request has invalid fields');
   }
   if (raw.kind !== 'prepare_linked_device_ecdsa_source_contribution_v1') {
     throw new Error('linked-device ECDSA source contribution request kind is invalid');
   }
+  if (
+    linkedHolder &&
+    (typeof raw.linkedHolderHandleId !== 'string' || !raw.linkedHolderHandleId.trim())
+  ) {
+    throw new Error('linked-device ECDSA source contribution holder handle is invalid');
+  }
   return {
     kind: 'prepare_linked_device_ecdsa_source_contribution_v1',
     preparation: parseLinkedDeviceEcdsaSourceContributionPreparationV1(raw.preparation),
+    ...(linkedHolder ? { linkedHolderHandleId: String(raw.linkedHolderHandleId) } : {}),
   };
 }
 
@@ -438,7 +452,7 @@ type RouterAbEcdsaOperationStepUpExplicitExportRequestWasmInputV1 = Omit<
   };
 };
 
-export type RouterAbEcdsaExplicitExportRequestWasmInputV1 =
+type RouterAbEcdsaExplicitExportRequestWasmInputV1 =
   | RouterAbEcdsaReusableExplicitExportRequestWasmInputV1
   | RouterAbEcdsaOperationStepUpExplicitExportRequestWasmInputV1;
 
@@ -508,7 +522,7 @@ export function attachRouterAbEcdsaExplicitExportOperationV1(input: {
   };
 }
 
-export type RouterAbEcdsaActivationRefreshRequestFactsV1 = Omit<
+type RouterAbEcdsaActivationRefreshRequestFactsV1 = Omit<
   RouterAbEcdsaDerivationActivationRefreshRequestV1,
   'deriver_a_refresh_envelope' | 'deriver_b_refresh_envelope'
 > & {
@@ -835,7 +849,7 @@ const ECDSA_EXPLICIT_EXPORT_FACT_FIELDS = [
   'deriver_recipient_keys',
 ] as const;
 
-export function parseRouterAbEcdsaExplicitExportRequestFactsV1(
+function parseRouterAbEcdsaExplicitExportRequestFactsV1(
   value: unknown,
 ): RouterAbEcdsaExplicitExportRequestFactsV1 {
   const object = requireEcdsaClientChannelObject(value, 'ECDSA explicit-export facts');
@@ -927,7 +941,7 @@ const ECDSA_REFRESH_FACT_FIELDS = [
   'deriver_recipient_keys',
 ] as const;
 
-export function parseRouterAbEcdsaActivationRefreshRequestFactsV1(
+function parseRouterAbEcdsaActivationRefreshRequestFactsV1(
   value: unknown,
 ): RouterAbEcdsaActivationRefreshRequestFactsV1 {
   const record = requireExactEcdsaClientChannelObject(

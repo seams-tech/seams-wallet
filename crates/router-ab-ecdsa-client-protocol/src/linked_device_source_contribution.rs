@@ -1,4 +1,4 @@
-//! Ephemeral ECDSA source contribution for R103E linked-device installation.
+//! Ephemeral ECDSA source contribution for linked-device installation.
 //!
 //! Device 1 keeps both the source client scalar and the sampled target client
 //! scalar inside its WASM boundary. Only the additive delta leaves that

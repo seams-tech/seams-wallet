@@ -1,26 +1,33 @@
 use router_ab_core::LocalServiceRoleV1;
 use router_ab_dev::{
-    dispatch_local_ed25519_yao_connection_with_persistence_v1,
-    local_dev_http_handle_request_with_dispatcher_v1, local_worker_bind_addr_v1,
-    parse_local_env_file_contents_v1, parse_local_service_role_label_v1,
-    parse_local_worker_role_config_for_role_v1, read_local_dev_http_request_v1,
-    write_local_dev_http_response_v1, LocalDevHttpTopologyV1, LocalEd25519YaoConnectionDispatchV1,
-    LocalEd25519YaoWorkerStateV1, LocalRolePrivateSqliteStorageV1,
-    LocalRouterEd25519YaoCoordinatorV1, LocalRouterRequestDispatcherV1, LocalWorkerRoleConfigV1,
+    apply_local_sqlite_migrations_v1, dispatch_local_ed25519_yao_connection_with_persistence_v1,
+    local_dev_http_handle_request_with_dispatcher_v1, local_router_ab_ecdsa_route_v1,
+    local_sqlite_migration_status_v1, local_tenant_root_admission_recovery_window_ms_v1,
+    local_tenant_root_refresh_scheduler_tick_ms_v1, local_tenant_root_route_v1,
+    local_worker_bind_addr_v1, local_worker_deployment_check_v1,
+    local_worker_role_sqlite_stores_v1, parse_local_env_file_contents_v1,
+    parse_local_service_role_label_v1, parse_local_worker_role_config_for_role_v1,
+    read_local_dev_http_request_v1, run_local_tenant_root_refresh_scheduler_v1,
+    write_local_dev_http_response_v1, write_local_dev_http_response_with_server_timing_v1,
+    LocalDevHttpTopologyV1, LocalEd25519YaoConnectionDispatchV1, LocalEd25519YaoSqliteHostV1,
+    LocalEd25519YaoWorkerStateV1, LocalRouterEd25519YaoCoordinatorV1,
+    LocalRouterRequestDispatcherV1, LocalWorkerRoleConfigV1,
 };
-use rusqlite::Connection;
 use serde::Serialize;
 use std::{
     env, fs,
     net::{TcpListener, TcpStream},
     path::PathBuf,
     sync::Arc,
+    thread,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct WorkerOptions {
     role: LocalServiceRoleV1,
     env_path: PathBuf,
+    migrate: bool,
+    check: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -39,74 +46,56 @@ struct WorkerRequestErrorSummary {
     error: String,
 }
 
-const LOCAL_ED25519_YAO_ROLE_PRIVATE_STATE_KEY_V1: &str = "ed25519-yao/worker-state-v1";
-
-struct LocalEd25519YaoStateStoreV1 {
-    connection: Connection,
-}
-
-impl LocalEd25519YaoStateStoreV1 {
-    fn open(config: &LocalWorkerRoleConfigV1) -> Result<Self, Box<dyn std::error::Error>> {
-        let path = match config {
-            LocalWorkerRoleConfigV1::DeriverA(config) => config.role_private_storage_path.as_str(),
-            LocalWorkerRoleConfigV1::DeriverB(config) => config.role_private_storage_path.as_str(),
-            LocalWorkerRoleConfigV1::SigningWorker(config) => {
-                config.role_private_storage_path.as_str()
-            }
-            LocalWorkerRoleConfigV1::Router(_) => {
-                return Err("Router does not own local Ed25519 Yao secret state".into());
-            }
-        };
-        let path = PathBuf::from(path);
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent)?;
-        }
-        let connection = Connection::open(path)?;
-        LocalRolePrivateSqliteStorageV1::new(&connection)?;
-        Ok(Self { connection })
-    }
-
-    fn load(
-        &self,
-        role: LocalServiceRoleV1,
-    ) -> Result<LocalEd25519YaoWorkerStateV1, Box<dyn std::error::Error>> {
-        let storage = LocalRolePrivateSqliteStorageV1::new(&self.connection)?;
-        let Some(bytes) = storage.get_bytes(LOCAL_ED25519_YAO_ROLE_PRIVATE_STATE_KEY_V1)? else {
-            return Ok(LocalEd25519YaoWorkerStateV1::default());
-        };
-        Ok(LocalEd25519YaoWorkerStateV1::decode_durable_state_for_role_v1(role, &bytes)?)
-    }
-
-    fn persist(
-        &self,
-        role: LocalServiceRoleV1,
-        state: &LocalEd25519YaoWorkerStateV1,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let bytes = state.encode_durable_state_for_role_v1(role)?;
-        let storage = LocalRolePrivateSqliteStorageV1::new(&self.connection)?;
-        storage.put_bytes(LOCAL_ED25519_YAO_ROLE_PRIVATE_STATE_KEY_V1, &bytes)?;
-        Ok(())
-    }
-}
-
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let options = parse_args(env::args().skip(1))?;
+    if options.check {
+        let report = local_worker_deployment_check_v1(options.role, &options.env_path);
+        println!("{}", serde_json::to_string_pretty(&report)?);
+        std::process::exit(if report.passed { 0 } else { 1 });
+    }
     let env_contents = fs::read_to_string(&options.env_path)?;
     let config = Arc::new(parse_local_worker_role_config_for_role_v1(
         options.role,
         parse_local_env_file_contents_v1(&env_contents)?,
     )?);
+    let schemas: Vec<_> = local_worker_role_sqlite_stores_v1(&config)
+        .into_iter()
+        .filter_map(|store| store.chain.map(|chain| (store.path, chain)))
+        .collect();
+    if options.migrate {
+        for (path, chain) in &schemas {
+            let applied = apply_local_sqlite_migrations_v1(path, chain)?;
+            eprintln!(
+                "{}",
+                serde_json::json!({
+                    "event": "migrated",
+                    "role": config.role().as_str(),
+                    "path": path.display().to_string(),
+                    "applied": applied,
+                })
+            );
+        }
+        return Ok(());
+    }
+    for (path, chain) in &schemas {
+        let status = local_sqlite_migration_status_v1(path, chain)?;
+        if !status.is_current() {
+            return Err(format!(
+                "{} schema is not current (pending {:?}, unknown {:?}); run with --migrate first",
+                path.display(),
+                status.pending,
+                status.unknown
+            )
+            .into());
+        }
+    }
+    require_durable_job_settings(&config)?;
     let bind_addr = local_worker_bind_addr_v1(&config)?;
     let listener = TcpListener::bind(&bind_addr)?;
     let state_store = if config.role() == LocalServiceRoleV1::Router {
         None
     } else {
-        Some(LocalEd25519YaoStateStoreV1::open(&config)?)
-    };
-    let router_dispatcher = if config.role() == LocalServiceRoleV1::Router {
-        Some(LocalRouterEd25519YaoCoordinatorV1::default())
-    } else {
-        None
+        Some(LocalEd25519YaoSqliteHostV1::open(&config)?)
     };
 
     let summary = WorkerStartupSummary {
@@ -117,9 +106,46 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     eprintln!("{}", serde_json::to_string(&summary)?);
 
+    if config.role() == LocalServiceRoleV1::Router {
+        // The Router serves creation-state calls from the control plane and
+        // both Derivers while its own creation coordinator is waiting on
+        // them, so each connection gets its own thread. The Router keeps no
+        // in-memory state; its durable state is in SQLite.
+        let dispatcher = Arc::new(LocalRouterEd25519YaoCoordinatorV1::default());
+        let scheduler_config = Arc::clone(&config);
+        thread::spawn(move || {
+            if let LocalWorkerRoleConfigV1::Router(router) = scheduler_config.as_ref() {
+                if let Err(error) = run_local_tenant_root_refresh_scheduler_v1(&router.tenant_root) {
+                    log_worker_request_error(&scheduler_config, &error);
+                }
+            }
+        });
+        for stream in listener.incoming() {
+            match stream {
+                Ok(stream) => {
+                    let config = Arc::clone(&config);
+                    let dispatcher = Arc::clone(&dispatcher);
+                    thread::spawn(move || {
+                        if let Err(error) = handle_connection(
+                            stream,
+                            &config,
+                            None,
+                            None,
+                            Some(dispatcher.as_ref() as &dyn LocalRouterRequestDispatcherV1),
+                        ) {
+                            log_worker_request_error(&config, error.as_ref());
+                        }
+                    });
+                }
+                Err(error) => log_worker_request_error(&config, &error),
+            }
+        }
+        return Ok(());
+    }
+
     let mut yao_state = state_store
         .as_ref()
-        .map(|store| store.load(config.role()))
+        .map(|store| store.load_state(config.role()))
         .transpose()?;
     for stream in listener.incoming() {
         match stream {
@@ -129,17 +155,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     &config,
                     yao_state.as_mut(),
                     state_store.as_ref(),
-                    router_dispatcher
-                        .as_ref()
-                        .map(|dispatcher| dispatcher as &dyn LocalRouterRequestDispatcherV1),
+                    None,
                 ) {
                     Ok(LocalWorkerConnectionResultV1::YaoHandled) => {
                         if let (Some(store), Some(state)) =
                             (state_store.as_ref(), yao_state.as_ref())
                         {
-                            store.persist(config.role(), state)?;
+                            store.persist_state(config.role(), state)?;
                         }
                     }
+                    Ok(LocalWorkerConnectionResultV1::YaoNoSnapshotWrite) => {}
                     Ok(LocalWorkerConnectionResultV1::OtherHandled) => {}
                     Err(error) => log_worker_request_error(&config, error.as_ref()),
                 }
@@ -152,6 +177,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 enum LocalWorkerConnectionResultV1 {
     YaoHandled,
+    YaoNoSnapshotWrite,
     OtherHandled,
 }
 
@@ -159,24 +185,28 @@ fn handle_connection(
     stream: TcpStream,
     config: &LocalWorkerRoleConfigV1,
     yao_state: Option<&mut LocalEd25519YaoWorkerStateV1>,
-    state_store: Option<&LocalEd25519YaoStateStoreV1>,
+    state_store: Option<&LocalEd25519YaoSqliteHostV1>,
     router_dispatcher: Option<&dyn LocalRouterRequestDispatcherV1>,
 ) -> Result<LocalWorkerConnectionResultV1, Box<dyn std::error::Error>> {
     let mut stream = if let Some(yao_state) = yao_state {
+        let store = state_store.ok_or("custody worker SQLite host is missing")?;
         let mut persist_before_network = |state: &LocalEd25519YaoWorkerStateV1| {
-            let Some(store) = state_store else {
-                return Ok(());
-            };
-            store.persist(config.role(), state)
+            store
+                .persist_state(config.role(), state)
+                .map_err(Into::into)
         };
         match dispatch_local_ed25519_yao_connection_with_persistence_v1(
             stream,
             config,
             yao_state,
+            store,
             &mut persist_before_network,
         )? {
             LocalEd25519YaoConnectionDispatchV1::Handled => {
                 return Ok(LocalWorkerConnectionResultV1::YaoHandled);
+            }
+            LocalEd25519YaoConnectionDispatchV1::NoSnapshotWrite => {
+                return Ok(LocalWorkerConnectionResultV1::YaoNoSnapshotWrite);
             }
             LocalEd25519YaoConnectionDispatchV1::Unhandled(stream) => stream,
         }
@@ -184,6 +214,31 @@ fn handle_connection(
         stream
     };
     let request = read_local_dev_http_request_v1(&mut stream)?;
+    if let Some(response) =
+        router_ab_dev::local_tenant_root_recovery_access_route_v1(config, &request)
+    {
+        router_ab_dev::write_local_dev_http_binary_response_v1(
+            &mut stream,
+            response.status,
+            response.content_type,
+            &response.headers,
+            &response.body,
+        )?;
+        return Ok(LocalWorkerConnectionResultV1::OtherHandled);
+    }
+    if let Some((status, body)) = local_tenant_root_route_v1(config, &request) {
+        write_local_dev_http_response_v1(&mut stream, status, &body)?;
+        return Ok(LocalWorkerConnectionResultV1::OtherHandled);
+    }
+    if let Some(response) = local_router_ab_ecdsa_route_v1(config, &request) {
+        write_local_dev_http_response_with_server_timing_v1(
+            &mut stream,
+            response.status,
+            &response.body,
+            response.server_timing.as_deref(),
+        )?;
+        return Ok(LocalWorkerConnectionResultV1::OtherHandled);
+    }
     let (status, body) = local_dev_http_handle_request_with_dispatcher_v1(
         if config.role() == LocalServiceRoleV1::Router {
             let LocalWorkerRoleConfigV1::Router(router_config) = config else {
@@ -198,6 +253,31 @@ fn handle_connection(
     )?;
     write_local_dev_http_response_v1(&mut stream, status, &body)?;
     Ok(LocalWorkerConnectionResultV1::OtherHandled)
+}
+
+/// Refuses to serve with a durable-job setting its job would refuse later:
+/// a Router scheduler that stops on a bad tick would leave refresh
+/// unscheduled while the Router serves.
+fn require_durable_job_settings(
+    config: &LocalWorkerRoleConfigV1,
+) -> Result<(), Box<dyn std::error::Error>> {
+    match config {
+        LocalWorkerRoleConfigV1::Router(router) => {
+            router_ab_cloudflare::parse_tenant_root_refresh_schedule_v1(&router.tenant_root.env)?;
+            router_ab_cloudflare::parse_tenant_root_retirement_grace_ms_v1(
+                &router.tenant_root.env,
+            )?;
+            local_tenant_root_refresh_scheduler_tick_ms_v1(&router.tenant_root)?;
+        }
+        LocalWorkerRoleConfigV1::DeriverA(deriver) => {
+            local_tenant_root_admission_recovery_window_ms_v1(&deriver.tenant_root)?;
+        }
+        LocalWorkerRoleConfigV1::DeriverB(deriver) => {
+            local_tenant_root_admission_recovery_window_ms_v1(&deriver.tenant_root)?;
+        }
+        LocalWorkerRoleConfigV1::SigningWorker(_) => {}
+    }
+    Ok(())
 }
 
 fn log_worker_request_error(config: &LocalWorkerRoleConfigV1, error: &dyn std::error::Error) {
@@ -216,6 +296,8 @@ fn log_worker_request_error(config: &LocalWorkerRoleConfigV1, error: &dyn std::e
 fn parse_args(args: impl IntoIterator<Item = String>) -> Result<WorkerOptions, String> {
     let mut role = None;
     let mut env_path = None;
+    let mut migrate = false;
+    let mut check = false;
     let mut iter = args.into_iter();
     while let Some(arg) = iter.next() {
         match arg.as_str() {
@@ -233,6 +315,8 @@ fn parse_args(args: impl IntoIterator<Item = String>) -> Result<WorkerOptions, S
                 };
                 env_path = Some(PathBuf::from(value));
             }
+            "--migrate" => migrate = true,
+            "--check" => check = true,
             "--help" | "-h" => return Err(usage()),
             _ => return Err(format!("unknown argument {arg}\n{}", usage())),
         }
@@ -243,10 +327,21 @@ fn parse_args(args: impl IntoIterator<Item = String>) -> Result<WorkerOptions, S
     let Some(env_path) = env_path else {
         return Err(format!("missing --env\n{}", usage()));
     };
-    Ok(WorkerOptions { role, env_path })
+    if migrate && check {
+        return Err(format!(
+            "--check reads only; it cannot run with --migrate\n{}",
+            usage()
+        ));
+    }
+    Ok(WorkerOptions {
+        role,
+        env_path,
+        migrate,
+        check,
+    })
 }
 
 fn usage() -> String {
-    "usage: router_ab_local_worker --role <router|deriver-a|deriver-b|signing-worker> --env <path>"
+    "usage: router_ab_local_worker --role <router|deriver-a|deriver-b|signing-worker> --env <path> [--migrate | --check]"
         .to_owned()
 }

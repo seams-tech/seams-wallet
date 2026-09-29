@@ -23,7 +23,7 @@ export type SignerActivationPolicy =
       revocationReason: string;
     };
 
-export type PlanAccountSignerActivationInput = {
+type PlanAccountSignerActivationInput = {
   activeSigners: readonly Pick<
     AccountSignerRecord,
     | 'signerId'

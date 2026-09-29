@@ -21,12 +21,12 @@ import type { PreparedEcdsaOperationStepUp } from '../../threshold/ecdsa/operati
 import type { HydratedEcdsaSignerMaterial } from '../../session/identity/evmFamilyEcdsaIdentity';
 import type { SignerAuthMethod } from '@shared/utils/signerDomain';
 
-export type EvmFamilyEmailOtpStepUpRuntime = {
+type EvmFamilyEmailOtpStepUpRuntime = {
   prepare: () => Promise<{ challengeId: string; emailHint?: string }>;
   resend?: () => Promise<{ challengeId: string; emailHint?: string }>;
 };
 
-export type EvmFamilyOperationStepUpRuntime = {
+type EvmFamilyOperationStepUpRuntime = {
   prepare: (args: {
     operation: EvmFamilyThresholdEcdsaOperation;
     operationDigests: OperationDigestSet;
@@ -46,7 +46,7 @@ export type EvmFamilyOperationStepUpRuntime = {
  * cannot be satisfied, and the operation must be authorized by a step-up on the
  * capability's own factor. The factor is carried here so the escalation is
  * same-method by construction rather than by the confirmation's preference. */
-export type EvmFamilyReusableAuthorizationState =
+type EvmFamilyReusableAuthorizationState =
   | { kind: 'active' }
   | { kind: 'absent'; requiredFactor: SignerAuthMethod };
 
@@ -76,21 +76,21 @@ type EvmFamilyPreparedStepUpAuthBase = {
   confirmationAuthPayload: { signingAuthPlan: SigningAuthPlan };
 };
 
-export type EvmFamilyWarmSessionStepUpAuth = EvmFamilyPreparedStepUpAuthBase & {
+type EvmFamilyWarmSessionStepUpAuth = EvmFamilyPreparedStepUpAuthBase & {
   kind: 'warm_session';
   confirmationAuthPayload: {
     signingAuthPlan: Extract<SigningAuthPlan, { kind: 'warmSession'; curve: 'ecdsa' }>;
   };
 };
 
-export type EvmFamilyActiveWalletAuthorityStepUpAuth = EvmFamilyPreparedStepUpAuthBase & {
+type EvmFamilyActiveWalletAuthorityStepUpAuth = EvmFamilyPreparedStepUpAuthBase & {
   kind: 'active_wallet_authority';
   confirmationAuthPayload: {
     signingAuthPlan: Extract<SigningAuthPlan, { kind: 'active_wallet_authority' }>;
   };
 };
 
-export type EvmFamilyEmailOtpStepUpAuth = EvmFamilyPreparedStepUpAuthBase & {
+type EvmFamilyEmailOtpStepUpAuth = EvmFamilyPreparedStepUpAuthBase & {
   kind: 'email_otp';
   confirmationAuthPayload: {
     signingAuthPlan: Extract<SigningAuthPlan, { kind: 'emailOtpReauth' }>;
@@ -98,7 +98,7 @@ export type EvmFamilyEmailOtpStepUpAuth = EvmFamilyPreparedStepUpAuthBase & {
   emailOtpPrompt: EmailOtpConfirmPrompt;
 };
 
-export type EvmFamilyPasskeyStepUpAuth = EvmFamilyPreparedStepUpAuthBase & {
+type EvmFamilyPasskeyStepUpAuth = EvmFamilyPreparedStepUpAuthBase & {
   kind: 'passkey';
   confirmationAuthPayload: {
     signingAuthPlan: Extract<SigningAuthPlan, { kind: 'passkeyReauth' }>;

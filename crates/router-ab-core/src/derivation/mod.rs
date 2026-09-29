@@ -6,14 +6,11 @@
 //! this crate.
 
 mod context;
-mod diagnostics;
 mod ecdsa_stable_context;
 mod ecdsa_threshold_prf;
 mod ecdsa_threshold_prf_backend;
 mod error;
-mod leakage;
 mod material;
-mod scope;
 mod signer_plaintext;
 mod tenant_root;
 mod tenant_root_activation_evidence;
@@ -51,22 +48,22 @@ mod tenant_root_refresh_role_attempt;
 mod tenant_root_refresh_role_command;
 mod tenant_root_refresh_transport;
 mod tenant_root_restore_cleanup_grant;
+mod tenant_root_restore_grant_wire;
 mod tenant_root_restore_import;
 mod tenant_root_restore_refresh_grant;
 mod tenant_root_restore_refresh_role_command;
 mod tenant_root_retention_key;
 mod tenant_root_role_cleanup_command;
+mod tenant_root_role_command_wire;
 mod tenant_root_time;
+pub use self::tenant_root_time::format_tenant_root_rfc3339_millis_v1;
 
 pub use threshold_prf::TwoPartyDeriverRole;
 mod transcript;
 mod wire;
 mod x25519_canonical;
 
-pub use self::context::{
-    context_digest_v1, AccountScope, DerivationContext, RequestKind, RootShareEpoch,
-};
-pub use self::diagnostics::redacted_diagnostic;
+pub use self::context::{AccountScope, DerivationContext, RequestKind, RootShareEpoch};
 pub use self::ecdsa_stable_context::StableTenantDerivationContextV2;
 pub use self::ecdsa_threshold_prf::{
     plan_mpc_prf_combine_v1, plan_mpc_prf_partial_verification_v1, plan_mpc_prf_purpose_binding_v1,
@@ -96,14 +93,11 @@ pub use self::ecdsa_threshold_prf_backend::{
     MpcPrfThresholdSignerInputV1, MPC_PRF_SIGNING_ROOT_SHARE_WIRE_V1_LEN,
 };
 pub use self::error::{
-    RedactedDiagnostic, RouterAbDerivationError, RouterAbDerivationErrorCode,
-    RouterAbDerivationResult,
+    RouterAbDerivationError, RouterAbDerivationErrorCode, RouterAbDerivationResult,
 };
-pub use self::leakage::{default_leakage_questions, LeakageQuestion, LeakageQuestionId};
 pub use self::material::{
     OpenedShareKind, PublicDigest32, PublicMaterial32, Role, SecretMaterial32,
 };
-pub use self::scope::{ExportScope, RefreshScope, RegistrationScope, RequestScope};
 pub use self::signer_plaintext::{
     decode_signer_input_plaintext_v1, encode_signer_input_plaintext_v1, SignerInputPlaintextV1,
     SignerInputQuorumPolicyV1,

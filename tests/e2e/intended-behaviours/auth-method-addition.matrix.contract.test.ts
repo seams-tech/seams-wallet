@@ -1,7 +1,7 @@
 import { intendedTest as test } from './harness';
 
 /**
- * Refactor 109C, signer-profile matrix.
+ * Auth-method addition, signer-profile matrix.
  *
  * The two transition contracts both run on combined wallets, where every
  * addition has an ECDSA capability to carry forward and an Ed25519 signer to

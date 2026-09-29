@@ -249,57 +249,6 @@ export function signingAuthPlanFromSigningSessionPlan(args: {
   };
 }
 
-export type SigningConfirmationAuthInput =
-  | {
-      kind: 'signing_plan';
-      signingAuthPlan: SigningAuthPlan;
-      emailOtpPrompt: EmailOtpConfirmPrompt | null;
-    }
-  | {
-      kind: 'email_otp';
-      emailOtpPrompt: EmailOtpConfirmPrompt;
-    }
-  | {
-      kind: 'passkey';
-    };
-
-export async function resolveSigningConfirmationAuth(args: SigningConfirmationAuthInput): Promise<{
-  confirmationAuthPayload: { signingAuthPlan: SigningAuthPlan };
-}> {
-  if (args.kind === 'signing_plan') {
-    const signingAuthPlan =
-      args.signingAuthPlan.kind === SigningAuthPlanKind.EmailOtpReauth && args.emailOtpPrompt
-        ? { ...args.signingAuthPlan, emailOtpPrompt: args.emailOtpPrompt }
-        : args.signingAuthPlan;
-    return {
-      confirmationAuthPayload: { signingAuthPlan },
-    };
-  }
-  if (args.kind === 'email_otp') {
-    return {
-      confirmationAuthPayload: {
-        signingAuthPlan: {
-          kind: SigningAuthPlanKind.EmailOtpReauth,
-          method: 'email_otp',
-          emailOtpPrompt: args.emailOtpPrompt,
-        },
-      },
-    };
-  }
-  if (args.kind === 'passkey') {
-    return {
-      confirmationAuthPayload: {
-        signingAuthPlan: {
-          kind: SigningAuthPlanKind.PasskeyReauth,
-          method: 'passkey',
-        },
-      },
-    };
-  }
-  const exhaustive: never = args;
-  throw new Error(`Signing auth resolution received unsupported input ${String(exhaustive)}`);
-}
-
 export function resolveSigningConfirmationAuthMethod(
   authPlan: Pick<SigningAuthPlan, 'kind'>,
 ): WalletFlowAuthMethod {

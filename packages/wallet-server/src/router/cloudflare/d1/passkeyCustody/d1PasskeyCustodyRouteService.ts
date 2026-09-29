@@ -43,7 +43,10 @@ import {
   isHostWithinRpId,
   originHostnameOrEmpty,
 } from '../../../../core/authService/webauthnOidcHelpers';
-import type { WalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
+import type {
+  ActiveWalletAuthMethodRecordV2,
+  WalletAuthMethodRecordV2,
+} from '@shared/utils/walletAuthMethodRecord';
 import { secureRandomBase64Url } from '@shared/utils/secureRandomId';
 import { base64UrlEncode } from '@shared/utils/encoders';
 import {
@@ -158,14 +161,14 @@ export type PasskeyCustodyEnvelopeRetrievalWireRequest = {
 };
 
 /**
- * Refactor 109C: what became of a pre-109C envelope's ownership upgrade.
+ * What became of an unbound envelope's ownership upgrade.
  *
  * `already_owned` is a success, not a near-miss. The upgrade runs on every
  * unlock until it lands, so the second unlock after a successful one finds the
  * work already done — reporting that as a conflict would turn the normal case
  * into an error the client has to special-case anyway.
  */
-export type WalletCustodyEnvelopeOwnershipUpgradeResult =
+type WalletCustodyEnvelopeOwnershipUpgradeResult =
   | { readonly kind: 'upgraded'; readonly envelopeRevision: number }
   | { readonly kind: 'already_owned' }
   | { readonly kind: 'not_found' }
@@ -252,7 +255,7 @@ export interface RouterApiPasskeyCustodyService {
   ): Promise<PasskeyCustodyEnvelopeRetrievalRouteResponse>;
 
   /**
-   * Binds a pre-109C custody envelope to the auth method that just opened it.
+   * Binds an unbound custody envelope to the auth method that just opened it.
    *
    * The ciphertext is the client's — the server never holds a factor secret and
    * cannot verify a reseal. What it can verify, and does, is that the submitted
@@ -413,12 +416,7 @@ export type WalletRecoveryGoogleEmailOtpRouteFinalizationRequest =
 /** How long a reservation may sit before another attempt may take the code. */
 const RECOVERY_RESERVATION_TTL_MS = 5 * 60 * 1000;
 
-type ActiveWalletAuthMethodRecordV2 = Extract<
-  WalletAuthMethodRecordV2,
-  { readonly status: 'active' }
->;
-
-export type WalletRecoveryContinuityAnchor = {
+type WalletRecoveryContinuityAnchor = {
   readonly kind: 'wallet_recovery_continuity_anchor_v1';
   readonly authority: ActiveWalletAuthorityV1;
   readonly method: ActiveWalletAuthMethodRecordV2;
@@ -432,14 +430,14 @@ type ActivePasskeyCustodyEnvelopeRecord = Omit<PasskeyCustodyEnvelopeRecord, 'li
   >;
 };
 
-export type WalletRecoveryAuthoritySelection = ActiveWalletAuthorityV1;
+type WalletRecoveryAuthoritySelection = ActiveWalletAuthorityV1;
 
 /**
  * Finds the one existing custody path that can authenticate a recovery code.
  * The target's RP is deliberately absent: it describes the new credential,
  * while continuity belongs to an already enrolled method and its envelope.
  */
-export function selectWalletRecoveryContinuityAnchor(input: {
+function selectWalletRecoveryContinuityAnchor(input: {
   readonly walletId: WalletId;
   readonly targetFamily: WalletAuthMethodRecordV2['kind'];
   readonly methods: readonly WalletAuthMethodRecordV2[];
@@ -571,7 +569,7 @@ function walletRecoveryAuthorityDigest(
   return parsed.value;
 }
 
-export type WalletRecoveryRoutePreparationResult =
+type WalletRecoveryRoutePreparationResult =
   | (Extract<WalletRecoveryPreparationResult, { readonly kind: 'prepared' }> & {
       readonly target: Extract<WalletRecoveryTargetV1, { readonly kind: 'passkey' }>;
       readonly recoveryOperationId: WalletRecoveryOperationId;
@@ -1287,7 +1285,7 @@ async function prepareRecoveryForRoute(
   }
 }
 
-export async function createWalletRecoveryRegistrationOptions(input: {
+async function createWalletRecoveryRegistrationOptions(input: {
   readonly webAuthnStore: Pick<CloudflareD1WebAuthnStore, 'writeChallenge'>;
   readonly walletId: WalletId;
   readonly reservationId: RecoveryCodeReservationId;

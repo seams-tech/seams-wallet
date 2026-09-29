@@ -2,7 +2,7 @@
 //!
 //! Opened custody material never crosses back into JavaScript. Every operation
 //! that produces a custody secret returns an opaque handle whose bytes only
-//! Rust can read, which is what keeps the Refactor 100 invariant that
+//! Rust can read, which is what keeps the custody invariant that
 //! JavaScript, the app origin, Router, and persistence adapters never receive a
 //! plaintext client root, holder share, PRF output, or KEK.
 //!
@@ -19,10 +19,13 @@
 use base64ct::{Base64UrlUnpadded, Encoding};
 use serde::Serialize;
 use signer_core::ed25519_yao_client_root_transfer::{
+    open_ed25519_yao_client_root_envelope_for_linking_v1,
     open_ed25519_yao_client_root_from_linked_device_v1,
     seal_ed25519_yao_client_root_for_linked_device_v1,
-    seal_ed25519_yao_client_root_under_factor_v1, Ed25519YaoClientRootFromLinkedDeviceTransferV1,
-    Ed25519YaoClientRootTransferBindingV1, Ed25519YaoClientRootTransferRecipientV1,
+    seal_ed25519_yao_client_root_from_envelope_for_linked_device_v1,
+    seal_ed25519_yao_client_root_under_factor_v1, Ed25519YaoClientRootFromFactorEnvelopeV1,
+    Ed25519YaoClientRootFromLinkedDeviceTransferV1, Ed25519YaoClientRootTransferBindingV1,
+    Ed25519YaoClientRootTransferRecipientV1,
 };
 use signer_core::passkey_custody::open_passkey_custody_secret_v1;
 use signer_core::passkey_custody::{
@@ -55,14 +58,17 @@ fn decode_digest(value: &str, label: &str) -> Result<[u8; 32], JsValue> {
 
 /// How an admitted custody secret reached this handle.
 ///
-/// The two proofs authorize different writes — an envelope open may reseal
-/// locally, a linked-device transfer may reseal for the device it was
-/// addressed to — so the handle holds exactly one and each reseal entry point
-/// requires its own branch. An enum rather than two `Option`s keeps "admitted
-/// twice, by different routes" unrepresentable.
+/// The proofs authorize different writes. A seed envelope open may reseal
+/// locally and seal a derived root for a linked device. A root received by
+/// transfer may reseal only under the receiving device's own factor. A root
+/// opened from that device's own envelope may seal only to a further
+/// approved link's recipient. The handle holds exactly one, and each write
+/// entry point requires its own branch. An enum rather than several
+/// `Option`s keeps "admitted twice, by different routes" unrepresentable.
 enum WasmCustodyAdmissionV1 {
     SealedEnvelope(WalletCustodySeedFromSealedEnvelopeV1),
     Ed25519YaoClientRootTransfer(Ed25519YaoClientRootFromLinkedDeviceTransferV1),
+    Ed25519YaoClientRootEnvelope(Ed25519YaoClientRootFromFactorEnvelopeV1),
 }
 
 /// An opened custody secret held in Rust memory.
@@ -102,9 +108,16 @@ impl WasmPasskeyCustodyHandleV1 {
     }
 
     /// Whether this handle may be resealed under another factor. False for a
-    /// lane share, and false for a seed opened through the unverified path.
+    /// lane share, for a seed opened through the unverified path, and for a
+    /// root opened to link another device.
     pub fn can_add_factor(&self) -> bool {
-        self.admitted.is_some()
+        matches!(
+            self.admitted,
+            Some(
+                WasmCustodyAdmissionV1::SealedEnvelope(_)
+                    | WasmCustodyAdmissionV1::Ed25519YaoClientRootTransfer(_)
+            )
+        )
     }
 }
 
@@ -282,6 +295,11 @@ pub fn passkey_custody_reseal_wallet_seed_v1(
                 "an Ed25519 Yao Client root reseals through its dedicated factor operation",
             ))
         }
+        Some(WasmCustodyAdmissionV1::Ed25519YaoClientRootEnvelope(_)) => {
+            return Err(js_error(
+                "a Client root opened to link a device cannot reseal a wallet seed",
+            ))
+        }
         None => {
             return Err(js_error(
                 "this handle was not opened from a verified wallet custody seed envelope",
@@ -403,29 +421,19 @@ pub fn ed25519_yao_client_root_transfer_recipient_v1(
     })
 }
 
-/// Device 1 derives and seals only the Ed25519 Yao Client root.
+/// Seals only the Ed25519 Yao Client root to an approved linked device.
 ///
-/// The input handle must have been opened from a verified local wallet custody
-/// envelope. The wallet seed is read only inside this WASM call; the returned
-/// value contains ciphertext and public binding facts only.
+/// A handle opened from a verified local wallet custody envelope derives the
+/// root from the seed. A handle opened from this device's own Client-root
+/// envelope seals that root, and only for the same wallet key. A root just
+/// received by transfer is never forwarded. The secret is read only inside
+/// this WASM call; the returned value contains ciphertext and public binding
+/// facts only.
 #[wasm_bindgen]
 pub fn passkey_custody_seal_ed25519_yao_client_root_for_linked_device_v1(
     handle: &WasmPasskeyCustodyHandleV1,
     transfer_binding_json: &str,
 ) -> Result<JsValue, JsValue> {
-    let admitted = match handle.admitted.as_ref() {
-        Some(WasmCustodyAdmissionV1::SealedEnvelope(admitted)) => admitted,
-        Some(WasmCustodyAdmissionV1::Ed25519YaoClientRootTransfer(_)) => {
-            return Err(js_error(
-                "an Ed25519 Yao Client root cannot be forwarded to another device",
-            ))
-        }
-        None => {
-            return Err(js_error(
-                "this handle was not opened from a verified wallet custody seed envelope",
-            ))
-        }
-    };
     let transfer = parse_root_transfer_binding(transfer_binding_json)?;
     let mut ephemeral_secret = Zeroizing::new([0u8; 32]);
     getrandom::getrandom(&mut ephemeral_secret[..])
@@ -434,13 +442,37 @@ pub fn passkey_custody_seal_ed25519_yao_client_root_for_linked_device_v1(
     getrandom::getrandom(&mut nonce).map_err(|_| {
         js_error("Ed25519 Yao Client-root transfer nonce randomness is unavailable")
     })?;
-    let sealed = seal_ed25519_yao_client_root_for_linked_device_v1(
-        admitted,
-        &handle.secret[..],
-        &transfer,
-        &ephemeral_secret[..],
-        &nonce,
-    )
+    let sealed = match handle.admitted.as_ref() {
+        Some(WasmCustodyAdmissionV1::SealedEnvelope(admitted)) => {
+            seal_ed25519_yao_client_root_for_linked_device_v1(
+                admitted,
+                &handle.secret[..],
+                &transfer,
+                &ephemeral_secret[..],
+                &nonce,
+            )
+        }
+        Some(WasmCustodyAdmissionV1::Ed25519YaoClientRootEnvelope(admitted)) => {
+            let root = client_root_from_handle(handle)?;
+            seal_ed25519_yao_client_root_from_envelope_for_linked_device_v1(
+                admitted,
+                &root,
+                &transfer,
+                &ephemeral_secret[..],
+                &nonce,
+            )
+        }
+        Some(WasmCustodyAdmissionV1::Ed25519YaoClientRootTransfer(_)) => {
+            return Err(js_error(
+                "an Ed25519 Yao Client root received by transfer cannot be forwarded",
+            ))
+        }
+        None => {
+            return Err(js_error(
+                "this handle was not opened from a verified custody envelope",
+            ))
+        }
+    }
     .map_err(js_error)?;
     serde_wasm_bindgen::to_value(&Ed25519YaoClientRootTransferWireV1 {
         ephemeral_public_key_b64u: sealed.ephemeral_public_key_b64u(),
@@ -509,21 +541,19 @@ pub fn passkey_custody_seal_ed25519_yao_client_root_under_factor_v1(
                 "a local wallet custody seed is not an Ed25519 Yao Client root",
             ))
         }
+        Some(proof @ WasmCustodyAdmissionV1::Ed25519YaoClientRootEnvelope(_)) => {
+            handle.admitted = Some(proof);
+            return Err(js_error(
+                "an Ed25519 Yao Client root opened to link a device cannot reseal a factor",
+            ));
+        }
         None => {
             return Err(js_error(
                 "this handle was not opened from an Ed25519 Yao Client-root transfer",
             ))
         }
     };
-    let root_bytes: Zeroizing<[u8; 32]> = Zeroizing::new(
-        handle
-            .secret
-            .as_slice()
-            .try_into()
-            .map_err(|_| js_error("Ed25519 Yao Client root handle must contain 32 bytes"))?,
-    );
-    let root =
-        signer_core::ed25519_yao_derivation::Ed25519YaoClientRootV1::from_secret_bytes(*root_bytes);
+    let root = client_root_from_handle(handle)?;
     handle.destroy();
     let mut nonce = [0u8; PASSKEY_CUSTODY_NONCE_LEN];
     getrandom::getrandom(&mut nonce).map_err(|_| {
@@ -545,6 +575,57 @@ pub fn passkey_custody_seal_ed25519_yao_client_root_under_factor_v1(
         ciphertext_digest_b64u: sealed.ciphertext_digest_b64u(),
     })
     .map_err(js_error)
+}
+
+/// Opens this device's own Client-root envelope to link another device.
+///
+/// The factor secret is the one this unlock already presented. The handle may
+/// seal the root only to the recipient of a further approved link for the
+/// same wallet key; it never reseals a factor or a wallet seed.
+#[wasm_bindgen]
+pub fn passkey_custody_open_ed25519_yao_client_root_envelope_v1(
+    factor_secret: &[u8],
+    envelope_binding_json: &str,
+    nonce12: &[u8],
+    sealed_custody_secret_b64u: &str,
+    aad_hash_b64u: &str,
+    ciphertext_digest_b64u: &str,
+) -> Result<WasmPasskeyCustodyHandleV1, JsValue> {
+    let binding = parse_envelope_binding(envelope_binding_json)?;
+    let ciphertext = decode_b64u(sealed_custody_secret_b64u, "sealedCustodySecretB64u")?;
+    let expected_aad_hash = decode_digest(aad_hash_b64u, "aadHashB64u")?;
+    let expected_ciphertext_digest = decode_digest(ciphertext_digest_b64u, "ciphertextDigestB64u")?;
+    let factor_secret = Zeroizing::new(factor_secret.to_vec());
+    let (root, admitted) = open_ed25519_yao_client_root_envelope_for_linking_v1(
+        &factor_secret,
+        &binding,
+        nonce12,
+        &ciphertext,
+        &expected_aad_hash,
+        &expected_ciphertext_digest,
+    )
+    .map_err(js_error)?;
+    let root_bytes = Zeroizing::new(root.into_bytes());
+    Ok(WasmPasskeyCustodyHandleV1 {
+        secret: Zeroizing::new(root_bytes.to_vec()),
+        kind: PasskeyCustodySecretKind::Ed25519YaoClientRoot,
+        admitted: Some(WasmCustodyAdmissionV1::Ed25519YaoClientRootEnvelope(
+            admitted,
+        )),
+    })
+}
+
+fn client_root_from_handle(
+    handle: &WasmPasskeyCustodyHandleV1,
+) -> Result<signer_core::ed25519_yao_derivation::Ed25519YaoClientRootV1, JsValue> {
+    let root_bytes: Zeroizing<[u8; 32]> = Zeroizing::new(
+        handle
+            .secret
+            .as_slice()
+            .try_into()
+            .map_err(|_| js_error("Ed25519 Yao Client root handle must contain 32 bytes"))?,
+    );
+    Ok(signer_core::ed25519_yao_derivation::Ed25519YaoClientRootV1::from_secret_bytes(*root_bytes))
 }
 
 #[derive(Serialize)]

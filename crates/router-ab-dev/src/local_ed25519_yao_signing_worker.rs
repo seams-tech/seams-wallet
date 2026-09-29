@@ -3,18 +3,31 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use base64::Engine;
 use router_ab_cloudflare::{
-    CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2,
-    CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2,
+    decide_ed25519_yao_recovery_delivery_v1, decide_ed25519_yao_recovery_promotion_v1,
+    public_activation_receipt_v1, reservation_record_key_from_binding_v1,
+    reservation_record_key_from_material_activation_v1, settle_linked_ed25519_activation_v1,
+    settle_linked_ed25519_deactivation_v1, settle_linked_ed25519_reservation_v1,
+    source_preserving_reservation_id_v1, CloudflareEd25519YaoActivateReservationRequestV1,
+    CloudflareEd25519YaoDeactivateReservationRequestV1,
+    CloudflareEd25519YaoInactiveReservationResponseV1,
+    CloudflareEd25519YaoReservationActivationResponseV1,
+    CloudflareEd25519YaoReservationDeactivationResponseV1,
+    CloudflareEd25519YaoSourcePreservingInactiveReservationRequestV1,
+    Ed25519YaoRecoveryDeliveryDecisionV1, Ed25519YaoRecoveryHeldV1,
+    Ed25519YaoRecoveryPromotionDecisionV1, Ed25519YaoRecoveryPromotionHeldV1,
+    LinkedEd25519ActivationV1, LinkedEd25519DeactivationV1, LinkedEd25519ReservationV1,
+    SigningWorkerYaoReservationStateV1,
+};
+use router_ab_cloudflare::{
+    CloudflareSecretMaterial32V1, CloudflareServerOutputMaterialRecordV1,
+    CloudflareSigningWorkerWalletScopeV1,
 };
 use router_ab_core::{
-    ActiveSigningWorkerStateV1, CanonicalWireBytesV1, Ed25519YaoCeremonyBindingV1,
-    Ed25519YaoOperationV1, Ed25519YaoRefreshBindingV1, Ed25519YaoStateEpochV1,
-    NormalSigningEd25519TwoPartyFrostCommitmentsV1, NormalSigningResponseV1,
-    NormalSigningRound1PrepareResponseV1, NormalSigningScopeV1, NormalSigningSignatureSchemeV1,
-    PublicDigest32, RouterAbEd25519NormalSigningFinalizeProtocolV2, RouterAbProtocolError,
-    RouterAbProtocolErrorCode, RouterAbProtocolResult, ServerIdentityV1,
+    ActiveSigningWorkerStateV1, Ed25519YaoCeremonyBindingV1, Ed25519YaoOperationV1,
+    Ed25519YaoRecoveryAttemptV1, Ed25519YaoRefreshBindingV1, Ed25519YaoStateEpochV1,
+    MpcMaterialActivationRefV1, NormalSigningScopeV1, OpenedShareKind, PublicDigest32, Role,
+    RouterAbProtocolError, RouterAbProtocolErrorCode, RouterAbProtocolResult, ServerIdentityV1,
 };
 use router_ab_ed25519_yao::recipient::signing_worker::{
     combine_signing_worker_activation_packages, SigningWorkerBaseScalar,
@@ -23,15 +36,12 @@ use router_ab_ed25519_yao::relay::{
     derive_registration_receipt, ActivationDeriverASigningWorkerPackage,
     ActivationDeriverBSigningWorkerPackage, ActivationPublicCommitments,
 };
-use serde::{Deserialize, Serialize};
-use signer_core::near_threshold_ed25519::{
-    aggregate_signature, build_signing_package, client_round1_commit,
-    client_round2_signature_share, commitments_from_wire, key_package_from_signing_share_bytes,
-    signature_share_from_b64u, verifying_share_bytes_from_signing_share_bytes,
-    verifying_share_from_b64u, ClientRound1State, CommitmentsWire,
+use router_ab_ed25519_yao::{
+    combine_ed25519_yao_signing_worker_packages_source_preserving_v1,
+    Ed25519YaoActiveSigningMaterialV1,
 };
-use signer_core::near_threshold_frost::compute_threshold_ed25519_group_public_key_2p_from_verifying_shares;
-use subtle::ConstantTimeEq;
+use serde::{Deserialize, Serialize};
+use signer_core::near_threshold_ed25519::verifying_share_bytes_from_signing_share_bytes;
 use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
 use super::{
@@ -41,7 +51,7 @@ use super::{
     LocalSigningWorkerConfigV1,
 };
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct LocalEd25519YaoSigningWorkerPackageDeliveryV1 {
     pub binding: Ed25519YaoCeremonyBindingV1,
@@ -50,11 +60,36 @@ pub struct LocalEd25519YaoSigningWorkerPackageDeliveryV1 {
     pub package: Ed25519YaoEncryptedPackageV1,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct LocalEd25519YaoSigningWorkerPackagePairDeliveryV1 {
+    pub scope: CloudflareSigningWorkerWalletScopeV1,
     pub deriver_a: LocalEd25519YaoSigningWorkerPackageDeliveryV1,
     pub deriver_b: LocalEd25519YaoSigningWorkerPackageDeliveryV1,
+    pub deriver_a_client_package: Ed25519YaoEncryptedPackageV1,
+    pub deriver_b_client_package: Ed25519YaoEncryptedPackageV1,
+    /// The Gateway's attempt a recovery's packages come from, as the Router
+    /// executed it. A recovery delivery carries one; no other delivery does.
+    pub recovery_attempt: Option<Ed25519YaoRecoveryAttemptV1>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum LocalEd25519YaoInitialRegistrationFinalizationV1 {
+    Missing,
+    Pending,
+    Committed {
+        receipt: LocalEd25519YaoSigningWorkerActivationReceiptV1,
+    },
+    Revoked,
+    Conflict,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct LocalEd25519YaoCommittedInitialRegistrationV1 {
+    request: LocalEd25519YaoSigningWorkerPackagePairDeliveryV1,
+    receipt: LocalEd25519YaoSigningWorkerActivationReceiptV1,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -138,6 +173,8 @@ struct ActiveSigningShare {
     binding: Ed25519YaoCeremonyBindingV1,
     #[zeroize(skip)]
     state_epoch: Ed25519YaoStateEpochV1,
+    #[zeroize(skip)]
+    activated_at_ms: u64,
     transcript: [u8; 32],
     registered_public_key: [u8; 32],
 }
@@ -150,44 +187,90 @@ struct ActivationCandidate {
 }
 
 enum RecoveryPromotionState {
+    /// A recovery staged here, holding the candidate of the highest attempt
+    /// delivered, as on Workers. The Gateway promotes only its latest
+    /// attempt, so a lower attempt can never promote.
     Staged {
+        attempt: Ed25519YaoRecoveryAttemptV1,
         candidate: ActivationCandidate,
     },
+    /// The recovery promoted here, with the deliveries that made it: the same
+    /// deliveries answer again, and another attempt of it is stale.
     Promoted {
         promotion: LocalEd25519YaoSigningWorkerRecoveryPromotionRequestV1,
+        deriver_a: PendingDelivery,
+        deriver_b: PendingDelivery,
     },
-}
-
-impl RecoveryPromotionState {
-    fn promotion(&self) -> &LocalEd25519YaoSigningWorkerRecoveryPromotionRequestV1 {
-        match self {
-            Self::Staged { candidate } => &candidate.promotion,
-            Self::Promoted { promotion, .. } => promotion,
-        }
-    }
-}
-
-struct PendingNormalSigningRound {
-    scope: NormalSigningScopeV1,
-    state_epoch: Ed25519YaoStateEpochV1,
-    registered_public_key: [u8; 32],
-    round1_binding_digest: PublicDigest32,
-    intent_digest: PublicDigest32,
-    signing_payload_digest: PublicDigest32,
-    admitted_signing_digest: PublicDigest32,
-    round1: ClientRound1State,
-    expires_at_ms: u64,
 }
 
 #[derive(Default)]
 pub struct LocalEd25519YaoSigningWorkerStateV1 {
     identities: BTreeMap<LocalEd25519YaoEffectiveIdentityV1, LocalEd25519YaoSigningIdentityStateV1>,
+    /// Activations a recovery replaced or a revocation ended. None signs
+    /// again, though a signature one already made still answers.
+    retired_activations: Vec<MpcMaterialActivationRefV1>,
+    /// Devices linked to a wallet here, by reservation key.
+    linked: BTreeMap<String, LocalLinkedEd25519V1>,
+}
+
+/// One device linked to a wallet here: Ed25519 material reserved from the
+/// wallet's active share, then activated or revoked beside it, as the
+/// wallet object keeps it on Workers.
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct LocalLinkedEd25519V1 {
+    record_key: String,
+    scope: CloudflareSigningWorkerWalletScopeV1,
+    state: SigningWorkerYaoReservationStateV1,
+    /// When the reservation activated here, while it is active.
+    activated_at_ms: Option<u64>,
 }
 
 #[derive(Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct LocalEd25519YaoSigningWorkerDurableStateV1 {
     active_identities: Vec<LocalEd25519YaoSigningWorkerDurableActiveStateV1>,
+    recoveries: Vec<LocalEd25519YaoSigningWorkerDurableRecoveryV1>,
+    #[zeroize(skip)]
+    retired_activations: Vec<MpcMaterialActivationRefV1>,
+    /// Its material zeroizes itself on drop.
+    #[zeroize(skip)]
+    linked: Vec<LocalLinkedEd25519V1>,
+}
+
+/// A recovery staged or promoted at one identity, kept across restarts: the
+/// deliveries that made it, the promotion it answers, and, while it is still
+/// staged, its candidate share.
+#[derive(Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
+#[serde(deny_unknown_fields)]
+struct LocalEd25519YaoSigningWorkerDurableRecoveryV1 {
+    #[zeroize(skip)]
+    identity: LocalEd25519YaoEffectiveIdentityV1,
+    #[zeroize(skip)]
+    deriver_a: LocalEd25519YaoSigningWorkerPackageDeliveryV1,
+    #[zeroize(skip)]
+    deriver_b: LocalEd25519YaoSigningWorkerPackageDeliveryV1,
+    #[zeroize(skip)]
+    promotion: LocalEd25519YaoSigningWorkerRecoveryPromotionRequestV1,
+    /// The staged attempt and its candidate share; a promoted recovery has
+    /// neither.
+    #[zeroize(skip)]
+    attempt: Option<Ed25519YaoRecoveryAttemptV1>,
+    staged: Option<LocalEd25519YaoSigningWorkerDurableShareV1>,
+}
+
+#[derive(Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
+#[serde(deny_unknown_fields)]
+struct LocalEd25519YaoSigningWorkerDurableShareV1 {
+    scalar: [u8; 32],
+    #[zeroize(skip)]
+    binding: Ed25519YaoCeremonyBindingV1,
+    #[zeroize(skip)]
+    state_epoch: Ed25519YaoStateEpochV1,
+    #[zeroize(skip)]
+    activated_at_ms: u64,
+    transcript: [u8; 32],
+    registered_public_key: [u8; 32],
 }
 
 #[derive(Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
@@ -200,8 +283,12 @@ struct LocalEd25519YaoSigningWorkerDurableActiveStateV1 {
     binding: Ed25519YaoCeremonyBindingV1,
     #[zeroize(skip)]
     state_epoch: Ed25519YaoStateEpochV1,
+    #[zeroize(skip)]
+    activated_at_ms: u64,
     transcript: [u8; 32],
     registered_public_key: [u8; 32],
+    #[zeroize(skip)]
+    initial_registration: LocalEd25519YaoCommittedInitialRegistrationV1,
 }
 
 #[derive(Default)]
@@ -209,28 +296,73 @@ struct LocalEd25519YaoSigningIdentityStateV1 {
     pending_refresh_a: Option<PendingRefreshDelivery>,
     pending_refresh_b: Option<PendingRefreshDelivery>,
     active: Option<ActiveSigningShare>,
+    initial_registration: Option<LocalEd25519YaoCommittedInitialRegistrationV1>,
     recovery_promotion: Option<RecoveryPromotionState>,
-    pending_normal_signing: BTreeMap<String, PendingNormalSigningRound>,
 }
 
 impl LocalEd25519YaoSigningWorkerStateV1 {
-    pub(crate) fn durable_state_v1(&self) -> LocalEd25519YaoSigningWorkerDurableStateV1 {
-        let active_identities = self
-            .identities
-            .iter()
-            .filter_map(|(identity, state)| {
-                let active = state.active.as_ref()?;
-                Some(LocalEd25519YaoSigningWorkerDurableActiveStateV1 {
+    pub(crate) fn durable_state_v1(
+        &self,
+    ) -> RouterAbProtocolResult<LocalEd25519YaoSigningWorkerDurableStateV1> {
+        let mut active_identities = Vec::new();
+        let mut recoveries = Vec::new();
+        for (identity, state) in &self.identities {
+            match state.recovery_promotion.as_ref() {
+                Some(RecoveryPromotionState::Staged { attempt, candidate }) => {
+                    recoveries.push(LocalEd25519YaoSigningWorkerDurableRecoveryV1 {
+                        identity: identity.clone(),
+                        deriver_a: delivery_request(&candidate.deriver_a),
+                        deriver_b: delivery_request(&candidate.deriver_b),
+                        promotion: candidate.promotion.clone(),
+                        attempt: Some(*attempt),
+                        staged: Some(LocalEd25519YaoSigningWorkerDurableShareV1 {
+                            scalar: *candidate.next_active.scalar,
+                            binding: candidate.next_active.binding.clone(),
+                            state_epoch: candidate.next_active.state_epoch,
+                            activated_at_ms: candidate.next_active.activated_at_ms,
+                            transcript: candidate.next_active.transcript,
+                            registered_public_key: candidate.next_active.registered_public_key,
+                        }),
+                    });
+                }
+                Some(RecoveryPromotionState::Promoted {
+                    promotion,
+                    deriver_a,
+                    deriver_b,
+                }) => {
+                    recoveries.push(LocalEd25519YaoSigningWorkerDurableRecoveryV1 {
+                        identity: identity.clone(),
+                        deriver_a: delivery_request(deriver_a),
+                        deriver_b: delivery_request(deriver_b),
+                        promotion: promotion.clone(),
+                        attempt: None,
+                        staged: None,
+                    });
+                }
+                None => {}
+            }
+            if let Some(active) = state.active.as_ref() {
+                let initial_registration = state.initial_registration.clone().ok_or_else(|| {
+                    invalid_activation("active SigningWorker state has no initial registration")
+                })?;
+                active_identities.push(LocalEd25519YaoSigningWorkerDurableActiveStateV1 {
                     scalar: *active.scalar,
                     identity: identity.clone(),
                     binding: active.binding.clone(),
                     state_epoch: active.state_epoch,
+                    activated_at_ms: active.activated_at_ms,
                     transcript: active.transcript,
                     registered_public_key: active.registered_public_key,
-                })
-            })
-            .collect();
-        LocalEd25519YaoSigningWorkerDurableStateV1 { active_identities }
+                    initial_registration,
+                });
+            }
+        }
+        Ok(LocalEd25519YaoSigningWorkerDurableStateV1 {
+            active_identities,
+            recoveries,
+            retired_activations: self.retired_activations.clone(),
+            linked: self.linked.values().cloned().collect(),
+        })
     }
 
     pub(crate) fn from_durable_state_v1(
@@ -240,8 +372,18 @@ impl LocalEd25519YaoSigningWorkerStateV1 {
         for mut active in core::mem::take(&mut state.active_identities) {
             active.binding.validate()?;
             active.identity.validate_persisted_v1()?;
+            validate_committed_initial_registration(&active.initial_registration)?;
             if active.identity != LocalEd25519YaoEffectiveIdentityV1::from_binding(&active.binding)
+                || active.identity
+                    != LocalEd25519YaoEffectiveIdentityV1::from_binding(
+                        &active.initial_registration.request.deriver_a.binding,
+                    )
+                || !same_signing_identity(
+                    &active.initial_registration.request.deriver_a.binding,
+                    &active.binding,
+                )
                 || active.scalar.iter().all(|byte| *byte == 0)
+                || active.activated_at_ms == 0
                 || active.transcript.iter().all(|byte| *byte == 0)
                 || active.registered_public_key.iter().all(|byte| *byte == 0)
             {
@@ -255,9 +397,11 @@ impl LocalEd25519YaoSigningWorkerStateV1 {
                     scalar: Zeroizing::new(core::mem::take(&mut active.scalar)),
                     binding: active.binding.clone(),
                     state_epoch: active.state_epoch,
+                    activated_at_ms: active.activated_at_ms,
                     transcript: active.transcript,
                     registered_public_key: active.registered_public_key,
                 }),
+                initial_registration: Some(active.initial_registration.clone()),
                 ..Default::default()
             };
             if identities.insert(identity, identity_state).is_some() {
@@ -266,7 +410,95 @@ impl LocalEd25519YaoSigningWorkerStateV1 {
                 ));
             }
         }
-        Ok(Self { identities })
+        for mut recovery in core::mem::take(&mut state.recoveries) {
+            let deriver_a =
+                validate_delivery(Ed25519YaoDeriverRoleV1::DeriverA, recovery.deriver_a.clone())?;
+            let deriver_b =
+                validate_delivery(Ed25519YaoDeriverRoleV1::DeriverB, recovery.deriver_b.clone())?;
+            if deriver_a.binding != deriver_b.binding
+                || deriver_a.binding.operation != Ed25519YaoOperationV1::Recovery
+                || recovery.identity != LocalEd25519YaoEffectiveIdentityV1::from_binding(&deriver_a.binding)
+            {
+                return Err(invalid_activation(
+                    "persisted SigningWorker recovery is invalid",
+                ));
+            }
+            let identity_state = identities.get_mut(&recovery.identity).ok_or_else(|| {
+                invalid_activation("persisted SigningWorker recovery has no active identity")
+            })?;
+            let promotion = recovery.promotion.clone();
+            match (
+                recovery.staged.as_mut(),
+                recovery.attempt,
+                identity_state.recovery_promotion.as_ref(),
+            ) {
+                (Some(share), Some(attempt), None) => {
+                    if share.scalar.iter().all(|byte| *byte == 0) {
+                        return Err(invalid_activation(
+                            "persisted SigningWorker recovery candidate is invalid",
+                        ));
+                    }
+                    let candidate = ActivationCandidate {
+                        next_active: ActiveSigningShare {
+                            scalar: Zeroizing::new(core::mem::take(&mut share.scalar)),
+                            binding: share.binding.clone(),
+                            state_epoch: share.state_epoch,
+                            activated_at_ms: share.activated_at_ms,
+                            transcript: share.transcript,
+                            registered_public_key: share.registered_public_key,
+                        },
+                        promotion,
+                        deriver_a,
+                        deriver_b,
+                    };
+                    identity_state.recovery_promotion =
+                        Some(RecoveryPromotionState::Staged { attempt, candidate });
+                }
+                (None, None, None) => {
+                    identity_state.recovery_promotion = Some(RecoveryPromotionState::Promoted {
+                        promotion,
+                        deriver_a,
+                        deriver_b,
+                    });
+                }
+                _ => {
+                    return Err(invalid_activation(
+                        "persisted SigningWorker recovery attempts are inconsistent",
+                    ));
+                }
+            }
+        }
+        let retired_activations = core::mem::take(&mut state.retired_activations);
+        for retired in &retired_activations {
+            retired.validate()?;
+        }
+        let mut linked = BTreeMap::new();
+        for entry in core::mem::take(&mut state.linked) {
+            entry.scope.validate()?;
+            entry.state.validate()?;
+            let active = matches!(
+                entry.state,
+                SigningWorkerYaoReservationStateV1::Active { .. }
+            );
+            if entry.record_key != linked_record_key(&entry.state)?
+                || active != entry.activated_at_ms.is_some()
+                || entry.activated_at_ms == Some(0)
+            {
+                return Err(invalid_activation(
+                    "persisted SigningWorker linked Ed25519 reservation is invalid",
+                ));
+            }
+            if linked.insert(entry.record_key.clone(), entry).is_some() {
+                return Err(invalid_activation(
+                    "persisted SigningWorker state contains a duplicate linked reservation",
+                ));
+            }
+        }
+        Ok(Self {
+            identities,
+            retired_activations,
+            linked,
+        })
     }
 
     pub fn accept_package_pair(
@@ -274,16 +506,77 @@ impl LocalEd25519YaoSigningWorkerStateV1 {
         config: &LocalSigningWorkerConfigV1,
         request: LocalEd25519YaoSigningWorkerPackagePairDeliveryV1,
     ) -> RouterAbProtocolResult<LocalEd25519YaoSigningWorkerActivationReceiptV1> {
-        let deriver_a = validate_delivery(Ed25519YaoDeriverRoleV1::DeriverA, request.deriver_a)?;
-        let deriver_b = validate_delivery(Ed25519YaoDeriverRoleV1::DeriverB, request.deriver_b)?;
+        validate_activation_request(&request)?;
+        let deriver_a =
+            validate_delivery(Ed25519YaoDeriverRoleV1::DeriverA, request.deriver_a.clone())?;
+        let deriver_b =
+            validate_delivery(Ed25519YaoDeriverRoleV1::DeriverB, request.deriver_b.clone())?;
         if deriver_a.binding != deriver_b.binding {
             return Err(invalid_activation(
                 "SigningWorker activation package pair must share one binding",
             ));
         }
         let identity = LocalEd25519YaoEffectiveIdentityV1::from_binding(&deriver_a.binding);
-        self.activation_identity_state_mut(identity, deriver_a.binding.operation)?
-            .accept_package_pair(config, deriver_a, deriver_b)
+        let state = self.activation_identity_state_mut(identity, deriver_a.binding.operation)?;
+        if deriver_a.binding.operation == Ed25519YaoOperationV1::Registration
+            && state.initial_registration.is_some()
+        {
+            return Err(invalid_activation(
+                "initial registration finalization already exists",
+            ));
+        }
+        let receipt =
+            state.accept_package_pair(config, deriver_a, deriver_b, request.recovery_attempt)?;
+        if request.deriver_a.binding.operation == Ed25519YaoOperationV1::Registration {
+            state.initial_registration = Some(LocalEd25519YaoCommittedInitialRegistrationV1 {
+                request,
+                receipt: receipt.clone(),
+            });
+        }
+        Ok(receipt)
+    }
+
+    pub fn read_initial_registration_finalization(
+        &self,
+        request: &LocalEd25519YaoSigningWorkerPackagePairDeliveryV1,
+    ) -> RouterAbProtocolResult<LocalEd25519YaoInitialRegistrationFinalizationV1> {
+        validate_initial_registration_request(request)?;
+        let identity = LocalEd25519YaoEffectiveIdentityV1::from_binding(&request.deriver_a.binding);
+        let Some(state) = self.identities.get(&identity) else {
+            return Ok(LocalEd25519YaoInitialRegistrationFinalizationV1::Missing);
+        };
+        let Some(record) = state.initial_registration.as_ref() else {
+            return Ok(if state.active.is_some() {
+                LocalEd25519YaoInitialRegistrationFinalizationV1::Conflict
+            } else {
+                LocalEd25519YaoInitialRegistrationFinalizationV1::Pending
+            });
+        };
+        if record.request != *request {
+            return Ok(LocalEd25519YaoInitialRegistrationFinalizationV1::Conflict);
+        }
+        let Some(active) = state.active.as_ref() else {
+            return Ok(LocalEd25519YaoInitialRegistrationFinalizationV1::Pending);
+        };
+        let LocalEd25519YaoSigningWorkerActivationReceiptV1::Active {
+            registered_public_key,
+            ..
+        } = &record.receipt
+        else {
+            return Ok(LocalEd25519YaoInitialRegistrationFinalizationV1::Conflict);
+        };
+        if active.binding != request.deriver_a.binding
+            || active.state_epoch != Ed25519YaoStateEpochV1::new(1)?
+            || active.transcript != request.deriver_a.package.transcript()
+            || active.registered_public_key != *registered_public_key
+        {
+            return Ok(LocalEd25519YaoInitialRegistrationFinalizationV1::Conflict);
+        }
+        Ok(
+            LocalEd25519YaoInitialRegistrationFinalizationV1::Committed {
+                receipt: record.receipt.clone(),
+            },
+        )
     }
 
     pub fn promote_recovery_candidate(
@@ -291,12 +584,25 @@ impl LocalEd25519YaoSigningWorkerStateV1 {
         request: LocalEd25519YaoSigningWorkerRecoveryPromotionRequestV1,
     ) -> RouterAbProtocolResult<LocalEd25519YaoSigningWorkerActivationReceiptV1> {
         let identity = LocalEd25519YaoEffectiveIdentityV1::from_binding(&request.binding);
-        self.identities
-            .get_mut(&identity)
-            .ok_or_else(|| {
-                invalid_activation("SigningWorker has no active state for this recovery identity")
-            })?
-            .promote_recovery_candidate(request)
+        let state = self.identities.get_mut(&identity).ok_or_else(|| {
+            invalid_activation("SigningWorker has no active state for this recovery identity")
+        })?;
+        let previous = state
+            .active
+            .as_ref()
+            .map(|active| active.binding.material_activation.clone());
+        let receipt = state.promote_recovery_candidate(request)?;
+        let promoted = state
+            .active
+            .as_ref()
+            .map(|active| active.binding.material_activation.clone());
+        if let Some(previous) = previous {
+            if promoted.as_ref() != Some(&previous) && !self.retired_activations.contains(&previous)
+            {
+                self.retired_activations.push(previous);
+            }
+        }
+        Ok(receipt)
     }
 
     pub fn accept_refresh_deriver_a(
@@ -327,40 +633,424 @@ impl LocalEd25519YaoSigningWorkerStateV1 {
             .accept_refresh_deriver_b(config, request)
     }
 
-    pub fn prepare_normal_signing(
-        &mut self,
+    pub fn normal_signing_material(
+        &self,
         config: &LocalSigningWorkerConfigV1,
-        body: &[u8],
-    ) -> RouterAbProtocolResult<String> {
-        let request = serde_json::from_slice::<
-            CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2,
-        >(body)
-        .map_err(|_| invalid_normal_signing("SigningWorker prepare request is malformed"))?;
-        let identity = self.identity_for_scope(&request.scope)?;
-        self.identities
-            .get_mut(&identity)
-            .expect("normal-signing identity was selected from the same map")
-            .prepare_normal_signing(config, body)
+        scope: &NormalSigningScopeV1,
+        pinned_wallet_scope: Option<&CloudflareSigningWorkerWalletScopeV1>,
+        metadata: &router_ab_cloudflare::CloudflareRouterNormalSigningTrustedMetadataV1,
+    ) -> RouterAbProtocolResult<(
+        ActiveSigningWorkerStateV1,
+        CloudflareServerOutputMaterialRecordV1,
+    )> {
+        if self
+            .retired_activations
+            .contains(&scope.material_activation)
+        {
+            return Err(router_ab_cloudflare::signing_worker_activation_retired_error_v1());
+        }
+        if let Some(linked) =
+            self.linked_normal_signing_material(config, scope, pinned_wallet_scope, metadata)?
+        {
+            return Ok(linked);
+        }
+        let identity = self.identity_for_scope(scope)?;
+        let state = self
+            .identities
+            .get(&identity)
+            .expect("normal-signing identity was selected from the same map");
+        let active_state = state.active_normal_signing_state(config, scope)?;
+        let registered_scope = &state
+            .initial_registration
+            .as_ref()
+            .ok_or_else(|| invalid_normal_signing("SigningWorker has no registered wallet scope"))?
+            .request
+            .scope;
+        router_ab_cloudflare::require_signing_worker_normal_signing_wallet_scope_v1(
+            registered_scope,
+            pinned_wallet_scope,
+            metadata,
+            &scope.account_id,
+        )?;
+        let active = state.active.as_ref().ok_or_else(|| {
+            invalid_normal_signing("SigningWorker has no active Yao signing share")
+        })?;
+        let material = CloudflareServerOutputMaterialRecordV1::new(
+            PublicDigest32::new(active.transcript),
+            OpenedShareKind::XServerBase,
+            Role::Server,
+            config.signing_worker_id.clone(),
+            CloudflareSecretMaterial32V1::new(*active.scalar),
+        )?;
+        Ok((active_state, material))
     }
 
-    pub fn finalize_normal_signing(
+    /// Reserves Ed25519 material for a device linked to a wallet here, from
+    /// the wallet's active share or an active linked device's, exactly as
+    /// the source binding names it. An exact retry answers the same
+    /// reservation.
+    pub fn reserve_linked(
         &mut self,
         config: &LocalSigningWorkerConfigV1,
-        body: &[u8],
-    ) -> RouterAbProtocolResult<String> {
-        let request = serde_json::from_slice::<
-            CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2,
-        >(body)
-        .map_err(|error| {
-            invalid_normal_signing(format!(
-                "SigningWorker finalize request is malformed: {error}"
+        request: &CloudflareEd25519YaoSourcePreservingInactiveReservationRequestV1,
+    ) -> RouterAbProtocolResult<CloudflareEd25519YaoInactiveReservationResponseV1> {
+        request.validate()?;
+        let delivery = &request.delivery;
+        let record_key = reservation_record_key_from_binding_v1(&delivery.deriver_a.binding)?;
+        let reservation_id =
+            source_preserving_reservation_id_v1(&request.source_binding, delivery)?;
+        if let LinkedEd25519ReservationV1::Answer(answer) = settle_linked_ed25519_reservation_v1(
+            self.linked_for_scope(&request.scope, &record_key)?
+                .map(|linked| &linked.state),
+            &reservation_id,
+            delivery,
+            request.participant_ids,
+            &request.deriver_a_client_package,
+            &request.deriver_b_client_package,
+        )? {
+            return Ok(answer);
+        }
+        let source = self.linked_source_material(&request.scope, &request.source_binding)?;
+        let private_key = parse_private_key(&config.server_output_hpke_private_key)?;
+        let (candidate, receipt) =
+            combine_ed25519_yao_signing_worker_packages_source_preserving_v1(
+                &private_key,
+                delivery.deriver_a.clone(),
+                delivery.deriver_b.clone(),
+                &source,
+            )?
+            .into_parts();
+        let activation_receipt =
+            public_activation_receipt_v1(&delivery.deriver_a.binding, &receipt)?;
+        let state = SigningWorkerYaoReservationStateV1::Inactive {
+            delivery: delivery.clone(),
+            participant_ids: request.participant_ids,
+            deriver_a_client_package: request.deriver_a_client_package.clone(),
+            deriver_b_client_package: request.deriver_b_client_package.clone(),
+            candidate,
+            receipt,
+            reservation_id: reservation_id.clone(),
+        };
+        state.validate()?;
+        self.linked.insert(
+            record_key.clone(),
+            LocalLinkedEd25519V1 {
+                record_key,
+                scope: request.scope.clone(),
+                state,
+                activated_at_ms: None,
+            },
+        );
+        Ok(CloudflareEd25519YaoInactiveReservationResponseV1 {
+            state: "inactive".to_owned(),
+            reservation_id,
+            participant_ids: request.participant_ids,
+            activation_receipt,
+            deriver_a_client_package: request.deriver_a_client_package.clone(),
+            deriver_b_client_package: request.deriver_b_client_package.clone(),
+        })
+    }
+
+    /// Activates a linked device's reserved Ed25519 material beside the
+    /// wallet's. An active reservation answers again; a revoked or retired
+    /// one never activates.
+    pub fn activate_linked(
+        &mut self,
+        request: &CloudflareEd25519YaoActivateReservationRequestV1,
+        activated_at_ms: u64,
+    ) -> RouterAbProtocolResult<CloudflareEd25519YaoReservationActivationResponseV1> {
+        request.validate()?;
+        let record_key = reservation_record_key_from_binding_v1(&request.binding)?;
+        let linked = self
+            .linked_for_scope(&request.scope, &record_key)?
+            .ok_or_else(|| {
+                invalid_normal_signing("ordinary Ed25519 material reservation is missing")
+            })?;
+        let receipt = match settle_linked_ed25519_activation_v1(&linked.state, request)? {
+            LinkedEd25519ActivationV1::Answer(receipt) => receipt,
+            LinkedEd25519ActivationV1::Activate => {
+                if self
+                    .retired_activations
+                    .contains(&request.binding.material_activation)
+                {
+                    return Err(router_ab_cloudflare::signing_worker_activation_retired_error_v1());
+                }
+                let SigningWorkerYaoReservationStateV1::Inactive {
+                    delivery,
+                    participant_ids,
+                    deriver_a_client_package,
+                    deriver_b_client_package,
+                    candidate,
+                    receipt,
+                    reservation_id,
+                } = linked.state.clone()
+                else {
+                    return Err(invalid_activation(
+                        "SigningWorker linked Ed25519 reservation is in a state this host never writes",
+                    ));
+                };
+                let active = LocalLinkedEd25519V1 {
+                    record_key: record_key.clone(),
+                    scope: request.scope.clone(),
+                    state: SigningWorkerYaoReservationStateV1::Active {
+                        delivery,
+                        participant_ids,
+                        deriver_a_client_package,
+                        deriver_b_client_package,
+                        candidate,
+                        receipt: receipt.clone(),
+                        reservation_id,
+                    },
+                    activated_at_ms: Some(activated_at_ms),
+                };
+                self.linked.insert(record_key, active);
+                receipt
+            }
+        };
+        Ok(CloudflareEd25519YaoReservationActivationResponseV1 { receipt })
+    }
+
+    /// Revokes a linked device's Ed25519 material and retires its activation
+    /// with it, so no delayed request signs with it again. The same
+    /// revocation answers again.
+    pub fn deactivate_linked(
+        &mut self,
+        request: &CloudflareEd25519YaoDeactivateReservationRequestV1,
+        now_ms: u64,
+    ) -> RouterAbProtocolResult<CloudflareEd25519YaoReservationDeactivationResponseV1> {
+        request.validate()?;
+        let record_key =
+            reservation_record_key_from_material_activation_v1(&request.material_activation)?;
+        let linked = self
+            .linked_for_scope(&request.scope, &record_key)?
+            .ok_or_else(|| {
+                invalid_normal_signing("ordinary Ed25519 material reservation is missing")
+            })?;
+        let (binding, reservation_id, revoked_at_ms) = match settle_linked_ed25519_deactivation_v1(
+            &linked.state,
+            &request.material_activation,
+        )? {
+            LinkedEd25519DeactivationV1::Revoked {
+                reservation_id,
+                revoked_at_ms,
+                ..
+            } => {
+                return Ok(CloudflareEd25519YaoReservationDeactivationResponseV1 {
+                    state: "revoked",
+                    reservation_id,
+                    material_activation: request.material_activation.clone(),
+                    revoked_at_ms,
+                })
+            }
+            LinkedEd25519DeactivationV1::Resume {
+                binding,
+                reservation_id,
+                revoked_at_ms,
+            } => (binding, reservation_id, revoked_at_ms),
+            LinkedEd25519DeactivationV1::Revoke {
+                binding,
+                reservation_id,
+            } => (binding, reservation_id, now_ms),
+        };
+        let revoked = LocalLinkedEd25519V1 {
+            record_key: record_key.clone(),
+            scope: request.scope.clone(),
+            state: SigningWorkerYaoReservationStateV1::Revoked {
+                binding,
+                reservation_id: reservation_id.clone(),
+                revoked_at_ms,
+            },
+            activated_at_ms: None,
+        };
+        self.linked.insert(record_key, revoked);
+        if !self
+            .retired_activations
+            .contains(&request.material_activation)
+        {
+            self.retired_activations
+                .push(request.material_activation.clone());
+        }
+        Ok(CloudflareEd25519YaoReservationDeactivationResponseV1 {
+            state: "revoked",
+            reservation_id,
+            material_activation: request.material_activation.clone(),
+            revoked_at_ms,
+        })
+    }
+
+    /// The linked reservation `record_key` names, which must belong to the
+    /// wallet `scope` names.
+    fn linked_for_scope(
+        &self,
+        scope: &CloudflareSigningWorkerWalletScopeV1,
+        record_key: &str,
+    ) -> RouterAbProtocolResult<Option<&LocalLinkedEd25519V1>> {
+        let Some(linked) = self.linked.get(record_key) else {
+            return Ok(None);
+        };
+        if &linked.scope != scope {
+            return Err(invalid_normal_signing(
+                "linked Ed25519 reservation belongs to another wallet",
+            ));
+        }
+        Ok(Some(linked))
+    }
+
+    /// The material a linked device's reservation is made from: the wallet's
+    /// active share, or an active linked device's.
+    fn linked_source_material(
+        &self,
+        scope: &CloudflareSigningWorkerWalletScopeV1,
+        source_binding: &Ed25519YaoCeremonyBindingV1,
+    ) -> RouterAbProtocolResult<Ed25519YaoActiveSigningMaterialV1> {
+        let source_key = reservation_record_key_from_binding_v1(source_binding)?;
+        if let Some(linked) = self.linked_for_scope(scope, &source_key)? {
+            return match &linked.state {
+                SigningWorkerYaoReservationStateV1::Active {
+                    delivery,
+                    candidate,
+                    ..
+                } if delivery.deriver_a.binding == *source_binding
+                    && candidate.binding() == source_binding =>
+                {
+                    Ok(candidate.clone())
+                }
+                SigningWorkerYaoReservationStateV1::Inactive { delivery, .. }
+                | SigningWorkerYaoReservationStateV1::Activating { delivery, .. }
+                    if delivery.deriver_a.binding == *source_binding =>
+                {
+                    Err(invalid_normal_signing(
+                        "source Ed25519 material reservation is not active",
+                    ))
+                }
+                SigningWorkerYaoReservationStateV1::Deactivating { binding, .. }
+                | SigningWorkerYaoReservationStateV1::Revoked { binding, .. }
+                    if binding == source_binding =>
+                {
+                    Err(invalid_normal_signing(
+                        "source Ed25519 material reservation is revoked",
+                    ))
+                }
+                _ => Err(RouterAbProtocolError::new(
+                    RouterAbProtocolErrorCode::ConflictingPair,
+                    "source Ed25519 material activation identity conflicts with the reservation",
+                )),
+            };
+        }
+        if self
+            .retired_activations
+            .contains(&source_binding.material_activation)
+        {
+            return Err(router_ab_cloudflare::signing_worker_activation_retired_error_v1());
+        }
+        let state = self
+            .identities
+            .get(&LocalEd25519YaoEffectiveIdentityV1::from_binding(
+                source_binding,
             ))
+            .ok_or_else(|| {
+                RouterAbProtocolError::new(
+                    RouterAbProtocolErrorCode::MissingLocalBinding,
+                    "source Ed25519 material is missing",
+                )
+            })?;
+        let registered = state.initial_registration.as_ref().ok_or_else(|| {
+            invalid_normal_signing("SigningWorker has no registered wallet scope")
         })?;
-        let identity = self.identity_for_scope(&request.request.scope)?;
-        self.identities
-            .get_mut(&identity)
-            .expect("normal-signing identity was selected from the same map")
-            .finalize_normal_signing(config, body)
+        if &registered.request.scope != scope {
+            return Err(invalid_normal_signing(
+                "source Ed25519 material belongs to another wallet",
+            ));
+        }
+        let active = state.active.as_ref().ok_or_else(|| {
+            invalid_normal_signing("source Ed25519 material reservation is not active")
+        })?;
+        if active.binding != *source_binding {
+            return Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::ConflictingPair,
+                "source Ed25519 material activation identity conflicts with the lifecycle state",
+            ));
+        }
+        Ed25519YaoActiveSigningMaterialV1::from_parts(
+            *active.scalar,
+            active.binding.clone(),
+            active.state_epoch,
+            active.transcript,
+            active.registered_public_key,
+        )
+    }
+
+    /// A linked device's active material, when the scope names one: the same
+    /// shapes a registration activation signs with here.
+    fn linked_normal_signing_material(
+        &self,
+        config: &LocalSigningWorkerConfigV1,
+        scope: &NormalSigningScopeV1,
+        pinned_wallet_scope: Option<&CloudflareSigningWorkerWalletScopeV1>,
+        metadata: &router_ab_cloudflare::CloudflareRouterNormalSigningTrustedMetadataV1,
+    ) -> RouterAbProtocolResult<
+        Option<(
+            ActiveSigningWorkerStateV1,
+            CloudflareServerOutputMaterialRecordV1,
+        )>,
+    > {
+        let record_key =
+            reservation_record_key_from_material_activation_v1(&scope.material_activation)?;
+        let Some(linked) = self.linked.get(&record_key) else {
+            return Ok(None);
+        };
+        let (SigningWorkerYaoReservationStateV1::Active { candidate, .. }, Some(activated_at_ms)) =
+            (&linked.state, linked.activated_at_ms)
+        else {
+            return Err(invalid_normal_signing(
+                "linked Ed25519 material reservation is not active",
+            ));
+        };
+        let binding = candidate.binding();
+        if binding.lifecycle.account_id != scope.account_id
+            || binding.material_activation != scope.material_activation
+            || binding.lifecycle.selected_server_id != scope.signing_worker_id
+        {
+            return Err(invalid_normal_signing(
+                "normal-signing scope does not match the linked Yao activation",
+            ));
+        }
+        router_ab_cloudflare::require_signing_worker_normal_signing_wallet_scope_v1(
+            &linked.scope,
+            pinned_wallet_scope,
+            metadata,
+            &scope.account_id,
+        )?;
+        let state = ActiveSigningWorkerStateV1::new(
+            scope.account_id.clone(),
+            scope.material_activation.clone(),
+            format!(
+                "ed25519:{}",
+                bs58::encode(candidate.registered_public_key()).into_string()
+            ),
+            ServerIdentityV1::new(
+                config.signing_worker_id.clone(),
+                config.signing_worker_key_epoch.clone(),
+                config.server_output_hpke_public_key.clone(),
+            )?,
+            PublicDigest32::new(candidate.transcript()),
+            PublicDigest32::new(candidate.registered_public_key()),
+            format!(
+                "ed25519-yao/{}/{}",
+                binding.lifecycle.lifecycle_id,
+                candidate.state_epoch().get()
+            ),
+            activated_at_ms,
+        )?;
+        state.validate_for_scope(scope)?;
+        let material = CloudflareServerOutputMaterialRecordV1::new(
+            PublicDigest32::new(candidate.transcript()),
+            OpenedShareKind::XServerBase,
+            Role::Server,
+            config.signing_worker_id.clone(),
+            CloudflareSecretMaterial32V1::new(*candidate.scalar()),
+        )?;
+        Ok(Some((state, material)))
     }
 
     pub fn active_public_key(&self) -> Option<&[u8; 32]> {
@@ -447,11 +1137,73 @@ impl LocalEd25519YaoSigningIdentityStateV1 {
         config: &LocalSigningWorkerConfigV1,
         deriver_a: PendingDelivery,
         deriver_b: PendingDelivery,
+        recovery_attempt: Option<Ed25519YaoRecoveryAttemptV1>,
     ) -> RouterAbProtocolResult<LocalEd25519YaoSigningWorkerActivationReceiptV1> {
+        if let Some(attempt) = recovery_attempt {
+            if let Some(receipt) = self.settle_recovery_delivery(&deriver_a, &deriver_b, attempt)? {
+                return Ok(receipt);
+            }
+        }
         self.validate_activation_transition(&deriver_a.binding)?;
         let state_epoch = self.activation_state_epoch(&deriver_a.binding)?;
         let activated = activate(config, deriver_a, deriver_b, state_epoch)?;
-        self.commit_activation_candidate(activated)
+        self.commit_activation_candidate(activated, recovery_attempt)
+    }
+
+    /// A recovery delivery from the Gateway's attempt `attempt`, settled
+    /// against the recovery staged or promoted here by the decision every
+    /// SigningWorker shares. `None` stages the attempt.
+    fn settle_recovery_delivery(
+        &mut self,
+        deriver_a: &PendingDelivery,
+        deriver_b: &PendingDelivery,
+        attempt: Ed25519YaoRecoveryAttemptV1,
+    ) -> RouterAbProtocolResult<Option<LocalEd25519YaoSigningWorkerActivationReceiptV1>> {
+        let (held, answer) = match &self.recovery_promotion {
+            Some(RecoveryPromotionState::Staged {
+                attempt: staged_attempt,
+                candidate,
+            }) => (
+                Ed25519YaoRecoveryHeldV1::Staged {
+                    lifecycle_id: candidate.deriver_a.binding.lifecycle.lifecycle_id.as_str(),
+                    session_id: candidate.deriver_a.binding.session_id,
+                    attempt: *staged_attempt,
+                    same_deliveries: candidate.deriver_a == *deriver_a
+                        && candidate.deriver_b == *deriver_b,
+                },
+                Some(&candidate.promotion),
+            ),
+            Some(RecoveryPromotionState::Promoted {
+                promotion,
+                deriver_a: promoted_a,
+                deriver_b: promoted_b,
+            }) => (
+                Ed25519YaoRecoveryHeldV1::Promoted {
+                    lifecycle_id: promoted_a.binding.lifecycle.lifecycle_id.as_str(),
+                    same_deliveries: promoted_a == deriver_a && promoted_b == deriver_b,
+                },
+                Some(promotion),
+            ),
+            None => (Ed25519YaoRecoveryHeldV1::Idle, None),
+        };
+        match decide_ed25519_yao_recovery_delivery_v1(
+            held,
+            deriver_a.binding.lifecycle.lifecycle_id.as_str(),
+            deriver_a.binding.session_id,
+            attempt,
+        )? {
+            Ed25519YaoRecoveryDeliveryDecisionV1::AnswerHeld => {
+                let promotion = answer.ok_or_else(|| {
+                    invalid_activation("SigningWorker holds no recovery to answer")
+                })?;
+                Ok(Some(
+                    LocalEd25519YaoSigningWorkerActivationReceiptV1::Staged {
+                        promotion: promotion.clone(),
+                    },
+                ))
+            }
+            Ed25519YaoRecoveryDeliveryDecisionV1::Stage => Ok(None),
+        }
     }
 
     pub fn promote_recovery_candidate(
@@ -459,36 +1211,41 @@ impl LocalEd25519YaoSigningIdentityStateV1 {
         request: LocalEd25519YaoSigningWorkerRecoveryPromotionRequestV1,
     ) -> RouterAbProtocolResult<LocalEd25519YaoSigningWorkerActivationReceiptV1> {
         validate_recovery_promotion_request(&request)?;
-        let promotion_state = self
-            .recovery_promotion
-            .as_ref()
-            .ok_or_else(|| invalid_activation("SigningWorker has no staged recovery candidate"))?;
-        if promotion_state.promotion() != &request {
-            return Err(invalid_activation(
-                "recovery promotion does not match the staged candidate",
-            ));
-        }
-        if matches!(promotion_state, RecoveryPromotionState::Promoted { .. }) {
+        let held = match self.recovery_promotion.as_ref() {
+            None => Ed25519YaoRecoveryPromotionHeldV1::Nothing,
+            Some(RecoveryPromotionState::Promoted { promotion, .. }) => {
+                Ed25519YaoRecoveryPromotionHeldV1::Promoted {
+                    matches: exact_recovery_promotion(promotion, &request),
+                }
+            }
+            Some(RecoveryPromotionState::Staged { candidate, .. }) => {
+                Ed25519YaoRecoveryPromotionHeldV1::Staged {
+                    matches: exact_recovery_promotion(&candidate.promotion, &request)
+                        .and_then(|()| self.validate_recovery_candidate(&candidate.next_active)),
+                }
+            }
+        };
+        if decide_ed25519_yao_recovery_promotion_v1(held)?
+            == Ed25519YaoRecoveryPromotionDecisionV1::Repeat
+        {
             return Ok(active_activation_receipt(&request));
         }
-        let RecoveryPromotionState::Staged { candidate } = promotion_state else {
-            unreachable!();
-        };
-        self.validate_recovery_candidate(&candidate.next_active)?;
-        let RecoveryPromotionState::Staged { candidate } = self
-            .recovery_promotion
-            .take()
-            .expect("recovery promotion state was checked above")
+        let Some(RecoveryPromotionState::Staged { candidate, .. }) = self.recovery_promotion.take()
         else {
-            unreachable!();
+            unreachable!("recovery promotion state was checked above");
         };
         let ActivationCandidate {
             next_active,
             promotion,
-            ..
+            deriver_a,
+            deriver_b,
         } = candidate;
         self.active = Some(next_active);
-        self.recovery_promotion = Some(RecoveryPromotionState::Promoted { promotion });
+        self.recovery_promotion = Some(RecoveryPromotionState::Promoted {
+            promotion,
+            deriver_a,
+            deriver_b,
+        });
         Ok(active_activation_receipt(&request))
     }
 
@@ -560,245 +1317,10 @@ impl LocalEd25519YaoSigningIdentityStateV1 {
         self.active.as_ref().map(|active| active.state_epoch)
     }
 
-    pub fn prepare_normal_signing(
-        &mut self,
-        config: &LocalSigningWorkerConfigV1,
-        body: &[u8],
-    ) -> RouterAbProtocolResult<String> {
-        let private_request = serde_json::from_slice::<
-            CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2,
-        >(body)
-        .map_err(|_| invalid_normal_signing("SigningWorker prepare request is malformed"))?;
-        private_request.validate()?;
-        let request_scope = private_request.scope;
-        let request_expires_at_ms = private_request.expires_at_ms;
-        let admission = private_request.admission_candidate;
-        let round1_binding_digest = admission.round1_binding_digest.ok_or_else(|| {
-            invalid_normal_signing("SigningWorker prepare request lacks round-1 binding")
-        })?;
-        let prepared_at_ms = now_unix_ms()?;
-        if prepared_at_ms >= request_expires_at_ms {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::ExpiredLocalRequest,
-                "SigningWorker prepare request expired",
-            ));
-        }
-        let active_state =
-            self.active_normal_signing_state(config, &request_scope, prepared_at_ms)?;
-        let active = self.active.as_ref().ok_or_else(|| {
-            invalid_normal_signing("SigningWorker has no active Yao signing share")
-        })?;
-        let signing_worker_identifier = frost_ed25519::Identifier::try_from(2_u16)
-            .map_err(|_| invalid_normal_signing("SigningWorker FROST identifier is invalid"))?;
-        let mut key_package = key_package_from_signing_share_bytes(
-            &active.scalar,
-            &active.registered_public_key,
-            signing_worker_identifier,
-        )
-        .map_err(map_signer_error)?;
-        let round1 = client_round1_commit(&key_package).map_err(map_signer_error)?;
-        key_package.zeroize();
-        let mut handle_random = [0_u8; 16];
-        rand_core::RngCore::fill_bytes(&mut rand_core::OsRng, &mut handle_random);
-        let server_round1_handle = format!(
-            "yao-server-round1/{}/{}",
-            request_scope.request_id,
-            base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(handle_random)
-        );
-        let server_commitments = normal_signing_commitments(&round1.commitments_wire)?;
-        let server_verifying_share = verifying_share_bytes_from_signing_share_bytes(&active.scalar);
-        let record = PendingNormalSigningRound {
-            scope: request_scope.clone(),
-            state_epoch: active.state_epoch,
-            registered_public_key: active.registered_public_key,
-            round1_binding_digest,
-            intent_digest: admission.intent_digest,
-            signing_payload_digest: admission.signing_payload_digest,
-            admitted_signing_digest: admission.admitted_signing_digest,
-            round1,
-            expires_at_ms: request_expires_at_ms,
-        };
-        if self
-            .pending_normal_signing
-            .insert(server_round1_handle.clone(), record)
-            .is_some()
-        {
-            return Err(invalid_normal_signing(
-                "SigningWorker round-one handle collision",
-            ));
-        }
-        let response = NormalSigningRound1PrepareResponseV1::new(
-            request_scope,
-            admission.signing_payload_digest,
-            round1_binding_digest,
-            active_state.signing_worker,
-            server_round1_handle,
-            server_commitments,
-            base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(server_verifying_share),
-            NormalSigningSignatureSchemeV1::Ed25519V1,
-            prepared_at_ms,
-            request_expires_at_ms,
-        )?;
-        serde_json::to_string(&response)
-            .map_err(|_| invalid_normal_signing("SigningWorker prepare response encoding failed"))
-    }
-
-    pub fn finalize_normal_signing(
-        &mut self,
-        config: &LocalSigningWorkerConfigV1,
-        body: &[u8],
-    ) -> RouterAbProtocolResult<String> {
-        let private_request = serde_json::from_slice::<
-            CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2,
-        >(body)
-        .map_err(|error| {
-            invalid_normal_signing(format!(
-                "SigningWorker finalize request is malformed: {error}"
-            ))
-        })?;
-        private_request.validate()?;
-        let request = private_request.request;
-        let signed_at_ms = now_unix_ms()?;
-        let active_state =
-            self.active_normal_signing_state(config, &request.scope, signed_at_ms)?;
-        let mut record = self
-            .pending_normal_signing
-            .remove(request.server_round1_handle())
-            .ok_or_else(|| {
-                invalid_normal_signing("SigningWorker round-one state is unavailable")
-            })?;
-        if signed_at_ms >= record.expires_at_ms {
-            record.round1.nonces.zeroize();
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::ExpiredLocalRequest,
-                "SigningWorker round-one state expired",
-            ));
-        }
-        let active = self.active.as_ref().ok_or_else(|| {
-            invalid_normal_signing("SigningWorker has no active Yao signing share")
-        })?;
-        if record.scope != request.scope
-            || record.state_epoch != active.state_epoch
-            || record.registered_public_key != active.registered_public_key
-            || record.round1_binding_digest != request.round1_binding_digest()
-            || record.intent_digest != request.intent_digest()
-            || record.signing_payload_digest != request.signing_payload_digest()
-            || record.expires_at_ms != request.expires_at_ms
-        {
-            record.round1.nonces.zeroize();
-            return Err(invalid_normal_signing(
-                "SigningWorker finalize request does not match prepared state",
-            ));
-        }
-        let RouterAbEd25519NormalSigningFinalizeProtocolV2::Ed25519TwoPartyFrostFinalizeV1(
-            protocol,
-        ) = &request.protocol;
-        let server_commitments_wire = signer_commitments(&protocol.server_commitments);
-        if server_commitments_wire.hiding != record.round1.commitments_wire.hiding
-            || server_commitments_wire.binding != record.round1.commitments_wire.binding
-        {
-            record.round1.nonces.zeroize();
-            return Err(invalid_normal_signing(
-                "SigningWorker commitments do not match prepared state",
-            ));
-        }
-        let expected_server_verifying_share =
-            verifying_share_bytes_from_signing_share_bytes(&active.scalar);
-        let supplied_server_verifying_share = decode_b64u_32(
-            &protocol.server_verifying_share_b64u,
-            "SigningWorker verifying share",
-        )?;
-        let client_verifying_share = decode_b64u_32(
-            &protocol.client_verifying_share_b64u,
-            "Client verifying share",
-        )?;
-        let computed_public_key =
-            compute_threshold_ed25519_group_public_key_2p_from_verifying_shares(
-                &client_verifying_share,
-                &supplied_server_verifying_share,
-                1,
-                2,
-            )
-            .map_err(map_signer_error)?;
-        let public_relation_valid = supplied_server_verifying_share
-            .ct_eq(&expected_server_verifying_share)
-            & computed_public_key.ct_eq(&active.registered_public_key);
-        if !bool::from(public_relation_valid) {
-            record.round1.nonces.zeroize();
-            return Err(invalid_normal_signing(
-                "FROST verifying shares do not match the active Yao public key",
-            ));
-        }
-        let client_identifier = frost_ed25519::Identifier::try_from(1_u16)
-            .map_err(|_| invalid_normal_signing("Client FROST identifier is invalid"))?;
-        let signing_worker_identifier = frost_ed25519::Identifier::try_from(2_u16)
-            .map_err(|_| invalid_normal_signing("SigningWorker FROST identifier is invalid"))?;
-        let client_commitments =
-            commitments_from_wire(&signer_commitments(&protocol.client_commitments))
-                .map_err(map_signer_error)?;
-        let signing_package = build_signing_package(
-            record.admitted_signing_digest.as_bytes(),
-            BTreeMap::from([
-                (client_identifier, client_commitments),
-                (signing_worker_identifier, record.round1.commitments),
-            ]),
-        );
-        let mut key_package = key_package_from_signing_share_bytes(
-            &active.scalar,
-            &active.registered_public_key,
-            signing_worker_identifier,
-        )
-        .map_err(map_signer_error)?;
-        let signing_worker_signature_share =
-            client_round2_signature_share(&signing_package, &record.round1.nonces, &key_package)
-                .map_err(map_signer_error)?;
-        record.round1.nonces.zeroize();
-        key_package.zeroize();
-        let verifying_key = frost_ed25519::VerifyingKey::deserialize(&active.registered_public_key)
-            .map_err(|_| invalid_normal_signing("registered Ed25519 public key is invalid"))?;
-        let signature = aggregate_signature(
-            &signing_package,
-            verifying_key,
-            BTreeMap::from([
-                (
-                    client_identifier,
-                    verifying_share_from_b64u(&protocol.client_verifying_share_b64u)
-                        .map_err(map_signer_error)?,
-                ),
-                (
-                    signing_worker_identifier,
-                    verifying_share_from_b64u(&protocol.server_verifying_share_b64u)
-                        .map_err(map_signer_error)?,
-                ),
-            ]),
-            BTreeMap::from([
-                (
-                    client_identifier,
-                    signature_share_from_b64u(&protocol.client_signature_share_b64u)
-                        .map_err(map_signer_error)?,
-                ),
-                (signing_worker_identifier, signing_worker_signature_share),
-            ]),
-        )
-        .map_err(map_signer_error)?;
-        let response = NormalSigningResponseV1::new(
-            request.scope.clone(),
-            request.signing_payload_digest(),
-            active_state.signing_worker,
-            request.protocol.signature_scheme(),
-            CanonicalWireBytesV1::new(signature.to_vec())?,
-            signed_at_ms,
-        )?;
-        response.validate_for_v2_finalize_request(&request)?;
-        serde_json::to_string(&response)
-            .map_err(|_| invalid_normal_signing("SigningWorker response encoding failed"))
-    }
-
     fn active_normal_signing_state(
         &self,
         config: &LocalSigningWorkerConfigV1,
         scope: &NormalSigningScopeV1,
-        now_ms: u64,
     ) -> RouterAbProtocolResult<ActiveSigningWorkerStateV1> {
         let active = self.active.as_ref().ok_or_else(|| {
             invalid_normal_signing("SigningWorker has no active Yao signing share")
@@ -831,7 +1353,7 @@ impl LocalEd25519YaoSigningIdentityStateV1 {
                 active.binding.lifecycle.lifecycle_id,
                 active.state_epoch.get()
             ),
-            now_ms,
+            active.activated_at_ms,
         )?;
         state.validate_for_scope(scope)?;
         Ok(state)
@@ -840,6 +1362,7 @@ impl LocalEd25519YaoSigningIdentityStateV1 {
     fn commit_activation_candidate(
         &mut self,
         candidate: ActivationCandidate,
+        recovery_attempt: Option<Ed25519YaoRecoveryAttemptV1>,
     ) -> RouterAbProtocolResult<LocalEd25519YaoSigningWorkerActivationReceiptV1> {
         validate_activation_candidate(&candidate)?;
         match candidate.next_active.binding.operation {
@@ -856,19 +1379,16 @@ impl LocalEd25519YaoSigningIdentityStateV1 {
                 Ok(receipt)
             }
             Ed25519YaoOperationV1::Recovery => {
-                if matches!(
-                    self.recovery_promotion,
-                    Some(RecoveryPromotionState::Staged { .. })
-                ) {
-                    return Err(invalid_activation(
-                        "SigningWorker recovery promotion is pending",
-                    ));
-                }
                 self.validate_recovery_candidate(&candidate.next_active)?;
+                let attempt = recovery_attempt
+                    .ok_or_else(|| invalid_activation("SigningWorker recovery names no attempt"))?;
                 let receipt = LocalEd25519YaoSigningWorkerActivationReceiptV1::Staged {
                     promotion: candidate.promotion.clone(),
                 };
-                self.recovery_promotion = Some(RecoveryPromotionState::Staged { candidate });
+                // A staged lower attempt, if any, is superseded: the
+                // Gateway can no longer promote it.
+                self.recovery_promotion =
+                    Some(RecoveryPromotionState::Staged { attempt, candidate });
                 Ok(receipt)
             }
             _ => Err(invalid_activation(
@@ -912,13 +1432,15 @@ impl LocalEd25519YaoSigningIdentityStateV1 {
         &self,
         binding: &Ed25519YaoCeremonyBindingV1,
     ) -> RouterAbProtocolResult<()> {
-        if matches!(
-            self.recovery_promotion,
-            Some(RecoveryPromotionState::Staged { .. })
-        ) {
-            return Err(invalid_activation(
-                "SigningWorker recovery promotion is pending",
-            ));
+        if let Some(RecoveryPromotionState::Staged { candidate, .. }) = &self.recovery_promotion {
+            let another_attempt = binding.operation == Ed25519YaoOperationV1::Recovery
+                && candidate.deriver_a.binding.lifecycle.lifecycle_id
+                    == binding.lifecycle.lifecycle_id;
+            if !another_attempt {
+                return Err(invalid_activation(
+                    "SigningWorker recovery promotion is pending",
+                ));
+            }
         }
         if self.pending_refresh_a.is_some() || self.pending_refresh_b.is_some() {
             return Err(invalid_activation(
@@ -1020,6 +1542,18 @@ impl LocalEd25519YaoSigningIdentityStateV1 {
     }
 }
 
+fn exact_recovery_promotion(
+    held: &LocalEd25519YaoSigningWorkerRecoveryPromotionRequestV1,
+    request: &LocalEd25519YaoSigningWorkerRecoveryPromotionRequestV1,
+) -> RouterAbProtocolResult<()> {
+    if held != request {
+        return Err(invalid_activation(
+            "recovery promotion does not match the staged candidate",
+        ));
+    }
+    Ok(())
+}
+
 fn same_signing_identity(
     active: &Ed25519YaoCeremonyBindingV1,
     recovery: &Ed25519YaoCeremonyBindingV1,
@@ -1029,6 +1563,126 @@ fn same_signing_identity(
         && active.lifecycle.account_id == recovery.lifecycle.account_id
         && active.lifecycle.signer_set_id == recovery.lifecycle.signer_set_id
         && active.lifecycle.selected_server_id == recovery.lifecycle.selected_server_id
+}
+
+fn validate_activation_request(
+    request: &LocalEd25519YaoSigningWorkerPackagePairDeliveryV1,
+) -> RouterAbProtocolResult<()> {
+    request.scope.validate()?;
+    let a = &request.deriver_a;
+    let b = &request.deriver_b;
+    a.binding.validate()?;
+    if !matches!(
+        a.binding.operation,
+        Ed25519YaoOperationV1::Registration | Ed25519YaoOperationV1::Recovery
+    ) || a.binding != b.binding
+        || request.scope.wallet_id != a.binding.lifecycle.account_id
+    {
+        return Err(invalid_activation(
+            "activation scope or binding differs from its package pair",
+        ));
+    }
+    if (a.binding.operation == Ed25519YaoOperationV1::Recovery)
+        != request.recovery_attempt.is_some()
+    {
+        return Err(invalid_activation(
+            "activation must name a recovery attempt exactly when it recovers",
+        ));
+    }
+    for (delivery, client, role) in [
+        (
+            a,
+            &request.deriver_a_client_package,
+            Ed25519YaoDeriverRoleV1::DeriverA,
+        ),
+        (
+            b,
+            &request.deriver_b_client_package,
+            Ed25519YaoDeriverRoleV1::DeriverB,
+        ),
+    ] {
+        delivery.package.validate()?;
+        client.validate()?;
+        if delivery.package.kind() != Ed25519YaoPackageKindV1::ActivationSigningWorker
+            || delivery.package.deriver() != role
+            || client.kind() != Ed25519YaoPackageKindV1::ActivationClient
+            || client.deriver() != role
+            || delivery.package.session() != a.binding.session_id.into_bytes()
+            || client.session() != a.binding.session_id.into_bytes()
+            || delivery.package.transcript() != client.transcript()
+        {
+            return Err(invalid_activation(
+                "activation package role or transcript is invalid",
+            ));
+        }
+    }
+    if a.package.transcript() != b.package.transcript() {
+        return Err(invalid_activation("activation package transcripts differ"));
+    }
+    Ok(())
+}
+
+fn validate_initial_registration_request(
+    request: &LocalEd25519YaoSigningWorkerPackagePairDeliveryV1,
+) -> RouterAbProtocolResult<()> {
+    validate_activation_request(request)?;
+    if request.deriver_a.binding.operation != Ed25519YaoOperationV1::Registration {
+        return Err(invalid_activation(
+            "finalization lookup requires initial registration",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_committed_initial_registration(
+    record: &LocalEd25519YaoCommittedInitialRegistrationV1,
+) -> RouterAbProtocolResult<()> {
+    validate_initial_registration_request(&record.request)?;
+    let LocalEd25519YaoSigningWorkerActivationReceiptV1::Active {
+        session,
+        transcript,
+        registered_public_key,
+        joined_client_commitment,
+        joined_signing_worker_commitment,
+        signing_worker_verifying_share,
+        state_epoch,
+    } = &record.receipt
+    else {
+        return Err(invalid_activation(
+            "initial registration finalization is not active",
+        ));
+    };
+    let a = &record.request.deriver_a;
+    let b = &record.request.deriver_b;
+    let expected = derive_registration_receipt(ActivationPublicCommitments::new(
+        a.client_commitment,
+        b.client_commitment,
+        a.signing_worker_commitment,
+        b.signing_worker_commitment,
+    ))
+    .map_err(map_role_error)?;
+    if *session != a.binding.session_id.into_bytes()
+        || *transcript != a.package.transcript()
+        || registered_public_key != expected.registered_public_key()
+        || joined_client_commitment != expected.joined_client_commitment()
+        || joined_signing_worker_commitment != expected.joined_signing_worker_commitment()
+        || signing_worker_verifying_share != joined_signing_worker_commitment
+        || *state_epoch != Ed25519YaoStateEpochV1::new(1)?
+    {
+        return Err(invalid_activation(
+            "initial registration finalization differs from its packages",
+        ));
+    }
+    Ok(())
+}
+
+fn delivery_request(delivery: &PendingDelivery) -> LocalEd25519YaoSigningWorkerPackageDeliveryV1 {
+    LocalEd25519YaoSigningWorkerPackageDeliveryV1 {
+        binding: delivery.binding.clone(),
+        client_commitment: delivery.client_commitment,
+        signing_worker_commitment: delivery.signing_worker_commitment,
+        package: delivery.package.clone(),
+    }
 }
 
 fn validate_delivery(
@@ -1144,6 +1798,7 @@ fn activate(
         scalar,
         binding: binding.clone(),
         state_epoch,
+        activated_at_ms: now_unix_ms()?,
         transcript,
         registered_public_key,
     };
@@ -1278,6 +1933,7 @@ fn activate_refresh(
         scalar,
         binding: a.binding.ceremony().clone(),
         state_epoch,
+        activated_at_ms: now_unix_ms()?,
         transcript,
         registered_public_key,
     };
@@ -1295,32 +1951,7 @@ fn signing_scalar(value: SigningWorkerBaseScalar) -> Zeroizing<[u8; 32]> {
     Zeroizing::new(value.into_bytes())
 }
 
-fn normal_signing_commitments(
-    commitments: &CommitmentsWire,
-) -> RouterAbProtocolResult<NormalSigningEd25519TwoPartyFrostCommitmentsV1> {
-    NormalSigningEd25519TwoPartyFrostCommitmentsV1::new(
-        commitments.hiding.clone(),
-        commitments.binding.clone(),
-    )
-}
-
-fn signer_commitments(
-    commitments: &NormalSigningEd25519TwoPartyFrostCommitmentsV1,
-) -> CommitmentsWire {
-    CommitmentsWire {
-        hiding: commitments.hiding.clone(),
-        binding: commitments.binding.clone(),
-    }
-}
-
-fn decode_b64u_32(value: &str, label: &'static str) -> RouterAbProtocolResult<[u8; 32]> {
-    let bytes = base64::engine::general_purpose::URL_SAFE_NO_PAD
-        .decode(value)
-        .map_err(|_| invalid_normal_signing(label))?;
-    bytes.try_into().map_err(|_| invalid_normal_signing(label))
-}
-
-fn now_unix_ms() -> RouterAbProtocolResult<u64> {
+pub(crate) fn now_unix_ms() -> RouterAbProtocolResult<u64> {
     let millis = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_err(|_| invalid_normal_signing("system clock precedes Unix epoch"))?
@@ -1343,11 +1974,20 @@ fn map_role_error(_: router_ab_ed25519_yao::relay::BenchmarkRoleError) -> Router
     invalid_activation("SigningWorker recipient package validation failed")
 }
 
-fn map_signer_error(error: signer_core::error::SignerCoreError) -> RouterAbProtocolError {
-    RouterAbProtocolError::new(
-        RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-        format!("SigningWorker FROST signing failed: {error}"),
-    )
+/// The key a linked reservation is stored under, from the activation it
+/// reserves.
+fn linked_record_key(state: &SigningWorkerYaoReservationStateV1) -> RouterAbProtocolResult<String> {
+    match state {
+        SigningWorkerYaoReservationStateV1::Inactive { delivery, .. }
+        | SigningWorkerYaoReservationStateV1::Activating { delivery, .. }
+        | SigningWorkerYaoReservationStateV1::Active { delivery, .. } => {
+            reservation_record_key_from_binding_v1(&delivery.deriver_a.binding)
+        }
+        SigningWorkerYaoReservationStateV1::Revoked { binding, .. }
+        | SigningWorkerYaoReservationStateV1::Deactivating { binding, .. } => {
+            reservation_record_key_from_binding_v1(binding)
+        }
+    }
 }
 
 fn invalid_activation(message: &'static str) -> RouterAbProtocolError {
@@ -1382,7 +2022,7 @@ mod tests {
             0x31,
         );
         let registration_receipt = state
-            .commit_activation_candidate(registration)
+            .commit_activation_candidate(registration, None)
             .expect("registration activation");
         assert!(matches!(
             registration_receipt,
@@ -1398,7 +2038,7 @@ mod tests {
             0x32,
         );
         let staged = state
-            .commit_activation_candidate(recovery)
+            .commit_activation_candidate(recovery, Ed25519YaoRecoveryAttemptV1::new(1).ok())
             .expect("stage recovery");
         let LocalEd25519YaoSigningWorkerActivationReceiptV1::Staged { promotion } = staged else {
             panic!("recovery must remain staged");
@@ -1442,7 +2082,9 @@ mod tests {
                 public_key,
                 0x43,
             );
-            assert!(state.commit_activation_candidate(candidate).is_err());
+            assert!(state
+                .commit_activation_candidate(candidate, Ed25519YaoRecoveryAttemptV1::new(1).ok())
+                .is_err());
             assert_eq!(state.active_state_epoch(), Some(epoch(4)));
             assert_eq!(state.active_signing_share(), Some(&[0x41; 32]));
         }
@@ -1476,7 +2118,7 @@ mod tests {
                 .identities
                 .entry(identity)
                 .or_default()
-                .commit_activation_candidate(candidate)
+                .commit_activation_candidate(candidate, None)
                 .expect("independent registration");
         }
         assert_eq!(worker.identities.len(), 2);
@@ -1489,7 +2131,7 @@ mod tests {
             .identities
             .get_mut(&recovery_identity)
             .expect("first identity")
-            .commit_activation_candidate(recovery)
+            .commit_activation_candidate(recovery, Ed25519YaoRecoveryAttemptV1::new(1).ok())
             .expect("first identity recovery");
         let LocalEd25519YaoSigningWorkerActivationReceiptV1::Staged { promotion } = staged else {
             panic!("recovery must be staged");
@@ -1535,6 +2177,7 @@ mod tests {
                     scalar: Zeroizing::new([0x41; 32]),
                     binding: binding.clone(),
                     state_epoch: epoch(1),
+                    activated_at_ms: 1,
                     transcript: [0x42; 32],
                     registered_public_key: [0x43; 32],
                 }),
@@ -1636,29 +2279,12 @@ mod tests {
                 scalar: Zeroizing::new(scalar),
                 binding: ceremony_binding(Ed25519YaoOperationV1::Registration, 0x71),
                 state_epoch,
+                activated_at_ms: 1,
                 transcript: [0x72; 32],
                 registered_public_key: [0x73; 32],
             }),
             ..Default::default()
         }
-    }
-
-    #[test]
-    fn signing_worker_durable_state_restores_only_active_identity_state() {
-        let binding = ceremony_binding(Ed25519YaoOperationV1::Registration, 0x71);
-        let identity = LocalEd25519YaoEffectiveIdentityV1::from_binding(&binding);
-        let mut worker = LocalEd25519YaoSigningWorkerStateV1::default();
-        worker
-            .identities
-            .insert(identity.clone(), active_state(epoch(4), [0x44; 32]));
-
-        let restored =
-            LocalEd25519YaoSigningWorkerStateV1::from_durable_state_v1(worker.durable_state_v1())
-                .expect("restore SigningWorker state");
-        let restored_identity = restored.identities.get(&identity).expect("active identity");
-        assert_eq!(restored_identity.active_state_epoch(), Some(epoch(4)));
-        assert_eq!(restored_identity.active_signing_share(), Some(&[0x44; 32]));
-        assert!(restored_identity.pending_normal_signing.is_empty());
     }
 
     fn activation_candidate(
@@ -1675,6 +2301,7 @@ mod tests {
                 scalar: Zeroizing::new(scalar),
                 binding: binding.clone(),
                 state_epoch,
+                activated_at_ms: 1,
                 transcript,
                 registered_public_key,
             },

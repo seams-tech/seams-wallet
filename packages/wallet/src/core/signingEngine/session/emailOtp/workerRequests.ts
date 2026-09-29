@@ -17,7 +17,7 @@ export type EmailOtpWarmSessionTransport = {
   groupId?: string;
 };
 
-export type EmailOtpEcdsaWarmSessionRestore = {
+type EmailOtpEcdsaWarmSessionRestore = {
   thresholdSessionId: string;
   walletId: string;
   keyHandle: string;

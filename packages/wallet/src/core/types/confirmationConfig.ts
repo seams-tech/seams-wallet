@@ -1,22 +1,22 @@
 import type { ConfirmationBehavior, ConfirmationConfig, ConfirmationUIMode } from './signer-worker';
 
-export type VisibleConfirmationUIMode = Exclude<ConfirmationUIMode, 'none'>;
+type VisibleConfirmationUIMode = Exclude<ConfirmationUIMode, 'none'>;
 
-export type SilentConfirmationConfig = {
+type SilentConfirmationConfig = {
   kind: 'silent';
   uiMode: 'none';
   behavior?: never;
   autoProceedDelay?: never;
 };
 
-export type InteractiveConfirmationConfig = {
+type InteractiveConfirmationConfig = {
   kind: 'interactive';
   uiMode: VisibleConfirmationUIMode;
   behavior: Extract<ConfirmationBehavior, 'requireClick'>;
   autoProceedDelay?: never;
 };
 
-export type AutoProceedConfirmationConfig = {
+type AutoProceedConfirmationConfig = {
   kind: 'auto_proceed';
   uiMode: VisibleConfirmationUIMode;
   behavior: Extract<ConfirmationBehavior, 'skipClick'>;

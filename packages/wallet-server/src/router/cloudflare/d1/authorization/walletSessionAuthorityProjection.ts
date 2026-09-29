@@ -4,7 +4,7 @@ import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import type { D1WalletStoreScope } from '../../../../core/d1WalletStore';
 import type { D1DatabaseLike, D1PreparedStatementLike } from '../../../../storage/tenantRoute';
 
-export type WalletSessionAuthorityProjectionInput = {
+type WalletSessionAuthorityProjectionInput = {
   readonly walletId: WalletId;
   readonly authorityId: WalletAuthorityId;
   readonly authorityDigestB64u: DigestB64u;

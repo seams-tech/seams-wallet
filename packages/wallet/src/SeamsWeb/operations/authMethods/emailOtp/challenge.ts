@@ -47,7 +47,7 @@ function parseEmailOtpUnlockSignerSelection(value: unknown): EmailOtpUnlockSigne
   };
 }
 
-export class EmailOtpRouteError extends Error {
+class EmailOtpRouteError extends Error {
   readonly code?: string;
   readonly status: number;
   readonly retryAfterMs?: number;

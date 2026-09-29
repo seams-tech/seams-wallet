@@ -74,7 +74,7 @@ import {
   type ExactEvmFamilyWalletSessionAuthorization,
 } from '../../session/material/ecdsaSigningCapability';
 
-export function buildEvmFamilyTransactionSigningIntent(args: {
+function buildEvmFamilyTransactionSigningIntent(args: {
   walletId: WalletId;
   signingTarget: EvmFamilySigningTarget;
   authSelectionPolicy: TransactionAuthSelectionPolicy;
@@ -103,7 +103,7 @@ export function buildEvmFamilyTransactionSigningIntent(args: {
       };
 }
 
-export function resolveEvmFamilyTransactionAuthSelectionPolicy(args: {
+function resolveEvmFamilyTransactionAuthSelectionPolicy(args: {
   candidateAuthMethod: WalletAuthAuthority['factor']['kind'];
 }): TransactionAuthSelectionPolicy {
   return { kind: 'account_class', authMethod: args.candidateAuthMethod };
@@ -399,7 +399,7 @@ export type AuthorizedEvmFamilyEcdsaSigningSession = {
  * names wallet, chain target and material activation and holds no
  * authorization at all. The operation is authorized by a step-up on the
  * capability's own factor and the grant is attached after confirmation. */
-export type AuthorizationRequiredEvmFamilyEcdsaSigningSession = {
+type AuthorizationRequiredEvmFamilyEcdsaSigningSession = {
   kind: 'authorization_required';
   authMethod: WalletAuthAuthority['factor']['kind'];
   availableLanesGeneration: number;
@@ -418,7 +418,7 @@ export type PreparedEvmFamilyEcdsaSigningSession =
   | AuthorizedEvmFamilyEcdsaSigningSession
   | AuthorizationRequiredEvmFamilyEcdsaSigningSession;
 
-export type PrepareEvmFamilyEcdsaSigningDeps = EvmFamilyEcdsaSigningSelectionDeps & {
+type PrepareEvmFamilyEcdsaSigningDeps = EvmFamilyEcdsaSigningSelectionDeps & {
   resolveOwnerLaneScope: (walletId: WalletId) => Promise<OwnerLaneScope>;
   readAvailableSigningLanesForSigning: (
     args: Extract<ReadAvailableSigningLanesForSigningInput, { curve: 'ecdsa' }>,

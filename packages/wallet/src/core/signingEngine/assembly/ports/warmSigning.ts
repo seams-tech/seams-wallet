@@ -41,7 +41,7 @@ import type { ExactEcdsaWalletSessionAuthorizationResolver } from '../../session
 import type { ExactNearEd25519WalletSessionAuthorization } from '../../session/material/nearEd25519YaoSigningPreparation';
 import type { EmailOtpWarmMaterialTarget } from '../../workerManager/workerTypes';
 
-export type EcdsaExportArtifactStorePorts = {
+type EcdsaExportArtifactStorePorts = {
   exportArtifactsByLane: Map<string, ThresholdEcdsaCanonicalExportArtifact>;
 };
 

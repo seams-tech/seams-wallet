@@ -41,7 +41,7 @@ export {
  * module exists to keep.
  */
 
-export type PersistWalletCustodyEd25519MaterialInputV1 = {
+type PersistWalletCustodyEd25519MaterialInputV1 = {
   readonly store: AccountKeyMaterialDeps['clientDB'] & AccountKeyMaterialDeps['keyMaterialStore'];
   readonly binding: WalletCustodyEd25519MaterialBindingV1;
   readonly sealed: WalletCustodySealedEd25519MaterialV1;

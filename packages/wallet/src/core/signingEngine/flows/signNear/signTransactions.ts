@@ -19,7 +19,6 @@ import type {
 } from '../../interfaces/near';
 import {
   isWarmSessionSigningAuthPlan,
-  type SigningAuthPlan,
   type UserConfirmProgressEvent,
 } from '@/core/signingEngine/stepUpConfirmation/types';
 import { PASSKEY_MANAGER_DEFAULT_CONFIGS } from '@/core/config/defaultConfigs';

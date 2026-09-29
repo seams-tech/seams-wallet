@@ -175,10 +175,7 @@ export async function fetchNearContext(
   }
 }
 
-export async function releaseReservedNonces(
-  ctx: UiConfirmContext,
-  nonceLeases?: readonly NonceLease[],
-) {
+async function releaseReservedNonces(ctx: UiConfirmContext, nonceLeases?: readonly NonceLease[]) {
   if (!nonceLeases?.length) return;
   await Promise.all(
     nonceLeases.map((nonceLease) =>

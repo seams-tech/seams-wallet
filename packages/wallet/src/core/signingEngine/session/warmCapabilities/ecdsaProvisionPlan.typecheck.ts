@@ -1,70 +1,21 @@
-import type { EmailOtpWorkerIssuedSessionHandle } from '@/core/platform';
 import type { WebAuthnAuthenticationCredential } from '@/core/types/webauthn';
-import type { EvmFamilyEcdsaKeyIdentity } from '../identity/evmFamilyEcdsaIdentity';
 import type { ThresholdEcdsaChainTarget } from '../../interfaces/ecdsaChainTarget';
-import type { WalletSessionOperationCredentialV1 } from '@shared/device-linking';
-import type { ThresholdEcdsaEmailOtpAuthContext } from '../identity/laneIdentity';
 import {
   buildEcdsaSessionIdentity,
   buildEcdsaSessionProvisionPlan,
-  buildEmailOtpEcdsaProvisionSecretSource,
-  buildPasskeyEcdsaProvisionSecretSource,
   type EcdsaSigningKeyContext,
   type PasskeyEcdsaProvisionSecretSource,
 } from './ecdsaProvisionPlan';
-
-declare const key: EvmFamilyEcdsaKeyIdentity;
 declare const chainTarget: ThresholdEcdsaChainTarget;
 declare const webauthnAuthentication: WebAuthnAuthenticationCredential;
-declare const emailOtpAuthContext: ThresholdEcdsaEmailOtpAuthContext;
-declare const operationCredential: WalletSessionOperationCredentialV1;
-declare const walletSessionRouteAuth: WalletSessionOperationCredentialV1;
-declare const emailOtpWorkerHandle: Extract<
-  EmailOtpWorkerIssuedSessionHandle,
-  { action: 'threshold_ecdsa_bootstrap' }
->;
 
 const identity = buildEcdsaSessionIdentity({
   thresholdSessionId: 'threshold-session-1',
 });
-const signingKeyContext = {
+export const signingKeyContext = {
   ecdsaThresholdKeyId: 'ecdsa-key-1',
   participantIds: [1, 2],
 } satisfies EcdsaSigningKeyContext;
-const passkeySecret = buildPasskeyEcdsaProvisionSecretSource({
-  passkeyPrfFirstB64u: 'prf-first',
-  webauthnAuthentication,
-});
-const emailOtpSecret = buildEmailOtpEcdsaProvisionSecretSource({
-  workerHandle: emailOtpWorkerHandle,
-  emailOtpAuthContext,
-});
-
-void buildEcdsaSessionProvisionPlan({
-  kind: 'passkey_ecdsa_session_provision',
-  key,
-  chainTarget,
-  sessionIdentity: identity,
-  signingKeyContext,
-  sessionKind: 'opaque',
-  sessionBudgetUses: 1,
-  requestId: 'request-1',
-  provisionSecretSource: passkeySecret,
-  activationMaterial: { kind: 'session_record' },
-  operationCredential,
-});
-
-void buildEcdsaSessionProvisionPlan({
-  kind: 'email_otp_ecdsa_session_provision',
-  key,
-  chainTarget,
-  sessionIdentity: identity,
-  signingKeyContext,
-  sessionKind: 'opaque',
-  sessionBudgetUses: 1,
-  provisionSecretSource: emailOtpSecret,
-  walletSessionRouteAuth,
-});
 
 const invalidUnbrandedPasskeySecret: PasskeyEcdsaProvisionSecretSource = {
   kind: 'webauthn_prf_first_v1',

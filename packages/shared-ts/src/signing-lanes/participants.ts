@@ -3,6 +3,7 @@ import { hasWhitespaceOrControlCharacters } from '../utils/domainIds';
 import type { DigestB64u } from '../utils/canonicalPrimitives';
 import { parseDigestB64u } from '../utils/canonicalPrimitives';
 import { base64UrlDecode, base64UrlEncode } from '../utils/base64';
+import { requireRecord } from '../utils/validation';
 
 /** The durable participant identity that owns a lane's holder share. */
 export type LaneHolderParticipantId = DomainId<'LaneHolderParticipantId'>;
@@ -135,13 +136,6 @@ function brandParticipantDigest(value: DigestB64u): LaneParticipantBindingDigest
   return value as LaneParticipantBindingDigestB64u;
 }
 
-function requireRecord(raw: unknown, label: string): Record<string, unknown> {
-  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
-    throw new Error(`${label} must be an object`);
-  }
-  return raw as Record<string, unknown>;
-}
-
 function rejectUnknownFields(
   record: Record<string, unknown>,
   fields: readonly string[],
@@ -204,7 +198,7 @@ export function parseSigningWorkerRecipientKeyDigestB64u(
   return parseDigest(raw, 'hpkePublicKeyDigestB64u', brandRecipientDigest);
 }
 
-export function buildLaneHolderCustodyIdentityV1(args: {
+function buildLaneHolderCustodyIdentityV1(args: {
   readonly custodyBindingId: LaneHolderCustodyBindingId;
   readonly custodyBindingDigestB64u: LaneCustodyBindingDigestB64u;
 }): LaneHolderCustodyIdentityV1 {
@@ -215,7 +209,7 @@ export function buildLaneHolderCustodyIdentityV1(args: {
   };
 }
 
-export function buildSigningWorkerRecipientIdentityV1(args: {
+function buildSigningWorkerRecipientIdentityV1(args: {
   readonly recipientKeyId: SigningWorkerRecipientKeyId;
   readonly hpkePublicKeyB64u: HpkePublicKeyB64u;
   readonly hpkePublicKeyDigestB64u: HpkePublicKeyDigestB64u;
@@ -228,7 +222,7 @@ export function buildSigningWorkerRecipientIdentityV1(args: {
   };
 }
 
-export function parseLaneHolderCustodyIdentityV1(
+function parseLaneHolderCustodyIdentityV1(
   raw: unknown,
   label = 'laneHolderCustodyIdentity',
 ): LaneHolderCustodyIdentityV1 {
@@ -251,7 +245,7 @@ export function parseLaneHolderCustodyIdentityV1(
   });
 }
 
-export function parseSigningWorkerRecipientIdentityV1(
+function parseSigningWorkerRecipientIdentityV1(
   raw: unknown,
   label = 'signingWorkerRecipientIdentity',
 ): SigningWorkerRecipientIdentityV1 {

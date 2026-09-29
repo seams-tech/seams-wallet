@@ -35,11 +35,11 @@ export function parseTransactionSummary(summaryData: unknown): TransactionSummar
 }
 
 // ===== Utility: postMessage sanitization (exported in case flows need to respond directly) =====
-export type NonFunctionKeys<T> = {
+type NonFunctionKeys<T> = {
   [K in keyof T]: T[K] extends (...args: never[]) => unknown ? never : K;
 }[keyof T];
 
-export type ShallowPostMessageSafe<T> = T extends object
+type ShallowPostMessageSafe<T> = T extends object
   ? Omit<Pick<T, NonFunctionKeys<T>>, '_confirmHandle'>
   : T;
 

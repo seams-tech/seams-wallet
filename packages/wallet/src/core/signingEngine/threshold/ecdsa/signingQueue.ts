@@ -8,9 +8,9 @@ import {
   type ThresholdCommitQueueError,
 } from '../commitQueueShared';
 
-export type ThresholdEcdsaSigningQueueError = ThresholdCommitQueueError;
+type ThresholdEcdsaSigningQueueError = ThresholdCommitQueueError;
 
-export type ThresholdEcdsaSigningQueueKeyInput = {
+type ThresholdEcdsaSigningQueueKeyInput = {
   materialActivation: MpcMaterialActivationRef;
 };
 
@@ -20,7 +20,7 @@ function ecdsaSigningQueueWalletIdLabel(walletId: WalletId): string {
   return String(walletId).trim();
 }
 
-export function createThresholdEcdsaSigningQueueOverflowError(
+function createThresholdEcdsaSigningQueueOverflowError(
   walletId: WalletId,
   queueKey: string,
   maxQueueLength: number,
@@ -33,7 +33,7 @@ export function createThresholdEcdsaSigningQueueOverflowError(
   return err;
 }
 
-export function createThresholdEcdsaSigningQueueTimeoutError(
+function createThresholdEcdsaSigningQueueTimeoutError(
   walletId: WalletId,
   queueKey: string,
   timeoutMs: number,
@@ -46,7 +46,7 @@ export function createThresholdEcdsaSigningQueueTimeoutError(
   return err;
 }
 
-export function createThresholdEcdsaSigningQueueCancelledError(
+function createThresholdEcdsaSigningQueueCancelledError(
   walletId: WalletId,
   queueKey: string,
   reason: ThresholdCommitQueueCancelledReason = 'cancelled',

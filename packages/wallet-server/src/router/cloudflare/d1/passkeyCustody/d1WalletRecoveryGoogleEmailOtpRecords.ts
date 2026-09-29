@@ -19,9 +19,7 @@ import {
 } from '@shared/utils/domainIds';
 import { parseEnvelopeRevision, type EnvelopeRevision } from '@shared/passkey-custody';
 import { parseWalletAuthorityV1 } from '@shared/authorization/walletAuthority';
-import {
-  parseWalletAuthMethodRecordV2,
-} from '@shared/utils/registrationIntent';
+import { parseWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 import {
   parseRecoveryCodeReservationId,
   type RecoveryCodeReservationId,
@@ -31,7 +29,7 @@ import type {
   WebAuthnRecoveryContinuityEnvelopeAnchorRecord,
 } from '../webauthn/d1WebAuthnRecords';
 
-export type WalletRecoveryGoogleEmailOtpTargetV1 = {
+type WalletRecoveryGoogleEmailOtpTargetV1 = {
   readonly kind: 'google_email_otp';
   readonly googleProvider: 'google';
 };
@@ -98,7 +96,7 @@ export type WalletRecoveryGoogleEmailOtpAttemptRecord =
       readonly targetEnrollment: WalletRecoveryGoogleEmailOtpTargetEnrollmentV1;
     });
 
-export type PreparedWalletRecoveryGoogleEmailOtpAttempt = Extract<
+type PreparedWalletRecoveryGoogleEmailOtpAttempt = Extract<
   WalletRecoveryGoogleEmailOtpAttemptRecord,
   { readonly state: 'prepared' }
 >;
@@ -113,7 +111,7 @@ export type OtpVerifiedWalletRecoveryGoogleEmailOtpAttempt = Extract<
   { readonly state: 'otp_verified' }
 >;
 
-export type FinalizableWalletRecoveryGoogleEmailOtpAttempt = Extract<
+type FinalizableWalletRecoveryGoogleEmailOtpAttempt = Extract<
   WalletRecoveryGoogleEmailOtpAttemptRecord,
   { readonly state: 'otp_verified' | 'finalized' }
 >;
@@ -214,6 +212,56 @@ export function walletRecoveryGoogleEmailOtpFinalizationInput(
     ownerProofBindingDigest: attempt.ownerProofBindingDigest,
     targetEnrollment: attempt.targetEnrollment,
   };
+}
+
+export function sameWalletRecoveryGoogleEmailOtpFinalizationInputV1(
+  left: WalletRecoveryGoogleEmailOtpFinalizationInput,
+  right: WalletRecoveryGoogleEmailOtpFinalizationInput,
+): boolean {
+  return (
+    left.kind === right.kind &&
+    left.walletId === right.walletId &&
+    left.orgId === right.orgId &&
+    left.reservationId === right.reservationId &&
+    left.recoveryOperationId === right.recoveryOperationId &&
+    left.targetDeviceId === right.targetDeviceId &&
+    left.targetAuthorityId === right.targetAuthorityId &&
+    left.targetWalletAuthMethodId === right.targetWalletAuthMethodId &&
+    left.challengeId === right.challengeId &&
+    left.providerSubject === right.providerSubject &&
+    left.verifiedEmail === right.verifiedEmail &&
+    left.ownerProofBindingDigest === right.ownerProofBindingDigest &&
+    sameWalletRecoveryGoogleEmailOtpTargetEnrollmentV1(
+      left.targetEnrollment,
+      right.targetEnrollment,
+    )
+  );
+}
+
+function sameWalletRecoveryGoogleEmailOtpTargetEnrollmentV1(
+  left: WalletRecoveryGoogleEmailOtpTargetEnrollmentV1,
+  right: WalletRecoveryGoogleEmailOtpTargetEnrollmentV1,
+): boolean {
+  switch (left.kind) {
+    case 'existing':
+      return (
+        right.kind === 'existing' &&
+        left.enrollmentId === right.enrollmentId &&
+        left.enrollmentSealKeyVersion === right.enrollmentSealKeyVersion
+      );
+    case 'create':
+      return (
+        right.kind === 'create' &&
+        left.providerSubject === right.providerSubject &&
+        left.verifiedEmail === right.verifiedEmail
+      );
+    default:
+      return assertNeverWalletRecoveryGoogleEmailOtpComparison(left);
+  }
+}
+
+function assertNeverWalletRecoveryGoogleEmailOtpComparison(value: never): never {
+  throw new Error(`unsupported Google Email OTP comparison branch: ${String(value)}`);
 }
 
 export function parseWalletRecoveryGoogleEmailOtpAttemptRecord(

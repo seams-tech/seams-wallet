@@ -24,14 +24,14 @@ type NearPreparedStepUpAuthBase = {
   confirmationAuthPayload: { signingAuthPlan: SigningAuthPlan };
 };
 
-export type NearWarmSessionStepUpAuth = NearPreparedStepUpAuthBase & {
+type NearWarmSessionStepUpAuth = NearPreparedStepUpAuthBase & {
   kind: 'warm_session';
   confirmationAuthPayload: {
     signingAuthPlan: Extract<SigningAuthPlan, { kind: 'warmSession'; curve: 'ed25519' }>;
   };
 };
 
-export type NearPasskeyStepUpAuth = NearPreparedStepUpAuthBase & {
+type NearPasskeyStepUpAuth = NearPreparedStepUpAuthBase & {
   kind: 'passkey';
   confirmationAuthPayload: {
     signingAuthPlan: Extract<SigningAuthPlan, { kind: 'passkeyReauth' }>;
@@ -39,7 +39,7 @@ export type NearPasskeyStepUpAuth = NearPreparedStepUpAuthBase & {
   plannedPasskeyOperationStepUp: NearPasskeyOperationStepUpPlan;
 };
 
-export type NearEmailOtpStepUpAuth = NearPreparedStepUpAuthBase & {
+type NearEmailOtpStepUpAuth = NearPreparedStepUpAuthBase & {
   kind: 'email_otp';
   confirmationAuthPayload: {
     signingAuthPlan: Extract<SigningAuthPlan, { kind: 'emailOtpReauth' }>;

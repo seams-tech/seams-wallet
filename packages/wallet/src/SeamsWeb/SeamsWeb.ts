@@ -112,9 +112,10 @@ import type {
 import { LINKED_DEVICE_SESSION_HTTP_BASE_PATH_V1 } from './operations/devices/deviceLinkingHttpTransport';
 import { IndexedDbEcdsaCapabilityManifestStore } from '@/core/indexedDB/seamsWalletDB/ecdsaCapabilityManifestStore';
 import { resolveAmbiguousEcdsaActivationForSelectedAuthMethod } from '@/SeamsWeb/assembly/browserSigningSurfaceAssembly';
+import { resolveLinkedEcdsaHolderRuntimeV1 } from '@/core/signingEngine/session/material/linkedEcdsaHolderRuntime';
 import {
   walletCustodyCeremonyTransportFromWorkerContextV1,
-  readUnlockedWalletEd25519ExportRootCapabilityV1,
+  readUnlockedEd25519ExportRootLinkingCapabilityV1,
 } from '@/core/signingEngine/walletCustody/unlockedEd25519ExportRootCapability';
 import {
   createDeviceLinkingEcdsaSourceContributionMetadataReaderV1,
@@ -210,7 +211,7 @@ import {
   walletAuthAuthorityRefForVerifiedEmailOtpUnlock,
   type EmailOtpWalletPostUnlockActivation,
 } from '@/SeamsWeb/operations/authMethods/emailOtp/walletActivation';
-import type { WalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
+import type { ActiveEmailOtpWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 import {
   nearAccountBindingFromRaw,
   type NearAccountBinding,
@@ -220,7 +221,7 @@ import {
   buildNearWalletRegistrationSignerSetSelection,
   resolvePasskeyRegistrationAccountProvisioning,
 } from '@/SeamsWeb/operations/registration/registrationSignerSet';
-import { createServerAllocatedWalletId } from '@shared/utils/registrationIntent';
+import { createServerAllocatedWalletId } from '@shared/utils/registrationIds';
 import { isObject } from '@shared/utils/validation';
 import type { WalletAuthorityProvenanceV1 } from '@shared/authorization/walletAuthority';
 
@@ -824,10 +825,6 @@ type SeamsWebContextWithDeviceLinkingResumeV1 = SeamsWebContext & {
   readonly resumePendingAcknowledgementsV1: () => void;
 };
 
-export function resolveSeamsWebDeviceDomainModeV1(mode: SeamsWebRuntimeMode): 'direct' | 'iframe' {
-  return mode === 'wallet_host' ? 'direct' : 'iframe';
-}
-
 const ecdsaCapabilityManifestStore = new IndexedDbEcdsaCapabilityManifestStore();
 
 type SeamsWebDeviceDomainArgsV1 = {
@@ -942,8 +939,8 @@ function createWalletHostEcdsaSourceContributionMetadataReaderV1(args: {
         materialActivation,
       });
       if (lookup.kind === 'ambiguous_authority') {
-        // R109C: the source contribution is made as the selected method, so
-        // name it rather than reading whichever sibling projection scans first.
+        // The source contribution is made as the selected method, so name it
+        // rather than reading whichever sibling projection scans first.
         lookup = await resolveAmbiguousEcdsaActivationForSelectedAuthMethod({
           walletId: authentication.walletId,
           materialActivation,
@@ -954,6 +951,14 @@ function createWalletHostEcdsaSourceContributionMetadataReaderV1(args: {
         throw new Error(`ECDSA source metadata manifest is ${lookup.kind}`);
       }
       return lookup.manifest;
+    },
+    readLinkedEcdsaHolderV1: ({ materialActivation }) => {
+      const authentication = args.signingEngine.readWalletAuthenticationState();
+      if (authentication.kind !== 'authenticated') return null;
+      return resolveLinkedEcdsaHolderRuntimeV1({
+        walletId: authentication.walletId,
+        materialActivation,
+      });
     },
   };
   return createDeviceLinkingEcdsaSourceContributionMetadataReaderV1(context);
@@ -980,7 +985,7 @@ function createWalletHostDeviceDomainConstructionV1(args: {
     readWalletAuthenticationState: args.signingEngine.readWalletAuthenticationState.bind(
       args.signingEngine,
     ),
-    readUnlockedEd25519ExportRootCapabilityV1: readUnlockedWalletEd25519ExportRootCapabilityV1,
+    readUnlockedEd25519ExportRootCapabilityV1: readUnlockedEd25519ExportRootLinkingCapabilityV1,
   });
   const sourceContribution = createWalletHostDeviceLinkingSourceContributionPortV1({
     signingEngine: args.signingEngine,
@@ -992,7 +997,7 @@ function createWalletHostDeviceDomainConstructionV1(args: {
   return { platform, ownerAuthorities, sourceContribution };
 }
 
-export function createWalletHostDeviceLinkingSourceContributionPortV1(args: {
+function createWalletHostDeviceLinkingSourceContributionPortV1(args: {
   readonly signingEngine: Pick<BrowserSigningSurface, 'getSignerWorkerContext'>;
   readonly ownerRequest: LinkSessionOwnerAuthenticatedRequestPortV1;
   readonly readEcdsaMetadataV1: DeviceLinkingEcdsaSourceContributionMetadataReaderV1;
@@ -1741,84 +1746,6 @@ export class SeamsWeb {
     });
   }
 
-  private emitEmailOtpRegistrationWorkerProgress(
-    onEvent: ((event: RegistrationFlowEvent) => void) | undefined,
-    args: {
-      flowId: string;
-      walletId: string;
-      challengeId?: string;
-      chainTarget: ThresholdEcdsaChainTarget;
-      progress: EmailOtpWorkerProgressEvent;
-    },
-  ): RegistrationEventPhase | null {
-    const base = {
-      flowId: args.flowId,
-      walletId: args.walletId,
-      authMethod: 'email_otp' as const,
-      ...(args.challengeId ? { requestId: args.challengeId } : {}),
-    };
-    switch (args.progress.code) {
-      case 'otp.verify.succeeded':
-        this.emitEmailOtpRegistrationEvent(onEvent, {
-          ...base,
-          phase: RegistrationEventPhase.STEP_04_OTP_VERIFY_SUCCEEDED,
-          status: 'succeeded',
-          interaction: { kind: 'otp_input', overlay: 'hide' },
-        });
-        return RegistrationEventPhase.STEP_04_OTP_VERIFY_SUCCEEDED;
-      case 'signer.email_otp.enroll.started':
-        this.emitEmailOtpRegistrationEvent(onEvent, {
-          ...base,
-          phase: RegistrationEventPhase.STEP_09_EMAIL_OTP_SIGNER_ENROLL_STARTED,
-          status: 'running',
-        });
-        return RegistrationEventPhase.STEP_09_EMAIL_OTP_SIGNER_ENROLL_STARTED;
-      case 'signer.email_otp.enroll.succeeded':
-        this.emitEmailOtpRegistrationEvent(onEvent, {
-          ...base,
-          phase: RegistrationEventPhase.STEP_09_EMAIL_OTP_SIGNER_ENROLL_SUCCEEDED,
-          status: 'succeeded',
-        });
-        return RegistrationEventPhase.STEP_09_EMAIL_OTP_SIGNER_ENROLL_SUCCEEDED;
-      case 'signer.ecdsa.bootstrap.started':
-        this.emitEmailOtpRegistrationEvent(onEvent, {
-          ...base,
-          phase: RegistrationEventPhase.STEP_10_ECDSA_SIGNER_PROVISION_STARTED,
-          status: 'running',
-          data: { chainTarget: args.chainTarget },
-        });
-        return RegistrationEventPhase.STEP_10_ECDSA_SIGNER_PROVISION_STARTED;
-      case 'signer.ecdsa.bootstrap.prepared':
-        this.emitEmailOtpRegistrationEvent(onEvent, {
-          ...base,
-          phase: RegistrationEventPhase.STEP_10_ECDSA_SIGNER_PROVISION_STARTED,
-          status: 'running',
-          message: 'Coordinating EVM signing session',
-          data: { chainTarget: args.chainTarget },
-        });
-        return RegistrationEventPhase.STEP_10_ECDSA_SIGNER_PROVISION_STARTED;
-      case 'signer.ecdsa.bootstrap.responded':
-        this.emitEmailOtpRegistrationEvent(onEvent, {
-          ...base,
-          phase: RegistrationEventPhase.STEP_10_ECDSA_SIGNER_PROVISION_STARTED,
-          status: 'running',
-          message: 'Finalizing EVM signing session',
-          data: { chainTarget: args.chainTarget },
-        });
-        return RegistrationEventPhase.STEP_10_ECDSA_SIGNER_PROVISION_STARTED;
-      case 'signer.ecdsa.bootstrap.succeeded':
-        this.emitEmailOtpRegistrationEvent(onEvent, {
-          ...base,
-          phase: RegistrationEventPhase.STEP_10_ECDSA_SIGNER_PROVISION_SUCCEEDED,
-          status: 'succeeded',
-          data: { chainTarget: args.chainTarget },
-        });
-        return RegistrationEventPhase.STEP_10_ECDSA_SIGNER_PROVISION_SUCCEEDED;
-      default:
-        return null;
-    }
-  }
-
   private emitEmailOtpUnlockWorkerProgress(
     onEvent: ((event: UnlockFlowEvent) => void) | undefined,
     args: {
@@ -2281,9 +2208,7 @@ export class SeamsWeb {
       case 'none': {
         const localMethods = await IndexedDBManager.listWalletAuthMethodsV2ForWallet(args.walletId);
         const foundingMethods = localMethods.filter(
-          (
-            method,
-          ): method is Extract<WalletAuthMethodRecordV2, { kind: 'email_otp'; status: 'active' }> =>
+          (method): method is ActiveEmailOtpWalletAuthMethodRecordV2 =>
             method.kind === 'email_otp' &&
             method.status === 'active' &&
             method.emailHashHex.toLowerCase() === emailHashHex,
@@ -2615,7 +2540,6 @@ export class SeamsWeb {
         this.emitEmailOtpUnlockEvent(args.onEvent, input);
       };
       let timingStartedAtMs = nowMs();
-      const relayUrl = String(args.relayUrl || this.configs.network.relayer.url).trim();
       const emailHashHex = await this.emailOtpEmailHashHex(args.emailOtpAuthorityEmail || '');
       recordEmailOtpUnlockTiming(unlockTiming.timings, 'emailHashLookupMs', timingStartedAtMs);
       timingStartedAtMs = nowMs();

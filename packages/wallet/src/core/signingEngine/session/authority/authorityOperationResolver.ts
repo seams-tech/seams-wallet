@@ -1,12 +1,16 @@
 import {
   computeWalletAuthorityDigestB64u,
   computeWalletSignerActivationSetDigestB64u,
+  type ActiveWalletAuthorityV1,
   type WalletAuthorityV1,
   type WalletEcdsaSignerActivationV1,
   type WalletEd25519SignerActivationV1,
   type WalletSignerActivationSetV1,
 } from '@shared/authorization/walletAuthority';
-import type { WalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
+import type {
+  ActiveWalletAuthMethodRecordV2,
+  WalletAuthMethodRecordV2,
+} from '@shared/utils/walletAuthMethodRecord';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import type {
   MpcMaterialActivationRef,
@@ -225,8 +229,8 @@ function requiredPermissionForOperation(
 
 function resolveEd25519Operation(
   operation: Extract<WalletAuthorityOperationV1, { readonly keyFamily: 'ed25519' }>,
-  authority: Extract<WalletAuthorityV1, { readonly state: 'active' }>,
-  authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>,
+  authority: ActiveWalletAuthorityV1,
+  authMethod: ActiveWalletAuthMethodRecordV2,
 ): ResolveWalletAuthorityOperationResultV1 {
   const activation = ed25519Activation(authority.signerActivations);
   if (activation === null) {
@@ -267,8 +271,8 @@ function resolveEd25519Operation(
 
 function resolveEcdsaOperation(
   operation: Extract<WalletAuthorityOperationV1, { readonly keyFamily: 'ecdsa_secp256k1' }>,
-  authority: Extract<WalletAuthorityV1, { readonly state: 'active' }>,
-  authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>,
+  authority: ActiveWalletAuthorityV1,
+  authMethod: ActiveWalletAuthMethodRecordV2,
 ): ResolveWalletAuthorityOperationResultV1 {
   const activation = ecdsaActivation(authority.signerActivations);
   if (activation === null) {

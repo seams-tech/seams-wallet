@@ -1,29 +1,12 @@
 import { toOptionalTrimmedString } from '@shared/utils/validation';
-import type { LinkIdentityResult } from '../../../../core/IdentityStore';
 import { GOOGLE_EMAIL_OTP_STALE_IDENTITY_MESSAGE } from '../../../../core/authService/googleEmailOtpErrors';
 import type {
   RouterApiIdentityService,
 } from '../../../framework/authServicePort';
-import { positiveInteger } from '../auth/d1RouterApiAuthBoundary';
 
 type ResolveGoogleEmailOtpSessionResult = Awaited<
   ReturnType<RouterApiIdentityService['resolveGoogleEmailOtpSession']>
 >;
-
-export type D1IdentityRow = {
-  readonly subject?: unknown;
-  readonly user_id?: unknown;
-  readonly created_at_ms?: unknown;
-  readonly subject_count?: unknown;
-};
-
-type IdentitySubjectRecord = {
-  readonly version: 'identity_subject_v1';
-  readonly subject: string;
-  readonly userId: string;
-  readonly createdAtMs: number;
-  readonly updatedAtMs: number;
-};
 
 export function hasDifferentWalletIdentitySubject(input: {
   readonly subjects: readonly string[];
@@ -52,37 +35,3 @@ export function googleEmailOtpStaleIdentityMapping(input: {
   };
 }
 
-export function parseIdentityCreatedAt(input: unknown, fallback: number): number {
-  return positiveInteger(input) ?? fallback;
-}
-
-export function identitySubjectRecord(input: {
-  readonly subject: string;
-  readonly userId: string;
-  readonly createdAtMs: number;
-  readonly updatedAtMs: number;
-}): IdentitySubjectRecord {
-  return {
-    version: 'identity_subject_v1',
-    subject: input.subject,
-    userId: input.userId,
-    createdAtMs: input.createdAtMs,
-    updatedAtMs: input.updatedAtMs,
-  };
-}
-
-export function identityAlreadyLinked(): LinkIdentityResult {
-  return {
-    ok: false,
-    code: 'already_linked',
-    message: 'Subject is already linked to a different user',
-  };
-}
-
-export function identityMoveDisallowed(): LinkIdentityResult {
-  return {
-    ok: false,
-    code: 'already_linked',
-    message: 'Subject is linked to a different user with other identities; merge is not allowed',
-  };
-}

@@ -12,7 +12,7 @@ type BridgeResultType = 'WALLET_WEBAUTHN_CREATE_RESULT' | 'WALLET_WEBAUTHN_GET_R
 
 let bridgeOperationQueue: Promise<void> = Promise.resolve();
 
-export function postBridgeResult(
+function postBridgeResult(
   source: WindowProxy | null,
   type: BridgeResultType,
   requestId: string,

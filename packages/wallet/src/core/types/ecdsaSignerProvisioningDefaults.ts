@@ -1,4 +1,4 @@
-export interface EcdsaSignerProvisioningSession {
+interface EcdsaSignerProvisioningSession {
   kind: 'jwt' | 'cookie';
   ttlMs: number;
   remainingUses: number;

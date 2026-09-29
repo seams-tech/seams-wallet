@@ -1,4 +1,4 @@
-//! Rust half of the Refactor 102 ECDSA transcript wire contract.
+//! Rust half of the ECDSA transcript wire contract.
 //!
 //! The committed fixture is generated only from production protocol records
 //! and their canonical encoders. TypeScript consumes the same fixture through

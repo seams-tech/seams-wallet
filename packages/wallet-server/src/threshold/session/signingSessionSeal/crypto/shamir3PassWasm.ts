@@ -88,7 +88,7 @@ async function initializeWorkerRuntime(): Promise<void> {
     : new Error('[shamir3pass] Failed to initialize WASM');
 }
 
-export async function ensureSigningSessionSealShamir3PassWasm(): Promise<void> {
+async function ensureSigningSessionSealShamir3PassWasm(): Promise<void> {
   if (!initialization) {
     initialization = isNodeEnvironment() ? initializeNodeRuntime() : initializeWorkerRuntime();
   }

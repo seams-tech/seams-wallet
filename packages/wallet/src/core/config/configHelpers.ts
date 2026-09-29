@@ -42,7 +42,7 @@ export function resolveIntegerInRange(args: {
   return candidate;
 }
 
-export function resolveOptionalPositiveInteger(args: {
+function resolveOptionalPositiveInteger(args: {
   value: unknown;
   fallback?: number;
   path: string;
@@ -62,11 +62,7 @@ export function resolveOptionalPositiveInteger(args: {
   return candidate;
 }
 
-export function resolveRequiredString(args: {
-  value: unknown;
-  fallback?: string;
-  path: string;
-}): string {
+function resolveRequiredString(args: { value: unknown; fallback?: string; path: string }): string {
   const value = toTrimmedString(args.value) || toTrimmedString(args.fallback);
   if (!value) {
     throw new Error(`[configPresets] Missing required config: ${args.path}`);
@@ -82,24 +78,13 @@ export function resolveBoolean(args: { value: unknown; fallback: boolean; path: 
   return args.value;
 }
 
-export function toColorTokenRecord(value: unknown): Record<string, string> {
+function toColorTokenRecord(value: unknown): Record<string, string> {
   if (!value || typeof value !== 'object') return {};
   const out: Record<string, string> = {};
   for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
     if (typeof v === 'string') out[k] = v;
   }
   return out;
-}
-
-export function resolveThemeMode(args: { value: unknown; fallback: ThemeMode }): ThemeMode {
-  if (args.value == null) return args.fallback;
-  const parsed = coerceThemeMode(args.value);
-  if (!parsed) {
-    throw new Error(
-      "[configPresets] Invalid config: appearance.theme.mode must be 'light' or 'dark'",
-    );
-  }
-  return parsed;
 }
 
 function resolveAppearanceThemeId(args: { value: unknown; fallback: string }): string {
@@ -229,14 +214,14 @@ export function copyEcdsaSignerProvisioningDefaults(
   };
 }
 
-export function resolveChainNetwork(network: unknown): SeamsChainNetwork {
+function resolveChainNetwork(network: unknown): SeamsChainNetwork {
   if (!isSeamsChainNetwork(network)) {
     throw new Error(`[configPresets] Invalid chain network: ${String(network || '')}`);
   }
   return network;
 }
 
-export function resolveChainConfig(args: {
+function resolveChainConfig(args: {
   input: SeamsChainConfigInput;
   fallback?: SeamsChainConfig;
 }): SeamsChainConfig {

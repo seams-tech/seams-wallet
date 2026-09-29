@@ -6,6 +6,3 @@ export const WalletIframeDomEvents = {
   TX_CONFIRMER_CANCEL: 'seams:tx-confirmer-cancel',
   TX_CONFIRMER_INTERACTIVE: 'seams:tx-confirmer-interactive',
 } as const;
-
-export type WalletIframeDomEvent =
-  (typeof WalletIframeDomEvents)[keyof typeof WalletIframeDomEvents];

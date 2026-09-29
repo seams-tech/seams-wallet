@@ -52,7 +52,7 @@ function operationStepUpEndpoint(relayerUrl: string): string {
   return `${baseUrl}${ROUTER_AB_ECDSA_DERIVATION_OPERATION_STEP_UP_PATH}`;
 }
 
-export function buildEcdsaOperationStepUpPreparation(args: {
+function buildEcdsaOperationStepUpPreparation(args: {
   readonly walletId: string;
   readonly operationKind: EvmEcdsaMpcOperationKind;
   readonly operationId: string;

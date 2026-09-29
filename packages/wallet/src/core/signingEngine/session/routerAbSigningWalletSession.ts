@@ -36,7 +36,7 @@ export type RouterAbEd25519SigningWalletSession = {
   routerAbNormalSigning: RouterAbEd25519NormalSigningState;
 };
 
-export type RouterAbSigningWalletSessionParseFailureReason =
+type RouterAbSigningWalletSessionParseFailureReason =
   | 'missing_record'
   | 'cookie_session'
   | 'missing_session_identity'
@@ -55,7 +55,7 @@ export type RouterAbSigningWalletSessionParseFailureReason =
   | 'expired'
   | 'exhausted';
 
-export type RouterAbSigningWalletSessionResult<T> =
+type RouterAbSigningWalletSessionResult<T> =
   | { ok: true; value: T }
   | { ok: false; reason: RouterAbSigningWalletSessionParseFailureReason };
 
@@ -95,7 +95,7 @@ function buildWalletSessionOpaqueAuth(tokenRaw: unknown): RouterAbSigningWalletS
   };
 }
 
-export type BuildRouterAbEd25519SigningWalletSessionInput = {
+type BuildRouterAbEd25519SigningWalletSessionInput = {
   walletId: string;
   nearAccountId: string;
   nearEd25519SigningKeyId: string;

@@ -1,13 +1,10 @@
 import type { DomainIdParseResult, MpcSigningWorkerRef } from '../utils/domainIds';
 import { hasWhitespaceOrControlCharacters, parseMpcSigningWorkerRef } from '../utils/domainIds';
-import {
-  parseDigestField,
-  rejectUnknownFields,
-  requireRecord,
-} from '../passkey-custody/primitives';
+import { parseDigestField } from '../passkey-custody/primitives';
 import type { DigestB64u } from '../utils/canonicalPrimitives';
 import { base64UrlEncode } from '../utils/base64';
 import { sha256Bytes } from '../utils/digests';
+import { concat } from '../utils/digestEncoding';
 import {
   encodeLaneCanonicalDigestV1,
   encodeLaneCanonicalTextV1,
@@ -17,13 +14,15 @@ import {
   parseLaneParticipantBindingDigestB64u,
   type LaneParticipantBindingDigestB64u,
 } from './participants';
+import { requireRecord } from '../utils/validation';
+import { rejectUnknownFields } from '../utils/exactRecord';
 
 /** The durable signer identity used by canonical wallet-signer records. */
 export type WalletSignerId = string & {
   readonly __ownerLaneWalletSignerIdBrand: 'WalletSignerId';
 };
 
-/** Owner lanes bind to signer facts that predate independently provisioned R102 lanes. */
+/** Owner lanes bind to signer facts that predate independently provisioned lanes. */
 export type OwnerLaneParticipantContinuityV1 = {
   readonly kind: 'owner_lane_participant_continuity_v1';
   readonly signerId: WalletSignerId;
@@ -33,7 +32,7 @@ export type OwnerLaneParticipantContinuityV1 = {
   readonly sourceIdentityDigestB64u: DigestB64u;
 };
 
-export const OWNER_LANE_PARTICIPANT_BINDING_DOMAIN_V1 =
+const OWNER_LANE_PARTICIPANT_BINDING_DOMAIN_V1 =
   'seams/rotatable-signing-lanes/owner-lane-participant-continuity/v1' as const;
 
 const OWNER_LANE_PARTICIPANT_CONTINUITY_FIELDS = [
@@ -130,17 +129,6 @@ export function parseOwnerLaneParticipantContinuityV1(
       `${label}.sourceIdentityDigestB64u`,
     ),
   });
-}
-
-function concat(parts: readonly Uint8Array[]): Uint8Array {
-  const length = parts.reduce((total, part) => total + part.length, 0);
-  const output = new Uint8Array(length);
-  let offset = 0;
-  for (const part of parts) {
-    output.set(part, offset);
-    offset += part.length;
-  }
-  return output;
 }
 
 export function ownerLaneParticipantContinuityCanonicalBytesV1(

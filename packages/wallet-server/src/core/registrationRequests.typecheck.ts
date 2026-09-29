@@ -2,23 +2,23 @@ import { allocateWalletAuthMethodId } from '@shared/utils/domainIds';
 import type {
   CreateAddAuthMethodIntentRequest,
   CreateAddSignerIntentRequest,
-  CreateRegistrationIntentRequest,
   WalletAddAuthMethodStartRequest,
   WalletRegistrationEcdsaPreparePayload,
   WalletRegistrationFinalizeRequest,
   WalletRegistrationFinalizeResponse,
+  WalletRegistrationFinalizeSuccess,
   WalletRegistrationStartResponse,
   WalletRegistrationStartRequest,
 } from './registrationContracts';
+import type { CreateRegistrationIntentRequest } from '@shared/utils/registrationContracts';
 import {
   addAuthMethodIntentGrantFromString,
-  implicitNearAccountProvisioning,
   registrationIntentGrantFromString,
-  walletIdFromString,
   type AddAuthMethodIntentV1,
-  type EmailOtpRegistrationProof,
   type RegistrationIntentV1,
 } from '@shared/utils/registrationIntent';
+import { walletIdFromString } from '@shared/utils/registrationIds';
+import { implicitNearAccountProvisioning } from '@shared/utils/registrationSignerPlan';
 import {
   parseWalletAuthMethodId,
   parseWalletAuthorityId,
@@ -308,12 +308,12 @@ const invalidEd25519FinalizeWithoutActivation = {
 void invalidEd25519FinalizeWithoutActivation;
 
 declare const validEd25519FinalizeSuccess: Extract<
-  WalletRegistrationFinalizeResponse,
-  { ok: true; kind: 'near_ed25519' }
+  WalletRegistrationFinalizeSuccess,
+  { kind: 'near_ed25519' }
 >;
 declare const validEcdsaFinalizeSuccess: Extract<
-  WalletRegistrationFinalizeResponse,
-  { ok: true; kind: 'evm_family_ecdsa' }
+  WalletRegistrationFinalizeSuccess,
+  { kind: 'evm_family_ecdsa' }
 >;
 
 // @ts-expect-error Ed25519-only success cannot carry ECDSA wallet keys.

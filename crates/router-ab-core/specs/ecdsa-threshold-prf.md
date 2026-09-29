@@ -53,7 +53,6 @@ generality does not cross the Router A/B ECDSA adapter.
 ## Canonical domains
 
 - `router-ab-ecdsa-threshold-prf/context/v1`
-- `router-ab-ecdsa-threshold-prf/context-digest/v1`
 - `router-ab-protocol/ecdsa-threshold-prf-request/v1`
 - `router-ab-protocol/ecdsa-threshold-prf-request-context/v1`
 - `router-ab-protocol/ecdsa-threshold-prf-proof-batch-payload/v1`
@@ -94,6 +93,6 @@ A/B plan.
 - recipient-ciphertext AAD tests binding the fixed suite and proof payload;
 - source guards proving normal signing has no Deriver invocation;
 - committed canonical payload vectors;
-- source guards rejecting candidate selectors and the deleted generic modules;
+- a source guard rejecting the legacy 2-of-3 threshold policy;
 - native and Worker adapter tests;
 - Verus anti-drift tests for role/output authorization and activation context.

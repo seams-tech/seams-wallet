@@ -8,7 +8,7 @@ function shortenAddress(address: string): string {
   return `${value.slice(0, 8)}...${value.slice(-6)}`;
 }
 
-export interface AccountsSectionProps {
+interface AccountsSectionProps {
   rows: AccountsSectionRow[];
   isOpen?: boolean;
   presentation?: 'menu' | 'page';

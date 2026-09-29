@@ -34,13 +34,13 @@ import type {
 } from '../operationState/transactionState';
 import { thresholdEcdsaChainTargetsEqual } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 
-export type TransactionLaneSelectionFailure =
+type TransactionLaneSelectionFailure =
   | { kind: 'unsupported_intent'; curve: string; chain: string }
   | { kind: 'no_candidate'; authMethod?: SignerAuthMethod }
   | { kind: 'ambiguous_material'; allowedAuthMethods: readonly SignerAuthMethod[] }
   | { kind: 'policy_blocked'; reason: string };
 
-export type NearEd25519AvailableLane = AvailableEd25519SigningLane &
+type NearEd25519AvailableLane = AvailableEd25519SigningLane &
   ConcreteAvailableSigningLane & {
     curve: 'ed25519';
     chain: 'near';
@@ -59,7 +59,7 @@ export type AuthorizationRequiredEd25519LaneCandidate = Extract<
   { authorizationState: 'authorization_required' }
 >;
 
-export type EvmFamilyEcdsaAvailableLane = ConcreteAvailableEcdsaSigningLane;
+type EvmFamilyEcdsaAvailableLane = ConcreteAvailableEcdsaSigningLane;
 
 export type TransactionConcreteAvailableLane =
   | NearEd25519AvailableLane
@@ -74,7 +74,7 @@ export type NearEd25519TransactionReadyAvailableLane = Omit<
   state: 'ready' | 'restorable';
 };
 
-export type NearEd25519TransactionReauthAvailableLane = Omit<
+type NearEd25519TransactionReauthAvailableLane = Omit<
   AuthorizedNearEd25519AvailableLane,
   'source'
 > & {
@@ -94,7 +94,7 @@ export type NearEd25519TransactionReadyLane = TransactionCandidatePair<
   authorityKey: Ed25519LaneAuthorityKey;
 };
 
-export type NearEd25519TransactionReauthLane = TransactionCandidatePair<
+type NearEd25519TransactionReauthLane = TransactionCandidatePair<
   Ed25519LaneCandidate,
   NearEd25519TransactionReauthAvailableLane
 > & {
@@ -107,7 +107,7 @@ export type NearEd25519TransactionSelectableLane =
   | NearEd25519TransactionReadyLane
   | NearEd25519TransactionReauthLane;
 
-export type NearEd25519MaterialSelectionResult =
+type NearEd25519MaterialSelectionResult =
   | {
       ok: true;
       kind: 'authorized';
@@ -127,7 +127,7 @@ export type NearEd25519MaterialSelectionResult =
     }
   | { ok: false; failure: TransactionLaneSelectionFailure };
 
-export type TransactionLaneSelectionResult =
+type TransactionLaneSelectionResult =
   | {
       ok: true;
       lane: TransactionLane;
@@ -147,12 +147,12 @@ type EvmFamilyEcdsaTransactionCandidate = TransactionCandidatePair<
   EvmFamilyEcdsaAvailableLane
 >;
 
-export type EvmFamilyEcdsaMaterialCandidate = TransactionCandidatePair<
+type EvmFamilyEcdsaMaterialCandidate = TransactionCandidatePair<
   EcdsaLaneCandidate,
   EvmFamilyEcdsaAvailableLane
 >;
 
-export type EvmFamilyEcdsaMaterialSelectionResult =
+type EvmFamilyEcdsaMaterialSelectionResult =
   | {
       ok: true;
       kind: 'authorized';
@@ -169,16 +169,16 @@ export type EvmFamilyEcdsaMaterialSelectionResult =
     }
   | { ok: false; failure: TransactionLaneSelectionFailure };
 
-export type ConcreteTransactionCandidate =
+type ConcreteTransactionCandidate =
   | NearEd25519TransactionSelectableLane
   | EvmFamilyEcdsaTransactionCandidate;
 
-export type TransactionIntentReceivedState = {
+type TransactionIntentReceivedState = {
   tag: 'IntentReceived';
   intent: TransactionSigningIntent;
 };
 
-export type TransactionAvailableLanesReadState = {
+type TransactionAvailableLanesReadState = {
   tag: 'AvailableLanesRead';
   intent: TransactionSigningIntent;
   availableLanes: AvailableSigningLanes | null;
@@ -198,13 +198,13 @@ export type TransactionLaneSelectedState<
   selectionCandidate: TSelectionCandidate;
 };
 
-export type TransactionLaneSelectionFailedState = {
+type TransactionLaneSelectionFailedState = {
   tag: 'LaneSelectionFailed';
   intent: TransactionSigningIntent;
   failure: TransactionLaneSelectionFailure;
 };
 
-export type SelectTransactionLaneInput = {
+type SelectTransactionLaneInput = {
   intent: TransactionSigningIntent;
   availableLanes: AvailableSigningLanes | null;
 };
@@ -368,28 +368,7 @@ function buildNearEd25519TransactionReauthLane(args: {
   };
 }
 
-export function toNearEd25519TransactionReadyLane(
-  lane: AvailableEd25519SigningLane | null | undefined,
-): NearEd25519TransactionReadyLane | null {
-  if (!isConcreteNearEd25519Lane(lane)) return null;
-  if (lane.authorizationState !== 'authorized') return null;
-  if (!nearEd25519TransactionReadyState(lane)) return null;
-  const authorityKey = toEd25519LaneAuthorityKey(lane);
-  if (!authorityKey) return null;
-  const candidate = ed25519LaneCandidateFromAvailableLane({ lane });
-  if (!candidate || candidate.authorizationState !== 'authorized') return null;
-  return buildNearEd25519TransactionReadyLane({ lane, candidate, authorityKey });
-}
-
-export function listNearEd25519TransactionReadyLanes(
-  lanes: readonly AvailableEd25519SigningLane[] | null | undefined,
-): NearEd25519TransactionReadyLane[] {
-  return (lanes || [])
-    .map(toNearEd25519TransactionReadyLane)
-    .filter((lane): lane is NearEd25519TransactionReadyLane => lane !== null);
-}
-
-export function toNearEd25519TransactionSelectableLane(
+function toNearEd25519TransactionSelectableLane(
   lane: AvailableEd25519SigningLane | null | undefined,
 ): NearEd25519TransactionSelectableLane | null {
   if (!isConcreteNearEd25519Lane(lane)) return null;
@@ -405,14 +384,6 @@ export function toNearEd25519TransactionSelectableLane(
     return buildNearEd25519TransactionReadyLane({ lane, candidate, authorityKey });
   }
   return buildNearEd25519TransactionReauthLane({ lane, candidate, authorityKey });
-}
-
-export function listNearEd25519TransactionSelectableLanes(
-  lanes: readonly AvailableEd25519SigningLane[] | null | undefined,
-): NearEd25519TransactionSelectableLane[] {
-  return (lanes || [])
-    .map(toNearEd25519TransactionSelectableLane)
-    .filter((lane): lane is NearEd25519TransactionSelectableLane => lane !== null);
 }
 
 function selectedLaneFromCandidate(candidate: LaneCandidate): SelectedLane {
@@ -468,9 +439,7 @@ function selectOnlyConcreteTransactionCandidate<TCandidate extends { candidate: 
   }
 }
 
-export function selectTransactionLane(
-  input: SelectTransactionLaneInput,
-): TransactionLaneSelectionResult {
+function selectTransactionLane(input: SelectTransactionLaneInput): TransactionLaneSelectionResult {
   const intent = input.intent;
   if (intent.curve === 'ed25519' && intent.chain === 'near') {
     return selectSelectedEd25519Lane({ ...input, intent });
@@ -693,47 +662,6 @@ function transactionCandidatesAllowedByAuthPolicy<TCandidate extends { candidate
   return candidates.filter(
     (candidate) => laneCandidateAuthMethod(candidate.candidate) === policyAuthMethod,
   );
-}
-
-function selectConcreteTransactionCandidate<
-  TCandidate extends ConcreteTransactionCandidate,
-  TLane extends TransactionLane,
->(args: {
-  intent: TransactionSigningIntent;
-  candidates: readonly TCandidate[];
-  buildLane: (candidate: TCandidate) => TLane;
-}): TransactionLaneSelectionResult {
-  const { intent } = args;
-  const candidates = transactionCandidatesAllowedByAuthPolicy(intent, args.candidates);
-
-  if (!candidates.length) {
-    return {
-      ok: false,
-      failure:
-        intent.authSelectionPolicy.kind === 'any'
-          ? { kind: 'no_candidate' }
-          : { kind: 'no_candidate', authMethod: intent.authSelectionPolicy.authMethod },
-    };
-  }
-
-  const selected = selectOnlyConcreteTransactionCandidate(candidates);
-  if (!selected) {
-    return {
-      ok: false,
-      failure: {
-        kind: 'ambiguous_material',
-        allowedAuthMethods: allowedAuthMethods(candidates),
-      },
-    };
-  }
-
-  return {
-    ok: true,
-    lane: args.buildLane(selected),
-    candidate: selected.candidate,
-    availableLane: selected.availableLane,
-    selectionCandidate: selected,
-  };
 }
 
 export function selectTransactionLaneFromAvailableLanes(

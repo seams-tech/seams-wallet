@@ -19,7 +19,7 @@ import type {
   SigningOperationInteractionEvent,
 } from '../flows/shared/signingStateMachine';
 
-export type SigningConfirmationChain = 'near' | 'evm' | 'tempo';
+type SigningConfirmationChain = 'near' | 'evm' | 'tempo';
 
 export type RequestUserConfirmationBridge = (
   request: UserConfirmRequest,
@@ -40,7 +40,7 @@ export type ConfirmationReadiness = {
   body?: string;
 };
 
-export type OrchestrateSigningConfirmationBaseParams = {
+type OrchestrateSigningConfirmationBaseParams = {
   ctx: UiConfirmRequestBridgeContext;
   sessionId: string;
   chain: SigningConfirmationChain;
@@ -142,39 +142,37 @@ export type OrchestrateNearTransactionSigningConfirmationParams =
   OrchestrateNearTransactionSigningConfirmationBaseParams &
     OrchestrateSigningConfirmationAuthParams;
 
-export type OrchestrateNearDelegateSigningConfirmationParams =
-  OrchestrateSigningConfirmationBaseParams &
-    OrchestrateSigningConfirmationAuthParams & {
-      chain: 'near';
-      kind: 'delegate';
-      walletId: string;
-      nearAccountId: string;
-      title?: string;
-      body?: string;
-      delegate: {
-        senderId: string;
-        receiverId: string;
-        actions: TransactionInputWasm['actions'];
-        nonce: string | number | bigint;
-        maxBlockHeight: string | number | bigint;
-      };
-      rpcCall: RpcCallPayload;
-      nearPublicKeyStr?: string;
+type OrchestrateNearDelegateSigningConfirmationParams = OrchestrateSigningConfirmationBaseParams &
+  OrchestrateSigningConfirmationAuthParams & {
+    chain: 'near';
+    kind: 'delegate';
+    walletId: string;
+    nearAccountId: string;
+    title?: string;
+    body?: string;
+    delegate: {
+      senderId: string;
+      receiverId: string;
+      actions: TransactionInputWasm['actions'];
+      nonce: string | number | bigint;
+      maxBlockHeight: string | number | bigint;
     };
+    rpcCall: RpcCallPayload;
+    nearPublicKeyStr?: string;
+  };
 
-export type OrchestrateNearNep413SigningConfirmationParams =
-  OrchestrateSigningConfirmationBaseParams &
-    OrchestrateSigningConfirmationAuthParams & {
-      chain: 'near';
-      kind: 'nep413';
-      walletId: string;
-      nearAccountId: string;
-      nearPublicKeyStr?: string;
-      message: string;
-      recipient: string;
-      title?: string;
-      body?: string;
-    };
+type OrchestrateNearNep413SigningConfirmationParams = OrchestrateSigningConfirmationBaseParams &
+  OrchestrateSigningConfirmationAuthParams & {
+    chain: 'near';
+    kind: 'nep413';
+    walletId: string;
+    nearAccountId: string;
+    nearPublicKeyStr?: string;
+    message: string;
+    recipient: string;
+    title?: string;
+    body?: string;
+  };
 
 export type OrchestrateIntentDigestSigningConfirmationParams =
   OrchestrateSigningConfirmationBaseParams &

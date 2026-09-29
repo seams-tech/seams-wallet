@@ -18,16 +18,15 @@ import {
   type WalletAuthMethodId,
   type WalletAuthorityId,
 } from '@shared/utils/domainIds';
+import { type WalletId } from '@shared/utils/registrationIntent';
 import {
   buildWalletAuthMethodRecordV2,
-  type WalletAuthMethodRecordV2,
-  type WalletId,
-} from '@shared/utils/registrationIntent';
-import type { ActiveRecoveredWalletAuthorityV1 } from '@shared/authorization/walletAuthority';
+  type ActivePasskeyWalletAuthMethodRecordV2,
+} from '@shared/utils/walletAuthMethodRecord';
 import { IndexedDBManager, type LocalWalletAuthMethodRecord } from '@/core/indexedDB';
 
 /** The finalize fields this projection is built from, whichever route returned them. */
-export type FinalizedPasskeyAuthMethodV1 = {
+type FinalizedPasskeyAuthMethodV1 = {
   readonly walletId: WalletId;
   readonly rpId: string;
   readonly credentialIdB64u: string;
@@ -35,7 +34,7 @@ export type FinalizedPasskeyAuthMethodV1 = {
   readonly counter: number;
 };
 
-export function localPasskeyAuthMethodFromFinalizeV1(
+function localPasskeyAuthMethodFromFinalizeV1(
   args: FinalizedPasskeyAuthMethodV1,
 ): LocalWalletAuthMethodRecord & { kind: 'passkey' } {
   const parsedRpId = parseWebAuthnRpId(args.rpId);
@@ -76,8 +75,8 @@ export async function persistFinalizedPasskeyAuthMethodV1(
 }
 
 /**
- * Refactor 109C: the full local install for a passkey added to a wallet that
- * registered with another family.
+ * The full local install for a passkey added to a wallet that registered with
+ * another family.
  *
  * Three records, and unlock needs all of them. It reads the profile, then the
  * profile's authenticators, then keeps only those whose credential belongs to
@@ -129,7 +128,7 @@ export async function persistAddedCrossFamilyPasskeyV1(args: {
   });
 }
 
-export type SyncedPasskeyAuthMethodV2 = {
+type SyncedPasskeyAuthMethodV2 = {
   readonly walletId: WalletId;
   readonly walletAuthMethodId: WalletAuthMethodId;
   readonly walletAuthorityId: WalletAuthorityId;
@@ -139,9 +138,9 @@ export type SyncedPasskeyAuthMethodV2 = {
   readonly counter: number;
 };
 
-export function localPasskeyAuthMethodFromSyncV2(
+function localPasskeyAuthMethodFromSyncV2(
   args: SyncedPasskeyAuthMethodV2,
-): Extract<WalletAuthMethodRecordV2, { kind: 'passkey'; status: 'active' }> {
+): ActivePasskeyWalletAuthMethodRecordV2 {
   const rpId = parseWebAuthnRpId(args.rpId);
   const credentialIdB64u = parseWebAuthnCredentialIdB64u(args.credentialIdB64u);
   const walletAuthMethodId = parseWalletAuthMethodId(args.walletAuthMethodId);
@@ -178,89 +177,6 @@ export function localPasskeyAuthMethodFromSyncV2(
   return record;
 }
 
-export async function persistSyncedPasskeyAuthMethodV2(
-  args: SyncedPasskeyAuthMethodV2,
-): Promise<void> {
+async function persistSyncedPasskeyAuthMethodV2(args: SyncedPasskeyAuthMethodV2): Promise<void> {
   await IndexedDBManager.upsertWalletAuthMethodV2(localPasskeyAuthMethodFromSyncV2(args));
-}
-
-type RecoveredPasskeyLocalProjection = {
-  readonly authority: ActiveRecoveredWalletAuthorityV1;
-  readonly authMethod: Extract<
-    WalletAuthMethodRecordV2,
-    { readonly kind: 'passkey'; readonly status: 'active' }
-  >;
-  readonly credential: {
-    readonly id: string;
-    readonly rawId: string;
-  };
-} & (
-  | {
-      readonly kind: 'near';
-      readonly signerSlot?: never;
-    }
-  | {
-      readonly kind: 'wallet_only';
-      readonly signerSlot: number;
-    }
-);
-
-async function retireOtherLocalPasskeys(
-  walletId: WalletId,
-  rpId: string,
-  replacementCredentialIdB64u: string,
-): Promise<void> {
-  const methods = await IndexedDBManager.listWalletAuthMethodsForWallet(String(walletId));
-  const nowMs = Date.now();
-  for (const method of methods) {
-    if (
-      method.kind !== 'passkey' ||
-      method.status !== 'active' ||
-      method.rpId !== rpId ||
-      method.credentialIdB64u === replacementCredentialIdB64u
-    ) {
-      continue;
-    }
-    await IndexedDBManager.upsertWalletAuthMethod({
-      ...method,
-      status: 'revoked',
-      updatedAtMs: nowMs,
-    });
-  }
-}
-
-/** Rebuilds the local identity required by exact-wallet login after recovery. */
-export async function persistRecoveredPasskeyAuthMethodProjectionV1(
-  input: RecoveredPasskeyLocalProjection,
-): Promise<void> {
-  const authMethod = localPasskeyAuthMethodFromFinalizeV1({
-    walletId: input.authMethod.walletId,
-    rpId: input.authMethod.rpId,
-    credentialIdB64u: input.authMethod.credentialIdB64u,
-    credentialPublicKeyB64u: input.authMethod.credentialPublicKeyB64u,
-    counter: input.authMethod.counter,
-  });
-  const passkeyCredential = {
-    id: input.credential.id,
-    rawId: input.credential.rawId,
-  };
-  await IndexedDBManager.persistRecoveredWalletAuthority({
-    authority: input.authority,
-    authMethod: input.authMethod,
-    recoveredAtMs: Date.now(),
-  });
-  if (input.kind === 'wallet_only') {
-    await IndexedDBManager.upsertProfile({
-      profileId: String(input.authMethod.walletId),
-      defaultSignerSlot: input.signerSlot,
-      passkeyCredential,
-    });
-  }
-
-  await retireOtherLocalPasskeys(
-    input.authMethod.walletId,
-    authMethod.rpId,
-    authMethod.credentialIdB64u,
-  );
-  await IndexedDBManager.upsertWalletAuthMethod(authMethod);
 }

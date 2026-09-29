@@ -1,12 +1,13 @@
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/encoders';
+import { coerceNonEmptyString, requireRecordOrArray } from '@shared/utils/validation';
 import { decodeNearSecretKey, toPublicKeyStringFromSecretKey } from '../nearKeys';
 
-export type NearTxUnsignedBorshOutput = {
+type NearTxUnsignedBorshOutput = {
   unsignedTransactionBorshB64u: string;
   signingDigestB64u: string;
 };
 
-export type FinalizeNearTxFromSignatureOutput = {
+type FinalizeNearTxFromSignatureOutput = {
   signedTransactionBorshB64u: string;
   transactionHash: string;
 };
@@ -15,45 +16,32 @@ const ED25519_PKCS8_SEED_PREFIX = Uint8Array.from([
   0x30, 0x2e, 0x02, 0x01, 0x00, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x04, 0x22, 0x04, 0x20,
 ]);
 
-function requireRecord(value: unknown, label: string): Record<string, unknown> {
-  if (!value || typeof value !== 'object') {
-    throw new Error(`${label} must be an object`);
-  }
-  return value as Record<string, unknown>;
-}
-
-function requireNonEmptyString(value: unknown, label: string): string {
-  const text = String(value || '').trim();
-  if (!text) throw new Error(`${label} is required`);
-  return text;
-}
-
 export function requireSingleUnsignedNearTxBorshOutput(
   value: unknown,
 ): NearTxUnsignedBorshOutput {
   if (!Array.isArray(value) || value.length !== 1) {
     throw new Error('Expected exactly one unsigned NEAR transaction from signer WASM');
   }
-  const record = requireRecord(value[0], 'unsigned NEAR transaction output');
+  const record = requireRecordOrArray(value[0], 'unsigned NEAR transaction output');
   return {
-    unsignedTransactionBorshB64u: requireNonEmptyString(
+    unsignedTransactionBorshB64u: coerceNonEmptyString(
       record.unsignedTransactionBorshB64u,
       'unsignedTransactionBorshB64u',
     ),
-    signingDigestB64u: requireNonEmptyString(record.signingDigestB64u, 'signingDigestB64u'),
+    signingDigestB64u: coerceNonEmptyString(record.signingDigestB64u, 'signingDigestB64u'),
   };
 }
 
 export function requireFinalizeNearTxFromSignatureOutput(
   value: unknown,
 ): FinalizeNearTxFromSignatureOutput {
-  const record = requireRecord(value, 'finalized NEAR transaction output');
+  const record = requireRecordOrArray(value, 'finalized NEAR transaction output');
   return {
-    signedTransactionBorshB64u: requireNonEmptyString(
+    signedTransactionBorshB64u: coerceNonEmptyString(
       record.signedTransactionBorshB64u,
       'signedTransactionBorshB64u',
     ),
-    transactionHash: requireNonEmptyString(record.transactionHash, 'transactionHash'),
+    transactionHash: coerceNonEmptyString(record.transactionHash, 'transactionHash'),
   };
 }
 

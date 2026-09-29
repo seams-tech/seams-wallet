@@ -15,7 +15,6 @@ import {
   type WalletSessionOperationCredentialV1,
 } from '@/core/indexedDB/seamsWalletDB/walletSessionAuthorizationStore';
 import type { ExactWalletSessionStatus } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
-import type { ActiveWalletAuthMethodV2 } from '@/core/signingEngine/session/identity/ownerLaneScope';
 import type { ActiveWalletAuthorityV1 } from '@shared/authorization/walletAuthority';
 import { activeWalletSessionV1RecordsEqual } from '@shared/device-linking/activeWalletSession';
 import {
@@ -42,13 +41,15 @@ import type {
   PasskeyCustodyEnvelopeRecord,
   PasskeyCustodySecretBinding,
 } from '@shared/passkey-custody';
+import type { ActiveEmailOtpWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
+import { requireCanonicalString, requireRecord } from '@shared/utils/validation';
 type EmailOtpEd25519LaneAuth = Extract<SigningLaneAuthBinding, { kind: 'email_otp' }>;
 type ExactEmailOtpWalletSessionStatus = Extract<
   ExactWalletSessionStatus,
   { readonly status: 'active' | 'exhausted' }
 >;
 
-export type EmailOtpEd25519YaoRecoveredCapabilityActivationV1 =
+type EmailOtpEd25519YaoRecoveredCapabilityActivationV1 =
   EmailOtpEd25519YaoWorkerActivationResult & {
     readonly emailHashHex: string;
   };
@@ -63,9 +64,9 @@ type EmailOtpEd25519YaoWorkerActivationRequestV1 = {
   readonly operationCredential: WalletSessionOperationCredentialV1;
 };
 
-export type ExactWalletSessionAuthorizationForEd25519ExportV1 = {
+type ExactWalletSessionAuthorizationForEd25519ExportV1 = {
   readonly selectedAuthority: ActiveWalletAuthorityV1;
-  readonly selectedAuthMethod: Extract<ActiveWalletAuthMethodV2, { readonly kind: 'email_otp' }>;
+  readonly selectedAuthMethod: ActiveEmailOtpWalletAuthMethodRecordV2;
   readonly factorAuthority: EmailOtpWalletAuthAuthority;
   readonly record: ActiveWalletSessionV1;
   readonly operationCredential: WalletSessionOperationCredentialV1;
@@ -153,13 +154,6 @@ export type EmailOtpEd25519YaoExportRootResolutionV1 = {
   };
 };
 
-function requireRecord(value: unknown, label: string): Record<string, unknown> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    throw new Error(`${label} must be an object`);
-  }
-  return value as Record<string, unknown>;
-}
-
 function requireExactKeys(
   record: Record<string, unknown>,
   expected: readonly string[],
@@ -170,13 +164,6 @@ function requireExactKeys(
   if (actual.length !== keys.length || actual.some((key, index) => key !== keys[index])) {
     throw new Error(`${label} fields are invalid`);
   }
-}
-
-function requireString(value: unknown, label: string): string {
-  if (typeof value !== 'string' || value.trim() !== value || value.length === 0) {
-    throw new Error(`${label} is invalid`);
-  }
-  return value;
 }
 
 function requirePositiveInteger(value: unknown, label: string): number {
@@ -286,9 +273,9 @@ async function readColdExportBootstrap(input: {
   if (record.kind !== 'router_ab_ed25519_yao_v2_session_bootstrap_v1') {
     throw new Error('Ed25519 export bootstrap kind is invalid');
   }
-  const walletId = requireString(record.walletId, 'bootstrap.walletId');
-  const nearAccountId = requireString(record.nearAccountId, 'bootstrap.nearAccountId');
-  const nearEd25519SigningKeyId = requireString(
+  const walletId = requireCanonicalString(record.walletId, 'bootstrap.walletId');
+  const nearAccountId = requireCanonicalString(record.nearAccountId, 'bootstrap.nearAccountId');
+  const nearEd25519SigningKeyId = requireCanonicalString(
     record.nearEd25519SigningKeyId,
     'bootstrap.nearEd25519SigningKeyId',
   );
@@ -321,7 +308,7 @@ async function readColdExportBootstrap(input: {
     walletSessionId.value !== operationCredential.walletSessionId ||
     quotaId.value !== input.authorization.record.quotaId ||
     requirePositiveInteger(record.signerSlot, 'bootstrap.signerSlot') !== signer.signerSlot ||
-    requireString(record.signingWorkerId, 'bootstrap.signingWorkerId') !==
+    requireCanonicalString(record.signingWorkerId, 'bootstrap.signingWorkerId') !==
       binding.signingWorkerId ||
     participantIds[0] !== binding.participantIds[0] ||
     participantIds[1] !== binding.participantIds[1] ||
@@ -488,17 +475,17 @@ async function readLinkedExportCapability(input: {
     !quotaId.ok ||
     !runtimePolicyScope ||
     !routerAbNormalSigning ||
-    requireString(record.walletId, 'bootstrap.walletId') !==
+    requireCanonicalString(record.walletId, 'bootstrap.walletId') !==
       String(signer.account.wallet.walletId) ||
-    requireString(record.nearAccountId, 'bootstrap.nearAccountId') !==
+    requireCanonicalString(record.nearAccountId, 'bootstrap.nearAccountId') !==
       String(signer.account.nearAccountId) ||
-    requireString(record.nearEd25519SigningKeyId, 'bootstrap.nearEd25519SigningKeyId') !==
+    requireCanonicalString(record.nearEd25519SigningKeyId, 'bootstrap.nearEd25519SigningKeyId') !==
       String(signer.nearEd25519SigningKeyId) ||
     requirePositiveInteger(record.signerSlot, 'bootstrap.signerSlot') !== signer.signerSlot ||
     thresholdSessionId.value !== capability.lifecycle.thresholdSessionId ||
     walletSessionId.value !== operationCredential.walletSessionId ||
     quotaId.value !== input.authorization.record.quotaId ||
-    requireString(record.signingWorkerId, 'bootstrap.signingWorkerId') !==
+    requireCanonicalString(record.signingWorkerId, 'bootstrap.signingWorkerId') !==
       input.source.signingWorkerId ||
     participantIds[0] !== input.source.participantIds[0] ||
     participantIds[1] !== input.source.participantIds[1] ||

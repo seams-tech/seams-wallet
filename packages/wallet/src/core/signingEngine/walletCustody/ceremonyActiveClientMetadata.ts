@@ -20,10 +20,9 @@ import {
  * this run registered under, and the Router's activation result.
  *
  * **Every identity here comes from the Router's receipt, not from this side.**
- * That matters most for `materialActivation`: it is a Refactor 90 identity, and
- * the boundary that mints it is the Router, exactly as on the PRF path. Nothing
- * here invents one — a locally minted activation ref would be a second owner
- * for state Refactor 90 owns.
+ * That matters most for `materialActivation`: the boundary that mints it is the
+ * Router, exactly as on the PRF path. Nothing here invents one — a locally
+ * minted activation ref would give that state a second owner.
  */
 export function walletCustodyEd25519ActiveClientMetadataV1(input: {
   readonly admissionRequest: RouterAbEd25519YaoRegistrationAdmissionRequestV1;

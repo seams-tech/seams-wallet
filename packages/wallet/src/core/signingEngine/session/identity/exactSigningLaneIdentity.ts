@@ -34,24 +34,18 @@ import {
   toRpId,
 } from './evmFamilyEcdsaIdentity';
 import type { SigningLaneAuthBinding } from './signingLaneAuthBinding';
-import type { NearEd25519SigningKeyId } from '@shared/utils/registrationIntent';
-import {
-  SigningSessionIds,
-  type ThresholdEd25519SessionId,
-  type ThresholdSessionId,
-} from '../operationState/types';
+import type { NearEd25519SigningKeyId } from '@shared/utils/registrationIds';
+import { SigningSessionIds, type ThresholdEd25519SessionId } from '../operationState/types';
 import type {
   MpcWalletSigningQuotaId,
   WalletSessionId,
 } from '@shared/authorization/capabilityKinds';
 
-export type ExactSigningLaneIdentityKey = string & {
+type ExactSigningLaneIdentityKey = string & {
   readonly __brand: 'ExactSigningLaneIdentityKey';
 };
 
-export type NonEmptyThresholdSessionIds = readonly [ThresholdSessionId, ...ThresholdSessionId[]];
-
-export type EvmFamilyEcdsaSignerBinding = {
+type EvmFamilyEcdsaSignerBinding = {
   readonly kind: 'evm_family_ecdsa_signer';
   readonly walletId: WalletId;
   readonly chainTarget: ThresholdEcdsaChainTarget;
@@ -107,7 +101,7 @@ type ExactEcdsaSigningLaneIdentityCarrier = {
   readonly identity: ExactEcdsaSigningLaneIdentity;
 };
 
-export type ExactEd25519SigningLaneIdentityInput<
+type ExactEd25519SigningLaneIdentityInput<
   A extends SigningLaneAuthBinding = SigningLaneAuthBinding,
 > = {
   signer: NearEd25519SignerBinding;
@@ -117,7 +111,7 @@ export type ExactEd25519SigningLaneIdentityInput<
   thresholdSessionId: unknown;
 };
 
-export type ExactEd25519ExportMaterialIdentityInput<
+type ExactEd25519ExportMaterialIdentityInput<
   A extends SigningLaneAuthBinding = SigningLaneAuthBinding,
 > = {
   signer: NearEd25519SignerBinding;
@@ -125,12 +119,12 @@ export type ExactEd25519ExportMaterialIdentityInput<
   thresholdSessionId: unknown;
 };
 
-export type ExactEcdsaSigningLaneIdentityInput = {
+type ExactEcdsaSigningLaneIdentityInput = {
   signer: EvmFamilyEcdsaSignerBinding;
   auth: SigningLaneAuthBinding;
 };
 
-export type NearEd25519SignerBoundaryFields = {
+type NearEd25519SignerBoundaryFields = {
   walletId: WalletId;
   nearAccountId: NearAccountId | string;
   nearEd25519SigningKeyId: NearEd25519SigningKeyId;
@@ -145,7 +139,7 @@ type EvmFamilyEcdsaSignerBindingInput = {
   materialActivation: MpcMaterialActivationRef;
 };
 
-export type ExactSigningLaneIdentityInput =
+type ExactSigningLaneIdentityInput =
   | ExactEd25519SigningLaneIdentityInput
   | ExactEcdsaSigningLaneIdentityInput;
 
@@ -489,22 +483,6 @@ export function exactSigningLaneIdentityKey(
   ) as ExactSigningLaneIdentityKey;
 }
 
-export function deferredEd25519MaterialIdentityKey(input: {
-  materialActivation: MpcMaterialActivationRef;
-}): ExactSigningLaneIdentityKey {
-  return alphabetizeStringify({
-    kind: 'deferred_ed25519_material_identity',
-    materialActivation: {
-      activationId: String(input.materialActivation.activationId),
-      capability: String(input.materialActivation.capability),
-      materialOwner: String(input.materialActivation.materialOwner),
-      keyBinding: String(input.materialActivation.keyBinding),
-      lifecycleBinding: String(input.materialActivation.lifecycleBinding),
-      signingWorker: String(input.materialActivation.signingWorker),
-    },
-  }) as ExactSigningLaneIdentityKey;
-}
-
 export function exactEd25519SigningLaneIdentity<A extends SigningLaneAuthBinding>(
   lane: ExactEd25519SigningLaneIdentityInput<A>,
 ): ExactEd25519SigningLaneIdentity<A> {
@@ -583,14 +561,6 @@ export function exactEcdsaSigningLaneIdentityFromSelectedLane(
   return lane.identity;
 }
 
-export function parseExactEd25519SigningLaneIdentity(
-  value: unknown,
-): ExactEd25519SigningLaneIdentity {
-  const identity = parseExactSigningLaneIdentity(value);
-  if (isExactEd25519SigningLaneIdentity(identity)) return identity;
-  throw new Error('[SigningSession] expected exact Ed25519 lane identity');
-}
-
 export function parseExactEd25519ExportMaterialIdentity(
   value: unknown,
 ): ExactEd25519ExportMaterialIdentity {
@@ -635,7 +605,7 @@ export function parseExactEcdsaSigningLaneIdentity(value: unknown): ExactEcdsaSi
   throw new Error('[SigningSession] expected exact ECDSA lane identity');
 }
 
-export function parseExactSigningLaneIdentity(value: unknown): ExactSigningLaneIdentity {
+function parseExactSigningLaneIdentity(value: unknown): ExactSigningLaneIdentity {
   const lane = requireRecord(value, 'exact signing lane identity');
   if (lane.kind !== 'exact_signing_lane') {
     throw new Error('[SigningSession] expected exact signing lane identity');
@@ -705,19 +675,6 @@ export function exactSigningLaneWalletId(identity: ExactSigningLaneIdentity): Wa
   }
 }
 
-export type ExactSigningLaneCurve = 'ed25519' | 'ecdsa';
-
-export function exactSigningLaneCurve(identity: ExactSigningLaneIdentity): ExactSigningLaneCurve {
-  switch (identity.signer.kind) {
-    case 'near_ed25519_signer':
-      return 'ed25519';
-    case 'evm_family_ecdsa_signer':
-      return 'ecdsa';
-    default:
-      return assertNeverExactLane(identity.signer);
-  }
-}
-
 export function requireEvmFamilyEcdsaSigner(
   identity: ExactSigningLaneIdentity,
   context: string,
@@ -728,7 +685,7 @@ export function requireEvmFamilyEcdsaSigner(
   return identity.signer;
 }
 
-export function requireNearEd25519Signer(
+function requireNearEd25519Signer(
   identity: ExactSigningLaneIdentity,
   context: string,
 ): NearEd25519SignerBinding {
@@ -738,7 +695,7 @@ export function requireNearEd25519Signer(
   return identity.signer;
 }
 
-export type NearProtocolProjection = {
+type NearProtocolProjection = {
   walletId: WalletId;
   nearAccountId: NearEd25519SignerBinding['account']['nearAccountId'];
   nearEd25519SigningKeyId: NearEd25519SigningKeyId;
@@ -756,35 +713,6 @@ export function nearProtocolProjectionFromExactLane(
     nearEd25519SigningKeyId: signer.nearEd25519SigningKeyId,
     signerSlot: signer.signerSlot,
   };
-}
-
-export type EvmFamilyProtocolProjection = {
-  walletId: WalletId;
-  chainTarget: ThresholdEcdsaChainTarget;
-  keyHandle: EvmFamilyEcdsaKeyHandle;
-  key: EvmFamilyEcdsaKeyIdentity;
-};
-
-export function evmFamilyProtocolProjectionFromExactLane(
-  identity: ExactSigningLaneIdentity,
-  context = 'EVM-family protocol projection',
-): EvmFamilyProtocolProjection {
-  const signer = requireEvmFamilyEcdsaSigner(identity, context);
-  return {
-    walletId: signer.walletId,
-    chainTarget: signer.chainTarget,
-    keyHandle: signer.keyHandle,
-    key: signer.key,
-  };
-}
-
-export function thresholdSessionIdsFromExactSigningLaneIdentity(
-  identity: ExactSigningLaneIdentity,
-): NonEmptyThresholdSessionIds {
-  if (isExactEcdsaSigningLaneIdentity(identity)) {
-    throw new Error('[SigningSession] ECDSA authorization has no threshold session identity');
-  }
-  return [identity.thresholdSessionId];
 }
 
 export function exactSigningLaneIdentityMatches(

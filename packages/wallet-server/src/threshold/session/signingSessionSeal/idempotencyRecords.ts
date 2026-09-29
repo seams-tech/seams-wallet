@@ -7,32 +7,29 @@ function toPositiveInt(value: unknown): number | null {
   return Math.floor(parsed);
 }
 
-export type CurrentSigningSessionSealSuccessIdempotencyResultRecord = {
+type CurrentSigningSessionSealSuccessIdempotencyResultRecord = {
   ok: true;
   ciphertext: string;
   keyVersion?: string;
   expiresAtMs?: number;
 };
 
-export type CurrentSigningSessionSealFailureIdempotencyResultRecord = {
+type CurrentSigningSessionSealFailureIdempotencyResultRecord = {
   ok: false;
   code: string;
   message: string;
 };
 
-export type CurrentSigningSessionSealIdempotencyResultRecord =
+type CurrentSigningSessionSealIdempotencyResultRecord =
   | CurrentSigningSessionSealSuccessIdempotencyResultRecord
   | CurrentSigningSessionSealFailureIdempotencyResultRecord;
 
-export type CurrentSigningSessionSealIdempotencyStoredEntry = {
+type CurrentSigningSessionSealIdempotencyStoredEntry = {
   result: CurrentSigningSessionSealIdempotencyResultRecord;
   expiresAtMs: number;
 };
 
-export const parseCurrentSigningSessionSealIdempotencyRecord =
-  parseCurrentSigningSessionSealIdempotencyResultRecord;
-
-export function parseCurrentSigningSessionSealIdempotencyResultRecord(
+function parseCurrentSigningSessionSealIdempotencyResultRecord(
   raw: unknown,
 ): CurrentSigningSessionSealIdempotencyResultRecord | null {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;

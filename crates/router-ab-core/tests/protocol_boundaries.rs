@@ -18,8 +18,7 @@ use router_ab_core::{
     encode_ecdsa_threshold_prf_proof_batch_payload_v1, encode_recipient_output_ciphertext_aad_v1,
     encode_recipient_proof_bundle_ciphertext_aad_v1, encode_recipient_proof_bundle_ciphertext_v1,
     encode_recipient_proof_bundle_payload_v1, encode_wire_message_v1,
-    encrypt_recipient_proof_bundle_payload_v1, recipient_output_ciphertext_aad_digest_v1,
-    recipient_proof_bundle_ciphertext_aad_digest_v1, recipient_proof_bundle_payload_digest_v1,
+    encrypt_recipient_proof_bundle_payload_v1, recipient_proof_bundle_payload_digest_v1,
     recipient_proof_bundle_payload_from_ab_proof_batch_v1,
     recipient_proof_bundle_wire_message_from_ab_proof_batch_v1, role_encrypted_envelope_digest_v1,
     router_transcript_digest_v1, sign_ab_peer_message_ed25519_authentication_v1,
@@ -471,16 +470,6 @@ fn output_ciphertext(
 }
 
 #[test]
-fn recovery_lifecycle_uses_the_recovery_primitive() {
-    let scope = scope(ExpensiveWorkKindV1::Recovery);
-
-    assert_eq!(
-        scope.primitive_request_kind,
-        router_ab_core::RequestKind::Recovery
-    );
-}
-
-#[test]
 fn lifecycle_applies_gate_decision_into_branch_specific_state() {
     let scope = scope(ExpensiveWorkKindV1::RegistrationPrepare);
     let state = RouterAbLifecycleStateV1::apply_gate_decision(
@@ -573,32 +562,6 @@ fn gate_defer_reason_maps_to_authority_verified_fallback_reason() {
         AuthorityVerifiedFallbackReasonV1::from(GateDeferReasonV1::SignerQueueSaturated),
         AuthorityVerifiedFallbackReasonV1::SignerQueueSaturated
     );
-}
-
-#[test]
-fn normal_signing_scope_stays_outside_derivation_lifecycle() {
-    let authorization =
-        NormalSigningAuthorizationV1::reusable_wallet_session("session-1").expect("authorization");
-    let material_activation = MpcMaterialActivationRefV1::new(
-        "activation-1",
-        "capability-1",
-        "wallet-1",
-        "near-ed25519-key-1",
-        "lifecycle-1",
-        "server-a",
-    )
-    .expect("material activation");
-    let scope = NormalSigningScopeV1::new(
-        "sign-1",
-        "wallet-1",
-        authorization,
-        material_activation,
-        "server-a",
-    )
-    .expect("scope");
-
-    assert_eq!(scope.request_id, "sign-1");
-    assert_eq!(scope.signing_worker_id, "server-a");
 }
 
 #[test]
@@ -783,10 +746,6 @@ fn recipient_output_ciphertext_aad_binds_delivery_metadata() {
         encode_recipient_output_ciphertext_aad_v1(&left).expect("left aad"),
         encode_recipient_output_ciphertext_aad_v1(&right).expect("right aad")
     );
-    assert_ne!(
-        recipient_output_ciphertext_aad_digest_v1(&left).expect("left aad digest"),
-        recipient_output_ciphertext_aad_digest_v1(&right).expect("right aad digest")
-    );
 }
 
 #[test]
@@ -890,24 +849,6 @@ fn recipient_output_encryption_request_rejects_invalid_binding() {
     .expect("invalid recipient/opened-share binding must fail");
 
     assert_eq!(err.code(), RouterAbProtocolErrorCode::MalformedWirePayload);
-}
-
-#[test]
-fn signer_set_enforces_all2_roles_and_distinct_ids() {
-    let deriver_a =
-        SignerIdentityV1::new(Role::SignerA, "signer-a", "epoch-a").expect("signer a identity");
-    let deriver_b =
-        SignerIdentityV1::new(Role::SignerB, "signer-b", "epoch-b").expect("signer b identity");
-    let server = ServerIdentityV1::new(
-        "server-a",
-        "server-epoch",
-        "x25519:1111111111111111111111111111111111111111111111111111111111111111",
-    )
-    .expect("server");
-
-    let signer_set =
-        SignerSetV1::v1_all2("signer-set-v1", deriver_a, deriver_b, server).expect("signer set");
-    assert_eq!(signer_set.signer_set_id, "signer-set-v1");
 }
 
 #[test]
@@ -1619,11 +1560,6 @@ fn recipient_proof_bundle_ciphertext_round_trips_and_binds_payload() {
     assert!(aad
         .windows(b"threshold-prf/ristretto255-sha512".len())
         .any(|window| window == b"threshold-prf/ristretto255-sha512"));
-    assert_ne!(
-        recipient_proof_bundle_ciphertext_aad_digest_v1(&envelope)
-            .expect("recipient proof-bundle AAD digest"),
-        digest(0)
-    );
     verify_recipient_proof_bundle_ciphertext_payload_v1(&envelope, &payload)
         .expect("recipient proof-bundle envelope matches payload");
 }

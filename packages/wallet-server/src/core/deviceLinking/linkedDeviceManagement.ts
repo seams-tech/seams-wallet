@@ -15,9 +15,11 @@ import {
 } from '@shared/authorization/delegatedAuthority';
 import type {
   ActiveWalletAuthorityV1,
+  RevokedWalletAuthorityV1,
   WalletAuthorityV1,
 } from '@shared/authorization/walletAuthority';
 import type { AuthorizationService } from '../../authorization/service';
+import type { D1PreparedStatementLike } from '../../storage/tenantRoute';
 import type { OrdinaryInactiveSignerMaterialDeactivationPortV1 } from '../signingMaterial/ordinaryInactiveSignerMaterialReservation';
 import {
   parseWalletAuthorityId,
@@ -34,14 +36,18 @@ import type {
   WalletSessionAuthorizationId,
   WalletSessionId,
 } from '@shared/authorization/capabilityKinds';
-import type { WalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
+import type {
+  ActiveWalletAuthMethodRecordV2,
+  RevokedWalletAuthMethodRecordV2,
+  WalletAuthMethodRecordV2,
+} from '@shared/utils/walletAuthMethodRecord';
 import type { WebAuthnAuthenticatorDeviceInfo } from '@shared/utils/webauthnDeviceInfo';
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
 import type { LinkedDeviceId, WalletKeyId } from '@shared/signing-lanes/ids';
 
 export const MAX_LINKED_DEVICE_LIST_LIMIT_V1 = 50;
 
-export type LinkedDeviceManagementListCursorV1 = {
+type LinkedDeviceManagementListCursorV1 = {
   readonly kind: 'wallet_authority_v1';
   readonly updatedAtMs: number;
   readonly authorityId: WalletAuthorityId;
@@ -60,19 +66,33 @@ export type LinkedDeviceManagementSourceV1 = {
 };
 
 /** A fresh factor proof is produced by the request boundary after verification. */
-export type LinkedDeviceManagementFreshProofV1 = {
+type LinkedDeviceManagementFreshProofV1 = {
   readonly walletAuthMethodId: WalletAuthMethodId;
   readonly verifiedAtMs: number;
 };
 
-export type LinkedDeviceManagementRevocationSourceV1 = LinkedDeviceManagementSourceV1 & {
+type LinkedDeviceManagementRevocationSourceV1 = LinkedDeviceManagementSourceV1 & {
   readonly freshProof: LinkedDeviceManagementFreshProofV1;
 };
 
-export type LinkedDeviceManagementSourceResolutionV1 = {
+/**
+ * What the request boundary commits with one revocation: the statements its
+ * fresh proof owes (the approving method's guard, an Email OTP code's spend)
+ * and the record of the answer, for an exact retry. The authority port runs
+ * them in the revocation's own batch, so they commit together or not at all.
+ */
+type LinkedDeviceRevocationCommitV1 = {
+  readonly prerequisites: readonly D1PreparedStatementLike[];
+  /** Run after the revocation's writes, which the record reads. */
+  readonly recordAnswer: (target: {
+    readonly authorityId: WalletAuthorityId;
+  }) => readonly D1PreparedStatementLike[];
+};
+
+type LinkedDeviceManagementSourceResolutionV1 = {
   readonly session: LinkedDeviceManagementOwnerSessionV1;
   readonly authority: ActiveWalletAuthorityV1;
-  readonly authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+  readonly authMethod: ActiveWalletAuthMethodRecordV2;
   readonly permission: DelegatedWalletAuthorityV1;
 };
 
@@ -81,7 +101,7 @@ export type LinkedDeviceManagementAuthorityPageV1 = {
   readonly nextCursor: LinkedDeviceManagementListCursorV1 | null;
 };
 
-export type LinkedDeviceManagementAuthorityPortV1 = {
+type LinkedDeviceManagementAuthorityPortV1 = {
   listActiveForWalletV1(input: {
     readonly walletId: WalletId;
     readonly limit: number;
@@ -94,10 +114,15 @@ export type LinkedDeviceManagementAuthorityPortV1 = {
     readonly walletAuthMethodId: WalletAuthMethodId;
     readonly expectedAuthorityRevocationEpoch: number;
     readonly requestedAtMs: number;
+    /** Committed in the revocation's batch: before its writes, and after. */
+    readonly commit?: {
+      readonly statements: readonly D1PreparedStatementLike[];
+      readonly trailingStatements: readonly D1PreparedStatementLike[];
+    };
   }): Promise<
     | {
         readonly kind: 'revoked_method';
-        readonly authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'revoked' }>;
+        readonly authMethod: RevokedWalletAuthMethodRecordV2;
         readonly authority: WalletAuthorityV1;
       }
     | { readonly kind: 'would_remove_last_wallet_auth_method' }
@@ -105,7 +130,7 @@ export type LinkedDeviceManagementAuthorityPortV1 = {
   >;
 };
 
-export type LinkedDeviceManagementAuthMethodPortV1 = {
+type LinkedDeviceManagementAuthMethodPortV1 = {
   listForAuthorityV1(input: {
     readonly walletId: WalletId;
     readonly authorityId: WalletAuthorityId;
@@ -115,7 +140,7 @@ export type LinkedDeviceManagementAuthMethodPortV1 = {
   }): Promise<WalletAuthMethodRecordV2 | null>;
 };
 
-export type LinkedDeviceManagementOwnerSessionV1 = {
+type LinkedDeviceManagementOwnerSessionV1 = {
   readonly walletId: WalletId;
   readonly walletSessionId: WalletSessionId;
   readonly authorizationId: WalletSessionAuthorizationId;
@@ -124,7 +149,7 @@ export type LinkedDeviceManagementOwnerSessionV1 = {
   readonly expiresAtMs: number;
 };
 
-export type LinkedDeviceManagementAuthenticatorPortV1 = {
+type LinkedDeviceManagementAuthenticatorPortV1 = {
   readActiveOwnerWalletSessionV1(input: {
     readonly tenantId: TenantId;
     readonly walletId: WalletId;
@@ -134,12 +159,12 @@ export type LinkedDeviceManagementAuthenticatorPortV1 = {
   }): Promise<LinkedDeviceManagementOwnerSessionV1 | null>;
 };
 
-export type LinkedDeviceManagementSessionRetirementPortV1 = Pick<
+type LinkedDeviceManagementSessionRetirementPortV1 = Pick<
   AuthorizationService,
   'retireWalletSessionAuthorizationsForAuthMethod'
 >;
 
-export type LinkedDeviceManagementCredentialMetadataPortV1 = {
+type LinkedDeviceManagementCredentialMetadataPortV1 = {
   readPasskeyDeviceInfoV1(input: {
     readonly walletId: WalletId;
     readonly credentialIdB64u: string;
@@ -153,7 +178,7 @@ export type LinkedDeviceManagementCredentialMetadataPortV1 = {
   readEmailOtpAddressV1(input: { readonly walletId: WalletId }): Promise<string | null>;
 };
 
-export type LinkedDeviceManagementServiceOptionsV1 = {
+type LinkedDeviceManagementServiceOptionsV1 = {
   readonly tenantId: TenantId;
   readonly authenticator: LinkedDeviceManagementAuthenticatorPortV1;
   readonly authority: LinkedDeviceManagementAuthorityPortV1;
@@ -163,7 +188,7 @@ export type LinkedDeviceManagementServiceOptionsV1 = {
   readonly materialDeactivation?: OrdinaryInactiveSignerMaterialDeactivationPortV1;
 };
 
-export type LinkedDeviceManagementServiceResultV1 =
+type LinkedDeviceManagementServiceResultV1 =
   | LinkedDeviceListResultV1
   | { readonly kind: 'unauthorized' };
 
@@ -194,19 +219,19 @@ export class LinkedDeviceManagementServiceV1 {
       });
       const activeMethods = methods.filter(isActiveAuthMethod);
       if (authority.provenance.kind === 'device_link') {
-        /* One entry per active method here too. R109D gives a linked authority
-           both factor families, and the same truncation would hide the sibling
-           and make it unremovable — the defect R109C fixed on the founding
-           branch. Today a linked authority holds one method, so this loop is
-           the same single entry it always produced. */
+        /* One entry per active method here too. If a linked authority held both
+           factor families, the same truncation would hide the sibling and make
+           it unremovable — the defect fixed on the founding branch. Today a
+           linked authority holds one method, so this loop is the same single
+           entry it always produced. */
         for (const activeMethod of activeMethods) {
           devices.push(
             await this.buildLinkedDeviceSummaryV1(authority, activeMethod, emailOtpAddress),
           );
         }
       } else if (request.cursor === null) {
-        /* One entry per active method, not per authority. R109C puts both
-           factor families on one founding authority, and the settings surface
+        /* One entry per active method, not per authority. A founding authority
+           can hold both factor families, and the settings surface
            has to name each of them exactly — to decide which family is still
            missing, and to offer removal of one while its sibling stays. A
            projection that stopped at the first method made the second
@@ -228,6 +253,7 @@ export class LinkedDeviceManagementServiceV1 {
   async revokeLinkedDeviceV1(
     request: LinkedDeviceRevokeRequestV1,
     source: LinkedDeviceManagementRevocationSourceV1,
+    commit?: LinkedDeviceRevocationCommitV1,
   ): Promise<LinkedDeviceRevokeResultV1> {
     const resolved = await this.resolveSourceV1(source, request.requestedAtMs);
     if (!resolved || !hasFullOwnerPermissionsV1(resolved.authority)) {
@@ -306,6 +332,14 @@ export class LinkedDeviceManagementServiceV1 {
       walletAuthMethodId: targetMethod.walletAuthMethodId,
       expectedAuthorityRevocationEpoch: targetAuthority.revocationEpoch,
       requestedAtMs: request.requestedAtMs,
+      ...(commit === undefined
+        ? {}
+        : {
+            commit: {
+              statements: commit.prerequisites,
+              trailingStatements: commit.recordAnswer({ authorityId: targetAuthority.authorityId }),
+            },
+          }),
     });
     if (result.kind === 'would_remove_last_wallet_auth_method' || result.kind === 'conflict') {
       return { kind: 'conflict' };
@@ -325,6 +359,37 @@ export class LinkedDeviceManagementServiceV1 {
       authorityId: result.authority.authorityId,
       revocationEpoch: result.authority.revocationEpoch,
     };
+  }
+
+  /**
+   * Finishes, again, what follows a committed revocation: the method's
+   * sessions retired and a revoked authority's signer material deactivated.
+   * Both are idempotent, so an exact retry answered from the record completes
+   * whatever its first attempt left undone.
+   */
+  async finishLinkedDeviceRevocationV1(input: {
+    readonly walletId: WalletId;
+    readonly walletAuthMethodId: WalletAuthMethodId;
+    readonly requestedAtMs: number;
+  }): Promise<void> {
+    const method = await this.options.authMethod.readByIdV1({
+      walletAuthMethodId: input.walletAuthMethodId,
+    });
+    if (!method || method.walletId !== input.walletId || method.status !== 'revoked') return;
+    await this.options.sessions.retireWalletSessionAuthorizationsForAuthMethod({
+      tenantId: this.options.tenantId,
+      walletId: input.walletId,
+      walletAuthMethodId: method.walletAuthMethodId,
+      nowMs: input.requestedAtMs,
+    });
+    const authority = await this.options.authority.readByIdV1(method.walletAuthorityId);
+    if (
+      authority?.state === 'revoked' &&
+      authority.walletId === input.walletId &&
+      authority.provenance.kind === 'device_link'
+    ) {
+      await this.deactivateSignerMaterialV1(authority, input.requestedAtMs);
+    }
   }
 
   private async resolveSourceV1(
@@ -361,7 +426,7 @@ export class LinkedDeviceManagementServiceV1 {
   }
 
   private async deactivateSignerMaterialV1(
-    authority: Extract<WalletAuthorityV1, { readonly state: 'revoked' }>,
+    authority: RevokedWalletAuthorityV1,
     requestedAtMs: number,
   ): Promise<void> {
     const port = this.options.materialDeactivation;
@@ -377,7 +442,7 @@ export class LinkedDeviceManagementServiceV1 {
 
   private async buildLinkedDeviceSummaryV1(
     authority: ActiveWalletAuthorityV1,
-    authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>,
+    authMethod: ActiveWalletAuthMethodRecordV2,
     emailOtpAddress: EmailOtpAddressLookupV1,
   ): Promise<LinkedDeviceSummaryV1> {
     if (authority.provenance.kind !== 'device_link') {
@@ -405,7 +470,7 @@ export class LinkedDeviceManagementServiceV1 {
 
   private async buildOwnerDeviceSummaryV1(
     authority: ActiveWalletAuthorityV1,
-    authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>,
+    authMethod: ActiveWalletAuthMethodRecordV2,
     emailOtpAddress: EmailOtpAddressLookupV1,
   ): Promise<OwnerDeviceSummaryV1> {
     return {
@@ -447,7 +512,7 @@ function hasFullOwnerPermissionsV1(authority: ActiveWalletAuthorityV1): boolean 
 
 function isActiveAuthMethod(
   record: WalletAuthMethodRecordV2,
-): record is Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }> {
+): record is ActiveWalletAuthMethodRecordV2 {
   return record.status === 'active';
 }
 
@@ -477,7 +542,7 @@ function emailOtpAddressOnceV1(
 async function credentialMetadataV1(
   credentials: LinkedDeviceManagementCredentialMetadataPortV1,
   walletId: WalletId,
-  authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>,
+  authMethod: ActiveWalletAuthMethodRecordV2,
   emailOtpAddress: EmailOtpAddressLookupV1,
 ): Promise<LinkedDeviceSummaryV1['credential']> {
   if (authMethod.kind === 'email_otp') {
@@ -517,7 +582,7 @@ function walletKeysFromAuthority(authority: ActiveWalletAuthorityV1): readonly W
 }
 
 function activationRefsFromAuthority(
-  authority: Extract<WalletAuthorityV1, { readonly state: 'revoked' }>,
+  authority: RevokedWalletAuthorityV1,
 ): readonly AuthorityMaterialActivationV1[] {
   const signers = authority.signerActivations;
   if (signers.keyFamilies.length === 1 && signers.keyFamilies[0] === 'ed25519') {
@@ -550,7 +615,7 @@ function parseLinkedDeviceIdValue(raw: string): LinkedDeviceId {
   return parsed.value;
 }
 
-export function encodeLinkedDeviceListCursorV1(cursor: LinkedDeviceManagementListCursorV1): string {
+function encodeLinkedDeviceListCursorV1(cursor: LinkedDeviceManagementListCursorV1): string {
   if (!Number.isSafeInteger(cursor.updatedAtMs) || cursor.updatedAtMs < 0) {
     throw new LinkedDeviceListCursorError('linked-device list cursor timestamp is invalid');
   }
@@ -572,7 +637,7 @@ export function encodeLinkedDeviceListCursorV1(cursor: LinkedDeviceManagementLis
   );
 }
 
-export function decodeLinkedDeviceListCursorV1(
+function decodeLinkedDeviceListCursorV1(
   raw: string | null,
 ): LinkedDeviceManagementListCursorV1 | null {
   if (raw === null) return null;

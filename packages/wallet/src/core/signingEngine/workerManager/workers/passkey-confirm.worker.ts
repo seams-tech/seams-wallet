@@ -2,6 +2,7 @@
 import { awaitUserConfirmationV2 } from '../../uiConfirm/awaitUserConfirmation';
 import { UserConfirmMessageType } from '../../stepUpConfirmation/channel/confirmTypes';
 import type { UserConfirmWorkerResponsePayload } from '../../../types/secure-confirm-worker';
+import { asRecord } from '@shared/utils/validation';
 
 type UserConfirmWorkerGlobal = typeof globalThis & {
   awaitUserConfirmationV2?: typeof awaitUserConfirmationV2;
@@ -18,12 +19,6 @@ type SecureConfirmRequestPayload = {
 };
 
 (globalThis as UserConfirmWorkerGlobal).awaitUserConfirmationV2 = awaitUserConfirmationV2;
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === 'object' && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : null;
-}
 
 function asIncomingMessage(value: unknown): UserConfirmWorkerIncomingMessage {
   const record = asRecord(value);

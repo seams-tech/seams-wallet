@@ -1,6 +1,6 @@
 /**
- * Refactor 103 zero-prompt handoff — the main thread's view of the unlocked
- * Ed25519 Yao Client export-root capability.
+ * The main thread's view of the unlocked Ed25519 Yao Client export-root
+ * capability.
  *
  * The wallet custody ceremony worker owns the opened custody-seed handle; this
  * module owns the one public reference to it and the discipline around it:
@@ -16,6 +16,7 @@
  * the linking flow.
  */
 import type {
+  UnlockedEd25519ExportRootLinkingCapabilityV1,
   UnlockedWalletEd25519ExportRootCapabilityDestroyScopeV1,
   UnlockedWalletEd25519ExportRootCapabilityV1,
 } from '../workerManager/workerTypes';
@@ -38,13 +39,15 @@ import {
 import { isPlainObject } from '@shared/utils/validation';
 import type { WorkerOperationContext } from '../workerManager/executeWorkerOperation';
 
-let currentCapability: UnlockedWalletEd25519ExportRootCapabilityV1 | null = null;
+/* A wallet holds one capability at a time: Device 1's seed-backed one, or a
+   linked device's Client-root one. Only linking reads the second kind. */
+let currentCapability: UnlockedEd25519ExportRootLinkingCapabilityV1 | null = null;
 let currentCapabilityTransport: WalletCustodyCeremonyTransportPort | null = null;
 let currentCapabilityExpiryTimer: ReturnType<typeof setTimeout> | null = null;
 let currentUpgradedEnvelopeSink: UnlockedCustodyEnvelopeUpgradeSinkV1 | null = null;
 
 /**
- * Refactor 109C: where a pre-109C envelope's upgrade goes after an unlock.
+ * Where an unbound envelope's upgrade goes after an unlock.
  *
  * The reseal happens inside the worker, at the one instant both the factor
  * secret and the selected method are in hand. Only the host knows the relayer
@@ -52,7 +55,7 @@ let currentUpgradedEnvelopeSink: UnlockedCustodyEnvelopeUpgradeSinkV1 | null = n
  * this behind and every establishment path reaches persistence — including the
  * two that call the worker directly and have no relayer of their own.
  */
-export type UnlockedCustodyEnvelopeUpgradeSinkV1 = (input: {
+type UnlockedCustodyEnvelopeUpgradeSinkV1 = (input: {
   readonly walletId: string;
   readonly walletAuthMethodId: string;
   readonly walletSessionId: string;
@@ -72,9 +75,10 @@ export function setUnlockedCustodyEnvelopeUpgradeSinkV1(
  * missing sink or throwing sink leaves the stored V2 row standing and the
  * wallet working; the next unlock reseals and tries again.
  */
-function forwardUpgradedEnvelope(capability: UnlockedWalletEd25519ExportRootCapabilityV1): void {
+function forwardUpgradedEnvelope(capability: UnlockedEd25519ExportRootLinkingCapabilityV1): void {
   const sink = currentUpgradedEnvelopeSink;
   if (!sink) return;
+  if (capability.kind !== 'unlocked_wallet_ed25519_export_root_capability_v1') return;
   const upgraded = capability.upgradedEnvelope;
   if (upgraded === undefined) return;
   try {
@@ -115,7 +119,7 @@ function clearCurrentCapabilityReference(): void {
 }
 
 function scheduleCurrentCapabilityExpiry(
-  capability: UnlockedWalletEd25519ExportRootCapabilityV1,
+  capability: UnlockedEd25519ExportRootLinkingCapabilityV1,
   transport: WalletCustodyCeremonyTransportPort,
 ): void {
   clearCurrentCapabilityExpiryTimer();
@@ -139,8 +143,11 @@ function scheduleCurrentCapabilityExpiry(
 
 function parseCapabilityReference(
   value: unknown,
-): UnlockedWalletEd25519ExportRootCapabilityV1 | null {
+): UnlockedEd25519ExportRootLinkingCapabilityV1 | null {
   if (!isPlainObject(value)) return null;
+  if (value.kind === 'unlocked_linked_device_ed25519_client_root_capability_v1') {
+    return parseLinkedDeviceClientRootCapabilityReference(value);
+  }
   const fields = Object.keys(value);
   const hasUpgradedEnvelope = fields.includes('upgradedEnvelope');
   const expectedFields = hasUpgradedEnvelope
@@ -204,11 +211,54 @@ function parseCapabilityReference(
   };
 }
 
+/** A linked device's reference: the same public facts, no envelope upgrade. */
+function parseLinkedDeviceClientRootCapabilityReference(
+  value: Record<string, unknown>,
+): UnlockedEd25519ExportRootLinkingCapabilityV1 | null {
+  const expectedFields = [
+    'kind',
+    'capabilityHandleId',
+    'walletId',
+    'walletAuthMethodId',
+    'walletSessionId',
+    'expiresAtMs',
+  ];
+  const fields = Object.keys(value);
+  if (
+    fields.length !== expectedFields.length ||
+    fields.some((field) => !expectedFields.includes(field))
+  ) {
+    return null;
+  }
+  const capabilityHandleId = parseCapabilityInstanceRef(value.capabilityHandleId);
+  const walletId = parseWalletId(value.walletId);
+  const walletAuthMethodId = parseWalletAuthMethodId(value.walletAuthMethodId);
+  const walletSessionId = parseWalletSessionId(value.walletSessionId);
+  if (!capabilityHandleId.ok || !walletId.ok || !walletAuthMethodId.ok || !walletSessionId.ok) {
+    return null;
+  }
+  let expiresAtMs: number;
+  try {
+    expiresAtMs = parseUnixMs(value.expiresAtMs, 'unlocked Ed25519 Client-root capability expiry');
+  } catch {
+    return null;
+  }
+  return {
+    kind: 'unlocked_linked_device_ed25519_client_root_capability_v1',
+    capabilityHandleId: capabilityHandleId.value,
+    walletId: walletId.value,
+    walletAuthMethodId: walletAuthMethodId.value,
+    walletSessionId: walletSessionId.value,
+    expiresAtMs,
+  };
+}
+
 /**
- * Opens a wallet-custody-seed envelope inside the worker with the factor secret
- * already present in the calling operation, and records the returned reference
- * as the current capability. Client-root envelopes belong to the exact sealed
- * export-root path and do not establish this seed-backed capability.
+ * Opens this device's own custody envelope inside the worker with the factor
+ * secret already present in the calling operation, and records the returned
+ * reference as the current capability. A wallet custody seed yields the
+ * seed-backed capability; a linked device's Client-root envelope yields the
+ * linked-device capability, which only linking accepts.
  * The caller still owns `existingFactorSecret` and zeroes it; the worker zeroes
  * its own copy.
  *
@@ -225,8 +275,11 @@ export async function establishUnlockedWalletEd25519ExportRootCapabilityV1(
     readonly walletSessionId: string;
     readonly expiresAtMs: number;
   },
-): Promise<UnlockedWalletEd25519ExportRootCapabilityV1 | undefined> {
-  if (!isWalletCustodySeedBinding(input.existingEnvelope.binding)) return undefined;
+): Promise<UnlockedEd25519ExportRootLinkingCapabilityV1 | undefined> {
+  const binding = input.existingEnvelope.binding;
+  if (!isWalletCustodySeedBinding(binding) && binding.kind !== 'ed25519_yao_client_root_v1') {
+    return undefined;
+  }
   // The worker transfers this buffer, so it gets a copy and we wipe it.
   const workerFactorSecret = input.existingFactorSecret.slice();
   let established: unknown;
@@ -262,12 +315,28 @@ export async function establishUnlockedWalletEd25519ExportRootCapabilityV1(
 }
 
 /**
- * The current capability for this exact wallet, or undefined when the wallet
- * has none — never a prompt, and never a stale or expired reference.
+ * The current seed-backed capability for this exact wallet, or undefined when
+ * the wallet has none — never a prompt, and never a stale or expired
+ * reference. A linked device's Client-root capability is never returned here:
+ * seed reseals and auth-method additions cannot use it.
  */
 export function readUnlockedWalletEd25519ExportRootCapabilityV1(
   walletId: string,
 ): UnlockedWalletEd25519ExportRootCapabilityV1 | undefined {
+  const capability = readUnlockedEd25519ExportRootLinkingCapabilityV1(walletId);
+  return capability?.kind === 'unlocked_wallet_ed25519_export_root_capability_v1'
+    ? capability
+    : undefined;
+}
+
+/**
+ * The current capability a device approving a link seals the export root
+ * from, of either kind, for this exact wallet — never a prompt, and never a
+ * stale or expired reference.
+ */
+export function readUnlockedEd25519ExportRootLinkingCapabilityV1(
+  walletId: string,
+): UnlockedEd25519ExportRootLinkingCapabilityV1 | undefined {
   const capability = currentCapability;
   if (!capability) return undefined;
   if (capability.walletId !== walletId) return undefined;

@@ -21,7 +21,11 @@ import {
 } from '@shared/device-linking/digests';
 import { alphabetizeStringify } from '@shared/utils/digests';
 import { errorMessage } from '@shared/utils/errors';
-import { parseDigestB64u, type DigestB64u } from '@shared/utils/canonicalPrimitives';
+import {
+  parseDigestB64u,
+  sha256Utf8DigestB64u,
+  type DigestB64u,
+} from '@shared/utils/canonicalPrimitives';
 import { routerAbMpcMaterialActivationRefFromWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import {
   hasControlCharacter,
@@ -31,7 +35,6 @@ import {
   type WebAuthnCredentialIdB64u,
 } from '@shared/utils/domainIds';
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
-import { sha256BytesUtf8 } from '@shared/utils/digests';
 import { verifyWebAuthnRegistrationCredentialForIntent } from '../../../../core/authService/webauthn';
 import { parseClientDataJsonBase64url } from '../../../../core/authService/webauthnOidcHelpers';
 import type {
@@ -40,13 +43,16 @@ import type {
   D1ResultLike,
 } from '../../../../storage/tenantRoute';
 import { d1ChangedRows } from '../../../../storage/d1Sql';
-import type { LinkedDeviceSessionRecordV1 } from '../../../../core/deviceLinking/linkedDeviceSession';
+import type { LinkedDeviceSessionRecordV1 } from '../../../../core/deviceLinking/linkedDeviceSessionRecord';
 import { linkedDeviceEmailOtpDescriptorCredentialIdV1 } from '../../../../core/deviceLinking/linkedDeviceEmailOtpGrant';
 import type {
   DeviceLinkingTargetCredentialProviderV1,
   LinkedDeviceTargetPreparationResultV1,
 } from '../../../../router/transport/fetch/routes/deviceLinking';
-import type { D1LinkedDeviceSessionScopeV1 } from './d1LinkedDeviceSessionStore';
+import {
+  SESSION_CAS_GUARD_SQL,
+  type D1LinkedDeviceSessionScopeV1,
+} from './d1LinkedDeviceSessionStore';
 import {
   buildVerifiedTargetFactorV1,
   buildVerifiedLinkInputV1,
@@ -56,6 +62,7 @@ import {
 import { linkedDeviceX25519RecipientPublicKeyB64uV1 } from './d1LinkedDeviceSourceContributionPreparationPlanner';
 import type { ExactAdministeredSignerV1 } from '@shared/device-linking/delegatedActivationPlan';
 import type { MpcMaterialActivationRef } from '@shared/utils/domainIds';
+import { requireCanonicalString, requireRecord } from '@shared/utils/validation';
 
 export type VerifiedLinkedDeviceWebAuthnCredentialV1 = {
   readonly credentialIdB64u: string;
@@ -777,11 +784,7 @@ export class D1LinkedDeviceTargetCredentialProviderV1 implements DeviceLinkingTa
     // A guard directly after the flip: if the row was not in `prepared` any
     // more, the whole batch fails before the grant consumption or binding
     // insert can run — a lost flip must not spend the grant.
-    const flipGuard = this.database.prepare(
-      `INSERT INTO linked_device_session_cas_guard (guard_id)
-SELECT 1
- WHERE changes() = 0`,
-    );
+    const flipGuard = this.database.prepare(SESSION_CAS_GUARD_SQL);
     const results = await this.database.batch<D1ResultLike>([
       flip,
       flipGuard,
@@ -1504,7 +1507,7 @@ async function parseTargetCredentialRow(
   }
   if (payload.registration.targetFactor.kind === 'passkey_prf') {
     const targetFactor = requireVerifiedPasskeyTargetFactor(payload.verifiedTargetFactor);
-    const credentialPublicKeyB64u = requiredString(
+    const credentialPublicKeyB64u = requireCanonicalString(
       row.credential_public_key_b64u,
       'credential_public_key_b64u',
     );
@@ -1720,9 +1723,10 @@ function assertTargetCredentialIdentityColumns(
   preparation: LinkedDeviceTargetPreparationV1,
 ): void {
   if (
-    requiredString(row.wallet_id, 'wallet_id') !== String(preparation.walletId) ||
-    requiredString(row.enrollment_id, 'enrollment_id') !== String(preparation.enrollmentId) ||
-    requiredString(row.device_id, 'device_id') !== String(preparation.deviceId)
+    requireCanonicalString(row.wallet_id, 'wallet_id') !== String(preparation.walletId) ||
+    requireCanonicalString(row.enrollment_id, 'enrollment_id') !==
+      String(preparation.enrollmentId) ||
+    requireCanonicalString(row.device_id, 'device_id') !== String(preparation.deviceId)
   ) {
     throw new Error('linked-device target credential identity columns disagree with preparation');
   }
@@ -1732,20 +1736,6 @@ function requirePayloadField(record: Record<string, unknown>, field: string): vo
   if (!Object.prototype.hasOwnProperty.call(record, field) || record[field] === undefined) {
     throw new Error(`linked-device registered target credential payload is missing ${field}`);
   }
-}
-
-function requireRecord(raw: unknown, field: string): Record<string, unknown> {
-  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
-    throw new Error(`${field} must be an object`);
-  }
-  return raw as Record<string, unknown>;
-}
-
-function requiredString(raw: unknown, field: string): string {
-  if (typeof raw !== 'string' || raw.length === 0 || raw.trim() !== raw) {
-    throw new Error(`${field} is invalid`);
-  }
-  return raw;
 }
 
 function requiredNonnegativeInteger(raw: unknown, field: string): number {
@@ -1820,17 +1810,13 @@ function isCanonicalNonemptyBase64Url(value: string): boolean {
 async function digestRegistrationV1(
   registration: LinkedDeviceTargetCredentialRegistrationV1,
 ): Promise<DigestB64u> {
-  return parseDigestB64u(
-    base64UrlEncode(
-      await sha256BytesUtf8(
-        `seams/r103/target-credential/v1\u0000${alphabetizeStringify(registration)}`,
-      ),
-    ),
+  return sha256Utf8DigestB64u(
+    `seams/r103/target-credential/v1\u0000${alphabetizeStringify(registration)}`,
   );
 }
 
 async function digestJsonV1(value: unknown): Promise<DigestB64u> {
-  return parseDigestB64u(base64UrlEncode(await sha256BytesUtf8(alphabetizeStringify(value))));
+  return sha256Utf8DigestB64u(alphabetizeStringify(value));
 }
 
 async function waitForTargetCommitV1(delayMs: number): Promise<void> {

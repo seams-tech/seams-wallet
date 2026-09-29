@@ -3,9 +3,9 @@ use router_ab_cloudflare::{
 };
 use router_ab_core::{
     Ed25519YaoCeremonyBindingV1, Ed25519YaoEncryptedInputV1, Ed25519YaoInputPairBindingV1,
-    Ed25519YaoOperationV1, PublicDigest32, RouterAbEd25519YaoExportBindingV1,
-    RouterAbProtocolError, RouterAbProtocolErrorCode, RouterAbProtocolResult,
-    RouterAdmittedExecutionAuthorityV1, RouterEd25519YaoExecuteRequestV1,
+    Ed25519YaoOperationV1, Ed25519YaoRecoveryAttemptV1, PublicDigest32,
+    RouterAbEd25519YaoExportBindingV1, RouterAbProtocolError, RouterAbProtocolErrorCode,
+    RouterAbProtocolResult, RouterAdmittedExecutionAuthorityV1, RouterEd25519YaoExecuteRequestV1,
 };
 
 /// Exact role inputs extracted from one validated Router execution request.
@@ -17,6 +17,8 @@ pub struct LocalRouterEd25519YaoPairDispatchV1 {
     pub authority: RouterAdmittedExecutionAuthorityV1,
     pub operation: Ed25519YaoOperationV1,
     pub binding: Ed25519YaoCeremonyBindingV1,
+    /// The Gateway's attempt, for a recovery; other operations have none.
+    pub recovery_attempt: Option<Ed25519YaoRecoveryAttemptV1>,
     pub export_binding: Option<RouterAbEd25519YaoExportBindingV1>,
     pub work: router_ab_cloudflare::CloudflareEd25519YaoPairWorkV1,
     pub pair_binding: Ed25519YaoInputPairBindingV1,
@@ -31,6 +33,7 @@ impl LocalRouterEd25519YaoPairDispatchV1 {
         request: RouterEd25519YaoExecuteRequestV1,
         tenant_root: CloudflareEd25519YaoTenantRootContextV2,
     ) -> Self {
+        let recovery_attempt = request.recovery_attempt();
         match request {
             RouterEd25519YaoExecuteRequestV1::Registration {
                 authority,
@@ -45,10 +48,12 @@ impl LocalRouterEd25519YaoPairDispatchV1 {
                 pair_binding,
                 deriver_a_input,
                 deriver_b_input,
+                ..
             } => Self {
                 authority,
                 operation: binding.operation,
                 binding,
+                recovery_attempt,
                 export_binding: None,
                 work: router_ab_cloudflare::CloudflareEd25519YaoPairWorkV1::Ceremony,
                 pair_binding,
@@ -66,6 +71,7 @@ impl LocalRouterEd25519YaoPairDispatchV1 {
                 authority,
                 operation: binding.ceremony().operation,
                 binding: binding.ceremony().clone(),
+                recovery_attempt,
                 export_binding: Some(binding),
                 work: router_ab_cloudflare::CloudflareEd25519YaoPairWorkV1::Ceremony,
                 pair_binding,
@@ -92,6 +98,7 @@ impl LocalRouterEd25519YaoPairDispatchV1 {
                 authority,
                 operation: binding.operation,
                 binding,
+                recovery_attempt,
                 export_binding: None,
                 work: router_ab_cloudflare::CloudflareEd25519YaoPairWorkV1::Lane { job },
                 pair_binding,
@@ -132,6 +139,11 @@ impl LocalRouterEd25519YaoPairDispatchV1 {
                     "Router refresh is not an admitted Yao operation",
                 ))
             }
+        }
+        if (self.operation == Ed25519YaoOperationV1::Recovery) != self.recovery_attempt.is_some() {
+            return Err(pair_http_error(
+                "Router dispatch names a recovery attempt exactly when it recovers",
+            ));
         }
         if let Some(export_binding) = &self.export_binding {
             if export_binding.ceremony() != &self.binding {
@@ -175,7 +187,7 @@ pub fn decode_local_router_ed25519_yao_execute_request_v1(
     recipient_set_digest: PublicDigest32,
     issued_at_ms: u64,
     expires_at_ms: u64,
-    resolver: &super::LocalTenantRootResolverConfigV1,
+    tenant_root_config: &super::LocalRouterTenantRootConfigV1,
 ) -> RouterAbProtocolResult<LocalRouterEd25519YaoPairDispatchV1> {
     let envelope = serde_json::from_slice::<CloudflareRouterEd25519YaoExecuteRequestV2>(body)
         .map_err(|error| {
@@ -189,8 +201,11 @@ pub fn decode_local_router_ed25519_yao_execute_request_v1(
         envelope
             .target
             .into_execute_request(recipient_set_digest, issued_at_ms, expires_at_ms)?;
-    let tenant_root = resolver.resolve_context(
-        &envelope.tenant_root,
+    let coordinates = envelope.tenant_root.coordinates()?;
+    let tenant_root = crate::local_tenant_root::resolve_local_router_tenant_root_context_v1(
+        tenant_root_config,
+        &envelope.tenant_root.identity,
+        &coordinates,
         &envelope.application,
         envelope.participant_ids,
         request.pair_binding(),
@@ -208,15 +223,14 @@ fn pair_http_error(message: &'static str) -> RouterAbProtocolError {
 
 #[cfg(test)]
 mod tests {
-    use crate::LocalTenantRootResolverConfigV1;
+    use crate::LocalRouterTenantRootConfigV1;
 
     use super::*;
     use router_ab_core::{
         Ed25519YaoCeremonyBindingV1, Ed25519YaoDeriverRoleV1, Ed25519YaoEncryptedInputV1,
         Ed25519YaoInputKindV1, Ed25519YaoOperationV1, Ed25519YaoSessionIdV1,
         Ed25519YaoStableKeyContextBindingV1, ExpensiveWorkKindV1, LifecycleScopeV1,
-        MpcMaterialActivationRefV1, RootShareEpoch,
-        RouterEd25519YaoGatewayExecuteTargetV2,
+        MpcMaterialActivationRefV1, RootShareEpoch, RouterEd25519YaoGatewayExecuteTargetV2,
     };
 
     fn request_fixture() -> RouterEd25519YaoGatewayExecuteTargetV2 {
@@ -281,10 +295,13 @@ mod tests {
             PublicDigest32::new([0xa1; 32]),
             1,
             100,
-            &LocalTenantRootResolverConfigV1::default(),
+            &LocalRouterTenantRootConfigV1::default(),
         )
         .expect_err("direct client target must not reach dispatch");
-        assert_eq!(error.code(), RouterAbProtocolErrorCode::MalformedWirePayload);
+        assert_eq!(
+            error.code(),
+            RouterAbProtocolErrorCode::MalformedWirePayload
+        );
     }
 
     #[test]
@@ -294,7 +311,7 @@ mod tests {
             PublicDigest32::new([0xa1; 32]),
             1,
             100,
-            &LocalTenantRootResolverConfigV1::default(),
+            &LocalRouterTenantRootConfigV1::default(),
         )
         .expect_err("unknown fields must be rejected");
         assert_eq!(

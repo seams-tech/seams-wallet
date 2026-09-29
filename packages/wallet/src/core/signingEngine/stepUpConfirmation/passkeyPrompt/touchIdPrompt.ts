@@ -7,7 +7,8 @@ import {
 import type { WebAuthnAllowCredential } from '../../webauthnAuth/credentials/collectAuthenticationCredentialForChallengeB64u';
 import type { WebAuthnAuthenticationCredential } from '@/core/types/webauthn';
 import { executeWebAuthnWithParentFallbacksSafari } from '../../webauthnAuth/fallbacks/safari-fallbacks';
-import { type WalletId, walletIdFromString } from '@shared/utils/registrationIntent';
+import { type WalletId } from '@shared/utils/registrationIntent';
+import { walletIdFromString } from '@shared/utils/registrationIds';
 import {
   webAuthnPromptCoordinator,
   type RegistrationWebAuthnPromptOwner,
@@ -53,7 +54,7 @@ type RegisterCredentialsArgsCommon = {
   prompt: RegistrationCredentialPrompt;
 };
 
-export type RegisterCredentialsArgs = RegisterCredentialsArgsCommon &
+type RegisterCredentialsArgs = RegisterCredentialsArgsCommon &
   (
     | {
         kind: 'wallet_registration';
@@ -128,15 +129,13 @@ interface AuthenticateCredentialsForChallengeB64uArgs {
  */
 export class TouchIdPrompt {
   private rpIdOverride?: string;
-  private safariGetWebauthnRegistrationFallback: boolean;
   // create() only: internal abort controller + cleanup hooks
   private abortController?: AbortController;
   private removePageAbortHandlers?: () => void;
   private removeExternalAbortListener?: () => void;
 
-  constructor(rpIdOverride?: string, safariGetWebauthnRegistrationFallback = false) {
+  constructor(rpIdOverride?: string, _safariGetWebauthnRegistrationFallback = false) {
     this.rpIdOverride = rpIdOverride;
-    this.safariGetWebauthnRegistrationFallback = safariGetWebauthnRegistrationFallback === true;
   }
 
   getRpId(): string {

@@ -8,6 +8,19 @@ use std::process::{Command, Output};
 
 use ed25519_dalek::SigningKey;
 use router_ab_core::{TenantRootRecoveryTrustBundleV1, TenantRootRecoveryTrustRootV1};
+use seams_cli::{ConsoleRequestV1, ConsoleResponseV1, ConsoleTransportErrorV1, ConsoleTransportV1};
+
+/// A transport for offline commands: any request fails the test.
+struct OfflineTransport;
+
+impl ConsoleTransportV1 for OfflineTransport {
+    fn send(
+        &self,
+        request: ConsoleRequestV1,
+    ) -> Result<ConsoleResponseV1, ConsoleTransportErrorV1> {
+        panic!("an offline command sent {} {}", request.method, request.url)
+    }
+}
 
 struct Scratch {
     root: PathBuf,
@@ -552,7 +565,7 @@ fn default_backup_verification_checks_both_packages() {
     let (result, exit) = seams_cli::run_command_with_recovery_trust_v1(
         &invocation.command,
         seams_recovery_core::RecoveryHostSecretCapabilitiesV1::new(false, false),
-        &seams_cli::UnavailableConsoleTransportV1,
+        &OfflineTransport,
         &trust,
     );
     assert_eq!(exit.code(), 0, "{}", result.render_text());
@@ -564,7 +577,7 @@ fn default_backup_verification_checks_both_packages() {
     let (_, exit) = seams_cli::run_command_with_recovery_trust_v1(
         &invocation.command,
         seams_recovery_core::RecoveryHostSecretCapabilitiesV1::new(false, false),
-        &seams_cli::UnavailableConsoleTransportV1,
+        &OfflineTransport,
         &trust,
     );
     assert_ne!(exit.code(), 0);

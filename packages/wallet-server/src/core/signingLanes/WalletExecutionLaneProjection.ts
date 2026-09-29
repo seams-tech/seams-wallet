@@ -26,7 +26,11 @@ import {
   parseSecp256k1CompressedPublicKeyB64u,
 } from '@shared/passkey-custody/primitives';
 import { base64UrlEncode } from '@shared/utils/base64';
-import { parseDigestB64u, type DigestB64u } from '@shared/utils/canonicalPrimitives';
+import {
+  parseDigestB64u,
+  sha256Utf8DigestB64u,
+  type DigestB64u,
+} from '@shared/utils/canonicalPrimitives';
 import type {
   MpcMaterialActivationRef,
   ProviderSubject,
@@ -38,11 +42,9 @@ import {
   parseMpcSigningWorkerRef,
   parseWebAuthnCredentialIdB64u,
 } from '@shared/utils/domainIds';
-import { alphabetizeStringify, sha256BytesUtf8 } from '@shared/utils/digests';
-import {
-  parseNearEd25519SigningKeyId,
-  type WalletAuthMethodRecordV2,
-} from '@shared/utils/registrationIntent';
+import { alphabetizeStringify } from '@shared/utils/digests';
+import { type WalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
+import { parseNearEd25519SigningKeyId } from '@shared/utils/registrationIds';
 import {
   routerAbMpcMaterialActivationRefFromWire,
   sameRouterAbMpcMaterialActivationRef,
@@ -79,7 +81,7 @@ export type ActiveOwnerWalletExecutionLaneProjection = {
   readonly verifiedActivationReceiptDigestB64u: DigestB64u;
 };
 
-export type WalletExecutionLaneProjectionRefusalReason =
+type WalletExecutionLaneProjectionRefusalReason =
   | 'auth_method_missing'
   | 'auth_method_ambiguous'
   | 'auth_method_inactive'
@@ -185,7 +187,7 @@ export async function resolveActiveOwnerWalletExecutionLane(input: {
   }
 }
 
-export async function projectActiveOwnerWalletExecutionLane(input: {
+async function projectActiveOwnerWalletExecutionLane(input: {
   readonly walletId: WalletId;
   readonly walletAuthMethodId: WalletAuthMethodId;
   readonly authMethod: WalletAuthMethodRecordV2;
@@ -531,9 +533,7 @@ async function digestPublicIdentity(value: unknown): Promise<DigestB64u> {
 }
 
 async function digestValue(domain: string, value: unknown): Promise<DigestB64u> {
-  return parseDigestB64u(
-    base64UrlEncode(await sha256BytesUtf8(`${domain}\u0000${alphabetizeStringify(value)}`)),
-  );
+  return sha256Utf8DigestB64u(`${domain}\u0000${alphabetizeStringify(value)}`);
 }
 
 function sameMaterialActivation(

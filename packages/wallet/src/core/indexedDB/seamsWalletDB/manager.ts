@@ -6,7 +6,7 @@ import {
 } from './schema';
 import { SEAMS_WALLET_DB_NAME, type SeamsWalletStoreName } from '../schemaNames';
 
-export type SeamsWalletTransactionMode = 'readonly' | 'readwrite';
+type SeamsWalletTransactionMode = 'readonly' | 'readwrite';
 
 export type SeamsWalletTransactionContext = {
   db: IDBPDatabase;

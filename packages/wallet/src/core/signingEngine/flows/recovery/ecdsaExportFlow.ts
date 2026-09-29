@@ -60,10 +60,9 @@ import {
   type EmailOtpWalletAuthAuthority as CanonicalEmailOtpWalletAuthAuthority,
   type PasskeyWalletAuthAuthority,
 } from '@shared/utils/walletAuthAuthority';
-import { sameWalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
-import { alphabetizeStringify, sha256BytesUtf8 } from '@shared/utils/digests';
-import { base64UrlEncode } from '@shared/utils/base64';
-import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';
+import { sameWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
+import { alphabetizeStringify } from '@shared/utils/digests';
+import { sha256Utf8DigestB64u } from '@shared/utils/canonicalPrimitives';
 import type { PersistedEcdsaRoleLocalMaterial } from '../../session/material/ecdsaRoleLocalMaterialResolver';
 import type {
   RouterAbEcdsaDerivationNormalSigningStateV1,
@@ -359,7 +358,7 @@ function requirePasskeyEcdsaExportAuth(
 }
 
 async function exportOperationDigest(value: unknown) {
-  return parseDigestB64u(base64UrlEncode(await sha256BytesUtf8(alphabetizeStringify(value))));
+  return sha256Utf8DigestB64u(alphabetizeStringify(value));
 }
 
 type EcdsaExportOperationRuntime = {

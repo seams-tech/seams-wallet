@@ -7,11 +7,7 @@ import type {
   StepUpPolicy,
 } from './types';
 
-export type PasskeyStepUpRunner<
-  TLane extends { authMethod: string },
-  TOperation,
-  TAuthorization,
-> = {
+type PasskeyStepUpRunner<TLane extends { authMethod: string }, TOperation, TAuthorization> = {
   method: 'passkey';
   prepare(input: {
     operation: TOperation;
@@ -32,11 +28,7 @@ export type EmailOtpSigningChallenge = {
   emailHint?: string;
 };
 
-export type EmailOtpStepUpRunner<
-  TLane extends { authMethod: string },
-  TOperation,
-  TAuthorization,
-> = {
+type EmailOtpStepUpRunner<TLane extends { authMethod: string }, TOperation, TAuthorization> = {
   method: 'email_otp';
   prepareChallenge(input: {
     operation: TOperation;
@@ -58,7 +50,7 @@ export type EmailOtpStepUpRunner<
   }): Promise<TAuthorization>;
 };
 
-export type DeferredStepUpRunner<TMethod extends Exclude<StepUpMethod, 'passkey' | 'email_otp'>> = {
+type DeferredStepUpRunner<TMethod extends Exclude<StepUpMethod, 'passkey' | 'email_otp'>> = {
   method: TMethod;
 };
 

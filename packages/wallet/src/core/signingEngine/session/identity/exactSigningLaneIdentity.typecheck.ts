@@ -3,7 +3,7 @@ import {
   toWalletId,
   type ThresholdEcdsaChainTarget,
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
-import { nearEd25519SigningKeyIdFromString } from '@shared/utils/registrationIntent';
+import { nearEd25519SigningKeyIdFromString } from '@shared/utils/registrationIds';
 import {
   buildNamedNearAccountBinding,
   buildNearEd25519SignerBinding,
@@ -23,11 +23,9 @@ import {
   exactEd25519SigningLaneIdentity,
   exactSigningLaneIdentityKey,
   isExactEd25519SigningLaneIdentity,
-  thresholdSessionIdsFromExactSigningLaneIdentity,
   type ExactEcdsaSigningLaneIdentity,
   type ExactEd25519SigningLaneIdentity,
   type ExactSigningLaneIdentity,
-  type NonEmptyThresholdSessionIds,
 } from './exactSigningLaneIdentity';
 
 const accountIdResult = parseNamedNearAccountId('alice.testnet');
@@ -99,9 +97,6 @@ const ecdsaIdentity = exactEcdsaSigningLaneIdentity({
   }),
   auth: emailOtpAuth,
 });
-const thresholdSessionIds: NonEmptyThresholdSessionIds =
-  thresholdSessionIdsFromExactSigningLaneIdentity(ed25519Identity);
-void thresholdSessionIds;
 
 const invalidEd25519WithEcdsaKey: ExactEd25519SigningLaneIdentity = {
   ...ed25519Identity,

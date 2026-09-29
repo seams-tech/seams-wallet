@@ -6,12 +6,9 @@
  * projection used by registration activation and provisioning.
  */
 
-import {
-  parseNearEd25519SigningKeyId,
-  parseWalletAuthMethodRecordV2,
-  walletIdFromString,
-  type WalletId,
-} from '@shared/utils/registrationIntent';
+import { type WalletId } from '@shared/utils/registrationIntent';
+import { parseWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
+import { parseNearEd25519SigningKeyId, walletIdFromString } from '@shared/utils/registrationIds';
 import { parseWalletAuthorityV1 } from '@shared/authorization/walletAuthority';
 import { parseImplicitNearAccountId, parseNamedNearAccountId } from '@shared/utils/near';
 import { base64UrlDecode } from '@shared/utils/base64';
@@ -41,17 +38,19 @@ import { isPlainObject } from '@shared/utils/validation';
 import type {
   RegistrationNearAccountProvisioning,
   ResolvedRegistrationNearAccount,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/registrationSignerPlan';
 import type {
   FinalizeWalletRegistrationArgs,
-  WalletEd25519YaoSignerPublicResult,
   WalletRegistrationEcdsaWalletKey,
   WalletRegistrationEd25519YaoPublicResult,
-  WalletRegistrationFinalizeAuthMethod,
   WalletRegistrationFinalizeResponse,
   WalletRegistrationRouteDiagnostics,
   WalletRegistrationRouteTimingName,
 } from './walletRegistration';
+import type {
+  WalletEd25519YaoSignerPublicResult,
+  WalletRegistrationFinalizeAuthMethod,
+} from '@shared/utils/registrationContracts';
 
 export function requireResponseString(args: {
   responseName: string;
@@ -76,7 +75,7 @@ export function requireResponseRecord(args: {
   return args.value;
 }
 
-export function assertExactResponseKeys(
+function assertExactResponseKeys(
   record: Record<string, unknown>,
   allowedKeys: readonly string[],
   responseName: string,

@@ -22,10 +22,10 @@ import type { LoadedWalletCustodyEd25519MaterialV1 } from './ed25519SeedMaterial
  * Rebuilding the active-client metadata needs a material activation reference,
  * a transcript, a capability binding and a signing-root identity. None of them
  * are stored in the cache, on purpose: Invariant 11 gives that state exactly
- * one owner, and Refactor 90 resolves it per operation. A cache row that
- * carried its own copy would be a second source for an identity that must have
- * one, and it would outlive the operation it was minted for — the row survives
- * across sessions, and the authorization it described would not.
+ * one owner, and it is resolved per operation. A cache row that carried its
+ * own copy would be a second source for an identity that must have one, and it
+ * would outlive the operation it was minted for — the row survives across
+ * sessions, and the authorization it described would not.
  *
  * So the caller brings them from the wallet session, and this assembles the
  * metadata. The record contributes key identity; the session contributes
@@ -162,7 +162,7 @@ export async function openWalletCustodyEd25519ActiveClientV1(input: {
   });
 }
 
-export type WalletCustodyUnlockResultV1 =
+type WalletCustodyUnlockResultV1 =
   | {
       readonly kind: 'opened';
       readonly activeClient: RouterAbEd25519YaoActiveClientV1;

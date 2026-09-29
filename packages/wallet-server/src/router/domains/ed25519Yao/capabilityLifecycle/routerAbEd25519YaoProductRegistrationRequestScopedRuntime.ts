@@ -25,15 +25,27 @@ import {
   type RouterAbEd25519YaoProductRegistrationStateV1,
   type RouterAbEd25519YaoVerifiedRegistrationAdmissionResultV1,
 } from './routerAbEd25519YaoProductRegistration';
-import type {
-  RouterAbEd25519YaoProductRegistrationPartitionedStateStoreV1,
-  RouterAbEd25519YaoProductRegistrationPartitionedStateV1,
+import {
+  routerAbEd25519YaoAdmittedRegistrationAuthorityV1,
+  type RouterAbEd25519YaoProductRegistrationPartitionedStateStoreV1,
+  type RouterAbEd25519YaoProductRegistrationPartitionedStateV1,
 } from './routerAbEd25519YaoProductRegistrationPartitionedStateStore';
+import {
+  parseRouterAbEd25519YaoRegistrationRouterAnswerV1,
+  type RouterAbEd25519YaoPinnedRegistrationBackend,
+} from '../registration/routerAbEd25519YaoHttpRegistrationBackend';
+import {
+  pinRouterAbEd25519YaoRegistrationDispatchRootV1,
+  routerAbEd25519YaoRegistrationExecuteRequestFromRouterRequestJsonV1,
+  routerAbEd25519YaoRegistrationResultFromRouterAnswerV1,
+} from '../registration/routerAbEd25519YaoRegistrationExecutionRecord';
+import type { RouterAbEd25519YaoTenantRootWireV1 } from '../routerAbEd25519YaoGatewayEnvelope';
 
 export type RouterAbEd25519YaoProductRegistrationRequestScopedRuntimeInputV1 = {
   readonly signingWorkerId: string;
   readonly store: RouterAbEd25519YaoProductRegistrationPartitionedStateStoreV1;
-  readonly registrationBackend: RouterAbEd25519YaoRegistrationBackend;
+  /** The Router, which owns each registration's execution and its consumption. */
+  readonly registrationBackend: RouterAbEd25519YaoPinnedRegistrationBackend;
   /** Loads one canonical signer record for an existing-wallet capability miss. */
   readonly loadPersistedActiveCapability?: (
     input: RouterAbEd25519YaoActiveCapabilityLookupV1,
@@ -51,6 +63,7 @@ const UNUSED_BACKEND: RouterAbEd25519YaoRegistrationBackend & RouterAbEd25519Yao
   admit: rejectUnusedBackend,
   execute: rejectUnusedBackend,
   admitRecovery: rejectUnusedBackend,
+  resolveRecoveryDispatchRoot: rejectUnusedBackend,
   executeRecovery: rejectUnusedBackend,
   activateRecovery: rejectUnusedBackend,
 };
@@ -97,10 +110,62 @@ class RouterAbEd25519YaoProductRegistrationRequestScopedRuntime implements Route
     });
   }
 
+  /**
+   * Consumes a registration's activation at the Router, which owns its
+   * execution: the first consumer binding wins, and the same binding
+   * replays. The admission and the tenant root pinned with it come from this
+   * Gateway's ceremony record, and the result is derived from the Router's
+   * recorded answer: no active-root lookup is needed.
+   */
   async consumeActivated(
     input: RouterAbEd25519YaoActivationConsumptionRequestV1,
   ): Promise<RouterAbEd25519YaoActivationConsumptionResultV1> {
-    return await this.input.store.consumeRegistrationExecution(input);
+    const lifecycleId = input.reference.lifecycleId;
+    const loaded = await this.input.store.load(lifecycleId);
+    const authority = routerAbEd25519YaoAdmittedRegistrationAuthorityV1(loaded.state, lifecycleId);
+    if (!authority) {
+      return {
+        ok: false,
+        code: 'unknown_registration',
+        message: 'registration lifecycle was not found',
+      };
+    }
+    const backend = this.input.registrationBackend;
+    const consumed = await backend.consumeRegistration({
+      tenantRoot: authority.dispatchRoot,
+      walletId: authority.admissionReceipt.binding.lifecycle.account_id,
+      lifecycleId,
+      sessionId: input.reference.sessionId,
+      consumerBinding: input.consumerBinding,
+    });
+    switch (consumed.kind) {
+      case 'unavailable':
+        throw new Error(`Router registration consumption is unavailable: ${consumed.message}`);
+      case 'refused':
+        return { ok: false, code: consumed.code, message: consumed.message };
+      case 'consumed':
+        break;
+    }
+    const request = routerAbEd25519YaoRegistrationExecuteRequestFromRouterRequestJsonV1(
+      consumed.requestJson,
+    );
+    const result = routerAbEd25519YaoRegistrationResultFromRouterAnswerV1({
+      backend,
+      authority,
+      request,
+      answer: parseRouterAbEd25519YaoRegistrationRouterAnswerV1(consumed.responseJson, request),
+    });
+    if (!result.ok) {
+      throw new Error(`Router recorded answer is not a verifiable activation: ${result.message}`);
+    }
+    return {
+      ok: true,
+      activation: {
+        admissionRequest: authority.admissionRequest,
+        admissionReceipt: authority.admissionReceipt,
+        result: result.value,
+      },
+    };
   }
 
   async installRegistrationFinalizeCapability(
@@ -166,13 +231,19 @@ class RouterAbEd25519YaoProductRegistrationRequestScopedRuntime implements Route
   }
 }
 
+/**
+ * Binds a verified intent and admits its registration. The tenant root the
+ * registration dispatches to is resolved once, for a fresh admission, and
+ * pinned with the admission in the ceremony record.
+ */
 async function bindAndAdmitVerifiedRegistration(input: {
   readonly input: RouterAbEd25519YaoVerifiedActivationIntentV1;
   readonly store: RouterAbEd25519YaoProductRegistrationPartitionedStateStoreV1;
-  readonly backend: RouterAbEd25519YaoRegistrationBackend;
+  readonly backend: RouterAbEd25519YaoPinnedRegistrationBackend;
 }): Promise<RouterAbEd25519YaoVerifiedRegistrationAdmissionResultV1> {
   const lifecycleId = input.input.admissionRequest.scope.lifecycle_id;
   let backendResult: RouterAbEd25519YaoRegistrationBackendResult | null = null;
+  let dispatchRoot: RouterAbEd25519YaoTenantRootWireV1 | null = null;
   for (let attempt = 0; attempt < MAX_DETERMINISTIC_COMMIT_ATTEMPTS; attempt += 1) {
     const loaded = await input.store.load(lifecycleId);
     const bound = await new InMemoryRouterAbEd25519YaoRegistrationIntentAuthorizationAdapter(
@@ -190,6 +261,22 @@ async function bindAndAdmitVerifiedRegistration(input: {
     }
     if (preparation.kind === 'failed') return preparation.failure;
 
+    if (dispatchRoot === null) {
+      try {
+        dispatchRoot = await input.backend.resolveRegistrationDispatchRoot(
+          bound.admissionRequest,
+        );
+      } catch (error: unknown) {
+        return {
+          ok: false,
+          status: 503,
+          code: 'admission_failed',
+          message: `registration tenant root is unavailable: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        };
+      }
+    }
     if (backendResult === null) {
       try {
         backendResult = await input.backend.admit(bound.admissionRequest);
@@ -208,6 +295,11 @@ async function bindAndAdmitVerifiedRegistration(input: {
       outcome: { kind: 'backend_response', result: backendResult },
     });
     if (!admitted.ok) return admitted;
+    pinRouterAbEd25519YaoRegistrationDispatchRootV1(
+      loaded.state.registration,
+      lifecycleId,
+      dispatchRoot,
+    );
 
     const committed = await input.store.commit(commitInput(lifecycleId, loaded));
     if (committed.kind === 'stored') return admitted;
@@ -264,6 +356,7 @@ function commitInput(
     lifecycleId,
     state: loaded.state,
     baseline: loaded.baseline,
+    companionWrite: null,
   };
 }
 

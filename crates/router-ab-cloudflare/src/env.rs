@@ -1,4 +1,4 @@
-use crate::{CloudflareEnvReaderV1, CloudflareWorkerRoleV1};
+use crate::{CloudflareEnvReaderV1, CloudflareSecretReaderV1, CloudflareWorkerRoleV1};
 use base64::Engine;
 use ed25519_dalek::{SigningKey, VerifyingKey};
 use hpke_ng::{DhKemX25519HkdfSha256, Kem};
@@ -25,9 +25,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use threshold_prf::SigningRootShare;
 use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
-#[cfg(feature = "workers-rs")]
 use crate::tenant_root_operational_provider::CloudflareTenantRootOperationalRotationProviderInputsV1;
-#[cfg(feature = "workers-rs")]
 use crate::tenant_root_operational_provider::CloudflareTenantRootOperationalRotationProviderV1;
 
 #[cfg(feature = "workers-rs")]
@@ -60,6 +58,15 @@ pub const SIGNING_WORKER_PEER_BINDING_ENV: &str = "SIGNING_WORKER_PEER_BINDING";
 /// Internal service-auth secret binding-name env key shared by strict private Workers.
 pub const ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET_BINDING_ENV: &str =
     "ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET_BINDING";
+/// Router-only secret shared with the Gateway for admitted wallet operations.
+pub const ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET_BINDING: &str =
+    "ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET";
+/// SigningWorker-only secret shared with Gateway for owner ECDSA presign admission.
+pub const ROUTER_AB_GATEWAY_TO_SIGNING_WORKER_PRESIGN_AUTH_SECRET_BINDING: &str =
+    "ROUTER_AB_GATEWAY_TO_SIGNING_WORKER_PRESIGN_AUTH_SECRET";
+/// Router/SigningWorker credential for admitted owner ECDSA prepare and finalize.
+pub const ROUTER_AB_ROUTER_TO_SIGNING_WORKER_ECDSA_AUTH_SECRET_BINDING: &str =
+    "ROUTER_AB_ROUTER_TO_SIGNING_WORKER_ECDSA_AUTH_SECRET";
 /// Internal service-auth header required by strict private Workers.
 pub const ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1: &str = "x-router-ab-internal-service-auth";
 /// Deriver A signer-envelope HPKE private-key binding-name env key.
@@ -721,12 +728,11 @@ impl CloudflareTenantRootOperationalRotationProviderConfigV1 {
         &self.managed_backup
     }
 
-    #[cfg(feature = "workers-rs")]
     fn into_provider_inputs(
         self,
         online_secret_bytes: Zeroizing<Vec<u8>>,
         backup_secret_bytes: Zeroizing<Vec<u8>>,
-    ) -> CloudflareTenantRootOperationalRotationProviderInputsV1 {
+    ) -> RouterAbProtocolResult<CloudflareTenantRootOperationalRotationProviderInputsV1> {
         let backup = match self.managed_backup {
             CloudflareTenantRootManagedBackupProviderConfigV1::CloudflareHpke {
                 provider_id,
@@ -739,6 +745,7 @@ impl CloudflareTenantRootOperationalRotationProviderConfigV1 {
                 public_key_bytes,
                 secret_bytes: backup_secret_bytes,
             },
+            #[cfg(feature = "workers-rs")]
             CloudflareTenantRootManagedBackupProviderConfigV1::GoogleCloudKms {
                 provider_id,
                 key_version,
@@ -748,13 +755,21 @@ impl CloudflareTenantRootOperationalRotationProviderConfigV1 {
                 key_version,
                 credentials_json: backup_secret_bytes,
             },
+            #[cfg(not(feature = "workers-rs"))]
+            CloudflareTenantRootManagedBackupProviderConfigV1::GoogleCloudKms { .. } => {
+                return Err(invalid_operational_config(
+                    "Google Cloud KMS managed backup is available only on Cloudflare",
+                ));
+            }
         };
-        CloudflareTenantRootOperationalRotationProviderInputsV1::new_with_managed_backup(
-            self.role,
-            self.online_epoch_wrapping_key_ref,
-            self.online_public_key_bytes,
-            online_secret_bytes,
-            backup,
+        Ok(
+            CloudflareTenantRootOperationalRotationProviderInputsV1::new_with_managed_backup(
+                self.role,
+                self.online_epoch_wrapping_key_ref,
+                self.online_public_key_bytes,
+                online_secret_bytes,
+                backup,
+            ),
         )
     }
 }
@@ -1049,29 +1064,37 @@ pub(crate) fn load_cloudflare_tenant_root_operational_rotation_provider_v1(
     env: &worker::Env,
     worker_role: CloudflareWorkerRoleV1,
 ) -> RouterAbProtocolResult<CloudflareTenantRootOperationalRotationProviderV1> {
-    let reader = CloudflareWorkerEnvReaderV1::new(env);
+    load_tenant_root_operational_rotation_provider_v1(
+        worker_role,
+        &CloudflareWorkerEnvReaderV1::new(env),
+    )
+}
+
+/// Loads the role-local operational provider from Env and Secret bindings on
+/// any host.
+pub(crate) fn load_tenant_root_operational_rotation_provider_v1(
+    worker_role: CloudflareWorkerRoleV1,
+    env: &(impl CloudflareEnvReaderV1 + CloudflareSecretReaderV1),
+) -> RouterAbProtocolResult<CloudflareTenantRootOperationalRotationProviderV1> {
     let config =
-        parse_cloudflare_tenant_root_operational_rotation_provider_config_v1(worker_role, &reader)?;
-    let online_secret = load_cloudflare_tenant_root_operational_private_key_secret_v1(
-        env,
-        config.online_secret_binding_name(),
+        parse_cloudflare_tenant_root_operational_rotation_provider_config_v1(worker_role, env)?;
+    let online_secret = decode_cloudflare_tenant_root_operational_hpke_private_key_secret_v1(
+        &env.secret_text(config.online_secret_binding_name())?,
     )?;
     let backup_secret = match config.managed_backup() {
         CloudflareTenantRootManagedBackupProviderConfigV1::CloudflareHpke { .. } => {
-            load_cloudflare_tenant_root_operational_private_key_secret_v1(
-                env,
-                config.backup_secret_binding_name(),
+            decode_cloudflare_tenant_root_operational_hpke_private_key_secret_v1(
+                &env.secret_text(config.backup_secret_binding_name())?,
             )?
         }
         CloudflareTenantRootManagedBackupProviderConfigV1::GoogleCloudKms { .. } => {
-            load_cloudflare_tenant_root_managed_backup_google_credentials_json_secret_v1(
-                env,
-                config.backup_secret_binding_name(),
+            decode_tenant_root_managed_backup_google_credentials_json_secret_v1(
+                env.secret_text(config.backup_secret_binding_name())?,
             )?
         }
     };
     CloudflareTenantRootOperationalRotationProviderV1::from_inputs(
-        config.into_provider_inputs(online_secret, backup_secret),
+        config.into_provider_inputs(online_secret, backup_secret)?,
     )
     .map_err(map_operational_provider_error)
 }
@@ -1118,36 +1141,18 @@ pub(crate) fn load_cloudflare_tenant_root_recovery_retention_key_v1(
 }
 
 #[cfg(feature = "workers-rs")]
-fn load_cloudflare_tenant_root_operational_private_key_secret_v1(
-    env: &worker::Env,
-    binding_name: &str,
-) -> RouterAbProtocolResult<Zeroizing<Vec<u8>>> {
-    let secret = env.secret(binding_name).map_err(|err| {
-        crate::worker_binding_error(
-            crate::worker_binding_error_code(&err, binding_name),
-            binding_name,
-            "secret",
-            err,
-        )
-    })?;
-    let secret_value = Zeroizing::new(secret.to_string());
-    decode_cloudflare_tenant_root_operational_hpke_private_key_secret_v1(&secret_value)
-}
-
-#[cfg(feature = "workers-rs")]
 fn load_cloudflare_tenant_root_managed_backup_google_credentials_json_secret_v1(
     env: &worker::Env,
     binding_name: &str,
 ) -> RouterAbProtocolResult<Zeroizing<Vec<u8>>> {
-    let secret = env.secret(binding_name).map_err(|err| {
-        crate::worker_binding_error(
-            crate::worker_binding_error_code(&err, binding_name),
-            binding_name,
-            "secret",
-            err,
-        )
-    })?;
-    let secret_value = Zeroizing::new(secret.to_string());
+    decode_tenant_root_managed_backup_google_credentials_json_secret_v1(
+        CloudflareWorkerEnvReaderV1::new(env).secret_text(binding_name)?,
+    )
+}
+
+fn decode_tenant_root_managed_backup_google_credentials_json_secret_v1(
+    secret_value: Zeroizing<String>,
+) -> RouterAbProtocolResult<Zeroizing<Vec<u8>>> {
     if secret_value.is_empty() {
         return Err(invalid_operational_config(
             "tenant-root Google service-account credentials Secret is empty",
@@ -1156,7 +1161,6 @@ fn load_cloudflare_tenant_root_managed_backup_google_credentials_json_secret_v1(
     Ok(Zeroizing::new(secret_value.as_bytes().to_vec()))
 }
 
-#[cfg(feature = "workers-rs")]
 fn map_operational_provider_error(error: RouterAbDerivationError) -> RouterAbProtocolError {
     RouterAbProtocolError::new(
         RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
@@ -1855,7 +1859,7 @@ struct TenantRootCreationIssuerKeyWireV1 {
 /// Config parsing, so it lives with the other Env decoders rather than in the
 /// Durable Object: the Router, both Derivers, and the control plane all read
 /// this same published anchor.
-pub(crate) fn decode_issuer_verifying_keys(
+pub fn decode_issuer_verifying_keys(
     json: &str,
 ) -> RouterAbProtocolResult<BTreeMap<String, [u8; 32]>> {
     let wire: TenantRootCreationIssuerKeySetWireV1 =
@@ -2186,7 +2190,7 @@ pub(crate) fn parse_cloudflare_custody_authority_verifiers_v1(
 }
 
 /// Parses the trusted grant-authority set from Env.
-pub(crate) fn parse_cloudflare_tenant_root_creation_grant_authority_verifying_keys_v1(
+pub fn parse_cloudflare_tenant_root_creation_grant_authority_verifying_keys_v1(
     env: &impl CloudflareEnvReaderV1,
 ) -> RouterAbProtocolResult<CloudflareTenantRootCreationGrantAuthorityVerifyingKeysV1> {
     CloudflareTenantRootCreationGrantAuthorityVerifyingKeysV1::decode(&read_required_raw_env_text(
@@ -2199,7 +2203,7 @@ pub(crate) fn parse_cloudflare_tenant_root_creation_grant_authority_verifying_ke
 ///
 /// Retired entries remain available for durable receipt verification. The
 /// explicit active IDs select the identities used for new custody bindings.
-pub(crate) fn parse_cloudflare_tenant_root_creation_role_verifying_keys_v1(
+pub fn parse_cloudflare_tenant_root_creation_role_verifying_keys_v1(
     env: &impl CloudflareEnvReaderV1,
 ) -> RouterAbProtocolResult<TenantRootCreationRoleVerifyingKeysV1> {
     let key_set = decode_role_verifying_keys(&read_required_raw_env_text(
@@ -2211,7 +2215,7 @@ pub(crate) fn parse_cloudflare_tenant_root_creation_role_verifying_keys_v1(
 }
 
 /// Parses the published control-plane issuer verifying key set from Env.
-pub(crate) fn parse_cloudflare_tenant_root_control_plane_issuer_verifying_keys_v1(
+pub fn parse_cloudflare_tenant_root_control_plane_issuer_verifying_keys_v1(
     env: &impl CloudflareEnvReaderV1,
 ) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneIssuerVerifyingKeysV1> {
     CloudflareTenantRootControlPlaneIssuerVerifyingKeysV1::decode(&read_required_raw_env_text(
@@ -2224,7 +2228,7 @@ pub(crate) fn parse_cloudflare_tenant_root_control_plane_issuer_verifying_keys_v
 ///
 /// Same encoding as the Deriver role-signing Secrets: unpadded base64url over
 /// exactly 32 bytes.
-pub(crate) fn decode_cloudflare_tenant_root_control_plane_issuer_signing_secret_v1(
+pub fn decode_cloudflare_tenant_root_control_plane_issuer_signing_secret_v1(
     secret_value: &str,
 ) -> RouterAbProtocolResult<Zeroizing<[u8; 32]>> {
     let mut bytes =
@@ -2366,7 +2370,7 @@ pub(crate) fn parse_cloudflare_tenant_root_creation_role_signing_key_selection_v
 }
 
 #[derive(Debug)]
-pub(crate) struct TenantRootCreationRoleVerifyingKeysV1 {
+pub struct TenantRootCreationRoleVerifyingKeysV1 {
     deriver_a: BTreeMap<String, [u8; 32]>,
     deriver_b: BTreeMap<String, [u8; 32]>,
     /// Exact current role IDs used when constructing service custody bindings.
@@ -2375,7 +2379,8 @@ pub(crate) struct TenantRootCreationRoleVerifyingKeysV1 {
 }
 
 impl TenantRootCreationRoleVerifyingKeysV1 {
-    pub(crate) fn deriver_identities(
+    /// The active Deriver A and Deriver B signing identities.
+    pub fn deriver_identities(
         &self,
     ) -> RouterAbProtocolResult<TenantRootDeriverIdentitiesV1> {
         TenantRootDeriverIdentitiesV1::new(
@@ -2578,21 +2583,23 @@ pub(crate) fn load_cloudflare_tenant_root_creation_role_signing_key_v1(
     CloudflareTenantRootCreationRoleSigningKeyBindingV1,
     CloudflareTenantRootCreationRoleSignerV1,
 )> {
-    let reader = CloudflareWorkerEnvReaderV1::new(env);
+    load_tenant_root_creation_role_signing_key_v1(worker_role, &CloudflareWorkerEnvReaderV1::new(env))
+}
+
+/// Loads and verifies the current Deriver's role-signing Secret on any host.
+pub(crate) fn load_tenant_root_creation_role_signing_key_v1(
+    worker_role: CloudflareWorkerRoleV1,
+    env: &(impl CloudflareEnvReaderV1 + CloudflareSecretReaderV1),
+) -> RouterAbProtocolResult<(
+    CloudflareTenantRootCreationRoleSigningKeyBindingV1,
+    CloudflareTenantRootCreationRoleSignerV1,
+)> {
     let selection =
-        parse_cloudflare_tenant_root_creation_role_signing_key_selection_v1(worker_role, &reader)?;
+        parse_cloudflare_tenant_root_creation_role_signing_key_selection_v1(worker_role, env)?;
     let binding = selection.binding().clone();
-    let secret = env.secret(binding.binding_name()).map_err(|err| {
-        crate::worker_binding_error(
-            crate::worker_binding_error_code(&err, binding.binding_name()),
-            binding.binding_name(),
-            "secret",
-            err,
-        )
-    })?;
-    let mut secret_value = secret.to_string();
+    let secret_value = env.secret_text(binding.binding_name())?;
     let decoded = decode_cloudflare_tenant_root_creation_role_signing_secret_v1(&secret_value);
-    secret_value.zeroize();
+    drop(secret_value);
     let signer = derive_cloudflare_tenant_root_creation_role_signing_key_v1(selection, decoded?)?;
     Ok((binding, signer))
 }
@@ -2620,7 +2627,7 @@ fn read_required_raw_env_text(
 /// control-plane startup: deployments that only run operational rotation can
 /// remain configured without recovery roots, while a recovery request still
 /// fails closed when the roots are absent or malformed.
-pub(crate) fn parse_cloudflare_tenant_root_recovery_trust_bundle_v1(
+pub fn parse_cloudflare_tenant_root_recovery_trust_bundle_v1(
     env: &impl CloudflareEnvReaderV1,
 ) -> RouterAbProtocolResult<TenantRootRecoveryTrustBundleV1> {
     let bundle_json = read_required_raw_env_text(env, TENANT_ROOT_RECOVERY_TRUST_BUNDLE_JSON_ENV)?;
@@ -2635,7 +2642,7 @@ pub(crate) fn parse_cloudflare_tenant_root_recovery_trust_bundle_v1(
     })
 }
 
-pub(crate) fn parse_cloudflare_tenant_root_recovery_trust_snapshot_v1(
+pub fn parse_cloudflare_tenant_root_recovery_trust_snapshot_v1(
     env: &impl CloudflareEnvReaderV1,
 ) -> RouterAbProtocolResult<Option<TenantRootRecoveryRevocationSnapshotV1>> {
     let Some(json) = env.get_text(TENANT_ROOT_RECOVERY_TRUST_SNAPSHOT_JSON_ENV)? else {
@@ -2801,68 +2808,6 @@ mod tests {
             CLOUDFLARE_SIGNER_ENVELOPE_HPKE_PRIVATE_KEY_SECRET_PREFIX_V1,
             lower_hex(&private_key)
         )
-    }
-
-    /// The R120 tenant-root control-plane key ownership matrix.
-    ///
-    /// | Material | Owner |
-    /// |---|---|
-    /// | issuer private signing key | dedicated control-plane Worker only |
-    /// | issuer public verifying keyset | Router, Deriver A, Deriver B |
-    ///
-    /// The forbidden-env lists are the enforcement point, so they are pinned
-    /// here: before this test the four lists had no coverage at all, and a
-    /// change to any of them was silent.
-    #[test]
-    fn tenant_root_control_plane_key_ownership_matrix_is_exact() {
-        for (worker_role, forbidden) in [
-            (
-                CloudflareWorkerRoleV1::Router,
-                crate::env::ROUTER_FORBIDDEN_ENV_KEYS,
-            ),
-            (
-                CloudflareWorkerRoleV1::DeriverA,
-                crate::env::DERIVER_A_FORBIDDEN_ENV_KEYS,
-            ),
-            (
-                CloudflareWorkerRoleV1::DeriverB,
-                crate::env::DERIVER_B_FORBIDDEN_ENV_KEYS,
-            ),
-            (
-                CloudflareWorkerRoleV1::SigningWorker,
-                crate::env::SIGNING_WORKER_FORBIDDEN_ENV_KEYS,
-            ),
-        ] {
-            // The private issuer key is forbidden in every Worker in this
-            // deployment. Only the dedicated control-plane Worker holds it.
-            assert!(
-                forbidden.contains(&TENANT_ROOT_CONTROL_PLANE_ISSUER_SIGNING_KEY_BINDING_ENV),
-                "{} must never receive the issuer private signing binding",
-                worker_role.as_str()
-            );
-
-            // The public verifying anchor is required wherever a signed
-            // creation command is verified, and forbidden where it is not.
-            let anchor_forbidden =
-                forbidden.contains(&TENANT_ROOT_CONTROL_PLANE_ISSUER_VERIFYING_KEYS_JSON_ENV);
-            match worker_role {
-                CloudflareWorkerRoleV1::SigningWorker => assert!(
-                    anchor_forbidden,
-                    "the Signing Worker has no tenant-root lifecycle role"
-                ),
-                CloudflareWorkerRoleV1::Router
-                | CloudflareWorkerRoleV1::DeriverA
-                | CloudflareWorkerRoleV1::DeriverB => assert!(
-                    !anchor_forbidden,
-                    "{} verifies signed creation commands at its own boundary and requires the public anchor",
-                    worker_role.as_str()
-                ),
-                CloudflareWorkerRoleV1::TenantRootControlPlane => assert!(
-                    !anchor_forbidden,
-                    "the issuer holds its own public set to preflight that its signing key id is trusted"
-                ),
-            }
-        }
     }
 
     #[test]

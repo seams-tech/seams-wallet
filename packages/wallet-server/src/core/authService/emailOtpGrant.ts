@@ -26,7 +26,7 @@ export type EmailOtpGrantConsumeResult =
     }
   | { ok: false; code: string; message: string };
 
-export type EmailOtpGrantRateLimitInput = {
+type EmailOtpGrantRateLimitInput = {
   scope: 'grant';
   userId: string;
   walletId: string;
@@ -34,11 +34,11 @@ export type EmailOtpGrantRateLimitInput = {
   clientIp?: string;
 };
 
-export type EmailOtpGrantRateLimitResult =
+type EmailOtpGrantRateLimitResult =
   | { ok: true }
   | { ok: false; code: string; message: string; retryAfterMs?: number; resetAtMs?: number };
 
-export type EmailOtpGrantRateLimitConsumer = (
+type EmailOtpGrantRateLimitConsumer = (
   input: EmailOtpGrantRateLimitInput,
 ) => Promise<EmailOtpGrantRateLimitResult>;
 

@@ -1,15 +1,11 @@
 import type {
-  GoogleEmailOtpRegistrationEnrollmentResult,
   GoogleEmailOtpRegistrationCandidate,
   GoogleEmailOtpRegistrationCandidateId,
-  GoogleEmailOtpRegistrationFinalizeInput,
   GoogleEmailOtpRegistrationOffer,
   GoogleEmailOtpRegistrationOfferId,
-  RegistrationFinalizeIdempotencyKey,
 } from '@/SeamsWeb/publicApi/types';
-import { EMAIL_OTP_CHANNEL } from '@shared/utils/emailOtpDomain';
-import { walletIdFromString } from '@shared/utils/registrationIntent';
-import { isPlainObject } from '@shared/utils/validation';
+import { walletIdFromString } from '@shared/utils/registrationIds';
+import { requireRecord, requireTrimmedString } from '@shared/utils/validation';
 
 const OTP_ONLY_FORBIDDEN_FIELDS = [
   'delivery',
@@ -33,17 +29,6 @@ const SECRET_MATERIAL_FIELDS = [
   'clientSecret32',
 ] as const;
 
-function requireRecord(value: unknown, label: string): Record<string, unknown> {
-  if (!isPlainObject(value)) throw new Error(`${label} must be an object`);
-  return value;
-}
-
-function requireString(value: unknown, label: string): string {
-  const normalized = typeof value === 'string' ? value.trim() : '';
-  if (!normalized) throw new Error(`${label} is required`);
-  return normalized;
-}
-
 function requireTimestampMs(value: unknown, label: string): number {
   if (typeof value !== 'number' || !Number.isSafeInteger(value) || value <= 0) {
     throw new Error(`${label} must be a positive integer timestamp`);
@@ -63,18 +48,14 @@ function rejectFields(
 }
 
 function parseOfferId(value: unknown): GoogleEmailOtpRegistrationOfferId {
-  return requireString(value, 'offerId') as GoogleEmailOtpRegistrationOfferId;
+  return requireTrimmedString(value, 'offerId') as GoogleEmailOtpRegistrationOfferId;
 }
 
 function parseCandidateId(
   value: unknown,
   label = 'candidateId',
 ): GoogleEmailOtpRegistrationCandidateId {
-  return requireString(value, label) as GoogleEmailOtpRegistrationCandidateId;
-}
-
-function parseFinalizeIdempotencyKey(value: unknown): RegistrationFinalizeIdempotencyKey {
-  return requireString(value, 'idempotencyKey') as RegistrationFinalizeIdempotencyKey;
+  return requireTrimmedString(value, label) as GoogleEmailOtpRegistrationCandidateId;
 }
 
 function parseCandidate(value: unknown): GoogleEmailOtpRegistrationCandidate {
@@ -83,41 +64,7 @@ function parseCandidate(value: unknown): GoogleEmailOtpRegistrationCandidate {
   rejectFields(record, SECRET_MATERIAL_FIELDS, 'registration candidate');
   return {
     candidateId: parseCandidateId(record.candidateId),
-    walletId: walletIdFromString(requireString(record.walletId, 'candidate.walletId')),
-  };
-}
-
-function parseEmailOtpChannel(value: unknown): typeof EMAIL_OTP_CHANNEL {
-  if (value !== EMAIL_OTP_CHANNEL) {
-    throw new Error(`emailOtpEnrollment.otpChannel must be ${EMAIL_OTP_CHANNEL}`);
-  }
-  return EMAIL_OTP_CHANNEL;
-}
-
-function parseRegistrationEnrollment(value: unknown): GoogleEmailOtpRegistrationEnrollmentResult {
-  const record = requireRecord(value, 'emailOtpEnrollment');
-  rejectFields(record, OTP_ONLY_FORBIDDEN_FIELDS, 'emailOtpEnrollment');
-  rejectFields(record, SECRET_MATERIAL_FIELDS, 'emailOtpEnrollment');
-  return {
-    registrationAuthorityId: requireString(
-      record.registrationAuthorityId,
-      'emailOtpEnrollment.registrationAuthorityId',
-    ),
-    otpChannel: parseEmailOtpChannel(record.otpChannel),
-    enrollmentId: requireString(record.enrollmentId, 'emailOtpEnrollment.enrollmentId'),
-    enrollmentSealKeyVersion: requireString(
-      record.enrollmentSealKeyVersion,
-      'emailOtpEnrollment.enrollmentSealKeyVersion',
-    ),
-    serverSealedFactorCiphertextB64u: requireString(
-      record.serverSealedFactorCiphertextB64u,
-      'emailOtpEnrollment.serverSealedFactorCiphertextB64u',
-    ),
-    clientUnlockPublicKeyB64u: requireString(
-      record.clientUnlockPublicKeyB64u,
-      'emailOtpEnrollment.clientUnlockPublicKeyB64u',
-    ),
-    unlockKeyVersion: requireString(record.unlockKeyVersion, 'emailOtpEnrollment.unlockKeyVersion'),
+    walletId: walletIdFromString(requireTrimmedString(record.walletId, 'candidate.walletId')),
   };
 }
 
@@ -143,30 +90,8 @@ export function parseGoogleEmailOtpRegistrationOffer(
     kind: 'google_email_otp_registration_offer_v1',
     offerId: parseOfferId(record.offerId),
     expiresAtMs: requireTimestampMs(record.expiresAtMs, 'expiresAtMs'),
-    emailHint: requireString(record.emailHint, 'emailHint'),
+    emailHint: requireTrimmedString(record.emailHint, 'emailHint'),
     candidates: [firstCandidate, ...remainingCandidates],
     selectedCandidateId,
-  };
-}
-
-export function parseGoogleEmailOtpRegistrationFinalizeInput(
-  value: unknown,
-): GoogleEmailOtpRegistrationFinalizeInput {
-  const record = requireRecord(value, 'Google Email OTP registration finalize input');
-  rejectFields(record, OTP_ONLY_FORBIDDEN_FIELDS, 'Google Email OTP registration finalize input');
-  rejectFields(
-    record,
-    ['walletId', ...SECRET_MATERIAL_FIELDS],
-    'Google Email OTP registration finalize input',
-  );
-  if (record.kind !== 'google_email_otp_registration_finalize_v1') {
-    throw new Error('registration finalize kind must be google_email_otp_registration_finalize_v1');
-  }
-  return {
-    kind: 'google_email_otp_registration_finalize_v1',
-    offerId: parseOfferId(record.offerId),
-    candidateId: parseCandidateId(record.candidateId),
-    idempotencyKey: parseFinalizeIdempotencyKey(record.idempotencyKey),
-    emailOtpEnrollment: parseRegistrationEnrollment(record.emailOtpEnrollment),
   };
 }

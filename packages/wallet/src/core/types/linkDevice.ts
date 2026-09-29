@@ -61,9 +61,8 @@ export enum DeviceLinkingErrorCode {
   INSUFFICIENT_BALANCE = 'INSUFFICIENT_BALANCE',
   REGISTRATION_FAILED = 'REGISTRATION_FAILED',
   /**
-   * R103 zero-prompt handoff: Device 1 is not unlocked with the custody
-   * capability linking needs. The QR flow never prompts; the user unlocks the
-   * wallet and scans again.
+   * Device 1 is not unlocked with the custody capability linking needs. The
+   * QR flow never prompts; the user unlocks the wallet and scans again.
    */
   WALLET_UNLOCK_REQUIRED = 'WALLET_UNLOCK_REQUIRED',
   /**

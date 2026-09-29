@@ -8,13 +8,19 @@ import {
   parseImplicitNearAccountId,
   parseNamedNearAccountId,
 } from '@shared/utils/near';
+import { coerceNonEmptyString, requireRecordOrArray } from '@shared/utils/validation';
 import type { AccessKeyView, FinalExecutionOutcome, TxExecutionStatus } from '@near-js/types';
 import {
   threshold_ed25519_build_near_tx_unsigned_borsh,
   threshold_ed25519_decode_signed_near_tx_borsh,
   threshold_ed25519_finalize_near_tx_from_signature,
 } from '../../../../wasm/near_signer/pkg/wasm_signer_worker.js';
-import { decodeNearSecretKey, toPublicKeyStringFromSecretKey } from './nearKeys';
+import { toPublicKeyStringFromSecretKey } from './nearKeys';
+import {
+  requireFinalizeNearTxFromSignatureOutput,
+  requireSingleUnsignedNearTxBorshOutput,
+  signNearDigestWithSecretKey,
+} from './authService/nearPrivateKeySigning';
 import { ensureNearSignerWasm } from './nearSignerWasmRuntime';
 import {
   MinimalNearClient,
@@ -45,9 +51,6 @@ const NEAR_IMPLICIT_ACCOUNT_FUND_WAIT_UNTIL: TxExecutionStatus = 'EXECUTED_OPTIM
  * terminal state.
  */
 const NEAR_SPONSORED_ACCOUNT_CREATION_WAIT_UNTIL: TxExecutionStatus = 'FINAL';
-const ED25519_PKCS8_SEED_PREFIX = Uint8Array.from([
-  0x30, 0x2e, 0x02, 0x01, 0x00, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x04, 0x22, 0x04, 0x20,
-]);
 
 type NearRelayerRuntimeInput = {
   readonly relayerAccount: string;
@@ -76,16 +79,6 @@ type NearNamedAccountCreationInput = AccountCreationRequest &
   NearRelayerRuntimeInput & {
     readonly initialBalanceYocto: string;
   };
-
-type NearTxUnsignedBorshOutput = {
-  readonly unsignedTransactionBorshB64u: string;
-  readonly signingDigestB64u: string;
-};
-
-type FinalizeNearTxFromSignatureOutput = {
-  readonly signedTransactionBorshB64u: string;
-  readonly transactionHash: string;
-};
 
 type DecodedSponsoredNearAccountCreation = {
   readonly transactionHash: string;
@@ -119,46 +112,6 @@ type ValidatedNamedAccountCreationInput = AccountCreationRequest &
     readonly initialBalanceYocto: string;
   };
 
-function requireNonEmptyString(value: unknown, label: string): string {
-  const text = String(value || '').trim();
-  if (!text) throw new Error(`${label} is required`);
-  return text;
-}
-
-function requireRecord(value: unknown, label: string): Record<string, unknown> {
-  if (!value || typeof value !== 'object') {
-    throw new Error(`${label} must be an object`);
-  }
-  return value as Record<string, unknown>;
-}
-
-function requireSingleUnsignedNearTxBorshOutput(value: unknown): NearTxUnsignedBorshOutput {
-  if (!Array.isArray(value) || value.length !== 1) {
-    throw new Error('Expected exactly one unsigned NEAR transaction from signer WASM');
-  }
-  const record = requireRecord(value[0], 'unsigned NEAR transaction output');
-  return {
-    unsignedTransactionBorshB64u: requireNonEmptyString(
-      record.unsignedTransactionBorshB64u,
-      'unsignedTransactionBorshB64u',
-    ),
-    signingDigestB64u: requireNonEmptyString(record.signingDigestB64u, 'signingDigestB64u'),
-  };
-}
-
-function requireFinalizeNearTxFromSignatureOutput(
-  value: unknown,
-): FinalizeNearTxFromSignatureOutput {
-  const record = requireRecord(value, 'finalized NEAR transaction output');
-  return {
-    signedTransactionBorshB64u: requireNonEmptyString(
-      record.signedTransactionBorshB64u,
-      'signedTransactionBorshB64u',
-    ),
-    transactionHash: requireNonEmptyString(record.transactionHash, 'transactionHash'),
-  };
-}
-
 function requireByteArray(value: unknown, label: string, expectedLength?: number): number[] {
   if (
     !Array.isArray(value) ||
@@ -178,7 +131,7 @@ function requireUnsignedIntegerString(value: unknown, label: string): string {
 }
 
 function requireDecodedEd25519PublicKey(value: unknown, label: string): string {
-  const record = requireRecord(value, label);
+  const record = requireRecordOrArray(value, label);
   if (record.keyType !== 0) throw new Error(`${label} must be Ed25519`);
   return `ed25519:${base58Encode(Uint8Array.from(requireByteArray(record.keyData, `${label}.keyData`, 32)))}`;
 }
@@ -187,10 +140,10 @@ function requireDecodedSponsoredNearAccountCreation(
   value: unknown,
   signedTransactionBorshB64u: string,
 ): DecodedSponsoredNearAccountCreation {
-  const output = requireRecord(value, 'decoded signed NEAR transaction');
-  const transactionHash = requireNonEmptyString(output.transactionHash, 'transactionHash');
-  const signed = requireRecord(output.signedTransaction, 'signedTransaction');
-  const transaction = requireRecord(signed.transaction, 'signedTransaction.transaction');
+  const output = requireRecordOrArray(value, 'decoded signed NEAR transaction');
+  const transactionHash = coerceNonEmptyString(output.transactionHash, 'transactionHash');
+  const signed = requireRecordOrArray(output.signedTransaction, 'signedTransaction');
+  const transaction = requireRecordOrArray(signed.transaction, 'signedTransaction.transaction');
   const decodedBytes = requireByteArray(signed.borshBytes, 'signedTransaction.borshBytes');
   if (base64UrlEncode(Uint8Array.from(decodedBytes)) !== signedTransactionBorshB64u) {
     throw new Error('Decoded NEAR transaction bytes do not match the persisted signed bytes');
@@ -202,23 +155,23 @@ function requireDecodedSponsoredNearAccountCreation(
       'Persisted NEAR transaction must contain create-account, transfer, and add-key',
     );
   }
-  const transfer = requireRecord(actions[1], 'signedTransaction.transaction.actions[1]');
-  const transferBody = requireRecord(transfer.transfer, 'transfer action');
-  const addKey = requireRecord(actions[2], 'signedTransaction.transaction.actions[2]');
-  const addKeyBody = requireRecord(addKey.addKey, 'add-key action');
-  const accessKey = requireRecord(addKeyBody.access_key, 'add-key access key');
+  const transfer = requireRecordOrArray(actions[1], 'signedTransaction.transaction.actions[1]');
+  const transferBody = requireRecordOrArray(transfer.transfer, 'transfer action');
+  const addKey = requireRecordOrArray(actions[2], 'signedTransaction.transaction.actions[2]');
+  const addKeyBody = requireRecordOrArray(addKey.addKey, 'add-key action');
+  const accessKey = requireRecordOrArray(addKeyBody.access_key, 'add-key access key');
   if (accessKey.permission !== 'FullAccess') {
     throw new Error('Persisted NEAR transaction add-key action must grant full access');
   }
   return {
     transactionHash,
-    signerId: requireNonEmptyString(transaction.signerId, 'signedTransaction.transaction.signerId'),
+    signerId: coerceNonEmptyString(transaction.signerId, 'signedTransaction.transaction.signerId'),
     signerPublicKey: requireDecodedEd25519PublicKey(
       transaction.publicKey,
       'signedTransaction.transaction.publicKey',
     ),
     nonce: requireUnsignedIntegerString(transaction.nonce, 'signedTransaction.transaction.nonce'),
-    receiverId: requireNonEmptyString(
+    receiverId: coerceNonEmptyString(
       transaction.receiverId,
       'signedTransaction.transaction.receiverId',
     ),
@@ -229,7 +182,7 @@ function requireDecodedSponsoredNearAccountCreation(
     ),
     actions: [
       'createAccount',
-      { transfer: { deposit: requireNonEmptyString(transferBody.deposit, 'transfer.deposit') } },
+      { transfer: { deposit: coerceNonEmptyString(transferBody.deposit, 'transfer.deposit') } },
       {
         addKey: {
           publicKey: requireDecodedEd25519PublicKey(addKeyBody.public_key, 'add-key public key'),
@@ -244,106 +197,15 @@ function requireDecodedSponsoredNearAccountCreation(
   };
 }
 
-function createEd25519Pkcs8FromSeed(seed32: Uint8Array): Uint8Array {
-  if (seed32.length !== 32) {
-    throw new Error(`Ed25519 seed must be 32 bytes, got ${seed32.length}`);
-  }
-  const pkcs8 = new Uint8Array(ED25519_PKCS8_SEED_PREFIX.length + seed32.length);
-  pkcs8.set(ED25519_PKCS8_SEED_PREFIX, 0);
-  pkcs8.set(seed32, ED25519_PKCS8_SEED_PREFIX.length);
-  return pkcs8;
-}
-
-function copyToArrayBuffer(bytes: Uint8Array): ArrayBuffer {
-  const buffer = new ArrayBuffer(bytes.length);
-  new Uint8Array(buffer).set(bytes);
-  return buffer;
-}
-
-async function signEd25519MessageWithNodeCrypto(
-  pkcs8: Uint8Array,
-  message: Uint8Array,
-): Promise<Uint8Array | null> {
-  try {
-    const nodeCrypto = await import('node:crypto');
-    const { Buffer } = await import('node:buffer');
-    const key = nodeCrypto.createPrivateKey({
-      key: Buffer.from(pkcs8),
-      format: 'der',
-      type: 'pkcs8',
-    });
-    return new Uint8Array(nodeCrypto.sign(null, message, key));
-  } catch (error: unknown) {
-    return null;
-  }
-}
-
-async function signEd25519MessageWithWebCrypto(
-  pkcs8: Uint8Array,
-  message: Uint8Array,
-): Promise<Uint8Array | null> {
-  const subtle = globalThis.crypto?.subtle;
-  if (!subtle) return null;
-  try {
-    const key = await subtle.importKey('pkcs8', copyToArrayBuffer(pkcs8), 'Ed25519', false, [
-      'sign',
-    ]);
-    return new Uint8Array(await subtle.sign('Ed25519', key, copyToArrayBuffer(message)));
-  } catch {
-    return null;
-  }
-}
-
-async function signEd25519MessageWithPkcs8(
-  pkcs8: Uint8Array,
-  message: Uint8Array,
-): Promise<Uint8Array> {
-  const nodeSignature = await signEd25519MessageWithNodeCrypto(pkcs8, message);
-  if (nodeSignature) return nodeSignature;
-  const webCryptoSignature = await signEd25519MessageWithWebCrypto(pkcs8, message);
-  if (webCryptoSignature) return webCryptoSignature;
-  throw new Error('Ed25519 private-key signing is unavailable in this runtime');
-}
-
-async function signNearDigestWithSecretKey(args: {
-  readonly nearPrivateKey: string;
-  readonly signingDigestB64u: string;
-  readonly expectedSignerPublicKey: string;
-}): Promise<string> {
-  const actualPublicKey = toPublicKeyStringFromSecretKey(args.nearPrivateKey);
-  if (actualPublicKey !== args.expectedSignerPublicKey) {
-    throw new Error('NEAR private key does not match expected signer public key');
-  }
-  const digest = base64UrlDecode(args.signingDigestB64u);
-  if (digest.length !== 32) {
-    throw new Error(`NEAR signing digest must be 32 bytes, got ${digest.length}`);
-  }
-
-  const secretKeyBytes = decodeNearSecretKey(args.nearPrivateKey);
-  const seed32 = new Uint8Array(secretKeyBytes.subarray(0, 32));
-  const pkcs8 = createEd25519Pkcs8FromSeed(seed32);
-  try {
-    const signature = await signEd25519MessageWithPkcs8(pkcs8, digest);
-    if (signature.length !== 64) {
-      throw new Error(`Ed25519 signature must be 64 bytes, got ${signature.length}`);
-    }
-    return base64UrlEncode(signature);
-  } finally {
-    secretKeyBytes.fill(0);
-    seed32.fill(0);
-    pkcs8.fill(0);
-  }
-}
-
 function parsePositiveYocto(value: unknown, label: string): string {
-  const text = requireNonEmptyString(value, label);
+  const text = coerceNonEmptyString(value, label);
   const amount = BigInt(text);
   if (amount <= 0n) throw new Error(`${label} must be positive`);
   return amount.toString();
 }
 
 function requireEd25519PublicKey(value: unknown, label: string): string {
-  const text = requireNonEmptyString(value, label);
+  const text = coerceNonEmptyString(value, label);
   if (!text.startsWith('ed25519:')) throw new Error(`${label} must be an ed25519 public key`);
   return text;
 }
@@ -351,8 +213,8 @@ function requireEd25519PublicKey(value: unknown, label: string): string {
 function validateNearRelayerRuntimeInput(
   input: NearRelayerRuntimeInput,
 ): ValidatedNearRelayerRuntimeInput {
-  const relayerAccount = requireNonEmptyString(input.relayerAccount, 'relayerAccount');
-  const relayerPrivateKey = requireNonEmptyString(input.relayerPrivateKey, 'relayerPrivateKey');
+  const relayerAccount = coerceNonEmptyString(input.relayerAccount, 'relayerAccount');
+  const relayerPrivateKey = coerceNonEmptyString(input.relayerPrivateKey, 'relayerPrivateKey');
   const derivedRelayerPublicKey = toPublicKeyStringFromSecretKey(relayerPrivateKey);
   const configuredRelayerPublicKey = String(input.relayerPublicKey || '').trim();
   if (configuredRelayerPublicKey && configuredRelayerPublicKey !== derivedRelayerPublicKey) {
@@ -362,15 +224,15 @@ function validateNearRelayerRuntimeInput(
     relayerAccount,
     relayerPrivateKey,
     relayerPublicKey: derivedRelayerPublicKey,
-    nearRpcUrl: requireNonEmptyString(input.nearRpcUrl, 'nearRpcUrl'),
+    nearRpcUrl: coerceNonEmptyString(input.nearRpcUrl, 'nearRpcUrl'),
     nearClient: input.nearClient,
     ensureSignerWasm: input.ensureSignerWasm,
   };
 }
 
 function validateFundingInput(input: NearImplicitFundingInput): ValidatedFundingInput {
-  const walletId = requireNonEmptyString(input.walletId, 'walletId');
-  const nearPublicKeyStr = requireNonEmptyString(input.nearPublicKeyStr, 'nearPublicKeyStr');
+  const walletId = coerceNonEmptyString(input.walletId, 'walletId');
+  const nearPublicKeyStr = coerceNonEmptyString(input.nearPublicKeyStr, 'nearPublicKeyStr');
   const parsedNearAccountId = parseImplicitNearAccountId(input.nearAccountId);
   if (!parsedNearAccountId.ok) throw new Error(parsedNearAccountId.message);
   const derivedNearAccountId = deriveImplicitNearAccountIdFromEd25519PublicKey(nearPublicKeyStr);
@@ -395,7 +257,7 @@ function validateFundingInput(input: NearImplicitFundingInput): ValidatedFunding
 function validateNamedAccountCreationInput(
   input: NearNamedAccountCreationInput,
 ): ValidatedNamedAccountCreationInput {
-  const accountId = requireNonEmptyString(input.accountId, 'accountId');
+  const accountId = coerceNonEmptyString(input.accountId, 'accountId');
   const parsedAccountId = parseNamedNearAccountId(accountId);
   if (!parsedAccountId.ok) throw new Error(parsedAccountId.message);
   const runtime = validateNearRelayerRuntimeInput(input);
@@ -622,7 +484,7 @@ export type PreparedSponsoredNearAccountCreationV1 = {
   readonly signedTransactionBorshB64u: string;
 };
 
-export type PrepareSponsoredNearAccountCreationResultV1 =
+type PrepareSponsoredNearAccountCreationResultV1 =
   | { readonly ok: true; readonly prepared: PreparedSponsoredNearAccountCreationV1 }
   | { readonly ok: false; readonly error: string; readonly message: string };
 
@@ -682,7 +544,7 @@ export async function prepareSponsoredNearAccountCreationWithRelayer(
  * transaction that may already be on chain as a terminal failure, so it stays
  * distinct and must never be persisted as a completed outcome.
  */
-export type BroadcastPreparedSponsoredNearAccountResultV1 =
+type BroadcastPreparedSponsoredNearAccountResultV1 =
   | { readonly kind: 'created'; readonly result: AccountCreationResult }
   | { readonly kind: 'rejected'; readonly result: AccountCreationResult }
   | { readonly kind: 'uncertain'; readonly message: string };
@@ -1003,36 +865,5 @@ function isDefinitiveNearRejection(error: unknown): boolean {
     case 'infrastructure_failure':
     case 'unknown':
       return false;
-  }
-}
-
-export async function createNamedNearAccountWithRelayer(
-  input: NearNamedAccountCreationInput,
-): Promise<AccountCreationResult> {
-  try {
-    const validated = validateNamedAccountCreationInput(input);
-    const prepared = await prepareSponsoredNearAccountCreationWithRelayer(input);
-    if (!prepared.ok) {
-      return { success: false, error: prepared.error, message: prepared.message };
-    }
-    const broadcast = await broadcastPreparedSponsoredNearAccountCreation({
-      prepared: prepared.prepared,
-      nearRpcUrl: validated.nearRpcUrl,
-      relayerAccountId: validated.relayerAccount,
-      ...(validated.nearClient ? { nearClient: validated.nearClient } : {}),
-    });
-    if (broadcast.kind === 'uncertain') {
-      // This entry point has no durable claim to reconcile against, so surface
-      // the ambiguity to its caller rather than reporting a definitive failure.
-      throw new Error(broadcast.message);
-    }
-    return broadcast.result;
-  } catch (error: unknown) {
-    const message = errorMessage(error) || 'Failed to create NEAR account';
-    return {
-      success: false,
-      error: message,
-      message,
-    };
   }
 }

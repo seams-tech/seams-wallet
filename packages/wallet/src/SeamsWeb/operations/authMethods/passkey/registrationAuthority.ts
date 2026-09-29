@@ -7,7 +7,7 @@ import type { WalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget'
 import { requirePasskeyPrfFirstB64u } from '@/SeamsWeb/operations/authMethods/passkey/ecdsaBootstrap';
 import { redactedPasskeyRegistrationCredential } from '@/core/signingEngine/webauthnAuth/credentials/helpers';
 
-export type PasskeyRegistrationAuthorityMaterial = {
+type PasskeyRegistrationAuthorityMaterial = {
   kind: 'passkey';
   credential: WebAuthnRegistrationCredential;
   webauthnRegistration: WebAuthnRegistrationCredential;

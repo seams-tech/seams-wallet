@@ -44,6 +44,13 @@ pub enum RouterAbProtocolErrorCode {
     MalformedWirePayload,
     /// A vector fixture version was unsupported.
     UnsupportedVectorVersion,
+    /// A committed lifecycle transition is still completing, for example a
+    /// tenant-root refresh whose delivery to a role is pending. The same
+    /// request can be retried.
+    LifecycleTransitionInProgress,
+    /// A later attempt of the same lifecycle took this attempt's place, so
+    /// this attempt can never complete. Retrying it changes nothing.
+    SupersededAttempt,
 }
 
 /// Error type used by the service protocol crate.

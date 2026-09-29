@@ -36,7 +36,10 @@ import type { RouterAbEcdsaDerivationNormalSigningStateV1 } from '@shared/utils/
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
 import type { DeviceLinkingEd25519SourcePreservingRouterPortV1 } from '../../transport/fetch/routes/deviceLinking';
 import type { OrdinaryInactiveSignerMaterialActivationPortV1 } from '../d1/deviceLinking/d1LinkedDeviceAuthorityInstallService';
-import type { TenantRootActiveLineageV1 } from '../../domains/tenantRoot/tenantRootCustodyLineage';
+import {
+  routerAbEd25519YaoTenantRootWireV1,
+  type RouterAbEd25519YaoResolvedTenantRootV1,
+} from '../../domains/ed25519Yao/routerAbEd25519YaoGatewayEnvelope';
 import type {
   OrdinaryEcdsaSignerMaterialReservationPreparationV1,
   OrdinaryEd25519SignerMaterialReservationPreparationV1,
@@ -45,6 +48,8 @@ import type {
 /** Source-preserving ordinary material paths implemented by the Cloudflare workers. */
 export const CLOUDFLARE_ROUTER_ED25519_YAO_SOURCE_PRESERVING_EXECUTE_PATH_V1 =
   '/router-ab/router/ed25519-yao/execute-source-preserving' as const;
+/** Marks an execution the Router may already have run as its replay. */
+const ROUTER_AB_YAO_REPLAY_HEADER_V1 = 'x-seams-yao-replay';
 export const CLOUDFLARE_SIGNING_WORKER_ECDSA_RESERVE_INACTIVE_SOURCE_PRESERVING_PATH_V1 =
   '/router-ab/signing-worker/ecdsa-derivation/reserve-inactive-source-preserving' as const;
 export const CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_ACTIVATE_RESERVATION_PATH_V1 =
@@ -55,6 +60,29 @@ export const CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_DEACTIVATE_RESERVATION_PATH_V
   '/router-ab/signing-worker/ed25519-yao/deactivate-reservation' as const;
 export const CLOUDFLARE_SIGNING_WORKER_ECDSA_DEACTIVATE_RESERVATION_PATH_V1 =
   '/router-ab/signing-worker/ecdsa-derivation/deactivate-reservation' as const;
+
+/**
+ * The tenant this Gateway serves. With one of its wallets it names the
+ * SigningWorker wallet object that holds that wallet's material, and the
+ * SigningWorker checks the wallet against the source activation it holds.
+ */
+export type CloudflareSigningWorkerTenantV1 = {
+  readonly orgId: string;
+  readonly projectId: string;
+  readonly envId: string;
+};
+
+function signingWorkerWalletScopeWireV1(
+  tenant: CloudflareSigningWorkerTenantV1,
+  walletId: string,
+): Record<string, string> {
+  return {
+    org_id: tenant.orgId,
+    project_id: tenant.projectId,
+    project_environment_id: tenant.envId,
+    wallet_id: walletId,
+  };
+}
 
 /**
  * Boundary for the dedicated ordinary reservation operation. Its response is
@@ -83,24 +111,23 @@ export function createCloudflareLinkedDeviceEd25519SourcePreservingRouterEndpoin
       LinkedDeviceEd25519SourceContributionPreparationV1,
       'applicationBinding' | 'targetAdmission' | 'participantIds'
     >,
-  ) => Promise<TenantRootActiveLineageV1>;
+  ) => Promise<RouterAbEd25519YaoResolvedTenantRootV1>;
 }): CloudflareLinkedDeviceEd25519SourcePreservingRouterEndpointV1 {
   return {
     executeEd25519SourcePreservingV1: async (request) => {
       const tenantRoot = await input.resolveTenantRoot(request);
+      const tenantRootWire = await routerAbEd25519YaoTenantRootWireV1(tenantRoot);
       return await postRouterJsonRequestV1(
         input,
         CLOUDFLARE_ROUTER_ED25519_YAO_SOURCE_PRESERVING_EXECUTE_PATH_V1,
         {
           source_binding: request.sourceBinding,
           target: {
-            tenant_root: {
-              identity_digest_b64u: tenantRoot.identityDigestB64u,
-              custody_lineage_b64u: tenantRoot.custodyLineageB64u,
-            },
+            tenant_root: tenantRootWire,
             application: request.applicationBinding,
             participant_ids: request.participantIds,
             target: {
+              operation: 'registration',
               binding: request.targetRequest.binding,
               deriver_a_input: request.targetRequest.deriver_a_input,
               deriver_b_input: request.targetRequest.deriver_b_input,
@@ -108,6 +135,11 @@ export function createCloudflareLinkedDeviceEd25519SourcePreservingRouterEndpoin
           },
         },
         'Ed25519 source-preserving Router execution',
+        /* A transport failure can lose the answer to an execution the Router
+           already ran. The retry is marked as the Router's replay, so it
+           answers that run from the roles' completed pair instead of
+           starting another. */
+        'replay',
       );
     },
   };
@@ -136,6 +168,7 @@ export type CloudflareOrdinaryInactiveSignerMaterialDeactivationEndpointV1 = {
 export function createCloudflareOrdinaryInactiveSignerMaterialReservationEndpointV1(input: {
   readonly fetch: typeof fetch;
   readonly internalServiceAuthSecret: string;
+  readonly tenant: CloudflareSigningWorkerTenantV1;
 }): CloudflareOrdinaryInactiveSignerMaterialReservationEndpointV1 {
   return {
     reserveInactiveEd25519SignerMaterialV1: async (request) => {
@@ -145,7 +178,7 @@ export function createCloudflareOrdinaryInactiveSignerMaterialReservationEndpoin
       const raw = await postReservationRequestV1(
         input,
         CLOUDFLARE_SIGNING_WORKER_ECDSA_RESERVE_INACTIVE_SOURCE_PRESERVING_PATH_V1,
-        ecdsaReservationRequestToWireV1(request),
+        ecdsaReservationRequestToWireV1(request, input.tenant),
         'ecdsa_secp256k1',
       );
       return parseEcdsaReservationResponseV1(request, raw);
@@ -156,20 +189,21 @@ export function createCloudflareOrdinaryInactiveSignerMaterialReservationEndpoin
 export function createCloudflareOrdinaryInactiveSignerMaterialActivationEndpointV1(input: {
   readonly fetch: typeof fetch;
   readonly internalServiceAuthSecret: string;
+  readonly tenant: CloudflareSigningWorkerTenantV1;
 }): CloudflareOrdinaryInactiveSignerMaterialActivationEndpointV1 {
   return {
     activateInactiveEd25519SignerMaterialV1: async (request) =>
       await postActivationRequestV1(
         input,
         CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_ACTIVATE_RESERVATION_PATH_V1,
-        ed25519ActivationRequestToWireV1(request),
+        ed25519ActivationRequestToWireV1(request, input.tenant),
         'ed25519',
       ),
     activateInactiveEcdsaSignerMaterialV1: async (request) =>
       await postActivationRequestV1(
         input,
         CLOUDFLARE_SIGNING_WORKER_ECDSA_ACTIVATE_RESERVATION_PATH_V1,
-        ecdsaActivationRequestToWireV1(request),
+        ecdsaActivationRequestToWireV1(request, input.tenant),
         'ecdsa_secp256k1',
       ),
   };
@@ -177,8 +211,15 @@ export function createCloudflareOrdinaryInactiveSignerMaterialActivationEndpoint
 
 function ecdsaReservationRequestToWireV1(
   request: OrdinaryEcdsaSignerMaterialReservationRequestV1,
+  tenant: CloudflareSigningWorkerTenantV1,
 ): Record<string, unknown> {
   return {
+    // The wallet whose active material the linked device's shares come from,
+    // as this Gateway planned the device's activation.
+    scope: signingWorkerWalletScopeWireV1(
+      tenant,
+      String(request.plannedActivationRef.materialOwner),
+    ),
     source_derivation: {
       application_binding_digest_b64u:
         request.preparation.sourceDerivation.applicationBindingDigestB64u,
@@ -209,24 +250,36 @@ function ed25519ReservationFromSourceContributionV1(
   };
 }
 
-function ed25519ActivationRequestToWireV1(input: {
-  readonly sourceContribution: OrdinaryEd25519SignerMaterialReservationPreparationV1['sourceContribution'];
-  readonly reservationId: string;
-}): Record<string, unknown> {
+function ed25519ActivationRequestToWireV1(
+  input: {
+    readonly sourceContribution: OrdinaryEd25519SignerMaterialReservationPreparationV1['sourceContribution'];
+    readonly reservationId: string;
+  },
+  tenant: CloudflareSigningWorkerTenantV1,
+): Record<string, unknown> {
   return {
+    // The wallet the installed authority's reserved material belongs to.
+    scope: signingWorkerWalletScopeWireV1(
+      tenant,
+      input.sourceContribution.targetBinding.lifecycle.account_id,
+    ),
     binding: input.sourceContribution.targetBinding,
     reservation_id: input.reservationId,
   };
 }
 
-function ecdsaActivationRequestToWireV1(input: {
-  readonly preparation: OrdinaryEcdsaSignerMaterialReservationPreparationV1;
-  readonly reservationId: string;
-}): Record<string, unknown> {
+function ecdsaActivationRequestToWireV1(
+  input: {
+    readonly preparation: OrdinaryEcdsaSignerMaterialReservationPreparationV1;
+    readonly reservationId: string;
+  },
+  tenant: CloudflareSigningWorkerTenantV1,
+): Record<string, unknown> {
+  const materialActivation = input.preparation.sourceContribution.binding.target.activation;
   return {
-    material_activation: routerAbMpcMaterialActivationRefToWire(
-      input.preparation.sourceContribution.binding.target.activation,
-    ),
+    // The wallet that owns the reserved material.
+    scope: signingWorkerWalletScopeWireV1(tenant, String(materialActivation.materialOwner)),
+    material_activation: routerAbMpcMaterialActivationRefToWire(materialActivation),
     reservation_id: input.reservationId,
   };
 }
@@ -479,19 +532,32 @@ async function postRouterJsonRequestV1(
   path: string,
   body: Record<string, unknown>,
   operation: string,
+  retryAfterTransportFailure: 'none' | 'replay' = 'none',
 ): Promise<unknown> {
-  const response = await input.fetch(
-    new Request(`https://mpc-router.router-ab.internal${path}`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-router-ab-internal-service-auth': input.internalServiceAuthSecret,
-      },
-      body: JSON.stringify(body),
-    }),
-  );
+  const send = async (replay: boolean): Promise<Response> =>
+    await input.fetch(
+      new Request(`https://mpc-router.router-ab.internal${path}`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-router-ab-internal-service-auth': input.internalServiceAuthSecret,
+          ...(replay ? { [ROUTER_AB_YAO_REPLAY_HEADER_V1]: '1' } : {}),
+        },
+        body: JSON.stringify(body),
+      }),
+    );
+  let response: Response;
+  try {
+    response = await send(false);
+  } catch (error: unknown) {
+    if (retryAfterTransportFailure === 'none') throw error;
+    response = await send(true);
+  }
   if (!response.ok) {
-    throw new Error(`${operation} failed with HTTP ${response.status}`);
+    // The Router answers a refusal with its protocol error text; keep it so
+    // the failure is classifiable without the Router's logs.
+    const reason = (await response.text().catch(() => '')).slice(0, 300);
+    throw new Error(`${operation} failed with HTTP ${response.status}: ${reason}`);
   }
   try {
     return await response.json();
@@ -503,6 +569,7 @@ async function postRouterJsonRequestV1(
 export function createCloudflareOrdinaryInactiveSignerMaterialDeactivationEndpointV1(input: {
   readonly fetch: typeof fetch;
   readonly internalServiceAuthSecret: string;
+  readonly tenant: CloudflareSigningWorkerTenantV1;
 }): CloudflareOrdinaryInactiveSignerMaterialDeactivationEndpointV1 {
   return {
     deactivateInactiveEd25519SignerMaterialV1: async ({ materialActivation }) =>
@@ -511,6 +578,7 @@ export function createCloudflareOrdinaryInactiveSignerMaterialDeactivationEndpoi
         CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_DEACTIVATE_RESERVATION_PATH_V1,
         materialActivation,
         'ed25519',
+        signingWorkerWalletScopeWireV1(input.tenant, String(materialActivation.materialOwner)),
       ),
     deactivateInactiveEcdsaSignerMaterialV1: async ({ materialActivation }) =>
       await postDeactivationRequestV1(
@@ -518,6 +586,7 @@ export function createCloudflareOrdinaryInactiveSignerMaterialDeactivationEndpoi
         CLOUDFLARE_SIGNING_WORKER_ECDSA_DEACTIVATE_RESERVATION_PATH_V1,
         materialActivation,
         'ecdsa_secp256k1',
+        signingWorkerWalletScopeWireV1(input.tenant, String(materialActivation.materialOwner)),
       ),
   };
 }
@@ -530,6 +599,7 @@ async function postDeactivationRequestV1(
   path: string,
   materialActivation: MpcMaterialActivationRef,
   keyFamily: 'ed25519' | 'ecdsa_secp256k1',
+  scope: Record<string, string>,
 ): Promise<unknown> {
   const response = await input.fetch(
     new Request(`https://signing-worker.router-ab.internal${path}`, {
@@ -539,6 +609,7 @@ async function postDeactivationRequestV1(
         'x-router-ab-internal-service-auth': input.internalServiceAuthSecret,
       },
       body: JSON.stringify({
+        scope,
         material_activation: routerAbMpcMaterialActivationRefToWire(materialActivation),
       }),
     }),

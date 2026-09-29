@@ -1,4 +1,3 @@
-import { normalizeThresholdEd25519ParticipantIds } from '@shared/threshold/participants';
 import type { WalletSessionOperationCredentialV1 } from '@shared/device-linking';
 import type { EmailOtpWorkerIssuedSessionHandle } from '@/core/platform';
 import type { WebAuthnAuthenticationCredential } from '@/core/types/webauthn';
@@ -17,7 +16,7 @@ export type EcdsaSigningKeyContext = {
   participantIds: readonly number[];
 };
 
-export type PasskeyPrfFirstB64u = string & { readonly __brand: 'PasskeyPrfFirstB64u' };
+type PasskeyPrfFirstB64u = string & { readonly __brand: 'PasskeyPrfFirstB64u' };
 
 export type PasskeyEcdsaProvisionSecretSource = {
   kind: 'webauthn_prf_first_v1';
@@ -26,13 +25,13 @@ export type PasskeyEcdsaProvisionSecretSource = {
   emailOtpAuthContext?: never;
 };
 
-export type PasskeyEcdsaActivationMaterial = {
+type PasskeyEcdsaActivationMaterial = {
   kind: 'session_record';
   relayerUrl?: never;
   walletKey?: never;
 };
 
-export type EmailOtpEcdsaProvisionSecretSource = {
+type EmailOtpEcdsaProvisionSecretSource = {
   kind: 'email_otp_worker_session_v1';
   workerHandle: Extract<EmailOtpWorkerIssuedSessionHandle, { action: 'threshold_ecdsa_bootstrap' }>;
   emailOtpAuthContext: ThresholdEcdsaEmailOtpAuthContext;
@@ -40,7 +39,7 @@ export type EmailOtpEcdsaProvisionSecretSource = {
   passkeyPrfFirstB64u?: never;
 };
 
-export type PasskeyEcdsaSessionProvision = {
+type PasskeyEcdsaSessionProvision = {
   kind: 'passkey_ecdsa_session_provision';
   key: EvmFamilyEcdsaKeyIdentity;
   chainTarget: ThresholdEcdsaChainTarget;
@@ -60,7 +59,7 @@ export type PasskeyEcdsaSessionProvision = {
   webauthnAuthentication?: never;
 };
 
-export type EmailOtpEcdsaSessionProvision = {
+type EmailOtpEcdsaSessionProvision = {
   kind: 'email_otp_ecdsa_session_provision';
   key: EvmFamilyEcdsaKeyIdentity;
   chainTarget: ThresholdEcdsaChainTarget;
@@ -122,13 +121,9 @@ type BuildEmailOtpEcdsaSessionProvisionPlanArgs = {
   reconnectMaterial?: never;
 };
 
-export type BuildEcdsaSessionProvisionPlanArgs =
+type BuildEcdsaSessionProvisionPlanArgs =
   | BuildPasskeyEcdsaSessionProvisionPlanArgs
   | BuildEmailOtpEcdsaSessionProvisionPlanArgs;
-
-function assertNeverEcdsaProvisionPlan(plan: never): never {
-  throw new Error(`[SigningEngine][ecdsa] unsupported ECDSA provision plan: ${String(plan)}`);
-}
 
 function requireNonEmptyString(value: unknown, field: string): string {
   const normalized = String(value ?? '').trim();
@@ -136,10 +131,6 @@ function requireNonEmptyString(value: unknown, field: string): string {
     throw new Error(`[SigningEngine][ecdsa] ${field} is required`);
   }
   return normalized;
-}
-
-function toPasskeyPrfFirstB64u(value: unknown): PasskeyPrfFirstB64u {
-  return requireNonEmptyString(value, 'passkeyPrfFirstB64u') as PasskeyPrfFirstB64u;
 }
 
 function requirePositiveInteger(value: unknown, field: string): number {
@@ -150,36 +141,6 @@ function requirePositiveInteger(value: unknown, field: string): number {
   return normalized;
 }
 
-function requireParticipantIds(value: unknown, field: string): readonly number[] {
-  const normalized = normalizeThresholdEd25519ParticipantIds(value);
-  if (!normalized?.length) {
-    throw new Error(`[SigningEngine][ecdsa] ${field} is required`);
-  }
-  return normalized;
-}
-
-export function buildPasskeyEcdsaProvisionSecretSource(args: {
-  passkeyPrfFirstB64u: string;
-  webauthnAuthentication: WebAuthnAuthenticationCredential;
-}): PasskeyEcdsaProvisionSecretSource {
-  return {
-    kind: 'webauthn_prf_first_v1',
-    passkeyPrfFirstB64u: toPasskeyPrfFirstB64u(args.passkeyPrfFirstB64u),
-    webauthnAuthentication: args.webauthnAuthentication,
-  };
-}
-
-export function buildEmailOtpEcdsaProvisionSecretSource(args: {
-  workerHandle: Extract<EmailOtpWorkerIssuedSessionHandle, { action: 'threshold_ecdsa_bootstrap' }>;
-  emailOtpAuthContext: ThresholdEcdsaEmailOtpAuthContext;
-}): EmailOtpEcdsaProvisionSecretSource {
-  return {
-    kind: 'email_otp_worker_session_v1',
-    workerHandle: args.workerHandle,
-    emailOtpAuthContext: args.emailOtpAuthContext,
-  };
-}
-
 export function buildEcdsaSessionIdentity(args: {
   thresholdSessionId: unknown;
 }): EcdsaSessionIdentity {
@@ -188,7 +149,7 @@ export function buildEcdsaSessionIdentity(args: {
   };
 }
 
-export function buildPasskeyEcdsaSessionProvision(args: {
+function buildPasskeyEcdsaSessionProvision(args: {
   key: EvmFamilyEcdsaKeyIdentity;
   chainTarget: ThresholdEcdsaChainTarget;
   newSessionIdentity: EcdsaSessionIdentity;
@@ -219,7 +180,7 @@ export function buildPasskeyEcdsaSessionProvision(args: {
   } satisfies PasskeyEcdsaSessionProvision;
 }
 
-export function buildEmailOtpEcdsaSessionProvision(args: {
+function buildEmailOtpEcdsaSessionProvision(args: {
   key: EvmFamilyEcdsaKeyIdentity;
   chainTarget: ThresholdEcdsaChainTarget;
   newSessionIdentity: EcdsaSessionIdentity;

@@ -40,6 +40,7 @@ import {
   resolveNearEd25519YaoCapabilityHydrationV1,
   type NearEd25519YaoPublicLocatorObservationV1,
   type NearEd25519YaoRuntimeObservationV1,
+  type NearEd25519YaoSealedMaterialObservationV1,
   type NearEd25519YaoUnlockSourceObservationV1,
 } from '../material/nearEd25519YaoMaterialActivation';
 import type { RouterAbEd25519YaoRecoveryActivationReceiptV1 } from '@shared/utils/routerAbEd25519Yao';
@@ -48,11 +49,11 @@ import {
   walletAuthAuthorityRef,
   type WalletAuthAuthorityRef,
 } from '@shared/utils/walletAuthAuthority';
+import { asRecord } from '@shared/utils/validation';
 import { buildRestorableMpcMaterialRefInternal } from '../material/restorableMpcMaterialRef.internal';
 import type { MpcCapabilityHydrationPlan } from '../material/mpcCapabilityHydration';
 
-export const ED25519_YAO_LOCAL_MATERIAL_KEY_KIND =
-  'router_ab_ed25519_yao_active_client_v1' as const;
+const ED25519_YAO_LOCAL_MATERIAL_KEY_KIND = 'router_ab_ed25519_yao_active_client_v1' as const;
 const ED25519_YAO_LOCAL_MATERIAL_SCHEMA_VERSION = 3;
 const ED25519_YAO_LOCAL_MATERIAL_ALGORITHM = 'chacha20poly1305-hkdf-sha256-prf-first-v1';
 const ED25519_YAO_LOCAL_MATERIAL_NONCE_BYTES = 12;
@@ -81,7 +82,7 @@ export type Ed25519YaoLocalMaterialIdentity = {
   signingWorkerId: string;
 };
 
-export type Ed25519YaoLocalMaterialBindingV1 = {
+type Ed25519YaoLocalMaterialBindingV1 = {
   kind: typeof ED25519_YAO_LOCAL_MATERIAL_KEY_KIND;
   walletId: string;
   nearAccountId: string;
@@ -104,14 +105,14 @@ export type Ed25519YaoLocalMaterialBindingV1 = {
   activationCapabilityBindingB64u: string;
 };
 
-export type PasskeyEd25519YaoStableServerScopeV1 = {
+type PasskeyEd25519YaoStableServerScopeV1 = {
   relayerKeyId: string;
   participantIds: readonly [number, number];
   runtimePolicyScope: ThresholdRuntimePolicyScope;
   routerAbNormalSigning: RouterAbEd25519NormalSigningState;
 };
 
-export type PasskeyEd25519YaoLocalMaterialLocatorV1 = {
+type PasskeyEd25519YaoLocalMaterialLocatorV1 = {
   kind: 'passkey_ed25519_yao_local_material_locator_v1';
   authority: WalletAuthAuthorityRef;
   materialActivation: MpcMaterialActivationRef;
@@ -120,7 +121,7 @@ export type PasskeyEd25519YaoLocalMaterialLocatorV1 = {
   thresholdSessionId?: never;
 };
 
-export type ReadPasskeyEd25519YaoLocalMaterialLocatorInputV1 = {
+type ReadPasskeyEd25519YaoLocalMaterialLocatorInputV1 = {
   store: Ed25519YaoLocalMaterialStorePort;
   walletId: string;
   nearAccountId: string;
@@ -131,7 +132,7 @@ export type ReadPasskeyEd25519YaoLocalMaterialLocatorInputV1 = {
   authority: WalletAuthAuthorityRef;
 };
 
-export type ReadPasskeyEd25519YaoLocalMaterialLocatorResultV1 =
+type ReadPasskeyEd25519YaoLocalMaterialLocatorResultV1 =
   | {
       kind: 'available';
       locator: PasskeyEd25519YaoLocalMaterialLocatorV1;
@@ -141,16 +142,7 @@ export type ReadPasskeyEd25519YaoLocalMaterialLocatorResultV1 =
       locator?: never;
     };
 
-export type PersistPasskeyEd25519YaoLocalMaterialInputV1 = {
-  store: Ed25519YaoLocalMaterialStorePort;
-  activeClient: RouterAbEd25519YaoSealableActiveClientV1;
-  walletSessionState: NearResolvedEd25519SigningSessionState;
-  rpId: string;
-  credentialIdB64u: string;
-  passkeyPrfFirstB64u: string;
-};
-
-export type PersistPasskeyEd25519YaoSignerMaterialInputV1 = {
+type PersistPasskeyEd25519YaoSignerMaterialInputV1 = {
   store: Ed25519YaoLocalMaterialStorePort;
   activeClient: RouterAbEd25519YaoSealableActiveClientV1;
   identity: Ed25519YaoLocalMaterialIdentity;
@@ -158,43 +150,26 @@ export type PersistPasskeyEd25519YaoSignerMaterialInputV1 = {
   passkeyPrfFirstB64u: string;
 };
 
-export type PasskeyEd25519YaoLocalMaterialTargetV1 = {
+type PasskeyEd25519YaoLocalMaterialTargetV1 = {
   profileId: string;
   chainIdKey: string;
   accountAddress: string;
 };
 
-export type BuildPromotedPasskeyEd25519YaoLocalMaterialRecordInputV1 = {
-  target: PasskeyEd25519YaoLocalMaterialTargetV1;
-  activeClient: RouterAbEd25519YaoSealableActiveClientV1;
-  walletSessionState: NearResolvedEd25519SigningSessionState;
-  rpId: string;
-  credentialIdB64u: string;
-  ownedPasskeyPrfFirst: Uint8Array;
-  promotionReceipt: RouterAbEd25519YaoRecoveryActivationReceiptV1;
-};
-
-export type RehydratePasskeyEd25519YaoLocalMaterialInputV1 = {
+type RehydratePasskeyEd25519YaoLocalMaterialInputV1 = {
   store: Ed25519YaoLocalMaterialStorePort;
   identity: Ed25519YaoLocalMaterialIdentity;
   passkeyPrfFirstB64u: string;
 };
 
-export type RehydratePasskeyEd25519YaoLocalMaterialRecordInputV1 = {
+type RehydratePasskeyEd25519YaoLocalMaterialRecordInputV1 = {
   stored: KeyMaterialRecord;
   target: PasskeyEd25519YaoLocalMaterialTargetV1;
   identity: Ed25519YaoLocalMaterialIdentity;
   ownedPasskeyPrfFirst: Uint8Array;
 };
 
-export type DeletePasskeyEd25519YaoLocalMaterialInputV1 = {
-  store: Ed25519YaoLocalMaterialStorePort;
-  walletSessionState: NearResolvedEd25519SigningSessionState;
-  rpId: string;
-  credentialIdB64u: string;
-};
-
-export type RehydratePasskeyEd25519YaoLocalMaterialResultV1 =
+type RehydratePasskeyEd25519YaoLocalMaterialResultV1 =
   | {
       kind: 'rehydrated';
       activeClient: RouterAbEd25519YaoActiveClientV1;
@@ -204,7 +179,7 @@ export type RehydratePasskeyEd25519YaoLocalMaterialResultV1 =
       activeClient?: never;
     };
 
-export type HydratePasskeyEd25519YaoLocalMaterialResultV1 =
+type HydratePasskeyEd25519YaoLocalMaterialResultV1 =
   | {
       kind: 'live';
       plan: Extract<MpcCapabilityHydrationPlan, { kind: 'use_live_runtime' }>;
@@ -224,7 +199,7 @@ export type HydratePasskeyEd25519YaoLocalMaterialResultV1 =
       activeClient?: never;
     };
 
-export type PreparePasskeyEd25519YaoLocalMaterialRehydrationResultV1 =
+type PreparePasskeyEd25519YaoLocalMaterialRehydrationResultV1 =
   | {
       kind: 'prepared';
       plan: Extract<MpcCapabilityHydrationPlan, { kind: 'rehydrate_material_activation' }>;
@@ -247,11 +222,6 @@ export type PasskeyEd25519YaoUnlockSourceV1 =
 export type PasskeyEd25519YaoPublicLocatorObservationV1 =
   | Omit<Extract<NearEd25519YaoPublicLocatorObservationV1, { kind: 'available' }>, 'authority'>
   | Exclude<NearEd25519YaoPublicLocatorObservationV1, { kind: 'available' }>;
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-  return value as Record<string, unknown>;
-}
 
 function requireNonEmpty(value: unknown, label: string): string {
   const parsed = String(value ?? '').trim();
@@ -340,19 +310,6 @@ export function ed25519YaoLocalMaterialIdentityFromWalletSession(
       walletSessionState.routerAbNormalSigning.signingWorkerId,
       'signingWorkerId',
     ),
-  };
-}
-
-function stableServerScopeFromActiveClient(
-  activeClient: RouterAbEd25519YaoActiveClientV1,
-  walletSessionState: NearResolvedEd25519SigningSessionState,
-): PasskeyEd25519YaoStableServerScopeV1 {
-  const metadata = activeClient.metadata();
-  return {
-    relayerKeyId: walletSessionState.routerAbNormalSigning.signingWorkerId,
-    participantIds: [metadata.participantIds[0], metadata.participantIds[1]],
-    runtimePolicyScope: walletSessionState.runtimePolicyScope,
-    routerAbNormalSigning: walletSessionState.routerAbNormalSigning,
   };
 }
 
@@ -456,7 +413,7 @@ function assertBindingIdentity(
   }
 }
 
-export function parsePasskeyEd25519YaoLocalMaterialBindingV1(
+function parsePasskeyEd25519YaoLocalMaterialBindingV1(
   value: unknown,
 ): Ed25519YaoLocalMaterialBindingV1 {
   const record = asRecord(value);
@@ -635,7 +592,7 @@ function assertStoredIdentitySubset(args: {
   }
 }
 
-export function metadataFromPasskeyEd25519YaoLocalMaterialBindingV1(
+function metadataFromPasskeyEd25519YaoLocalMaterialBindingV1(
   binding: Ed25519YaoLocalMaterialBindingV1,
   thresholdSessionId: string,
 ): RouterAbEd25519YaoActiveClientMetadataV1 {
@@ -738,58 +695,6 @@ function buildPasskeyEd25519YaoLocalMaterialRecordV1(input: {
   };
 }
 
-export function buildPromotedPasskeyEd25519YaoLocalMaterialRecordV1(
-  input: BuildPromotedPasskeyEd25519YaoLocalMaterialRecordInputV1,
-): KeyMaterialRecord {
-  const identity = ed25519YaoLocalMaterialIdentityFromWalletSession(
-    input.walletSessionState,
-    input.rpId,
-    input.credentialIdB64u,
-  );
-  return buildPasskeyEd25519YaoLocalMaterialRecordV1({
-    target: input.target,
-    activeClient: input.activeClient,
-    identity,
-    stableServerScope: stableServerScopeFromActiveClient(
-      input.activeClient,
-      input.walletSessionState,
-    ),
-    ownedPasskeyPrfFirst: input.ownedPasskeyPrfFirst,
-    lifecycle: {
-      kind: 'recovery_promotion',
-      promotionReceipt: input.promotionReceipt,
-    },
-  });
-}
-
-export async function persistPasskeyEd25519YaoLocalMaterialV1(
-  input: PersistPasskeyEd25519YaoLocalMaterialInputV1,
-): Promise<void> {
-  const identity = ed25519YaoLocalMaterialIdentityFromWalletSession(
-    input.walletSessionState,
-    input.rpId,
-    input.credentialIdB64u,
-  );
-  const target = await resolveAccountKeyMaterialTarget(input.store, {
-    accountRefs: buildNearAccountRefs(identity.nearAccountId),
-  });
-  if (!target) {
-    throw new Error('Local Ed25519 material requires a persisted wallet profile');
-  }
-  const record = buildPasskeyEd25519YaoLocalMaterialRecordV1({
-    target,
-    activeClient: input.activeClient,
-    identity,
-    stableServerScope: stableServerScopeFromActiveClient(
-      input.activeClient,
-      input.walletSessionState,
-    ),
-    ownedPasskeyPrfFirst: base64UrlDecode(input.passkeyPrfFirstB64u),
-    lifecycle: { kind: 'registration_or_rehydration' },
-  });
-  await input.store.storeKeyMaterial(record);
-}
-
 export async function persistPasskeyEd25519YaoSignerMaterialV1(
   input: PersistPasskeyEd25519YaoSignerMaterialInputV1,
 ): Promise<void> {
@@ -808,23 +713,6 @@ export async function persistPasskeyEd25519YaoSignerMaterialV1(
     lifecycle: { kind: 'registration_or_rehydration' },
   });
   await input.store.storeKeyMaterial(record);
-}
-
-export async function deletePasskeyEd25519YaoSignerMaterialV1(input: {
-  store: Ed25519YaoLocalMaterialStorePort;
-  nearAccountId: string;
-  signerSlot: number;
-}): Promise<void> {
-  const target = await resolveAccountKeyMaterialTarget(input.store, {
-    accountRefs: buildNearAccountRefs(input.nearAccountId),
-  });
-  if (!target) return;
-  await input.store.deleteKeyMaterial(
-    target.profileId,
-    requirePositiveSafeInteger(input.signerSlot, 'signerSlot'),
-    target.chainIdKey,
-    ED25519_YAO_LOCAL_MATERIAL_KEY_KIND,
-  );
 }
 
 export async function readPasskeyEd25519YaoLocalMaterialLocatorV1(
@@ -905,12 +793,19 @@ function hydrationBlocked(
   return { kind: 'blocked', plan };
 }
 
-export async function preparePasskeyEd25519YaoLocalMaterialRehydrationV1(input: {
+// What preparation and hydration both observe before planning: the public locator checked
+// against this identity, and the sealed locator read under the expected authority. A sealed
+// record that cannot be read is observed as corrupt instead of failing the caller.
+async function observePasskeyEd25519YaoLocalMaterial(input: {
   store: Ed25519YaoLocalMaterialStorePort;
   identity: Ed25519YaoLocalMaterialIdentity;
   authority: WalletAuthAuthorityRef;
   publicLocator: PasskeyEd25519YaoPublicLocatorObservationV1;
-}): Promise<PreparePasskeyEd25519YaoLocalMaterialRehydrationResultV1> {
+}): Promise<{
+  expectedAuthority: WalletAuthAuthorityRef;
+  publicLocator: NearEd25519YaoPublicLocatorObservationV1;
+  sealed: NearEd25519YaoSealedMaterialObservationV1;
+}> {
   const expectedAuthority = await expectedPasskeyAuthority(input);
   const publicLocator: NearEd25519YaoPublicLocatorObservationV1 =
     input.publicLocator.kind === 'available' &&
@@ -935,21 +830,10 @@ export async function preparePasskeyEd25519YaoLocalMaterialRehydrationV1(input: 
       authority: expectedAuthority,
     });
   } catch {
-    const plan = resolveNearEd25519YaoCapabilityHydrationV1({
-      publicLocator,
-      sealed: { kind: 'corrupt' },
-      runtime: { kind: 'absent' },
-      unlockSource: { kind: 'unavailable' },
-    });
-    if (plan.kind !== 'blocked') {
-      throw new Error('Corrupt Near Ed25519 material resolved to an executable hydration plan');
-    }
-    return {
-      kind: 'blocked',
-      plan,
-    };
+    return { expectedAuthority, publicLocator, sealed: { kind: 'corrupt' } };
   }
-  const plan = resolveNearEd25519YaoCapabilityHydrationV1({
+  return {
+    expectedAuthority,
     publicLocator,
     sealed:
       localMaterial.kind === 'available'
@@ -960,6 +844,42 @@ export async function preparePasskeyEd25519YaoLocalMaterialRehydrationV1(input: 
             sealedMaterial: localMaterial.locator.sealedMaterial,
           }
         : { kind: 'missing' },
+  };
+}
+
+function blockedByCorruptMaterial(
+  publicLocator: NearEd25519YaoPublicLocatorObservationV1,
+  runtime: NearEd25519YaoRuntimeObservationV1,
+): Extract<MpcCapabilityHydrationPlan, { kind: 'blocked' }> {
+  const plan = resolveNearEd25519YaoCapabilityHydrationV1({
+    publicLocator,
+    sealed: { kind: 'corrupt' },
+    runtime,
+    unlockSource: { kind: 'unavailable' },
+  });
+  if (plan.kind !== 'blocked') {
+    throw new Error('Corrupt Near Ed25519 material resolved to an executable hydration plan');
+  }
+  return plan;
+}
+
+export async function preparePasskeyEd25519YaoLocalMaterialRehydrationV1(input: {
+  store: Ed25519YaoLocalMaterialStorePort;
+  identity: Ed25519YaoLocalMaterialIdentity;
+  authority: WalletAuthAuthorityRef;
+  publicLocator: PasskeyEd25519YaoPublicLocatorObservationV1;
+}): Promise<PreparePasskeyEd25519YaoLocalMaterialRehydrationResultV1> {
+  const { expectedAuthority, publicLocator, sealed } =
+    await observePasskeyEd25519YaoLocalMaterial(input);
+  if (sealed.kind === 'corrupt') {
+    return {
+      kind: 'blocked',
+      plan: blockedByCorruptMaterial(publicLocator, { kind: 'absent' }),
+    };
+  }
+  const plan = resolveNearEd25519YaoCapabilityHydrationV1({
+    publicLocator,
+    sealed,
     runtime: { kind: 'absent' },
     unlockSource: { kind: 'available', authority: expectedAuthority },
   });
@@ -985,40 +905,12 @@ export async function hydratePasskeyEd25519YaoLocalMaterialV1(input: {
   unlockSource: PasskeyEd25519YaoUnlockSourceV1;
   liveMaterial: NearEd25519YaoOperationMaterial | null;
 }): Promise<HydratePasskeyEd25519YaoLocalMaterialResultV1> {
-  const expectedAuthority = await expectedPasskeyAuthority(input);
-  const publicLocator: NearEd25519YaoPublicLocatorObservationV1 =
-    input.publicLocator.kind === 'available' &&
-    !publicLocatorMatchesIdentity({
-      publicLocator: input.publicLocator,
-      identity: input.identity,
-    })
-      ? { kind: 'conflict' }
-      : input.publicLocator.kind === 'available'
-        ? { ...input.publicLocator, authority: expectedAuthority }
-        : input.publicLocator;
-  let localMaterial: ReadPasskeyEd25519YaoLocalMaterialLocatorResultV1;
-  try {
-    localMaterial = await readPasskeyEd25519YaoLocalMaterialLocatorV1({
-      store: input.store,
-      walletId: String(input.identity.walletId),
-      nearAccountId: String(input.identity.nearAccountId),
-      nearEd25519SigningKeyId: String(input.identity.nearEd25519SigningKeyId),
-      signerSlot: input.identity.signerSlot,
-      rpId: input.identity.rpId,
-      credentialIdB64u: input.identity.credentialIdB64u,
-      authority: expectedAuthority,
-    });
-  } catch {
-    const plan = resolveNearEd25519YaoCapabilityHydrationV1({
-      publicLocator,
-      sealed: { kind: 'corrupt' },
-      runtime: liveRuntimeObservation(input.liveMaterial),
-      unlockSource: { kind: 'unavailable' },
-    });
-    if (plan.kind !== 'blocked') {
-      throw new Error('Corrupt Near Ed25519 material resolved to an executable hydration plan');
-    }
-    return hydrationBlocked(plan);
+  const { expectedAuthority, publicLocator, sealed } =
+    await observePasskeyEd25519YaoLocalMaterial(input);
+  if (sealed.kind === 'corrupt') {
+    return hydrationBlocked(
+      blockedByCorruptMaterial(publicLocator, liveRuntimeObservation(input.liveMaterial)),
+    );
   }
   const unlockSource: NearEd25519YaoUnlockSourceObservationV1 =
     input.unlockSource.kind === 'available'
@@ -1026,15 +918,7 @@ export async function hydratePasskeyEd25519YaoLocalMaterialV1(input: {
       : { kind: 'unavailable' };
   const plan = resolveNearEd25519YaoCapabilityHydrationV1({
     publicLocator,
-    sealed:
-      localMaterial.kind === 'available'
-        ? {
-            kind: 'available',
-            authority: localMaterial.locator.authority,
-            materialActivation: localMaterial.locator.materialActivation,
-            sealedMaterial: localMaterial.locator.sealedMaterial,
-          }
-        : { kind: 'missing' },
+    sealed,
     runtime: liveRuntimeObservation(input.liveMaterial),
     unlockSource,
   });
@@ -1084,27 +968,7 @@ export async function hydratePasskeyEd25519YaoLocalMaterialV1(input: {
   }
 }
 
-export async function deletePasskeyEd25519YaoLocalMaterialV1(
-  input: DeletePasskeyEd25519YaoLocalMaterialInputV1,
-): Promise<void> {
-  const identity = ed25519YaoLocalMaterialIdentityFromWalletSession(
-    input.walletSessionState,
-    input.rpId,
-    input.credentialIdB64u,
-  );
-  const target = await resolveAccountKeyMaterialTarget(input.store, {
-    accountRefs: buildNearAccountRefs(identity.nearAccountId),
-  });
-  if (!target) return;
-  await input.store.deleteKeyMaterial(
-    target.profileId,
-    identity.signerSlot,
-    target.chainIdKey,
-    ED25519_YAO_LOCAL_MATERIAL_KEY_KIND,
-  );
-}
-
-export async function rehydratePasskeyEd25519YaoLocalMaterialV1(
+async function rehydratePasskeyEd25519YaoLocalMaterialV1(
   input: RehydratePasskeyEd25519YaoLocalMaterialInputV1,
 ): Promise<RehydratePasskeyEd25519YaoLocalMaterialResultV1> {
   const identity = input.identity;
@@ -1127,7 +991,7 @@ export async function rehydratePasskeyEd25519YaoLocalMaterialV1(
   });
 }
 
-export async function rehydratePasskeyEd25519YaoLocalMaterialRecordV1(
+async function rehydratePasskeyEd25519YaoLocalMaterialRecordV1(
   input: RehydratePasskeyEd25519YaoLocalMaterialRecordInputV1,
 ): Promise<Extract<RehydratePasskeyEd25519YaoLocalMaterialResultV1, { kind: 'rehydrated' }>> {
   const identity = input.identity;

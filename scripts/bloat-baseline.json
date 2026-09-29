@@ -1,0 +1,29 @@
+{
+  "commit": "db1a101",
+  "date": "2026-09-29",
+  "metrics": {
+    "tsCodeLines": 506533,
+    "rustCodeLines": 428176,
+    "jsCodeLines": 30590,
+    "filesOver2000": 69,
+    "linesInFilesOver2000": 314544,
+    "tsDuplicatedPercent": 3.3,
+    "tsDuplicatedLines": 13441,
+    "rustDuplicatedPercent": 5.2,
+    "rustDuplicatedLines": 17492,
+    "deadExports": 0,
+    "deadExportLines": 0,
+    "testOnlyExports": 195,
+    "testOnlyExportLines": 2319,
+    "localOnlyExports": 3,
+    "mirroredExportNames": 161,
+    "validationFunctions": 3788,
+    "validationLines": 75067,
+    "helperCopies": 39,
+    "neverPaddingLines": 2482,
+    "rustAllowDeadCode": 111,
+    "refactorPlanDocs": 32,
+    "refactorPlanDocLines": 13421,
+    "refactorCitations": 27
+  }
+}

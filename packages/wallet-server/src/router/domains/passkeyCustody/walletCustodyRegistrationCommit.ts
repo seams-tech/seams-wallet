@@ -46,7 +46,7 @@ import type {
  * requests would let a wallet exist with a partial code set.
  */
 
-export type WalletCustodyRegistrationRecords = {
+type WalletCustodyRegistrationRecords = {
   readonly envelope: PasskeyCustodyEnvelopeRecord;
   readonly recoverySet: WalletRecoveryEnvelopeSetRecord;
   readonly recoveryCodeLocators: readonly WalletRecoveryCodeLocatorRecord[];
@@ -109,7 +109,7 @@ function ownershipFromSealedBinding(raw: unknown, label: string): WalletCustodyE
   return ownership;
 }
 
-export function buildWalletCustodyRegistrationRecords(args: {
+function buildWalletCustodyRegistrationRecords(args: {
   readonly payload: WalletCustodyCeremonyCommitPayload;
   readonly factor: unknown;
   readonly nowMs: number;

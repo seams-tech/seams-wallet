@@ -1,0 +1,164 @@
+{
+  "$schema": "../../../node_modules/wrangler/config-schema.json",
+  "main": "../../../crates/router-ab-cloudflare/build/deriver-b/worker/shim.mjs",
+  "compatibility_date": "2026-06-12",
+  "workers_dev": false,
+  "preview_urls": false,
+  "env": {
+    "d1": {
+      "name": "r150-bench-20260925-d1-deriver-b",
+      "workers_dev": false,
+      "preview_urls": false,
+      "d1_databases": [
+        {
+          "binding": "DERIVER_ROLE_PRIVATE_DB",
+          "database_name": "r150-bench-20260925-d1-deriver-b-db",
+          "database_id": "__R150_BENCH_D1_DERIVER_B_DB_ID__",
+          "migrations_dir": "../../../crates/router-ab-cloudflare/migrations/deriver-b"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "TENANT_ROOT_MANAGED_BACKUP_BUCKET",
+          "bucket_name": "r150-bench-20260925-d1-deriver-b-backup"
+        }
+      ],
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "ROUTER_TENANT_ROOT_CREATION_DO",
+            "class_name": "RouterAbTenantRootCreationDurableObject",
+            "script_name": "r150-bench-20260925-d1-router"
+          }
+        ]
+      },
+      "services": [
+        { "binding": "DERIVER_A", "service": "r150-bench-20260925-d1-deriver-a" }
+      ],
+      "vars": {
+        "ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET_BINDING": "ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET",
+        "DERIVER_ROLE_PRIVATE_D1_KEK_BINDING": "DERIVER_B_ROLE_PRIVATE_D1_KEK",
+        "DERIVER_ROLE_PRIVATE_D1_ROLE": "deriver_b",
+        "DERIVER_ROLE_PRIVATE_D1_KEK_PUBLIC_KEY": "__R150_BENCH_D1_DERIVER_B_D1_KEK_PUBLIC_KEY__",
+        "DERIVER_ROLE_PRIVATE_D1_KEK_VERSION": "r150-bench-r1",
+        "DERIVER_ROLE_PRIVATE_D1_ENVIRONMENT": "r150-bench-20260925-d1",
+        "DERIVER_B_ENVELOPE_HPKE_PRIVATE_KEY_BINDING": "DERIVER_B_ENVELOPE_HPKE_PRIVATE_KEY",
+        "DERIVER_B_ENVELOPE_HPKE_KEY_EPOCH": "epoch-1",
+        "DERIVER_B_ENVELOPE_HPKE_PUBLIC_KEY": "__R150_BENCH_D1_DERIVER_B_HPKE_PUBLIC_KEY__",
+        "DERIVER_A_ENVELOPE_HPKE_KEY_EPOCH": "epoch-1",
+        "DERIVER_A_ENVELOPE_HPKE_PUBLIC_KEY": "__R150_BENCH_D1_DERIVER_A_HPKE_PUBLIC_KEY__",
+        "DERIVER_B_PEER_SIGNING_KEY_BINDING": "DERIVER_B_PEER_SIGNING_KEY",
+        "DERIVER_B_PEER_SIGNING_KEY_EPOCH": "epoch-1",
+        "DERIVER_B_PEER_VERIFYING_KEY_HEX": "__R150_BENCH_D1_DERIVER_B_PEER_VERIFYING_KEY__",
+        "DERIVER_A_PEER_VERIFYING_KEY_HEX": "__R150_BENCH_D1_DERIVER_A_PEER_VERIFYING_KEY__",
+        "DERIVER_A_PEER_BINDING": "DERIVER_A",
+        "TENANT_ROOT_CONTROL_PLANE_ISSUER_VERIFYING_KEYS_JSON": "__R150_BENCH_D1_ISSUER_KEYS_JSON__",
+        "TENANT_ROOT_CONTROL_PLANE_GRANT_AUTHORITY_VERIFYING_KEYS_JSON": "__R150_BENCH_D1_GRANT_KEYS_JSON__",
+        "ROUTER_TENANT_ROOT_CREATION_ROLE_VERIFYING_KEYS_JSON": "__R150_BENCH_D1_ROLE_KEYS_JSON__",
+        "DERIVER_B_TENANT_ROOT_CREATION_SIGNING_KEY_BINDING": "DERIVER_B_TENANT_ROOT_CREATION_SIGNING_KEY",
+        "DERIVER_B_TENANT_ROOT_CREATION_SIGNING_KEY_ID": "__R150_BENCH_D1_DERIVER_B_CREATION_KEY_ID__",
+        "DERIVER_B_TENANT_ROOT_ONLINE_EPOCH_WRAPPING_KEY_REF": "__R150_BENCH_D1_DERIVER_B_ONLINE_KEY_REF__",
+        "DERIVER_B_TENANT_ROOT_ONLINE_HPKE_PUBLIC_KEY": "__R150_BENCH_D1_DERIVER_B_ONLINE_HPKE_PUBLIC_KEY__",
+        "DERIVER_B_TENANT_ROOT_ONLINE_HPKE_PRIVATE_KEY_BINDING": "DERIVER_B_TENANT_ROOT_ONLINE_HPKE_PRIVATE_KEY",
+        "DERIVER_B_TENANT_ROOT_MANAGED_BACKUP_PROVIDER_ID": "__R150_BENCH_D1_DERIVER_B_BACKUP_PROVIDER_ID__",
+        "DERIVER_B_TENANT_ROOT_MANAGED_BACKUP_KEY_VERSION": "r150-bench-deriver-b-backup-r1",
+        "DERIVER_B_TENANT_ROOT_MANAGED_BACKUP_HPKE_PUBLIC_KEY": "__R150_BENCH_D1_DERIVER_B_BACKUP_HPKE_PUBLIC_KEY__",
+        "DERIVER_B_TENANT_ROOT_MANAGED_BACKUP_HPKE_PRIVATE_KEY_BINDING": "DERIVER_B_TENANT_ROOT_MANAGED_BACKUP_HPKE_PRIVATE_KEY"
+      },
+      "secrets": {
+        "required": [
+          "ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET",
+          "DERIVER_B_ENVELOPE_HPKE_PRIVATE_KEY",
+          "DERIVER_B_PEER_SIGNING_KEY",
+          "DERIVER_B_ROLE_PRIVATE_D1_KEK",
+          "DERIVER_B_TENANT_ROOT_CREATION_SIGNING_KEY",
+          "DERIVER_B_TENANT_ROOT_ONLINE_HPKE_PRIVATE_KEY",
+          "DERIVER_B_TENANT_ROOT_MANAGED_BACKUP_HPKE_PRIVATE_KEY"
+        ]
+      }
+    },
+    "do": {
+      "name": "r150-bench-20260925-do-deriver-b",
+      "main": "../../../crates/router-ab-cloudflare/build/wallet-do/deriver-b/worker/shim.mjs",
+      "workers_dev": false,
+      "preview_urls": false,
+      "d1_databases": [
+        {
+          "binding": "DERIVER_ROLE_PRIVATE_DB",
+          "database_name": "r150-bench-20260925-do-deriver-b-db",
+          "database_id": "__R150_BENCH_DO_DERIVER_B_DB_ID__",
+          "migrations_dir": "../../../crates/router-ab-cloudflare/migrations/deriver-b"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "TENANT_ROOT_MANAGED_BACKUP_BUCKET",
+          "bucket_name": "r150-bench-20260925-do-deriver-b-backup"
+        }
+      ],
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "ROUTER_TENANT_ROOT_CREATION_DO",
+            "class_name": "RouterAbTenantRootCreationDurableObject",
+            "script_name": "r150-bench-20260925-do-router"
+          },
+          {
+            "name": "DERIVER_B_WALLET_DO",
+            "class_name": "RouterAbDeriverBWalletDurableObject"
+          }
+        ]
+      },
+      "migrations": [
+        {
+          "tag": "r150-deriver-b-wallet-sqlite-v1",
+          "new_sqlite_classes": ["RouterAbDeriverBWalletDurableObject"]
+        }
+      ],
+      "services": [
+        { "binding": "DERIVER_A", "service": "r150-bench-20260925-do-deriver-a" }
+      ],
+      "vars": {
+        "ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET_BINDING": "ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET",
+        "DERIVER_ROLE_PRIVATE_D1_KEK_BINDING": "DERIVER_B_ROLE_PRIVATE_D1_KEK",
+        "DERIVER_ROLE_PRIVATE_D1_ROLE": "deriver_b",
+        "DERIVER_ROLE_PRIVATE_D1_KEK_PUBLIC_KEY": "__R150_BENCH_DO_DERIVER_B_D1_KEK_PUBLIC_KEY__",
+        "DERIVER_ROLE_PRIVATE_D1_KEK_VERSION": "r150-bench-r1",
+        "DERIVER_ROLE_PRIVATE_D1_ENVIRONMENT": "r150-bench-20260925-do",
+        "DERIVER_B_ENVELOPE_HPKE_PRIVATE_KEY_BINDING": "DERIVER_B_ENVELOPE_HPKE_PRIVATE_KEY",
+        "DERIVER_B_ENVELOPE_HPKE_KEY_EPOCH": "epoch-1",
+        "DERIVER_B_ENVELOPE_HPKE_PUBLIC_KEY": "__R150_BENCH_DO_DERIVER_B_HPKE_PUBLIC_KEY__",
+        "DERIVER_A_ENVELOPE_HPKE_KEY_EPOCH": "epoch-1",
+        "DERIVER_A_ENVELOPE_HPKE_PUBLIC_KEY": "__R150_BENCH_DO_DERIVER_A_HPKE_PUBLIC_KEY__",
+        "DERIVER_B_PEER_SIGNING_KEY_BINDING": "DERIVER_B_PEER_SIGNING_KEY",
+        "DERIVER_B_PEER_SIGNING_KEY_EPOCH": "epoch-1",
+        "DERIVER_B_PEER_VERIFYING_KEY_HEX": "__R150_BENCH_DO_DERIVER_B_PEER_VERIFYING_KEY__",
+        "DERIVER_A_PEER_VERIFYING_KEY_HEX": "__R150_BENCH_DO_DERIVER_A_PEER_VERIFYING_KEY__",
+        "DERIVER_A_PEER_BINDING": "DERIVER_A",
+        "TENANT_ROOT_CONTROL_PLANE_ISSUER_VERIFYING_KEYS_JSON": "__R150_BENCH_DO_ISSUER_KEYS_JSON__",
+        "TENANT_ROOT_CONTROL_PLANE_GRANT_AUTHORITY_VERIFYING_KEYS_JSON": "__R150_BENCH_DO_GRANT_KEYS_JSON__",
+        "ROUTER_TENANT_ROOT_CREATION_ROLE_VERIFYING_KEYS_JSON": "__R150_BENCH_DO_ROLE_KEYS_JSON__",
+        "DERIVER_B_TENANT_ROOT_CREATION_SIGNING_KEY_BINDING": "DERIVER_B_TENANT_ROOT_CREATION_SIGNING_KEY",
+        "DERIVER_B_TENANT_ROOT_CREATION_SIGNING_KEY_ID": "__R150_BENCH_DO_DERIVER_B_CREATION_KEY_ID__",
+        "DERIVER_B_TENANT_ROOT_ONLINE_EPOCH_WRAPPING_KEY_REF": "__R150_BENCH_DO_DERIVER_B_ONLINE_KEY_REF__",
+        "DERIVER_B_TENANT_ROOT_ONLINE_HPKE_PUBLIC_KEY": "__R150_BENCH_DO_DERIVER_B_ONLINE_HPKE_PUBLIC_KEY__",
+        "DERIVER_B_TENANT_ROOT_ONLINE_HPKE_PRIVATE_KEY_BINDING": "DERIVER_B_TENANT_ROOT_ONLINE_HPKE_PRIVATE_KEY",
+        "DERIVER_B_TENANT_ROOT_MANAGED_BACKUP_PROVIDER_ID": "__R150_BENCH_DO_DERIVER_B_BACKUP_PROVIDER_ID__",
+        "DERIVER_B_TENANT_ROOT_MANAGED_BACKUP_KEY_VERSION": "r150-bench-deriver-b-backup-r1",
+        "DERIVER_B_TENANT_ROOT_MANAGED_BACKUP_HPKE_PUBLIC_KEY": "__R150_BENCH_DO_DERIVER_B_BACKUP_HPKE_PUBLIC_KEY__",
+        "DERIVER_B_TENANT_ROOT_MANAGED_BACKUP_HPKE_PRIVATE_KEY_BINDING": "DERIVER_B_TENANT_ROOT_MANAGED_BACKUP_HPKE_PRIVATE_KEY"
+      },
+      "secrets": {
+        "required": [
+          "ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET",
+          "DERIVER_B_ENVELOPE_HPKE_PRIVATE_KEY",
+          "DERIVER_B_PEER_SIGNING_KEY",
+          "DERIVER_B_ROLE_PRIVATE_D1_KEK",
+          "DERIVER_B_TENANT_ROOT_CREATION_SIGNING_KEY",
+          "DERIVER_B_TENANT_ROOT_ONLINE_HPKE_PRIVATE_KEY",
+          "DERIVER_B_TENANT_ROOT_MANAGED_BACKUP_HPKE_PRIVATE_KEY"
+        ]
+      }
+    }
+  }
+}

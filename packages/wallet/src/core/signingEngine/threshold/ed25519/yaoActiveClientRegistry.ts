@@ -21,7 +21,7 @@ export type Ed25519YaoActiveClientIdentityV1 = {
   materialActivation: MpcMaterialActivationRef;
 };
 
-export type Ed25519YaoActiveClientLookupScopeV1 = {
+type Ed25519YaoActiveClientLookupScopeV1 = {
   walletId: WalletId;
   nearAccountId: AccountId;
 };

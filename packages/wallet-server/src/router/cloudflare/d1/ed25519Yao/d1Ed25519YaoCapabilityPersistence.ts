@@ -11,11 +11,8 @@ import {
 } from '../../../../authorization/domain';
 import type { WalletEd25519YaoActiveCapabilityRecord } from '../../../../core/WalletStore';
 import type { D1WalletStore, D1WalletStoreScope } from '../../../../core/d1WalletStore';
-import type {
-  D1DatabaseLike,
-  D1PreparedStatementLike,
-  D1ResultLike,
-} from '../../../../storage/tenantRoute';
+import type { D1DatabaseLike, D1PreparedStatementLike } from '../../../../storage/tenantRoute';
+import { D1_BATCH_CAS_GUARD_SQL } from '../../../../storage/d1Sql';
 import type {
   RouterAbEd25519YaoCapabilityReplacementOperationV1,
   RouterAbEd25519YaoCapabilityPersistenceResultV1,
@@ -143,14 +140,6 @@ function persistenceFailure(code: string, message: string): CapabilityPersistenc
   return { ok: false, disposition: 'rejected', code, message };
 }
 
-function persistenceUncertain(error: unknown): CapabilityPersistenceFailure {
-  return {
-    ok: false,
-    disposition: 'uncertain',
-    code: 'capability_persistence_uncertain',
-    message: error instanceof Error ? error.message : String(error),
-  };
-}
 
 function parseRecordJson(value: unknown): unknown {
   if (typeof value !== 'string' || !value) {
@@ -175,7 +164,7 @@ export class CloudflareD1RouterAbEd25519YaoCapabilityPersistence implements Rout
     this.now = options.now ?? Date.now;
   }
 
-  async replaceActiveCapability(input: {
+  async prepareActiveCapabilityReplacement(input: {
     readonly operation: RouterAbEd25519YaoCapabilityReplacementOperationV1;
     readonly previous: WalletEd25519YaoActiveCapabilityRecord;
     readonly next: WalletEd25519YaoActiveCapabilityRecord;
@@ -261,97 +250,80 @@ export class CloudflareD1RouterAbEd25519YaoCapabilityPersistence implements Rout
     const nextJson = JSON.stringify(replacement);
     const previousBindingJson = JSON.stringify(input.previous.activeCapabilityBinding);
     const nextBindingJson = JSON.stringify(input.next.activeCapabilityBinding);
-    try {
-      const statements: D1PreparedStatementLike[] = [
-        this.database
-          .prepare(
-            `UPDATE wallet_signers
-                SET record_json = ?,
-                    updated_at_ms = ?
-              WHERE namespace = ?
-                AND org_id = ?
-                AND project_id = ?
-                AND env_id = ?
-                AND wallet_id = ?
-                AND signer_family = 'ed25519'
-                AND signer_id = ?
-                AND record_json = ?`,
+    const statements: D1PreparedStatementLike[] = [
+      this.database
+        .prepare(
+          `UPDATE wallet_signers
+              SET record_json = ?,
+                  updated_at_ms = ?
+            WHERE namespace = ?
+              AND org_id = ?
+              AND project_id = ?
+              AND env_id = ?
+              AND wallet_id = ?
+              AND signer_family = 'ed25519'
+              AND signer_id = ?
+              AND record_json = ?`,
+        )
+        .bind(
+          nextJson,
+          now,
+          this.scope.namespace,
+          this.scope.orgId,
+          this.scope.projectId,
+          this.scope.envId,
+          signer.walletId,
+          signer.signerId,
+          previousJson,
+        ),
+      // The signer row must still hold the capability being replaced.
+      this.database.prepare(D1_BATCH_CAS_GUARD_SQL),
+    ];
+    // The receipt is inserted once per operation: a second insert aborts.
+    statements.push(
+      this.database
+        .prepare(
+          `INSERT INTO ${ROUTER_AB_ED25519_YAO_CAPABILITY_REPLACEMENT_TABLE_V1} (
+            namespace,
+            org_id,
+            project_id,
+            env_id,
+            operation_id,
+            operation_fingerprint,
+            previous_capability_binding_json,
+            next_capability_binding_json,
+            created_at_ms
           )
-          .bind(
-            nextJson,
-            now,
-            this.scope.namespace,
-            this.scope.orgId,
-            this.scope.projectId,
-            this.scope.envId,
-            signer.walletId,
-            signer.signerId,
-            previousJson,
-          ),
-      ];
-      /* The receipt insert must run directly after the guarded signer update:
-         its changes() guard reads the immediately preceding statement, and a
-         later authority or session replacement that legitimately matches zero
-         rows would otherwise skip the receipt while the signer row commits —
-         leaving a durable promotion the retry can no longer recognize. */
-      statements.push(
-        this.database
-          .prepare(
-            `INSERT INTO ${ROUTER_AB_ED25519_YAO_CAPABILITY_REPLACEMENT_TABLE_V1} (
-              namespace,
-              org_id,
-              project_id,
-              env_id,
-              operation_id,
-              operation_fingerprint,
-              previous_capability_binding_json,
-              next_capability_binding_json,
-              created_at_ms
-            )
-            SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?
-             WHERE changes() = 1`,
-          )
-          .bind(
-            this.scope.namespace,
-            this.scope.orgId,
-            this.scope.projectId,
-            this.scope.envId,
-            operation.value.operationId,
-            operation.value.operationFingerprint,
-            previousBindingJson,
-            nextBindingJson,
-            now,
-          ),
-      );
-      for (const authorityReplacement of authorityReplacements) {
-        statements.push(this.prepareAuthorityReplacementStatement(authorityReplacement));
-        for (const session of authorityReplacement.sessions) {
-          statements.push(
-            this.prepareSessionAuthorityProjectionReplacementStatement({
-              previous: session,
-              authority: authorityReplacement.next,
-            }),
-          );
-        }
-      }
-      const results = await this.database.batch<D1ResultLike>(statements);
-      requireSuccessfulBatch(results, statements.length);
-    } catch (error: unknown) {
-      return await this.reconcileAfterUncertainWrite(operation.value, input, error);
-    }
-    const receipt = await this.readReceipt(operation.value.operationId);
-    const committed = matchReceipt(receipt, operation.value, input);
-    if (committed === 'match') return { ok: true, disposition: 'applied' };
-    if (committed === 'conflict') {
-      return persistenceFailure(
-        'operation_conflict',
-        'capability replacement operation raced with a different activation',
-      );
-    }
-    return persistenceFailure(
-      'capability_conflict',
-      'durable Yao capability changed before recovery promotion',
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        )
+        .bind(
+          this.scope.namespace,
+          this.scope.orgId,
+          this.scope.projectId,
+          this.scope.envId,
+          operation.value.operationId,
+          operation.value.operationFingerprint,
+          previousBindingJson,
+          nextBindingJson,
+          now,
+        ),
     );
+    for (const authorityReplacement of authorityReplacements) {
+      statements.push(this.prepareAuthorityReplacementStatement(authorityReplacement));
+      // Each authority must still be the one read above.
+      statements.push(this.database.prepare(D1_BATCH_CAS_GUARD_SQL));
+      /* A session retired since it was read legitimately matches no row:
+         it no longer projects any capability. */
+      for (const session of authorityReplacement.sessions) {
+        statements.push(
+          this.prepareSessionAuthorityProjectionReplacementStatement({
+            previous: session,
+            authority: authorityReplacement.next,
+          }),
+        );
+      }
+    }
+    return { ok: true, disposition: 'prepared', write: { statements } };
   }
 
   private async ensureSchema(): Promise<void> {
@@ -559,30 +531,6 @@ export class CloudflareD1RouterAbEd25519YaoCapabilityPersistence implements Rout
       )
       .first<CapabilityReplacementReceiptRow>();
   }
-
-  private async reconcileAfterUncertainWrite(
-    operation: RouterAbEd25519YaoCapabilityReplacementOperationV1,
-    input: {
-      readonly previous: WalletEd25519YaoActiveCapabilityRecord;
-      readonly next: WalletEd25519YaoActiveCapabilityRecord;
-    },
-    error: unknown,
-  ): Promise<RouterAbEd25519YaoCapabilityPersistenceResultV1> {
-    try {
-      const receipt = await this.readReceipt(operation.operationId);
-      const matched = matchReceipt(receipt, operation, input);
-      if (matched === 'match') return { ok: true, disposition: 'exact_retry' };
-      if (matched === 'conflict') {
-        return persistenceFailure(
-          'operation_conflict',
-          'capability replacement operation belongs to a different activation',
-        );
-      }
-    } catch {
-      return persistenceUncertain(error);
-    }
-    return persistenceUncertain(error);
-  }
 }
 
 type ReplacementOperationValidation =
@@ -645,8 +593,3 @@ function matchReceipt(
     : 'conflict';
 }
 
-function requireSuccessfulBatch(results: readonly D1ResultLike[], expectedLength: number): void {
-  if (results.length !== expectedLength || results.some((result) => result.success !== true)) {
-    throw new Error('capability replacement D1 batch failed');
-  }
-}

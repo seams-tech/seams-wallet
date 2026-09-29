@@ -23,18 +23,6 @@ function fakeRouterApiServiceBag(): RouterApiServiceBag {
   } as unknown as RouterApiServiceBag;
 }
 
-function fakeRouterApiServiceBagForRouterHealth(): RouterApiServiceBag {
-  return {
-    router: {
-      getConfiguredRelayerAccount: () => 'self-host.testnet',
-    },
-    thresholdRuntime: {
-      getRouterAbNormalSigningRuntime: () => null,
-      getRouterAbEcdsaPresignRuntime: () => null,
-    },
-  } as unknown as RouterApiServiceBag;
-}
-
 async function responseSnapshot(response: Response): Promise<{
   readonly status: number;
   readonly body: unknown;
@@ -66,12 +54,20 @@ test('self-host Cloudflare signing router exposes health without hosted Router A
   });
   expect(health.headers.get('access-control-allow-origin')).toBe('*');
 
-  const hostedOnlyRoute = await router(
-    new Request('https://self-host.example.test/sponsored-evm-call', { method: 'POST' }),
+  const hostedOnlyPath = '/.well-known/webauthn';
+  const hosted = createCloudflareRouter(fakeRouterApiServiceBag(), { logger: console });
+  const hostedResponse = await hosted(
+    new Request(`https://hosted.example.test${hostedOnlyPath}`),
     {},
     fakeCtx,
   );
-  expect(hostedOnlyRoute.status).toBe(404);
+  expect(hostedResponse.status).not.toBe(404);
+  const selfHostedResponse = await router(
+    new Request(`https://self-host.example.test${hostedOnlyPath}`),
+    {},
+    fakeCtx,
+  );
+  expect(selfHostedResponse.status).toBe(404);
 });
 
 test('self-host Cloudflare signing worker creates per-request service and options', async () => {
@@ -95,7 +91,7 @@ test('self-host Cloudflare signing worker creates per-request service and option
 });
 
 test('hosted and self-host Cloudflare routers preserve threshold health route parity', async () => {
-  const service = fakeRouterApiServiceBagForRouterHealth();
+  const service = fakeRouterApiServiceBag();
   const hosted = createCloudflareRouter(service, { logger: console });
   const selfHosted = createSelfHostedCloudflareSigningRouter(service, {
     logger: console,

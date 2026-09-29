@@ -8,7 +8,7 @@ import type {
 
 type AssertNever<T extends never> = T;
 
-type ActivationUncertaintyCannotCrossCommitBoundary = AssertNever<
+export type ActivationUncertaintyCannotCrossCommitBoundary = AssertNever<
   Extract<
     RouterAbEd25519YaoRecoveryActivationCommitInputV1['outcome'],
     { readonly kind: 'backend_uncertain' }
@@ -30,6 +30,16 @@ const activationClaim: RouterAbEd25519YaoRecoveryActivationClaimV1 = {
   activationFingerprint: replacementOperation.operationFingerprint,
   authorityProjection: replacementOperation.authorityProjection,
   disposition: 'initial',
+  dispatchRoot: {
+    identity: {
+      orgId: 'org-1',
+      projectId: 'project-1',
+      envId: 'env-1',
+      signingRootId: 'root-1',
+      signingRootVersion: 'v1',
+    },
+    custody_lineage_b64u: 'AQEBAQEBAQEBAQEBAQEBAQ',
+  },
 };
 
 const activeCapabilityLookup: RouterAbEd25519YaoActiveCapabilityLookupV1 = {
@@ -60,6 +70,7 @@ const claimWithoutDisposition: RouterAbEd25519YaoRecoveryActivationClaimV1 = {
   sessionId: activationClaim.sessionId,
   activationFingerprint: activationClaim.activationFingerprint,
   authorityProjection: activationClaim.authorityProjection,
+  dispatchRoot: activationClaim.dispatchRoot,
 };
 
 // @ts-expect-error successful persistence must distinguish a write from receipt redelivery

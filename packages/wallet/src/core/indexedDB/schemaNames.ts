@@ -111,7 +111,7 @@ export const SEAMS_WALLET_INDEXES = {
 
 export type SeamsWalletStoreName = (typeof SEAMS_WALLET_STORES)[keyof typeof SEAMS_WALLET_STORES];
 
-export type SeamsWalletIndexDefinition = {
+type SeamsWalletIndexDefinition = {
   name: (typeof SEAMS_WALLET_INDEXES)[keyof typeof SEAMS_WALLET_INDEXES];
   keyPath: string | readonly string[];
   unique: boolean;

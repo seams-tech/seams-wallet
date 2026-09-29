@@ -24,9 +24,7 @@ import type {
   RevokeSigningLaneV1,
 } from '@shared/signing-lanes';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
-import { parseCorrelationId, parseDigestB64u } from '@shared/utils/canonicalPrimitives';
-import { base64UrlEncode } from '@shared/utils/base64';
-import { sha256Bytes } from '@shared/utils/digests';
+import { parseCorrelationId, sha256DigestB64u } from '@shared/utils/canonicalPrimitives';
 
 export type LaneLifecycleProtocolCommitRequestV1 =
   | {
@@ -277,8 +275,8 @@ export class LaneLifecycleApplicationService {
   ): Promise<LaneRefreshPredecessorRetirementV1> {
     const protocolCommitReceipt = parseLaneProtocolCommitReceiptV1(request.protocolCommitReceipt);
     assertProtocolReceiptMatchesJob(protocolCommitReceipt, request.job);
-    const retirementRequestDigestB64u = parseDigestB64u(
-      base64UrlEncode(await sha256Bytes(encodeLaneProtocolCommitReceiptV1(protocolCommitReceipt))),
+    const retirementRequestDigestB64u = await sha256DigestB64u(
+      encodeLaneProtocolCommitReceiptV1(protocolCommitReceipt),
     );
     const command = buildRevokeSigningLaneV1({
       walletId: request.job.walletId,

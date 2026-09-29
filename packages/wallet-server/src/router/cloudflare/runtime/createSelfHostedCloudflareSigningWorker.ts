@@ -9,8 +9,6 @@ import { json, withCors } from '../../framework/http';
 import { handleThresholdEd25519 } from '../../transport/fetch/routes/thresholdEd25519';
 import { handleThresholdEcdsa } from '../../transport/fetch/routes/thresholdEcdsa';
 import type { FetchRouterRuntime } from '../../transport/fetch/fetchRouter.types';
-import { isPlainObject } from '@shared/utils/validation';
-import { parseWalletId, type WalletId } from '@shared/utils/domainIds';
 
 type SelfHostedCloudflareRouterApiContext = Parameters<typeof handleThresholdEd25519>[0];
 
@@ -36,23 +34,6 @@ export type SelfHostedCloudflareSigningWorkerFactoryInput<Env extends CfEnv = Cf
 
 function notFound(): Response {
   return new Response('Not Found', { status: 404 });
-}
-
-function requireBodyString(body: unknown, name: string): string | null {
-  if (!isPlainObject(body)) return null;
-  const value = typeof body[name] === 'string' ? body[name].trim() : '';
-  return value || null;
-}
-
-function optionalBodyString(body: unknown, name: string): string | undefined {
-  return requireBodyString(body, name) || undefined;
-}
-
-function requireWalletId(body: unknown, name: string): WalletId | null {
-  const value = requireBodyString(body, name);
-  if (!value) return null;
-  const parsed = parseWalletId(value);
-  return parsed.ok ? parsed.value : null;
 }
 
 function selfHostedHealthResponse(ctx: SelfHostedCloudflareRouterApiContext): Response | null {
@@ -111,7 +92,7 @@ export function createSelfHostedCloudflareSigningRouter(
   }
   const logger = coerceRouterLogger(effectiveOpts.logger);
 
-  const handler: FetchHandler = async (request, env, cfCtx): Promise<Response> => {
+  const handler: FetchHandler = async (request, _env, cfCtx): Promise<Response> => {
     if (request.method.toUpperCase() === 'OPTIONS') {
       const res = new Response(null, { status: 204 });
       withCors(res.headers, effectiveOpts, request);

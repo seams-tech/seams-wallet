@@ -127,10 +127,6 @@ fn typed_context_and_transcript_use_validating_deserialize_impls() {
 #[test]
 fn library_code_does_not_log_or_debug_print() {
     for path in rust_source_files() {
-        if is_allowed_logging_file(&path) {
-            continue;
-        }
-
         let source = fs::read_to_string(&path).expect("source file should read");
         for forbidden in ["println!", "eprintln!", "dbg!"] {
             assert!(
@@ -253,6 +249,17 @@ fn ab_peer_payloads_do_not_carry_combined_or_root_secret_material() {
         assert!(
             !payload_rs.contains(forbidden),
             "A/B peer payload module imports forbidden secret-bearing type `{forbidden}`"
+        );
+    }
+}
+
+#[test]
+fn ecdsa_threshold_prf_backend_rejects_legacy_two_of_three_policy() {
+    let backend_rs = read_src_file("ecdsa_threshold_prf_backend.rs");
+    for forbidden in ["from_u16s(2, 3)", "Role::SignerB => 3"] {
+        assert!(
+            !backend_rs.contains(forbidden),
+            "fixed ECDSA threshold PRF must reject legacy 2-of-3 policy `{forbidden}`"
         );
     }
 }
@@ -410,8 +417,4 @@ fn collect_rust_files(dir: &Path, out: &mut Vec<PathBuf>) {
             out.push(path);
         }
     }
-}
-
-fn is_allowed_logging_file(path: &Path) -> bool {
-    path.ends_with(Path::new("src/bin/emit_contract_vectors.rs"))
 }
