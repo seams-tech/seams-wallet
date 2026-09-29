@@ -338,7 +338,7 @@ type EmailOtpTargetActivationContextV1 = EmailOtpTargetActivationBaseContextV1 &
 };
 
 function emailOtpTargetActivationBaseContextV1(
-  context: EmailOtpTargetActivationContextV1,
+  context: EmailOtpTargetActivationBaseContextV1,
 ): EmailOtpTargetActivationBaseContextV1 {
   return {
     event: context.event,
@@ -795,16 +795,7 @@ class LinkDeviceFlow {
           case 'awaiting_target_factor':
           case 'awaiting_source_contribution':
           case 'provisioning': {
-            const identity = await this.resolveLinkIdentityV1(session.linkSessionId);
-            await authenticatedTransport.cancelSessionV1({
-              request: buildLinkedDeviceSessionCancelClaimedRequestV1({
-                linkSessionId: session.linkSessionId,
-                enrollmentId: identity.enrollmentId,
-                deviceId: identity.deviceId,
-                reason: 'user_cancelled',
-                requestedAtMs: now,
-              }),
-            });
+            await this.cancelClaimedSessionV1(authenticatedTransport, session.linkSessionId, now);
             this.session = {
               ...session,
               state: { state: 'cancelled', cancelledAtMs: now },
@@ -870,6 +861,23 @@ class LinkDeviceFlow {
       enrollmentId: preparation.enrollmentId,
       deviceId: preparation.deviceId,
     };
+  }
+
+  private async cancelClaimedSessionV1(
+    transport: DeviceLinkingAuthenticatedTransportPortV1,
+    linkSessionId: import('@shared/signing-lanes/ids').LinkDeviceSessionId,
+    requestedAtMs: number,
+  ): Promise<void> {
+    const identity = await this.resolveLinkIdentityV1(linkSessionId);
+    await transport.cancelSessionV1({
+      request: buildLinkedDeviceSessionCancelClaimedRequestV1({
+        linkSessionId,
+        enrollmentId: identity.enrollmentId,
+        deviceId: identity.deviceId,
+        reason: 'user_cancelled',
+        requestedAtMs,
+      }),
+    });
   }
 
   private async handleSessionEvent(event: LinkSessionTransportEventV1): Promise<void> {
@@ -947,31 +955,9 @@ class LinkDeviceFlow {
         );
         return;
       }
-      case 'active': {
-        const result = await this.activateAuthorityForStateV1(event.state, runEpoch);
-        if (result.kind === 'pending_local_install') return;
-        if (result.kind === 'integrity_error') {
-          throw new DeviceLinkingError(
-            `Linked-device authority replay failed: ${result.reason}`,
-            DeviceLinkingErrorCode.REGISTRATION_FAILED,
-            'registration',
-          );
-        }
-        if (result.kind === 'failed_before_commit' || result.kind === 'relink_required') {
-          throw new DeviceLinkingError(
-            'Linked-device authority replay cannot continue',
-            DeviceLinkingErrorCode.REGISTRATION_FAILED,
-            'registration',
-          );
-        }
-        await this.finishActiveAuthorityV1(
-          event.state,
-          result.session,
-          result.operationCredential,
-          runEpoch,
-        );
+      case 'active':
+        await this.replayCommittedAuthorityV1(event.state, runEpoch);
         return;
-      }
       case 'expired': {
         const error = new DeviceLinkingError(
           'Device-link session expired',
@@ -1186,23 +1172,7 @@ class LinkDeviceFlow {
         },
       });
       this.assertCurrentRun(context.runEpoch);
-      const nextContext: EmailOtpTargetActivationContextV1 = {
-        event: context.event,
-        state: context.state,
-        runEpoch: context.runEpoch,
-        deviceId: context.deviceId,
-        preparation: context.preparation,
-        ordinarySignerMaterialRecipientRequests: context.ordinarySignerMaterialRecipientRequests,
-        exportRoot: context.exportRoot,
-        challenge,
-      };
-      this.emailOtpTargetActivationState = { kind: 'awaiting_code', context: nextContext };
-      this.notifyEmailOtpActivationV1({
-        kind: 'code_input',
-        maskedEmailHint: challenge.maskedEmailHint,
-        expiresAtMs: challenge.expiresAtMs,
-        resendAvailableAtMs: challenge.resendAvailableAtMs,
-      });
+      this.awaitTargetEmailOtpCodeV1(context, challenge);
     } catch (error: unknown) {
       if (this.isCurrentRun(context.runEpoch)) {
         this.emailOtpTargetActivationState = { kind: 'available', context };
@@ -1213,6 +1183,22 @@ class LinkDeviceFlow {
       }
       throw error;
     }
+  }
+
+  private awaitTargetEmailOtpCodeV1(
+    context: EmailOtpTargetActivationBaseContextV1,
+    challenge: LinkedDeviceEmailOtpChallengeResultV1,
+  ): void {
+    this.emailOtpTargetActivationState = {
+      kind: 'awaiting_code',
+      context: { ...emailOtpTargetActivationBaseContextV1(context), challenge },
+    };
+    this.notifyEmailOtpActivationV1({
+      kind: 'code_input',
+      maskedEmailHint: challenge.maskedEmailHint,
+      expiresAtMs: challenge.expiresAtMs,
+      resendAvailableAtMs: challenge.resendAvailableAtMs,
+    });
   }
 
   private resendTargetEmailOtpCodeV1(): Promise<void> {
@@ -1251,23 +1237,7 @@ class LinkDeviceFlow {
         },
       });
       this.assertCurrentRun(context.runEpoch);
-      const nextContext: EmailOtpTargetActivationContextV1 = {
-        event: context.event,
-        state: context.state,
-        runEpoch: context.runEpoch,
-        deviceId: context.deviceId,
-        preparation: context.preparation,
-        ordinarySignerMaterialRecipientRequests: context.ordinarySignerMaterialRecipientRequests,
-        exportRoot: context.exportRoot,
-        challenge,
-      };
-      this.emailOtpTargetActivationState = { kind: 'awaiting_code', context: nextContext };
-      this.notifyEmailOtpActivationV1({
-        kind: 'code_input',
-        maskedEmailHint: challenge.maskedEmailHint,
-        expiresAtMs: challenge.expiresAtMs,
-        resendAvailableAtMs: challenge.resendAvailableAtMs,
-      });
+      this.awaitTargetEmailOtpCodeV1(context, challenge);
     } catch (error: unknown) {
       if (this.isCurrentRun(context.runEpoch)) {
         const message = errorMessage(error) || 'Email OTP resend is unavailable';
@@ -1436,35 +1406,14 @@ class LinkDeviceFlow {
           enrollmentId: emailOtpEnrollmentId,
           enrollmentSealKeyVersion: emailOtpEnrollmentSealKeyVersion,
         });
-        const binding = buildEd25519YaoClientRootBinding({
-          linkSessionId: preparation.linkSessionId,
-          walletKeyId: exportRoot.walletKeyId,
-          targetFactor: preparation.targetFactor,
-          applicationBindingDigestB64u: exportRoot.applicationBindingDigestB64u,
-          registeredPublicKeyB64u: exportRoot.registeredPublicKeyB64u,
-          enrollmentId: preparation.enrollmentId,
-          deviceId: preparation.deviceId,
-          revocationEpoch: exportRoot.revocationEpoch,
-        });
-        const resealed = await acceptLinkedDeviceEd25519ExportRootV1({
-          ed25519ExportRoot: this.ports.ed25519ExportRoot,
-          transport: this.requireAuthenticatedTransport(),
+        const resealed = await this.acceptTargetExportRootV1({
+          preparation,
+          exportRoot,
           recipient,
-          replacementEnvelope: buildDeviceLinkingEd25519ExportRootReplacementEnvelopeV1({
-            walletId: preparation.walletId,
-            ownership: buildMethodBoundEnvelopeOwnership(preparation.walletAuthMethodId),
-            envelopeId,
-            factor,
-            binding,
-            createdAtMs: Date.now(),
-          }),
+          envelopeId,
+          factor,
           replacementFactorSecret: new Uint8Array(factorSecret),
-          expiresAtMs: Math.min(
-            preparation.expiresAtMs,
-            this.requireSessionV1().qrData.expiresAtMs,
-          ),
-          assertCurrentRun: () => this.assertCurrentRun(context.runEpoch),
-          waitForPollV1: waitForSessionStateRetry,
+          runEpoch: context.runEpoch,
         });
         this.resealedExportRoot = resealed;
         recipient = null;
@@ -1760,32 +1709,14 @@ class LinkDeviceFlow {
           rpId: requireTargetRpIdV1(preparation),
           credentialIdB64u: credential.webauthnRegistration.credentialIdB64u,
         });
-        const binding = buildEd25519YaoClientRootBinding({
-          linkSessionId: preparation.linkSessionId,
-          walletKeyId: exportRoot.walletKeyId,
-          targetFactor: preparation.targetFactor,
-          applicationBindingDigestB64u: exportRoot.applicationBindingDigestB64u,
-          registeredPublicKeyB64u: exportRoot.registeredPublicKeyB64u,
-          enrollmentId: preparation.enrollmentId,
-          deviceId: preparation.deviceId,
-          revocationEpoch: exportRoot.revocationEpoch,
-        });
-        const resealed = await acceptLinkedDeviceEd25519ExportRootV1({
-          ed25519ExportRoot: this.ports.ed25519ExportRoot,
-          transport: authenticatedTransport,
+        const resealed = await this.acceptTargetExportRootV1({
+          preparation,
+          exportRoot,
           recipient,
-          replacementEnvelope: buildDeviceLinkingEd25519ExportRootReplacementEnvelopeV1({
-            walletId: preparation.walletId,
-            ownership: buildMethodBoundEnvelopeOwnership(preparation.walletAuthMethodId),
-            envelopeId,
-            factor,
-            binding,
-            createdAtMs: Date.now(),
-          }),
+          envelopeId,
+          factor,
           replacementFactorSecret: credential.factorSecret,
-          expiresAtMs: Math.min(preparation.expiresAtMs, this.session.qrData.expiresAtMs),
-          assertCurrentRun: () => this.assertCurrentRun(runEpoch),
-          waitForPollV1: waitForSessionStateRetry,
+          runEpoch,
         });
         logDevice2LinkingStageV1({
           flowId: this.flowId,
@@ -1853,6 +1784,48 @@ class LinkDeviceFlow {
       }
       throw error;
     }
+  }
+
+  // The target factor's new envelope replaces the export root Device 1 sealed to this device.
+  private async acceptTargetExportRootV1(input: {
+    readonly preparation: LinkedDeviceTargetPreparationV1;
+    readonly exportRoot: NonNullable<LinkedDeviceTargetPreparationV1['ed25519ExportRoot']>;
+    readonly recipient: DeviceLinkingEd25519ExportRootRecipientHandleV1;
+    readonly envelopeId: PasskeyEnvelopeId;
+    readonly factor: Parameters<
+      typeof buildDeviceLinkingEd25519ExportRootReplacementEnvelopeV1
+    >[0]['factor'];
+    readonly replacementFactorSecret: Uint8Array;
+    readonly runEpoch: number;
+  }): ReturnType<typeof acceptLinkedDeviceEd25519ExportRootV1> {
+    const { preparation, exportRoot } = input;
+    const binding = buildEd25519YaoClientRootBinding({
+      linkSessionId: preparation.linkSessionId,
+      walletKeyId: exportRoot.walletKeyId,
+      targetFactor: preparation.targetFactor,
+      applicationBindingDigestB64u: exportRoot.applicationBindingDigestB64u,
+      registeredPublicKeyB64u: exportRoot.registeredPublicKeyB64u,
+      enrollmentId: preparation.enrollmentId,
+      deviceId: preparation.deviceId,
+      revocationEpoch: exportRoot.revocationEpoch,
+    });
+    return await acceptLinkedDeviceEd25519ExportRootV1({
+      ed25519ExportRoot: this.ports.ed25519ExportRoot,
+      transport: this.requireAuthenticatedTransport(),
+      recipient: input.recipient,
+      replacementEnvelope: buildDeviceLinkingEd25519ExportRootReplacementEnvelopeV1({
+        walletId: preparation.walletId,
+        ownership: buildMethodBoundEnvelopeOwnership(preparation.walletAuthMethodId),
+        envelopeId: input.envelopeId,
+        factor: input.factor,
+        binding,
+        createdAtMs: Date.now(),
+      }),
+      replacementFactorSecret: input.replacementFactorSecret,
+      expiresAtMs: Math.min(preparation.expiresAtMs, this.requireSessionV1().qrData.expiresAtMs),
+      assertCurrentRun: () => this.assertCurrentRun(input.runEpoch),
+      waitForPollV1: waitForSessionStateRetry,
+    });
   }
 
   private assertTargetPreparationMatchesSession(input: {
@@ -2023,20 +1996,7 @@ class LinkDeviceFlow {
     await this.ports.authorityInstallation.persistPendingActivationAcknowledgementV1({
       acknowledgement,
     });
-    /* The acknowledgement commits the server's cleanup batch, which deletes
-       the link session. The poller must already be closed by then, or its next
-       tick reads the deleted session as a spurious not_found. The durable
-       pending acknowledgement above keeps replay possible without it. */
-    await this.closeSessionSubscriptionV1();
-    await this.requireAuthenticatedTransport().acknowledgeLocalAuthorityActivationV1({
-      acknowledgement,
-    });
-    await this.ports.authorityInstallation.clearPendingActivationAcknowledgementV1({
-      authorityId: acknowledgement.authorityId,
-    });
-    await this.ports.authorityInstallation.clearCommittedDeliveryResumeV1({
-      authorityId: acknowledgement.authorityId,
-    });
+    await this.sendActivationAcknowledgementV1(acknowledgement);
     this.session = activeSession;
     authenticationContext.signingEngine.setWalletAuthenticated(
       linkedDeviceWalletAuthenticationState(walletSession, registration),
@@ -2102,13 +2062,9 @@ class LinkDeviceFlow {
   }
 
   private startRun(): number {
-    this.clearTargetCredentialActivationState();
-    this.clearEmailOtpTargetActivationState();
-    this.resealedExportRoot = null;
-    this.targetCredentialRegistrationResult = null;
+    this.clearRunActivationStateV1();
     this.committedAuthorityPackages = null;
     this.deliveryRecoveryReason = null;
-    this.ordinarySignerMaterialRecipientPreparation = null;
     this.runEpoch += 1;
     this.generationInProgress = true;
     this.cancelled = false;
@@ -2215,12 +2171,8 @@ class LinkDeviceFlow {
         error: cleanupError,
       });
     }
-    this.clearTargetCredentialActivationState();
-    this.clearEmailOtpTargetActivationState();
-    this.resealedExportRoot = null;
-    this.targetCredentialRegistrationResult = null;
+    this.clearRunActivationStateV1();
     this.committedAuthorityPackages = null;
-    this.ordinarySignerMaterialRecipientPreparation = null;
     this.keyMaterialHandle = null;
     this.deliveryRecipientPublicKey65B64u = null;
     this.authenticatedTransport = null;
@@ -2234,35 +2186,38 @@ class LinkDeviceFlow {
     switch (event.state.state) {
       case 'provisioning':
       case 'authority_pending_local_install':
-      case 'active': {
-        const runEpoch = this.runEpoch;
-        const result = await this.activateAuthorityForStateV1(event.state, runEpoch);
-        if (result.kind === 'pending_local_install') return;
-        if (result.kind === 'integrity_error') {
-          throw new DeviceLinkingError(
-            `Linked-device authority replay failed: ${result.reason}`,
-            DeviceLinkingErrorCode.REGISTRATION_FAILED,
-            'registration',
-          );
-        }
-        if (result.kind === 'failed_before_commit' || result.kind === 'relink_required') {
-          throw new DeviceLinkingError(
-            'Linked-device authority replay cannot continue',
-            DeviceLinkingErrorCode.REGISTRATION_FAILED,
-            'registration',
-          );
-        }
-        await this.finishActiveAuthorityV1(
-          event.state,
-          result.session,
-          result.operationCredential,
-          runEpoch,
-        );
+      case 'active':
+        await this.replayCommittedAuthorityV1(event.state, this.runEpoch);
         return;
-      }
       default:
         throw new Error(`committed link delivery cannot resume from ${event.state.state}`);
     }
+  }
+
+  private async replayCommittedAuthorityV1(
+    state: Extract<
+      LinkSessionStateV1,
+      { readonly state: 'provisioning' | 'authority_pending_local_install' | 'active' }
+    >,
+    runEpoch: number,
+  ): Promise<void> {
+    const result = await this.activateAuthorityForStateV1(state, runEpoch);
+    if (result.kind === 'pending_local_install') return;
+    if (result.kind === 'integrity_error') {
+      throw new DeviceLinkingError(
+        `Linked-device authority replay failed: ${result.reason}`,
+        DeviceLinkingErrorCode.REGISTRATION_FAILED,
+        'registration',
+      );
+    }
+    if (result.kind === 'failed_before_commit' || result.kind === 'relink_required') {
+      throw new DeviceLinkingError(
+        'Linked-device authority replay cannot continue',
+        DeviceLinkingErrorCode.REGISTRATION_FAILED,
+        'registration',
+      );
+    }
+    await this.finishActiveAuthorityV1(state, result.session, result.operationCredential, runEpoch);
   }
 
   private async replayPendingActivationAcknowledgementV1(): Promise<boolean> {
@@ -2280,17 +2235,27 @@ class LinkDeviceFlow {
     ) {
       throw new Error('pending linked-device acknowledgement identity is inconsistent');
     }
+    await this.sendActivationAcknowledgementV1(pending);
+    return true;
+  }
+
+  private async sendActivationAcknowledgementV1(
+    acknowledgement: LocalAuthorityActivationFinalAckV1,
+  ): Promise<void> {
+    /* The acknowledgement commits the server's cleanup batch, which deletes
+       the link session. The poller must already be closed by then, or its next
+       tick reads the deleted session as a spurious not_found. The durable
+       pending acknowledgement keeps replay possible without it. */
     await this.closeSessionSubscriptionV1();
     await this.requireAuthenticatedTransport().acknowledgeLocalAuthorityActivationV1({
-      acknowledgement: pending,
+      acknowledgement,
     });
     await this.ports.authorityInstallation.clearPendingActivationAcknowledgementV1({
-      authorityId: pending.authorityId,
+      authorityId: acknowledgement.authorityId,
     });
     await this.ports.authorityInstallation.clearCommittedDeliveryResumeV1({
-      authorityId: pending.authorityId,
+      authorityId: acknowledgement.authorityId,
     });
-    return true;
   }
 
   private async cancelFailedPrecommitSession(event: LinkSessionTransportEventV1): Promise<void> {
@@ -2302,16 +2267,7 @@ class LinkDeviceFlow {
       case 'awaiting_source_contribution':
       case 'provisioning': {
         const cancelledAtMs = Date.now();
-        const identity = await this.resolveLinkIdentityV1(event.linkSessionId);
-        await transport.cancelSessionV1({
-          request: buildLinkedDeviceSessionCancelClaimedRequestV1({
-            linkSessionId: event.linkSessionId,
-            enrollmentId: identity.enrollmentId,
-            deviceId: identity.deviceId,
-            reason: 'user_cancelled',
-            requestedAtMs: cancelledAtMs,
-          }),
-        });
+        await this.cancelClaimedSessionV1(transport, event.linkSessionId, cancelledAtMs);
         if (this.session?.linkSessionId === event.linkSessionId) {
           this.session = {
             ...this.session,
@@ -2335,13 +2291,7 @@ class LinkDeviceFlow {
   private async cleanupLocalResources(force = false): Promise<void> {
     if (!force && this.hasCommittedDeliveryState()) return;
     const preserveCommittedState = force && this.hasCommittedDeliveryState();
-    if (!preserveCommittedState) {
-      this.clearTargetCredentialActivationState();
-      this.clearEmailOtpTargetActivationState();
-      this.resealedExportRoot = null;
-      this.targetCredentialRegistrationResult = null;
-      this.ordinarySignerMaterialRecipientPreparation = null;
-    }
+    if (!preserveCommittedState) this.clearRunActivationStateV1();
     let failure: unknown;
     const subscription = this.subscription;
     if (subscription) {
@@ -2361,13 +2311,17 @@ class LinkDeviceFlow {
     }
     if (failure) throw failure;
     if (preserveCommittedState) {
-      this.clearTargetCredentialActivationState();
-      this.clearEmailOtpTargetActivationState();
-      this.resealedExportRoot = null;
-      this.targetCredentialRegistrationResult = null;
-      this.ordinarySignerMaterialRecipientPreparation = null;
+      this.clearRunActivationStateV1();
       this.committedAuthorityPackages = null;
     }
+  }
+
+  private clearRunActivationStateV1(): void {
+    this.clearTargetCredentialActivationState();
+    this.clearEmailOtpTargetActivationState();
+    this.resealedExportRoot = null;
+    this.targetCredentialRegistrationResult = null;
+    this.ordinarySignerMaterialRecipientPreparation = null;
   }
 
   private async closeSessionSubscriptionV1(): Promise<void> {
