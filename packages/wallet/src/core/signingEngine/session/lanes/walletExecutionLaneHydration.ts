@@ -24,7 +24,7 @@ import {
   type EcdsaCapabilityRuntimeObservation,
 } from '../material/ecdsaCapabilityHydration';
 import type { MpcCapabilityHydrationPlan } from '../material/mpcCapabilityHydration';
-import type { EcdsaCapabilityManifestLookup } from '@/core/indexedDB/seamsWalletDB/ecdsaCapabilityManifestStore';
+import type { EcdsaCapabilityManifestLookup } from '@/core/indexedDB/seamsWalletDB/ecdsaCapabilityManifestLookups';
 import { deriveEvmFamilySigningKeySlotId } from '@shared/signing-lanes/evmFamilySigningKeySlotId';
 
 type WalletExecutionLaneMaterialHydrationInput =

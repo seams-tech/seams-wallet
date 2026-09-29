@@ -6,7 +6,7 @@ import type {
   DurableClientPresignatureAdmissionResult,
   DurableClientPresignatureMetadata,
   DurableClientPresignatureTakeResult,
-} from '../../../indexedDB/seamsWalletDB/ecdsaCapabilityManifestStore';
+} from '../../../indexedDB/seamsWalletDB/ecdsaClientPresignatures';
 import type { OpaqueEcdsaPresignMaterialAuthorityIdentityV1 } from '../ecdsaClientWorkerChannels';
 import type {
   ThresholdEcdsaPresignAbortResult,

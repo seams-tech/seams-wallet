@@ -1,5 +1,5 @@
 import { IndexedDbEcdsaCapabilityManifestStore } from '@/core/indexedDB/seamsWalletDB/ecdsaCapabilityManifestStore';
-import type { EcdsaWalletActivationSelectorListResult } from '@/core/indexedDB/seamsWalletDB/ecdsaCapabilityManifestStore';
+import type { EcdsaWalletActivationSelectorListResult } from '@/core/indexedDB/seamsWalletDB/ecdsaCapabilityManifestLookups';
 import type { EvmFamilyEcdsaWalletUnlockSubject } from '@/core/signingEngine/session/identity/walletUnlockSubject';
 import { type WalletId } from '@shared/utils/domainIds';
 

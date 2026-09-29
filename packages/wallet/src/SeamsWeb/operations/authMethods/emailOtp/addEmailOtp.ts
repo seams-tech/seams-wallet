@@ -41,7 +41,7 @@ import type { WalletCustodyCeremonyTransportPort } from '@/core/signingEngine/wa
 import { requestWalletCustodyCeremonyOperation } from '@/core/signingEngine/walletCustody/ceremonyStepRunner';
 import { persistFinalizedEmailOtpAuthMethodV1 } from './localEmailOtpProjection';
 import { walletAuthAuthorityRef } from '@shared/utils/walletAuthAuthority';
-import { copyWalletCustodyEcdsaContinuityToAuthMethod } from '@/core/indexedDB/seamsWalletDB/ecdsaCapabilityManifestStore';
+import { copyWalletCustodyEcdsaContinuityToAuthMethod } from '@/core/indexedDB/seamsWalletDB/walletCustodyEcdsaContinuity';
 import { addAuthMethodSourcePasskeyAllowCredentials } from '../sourcePasskeyProof';
 
 export type AddEmailOtpResult = {

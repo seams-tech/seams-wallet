@@ -35,7 +35,7 @@ import { toAccountId, type AccountId } from '@/core/types/accountIds';
 import type { WebAuthnAuthenticationCredential } from '@/core/types';
 import type { WorkerOperationContext } from '@/core/signingEngine/workerManager/executeWorkerOperation';
 import type { EcdsaClientPresignCleanupTarget } from '@/core/signingEngine/workerManager/ecdsaPresignLifecycle';
-import type { EcdsaCapabilitySelector } from '@/core/indexedDB/seamsWalletDB/ecdsaCapabilityManifestStore';
+import type { EcdsaCapabilitySelector } from '@/core/indexedDB/seamsWalletDB/ecdsaCapabilityManifestRecords';
 import {
   resolveManagedRuntimeScopeBootstrap,
   type ManagedRuntimeScopeBootstrap,

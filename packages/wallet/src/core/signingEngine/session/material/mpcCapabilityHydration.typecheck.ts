@@ -15,7 +15,7 @@ import type {
 } from '@shared/utils/domainIds';
 import { buildMpcMaterialActivationRef } from '@shared/utils/domainIds';
 import type { WalletAuthAuthorityRef } from '@shared/utils/walletAuthAuthority';
-import type { EcdsaCapabilityManifestLookup } from '@/core/indexedDB/seamsWalletDB/ecdsaCapabilityManifestStore';
+import type { EcdsaCapabilityManifestLookup } from '@/core/indexedDB/seamsWalletDB/ecdsaCapabilityManifestLookups';
 import { resolveEcdsaCapabilityHydration } from './ecdsaCapabilityHydration';
 import {
   resolveNearEd25519YaoCapabilityHydrationV1,

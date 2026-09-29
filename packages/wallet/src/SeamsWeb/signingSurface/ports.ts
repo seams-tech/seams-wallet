@@ -52,7 +52,7 @@ import type {
 } from '@/core/signingEngine/threshold/ed25519/yaoPublicCapabilityReferences';
 import type { AccountId } from '@/core/types/accountIds';
 import type { MpcMaterialActivationRef, WalletAuthMethodId } from '@shared/utils/domainIds';
-import type { ImportWalletCustodyEcdsaContinuityInput } from '@/core/indexedDB/seamsWalletDB/ecdsaCapabilityManifestStore';
+import type { ImportWalletCustodyEcdsaContinuityInput } from '@/core/indexedDB/seamsWalletDB/walletCustodyEcdsaContinuity';
 import type { EcdsaRoleLocalPersistedMaterialRef } from '@/core/signingEngine/session/keyMaterialBrands';
 import type {
   ClientAuthenticatorData,

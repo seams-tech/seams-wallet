@@ -109,11 +109,11 @@ import type {
 } from '@/core/signingEngine/workerManager/workerTypes';
 import type { WorkerOperationContext } from '@/core/signingEngine/workerManager/executeWorkerOperation';
 import type { EcdsaClientPresignCleanupTarget } from '@/core/signingEngine/workerManager/ecdsaPresignLifecycle';
+import { IndexedDbEcdsaCapabilityManifestStore } from '@/core/indexedDB/seamsWalletDB/ecdsaCapabilityManifestStore';
 import {
   importWalletCustodyEcdsaContinuity,
-  IndexedDbEcdsaCapabilityManifestStore,
   type ImportWalletCustodyEcdsaContinuityInput,
-} from '@/core/indexedDB/seamsWalletDB/ecdsaCapabilityManifestStore';
+} from '@/core/indexedDB/seamsWalletDB/walletCustodyEcdsaContinuity';
 import {
   clearLinkedDeviceEcdsaHolderMaterialsWasm,
   destroyLinkedDeviceEcdsaHolderMaterialsWasm,

@@ -36,10 +36,8 @@ import { computeEcdsaDerivationRoleLocalRelayerKeyId } from '@shared/threshold/e
 import { routerAbMpcMaterialActivationRefFromWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import { buildEcdsaRoleLocalPublicFacts } from '@/core/signingEngine/session/persistence/ecdsaRoleLocalRecords';
 import type { EcdsaRoleLocalPublicFacts } from '@/core/platform';
-import {
-  prepareWalletCustodyEcdsaContinuity,
-  type PreparedImportedWalletCustodyEcdsaContinuity,
-} from '@/core/indexedDB/seamsWalletDB/ecdsaCapabilityManifestStore';
+import type { PreparedImportedWalletCustodyEcdsaContinuity } from '@/core/indexedDB/seamsWalletDB/ecdsaCapabilityManifestStore';
+import { prepareWalletCustodyEcdsaContinuity } from '@/core/indexedDB/seamsWalletDB/walletCustodyEcdsaContinuity';
 import type { Ed25519YaoPublicCapabilityReferenceV1 } from '@/core/signingEngine/threshold/ed25519/yaoPublicCapabilityReferences';
 import type { WebAuthnRegistrationCredential } from '@/core/types/webauthn';
 import {

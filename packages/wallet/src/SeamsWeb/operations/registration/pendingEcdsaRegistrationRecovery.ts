@@ -2,10 +2,8 @@ import {
   prepareWalletEcdsaRegistrationPublication,
   type StoreWalletEcdsaWalletKey,
 } from '@/core/signingEngine/flows/registration/accountLifecycle';
-import {
-  prepareWalletCustodyEcdsaContinuity,
-  type PreparedImportedWalletCustodyEcdsaContinuity,
-} from '@/core/indexedDB/seamsWalletDB/ecdsaCapabilityManifestStore';
+import type { PreparedImportedWalletCustodyEcdsaContinuity } from '@/core/indexedDB/seamsWalletDB/ecdsaCapabilityManifestStore';
+import { prepareWalletCustodyEcdsaContinuity } from '@/core/indexedDB/seamsWalletDB/walletCustodyEcdsaContinuity';
 import type { WalletRegistrationEcdsaWalletKey } from '@/core/rpcClients/relayer/walletRegistration';
 import type {
   PublishPendingWalletRegistrationCommitInputV1,

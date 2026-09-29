@@ -35,7 +35,7 @@ import { readUnlockedWalletEd25519ExportRootCapabilityV1 } from '@/core/signingE
 import type { WalletCustodyCeremonyTransportPort } from '@/core/signingEngine/walletCustody/ceremonyStepRunner';
 import { requestWalletCustodyCeremonyOperation } from '@/core/signingEngine/walletCustody/ceremonyStepRunner';
 import { walletAuthAuthorityRef } from '@shared/utils/walletAuthAuthority';
-import { copyWalletCustodyEcdsaContinuityToAuthMethod } from '@/core/indexedDB/seamsWalletDB/ecdsaCapabilityManifestStore';
+import { copyWalletCustodyEcdsaContinuityToAuthMethod } from '@/core/indexedDB/seamsWalletDB/walletCustodyEcdsaContinuity';
 import { addAuthMethodSourcePasskeyAllowCredentials } from '../sourcePasskeyProof';
 export type AddPasskeyAuthorization =
   | { readonly kind: 'existing_passkey' }

@@ -145,7 +145,7 @@ import {
   resolveExactWalletAuthAuthority,
   type OwnerLaneScopeStores,
 } from '../identity/ownerLaneScope';
-import type { ImportWalletCustodyEcdsaContinuityInput } from '@/core/indexedDB/seamsWalletDB/ecdsaCapabilityManifestStore';
+import type { ImportWalletCustodyEcdsaContinuityInput } from '@/core/indexedDB/seamsWalletDB/walletCustodyEcdsaContinuity';
 import type { EmailOtpEcdsaCustodyContinuityV1 } from '../../workerManager/workerTypes';
 import type { ResolveSelectedWalletAuthorityResultV1 } from '@/core/indexedDB/seamsWalletDB/repositories';
 
