@@ -24,8 +24,9 @@ use router_ab_core::{
     TenantRootSignedRecoveryShareInstallationEvidenceV1,
     TenantRootSignedShareInstallationEvidenceV1,
     VerifiedTenantRootInitialCreationActivationEvidenceBundleV1, VerifiedTenantRootManagedBackupV1,
-    VerifiedTenantRootProviderCanaryReceiptV1, VerifiedTenantRootRecoveryResharePairV1,
-    VerifiedTenantRootRecoveryShareV1, VerifiedTenantRootRefreshSwapActivationEvidenceBundleV1,
+    VerifiedTenantRootProviderCanaryReceiptV1, VerifiedTenantRootRecoveryReshareCommitmentV1,
+    VerifiedTenantRootRecoveryResharePairV1, VerifiedTenantRootRecoveryShareV1,
+    VerifiedTenantRootRefreshSwapActivationEvidenceBundleV1,
     VerifiedTenantRootShareInstallationEvidenceV1, VerifiedTenantRootSignedActivationReceiptV1,
     VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
 };
@@ -121,80 +122,27 @@ pub fn initial_activation_evidence_fixture(
     proof_seed_a: u8,
     proof_seed_b: u8,
 ) -> InitialActivationEvidenceFixture {
-    let commitments = epoch_commitments(share_a, share_b);
-    let installation_a = signed_installation_wire(
-        context.clone(),
-        TwoPartyDeriverRole::DeriverA,
-        share_a,
-        share_b,
-        proof_seed_a,
-    );
-    let installation_b = signed_installation_wire(
-        context.clone(),
-        TwoPartyDeriverRole::DeriverB,
-        share_b,
-        share_a,
-        proof_seed_b,
-    );
-    let evidence_a = installation_a.evidence().clone();
-    let evidence_b = installation_b.evidence().clone();
-    let share_wire_a = share_wire(share_a);
-    let share_wire_b = share_wire(share_b);
-    let backup_a = managed_backup(
-        &installation_a,
-        &share_wire_a,
-        context.signing_key_id(TwoPartyDeriverRole::DeriverA),
-    );
-    let backup_b = managed_backup(
-        &installation_b,
-        &share_wire_b,
-        context.signing_key_id(TwoPartyDeriverRole::DeriverB),
-    );
-    let installation_receipts = TenantRootRoleInstallationReceiptsV1::new(
-        installation_a.lifecycle_receipt_digest().unwrap(),
-        installation_b.lifecycle_receipt_digest().unwrap(),
-    )
-    .unwrap();
-    let backup_policy = TenantRootBackupPolicyV1::CurrentRoleBackups(
-        TenantRootRoleBackupReceiptsV1::new(backup_a.receipt_digest(), backup_b.receipt_digest())
-            .unwrap(),
-    );
-    let canary_a = provider_canary(
-        &context,
-        &commitments,
-        TenantRootCanaryCurveFamilyV1::Ecdsa,
-        "kms/tenant-root/ecdsa-canary-v1",
-    );
-    let canary_b = provider_canary(
-        &context,
-        &commitments,
-        TenantRootCanaryCurveFamilyV1::Ed25519,
-        "kms/tenant-root/ed25519-canary-v1",
-    );
-    let canary_receipts = TenantRootCanaryReceiptsV1::new(
-        lifecycle_digest_from_provider_canary(canary_a.digest()),
-        lifecycle_digest_from_provider_canary(canary_b.digest()),
-    )
-    .unwrap();
+    let sources =
+        activation_evidence_sources(context, share_a, share_b, proof_seed_a, proof_seed_b);
     let bundle =
         VerifiedTenantRootInitialCreationActivationEvidenceBundleV1::from_verified_managed_backups(
-            installation_a,
-            installation_b,
-            backup_a,
-            backup_b,
-            canary_a,
-            canary_b,
+            sources.installation_a,
+            sources.installation_b,
+            sources.backup_a,
+            sources.backup_b,
+            sources.canary_a,
+            sources.canary_b,
             2,
             3,
         )
         .unwrap();
     InitialActivationEvidenceFixture {
         bundle,
-        evidence_a,
-        evidence_b,
-        installation_receipts,
-        backup_policy,
-        canary_receipts,
+        evidence_a: sources.evidence_a,
+        evidence_b: sources.evidence_b,
+        installation_receipts: sources.installation_receipts,
+        backup_policy: sources.backup_policy,
+        canary_receipts: sources.canary_receipts,
     }
 }
 
@@ -207,6 +155,54 @@ pub fn refresh_activation_evidence_fixture(
     proof_seed_b: u8,
     expected_control_plane_revision: u64,
 ) -> RefreshActivationEvidenceFixture {
+    let sources =
+        activation_evidence_sources(context, share_a, share_b, proof_seed_a, proof_seed_b);
+    let bundle =
+        VerifiedTenantRootRefreshSwapActivationEvidenceBundleV1::from_verified_managed_backups(
+            current_commitments,
+            sources.installation_a,
+            sources.installation_b,
+            sources.backup_a,
+            sources.backup_b,
+            sources.canary_a,
+            sources.canary_b,
+            expected_control_plane_revision,
+            expected_control_plane_revision.checked_add(1).unwrap(),
+        )
+        .unwrap();
+    RefreshActivationEvidenceFixture {
+        bundle,
+        evidence_a: sources.evidence_a,
+        evidence_b: sources.evidence_b,
+        installation_receipts: sources.installation_receipts,
+        backup_policy: sources.backup_policy,
+        canary_receipts: sources.canary_receipts,
+    }
+}
+
+/// The signed installations, managed backups and provider canaries of one
+/// ceremony, and the projections a bundle built from them must match.
+struct ActivationEvidenceSources {
+    installation_a: VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
+    installation_b: VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
+    backup_a: VerifiedTenantRootManagedBackupV1,
+    backup_b: VerifiedTenantRootManagedBackupV1,
+    canary_a: VerifiedTenantRootProviderCanaryReceiptV1,
+    canary_b: VerifiedTenantRootProviderCanaryReceiptV1,
+    evidence_a: VerifiedTenantRootShareInstallationEvidenceV1,
+    evidence_b: VerifiedTenantRootShareInstallationEvidenceV1,
+    installation_receipts: TenantRootRoleInstallationReceiptsV1,
+    backup_policy: TenantRootBackupPolicyV1,
+    canary_receipts: TenantRootCanaryReceiptsV1,
+}
+
+fn activation_evidence_sources(
+    context: TenantRootCeremonyContextV1,
+    share_a: &SigningRootShare,
+    share_b: &SigningRootShare,
+    proof_seed_a: u8,
+    proof_seed_b: u8,
+) -> ActivationEvidenceSources {
     let commitments = epoch_commitments(share_a, share_b);
     let installation_a = signed_installation_wire(
         context.clone(),
@@ -262,21 +258,13 @@ pub fn refresh_activation_evidence_fixture(
         lifecycle_digest_from_provider_canary(canary_b.digest()),
     )
     .unwrap();
-    let bundle =
-        VerifiedTenantRootRefreshSwapActivationEvidenceBundleV1::from_verified_managed_backups(
-            current_commitments,
-            installation_a,
-            installation_b,
-            backup_a,
-            backup_b,
-            canary_a,
-            canary_b,
-            expected_control_plane_revision,
-            expected_control_plane_revision.checked_add(1).unwrap(),
-        )
-        .unwrap();
-    RefreshActivationEvidenceFixture {
-        bundle,
+    ActivationEvidenceSources {
+        installation_a,
+        installation_b,
+        backup_a,
+        backup_b,
+        canary_a,
+        canary_b,
         evidence_a,
         evidence_b,
         installation_receipts,
@@ -564,96 +552,153 @@ pub fn recovery_reshare_fixture() -> RecoveryReshareFixture {
     }
 }
 
+impl RecoveryReshareFixture {
+    /// Verifies both roles' signed reshare commitments under their role keys.
+    pub fn verify_commitments(
+        &self,
+        commitment_a: &TenantRootSignedRecoveryReshareCommitmentV1,
+        commitment_b: &TenantRootSignedRecoveryReshareCommitmentV1,
+    ) -> (
+        VerifiedTenantRootRecoveryReshareCommitmentV1,
+        VerifiedTenantRootRecoveryReshareCommitmentV1,
+    ) {
+        let verified_commitment_a = commitment_a
+            .verify(&self.context, self.signing_a.verifying_key().as_bytes())
+            .unwrap();
+        let verified_commitment_b = commitment_b
+            .verify(&self.context, self.signing_b.verifying_key().as_bytes())
+            .unwrap();
+        (verified_commitment_a, verified_commitment_b)
+    }
+
+    /// Seals Deriver A's contribution to Deriver B, then Deriver B's to Deriver A.
+    pub fn seal_contributions(
+        &self,
+        verified_commitment_a: &VerifiedTenantRootRecoveryReshareCommitmentV1,
+        verified_commitment_b: &VerifiedTenantRootRecoveryReshareCommitmentV1,
+    ) -> (
+        TenantRootSignedRecoveryReshareContributionV1,
+        TenantRootSignedRecoveryReshareContributionV1,
+    ) {
+        let contribution_a_to_b = TenantRootSignedRecoveryReshareContributionV1::seal(
+            &self.context,
+            &self.coefficient_a,
+            verified_commitment_a,
+            "recovery-reshare-hpke-b-1",
+            verified_commitment_b,
+            &mut rng09(0x91),
+            &self.signing_a.to_bytes(),
+        )
+        .unwrap();
+        let contribution_b_to_a = TenantRootSignedRecoveryReshareContributionV1::seal(
+            &self.context,
+            &self.coefficient_b,
+            verified_commitment_b,
+            "recovery-reshare-hpke-a-1",
+            verified_commitment_a,
+            &mut rng09(0xa1),
+            &self.signing_b.to_bytes(),
+        )
+        .unwrap();
+        (contribution_a_to_b, contribution_b_to_a)
+    }
+
+    /// Opens the contribution each role receives, Deriver A's first, and applies it to
+    /// that role's active share.
+    pub fn derive_pending(
+        &self,
+        verified_commitment_a: &VerifiedTenantRootRecoveryReshareCommitmentV1,
+        verified_commitment_b: &VerifiedTenantRootRecoveryReshareCommitmentV1,
+        contribution_a_to_b: &TenantRootSignedRecoveryReshareContributionV1,
+        contribution_b_to_a: &TenantRootSignedRecoveryReshareContributionV1,
+    ) -> (
+        PendingTenantRootRecoveryShareV1,
+        PendingTenantRootRecoveryShareV1,
+    ) {
+        let hpke_a = TenantRootRecoveryReshareHpkeKeypairV1::derive_from_ikm([0x71; 32]).unwrap();
+        let hpke_b = TenantRootRecoveryReshareHpkeKeypairV1::derive_from_ikm([0x81; 32]).unwrap();
+        let verified_b_for_a = contribution_b_to_a
+            .verify_and_open(
+                &self.context,
+                verified_commitment_b,
+                "recovery-reshare-hpke-a-1",
+                &hpke_a,
+                self.signing_b.verifying_key().as_bytes(),
+            )
+            .unwrap();
+        let verified_a_for_b = contribution_a_to_b
+            .verify_and_open(
+                &self.context,
+                verified_commitment_a,
+                "recovery-reshare-hpke-b-1",
+                &hpke_b,
+                self.signing_a.verifying_key().as_bytes(),
+            )
+            .unwrap();
+        let pending_a = PendingTenantRootRecoveryShareV1::derive(
+            &self.context,
+            &self.active_a,
+            &self.coefficient_a,
+            verified_commitment_a,
+            verified_b_for_a,
+        )
+        .unwrap();
+        let pending_b = PendingTenantRootRecoveryShareV1::derive(
+            &self.context,
+            &self.active_b,
+            &self.coefficient_b,
+            verified_commitment_b,
+            verified_a_for_b,
+        )
+        .unwrap();
+        (pending_a, pending_b)
+    }
+
+    /// Proves each pending share against its peer's commitment and signs the evidence.
+    pub fn sign_installation_evidence(
+        &self,
+        pending_a: &PendingTenantRootRecoveryShareV1,
+        pending_b: &PendingTenantRootRecoveryShareV1,
+    ) -> (
+        TenantRootSignedRecoveryShareInstallationEvidenceV1,
+        TenantRootSignedRecoveryShareInstallationEvidenceV1,
+    ) {
+        let evidence_a = pending_a
+            .prove(&self.context, pending_b.commitment(), &mut rng06(0xb1))
+            .unwrap();
+        let evidence_b = pending_b
+            .prove(&self.context, pending_a.commitment(), &mut rng06(0xc1))
+            .unwrap();
+        let signed_evidence_a = TenantRootSignedRecoveryShareInstallationEvidenceV1::sign(
+            &self.context,
+            evidence_a,
+            &self.signing_a.to_bytes(),
+        )
+        .unwrap();
+        let signed_evidence_b = TenantRootSignedRecoveryShareInstallationEvidenceV1::sign(
+            &self.context,
+            evidence_b,
+            &self.signing_b.to_bytes(),
+        )
+        .unwrap();
+        (signed_evidence_a, signed_evidence_b)
+    }
+}
+
 pub fn verified_recovery_artifact_fixture() -> VerifiedRecoveryArtifactFixture {
     let fixture = recovery_reshare_fixture();
-    let verified_commitment_a = fixture
-        .signed_commitment_a
-        .verify(
-            &fixture.context,
-            fixture.signing_a.verifying_key().as_bytes(),
-        )
-        .unwrap();
-    let verified_commitment_b = fixture
-        .signed_commitment_b
-        .verify(
-            &fixture.context,
-            fixture.signing_b.verifying_key().as_bytes(),
-        )
-        .unwrap();
-    let hpke_a = TenantRootRecoveryReshareHpkeKeypairV1::derive_from_ikm([0x71; 32]).unwrap();
-    let hpke_b = TenantRootRecoveryReshareHpkeKeypairV1::derive_from_ikm([0x81; 32]).unwrap();
-    let contribution_a_to_b = TenantRootSignedRecoveryReshareContributionV1::seal(
-        &fixture.context,
-        &fixture.coefficient_a,
+    let (verified_commitment_a, verified_commitment_b) =
+        fixture.verify_commitments(&fixture.signed_commitment_a, &fixture.signed_commitment_b);
+    let (contribution_a_to_b, contribution_b_to_a) =
+        fixture.seal_contributions(&verified_commitment_a, &verified_commitment_b);
+    let (pending_a, pending_b) = fixture.derive_pending(
         &verified_commitment_a,
-        "recovery-reshare-hpke-b-1",
         &verified_commitment_b,
-        &mut rng09(0x91),
-        &fixture.signing_a.to_bytes(),
-    )
-    .unwrap();
-    let contribution_b_to_a = TenantRootSignedRecoveryReshareContributionV1::seal(
-        &fixture.context,
-        &fixture.coefficient_b,
-        &verified_commitment_b,
-        "recovery-reshare-hpke-a-1",
-        &verified_commitment_a,
-        &mut rng09(0xa1),
-        &fixture.signing_b.to_bytes(),
-    )
-    .unwrap();
-    let verified_b_for_a = contribution_b_to_a
-        .verify_and_open(
-            &fixture.context,
-            &verified_commitment_b,
-            "recovery-reshare-hpke-a-1",
-            &hpke_a,
-            fixture.signing_b.verifying_key().as_bytes(),
-        )
-        .unwrap();
-    let verified_a_for_b = contribution_a_to_b
-        .verify_and_open(
-            &fixture.context,
-            &verified_commitment_a,
-            "recovery-reshare-hpke-b-1",
-            &hpke_b,
-            fixture.signing_a.verifying_key().as_bytes(),
-        )
-        .unwrap();
-    let pending_a = PendingTenantRootRecoveryShareV1::derive(
-        &fixture.context,
-        &fixture.active_a,
-        &fixture.coefficient_a,
-        &verified_commitment_a,
-        verified_b_for_a,
-    )
-    .unwrap();
-    let pending_b = PendingTenantRootRecoveryShareV1::derive(
-        &fixture.context,
-        &fixture.active_b,
-        &fixture.coefficient_b,
-        &verified_commitment_b,
-        verified_a_for_b,
-    )
-    .unwrap();
-    let evidence_a = pending_a
-        .prove(&fixture.context, pending_b.commitment(), &mut rng06(0xb1))
-        .unwrap();
-    let evidence_b = pending_b
-        .prove(&fixture.context, pending_a.commitment(), &mut rng06(0xc1))
-        .unwrap();
-    let signed_evidence_a = TenantRootSignedRecoveryShareInstallationEvidenceV1::sign(
-        &fixture.context,
-        evidence_a,
-        &fixture.signing_a.to_bytes(),
-    )
-    .unwrap();
-    let signed_evidence_b = TenantRootSignedRecoveryShareInstallationEvidenceV1::sign(
-        &fixture.context,
-        evidence_b,
-        &fixture.signing_b.to_bytes(),
-    )
-    .unwrap();
+        &contribution_a_to_b,
+        &contribution_b_to_a,
+    );
+    let (signed_evidence_a, signed_evidence_b) =
+        fixture.sign_installation_evidence(&pending_a, &pending_b);
     let verified_pair = VerifiedTenantRootRecoveryResharePairV1::verify(
         &fixture.context,
         &signed_evidence_a,
