@@ -1,6 +1,7 @@
-import { base64UrlDecode, base64UrlEncode } from '../utils/base64';
+import { base64UrlEncode } from '../utils/base64';
 import { parseDigestB64u, type DigestB64u } from '../utils/canonicalPrimitives';
 import { sha256Bytes } from '../utils/digests';
+import { concat, lp32, rawDigest, rawPublicKey, text, u32, u64 } from '../utils/digestEncoding';
 import {
   parseDelegatedWalletPermissionSetV1,
   type CanonicalDelegatedWalletPermissionSetV1,
@@ -31,7 +32,6 @@ import { requireRecord } from '../utils/validation';
 
 const SIGNER_ACTIVATION_SET_DOMAIN = 'seams/wallet-signer-activation-set/v1';
 const WALLET_AUTHORITY_DOMAIN = 'seams/wallet-authority/v1';
-const TEXT_ENCODER = new TextEncoder();
 
 type WalletAuthorityPrincipalV1 = {
   readonly kind: 'owner_device';
@@ -369,10 +369,10 @@ export async function computeWalletSignerActivationSetDigestB64u(
   );
 }
 
-export function buildPendingWalletAuthorityV1(
-  input: PendingWalletAuthorityV1,
-): PendingWalletAuthorityV1 {
-  validateWalletAuthorityV1(input);
+/** The fields every lifecycle state carries, copied in record order. */
+function walletAuthorityCommonFields<TSignerActivations extends WalletSignerActivationSetV1>(
+  input: WalletAuthorityCommonV1 & { readonly signerActivations: TSignerActivations },
+): WalletAuthorityCommonV1 & { readonly signerActivations: TSignerActivations } {
   return {
     kind: 'wallet_authority_v1',
     authorityId: input.authorityId,
@@ -386,6 +386,15 @@ export function buildPendingWalletAuthorityV1(
     revocationEpoch: input.revocationEpoch,
     createdAtMs: input.createdAtMs,
     updatedAtMs: input.updatedAtMs,
+  };
+}
+
+export function buildPendingWalletAuthorityV1(
+  input: PendingWalletAuthorityV1,
+): PendingWalletAuthorityV1 {
+  validateWalletAuthorityV1(input);
+  return {
+    ...walletAuthorityCommonFields(input),
     state: 'pending_local_install',
     localInstallPackageSetDigestB64u: input.localInstallPackageSetDigestB64u,
   };
@@ -396,18 +405,7 @@ export function buildActiveWalletAuthorityV1(
 ): ActiveWalletAuthorityV1 {
   validateWalletAuthorityV1(input);
   return {
-    kind: 'wallet_authority_v1',
-    authorityId: input.authorityId,
-    walletId: input.walletId,
-    principal: input.principal,
-    provenance: input.provenance,
-    permissions: input.permissions,
-    signerActivations: input.signerActivations,
-    signerActivationSetDigestB64u: input.signerActivationSetDigestB64u,
-    authorityDigestB64u: input.authorityDigestB64u,
-    revocationEpoch: input.revocationEpoch,
-    createdAtMs: input.createdAtMs,
-    updatedAtMs: input.updatedAtMs,
+    ...walletAuthorityCommonFields(input),
     state: 'active',
     activatedAtMs: input.activatedAtMs,
   };
@@ -460,20 +458,8 @@ export async function replaceActiveWalletAuthorityEd25519MaterialActivationV1(in
     activatedAtMs: input.authority.activatedAtMs,
   };
   return buildActiveWalletAuthorityV1({
-    kind: draft.kind,
-    authorityId: draft.authorityId,
-    walletId: draft.walletId,
-    principal: draft.principal,
-    provenance: draft.provenance,
-    permissions: draft.permissions,
-    signerActivations: draft.signerActivations,
-    signerActivationSetDigestB64u: draft.signerActivationSetDigestB64u,
+    ...draft,
     authorityDigestB64u: await computeWalletAuthorityDigestB64u(draft),
-    revocationEpoch: draft.revocationEpoch,
-    createdAtMs: draft.createdAtMs,
-    updatedAtMs: draft.updatedAtMs,
-    state: draft.state,
-    activatedAtMs: draft.activatedAtMs,
   });
 }
 
@@ -482,18 +468,7 @@ export function buildActiveCombinedWalletAuthorityV1(
 ): ActiveCombinedWalletAuthorityV1 {
   validateWalletAuthorityV1(input);
   return {
-    kind: 'wallet_authority_v1',
-    authorityId: input.authorityId,
-    walletId: input.walletId,
-    principal: input.principal,
-    provenance: input.provenance,
-    permissions: input.permissions,
-    signerActivations: input.signerActivations,
-    signerActivationSetDigestB64u: input.signerActivationSetDigestB64u,
-    authorityDigestB64u: input.authorityDigestB64u,
-    revocationEpoch: input.revocationEpoch,
-    createdAtMs: input.createdAtMs,
-    updatedAtMs: input.updatedAtMs,
+    ...walletAuthorityCommonFields(input),
     state: 'active',
     activatedAtMs: input.activatedAtMs,
   };
@@ -504,23 +479,29 @@ export function buildRevokedWalletAuthorityV1(
 ): RevokedWalletAuthorityV1 {
   validateWalletAuthorityV1(input);
   return {
-    kind: 'wallet_authority_v1',
-    authorityId: input.authorityId,
-    walletId: input.walletId,
-    principal: input.principal,
-    provenance: input.provenance,
-    permissions: input.permissions,
-    signerActivations: input.signerActivations,
-    signerActivationSetDigestB64u: input.signerActivationSetDigestB64u,
-    authorityDigestB64u: input.authorityDigestB64u,
-    revocationEpoch: input.revocationEpoch,
-    createdAtMs: input.createdAtMs,
-    updatedAtMs: input.updatedAtMs,
+    ...walletAuthorityCommonFields(input),
     state: 'revoked',
     activatedAtMs: input.activatedAtMs,
     revokedAtMs: input.revokedAtMs,
   };
 }
+
+/** The record fields every lifecycle state has, in canonical order; each state adds its own. */
+const WALLET_AUTHORITY_FIELDS = [
+  'kind',
+  'authorityId',
+  'walletId',
+  'principal',
+  'provenance',
+  'permissions',
+  'signerActivations',
+  'signerActivationSetDigestB64u',
+  'authorityDigestB64u',
+  'revocationEpoch',
+  'createdAtMs',
+  'updatedAtMs',
+  'state',
+] as const;
 
 export function parseWalletAuthorityV1(raw: unknown): AuthorizationParseResult<WalletAuthorityV1> {
   try {
@@ -530,39 +511,14 @@ export function parseWalletAuthorityV1(raw: unknown): AuthorizationParseResult<W
       case 'pending_local_install': {
         exactFields(
           record,
-          [
-            'kind',
-            'authorityId',
-            'walletId',
-            'principal',
-            'provenance',
-            'permissions',
-            'signerActivations',
-            'signerActivationSetDigestB64u',
-            'authorityDigestB64u',
-            'revocationEpoch',
-            'createdAtMs',
-            'updatedAtMs',
-            'state',
-            'localInstallPackageSetDigestB64u',
-          ],
+          [...WALLET_AUTHORITY_FIELDS, 'localInstallPackageSetDigestB64u'],
           'WalletAuthorityV1',
         );
         return {
           ok: true,
           value: buildPendingWalletAuthorityV1({
             kind: 'wallet_authority_v1',
-            authorityId: common.authorityId,
-            walletId: common.walletId,
-            principal: common.principal,
-            provenance: common.provenance,
-            permissions: common.permissions,
-            signerActivations: common.signerActivations,
-            signerActivationSetDigestB64u: common.signerActivationSetDigestB64u,
-            authorityDigestB64u: common.authorityDigestB64u,
-            revocationEpoch: common.revocationEpoch,
-            createdAtMs: common.createdAtMs,
-            updatedAtMs: common.updatedAtMs,
+            ...common,
             state: 'pending_local_install',
             localInstallPackageSetDigestB64u: parseDigestField(
               record.localInstallPackageSetDigestB64u,
@@ -572,41 +528,12 @@ export function parseWalletAuthorityV1(raw: unknown): AuthorizationParseResult<W
         };
       }
       case 'active': {
-        exactFields(
-          record,
-          [
-            'kind',
-            'authorityId',
-            'walletId',
-            'principal',
-            'provenance',
-            'permissions',
-            'signerActivations',
-            'signerActivationSetDigestB64u',
-            'authorityDigestB64u',
-            'revocationEpoch',
-            'createdAtMs',
-            'updatedAtMs',
-            'state',
-            'activatedAtMs',
-          ],
-          'WalletAuthorityV1',
-        );
+        exactFields(record, [...WALLET_AUTHORITY_FIELDS, 'activatedAtMs'], 'WalletAuthorityV1');
         return {
           ok: true,
           value: buildActiveWalletAuthorityV1({
             kind: 'wallet_authority_v1',
-            authorityId: common.authorityId,
-            walletId: common.walletId,
-            principal: common.principal,
-            provenance: common.provenance,
-            permissions: common.permissions,
-            signerActivations: common.signerActivations,
-            signerActivationSetDigestB64u: common.signerActivationSetDigestB64u,
-            authorityDigestB64u: common.authorityDigestB64u,
-            revocationEpoch: common.revocationEpoch,
-            createdAtMs: common.createdAtMs,
-            updatedAtMs: common.updatedAtMs,
+            ...common,
             state: 'active',
             activatedAtMs: parseSafeInteger(record.activatedAtMs, 'activatedAtMs'),
           }),
@@ -615,40 +542,14 @@ export function parseWalletAuthorityV1(raw: unknown): AuthorizationParseResult<W
       case 'revoked': {
         exactFields(
           record,
-          [
-            'kind',
-            'authorityId',
-            'walletId',
-            'principal',
-            'provenance',
-            'permissions',
-            'signerActivations',
-            'signerActivationSetDigestB64u',
-            'authorityDigestB64u',
-            'revocationEpoch',
-            'createdAtMs',
-            'updatedAtMs',
-            'state',
-            'activatedAtMs',
-            'revokedAtMs',
-          ],
+          [...WALLET_AUTHORITY_FIELDS, 'activatedAtMs', 'revokedAtMs'],
           'WalletAuthorityV1',
         );
         return {
           ok: true,
           value: buildRevokedWalletAuthorityV1({
             kind: 'wallet_authority_v1',
-            authorityId: common.authorityId,
-            walletId: common.walletId,
-            principal: common.principal,
-            provenance: common.provenance,
-            permissions: common.permissions,
-            signerActivations: common.signerActivations,
-            signerActivationSetDigestB64u: common.signerActivationSetDigestB64u,
-            authorityDigestB64u: common.authorityDigestB64u,
-            revocationEpoch: common.revocationEpoch,
-            createdAtMs: common.createdAtMs,
-            updatedAtMs: common.updatedAtMs,
+            ...common,
             state: 'revoked',
             activatedAtMs: parseSafeInteger(record.activatedAtMs, 'activatedAtMs'),
             revokedAtMs: parseSafeInteger(record.revokedAtMs, 'revokedAtMs'),
@@ -1185,73 +1086,6 @@ function parseDigestField(raw: unknown, label: string): DigestB64u {
   }
 }
 
-function rawDigest(value: DigestB64u, label: string): Uint8Array {
-  try {
-    const digest = parseDigestB64u(value);
-    return base64UrlDecode(digest);
-  } catch (error) {
-    throw new Error(`${label} ${errorMessage(error, 'is invalid')}`);
-  }
-}
-
-function rawPublicKey(value: string, label: string): Uint8Array {
-  try {
-    const decoded = base64UrlDecode(value);
-    if (decoded.length === 0 || base64UrlEncode(decoded) !== value) {
-      throw new Error('must be canonical base64url');
-    }
-    return decoded;
-  } catch (error) {
-    throw new Error(`${label} ${errorMessage(error, 'is invalid')}`);
-  }
-}
-
-function concat(parts: readonly Uint8Array[]): Uint8Array {
-  let length = 0;
-  for (const part of parts) length += part.length;
-  const output = new Uint8Array(length);
-  let offset = 0;
-  for (const part of parts) {
-    output.set(part, offset);
-    offset += part.length;
-  }
-  return output;
-}
-
-function u32(value: number, label: string): Uint8Array {
-  if (!Number.isSafeInteger(value) || value < 0 || value > 0xffffffff) {
-    throw new Error(`${label} must be a non-negative u32`);
-  }
-  return Uint8Array.from([
-    (value >>> 24) & 0xff,
-    (value >>> 16) & 0xff,
-    (value >>> 8) & 0xff,
-    value & 0xff,
-  ]);
-}
-
-function u64(value: number, label: string): Uint8Array {
-  if (!Number.isSafeInteger(value) || value < 0) {
-    throw new Error(`${label} must be a non-negative safe integer`);
-  }
-  let remaining = BigInt(value);
-  const output = new Uint8Array(8);
-  for (let index = 7; index >= 0; index -= 1) {
-    output[index] = Number(remaining & 0xffn);
-    remaining >>= 8n;
-  }
-  return output;
-}
-
-function lp32(value: Uint8Array, label: string): Uint8Array {
-  return concat([u32(value.length, `${label}.length`), value]);
-}
-
-function text(value: string, label: string): Uint8Array {
-  if (typeof value !== 'string') throw new Error(`${label} must be a string`);
-  return lp32(TEXT_ENCODER.encode(value), label);
-}
-
 function parseSafeInteger(raw: unknown, label: string): number {
   if (typeof raw !== 'number' || !Number.isSafeInteger(raw) || raw < 0) {
     throw new Error(`${label} must be a non-negative safe integer`);
@@ -1288,6 +1122,39 @@ function assertNever(value: never, label: string): never {
   throw new Error(`${label} branch is unsupported: ${String(value)}`);
 }
 
+/**
+ * Re-seals an authority around its new combined signer activations. Both digests are
+ * recomputed; identity, provenance, permissions and lifecycle stay as they were.
+ */
+async function withCombinedSignerActivations(
+  authority: Omit<ActiveWalletAuthorityV1, 'signerActivations'>,
+  signerActivations: CombinedWalletSignerActivationSetV1,
+  now: number,
+): Promise<ActiveCombinedWalletAuthorityV1> {
+  const signerActivationSetDigestB64u =
+    await computeWalletSignerActivationSetDigestB64u(signerActivations);
+  const draft: ActiveCombinedWalletAuthorityV1 = {
+    kind: 'wallet_authority_v1',
+    authorityId: authority.authorityId,
+    walletId: authority.walletId,
+    principal: authority.principal,
+    provenance: authority.provenance,
+    permissions: authority.permissions,
+    signerActivations,
+    signerActivationSetDigestB64u,
+    authorityDigestB64u: authority.authorityDigestB64u,
+    revocationEpoch: authority.revocationEpoch,
+    createdAtMs: authority.createdAtMs,
+    updatedAtMs: Math.max(authority.updatedAtMs, now),
+    state: 'active',
+    activatedAtMs: authority.activatedAtMs,
+  };
+  return buildActiveCombinedWalletAuthorityV1({
+    ...draft,
+    authorityDigestB64u: await computeWalletAuthorityDigestB64u(draft),
+  });
+}
+
 export async function extendEcdsaWalletAuthorityWithEd25519(input: {
   readonly authority: ActiveEcdsaWalletAuthorityV1;
   readonly ed25519: WalletEd25519SignerActivationV1;
@@ -1309,41 +1176,7 @@ export async function extendEcdsaWalletAuthorityWithEd25519(input: {
   if (!isCombinedWalletSignerActivationSetV1(signerActivationsCandidate)) {
     throw new Error('Deferred Ed25519 activation did not produce a combined signer activation set');
   }
-  const signerActivations = signerActivationsCandidate;
-  const signerActivationSetDigestB64u =
-    await computeWalletSignerActivationSetDigestB64u(signerActivations);
-  const draft: ActiveCombinedWalletAuthorityV1 = {
-    kind: 'wallet_authority_v1',
-    authorityId: input.authority.authorityId,
-    walletId: input.authority.walletId,
-    principal: input.authority.principal,
-    provenance: input.authority.provenance,
-    permissions: input.authority.permissions,
-    signerActivations,
-    signerActivationSetDigestB64u,
-    authorityDigestB64u: input.authority.authorityDigestB64u,
-    revocationEpoch: input.authority.revocationEpoch,
-    createdAtMs: input.authority.createdAtMs,
-    updatedAtMs: Math.max(input.authority.updatedAtMs, input.now),
-    state: 'active',
-    activatedAtMs: input.authority.activatedAtMs,
-  };
-  return buildActiveCombinedWalletAuthorityV1({
-    kind: draft.kind,
-    authorityId: draft.authorityId,
-    walletId: draft.walletId,
-    principal: draft.principal,
-    provenance: draft.provenance,
-    permissions: draft.permissions,
-    signerActivations: draft.signerActivations,
-    signerActivationSetDigestB64u: draft.signerActivationSetDigestB64u,
-    authorityDigestB64u: await computeWalletAuthorityDigestB64u(draft),
-    revocationEpoch: draft.revocationEpoch,
-    createdAtMs: draft.createdAtMs,
-    updatedAtMs: draft.updatedAtMs,
-    state: draft.state,
-    activatedAtMs: draft.activatedAtMs,
-  });
+  return withCombinedSignerActivations(input.authority, signerActivationsCandidate, input.now);
 }
 
 /**
@@ -1373,41 +1206,27 @@ export async function extendEd25519WalletAuthorityWithEcdsa(input: {
   if (!isCombinedWalletSignerActivationSetV1(signerActivationsCandidate)) {
     throw new Error('Added ECDSA activation did not produce a combined signer activation set');
   }
-  const signerActivations = signerActivationsCandidate;
-  const signerActivationSetDigestB64u =
-    await computeWalletSignerActivationSetDigestB64u(signerActivations);
-  const draft: ActiveCombinedWalletAuthorityV1 = {
-    kind: 'wallet_authority_v1',
-    authorityId: input.authority.authorityId,
-    walletId: input.authority.walletId,
-    principal: input.authority.principal,
-    provenance: input.authority.provenance,
-    permissions: input.authority.permissions,
-    signerActivations,
-    signerActivationSetDigestB64u,
-    authorityDigestB64u: input.authority.authorityDigestB64u,
-    revocationEpoch: input.authority.revocationEpoch,
-    createdAtMs: input.authority.createdAtMs,
-    updatedAtMs: Math.max(input.authority.updatedAtMs, input.now),
-    state: 'active',
-    activatedAtMs: input.authority.activatedAtMs,
-  };
-  return buildActiveCombinedWalletAuthorityV1({
-    kind: draft.kind,
-    authorityId: draft.authorityId,
-    walletId: draft.walletId,
-    principal: draft.principal,
-    provenance: draft.provenance,
-    permissions: draft.permissions,
-    signerActivations: draft.signerActivations,
-    signerActivationSetDigestB64u: draft.signerActivationSetDigestB64u,
-    authorityDigestB64u: await computeWalletAuthorityDigestB64u(draft),
-    revocationEpoch: draft.revocationEpoch,
-    createdAtMs: draft.createdAtMs,
-    updatedAtMs: draft.updatedAtMs,
-    state: draft.state,
-    activatedAtMs: draft.activatedAtMs,
-  });
+  return withCombinedSignerActivations(input.authority, signerActivationsCandidate, input.now);
+}
+
+/** `next` keeps everything of `previous` that an added signer must not change. */
+function keepsWalletAuthorityApartFromSigners(
+  previous: Omit<ActiveWalletAuthorityV1, 'signerActivations'>,
+  next: Omit<ActiveWalletAuthorityV1, 'signerActivations'>,
+): boolean {
+  return (
+    previous.authorityId === next.authorityId &&
+    previous.walletId === next.walletId &&
+    previous.revocationEpoch === next.revocationEpoch &&
+    previous.createdAtMs === next.createdAtMs &&
+    previous.activatedAtMs === next.activatedAtMs &&
+    base64UrlEncode(encodePrincipal(previous.principal)) ===
+      base64UrlEncode(encodePrincipal(next.principal)) &&
+    base64UrlEncode(encodeProvenance(previous.provenance)) ===
+      base64UrlEncode(encodeProvenance(next.provenance)) &&
+    base64UrlEncode(encodePermissions(previous.permissions)) ===
+      base64UrlEncode(encodePermissions(next.permissions))
+  );
 }
 
 /**
@@ -1421,17 +1240,7 @@ export function isEcdsaExtensionOfEd25519WalletAuthority(
   return (
     isActiveEd25519WalletAuthorityV1(previous) &&
     isCombinedWalletSignerActivationSetV1(next.signerActivations) &&
-    previous.authorityId === next.authorityId &&
-    previous.walletId === next.walletId &&
-    previous.revocationEpoch === next.revocationEpoch &&
-    previous.createdAtMs === next.createdAtMs &&
-    previous.activatedAtMs === next.activatedAtMs &&
-    base64UrlEncode(encodePrincipal(previous.principal)) ===
-      base64UrlEncode(encodePrincipal(next.principal)) &&
-    base64UrlEncode(encodeProvenance(previous.provenance)) ===
-      base64UrlEncode(encodeProvenance(next.provenance)) &&
-    base64UrlEncode(encodePermissions(previous.permissions)) ===
-      base64UrlEncode(encodePermissions(next.permissions)) &&
+    keepsWalletAuthorityApartFromSigners(previous, next) &&
     base64UrlEncode(encodeEd25519Activation(previous.signerActivations.ed25519)) ===
       base64UrlEncode(encodeEd25519Activation(next.signerActivations.ed25519))
   );
@@ -1446,17 +1255,7 @@ export function isEd25519ExtensionOfEcdsaWalletAuthority(
     isActiveEcdsaWalletAuthorityV1(previous) &&
     isCombinedWalletSignerActivationSetV1(next.signerActivations) &&
     previous.provenance.kind === 'wallet_registration' &&
-    previous.authorityId === next.authorityId &&
-    previous.walletId === next.walletId &&
-    previous.revocationEpoch === next.revocationEpoch &&
-    previous.createdAtMs === next.createdAtMs &&
-    previous.activatedAtMs === next.activatedAtMs &&
-    base64UrlEncode(encodePrincipal(previous.principal)) ===
-      base64UrlEncode(encodePrincipal(next.principal)) &&
-    base64UrlEncode(encodeProvenance(previous.provenance)) ===
-      base64UrlEncode(encodeProvenance(next.provenance)) &&
-    base64UrlEncode(encodePermissions(previous.permissions)) ===
-      base64UrlEncode(encodePermissions(next.permissions)) &&
+    keepsWalletAuthorityApartFromSigners(previous, next) &&
     base64UrlEncode(encodeEcdsaActivation(previous.signerActivations.ecdsa)) ===
       base64UrlEncode(encodeEcdsaActivation(next.signerActivations.ecdsa))
   );
