@@ -92,49 +92,9 @@
   flex: 1;
   max-width: none;
 }
-:where(.seams-wallet-ui) .seams-review-address {
-  display: block;
-  font:
-    0.75rem/1.5 ui-monospace,
-    SFMono-Regular,
-    monospace;
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  text-align: start;
-}
-:where(.seams-wallet-ui) .seams-review-address[data-overflowing='true'] {
-  mask-image: linear-gradient(to right, black calc(100% - 6px), transparent);
-}
-:where(.seams-wallet-ui) .seams-review-address > span {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-:where(.seams-wallet-ui) .seams-review-address[data-revealing] > span {
-  width: max-content;
-  overflow: visible;
-  text-overflow: clip;
-}
-:where(.seams-wallet-ui) .seams-review-address[data-revealing] {
-  text-overflow: clip;
-  mask-image: linear-gradient(
-    to right,
-    transparent,
-    black 8px,
-    black calc(100% - 8px),
-    transparent
-  );
-}
-:where(.seams-wallet-ui) .seams-review-address[data-reveal-end] {
-  mask-image: linear-gradient(to right, transparent, black 8px);
-}
-:where(.seams-wallet-ui) .seams-review-address:focus-visible {
-  outline: 2px solid var(--seams-colors-focus);
-  outline-offset: 2px;
-  mask-image: none;
+:where(.seams-wallet-ui) .seams-review-fields dd:has(> .seams-review-hash) {
+  flex: 1;
+  max-width: none;
 }
 :where(.seams-wallet-ui) .seams-review-copy,
 :where(.seams-wallet-ui) .seams-review-toolbar button {
@@ -264,26 +224,29 @@
   align-items: center;
   gap: 0.25rem;
 }
-:where(.seams-wallet-ui) .seams-review-contract-address {
+:where(.seams-wallet-ui) .seams-review-middle {
   display: flex;
+  min-width: 0;
+  font:
+    0.75rem/1.5 ui-monospace,
+    SFMono-Regular,
+    monospace;
+  white-space: nowrap;
+}
+:where(.seams-wallet-ui) .seams-review-middle > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+:where(.seams-wallet-ui) .seams-review-middle > span:last-child {
+  flex: none;
+}
+:where(.seams-wallet-ui) .seams-review-contract-address {
   flex: 1 1 0;
   /* Containment makes this min-width, not the full address, the value's narrowest size. */
   contain: inline-size;
   /* Eight leading characters, the ellipsis and eight trailing characters. */
   min-width: 17ch;
-  font:
-    0.75rem/1.5 ui-monospace,
-    SFMono-Regular,
-    monospace;
   color: var(--seams-colors-textSecondary);
-  white-space: nowrap;
-}
-:where(.seams-wallet-ui) .seams-review-contract-address > span:first-child {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-:where(.seams-wallet-ui) .seams-review-contract-address > span:last-child {
-  flex: none;
 }
 :where(.seams-wallet-ui) .seams-review-contract-value > .seams-review-copy {
   margin-block: -0.25rem;

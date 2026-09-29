@@ -296,55 +296,6 @@ test('toast grows from signing to broadcasting to complete and sweeps its curren
   await expect.poll(() => page.evaluate(() => window.__confirmationMount.violations)).toEqual([]);
 });
 
-test('receipt hashes stay on one line and reveal their end on hover and keyboard focus', async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 320, height: 800 });
-  const hash = `0x${'1234567890abcdef'.repeat(4)}`;
-  await page.evaluate((hash) => {
-    window.__confirmationMount.mount('modal', 'wallet-iframe');
-    window.__confirmationMount.receipt(0, { kind: 'confirmed', hash }, 'expanded');
-  }, hash);
-  await page.locator('summary').filter({ hasText: 'Receipt details' }).click();
-  const address = page.locator('.seams-review-address');
-  await expect(address).toHaveCSS('white-space', 'nowrap');
-  await expect(address).toHaveCSS('text-overflow', 'ellipsis');
-  await expect(address).toHaveAttribute('aria-label', hash);
-  await expect
-    .poll(() => address.evaluate((el) => el.firstElementChild!.scrollWidth > el.clientWidth))
-    .toBe(true);
-  await expect
-    .poll(() =>
-      page.locator('.modal-container-root').evaluate((el) => el.scrollWidth <= el.clientWidth),
-    )
-    .toBe(true);
-  await address.hover();
-  expect(await address.locator('span').evaluate(el => {
-    const timing = el.getAnimations()[0]?.effect?.getTiming();
-    return { duration: timing?.duration, delay: timing?.delay };
-  })).toEqual({ duration: 200, delay: 0 });
-  await expect(address).toHaveAttribute('data-revealing', 'true');
-  await expect
-    .poll(() => address.locator('span').evaluate((el) => getComputedStyle(el).transform))
-    .not.toBe('matrix(1, 0, 0, 1, 0, 0)');
-  await page.mouse.move(0, 0);
-  await expect(address).not.toHaveAttribute('data-revealing');
-  await page.emulateMedia({ reducedMotion: 'reduce' });
-  await address.focus();
-  await expect(address).toHaveAttribute('data-revealing', 'true');
-  await expect
-    .poll(() =>
-      address.evaluate((el) => {
-        const text = el.firstElementChild!;
-        return Math.abs(text.getBoundingClientRect().right - el.getBoundingClientRect().right);
-      }),
-    )
-    .toBeLessThan(1);
-  await page.getByRole('button', { name: 'Done', exact: true }).focus();
-  await expect(address).not.toHaveAttribute('data-revealing');
-  await expect.poll(() => page.evaluate(() => window.__confirmationMount.violations)).toEqual([]);
-});
-
 test('the contract row keeps its address beside the label and copies it from hover', async ({
   page,
 }) => {

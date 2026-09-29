@@ -12,7 +12,7 @@ import type { ExplorerUrls } from './TransactionLabel';
 import {
   CopyReviewValue,
   ReviewIcon,
-  ReviewAddress,
+  ReviewMiddleTruncated,
   ReviewAmount,
   reviewNetwork,
   reviewRecipient,
@@ -156,7 +156,7 @@ export class TransactionReceipt extends Component<{
               <div>
                 <dt>Transaction</dt>
                 <dd>
-                  <ReviewAddress value={receipt.state.hash} />
+                  <ReviewMiddleTruncated value={receipt.state.hash} class="seams-review-hash" />
                   <CopyReviewValue value={receipt.state.hash} />
                 </dd>
               </div>
