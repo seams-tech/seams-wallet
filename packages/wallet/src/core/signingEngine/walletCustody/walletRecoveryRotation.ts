@@ -65,60 +65,15 @@ export async function rotateWalletRecoverySetWithActiveFactorV1(input: {
   let issued: IssuedWalletRecoveryCodes | null = issueWalletRecoveryCodes();
   const factorSecret = new Uint8Array(input.factorSecret.slice(0));
   try {
-    const current = await readWalletRecoveryCodeStatus({
-      relayUrl: input.relayUrl,
-      walletId: input.walletId,
-      ...(input.fetchImpl ? { fetchImpl: input.fetchImpl } : {}),
+    return await rotateWithIssuedCodes(input, issued, (codeBytes) => {
+      const custody = joinCustodyWireFromEnvelopeRecord(input.custodyEnvelope);
+      if (!custody.ok) throw new Error(custody.reason);
+      return input.worker.rotateRecoverySet({
+        custodyJson: custody.custodyJson,
+        factorSecret: factorSecret.buffer.slice(0),
+        recoveryCodesJson: recoveryCodesJson(codeBytes),
+      });
     });
-    if (current.kind !== 'ready') {
-      return current.kind === 'unauthorized'
-        ? { kind: 'transport_failed', message: current.message }
-        : current;
-    }
-
-    const custody = joinCustodyWireFromEnvelopeRecord(input.custodyEnvelope);
-    if (!custody.ok) throw new Error(custody.reason);
-    const workerResult = await input.worker.rotateRecoverySet({
-      custodyJson: custody.custodyJson,
-      factorSecret: factorSecret.buffer.slice(0),
-      recoveryCodesJson: JSON.stringify(
-        issued.codeBytes.map((bytes) => ({ codeBytesB64u: base64UrlEncode(bytes) })),
-      ),
-    });
-    const replacement = walletRecoverySetRotationWireFromWorkerResultV1(workerResult);
-    if (replacement.walletId !== input.walletId) {
-      throw new Error('Recovery rotation worker returned a different wallet');
-    }
-    const recoveryCodeLocators = await deriveRecoveryCodeLocators(
-      issued.codeBytes,
-      replacement.manifestKekWraps,
-    );
-    const rotated = await rotateWalletRecoverySet({
-      relayUrl: input.relayUrl,
-      walletId: input.walletId,
-      factorProof: await input.factorProof({
-        operation: 'recovery_rotate',
-        payload: {
-          walletId: input.walletId,
-          expectedStoreVersion: current.storeVersion,
-          manifestKekWraps: replacement.manifestKekWraps,
-          entries: [replacement.entry],
-          recoveryCodeLocators,
-        },
-      }),
-      expectedStoreVersion: current.storeVersion,
-      replacement,
-      recoveryCodeLocators,
-      ...(input.fetchImpl ? { fetchImpl: input.fetchImpl } : {}),
-    });
-    if (rotated.kind !== 'rotated') return rotated;
-    return {
-      kind: 'rotated',
-      walletId: input.walletId,
-      recoveryCodes: issued.codes,
-      issuedAtMs: rotated.issuedAtMs,
-      storeVersion: rotated.storeVersion,
-    };
   } finally {
     factorSecret.fill(0);
     if (issued) zeroizeIssuedWalletRecoveryCodes(issued);
@@ -135,59 +90,78 @@ export async function rotateWalletRecoverySetWithEmailOtpV1(input: {
 }): Promise<WalletRecoveryRotationOutcome> {
   let issued: IssuedWalletRecoveryCodes | null = issueWalletRecoveryCodes();
   try {
-    const current = await readWalletRecoveryCodeStatus({
-      relayUrl: input.relayUrl,
-      walletId: input.walletId,
-      ...(input.fetchImpl ? { fetchImpl: input.fetchImpl } : {}),
-    });
-    if (current.kind !== 'ready') {
-      return current.kind === 'unauthorized'
-        ? { kind: 'transport_failed', message: current.message }
-        : current;
-    }
-    const workerResult = await input.worker.rotateRecoverySet({
-      recoveryCodesJson: JSON.stringify(
-        issued.codeBytes.map((bytes) => ({ codeBytesB64u: base64UrlEncode(bytes) })),
-      ),
-    });
-    const replacement = walletRecoverySetRotationWireFromWorkerResultV1(workerResult);
-    if (replacement.walletId !== input.walletId) {
-      throw new Error('Recovery rotation worker returned a different wallet');
-    }
-    const recoveryCodeLocators = await deriveRecoveryCodeLocators(
-      issued.codeBytes,
-      replacement.manifestKekWraps,
+    return await rotateWithIssuedCodes(input, issued, (codeBytes) =>
+      input.worker.rotateRecoverySet({ recoveryCodesJson: recoveryCodesJson(codeBytes) }),
     );
-    const rotated = await rotateWalletRecoverySet({
-      relayUrl: input.relayUrl,
-      walletId: input.walletId,
-      factorProof: await input.factorProof({
-        operation: 'recovery_rotate',
-        payload: {
-          walletId: input.walletId,
-          expectedStoreVersion: current.storeVersion,
-          manifestKekWraps: replacement.manifestKekWraps,
-          entries: [replacement.entry],
-          recoveryCodeLocators,
-        },
-      }),
-      expectedStoreVersion: current.storeVersion,
-      replacement,
-      recoveryCodeLocators,
-      ...(input.fetchImpl ? { fetchImpl: input.fetchImpl } : {}),
-    });
-    if (rotated.kind !== 'rotated') return rotated;
-    return {
-      kind: 'rotated',
-      walletId: input.walletId,
-      recoveryCodes: issued.codes,
-      issuedAtMs: rotated.issuedAtMs,
-      storeVersion: rotated.storeVersion,
-    };
   } finally {
     if (issued) zeroizeIssuedWalletRecoveryCodes(issued);
     issued = null;
   }
+}
+
+// The steps both factors share. `rotateInWorker` runs after the status read, so a wallet
+// without a ready recovery set never reaches the worker.
+async function rotateWithIssuedCodes(
+  input: {
+    readonly relayUrl: string;
+    readonly walletId: string;
+    readonly factorProof: WalletRecoveryFactorProofFactory;
+    readonly fetchImpl?: typeof fetch;
+  },
+  issued: IssuedWalletRecoveryCodes,
+  rotateInWorker: (
+    codeBytes: readonly Uint8Array[],
+  ) => Promise<WalletRecoverySetRotationWorkerResultV1>,
+): Promise<WalletRecoveryRotationOutcome> {
+  const current = await readWalletRecoveryCodeStatus({
+    relayUrl: input.relayUrl,
+    walletId: input.walletId,
+    ...(input.fetchImpl ? { fetchImpl: input.fetchImpl } : {}),
+  });
+  if (current.kind !== 'ready') {
+    return current.kind === 'unauthorized'
+      ? { kind: 'transport_failed', message: current.message }
+      : current;
+  }
+  const workerResult = await rotateInWorker(issued.codeBytes);
+  const replacement = walletRecoverySetRotationWireFromWorkerResultV1(workerResult);
+  if (replacement.walletId !== input.walletId) {
+    throw new Error('Recovery rotation worker returned a different wallet');
+  }
+  const recoveryCodeLocators = await deriveRecoveryCodeLocators(
+    issued.codeBytes,
+    replacement.manifestKekWraps,
+  );
+  const rotated = await rotateWalletRecoverySet({
+    relayUrl: input.relayUrl,
+    walletId: input.walletId,
+    factorProof: await input.factorProof({
+      operation: 'recovery_rotate',
+      payload: {
+        walletId: input.walletId,
+        expectedStoreVersion: current.storeVersion,
+        manifestKekWraps: replacement.manifestKekWraps,
+        entries: [replacement.entry],
+        recoveryCodeLocators,
+      },
+    }),
+    expectedStoreVersion: current.storeVersion,
+    replacement,
+    recoveryCodeLocators,
+    ...(input.fetchImpl ? { fetchImpl: input.fetchImpl } : {}),
+  });
+  if (rotated.kind !== 'rotated') return rotated;
+  return {
+    kind: 'rotated',
+    walletId: input.walletId,
+    recoveryCodes: issued.codes,
+    issuedAtMs: rotated.issuedAtMs,
+    storeVersion: rotated.storeVersion,
+  };
+}
+
+function recoveryCodesJson(codeBytes: readonly Uint8Array[]): string {
+  return JSON.stringify(codeBytes.map((bytes) => ({ codeBytesB64u: base64UrlEncode(bytes) })));
 }
 
 async function deriveRecoveryCodeLocators(
