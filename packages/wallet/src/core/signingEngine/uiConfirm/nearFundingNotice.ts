@@ -57,29 +57,3 @@ function isNearAccountFundingProgressNotice(body: string): boolean {
 export function isNearSigningProgressNotice(body: string): boolean {
   return isNearTransactionSubmittingNotice(body) || isNearAccountFundingProgressNotice(body);
 }
-
-function copyTextWithTextArea(text: string): void {
-  const textArea = document.createElement('textarea');
-  textArea.value = text;
-  textArea.setAttribute('readonly', '');
-  textArea.style.position = 'fixed';
-  textArea.style.inset = '0 auto auto 0';
-  textArea.style.opacity = '0';
-  textArea.style.pointerEvents = 'none';
-  document.body.appendChild(textArea);
-  textArea.select();
-  document.execCommand('copy');
-  textArea.remove();
-}
-
-export async function copyTextToClipboard(text: string): Promise<void> {
-  const value = String(text || '').trim();
-  if (!value) return;
-  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
-    try {
-      await navigator.clipboard.writeText(value);
-      return;
-    } catch {}
-  }
-  if (typeof document !== 'undefined') copyTextWithTextArea(value);
-}

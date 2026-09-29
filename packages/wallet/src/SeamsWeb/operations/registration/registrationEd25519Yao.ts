@@ -94,13 +94,6 @@ type RegistrationEd25519MaterialFacts = {
   };
 };
 
-export function requireDeferredNearWork(
-  value: WalletRegistrationRespondEd25519DeferredWork | null,
-): WalletRegistrationRespondEd25519DeferredWork {
-  if (!value) throw new Error('Mixed registration is missing deferred NEAR material facts');
-  return value;
-}
-
 export function registrationEd25519MaterialFacts(args: {
   deferredNear: WalletRegistrationRespondEd25519DeferredWork;
   finalized: WalletRegistrationEd25519YaoPublicResult;

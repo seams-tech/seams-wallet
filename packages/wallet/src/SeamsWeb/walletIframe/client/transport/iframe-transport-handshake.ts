@@ -87,15 +87,6 @@ function createProtocolVersionMismatchError(args: {
   });
 }
 
-export function isWalletIframeReadyTimeoutError(
-  error: unknown,
-): error is WalletIframeReadyTimeoutError {
-  if (error instanceof WalletIframeReadyTimeoutError) return true;
-  if (!error || typeof error !== 'object') return false;
-  const code = (error as { code?: unknown }).code;
-  return code === WALLET_IFRAME_READY_TIMEOUT_CODE;
-}
-
 function throwIfAborted(signal?: AbortSignal): void {
   if (signal?.aborted) {
     throw createAbortError();

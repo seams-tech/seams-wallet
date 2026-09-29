@@ -2886,12 +2886,6 @@ export type WalletRegistrationEcdsaWalletKey = {
   publicCapability: RouterAbEcdsaDerivationPublicCapabilityV1;
 };
 
-export type WalletRegistrationEcdsaCompletedBootstrap = {
-  bootstrap: ThresholdEcdsaDerivationRoleLocalBootstrapValue;
-  publicIdentity: EcdsaDerivationRoleLocalPublicIdentity;
-  relayerShareRetryCounter: number;
-};
-
 type WalletRegistrationStartAuthority =
   | {
       kind: 'passkey';

@@ -1,4 +1,4 @@
-import { type SignerAuthMethod, SIGNER_AUTH_METHODS } from '@shared/utils/signerDomain';
+import { type SignerAuthMethod } from '@shared/utils/signerDomain';
 
 export type AccountAuthMetadata = {
   primaryAuthMethod: SignerAuthMethod;
@@ -21,15 +21,4 @@ export function resolveAccountAuthMetadataForSignerAuthMethod(args: {
       ? { passkeyCredentialIds: args.passkeyCredentialIds }
       : {}),
   };
-}
-
-export function signerAuthMethodFromUnknown(value: unknown): SignerAuthMethod | null {
-  switch (value) {
-    case SIGNER_AUTH_METHODS.passkey:
-      return SIGNER_AUTH_METHODS.passkey;
-    case SIGNER_AUTH_METHODS.emailOtp:
-      return SIGNER_AUTH_METHODS.emailOtp;
-    default:
-      return null;
-  }
 }

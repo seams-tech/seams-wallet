@@ -289,18 +289,3 @@ export async function bootstrapWarmEcdsaCapabilityResult(
   request satisfies never;
   throw new Error('[SigningEngine][ecdsa] unsupported warm bootstrap request');
 }
-
-export async function bootstrapWarmEcdsaCapability(
-  deps: BootstrapWarmEcdsaCapabilityDeps,
-  request: EcdsaBootstrapRequest,
-): Promise<ThresholdEcdsaSessionBootstrapResult> {
-  const result = await bootstrapWarmEcdsaCapabilityResult(deps, request);
-  if (result.ok) return result.bootstrap;
-  const failureKind = result.kind;
-  switch (failureKind) {
-    case 'reuse_failed':
-      throw reuseWarmEcdsaBootstrapFailureToError(result.failure);
-  }
-  failureKind satisfies never;
-  throw new Error('[SigningEngine][ecdsa] unsupported warm bootstrap result');
-}

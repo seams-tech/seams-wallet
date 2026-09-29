@@ -141,15 +141,6 @@ export type ReadPasskeyEd25519YaoLocalMaterialLocatorResultV1 =
       locator?: never;
     };
 
-export type PersistPasskeyEd25519YaoLocalMaterialInputV1 = {
-  store: Ed25519YaoLocalMaterialStorePort;
-  activeClient: RouterAbEd25519YaoSealableActiveClientV1;
-  walletSessionState: NearResolvedEd25519SigningSessionState;
-  rpId: string;
-  credentialIdB64u: string;
-  passkeyPrfFirstB64u: string;
-};
-
 export type PersistPasskeyEd25519YaoSignerMaterialInputV1 = {
   store: Ed25519YaoLocalMaterialStorePort;
   activeClient: RouterAbEd25519YaoSealableActiveClientV1;
@@ -164,16 +155,6 @@ export type PasskeyEd25519YaoLocalMaterialTargetV1 = {
   accountAddress: string;
 };
 
-export type BuildPromotedPasskeyEd25519YaoLocalMaterialRecordInputV1 = {
-  target: PasskeyEd25519YaoLocalMaterialTargetV1;
-  activeClient: RouterAbEd25519YaoSealableActiveClientV1;
-  walletSessionState: NearResolvedEd25519SigningSessionState;
-  rpId: string;
-  credentialIdB64u: string;
-  ownedPasskeyPrfFirst: Uint8Array;
-  promotionReceipt: RouterAbEd25519YaoRecoveryActivationReceiptV1;
-};
-
 export type RehydratePasskeyEd25519YaoLocalMaterialInputV1 = {
   store: Ed25519YaoLocalMaterialStorePort;
   identity: Ed25519YaoLocalMaterialIdentity;
@@ -185,13 +166,6 @@ export type RehydratePasskeyEd25519YaoLocalMaterialRecordInputV1 = {
   target: PasskeyEd25519YaoLocalMaterialTargetV1;
   identity: Ed25519YaoLocalMaterialIdentity;
   ownedPasskeyPrfFirst: Uint8Array;
-};
-
-export type DeletePasskeyEd25519YaoLocalMaterialInputV1 = {
-  store: Ed25519YaoLocalMaterialStorePort;
-  walletSessionState: NearResolvedEd25519SigningSessionState;
-  rpId: string;
-  credentialIdB64u: string;
 };
 
 export type RehydratePasskeyEd25519YaoLocalMaterialResultV1 =
@@ -340,19 +314,6 @@ export function ed25519YaoLocalMaterialIdentityFromWalletSession(
       walletSessionState.routerAbNormalSigning.signingWorkerId,
       'signingWorkerId',
     ),
-  };
-}
-
-function stableServerScopeFromActiveClient(
-  activeClient: RouterAbEd25519YaoActiveClientV1,
-  walletSessionState: NearResolvedEd25519SigningSessionState,
-): PasskeyEd25519YaoStableServerScopeV1 {
-  const metadata = activeClient.metadata();
-  return {
-    relayerKeyId: walletSessionState.routerAbNormalSigning.signingWorkerId,
-    participantIds: [metadata.participantIds[0], metadata.participantIds[1]],
-    runtimePolicyScope: walletSessionState.runtimePolicyScope,
-    routerAbNormalSigning: walletSessionState.routerAbNormalSigning,
   };
 }
 
@@ -738,58 +699,6 @@ function buildPasskeyEd25519YaoLocalMaterialRecordV1(input: {
   };
 }
 
-export function buildPromotedPasskeyEd25519YaoLocalMaterialRecordV1(
-  input: BuildPromotedPasskeyEd25519YaoLocalMaterialRecordInputV1,
-): KeyMaterialRecord {
-  const identity = ed25519YaoLocalMaterialIdentityFromWalletSession(
-    input.walletSessionState,
-    input.rpId,
-    input.credentialIdB64u,
-  );
-  return buildPasskeyEd25519YaoLocalMaterialRecordV1({
-    target: input.target,
-    activeClient: input.activeClient,
-    identity,
-    stableServerScope: stableServerScopeFromActiveClient(
-      input.activeClient,
-      input.walletSessionState,
-    ),
-    ownedPasskeyPrfFirst: input.ownedPasskeyPrfFirst,
-    lifecycle: {
-      kind: 'recovery_promotion',
-      promotionReceipt: input.promotionReceipt,
-    },
-  });
-}
-
-export async function persistPasskeyEd25519YaoLocalMaterialV1(
-  input: PersistPasskeyEd25519YaoLocalMaterialInputV1,
-): Promise<void> {
-  const identity = ed25519YaoLocalMaterialIdentityFromWalletSession(
-    input.walletSessionState,
-    input.rpId,
-    input.credentialIdB64u,
-  );
-  const target = await resolveAccountKeyMaterialTarget(input.store, {
-    accountRefs: buildNearAccountRefs(identity.nearAccountId),
-  });
-  if (!target) {
-    throw new Error('Local Ed25519 material requires a persisted wallet profile');
-  }
-  const record = buildPasskeyEd25519YaoLocalMaterialRecordV1({
-    target,
-    activeClient: input.activeClient,
-    identity,
-    stableServerScope: stableServerScopeFromActiveClient(
-      input.activeClient,
-      input.walletSessionState,
-    ),
-    ownedPasskeyPrfFirst: base64UrlDecode(input.passkeyPrfFirstB64u),
-    lifecycle: { kind: 'registration_or_rehydration' },
-  });
-  await input.store.storeKeyMaterial(record);
-}
-
 export async function persistPasskeyEd25519YaoSignerMaterialV1(
   input: PersistPasskeyEd25519YaoSignerMaterialInputV1,
 ): Promise<void> {
@@ -808,23 +717,6 @@ export async function persistPasskeyEd25519YaoSignerMaterialV1(
     lifecycle: { kind: 'registration_or_rehydration' },
   });
   await input.store.storeKeyMaterial(record);
-}
-
-export async function deletePasskeyEd25519YaoSignerMaterialV1(input: {
-  store: Ed25519YaoLocalMaterialStorePort;
-  nearAccountId: string;
-  signerSlot: number;
-}): Promise<void> {
-  const target = await resolveAccountKeyMaterialTarget(input.store, {
-    accountRefs: buildNearAccountRefs(input.nearAccountId),
-  });
-  if (!target) return;
-  await input.store.deleteKeyMaterial(
-    target.profileId,
-    requirePositiveSafeInteger(input.signerSlot, 'signerSlot'),
-    target.chainIdKey,
-    ED25519_YAO_LOCAL_MATERIAL_KEY_KIND,
-  );
 }
 
 export async function readPasskeyEd25519YaoLocalMaterialLocatorV1(
@@ -1082,26 +974,6 @@ export async function hydratePasskeyEd25519YaoLocalMaterialV1(input: {
       plan satisfies never;
       throw new Error('Unsupported Near Ed25519 hydration plan');
   }
-}
-
-export async function deletePasskeyEd25519YaoLocalMaterialV1(
-  input: DeletePasskeyEd25519YaoLocalMaterialInputV1,
-): Promise<void> {
-  const identity = ed25519YaoLocalMaterialIdentityFromWalletSession(
-    input.walletSessionState,
-    input.rpId,
-    input.credentialIdB64u,
-  );
-  const target = await resolveAccountKeyMaterialTarget(input.store, {
-    accountRefs: buildNearAccountRefs(identity.nearAccountId),
-  });
-  if (!target) return;
-  await input.store.deleteKeyMaterial(
-    target.profileId,
-    identity.signerSlot,
-    target.chainIdKey,
-    ED25519_YAO_LOCAL_MATERIAL_KEY_KIND,
-  );
 }
 
 export async function rehydratePasskeyEd25519YaoLocalMaterialV1(

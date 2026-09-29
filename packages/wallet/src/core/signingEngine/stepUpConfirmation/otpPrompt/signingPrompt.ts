@@ -23,11 +23,3 @@ export function buildEmailOtpSigningPrompt(args: {
     ...(args.resend ? { onResend: args.resend } : {}),
   };
 }
-
-export async function prepareEmailOtpSigningPrompt(
-  source: EmailOtpSigningPromptSource | undefined,
-): Promise<EmailOtpConfirmPrompt | undefined> {
-  if (!source) return undefined;
-  const challenge = await source.prepare();
-  return buildEmailOtpSigningPrompt({ challenge, resend: source.resend });
-}

@@ -4,7 +4,6 @@ import type {
   EvmBytes,
   EvmContractAbi,
   Hex,
-  EvmSecp256k1SigningRequest,
   EvmSigningRequest,
 } from '../evm/evmSigning.types';
 
@@ -46,13 +45,4 @@ export type TempoSigningRequest = {
   senderSignatureAlgorithm: 'secp256k1' | 'webauthnP256';
 };
 
-export type TempoSecp256k1SigningRequest = Extract<
-  TempoSigningRequest,
-  { senderSignatureAlgorithm: 'secp256k1' }
->;
-
 export type MultichainSigningRequest = EvmSigningRequest | TempoSigningRequest;
-
-export type MultichainSecp256k1SigningRequest =
-  | EvmSecp256k1SigningRequest
-  | TempoSecp256k1SigningRequest;

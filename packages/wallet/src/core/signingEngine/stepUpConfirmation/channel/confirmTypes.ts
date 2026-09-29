@@ -152,14 +152,6 @@ export type WorkerConfirmationResponse =
           }
       ));
 
-// ===== V2 MESSAGE TYPES =====
-
-// V2 summaries (render-oriented / UI hints)
-export interface TxSummary {
-  totalAmount?: string;
-  method?: string;
-  receiverId?: string;
-}
 export interface RegistrationSummary {
   walletId: string;
   nearAccountId?: string;
@@ -173,12 +165,6 @@ export interface ExportSummary {
   accountId: string;
   publicKey: string;
   warning: string;
-}
-export interface Nep413Summary {
-  operation: 'Sign NEP-413 Message';
-  message: string;
-  recipient: string;
-  accountId: string;
 }
 
 // V2 request envelope

@@ -1,8 +1,5 @@
 import { __isWalletIframeHostMode } from '@/core/browser/walletIframe/host-mode';
-import type {
-  WorkerResourceWarmupPolicy,
-  WorkerResourceWarmupPredicate,
-} from '@/core/signingEngine/assembly/warmup';
+import type { WorkerResourceWarmupPolicy } from '@/core/signingEngine/assembly/warmup';
 import type { SeamsConfigsReadonly } from '@/core/types/seams';
 
 function shouldSkipBrowserWorkerWarmup(_workerBaseOrigin: string): boolean {
@@ -37,5 +34,3 @@ export function resolveBrowserWorkerWarmupPolicy(
   if (isAppOriginIframeClient(configs)) return DISABLED_BROWSER_WORKER_WARMUP_POLICY;
   return SAME_ORIGIN_BROWSER_WORKER_WARMUP_POLICY;
 }
-
-export type BrowserWorkerWarmupPredicate = WorkerResourceWarmupPredicate;

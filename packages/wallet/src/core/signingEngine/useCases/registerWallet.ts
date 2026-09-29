@@ -118,16 +118,6 @@ export type RegisterWalletDeps = {
   };
 };
 
-export type RegisterWalletUseCase = {
-  register(input: RegisterWalletInput): Promise<RegisterWalletResult>;
-};
-
-export function createRegisterWalletUseCase(deps: RegisterWalletDeps): RegisterWalletUseCase {
-  return {
-    register: (input) => registerWallet(deps, input),
-  };
-}
-
 function toNonEmptyReadonlyArray<T>(items: readonly T[]): NonEmptyReadonlyArray<T> | null {
   const first = items[0];
   if (first === undefined) return null;

@@ -939,19 +939,6 @@ export type ParentToChildType =
   | 'PM_CANCEL_DEVICE_LINKING'
   | 'PM_SYNC_ACCOUNT_FLOW';
 
-export type ChildToParentType =
-  | 'TRANSACTION_ACTIVITY'
-  | 'READY'
-  | 'PONG'
-  | 'PROGRESS'
-  | 'SDK_LIFECYCLE_EVENT'
-  | 'PREFERENCES_CHANGED'
-  | 'AUTH_MENU_EXTERNAL_AUTH_REQUEST'
-  | 'AUTH_MENU_ERROR'
-  | 'SURFACE_MEASUREMENT'
-  | 'PM_RESULT'
-  | 'ERROR';
-
 export interface RpcEnvelope<T extends string = string, P = unknown> {
   type: T;
   requestId?: string;

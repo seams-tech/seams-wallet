@@ -531,26 +531,6 @@ export type AddedEvmFamilyEcdsaSignerCapability = {
 };
 
 /**
- * Lifecycle of the deferred Ed25519/NEAR branch for one wallet.
- *
- * `near_pending` is the state registration returns in: the ECDSA wallet is
- * durable and nothing has started provisioning NEAR yet. `near_provisioning`
- * means an attempt is in flight. `near_failed_retryable` means the Yao ceremony
- * or its finalize failed without touching the ECDSA wallet, so the commit can
- * be reissued against the same registration ceremony.
- *
- * These are published to page-owned state and persisted to the local wallet
- * record. `RegistrationResult` carries only a snapshot: it has crossed the
- * postMessage boundary by the time provisioning settles and must not be
- * mutated.
- */
-export type NearProvisioningStatus =
-  | 'near_pending'
-  | 'near_provisioning'
-  | 'near_ready'
-  | 'near_failed_retryable';
-
-/**
  * Wire input for a durable NEAR provisioning write.
  *
  * Deliberately a closed discriminated union of plain data: it carries the
@@ -1022,13 +1002,4 @@ export interface SeamsConfigsResolved {
   webauthn: SeamsWebauthnConfig;
   wallet: SeamsWalletConfig;
   ui: SeamsUiConfig;
-}
-
-// === TRANSACTION TYPES ===
-export interface TransactionParams {
-  receiverId: string;
-  methodName: string;
-  args: Record<string, unknown>;
-  gas?: string;
-  deposit?: string;
 }

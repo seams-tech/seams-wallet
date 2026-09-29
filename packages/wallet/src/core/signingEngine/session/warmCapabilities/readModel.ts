@@ -156,51 +156,6 @@ export function toWarmSessionClaimFromStatusResult(args: {
   };
 }
 
-export async function readWarmSessionClaims(args: {
-  touchConfirm: WarmSessionReadPorts | null;
-  thresholdSessionIds: string[];
-}): Promise<Map<string, WarmSessionPrfClaim | null>> {
-  const normalizedThresholdSessionIds = Array.from(
-    new Set(args.thresholdSessionIds.map((value) => String(value || '').trim()).filter(Boolean)),
-  );
-  const out = new Map<string, WarmSessionPrfClaim | null>();
-  if (!normalizedThresholdSessionIds.length) {
-    return out;
-  }
-  if (!args.touchConfirm) {
-    for (const thresholdSessionId of normalizedThresholdSessionIds) {
-      out.set(thresholdSessionId, null);
-    }
-    return out;
-  }
-  if (args.touchConfirm.statusPort !== 'single') {
-    const batch = await args.touchConfirm.getWarmSessionStatuses({
-      thresholdSessionIds: normalizedThresholdSessionIds,
-    });
-    for (const thresholdSessionId of normalizedThresholdSessionIds) {
-      const matched = batch.results.find(
-        (entry) => entry.thresholdSessionId === thresholdSessionId,
-      );
-      out.set(
-        thresholdSessionId,
-        matched
-          ? toWarmSessionClaimFromStatusResult({ thresholdSessionId, status: matched.result })
-          : null,
-      );
-    }
-    return out;
-  }
-  await Promise.all(
-    normalizedThresholdSessionIds.map(async (thresholdSessionId) => {
-      out.set(
-        thresholdSessionId,
-        await readWarmSessionClaim(args.touchConfirm, thresholdSessionId),
-      );
-    }),
-  );
-  return out;
-}
-
 export function deriveEd25519CapabilityState(args: {
   runtime: ExactEd25519SealedSessionRuntime;
   auth: ExactNearEd25519WalletSessionAuthorization | null;

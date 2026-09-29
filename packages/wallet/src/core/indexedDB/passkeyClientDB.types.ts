@@ -66,18 +66,6 @@ export interface ProfileAuthenticatorRecord {
   syncedAt: string;
 }
 
-export type WalletPasskeyAuthenticatorLookup =
-  | {
-      kind: 'all_for_wallet';
-      walletId: WalletId;
-      credentialId?: never;
-    }
-  | {
-      kind: 'by_credential';
-      walletId: WalletId;
-      credentialId: string;
-    };
-
 export type WalletSignerLookup =
   | {
       kind: 'active_by_family';

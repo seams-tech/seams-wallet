@@ -67,18 +67,6 @@ export function buildRecoveredCustodyEnvelopeRecord(args: {
   return record;
 }
 
-export function buildRecoveredPasskeyCustodyEnvelopeRecord(args: {
-  readonly expectedWalletId: string;
-  readonly replacement: RecoveryReplacementEnvelopePayload;
-  readonly activatedAtMs: number;
-}): PasskeyCustodyEnvelopeRecord {
-  const record = buildRecoveredCustodyEnvelopeRecord(args);
-  if (record.factor.kind !== 'passkey') {
-    throw new Error('credential replacement must reseal under a passkey factor');
-  }
-  return record;
-}
-
 function parseReplacementBinding(rawJson: string): Record<string, unknown> {
   let raw: unknown;
   try {

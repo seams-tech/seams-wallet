@@ -1,5 +1,4 @@
 import { setEmbeddedBase } from '@/core/walletRuntimePaths';
-import type { SeamsConfigsInput } from '@/core/types/seams';
 
 export type PreconnectWalletAssetsArgs = {
   walletOrigin?: string;
@@ -65,13 +64,4 @@ export function preconnectWalletAssets(args: PreconnectWalletAssetsArgs): void {
       ensureLink('preconnect', args.relayerUrl, { crossorigin: '' });
     }
   } catch {}
-}
-
-export function preconnectWalletAssetsFromConfig(config: SeamsConfigsInput): void {
-  preconnectWalletAssets({
-    walletOrigin: config?.iframeWallet?.walletOrigin,
-    servicePath: config?.iframeWallet?.walletServicePath || '/wallet-service',
-    sdkBasePath: config?.iframeWallet?.sdkBasePath || '/sdk',
-    relayerUrl: config?.relayer?.url,
-  });
 }

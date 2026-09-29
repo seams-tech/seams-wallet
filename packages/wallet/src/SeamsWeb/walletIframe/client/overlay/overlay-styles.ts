@@ -475,8 +475,6 @@ export const OverlayStyleClasses = {
   REVEAL_PENDING: CLASS_REVEAL_PENDING,
 };
 
-export const WALLET_IFRAME_DIALOG_ID_PREFIX = DIALOG_ID_PREFIX;
-
 export function setTransactionReviewAppearance(
   slot: HTMLElement,
   input: AppearanceConfigInput | undefined,

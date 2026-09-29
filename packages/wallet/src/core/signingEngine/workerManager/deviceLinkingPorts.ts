@@ -496,12 +496,6 @@ function parseRecipientRequestTuple(
   return [first, ...requests.slice(1)];
 }
 
-export function parseOrdinarySignerMaterialRecipientPreparationV1(
-  value: unknown,
-): DeviceLinkingOrdinarySignerMaterialRecipientPreparationV1 {
-  return parseRecipientPreparationResult(value);
-}
-
 function parseRecipientPreparationResult(
   value: unknown,
 ): DeviceLinkingOrdinarySignerMaterialRecipientPreparationV1 {

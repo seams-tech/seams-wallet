@@ -376,12 +376,7 @@ export const WorkerControlMessage = {
   WORKER_READY: 'WORKER_READY',
 } as const;
 
-export type WorkerControlMessageType =
-  (typeof WorkerControlMessage)[keyof typeof WorkerControlMessage];
-
 export type ThresholdEcdsaPresignStage = 'triples' | 'triples_done' | 'presign' | 'done';
-export type ThresholdEcdsaPresignEvent =
-  'none' | 'triples_done' | 'final_batch_ready' | 'presign_done';
 
 export type ThresholdEcdsaPresignProgressResult<Bytes = ArrayBuffer> = {
   outgoingMessages: Bytes[];
@@ -1183,55 +1178,12 @@ export type EvmCryptoLocalSecp256k1OperationType =
   | 'addSecp256k1PublicKeys33'
   | 'buildWebauthnP256Signature'
   | 'decodeCoseP256PublicKey';
-export type EvmCryptoDomainOperationType =
-  EvmCryptoTransactionOperationType | EvmCryptoLocalSecp256k1OperationType;
 
 export type EvmCryptoTransactionOperationRequest<T extends EvmCryptoTransactionOperationType> =
   MultichainWorkerOperationRequest<'evmCrypto', T>;
 export type EvmCryptoLocalSecp256k1OperationRequest<
   T extends EvmCryptoLocalSecp256k1OperationType,
 > = MultichainWorkerOperationRequest<'evmCrypto', T>;
-
-export type TempoSignerTransactionOperationType = 'computeTempoSenderHash' | 'encodeTempoSignedTx';
-export type TempoSignerTransactionOperationRequest<T extends TempoSignerTransactionOperationType> =
-  MultichainWorkerOperationRequest<'tempoSigner', T>;
-
-export type EmailOtpChallengeOperationType =
-  'requestEmailOtpChallenge' | 'requestEmailOtpEnrollmentChallenge';
-export type EmailOtpEnrollmentOperationType =
-  | 'enrollEmailOtpWallet'
-  | 'prepareEmailOtpRegistrationEnrollmentMaterial'
-  | 'createEmailOtpEd25519YaoSigningShare'
-  | 'disposeEmailOtpEd25519YaoActiveClient'
-  | 'prepareEmailOtpPasskeyCustodyLink'
-  | 'completeEmailOtpPasskeyCustodyLink'
-  | 'discardEmailOtpPasskeyCustodyLink'
-  | 'rotateEmailOtpWalletRecoverySet';
-export type EmailOtpWarmSessionOperationType =
-  | 'loginWithEmailOtpWallet'
-  | 'getEmailOtpWarmSessionStatus'
-  | 'consumeEmailOtpWarmSessionUses'
-  | 'sealEmailOtpWarmSessionMaterial'
-  | 'rehydrateEmailOtpEcdsaWarmSessionMaterial'
-  | 'rehydrateEmailOtpEd25519YaoOperationMaterial'
-  | 'rehydrateActiveEmailOtpEd25519YaoSessionMaterial'
-  | 'activateEmailOtpEd25519YaoRegistrationMaterial'
-  | 'clearEmailOtpWarmSessionMaterial';
-export type EmailOtpExportOperationType = 'exportEmailOtpEd25519YaoSeed';
-export type EmailOtpDomainOperationType =
-  | EmailOtpChallengeOperationType
-  | EmailOtpEnrollmentOperationType
-  | EmailOtpWarmSessionOperationType
-  | EmailOtpExportOperationType;
-
-export type EmailOtpChallengeOperationRequest<T extends EmailOtpChallengeOperationType> =
-  EmailOtpWorkerOperationRequestEnvelopeFor<T>;
-export type EmailOtpEnrollmentOperationRequest<T extends EmailOtpEnrollmentOperationType> =
-  EmailOtpWorkerOperationRequestEnvelopeFor<T>;
-export type EmailOtpWarmSessionOperationRequest<T extends EmailOtpWarmSessionOperationType> =
-  EmailOtpWorkerOperationRequestEnvelopeFor<T>;
-export type EmailOtpExportOperationRequest<T extends EmailOtpExportOperationType> =
-  EmailOtpWorkerOperationRequestEnvelopeFor<T>;
 
 type NearSignerWorkerPublicWasmOperationType = keyof WorkerRequestTypeMap;
 
@@ -1290,21 +1242,6 @@ export type NearWorkerOperationRequest<T extends NearWorkerOperationType> = {
 
 export type NearWorkerOperationResult<T extends NearWorkerOperationType> =
   NearWorkerOperationEntry<T>['result'];
-
-export type NearEd25519DigestOperationType =
-  | typeof NearSignerWorkerCustomRequestType.ThresholdEd25519ComputeNep413SigningDigest
-  | typeof NearSignerWorkerCustomRequestType.ThresholdEd25519ComputeDelegateSigningDigest
-  | typeof NearSignerWorkerCustomRequestType.ThresholdEd25519BuildDelegateSigningPayload;
-export type NearEd25519FinalizeOperationType =
-  | typeof NearSignerWorkerCustomRequestType.ThresholdEd25519FinalizeDelegateFromSignature
-  | typeof NearSignerWorkerCustomRequestType.ThresholdEd25519FinalizeNearTxFromSignature
-  | typeof NearSignerWorkerCustomRequestType.ThresholdEd25519BuildNearTxUnsignedBorsh
-  | typeof NearSignerWorkerCustomRequestType.ThresholdEd25519DecodeSignedNearTxBorsh;
-
-export type NearEd25519DigestOperationRequest<T extends NearEd25519DigestOperationType> =
-  NearWorkerOperationRequest<T>;
-export type NearEd25519FinalizeOperationRequest<T extends NearEd25519FinalizeOperationType> =
-  NearWorkerOperationRequest<T>;
 
 export const EcdsaDerivationClientCustomRequestType = {
   PrepareThresholdEcdsaDerivationRoleLocalClientBootstrap: 70_000,

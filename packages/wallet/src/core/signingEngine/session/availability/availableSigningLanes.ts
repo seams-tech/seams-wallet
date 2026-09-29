@@ -941,12 +941,6 @@ export function ecdsaAvailableLaneForTarget(
   return availableLanes.ecdsa.lanesByTarget[targetKey] || emptyEcdsaLane({ chainTarget });
 }
 
-export function ecdsaAvailableLaneTargets(
-  availableLanes: AvailableSigningLanes,
-): ThresholdEcdsaChainTarget[] {
-  return availableLanes.ecdsa.targets;
-}
-
 export function ecdsaAvailableLaneCandidatesForTarget(
   availableLanes: AvailableSigningLanes,
   chainTarget: ThresholdEcdsaChainTarget,

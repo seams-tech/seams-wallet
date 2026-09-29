@@ -151,13 +151,6 @@ export function decideWalletSessionQuotaAdmissionFailure(
   }
 }
 
-export function decideWalletSessionQuotaAdmissionError(
-  error: unknown,
-): WalletSessionQuotaAdmissionDecision | null {
-  const failure = classifyWalletSessionQuotaAdmissionFailure(error);
-  return failure ? decideWalletSessionQuotaAdmissionFailure(failure) : null;
-}
-
 export function buildWalletSessionQuotaAdmissionQueueKey(args: {
   walletId: string;
   curve: 'ed25519' | 'ecdsa';

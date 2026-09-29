@@ -263,7 +263,6 @@ import {
   parseThresholdEd25519SessionId,
   parseWalletId,
   type MpcMaterialActivationRef,
-  type ThresholdEd25519SessionId,
 } from '@shared/utils/domainIds';
 import { sha256HexUtf8 } from '@shared/utils/digests';
 import { signingRootScopeFromRuntimePolicyScope } from '@shared/threshold/signingRootScope';
@@ -1110,31 +1109,6 @@ export async function ensurePasskeyEd25519WarmSessionForSigning(args: {
     consume: false,
   });
   return claim;
-}
-
-export function nearEd25519PublicLocatorObservation(args: {
-  references: readonly Ed25519YaoPublicCapabilityLaneReferenceV1[];
-  walletId: WalletId;
-  nearAccountId: AccountId;
-  signerSlot: number;
-  thresholdSessionId: ThresholdEd25519SessionId;
-}): PasskeyEd25519YaoPublicLocatorObservationV1 {
-  const matches = args.references.filter(
-    (reference) =>
-      String(reference.walletId) === String(args.walletId) &&
-      String(reference.nearAccountId) === String(args.nearAccountId) &&
-      reference.signerSlot === args.signerSlot &&
-      String(reference.thresholdSessionId) === String(args.thresholdSessionId),
-  );
-  if (matches.length === 0) return { kind: 'missing' };
-  if (matches.length !== 1) return { kind: 'conflict' };
-  return {
-    kind: 'available',
-    walletId: String(args.walletId),
-    nearAccountId: String(args.nearAccountId),
-    signerSlot: args.signerSlot,
-    materialActivation: matches[0].materialActivation,
-  };
 }
 
 async function resolveNearEd25519PublicCapabilityMaterialActivation(args: {

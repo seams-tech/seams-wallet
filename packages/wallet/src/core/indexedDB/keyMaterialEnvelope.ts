@@ -1,7 +1,6 @@
 import type {
   KeyMaterialPayloadEnvelope,
   KeyMaterialPayloadEnvelopeAAD,
-  KeyMaterialRecord,
 } from './keyMaterial.types';
 import { toTrimmedString } from '@shared/utils/validation';
 
@@ -124,60 +123,4 @@ export function normalizePayloadEnvelope(
     envelope.tag = tag;
   }
   return envelope;
-}
-
-export function normalizeStoredPayloadRecord(rec: KeyMaterialRecord): KeyMaterialRecord | null {
-  const profileId = toTrimmedString(rec.profileId || '');
-  const chainIdKey = toTrimmedString(rec.chainIdKey || '').toLowerCase();
-  const accountAddress = toTrimmedString(rec.accountAddress || '').toLowerCase();
-  const keyKind = toTrimmedString(rec.keyKind || '');
-  const algorithm = toTrimmedString(rec.algorithm || '');
-  const publicKey = toTrimmedString(rec.publicKey || '');
-  const signerId = toTrimmedString(rec.signerId || '');
-  const wrapKeySalt = toTrimmedString(rec.wrapKeySalt || '');
-  if (!profileId || !chainIdKey || !accountAddress || !keyKind || !algorithm || !publicKey)
-    return null;
-  if (!signerId) return null;
-  if (!Number.isSafeInteger(rec.signerSlot) || rec.signerSlot < 1) return null;
-  if (typeof rec.timestamp !== 'number') return null;
-  if (!Number.isSafeInteger(rec.schemaVersion) || rec.schemaVersion < 1) return null;
-
-  const payload = sanitizePayload(rec.payload);
-  const expectedAAD = buildEnvelopeAAD({
-    profileId,
-    signerSlot: rec.signerSlot,
-    chainIdKey,
-    accountAddress,
-    keyKind,
-    schemaVersion: rec.schemaVersion,
-    signerId,
-  });
-  const payloadEnvelope = normalizePayloadEnvelope(
-    rec.payloadEnvelope,
-    expectedAAD,
-    `${profileId}/${rec.signerSlot}/${chainIdKey}/${keyKind}`,
-  );
-
-  const normalizedRecord: KeyMaterialRecord = {
-    profileId,
-    signerSlot: rec.signerSlot,
-    chainIdKey,
-    accountAddress,
-    keyKind,
-    algorithm,
-    publicKey,
-    signerId,
-    timestamp: rec.timestamp,
-    schemaVersion: rec.schemaVersion,
-  };
-  if (wrapKeySalt) {
-    normalizedRecord.wrapKeySalt = wrapKeySalt;
-  }
-  if (payload) {
-    normalizedRecord.payload = payload;
-  }
-  if (payloadEnvelope) {
-    normalizedRecord.payloadEnvelope = payloadEnvelope;
-  }
-  return normalizedRecord;
 }

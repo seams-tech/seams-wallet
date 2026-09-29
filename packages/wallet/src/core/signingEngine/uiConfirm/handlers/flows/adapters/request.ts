@@ -203,18 +203,6 @@ export function getEmailOtpPrompt(request: UserConfirmRequest): EmailOtpConfirmP
   return undefined;
 }
 
-export function getNearPublicKeyStr(request: UserConfirmRequest): string | undefined {
-  if (request.type === UserConfirmationType.SIGN_TRANSACTION) {
-    const value = getSignTransactionPayload(request).nearPublicKeyStr;
-    return typeof value === 'string' && value.trim() ? value.trim() : undefined;
-  }
-  if (request.type === UserConfirmationType.SIGN_NEP413_MESSAGE) {
-    const value = request.payload.nearPublicKeyStr;
-    return typeof value === 'string' && value.trim() ? value.trim() : undefined;
-  }
-  return undefined;
-}
-
 export function getRegisterAccountPayload(request: UserConfirmRequest): RegisterAccountPayload {
   if (
     request.type !== UserConfirmationType.REGISTER_ACCOUNT &&

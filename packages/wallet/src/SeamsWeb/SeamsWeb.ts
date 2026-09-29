@@ -825,10 +825,6 @@ type SeamsWebContextWithDeviceLinkingResumeV1 = SeamsWebContext & {
   readonly resumePendingAcknowledgementsV1: () => void;
 };
 
-export function resolveSeamsWebDeviceDomainModeV1(mode: SeamsWebRuntimeMode): 'direct' | 'iframe' {
-  return mode === 'wallet_host' ? 'direct' : 'iframe';
-}
-
 const ecdsaCapabilityManifestStore = new IndexedDbEcdsaCapabilityManifestStore();
 
 type SeamsWebDeviceDomainArgsV1 = {

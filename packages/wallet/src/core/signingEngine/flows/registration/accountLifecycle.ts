@@ -1,9 +1,4 @@
-import {
-  SIGNER_AUTH_METHODS,
-  SIGNER_KINDS,
-  SIGNER_SOURCES,
-  type WalletAuthMethod,
-} from '@shared/utils/signerDomain';
+import { SIGNER_AUTH_METHODS, SIGNER_KINDS, SIGNER_SOURCES } from '@shared/utils/signerDomain';
 import type { NearProvisioningState, NearProvisioningWriteV1 } from '@/core/types/seams';
 import {
   NEAR_ED25519_YAO_KEY_VERSION_V1,
@@ -259,24 +254,6 @@ const WALLET_SUBJECT_CHAIN_ID_KEY = 'wallet';
 const WALLET_SUBJECT_ACCOUNT_MODEL = 'wallet';
 const THRESHOLD_ECDSA_ACCOUNT_MODEL = 'threshold-ecdsa';
 
-function toWalletAuthMethod(authMethod: unknown): WalletAuthMethod | null {
-  if (authMethod === SIGNER_AUTH_METHODS.emailOtp) return SIGNER_AUTH_METHODS.emailOtp;
-  if (authMethod === SIGNER_AUTH_METHODS.passkey) return SIGNER_AUTH_METHODS.passkey;
-  return null;
-}
-
-function signerLoginDisplayName(args: {
-  walletId: string;
-  authMethod: WalletAuthMethod | null;
-  metadata: Record<string, unknown>;
-}): string {
-  if (args.authMethod === SIGNER_AUTH_METHODS.emailOtp) {
-    const email = String(args.metadata.email || '').trim();
-    if (email) return email;
-  }
-  return args.walletId;
-}
-
 function verifiedCredentialPublicKeyBytes(value: string, field: string): Uint8Array {
   const credentialPublicKeyB64u = String(value || '').trim();
   if (!credentialPublicKeyB64u) {
@@ -309,59 +286,6 @@ async function resolveNearProfileContext(
     profileId: profileId.value,
     chainIdKey: context.accountRef.chainIdKey,
     accountAddress: context.accountRef.accountAddress,
-  };
-}
-
-async function readNearUserData(
-  deps: RegistrationAccountLifecycleDeps,
-  nearAccountId: AccountId,
-  signerSlot?: number,
-): Promise<ClientUserData | null> {
-  const accountId = toAccountId(nearAccountId);
-  const projection = await resolveProfileAccountProjection(deps.accountStore, {
-    accountRefs: buildNearAccountRefs(accountId),
-    ...(typeof signerSlot === 'number' ? { signerSlot } : {}),
-  }).catch(() => null);
-  if (!projection) return null;
-
-  const metadata = projection.selectedSigner.metadata || {};
-  const walletId = String(metadata.walletId || '').trim();
-  if (!walletId) return null;
-  const authMethod = toWalletAuthMethod(projection.selectedSigner.signerAuthMethod);
-  const passkeyCredentialRawId =
-    typeof metadata.passkeyCredentialRawId === 'string'
-      ? metadata.passkeyCredentialRawId
-      : projection.selectedSigner.signerId;
-  const passkeyCredentialId =
-    typeof metadata.passkeyCredentialId === 'string'
-      ? metadata.passkeyCredentialId
-      : projection.profile.passkeyCredential?.id || passkeyCredentialRawId;
-  const operationalPublicKey =
-    typeof metadata.operationalPublicKey === 'string' ? metadata.operationalPublicKey : '';
-  const nearEd25519SigningKeyId = String(metadata.nearEd25519SigningKeyId || '').trim();
-  if (!nearEd25519SigningKeyId) return null;
-
-  return {
-    walletId,
-    nearAccountId: accountId,
-    loginDisplayName: signerLoginDisplayName({
-      walletId,
-      authMethod,
-      metadata,
-    }),
-    signerSlot: projection.selectedSigner.signerSlot,
-    version: 2,
-    registeredAt: projection.profile.createdAt,
-    lastLogin: projection.profile.updatedAt,
-    lastUpdated: projection.profile.updatedAt,
-    operationalPublicKey,
-    nearEd25519SigningKeyId,
-    passkeyCredential: {
-      id: passkeyCredentialId,
-      rawId: passkeyCredentialRawId,
-    },
-    authMethod,
-    preferences: projection.profile.preferences,
   };
 }
 
@@ -770,24 +694,6 @@ export async function activateAuthenticatedWalletState(
         ),
       );
   }
-}
-
-export async function registerUser(
-  deps: RegistrationAccountLifecycleDeps,
-  storeUserDataInput: StoreUserDataInput,
-): Promise<ClientUserData> {
-  const activation = await storeUserData(deps, storeUserDataInput);
-  const stored = await readNearUserData(
-    deps,
-    storeUserDataInput.nearAccountId,
-    activation.signerSlot,
-  );
-  if (!stored) {
-    throw new Error(
-      `SeamsWalletDB: Failed to resolve stored NEAR account projection for ${String(storeUserDataInput.nearAccountId || '').trim()}`,
-    );
-  }
-  return stored;
 }
 
 export async function storeAuthenticator(
@@ -1562,40 +1468,6 @@ export function prepareWalletEcdsaRegistrationPublication(
 ): Promise<StoreWalletRegistrationPublicationInputV1> {
   return prepareWalletEcdsaRegistrationPublicationWithMode(args, {
     kind: 'fresh_registration',
-  });
-}
-
-export type PrepareWalletMixedRegistrationPublicationInput =
-  | (PrepareWalletEd25519RegistrationPublicationInput & {
-      readonly kind: 'passkey';
-      readonly walletKeys: NonEmptyWalletEcdsaKeys;
-    })
-  | (PrepareWalletEmailOtpEd25519RegistrationPublicationInput & {
-      readonly kind: 'email_otp';
-      readonly walletKeys: NonEmptyWalletEcdsaKeys;
-    });
-
-export async function prepareWalletMixedRegistrationPublication(
-  args: PrepareWalletMixedRegistrationPublicationInput,
-): Promise<StoreWalletRegistrationPublicationInputV1> {
-  const composition: StoreWalletRegistrationComposition = {
-    kind: 'near_ed25519_and_evm_family_ecdsa',
-    walletKeys: args.walletKeys,
-  };
-  const prepared =
-    args.kind === 'passkey'
-      ? prepareWalletEd25519RegistrationBatch(args, { kind: 'fresh_registration' }, composition)
-      : await prepareWalletEmailOtpEd25519RegistrationBatch(args, composition, {
-          kind: 'fresh_registration',
-        });
-  return buildWalletEd25519RegistrationPublication({
-    prepared,
-    walletId: args.walletId,
-    nearAccountId: args.nearAccountId,
-    nearEd25519SigningKeyId: args.nearEd25519SigningKeyId,
-    signerSlot: args.signerSlot,
-    participantIds: args.participantIds,
-    custodyMaterials: [args.custodyMaterial],
   });
 }
 

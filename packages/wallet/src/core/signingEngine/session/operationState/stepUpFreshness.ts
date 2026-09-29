@@ -1,4 +1,3 @@
-import type { SigningSessionStatus } from '@/core/types/seams';
 import type { PositiveRemainingUses } from '../../threshold/sessionPolicy';
 import type { WalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type { MpcMaterialActivationRef } from '@shared/utils/domainIds';
@@ -106,27 +105,6 @@ export type FreshStepUpSatisfiedForAdmission = Omit<FreshStepUpSatisfied, 'kind'
   projection: KnownStepUpProjectionState;
 };
 
-export type StepUpFreshnessState =
-  | FreshStepUpRequired
-  | FreshStepUpSatisfied
-  | FreshStepUpSatisfiedForAdmission;
-
-export type StepUpFreshnessDiagnostics = {
-  kind: StepUpFreshnessState['kind'];
-  walletId: WalletId;
-  operationId: SigningOperationId;
-  operationFingerprint: SigningOperationFingerprint;
-  authMethod: SignerAuthMethod;
-  curve: SigningCurve;
-  laneIdentityKey: ExactSigningLaneIdentityKey;
-  authority: StepUpFreshnessAuthority;
-  projection: StepUpProjectionState;
-  expiry: StepUpExpiryState;
-  provenance: SigningStatusProvenance;
-  reason?: FreshStepUpRequired['reason'];
-  remainingUses?: PositiveRemainingUses;
-};
-
 export type StepUpFreshnessAuthority =
   | {
       kind: 'ed25519_threshold_session';
@@ -148,24 +126,6 @@ type StepUpFreshnessBaseInput = {
   projection: StepUpProjectionState;
   expiry: StepUpExpiryState;
   provenance: SigningStatusProvenance;
-};
-
-type StepUpFreshnessIdentityInput = Pick<
-  StepUpFreshnessBaseInput,
-  'walletId' | 'operationId' | 'operationFingerprint' | 'laneIdentity'
->;
-
-export type BuildStepUpFreshnessFromTrustedSessionStatusInput = StepUpFreshnessIdentityInput & {
-  status: SigningSessionStatus;
-  observedAtMs: number;
-};
-
-export type BuildStepUpFreshnessFromRestoredSealedRecordInput = StepUpFreshnessIdentityInput & {
-  recordVersion: string;
-  updatedAtMs: number;
-  remainingUses?: number | null;
-  expiresAtMs?: number | null;
-  nowMs?: number;
 };
 
 function positiveRemainingUses(value: number): PositiveRemainingUses {
@@ -258,134 +218,4 @@ export function buildFreshStepUpSatisfiedForAdmission(
     kind: 'fresh_step_up_satisfied_for_admission',
     projection: state.projection,
   };
-}
-
-export function assertFreshnessMatchesLane(args: {
-  freshness: StepUpFreshnessState;
-  laneIdentity: ExactSigningLaneIdentity;
-}): void {
-  const laneIdentityKey = exactSigningLaneIdentityKey(args.laneIdentity);
-  if (args.freshness.laneIdentityKey === laneIdentityKey) return;
-  throw new Error('[StepUpFreshness] freshness does not match exact lane identity');
-}
-
-export function stepUpFreshnessDiagnostics(
-  freshness: StepUpFreshnessState,
-): StepUpFreshnessDiagnostics {
-  const base = {
-    kind: freshness.kind,
-    walletId: freshness.walletId,
-    operationId: freshness.operationId,
-    operationFingerprint: freshness.operationFingerprint,
-    authMethod: freshness.authMethod,
-    curve: freshness.curve,
-    laneIdentityKey: freshness.laneIdentityKey,
-    authority: freshness.authority,
-    projection: freshness.projection,
-    expiry: freshness.expiry,
-    provenance: freshness.provenance,
-  };
-  switch (freshness.kind) {
-    case 'fresh_step_up_required':
-      return {
-        ...base,
-        reason: freshness.reason,
-      };
-    case 'fresh_step_up_satisfied':
-    case 'fresh_step_up_satisfied_for_admission':
-      return {
-        ...base,
-        remainingUses: freshness.remainingUses,
-      };
-  }
-}
-
-export function buildStepUpFreshnessFromTrustedSessionStatus(
-  input: BuildStepUpFreshnessFromTrustedSessionStatusInput,
-): StepUpFreshnessState {
-  const projection = trustedStatusProjection(input.status);
-  const expiry = trustedStatusExpiry(input.status);
-  const provenance: SigningStatusProvenance = {
-    kind: 'trusted_server_budget_status',
-    projectionVersion:
-      projection.kind === 'known'
-        ? projection.version
-        : String(input.status.projectionVersion || ''),
-    observedAtMs: input.observedAtMs,
-  };
-  const remainingUses = Math.floor(Number(input.status.remainingUses) || 0);
-  if (input.status.status === 'active' && remainingUses > 0) {
-    return buildFreshStepUpSatisfied({
-      ...input,
-      projection,
-      expiry,
-      provenance,
-      remainingUses,
-    });
-  }
-  return buildFreshStepUpRequired({
-    ...input,
-    projection,
-    expiry,
-    provenance,
-    reason:
-      input.status.status === 'expired'
-        ? 'threshold_session_expired'
-        : input.status.status === 'exhausted'
-          ? 'threshold_session_exhausted'
-          : 'wallet_budget_exhausted',
-  });
-}
-
-export function buildStepUpFreshnessFromRestoredSealedRecord(
-  input: BuildStepUpFreshnessFromRestoredSealedRecordInput,
-): StepUpFreshnessState {
-  const remainingUses = Math.floor(Number(input.remainingUses) || 0);
-  const expiresAtMs = Math.floor(Number(input.expiresAtMs) || 0);
-  const expiry: StepUpExpiryState =
-    expiresAtMs > 0
-      ? { kind: 'known', expiresAtMs }
-      : { kind: 'unavailable', reason: 'restored_record_has_no_expiry' };
-  const projection: StepUpProjectionState = {
-    kind: 'unavailable',
-    reason: 'restored_record_has_no_projection',
-  };
-  const provenance: SigningStatusProvenance = {
-    kind: 'restored_sealed_record_status',
-    recordVersion: input.recordVersion,
-    updatedAtMs: input.updatedAtMs,
-  };
-  if (remainingUses > 0 && (expiresAtMs <= 0 || expiresAtMs > (input.nowMs ?? Date.now()))) {
-    return buildFreshStepUpSatisfied({
-      ...input,
-      projection,
-      expiry,
-      provenance,
-      remainingUses,
-    });
-  }
-  return buildFreshStepUpRequired({
-    ...input,
-    projection,
-    expiry,
-    provenance,
-    reason:
-      expiresAtMs > 0 && expiresAtMs <= (input.nowMs ?? Date.now())
-        ? 'threshold_session_expired'
-        : 'threshold_session_exhausted',
-  });
-}
-
-function trustedStatusProjection(status: SigningSessionStatus): StepUpProjectionState {
-  const version = String(status.projectionVersion || '').trim();
-  return version
-    ? { kind: 'known', version }
-    : { kind: 'unavailable', reason: 'budget_status_unavailable' };
-}
-
-function trustedStatusExpiry(status: SigningSessionStatus): StepUpExpiryState {
-  const expiresAtMs = Math.floor(Number(status.expiresAtMs) || 0);
-  return expiresAtMs > 0
-    ? { kind: 'known', expiresAtMs }
-    : { kind: 'unavailable', reason: 'budget_status_unavailable' };
 }

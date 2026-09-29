@@ -28,7 +28,6 @@ import {
 import {
   parseWalletAuthMethodId,
   parseThresholdEd25519SessionId,
-  mpcMaterialActivationRefsEqual,
   type WebAuthnRpId,
 } from '@shared/utils/domainIds';
 import type {
@@ -210,7 +209,6 @@ import { toAccountId } from '@/core/types/accountIds';
 import { normalizeRuntimePolicyScope } from '@shared/threshold/signingRootScope';
 import type { ActiveWalletAuthorityV1 } from '@shared/authorization/walletAuthority';
 import type {
-  RegistrationEstablishedEcdsaSessionProjectionV2,
   RegistrationEstablishedSessionResultV2,
   RegistrationEstablishedSessionV2,
 } from '@shared/utils/registrationEstablishedSession';
@@ -230,7 +228,6 @@ import {
 } from '@shared/utils/routerAbTraceContext';
 import {
   parseRouterAbEcdsaVerifiedClientActivationFactsV1,
-  sameRouterAbEcdsaDerivationNormalSigningStateV1,
   type RouterAbEcdsaVerifiedClientActivationFactsV1,
 } from '@shared/utils/routerAbEcdsaDerivation';
 import {
@@ -258,7 +255,6 @@ import {
   requireIssuedRegistrationEstablishedSession,
   registrationRouteHeaders,
   runStrictEcdsaFamilyCeremony,
-  sameRuntimePolicyScope,
 } from './registrationStrictEcdsa';
 import {
   admitDeferredNearRegistration,
@@ -777,23 +773,6 @@ export function sameRegistrationSignerSelection(
     }
   }
   return true;
-}
-
-export function sameRegistrationEstablishedEcdsaSessionProjection(
-  left: RegistrationEstablishedEcdsaSessionProjectionV2,
-  right: RegistrationEstablishedEcdsaSessionProjectionV2,
-): boolean {
-  return (
-    left.sessionKind === right.sessionKind &&
-    left.thresholdSessionId === right.thresholdSessionId &&
-    left.keyHandle === right.keyHandle &&
-    sameRuntimePolicyScope(left.runtimePolicyScope, right.runtimePolicyScope) &&
-    mpcMaterialActivationRefsEqual(left.materialActivation, right.materialActivation) &&
-    sameRouterAbEcdsaDerivationNormalSigningStateV1(
-      left.routerAbEcdsaDerivationNormalSigning,
-      right.routerAbEcdsaDerivationNormalSigning,
-    )
-  );
 }
 
 type RegistrationWarmupOutcome =

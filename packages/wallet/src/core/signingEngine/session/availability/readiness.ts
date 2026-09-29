@@ -4,11 +4,7 @@ import type {
   VolatileWarmMaterialPort,
   WarmSessionStatusResult,
 } from '../../uiConfirm/uiConfirm.types';
-import {
-  listExactSealedSessionsForWallet,
-  SigningSessionSealedRecordFilter,
-  type updateExactSealedSessionPolicy,
-} from '../persistence/sealedSessionStore';
+import { listExactSealedSessionsForWallet } from '../persistence/sealedSessionStore';
 import { createClearVolatileWarmSessionMaterialCommand } from '../warmCapabilities/volatileWarmMaterialCommands';
 import { parseThresholdEd25519SessionId } from '@shared/utils/domainIds';
 import type {
@@ -591,53 +587,6 @@ export function walletOwnerSigningSessionStatusOverrideKey(
   })}`;
 }
 
-function walletSessionStatusOverrideOwners(args: {
-  owner: WalletSessionStatusOwner;
-  lanes: DiscoveredSigningSessionLane[];
-}): WalletSessionStatusOwner[] {
-  const ownersByKey = new Map<string, WalletSessionStatusOwner>();
-  ownersByKey.set(walletSessionStatusOwnerKey(args.owner), args.owner);
-  for (const lane of args.lanes) {
-    const owner = resolveRuntimeWalletOwnerId(lane.runtime);
-    ownersByKey.set(walletSessionStatusOwnerKey(owner), owner);
-  }
-  return [...ownersByKey.values()];
-}
-
-export function rememberWalletSessionStatusOverride(args: {
-  overrides: Map<string, WalletSessionStatusOverride>;
-  owner: WalletSessionStatusOwner;
-  walletSessionId: WalletSessionId;
-  quotaId: MpcWalletSigningQuotaId;
-  lanes: DiscoveredSigningSessionLane[];
-  status: SigningSessionStatus;
-}): void {
-  const walletSessionId = args.walletSessionId;
-  const now = Date.now();
-  const thresholdSessionIds = new Set(
-    args.lanes.map((lane) => normalizeNonEmpty(lane.thresholdSessionId)).filter(Boolean),
-  );
-  for (const owner of walletSessionStatusOverrideOwners({
-    owner: args.owner,
-    lanes: args.lanes,
-  })) {
-    args.overrides.set(
-      walletOwnerSigningSessionStatusOverrideKey(owner, walletSessionId, args.quotaId),
-      {
-        owner,
-        walletSessionId,
-        quotaId: args.quotaId,
-        status: {
-          ...args.status,
-          sessionId: walletSessionId,
-        },
-        thresholdSessionIds,
-        updatedAtMs: now,
-      },
-    );
-  }
-}
-
 function resolveApplicableWalletSessionStatusOverride(args: {
   override: WalletSessionStatusOverride;
   lanes: DiscoveredSigningSessionLane[];
@@ -889,101 +838,4 @@ export async function clearWalletSession(args: {
     };
   }
   return { kind: 'cleared' };
-}
-
-function expiredEd25519SealedPolicyExpiresAtMs(args: {
-  lane: DiscoveredSigningSessionLane;
-  statusExpiresAtMs: number;
-  nowMs: number;
-}): number {
-  const laneExpiresAtMs = args.lane.runtime.expiresAtMs;
-  return Math.min(
-    args.nowMs,
-    args.statusExpiresAtMs > 0 ? args.statusExpiresAtMs : args.nowMs,
-    laneExpiresAtMs > 0 ? laneExpiresAtMs : args.nowMs,
-  );
-}
-
-export async function syncSealedRefreshPolicyForLanes(args: {
-  lanes: DiscoveredSigningSessionLane[];
-  status: SigningSessionStatus;
-  updatePolicy?: typeof updateExactSealedSessionPolicy;
-}): Promise<void> {
-  const seen = new Set<string>();
-  const filterForLane = (
-    lane: DiscoveredSigningSessionLane,
-  ): SigningSessionSealedRecordFilter | null => {
-    return { authMethod: lane.source, curve: 'ed25519' };
-  };
-  const sealedLanes = args.lanes
-    .filter((lane) => lane.thresholdSessionId)
-    .filter((lane) => Boolean(filterForLane(lane)))
-    .filter((lane) => {
-      const key = `${lane.source}:${lane.curve}:near:${lane.thresholdSessionId}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-  if (!sealedLanes.length) return;
-  const updatePolicy = args.updatePolicy;
-  if (!updatePolicy) return;
-  const remainingUses = Math.floor(Number(args.status.remainingUses) || 0);
-  const expiresAtMs = Math.floor(Number(args.status.expiresAtMs) || 0);
-  const nowMs = Date.now();
-  const laneExpiresAtMs = Math.min(
-    ...sealedLanes.map((lane) => lane.runtime.expiresAtMs).filter((value) => value > 0),
-  );
-  const policyExpiresAtMs =
-    expiresAtMs > 0
-      ? expiresAtMs
-      : Number.isFinite(laneExpiresAtMs) && laneExpiresAtMs > 0
-        ? laneExpiresAtMs
-        : 0;
-  if (args.status.status === 'expired' || (expiresAtMs > 0 && expiresAtMs <= nowMs)) {
-    await Promise.all(
-      sealedLanes.map((lane) =>
-        updatePolicy({
-          thresholdSessionId: lane.thresholdSessionId,
-          filter: filterForLane(lane)!,
-          remainingUses,
-          expiresAtMs: expiredEd25519SealedPolicyExpiresAtMs({
-            lane,
-            statusExpiresAtMs: expiresAtMs,
-            nowMs,
-          }),
-          updatedAtMs: nowMs,
-        }).catch(() => undefined),
-      ),
-    );
-    return;
-  }
-  if (args.status.status !== 'active' || remainingUses <= 0) {
-    if (policyExpiresAtMs <= nowMs) return;
-    // Exhaustion is an authorization state, not a restore-identity lifecycle event.
-    // Keep durable lane identity so the next command can select the exact
-    // step-up auth lane after page reload or worker-memory loss.
-    await Promise.all(
-      sealedLanes.map((lane) =>
-        updatePolicy({
-          thresholdSessionId: lane.thresholdSessionId,
-          filter: filterForLane(lane)!,
-          remainingUses: 0,
-          expiresAtMs: policyExpiresAtMs,
-          updatedAtMs: Date.now(),
-        }).catch(() => undefined),
-      ),
-    );
-    return;
-  }
-  await Promise.all(
-    sealedLanes.map((lane) =>
-      updatePolicy({
-        thresholdSessionId: lane.thresholdSessionId,
-        filter: filterForLane(lane)!,
-        remainingUses,
-        expiresAtMs,
-        updatedAtMs: Date.now(),
-      }).catch(() => undefined),
-    ),
-  );
 }

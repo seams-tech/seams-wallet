@@ -77,16 +77,6 @@ export type SignEvmFamilyDeps = {
   };
 };
 
-export type SignEvmFamilyUseCase = {
-  sign(input: SignEvmFamilyInput): Promise<SignEvmFamilyResult>;
-};
-
-export function createSignEvmFamilyUseCase(deps: SignEvmFamilyDeps): SignEvmFamilyUseCase {
-  return {
-    sign: (input) => signEvmFamily(deps, input),
-  };
-}
-
 function failure(input: {
   code: SignEvmFamilyFailureCode;
   source: SignEvmFamilyFailure['source'];

@@ -6,7 +6,6 @@ import type { SigningFlowEvent } from '@/core/types/sdkSentEvents';
 import type {
   ConfirmationConfig,
   RpcCallPayload,
-  TransactionPayload,
   WasmSignedDelegate,
 } from '@/core/types/signer-worker';
 import type { NearSigningRuntimeDeps } from './runtime';
@@ -317,23 +316,6 @@ export type NearSigningRequest =
       payload: NearNep413Payload;
     };
 
-export type NearEd25519SignRequest =
-  | {
-      kind: 'near-transaction-with-actions';
-      algorithm: 'ed25519';
-      payload: NearTransactionWithActionsPayload;
-    }
-  | {
-      kind: 'near-delegate-action';
-      algorithm: 'ed25519';
-      payload: NearDelegateActionPayload;
-    }
-  | {
-      kind: 'near-nep413-message';
-      algorithm: 'ed25519';
-      payload: NearNep413Payload;
-    };
-
 export type NearTransactionWithActionsResult = {
   signedTransaction: SignedTransaction;
   nearAccountId: AccountId;
@@ -356,22 +338,6 @@ export type NearNep413Result = {
   error?: string;
 };
 
-export type NearEd25519SignOutput =
-  | {
-      kind: 'near-transaction-with-actions';
-      result: NearTransactionWithActionsResult;
-    }
-  | {
-      kind: 'near-delegate-action';
-      result: NearDelegateActionResult;
-    }
-  | {
-      kind: 'near-nep413-message';
-      result: NearNep413Result;
-    };
-
-export type NearSignedResult = NearEd25519SignOutput['result'];
-
 export type NearIntentResultByKind = {
   transactionWithActions: NearTransactionWithActionsResult;
   delegateAction: NearDelegateActionResult;
@@ -383,22 +349,3 @@ export type NearIntentResult<T extends NearSigningRequest> = T extends { kind: i
     ? NearIntentResultByKind[K]
     : never
   : never;
-
-export type NearIntentUiModel =
-  | {
-      kind: 'transactionWithActions';
-      nearAccountId: string;
-      totalActionCount: number;
-      txSigningRequest: TransactionPayload;
-    }
-  | {
-      kind: 'delegateAction';
-      nearAccountId: string;
-      receiverId: string;
-      actionCount: number;
-    }
-  | {
-      kind: 'nep413';
-      nearAccountId: string;
-      recipient: string;
-    };

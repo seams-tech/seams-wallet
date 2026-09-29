@@ -9,7 +9,6 @@ import {
   walletSessionRefFromSession,
   type ThresholdEcdsaChainTarget,
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
-import { thresholdEcdsaChainTargetKey } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import { DEFAULT_UNLOCK_REMAINING_USES } from '@/core/signingEngine/threshold/sessionPolicy';
 import {
   listConfiguredThresholdEcdsaPublicationTargets,
@@ -952,10 +951,4 @@ function createGoogleEmailOtpWalletLoginFlow(
       liveness.burn();
     },
   };
-}
-
-export function googleEmailOtpTargetKeys(
-  targets: readonly ThresholdEcdsaChainTarget[],
-): readonly string[] {
-  return targets.map((target) => thresholdEcdsaChainTargetKey(target));
 }

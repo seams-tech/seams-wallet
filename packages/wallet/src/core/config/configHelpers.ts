@@ -91,17 +91,6 @@ export function toColorTokenRecord(value: unknown): Record<string, string> {
   return out;
 }
 
-export function resolveThemeMode(args: { value: unknown; fallback: ThemeMode }): ThemeMode {
-  if (args.value == null) return args.fallback;
-  const parsed = coerceThemeMode(args.value);
-  if (!parsed) {
-    throw new Error(
-      "[configPresets] Invalid config: appearance.theme.mode must be 'light' or 'dark'",
-    );
-  }
-  return parsed;
-}
-
 function resolveAppearanceThemeId(args: { value: unknown; fallback: string }): string {
   const id = toTrimmedString(args.value) || args.fallback;
   if (!id) {

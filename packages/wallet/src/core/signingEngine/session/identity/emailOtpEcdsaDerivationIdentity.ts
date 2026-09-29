@@ -58,15 +58,3 @@ export function toEcdsaDerivationSigningRootId(value: unknown): SigningRootId {
 export function toEcdsaDerivationSigningRootVersion(value: unknown): SigningRootVersion {
   return parseSdkEcdsaDerivationSigningRootVersion(value);
 }
-
-export function toEcdsaDerivationThresholdSessionId(value: unknown): ThresholdEcdsaSessionId {
-  return requiredEmailOtpDerivationString(value, 'thresholdSessionId') as ThresholdEcdsaSessionId;
-}
-
-export function toEcdsaDerivationThresholdOwnerAddress(value: unknown): ThresholdOwnerAddress {
-  const normalized = requiredEmailOtpDerivationString(value, 'thresholdOwnerAddress').toLowerCase();
-  if (!/^0x[0-9a-f]{40}$/.test(normalized)) {
-    throw new Error('[email-otp-derivation] thresholdOwnerAddress must be an EVM address');
-  }
-  return normalized as ThresholdOwnerAddress;
-}

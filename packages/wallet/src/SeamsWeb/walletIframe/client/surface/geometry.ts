@@ -88,15 +88,6 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
 }
 
-function isPlainRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function hasOnlyKeys(record: Record<string, unknown>, keys: readonly string[]): boolean {
-  const allowed = new Set(keys);
-  return Object.keys(record).every((key) => allowed.has(key));
-}
-
 function roundCssPx(value: number): number {
   return Math.max(0, Math.round(value));
 }
@@ -124,99 +115,6 @@ function normalizedViewport(viewport: WalletIframeSurfaceViewport): WalletIframe
     offsetLeftCssPx: viewport.offsetLeftCssPx,
     offsetTopCssPx: viewport.offsetTopCssPx,
   };
-}
-
-export function parseWalletIframeSurfaceViewport(
-  value: unknown,
-): WalletIframeSurfaceViewport | null {
-  if (!isPlainRecord(value)) return null;
-  if (
-    !hasOnlyKeys(value, ['widthCssPx', 'heightCssPx', 'offsetLeftCssPx', 'offsetTopCssPx']) ||
-    !isFinitePositive(value.widthCssPx) ||
-    !isFinitePositive(value.heightCssPx) ||
-    !isFiniteNumber(value.offsetLeftCssPx) ||
-    !isFiniteNumber(value.offsetTopCssPx)
-  ) {
-    return null;
-  }
-  return {
-    widthCssPx: value.widthCssPx,
-    heightCssPx: value.heightCssPx,
-    offsetLeftCssPx: value.offsetLeftCssPx,
-    offsetTopCssPx: value.offsetTopCssPx,
-  };
-}
-
-function parseGeometryNumbers(record: Record<string, unknown>): {
-  widthCssPx: number;
-  heightCssPx: number;
-  topCssPx: number;
-  leftCssPx: number;
-} | null {
-  if (
-    !isFinitePositive(record.widthCssPx) ||
-    !isFinitePositive(record.heightCssPx) ||
-    !isFiniteNumber(record.topCssPx) ||
-    !isFiniteNumber(record.leftCssPx) ||
-    record.topCssPx < 0 ||
-    record.leftCssPx < 0
-  ) {
-    return null;
-  }
-  return {
-    widthCssPx: record.widthCssPx,
-    heightCssPx: record.heightCssPx,
-    topCssPx: record.topCssPx,
-    leftCssPx: record.leftCssPx,
-  };
-}
-
-export function parseWalletIframeSurfaceGeometry(
-  value: unknown,
-): WalletIframeSurfaceGeometry | null {
-  if (!isPlainRecord(value) || typeof value.kind !== 'string') return null;
-  if (value.kind === 'hidden') {
-    return hasOnlyKeys(value, ['kind']) ? { kind: 'hidden' } : null;
-  }
-
-  if (value.kind === 'provisional_centered_modal' || value.kind === 'centered_modal') {
-    if (!hasOnlyKeys(value, ['kind', 'widthCssPx', 'heightCssPx', 'topCssPx', 'leftCssPx'])) {
-      return null;
-    }
-    const geometry = parseGeometryNumbers(value);
-    return geometry ? { kind: value.kind, ...geometry } : null;
-  }
-
-  if (value.kind === 'provisional_bottom_drawer' || value.kind === 'bottom_drawer') {
-    if (
-      !hasOnlyKeys(value, ['kind', 'edge', 'widthCssPx', 'heightCssPx', 'topCssPx', 'leftCssPx']) ||
-      value.edge !== 'bottom'
-    ) {
-      return null;
-    }
-    const geometry = parseGeometryNumbers(value);
-    return geometry ? { kind: value.kind, edge: 'bottom', ...geometry } : null;
-  }
-
-  if (value.kind === 'viewport_fallback') {
-    if (
-      !hasOnlyKeys(value, [
-        'kind',
-        'reason',
-        'widthCssPx',
-        'heightCssPx',
-        'topCssPx',
-        'leftCssPx',
-      ]) ||
-      (value.reason !== 'small_visual_viewport' && value.reason !== 'measurement_unavailable')
-    ) {
-      return null;
-    }
-    const geometry = parseGeometryNumbers(value);
-    return geometry ? { kind: value.kind, reason: value.reason, ...geometry } : null;
-  }
-
-  return null;
 }
 
 function fallbackGeometry(

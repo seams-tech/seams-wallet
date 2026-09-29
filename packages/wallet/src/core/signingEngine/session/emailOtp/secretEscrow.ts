@@ -55,9 +55,3 @@ export function decodeEmailOtpEscrowSecret32(
   if (!secret32) return corruptPlaintextLength(plaintext.length);
   return { kind: 'secret32', secret32 };
 }
-
-export function emailOtpCorruptLocalCustodyError(
-  failure: EmailOtpCorruptLocalCustodyFailure,
-): EmailOtpCorruptLocalCustodyError {
-  return new EmailOtpCorruptLocalCustodyError(failure);
-}

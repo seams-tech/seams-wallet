@@ -1,10 +1,7 @@
 import { IndexedDbEcdsaCapabilityManifestStore } from '@/core/indexedDB/seamsWalletDB/ecdsaCapabilityManifestStore';
 import type { EcdsaWalletActivationSelectorListResult } from '@/core/indexedDB/seamsWalletDB/ecdsaCapabilityManifestStore';
-import type {
-  EvmFamilyEcdsaWalletUnlockSubject,
-  EvmFamilyEcdsaWalletUnlockSubjectSet,
-} from '@/core/signingEngine/session/identity/walletUnlockSubject';
-import { parseWalletId, type WalletId } from '@shared/utils/domainIds';
+import type { EvmFamilyEcdsaWalletUnlockSubject } from '@/core/signingEngine/session/identity/walletUnlockSubject';
+import { type WalletId } from '@shared/utils/domainIds';
 
 export type {
   EvmFamilyEcdsaWalletUnlockSubject,
@@ -14,31 +11,6 @@ export type {
 export type WalletUnlockCapabilitySubjectResolutionFailure =
   | 'capability_subject_lookup_failed'
   | 'invalid_capability_subject';
-
-export type EvmFamilyEcdsaWalletUnlockSubjectSetResolution =
-  | {
-      readonly kind: 'resolved';
-      readonly subjectSet: EvmFamilyEcdsaWalletUnlockSubjectSet;
-      readonly reason?: never;
-    }
-  | {
-      readonly kind: 'missing_requested_capability_subject';
-      readonly walletId: WalletId;
-      readonly subjectSet?: never;
-      readonly reason?: never;
-    }
-  | {
-      readonly kind: 'capability_subject_resolution_failed';
-      readonly walletId: WalletId;
-      readonly reason: WalletUnlockCapabilitySubjectResolutionFailure;
-      readonly subjectSet?: never;
-    };
-
-function requireWalletId(value: unknown): WalletId {
-  const parsed = parseWalletId(value);
-  if (!parsed.ok) throw new Error(parsed.error.message);
-  return parsed.value;
-}
 
 const ecdsaCapabilityManifestStore = new IndexedDbEcdsaCapabilityManifestStore();
 
@@ -79,35 +51,6 @@ async function listEvmFamilyEcdsaWalletUnlockSubjects(walletId: WalletId): Promi
   return {
     kind: 'resolved',
     subjects,
-  };
-}
-
-export async function resolveEvmFamilyEcdsaWalletUnlockSubjectSet(
-  rawWalletId: unknown,
-): Promise<EvmFamilyEcdsaWalletUnlockSubjectSetResolution> {
-  const walletId = requireWalletId(rawWalletId);
-  const resolution = await listEvmFamilyEcdsaWalletUnlockSubjects(walletId);
-  if (resolution.kind === 'failed') {
-    return {
-      kind: 'capability_subject_resolution_failed',
-      walletId,
-      reason: resolution.reason,
-    };
-  }
-  const first = resolution.subjects[0];
-  if (!first) {
-    return {
-      kind: 'missing_requested_capability_subject',
-      walletId,
-    };
-  }
-  return {
-    kind: 'resolved',
-    subjectSet: {
-      kind: 'wallet_unlock_subject_set',
-      walletId,
-      subjects: [first, ...resolution.subjects.slice(1)],
-    },
   };
 }
 

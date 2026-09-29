@@ -52,8 +52,6 @@ type UsableRuntimeLaneIdentity =
       materialActivationId: string;
     };
 
-export type RuntimePostconditionLaneState = 'ready' | 'restorable';
-
 type ActiveUsableRuntimeLane = UsableRuntimeLaneIdentity & {
   readonly state: 'ready';
   readonly remainingSignatureUses: number;
@@ -303,111 +301,6 @@ export async function readWalletRuntimePostconditions(args: {
       ecdsaByTarget,
     },
   };
-}
-
-function laneMaterialShape(lane: UsableRuntimeLane): string {
-  return lane.material.kind;
-}
-
-function compareReadyLaneShape(args: {
-  left: UsableRuntimeLane | undefined;
-  right: UsableRuntimeLane | undefined;
-  label: string;
-}): WalletRuntimePostconditionResult | null {
-  if (!args.left && !args.right) return null;
-  if (!args.left || !args.right) {
-    return {
-      ok: false,
-      code: 'lane_inventory_mismatch',
-      details: {
-        lane: args.label,
-        leftPresent: Boolean(args.left),
-        rightPresent: Boolean(args.right),
-      },
-    };
-  }
-  const leftTarget =
-    args.left.target.curve === 'ecdsa'
-      ? thresholdEcdsaChainTargetKey(args.left.target.chainTarget)
-      : 'near';
-  const rightTarget =
-    args.right.target.curve === 'ecdsa'
-      ? thresholdEcdsaChainTargetKey(args.right.target.chainTarget)
-      : 'near';
-  if (
-    args.left.authMethod !== args.right.authMethod ||
-    args.left.target.curve !== args.right.target.curve ||
-    leftTarget !== rightTarget ||
-    laneMaterialShape(args.left) !== laneMaterialShape(args.right)
-  ) {
-    return {
-      ok: false,
-      code: 'lane_inventory_mismatch',
-      details: {
-        lane: args.label,
-        leftAuthMethod: args.left.authMethod,
-        rightAuthMethod: args.right.authMethod,
-        leftCurve: args.left.target.curve,
-        rightCurve: args.right.target.curve,
-        leftTarget,
-        rightTarget,
-        leftMaterial: laneMaterialShape(args.left),
-        rightMaterial: laneMaterialShape(args.right),
-      },
-    };
-  }
-  return null;
-}
-
-export function compareWalletRuntimeInventories(args: {
-  registration: WalletRuntimeInventory;
-  unlock: WalletRuntimeInventory;
-}): WalletRuntimePostconditionResult {
-  if (args.registration.walletId !== args.unlock.walletId) {
-    return {
-      ok: false,
-      code: 'wallet_missing',
-      details: {
-        registrationWalletId: args.registration.walletId,
-        unlockWalletId: args.unlock.walletId,
-      },
-    };
-  }
-  if (args.registration.authMethod !== args.unlock.authMethod) {
-    return {
-      ok: false,
-      code: 'auth_method_route_mismatch',
-      details: {
-        registrationAuthMethod: args.registration.authMethod,
-        unlockAuthMethod: args.unlock.authMethod,
-      },
-    };
-  }
-  const ed25519Mismatch = compareReadyLaneShape({
-    left: args.registration.ed25519,
-    right: args.unlock.ed25519,
-    label: 'ed25519:near',
-  });
-  if (ed25519Mismatch) return ed25519Mismatch;
-
-  const registrationTargets = [...args.registration.ecdsaByTarget.keys()].sort();
-  const unlockTargets = [...args.unlock.ecdsaByTarget.keys()].sort();
-  if (registrationTargets.join('|') !== unlockTargets.join('|')) {
-    return {
-      ok: false,
-      code: 'lane_inventory_mismatch',
-      details: { registrationTargets, unlockTargets },
-    };
-  }
-  for (const targetKey of registrationTargets) {
-    const ecdsaMismatch = compareReadyLaneShape({
-      left: args.registration.ecdsaByTarget.get(targetKey),
-      right: args.unlock.ecdsaByTarget.get(targetKey),
-      label: `ecdsa:${targetKey}`,
-    });
-    if (ecdsaMismatch) return ecdsaMismatch;
-  }
-  return { ok: true, inventory: args.registration };
 }
 
 export async function assertWalletRuntimePostconditions(args: {

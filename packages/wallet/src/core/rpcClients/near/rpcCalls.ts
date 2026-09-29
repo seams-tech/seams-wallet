@@ -8,14 +8,12 @@
  */
 
 import type { NearClient } from './NearClient';
-import type { AccountId } from '../../types/accountIds';
 import type { WebAuthnAuthenticationCredential } from '../../types/webauthn';
 import type { ThresholdEcdsaChainTarget } from '../../platform';
 
-import { TransactionContext } from '../../types/rpc';
 import { errorMessage } from '@shared/utils/errors';
 import { joinNormalizedUrl } from '@shared/utils/normalize';
-import { ensureEd25519Prefix, isObject, requireTrimmedString } from '@shared/utils/validation';
+import { isObject, requireTrimmedString } from '@shared/utils/validation';
 import { redactCredentialExtensionOutputs } from '../../signingEngine/webauthnAuth/credentials/credentialExtensions';
 import {
   parseRouterAbEcdsaCredentialFreeSessionActivationResponseV1,
@@ -73,132 +71,8 @@ import {
   type RouterAbEd25519NormalSigningState,
 } from '@shared/utils/signingSessionSeal';
 
-export async function fetchNonceBlockHashAndHeight({
-  nearClient,
-  nearPublicKeyStr,
-  nearAccountId,
-}: {
-  nearClient: NearClient;
-  nearPublicKeyStr: string;
-  nearAccountId: AccountId;
-}): Promise<TransactionContext> {
-  // Get access key and transaction block info concurrently
-  const [accessKeyInfo, txBlockInfo] = await Promise.all([
-    nearClient.viewAccessKey(nearAccountId, nearPublicKeyStr).catch(() => {
-      throw new Error(`Failed to fetch Access Key`);
-    }),
-    nearClient.viewBlock({ finality: 'final' }).catch(() => {
-      throw new Error(`Failed to fetch Block Info`);
-    }),
-  ]);
-  if (!accessKeyInfo || accessKeyInfo.nonce === undefined) {
-    throw new Error(
-      `Access key not found or invalid for account ${nearAccountId} with public key ${nearPublicKeyStr}. Response: ${JSON.stringify(accessKeyInfo)}`,
-    );
-  }
-  const nextNonce = (BigInt(accessKeyInfo.nonce) + BigInt(1)).toString();
-  const txBlockHeight = String(txBlockInfo.header.height);
-  const txBlockHash = txBlockInfo.header.hash; // Keep original base58 string
-
-  return {
-    nearPublicKeyStr,
-    accessKeyInfo,
-    nextNonce,
-    txBlockHeight,
-    txBlockHash,
-  };
-}
-
-// ===========================
-// ACCESS KEY HELPERS
-// ===========================
-
-export type AccessKeyWaitOptions = {
-  attempts?: number;
-  delayMs?: number;
-};
-
 function sleep(ms: number): Promise<void> {
   return new Promise((res) => setTimeout(res, ms));
-}
-
-function isAccessKeyNotFoundError(err: unknown): boolean {
-  const msg = String(errorMessage(err) || '').toLowerCase();
-  if (!msg) return false;
-
-  // Common NEAR node / near-api-js phrasing for missing access keys.
-  if (
-    msg.includes('unknown access key') ||
-    msg.includes('unknown_access_key') ||
-    msg.includes('unknownaccesskey')
-  ) {
-    return true;
-  }
-  if (msg.includes('accesskeydoesnotexist')) return true;
-  if (msg.includes('access key does not exist')) return true;
-  if (msg.includes("access key doesn't exist")) return true;
-  if (msg.includes('access key not found')) return true;
-  if (msg.includes('no such access key')) return true;
-  if (
-    msg.includes('viewing access key') &&
-    msg.includes('does not exist') &&
-    !msg.includes('account')
-  )
-    return true;
-
-  return false;
-}
-
-export async function hasAccessKey(
-  nearClient: NearClient,
-  nearAccountId: string,
-  publicKey: string,
-  opts?: AccessKeyWaitOptions,
-): Promise<boolean> {
-  const expected = ensureEd25519Prefix(publicKey);
-  if (!expected) return false;
-
-  const attempts = Math.max(1, Math.floor(opts?.attempts ?? 6));
-  const delayMs = Math.max(50, Math.floor(opts?.delayMs ?? 750));
-
-  for (let i = 0; i < attempts; i++) {
-    try {
-      await nearClient.viewAccessKey(nearAccountId, expected);
-      return true;
-    } catch {
-      // tolerate transient view errors during propagation; retry
-    }
-    if (i < attempts - 1) {
-      await sleep(delayMs);
-    }
-  }
-  return false;
-}
-
-export async function waitForAccessKeyAbsent(
-  nearClient: NearClient,
-  nearAccountId: string,
-  publicKey: string,
-  opts?: AccessKeyWaitOptions,
-): Promise<boolean> {
-  const expected = ensureEd25519Prefix(publicKey);
-  if (!expected) return true;
-
-  const attempts = Math.max(1, Math.floor(opts?.attempts ?? 6));
-  const delayMs = Math.max(50, Math.floor(opts?.delayMs ?? 650));
-
-  for (let i = 0; i < attempts; i++) {
-    try {
-      await nearClient.viewAccessKey(nearAccountId, expected);
-    } catch (err: unknown) {
-      if (isAccessKeyNotFoundError(err)) return true;
-      // tolerate transient view errors during propagation; retry
-    }
-    if (i < attempts - 1) {
-      await sleep(delayMs);
-    }
-  }
-  return false;
 }
 
 // ===========================
@@ -1112,14 +986,6 @@ export async function verifyLinkedDevicePasskeyWalletSession(
       error: errorMessage(error) || 'Failed to verify linked passkey Wallet Session',
     };
   }
-}
-
-// ===========================
-// CONTRACT CALL RESPONSES
-// ===========================
-
-export interface CredentialIdsResult {
-  credentialIds: string[];
 }
 
 export interface AuthenticatorsResult {

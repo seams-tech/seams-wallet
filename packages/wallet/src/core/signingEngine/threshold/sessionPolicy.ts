@@ -225,40 +225,6 @@ export async function buildEd25519SessionPolicy(params: {
   });
 }
 
-export async function buildPasskeyEd25519SessionPolicy(
-  params: BuildPasskeyEd25519SessionPolicyParams,
-): Ed25519SessionPolicyBuildResult {
-  return buildExactEd25519SessionPolicy({
-    nearAccountId: params.nearAccountId,
-    nearEd25519SigningKeyId: params.nearEd25519SigningKeyId,
-    authority: params.authority,
-    relayerKeyId: params.relayerKeyId,
-    runtimePolicyScope: params.runtimePolicyScope,
-    routerAbNormalSigning: params.routerAbNormalSigning,
-    participantIds: params.participantIds,
-    thresholdSessionId: params.thresholdSessionId,
-    ttlMs: params.ttlMs,
-    remainingUses: params.remainingUses,
-  });
-}
-
-export async function buildEmailOtpEd25519SessionPolicy(
-  params: BuildEmailOtpEd25519SessionPolicyParams,
-): Ed25519SessionPolicyBuildResult {
-  return buildExactEd25519SessionPolicy({
-    nearAccountId: params.nearAccountId,
-    nearEd25519SigningKeyId: params.nearEd25519SigningKeyId,
-    authority: params.authority,
-    relayerKeyId: params.relayerKeyId,
-    runtimePolicyScope: params.runtimePolicyScope,
-    routerAbNormalSigning: params.routerAbNormalSigning,
-    participantIds: params.participantIds,
-    thresholdSessionId: params.thresholdSessionId,
-    ttlMs: params.ttlMs,
-    remainingUses: params.remainingUses,
-  });
-}
-
 async function buildExactEd25519SessionPolicy(
   params: BuildExactEd25519SessionPolicyParams,
 ): Ed25519SessionPolicyBuildResult {
@@ -284,13 +250,4 @@ async function buildExactEd25519SessionPolicy(
   };
   const sessionPolicyDigest32 = await computeEd25519SessionPolicyDigest32(policy);
   return { policy, policyJson: JSON.stringify(policy), sessionPolicyDigest32 };
-}
-
-export function isThresholdSignerMissingKeyError(err: unknown): boolean {
-  const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();
-  return (
-    msg.includes('"code":"missing_key"') ||
-    msg.includes('missing_key') ||
-    msg.includes('unknown relayerkeyid')
-  );
 }

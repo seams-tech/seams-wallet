@@ -343,18 +343,6 @@ export function deriveEvmFamilySigningKeySlotId(input: {
   });
 }
 
-export function deriveEvmFamilySigningKeySlotIdFromRuntimePolicyScope(input: {
-  walletId: unknown;
-  runtimePolicyScope: Parameters<typeof signingRootScopeFromRuntimePolicyScope>[0];
-}): EvmFamilySigningKeySlotId {
-  const signingRoot = signingRootScopeFromRuntimePolicyScope(input.runtimePolicyScope);
-  return deriveEvmFamilySigningKeySlotId({
-    walletId: input.walletId,
-    signingRootId: signingRoot.signingRootId,
-    signingRootVersion: signingRoot.signingRootVersion || 'default',
-  });
-}
-
 function normalizeEmailOtpAuthSubjectId(value: unknown): EmailOtpAuthSubjectId {
   return requiredString(value, 'authSubjectId') as EmailOtpAuthSubjectId;
 }

@@ -41,9 +41,6 @@ import type { ExactEd25519SealedSessionRuntime } from './ed25519SealedSessionRun
 import type { MpcMaterialActivationRef, ThresholdEd25519SessionId } from '@shared/utils/domainIds';
 import type { WalletSessionOperationCredentialV1 } from '@shared/device-linking';
 
-export type WarmSessionCapability = 'ed25519' | 'ecdsa';
-export type WarmSessionPrfClaimState = 'missing' | 'warm' | 'expired' | 'exhausted' | 'unavailable';
-
 export type WarmSessionMaterialWriteDiagnosticBucket =
   | 'worker_ready'
   | 'worker_put'

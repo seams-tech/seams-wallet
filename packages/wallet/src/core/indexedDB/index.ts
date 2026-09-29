@@ -231,18 +231,6 @@ export function configureIndexedDB(args: { mode: IndexedDBMode }): {
   };
 }
 
-export function getIndexedDBNames(): { walletDbName: string } {
-  return (
-    configured || {
-      walletDbName: seamsWalletDB.getDbName(),
-    }
-  );
-}
-
-export function isIndexedDBPersistenceDisabled(): boolean {
-  return Boolean(configured?.disabled);
-}
-
 // Export singleton instance of unified manager
 export const IndexedDBManager = new UnifiedIndexedDBManager({
   seamsWalletDB,

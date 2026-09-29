@@ -5,10 +5,7 @@ import type { WalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget'
 import type { LaneCandidate, SelectedLane } from '../identity/laneIdentity';
 import type {
   TransactionConcreteAvailableLane,
-  TransactionIntentReceivedState,
   TransactionLaneSelectedState,
-  TransactionLaneSelectionFailedState,
-  TransactionAvailableLanesReadState,
 } from '../identity/selectLane';
 import {
   type SigningChainFamily,
@@ -101,13 +98,6 @@ export type PreparedTransactionOperation<TLane extends TransactionLane = Transac
   readiness: TransactionReadiness;
 };
 
-export type SignedTransactionOperation<
-  TLane extends TransactionLane = TransactionLane,
-  TResult = unknown,
-> = PreparedTransactionOperation<TLane> & {
-  result: TResult;
-};
-
 export type TransactionSigningLifecycleAdapter<
   TLane extends TransactionLane,
   TSigningLane extends SelectedSigningSessionPlanningLane,
@@ -173,46 +163,6 @@ export type TransactionReadinessClassifiedState<
   readiness: TransactionReadiness;
 };
 
-export type TransactionAuthPlannedState<TLane extends TransactionLane = TransactionLane> = {
-  tag: 'AuthPlanned';
-  operation: PreparedTransactionOperation<TLane>;
-  authPlan: unknown;
-};
-
-export type TransactionSignedState<TLane extends TransactionLane = TransactionLane> = {
-  tag: 'Signed';
-  operation: SignedTransactionOperation<TLane>;
-};
-
-export type TransactionSigningState =
-  | TransactionIntentReceivedState
-  | TransactionAvailableLanesReadState
-  | TransactionLaneSelectedState
-  | TransactionLaneSelectionFailedState
-  | TransactionExactRestoreAttemptedState
-  | TransactionReadinessClassifiedState
-  | TransactionAuthPlannedState
-  | TransactionSignedState;
-
-export function recordExactRestoreAttempt<
-  TLane extends TransactionLane,
-  TAvailableLane extends TransactionConcreteAvailableLane,
-  TCandidate extends LaneCandidate,
->(
-  state: TransactionLaneSelectedState<TLane, TAvailableLane, TCandidate>,
-  result: { restored: boolean; failureReason?: string },
-): TransactionExactRestoreAttemptedState<TLane, TAvailableLane, TCandidate> {
-  return {
-    tag: 'ExactRestoreAttempted',
-    intent: state.intent,
-    lane: state.lane,
-    candidate: state.candidate,
-    availableLane: state.availableLane,
-    restored: result.restored,
-    ...(result.failureReason ? { failureReason: result.failureReason } : {}),
-  };
-}
-
 export function classifyTransactionReadiness<
   TLane extends TransactionLane,
   TAvailableLane extends TransactionConcreteAvailableLane,
@@ -240,20 +190,6 @@ export function prepareTransactionOperationFromReadiness<TLane extends Transacti
     intent: state.intent,
     lane: state.lane,
     readiness: state.readiness,
-  };
-}
-
-export function replacePreparedTransactionLane<TLane extends TransactionLane>(
-  operation: PreparedTransactionOperation<TLane>,
-  args: {
-    lane: TLane;
-    readiness: TransactionReadiness;
-  },
-): PreparedTransactionOperation<TLane> {
-  return {
-    intent: operation.intent,
-    lane: args.lane,
-    readiness: args.readiness,
   };
 }
 

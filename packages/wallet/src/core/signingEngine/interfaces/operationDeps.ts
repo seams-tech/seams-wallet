@@ -121,10 +121,6 @@ export type EcdsaSigningListLookupArgs = {
   source?: ThresholdEcdsaSessionStoreSource;
 };
 
-export type PasskeyEcdsaSigningLookupArgs = EcdsaSigningLookupArgs & {
-  source: Exclude<ThresholdEcdsaSessionStoreSource, 'email_otp'>;
-};
-
 export type EvmFamilySigningDeps = DurableEmailOtpEcdsaSigningSessionAuthorityResolver & {
   beforeSigning?: () => void;
   activeWalletAuthorityEcdsaRuntimeReadPorts: ExactWalletSessionReadPorts;

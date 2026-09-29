@@ -19,16 +19,6 @@ export function buildBearerAuthorizationHeader(args: {
   return { Authorization: `Bearer ${token}` };
 }
 
-export function buildRelayerJsonGetRequestInit(): RequestInit {
-  return {
-    method: 'GET',
-    credentials: 'omit',
-    headers: {
-      Accept: 'application/json',
-    },
-  };
-}
-
 export function buildRelayerJsonPostRequestInit(args: {
   body: unknown;
   headers?: RelayerHttpHeaders;

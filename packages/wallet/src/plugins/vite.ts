@@ -1,7 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildPermissionsPolicy, buildWalletCsp } from './headers';
 import {
   addPreconnectLink,
   buildWalletServiceHtml,
@@ -428,46 +427,6 @@ export function seamsBuildHeaders(
   return plugin as unknown as VitePlugin;
 }
 
-export function computeDevPermissionsPolicy(walletOrigin?: string): string {
-  return buildPermissionsPolicy(walletOrigin);
-}
-
-export function computeDevWalletCsp(mode: 'strict' | 'compatible' = 'strict'): string {
-  return buildWalletCsp({ mode });
-}
-
 export function seamsWalletServer(options: Web3AuthnDevOptions = {}): VitePlugin {
   return createDevServerPlugin(options, true);
-}
-
-export function seamsAppServer(options: Web3AuthnDevOptions = {}): VitePlugin {
-  return createDevServerPlugin(options, false);
-}
-
-export function seamsApp(
-  options: Web3AuthnDevOptions & { emitHeaders?: boolean } = {},
-): any[] /* Vite Plugin[] */ {
-  const { emitHeaders, ...devOpts } = options;
-  const app = seamsAppServer(devOpts);
-  const hdr = emitHeaders
-    ? seamsBuildHeaders({
-        coepMode: devOpts.coepMode,
-        walletHostVariant: devOpts.walletHostVariant,
-      })
-    : undefined;
-  return [app, hdr].filter(Boolean) as any[];
-}
-
-export function seamsWallet(
-  options: Web3AuthnDevOptions & { emitHeaders?: boolean } = {},
-): any[] /* Vite Plugin[] */ {
-  const { emitHeaders, ...devOpts } = options;
-  const wallet = seamsWalletServer(devOpts);
-  const hdr = emitHeaders
-    ? seamsBuildHeaders({
-        coepMode: devOpts.coepMode,
-        walletHostVariant: devOpts.walletHostVariant,
-      })
-    : undefined;
-  return [wallet, hdr].filter(Boolean) as any[];
 }

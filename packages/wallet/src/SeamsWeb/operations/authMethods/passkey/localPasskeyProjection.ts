@@ -23,7 +23,6 @@ import {
   type ActivePasskeyWalletAuthMethodRecordV2,
   type WalletId,
 } from '@shared/utils/registrationIntent';
-import type { ActiveRecoveredWalletAuthorityV1 } from '@shared/authorization/walletAuthority';
 import { IndexedDBManager, type LocalWalletAuthMethodRecord } from '@/core/indexedDB';
 
 /** The finalize fields this projection is built from, whichever route returned them. */
@@ -182,82 +181,4 @@ export async function persistSyncedPasskeyAuthMethodV2(
   args: SyncedPasskeyAuthMethodV2,
 ): Promise<void> {
   await IndexedDBManager.upsertWalletAuthMethodV2(localPasskeyAuthMethodFromSyncV2(args));
-}
-
-type RecoveredPasskeyLocalProjection = {
-  readonly authority: ActiveRecoveredWalletAuthorityV1;
-  readonly authMethod: ActivePasskeyWalletAuthMethodRecordV2;
-  readonly credential: {
-    readonly id: string;
-    readonly rawId: string;
-  };
-} & (
-  | {
-      readonly kind: 'near';
-      readonly signerSlot?: never;
-    }
-  | {
-      readonly kind: 'wallet_only';
-      readonly signerSlot: number;
-    }
-);
-
-async function retireOtherLocalPasskeys(
-  walletId: WalletId,
-  rpId: string,
-  replacementCredentialIdB64u: string,
-): Promise<void> {
-  const methods = await IndexedDBManager.listWalletAuthMethodsForWallet(String(walletId));
-  const nowMs = Date.now();
-  for (const method of methods) {
-    if (
-      method.kind !== 'passkey' ||
-      method.status !== 'active' ||
-      method.rpId !== rpId ||
-      method.credentialIdB64u === replacementCredentialIdB64u
-    ) {
-      continue;
-    }
-    await IndexedDBManager.upsertWalletAuthMethod({
-      ...method,
-      status: 'revoked',
-      updatedAtMs: nowMs,
-    });
-  }
-}
-
-/** Rebuilds the local identity required by exact-wallet login after recovery. */
-export async function persistRecoveredPasskeyAuthMethodProjectionV1(
-  input: RecoveredPasskeyLocalProjection,
-): Promise<void> {
-  const authMethod = localPasskeyAuthMethodFromFinalizeV1({
-    walletId: input.authMethod.walletId,
-    rpId: input.authMethod.rpId,
-    credentialIdB64u: input.authMethod.credentialIdB64u,
-    credentialPublicKeyB64u: input.authMethod.credentialPublicKeyB64u,
-    counter: input.authMethod.counter,
-  });
-  const passkeyCredential = {
-    id: input.credential.id,
-    rawId: input.credential.rawId,
-  };
-  await IndexedDBManager.persistRecoveredWalletAuthority({
-    authority: input.authority,
-    authMethod: input.authMethod,
-    recoveredAtMs: Date.now(),
-  });
-  if (input.kind === 'wallet_only') {
-    await IndexedDBManager.upsertProfile({
-      profileId: String(input.authMethod.walletId),
-      defaultSignerSlot: input.signerSlot,
-      passkeyCredential,
-    });
-  }
-
-  await retireOtherLocalPasskeys(
-    input.authMethod.walletId,
-    authMethod.rpId,
-    authMethod.credentialIdB64u,
-  );
-  await IndexedDBManager.upsertWalletAuthMethod(authMethod);
 }

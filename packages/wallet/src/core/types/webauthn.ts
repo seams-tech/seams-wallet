@@ -1,16 +1,3 @@
-// === WEBAUTHN CREDENTIAL TYPES ===
-
-/** Stored authenticator information, normalized for client-side use */
-export interface StoredAuthenticator {
-  credentialId: string;
-  credentialPublicKey: Uint8Array;
-  transports: AuthenticatorTransport[];
-  userId: string;
-  name?: string;
-  registered: Date;
-  signerSlot?: number;
-}
-
 /** WebAuthn authentication data structure for Router API verification */
 export interface WebAuthnAuthenticationCredential {
   id: string;

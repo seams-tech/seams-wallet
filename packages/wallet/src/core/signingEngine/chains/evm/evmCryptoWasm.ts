@@ -96,26 +96,6 @@ export async function encodeEip1559SignedTxFromSignature65Wasm(args: {
   return new Uint8Array(ab);
 }
 
-export async function signSecp256k1RecoverableWasm(args: {
-  digest32: Uint8Array;
-  privateKey32: Uint8Array;
-  workerCtx: WorkerOperationContext;
-}): Promise<Uint8Array> {
-  const digestBuf = args.digest32.slice().buffer;
-  const pkBuf = args.privateKey32.slice().buffer;
-  const ab = await executeWorkerOperation({
-    ctx: args.workerCtx,
-    kind: EVM_CRYPTO_WORKER_KIND,
-    request: {
-      type: 'signSecp256k1Recoverable',
-      payload: { digest32: digestBuf, privateKey32: pkBuf },
-      timeoutMs: EVM_CRYPTO_WORKER_TIMEOUT_MS,
-      transfer: [digestBuf, pkBuf],
-    },
-  });
-  return new Uint8Array(ab);
-}
-
 export async function verifySecp256k1RecoverableSignatureAgainstPublicKey33Wasm(args: {
   digest32: Uint8Array;
   signature65: Uint8Array;
@@ -151,33 +131,6 @@ export async function verifySecp256k1RecoverableSignatureAgainstPublicKey33Wasm(
     );
   }
   return recoveredPublicKey33;
-}
-
-export async function secp256k1PrivateKey32ToPublicKey33Wasm(args: {
-  privateKey32: Uint8Array;
-  workerCtx: WorkerOperationContext;
-}): Promise<Uint8Array> {
-  if (!(args.privateKey32 instanceof Uint8Array) || args.privateKey32.length !== 32) {
-    throw new Error('privateKey32 must be 32 bytes');
-  }
-  const privateKey32 = args.privateKey32.slice().buffer;
-  const ab = await executeWorkerOperation({
-    ctx: args.workerCtx,
-    kind: EVM_CRYPTO_WORKER_KIND,
-    request: {
-      type: 'secp256k1PrivateKey32ToPublicKey33',
-      payload: { privateKey32 },
-      timeoutMs: EVM_CRYPTO_WORKER_TIMEOUT_MS,
-      transfer: [privateKey32],
-    },
-  });
-  const publicKey33 = new Uint8Array(ab);
-  if (publicKey33.length !== 33) {
-    throw new Error(
-      `secp256k1PrivateKey32ToPublicKey33 expected 33-byte output (got ${publicKey33.length})`,
-    );
-  }
-  return publicKey33;
 }
 
 export async function validateSecp256k1PublicKey33Wasm(args: {

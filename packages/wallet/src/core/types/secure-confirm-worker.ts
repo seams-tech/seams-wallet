@@ -55,8 +55,6 @@ export interface UiConfirmManagerConfig {
   signingSessionSealGroupId?: string;
 }
 
-export type UserConfirmWorkerMessageType = UserConfirmWorkerMessage['type'];
-
 export type PasskeyMpcSessionWorkerMessageType =
   | 'PING'
   | 'PREWARM_SHAMIR3PASS'
@@ -204,7 +202,6 @@ export type WarmSessionRehydrateResult =
   | { ok: false; code: string; message: string };
 
 export type ExportPrivateKeyScheme = 'ed25519' | 'secp256k1';
-export type ThresholdEcdsaExportArtifactKind = 'ecdsa-derivation-secp256k1-export';
 export const ROUTER_AB_ED25519_YAO_EXPORT_ARTIFACT_KIND_V1 =
   'router-ab-ed25519-yao-seed-export-v1' as const;
 

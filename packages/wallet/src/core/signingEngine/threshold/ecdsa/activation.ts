@@ -16,9 +16,6 @@ import type { RouterAbNormalSigningConfig } from '@/core/types/seams';
 import {
   thresholdEcdsaChainTargetKey,
   toWalletId,
-  type EvmEip155ChainTarget,
-  type TempoChainTarget,
-  type ThresholdEcdsaChainTarget,
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type {
   EvmFamilyEcdsaKeyHandle,
@@ -48,18 +45,7 @@ import { parseDigestB64u, type DigestB64u } from '@shared/utils/canonicalPrimiti
 import type { PersistedEcdsaRoleLocalMaterial } from '../../session/material/ecdsaRoleLocalMaterialResolver';
 import type { EcdsaPreauthorizedSessionActivation } from './postRegistrationSessionActivation';
 
-export type ThresholdEcdsaEvmChainTarget = EvmEip155ChainTarget;
-export type ThresholdEcdsaTempoChainTarget = TempoChainTarget;
-export type ThresholdEcdsaActivationChain = ThresholdEcdsaChainTarget['kind'];
-
 export const STALE_ECDSA_KEY_IDENTITY_ERROR_CODE = 'stale_ecdsa_key_identity' as const;
-
-export const TEMPO_TESTNET_CHAIN_ID = 42431;
-export const TEMPO_ECDSA_CHAIN_TARGET: ThresholdEcdsaTempoChainTarget = {
-  kind: 'tempo',
-  chainId: TEMPO_TESTNET_CHAIN_ID,
-  networkSlug: 'tempo-moderato',
-};
 
 export type ThresholdEcdsaBootstrapKeyRef = Omit<
   ThresholdEcdsaSecp256k1KeyRef,

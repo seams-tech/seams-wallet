@@ -468,38 +468,6 @@ export const DARK_TOKENS: DesignTokens = {
 // ============================================================================
 // CSS CUSTOM PROPERTY GENERATOR
 // ============================================================================
-/**
- * Generates CSS custom properties from design tokens
- * This would replace all the manual CSS variable definitions
- */
-export function generateThemeCSS(tokens: DesignTokens, prefix = '--seams'): string {
-  const cssVars: string[] = [];
-
-  // Colors
-  Object.entries(tokens.colors).forEach(([key, value]) => {
-    // Naming (plural): --seams-colors-<key>
-    cssVars.push(`${prefix}-colors-${key}: ${value};`);
-  });
-
-  // Spacing
-  Object.entries(tokens.spacing).forEach(([key, value]) => {
-    cssVars.push(`${prefix}-spacing-${key}: ${value};`);
-  });
-
-  // Border radius
-  Object.entries(tokens.borderRadius).forEach(([key, value]) => {
-    // Naming (hyphenated): --seams-border-radius-<key>
-    cssVars.push(`${prefix}-border-radius-${key}: ${value};`);
-  });
-
-  // Shadows
-  Object.entries(tokens.shadows).forEach(([key, value]) => {
-    // Naming (plural): --seams-shadows-<key>
-    cssVars.push(`${prefix}-shadows-${key}: ${value};`);
-  });
-
-  return `:root {\n  ${cssVars.join('\n  ')}\n}`;
-}
 
 // ============================================================================
 // COMPONENT-SPECIFIC THEME HELPERS

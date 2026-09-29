@@ -16,10 +16,6 @@ import type {
   ExactSigningLaneIdentity,
 } from '../identity/exactSigningLaneIdentity';
 import {
-  deferredEd25519MaterialIdentityKey,
-  exactSigningLaneIdentityKey,
-} from '../identity/exactSigningLaneIdentity';
-import {
   signingLaneAuthMethod,
   type SigningLaneAuthBinding,
 } from '../identity/signingLaneAuthBinding';
@@ -164,10 +160,6 @@ export type SelectedEcdsaSigningLaneIdentity =
     thresholdSessionId?: never;
   };
 
-export type SelectedSigningLaneIdentity =
-  | SelectedEd25519SigningLaneIdentity
-  | SelectedEcdsaSigningLaneIdentity;
-
 export type SelectedEd25519SigningSessionPlanningLane = Ed25519SigningSessionPlanningLane &
   SelectedEd25519SigningLaneIdentity;
 
@@ -196,20 +188,6 @@ export type ResolvedEd25519SigningSessionIdentity =
     quotaId: MpcWalletSigningQuotaId;
     thresholdSessionId: ThresholdEd25519SessionId;
   };
-
-export type ResolvedEcdsaSigningSessionIdentity =
-  BaseResolvedSigningSessionIdentity<ExactEcdsaSigningLaneIdentity> & {
-    curve: 'ecdsa';
-    keyKind: 'threshold_ecdsa_secp256k1';
-    chainFamily: ThresholdEcdsaChainTarget['kind'];
-    materialActivation: MpcMaterialActivationRef;
-    authorization: ExactEvmFamilyWalletSessionAuthorization;
-    thresholdSessionId?: never;
-  };
-
-export type ResolvedSigningSessionIdentity =
-  | ResolvedEd25519SigningSessionIdentity
-  | ResolvedEcdsaSigningSessionIdentity;
 
 export type SigningOperationContext = {
   operationId: SigningOperationId;
@@ -432,51 +410,6 @@ export function summarizeSigningLane(lane: SigningSessionPlanningLane): SigningL
         nearEd25519SigningKeyId: signer.nearEd25519SigningKeyId,
       };
   }
-}
-
-function normalizeLaneIdentityField(value: unknown): string {
-  return value == null ? '' : String(value).trim();
-}
-
-export function findSigningLaneIdentityMismatch(
-  a: SigningSessionPlanningLane,
-  b: SigningSessionPlanningLane,
-): string | null {
-  const leftKey =
-    a.identity.kind === 'deferred_ed25519_material_identity'
-      ? deferredEd25519MaterialIdentityKey(a.identity)
-      : exactSigningLaneIdentityKey(a.identity);
-  const rightKey =
-    b.identity.kind === 'deferred_ed25519_material_identity'
-      ? deferredEd25519MaterialIdentityKey(b.identity)
-      : exactSigningLaneIdentityKey(b.identity);
-  if (leftKey !== rightKey) {
-    return 'identity';
-  }
-  const fields: Array<keyof SigningSessionPlanningLane> = [
-    'keyKind',
-    'sessionOrigin',
-    'storageSource',
-    'retention',
-  ];
-  for (const field of fields) {
-    if (normalizeLaneIdentityField(a[field]) !== normalizeLaneIdentityField(b[field])) {
-      return String(field);
-    }
-  }
-  return null;
-}
-
-export function assertSameSigningLaneIdentity(args: {
-  expected: SigningSessionPlanningLane;
-  actual: SigningSessionPlanningLane;
-  context: string;
-}): void {
-  const mismatch = findSigningLaneIdentityMismatch(args.expected, args.actual);
-  if (!mismatch) return;
-  throw new Error(
-    `[SigningSession] signing lane identity changed before ${args.context}: ${mismatch}`,
-  );
 }
 
 export function summarizeSigningSessionPlan(plan: SigningSessionPlan): SigningPlanSummary {

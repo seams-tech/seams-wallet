@@ -84,16 +84,6 @@ export type SignNearDeps = {
   };
 };
 
-export type SignNearUseCase = {
-  sign(input: SignNearInput): Promise<SignNearResult>;
-};
-
-export function createSignNearUseCase(deps: SignNearDeps): SignNearUseCase {
-  return {
-    sign: (input) => signNear(deps, input),
-  };
-}
-
 function failure(input: {
   code: SignNearFailureCode;
   source: SignNearFailure['source'];

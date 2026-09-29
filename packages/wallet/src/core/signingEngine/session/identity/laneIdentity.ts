@@ -58,17 +58,6 @@ export type ThresholdEcdsaSessionStoreSource =
   | 'manual-bootstrap'
   | 'email_otp';
 
-export const THRESHOLD_ECDSA_PASSKEY_SESSION_STORE_SOURCES = [
-  'login',
-  'registration',
-  'manual-bootstrap',
-] as const satisfies readonly ThresholdEcdsaSessionStoreSource[];
-
-export const THRESHOLD_ECDSA_SESSION_STORE_SOURCES = [
-  'email_otp',
-  ...THRESHOLD_ECDSA_PASSKEY_SESSION_STORE_SOURCES,
-] as const satisfies readonly ThresholdEcdsaSessionStoreSource[];
-
 export type ThresholdEd25519SessionStoreSource =
   | 'login'
   | 'registration'
@@ -130,20 +119,6 @@ export function emailOtpAuthContextEmailHashHex(
   return emailOtpWalletAuthAuthorityEmailHashHex(context.authority);
 }
 
-export function emailOtpAuthContextReason(
-  context: ThresholdEcdsaEmailOtpAuthContext,
-): 'login' | 'sign' {
-  switch (context.use.kind) {
-    case 'session':
-      return context.use.reason;
-    case 'single_use_pending':
-    case 'single_use_consumed':
-      return 'sign';
-  }
-  context.use satisfies never;
-  throw new Error('[SigningSession] unsupported Email OTP auth use');
-}
-
 export function emailOtpAuthContextRetention(
   context: ThresholdEcdsaEmailOtpAuthContext,
 ): 'session' | 'single_use' {
@@ -174,12 +149,6 @@ export function isEmailOtpPendingSingleUseAuthContext(
   context: ThresholdEcdsaEmailOtpAuthContext,
 ): context is ThresholdEcdsaEmailOtpPendingSingleUseAuthContext {
   return context.use.kind === 'single_use_pending';
-}
-
-export function isEmailOtpConsumedSingleUseAuthContext(
-  context: ThresholdEcdsaEmailOtpAuthContext,
-): context is ThresholdEcdsaEmailOtpConsumedSingleUseAuthContext {
-  return context.use.kind === 'single_use_consumed';
 }
 
 type BuildEmailOtpSessionAuthContextArgs = {

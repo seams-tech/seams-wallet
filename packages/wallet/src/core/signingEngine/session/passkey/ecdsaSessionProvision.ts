@@ -153,15 +153,6 @@ export type ThresholdEcdsaExplicitKeyExportBootstrapResult =
 
 type BuildThresholdEcdsaActivationRequestCommon = ThresholdEcdsaActivationRequestCommon;
 
-type BuildPasskeyEcdsaActivationArgs = BuildThresholdEcdsaActivationRequestCommon & {
-  sessionIdentity: EcdsaSessionIdentity;
-  sessionKind: 'opaque';
-  requestId: string;
-  webauthnAuthentication: WebAuthnAuthenticationCredential;
-  walletSessionRouteAuth: WalletSessionOperationCredentialV1;
-  emailOtpAuthContext?: never;
-};
-
 type BuildPasskeyEcdsaExportActivationArgs = Omit<
   ThresholdEcdsaPasskeyExportActivationRequest,
   'kind' | 'purpose'
@@ -229,35 +220,6 @@ function applyOptionalActivationFields<T extends AnyThresholdEcdsaActivationRequ
     request.ttlMs = args.ttlMs;
   }
   return request;
-}
-
-function buildPasskeyEcdsaActivationRequest(
-  args: BuildPasskeyEcdsaActivationArgs,
-): ThresholdEcdsaPasskeyActivationRequest {
-  const request: ThresholdEcdsaPasskeyActivationRequest = {
-    kind: 'passkey_ecdsa_activation',
-    purpose: 'transaction_signing',
-    walletKey: args.walletKey,
-    lanePolicy: args.lanePolicy,
-    publicCapability: args.publicCapability,
-    existingRoleLocalMaterial: args.existingRoleLocalMaterial,
-    source: args.source,
-    relayerUrl: args.relayerUrl,
-    sessionIdentity: args.sessionIdentity,
-    sessionKind: args.sessionKind,
-    sessionBudgetUses: args.sessionBudgetUses,
-    requestId: args.requestId,
-    runtimePolicy: args.runtimePolicy,
-    webauthnAuthentication: args.webauthnAuthentication,
-    walletSessionRouteAuth: args.walletSessionRouteAuth,
-  };
-  return applyOptionalActivationFields(request, args);
-}
-
-export function buildPasskeyRegistrationEcdsaActivation(
-  args: BuildPasskeyEcdsaActivationArgs,
-): ThresholdEcdsaPasskeyActivationRequest {
-  return buildPasskeyEcdsaActivationRequest(args);
 }
 
 function buildEmailOtpEcdsaActivationRequest(

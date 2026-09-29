@@ -744,9 +744,6 @@ export type LockSigningSurface = NonceCoordinatorSurface &
     | 'clearWalletAuthenticationIfCurrent'
   >;
 
-export type LogoutSigningSurface = LockSigningSurface &
-  Pick<EcdsaSessionControlSurface, 'deleteDurableEcdsaPresignatures'>;
-
 export type LocalLoginStateSurface = WalletSessionReadSurface &
   Pick<
     UserProfileStoreSurface & RegistrationAccountSurface,

@@ -487,31 +487,6 @@ export async function resolveWalletUnlockSubjectSet(args: {
   return buildWalletUnlockSubjectSet(normalizedWalletId, subjects);
 }
 
-function selectNearEd25519WalletUnlockSubject(
-  subjectSet: WalletUnlockSubjectSet,
-): Extract<WalletUnlockSubject, { kind: 'near_ed25519_wallet' }> | null {
-  const nearSubjects = subjectSet.subjects.filter(isNearEd25519WalletUnlockSubject);
-  if (nearSubjects.length === 0) return null;
-  if (nearSubjects.length > 1) {
-    throw new Error('wallet unlock found multiple active NEAR Ed25519 subjects');
-  }
-  return nearSubjects[0] || null;
-}
-
-export async function resolveNearEd25519WalletUnlockSubject(
-  walletId: string,
-): Promise<Extract<WalletUnlockSubject, { kind: 'near_ed25519_wallet' }> | null> {
-  const resolution = await resolveWalletUnlockSubjectSet({
-    walletId,
-    requestedCapabilityFamilies: { kind: 'near_ed25519_only' },
-  });
-  if (resolution.kind === 'missing_requested_capability_subject') return null;
-  if (resolution.kind === 'capability_subject_resolution_failed') {
-    throw new Error(`wallet unlock subject resolution failed: ${resolution.reason}`);
-  }
-  return selectNearEd25519WalletUnlockSubject(resolution.subjectSet);
-}
-
 export async function resolveWalletCapabilitySubjectResolution(
   walletId?: WalletId | string,
 ): Promise<WalletCapabilitySubjectResolution> {

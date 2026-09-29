@@ -69,23 +69,6 @@ export const isIOS = (): boolean => {
 };
 
 /**
- * Detect Mobile Safari (iOS Safari specifically). Chrome/Firefox on iOS still use WebKit,
- * so for WebAuthn activation rules, prefer checking isIOS() as well.
- */
-export const isMobileSafari = (): boolean => {
-  try {
-    const ua = navigator.userAgent;
-    if (!isIOS()) return false;
-    // Exclude Chrome/Firefox/Edge branded iOS browsers (still WebKit underneath)
-    const branded = /crios|fxios|edgios|opios|mercury/i.test(ua);
-    const safariToken = /safari/i.test(ua);
-    return safariToken && !branded;
-  } catch {
-    return false;
-  }
-};
-
-/**
  * Returns true when the page currently has a transient user activation
  * (click/tap/key within the allowed time window).
  */
@@ -144,28 +127,4 @@ export const isMobileDevice = (): boolean => {
  */
 export const isTouchDevice = (): boolean => {
   return navigator.maxTouchPoints > 0;
-};
-
-/**
- * Get device capabilities for camera constraints
- */
-export const getDeviceCapabilities = () => {
-  const deviceType = detectDeviceType();
-  const isTouch = isTouchDevice();
-  const facingMode = getOptimalCameraFacingMode();
-
-  return {
-    deviceType,
-    isTouch,
-    recommendedFacingMode: facingMode,
-    // Recommended camera constraints based on device
-    cameraConstraints: {
-      video: {
-        facingMode,
-        width: deviceType === 'mobile' ? { ideal: 720, min: 480 } : { ideal: 1280, min: 720 },
-        height: deviceType === 'mobile' ? { ideal: 720, min: 480 } : { ideal: 720, min: 480 },
-        aspectRatio: deviceType === 'mobile' ? { ideal: 1.0 } : { ideal: 16 / 9 },
-      },
-    },
-  };
 };

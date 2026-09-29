@@ -368,27 +368,6 @@ function buildNearEd25519TransactionReauthLane(args: {
   };
 }
 
-export function toNearEd25519TransactionReadyLane(
-  lane: AvailableEd25519SigningLane | null | undefined,
-): NearEd25519TransactionReadyLane | null {
-  if (!isConcreteNearEd25519Lane(lane)) return null;
-  if (lane.authorizationState !== 'authorized') return null;
-  if (!nearEd25519TransactionReadyState(lane)) return null;
-  const authorityKey = toEd25519LaneAuthorityKey(lane);
-  if (!authorityKey) return null;
-  const candidate = ed25519LaneCandidateFromAvailableLane({ lane });
-  if (!candidate || candidate.authorizationState !== 'authorized') return null;
-  return buildNearEd25519TransactionReadyLane({ lane, candidate, authorityKey });
-}
-
-export function listNearEd25519TransactionReadyLanes(
-  lanes: readonly AvailableEd25519SigningLane[] | null | undefined,
-): NearEd25519TransactionReadyLane[] {
-  return (lanes || [])
-    .map(toNearEd25519TransactionReadyLane)
-    .filter((lane): lane is NearEd25519TransactionReadyLane => lane !== null);
-}
-
 export function toNearEd25519TransactionSelectableLane(
   lane: AvailableEd25519SigningLane | null | undefined,
 ): NearEd25519TransactionSelectableLane | null {
@@ -405,14 +384,6 @@ export function toNearEd25519TransactionSelectableLane(
     return buildNearEd25519TransactionReadyLane({ lane, candidate, authorityKey });
   }
   return buildNearEd25519TransactionReauthLane({ lane, candidate, authorityKey });
-}
-
-export function listNearEd25519TransactionSelectableLanes(
-  lanes: readonly AvailableEd25519SigningLane[] | null | undefined,
-): NearEd25519TransactionSelectableLane[] {
-  return (lanes || [])
-    .map(toNearEd25519TransactionSelectableLane)
-    .filter((lane): lane is NearEd25519TransactionSelectableLane => lane !== null);
 }
 
 function selectedLaneFromCandidate(candidate: LaneCandidate): SelectedLane {

@@ -8,7 +8,7 @@ import {
 } from '@shared/utils/registrationIntent';
 import { parseSignerSlot, type SignerSlot } from '@shared/utils/signerSlot';
 import { parseRouterAbEd25519NormalSigningState } from '@shared/utils/signingSessionSeal';
-import { SIGNER_AUTH_METHODS, type SignerAuthMethod } from '@shared/utils/signerDomain';
+import { SIGNER_AUTH_METHODS } from '@shared/utils/signerDomain';
 import {
   listExactSealedSessionsForWallet,
   type CurrentEd25519SealedSessionRecord,
@@ -24,10 +24,6 @@ import {
   nearEd25519SessionMatchesMaterialActivation,
   type ExactNearEd25519WalletSessionAuthorization,
 } from '../material/nearEd25519YaoSigningPreparation';
-import {
-  mpcMaterialActivationRefsEqual,
-  type MpcMaterialActivationRef,
-} from '@shared/utils/domainIds';
 import type { RouterAbEd25519NormalSigningState } from '../../threshold/ed25519/routerAbNormalSigningState';
 import type { ExactEd25519SigningLaneIdentity } from '../identity/exactSigningLaneIdentity';
 import {
@@ -362,13 +358,6 @@ export async function ed25519AuthorizationIdentityMatchesRuntime(args: {
   }
 }
 
-export async function ed25519WalletSessionAuthorizationForRuntime(args: {
-  runtime: ExactEd25519SealedSessionRuntime;
-  authorization: ExactNearEd25519WalletSessionAuthorization;
-}): Promise<ExactNearEd25519WalletSessionAuthorization | null> {
-  return (await ed25519AuthorizationIdentityMatchesRuntime(args)) ? args.authorization : null;
-}
-
 function authBindingsEqual(left: SigningLaneAuthBinding, right: SigningLaneAuthBinding): boolean {
   switch (left.kind) {
     case 'passkey':
@@ -517,41 +506,6 @@ export async function resolveExactEd25519SealedSessionRuntimeForWalletSubjectWit
   return resolveOneEd25519SealedSessionRuntime(matches);
 }
 
-export async function resolveExactEd25519SealedSessionRuntimeForWalletSubjectAndActivationWithResolver(
-  args: {
-    walletId: WalletId;
-    nearAccountId: AccountId;
-    nearEd25519SigningKeyId: NearEd25519SigningKeyId;
-    materialActivation: MpcMaterialActivationRef;
-    authMethod: SignerAuthMethod;
-  },
-  resolver: Ed25519SealedSessionRuntimeResolver,
-): Promise<Ed25519WalletSealedSessionRuntimeResolution> {
-  const records = await resolver.listExactSealedSessionsForWallet({
-    walletId: args.walletId,
-    filter: {
-      authMethod: args.authMethod,
-      curve: 'ed25519',
-    },
-  });
-  const matches: CurrentEd25519SealedSessionRecord[] = [];
-  for (const record of records) {
-    if (
-      record.curve === 'ed25519' &&
-      record.authMethod === args.authMethod &&
-      record.ed25519Restore.nearAccountId === args.nearAccountId &&
-      record.ed25519Restore.nearEd25519SigningKeyId === args.nearEd25519SigningKeyId &&
-      mpcMaterialActivationRefsEqual(
-        record.ed25519Restore.materialActivation,
-        args.materialActivation,
-      )
-    ) {
-      matches.push(record);
-    }
-  }
-  return resolveOneEd25519SealedSessionRuntime(matches);
-}
-
 export async function resolveExactEd25519SealedSessionRuntimeForWalletSubject(args: {
   walletId: WalletId;
   nearAccountId: AccountId;
@@ -560,17 +514,4 @@ export async function resolveExactEd25519SealedSessionRuntimeForWalletSubject(ar
   return await resolveExactEd25519SealedSessionRuntimeForWalletSubjectWithResolver(args, {
     listExactSealedSessionsForWallet,
   });
-}
-
-export async function resolveExactEd25519SealedSessionRuntimeForWalletSubjectAndActivation(args: {
-  walletId: WalletId;
-  nearAccountId: AccountId;
-  nearEd25519SigningKeyId: NearEd25519SigningKeyId;
-  materialActivation: MpcMaterialActivationRef;
-  authMethod: SignerAuthMethod;
-}): Promise<Ed25519WalletSealedSessionRuntimeResolution> {
-  return await resolveExactEd25519SealedSessionRuntimeForWalletSubjectAndActivationWithResolver(
-    args,
-    { listExactSealedSessionsForWallet },
-  );
 }

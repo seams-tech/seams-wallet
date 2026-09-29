@@ -489,22 +489,6 @@ export function exactSigningLaneIdentityKey(
   ) as ExactSigningLaneIdentityKey;
 }
 
-export function deferredEd25519MaterialIdentityKey(input: {
-  materialActivation: MpcMaterialActivationRef;
-}): ExactSigningLaneIdentityKey {
-  return alphabetizeStringify({
-    kind: 'deferred_ed25519_material_identity',
-    materialActivation: {
-      activationId: String(input.materialActivation.activationId),
-      capability: String(input.materialActivation.capability),
-      materialOwner: String(input.materialActivation.materialOwner),
-      keyBinding: String(input.materialActivation.keyBinding),
-      lifecycleBinding: String(input.materialActivation.lifecycleBinding),
-      signingWorker: String(input.materialActivation.signingWorker),
-    },
-  }) as ExactSigningLaneIdentityKey;
-}
-
 export function exactEd25519SigningLaneIdentity<A extends SigningLaneAuthBinding>(
   lane: ExactEd25519SigningLaneIdentityInput<A>,
 ): ExactEd25519SigningLaneIdentity<A> {
@@ -581,14 +565,6 @@ export function exactEcdsaSigningLaneIdentityFromSelectedLane(
   lane: SelectedEcdsaLane | ExactEcdsaSigningLaneIdentityCarrier,
 ): ExactEcdsaSigningLaneIdentity {
   return lane.identity;
-}
-
-export function parseExactEd25519SigningLaneIdentity(
-  value: unknown,
-): ExactEd25519SigningLaneIdentity {
-  const identity = parseExactSigningLaneIdentity(value);
-  if (isExactEd25519SigningLaneIdentity(identity)) return identity;
-  throw new Error('[SigningSession] expected exact Ed25519 lane identity');
 }
 
 export function parseExactEd25519ExportMaterialIdentity(
@@ -755,26 +731,6 @@ export function nearProtocolProjectionFromExactLane(
     nearAccountId: signer.account.nearAccountId,
     nearEd25519SigningKeyId: signer.nearEd25519SigningKeyId,
     signerSlot: signer.signerSlot,
-  };
-}
-
-export type EvmFamilyProtocolProjection = {
-  walletId: WalletId;
-  chainTarget: ThresholdEcdsaChainTarget;
-  keyHandle: EvmFamilyEcdsaKeyHandle;
-  key: EvmFamilyEcdsaKeyIdentity;
-};
-
-export function evmFamilyProtocolProjectionFromExactLane(
-  identity: ExactSigningLaneIdentity,
-  context = 'EVM-family protocol projection',
-): EvmFamilyProtocolProjection {
-  const signer = requireEvmFamilyEcdsaSigner(identity, context);
-  return {
-    walletId: signer.walletId,
-    chainTarget: signer.chainTarget,
-    keyHandle: signer.keyHandle,
-    key: signer.key,
   };
 }
 

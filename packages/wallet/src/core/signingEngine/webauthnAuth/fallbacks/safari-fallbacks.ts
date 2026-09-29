@@ -13,9 +13,6 @@ export const WebAuthnBridgeMessage = {
 } as const;
 
 export type BridgeKind = typeof WebAuthnBridgeMessage.Create | typeof WebAuthnBridgeMessage.Get;
-export type BridgeResultKind =
-  | typeof WebAuthnBridgeMessage.CreateResult
-  | typeof WebAuthnBridgeMessage.GetResult;
 
 type ResultTypeFor<K extends BridgeKind> = K extends typeof WebAuthnBridgeMessage.Get
   ? typeof WebAuthnBridgeMessage.GetResult

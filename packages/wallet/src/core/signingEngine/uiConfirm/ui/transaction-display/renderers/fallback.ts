@@ -1,9 +1,4 @@
-import type { TxDisplayOperation } from '@/core/signingEngine/interfaces/display';
 import { buildFieldNodes, type RenderDisplayOperation, type RenderTreeNode } from './types';
-
-export function isFallbackDisplayOperation(_operation: TxDisplayOperation): boolean {
-  return true;
-}
 
 export const renderFallbackDisplayOperation: RenderDisplayOperation = ({
   operation,

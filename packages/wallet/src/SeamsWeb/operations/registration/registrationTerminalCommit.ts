@@ -120,19 +120,6 @@ export type RegistrationPersistenceAuth =
       credentialPublicKeyB64u?: never;
     };
 
-export function registrationPersistenceAuthMethod(
-  auth: RegistrationPersistenceAuth,
-): RegistrationAuthMethodInput['kind'] {
-  switch (auth.kind) {
-    case 'passkey':
-      return 'passkey';
-    case 'email_otp':
-      return 'email_otp';
-    default:
-      return assertNever(auth);
-  }
-}
-
 type RegistrationPersistenceEcdsa = {
   kind: 'evm_family_ecdsa';
   session: RegistrationEcdsaSession;

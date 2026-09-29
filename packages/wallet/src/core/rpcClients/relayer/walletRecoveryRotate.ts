@@ -1,14 +1,8 @@
 import { buildRelayerJsonPostRequestInit, normalizeRelayerBaseUrl } from './relayerHttp';
-import {
-  parseWalletRecoveryEnvelopeSetRecord,
-  type WalletRecoverySetRotationWireV1,
-  type WalletRecoveryEnvelopeSetRecord,
-} from '@shared/wallet-recovery/walletRecoveryEnvelopeSet';
-import { parseWalletId } from '@shared/utils/domainIds';
+import { type WalletRecoverySetRotationWireV1 } from '@shared/wallet-recovery/walletRecoveryEnvelopeSet';
 import type { WalletCustodyAdminOperation } from '@shared/authorization/walletCustodyOperation';
 import type { WebAuthnAuthenticationCredential } from '@/core/types/webauthn';
 
-const WALLET_RECOVERY_READ_PATH = '/wallets/recovery/read';
 const WALLET_RECOVERY_ROTATE_PATH = '/wallets/recovery/rotate';
 const WALLET_RECOVERY_ACK_PATH = '/wallets/recovery/acknowledge-backup';
 const WALLET_CUSTODY_EMAIL_OTP_CHALLENGE_PATH = '/wallets/custody/email-otp/challenge';
@@ -407,28 +401,6 @@ export async function acknowledgeWalletRecoveryBackup(args: {
   return { kind: 'acknowledged', walletId: args.walletId, issuedAtMs };
 }
 
-export type WalletRecoverySetReadResult =
-  | {
-      readonly kind: 'ready';
-      readonly recoverySet: WalletRecoveryEnvelopeSetRecord;
-      readonly storeVersion: string;
-    }
-  | { readonly kind: 'no_recovery_set'; readonly message: string }
-  | { readonly kind: 'transport_failed'; readonly message: string };
-
-export async function readWalletRecoverySet(args: {
-  readonly relayUrl: string;
-  readonly walletId: string;
-  readonly factorProof: WalletCustodyFactorProof;
-  readonly fetchImpl?: typeof fetch;
-}): Promise<WalletRecoverySetReadResult> {
-  return await requestWalletRecoverySet({
-    ...args,
-    path: WALLET_RECOVERY_READ_PATH,
-    body: { walletId: args.walletId, factorProof: args.factorProof },
-  });
-}
-
 export type WalletRecoverySetRotateResult =
   | { readonly kind: 'rotated'; readonly issuedAtMs: number; readonly storeVersion: string }
   | { readonly kind: 'conflict'; readonly message: string }
@@ -460,48 +432,6 @@ function decodeWalletRecoverySetRotateResponse(value: unknown): WalletRecoverySe
     return {
       kind: 'success',
       issuedAtMs: fields.get('issuedAtMs'),
-      storeVersion: fields.get('storeVersion'),
-    };
-  }
-  if (
-    fields.size === 3 &&
-    names.every((name) => ['ok', 'code', 'message'].includes(name)) &&
-    fields.get('ok') === false &&
-    typeof fields.get('code') === 'string'
-  ) {
-    const message = fields.get('message');
-    return {
-      kind: 'failure',
-      message: typeof message === 'string' && message.trim() ? message.trim() : null,
-    };
-  }
-  return { kind: 'invalid' };
-}
-
-type WalletRecoverySetReadResponseDto =
-  | { readonly kind: 'success'; readonly recoverySet: unknown; readonly storeVersion: unknown }
-  | { readonly kind: 'failure'; readonly message: string | null }
-  | { readonly kind: 'invalid' };
-
-function decodeWalletRecoverySetReadResponse(value: unknown): WalletRecoverySetReadResponseDto {
-  if (
-    value === null ||
-    typeof value !== 'object' ||
-    Array.isArray(value) ||
-    (Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null)
-  ) {
-    return { kind: 'invalid' };
-  }
-  const fields = new Map<string, unknown>(Object.entries(value));
-  const names = [...fields.keys()];
-  if (
-    fields.size === 3 &&
-    names.every((name) => ['ok', 'recoverySet', 'storeVersion'].includes(name)) &&
-    fields.get('ok') === true
-  ) {
-    return {
-      kind: 'success',
-      recoverySet: fields.get('recoverySet'),
       storeVersion: fields.get('storeVersion'),
     };
   }
@@ -566,46 +496,6 @@ export async function rotateWalletRecoverySet(args: {
     kind: 'transport_failed',
     message: message || `rotation failed (HTTP ${response.status})`,
   };
-}
-
-async function requestWalletRecoverySet(args: {
-  readonly relayUrl: string;
-  readonly walletId: string;
-  readonly factorProof: WalletCustodyFactorProof;
-  readonly path: string;
-  readonly body: Record<string, unknown>;
-  readonly fetchImpl?: typeof fetch;
-}): Promise<WalletRecoverySetReadResult> {
-  const walletId = parseWalletId(args.walletId);
-  if (!walletId.ok) {
-    return { kind: 'transport_failed', message: 'wallet recovery read has an invalid wallet id' };
-  }
-  const response = await postWalletRecoveryRoute(args);
-  const body = decodeWalletRecoverySetReadResponse(await response.json().catch(() => null));
-  const message = body.kind === 'failure' && body.message ? body.message : '';
-  if (response.status === 404) {
-    return { kind: 'no_recovery_set', message: message || 'this wallet has no recovery set' };
-  }
-  if (response.status !== 200) {
-    return {
-      kind: 'transport_failed',
-      message: message || `recovery set read failed (HTTP ${response.status})`,
-    };
-  }
-  if (body.kind !== 'success') {
-    return { kind: 'transport_failed', message: 'recovery set read returned an unusable payload' };
-  }
-  try {
-    const recoverySet = parseWalletRecoveryEnvelopeSetRecord(body.recoverySet, {
-      expectedWalletId: walletId.value,
-      label: 'walletRecoveryRead.recoverySet',
-    });
-    const storeVersion = typeof body.storeVersion === 'string' ? body.storeVersion.trim() : '';
-    if (!storeVersion) throw new Error('missing recovery set store version');
-    return { kind: 'ready', recoverySet, storeVersion };
-  } catch {
-    return { kind: 'transport_failed', message: 'recovery set read returned an unusable payload' };
-  }
 }
 
 async function postWalletRecoveryRoute(args: {

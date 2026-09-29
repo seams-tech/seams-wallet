@@ -226,7 +226,3 @@ export function advanceRevealState(
 
   return assertNever(state);
 }
-
-export function privateKeyEntryKey(index: number, scheme: ExportPrivateKeyScheme): string {
-  return `${index}:${scheme}`;
-}

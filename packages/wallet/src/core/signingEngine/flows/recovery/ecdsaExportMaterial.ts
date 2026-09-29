@@ -21,7 +21,6 @@ import {
   type PersistedEcdsaRoleLocalMaterial,
 } from '../../session/material/ecdsaRoleLocalMaterialResolver';
 import { mpcMaterialActivationRefsEqual } from '@shared/utils/domainIds';
-import type { EmailOtpSigningSessionAuthLane } from '../../stepUpConfirmation/otpPrompt/authLane';
 import {
   thresholdEcdsaChainTargetsEqual,
   type ThresholdEcdsaChainTarget,
@@ -89,11 +88,6 @@ export type EcdsaExportSessionStoreDeps = {
   exportArtifactsByLane: Map<string, ThresholdEcdsaCanonicalExportArtifact>;
   relayerUrl: string;
 };
-
-export type EmailOtpEcdsaExportAuthLane = Extract<
-  EmailOtpSigningSessionAuthLane,
-  { curve: 'ecdsa' }
->;
 
 type FreshEmailOtpEcdsaOperationExportAuthority = {
   kind: 'fresh_operation_authorization_required';

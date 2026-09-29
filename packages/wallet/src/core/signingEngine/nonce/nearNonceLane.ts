@@ -483,11 +483,6 @@ export function releaseNearNonceFromState(state: NearNonceLaneState, nonce: stri
   state.lastReservedNonce = computeLastReservedNonce(state.reservedNonces);
 }
 
-export function releaseAllNearNoncesFromState(state: NearNonceLaneState): void {
-  state.reservedNonces.clear();
-  state.lastReservedNonce = null;
-}
-
 export async function markNearBroadcastAcceptedState(input: {
   lease: NearNonceLease;
   state: NearNonceLaneState;

@@ -13,12 +13,6 @@ import {
   type MpcMaterialActivationRef,
 } from '@shared/utils/domainIds';
 import { base64UrlEncode } from '@shared/utils/base64';
-import {
-  assertLaneHolderParticipantBindingDigestV1,
-  assertSigningWorkerParticipantBindingDigestV1,
-  computeLaneParticipantSetBindingDigestV1,
-} from '@shared/signing-lanes/participantDigest';
-import type { LaneParticipantBindingDigestB64u } from '@shared/signing-lanes/participants';
 import type { RouterAbEd25519YaoActiveClientMetadataV1 } from '@/core/signingEngine/threshold/ed25519/yaoClient';
 import {
   resolveNearEd25519YaoCapabilityHydrationV1,
@@ -120,31 +114,6 @@ export type ActiveWalletExecutionLaneHydration = {
 
 export type WalletExecutionLaneHydrationResult =
   | ActiveWalletExecutionLaneHydration
-  | WalletExecutionLaneRefusal;
-
-export type RotatableWalletExecutionLaneHydrationInputV1 = {
-  readonly walletKey: unknown;
-  readonly lane: unknown;
-  readonly keyFamily: 'ed25519' | 'ecdsa_secp256k1';
-  readonly laneShareEpoch: unknown;
-  readonly materialActivation: MpcMaterialActivationRef;
-  readonly participantBindingDigestB64u: LaneParticipantBindingDigestB64u;
-};
-
-export type ActiveRotatableWalletExecutionLaneHydrationV1 = {
-  readonly kind: 'active_rotatable_wallet_execution_lane_v1';
-  readonly keyFamily: WalletKeyRecord['keyFamily'];
-  readonly walletKey: WalletKeyRecord;
-  readonly lane: ActiveSigningLaneReference;
-  readonly materialActivation: MpcMaterialActivationRef;
-  readonly laneShareEpoch: LaneShareEpoch;
-  readonly activationReceiptDigestB64u: string;
-  readonly participantBindingDigestB64u: LaneParticipantBindingDigestB64u;
-  readonly publicIdentity: WalletExecutionLanePublicIdentity;
-};
-
-export type RotatableWalletExecutionLaneHydrationResultV1 =
-  | ActiveRotatableWalletExecutionLaneHydrationV1
   | WalletExecutionLaneRefusal;
 
 function parseLaneEpoch(raw: unknown): LaneShareEpoch {
@@ -464,77 +433,4 @@ export function hydrateWalletExecutionLane(
   } catch {
     return invalidBoundaryRefusal();
   }
-}
-
-/**
- * Hydrate linked/delegated lanes through their exact lane activation. Owner
- * continuity is intentionally absent for these rotatable lanes; the caller
- * supplies the already verified material activation and participant digest.
- */
-export async function hydrateRotatableWalletExecutionLaneV1(
-  input: RotatableWalletExecutionLaneHydrationInputV1,
-): Promise<RotatableWalletExecutionLaneHydrationResultV1> {
-  let records: ParsedWalletExecutionLaneRecords;
-  try {
-    records = parseWalletExecutionLaneRecords(input);
-  } catch {
-    return invalidBoundaryRefusal();
-  }
-  const { walletKey, lane } = records;
-  if (walletKey.lifecycle.state !== 'active') return refusal('wallet_key_inactive', records);
-  if (lane.lifecycle.state !== 'active') return refusal('lane_inactive', records);
-  if (walletKey.keyFamily !== input.keyFamily) return refusal('key_family_mismatch', records);
-  if (lane.laneKind !== 'linked_device') {
-    return refusal('unsupported_lane_kind', records);
-  }
-  let laneShareEpoch: LaneShareEpoch;
-  try {
-    laneShareEpoch = parseLaneEpoch(input.laneShareEpoch);
-  } catch {
-    return invalidBoundaryRefusal();
-  }
-  if (
-    String(laneShareEpoch) !== String(lane.laneShareEpoch) ||
-    String(input.participantBindingDigestB64u) !== String(lane.participantBindingDigestB64u) ||
-    !String(input.materialActivation.activationId).trim()
-  ) {
-    return refusal('participant_binding_mismatch', records);
-  }
-  try {
-    await assertLaneHolderParticipantBindingDigestV1(lane.holderParticipant);
-    await assertSigningWorkerParticipantBindingDigestV1(lane.serverParticipant);
-    const participantSetDigest = await computeLaneParticipantSetBindingDigestV1({
-      holderParticipant: lane.holderParticipant,
-      signingWorkerParticipant: lane.serverParticipant,
-    });
-    if (participantSetDigest !== lane.participantBindingDigestB64u) {
-      return refusal('participant_binding_mismatch', records);
-    }
-  } catch {
-    return refusal('participant_binding_mismatch', records);
-  }
-  return {
-    kind: 'active_rotatable_wallet_execution_lane_v1',
-    keyFamily: walletKey.keyFamily,
-    walletKey,
-    lane: activeLaneReference({ lane, materialActivation: input.materialActivation }),
-    materialActivation: input.materialActivation,
-    laneShareEpoch,
-    activationReceiptDigestB64u: lane.lifecycle.activationReceiptDigestB64u,
-    participantBindingDigestB64u: input.participantBindingDigestB64u,
-    publicIdentity:
-      walletKey.keyFamily === 'ed25519'
-        ? {
-            keyFamily: 'ed25519',
-            registeredPublicKeyB64u: walletKey.registeredPublicKeyB64u,
-            nearEd25519SigningKeyId: walletKey.nearEd25519SigningKeyId,
-            keyCreationSignerSlot: walletKey.keyCreationSignerSlot,
-          }
-        : {
-            keyFamily: 'ecdsa_secp256k1',
-            thresholdPublicKey33B64u: walletKey.thresholdPublicKey33B64u,
-            evmAddress: walletKey.evmAddress,
-            evmFamilySigningKeySlotId: walletKey.evmFamilySigningKeySlotId,
-          },
-  };
 }

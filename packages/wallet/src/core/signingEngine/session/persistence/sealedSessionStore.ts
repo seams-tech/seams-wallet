@@ -2319,7 +2319,3 @@ export async function releaseSigningSessionRestoreLease(
     },
   });
 }
-
-export async function clearAllSealedSessions(): Promise<void> {
-  await signingSessionSealsRepository.clearAll();
-}

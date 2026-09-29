@@ -60,10 +60,6 @@ import type {
 import type { WalletAuthMethodId, WalletId } from '@shared/utils/domainIds';
 import type { WalletAuthorityId } from '@shared/utils/domainIds';
 import type { DeviceLinkingOrdinaryMaterialWorkerPortV1 } from './deviceLinkingOrdinaryMaterialWorker';
-import type {
-  PasskeyCustodyEnvelopeRecord,
-  WalletCustodyEnvelopeFactor,
-} from '@shared/passkey-custody';
 import type { DeviceLinkingAuthorityInstallationPortV1 } from './deviceLinkingAuthorityInstallation';
 export type {
   DeviceLinkingAuthorityActivationFlowInputV1,
@@ -333,10 +329,6 @@ export type DeviceLinkingKeyMaterialPortV1 = {
 export type DeviceLinkingLiveKeyMaterialPortV1 = DeviceLinkingKeyMaterialPortV1 &
   DeviceLinkingEmailOtpFactorReleasePortV1 &
   DeviceLinkingOrdinaryMaterialWorkerPortV1;
-
-export type EmailOtpExportRootEnvelopeRecordV1 = Omit<PasskeyCustodyEnvelopeRecord, 'factor'> & {
-  readonly factor: Extract<WalletCustodyEnvelopeFactor, { readonly kind: 'email_otp' }>;
-};
 
 export type LinkedDeviceOwnerAuthorizationResultBaseV1 = {
   readonly authentication: LinkSessionAuthenticationV1;

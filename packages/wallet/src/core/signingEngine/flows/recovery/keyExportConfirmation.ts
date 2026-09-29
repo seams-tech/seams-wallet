@@ -1,7 +1,6 @@
 import type { UiConfirmRuntimeBridgePort } from '../../uiConfirm/uiConfirm.types';
 import { UserConfirmationType } from '../../stepUpConfirmation/userConfirmationType';
 import type { ThemeMode } from '@/core/types/seams';
-import { WalletAuthPolicyError } from '../../stepUpConfirmation/walletAuthPolicyError';
 import {
   thresholdEcdsaChainTargetKey,
   type WalletId,
@@ -172,22 +171,6 @@ type Ed25519ExportViewerReadyArgs = Ed25519ExportViewerBaseArgs & {
 };
 
 type Ed25519ExportViewerArgs = Ed25519ExportViewerLoadingArgs | Ed25519ExportViewerReadyArgs;
-
-export function createEmailOtpKeyExportRequiresPasskeyError(): WalletAuthPolicyError {
-  return new WalletAuthPolicyError({
-    code: 'passkey_step_up_required',
-    policy: 'export_requires_passkey',
-    message: 'Key export requires a passkey-authenticated account.',
-  });
-}
-
-export function isEmailOtpPasskeyStepUpError(error: unknown): boolean {
-  const message = String(error instanceof Error ? error.message : error || '');
-  return (
-    message.includes('requires fresh passkey authentication after Email OTP login') ||
-    message.includes('requires passkey authentication after Email OTP login')
-  );
-}
 
 export async function requestEmailOtpKeyExportAuthorization(
   deps: EmailOtpExportAuthorizationDeps,

@@ -673,10 +673,6 @@ class ReplacedEcdsaCapabilityManifestProof extends EcdsaCapabilityManifestProof 
 export type ReplacedEcdsaCapabilityManifest = ReplacedEcdsaCapabilityManifestProof &
   ReplacedEcdsaCapabilityManifestExclusions;
 
-export type EcdsaCapabilityManifest =
-  | ActiveEcdsaCapabilityManifest
-  | ReplacedEcdsaCapabilityManifest;
-
 export function buildEcdsaCapabilityScope(input: {
   readonly targetMemberships: readonly [ThresholdEcdsaChainTarget, ...ThresholdEcdsaChainTarget[]];
   readonly kind?: never;

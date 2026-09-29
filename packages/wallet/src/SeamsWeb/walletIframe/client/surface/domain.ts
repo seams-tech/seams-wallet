@@ -1,6 +1,4 @@
 import {
-  walletIframeRequestIdFromBoundary,
-  walletIframeSurfaceIdFromBoundary,
   type WalletIframeRequestId,
   type WalletIframeSurfaceId,
 } from '@/core/types/walletIframeIdentity';
@@ -18,16 +16,6 @@ export type RequestSurfaceIdentity = {
   surfaceId: WalletIframeSurfaceId;
   requestId: WalletIframeRequestId;
   activationId?: never;
-};
-
-export type WalletIframeWireMessageIdentity = RequestSurfaceIdentity;
-
-export type TrustedWalletIframeInboundIdentity<
-  Identity extends WalletIframeWireMessageIdentity = WalletIframeWireMessageIdentity,
-> = {
-  kind: 'trusted_wallet_iframe_inbound_identity_v1';
-  connectionId: WalletIframeConnectionId;
-  wireIdentity: Identity;
 };
 
 export type PasskeyRegistrationPreparationReceipt = {
@@ -276,43 +264,11 @@ export function walletIframeConnectionIdFromBoundary(value: unknown): WalletIfra
   return parseNonEmptyBoundaryString(value, 'connectionId') as WalletIframeConnectionId;
 }
 
-function boundaryRecord(value: unknown): Record<string, unknown> | null {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-  return value as Record<string, unknown>;
-}
-
-export function parseRequestSurfaceIdentity(value: unknown): RequestSurfaceIdentity | null {
-  const record = boundaryRecord(value);
-  if (!record || record.activationId !== undefined) return null;
-  try {
-    return {
-      kind: 'request_surface_identity_v1',
-      surfaceId: walletIframeSurfaceIdFromBoundary(record.surfaceId),
-      requestId: walletIframeRequestIdFromBoundary(record.requestId),
-    };
-  } catch {
-    return null;
-  }
-}
-
 export function requestSurfaceIdentity(args: {
   surfaceId: WalletIframeSurfaceId;
   requestId: WalletIframeRequestId;
 }): RequestSurfaceIdentity {
   return Object.freeze({ kind: 'request_surface_identity_v1', ...args });
-}
-
-export function trustedWalletIframeInboundIdentity<
-  Identity extends WalletIframeWireMessageIdentity,
->(
-  connectionId: WalletIframeConnectionId,
-  wireIdentity: Identity,
-): TrustedWalletIframeInboundIdentity<Identity> {
-  return Object.freeze({
-    kind: 'trusted_wallet_iframe_inbound_identity_v1',
-    connectionId,
-    wireIdentity,
-  });
 }
 
 export function trustedWalletIframeSurfaceMeasurementFromWire(args: {

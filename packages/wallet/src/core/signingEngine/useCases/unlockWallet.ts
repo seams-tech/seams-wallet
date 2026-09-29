@@ -102,16 +102,6 @@ export type UnlockWalletDeps = {
   };
 };
 
-export type UnlockWalletUseCase = {
-  unlock(input: UnlockWalletInput): Promise<UnlockWalletResult>;
-};
-
-export function createUnlockWalletUseCase(deps: UnlockWalletDeps): UnlockWalletUseCase {
-  return {
-    unlock: (input) => unlockWallet(deps, input),
-  };
-}
-
 function toNonEmptyReadonlyArray<T>(items: readonly T[]): NonEmptyReadonlyArray<T> | null {
   const first = items[0];
   if (first === undefined) return null;

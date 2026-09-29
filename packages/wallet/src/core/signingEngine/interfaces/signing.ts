@@ -183,9 +183,3 @@ export interface Signer<Request = SignRequest, Key = KeyRef, Signed = SignatureB
   readonly algorithm: SignatureAlgorithm;
   sign: (req: Request, keyRef: Key) => Promise<Signed>;
 }
-
-export type SignerMap<
-  Request extends { algorithm: string } = SignRequest,
-  Key = KeyRef,
-  Signed = SignatureBytes,
-> = Partial<Record<Request['algorithm'] & string, Signer<Request, Key, Signed>>>;

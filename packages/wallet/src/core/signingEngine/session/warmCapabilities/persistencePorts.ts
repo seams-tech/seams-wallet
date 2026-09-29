@@ -11,10 +11,6 @@ import type {
 } from '@shared/authorization/capabilityKinds';
 import type { WarmSessionSealTransportInput } from '@/core/types/secure-confirm-worker';
 
-export type WarmSessionPersistenceResult =
-  | { ok: true }
-  | { ok: false; code: string; message: string };
-
 export type EmailOtpWarmSessionMaterial =
   | {
       kind: 'inline';
@@ -30,12 +26,6 @@ export type EmailOtpWarmSessionMaterial =
 export type PasskeyEcdsaWarmSessionMaterial = {
   kind: 'ecdsa_prf_first';
   passkeyPrfFirstB64u: string;
-  transport: WarmSessionSealTransportInput;
-};
-
-export type PasskeyEd25519WarmSessionMaterial = {
-  kind: 'ed25519_prf_first';
-  prfFirstB64u: string;
   transport: WarmSessionSealTransportInput;
 };
 
@@ -99,25 +89,3 @@ export type PasskeyEcdsaReadyPersistInput = Omit<
   passkeyPrfSealMaterial: PasskeyEcdsaWarmSessionMaterial;
   accountId?: never;
 };
-
-export type PasskeyEd25519ReadyPersistInput = BasePasskeyReadyPersistInput & {
-  curve: 'ed25519';
-  accountId: AccountId;
-  thresholdSessionId: ThresholdEd25519SessionId;
-  passkeyPrfSealMaterial: PasskeyEd25519WarmSessionMaterial;
-  chainTarget?: never;
-};
-
-export interface EmailOtpWarmSessionPersistencePort {
-  persistEcdsaReady(input: EmailOtpEcdsaReadyPersistInput): Promise<WarmSessionPersistenceResult>;
-  persistEd25519Ready(
-    input: EmailOtpEd25519ReadyPersistInput,
-  ): Promise<WarmSessionPersistenceResult>;
-}
-
-export interface PasskeyWarmSessionPersistencePort {
-  persistEcdsaReady(input: PasskeyEcdsaReadyPersistInput): Promise<WarmSessionPersistenceResult>;
-  persistEd25519Ready(
-    input: PasskeyEd25519ReadyPersistInput,
-  ): Promise<WarmSessionPersistenceResult>;
-}

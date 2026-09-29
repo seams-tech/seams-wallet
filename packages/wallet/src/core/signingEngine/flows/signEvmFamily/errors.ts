@@ -64,15 +64,6 @@ export function extractErrorMessage(error: unknown): string {
   return String(error).trim();
 }
 
-export function isFreshEmailOtpReauthRequiredError(error: unknown): boolean {
-  if (extractErrorCode(error) === 'fresh_email_otp_required') return true;
-  const message = extractErrorMessage(error).toLowerCase();
-  return (
-    message.includes('requires fresh email otp verification') ||
-    message.includes('fresh email otp verification is required')
-  );
-}
-
 function inferNonceConflictReason(args: {
   code: string;
   message: string;

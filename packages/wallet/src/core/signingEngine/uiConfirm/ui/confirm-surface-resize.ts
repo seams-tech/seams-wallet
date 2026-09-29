@@ -32,7 +32,6 @@ import {
 } from './surface-resize-events';
 export const CONFIRM_SURFACE_MODE_ATTR = 'data-seams-confirm-surface';
 export const CONFIRM_SURFACE_MODE_WALLET_IFRAME = 'wallet-iframe';
-export const CONFIRM_SURFACE_MODE_STANDALONE = 'standalone';
 /** Marks the confirmer host while its height is held at a motion's target. */
 export const CONFIRM_SURFACE_PINNED_CLASS = 'seams-confirm-surface-pinned';
 /**

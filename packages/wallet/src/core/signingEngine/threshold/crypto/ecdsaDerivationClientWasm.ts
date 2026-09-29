@@ -39,8 +39,6 @@ import type {
   PrepareLinkedDeviceEcdsaSourceContributionResultV1,
   SignWalletRecoveryEcdsaMaterialPossessionProofRequestV1,
   SignWalletRecoveryEcdsaMaterialPossessionProofResultV1,
-  VerifyRouterAbEcdsaPostRegistrationProofsRequestV1,
-  VerifyRouterAbEcdsaPostRegistrationProofsResultV1,
 } from '../../workerManager/ecdsaClientWorkerChannels';
 import type { LinkedDeviceEcdsaSourceContributionPreparationV1 } from '@shared/device-linking/sourceContribution';
 import {
@@ -65,12 +63,6 @@ import type {
   PrepareEcdsaClientBootstrapCommand as GeneratedPrepareEcdsaClientBootstrapCommand,
   PrepareEcdsaClientBootstrapOutput as GeneratedPrepareEcdsaClientBootstrapOutput,
 } from '@/core/platform/generated/signerCoreCommands';
-import { type WalletId } from '../../interfaces/ecdsaChainTarget';
-import {
-  type EcdsaThresholdKeyId,
-  type SigningRootId,
-  type SigningRootVersion,
-} from '../../session/identity/emailOtpEcdsaDerivationIdentity';
 import type { EcdsaClientPresignPoolIdentity } from '../../workerManager/ecdsaPresignPoolIdentity';
 import type {
   EcdsaClientPresignAdmissionStorage,
@@ -170,17 +162,6 @@ async function requestEcdsaOnlineOperation<T extends keyof EcdsaOnlineClientOper
     request: args.request,
   });
 }
-
-export type ThresholdEcdsaDerivationStableKeyContext = {
-  walletId: WalletId;
-  ecdsaThresholdKeyId: EcdsaThresholdKeyId;
-  signingRootId: SigningRootId;
-  signingRootVersion: SigningRootVersion;
-  thresholdSessionId?: never;
-};
-
-export type ThresholdEcdsaDerivationRoleLocalClientContext =
-  ThresholdEcdsaDerivationStableKeyContext;
 
 export async function prepareEcdsaClientBootstrapCommandWasm(input: {
   command: GeneratedPrepareEcdsaClientBootstrapCommand;
@@ -422,27 +403,6 @@ export async function closeRouterAbEcdsaPostRegistrationCeremonyWasm(input: {
     EcdsaDerivationClientCustomResponseType.CloseRouterAbEcdsaPostRegistrationCeremonySuccess
   ) {
     throw new Error('Router A/B ECDSA post-registration ceremony close failed');
-  }
-  return response.payload;
-}
-
-export async function verifyRouterAbEcdsaPostRegistrationProofsWasm(input: {
-  command: VerifyRouterAbEcdsaPostRegistrationProofsRequestV1;
-  workerCtx: WorkerOperationContext;
-}): Promise<VerifyRouterAbEcdsaPostRegistrationProofsResultV1> {
-  const response = await requestEcdsaDerivationRoleLocalMaterialOperation({
-    workerCtx: input.workerCtx,
-    request: {
-      type: EcdsaDerivationClientCustomRequestType.VerifyRouterAbEcdsaPostRegistrationProofs,
-      timeoutMs: ECDSA_DERIVATION_CLIENT_WORKER_TIMEOUT_MS,
-      payload: input.command,
-    },
-  });
-  if (
-    response.type !==
-    EcdsaDerivationClientCustomResponseType.VerifyRouterAbEcdsaPostRegistrationProofsSuccess
-  ) {
-    throw new Error('Router A/B ECDSA post-registration proof verification failed');
   }
   return response.payload;
 }

@@ -1,6 +1,5 @@
 import type {
   CredentialIdB64u,
-  EcdsaProvisioningFailureCode,
   EcdsaProvisioningState,
   EcdsaRoleLocalReadyRecord,
   EmailOtpWorkerIssuedSessionHandle,
@@ -84,10 +83,6 @@ export function useCaseFailure<Code extends string>(input: {
     retryable: input.retryable,
     ...(input.cause === undefined ? {} : { cause: input.cause }),
   };
-}
-
-export function assertNeverUseCase(value: never): never {
-  throw new Error(`Unhandled use-case branch: ${String(value)}`);
 }
 
 export type LifecycleTransitionTable<StateKind extends string> = {
@@ -833,10 +828,6 @@ export type RestorePersistedSessionsFailureCode =
   | 'cleanup_failed'
   | 'invalid_state';
 
-export type RestorePersistedSessionsResult =
-  | RestorePersistedSessionsSuccess
-  | UseCaseFailure<RestorePersistedSessionsFailureCode>;
-
 export type RestorePersistedSessionsLifecycleState =
   | ({ kind: 'received_input' } & RestorePersistedSessionsInput)
   | {
@@ -865,9 +856,6 @@ export type RestorePersistedSessionsLifecycleState =
 
 export type EcdsaProvisioningStateKind = EcdsaProvisioningState['kind'];
 export type RegisterWalletLifecycleStateKind = RegisterWalletLifecycleState['kind'];
-export type UnlockWalletLifecycleStateKind = UnlockWalletLifecycleState['kind'];
-export type SignEvmFamilyLifecycleStateKind = SignEvmFamilyLifecycleState['kind'];
-export type SignNearLifecycleStateKind = SignNearLifecycleState['kind'];
 export type RestorePersistedSessionsLifecycleStateKind =
   RestorePersistedSessionsLifecycleState['kind'];
 
@@ -892,36 +880,6 @@ export const registerWalletAllowedTransitions = {
   failed: [],
 } as const satisfies LifecycleTransitionTable<RegisterWalletLifecycleStateKind>;
 
-export const unlockWalletAllowedTransitions = {
-  received_input: ['authenticating', 'failed'],
-  authenticating: ['restoring_sessions', 'failed'],
-  restoring_sessions: ['provisioning_missing_ecdsa', 'sealing_sessions', 'ready', 'failed'],
-  provisioning_missing_ecdsa: ['sealing_sessions', 'failed'],
-  sealing_sessions: ['ready', 'failed'],
-  ready: [],
-  failed: [],
-} as const satisfies LifecycleTransitionTable<UnlockWalletLifecycleStateKind>;
-
-export const signEvmFamilyAllowedTransitions = {
-  received_input: ['resolving_ready_lane', 'failed'],
-  resolving_ready_lane: ['activating_same_method_session', 'reserving_budget', 'failed'],
-  activating_same_method_session: ['reserving_budget', 'failed'],
-  reserving_budget: ['signing', 'failed'],
-  signing: ['signed', 'failed'],
-  signed: [],
-  failed: [],
-} as const satisfies LifecycleTransitionTable<SignEvmFamilyLifecycleStateKind>;
-
-export const signNearAllowedTransitions = {
-  received_input: ['resolving_ready_lane', 'failed'],
-  resolving_ready_lane: ['validating_request', 'failed'],
-  validating_request: ['reserving_budget', 'failed'],
-  reserving_budget: ['signing', 'failed'],
-  signing: ['signed', 'failed'],
-  signed: [],
-  failed: [],
-} as const satisfies LifecycleTransitionTable<SignNearLifecycleStateKind>;
-
 export const restorePersistedSessionsAllowedTransitions = {
   received_input: ['reading_persistence', 'failed'],
   reading_persistence: ['classifying_material', 'failed'],
@@ -937,82 +895,6 @@ export type EcdsaProvisioningTransition = LifecycleTransitionFromTable<
 export type RegisterWalletTransition = LifecycleTransitionFromTable<
   typeof registerWalletAllowedTransitions
 >;
-export type UnlockWalletTransition = LifecycleTransitionFromTable<
-  typeof unlockWalletAllowedTransitions
->;
-export type SignEvmFamilyTransition = LifecycleTransitionFromTable<
-  typeof signEvmFamilyAllowedTransitions
->;
-export type SignNearTransition = LifecycleTransitionFromTable<typeof signNearAllowedTransitions>;
 export type RestorePersistedSessionsTransition = LifecycleTransitionFromTable<
   typeof restorePersistedSessionsAllowedTransitions
 >;
-
-export const ecdsaProvisioningTerminalStates = [
-  'ready',
-  'failed',
-] as const satisfies readonly EcdsaProvisioningStateKind[];
-export const registerWalletTerminalStates = [
-  'ready',
-  'failed',
-] as const satisfies readonly RegisterWalletLifecycleStateKind[];
-export const unlockWalletTerminalStates = [
-  'ready',
-  'failed',
-] as const satisfies readonly UnlockWalletLifecycleStateKind[];
-export const signEvmFamilyTerminalStates = [
-  'signed',
-  'failed',
-] as const satisfies readonly SignEvmFamilyLifecycleStateKind[];
-export const signNearTerminalStates = [
-  'signed',
-  'failed',
-] as const satisfies readonly SignNearLifecycleStateKind[];
-export const restorePersistedSessionsTerminalStates = [
-  'ready',
-  'failed',
-] as const satisfies readonly RestorePersistedSessionsLifecycleStateKind[];
-
-export const ecdsaProvisioningRetryableFailureCodes = [
-  'authenticator_failed',
-  'signer_crypto_invocation_failed',
-  'relayer_failed',
-  'storage_failed',
-] as const satisfies readonly EcdsaProvisioningFailureCode[];
-
-export const registerWalletRetryableFailureCodes = [
-  'authenticator_failed',
-  'email_otp_failed',
-  'signer_crypto_invocation_failed',
-  'relayer_failed',
-  'storage_failed',
-] as const satisfies readonly RegisterWalletFailureCode[];
-
-export const unlockWalletRetryableFailureCodes = [
-  'authenticator_failed',
-  'email_otp_failed',
-  'signer_crypto_invocation_failed',
-  'relayer_failed',
-  'storage_cleanup_failed',
-] as const satisfies readonly UnlockWalletFailureCode[];
-
-export const signEvmFamilyRetryableFailureCodes = [
-  'relayer_failed',
-  'signer_failed',
-  'nonce_sender_unavailable',
-] as const satisfies readonly SignEvmFamilyFailureCode[];
-
-export const signNearRetryableFailureCodes = [
-  'presign_pool_failed',
-  'relayer_failed',
-] as const satisfies readonly SignNearFailureCode[];
-
-export const restorePersistedSessionsRetryableFailureCodes = [
-  'unavailable_storage',
-  'seal_failed',
-  'cleanup_failed',
-] as const satisfies readonly RestorePersistedSessionsFailureCode[];
-
-export function assertNeverUseCaseLifecycle(value: never): never {
-  throw new Error(`Unhandled use-case lifecycle branch: ${String(value)}`);
-}

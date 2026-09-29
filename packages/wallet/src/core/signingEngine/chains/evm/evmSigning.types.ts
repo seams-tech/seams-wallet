@@ -40,5 +40,3 @@ export type EvmSigningRequest = {
   tx: Eip1559UnsignedTx;
   senderSignatureAlgorithm: 'secp256k1';
 };
-
-export type EvmSecp256k1SigningRequest = EvmSigningRequest;
