@@ -77,7 +77,8 @@ for (const arm of ['d1', 'do']) {
     path.join(runtimeRoot, 'rendered', 'ingress-secrets', `${arm}.json`),
   );
   arms[arm] = {
-    ingressUrl: new URL(values.ingressUrl).href,
+    // The origin, without a trailing slash: the scenario appends its paths.
+    ingressUrl: new URL(values.ingressUrl).origin,
     environmentId: values.environmentId,
     publishableKey: values.publishableKey,
     signingWorkerId: values.signingWorkerId,
