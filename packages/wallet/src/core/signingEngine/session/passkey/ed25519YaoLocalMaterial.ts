@@ -40,6 +40,7 @@ import {
   resolveNearEd25519YaoCapabilityHydrationV1,
   type NearEd25519YaoPublicLocatorObservationV1,
   type NearEd25519YaoRuntimeObservationV1,
+  type NearEd25519YaoSealedMaterialObservationV1,
   type NearEd25519YaoUnlockSourceObservationV1,
 } from '../material/nearEd25519YaoMaterialActivation';
 import type { RouterAbEd25519YaoRecoveryActivationReceiptV1 } from '@shared/utils/routerAbEd25519Yao';
@@ -792,12 +793,19 @@ function hydrationBlocked(
   return { kind: 'blocked', plan };
 }
 
-export async function preparePasskeyEd25519YaoLocalMaterialRehydrationV1(input: {
+// What preparation and hydration both observe before planning: the public locator checked
+// against this identity, and the sealed locator read under the expected authority. A sealed
+// record that cannot be read is observed as corrupt instead of failing the caller.
+async function observePasskeyEd25519YaoLocalMaterial(input: {
   store: Ed25519YaoLocalMaterialStorePort;
   identity: Ed25519YaoLocalMaterialIdentity;
   authority: WalletAuthAuthorityRef;
   publicLocator: PasskeyEd25519YaoPublicLocatorObservationV1;
-}): Promise<PreparePasskeyEd25519YaoLocalMaterialRehydrationResultV1> {
+}): Promise<{
+  expectedAuthority: WalletAuthAuthorityRef;
+  publicLocator: NearEd25519YaoPublicLocatorObservationV1;
+  sealed: NearEd25519YaoSealedMaterialObservationV1;
+}> {
   const expectedAuthority = await expectedPasskeyAuthority(input);
   const publicLocator: NearEd25519YaoPublicLocatorObservationV1 =
     input.publicLocator.kind === 'available' &&
@@ -822,21 +830,10 @@ export async function preparePasskeyEd25519YaoLocalMaterialRehydrationV1(input: 
       authority: expectedAuthority,
     });
   } catch {
-    const plan = resolveNearEd25519YaoCapabilityHydrationV1({
-      publicLocator,
-      sealed: { kind: 'corrupt' },
-      runtime: { kind: 'absent' },
-      unlockSource: { kind: 'unavailable' },
-    });
-    if (plan.kind !== 'blocked') {
-      throw new Error('Corrupt Near Ed25519 material resolved to an executable hydration plan');
-    }
-    return {
-      kind: 'blocked',
-      plan,
-    };
+    return { expectedAuthority, publicLocator, sealed: { kind: 'corrupt' } };
   }
-  const plan = resolveNearEd25519YaoCapabilityHydrationV1({
+  return {
+    expectedAuthority,
     publicLocator,
     sealed:
       localMaterial.kind === 'available'
@@ -847,6 +844,42 @@ export async function preparePasskeyEd25519YaoLocalMaterialRehydrationV1(input: 
             sealedMaterial: localMaterial.locator.sealedMaterial,
           }
         : { kind: 'missing' },
+  };
+}
+
+function blockedByCorruptMaterial(
+  publicLocator: NearEd25519YaoPublicLocatorObservationV1,
+  runtime: NearEd25519YaoRuntimeObservationV1,
+): Extract<MpcCapabilityHydrationPlan, { kind: 'blocked' }> {
+  const plan = resolveNearEd25519YaoCapabilityHydrationV1({
+    publicLocator,
+    sealed: { kind: 'corrupt' },
+    runtime,
+    unlockSource: { kind: 'unavailable' },
+  });
+  if (plan.kind !== 'blocked') {
+    throw new Error('Corrupt Near Ed25519 material resolved to an executable hydration plan');
+  }
+  return plan;
+}
+
+export async function preparePasskeyEd25519YaoLocalMaterialRehydrationV1(input: {
+  store: Ed25519YaoLocalMaterialStorePort;
+  identity: Ed25519YaoLocalMaterialIdentity;
+  authority: WalletAuthAuthorityRef;
+  publicLocator: PasskeyEd25519YaoPublicLocatorObservationV1;
+}): Promise<PreparePasskeyEd25519YaoLocalMaterialRehydrationResultV1> {
+  const { expectedAuthority, publicLocator, sealed } =
+    await observePasskeyEd25519YaoLocalMaterial(input);
+  if (sealed.kind === 'corrupt') {
+    return {
+      kind: 'blocked',
+      plan: blockedByCorruptMaterial(publicLocator, { kind: 'absent' }),
+    };
+  }
+  const plan = resolveNearEd25519YaoCapabilityHydrationV1({
+    publicLocator,
+    sealed,
     runtime: { kind: 'absent' },
     unlockSource: { kind: 'available', authority: expectedAuthority },
   });
@@ -872,40 +905,12 @@ export async function hydratePasskeyEd25519YaoLocalMaterialV1(input: {
   unlockSource: PasskeyEd25519YaoUnlockSourceV1;
   liveMaterial: NearEd25519YaoOperationMaterial | null;
 }): Promise<HydratePasskeyEd25519YaoLocalMaterialResultV1> {
-  const expectedAuthority = await expectedPasskeyAuthority(input);
-  const publicLocator: NearEd25519YaoPublicLocatorObservationV1 =
-    input.publicLocator.kind === 'available' &&
-    !publicLocatorMatchesIdentity({
-      publicLocator: input.publicLocator,
-      identity: input.identity,
-    })
-      ? { kind: 'conflict' }
-      : input.publicLocator.kind === 'available'
-        ? { ...input.publicLocator, authority: expectedAuthority }
-        : input.publicLocator;
-  let localMaterial: ReadPasskeyEd25519YaoLocalMaterialLocatorResultV1;
-  try {
-    localMaterial = await readPasskeyEd25519YaoLocalMaterialLocatorV1({
-      store: input.store,
-      walletId: String(input.identity.walletId),
-      nearAccountId: String(input.identity.nearAccountId),
-      nearEd25519SigningKeyId: String(input.identity.nearEd25519SigningKeyId),
-      signerSlot: input.identity.signerSlot,
-      rpId: input.identity.rpId,
-      credentialIdB64u: input.identity.credentialIdB64u,
-      authority: expectedAuthority,
-    });
-  } catch {
-    const plan = resolveNearEd25519YaoCapabilityHydrationV1({
-      publicLocator,
-      sealed: { kind: 'corrupt' },
-      runtime: liveRuntimeObservation(input.liveMaterial),
-      unlockSource: { kind: 'unavailable' },
-    });
-    if (plan.kind !== 'blocked') {
-      throw new Error('Corrupt Near Ed25519 material resolved to an executable hydration plan');
-    }
-    return hydrationBlocked(plan);
+  const { expectedAuthority, publicLocator, sealed } =
+    await observePasskeyEd25519YaoLocalMaterial(input);
+  if (sealed.kind === 'corrupt') {
+    return hydrationBlocked(
+      blockedByCorruptMaterial(publicLocator, liveRuntimeObservation(input.liveMaterial)),
+    );
   }
   const unlockSource: NearEd25519YaoUnlockSourceObservationV1 =
     input.unlockSource.kind === 'available'
@@ -913,15 +918,7 @@ export async function hydratePasskeyEd25519YaoLocalMaterialV1(input: {
       : { kind: 'unavailable' };
   const plan = resolveNearEd25519YaoCapabilityHydrationV1({
     publicLocator,
-    sealed:
-      localMaterial.kind === 'available'
-        ? {
-            kind: 'available',
-            authority: localMaterial.locator.authority,
-            materialActivation: localMaterial.locator.materialActivation,
-            sealedMaterial: localMaterial.locator.sealedMaterial,
-          }
-        : { kind: 'missing' },
+    sealed,
     runtime: liveRuntimeObservation(input.liveMaterial),
     unlockSource,
   });
