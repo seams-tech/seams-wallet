@@ -25,7 +25,7 @@ export type WalletUnlockCapabilityFamilyScope =
   | { readonly kind: 'evm_family_ecdsa_only' }
   | { readonly kind: 'all_registered_mpc' };
 
-export type WalletUnlockSubjectSetResolution =
+type WalletUnlockSubjectSetResolution =
   | {
       readonly kind: 'resolved';
       readonly subjectSet: WalletUnlockSubjectSet;
@@ -43,12 +43,12 @@ export type WalletUnlockSubjectSetResolution =
       readonly subjectSet?: never;
     };
 
-export type WalletIdentitySource =
+type WalletIdentitySource =
   | 'profile_projection'
   | 'host_last_used_profile'
   | 'local_wallet_authority';
 
-export type WalletIdentityResolveFailure =
+type WalletIdentityResolveFailure =
   | 'missing_wallet_profile'
   | 'ambiguous_wallet_profile'
   | 'missing_requested_capability_subject'

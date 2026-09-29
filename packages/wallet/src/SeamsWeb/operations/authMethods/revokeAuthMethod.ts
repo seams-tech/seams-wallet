@@ -61,7 +61,7 @@ function webAuthnTransportsFromRaw(value: unknown): AuthenticatorTransport[] {
   );
 }
 
-export function passkeySourceCredentialsForActiveMethods(args: {
+function passkeySourceCredentialsForActiveMethods(args: {
   readonly walletId: WalletId;
   readonly authenticators: readonly ProfileAuthenticatorRecord[];
   readonly authMethods: readonly WalletAuthMethodRecordV2[];

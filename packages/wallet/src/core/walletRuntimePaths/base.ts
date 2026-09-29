@@ -14,17 +14,17 @@
  *  - WebAuthnManager (to set worker base origin for managers)
  *  - wallet UI hosts (to resolve embedded script/css URLs)
  */
-export const SEAMS_WALLET_SDK_BASE_KEY = '__SEAMS_WALLET_SDK_BASE__';
-export const SEAMS_WALLET_SDK_BASE_EVENT = 'SEAMS_WALLET_SDK_BASE_CHANGED';
-export const SEAMS_WALLET_ASSET_VERSION_KEY = '__SEAMS_WALLET_ASSET_VERSION__';
+const SEAMS_WALLET_SDK_BASE_KEY = '__SEAMS_WALLET_SDK_BASE__';
+const SEAMS_WALLET_SDK_BASE_EVENT = 'SEAMS_WALLET_SDK_BASE_CHANGED';
+const SEAMS_WALLET_ASSET_VERSION_KEY = '__SEAMS_WALLET_ASSET_VERSION__';
 
 /**
  * Typed CustomEvent emitted when the wallet SDK base changes.
  * Detail contains the absolute base URL string (e.g., `${walletOrigin}/sdk/`).
  */
-export type WalletSdkBaseChangedEvent = CustomEvent<string>;
+type WalletSdkBaseChangedEvent = CustomEvent<string>;
 
-export interface WalletSDKBase {
+interface WalletSDKBase {
   [SEAMS_WALLET_SDK_BASE_KEY]?: string;
   [SEAMS_WALLET_ASSET_VERSION_KEY]?: string;
 }

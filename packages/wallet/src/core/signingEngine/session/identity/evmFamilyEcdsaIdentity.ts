@@ -56,13 +56,13 @@ export type ThresholdEcdsaPublicKeyB64u = string & {
 export type EvmFamilyEcdsaKeyHandle = string & {
   readonly __brand: 'EvmFamilyEcdsaKeyHandle';
 };
-export type EmailOtpProviderId = string & {
+type EmailOtpProviderId = string & {
   readonly __brand: 'EmailOtpProviderId';
 };
 export type BaseEcdsaSubjectId = WalletId & {
   readonly __baseEcdsaSubjectIdBrand: 'BaseEcdsaSubjectId';
 };
-export type EvmFamilyKeyScope = 'evm-family';
+type EvmFamilyKeyScope = 'evm-family';
 export type EvmFamilyKeyFingerprint = string & {
   readonly __brand: 'EvmFamilyKeyFingerprint';
 };
@@ -140,7 +140,7 @@ export type EmailOtpEcdsaAuthBinding = {
   thresholdOwnerAddress?: never;
 };
 
-export type EvmFamilyEcdsaAuthBinding = PasskeyEcdsaAuthBinding | EmailOtpEcdsaAuthBinding;
+type EvmFamilyEcdsaAuthBinding = PasskeyEcdsaAuthBinding | EmailOtpEcdsaAuthBinding;
 
 export type EcdsaWalletSignerRecord = {
   kind: 'ecdsa_wallet_signer_record';
@@ -168,7 +168,7 @@ export type ResolvedEvmFamilyEcdsaKey<
   rpId?: never;
 };
 
-export type ThresholdEcdsaRoleLocalWorkerMaterial =
+type ThresholdEcdsaRoleLocalWorkerMaterial =
   | {
       kind: 'worker_loaded';
       materialRef: EcdsaRoleLocalPersistedMaterialRef;
@@ -188,16 +188,16 @@ export type ThresholdEcdsaRoleLocalWorkerShare = {
   material: ThresholdEcdsaRoleLocalWorkerMaterial;
 };
 
-export type ThresholdEcdsaLinkedHolderWorkerShare = {
+type ThresholdEcdsaLinkedHolderWorkerShare = {
   readonly kind: 'linked_holder_worker_share';
   readonly holderHandleId: string;
 };
 
-export type ThresholdEcdsaSignerClientShare =
+type ThresholdEcdsaSignerClientShare =
   | ThresholdEcdsaRoleLocalWorkerShare
   | ThresholdEcdsaLinkedHolderWorkerShare;
 
-export type HydratedEcdsaSignerTransport = {
+type HydratedEcdsaSignerTransport = {
   readonly kind: 'threshold_ecdsa_signer_transport';
   readonly relayerUrl: string;
   readonly relayerKeyId: string;
@@ -205,7 +205,7 @@ export type HydratedEcdsaSignerTransport = {
   readonly relayerVerifyingShareB64u: string;
 };
 
-export type HydratedRouterAbEcdsaDerivationNormalSigning = {
+type HydratedRouterAbEcdsaDerivationNormalSigning = {
   readonly kind: 'router_ab_ecdsa_derivation_normal_signing_hydrated_v1';
   readonly state: RouterAbEcdsaDerivationNormalSigningStateV1;
   readonly activeStateId: EcdsaActiveStateId;
@@ -258,7 +258,7 @@ export type EvmFamilyEcdsaActivationLanePolicy =
   | EvmFamilyEcdsaSessionLanePolicy
   | EvmFamilyEcdsaRecoveredMaterialLanePolicy;
 
-export type BuildEvmFamilyEcdsaKeyIdentityInput = {
+type BuildEvmFamilyEcdsaKeyIdentityInput = {
   walletId: unknown;
   ecdsaThresholdKeyId: unknown;
   signingRootId: unknown;
@@ -267,30 +267,30 @@ export type BuildEvmFamilyEcdsaKeyIdentityInput = {
   thresholdOwnerAddress: unknown;
 };
 
-export type BuildVerifiedEcdsaPublicFactsInput = {
+type BuildVerifiedEcdsaPublicFactsInput = {
   keyHandle: EvmFamilyEcdsaKeyHandle;
   publicKeyB64u: unknown;
   participantIds: unknown;
   thresholdOwnerAddress: unknown;
 };
 
-export type BuildEvmFamilyEcdsaWalletKeyInput = BuildEvmFamilyEcdsaKeyIdentityInput & {
+type BuildEvmFamilyEcdsaWalletKeyInput = BuildEvmFamilyEcdsaKeyIdentityInput & {
   keyHandle: unknown;
   chainTarget: ThresholdEcdsaChainTarget;
   thresholdEcdsaPublicKeyB64u: unknown;
 };
 
-export type BuildEvmFamilyKeyFingerprintFromPublicFactsInput = {
+type BuildEvmFamilyKeyFingerprintFromPublicFactsInput = {
   walletId: unknown;
   publicFacts: VerifiedEcdsaPublicFacts;
 };
 
-export type BuildEmailOtpEcdsaAuthBindingInput = {
+type BuildEmailOtpEcdsaAuthBindingInput = {
   authSubjectId: unknown;
   providerId: unknown;
 };
 
-export type BuildResolvedEvmFamilyEcdsaKeyInput<
+type BuildResolvedEvmFamilyEcdsaKeyInput<
   TAuthBinding extends EvmFamilyEcdsaAuthBinding = EvmFamilyEcdsaAuthBinding,
 > = {
   walletId: unknown;
@@ -298,7 +298,7 @@ export type BuildResolvedEvmFamilyEcdsaKeyInput<
   authBinding: TAuthBinding;
 };
 
-export type BuildHydratedEcdsaSignerMaterialInput = {
+type BuildHydratedEcdsaSignerMaterialInput = {
   readonly walletId: WalletId;
   readonly materialActivation: MpcMaterialActivationRef;
   readonly publicFacts: VerifiedEcdsaPublicFacts;
@@ -310,7 +310,7 @@ export type BuildHydratedEcdsaSignerMaterialInput = {
   readonly credential?: never;
 };
 
-export type BuildEvmFamilyEcdsaSessionLanePolicyInput = {
+type BuildEvmFamilyEcdsaSessionLanePolicyInput = {
   chainTarget: ThresholdEcdsaChainTarget;
   thresholdSessionId: unknown;
   ttlMs: unknown;
@@ -318,7 +318,7 @@ export type BuildEvmFamilyEcdsaSessionLanePolicyInput = {
   runtimePolicyScope: ThresholdRuntimePolicyScope;
 };
 
-export type BuildEvmFamilyEcdsaRecoveredMaterialLanePolicyInput =
+type BuildEvmFamilyEcdsaRecoveredMaterialLanePolicyInput =
   BuildEvmFamilyEcdsaSessionLanePolicyInput;
 
 function requiredString(value: unknown, field: string): string {

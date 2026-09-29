@@ -98,7 +98,7 @@ export type PreparedTransactionOperation<TLane extends TransactionLane = Transac
   readiness: TransactionReadiness;
 };
 
-export type TransactionSigningLifecycleAdapter<
+type TransactionSigningLifecycleAdapter<
   TLane extends TransactionLane,
   TSigningLane extends SelectedSigningSessionPlanningLane,
   TMetadata extends object = Record<string, never>,
@@ -117,7 +117,7 @@ export type TransactionSigningLifecycleAdapter<
   }>;
 };
 
-export type TransactionPreparedThresholdMetadata<
+type TransactionPreparedThresholdMetadata<
   TLane extends TransactionLane,
   TMetadata extends object = Record<string, never>,
 > = TMetadata & {
@@ -125,7 +125,7 @@ export type TransactionPreparedThresholdMetadata<
   transactionOperation: PreparedTransactionOperation<TLane>;
 };
 
-export type PreparedTransactionSigningOperation<
+type PreparedTransactionSigningOperation<
   TLane extends TransactionLane,
   TSigningLane extends SelectedSigningSessionPlanningLane,
   TMetadata extends object = Record<string, never>,
@@ -137,7 +137,7 @@ export type PreparedTransactionSigningOperation<
   transactionOperation: PreparedTransactionOperation<TLane>;
 };
 
-export type TransactionExactRestoreAttemptedState<
+type TransactionExactRestoreAttemptedState<
   TLane extends TransactionLane = TransactionLane,
   TAvailableLane extends TransactionConcreteAvailableLane = TransactionConcreteAvailableLane,
   TCandidate extends LaneCandidate = LaneCandidate,

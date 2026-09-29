@@ -42,7 +42,7 @@ export type {
 export type SigningSessionPersistenceMode = 'none' | 'sealed_refresh_v1';
 export type EmailOtpAuthPolicy = SigningSessionPolicy;
 
-export type RouterAbNormalSigningConfigInput =
+type RouterAbNormalSigningConfigInput =
   | {
       mode?: 'disabled';
       signingWorkerId?: never;
@@ -62,11 +62,11 @@ export type RouterAbNormalSigningConfig =
       signingWorkerId: string;
     };
 
-export interface RouterAbConfigInput {
+interface RouterAbConfigInput {
   normalSigning?: RouterAbNormalSigningConfigInput;
 }
 
-export interface SeamsRouterAbConfig {
+interface SeamsRouterAbConfig {
   normalSigning: RouterAbNormalSigningConfig;
 }
 
@@ -79,7 +79,7 @@ export type WalletAuthIntent =
 
 export type WalletAuthCurve = 'ed25519' | 'ecdsa';
 
-export type SigningSessionSealConfig =
+type SigningSessionSealConfig =
   | { mode: 'none'; protocol?: never }
   | { mode: 'sealed_refresh_v1'; protocol: SigningSessionSealProtocol };
 
@@ -469,10 +469,10 @@ export interface WalletSession {
 }
 
 export type ThemeMode = 'light' | 'dark';
-export type ThemeId = string;
+type ThemeId = string;
 export type ThemePaletteName = 'default';
 
-export interface AppearanceThemeInput {
+interface AppearanceThemeInput {
   id: ThemeId;
   mode: ThemeMode;
   colors?: Record<string, string>;
@@ -624,7 +624,7 @@ export type RegistrationResult =
       readonly capabilities?: never;
     };
 
-export type RouterApiSecretKeyAuthErrorCode =
+type RouterApiSecretKeyAuthErrorCode =
   | 'secret_key_missing'
   | 'secret_key_invalid'
   | 'secret_key_revoked'
@@ -632,7 +632,7 @@ export type RouterApiSecretKeyAuthErrorCode =
   | 'secret_key_ip_blocked'
   | 'secret_key_environment_mismatch';
 
-export type RegistrationErrorCode = RouterApiSecretKeyAuthErrorCode | string;
+type RegistrationErrorCode = RouterApiSecretKeyAuthErrorCode | string;
 
 export type LoginResult =
   | {
@@ -793,20 +793,20 @@ export type SeamsChainNetwork =
   | SeamsEvmChainNetwork;
 export type SeamsChainFamily = 'near' | 'tempo' | 'evm';
 
-export interface SeamsNearChainConfigInput {
+interface SeamsNearChainConfigInput {
   network: SeamsNearChainNetwork;
   rpcUrl?: string;
   explorerUrl?: string;
 }
 
-export interface SeamsTempoChainConfigInput {
+interface SeamsTempoChainConfigInput {
   network: SeamsTempoChainNetwork;
   rpcUrl?: string;
   explorerUrl?: string;
   chainId: number;
 }
 
-export interface SeamsEvmChainConfigInput {
+interface SeamsEvmChainConfigInput {
   network: SeamsEvmChainNetwork;
   rpcUrl?: string;
   explorerUrl?: string;
@@ -818,20 +818,20 @@ export type SeamsChainConfigInput =
   | SeamsTempoChainConfigInput
   | SeamsEvmChainConfigInput;
 
-export interface SeamsNearChainConfig {
+interface SeamsNearChainConfig {
   network: SeamsNearChainNetwork;
   rpcUrl: string;
   explorerUrl: string;
 }
 
-export interface SeamsTempoChainConfig {
+interface SeamsTempoChainConfig {
   network: SeamsTempoChainNetwork;
   rpcUrl: string;
   explorerUrl: string;
   chainId: number;
 }
 
-export interface SeamsEvmChainConfig {
+interface SeamsEvmChainConfig {
   network: SeamsEvmChainNetwork;
   rpcUrl: string;
   explorerUrl: string;
@@ -854,7 +854,7 @@ export type ReadonlyDeep<T> = T extends ReadonlyDeepPrimitive
 
 export type SeamsWalletMode = 'direct' | 'iframe';
 
-export type SeamsRegistrationPaymentMode = 'disabled' | 'quota_then_x402' | 'always_x402';
+type SeamsRegistrationPaymentMode = 'disabled' | 'quota_then_x402' | 'always_x402';
 
 export type SeamsRegistrationNearAccountProvisioning =
   | {
@@ -864,7 +864,7 @@ export type SeamsRegistrationNearAccountProvisioning =
       kind: 'relayer_named_subaccount';
     };
 
-export interface SeamsSigningSessionDefaultsInput {
+interface SeamsSigningSessionDefaultsInput {
   /**
    * Defaults for relay-minted warm signing sessions minted by `unlock()`.
    * These can be overridden per-call via `LoginHooksOptions.signingSession`.
@@ -873,7 +873,7 @@ export interface SeamsSigningSessionDefaultsInput {
   remainingUses?: number;
 }
 
-export interface SeamsIframeWalletConfigInput {
+interface SeamsIframeWalletConfigInput {
   walletOrigin?: string; // e.g., https://wallet.example.com
   walletServicePath?: string; // defaults to '/wallet-service'
   // SDK assets base used by the parent app to tell the wallet
@@ -906,7 +906,7 @@ export type SeamsRegistrationConfigInput = {
   nearAccountProvisioning?: SeamsRegistrationNearAccountProvisioning;
 };
 
-export interface SeamsRelayerConfigInput {
+interface SeamsRelayerConfigInput {
   url?: string;
   /**
    * Relative path on the Router API used for delegate action execution.
@@ -915,11 +915,11 @@ export interface SeamsRelayerConfigInput {
   delegateActionRoute?: string;
 }
 
-export interface SeamsRelayerRoutesConfig {
+interface SeamsRelayerRoutesConfig {
   delegateAction: string;
 }
 
-export interface SeamsRelayerConfig {
+interface SeamsRelayerConfig {
   accountId: string;
   url: string;
   routes: SeamsRelayerRoutesConfig;
@@ -938,20 +938,20 @@ export interface SeamsNetworkConfig {
   relayer: SeamsRelayerConfig;
 }
 
-export interface SeamsSigningSessionDefaults {
+interface SeamsSigningSessionDefaults {
   ttlMs: number;
   remainingUses: number;
 }
 
-export interface SeamsEmailOtpConfig {
+interface SeamsEmailOtpConfig {
   authPolicy: EmailOtpAuthPolicy;
 }
 
-export interface SeamsRouterAbEcdsaDerivationConfig {
+interface SeamsRouterAbEcdsaDerivationConfig {
   presignaturePool: RouterAbEcdsaDerivationPresignaturePoolPolicy;
 }
 
-export interface SeamsThresholdEcdsaConfig {
+interface SeamsThresholdEcdsaConfig {
   provisioningDefaults: EcdsaSignerProvisioningDefaults;
 }
 
@@ -965,11 +965,11 @@ export interface SeamsSigningConfig {
   thresholdEcdsa: SeamsThresholdEcdsaConfig;
 }
 
-export interface SeamsWebauthnConfig {
+interface SeamsWebauthnConfig {
   authenticatorOptions: AuthenticatorOptions;
 }
 
-export interface SeamsIframeWalletConfig {
+interface SeamsIframeWalletConfig {
   origin?: string;
   servicePath: string;
   sdkBasePath: string;
@@ -977,7 +977,7 @@ export interface SeamsIframeWalletConfig {
   rpIdOverride?: string;
 }
 
-export type SeamsWalletConfig =
+type SeamsWalletConfig =
   | {
       mode: 'direct';
       iframe: SeamsIframeWalletConfig;
@@ -987,7 +987,7 @@ export type SeamsWalletConfig =
       iframe: SeamsIframeWalletConfig & { origin: string };
     };
 
-export interface SeamsUiConfig {
+interface SeamsUiConfig {
   appearance: AppearanceConfig;
 }
 
@@ -995,7 +995,7 @@ export interface SeamsUiConfig {
  * Resolved, internal config shape used by SDK classes after merging defaults and validation.
  * All fields that the SDK relies on at runtime are non-optional here.
  */
-export interface SeamsConfigsResolved {
+interface SeamsConfigsResolved {
   network: SeamsNetworkConfig;
   registration: SeamsRegistrationConfig;
   signing: SeamsSigningConfig;

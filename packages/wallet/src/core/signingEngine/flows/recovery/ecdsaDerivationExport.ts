@@ -48,13 +48,13 @@ const ECDSA_DERIVATION_EXPORT_AUTHORIZATION_DIGEST_VERSION =
   'ecdsa-derivation:role-local:product-export-authorization:v5';
 const ECDSA_DERIVATION_EXPORT_AUTH_TTL_MS = 60_000;
 
-export type EcdsaDerivationExportDeps = {
+type EcdsaDerivationExportDeps = {
   getSignerWorkerContext: () => WorkerOperationContext;
 };
 
 type ExplicitKeyExportMaterial = ThresholdEcdsaExplicitKeyExportBootstrapResult['material'];
 
-export type EcdsaDerivationExportAuthorization =
+type EcdsaDerivationExportAuthorization =
   | {
       kind: 'passkey';
       passkeyCredentialIdB64u: string;
@@ -66,8 +66,7 @@ export type EcdsaDerivationExportAuthorization =
       credential?: never;
     };
 
-export type ActiveWalletAuthorityEcdsaExportTopology =
-  RouterAbEcdsaOperationStepUpExportTopologyV1Wire;
+type ActiveWalletAuthorityEcdsaExportTopology = RouterAbEcdsaOperationStepUpExportTopologyV1Wire;
 
 export type ActiveWalletAuthorityEcdsaExportAuthorization =
   EcdsaExplicitExportOperationAuthorization & {
@@ -195,7 +194,7 @@ async function forwardEcdsaExportWithAuthorization(args: {
   }
 }
 
-export async function forwardExplicitEcdsaExport(args: {
+async function forwardExplicitEcdsaExport(args: {
   readonly relayerUrl: string;
   readonly request: RouterAbEcdsaDerivationExplicitExportRequestV1;
   readonly requestDigestB64u: string;
@@ -206,7 +205,7 @@ export async function forwardExplicitEcdsaExport(args: {
   });
 }
 
-export async function forwardActiveWalletAuthorityEcdsaExport(args: {
+async function forwardActiveWalletAuthorityEcdsaExport(args: {
   readonly relayerUrl: string;
   readonly request: RouterAbEcdsaDerivationExplicitExportRequestV1;
   readonly requestDigestB64u: string;
@@ -292,7 +291,7 @@ export async function hydrateEcdsaRoleLocalMaterialForExport(args: {
   return requireResolvedEcdsaExportMaterial(resolution);
 }
 
-export function buildEcdsaDerivationExportAuthorizationDigestInput(args: {
+function buildEcdsaDerivationExportAuthorizationDigestInput(args: {
   ecdsaThresholdKeyId: string;
   signingRootId: string;
   signingRootVersion: string;

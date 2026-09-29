@@ -7,7 +7,7 @@ export type {
   WarmSessionMaterialWriteDiagnostics,
 } from '../warmCapabilities/types';
 
-export type WarmSessionMaterialWriteInput = {
+type WarmSessionMaterialWriteInput = {
   readonly thresholdSessionId: string;
   readonly prfFirstB64u: string;
   readonly expiresAtMs: number;

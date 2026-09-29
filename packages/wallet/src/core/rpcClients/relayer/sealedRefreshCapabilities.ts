@@ -8,7 +8,7 @@ import {
 
 type SealedRefreshMode = 'none' | 'sealed_refresh_v1';
 
-export type RelayerSigningSessionSealCapabilities =
+type RelayerSigningSessionSealCapabilities =
   | { mode: 'none' }
   | {
       mode: 'sealed_refresh_v1';
@@ -178,7 +178,7 @@ function withTimeout(input: {
     });
 }
 
-export async function fetchRelayerSigningSessionSealCapabilities(
+async function fetchRelayerSigningSessionSealCapabilities(
   args: FetchRelayerSigningSessionSealCapabilitiesArgs,
 ): Promise<RelayerSigningSessionSealCapabilities> {
   const relayerUrl = String(args.relayerUrl || '').trim();

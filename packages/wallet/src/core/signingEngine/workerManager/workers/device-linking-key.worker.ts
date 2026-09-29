@@ -465,13 +465,13 @@ type DeviceLinkingKeyWorkerFrameV1 = {
   readonly request: unknown;
 };
 
-export type DeviceLinkingKeyWorkerScopeV1 = {
+type DeviceLinkingKeyWorkerScopeV1 = {
   postMessage(message: unknown): void;
   addEventListener(type: 'message', listener: (event: MessageEvent) => void): void;
   removeEventListener(type: 'message', listener: (event: MessageEvent) => void): void;
 };
 
-export type InstalledDeviceLinkingKeyWorkerV1 = {
+type InstalledDeviceLinkingKeyWorkerV1 = {
   close(): Promise<void>;
 };
 
@@ -2289,7 +2289,7 @@ function workerError(error: unknown): string {
   return 'device-linking worker request failed';
 }
 
-export function installDeviceLinkingKeyWorkerV1(
+function installDeviceLinkingKeyWorkerV1(
   scope: DeviceLinkingKeyWorkerScopeV1,
   ordinaryMaterialSealer: DeviceLinkingOrdinaryMaterialSealerV1 = productionOrdinaryMaterialSealer,
 ): InstalledDeviceLinkingKeyWorkerV1 {

@@ -139,8 +139,8 @@ type BuildExactEd25519SessionPolicyParams = Ed25519SessionPolicyBaseParams & {
 
 // Upper bounds to avoid unbounded TTL/use values while still supporting practical
 // "login once, sign many times" sessions.
-export const THRESHOLD_SESSION_POLICY_MAX_TTL_MS = MAX_WALLET_SESSION_TTL_MS;
-export const THRESHOLD_SESSION_POLICY_MAX_USES = MAX_WALLET_SESSION_REMAINING_USES;
+const THRESHOLD_SESSION_POLICY_MAX_TTL_MS = MAX_WALLET_SESSION_TTL_MS;
+const THRESHOLD_SESSION_POLICY_MAX_USES = MAX_WALLET_SESSION_REMAINING_USES;
 export const DEFAULT_THRESHOLD_SESSION_TTL_MS = DEFAULT_WALLET_SESSION_TTL_MS;
 
 // Default policy used when callers do not specify a policy explicitly.
@@ -187,7 +187,7 @@ export function clampThresholdSessionPolicy(input: { ttlMs: number; remainingUse
   };
 }
 
-export function generateThresholdSessionId(): string {
+function generateThresholdSessionId(): string {
   return secureRandomId('tsess', 32, 'threshold session IDs');
 }
 

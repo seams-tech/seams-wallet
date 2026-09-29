@@ -47,14 +47,14 @@ type RecoveryExecuteRequestV1 = RouterAbEd25519YaoActivationExecuteRequestV1<'re
 export const ROUTER_AB_ED25519_YAO_ACTIVE_CLIENT_KIND_V1 =
   'router_ab_ed25519_yao_active_client_v1' as const;
 
-export type RouterAbEd25519YaoRegistrationTransportFailureV1 = {
+type RouterAbEd25519YaoRegistrationTransportFailureV1 = {
   ok: false;
   code: 'transport_failed' | 'router_rejected' | 'invalid_router_response';
   status: number;
   message: string;
 };
 
-export type RouterAbEd25519YaoRegistrationTransportResultV1 =
+type RouterAbEd25519YaoRegistrationTransportResultV1 =
   | {
       ok: true;
       value: unknown;
@@ -67,7 +67,7 @@ export type RouterAbEd25519YaoRegistrationTransportResultV1 =
     }
   | RouterAbEd25519YaoRegistrationTransportFailureV1;
 
-export type RouterAbEd25519YaoRegistrationAdmissionTransportRequestV1 =
+type RouterAbEd25519YaoRegistrationAdmissionTransportRequestV1 =
   | {
       readonly kind: 'admit';
       readonly path: typeof ROUTER_AB_ED25519_YAO_REGISTRATION_ADMISSION_PATH_V1;
@@ -79,13 +79,13 @@ export type RouterAbEd25519YaoRegistrationAdmissionTransportRequestV1 =
       readonly body: RouterAbEd25519YaoActivationExecuteRequestV1<'registration'>;
     };
 
-export interface RouterAbEd25519YaoRegistrationAdmissionTransportV1 {
+interface RouterAbEd25519YaoRegistrationAdmissionTransportV1 {
   send(
     request: RouterAbEd25519YaoRegistrationAdmissionTransportRequestV1,
   ): Promise<RouterAbEd25519YaoRegistrationTransportResultV1>;
 }
 
-export type RouterAbEd25519YaoRecoveryTransportRequestV1 =
+type RouterAbEd25519YaoRecoveryTransportRequestV1 =
   | {
       kind: 'recovery_admit';
       path: typeof ROUTER_AB_ED25519_YAO_RECOVERY_ADMISSION_PATH_V1;
@@ -113,7 +113,7 @@ export interface RouterAbEd25519YaoRecoveryTransportV1 {
   ): Promise<RouterAbEd25519YaoRegistrationTransportResultV1>;
 }
 
-export type RouterAbEd25519YaoExportTransportRequestV1 =
+type RouterAbEd25519YaoExportTransportRequestV1 =
   | {
       kind: 'export_admit';
       path: typeof ROUTER_AB_ED25519_YAO_EXPORT_ADMISSION_PATH_V1;
@@ -130,13 +130,13 @@ export type RouterAbEd25519YaoExportTransportRequestV1 =
       };
     };
 
-export interface RouterAbEd25519YaoExportTransportV1 {
+interface RouterAbEd25519YaoExportTransportV1 {
   send(
     request: RouterAbEd25519YaoExportTransportRequestV1,
   ): Promise<RouterAbEd25519YaoRegistrationTransportResultV1>;
 }
 
-export type RouterAbEd25519YaoExportFreshAuthorizationV1 =
+type RouterAbEd25519YaoExportFreshAuthorizationV1 =
   | {
       kind: 'passkey';
       webauthnAuthentication: WebAuthnAuthenticationCredential;
@@ -182,7 +182,7 @@ export type RouterAbEd25519YaoExportCustodyEnvelopeV1 =
       readonly kind: 'ed25519_yao_client_root_v1';
     });
 
-export function buildRouterAbEd25519YaoExportAdmissionBodyV1(args: {
+function buildRouterAbEd25519YaoExportAdmissionBodyV1(args: {
   protocol: RouterAbEd25519YaoExportAdmissionRequestV1;
   authorization: RouterAbEd25519YaoExportFreshAuthorizationV1;
 }): Extract<RouterAbEd25519YaoExportTransportRequestV1, { kind: 'export_admit' }>['body'] {
@@ -212,11 +212,11 @@ export function buildRouterAbEd25519YaoExportAdmissionBodyV1(args: {
   }
 }
 
-export type RouterAbEd25519YaoExportResultClientV1 =
+type RouterAbEd25519YaoExportResultClientV1 =
   | { ok: true; artifact: RouterAbEd25519YaoExportArtifactV1 }
   | RouterAbEd25519YaoRegistrationFailureV1;
 
-export type RouterAbEd25519YaoRegistrationFailureV1 = {
+type RouterAbEd25519YaoRegistrationFailureV1 = {
   ok: false;
   code:
     | RouterAbEd25519YaoRegistrationTransportFailureV1['code']
@@ -239,26 +239,26 @@ export type RouterAbEd25519YaoActiveClientMetadataV1 = {
   materialActivation: MpcMaterialActivationRef;
 };
 
-export type RouterAbEd25519YaoSealedLocalMaterialV1 = {
+type RouterAbEd25519YaoSealedLocalMaterialV1 = {
   kind: 'router_ab_ed25519_yao_sealed_local_material_v1';
   nonce: Uint8Array;
   ciphertext: Uint8Array;
 };
 
-export type RouterAbEd25519YaoSealLocalMaterialInputV1 = {
+type RouterAbEd25519YaoSealLocalMaterialInputV1 = {
   ownedPasskeyPrfFirst: Uint8Array;
   binding: Uint8Array;
   nonce: Uint8Array;
 };
 
-export type RouterAbEd25519YaoImportLocalMaterialInputV1 = {
+type RouterAbEd25519YaoImportLocalMaterialInputV1 = {
   ownedPasskeyPrfFirst: Uint8Array;
   binding: Uint8Array;
   sealed: RouterAbEd25519YaoSealedLocalMaterialV1;
   metadata: RouterAbEd25519YaoActiveClientMetadataV1;
 };
 
-export type RouterAbEd25519YaoImportLinkedMaterialInputV1 = {
+type RouterAbEd25519YaoImportLinkedMaterialInputV1 = {
   ownedClientScalarShare: Uint8Array;
   publicReceipt: RouterAbEd25519YaoActivationPublicReceiptV1;
   metadata: RouterAbEd25519YaoActiveClientMetadataV1;
@@ -277,7 +277,7 @@ export type RouterAbEd25519YaoImportLinkedMaterialInputV1 = {
  * the Email OTP factor key. Which one is immaterial here, and that is the
  * point of sealing the cache under the custody seed.
  */
-export type RouterAbEd25519YaoOpenCustodyCacheInputV1 = {
+type RouterAbEd25519YaoOpenCustodyCacheInputV1 = {
   ownedFactorSecret: Uint8Array;
   /** The custody envelope, as stored, and its sealed seed. */
   envelope: {
@@ -398,7 +398,7 @@ type WasmExportSessionConstructorV1 =
   | typeof WasmWalletCustodySeedExportSessionV1
   | typeof WasmEd25519YaoClientRootExportSessionV1;
 
-export function exportSessionConstructorForCustodyEnvelopeV1(envelope: {
+function exportSessionConstructorForCustodyEnvelopeV1(envelope: {
   readonly kind: RouterAbEd25519YaoExportCustodyEnvelopeV1['kind'];
 }): WasmExportSessionConstructorV1 {
   switch (envelope.kind) {
@@ -437,7 +437,7 @@ function createExportSession(args: {
   return new ExportSession(...common);
 }
 
-export type RouterAbEd25519YaoExportAdmissionEnvelopeV1 =
+type RouterAbEd25519YaoExportAdmissionEnvelopeV1 =
   | {
       readonly kind: 'protocol_only';
       readonly protocol: RouterAbEd25519YaoExportAdmissionReceiptV1;
@@ -448,7 +448,7 @@ export type RouterAbEd25519YaoExportAdmissionEnvelopeV1 =
       readonly factorRelease: RouterAbEd25519YaoExportEmailOtpFactorReleaseV1 | null;
     };
 
-export function parseRouterAbEd25519YaoClientEmailOtpFactorReleaseV1(
+function parseRouterAbEd25519YaoClientEmailOtpFactorReleaseV1(
   value: unknown,
 ): RouterAbEd25519YaoExportEmailOtpFactorReleaseV1 | null {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
@@ -484,7 +484,7 @@ export function parseRouterAbEd25519YaoClientEmailOtpFactorReleaseV1(
   };
 }
 
-export function parseRouterAbEd25519YaoClientExportAdmissionEnvelopeV1(
+function parseRouterAbEd25519YaoClientExportAdmissionEnvelopeV1(
   value: unknown,
 ): RouterAbEd25519YaoExportAdmissionEnvelopeV1 {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {
@@ -511,13 +511,13 @@ export function parseRouterAbEd25519YaoClientExportAdmissionEnvelopeV1(
   };
 }
 
-export type RouterAbEd25519YaoActivationEntropyV1 = {
+type RouterAbEd25519YaoActivationEntropyV1 = {
   recipientKeyMaterial: Uint8Array;
   deriverASealSeed: Uint8Array;
   deriverBSealSeed: Uint8Array;
 };
 
-export function createRouterAbEd25519YaoActivationEntropyV1(): RouterAbEd25519YaoActivationEntropyV1 {
+function createRouterAbEd25519YaoActivationEntropyV1(): RouterAbEd25519YaoActivationEntropyV1 {
   return {
     recipientKeyMaterial: randomNonzeroBytes32(),
     deriverASealSeed: randomNonzeroBytes32(),
@@ -525,7 +525,7 @@ export function createRouterAbEd25519YaoActivationEntropyV1(): RouterAbEd25519Ya
   };
 }
 
-export function zeroizeRouterAbEd25519YaoActivationEntropyV1(
+function zeroizeRouterAbEd25519YaoActivationEntropyV1(
   entropy: RouterAbEd25519YaoActivationEntropyV1,
 ): void {
   entropy.recipientKeyMaterial.fill(0);
@@ -574,7 +574,7 @@ function isZeroByte(byte: number): boolean {
   return byte === 0;
 }
 
-export function parseRouterAbEd25519YaoClientCommitmentsV1(
+function parseRouterAbEd25519YaoClientCommitmentsV1(
   value: string,
 ): Readonly<{ hiding: string; binding: string }> {
   const parsed: unknown = JSON.parse(value);
@@ -616,7 +616,7 @@ function exportAdmissionMatchesRequest(
   );
 }
 
-export function parseRouterAbEd25519YaoClientExportArtifactV1(
+function parseRouterAbEd25519YaoClientExportArtifactV1(
   value: string,
 ): RouterAbEd25519YaoExportArtifactV1 {
   const parsed: unknown = JSON.parse(value);

@@ -8,7 +8,7 @@ export type ExactLaneMaterialInvalidationTargetV1 = {
   readonly materialActivation: MpcMaterialActivationRef;
 };
 
-export type LaneMaterialInvalidationReasonV1 = 'refresh' | 'revoke';
+type LaneMaterialInvalidationReasonV1 = 'refresh' | 'revoke';
 
 export type LaneMaterialInvalidationPlanV1 = {
   readonly kind: 'lane_material_invalidation_plan_v1';

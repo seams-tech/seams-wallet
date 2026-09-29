@@ -45,10 +45,10 @@ type HostedPasskeyPreparationCancellation = Extract<
 
 type HostedPasskeySigningSurface = LoginUnlockSigningSurface & AccountSyncSigningSurface;
 
-export type HostedPasskeyContext = SeamsWebBaseContext<HostedPasskeySigningSurface> & {
+type HostedPasskeyContext = SeamsWebBaseContext<HostedPasskeySigningSurface> & {
   readonly resumePendingAcknowledgementsV1: () => void;
 };
-export type HostedPasskeyContextInput = Pick<
+type HostedPasskeyContextInput = Pick<
   HostedPasskeyContext,
   'signingEngine' | 'nearClient' | 'configs' | 'theme' | 'resumePendingAcknowledgementsV1'
 >;
@@ -72,7 +72,7 @@ type HostedPasskeyLoginPreparedBase = Readonly<{
   readonly [hostedPasskeyLoginPreparedBrand]: true;
 }>;
 
-export type HostedPasskeyLoginPrepared =
+type HostedPasskeyLoginPrepared =
   | (HostedPasskeyLoginPreparedBase & {
       readonly kind: 'hosted_passkey_owner_login_prepared_v1';
       readonly subjectSet: WalletUnlockSubjectSet;

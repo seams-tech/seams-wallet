@@ -56,7 +56,7 @@ export interface AccountInputState {
   indexDBAccountOptions: StoredAccountOption[];
 }
 
-export interface UseAccountInputOptions {
+interface UseAccountInputOptions {
   seams: SeamsWeb;
   /**
    * Account domain/postfix used to derive full accountIds from a username input
@@ -72,7 +72,7 @@ export interface UseAccountInputReturn extends AccountInputState {
   refreshAccountData: () => Promise<void>;
 }
 
-export function extractUsernameFromAccountId(accountId: string | null | undefined): string {
+function extractUsernameFromAccountId(accountId: string | null | undefined): string {
   const normalized = String(accountId || '').trim();
   if (!normalized) return '';
   const compactImplicit = compactImplicitNearAccountId(normalized);

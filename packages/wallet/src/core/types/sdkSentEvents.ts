@@ -38,7 +38,7 @@ export type EcdsaKeyFactsInventoryWalletSessionCredential =
 // Signing Session Lifecycle Events
 /////////////////////////////////////
 
-export const SDK_LIFECYCLE_EVENT_VERSION = 1 as const;
+const SDK_LIFECYCLE_EVENT_VERSION = 1 as const;
 
 export const SIGNING_SESSION_EXPIRY_DETECTION_SOURCES = {
   restore: 'restore',
@@ -71,7 +71,7 @@ export type NearProvisioningStateChangedEvent = {
 
 export type SdkLifecycleEvent = SigningSessionExpiredEvent | NearProvisioningStateChangedEvent;
 
-export type SigningSessionExpiredEventInput = Omit<SigningSessionExpiredEvent, 'version' | 'event'>;
+type SigningSessionExpiredEventInput = Omit<SigningSessionExpiredEvent, 'version' | 'event'>;
 
 export type SdkLifecycleEventListener = (event: SdkLifecycleEvent) => void;
 
@@ -237,7 +237,7 @@ export function parseSdkLifecycleEvent(value: unknown): SdkLifecycleEvent | null
 
 export const WALLET_FLOW_EVENT_VERSION = 2 as const;
 
-export type WalletFlow =
+type WalletFlow =
   | 'registration'
   | 'unlock'
   | 'signing'
@@ -256,7 +256,7 @@ export type WalletFlowEventStatus =
 
 export type WalletFlowAuthMethod = 'passkey' | 'email_otp' | 'warm_session';
 
-export type WalletFlowOverlayIntent = 'show' | 'hide' | 'none';
+type WalletFlowOverlayIntent = 'show' | 'hide' | 'none';
 
 export type WalletFlowInteractionKind =
   | 'none'
@@ -273,7 +273,7 @@ export interface WalletFlowEventInteraction {
   overlay: WalletFlowOverlayIntent;
 }
 
-export interface WalletFlowEventError {
+interface WalletFlowEventError {
   code?: string;
   message: string;
   retryable?: boolean;
@@ -440,7 +440,7 @@ export enum KeyExportEventPhase {
   CANCELLED = 'key_export.cancelled',
 }
 
-export type WalletFlowEventPhase =
+type WalletFlowEventPhase =
   | RegistrationEventPhase
   | UnlockEventPhase
   | SigningEventPhase
@@ -452,7 +452,7 @@ export type RegistrationFlowEvent = WalletFlowEventBase<'registration', Registra
 export type UnlockFlowEvent = WalletFlowEventBase<'unlock', UnlockEventPhase>;
 export type SigningFlowEvent = WalletFlowEventBase<'signing', SigningEventPhase>;
 export type LinkDeviceFlowEvent = WalletFlowEventBase<'link_device', LinkDeviceEventPhase>;
-export type LinkDeviceFlowOutcome =
+type LinkDeviceFlowOutcome =
   | { readonly kind: 'pending' }
   | {
       readonly kind: 'active';
@@ -747,7 +747,7 @@ export const WALLET_FLOW_EVENT_MESSAGES: Record<WalletFlowEventPhase, string> = 
   [KeyExportEventPhase.CANCELLED]: 'Key export cancelled',
 };
 
-export type CreateWalletFlowEventInput<
+type CreateWalletFlowEventInput<
   TFlow extends WalletFlow,
   TPhase extends WalletFlowEventPhase,
 > = Omit<WalletFlowEventBase<TFlow, TPhase>, 'version' | 'message' | 'step'> & {
@@ -873,7 +873,7 @@ export type RegistrationTimingSpanV1 = {
   trace_id: RouterAbTraceContextV1['value'];
 };
 
-export type RegistrationTimingSpanCallbackV1 = (span: RegistrationTimingSpanV1) => void;
+type RegistrationTimingSpanCallbackV1 = (span: RegistrationTimingSpanV1) => void;
 
 // Users can still supply a single implementation: (success: boolean, result?: T) => ...
 export interface AfterCall<T> {
@@ -892,7 +892,7 @@ export type WalletRecoveryCodeBackupAcknowledgementV1 =
   | { readonly kind: 'wallet_recovery_codes_backed_up_v1' }
   | { readonly kind: 'wallet_recovery_code_backup_deferred_v1' };
 
-export type WalletRecoveryCodeBackupHandlerV1 = (
+type WalletRecoveryCodeBackupHandlerV1 = (
   request: WalletRecoveryCodeBackupRequestV1,
 ) => Promise<WalletRecoveryCodeBackupAcknowledgementV1> | WalletRecoveryCodeBackupAcknowledgementV1;
 

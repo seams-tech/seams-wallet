@@ -254,7 +254,7 @@ export function createHostContext(): HostContext {
   };
 }
 
-export function resolveWalletHostInternalOptionsV1(): Extract<
+function resolveWalletHostInternalOptionsV1(): Extract<
   SeamsWebInternalOptions,
   { readonly kind: 'wallet_host' }
 > {
@@ -282,7 +282,7 @@ export function ensureSeamsWeb(ctx: HostContext): SeamsWeb {
   return ctx.seamsWeb!;
 }
 
-export function updateThemeBridge(ctx: HostContext): void {
+function updateThemeBridge(ctx: HostContext): void {
   try {
     const pm = ctx.seamsWeb;
     if (!pm) return;

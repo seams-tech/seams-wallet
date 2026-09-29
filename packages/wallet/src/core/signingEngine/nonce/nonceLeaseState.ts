@@ -15,7 +15,7 @@ export type NonceLeaseTransition =
   | 'replace'
   | 'reconcile';
 
-export type NonceLeaseTransitionResult =
+type NonceLeaseTransitionResult =
   | {
       ok: true;
       state: NonceLeaseState;

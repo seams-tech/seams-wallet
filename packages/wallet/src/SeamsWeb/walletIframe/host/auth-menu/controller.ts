@@ -126,7 +126,7 @@ class LazyHostedRecoveryPort implements HostedRecoveryPort {
   }
 }
 
-export type AuthMenuControllerDeps = {
+type AuthMenuControllerDeps = {
   readonly getSeamsWeb: () => SeamsWeb;
   readonly getAppearance: () => AppearanceConfig;
   readonly send: (message: ChildToParentEnvelope) => void;

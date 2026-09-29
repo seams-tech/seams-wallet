@@ -43,7 +43,7 @@ export type WalletIframeSurfaceRenderMode =
       authMenuSessionId: HostedAuthMenuSessionId;
     };
 
-export type WalletIframeSurfaceRenderController = {
+type WalletIframeSurfaceRenderController = {
   apply(mode: WalletIframeSurfaceRenderMode): void;
 };
 
@@ -136,7 +136,7 @@ function authMenuRenderMode(args: {
   };
 }
 
-export function renderWalletIframeSurface(
+function renderWalletIframeSurface(
   surface: WalletIframeSurface,
   geometry?: WalletIframeSurfaceGeometry,
 ): WalletIframeSurfaceRenderMode {

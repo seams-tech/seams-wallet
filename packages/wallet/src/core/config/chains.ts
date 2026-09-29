@@ -16,7 +16,7 @@ type ChainLike = {
   chainId?: number;
 };
 
-export const SEAMS_CHAIN_NETWORKS = [
+const SEAMS_CHAIN_NETWORKS = [
   'near-mainnet',
   'near-testnet',
   'tempo-mainnet',
@@ -54,7 +54,7 @@ export function chainFamilyFromNetwork(network: SeamsChainNetwork): SeamsChainFa
   return 'evm';
 }
 
-export function nearNetworkFromChainNetwork(network: SeamsNearChainNetwork): 'testnet' | 'mainnet' {
+function nearNetworkFromChainNetwork(network: SeamsNearChainNetwork): 'testnet' | 'mainnet' {
   return network === 'near-mainnet' ? 'mainnet' : 'testnet';
 }
 

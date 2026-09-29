@@ -21,13 +21,13 @@ import { openEd25519YaoLaneWorkerSourceFromUnlockedCapabilityV1 } from '../thres
 import type { WorkerOperationContext } from './executeWorkerOperation';
 import type { UnlockedEd25519ExportRootLinkingCapabilityV1 } from './workerTypes';
 
-export type DeviceLinkingSourceRequestAuthenticationV1 = {
+type DeviceLinkingSourceRequestAuthenticationV1 = {
   readonly kind: 'link_session_authenticated_request_v1';
   readonly source: LinkedDeviceOwnerAuthorizationSourceV1;
   readonly proofDigestB64u: DigestB64u;
 };
 
-export type DeviceLinkingEd25519SourceContributionRuntimePortV1 = {
+type DeviceLinkingEd25519SourceContributionRuntimePortV1 = {
   produceSourceContributionV1(input: {
     readonly preparation: LinkedDeviceEd25519SourceContributionPreparationV1;
     readonly capability: UnlockedEd25519ExportRootLinkingCapabilityV1;
@@ -35,18 +35,18 @@ export type DeviceLinkingEd25519SourceContributionRuntimePortV1 = {
   }): Promise<LinkedDeviceEd25519SourceContributionV1>;
 };
 
-export type DeviceLinkingEcdsaSourceContributionRuntimePortV1 = {
+type DeviceLinkingEcdsaSourceContributionRuntimePortV1 = {
   produceSourceContributionV1(input: {
     readonly preparation: LinkedDeviceEcdsaSourceContributionPreparationV1;
   }): Promise<LinkedDeviceEcdsaSourceContributionV1>;
 };
 
-export type DeviceLinkingSourceContributionRuntimePortV1 = {
+type DeviceLinkingSourceContributionRuntimePortV1 = {
   readonly ed25519: DeviceLinkingEd25519SourceContributionRuntimePortV1;
   readonly ecdsa: DeviceLinkingEcdsaSourceContributionRuntimePortV1;
 };
 
-export type DeviceLinkingEcdsaSourceContributionMetadataV1 = {
+type DeviceLinkingEcdsaSourceContributionMetadataV1 = {
   readonly walletKeyId: WalletKeyId;
   readonly sourceDerivation: LinkedDeviceEcdsaSourceDerivationV1;
   /** Set when the source is this linked device's own holder share. */
@@ -159,13 +159,13 @@ function walletKeyIdForActiveManifestV1(manifest: ActiveEcdsaCapabilityManifest)
   return parsed.value;
 }
 
-export type DeviceLinkingSourceContributionPortFactoryInputV1 = {
+type DeviceLinkingSourceContributionPortFactoryInputV1 = {
   readonly workerContext: WorkerOperationContext;
   readonly ed25519: DeviceLinkingEd25519SourceContributionRuntimePortV1;
   readonly readEcdsaMetadataV1: DeviceLinkingEcdsaSourceContributionMetadataReaderV1;
 };
 
-export type DeviceLinkingEd25519SourceContributionPortFactoryInputV1 = {
+type DeviceLinkingEd25519SourceContributionPortFactoryInputV1 = {
   readonly workerContext: WorkerOperationContext;
   readonly executeSourcePreservingV1: (input: {
     readonly linkSessionId: LinkedDeviceEd25519SourceContributionPreparationV1['linkSessionId'];

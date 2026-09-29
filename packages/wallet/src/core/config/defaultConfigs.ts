@@ -34,7 +34,7 @@ export const DEFAULT_ROUTER_AB_ECDSA_DERIVATION_PRESIGNATURE_POOL_POLICY: Router
     refillAttemptTimeoutMs: 30_000,
   };
 
-export const DEFAULT_THRESHOLD_ECDSA_PROVISIONING_DEFAULTS: EcdsaSignerProvisioningDefaults = {
+const DEFAULT_THRESHOLD_ECDSA_PROVISIONING_DEFAULTS: EcdsaSignerProvisioningDefaults = {
   tempo: {
     enabled: true,
     signingSession: {
@@ -61,7 +61,7 @@ export const DEFAULT_THRESHOLD_ECDSA_PROVISIONING_DEFAULTS: EcdsaSignerProvision
 /// Chain Configs
 ///////////////////
 
-export const DEFAULT_CHAIN_CONFIGS: SeamsChainConfig[] = [
+const DEFAULT_CHAIN_CONFIGS: SeamsChainConfig[] = [
   {
     network: 'near-testnet',
     // You can provide a single URL or a comma-separated list for failover.

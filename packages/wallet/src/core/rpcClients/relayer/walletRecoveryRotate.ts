@@ -450,7 +450,7 @@ function decodeWalletRecoverySetRotateResponse(value: unknown): WalletRecoverySe
   return { kind: 'invalid' };
 }
 
-export type WalletRecoveryCodeLocatorPayload = {
+type WalletRecoveryCodeLocatorPayload = {
   readonly locatorB64u: string;
   readonly recoveryKeyId: string;
 };

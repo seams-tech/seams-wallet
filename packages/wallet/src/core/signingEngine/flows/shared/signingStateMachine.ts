@@ -93,12 +93,12 @@ export type SigningOperationInteractionEvent =
   | { kind: typeof SigningOperationInteractionEventKind.AuthenticationStarted }
   | { kind: typeof SigningOperationInteractionEventKind.AuthenticationCompleted };
 
-export type CancelledSigningOperationState = Extract<
+type CancelledSigningOperationState = Extract<
   SigningOperationState,
   { kind: typeof SigningOperationStateKind.Cancelled }
 >;
 
-export type SigningOperationConfirmationState = Extract<
+type SigningOperationConfirmationState = Extract<
   SigningOperationState,
   {
     kind:
@@ -175,15 +175,15 @@ export type SigningOperationTransitionEvent = {
   reason?: string;
 };
 
-export type SigningOperationStep = {
+type SigningOperationStep = {
   from: SigningOperationState;
   to: SigningOperationState;
   command?: SigningOperationCommand;
   traceEvent: SigningOperationTransitionEvent;
 };
 
-export type SigningOperationCommandSequence = readonly SigningOperationCommand['kind'][];
-export type SigningOperationPlan = {
+type SigningOperationCommandSequence = readonly SigningOperationCommand['kind'][];
+type SigningOperationPlan = {
   kind: 'signing_operation_plan';
   sessionPlan: SigningSessionPlan;
   operation: SigningOperationContext | null;
@@ -199,7 +199,7 @@ export type SigningOperationCommandExecutor = OperationCommandExecutor<SigningOp
 export type SigningOperationTransitionObserver =
   OperationTransitionObserver<SigningOperationTransitionEvent>;
 
-export type RunSigningOperationCommandStepsResult =
+type RunSigningOperationCommandStepsResult =
   | {
       ok: true;
       finalState: SigningOperationState;
@@ -305,7 +305,7 @@ export function approveSigningOperationConfirmation(stateRef: SigningOperationSt
   }
 }
 
-export function beginSigningOperationAuthentication(
+function beginSigningOperationAuthentication(
   stateRef: SigningOperationStateRef,
 ): void {
   switch (stateRef.current.kind) {
@@ -346,7 +346,7 @@ export function beginSigningOperationAuthentication(
   }
 }
 
-export function completeSigningOperationAuthentication(
+function completeSigningOperationAuthentication(
   stateRef: SigningOperationStateRef,
 ): void {
   switch (stateRef.current.kind) {
@@ -601,7 +601,7 @@ export async function runSigningOperationCommand<T>(args: {
   return value as T;
 }
 
-export function buildSigningOperationSteps(
+function buildSigningOperationSteps(
   operationPlan: SigningOperationPlan,
   initialState: SigningOperationState = {
     kind: SigningOperationStateKind.Planned,

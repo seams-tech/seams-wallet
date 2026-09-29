@@ -1,14 +1,14 @@
-export type NearAccountFundingNotice = {
+type NearAccountFundingNotice = {
   accountId: string;
   shortAccountId: string;
 };
 
-export const NEAR_TRANSACTION_SUBMITTING_NOTICE = 'Topping up account...';
+const NEAR_TRANSACTION_SUBMITTING_NOTICE = 'Topping up account...';
 
 const NEAR_ACCOUNT_FUNDING_NOTICE_PATTERN =
   /^NEAR account ([^\s]+) needs funding before signing\.$/;
 
-export function shortenNearAccountForFundingNotice(accountId: string): string {
+function shortenNearAccountForFundingNotice(accountId: string): string {
   const value = String(accountId || '').trim();
   if (value.length <= 8) return value;
   return `${value.slice(0, 4)}...${value.slice(-4)}`;
@@ -32,7 +32,7 @@ export function parseNearAccountFundingNotice(body: string): NearAccountFundingN
   };
 }
 
-export function isNearTransactionSubmittingNotice(body: string): boolean {
+function isNearTransactionSubmittingNotice(body: string): boolean {
   return String(body || '').trim() === NEAR_TRANSACTION_SUBMITTING_NOTICE;
 }
 

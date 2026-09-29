@@ -148,7 +148,7 @@ export type ActiveWalletAuthorityEcdsaLaneProjectionV1 =
     readonly authorizationState: 'authorization_required';
   };
 
-export type ActiveWalletAuthorityEcdsaRuntimeBlockReason =
+type ActiveWalletAuthorityEcdsaRuntimeBlockReason =
   | 'missing_selected_authority'
   | 'invalid_selected_authority'
   | 'wallet_locked'
@@ -168,7 +168,7 @@ export type ActiveWalletAuthorityEcdsaRuntimeBlockReason =
   | 'invalid_public_facts'
   | 'persistence_unavailable';
 
-export type ActiveWalletAuthorityEcdsaRuntimeResolution =
+type ActiveWalletAuthorityEcdsaRuntimeResolution =
   | {
       readonly kind: 'resolved';
       readonly runtime: ActiveWalletAuthorityEcdsaRuntimeV1;
@@ -184,7 +184,7 @@ export type ActiveWalletAuthorityEcdsaRuntimeResolution =
       readonly lane?: never;
     };
 
-export type ResolveActiveWalletAuthorityEcdsaRuntimeV1Input = {
+type ResolveActiveWalletAuthorityEcdsaRuntimeV1Input = {
   readonly walletId: WalletId | string;
   readonly chainTarget?: ThresholdEcdsaChainTarget;
   readonly requiredCapability?: 'sign' | 'export_keys';

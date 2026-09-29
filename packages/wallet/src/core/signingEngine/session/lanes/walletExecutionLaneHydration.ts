@@ -27,7 +27,7 @@ import type { MpcCapabilityHydrationPlan } from '../material/mpcCapabilityHydrat
 import type { EcdsaCapabilityManifestLookup } from '@/core/indexedDB/seamsWalletDB/ecdsaCapabilityManifestStore';
 import { deriveEvmFamilySigningKeySlotId } from '@shared/signing-lanes/evmFamilySigningKeySlotId';
 
-export type WalletExecutionLaneMaterialHydrationInput =
+type WalletExecutionLaneMaterialHydrationInput =
   | {
       readonly keyFamily: 'ed25519';
       /** The lane epoch carried by the exact Yao lane manifest. */
@@ -49,12 +49,12 @@ export type WalletExecutionLaneHydrationInput = {
   readonly material: WalletExecutionLaneMaterialHydrationInput;
 };
 
-export type ParsedWalletExecutionLaneRecords = {
+type ParsedWalletExecutionLaneRecords = {
   readonly walletKey: WalletKeyRecord;
   readonly lane: SigningLaneRecord;
 };
 
-export type WalletExecutionLaneRefusalReason =
+type WalletExecutionLaneRefusalReason =
   | 'invalid_boundary_record'
   | 'wallet_key_inactive'
   | 'lane_inactive'
@@ -76,7 +76,7 @@ type WalletExecutionLaneRefusalWithoutIdentity = {
   readonly laneId?: never;
 };
 
-export type WalletExecutionLaneRefusal =
+type WalletExecutionLaneRefusal =
   | WalletExecutionLaneRefusalWithoutIdentity
   | {
       readonly kind: 'wallet_execution_lane_refused_v1';
@@ -86,7 +86,7 @@ export type WalletExecutionLaneRefusal =
       readonly laneId: SigningLaneRecord['laneId'];
     };
 
-export type WalletExecutionLanePublicIdentity =
+type WalletExecutionLanePublicIdentity =
   | {
       readonly keyFamily: 'ed25519';
       readonly registeredPublicKeyB64u: Ed25519WalletKeyRecord['registeredPublicKeyB64u'];
@@ -127,7 +127,7 @@ function parseLaneEpoch(raw: unknown): LaneShareEpoch {
  * already parsed by its capability/Yao adapter and is consumed as an exact
  * typed projection below.
  */
-export function parseWalletExecutionLaneRecords(
+function parseWalletExecutionLaneRecords(
   input: Pick<WalletExecutionLaneHydrationInput, 'walletKey' | 'lane'>,
 ): ParsedWalletExecutionLaneRecords {
   return {

@@ -256,7 +256,7 @@ export type DeviceLinkingKeyMaterialBundleV1 = {
   readonly deliveryRecipientPublicKey65B64u: string;
 };
 
-export type DeviceLinkingEmailOtpFactorReleaseInputV1 = {
+type DeviceLinkingEmailOtpFactorReleaseInputV1 = {
   /** The fresh server envelope is opened only by this worker slot. */
   readonly keyMaterial: DeviceLinkingKeyMaterialHandleV1;
   readonly walletId: WalletId;
@@ -326,11 +326,11 @@ export type DeviceLinkingKeyMaterialPortV1 = {
   }): Promise<{ readonly signatureB64u: string }>;
 };
 
-export type DeviceLinkingLiveKeyMaterialPortV1 = DeviceLinkingKeyMaterialPortV1 &
+type DeviceLinkingLiveKeyMaterialPortV1 = DeviceLinkingKeyMaterialPortV1 &
   DeviceLinkingEmailOtpFactorReleasePortV1 &
   DeviceLinkingOrdinaryMaterialWorkerPortV1;
 
-export type LinkedDeviceOwnerAuthorizationResultBaseV1 = {
+type LinkedDeviceOwnerAuthorizationResultBaseV1 = {
   readonly authentication: LinkSessionAuthenticationV1;
   readonly walletId: WalletId;
   readonly ownerAuthorization: LinkedDeviceOwnerAuthorizationSourceV1;
@@ -338,7 +338,7 @@ export type LinkedDeviceOwnerAuthorizationResultBaseV1 = {
   readonly expiresAtMs: number;
 };
 
-export type LinkedDeviceOwnerAuthorizationResultV1 =
+type LinkedDeviceOwnerAuthorizationResultV1 =
   | (LinkedDeviceOwnerAuthorizationResultBaseV1 & {
       readonly exportRootRequirement: 'required';
       readonly ed25519ExportRootCapability: UnlockedEd25519ExportRootLinkingCapabilityV1;
@@ -356,7 +356,7 @@ export type DeviceLinkingOwnerAuthorizationPortV1 = {
 };
 
 /** Family-specific source-preserving producers. Private source material stays behind each port. */
-export type DeviceLinkingEd25519SourceContributionPortV1 = {
+type DeviceLinkingEd25519SourceContributionPortV1 = {
   produceSourceContributionV1(input: {
     readonly preparation: LinkedDeviceEd25519SourceContributionPreparationV1;
     readonly capability: UnlockedEd25519ExportRootLinkingCapabilityV1;
@@ -364,7 +364,7 @@ export type DeviceLinkingEd25519SourceContributionPortV1 = {
   }): Promise<LinkedDeviceEd25519SourceContributionV1>;
 };
 
-export type DeviceLinkingEcdsaSourceContributionPortV1 = {
+type DeviceLinkingEcdsaSourceContributionPortV1 = {
   produceSourceContributionV1(input: {
     readonly preparation: LinkedDeviceEcdsaSourceContributionPreparationV1;
   }): Promise<LinkedDeviceEcdsaSourceContributionV1>;

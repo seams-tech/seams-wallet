@@ -4,7 +4,7 @@ import type { ThresholdRuntimePolicyScope } from '@/core/signingEngine/threshold
 import type { RouterAbEd25519NormalSigningState } from '@/core/signingEngine/threshold/ed25519/routerAbNormalSigningState';
 import type { ResolvedRouterAbEd25519WalletSessionState } from './routerAbEd25519WalletSessionState';
 
-export type RouterAbEd25519NormalSigningReadyState = {
+type RouterAbEd25519NormalSigningReadyState = {
   kind: 'router_ab_ed25519_normal_signing_ready_state_v1';
   walletSessionId: string;
   quotaId: string;

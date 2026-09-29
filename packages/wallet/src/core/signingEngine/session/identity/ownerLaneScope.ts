@@ -51,7 +51,7 @@ export class OwnerLaneScopeIntegrityError extends Error {
  * boundaries and the UI can surface "link this device again" instead of a
  * generic integrity failure.
  */
-export class OwnerRelinkRequiredError extends Error {
+class OwnerRelinkRequiredError extends Error {
   readonly code = 'relink_required' as const;
   readonly reason = 'missing_canonical_owner_binding' as const;
 

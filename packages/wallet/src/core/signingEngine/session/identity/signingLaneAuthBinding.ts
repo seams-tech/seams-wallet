@@ -24,7 +24,7 @@ export type SigningLaneAuthBinding =
  * `SigningLaneAuthBinding` because the provider subject describes the
  * authentication mechanism, while this tuple names the linked principal.
  */
-export type LinkedOwnerLaneIdentityV1 = {
+type LinkedOwnerLaneIdentityV1 = {
   readonly enrollmentId: LinkedDeviceEnrollmentId;
   readonly deviceId: LinkedDeviceId;
   readonly walletAuthMethodId: WalletAuthMethodId;
@@ -32,7 +32,7 @@ export type LinkedOwnerLaneIdentityV1 = {
 };
 
 /** Exact Wallet Authority address carried by every resolved Email OTP owner scope. */
-export type EmailOtpOwnerAuthorityBindingV1 = {
+type EmailOtpOwnerAuthorityBindingV1 = {
   readonly walletAuthMethodId: WalletAuthMethodId;
   readonly authorityDigest: WalletAuthorityBindingDigest;
 };

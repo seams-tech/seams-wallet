@@ -702,7 +702,7 @@ function requireEmailOtpNearEd25519MaterialIdentity(
 }
 
 /** Selects the exact unlocked Email OTP factor for exhausted-session step-up. */
-export async function resolveBrowserNearEd25519EmailOtpAuthorityForMaterial(args: {
+async function resolveBrowserNearEd25519EmailOtpAuthorityForMaterial(args: {
   readonly walletId: WalletId;
   readonly nearAccountId: AccountId;
   readonly identity: EmailOtpNearEd25519MaterialIdentity;
@@ -1036,7 +1036,7 @@ function assertNeverNearEd25519CapabilityRehydrationSubject(value: never): never
   throw new Error(`Unknown Ed25519 capability rehydration subject: ${String(value)}`);
 }
 
-export async function ensurePasskeyEd25519WarmSessionForSigning(args: {
+async function ensurePasskeyEd25519WarmSessionForSigning(args: {
   claimWarmSessionMaterial: PasskeyMpcSessionPort['claimWarmSessionMaterial'];
   rehydrateWarmSessionMaterial: PasskeyMpcSessionPort['rehydrateWarmSessionMaterial'];
   runtime: ExactEd25519SealedSessionRuntime;
@@ -1676,7 +1676,7 @@ function operationStepUpProofMatchesSelectedWalletAuthMethod(args: {
   }
 }
 
-export async function resolveExactNearEd25519WalletSessionOperationCredentialForStepUp(args: {
+async function resolveExactNearEd25519WalletSessionOperationCredentialForStepUp(args: {
   readonly walletId: WalletId;
   readonly proof: Ed25519OperationStepUpProof;
 }): Promise<WalletSessionOperationCredentialV1> {

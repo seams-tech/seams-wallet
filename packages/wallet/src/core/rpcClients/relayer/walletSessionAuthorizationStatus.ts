@@ -18,7 +18,7 @@ import {
   normalizeRelayerBaseUrl,
 } from './relayerHttp';
 
-export const EXACT_WALLET_SESSION_STATUS_PATH = '/wallet/session/status' as const;
+const EXACT_WALLET_SESSION_STATUS_PATH = '/wallet/session/status' as const;
 
 type ExactWalletSessionStatusIdentity = {
   readonly walletSessionId: WalletSessionId;
@@ -81,11 +81,11 @@ export type ExactWalletSessionStatus =
       readonly authorization?: never;
     });
 
-export interface ExactWalletSessionStatusPort {
+interface ExactWalletSessionStatusPort {
   read(input: ExactWalletSessionStatusIdentity): Promise<ExactWalletSessionStatus>;
 }
 
-export type RelayerExactWalletSessionStatusPortOptions = {
+type RelayerExactWalletSessionStatusPortOptions = {
   readonly relayerUrl: string;
   readonly operationCredential: WalletSessionOperationCredentialV1;
   readonly fetchImpl?: typeof fetch;
@@ -326,7 +326,7 @@ function parseDecodedWalletSessionStatusResponse(
   }
 }
 
-export class RelayerExactWalletSessionStatusPort implements ExactWalletSessionStatusPort {
+class RelayerExactWalletSessionStatusPort implements ExactWalletSessionStatusPort {
   private readonly relayerUrl: string;
   private readonly operationCredential: WalletSessionOperationCredentialV1;
   private readonly fetchImpl: typeof fetch;

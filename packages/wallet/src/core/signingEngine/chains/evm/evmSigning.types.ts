@@ -9,7 +9,7 @@ export type EvmAbiParameter = {
   components?: readonly EvmAbiParameter[];
 };
 
-export type EvmAbiEntry = {
+type EvmAbiEntry = {
   type?: string;
   name?: string;
   inputs?: readonly EvmAbiParameter[];

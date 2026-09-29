@@ -25,7 +25,7 @@ import {
   type NearNonceLaneState,
 } from './nearNonceLane';
 
-export type NonceOutcomeMetricKind =
+type NonceOutcomeMetricKind =
   | 'dropped'
   | 'replaced'
   | 'reconciled'
@@ -126,7 +126,7 @@ export function recordDroppedReplacedAlertWindow(input: {
   };
 }
 
-export function createEmptyLeaseStateCounts(): Record<NonceLeaseState, number> {
+function createEmptyLeaseStateCounts(): Record<NonceLeaseState, number> {
   const counts = {} as Record<NonceLeaseState, number>;
   for (const state of NONCE_LEASE_STATES) {
     counts[state] = 0;
@@ -174,7 +174,7 @@ export function appendOutcomeMetricEvent(
   }
 }
 
-export function readOutcomeMetrics(
+function readOutcomeMetrics(
   events: readonly NonceOutcomeMetricEvent[],
   accountId: string,
 ): NonceCoordinatorOutcomeMetrics {

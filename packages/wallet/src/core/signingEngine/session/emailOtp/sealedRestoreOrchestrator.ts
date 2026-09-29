@@ -41,7 +41,7 @@ import type {
   EmailOtpThresholdEcdsaRehydrateResult,
 } from './ecdsaRecovery';
 
-export type EmailOtpSealedRestoreOrchestratorPorts = {
+type EmailOtpSealedRestoreOrchestratorPorts = {
   sessionPersistenceMode: string;
   listExactSealedSessionsForWallet: typeof listExactSealedSessionsForWallet;
   readExactSealedSession: typeof readExactSealedSession;

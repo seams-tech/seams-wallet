@@ -13,12 +13,12 @@ import type {
 } from '@shared/authorization/capabilityKinds';
 import type { ExactEvmFamilyWalletSessionAuthorization } from '../material/ecdsaSigningCapability';
 
-export type WalletSessionAuthorizationUnavailableReason =
+type WalletSessionAuthorizationUnavailableReason =
   | 'network'
   | 'server_unavailable'
   | 'persistence_unavailable';
 
-export type WalletSessionAuthorizationInvalidReason =
+type WalletSessionAuthorizationInvalidReason =
   | 'malformed'
   | 'signature_invalid'
   | 'scope_mismatch'
@@ -30,7 +30,7 @@ type CommonWalletSessionAuthorizationIdentity = {
   readonly laneIdentity: ExactSigningLaneIdentity;
 };
 
-export type WalletSessionAuthorizationIdentity = CommonWalletSessionAuthorizationIdentity & {
+type WalletSessionAuthorizationIdentity = CommonWalletSessionAuthorizationIdentity & {
   readonly walletSessionId: WalletSessionId;
   readonly quotaId: MpcWalletSigningQuotaId;
 };

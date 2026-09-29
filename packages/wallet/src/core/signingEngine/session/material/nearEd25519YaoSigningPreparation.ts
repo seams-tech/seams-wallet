@@ -117,7 +117,7 @@ export function classifyNearEd25519WalletSessionAuthorization(
   }
 }
 
-export type NearEd25519OperationAuthorizationState =
+type NearEd25519OperationAuthorizationState =
   | {
       readonly kind: 'authorized';
       readonly authorization: ExactNearEd25519WalletSessionAuthorization;

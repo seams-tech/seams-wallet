@@ -103,7 +103,7 @@ export type StoreWalletEd25519RegistrationInput = {
   relayerParticipantId?: number;
 };
 
-export type PrepareWalletEd25519RegistrationPublicationInput = Omit<
+type PrepareWalletEd25519RegistrationPublicationInput = Omit<
   StoreWalletEd25519RegistrationInput,
   'participantIds' | 'clientParticipantId' | 'relayerParticipantId'
 > & {
@@ -114,7 +114,7 @@ export type PrepareWalletEd25519RegistrationPublicationInput = Omit<
   };
 };
 
-export type PrepareWalletEd25519RegistrationProjectionPublicationInput = Omit<
+type PrepareWalletEd25519RegistrationProjectionPublicationInput = Omit<
   PrepareWalletEd25519RegistrationPublicationInput,
   'credential'
 > & {
@@ -139,7 +139,7 @@ export type StoreWalletEmailOtpEd25519RegistrationInput = Omit<
   authority: EmailOtpWalletAuthAuthority;
 };
 
-export type PrepareWalletEmailOtpEd25519RegistrationPublicationInput = Omit<
+type PrepareWalletEmailOtpEd25519RegistrationPublicationInput = Omit<
   StoreWalletEmailOtpEd25519RegistrationInput,
   'participantIds' | 'clientParticipantId' | 'relayerParticipantId'
 > & {
@@ -155,7 +155,7 @@ export type PrepareWalletEmailOtpEd25519RegistrationPublicationInput = Omit<
  * reach this path from either branch, so the signer's auth method and source
  * must come from the caller rather than defaulting to passkey.
  */
-export type StoreWalletEd25519SignerAuthV1 = {
+type StoreWalletEd25519SignerAuthV1 = {
   kind: 'passkey';
   /* Identifiers only, so a caller reuses the credential it already collected
      rather than prompting for a second Touch ID. */
@@ -212,7 +212,7 @@ export type StoreWalletEmailOtpEcdsaRegistrationInput = StoreWalletEcdsaSignerRe
   authority: EmailOtpWalletAuthAuthority;
 };
 
-export type StoredWalletEcdsaSignerRecord = {
+type StoredWalletEcdsaSignerRecord = {
   chainTarget: ThresholdEcdsaChainTarget;
   targetKey: string;
   signerSlot: number;
@@ -727,7 +727,7 @@ export async function storeAuthenticator(
   });
 }
 
-export function extractUsername(nearAccountId: AccountId): string {
+function extractUsername(nearAccountId: AccountId): string {
   const normalized = String(nearAccountId).trim();
   const compactImplicit = compactImplicitNearAccountId(normalized);
   if (compactImplicit) return compactImplicit;
@@ -1339,7 +1339,7 @@ type WalletEcdsaRegistrationPublicationInput = {
   readonly walletKeys: NonEmptyWalletEcdsaKeys;
 };
 
-export type PrepareWalletEcdsaRegistrationPublicationInput =
+type PrepareWalletEcdsaRegistrationPublicationInput =
   | (WalletEcdsaRegistrationPublicationInput & {
       readonly kind: 'passkey';
       readonly rpId: WebAuthnRpId;

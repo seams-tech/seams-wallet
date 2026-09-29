@@ -12,7 +12,7 @@ import { nearEd25519YaoMaterialActivationFromMetadata } from '../../../session/m
 import { requireNearOperationStepUpMaterialActivation } from './operationStepUpPreparation';
 import type { SignerAuthMethod } from '@shared/utils/signerDomain';
 
-export type NearEd25519AuthorizationResult = {
+type NearEd25519AuthorizationResult = {
   thresholdSessionId: ThresholdEd25519SessionId;
   material: NearEd25519YaoOperationMaterial;
   walletSessionState: ResolvedRouterAbEd25519WalletSessionState;

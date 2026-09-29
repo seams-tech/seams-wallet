@@ -109,7 +109,7 @@ async function waitForCommittedAuthorityPackagesV1(input: {
   throw new Error('committed authority packages were not ready before the activation deadline');
 }
 
-export type DeviceLinkingAuthenticatedSessionTransportOptionsV1 = {
+type DeviceLinkingAuthenticatedSessionTransportOptionsV1 = {
   readonly http: HttpTransport;
   readonly relayerUrl: string;
   readonly publishableKey: string;
@@ -121,7 +121,7 @@ export type DeviceLinkingAuthenticatedSessionTransportOptionsV1 = {
   readonly pollIntervalMs: number;
 };
 
-export type DeviceLinkingSessionTransportAssemblyOptionsV1 = {
+type DeviceLinkingSessionTransportAssemblyOptionsV1 = {
   readonly owner: LinkSessionOwnerTransportPortV1;
   readonly http: HttpTransport;
   readonly relayerUrl: string;
@@ -132,7 +132,7 @@ export type DeviceLinkingSessionTransportAssemblyOptionsV1 = {
   readonly pollIntervalMs: number;
 };
 
-export type DeviceLinkingWalletSessionAcknowledgementTransportOptionsV1 = {
+type DeviceLinkingWalletSessionAcknowledgementTransportOptionsV1 = {
   readonly http: HttpTransport;
   readonly relayerUrl: string;
   readonly projectEnvironmentId: string;
@@ -149,7 +149,7 @@ type DeviceRequestResponseV1 = {
   readonly body: unknown;
 };
 
-export function createDeviceLinkingAuthenticatedSessionTransportV1(
+function createDeviceLinkingAuthenticatedSessionTransportV1(
   options: DeviceLinkingAuthenticatedSessionTransportOptionsV1,
 ): DeviceLinkingAuthenticatedTransportPortV1 {
   const baseUrl = normalizeBaseUrl(options.relayerUrl);
@@ -326,7 +326,7 @@ export function createDeviceLinkingWalletSessionAcknowledgementReplayPortV1(
   };
 }
 
-export function createDeviceLinkingAuthorityActivationTransportV1(
+function createDeviceLinkingAuthorityActivationTransportV1(
   options: DeviceLinkingAuthenticatedSessionTransportOptionsV1,
 ): DeviceLinkingAuthorityActivationTransportPortV1 {
   const baseUrl = normalizeBaseUrl(options.relayerUrl);

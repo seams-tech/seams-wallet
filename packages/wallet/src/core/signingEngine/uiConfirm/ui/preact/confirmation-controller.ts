@@ -23,7 +23,7 @@ export type ConfirmationSurfaceController = {
   dispose(): void;
 };
 
-export type CreateConfirmationSurfaceControllerInput = {
+type CreateConfirmationSurfaceControllerInput = {
   parent: HTMLElement;
   variant: 'modal' | 'drawer';
   context: 'standalone' | 'wallet-iframe';

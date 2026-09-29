@@ -23,7 +23,7 @@ export type EmailOtpSessionSnapshot = {
   resend: { available: boolean; label: string } | null;
 };
 
-export type EmailOtpSessionOptions = {
+type EmailOtpSessionOptions = {
   onSubmit: (code: string) => void;
   onChange: (snapshot: EmailOtpSessionSnapshot) => void;
   resend: { send: () => Promise<EmailOtpResendResult>; cooldownMs: number } | null;

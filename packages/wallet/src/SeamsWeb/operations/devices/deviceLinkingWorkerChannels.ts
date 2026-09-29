@@ -51,7 +51,7 @@ export type DeviceLinkingWorkerEndpointV1 = {
   terminate(): void;
 };
 
-export type DeviceLinkingWorkerKeyMaterialPortV1 = DeviceLinkingKeyMaterialPortV1 & {
+type DeviceLinkingWorkerKeyMaterialPortV1 = DeviceLinkingKeyMaterialPortV1 & {
   close(): void;
 } & DeviceLinkingEmailOtpFactorReleasePortV1 &
   DeviceLinkingOrdinaryMaterialWorkerPortV1;

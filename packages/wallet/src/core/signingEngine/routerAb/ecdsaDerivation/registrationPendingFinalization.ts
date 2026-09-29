@@ -17,7 +17,7 @@ import {
 const WALLET_CUSTODY_PENDING_FINALIZATION_KIND =
   'router_ab_ecdsa_registration_wallet_custody_pending_finalization_v1';
 
-export type WalletCustodyRouterAbEcdsaRegistrationPendingFinalizationV1 = {
+type WalletCustodyRouterAbEcdsaRegistrationPendingFinalizationV1 = {
   readonly kind: typeof WALLET_CUSTODY_PENDING_FINALIZATION_KIND;
   readonly runtimePolicyScope: RuntimePolicyScope;
   readonly registrationFacts: RouterAbEcdsaRegistrationRequestFactsV1;

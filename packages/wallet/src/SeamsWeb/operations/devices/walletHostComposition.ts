@@ -25,11 +25,10 @@ import {
   type WalletHostManagementRequestV1,
 } from './walletHostOwnerAuthority';
 
-export const LINKED_DEVICE_MANAGEMENT_HTTP_BASE_PATH_V1 =
-  '/wallet/device-linking/v1/devices' as const;
-export const OWNER_WALLET_SESSION_REAUTH_REQUIRED = 'owner_wallet_session_reauth_required' as const;
+const LINKED_DEVICE_MANAGEMENT_HTTP_BASE_PATH_V1 = '/wallet/device-linking/v1/devices' as const;
+const OWNER_WALLET_SESSION_REAUTH_REQUIRED = 'owner_wallet_session_reauth_required' as const;
 
-export class OwnerWalletSessionReauthRequiredError extends Error {
+class OwnerWalletSessionReauthRequiredError extends Error {
   readonly code = OWNER_WALLET_SESSION_REAUTH_REQUIRED;
 
   constructor() {
@@ -43,7 +42,7 @@ export class OwnerWalletSessionReauthRequiredError extends Error {
  * They retain the active Wallet Session credential and expose only parsed HTTP
  * boundaries to this assembly layer.
  */
-export type WalletHostCompositionDependenciesV1 = {
+type WalletHostCompositionDependenciesV1 = {
   readonly authenticator: AuthenticatorPort;
   readonly http: HttpTransport;
   readonly relayerUrl: string;
@@ -62,7 +61,7 @@ export type WalletHostCompositionDependenciesV1 = {
   readonly pollIntervalMs: number;
 };
 
-export type WalletHostCompositionV1 = {
+type WalletHostCompositionV1 = {
   readonly linkedDeviceManagement: LinkedDeviceManagementPortV1;
   readonly deviceLinkingPorts: DeviceLinkingFlowPortsAssemblyV1;
   readonly dispose: () => void;

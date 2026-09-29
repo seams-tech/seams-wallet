@@ -48,7 +48,7 @@ type ExactEmailOtpWalletSessionStatus = Extract<
   { readonly status: 'active' | 'exhausted' }
 >;
 
-export type EmailOtpEd25519YaoRecoveredCapabilityActivationV1 =
+type EmailOtpEd25519YaoRecoveredCapabilityActivationV1 =
   EmailOtpEd25519YaoWorkerActivationResult & {
     readonly emailHashHex: string;
   };
@@ -63,7 +63,7 @@ type EmailOtpEd25519YaoWorkerActivationRequestV1 = {
   readonly operationCredential: WalletSessionOperationCredentialV1;
 };
 
-export type ExactWalletSessionAuthorizationForEd25519ExportV1 = {
+type ExactWalletSessionAuthorizationForEd25519ExportV1 = {
   readonly selectedAuthority: ActiveWalletAuthorityV1;
   readonly selectedAuthMethod: ActiveEmailOtpWalletAuthMethodRecordV2;
   readonly factorAuthority: EmailOtpWalletAuthAuthority;

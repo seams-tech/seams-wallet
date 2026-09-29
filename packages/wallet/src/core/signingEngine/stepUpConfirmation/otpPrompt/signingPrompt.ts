@@ -6,7 +6,7 @@ export type EmailOtpSigningChallenge = {
   emailHint?: string;
 };
 
-export type EmailOtpSigningPromptSource = {
+type EmailOtpSigningPromptSource = {
   prepare: () => Promise<EmailOtpSigningChallenge>;
   resend?: () => Promise<EmailOtpSigningChallenge>;
 };

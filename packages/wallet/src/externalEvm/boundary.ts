@@ -34,7 +34,7 @@ const PHANTOM_EVM_WALLET: ExternalEvmWallet = Object.freeze({
   rdns: null,
 });
 
-export type ExternalProviderState =
+type ExternalProviderState =
   | Readonly<{
       kind: 'authorized';
       accounts: readonly [Address, ...Address[]];

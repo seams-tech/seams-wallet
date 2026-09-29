@@ -10,7 +10,7 @@ export type StoredRawSealedRecordEntry = {
   value: unknown;
 };
 
-export type SigningSessionRestoreLeaseTransaction = {
+type SigningSessionRestoreLeaseTransaction = {
   entries: StoredRawSealedRecordEntry[];
   getRawRestoreLease(leaseKey: string): Promise<unknown>;
   putRestoreLease(row: Record<string, unknown>): void;

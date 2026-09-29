@@ -4,7 +4,7 @@ import type { WalletId } from '../interfaces/ecdsaChainTarget';
 import type { NonceLeaseRef } from '../interfaces/nonceLease';
 import type { PreparedNonceOperationContext } from './nonceTypes';
 
-export type NearFundingSubject = Readonly<{
+type NearFundingSubject = Readonly<{
   walletId: WalletId;
   nearAccountId: AccountId;
   nearPublicKeyStr: string;

@@ -33,7 +33,7 @@ type KeyExportCapabilitySelectionInput =
   | ExportKeypairWithUIInput
   | SigningEngineExportKeypairWithUIInput;
 
-export function requireKeyExportCapability(
+function requireKeyExportCapability(
   configs: SeamsConfigsReadonly,
   input: KeyExportCapabilitySelectionInput,
 ): void {

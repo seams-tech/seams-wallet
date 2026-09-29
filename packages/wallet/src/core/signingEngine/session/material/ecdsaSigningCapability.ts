@@ -66,7 +66,7 @@ export type ExactEvmFamilyWalletSessionAuthorization =
   | ExactPasskeyEvmFamilyWalletSessionAuthorization
   | ExactEmailOtpEvmFamilyWalletSessionAuthorization;
 
-export type ExactEcdsaWalletSessionAuthorizationLookup = {
+type ExactEcdsaWalletSessionAuthorizationLookup = {
   readonly walletId: WalletId;
   readonly chainTarget: ThresholdEcdsaChainTarget;
   readonly materialActivation: MpcMaterialActivationRef;

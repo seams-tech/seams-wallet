@@ -125,7 +125,7 @@ class ExactEcdsaManifestExpectationProof extends EcdsaCapabilityManifestProof {
   }
 }
 
-export type ExactEcdsaManifestExpectation = ExactEcdsaManifestExpectationProof;
+type ExactEcdsaManifestExpectation = ExactEcdsaManifestExpectationProof;
 
 export type EcdsaManifestRevisionExpectation =
   | NoCurrentEcdsaManifestExpectation
@@ -150,7 +150,7 @@ class ExactEcdsaServerGenerationExpectationProof extends EcdsaCapabilityManifest
   }
 }
 
-export type ExactEcdsaServerGenerationExpectation = ExactEcdsaServerGenerationExpectationProof;
+type ExactEcdsaServerGenerationExpectation = ExactEcdsaServerGenerationExpectationProof;
 
 export type EcdsaServerGenerationExpectation =
   | NoCurrentEcdsaServerGenerationExpectation
@@ -633,7 +633,7 @@ class ActiveEcdsaCapabilityManifestProof extends EcdsaCapabilityManifestProof {
 export type ActiveEcdsaCapabilityManifest = ActiveEcdsaCapabilityManifestProof &
   ActiveEcdsaCapabilityManifestExclusions;
 
-export type ReplacedEcdsaRetirement = {
+type ReplacedEcdsaRetirement = {
   readonly kind: 'replaced';
   readonly replacementManifest: EcdsaManifestIdentity;
   readonly replacementActivation: EcdsaServerActivationCommit;

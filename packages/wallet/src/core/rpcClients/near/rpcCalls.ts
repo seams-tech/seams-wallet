@@ -272,13 +272,13 @@ export type PasskeySessionEcdsaCustodyContinuityV1 = {
   readonly signers: readonly PasskeySessionEcdsaCustodySignerV1[];
 };
 
-export type WalletUnlockSuccessWithoutEcdsaActivation = WalletUnlockSuccessCore & {
+type WalletUnlockSuccessWithoutEcdsaActivation = WalletUnlockSuccessCore & {
   ecdsaSession?: never;
   walletCustody?: never;
   walletSessionAuthorization?: never;
 };
 
-export type WalletUnlockSuccessWithEcdsaActivation = WalletUnlockSuccessCore & {
+type WalletUnlockSuccessWithEcdsaActivation = WalletUnlockSuccessCore & {
   ecdsaSession: RouterAbEcdsaPostRegistrationSessionActivationResponseV1;
   ecdsaActivationReceipt: RouterAbEcdsaRegistrationActivationReceiptV1;
   ecdsaCustody: PasskeySessionEcdsaCustodyContinuityV1;
@@ -286,16 +286,15 @@ export type WalletUnlockSuccessWithEcdsaActivation = WalletUnlockSuccessCore & {
   walletSessionAuthorization?: never;
 };
 
-export type PasskeyWalletUnlockSuccessWithCredentialFreeEcdsaActivation =
-  WalletUnlockSuccessCore & {
-    ecdsaSession: RouterAbEcdsaCredentialFreeSessionActivationResponseV1;
-    ecdsaActivationReceipt: RouterAbEcdsaRegistrationActivationReceiptV1;
-    ecdsaCustody: PasskeySessionEcdsaCustodyContinuityV1;
-    walletCustody: PasskeySessionCustodyUnlockV1;
-    walletSessionAuthorization: ExactWalletSessionAuthorization;
-  };
+type PasskeyWalletUnlockSuccessWithCredentialFreeEcdsaActivation = WalletUnlockSuccessCore & {
+  ecdsaSession: RouterAbEcdsaCredentialFreeSessionActivationResponseV1;
+  ecdsaActivationReceipt: RouterAbEcdsaRegistrationActivationReceiptV1;
+  ecdsaCustody: PasskeySessionEcdsaCustodyContinuityV1;
+  walletCustody: PasskeySessionCustodyUnlockV1;
+  walletSessionAuthorization: ExactWalletSessionAuthorization;
+};
 
-export type PasskeyWalletUnlockSuccessWithoutEcdsaActivation =
+type PasskeyWalletUnlockSuccessWithoutEcdsaActivation =
   | (Omit<WalletUnlockSuccessCore, 'ed25519Session'> & {
       ed25519Session: PasskeyWalletUnlockEd25519Session;
       ecdsaSession?: never;
@@ -309,14 +308,14 @@ export type PasskeyWalletUnlockSuccessWithoutEcdsaActivation =
       walletSessionAuthorization?: never;
     });
 
-export type WalletUnlockResult =
+type WalletUnlockResult =
   | WalletUnlockFailure
   | WalletUnlockSuccessWithoutEcdsaActivation
   | PasskeyWalletUnlockSuccessWithoutEcdsaActivation
   | WalletUnlockSuccessWithEcdsaActivation
   | PasskeyWalletUnlockSuccessWithCredentialFreeEcdsaActivation;
 
-export type WalletUnlockResultFor<Input extends PasskeyWalletUnlockInput> =
+type WalletUnlockResultFor<Input extends PasskeyWalletUnlockInput> =
   Input extends PasskeyWalletUnlockInputWithEcdsaActivation
     ?
         | WalletUnlockFailure
@@ -894,7 +893,7 @@ export type LinkedDevicePasskeyWalletSessionUnlockInput = {
   readonly expected_origin?: string;
 };
 
-export type LinkedDevicePasskeyWalletSessionUnlockResult =
+type LinkedDevicePasskeyWalletSessionUnlockResult =
   | {
       readonly success: false;
       readonly kind?: never;
@@ -987,12 +986,3 @@ export async function verifyLinkedDevicePasskeyWalletSession(
     };
   }
 }
-
-export interface AuthenticatorsResult {
-  authenticators: Array<[string, ContractStoredAuthenticator]>;
-}
-
-// Legacy on-chain authenticator shape (web3authn contract).
-// The lite relayer stack no longer stores authenticators on-chain, but some older helpers/tests
-// still reference this type via `AuthenticatorsResult`.
-export type ContractStoredAuthenticator = Record<string, unknown>;

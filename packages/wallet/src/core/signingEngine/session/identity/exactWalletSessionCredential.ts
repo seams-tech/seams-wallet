@@ -40,14 +40,14 @@ import {
 import type { ActiveWalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
 
 /** The signer material one operation needs the exact session to authorize. */
-export type RequiredExactWalletSessionSigningSubject =
+type RequiredExactWalletSessionSigningSubject =
   | { readonly keyFamily: 'ed25519'; readonly materialActivation?: never }
   | {
       readonly keyFamily: 'ecdsa_secp256k1';
       readonly materialActivation: MpcMaterialActivationRef;
     };
 
-export type ExactWalletSessionExpiryRequirement =
+type ExactWalletSessionExpiryRequirement =
   | { readonly kind: 'unexpired'; readonly nowMs: number }
   | { readonly kind: 'expired'; readonly nowMs: number };
 
@@ -69,7 +69,7 @@ export type ExactWalletSessionCredentialUnavailableReason =
   | 'wallet_session_capability_mismatch'
   | 'persistence_unavailable';
 
-export type ResolvedExactWalletSessionCredential = {
+type ResolvedExactWalletSessionCredential = {
   readonly walletId: WalletId;
   readonly authority: ActiveWalletAuthorityV1;
   readonly authMethod: ActiveWalletAuthMethodRecordV2;
@@ -79,7 +79,7 @@ export type ResolvedExactWalletSessionCredential = {
   readonly materialActivation: MpcMaterialActivationRef;
 };
 
-export type ExactWalletSessionCredentialResolution =
+type ExactWalletSessionCredentialResolution =
   | {
       readonly kind: 'resolved';
       readonly resolved: ResolvedExactWalletSessionCredential;
@@ -91,7 +91,7 @@ export type ExactWalletSessionCredentialResolution =
       readonly resolved?: never;
     };
 
-export type ResolveExactWalletSessionCredentialInput = {
+type ResolveExactWalletSessionCredentialInput = {
   readonly walletId: WalletId;
   readonly authMethod: SignerAuthMethod;
   readonly walletSessionId: WalletSessionId;

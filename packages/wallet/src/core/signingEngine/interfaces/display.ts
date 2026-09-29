@@ -1,6 +1,6 @@
 export type DisplayChain = 'near' | 'evm' | 'tempo' | 'unknown';
 
-export type DisplaySeverity = 'info' | 'warning' | 'critical';
+type DisplaySeverity = 'info' | 'warning' | 'critical';
 
 export interface TxDisplayModel {
   chain: DisplayChain;
@@ -21,7 +21,7 @@ export interface TxDisplayWarning {
   message: string;
 }
 
-export interface TxDisplayTotals {
+interface TxDisplayTotals {
   nativeValue?: string;
   nativeSymbol?: string;
   estimatedFee?: string;
@@ -38,7 +38,7 @@ export interface TxDisplayField {
   contentVariants?: TxDisplayFileContentVariants;
 }
 
-export type TxDisplayFileContentMode = 'decoded' | 'raw';
+type TxDisplayFileContentMode = 'decoded' | 'raw';
 
 export interface TxDisplayFileContentVariants {
   decoded: string;
@@ -46,12 +46,12 @@ export interface TxDisplayFileContentVariants {
   defaultMode?: TxDisplayFileContentMode;
 }
 
-export interface TxDisplayAbiDecodeHint {
+interface TxDisplayAbiDecodeHint {
   dataHex: string;
   abi?: readonly Record<string, unknown>[];
 }
 
-export interface BaseDisplayOperation {
+interface BaseDisplayOperation {
   id: string;
   kind: string;
   label: string;
@@ -97,7 +97,7 @@ export interface GenericContractCallOperation extends BaseDisplayOperation {
   selector?: string;
 }
 
-export interface RawFallbackOperation extends BaseDisplayOperation {
+interface RawFallbackOperation extends BaseDisplayOperation {
   kind: 'raw.fallback';
   raw: string;
 }

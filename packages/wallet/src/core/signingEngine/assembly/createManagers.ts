@@ -24,7 +24,7 @@ import { nearImplicitAccountFundingPort } from '../flows/signNear/shared/implici
 import type { ThresholdEcdsaSigningQueueByKey } from '../threshold/ecdsa/signingQueue';
 import type { ActiveEcdsaCapabilityRuntimeResolver } from '../session/material/activeEcdsaCapabilityRuntime';
 
-export type ManagerAssembly = {
+type ManagerAssembly = {
   touchIdPrompt: TouchIdPrompt;
   userPreferencesManager: UserPreferencesManager;
   nonceCoordinator: NonceCoordinator;

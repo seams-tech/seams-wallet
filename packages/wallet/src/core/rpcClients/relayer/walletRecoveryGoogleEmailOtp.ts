@@ -42,7 +42,7 @@ type RecoveryOperationInput = {
   readonly fetchImpl?: typeof fetch;
 };
 
-export type WalletRecoveryGoogleVerifyResult =
+type WalletRecoveryGoogleVerifyResult =
   | {
       readonly kind: 'verified';
       readonly recoveryOperationId: WalletRecoveryOperationId;
@@ -53,7 +53,7 @@ export type WalletRecoveryGoogleVerifyResult =
     }
   | WalletRecoveryAttemptFailure;
 
-export type WalletRecoveryEmailOtpVerifyResult =
+type WalletRecoveryEmailOtpVerifyResult =
   | {
       readonly kind: 'verified';
       readonly recoveryOperationId: WalletRecoveryOperationId;

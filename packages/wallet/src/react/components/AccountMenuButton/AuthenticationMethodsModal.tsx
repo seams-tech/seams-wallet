@@ -11,7 +11,7 @@ import { KeyIcon } from './icons/KeyIcon';
 import { MailIcon } from './icons/MailIcon';
 import './LinkedDevicesModal.css';
 
-export interface AuthenticationMethodsModalProps {
+interface AuthenticationMethodsModalProps {
   readonly walletId: string | null;
   readonly isOpen: boolean;
   readonly onClose: () => void;

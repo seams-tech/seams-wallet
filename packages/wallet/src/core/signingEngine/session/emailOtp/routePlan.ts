@@ -20,15 +20,15 @@ export type EmailOtpSigningSessionChallengeOperation =
   | WalletEmailOtpTransactionSignOperation
   | WalletEmailOtpExportOperation;
 
-export type EmailOtpSigningSessionExpectedCurve = 'ed25519' | 'ecdsa' | 'unknown';
+type EmailOtpSigningSessionExpectedCurve = 'ed25519' | 'ecdsa' | 'unknown';
 
-export type EmailOtpSigningSessionAuthStateFailure = {
+type EmailOtpSigningSessionAuthStateFailure = {
   kind: 'auth_lane_missing';
   source: 'route_plan' | 'provided_route_auth' | 'evm_signing_refresh';
   expectedCurve: EmailOtpSigningSessionExpectedCurve;
 };
 
-export class EmailOtpSigningSessionAuthStateError extends Error {
+class EmailOtpSigningSessionAuthStateError extends Error {
   readonly kind = 'email_otp_signing_session_auth_state_error';
   readonly failure: EmailOtpSigningSessionAuthStateFailure;
 
@@ -59,7 +59,7 @@ export type EmailOtpThresholdEd25519RouteAuth = {
   chainTarget?: never;
 };
 
-export type EmailOtpThresholdEcdsaRouteAuth = {
+type EmailOtpThresholdEcdsaRouteAuth = {
   kind: 'threshold_ecdsa_session';
   operationCredential: WalletSessionOperationCredentialV1;
   curve: 'ecdsa';
@@ -120,7 +120,7 @@ export function buildEmailOtpSigningSessionRoutePlan(args: {
   });
 }
 
-export function emailOtpEcdsaBootstrapRouteAuthFromAuthLane(
+function emailOtpEcdsaBootstrapRouteAuthFromAuthLane(
   authLane: EmailOtpAuthLane,
 ): EmailOtpEcdsaBootstrapRouteAuth | undefined {
   if (authLane.kind === 'signing_session' && authLane.curve === 'ecdsa') {

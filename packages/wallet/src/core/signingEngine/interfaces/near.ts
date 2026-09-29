@@ -46,7 +46,7 @@ import type { RouterAbNormalSigningPrepareRequestV2Wire } from '@/core/rpcClient
 import type { Ed25519OperationStepUpProof } from '../threshold/ed25519/walletSession';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import type { SigningOperationStateRef } from '../flows/shared/signingStateMachine';
-export type NearResolvedEd25519WalletSessionAuth = {
+type NearResolvedEd25519WalletSessionAuth = {
   kind: 'wallet_session_opaque';
   walletSessionToken: string;
 };
@@ -190,14 +190,14 @@ export type NearEmailOtpEd25519StepUpHook = {
   }) => Promise<EmailOtpTransactionSigningChallenge>;
 };
 
-export type NearEd25519TransactionAdmissionBoundary = {
+type NearEd25519TransactionAdmissionBoundary = {
   thresholdSessionId: ThresholdEd25519SessionId;
   signingSessionPlan: SigningSessionPlan;
   signingAuthPlan: SigningAuthPlan;
   signingLane: NearTransactionSigningLane;
 };
 
-export type NearEd25519TransactionSigningBoundary = NearEd25519TransactionAdmissionBoundary;
+type NearEd25519TransactionSigningBoundary = NearEd25519TransactionAdmissionBoundary;
 
 type NearTransactionWithActionsPayloadBase = {
   ctx: NearSigningRuntimeDeps;
@@ -239,7 +239,7 @@ export type NearTransactionWithActionsPayload =
       ed25519SigningBoundary?: never;
     });
 
-export type NearAdHocEd25519Selection =
+type NearAdHocEd25519Selection =
   | {
       kind: 'authorized';
       selectedLane: SelectedEd25519Lane;
@@ -338,7 +338,7 @@ export type NearNep413Result = {
   error?: string;
 };
 
-export type NearIntentResultByKind = {
+type NearIntentResultByKind = {
   transactionWithActions: NearTransactionWithActionsResult;
   delegateAction: NearDelegateActionResult;
   nep413: NearNep413Result;

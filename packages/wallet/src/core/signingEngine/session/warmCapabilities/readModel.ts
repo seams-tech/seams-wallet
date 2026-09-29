@@ -38,19 +38,19 @@ export type WarmSessionReadPortsInput =
   | null
   | undefined;
 
-export type WarmSessionReadPortsSingle = {
+type WarmSessionReadPortsSingle = {
   statusPort: 'single';
   getWarmSessionStatus: WarmSessionStatusReader['getWarmSessionStatus'];
   getWarmSessionStatuses?: never;
 };
 
-export type WarmSessionReadPortsBatch = {
+type WarmSessionReadPortsBatch = {
   statusPort: 'batch';
   getWarmSessionStatus?: never;
   getWarmSessionStatuses: WarmSessionStatusBatchReader['getWarmSessionStatuses'];
 };
 
-export type WarmSessionReadPortsSingleAndBatch = {
+type WarmSessionReadPortsSingleAndBatch = {
   statusPort: 'single_and_batch';
   getWarmSessionStatus: WarmSessionStatusReader['getWarmSessionStatus'];
   getWarmSessionStatuses: WarmSessionStatusBatchReader['getWarmSessionStatuses'];
@@ -96,7 +96,7 @@ export function normalizeWarmSessionReadPorts(
   return null;
 }
 
-export function reportWarmSessionAvailabilityFailure(args: {
+function reportWarmSessionAvailabilityFailure(args: {
   operation: 'status_read' | 'claim';
   thresholdSessionId: string;
   code?: string;

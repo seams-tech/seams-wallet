@@ -434,7 +434,7 @@ function custodyEnvelopeFromRegistrationCommit(args: {
 
 /* Exported for tests: ECDSA-only and deferred mixed registration share this
    post-persistence capability handoff. */
-export async function establishPasskeyRegistrationEd25519ExportRootCapability(args: {
+async function establishPasskeyRegistrationEd25519ExportRootCapability(args: {
   readonly signingEngine: Pick<
     RegistrationWebContext['signingEngine'],
     'establishUnlockedWalletEd25519ExportRootCapabilityV1'
@@ -586,7 +586,7 @@ type EmitRegistrationEventInput = Omit<
 
 type EmailOtpRegistrationAuthMethod = Extract<RegistrationAuthMethodInput, { kind: 'email_otp' }>;
 
-export type RegisterWalletOperationInput = {
+type RegisterWalletOperationInput = {
   context: RegistrationWebContext;
   authMethod: RegistrationAuthMethodInput;
   wallet: RegisterWalletInput;
@@ -760,7 +760,7 @@ function sameRegistrationSignerRequest(
   }
 }
 
-export function sameRegistrationSignerSelection(
+function sameRegistrationSignerSelection(
   left: RegistrationSignerSetSelection,
   right: RegistrationSignerSetSelection,
 ): boolean {
@@ -1309,7 +1309,7 @@ export async function registerPreparedHostedPasskeyRegistration(args: {
  * forever. Deriving the key from the ceremony and activation reference makes
  * every retry the same consumer, so takeover resume works instead.
  */
-export async function deriveNearProvisioningIdempotencyKey(input: {
+async function deriveNearProvisioningIdempotencyKey(input: {
   readonly registrationCeremonyId: string;
   readonly activationReference: {
     readonly lifecycle_id: string;
@@ -1402,7 +1402,7 @@ async function resolveEmailOtpRegistrationEnrollmentMaterial(input: {
   }
 }
 
-export function createRegistrationLifecycleEvent(input: {
+function createRegistrationLifecycleEvent(input: {
   accountId: string;
   event: EmitRegistrationEventInput;
 }): RegistrationFlowEvent {
@@ -1829,7 +1829,7 @@ function ecdsaRegistrationClientCeremonyOperation(args: {
 /* Exported for tests: mixed registration joins and journals both custody
    branches before Route 3, while user-facing NEAR provisioning remains
    deferred after the ECDSA branch is committed. */
-export async function runEcdsaEnabledThreeRouteRegistrationCeremony(args: {
+async function runEcdsaEnabledThreeRouteRegistrationCeremony(args: {
   context: RegistrationWebContext;
   relayerUrl: string;
   registrationCeremonyId: string;
@@ -2140,7 +2140,7 @@ type RegisterEcdsaOrMixedWalletBaseArgs = {
   confirmationConfigOverride?: Partial<ConfirmationConfig>;
 };
 
-export type RegisterEcdsaOrMixedWalletArgs = RegisterEcdsaOrMixedWalletBaseArgs &
+type RegisterEcdsaOrMixedWalletArgs = RegisterEcdsaOrMixedWalletBaseArgs &
   (
     | {
         kind: 'evm_family_ecdsa';
@@ -2603,7 +2603,7 @@ async function resolveNearRegistrationAdmissionReceipt(args: {
   );
 }
 
-export async function continueNearRegistrationCustody(args: {
+async function continueNearRegistrationCustody(args: {
   readonly pending:
     | PendingNearRegistrationContinuationV1
     | Extract<PendingWalletRegistrationCommitV1, { readonly phase: 'joined' }>;
@@ -2723,7 +2723,7 @@ function nearRegistrationChainTarget(target: {
   return target.chainTarget;
 }
 
-export type UnlockedNearRegistrationFactor =
+type UnlockedNearRegistrationFactor =
   | {
       readonly kind: 'passkey';
       readonly rpId: string;
@@ -3682,7 +3682,7 @@ async function commitDeferredEd25519Registration(args: {
 
 /* Exported for tests: the persist-before-publish ordering below is the
    lifecycle's core guarantee and is only observable by driving this runner. */
-export async function runDeferredEd25519Provisioning(args: {
+async function runDeferredEd25519Provisioning(args: {
   context: NearRegistrationContext;
   walletId: WalletId;
   commit: Parameters<typeof commitDeferredEd25519Registration>[0];

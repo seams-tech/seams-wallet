@@ -2,7 +2,7 @@ import { errorMessage } from '@shared/utils/errors';
 import { joinNormalizedUrl } from '@shared/utils/normalize';
 import type { WalletSessionOperationCredentialV1 } from '@shared/device-linking';
 
-export type EmailOtpWorkerJson = Record<string, unknown>;
+type EmailOtpWorkerJson = Record<string, unknown>;
 
 function requireObjectJson(value: unknown, label: string): EmailOtpWorkerJson {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {

@@ -160,7 +160,7 @@ export interface WarmSessionStatusBatchReader {
   }): Promise<WarmSessionStatusBatchResult>;
 }
 
-export interface WarmSessionMaterialClaimer {
+interface WarmSessionMaterialClaimer {
   claimWarmSessionMaterial(
     args: WarmSessionMaterialOperationTarget & {
       uses?: number;
@@ -169,7 +169,7 @@ export interface WarmSessionMaterialClaimer {
   ): Promise<WarmSessionClaimResult>;
 }
 
-export interface WarmSessionMaterialConsumer {
+interface WarmSessionMaterialConsumer {
   consumeWarmSessionUses(
     args: WarmSessionMaterialOperationTarget & {
       uses?: number;
@@ -212,7 +212,7 @@ export interface VolatileWarmSessionMaterialClearAll {
   ): Promise<void>;
 }
 
-export interface WarmSessionWorkerSealPort {
+interface WarmSessionWorkerSealPort {
   sealAndPersistWarmSessionMaterial(
     args: WarmSessionSealAndPersistPayload,
   ): Promise<WarmSessionSealAndPersistResult>;
@@ -223,7 +223,7 @@ export type PasskeyWarmSessionSealTransportInput = Exclude<
   { authMethod: 'email_otp' } | { curve: 'linked_device' }
 >;
 
-export interface WarmSessionSealPersister {
+interface WarmSessionSealPersister {
   persistSigningSessionSealForThresholdSession(args: {
     thresholdSessionId: string;
     transport: PasskeyWarmSessionSealTransportInput;
@@ -231,7 +231,7 @@ export interface WarmSessionSealPersister {
   }): Promise<WarmSessionSealAndPersistResult>;
 }
 
-export interface WarmSessionRehydrator {
+interface WarmSessionRehydrator {
   rehydrateWarmSessionMaterial(
     args: WarmSessionRehydratePayload,
   ): Promise<WarmSessionRehydrateResult>;
@@ -250,7 +250,7 @@ export interface WarmSessionPersistedDiscovery {
   ): Promise<DiscoverPersistedSessionsForWalletResult>;
 }
 
-export interface WarmSessionPersistedRestorer {
+interface WarmSessionPersistedRestorer {
   restorePersistedSessionForSigning(
     args: Omit<RestorePersistedSessionForSigningInput, 'authMethod'>,
   ): Promise<RestorePersistedSessionForSigningResult>;
@@ -263,14 +263,14 @@ export type VolatileWarmMaterialPort = WarmSessionStatusReader &
   VolatileWarmSessionMaterialClearer &
   VolatileWarmSessionMaterialClearAll;
 
-export type PromptCapableBootstrapPort = UiConfirmContextPort &
+type PromptCapableBootstrapPort = UiConfirmContextPort &
   UiConfirmSigningPort &
   UiConfirmRegistrationPort &
   UiConfirmRequestConfirmationPort;
 
 export type UiConfirmRuntimeBridgePort = PromptCapableBootstrapPort & UiConfirmWorkerLifecyclePort;
 
-export interface PasskeyMpcSessionWorkerLifecyclePort {
+interface PasskeyMpcSessionWorkerLifecyclePort {
   setWorkerBaseOrigin(origin: string | undefined): void;
   prewarmShamir3Pass(): Promise<void>;
   prepareSigningSessionHydration(input: {
@@ -323,7 +323,7 @@ export interface UiConfirmRegistrationPort {
   ): Promise<RegistrationCredentialConfirmationPayload>;
 }
 
-export interface UiConfirmWorkerLifecyclePort {
+interface UiConfirmWorkerLifecyclePort {
   initialize(): Promise<void>;
   setWorkerBaseOrigin(origin: string | undefined): void;
 }

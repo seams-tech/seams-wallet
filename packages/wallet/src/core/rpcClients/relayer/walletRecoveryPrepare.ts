@@ -165,7 +165,7 @@ export type WalletRecoveryPreparationKeyManifestEntry =
       readonly recoveryBasis: WalletRecoveryPreparationEcdsaRecoveryBasis;
     };
 
-export type WalletRecoveryPreparationNearRecoveryBasis = {
+type WalletRecoveryPreparationNearRecoveryBasis = {
   readonly capabilityKind: 'registration' | 'recovery';
   readonly activeCapabilityBinding: RouterAbEd25519YaoBytes32V1;
   readonly scope: RouterAbEd25519YaoLifecycleScopeV1;
@@ -178,7 +178,7 @@ export type WalletRecoveryPreparationNearRecoveryBasis = {
   readonly signingWorkerVerifyingShare: RouterAbEd25519YaoBytes32V1;
 };
 
-export type WalletRecoveryPreparationEcdsaRecoveryBasis = {
+type WalletRecoveryPreparationEcdsaRecoveryBasis = {
   readonly publicCapability: RouterAbEcdsaDerivationPublicCapabilityV1;
   readonly activationReceipt: RouterAbEcdsaRegistrationActivationReceiptV1;
   readonly serverGeneration: EcdsaServerGeneration;
@@ -227,7 +227,7 @@ export type WalletRecoveryPreparationKeyManifest = {
   readonly entries: readonly WalletRecoveryPreparationKeyManifestEntry[];
 };
 
-export type WalletRecoveryRegistrationCredentialDescriptor = {
+type WalletRecoveryRegistrationCredentialDescriptor = {
   readonly type: 'public-key';
   readonly id: WebAuthnCredentialIdB64u;
 };
@@ -270,7 +270,7 @@ export type WalletRecoveryAttemptFailure =
   | { readonly kind: 'retryable_conflict' }
   | { readonly kind: 'transport_uncertain' };
 
-export type WalletRecoveryPrepareResult =
+type WalletRecoveryPrepareResult =
   | (WalletRecoveryPrepareResultCommon & {
       readonly target: Extract<WalletRecoveryTargetV1, { readonly kind: 'passkey' }>;
       readonly registration: WalletRecoveryRegistrationOptions;

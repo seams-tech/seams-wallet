@@ -18,7 +18,7 @@ import {
   type WalletRecoverySetRotateResult,
 } from '@/core/rpcClients/relayer/walletRecoveryRotate';
 
-export type WalletRecoveryRotationWorker = {
+type WalletRecoveryRotationWorker = {
   rotateRecoverySet(args: {
     readonly custodyJson: string;
     readonly factorSecret: ArrayBuffer;
@@ -31,7 +31,7 @@ export type WalletRecoveryFactorProofFactory = (input: {
   readonly payload: Record<string, unknown>;
 }) => Promise<WalletCustodyFactorProof>;
 
-export type EmailOtpWalletRecoveryRotationWorker = {
+type EmailOtpWalletRecoveryRotationWorker = {
   rotateRecoverySet(args: {
     readonly recoveryCodesJson: string;
   }): Promise<WalletRecoverySetRotationWorkerResultV1>;

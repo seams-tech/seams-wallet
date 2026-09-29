@@ -46,11 +46,11 @@ export type ProvisionThresholdEcdsaSessionDeps = {
   persistEcdsaRoleLocalReadyRecord: DurableRecordStore['persistEcdsaRoleLocalReadyRecord'];
 };
 
-export type ThresholdEcdsaActivationPolicy =
+type ThresholdEcdsaActivationPolicy =
   | { kind: 'default_policy' }
   | { kind: 'scoped_policy'; scope: ThresholdRuntimePolicyScope };
 
-export type ThresholdEcdsaActivationRuntimeScopeBootstrap = {
+type ThresholdEcdsaActivationRuntimeScopeBootstrap = {
   projectEnvironmentId: string;
   publishableKey: string;
 };
@@ -87,7 +87,7 @@ type ThresholdEcdsaActivationRequestIdentityFields = {
 type ThresholdEcdsaActivationRequestCommon = ThresholdEcdsaActivationRequestSharedFields &
   ThresholdEcdsaActivationRequestIdentityFields;
 
-export type ThresholdEcdsaPasskeyActivationRequest = ThresholdEcdsaActivationRequestCommon & {
+type ThresholdEcdsaPasskeyActivationRequest = ThresholdEcdsaActivationRequestCommon & {
   kind: 'passkey_ecdsa_activation';
   purpose: 'transaction_signing';
   sessionIdentity: EcdsaSessionIdentity;
@@ -367,7 +367,7 @@ function applyCommonActivationRequestFields<T extends AnyEcdsaBootstrapRequest>(
   return args;
 }
 
-export type EcdsaBootstrapLifecycleCommand =
+type EcdsaBootstrapLifecycleCommand =
   | {
       kind: 'passkey_existing_session_activation';
       request: ThresholdEcdsaPasskeyActivationRequest;

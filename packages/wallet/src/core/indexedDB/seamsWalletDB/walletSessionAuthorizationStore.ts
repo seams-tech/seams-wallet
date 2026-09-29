@@ -145,7 +145,7 @@ type StoredActiveWalletSessionV6 = ActiveWalletSessionV1 & {
   readonly walletSessionId: WalletSessionId;
 };
 
-export type StoredExactWalletSessionAuthorizationRowV6 = {
+type StoredExactWalletSessionAuthorizationRowV6 = {
   readonly record_version: typeof WALLET_SESSION_AUTHORIZATION_RECORD_VERSION_V6;
   readonly wallet_session_id: string;
   readonly authorization_id: string;
@@ -677,7 +677,7 @@ export async function replaceExactActiveWalletSessionAuthorizationInTransaction(
   return incoming;
 }
 
-export type ExactActiveWalletSessionAuthorizationInTransactionRead =
+type ExactActiveWalletSessionAuthorizationInTransactionRead =
   | {
       readonly kind: 'found';
       readonly record: ActiveWalletSessionV1;

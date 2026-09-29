@@ -130,10 +130,7 @@ type WarmSessionEcdsaPresentCapabilityStateValue =
 /** Correlation failures that are not absence. A wallet with a manifest and a
  * sealed record that disagree is a different situation from a wallet with no
  * material, and collapsing the two would hide a real store fault. */
-export type WarmSessionEcdsaInvalidReason =
-  | 'binding_mismatch'
-  | 'exact_record_conflict'
-  | 'corrupt';
+type WarmSessionEcdsaInvalidReason = 'binding_mismatch' | 'exact_record_conflict' | 'corrupt';
 
 type WarmSessionMissingEd25519CapabilityState = {
   capability: 'ed25519';
@@ -144,7 +141,7 @@ type WarmSessionMissingEd25519CapabilityState = {
   state: 'missing';
 };
 
-export type WarmSessionEd25519InvalidReason = 'exact_record_conflict' | 'corrupt';
+type WarmSessionEd25519InvalidReason = 'exact_record_conflict' | 'corrupt';
 
 type WarmSessionInvalidEd25519CapabilityState = {
   capability: 'ed25519';
@@ -662,7 +659,7 @@ export type ProvisionWarmEd25519CapabilitySuccessResult =
       operationCredential: WalletSessionOperationCredentialV1;
     });
 
-export type ProvisionWarmEd25519CapabilityFailureResult = {
+type ProvisionWarmEd25519CapabilityFailureResult = {
   ok: false;
   code: string;
   message: string;

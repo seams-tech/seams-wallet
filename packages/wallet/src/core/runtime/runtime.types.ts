@@ -59,19 +59,19 @@ export type SigningRuntimeUiDeps = {
   warmSessions: SigningRuntimeWarmSessionUiPorts;
 };
 
-export type SigningRuntimeWorkerPorts = {
+type SigningRuntimeWorkerPorts = {
   emailOtp: WorkerOperationContext;
 };
 
-export type SigningRuntimeNearSigningDeps = {
+type SigningRuntimeNearSigningDeps = {
   getDeps: () => NearSigningApiDeps;
 };
 
-export type SigningRuntimeEvmFamilySigningDeps = {
+type SigningRuntimeEvmFamilySigningDeps = {
   getDeps: () => TempoSigningDeps;
 };
 
-export type SigningRuntimeSignEvmFamilyArgs = {
+type SigningRuntimeSignEvmFamilyArgs = {
   walletSession: WalletSessionRef;
   request: TempoSigningRequest | EvmSigningRequest;
   chainTarget: ThresholdEcdsaChainTarget;
@@ -80,13 +80,13 @@ export type SigningRuntimeSignEvmFamilyArgs = {
   onEvent?: (event: SigningFlowEvent) => void;
 };
 
-export type SigningRuntimeNearSigningService = {
+type SigningRuntimeNearSigningService = {
   signNear<TRequest extends NearSignIntentRequest>(
     request: TRequest,
   ): Promise<NearSignIntentResult<TRequest>>;
 };
 
-export type SigningRuntimeEvmFamilySigningService = {
+type SigningRuntimeEvmFamilySigningService = {
   signEvmFamily(
     args: SigningRuntimeSignEvmFamilyArgs,
   ): Promise<TempoSignedResult | EvmSignedResult>;

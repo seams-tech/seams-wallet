@@ -1,13 +1,13 @@
 import React from 'react';
 
-export interface SegmentedControlItem {
+interface SegmentedControlItem {
   value: unknown;
   label?: React.ReactNode;
   className?: string;
   disabled?: boolean;
 }
 
-export interface SegmentedControlProps {
+interface SegmentedControlProps {
   items: SegmentedControlItem[];
   value: unknown;
   onValueChange: (value: unknown) => void;

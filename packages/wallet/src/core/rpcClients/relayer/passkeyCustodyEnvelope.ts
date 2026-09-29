@@ -25,7 +25,7 @@ import {
 
 const PASSKEY_CUSTODY_ENVELOPE_PATH = '/wallets/custody/envelope';
 
-export type PasskeyCustodyEnvelopeFetchResult =
+type PasskeyCustodyEnvelopeFetchResult =
   | {
       readonly kind: 'active';
       /** The sealed record is structurally validated before it reaches the worker. */
@@ -138,7 +138,7 @@ export async function fetchPasskeyCustodyEnvelope(args: {
  * none of them is worth surfacing to the user: the V2 row stands, the wallet
  * still opens, and the next unlock tries again. The caller logs and moves on.
  */
-export type WalletCustodyEnvelopeOwnershipUpgradeOutcome =
+type WalletCustodyEnvelopeOwnershipUpgradeOutcome =
   | { readonly kind: 'upgraded'; readonly envelopeRevision: number }
   /** The envelope already names this method — an earlier attempt landed. */
   | { readonly kind: 'already_owned' }

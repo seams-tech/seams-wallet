@@ -50,7 +50,7 @@ type DeviceLinkingAcknowledgementExactSessionReadV1 =
     }
   | { readonly kind: 'missing' };
 
-export type DeviceLinkingAcknowledgementExactSessionReaderV1 = (input: {
+type DeviceLinkingAcknowledgementExactSessionReaderV1 = (input: {
   readonly walletId: WalletId;
   readonly authorityId: WalletAuthorityId;
   readonly authMethodId: WalletAuthMethodId;
@@ -67,7 +67,7 @@ function acknowledgementMatchesCommittedResumeV1(
   );
 }
 
-export async function resumePendingDeviceLinkingAcknowledgementsV1(input: {
+async function resumePendingDeviceLinkingAcknowledgementsV1(input: {
   readonly installation: DeviceLinkingDeliveryResumePortV1;
   readonly transport: DeviceLinkingWalletSessionAcknowledgementReplayPortV1;
   readonly readExactSession: DeviceLinkingAcknowledgementExactSessionReaderV1;
@@ -116,7 +116,7 @@ async function readDeviceLinkingAcknowledgementExactSessionV1(input: {
   }
 }
 
-export type DeviceLinkingFlowPortsAssemblyOptionsV1 = {
+type DeviceLinkingFlowPortsAssemblyOptionsV1 = {
   readonly authenticator: AuthenticatorPort;
   readonly http: HttpTransport;
   readonly relayerUrl: string;

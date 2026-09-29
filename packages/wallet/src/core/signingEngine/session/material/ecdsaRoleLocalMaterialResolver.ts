@@ -29,13 +29,13 @@ export type PersistedEcdsaRoleLocalMaterial = {
   readonly liveHandle?: never;
 };
 
-export type EcdsaRoleLocalMaterialResolutionPurpose =
+type EcdsaRoleLocalMaterialResolutionPurpose =
   | 'registration_activation'
   | 'wallet_unlock'
   | 'transaction_signing'
   | 'explicit_key_export';
 
-export type EcdsaRoleLocalMaterialSource =
+type EcdsaRoleLocalMaterialSource =
   | {
       readonly kind: 'persisted';
       readonly authority: WalletAuthAuthorityRef;

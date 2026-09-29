@@ -42,7 +42,7 @@ import type {
   PrepareEmailOtpRegistrationEnrollmentMaterialInternalResult,
 } from '@/core/signingEngine/flows/signEvmFamily/emailOtpPublic';
 
-export type EmailOtpCustodyEnrollmentPreparationPort = {
+type EmailOtpCustodyEnrollmentPreparationPort = {
   prepareEmailOtpRegistrationEnrollmentMaterialInternal(
     args: PrepareEmailOtpRegistrationEnrollmentMaterialInternalArgs,
   ): Promise<PrepareEmailOtpRegistrationEnrollmentMaterialInternalResult>;

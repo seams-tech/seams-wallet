@@ -1,9 +1,9 @@
 import type { WalletIframeSurfacePresentation } from './domain';
 
 export const WALLET_IFRAME_SURFACE_INSET_CSS_PX = 16;
-export const WALLET_IFRAME_SURFACE_MIN_COMPACT_WIDTH_CSS_PX = 280;
-export const WALLET_IFRAME_SURFACE_MIN_COMPACT_HEIGHT_CSS_PX = 280;
-export const WALLET_IFRAME_SURFACE_MAX_MODAL_WIDTH_CSS_PX = 560;
+const WALLET_IFRAME_SURFACE_MIN_COMPACT_WIDTH_CSS_PX = 280;
+const WALLET_IFRAME_SURFACE_MIN_COMPACT_HEIGHT_CSS_PX = 280;
+const WALLET_IFRAME_SURFACE_MAX_MODAL_WIDTH_CSS_PX = 560;
 export const WALLET_IFRAME_SURFACE_PROVISIONAL_HEIGHT_CSS_PX = 320;
 
 export type WalletIframeSurfaceGeometry =
@@ -63,12 +63,12 @@ export type WalletIframeSurfaceViewport = {
   offsetTopCssPx: number;
 };
 
-export type WalletIframeSurfaceMeasurementSize = {
+type WalletIframeSurfaceMeasurementSize = {
   widthCssPx: number;
   heightCssPx: number;
 };
 
-export type WalletIframeSurfaceAnchorRect = {
+type WalletIframeSurfaceAnchorRect = {
   topCssPx: number;
   leftCssPx: number;
   widthCssPx: number;

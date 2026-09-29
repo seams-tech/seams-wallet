@@ -57,7 +57,7 @@ import {
 } from '@shared/utils/walletAuthAuthority';
 import { alphabetizeStringify } from '@shared/utils/digests';
 
-export type SigningSessionRestoreLease = {
+type SigningSessionRestoreLease = {
   v: 1;
   leaseKey: string;
   ownerId: string;
@@ -66,7 +66,7 @@ export type SigningSessionRestoreLease = {
   expiresAtMs: number;
 };
 
-export type SigningSessionRestoreLeaseHandle = SigningSessionRestoreLease & {
+type SigningSessionRestoreLeaseHandle = SigningSessionRestoreLease & {
   thresholdSessionId: string;
 };
 
@@ -75,12 +75,12 @@ export type SigningSessionSealedStoreRecord = SealedSigningSessionRecord & {
   curve: 'ed25519' | 'ecdsa';
 };
 
-export type Ed25519SealedRecordThresholdSessionIds = {
+type Ed25519SealedRecordThresholdSessionIds = {
   ed25519: string;
   ecdsa?: string;
 };
 
-export type EcdsaSealedRecordThresholdSessionIds = {
+type EcdsaSealedRecordThresholdSessionIds = {
   ed25519?: string;
   ecdsa: string;
 };
@@ -226,7 +226,7 @@ export type CurrentSealedSessionRecord =
   | CurrentEcdsaSealedSessionRecord;
 export type RawSealedSessionRecord = Record<string, unknown>;
 
-export type SealedSessionRecordClassificationReason =
+type SealedSessionRecordClassificationReason =
   | 'invalid_payload'
   | 'invalid_header'
   | 'invalid_identity'
@@ -235,12 +235,12 @@ export type SealedSessionRecordClassificationReason =
   | 'missing_participant_ids'
   | 'missing_restore_metadata';
 
-export type CurrentSealedSessionRecordClassification = {
+type CurrentSealedSessionRecordClassification = {
   kind: 'current';
   record: CurrentSealedSessionRecord;
 };
 
-export type EcdsaInactiveSealedMaterialRecordClassification = {
+type EcdsaInactiveSealedMaterialRecordClassification = {
   kind: 'ecdsa_inactive_material';
   record: EcdsaInactiveSealedMaterialRecord;
 };
@@ -262,7 +262,7 @@ type NonCurrentSealedSessionRecordClassification = {
   };
 }[NonCurrentSealedSessionRecordClassificationKind];
 
-export type SealedSessionRecordClassification =
+type SealedSessionRecordClassification =
   | CurrentSealedSessionRecordClassification
   | EcdsaInactiveSealedMaterialRecordClassification
   | NonCurrentSealedSessionRecordClassification;
@@ -299,7 +299,7 @@ export type SigningSessionSealedRecordFilter =
       chainTarget: ThresholdEcdsaChainTarget;
     };
 
-export type ListEcdsaSigningSessionSealedRecordsForWalletFilter = {
+type ListEcdsaSigningSessionSealedRecordsForWalletFilter = {
   authMethod?: 'passkey' | 'email_otp';
   curve: 'ecdsa';
 };
@@ -350,7 +350,7 @@ export type UpdateExactSealedSessionPolicyInput = {
   updatedAtMs: number;
 };
 
-export type ResolvedIdentityDeleteReason =
+type ResolvedIdentityDeleteReason =
   | 'durable_record_deleted'
   | 'invalid_persisted_record'
   | 'same_lane_replaced'
@@ -968,7 +968,7 @@ function classifyNonCurrentRecord(
   };
 }
 
-export function classifyRawSealedSessionRecord(raw: unknown): SealedSessionRecordClassification {
+function classifyRawSealedSessionRecord(raw: unknown): SealedSessionRecordClassification {
   raw = storagePayloadFromSealedStoreRow(raw);
   const obj = asRawSealedSessionRecord(raw);
   if (!obj) return classifyNonCurrentRecord('malformed', null, 'invalid_payload');
@@ -1932,7 +1932,7 @@ export async function writeExactSealedSession(record: CurrentSealedSessionRecord
   });
 }
 
-export function buildEcdsaInactiveMaterialPublicRestore(
+function buildEcdsaInactiveMaterialPublicRestore(
   restore: SealedSigningSessionEcdsaRestoreMetadata,
   relayerUrlRaw: string,
 ): EcdsaInactiveMaterialPublicRestore | null {
@@ -2135,7 +2135,7 @@ async function writeUpdatedSealedSessionPolicy(
   await writeExactSealedSession(updatedRecord);
 }
 
-export async function deleteExactSealedSession(
+async function deleteExactSealedSession(
   thresholdSessionIdRaw: string,
   filter: SigningSessionSealedRecordFilter,
   options: DeleteExactSealedSessionOptions,
@@ -2150,7 +2150,7 @@ export async function deleteExactSealedSession(
   }
 }
 
-export async function deleteExactEd25519SealedSession(
+async function deleteExactEd25519SealedSession(
   locator: Ed25519DurableMaterialLocator,
   options: DeleteExactSealedSessionOptions,
 ): Promise<void> {

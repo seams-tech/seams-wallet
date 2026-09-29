@@ -58,7 +58,7 @@ export type ExactEcdsaSealedRuntimeAuthBinding =
 
 /** The exact sealed record this runtime was read from. Carried so callers can
  * write allowance changes back to the same record they resolved. */
-export type ExactEcdsaSealedRecordIdentity = {
+type ExactEcdsaSealedRecordIdentity = {
   readonly storeKey: string;
   readonly thresholdSessionId: string;
   readonly authMethod: SigningSessionSealAuthMethod;

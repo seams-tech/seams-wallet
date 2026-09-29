@@ -14,7 +14,7 @@ export type WorkerResourceWarmupStorePort = ProfileAccountContextPort &
     getLastProfileState: () => Promise<LastProfileState | null>;
   };
 
-export type WorkerResourceWarmupPredicate = (workerBaseOrigin: string) => boolean;
+type WorkerResourceWarmupPredicate = (workerBaseOrigin: string) => boolean;
 
 export type WorkerResourceWarmupPolicy =
   | {

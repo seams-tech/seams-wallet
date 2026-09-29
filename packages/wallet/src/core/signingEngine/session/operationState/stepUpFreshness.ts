@@ -19,7 +19,7 @@ import type {
 } from '@shared/authorization/capabilityKinds';
 import type { SignerAuthMethod } from '@shared/utils/signerDomain';
 
-export type SigningStatusProvenance =
+type SigningStatusProvenance =
   | {
       kind: 'trusted_server_budget_status';
       projectionVersion: string;
@@ -36,7 +36,7 @@ export type SigningStatusProvenance =
       observedAtMs: number;
     };
 
-export type StepUpProjectionState =
+type StepUpProjectionState =
   | {
       kind: 'known';
       version: string;
@@ -49,9 +49,9 @@ export type StepUpProjectionState =
         | 'budget_status_unavailable';
     };
 
-export type KnownStepUpProjectionState = Extract<StepUpProjectionState, { kind: 'known' }>;
+type KnownStepUpProjectionState = Extract<StepUpProjectionState, { kind: 'known' }>;
 
-export type StepUpExpiryState =
+type StepUpExpiryState =
   | {
       kind: 'known';
       expiresAtMs: number;
@@ -84,7 +84,7 @@ export type FreshStepUpRequired = {
     | 'email_otp_refresh_rejected';
 };
 
-export type FreshStepUpSatisfied = {
+type FreshStepUpSatisfied = {
   kind: 'fresh_step_up_satisfied';
   walletId: WalletId;
   operationId: SigningOperationId;
@@ -105,7 +105,7 @@ export type FreshStepUpSatisfiedForAdmission = Omit<FreshStepUpSatisfied, 'kind'
   projection: KnownStepUpProjectionState;
 };
 
-export type StepUpFreshnessAuthority =
+type StepUpFreshnessAuthority =
   | {
       kind: 'ed25519_threshold_session';
       walletSessionId: WalletSessionId;

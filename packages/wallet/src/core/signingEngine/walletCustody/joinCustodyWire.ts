@@ -24,7 +24,7 @@ import {
   parsePasskeyCustodyEnvelopeRecord,
 } from '@shared/passkey-custody';
 
-export type JoinCustodyWireResult =
+type JoinCustodyWireResult =
   | { readonly ok: true; readonly custodyJson: string }
   | { readonly ok: false; readonly reason: string };
 

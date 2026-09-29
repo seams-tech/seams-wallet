@@ -21,7 +21,7 @@ import type {
 } from '@shared/utils/registrationIntent';
 import type { WalletId } from '@shared/utils/domainIds';
 
-export type AddAuthMethodSourceClaimResultV1 =
+type AddAuthMethodSourceClaimResultV1 =
   | {
       readonly kind: 'resolved';
       readonly source: AddAuthMethodIntentSourceV1;

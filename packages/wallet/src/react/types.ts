@@ -103,7 +103,7 @@ export interface UseAccountInputReturn extends AccountInputState {
   refreshAccountData: () => Promise<void>;
 }
 
-export type SDKFlowKind = 'login' | 'register' | 'sync' | null;
+type SDKFlowKind = 'login' | 'register' | 'sync' | null;
 export type ActiveSDKFlowKind = Exclude<SDKFlowKind, null>;
 
 type SDKFlowStateBase = {
@@ -162,7 +162,7 @@ export type SDKFlowRuntime = SDKFlowState & {
   ) => Promise<void>;
 };
 
-export type WalletLockState = { readonly kind: 'idle' } | { readonly kind: 'cleaning_up' };
+type WalletLockState = { readonly kind: 'idle' } | { readonly kind: 'cleaning_up' };
 
 export interface SeamsContextType {
   // Core SeamsWeb instance - provides all user-facing functionality

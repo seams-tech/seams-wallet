@@ -997,7 +997,7 @@ function createWalletHostDeviceDomainConstructionV1(args: {
   return { platform, ownerAuthorities, sourceContribution };
 }
 
-export function createWalletHostDeviceLinkingSourceContributionPortV1(args: {
+function createWalletHostDeviceLinkingSourceContributionPortV1(args: {
   readonly signingEngine: Pick<BrowserSigningSurface, 'getSignerWorkerContext'>;
   readonly ownerRequest: LinkSessionOwnerAuthenticatedRequestPortV1;
   readonly readEcdsaMetadataV1: DeviceLinkingEcdsaSourceContributionMetadataReaderV1;

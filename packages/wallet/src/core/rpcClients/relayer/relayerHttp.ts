@@ -1,6 +1,6 @@
 import { stripTrailingSlashes } from '@shared/utils/normalize';
 
-export type RelayerHttpHeaders = Readonly<Record<string, string>>;
+type RelayerHttpHeaders = Readonly<Record<string, string>>;
 
 export function normalizeRelayerBaseUrl(
   value: unknown,

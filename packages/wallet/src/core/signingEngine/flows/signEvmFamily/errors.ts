@@ -1,8 +1,8 @@
 import type { EvmFamilyChain } from './types';
 
-export type EvmFamilySigningCancelledError = Error & { code: 'cancelled' };
+type EvmFamilySigningCancelledError = Error & { code: 'cancelled' };
 
-export type EvmFamilySigningNonceConflictError = Error & {
+type EvmFamilySigningNonceConflictError = Error & {
   code: 'nonce_conflict_retryable';
   retryable: true;
   details: {
@@ -18,7 +18,7 @@ export type EvmFamilySigningNonceConflictError = Error & {
   };
 };
 
-export type EvmFamilySigningNonceLaneBlockedError = Error & {
+type EvmFamilySigningNonceLaneBlockedError = Error & {
   code: 'nonce_lane_blocked';
   retryable: true;
   details: {
@@ -30,7 +30,7 @@ export type EvmFamilySigningNonceLaneBlockedError = Error & {
   };
 };
 
-export function createEvmFamilySigningCancelledError(): EvmFamilySigningCancelledError {
+function createEvmFamilySigningCancelledError(): EvmFamilySigningCancelledError {
   const err = new Error('Request cancelled') as EvmFamilySigningCancelledError;
   err.code = 'cancelled';
   return err;
@@ -54,7 +54,7 @@ export function extractErrorCode(error: unknown): string {
   return normalizeToken((error as { code?: unknown }).code);
 }
 
-export function extractErrorMessage(error: unknown): string {
+function extractErrorMessage(error: unknown): string {
   if (!error) return '';
   if (typeof error === 'string') return error.trim();
   if (error instanceof Error) return String(error.message || '').trim();
@@ -97,7 +97,7 @@ function inferNonceConflictReason(args: {
   return null;
 }
 
-export function createEvmFamilySigningNonceConflictError(args: {
+function createEvmFamilySigningNonceConflictError(args: {
   chain: EvmFamilyChain;
   networkKey: string;
   chainId: number;

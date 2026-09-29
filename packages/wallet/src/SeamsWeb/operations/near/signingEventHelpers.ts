@@ -5,7 +5,7 @@ import {
   type SigningFlowEvent,
 } from '@/core/types/sdkSentEvents';
 
-export type NearSigningEventInput = Omit<CreateSigningFlowEventInput, 'flowId' | 'accountId'>;
+type NearSigningEventInput = Omit<CreateSigningFlowEventInput, 'flowId' | 'accountId'>;
 
 export function emitNearSigningEvent(
   onEvent: ((event: SigningFlowEvent) => void) | undefined,

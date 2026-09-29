@@ -17,7 +17,7 @@ function toOptionalNonEmptyString(value: unknown): string | undefined {
   return normalized || undefined;
 }
 
-export type WarmSessionEd25519ProvisionerDeps = {
+type WarmSessionEd25519ProvisionerDeps = {
   getWarmSession: (walletId: WalletId) => Promise<WarmSessionEnvelope>;
   provisionThresholdEd25519Session?: (
     args: ProvisionWarmEd25519CapabilityArgs,

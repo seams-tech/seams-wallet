@@ -38,7 +38,7 @@ export type ActiveEcdsaCapabilityRuntimeResolution =
       readonly runtime?: never;
     };
 
-export type ExactEcdsaCapabilityRuntimeResolution =
+type ExactEcdsaCapabilityRuntimeResolution =
   | {
       readonly kind: 'resolved';
       readonly manifest: ActiveEcdsaCapabilityManifest;
@@ -62,7 +62,7 @@ export type ActiveEcdsaCapabilityRuntimeReadPorts = Pick<
   readonly listExactSealedSessionsForWallet: typeof listExactSealedSessionsForWallet;
 };
 
-export type ResolveActiveEcdsaCapabilityRuntimeInput = {
+type ResolveActiveEcdsaCapabilityRuntimeInput = {
   readonly walletId: WalletId;
   readonly chainTarget: ThresholdEcdsaChainTarget;
 };
@@ -71,7 +71,7 @@ export type ActiveEcdsaCapabilityRuntimeResolver = (
   args: ResolveActiveEcdsaCapabilityRuntimeInput,
 ) => Promise<ActiveEcdsaCapabilityRuntimeResolution>;
 
-export type ResolveActiveEcdsaCapabilityRuntimeForChainInput = {
+type ResolveActiveEcdsaCapabilityRuntimeForChainInput = {
   readonly walletId: WalletId;
   readonly chain: ThresholdEcdsaChainTarget['kind'];
 };

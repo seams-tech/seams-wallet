@@ -20,7 +20,7 @@ import {
 import type { WarmSessionCapabilityReader } from '../warmCapabilities/types';
 import { walletSessionFailureFromError } from '../lifecycle/walletSessionFailure';
 
-export type BootstrapWarmEcdsaCapabilityDeps = {
+type BootstrapWarmEcdsaCapabilityDeps = {
   ensureSealedRefreshStartupParity: () => Promise<void>;
   queueByWallet: Map<string, Promise<void>>;
   activationDeps: WalletSessionActivationDeps;
@@ -41,7 +41,7 @@ export type NoPromptWarmSessionDeps = {
   freshBootstrap?: never;
 };
 
-export type PromptCapableWarmupDeps = {
+type PromptCapableWarmupDeps = {
   queueByWallet: Map<string, Promise<void>>;
   activationDeps: WalletSessionActivationDeps;
   passkeyMpcSession: PasskeyMpcSessionPort;
@@ -49,13 +49,13 @@ export type PromptCapableWarmupDeps = {
   capabilityReader: WarmSessionCapabilityReader;
 };
 
-export type ReuseWarmEcdsaBootstrapSuccess = {
+type ReuseWarmEcdsaBootstrapSuccess = {
   ok: true;
   source: 'volatile_material' | 'sealed_restore';
   bootstrap: ThresholdEcdsaSessionBootstrapResult;
 };
 
-export type ReuseWarmEcdsaBootstrapFailure = {
+type ReuseWarmEcdsaBootstrapFailure = {
   ok: false;
   code:
     | 'missing_exact_material'
@@ -193,7 +193,7 @@ function sealedRestoreFailureCodeFromError(error: unknown): ReuseWarmEcdsaBootst
   }
 }
 
-export async function bootstrapReuseWarmEcdsaCapabilityNoPrompt(
+async function bootstrapReuseWarmEcdsaCapabilityNoPrompt(
   deps: NoPromptWarmSessionDeps,
   walletId: ReturnType<typeof toWalletId>,
   request: Extract<EcdsaBootstrapRequest, { kind: 'reuse_warm_ecdsa_bootstrap' }>,

@@ -10,7 +10,7 @@ import type {
   TxDisplayOperation,
 } from '@/core/signingEngine/interfaces/display';
 
-export type BuildEvmDisplayModelArgs = {
+type BuildEvmDisplayModelArgs = {
   request: EvmSigningRequest;
   intentDigest?: string;
   signerAccount?: string;

@@ -355,7 +355,7 @@ export async function sendTransaction({
  * @param options - Options for the action
  * @returns Promise resolving to the action result
  */
-export async function executeActionInternal({
+async function executeActionInternal({
   context,
   nearAccountId,
   walletSession,
@@ -426,7 +426,7 @@ export async function executeActionInternal({
   }
 }
 
-export async function signAndSendTransactionInternal({
+async function signAndSendTransactionInternal({
   context,
   nearAccountId,
   walletSession,
@@ -490,7 +490,7 @@ export async function signAndSendTransactionInternal({
  * @param options - Options for the action
  * @returns Promise resolving to the action result
  */
-export async function signTransactionWithActionsInternal({
+async function signTransactionWithActionsInternal({
   context,
   nearAccountId,
   walletSession,

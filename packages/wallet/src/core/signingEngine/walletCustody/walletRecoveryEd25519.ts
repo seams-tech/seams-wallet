@@ -118,7 +118,7 @@ async function buildEd25519RecoveryAdmissionRequestV1(input: {
   }
 }
 
-export type WalletRecoveryEd25519Admission = {
+type WalletRecoveryEd25519Admission = {
   readonly request: RouterAbEd25519YaoRecoveryAdmissionRequestV1;
   readonly receipt: RouterAbEd25519YaoActivationAdmissionReceiptV1<'recovery'>;
 };

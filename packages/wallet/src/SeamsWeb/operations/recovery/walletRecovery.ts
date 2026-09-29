@@ -68,7 +68,7 @@ export type WalletRecoveryCredentialCreatedHandle = {
   readonly target: Extract<WalletRecoveryTargetV1, { readonly kind: 'passkey' }>;
 };
 
-export type WalletRecoveryGoogleVerifiedHandle = {
+type WalletRecoveryGoogleVerifiedHandle = {
   readonly kind: 'google_verified';
   readonly recoveryOperationId: string;
   readonly walletId: WalletId;
@@ -78,7 +78,7 @@ export type WalletRecoveryGoogleVerifiedHandle = {
   readonly expiresAtMs: number;
 };
 
-export type WalletRecoveryEmailOtpVerifiedHandle = {
+type WalletRecoveryEmailOtpVerifiedHandle = {
   readonly kind: 'email_otp_verified';
   readonly recoveryOperationId: string;
   readonly walletId: WalletId;
@@ -86,26 +86,26 @@ export type WalletRecoveryEmailOtpVerifiedHandle = {
   readonly challengeId: string;
 };
 
-export type WalletRecoveryCoordinatorRpc = {
+type WalletRecoveryCoordinatorRpc = {
   readonly verifyGoogle: typeof verifyWalletRecoveryGoogle;
   readonly verifyEmailOtp: typeof verifyWalletRecoveryEmailOtp;
   readonly finalizeEmailOtp: typeof finalizeWalletRecoveryGoogleEmailOtp;
 };
 
-export type WalletRecoveryCoordinatorResult<T> = T | WalletRecoveryAttemptFailure;
+type WalletRecoveryCoordinatorResult<T> = T | WalletRecoveryAttemptFailure;
 
-export type WalletRecoveryPrepareCoordinatorResult =
+type WalletRecoveryPrepareCoordinatorResult =
   | WalletRecoveryPreparedHandle
   | WalletRecoveryAttemptFailure
   | { readonly kind: 'consumed' };
 
-export type WalletRecoveryCredentialCreationResult =
+type WalletRecoveryCredentialCreationResult =
   | WalletRecoveryCredentialCreatedHandle
   | { readonly kind: 'dismissed' }
   | { readonly kind: 'refused' }
   | { readonly kind: 'transport_uncertain' };
 
-export type WalletRecoveryFinalizeCoordinatorResult =
+type WalletRecoveryFinalizeCoordinatorResult =
   | { readonly kind: 'ready_for_sign_in'; readonly walletId: WalletId }
   | WalletRecoveryAttemptFailure;
 

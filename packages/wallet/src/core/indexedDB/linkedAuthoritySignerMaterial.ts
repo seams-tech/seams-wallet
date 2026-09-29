@@ -43,7 +43,7 @@ export type LinkedSignerPackageForMaterialV1 =
       readonly package: CommittedEcdsaSignerPackageV1;
     };
 
-export type LinkedAuthorityMaterialSealInputV1 = {
+type LinkedAuthorityMaterialSealInputV1 = {
   readonly authorityId: WalletAuthorityId;
   readonly walletId: WalletId;
   readonly walletAuthMethodId: WalletAuthMethodId;
@@ -53,7 +53,7 @@ export type LinkedAuthorityMaterialSealInputV1 = {
   readonly keyFamily: 'ed25519' | 'ecdsa_secp256k1';
 };
 
-export type OpenWalletAuthorityLinkedSignerMaterialInputV1 = {
+type OpenWalletAuthorityLinkedSignerMaterialInputV1 = {
   readonly record: WalletAuthorityLinkedSignerMaterialRecordV1;
   readonly factorSecret: Uint8Array;
   readonly expected: LinkedAuthorityMaterialSealInputV1;
@@ -96,9 +96,7 @@ export type OpenWalletAuthorityLinkedSignerMaterialResultV1 =
         | 'sealed_material_authentication_failed';
     };
 
-export function linkedAuthorityMaterialSealAadV1(
-  input: LinkedAuthorityMaterialSealInputV1,
-): string {
+function linkedAuthorityMaterialSealAadV1(input: LinkedAuthorityMaterialSealInputV1): string {
   return alphabetizeStringify({
     domain: 'seams/wallet/ordinary-authority-material-seal-aad/v1',
     authorityId: String(input.authorityId),

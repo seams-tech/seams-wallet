@@ -31,9 +31,9 @@ import {
   type SurfaceResizeDriver,
 } from './surface-resize-events';
 export const CONFIRM_SURFACE_MODE_ATTR = 'data-seams-confirm-surface';
-export const CONFIRM_SURFACE_MODE_WALLET_IFRAME = 'wallet-iframe';
+const CONFIRM_SURFACE_MODE_WALLET_IFRAME = 'wallet-iframe';
 /** Marks the confirmer host while its height is held at a motion's target. */
-export const CONFIRM_SURFACE_PINNED_CLASS = 'seams-confirm-surface-pinned';
+const CONFIRM_SURFACE_PINNED_CLASS = 'seams-confirm-surface-pinned';
 /**
  * Marks the document root for the same span. It is a second class rather than
  * the one above because the host rule must match any element that hosts a
@@ -41,9 +41,9 @@ export const CONFIRM_SURFACE_PINNED_CLASS = 'seams-confirm-surface-pinned';
  * so it cannot be qualified by tag, and an unqualified height rule would
  * otherwise also size `<html>`.
  */
-export const CONFIRM_SURFACE_PINNED_ROOT_CLASS = 'seams-confirm-surface-pinned-root';
+const CONFIRM_SURFACE_PINNED_ROOT_CLASS = 'seams-confirm-surface-pinned-root';
 /** Marks an element whose height is being driven through a motion. */
-export const CONFIRM_SURFACE_HEIGHT_DRIVEN_CLASS = 'seams-surface-height-driven';
+const CONFIRM_SURFACE_HEIGHT_DRIVEN_CLASS = 'seams-surface-height-driven';
 /** The CSS variable the class above reads. Components own the write (CSP). */
 export const CONFIRM_SURFACE_HEIGHT_DRIVEN_VAR = '--seams-surface-height-driven-target';
 
@@ -80,7 +80,7 @@ const MIN_ANNOUNCED_DELTA_CSS_PX = 1;
  * must go through a stylesheet or CSS variable — never a style attribute,
  * since the wallet origin ships `style-src-attr 'none'`.
  */
-export type SurfaceResizeAnnouncement = {
+type SurfaceResizeAnnouncement = {
   /** Diagnostics label: a tree node id, `file-content-mode`, `confirm-body`. */
   readonly reason?: string;
   /** Height of the changing element before the change, in CSS px. */
@@ -318,7 +318,7 @@ export function announceClampedSurfaceResize(args: {
  * then moved away again — the parent laying out the destination before its
  * ease reaches it, which must stay at zero.
  */
-export type SurfaceMotionDiagnostics = {
+type SurfaceMotionDiagnostics = {
   blipFrames: number;
   trace(durationMs?: number): Promise<string[]>;
 };
@@ -360,7 +360,7 @@ export type ConfirmSurfaceResizeChoreographer = {
   dispose(): void;
 };
 
-export type ConfirmSurfaceResizeChoreographerOptions = {
+type ConfirmSurfaceResizeChoreographerOptions = {
   /** Height of the box the parent gave this document, in CSS px. Defaults to the viewport. */
   readonly viewportHeightCssPx?: () => number;
 };
@@ -396,7 +396,7 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
 
-export function isWalletIframeConfirmSurface(element: Element): boolean {
+function isWalletIframeConfirmSurface(element: Element): boolean {
   return element.getAttribute(CONFIRM_SURFACE_MODE_ATTR) === CONFIRM_SURFACE_MODE_WALLET_IFRAME;
 }
 

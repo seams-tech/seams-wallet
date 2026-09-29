@@ -98,8 +98,8 @@ export interface AccountRef {
   accountAddress: AccountAddress;
 }
 
-export type AccountModel = 'near-native' | 'threshold-ecdsa' | string;
-export type AccountSignerType = 'passkey' | 'threshold' | 'session' | 'recovery' | string;
+type AccountModel = 'near-native' | 'threshold-ecdsa' | string;
+type AccountSignerType = 'passkey' | 'threshold' | 'session' | 'recovery' | string;
 export type AccountSignerStatus = 'active' | 'pending' | 'revoked';
 export type { SignerAuthMethod, SignerKind, SignerSource };
 export interface AccountModelCapabilities {

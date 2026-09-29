@@ -1,7 +1,7 @@
 import type { SignerKind } from '@shared/utils/signerDomain';
 import type { ParentToChildType } from '../shared/messages';
 
-export type CanonicalWalletSignerErrorCode =
+type CanonicalWalletSignerErrorCode =
   | 'commit_queue_overflow'
   | 'commit_queue_timeout'
   | 'threshold_ed25519_session_not_ready'
@@ -17,7 +17,7 @@ export type CanonicalWalletSignerErrorCode =
   | 'rpc_request_failed'
   | 'cancelled';
 
-export type WalletSignerBoundaryKind = SignerKind;
+type WalletSignerBoundaryKind = SignerKind;
 
 const CANONICAL_SIGNER_CODES = new Set<CanonicalWalletSignerErrorCode>([
   'commit_queue_overflow',
@@ -349,7 +349,7 @@ export function isWalletSignerBoundaryRequestType(value: unknown): value is Pare
   return typeof value === 'string' && SIGNER_BOUNDARY_REQUEST_TYPES.has(value as ParentToChildType);
 }
 
-export function resolveCanonicalWalletSignerErrorCode(args: {
+function resolveCanonicalWalletSignerErrorCode(args: {
   requestType?: unknown;
   rawCode?: unknown;
   message?: unknown;

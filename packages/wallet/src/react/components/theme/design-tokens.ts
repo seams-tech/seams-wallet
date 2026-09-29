@@ -472,29 +472,11 @@ export const DARK_TOKENS: DesignTokens = {
 // ============================================================================
 // COMPONENT-SPECIFIC THEME HELPERS
 // ============================================================================
-/**
- * Profile Button specific tokens (extends base with component-specific overrides)
- */
-export const PROFILE_BUTTON_TOKENS = {
-  light: {
-    ...LIGHT_TOKENS,
-    colors: {
-      ...LIGHT_TOKENS.colors,
-      // Profile button specific overrides
-    },
-  },
-  dark: {
-    ...DARK_TOKENS,
-    colors: {
-      ...DARK_TOKENS.colors,
-    },
-  },
-};
 
 // ============================================================================
 // PROFILE TOGGLE TOKENS
 // ============================================================================
-export interface ToggleColorTokens {
+interface ToggleColorTokens {
   activeBackground: string;
   activeShadow: string;
   inactiveBackground: string;

@@ -46,13 +46,13 @@ export type WalletIframeTransportDiagnostics = {
 };
 
 // Message constants (typed string literals, tree‑shake friendly)
-export const IframeMessage = {
+const IframeMessage = {
   HostBooted: 'SERVICE_HOST_BOOTED',
   HostDebugOrigin: 'SERVICE_HOST_DEBUG_ORIGIN',
   HostLog: 'SERVICE_HOST_LOG',
 } as const;
 
-export interface IframeTransportOptions {
+interface IframeTransportOptions {
   walletOrigin: string; // e.g., https://wallet.example.com
   servicePath?: string; // default '/wallet-service'
   connectTimeoutMs?: number; // total budget for handshake retries
@@ -64,7 +64,7 @@ export interface IframeTransportOptions {
   };
 }
 
-export type WalletIframeConnectionClosedListener = () => void;
+type WalletIframeConnectionClosedListener = () => void;
 
 type ResolvedTransportOptions = Required<Omit<IframeTransportOptions, 'signal'>> & {
   signal?: AbortSignal;

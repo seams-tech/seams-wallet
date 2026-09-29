@@ -45,7 +45,7 @@ export type ResolvedRouterAbEd25519WalletSessionState = NearResolvedEd25519Signi
 export type AuthorizedRouterAbEd25519WalletSessionState =
   ResolvedRouterAbEd25519WalletSessionState & NearAuthorizedEd25519SigningSessionState;
 
-export type BuildEmailOtpRouterAbEd25519WalletSessionStateInput = {
+type BuildEmailOtpRouterAbEd25519WalletSessionStateInput = {
   walletId: WalletId;
   nearAccountId: AccountId;
   nearEd25519SigningKeyId: NearEd25519SigningKeyId;
@@ -56,7 +56,7 @@ export type BuildEmailOtpRouterAbEd25519WalletSessionStateInput = {
   signingWalletSession: RouterAbEd25519SigningWalletSession;
 };
 
-export type BuildPasskeyRouterAbEd25519WalletSessionStateInput = {
+type BuildPasskeyRouterAbEd25519WalletSessionStateInput = {
   walletId: WalletId;
   nearAccountId: AccountId;
   nearEd25519SigningKeyId: NearEd25519SigningKeyId;

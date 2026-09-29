@@ -199,7 +199,7 @@ function parsedOpaqueB64u(value: unknown, label: string): string {
   }
 }
 
-export function parseLaneSealedHolderRecordV1(value: unknown): LaneSealedHolderRecordV1 {
+function parseLaneSealedHolderRecordV1(value: unknown): LaneSealedHolderRecordV1 {
   const record = decodeLaneSealedHolderRecordRaw(value);
   if (!record) throw new Error('lane sealed holder record has invalid fields');
   return parseDecodedLaneSealedHolderRecord(record);

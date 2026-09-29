@@ -25,7 +25,7 @@ export type RegistrationWebAuthnPromptOwner =
     }
   | HostedAuthMenuRegistrationWebAuthnPromptOwner;
 
-export type WebAuthnPromptOwner =
+type WebAuthnPromptOwner =
   | RegistrationWebAuthnPromptOwner
   | {
       kind: 'wallet_request';
@@ -62,13 +62,13 @@ export type WebAuthnPromptCoordinatorState =
       reservation?: never;
     };
 
-export type WebAuthnPromptCoordinatorErrorCode =
+type WebAuthnPromptCoordinatorErrorCode =
   | 'webauthn_prompt_busy'
   | 'webauthn_prompt_reservation_expired'
   | 'webauthn_prompt_reservation_owner_mismatch'
   | 'webauthn_prompt_reservation_reused';
 
-export class WebAuthnPromptCoordinatorError extends Error {
+class WebAuthnPromptCoordinatorError extends Error {
   readonly code: WebAuthnPromptCoordinatorErrorCode;
 
   constructor(code: WebAuthnPromptCoordinatorErrorCode, message: string) {
@@ -120,7 +120,7 @@ function createOperationId(): WebAuthnPromptOperationId {
   return `webauthn-operation-${secureRandomBase36(18, 'WebAuthn operation IDs')}` as WebAuthnPromptOperationId;
 }
 
-export class WebAuthnPromptCoordinator {
+class WebAuthnPromptCoordinator {
   private state: WebAuthnPromptCoordinatorState = { kind: 'idle' };
   private idleWaiters = new Set<IdleWaiter>();
   private reservationExpiryTimer: ReturnType<typeof setTimeout> | null = null;

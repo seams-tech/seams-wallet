@@ -55,7 +55,7 @@ export type SigningOperationFingerprint = Brand<string, 'SigningOperationFingerp
 
 export type SigningCurve = 'ed25519' | 'ecdsa';
 export type SigningChainFamily = 'near' | ThresholdEcdsaChainTarget['kind'];
-export type SigningKeyKind = 'threshold_ed25519' | 'threshold_ecdsa_secp256k1' | 'webauthn_p256';
+type SigningKeyKind = 'threshold_ed25519' | 'threshold_ecdsa_secp256k1' | 'webauthn_p256';
 export type SigningSessionOrigin =
   | 'login'
   | 'registration'
@@ -65,7 +65,7 @@ export type SigningSessionOrigin =
   | 'bootstrap'
   | 'per_operation'
   | 'sealed_restore';
-export type SigningSessionStorageSource =
+type SigningSessionStorageSource =
   | ThresholdEd25519SessionStoreSource
   | ThresholdEcdsaSessionStoreSource;
 export const SigningOperationIntent = {
@@ -84,7 +84,7 @@ type BaseSigningSessionPlanningLane = {
   retention: SigningSessionRetention;
 };
 
-export type Ed25519SigningSessionPlanningLane = BaseSigningSessionPlanningLane & {
+type Ed25519SigningSessionPlanningLane = BaseSigningSessionPlanningLane & {
   identity: ExactEd25519SigningLaneIdentity;
   curve: 'ed25519';
   keyKind: 'threshold_ed25519';
@@ -103,7 +103,7 @@ export type DeferredEd25519MaterialIdentity = {
 
 /** A material candidate before operation-step-up has issued a grant. This
  * lane is deliberately excluded from reusable-session and budget paths. */
-export type DeferredEd25519SigningSessionPlanningLane = BaseSigningSessionPlanningLane & {
+type DeferredEd25519SigningSessionPlanningLane = BaseSigningSessionPlanningLane & {
   identity: DeferredEd25519MaterialIdentity;
   auth: SigningLaneAuthBinding;
   curve: 'ed25519';
@@ -118,7 +118,7 @@ export type DeferredEd25519SigningSessionPlanningLane = BaseSigningSessionPlanni
   thresholdSessionId: ThresholdEd25519SessionId;
 };
 
-export type EcdsaSigningSessionPlanningLane = BaseSigningSessionPlanningLane & {
+type EcdsaSigningSessionPlanningLane = BaseSigningSessionPlanningLane & {
   identity: ExactEcdsaSigningLaneIdentity;
   curve: 'ecdsa';
   keyKind: 'threshold_ecdsa_secp256k1';
@@ -128,7 +128,7 @@ export type EcdsaSigningSessionPlanningLane = BaseSigningSessionPlanningLane & {
   thresholdSessionId?: never;
 };
 
-export type SigningSessionPlanningLane =
+type SigningSessionPlanningLane =
   | Ed25519SigningSessionPlanningLane
   | DeferredEd25519SigningSessionPlanningLane
   | EcdsaSigningSessionPlanningLane;
@@ -140,7 +140,7 @@ type BaseSelectedSigningLaneIdentity<
   auth: SigningLaneAuthBinding;
 };
 
-export type SelectedEd25519SigningLaneIdentity =
+type SelectedEd25519SigningLaneIdentity =
   BaseSelectedSigningLaneIdentity<ExactEd25519SigningLaneIdentity> & {
     identity: ExactEd25519SigningLaneIdentity;
     curve: 'ed25519';
@@ -150,7 +150,7 @@ export type SelectedEd25519SigningLaneIdentity =
     thresholdSessionId: ThresholdEd25519SessionId;
   };
 
-export type SelectedEcdsaSigningLaneIdentity =
+type SelectedEcdsaSigningLaneIdentity =
   BaseSelectedSigningLaneIdentity<ExactEcdsaSigningLaneIdentity> & {
     identity: ExactEcdsaSigningLaneIdentity;
     curve: 'ecdsa';
@@ -203,7 +203,7 @@ export const SigningKeyRefIntentKind = {
 export type SigningKeyRefIntentKind =
   (typeof SigningKeyRefIntentKind)[keyof typeof SigningKeyRefIntentKind];
 
-export type Ed25519SigningKeyRefIntent =
+type Ed25519SigningKeyRefIntent =
   | {
       kind: typeof SigningKeyRefIntentKind.Cached;
       curve: 'ed25519';
@@ -220,7 +220,7 @@ export type Ed25519SigningKeyRefIntent =
       authorization?: never;
     };
 
-export type EcdsaSigningKeyRefIntent =
+type EcdsaSigningKeyRefIntent =
   | {
       kind: typeof SigningKeyRefIntentKind.Cached;
       curve: 'ecdsa';
@@ -237,15 +237,15 @@ export type EcdsaSigningKeyRefIntent =
       authorization?: never;
     };
 
-export type SigningKeyRefIntent = Ed25519SigningKeyRefIntent | EcdsaSigningKeyRefIntent;
+type SigningKeyRefIntent = Ed25519SigningKeyRefIntent | EcdsaSigningKeyRefIntent;
 
-export type EmailOtpChallengePlan = {
+type EmailOtpChallengePlan = {
   challengeId?: EmailOtpChallengeId;
   chainFamily: SigningChainFamily;
   lane: SelectedSigningSessionPlanningLane;
 };
 
-export type PasskeyReconnectPlan =
+type PasskeyReconnectPlan =
   | {
       lane: SelectedEd25519SigningSessionPlanningLane;
       curve: 'ed25519';
@@ -314,7 +314,7 @@ type BaseSigningLaneSummary = Pick<
   authMethod: SignerAuthMethod;
 };
 
-export type Ed25519SigningLaneSummary = BaseSigningLaneSummary & {
+type Ed25519SigningLaneSummary = BaseSigningLaneSummary & {
   curve: 'ed25519';
   walletId: WalletId;
   nearAccountId: AccountId;
@@ -322,7 +322,7 @@ export type Ed25519SigningLaneSummary = BaseSigningLaneSummary & {
   accountId?: never;
 };
 
-export type EcdsaSigningLaneSummary = BaseSigningLaneSummary & {
+type EcdsaSigningLaneSummary = BaseSigningLaneSummary & {
   curve: 'ecdsa';
   walletId: WalletId;
 };

@@ -66,17 +66,17 @@ import {
   type ResolveSelectedWalletAuthorityResultV1,
 } from './seamsWalletDB/repositories';
 
-export interface UnifiedIndexedDBManagerDeps {
+interface UnifiedIndexedDBManagerDeps {
   seamsWalletDB: SeamsWalletDBManager;
 }
 
-export type LocalSignerReconciliationIssueCode =
+type LocalSignerReconciliationIssueCode =
   | 'duplicate_active_signer_slot'
   | 'active_signer_missing_key_material'
   | 'key_material_without_active_signer'
   | 'stale_pending_signer';
 
-export type LocalSignerReconciliationIssue = {
+type LocalSignerReconciliationIssue = {
   code: LocalSignerReconciliationIssueCode;
   profileId: string;
   chainIdKey?: string;
@@ -87,7 +87,7 @@ export type LocalSignerReconciliationIssue = {
   message: string;
 };
 
-export type LocalSignerReconciliationSummary = {
+type LocalSignerReconciliationSummary = {
   scannedProfiles: number;
   scannedSigners: number;
   scannedKeyMaterials: number;

@@ -31,16 +31,3 @@ export function bytesToHex(bytes: Uint8Array): string {
     .map((b) => b.toString(16).padStart(2, '0'))
     .join('')}`;
 }
-
-export function bigintToBytesBE(v: bigint): Uint8Array {
-  if (v < 0n) throw new Error('bigintToBytesBE: negative bigint not supported');
-  if (v === 0n) return new Uint8Array();
-  let x = v;
-  const out: number[] = [];
-  while (x > 0n) {
-    out.push(Number(x & 0xffn));
-    x >>= 8n;
-  }
-  out.reverse();
-  return Uint8Array.from(out);
-}

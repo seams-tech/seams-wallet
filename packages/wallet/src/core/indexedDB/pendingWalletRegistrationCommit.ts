@@ -52,7 +52,7 @@ import {
   type RouterAbEcdsaVerifiedClientActivationFactsV1,
 } from '@shared/utils/routerAbEcdsaDerivation';
 
-export type PendingWalletRegistrationEcdsaReplayV1 = {
+type PendingWalletRegistrationEcdsaReplayV1 = {
   readonly activationJournalId: CorrelationId;
   readonly clientActivation: RouterAbEcdsaVerifiedClientActivationFactsV1;
   readonly activationRequestDigestB64u: DigestB64u;
@@ -151,7 +151,7 @@ type PersistedMixedRegistrationMaterialV1 = {
   readonly activationReference?: never;
 };
 
-export type PendingWalletRegistrationSignerPlanKind =
+type PendingWalletRegistrationSignerPlanKind =
   | 'near_ed25519'
   | 'evm_family_ecdsa'
   | 'near_ed25519_and_evm_family_ecdsa';
@@ -256,7 +256,7 @@ export type PendingNearRegistrationContinuationV1 = PendingWalletRegistrationCom
       }
   );
 
-export function pendingRegistrationIdentity(
+function pendingRegistrationIdentity(
   record: PendingWalletRegistrationCommitCommonV1,
 ): PendingWalletRegistrationCommitCommonV1 {
   return {

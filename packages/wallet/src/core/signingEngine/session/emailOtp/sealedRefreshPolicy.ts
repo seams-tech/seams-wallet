@@ -17,12 +17,12 @@ import type { EmailOtpEcdsaSealedRuntimePurpose } from './sealedRuntimePurpose';
  * and exhaustion are Refactor 92 authorization states: they compose with an
  * unchanged material hydration result and cannot remove its activation, so the
  * sealed secret survives them for rehydration after re-authorization. */
-export type EmailOtpDurableSealedSessionDeleteReason = Extract<
+type EmailOtpDurableSealedSessionDeleteReason = Extract<
   DurableSealedSessionDeleteReason,
   'invalid_persisted_record'
 >;
 
-export type EmailOtpSealedRefreshPolicyPorts = {
+type EmailOtpSealedRefreshPolicyPorts = {
   deleteDurableSealedSessionRecord: typeof deleteDurableSealedSessionRecord;
   updateExactSealedSessionPolicy: typeof updateExactSealedSessionPolicy;
   clearEcdsaRestoreCaches: () => void;

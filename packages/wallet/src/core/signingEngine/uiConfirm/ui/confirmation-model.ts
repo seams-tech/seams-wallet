@@ -32,7 +32,7 @@ export type ConfirmationCallbacks = {
   submitEmail: (code: string, challengeId: string) => void;
 };
 
-export type ConfirmationModelResult =
+type ConfirmationModelResult =
   | { ok: true; model: ConfirmSurfaceModel; error?: never }
   | { ok: false; error: 'missing_email_challenge'; model?: never };
 

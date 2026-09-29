@@ -289,7 +289,7 @@ function assertEd25519YaoRecoveryDescriptorStableIdentity(
   }
 }
 
-export function assertEd25519YaoRecoveryDescriptorContinuity(
+function assertEd25519YaoRecoveryDescriptorContinuity(
   parsed: ParsedPasskeyEd25519YaoRecoveryDescriptorV1<ParsedYaoRecoverySessionBaseV1>,
 ): void {
   assertEd25519YaoRecoveryDescriptorStableIdentity(parsed);

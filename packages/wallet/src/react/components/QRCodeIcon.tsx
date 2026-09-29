@@ -1,6 +1,6 @@
 import React from 'react';
 
-export interface QRCodeIconProps {
+interface QRCodeIconProps {
   className?: string;
   width?: number;
   height?: number;

@@ -28,12 +28,12 @@ import { KeyExportEventPhase } from '@/core/types/sdkSentEvents';
 import { demoEmailOtpCodeFromDelivery } from '../../session/emailOtp/challengeDelivery';
 import type { EmailOtpTransactionSigningChallenge } from '../../session/emailOtp/publicTypes';
 
-export type KeyExportConfirmationDeps = {
+type KeyExportConfirmationDeps = {
   touchConfirm: Pick<UiConfirmRuntimeBridgePort, 'requestUserConfirmation'>;
   theme?: ThemeMode;
 };
 
-export type EmailOtpExportChallengeArgs = RequestEmailOtpExportChallengeArgs;
+type EmailOtpExportChallengeArgs = RequestEmailOtpExportChallengeArgs;
 
 export type EmailOtpExportAuthorizationDeps = {
   touchConfirm: Pick<UiConfirmRuntimeBridgePort, 'requestUserConfirmation'>;

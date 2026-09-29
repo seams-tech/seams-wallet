@@ -13,12 +13,12 @@ import { parseSignerSlot } from '@shared/utils/signerSlot';
 import { toRpId } from '../../session/identity/evmFamilyEcdsaIdentity';
 import type { SigningLaneAuthBinding } from '../../session/identity/signingLaneAuthBinding';
 
-export const ED25519_YAO_PUBLIC_CAPABILITY_REFERENCES_KIND_V1 =
+const ED25519_YAO_PUBLIC_CAPABILITY_REFERENCES_KIND_V1 =
   'ed25519_yao_public_capability_references_v1' as const;
-export const ED25519_YAO_PUBLIC_CAPABILITY_LANES_KIND_V1 =
+const ED25519_YAO_PUBLIC_CAPABILITY_LANES_KIND_V1 =
   'ed25519_yao_public_capability_lanes_v1' as const;
 
-export const ED25519_YAO_PUBLIC_CAPABILITY_REFERENCES_APP_STATE_KEY =
+const ED25519_YAO_PUBLIC_CAPABILITY_REFERENCES_APP_STATE_KEY =
   'ed25519YaoPublicCapabilityReferencesV1';
 const ED25519_YAO_PUBLIC_CAPABILITY_LANES_APP_STATE_KEY = 'ed25519YaoPublicCapabilityLanesV1';
 const MAX_PUBLIC_CAPABILITY_REFERENCES = 64;
@@ -49,17 +49,17 @@ export type Ed25519YaoPublicCapabilityLaneReferenceV1 =
         }
     );
 
-export type Ed25519YaoPublicCapabilityReferencesV1 = {
+type Ed25519YaoPublicCapabilityReferencesV1 = {
   kind: typeof ED25519_YAO_PUBLIC_CAPABILITY_REFERENCES_KIND_V1;
   identities: readonly Ed25519YaoPublicCapabilityReferenceV1[];
 };
 
-export type Ed25519YaoPublicCapabilityReferenceTransactionStore = {
+type Ed25519YaoPublicCapabilityReferenceTransactionStore = {
   get(key: string): Promise<{ readonly key: string; readonly value: unknown } | undefined>;
   put(row: { readonly key: string; readonly value: unknown }): Promise<unknown>;
 };
 
-export type Ed25519YaoPublicCapabilityLanesV1 = {
+type Ed25519YaoPublicCapabilityLanesV1 = {
   kind: typeof ED25519_YAO_PUBLIC_CAPABILITY_LANES_KIND_V1;
   lanes: readonly Ed25519YaoPublicCapabilityLaneReferenceV1[];
 };
@@ -263,7 +263,7 @@ function parsePublicCapabilityLane(
   }
 }
 
-export function parseEd25519YaoPublicCapabilityReferencesV1(
+function parseEd25519YaoPublicCapabilityReferencesV1(
   value: unknown,
 ): Ed25519YaoPublicCapabilityReferencesV1 {
   const record = requireRecord(value, 'Ed25519 Yao public capability references');
@@ -290,9 +290,7 @@ export function parseEd25519YaoPublicCapabilityReferencesV1(
   };
 }
 
-export function parseEd25519YaoPublicCapabilityLanesV1(
-  value: unknown,
-): Ed25519YaoPublicCapabilityLanesV1 {
+function parseEd25519YaoPublicCapabilityLanesV1(value: unknown): Ed25519YaoPublicCapabilityLanesV1 {
   const record = requireRecord(value, 'Ed25519 Yao public capability lanes');
   requireExactKeys(record, ['kind', 'lanes'], 'Ed25519 Yao public capability lanes');
   if (record.kind !== ED25519_YAO_PUBLIC_CAPABILITY_LANES_KIND_V1) {

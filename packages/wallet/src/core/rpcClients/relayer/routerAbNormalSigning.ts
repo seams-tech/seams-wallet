@@ -58,7 +58,7 @@ export class RouterAbSigningRequestError extends Error {
   }
 }
 
-export function routerAbNormalSigningAdmissionErrorFromPayload(args: {
+function routerAbNormalSigningAdmissionErrorFromPayload(args: {
   code: string;
   message: string;
   path: string;
@@ -104,7 +104,7 @@ export function routerAbNormalSigningAdmissionErrorFromPayload(args: {
   }
 }
 
-export type RouterAbOpaqueWalletSessionCredential = {
+type RouterAbOpaqueWalletSessionCredential = {
   kind: 'wallet_session_opaque';
   walletSessionToken: string;
 };
@@ -124,7 +124,7 @@ export type RouterAbPublicDigest32Wire = {
   bytes: readonly number[];
 };
 
-export type RouterAbCanonicalWireBytesV1Wire = {
+type RouterAbCanonicalWireBytesV1Wire = {
   bytes: readonly number[];
 };
 
@@ -136,12 +136,12 @@ export type RouterAbNormalSigningScopeV2Wire = {
   signing_worker_id: string;
 };
 
-export type RouterAbNormalSigningCommitmentsV1Wire = {
+type RouterAbNormalSigningCommitmentsV1Wire = {
   hiding: string;
   binding: string;
 };
 
-export type RouterAbServerIdentityV1Wire = {
+type RouterAbServerIdentityV1Wire = {
   server_id: string;
   key_epoch: string;
   recipient_encryption_key: string;
@@ -219,14 +219,14 @@ export type RouterAbNormalSigningPrepareRequestV2Wire = {
   signing_payload: RouterAbEd25519SigningPayloadV2Wire;
 };
 
-export type RouterAbEd25519NormalSigningPrepareBindingV2Wire = {
+type RouterAbEd25519NormalSigningPrepareBindingV2Wire = {
   server_round1_handle: string;
   round1_binding_digest: RouterAbPublicDigest32Wire;
   intent_digest: RouterAbPublicDigest32Wire;
   signing_payload_digest: RouterAbPublicDigest32Wire;
 };
 
-export type RouterAbEd25519NormalSigningFinalizeProtocolV2Wire = {
+type RouterAbEd25519NormalSigningFinalizeProtocolV2Wire = {
   kind: 'ed25519_two_party_frost_finalize_v1';
   client_commitments: RouterAbNormalSigningCommitmentsV1Wire;
   server_commitments: RouterAbNormalSigningCommitmentsV1Wire;
@@ -235,7 +235,7 @@ export type RouterAbEd25519NormalSigningFinalizeProtocolV2Wire = {
   client_signature_share_b64u: string;
 };
 
-export type RouterAbReusableWalletSessionAuthorizedOperationV1Wire = {
+type RouterAbReusableWalletSessionAuthorizedOperationV1Wire = {
   kind: 'reusable_wallet_session_authorized_operation_v1';
   authorized_operation_id: string;
   operation_id: string;
@@ -248,7 +248,7 @@ export type RouterAbReusableWalletSessionAuthorizedOperationV1Wire = {
   operation_fingerprint_digest: string;
 };
 
-export type RouterAbVerifiedStepUpAuthorizedOperationV1Wire = {
+type RouterAbVerifiedStepUpAuthorizedOperationV1Wire = {
   kind: 'verified_step_up_authorized_operation_v1';
   authorization_session_id: string;
   evidence_set_digest: string;
@@ -332,7 +332,7 @@ export type RouterAbNormalSigningResponseV1Wire = {
   signed_at_ms: number;
 };
 
-export type RouterAbEd25519NormalSigningAdmissionMaterialV2Wire = {
+type RouterAbEd25519NormalSigningAdmissionMaterialV2Wire = {
   intentDigest: RouterAbPublicDigest32Wire;
   signingPayloadDigest: RouterAbPublicDigest32Wire;
   admittedSigningDigest: RouterAbPublicDigest32Wire;
@@ -398,7 +398,7 @@ function normalizeNonceToB64u(value: string, label: string): string {
   return base64UrlEncode(bytes);
 }
 
-export function routerAbDigest32Wire(bytes: Uint8Array): RouterAbPublicDigest32Wire {
+function routerAbDigest32Wire(bytes: Uint8Array): RouterAbPublicDigest32Wire {
   return { bytes: [...requireByteArray([...bytes], 'digest bytes', 32)] };
 }
 
@@ -413,7 +413,7 @@ export async function routerAbNormalSigningActionFingerprint(value: unknown): Pr
   return base64UrlEncode(await sha256Bytes(new TextEncoder().encode(alphabetizeStringify(value))));
 }
 
-export function routerAbEd25519Nep413CanonicalMessageB64uV2(args: {
+function routerAbEd25519Nep413CanonicalMessageB64uV2(args: {
   message: string;
   recipient: string;
   nonce: string;
@@ -712,7 +712,7 @@ export function buildRouterAbEd25519NormalSigningFinalizeRequestV2(args: {
   throw new Error('Router A/B normal-signing authorization changed after prepare');
 }
 
-export async function deriveRouterAbNormalSigningAdmissionMaterialV2(
+async function deriveRouterAbNormalSigningAdmissionMaterialV2(
   request: RouterAbNormalSigningPrepareRequestV2Wire,
 ): Promise<RouterAbEd25519NormalSigningAdmissionMaterialV2Wire> {
   const intentDigest = routerAbDigest32Wire(

@@ -11,7 +11,7 @@ import {
 
 export { getPrfFirstB64uFromCredential, redactCredentialExtensionOutputs };
 
-export type ThresholdAuthenticatorRecord = ProfileAuthenticatorRecord & WebAuthnAuthenticatorRecord;
+type ThresholdAuthenticatorRecord = ProfileAuthenticatorRecord & WebAuthnAuthenticatorRecord;
 export type ThresholdCredentialStorePort =
   WebAuthnCredentialStorePort<ThresholdAuthenticatorRecord>;
 export type ThresholdWebAuthnPromptPort = WebAuthnPromptPort;

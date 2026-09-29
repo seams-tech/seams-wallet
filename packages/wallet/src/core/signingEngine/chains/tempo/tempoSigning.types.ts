@@ -7,7 +7,7 @@ import type {
   EvmSigningRequest,
 } from '../evm/evmSigning.types';
 
-export type TempoRlpValue = Uint8Array | TempoRlpValue[];
+type TempoRlpValue = Uint8Array | TempoRlpValue[];
 
 export type TempoCall = {
   to: EvmAddress; // 20 bytes
@@ -16,7 +16,7 @@ export type TempoCall = {
   abi?: EvmContractAbi; // optional ABI used for tx confirmer calldata decoding
 };
 
-export type TempoFeePayerSignature =
+type TempoFeePayerSignature =
   | { kind: 'none' }
   | { kind: 'placeholder' }
   | { kind: 'signed'; v: 0 | 1; r: Hex; s: Hex };

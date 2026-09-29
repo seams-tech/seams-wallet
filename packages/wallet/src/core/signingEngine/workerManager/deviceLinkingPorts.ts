@@ -73,7 +73,7 @@ export type DeviceLinkingOrdinarySignerMaterialRecipientInputTupleV1 =
 export type DeviceLinkingOrdinaryTargetFactorBindingV1 =
   WalletAuthorityLinkedMaterialTargetFactorV1;
 
-export type DeviceLinkingOrdinarySignerMaterialPreparationResultV1 = {
+type DeviceLinkingOrdinarySignerMaterialPreparationResultV1 = {
   readonly kind: 'device_linking_ordinary_signer_material_preparation_v1';
   readonly targetFactor: DeviceLinkingOrdinaryTargetFactorBindingV1;
   readonly preparations: readonly [
@@ -126,7 +126,7 @@ export type DeviceLinkingOrdinaryMaterialWorkerPrivateRequestV1 = {
   readonly factorSecret: ArrayBuffer;
 };
 
-export type DeviceLinkingOrdinaryMaterialWorkerRequestSenderV1 = (
+type DeviceLinkingOrdinaryMaterialWorkerRequestSenderV1 = (
   request:
     | DeviceLinkingOrdinaryMaterialWorkerRequestV1
     | DeviceLinkingOrdinaryMaterialWorkerPrivateRequestV1,
@@ -178,7 +178,7 @@ export type DeviceLinkingOrdinaryMaterialSealerV1 = {
   }): Promise<SealedLocalAuthorityMaterialSetV1>;
 };
 
-export function targetFactorBindingV1(
+function targetFactorBindingV1(
   targetFactor: VerifiedTargetFactorV1,
 ): DeviceLinkingOrdinaryTargetFactorBindingV1 {
   const authMethod = parseWalletAuthMethodId(targetFactor.authMethod.walletAuthMethodId);
@@ -331,7 +331,7 @@ export function assertOrdinaryExportRootResealingMatchesCommittedV1(input: {
   });
 }
 
-export function assertOrdinaryExportRootResealingMatchesIdentityV1(input: {
+function assertOrdinaryExportRootResealingMatchesIdentityV1(input: {
   readonly authorityId: WalletAuthorityId;
   readonly walletAuthMethodId: WalletAuthMethodId;
   readonly walletKeyId: WalletKeyId | null;
@@ -364,7 +364,7 @@ export function assertOrdinaryExportRootResealingMatchesIdentityV1(input: {
   };
 }
 
-export function parseOrdinaryResealedExportRootRecordV1(
+function parseOrdinaryResealedExportRootRecordV1(
   value: unknown,
 ): OrdinaryMaterialResealedExportRootV1 | null {
   if (value === null) return null;

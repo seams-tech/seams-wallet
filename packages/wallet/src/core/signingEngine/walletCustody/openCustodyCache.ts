@@ -162,7 +162,7 @@ export async function openWalletCustodyEd25519ActiveClientV1(input: {
   });
 }
 
-export type WalletCustodyUnlockResultV1 =
+type WalletCustodyUnlockResultV1 =
   | {
       readonly kind: 'opened';
       readonly activeClient: RouterAbEd25519YaoActiveClientV1;

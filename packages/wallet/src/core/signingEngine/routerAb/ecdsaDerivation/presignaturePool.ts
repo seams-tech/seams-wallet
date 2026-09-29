@@ -257,7 +257,7 @@ type RouterAbEcdsaDerivationCoordinatorOk = {
   recId: number;
 };
 
-export type RouterAbEcdsaDerivationCoordinatorResult =
+type RouterAbEcdsaDerivationCoordinatorResult =
   RouterAbEcdsaDerivationCoordinatorOk | RouterAbEcdsaDerivationCoordinatorError;
 
 type RouterAbEcdsaDerivationSigningPreparationState =
@@ -1923,7 +1923,7 @@ export async function signRouterAbEcdsaDerivationDigestWithPool(
   }
 }
 
-export async function refillRouterAbEcdsaDerivationClientPresignaturePool(
+async function refillRouterAbEcdsaDerivationClientPresignaturePool(
   args: RouterAbEcdsaDerivationClientPresignatureRefillInput & {
     trafficClass: 'foreground' | 'background';
   },

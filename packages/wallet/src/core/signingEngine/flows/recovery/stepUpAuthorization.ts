@@ -33,13 +33,13 @@ type ExportAuthorizationIdentity =
   | EcdsaExportAuthorizationIdentity
   | Ed25519ExportAuthorizationIdentity;
 
-export type EcdsaExportPasskeyStepUpAuthorization = PasskeyStepUpAuthorization<
+type EcdsaExportPasskeyStepUpAuthorization = PasskeyStepUpAuthorization<
   Extract<SigningAuthPlan, { kind: typeof SigningAuthPlanKind.PasskeyReauth }>,
   EcdsaExportAuthorizationIdentity
 > &
   EcdsaExportAuthorizationIdentity;
 
-export type Ed25519ExportPasskeyStepUpAuthorization = PasskeyStepUpAuthorization<
+type Ed25519ExportPasskeyStepUpAuthorization = PasskeyStepUpAuthorization<
   Extract<SigningAuthPlan, { kind: typeof SigningAuthPlanKind.PasskeyReauth }>,
   Ed25519ExportAuthorizationIdentity
 > &
@@ -49,7 +49,7 @@ export type ExportPasskeyStepUpAuthorization =
   | EcdsaExportPasskeyStepUpAuthorization
   | Ed25519ExportPasskeyStepUpAuthorization;
 
-export type EcdsaExportEmailOtpStepUpAuthorization = EmailOtpStepUpAuthorization<
+type EcdsaExportEmailOtpStepUpAuthorization = EmailOtpStepUpAuthorization<
   Extract<SigningAuthPlan, { kind: typeof SigningAuthPlanKind.EmailOtpReauth }>,
   EcdsaExportAuthorizationIdentity
 > &

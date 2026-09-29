@@ -241,7 +241,7 @@ export type SetTempoFeeTokenPreferenceArgs = {
   };
 };
 
-export type RegisterNearImplicitWalletArgs = {
+type RegisterNearImplicitWalletArgs = {
   accountProvisioning?: Extract<RegistrationNearAccountProvisioning, { kind: 'implicit_account' }>;
   nearAccountId?: never;
   wallet?: Extract<RegisterWalletInput, { kind: 'provided' }>;
@@ -249,7 +249,7 @@ export type RegisterNearImplicitWalletArgs = {
   options?: RegistrationHooksOptions;
 };
 
-export type RegisterNearSponsoredWalletArgs = {
+type RegisterNearSponsoredWalletArgs = {
   accountProvisioning: Extract<
     RegistrationNearAccountProvisioning,
     { kind: 'sponsored_named_account' }
@@ -260,9 +260,7 @@ export type RegisterNearSponsoredWalletArgs = {
   options?: RegistrationHooksOptions;
 };
 
-export type RegisterNearWalletArgs =
-  | RegisterNearImplicitWalletArgs
-  | RegisterNearSponsoredWalletArgs;
+type RegisterNearWalletArgs = RegisterNearImplicitWalletArgs | RegisterNearSponsoredWalletArgs;
 
 export type FundImplicitNearAccountForTestingResult =
   | {
@@ -284,7 +282,7 @@ export type PasskeyRegistrationOptions = RegistrationHooksOptions & {
   nearAccountProvisioning?: SeamsRegistrationNearAccountProvisioning;
 };
 
-export type RegisterEvmWalletArgs = {
+type RegisterEvmWalletArgs = {
   chainTargets: readonly ThresholdEcdsaChainTarget[];
   participantIds: readonly number[];
   authMethod: RegistrationAuthMethodInput;
@@ -336,7 +334,7 @@ export type FinalizedEvmEip1559PayloadExpectation = {
   input: EvmBytes;
 };
 
-export type FinalizedTempoEip2718CallPayloadExpectation = {
+type FinalizedTempoEip2718CallPayloadExpectation = {
   to: EvmAddress;
   input: EvmBytes;
 };
@@ -353,19 +351,19 @@ export type FinalizedEvmTxPayloadExpectation =
   | FinalizedEvmEip1559PayloadExpectation
   | FinalizedTempoEip2718PayloadExpectation;
 
-export type FinalizedEvmEip1559PayloadObservation = {
+type FinalizedEvmEip1559PayloadObservation = {
   kind: 'evm_eip1559';
   to: string | null;
   input: string | null;
 };
 
-export type FinalizedTempoEip2718CallPayloadObservation = {
+type FinalizedTempoEip2718CallPayloadObservation = {
   to: string | null;
   input: string | null;
   data: string | null;
 };
 
-export type FinalizedTempoEip2718PayloadObservation = {
+type FinalizedTempoEip2718PayloadObservation = {
   kind: 'tempo_eip2718_calls';
   calls: readonly FinalizedTempoEip2718CallPayloadObservation[];
 };
@@ -420,7 +418,7 @@ type WithOptionalChainId<TRequest extends { tx: { chainId: number } }> = Omit<TR
 };
 
 /** Execute an EIP-1559 transaction on a configured EVM chain. */
-export type ExecuteEvmTransactionArgs = Omit<ExecuteEvmFamilyTransactionBaseArgs, 'chainTarget'> & {
+type ExecuteEvmTransactionArgs = Omit<ExecuteEvmFamilyTransactionBaseArgs, 'chainTarget'> & {
   /** A configured EVM network slug, or an exact target. */
   chainTarget: EvmChainSelector;
   request: WithOptionalChainId<EvmSigningRequest>;
@@ -428,10 +426,7 @@ export type ExecuteEvmTransactionArgs = Omit<ExecuteEvmFamilyTransactionBaseArgs
 };
 
 /** Execute an EIP-2718 typed transaction on a configured Tempo chain. */
-export type ExecuteTempoTransactionArgs = Omit<
-  ExecuteEvmFamilyTransactionBaseArgs,
-  'chainTarget'
-> & {
+type ExecuteTempoTransactionArgs = Omit<ExecuteEvmFamilyTransactionBaseArgs, 'chainTarget'> & {
   /** A configured Tempo network slug, or an exact target. */
   chainTarget: TempoChainSelector;
   request: WithOptionalChainId<TempoSigningRequest>;
@@ -644,7 +639,7 @@ export type GoogleEmailOtpWalletAuthRegistrationCompleted = {
   mode: 'register';
 };
 
-export type GoogleEmailOtpWalletAuthBaseFlow = {
+type GoogleEmailOtpWalletAuthBaseFlow = {
   kind: 'google_email_otp_wallet_auth_flow_v1';
   flowId: string;
   requestedMode: GoogleEmailOtpWalletAuthRequestedMode;
@@ -881,7 +876,7 @@ export interface RegistrationCapability {
  * wallet and its NEAR account. Pass them explicitly to target an exact subject —
  * required whenever the application manages more than one wallet at a time.
  */
-export type NearSubjectInput = {
+type NearSubjectInput = {
   /** A `WalletSessionRef`, or a bare wallet id. */
   walletSession?: WalletSessionInput;
   /** A `NearAccountRef`, or a bare NEAR account id. */
@@ -970,7 +965,7 @@ export interface NearSignerCapability {
  * Post-broadcast lifecycle. `executeTransaction` drives all of it; reach for
  * these only when your application broadcasts the signed payload itself.
  */
-export interface EvmFamilyAdvancedCapability {
+interface EvmFamilyAdvancedCapability {
   reportBroadcastAccepted(args: ReportTempoBroadcastAcceptedArgs): Promise<void>;
   reportBroadcastRejected(args: ReportTempoBroadcastRejectedArgs): Promise<void>;
   reportFinalized(args: ReportTempoFinalizedArgs): Promise<void>;
@@ -1101,7 +1096,7 @@ export interface DevicesCapability {
   }): Promise<LinkedDeviceRevokeResultV1>;
 }
 
-export type KeyExportUiOptions = SigningEngineExportKeypairWithUIInput['options'];
+type KeyExportUiOptions = SigningEngineExportKeypairWithUIInput['options'];
 
 /** Every field of the UI options is optional, so the bag itself is too. */
 type WithOptionalOptions<T> = T extends unknown

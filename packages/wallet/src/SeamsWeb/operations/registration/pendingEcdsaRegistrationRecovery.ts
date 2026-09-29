@@ -38,7 +38,7 @@ type PendingEcdsaRecoveryCommon = {
   readonly ports: PendingEcdsaRegistrationRecoveryPorts;
 };
 
-export type ResumePendingEcdsaRegistrationInput =
+type ResumePendingEcdsaRegistrationInput =
   | (PendingEcdsaRecoveryCommon & {
       readonly exactMethod: Extract<PendingRegistrationExactMethod, { readonly kind: 'passkey' }>;
     })

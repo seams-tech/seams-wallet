@@ -116,7 +116,7 @@ export type EvmFamilyEmailOtpTransactionSigningBridge = {
  * capability's own: the provider identity and email binding the manifest
  * already carries. The exact operation is named here too, so one challenge
  * cannot be minted for one operation and spent on another. */
-export type EmailOtpEcdsaCapabilityStepUpAuthority = {
+type EmailOtpEcdsaCapabilityStepUpAuthority = {
   kind: 'capability_step_up';
   capabilityAuthority: EmailOtpWalletAuthAuthority;
   materialActivation: MpcMaterialActivationRef;

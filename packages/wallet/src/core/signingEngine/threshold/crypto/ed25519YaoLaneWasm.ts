@@ -122,7 +122,7 @@ function requestJson(value: unknown): string {
   return value;
 }
 
-export type Ed25519YaoLaneWorkerSourceV1 = {
+type Ed25519YaoLaneWorkerSourceV1 = {
   readonly sourceHandle: string;
   discard(): Promise<void>;
   prepareSourcePreservingRegistration(input: {

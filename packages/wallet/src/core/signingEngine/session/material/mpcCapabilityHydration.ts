@@ -98,7 +98,7 @@ class MpcUseLiveRuntimeHydrationPlanProof extends MpcHydrationProof {
   }
 }
 
-export type MpcUseLiveRuntimeHydrationPlan = MpcUseLiveRuntimeHydrationPlanProof &
+type MpcUseLiveRuntimeHydrationPlan = MpcUseLiveRuntimeHydrationPlanProof &
   MpcUseLiveRuntimeHydrationPlanFields;
 
 type MpcRehydrateMaterialActivationHydrationPlanFields = {
@@ -134,7 +134,7 @@ class MpcRehydrateMaterialActivationHydrationPlanProof extends MpcHydrationProof
   }
 }
 
-export type MpcRehydrateMaterialActivationHydrationPlan =
+type MpcRehydrateMaterialActivationHydrationPlan =
   MpcRehydrateMaterialActivationHydrationPlanProof &
     MpcRehydrateMaterialActivationHydrationPlanFields;
 
@@ -171,7 +171,7 @@ class MpcReauthorizePublicAnchorHydrationPlanProof extends MpcHydrationProof {
   }
 }
 
-export type MpcReauthorizePublicAnchorHydrationPlan = MpcReauthorizePublicAnchorHydrationPlanProof &
+type MpcReauthorizePublicAnchorHydrationPlan = MpcReauthorizePublicAnchorHydrationPlanProof &
   MpcReauthorizePublicAnchorHydrationPlanFields;
 
 export type MpcCapabilityHydrationBlockedReason =
@@ -225,7 +225,7 @@ class MpcKnownCapabilityBlockedHydrationPlanProof extends MpcBlockedCapabilityHy
   }
 }
 
-export type MpcBlockedCapabilityHydrationPlan =
+type MpcBlockedCapabilityHydrationPlan =
   | (MpcMissingCapabilityHydrationPlanProof & MpcBlockedCapabilityHydrationPlanFields)
   | (MpcKnownCapabilityBlockedHydrationPlanProof & MpcBlockedCapabilityHydrationPlanFields);
 

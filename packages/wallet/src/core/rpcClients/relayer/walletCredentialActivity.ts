@@ -20,12 +20,12 @@ export type WalletCredentialActivityProjection = {
   readonly activity: WalletCredentialActivityRecordV1;
 };
 
-export type WalletCredentialActivityListResult =
+type WalletCredentialActivityListResult =
   | { readonly kind: 'listed'; readonly credentials: readonly WalletCredentialActivityProjection[] }
   | { readonly kind: 'unauthorized'; readonly message: string }
   | { readonly kind: 'transport_failed'; readonly message: string };
 
-export type WalletCredentialRenameResult =
+type WalletCredentialRenameResult =
   | { readonly kind: 'renamed'; readonly credential: WalletCredentialActivityProjection }
   | { readonly kind: 'missing'; readonly message: string }
   | { readonly kind: 'conflict'; readonly message: string }

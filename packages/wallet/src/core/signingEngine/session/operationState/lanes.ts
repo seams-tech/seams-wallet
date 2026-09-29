@@ -27,11 +27,8 @@ import type {
   WalletSessionId,
 } from '@shared/authorization/capabilityKinds';
 
-export type Ed25519PasskeySigningLaneSource = Exclude<
-  ThresholdEd25519SessionStoreSource,
-  'email_otp'
->;
-export type EcdsaPasskeySigningLaneSource = Exclude<ThresholdEcdsaSessionStoreSource, 'email_otp'>;
+type Ed25519PasskeySigningLaneSource = Exclude<ThresholdEd25519SessionStoreSource, 'email_otp'>;
+type EcdsaPasskeySigningLaneSource = Exclude<ThresholdEcdsaSessionStoreSource, 'email_otp'>;
 
 type CommonSigningLaneInput = {
   retention?: SigningSessionRetention;
@@ -60,24 +57,24 @@ type OptionalRetention<TLane extends NearTransactionSigningLane | EcdsaTransacti
 type BuildSigningLaneInput<TLane extends NearTransactionSigningLane | EcdsaTransactionSigningLane> =
   OptionalRetention<TLane>;
 
-export type Ed25519PasskeySigningLaneInput = BaseEd25519SigningLaneInput & {
+type Ed25519PasskeySigningLaneInput = BaseEd25519SigningLaneInput & {
   thresholdSessionId: ThresholdEd25519SessionId;
   storageSource: Ed25519PasskeySigningLaneSource;
   sessionOrigin?: SigningSessionOrigin;
 };
 
-export type Ed25519EmailOtpSigningLaneInput = BaseEd25519SigningLaneInput & {
+type Ed25519EmailOtpSigningLaneInput = BaseEd25519SigningLaneInput & {
   thresholdSessionId: ThresholdEd25519SessionId;
   sessionOrigin?: SigningSessionOrigin;
 };
 
-export type EcdsaPasskeySigningLaneInput = BaseEcdsaSigningLaneInput & {
+type EcdsaPasskeySigningLaneInput = BaseEcdsaSigningLaneInput & {
   chainTarget: ThresholdEcdsaChainTarget;
   storageSource: EcdsaPasskeySigningLaneSource;
   sessionOrigin?: SigningSessionOrigin;
 };
 
-export type EcdsaEmailOtpSigningLaneInput = BaseEcdsaSigningLaneInput & {
+type EcdsaEmailOtpSigningLaneInput = BaseEcdsaSigningLaneInput & {
   chainTarget: ThresholdEcdsaChainTarget;
   sessionOrigin?: SigningSessionOrigin;
 };
@@ -90,19 +87,19 @@ type EmailOtpSigningLaneAuthInput = {
   auth: Extract<SigningLaneAuthBinding, { kind: 'email_otp' }>;
 };
 
-export type Ed25519PasskeyTransactionSigningLaneInput = PasskeySigningLaneAuthInput &
+type Ed25519PasskeyTransactionSigningLaneInput = PasskeySigningLaneAuthInput &
   Ed25519PasskeySigningLaneInput;
-export type Ed25519EmailOtpTransactionSigningLaneInput = EmailOtpSigningLaneAuthInput &
+type Ed25519EmailOtpTransactionSigningLaneInput = EmailOtpSigningLaneAuthInput &
   Ed25519EmailOtpSigningLaneInput;
-export type NearTransactionSigningLaneInput =
+type NearTransactionSigningLaneInput =
   | Ed25519PasskeyTransactionSigningLaneInput
   | Ed25519EmailOtpTransactionSigningLaneInput;
 
-export type EcdsaPasskeyTransactionSigningLaneInput = PasskeySigningLaneAuthInput &
+type EcdsaPasskeyTransactionSigningLaneInput = PasskeySigningLaneAuthInput &
   EcdsaPasskeySigningLaneInput;
-export type EcdsaEmailOtpTransactionSigningLaneInput = EmailOtpSigningLaneAuthInput &
+type EcdsaEmailOtpTransactionSigningLaneInput = EmailOtpSigningLaneAuthInput &
   EcdsaEmailOtpSigningLaneInput;
-export type EcdsaTransactionSigningLaneInput =
+type EcdsaTransactionSigningLaneInput =
   | EcdsaPasskeyTransactionSigningLaneInput
   | EcdsaEmailOtpTransactionSigningLaneInput;
 
@@ -130,7 +127,7 @@ export function buildEd25519PasskeySigningLane(
   });
 }
 
-export function buildEd25519EmailOtpSigningLane(
+function buildEd25519EmailOtpSigningLane(
   input: EmailOtpSigningLaneAuthInput & Ed25519EmailOtpSigningLaneInput,
 ): NearTransactionSigningLane {
   const selectedLane = selectedEd25519Lane({
@@ -153,7 +150,7 @@ export function buildEd25519EmailOtpSigningLane(
   });
 }
 
-export function buildEcdsaPasskeySigningLane(
+function buildEcdsaPasskeySigningLane(
   input: PasskeySigningLaneAuthInput & EcdsaPasskeySigningLaneInput,
 ): EcdsaTransactionSigningLane {
   const selectedLane = selectedEcdsaLane({
@@ -176,7 +173,7 @@ export function buildEcdsaPasskeySigningLane(
   });
 }
 
-export function buildEcdsaEmailOtpSigningLane(
+function buildEcdsaEmailOtpSigningLane(
   input: EmailOtpSigningLaneAuthInput & EcdsaEmailOtpSigningLaneInput,
 ): EcdsaTransactionSigningLane {
   const selectedLane = selectedEcdsaLane({

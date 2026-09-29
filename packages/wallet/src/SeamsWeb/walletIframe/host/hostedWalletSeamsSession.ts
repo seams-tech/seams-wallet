@@ -17,7 +17,7 @@ export type HostedWalletSessionOperationCredentialV1 = {
   readonly walletSessionId: WalletSessionId;
 };
 
-export type HostedWalletSeamsSession = {
+type HostedWalletSeamsSession = {
   readonly kind: 'active_hosted_wallet_seams_session';
   readonly walletSessionId: WalletSessionId;
   readonly operationCredential: HostedWalletSessionOperationCredentialV1;
@@ -79,7 +79,7 @@ function canonicalOrigin(value: unknown, label: string): string {
   return parsed.origin;
 }
 
-export function canonicalRelayUrl(value: unknown): string {
+function canonicalRelayUrl(value: unknown): string {
   if (typeof value !== 'string' || value.length === 0 || value.trim() !== value) {
     throw new Error('relayUrl must be a non-empty canonical string');
   }

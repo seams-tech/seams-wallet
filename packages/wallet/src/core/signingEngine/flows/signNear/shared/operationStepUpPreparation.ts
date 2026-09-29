@@ -29,7 +29,7 @@ export type PreparedNearOperationStepUp =
       unsignedTransactionBorshB64u?: never;
     });
 
-export type NearOperationStepUpBuilderInput =
+type NearOperationStepUpBuilderInput =
   | {
       kind: 'near_transaction';
       transactionContext: TransactionContext;

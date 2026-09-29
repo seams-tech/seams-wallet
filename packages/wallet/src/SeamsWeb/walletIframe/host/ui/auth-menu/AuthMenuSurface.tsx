@@ -452,7 +452,7 @@ function accountGroups(options: readonly AuthMenuAccountOption[]): AuthMenuAccou
   return groups.filter((group) => group.accounts.length > 0);
 }
 
-export type AuthMenuSurfaceProps = {
+type AuthMenuSurfaceProps = {
   readonly viewModel: AuthMenuViewModel;
   readonly element: HTMLElement;
   readonly onIntent: (intent: AuthMenuIntent) => void;

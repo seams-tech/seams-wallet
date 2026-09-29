@@ -126,7 +126,7 @@ export type ThresholdEcdsaDerivationRoleLocalBootstrapValue = {
   routerAbEcdsaDerivationNormalSigning: RouterAbEcdsaDerivationNormalSigningStateV1;
 };
 
-export type ThresholdEcdsaDerivationRoleLocalRouteResult<T> =
+type ThresholdEcdsaDerivationRoleLocalRouteResult<T> =
   | { ok: true; value: T }
   | { ok: false; code?: string; message?: string; error?: string };
 

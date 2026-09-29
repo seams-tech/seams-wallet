@@ -78,7 +78,7 @@ export interface AuthenticationExtensionsClientOutputs {
  * PRF Extension Outputs
  * Equivalent to PrfResults in Rust
  */
-export interface AuthenticationExtensionsPRFOutputs {
+interface AuthenticationExtensionsPRFOutputs {
   /** PRF evaluation results (the actual PRF outputs) */
   results: AuthenticationExtensionsPRFValues;
 }
@@ -87,7 +87,7 @@ export interface AuthenticationExtensionsPRFOutputs {
  * PRF Extension Values
  * Equivalent to PrfOutputs in Rust
  */
-export interface AuthenticationExtensionsPRFValues {
+interface AuthenticationExtensionsPRFValues {
   /** First PRF output (Base64URL encoded) */
   first: string | undefined;
 

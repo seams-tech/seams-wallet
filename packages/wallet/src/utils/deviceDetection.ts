@@ -2,13 +2,13 @@
  * Device detection utilities for camera and UI optimization
  */
 
-export type DeviceType = 'mobile' | 'tablet' | 'desktop';
-export type CameraFacingMode = 'user' | 'environment';
+type DeviceType = 'mobile' | 'tablet' | 'desktop';
+type CameraFacingMode = 'user' | 'environment';
 
 /**
  * Detects the current device type based on multiple indicators
  */
-export const detectDeviceType = (): DeviceType => {
+const detectDeviceType = (): DeviceType => {
   // Method 1: User agent detection
   const userAgent = navigator.userAgent.toLowerCase();
   const isMobileUA = /android|iphone|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
@@ -39,7 +39,7 @@ export const detectDeviceType = (): DeviceType => {
  * Basic Safari detection (desktop Safari). Note: all iOS browsers use WebKit,
  * so use isIOS() to capture iOS Safari-like restrictions.
  */
-export const isSafari = (): boolean => {
+const isSafari = (): boolean => {
   try {
     const ua = navigator.userAgent;
     const isSafariEngine =
@@ -54,7 +54,7 @@ export const isSafari = (): boolean => {
  * Detect iOS (covers iPhone/iPad/iPod and iPadOS with desktop UA).
  * iOS has WebAuthn user-activation quirks that are shared by all iOS browsers.
  */
-export const isIOS = (): boolean => {
+const isIOS = (): boolean => {
   try {
     const ua = navigator.userAgent;
     const platform = (navigator as any).platform || '';
@@ -72,7 +72,7 @@ export const isIOS = (): boolean => {
  * Returns true when the page currently has a transient user activation
  * (click/tap/key within the allowed time window).
  */
-export const hasActiveUserActivation = (): boolean => {
+const hasActiveUserActivation = (): boolean => {
   try {
     const ua = (navigator as any).userActivation;
     return !!(ua && typeof ua.isActive === 'boolean' && ua.isActive);
@@ -118,13 +118,6 @@ export const getOptimalCameraFacingMode = (): CameraFacingMode => {
 /**
  * Check if the current device is likely mobile
  */
-export const isMobileDevice = (): boolean => {
+const isMobileDevice = (): boolean => {
   return detectDeviceType() === 'mobile';
-};
-
-/**
- * Check if the current device supports touch
- */
-export const isTouchDevice = (): boolean => {
-  return navigator.maxTouchPoints > 0;
 };

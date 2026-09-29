@@ -1,4 +1,4 @@
-export const DEFAULT_ROUTER_AB_ECDSA_DERIVATION_REQUEST_TIMEOUT_MS = 20_000;
+const DEFAULT_ROUTER_AB_ECDSA_DERIVATION_REQUEST_TIMEOUT_MS = 20_000;
 
 function resolveRequestTimeoutMs(timeoutMs: number | undefined): number {
   const parsed = Math.floor(Number(timeoutMs));

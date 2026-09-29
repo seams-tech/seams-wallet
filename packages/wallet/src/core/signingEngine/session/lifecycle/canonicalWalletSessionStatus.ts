@@ -8,7 +8,7 @@ import {
   type WalletSessionStatusIdentity,
 } from './walletSessionStatus';
 
-export type CanonicalWalletSessionStatusReaderDeps = {
+type CanonicalWalletSessionStatusReaderDeps = {
   readonly relayerUrl: string;
   readonly readAuthorization: (
     walletId: WalletId,

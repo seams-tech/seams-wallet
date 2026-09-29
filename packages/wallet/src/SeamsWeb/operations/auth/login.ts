@@ -371,7 +371,7 @@ function resolveLoginWalletUnlockSelection(
   return assertNeverLoginState(selection);
 }
 
-export function resolveLoginWalletUnlockSelectionForSubjectSet(args: {
+function resolveLoginWalletUnlockSelectionForSubjectSet(args: {
   selection: LoginHooksOptions['unlockSelection'] | undefined;
   subjectSet: WalletUnlockSubjectSet;
 }): WalletUnlockSelection {
@@ -805,18 +805,18 @@ export type LinkedDevicePasskeyAuthoritySelection = LinkedDeviceAuthoritySelecti
     readonly exportRoot: WalletAuthorityExportRootRecordV1 | null;
   }>;
 
-export type LinkedDeviceEmailOtpAuthoritySelection = LinkedDeviceAuthoritySelection &
+type LinkedDeviceEmailOtpAuthoritySelection = LinkedDeviceAuthoritySelection &
   Readonly<{
     readonly kind: 'linked_device_email_otp_authority_selection_v1';
     readonly authMethod: ActiveEmailOtpWalletAuthMethodRecordV2;
   }>;
 
-export type LinkedDeviceEmailOtpAuthorityResolution =
+type LinkedDeviceEmailOtpAuthorityResolution =
   | { readonly kind: 'none' }
   | { readonly kind: 'selected'; readonly selection: LinkedDeviceEmailOtpAuthoritySelection }
   | { readonly kind: 'rejected'; readonly message: string };
 
-export type LinkedDevicePasskeyOpenedMaterial = Extract<
+type LinkedDevicePasskeyOpenedMaterial = Extract<
   OpenWalletAuthorityLinkedSignerMaterialResultV1,
   { readonly kind: 'opened_wallet_authority_linked_signer_material_v1' }
 >;
@@ -1915,7 +1915,7 @@ type ThresholdLoginWarmupPhaseInput = {
   routeAuthorization: LoginWarmupRouteAuthorization;
 };
 
-export type LoginUnlockWarmupBranchPlan =
+type LoginUnlockWarmupBranchPlan =
   | {
       kind: 'near_ed25519_only';
       wantsEd25519Warmup: true;
@@ -1932,7 +1932,7 @@ export type LoginUnlockWarmupBranchPlan =
       wantsEcdsaWarmup: boolean;
     };
 
-export function resolveLoginUnlockWarmupBranchPlan(args: {
+function resolveLoginUnlockWarmupBranchPlan(args: {
   subjectSet: WalletUnlockSubjectSet;
   selection: WalletUnlockSelection;
   hasConfiguredEcdsaTargets: boolean;
@@ -4945,7 +4945,7 @@ async function validatePasskeyWalletSessionAuthorization(args: {
   return authority;
 }
 
-export function bindPasskeyEcdsaSessionPolicyToUnlockChallenge(
+function bindPasskeyEcdsaSessionPolicyToUnlockChallenge(
   policy: RouterAbEcdsaPostRegistrationSessionActivationPolicyV1,
   challengeId: string,
 ): RouterAbEcdsaPostRegistrationSessionActivationPolicyV1 {
@@ -5477,9 +5477,7 @@ async function runThresholdLoginWarmupTask(
   }
 }
 
-export async function runThresholdLoginWarmupTasks(
-  tasks: ThresholdLoginWarmupTask[],
-): Promise<void> {
+async function runThresholdLoginWarmupTasks(tasks: ThresholdLoginWarmupTask[]): Promise<void> {
   const pendingBySigner = new Map<ThresholdLoginWarmSigner, ThresholdLoginWarmupTask>();
   for (const task of tasks) {
     pendingBySigner.set(task.signer, task);
@@ -7092,7 +7090,7 @@ function repairedEcdsaSignerMetadata(args: {
   };
 }
 
-export async function persistAuthenticatedEcdsaInventoryProfileRepairs(args: {
+async function persistAuthenticatedEcdsaInventoryProfileRepairs(args: {
   store: AuthenticatedEcdsaInventoryProfileRepairStore;
   walletId: WalletId;
   configuredTargets: readonly ThresholdEcdsaChainTarget[];
@@ -7830,7 +7828,7 @@ function buildWalletSessionCapabilityProjection(args: {
   };
 }
 
-export function selectNearOperationalPublicKeyForLogin(
+function selectNearOperationalPublicKeyForLogin(
   userData: Pick<ClientUserData, 'operationalPublicKey'> | null,
 ): string | null {
   return userData ? userData.operationalPublicKey : null;

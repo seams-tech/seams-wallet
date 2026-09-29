@@ -12,7 +12,7 @@ export const WebAuthnBridgeMessage = {
   GetResult: 'WALLET_WEBAUTHN_GET_RESULT',
 } as const;
 
-export type BridgeKind = typeof WebAuthnBridgeMessage.Create | typeof WebAuthnBridgeMessage.Get;
+type BridgeKind = typeof WebAuthnBridgeMessage.Create | typeof WebAuthnBridgeMessage.Get;
 
 type ResultTypeFor<K extends BridgeKind> = K extends typeof WebAuthnBridgeMessage.Get
   ? typeof WebAuthnBridgeMessage.GetResult
@@ -33,7 +33,7 @@ type BridgeResponse = BridgeOk | BridgeErr;
 type AnyPublicKeyOptions = PublicKeyCredentialCreationOptions | PublicKeyCredentialRequestOptions;
 
 // Client interface used to request WebAuthn from the parent/top-level context
-export type ParentDomainWebAuthnClient = {
+type ParentDomainWebAuthnClient = {
   request<K extends BridgeKind>(
     kind: K,
     publicKey: AnyPublicKeyOptions,
@@ -51,15 +51,15 @@ interface OrchestratorDepsBase {
   abortSignal?: AbortSignal;
 }
 
-export type RegistrationOrchestratorDeps = OrchestratorDepsBase & {
+type RegistrationOrchestratorDeps = OrchestratorDepsBase & {
   registrationOriginPolicy: 'wallet_origin_only';
 };
 
-export type AuthenticationOrchestratorDeps = OrchestratorDepsBase & {
+type AuthenticationOrchestratorDeps = OrchestratorDepsBase & {
   registrationOriginPolicy?: never;
 };
 
-export class WalletOriginWebAuthnUnavailableError extends Error {
+class WalletOriginWebAuthnUnavailableError extends Error {
   readonly code = 'wallet_origin_webauthn_unavailable';
 
   constructor(message: string) {

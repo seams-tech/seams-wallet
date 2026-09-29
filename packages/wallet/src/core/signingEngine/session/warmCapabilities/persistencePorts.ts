@@ -11,7 +11,7 @@ import type {
 } from '@shared/authorization/capabilityKinds';
 import type { WarmSessionSealTransportInput } from '@/core/types/secure-confirm-worker';
 
-export type EmailOtpWarmSessionMaterial =
+type EmailOtpWarmSessionMaterial =
   | {
       kind: 'inline';
       clientSecretB64u: string;
@@ -23,7 +23,7 @@ export type EmailOtpWarmSessionMaterial =
       clientSecretB64u?: never;
     };
 
-export type PasskeyEcdsaWarmSessionMaterial = {
+type PasskeyEcdsaWarmSessionMaterial = {
   kind: 'ecdsa_prf_first';
   passkeyPrfFirstB64u: string;
   transport: WarmSessionSealTransportInput;
@@ -48,7 +48,7 @@ type BasePasskeyReadyPersistInput = {
   material?: never;
 };
 
-export type PasskeyReadyPersistenceSource =
+type PasskeyReadyPersistenceSource =
   | {
       kind: 'fresh_webauthn';
       credentialIdB64u: string;

@@ -42,7 +42,7 @@ type PendingEcdsaOnlyLocalMaterial = Extract<
   { readonly keyFamilies: readonly ['ecdsa_secp256k1'] }
 >;
 
-export type PendingEcdsaOnlyRegistrationCommit = Extract<
+type PendingEcdsaOnlyRegistrationCommit = Extract<
   PendingWalletRegistrationCommitV1,
   { readonly operation: 'registration_activate' }
 > & {
@@ -50,7 +50,7 @@ export type PendingEcdsaOnlyRegistrationCommit = Extract<
   readonly localMaterial: PendingEcdsaOnlyLocalMaterial;
 };
 
-export type PendingMixedEcdsaRegistrationCommit = Extract<
+type PendingMixedEcdsaRegistrationCommit = Extract<
   PendingWalletRegistrationCommitV1,
   { readonly operation: 'registration_activate' }
 > & {

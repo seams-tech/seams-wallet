@@ -66,7 +66,7 @@ export type NearEd25519MaterialIdentity = {
   readonly thresholdSessionId: ThresholdEd25519SessionId;
 };
 
-export type NearEd25519MaterialBoundaryInput = {
+type NearEd25519MaterialBoundaryInput = {
   readonly walletId: WalletId;
   readonly nearAccountId: AccountId;
 } & (

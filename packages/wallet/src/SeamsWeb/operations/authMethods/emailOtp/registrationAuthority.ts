@@ -7,7 +7,7 @@ import { requestEmailOtpEnrollmentChallenge } from '@/SeamsWeb/operations/authMe
 
 type FetchLike = typeof fetch;
 
-export type EmailOtpRegistrationAuthorityMaterial = {
+type EmailOtpRegistrationAuthorityMaterial = {
   kind: 'email_otp';
   proof: EmailOtpRegistrationProof;
   registrationAuthorityId: string;

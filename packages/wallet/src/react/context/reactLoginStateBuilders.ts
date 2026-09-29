@@ -6,12 +6,12 @@ import {
 import type { LoginState } from '../types';
 import { isWalletSessionReadyForUi } from './walletSessionReadiness';
 
-export type LinkedDeviceManagementPermission =
+type LinkedDeviceManagementPermission =
   | { readonly kind: 'unauthenticated' }
   | { readonly kind: 'owner' }
   | { readonly kind: 'signing_only' };
 
-export type AccountMenuCapabilities =
+type AccountMenuCapabilities =
   | {
       readonly kind: 'signed_out';
       readonly canExportKeys: false;
@@ -28,7 +28,7 @@ export type AccountMenuCapabilities =
       readonly canManageLinkedDevices: false;
     };
 
-export function linkedDeviceManagementPermissionForLoginState(
+function linkedDeviceManagementPermissionForLoginState(
   state: LoginState,
 ): LinkedDeviceManagementPermission {
   if (!state.isLoggedIn) return { kind: 'unauthenticated' };

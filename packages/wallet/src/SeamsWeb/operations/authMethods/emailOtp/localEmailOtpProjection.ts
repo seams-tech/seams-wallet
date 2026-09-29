@@ -26,7 +26,7 @@ import {
 import { buildWalletAuthMethodRecordV2, type WalletId } from '@shared/utils/registrationIntent';
 import { IndexedDBManager } from '@/core/indexedDB';
 
-export type FinalizedEmailOtpAuthMethodV1 = {
+type FinalizedEmailOtpAuthMethodV1 = {
   readonly walletId: WalletId;
   readonly walletAuthMethodId: WalletAuthMethodId | string;
   readonly walletAuthorityId: WalletAuthorityId | string;

@@ -13,7 +13,7 @@ export type TempoSignedResult = {
   managedNonce?: ManagedNonceReservationSnapshot;
 };
 
-export type TempoIntentUiModel = {
+type TempoIntentUiModel = {
   kind: 'tempoTransaction';
   tx: TempoUnsignedTx;
 };

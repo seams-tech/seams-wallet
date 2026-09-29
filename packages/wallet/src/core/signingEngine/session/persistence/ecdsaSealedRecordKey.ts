@@ -5,7 +5,7 @@ import {
 import type { MpcMaterialActivationRef } from '@shared/utils/domainIds';
 import type { SigningSessionSealAuthMethod } from '@shared/utils/signingSessionSeal';
 
-export type EcdsaSealedRecordKeyInput = {
+type EcdsaSealedRecordKeyInput = {
   walletId: string;
   authMethod: SigningSessionSealAuthMethod;
   chainTarget: ThresholdEcdsaChainTarget;

@@ -5,12 +5,7 @@ export type IconProps = React.SVGProps<SVGSVGElement> & {
   strokeWidth?: number;
 };
 
-export const EclipseIcon: React.FC<IconProps> = ({
-  size = 24,
-  strokeWidth = 2,
-  className,
-  ...rest
-}) => (
+const EclipseIcon: React.FC<IconProps> = ({ size = 24, strokeWidth = 2, className, ...rest }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     width={size}

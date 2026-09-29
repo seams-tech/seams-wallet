@@ -332,7 +332,7 @@ export type CancelRegistrationIntentResponse = {
   releasedServerAllocatedWalletId: boolean;
 };
 
-export type FundImplicitNearAccountForTestingResponse =
+type FundImplicitNearAccountForTestingResponse =
   | {
       ok: true;
       walletId: string;
@@ -398,7 +398,7 @@ function requireFundImplicitNearOptionalString(value: unknown, field: string): s
   return value;
 }
 
-export function parseFundImplicitNearAccountForTestingResponse(
+function parseFundImplicitNearAccountForTestingResponse(
   value: unknown,
 ): FundImplicitNearAccountForTestingResponse {
   const response = requireFundImplicitNearResponseObject(
@@ -1432,7 +1432,7 @@ type WalletRegistrationFinalizeManifest = {
   custodyKeyManifestDigestB64u?: string;
 };
 
-export type WalletRegistrationFinalizeResponseAuthority =
+type WalletRegistrationFinalizeResponseAuthority =
   | {
       rpId: string;
       authMethod: Extract<WalletRegistrationFinalizeAuthMethod, { kind: 'passkey' }>;
@@ -1460,7 +1460,7 @@ type WalletRegistrationFinalizeSignerResult =
       ed25519?: never;
     };
 
-export type EmailOtpWalletRegistrationFinalizeResponse = WalletRegistrationFinalizeResponseBase &
+type EmailOtpWalletRegistrationFinalizeResponse = WalletRegistrationFinalizeResponseBase &
   WalletRegistrationFinalizeManifest &
   Extract<WalletRegistrationFinalizeResponseAuthority, { authMethod: { kind: 'email_otp' } }> &
   WalletRegistrationFinalizeSignerResult;
@@ -1857,7 +1857,7 @@ function parseWalletAddAuthMethodFinalizeResponse(
   };
 }
 
-export function parseWalletAddAuthMethodStartResponse(args: {
+function parseWalletAddAuthMethodStartResponse(args: {
   readonly value: unknown;
   readonly expectedIntent: AddAuthMethodIntentV1;
 }): WalletAddAuthMethodStartResponse {
@@ -1970,7 +1970,7 @@ export type WalletAddSignerStartResponse =
       ed25519?: never;
     });
 
-export type WalletAddSignerEcdsaRespondResponse = {
+type WalletAddSignerEcdsaRespondResponse = {
   ok: true;
   addSignerCeremonyId: string;
   ecdsa: {
@@ -2729,7 +2729,7 @@ export function parseWalletAddSignerStartResponse(args: {
   }
 }
 
-export function parseWalletAddSignerFinalizeResponse(args: {
+function parseWalletAddSignerFinalizeResponse(args: {
   value: unknown;
   expectedKind: FinalizeWalletAddSignerArgs['kind'];
 }): WalletAddSignerFinalizeResponse {
@@ -3179,7 +3179,7 @@ export async function createWalletAddSignerIntent(args: {
   return parseCreateAddSignerIntentResponse(response);
 }
 
-export type RevokeWalletAuthMethodResponse =
+type RevokeWalletAuthMethodResponse =
   | {
       readonly ok: true;
       readonly walletId: WalletId;
@@ -4141,7 +4141,7 @@ export type WalletRegistrationNearProvisioningResponseV2 =
       nearProvisioning?: { status: 'near_failed_retryable' };
     };
 
-export type WalletRegistrationSessionSealResponse = {
+type WalletRegistrationSessionSealResponse = {
   readonly ciphertext: string;
   readonly keyVersion: string;
   readonly expiresAtMs: number;

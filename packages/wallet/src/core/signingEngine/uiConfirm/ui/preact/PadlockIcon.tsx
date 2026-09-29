@@ -1,6 +1,6 @@
 /** @jsxImportSource preact */
 
-export type PadlockIconProps = {
+type PadlockIconProps = {
   size?: string;
   strokeWidth?: number;
 };

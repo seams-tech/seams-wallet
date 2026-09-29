@@ -21,11 +21,11 @@ import {
   releaseDialogIframe,
 } from './overlay-styles';
 
-export type OverlayRenderMode = WalletIframeSurfaceRenderMode;
+type OverlayRenderMode = WalletIframeSurfaceRenderMode;
 
-export type OverlayDismissReason = 'backdrop' | 'escape';
+type OverlayDismissReason = 'backdrop' | 'escape';
 
-export type OverlayDismissEvent = {
+type OverlayDismissEvent = {
   identity: RequestSurfaceIdentity;
   authMenuSessionId?: HostedAuthMenuSessionId;
   reason: OverlayDismissReason;

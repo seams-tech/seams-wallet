@@ -26,7 +26,7 @@ import {
 import { IndexedDBManager, type LocalWalletAuthMethodRecord } from '@/core/indexedDB';
 
 /** The finalize fields this projection is built from, whichever route returned them. */
-export type FinalizedPasskeyAuthMethodV1 = {
+type FinalizedPasskeyAuthMethodV1 = {
   readonly walletId: WalletId;
   readonly rpId: string;
   readonly credentialIdB64u: string;
@@ -34,7 +34,7 @@ export type FinalizedPasskeyAuthMethodV1 = {
   readonly counter: number;
 };
 
-export function localPasskeyAuthMethodFromFinalizeV1(
+function localPasskeyAuthMethodFromFinalizeV1(
   args: FinalizedPasskeyAuthMethodV1,
 ): LocalWalletAuthMethodRecord & { kind: 'passkey' } {
   const parsedRpId = parseWebAuthnRpId(args.rpId);
@@ -128,7 +128,7 @@ export async function persistAddedCrossFamilyPasskeyV1(args: {
   });
 }
 
-export type SyncedPasskeyAuthMethodV2 = {
+type SyncedPasskeyAuthMethodV2 = {
   readonly walletId: WalletId;
   readonly walletAuthMethodId: WalletAuthMethodId;
   readonly walletAuthorityId: WalletAuthorityId;
@@ -138,7 +138,7 @@ export type SyncedPasskeyAuthMethodV2 = {
   readonly counter: number;
 };
 
-export function localPasskeyAuthMethodFromSyncV2(
+function localPasskeyAuthMethodFromSyncV2(
   args: SyncedPasskeyAuthMethodV2,
 ): ActivePasskeyWalletAuthMethodRecordV2 {
   const rpId = parseWebAuthnRpId(args.rpId);
@@ -177,8 +177,6 @@ export function localPasskeyAuthMethodFromSyncV2(
   return record;
 }
 
-export async function persistSyncedPasskeyAuthMethodV2(
-  args: SyncedPasskeyAuthMethodV2,
-): Promise<void> {
+async function persistSyncedPasskeyAuthMethodV2(args: SyncedPasskeyAuthMethodV2): Promise<void> {
   await IndexedDBManager.upsertWalletAuthMethodV2(localPasskeyAuthMethodFromSyncV2(args));
 }

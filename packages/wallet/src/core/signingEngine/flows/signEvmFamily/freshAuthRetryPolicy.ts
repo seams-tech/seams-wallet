@@ -32,11 +32,11 @@ export type EvmFamilySigningAuthSideEffect =
   | 'auth_confirmed'
   | 'threshold_reconnect';
 
-export type EvmFamilyFreshAuthRetryTrigger =
+type EvmFamilyFreshAuthRetryTrigger =
   | 'wallet_session_reauthorization_required'
   | 'wallet_signing_budget_exhausted';
 
-export type EvmFamilyFreshAuthRetryBlockedReason =
+type EvmFamilyFreshAuthRetryBlockedReason =
   | 'already_retrying'
   | 'non_secp256k1_sender'
   | 'auth_side_effect_started'
@@ -144,7 +144,7 @@ type EvmFamilyFreshAuthRetryInputBase = {
   sideEffectState: EvmFamilyFreshAuthRetrySideEffectState;
 };
 
-export type EvmFamilyFreshAuthRetryInput = EvmFamilyFreshAuthRetryInputBase &
+type EvmFamilyFreshAuthRetryInput = EvmFamilyFreshAuthRetryInputBase &
   (
     | {
         trigger: 'wallet_session_reauthorization_required';

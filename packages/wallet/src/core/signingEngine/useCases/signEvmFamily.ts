@@ -12,9 +12,9 @@ import {
   type WarmSessionBudgetSpend,
 } from './lifecycle';
 
-export type SignEvmFamilyFailure = UseCaseFailure<SignEvmFamilyFailureCode>;
+type SignEvmFamilyFailure = UseCaseFailure<SignEvmFamilyFailureCode>;
 
-export type SignEvmFamilyLaneResolution =
+type SignEvmFamilyLaneResolution =
   | {
       ok: true;
       lane: EcdsaUseCaseReadyLane;
@@ -35,7 +35,7 @@ export type SignEvmFamilyLaneResolution =
       >
     >;
 
-export type SignEvmFamilyBudgetResult =
+type SignEvmFamilyBudgetResult =
   | {
       ok: true;
       budgetSpend: WarmSessionBudgetSpend;
@@ -45,7 +45,7 @@ export type SignEvmFamilyBudgetResult =
     }
   | UseCaseFailure<Extract<SignEvmFamilyFailureCode, 'budget_exhausted' | 'invalid_state'>>;
 
-export type SignEvmFamilySigningResult =
+type SignEvmFamilySigningResult =
   | SignEvmFamilySuccess
   | UseCaseFailure<
       Extract<
@@ -54,7 +54,7 @@ export type SignEvmFamilySigningResult =
       >
     >;
 
-export type SignEvmFamilyDeps = {
+type SignEvmFamilyDeps = {
   laneResolver: {
     resolve(input: SignEvmFamilyInput): Promise<SignEvmFamilyLaneResolution>;
   };

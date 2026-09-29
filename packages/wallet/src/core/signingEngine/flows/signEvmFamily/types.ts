@@ -55,7 +55,7 @@ export type EvmFamilyLifecycleEvent = Omit<
 
 export type EvmFamilyLifecycleEventCallback = (event: SigningFlowEvent) => void;
 
-export type EvmFamilyLifecycleArgsBase = {
+type EvmFamilyLifecycleArgsBase = {
   walletId: string;
   signedResult: TempoSignedResult | EvmSignedResult;
   onEvent?: EvmFamilyLifecycleEventCallback;

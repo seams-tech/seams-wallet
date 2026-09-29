@@ -10,12 +10,12 @@ import type {
   EcdsaSignerProvisioningPolicy,
 } from '@/core/types/ecdsaSignerProvisioningDefaults';
 
-export type ThresholdEcdsaProvisionTarget = {
+type ThresholdEcdsaProvisionTarget = {
   chainTarget: ThresholdEcdsaChainTarget;
   options: EcdsaSignerProvisioningPolicy;
 };
 
-export type EcdsaSessionPublicationTarget = {
+type EcdsaSessionPublicationTarget = {
   chainTarget: ThresholdEcdsaChainTarget;
 };
 

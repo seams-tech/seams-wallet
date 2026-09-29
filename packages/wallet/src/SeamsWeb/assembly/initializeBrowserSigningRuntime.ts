@@ -3,7 +3,7 @@ import type { UserPreferencesManager } from '@/core/signingEngine/session/userPr
 import type { SeamsConfigsReadonly } from '@/core/types/seams';
 import { onEmbeddedBaseChange, resolveWorkerBaseOrigin } from '@/core/walletRuntimePaths';
 
-export type InitializeBrowserSigningRuntimeArgs = {
+type InitializeBrowserSigningRuntimeArgs = {
   config: SeamsConfigsReadonly;
   userPreferencesManager: Pick<UserPreferencesManager, 'initFromIndexedDB'>;
   getWorkerBaseOrigin: () => string;

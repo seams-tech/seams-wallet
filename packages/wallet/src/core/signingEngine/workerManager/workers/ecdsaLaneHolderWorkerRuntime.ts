@@ -13,7 +13,7 @@ export type CanonicalEcdsaLaneSourceMaterialV1 = {
   readonly stateBlobB64u: string;
 };
 
-export type EcdsaLaneHolderSessionPortV1 = {
+type EcdsaLaneHolderSessionPortV1 = {
   prepare(inputJson: string): string;
   free(): void;
 };
@@ -22,7 +22,7 @@ export type EcdsaLaneHolderSessionFactoryV1 = {
   create(stateBlobB64u: string): EcdsaLaneHolderSessionPortV1;
 };
 
-export function resolveExactEcdsaLaneSourceMaterialV1(
+function resolveExactEcdsaLaneSourceMaterialV1(
   request: PrepareEcdsaAdditiveLaneHolderRequestV1,
   candidates: readonly CanonicalEcdsaLaneSourceMaterialV1[],
 ): CanonicalEcdsaLaneSourceMaterialV1 {

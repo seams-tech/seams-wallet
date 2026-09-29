@@ -80,7 +80,7 @@ export type WebAuthnPromptPort = {
   }) => Promise<WebAuthnAuthenticationCredential>;
 };
 
-export function authenticatorsToAllowCredentials<TAuth extends WebAuthnAuthenticatorRecord>(
+function authenticatorsToAllowCredentials<TAuth extends WebAuthnAuthenticatorRecord>(
   authenticators: TAuth[],
 ): WebAuthnAllowCredential[] {
   return authenticators.map((auth) => ({

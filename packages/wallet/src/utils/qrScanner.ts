@@ -10,7 +10,7 @@ import type { LinkDeviceFlowEvent } from '@/core/types/sdkSentEvents';
 // TYPES AND INTERFACES
 // ===========================
 
-export interface ScanQRCodeFlowOptions {
+interface ScanQRCodeFlowOptions {
   cameraId?: string;
   cameraConfigs?: {
     facingMode?: 'user' | 'environment';
@@ -20,7 +20,7 @@ export interface ScanQRCodeFlowOptions {
   timeout?: number; // in milliseconds, default 60000
 }
 
-export interface ScanQRCodeFlowEvents {
+interface ScanQRCodeFlowEvents {
   onEvent?: (event: LinkDeviceFlowEvent) => void;
   onQRDetected?: (qrData: QrLinkedDeviceSessionPayloadV5) => void;
   onError?: (error: Error) => void;
@@ -28,7 +28,7 @@ export interface ScanQRCodeFlowEvents {
   onScanProgress?: (duration: number) => void; // Called periodically during scanning
 }
 
-export enum ScanQRCodeFlowState {
+enum ScanQRCodeFlowState {
   IDLE = 'idle',
   INITIALIZING = 'initializing',
   SCANNING = 'scanning',
@@ -394,7 +394,7 @@ export class ScanQRCodeFlow {
  * and Firefox word it differently, so match the name first and keep the text
  * check only as a fallback for browsers that use a bare `Error`.
  */
-export function isScannerCancellationError(error: unknown): boolean {
+function isScannerCancellationError(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
   if (error.name === 'AbortError') return true;
   return /interrupted by|request was interrupted|media was removed/i.test(error.message);
@@ -407,7 +407,7 @@ export function isScannerCancellationError(error: unknown): boolean {
  * debugging text ending in a goo.gl link, which is not something to put in
  * front of a user.
  */
-export function cameraAccessFailureMessage(error: unknown): string {
+function cameraAccessFailureMessage(error: unknown): string {
   switch (error instanceof Error ? error.name : '') {
     case 'NotAllowedError':
     case 'SecurityError':

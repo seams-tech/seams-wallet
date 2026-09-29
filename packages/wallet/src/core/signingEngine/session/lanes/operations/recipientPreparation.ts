@@ -23,7 +23,7 @@ import type {
   LaneParticipantBindingDigestB64u,
 } from '@shared/signing-lanes/participants';
 
-export type LaneHolderRecipientCreationInputV1 = Parameters<
+type LaneHolderRecipientCreationInputV1 = Parameters<
   LaneHolderRecipientWorkerV1['createLaneHolderRecipientV1']
 >[0];
 
@@ -87,7 +87,7 @@ function parseRecipientKeyDigest(value: unknown): SigningWorkerRecipientKeyDiges
   throw new Error(result.error.message);
 }
 
-export async function prepareLaneHolderRecipientV1(args: {
+async function prepareLaneHolderRecipientV1(args: {
   readonly input: LaneHolderRecipientCreationInputV1;
   readonly worker: LaneHolderRecipientWorkerV1;
 }): Promise<OpenLaneHolderRecipientV1> {

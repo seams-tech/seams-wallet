@@ -167,7 +167,7 @@ const CLIENT_PRESIGNATURE_AAD_DOMAIN = 'seams/ecdsa-client-presignature/v1' as c
 const MAX_EXPIRED_CLIENT_PRESIGNATURE_DELETIONS_PER_TRANSACTION = 32;
 const MAX_DURABLE_CLIENT_PRESIGNATURE_FUTURE_SKEW_MS = 5 * 60_000;
 
-export type DurableClientPresignatureRecordId = string & {
+type DurableClientPresignatureRecordId = string & {
   readonly __brand: 'DurableClientPresignatureRecordId';
 };
 
@@ -247,11 +247,11 @@ export type EcdsaCapabilitySelector = {
   readonly authority: WalletAuthAuthorityRef;
 };
 
-export type ActiveEcdsaWalletCapabilitySubject = EcdsaCapabilitySelector & {
+type ActiveEcdsaWalletCapabilitySubject = EcdsaCapabilitySelector & {
   readonly ecdsaThresholdKeyId: ReturnType<typeof parseEcdsaThresholdKeyId>;
 };
 
-export type ActiveEcdsaWalletCapabilitySubjectListResult =
+type ActiveEcdsaWalletCapabilitySubjectListResult =
   | {
       readonly kind: 'resolved';
       readonly subjects: readonly ActiveEcdsaWalletCapabilitySubject[];
@@ -321,7 +321,7 @@ export type EcdsaCapabilityManifestLookup =
       readonly retryCorrelation: CorrelationId;
     } & LookupFailureExclusions);
 
-export type EcdsaActivationJournalWriteResult<
+type EcdsaActivationJournalWriteResult<
   TJournal extends EcdsaCapabilityActivationCommitJournal = EcdsaCapabilityActivationCommitJournal,
 > =
   | {
@@ -344,7 +344,7 @@ export type EcdsaActivationJournalWriteResult<
       readonly journal?: never;
     };
 
-export type EcdsaActivationJournalReadResult =
+type EcdsaActivationJournalReadResult =
   | {
       readonly kind: 'found';
       readonly journal: EcdsaCapabilityActivationCommitJournal;
@@ -354,7 +354,7 @@ export type EcdsaActivationJournalReadResult =
       readonly journal?: never;
     };
 
-export type EcdsaPreparedActivationCancellationResult =
+type EcdsaPreparedActivationCancellationResult =
   | { readonly kind: 'cancelled' }
   | { readonly kind: 'missing' }
   | { readonly kind: 'server_activation_committed' }
@@ -362,7 +362,7 @@ export type EcdsaPreparedActivationCancellationResult =
   | { readonly kind: 'corrupt' }
   | { readonly kind: 'persistence_unavailable' };
 
-export type FinalizeEcdsaCapabilityActivationInput = {
+type FinalizeEcdsaCapabilityActivationInput = {
   readonly committedJournal: ServerCommittedEcdsaActivationJournal;
   readonly readyMaterial: ValidatedEncryptedEcdsaReadyMaterial;
   readonly activeManifest: ActiveEcdsaCapabilityManifest;
@@ -370,18 +370,18 @@ export type FinalizeEcdsaCapabilityActivationInput = {
 
 type PreparedJournalInputWithoutCandidate<T> = T extends unknown ? Omit<T, 'candidate'> : never;
 
-export type PrepareEcdsaCapabilityActivationInput =
+type PrepareEcdsaCapabilityActivationInput =
   PreparedJournalInputWithoutCandidate<BuildPreparedEcdsaActivationJournalInput> & {
     readonly activationBinding: EcdsaActivationBinding;
     readonly pendingPayloadB64u: string;
   };
 
-export type RecordEcdsaServerActivationInput = {
+type RecordEcdsaServerActivationInput = {
   readonly preparedJournal: PreparedEcdsaActivationJournal;
   readonly serverCommit: ServerReturnedEcdsaActivationCommit;
 };
 
-export type SealEcdsaCapabilityActivationInput = {
+type SealEcdsaCapabilityActivationInput = {
   readonly committedJournal: ServerCommittedEcdsaActivationJournal;
   readonly readyStateBlobB64u: string;
   readonly registeredPublicFacts: VerifiedEcdsaPublicFacts;
@@ -391,7 +391,7 @@ export type SealEcdsaCapabilityActivationInput = {
   readonly committedAt: IsoTimestamp;
 };
 
-export type ImportCommittedWalletCustodyEcdsaActivationInput = {
+type ImportCommittedWalletCustodyEcdsaActivationInput = {
   readonly activationBinding: EcdsaActivationBinding;
   readonly serverCommit: ServerReturnedEcdsaActivationCommit;
   readonly readyStateBlobB64u: string;
@@ -466,7 +466,7 @@ function activeManifestMatchesWalletCustodyImport(input: {
   );
 }
 
-export type EcdsaPreparedActivationOpenResult =
+type EcdsaPreparedActivationOpenResult =
   | {
       readonly kind: 'found';
       readonly journal: EcdsaCapabilityActivationCommitJournal;
@@ -478,7 +478,7 @@ export type EcdsaPreparedActivationOpenResult =
       readonly pendingPayloadB64u?: never;
     };
 
-export type EcdsaActiveMaterialOpenResult =
+type EcdsaActiveMaterialOpenResult =
   | {
       readonly kind: 'active';
       readonly manifest: ActiveEcdsaCapabilityManifest;
@@ -486,7 +486,7 @@ export type EcdsaActiveMaterialOpenResult =
     }
   | Exclude<EcdsaCapabilityManifestLookup, { readonly kind: 'active' }>;
 
-export type EcdsaActiveMaterialRefOpenResult =
+type EcdsaActiveMaterialRefOpenResult =
   | {
       readonly kind: 'active';
       readonly manifest: ActiveEcdsaCapabilityManifest;
@@ -526,7 +526,7 @@ export type EcdsaCapabilityMaterialRefLookup =
  * `ambiguous_authority` and must ask again with the exact authority; picking a
  * sibling here would silently sign under a credential the caller never named.
  */
-export type EcdsaCapabilityActivationLookup =
+type EcdsaCapabilityActivationLookup =
   | Extract<EcdsaCapabilityManifestLookup, { readonly kind: 'active' | 'retired' }>
   | EcdsaCapabilityMaterialRefLookupFailure
   | {
@@ -536,7 +536,7 @@ export type EcdsaCapabilityActivationLookup =
       readonly subject?: never;
     };
 
-export type EcdsaCapabilityActivationFinalizationResult =
+type EcdsaCapabilityActivationFinalizationResult =
   | {
       readonly kind: 'committed';
       readonly manifest: ActiveEcdsaCapabilityManifest;
@@ -2441,7 +2441,7 @@ function parseSealingKeyRow(value: unknown): ParsedSealingKeyRow {
   };
 }
 
-export async function prepareImportedWalletCustodyEcdsaContinuity(
+async function prepareImportedWalletCustodyEcdsaContinuity(
   input: ImportCommittedWalletCustodyEcdsaActivationInput,
 ): Promise<PreparedImportedWalletCustodyEcdsaContinuity> {
   const serverActivation = buildEcdsaServerActivationCommit({

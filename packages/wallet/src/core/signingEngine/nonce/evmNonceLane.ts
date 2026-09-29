@@ -17,7 +17,7 @@ export type EvmNonceLaneState = {
   inflightRefresh: Promise<bigint> | null;
 };
 
-export type EvmInFlightNonceRecord = {
+type EvmInFlightNonceRecord = {
   nonce: bigint;
   txHash?: `0x${string}`;
   status: 'accepted' | 'replaced';
@@ -25,7 +25,7 @@ export type EvmInFlightNonceRecord = {
   updatedAtMs: number;
 };
 
-export function createEvmNonceLaneState(): EvmNonceLaneState {
+function createEvmNonceLaneState(): EvmNonceLaneState {
   return {
     chainNonce: null,
     nextCandidate: null,

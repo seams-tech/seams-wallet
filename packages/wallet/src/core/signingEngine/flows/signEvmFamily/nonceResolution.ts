@@ -111,7 +111,7 @@ export function thresholdOwnerNonceSenderIdentity(
   };
 }
 
-export function chainAccountNonceSenderIdentity(
+function chainAccountNonceSenderIdentity(
   chainAccountAddress: `0x${string}`,
 ): EvmFamilyManagedNonceSenderIdentity {
   return {

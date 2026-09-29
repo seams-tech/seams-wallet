@@ -46,7 +46,7 @@ import {
   isPasskeyWalletAuthAuthority,
 } from '@shared/utils/walletAuthAuthority';
 
-export type EcdsaLaneCapability = 'sign' | 'export_keys';
+type EcdsaLaneCapability = 'sign' | 'export_keys';
 
 export type PersistedAvailableSigningLanesDeps = {
   activeWalletAuthorityEcdsaRuntimeReadPorts: ExactWalletSessionReadPorts;

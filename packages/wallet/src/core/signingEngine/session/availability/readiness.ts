@@ -48,7 +48,7 @@ import {
 } from '@shared/utils/domainIds';
 import type { WalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 
-export type SigningSessionLane = {
+type SigningSessionLane = {
   curve: 'ed25519';
   chain: 'near';
   source: SignerAuthMethod;
@@ -58,7 +58,7 @@ export type SigningSessionLane = {
   materialActivation: MpcMaterialActivationRef;
 };
 
-export type DiscoveredSigningSessionLane = SigningSessionLane & {
+type DiscoveredSigningSessionLane = SigningSessionLane & {
   runtime: ExactEd25519SealedSessionRuntime;
   backing: 'touch_confirm' | 'email_otp_worker' | 'record_policy';
 };
@@ -85,12 +85,12 @@ export type WalletSessionReadinessDeps = {
   clearEmailOtpWarmSessionMaterial?: (thresholdSessionId: string) => Promise<void>;
 };
 
-export type WalletSessionClaimReaderDeps = {
+type WalletSessionClaimReaderDeps = {
   touchConfirm?: WarmSessionReadPortsInput;
   getEmailOtpWarmSessionStatus?: (thresholdSessionId: string) => Promise<WarmSessionStatusResult>;
 };
 
-export type SigningSessionReadinessWithStatus = {
+type SigningSessionReadinessWithStatus = {
   readiness: Ed25519SigningSessionReadiness;
   expiresAtMs: number;
   remainingUses: number;
@@ -237,7 +237,7 @@ function addLane(
   lanes.push(lane);
 }
 
-export function buildDiscoveredLaneForRuntime(
+function buildDiscoveredLaneForRuntime(
   runtime: ExactEd25519SealedSessionRuntime,
   walletSessionId: WalletSessionId,
   quotaId: MpcWalletSigningQuotaId,
@@ -412,7 +412,7 @@ async function discoverLanesForWalletWithExactAuthorization(
   return lanes;
 }
 
-export async function getLanesForWalletSession(args: {
+async function getLanesForWalletSession(args: {
   deps: WalletSessionReadinessDeps;
   walletId: WalletId;
   walletSessionId: WalletSessionId;
@@ -576,7 +576,7 @@ function walletSessionStatusOverrideOwnersForLanes(
   return [...ownersByKey.values()];
 }
 
-export function walletOwnerSigningSessionStatusOverrideKey(
+function walletOwnerSigningSessionStatusOverrideKey(
   owner: WalletSessionStatusOwner,
   walletSessionId: WalletSessionId,
   quotaId: MpcWalletSigningQuotaId,
@@ -714,7 +714,7 @@ export async function readWalletScopedLaneClaimsForWallet(args: {
   });
 }
 
-export async function readWalletScopedLaneClaimsForLanes(args: {
+async function readWalletScopedLaneClaimsForLanes(args: {
   deps: WalletSessionClaimReaderDeps;
   lanes: DiscoveredSigningSessionLane[];
   statusOverrides?: Map<string, WalletSessionStatusOverride>;

@@ -1,6 +1,6 @@
 import { setEmbeddedBase } from '@/core/walletRuntimePaths';
 
-export type PreconnectWalletAssetsArgs = {
+type PreconnectWalletAssetsArgs = {
   walletOrigin?: string;
   servicePath: string;
   sdkBasePath: string;

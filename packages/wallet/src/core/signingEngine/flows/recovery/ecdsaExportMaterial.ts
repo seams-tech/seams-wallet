@@ -42,7 +42,7 @@ import type {
 import type { ActiveWalletAuthorityEcdsaRuntimeV1 } from '../../session/material/activeWalletAuthorityEcdsaRuntime';
 import type { ThresholdEcdsaCanonicalExportArtifact } from '../../interfaces/signing';
 
-export type EcdsaExportMaterialAvailability =
+type EcdsaExportMaterialAvailability =
   | { kind: 'loaded_worker_material' }
   | { kind: 'sealed_worker_material' }
   | { kind: 'material_pending'; reason: 'email_otp_route_auth' };
@@ -215,7 +215,7 @@ function exactEcdsaParticipantIds(value: readonly number[]): readonly [number, n
   return [first, second];
 }
 
-export function resolveCanonicalEmailOtpEcdsaExportMaterialForLane(args: {
+function resolveCanonicalEmailOtpEcdsaExportMaterialForLane(args: {
   deps: EcdsaExportSessionStoreDeps;
   exportLane: Extract<ExactEcdsaExportLane, { source: 'canonical_capability' }>;
 }): FreshEmailOtpEcdsaExportMaterial {
@@ -293,7 +293,7 @@ export function resolveCanonicalEmailOtpEcdsaExportMaterialForLane(args: {
   };
 }
 
-export function resolveCanonicalPasskeyEcdsaExportMaterialForLane(args: {
+function resolveCanonicalPasskeyEcdsaExportMaterialForLane(args: {
   deps: EcdsaExportSessionStoreDeps;
   exportLane: Extract<ExactEcdsaExportLane, { source: 'canonical_capability' }>;
 }): FreshPasskeyEcdsaExportMaterial {

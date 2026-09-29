@@ -45,9 +45,9 @@ import { parseDigestB64u, type DigestB64u } from '@shared/utils/canonicalPrimiti
 import type { PersistedEcdsaRoleLocalMaterial } from '../../session/material/ecdsaRoleLocalMaterialResolver';
 import type { EcdsaPreauthorizedSessionActivation } from './postRegistrationSessionActivation';
 
-export const STALE_ECDSA_KEY_IDENTITY_ERROR_CODE = 'stale_ecdsa_key_identity' as const;
+const STALE_ECDSA_KEY_IDENTITY_ERROR_CODE = 'stale_ecdsa_key_identity' as const;
 
-export type ThresholdEcdsaBootstrapKeyRef = Omit<
+type ThresholdEcdsaBootstrapKeyRef = Omit<
   ThresholdEcdsaSecp256k1KeyRef,
   | 'keyHandle'
   | 'backendBinding'
@@ -105,7 +105,7 @@ export type ThresholdEcdsaExplicitKeyExportActivationResult = {
   authorization: EcdsaExplicitExportOperationAuthorization;
 };
 
-export type ActivateEcdsaSessionDeps = {
+type ActivateEcdsaSessionDeps = {
   touchIdPrompt: Pick<ThresholdWebAuthnPromptPort, 'getRpId'>;
   workerCtx: WorkerOperationContext;
   routerAbNormalSigning: RouterAbNormalSigningConfig;

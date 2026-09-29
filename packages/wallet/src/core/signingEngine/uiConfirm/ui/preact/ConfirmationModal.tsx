@@ -1,7 +1,7 @@
 /** @jsxImportSource preact */
 import { Component, createRef, type ComponentChildren } from 'preact';
 
-export type ConfirmationModalProps = {
+type ConfirmationModalProps = {
   context: 'standalone' | 'wallet-iframe';
   label: string;
   onCancel: () => void;

@@ -162,16 +162,13 @@ type EmailOtpEcdsaWalletUnlockResult =
   | Extract<EmailOtpWalletUnlockResult, { operation: 'wallet_unlock' }>
   | EmailOtpWalletUnlockCapabilityResults['ecdsa'];
 
-export type EmailOtpThresholdEcdsaLoginTimingBucket =
+type EmailOtpThresholdEcdsaLoginTimingBucket =
   | 'emailOtpProofVerificationMs'
   | 'ecdsaMaterialRestoreMs'
   | 'signingSessionSealApplyMs'
   | 'warmCapabilityPersistenceMs';
 
-export type EmailOtpThresholdEcdsaLoginTimings = Record<
-  EmailOtpThresholdEcdsaLoginTimingBucket,
-  number
->;
+type EmailOtpThresholdEcdsaLoginTimings = Record<EmailOtpThresholdEcdsaLoginTimingBucket, number>;
 
 type EmailOtpEd25519YaoLoginMaterial =
   | { kind: 'not_requested' }
@@ -911,7 +908,7 @@ function emailOtpNonUnlockEcdsaHandleBinding(args: {
   throw new Error('Unsupported Email OTP non-unlock handle operation');
 }
 
-export function buildEmailOtpExistingKeyActivation(args: {
+function buildEmailOtpExistingKeyActivation(args: {
   existingKey: ResolvedEmailOtpExistingEcdsaKey;
   chainTarget: ThresholdEcdsaChainTarget;
   thresholdSessionId: string;
@@ -1080,7 +1077,7 @@ function resolveEmailOtpPrimaryEcdsaSessionProvisioning(
   }
 }
 
-export async function provisionEmailOtpExistingKeySessions(args: {
+async function provisionEmailOtpExistingKeySessions(args: {
   primaryExistingKey: ResolvedEmailOtpExistingEcdsaKey;
   publicationChainTargets: readonly ThresholdEcdsaChainTarget[];
   runtimePolicyScope: ThresholdRuntimePolicyScope;
@@ -1182,14 +1179,14 @@ async function provisionEmailOtpAdditionalExistingKeySessionForTarget(
   return await provisionEmailOtpExistingKeySessionForTarget(context, chainTarget);
 }
 
-export type EmailOtpEcdsaLoginAuthorityPorts = {
+type EmailOtpEcdsaLoginAuthorityPorts = {
   ownerLaneScopeStores: OwnerLaneScopeStores;
   resolveSelectedWalletAuthority: (
     walletId: string,
   ) => Promise<ResolveSelectedWalletAuthorityResultV1>;
 };
 
-export type EmailOtpEcdsaLoginPorts = EmailOtpEcdsaLoginAuthorityPorts & {
+type EmailOtpEcdsaLoginPorts = EmailOtpEcdsaLoginAuthorityPorts & {
   configs: SeamsConfigsReadonly;
   getSignerWorkerContext: () => WorkerOperationContext | null | undefined;
   loadWalletCustodyEd25519Material: (args: {

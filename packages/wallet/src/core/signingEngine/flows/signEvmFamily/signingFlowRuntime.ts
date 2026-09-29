@@ -140,7 +140,7 @@ function sessionAuthorizesCanonicalEcdsaCapability(args: {
   return matches.length === 1;
 }
 
-export async function resolveExactEcdsaOperationStepUpSession(args: {
+async function resolveExactEcdsaOperationStepUpSession(args: {
   readonly ports: ExactWalletSessionReadPorts;
   readonly scope: {
     readonly walletId: WalletId;
@@ -352,7 +352,7 @@ async function resolveCurrentActiveWalletAuthorityRuntime(args: {
  * against, the preparation is superseded -- material activation is advance-only,
  * so the prepared side is always the stale one. That is a re-resolution, not a
  * failure and not a request for the wrong material. */
-export function ecdsaSigningMaterialSupersession(args: {
+function ecdsaSigningMaterialSupersession(args: {
   preparedMaterialActivation: EvmFamilyEcdsaMaterialActivation;
   currentMaterialActivation: EvmFamilyEcdsaMaterialActivation;
 }): SupersededEcdsaSigningMaterial | null {
@@ -369,7 +369,7 @@ export function ecdsaSigningMaterialSupersession(args: {
   };
 }
 
-export function ecdsaSigningCapabilitySupersession(args: {
+function ecdsaSigningCapabilitySupersession(args: {
   preparedCapability: CanonicalEvmFamilyEcdsaSigningCapability;
   currentManifest: ActiveEcdsaCapabilityManifest;
 }): SupersededEcdsaSigningMaterial | null {
@@ -403,7 +403,7 @@ export function ecdsaSigningCapabilitySupersession(args: {
   };
 }
 
-export function ecdsaSigningAuthorizationSupersession(args: {
+function ecdsaSigningAuthorizationSupersession(args: {
   preparedAuthorization: ExactEvmFamilyWalletSessionAuthorization;
   currentAuthorization: ExactEvmFamilyWalletSessionAuthorization | null;
   materialActivation: EvmFamilyEcdsaMaterialActivation;

@@ -16,7 +16,7 @@ export type EcdsaSigningKeyContext = {
   participantIds: readonly number[];
 };
 
-export type PasskeyPrfFirstB64u = string & { readonly __brand: 'PasskeyPrfFirstB64u' };
+type PasskeyPrfFirstB64u = string & { readonly __brand: 'PasskeyPrfFirstB64u' };
 
 export type PasskeyEcdsaProvisionSecretSource = {
   kind: 'webauthn_prf_first_v1';
@@ -25,13 +25,13 @@ export type PasskeyEcdsaProvisionSecretSource = {
   emailOtpAuthContext?: never;
 };
 
-export type PasskeyEcdsaActivationMaterial = {
+type PasskeyEcdsaActivationMaterial = {
   kind: 'session_record';
   relayerUrl?: never;
   walletKey?: never;
 };
 
-export type EmailOtpEcdsaProvisionSecretSource = {
+type EmailOtpEcdsaProvisionSecretSource = {
   kind: 'email_otp_worker_session_v1';
   workerHandle: Extract<EmailOtpWorkerIssuedSessionHandle, { action: 'threshold_ecdsa_bootstrap' }>;
   emailOtpAuthContext: ThresholdEcdsaEmailOtpAuthContext;
@@ -39,7 +39,7 @@ export type EmailOtpEcdsaProvisionSecretSource = {
   passkeyPrfFirstB64u?: never;
 };
 
-export type PasskeyEcdsaSessionProvision = {
+type PasskeyEcdsaSessionProvision = {
   kind: 'passkey_ecdsa_session_provision';
   key: EvmFamilyEcdsaKeyIdentity;
   chainTarget: ThresholdEcdsaChainTarget;
@@ -59,7 +59,7 @@ export type PasskeyEcdsaSessionProvision = {
   webauthnAuthentication?: never;
 };
 
-export type EmailOtpEcdsaSessionProvision = {
+type EmailOtpEcdsaSessionProvision = {
   kind: 'email_otp_ecdsa_session_provision';
   key: EvmFamilyEcdsaKeyIdentity;
   chainTarget: ThresholdEcdsaChainTarget;
@@ -121,7 +121,7 @@ type BuildEmailOtpEcdsaSessionProvisionPlanArgs = {
   reconnectMaterial?: never;
 };
 
-export type BuildEcdsaSessionProvisionPlanArgs =
+type BuildEcdsaSessionProvisionPlanArgs =
   | BuildPasskeyEcdsaSessionProvisionPlanArgs
   | BuildEmailOtpEcdsaSessionProvisionPlanArgs;
 
@@ -175,7 +175,7 @@ export function buildEcdsaSessionIdentity(args: {
   };
 }
 
-export function buildPasskeyEcdsaSessionProvision(args: {
+function buildPasskeyEcdsaSessionProvision(args: {
   key: EvmFamilyEcdsaKeyIdentity;
   chainTarget: ThresholdEcdsaChainTarget;
   newSessionIdentity: EcdsaSessionIdentity;
@@ -206,7 +206,7 @@ export function buildPasskeyEcdsaSessionProvision(args: {
   } satisfies PasskeyEcdsaSessionProvision;
 }
 
-export function buildEmailOtpEcdsaSessionProvision(args: {
+function buildEmailOtpEcdsaSessionProvision(args: {
   key: EvmFamilyEcdsaKeyIdentity;
   chainTarget: ThresholdEcdsaChainTarget;
   newSessionIdentity: EcdsaSessionIdentity;

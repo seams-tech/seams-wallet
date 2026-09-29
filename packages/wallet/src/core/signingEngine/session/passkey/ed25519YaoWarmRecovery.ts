@@ -78,7 +78,7 @@ type ExactSelectedPasskeyWalletSessionAuthorization = {
   readonly authorityRevocationEpoch: number;
 };
 
-export type PasskeyEd25519WarmRecoverySubject = {
+type PasskeyEd25519WarmRecoverySubject = {
   readonly kind: 'owner_sealed_runtime';
   readonly walletId: string;
   readonly nearAccountId: string;
@@ -88,7 +88,7 @@ export type PasskeyEd25519WarmRecoverySubject = {
   readonly materialActivation: MpcMaterialActivationRef;
 };
 
-export type PasskeyEd25519YaoWarmRecoveryUnavailableReason =
+type PasskeyEd25519YaoWarmRecoveryUnavailableReason =
   | 'sealed_session_missing'
   | 'sealed_session_expired'
   | 'sealed_session_exhausted'
@@ -312,7 +312,7 @@ async function readExactSelectedPasskeyWalletSessionAuthorization(args: {
   }
 }
 
-export async function requirePasskeyEd25519RestoreAuthorization(args: {
+async function requirePasskeyEd25519RestoreAuthorization(args: {
   readonly record: CurrentEd25519SealedSessionRecord;
   readonly authorizationRead: WalletSessionAuthorizationExactActiveReadResult;
   readonly expectedAuthorityRef: WalletAuthAuthorityRef;

@@ -26,7 +26,7 @@ export class TransactionReviewError extends Error {
   }
 }
 
-export type TransactionReviewIdentity = {
+type TransactionReviewIdentity = {
   readonly connectionId: string;
   readonly requestId: string;
   readonly surfaceId: string;
@@ -39,12 +39,7 @@ export type TransactionReviewWire = TransactionReviewIdentity & {
   readonly render?: never;
 };
 
-export type TransactionReviewPhase =
-  | 'prepared'
-  | 'activated'
-  | 'reviewing'
-  | 'signing'
-  | 'cancelled';
+type TransactionReviewPhase = 'prepared' | 'activated' | 'reviewing' | 'signing' | 'cancelled';
 export type TransactionReviewStateMessage = TransactionReviewIdentity & {
   readonly phase: TransactionReviewPhase;
 };

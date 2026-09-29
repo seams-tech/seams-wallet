@@ -51,8 +51,7 @@ import {
 import { buildRestorableMpcMaterialRefInternal } from '../material/restorableMpcMaterialRef.internal';
 import type { MpcCapabilityHydrationPlan } from '../material/mpcCapabilityHydration';
 
-export const ED25519_YAO_LOCAL_MATERIAL_KEY_KIND =
-  'router_ab_ed25519_yao_active_client_v1' as const;
+const ED25519_YAO_LOCAL_MATERIAL_KEY_KIND = 'router_ab_ed25519_yao_active_client_v1' as const;
 const ED25519_YAO_LOCAL_MATERIAL_SCHEMA_VERSION = 3;
 const ED25519_YAO_LOCAL_MATERIAL_ALGORITHM = 'chacha20poly1305-hkdf-sha256-prf-first-v1';
 const ED25519_YAO_LOCAL_MATERIAL_NONCE_BYTES = 12;
@@ -81,7 +80,7 @@ export type Ed25519YaoLocalMaterialIdentity = {
   signingWorkerId: string;
 };
 
-export type Ed25519YaoLocalMaterialBindingV1 = {
+type Ed25519YaoLocalMaterialBindingV1 = {
   kind: typeof ED25519_YAO_LOCAL_MATERIAL_KEY_KIND;
   walletId: string;
   nearAccountId: string;
@@ -104,14 +103,14 @@ export type Ed25519YaoLocalMaterialBindingV1 = {
   activationCapabilityBindingB64u: string;
 };
 
-export type PasskeyEd25519YaoStableServerScopeV1 = {
+type PasskeyEd25519YaoStableServerScopeV1 = {
   relayerKeyId: string;
   participantIds: readonly [number, number];
   runtimePolicyScope: ThresholdRuntimePolicyScope;
   routerAbNormalSigning: RouterAbEd25519NormalSigningState;
 };
 
-export type PasskeyEd25519YaoLocalMaterialLocatorV1 = {
+type PasskeyEd25519YaoLocalMaterialLocatorV1 = {
   kind: 'passkey_ed25519_yao_local_material_locator_v1';
   authority: WalletAuthAuthorityRef;
   materialActivation: MpcMaterialActivationRef;
@@ -120,7 +119,7 @@ export type PasskeyEd25519YaoLocalMaterialLocatorV1 = {
   thresholdSessionId?: never;
 };
 
-export type ReadPasskeyEd25519YaoLocalMaterialLocatorInputV1 = {
+type ReadPasskeyEd25519YaoLocalMaterialLocatorInputV1 = {
   store: Ed25519YaoLocalMaterialStorePort;
   walletId: string;
   nearAccountId: string;
@@ -131,7 +130,7 @@ export type ReadPasskeyEd25519YaoLocalMaterialLocatorInputV1 = {
   authority: WalletAuthAuthorityRef;
 };
 
-export type ReadPasskeyEd25519YaoLocalMaterialLocatorResultV1 =
+type ReadPasskeyEd25519YaoLocalMaterialLocatorResultV1 =
   | {
       kind: 'available';
       locator: PasskeyEd25519YaoLocalMaterialLocatorV1;
@@ -141,7 +140,7 @@ export type ReadPasskeyEd25519YaoLocalMaterialLocatorResultV1 =
       locator?: never;
     };
 
-export type PersistPasskeyEd25519YaoSignerMaterialInputV1 = {
+type PersistPasskeyEd25519YaoSignerMaterialInputV1 = {
   store: Ed25519YaoLocalMaterialStorePort;
   activeClient: RouterAbEd25519YaoSealableActiveClientV1;
   identity: Ed25519YaoLocalMaterialIdentity;
@@ -149,26 +148,26 @@ export type PersistPasskeyEd25519YaoSignerMaterialInputV1 = {
   passkeyPrfFirstB64u: string;
 };
 
-export type PasskeyEd25519YaoLocalMaterialTargetV1 = {
+type PasskeyEd25519YaoLocalMaterialTargetV1 = {
   profileId: string;
   chainIdKey: string;
   accountAddress: string;
 };
 
-export type RehydratePasskeyEd25519YaoLocalMaterialInputV1 = {
+type RehydratePasskeyEd25519YaoLocalMaterialInputV1 = {
   store: Ed25519YaoLocalMaterialStorePort;
   identity: Ed25519YaoLocalMaterialIdentity;
   passkeyPrfFirstB64u: string;
 };
 
-export type RehydratePasskeyEd25519YaoLocalMaterialRecordInputV1 = {
+type RehydratePasskeyEd25519YaoLocalMaterialRecordInputV1 = {
   stored: KeyMaterialRecord;
   target: PasskeyEd25519YaoLocalMaterialTargetV1;
   identity: Ed25519YaoLocalMaterialIdentity;
   ownedPasskeyPrfFirst: Uint8Array;
 };
 
-export type RehydratePasskeyEd25519YaoLocalMaterialResultV1 =
+type RehydratePasskeyEd25519YaoLocalMaterialResultV1 =
   | {
       kind: 'rehydrated';
       activeClient: RouterAbEd25519YaoActiveClientV1;
@@ -178,7 +177,7 @@ export type RehydratePasskeyEd25519YaoLocalMaterialResultV1 =
       activeClient?: never;
     };
 
-export type HydratePasskeyEd25519YaoLocalMaterialResultV1 =
+type HydratePasskeyEd25519YaoLocalMaterialResultV1 =
   | {
       kind: 'live';
       plan: Extract<MpcCapabilityHydrationPlan, { kind: 'use_live_runtime' }>;
@@ -198,7 +197,7 @@ export type HydratePasskeyEd25519YaoLocalMaterialResultV1 =
       activeClient?: never;
     };
 
-export type PreparePasskeyEd25519YaoLocalMaterialRehydrationResultV1 =
+type PreparePasskeyEd25519YaoLocalMaterialRehydrationResultV1 =
   | {
       kind: 'prepared';
       plan: Extract<MpcCapabilityHydrationPlan, { kind: 'rehydrate_material_activation' }>;
@@ -417,7 +416,7 @@ function assertBindingIdentity(
   }
 }
 
-export function parsePasskeyEd25519YaoLocalMaterialBindingV1(
+function parsePasskeyEd25519YaoLocalMaterialBindingV1(
   value: unknown,
 ): Ed25519YaoLocalMaterialBindingV1 {
   const record = asRecord(value);
@@ -596,7 +595,7 @@ function assertStoredIdentitySubset(args: {
   }
 }
 
-export function metadataFromPasskeyEd25519YaoLocalMaterialBindingV1(
+function metadataFromPasskeyEd25519YaoLocalMaterialBindingV1(
   binding: Ed25519YaoLocalMaterialBindingV1,
   thresholdSessionId: string,
 ): RouterAbEd25519YaoActiveClientMetadataV1 {
@@ -976,7 +975,7 @@ export async function hydratePasskeyEd25519YaoLocalMaterialV1(input: {
   }
 }
 
-export async function rehydratePasskeyEd25519YaoLocalMaterialV1(
+async function rehydratePasskeyEd25519YaoLocalMaterialV1(
   input: RehydratePasskeyEd25519YaoLocalMaterialInputV1,
 ): Promise<RehydratePasskeyEd25519YaoLocalMaterialResultV1> {
   const identity = input.identity;
@@ -999,7 +998,7 @@ export async function rehydratePasskeyEd25519YaoLocalMaterialV1(
   });
 }
 
-export async function rehydratePasskeyEd25519YaoLocalMaterialRecordV1(
+async function rehydratePasskeyEd25519YaoLocalMaterialRecordV1(
   input: RehydratePasskeyEd25519YaoLocalMaterialRecordInputV1,
 ): Promise<Extract<RehydratePasskeyEd25519YaoLocalMaterialResultV1, { kind: 'rehydrated' }>> {
   const identity = input.identity;

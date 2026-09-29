@@ -14,7 +14,7 @@ import {
   type ActiveEmailOtpWalletAuthMethodRecordV2,
 } from '@shared/utils/registrationIntent';
 
-export type EmailOtpUnlockEd25519Identity = {
+type EmailOtpUnlockEd25519Identity = {
   readonly materialActivation: MpcMaterialActivationRef;
   readonly nearAccountId: string;
   readonly signerSlot: number;

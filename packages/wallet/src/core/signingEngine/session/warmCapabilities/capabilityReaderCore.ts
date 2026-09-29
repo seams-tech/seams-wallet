@@ -55,12 +55,12 @@ function signingLaneAuthBindingFromEcdsaRuntime(
   }
 }
 
-export type WarmSessionCapabilityReaderSealConfigured = {
+type WarmSessionCapabilityReaderSealConfigured = {
   seal: 'configured';
   groupId: string;
 };
 
-export type WarmSessionCapabilityReaderSealUnavailable = {
+type WarmSessionCapabilityReaderSealUnavailable = {
   seal: 'unconfigured';
   groupId?: never;
 };
@@ -69,7 +69,7 @@ export type WarmSessionCapabilityReaderSeal =
   | WarmSessionCapabilityReaderSealConfigured
   | WarmSessionCapabilityReaderSealUnavailable;
 
-export type WarmSessionCapabilityReaderCoreDeps = {
+type WarmSessionCapabilityReaderCoreDeps = {
   resolveActiveEcdsaCapabilityRuntime: ActiveEcdsaCapabilityRuntimeResolver;
   resolveActiveEcdsaCapabilityRuntimeForChain: ActiveEcdsaCapabilityRuntimeForChainResolver;
   statusReader: Pick<WarmSigningStatusReader, 'readEd25519WarmSessionClaim'>;
@@ -80,7 +80,7 @@ export type WarmSessionCapabilityReaderCoreDeps = {
   ) => Promise<ExactNearEd25519WalletSessionAuthorization | null>;
 };
 
-export type WarmSessionCapabilityReaderCore = {
+type WarmSessionCapabilityReaderCore = {
   getWarmSession: (walletId: WalletId) => Promise<WarmSessionEnvelope>;
   getEcdsaCapabilityForLane: (args: {
     lane: ExactEcdsaSigningLaneIdentity;

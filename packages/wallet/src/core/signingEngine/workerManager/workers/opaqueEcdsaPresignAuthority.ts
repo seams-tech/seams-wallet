@@ -49,12 +49,12 @@ type OpaqueEcdsaPresignSessionEntryV1 = {
   readonly binding: OpaqueEcdsaPresignSessionBindingV1;
 };
 
-export type OpaqueEcdsaPresignSessionInitV1 = OpaqueEcdsaPresignSessionBindingV1 & {
+type OpaqueEcdsaPresignSessionInitV1 = OpaqueEcdsaPresignSessionBindingV1 & {
   readonly presignSessionId: string;
   readonly session: OpaqueEcdsaPresignSessionV1;
 };
 
-export type OpaqueEcdsaDurablePresignatureStoreV1 = {
+type OpaqueEcdsaDurablePresignatureStoreV1 = {
   admitClientPresignature(
     input: DurableClientPresignatureAdmissionInput,
   ): Promise<DurableClientPresignatureAdmissionResult>;
@@ -73,13 +73,13 @@ export type OpaqueEcdsaDurablePresignatureStoreV1 = {
 
 type OpaqueEcdsaCompletedSessionFactoryV1 = (bytes: Uint8Array) => OpaqueEcdsaPresignSessionV1;
 
-export type OpaqueEcdsaPresignSessionStepV1 = {
+type OpaqueEcdsaPresignSessionStepV1 = {
   readonly presignSessionId: string;
   readonly stage: 'triples' | 'presign';
   readonly incomingMessages: readonly ArrayBuffer[];
 };
 
-export type OpaqueEcdsaOnlineComputeV1 = {
+type OpaqueEcdsaOnlineComputeV1 = {
   readonly materialHandle: string;
   readonly groupPublicKey33: ArrayBuffer;
   readonly expectedPresignBigR33: ArrayBuffer;
@@ -88,7 +88,7 @@ export type OpaqueEcdsaOnlineComputeV1 = {
   readonly signingWorkerRerandomizationContribution32: ArrayBuffer;
 };
 
-export type OpaqueEcdsaPresignRestoreResultV1 =
+type OpaqueEcdsaPresignRestoreResultV1 =
   | {
       readonly kind: 'restored';
       readonly materialHandle: string;

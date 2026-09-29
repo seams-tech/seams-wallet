@@ -124,7 +124,7 @@ function requireCredentialId(value: string): WebAuthnCredentialIdB64u {
  * no second one-time code. Either way the worker opens the seed and reseals it;
  * only the door differs.
  */
-export type WalletCustodySealSourceV1 =
+type WalletCustodySealSourceV1 =
   | { readonly kind: 'factor_secret'; readonly existingFactorSecret: Uint8Array }
   | {
       readonly kind: 'unlocked_capability';
@@ -137,7 +137,7 @@ export type WalletCustodySealSourceV1 =
  * seed and both factor secrets stay inside WASM; only the opaque ciphertext
  * crosses back to the caller for the atomic server finalize.
  */
-export async function createPasskeyCustodyLinkEnvelope(input: {
+async function createPasskeyCustodyLinkEnvelope(input: {
   readonly registration: WalletAddAuthMethodRegistrationOptions;
   /** The server-allocated target method this envelope will belong to. */
   readonly walletAuthMethodId: WalletAuthMethodId;

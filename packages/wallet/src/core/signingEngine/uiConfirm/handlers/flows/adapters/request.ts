@@ -80,7 +80,7 @@ export function getNearAccountId(request: UserConfirmRequest): string {
   }
 }
 
-export function getLocalOnlyExportSubject(request: UserConfirmRequest): LocalOnlyExportSubject {
+function getLocalOnlyExportSubject(request: UserConfirmRequest): LocalOnlyExportSubject {
   if (
     request.type !== UserConfirmationType.AUTHORIZE_KEY_EXPORT &&
     request.type !== UserConfirmationType.SHOW_SECURE_PRIVATE_KEY_UI
@@ -90,7 +90,7 @@ export function getLocalOnlyExportSubject(request: UserConfirmRequest): LocalOnl
   return request.payload.subject;
 }
 
-export function getLocalOnlyExportSubjectId(request: UserConfirmRequest): string {
+function getLocalOnlyExportSubjectId(request: UserConfirmRequest): string {
   const subject = getLocalOnlyExportSubject(request);
   switch (subject.kind) {
     case 'near_wallet':
@@ -203,7 +203,7 @@ export function getEmailOtpPrompt(request: UserConfirmRequest): EmailOtpConfirmP
   return undefined;
 }
 
-export function getRegisterAccountPayload(request: UserConfirmRequest): RegisterAccountPayload {
+function getRegisterAccountPayload(request: UserConfirmRequest): RegisterAccountPayload {
   if (
     request.type !== UserConfirmationType.REGISTER_ACCOUNT &&
     request.type !== UserConfirmationType.LINK_DEVICE

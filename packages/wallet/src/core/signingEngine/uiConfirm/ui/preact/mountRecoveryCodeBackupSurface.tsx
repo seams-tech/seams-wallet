@@ -10,7 +10,7 @@ import {
   type RecoveryCodeBackupExperience,
 } from './RecoveryCodeBackupSurface';
 
-export type RecoveryBackupSurface = 'standalone' | 'wallet-iframe';
+type RecoveryBackupSurface = 'standalone' | 'wallet-iframe';
 
 type MountRecoveryCodeBackupInput = {
   readonly parent: HTMLElement;
@@ -22,7 +22,7 @@ type MountRecoveryCodeBackupInput = {
   readonly onShown: (dialog: HTMLDialogElement) => void;
 };
 
-export type RecoveryCodeBackupSurfaceHandle = {
+type RecoveryCodeBackupSurfaceHandle = {
   readonly dialog: HTMLDialogElement;
   readonly element: HTMLElement;
   update(experience: RecoveryCodeBackupExperience): void;

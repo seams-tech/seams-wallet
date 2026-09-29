@@ -5,7 +5,7 @@ import type {
 import type { WarmSessionSealTransportState } from '@/core/types/secure-confirm-worker';
 import { secureRandomId } from '@shared/utils/secureRandomId';
 
-export type SigningSessionCacheEntry = {
+type SigningSessionCacheEntry = {
   readonly thresholdSessionId: string;
   readonly prfFirstB64u: string;
   readonly expiresAtMs: number;

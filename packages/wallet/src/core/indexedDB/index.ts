@@ -158,7 +158,7 @@ import { UnifiedIndexedDBManager } from './unifiedIndexedDBManager';
 import { seamsWalletDB } from './singletons';
 import { SEAMS_WALLET_DB_NAME } from './schemaNames';
 
-export type IndexedDBMode = 'app' | 'wallet' | 'disabled';
+type IndexedDBMode = 'app' | 'wallet' | 'disabled';
 
 const DB_CONFIG_BY_MODE: Record<
   IndexedDBMode,

@@ -9,7 +9,7 @@ import type { SelectedEd25519SigningSessionPlanningLane } from '../operationStat
 import type { ExactWalletSessionStatus } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 import { toWalletId, type WalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 
-export type Ed25519WalletSessionStatusOwner = {
+type Ed25519WalletSessionStatusOwner = {
   curve: 'ed25519';
   walletId: WalletId;
   accountId?: never;
@@ -45,7 +45,7 @@ export function normalizeSessionStatusRequired(value: unknown, label: string): s
   return normalized;
 }
 
-export function parseWalletSessionStatusIdentity(value: {
+function parseWalletSessionStatusIdentity(value: {
   walletSessionId: unknown;
   quotaId: unknown;
 }): WalletSessionStatusIdentity | null {
@@ -85,7 +85,7 @@ export function walletSessionStatusOwnerForLane(
   return ed25519WalletSessionStatusOwner(lane.identity.signer.account.wallet.walletId);
 }
 
-export function walletSessionStatusOwnerId(owner: WalletSessionStatusOwner): WalletId {
+function walletSessionStatusOwnerId(owner: WalletSessionStatusOwner): WalletId {
   return owner.walletId;
 }
 

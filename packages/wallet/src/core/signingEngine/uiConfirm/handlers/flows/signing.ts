@@ -252,7 +252,7 @@ function normalizeSixDigitOtpCode(value: unknown): string {
   return code;
 }
 
-export function assertPasskeyCredentialLookupAllowed(args: {
+function assertPasskeyCredentialLookupAllowed(args: {
   stage: 'transaction_prompt' | 'intent_digest_prompt';
   subjectId: string;
   requestId: string;

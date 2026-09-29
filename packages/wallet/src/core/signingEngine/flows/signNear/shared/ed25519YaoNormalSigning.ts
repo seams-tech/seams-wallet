@@ -120,7 +120,7 @@ export function requireIssuedNearEd25519OperationStepUpAuthorization(args: {
   }
 }
 
-export type RouterAbEd25519SignatureOnlyIntentWire =
+type RouterAbEd25519SignatureOnlyIntentWire =
   | {
       kind: 'nep413_message_v1';
       message: string;
@@ -140,7 +140,7 @@ export type RouterAbEd25519SignatureOnlyIntentWire =
       };
     };
 
-export type RouterAbEd25519NearTransactionNormalSigningResult =
+type RouterAbEd25519NearTransactionNormalSigningResult =
   | {
       kind: 'router_ab_ed25519_near_transaction_normal_signing_result_v1';
       authorization: 'operation_step_up';
@@ -156,7 +156,7 @@ export type RouterAbEd25519NearTransactionNormalSigningResult =
       transactionHash: string;
     };
 
-export type RouterAbEd25519SignatureOnlyNormalSigningResult =
+type RouterAbEd25519SignatureOnlyNormalSigningResult =
   | {
       kind: 'router_ab_ed25519_signature_only_normal_signing_result_v1';
       authorization: 'operation_step_up';

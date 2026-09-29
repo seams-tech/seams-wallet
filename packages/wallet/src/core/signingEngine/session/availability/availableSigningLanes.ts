@@ -65,19 +65,14 @@ import type {
   ActiveWalletAuthorityEcdsaRuntimeV1,
 } from '../material/activeWalletAuthorityEcdsaRuntime';
 
-export type AvailableSigningLaneState =
-  | 'ready'
-  | 'restorable'
-  | 'deferred'
-  | 'expired'
-  | 'exhausted';
+type AvailableSigningLaneState = 'ready' | 'restorable' | 'deferred' | 'expired' | 'exhausted';
 
-export type AvailableSigningLanePolicyHint = {
+type AvailableSigningLanePolicyHint = {
   remainingUses?: number;
   expiresAtMs?: number;
 };
 
-export type MissingAvailableEcdsaSigningLane = {
+type MissingAvailableEcdsaSigningLane = {
   curve: 'ecdsa';
   chainTarget: ThresholdEcdsaChainTarget;
   state: 'missing';
@@ -95,7 +90,7 @@ export type MissingAvailableEcdsaSigningLane = {
   publicReauthAuthority?: never;
 };
 
-export type ResolvedPasskeyAvailableEcdsaKey = ResolvedEvmFamilyEcdsaKey<PasskeyEcdsaAuthBinding>;
+type ResolvedPasskeyAvailableEcdsaKey = ResolvedEvmFamilyEcdsaKey<PasskeyEcdsaAuthBinding>;
 
 type ConcreteAvailableEcdsaSigningLaneAuth =
   | {
@@ -120,7 +115,7 @@ type ConcreteAvailableEcdsaSigningLaneBase = {
   updatedAtMs?: number;
 } & ConcreteAvailableEcdsaSigningLaneAuth;
 
-export type ActiveWalletAuthorityAvailableEcdsaSigningLane = Omit<
+type ActiveWalletAuthorityAvailableEcdsaSigningLane = Omit<
   ActiveWalletAuthorityEcdsaLaneProjectionV1,
   'kind'
 > &
@@ -219,9 +214,9 @@ function materialActivationKey(activation: MpcMaterialActivationRef): string {
     .join(':');
 }
 
-export type EcdsaLaneRecordFactSource = 'canonical_capability' | 'active_wallet_authority';
+type EcdsaLaneRecordFactSource = 'canonical_capability' | 'active_wallet_authority';
 
-export type EcdsaLaneGroupKey = {
+type EcdsaLaneGroupKey = {
   walletId: string;
   authKey: string;
   materialActivationKey: string;
@@ -242,7 +237,7 @@ export type EcdsaLaneGroup = {
   facts: readonly EcdsaLaneRecordFact[];
 };
 
-export type EcdsaLaneConflict = {
+type EcdsaLaneConflict = {
   groupKey: EcdsaLaneGroupKey;
   field:
     | 'ecdsaThresholdKeyId'
@@ -253,7 +248,7 @@ export type EcdsaLaneConflict = {
   values: readonly string[];
 };
 
-export type EcdsaCanonicalLaneSelection =
+type EcdsaCanonicalLaneSelection =
   | {
       kind: 'selected';
       selectedFact: EcdsaLaneRecordFact;
@@ -273,7 +268,7 @@ export function availableEcdsaSigningLaneAuthMethod(
   return signingLaneAuthMethod(lane.auth);
 }
 
-export type MissingAvailableEd25519SigningLane = {
+type MissingAvailableEd25519SigningLane = {
   curve: 'ed25519';
   chain: 'near';
   state: 'missing';
@@ -529,7 +524,7 @@ function publicCapabilityReferenceToEd25519Lane(
   }
 }
 
-export type InvalidAvailableSigningLaneDiagnostic =
+type InvalidAvailableSigningLaneDiagnostic =
   | {
       curve: 'ed25519';
       source: 'canonical_lane_inventory';
@@ -560,7 +555,7 @@ export type InvalidAvailableSigningLaneDiagnostic =
       conflicts?: readonly EcdsaLaneConflict[];
     };
 
-export type AvailableSigningLaneDiagnostics = {
+type AvailableSigningLaneDiagnostics = {
   invalidLanes: InvalidAvailableSigningLaneDiagnostic[];
 };
 
@@ -1764,7 +1759,7 @@ function suppressPublicEd25519CandidatesWithDurablePolicy(
  * signer slot; ECDSA lanes bind the credential alone. State stays untouched:
  * the scope decides whose lane it is, never whether it is usable.
  */
-export async function ed25519LaneMatchesOwnerScope(
+async function ed25519LaneMatchesOwnerScope(
   lane: AvailableEd25519SigningLane,
   scope: OwnerLaneScope,
 ): Promise<boolean> {
@@ -1776,7 +1771,7 @@ export async function ed25519LaneMatchesOwnerScope(
   return lane.signerSlot === scope.signerSlot;
 }
 
-export function ecdsaLaneMatchesOwnerScope(
+function ecdsaLaneMatchesOwnerScope(
   lane: AvailableEcdsaSigningLane,
   scope: OwnerLaneScope,
 ): boolean {

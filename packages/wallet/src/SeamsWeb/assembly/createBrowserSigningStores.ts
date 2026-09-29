@@ -20,7 +20,7 @@ import {
   type Ed25519YaoPublicCapabilityReferenceStorePort,
 } from '@/core/signingEngine/threshold/ed25519/yaoPublicCapabilityReferences';
 
-export type BrowserSigningStorePorts = {
+type BrowserSigningStorePorts = {
   managerStores: ManagerAssemblyStores;
   signingEngineStores: SigningEngineStorePorts;
   sealedSigningSessionStore: BrowserSealedSigningSessionStorePorts;

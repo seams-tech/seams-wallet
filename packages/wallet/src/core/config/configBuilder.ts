@@ -33,7 +33,7 @@ export type BuildConfigsOptions = {
   allowDirectWalletMode?: 'wallet_host';
 };
 
-export class HostedWalletOriginRequiredError extends Error {
+class HostedWalletOriginRequiredError extends Error {
   readonly code = 'SEAMS_HOSTED_WALLET_ORIGIN_REQUIRED';
 
   constructor() {

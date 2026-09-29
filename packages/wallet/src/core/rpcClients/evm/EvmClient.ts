@@ -16,7 +16,7 @@ export {
   type EvmTransactionByHash,
 } from '@shared/utils/evmRpcResults';
 
-export type EvmBlockTag = 'latest' | 'pending' | 'safe' | 'finalized' | 'earliest';
+type EvmBlockTag = 'latest' | 'pending' | 'safe' | 'finalized' | 'earliest';
 
 export type WaitForEvmTransactionReceiptArgs = {
   txHash: `0x${string}`;
@@ -29,7 +29,7 @@ export type WaitForEvmTransactionReceiptArgs = {
   nonceHint?: bigint;
 };
 
-export type EvmTransactionWaitErrorBranch =
+type EvmTransactionWaitErrorBranch =
   | 'dropped_nonce_advanced'
   | 'dropped_hash_disappeared'
   | 'dropped_nonce_gap'

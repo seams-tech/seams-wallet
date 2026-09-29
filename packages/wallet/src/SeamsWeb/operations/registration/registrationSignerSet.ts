@@ -59,7 +59,7 @@ export function buildNearWalletRegistrationSignerSetSelection(args: {
   };
 }
 
-export function sponsoredNamedRegistrationProvisioningFromAccountId(
+function sponsoredNamedRegistrationProvisioningFromAccountId(
   nearAccountId: string,
 ): RegistrationNearAccountProvisioning {
   const parsed = parseNamedNearAccountId(nearAccountId);
@@ -69,7 +69,7 @@ export function sponsoredNamedRegistrationProvisioningFromAccountId(
   return sponsoredNamedNearAccountProvisioning(parsed.value);
 }
 
-export function relayerNamedSubaccountProvisioningFromWalletId(args: {
+function relayerNamedSubaccountProvisioningFromWalletId(args: {
   walletId: WalletId | string;
   relayerAccountId: string;
 }): RegistrationNearAccountProvisioning {

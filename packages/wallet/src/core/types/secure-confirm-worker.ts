@@ -55,7 +55,7 @@ export interface UiConfirmManagerConfig {
   signingSessionSealGroupId?: string;
 }
 
-export type PasskeyMpcSessionWorkerMessageType =
+type PasskeyMpcSessionWorkerMessageType =
   | 'PING'
   | 'PREWARM_SHAMIR3PASS'
   | 'PREPARE_SESSION_CLIENT_SEAL'
@@ -138,7 +138,7 @@ export interface WarmSessionSealAndPersistPayload {
   transport: WarmSessionSealTransportInput;
 }
 
-export type PreparedWarmSessionServerSeal = {
+type PreparedWarmSessionServerSeal = {
   readonly preparationId: string;
   readonly ciphertext: string;
   readonly keyVersion: string;
@@ -206,7 +206,7 @@ export const ROUTER_AB_ED25519_YAO_EXPORT_ARTIFACT_KIND_V1 =
   'router-ab-ed25519-yao-seed-export-v1' as const;
 
 /** Authorization is carried independently from the exact material lane. */
-export type RouterAbEd25519YaoExportWorkerAuthorizationV1 = {
+type RouterAbEd25519YaoExportWorkerAuthorizationV1 = {
   readonly kind: 'opaque_wallet_session';
   readonly walletSessionToken: string;
 };

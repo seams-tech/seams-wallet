@@ -1,7 +1,7 @@
 import type { ThresholdEcdsaChainTarget } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type { MpcMaterialActivationRef } from '@shared/utils/domainIds';
 
-export type ExactSealedSessionIdentity =
+type ExactSealedSessionIdentity =
   | {
       authMethod: 'email_otp' | 'passkey';
       curve: 'ed25519';
@@ -32,7 +32,7 @@ export type DeleteDurableSealedSessionCommand = {
   scope?: never;
 };
 
-export type ExactSealedSessionRecordFilter =
+type ExactSealedSessionRecordFilter =
   | {
       authMethod: 'email_otp' | 'passkey';
       curve: 'ed25519';

@@ -16,9 +16,9 @@ import {
   type WalletSignerWrite,
 } from './lifecycle';
 
-export type RegisterWalletFailure = UseCaseFailure<RegisterWalletFailureCode>;
+type RegisterWalletFailure = UseCaseFailure<RegisterWalletFailureCode>;
 
-export type RegisterWalletAuthResult =
+type RegisterWalletAuthResult =
   | { ok: true; code?: never; message?: never; retryable?: never }
   | UseCaseFailure<
       Extract<
@@ -27,7 +27,7 @@ export type RegisterWalletAuthResult =
       >
     >;
 
-export type RegisterWalletEd25519ProvisionResult =
+type RegisterWalletEd25519ProvisionResult =
   | {
       ok: true;
       lane: ReadyEd25519Lane;
@@ -48,7 +48,7 @@ export type RegisterWalletEd25519ProvisionResult =
       >
     >;
 
-export type RegisterWalletEcdsaProvisionResult =
+type RegisterWalletEcdsaProvisionResult =
   | {
       ok: true;
       lanes: readonly EcdsaUseCaseReadyLane[];
@@ -73,7 +73,7 @@ export type RegisterWalletEcdsaProvisionResult =
       >
     >;
 
-export type RegisterWalletCommitInput = {
+type RegisterWalletCommitInput = {
   input: RegisterWalletInput;
   readiness: ReadyWalletSessionReadiness;
   lanes: RegistrationReadyLanes;
@@ -82,7 +82,7 @@ export type RegisterWalletCommitInput = {
   walletSignerWrites: NonEmptyReadonlyArray<WalletSignerWrite>;
 };
 
-export type RegisterWalletCommitResult =
+type RegisterWalletCommitResult =
   | {
       ok: true;
       value?: RegisterWalletSuccess;
@@ -97,7 +97,7 @@ export type RegisterWalletCommitResult =
       >
     >;
 
-export type RegisterWalletDeps = {
+type RegisterWalletDeps = {
   authenticator: {
     authenticate(input: RegisterWalletInput): Promise<RegisterWalletAuthResult>;
   };

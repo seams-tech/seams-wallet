@@ -58,7 +58,7 @@ export type ActivateStrictEcdsaPostRegistrationSessionInput = {
   readonly runtimePolicyScope: ThresholdRuntimePolicyScope;
 };
 
-export type ActivateStrictEcdsaPostRegistrationSessionResult = {
+type ActivateStrictEcdsaPostRegistrationSessionResult = {
   readonly sessionActivation: RouterAbEcdsaPostRegistrationSessionActivationResponseV1;
   readonly roleLocalActivation: ExistingEcdsaRoleLocalActivation;
 };
@@ -73,21 +73,21 @@ export type EcdsaPreauthorizedSessionActivation =
   | RouterAbEcdsaPostRegistrationSessionActivationResponseV1
   | EcdsaCredentialFreeSessionActivationAuthorization;
 
-export type AdoptStrictEcdsaPostRegistrationSessionInput = Omit<
+type AdoptStrictEcdsaPostRegistrationSessionInput = Omit<
   ActivateStrictEcdsaPostRegistrationSessionInput,
   'relayerUrl' | 'routeAuth' | 'walletSessionMintId'
 > & {
   readonly sessionActivation: RouterAbEcdsaPostRegistrationSessionActivationResponseV1;
 };
 
-export type AdoptStrictEcdsaCredentialFreePostRegistrationSessionInput = Omit<
+type AdoptStrictEcdsaCredentialFreePostRegistrationSessionInput = Omit<
   ActivateStrictEcdsaPostRegistrationSessionInput,
   'relayerUrl' | 'routeAuth' | 'walletSessionMintId'
 > & {
   readonly sessionActivation: EcdsaCredentialFreeSessionActivationAuthorization;
 };
 
-export type AdoptStrictEcdsaCredentialFreePostRegistrationSessionResult = {
+type AdoptStrictEcdsaCredentialFreePostRegistrationSessionResult = {
   readonly sessionActivation: RouterAbEcdsaCredentialFreeSessionActivationResponseV1;
   readonly authorization: ExactWalletSessionAuthorization;
   readonly roleLocalActivation: ExistingEcdsaRoleLocalActivation;

@@ -17,7 +17,7 @@ import { MailIcon } from './icons/MailIcon';
 import { SmartphoneIcon } from './icons/SmartphoneIcon';
 import './LinkedDevicesModal.css';
 
-export interface LinkedDevicesModalProps {
+interface LinkedDevicesModalProps {
   walletId: string | null;
   isOpen: boolean;
   onClose: () => void;

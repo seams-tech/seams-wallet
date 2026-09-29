@@ -20,19 +20,19 @@ import type {
   WalletSessionId,
 } from '@shared/authorization/capabilityKinds';
 
-export type RuntimePostconditionSource = 'registration_finalize' | 'wallet_unlock';
+type RuntimePostconditionSource = 'registration_finalize' | 'wallet_unlock';
 
-export type RuntimePostconditionTarget =
+type RuntimePostconditionTarget =
   | { curve: 'ed25519'; chainTarget?: never }
   | { curve: 'ecdsa'; chainTarget: ThresholdEcdsaChainTarget };
 
-export type RuntimeLaneMaterial =
+type RuntimeLaneMaterial =
   | { kind: 'durable_sealed_record'; sourceChainTarget?: never }
   | { kind: 'runtime_session_record'; sourceChainTarget?: never }
   | { kind: 'public_capability_reference'; sourceChainTarget?: never }
   | { kind: 'canonical_capability'; sourceChainTarget?: never };
 
-export type RestorableRuntimeLaneMaterial = Extract<
+type RestorableRuntimeLaneMaterial = Extract<
   RuntimeLaneMaterial,
   { kind: 'durable_sealed_record' | 'public_capability_reference' }
 >;
@@ -69,7 +69,7 @@ type RestorableUsableRuntimeLane = Extract<
   readonly material: RestorableRuntimeLaneMaterial;
 };
 
-export type UsableRuntimeLane = ActiveUsableRuntimeLane | RestorableUsableRuntimeLane;
+type UsableRuntimeLane = ActiveUsableRuntimeLane | RestorableUsableRuntimeLane;
 
 export type WalletRuntimeInventory = {
   walletId: string;
@@ -78,7 +78,7 @@ export type WalletRuntimeInventory = {
   ecdsaByTarget: ReadonlyMap<string, UsableRuntimeLane>;
 };
 
-export type WalletRuntimePostconditionFailureCode =
+type WalletRuntimePostconditionFailureCode =
   | 'wallet_missing'
   | 'auth_method_missing'
   | 'ed25519_lane_missing'
@@ -87,7 +87,7 @@ export type WalletRuntimePostconditionFailureCode =
   | 'auth_method_route_mismatch'
   | 'lane_material_missing';
 
-export type WalletRuntimePostconditionResult =
+type WalletRuntimePostconditionResult =
   | { ok: true; inventory: WalletRuntimeInventory }
   | {
       ok: false;
@@ -107,7 +107,7 @@ type ReadOwnerScopedSigningLanes = (args: {
   ownerScope: OwnerLaneScope;
 }) => Promise<AvailableSigningLanes>;
 
-export class WalletRuntimePostconditionError extends Error {
+class WalletRuntimePostconditionError extends Error {
   readonly code: WalletRuntimePostconditionFailureCode;
   readonly details: Record<string, unknown>;
 
@@ -228,7 +228,7 @@ function readEcdsaUseCaseReadyLane(args: {
   };
 }
 
-export async function readWalletRuntimePostconditions(args: {
+async function readWalletRuntimePostconditions(args: {
   source: RuntimePostconditionSource;
   walletId: string | WalletId;
   ownerScope: OwnerLaneScope;

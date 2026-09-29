@@ -42,7 +42,7 @@ type ResolvedEd25519ProvisionProtocol =
       quotaId: MpcWalletSigningQuotaId;
     };
 
-export type ProvisionThresholdEd25519SessionDeps = {
+type ProvisionThresholdEd25519SessionDeps = {
   credentialStore: ConnectEd25519SessionInput['credentialStore'];
   touchIdPrompt: ConnectEd25519SessionInput['touchIdPrompt'];
   touchConfirm: Parameters<typeof cacheCredentialBoundarySetupExportPrfFirst>[0];

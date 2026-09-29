@@ -10,9 +10,9 @@ import {
   type WarmSessionBudgetSpend,
 } from './lifecycle';
 
-export type SignNearFailure = UseCaseFailure<SignNearFailureCode>;
+type SignNearFailure = UseCaseFailure<SignNearFailureCode>;
 
-export type SignNearLaneResolution =
+type SignNearLaneResolution =
   | {
       ok: true;
       lane: ReadyEd25519Lane;
@@ -32,7 +32,7 @@ export type SignNearLaneResolution =
       >
     >;
 
-export type SignNearValidationResult =
+type SignNearValidationResult =
   | { ok: true; code?: never; message?: never; retryable?: never }
   | UseCaseFailure<
       Extract<
@@ -41,7 +41,7 @@ export type SignNearValidationResult =
       >
     >;
 
-export type SignNearBudgetResult =
+type SignNearBudgetResult =
   | {
       ok: true;
       budgetSpend: WarmSessionBudgetSpend;
@@ -51,13 +51,13 @@ export type SignNearBudgetResult =
     }
   | UseCaseFailure<Extract<SignNearFailureCode, 'budget_exhausted' | 'invalid_state'>>;
 
-export type SignNearSigningResult =
+type SignNearSigningResult =
   | SignNearSuccess
   | UseCaseFailure<
       Extract<SignNearFailureCode, 'presign_pool_failed' | 'relayer_failed' | 'invalid_state'>
     >;
 
-export type SignNearDeps = {
+type SignNearDeps = {
   laneResolver: {
     resolve(input: SignNearInput): Promise<SignNearLaneResolution>;
   };

@@ -68,17 +68,17 @@ export const EcdsaClientWorkerControlKind = {
   AttachPresignToOnline: 'attach_ecdsa_presign_to_online_v1',
 } as const;
 
-export type AttachEcdsaDerivationToPresignPort = {
+type AttachEcdsaDerivationToPresignPort = {
   readonly kind: typeof EcdsaClientWorkerControlKind.AttachDerivationToPresign;
   readonly port: MessagePort;
 };
 
-export type AttachLinkedHolderToPresignPort = {
+type AttachLinkedHolderToPresignPort = {
   readonly kind: typeof EcdsaClientWorkerControlKind.AttachLinkedHolderToPresign;
   readonly port: MessagePort;
 };
 
-export type AttachPresignToOnlinePort = {
+type AttachPresignToOnlinePort = {
   readonly kind: typeof EcdsaClientWorkerControlKind.AttachPresignToOnline;
   readonly port: MessagePort;
 };
@@ -452,7 +452,7 @@ type RouterAbEcdsaOperationStepUpExplicitExportRequestWasmInputV1 = Omit<
   };
 };
 
-export type RouterAbEcdsaExplicitExportRequestWasmInputV1 =
+type RouterAbEcdsaExplicitExportRequestWasmInputV1 =
   | RouterAbEcdsaReusableExplicitExportRequestWasmInputV1
   | RouterAbEcdsaOperationStepUpExplicitExportRequestWasmInputV1;
 
@@ -522,7 +522,7 @@ export function attachRouterAbEcdsaExplicitExportOperationV1(input: {
   };
 }
 
-export type RouterAbEcdsaActivationRefreshRequestFactsV1 = Omit<
+type RouterAbEcdsaActivationRefreshRequestFactsV1 = Omit<
   RouterAbEcdsaDerivationActivationRefreshRequestV1,
   'deriver_a_refresh_envelope' | 'deriver_b_refresh_envelope'
 > & {
@@ -849,7 +849,7 @@ const ECDSA_EXPLICIT_EXPORT_FACT_FIELDS = [
   'deriver_recipient_keys',
 ] as const;
 
-export function parseRouterAbEcdsaExplicitExportRequestFactsV1(
+function parseRouterAbEcdsaExplicitExportRequestFactsV1(
   value: unknown,
 ): RouterAbEcdsaExplicitExportRequestFactsV1 {
   const object = requireEcdsaClientChannelObject(value, 'ECDSA explicit-export facts');
@@ -941,7 +941,7 @@ const ECDSA_REFRESH_FACT_FIELDS = [
   'deriver_recipient_keys',
 ] as const;
 
-export function parseRouterAbEcdsaActivationRefreshRequestFactsV1(
+function parseRouterAbEcdsaActivationRefreshRequestFactsV1(
   value: unknown,
 ): RouterAbEcdsaActivationRefreshRequestFactsV1 {
   const record = requireExactEcdsaClientChannelObject(

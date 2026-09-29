@@ -110,7 +110,7 @@ type EvmFamilySigningEngines = {
   webauthnP256?: Signer<SignRequest, KeyRef, SignatureBytes>;
 };
 
-export type ReadyEcdsaSigningMaterialSource =
+type ReadyEcdsaSigningMaterialSource =
   | {
       kind: 'material_from_step_up';
       material: ReadySecp256k1SigningMaterial;
@@ -120,7 +120,7 @@ export type ReadyEcdsaSigningMaterialSource =
       material: ReadySecp256k1SigningMaterial;
     };
 
-export type EcdsaSigningMaterialSource =
+type EcdsaSigningMaterialSource =
   | ReadyEcdsaSigningMaterialSource
   | {
       kind: 'material_for_step_up';
@@ -186,9 +186,9 @@ export type EcdsaSigningMaterialPlan = Exclude<
   { kind: 'pending' }
 >;
 
-export type ResolveEcdsaSigningMaterialPlan = () => Promise<EcdsaSigningMaterialPlan>;
+type ResolveEcdsaSigningMaterialPlan = () => Promise<EcdsaSigningMaterialPlan>;
 
-export type RunEcdsaMaterialUse = <T>(task: () => Promise<T>) => Promise<T>;
+type RunEcdsaMaterialUse = <T>(task: () => Promise<T>) => Promise<T>;
 
 function warmSessionClaimedProgressData(
   plan: Extract<SigningAuthPlan, { kind: 'warmSession' }>,
@@ -312,7 +312,7 @@ function requirePreparedEcdsaStepUpChallenge(args: {
   return challengeB64u;
 }
 
-export type EvmFamilyUiConfirmFlowConfig<TRequest, TResult extends object> = {
+type EvmFamilyUiConfirmFlowConfig<TRequest, TResult extends object> = {
   targetKind: ThresholdEcdsaChainTarget['kind'];
   flowName: 'evm' | 'tempo';
   explicitAuthErrorLabel: 'EVM' | 'Tempo';
@@ -338,11 +338,11 @@ export type EvmFamilyUiConfirmFlowConfig<TRequest, TResult extends object> = {
   webauthn: EvmFamilySigningWebAuthnMode<TRequest>;
 };
 
-export type OwnerEvmFamilySigningAuthorization = {
+type OwnerEvmFamilySigningAuthorization = {
   readonly kind: 'owner';
 };
 
-export type ActiveWalletAuthorityEvmFamilySigningAuthorization = {
+type ActiveWalletAuthorityEvmFamilySigningAuthorization = {
   readonly kind: 'active_wallet_authority';
   readonly confirmationAuthPlan: Extract<SigningAuthPlan, { kind: 'active_wallet_authority' }>;
   readonly sign: (input: {
@@ -353,7 +353,7 @@ export type ActiveWalletAuthorityEvmFamilySigningAuthorization = {
   }) => Promise<Uint8Array>;
 };
 
-export type EvmFamilySigningAuthorization =
+type EvmFamilySigningAuthorization =
   | OwnerEvmFamilySigningAuthorization
   | ActiveWalletAuthorityEvmFamilySigningAuthorization;
 

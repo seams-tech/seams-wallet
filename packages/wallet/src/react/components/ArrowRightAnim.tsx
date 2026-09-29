@@ -1,6 +1,6 @@
 import React from 'react';
 
-export interface ArrowRightAnimProps {
+interface ArrowRightAnimProps {
   title?: React.ReactNode;
   className?: string;
   color?: string;
@@ -16,7 +16,7 @@ export interface ArrowRightAnimProps {
  *
  * Styling/animation is handled via CSS classes in ArrowRightAnim.css.
  */
-export const ArrowRightAnim: React.FC<ArrowRightAnimProps> = ({
+const ArrowRightAnim: React.FC<ArrowRightAnimProps> = ({
   title,
   className,
   color,

@@ -69,7 +69,7 @@ export type WalletIframeExactSessionIdentityInput = {
   readonly expiresAtMs: number;
 };
 
-export type WalletIframeSessionUnavailableReason =
+type WalletIframeSessionUnavailableReason =
   | 'exhausted'
   | 'absent'
   | 'not_found'
@@ -111,7 +111,7 @@ export type WalletIframePendingSessionBinding =
   | { readonly kind: 'unbound' }
   | ({ readonly kind: 'exact_session' } & WalletIframeExactSessionIdentity);
 
-export type WalletIframeSessionExpiredFailure = {
+type WalletIframeSessionExpiredFailure = {
   readonly kind: 'wallet_iframe_request_failure';
   readonly code: 'wallet_session_expired';
   readonly walletId: WalletId;

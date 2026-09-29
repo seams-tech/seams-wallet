@@ -55,7 +55,7 @@ let currentUpgradedEnvelopeSink: UnlockedCustodyEnvelopeUpgradeSinkV1 | null = n
  * this behind and every establishment path reaches persistence — including the
  * two that call the worker directly and have no relayer of their own.
  */
-export type UnlockedCustodyEnvelopeUpgradeSinkV1 = (input: {
+type UnlockedCustodyEnvelopeUpgradeSinkV1 = (input: {
   readonly walletId: string;
   readonly walletAuthMethodId: string;
   readonly walletSessionId: string;

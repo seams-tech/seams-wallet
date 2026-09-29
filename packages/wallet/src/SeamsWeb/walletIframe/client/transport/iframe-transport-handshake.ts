@@ -7,7 +7,7 @@ import {
 import { isObject } from '@shared/utils/validation';
 import { isIframeLoaded, trackIframeLoad } from './iframe-transport-dom';
 
-export type HandshakeScheduler = {
+type HandshakeScheduler = {
   now?: () => number;
   sleep?: (ms: number) => Promise<void>;
 };
@@ -21,7 +21,7 @@ function createAbortError(): Error {
 
 const WALLET_IFRAME_READY_TIMEOUT_CODE = 'WALLET_IFRAME_READY_TIMEOUT';
 
-export class WalletIframeReadyTimeoutError extends Error {
+class WalletIframeReadyTimeoutError extends Error {
   readonly code = WALLET_IFRAME_READY_TIMEOUT_CODE;
   readonly elapsedMs: number;
   readonly timeoutMs: number;

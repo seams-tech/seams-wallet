@@ -35,7 +35,7 @@ export type WalletIframeExactSessionReconciliationDependencies = Pick<
   }) => Promise<ActiveWalletSessionV1>;
 };
 
-export type WalletIframeExactSessionReconciliationResult =
+type WalletIframeExactSessionReconciliationResult =
   | { readonly kind: 'reconciled'; readonly updatedSessionCount: number }
   | { readonly kind: 'skipped' }
   | { readonly kind: 'failed'; readonly reason: 'invalid' | 'unavailable' };

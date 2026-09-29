@@ -329,7 +329,7 @@ export function setVisible(el: HTMLElement): void {
   el.classList.remove(CLASS_HIDDEN);
 }
 
-export type OverlayPresentation = 'modal' | 'drawer';
+type OverlayPresentation = 'modal' | 'drawer';
 
 export function setDialogPresentation(
   dialog: HTMLDialogElement,
@@ -357,7 +357,7 @@ export function setDialogAuthMenu(
   dialog.classList.toggle(CLASS_RESIZE_ANIMATED, authMenu && animateResize);
 }
 
-export type OverlayRect = {
+type OverlayRect = {
   topCssPx: number;
   leftCssPx: number;
   widthCssPx: number;

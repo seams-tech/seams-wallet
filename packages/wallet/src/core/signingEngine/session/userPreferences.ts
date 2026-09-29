@@ -18,7 +18,7 @@ export type UserPreferencesStorePort = ProfileLastSelectionPort & {
   }) => Promise<unknown>;
 };
 
-export type UserPreferencesManagerDeps = {
+type UserPreferencesManagerDeps = {
   store: UserPreferencesStorePort;
 };
 

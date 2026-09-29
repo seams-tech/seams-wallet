@@ -114,7 +114,7 @@ function isPasskeyRecoveryPrepared(
   return operation.target.kind === 'passkey';
 }
 
-export type AuthMenuSessionIdentity = {
+type AuthMenuSessionIdentity = {
   readonly authMenuSessionId: HostedAuthMenuSessionId;
   readonly requestId: WalletIframeRequestId;
 };
@@ -233,7 +233,7 @@ function isIrreversibleRecoveryState(state: AuthMenuSessionState): state is Extr
   );
 }
 
-export type AuthMenuSessionState =
+type AuthMenuSessionState =
   | AuthMenuReturnState
   | AuthMenuRecoveryState
   | {

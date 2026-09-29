@@ -708,7 +708,7 @@ async function buildBrowserEcdsaPreprocessingCapability(args: {
   }
 }
 
-export type BrowserWalletSessionAuthorizationResolution =
+type BrowserWalletSessionAuthorizationResolution =
   | { kind: 'active'; authorization: ExactEvmFamilyWalletSessionAuthorization }
   | { kind: 'inactive'; reason: string };
 
@@ -837,7 +837,7 @@ async function resolveBrowserEcdsaPreprocessingCapability(
   };
 }
 
-export async function resolveBrowserActiveEcdsaWalletSessionAuthorization(
+async function resolveBrowserActiveEcdsaWalletSessionAuthorization(
   args: BrowserEcdsaCapabilityReaderContext,
   input: BrowserEcdsaWalletSessionAuthorizationInput,
   statusReads: WalletSessionStatusReadScope,
@@ -1238,7 +1238,7 @@ export async function listBrowserActiveEcdsaCapabilityManifestsForWallet(
   return manifests;
 }
 
-export const browserActiveEcdsaCapabilityRuntimeReadPorts: ActiveEcdsaCapabilityRuntimeReadPorts = {
+const browserActiveEcdsaCapabilityRuntimeReadPorts: ActiveEcdsaCapabilityRuntimeReadPorts = {
   listActiveEcdsaCapabilityManifestsForWallet: listBrowserActiveEcdsaCapabilityManifestsForWallet,
   listExactSealedSessionsForWallet,
   resolveSelectedWalletAuthority:
@@ -1277,7 +1277,7 @@ async function requestEmailOtpEcdsaStepUpChallenge(args: {
   }
 }
 
-export type BrowserSigningSurfaceEnginePortsArgs = {
+type BrowserSigningSurfaceEnginePortsArgs = {
   runtimePorts: RuntimePorts;
   stores: SigningEngineStorePorts;
   ed25519YaoPublicCapabilityReferences: Ed25519YaoPublicCapabilityReferenceStorePort;

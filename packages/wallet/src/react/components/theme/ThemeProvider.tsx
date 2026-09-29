@@ -17,7 +17,7 @@ interface ThemeContextValue {
 
 const ThemeContext = React.createContext<ThemeContextValue | null>(null);
 
-export const useThemeContext = (): ThemeContextValue => {
+const useThemeContext = (): ThemeContextValue => {
   const ctx = React.useContext(ThemeContext);
   if (ctx) return ctx;
 

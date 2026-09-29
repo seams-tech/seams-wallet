@@ -53,7 +53,7 @@ type RegisterCredentialsArgsCommon = {
   prompt: RegistrationCredentialPrompt;
 };
 
-export type RegisterCredentialsArgs = RegisterCredentialsArgsCommon &
+type RegisterCredentialsArgs = RegisterCredentialsArgsCommon &
   (
     | {
         kind: 'wallet_registration';

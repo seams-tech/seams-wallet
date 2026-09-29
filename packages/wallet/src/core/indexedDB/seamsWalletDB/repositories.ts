@@ -550,7 +550,7 @@ export type StoreWalletRegistrationFinalizeBatchInput = {
   };
 };
 
-export type WalletRegistrationCommitPublicationRequestV1 = {
+type WalletRegistrationCommitPublicationRequestV1 = {
   readonly operation: PendingWalletRegistrationCommitV1['operation'];
   readonly registrationCeremonyId: string;
   readonly idempotencyKey: string;
@@ -569,7 +569,7 @@ export type StoreWalletRegistrationPublicationInputV1 = Omit<
   };
 };
 
-export type WalletRegistrationSessionPublicationV1 =
+type WalletRegistrationSessionPublicationV1 =
   | {
       readonly kind: 'issued';
       readonly walletSession: ActiveWalletSessionV1;
@@ -863,26 +863,26 @@ export type StoreWalletSignerFinalizeBatchInput = {
   };
 };
 
-export type AccountSignerRollbackMetadataBaselineV1 =
+type AccountSignerRollbackMetadataBaselineV1 =
   | { readonly kind: 'account_signer_rollback_metadata_absent_v1' }
   | {
       readonly kind: 'account_signer_rollback_metadata_json_v1';
       readonly json: string;
     };
 
-export type KeyMaterialRollbackPayloadBaselineV1 =
+type KeyMaterialRollbackPayloadBaselineV1 =
   | { readonly kind: 'key_material_rollback_payload_absent_v1' }
   | {
       readonly kind: 'key_material_rollback_payload_json_v1';
       readonly json: string;
     };
 
-export type AccountSignerRollbackEntryV1 = {
+type AccountSignerRollbackEntryV1 = {
   readonly committed: AccountSignerRecord;
   readonly metadataBaseline: AccountSignerRollbackMetadataBaselineV1;
 };
 
-export type KeyMaterialRollbackEntryV1 = {
+type KeyMaterialRollbackEntryV1 = {
   readonly committed: KeyMaterialRecord;
   readonly payloadBaseline: KeyMaterialRollbackPayloadBaselineV1;
 };
@@ -966,7 +966,7 @@ function requireWebAuthnRpId(value: string): WebAuthnRpId {
 }
 const CHAIN_ACCOUNT_PROJECTION_SIGNER_SLOT = 0;
 
-export class SeamsWalletDBConstraintError extends Error {
+class SeamsWalletDBConstraintError extends Error {
   readonly code: DBConstraintErrorCode;
   readonly details?: Record<string, unknown>;
 

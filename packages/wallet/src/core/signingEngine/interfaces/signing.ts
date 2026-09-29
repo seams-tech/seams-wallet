@@ -13,9 +13,9 @@ import type {
   EcdsaRoleLocalReadyStateBlob,
 } from '@/core/platform/types';
 
-export type ChainNamespace = 'near' | 'evm' | 'tempo';
+type ChainNamespace = 'near' | 'evm' | 'tempo';
 
-export type SignatureAlgorithm = 'ed25519' | 'secp256k1' | 'webauthnP256';
+type SignatureAlgorithm = 'ed25519' | 'secp256k1' | 'webauthnP256';
 
 export type SignatureBytes = Uint8Array;
 
@@ -38,7 +38,7 @@ export type ThresholdEcdsaDerivationRoleLocalClientState = {
   publicFacts: EcdsaRoleLocalPublicFacts;
 };
 
-export type ThresholdEcdsaBackendBindingCommon = {
+type ThresholdEcdsaBackendBindingCommon = {
   /**
    * SigningWorker key identifier for the fixed Router A/B ECDSA path. This is
    * separate from the public threshold identity seam.
@@ -48,27 +48,25 @@ export type ThresholdEcdsaBackendBindingCommon = {
   clientVerifyingShareB64u: string;
 };
 
-export type ThresholdEcdsaRoleLocalReadyStateBlobBackendBinding =
-  ThresholdEcdsaBackendBindingCommon & {
-    materialKind: 'role_local_ready_state_blob';
-    stateBlob: EcdsaRoleLocalReadyStateBlob;
-    ecdsaRoleLocalReadyRecord: EcdsaRoleLocalReadyRecord;
-    ecdsaDerivationRoleLocalClientState?: never;
-  };
+type ThresholdEcdsaRoleLocalReadyStateBlobBackendBinding = ThresholdEcdsaBackendBindingCommon & {
+  materialKind: 'role_local_ready_state_blob';
+  stateBlob: EcdsaRoleLocalReadyStateBlob;
+  ecdsaRoleLocalReadyRecord: EcdsaRoleLocalReadyRecord;
+  ecdsaDerivationRoleLocalClientState?: never;
+};
 
-export type ThresholdEcdsaRoleLocalWorkerHandleBackendBinding =
-  ThresholdEcdsaBackendBindingCommon & {
-    materialKind: 'role_local_worker_handle';
-    roleLocalMaterialHandle: EcdsaRoleLocalWorkerHandle;
-    roleLocalMaterialRef: EcdsaRoleLocalPersistedMaterialRef;
-    publicFacts: EcdsaRoleLocalPublicFacts;
-    authMethod: EcdsaRoleLocalAuthMethod;
-    ecdsaRoleLocalReadyRecord?: never;
-    stateBlob?: never;
-    ecdsaDerivationRoleLocalClientState?: never;
-  };
+type ThresholdEcdsaRoleLocalWorkerHandleBackendBinding = ThresholdEcdsaBackendBindingCommon & {
+  materialKind: 'role_local_worker_handle';
+  roleLocalMaterialHandle: EcdsaRoleLocalWorkerHandle;
+  roleLocalMaterialRef: EcdsaRoleLocalPersistedMaterialRef;
+  publicFacts: EcdsaRoleLocalPublicFacts;
+  authMethod: EcdsaRoleLocalAuthMethod;
+  ecdsaRoleLocalReadyRecord?: never;
+  stateBlob?: never;
+  ecdsaDerivationRoleLocalClientState?: never;
+};
 
-export type ThresholdEcdsaRoleLocalDurablePublicAnchorBackendBinding =
+type ThresholdEcdsaRoleLocalDurablePublicAnchorBackendBinding =
   ThresholdEcdsaBackendBindingCommon & {
     materialKind: 'role_local_durable_public_anchor';
     publicFacts: EcdsaRoleLocalPublicFacts;
@@ -78,18 +76,17 @@ export type ThresholdEcdsaRoleLocalDurablePublicAnchorBackendBinding =
     ecdsaDerivationRoleLocalClientState?: never;
   };
 
-export type ThresholdEcdsaRoleLocalDurableSealedBackendBinding =
-  ThresholdEcdsaBackendBindingCommon & {
-    materialKind: 'role_local_durable_sealed_ref';
-    roleLocalMaterialRef: EcdsaRoleLocalPersistedMaterialRef;
-    publicFacts: EcdsaRoleLocalPublicFacts;
-    roleLocalMaterialHandle?: never;
-    ecdsaRoleLocalReadyRecord?: never;
-    stateBlob?: never;
-    ecdsaDerivationRoleLocalClientState?: never;
-  };
+type ThresholdEcdsaRoleLocalDurableSealedBackendBinding = ThresholdEcdsaBackendBindingCommon & {
+  materialKind: 'role_local_durable_sealed_ref';
+  roleLocalMaterialRef: EcdsaRoleLocalPersistedMaterialRef;
+  publicFacts: EcdsaRoleLocalPublicFacts;
+  roleLocalMaterialHandle?: never;
+  ecdsaRoleLocalReadyRecord?: never;
+  stateBlob?: never;
+  ecdsaDerivationRoleLocalClientState?: never;
+};
 
-export type ThresholdEcdsaMetadataOnlyBackendBinding = ThresholdEcdsaBackendBindingCommon & {
+type ThresholdEcdsaMetadataOnlyBackendBinding = ThresholdEcdsaBackendBindingCommon & {
   materialKind: 'metadata_only';
   stateBlob?: never;
   ecdsaRoleLocalReadyRecord?: never;

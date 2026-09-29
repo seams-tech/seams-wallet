@@ -31,12 +31,12 @@ type Secp256k1DigestSignRequest = Extract<SignRequest, { kind: 'digest' }> & {
   algorithm: 'secp256k1';
 };
 
-export type ReusableEcdsaSigningCredential = {
+type ReusableEcdsaSigningCredential = {
   readonly kind: 'reusable_wallet_session';
   readonly walletSessionToken: string;
 };
 
-export type OperationStepUpEcdsaSigningCredential = {
+type OperationStepUpEcdsaSigningCredential = {
   readonly kind: 'operation_step_up';
   readonly walletSessionToken: string;
 };

@@ -26,7 +26,7 @@ import {
 
 type Ed25519AddSignerSelection = Extract<AddSignerSelection, { mode: 'ed25519' }>;
 
-export type VerifiedPasskeyEd25519AddSignerIntentV1 = {
+type VerifiedPasskeyEd25519AddSignerIntentV1 = {
   kind: 'verified_passkey_ed25519_add_signer_intent_v1';
   intent: Omit<AddSignerIntentV1, 'signerSelection'> & {
     signerSelection: Ed25519AddSignerSelection;
@@ -36,14 +36,14 @@ export type VerifiedPasskeyEd25519AddSignerIntentV1 = {
   addSignerCeremonyId: string;
 };
 
-export type VerifiedPasskeyEd25519AddSignerAuthorityV1 = {
+type VerifiedPasskeyEd25519AddSignerAuthorityV1 = {
   kind: 'verified_passkey_ed25519_add_signer_authority_v1';
   walletId: WalletId;
   addSignerIntentDigestB64u: string;
   credentialIdB64u: string;
 };
 
-export type VerifiedPasskeyEd25519YaoAddSignerPreparationInputV1 = {
+type VerifiedPasskeyEd25519YaoAddSignerPreparationInputV1 = {
   kind: 'verified_passkey_ed25519_yao_add_signer_input_v1';
   verifiedIntent: VerifiedPasskeyEd25519AddSignerIntentV1;
   verifiedAuthority: VerifiedPasskeyEd25519AddSignerAuthorityV1;
@@ -55,7 +55,7 @@ export type VerifiedPasskeyEd25519YaoAddSignerPreparationInputV1 = {
   };
 };
 
-export type PreparedPasskeyEd25519YaoAddSignerV1 = {
+type PreparedPasskeyEd25519YaoAddSignerV1 = {
   kind: 'prepared_passkey_ed25519_yao_add_signer_v1';
   request: RouterAbEd25519YaoRegistrationAdmissionRequestV1;
   transportConfig: RouterAbEd25519YaoHttpTransportConfigV1;
@@ -94,7 +94,7 @@ function transportConfig(
   };
 }
 
-export async function prepareVerifiedPasskeyEd25519YaoAddSignerV1(
+async function prepareVerifiedPasskeyEd25519YaoAddSignerV1(
   input: VerifiedPasskeyEd25519YaoAddSignerPreparationInputV1,
 ): Promise<PreparedPasskeyEd25519YaoAddSignerV1> {
   const intent = input.verifiedIntent.intent;

@@ -307,7 +307,7 @@ import {
 // - WalletIframeRouter (this): request/response correlation, progress events,
 //   overlay display, and high-level wallet RPC helpers
 
-export interface WalletIframeRouterOptions {
+interface WalletIframeRouterOptions {
   walletOrigin: string; // e.g., https://wallet.example.com
   servicePath?: string; // default '/wallet-service'
   connectTimeoutMs?: number; // default 8000
@@ -685,7 +685,7 @@ function hostedAuthMenuAnchorMetrics(
   };
 }
 
-export const HOSTED_AUTH_MENU_ANCHOR_HEIGHT_CSS_VAR = '--seams-auth-menu-height';
+const HOSTED_AUTH_MENU_ANCHOR_HEIGHT_CSS_VAR = '--seams-auth-menu-height';
 
 function pageScrollOffsetCssPx(axis: 'x' | 'y'): number {
   if (typeof window === 'undefined') return 0;
@@ -879,7 +879,7 @@ type PostResult<T> = {
   result: T;
 };
 
-export type HostedWalletSeamsSessionSource = {
+type HostedWalletSeamsSessionSource = {
   readonly relayUrl: string;
   readonly operationCredential: WalletSessionOperationCredentialV1;
 };

@@ -96,10 +96,9 @@ export type ThresholdEcdsaEmailOtpPendingSingleUseAuthContext =
     use: Extract<EmailOtpAuthUse, { kind: 'single_use_pending' }>;
   };
 
-export type ThresholdEcdsaEmailOtpConsumedSingleUseAuthContext =
-  ThresholdEcdsaEmailOtpAuthContext & {
-    use: Extract<EmailOtpAuthUse, { kind: 'single_use_consumed' }>;
-  };
+type ThresholdEcdsaEmailOtpConsumedSingleUseAuthContext = ThresholdEcdsaEmailOtpAuthContext & {
+  use: Extract<EmailOtpAuthUse, { kind: 'single_use_consumed' }>;
+};
 
 export function emailOtpAuthContextProviderUserId(
   context: ThresholdEcdsaEmailOtpAuthContext,
@@ -382,7 +381,7 @@ type CommonSelectedLane = {
   curve: SigningCurve;
 };
 
-export type BaseSelectedLane = CommonSelectedLane & {
+type BaseSelectedLane = CommonSelectedLane & {
   walletSessionId: WalletSessionId;
   quotaId: MpcWalletSigningQuotaId;
   thresholdSessionId: ThresholdSessionId;
@@ -406,7 +405,7 @@ export type SelectedEcdsaLane = CommonSelectedLane & {
 
 export type SelectedLane = SelectedEd25519Lane | SelectedEcdsaLane;
 
-export type SelectedEd25519LaneInput = {
+type SelectedEd25519LaneInput = {
   walletId: WalletId;
   nearAccountId: AccountId;
   nearEd25519SigningKeyId: NearEd25519SigningKeyId;
@@ -521,7 +520,7 @@ type CommonLaneCandidate = {
   source: LaneCandidateSource;
 };
 
-export type BaseLaneCandidate = CommonLaneCandidate & {
+type BaseLaneCandidate = CommonLaneCandidate & {
   thresholdSessionId: string;
   remainingUses: number | null;
   expiresAtMs: number | null;

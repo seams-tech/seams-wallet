@@ -29,7 +29,7 @@ export type EvmFamilyThresholdEcdsaOperation = {
   readonly authPlan: SigningAuthPlan;
 };
 
-export type EvmFamilyEcdsaOperationStepUpAuthorization =
+type EvmFamilyEcdsaOperationStepUpAuthorization =
   | EvmFamilyEcdsaEmailOtpStepUpAuthorization
   | EvmFamilyEcdsaPasskeyStepUpAuthorization;
 

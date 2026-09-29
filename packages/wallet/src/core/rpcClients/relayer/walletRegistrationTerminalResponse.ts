@@ -76,7 +76,7 @@ export function requireResponseRecord(args: {
   return args.value;
 }
 
-export function assertExactResponseKeys(
+function assertExactResponseKeys(
   record: Record<string, unknown>,
   allowedKeys: readonly string[],
   responseName: string,

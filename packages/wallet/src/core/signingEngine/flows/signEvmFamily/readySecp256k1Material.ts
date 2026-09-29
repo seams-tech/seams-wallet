@@ -42,7 +42,7 @@ import type { ActiveWalletSessionV1 } from '@shared/device-linking/contracts';
 import type { ActiveWalletAuthorityEcdsaRuntimeV1 } from '../../session/material/activeWalletAuthorityEcdsaRuntime';
 import { routerAbMpcMaterialActivationRefFromWire } from '@shared/utils/routerAbNormalSigningIdentity';
 
-export async function hydrateEcdsaRoleLocalMaterialForSigning(args: {
+async function hydrateEcdsaRoleLocalMaterialForSigning(args: {
   persistedMaterial: PersistedEcdsaRoleLocalMaterial;
   workerCtx: WorkerOperationContext;
 }): Promise<EcdsaRoleLocalMaterialResolution> {

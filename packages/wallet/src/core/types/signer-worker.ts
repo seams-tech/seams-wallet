@@ -52,9 +52,9 @@ export type NearSignerWorkerCustomRequestType =
   (typeof NearSignerWorkerCustomRequestType)[keyof typeof NearSignerWorkerCustomRequestType];
 
 export type SignerWorkerRequestType = WorkerRequestType | NearSignerWorkerCustomRequestType;
-export type SignerWorkerResponseType = WorkerResponseType;
+type SignerWorkerResponseType = WorkerResponseType;
 
-export interface ThresholdSignerConfig {
+interface ThresholdSignerConfig {
   /** Base URL of the Router API server (e.g. https://router-api.example.com) */
   relayerUrl: string;
   /** Identifies which relayer-held key share to use */
@@ -148,7 +148,7 @@ type DirectPrfFields = {
   wrapKeySalt?: string;
 };
 
-export type WasmDeriveThresholdEd25519ClientVerifyingShareRequest =
+type WasmDeriveThresholdEd25519ClientVerifyingShareRequest =
   StripFree<wasmModule.DeriveThresholdEd25519ClientVerifyingShareRequest> & DirectPrfFields;
 export type WasmPrepareThresholdEcdsaDerivationRoleLocalClientBootstrapRequest =
   GeneratedPrepareEcdsaClientBootstrapCommand;
@@ -158,7 +158,7 @@ export type WasmFinalizeThresholdEcdsaDerivationRoleLocalClientBootstrapRequest 
   GeneratedFinalizeEcdsaClientBootstrapCommand;
 export type WasmFinalizeThresholdEcdsaDerivationRoleLocalClientBootstrapResult =
   GeneratedFinalizeEcdsaClientBootstrapOutput;
-export interface WasmSignTransactionsWithActionsRequest {
+interface WasmSignTransactionsWithActionsRequest {
   rpcCall: RpcCallPayload;
   sessionId: string;
   createdAt?: number;
@@ -169,7 +169,7 @@ export interface WasmSignTransactionsWithActionsRequest {
   credential?: string;
 }
 
-export interface WasmSignDelegateActionRequest {
+interface WasmSignDelegateActionRequest {
   rpcCall: RpcCallPayload;
   sessionId: string;
   createdAt?: number;
@@ -187,7 +187,7 @@ export interface DelegatePayload {
   maxBlockHeight: string;
   publicKey: string;
 }
-export interface WasmSignNep413MessageRequest {
+interface WasmSignNep413MessageRequest {
   sessionId: string;
   accountId: string;
   nearPublicKey: string;
@@ -205,11 +205,10 @@ export type WasmRequestPayload =
   | WasmSignNep413MessageRequest;
 
 // WASM Worker Response Types
-export type WasmSignedTransaction = InstanceType<typeof wasmModule.WasmSignedTransaction>;
+type WasmSignedTransaction = InstanceType<typeof wasmModule.WasmSignedTransaction>;
 export type WasmSignedDelegate = wasmModule.WasmSignedDelegate;
-export type WasmDelegateAction = wasmModule.WasmDelegateAction;
-export type WasmTransactionSignResult = InstanceType<typeof wasmModule.TransactionSignResult>;
-export type WasmDelegateSignResult = wasmModule.DelegateSignResult;
+type WasmTransactionSignResult = InstanceType<typeof wasmModule.TransactionSignResult>;
+type WasmDelegateSignResult = wasmModule.DelegateSignResult;
 // wasm-bindgen may generate classes with private constructors, which breaks
 // `InstanceType<typeof Class>`. Use the class name directly for the instance type.
 export type WasmDeriveThresholdEd25519ClientVerifyingShareResult =
@@ -295,7 +294,7 @@ export enum ProgressStep {
   ERROR = 'error', // Rust: Error
 }
 
-export type NearWorkerProgressStatus = 'progress' | 'success' | 'error';
+type NearWorkerProgressStatus = 'progress' | 'success' | 'error';
 
 export interface NearWorkerProgressEvent {
   step: number;
@@ -309,7 +308,7 @@ export interface NearWorkerProgressEvent {
 // === RESPONSE MESSAGE INTERFACES ===
 
 // Base interface for all worker responses
-export interface BaseWorkerResponse<TPayload = unknown> {
+interface BaseWorkerResponse<TPayload = unknown> {
   type: SignerWorkerResponseType;
   payload: TPayload;
 }
@@ -322,7 +321,7 @@ export interface RequestResponseMap {
   [WorkerRequestType.SignNep413Message]: wasmModule.SignNep413Result;
 }
 
-export type RequestTypeKey = keyof RequestResponseMap;
+type RequestTypeKey = keyof RequestResponseMap;
 
 // Generic success response type that uses WASM types
 export interface WorkerSuccessResponse<T extends RequestTypeKey> extends BaseWorkerResponse<
@@ -356,7 +355,7 @@ export interface WorkerErrorResponse extends BaseWorkerResponse<{
   type: SignerWorkerResponseType;
 }
 
-export enum WorkerErrorCode {
+enum WorkerErrorCode {
   WASM_INIT_FAILED = 'WASM_INIT_FAILED',
   INVALID_REQUEST = 'INVALID_REQUEST',
   TIMEOUT = 'TIMEOUT',

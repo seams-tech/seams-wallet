@@ -54,7 +54,7 @@ export type Device1OwnerLinkCancellationV1 = {
   readonly authentication: LinkSessionAuthenticationV1;
 };
 
-export type RegisterDevice1OwnerLinkCancellationV1 = (
+type RegisterDevice1OwnerLinkCancellationV1 = (
   cancellation: Device1OwnerLinkCancellationV1 | null,
 ) => void;
 

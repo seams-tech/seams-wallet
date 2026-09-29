@@ -15,9 +15,9 @@ import {
   type UseCaseWalletSessionReadiness,
 } from './lifecycle';
 
-export type UnlockWalletFailure = UseCaseFailure<UnlockWalletFailureCode>;
+type UnlockWalletFailure = UseCaseFailure<UnlockWalletFailureCode>;
 
-export type UnlockWalletAuthResult =
+type UnlockWalletAuthResult =
   | { ok: true; code?: never; message?: never; retryable?: never }
   | UseCaseFailure<
       Extract<
@@ -26,7 +26,7 @@ export type UnlockWalletAuthResult =
       >
     >;
 
-export type UnlockWalletRestoreResult =
+type UnlockWalletRestoreResult =
   | {
       ok: true;
       restored: readonly (ReadyEd25519Lane | EcdsaUseCaseReadyLane)[];
@@ -44,7 +44,7 @@ export type UnlockWalletRestoreResult =
       >
     >;
 
-export type UnlockWalletProvisionMissingEcdsaResult =
+type UnlockWalletProvisionMissingEcdsaResult =
   | {
       ok: true;
       provisioned: readonly EcdsaUseCaseReadyLane[];
@@ -64,18 +64,18 @@ export type UnlockWalletProvisionMissingEcdsaResult =
       >
     >;
 
-export type UnlockWalletSealWriteResult =
+type UnlockWalletSealWriteResult =
   | { ok: true; code?: never; message?: never; retryable?: never }
   | UseCaseFailure<Extract<UnlockWalletFailureCode, 'storage_cleanup_failed' | 'invalid_state'>>;
 
-export type UnlockWalletReadinessInput = {
+type UnlockWalletReadinessInput = {
   input: UnlockWalletInput;
   restored: readonly (ReadyEd25519Lane | EcdsaUseCaseReadyLane)[];
   provisioned: readonly EcdsaUseCaseReadyLane[];
   reauthRequired: readonly ReauthRequiredLane[];
 };
 
-export type UnlockWalletDeps = {
+type UnlockWalletDeps = {
   authenticator: {
     authenticate(input: UnlockWalletInput): Promise<UnlockWalletAuthResult>;
   };

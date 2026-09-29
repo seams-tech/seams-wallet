@@ -39,7 +39,7 @@ function requirePositiveSignerSlot(value: unknown, context: string): number {
   return Math.floor(parsed);
 }
 
-export function parseRecoveryResolvedWalletBinding(
+function parseRecoveryResolvedWalletBinding(
   raw: unknown,
   context: string,
 ): RecoveryResolvedWalletBinding {

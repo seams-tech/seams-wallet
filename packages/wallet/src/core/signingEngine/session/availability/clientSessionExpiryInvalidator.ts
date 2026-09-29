@@ -17,7 +17,7 @@ export type ClientWalletSessionInvalidationReadinessDeps = {
   readonly clearEmailOtpWarmSessionMaterial: (thresholdSessionId: string) => Promise<void>;
 };
 
-export type ClientWalletSessionExpiryInvalidatorDeps = {
+type ClientWalletSessionExpiryInvalidatorDeps = {
   readonly readiness: ClientWalletSessionInvalidationReadinessDeps;
   readonly statusOverrides: Map<string, WalletSessionStatusOverride>;
 };
@@ -65,7 +65,7 @@ function walletSessionExpiredEvent(args: {
   };
 }
 
-export type InvalidateExpiredWalletSessionInput = {
+type InvalidateExpiredWalletSessionInput = {
   readonly state: ExpiredWalletSessionAuthorizationState;
   readonly walletSessionId: WalletSessionId;
 };

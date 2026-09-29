@@ -226,9 +226,7 @@ function decimalUnits(value: string, decimals: number): string {
   return `${padded.slice(0, -decimals)}${fraction ? `.${fraction}` : ''}`;
 }
 
-export function reviewAmount(
-  model: TxDisplayModel | null,
-): { value: string; symbol: string } | null {
+function reviewAmount(model: TxDisplayModel | null): { value: string; symbol: string } | null {
   const total = model?.totals;
   if (!total?.nativeValue) return null;
   if (total.nativeSymbol === 'yoctoNEAR')

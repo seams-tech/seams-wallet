@@ -35,9 +35,9 @@ import type {
 } from '@shared/authorization/capabilityKinds';
 
 export type NonEmptyReadonlyArray<T> = readonly [T, ...T[]];
-export type PositiveInt = number & { readonly __brand: 'PositiveInt' };
+type PositiveInt = number & { readonly __brand: 'PositiveInt' };
 export type UnixTimeMs = number & { readonly __brand: 'UnixTimeMs' };
-export type IdempotencyKey = string & { readonly __brand: 'IdempotencyKey' };
+type IdempotencyKey = string & { readonly __brand: 'IdempotencyKey' };
 export type RestoreAttemptId = string & { readonly __brand: 'RestoreAttemptId' };
 export type Ed25519RelayerKeyId = RelayerKeyId & { readonly __curve: 'ed25519' };
 export type EcdsaRelayerKeyId = RelayerKeyId & { readonly __curve: 'ecdsa' };
@@ -45,7 +45,7 @@ export type WarmSessionRemainingUses = number & {
   readonly __brand: 'WarmSessionRemainingUses';
 };
 
-export type UseCaseFailureSource =
+type UseCaseFailureSource =
   | 'authenticator'
   | 'email_otp'
   | 'signer_crypto'
@@ -85,11 +85,11 @@ export function useCaseFailure<Code extends string>(input: {
   };
 }
 
-export type LifecycleTransitionTable<StateKind extends string> = {
+type LifecycleTransitionTable<StateKind extends string> = {
   readonly [Kind in StateKind]: readonly StateKind[];
 };
 
-export type LifecycleTransitionFromTable<T extends Record<string, readonly string[]>> = {
+type LifecycleTransitionFromTable<T extends Record<string, readonly string[]>> = {
   readonly [From in keyof T & string]: T[From][number] extends infer To
     ? To extends string
       ? { readonly from: From; readonly to: To }
@@ -97,17 +97,17 @@ export type LifecycleTransitionFromTable<T extends Record<string, readonly strin
     : never;
 }[keyof T & string];
 
-export type ConfiguredEcdsaTargets = {
+type ConfiguredEcdsaTargets = {
   kind: 'configured';
   targets?: never;
 };
 
-export type ExplicitEcdsaTargets = {
+type ExplicitEcdsaTargets = {
   kind: 'explicit';
   targets: NonEmptyReadonlyArray<ThresholdEcdsaChainTarget>;
 };
 
-export type EcdsaTargetSelection = ConfiguredEcdsaTargets | ExplicitEcdsaTargets;
+type EcdsaTargetSelection = ConfiguredEcdsaTargets | ExplicitEcdsaTargets;
 
 export type ReadyEd25519Lane = {
   kind: 'ed25519_ready_lane_v1';
@@ -212,20 +212,20 @@ export type WarmSessionBudgetSpend = {
   remainingUses: WarmSessionRemainingUses;
 };
 
-export type AuthenticatorCreateRequest = {
+type AuthenticatorCreateRequest = {
   kind: 'authenticator_create_request_v1';
   challengeB64u: string;
   userHandleB64u: string;
 };
 
-export type AuthenticatorGetRequest = {
+type AuthenticatorGetRequest = {
   kind: 'authenticator_get_request_v1';
   challengeB64u: string;
   credentialIdB64u: CredentialIdB64u;
 };
 
 export type WebAuthnUserHandle = string & { readonly __brand: 'WebAuthnUserHandle' };
-export type WebAuthnCredentialId = CredentialIdB64u;
+type WebAuthnCredentialId = CredentialIdB64u;
 export type EmailAddress = string & { readonly __brand: 'EmailAddress' };
 export type EmailOtpCode = string & { readonly __brand: 'EmailOtpCode' };
 export type RegisterWalletAuth =
@@ -429,7 +429,7 @@ export type UnlockWalletLifecycleState =
       result?: never;
     } & UseCaseFailure<UnlockWalletFailureCode>);
 
-export type SigningSessionActivationPasskeyAuth = {
+type SigningSessionActivationPasskeyAuth = {
   kind: 'passkey';
   walletId: WalletId;
   rpId: RpId;
@@ -458,7 +458,7 @@ export type SigningSessionActivationEmailOtpEcdsaAuth = {
   credentialIdB64u?: never;
 };
 
-export type SigningSessionActivationEmailOtpAuth =
+type SigningSessionActivationEmailOtpAuth =
   | SigningSessionActivationEmailOtpEd25519Auth
   | SigningSessionActivationEmailOtpEcdsaAuth;
 
@@ -510,7 +510,7 @@ export type SigningSessionSealWriteInput =
       remainingUses: WarmSessionRemainingUses;
     };
 
-export type SignEvmFamilyAuthPolicy =
+type SignEvmFamilyAuthPolicy =
   | { kind: 'warm_session_only'; auth?: never }
   | {
       kind: 'warm_session_or_same_method_step_up';
@@ -537,12 +537,12 @@ export type SignEvmFamilyInput =
       authPolicy: SignEvmFamilyAuthPolicy;
     };
 
-export type EvmSignature = {
+type EvmSignature = {
   kind: 'ecdsa_secp256k1_signature_v1';
   signatureHex: Hex;
 };
 
-export type TempoTransactionHash = Hex & { readonly __brand: 'TempoTransactionHash' };
+type TempoTransactionHash = Hex & { readonly __brand: 'TempoTransactionHash' };
 
 type SignEvmFamilySuccessBase = {
   ok: true;
@@ -625,12 +625,12 @@ export type SignEvmFamilyLifecycleState =
     } & UseCaseFailure<SignEvmFamilyFailureCode>);
 
 export type NearTransactionDigest = string & { readonly __brand: 'NearTransactionDigest' };
-export type Nep413Digest = string & { readonly __brand: 'Nep413Digest' };
-export type NearDelegateActionDigest = string & { readonly __brand: 'NearDelegateActionDigest' };
-export type Nep413Scope = string & { readonly __brand: 'Nep413Scope' };
-export type NearDelegateActionScope = string & { readonly __brand: 'NearDelegateActionScope' };
+type Nep413Digest = string & { readonly __brand: 'Nep413Digest' };
+type NearDelegateActionDigest = string & { readonly __brand: 'NearDelegateActionDigest' };
+type Nep413Scope = string & { readonly __brand: 'Nep413Scope' };
+type NearDelegateActionScope = string & { readonly __brand: 'NearDelegateActionScope' };
 
-export type SignNearAuthPolicy =
+type SignNearAuthPolicy =
   | { kind: 'warm_session_only'; auth?: never }
   | {
       kind: 'warm_session_or_same_method_step_up';
@@ -799,7 +799,7 @@ export type RestorePersistedSessionsInput = {
   reason: 'page_load' | 'session_status' | 'pre_sign' | 'manual_refresh';
 };
 
-export type RestorePersistedSessionCleanup = {
+type RestorePersistedSessionCleanup = {
   kind: 'cleanup_required';
   walletId: WalletId;
   rpId: RpId;
@@ -807,7 +807,7 @@ export type RestorePersistedSessionCleanup = {
   reason: 'malformed_record' | 'expired_record' | 'incompatible_record' | 'seal_mismatch';
 };
 
-export type RestorePersistedSessionsSuccess = {
+type RestorePersistedSessionsSuccess = {
   ok: true;
   walletId: WalletId;
   readiness: UseCaseWalletSessionReadiness;
@@ -819,7 +819,7 @@ export type RestorePersistedSessionsSuccess = {
   retryable?: never;
 };
 
-export type RestorePersistedSessionsFailureCode =
+type RestorePersistedSessionsFailureCode =
   | 'stale_persistence'
   | 'unavailable_storage'
   | 'seal_failed'
@@ -828,7 +828,7 @@ export type RestorePersistedSessionsFailureCode =
   | 'cleanup_failed'
   | 'invalid_state';
 
-export type RestorePersistedSessionsLifecycleState =
+type RestorePersistedSessionsLifecycleState =
   | ({ kind: 'received_input' } & RestorePersistedSessionsInput)
   | {
       kind: 'reading_persistence';
@@ -854,12 +854,11 @@ export type RestorePersistedSessionsLifecycleState =
       result?: never;
     } & UseCaseFailure<RestorePersistedSessionsFailureCode>);
 
-export type EcdsaProvisioningStateKind = EcdsaProvisioningState['kind'];
-export type RegisterWalletLifecycleStateKind = RegisterWalletLifecycleState['kind'];
-export type RestorePersistedSessionsLifecycleStateKind =
-  RestorePersistedSessionsLifecycleState['kind'];
+type EcdsaProvisioningStateKind = EcdsaProvisioningState['kind'];
+type RegisterWalletLifecycleStateKind = RegisterWalletLifecycleState['kind'];
+type RestorePersistedSessionsLifecycleStateKind = RestorePersistedSessionsLifecycleState['kind'];
 
-export const ecdsaProvisioningAllowedTransitions = {
+const ecdsaProvisioningAllowedTransitions = {
   needs_secret_source: ['preparing_client_bootstrap', 'failed'],
   preparing_client_bootstrap: ['awaiting_relayer_identity', 'failed'],
   awaiting_relayer_identity: ['finalizing_ready_state', 'failed'],
@@ -869,7 +868,7 @@ export const ecdsaProvisioningAllowedTransitions = {
   failed: [],
 } as const satisfies LifecycleTransitionTable<EcdsaProvisioningStateKind>;
 
-export const registerWalletAllowedTransitions = {
+const registerWalletAllowedTransitions = {
   received_input: ['authenticating', 'failed'],
   authenticating: ['provisioning_ed25519', 'failed'],
   provisioning_ed25519: ['provisioning_ecdsa', 'failed'],
@@ -880,7 +879,7 @@ export const registerWalletAllowedTransitions = {
   failed: [],
 } as const satisfies LifecycleTransitionTable<RegisterWalletLifecycleStateKind>;
 
-export const restorePersistedSessionsAllowedTransitions = {
+const restorePersistedSessionsAllowedTransitions = {
   received_input: ['reading_persistence', 'failed'],
   reading_persistence: ['classifying_material', 'failed'],
   classifying_material: ['cleaning_stale_records', 'ready', 'failed'],

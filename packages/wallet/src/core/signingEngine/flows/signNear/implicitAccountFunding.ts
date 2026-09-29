@@ -97,7 +97,7 @@ function fundingSessionFromWalletSessionState(
  * step-up assertion — before the proof is assembled — so it names its
  * provenance from the method rather than from a finished authorization.
  */
-export type NearOperationStepUpFundingMethod = Exclude<
+type NearOperationStepUpFundingMethod = Exclude<
   NearEd25519StepUpAuthorization['kind'],
   'warm_session'
 >;

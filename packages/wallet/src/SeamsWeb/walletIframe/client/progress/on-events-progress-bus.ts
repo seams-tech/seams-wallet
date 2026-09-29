@@ -18,7 +18,7 @@ import { isWalletFlowEvent } from '@/core/types/sdkSentEvents';
 
 export type ProgressPayload = MessageProgressPayload;
 
-export interface ProgressStats {
+interface ProgressStats {
   count: number;
   flow: string | null;
   phase: string | null;
@@ -26,7 +26,7 @@ export interface ProgressStats {
   lastAt: number | null;
 }
 
-export interface ProgressSubscriber {
+interface ProgressSubscriber {
   onProgress?: (payload: ProgressPayload) => void;
   sticky: boolean;
   stats: ProgressStats;

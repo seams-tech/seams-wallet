@@ -157,7 +157,7 @@ function assertNeverWalletRecoveryProjection(value: never): never {
   throw new Error(`unsupported wallet recovery projection: ${String(value)}`);
 }
 
-export function committedProjectionFromPromotion(
+function committedProjectionFromPromotion(
   input: WalletRecoveryCommitPromotion,
 ): WalletRecoveryCommittedProjectionV1 {
   const recoveryOperationId = requireWalletRecoveryOperationId(input.payload.recoveryOperationId);

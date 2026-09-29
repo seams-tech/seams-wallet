@@ -231,7 +231,7 @@ function errorForFailure(error: unknown, phase: DeviceLinkingError['phase']): De
   );
 }
 
-export type LinkedDeviceDeliveryRecoveryReasonV1 =
+type LinkedDeviceDeliveryRecoveryReasonV1 =
   | 'recipient_private_handle_lost'
   | 'sealed_delivery_expired';
 
@@ -240,7 +240,7 @@ export type LinkedDeviceDeliveryRecoveryReasonV1 =
  * The original delivery is intentionally abandoned; exact-method unlock uses
  * the durable local installation to obtain a successor Wallet Session.
  */
-export function classifyLinkedDeviceDeliveryFailureV1(
+function classifyLinkedDeviceDeliveryFailureV1(
   error: unknown,
 ): LinkedDeviceDeliveryRecoveryReasonV1 | null {
   const message = errorMessage(error).toLowerCase();
@@ -599,7 +599,7 @@ function requireNewEmailOtpEnrollmentMaterialV1(
   return value;
 }
 
-export class LinkDeviceFlow {
+class LinkDeviceFlow {
   private readonly options: StartDevice2LinkingFlowArgs;
   private readonly ports: Device2LinkingFlowPortsV1;
   private readonly getAuthenticationContext: GetLinkedDeviceAuthenticationContext | null;
@@ -2442,7 +2442,7 @@ export class LinkDeviceFlow {
   }
 }
 
-export type DeviceLinkingDomainDeps =
+type DeviceLinkingDomainDeps =
   | {
       readonly kind: 'iframe';
       readonly getContext: () => DeviceLinkingWebContext;

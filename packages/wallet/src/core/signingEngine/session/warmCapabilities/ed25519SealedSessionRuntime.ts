@@ -74,7 +74,7 @@ export type ExactEd25519SealedSessionRuntime = {
   readonly routerAbNormalSigning: RouterAbEd25519NormalSigningState;
 };
 
-export type Ed25519SealedSessionRuntimeResolution =
+type Ed25519SealedSessionRuntimeResolution =
   | {
       readonly kind: 'resolved';
       readonly runtime: ExactEd25519SealedSessionRuntime;
@@ -92,7 +92,7 @@ export type Ed25519SealedSessionRuntimeResolution =
       readonly runtime?: never;
     };
 
-export type Ed25519SealedSessionRuntimeResolver = {
+type Ed25519SealedSessionRuntimeResolver = {
   readonly listExactSealedSessionsForWallet: typeof listExactSealedSessionsForWallet;
 };
 
@@ -393,7 +393,7 @@ function runtimeMatchesLane(
   return authBindingsEqual(runtime.auth, laneIdentity.auth);
 }
 
-export async function resolveExactEd25519SealedSessionRuntimeForLaneWithResolver(
+async function resolveExactEd25519SealedSessionRuntimeForLaneWithResolver(
   args: {
     readonly walletId: WalletId;
     readonly laneIdentity: ExactEd25519SigningLaneIdentity;
@@ -430,7 +430,7 @@ export async function resolveExactEd25519SealedSessionRuntimeForLane(args: {
   });
 }
 
-export async function resolveExactEd25519SealedSessionRuntimeForWalletWithResolver(
+async function resolveExactEd25519SealedSessionRuntimeForWalletWithResolver(
   walletId: WalletId,
   resolver: Ed25519SealedSessionRuntimeResolver,
 ): Promise<Ed25519WalletSealedSessionRuntimeResolution> {
@@ -485,7 +485,7 @@ export async function resolveExactEd25519SealedSessionRuntimeForWallet(
   });
 }
 
-export async function resolveExactEd25519SealedSessionRuntimeForWalletSubjectWithResolver(
+async function resolveExactEd25519SealedSessionRuntimeForWalletSubjectWithResolver(
   args: {
     walletId: WalletId;
     nearAccountId: AccountId;

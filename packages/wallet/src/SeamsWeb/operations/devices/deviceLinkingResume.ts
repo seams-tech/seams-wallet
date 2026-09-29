@@ -30,8 +30,8 @@ import { parseLocalAuthorityActivationFinalAckV1 } from '@shared/device-linking/
 import type { DeviceLinkingWalletSessionAcknowledgementReplayPortV1 } from './deviceLinkingPorts';
 import type { DeviceLinkingDeliveryResumePortV1 } from './deviceLinkingAuthorityInstallation';
 
-export const LINKED_DEVICE_COMMITTED_RESUME_KIND_V1 = 'linked_device_committed_resume_v1' as const;
-export const LINKED_DEVICE_PENDING_ACK_KIND_V1 = 'linked_device_pending_ack_v1' as const;
+const LINKED_DEVICE_COMMITTED_RESUME_KIND_V1 = 'linked_device_committed_resume_v1' as const;
+const LINKED_DEVICE_PENDING_ACK_KIND_V1 = 'linked_device_pending_ack_v1' as const;
 export const LINKED_DEVICE_COMMITTED_RESUME_APP_STATE_PREFIX_V1 =
   'device-linking/committed-resume/v1/';
 export const LINKED_DEVICE_PENDING_ACK_APP_STATE_PREFIX_V1 = 'device-linking/pending-ack/v1/';
@@ -56,7 +56,7 @@ const COMMITTED_RESUME_FIELDS = [
   'committedAtMs',
 ] as const;
 
-export type DeviceLinkingPendingAcknowledgementV1 = {
+type DeviceLinkingPendingAcknowledgementV1 = {
   readonly kind: typeof LINKED_DEVICE_PENDING_ACK_KIND_V1;
   readonly acknowledgement: LocalAuthorityActivationFinalAckV1;
 };
