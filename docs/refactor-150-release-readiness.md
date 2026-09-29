@@ -69,7 +69,11 @@ records each slice, its evidence and what it left open.
     naming another operation and one carrying another code. 7ebcde5
     fences the approving method and authority at the revocation's commit,
     and a refused proof re-reads the record in case a concurrent copy
-    committed first. The contract has not run: it needs a Google ID token.
+    committed first. The contract passes on all three hosts (2026-09-29),
+    with a Google test ID token minted by impersonating the configured test
+    service account. So do the Email OTP export replay, the Email-founded
+    passkey recovery and both auth-method addition contracts, which lose
+    the finalize answer and receive its replay.
 16. A linked device exports its ECDSA key (793ba2d). The holder's ordinary
     export still verified the Derivers' proof bundles as V1, and every
     export answers with stable tenant-root (V2) bundles, so a linked
@@ -93,6 +97,21 @@ records each slice, its evidence and what it left open.
     object and the VM. Each persists what they decide. The late superseded
     attempt and the replaced-activation retirement contracts pass on all
     three hosts (2026-09-29).
+20. A linked-device revocation is answered from what committed (7879820), as
+    item 15 does for an auth method. Its Email OTP code is spent in the
+    batch that revokes the device's method, and the answer is recorded in
+    the same batch. The answer names the device's authority and its new
+    revocation epoch, so the record is built from the authority row the
+    batch wrote. An exact retry is answered from the record, and then
+    completes the revocation's idempotent effects again: the device's
+    sessions retired and its signer material deactivated. The SDK retries a
+    lost device-revoke answer once. The record says which route answered
+    (migration 0039), so neither route answers from the other's record. The new
+    `passkey.device-linking` contract revokes with an email code across a
+    refused first commit and a lost answer, and requires the retry on the
+    same code, an exact replay and two refused changed copies. With the
+    passkey revocation contract, which now takes the same path, it passes
+    on all three hosts (2026-09-29).
 
 The lifecycle-keyed ceremony records stay in Gateway D1. That is the final
 boundary.
@@ -221,18 +240,6 @@ their repair.
 
 ## Before the managed milestone
 
-- Phase 2 auth-method addition and revocation, per the
-  [plan](./refactor-150-regional-wallet-home-lanes.md#required-device-linking-and-auth-method-work):
-  addition and revocation touch only the Gateway's shared SQL, and the
-  extended contracts need the Email OTP run below. Device linking passes on
-  every host, in the consolidated run too.
-- An Email OTP run with a Google ID token.
-- The Email OTP run above must include the revocation's refused commit, its
-  retry on the same code, the replay and the refused changed requests (item
-  15). They are implemented but have not run.
-- A linked-device revocation proven by Email OTP still spends its code when
-  the code is checked. A failed commit there needs a new code. Only the
-  auth-method revocation defers the spend.
 - The review items the cross-owner plan leaves open. Explicit recovery
   abandonment stays deferred.
 - The new-wallet cohort, and the Phase 3 clean reset, as separately

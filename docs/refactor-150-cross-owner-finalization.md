@@ -514,11 +514,11 @@ Two gaps that could stop an enabled flow.
 - The passkey export contract passes on the VM and the wallet-object build
   through the new replay path: "an Ed25519 export interrupted after its
   authorization committed is admitted by the exact retry".
-- A new Email OTP export contract was added but not run: "an Email OTP
-  export interrupted after its authorization committed is admitted by the
-  exact retry, factor release included". Email OTP flows need a Google ID
-  token, and this environment has none. Minting one impersonates a service
-  account with the user's Google Cloud credentials.
+- A new Email OTP export contract: "an Email OTP export interrupted after
+  its authorization committed is admitted by the exact retry, factor
+  release included". It passes on the VM, the wallet-object build and
+  Workers D1 (2026-09-29), with a Google test ID token minted by
+  impersonating the configured test service account.
 - The VM Router's integration tests pass after the burn change: claim
   takeover, execution ownership, pair reply loss and SigningWorker reply
   loss. No E2E leaves a registration pair half-finished on the VM.

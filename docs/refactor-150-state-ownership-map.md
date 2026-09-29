@@ -203,8 +203,12 @@ before release. No hosted resources or production routing were changed.
   The initial SigningWorker receipt and active material commit in one
   compare-and-set SQLite state write. Missing finalization remains pending;
   a lost reply after commit can be reconstructed after process restart without
-  another role execution or activation. The VM reference still lacks a
-  tenant-root retirement fence and complete remaining lifecycle coverage.
+  another role execution or activation. The VM reference has since gained
+  the same retirement fence as Cloudflare: a Deriver erases a refreshed-out
+  epoch only once every root-use admission on it is settled or cancelled
+  ([refresh retirement](./refactor-150-refresh-retirement.md)). What the VM
+  still does not serve is listed in the
+  [VM reference setup](./refactor-150-vm-reference-setup.md#not-served-on-the-vm).
 
 ## Router signing lanes: no product consumer (2026-09-25)
 

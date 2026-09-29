@@ -730,9 +730,10 @@ them.
   revocation removed the wallet's enrollment. For an added method, the
   wallet must list no Email OTP method any more. Neither may reach an Email
   OTP challenge, a factor release or an unlock verification.
-- Unverified: every addition crosses families, so each contract uses Email
-  OTP and needs a Google ID token this environment does not have. Only
-  type-checking has run.
+- Every addition crosses families, so each contract uses Email OTP. Both
+  pass on the VM, the wallet-object build and Workers D1 (2026-09-29), with
+  a Google test ID token minted by impersonating the configured test
+  service account.
 - An exact retry of a revocation receives the answer that committed
   (274faf2, 2026-09-29):
   - The revocation, the spend of an Email OTP code and the answer commit in
@@ -747,11 +748,20 @@ them.
 - The Email OTP add-passkey contract refuses the first commit of its
   Email-OTP-proven revocation, through a local Gateway fault, and loses that
   answer. The SDK's retry must commit on the same code, and a replay must
-  receive exactly the committed answer. A scratch check on SQLite, with the
-  whole signer chain, confirmed the batch's aborts. The contract has not run
-  without a Google ID token.
-- A linked-device revocation proven by Email OTP still spends its code when
-  it is checked.
+  receive exactly the committed answer. Changed copies of the committed
+  request, one naming another operation and one carrying another code, must
+  be refused (992c4b5). A scratch check on SQLite, with the whole signer
+  chain, confirmed the batch's aborts. The contract passes on all three
+  hosts (2026-09-29).
+- A linked-device revocation is answered the same way (2026-09-29). Its
+  code is spent in the batch that revokes the device's method, and its
+  answer is recorded there too, read from the authority row the batch
+  wrote, since the answer names the authority's new revocation epoch. The
+  SDK retries a lost device-revoke answer once. "a linked device revoked
+  with an email code across a refused commit is answered from what
+  committed" refuses the first commit, loses that answer, and requires the
+  retry on the same code, an exact replay and two refused changed copies.
+  It passes on all three hosts.
 
 For each flow, run the representative scenario through the real Gateway on
 the actual Cloudflare wallet-object build and on the VM. A Workers D1-only
