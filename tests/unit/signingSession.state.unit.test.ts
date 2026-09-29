@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { generateSessionId } from '@/core/signingEngine/session/passkey/prfCache';
+import { parseClearVolatileWarmMaterialCommand } from '@/core/signingEngine/session/warmCapabilities/volatileWarmMaterialCommands';
 
 test.describe('signing session PRF cache utilities', () => {
   test('generateSessionId fails closed when WebCrypto randomness is unavailable', () => {
@@ -18,5 +19,19 @@ test.describe('signing session PRF cache utilities', () => {
     }
 
     expect(message).toBe('WebCrypto getRandomValues is required for passkey PRF cache session IDs');
+  });
+
+  test('volatile clear command parser rejects durable-delete payloads', () => {
+    const clearAll = { kind: 'clear_volatile_warm_material', scope: { kind: 'all' } };
+
+    expect(parseClearVolatileWarmMaterialCommand(clearAll)).toEqual(clearAll);
+    expect(
+      parseClearVolatileWarmMaterialCommand({ ...clearAll, kind: 'delete_durable_sealed_session' }),
+    ).toBeNull();
+    for (const durableField of ['durableRecord', 'resolvedIdentity', 'deleteReason']) {
+      expect(
+        parseClearVolatileWarmMaterialCommand({ ...clearAll, [durableField]: 'expired' }),
+      ).toBeNull();
+    }
   });
 });

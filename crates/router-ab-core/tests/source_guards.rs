@@ -258,6 +258,17 @@ fn ab_peer_payloads_do_not_carry_combined_or_root_secret_material() {
 }
 
 #[test]
+fn ecdsa_threshold_prf_backend_rejects_legacy_two_of_three_policy() {
+    let backend_rs = read_src_file("ecdsa_threshold_prf_backend.rs");
+    for forbidden in ["from_u16s(2, 3)", "Role::SignerB => 3"] {
+        assert!(
+            !backend_rs.contains(forbidden),
+            "fixed ECDSA threshold PRF must reject legacy 2-of-3 policy `{forbidden}`"
+        );
+    }
+}
+
+#[test]
 fn local_simulation_does_not_open_joined_recipient_outputs_server_side() {
     let local_rs = read_manifest_file("src/protocol/local.rs");
     for forbidden in [
