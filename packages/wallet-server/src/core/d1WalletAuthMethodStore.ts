@@ -638,36 +638,20 @@ export function bindWalletAuthMethodIdentity(record: WalletAuthMethodRecord): {
   }
 }
 
-export function prepareD1WalletAuthMethodPutStatement(input: {
-  readonly database: D1DatabaseLike;
-  readonly scope: D1WalletAuthMethodStoreScope;
-  readonly record: WalletAuthMethodRecord;
-}): D1PreparedStatementLike {
+function prepareD1WalletAuthMethodWriteStatement(
+  input: {
+    readonly database: D1DatabaseLike;
+    readonly scope: D1WalletAuthMethodStoreScope;
+    readonly record: WalletAuthMethodRecord;
+  },
+  insertOnly: boolean,
+): D1PreparedStatementLike {
   const parsed = normalizeWalletAuthMethod(input.record);
   if (!parsed) throw new Error('Invalid wallet auth method record');
   const identity = bindWalletAuthMethodIdentity(parsed);
-  return input.database
-    .prepare(
-      `INSERT INTO wallet_auth_methods (
-        namespace,
-        org_id,
-        project_id,
-        env_id,
-        wallet_id,
-        rp_id,
-        kind,
-        status,
-        wallet_auth_method_id,
-        auth_identifier_key,
-        credential_id_b64u,
-        credential_public_key_b64u,
-        email_hash_hex,
-        registration_authority_id,
-        record_json,
-        created_at_ms,
-        updated_at_ms
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  const conflictClause = insertOnly
+    ? ''
+    : `
       ON CONFLICT (namespace, org_id, project_id, env_id, wallet_auth_method_id)
       DO UPDATE SET
         wallet_id = EXCLUDED.wallet_id,
@@ -687,40 +671,7 @@ export function prepareD1WalletAuthMethodPutStatement(input: {
         updated_at_ms = MAX(
           wallet_auth_methods.updated_at_ms,
           EXCLUDED.updated_at_ms
-        )`,
-    )
-    .bind(
-      input.scope.namespace,
-      input.scope.orgId,
-      input.scope.projectId,
-      input.scope.envId,
-      parsed.walletId,
-      identity.rpId,
-      parsed.kind,
-      parsed.status,
-      walletAuthMethodId(parsed),
-      identity.authIdentifierKey,
-      identity.credentialIdB64u,
-      identity.credentialPublicKeyB64u,
-      identity.emailHashHex,
-      identity.registrationAuthorityId,
-      JSON.stringify(parsed),
-      parsed.createdAtMs,
-      parsed.updatedAtMs,
-    );
-}
-
-/** Insert-only auth-method write used when a new factor and its envelope are
- * committed together. A credential collision must abort the enclosing D1
- * batch instead of updating an existing factor's identity. */
-export function prepareD1WalletAuthMethodInsertStatement(input: {
-  readonly database: D1DatabaseLike;
-  readonly scope: D1WalletAuthMethodStoreScope;
-  readonly record: WalletAuthMethodRecord;
-}): D1PreparedStatementLike {
-  const parsed = normalizeWalletAuthMethod(input.record);
-  if (!parsed) throw new Error('Invalid wallet auth method record');
-  const identity = bindWalletAuthMethodIdentity(parsed);
+        )`;
   return input.database
     .prepare(
       `INSERT INTO wallet_auth_methods (
@@ -742,7 +693,7 @@ export function prepareD1WalletAuthMethodInsertStatement(input: {
         created_at_ms,
         updated_at_ms
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)${conflictClause}`,
     )
     .bind(
       input.scope.namespace,
@@ -765,8 +716,58 @@ export function prepareD1WalletAuthMethodInsertStatement(input: {
     );
 }
 
+export function prepareD1WalletAuthMethodPutStatement(input: {
+  readonly database: D1DatabaseLike;
+  readonly scope: D1WalletAuthMethodStoreScope;
+  readonly record: WalletAuthMethodRecord;
+}): D1PreparedStatementLike {
+  return prepareD1WalletAuthMethodWriteStatement(input, false);
+}
+
+/** Insert-only auth-method write used when a new factor and its envelope are
+ * committed together. A credential collision must abort the enclosing D1
+ * batch instead of updating an existing factor's identity. */
+export function prepareD1WalletAuthMethodInsertStatement(input: {
+  readonly database: D1DatabaseLike;
+  readonly scope: D1WalletAuthMethodStoreScope;
+  readonly record: WalletAuthMethodRecord;
+}): D1PreparedStatementLike {
+  return prepareD1WalletAuthMethodWriteStatement(input, true);
+}
+
 function assertNeverWalletAuthMethod(record: never): never {
   throw new Error(`Unexpected wallet auth method record: ${JSON.stringify(record)}`);
+}
+
+/** Reads one method's stored JSON by id; the caller picks the record version to parse. */
+async function readD1WalletAuthMethodJsonById(
+  database: D1DatabaseLike,
+  scope: D1WalletAuthMethodStoreScope,
+  walletAuthMethodId: string,
+): Promise<unknown> {
+  const row = await database
+    .prepare(
+      `SELECT record_json
+           FROM wallet_auth_methods
+          WHERE namespace = ?
+            AND org_id = ?
+            AND project_id = ?
+            AND env_id = ?
+            AND wallet_auth_method_id = ?
+          LIMIT 1`,
+    )
+    .bind(scope.namespace, scope.orgId, scope.projectId, scope.envId, walletAuthMethodId)
+    .first<D1WalletAuthMethodRow>();
+  return parseD1JsonColumn(row?.record_json);
+}
+
+/** Aborts the enclosing batch when the statement just before it changed no row. */
+function prepareD1InsertCasGuardStatement(database: D1DatabaseLike): D1PreparedStatementLike {
+  return database.prepare(`
+      INSERT INTO router_ab_yao_versioned_json_cas_guard (guard_id)
+      SELECT 1
+       WHERE changes() = 0
+    `);
 }
 
 export class D1WalletAuthMethodStore implements WalletAuthMethodStore, WalletAuthMethodV2Store {
@@ -826,12 +827,7 @@ export class D1WalletAuthMethodStore implements WalletAuthMethodStore, WalletAut
       scope: this.scope,
       record,
     });
-    const guard = this.database.prepare(`
-      INSERT INTO router_ab_yao_versioned_json_cas_guard (guard_id)
-      SELECT 1
-       WHERE changes() = 0
-    `);
-    return [insert, guard];
+    return [insert, prepareD1InsertCasGuardStatement(this.database)];
   }
 
   async getPasskey(input: {
@@ -842,26 +838,13 @@ export class D1WalletAuthMethodStore implements WalletAuthMethodStore, WalletAut
     const rpId = toOptionalTrimmedString(input.rpId);
     const credentialIdB64u = toOptionalTrimmedString(input.credentialIdB64u);
     if (!rpId || !credentialIdB64u) return null;
-    const row = await this.database
-      .prepare(
-        `SELECT record_json
-           FROM wallet_auth_methods
-          WHERE namespace = ?
-            AND org_id = ?
-            AND project_id = ?
-            AND env_id = ?
-            AND wallet_auth_method_id = ?
-          LIMIT 1`,
-      )
-      .bind(
-        this.scope.namespace,
-        this.scope.orgId,
-        this.scope.projectId,
-        this.scope.envId,
+    return normalizeWalletAuthMethod(
+      await readD1WalletAuthMethodJsonById(
+        this.database,
+        this.scope,
         `passkey:${rpId}:${credentialIdB64u}`,
-      )
-      .first<D1WalletAuthMethodRow>();
-    return normalizeWalletAuthMethod(parseD1JsonColumn(row?.record_json));
+      ),
+    );
   }
 
   async getEmailOtp(input: {
@@ -872,26 +855,13 @@ export class D1WalletAuthMethodStore implements WalletAuthMethodStore, WalletAut
     const walletId = toOptionalTrimmedString(input.walletId);
     const emailHashHex = toOptionalTrimmedString(input.emailHashHex);
     if (!walletId || !emailHashHex) return null;
-    const row = await this.database
-      .prepare(
-        `SELECT record_json
-           FROM wallet_auth_methods
-          WHERE namespace = ?
-            AND org_id = ?
-            AND project_id = ?
-            AND env_id = ?
-            AND wallet_auth_method_id = ?
-          LIMIT 1`,
-      )
-      .bind(
-        this.scope.namespace,
-        this.scope.orgId,
-        this.scope.projectId,
-        this.scope.envId,
+    return normalizeWalletAuthMethod(
+      await readD1WalletAuthMethodJsonById(
+        this.database,
+        this.scope,
         `email_otp:${walletId}:${emailHashHex}`,
-      )
-      .first<D1WalletAuthMethodRow>();
-    return normalizeWalletAuthMethod(parseD1JsonColumn(row?.record_json));
+      ),
+    );
   }
 
   async listForWallet(input: {
@@ -1082,38 +1052,20 @@ export class D1WalletAuthMethodStore implements WalletAuthMethodStore, WalletAut
       record: parsed,
       insertOnly: true,
     });
-    const guard = this.database.prepare(`
-      INSERT INTO router_ab_yao_versioned_json_cas_guard (guard_id)
-      SELECT 1
-       WHERE changes() = 0
-    `);
-    return [insert, guard];
+    return [insert, prepareD1InsertCasGuardStatement(this.database)];
   }
 
   async readByIdV2(input: {
     readonly walletAuthMethodId: WalletAuthMethodId;
   }): Promise<WalletAuthMethodRecordV2 | null> {
     await this.ensureV2Schema();
-    const row = await this.database
-      .prepare(
-        `SELECT record_json
-           FROM wallet_auth_methods
-          WHERE namespace = ?
-            AND org_id = ?
-            AND project_id = ?
-            AND env_id = ?
-            AND wallet_auth_method_id = ?
-          LIMIT 1`,
-      )
-      .bind(
-        this.scope.namespace,
-        this.scope.orgId,
-        this.scope.projectId,
-        this.scope.envId,
+    return normalizeWalletAuthMethodV2(
+      await readD1WalletAuthMethodJsonById(
+        this.database,
+        this.scope,
         String(input.walletAuthMethodId),
-      )
-      .first<D1WalletAuthMethodRow>();
-    return normalizeWalletAuthMethodV2(parseD1JsonColumn(row?.record_json));
+      ),
+    );
   }
 
   async getPasskeyV2(input: {
