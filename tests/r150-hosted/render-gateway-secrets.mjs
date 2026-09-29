@@ -6,10 +6,15 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { prepareLocalHostedWalletGatewayConfig } from '../../crates/router-ab-cloudflare/scripts/prepare-local-runtime-config.mjs';
+import {
+  buildTenantRootIdentityFromAuthenticatedDeploymentV1,
+  encodeTenantRootIdentityV1,
+} from '../../packages/wallet-server/dist/esm/cloud-host.js';
 
 const sourceRoot = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(sourceRoot, '../..');
 const identityRoot = path.join(repoRoot, '.runtime', 'r150-hosted', 'identities');
+const BENCHMARK_ENVIRONMENT_KEY = 'bench';
 const renderedRoot = path.resolve(
   process.argv[4] ?? path.join(repoRoot, '.runtime', 'r150-hosted', 'rendered'),
 );
@@ -47,6 +52,7 @@ for (const arm of ['d1', 'do']) {
   )).env[arm];
   const receipt = requireReceipt(receipts.arms?.[arm], arm);
   const deployment = staticDeployment(arm, gatewayConfig, receipt, armRoot);
+  requireReceiptForDeployment(arm, receipt, deployment);
   const ingressUrl = new URL(routerConfig.env[arm].vars.ROUTER_JWT_ISSUER);
   const runtime = prepareLocalHostedWalletGatewayConfig({
     repoRoot,
@@ -202,15 +208,40 @@ function staticDeployment(arm, gatewayConfig, receipt, armRoot) {
       orgId: values.SEAMS_STAGING_ORG_ID,
       projectId: values.SEAMS_STAGING_PROJECT_ID,
       environmentId: values.SEAMS_STAGING_ENV_ID,
-      environmentKey: 'bench',
+      environmentKey: BENCHMARK_ENVIRONMENT_KEY,
       signingRootVersion: 'default',
     },
     tenantRoot: {
       identityDigestB64u: receipt.identityDigestB64u,
       custodyLineageB64u: receipt.custodyLineageB64u,
-      signingRootId: values.SEAMS_STAGING_ENV_ID,
+      signingRootId: benchmarkSigningRootId(values),
     },
   };
+}
+
+/** The signing root the Gateway resolves: its project and environment key (deriveSigningRootId). */
+function benchmarkSigningRootId(values) {
+  return `${values.SEAMS_STAGING_PROJECT_ID}:${BENCHMARK_ENVIRONMENT_KEY}`;
+}
+
+/** A receipt serves this Gateway only if its tenant root is the identity the Gateway resolves. */
+function requireReceiptForDeployment(arm, receipt, deployment) {
+  const identity = buildTenantRootIdentityFromAuthenticatedDeploymentV1({
+    orgId: deployment.deployment.orgId,
+    projectId: deployment.deployment.projectId,
+    envId: deployment.deployment.environmentId,
+    signingRootId: deployment.tenantRoot.signingRootId,
+    signingRootVersion: deployment.deployment.signingRootVersion,
+  });
+  if (!identity.ok) throw new Error(`${arm} Gateway tenant-root identity is invalid`);
+  const digest = createHash('sha256')
+    .update(encodeTenantRootIdentityV1(identity.value))
+    .digest('base64url');
+  if (digest !== receipt.identityDigestB64u) {
+    throw new Error(
+      `${arm} tenant-root receipt is for another identity; bootstrap with --env-id ${deployment.deployment.environmentId} --signing-root-id ${deployment.tenantRoot.signingRootId}`,
+    );
+  }
 }
 
 function isLoopbackOrigin(value) {

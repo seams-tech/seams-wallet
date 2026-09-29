@@ -349,11 +349,17 @@ Router. The adapter forwards only the exact tenant-root creation POST and
 preserves the Router's internal authentication. Invoke the existing
 `bootstrap-local-tenant-root.mjs` with the matching identity root,
 `--issuer-env-path` pointing at that arm's private issuer file, and
-`--router-url` pointing at the loopback adapter. Set `--grant-file` to a
+`--router-url` pointing at the loopback adapter. The identity must be the one
+the Gateway resolves: `--org-id`, `--project-id` and `--env-id` are the arm's
+`SEAMS_STAGING_ORG_ID`, `SEAMS_STAGING_PROJECT_ID` and `SEAMS_STAGING_ENV_ID`,
+`--signing-root-id` is `<project-id>:bench` (the project and the environment
+key, as `deriveSigningRootId` builds it), and `--signing-root-version` is
+`default`. Set `--grant-file` to a
 private path inside that identity root: the signed grant is persisted before
 dispatch and reused after a lost reply. An expired grant requires Router-state
 reconciliation before any new attempt. Record and verify the returned ready
-receipt before installing that arm's static Console deployment secret.
+receipt before installing that arm's static Console deployment secret;
+`render-gateway-secrets.mjs` refuses a receipt for any other identity.
 Cloudflare documents remote service bindings for local Workers; this repo path
 still requires a live isolated smoke test before use. Never deploy the local
 bootstrap adapter as a public Worker.

@@ -118,7 +118,7 @@ function runBootstrap(root, routerUrl) {
       '--org-id', 'r150-bench-20260925-d1-org',
       '--project-id', 'r150-bench-20260925-d1-project',
       '--env-id', 'r150-bench-20260925-d1-env',
-      '--signing-root-id', 'r150-bench-20260925-d1-env',
+      '--signing-root-id', 'r150-bench-20260925-d1-project:bench',
       '--signing-root-version', 'default',
     ], {
       cwd: repoRoot,
