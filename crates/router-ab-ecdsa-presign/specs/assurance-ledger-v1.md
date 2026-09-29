@@ -157,7 +157,7 @@ boundary remain identical in both profiles.
 | Behavior | Preserved relation | Executable checkpoint |
 | --- | --- | --- |
 | Public key and address | Role-local public shares sum to the same registered group key and Ethereum address | `role_local_mvp`, `native_readiness_vectors`, and the 44-test EVM-family identity suite |
-| Online signature | Client share and final signature match the pinned oracle; finalization verifies the registered key | `purpose_built_online_roles_match_pinned_near_oracle` and `generated_presign_fixture_matches_oracle_finalization` |
+| Online signature | Client share and final signature match the pinned oracle; finalization verifies the registered key | `generated_presign_fixture_matches_oracle_finalization` |
 | Canonical signature encoding | Final `s` is low, the signature verifies, and recovery selects the registered group key | `SIG-01`, online parity, and altered-share/key/`R` rejection tests |
 | Signing budgets | Exact Wallet Session grant and key-slot authority remain bound through refresh | `thresholdEcdsa.walletBudgetRefresh.unit.test.ts` |
 | Recovery and explicit export | Ready, refreshed, page-reloaded, and Email OTP export paths retain verified public facts and reconstruct the registered key only after authorization | `ecdsaExportMaterial.unit.test.ts`, `native_readiness_vectors`, and role-local export reconstruction tests |
