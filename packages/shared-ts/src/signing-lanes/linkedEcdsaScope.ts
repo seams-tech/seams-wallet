@@ -117,7 +117,7 @@ export function buildLinkedDeviceEcdsaNormalSigningScopeV1(
   return scope;
 }
 
-export function validateLinkedDeviceEcdsaNormalSigningScopeV1(
+function validateLinkedDeviceEcdsaNormalSigningScopeV1(
   scope: LinkedDeviceEcdsaNormalSigningScopeV1,
 ): void {
   if (scope.kind !== 'linked_device_ecdsa_normal_signing_scope_v1') {

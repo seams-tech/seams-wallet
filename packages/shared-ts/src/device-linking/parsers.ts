@@ -774,7 +774,7 @@ export function parseLinkedDeviceListRequestV1(raw: unknown): LinkedDeviceListRe
   };
 }
 
-export function parseOwnerDeviceSummaryV1(raw: unknown): OwnerDeviceSummaryV1 {
+function parseOwnerDeviceSummaryV1(raw: unknown): OwnerDeviceSummaryV1 {
   const record = exactRecord(raw, OWNER_DEVICE_SUMMARY_FIELDS, 'OwnerDeviceSummaryV1');
   return {
     walletId: parseWallet(record.walletId, 'OwnerDeviceSummaryV1.walletId'),
@@ -1514,7 +1514,7 @@ function parseLinkedDeviceEmailOtpBaseFactorChoiceV1(raw: unknown) {
   };
 }
 
-export function parseLinkedDeviceEmailOtpBaseFactorResolutionV1(
+function parseLinkedDeviceEmailOtpBaseFactorResolutionV1(
   raw: unknown,
 ): LinkedDeviceEmailOtpBaseFactorResolutionV1 {
   const record = requireRecord(raw, 'LinkedDeviceEmailOtpBaseFactorResolutionV1');

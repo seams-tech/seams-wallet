@@ -159,7 +159,7 @@ export function parseRegistrationEstablishedSessionResultV2(
   }
 }
 
-export function parseRegistrationEstablishedSessionV2(
+function parseRegistrationEstablishedSessionV2(
   raw: unknown,
 ): RegistrationEstablishedSessionV2 | null {
   try {

@@ -11,13 +11,13 @@ export function emailOtpDeviceEnrollmentId(walletId: string, providerSubject: st
   return `email-otp-device-enrollment-v1:${normalizedWalletId}:${normalizedProviderSubject}`;
 }
 
-export const WALLET_UNLOCK_BACKENDS = ['passkey', EMAIL_OTP_CHANNEL] as const;
+const WALLET_UNLOCK_BACKENDS = ['passkey', EMAIL_OTP_CHANNEL] as const;
 
 export type WalletUnlockBackend = (typeof WALLET_UNLOCK_BACKENDS)[number];
 
 export type WalletEmailOtpChannel = typeof EMAIL_OTP_CHANNEL;
 
-export const WALLET_EMAIL_OTP_LOGIN_OPERATIONS = [
+const WALLET_EMAIL_OTP_LOGIN_OPERATIONS = [
   'wallet_unlock',
   'transaction_sign',
   'export_key',

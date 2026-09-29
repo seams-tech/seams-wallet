@@ -71,7 +71,7 @@ export type AddWalletAuthMethodBranchV1 = 'passkey_to_email_otp' | 'email_otp_to
  * being read as any other integer on the authority — a signer slot, a counter,
  * a timestamp — at the boundaries where all of them arrive as bare numbers.
  */
-export type WalletAuthorityRevocationEpochV1 = number & {
+type WalletAuthorityRevocationEpochV1 = number & {
   readonly __walletAuthorityRevocationEpochBrand: 'WalletAuthorityRevocationEpochV1';
 };
 
@@ -80,7 +80,7 @@ export type WalletAuthorityRevocationEpochV1 = number & {
  * target method ID to it, and a client request can neither nominate nor
  * substitute one.
  */
-export type AddWalletAuthMethodCeremonyIdV1 = string & {
+type AddWalletAuthMethodCeremonyIdV1 = string & {
   readonly __addWalletAuthMethodCeremonyIdBrand: 'AddWalletAuthMethodCeremonyIdV1';
 };
 
@@ -199,7 +199,7 @@ export type VerifiedAddWalletAuthMethodInputV1 =
       readonly target: VerifiedPasskeyTargetV1;
     });
 
-export type AddWalletAuthMethodFailureReasonV1 =
+type AddWalletAuthMethodFailureReasonV1 =
   | 'source_session_not_selected'
   | 'source_method_not_active'
   | 'source_authority_not_active'
@@ -268,7 +268,7 @@ export type AddWalletAuthMethodResultV1 =
  * holds. Resolving it here is what keeps the promise that a present family
  * never reaches target verification or a local write.
  */
-export type AddWalletAuthMethodAdmissionV1 =
+type AddWalletAuthMethodAdmissionV1 =
   | { readonly kind: 'proceed'; readonly branch: AddWalletAuthMethodBranchV1 }
   | {
       readonly kind: 'already_configured';
@@ -383,7 +383,7 @@ function requireBrandedId<T>(
  * the resolved session and authority, so a caller cannot widen the source by
  * supplying an extra one.
  */
-export function parseAddWalletAuthMethodSourceV1(raw: {
+function parseAddWalletAuthMethodSourceV1(raw: {
   readonly walletId: unknown;
   readonly walletAuthorityId: unknown;
   readonly sourceWalletAuthMethodId: unknown;
@@ -412,7 +412,7 @@ export function parseAddWalletAuthMethodSourceV1(raw: {
   };
 }
 
-export function parseAddWalletAuthMethodIntentIdentityV1(raw: {
+function parseAddWalletAuthMethodIntentIdentityV1(raw: {
   readonly addAuthMethodCeremonyId: unknown;
   readonly intentDigestB64u: unknown;
   readonly targetWalletAuthMethodId: unknown;

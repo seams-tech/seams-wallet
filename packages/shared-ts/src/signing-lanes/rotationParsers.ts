@@ -450,7 +450,7 @@ function parseTargetSigningWorker(raw: unknown, label = 'targetSigningWorker') {
   };
 }
 
-export function buildLaneCreationTargetV1(args: {
+function buildLaneCreationTargetV1(args: {
   readonly laneId: SigningLaneId;
   readonly laneShareEpoch: LaneShareEpoch;
 }): LaneCreationTargetV1 {
@@ -463,7 +463,7 @@ export function buildLaneCreationTargetV1(args: {
   };
 }
 
-export function buildLaneRefreshTargetV1(args: {
+function buildLaneRefreshTargetV1(args: {
   readonly laneId: SigningLaneId;
   readonly laneKind: Exclude<SigningLaneKind, 'delegated_execution'>;
   readonly laneShareEpoch: LaneShareEpoch;
@@ -685,7 +685,7 @@ function parseChainTarget(raw: unknown, label: string): ThresholdEcdsaChainTarge
   throw new Error(`${label}.kind is invalid`);
 }
 
-export function parseEcdsaTargetCapabilityBindingV1(
+function parseEcdsaTargetCapabilityBindingV1(
   raw: unknown,
   label: string,
 ): EcdsaTargetCapabilityBindingV1 {
@@ -1729,7 +1729,7 @@ export function parseCompleteSigningLaneRevocationV1(
   };
 }
 
-export function parseCommitLaneEnrollmentRevocationV1(
+function parseCommitLaneEnrollmentRevocationV1(
   raw: unknown,
   label = 'commitLaneEnrollmentRevocation',
 ): CommitLaneEnrollmentRevocationV1 {
@@ -2552,9 +2552,7 @@ export function parseEcdsaServerRetirementReceiptV1(
   };
 }
 
-export function parseSigningWorkerLaneMaterialIdentityV1<
-  TKeyFamily extends 'ed25519' | 'ecdsa_secp256k1',
->(
+function parseSigningWorkerLaneMaterialIdentityV1<TKeyFamily extends 'ed25519' | 'ecdsa_secp256k1'>(
   raw: unknown,
   expectedKeyFamily: TKeyFamily,
   label = 'signingWorkerLaneMaterialIdentity',

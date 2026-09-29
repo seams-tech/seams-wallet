@@ -94,7 +94,7 @@ export function requireRouterAbEd25519NormalSigningState(
   return parsed;
 }
 
-export type SealedSigningSessionEcdsaChainTarget =
+type SealedSigningSessionEcdsaChainTarget =
   | {
       kind: 'tempo';
       chainId: number;

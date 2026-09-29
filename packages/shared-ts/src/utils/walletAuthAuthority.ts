@@ -154,12 +154,7 @@ export function parseWalletAuthAuthorityRef(raw: unknown): WalletAuthAuthorityRe
   };
 }
 
-export type AuthOperationPurpose =
-  | 'registration'
-  | 'unlock'
-  | 'step_up'
-  | 'recovery'
-  | 'key_export';
+type AuthOperationPurpose = 'registration' | 'unlock' | 'step_up' | 'recovery' | 'key_export';
 
 export type AuthMethodProof =
   | {
@@ -253,7 +248,7 @@ export function buildPasskeyWalletAuthAuthority(args: {
   };
 }
 
-export function buildEmailOtpFactorIdentity(args: {
+function buildEmailOtpFactorIdentity(args: {
   provider: unknown;
   providerUserId: unknown;
 }): EmailOtpFactorIdentity {

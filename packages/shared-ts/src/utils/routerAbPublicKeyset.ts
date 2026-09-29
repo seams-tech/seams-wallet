@@ -2,46 +2,46 @@ export const ROUTER_AB_PUBLIC_KEYSET_VERSION_V2 = 'router_ab_keyset_v2' as const
 export const ROUTER_AB_PUBLIC_KEYSET_WELL_KNOWN_PATH = '/.well-known/router-ab/keyset' as const;
 export const ROUTER_AB_PUBLIC_KEYSET_PATH = '/router-ab/keyset' as const;
 
-export type RouterAbSignerRoleV1 = 'signer_a' | 'signer_b';
+type RouterAbSignerRoleV1 = 'signer_a' | 'signer_b';
 
-export type RouterAbSignerEnvelopeHpkePublicKeyV1 = {
+type RouterAbSignerEnvelopeHpkePublicKeyV1 = {
   role: RouterAbSignerRoleV1;
   key_epoch: string;
   public_key: string;
 };
 
-export type RouterAbSignerEnvelopeHpkePublicKeySetV1 = {
+type RouterAbSignerEnvelopeHpkePublicKeySetV1 = {
   deriver_a: RouterAbSignerEnvelopeHpkePublicKeyV1;
   deriver_b: RouterAbSignerEnvelopeHpkePublicKeyV1;
 };
 
-export type RouterAbSignerEnvelopeHpkeCurrentPublicKeySetV1 = {
+type RouterAbSignerEnvelopeHpkeCurrentPublicKeySetV1 = {
   current: RouterAbSignerEnvelopeHpkePublicKeySetV1;
   previous?: never;
   previous_retire_at_ms?: never;
 };
 
-export type RouterAbSignerEnvelopeHpkeRotatingPublicKeySetV1 = {
+type RouterAbSignerEnvelopeHpkeRotatingPublicKeySetV1 = {
   current: RouterAbSignerEnvelopeHpkePublicKeySetV1;
   previous: RouterAbSignerEnvelopeHpkePublicKeySetV1;
   previous_retire_at_ms: number;
 };
 
-export type RouterAbSignerEnvelopeHpkeRotationPublicKeySetV1 =
+type RouterAbSignerEnvelopeHpkeRotationPublicKeySetV1 =
   | RouterAbSignerEnvelopeHpkeCurrentPublicKeySetV1
   | RouterAbSignerEnvelopeHpkeRotatingPublicKeySetV1;
 
-export type RouterAbSignerPeerVerifyingKeyHexV1 = {
+type RouterAbSignerPeerVerifyingKeyHexV1 = {
   role: RouterAbSignerRoleV1;
   verifying_key_hex: string;
 };
 
-export type RouterAbSignerPeerVerifyingKeyHexSetV1 = {
+type RouterAbSignerPeerVerifyingKeyHexSetV1 = {
   deriver_a: RouterAbSignerPeerVerifyingKeyHexV1;
   deriver_b: RouterAbSignerPeerVerifyingKeyHexV1;
 };
 
-export type RouterAbPublicHpkeKeyDescriptorV1 = {
+type RouterAbPublicHpkeKeyDescriptorV1 = {
   key_epoch: string;
   public_key: string;
 };

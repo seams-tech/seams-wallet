@@ -102,7 +102,7 @@ export function isProvisionedLaneProtocolSourceV1(
   return source.sourceKind === 'provisioned_lane';
 }
 
-export type LaneTargetHolderV1 = {
+type LaneTargetHolderV1 = {
   participantId: LaneHolderParticipantId;
   participantBindingDigestB64u: LaneParticipantBindingDigestB64u;
   custodyBindingId: LaneHolderCustodyBindingId;
@@ -161,7 +161,7 @@ export type EcdsaTargetCapabilityBindingV1 = {
   ];
 };
 
-export type LaneProtocolJobCommonV1 = {
+type LaneProtocolJobCommonV1 = {
   operationId: LaneOperationId;
   enrollmentId: LaneEnrollmentId;
   idempotencyKey: LaneOperationIdempotencyKey;
@@ -175,17 +175,17 @@ export type LaneProtocolJobCommonV1 = {
   expiresAtMs: number;
 };
 
-export type LaneCreationOperationV1 = {
+type LaneCreationOperationV1 = {
   target: LaneCreationTargetV1;
   authorization: LinkedDeviceLaneAuthorizationBindingV1;
 };
 
-export type LaneRefreshOperationV1 = {
+type LaneRefreshOperationV1 = {
   target: LaneRefreshTargetV1;
   authorization: OwnerLaneRefreshAuthorizationBindingV1;
 };
 
-export type Ed25519YaoLaneJobCurveV1 = {
+type Ed25519YaoLaneJobCurveV1 = {
   kind: 'ed25519_yao_lane_job_v1';
   keyFamily: 'ed25519';
   registeredPublicKeyB64u: string;
@@ -295,9 +295,9 @@ export type LaneServerActivationReceiptV1 = {
   activatedAtMs: number;
 };
 
-export type LaneProtocolAbortReason = 'cancelled' | 'expired' | 'revoked_before_commit';
+type LaneProtocolAbortReason = 'cancelled' | 'expired' | 'revoked_before_commit';
 
-export type LaneProtocolCompletionReason = 'exact_redelivery_required' | 'recovery_required';
+type LaneProtocolCompletionReason = 'exact_redelivery_required' | 'recovery_required';
 
 export type LaneProtocolLifecycle =
   | {
@@ -915,7 +915,7 @@ export type EcdsaLaneProtocolWasmV1 = {
 
 export type { LaneHolderRecipientHandleV1 } from '../utils/domainIds';
 
-export type LaneHolderRecipientDescriptorV1 = {
+type LaneHolderRecipientDescriptorV1 = {
   recipientHandle: LaneHolderRecipientHandleV1;
   hpkePublicKeyB64u: HpkePublicKeyB64u;
   hpkePublicKeyDigestB64u: HpkePublicKeyDigestB64u;
@@ -953,13 +953,13 @@ export type Ed25519YaoLaneClientCompletionV1 = {
   >;
 };
 
-export type SealedLaneHolderMaterialV1 = {
+type SealedLaneHolderMaterialV1 = {
   sealedHolderMaterialB64u: string;
   sealedHolderRecordDigestB64u: DigestB64u;
   verifiedHolderCiphertextDigestSetB64u: DigestB64u;
 };
 
-export type VerifiedLaneHolderPackageV1 = {
+type VerifiedLaneHolderPackageV1 = {
   verifiedHolderCiphertextDigestSetB64u: DigestB64u;
 };
 

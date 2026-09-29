@@ -1,4 +1,4 @@
-export type ThresholdParticipantRole = 'client' | 'relayer';
+type ThresholdParticipantRole = 'client' | 'relayer';
 
 import { toOptionalTrimmedString } from '../utils/validation';
 
@@ -13,7 +13,7 @@ export const THRESHOLD_ED25519_2P_PARTICIPANT_IDS = [
  * Metadata describing how a participant share is derived/stored.
  * This is informational in v1 and may be used for validation/policy later.
  */
-export type ThresholdEd25519ShareDerivation =
+type ThresholdEd25519ShareDerivation =
   | 'prf_first_v1'
   | 'derived_master_secret_v1'
   | 'kv_random_v1'

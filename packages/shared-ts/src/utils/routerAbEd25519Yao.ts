@@ -57,11 +57,11 @@ export const ROUTER_AB_ED25519_YAO_EXPORT_ADMISSION_PATH_V1 =
   '/router-ab/ed25519/yao/export/admit' as const;
 export const ROUTER_AB_ED25519_YAO_EXPORT_EXECUTE_PATH_V1 =
   '/router-ab/ed25519/yao/export/execute' as const;
-export const ED25519_YAO_CONTROL_CIPHERTEXT_MAX_BYTES_V1 = 64 * 1024;
+const ED25519_YAO_CONTROL_CIPHERTEXT_MAX_BYTES_V1 = 64 * 1024;
 
-export type RouterAbEd25519YaoDeriverRoleV1 = 'deriver_a' | 'deriver_b';
-export type RouterAbEd25519YaoInputKindV1 = 'activation' | 'export';
-export type RouterAbEd25519YaoPackageKindV1 =
+type RouterAbEd25519YaoDeriverRoleV1 = 'deriver_a' | 'deriver_b';
+type RouterAbEd25519YaoInputKindV1 = 'activation' | 'export';
+type RouterAbEd25519YaoPackageKindV1 =
   | 'activation_client'
   | 'activation_signing_worker'
   | 'export_client';
@@ -109,7 +109,7 @@ export type RouterAbEd25519YaoWarmRecoveryBootstrapRequestV1 = {
   readonly participantIds: readonly [number, number];
 };
 
-export type RouterAbEd25519YaoExportAuthorizationV1 = {
+type RouterAbEd25519YaoExportAuthorizationV1 = {
   confirmation_digest: RouterAbEd25519YaoBytes32V1;
   authorization_digest: RouterAbEd25519YaoBytes32V1;
   nonce: RouterAbEd25519YaoBytes32V1;
@@ -132,7 +132,7 @@ export type RouterAbEd25519YaoExportAuthorizationIdentityV1 = Omit<
   'authorization'
 >;
 
-export type RouterAbEd25519YaoExportAuthorityBindingV1 =
+type RouterAbEd25519YaoExportAuthorityBindingV1 =
   | {
       readonly kind: 'passkey';
       readonly credentialIdB64u: string;
@@ -144,7 +144,7 @@ export type RouterAbEd25519YaoExportAuthorityBindingV1 =
       readonly credentialIdB64u?: never;
     };
 
-export type RouterAbEd25519YaoRegistrationLifecycleV1 = Omit<
+type RouterAbEd25519YaoRegistrationLifecycleV1 = Omit<
   RouterAbEd25519YaoAdmittedLifecycleV1,
   'work_kind' | 'primitive_request_kind'
 > & {
@@ -152,7 +152,7 @@ export type RouterAbEd25519YaoRegistrationLifecycleV1 = Omit<
   primitive_request_kind: 'registration';
 };
 
-export type RouterAbEd25519YaoRecoveryLifecycleV1 = Omit<
+type RouterAbEd25519YaoRecoveryLifecycleV1 = Omit<
   RouterAbEd25519YaoAdmittedLifecycleV1,
   'work_kind' | 'primitive_request_kind'
 > & {
@@ -160,7 +160,7 @@ export type RouterAbEd25519YaoRecoveryLifecycleV1 = Omit<
   primitive_request_kind: 'recovery';
 };
 
-export type RouterAbEd25519YaoExportLifecycleV1 = Omit<
+type RouterAbEd25519YaoExportLifecycleV1 = Omit<
   RouterAbEd25519YaoAdmittedLifecycleV1,
   'work_kind' | 'primitive_request_kind'
 > & {
@@ -168,7 +168,7 @@ export type RouterAbEd25519YaoExportLifecycleV1 = Omit<
   primitive_request_kind: 'export';
 };
 
-export type RouterAbEd25519YaoExportCeremonyBindingV1 = Omit<
+type RouterAbEd25519YaoExportCeremonyBindingV1 = Omit<
   RouterAbEd25519YaoCeremonyBindingV1,
   'lifecycle' | 'operation'
 > & {
@@ -184,7 +184,7 @@ export type RouterAbEd25519YaoExportBindingV1 = {
   authorization_digest: RouterAbEd25519YaoBytes32V1;
 };
 
-export type RouterAbEd25519YaoActivationOperationV1 = 'registration' | 'recovery';
+type RouterAbEd25519YaoActivationOperationV1 = 'registration' | 'recovery';
 
 type RouterAbEd25519YaoActivationLifecycleForV1<
   Operation extends RouterAbEd25519YaoActivationOperationV1,
@@ -372,7 +372,7 @@ export type RouterAbEd25519YaoExportAdmissionReceiptV1 = {
   keyset: RouterAbEd25519YaoActivationKeysetV1;
 };
 
-export type RouterAbEd25519YaoEncryptedInputV1 = {
+type RouterAbEd25519YaoEncryptedInputV1 = {
   kind: RouterAbEd25519YaoInputKindV1;
   deriver: RouterAbEd25519YaoDeriverRoleV1;
   operation: RouterAbEd25519YaoOperationV1;
@@ -405,12 +405,14 @@ export type RouterAbEd25519YaoActivationExecuteRequestV1<
     }
   : never;
 
-export type RouterAbEd25519YaoExportEncryptedInputV1<Role extends RouterAbEd25519YaoDeriverRoleV1> =
-  Omit<RouterAbEd25519YaoEncryptedInputV1, 'kind' | 'deriver' | 'operation'> & {
-    kind: 'export';
-    deriver: Role;
-    operation: 'export';
-  };
+type RouterAbEd25519YaoExportEncryptedInputV1<Role extends RouterAbEd25519YaoDeriverRoleV1> = Omit<
+  RouterAbEd25519YaoEncryptedInputV1,
+  'kind' | 'deriver' | 'operation'
+> & {
+  kind: 'export';
+  deriver: Role;
+  operation: 'export';
+};
 
 export type RouterAbEd25519YaoExportExecuteRequestV1 = {
   binding: RouterAbEd25519YaoExportBindingV1;
@@ -434,11 +436,13 @@ export type RouterAbEd25519YaoActivationClientPackageV1<
   deriver: Role;
 };
 
-export type RouterAbEd25519YaoExportClientPackageV1<Role extends RouterAbEd25519YaoDeriverRoleV1> =
-  Omit<RouterAbEd25519YaoEncryptedPackageV1, 'kind' | 'deriver'> & {
-    kind: 'export_client';
-    deriver: Role;
-  };
+type RouterAbEd25519YaoExportClientPackageV1<Role extends RouterAbEd25519YaoDeriverRoleV1> = Omit<
+  RouterAbEd25519YaoEncryptedPackageV1,
+  'kind' | 'deriver'
+> & {
+  kind: 'export_client';
+  deriver: Role;
+};
 
 export type RouterAbEd25519YaoExportResultV1 = {
   binding: RouterAbEd25519YaoExportBindingV1;
@@ -510,7 +514,7 @@ export type RouterAbEd25519YaoRecoveryStatusV1 =
       readonly activation_receipt: RouterAbEd25519YaoRecoveryActivationReceiptV1;
     };
 
-export type RouterAbEd25519YaoExecutionAuthorityV1 = {
+type RouterAbEd25519YaoExecutionAuthorityV1 = {
   authority_digest: RouterAbEd25519YaoPublicDigestV1;
   issued_at_ms: number;
   expires_at_ms: number;
@@ -541,7 +545,7 @@ export type RouterAbEd25519YaoRouterExecuteRequestV1 =
       deriver_b_input: RouterAbEd25519YaoExportEncryptedInputV1<'deriver_b'>;
     });
 
-export type RouterAbEd25519YaoParseResult<T> =
+type RouterAbEd25519YaoParseResult<T> =
   | { ok: true; value: T }
   | { ok: false; code: 'invalid_body'; message: string };
 
@@ -1980,7 +1984,7 @@ export function parseRouterAbEd25519YaoExportResultV1(
   return parseBoundary(parseExportResultValue, value);
 }
 
-export function parseRouterAbEd25519YaoActivationAdmissionReceiptV1(
+function parseRouterAbEd25519YaoActivationAdmissionReceiptV1(
   value: unknown,
 ): RouterAbEd25519YaoParseResult<RouterAbEd25519YaoActivationAdmissionReceiptV1> {
   return parseBoundary(parseActivationAdmissionReceiptValue, value);
@@ -2008,7 +2012,7 @@ export function parseRouterAbEd25519YaoRecoveryActivationAdmissionReceiptV1(
   return { ok: true, value: parsed.value };
 }
 
-export function parseRouterAbEd25519YaoActivationExecuteRequestV1(
+function parseRouterAbEd25519YaoActivationExecuteRequestV1(
   value: unknown,
 ): RouterAbEd25519YaoParseResult<RouterAbEd25519YaoActivationExecuteRequestV1> {
   return parseBoundary(parseActivationExecuteRequestValue, value);

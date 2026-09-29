@@ -156,7 +156,7 @@ function encodeSource(value: RotatableSigningLaneJobV1['source']): Uint8Array {
   ]);
 }
 
-export function encodeEd25519YaoLaneJobTranscriptV1(value: Ed25519YaoLaneJobV1): Uint8Array {
+function encodeEd25519YaoLaneJobTranscriptV1(value: Ed25519YaoLaneJobV1): Uint8Array {
   const target =
     value.target.operation === 'create_lane'
       ? concat([
@@ -267,7 +267,7 @@ function encodeManifestChild(value: LaneEnrollmentManifestChildV1): Uint8Array {
   ]);
 }
 
-export function encodeLaneEnrollmentManifestV1(value: LaneEnrollmentManifestV1): Uint8Array {
+function encodeLaneEnrollmentManifestV1(value: LaneEnrollmentManifestV1): Uint8Array {
   const children = value.orderedChildren.map(encodeManifestChild);
   return concat([
     recordDomain(ENROLLMENT_MANIFEST_DOMAIN),
@@ -300,7 +300,7 @@ function encodeActivationChild(value: AggregateLaneActivationChildReceiptV1): Ui
   ]);
 }
 
-export function encodeAggregateLaneActivationReceiptV1(
+function encodeAggregateLaneActivationReceiptV1(
   value: AggregateLaneActivationReceiptV1,
 ): Uint8Array {
   const children = value.orderedChildReceipts.map(encodeActivationChild);
@@ -333,7 +333,7 @@ function encodeRevocationChild(value: AggregateLaneRevocationChildReceiptV1): Ui
   ]);
 }
 
-export function encodeAggregateLaneRevocationReceiptV1(
+function encodeAggregateLaneRevocationReceiptV1(
   value: AggregateLaneRevocationReceiptV1,
 ): Uint8Array {
   const children = value.orderedChildReceipts.map(encodeRevocationChild);
@@ -354,7 +354,7 @@ export async function computeAggregateLaneRevocationReceiptDigestV1(
   return base64UrlEncode(await sha256Bytes(encodeAggregateLaneRevocationReceiptV1(value)));
 }
 
-export function encodeRevokeSigningLaneV1(value: RevokeSigningLaneV1): Uint8Array {
+function encodeRevokeSigningLaneV1(value: RevokeSigningLaneV1): Uint8Array {
   return concat([
     recordDomain('seams/rotatable-signing-lanes/revoke-signing-lane/v1'),
     text(value.walletId, 'walletId'),
@@ -444,7 +444,7 @@ export function encodeLaneServerActivationReceiptV1(
   ]);
 }
 
-export function encodeEcdsaServerRetirementReceiptCanonicalPayloadV1(
+function encodeEcdsaServerRetirementReceiptCanonicalPayloadV1(
   value: EcdsaServerRetirementReceiptV1,
 ): Uint8Array {
   return concat([
@@ -474,7 +474,7 @@ export async function computeEcdsaServerRetirementReceiptDigestV1(
   );
 }
 
-export function encodeSigningWorkerLaneMaterialIdentityV1(
+function encodeSigningWorkerLaneMaterialIdentityV1(
   value: SigningWorkerLaneMaterialIdentityV1,
 ): Uint8Array {
   return concat([
@@ -498,7 +498,7 @@ export function encodeSigningWorkerLaneMaterialIdentityV1(
   ]);
 }
 
-export function encodeEd25519ServerRetirementReceiptCanonicalPayloadV1(
+function encodeEd25519ServerRetirementReceiptCanonicalPayloadV1(
   value: Ed25519ServerRetirementReceiptV1,
 ): Uint8Array {
   return concat([

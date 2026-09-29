@@ -73,12 +73,12 @@ export type NearEd25519SignerBinding = {
   readonly signerSlot: number;
 };
 
-export type WalletCapabilityBindingParseError = {
+type WalletCapabilityBindingParseError = {
   readonly code: 'missing' | 'invalid';
   readonly message: string;
 };
 
-export type WalletCapabilityBindingParseResult<T> =
+type WalletCapabilityBindingParseResult<T> =
   | { readonly ok: true; readonly value: T }
   | { readonly ok: false; readonly error: WalletCapabilityBindingParseError };
 
@@ -132,9 +132,7 @@ export function parseRpId(raw: unknown): WalletCapabilityBindingParseResult<RpId
   return { ok: true, value: parsed.value };
 }
 
-export function walletIdentityFromRaw(
-  raw: unknown,
-): WalletCapabilityBindingParseResult<WalletIdentity> {
+function walletIdentityFromRaw(raw: unknown): WalletCapabilityBindingParseResult<WalletIdentity> {
   const record = objectRecord(raw);
   if (!record) return missingObject('WalletIdentity');
   const parsed = parseWalletId(record.walletId);
@@ -146,7 +144,7 @@ export function buildWalletIdentity(args: { walletId: WalletId }): WalletIdentit
   return { walletId: args.walletId };
 }
 
-export function passkeyAuthScopeFromRaw(
+function passkeyAuthScopeFromRaw(
   raw: unknown,
 ): WalletCapabilityBindingParseResult<PasskeyAuthScope> {
   const record = objectRecord(raw);

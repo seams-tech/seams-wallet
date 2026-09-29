@@ -19,9 +19,9 @@ import {
 } from './ecdsaCapabilityActivation';
 import type { RouterAbEcdsaVerifiedClientActivationFactsV1 } from './routerAbEcdsaDerivation';
 
-export const WALLET_ADD_SIGNER_ECDSA_ACTIVATE_OPERATION = 'wallet_add_signer_activate_v2';
+const WALLET_ADD_SIGNER_ECDSA_ACTIVATE_OPERATION = 'wallet_add_signer_activate_v2';
 
-export type WalletAddSignerEcdsaActivationCommandInput = {
+type WalletAddSignerEcdsaActivationCommandInput = {
   readonly addSignerCeremonyId: string;
   readonly activationCorrelationId: string;
   readonly publicFacts: RouterAbEcdsaVerifiedClientActivationFactsV1;

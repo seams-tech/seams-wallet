@@ -40,12 +40,12 @@ const X25519_PUBLIC_KEY_LENGTH = 32 as const;
 const UNPADDED_BASE64URL = /^[A-Za-z0-9_-]+$/;
 
 /** One-use X25519 public key generated and retained by Device 2's worker. */
-export type LinkedDeviceEd25519ExportRootRecipientPublicKeyB64u = string & {
+type LinkedDeviceEd25519ExportRootRecipientPublicKeyB64u = string & {
   readonly __linkedDeviceEd25519ExportRootRecipientPublicKeyB64uBrand: 'LinkedDeviceEd25519ExportRootRecipientPublicKeyB64u';
 };
 
 /** Exact public facts authenticated by signer-core as transfer AAD. */
-export type LinkedDeviceEd25519ExportRootTransferBindingV1 = {
+type LinkedDeviceEd25519ExportRootTransferBindingV1 = {
   readonly linkSessionId: LinkDeviceSessionId;
   readonly walletId: WalletId;
   readonly walletKeyId: WalletKeyId;

@@ -91,7 +91,7 @@ export type WalletRecoveryCommittedProjectionExpectationV1 =
       readonly enrollment: WalletRecoveryEmailOtpEnrollmentReferenceV1;
     };
 
-export type WalletRecoveryCommittedProjectionBuilderInputV1 =
+type WalletRecoveryCommittedProjectionBuilderInputV1 =
   | {
       readonly kind: 'passkey';
       readonly storeVersion: string;

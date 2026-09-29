@@ -44,7 +44,7 @@ export async function deriveWalletRecoveryKeyLifecycleId(input: {
   return parseCorrelationId(`wallet-recovery-key-v1:${base64UrlEncode(digest)}`);
 }
 
-export type RecoveryCodeTransitionResult =
+type RecoveryCodeTransitionResult =
   | { ok: true; lifecycle: RecoveryCodeLifecycleState }
   | { ok: false; code: RecoveryCodeTransitionRejection; message: string };
 

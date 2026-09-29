@@ -128,7 +128,7 @@ export type PasskeyCustodyEnvelopeRecord = {
 
 const ENVELOPE_OWNERSHIP_FIELDS = ['kind', 'walletAuthMethodId'] as const;
 
-export function parseWalletCustodyEnvelopeOwnership(
+function parseWalletCustodyEnvelopeOwnership(
   raw: unknown,
   label: string,
 ): WalletCustodyEnvelopeOwnership {
@@ -499,7 +499,7 @@ export function sameWalletCustodyEnvelopeOwnership(
   );
 }
 
-export type WalletCustodyEnvelopeOwnershipReplacementAdmissionV1 =
+type WalletCustodyEnvelopeOwnershipReplacementAdmissionV1 =
   | { readonly kind: 'admitted' }
   | { readonly kind: 'refused'; readonly reason: string };
 

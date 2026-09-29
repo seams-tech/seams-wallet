@@ -35,9 +35,9 @@ export type WalletCredentialActivityRecordV1 = {
   readonly useCount: number;
 };
 
-export const MAX_WALLET_CREDENTIAL_LABEL_LENGTH = 64;
+const MAX_WALLET_CREDENTIAL_LABEL_LENGTH = 64;
 
-export type WalletCredentialActivityParseResult =
+type WalletCredentialActivityParseResult =
   | { readonly ok: true; readonly record: WalletCredentialActivityRecordV1 }
   | { readonly ok: false; readonly reason: string };
 

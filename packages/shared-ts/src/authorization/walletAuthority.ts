@@ -32,7 +32,7 @@ const SIGNER_ACTIVATION_SET_DOMAIN = 'seams/wallet-signer-activation-set/v1';
 const WALLET_AUTHORITY_DOMAIN = 'seams/wallet-authority/v1';
 const TEXT_ENCODER = new TextEncoder();
 
-export type WalletAuthorityPrincipalV1 = {
+type WalletAuthorityPrincipalV1 = {
   readonly kind: 'owner_device';
   readonly deviceId: DeviceId;
 };
@@ -95,7 +95,7 @@ export type WalletSignerActivationSetV1 =
       readonly ecdsa: WalletEcdsaSignerActivationV1;
     };
 
-export type WalletSignerActivationMaterialsV1 =
+type WalletSignerActivationMaterialsV1 =
   | {
       readonly keyFamilies: readonly ['ed25519'];
       readonly ed25519: MpcMaterialActivationRef;
@@ -112,12 +112,12 @@ export type WalletSignerActivationMaterialsV1 =
       readonly ecdsa: MpcMaterialActivationRef;
     };
 
-export type WalletSignerActivationSetBuilderInputV1 = {
+type WalletSignerActivationSetBuilderInputV1 = {
   readonly manifest: ExactAdministeredSignerManifestV1;
   readonly materialActivations: WalletSignerActivationMaterialsV1;
 };
 
-export type WalletAuthorityCommonV1 = {
+type WalletAuthorityCommonV1 = {
   readonly kind: 'wallet_authority_v1';
   readonly authorityId: WalletAuthorityId;
   readonly walletId: WalletId;
@@ -211,7 +211,7 @@ export function isActiveRecoveredWalletAuthorityV1(
   return value.provenance.kind === 'wallet_recovery';
 }
 
-export function buildWalletEd25519SignerActivationV1(input: {
+function buildWalletEd25519SignerActivationV1(input: {
   readonly signer: ExactAdministeredEd25519SignerV1;
   readonly materialActivation: MpcMaterialActivationRef;
 }): WalletEd25519SignerActivationV1 {
@@ -662,7 +662,7 @@ export function parseWalletAuthorityV1(raw: unknown): AuthorizationParseResult<W
   }
 }
 
-export function encodeWalletAuthorityV1(value: WalletAuthorityV1): Uint8Array {
+function encodeWalletAuthorityV1(value: WalletAuthorityV1): Uint8Array {
   const parts: Uint8Array[] = [
     text(WALLET_AUTHORITY_DOMAIN, 'domain'),
     text(value.kind, 'kind'),

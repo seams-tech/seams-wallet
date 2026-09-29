@@ -48,7 +48,7 @@ import {
 } from '../utils/routerAbEcdsaDerivation';
 
 /** Exact discriminator accepted by the ECDSA source-contribution core. */
-export const LINKED_DEVICE_ECDSA_SOURCE_CONTRIBUTION_ENVELOPE_KIND_V1 =
+const LINKED_DEVICE_ECDSA_SOURCE_CONTRIBUTION_ENVELOPE_KIND_V1 =
   'seams/linked-device/ecdsa-source-contribution-envelope/v1' as const;
 
 /** Source derivation facts required by the Cloudflare ECDSA reservation wire. */
@@ -183,7 +183,7 @@ export type LinkedDeviceEd25519SourceContributionV1 = {
   readonly deriver_b_client_package: RouterAbEd25519YaoActivationClientPackageV1<'deriver_b'>;
 };
 
-export type LinkedDeviceEd25519SourcePreservingReservationV1 = {
+type LinkedDeviceEd25519SourcePreservingReservationV1 = {
   readonly state: 'inactive';
   readonly reservationId: string;
   readonly participantIds: readonly [number, number];

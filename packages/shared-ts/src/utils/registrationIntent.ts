@@ -298,7 +298,7 @@ export type WalletAuthMethodRecord =
       counter?: never;
     };
 
-export type WalletAuthMethodLifecycleV1 =
+type WalletAuthMethodLifecycleV1 =
   | {
       readonly status: 'pending_local_install';
       readonly activatedAtMs?: never;
@@ -341,7 +341,7 @@ export type EmailOtpWalletAuthMethodDraftV1 = WalletAuthMethodDraftCommonV1 & {
   readonly counter?: never;
 };
 
-export type WalletAuthMethodCommonV1 = {
+type WalletAuthMethodCommonV1 = {
   readonly version: 'wallet_auth_method_v2';
   readonly walletAuthMethodId: WalletAuthMethodId;
   readonly walletId: WalletId;
@@ -932,7 +932,7 @@ export type ThresholdEd25519RegistrationSpec = {
   derivationVersion: number;
 };
 
-export type ThresholdEcdsaRegistrationSpec = {
+type ThresholdEcdsaRegistrationSpec = {
   chainTargets: unknown[];
   participantIds: number[];
 };
@@ -946,7 +946,7 @@ export type ThresholdEd25519AddSignerSpec = {
   derivationVersion: number;
 };
 
-export type ThresholdEcdsaAddSignerChainTarget =
+type ThresholdEcdsaAddSignerChainTarget =
   | {
       readonly kind: 'evm';
       readonly namespace: 'eip155';
@@ -1137,7 +1137,7 @@ export function walletIdFromString(value: string): WalletId {
   return parsed.value;
 }
 
-export type ServerAllocatedWalletIdParseResult =
+type ServerAllocatedWalletIdParseResult =
   | { ok: true; value: ServerAllocatedWalletId }
   | {
       ok: false;
@@ -1306,7 +1306,7 @@ export function createReadableWalletId(): WalletId {
   );
 }
 
-export function parseServerAllocatedWalletId(raw: unknown): ServerAllocatedWalletIdParseResult {
+function parseServerAllocatedWalletId(raw: unknown): ServerAllocatedWalletIdParseResult {
   const parsed = parseWalletId(raw);
   if (!parsed.ok) return parsed;
   const value = String(parsed.value);
@@ -1332,7 +1332,7 @@ export function parseServerAllocatedWalletId(raw: unknown): ServerAllocatedWalle
   return { ok: true, value: parsed.value as ServerAllocatedWalletId };
 }
 
-export function requireServerAllocatedWalletId(value: unknown): ServerAllocatedWalletId {
+function requireServerAllocatedWalletId(value: unknown): ServerAllocatedWalletId {
   const parsed = parseServerAllocatedWalletId(value);
   if (!parsed.ok) {
     throw new Error(parsed.error.message);
@@ -1390,11 +1390,11 @@ export function parseNearEd25519SigningKeyId(value: unknown): NearEd25519Signing
   return nearEd25519SigningKeyIdFromString(value);
 }
 
-export function nearEd25519SigningKeyIdFromWalletId(walletId: WalletId): NearEd25519SigningKeyId {
+function nearEd25519SigningKeyIdFromWalletId(walletId: WalletId): NearEd25519SigningKeyId {
   return nearEd25519SigningKeyIdFromString(String(walletId));
 }
 
-export type GeneratedImplicitNearEd25519SigningKeyDigestInput = {
+type GeneratedImplicitNearEd25519SigningKeyDigestInput = {
   kind: 'generated_implicit_near_ed25519_signing_key_v1';
   walletId: ServerAllocatedWalletId;
   authorityScope: RegistrationEd25519AuthorityScope;
@@ -1407,7 +1407,7 @@ export type GeneratedImplicitNearEd25519SigningKeyDigestInput = {
   derivationVersion: number;
 };
 
-export async function computeGeneratedImplicitNearEd25519SigningKeyId(
+async function computeGeneratedImplicitNearEd25519SigningKeyId(
   input: GeneratedImplicitNearEd25519SigningKeyDigestInput,
 ): Promise<NearEd25519SigningKeyId> {
   const canonical = alphabetizeStringify({
@@ -1565,15 +1565,15 @@ export function addSignerIntentGrantFromString(value: string): AddSignerIntentGr
   return String(value || '').trim() as AddSignerIntentGrant;
 }
 
-export function serializeRegistrationIntentV1(intent: RegistrationIntentV1): string {
+function serializeRegistrationIntentV1(intent: RegistrationIntentV1): string {
   return alphabetizeStringify(intent);
 }
 
-export function serializeAddSignerIntentV1(intent: AddSignerIntentV1): string {
+function serializeAddSignerIntentV1(intent: AddSignerIntentV1): string {
   return alphabetizeStringify(intent);
 }
 
-export function serializeAddAuthMethodIntentV1(intent: AddAuthMethodIntentV1): string {
+function serializeAddAuthMethodIntentV1(intent: AddAuthMethodIntentV1): string {
   return alphabetizeStringify(intent);
 }
 
@@ -1669,17 +1669,17 @@ function normalizeRegistrationEcdsaSpec(
   return { participantIds, chainTargets };
 }
 
-export type NormalizeSignerSelectionResult<TSelection> =
+type NormalizeSignerSelectionResult<TSelection> =
   | { ok: true; value: TSelection }
   | { ok: false; code: string; message: string };
 
-export type NormalizeAddSignerSelectionOptions = {
+type NormalizeAddSignerSelectionOptions = {
   readonly normalizeEcdsaChainTarget: (
     target: unknown,
   ) => ThresholdEcdsaAddSignerChainTarget | null;
 };
 
-export type RegistrationSignerSetSelectionFromPlanOptions = {
+type RegistrationSignerSetSelectionFromPlanOptions = {
   readonly normalizeEcdsaChainTarget?: (target: unknown) => unknown | null;
 };
 
@@ -2374,7 +2374,7 @@ export function normalizeAddAuthMethodIntentCaller(
 }
 
 /** True when the two source claims name the same session on the same authority. */
-export function sameAddAuthMethodIntentSourceV1(
+function sameAddAuthMethodIntentSourceV1(
   left: AddAuthMethodIntentSourceV1,
   right: AddAuthMethodIntentSourceV1,
 ): boolean {

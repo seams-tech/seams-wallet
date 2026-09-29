@@ -109,7 +109,7 @@ const ROUTER_AB_ECDSA_DERIVATION_NORMAL_SIGNING_FINALIZE_REQUEST_VERSION_V1 =
 const ROUTER_AB_ECDSA_DERIVATION_CLIENT_RERANDOMIZATION_COMMITMENT_DOMAIN_V1 =
   'router-ab-ecdsa-derivation/client-rerandomization-commitment/v1' as const;
 
-export type RouterAbEcdsaDerivationStableKeyContextV1 = {
+type RouterAbEcdsaDerivationStableKeyContextV1 = {
   application_binding_digest_b64u: string;
 };
 
@@ -129,7 +129,7 @@ export type RouterAbServerIdentityV1 = {
   recipient_encryption_key: string;
 };
 
-export type RouterAbEcdsaDerivationPostRegistrationLifecycleScopeV1<
+type RouterAbEcdsaDerivationPostRegistrationLifecycleScopeV1<
   WorkKind extends 'key_export' | 'recovery' | 'server_share_refresh',
   PrimitiveRequestKind extends 'export' | 'recovery' | 'refresh',
 > = {
@@ -149,7 +149,7 @@ export type RouterAbEcdsaDerivationExportLifecycleScopeV1 =
 export type RouterAbEcdsaDerivationRefreshLifecycleScopeV1 =
   RouterAbEcdsaDerivationPostRegistrationLifecycleScopeV1<'server_share_refresh', 'refresh'>;
 
-export type RouterAbEcdsaDerivationSignerIdentityV1<Role extends 'signer_a' | 'signer_b'> = {
+type RouterAbEcdsaDerivationSignerIdentityV1<Role extends 'signer_a' | 'signer_b'> = {
   role: Role;
   signer_id: string;
   key_epoch: string;
@@ -163,9 +163,9 @@ export type RouterAbEcdsaDerivationSignerSetV1 = {
   selected_server: RouterAbServerIdentityV1;
 };
 
-export type RouterAbEcdsaRegistrationPurposeV1 = 'wallet_registration' | 'wallet_add_signer';
+type RouterAbEcdsaRegistrationPurposeV1 = 'wallet_registration' | 'wallet_add_signer';
 
-export type RouterAbEcdsaRegistrationLifecycleV1 = {
+type RouterAbEcdsaRegistrationLifecycleV1 = {
   lifecycle_id: string;
   work_kind: 'registration_prepare';
   primitive_request_kind: 'registration';
@@ -210,13 +210,13 @@ export type RouterAbEcdsaRegistrationRequestV1 = Omit<
   deriver_b_envelope: RouterAbEcdsaDerivationRoleEncryptedEnvelopeV1<'signer_b'>;
 };
 
-export type RouterAbEcdsaClientProofBundleV1 = {
+type RouterAbEcdsaClientProofBundleV1 = {
   kind: 'recipient_proof_bundle';
   transcriptDigestB64u: string;
   payloadB64u: string;
 };
 
-export type RouterAbEcdsaClientProofBundlePairV1 = {
+type RouterAbEcdsaClientProofBundlePairV1 = {
   signerA: RouterAbEcdsaClientProofBundleV1;
   signerB: RouterAbEcdsaClientProofBundleV1;
 };
@@ -242,7 +242,7 @@ export type RouterAbEcdsaStrictForwardedRegistrationResponseV1 = {
   };
 };
 
-export type RouterAbEcdsaStrictForwardedProofResponseV1 =
+type RouterAbEcdsaStrictForwardedProofResponseV1 =
   RouterAbEcdsaStrictForwardedRegistrationResponseV1;
 
 function requireExportShareAuthorizationKind(
@@ -426,7 +426,7 @@ export type RouterAbEcdsaDerivationRoleEncryptedEnvelopeV1<Role extends 'signer_
   ciphertext: { bytes: number[] };
 };
 
-export type RouterAbEcdsaDerivationExplicitExportRequestBaseV1 = {
+type RouterAbEcdsaDerivationExplicitExportRequestBaseV1 = {
   context: RouterAbEcdsaDerivationStableKeyContextV1;
   lifecycle: RouterAbEcdsaDerivationExportLifecycleScopeV1;
   public_identity: RouterAbEcdsaDerivationPublicIdentityV1;
@@ -510,7 +510,7 @@ export type RouterAbEcdsaDerivationActivationRefreshCommitRequestV1 = {
   refresh_request: RouterAbEcdsaDerivationActivationRefreshRequestV1;
 };
 
-export type RouterAbEcdsaDerivationActivationRefreshActivationCommittedResponseV1 = {
+type RouterAbEcdsaDerivationActivationRefreshActivationCommittedResponseV1 = {
   result: 'activation_committed';
   signing_worker_activation: RouterAbEcdsaRegistrationActivationReceiptV1;
   response?: never;
@@ -519,7 +519,7 @@ export type RouterAbEcdsaDerivationActivationRefreshActivationCommittedResponseV
   decision?: never;
 };
 
-export type RouterAbEcdsaDerivationActivationRefreshStoppedResponseV1 = {
+type RouterAbEcdsaDerivationActivationRefreshStoppedResponseV1 = {
   result: 'stopped';
   replay: {
     request_id: string;
@@ -588,7 +588,7 @@ export type RouterAbEcdsaDerivationNormalSigningStateV1 = {
   scope: RouterAbEcdsaDerivationNormalSigningScopeV1;
 };
 
-export type RouterAbEcdsaDerivationSignatureSchemeV1Wire = 'ecdsa_secp256k1_recoverable_v1';
+type RouterAbEcdsaDerivationSignatureSchemeV1Wire = 'ecdsa_secp256k1_recoverable_v1';
 
 export type RouterAbEcdsaDerivationOperationDigestsV1Wire = {
   lane_digest_b64u: string;
@@ -613,7 +613,7 @@ export type RouterAbEcdsaDerivationEvmDigestSigningRequestV1Wire =
     authorization: RouterAbNormalSigningAuthorizationWire;
   };
 
-export type RouterAbEcdsaPrepareSourceV1 = { readonly kind: 'available_pool' };
+type RouterAbEcdsaPrepareSourceV1 = { readonly kind: 'available_pool' };
 
 export function parseRouterAbEcdsaPrepareSourceV1(value: unknown): RouterAbEcdsaPrepareSourceV1 {
   if (value === undefined) return { kind: 'available_pool' };
@@ -625,7 +625,7 @@ export function parseRouterAbEcdsaPrepareSourceV1(value: unknown): RouterAbEcdsa
   throw new Error('Unsupported signing prepare source');
 }
 
-export type RouterAbEcdsaOperationStepUpWebAuthnCredentialV1Wire = {
+type RouterAbEcdsaOperationStepUpWebAuthnCredentialV1Wire = {
   readonly id: string;
   readonly rawId: string;
   readonly type: string;
@@ -692,7 +692,7 @@ export type RouterAbOwnerOperationAuthorizationDecisionV1Wire =
       };
     };
 
-export type RouterAbEcdsaOperationStepUpProofV1Wire =
+type RouterAbEcdsaOperationStepUpProofV1Wire =
   | {
       readonly kind: 'passkey';
       readonly authority: PasskeyWalletAuthAuthority;
@@ -2963,7 +2963,7 @@ function contextBindingFrame(contextBytes: Uint8Array): Uint8Array {
   return new Uint8Array(out);
 }
 
-export async function routerAbEcdsaDerivationContextBindingDigestV1(
+async function routerAbEcdsaDerivationContextBindingDigestV1(
   context: RouterAbEcdsaDerivationStableKeyContextV1,
 ): Promise<RouterAbPublicDigest32V1Wire> {
   return publicDigest32FromCanonicalBytes(
@@ -3042,7 +3042,7 @@ async function publicDigest32FromCanonicalBytes(
   return { bytes: Array.from(await sha256Bytes(bytes)) };
 }
 
-export async function verifyRouterAbEcdsaDerivationNormalSigningScopeContextBindingV1(
+async function verifyRouterAbEcdsaDerivationNormalSigningScopeContextBindingV1(
   scope: RouterAbEcdsaDerivationNormalSigningScopeV1,
 ): Promise<RouterAbEcdsaDerivationNormalSigningScopeV1> {
   const parsed = parseRouterAbEcdsaDerivationNormalSigningScopeV1(scope);
@@ -3057,7 +3057,7 @@ export async function verifyRouterAbEcdsaDerivationNormalSigningScopeContextBind
   return parsed;
 }
 
-export function routerAbEcdsaDerivationEvmDigestSigningRequestCanonicalBytesV1(
+function routerAbEcdsaDerivationEvmDigestSigningRequestCanonicalBytesV1(
   request: RouterAbEcdsaDerivationEvmDigestSigningRequestV1Wire,
 ): Uint8Array {
   const parsed = parseRouterAbEcdsaDerivationEvmDigestSigningRequestV1(request);
@@ -3086,7 +3086,7 @@ export async function routerAbEcdsaDerivationEvmDigestSigningRequestDigestV1(
   );
 }
 
-export function routerAbEcdsaDerivationEvmDigestSigningFinalizeCoreRequestCanonicalBytesV1(
+function routerAbEcdsaDerivationEvmDigestSigningFinalizeCoreRequestCanonicalBytesV1(
   request: RouterAbEcdsaDerivationEvmDigestSigningFinalizeCoreRequestV1Wire,
 ): Uint8Array {
   const parsed = parseRouterAbEcdsaDerivationEvmDigestSigningFinalizeCoreRequestV1(request);
@@ -3570,7 +3570,7 @@ export function buildRouterAbEcdsaDerivationEvmDigestSigningFinalizeRequestV1(in
   });
 }
 
-export function parseRouterAbEcdsaDerivationEvmDigestSigningFinalizeCoreRequestV1(
+function parseRouterAbEcdsaDerivationEvmDigestSigningFinalizeCoreRequestV1(
   value: unknown,
 ): RouterAbEcdsaDerivationEvmDigestSigningFinalizeCoreRequestV1Wire {
   const record = requireRecord(value, 'ecdsaFinalizeCoreRequest');
@@ -3656,7 +3656,7 @@ export function parseRouterAbEcdsaDerivationEvmDigestSigningFinalizeRequestV1(
   return parseRouterAbEcdsaDerivationEvmDigestSigningFinalizeCoreRequestFields(record);
 }
 
-export function parseRouterAbEcdsaDerivationEvmDigestSigningPrepareResponseV1(
+function parseRouterAbEcdsaDerivationEvmDigestSigningPrepareResponseV1(
   value: unknown,
 ): RouterAbEcdsaDerivationEvmDigestSigningPrepareResponseV1Wire {
   const record = requireRecord(value, 'ecdsaPrepareResponse');
@@ -3749,7 +3749,7 @@ export async function parseRouterAbEcdsaDerivationEvmDigestSigningPrepareRespons
   return response;
 }
 
-export function parseRouterAbEcdsaDerivationEvmDigestSigningResponseV1(
+function parseRouterAbEcdsaDerivationEvmDigestSigningResponseV1(
   value: unknown,
 ): RouterAbEcdsaDerivationEvmDigestSigningResponseV1Wire {
   const record = requireRecord(value, 'ecdsaSigningResponse');

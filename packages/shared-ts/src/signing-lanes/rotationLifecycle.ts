@@ -15,7 +15,7 @@ function requireForwardTime(previous: number, next: number, label: string): void
   }
 }
 
-export type LaneProtocolLifecycleTransitionV1 =
+type LaneProtocolLifecycleTransitionV1 =
   | { action: 'await_protocol_commitment'; atMs: number }
   | {
       action: 'record_commit';
@@ -189,7 +189,7 @@ export function transitionLaneProtocolLifecycleV1(
   );
 }
 
-export type LaneEnrollmentLifecycleTransitionV1 =
+type LaneEnrollmentLifecycleTransitionV1 =
   | {
       action: 'mark_committed_completion_required';
       committedChildOperationIds: readonly [LaneOperationId, ...LaneOperationId[]];

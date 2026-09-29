@@ -224,7 +224,7 @@ export function parseWalletRecoveryEcdsaPossessionProofV1(
   };
 }
 
-export function walletRecoveryEcdsaPossessionChallengeCanonicalBytesV1(
+function walletRecoveryEcdsaPossessionChallengeCanonicalBytesV1(
   challenge: WalletRecoveryEcdsaPossessionChallengeV1,
 ): Uint8Array {
   const parsed = parseWalletRecoveryEcdsaPossessionChallengeV1(challenge);

@@ -41,7 +41,7 @@ export type WalletAuthMethodSignerResolution =
       signerAuthMethod?: never;
     };
 
-export const SIGNING_SESSION_RETENTIONS = {
+const SIGNING_SESSION_RETENTIONS = {
   session: 'session',
   singleUse: 'single_use',
 } as const;
@@ -49,7 +49,7 @@ export const SIGNING_SESSION_RETENTIONS = {
 export type SigningSessionRetention =
   (typeof SIGNING_SESSION_RETENTIONS)[keyof typeof SIGNING_SESSION_RETENTIONS];
 
-export const SIGNING_SESSION_POLICIES = {
+const SIGNING_SESSION_POLICIES = {
   session: 'session',
   perOperation: 'per_operation',
 } as const;
@@ -75,9 +75,7 @@ export const SIGNER_SOURCES = {
 
 export type SignerSource = (typeof SIGNER_SOURCES)[keyof typeof SIGNER_SOURCES];
 
-export const WALLET_AUTH_METHOD_VALUES = Object.values(
-  WALLET_AUTH_METHODS,
-) as readonly WalletAuthMethod[];
+const WALLET_AUTH_METHOD_VALUES = Object.values(WALLET_AUTH_METHODS) as readonly WalletAuthMethod[];
 
 function normalized(value: unknown): string {
   return normalizeOptionalTrimmedString(value)?.toLowerCase() || '';

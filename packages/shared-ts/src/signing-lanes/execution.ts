@@ -4,7 +4,7 @@ import type { DomainId, MpcMaterialActivationRef } from '../utils/domainIds';
 import type { LinkedDeviceEnrollmentId } from './ids';
 import type { ActiveSigningLaneReference, DelegatedSpendAuthorizationId } from './records';
 
-export type DelegatedBudgetClaimId = DomainId<'DelegatedBudgetClaimId'>;
+type DelegatedBudgetClaimId = DomainId<'DelegatedBudgetClaimId'>;
 
 export type ClaimedWalletExecutionAuthorization = {
   readonly kind: 'claimed_wallet_execution_authorization_v1';

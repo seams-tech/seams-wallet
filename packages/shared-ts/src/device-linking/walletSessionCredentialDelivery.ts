@@ -60,7 +60,7 @@ export type LinkedDeviceWalletSessionCredentialDeliveryBindingV1 = {
   readonly principalId: PrincipalId;
 };
 
-export type LinkedDeviceWalletSessionCredentialEnvelopeV1 = {
+type LinkedDeviceWalletSessionCredentialEnvelopeV1 = {
   readonly kind: 'linked_device_wallet_session_credential_envelope_v1';
   readonly algorithm: 'p256-ecdh-aes256gcm-v1';
   readonly serverEphemeralPublicKey65B64u: string;

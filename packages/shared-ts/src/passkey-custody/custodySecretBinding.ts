@@ -133,7 +133,7 @@ export type PasskeyCustodySecretBinding =
       clientRootPublicKey33B64u?: never;
     };
 
-export type Ed25519YaoClientRootTargetFactorV1 =
+type Ed25519YaoClientRootTargetFactorV1 =
   | { readonly kind: 'passkey_prf' }
   | { readonly kind: 'email_otp' };
 

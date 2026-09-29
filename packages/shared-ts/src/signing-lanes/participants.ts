@@ -204,7 +204,7 @@ export function parseSigningWorkerRecipientKeyDigestB64u(
   return parseDigest(raw, 'hpkePublicKeyDigestB64u', brandRecipientDigest);
 }
 
-export function buildLaneHolderCustodyIdentityV1(args: {
+function buildLaneHolderCustodyIdentityV1(args: {
   readonly custodyBindingId: LaneHolderCustodyBindingId;
   readonly custodyBindingDigestB64u: LaneCustodyBindingDigestB64u;
 }): LaneHolderCustodyIdentityV1 {
@@ -215,7 +215,7 @@ export function buildLaneHolderCustodyIdentityV1(args: {
   };
 }
 
-export function buildSigningWorkerRecipientIdentityV1(args: {
+function buildSigningWorkerRecipientIdentityV1(args: {
   readonly recipientKeyId: SigningWorkerRecipientKeyId;
   readonly hpkePublicKeyB64u: HpkePublicKeyB64u;
   readonly hpkePublicKeyDigestB64u: HpkePublicKeyDigestB64u;
@@ -228,7 +228,7 @@ export function buildSigningWorkerRecipientIdentityV1(args: {
   };
 }
 
-export function parseLaneHolderCustodyIdentityV1(
+function parseLaneHolderCustodyIdentityV1(
   raw: unknown,
   label = 'laneHolderCustodyIdentity',
 ): LaneHolderCustodyIdentityV1 {
@@ -251,7 +251,7 @@ export function parseLaneHolderCustodyIdentityV1(
   });
 }
 
-export function parseSigningWorkerRecipientIdentityV1(
+function parseSigningWorkerRecipientIdentityV1(
   raw: unknown,
   label = 'signingWorkerRecipientIdentity',
 ): SigningWorkerRecipientIdentityV1 {

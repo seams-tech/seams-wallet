@@ -7,7 +7,7 @@ type CryptoRandomSource = {
   getRandomValues?: (array: Uint8Array) => Uint8Array;
 };
 
-export function secureRandomBytes(
+function secureRandomBytes(
   length = DEFAULT_SECURE_RANDOM_ID_BYTES,
   label = 'secure random bytes',
 ): Uint8Array {
@@ -35,10 +35,7 @@ export function secureRandomId(
   return `${normalizedPrefix}-${secureRandomBase64Url(byteLength, label)}`;
 }
 
-export function secureRandomUintBelow(
-  maxExclusive: number,
-  label = 'bounded random integer',
-): number {
+function secureRandomUintBelow(maxExclusive: number, label = 'bounded random integer'): number {
   const max = Math.floor(Number(maxExclusive) || 0);
   if (max <= 0 || max > 256) {
     throw new Error(`Invalid upper bound for ${label}`);

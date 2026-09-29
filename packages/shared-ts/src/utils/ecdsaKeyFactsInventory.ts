@@ -14,7 +14,7 @@ type EcdsaInventoryChainTarget =
       networkSlug?: string;
     };
 
-export type WalletEcdsaKeyFactsInventoryChallengeInput = {
+type WalletEcdsaKeyFactsInventoryChallengeInput = {
   walletId: string;
   rpId: string;
   keyTargets: readonly {
@@ -45,7 +45,7 @@ function normalizeChainTarget(target: EcdsaInventoryChainTarget): EcdsaInventory
   };
 }
 
-export function canonicalizeWalletEcdsaKeyFactsInventoryChallenge(
+function canonicalizeWalletEcdsaKeyFactsInventoryChallenge(
   input: WalletEcdsaKeyFactsInventoryChallengeInput,
 ): string {
   const keyTargets = input.keyTargets

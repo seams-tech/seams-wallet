@@ -45,7 +45,7 @@ export async function computeWalletSessionOperationCredentialDigestB64u(
   return parseDigestB64u(base64UrlEncode(await sha256BytesUtf8(credential.token)));
 }
 
-export function encodeWalletSessionInstallationReceiptV1(
+function encodeWalletSessionInstallationReceiptV1(
   receipt: LocalAuthorityInstallationReceiptV1,
 ): string {
   return alphabetizeStringify({
@@ -241,7 +241,7 @@ function encodeLinkedDevicePasskeyCreationOptionsV1(
   ]);
 }
 
-export function encodeLinkedDevicePasskeyTargetConfigurationV1(
+function encodeLinkedDevicePasskeyTargetConfigurationV1(
   value: LinkedDevicePasskeyTargetConfigurationFieldsV1,
 ): Uint8Array {
   return concat([
@@ -283,7 +283,7 @@ function encodeEd25519ExportRootPreparation(
   ]);
 }
 
-export function encodeLinkedDeviceSessionClaimV1(value: LinkedDeviceSessionClaimV1): Uint8Array {
+function encodeLinkedDeviceSessionClaimV1(value: LinkedDeviceSessionClaimV1): Uint8Array {
   return concat([
     text(CLAIM_DOMAIN, 'domain'),
     text(value.kind, 'kind'),
@@ -307,7 +307,7 @@ export async function computeLinkedDeviceSessionClaimDigestV1(
   );
 }
 
-export function encodeLinkedDeviceApprovalV1(value: LinkedDeviceApprovalV1): Uint8Array {
+function encodeLinkedDeviceApprovalV1(value: LinkedDeviceApprovalV1): Uint8Array {
   return concat([
     text(APPROVAL_DOMAIN, 'domain'),
     text(value.kind, 'kind'),
@@ -339,9 +339,7 @@ export async function computeLinkedDeviceApprovalDigestV1(
   return parseDigestB64u(base64UrlEncode(await sha256Bytes(encodeLinkedDeviceApprovalV1(value))));
 }
 
-export function encodeLinkedDeviceTargetPreparationV1(
-  value: LinkedDeviceTargetPreparationV1,
-): Uint8Array {
+function encodeLinkedDeviceTargetPreparationV1(value: LinkedDeviceTargetPreparationV1): Uint8Array {
   const requirements = value.ordinarySignerMaterialRecipientRequirements.map(
     encodeRecipientRequirement,
   );

@@ -7,7 +7,7 @@ export type RuntimePolicyScope = {
   readonly signingRootVersion: string;
 };
 
-export type SigningRootScope = {
+type SigningRootScope = {
   readonly signingRootId: string;
   readonly signingRootVersion?: string;
 };

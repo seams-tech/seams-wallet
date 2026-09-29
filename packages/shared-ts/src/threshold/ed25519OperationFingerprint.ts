@@ -8,23 +8,23 @@ type ThresholdEd25519CanonicalScope = {
   signerPublicKey: string;
 };
 
-export type ThresholdEd25519NearTransaction = {
+type ThresholdEd25519NearTransaction = {
   nearAccountId: string;
   receiverId: string;
   actions: readonly ThresholdEd25519NearAction[];
 };
 
-export type ThresholdEd25519NearPublicKey = {
+type ThresholdEd25519NearPublicKey = {
   keyType: number;
   keyData: readonly number[];
 };
 
-export type ThresholdEd25519NearSignature = {
+type ThresholdEd25519NearSignature = {
   keyType: number;
   signatureData: readonly number[];
 };
 
-export type ThresholdEd25519SignedDelegateAction = {
+type ThresholdEd25519SignedDelegateAction = {
   senderId: string;
   receiverId: string;
   actions: readonly ThresholdEd25519NearAction[];
@@ -69,25 +69,24 @@ export type ThresholdEd25519NearAction =
       account_id?: never;
     };
 
-export type ThresholdEd25519NearTransactionPlanningFingerprintInput =
-  ThresholdEd25519CanonicalScope & {
-    transactions: readonly ThresholdEd25519NearTransaction[];
-  };
+type ThresholdEd25519NearTransactionPlanningFingerprintInput = ThresholdEd25519CanonicalScope & {
+  transactions: readonly ThresholdEd25519NearTransaction[];
+};
 
-export type ThresholdEd25519NearTransactionFingerprintInput =
+type ThresholdEd25519NearTransactionFingerprintInput =
   ThresholdEd25519NearTransactionPlanningFingerprintInput & {
     unsignedTransactionBorshB64u: string;
     signingDigestB64u: string;
   };
 
-export type ThresholdEd25519Nep413FingerprintInput = ThresholdEd25519CanonicalScope & {
+type ThresholdEd25519Nep413FingerprintInput = ThresholdEd25519CanonicalScope & {
   message: string;
   recipient: string;
   nonce: string;
   state?: string | null;
 };
 
-export type ThresholdEd25519DelegateActionFingerprintInput = ThresholdEd25519CanonicalScope & {
+type ThresholdEd25519DelegateActionFingerprintInput = ThresholdEd25519CanonicalScope & {
   delegate: {
     senderId: string;
     receiverId: string;

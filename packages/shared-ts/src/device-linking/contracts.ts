@@ -898,7 +898,7 @@ export type LocalAuthorityInstallationReceiptV1 = {
   readonly installedAtMs: number;
 };
 
-export type RelinkRequiredReasonV1 =
+type RelinkRequiredReasonV1 =
   | { readonly kind: 'incomplete_migrated_enrollment' }
   | {
       readonly kind: 'missing_canonical_local_material';

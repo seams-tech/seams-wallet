@@ -34,7 +34,7 @@ export function activeWalletSessionV1RecordsEqual(
   return true;
 }
 
-export function walletCapabilitySubjectsEqual(
+function walletCapabilitySubjectsEqual(
   left: WalletCapabilitySubjectV1,
   right: WalletCapabilitySubjectV1,
 ): boolean {

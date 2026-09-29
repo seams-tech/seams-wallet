@@ -1,4 +1,4 @@
-export type JsonRpcId = string | number | null;
+type JsonRpcId = string | number | null;
 
 export type JsonRpcErrorDetails = {
   code?: number | string;
@@ -22,7 +22,7 @@ export type JsonRpcEnvelope =
       result?: never;
     };
 
-export type JsonRpcEnvelopeDecodeResult =
+type JsonRpcEnvelopeDecodeResult =
   | { ok: true; value: JsonRpcEnvelope; error?: never }
   | { ok: false; error: string; value?: never };
 

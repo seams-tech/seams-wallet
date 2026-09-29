@@ -1,7 +1,7 @@
 import type { DomainId } from '../utils/domainIds';
 import { hasWhitespaceOrControlCharacters } from '../utils/domainIds';
 
-export type AuthorizationParseError = {
+type AuthorizationParseError = {
   readonly code: 'missing' | 'invalid';
   readonly message: string;
 };
@@ -16,14 +16,14 @@ export const CAPABILITY_KINDS = {
   evmEcdsaMpcSigning: 'evm_ecdsa_mpc_signing',
 } as const;
 
-export type CapabilityKind = (typeof CAPABILITY_KINDS)[keyof typeof CAPABILITY_KINDS];
+type CapabilityKind = (typeof CAPABILITY_KINDS)[keyof typeof CAPABILITY_KINDS];
 
 export const VAULT_OPERATION_KINDS = {
   proxyUse: 'vault.proxy_use',
   reveal: 'vault.reveal',
 } as const;
 
-export type VaultOperationKind = (typeof VAULT_OPERATION_KINDS)[keyof typeof VAULT_OPERATION_KINDS];
+type VaultOperationKind = (typeof VAULT_OPERATION_KINDS)[keyof typeof VAULT_OPERATION_KINDS];
 
 export const NEAR_ED25519_MPC_OPERATION_KINDS = {
   signTransaction: 'near.sign_transaction',
@@ -43,7 +43,7 @@ export const EVM_ECDSA_MPC_OPERATION_KINDS = {
 export type EvmEcdsaMpcOperationKind =
   (typeof EVM_ECDSA_MPC_OPERATION_KINDS)[keyof typeof EVM_ECDSA_MPC_OPERATION_KINDS];
 
-export type CapabilityOperationKindByCapability = {
+type CapabilityOperationKindByCapability = {
   readonly vault_access: VaultOperationKind;
   readonly near_ed25519_mpc_signing: NearEd25519MpcOperationKind;
   readonly evm_ecdsa_mpc_signing: EvmEcdsaMpcOperationKind;
@@ -67,8 +67,8 @@ export const AUTHORIZATION_EVIDENCE_KINDS = {
   emailOtp: 'email_otp',
 } as const;
 
-export type SessionAuthorizationEvidenceKind = typeof AUTHORIZATION_EVIDENCE_KINDS.seamsSession;
-export type InteractiveAuthorizationEvidenceKind =
+type SessionAuthorizationEvidenceKind = typeof AUTHORIZATION_EVIDENCE_KINDS.seamsSession;
+type InteractiveAuthorizationEvidenceKind =
   | typeof AUTHORIZATION_EVIDENCE_KINDS.passkeyAssertion
   | typeof AUTHORIZATION_EVIDENCE_KINDS.emailOtp;
 export type AuthorizationEvidenceKind =
@@ -83,21 +83,18 @@ export type AuthorizationEvidenceRequirement = {
 export type TenantId = DomainId<'TenantId'>;
 export type PrincipalId = DomainId<'PrincipalId'>;
 export type EcdsaAuthorizationSessionId = DomainId<'EcdsaAuthorizationSessionId'>;
-export type SeamsSession = DomainId<'SeamsSession'>;
 export type HostedWalletSessionExchangeCodeId = DomainId<'HostedWalletSessionExchangeCodeId'>;
-export type SessionClientId = DomainId<'SessionClientId'>;
 export type DeviceId = DomainId<'DeviceId'>;
 export type AuthFactorId = DomainId<'AuthFactorId'>;
 export type CapabilityId = DomainId<'CapabilityId'>;
-export type CapabilityBindingId = DomainId<'CapabilityBindingId'>;
 export type CapabilityOperationId = DomainId<'CapabilityOperationId'>;
 export type WalletSessionAuthorizationId = DomainId<'WalletSessionAuthorizationId'>;
 
-export const AUTHORIZATION_GRANT_KINDS = {
+const AUTHORIZATION_GRANT_KINDS = {
   walletSession: 'wallet_session_authorization',
 } as const;
 
-export type WalletSessionAuthorizationRef = {
+type WalletSessionAuthorizationRef = {
   readonly kind: 'wallet_session_authorization';
   readonly authorizationId: WalletSessionAuthorizationId;
 };
@@ -110,12 +107,9 @@ export type MpcWalletSigningQuotaId = DomainId<'MpcWalletSigningQuotaId'>;
 export type WalletSessionMintId = DomainId<'WalletSessionMintId'>;
 export type AuthorizationEvidenceId = DomainId<'AuthorizationEvidenceId'>;
 export type AuthorizationEvidenceSetId = DomainId<'AuthorizationEvidenceSetId'>;
-export type GrantChallengeId = DomainId<'GrantChallengeId'>;
-export type PolicyId = DomainId<'PolicyId'>;
 export type AuthorizationAuditEventId = DomainId<'AuthorizationAuditEventId'>;
 export type VaultId = DomainId<'VaultId'>;
 export type VaultItemId = DomainId<'VaultItemId'>;
-export type CapabilityOperationResultStorageRef = DomainId<'CapabilityOperationResultStorageRef'>;
 
 const CAPABILITY_KIND_VALUES = Object.values(CAPABILITY_KINDS) as readonly CapabilityKind[];
 const VAULT_OPERATION_KIND_VALUES = Object.values(
@@ -131,7 +125,7 @@ const AUTHORIZATION_EVIDENCE_KIND_VALUES = Object.values(
   AUTHORIZATION_EVIDENCE_KINDS,
 ) as readonly AuthorizationEvidenceKind[];
 
-export function isCapabilityKind(value: unknown): value is CapabilityKind {
+function isCapabilityKind(value: unknown): value is CapabilityKind {
   return typeof value === 'string' && CAPABILITY_KIND_VALUES.includes(value as CapabilityKind);
 }
 

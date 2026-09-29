@@ -1,6 +1,6 @@
 import type { ActionArgs } from './actions';
 
-export interface PublicKey {
+interface PublicKey {
   keyType: number;
   keyData: number[];
 }
@@ -24,7 +24,7 @@ export interface SignedDelegate {
   signature: Signature;
 }
 
-export interface RelayedNearFunctionCall {
+interface RelayedNearFunctionCall {
   readonly methodName: string;
   readonly args: number[];
   readonly gas: number;

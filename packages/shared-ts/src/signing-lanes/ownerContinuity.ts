@@ -33,7 +33,7 @@ export type OwnerLaneParticipantContinuityV1 = {
   readonly sourceIdentityDigestB64u: DigestB64u;
 };
 
-export const OWNER_LANE_PARTICIPANT_BINDING_DOMAIN_V1 =
+const OWNER_LANE_PARTICIPANT_BINDING_DOMAIN_V1 =
   'seams/rotatable-signing-lanes/owner-lane-participant-continuity/v1' as const;
 
 const OWNER_LANE_PARTICIPANT_CONTINUITY_FIELDS = [

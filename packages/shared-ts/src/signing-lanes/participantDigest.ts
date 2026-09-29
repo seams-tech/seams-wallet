@@ -19,22 +19,22 @@ import {
 } from './participants';
 
 /** Domain tags are part of the wire contract and must never be shortened. */
-export const LANE_HOLDER_PARTICIPANT_BINDING_DOMAIN_V1 =
+const LANE_HOLDER_PARTICIPANT_BINDING_DOMAIN_V1 =
   'seams/rotatable-signing-lanes/lane-holder-participant/v1' as const;
-export const SIGNING_WORKER_PARTICIPANT_BINDING_DOMAIN_V1 =
+const SIGNING_WORKER_PARTICIPANT_BINDING_DOMAIN_V1 =
   'seams/rotatable-signing-lanes/signing-worker-participant/v1' as const;
 /** The lane digest binds the fixed holder-then-SigningWorker participant set. */
-export const LANE_PARTICIPANT_SET_BINDING_DOMAIN_V1 =
+const LANE_PARTICIPANT_SET_BINDING_DOMAIN_V1 =
   'seams/rotatable-signing-lanes/lane-participant-set/v1' as const;
 
-export type LaneHolderParticipantBindingInputV1 = {
+type LaneHolderParticipantBindingInputV1 = {
   readonly participantId: LaneHolderParticipantId;
   readonly custody: LaneHolderCustodyIdentityV1;
   readonly hpkePublicKeyB64u: HpkePublicKeyB64u;
   readonly hpkePublicKeyDigestB64u: SigningWorkerRecipientKeyDigestB64u;
 };
 
-export type SigningWorkerParticipantBindingInputV1 = {
+type SigningWorkerParticipantBindingInputV1 = {
   readonly participantId: SigningWorkerParticipantId;
   readonly recipient: SigningWorkerRecipientIdentityV1;
 };
@@ -95,16 +95,14 @@ export function encodeLaneCanonicalU64V1(value: number): Uint8Array {
 }
 
 /** Nonempty array count encoding used by enrollment and receipt records. */
-export function encodeLaneCanonicalNonEmptyCountV1(count: number): Uint8Array {
+function encodeLaneCanonicalNonEmptyCountV1(count: number): Uint8Array {
   if (!Number.isInteger(count) || count < 1 || count > 0xffffffff) {
     throw new Error('canonical array count must be a nonempty u32');
   }
   return u32(count);
 }
 
-export function laneHolderParticipantCanonicalBytesV1(
-  input: LaneHolderParticipantRecordV1,
-): Uint8Array {
+function laneHolderParticipantCanonicalBytesV1(input: LaneHolderParticipantRecordV1): Uint8Array {
   const record = parseLaneHolderParticipantRecordV1(input);
   return concat([
     encodeLaneCanonicalTextV1(LANE_HOLDER_PARTICIPANT_BINDING_DOMAIN_V1),
@@ -116,7 +114,7 @@ export function laneHolderParticipantCanonicalBytesV1(
   ]);
 }
 
-export function signingWorkerParticipantCanonicalBytesV1(
+function signingWorkerParticipantCanonicalBytesV1(
   input: SigningWorkerParticipantRecordV1,
 ): Uint8Array {
   const record = parseSigningWorkerParticipantRecordV1(input);
@@ -139,7 +137,7 @@ function encodeCanonicalBytes(value: Uint8Array): Uint8Array {
  * binding digests are included after their canonical identity bytes so a
  * verified record cannot be substituted while retaining the same identities.
  */
-export function laneParticipantSetCanonicalBytesV1(input: {
+function laneParticipantSetCanonicalBytesV1(input: {
   readonly holderParticipant: LaneHolderParticipantRecordV1;
   readonly signingWorkerParticipant: SigningWorkerParticipantRecordV1;
 }): Uint8Array {

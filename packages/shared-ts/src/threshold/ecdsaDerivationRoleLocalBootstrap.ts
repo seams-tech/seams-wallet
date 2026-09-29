@@ -57,7 +57,7 @@ export type SigningRootVersion = string & {
 
 
 
-export type SdkEcdsaDerivationBindingFacts = {
+type SdkEcdsaDerivationBindingFacts = {
   walletId: WalletId;
   ecdsaThresholdKeyId: EcdsaThresholdKeyId;
   signingRootId: SigningRootId;
@@ -95,7 +95,7 @@ function pushLengthDelimitedField(out: number[], label: string, value: unknown):
   out.push(...valueBytes);
 }
 
-export function encodeSdkEcdsaDerivationBindingFactsV1(input: SdkEcdsaDerivationBindingFacts): Uint8Array {
+function encodeSdkEcdsaDerivationBindingFactsV1(input: SdkEcdsaDerivationBindingFacts): Uint8Array {
   const out: number[] = [];
   const domainBytes = new TextEncoder().encode(SDK_ECDSA_DERIVATION_APPLICATION_BINDING_DOMAIN_V1);
   pushU32(out, domainBytes.length);
@@ -107,7 +107,7 @@ export function encodeSdkEcdsaDerivationBindingFactsV1(input: SdkEcdsaDerivation
   return new Uint8Array(out);
 }
 
-export async function computeSdkEcdsaDerivationApplicationBindingDigest32(
+async function computeSdkEcdsaDerivationApplicationBindingDigest32(
   input: SdkEcdsaDerivationBindingFacts,
 ): Promise<Uint8Array> {
   return await sha256Bytes(encodeSdkEcdsaDerivationBindingFactsV1(input));

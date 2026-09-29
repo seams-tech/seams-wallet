@@ -69,7 +69,7 @@ import {
 
 type ActiveSigningLaneLifecycle = Extract<SigningLaneLifecycle, { readonly state: 'active' }>;
 
-export type SigningLaneReferenceBuilderArgs = {
+type SigningLaneReferenceBuilderArgs = {
   readonly walletId: WalletId;
   readonly walletKeyId: WalletKeyId;
   readonly laneId: SigningLaneId;
@@ -81,21 +81,21 @@ type SigningLaneRecordBuilderCommonArgs = SigningLaneReferenceBuilderArgs & {
   readonly lifecycle: SigningLaneLifecycle;
 };
 
-export type RotatableSigningLaneRecordBuilderArgs = SigningLaneRecordBuilderCommonArgs & {
+type RotatableSigningLaneRecordBuilderArgs = SigningLaneRecordBuilderCommonArgs & {
   readonly holderParticipant: LaneHolderParticipantRecordV1;
   readonly serverParticipant: SigningWorkerParticipantRecordV1;
 };
 
-export type OwnerAuthSigningLaneRecordBuilderArgs = SigningLaneRecordBuilderCommonArgs & {
+type OwnerAuthSigningLaneRecordBuilderArgs = SigningLaneRecordBuilderCommonArgs & {
   readonly walletAuthMethodId: NonNullable<OwnerPasskeySigningLaneRecord['walletAuthMethodId']>;
   readonly ownerParticipantContinuity: OwnerLaneParticipantContinuityV1;
 };
 
-export type PrivilegedOwnerSigningLaneRecordBuilderArgs = SigningLaneRecordBuilderCommonArgs & {
+type PrivilegedOwnerSigningLaneRecordBuilderArgs = SigningLaneRecordBuilderCommonArgs & {
   readonly ownerParticipantContinuity: OwnerLaneParticipantContinuityV1;
 };
 
-export type ActiveSigningLaneReferenceBuilderArgs = SigningLaneReferenceBuilderArgs & {
+type ActiveSigningLaneReferenceBuilderArgs = SigningLaneReferenceBuilderArgs & {
   readonly lifecycle: ActiveSigningLaneLifecycle;
   readonly materialActivation: MpcMaterialActivationRef;
 };
@@ -487,7 +487,7 @@ export function buildRetiredWalletKeyLifecycle(args: {
   return { state: 'retired', retiredAtMs: args.retiredAtMs };
 }
 
-export function buildCompromisedWalletKeyLifecycle(args: {
+function buildCompromisedWalletKeyLifecycle(args: {
   readonly compromisedAtMs: number;
 }): Extract<WalletKeyLifecycle, { readonly state: 'compromised' }> {
   return { state: 'compromised', compromisedAtMs: args.compromisedAtMs };
@@ -537,7 +537,7 @@ export function buildEvmFamilyWalletKeyRecord(args: {
   };
 }
 
-export function buildSigningLaneReference(
+function buildSigningLaneReference(
   args: SigningLaneReferenceBuilderArgs & {
     readonly laneKind: SigningLaneKind;
   },
@@ -564,7 +564,7 @@ export function buildProvisioningSigningLaneLifecycle(args: {
   };
 }
 
-export function buildPendingReceiptSigningLaneLifecycle(args: {
+function buildPendingReceiptSigningLaneLifecycle(args: {
   readonly revocationEpoch: number;
   readonly startedAtMs: number;
   readonly deliveryDigestB64u: string;
@@ -590,7 +590,7 @@ export function buildActiveSigningLaneLifecycle(args: {
   };
 }
 
-export function buildRevokedSigningLaneLifecycle(args: {
+function buildRevokedSigningLaneLifecycle(args: {
   readonly revocationEpoch: number;
   readonly revokedAtMs: number;
   readonly revokeReason: Extract<

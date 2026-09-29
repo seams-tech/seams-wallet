@@ -130,7 +130,7 @@ export function isValidAccountId(accountId: unknown): accountId is string {
   return /^[a-z0-9_.-]+$/.test(accountId);
 }
 
-export type NearAccountIdParseResult<T> =
+type NearAccountIdParseResult<T> =
   | { ok: true; value: T }
   | { ok: false; code: 'missing' | 'invalid'; message: string };
 

@@ -2,7 +2,7 @@ export type DomainId<TBrand extends string> = string & {
   readonly __domainIdBrand: TBrand;
 };
 
-export type DomainIdParseError = {
+type DomainIdParseError = {
   code: 'missing' | 'invalid';
   message: string;
 };
