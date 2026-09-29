@@ -155,7 +155,7 @@ import {
   persistenceDigest,
   journalConstraintConflict,
   retryCorrelation,
-  errorMessage,
+  ecdsaManifestErrorMessage,
   isConstraintError,
   readPointerRowsForWallet,
   readActivationJournalRows,
@@ -535,7 +535,7 @@ function assertExpectedPointer(
       try {
         pointer = parsePointerRow(pointerRaw);
       } catch (error: unknown) {
-        throw new FinalizationControlError('corrupt', errorMessage(error));
+        throw new FinalizationControlError('corrupt', ecdsaManifestErrorMessage(error));
       }
       if (
         !selectorsMatch(pointer.selector, selector) ||
@@ -650,7 +650,7 @@ export async function importCommittedActivation(
         conflictDigest: await persistenceDigest(
           'custody_import_conflict',
           selector,
-          errorMessage(error),
+          ecdsaManifestErrorMessage(error),
         ),
       };
     }
@@ -660,7 +660,7 @@ export async function importCommittedActivation(
       corruptionDigest: await persistenceDigest(
         'custody_import_corrupt',
         selector,
-        errorMessage(error),
+        ecdsaManifestErrorMessage(error),
       ),
     };
   }
@@ -1066,7 +1066,7 @@ export class IndexedDbEcdsaCapabilityManifestStore {
           corruptionDigest: await persistenceDigest(
             'journal_encryption_failed',
             selector,
-            errorMessage(error),
+            ecdsaManifestErrorMessage(error),
           ),
         };
       }
@@ -1099,7 +1099,7 @@ export class IndexedDbEcdsaCapabilityManifestStore {
         corruptionDigest: await persistenceDigest(
           'server_activation_commit_corrupt',
           selectorFromJournal(input.preparedJournal),
-          errorMessage(error),
+          ecdsaManifestErrorMessage(error),
         ),
       };
     }
@@ -1124,7 +1124,7 @@ export class IndexedDbEcdsaCapabilityManifestStore {
         corruptionDigest: await persistenceDigest(
           'journal_input_corrupt',
           selectorFromJournal(journalInput),
-          errorMessage(error),
+          ecdsaManifestErrorMessage(error),
         ),
       };
     }
@@ -1161,7 +1161,7 @@ export class IndexedDbEcdsaCapabilityManifestStore {
           try {
             parseSealingKeyRow(sealingKeyRaw);
           } catch (error: unknown) {
-            throw new FinalizationControlError('corrupt', errorMessage(error));
+            throw new FinalizationControlError('corrupt', ecdsaManifestErrorMessage(error));
           }
           const journalStore = context.store(JOURNAL_STORE);
           const existingRaw = await journalStore.get(journal.journalId);
@@ -1175,7 +1175,7 @@ export class IndexedDbEcdsaCapabilityManifestStore {
           try {
             existing = parseJournalRow(existingRaw);
           } catch (error: unknown) {
-            throw new FinalizationControlError('corrupt', errorMessage(error));
+            throw new FinalizationControlError('corrupt', ecdsaManifestErrorMessage(error));
           }
           if (
             !selectorsMatch(existing.selector, selector) ||
@@ -1217,7 +1217,7 @@ export class IndexedDbEcdsaCapabilityManifestStore {
           corruptionDigest: await persistenceDigest(
             'journal_ciphertext_corrupt',
             selector,
-            errorMessage(error),
+            ecdsaManifestErrorMessage(error),
           ),
         };
       }
@@ -1602,7 +1602,7 @@ export class IndexedDbEcdsaCapabilityManifestStore {
         corruptionDigest: await persistenceDigest(
           'active_material_open_corrupt',
           selector,
-          errorMessage(error),
+          ecdsaManifestErrorMessage(error),
         ),
       };
     }
@@ -1669,7 +1669,7 @@ export class IndexedDbEcdsaCapabilityManifestStore {
         corruptionDigest: await persistenceDigest(
           'activation_seal_corrupt',
           selector,
-          errorMessage(error),
+          ecdsaManifestErrorMessage(error),
         ),
       };
     }
@@ -1720,7 +1720,7 @@ export class IndexedDbEcdsaCapabilityManifestStore {
         corruptionDigest: await persistenceDigest(
           'finalization_input_corrupt',
           selector,
-          errorMessage(error),
+          ecdsaManifestErrorMessage(error),
         ),
       };
     }
@@ -1793,7 +1793,7 @@ export class IndexedDbEcdsaCapabilityManifestStore {
           conflictDigest: await persistenceDigest(
             'finalization_constraint_conflict',
             selector,
-            errorMessage(error),
+            ecdsaManifestErrorMessage(error),
           ),
         };
       }
@@ -1824,7 +1824,7 @@ async function finalizeInTransaction(
   try {
     persistedJournal = parseJournalRow(journalRaw);
   } catch (error: unknown) {
-    throw new FinalizationControlError('corrupt', errorMessage(error));
+    throw new FinalizationControlError('corrupt', ecdsaManifestErrorMessage(error));
   }
   if (
     persistedJournal.journal.kind !== 'server_activation_committed' ||
@@ -1848,7 +1848,7 @@ async function finalizeInTransaction(
   try {
     parseSealingKeyRow(sealingKeyRaw);
   } catch (error: unknown) {
-    throw new FinalizationControlError('corrupt', errorMessage(error));
+    throw new FinalizationControlError('corrupt', ecdsaManifestErrorMessage(error));
   }
 
   const pointerStore = context.store(POINTER_STORE);
@@ -1877,7 +1877,7 @@ async function finalizeInTransaction(
     try {
       previousManifest = parseManifestRow(activeRows[0]);
     } catch (error: unknown) {
-      throw new FinalizationControlError('corrupt', errorMessage(error));
+      throw new FinalizationControlError('corrupt', ecdsaManifestErrorMessage(error));
     }
     if (
       previousManifest.state !== 'active' ||
@@ -1917,7 +1917,7 @@ async function finalizeInTransaction(
       }
       previousSealingKeyId = previousMaterial.sealingKeyId;
     } catch (error: unknown) {
-      throw new FinalizationControlError('corrupt', errorMessage(error));
+      throw new FinalizationControlError('corrupt', ecdsaManifestErrorMessage(error));
     }
     previousProof = previousManifest.activeProof;
   }

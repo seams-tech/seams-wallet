@@ -269,7 +269,7 @@ export async function journalConstraintConflict(
     conflictDigest: await persistenceDigest(
       'journal_constraint_conflict',
       selector,
-      errorMessage(error),
+      ecdsaManifestErrorMessage(error),
     ),
   };
 }
@@ -280,7 +280,7 @@ export function retryCorrelation(): CorrelationId {
   );
 }
 
-export function errorMessage(error: unknown): string {
+export function ecdsaManifestErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
@@ -360,7 +360,7 @@ export async function lookupInTransaction(
   try {
     pointer = parsePointerRow(pointerRaw);
   } catch (error: unknown) {
-    return { kind: 'corrupt', detail: errorMessage(error) };
+    return { kind: 'corrupt', detail: ecdsaManifestErrorMessage(error) };
   }
   if (!selectorsMatch(pointer.selector, selector)) {
     return {
@@ -379,7 +379,7 @@ export async function lookupInTransaction(
   try {
     parsedManifest = parseManifestRow(manifestRaw);
   } catch (error: unknown) {
-    return { kind: 'corrupt', detail: errorMessage(error) };
+    return { kind: 'corrupt', detail: ecdsaManifestErrorMessage(error) };
   }
   if (!selectorsMatch(parsedManifest.selector, selector)) {
     return {
@@ -413,7 +413,7 @@ export async function lookupInTransaction(
   try {
     indexedActive = parseManifestRow(activeRows[0]);
   } catch (error: unknown) {
-    return { kind: 'corrupt', detail: errorMessage(error) };
+    return { kind: 'corrupt', detail: ecdsaManifestErrorMessage(error) };
   }
   if (
     indexedActive.state !== 'active' ||
@@ -438,7 +438,7 @@ export async function lookupInTransaction(
   try {
     material = parseMaterialRow(materialRaw, parsedManifest.activeProof);
   } catch (error: unknown) {
-    return { kind: 'corrupt', detail: errorMessage(error) };
+    return { kind: 'corrupt', detail: ecdsaManifestErrorMessage(error) };
   }
   if (!materialMatchesManifest(material, parsedManifest.manifest)) {
     return {
@@ -463,7 +463,7 @@ export async function lookupInTransaction(
       };
     }
   } catch (error: unknown) {
-    return { kind: 'corrupt', detail: errorMessage(error) };
+    return { kind: 'corrupt', detail: ecdsaManifestErrorMessage(error) };
   }
   if ((await ciphertextDigestB64u(material.ciphertextB64u)) !== material.binding.ciphertextDigest) {
     return {
@@ -501,7 +501,7 @@ async function lookupWithoutPointer(
     try {
       parsed = parseManifestRow(raw);
     } catch (error: unknown) {
-      return { kind: 'corrupt', detail: errorMessage(error) };
+      return { kind: 'corrupt', detail: ecdsaManifestErrorMessage(error) };
     }
     if (selectorsMatch(parsed.selector, selector)) {
       hasExactAuthority = true;
