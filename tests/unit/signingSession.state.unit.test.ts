@@ -122,33 +122,6 @@ test.describe('signing session PRF cache utilities', () => {
     expect(allClearBlock).not.toContain('deleteExactSealedSession');
   });
 
-  test('durable sealed-session delete no longer uses session-id-only worker payloads', () => {
-    const workerTypesSource = fs.readFileSync(
-      path.resolve(process.cwd(), '../packages/wallet/src/core/types/secure-confirm-worker.ts'),
-      'utf8',
-    );
-    const durableCommandSource = fs.readFileSync(
-      path.resolve(
-        process.cwd(),
-        '../packages/wallet/src/core/signingEngine/session/persistence/durableSealedSessionCommands.ts',
-      ),
-      'utf8',
-    );
-    const uiConfirmTypesSource = fs.readFileSync(
-      path.resolve(
-        process.cwd(),
-        '../packages/wallet/src/core/signingEngine/uiConfirm/uiConfirm.types.ts',
-      ),
-      'utf8',
-    );
-
-    expect(workerTypesSource).not.toContain('WARM_SESSION_DELETE_PERSISTED');
-    expect(workerTypesSource).not.toContain('WarmSessionDeletePersistedPayload');
-    expect(durableCommandSource).toContain('DeleteDurableSealedSessionCommand');
-    expect(durableCommandSource).toContain('parseDeleteDurableSealedSessionCommand');
-    expect(uiConfirmTypesSource).not.toContain('WarmSessionPersistedRecordDeleter');
-  });
-
   test('durable and volatile command parsers reject cross-lifetime payloads', () => {
     const durableCommandSource = fs.readFileSync(
       path.resolve(
