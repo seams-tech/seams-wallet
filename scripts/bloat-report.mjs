@@ -4,14 +4,16 @@
 //   pnpm report:bloat                    the report, with changes since the baseline
 //   pnpm report:bloat --check            also fail when a RATCHETED measure grew
 //   pnpm report:bloat --write-baseline   record the current numbers as the baseline
+//   pnpm report:bloat --rev <commit>     measure a commit instead of the working tree
 //
 // Usage is textual: an export counts as used when any other tracked file names it, so a
 // name shared by unrelated code hides dead code rather than inventing it. Duplication
 // counts exact repeats of 10 meaningful lines (blank, comment, import and brace-only lines
 // dropped), so renamed copies are not counted.
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -19,6 +21,14 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const self = 'scripts/bloat-report.mjs';
 const baselinePath = path.join(root, 'scripts/bloat-baseline.json');
 const ts = createRequire(path.join(root, 'packages/wallet/package.json'))('typescript');
+const revAt = process.argv.indexOf('--rev');
+const rev = revAt > 0 ? process.argv[revAt + 1] : null;
+const sourceRoot = rev ? mkdtempSync(path.join(tmpdir(), 'bloat-report-')) : root;
+if (rev) {
+  execFileSync('sh', ['-c', 'git archive "$1" | tar -x -C "$2"', 'sh', rev, sourceRoot], {
+    cwd: root,
+  });
+}
 
 // Measures that are waste whatever the feature work, so any growth is new waste. The
 // others grow with the codebase and are only reported.
@@ -59,12 +69,12 @@ const TEST_FILE = /^tests\/|\.(typecheck|test|spec)\.tsx?$|\/__tests__\//;
 
 const git = (...args) =>
   execFileSync('git', args, { cwd: root, encoding: 'utf8', maxBuffer: 1 << 28 }).trim();
-const tracked = git('ls-files').split('\n');
+const tracked = (rev ? git('ls-tree', '-r', '--name-only', rev) : git('ls-files')).split('\n');
 const texts = new Map();
 function read(file) {
   if (!texts.has(file)) {
     try {
-      texts.set(file, readFileSync(path.join(root, file), 'utf8'));
+      texts.set(file, readFileSync(path.join(sourceRoot, file), 'utf8'));
     } catch {
       texts.set(file, null); // deleted in the working tree
     }
@@ -159,7 +169,7 @@ function resolveModule(fromFile, specifier) {
   else return null;
   base = base.replace(/\.(js|mjs|ts|tsx)$/, '');
   const candidates = [`${base}.ts`, `${base}.tsx`, `${base}/index.ts`, `${base}/index.tsx`];
-  return candidates.find((c) => existsSync(path.join(root, c))) ?? null;
+  return candidates.find((c) => existsSync(path.join(sourceRoot, c))) ?? null;
 }
 
 function packageEntries() {
@@ -186,7 +196,9 @@ function packageEntries() {
 function analyzeSources() {
   const sources = tracked.filter(
     (f) =>
-      /^packages\/[^/]+\/src\/.+\.tsx?$/.test(f) && !/\.(d|typecheck|test|spec)\.tsx?$/.test(f),
+      /^packages\/[^/]+\/src\/.+\.tsx?$/.test(f) &&
+      !/\.(d|typecheck|test|spec)\.tsx?$/.test(f) &&
+      !f.includes('/generated/'), // regenerated from Rust; checked for currency there
   );
   const declarations = new Map(); // `${file}\t${name}` -> lines
   const reexportAll = new Map(); // file -> files it re-exports with `export *`
@@ -336,6 +348,7 @@ function countResidue() {
 function hotspots(lines) {
   const touched = git(
     'log',
+    rev ?? 'HEAD',
     '--since=30 days ago',
     '--format=',
     '--name-only',
@@ -372,7 +385,7 @@ const lines = [];
 const out = (text = '') => lines.push(text);
 
 const size = measureSize();
-const commit = git('rev-parse', '--short', 'HEAD');
+const commit = git('rev-parse', '--short', rev ?? 'HEAD');
 out(
   `Bloat report at ${commit}${baseline ? `, changes since the baseline at ${baseline.commit} (${baseline.date})` : ''}`,
 );
@@ -444,6 +457,7 @@ for (const h of hotspots(size.lines))
   out(`  ${String(h.commits).padStart(4)} commits ${number(h.lines).padStart(7)} lines  ${h.file}`);
 
 console.log(lines.join('\n'));
+if (rev) rmSync(sourceRoot, { recursive: true, force: true });
 if (process.argv.includes('--write-baseline')) {
   const date = new Date().toISOString().slice(0, 10);
   writeFileSync(baselinePath, `${JSON.stringify({ commit, date, metrics }, null, 2)}\n`);
