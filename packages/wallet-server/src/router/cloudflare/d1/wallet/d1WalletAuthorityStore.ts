@@ -1639,6 +1639,3 @@ async function buildRevokedAuthority(
     revokedAtMs: draft.revokedAtMs,
   });
 }
-
-export class D1WalletAuthorityStoreV1 extends D1WalletAuthorityStore {}
-export type CloudflareD1WalletAuthorityStore = D1WalletAuthorityStore;

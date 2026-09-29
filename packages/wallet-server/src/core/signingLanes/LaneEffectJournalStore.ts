@@ -12,8 +12,6 @@ export type LaneEffectKind =
   | 'retire_server_material'
   | 'invalidate_holder_material';
 
-export type LaneEffectStatus = 'recorded' | 'confirmed';
-
 type LaneEffectRecordBaseV1 = {
   readonly kind: 'lane_effect_record_v1';
   readonly effectId: string;

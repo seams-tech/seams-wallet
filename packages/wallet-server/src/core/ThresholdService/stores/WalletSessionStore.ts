@@ -88,8 +88,6 @@ export type WalletSessionStatusLookupResult<TRecord extends WalletSessionRecord>
       >;
     };
 
-export type Ed25519WalletSessionStatus = WalletSessionStatus<Ed25519WalletSessionRecord>;
-export type EcdsaWalletSessionStatus = WalletSessionStatus<EcdsaWalletSessionRecord>;
 const EXPORT_REPLAY_GUARD_CLOCK_SKEW_MS = 5 * 60_000;
 const EXPORT_REPLAY_GUARD_MIN_RETENTION_MS = 24 * 60 * 60_000;
 type WalletSessionStoreConfigRecord = Record<string, unknown>;

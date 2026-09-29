@@ -116,11 +116,6 @@ export type CreateRegistrationIntentResponse =
       retryAfterMs?: number;
     };
 
-export type CancelRegistrationIntentRequest = {
-  registrationIntentGrant: RegistrationIntentGrant;
-  registrationIntentDigestB64u: string;
-};
-
 export type CancelRegistrationIntentResponse =
   | {
       ok: true;
@@ -1004,9 +999,3 @@ export type WalletRegistrationFinalizeResponse =
       message: string;
       retryAfterMs?: number;
     };
-
-export type WalletRegistrationFinalizeRouteSuccess = WalletRegistrationFinalizeSuccess;
-
-export type WalletRegistrationFinalizeRouteResponse =
-  | WalletRegistrationFinalizeRouteSuccess
-  | Exclude<WalletRegistrationFinalizeResponse, { ok: true }>;

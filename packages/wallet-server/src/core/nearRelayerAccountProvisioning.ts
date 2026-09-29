@@ -1005,34 +1005,3 @@ function isDefinitiveNearRejection(error: unknown): boolean {
       return false;
   }
 }
-
-export async function createNamedNearAccountWithRelayer(
-  input: NearNamedAccountCreationInput,
-): Promise<AccountCreationResult> {
-  try {
-    const validated = validateNamedAccountCreationInput(input);
-    const prepared = await prepareSponsoredNearAccountCreationWithRelayer(input);
-    if (!prepared.ok) {
-      return { success: false, error: prepared.error, message: prepared.message };
-    }
-    const broadcast = await broadcastPreparedSponsoredNearAccountCreation({
-      prepared: prepared.prepared,
-      nearRpcUrl: validated.nearRpcUrl,
-      relayerAccountId: validated.relayerAccount,
-      ...(validated.nearClient ? { nearClient: validated.nearClient } : {}),
-    });
-    if (broadcast.kind === 'uncertain') {
-      // This entry point has no durable claim to reconcile against, so surface
-      // the ambiguity to its caller rather than reporting a definitive failure.
-      throw new Error(broadcast.message);
-    }
-    return broadcast.result;
-  } catch (error: unknown) {
-    const message = errorMessage(error) || 'Failed to create NEAR account';
-    return {
-      success: false,
-      error: message,
-      message,
-    };
-  }
-}

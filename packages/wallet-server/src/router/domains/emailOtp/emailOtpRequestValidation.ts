@@ -1,9 +1,7 @@
 import {
-  EMAIL_OTP_CHANNEL,
   isWalletEmailOtpLoginOperation,
   isWalletUnlockBackend,
   WALLET_EMAIL_OTP_UNLOCK_OPERATION,
-  type WalletEmailOtpChannel,
   type WalletEmailOtpLoginOperation,
   type WalletUnlockBackend,
 } from '@shared/utils/emailOtpDomain';
@@ -14,12 +12,6 @@ export type { WalletEmailOtpChannel } from '@shared/utils/emailOtpDomain';
 export function parseWalletUnlockBackend(raw: unknown): WalletUnlockBackend | null {
   const value = toOptionalTrimmedString(raw)?.toLowerCase() || '';
   if (isWalletUnlockBackend(value)) return value;
-  return null;
-}
-
-export function parseWalletEmailOtpChannel(raw: unknown): WalletEmailOtpChannel | null {
-  const value = toOptionalTrimmedString(raw)?.toLowerCase() || '';
-  if (value === EMAIL_OTP_CHANNEL) return value;
   return null;
 }
 

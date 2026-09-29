@@ -1,19 +1,12 @@
+import { type WalletAuthMethodId } from '@shared/utils/domainIds';
 import {
-  parseWebAuthnCredentialIdB64u,
-  type WalletAuthMethodId,
-  type WalletAuthorityId,
-} from '@shared/utils/domainIds';
-import {
-  buildWalletAuthMethodRecordV2,
   type ActiveEmailOtpWalletAuthMethodRecordV2,
-  type ActiveWalletAuthMethodRecordV2,
   type AddAuthMethodIntentV1,
   type AddSignerIntentV1,
   type RegistrationAuthority,
   type WebAuthnRpId,
   type WalletId,
   type WalletAuthMethodRevocationProof,
-  type WalletAuthMethodRecordV2,
 } from '@shared/utils/registrationIntent';
 import {
   buildEmailOtpWalletAuthAuthority,
@@ -117,63 +110,6 @@ export function walletAuthAuthorityFromRegistrationAuthority(input: {
     }
   }
   return unreachableRegistrationAuthority(input.authority);
-}
-
-export function walletAuthMethodRecordFromRegistrationAuthority(input: {
-  readonly authority: RegistrationAuthority;
-  readonly walletAuthMethodId: WalletAuthMethodId;
-  readonly walletAuthorityId: WalletAuthorityId;
-  readonly now: number;
-}): ActiveWalletAuthMethodRecordV2 {
-  switch (input.authority.kind) {
-    case 'passkey': {
-      const credentialIdB64u = parseWebAuthnCredentialIdB64u(input.authority.credentialIdB64u);
-      if (!credentialIdB64u.ok) {
-        throw new Error(`Registration credential ID is invalid: ${credentialIdB64u.error.message}`);
-      }
-      return requireActiveWalletAuthMethodRecordV2(
-        buildWalletAuthMethodRecordV2({
-          version: 'wallet_auth_method_v2',
-          walletAuthMethodId: input.walletAuthMethodId,
-          kind: 'passkey',
-          status: 'active',
-          walletId: input.authority.walletId,
-          walletAuthorityId: input.walletAuthorityId,
-          rpId: input.authority.rpId,
-          credentialIdB64u: credentialIdB64u.value,
-          credentialPublicKeyB64u: input.authority.credentialPublicKeyB64u,
-          counter: input.authority.counter,
-          createdAtMs: input.now,
-          updatedAtMs: input.now,
-          activatedAtMs: input.now,
-        }),
-      );
-    }
-    case 'email_otp':
-      return requireActiveWalletAuthMethodRecordV2(
-        buildWalletAuthMethodRecordV2({
-          version: 'wallet_auth_method_v2',
-          walletAuthMethodId: input.walletAuthMethodId,
-          kind: 'email_otp',
-          status: 'active',
-          walletId: input.authority.walletId,
-          walletAuthorityId: input.walletAuthorityId,
-          emailHashHex: input.authority.emailHashHex,
-          registrationAuthorityId: input.authority.registrationAuthorityId,
-          createdAtMs: input.now,
-          updatedAtMs: input.now,
-          activatedAtMs: input.now,
-        }),
-      );
-  }
-  return unreachableRegistrationAuthority(input.authority);
-}
-
-function requireActiveWalletAuthMethodRecordV2(
-  record: WalletAuthMethodRecordV2,
-): ActiveWalletAuthMethodRecordV2 {
-  if (record.status !== 'active') throw new Error('Wallet auth method must be active');
-  return record;
 }
 
 function unreachableRegistrationAuthority(value: never): never {

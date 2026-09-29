@@ -150,12 +150,6 @@ export type ConsumedAddAuthMethodIntent = Omit<
   consumedAtMs: number;
 };
 
-export type StoredRegistrationWebAuthnCredential = {
-  credentialIdB64u: string;
-  credentialPublicKeyB64u: string;
-  counter: number;
-};
-
 export type StoredRegistrationAuthority = RegistrationAuthority;
 
 type WalletAddSignerEcdsaStartPayload = Omit<WalletAddSignerEcdsaPreparePayload, 'custodyEnvelope'>;
@@ -222,44 +216,6 @@ export function buildStoredWalletRegistrationPreparedContext(input: {
           }
         : { kind: 'evm_family_ecdsa_absent' },
   };
-}
-
-export function storedWalletRegistrationPreparedContextsMatch(
-  left: StoredWalletRegistrationPreparedContext,
-  right: StoredWalletRegistrationPreparedContext,
-): boolean {
-  if (
-    left.kind !== right.kind ||
-    left.signingRootId !== right.signingRootId ||
-    left.signingRootVersion !== right.signingRootVersion ||
-    left.runtimePolicy.kind !== right.runtimePolicy.kind ||
-    left.ecdsa.kind !== right.ecdsa.kind
-  ) {
-    return false;
-  }
-  if (
-    left.runtimePolicy.kind === 'runtime_policy_scope' &&
-    right.runtimePolicy.kind === 'runtime_policy_scope' &&
-    (left.runtimePolicy.scope.orgId !== right.runtimePolicy.scope.orgId ||
-      left.runtimePolicy.scope.projectId !== right.runtimePolicy.scope.projectId ||
-      left.runtimePolicy.scope.envId !== right.runtimePolicy.scope.envId ||
-      left.runtimePolicy.scope.signingRootVersion !== right.runtimePolicy.scope.signingRootVersion)
-  ) {
-    return false;
-  }
-  if (
-    left.ecdsa.kind === 'evm_family_ecdsa_requested' &&
-    right.ecdsa.kind === 'evm_family_ecdsa_requested'
-  ) {
-    const leftTargets = left.ecdsa.chainTargets;
-    const rightTargets = right.ecdsa.chainTargets;
-    if (leftTargets.length !== rightTargets.length) return false;
-    return leftTargets.every(
-      (target, index) =>
-        thresholdEcdsaChainTargetKey(target) === thresholdEcdsaChainTargetKey(rightTargets[index]),
-    );
-  }
-  return true;
 }
 
 export function storedRegistrationAuthoritiesMatch(
@@ -561,25 +517,6 @@ export function verifiedRegistrationCeremonyAuthority(ceremony: {
   readonly authorityState: StoredWalletRegistrationCeremonyAuthorityState;
 }): StoredRegistrationAuthority | null {
   return ceremony.authorityState.kind === 'verified' ? ceremony.authorityState.authority : null;
-}
-
-export function registrationCeremonyAuthorityRpId(
-  authorityState: StoredWalletRegistrationCeremonyAuthorityState,
-): string | null {
-  switch (authorityState.kind) {
-    case 'awaiting_proof':
-      return authorityState.authMethod.kind === 'passkey'
-        ? String(authorityState.authMethod.rpId)
-        : null;
-    case 'verified':
-      return authorityState.authority.kind === 'passkey'
-        ? String(authorityState.authority.rpId)
-        : null;
-    default: {
-      const exhaustive: never = authorityState;
-      return exhaustive;
-    }
-  }
 }
 
 export type TerminalRegistrationCeremonyCancellationResult =

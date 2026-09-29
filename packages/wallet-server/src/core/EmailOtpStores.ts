@@ -181,14 +181,6 @@ export interface EmailOtpUnlockChallengeStore {
   del(challengeId: string): Promise<void>;
 }
 
-export type GoogleEmailOtpRegistrationAttemptState =
-  | 'started'
-  | 'key_finalized'
-  | 'active'
-  | 'abandoned'
-  | 'failed'
-  | 'expired';
-
 export type GoogleEmailOtpRegistrationOfferCandidateRecord = {
   candidateId: string;
   walletId: string;
@@ -282,13 +274,6 @@ export type GoogleEmailOtpRegistrationAttemptRecord =
 export type PendingGoogleEmailOtpRegistrationAttemptRecord =
   | StartedGoogleEmailOtpRegistrationAttemptRecord
   | KeyFinalizedGoogleEmailOtpRegistrationAttemptRecord;
-
-export type GoogleEmailOtpRegistrationAttemptWithFinalizedPublicKey =
-  | KeyFinalizedGoogleEmailOtpRegistrationAttemptRecord
-  | ActiveGoogleEmailOtpRegistrationAttemptRecord
-  | AbandonedGoogleEmailOtpRegistrationAttemptRecord
-  | FailedGoogleEmailOtpRegistrationAttemptRecord
-  | ExpiredGoogleEmailOtpRegistrationAttemptRecord;
 
 export interface EmailOtpRegistrationAttemptStore {
   put(record: GoogleEmailOtpRegistrationAttemptRecord): Promise<void>;

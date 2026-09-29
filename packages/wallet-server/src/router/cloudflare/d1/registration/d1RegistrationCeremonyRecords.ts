@@ -59,16 +59,8 @@ import {
 } from '@shared/utils/domainIds';
 import { parseDeviceId } from '@shared/authorization/capabilityKinds';
 import type { RuntimePolicyScope } from '@shared/threshold/signingRootScope';
-import {
-  deriveEvmFamilySigningKeySlotId,
-  parseEvmFamilySigningKeySlotId,
-} from '@shared/signing-lanes';
+import { deriveEvmFamilySigningKeySlotId } from '@shared/signing-lanes';
 
-function requireEvmFamilySigningKeySlotId(value: unknown) {
-  const parsed = parseEvmFamilySigningKeySlotId(value);
-  if (!parsed.ok) throw new Error(parsed.error.message);
-  return parsed.value;
-}
 import { toOptionalTrimmedString } from '@shared/utils/validation';
 import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';
 import {
@@ -93,13 +85,9 @@ import {
   type PasskeyCustodyEnvelopeRecord,
 } from '@shared/passkey-custody';
 import { registrationPreparationIdFromString } from '../../../../core/registrationContracts';
-import type {
-  EcdsaDerivationClientBootstrapRequest,
-  EcdsaDerivationServerBootstrapResponse,
-} from '../../../../core/types';
+import type { EcdsaDerivationServerBootstrapResponse } from '../../../../core/types';
 import type { WalletRegistrationCommittedInstallationProjectionV1 } from '../../../../core/threeRouteRegistrationContracts';
 import type {
-  WalletRegistrationEcdsaClientBootstrap,
   WalletRegistrationEcdsaPrepareContext,
   WalletRegistrationEcdsaPreparePayload,
   WalletRegistrationEcdsaWalletKey,
@@ -289,38 +277,6 @@ export function buildAddAuthMethodIntent(input: {
 
 function unreachableAddAuthMethodIntentCaller(value: never): never {
   throw new Error(`Unhandled add-auth-method intent caller: ${String(value)}`);
-}
-
-export function addAuthMethodInputMatches(
-  left: AddAuthMethodInput,
-  right: AddAuthMethodInput,
-): boolean {
-  if (left.kind !== right.kind) return false;
-  switch (left.kind) {
-    case 'passkey':
-      return right.kind === 'passkey' && left.rpId === right.rpId;
-    case 'email_otp':
-      return right.kind === 'email_otp' && left.email.toLowerCase() === right.email.toLowerCase();
-  }
-  return unreachableAddAuthMethodInput(left);
-}
-
-export function addSignerSelectionMatches(
-  left: AddSignerSelection,
-  right: AddSignerSelection,
-): boolean {
-  if (left.mode !== right.mode) return false;
-  switch (left.mode) {
-    case 'ecdsa':
-      return (
-        right.mode === 'ecdsa' &&
-        positiveIntegerArraysEqual(left.ecdsa.participantIds, right.ecdsa.participantIds) &&
-        thresholdEcdsaChainTargetsEqual(left.ecdsa.chainTargets, right.ecdsa.chainTargets)
-      );
-    case 'ed25519':
-      return right.mode === 'ed25519' && addSignerEd25519SelectionsMatch(left, right);
-  }
-  return unreachableAddSignerSelection(left);
 }
 
 export function parseWalletIdForIntent(raw: unknown): WalletId | null {
@@ -2251,58 +2207,6 @@ export function thresholdEcdsaChainTargetsEqual(
   return true;
 }
 
-export function isMatchingD1EcdsaClientBootstrap(input: {
-  readonly expected: WalletRegistrationEcdsaPrepareContext;
-  readonly actual: WalletRegistrationEcdsaClientBootstrap;
-}): boolean {
-  const expected = input.expected;
-  const actual = input.actual;
-  return (
-    actual.formatVersion === expected.formatVersion &&
-    actual.walletId === expected.walletId &&
-    actual.evmFamilySigningKeySlotId === expected.evmFamilySigningKeySlotId &&
-    actual.ecdsaThresholdKeyId === expected.ecdsaThresholdKeyId &&
-    actual.signingRootId === expected.signingRootId &&
-    actual.signingRootVersion === expected.signingRootVersion &&
-    actual.keyScope === expected.keyScope &&
-    actual.relayerKeyId === expected.relayerKeyId &&
-    actual.registrationPreparationId === expected.registrationPreparationId &&
-    actual.requestId === expected.requestId &&
-    actual.thresholdSessionId === expected.thresholdSessionId &&
-    actual.ttlMs === expected.ttlMs &&
-    actual.remainingUses === expected.remainingUses &&
-    positiveIntegerArraysEqual(actual.participantIds, expected.participantIds) &&
-    runtimePolicyScopeMatches(actual.runtimePolicyScope, expected.runtimePolicyScope)
-  );
-}
-
-export function toD1EcdsaDerivationClientBootstrapRequest(
-  clientBootstrap: WalletRegistrationEcdsaClientBootstrap,
-): EcdsaDerivationClientBootstrapRequest {
-  return {
-    formatVersion: clientBootstrap.formatVersion,
-    walletId: clientBootstrap.walletId,
-    evmFamilySigningKeySlotId: requireEvmFamilySigningKeySlotId(
-      clientBootstrap.evmFamilySigningKeySlotId,
-    ),
-    ecdsaThresholdKeyId: clientBootstrap.ecdsaThresholdKeyId,
-    signingRootId: clientBootstrap.signingRootId,
-    signingRootVersion: clientBootstrap.signingRootVersion,
-    keyScope: clientBootstrap.keyScope,
-    relayerKeyId: clientBootstrap.relayerKeyId,
-    registrationPreparationId: clientBootstrap.registrationPreparationId,
-    derivationClientSharePublicKey33B64u: clientBootstrap.derivationClientSharePublicKey33B64u,
-    clientShareRetryCounter: clientBootstrap.clientShareRetryCounter,
-    contextBinding32B64u: clientBootstrap.contextBinding32B64u,
-    requestId: clientBootstrap.requestId,
-    sessionId: clientBootstrap.thresholdSessionId,
-    ttlMs: clientBootstrap.ttlMs,
-    remainingUses: clientBootstrap.remainingUses,
-    participantIds: [...clientBootstrap.participantIds],
-    runtimePolicyScope: clientBootstrap.runtimePolicyScope,
-  };
-}
-
 export type D1EcdsaWalletKeyBuildResult =
   | {
       readonly ok: true;
@@ -3161,26 +3065,6 @@ function safeInteger(raw: unknown): number | null {
   return Number.isSafeInteger(value) ? value : null;
 }
 
-function addSignerEd25519SelectionsMatch(
-  left: Extract<AddSignerSelection, { mode: 'ed25519' }>,
-  right: Extract<AddSignerSelection, { mode: 'ed25519' }>,
-): boolean {
-  const leftEd25519 = left.ed25519;
-  const rightEd25519 = right.ed25519;
-  return (
-    leftEd25519.mode === rightEd25519.mode &&
-    leftEd25519.signerSlot === rightEd25519.signerSlot &&
-    leftEd25519.keyPurpose === rightEd25519.keyPurpose &&
-    leftEd25519.keyVersion === rightEd25519.keyVersion &&
-    leftEd25519.derivationVersion === rightEd25519.derivationVersion &&
-    positiveIntegerArraysEqual(leftEd25519.participantIds, rightEd25519.participantIds)
-  );
-}
-
 function unreachableAddAuthMethodInput(value: never): never {
   throw new Error(`Unhandled add-auth-method input kind: ${String(value)}`);
-}
-
-function unreachableAddSignerSelection(value: never): never {
-  throw new Error(`Unhandled add-signer selection mode: ${String(value)}`);
 }

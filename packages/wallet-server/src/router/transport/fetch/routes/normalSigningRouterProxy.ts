@@ -3,16 +3,12 @@ import type { RouterAbNormalSigningRouterProxy } from '../../../framework/router
 import type { RouterApiWalletRegistrationService } from '../../../framework/authServicePort';
 import type { AuthorizedOperation } from '../../../../authorization/domain';
 import { prepareOwnerWalletExecution } from '../../../domains/signingOperations/walletExecutionAdmission';
-import type { RouterAbNormalSigningMaterialSourceV1 } from '../../../domains/signingOperations/routerAbPrivateSigningWorker';
 import { routerAbMpcMaterialActivationRefFromWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import type { RouterAbMpcMaterialActivationRefWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import {
   normalizeRouterAbInternalServiceAuthSecret,
   ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
 } from '../../../../core/ThresholdService/routerAb/internalServiceHttp';
-
-export const ROUTER_AB_ECDSA_DERIVATION_LINKED_DEVICE_SIGN_PATH =
-  '/router-ab/ecdsa-derivation/linked-device/sign' as const;
 
 export async function proxyNormalSigningRequestToMpcRouter(input: {
   readonly request: Request;
@@ -260,27 +256,5 @@ export async function proxyOwnerLaneAdmittedNormalSigningRequest(input: {
     request: input.request,
     proxy: input.proxy,
     body: input.body,
-  });
-}
-
-/** Forwards a Gateway-admitted rotatable lane source to the private Router. */
-export async function proxyRotatableLaneAdmittedNormalSigningRequest(input: {
-  readonly request: Request;
-  readonly proxy: RouterAbNormalSigningRouterProxy | null | undefined;
-  readonly body: Record<string, unknown>;
-  readonly materialSource: Extract<
-    RouterAbNormalSigningMaterialSourceV1,
-    { readonly kind: 'rotatable_lane' }
-  >;
-  readonly targetPath?: string;
-}): Promise<Response> {
-  return await proxyNormalSigningRequestToMpcRouter({
-    request: input.request,
-    proxy: input.proxy,
-    body: {
-      ...input.body,
-      material_source: input.materialSource,
-    },
-    targetPath: input.targetPath,
   });
 }

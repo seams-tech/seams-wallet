@@ -149,12 +149,6 @@ export function parseCacheControlMaxAgeSec(cacheControl: string | null): number 
   return Math.floor(n);
 }
 
-export function normalizeOidcIssuer(input: string): string {
-  const trimmed = String(input || '').trim();
-  if (!trimmed) return '';
-  return trimmed.endsWith('/') ? trimmed.slice(0, -1) : trimmed;
-}
-
 export function parseJwtSegmentJson(input: string): Record<string, unknown> | null {
   try {
     const raw = new TextDecoder().decode(base64UrlDecode(input));

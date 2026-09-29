@@ -29,9 +29,6 @@ export type CurrentSigningSessionSealIdempotencyStoredEntry = {
   expiresAtMs: number;
 };
 
-export const parseCurrentSigningSessionSealIdempotencyRecord =
-  parseCurrentSigningSessionSealIdempotencyResultRecord;
-
 export function parseCurrentSigningSessionSealIdempotencyResultRecord(
   raw: unknown,
 ): CurrentSigningSessionSealIdempotencyResultRecord | null {

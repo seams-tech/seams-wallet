@@ -33,10 +33,6 @@ export type Ed25519VerifiedStepUpAuthorizedOperationReceipt = {
   readonly operation_fingerprint_digest: string;
 };
 
-export type Ed25519AuthorizedOperationReceipt =
-  | Ed25519ReusableAuthorizedOperationReceipt
-  | Ed25519VerifiedStepUpAuthorizedOperationReceipt;
-
 export function requireEd25519OperationKind(value: unknown): Ed25519OperationKind {
   if (
     value !== 'near.sign_transaction' &&

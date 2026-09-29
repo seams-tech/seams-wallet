@@ -22,22 +22,14 @@ import {
 } from '@shared/utils/domainIds';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
 import type {
-  EmailOtpAuthStateRecord,
   EmailOtpChallengeAction,
   EmailOtpChallengeOperation,
   EmailOtpChallengeRecord,
-  EmailOtpWalletEnrollmentRecord,
 } from '../EmailOtpStores';
 
 function assertNever(value: never): never {
   throw new Error(`Unexpected value: ${String(value)}`);
 }
-
-export type EmailOtpRegistrationEnrollmentPersistence = {
-  previousProviderWalletId?: string;
-  enrollment: EmailOtpWalletEnrollmentRecord;
-  authState: EmailOtpAuthStateRecord;
-};
 
 export type EmailOtpRegistrationChallengePurpose =
   | {

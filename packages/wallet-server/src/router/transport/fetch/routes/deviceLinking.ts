@@ -131,8 +131,6 @@ export type DeviceLinkingDeviceAuthenticatedRequestV1 = {
   readonly proof: DeviceLinkingRequestProofV1;
 };
 
-export type DeviceLinkingRouteMutationResultV1 = LinkedDeviceSessionServiceResultV1;
-
 export type DeviceLinkingTargetCredentialProviderV1 = {
   getTargetPreparationV1(
     input: {

@@ -267,15 +267,3 @@ export function parseRouterAbEcdsaDerivationPoolFillStepRouteRequest(
     },
   };
 }
-
-export function thresholdEcdsaRouteDiagnosticMetadata(
-  raw: unknown,
-  fields: readonly string[],
-): Record<string, string | undefined> {
-  if (!isPlainObject(raw)) return {};
-  const metadata: Record<string, string | undefined> = {};
-  for (const field of fields) {
-    metadata[field] = optionalStringField(raw, field);
-  }
-  return metadata;
-}

@@ -211,14 +211,6 @@ export type PasskeyCustodyEnvelopeRewrapResult =
   | PasskeyCustodyEnvelopePutResult
   | { readonly kind: 'ownership_conflict'; readonly reason: string };
 
-export type PasskeyCustodyEnvelopeRevocationResult =
-  | {
-      readonly kind: 'stored';
-      readonly revokedEnvelopeIds: readonly PasskeyEnvelopeId[];
-    }
-  | { readonly kind: 'refused'; readonly reason: string }
-  | { readonly kind: 'version_mismatch' };
-
 export type PasskeyCustodyEnvelopeLinkResult =
   | { readonly kind: 'stored'; readonly storeVersion: string }
   | { readonly kind: 'version_mismatch' }

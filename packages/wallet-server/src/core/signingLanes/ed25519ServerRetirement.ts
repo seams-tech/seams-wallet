@@ -68,13 +68,6 @@ export async function parseAndVerifyEd25519ServerRetirementEffectV1(input: {
   };
 }
 
-export function assertEd25519ServerRetirementReceiptMatchesRequestV1(
-  receipt: Ed25519ServerRetirementReceiptV1,
-  request: Ed25519ServerRetirementRequestV1,
-): void {
-  assertReceiptMatchesRequest(receipt, request);
-}
-
 function assertIdentityMatchesCommand(
   identity: SigningWorkerLaneMaterialIdentityV1<'ed25519'>,
   command: RevokeSigningLaneV1,

@@ -23,13 +23,6 @@ import type {
   RouterAbEd25519YaoRegistrationAdmissionRequestV1,
 } from '@shared/utils/routerAbEd25519Yao';
 import {
-  sameRouterAbEd25519YaoActivationBindingV1,
-  sameRouterAbEd25519YaoActivationKeysetV1,
-  sameRouterAbEd25519YaoActivationPublicReceiptV1,
-  sameRouterAbEd25519YaoRecoveryAdmissionRequestV1,
-  sameRouterAbEd25519YaoRegistrationAdmissionRequestV1,
-} from '@shared/utils/routerAbEd25519Yao';
-import {
   sameRouterAbMpcMaterialActivationRef,
   type RouterAbMpcMaterialActivationRefWire,
 } from '@shared/utils/routerAbNormalSigningIdentity';
@@ -113,119 +106,6 @@ export type WalletEd25519SignerRecord = {
   createdAtMs: number;
   updatedAtMs: number;
 };
-
-function sameWalletEd25519ByteSequenceV1(
-  left: readonly number[],
-  right: readonly number[],
-): boolean {
-  if (left.length !== right.length) return false;
-  for (let index = 0; index < left.length; index += 1) {
-    if (left[index] !== right[index]) return false;
-  }
-  return true;
-}
-
-function sameWalletRuntimePolicyScopeV1(
-  left: RuntimePolicyScope,
-  right: RuntimePolicyScope,
-): boolean {
-  return (
-    left.orgId === right.orgId &&
-    left.projectId === right.projectId &&
-    left.envId === right.envId &&
-    left.signingRootVersion === right.signingRootVersion
-  );
-}
-
-function sameWalletEd25519YaoActiveCapabilityV1(
-  left: WalletEd25519YaoActiveCapabilityRecord,
-  right: WalletEd25519YaoActiveCapabilityRecord,
-): boolean {
-  if (
-    left.version !== right.version ||
-    !sameWalletEd25519ByteSequenceV1(left.activeCapabilityBinding, right.activeCapabilityBinding) ||
-    left.nearAccountId !== right.nearAccountId ||
-    !sameWalletRuntimePolicyScopeV1(left.runtimePolicyScope, right.runtimePolicyScope)
-  ) {
-    return false;
-  }
-  switch (left.version) {
-    case 'wallet_ed25519_yao_registration_capability_v1':
-      if (right.version !== 'wallet_ed25519_yao_registration_capability_v1') return false;
-      return (
-        sameRouterAbEd25519YaoRegistrationAdmissionRequestV1(
-          left.admissionRequest,
-          right.admissionRequest,
-        ) &&
-        sameRouterAbEd25519YaoActivationBindingV1(
-          left.admissionReceipt.binding,
-          right.admissionReceipt.binding,
-        ) &&
-        sameRouterAbEd25519YaoActivationKeysetV1(
-          left.admissionReceipt.keyset,
-          right.admissionReceipt.keyset,
-        ) &&
-        sameRouterAbEd25519YaoActivationBindingV1(
-          left.activationResult.binding,
-          right.activationResult.binding,
-        ) &&
-        sameRouterAbEd25519YaoActivationPublicReceiptV1(
-          left.activationResult.public_receipt,
-          right.activationResult.public_receipt,
-        )
-      );
-    case 'wallet_ed25519_yao_recovery_capability_v1':
-      if (right.version !== 'wallet_ed25519_yao_recovery_capability_v1') return false;
-      return (
-        sameRouterAbEd25519YaoRecoveryAdmissionRequestV1(
-          left.admissionRequest,
-          right.admissionRequest,
-        ) &&
-        sameRouterAbEd25519YaoActivationBindingV1(
-          left.activationResult.binding,
-          right.activationResult.binding,
-        ) &&
-        sameRouterAbEd25519YaoActivationPublicReceiptV1(
-          left.activationResult.public_receipt,
-          right.activationResult.public_receipt,
-        )
-      );
-    default:
-      return assertNeverWalletEd25519YaoCapability(left);
-  }
-}
-
-function assertNeverWalletEd25519YaoCapability(capability: never): never {
-  throw new Error(`Unexpected wallet Ed25519 Yao capability: ${String(capability)}`);
-}
-
-export function sameWalletEd25519SignerRecordV1(
-  left: WalletEd25519SignerRecord,
-  right: WalletEd25519SignerRecord,
-): boolean {
-  return (
-    left.version === right.version &&
-    left.walletId === right.walletId &&
-    left.signerId === right.signerId &&
-    left.nearAccountId === right.nearAccountId &&
-    left.nearEd25519SigningKeyId === right.nearEd25519SigningKeyId &&
-    left.thresholdSessionId === right.thresholdSessionId &&
-    left.signerSlot === right.signerSlot &&
-    left.publicKey === right.publicKey &&
-    left.signingWorkerId === right.signingWorkerId &&
-    left.keyVersion === right.keyVersion &&
-    left.recoveryExportCapable === right.recoveryExportCapable &&
-    left.participantIds[0] === right.participantIds[0] &&
-    left.participantIds[1] === right.participantIds[1] &&
-    left.signingRootId === right.signingRootId &&
-    left.signingRootVersion === right.signingRootVersion &&
-    sameWalletRuntimePolicyScopeV1(left.runtimePolicyScope, right.runtimePolicyScope) &&
-    sameWalletEd25519YaoActiveCapabilityV1(left.activeYaoCapability, right.activeYaoCapability) &&
-    left.custodyKeyManifestDigestB64u === right.custodyKeyManifestDigestB64u &&
-    left.createdAtMs === right.createdAtMs &&
-    left.updatedAtMs === right.updatedAtMs
-  );
-}
 
 export type WalletEcdsaSignerKey = Omit<
   WalletRegistrationEcdsaWalletKey,

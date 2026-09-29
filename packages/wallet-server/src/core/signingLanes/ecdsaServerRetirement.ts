@@ -130,13 +130,6 @@ export async function parseAndVerifyEcdsaServerRetirementEffectV1(input: {
   };
 }
 
-export function assertEcdsaServerRetirementReceiptMatchesExpectationV1(
-  receipt: EcdsaServerRetirementReceiptV1,
-  expectation: EcdsaServerRetirementExpectationV1,
-): void {
-  assertReceiptMatchesExpectation(receipt, expectation);
-}
-
 function assertReceiptMatchesExpectation(
   receipt: EcdsaServerRetirementReceiptV1,
   expectation: EcdsaServerRetirementExpectationV1,

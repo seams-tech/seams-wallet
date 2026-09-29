@@ -4,11 +4,9 @@ import {
   emailOtpDeviceEnrollmentId,
   WALLET_EMAIL_OTP_ACTIONS,
 } from '@shared/utils/emailOtpDomain';
-import { parseWalletId, type WalletId } from '@shared/utils/domainIds';
+import { parseWalletId } from '@shared/utils/domainIds';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
-import type { RegistrationAuthority } from '@shared/utils/registrationIntent';
 import type {
-  EmailOtpAuthStateRecord,
   EmailOtpAuthStateStore,
   EmailOtpChannel,
   EmailOtpRegistrationAttemptStore,
@@ -17,13 +15,11 @@ import type {
 } from '../EmailOtpStores';
 import type { IdentityStore } from '../IdentityStore';
 import type { WalletStore } from '../WalletStore';
-import type { WalletRegistrationFinalizeRequest } from '../registrationContracts';
 import { validateSecp256k1PublicKey33 } from '../ThresholdService/evmCryptoWasm';
 import {
   parseRawEmailOtpRegistrationChallengeProofInput,
   type EmailOtpRegistrationChallengeProofInput,
   type EmailOtpRegistrationChallengeProofResult,
-  type EmailOtpRegistrationEnrollmentPersistence,
   type VerifiedEmailOtpChallengeCodeResult,
 } from './emailOtpChallengeProof';
 import { completeGoogleEmailOtpRegistrationAttemptWithStore } from './googleEmailOtpRegistration';
@@ -147,147 +143,6 @@ export async function validateEmailOtpEnrollmentMaterial(request: {
     unlockKeyVersion,
     serverSealedFactorCiphertextB64u,
   };
-}
-
-export async function buildEmailOtpRegistrationEnrollmentPersistence(input: {
-  walletEnrollmentStore: EmailOtpWalletEnrollmentStore;
-  authStateStore: EmailOtpAuthStateStore;
-  walletId: string;
-  orgId: string;
-  authSubjectId: string;
-  verifiedEmail: string;
-  material: NonNullable<WalletRegistrationFinalizeRequest['emailOtpEnrollment']>;
-  nowMs: number;
-}): Promise<
-  | { ok: true; persistence: EmailOtpRegistrationEnrollmentPersistence }
-  | { ok: false; code: string; message: string }
-> {
-  const enrollmentMaterial = await validateEmailOtpEnrollmentMaterial(input.material);
-  if (!enrollmentMaterial.ok) return enrollmentMaterial;
-  const orgId = toOptionalTrimmedString(input.orgId) || '';
-  const walletId = toOptionalTrimmedString(input.walletId) || '';
-  const authSubjectId = toOptionalTrimmedString(input.authSubjectId) || '';
-  const verifiedEmail = toOptionalTrimmedString(input.verifiedEmail)?.toLowerCase() || '';
-  if (!orgId || !walletId || !authSubjectId || !verifiedEmail) {
-    return {
-      ok: false,
-      code: 'invalid_body',
-      message: 'Email OTP registration enrollment requires wallet, org, and email identity',
-    };
-  }
-  const existing = await input.walletEnrollmentStore.get(walletId);
-  const existingState = await input.authStateStore.get(walletId);
-  const enrollment: EmailOtpWalletEnrollmentRecord = {
-    version: 'email_otp_wallet_enrollment_v1',
-    walletId,
-    providerUserId: authSubjectId,
-    orgId,
-    verifiedEmail,
-    enrollmentId: emailOtpDeviceEnrollmentId(walletId, authSubjectId),
-    enrollmentVersion: EMAIL_OTP_INITIAL_ENROLLMENT_VERSION,
-    enrollmentSealKeyVersion: enrollmentMaterial.enrollmentSealKeyVersion,
-    serverSealedFactorCiphertextB64u: enrollmentMaterial.serverSealedFactorCiphertextB64u,
-    clientUnlockPublicKeyB64u: enrollmentMaterial.clientUnlockPublicKeyB64u,
-    unlockKeyVersion: enrollmentMaterial.unlockKeyVersion,
-    createdAtMs: existing?.createdAtMs ?? input.nowMs,
-    updatedAtMs: input.nowMs,
-  };
-  const existingProviderEnrollment = await input.walletEnrollmentStore.getByProviderUserId({
-    providerUserId: enrollment.providerUserId,
-    orgId: enrollment.orgId,
-  });
-  const authState: EmailOtpAuthStateRecord = {
-    version: 'email_otp_auth_state_v1',
-    walletId: enrollment.walletId,
-    providerUserId: enrollment.providerUserId,
-    orgId: enrollment.orgId,
-    createdAtMs:
-      existingState &&
-      existingState.providerUserId === enrollment.providerUserId &&
-      existingState.orgId === enrollment.orgId
-        ? existingState.createdAtMs
-        : input.nowMs,
-    updatedAtMs: input.nowMs,
-    otpFailureCount: 0,
-    lastOtpFailureAtMs: undefined,
-    otpLockedUntilMs: undefined,
-    ...(existingState?.lastEmailOtpLoginAtMs &&
-    existingState.providerUserId === enrollment.providerUserId &&
-    existingState.orgId === enrollment.orgId
-      ? { lastEmailOtpLoginAtMs: existingState.lastEmailOtpLoginAtMs }
-      : {}),
-    ...(existingState?.lastStrongAuthAtMs &&
-    existingState.providerUserId === enrollment.providerUserId &&
-    existingState.orgId === enrollment.orgId
-      ? { lastStrongAuthAtMs: existingState.lastStrongAuthAtMs }
-      : {}),
-  };
-  return {
-    ok: true,
-    persistence: {
-      ...(existingProviderEnrollment && existingProviderEnrollment.walletId !== enrollment.walletId
-        ? { previousProviderWalletId: existingProviderEnrollment.walletId }
-        : {}),
-      enrollment,
-      authState,
-    },
-  };
-}
-
-export async function emailOtpEnrollmentPersistenceForRegistrationFinalize(input: {
-  walletEnrollmentStore: EmailOtpWalletEnrollmentStore;
-  authStateStore: EmailOtpAuthStateStore;
-  authority: RegistrationAuthority;
-  request: WalletRegistrationFinalizeRequest;
-  walletId: WalletId;
-  orgId: string;
-  nowMs: number;
-}): Promise<
-  | { ok: true; persistence?: EmailOtpRegistrationEnrollmentPersistence }
-  | { ok: false; code: string; message: string }
-> {
-  if (input.authority.kind !== 'email_otp') {
-    if (input.request.emailOtpEnrollment) {
-      return {
-        ok: false,
-        code: 'invalid_body',
-        message: 'emailOtpEnrollment is only valid for Email OTP registration',
-      };
-    }
-    return { ok: true };
-  }
-  if (!input.request.emailOtpEnrollment) {
-    return {
-      ok: false,
-      code: 'invalid_body',
-      message: 'Email OTP registration finalize requires emailOtpEnrollment',
-    };
-  }
-  if (
-    input.authority.walletId !== input.walletId ||
-    input.authority.finalWalletId !== input.walletId ||
-    input.authority.orgId !== input.orgId
-  ) {
-    return {
-      ok: false,
-      code: 'authority_binding_mismatch',
-      message: 'Email OTP registration authority does not match finalize scope',
-    };
-  }
-  const authSubjectId = toOptionalTrimmedString(input.authority.providerSubject) || '';
-  const verifiedEmail = toOptionalTrimmedString(input.authority.email)?.toLowerCase() || '';
-  const enrollment = await buildEmailOtpRegistrationEnrollmentPersistence({
-    walletEnrollmentStore: input.walletEnrollmentStore,
-    authStateStore: input.authStateStore,
-    walletId: input.walletId,
-    orgId: input.orgId,
-    authSubjectId,
-    verifiedEmail,
-    material: input.request.emailOtpEnrollment,
-    nowMs: input.nowMs,
-  });
-  if (!enrollment.ok) return enrollment;
-  return { ok: true, persistence: enrollment.persistence };
 }
 
 export async function resolveEmailOtpRegistrationChallengeProof(input: {
