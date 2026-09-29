@@ -159,6 +159,23 @@ const SIGNER_WORKER_KINDS: readonly SignerWorkerKind[] = [
 ];
 const MULTICHAIN_WORKER_DEFAULT_TIMEOUT_MS = 20_000;
 
+/**
+ * A timed-out operation resets its worker, and resetting a presign or
+ * derivation worker discards the state other ceremonies hold in it. Name the
+ * operation that caused the reset.
+ */
+function warnWorkerOperationTimedOut(
+  kind: SignerWorkerKind,
+  type: unknown,
+  timeoutMs: number,
+): void {
+  console.warn('[WorkerTransport] operation timed out; resetting worker', {
+    kind,
+    type: String(type),
+    timeoutMs,
+  });
+}
+
 function makeId(prefix: string): string {
   return secureRandomId(prefix, 32, 'signer worker request IDs');
 }
@@ -537,6 +554,7 @@ export class WorkerTransport implements SignerWorkerTransportProtocol {
             workerKind: 'nearSigner',
           }),
         );
+        warnWorkerOperationTimedOut('nearSigner', type, timeoutMs);
         this.resetWorker('nearSigner');
         try {
           const seconds = Math.round(timeoutMs / 1000);
@@ -591,6 +609,7 @@ export class WorkerTransport implements SignerWorkerTransportProtocol {
             workerKind: 'ecdsaDerivationClient',
           }),
         );
+        warnWorkerOperationTimedOut('ecdsaDerivationClient', type, timeoutMs);
         this.resetWorker('ecdsaDerivationClient');
       }, timeoutMs);
 
@@ -642,6 +661,7 @@ export class WorkerTransport implements SignerWorkerTransportProtocol {
             workerKind: kind,
           }),
         );
+        warnWorkerOperationTimedOut(kind, request.type, timeoutMs);
         this.resetWorker(kind);
       }, timeoutMs);
 
