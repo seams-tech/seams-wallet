@@ -216,6 +216,56 @@ export function walletRecoveryGoogleEmailOtpFinalizationInput(
   };
 }
 
+export function sameWalletRecoveryGoogleEmailOtpFinalizationInputV1(
+  left: WalletRecoveryGoogleEmailOtpFinalizationInput,
+  right: WalletRecoveryGoogleEmailOtpFinalizationInput,
+): boolean {
+  return (
+    left.kind === right.kind &&
+    left.walletId === right.walletId &&
+    left.orgId === right.orgId &&
+    left.reservationId === right.reservationId &&
+    left.recoveryOperationId === right.recoveryOperationId &&
+    left.targetDeviceId === right.targetDeviceId &&
+    left.targetAuthorityId === right.targetAuthorityId &&
+    left.targetWalletAuthMethodId === right.targetWalletAuthMethodId &&
+    left.challengeId === right.challengeId &&
+    left.providerSubject === right.providerSubject &&
+    left.verifiedEmail === right.verifiedEmail &&
+    left.ownerProofBindingDigest === right.ownerProofBindingDigest &&
+    sameWalletRecoveryGoogleEmailOtpTargetEnrollmentV1(
+      left.targetEnrollment,
+      right.targetEnrollment,
+    )
+  );
+}
+
+function sameWalletRecoveryGoogleEmailOtpTargetEnrollmentV1(
+  left: WalletRecoveryGoogleEmailOtpTargetEnrollmentV1,
+  right: WalletRecoveryGoogleEmailOtpTargetEnrollmentV1,
+): boolean {
+  switch (left.kind) {
+    case 'existing':
+      return (
+        right.kind === 'existing' &&
+        left.enrollmentId === right.enrollmentId &&
+        left.enrollmentSealKeyVersion === right.enrollmentSealKeyVersion
+      );
+    case 'create':
+      return (
+        right.kind === 'create' &&
+        left.providerSubject === right.providerSubject &&
+        left.verifiedEmail === right.verifiedEmail
+      );
+    default:
+      return assertNeverWalletRecoveryGoogleEmailOtpComparison(left);
+  }
+}
+
+function assertNeverWalletRecoveryGoogleEmailOtpComparison(value: never): never {
+  throw new Error(`unsupported Google Email OTP comparison branch: ${String(value)}`);
+}
+
 export function parseWalletRecoveryGoogleEmailOtpAttemptRecord(
   raw: unknown,
 ): WalletRecoveryGoogleEmailOtpAttemptRecord | null {

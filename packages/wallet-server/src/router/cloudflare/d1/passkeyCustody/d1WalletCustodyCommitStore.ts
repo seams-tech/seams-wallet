@@ -8,7 +8,6 @@ import {
 } from '@shared/wallet-recovery';
 import {
   parsePasskeyCustodyEnvelopeRecord,
-  sameWalletCustodyEnvelopeOwnership,
   type PasskeyCustodyEnvelopeRecord,
 } from '@shared/passkey-custody';
 import {
@@ -70,11 +69,15 @@ import type { EmailOtpWalletEnrollmentRecord } from '../../../../core/EmailOtpSt
 import { parseEmailOtpWalletEnrollmentRow } from '../emailOtp/d1EmailOtpRecords';
 import {
   parseWalletRecoveryGoogleEmailOtpAttemptRecord,
+  sameWalletRecoveryGoogleEmailOtpFinalizationInputV1,
   walletRecoveryGoogleEmailOtpFinalizationInput,
   walletRecoveryGoogleEmailOtpAttemptKey,
   type WalletRecoveryGoogleEmailOtpFinalizationInput,
-  type WalletRecoveryGoogleEmailOtpTargetEnrollmentV1,
 } from './d1WalletRecoveryGoogleEmailOtpRecords';
+import {
+  sameVerifiedActiveWalletAuthorityV1,
+  sameWalletCustodyRecoveryReplacementEnvelopeV1,
+} from '../../../domains/passkeyCustody/walletRecoveryFinalization';
 import { emailOtpDeviceEnrollmentId, WALLET_EMAIL_OTP_ACTIONS } from '@shared/utils/emailOtpDomain';
 
 function sameWalletSignerActivationSetV1(
@@ -140,122 +143,11 @@ function sameWalletEd25519SignerActivationV1(
   );
 }
 
-function sameWalletRecoveryGoogleEmailOtpFinalizationInputV1(
-  left: WalletRecoveryGoogleEmailOtpFinalizationInput,
-  right: WalletRecoveryGoogleEmailOtpFinalizationInput,
-): boolean {
-  return (
-    left.kind === right.kind &&
-    left.walletId === right.walletId &&
-    left.orgId === right.orgId &&
-    left.reservationId === right.reservationId &&
-    left.recoveryOperationId === right.recoveryOperationId &&
-    left.targetDeviceId === right.targetDeviceId &&
-    left.targetAuthorityId === right.targetAuthorityId &&
-    left.targetWalletAuthMethodId === right.targetWalletAuthMethodId &&
-    left.challengeId === right.challengeId &&
-    left.providerSubject === right.providerSubject &&
-    left.verifiedEmail === right.verifiedEmail &&
-    left.ownerProofBindingDigest === right.ownerProofBindingDigest &&
-    sameWalletRecoveryGoogleEmailOtpTargetEnrollmentV1(
-      left.targetEnrollment,
-      right.targetEnrollment,
-    )
-  );
-}
-
-function sameWalletRecoveryGoogleEmailOtpTargetEnrollmentV1(
-  left: WalletRecoveryGoogleEmailOtpTargetEnrollmentV1,
-  right: WalletRecoveryGoogleEmailOtpTargetEnrollmentV1,
-): boolean {
-  switch (left.kind) {
-    case 'existing':
-      return (
-        right.kind === 'existing' &&
-        left.enrollmentId === right.enrollmentId &&
-        left.enrollmentSealKeyVersion === right.enrollmentSealKeyVersion
-      );
-    case 'create':
-      return (
-        right.kind === 'create' &&
-        left.providerSubject === right.providerSubject &&
-        left.verifiedEmail === right.verifiedEmail
-      );
-    default:
-      return assertNeverWalletRecoveryComparison(left, 'Google Email OTP target enrollment');
-  }
-}
-
 function hasFullOwnerPermissionsV1(permissions: ActiveWalletAuthorityV1['permissions']): boolean {
   return sameDelegatedWalletAuthorityV1(
     buildDelegatedWalletAuthorityV1({ permissions }),
     buildFullOwnerDelegatedWalletAuthorityV1(),
   );
-}
-
-async function sameVerifiedActiveWalletAuthorityV1(
-  left: ActiveWalletAuthorityV1,
-  right: ActiveWalletAuthorityV1,
-): Promise<boolean> {
-  const [leftVerified, rightVerified] = await Promise.all([
-    walletAuthorityDigestsMatchV1(left),
-    walletAuthorityDigestsMatchV1(right),
-  ]);
-  return (
-    leftVerified &&
-    rightVerified &&
-    left.authorityDigestB64u === right.authorityDigestB64u &&
-    left.signerActivationSetDigestB64u === right.signerActivationSetDigestB64u &&
-    left.createdAtMs === right.createdAtMs &&
-    left.updatedAtMs === right.updatedAtMs &&
-    left.activatedAtMs === right.activatedAtMs
-  );
-}
-
-function sameWalletCustodyRecoveryReplacementEnvelopeV1(
-  left: PasskeyCustodyEnvelopeRecord,
-  right: PasskeyCustodyEnvelopeRecord,
-): boolean {
-  if (
-    left.kind !== right.kind ||
-    left.envelopeId !== right.envelopeId ||
-    left.walletId !== right.walletId ||
-    !sameWalletCustodyEnvelopeOwnership(left.ownership, right.ownership) ||
-    left.binding.kind !== 'wallet_custody_seed_v1' ||
-    right.binding.kind !== 'wallet_custody_seed_v1' ||
-    left.binding.derivationScheme !== right.binding.derivationScheme ||
-    left.envelopeVersion !== right.envelopeVersion ||
-    left.envelopeRevision !== right.envelopeRevision ||
-    left.nonceB64u !== right.nonceB64u ||
-    left.sealedCustodySecretB64u !== right.sealedCustodySecretB64u ||
-    left.ciphertextDigestB64u !== right.ciphertextDigestB64u ||
-    left.aadHashB64u !== right.aadHashB64u ||
-    left.lifecycle.state !== 'active' ||
-    right.lifecycle.state !== 'active' ||
-    left.lifecycle.activatedAtMs !== right.lifecycle.activatedAtMs ||
-    left.createdAtMs !== right.createdAtMs ||
-    left.updatedAtMs !== right.updatedAtMs
-  ) {
-    return false;
-  }
-  switch (left.factor.kind) {
-    case 'passkey':
-      return (
-        right.factor.kind === 'passkey' &&
-        left.factor.rpId === right.factor.rpId &&
-        left.factor.credentialIdB64u === right.factor.credentialIdB64u &&
-        left.factor.kekVersion === right.factor.kekVersion
-      );
-    case 'email_otp':
-      return (
-        right.factor.kind === 'email_otp' &&
-        left.factor.enrollmentId === right.factor.enrollmentId &&
-        left.factor.enrollmentSealKeyVersion === right.factor.enrollmentSealKeyVersion &&
-        left.factor.kekVersion === right.factor.kekVersion
-      );
-    default:
-      return assertNeverWalletRecoveryComparison(left.factor, 'custody envelope factor');
-  }
 }
 
 function sameEmailOtpWalletEnrollmentRecordV1(
@@ -277,10 +169,6 @@ function sameEmailOtpWalletEnrollmentRecordV1(
     left.createdAtMs === right.createdAtMs &&
     left.updatedAtMs === right.updatedAtMs
   );
-}
-
-function assertNeverWalletRecoveryComparison(value: never, label: string): never {
-  throw new Error(`${label} branch is unsupported: ${String(value)}`);
 }
 
 const WEB_AUTHN_RECOVERY_CHALLENGE_CAS_GUARD = `
@@ -644,6 +532,15 @@ export class CloudflareD1WalletCustodyCommitStore {
     } catch {
       return null;
     }
+  }
+
+  private tenantScope(): CloudflareD1VersionedJsonRecordScopeV1 {
+    return {
+      namespace: this.scope.namespace,
+      orgId: this.scope.orgId,
+      projectId: this.scope.projectId,
+      envId: this.scope.envId,
+    };
   }
 
   private prepareRecoveryCodeLocatorInsertStatement(
@@ -1266,33 +1163,18 @@ export class CloudflareD1WalletCustodyCommitStore {
     const recoverySetKey = walletRecoveryEnvelopeSetRecordKey(walletId);
     const authorityStatement = prepareD1WalletAuthorityPutStatement({
       database: this.database,
-      scope: {
-        namespace: this.scope.namespace,
-        orgId: this.scope.orgId,
-        projectId: this.scope.projectId,
-        envId: this.scope.envId,
-      },
+      scope: this.tenantScope(),
       authority: input.authority,
     });
     const authenticatorStatement = prepareD1WebAuthnAuthenticatorInsertStatement({
       database: this.database,
-      scope: {
-        namespace: this.scope.namespace,
-        orgId: this.scope.orgId,
-        projectId: this.scope.projectId,
-        envId: this.scope.envId,
-      },
+      scope: this.tenantScope(),
       userId: input.authenticatorCommit.userId,
       record: input.authenticatorCommit.authenticator,
     });
     const bindingStatement = prepareD1WebAuthnCredentialBindingInsertStatement({
       database: this.database,
-      scope: {
-        namespace: this.scope.namespace,
-        orgId: this.scope.orgId,
-        projectId: this.scope.projectId,
-        envId: this.scope.envId,
-      },
+      scope: this.tenantScope(),
       record: input.authenticatorCommit.binding,
     });
     const walletAuthMethodStatements =
@@ -1600,12 +1482,7 @@ export class CloudflareD1WalletCustodyCommitStore {
     const recoverySetKey = walletRecoveryEnvelopeSetRecordKey(walletId);
     const authorityStatement = prepareD1WalletAuthorityPutStatement({
       database: this.database,
-      scope: {
-        namespace: this.scope.namespace,
-        orgId: this.scope.orgId,
-        projectId: this.scope.projectId,
-        envId: this.scope.envId,
-      },
+      scope: this.tenantScope(),
       authority: input.authority,
     });
     const walletAuthMethodStatements =
