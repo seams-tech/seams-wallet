@@ -7,8 +7,8 @@ import {
   type D1WebAuthnChallengeStoreOptions,
   type WebAuthnChallengeStore,
   type WebAuthnChallengeStoreSpec,
-  type WebAuthnStoreInput,
 } from './webAuthnStoreBackends';
+import type { StoreFactoryInput } from './storeBackends';
 import type { D1SchemaOptions } from './d1TenantStore';
 
 export type WebAuthnSyncChallengeRecord = {
@@ -79,7 +79,7 @@ export class D1WebAuthnSyncChallengeStore extends D1WebAuthnChallengeStore<WebAu
 }
 
 export function createWebAuthnSyncChallengeStore(
-  input: WebAuthnStoreInput,
+  input: StoreFactoryInput,
 ): WebAuthnSyncChallengeStore {
   return createWebAuthnChallengeStore(
     input,

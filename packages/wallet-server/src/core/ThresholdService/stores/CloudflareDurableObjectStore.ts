@@ -1,6 +1,16 @@
 import type { NormalizedLogger } from '../../logger';
-import type { CloudflareDurableObjectNamespaceLike, ThresholdStoreConfigInput } from '../../types';
+import type {
+  CloudflareDurableObjectNamespaceLike,
+  CloudflareDurableObjectStubLike,
+  ThresholdStoreConfigInput,
+} from '../../types';
 import { THRESHOLD_DO_OBJECT_NAME_DEFAULT } from '../../defaultConfigsServer';
+import {
+  durableObjectName,
+  durableObjectStub,
+  requestDurableObjectJson,
+  resolveDurableObjectNamespace,
+} from '../../storeBackends';
 import { toOptionalTrimmedString, isPlainObject } from '@shared/utils/validation';
 import {
   parseEcdsaWalletSessionRecord,
@@ -43,8 +53,6 @@ import type {
   ThresholdEd25519SessionStore,
   ThresholdEd25519SigningSessionRecord,
 } from './SessionStore';
-
-type DurableObjectStubLike = { fetch(input: RequestInfo, init?: RequestInit): Promise<Response> };
 
 type DoOk<T> = { ok: true; value: T };
 type DoErr = { ok: false; code: string; message: string };
@@ -115,55 +123,11 @@ type DoAuthEntry<TRecord extends WalletSessionRecord> = {
   expiresAtMs: number;
 };
 
-function isDurableObjectNamespaceLike(v: unknown): v is CloudflareDurableObjectNamespaceLike {
-  return (
-    Boolean(v) &&
-    typeof v === 'object' &&
-    !Array.isArray(v) &&
-    typeof (v as CloudflareDurableObjectNamespaceLike).idFromName === 'function' &&
-    typeof (v as CloudflareDurableObjectNamespaceLike).get === 'function'
-  );
-}
-
-function resolveDoNamespaceFromConfig(
-  config: Record<string, unknown>,
-): CloudflareDurableObjectNamespaceLike | null {
-  const direct = (config as { namespace?: unknown }).namespace;
-  if (isDurableObjectNamespaceLike(direct)) return direct;
-
-  const alt = (config as { durableObjectNamespace?: unknown }).durableObjectNamespace;
-  if (isDurableObjectNamespaceLike(alt)) return alt;
-
-  const envStyle = (config as { THRESHOLD_DO_NAMESPACE?: unknown }).THRESHOLD_DO_NAMESPACE;
-  if (isDurableObjectNamespaceLike(envStyle)) return envStyle;
-
-  return null;
-}
-
-function resolveDoStub(input: {
-  namespace: CloudflareDurableObjectNamespaceLike;
-  objectName: string;
-}): DurableObjectStubLike {
-  const id = input.namespace.idFromName(input.objectName);
-  return input.namespace.get(id) as unknown as DurableObjectStubLike;
-}
-
-async function callDo<T>(stub: DurableObjectStubLike, req: DoRequest): Promise<DoResp<T>> {
-  const resp = await stub.fetch('https://threshold-store.invalid/', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(req),
-  });
-  const text = await resp.text();
-  if (!resp.ok) {
-    throw new Error(`Threshold DO store HTTP ${resp.status}: ${text}`);
-  }
-  let json: unknown;
-  try {
-    json = text ? JSON.parse(text) : null;
-  } catch {
-    throw new Error(`Threshold DO store returned non-JSON response: ${text.slice(0, 200)}`);
-  }
+async function callDo<T>(
+  stub: CloudflareDurableObjectStubLike,
+  req: DoRequest,
+): Promise<DoResp<T>> {
+  const json = await requestDurableObjectJson(stub, req, 'Threshold');
   if (!isPlainObject(json)) {
     throw new Error('Threshold DO store returned invalid JSON shape');
   }
@@ -217,7 +181,7 @@ function computeSessionPrefixEcdsa(config: Record<string, unknown>): string {
 class CloudflareDurableObjectWalletSessionStore<
   TRecord extends WalletSessionRecord,
 > implements WalletSessionStore<TRecord> {
-  private readonly stub: DurableObjectStubLike;
+  private readonly stub: CloudflareDurableObjectStubLike;
   private readonly keyPrefix: string;
   private readonly parseRecord: WalletSessionRecordParser<TRecord>;
 
@@ -227,7 +191,7 @@ class CloudflareDurableObjectWalletSessionStore<
     keyPrefix: string;
     parseRecord: WalletSessionRecordParser<TRecord>;
   }) {
-    this.stub = resolveDoStub({ namespace: input.namespace, objectName: input.objectName });
+    this.stub = durableObjectStub(input.namespace, input.objectName);
     this.keyPrefix = input.keyPrefix;
     this.parseRecord = input.parseRecord;
   }
@@ -364,7 +328,7 @@ type CloudflareDoMpcSessionRecordParser<TRecord extends ThresholdMpcSessionRecor
 class CloudflareDurableObjectThresholdEd25519SessionStore<
   TMpcRecord extends ThresholdMpcSessionRecord = ThresholdEd25519MpcSessionRecord,
 > {
-  private readonly stub: DurableObjectStubLike;
+  private readonly stub: CloudflareDurableObjectStubLike;
   private readonly keyPrefix: string;
   private readonly coordinatorPrefix: string;
   private readonly parseMpcSessionRecord: CloudflareDoMpcSessionRecordParser<TMpcRecord>;
@@ -375,7 +339,7 @@ class CloudflareDurableObjectThresholdEd25519SessionStore<
     keyPrefix: string;
     parseMpcSessionRecord?: CloudflareDoMpcSessionRecordParser<TMpcRecord>;
   }) {
-    this.stub = resolveDoStub({ namespace: input.namespace, objectName: input.objectName });
+    this.stub = durableObjectStub(input.namespace, input.objectName);
     this.keyPrefix = input.keyPrefix;
     this.coordinatorPrefix = `${this.keyPrefix}coord:`;
     this.parseMpcSessionRecord =
@@ -482,7 +446,7 @@ class CloudflareDurableObjectThresholdEd25519SessionStore<
 }
 
 class CloudflareDurableObjectThresholdEd25519KeyStore implements ThresholdEd25519KeyStore {
-  private readonly stub: DurableObjectStubLike;
+  private readonly stub: CloudflareDurableObjectStubLike;
   private readonly keyPrefix: string;
 
   constructor(input: {
@@ -490,7 +454,7 @@ class CloudflareDurableObjectThresholdEd25519KeyStore implements ThresholdEd2551
     objectName: string;
     keyPrefix: string;
   }) {
-    this.stub = resolveDoStub({ namespace: input.namespace, objectName: input.objectName });
+    this.stub = durableObjectStub(input.namespace, input.objectName);
     this.keyPrefix = input.keyPrefix;
   }
 
@@ -533,17 +497,14 @@ export function createCloudflareDurableObjectThresholdEd25519Stores(input: {
   const kind = toOptionalTrimmedString(config.kind);
   if (kind !== 'cloudflare-do') return null;
 
-  const namespace = resolveDoNamespaceFromConfig(config);
+  const namespace = resolveDurableObjectNamespace(config);
   if (!namespace) {
     throw new Error(
       'cloudflare-do threshold store selected but no Durable Object namespace was provided (expected config.namespace)',
     );
   }
 
-  const objectName =
-    toOptionalTrimmedString((config as { objectName?: unknown }).objectName) ||
-    toOptionalTrimmedString((config as { name?: unknown }).name) ||
-    THRESHOLD_DO_OBJECT_NAME_DEFAULT;
+  const objectName = durableObjectName(config);
 
   const walletSessionPrefix = computeWalletSessionPrefix(config);
   const sessionPrefix = computeSessionPrefix(config);
@@ -584,7 +545,7 @@ export function createCloudflareDurableObjectThresholdEcdsaStores(input: {
   const kind = toOptionalTrimmedString(config.kind);
   if (kind !== 'cloudflare-do') return null;
 
-  const namespace = resolveDoNamespaceFromConfig(config);
+  const namespace = resolveDurableObjectNamespace(config);
   if (!namespace) {
     throw new Error(
       'cloudflare-do threshold store selected but no Durable Object namespace was provided (expected config.namespace)',

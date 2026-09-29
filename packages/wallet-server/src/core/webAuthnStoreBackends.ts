@@ -1,34 +1,13 @@
-import type { NormalizedLogger } from './logger';
-import type {
-  CloudflareDurableObjectNamespaceLike,
-  CloudflareDurableObjectStubLike,
-  ThresholdStoreConfigInput,
-} from './types';
-import { THRESHOLD_DO_OBJECT_NAME_DEFAULT } from './defaultConfigsServer';
-import { isObject, toOptionalTrimmedString } from '@shared/utils/validation';
-import {
-  RedisTcpClient,
-  UpstashRedisRestClient,
-  redisDel,
-  redisGetJson,
-  redisGetdelJson,
-  redisSetJson,
-} from './ThresholdService/kv';
-import { parseD1JsonColumn, resolveD1DatabaseFromConfig } from '../storage/d1Sql';
+import { toOptionalTrimmedString } from '@shared/utils/validation';
+import { createKeyValueStore, type KeyValueRecords, type StoreFactoryInput } from './storeBackends';
+import { parseD1JsonColumn } from '../storage/d1Sql';
 import {
   D1TenantTable,
-  d1TenantScopeFromConfig,
   ensureD1Schema,
   resolveStorePrefix,
   type D1SchemaOptions,
   type D1TenantStoreOptions,
 } from './d1TenantStore';
-
-export type WebAuthnStoreInput = {
-  config?: ThresholdStoreConfigInput | null;
-  logger: NormalizedLogger;
-  isNode: boolean;
-};
 
 /** What sets one WebAuthn store apart from the others. */
 export type WebAuthnStoreSpec<R> = {
@@ -55,7 +34,7 @@ export type WebAuthnStoreSpec<R> = {
 type WebAuthnStoreBuilders<R, S> = {
   readonly d1: (options: D1TenantStoreOptions) => S;
   /** Upstash REST, Redis TCP and Durable Object backends. */
-  readonly keyValue: (records: WebAuthnRecords<R>, prefix: string) => S;
+  readonly keyValue: (records: KeyValueRecords<R>, prefix: string) => S;
   readonly inMemory: (records: InMemoryWebAuthnRecords<R>, prefix: string) => S;
 };
 
@@ -75,122 +54,33 @@ export function resolveWebAuthnStorePrefix(
  * env-shaped config, else in memory. The store type `S` comes from the caller's return type.
  */
 export function createWebAuthnStore<R, S>(
-  input: WebAuthnStoreInput,
+  input: StoreFactoryInput,
   spec: WebAuthnStoreSpec<R>,
   build: WebAuthnStoreBuilders<R, NoInfer<S>>,
 ): S {
-  const { label, connectionErrorSubject, parse } = spec;
-  const config = (isObject(input.config) ? input.config : {}) as Record<string, unknown>;
-  const prefix = resolveWebAuthnStorePrefix(config, spec);
-  const inMemory = () => build.inMemory(new InMemoryWebAuthnRecords<R>(), prefix);
-  const upstash = (url: string, token: string) =>
-    build.keyValue(upstashRecords(new UpstashRedisRestClient({ url, token }), parse), prefix);
-  const redisTcp = (redisUrl: string) =>
-    build.keyValue(redisTcpRecords(new RedisTcpClient(redisUrl), parse), prefix);
-
-  const kind = toOptionalTrimmedString(config.kind);
-  if (kind === 'd1') {
-    const database = resolveD1DatabaseFromConfig(config);
-    if (!database) {
-      throw new Error(`[webauthn] D1 ${label} store selected but no D1 database was provided`);
-    }
-    input.logger.info(`[webauthn] Using D1 ${label} store`);
-    const scope = d1TenantScopeFromConfig(config, prefix, webAuthnD1Store(spec.d1ScopeLabel));
-    return build.d1({ database, ...scope });
-  }
-  if (kind === 'cloudflare-do') {
-    const namespace = resolveDoNamespaceFromConfig(config);
-    if (!namespace) {
-      throw new Error(
-        'cloudflare-do webauthn store selected but no Durable Object namespace was provided (expected config.namespace)',
-      );
-    }
-    const objectName =
-      toOptionalTrimmedString(config.objectName) ||
-      toOptionalTrimmedString(config.name) ||
-      THRESHOLD_DO_OBJECT_NAME_DEFAULT;
-    input.logger.info(
-      `[webauthn] Using Cloudflare Durable Object store for ${spec.durableObjectLogSubject}`,
-    );
-    return build.keyValue(durableObjectRecords(namespace, objectName, parse), prefix);
-  }
-
-  if (kind === 'in-memory') {
-    input.logger.info(`[webauthn] Using in-memory ${label} store (non-persistent)`);
-    return inMemory();
-  }
-
-  if (kind === 'upstash-redis-rest') {
-    const url =
-      toOptionalTrimmedString(config.url) || toOptionalTrimmedString(config.UPSTASH_REDIS_REST_URL);
-    const token =
-      toOptionalTrimmedString(config.token) ||
-      toOptionalTrimmedString(config.UPSTASH_REDIS_REST_TOKEN);
-    if (!url || !token) {
-      throw new Error(`Upstash ${connectionErrorSubject} enabled but url/token are not both set`);
-    }
-    input.logger.info(`[webauthn] Using Upstash REST ${label} store`);
-    return upstash(url, token);
-  }
-
-  if (kind === 'redis-tcp') {
-    if (!input.isNode) {
-      input.logger.warn(
-        `[webauthn] redis-tcp ${label} store is not supported in this runtime; falling back to in-memory`,
-      );
-      return inMemory();
-    }
-    const redisUrl =
-      toOptionalTrimmedString(config.redisUrl) || toOptionalTrimmedString(config.REDIS_URL);
-    if (!redisUrl) {
-      throw new Error(`redis-tcp ${connectionErrorSubject} enabled but redisUrl is not set`);
-    }
-    input.logger.info(`[webauthn] Using redis-tcp ${label} store`);
-    return redisTcp(redisUrl);
-  }
-
-  if (kind) throw new Error(`[webauthn] Unknown ${label} store kind: ${kind}`);
-
-  // Env-shaped config: prefer Redis/Upstash.
-  const upstashUrl = toOptionalTrimmedString(config.UPSTASH_REDIS_REST_URL);
-  const upstashToken = toOptionalTrimmedString(config.UPSTASH_REDIS_REST_TOKEN);
-  if (upstashUrl || upstashToken) {
-    if (!upstashUrl || !upstashToken) {
-      throw new Error(
-        `Upstash ${connectionErrorSubject} enabled but UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN are not both set`,
-      );
-    }
-    input.logger.info(`[webauthn] Using Upstash REST ${label} store`);
-    return upstash(upstashUrl, upstashToken);
-  }
-
-  const redisUrl = toOptionalTrimmedString(config.REDIS_URL);
-  if (redisUrl) {
-    if (!input.isNode) {
-      input.logger.warn(
-        '[webauthn] REDIS_URL is set but TCP Redis is not supported in this runtime; falling back to in-memory',
-      );
-      return inMemory();
-    }
-    input.logger.info(`[webauthn] Using redis-tcp ${label} store`);
-    return redisTcp(redisUrl);
-  }
-
-  input.logger.info(`[webauthn] Using in-memory ${label} store (${spec.unconfiguredNote})`);
-  return inMemory();
-}
-
-/** A store's records in a key-value backend, under keys the store builds. */
-export interface WebAuthnRecords<R> {
-  get(key: string): Promise<R | null>;
-  /** Reads and deletes, so a one-time record is used at most once. */
-  take(key: string): Promise<R | null>;
-  set(key: string, record: R, ttlMs?: number): Promise<void>;
-  del(key: string): Promise<void>;
+  return createKeyValueStore(
+    input,
+    {
+      tag: 'webauthn',
+      label: spec.label,
+      connectionErrorSubject: spec.connectionErrorSubject,
+      durableObjectLog: `store for ${spec.durableObjectLogSubject}`,
+      durableObjectErrorName: 'WebAuthn',
+      unconfiguredNote: spec.unconfiguredNote,
+      d1StoreName: webAuthnD1Store(spec.d1ScopeLabel),
+      resolvePrefix: (config) => resolveWebAuthnStorePrefix(config, spec),
+      parse: spec.parse,
+    },
+    {
+      d1: build.d1,
+      keyValue: build.keyValue,
+      inMemory: (prefix) => build.inMemory(new InMemoryWebAuthnRecords<R>(), prefix),
+    },
+  );
 }
 
 /** Keeps each record as it was put, without expiry; reads return the stored object. */
-export class InMemoryWebAuthnRecords<R> implements WebAuthnRecords<R> {
+export class InMemoryWebAuthnRecords<R> implements KeyValueRecords<R> {
   readonly map = new Map<string, R>();
 
   async get(key: string): Promise<R | null> {
@@ -212,116 +102,13 @@ export class InMemoryWebAuthnRecords<R> implements WebAuthnRecords<R> {
   }
 }
 
-// Remote backends hold JSON; a value that does not parse reads as missing.
-
-function upstashRecords<R>(
-  client: UpstashRedisRestClient,
-  parse: (raw: unknown) => R | null,
-): WebAuthnRecords<R> {
-  return {
-    get: async (key) => parse(await client.getJson(key)),
-    take: async (key) => parse(await client.getdelJson(key)),
-    set: (key, record, ttlMs) => client.setJson(key, record, ttlMs),
-    del: (key) => client.del(key),
-  };
-}
-
-function redisTcpRecords<R>(
-  client: RedisTcpClient,
-  parse: (raw: unknown) => R | null,
-): WebAuthnRecords<R> {
-  return {
-    get: async (key) => parse(await redisGetJson(client, key)),
-    take: async (key) => parse(await redisGetdelJson(client, key)),
-    set: (key, record, ttlMs) => redisSetJson(client, key, record, ttlMs),
-    del: (key) => redisDel(client, key),
-  };
-}
-
-type DoResp<T> = { ok: true; value: T } | { ok: false; code: string; message: string };
-
-type DoRequest =
-  | { op: 'get' | 'getdel' | 'del'; key: string }
-  | { op: 'set'; key: string; value: unknown; ttlMs?: number };
-
-function isDurableObjectNamespaceLike(v: unknown): v is CloudflareDurableObjectNamespaceLike {
-  return (
-    Boolean(v) &&
-    typeof v === 'object' &&
-    !Array.isArray(v) &&
-    typeof (v as CloudflareDurableObjectNamespaceLike).idFromName === 'function' &&
-    typeof (v as CloudflareDurableObjectNamespaceLike).get === 'function'
-  );
-}
-
-function resolveDoNamespaceFromConfig(
-  config: Record<string, unknown>,
-): CloudflareDurableObjectNamespaceLike | null {
-  const candidates = [
-    config.namespace,
-    config.durableObjectNamespace,
-    config.THRESHOLD_DO_NAMESPACE,
-  ];
-  return candidates.find(isDurableObjectNamespaceLike) ?? null;
-}
-
-async function callDo<T>(
-  stub: CloudflareDurableObjectStubLike,
-  req: DoRequest,
-): Promise<DoResp<T>> {
-  const resp = await stub.fetch('https://threshold-store.invalid/', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(req),
-  });
-  const text = await resp.text();
-  if (!resp.ok) {
-    throw new Error(`WebAuthn DO store HTTP ${resp.status}: ${text}`);
-  }
-  let json: unknown;
-  try {
-    json = text ? JSON.parse(text) : null;
-  } catch {
-    throw new Error(`WebAuthn DO store returned non-JSON response: ${text.slice(0, 200)}`);
-  }
-  if (!isObject(json)) {
-    throw new Error('WebAuthn DO store returned invalid JSON shape');
-  }
-  if (json.ok === true) return json as DoResp<T>;
-  const code = toOptionalTrimmedString(json.code);
-  const message = toOptionalTrimmedString(json.message);
-  return { ok: false, code: code || 'internal', message: message || 'WebAuthn DO store error' };
-}
-
-function durableObjectRecords<R>(
-  namespace: CloudflareDurableObjectNamespaceLike,
-  objectName: string,
-  parse: (raw: unknown) => R | null,
-): WebAuthnRecords<R> {
-  const stub = namespace.get(namespace.idFromName(objectName));
-  const read = async (op: 'get' | 'getdel', key: string) => {
-    const resp = await callDo<unknown>(stub, { op, key });
-    return parse(resp.ok ? resp.value : null);
-  };
-  const write = async (req: DoRequest) => {
-    const resp = await callDo<void>(stub, req);
-    if (!resp.ok) throw new Error(resp.message);
-  };
-  return {
-    get: (key) => read('get', key),
-    take: (key) => read('getdel', key),
-    set: (key, record, ttlMs) => write({ op: 'set', key, value: record, ttlMs }),
-    del: (key) => write({ op: 'del', key }),
-  };
-}
-
 /**
  * Per-credential records under `${prefix}${ownerId}:${credentialIdB64u}`, where the owner is the
  * user for authenticators and the RP ID for credential bindings. A blank id reads as missing.
  */
 export class WebAuthnCredentialRecords<R> {
   constructor(
-    private readonly records: WebAuthnRecords<R>,
+    private readonly records: KeyValueRecords<R>,
     private readonly prefix: string,
   ) {}
 
@@ -417,11 +204,11 @@ export async function ensureWebAuthnChallengeStoreD1Schema(
 }
 
 export function createWebAuthnChallengeStore<R extends WebAuthnChallengeRecord>(
-  input: WebAuthnStoreInput,
+  input: StoreFactoryInput,
   spec: WebAuthnChallengeStoreSpec<R>,
   d1: (options: D1TenantStoreOptions) => WebAuthnChallengeStore<R>,
 ): WebAuthnChallengeStore<R> {
-  const keyValue = (records: WebAuthnRecords<R>, prefix: string): WebAuthnChallengeStore<R> =>
+  const keyValue = (records: KeyValueRecords<R>, prefix: string): WebAuthnChallengeStore<R> =>
     new KeyValueWebAuthnChallengeStore(records, prefix, spec);
   return createWebAuthnStore(input, spec, { d1, keyValue, inMemory: keyValue });
 }
@@ -430,7 +217,7 @@ class KeyValueWebAuthnChallengeStore<R extends WebAuthnChallengeRecord>
   implements WebAuthnChallengeStore<R>
 {
   constructor(
-    private readonly records: WebAuthnRecords<R>,
+    private readonly records: KeyValueRecords<R>,
     private readonly prefix: string,
     private readonly spec: WebAuthnChallengeStoreSpec<R>,
   ) {}

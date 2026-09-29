@@ -1,9 +1,4 @@
-import type { NormalizedLogger } from './logger';
-import type {
-  CloudflareDurableObjectNamespaceLike,
-  ThresholdEcdsaChainTarget,
-  ThresholdStoreConfigInput,
-} from './types';
+import type { CloudflareDurableObjectStubLike, ThresholdEcdsaChainTarget } from './types';
 import type { WalletRegistrationEcdsaWalletKey, WalletId } from './registrationContracts';
 import {
   ecdsaClientRootPublicKey33B64uFromString,
@@ -40,9 +35,13 @@ import {
   type RouterAbEcdsaDerivationSignerSetV1,
   type RouterAbEcdsaRegistrationActivationReceiptV1,
 } from '@shared/utils/routerAbEcdsaDerivation';
-import { THRESHOLD_DO_OBJECT_NAME_DEFAULT } from './defaultConfigsServer';
-import { d1TenantScopeFromConfig, resolveStorePrefix } from './d1TenantStore';
-import { resolveD1DatabaseFromConfig } from '../storage/d1Sql';
+import { resolveStorePrefix } from './d1TenantStore';
+import {
+  createDurableObjectStore,
+  postDurableObjectRequest,
+  type DurableObjectStoreSpec,
+  type StoreFactoryInput,
+} from './storeBackends';
 import { toOptionalTrimmedString, isPlainObject } from '@shared/utils/validation';
 import { parseWalletId } from '@shared/utils/domainIds';
 import {
@@ -284,28 +283,8 @@ export function ecdsaPostRegistrationRequestMatchesCapability(input: {
   );
 }
 
-function trimString(value: unknown): string {
-  return typeof value === 'string' ? value.trim() : '';
-}
-
 export function resolveWalletStoreNamespace(config: Record<string, unknown>): string {
   return resolveStorePrefix(config, ['WALLET_PREFIX'], 'wallet:');
-}
-
-function resolveDoNamespaceFromConfig(
-  config: Record<string, unknown>,
-): CloudflareDurableObjectNamespaceLike | null {
-  const isNamespace = (value: unknown): value is CloudflareDurableObjectNamespaceLike =>
-    isPlainObject(value) &&
-    typeof value.idFromName === 'function' &&
-    typeof value.get === 'function';
-  const direct = config.namespace;
-  if (isNamespace(direct)) return direct;
-  const durableObjectNamespace = config.durableObjectNamespace;
-  if (isNamespace(durableObjectNamespace)) return durableObjectNamespace;
-  const envStyle = config.THRESHOLD_DO_NAMESPACE;
-  if (isNamespace(envStyle)) return envStyle;
-  return null;
 }
 
 function signerFamily(record: WalletSignerRecord): 'ed25519' | 'ecdsa' {
@@ -632,32 +611,25 @@ class InMemoryWalletStore implements WalletStore {
   }
 }
 
-type DurableObjectStubLike = { fetch(input: RequestInfo, init?: RequestInit): Promise<Response> };
-
 class CloudflareDurableObjectWalletStore implements WalletStore {
-  private readonly stub: DurableObjectStubLike;
-
   constructor(
-    private readonly input: {
-      namespace: CloudflareDurableObjectNamespaceLike;
-      objectName: string;
-      prefix: string;
-    },
-  ) {
-    const id = input.namespace.idFromName(input.objectName);
-    this.stub = input.namespace.get(id) as unknown as DurableObjectStubLike;
-  }
+    private readonly stub: CloudflareDurableObjectStubLike,
+    private readonly prefix: string,
+  ) {}
 
   private key(scope: 'subject' | 'signer' | 'ecdsa-session-activation', id: string): string {
-    return `${this.input.prefix}${scope}:${id}`;
+    return `${this.prefix}${scope}:${id}`;
+  }
+
+  /** The object's reply to a `get`, or `undefined` when it answers with an HTTP error. */
+  private async get(key: string): Promise<{ value?: unknown } | null | undefined> {
+    const response = await postDurableObjectRequest(this.stub, { op: 'get', key });
+    if (!response.ok) return undefined;
+    return (await response.json().catch(() => null)) as { value?: unknown } | null;
   }
 
   private async put(key: string, value: unknown): Promise<void> {
-    const response = await this.stub.fetch('https://threshold-store.invalid/', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ op: 'set', key, value }),
-    });
+    const response = await postDurableObjectRequest(this.stub, { op: 'set', key, value });
     if (!response.ok) {
       throw new Error(`Wallet DO store HTTP ${response.status}: ${await response.text()}`);
     }
@@ -670,13 +642,8 @@ class CloudflareDurableObjectWalletStore implements WalletStore {
   async getWallet(input: { walletId: WalletId }): Promise<WalletRecord | null> {
     const walletId = toOptionalTrimmedString(input.walletId);
     if (!walletId) return null;
-    const response = await this.stub.fetch('https://threshold-store.invalid/', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ op: 'get', key: this.key('subject', walletId) }),
-    });
-    if (!response.ok) return null;
-    const current = (await response.json().catch(() => null)) as { value?: unknown } | null;
+    const current = await this.get(this.key('subject', walletId));
+    if (current === undefined) return null;
     return parseWalletRecord(current?.value);
   }
 
@@ -689,16 +656,10 @@ class CloudflareDurableObjectWalletStore implements WalletStore {
     const keyHandle = toOptionalTrimmedString(input.keyHandle);
     if (!walletId || !keyHandle) return null;
     const chainTargetKey = thresholdEcdsaChainTargetKey(input.chainTarget);
-    const response = await this.stub.fetch('https://threshold-store.invalid/', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        op: 'get',
-        key: this.key('signer', `${walletId}:ecdsa-key-handle:${keyHandle}:${chainTargetKey}`),
-      }),
-    });
-    if (!response.ok) return null;
-    const current = (await response.json().catch(() => null)) as { value?: unknown } | null;
+    const current = await this.get(
+      this.key('signer', `${walletId}:ecdsa-key-handle:${keyHandle}:${chainTargetKey}`),
+    );
+    if (current === undefined) return null;
     return parseWalletEcdsaSignerRecord(current?.value);
   }
 
@@ -706,16 +667,10 @@ class CloudflareDurableObjectWalletStore implements WalletStore {
     walletId: WalletId;
     signerSlot: number;
   }): Promise<WalletEd25519SignerRecord | null> {
-    const response = await this.stub.fetch('https://threshold-store.invalid/', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        op: 'get',
-        key: this.key('signer', `${input.walletId}:ed25519-slot:${input.signerSlot}`),
-      }),
-    });
-    if (!response.ok) return null;
-    const current = (await response.json().catch(() => null)) as { value?: unknown } | null;
+    const current = await this.get(
+      this.key('signer', `${input.walletId}:ed25519-slot:${input.signerSlot}`),
+    );
+    if (current === undefined) return null;
     return parseWalletEd25519SignerRecord(current?.value);
   }
 
@@ -723,19 +678,13 @@ class CloudflareDurableObjectWalletStore implements WalletStore {
     walletId: WalletId;
     publicCapability: RouterAbEcdsaDerivationPublicCapabilityV1;
   }): Promise<WalletEcdsaSignerRecord | null> {
-    const response = await this.stub.fetch('https://threshold-store.invalid/', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        op: 'get',
-        key: this.key(
-          'signer',
-          `${input.walletId}:ecdsa-public-capability:${input.publicCapability.registration_request_digest_b64u}`,
-        ),
-      }),
-    });
-    if (!response.ok) return null;
-    const current = (await response.json().catch(() => null)) as { value?: unknown } | null;
+    const current = await this.get(
+      this.key(
+        'signer',
+        `${input.walletId}:ecdsa-public-capability:${input.publicCapability.registration_request_digest_b64u}`,
+      ),
+    );
+    if (current === undefined) return null;
     const signer = parseWalletEcdsaSignerRecord(current?.value);
     return signer &&
       ecdsaPublicCapabilitiesEqual(signer.walletKey.publicCapability, input.publicCapability)
@@ -747,19 +696,13 @@ class CloudflareDurableObjectWalletStore implements WalletStore {
     walletId: WalletId;
     materialActivation: RouterAbMpcMaterialActivationRefWire;
   }): Promise<WalletEcdsaSignerRecord | null> {
-    const response = await this.stub.fetch('https://threshold-store.invalid/', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        op: 'get',
-        key: this.key(
-          'signer',
-          `${input.walletId}:ecdsa-material-activation:${input.materialActivation.activation_id}`,
-        ),
-      }),
-    });
-    if (!response.ok) return null;
-    const current = (await response.json().catch(() => null)) as { value?: unknown } | null;
+    const current = await this.get(
+      this.key(
+        'signer',
+        `${input.walletId}:ecdsa-material-activation:${input.materialActivation.activation_id}`,
+      ),
+    );
+    if (current === undefined) return null;
     const signer = parseWalletEcdsaSignerRecord(current?.value);
     return signer &&
       signer.walletId === input.walletId &&
@@ -776,16 +719,10 @@ class CloudflareDurableObjectWalletStore implements WalletStore {
     request: WalletEcdsaPostRegistrationPublicRequest;
   }): Promise<WalletEcdsaSignerRecord | null> {
     const capabilityDigest = input.request.public_identity.context_binding_b64u;
-    const response = await this.stub.fetch('https://threshold-store.invalid/', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        op: 'get',
-        key: this.key('signer', `${input.walletId}:ecdsa-context-binding:${capabilityDigest}`),
-      }),
-    });
-    if (!response.ok) return null;
-    const current = (await response.json().catch(() => null)) as { value?: unknown } | null;
+    const current = await this.get(
+      this.key('signer', `${input.walletId}:ecdsa-context-binding:${capabilityDigest}`),
+    );
+    if (current === undefined) return null;
     const signer = parseWalletEcdsaSignerRecord(current?.value);
     return signer &&
       ecdsaPostRegistrationRequestMatchesCapability({
@@ -799,16 +736,7 @@ class CloudflareDurableObjectWalletStore implements WalletStore {
   async listEcdsaSignersForWallet(input: {
     walletId: WalletId;
   }): Promise<readonly WalletEcdsaSignerRecord[]> {
-    const response = await this.stub.fetch('https://threshold-store.invalid/', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        op: 'get',
-        key: this.key('signer', `${input.walletId}:ecdsa-list`),
-      }),
-    });
-    if (!response.ok) return [];
-    const current = (await response.json().catch(() => null)) as { value?: unknown } | null;
+    const current = await this.get(this.key('signer', `${input.walletId}:ecdsa-list`));
     if (current?.value === undefined || current.value === null) return [];
     if (!Array.isArray(current.value)) throw new Error('Wallet ECDSA signer list is invalid');
     const signers: WalletEcdsaSignerRecord[] = [];
@@ -887,38 +815,18 @@ class CloudflareDurableObjectWalletStore implements WalletStore {
   }
 }
 
-export function createWalletStore(input: {
-  config?: ThresholdStoreConfigInput | null;
-  logger: NormalizedLogger;
-  isNode: boolean;
-}): WalletStore {
-  const config = (isPlainObject(input.config) ? input.config : {}) as Record<string, unknown>;
-  const prefix = resolveWalletStoreNamespace(config);
-  const kind = toOptionalTrimmedString(config.kind);
-  if (kind === 'd1') {
-    const database = resolveD1DatabaseFromConfig(config);
-    if (!database) {
-      throw new Error('[wallet] D1 store selected but no D1 database was provided');
-    }
-    input.logger.info('[wallet] Using D1 store');
-    return new D1WalletStore({
-      database,
-      ...d1TenantScopeFromConfig(config, prefix, 'wallet store'),
-    });
-  }
-  if (kind === 'cloudflare-do') {
-    const namespace = resolveDoNamespaceFromConfig(config);
-    if (!namespace) {
-      throw new Error(
-        'cloudflare-do wallet store selected but no Durable Object namespace was provided',
-      );
-    }
-    const objectName =
-      trimString(config.objectName) || trimString(config.name) || THRESHOLD_DO_OBJECT_NAME_DEFAULT;
-    input.logger.info('[wallet] Using Cloudflare Durable Object store');
-    return new CloudflareDurableObjectWalletStore({ namespace, objectName, prefix });
-  }
-  if (kind) throw new Error(`[wallet] Unknown wallet store kind: ${kind}`);
-  input.logger.info('[wallet] Using in-memory store (non-persistent)');
-  return new InMemoryWalletStore(prefix);
+const WALLET_STORE: DurableObjectStoreSpec = {
+  tag: 'wallet',
+  name: 'wallet',
+  inMemoryLog: 'Using in-memory store (non-persistent)',
+  d1StoreName: 'wallet store',
+  resolvePrefix: resolveWalletStoreNamespace,
+};
+
+export function createWalletStore(input: StoreFactoryInput): WalletStore {
+  return createDurableObjectStore(input, WALLET_STORE, {
+    d1: (options) => new D1WalletStore(options),
+    durableObject: (stub, prefix) => new CloudflareDurableObjectWalletStore(stub, prefix),
+    inMemory: (prefix) => new InMemoryWalletStore(prefix),
+  });
 }

@@ -11,10 +11,9 @@ import {
   resolveWebAuthnStorePrefix,
   webAuthnD1Store,
   type InMemoryWebAuthnRecords,
-  type WebAuthnRecords,
-  type WebAuthnStoreInput,
   type WebAuthnStoreSpec,
 } from './webAuthnStoreBackends';
+import type { KeyValueRecords, StoreFactoryInput } from './storeBackends';
 import {
   D1TenantTable,
   ensureD1Schema,
@@ -167,7 +166,7 @@ function parseD1WebAuthnAuthenticatorRow(
 class KeyValueWebAuthnAuthenticatorStore implements WebAuthnAuthenticatorStore {
   private readonly records: WebAuthnCredentialRecords<WebAuthnAuthenticatorRecord>;
 
-  constructor(records: WebAuthnRecords<WebAuthnAuthenticatorRecord>, prefix: string) {
+  constructor(records: KeyValueRecords<WebAuthnAuthenticatorRecord>, prefix: string) {
     this.records = new WebAuthnCredentialRecords(records, prefix);
   }
 
@@ -340,7 +339,7 @@ export class D1WebAuthnAuthenticatorStore implements WebAuthnAuthenticatorStore 
 }
 
 export function createWebAuthnAuthenticatorStore(
-  input: WebAuthnStoreInput,
+  input: StoreFactoryInput,
 ): WebAuthnAuthenticatorStore {
   return createWebAuthnStore(input, AUTHENTICATOR_STORE, {
     d1: (options) => new D1WebAuthnAuthenticatorStore(options),

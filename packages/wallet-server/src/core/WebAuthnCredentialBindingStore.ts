@@ -7,10 +7,9 @@ import {
   resolveWebAuthnStorePrefix,
   webAuthnD1Store,
   type InMemoryWebAuthnRecords,
-  type WebAuthnRecords,
-  type WebAuthnStoreInput,
   type WebAuthnStoreSpec,
 } from './webAuthnStoreBackends';
+import type { KeyValueRecords, StoreFactoryInput } from './storeBackends';
 import {
   D1TenantTable,
   ensureD1Schema,
@@ -343,7 +342,7 @@ function userBindingsFilter(userId: string, rpId: string): { where: string; valu
 class KeyValueWebAuthnCredentialBindingStore implements WebAuthnCredentialBindingStore {
   private readonly records: WebAuthnCredentialRecords<WebAuthnCredentialBindingRecord>;
 
-  constructor(records: WebAuthnRecords<WebAuthnCredentialBindingRecord>, prefix: string) {
+  constructor(records: KeyValueRecords<WebAuthnCredentialBindingRecord>, prefix: string) {
     this.records = new WebAuthnCredentialRecords(records, prefix);
   }
 
@@ -506,7 +505,7 @@ export class D1WebAuthnCredentialBindingStore implements WebAuthnCredentialBindi
 }
 
 export function createWebAuthnCredentialBindingStore(
-  input: WebAuthnStoreInput,
+  input: StoreFactoryInput,
 ): WebAuthnCredentialBindingStore {
   return createWebAuthnStore(input, CREDENTIAL_BINDING_STORE, {
     d1: (options) => new D1WebAuthnCredentialBindingStore(options),
