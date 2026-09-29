@@ -425,9 +425,6 @@ export async function handleTransactionSigningFlow(
     let nearContextFailed = false;
     const confirmationReadiness = consumeConfirmationReadiness(request.requestId);
     let confirmationReadinessPending = !!confirmationReadiness;
-    const originalBody = String(transactionSummary.body || '').trim();
-    const confirmationReadinessBody = String(confirmationReadiness?.body || '').trim();
-    const restoreOriginalBody = () => ({ body: originalBody });
     const confirmationReadinessPromise = confirmationReadiness
       ? Promise.resolve(confirmationReadiness.promise)
       : undefined;
@@ -452,12 +449,7 @@ export async function handleTransactionSigningFlow(
           loading: false,
           onMounted: () => {
             markPromptReady();
-            if (confirmationReadinessPending && confirmationReadinessBody) {
-              session.updateUI({
-                loading: false,
-                body: confirmationReadinessBody,
-              });
-            }
+            if (confirmationReadinessPending) session.updateUI({ preparing: true });
           },
         })
       : Promise.resolve({ confirmed: true });
@@ -514,23 +506,22 @@ export async function handleTransactionSigningFlow(
         .then(async () => {
           confirmationReadinessPending = false;
           await promptReady;
-          if (decisionResolved || nearContextFailed) return;
-          session.updateUI({
-            ...restoreOriginalBody(),
-            loading: false,
-            errorMessage: '',
-          });
+          if (decisionResolved) return;
+          session.updateUI({ preparing: false });
         })
         .catch(async (error: unknown) => {
           confirmationReadinessPending = false;
           await promptReady;
-          if (decisionResolved || nearContextFailed) return;
+          if (decisionResolved) return;
+          if (nearContextFailed) {
+            session.updateUI({ preparing: false });
+            return;
+          }
           const message = String(
             toError(error)?.message || 'NEAR signing session could not be finalized',
           );
           session.updateUI({
-            ...restoreOriginalBody(),
-            loading: false,
+            preparing: false,
             errorMessage: `NEAR signing session could not be finalized: ${message}`,
           });
         });

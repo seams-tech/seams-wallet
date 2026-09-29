@@ -54,6 +54,23 @@ test('preparing details become explicit loading states with live cancellation', 
   expect(harness.calls).toEqual(['cancel']);
 });
 
+test('pending signing preparation holds only the confirm button in its loading state', () => {
+  const harness = new PresentationHarness();
+  const content = harness.transaction({ preparing: true, body: 'Send 1 NEAR' });
+  expect(content.transaction.decision).toEqual({ kind: 'preparing' });
+  expect(content.body).toEqual({ kind: 'text', text: 'Send 1 NEAR' });
+  expect(content.header.chainDetails).toEqual({ kind: 'ready', text: 'block' });
+
+  const email = harness.transaction({
+    preparing: true,
+    signingAuthMode: 'emailOtp',
+    emailOtpPrompt: { challengeId: 'challenge' },
+  });
+  expect(email.transaction.decision).toEqual({ kind: 'preparing' });
+  if (email.prompt.kind !== 'email') throw new Error('Expected email');
+  expect(email.prompt.email.verification).toEqual({ kind: 'ready' });
+});
+
 test('email challenge validation never falls back to passkey confirmation', () => {
   const harness = new PresentationHarness();
   expect(harness.normalize({ signingAuthMode: 'emailOtp' })).toEqual({

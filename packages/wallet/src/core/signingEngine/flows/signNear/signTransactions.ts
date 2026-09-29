@@ -550,10 +550,7 @@ async function runNearAuthorizationRequiredTransactionSigning(
         }),
         title,
         body,
-        confirmationReadiness: {
-          promise: operationStepUpReadiness,
-          body: 'Preparing secure signing session…',
-        },
+        confirmationReadiness: { promise: operationStepUpReadiness },
         onProgress: emitNearSigningConfirmationProgress.bind(undefined, {
           onEvent,
           nearAccountId,
@@ -931,12 +928,7 @@ async function runAuthorizedNearTransactionWithActionsSigning({
         title,
         body,
         ...(operationStepUpReadiness
-          ? {
-              confirmationReadiness: {
-                promise: operationStepUpReadiness,
-                body: 'Preparing secure signing session…',
-              },
-            }
+          ? { confirmationReadiness: { promise: operationStepUpReadiness } }
           : {}),
         onProgress: emitUiConfirmProgress,
       },

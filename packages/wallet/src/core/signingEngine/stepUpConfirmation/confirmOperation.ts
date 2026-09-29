@@ -37,7 +37,6 @@ export type UiConfirmRequestBridgeContext = {
 
 export type ConfirmationReadiness = {
   promise: Promise<unknown>;
-  body?: string;
 };
 
 type OrchestrateSigningConfirmationBaseParams = {

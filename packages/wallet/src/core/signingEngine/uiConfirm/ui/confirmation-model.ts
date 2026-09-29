@@ -13,6 +13,7 @@ export type ConfirmationPresentationInput = Pick<
   | 'model'
   | 'securityContext'
   | 'loading'
+  | 'preparing'
   | 'title'
   | 'body'
   | 'errorMessage'
@@ -130,9 +131,10 @@ export function normalizeConfirmationModel(input: {
             tempo: source.tempoExplorerUrl,
             evm: source.evmExplorerUrl,
           },
-          decision: source.loading
-            ? { kind: 'preparing' }
-            : { kind: 'ready', onConfirm: input.callbacks.confirm },
+          decision:
+            source.loading || source.preparing
+              ? { kind: 'preparing' }
+              : { kind: 'ready', onConfirm: input.callbacks.confirm },
           confirmText:
             source.signingAuthMode === 'emailOtp'
               ? 'Confirm Code'
