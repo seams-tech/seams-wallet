@@ -366,7 +366,7 @@ function countResidue() {
     if (!text) continue;
     // "Phase N" alone is often a protocol term (the Yao circuits have phases), so only
     // refactor numbers count.
-    citations += (text.match(/^.*(\/\/|^\s*\*).*(Refactor \d+|\bR\d{3}[A-Z]?\b).*$/gm) ?? [])
+    citations += (text.match(/^.*(\/\/|\/\*|^\s*\*).*(Refactor \d+|\bR\d{3}[A-Z]?\b).*$/gm) ?? [])
       .length;
     if (file.endsWith('.rs'))
       allowDeadCode += (text.match(/#!?\[allow\([^\]]*\bdead_code\b/g) ?? []).length;
