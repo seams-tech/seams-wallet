@@ -351,6 +351,50 @@ fn deriver_a_pair_start_decision(
     ))
 }
 
+/// Names which part of Deriver A's start admission refused a pair: each
+/// check's outcome and how far Deriver B's timestamps run ahead of this
+/// Worker's clock. It carries no key material.
+fn emit_pair_start_mismatch_v1(
+    record: &PairYaoSessionRecordV1,
+    request: &CloudflareEd25519YaoPairStartRequestV1,
+    local_receipt: &Ed25519YaoRoleReadinessReceiptV1,
+    peer_receipt: &Ed25519YaoRoleReadinessReceiptV1,
+    now_ms: u64,
+) {
+    let PairYaoSessionRecordV1::Prepared {
+        root_metadata_digest,
+        receipt,
+        ..
+    } = record
+    else {
+        return;
+    };
+    let acceptance = &request.acceptance;
+    let signed = |ms: u64| i64::try_from(ms).unwrap_or(i64::MAX);
+    let ahead_ms = |at_ms: u64| signed(at_ms).saturating_sub(signed(now_ms));
+    let event = serde_json::json!({
+        "event": "router_ab_yao_pair_start_mismatch_v1",
+        "stored_receipt_matches": receipt.as_ref() == local_receipt,
+        "local_root_matches": local_receipt.root_metadata_digest().bytes == *root_metadata_digest,
+        "peer_root_matches": peer_receipt.root_metadata_digest().bytes
+            == acceptance.root_metadata_digest().bytes,
+        "roles_match": local_receipt.role() == Ed25519YaoDeriverRoleV1::DeriverA
+            && peer_receipt.role() == Ed25519YaoDeriverRoleV1::DeriverB
+            && acceptance.role() == Ed25519YaoDeriverRoleV1::DeriverB,
+        "execution_matches": acceptance.execution_id() == request.execution_id,
+        "bound_to_pair": local_receipt.validate_for_pair(&request.pair_binding).is_ok()
+            && peer_receipt.validate_for_pair(&request.pair_binding).is_ok()
+            && acceptance.validate_for_pair(&request.pair_binding).is_ok(),
+        "local_receipt_current": local_receipt.validate_at(now_ms).is_ok(),
+        "peer_receipt_current": peer_receipt.validate_at(now_ms).is_ok(),
+        "acceptance_current": acceptance.validate_at(now_ms).is_ok(),
+        "local_prepared_ahead_ms": ahead_ms(local_receipt.prepared_at_ms()),
+        "peer_prepared_ahead_ms": ahead_ms(peer_receipt.prepared_at_ms()),
+        "acceptance_ahead_ms": ahead_ms(acceptance.accepted_at_ms()),
+    });
+    worker::console_log!("{event}");
+}
+
 enum PairCompletionExpectation {
     DeriverA {
         execution_id: [u8; 32],
@@ -1690,7 +1734,14 @@ impl DeriverAYaoSessionD1V1 {
                 return Response::error("Deriver A pair preparation expired", 409);
             }
             Some(Ed25519YaoPairStartDecisionV1::ReadinessMismatch) => {
-                return Response::error("Deriver A readiness pair changed before start", 409)
+                emit_pair_start_mismatch_v1(
+                    &prepared,
+                    &request,
+                    &local_receipt,
+                    &peer_receipt,
+                    now_ms,
+                );
+                return Response::error("Deriver A readiness pair changed before start", 409);
             }
             Some(Ed25519YaoPairStartDecisionV1::Start { .. }) => {}
         }

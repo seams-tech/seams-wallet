@@ -99,6 +99,12 @@ export function resolveWalletSessionOperationCredentialAdmissionFromContext(inpu
     nowMs: input.nowMs,
   });
   if (!admission.ok || admission.keyFamily !== input.operation.keyFamily) {
+    // The response stays "scope mismatch"; the log names the refused check.
+    console.warn('[wallet-session] operation credential refused', {
+      keyFamily: input.operation.keyFamily,
+      operationKind: input.operation.operationKind,
+      error: admission.ok ? 'key_family_mismatch' : admission.error,
+    });
     return { kind: 'rejected' };
   }
   if (admission.keyFamily === 'ed25519') {
