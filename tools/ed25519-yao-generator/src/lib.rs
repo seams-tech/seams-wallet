@@ -30,6 +30,7 @@ mod circuit;
 mod context;
 mod continuity_reference;
 pub mod corruption_game_interfaces;
+mod evaluation_admission_fixtures;
 mod evaluation_input_view_fixtures;
 pub mod evaluation_input_views;
 mod evaluator_abort_view_fixtures;

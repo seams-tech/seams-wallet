@@ -506,7 +506,9 @@ fn encode_resolution(
     Ok(output)
 }
 
-fn encode_registered_state(
+/// Encodes the registered state as LP32 fields in canonical order. The signed
+/// store resolution and both promotion state digests commit to these bytes.
+pub(crate) fn encode_registered_state(
     state: &RegisteredLifecyclePreStateV1,
 ) -> Result<Vec<u8>, AuthenticatedStoreErrorV1> {
     let mut output = Vec::new();

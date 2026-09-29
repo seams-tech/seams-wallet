@@ -53,6 +53,7 @@ mod tenant_root_restore_refresh_grant;
 mod tenant_root_restore_refresh_role_command;
 mod tenant_root_retention_key;
 mod tenant_root_role_cleanup_command;
+mod tenant_root_role_command_wire;
 mod tenant_root_time;
 pub use self::tenant_root_time::format_tenant_root_rfc3339_millis_v1;
 

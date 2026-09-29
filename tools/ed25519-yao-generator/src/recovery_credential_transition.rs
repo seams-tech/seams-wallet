@@ -11,7 +11,7 @@ use core::fmt;
 use sha2::{Digest, Sha256};
 
 use crate::authenticated_store::{
-    ActiveStoreStateVersionV1, AuthenticatedRegisteredStoreResolutionV1,
+    encode_registered_state, ActiveStoreStateVersionV1, AuthenticatedRegisteredStoreResolutionV1,
     StoreAuthoritySignature64V1, StoreAuthorityVerifyingKeyV1,
 };
 use crate::lifecycle_domain::{
@@ -676,44 +676,10 @@ fn promotion_state_digest(
 ) -> Result<RecoveryPromotionStateDigest32V1, RecoveryPromotionErrorV1> {
     let mut output = Vec::new();
     push_lp32(&mut output, RECOVERY_PROMOTION_STATE_DIGEST_DOMAIN_V1)?;
-    push_lp32(&mut output, state.registered_public_key.as_bytes())?;
-    push_lp32(
-        &mut output,
-        state.active_credential_binding_digest.as_bytes(),
-    )?;
-    push_lp32(
-        &mut output,
-        &state
-            .stable_scope
-            .encode()
-            .map_err(|_| RecoveryPromotionErrorV1::ValueTooLong)?,
-    )?;
-    push_lp32(
-        &mut output,
-        &state.active_activation_epoch.value().to_be_bytes(),
-    )?;
-    push_lp32(&mut output, state.deriver_a_root_record.as_bytes())?;
-    push_lp32(&mut output, state.deriver_a_root_binding.as_bytes())?;
-    push_lp32(
-        &mut output,
-        &state.deriver_a_root_epoch.value().to_be_bytes(),
-    )?;
-    push_lp32(&mut output, state.deriver_a_state_record.as_bytes())?;
-    push_lp32(
-        &mut output,
-        &state.deriver_a_input_state_epoch.value().to_be_bytes(),
-    )?;
-    push_lp32(&mut output, state.deriver_b_root_record.as_bytes())?;
-    push_lp32(&mut output, state.deriver_b_root_binding.as_bytes())?;
-    push_lp32(
-        &mut output,
-        &state.deriver_b_root_epoch.value().to_be_bytes(),
-    )?;
-    push_lp32(&mut output, state.deriver_b_state_record.as_bytes())?;
-    push_lp32(
-        &mut output,
-        &state.deriver_b_input_state_epoch.value().to_be_bytes(),
-    )?;
+    // The state's fields follow the domain directly, not as one LP32 value.
+    output.extend_from_slice(
+        &encode_registered_state(state).map_err(|_| RecoveryPromotionErrorV1::ValueTooLong)?,
+    );
     Ok(RecoveryPromotionStateDigest32V1(
         Sha256::digest(output).into(),
     ))
