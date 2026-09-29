@@ -452,3 +452,66 @@ product failures that stop the pilot:
 The D1 arm's earlier passes skipped the NEAR work the DO arm did, so no
 timing from before these fixes is comparable. The pilot restarts on role
 Workers, Gateways, SDK and probe image rebuilt from the fixed revision.
+
+After the fixes, runs from London found one more probe-side fault: on a long
+`activate`, the HTTP/3 (QUIC) response from the Cloudflare Container was
+lost. After about 30 s Chromium resent the POST, which met the committed
+replay, and the registration failed on both arms (4 of 21 WEUR attempts). No
+worker operation timed out. Hosted probe browsers now launch with
+`--disable-quic` (aca2a3a), so both arms use HTTP/2 over TCP. One image from
+that revision ran every region below.
+
+### Results
+
+Tested: role Workers and Gateways from 85b935a; probe image aca2a3a (Wallet
+build `60d15c1316b4`); one container per region.
+
+| Region | Observed placement | Attempts | Failures |
+| --- | --- | --- | --- |
+| APAC | `nrt13` (JP) | 40 | 0 |
+| WEUR | `lhr15` (GB) | 40 | 0 |
+| ENAM | `ord12` (US) | 36 | 1 |
+
+- The ENAM failure was case 18 on D1. The probe container restarted during
+  the attempt: polling answered 404 "unknown attempt", and the identity
+  changed. Neither backend failed. ENAM therefore has 17 D1 samples and 18
+  DO samples, below the 20 the complete gate requires.
+- No attempt was retried; the runner forbids it.
+- Every recorded signature verified: 230 of 230, two per attempt.
+- Latency is the browser's elapsed time per phase, in seconds, p50 / p95.
+  The signing phases include foreground presignature generation, session
+  status reads, the confirm prompt and the public Tempo RPC nonce lookup.
+  Server sign is the Gateway's `ecdsa_sign_total` p50 in milliseconds (first
+  / later signature).
+
+| Region | Arm | n | Registration | First signature | Later signature | Server sign |
+| --- | --- | --- | --- | --- | --- | --- |
+| APAC | D1 | 20 | 14.0 / 16.0 | 11.3 / 12.8 | 11.3 / 12.7 | 1624 / 1618 |
+| APAC | DO | 20 | 15.2 / 16.5 | 8.8 / 9.9 | 8.7 / 9.7 | 768 / 743 |
+| WEUR | D1 | 20 | 22.9 / 24.1 | 18.8 / 20.3 | 18.8 / 19.6 | 4035 / 3994 |
+| WEUR | DO | 20 | 23.9 / 25.5 | 12.5 / 13.9 | 13.2 / 14.2 | 2080 / 2083 |
+| ENAM | D1 | 17 | 21.7 / 23.8 | 21.0 / 21.7 | 20.9 / 21.1 | 4132 / 4077 |
+| ENAM | DO | 18 | 22.2 / 23.3 | 13.3 / 14.0 | 13.8 / 13.9 | 2176 / 2162 |
+
+Against the directional criterion (p95):
+- **Signing, remote regions:** DO's first signature is 32% lower in WEUR and
+  35% lower in ENAM; later signatures are 28% and 34% lower. The criterion
+  asks for at least 20% in both.
+- **Near the primary (APAC):** signing is 23% lower. Registration is 3%
+  higher, within the 10% allowed.
+- **Registration elsewhere:** WEUR is 6% higher; ENAM is 2% lower.
+- **Correctness:** there were no signature or authority-correctness failures.
+
+Server-side signing halves on DO in every region. The Gateway database is
+in APAC in both arms, so registration pays that distance on either backend.
+
+Cost: $0.64 in total from 2026-09-25 to 2026-09-29T11:55Z, at Workers Paid
+list rates without monthly allowances, so an upper bound. It was measured per
+resource from the GraphQL Analytics API. Containers $0.54 (3.8
+container-hours at 8 GiB), D1 $0.06, Workers $0.02, DOs $0.02, R2 under
+$0.01. The cap is $25. With every container stopped, what remains is stored
+data: 42 MB of D1, plus small DO and R2 state. Workers cost nothing while
+idle. The container images remain in Cloudflare's registry. Usage can be
+metered late, so re-run the cost report before removing resources. The
+report and the analysis are under `.artifacts/r150/hosted-pilot-20260929/`
+(`cost-report-*.json`, `analysis-final.json`).
