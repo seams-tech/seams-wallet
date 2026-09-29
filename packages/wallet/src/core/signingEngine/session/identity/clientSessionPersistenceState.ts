@@ -82,16 +82,16 @@ export type ExpiredWalletSessionAuthorizationState = WalletSessionAuthorizationB
   readonly detectedAtMs: number;
 };
 
-export type MissingWalletSessionAuthorizationState = WalletSessionAuthorizationIdentity & {
+type MissingWalletSessionAuthorizationState = WalletSessionAuthorizationIdentity & {
   readonly kind: 'missing';
 };
 
-export type UnavailableWalletSessionAuthorizationState = WalletSessionAuthorizationIdentity & {
+type UnavailableWalletSessionAuthorizationState = WalletSessionAuthorizationIdentity & {
   readonly kind: 'unavailable';
   readonly reason: WalletSessionAuthorizationUnavailableReason;
 };
 
-export type InvalidWalletSessionAuthorizationState = WalletSessionAuthorizationIdentity & {
+type InvalidWalletSessionAuthorizationState = WalletSessionAuthorizationIdentity & {
   readonly kind: 'invalid';
   readonly reason: WalletSessionAuthorizationInvalidReason;
 };

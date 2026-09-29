@@ -542,7 +542,7 @@ function buildSigningLaneReference(
   };
 }
 
-export function buildProvisioningSigningLaneLifecycle(args: {
+function buildProvisioningSigningLaneLifecycle(args: {
   readonly revocationEpoch: number;
   readonly startedAtMs: number;
 }): Extract<SigningLaneLifecycle, { readonly state: 'provisioning' }> {

@@ -118,7 +118,7 @@ export const DEFAULT_THRESHOLD_SESSION_POLICY: Pick<
 
 export const DEFAULT_UNLOCK_REMAINING_USES = DEFAULT_WALLET_SESSION_REMAINING_USES;
 
-export type PositiveRemainingUses = number & {
+type PositiveRemainingUses = number & {
   readonly __brand: 'PositiveRemainingUses';
 };
 

@@ -45,7 +45,7 @@ import type {
   WalletSessionId,
 } from '@shared/authorization/capabilityKinds';
 
-export type ExactSigningLaneIdentityKey = string & {
+type ExactSigningLaneIdentityKey = string & {
   readonly __brand: 'ExactSigningLaneIdentityKey';
 };
 

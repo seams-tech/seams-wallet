@@ -52,7 +52,6 @@ export type EcdsaRoleLocalWorkerHandle = {
   readonly bindingDigest: EcdsaRoleLocalBindingDigest;
   readonly durableMaterialRef: EcdsaRoleLocalDurableMaterialRef;
 };
-export type EcdsaClientAdditiveShareHandle = Brand<string, 'EcdsaClientAdditiveShareHandle'>;
 
 export function parseEcdsaClientVerifyingPublicKey33B64u(
   value: unknown,
