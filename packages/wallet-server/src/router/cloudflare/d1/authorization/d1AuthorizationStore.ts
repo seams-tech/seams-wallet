@@ -1,3 +1,8 @@
+import type {
+  EcdsaWalletSessionAdmissionInput,
+  EcdsaWalletSessionAdmissionResult,
+  PinnedOwnerWalletScope,
+} from '../../../../authorization/ecdsaWalletSessionAdmission';
 import {
   mpcMaterialActivationRefsEqual,
   type MpcMaterialActivationRef,
@@ -75,10 +80,12 @@ import type {
   AuthorizationGrantPort,
   AuthorizationSessionPort,
   AuthorizedOperationMaterialScope,
+  AuthorizedOperationAdmissionResult,
   PreparedAuthorizedOperationAdmission,
 } from '../../../../authorization/service';
 import {
   prepareAuthorizedOperationAdmissionRead,
+  prepareAuthorizedOperationCommittedRead,
   prepareAuthorizedOperationInsert,
   prepareAuthorizedOperationRead,
 } from './authorizedOperationStatements';
@@ -2193,11 +2200,7 @@ export class CloudflareD1AuthorizationStore
   async readPinnedOwnerWalletScope(input: {
     readonly operation: AuthorizedOperation;
     readonly walletId: WalletId;
-  }): Promise<{
-    readonly orgId: string;
-    readonly projectId: string;
-    readonly projectEnvironmentId: string;
-  }> {
+  }): Promise<PinnedOwnerWalletScope> {
     const { operation, walletId } = input;
     if (
       operation.operation.operation.capabilityKind !== CAPABILITY_KINDS.nearEd25519MpcSigning &&
@@ -2205,65 +2208,38 @@ export class CloudflareD1AuthorizationStore
     ) {
       throw new Error('Pinned owner wallet scope requires a signing operation');
     }
+    const row = await prepareAuthorizedOperationCommittedRead(
+      this.database,
+      this.namespace,
+      operation,
+    ).first<D1Row>();
+    if (
+      !row ||
+      row.authorized_operation_id !== operation.authorizedOperationId ||
+      row.authorization_source_kind !== operation.authorization.kind
+    ) {
+      throw new Error('Pinned owner operation is not claimed');
+    }
     if (operation.authorization.kind === 'verified_step_up') {
-      // A verified step-up is claimed in this store's own wallet scope; its
-      // digests bind the wallet it signs for.
-      const row = await this.database
-        .prepare(
-          `SELECT 1 AS claimed
-             FROM authorized_operations
-            WHERE namespace = ? AND tenant_id = ?
-              AND authorized_operation_id = ?
-              AND operation_fingerprint_digest = ?
-              AND authorization_source_kind = 'verified_step_up'
-              AND evidence_set_digest = ?
-            LIMIT 1`,
-        )
-        .bind(
-          this.namespace,
-          operation.tenantId,
-          operation.authorizedOperationId,
-          operation.operationFingerprintDigest,
-          operation.authorization.evidenceSetDigest,
-        )
-        .first<D1Row>();
-      if (!row) throw new Error('Verified step-up operation is not claimed');
+      if (row.evidence_set_digest !== operation.authorization.evidenceSetDigest) {
+        throw new Error('Verified step-up operation is not claimed');
+      }
       return {
         orgId: this.walletSignerScope.orgId,
         projectId: this.walletSignerScope.projectId,
         projectEnvironmentId: this.walletSignerScope.envId,
       };
     }
-    const row = await this.database
-      .prepare(
-        `SELECT operation.linked_scope_org_id, operation.linked_scope_project_id,
-                operation.linked_scope_env_id
-           FROM authorized_operations AS operation
-           JOIN wallet_session_authorizations_v2 AS session
-             ON session.namespace = operation.namespace
-            AND session.tenant_id = operation.tenant_id
-            AND session.authorization_id = operation.authorization_id
-            AND session.org_id = operation.linked_scope_org_id
-            AND session.project_id = operation.linked_scope_project_id
-            AND session.env_id = operation.linked_scope_env_id
-          WHERE operation.namespace = ? AND operation.tenant_id = ?
-            AND operation.authorized_operation_id = ?
-            AND operation.operation_fingerprint_digest = ?
-            AND operation.authorization_id = ?
-            AND operation.authorization_source_kind = 'authorization_grant'
-            AND session.wallet_id = ?
-          LIMIT 1`,
-      )
-      .bind(
-        this.namespace,
-        operation.tenantId,
-        operation.authorizedOperationId,
-        operation.operationFingerprintDigest,
-        operation.authorization.authorizationGrantRef.authorizationId,
-        walletId,
-      )
-      .first<D1Row>();
-    if (!row) throw new Error('Pinned owner Wallet Session scope is unavailable');
+    if (row.authorization_id !== operation.authorization.authorizationGrantRef.authorizationId) {
+      throw new Error('Pinned owner Wallet Session scope is unavailable');
+    }
+    return this.pinnedWalletSessionOwnerScope(row, walletId);
+  }
+
+  private pinnedWalletSessionOwnerScope(row: D1Row, walletId: WalletId): PinnedOwnerWalletScope {
+    if (row.pinned_owner_wallet_id !== walletId) {
+      throw new Error('Pinned owner Wallet Session scope is unavailable');
+    }
     return {
       orgId: requireString(row.linked_scope_org_id, 'operation.ownerScope.orgId'),
       projectId: requireString(row.linked_scope_project_id, 'operation.ownerScope.projectId'),
@@ -2304,8 +2280,11 @@ export class CloudflareD1AuthorizationStore
     operation: AuthorizedOperation,
     material: AuthorizedOperationMaterialScope | undefined,
   ):
-    | { readonly kind: 'replayed'; readonly operation: AuthorizedOperation }
-    | { readonly kind: 'operation_in_progress'; readonly operation: AuthorizedOperation }
+    | {
+        readonly kind: 'replayed' | 'operation_in_progress';
+        readonly operation: AuthorizedOperation;
+        readonly row: D1Row;
+      }
     | AuthorizedOperationAdmissionRejection {
     const replayMismatch = authorizedOperationReplayMismatch({
       existing: existing.row,
@@ -2321,12 +2300,12 @@ export class CloudflareD1AuthorizationStore
       ) {
         return { kind: 'authorization_grant_rejected' };
       }
-      return { kind: 'replayed', operation: existing.operation };
+      return { kind: 'replayed', operation: existing.operation, row: existing.row };
     }
     if (!existing.sourceActive) {
       return authorizationSourceRejected(operation.authorization);
     }
-    return { kind: 'operation_in_progress', operation: existing.operation };
+    return { kind: 'operation_in_progress', operation: existing.operation, row: existing.row };
   }
 
   /**
@@ -2347,7 +2326,11 @@ export class CloudflareD1AuthorizationStore
       nowMs: operation.claimedAtMs,
     });
     if (existing) {
-      return this.answerExistingAuthorizedOperation(existing, operation, undefined);
+      const result = this.answerExistingAuthorizedOperation(existing, operation, undefined);
+      if (result.kind === 'replayed' || result.kind === 'operation_in_progress') {
+        return { kind: result.kind, operation: result.operation };
+      }
+      return result;
     }
     return {
       kind: 'prepared',
@@ -2372,17 +2355,63 @@ export class CloudflareD1AuthorizationStore
   async admitAuthorizedOperation(input: {
     readonly operation: AuthorizedOperationInput;
     readonly material?: AuthorizedOperationMaterialScope;
-  }): Promise<
-    | { readonly kind: 'claimed'; readonly operation: AuthorizedOperation }
-    | { readonly kind: 'replayed'; readonly operation: AuthorizedOperation }
-    | { readonly kind: 'operation_in_progress'; readonly operation: AuthorizedOperation }
-    | {
-        readonly kind:
-          | 'authorization_grant_rejected'
-          | 'verified_step_up_rejected'
-          | 'wallet_session_quota_exhausted'
-          | 'material_mismatch';
+  }): Promise<AuthorizedOperationAdmissionResult> {
+    const result = await this.admitAuthorizedOperationRecord(input);
+    if (
+      result.kind === 'claimed' ||
+      result.kind === 'replayed' ||
+      result.kind === 'operation_in_progress'
+    ) {
+      return { kind: result.kind, operation: result.operation };
+    }
+    return result;
+  }
+
+  async admitEcdsaWalletSessionOperation(
+    input: EcdsaWalletSessionAdmissionInput,
+  ): Promise<EcdsaWalletSessionAdmissionResult> {
+    const result = await this.admitAuthorizedOperationRecord({
+      operation: input.operation,
+      material: {
+        kind: 'ecdsa_material_activation',
+        walletId: input.material.walletId,
+        keyHandle: input.material.keyHandle,
+        runtimePolicyScope: input.material.runtimePolicyScope,
+        materialActivation: input.material.materialActivation,
+      },
+    });
+    switch (result.kind) {
+      case 'claimed':
+      case 'operation_in_progress':
+        return {
+          kind: result.kind,
+          operation: result.operation,
+          ownerScope: this.pinnedWalletSessionOwnerScope(result.row, input.material.walletId),
+        };
+      case 'replayed':
+        return { kind: 'replayed', operation: result.operation };
+      case 'authorization_grant_rejected':
+      case 'verified_step_up_rejected':
+      case 'wallet_session_quota_exhausted':
+      case 'material_mismatch':
+        return result;
+      default: {
+        const unexpected: never = result;
+        throw new Error(`Unexpected ECDSA admission: ${unexpected}`);
       }
+    }
+  }
+
+  private async admitAuthorizedOperationRecord(input: {
+    readonly operation: AuthorizedOperationInput;
+    readonly material?: AuthorizedOperationMaterialScope;
+  }): Promise<
+    | {
+        readonly kind: 'claimed' | 'replayed' | 'operation_in_progress';
+        readonly operation: AuthorizedOperation;
+        readonly row: D1Row;
+      }
+    | AuthorizedOperationAdmissionRejection
   > {
     const operation = await buildAuthorizedOperation(input.operation);
     const requiresEcdsaMaterial =
@@ -2417,7 +2446,7 @@ export class CloudflareD1AuthorizationStore
       });
       const [result, readback] = await this.database.batch<D1ResultLike<D1Row>>([
         statement,
-        prepareAuthorizedOperationRead(this.database, this.namespace, operation),
+        prepareAuthorizedOperationCommittedRead(this.database, this.namespace, operation),
       ]);
       if (!result?.success || !readback?.success) {
         throw new Error('authorized operation admission batch returned incomplete results');
@@ -2438,7 +2467,11 @@ export class CloudflareD1AuthorizationStore
       throw error;
     }
     if (!committedRow) throw new Error('authorized operation admission could not be read back');
-    return { kind: 'claimed', operation: await parseAuthorizedOperationRow(committedRow) };
+    return {
+      kind: 'claimed',
+      operation: await parseAuthorizedOperationRow(committedRow),
+      row: committedRow,
+    };
   }
 
   async completeAuthorizedOperation(input: {

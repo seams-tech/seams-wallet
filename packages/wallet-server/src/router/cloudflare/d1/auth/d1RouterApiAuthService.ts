@@ -1,3 +1,4 @@
+import { createD1AuthorizedOperationRouteService } from './d1AuthorizedOperationRouteService';
 import { parseRouterAbEcdsaRegistrationActivationReceiptV1 } from '@shared/utils/routerAbEcdsaDerivation';
 import { parseRegistrationEstablishedSessionProjectionV2 } from '@shared/utils/registrationEstablishedSession';
 import {
@@ -316,11 +317,6 @@ type D1IdentityRouteServiceAssembly = Pick<
 type D1AuthorizationSessionRouteServiceAssembly = Pick<
   CloudflareD1RouterApiAuthAssembly,
   'authorizationService' | 'options' | 'walletAuthMethodStore' | 'walletAuthorityStore'
->;
-
-type D1AuthorizedOperationRouteServiceAssembly = Pick<
-  CloudflareD1RouterApiAuthAssembly,
-  'authorizationService' | 'authorizationStore' | 'options'
 >;
 
 type D1ThresholdRuntimeRouteServiceAssembly = Pick<CloudflareD1RouterApiAuthAssembly, 'options'>;
@@ -2537,48 +2533,6 @@ function createD1AuthorizationSessionRouteService(
         expiresAtMs: resolved.expiresAtMs,
       };
     },
-  };
-}
-
-function createD1AuthorizedOperationRouteService(
-  assembly: D1AuthorizedOperationRouteServiceAssembly,
-): RouterApiServiceBag['authorizedOperations'] {
-  const tenantId = parseTenantId(assembly.options.orgId);
-  if (!tenantId.ok) {
-    throw new Error(`orgId cannot identify an authorization tenant: ${tenantId.error.message}`);
-  }
-  return {
-    tenantId: tenantId.value,
-    readPinnedOwnerWalletScope: assembly.authorizationStore.readPinnedOwnerWalletScope.bind(
-      assembly.authorizationStore,
-    ),
-    buildVerifiedOwnerProof: assembly.authorizationService.buildVerifiedOwnerProof.bind(
-      assembly.authorizationService,
-    ),
-    recordVerifiedWalletOperationFactorEvidenceSet:
-      assembly.authorizationService.recordVerifiedWalletOperationFactorEvidenceSet.bind(
-        assembly.authorizationService,
-      ),
-    readAuthorizedOperationById: assembly.authorizationService.readAuthorizedOperationById.bind(
-      assembly.authorizationService,
-    ),
-    readAuthorizedOperation: assembly.authorizationService.readAuthorizedOperation.bind(
-      assembly.authorizationService,
-    ),
-    admitAuthorizedOperation: assembly.authorizationService.admitAuthorizedOperation.bind(
-      assembly.authorizationService,
-    ),
-    prepareAuthorizedOperationAdmission:
-      assembly.authorizationService.prepareAuthorizedOperationAdmission.bind(
-        assembly.authorizationService,
-      ),
-    classifyAuthorizedOperationAdmissionFailure:
-      assembly.authorizationService.classifyAuthorizedOperationAdmissionFailure.bind(
-        assembly.authorizationService,
-      ),
-    completeAuthorizedOperation: assembly.authorizationService.completeAuthorizedOperation.bind(
-      assembly.authorizationService,
-    ),
   };
 }
 

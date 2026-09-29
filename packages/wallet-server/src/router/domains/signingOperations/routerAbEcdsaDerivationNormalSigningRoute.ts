@@ -1,3 +1,4 @@
+import type { EcdsaWalletSessionAdmission } from '../../../authorization/ecdsaWalletSessionAdmission';
 // The ECDSA derivation normal-signing route: Wallet Session and step-up authorization, operation
 // admission, replay and completion, and forwarding to the SigningWorker.
 import {
@@ -480,17 +481,17 @@ export async function admitRouterAbEcdsaReusableWalletSessionOperation(input: {
   binding: RouterAbEcdsaWalletSessionOperationBinding;
   authorizedOperations: Pick<
     RouterApiAuthorizedOperationService,
-    'tenantId' | 'admitAuthorizedOperation'
+    'tenantId' | 'admitEcdsaWalletSessionOperation'
   >;
   resolveEcdsaMaterialActivation: RouterApiWalletRegistrationService['resolveEcdsaMaterialActivation'];
 }): Promise<
   | {
       readonly ok: true;
-      readonly admission: RouterAbEcdsaOperationAdmission;
+      readonly admission: EcdsaWalletSessionAdmission;
     }
   | { readonly ok: false; readonly error: RouterAbJsonRouteResult }
 > {
-  if (!routerAbEcdsaAtomicAuthorizationConfigured(input.authorizedOperations)) {
+  if (typeof input.authorizedOperations.admitEcdsaWalletSessionOperation !== 'function') {
     return {
       ok: false,
       error: routerAbStepUpError(
@@ -577,7 +578,7 @@ export async function admitRouterAbEcdsaReusableWalletSessionOperation(input: {
     const auditEventId = requireAuthorizationValue(
       parseAuthorizationAuditEventId(`ecdsa-operation-audit:${operationId}`),
     );
-    const outcome = await input.authorizedOperations.admitAuthorizedOperation({
+    const outcome = await input.authorizedOperations.admitEcdsaWalletSessionOperation({
       operation: {
         tenantId,
         authorizedOperationId,
@@ -606,10 +607,7 @@ export async function admitRouterAbEcdsaReusableWalletSessionOperation(input: {
     ) {
       return {
         ok: true,
-        admission: {
-          kind: outcome.kind,
-          operation: outcome.operation,
-        },
+        admission: outcome,
       };
     }
     return {

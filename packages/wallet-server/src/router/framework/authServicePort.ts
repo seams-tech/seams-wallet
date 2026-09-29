@@ -1591,6 +1591,9 @@ export interface RouterApiServiceBag {
 }
 
 export interface RouterApiAuthorizedOperationService {
+  admitEcdsaWalletSessionOperation(
+    input: import('../../authorization/ecdsaWalletSessionAdmission').EcdsaWalletSessionAdmissionInput,
+  ): Promise<import('../../authorization/ecdsaWalletSessionAdmission').EcdsaWalletSessionAdmissionResult>;
   readonly tenantId: TenantId;
   readPinnedOwnerWalletScope(input: {
     readonly operation: AuthorizedOperation;

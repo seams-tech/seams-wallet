@@ -48,6 +48,35 @@ function ecdsaSignerMatchBindings(
   ];
 }
 
+const PINNED_OWNER_WALLET = `
+  (SELECT session.wallet_id
+     FROM wallet_session_authorizations_v2 AS session
+    WHERE session.namespace = operation.namespace
+      AND session.tenant_id = operation.tenant_id
+      AND session.authorization_id = operation.authorization_id
+      AND session.org_id = operation.linked_scope_org_id
+      AND session.project_id = operation.linked_scope_project_id
+      AND session.env_id = operation.linked_scope_env_id
+      AND operation.authorization_source_kind = 'authorization_grant'
+    LIMIT 1) AS pinned_owner_wallet_id`;
+
+export function prepareAuthorizedOperationCommittedRead(
+  database: D1DatabaseLike,
+  namespace: string,
+  input: {
+    readonly tenantId: TenantId;
+    readonly operationFingerprintDigest: CapabilityOperationFingerprintDigest;
+  },
+): D1PreparedStatementLike {
+  return database.prepare(
+    `SELECT operation.*, ${PINNED_OWNER_WALLET}
+       FROM authorized_operations AS operation
+      WHERE operation.namespace = ? AND operation.tenant_id = ?
+        AND operation.operation_fingerprint_digest = ?
+      LIMIT 1`,
+  ).bind(namespace, input.tenantId, input.operationFingerprintDigest);
+}
+
 export function prepareAuthorizedOperationRead(
   database: D1DatabaseLike,
   namespace: string,
@@ -72,7 +101,7 @@ export function prepareAuthorizedOperationAdmissionRead(input: {
   readonly nowMs: number;
 }): D1PreparedStatementLike {
   return input.database.prepare(
-    `SELECT operation.*,
+    `SELECT operation.*, ${PINNED_OWNER_WALLET},
             CASE operation.authorization_source_kind
               WHEN 'authorization_grant' THEN EXISTS (
                 SELECT 1

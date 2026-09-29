@@ -686,10 +686,7 @@ async function executeRouterAbEcdsaDerivationNormalSigningRoute(
         ? authorization.validated.admission.context.authorization.session
         : authorization.candidate.status.session;
     const runtimePolicyScope = authorization.activeMaterial.runtimePolicyScope;
-    const pinnedOwnerScope = await input.ctx.service.authorizedOperations.readPinnedOwnerWalletScope({
-      operation: authorizedOperation,
-      walletId: session.walletId,
-    });
+    const pinnedOwnerScope = operation.admission.ownerScope;
     if (
       pinnedOwnerScope.orgId !== runtimePolicyScope.orgId ||
       pinnedOwnerScope.projectId !== runtimePolicyScope.projectId

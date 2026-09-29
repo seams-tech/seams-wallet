@@ -2,9 +2,11 @@
 
 Date: September 29, 2026
 
-Status: the combined project/abuse policy read is implemented and verified in a
-bounded hosted diagnostic. Further query consolidation, write changes, and
-regional databases remain planned. Production rollout is separate.
+Status: policy, claim/readback, operation/source, and persisted owner-scope
+consolidation are implemented and verified in bounded hosted diagnostics. The
+reusable-session ECDSA path now makes 12 D1 calls per signature, down from 18.
+Further call reduction and the minimum-call-budget review remain open; regional
+databases are conditional. Production rollout is separate.
 
 ## Decision
 
@@ -297,6 +299,76 @@ through an explicitly verified persisted binding, preserving its wallet guard,
 then revisit the session/material reads and repeated status-request owners.
 The deferred minimum-call-budget phase remains open.
 
+### Completed checkpoint: persisted owner scope in admission
+
+Reusable-session ECDSA admission now carries the verified persisted owner scope
+in its claimed/in-progress result. The existing operation read and the batched
+claim readback project the Wallet Session's wallet ID through the exact
+namespace, tenant, authorization, and persisted organization/project/environment
+binding. The store checks that wallet ID against the resolved material before
+returning scope. Prepare and finalize reuse this result, removing their separate
+scope lookups. The route retains its material-policy scope check.
+
+The narrow entry point requires a reusable-session ECDSA operation and material.
+It supplies the material discriminator explicitly, selecting the existing guarded
+ECDSA INSERT; the previous reusable route passed material without that
+discriminator through the generic API. Generic and one-use step-up admission
+remain supported through their existing entry point. NEAR and step-up retain
+their separate scope reader, which now shares the persisted projection and
+preserves its operation/source identity checks. Raw storage rows stay private
+to the store. Type fixtures reject unscoped claims, scope-bearing replay,
+rejections retaining an operation/scope, generic admission inputs, and raw
+storage values.
+
+The same three browser scenarios passed on Workers D1, wallet-DO, and VM (nine
+scenario/profile combinations). The concurrent-prepare/lost-response scenario
+now also changes the finalize wallet ID, observes a 403, then confirms that an
+exact retry still returns the identical signature. VM evidence measured after
+these retries retains quota 3 → 2 and one SigningWorker effect/consumed
+presignature. Recovery retirement, warm signing, one-use step-up, and key export
+also pass. Server build, intended-test type check, and the bloat check pass.
+Use the preceding checkpoint's reproduction commands; source hashes and results
+are in `.artifacts/r150/d1-scope-20260930/verification.json`. Lifecycle traces
+remain private under `.runtime/r150-d1-diagnostic/scope-traces/`.
+
+Three hosted registrations and six verified signatures ran
+15:09:10–15:10:07 UTC on September 29, 2026, with the same preserved SDK hash and
+role Workers. The artifact directory uses the operator's September 30 local
+date. Instrumented Gateway version: `f764a7fc-4408-4a4f-9bbe-c250194ff37d`;
+Gateway bundle SHA-256:
+`a1c31317c59741175c2e92e23a75c86aeac06f85b68876f3f504496fe2574c3f`.
+Evidence is in `.artifacts/r150/d1-scope-20260930/`; private reproducer:
+`.runtime/r150-d1-diagnostic/run-scope-browser.mjs`.
+
+| Per complete signature | Combined operation/source read | Persisted owner scope |
+| --- | ---: | ---: |
+| D1 calls, every signature | 14 | 12 |
+| SQL statements | 15 | 13 |
+| Write-bearing calls / reported row writes | 2 / 14 | 2 / 14 |
+| First-sign D1 elapsed median | 1,025 ms | 865 ms |
+| Subsequent-sign D1 elapsed median | 1,002 ms | 901 ms |
+| First-sign server median | 1,300 ms | 1,111 ms |
+| Subsequent-sign server median | 1,178 ms | 1,142 ms |
+| First-sign server range | 1,229–1,425 ms | 1,073–1,735 ms |
+| Subsequent-sign server range | 1,163–1,541 ms | 1,112–1,290 ms |
+
+Prepare and finalize each make six D1 calls. All 78 statement results across
+72 signing-path calls reported the APAC primary, with complete SQL/row metadata.
+SQL execution medians were 15.35 ms and 14.47 ms. Browser-flow windows were
+3,543–4,310 ms for first signing and 3,055–4,333 ms for subsequent signing;
+these include test/UI orchestration and background work. The complete
+system-controlled maximum remains unproven. These small sequential cohorts
+establish the call reduction; latency differences remain observational. No local
+binary builds overlapped this hosted run; physical probe location is unverified.
+
+The original benchmark Gateway was restored, its active version verified, and
+authenticated readiness returned 204. Estimated cumulative cost was $0.6441
+through 15:14:55 UTC, subject to accounting lag and the existing $25 cap. The
+12-call intermediate target is reached. Next examine the initial session/material
+join, trace repeated status-request owners and the full system-controlled
+critical path, then complete the deferred minimum-call-budget review before
+considering regional D1 ownership. The deeper review stays open.
+
 ### 1. Consolidate reads while preserving decision boundaries
 
 - [x] Read project and abuse policy together through the existing admission store.
@@ -305,13 +377,13 @@ The deferred minimum-call-budget phase remains open.
   one round trip from prepare and one from finalize.
 - [x] Consolidate the prepare claim and committed readback into one D1 batch.
   Read back after the INSERT triggers in the same transaction.
-- [ ] Reuse the committed row's pinned scope projection where the existing
-  guard can be retained, removing its separate lookup.
+- [x] Reuse the committed row's pinned scope projection for reusable-session
+  ECDSA, retaining the wallet guard and removing its separate prepare lookup.
 - [x] Read the finalize operation and live authorization source together.
   Preserve replay-time revocation, expiry, wallet/environment binding, quota
   identity, and operation identity checks.
-- [ ] Consolidate finalize's pinned owner-scope read while retaining its exact
-  operation/session/wallet binding guard.
+- [x] Consolidate reusable-session ECDSA finalize's pinned owner-scope read
+  while retaining its exact operation/session/wallet binding guard.
 - [ ] Examine joining initial material resolution to the existing joined session
   lookup. Keep the fresh-material check at admission until equivalent atomic SQL
   predicates and race behavior are demonstrated. Two material reads at different
@@ -324,8 +396,8 @@ First measurable goal: at least two fewer sequential calls per signature from
 the policy change. Then target 12 or fewer from the larger consolidation, subject
 to the correctness cases below. Each change needs its own before/after call
 counts and timings; these are engineering targets, not predicted latency wins.
-The 12-call target is an intermediate milestone. Phase 3 revisits the complete
-call budget after these incremental changes.
+The 12-call intermediate milestone is reached for reusable-session ECDSA.
+Phase 3 still revisits the complete call budget after these incremental changes.
 
 ### 2. Reduce unnecessary work and classify writes
 

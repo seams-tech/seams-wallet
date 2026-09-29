@@ -536,6 +536,17 @@ test('concurrent prepare and admitted ECDSA finalize lost_response retry preserv
   const retried = await context.request.fetch(lost.request);
   expect(retried.status()).toBe(200);
   expect(await retried.json()).toEqual(signature);
+  const wrongWallet: unknown = lost.request.postDataJSON();
+  if (!isPlainObject(wrongWallet) || !isPlainObject(wrongWallet.scope)) {
+    throw new Error('Expected a scoped ECDSA finalize request');
+  }
+  wrongWallet.scope.wallet_id = `${walletId}-other`;
+  const denied = await context.request.fetch(lost.request, { data: wrongWallet });
+  expect(denied.status()).toBeGreaterThanOrEqual(400);
+  expect(denied.status()).toBeLessThan(500);
+  const retriedAfterDenial = await context.request.fetch(lost.request);
+  expect(retriedAfterDenial.status()).toBe(200);
+  expect(await retriedAfterDenial.json()).toEqual(signature);
   // On the VM, the SigningWorker recorded one effect for this signing, with
   // the returned signature as its terminal response: the retry claimed and
   // consumed nothing.
@@ -559,6 +570,8 @@ test('concurrent prepare and admitted ECDSA finalize lost_response retry preserv
     lostResponseStatus: lost.status,
     retriedStatus: retried.status(),
     retriedMatchesLost: true,
+    wrongWalletStatus: denied.status(),
+    exactRetryAfterWrongWalletMatches: true,
     signingWorkerEffectsAfterRetry: effectsAfterRetry?.length ?? null,
     signingWorkerTerminalMatchesRetry: effectsAfterRetry ? true : null,
   };
