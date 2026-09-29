@@ -11,8 +11,8 @@ import init, {
 } from '../../../../../../../wasm/evm_crypto/pkg/evm_crypto.js';
 import * as evmCryptoWasmModule from '../../../../../../../wasm/evm_crypto/pkg/evm_crypto.js';
 import { initializeWasm, resolveWasmUrl } from '@/core/walletRuntimePaths/wasm-loader';
-import { errorMessage } from '@shared/utils/errors';
 import { WorkerControlMessage, type RpcSignerWorkerProgressEvent } from '../workerTypes';
+import { asWorkerErrorPayload } from './workerErrorPayload';
 
 type EvmCryptoWorkerRequest =
   | { id: string; type: 'computeEip1559TxHash'; payload: { tx: unknown } }
@@ -70,35 +70,6 @@ type EvmCryptoWorkerRequest =
         cosePublicKey: unknown;
       };
     };
-
-type WorkerErrorPayload = {
-  message: string;
-  code?: string;
-  coreCode?: string;
-};
-
-function asWorkerErrorPayload(err: unknown): WorkerErrorPayload {
-  if (err && typeof err === 'object') {
-    const message =
-      typeof (err as { message?: unknown }).message === 'string'
-        ? String((err as { message?: string }).message).trim()
-        : '';
-    const code =
-      typeof (err as { code?: unknown }).code === 'string'
-        ? String((err as { code?: string }).code).trim()
-        : '';
-    const coreCode =
-      typeof (err as { coreCode?: unknown }).coreCode === 'string'
-        ? String((err as { coreCode?: string }).coreCode).trim()
-        : '';
-    return {
-      message: message || errorMessage(err),
-      ...(code ? { code } : {}),
-      ...(coreCode ? { coreCode } : {}),
-    };
-  }
-  return { message: errorMessage(err) };
-}
 
 function toU8(v: unknown): Uint8Array {
   if (v instanceof Uint8Array) return v;
