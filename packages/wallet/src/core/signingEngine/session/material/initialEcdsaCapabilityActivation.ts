@@ -43,6 +43,7 @@ import {
   parseRouterAbEcdsaVerifiedClientActivationFactsV1,
   type RouterAbEcdsaVerifiedClientActivationFactsV1,
 } from '@shared/utils/routerAbEcdsaDerivation';
+import { requireRecord } from '@shared/utils/validation';
 import type { PersistInitialCanonicalEcdsaActivationRequestV1 } from '../../routerAb/ecdsaDerivation/clientCeremony';
 import { toParticipantId, type ParticipantId } from '../identity/evmFamilyEcdsaIdentity';
 import {
@@ -285,13 +286,6 @@ function verifiedClientActivationFactsEqual(
     left.clientShareRetryCounter === right.clientShareRetryCounter &&
     left.participantId === right.participantId
   );
-}
-
-function requireRecord(value: unknown, label: string): Record<string, unknown> {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
-    throw new Error(`${label} must be an object`);
-  }
-  return value as Record<string, unknown>;
 }
 
 function requireExactKeys(

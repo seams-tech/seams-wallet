@@ -1,5 +1,6 @@
 import { safeErrorMessage } from '@shared/utils/errors';
 import { base64UrlDecode } from '@shared/utils/base64';
+import { coerceNonNullishString } from '@shared/utils/validation';
 import { WorkerDeferred } from '../workerDeferred';
 import {
   EcdsaPresignClientRequestType,
@@ -100,12 +101,6 @@ function toBytes(value: unknown, label: string): Uint8Array {
   throw new Error(`${label} must be bytes`);
 }
 
-function requireString(value: unknown, label: string): string {
-  const normalized = String(value ?? '').trim();
-  if (!normalized) throw new Error(`${label} is required`);
-  return normalized;
-}
-
 function requireFutureTimestamp(value: unknown, label: string): number {
   const timestamp = Number(value);
   if (!Number.isSafeInteger(timestamp) || timestamp <= Date.now()) {
@@ -171,7 +166,7 @@ async function initializeSession(
 ): Promise<
   EcdsaPresignClientOperationMap[typeof EcdsaPresignClientRequestType.SessionInit]['result']['payload']
 > {
-  const sessionId = requireString(payload.sessionId, 'sessionId');
+  const sessionId = coerceNonNullishString(payload.sessionId, 'sessionId');
   if (opaqueSessionPorts.has(sessionId)) await abortSession({ sessionId });
   const poolIdentity = parseEcdsaClientPresignPoolIdentity(payload.poolIdentity);
   const groupPublicKey33 = toBytes(payload.groupPublicKey33, 'groupPublicKey33');
@@ -202,7 +197,10 @@ async function initializeSession(
           sessionId,
           authority: {
             kind: 'role_local_derivation_handle',
-            materialHandle: requireString(payload.authority.materialHandle, 'materialHandle'),
+            materialHandle: coerceNonNullishString(
+              payload.authority.materialHandle,
+              'materialHandle',
+            ),
             material: payload.authority.material,
           },
           poolIdentity,
@@ -245,7 +243,10 @@ async function initializeSession(
           sessionId,
           authority: {
             kind: 'linked_holder_signing_material',
-            holderHandleId: requireString(payload.authority.holderHandleId, 'holderHandleId'),
+            holderHandleId: coerceNonNullishString(
+              payload.authority.holderHandleId,
+              'holderHandleId',
+            ),
           },
           poolIdentity,
           groupPublicKey33: groupPublicKeyBuffer,
@@ -282,7 +283,7 @@ async function initializeSession(
 async function stepSession(
   payload: EcdsaPresignClientOperationMap[typeof EcdsaPresignClientRequestType.SessionStep]['payload'],
 ): Promise<ThresholdEcdsaPresignProgressResult> {
-  const sessionId = requireString(payload.sessionId, 'sessionId');
+  const sessionId = coerceNonNullishString(payload.sessionId, 'sessionId');
   const opaquePort = opaqueSessionPorts.get(sessionId);
   if (opaquePort) {
     const activeBinding = opaqueSessionBindings.get(sessionId);
@@ -331,7 +332,7 @@ async function stepSession(
 async function abortSession(
   payload: EcdsaPresignClientOperationMap[typeof EcdsaPresignClientRequestType.SessionAbort]['payload'],
 ): Promise<{ kind: 'threshold_ecdsa_presign_session_aborted'; sessionId: string }> {
-  const sessionId = requireString(payload.sessionId, 'sessionId');
+  const sessionId = coerceNonNullishString(payload.sessionId, 'sessionId');
   const opaquePort = opaqueSessionPorts.get(sessionId);
   if (opaquePort) {
     opaqueSessionPorts.delete(sessionId);
@@ -377,7 +378,10 @@ function retainCompletedMaterial(args: {
   expiresAtMs: number;
 }): void {
   if (args.progress.event !== 'presign_done') return;
-  const materialHandle = requireString(args.progress.presignatureHandle, 'presignatureHandle');
+  const materialHandle = coerceNonNullishString(
+    args.progress.presignatureHandle,
+    'presignatureHandle',
+  );
   const bigR33 = toBytes(args.progress.presignatureBigR33, 'presignatureBigR33');
   if (bigR33.length !== 33) throw new Error('presignatureBigR33 must be 33 bytes');
   opaqueMaterials.set(materialHandle, {
@@ -448,8 +452,8 @@ async function admitPresignature(
   presignatureId: string;
   storage: EcdsaClientPresignAdmissionStorage;
 }> {
-  const materialHandle = requireString(payload.materialHandle, 'materialHandle');
-  const expectedPresignatureId = requireString(
+  const materialHandle = coerceNonNullishString(payload.materialHandle, 'materialHandle');
+  const expectedPresignatureId = coerceNonNullishString(
     payload.expectedPresignatureId,
     'expectedPresignatureId',
   );
@@ -513,7 +517,7 @@ async function destroyPresignature(
   kind: 'ecdsa_client_presignature_destroyed_v1';
   materialHandle: string;
 }> {
-  const materialHandle = requireString(payload.materialHandle, 'materialHandle');
+  const materialHandle = coerceNonNullishString(payload.materialHandle, 'materialHandle');
   const entry = requireOpaqueMaterial(
     materialHandle,
     parseEcdsaClientPresignPoolIdentity(payload.poolIdentity),
@@ -530,7 +534,7 @@ async function clearWalletPresignatureWorkerState(
   walletId: string;
   clearedCount: number;
 }> {
-  const walletId = requireString(payload.walletId, 'walletId');
+  const walletId = coerceNonNullishString(payload.walletId, 'walletId');
   let clearedCount = 0;
   for (const [sessionId, binding] of [...opaqueSessionBindings]) {
     if (binding.poolIdentity.walletId !== walletId) continue;
@@ -561,14 +565,14 @@ async function clearWalletPresignatureWorkerState(
 async function reservePresignature(
   payload: EcdsaPresignClientOperationMap[typeof EcdsaPresignClientRequestType.Reserve]['payload'],
 ): Promise<EcdsaClientPresignReservationResult> {
-  const materialHandle = requireString(payload.materialHandle, 'materialHandle');
+  const materialHandle = coerceNonNullishString(payload.materialHandle, 'materialHandle');
   const poolIdentity = parseEcdsaClientPresignPoolIdentity(payload.poolIdentity);
-  const expectedPresignatureId = requireString(
+  const expectedPresignatureId = coerceNonNullishString(
     payload.expectedPresignatureId,
     'expectedPresignatureId',
   );
-  const requestBinding = requireString(payload.requestBinding, 'requestBinding');
-  const reservationId = requireString(payload.reservationId, 'reservationId');
+  const requestBinding = coerceNonNullishString(payload.requestBinding, 'requestBinding');
+  const reservationId = coerceNonNullishString(payload.reservationId, 'reservationId');
   const leaseExpiresAtMs = requireFutureTimestamp(payload.leaseExpiresAtMs, 'leaseExpiresAtMs');
   const entry = opaqueMaterials.get(materialHandle);
   if (!entry) return { kind: 'unavailable', reason: 'not_found' };
@@ -659,13 +663,13 @@ async function commitPresignature(
   kind: 'ecdsa_client_presignature_lifecycle_advanced_v1';
   materialHandle: string;
 }> {
-  const materialHandle = requireString(payload.materialHandle, 'materialHandle');
+  const materialHandle = coerceNonNullishString(payload.materialHandle, 'materialHandle');
   const entry = requireOpaqueMaterial(
     materialHandle,
     parseEcdsaClientPresignPoolIdentity(payload.poolIdentity),
   );
-  const requestBinding = requireString(payload.requestBinding, 'requestBinding');
-  const reservationId = requireString(payload.reservationId, 'reservationId');
+  const requestBinding = coerceNonNullishString(payload.requestBinding, 'requestBinding');
+  const reservationId = coerceNonNullishString(payload.reservationId, 'reservationId');
   if (
     entry.state.kind !== 'reserved' ||
     entry.state.requestBinding !== requestBinding ||
@@ -810,13 +814,13 @@ type OnlineRpcRequest = {
 async function computeOnlineShare(
   payload: EcdsaOnlineClientOperationMap[typeof EcdsaOnlineClientRequestType.ComputeSignatureShare]['payload'],
 ): Promise<ArrayBuffer> {
-  const materialHandle = requireString(payload.materialHandle, 'materialHandle');
+  const materialHandle = coerceNonNullishString(payload.materialHandle, 'materialHandle');
   const entry = requireOpaqueMaterial(
     materialHandle,
     parseEcdsaClientPresignPoolIdentity(payload.poolIdentity),
   );
-  const requestBinding = requireString(payload.requestBinding, 'requestBinding');
-  const reservationId = requireString(payload.reservationId, 'reservationId');
+  const requestBinding = coerceNonNullishString(payload.requestBinding, 'requestBinding');
+  const reservationId = coerceNonNullishString(payload.reservationId, 'reservationId');
   if (
     entry.state.kind !== 'committed' ||
     entry.state.requestBinding !== requestBinding ||

@@ -62,6 +62,7 @@ import {
   type LinkedDeviceId,
   type LinkDeviceSessionId,
 } from '@shared/signing-lanes/ids';
+import { requireCanonicalString } from '@shared/utils/validation';
 import initNearSigner, {
   ed25519_yao_client_root_transfer_recipient_v1,
   type WasmEd25519YaoClientRootTransferRecipientV1,
@@ -1097,15 +1098,8 @@ function isDeviceLinkingWorkerFrameRecordV1(
   );
 }
 
-function requireNonEmptyString(value: unknown, label: string): string {
-  if (typeof value !== 'string' || value.length === 0 || value.trim() !== value) {
-    throw new Error(`${label} is required`);
-  }
-  return value;
-}
-
 function parseHandleId(value: unknown): string {
-  const handleId = requireNonEmptyString(value, 'handleId');
+  const handleId = requireCanonicalString(value, 'handleId', 'is required');
   if (handleId.length > 256) throw new Error('handleId is too long');
   return handleId;
 }
@@ -1121,7 +1115,7 @@ function createHandleId(): string {
 }
 
 function parseFixedBase64Url(value: unknown, length: number, label: string): string {
-  const encoded = requireNonEmptyString(value, label);
+  const encoded = requireCanonicalString(value, label, 'is required');
   if (!/^[A-Za-z0-9_-]+$/.test(encoded)) throw new Error(`${label} is invalid`);
   let bytes: Uint8Array;
   try {
@@ -1152,7 +1146,7 @@ function parseSessionId(value: unknown): LinkDeviceSessionId {
 }
 
 function parseCanonicalPath(value: unknown): string {
-  const path = requireNonEmptyString(value, 'canonicalPath');
+  const path = requireCanonicalString(value, 'canonicalPath', 'is required');
   if (!path.startsWith('/') || path.includes('?') || path.includes('#')) {
     throw new Error('canonicalPath is invalid');
   }
@@ -1228,7 +1222,7 @@ function parseFrame(value: unknown): DeviceLinkingKeyWorkerFrameV1 {
   }
   const frame = value;
   return {
-    id: requireNonEmptyString(frame.id, 'device-linking worker frame.id'),
+    id: requireCanonicalString(frame.id, 'device-linking worker frame.id', 'is required'),
     request: frame.request,
   };
 }
@@ -1331,7 +1325,11 @@ function parseRequest(value: unknown): DeviceLinkingKeyWorkerRequestV1 {
         value.targetPreparationDigestB64u,
         'targetPreparationDigestB64u',
       ),
-      expectedChallengeId: requireNonEmptyString(value.expectedChallengeId, 'expectedChallengeId'),
+      expectedChallengeId: requireCanonicalString(
+        value.expectedChallengeId,
+        'expectedChallengeId',
+        'is required',
+      ),
       verificationGrant: parseLinkedDeviceEmailOtpVerificationGrantV1(value.verificationGrant),
       factorRelease: parseLinkedDeviceEmailOtpFactorReleaseEnvelopeV1(value.factorRelease),
     };

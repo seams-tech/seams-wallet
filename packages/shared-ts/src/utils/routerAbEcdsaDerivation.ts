@@ -62,6 +62,7 @@ import {
   type EmailOtpWalletAuthAuthority,
   type PasskeyWalletAuthAuthority,
 } from './walletAuthAuthority';
+import { requireRecord } from './validation';
 
 
 /**
@@ -940,13 +941,6 @@ export type RouterAbEcdsaDerivationEvmDigestSigningResponseV1Wire = {
   signature_scheme: RouterAbEcdsaDerivationSignatureSchemeV1Wire;
   signature65_b64u: string;
 };
-
-function requireRecord(value: unknown, label: string): Record<string, unknown> {
-  if (value && typeof value === 'object' && !Array.isArray(value)) {
-    return value as Record<string, unknown>;
-  }
-  throw new Error(`${label} must be an object`);
-}
 
 function requireExactKeys(
   record: Record<string, unknown>,

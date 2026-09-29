@@ -5,7 +5,7 @@ import type {
   GoogleEmailOtpRegistrationOfferId,
 } from '@/SeamsWeb/publicApi/types';
 import { walletIdFromString } from '@shared/utils/registrationIntent';
-import { isPlainObject } from '@shared/utils/validation';
+import { requireRecord, requireTrimmedString } from '@shared/utils/validation';
 
 const OTP_ONLY_FORBIDDEN_FIELDS = [
   'delivery',
@@ -29,17 +29,6 @@ const SECRET_MATERIAL_FIELDS = [
   'clientSecret32',
 ] as const;
 
-function requireRecord(value: unknown, label: string): Record<string, unknown> {
-  if (!isPlainObject(value)) throw new Error(`${label} must be an object`);
-  return value;
-}
-
-function requireString(value: unknown, label: string): string {
-  const normalized = typeof value === 'string' ? value.trim() : '';
-  if (!normalized) throw new Error(`${label} is required`);
-  return normalized;
-}
-
 function requireTimestampMs(value: unknown, label: string): number {
   if (typeof value !== 'number' || !Number.isSafeInteger(value) || value <= 0) {
     throw new Error(`${label} must be a positive integer timestamp`);
@@ -59,14 +48,14 @@ function rejectFields(
 }
 
 function parseOfferId(value: unknown): GoogleEmailOtpRegistrationOfferId {
-  return requireString(value, 'offerId') as GoogleEmailOtpRegistrationOfferId;
+  return requireTrimmedString(value, 'offerId') as GoogleEmailOtpRegistrationOfferId;
 }
 
 function parseCandidateId(
   value: unknown,
   label = 'candidateId',
 ): GoogleEmailOtpRegistrationCandidateId {
-  return requireString(value, label) as GoogleEmailOtpRegistrationCandidateId;
+  return requireTrimmedString(value, label) as GoogleEmailOtpRegistrationCandidateId;
 }
 
 function parseCandidate(value: unknown): GoogleEmailOtpRegistrationCandidate {
@@ -75,7 +64,7 @@ function parseCandidate(value: unknown): GoogleEmailOtpRegistrationCandidate {
   rejectFields(record, SECRET_MATERIAL_FIELDS, 'registration candidate');
   return {
     candidateId: parseCandidateId(record.candidateId),
-    walletId: walletIdFromString(requireString(record.walletId, 'candidate.walletId')),
+    walletId: walletIdFromString(requireTrimmedString(record.walletId, 'candidate.walletId')),
   };
 }
 
@@ -101,7 +90,7 @@ export function parseGoogleEmailOtpRegistrationOffer(
     kind: 'google_email_otp_registration_offer_v1',
     offerId: parseOfferId(record.offerId),
     expiresAtMs: requireTimestampMs(record.expiresAtMs, 'expiresAtMs'),
-    emailHint: requireString(record.emailHint, 'emailHint'),
+    emailHint: requireTrimmedString(record.emailHint, 'emailHint'),
     candidates: [firstCandidate, ...remainingCandidates],
     selectedCandidateId,
   };

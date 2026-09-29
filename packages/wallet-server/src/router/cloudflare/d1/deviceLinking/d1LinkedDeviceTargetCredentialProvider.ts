@@ -56,6 +56,7 @@ import {
 import { linkedDeviceX25519RecipientPublicKeyB64uV1 } from './d1LinkedDeviceSourceContributionPreparationPlanner';
 import type { ExactAdministeredSignerV1 } from '@shared/device-linking/delegatedActivationPlan';
 import type { MpcMaterialActivationRef } from '@shared/utils/domainIds';
+import { requireCanonicalString, requireRecord } from '@shared/utils/validation';
 
 export type VerifiedLinkedDeviceWebAuthnCredentialV1 = {
   readonly credentialIdB64u: string;
@@ -1504,7 +1505,7 @@ async function parseTargetCredentialRow(
   }
   if (payload.registration.targetFactor.kind === 'passkey_prf') {
     const targetFactor = requireVerifiedPasskeyTargetFactor(payload.verifiedTargetFactor);
-    const credentialPublicKeyB64u = requiredString(
+    const credentialPublicKeyB64u = requireCanonicalString(
       row.credential_public_key_b64u,
       'credential_public_key_b64u',
     );
@@ -1720,9 +1721,10 @@ function assertTargetCredentialIdentityColumns(
   preparation: LinkedDeviceTargetPreparationV1,
 ): void {
   if (
-    requiredString(row.wallet_id, 'wallet_id') !== String(preparation.walletId) ||
-    requiredString(row.enrollment_id, 'enrollment_id') !== String(preparation.enrollmentId) ||
-    requiredString(row.device_id, 'device_id') !== String(preparation.deviceId)
+    requireCanonicalString(row.wallet_id, 'wallet_id') !== String(preparation.walletId) ||
+    requireCanonicalString(row.enrollment_id, 'enrollment_id') !==
+      String(preparation.enrollmentId) ||
+    requireCanonicalString(row.device_id, 'device_id') !== String(preparation.deviceId)
   ) {
     throw new Error('linked-device target credential identity columns disagree with preparation');
   }
@@ -1732,20 +1734,6 @@ function requirePayloadField(record: Record<string, unknown>, field: string): vo
   if (!Object.prototype.hasOwnProperty.call(record, field) || record[field] === undefined) {
     throw new Error(`linked-device registered target credential payload is missing ${field}`);
   }
-}
-
-function requireRecord(raw: unknown, field: string): Record<string, unknown> {
-  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
-    throw new Error(`${field} must be an object`);
-  }
-  return raw as Record<string, unknown>;
-}
-
-function requiredString(raw: unknown, field: string): string {
-  if (typeof raw !== 'string' || raw.length === 0 || raw.trim() !== raw) {
-    throw new Error(`${field} is invalid`);
-  }
-  return raw;
 }
 
 function requiredNonnegativeInteger(raw: unknown, field: string): number {

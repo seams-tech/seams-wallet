@@ -49,6 +49,7 @@ import {
   type WalletAuthMethodBinding,
 } from '@shared/utils/walletCapabilityBindings';
 import { parseWalletAuthAuthorityRef } from '@shared/utils/walletAuthAuthority';
+import { requireArray, requireRecordCopy, requireNonEmptyString } from '@shared/utils/validation';
 
 type WalletIframeExactSessionIdentityBase = {
   readonly walletId: WalletId;
@@ -406,7 +407,7 @@ export function parseWalletIframeExactSessionLockResult(
 }
 
 function parseWalletSessionAppIdentity(value: unknown): WalletSessionAppIdentity {
-  const record = requireRecord(value, 'Wallet Session appIdentity');
+  const record = requireRecordCopy(value, 'Wallet Session appIdentity');
   switch (record.kind) {
     case 'anonymous':
       return { kind: 'anonymous' };
@@ -455,7 +456,7 @@ function parseWalletSessionAppIdentity(value: unknown): WalletSessionAppIdentity
 }
 
 function parseWalletSessionCapabilityProjection(value: unknown): WalletSessionCapabilityProjection {
-  const record = requireRecord(value, 'Wallet Session capabilityProjection');
+  const record = requireRecordCopy(value, 'Wallet Session capabilityProjection');
   switch (record.kind) {
     case 'not_requested':
       return { kind: 'not_requested' };
@@ -490,7 +491,7 @@ function parseWalletSessionCapabilityProjection(value: unknown): WalletSessionCa
 function parseWalletUnlockSubjectSet(
   value: unknown,
 ): Extract<WalletSessionCapabilityProjection, { kind: 'resolved' }>['subjectSet'] {
-  const record = requireRecord(value, 'wallet unlock subject set');
+  const record = requireRecordCopy(value, 'wallet unlock subject set');
   if (record.kind !== 'wallet_unlock_subject_set') {
     throw new Error('Wallet unlock subject set kind is invalid');
   }
@@ -517,7 +518,7 @@ function parseWalletUnlockSubject(
   WalletSessionCapabilityProjection,
   { kind: 'resolved' }
 >['subjectSet']['subjects'][number] {
-  const record = requireRecord(value, 'wallet unlock subject');
+  const record = requireRecordCopy(value, 'wallet unlock subject');
   const walletId = requireWalletId(record.walletId);
   switch (record.kind) {
     case 'near_ed25519_wallet': {
@@ -552,7 +553,7 @@ function parseWalletUnlockSubject(
 }
 
 function parseWalletSessionCapabilityReadiness(value: unknown): WalletSessionCapabilityReadiness {
-  const record = requireRecord(value, 'Wallet Session capability readiness');
+  const record = requireRecordCopy(value, 'Wallet Session capability readiness');
   switch (record.kind) {
     case 'near_ed25519':
       return {
@@ -594,7 +595,7 @@ function parseEcdsaWalletUnlockSubject(
 function parseEcdsaCapabilityTargets(
   value: unknown,
 ): Extract<WalletSessionCapabilityReadiness, { kind: 'evm_family_ecdsa' }>['targets'] {
-  const record = requireRecord(value, 'ECDSA capability targets');
+  const record = requireRecordCopy(value, 'ECDSA capability targets');
   switch (record.kind) {
     case 'no_configured_target':
       return { kind: 'no_configured_target' };
@@ -617,10 +618,10 @@ function parseEcdsaCapabilityTargetLane(value: unknown): {
   readonly chainTarget: ThresholdEcdsaChainTarget;
   readonly readiness: WalletSessionCapabilityLaneReadiness;
 } {
-  const record = requireRecord(value, 'ECDSA capability target lane');
+  const record = requireRecordCopy(value, 'ECDSA capability target lane');
   return {
     chainTarget: thresholdEcdsaChainTargetFromRequest(
-      requireRecord(record.chainTarget, 'ECDSA chain target'),
+      requireRecordCopy(record.chainTarget, 'ECDSA chain target'),
     ),
     readiness: parseWalletSessionCapabilityLaneReadiness(record.readiness),
   };
@@ -629,7 +630,7 @@ function parseEcdsaCapabilityTargetLane(value: unknown): {
 function parseWalletSessionCapabilityLaneReadiness(
   value: unknown,
 ): WalletSessionCapabilityLaneReadiness {
-  const record = requireRecord(value, 'Wallet Session capability lane readiness');
+  const record = requireRecordCopy(value, 'Wallet Session capability lane readiness');
   switch (record.kind) {
     case 'ready':
       return { kind: 'ready' };
@@ -697,12 +698,12 @@ function parseNullableClientUserData(
   expectedWalletId: WalletId,
 ): Extract<WalletSessionAppIdentity, { kind: 'resolved' }>['userData'] {
   if (value === null) return null;
-  const record = requireRecord(value, 'Wallet Session userData');
+  const record = requireRecordCopy(value, 'Wallet Session userData');
   const walletId = requireWalletId(record.walletId);
   if (walletId !== expectedWalletId) {
     throw new Error('Wallet Session userData wallet identity disagrees');
   }
-  const passkeyCredential = requireRecord(record.passkeyCredential, 'passkeyCredential');
+  const passkeyCredential = requireRecordCopy(record.passkeyCredential, 'passkeyCredential');
   const signerSlot = parseSignerSlot(record.signerSlot);
   if (signerSlot === null) throw new Error('Wallet Session userData signerSlot is invalid');
   const authMethod = parseNullableWalletAuthMethod(record.authMethod);
@@ -760,14 +761,14 @@ function parseNullableWalletAuthMethod(value: unknown): WalletAuthMethod | null 
 function parseUserPreferences(
   value: unknown,
 ): NonNullable<Extract<WalletSessionAppIdentity, { kind: 'resolved' }>['userData']>['preferences'] {
-  const record = requireRecord(value, 'Wallet Session user preferences');
+  const record = requireRecordCopy(value, 'Wallet Session user preferences');
   if (typeof record.useRelayer !== 'boolean') {
     throw new Error('Wallet Session user preferences useRelayer is invalid');
   }
   if (record.useNetwork !== 'testnet' && record.useNetwork !== 'mainnet') {
     throw new Error('Wallet Session user preferences useNetwork is invalid');
   }
-  const confirmation = requireRecord(
+  const confirmation = requireRecordCopy(
     record.confirmationConfig,
     'Wallet Session confirmationConfig',
   );
@@ -801,8 +802,8 @@ function parseUserPreferences(
 
 function parseNullableNonceDiagnostics(value: unknown): NonceCoordinatorDiagnostics | null {
   if (value === null) return null;
-  const record = requireRecord(value, 'Wallet Session nonce diagnostics');
-  const near = requireRecord(record.near, 'near nonce diagnostics');
+  const record = requireRecordCopy(value, 'Wallet Session nonce diagnostics');
+  const near = requireRecordCopy(record.near, 'near nonce diagnostics');
   return {
     leaseCount: requireNonNegativeSafeInteger(record.leaseCount, 'nonce leaseCount'),
     leasesByState: parseRequiredNonceStateCounts(record.leasesByState),
@@ -842,7 +843,7 @@ function parseNullableNonceDiagnostics(value: unknown): NonceCoordinatorDiagnost
 }
 
 function parseNonceMetrics(value: unknown): NonceCoordinatorDiagnostics['metrics'] {
-  const record = requireRecord(value, 'nonce metrics');
+  const record = requireRecordCopy(value, 'nonce metrics');
   return {
     atMs: requireNonNegativeSafeInteger(record.atMs, 'nonce metrics atMs'),
     ...(record.accountId === undefined
@@ -899,7 +900,7 @@ function parseNonceMetrics(value: unknown): NonceCoordinatorDiagnostics['metrics
 }
 
 function parseNonceOutcomeMetrics(value: unknown): NonceCoordinatorOutcomeMetrics {
-  const record = requireRecord(value, 'nonce outcome metrics');
+  const record = requireRecordCopy(value, 'nonce outcome metrics');
   return {
     droppedCount: requireNonNegativeSafeInteger(record.droppedCount, 'droppedCount'),
     replacedCount: requireNonNegativeSafeInteger(record.replacedCount, 'replacedCount'),
@@ -917,7 +918,7 @@ function parseNonceOutcomeMetrics(value: unknown): NonceCoordinatorOutcomeMetric
 }
 
 function parseStringCountMap(value: unknown, label: string): Record<string, number> {
-  const record = requireRecord(value, label);
+  const record = requireRecordCopy(value, label);
   const parsed: Record<string, number> = {};
   for (const [key, count] of Object.entries(record)) {
     if (!key) throw new Error(`${label} key must be non-empty`);
@@ -927,7 +928,7 @@ function parseStringCountMap(value: unknown, label: string): Record<string, numb
 }
 
 function parseNonceCoordinationWarning(value: unknown): NonceCoordinatorDegradation {
-  const record = requireRecord(value, 'nonce coordination warning');
+  const record = requireRecordCopy(value, 'nonce coordination warning');
   return {
     reason: requireNonceDegradationReason(record.reason),
     ...(record.laneFamily === undefined
@@ -944,7 +945,7 @@ function parseNonceCoordinationWarning(value: unknown): NonceCoordinatorDegradat
 }
 
 function parseNonceDiagnosticLane(value: unknown): NonceCoordinatorDiagnostics['lanes'][number] {
-  const record = requireRecord(value, 'nonce diagnostic lane');
+  const record = requireRecordCopy(value, 'nonce diagnostic lane');
   const family = requireNonceLaneFamily(record.family);
   const chain = record.chain === undefined ? undefined : requireEvmNonceChain(record.chain);
   if (family === 'near' && (chain !== undefined || record.chainId !== undefined)) {
@@ -968,7 +969,7 @@ function parseNonceDiagnosticLane(value: unknown): NonceCoordinatorDiagnostics['
 function parseRequiredNonceStateCounts(
   value: unknown,
 ): NonceCoordinatorDiagnostics['leasesByState'] {
-  const record = requireRecord(value, 'nonce state counts');
+  const record = requireRecordCopy(value, 'nonce state counts');
   return {
     [NonceLeaseState.Reserved]: requireNonceStateCount(record, NonceLeaseState.Reserved),
     [NonceLeaseState.Released]: requireNonceStateCount(record, NonceLeaseState.Released),
@@ -996,7 +997,7 @@ function parseRequiredNonceStateCounts(
 function parsePartialNonceStateCounts(
   value: unknown,
 ): NonceCoordinatorDiagnostics['lanes'][number]['states'] {
-  const record = requireRecord(value, 'nonce state counts');
+  const record = requireRecordCopy(value, 'nonce state counts');
   return {
     ...(record[NonceLeaseState.Reserved] === undefined
       ? {}
@@ -1185,30 +1186,11 @@ function requireFailedCapabilityLaneReason(
   }
 }
 
-function requireRecord(value: unknown, label: string): Record<string, unknown> {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
-    throw new Error(`${label} must be an object`);
-  }
-  return Object.fromEntries(Object.entries(value));
-}
-
-function requireArray(value: unknown, label: string): readonly unknown[] {
-  if (!Array.isArray(value)) throw new Error(`${label} must be an array`);
-  return value;
-}
-
 function requireNonEmptyArray(value: unknown, label: string): readonly [unknown, ...unknown[]] {
   const values = requireArray(value, label);
   const first = values[0];
   if (first === undefined) throw new Error(`${label} must be non-empty`);
   return [first, ...values.slice(1)];
-}
-
-function requireNonEmptyString(value: unknown, label: string): string {
-  if (typeof value !== 'string' || !value.trim()) {
-    throw new Error(`${label} must be a non-empty string`);
-  }
-  return value.trim();
 }
 
 function requireNullableString(value: unknown, label: string): string | null {

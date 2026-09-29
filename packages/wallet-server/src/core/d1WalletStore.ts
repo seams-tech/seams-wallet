@@ -1,4 +1,4 @@
-import { toOptionalTrimmedString } from '@shared/utils/validation';
+import { toOptionalTrimmedString, isPlainObject } from '@shared/utils/validation';
 import { parseWalletId } from '@shared/utils/domainIds';
 import { D1_BATCH_CAS_GUARD_SQL, formatD1ExecStatement, parseD1JsonColumn } from '../storage/d1Sql';
 import type { D1DatabaseLike, D1PreparedStatementLike } from '../storage/tenantRoute';
@@ -247,10 +247,6 @@ export async function ensureWalletStoreD1Schema(
   }
 }
 
-function isObject(value: unknown): value is Record<string, unknown> {
-  return Boolean(value && typeof value === 'object' && !Array.isArray(value));
-}
-
 function normalizeTimestampMs(value: unknown): number | null {
   const numberValue = Number(value);
   if (!Number.isFinite(numberValue) || numberValue < 0) return null;
@@ -258,7 +254,7 @@ function normalizeTimestampMs(value: unknown): number | null {
 }
 
 function parseWalletRecord(raw: unknown): WalletRecord | null {
-  if (!isObject(raw)) return null;
+  if (!isPlainObject(raw)) return null;
   if (raw.version !== 'wallet_v1') return null;
   const walletId = parseWalletId(raw.walletId);
   const createdAtMs = normalizeTimestampMs(raw.createdAtMs);
@@ -283,7 +279,7 @@ function equalBytes(left: readonly number[], right: readonly number[]): boolean 
 function parseWalletEd25519YaoActiveCapabilityRecord(
   raw: unknown,
 ): WalletEd25519YaoActiveCapabilityRecord | null {
-  if (!isObject(raw)) return null;
+  if (!isPlainObject(raw)) return null;
   const nearAccountId = toOptionalTrimmedString(raw.nearAccountId);
   if (!nearAccountId) return null;
   let runtimePolicyScope;
@@ -355,7 +351,7 @@ function parseWalletEd25519YaoActiveCapabilityRecord(
 }
 
 export function parseWalletEd25519SignerRecord(raw: unknown): WalletEd25519SignerRecord | null {
-  if (!isObject(raw) || raw.version !== 'wallet_signer_ed25519_v1') return null;
+  if (!isPlainObject(raw) || raw.version !== 'wallet_signer_ed25519_v1') return null;
   const walletId = parseWalletId(raw.walletId);
   const signerId = toOptionalTrimmedString(raw.signerId);
   const nearAccountId = toOptionalTrimmedString(raw.nearAccountId);

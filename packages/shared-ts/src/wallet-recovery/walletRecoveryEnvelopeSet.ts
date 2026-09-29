@@ -8,12 +8,12 @@ import {
   parseEnvelopeNonceB64u,
   parseUnixMs,
   rejectUnknownFields,
-  requireRecord,
 } from '../passkey-custody';
 import { parseRecoveryCodeReservationId } from './recoveryCodeReservation';
 import type { DerivedWalletRecoveryKeyId } from './recoveryCodes';
 import { parseDerivedWalletRecoveryKeyId, WALLET_RECOVERY_CODE_COUNT } from './recoveryCodes';
 import type { RecoveryCodeLifecycleState } from './recoveryEnvelopes';
+import { requireRecord } from '../utils/validation';
 
 /**
  * The recovery-wrapped wallet custody seed, sealed under a key derived from the

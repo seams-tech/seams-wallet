@@ -8,6 +8,7 @@ import {
   parseImplicitNearAccountId,
   parseNamedNearAccountId,
 } from '@shared/utils/near';
+import { coerceNonEmptyString, requireRecordOrArray } from '@shared/utils/validation';
 import type { AccessKeyView, FinalExecutionOutcome, TxExecutionStatus } from '@near-js/types';
 import {
   threshold_ed25519_build_near_tx_unsigned_borsh,
@@ -119,43 +120,30 @@ type ValidatedNamedAccountCreationInput = AccountCreationRequest &
     readonly initialBalanceYocto: string;
   };
 
-function requireNonEmptyString(value: unknown, label: string): string {
-  const text = String(value || '').trim();
-  if (!text) throw new Error(`${label} is required`);
-  return text;
-}
-
-function requireRecord(value: unknown, label: string): Record<string, unknown> {
-  if (!value || typeof value !== 'object') {
-    throw new Error(`${label} must be an object`);
-  }
-  return value as Record<string, unknown>;
-}
-
 function requireSingleUnsignedNearTxBorshOutput(value: unknown): NearTxUnsignedBorshOutput {
   if (!Array.isArray(value) || value.length !== 1) {
     throw new Error('Expected exactly one unsigned NEAR transaction from signer WASM');
   }
-  const record = requireRecord(value[0], 'unsigned NEAR transaction output');
+  const record = requireRecordOrArray(value[0], 'unsigned NEAR transaction output');
   return {
-    unsignedTransactionBorshB64u: requireNonEmptyString(
+    unsignedTransactionBorshB64u: coerceNonEmptyString(
       record.unsignedTransactionBorshB64u,
       'unsignedTransactionBorshB64u',
     ),
-    signingDigestB64u: requireNonEmptyString(record.signingDigestB64u, 'signingDigestB64u'),
+    signingDigestB64u: coerceNonEmptyString(record.signingDigestB64u, 'signingDigestB64u'),
   };
 }
 
 function requireFinalizeNearTxFromSignatureOutput(
   value: unknown,
 ): FinalizeNearTxFromSignatureOutput {
-  const record = requireRecord(value, 'finalized NEAR transaction output');
+  const record = requireRecordOrArray(value, 'finalized NEAR transaction output');
   return {
-    signedTransactionBorshB64u: requireNonEmptyString(
+    signedTransactionBorshB64u: coerceNonEmptyString(
       record.signedTransactionBorshB64u,
       'signedTransactionBorshB64u',
     ),
-    transactionHash: requireNonEmptyString(record.transactionHash, 'transactionHash'),
+    transactionHash: coerceNonEmptyString(record.transactionHash, 'transactionHash'),
   };
 }
 
@@ -178,7 +166,7 @@ function requireUnsignedIntegerString(value: unknown, label: string): string {
 }
 
 function requireDecodedEd25519PublicKey(value: unknown, label: string): string {
-  const record = requireRecord(value, label);
+  const record = requireRecordOrArray(value, label);
   if (record.keyType !== 0) throw new Error(`${label} must be Ed25519`);
   return `ed25519:${base58Encode(Uint8Array.from(requireByteArray(record.keyData, `${label}.keyData`, 32)))}`;
 }
@@ -187,10 +175,10 @@ function requireDecodedSponsoredNearAccountCreation(
   value: unknown,
   signedTransactionBorshB64u: string,
 ): DecodedSponsoredNearAccountCreation {
-  const output = requireRecord(value, 'decoded signed NEAR transaction');
-  const transactionHash = requireNonEmptyString(output.transactionHash, 'transactionHash');
-  const signed = requireRecord(output.signedTransaction, 'signedTransaction');
-  const transaction = requireRecord(signed.transaction, 'signedTransaction.transaction');
+  const output = requireRecordOrArray(value, 'decoded signed NEAR transaction');
+  const transactionHash = coerceNonEmptyString(output.transactionHash, 'transactionHash');
+  const signed = requireRecordOrArray(output.signedTransaction, 'signedTransaction');
+  const transaction = requireRecordOrArray(signed.transaction, 'signedTransaction.transaction');
   const decodedBytes = requireByteArray(signed.borshBytes, 'signedTransaction.borshBytes');
   if (base64UrlEncode(Uint8Array.from(decodedBytes)) !== signedTransactionBorshB64u) {
     throw new Error('Decoded NEAR transaction bytes do not match the persisted signed bytes');
@@ -202,23 +190,23 @@ function requireDecodedSponsoredNearAccountCreation(
       'Persisted NEAR transaction must contain create-account, transfer, and add-key',
     );
   }
-  const transfer = requireRecord(actions[1], 'signedTransaction.transaction.actions[1]');
-  const transferBody = requireRecord(transfer.transfer, 'transfer action');
-  const addKey = requireRecord(actions[2], 'signedTransaction.transaction.actions[2]');
-  const addKeyBody = requireRecord(addKey.addKey, 'add-key action');
-  const accessKey = requireRecord(addKeyBody.access_key, 'add-key access key');
+  const transfer = requireRecordOrArray(actions[1], 'signedTransaction.transaction.actions[1]');
+  const transferBody = requireRecordOrArray(transfer.transfer, 'transfer action');
+  const addKey = requireRecordOrArray(actions[2], 'signedTransaction.transaction.actions[2]');
+  const addKeyBody = requireRecordOrArray(addKey.addKey, 'add-key action');
+  const accessKey = requireRecordOrArray(addKeyBody.access_key, 'add-key access key');
   if (accessKey.permission !== 'FullAccess') {
     throw new Error('Persisted NEAR transaction add-key action must grant full access');
   }
   return {
     transactionHash,
-    signerId: requireNonEmptyString(transaction.signerId, 'signedTransaction.transaction.signerId'),
+    signerId: coerceNonEmptyString(transaction.signerId, 'signedTransaction.transaction.signerId'),
     signerPublicKey: requireDecodedEd25519PublicKey(
       transaction.publicKey,
       'signedTransaction.transaction.publicKey',
     ),
     nonce: requireUnsignedIntegerString(transaction.nonce, 'signedTransaction.transaction.nonce'),
-    receiverId: requireNonEmptyString(
+    receiverId: coerceNonEmptyString(
       transaction.receiverId,
       'signedTransaction.transaction.receiverId',
     ),
@@ -229,7 +217,7 @@ function requireDecodedSponsoredNearAccountCreation(
     ),
     actions: [
       'createAccount',
-      { transfer: { deposit: requireNonEmptyString(transferBody.deposit, 'transfer.deposit') } },
+      { transfer: { deposit: coerceNonEmptyString(transferBody.deposit, 'transfer.deposit') } },
       {
         addKey: {
           publicKey: requireDecodedEd25519PublicKey(addKeyBody.public_key, 'add-key public key'),
@@ -336,14 +324,14 @@ async function signNearDigestWithSecretKey(args: {
 }
 
 function parsePositiveYocto(value: unknown, label: string): string {
-  const text = requireNonEmptyString(value, label);
+  const text = coerceNonEmptyString(value, label);
   const amount = BigInt(text);
   if (amount <= 0n) throw new Error(`${label} must be positive`);
   return amount.toString();
 }
 
 function requireEd25519PublicKey(value: unknown, label: string): string {
-  const text = requireNonEmptyString(value, label);
+  const text = coerceNonEmptyString(value, label);
   if (!text.startsWith('ed25519:')) throw new Error(`${label} must be an ed25519 public key`);
   return text;
 }
@@ -351,8 +339,8 @@ function requireEd25519PublicKey(value: unknown, label: string): string {
 function validateNearRelayerRuntimeInput(
   input: NearRelayerRuntimeInput,
 ): ValidatedNearRelayerRuntimeInput {
-  const relayerAccount = requireNonEmptyString(input.relayerAccount, 'relayerAccount');
-  const relayerPrivateKey = requireNonEmptyString(input.relayerPrivateKey, 'relayerPrivateKey');
+  const relayerAccount = coerceNonEmptyString(input.relayerAccount, 'relayerAccount');
+  const relayerPrivateKey = coerceNonEmptyString(input.relayerPrivateKey, 'relayerPrivateKey');
   const derivedRelayerPublicKey = toPublicKeyStringFromSecretKey(relayerPrivateKey);
   const configuredRelayerPublicKey = String(input.relayerPublicKey || '').trim();
   if (configuredRelayerPublicKey && configuredRelayerPublicKey !== derivedRelayerPublicKey) {
@@ -362,15 +350,15 @@ function validateNearRelayerRuntimeInput(
     relayerAccount,
     relayerPrivateKey,
     relayerPublicKey: derivedRelayerPublicKey,
-    nearRpcUrl: requireNonEmptyString(input.nearRpcUrl, 'nearRpcUrl'),
+    nearRpcUrl: coerceNonEmptyString(input.nearRpcUrl, 'nearRpcUrl'),
     nearClient: input.nearClient,
     ensureSignerWasm: input.ensureSignerWasm,
   };
 }
 
 function validateFundingInput(input: NearImplicitFundingInput): ValidatedFundingInput {
-  const walletId = requireNonEmptyString(input.walletId, 'walletId');
-  const nearPublicKeyStr = requireNonEmptyString(input.nearPublicKeyStr, 'nearPublicKeyStr');
+  const walletId = coerceNonEmptyString(input.walletId, 'walletId');
+  const nearPublicKeyStr = coerceNonEmptyString(input.nearPublicKeyStr, 'nearPublicKeyStr');
   const parsedNearAccountId = parseImplicitNearAccountId(input.nearAccountId);
   if (!parsedNearAccountId.ok) throw new Error(parsedNearAccountId.message);
   const derivedNearAccountId = deriveImplicitNearAccountIdFromEd25519PublicKey(nearPublicKeyStr);
@@ -395,7 +383,7 @@ function validateFundingInput(input: NearImplicitFundingInput): ValidatedFunding
 function validateNamedAccountCreationInput(
   input: NearNamedAccountCreationInput,
 ): ValidatedNamedAccountCreationInput {
-  const accountId = requireNonEmptyString(input.accountId, 'accountId');
+  const accountId = coerceNonEmptyString(input.accountId, 'accountId');
   const parsedAccountId = parseNamedNearAccountId(accountId);
   if (!parsedAccountId.ok) throw new Error(parsedAccountId.message);
   const runtime = validateNearRelayerRuntimeInput(input);

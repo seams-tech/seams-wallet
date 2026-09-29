@@ -94,10 +94,6 @@ export function toResponse(out: {
   return new Response(out.body, { status: out.status, headers: out.headers });
 }
 
-export function isObject(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null;
-}
-
 export async function readJson(request: Request): Promise<unknown> {
   try {
     return await request.json();

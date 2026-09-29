@@ -27,6 +27,7 @@ import {
   type WalletId,
   type WalletRecoveryOperationId,
 } from '../utils/domainIds';
+import { requireRecord } from '../utils/validation';
 
 const SIGNER_ACTIVATION_SET_DOMAIN = 'seams/wallet-signer-activation-set/v1';
 const WALLET_AUTHORITY_DOMAIN = 'seams/wallet-authority/v1';
@@ -996,13 +997,6 @@ function encodePermissions(value: CanonicalDelegatedWalletPermissionSetV1): Uint
   for (const permission of value)
     parts.push(lp32(text(permission, 'permissions.item'), 'permissions.item'));
   return concat(parts);
-}
-
-function requireRecord(value: unknown, label: string): Record<string, unknown> {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
-    throw new Error(`${label} must be an object`);
-  }
-  return value as Record<string, unknown>;
 }
 
 function exactRecord(

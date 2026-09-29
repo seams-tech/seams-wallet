@@ -1,5 +1,6 @@
 import { base64UrlDecode, base64UrlEncode } from '../utils/base64';
 import { parseDigestB64u, type DigestB64u } from '../utils/canonicalPrimitives';
+import { requireRecord } from '../utils/validation';
 
 type PasskeyCustodyBrand<TName extends string> = {
   readonly __passkeyCustodyBrand: TName;
@@ -138,13 +139,6 @@ export function parseUnixMs(value: unknown, label: string): number {
   return value;
 }
 
-export function requireRecord(value: unknown, label: string): Record<string, unknown> {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    throw new Error(`${label} must be an object`);
-  }
-  return value as Record<string, unknown>;
-}
-
 // Substrings that mean an unexpected field is carrying plaintext custody
 // material rather than a public binding. Allowed fields are matched first, so
 // this only classifies fields that are already being rejected — it exists to
@@ -198,4 +192,21 @@ export function rejectUnknownFields(
     }
     throw new Error(`${label}.${field} is not part of ${label}`);
   }
+}
+
+// Requires exactly `fields`, each an own property that is not undefined. Unknown fields fail
+// as rejectUnknownFields reports them, which is why this lives here and not in utils/validation.
+export function exactRecord(
+  raw: unknown,
+  fields: readonly string[],
+  label: string,
+): Record<string, unknown> {
+  const record = requireRecord(raw, label);
+  rejectUnknownFields(record, fields, label);
+  for (const field of fields) {
+    if (!Object.prototype.hasOwnProperty.call(record, field) || record[field] === undefined) {
+      throw new Error(`${label}.${field} is required`);
+    }
+  }
+  return record;
 }

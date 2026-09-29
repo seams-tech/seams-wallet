@@ -1,6 +1,7 @@
 import { base64UrlDecode, base64UrlEncode } from '../utils/base64';
 import { sha256Bytes } from '../utils/digests';
 import { parseDigestB64u, type DigestB64u } from '../utils/canonicalPrimitives';
+import { requireRecord } from '../utils/validation';
 
 const POSSESSION_CHALLENGE_DOMAIN_V1 =
   'seams/wallet-recovery/ecdsa-existing-material-possession/v1';
@@ -27,13 +28,6 @@ export type WalletRecoveryEcdsaPossessionProofV1 = {
   readonly scheme: typeof POSSESSION_PROOF_SCHEME_V1;
   readonly signature64B64u: string;
 };
-
-function requireRecord(value: unknown, label: string): Record<string, unknown> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    throw new Error(`${label} must be an object`);
-  }
-  return value as Record<string, unknown>;
-}
 
 function requireExactKeys(
   record: Record<string, unknown>,

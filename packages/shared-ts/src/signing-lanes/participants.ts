@@ -3,6 +3,7 @@ import { hasWhitespaceOrControlCharacters } from '../utils/domainIds';
 import type { DigestB64u } from '../utils/canonicalPrimitives';
 import { parseDigestB64u } from '../utils/canonicalPrimitives';
 import { base64UrlDecode, base64UrlEncode } from '../utils/base64';
+import { requireRecord } from '../utils/validation';
 
 /** The durable participant identity that owns a lane's holder share. */
 export type LaneHolderParticipantId = DomainId<'LaneHolderParticipantId'>;
@@ -133,13 +134,6 @@ function brandRecipientDigest(value: DigestB64u): HpkePublicKeyDigestB64u {
 
 function brandParticipantDigest(value: DigestB64u): LaneParticipantBindingDigestB64u {
   return value as LaneParticipantBindingDigestB64u;
-}
-
-function requireRecord(raw: unknown, label: string): Record<string, unknown> {
-  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
-    throw new Error(`${label} must be an object`);
-  }
-  return raw as Record<string, unknown>;
 }
 
 function rejectUnknownFields(

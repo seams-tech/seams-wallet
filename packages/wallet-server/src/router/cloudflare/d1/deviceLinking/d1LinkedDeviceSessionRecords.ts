@@ -4,6 +4,7 @@ import {
 } from '../../../../core/deviceLinking/linkedDeviceSession';
 import { parseDigestB64u, type DigestB64u } from '@shared/utils/canonicalPrimitives';
 import { parseWalletAuthorityId, type WalletAuthorityId } from '@shared/utils/domainIds';
+import { requireCanonicalString } from '@shared/utils/validation';
 
 export type D1LinkedDeviceSessionRowV1 = {
   readonly link_session_id?: unknown;
@@ -39,10 +40,16 @@ export function parseD1LinkedDeviceSessionRowV1(
   row: D1LinkedDeviceSessionRowV1,
 ): ParsedD1LinkedDeviceSessionRowV1 {
   const record = parseLinkedDeviceSessionRecordV1(parseJson(row.record_json, 'record_json'));
-  const linkSessionId = requiredString(row.link_session_id, 'link_session_id');
-  const linkPublicKeyB64u = requiredString(row.link_public_key_b64u, 'link_public_key_b64u');
-  const devicePublicKeyB64u = requiredString(row.device_public_key_b64u, 'device_public_key_b64u');
-  const state = requiredString(row.state, 'state');
+  const linkSessionId = requireCanonicalString(row.link_session_id, 'link_session_id');
+  const linkPublicKeyB64u = requireCanonicalString(
+    row.link_public_key_b64u,
+    'link_public_key_b64u',
+  );
+  const devicePublicKeyB64u = requireCanonicalString(
+    row.device_public_key_b64u,
+    'device_public_key_b64u',
+  );
+  const state = requireCanonicalString(row.state, 'state');
   const revision = requiredPositiveInteger(row.revision, 'revision');
   const expiresAtMs = requiredPositiveInteger(row.expires_at_ms, 'expires_at_ms');
   const claimExpiresAtMs = optionalPositiveInteger(row.claim_expires_at_ms, 'claim_expires_at_ms');
@@ -96,7 +103,7 @@ export function parseD1LinkedDeviceSessionTranscriptRowV1(
   readonly transcriptJson: unknown;
   readonly createdAtMs: number;
 } {
-  const kind = requiredString(row.transcript_kind, 'transcript_kind');
+  const kind = requireCanonicalString(row.transcript_kind, 'transcript_kind');
   if (kind !== 'claim' && kind !== 'approval' && kind !== 'source_contribution') {
     throw new Error('transcript_kind is invalid');
   }
@@ -118,13 +125,6 @@ function parseJson(raw: unknown, field: string): unknown {
   }
   if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
     throw new Error(`${field} must be an object`);
-  }
-  return raw;
-}
-
-function requiredString(raw: unknown, field: string): string {
-  if (typeof raw !== 'string' || raw.length === 0 || raw.trim() !== raw) {
-    throw new Error(`${field} is invalid`);
   }
   return raw;
 }

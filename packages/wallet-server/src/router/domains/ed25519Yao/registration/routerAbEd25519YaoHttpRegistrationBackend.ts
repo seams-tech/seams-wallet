@@ -27,6 +27,7 @@ import {
   createRouterAbTraceContextV1,
   type RouterAbTraceContextV1,
 } from '@shared/utils/routerAbTraceContext';
+import { requireRecord } from '@shared/utils/validation';
 
 type RouterAbEd25519YaoRegistrationExecuteRequestV1 =
   RouterAbEd25519YaoActivationExecuteRequestV1<'registration'>;
@@ -115,13 +116,6 @@ type ActiveSigningWorkerReceipt = {
   signingWorkerVerifyingShare: readonly number[];
   stateEpoch: number;
 };
-
-function requireRecord(value: unknown, label: string): Record<string, unknown> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    throw new Error(`${label} must be an object`);
-  }
-  return value as Record<string, unknown>;
-}
 
 function requireExactKeys(
   record: Record<string, unknown>,

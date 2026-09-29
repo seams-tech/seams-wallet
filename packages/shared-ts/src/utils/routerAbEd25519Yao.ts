@@ -13,6 +13,7 @@ import {
   sameRouterAbMpcMaterialActivationRef,
   type RouterAbMpcMaterialActivationRefWire,
 } from './routerAbNormalSigningIdentity';
+import { requireRecord } from './validation';
 
 export type {
   RouterAbEd25519YaoAdmittedLifecycleV1,
@@ -563,13 +564,6 @@ const EXPORT_CONFIRMATION_DOMAIN = 'seams/router-ab/ed25519-yao/export-confirmat
 const EXPORT_AUTHORIZATION_DOMAIN = 'seams/router-ab/ed25519-yao/export-authorization/v1';
 const RUNTIME_POLICY_BINDING_DOMAIN = 'seams/router-ab/runtime-policy-binding/v1';
 const UTF8 = new TextEncoder();
-
-function requireRecord(value: unknown, label: string): Record<string, unknown> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    throw new Error(`${label} must be an object`);
-  }
-  return value as Record<string, unknown>;
-}
 
 function requireExactKeys(
   record: Record<string, unknown>,

@@ -20,6 +20,7 @@ import type {
   EcdsaLifecycleId,
   EcdsaServerGeneration,
 } from '@shared/utils/ecdsaCapabilityActivation';
+import { isPlainObject } from '@shared/utils/validation';
 import type { EcdsaSigningWorkerLaneMaterialIdentityV1 } from './signingWorkerLaneMaterialIdentity';
 
 export type EcdsaServerRetirementBindingV1 = {
@@ -174,7 +175,7 @@ type EcdsaServerRetirementEffectEnvelopeV1 = {
 };
 
 function exactEffectEnvelope(value: unknown, label: string): EcdsaServerRetirementEffectEnvelopeV1 {
-  if (!isObject(value)) {
+  if (!isPlainObject(value)) {
     throw new Error(`${label} must be an object`);
   }
   const fields = ['outcome', 'receipt'] as const;
@@ -189,10 +190,6 @@ function exactEffectEnvelope(value: unknown, label: string): EcdsaServerRetireme
     outcome: Reflect.get(value, 'outcome'),
     receipt: Reflect.get(value, 'receipt'),
   };
-}
-
-function isObject(value: unknown): value is object {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function parseOutcome(value: unknown, label: string): 'applied' | 'replayed' {

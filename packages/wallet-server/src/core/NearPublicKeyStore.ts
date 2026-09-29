@@ -1,5 +1,5 @@
 import type { NormalizedLogger } from './logger';
-import { isObject as isObjectLoose, toOptionalTrimmedString } from '@shared/utils/validation';
+import { isObject, toOptionalTrimmedString } from '@shared/utils/validation';
 import { parseWebAuthnRpId, type WebAuthnRpId } from '@shared/utils/domainIds';
 import {
   formatD1ExecStatement,
@@ -115,10 +115,6 @@ export async function ensureNearPublicKeyStoreD1Schema(
   for (const statement of NEAR_PUBLIC_KEY_STORE_D1_SCHEMA_SQL) {
     await options.database.exec(formatD1ExecStatement(statement));
   }
-}
-
-function isObject(v: unknown): v is Record<string, unknown> {
-  return isObjectLoose(v);
 }
 
 function parseNearPublicKeyKind(input: unknown): NearPublicKeyKind | null {

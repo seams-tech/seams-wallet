@@ -5,13 +5,10 @@ import type {
   VolatileWarmSessionScope,
 } from '../../uiConfirm/uiConfirm.types';
 import { parseThresholdSessionId, type ThresholdSessionId } from '@shared/utils/domainIds';
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : null;
-}
+import { asRecordOrArray } from '@shared/utils/validation';
 
 function parseVolatileWarmSessionScope(value: unknown): VolatileWarmSessionScope | null {
-  const raw = asRecord(value);
+  const raw = asRecordOrArray(value);
   if (!raw) return null;
   if (raw.kind === 'all') return { kind: 'all' };
   if (raw.kind !== 'session') return null;
@@ -26,7 +23,7 @@ function parseVolatileWarmSessionScope(value: unknown): VolatileWarmSessionScope
 export function parseClearVolatileWarmMaterialCommand(
   value: unknown,
 ): ClearVolatileWarmMaterialCommand | null {
-  const raw = asRecord(value);
+  const raw = asRecordOrArray(value);
   if (!raw || raw.kind !== 'clear_volatile_warm_material') return null;
   if (raw.durableRecord != null || raw.resolvedIdentity != null || raw.deleteReason != null) {
     return null;

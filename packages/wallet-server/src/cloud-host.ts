@@ -170,6 +170,7 @@ export {
 export { secureRandomBase36, secureRandomBase64Url } from '@shared/utils/secureRandomId';
 export {
   ensureLeadingSlash,
+  isObject,
   isPlainObject,
   toOptionalTrimmedString,
 } from '@shared/utils/validation';

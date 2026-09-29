@@ -29,6 +29,7 @@ import {
   type RouterAbMpcMaterialActivationRefWire,
   type RouterAbNormalSigningAuthorizationWire,
 } from '@shared/utils/routerAbNormalSigningIdentity';
+import { coerceNonEmptyString } from '@shared/utils/validation';
 
 const INTENT_VERSION_V2 = 'router-ab-protocol/ed25519-normal-signing/intent/v2';
 const PAYLOAD_VERSION_V2 = 'router-ab-protocol/ed25519-normal-signing/payload/v2';
@@ -343,12 +344,6 @@ export type RouterAbNormalSigningPrepareRequestV2BuildResult = {
   admissionMaterial: RouterAbEd25519NormalSigningAdmissionMaterialV2Wire;
 };
 
-function requireNonEmptyString(value: unknown, label: string): string {
-  const normalized = String(value || '').trim();
-  if (!normalized) throw new Error(`${label} is required`);
-  return normalized;
-}
-
 function requirePositiveInteger(value: unknown, label: string): number {
   const parsed = Math.floor(Number(value));
   if (!Number.isSafeInteger(parsed) || parsed <= 0) {
@@ -372,14 +367,14 @@ function requireByteArray(value: unknown, label: string, byteLength?: number): r
 }
 
 function requireDigestB64u(value: unknown, label: string): string {
-  const normalized = requireNonEmptyString(value, label);
+  const normalized = coerceNonEmptyString(value, label);
   const bytes = base64UrlDecode(normalized);
   if (bytes.length !== 32) throw new Error(`${label} must decode to 32 bytes`);
   return normalized;
 }
 
 function requireBase64UrlNonEmpty(value: unknown, label: string): string {
-  const normalized = requireNonEmptyString(value, label);
+  const normalized = coerceNonEmptyString(value, label);
   if (base64UrlDecode(normalized).length === 0) {
     throw new Error(`${label} must decode to non-empty bytes`);
   }
@@ -387,7 +382,7 @@ function requireBase64UrlNonEmpty(value: unknown, label: string): string {
 }
 
 function normalizeNonceToB64u(value: string, label: string): string {
-  const normalized = requireNonEmptyString(value, label);
+  const normalized = coerceNonEmptyString(value, label);
   let bytes: Uint8Array;
   try {
     bytes = base64Decode(normalized);
@@ -419,11 +414,11 @@ function routerAbEd25519Nep413CanonicalMessageB64uV2(args: {
   nonce: string;
   callbackUrl?: string | null;
 }): string {
-  const message = requireNonEmptyString(args.message, 'nep413.message');
-  const recipient = requireNonEmptyString(args.recipient, 'nep413.recipient');
+  const message = coerceNonEmptyString(args.message, 'nep413.message');
+  const recipient = coerceNonEmptyString(args.recipient, 'nep413.recipient');
   const nonce = base64UrlDecode(normalizeNonceToB64u(args.nonce, 'nep413.nonce'));
   const callbackUrl =
-    args.callbackUrl == null ? undefined : requireNonEmptyString(args.callbackUrl, 'callbackUrl');
+    args.callbackUrl == null ? undefined : coerceNonEmptyString(args.callbackUrl, 'callbackUrl');
   const out: number[] = [];
   pushU32Le(out, NEP413_PREFIX);
   pushBorshString(out, message);
@@ -461,19 +456,19 @@ export async function buildRouterAbEd25519NearTransactionPrepareRequestV2(args: 
     ),
     intent: {
       kind: 'near_transaction_v1',
-      operation_id: requireNonEmptyString(args.operationId, 'operationId'),
-      operation_fingerprint: requireNonEmptyString(
+      operation_id: coerceNonEmptyString(args.operationId, 'operationId'),
+      operation_fingerprint: coerceNonEmptyString(
         args.operationFingerprint,
         'operationFingerprint',
       ),
-      near_account_id: requireNonEmptyString(args.nearAccountId, 'nearAccountId'),
+      near_account_id: coerceNonEmptyString(args.nearAccountId, 'nearAccountId'),
       near_network_id: args.nearNetworkId,
       transactions: args.transactions.map((transaction, index) => ({
-        receiver_id: requireNonEmptyString(
+        receiver_id: coerceNonEmptyString(
           transaction.receiverId,
           `transactions[${index}].receiverId`,
         ),
-        action_fingerprint: requireNonEmptyString(
+        action_fingerprint: coerceNonEmptyString(
           transaction.actionFingerprint,
           `transactions[${index}].actionFingerprint`,
         ),
@@ -517,7 +512,7 @@ export async function buildRouterAbEd25519Nep413PrepareRequestV2(args: {
 }): Promise<RouterAbNormalSigningPrepareRequestV2BuildResult> {
   const nonceB64u = normalizeNonceToB64u(args.nonce, 'nonce');
   const callbackUrl =
-    args.callbackUrl == null ? undefined : requireNonEmptyString(args.callbackUrl, 'callbackUrl');
+    args.callbackUrl == null ? undefined : coerceNonEmptyString(args.callbackUrl, 'callbackUrl');
   const canonicalMessageB64u = routerAbEd25519Nep413CanonicalMessageB64uV2({
     message: args.message,
     recipient: args.recipient,
@@ -532,15 +527,15 @@ export async function buildRouterAbEd25519Nep413PrepareRequestV2(args: {
     ),
     intent: {
       kind: 'nep413_v1',
-      operation_id: requireNonEmptyString(args.operationId, 'operationId'),
-      operation_fingerprint: requireNonEmptyString(
+      operation_id: coerceNonEmptyString(args.operationId, 'operationId'),
+      operation_fingerprint: coerceNonEmptyString(
         args.operationFingerprint,
         'operationFingerprint',
       ),
-      near_account_id: requireNonEmptyString(args.nearAccountId, 'nearAccountId'),
+      near_account_id: coerceNonEmptyString(args.nearAccountId, 'nearAccountId'),
       near_network_id: args.nearNetworkId,
-      recipient: requireNonEmptyString(args.recipient, 'recipient'),
-      message: requireNonEmptyString(args.message, 'message'),
+      recipient: coerceNonEmptyString(args.recipient, 'recipient'),
+      message: coerceNonEmptyString(args.message, 'message'),
       nonce_b64u: nonceB64u,
       ...(callbackUrl ? { callback_url: callbackUrl } : {}),
     },
@@ -590,23 +585,23 @@ export async function buildRouterAbEd25519DelegateActionPrepareRequestV2(args: {
     ),
     intent: {
       kind: 'near_delegate_action_v1',
-      operation_id: requireNonEmptyString(args.operationId, 'operationId'),
-      operation_fingerprint: requireNonEmptyString(
+      operation_id: coerceNonEmptyString(args.operationId, 'operationId'),
+      operation_fingerprint: coerceNonEmptyString(
         args.operationFingerprint,
         'operationFingerprint',
       ),
-      near_account_id: requireNonEmptyString(args.nearAccountId, 'nearAccountId'),
+      near_account_id: coerceNonEmptyString(args.nearAccountId, 'nearAccountId'),
       near_network_id: args.nearNetworkId,
       delegate: {
-        sender_id: requireNonEmptyString(args.delegate.senderId, 'delegate.senderId'),
-        receiver_id: requireNonEmptyString(args.delegate.receiverId, 'delegate.receiverId'),
-        public_key: requireNonEmptyString(args.delegate.publicKey, 'delegate.publicKey'),
-        nonce: requireNonEmptyString(args.delegate.nonce, 'delegate.nonce'),
-        max_block_height: requireNonEmptyString(
+        sender_id: coerceNonEmptyString(args.delegate.senderId, 'delegate.senderId'),
+        receiver_id: coerceNonEmptyString(args.delegate.receiverId, 'delegate.receiverId'),
+        public_key: coerceNonEmptyString(args.delegate.publicKey, 'delegate.publicKey'),
+        nonce: coerceNonEmptyString(args.delegate.nonce, 'delegate.nonce'),
+        max_block_height: coerceNonEmptyString(
           args.delegate.maxBlockHeight,
           'delegate.maxBlockHeight',
         ),
-        action_fingerprint: requireNonEmptyString(
+        action_fingerprint: coerceNonEmptyString(
           args.delegate.actionFingerprint,
           'delegate.actionFingerprint',
         ),
@@ -642,7 +637,7 @@ export function buildRouterAbEd25519NormalSigningFinalizeRequestV2(args: {
     scope,
     expires_at_ms: requirePositiveInteger(args.expiresAtMs, 'expiresAtMs'),
     prepare_binding: {
-      server_round1_handle: requireNonEmptyString(
+      server_round1_handle: coerceNonEmptyString(
         args.prepareResponse.server_round1_handle,
         'server_round1_handle',
       ),
@@ -663,15 +658,15 @@ export function buildRouterAbEd25519NormalSigningFinalizeRequestV2(args: {
         args.prepareResponse.server_commitments,
         'serverCommitments',
       ),
-      client_verifying_share_b64u: requireNonEmptyString(
+      client_verifying_share_b64u: coerceNonEmptyString(
         args.clientVerifyingShareB64u,
         'clientVerifyingShareB64u',
       ),
-      server_verifying_share_b64u: requireNonEmptyString(
+      server_verifying_share_b64u: coerceNonEmptyString(
         args.prepareResponse.server_verifying_share_b64u,
         'serverVerifyingShareB64u',
       ),
-      client_signature_share_b64u: requireNonEmptyString(
+      client_signature_share_b64u: coerceNonEmptyString(
         args.clientSignatureShareB64u,
         'clientSignatureShareB64u',
       ),
@@ -755,14 +750,11 @@ function parseScope(value: unknown, label: string): RouterAbNormalSigningScopeV2
     label,
   );
   const scope = {
-    request_id: requireNonEmptyString(record.request_id, `${label}.request_id`),
-    account_id: requireNonEmptyString(record.account_id, `${label}.account_id`),
+    request_id: coerceNonEmptyString(record.request_id, `${label}.request_id`),
+    account_id: coerceNonEmptyString(record.account_id, `${label}.account_id`),
     authorization: parseRouterAbNormalSigningAuthorization(record.authorization),
     material_activation: parseRouterAbMpcMaterialActivationRef(record.material_activation),
-    signing_worker_id: requireNonEmptyString(
-      record.signing_worker_id,
-      `${label}.signing_worker_id`,
-    ),
+    signing_worker_id: coerceNonEmptyString(record.signing_worker_id, `${label}.signing_worker_id`),
   };
   if (scope.material_activation.signing_worker !== scope.signing_worker_id) {
     throw new Error(`${label} material activation SigningWorker mismatch`);
@@ -788,8 +780,8 @@ function parseCommitments(value: unknown, label: string): RouterAbNormalSigningC
   const record = value && typeof value === 'object' ? (value as Record<string, unknown>) : null;
   if (!record) throw new Error(`${label} must be an object`);
   return {
-    hiding: requireNonEmptyString(record.hiding, `${label}.hiding`),
-    binding: requireNonEmptyString(record.binding, `${label}.binding`),
+    hiding: coerceNonEmptyString(record.hiding, `${label}.hiding`),
+    binding: coerceNonEmptyString(record.binding, `${label}.binding`),
   };
 }
 
@@ -797,9 +789,9 @@ function parseServerIdentity(value: unknown, label: string): RouterAbServerIdent
   const record = value && typeof value === 'object' ? (value as Record<string, unknown>) : null;
   if (!record) throw new Error(`${label} must be an object`);
   return {
-    server_id: requireNonEmptyString(record.server_id, `${label}.server_id`),
-    key_epoch: requireNonEmptyString(record.key_epoch, `${label}.key_epoch`),
-    recipient_encryption_key: requireNonEmptyString(
+    server_id: coerceNonEmptyString(record.server_id, `${label}.server_id`),
+    key_epoch: coerceNonEmptyString(record.key_epoch, `${label}.key_epoch`),
+    recipient_encryption_key: coerceNonEmptyString(
       record.recipient_encryption_key,
       `${label}.recipient_encryption_key`,
     ),
@@ -827,15 +819,15 @@ function parseReusableWalletSessionAuthorizedOperation(
     ],
     label,
   );
-  const kind = requireNonEmptyString(record.kind, `${label}.kind`);
+  const kind = coerceNonEmptyString(record.kind, `${label}.kind`);
   if (kind !== 'reusable_wallet_session_authorized_operation_v1') {
     throw new Error(`${label}.kind is invalid`);
   }
-  const capabilityKind = requireNonEmptyString(record.capability_kind, `${label}.capability_kind`);
+  const capabilityKind = coerceNonEmptyString(record.capability_kind, `${label}.capability_kind`);
   if (capabilityKind !== 'near_ed25519_mpc_signing') {
     throw new Error(`${label}.capability_kind is invalid`);
   }
-  const operationKind = requireNonEmptyString(record.operation_kind, `${label}.operation_kind`);
+  const operationKind = coerceNonEmptyString(record.operation_kind, `${label}.operation_kind`);
   if (
     operationKind !== 'near.sign_transaction' &&
     operationKind !== 'near.sign_delegate_action' &&
@@ -845,11 +837,11 @@ function parseReusableWalletSessionAuthorizedOperation(
   }
   return {
     kind,
-    authorized_operation_id: requireNonEmptyString(
+    authorized_operation_id: coerceNonEmptyString(
       record.authorized_operation_id,
       `${label}.authorized_operation_id`,
     ),
-    operation_id: requireNonEmptyString(record.operation_id, `${label}.operation_id`),
+    operation_id: coerceNonEmptyString(record.operation_id, `${label}.operation_id`),
     capability_kind: capabilityKind,
     operation_kind: operationKind,
     lane_digest_b64u: requireDigestB64u(record.lane_digest_b64u, `${label}.lane_digest_b64u`),
@@ -888,15 +880,15 @@ function parseVerifiedStepUpAuthorizedOperation(
     ],
     label,
   );
-  const kind = requireNonEmptyString(record.kind, `${label}.kind`);
+  const kind = coerceNonEmptyString(record.kind, `${label}.kind`);
   if (kind !== 'verified_step_up_authorized_operation_v1') {
     throw new Error(`${label}.kind is invalid`);
   }
-  const capabilityKind = requireNonEmptyString(record.capability_kind, `${label}.capability_kind`);
+  const capabilityKind = coerceNonEmptyString(record.capability_kind, `${label}.capability_kind`);
   if (capabilityKind !== 'near_ed25519_mpc_signing') {
     throw new Error(`${label}.capability_kind is invalid`);
   }
-  const operationKind = requireNonEmptyString(record.operation_kind, `${label}.operation_kind`);
+  const operationKind = coerceNonEmptyString(record.operation_kind, `${label}.operation_kind`);
   if (
     operationKind !== 'near.sign_transaction' &&
     operationKind !== 'near.sign_delegate_action' &&
@@ -906,7 +898,7 @@ function parseVerifiedStepUpAuthorizedOperation(
   }
   return {
     kind: 'verified_step_up_authorized_operation_v1',
-    authorization_session_id: requireNonEmptyString(
+    authorization_session_id: coerceNonEmptyString(
       record.authorization_session_id,
       `${label}.authorization_session_id`,
     ),
@@ -914,11 +906,11 @@ function parseVerifiedStepUpAuthorizedOperation(
       record.evidence_set_digest,
       `${label}.evidence_set_digest`,
     ),
-    authorized_operation_id: requireNonEmptyString(
+    authorized_operation_id: coerceNonEmptyString(
       record.authorized_operation_id,
       `${label}.authorized_operation_id`,
     ),
-    operation_id: requireNonEmptyString(record.operation_id, `${label}.operation_id`),
+    operation_id: coerceNonEmptyString(record.operation_id, `${label}.operation_id`),
     capability_kind: 'near_ed25519_mpc_signing',
     operation_kind: operationKind,
     lane_digest_b64u: requireDigestB64u(record.lane_digest_b64u, `${label}.lane_digest_b64u`),
@@ -937,7 +929,7 @@ function parseVerifiedStepUpAuthorizedOperation(
 function parsePrepareResponse(value: unknown): RouterAbNormalSigningPrepareResponseV1Wire {
   const record = value && typeof value === 'object' ? (value as Record<string, unknown>) : null;
   if (!record) throw new Error('Router A/B normal-signing prepare response must be an object');
-  const signatureScheme = requireNonEmptyString(record.signature_scheme, 'signature_scheme');
+  const signatureScheme = coerceNonEmptyString(record.signature_scheme, 'signature_scheme');
   if (signatureScheme !== 'ed25519_v1') {
     throw new Error(`Unsupported Router A/B normal-signing signature scheme: ${signatureScheme}`);
   }
@@ -947,12 +939,9 @@ function parsePrepareResponse(value: unknown): RouterAbNormalSigningPrepareRespo
     signing_payload_digest: parseDigest32(record.signing_payload_digest, 'signing_payload_digest'),
     round1_binding_digest: parseDigest32(record.round1_binding_digest, 'round1_binding_digest'),
     signing_worker: parseServerIdentity(record.signing_worker, 'signing_worker'),
-    server_round1_handle: requireNonEmptyString(
-      record.server_round1_handle,
-      'server_round1_handle',
-    ),
+    server_round1_handle: coerceNonEmptyString(record.server_round1_handle, 'server_round1_handle'),
     server_commitments: parseCommitments(record.server_commitments, 'server_commitments'),
-    server_verifying_share_b64u: requireNonEmptyString(
+    server_verifying_share_b64u: coerceNonEmptyString(
       record.server_verifying_share_b64u,
       'server_verifying_share_b64u',
     ),
@@ -1031,7 +1020,7 @@ function parseNormalSigningResponse(value: unknown): RouterAbNormalSigningRespon
     ],
     'Router A/B normal-signing response',
   );
-  const signatureScheme = requireNonEmptyString(record.signature_scheme, 'signature_scheme');
+  const signatureScheme = coerceNonEmptyString(record.signature_scheme, 'signature_scheme');
   if (signatureScheme !== 'ed25519_v1') {
     throw new Error(`Unsupported Router A/B normal-signing signature scheme: ${signatureScheme}`);
   }
@@ -1335,9 +1324,7 @@ async function postRouterAbNormalSigningJson<T>(args: {
   if (typeof fetch !== 'function') {
     throw new Error('fetch is not available for Router A/B normal-signing request');
   }
-  const base = normalizeRelayerBaseUrl(
-    requireNonEmptyString(args.relayServerUrl, 'relayServerUrl'),
-  );
+  const base = normalizeRelayerBaseUrl(coerceNonEmptyString(args.relayServerUrl, 'relayServerUrl'));
   const response = await fetch(`${base}${args.path}`, {
     ...buildRouterAbRequestInit({ credential: args.credential, body: args.body }),
     signal: args.signal,

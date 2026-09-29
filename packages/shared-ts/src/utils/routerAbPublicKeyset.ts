@@ -1,3 +1,5 @@
+import { coerceNonEmptyString, requireRecord } from './validation';
+
 export const ROUTER_AB_PUBLIC_KEYSET_VERSION_V2 = 'router_ab_keyset_v2' as const;
 export const ROUTER_AB_PUBLIC_KEYSET_WELL_KNOWN_PATH = '/.well-known/router-ab/keyset' as const;
 export const ROUTER_AB_PUBLIC_KEYSET_PATH = '/router-ab/keyset' as const;
@@ -53,13 +55,6 @@ export type RouterAbPublicKeysetV2 = {
   signing_worker_server_output_hpke: RouterAbPublicHpkeKeyDescriptorV1;
 };
 
-function requireRecord(value: unknown, label: string): Record<string, unknown> {
-  if (value && typeof value === 'object' && !Array.isArray(value)) {
-    return value as Record<string, unknown>;
-  }
-  throw new Error(`${label} must be an object`);
-}
-
 function requireExactKeys(
   record: Record<string, unknown>,
   allowedKeys: readonly string[],
@@ -73,12 +68,6 @@ function requireExactKeys(
   }
 }
 
-function requireNonEmptyString(value: unknown, label: string): string {
-  const normalized = String(value || '').trim();
-  if (!normalized) throw new Error(`${label} is required`);
-  return normalized;
-}
-
 function requirePositiveInteger(value: unknown, label: string): number {
   const parsed = Number(value);
   if (!Number.isSafeInteger(parsed) || parsed <= 0) {
@@ -88,7 +77,7 @@ function requirePositiveInteger(value: unknown, label: string): number {
 }
 
 function requireSignerRole(value: unknown, label: string): RouterAbSignerRoleV1 {
-  const role = requireNonEmptyString(value, label);
+  const role = coerceNonEmptyString(value, label);
   switch (role) {
     case 'signer_a':
     case 'signer_b':
@@ -99,7 +88,7 @@ function requireSignerRole(value: unknown, label: string): RouterAbSignerRoleV1 
 }
 
 function requireLowerHex(value: unknown, label: string, byteLength: number): string {
-  const hex = requireNonEmptyString(value, label);
+  const hex = coerceNonEmptyString(value, label);
   if (!new RegExp(`^[0-9a-f]{${byteLength * 2}}$`).test(hex)) {
     throw new Error(`${label} must be ${byteLength} lowercase-hex bytes`);
   }
@@ -107,7 +96,7 @@ function requireLowerHex(value: unknown, label: string, byteLength: number): str
 }
 
 export function requireRouterAbX25519PublicKey(value: unknown, label: string): string {
-  const publicKey = requireNonEmptyString(value, label);
+  const publicKey = coerceNonEmptyString(value, label);
   if (!/^x25519:[0-9a-f]{64}$/.test(publicKey)) {
     throw new Error(`${label} must use x25519:<64 lowercase hex chars> encoding`);
   }
@@ -122,7 +111,7 @@ function parseSignerEnvelopeHpkePublicKey(
   requireExactKeys(record, ['role', 'key_epoch', 'public_key'], label);
   return {
     role: requireSignerRole(record.role, `${label}.role`),
-    key_epoch: requireNonEmptyString(record.key_epoch, `${label}.key_epoch`),
+    key_epoch: coerceNonEmptyString(record.key_epoch, `${label}.key_epoch`),
     public_key: requireRouterAbX25519PublicKey(record.public_key, `${label}.public_key`),
   };
 }
@@ -238,7 +227,7 @@ function parsePublicHpkeKeyDescriptor(
   const record = requireRecord(value, label);
   requireExactKeys(record, ['key_epoch', 'public_key'], label);
   return {
-    key_epoch: requireNonEmptyString(record.key_epoch, `${label}.key_epoch`),
+    key_epoch: coerceNonEmptyString(record.key_epoch, `${label}.key_epoch`),
     public_key: requireRouterAbX25519PublicKey(record.public_key, `${label}.public_key`),
   };
 }
@@ -255,7 +244,7 @@ export function parseRouterAbPublicKeysetV2(value: unknown): RouterAbPublicKeyse
     ],
     'Router A/B public keyset',
   );
-  const keysetVersion = requireNonEmptyString(record.keyset_version, 'keyset_version');
+  const keysetVersion = coerceNonEmptyString(record.keyset_version, 'keyset_version');
   if (keysetVersion !== ROUTER_AB_PUBLIC_KEYSET_VERSION_V2) {
     throw new Error(`Unsupported Router A/B public keyset version: ${keysetVersion}`);
   }

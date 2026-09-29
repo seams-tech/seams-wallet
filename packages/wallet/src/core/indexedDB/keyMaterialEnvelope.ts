@@ -2,14 +2,9 @@ import type {
   KeyMaterialPayloadEnvelope,
   KeyMaterialPayloadEnvelopeAAD,
 } from './keyMaterial.types';
-import { toTrimmedString } from '@shared/utils/validation';
+import { toTrimmedString, asRecord } from '@shared/utils/validation';
 
 export const KEY_PAYLOAD_ENC_VERSION = 1;
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-  return value as Record<string, unknown>;
-}
 
 export function sanitizePayload(value: unknown): Record<string, unknown> | undefined {
   const record = asRecord(value);

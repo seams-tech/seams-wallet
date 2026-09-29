@@ -12,7 +12,7 @@ import {
 } from '@shared/utils/routerAbEd25519Yao';
 import { normalizeRuntimePolicyScope } from '@shared/threshold/signingRootScope';
 import { parseRouterAbEd25519NormalSigningState } from '@shared/utils/signingSessionSeal';
-import { isPlainObject } from '@shared/utils/validation';
+import { requireRecord, requireTrimmedString } from '@shared/utils/validation';
 import { routerAbMpcMaterialActivationRefFromWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import {
   type MpcWalletSigningQuotaId,
@@ -82,17 +82,6 @@ export type ParsedYaoRecoveryCapabilityV1 = {
         readonly activationTranscript: readonly number[];
       };
 };
-
-function requireRecord(value: unknown, label: string): Record<string, unknown> {
-  if (!isPlainObject(value)) throw new Error(`${label} must be an object`);
-  return value;
-}
-
-function requireString(value: unknown, label: string): string {
-  const parsed = typeof value === 'string' ? value.trim() : '';
-  if (!parsed) throw new Error(`${label} is required`);
-  return parsed;
-}
 
 function requirePositiveInteger(value: unknown, label: string): number {
   if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 1) {
@@ -219,14 +208,16 @@ export function parseEd25519YaoRecoveryCapabilityV1(raw: unknown): ParsedYaoReco
       record.registeredPublicKey,
       'capability.registeredPublicKey',
     ),
-    nearAccountId: toAccountId(requireString(record.nearAccountId, 'capability.nearAccountId')),
+    nearAccountId: toAccountId(
+      requireTrimmedString(record.nearAccountId, 'capability.nearAccountId'),
+    ),
     applicationBinding: {
-      wallet_id: requireString(application.wallet_id, 'applicationBinding.wallet_id'),
-      near_ed25519_signing_key_id: requireString(
+      wallet_id: requireTrimmedString(application.wallet_id, 'applicationBinding.wallet_id'),
+      near_ed25519_signing_key_id: requireTrimmedString(
         application.near_ed25519_signing_key_id,
         'applicationBinding.near_ed25519_signing_key_id',
       ),
-      signing_root_id: requireString(
+      signing_root_id: requireTrimmedString(
         application.signing_root_id,
         'applicationBinding.signing_root_id',
       ),
@@ -240,15 +231,15 @@ export function parseEd25519YaoRecoveryCapabilityV1(raw: unknown): ParsedYaoReco
       requireRecord(record.runtimePolicyScope, 'capability.runtimePolicyScope'),
     ),
     lifecycle: {
-      lifecycleId: requireString(lifecycle.lifecycleId, 'lifecycle.lifecycleId'),
-      rootShareEpoch: requireString(lifecycle.rootShareEpoch, 'lifecycle.rootShareEpoch'),
-      accountId: requireString(lifecycle.accountId, 'lifecycle.accountId'),
+      lifecycleId: requireTrimmedString(lifecycle.lifecycleId, 'lifecycle.lifecycleId'),
+      rootShareEpoch: requireTrimmedString(lifecycle.rootShareEpoch, 'lifecycle.rootShareEpoch'),
+      accountId: requireTrimmedString(lifecycle.accountId, 'lifecycle.accountId'),
       thresholdSessionId: requireThresholdEd25519SessionId(
-        requireString(lifecycle.thresholdSessionId, 'lifecycle.thresholdSessionId'),
+        requireTrimmedString(lifecycle.thresholdSessionId, 'lifecycle.thresholdSessionId'),
         'lifecycle.thresholdSessionId',
       ),
-      signerSetId: requireString(lifecycle.signerSetId, 'lifecycle.signerSetId'),
-      signingWorkerId: requireString(lifecycle.signingWorkerId, 'lifecycle.signingWorkerId'),
+      signerSetId: requireTrimmedString(lifecycle.signerSetId, 'lifecycle.signerSetId'),
+      signingWorkerId: requireTrimmedString(lifecycle.signingWorkerId, 'lifecycle.signingWorkerId'),
     },
     stateEpoch: requirePositiveInteger(record.stateEpoch, 'capability.stateEpoch'),
     registrationContinuity: parseRegistrationContinuity(record.registrationContinuity),

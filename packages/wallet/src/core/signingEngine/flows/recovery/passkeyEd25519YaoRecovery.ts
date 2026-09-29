@@ -32,7 +32,7 @@ import {
   type PasskeyCustodyEnvelopeRecord,
 } from '@shared/passkey-custody';
 import { parseRouterAbEd25519NormalSigningState } from '@shared/utils/signingSessionSeal';
-import { isPlainObject } from '@shared/utils/validation';
+import { requireRecord, requireTrimmedString } from '@shared/utils/validation';
 import {
   parseWalletAuthAuthorityRef,
   type WalletAuthAuthorityRef,
@@ -132,12 +132,6 @@ export function passkeyEd25519YaoLaneReferenceFromRecovery(args: {
   };
 }
 
-function requireString(value: unknown, label: string): string {
-  const parsed = typeof value === 'string' ? value.trim() : '';
-  if (!parsed) throw new Error(`${label} is required`);
-  return parsed;
-}
-
 function requirePositiveInteger(value: unknown, label: string): number {
   if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 1) {
     throw new Error(`${label} must be a positive integer`);
@@ -158,11 +152,6 @@ function requireParticipantIds(value: unknown): readonly [number, number] {
     throw new Error('participantIds must contain two distinct positive integers');
   }
   return [Number(value[0]), Number(value[1])];
-}
-
-function requireRecord(value: unknown, label: string): Record<string, unknown> {
-  if (!isPlainObject(value)) throw new Error(`${label} must be an object`);
-  return value;
 }
 
 type Ed25519SignWalletCapabilitySubjectV1 = Extract<
@@ -198,9 +187,9 @@ function parseExactRecoverySession(
     throw new Error('sync-account signer bootstrap must not carry a Wallet Session bearer');
   }
   if (
-    requireString(raw.walletId, 'session.walletId') !== identity.walletId ||
-    requireString(raw.nearAccountId, 'session.nearAccountId') !== identity.nearAccountId ||
-    requireString(raw.nearEd25519SigningKeyId, 'session.nearEd25519SigningKeyId') !==
+    requireTrimmedString(raw.walletId, 'session.walletId') !== identity.walletId ||
+    requireTrimmedString(raw.nearAccountId, 'session.nearAccountId') !== identity.nearAccountId ||
+    requireTrimmedString(raw.nearEd25519SigningKeyId, 'session.nearEd25519SigningKeyId') !==
       identity.nearEd25519SigningKeyId
   ) {
     throw new Error('Yao recovery session identity does not match the verified passkey');
@@ -236,7 +225,7 @@ function parseExactRecoverySession(
     throw new Error('Yao recovery session does not match the exact Wallet Session');
   }
   return {
-    thresholdSessionId: requireString(raw.thresholdSessionId, 'session.thresholdSessionId'),
+    thresholdSessionId: requireTrimmedString(raw.thresholdSessionId, 'session.thresholdSessionId'),
     authorizationId: walletSession.authorizationId,
     walletSessionId: operationCredential.walletSessionId,
     quotaId: quotaId.value,
@@ -328,9 +317,9 @@ export function parsePasskeyEd25519YaoSyncResponseV1(
   if (response.ok !== true || response.verified !== true) {
     throw new Error('sync-account response is not verified');
   }
-  const walletId = walletIdFromString(requireString(response.walletId, 'walletId'));
-  const nearAccountId = toAccountId(requireString(response.nearAccountId, 'nearAccountId'));
-  const nearEd25519SigningKeyId = requireString(
+  const walletId = walletIdFromString(requireTrimmedString(response.walletId, 'walletId'));
+  const nearAccountId = toAccountId(requireTrimmedString(response.nearAccountId, 'nearAccountId'));
+  const nearEd25519SigningKeyId = requireTrimmedString(
     response.nearEd25519SigningKeyId,
     'nearEd25519SigningKeyId',
   );
@@ -383,11 +372,11 @@ export function parsePasskeyEd25519YaoSyncResponseV1(
     nearAccountId,
     nearEd25519SigningKeyId,
     signerSlot: requirePositiveInteger(response.signerSlot, 'signerSlot'),
-    operationalPublicKey: requireString(response.publicKey, 'publicKey'),
-    relayerKeyId: requireString(threshold.relayerKeyId, 'thresholdEd25519.relayerKeyId'),
-    keyVersion: requireString(threshold.keyVersion, 'thresholdEd25519.keyVersion'),
-    credentialIdB64u: requireString(response.credentialIdB64u, 'credentialIdB64u'),
-    credentialPublicKeyB64u: requireString(
+    operationalPublicKey: requireTrimmedString(response.publicKey, 'publicKey'),
+    relayerKeyId: requireTrimmedString(threshold.relayerKeyId, 'thresholdEd25519.relayerKeyId'),
+    keyVersion: requireTrimmedString(threshold.keyVersion, 'thresholdEd25519.keyVersion'),
+    credentialIdB64u: requireTrimmedString(response.credentialIdB64u, 'credentialIdB64u'),
+    credentialPublicKeyB64u: requireTrimmedString(
       response.credentialPublicKeyB64u,
       'credentialPublicKeyB64u',
     ),
@@ -414,7 +403,7 @@ export function parsePasskeyEd25519YaoSyncResponseV1(
     operationCredential,
     walletCustody: {
       envelope: parsePasskeyCustodyEnvelopeRecord(custody.envelope),
-      storeVersion: requireString(custody.storeVersion, 'walletCustody.storeVersion'),
+      storeVersion: requireTrimmedString(custody.storeVersion, 'walletCustody.storeVersion'),
     },
   };
   assertEd25519YaoRecoveryDescriptorContinuity(parsed);

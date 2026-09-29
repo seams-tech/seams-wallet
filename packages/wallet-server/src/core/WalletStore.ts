@@ -42,7 +42,7 @@ import {
 } from '@shared/utils/routerAbEcdsaDerivation';
 import { THRESHOLD_DO_OBJECT_NAME_DEFAULT, THRESHOLD_PREFIX_DEFAULT } from './defaultConfigsServer';
 import { resolveD1DatabaseFromConfig } from '../storage/d1Sql';
-import { toOptionalTrimmedString } from '@shared/utils/validation';
+import { toOptionalTrimmedString, isPlainObject } from '@shared/utils/validation';
 import { parseWalletId } from '@shared/utils/domainIds';
 import {
   thresholdEcdsaChainTargetFromValue,
@@ -194,7 +194,8 @@ export interface WalletStore {
 export function parseWalletEcdsaPendingSessionActivationRecord(
   raw: unknown,
 ): WalletEcdsaPendingSessionActivationRecord | null {
-  if (!isObject(raw) || raw.version !== 'wallet_ecdsa_pending_session_activation_v1') return null;
+  if (!isPlainObject(raw) || raw.version !== 'wallet_ecdsa_pending_session_activation_v1')
+    return null;
   const walletId = parseWalletId(raw.walletId);
   const lifecycleId = toOptionalTrimmedString(raw.lifecycleId);
   const requestId = toOptionalTrimmedString(raw.requestId);
@@ -283,10 +284,6 @@ export function ecdsaPostRegistrationRequestMatchesCapability(input: {
   );
 }
 
-function isObject(v: unknown): v is Record<string, unknown> {
-  return Boolean(v && typeof v === 'object' && !Array.isArray(v));
-}
-
 function trimString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
 }
@@ -309,7 +306,9 @@ function resolveDoNamespaceFromConfig(
   config: Record<string, unknown>,
 ): CloudflareDurableObjectNamespaceLike | null {
   const isNamespace = (value: unknown): value is CloudflareDurableObjectNamespaceLike =>
-    isObject(value) && typeof value.idFromName === 'function' && typeof value.get === 'function';
+    isPlainObject(value) &&
+    typeof value.idFromName === 'function' &&
+    typeof value.get === 'function';
   const direct = config.namespace;
   if (isNamespace(direct)) return direct;
   const durableObjectNamespace = config.durableObjectNamespace;
@@ -330,7 +329,7 @@ function normalizeTimestampMs(value: unknown): number | null {
 }
 
 function parseWalletRecord(raw: unknown): WalletRecord | null {
-  if (!isObject(raw)) return null;
+  if (!isPlainObject(raw)) return null;
   if (raw.version !== 'wallet_v1') return null;
   const walletId = parseWalletId(raw.walletId);
   const createdAtMs = normalizeTimestampMs(raw.createdAtMs);
@@ -345,13 +344,13 @@ function parseWalletRecord(raw: unknown): WalletRecord | null {
 }
 
 export function parseWalletEcdsaSignerRecord(raw: unknown): WalletEcdsaSignerRecord | null {
-  if (!isObject(raw) || raw.version !== 'wallet_signer_ecdsa_v1') return null;
+  if (!isPlainObject(raw) || raw.version !== 'wallet_signer_ecdsa_v1') return null;
   if ('evmFamilySigningKeySlotId' in raw) return null;
   const walletId = parseWalletId(raw.walletId);
   const signerId = toOptionalTrimmedString(raw.signerId);
   const chainTargetKey = toOptionalTrimmedString(raw.chainTargetKey);
   const chainTarget = thresholdEcdsaChainTargetFromValue(raw.chainTarget);
-  const walletKeyRaw = isObject(raw.walletKey) ? raw.walletKey : null;
+  const walletKeyRaw = isPlainObject(raw.walletKey) ? raw.walletKey : null;
   const walletKey = walletKeyRaw ? parseWalletEcdsaSignerKey(walletKeyRaw) : null;
   let activationReceipt: RouterAbEcdsaRegistrationActivationReceiptV1;
   let runtimePolicyScope: RuntimePolicyScope;
@@ -921,7 +920,7 @@ export function createWalletStore(input: {
   logger: NormalizedLogger;
   isNode: boolean;
 }): WalletStore {
-  const config = (isObject(input.config) ? input.config : {}) as Record<string, unknown>;
+  const config = (isPlainObject(input.config) ? input.config : {}) as Record<string, unknown>;
   const prefix = resolveWalletStoreNamespace(config);
   const kind = toOptionalTrimmedString(config.kind);
   if (kind === 'd1') {

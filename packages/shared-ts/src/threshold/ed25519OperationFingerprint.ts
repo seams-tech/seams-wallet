@@ -1,5 +1,6 @@
 import { alphabetizeStringify, sha256BytesUtf8 } from '../utils/digests';
 import { base64UrlEncode } from '../utils/base64';
+import { coerceNonEmptyString, requireRecord } from '../utils/validation';
 
 type ThresholdEd25519CanonicalScope = {
   nearAccountId: string;
@@ -119,11 +120,11 @@ export async function thresholdEd25519NearTransactionOperationFingerprint(
       purpose: 'near_transaction',
       ...canonicalScope(input),
       transactions: canonicalNearTransactions(input.transactions),
-      unsignedTransactionBorshB64u: requiredString(
+      unsignedTransactionBorshB64u: coerceNonEmptyString(
         input.unsignedTransactionBorshB64u,
         'unsignedTransactionBorshB64u',
       ),
-      signingDigestB64u: requiredString(input.signingDigestB64u, 'signingDigestB64u'),
+      signingDigestB64u: coerceNonEmptyString(input.signingDigestB64u, 'signingDigestB64u'),
     },
   });
 }
@@ -136,9 +137,9 @@ export async function thresholdEd25519Nep413OperationFingerprint(
     payload: {
       purpose: 'nep413_message',
       ...canonicalScope(input),
-      message: requiredString(input.message, 'message'),
-      recipient: requiredString(input.recipient, 'recipient'),
-      nonce: requiredString(input.nonce, 'nonce'),
+      message: coerceNonEmptyString(input.message, 'message'),
+      recipient: coerceNonEmptyString(input.recipient, 'recipient'),
+      nonce: coerceNonEmptyString(input.nonce, 'nonce'),
       state: input.state ? String(input.state) : null,
     },
   });
@@ -162,7 +163,7 @@ async function thresholdEd25519OperationFingerprint(input: {
   payload: unknown;
 }): Promise<string> {
   const json = alphabetizeStringify({
-    kind: requiredString(input.kind, 'kind'),
+    kind: coerceNonEmptyString(input.kind, 'kind'),
     payload: normalizeFingerprintValue(input.payload),
   });
   return `sha256:${base64UrlEncode(await sha256BytesUtf8(json))}`;
@@ -170,10 +171,10 @@ async function thresholdEd25519OperationFingerprint(input: {
 
 function canonicalScope(input: ThresholdEd25519CanonicalScope): ThresholdEd25519CanonicalScope {
   return {
-    nearAccountId: requiredString(input.nearAccountId, 'nearAccountId'),
-    nearNetworkId: requiredString(input.nearNetworkId, 'nearNetworkId'),
-    relayerKeyId: requiredString(input.relayerKeyId, 'relayerKeyId'),
-    signerPublicKey: requiredString(input.signerPublicKey, 'signerPublicKey'),
+    nearAccountId: coerceNonEmptyString(input.nearAccountId, 'nearAccountId'),
+    nearNetworkId: coerceNonEmptyString(input.nearNetworkId, 'nearNetworkId'),
+    relayerKeyId: coerceNonEmptyString(input.relayerKeyId, 'relayerKeyId'),
+    signerPublicKey: coerceNonEmptyString(input.signerPublicKey, 'signerPublicKey'),
   };
 }
 
@@ -192,12 +193,12 @@ function canonicalDelegate(
   delegate: ThresholdEd25519DelegateActionFingerprintInput['delegate'],
 ): unknown {
   return {
-    senderId: requiredString(delegate.senderId, 'delegate.senderId'),
-    receiverId: requiredString(delegate.receiverId, 'delegate.receiverId'),
+    senderId: coerceNonEmptyString(delegate.senderId, 'delegate.senderId'),
+    receiverId: coerceNonEmptyString(delegate.receiverId, 'delegate.receiverId'),
     actions: canonicalActions(delegate.actions, 'delegate.actions'),
-    nonce: requiredString(delegate.nonce, 'delegate.nonce'),
-    maxBlockHeight: requiredString(delegate.maxBlockHeight, 'delegate.maxBlockHeight'),
-    publicKey: requiredString(delegate.publicKey, 'delegate.publicKey'),
+    nonce: coerceNonEmptyString(delegate.nonce, 'delegate.nonce'),
+    maxBlockHeight: coerceNonEmptyString(delegate.maxBlockHeight, 'delegate.maxBlockHeight'),
+    publicKey: coerceNonEmptyString(delegate.publicKey, 'delegate.publicKey'),
   };
 }
 
@@ -207,8 +208,8 @@ export function parseThresholdEd25519NearTransaction(
 ): ThresholdEd25519NearTransaction {
   const record = requireRecord(raw, label);
   return {
-    nearAccountId: requiredString(record.nearAccountId, `${label}.nearAccountId`),
-    receiverId: requiredString(record.receiverId, `${label}.receiverId`),
+    nearAccountId: coerceNonEmptyString(record.nearAccountId, `${label}.nearAccountId`),
+    receiverId: coerceNonEmptyString(record.receiverId, `${label}.receiverId`),
     actions: canonicalActions(record.actions as readonly unknown[], `${label}.actions`),
   };
 }
@@ -228,7 +229,7 @@ export function parseThresholdEd25519NearAction(
   label: string,
 ): ThresholdEd25519NearAction {
   const record = requireRecord(action, label);
-  const actionType = requiredString(record.action_type, `${label}.action_type`);
+  const actionType = coerceNonEmptyString(record.action_type, `${label}.action_type`);
   switch (actionType) {
     case 'CreateAccount':
       return { action_type: actionType };
@@ -237,37 +238,37 @@ export function parseThresholdEd25519NearAction(
     case 'FunctionCall':
       return {
         action_type: actionType,
-        method_name: requiredString(record.method_name, `${label}.method_name`),
-        args: requiredString(record.args, `${label}.args`),
-        gas: requiredString(record.gas, `${label}.gas`),
-        deposit: requiredString(record.deposit, `${label}.deposit`),
+        method_name: coerceNonEmptyString(record.method_name, `${label}.method_name`),
+        args: coerceNonEmptyString(record.args, `${label}.args`),
+        gas: coerceNonEmptyString(record.gas, `${label}.gas`),
+        deposit: coerceNonEmptyString(record.deposit, `${label}.deposit`),
       };
     case 'Transfer':
       return {
         action_type: actionType,
-        deposit: requiredString(record.deposit, `${label}.deposit`),
+        deposit: coerceNonEmptyString(record.deposit, `${label}.deposit`),
       };
     case 'Stake':
       return {
         action_type: actionType,
-        stake: requiredString(record.stake, `${label}.stake`),
-        public_key: requiredString(record.public_key, `${label}.public_key`),
+        stake: coerceNonEmptyString(record.stake, `${label}.stake`),
+        public_key: coerceNonEmptyString(record.public_key, `${label}.public_key`),
       };
     case 'AddKey':
       return {
         action_type: actionType,
-        public_key: requiredString(record.public_key, `${label}.public_key`),
-        access_key: requiredString(record.access_key, `${label}.access_key`),
+        public_key: coerceNonEmptyString(record.public_key, `${label}.public_key`),
+        access_key: coerceNonEmptyString(record.access_key, `${label}.access_key`),
       };
     case 'DeleteKey':
       return {
         action_type: actionType,
-        public_key: requiredString(record.public_key, `${label}.public_key`),
+        public_key: coerceNonEmptyString(record.public_key, `${label}.public_key`),
       };
     case 'DeleteAccount':
       return {
         action_type: actionType,
-        beneficiary_id: requiredString(record.beneficiary_id, `${label}.beneficiary_id`),
+        beneficiary_id: coerceNonEmptyString(record.beneficiary_id, `${label}.beneficiary_id`),
       };
     case 'SignedDelegate':
       return {
@@ -296,8 +297,8 @@ function parseThresholdEd25519SignedDelegateAction(
 ): ThresholdEd25519SignedDelegateAction {
   const record = requireRecord(raw, label);
   return {
-    senderId: requiredString(record.senderId, `${label}.senderId`),
-    receiverId: requiredString(record.receiverId, `${label}.receiverId`),
+    senderId: coerceNonEmptyString(record.senderId, `${label}.senderId`),
+    receiverId: coerceNonEmptyString(record.receiverId, `${label}.receiverId`),
     actions: canonicalActions(record.actions as readonly unknown[], `${label}.actions`),
     nonce: requiredIntegerLike(record.nonce, `${label}.nonce`),
     maxBlockHeight: requiredIntegerLike(record.maxBlockHeight, `${label}.maxBlockHeight`),
@@ -361,26 +362,13 @@ function requiredSafeInteger(value: unknown, label: string): number {
 function requiredIntegerLike(value: unknown, label: string): string | number | bigint {
   if (typeof value === 'bigint') return value;
   if (typeof value === 'number' && Number.isSafeInteger(value)) return value;
-  return requiredString(value, label);
+  return coerceNonEmptyString(value, label);
 }
 
 function requiredDeployMode(value: unknown, label: string): 'CodeHash' | 'AccountId' {
-  const deployMode = requiredString(value, label);
+  const deployMode = coerceNonEmptyString(value, label);
   if (deployMode === 'CodeHash' || deployMode === 'AccountId') return deployMode;
   throw new Error(`${label} is invalid`);
-}
-
-function requireRecord(value: unknown, label: string): Record<string, unknown> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    throw new Error(`${label} must be an object`);
-  }
-  return value as Record<string, unknown>;
-}
-
-function requiredString(value: unknown, label: string): string {
-  const normalized = String(value || '').trim();
-  if (!normalized) throw new Error(`${label} is required`);
-  return normalized;
 }
 
 function optionalString(value: unknown): string | null {

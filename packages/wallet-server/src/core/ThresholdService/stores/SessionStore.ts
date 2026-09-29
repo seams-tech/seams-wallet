@@ -12,14 +12,13 @@ import {
   redisGetdelJson,
   redisSetJson,
 } from '../kv';
-import { toOptionalTrimmedString } from '@shared/utils/validation';
+import { toOptionalTrimmedString, isPlainObject } from '@shared/utils/validation';
 import {
   toThresholdEd25519SessionPrefix,
   toThresholdEd25519PrefixFromBase,
   parseThresholdEd25519MpcSessionRecord,
   parseThresholdEd25519CoordinatorSigningSessionRecord,
   parseThresholdEd25519SigningSessionRecord,
-  isObject,
 } from '../validation';
 import { createCloudflareDurableObjectThresholdEd25519Stores } from './CloudflareDurableObjectStore';
 import { readNonDurableObjectThresholdStoreKind } from './StoreConfig';
@@ -519,7 +518,9 @@ export function createThresholdEd25519SessionStore(input: {
   });
   if (doStores) return doStores.sessionStore;
 
-  const config = (isObject(input.config) ? input.config : {}) as ThresholdSessionStoreConfigRecord;
+  const config = (
+    isPlainObject(input.config) ? input.config : {}
+  ) as ThresholdSessionStoreConfigRecord;
   const allowInMemory = toOptionalTrimmedString(config.THRESHOLD_ALLOW_IN_MEMORY_STORES) === '1';
   const requirePersistent = !input.isNode && !allowInMemory;
   const basePrefix = toOptionalTrimmedString(config.THRESHOLD_PREFIX);

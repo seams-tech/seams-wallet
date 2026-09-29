@@ -1,4 +1,4 @@
-import { isObject } from './validation';
+import { isPlainObject } from '@shared/utils/validation';
 
 function tryParseJson(raw: string): unknown | null {
   try {
@@ -9,7 +9,7 @@ function tryParseJson(raw: string): unknown | null {
 }
 
 function readResult(json: unknown): unknown | null {
-  if (!isObject(json) || !('result' in json)) return null;
+  if (!isPlainObject(json) || !('result' in json)) return null;
   const v = (json as Record<string, unknown>).result;
   return v === undefined || v === null ? null : v;
 }
@@ -143,7 +143,7 @@ export class UpstashRedisRestClient {
       encodeURIComponent(String(part)),
     );
     const json = await this.call(`/${segments.join('/')}`, 'POST');
-    if (isObject(json) && typeof (json as Record<string, unknown>).error === 'string') {
+    if (isPlainObject(json) && typeof (json as Record<string, unknown>).error === 'string') {
       throw new Error(`Upstash EVAL error: ${(json as Record<string, unknown>).error as string}`);
     }
     return readResult(json);

@@ -13,6 +13,7 @@ import {
   normalizeRuntimePolicyScope,
   type RuntimePolicyScope,
 } from '@shared/threshold/signingRootScope';
+import { requireRecord } from '@shared/utils/validation';
 
 const WALLET_CUSTODY_PENDING_FINALIZATION_KIND =
   'router_ab_ecdsa_registration_wallet_custody_pending_finalization_v1';
@@ -28,13 +29,6 @@ type WalletCustodyRouterAbEcdsaRegistrationPendingFinalizationV1 = {
 
 export type RouterAbEcdsaRegistrationPendingFinalizationV1 =
   WalletCustodyRouterAbEcdsaRegistrationPendingFinalizationV1;
-
-function requireRecord(value: unknown, label: string): Record<string, unknown> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    throw new Error(`${label} must be an object`);
-  }
-  return value as Record<string, unknown>;
-}
 
 function requireExactKeys(
   record: Record<string, unknown>,

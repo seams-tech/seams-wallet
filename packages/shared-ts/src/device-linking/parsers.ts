@@ -43,9 +43,9 @@ import {
   parseLinkedDeviceWalletSessionCredentialDeliveryV1,
 } from './walletSessionCredentialDelivery';
 import {
+  exactRecord,
   parseEd25519PublicKeyB64u,
   parseUnixMs,
-  requireRecord,
   rejectUnknownFields,
 } from '../passkey-custody/primitives';
 import {
@@ -120,6 +120,7 @@ import {
   parseLinkedDeviceOrdinaryMaterialSourceContributionPreparationTupleV1,
   parseLinkedDeviceOrdinaryMaterialSourceContributionTupleV1,
 } from './sourceContribution';
+import { requireRecord } from '../utils/validation';
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -318,17 +319,6 @@ const LINKED_DEVICE_REVOKE_SUCCESS_FIELDS = [
   'revocationEpoch',
 ] as const;
 const LINKED_DEVICE_REVOKE_FAILURE_FIELDS = ['kind'] as const;
-
-function exactRecord(raw: unknown, fields: readonly string[], label: string): UnknownRecord {
-  const record = requireRecord(raw, label);
-  rejectUnknownFields(record, fields, label);
-  for (const field of fields) {
-    if (!Object.prototype.hasOwnProperty.call(record, field) || record[field] === undefined) {
-      throw new Error(`${label}.${field} is required`);
-    }
-  }
-  return record;
-}
 
 function parseId<T>(
   parser: (

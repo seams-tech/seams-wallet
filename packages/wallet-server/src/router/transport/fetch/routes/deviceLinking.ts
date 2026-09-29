@@ -88,6 +88,7 @@ import { parseDigestB64u, type DigestB64u } from '@shared/utils/canonicalPrimiti
 import { sha256Bytes } from '@shared/utils/digests';
 import { parseLinkDeviceSessionId, type LinkDeviceSessionId } from '@shared/signing-lanes/ids';
 import type { WalletAuthMethodId, WalletId } from '@shared/utils/domainIds';
+import { requireRecord } from '@shared/utils/validation';
 
 const DEVICE_LINKING_BASE = '/wallet/device-linking/v1/sessions';
 const TARGET_PREPARATION_ROUTE_ID = 'linked_device_target_preparation';
@@ -2056,12 +2057,6 @@ function parseBoundary<T>(parse: () => T): T {
   } catch (error: unknown) {
     throw new DeviceLinkingInputError(errorMessage(error));
   }
-}
-
-function requireRecord(raw: unknown, field: string): Record<string, unknown> {
-  if (raw === null || typeof raw !== 'object' || Array.isArray(raw))
-    throw new Error(`${field} must be an object`);
-  return raw as Record<string, unknown>;
 }
 
 function requireExactKeys(record: Record<string, unknown>, keys: readonly string[]): void {

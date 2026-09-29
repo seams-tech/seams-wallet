@@ -22,11 +22,10 @@ import {
   type IsoTimestamp,
 } from '../utils/canonicalPrimitives';
 import {
+  exactRecord,
   parseEd25519PublicKeyB64u,
   parseKeyCreationSignerSlot,
   parseSecp256k1CompressedPublicKeyB64u,
-  rejectUnknownFields,
-  requireRecord,
 } from '../passkey-custody/primitives';
 import { parseNearEd25519SigningKeyId } from '../utils/registrationIntent';
 import { parseSdkEcdsaDerivationThresholdKeyId } from '../threshold/ecdsaDerivationRoleLocalBootstrap';
@@ -114,6 +113,7 @@ import type {
 } from './rotation';
 import type { DigestB64u } from '../utils/canonicalPrimitives';
 import { parseOwnerLaneParticipantContinuityV1 } from './ownerContinuity';
+import { requireRecord } from '../utils/validation';
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -180,20 +180,6 @@ const NON_EMPTY_FIELDS = {
     'hpkePublicKeyDigestB64u',
   ] as const,
 };
-
-function requiredField(record: UnknownRecord, field: string, label: string): unknown {
-  if (!Object.prototype.hasOwnProperty.call(record, field) || record[field] === undefined) {
-    throw new Error(`${label}.${field} is required`);
-  }
-  return record[field];
-}
-
-function exactRecord(raw: unknown, fields: readonly string[], label: string): UnknownRecord {
-  const record = requireRecord(raw, label);
-  rejectUnknownFields(record, fields, label);
-  for (const field of fields) requiredField(record, field, label);
-  return record;
-}
 
 function requiredString(raw: unknown, label: string): string {
   if (typeof raw !== 'string') throw new Error(`${label} must be a string`);

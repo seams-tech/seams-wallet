@@ -1,4 +1,5 @@
 import type { ConfirmationConfig } from '@/core/types/signer-worker';
+import { isPlainObject } from '@shared/utils/validation';
 
 export type TransactionReviewValidity =
   | { readonly kind: 'unbounded'; readonly atMs?: never }
@@ -44,10 +45,6 @@ export type TransactionReviewStateMessage = TransactionReviewIdentity & {
   readonly phase: TransactionReviewPhase;
 };
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
 function onlyKeys(value: Record<string, unknown>, keys: readonly string[]): boolean {
   for (const key of Object.keys(value)) {
     if (!keys.includes(key)) return false;
@@ -56,7 +53,7 @@ function onlyKeys(value: Record<string, unknown>, keys: readonly string[]): bool
 }
 
 export function parseTransactionReviewValidity(value: unknown): TransactionReviewValidity {
-  if (isRecord(value)) {
+  if (isPlainObject(value)) {
     if (value.kind === 'unbounded' && onlyKeys(value, ['kind'])) {
       return Object.freeze({ kind: 'unbounded' });
     }
@@ -109,7 +106,7 @@ function parseIdentity(value: Record<string, unknown>): TransactionReviewIdentit
 
 export function parseTransactionReviewWire(value: unknown): TransactionReviewWire {
   if (
-    !isRecord(value) ||
+    !isPlainObject(value) ||
     value.kind !== 'transaction_review_v1' ||
     !onlyKeys(value, ['kind', 'connectionId', 'requestId', 'surfaceId', 'generation', 'validity'])
   ) {
@@ -128,7 +125,7 @@ export function parseTransactionReviewWire(value: unknown): TransactionReviewWir
 
 export function parseTransactionReviewState(value: unknown): TransactionReviewStateMessage | null {
   if (
-    !isRecord(value) ||
+    !isPlainObject(value) ||
     !onlyKeys(value, ['connectionId', 'requestId', 'surfaceId', 'generation', 'phase'])
   )
     return null;

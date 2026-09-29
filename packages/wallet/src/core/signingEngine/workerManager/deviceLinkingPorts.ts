@@ -23,6 +23,7 @@ import {
   parsePasskeyCustodyEnvelopeRecord,
   type PasskeyCustodyEnvelopeRecord,
 } from '@shared/passkey-custody';
+import { requireCanonicalString } from '@shared/utils/validation';
 import type {
   WalletAuthorityExportRootRecordV1,
   WalletAuthoritySignerMaterialRecordV1,
@@ -218,7 +219,11 @@ export function createDeviceLinkingOrdinaryMaterialWorkerPortV1(
       const result = await send(
         {
           kind: 'device_linking_ordinary_signer_material_prepare_private_v1',
-          handleId: requireString(input.keyMaterial.handleId, 'keyMaterial.handleId'),
+          handleId: requireCanonicalString(
+            input.keyMaterial.handleId,
+            'keyMaterial.handleId',
+            'is required',
+          ),
           targetFactor: targetFactorBindingV1(input.targetFactor),
           preparations,
           recipientRequests,
@@ -232,7 +237,11 @@ export function createDeviceLinkingOrdinaryMaterialWorkerPortV1(
     async createOrdinarySignerMaterialRecipientRequestsV1(input) {
       const result = await send({
         kind: 'device_linking_ordinary_signer_material_recipient_prepare_v1',
-        handleId: requireString(input.keyMaterial.handleId, 'keyMaterial.handleId'),
+        handleId: requireCanonicalString(
+          input.keyMaterial.handleId,
+          'keyMaterial.handleId',
+          'is required',
+        ),
         requirements: parseRecipientRequirementTuple(input.requirements),
       });
       return parseRecipientPreparationResult(result);
@@ -241,7 +250,11 @@ export function createDeviceLinkingOrdinaryMaterialWorkerPortV1(
       const committed = parseCommittedAuthorityPackagesV1(input.committed);
       const result = await send({
         kind: 'device_linking_ordinary_signer_material_seal_v1',
-        handleId: requireString(input.keyMaterial.handleId, 'keyMaterial.handleId'),
+        handleId: requireCanonicalString(
+          input.keyMaterial.handleId,
+          'keyMaterial.handleId',
+          'is required',
+        ),
         committed,
         targetFactor: targetFactorBindingV1(input.targetFactor),
         resealedExportRoot: parseOrdinaryResealedExportRootRecordV1(input.resealedExportRoot),
@@ -260,7 +273,7 @@ export function parseOrdinaryMaterialWorkerRequestV1(
     }
     return {
       kind: 'device_linking_ordinary_signer_material_recipient_prepare_v1',
-      handleId: requireString(value.handleId, 'ordinary material handleId'),
+      handleId: requireCanonicalString(value.handleId, 'ordinary material handleId', 'is required'),
       requirements: parseRecipientRequirementTuple(value.requirements),
     };
   }
@@ -270,7 +283,7 @@ export function parseOrdinaryMaterialWorkerRequestV1(
     }
     return {
       kind: 'device_linking_ordinary_signer_material_seal_v1',
-      handleId: requireString(value.handleId, 'ordinary material handleId'),
+      handleId: requireCanonicalString(value.handleId, 'ordinary material handleId', 'is required'),
       committed: parseCommittedAuthorityPackagesV1(value.committed),
       targetFactor: parseTargetFactorBindingV1(value.targetFactor),
       resealedExportRoot: parseOrdinaryResealedExportRootRecordV1(value.resealedExportRoot),
@@ -309,7 +322,7 @@ export function parseOrdinaryMaterialWorkerPrivateRequestV1(
   assertRecipientInputsMatchRequests(recipientInputs, recipientRequests);
   return {
     kind: 'device_linking_ordinary_signer_material_prepare_private_v1',
-    handleId: requireString(value.handleId, 'ordinary material handleId'),
+    handleId: requireCanonicalString(value.handleId, 'ordinary material handleId', 'is required'),
     targetFactor: parseTargetFactorBindingV1(value.targetFactor),
     preparations,
     recipientRequests,
@@ -482,9 +495,10 @@ function parseRecipientRequestTuple(
         kind: 'ordinary_ecdsa_signer_material_recipient_request_v1',
         keyFamily: 'ecdsa_secp256k1',
         walletKeyId: parseWalletKey(entry.walletKeyId),
-        clientEphemeralPublicKey: requireString(
+        clientEphemeralPublicKey: requireCanonicalString(
           entry.clientEphemeralPublicKey,
           'ECDSA client ephemeral public key',
+          'is required',
         ),
       };
     }
@@ -641,7 +655,7 @@ function parseTargetFactorBindingV1(value: unknown): DeviceLinkingOrdinaryTarget
       kind: 'passkey',
       walletAuthMethodId: authMethod.value,
       verificationDigestB64u,
-      rpId: requireString(value.rpId, 'ordinary target factor rpId'),
+      rpId: requireCanonicalString(value.rpId, 'ordinary target factor rpId', 'is required'),
       credentialIdB64u: parseB64u(
         value.credentialIdB64u,
         'ordinary target factor credentialIdB64u',
@@ -655,7 +669,11 @@ function parseTargetFactorBindingV1(value: unknown): DeviceLinkingOrdinaryTarget
     const authMethod = parseWalletAuthMethodId(value.walletAuthMethodId);
     if (!authMethod.ok) throw new Error(authMethod.error.message);
     const verificationDigestB64u = parseDigestB64u(value.verificationDigestB64u);
-    const emailHashHex = requireString(value.emailHashHex, 'ordinary target factor emailHashHex');
+    const emailHashHex = requireCanonicalString(
+      value.emailHashHex,
+      'ordinary target factor emailHashHex',
+      'is required',
+    );
     if (!/^[0-9a-f]{64}$/.test(emailHashHex)) {
       throw new Error('ordinary target factor emailHashHex is invalid');
     }
@@ -664,9 +682,10 @@ function parseTargetFactorBindingV1(value: unknown): DeviceLinkingOrdinaryTarget
       walletAuthMethodId: authMethod.value,
       verificationDigestB64u,
       emailHashHex,
-      registrationAuthorityId: requireString(
+      registrationAuthorityId: requireCanonicalString(
         value.registrationAuthorityId,
         'ordinary target factor registrationAuthorityId',
+        'is required',
       ),
     };
   }
@@ -718,7 +737,7 @@ function parseSealedLocalAuthorityMaterialSetV1(value: unknown): SealedLocalAuth
 }
 
 function parseB64u(value: unknown, label: string): string {
-  const encoded = requireString(value, label);
+  const encoded = requireCanonicalString(value, label, 'is required');
   let decoded: Uint8Array;
   try {
     decoded = base64UrlDecode(encoded);
@@ -1004,11 +1023,4 @@ function isSealedLocalAuthorityMaterialSetRecordV1(
     Object.keys(value).sort().join('|') ===
       'exportRoot|installedRecordSetDigestB64u|signerMaterials'
   );
-}
-
-function requireString(value: unknown, label: string): string {
-  if (typeof value !== 'string' || value.trim() !== value || value.length === 0) {
-    throw new Error(`${label} is required`);
-  }
-  return value;
 }

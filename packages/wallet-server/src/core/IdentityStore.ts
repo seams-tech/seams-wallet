@@ -1,7 +1,7 @@
 import type { NormalizedLogger } from './logger';
 import type { CloudflareDurableObjectNamespaceLike, ThresholdStoreConfigInput } from './types';
 import { THRESHOLD_DO_OBJECT_NAME_DEFAULT, THRESHOLD_PREFIX_DEFAULT } from './defaultConfigsServer';
-import { isObject as isObjectLoose, toOptionalTrimmedString } from '@shared/utils/validation';
+import { isObject, toOptionalTrimmedString } from '@shared/utils/validation';
 import {
   RedisTcpClient,
   UpstashRedisRestClient,
@@ -59,10 +59,6 @@ export interface IdentityStore {
     subject: string;
   }): Promise<UnlinkIdentityResult>;
 
-}
-
-function isObject(v: unknown): v is Record<string, unknown> {
-  return isObjectLoose(v);
 }
 
 function toPrefixWithColon(prefix: unknown, defaultPrefix: string): string {

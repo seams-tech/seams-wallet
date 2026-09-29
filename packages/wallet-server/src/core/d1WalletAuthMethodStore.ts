@@ -13,7 +13,7 @@ import {
   type WalletAuthMethodRecord as SharedWalletAuthMethodRecord,
   type WalletAuthMethodRecordV2,
 } from '@shared/utils/registrationIntent';
-import { toOptionalTrimmedString } from '@shared/utils/validation';
+import { toOptionalTrimmedString, isPlainObject } from '@shared/utils/validation';
 import { formatD1ExecStatement, parseD1JsonColumn } from '../storage/d1Sql';
 import type {
   D1DatabaseLike,
@@ -360,10 +360,6 @@ export async function ensureWalletAuthMethodStoreD1SchemaV2(
   }
 }
 
-function isObject(value: unknown): value is Record<string, unknown> {
-  return Boolean(value && typeof value === 'object' && !Array.isArray(value));
-}
-
 function trimString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
 }
@@ -373,7 +369,7 @@ export function walletAuthMethodId(record: WalletAuthMethodRecord): WalletAuthMe
 }
 
 export function normalizeWalletAuthMethod(raw: unknown): WalletAuthMethodRecord | null {
-  if (!isObject(raw)) return null;
+  if (!isPlainObject(raw)) return null;
   const version = trimString(raw.version);
   const kind = trimString(raw.kind);
   const status = trimString(raw.status);

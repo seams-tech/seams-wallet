@@ -107,6 +107,7 @@ import {
   type WalletAuthMethodId,
   type MpcMaterialActivationId,
 } from '@shared/utils/domainIds';
+import { isPlainObject } from '@shared/utils/validation';
 
 const ED25519_SIGNING_INTENT_VERSION_V2 = 'router-ab-protocol/ed25519-normal-signing/intent/v2';
 const ED25519_SIGNING_PAYLOAD_VERSION_V2 = 'router-ab-protocol/ed25519-normal-signing/payload/v2';
@@ -1325,10 +1326,6 @@ export function routerAbNormalSigningMaterialSourceFromActiveLaneV1(input: {
     },
     group_public_key: groupPublicKey,
   };
-}
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return !!value && typeof value === 'object' && !Array.isArray(value);
 }
 
 function nonEmptyString(value: unknown): string {

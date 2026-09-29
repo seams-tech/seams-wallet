@@ -10,6 +10,7 @@ import { normalizeThresholdRuntimePolicyScope } from '../sessionPolicy';
 import type { ThresholdRuntimePolicyScope } from '../sessionPolicy';
 import { nearEd25519SigningKeyIdFromString } from '@shared/utils/registrationIntent';
 import { parseSignerSlot } from '@shared/utils/signerSlot';
+import { requireRecord, requireCanonicalString } from '@shared/utils/validation';
 import { toRpId } from '../../session/identity/evmFamilyEcdsaIdentity';
 import type { SigningLaneAuthBinding } from '../../session/identity/signingLaneAuthBinding';
 
@@ -104,13 +105,6 @@ type AppStatePort = {
   setAppState<T = unknown>(key: string, value: T): Promise<void>;
 };
 
-function requireRecord(value: unknown, label: string): Record<string, unknown> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    throw new Error(`${label} must be an object`);
-  }
-  return value as Record<string, unknown>;
-}
-
 function requireExactKeys(
   record: Record<string, unknown>,
   expectedKeys: readonly string[],
@@ -121,13 +115,6 @@ function requireExactKeys(
   if (actual.length !== expected.length || actual.some((key, index) => key !== expected[index])) {
     throw new Error(`${label} contains unexpected fields`);
   }
-}
-
-function requireNonEmptyString(value: unknown, label: string): string {
-  if (typeof value !== 'string' || value.trim() !== value || value.length === 0) {
-    throw new Error(`${label} must be a non-empty normalized string`);
-  }
-  return value;
 }
 
 function requireNonNegativeInteger(value: unknown, label: string): number {
@@ -146,14 +133,25 @@ function requirePositiveInteger(value: unknown, label: string): number {
 
 function parseSigningLaneAuth(value: unknown, label: string): SigningLaneAuthBinding {
   const record = requireRecord(value, label);
-  const kind = requireNonEmptyString(record.kind, `${label}.kind`);
+  const kind = requireCanonicalString(
+    record.kind,
+    `${label}.kind`,
+    'must be a non-empty normalized string',
+  );
   switch (kind) {
     case 'passkey': {
       requireExactKeys(record, ['kind', 'rpId', 'credentialIdB64u'], label);
-      const rpId = toRpId(requireNonEmptyString(record.rpId, `${label}.rpId`));
-      const credentialIdB64u = requireNonEmptyString(
+      const rpId = toRpId(
+        requireCanonicalString(
+          record.rpId,
+          `${label}.rpId`,
+          'must be a non-empty normalized string',
+        ),
+      );
+      const credentialIdB64u = requireCanonicalString(
         record.credentialIdB64u,
         `${label}.credentialIdB64u`,
+        'must be a non-empty normalized string',
       );
       return { kind, rpId, credentialIdB64u };
     }
@@ -161,9 +159,10 @@ function parseSigningLaneAuth(value: unknown, label: string): SigningLaneAuthBin
       requireExactKeys(record, ['kind', 'providerSubjectId'], label);
       return {
         kind,
-        providerSubjectId: requireNonEmptyString(
+        providerSubjectId: requireCanonicalString(
           record.providerSubjectId,
           `${label}.providerSubjectId`,
+          'must be a non-empty normalized string',
         ),
       };
     }
@@ -195,9 +194,19 @@ function parsePublicCapabilityIdentity(
     throw new Error(`${label}.runtimePolicyScope is invalid`);
   }
   return {
-    walletId: toWalletId(requireNonEmptyString(record.walletId, `${label}.walletId`)),
+    walletId: toWalletId(
+      requireCanonicalString(
+        record.walletId,
+        `${label}.walletId`,
+        'must be a non-empty normalized string',
+      ),
+    ),
     nearAccountId: toAccountId(
-      requireNonEmptyString(record.nearAccountId, `${label}.nearAccountId`),
+      requireCanonicalString(
+        record.nearAccountId,
+        `${label}.nearAccountId`,
+        'must be a non-empty normalized string',
+      ),
     ),
     thresholdSessionId: thresholdSessionId.value,
     runtimePolicyScope,
@@ -243,7 +252,11 @@ function parsePublicCapabilityLane(
   const common = {
     ...base,
     nearEd25519SigningKeyId: nearEd25519SigningKeyIdFromString(
-      requireNonEmptyString(record.nearEd25519SigningKeyId, `${label}.nearEd25519SigningKeyId`),
+      requireCanonicalString(
+        record.nearEd25519SigningKeyId,
+        `${label}.nearEd25519SigningKeyId`,
+        'must be a non-empty normalized string',
+      ),
     ),
     signerSlot,
   };

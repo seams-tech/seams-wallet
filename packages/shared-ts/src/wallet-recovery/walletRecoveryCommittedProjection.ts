@@ -26,6 +26,7 @@ import {
   type ActiveEmailOtpWalletAuthMethodRecordV2,
   type ActivePasskeyWalletAuthMethodRecordV2,
 } from '../utils/registrationIntent';
+import { requireTrimmedString } from '../utils/validation';
 
 export type WalletRecoveryEmailOtpEnrollmentReferenceV1 = {
   readonly kind: 'email_otp_enrollment_reference_v1';
@@ -177,7 +178,7 @@ function buildPasskeyProjection(
 ): Extract<WalletRecoveryCommittedProjectionV1, { readonly kind: 'passkey' }> {
   const common = {
     version: 'wallet_recovery_committed_projection_v1' as const,
-    storeVersion: requireNonEmptyString(input.storeVersion, 'storeVersion'),
+    storeVersion: requireTrimmedString(input.storeVersion, 'storeVersion', 'is invalid'),
     walletId: input.walletId,
     recoveryOperationId: input.recoveryOperationId,
     targetDeviceId: input.targetDeviceId,
@@ -207,7 +208,7 @@ function buildGoogleEmailOtpProjection(
 ): Extract<WalletRecoveryCommittedProjectionV1, { readonly kind: 'google_email_otp' }> {
   const common = {
     version: 'wallet_recovery_committed_projection_v1' as const,
-    storeVersion: requireNonEmptyString(input.storeVersion, 'storeVersion'),
+    storeVersion: requireTrimmedString(input.storeVersion, 'storeVersion', 'is invalid'),
     walletId: input.walletId,
     recoveryOperationId: input.recoveryOperationId,
     targetDeviceId: input.targetDeviceId,
@@ -227,9 +228,10 @@ function buildGoogleEmailOtpProjection(
       provider: 'google',
       providerSubject: input.providerSubject,
       emailHashHex: requireEmailHash(input.emailHashHex),
-      registrationAuthorityId: requireNonEmptyString(
+      registrationAuthorityId: requireTrimmedString(
         input.registrationAuthorityId,
         'registrationAuthorityId',
+        'is invalid',
       ),
       enrollment: buildEnrollmentReference(input.enrollment),
     },
@@ -279,7 +281,7 @@ export async function parseWalletRecoveryCommittedProjectionV1(
   }
   const common = {
     version: 'wallet_recovery_committed_projection_v1' as const,
-    storeVersion: requireNonEmptyString(record.storeVersion, 'storeVersion'),
+    storeVersion: requireTrimmedString(record.storeVersion, 'storeVersion', 'is invalid'),
     walletId,
     recoveryOperationId,
     targetDeviceId,
@@ -347,9 +349,10 @@ function parseGoogleEmailOtpTarget(
       'target.providerSubject',
     ),
     emailHashHex: requireEmailHash(record.emailHashHex),
-    registrationAuthorityId: requireNonEmptyString(
+    registrationAuthorityId: requireTrimmedString(
       record.registrationAuthorityId,
       'target.registrationAuthorityId',
+      'is invalid',
     ),
     enrollment: parseEnrollmentReference(record.enrollment),
   };
@@ -362,10 +365,15 @@ function parseEnrollmentReference(raw: unknown): WalletRecoveryEmailOtpEnrollmen
   }
   return {
     kind: 'email_otp_enrollment_reference_v1',
-    enrollmentId: requireNonEmptyString(record.enrollmentId, 'enrollment.enrollmentId'),
-    enrollmentSealKeyVersion: requireNonEmptyString(
+    enrollmentId: requireTrimmedString(
+      record.enrollmentId,
+      'enrollment.enrollmentId',
+      'is invalid',
+    ),
+    enrollmentSealKeyVersion: requireTrimmedString(
       record.enrollmentSealKeyVersion,
       'enrollment.enrollmentSealKeyVersion',
+      'is invalid',
     ),
   };
 }
@@ -578,13 +586,8 @@ function requireParsed<T>(
   return result.value;
 }
 
-function requireNonEmptyString(value: unknown, label: string): string {
-  if (typeof value !== 'string' || value.trim() === '') throw new Error(`${label} is invalid`);
-  return value.trim();
-}
-
 function requireEmailHash(value: unknown): string {
-  const hash = requireNonEmptyString(value, 'emailHashHex');
+  const hash = requireTrimmedString(value, 'emailHashHex', 'is invalid');
   if (!/^[0-9a-f]{64}$/.test(hash)) throw new Error('emailHashHex is invalid');
   return hash;
 }

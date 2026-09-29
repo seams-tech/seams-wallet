@@ -46,6 +46,7 @@ import {
   requireRouterAbEcdsaDerivationNormalSigningStateV1,
   type RouterAbEcdsaDerivationNormalSigningStateV1,
 } from '../utils/routerAbEcdsaDerivation';
+import { requireRecordCopy } from '../utils/validation';
 
 /** Exact discriminator accepted by the ECDSA source-contribution core. */
 const LINKED_DEVICE_ECDSA_SOURCE_CONTRIBUTION_ENVELOPE_KIND_V1 =
@@ -214,7 +215,7 @@ export type LinkedDeviceOrdinaryMaterialSourceContributionTupleV1 = readonly [
 export function parseLinkedDeviceOrdinaryMaterialSourceContributionV1(
   raw: unknown,
 ): LinkedDeviceOrdinaryMaterialSourceContributionV1 {
-  const record = requireRecord(raw, 'linked-device ordinary source contribution');
+  const record = requireRecordCopy(raw, 'linked-device ordinary source contribution');
   switch (record.kind) {
     case 'linked_device_ed25519_source_contribution_v1':
       return parseEd25519Contribution(record);
@@ -323,7 +324,7 @@ export function parseLinkedDeviceEcdsaSourceContributionPreparationV1(
 export function parseLinkedDeviceOrdinaryMaterialSourceContributionPreparationV1(
   raw: unknown,
 ): LinkedDeviceOrdinaryMaterialSourceContributionPreparationV1 {
-  const record = requireRecord(raw, 'linked-device ordinary source contribution preparation');
+  const record = requireRecordCopy(raw, 'linked-device ordinary source contribution preparation');
   if (record.kind === 'linked_device_ed25519_source_contribution_preparation_v1') {
     return parseEd25519SourceContributionPreparation(record);
   }
@@ -1294,19 +1295,12 @@ function requireText(raw: unknown, label: string): string {
   return raw;
 }
 
-function requireRecord(raw: unknown, label: string): Record<string, unknown> {
-  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
-    throw new Error(`${label} must be an object`);
-  }
-  return Object.fromEntries(Object.entries(raw));
-}
-
 function exactRecord(
   raw: unknown,
   keys: readonly string[],
   label: string,
 ): Record<string, unknown> {
-  const record = requireRecord(raw, label);
+  const record = requireRecordCopy(raw, label);
   const expected = new Set(keys);
   const actual = Object.keys(record);
   if (

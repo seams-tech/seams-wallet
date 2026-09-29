@@ -1,4 +1,5 @@
 import type { RuntimePolicyScope } from '@shared/threshold/signingRootScope';
+import { requireNonEmptyString } from '@shared/utils/validation';
 import { isD1DatabaseLike } from '../../../../storage/d1Sql';
 import type {
   D1DatabaseLike,
@@ -41,7 +42,7 @@ export class CloudflareD1RouterAbNormalSigningAdmissionStore
       throw new Error('Router A/B normal-signing admission D1 database is required');
     }
     this.database = options.database;
-    this.storageNamespace = requireNonEmptyString('storageNamespace', options.storageNamespace);
+    this.storageNamespace = requireNonEmptyString(options.storageNamespace, 'storageNamespace');
     this.now = options.now || Date.now;
   }
 
@@ -244,7 +245,7 @@ function normalizeAbuseDecision(
 function parseProjectPolicyDecision(
   row: CloudflareD1AdmissionDecisionRow,
 ): RouterAbNormalSigningProjectPolicyDecision {
-  const decision = requireNonEmptyString('decision', row.decision);
+  const decision = requireNonEmptyString(row.decision, 'decision');
   switch (decision) {
     case 'allowed':
       return { kind: 'allowed' };
@@ -259,7 +260,7 @@ function parseProjectPolicyDecision(
 }
 
 function parseAbuseDecision(row: CloudflareD1AdmissionDecisionRow): RouterAbNormalSigningAbuseDecision {
-  const decision = requireNonEmptyString('decision', row.decision);
+  const decision = requireNonEmptyString(row.decision, 'decision');
   switch (decision) {
     case 'allowed':
       return { kind: 'allowed' };
@@ -287,13 +288,6 @@ async function requireSuccessfulD1Write(statement: D1PreparedStatementLike): Pro
 
 function isSuccessfulD1Result(result: D1ResultLike): boolean {
   return result.success === true;
-}
-
-function requireNonEmptyString(label: string, value: unknown): string {
-  if (typeof value === 'string' && value.trim().length > 0) {
-    return value.trim();
-  }
-  throw new Error(`${label} must be a non-empty string`);
 }
 
 function requirePositiveInteger(label: string, value: unknown): number {

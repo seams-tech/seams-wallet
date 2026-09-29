@@ -27,8 +27,8 @@ import {
   parseEd25519PublicKeyB64u,
   parseSecp256k1CompressedPublicKeyB64u,
   rejectUnknownFields,
-  requireRecord,
 } from './primitives';
+import { requireRecord } from '../utils/validation';
 
 /**
  * The protocol capability an opened envelope restores.

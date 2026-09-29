@@ -7,7 +7,12 @@ import {
   isPasskeyWalletAuthAuthority,
   type WalletAuthAuthority,
 } from '@shared/utils/walletAuthAuthority';
-import { ensureEd25519Prefix, toOptionalString, toTrimmedString } from '@shared/utils/validation';
+import {
+  ensureEd25519Prefix,
+  toOptionalString,
+  toTrimmedString,
+  isPlainObject,
+} from '@shared/utils/validation';
 import {
   type DerivationClientSharePublicKey33B64u,
   type EcdsaDerivationRelayerPublicKey33B64u,
@@ -21,10 +26,6 @@ import type {
   ThresholdEd25519AuthorityScope,
 } from '../types';
 import { parseEcdsaKeyHandle, type EcdsaKeyHandle } from '../keyMaterialBrands';
-
-export function isObject(v: unknown): v is Record<string, unknown> {
-  return !!v && typeof v === 'object' && !Array.isArray(v);
-}
 
 function isValidNumber(v: unknown): v is number {
   return typeof v === 'number' && Number.isFinite(v);
@@ -167,7 +168,7 @@ type ParsedThresholdEd25519ReadyKeyRecord = {
 function parseThresholdEd25519RouterMaterial(
   raw: Record<string, unknown>,
 ): ParsedThresholdEd25519RouterMaterial | null {
-  if (!isObject(raw.routerMaterial)) return null;
+  if (!isPlainObject(raw.routerMaterial)) return null;
   const signingShareB64u = toOptionalString(raw.routerMaterial.signingShareB64u);
   const verifyingShareB64u = toOptionalString(raw.routerMaterial.verifyingShareB64u);
   if (!signingShareB64u || !verifyingShareB64u) return null;
@@ -177,7 +178,7 @@ function parseThresholdEd25519RouterMaterial(
 function parseThresholdEd25519ReadyKeyRecord(
   raw: unknown,
 ): ParsedThresholdEd25519ReadyKeyRecord | null {
-  if (!isObject(raw)) return null;
+  if (!isPlainObject(raw)) return null;
   const kind = toOptionalString(raw.kind);
   const walletId = toOptionalString(raw.walletId);
   const nearAccountId = toOptionalString(raw.nearAccountId);
@@ -222,7 +223,7 @@ export function parseThresholdEd25519KeyRecord(
 export function parseEcdsaDerivationPublicIdentity(
   raw: unknown,
 ): EcdsaDerivationPublicIdentity | null {
-  if (!isObject(raw)) return null;
+  if (!isPlainObject(raw)) return null;
   const derivationClientSharePublicKey33B64u = parseSec1CompressedPublicKey33B64u(
     raw.derivationClientSharePublicKey33B64u,
   );
@@ -249,7 +250,7 @@ export function parseEcdsaDerivationPublicIdentity(
 type ParsedThresholdEd25519Commitments = { hiding: string; binding: string };
 
 function parseThresholdEd25519Commitments(raw: unknown): ParsedThresholdEd25519Commitments | null {
-  if (!isObject(raw)) return null;
+  if (!isPlainObject(raw)) return null;
   const hiding = toOptionalString(raw.hiding);
   const binding = toOptionalString(raw.binding);
   if (!hiding || !binding) return null;
@@ -261,7 +262,7 @@ type ParsedThresholdEd25519CommitmentsById = Record<string, ParsedThresholdEd255
 function parseThresholdEd25519CommitmentsById(
   raw: unknown,
 ): ParsedThresholdEd25519CommitmentsById | null {
-  if (!isObject(raw)) return null;
+  if (!isPlainObject(raw)) return null;
   const out: ParsedThresholdEd25519CommitmentsById = {};
   for (const [k, v] of Object.entries(raw)) {
     const key = toTrimmedString(k);
@@ -276,7 +277,7 @@ function parseThresholdEd25519CommitmentsById(
 export function parseThresholdEd25519AuthorityScope(
   raw: unknown,
 ): ThresholdEd25519AuthorityScope | null {
-  if (!isObject(raw)) return null;
+  if (!isPlainObject(raw)) return null;
   const kind = toOptionalString(raw.kind);
   switch (kind) {
     case 'passkey_rp': {
@@ -383,7 +384,7 @@ type ParsedThresholdEcdsaMpcSessionRecord = {
 export function parseThresholdEd25519MpcSessionRecord(
   raw: unknown,
 ): ParsedThresholdEd25519MpcSessionRecord | null {
-  if (!isObject(raw)) return null;
+  if (!isPlainObject(raw)) return null;
   const expiresAtMs = raw.expiresAtMs;
   const ecdsaThresholdKeyId = toOptionalString(raw.ecdsaThresholdKeyId);
   const keyHandle = toOptionalString(raw.keyHandle);
@@ -430,7 +431,7 @@ export function parseThresholdEd25519MpcSessionRecord(
 export function parseThresholdEcdsaMpcSessionRecord(
   raw: unknown,
 ): ParsedThresholdEcdsaMpcSessionRecord | null {
-  if (!isObject(raw)) return null;
+  if (!isPlainObject(raw)) return null;
   const expiresAtMs = raw.expiresAtMs;
   const ecdsaThresholdKeyId = toOptionalString(raw.ecdsaThresholdKeyId);
   const keyHandle = toOptionalString(raw.keyHandle);
@@ -489,7 +490,7 @@ type ParsedThresholdEd25519SigningSessionRecord = {
 export function parseThresholdEd25519SigningSessionRecord(
   raw: unknown,
 ): ParsedThresholdEd25519SigningSessionRecord | null {
-  if (!isObject(raw)) return null;
+  if (!isPlainObject(raw)) return null;
   const expiresAtMs = raw.expiresAtMs;
   const mpcSessionId = toOptionalString(raw.mpcSessionId);
   const relayerKeyId = toOptionalString(raw.relayerKeyId);
@@ -533,7 +534,7 @@ export function parseThresholdEd25519SigningSessionRecord(
 function parseThresholdEd25519SigningShareMaterial(
   raw: Record<string, unknown>,
 ): ParsedThresholdEd25519SigningShareMaterial | null {
-  if (isObject(raw.signingShare)) {
+  if (isPlainObject(raw.signingShare)) {
     const kind = toOptionalString(raw.signingShare.kind);
     if (kind === 'key_store') {
       return toOptionalString(raw.signingShare.relayerSigningShareB64u) ? null : { kind };
@@ -553,7 +554,7 @@ function parseThresholdEd25519SigningShareMaterial(
 type ParsedThresholdEd25519StringById = Record<string, string>;
 
 function parseThresholdEd25519StringById(raw: unknown): ParsedThresholdEd25519StringById | null {
-  if (!isObject(raw)) return null;
+  if (!isPlainObject(raw)) return null;
   const out: ParsedThresholdEd25519StringById = {};
   for (const [k, v] of Object.entries(raw)) {
     const key = toTrimmedString(k);
@@ -584,7 +585,7 @@ type ParsedThresholdEd25519CoordinatorSigningSessionRecord = {
 export function parseThresholdEd25519CoordinatorSigningSessionRecord(
   raw: unknown,
 ): ParsedThresholdEd25519CoordinatorSigningSessionRecord | null {
-  if (!isObject(raw)) return null;
+  if (!isPlainObject(raw)) return null;
   const expiresAtMs = raw.expiresAtMs;
   const mpcSessionId = toOptionalString(raw.mpcSessionId);
   const relayerKeyId = toOptionalString(raw.relayerKeyId);
@@ -656,7 +657,7 @@ type ParsedEd25519WalletSessionRecord = {
 export function parseEd25519WalletSessionRecord(
   raw: unknown,
 ): ParsedEd25519WalletSessionRecord | null {
-  if (!isObject(raw)) return null;
+  if (!isPlainObject(raw)) return null;
   const expiresAtMs = raw.expiresAtMs;
   const relayerKeyId = toOptionalString(raw.relayerKeyId);
   const userId = toOptionalString(raw.userId);
@@ -714,7 +715,7 @@ type ParsedEcdsaWalletSessionRecord = ParsedEcdsaWalletSessionRecordCore &
   );
 
 export function parseEcdsaWalletSessionRecord(raw: unknown): ParsedEcdsaWalletSessionRecord | null {
-  if (!isObject(raw)) return null;
+  if (!isPlainObject(raw)) return null;
   if ('evmFamilySigningKeySlotId' in raw) return null;
   const expiresAtMs = raw.expiresAtMs;
   const relayerKeyId = toOptionalString(raw.relayerKeyId);

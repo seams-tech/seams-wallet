@@ -19,6 +19,7 @@ import {
   deriveSigningRootId,
   normalizeRuntimePolicyScope,
 } from '@shared/threshold/signingRootScope';
+import { coerceNonNullishString } from '@shared/utils/validation';
 import {
   RouterAbEd25519YaoHttpActivationTransportV1,
   type RouterAbEd25519YaoHttpTransportConfigV1,
@@ -61,12 +62,6 @@ type PreparedPasskeyEd25519YaoAddSignerV1 = {
   transportConfig: RouterAbEd25519YaoHttpTransportConfigV1;
 };
 
-function requireNonEmptyString(value: unknown, label: string): string {
-  const normalized = String(value ?? '').trim();
-  if (!normalized) throw new Error(`${label} is required`);
-  return normalized;
-}
-
 function requireMatchingString(left: string, right: string, label: string): void {
   if (left !== right) throw new Error(`${label} does not match the verified add-signer intent`);
 }
@@ -83,12 +78,12 @@ function requireMatchingParticipantIds(
 function transportConfig(
   input: VerifiedPasskeyEd25519YaoAddSignerPreparationInputV1,
 ): RouterAbEd25519YaoHttpTransportConfigV1 {
-  const bearerToken = requireNonEmptyString(
+  const bearerToken = coerceNonNullishString(
     input.verifiedIntent.addSignerIntentGrant,
     'add-signer intent grant',
   );
   return {
-    routerOrigin: requireNonEmptyString(input.httpTransport.routerOrigin, 'Yao Router origin'),
+    routerOrigin: coerceNonNullishString(input.httpTransport.routerOrigin, 'Yao Router origin'),
     authorization: { kind: 'bearer', value: `Bearer ${bearerToken}` },
     fetch: input.httpTransport.fetch,
   };
@@ -109,7 +104,7 @@ async function prepareVerifiedPasskeyEd25519YaoAddSignerV1(
     input.verifiedAuthority.addSignerIntentDigestB64u,
     'Passkey authority intent digest',
   );
-  requireNonEmptyString(input.verifiedAuthority.credentialIdB64u, 'passkey credential ID');
+  coerceNonNullishString(input.verifiedAuthority.credentialIdB64u, 'passkey credential ID');
 
   const runtimePolicyScope = normalizeRuntimePolicyScope(intent.runtimePolicyScope);
   const signingRootId = deriveSigningRootId(runtimePolicyScope);
@@ -118,7 +113,7 @@ async function prepareVerifiedPasskeyEd25519YaoAddSignerV1(
   );
   if (!parsedAdmission.ok) throw new Error(parsedAdmission.message);
   const admission = parsedAdmission.value;
-  const ceremonyId = requireNonEmptyString(
+  const ceremonyId = coerceNonNullishString(
     input.verifiedIntent.addSignerCeremonyId,
     'add-signer ceremony ID',
   );

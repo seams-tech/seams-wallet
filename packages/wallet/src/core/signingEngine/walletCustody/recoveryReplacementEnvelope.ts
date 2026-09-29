@@ -3,10 +3,10 @@ import {
   parsePasskeyCustodyEnvelopeRecord,
   parseWalletCustodyEnvelopeOwnershipWireV1,
   rejectUnknownFields,
-  requireRecord,
   type PasskeyCustodyEnvelopeRecord,
   type RecoveryReplacementEnvelopePayload,
 } from '@shared/passkey-custody';
+import { requireRecord } from '@shared/utils/validation';
 
 const RECOVERY_BINDING_FIELDS = [
   'walletId',

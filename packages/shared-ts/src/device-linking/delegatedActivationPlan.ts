@@ -2,12 +2,12 @@ import {
   parseEd25519PublicKeyB64u,
   parseSecp256k1CompressedPublicKeyB64u,
   rejectUnknownFields,
-  requireRecord,
   type Ed25519PublicKeyB64u,
   type Secp256k1CompressedPublicKeyB64u,
 } from '../passkey-custody/primitives';
 import { parseWalletKeyId, type WalletKeyId } from '../signing-lanes/ids';
 import { parseWalletId, type WalletId } from '../utils/domainIds';
+import { requireRecord } from '../utils/validation';
 
 export type ExactAdministeredSignerManifestV1 =
   | {

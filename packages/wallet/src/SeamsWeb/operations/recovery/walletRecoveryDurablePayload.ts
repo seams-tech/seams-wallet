@@ -7,7 +7,6 @@ import {
   parseEnvelopeNonceB64u,
   parseKeyCreationSignerSlot,
   parseSecp256k1CompressedPublicKeyB64u,
-  requireRecord,
   rejectUnknownFields,
   type PasskeyCustodyEnvelopeRecord,
   type WalletCustodyEvmFamilyPublicFacts,
@@ -58,6 +57,7 @@ import {
   type RouterAbMpcMaterialActivationRefWire,
 } from '@shared/utils/routerAbNormalSigningIdentity';
 import { parseWalletRecoveryEcdsaPossessionProofV1 } from '@shared/wallet-recovery/walletRecoveryEcdsaPossession';
+import { requireRecord } from '@shared/utils/validation';
 import type { PendingWalletRecoveryCommitV1 } from '@/core/indexedDB/pendingWalletRecoveryCommit';
 import type { WalletRecoveryEmailOtpEnrollmentMaterial } from '@/core/rpcClients/relayer/walletRecoveryGoogleEmailOtp';
 

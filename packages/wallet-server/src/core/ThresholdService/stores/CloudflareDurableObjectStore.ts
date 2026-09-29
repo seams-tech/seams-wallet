@@ -1,9 +1,8 @@
 import type { NormalizedLogger } from '../../logger';
 import type { CloudflareDurableObjectNamespaceLike, ThresholdStoreConfigInput } from '../../types';
 import { THRESHOLD_DO_OBJECT_NAME_DEFAULT } from '../../defaultConfigsServer';
-import { toOptionalTrimmedString } from '@shared/utils/validation';
+import { toOptionalTrimmedString, isPlainObject } from '@shared/utils/validation';
 import {
-  isObject,
   parseEcdsaWalletSessionRecord,
   parseEd25519WalletSessionRecord,
   parseThresholdEcdsaMpcSessionRecord,
@@ -165,7 +164,7 @@ async function callDo<T>(stub: DurableObjectStubLike, req: DoRequest): Promise<D
   } catch {
     throw new Error(`Threshold DO store returned non-JSON response: ${text.slice(0, 200)}`);
   }
-  if (!isObject(json)) {
+  if (!isPlainObject(json)) {
     throw new Error('Threshold DO store returned invalid JSON shape');
   }
   const ok = (json as { ok?: unknown }).ok;
@@ -266,7 +265,7 @@ class CloudflareDurableObjectWalletSessionStore<
     const resp = await callDo<unknown | null>(this.stub, { op: 'get', key: this.key(id) });
     if (!resp.ok) return null;
     const raw = resp.value;
-    const entry = isObject(raw) ? (raw as Record<string, unknown>) : null;
+    const entry = isPlainObject(raw) ? (raw as Record<string, unknown>) : null;
     const record = entry ? this.parseRecord((entry as { record?: unknown }).record) : null;
     const expiresAtMs = entry ? (entry as { expiresAtMs?: unknown }).expiresAtMs : null;
     if (!record || typeof expiresAtMs !== 'number' || !Number.isFinite(expiresAtMs)) return null;
@@ -530,7 +529,7 @@ export function createCloudflareDurableObjectThresholdEd25519Stores(input: {
   sessionStore: ThresholdEd25519SessionStore;
   walletSessionStore: Ed25519WalletSessionStore;
 } | null {
-  const config = (isObject(input.config) ? input.config : {}) as Record<string, unknown>;
+  const config = (isPlainObject(input.config) ? input.config : {}) as Record<string, unknown>;
   const kind = toOptionalTrimmedString(config.kind);
   if (kind !== 'cloudflare-do') return null;
 
@@ -581,7 +580,7 @@ export function createCloudflareDurableObjectThresholdEcdsaStores(input: {
   sessionStore: ThresholdEcdsaSessionStore;
   walletSessionStore: EcdsaWalletSessionStore;
 } | null {
-  const config = (isObject(input.config) ? input.config : {}) as Record<string, unknown>;
+  const config = (isPlainObject(input.config) ? input.config : {}) as Record<string, unknown>;
   const kind = toOptionalTrimmedString(config.kind);
   if (kind !== 'cloudflare-do') return null;
 

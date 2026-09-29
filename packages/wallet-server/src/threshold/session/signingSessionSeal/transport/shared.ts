@@ -1,4 +1,4 @@
-import { ensureLeadingSlash } from '@shared/utils/validation';
+import { ensureLeadingSlash, asRecord } from '@shared/utils/validation';
 import { WALLET_SESSION_SEAL_BASE_PATH } from '@shared/utils/signingSessionSeal';
 import { parseThresholdSessionId } from '@shared/utils/domainIds';
 import type {
@@ -13,11 +13,6 @@ import type {
 const DEFAULT_BASE_PATH = WALLET_SESSION_SEAL_BASE_PATH;
 
 type ParseResult<T> = { ok: true; value: T } | { ok: false; code: 'invalid_body'; message: string };
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-  return value as Record<string, unknown>;
-}
 
 function readRequiredString(obj: Record<string, unknown>, key: string): string {
   return typeof obj[key] === 'string' ? String(obj[key] || '').trim() : '';

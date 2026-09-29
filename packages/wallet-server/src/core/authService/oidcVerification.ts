@@ -1,6 +1,6 @@
 import { base64UrlDecode } from '@shared/utils/encoders';
 import { errorMessage } from '@shared/utils/errors';
-import { toOptionalTrimmedString } from '@shared/utils/validation';
+import { toOptionalTrimmedString, isPlainObject } from '@shared/utils/validation';
 import type { GoogleOidcConfig } from '../types';
 import type { IdentityStore } from '../IdentityStore';
 import { toArrayBufferCopy } from './portableCrypto';
@@ -9,7 +9,6 @@ import {
   parseJwtAud,
   parseJwtSegmentJson,
 } from './webauthnOidcHelpers';
-import { isObject } from './record';
 
 type JwksCacheValue = {
   keysByKid: Map<string, JsonWebKey>;
@@ -115,7 +114,7 @@ function parseJwtParts(input: {
 }
 
 function jwkFromRaw(rawKey: unknown): { kid: string; jwk: JsonWebKey } | null {
-  if (!isObject(rawKey)) return null;
+  if (!isPlainObject(rawKey)) return null;
   const kid = toOptionalTrimmedString(rawKey.kid);
   const kty = toOptionalTrimmedString(rawKey.kty);
   const use = toOptionalTrimmedString(rawKey.use);
@@ -147,7 +146,7 @@ async function fetchJwks(input: {
   } catch {
     throw new Error(input.invalidJsonLabel);
   }
-  if (!isObject(json)) {
+  if (!isPlainObject(json)) {
     throw new Error(input.invalidShapeLabel);
   }
   const keysRaw = json.keys;

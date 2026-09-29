@@ -5,13 +5,12 @@ import type {
   ThresholdStoreConfigInput,
 } from '../../types';
 import { RedisTcpClient, UpstashRedisRestClient, redisGetJson, redisSetJson } from '../kv';
-import { toOptionalTrimmedString } from '@shared/utils/validation';
+import { toOptionalTrimmedString, isPlainObject } from '@shared/utils/validation';
 import {
   WALLET_SESSION_FAILURE_CODES,
   type WalletSessionFailureCode,
 } from '@shared/utils/walletSessionFailure';
 import {
-  isObject,
   toThresholdEcdsaWalletSessionPrefix,
   toThresholdEcdsaPrefixFromBase,
   toThresholdEd25519WalletSessionPrefix,
@@ -771,7 +770,9 @@ export function createEd25519WalletSessionStore(input: {
   });
   if (doStores) return doStores.walletSessionStore;
 
-  const config = (isObject(input.config) ? input.config : {}) as WalletSessionStoreConfigRecord;
+  const config = (
+    isPlainObject(input.config) ? input.config : {}
+  ) as WalletSessionStoreConfigRecord;
   const allowInMemory = toOptionalTrimmedString(config.THRESHOLD_ALLOW_IN_MEMORY_STORES) === '1';
   const requirePersistent = !input.isNode && !allowInMemory;
   const basePrefix = toOptionalTrimmedString(config.THRESHOLD_PREFIX);
@@ -885,7 +886,9 @@ export function createEcdsaWalletSessionStore(input: {
   });
   if (doStores) return doStores.walletSessionStore;
 
-  const config = (isObject(input.config) ? input.config : {}) as WalletSessionStoreConfigRecord;
+  const config = (
+    isPlainObject(input.config) ? input.config : {}
+  ) as WalletSessionStoreConfigRecord;
   const allowInMemory = toOptionalTrimmedString(config.THRESHOLD_ALLOW_IN_MEMORY_STORES) === '1';
   const requirePersistent = !input.isNode && !allowInMemory;
   const basePrefix = toOptionalTrimmedString(config.THRESHOLD_PREFIX);

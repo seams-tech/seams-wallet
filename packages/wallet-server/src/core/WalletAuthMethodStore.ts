@@ -8,7 +8,7 @@ import {
 } from './defaultConfigsServer';
 import type { NormalizedLogger } from './logger';
 import { resolveD1DatabaseFromConfig } from '../storage/d1Sql';
-import { toOptionalTrimmedString } from '@shared/utils/validation';
+import { toOptionalTrimmedString, isPlainObject } from '@shared/utils/validation';
 import {
   D1WalletAuthMethodStore,
   normalizeWalletAuthMethod,
@@ -39,10 +39,6 @@ export type {
   WalletAuthMethodStore,
   WalletAuthMethodV2Store,
 } from './d1WalletAuthMethodStore';
-
-function isObject(value: unknown): value is Record<string, unknown> {
-  return Boolean(value && typeof value === 'object' && !Array.isArray(value));
-}
 
 function trimString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
@@ -231,7 +227,9 @@ function resolveDoNamespaceFromConfig(
   config: Record<string, unknown>,
 ): CloudflareDurableObjectNamespaceLike | null {
   const isNamespace = (value: unknown): value is CloudflareDurableObjectNamespaceLike =>
-    isObject(value) && typeof value.idFromName === 'function' && typeof value.get === 'function';
+    isPlainObject(value) &&
+    typeof value.idFromName === 'function' &&
+    typeof value.get === 'function';
   if (isNamespace(config.namespace)) return config.namespace;
   if (isNamespace(config.durableObjectNamespace)) return config.durableObjectNamespace;
   if (isNamespace(config.THRESHOLD_DO_NAMESPACE)) return config.THRESHOLD_DO_NAMESPACE;
@@ -243,7 +241,7 @@ export function createWalletAuthMethodStore(input: {
   logger: NormalizedLogger;
   isNode: boolean;
 }): WalletAuthMethodStore {
-  const config: Record<string, unknown> = isObject(input.config) ? input.config : {};
+  const config: Record<string, unknown> = isPlainObject(input.config) ? input.config : {};
   const namespace = resolveWalletAuthMethodStoreNamespace(config);
   const kind = toOptionalTrimmedString(config.kind);
   if (kind === 'd1') {

@@ -97,6 +97,7 @@ import {
   type WalletRecoveryEcdsaPossessionProofV1,
 } from '@shared/wallet-recovery/walletRecoveryEcdsaPossession';
 import { base64UrlDecode } from '@shared/utils/base64';
+import { isPlainObject } from '@shared/utils/validation';
 import type { EmailOtpEnrollmentMaterialBoundaryInput } from '../../../cloudflare/d1/emailOtp/d1EmailOtpRecords';
 
 /**
@@ -169,7 +170,7 @@ function requireExactObjectFields(
 }
 
 function parseCustodyOwnerProof(value: unknown): WalletCustodyOwnerProofWire {
-  if (!isObject(value)) throw new Error('factorProof is required');
+  if (!isPlainObject(value)) throw new Error('factorProof is required');
   const kind = trimmed(value.kind);
   if (kind === 'passkey') {
     requireExactObjectFields(
@@ -601,7 +602,7 @@ function parseWalletCustodyEmailOtpChallengeRequest(
   readonly payload: Record<string, unknown>;
   readonly requestOrigin: string;
 } {
-  if (!isObject(value)) throw new Error('Email OTP custody challenge body must be an object');
+  if (!isPlainObject(value)) throw new Error('Email OTP custody challenge body must be an object');
   const keys = Object.keys(value).sort();
   const expected = ['operation', 'payload', 'providerSubjectId', 'requestOrigin', 'walletId'];
   const required = ['operation', 'payload', 'providerSubjectId', 'walletId'];
@@ -626,7 +627,8 @@ function parseWalletCustodyEmailOtpChallengeRequest(
   ) {
     throw new Error('Email OTP custody challenge operation is invalid');
   }
-  if (!isObject(value.payload)) throw new Error('Email OTP custody challenge payload is invalid');
+  if (!isPlainObject(value.payload))
+    throw new Error('Email OTP custody challenge payload is invalid');
   if (value.requestOrigin !== undefined && value.requestOrigin !== actualOrigin) {
     throw new Error('Email OTP custody challenge requestOrigin does not match Origin');
   }
@@ -1361,7 +1363,7 @@ function parseWalletRecoveryEmailOtpReleaseRequest(
 function parseWalletRecoveryGoogleEmailOtpFinalizeRequest(
   value: unknown,
 ): WalletRecoveryGoogleEmailOtpRouteFinalizationRequest {
-  if (!isObject(value)) {
+  if (!isPlainObject(value)) {
     throw new Error('wallet recovery Google Email OTP finalization body must be an object');
   }
   const recoveryOperationId = parseWalletRecoveryOperationId(value.recoveryOperationId);
@@ -1425,11 +1427,11 @@ function parseWalletRecoveryGoogleEmailOtpCreateEnrollment(
     { readonly kind: 'finalize' }
   >['emailOtpEnrollment']
 > {
-  if (!isObject(value)) {
+  if (!isPlainObject(value)) {
     throw new Error('new recovery Email enrollment is invalid');
   }
   requireExactObjectFields(value, ['kind', 'material'], 'new recovery Email enrollment');
-  if (value.kind !== 'create' || !isObject(value.material)) {
+  if (value.kind !== 'create' || !isPlainObject(value.material)) {
     throw new Error('new recovery Email enrollment is invalid');
   }
   const material = value.material;
@@ -1563,7 +1565,7 @@ function parseWireRequest(
 function parseEnvelopeRetrievalLocator(
   value: unknown,
 ): PasskeyCustodyEnvelopeRetrievalWireRequest['locator'] | null {
-  if (!isObject(value) || !isObject(value.factor)) return null;
+  if (!isPlainObject(value) || !isPlainObject(value.factor)) return null;
   try {
     requireExactObjectFields(value, ['walletId', 'factor'], 'custody locator');
     requireExactObjectFields(
@@ -1595,11 +1597,7 @@ function trimmed(value: unknown): string {
 
 async function readJsonObject(request: Request): Promise<Record<string, unknown> | null> {
   const value = await readJson(request);
-  return isObject(value) ? value : null;
-}
-
-function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
+  return isPlainObject(value) ? value : null;
 }
 
 function parseRecoveryCodeLocatorRecords(
@@ -1730,7 +1728,7 @@ type WalletRecoveryFinalizeBody =
   | Extract<WalletRecoveryPasskeyRouteFinalizationRequest, { readonly kind: 'replay' }>;
 
 function parseWalletRecoveryFinalizeBody(value: unknown): WalletRecoveryFinalizeBody {
-  if (!isObject(value)) throw new Error('wallet recovery finalization body must be an object');
+  if (!isPlainObject(value)) throw new Error('wallet recovery finalization body must be an object');
   const walletId = parseWalletId(value.walletId);
   const recoveryOperationId = parseWalletRecoveryOperationId(value.recoveryOperationId);
   const targetDeviceId = parseDeviceId(value.targetDeviceId);
@@ -1797,7 +1795,7 @@ function parseWalletRecoveryFinalizeBody(value: unknown): WalletRecoveryFinalize
     ],
     'wallet recovery finalization',
   );
-  if (!isObject(value.webauthnRegistration)) {
+  if (!isPlainObject(value.webauthnRegistration)) {
     throw new Error('wallet recovery finalization registration is invalid');
   }
   return {
@@ -1820,7 +1818,7 @@ function parseEcdsaMaterialPossessionProofs(value: unknown): readonly {
   }
   const seen = new Set<string>();
   return value.map((item, index) => {
-    if (!isObject(item)) {
+    if (!isPlainObject(item)) {
       throw new Error(`wallet recovery finalization ECDSA proof ${index} is invalid`);
     }
     requireExactObjectFields(item, ['keySetId', 'proof'], `ECDSA proof ${index}`);
@@ -1912,13 +1910,13 @@ export async function handleWalletRecoveryRotate(
   const walletId = trimmed(body?.walletId);
   const expectedStoreVersion = trimmed(body?.expectedStoreVersion);
   const manifestKekWraps = Array.isArray(body?.manifestKekWraps)
-    ? body.manifestKekWraps.filter(isObject)
+    ? body.manifestKekWraps.filter(isPlainObject)
     : [];
-  const entries = Array.isArray(body?.entries) ? body.entries.filter(isObject) : [];
+  const entries = Array.isArray(body?.entries) ? body.entries.filter(isPlainObject) : [];
   const rawRecoveryCodeLocators = Array.isArray(body?.recoveryCodeLocators)
     ? body.recoveryCodeLocators
     : [];
-  const recoveryCodeLocators = rawRecoveryCodeLocators.filter(isObject);
+  const recoveryCodeLocators = rawRecoveryCodeLocators.filter(isPlainObject);
   if (
     !walletId ||
     !expectedStoreVersion ||

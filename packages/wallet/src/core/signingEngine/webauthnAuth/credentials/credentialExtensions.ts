@@ -1,21 +1,19 @@
+import { asRecordOrArray } from '@shared/utils/validation';
+
 type CredentialWithExtensionOutputs = {
   response?: unknown;
   clientExtensionResults?: unknown;
 };
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === 'object' ? (value as Record<string, unknown>) : null;
-}
 
 function getPrfResultsFromCredential(credential: unknown): {
   first?: string;
   second?: string;
 } {
   try {
-    const credentialRecord = asRecord(credential);
-    const clientExtensionResults = asRecord(credentialRecord?.clientExtensionResults);
-    const prf = asRecord(clientExtensionResults?.prf);
-    const results = asRecord(prf?.results);
+    const credentialRecord = asRecordOrArray(credential);
+    const clientExtensionResults = asRecordOrArray(credentialRecord?.clientExtensionResults);
+    const prf = asRecordOrArray(clientExtensionResults?.prf);
+    const results = asRecordOrArray(prf?.results);
     if (!results) return {};
 
     const first = typeof results.first === 'string' ? results.first.trim() : '';

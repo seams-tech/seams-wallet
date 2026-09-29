@@ -64,6 +64,7 @@ import {
   type ExactAdministeredSignerV1,
   type ExactAdministeredSignerManifestV1,
 } from '@shared/device-linking/delegatedActivationPlan';
+import { requireRecordCopy } from '@shared/utils/validation';
 
 type LinkedDeviceClaimV1 = LinkedDeviceSessionClaimV1;
 
@@ -1084,7 +1085,7 @@ function buildUnclaimedSessionRecordV1(
 }
 
 export function parseLinkedDeviceSessionRecordV1(raw: unknown): LinkedDeviceSessionRecordV1 {
-  const record = requireRecord(raw, 'linked device session record');
+  const record = requireRecordCopy(raw, 'linked device session record');
   requireAllowedKeys(record, [
     'version',
     'linkSessionId',
@@ -2109,7 +2110,7 @@ function parseLinkedDeviceClaimV1(raw: unknown): LinkedDeviceClaimV1 {
 
 function parseOptionalClaimTranscript(raw: unknown): LinkedDeviceClaimTranscriptV1 | undefined {
   if (raw === undefined) return undefined;
-  const record = requireRecord(raw, 'claimTranscript');
+  const record = requireRecordCopy(raw, 'claimTranscript');
   requireExactKeys(record, ['digestB64u', 'value']);
   return {
     digestB64u: requireDigest(record.digestB64u, 'claimTranscript.digestB64u'),
@@ -2145,7 +2146,7 @@ function parseOptionalApprovalTranscript(
   raw: unknown,
 ): LinkedDeviceApprovalTranscriptV1 | undefined {
   if (raw === undefined) return undefined;
-  const record = requireRecord(raw, 'approvalTranscript');
+  const record = requireRecordCopy(raw, 'approvalTranscript');
   requireExactKeys(record, [
     'digestB64u',
     'value',
@@ -2179,7 +2180,7 @@ function parseSourceKeyManifestDigestsV1(
   raw: unknown,
   field: string,
 ): LinkedDeviceSourceKeyManifestDigestsV1 {
-  const record = requireRecord(raw, field);
+  const record = requireRecordCopy(raw, field);
   const keys = Object.keys(record).sort();
   if (keys.length === 1 && keys[0] === 'ed25519') {
     return { ed25519: requireDigest(record.ed25519, `${field}.ed25519`) };
@@ -2209,7 +2210,7 @@ function parseOptionalSourceContributionTranscript(
   raw: unknown,
 ): LinkedDeviceSourceContributionTranscriptV1 | undefined {
   if (raw === undefined) return undefined;
-  const record = requireRecord(raw, 'sourceContributionTranscript');
+  const record = requireRecordCopy(raw, 'sourceContributionTranscript');
   requireExactKeys(record, [
     'digestB64u',
     'value',
@@ -2261,7 +2262,7 @@ function parseOptionalApprovedTargetFactor(
   raw: unknown,
 ): LinkedDeviceApprovedTargetFactorV1 | undefined {
   if (raw === undefined) return undefined;
-  const record = requireRecord(raw, 'targetFactor');
+  const record = requireRecordCopy(raw, 'targetFactor');
   if (record.kind === 'passkey_prf') {
     requireExactKeys(record, ['kind']);
     return { kind: 'passkey_prf' };
@@ -2272,7 +2273,7 @@ function parseOptionalApprovedTargetFactor(
       parseVerifiedEmailAddress,
       'targetFactor.targetEmail',
     );
-    const enrollment = requireRecord(record.enrollment, 'targetFactor.enrollment');
+    const enrollment = requireRecordCopy(record.enrollment, 'targetFactor.enrollment');
     if (enrollment.kind === 'existing_enrollment') {
       requireExactKeys(record, ['kind', 'targetEmail', 'enrollment', 'baseWalletAuthMethodId']);
       requireExactKeys(enrollment, ['kind']);
@@ -2303,7 +2304,7 @@ function parseOptionalApprovedTargetFactor(
 
 function parseOptionalEmailOtpChallenge(raw: unknown): LinkedDeviceEmailOtpChallengeV1 | undefined {
   if (raw === undefined) return undefined;
-  const record = requireRecord(raw, 'emailOtpChallenge');
+  const record = requireRecordCopy(raw, 'emailOtpChallenge');
   const state = parseIdentityString(record.state, 'emailOtpChallenge.state');
   if (state === 'available') {
     requireExactKeys(record, ['state', 'maskedEmailHint']);
@@ -2346,7 +2347,7 @@ function parseOptionalEmailOtpChallenge(raw: unknown): LinkedDeviceEmailOtpChall
 }
 
 function parseEmailOtpChallengeV1(raw: unknown): LinkedDeviceEmailOtpChallengeV1 {
-  const record = requireRecord(raw, 'challenge');
+  const record = requireRecordCopy(raw, 'challenge');
   requireExactKeys(record, [
     'challengeId',
     'workerEphemeralPublicKey65B64u',
@@ -2673,12 +2674,6 @@ function requireTimestamp(raw: unknown, field: string): number {
 
 function requirePositiveInteger(raw: unknown, field: string): number {
   return requireTimestamp(raw, field);
-}
-
-function requireRecord(raw: unknown, field: string): Record<string, unknown> {
-  if (raw === null || typeof raw !== 'object' || Array.isArray(raw))
-    throw new Error(`${field} must be an object`);
-  return Object.fromEntries(Object.entries(raw));
 }
 
 function requireExactKeys(record: Record<string, unknown>, expected: readonly string[]): void {

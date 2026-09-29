@@ -48,6 +48,7 @@ import {
   walletAuthAuthorityRef,
   type WalletAuthAuthorityRef,
 } from '@shared/utils/walletAuthAuthority';
+import { asRecord } from '@shared/utils/validation';
 import { buildRestorableMpcMaterialRefInternal } from '../material/restorableMpcMaterialRef.internal';
 import type { MpcCapabilityHydrationPlan } from '../material/mpcCapabilityHydration';
 
@@ -220,11 +221,6 @@ export type PasskeyEd25519YaoUnlockSourceV1 =
 export type PasskeyEd25519YaoPublicLocatorObservationV1 =
   | Omit<Extract<NearEd25519YaoPublicLocatorObservationV1, { kind: 'available' }>, 'authority'>
   | Exclude<NearEd25519YaoPublicLocatorObservationV1, { kind: 'available' }>;
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-  return value as Record<string, unknown>;
-}
 
 function requireNonEmpty(value: unknown, label: string): string {
   const parsed = String(value ?? '').trim();

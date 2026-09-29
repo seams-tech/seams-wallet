@@ -1,4 +1,4 @@
-import { toOptionalTrimmedString } from '@shared/utils/validation';
+import { toOptionalTrimmedString, isPlainObject } from '@shared/utils/validation';
 import {
   thresholdEcdsaChainTargetFromValue,
   thresholdEcdsaChainTargetKey,
@@ -7,7 +7,6 @@ import {
 import type { NormalizedLogger } from '../logger';
 import type { WalletEcdsaSignerRecord } from '../WalletStore';
 import { walletIdFromString, type WalletId } from '@shared/utils/registrationIntent';
-import { isObject } from './record';
 import type { RouterAbEcdsaDerivationPublicCapabilityV1 } from '@shared/utils/routerAbEcdsaDerivation';
 
 export type ThresholdEcdsaKeyInventoryDiagnostics = {
@@ -83,7 +82,7 @@ function thresholdEcdsaKeyInventorySelectorMatchesIdentity(
 function parseThresholdEcdsaKeyInventoryTarget(
   raw: unknown,
 ): { ok: true; value: ThresholdEcdsaKeyInventoryTarget } | { ok: false; reason: string } {
-  if (!isObject(raw)) return { ok: false, reason: 'non_object' };
+  if (!isPlainObject(raw)) return { ok: false, reason: 'non_object' };
   const keySelector = thresholdEcdsaKeyInventorySelectorFromRaw(raw);
   if (!keySelector.ok) return keySelector;
   const chainTarget = thresholdEcdsaChainTargetFromValue(raw.chainTarget);

@@ -129,6 +129,7 @@ import {
 import type { VerifiedEcdsaPublicFacts } from '@/core/signingEngine/session/identity/evmFamilyEcdsaIdentity';
 import type { ThresholdEcdsaChainTarget } from '@/core/platform/types';
 import type { WalletCustodyEvmFamilyPublicFacts } from '@shared/passkey-custody';
+import { requireArray, requireRecord } from '@shared/utils/validation';
 import { SEAMS_WALLET_INDEXES, SEAMS_WALLET_STORES } from '../schemaNames';
 import { seamsWalletDB } from '../singletons';
 import { SeamsWalletRepositories } from './repositories';
@@ -624,13 +625,6 @@ class FinalizationControlError extends Error {
   }
 }
 
-function requireRecord(value: unknown, label: string): Record<string, unknown> {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
-    throw new Error(`${label} must be an object`);
-  }
-  return value as Record<string, unknown>;
-}
-
 function requireExactKeys(
   record: Record<string, unknown>,
   label: string,
@@ -644,11 +638,6 @@ function requireExactKeys(
   ) {
     throw new Error(`${label} has unexpected fields`);
   }
-}
-
-function requireArray(value: unknown, label: string): readonly unknown[] {
-  if (!Array.isArray(value)) throw new Error(`${label} must be an array`);
-  return value;
 }
 
 function unwrapDomainId<T>(result: DomainIdParseResult<T>): T {
