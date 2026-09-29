@@ -11,7 +11,11 @@ const walletDist = path.join(repoRoot, 'packages', 'wallet', 'dist');
 if (process.argv.length !== 2) {
   throw new Error('Usage: node tests/r150-hosted/probe/prepare-image-context.mjs');
 }
-if (run('git', ['status', '--porcelain'], { encoding: 'utf8' }).stdout.trim() !== '') {
+// The image is built from `git archive HEAD`, so only tracked changes matter.
+if (
+  run('git', ['status', '--porcelain', '--untracked-files=no'], { encoding: 'utf8' }).stdout.trim() !==
+  ''
+) {
   throw new Error('Commit the exact probe source before preparing a deployment image');
 }
 run(path.join(repoRoot, 'packages/wallet/scripts/build/check-build-freshness.sh'), [], {

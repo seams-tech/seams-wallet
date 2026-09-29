@@ -1,9 +1,10 @@
 # R150 release readiness (2026-09-29)
 
 Status: not ready for release. The work is on branch `codex/r150-do-backend`,
-which is not merged to `dev`, and nothing is deployed. This record gathers what
-the branch delivers, what the consolidated run verified on each host, what
-fails and why, and what the managed milestone still needs.
+which is not merged to `dev`. Nothing is deployed to staging or production;
+only the isolated `r150-bench-*` comparison resources exist. This record
+gathers what the branch delivers, what the consolidated run verified on each
+host, what failed and why, and what the managed milestone still needs.
 
 ## What the branch delivers
 
@@ -118,81 +119,77 @@ boundary.
 
 ## Consolidated verification
 
-The latest consolidated run is at commit f2d1627, after slices 8 to 11.
+The latest consolidated run is at commit da68f11 (2026-09-29), with a clean
+tree, after items 1 to 20. Its evidence is under
+`.artifacts/r150/consolidated-20260929/`: each contract file's Playwright
+JSON report and log, the persisted traces, the crate test logs, and a
+summary per host. An earlier run at bae7273 was lost with its scratch
+directory in a machine restart, so it is not counted.
 
 Rust:
-- `router-ab-dev`: 124 tests passed, none failed. In the run itself one test
-  failed: it pins the VM Router's owned paths and did not yet name the
-  source-preserving execute route. 42816f7 adds it, and all 124 then pass.
+- `router-ab-dev`: 125 passed, none failed, 2 ignored (the two tests that
+  wait out five-minute windows).
 - `router-ab-cloudflare` native tests: 486 passed, none failed.
 
 TypeScript: the wallet server, the wallet SDK and the intended E2E suite
 type-check.
 
-Intended contracts: every contract that can run here, 50 of the suite's 73,
-on each host.
+Intended contracts: all 14 contract files on each host, with a Google test
+ID token for the Email OTP and Google flows. `google-email-otp.recovery`
+runs through a scratch config, since the committed intended-wallet config
+ignores it.
 
 | Host | Passed | Failed | Skipped |
 | --- | --- | --- | --- |
-| VM | 49 | 0 | 1 |
-| Wallet-object build | 49 | 0 | 1 |
-| Workers D1 | 49 | 1 | 0 |
+| VM | 83 | 0 | 1 |
+| Wallet-object build | 83 | 0 | 1 |
+| Workers D1 | 84 | 0 | 0 |
 
-- The skipped contract is slice 10's commit fence. Only Workers D1 has that
-  window, and it passes there.
-- The Workers D1 failure is **resolved** (e5f9179). "sustained Tempo and Arc
-  signing uses fresh presignatures beyond pool capacity" had failed once
-  with "exact ECDSA Wallet Session is unavailable" at step-up Arc signing,
-  while deferred NEAR provisioning landed during the step-up.
-  - The check. With 2efb60a's reasons, a sweep that released provisioning as
-    the step-up began reproduced it once in 61 runs as
-    `wallet_session_identity_mismatch (authority digest)`: the stored exact
-    session was bound to an authority digest the wallet no longer stored.
-  - The writer. Provisioning publishes the extended authority and rebinds
-    the session in one transaction. A temporary write log over 50 runs
-    showed:
-    - after that publication, the only session writes were status
-      projections: the ECDSA and NEAR readers write back a status they read
-      over the network, after re-reading the authority to check it;
-    - the only authority write was the publication's own.
+The skipped contract is slice 10's commit fence. Only Workers D1 has that
+window, and it passes there.
 
-    A projection whose re-read ran before the publication, and whose write
-    committed after it, put the older session back.
-  - The fix. A projection writes only when two things still hold, checked in
-    the write's own transaction: the stored authority carries the session's
-    digest and revocation epoch, and the selection is unlocked on its method.
-    Otherwise the status is dropped for that read.
-  - The evidence. A new contract forces that order: it holds the step-up's
-    status answer, and holds the wallet's authority re-read behind a
-    transaction on its auth-method store until provisioning's publication
-    queues behind it.
-    - Without the fix it failed 2 of 2 on Workers D1: provisioning's
-      readiness check found the older session.
-    - With the fix it passes on the VM, the wallet-object build and Workers
-      D1, and each run records the dropped status.
-    - After the fix, 20 randomized overlap runs passed.
+### Resolved since the previous run
 
-Each run's persisted traces are kept with the run, outside the repository.
+The intermittent Workers D1 failure of the previous run is resolved
+(e5f9179). "sustained Tempo and Arc signing uses fresh presignatures beyond
+pool capacity" had failed once with "exact ECDSA Wallet Session is
+unavailable" at step-up Arc signing, while deferred NEAR provisioning landed
+during the step-up.
+- The check. With 2efb60a's reasons, a sweep that released provisioning as
+  the step-up began reproduced it once in 61 runs as
+  `wallet_session_identity_mismatch (authority digest)`: the stored exact
+  session was bound to an authority digest the wallet no longer stored.
+- The writer. Provisioning publishes the extended authority and rebinds
+  the session in one transaction. A temporary write log over 50 runs
+  showed:
+  - after that publication, the only session writes were status
+    projections: the ECDSA and NEAR readers write back a status they read
+    over the network, after re-reading the authority to check it;
+  - the only authority write was the publication's own.
 
-The first consolidated run, before slices 8 to 11, passed 43 of 47 on each
-host. The same four contracts failed on every host, and all four were
-repaired (below).
+  A projection whose re-read ran before the publication, and whose write
+  committed after it, put the older session back.
+- The fix. A projection writes only when two things still hold, checked in
+  the write's own transaction: the stored authority carries the session's
+  digest and revocation epoch, and the selection is unlocked on its method.
+  Otherwise the status is dropped for that read.
+- The evidence. A new contract forces that order: it holds the step-up's
+  status answer, and holds the wallet's authority re-read behind a
+  transaction on its auth-method store until provisioning's publication
+  queues behind it.
+  - Without the fix it failed 2 of 2 on Workers D1: provisioning's
+    readiness check found the older session.
+  - With the fix it passes on the VM, the wallet-object build and Workers
+    D1, and each run records the dropped status.
+  - After the fix, 20 randomized overlap runs passed.
 
-Not run: the 23 Email OTP and Google-backed contracts. Those flows need a
-Google ID token, and this environment has none. Minting one impersonates a
-service account with the user's Google Cloud credentials. The contracts are:
-- `email-otp.*` and `auth-method-addition.matrix`;
-- `passkey.add-email-otp`;
-- the Email-only, Combined and Email OTP cases of `passkey.recovery`.
-
-Among them are the Email OTP export replay contract and the extended
-auth-method addition contracts, which lose the finalize answer and check
-that a revoked method is refused.
+Its failing and passing runs are kept under
+`.artifacts/r150/stepup-status-race/`, with an index.
 
 ## Contracts that failed, classified
 
-All four now pass on every host (below). The consolidated run above predates
-their repair.
+All four were repaired, and pass in the consolidated run above. They failed
+in the first consolidated run, before slices 8 to 11.
 
 1. **"a terminal NEAR execution remains failed under fresh unlock authority
    while EVM signs"** broke in slice 1. The test's fault answered "burned" at
@@ -238,12 +235,52 @@ their repair.
    - All three pass on the VM, the wallet-object build and Workers D1
      (2026-09-28). No product change was needed.
 
+## Deployable setup and hosted measurements
+
+VM:
+- Each role has a read-only deployment check, `router_ab_local_worker --check`
+  (433b7f0), and so does the Gateway, `check` (701bfb0). They report
+  configuration, schema, address, peers and durable-job settings, and never
+  write. The one-command setup runs all five at every start, so every VM
+  contract run above exercised them.
+- The VM setup guide documents the checks, the operator review they cannot
+  replace, and recovery: restart behaviour, upgrades, and restoring custody
+  from managed backups or the recovery kit, never from a copy of a file.
+
+Cloudflare:
+- The isolated comparison's manifests are checked against each role's
+  committed config (6923926). That check found both Router arms without the
+  Router's wallet object; both now bind it.
+- The probes run on Cloudflare (owner decision, 2026-09-29): one Playwright
+  container per region in Cloudflare Containers, placed by the constraints
+  APAC, WEUR and ENAM, each recording its runtime identity (7c8a163). The
+  runner keeps its ledger on the operator's machine and requires every
+  attempt to run on the recorded container.
+- The release wallet-object build keeps two test switches compiled in,
+  `R150_TEST_B_BURN_BEFORE_COMPLETE` and
+  `R150_TEST_ECDSA_INTERRUPT_AFTER_CLAIM`. Each acts only when its Worker
+  var is set, and no rendered manifest sets either. A release build has no
+  request-reachable test or debug route.
+- The pilot is approved and under way: account access and the cost
+  estimate were confirmed first, and pending migrations are applied to the
+  eight benchmark databases. Its results are recorded in the
+  [hosted comparison](./refactor-150-hosted-comparison.md).
+
 ## Before the managed milestone
 
 - The review items the cross-owner plan leaves open. Explicit recovery
   abandonment stays deferred.
+- The hosted pilot's latency and cost results, and the rollout decision
+  made on them.
+- If the decision is DO: a production wallet-object configuration and
+  build for the managed roles. Today the wallet-object features build only
+  the local harness and the isolated comparison.
+- Integration into `dev`, and seams-monorepo consuming exact package and
+  artifact versions.
 - The new-wallet cohort, and the Phase 3 clean reset, as separately
-  coordinated operations.
+  coordinated operations. Superseded wallet-local D1 stores and routing are
+  removed only after the DO path replaces them.
 
-Against `dev`: `dev` has one commit this branch lacks, d8c1fe5, which removes
-tests. A dry-run merge applies it cleanly.
+Against `dev`: `dev` has five test-pruning commits this branch lacks. The
+owner chose to merge `dev` into this branch after the consolidated run
+(2026-09-29).
