@@ -5,10 +5,10 @@ which waits for a decision. Phase 2's follow-ups have consolidated the store,
 worker, route and fixture clusters outside R150's files, and split oversized
 files along their seams. Phase 4 waits for R150 to land on `dev`. CI runs
 `pnpm report:bloat --check`, which fails when a ratcheted measure grows past
-`scripts/bloat-baseline.json`, now recorded at `db1a101`. Since the first
-baseline (`7c8a163`), TypeScript code is down 33,308 lines and Rust code 5,275.
+`scripts/bloat-baseline.json`, now recorded at `c7033bb`. Since the first
+baseline (`7c8a163`), TypeScript code is down 33,379 lines and Rust code 5,275.
 Duplication is down from 5.1% to 3.3% in TypeScript and from 5.7% to 5.2% in
-Rust, and files over 2,000 lines from 82 to 69. The findings below are the
+Rust, and files over 2,000 lines from 82 to 68. The findings below are the
 first baseline's; run `pnpm report:bloat` for current numbers.
 
 This plan reduces the code that has to be read, reviewed and kept consistent,
@@ -366,7 +366,11 @@ the same proof standard.
   helpers (f2929fa). Each proved its encoded bytes unchanged with the
   committed vectors and a before/after probe. `ed25519_yao_router.rs` was
   skipped for R150 activity.
-- [ ] `sealedSessionStore.ts`, in progress.
+- [x] `sealedSessionStore.ts`: deduplicated, its records split into
+  `sealedSessionRecords.ts` with the SDK's chunks unchanged, and its dead
+  user-action and signing-root branches deleted (963e12b, 325e817, c7033bb).
+  Splits now keep the SDK chunk graph unchanged, or report the cost before
+  landing.
 - Not shared, because each would need a new crate or dependency, or a
   source include across crates: `wasm/evm_crypto` and `wasm/tempo_signer`'s
   byte-identical `errors.rs` (61 lines each); the seams-cli and
@@ -688,3 +692,7 @@ Found during the cleanup and left unchanged, for their owners to check:
   433,451 -> 428,176; files over 2,000 lines 82 -> 69; duplicated TypeScript
   lines 21,753 (5.1%) -> 13,441 (3.3%); duplicated Rust lines 19,427 (5.7%)
   -> 17,492 (5.2%). The baseline was re-recorded at `db1a101`.
+- 2026-09-29: `sealedSessionStore.ts` deduplicated, split and cleared of dead
+  branches (963e12b, 325e817, c7033bb), and dev merged up to the branch
+  (68867a0). Files over 2,000 lines: 68. The baseline was re-recorded at
+  `c7033bb`.

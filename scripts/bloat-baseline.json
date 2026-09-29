@@ -1,14 +1,14 @@
 {
-  "commit": "db1a101",
+  "commit": "c7033bb",
   "date": "2026-09-29",
   "metrics": {
-    "tsCodeLines": 506533,
+    "tsCodeLines": 506462,
     "rustCodeLines": 428176,
     "jsCodeLines": 30590,
-    "filesOver2000": 69,
-    "linesInFilesOver2000": 314544,
+    "filesOver2000": 68,
+    "linesInFilesOver2000": 312222,
     "tsDuplicatedPercent": 3.3,
-    "tsDuplicatedLines": 13441,
+    "tsDuplicatedLines": 13361,
     "rustDuplicatedPercent": 5.2,
     "rustDuplicatedLines": 17492,
     "deadExports": 0,
@@ -18,12 +18,12 @@
     "localOnlyExports": 3,
     "mirroredExportNames": 161,
     "validationFunctions": 3788,
-    "validationLines": 75067,
+    "validationLines": 75021,
     "helperCopies": 39,
     "neverPaddingLines": 2482,
     "rustAllowDeadCode": 111,
     "refactorPlanDocs": 32,
-    "refactorPlanDocLines": 13421,
+    "refactorPlanDocLines": 13487,
     "refactorCitations": 27
   }
 }
