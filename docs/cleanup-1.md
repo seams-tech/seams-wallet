@@ -1,14 +1,15 @@
 # Cleanup 1: dead, duplicated and boilerplate code
 
-**Status:** Phases 0 to 2 are complete, apart from moving finished plans, which
-waits for a decision; the threshold routes moved to Phase 4. Phase 3 is rolled
-out as far as it goes without changing error messages. Phase 2's follow-ups
-are under way. Phase 4 waits for R150 to land on `dev`. CI runs
+**Status:** Phases 0 to 3 are complete, apart from moving finished plans,
+which waits for a decision. Phase 2's follow-ups have consolidated the store
+and worker clusters outside R150's files, and several oversized files are
+split along their seams. Phase 4 waits for R150 to land on `dev`. CI runs
 `pnpm report:bloat --check`, which fails when a ratcheted measure grows past
-`scripts/bloat-baseline.json`, now recorded at `89e79fa`. Since the first
-baseline (`7c8a163`), TypeScript code is down 27,163 lines and Rust code 4,788.
-The findings below are the first baseline's; run `pnpm report:bloat` for
-current numbers.
+`scripts/bloat-baseline.json`, now recorded at `2e7cb6d`. Since the first
+baseline (`7c8a163`), TypeScript code is down 32,058 lines and Rust code 4,788;
+TypeScript duplication is down from 5.1% to 3.6%, and files over 2,000 lines
+from 82 to 73. The findings below are the first baseline's; run
+`pnpm report:bloat` for current numbers.
 
 This plan reduces the code that has to be read, reviewed and kept consistent,
 without changing behavior. The repository holds about 540k lines of TypeScript
@@ -306,11 +307,42 @@ the same proof standard.
 - [x] `authorization/walletAuthority.ts` (39 runs internally, 22 with
   `device-linking/digests.ts`; b3be54a). The canonical encoders live in
   `utils/digestEncoding.ts`, and every hashed byte string is unchanged.
-- [ ] `core/deviceLinking/linkedDeviceSession.ts` (38 runs internally, 28 with
-  `d1LinkedDeviceSessionStore.ts`).
-- [ ] The remaining copies of the canonical encoders (`rotationDigests.ts`,
+- [x] `core/deviceLinking/linkedDeviceSession.ts` (38 runs internally, 28 with
+  `d1LinkedDeviceSessionStore.ts`). ed248e0 removed the repetition (1,067
+  scenarios on real SQLite, byte-identical), and f841322 split the record
+  model and approval matching out of the service (2,481 to 957 lines).
+- [x] The remaining copies of the canonical encoders (`rotationDigests.ts`,
   `participantDigest.ts`, `ownerContinuity.ts`) and the repeated
-  `parseDigestB64u(base64UrlEncode(await sha256Bytes(...)))` pattern.
+  `parseDigestB64u(base64UrlEncode(await sha256Bytes(...)))` pattern
+  (b256786, and e7baf14 for the UTF-8 form at 28 sites).
+- [x] More store clusters, each proven with recorded SQL, requests and logs
+  over real SQLite:
+  - d1057bf: one tenant-scoped D1 plumbing module for the core stores.
+  - 0509584: one home for backend selection and Durable Object requests.
+  - 6d2741e and a9f50a3: the WebAuthn store and auth services.
+  - e57abf5: the NEAR relayer's copy of the private-key signing path.
+- [x] Statements identical apart from whitespace (approved 2026-09-29).
+  2e7cb6d gives the 10 groups outside R150's files one statement each; only
+  whitespace changed, in 10 statements. The other 10 groups need
+  `d1WalletRegistrationCommitStore.ts`, `d1WalletAuthorityStore.ts`,
+  `d1EmailOtpChallengeStore.ts`, `d1LaneLifecycleStore.ts` or
+  `d1VersionedJsonRecordStore.ts`, and wait for Phase 4.
+- [x] Oversized files, deduplicated and then split along their seams as
+  verified pure moves:
+  - `routerAbPrivateSigningWorker.ts`: 4,961 lines to five modules
+    (ffd7e85, 8524948).
+  - `email-otp.worker.ts`: 7,623 lines to a 12-line entry and 14 modules
+    (9dd1e48, d185a16). A wallet worker entry must import its handler by
+    name: the package declares only CSS as side-effectful, so Bun drops a
+    bare import.
+- [x] Modules nothing imports or builds (0837712): 21 files, including the
+  unwired use-case layer and the 1,522-line `SeamsWebIframe.ts`. Workers,
+  ESM output, the boot path, published declarations and every entry
+  listing are unchanged.
+- [ ] In progress: `ecdsaCapabilityManifestStore.ts`, `linkDevice.ts`,
+  `accountLifecycle.ts`, `sealedSessionStore.ts`,
+  `device-linking-key.worker.ts`, the `passkeyCustody.ts` routes, and the
+  dead modules that were held back.
 
 **Exit:** each listed cluster has one implementation, and both languages'
 duplication is below the baseline.
@@ -610,3 +642,11 @@ Found during the cleanup and left unchanged, for their owners to check:
   `TrueBlindBoundary.lean` counterparts cover a separate handwritten
   true-blind model: they prove matched states and export authorizations share
   one binding, and say nothing about the extracted boundary or privacy.
+- 2026-09-29: Phase 2 follow-ups continued: the linked-device session, the
+  remaining encoders, the D1 plumbing, the store backends, WebAuthn, NEAR
+  signing, the whitespace-identical SQL, the signing worker and the Email
+  OTP worker, and 21 unreachable modules. Against the first baseline,
+  measured at `2e7cb6d`: TypeScript code 539,841 -> 507,783 lines; files
+  over 2,000 lines 82 -> 73; duplicated TypeScript lines 21,753 (5.1%) ->
+  14,564 (3.6%); validation functions 4,276 -> 3,794 (86,063 -> 75,245
+  lines). The baseline was re-recorded at `2e7cb6d`.
