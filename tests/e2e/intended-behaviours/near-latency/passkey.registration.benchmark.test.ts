@@ -1,4 +1,10 @@
-import { expect, type ConsoleMessage, type Page, type TestInfo } from '@playwright/test';
+import {
+  expect,
+  type ConsoleMessage,
+  type Page,
+  type Response,
+  type TestInfo,
+} from '@playwright/test';
 import { isPlainObject } from '../../../../packages/shared-ts/src/utils/validation';
 import { intendedTest as test, type IntendedBehaviourHarness } from '../harness';
 
@@ -34,9 +40,40 @@ class NearTimings {
   signing: SigningTiming[] = [];
   sdkDurations: number[] = [];
   sdkInvocations = 0;
+  readonly responses: Promise<void>[] = [];
+
+  observeResponse(response: Response): void {
+    if (new URL(response.url()).pathname !== '/router-ab/ed25519/yao/registration/execute') return;
+    this.responses.push(this.collectRouterTiming(response));
+  }
+
+  async collectRouterTiming(response: Response): Promise<void> {
+    const header = await response.headerValue('server-timing');
+    for (const entry of (header ?? '').split(',')) {
+      const parsed = /^\s*([a-zA-Z0-9_]+);dur=([0-9.]+)\s*$/.exec(entry);
+      if (!parsed) continue;
+      const durationMs = Number(parsed[2]);
+      if (isDuration(durationMs))
+        this.registration.push({ stage: `server.execute.${parsed[1]}`, durationMs });
+    }
+  }
+
+  async collectIframeTiming(message: ConsoleMessage): Promise<void> {
+    const value: unknown = await message.args()[1]?.jsonValue();
+    if (!isPlainObject(value) || value.kind !== 'wallet_iframe_registration_transport_timing_v1')
+      return;
+    for (const [stage, durationMs] of Object.entries(value)) {
+      if (stage.endsWith('Ms') && isDuration(durationMs))
+        this.registration.push({ stage: `iframe.${stage}`, durationMs });
+    }
+  }
 
   observe(message: ConsoleMessage): void {
     const text = message.text();
+    if (text.startsWith('[Registration] wallet iframe transport timing summary')) {
+      this.responses.push(this.collectIframeTiming(message));
+      return;
+    }
     if (
       !text.startsWith('[Registration]') &&
       !text.startsWith('[WalletCustody]') &&
@@ -57,8 +94,24 @@ class NearTimings {
       if (isDuration(value.totalMs)) {
         this.registration.push({ stage: 'registration_return', durationMs: value.totalMs });
       }
-      if (isPlainObject(value.timings) && isDuration(value.timings.authProofMs)) {
-        this.registration.push({ stage: 'authentication', durationMs: value.timings.authProofMs });
+      if (isPlainObject(value.timings)) {
+        for (const [stage, durationMs] of Object.entries(value.timings)) {
+          if (isDuration(durationMs) && durationMs > 0)
+            this.registration.push({ stage: `summary.${stage}`, durationMs });
+        }
+      }
+      return;
+    }
+    if (value.event === 'near_confirmation_prompt_timing' && value.confirmed === true) {
+      for (const stage of ['mountMs', 'decisionWaitMs']) {
+        const durationMs = value[stage];
+        if (isDuration(durationMs))
+          this.signing.push({
+            stage: `prompt.${stage}`,
+            durationMs,
+            operationId: 'confirmation',
+            outcome: 'succeeded',
+          });
       }
       return;
     }
@@ -127,6 +180,17 @@ async function measureSigning(
     false,
   );
   expect(auth.warmSessionClaimed).toBe(true);
+  for (const stage of [
+    'preparation_modal',
+    'authorization_probe',
+    'execution_setup',
+    'lane_preparation',
+    'pre_confirmation',
+    'confirmation',
+    'prompt.decisionWaitMs',
+  ]) {
+    expect(timings.signing.filter(timingHasStage.bind(undefined, stage)), stage).toHaveLength(1);
+  }
   return {
     phase,
     sdkElapsedMs: timings.sdkDurations[0],
@@ -136,6 +200,10 @@ async function measureSigning(
     passkeyPromptStarted: auth.passkeyPromptStarted,
     timings: [...timings.signing],
   };
+}
+
+function timingHasStage(stage: string, timing: Timing): boolean {
+  return timing.stage === stage;
 }
 
 function isSignatureTotal(timing: SigningTiming): boolean {
@@ -152,6 +220,7 @@ async function benchmarkLocalNear(
   const sample = Number(selection[2]);
   const timings = new NearTimings();
   page.on('console', timings.observe.bind(timings));
+  page.on('response', timings.observeResponse.bind(timings));
   const signing: SigningSample[] = [];
   const registrationStartedAt = performance.now();
   let registrationHarnessMs: number | null = null;
@@ -163,6 +232,19 @@ async function benchmarkLocalNear(
     registrationHarnessMs = performance.now() - registrationStartedAt;
     if (kind === 'mixed') await harness.awaitNearReady();
     readinessHarnessMs = performance.now() - registrationStartedAt;
+    await Promise.all(timings.responses);
+    expect(
+      timings.registration.some(
+        timingHasStage.bind(undefined, 'server.execute.yao_router_role_execution'),
+      ),
+    ).toBe(true);
+    if (kind === 'near_only') {
+      expect(
+        timings.registration.some(
+          timingHasStage.bind(undefined, 'near_registration_timing/near_only.session_hydration'),
+        ),
+      ).toBe(true);
+    }
     expect(timings.registration.some(isRegistrationReturn)).toBe(true);
     signing.push(await measureSigning(harness, timings, 'first'));
     signing.push(await measureSigning(harness, timings, 'warm'));

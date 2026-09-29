@@ -89,7 +89,43 @@ function readSample(result) {
     !Array.isArray(measurements.signing)
   )
     throw new Error(`Invalid timing attachment: ${result.title}`);
+  const lifecycle = result.attachments.find(isLifecycleAttachment);
+  if (lifecycle && result.status === 'passed') {
+    const trace = JSON.parse(readAttachmentText(lifecycle)).trace;
+    const counts = signingStatusRequestCounts(trace);
+    if (counts.length !== measurements.signing.length)
+      throw new Error('Signing request count boundaries do not match samples');
+    for (let index = 0; index < counts.length; index += 1) {
+      measurements.signing[index].walletSessionStatusRequests = counts[index];
+    }
+  }
   return { title: result.title, status: result.status, measurements };
+}
+
+function isLifecycleAttachment(attachment) {
+  return attachment.name === 'intended-lifecycle-trace.json';
+}
+
+function readAttachmentText(attachment) {
+  return attachment.body
+    ? Buffer.from(attachment.body, 'base64').toString('utf8')
+    : readFileSync(attachment.path, 'utf8');
+}
+
+function signingStatusRequestCounts(trace) {
+  const counts = [];
+  let active = null;
+  for (const event of trace) {
+    if (event.kind === 'console' && event.message.includes('"event":"near_sdk_signing_started"'))
+      active = 0;
+    if (active === null) continue;
+    if (event.kind === 'request' && event.message === 'POST /wallet/session/status') active += 1;
+    if (event.kind === 'console' && event.message.includes('"event":"near_sdk_signing_timing"')) {
+      counts.push(active);
+      active = null;
+    }
+  }
+  return counts;
 }
 
 function isCompleted(sample) {
@@ -132,6 +168,28 @@ function collectMetrics(metrics, sample) {
     for (const timing of signing.timings) {
       addMetric(metrics, `${prefix}/${timing.stage}`, timing.durationMs);
     }
+    const durations = new Map(signing.timings.map(timingEntry));
+    const promptWait = durations.get('prompt.decisionWaitMs');
+    if (promptWait !== undefined) {
+      addMetric(
+        metrics,
+        `${prefix}/outside_prompt_decision_wait`,
+        signing.sdkElapsedMs - promptWait,
+      );
+      const attributed = [
+        'preparation_modal',
+        'authorization_probe',
+        'execution_setup',
+        'lane_preparation',
+        'pre_confirmation',
+        'confirmation',
+        'confirmed_to_signed',
+      ];
+      if (attributed.every(hasTiming.bind(undefined, durations))) {
+        const total = attributed.reduce(sumTiming.bind(undefined, durations), 0);
+        addMetric(metrics, `${prefix}/unattributed_sdk`, signing.sdkElapsedMs - total);
+      }
+    }
     const totals = signing.timings.filter(isSignatureTotal);
     if (totals.length !== 1 || !signing.signatureVerified) {
       throw new Error('Each signing sample needs one verified signature');
@@ -142,6 +200,18 @@ function collectMetrics(metrics, sample) {
       signing.sdkElapsedMs - totals[0].durationMs,
     );
   }
+}
+
+function timingEntry(timing) {
+  return [timing.stage, timing.durationMs];
+}
+
+function hasTiming(durations, stage) {
+  return durations.has(stage);
+}
+
+function sumTiming(durations, total, stage) {
+  return total + durations.get(stage);
 }
 
 function isSignatureTotal(timing) {

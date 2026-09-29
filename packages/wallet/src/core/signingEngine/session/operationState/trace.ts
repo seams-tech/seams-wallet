@@ -74,6 +74,12 @@ export function emitEcdsaSigningTiming(
 }
 
 type Ed25519SigningTimingStage =
+  | 'preparation_modal'
+  | 'authorization_probe'
+  | 'execution_setup'
+  | 'lane_preparation'
+  | 'pre_confirmation'
+  | 'confirmation'
   | 'confirmed_to_signed'
   | 'durable_lease_recovery_wait'
   | 'material_resolution_wait'

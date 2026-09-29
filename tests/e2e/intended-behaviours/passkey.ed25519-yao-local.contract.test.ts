@@ -6,10 +6,14 @@ async function verifyLocalEd25519YaoRegistration({
   harness: IntendedBehaviourHarness;
 }): Promise<void> {
   await harness.registerPasskeyEd25519YaoWallet();
+  await harness.signNearTransaction('post_registration');
+  await harness.signNearTransaction('post_registration');
+  await harness.refreshPagePreservingWalletStorage();
+  await harness.signNearTransactionAfterRefresh();
 }
 
 test(
-  'public Ed25519 Yao registration persists a ready signer',
+  'public Ed25519 Yao registration signs immediately and after refresh',
   verifyLocalEd25519YaoRegistration,
 );
 

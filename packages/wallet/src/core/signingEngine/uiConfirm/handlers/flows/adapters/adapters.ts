@@ -1,3 +1,4 @@
+import { emitSigningSessionFlowTrace } from '../../../../session/operationState/trace';
 import type { UiConfirmContext } from '../../../uiConfirm.types';
 import type { NormalizedConfirmationConfig } from '@/core/types/confirmationConfig';
 import { assertNeverConfirmationConfig } from '@/core/types/confirmationConfig';
@@ -331,6 +332,17 @@ async function renderInteractiveConfirmUI(
       emailOtpPrompt: args.emailOtpPrompt,
       surface: args.surface,
     });
+  if (
+    args.request.type === UserConfirmationType.SIGN_TRANSACTION &&
+    getSignTransactionPayload(args.request).signingKind === 'transaction'
+  ) {
+    emitSigningSessionFlowTrace('near', {
+      event: 'near_confirmation_prompt_timing',
+      mountMs: diagnostics.mountMs,
+      decisionWaitMs: diagnostics.decisionWaitMs,
+      confirmed,
+    });
+  }
   return {
     confirmed,
     confirmHandle: handle,

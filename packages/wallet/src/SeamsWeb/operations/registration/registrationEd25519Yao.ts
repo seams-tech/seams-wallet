@@ -1,3 +1,6 @@
+import type { HydrateWarmSigningSessionInput } from '@/core/signingEngine/session/passkey/warmSessionHydration';
+import { buildPasskeyEd25519RestoreMetadata } from '@/core/signingEngine/session/passkey/ed25519YaoSealedSession';
+import { recordNearRegistrationSessionTiming } from './registrationTiming';
 import {
   ROUTER_AB_ED25519_YAO_REGISTRATION_ADMISSION_PATH_V1,
   parseRouterAbEd25519YaoRegistrationActivationAdmissionReceiptV1,
@@ -142,7 +145,7 @@ export function registrationEd25519MaterialFacts(args: {
   };
 }
 
-export function registrationEstablishedEd25519Session(
+function registrationEstablishedEd25519Session(
   session: RegistrationEstablishedSessionV2,
 ): RegistrationEstablishedEd25519SessionProjectionV2 {
   switch (session.tokens.kind) {
@@ -314,4 +317,48 @@ export async function admitDeferredNearRegistration(
   const receipt = parseRouterAbEd25519YaoRegistrationActivationAdmissionReceiptV1(response.value);
   if (!receipt.ok) throw new Error(receipt.message);
   return receipt.value;
+}
+
+export function buildRegistrationPasskeyEd25519SessionHydration(args: {
+  session: RegistrationEstablishedSessionV2;
+  ceremonyId: string;
+  walletId: string;
+  relayerUrl: string;
+  prfFirstB64u: string;
+  restore: Omit<
+    Parameters<typeof buildPasskeyEd25519RestoreMetadata>[0],
+    'runtimePolicyScope' | 'routerAbNormalSigning'
+  >;
+  preparedServerSeal: NonNullable<HydrateWarmSigningSessionInput['preparedServerSeal']> | null;
+}): HydrateWarmSigningSessionInput {
+  const ed25519 = registrationEstablishedEd25519Session(args.session);
+  return {
+    thresholdSessionId: String(ed25519.thresholdSessionId),
+    prfFirstB64u: args.prfFirstB64u,
+    expiresAtMs: args.session.expiresAtMs,
+    remainingUses: args.session.remainingUses,
+    diagnostics: {
+      recordDuration: recordNearRegistrationSessionTiming.bind(undefined, args.ceremonyId),
+    },
+    ...(args.preparedServerSeal ? { preparedServerSeal: args.preparedServerSeal } : {}),
+    transport: {
+      curve: 'ed25519',
+      authMethod: 'passkey',
+      walletId: args.walletId,
+      relayerUrl: args.relayerUrl,
+      walletSessionToken: args.session.operationCredential.token,
+      ed25519Restore: buildPasskeyEd25519RestoreMetadata({
+        rpId: args.restore.rpId,
+        nearAccountId: args.restore.nearAccountId,
+        nearEd25519SigningKeyId: args.restore.nearEd25519SigningKeyId,
+        relayerKeyId: args.restore.relayerKeyId,
+        participantIds: args.restore.participantIds,
+        runtimePolicyScope: ed25519.runtimePolicyScope,
+        signerSlot: args.restore.signerSlot,
+        routerAbNormalSigning: ed25519.routerAbNormalSigning,
+        credentialIdB64u: args.restore.credentialIdB64u,
+        materialActivation: args.restore.materialActivation,
+      }),
+    },
+  };
 }

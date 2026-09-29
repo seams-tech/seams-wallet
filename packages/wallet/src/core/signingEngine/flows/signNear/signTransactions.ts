@@ -680,6 +680,7 @@ async function runAuthorizedNearTransactionWithActionsSigning({
   nearAccountId: AccountId;
   logs?: string[];
 }> {
+  const preConfirmationStartedAt = performance.now();
   const signingOperationId = signingOperationState.operationId;
   const nearAccountId = toAccountId(nearAccount.accountId);
   const relayerUrl = ctx.relayerUrl;
@@ -886,6 +887,12 @@ async function runAuthorizedNearTransactionWithActionsSigning({
             signatureUses: requiredSignatureUses,
           },
         });
+  emitEd25519SigningTiming(
+    String(signingOperationId),
+    'pre_confirmation',
+    preConfirmationStartedAt,
+  );
+  const confirmationStartedAt = performance.now();
   let confirmation: ConfirmTransactionSigningOperationResult;
   try {
     confirmation = await runTransactionSigningConfirmationCommand({
@@ -941,6 +948,7 @@ async function runAuthorizedNearTransactionWithActionsSigning({
     });
   }
   const confirmationCompletedAt = performance.now();
+  emitEd25519SigningTiming(String(signingOperationId), 'confirmation', confirmationStartedAt);
   const operationStepUpMaterial = operationStepUpReadiness ? await operationStepUpReadiness : null;
   if (transactionReviewRequired) {
     emitNearSigningEvent(onEvent, nearAccountId, {

@@ -168,6 +168,7 @@ export const WALLET_IFRAME_TRANSPORT_TIMING_LABEL =
 export function emitNearRegistrationTiming(input: {
   ceremonyId: string;
   stage:
+    | `near_only.${'setup' | 'authentication' | 'respond' | 'custody' | 'backup_and_checkpoint' | 'activate' | 'provision_checkpoint' | 'finalize' | 'publication' | 'session_hydration' | 'material_activation' | 'export_capability' | 'wallet_ready'}`
     | 'early_admission'
     | 'custody_join'
     | 'server_finalize'
@@ -822,6 +823,7 @@ function buildRegistrationTimingBuckets(input: {
 
 export class RegistrationTimingRecorder {
   private readonly startedAt: number;
+  private nearStageStartedAt: number;
   private readonly buckets: RegistrationTimingBucketValues;
   private readonly relayDiagnostics: WalletRegistrationRouteDiagnostics[];
   private readonly spans: RegistrationTimingSpan[];
@@ -829,10 +831,25 @@ export class RegistrationTimingRecorder {
 
   constructor(startedAt: number) {
     this.startedAt = startedAt;
+    this.nearStageStartedAt = startedAt;
     this.buckets = zeroTimingBuckets(REGISTRATION_TIMING_BUCKETS);
     this.relayDiagnostics = [];
     this.spans = [];
     this.emailOtpYaoPrewarm = zeroEmailOtpYaoPrewarmDiagnostics();
+  }
+
+  markNearStage(
+    ceremonyId: string,
+    stage: Parameters<typeof emitNearRegistrationTiming>[0]['stage'],
+  ): void {
+    const endedAt = performance.now();
+    emitNearRegistrationDuration({
+      ceremonyId,
+      stage,
+      durationMs: endedAt - this.nearStageStartedAt,
+      outcome: 'success',
+    });
+    this.nearStageStartedAt = endedAt;
   }
 
   async measure<K extends RegistrationTimingBucketName, T>(

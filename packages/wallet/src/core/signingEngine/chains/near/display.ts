@@ -355,3 +355,17 @@ export function buildNearMessageDisplayModel(
     operations: [operation],
   };
 }
+
+export function buildNearPreparationDisplayModel(args: BuildNearDisplayModelArgs): TxDisplayModel {
+  try {
+    return buildNearDisplayModel(args);
+  } catch {
+    return {
+      chain: 'near',
+      signerAccount: args.signerAccount,
+      ...(args.title ? { title: args.title } : {}),
+      ...(args.subtitle ? { subtitle: args.subtitle } : {}),
+      operations: [],
+    };
+  }
+}

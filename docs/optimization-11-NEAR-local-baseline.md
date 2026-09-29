@@ -5,6 +5,11 @@ signatures passed**, with zero retries. This establishes the local development
 baseline for [Optimization 11](./optimization-11-NEAR.md). Network optimization
 and hosted measurements remain later work.
 
+Follow-up: the NEAR-only registration result below lacked the session seal needed
+for signing after refresh. The [corrected baseline and breakdown](./optimization-11-NEAR-local-breakdown.md)
+includes that persistence work. These historical timings remain unchanged and
+must not be used as a complete durable-readiness comparison arm.
+
 ## Results
 
 Durations are milliseconds. Each row has 20 observations. Median uses the middle

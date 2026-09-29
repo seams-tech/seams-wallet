@@ -1,6 +1,7 @@
 # Optimization 11: NEAR registration and signing latency
 
-Status: local baseline established, 2026-09-29; optimization work remains proposed.
+Status: local refresh persistence repaired and latency breakdown measured, 2026-09-29;
+optimization experiments remain proposed.
 No optimization or deployment is claimed. R150 is integrated into wallet `dev`; measurements
 must identify the exact source, SDK assets, role builds, and deployed versions.
 
@@ -8,6 +9,10 @@ Execution order confirmed: establish the local development baseline first and
 optimize measured local work before starting network/placement experiments.
 The [local benchmark report](./optimization-11-NEAR-local-baseline.md) records the
 workload, results, reproduction commands, and known coverage gaps.
+The [corrected local breakdown and experiment ranking](./optimization-11-NEAR-local-breakdown.md)
+adds NEAR-only refresh persistence, registration stage timings, signing preparation
+and confirmation timings, and per-signature session-status request counts.
+Use that corrected readiness baseline for the next experiments.
 
 ## Objective and scope
 
@@ -130,12 +135,16 @@ environment's transaction-context cost. Neither proves residential/mobile latenc
 - [x] Record a frozen local Workers/D1 baseline: 20 passkey NEAR-only and 20 mixed
   registrations, each followed by verified first and warm NEAR signing. Preserve
   safe samples, artifact identity, reproduction commands, and diagnostic failures.
-- [ ] Verify optimized WASM artifacts and diagnostic coverage in the exact build.
-- [ ] Run the focused baseline and attribute uncovered time between existing spans.
-- [ ] Add only missing timing boundaries, including Gateway authorization/storage
-  attribution and final verification where current totals omit them.
-- [ ] Rank stages by exclusive critical-path contribution for each cohort. Choose
-  the first change from measured delay and implementation risk.
+- [x] Verify release WASM artifacts and freeze the source/assets used by each local run.
+- [x] Repair missing NEAR-only refresh persistence and verify refresh, cross-tab lock,
+  leading-zero PRF restoration, export, and budget step-up with focused E2Es.
+- [x] Measure NEAR-only registration stages, Router execution subspans, signing
+  preparation, confirmation decision wait, and session-status request counts.
+- [x] Rank the measured local experiments in the corrected breakdown report.
+- [ ] Split role execution into computation, serialization, storage, and dispatch;
+  attribute remaining public-call orchestration before changing its scheduling.
+- [ ] Extend these measurements to Email OTP and separately timed refresh/unlock
+  cohorts before making claims about those workloads.
 
 Start with [the existing registration benchmark](../tests/e2e/intended-behaviours/passkey.registration.benchmark.test.ts)
 and [signing stage traces](../packages/wallet/src/core/signingEngine/session/operationState/trace.ts).
