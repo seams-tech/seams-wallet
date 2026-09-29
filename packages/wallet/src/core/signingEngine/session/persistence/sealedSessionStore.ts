@@ -30,7 +30,6 @@ import {
   inactiveEcdsaMaterialStorageRow,
   logSealedSessionClassification,
   makeInactiveEcdsaMaterialStoreKey,
-  type NonCurrentSealedSessionRecordClassification,
   normalizeSigningSessionSealedStoreRecord,
   normalizeThresholdSessionIdsFromStoredRecord,
   requireInactiveEcdsaSealedMaterial,
@@ -53,25 +52,6 @@ type SigningSessionRestoreLeaseHandle = SigningSessionRestoreLease & {
   thresholdSessionId: string;
 };
 
-class SealedSessionRecordUserActionRequiredError extends Error {
-  readonly classification: Extract<
-    NonCurrentSealedSessionRecordClassification,
-    { kind: 'user_action_required' }
-  >;
-
-  constructor(
-    classification: Extract<
-      NonCurrentSealedSessionRecordClassification,
-      { kind: 'user_action_required' }
-    >,
-  ) {
-    super(
-      `[SigningSessionSealedStore] sealed session record requires user action: ${classification.reason}`,
-    );
-    this.name = 'SealedSessionRecordUserActionRequiredError';
-    this.classification = classification;
-  }
-}
 // Sealed records are indexed by threshold session id, but that id can appear
 // on more than one lane. Every read/delete/lease must name the intended lane.
 export type SigningSessionSealedRecordFilter =
@@ -257,10 +237,6 @@ async function classifyPersistedSealedRecord(
   if (hasRetiredAuthorizationIdentityField(rawRow) || hasRetiredAuthorizationIdentityField(raw)) {
     return classifyNonCurrentRecord('delete_required', raw, 'invalid_identity');
   }
-  const persistedStoreKey = normalizeOptionalNonEmptyString(raw?.storeKey);
-  if (!persistedStoreKey || persistedStoreKey === classification.record.storeKey) {
-    return classification;
-  }
   return classification;
 }
 
@@ -404,10 +380,6 @@ async function readRecordByThresholdSessionId(
       continue;
     }
     setAsideRejectedSealedRecord(operation, classification, entry.primaryKey, deletePrimaryKeys);
-    if (classification.kind === 'user_action_required') {
-      await signingSessionSealsRepository.deleteSealedRecords(deletePrimaryKeys);
-      throw new SealedSessionRecordUserActionRequiredError(classification);
-    }
   }
   await signingSessionSealsRepository.deleteSealedRecords(deletePrimaryKeys);
   if (exactEd25519Matches.length > 0) {
@@ -517,10 +489,6 @@ export async function readExactEd25519SealedSession(
       entry.primaryKey,
       deletePrimaryKeys,
     );
-    if (classification.kind === 'user_action_required') {
-      await signingSessionSealsRepository.deleteSealedRecords(deletePrimaryKeys);
-      throw new SealedSessionRecordUserActionRequiredError(classification);
-    }
   }
   await signingSessionSealsRepository.deleteSealedRecords(deletePrimaryKeys);
   return await compactExactEd25519Records(matches);
@@ -549,10 +517,6 @@ export async function listExactSealedSessionsForWallet(args: {
           value.primaryKey,
           deletePrimaryKeys,
         );
-        if (classification.kind === 'user_action_required') {
-          await signingSessionSealsRepository.deleteSealedRecords(deletePrimaryKeys);
-          throw new SealedSessionRecordUserActionRequiredError(classification);
-        }
         continue;
       }
       const record = classification.record;
@@ -622,10 +586,6 @@ export async function listEcdsaSealedSessionsForWallet(args: {
           value.primaryKey,
           deletePrimaryKeys,
         );
-        if (classification.kind === 'user_action_required') {
-          await signingSessionSealsRepository.deleteSealedRecords(deletePrimaryKeys);
-          throw new SealedSessionRecordUserActionRequiredError(classification);
-        }
         continue;
       }
       const record = classification.record;

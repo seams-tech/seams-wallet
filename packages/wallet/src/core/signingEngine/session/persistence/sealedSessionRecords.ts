@@ -209,7 +209,6 @@ type SealedSessionRecordClassificationReason =
   | 'invalid_header'
   | 'invalid_identity'
   | 'owned_by_lane_holder_store'
-  | 'missing_signing_root_id'
   | 'missing_participant_ids'
   | 'missing_restore_metadata';
 
@@ -226,11 +225,10 @@ type EcdsaInactiveSealedMaterialRecordClassification = {
 type NonCurrentSealedSessionRecordClassificationKind =
   | 'delete_required'
   | 'rebuild_required'
-  | 'user_action_required'
   | 'unrelated_record'
   | 'malformed';
 
-export type NonCurrentSealedSessionRecordClassification = {
+type NonCurrentSealedSessionRecordClassification = {
   [K in NonCurrentSealedSessionRecordClassificationKind]: {
     kind: K;
     storeKey: string | null;
