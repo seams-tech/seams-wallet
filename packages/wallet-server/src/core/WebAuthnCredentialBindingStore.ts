@@ -3,19 +3,22 @@ import { isObject, toOptionalTrimmedString } from '@shared/utils/validation';
 import { normalizeRuntimePolicyScope } from '@shared/threshold/signingRootScope';
 import {
   WebAuthnCredentialRecords,
-  WebAuthnD1Table,
   createWebAuthnStore,
-  ensureWebAuthnD1Schema,
-  prepareWebAuthnD1Statement,
   resolveWebAuthnStorePrefix,
-  type D1WebAuthnStoreOptions,
-  type D1WebAuthnStoreSchemaOptions,
+  webAuthnD1Store,
   type InMemoryWebAuthnRecords,
-  type WebAuthnD1Scope,
   type WebAuthnRecords,
   type WebAuthnStoreInput,
   type WebAuthnStoreSpec,
 } from './webAuthnStoreBackends';
+import {
+  D1TenantTable,
+  ensureD1Schema,
+  prepareD1TenantStatement,
+  type D1SchemaOptions,
+  type D1TenantScope,
+  type D1TenantStoreOptions,
+} from './d1TenantStore';
 import { parseD1JsonColumn } from '../storage/d1Sql';
 import type { D1DatabaseLike, D1PreparedStatementLike } from '../storage/tenantRoute';
 
@@ -78,13 +81,13 @@ export interface WebAuthnCredentialBindingStore {
   }): Promise<WebAuthnCredentialBindingRecord[]>;
 }
 
-export interface D1WebAuthnCredentialBindingStoreSchemaOptions extends D1WebAuthnStoreSchemaOptions {}
+export interface D1WebAuthnCredentialBindingStoreSchemaOptions extends D1SchemaOptions {}
 
-export interface D1WebAuthnCredentialBindingStoreOptions extends D1WebAuthnStoreOptions {}
+export interface D1WebAuthnCredentialBindingStoreOptions extends D1TenantStoreOptions {}
 
 type D1WebAuthnCredentialBindingWrite = {
   readonly database: D1DatabaseLike;
-  readonly scope: WebAuthnD1Scope;
+  readonly scope: D1TenantScope;
   readonly record: WebAuthnCredentialBindingRecord;
 };
 
@@ -109,10 +112,7 @@ function prepareCredentialBindingWrite(
 ): D1PreparedStatementLike {
   const parsed = parseWebAuthnCredentialBindingRecord(input.record);
   if (!parsed) throw new Error('Invalid credential binding record');
-  return prepareWebAuthnD1Statement(
-    input.database,
-    input.scope,
-    sql,
+  return prepareD1TenantStatement(input.database, input.scope, sql, [
     parsed.rpId,
     parsed.credentialIdB64u,
     parsed.userId,
@@ -120,7 +120,7 @@ function prepareCredentialBindingWrite(
     JSON.stringify(parsed),
     parsed.createdAtMs,
     parsed.updatedAtMs,
-  );
+  ]);
 }
 
 export function prepareD1WebAuthnCredentialBindingPutStatement(
@@ -210,7 +210,7 @@ export const WEBAUTHN_CREDENTIAL_BINDING_STORE_D1_SCHEMA_SQL = Object.freeze([
 export async function ensureWebAuthnCredentialBindingStoreD1Schema(
   options: D1WebAuthnCredentialBindingStoreSchemaOptions,
 ): Promise<void> {
-  await ensureWebAuthnD1Schema(options.database, WEBAUTHN_CREDENTIAL_BINDING_STORE_D1_SCHEMA_SQL);
+  await ensureD1Schema(options.database, WEBAUTHN_CREDENTIAL_BINDING_STORE_D1_SCHEMA_SQL);
 }
 
 const CREDENTIAL_BINDING_STORE: WebAuthnStoreSpec<WebAuthnCredentialBindingRecord> = {
@@ -397,12 +397,12 @@ class InMemoryWebAuthnCredentialBindingStore extends KeyValueWebAuthnCredentialB
 
 export class D1WebAuthnCredentialBindingStore implements WebAuthnCredentialBindingStore {
   readonly adapterKind = 'd1';
-  private readonly table: WebAuthnD1Table;
+  private readonly table: D1TenantTable;
 
   constructor(input: D1WebAuthnCredentialBindingStoreOptions) {
-    this.table = new WebAuthnD1Table(
+    this.table = new D1TenantTable(
       input,
-      CREDENTIAL_BINDING_STORE.d1ScopeLabel,
+      webAuthnD1Store(CREDENTIAL_BINDING_STORE.d1ScopeLabel),
       WEBAUTHN_CREDENTIAL_BINDING_STORE_D1_SCHEMA_SQL,
     );
   }
@@ -426,8 +426,7 @@ export class D1WebAuthnCredentialBindingStore implements WebAuthnCredentialBindi
             AND rp_id = ?
             AND credential_id_b64u = ?
           LIMIT 1`,
-        r,
-        c,
+        [r, c],
       )
       .first<D1WebAuthnCredentialBindingRow>();
     return parseWebAuthnCredentialBindingRecord(parseD1JsonColumn(row?.record_json));
@@ -456,8 +455,7 @@ export class D1WebAuthnCredentialBindingStore implements WebAuthnCredentialBindi
             AND env_id = ?
             AND rp_id = ?
             AND credential_id_b64u = ?`,
-        r,
-        c,
+        [r, c],
       )
       .run();
   }
@@ -472,7 +470,7 @@ export class D1WebAuthnCredentialBindingStore implements WebAuthnCredentialBindi
         `SELECT MAX(signer_slot) AS max_signer_slot
            FROM webauthn_credential_bindings
           WHERE ${filter.where}`,
-        ...filter.values,
+        filter.values,
       )
       .first<D1WebAuthnCredentialBindingRow>();
     const maxSignerSlot = Number(row?.max_signer_slot);
@@ -495,7 +493,7 @@ export class D1WebAuthnCredentialBindingStore implements WebAuthnCredentialBindi
            FROM webauthn_credential_bindings
           WHERE ${filter.where}
           ORDER BY signer_slot ASC`,
-        ...filter.values,
+        filter.values,
       )
       .all<D1WebAuthnCredentialBindingRow>();
     const records: WebAuthnCredentialBindingRecord[] = [];

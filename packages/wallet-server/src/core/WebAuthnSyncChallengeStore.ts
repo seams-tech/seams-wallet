@@ -5,11 +5,11 @@ import {
   createWebAuthnChallengeStore,
   ensureWebAuthnChallengeStoreD1Schema,
   type D1WebAuthnChallengeStoreOptions,
-  type D1WebAuthnStoreSchemaOptions,
   type WebAuthnChallengeStore,
   type WebAuthnChallengeStoreSpec,
   type WebAuthnStoreInput,
 } from './webAuthnStoreBackends';
+import type { D1SchemaOptions } from './d1TenantStore';
 
 export type WebAuthnSyncChallengeRecord = {
   version: 'webauthn_sync_challenge_v1';
@@ -23,7 +23,7 @@ export type WebAuthnSyncChallengeRecord = {
 
 export interface WebAuthnSyncChallengeStore extends WebAuthnChallengeStore<WebAuthnSyncChallengeRecord> {}
 
-export interface D1WebAuthnSyncChallengeStoreSchemaOptions extends D1WebAuthnStoreSchemaOptions {}
+export interface D1WebAuthnSyncChallengeStoreSchemaOptions extends D1SchemaOptions {}
 
 export interface D1WebAuthnSyncChallengeStoreOptions extends D1WebAuthnChallengeStoreOptions {}
 

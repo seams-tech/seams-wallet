@@ -4,7 +4,7 @@ import type {
   CloudflareDurableObjectStubLike,
   ThresholdStoreConfigInput,
 } from './types';
-import { THRESHOLD_DO_OBJECT_NAME_DEFAULT, THRESHOLD_PREFIX_DEFAULT } from './defaultConfigsServer';
+import { THRESHOLD_DO_OBJECT_NAME_DEFAULT } from './defaultConfigsServer';
 import { isObject, toOptionalTrimmedString } from '@shared/utils/validation';
 import {
   RedisTcpClient,
@@ -14,13 +14,15 @@ import {
   redisGetdelJson,
   redisSetJson,
 } from './ThresholdService/kv';
-import { toPrefixWithColon } from './ThresholdService/validation';
+import { parseD1JsonColumn, resolveD1DatabaseFromConfig } from '../storage/d1Sql';
 import {
-  formatD1ExecStatement,
-  parseD1JsonColumn,
-  resolveD1DatabaseFromConfig,
-} from '../storage/d1Sql';
-import type { D1DatabaseLike, D1PreparedStatementLike } from '../storage/tenantRoute';
+  D1TenantTable,
+  d1TenantScopeFromConfig,
+  ensureD1Schema,
+  resolveStorePrefix,
+  type D1SchemaOptions,
+  type D1TenantStoreOptions,
+} from './d1TenantStore';
 
 export type WebAuthnStoreInput = {
   config?: ThresholdStoreConfigInput | null;
@@ -51,7 +53,7 @@ export type WebAuthnStoreSpec<R> = {
 
 /** Builds the store for the backend the config selects. */
 type WebAuthnStoreBuilders<R, S> = {
-  readonly d1: (options: D1WebAuthnStoreOptions) => S;
+  readonly d1: (options: D1TenantStoreOptions) => S;
   /** Upstash REST, Redis TCP and Durable Object backends. */
   readonly keyValue: (records: WebAuthnRecords<R>, prefix: string) => S;
   readonly inMemory: (records: InMemoryWebAuthnRecords<R>, prefix: string) => S;
@@ -65,12 +67,7 @@ export function resolveWebAuthnStorePrefix(
   config: Record<string, unknown>,
   spec: Pick<WebAuthnStoreSpec<unknown>, 'prefixConfigKey' | 'prefixName'>,
 ): string {
-  const explicit = toOptionalTrimmedString(config[spec.prefixConfigKey]);
-  if (explicit) return toPrefixWithColon(explicit, '');
-
-  const base = toOptionalTrimmedString(config.THRESHOLD_PREFIX) || THRESHOLD_PREFIX_DEFAULT;
-  const baseWithColon = toPrefixWithColon(base, `${THRESHOLD_PREFIX_DEFAULT}:`);
-  return `${baseWithColon}webauthn:${spec.prefixName}:`;
+  return resolveStorePrefix(config, [spec.prefixConfigKey], `webauthn:${spec.prefixName}:`);
 }
 
 /**
@@ -98,15 +95,7 @@ export function createWebAuthnStore<R, S>(
       throw new Error(`[webauthn] D1 ${label} store selected but no D1 database was provided`);
     }
     input.logger.info(`[webauthn] Using D1 ${label} store`);
-    const scope = requireWebAuthnD1Scope(
-      {
-        namespace: prefix,
-        orgId: config.orgId || config.ORG_ID,
-        projectId: config.projectId || config.PROJECT_ID,
-        envId: config.envId || config.ENV_ID,
-      },
-      spec.d1ScopeLabel,
-    );
+    const scope = d1TenantScopeFromConfig(config, prefix, webAuthnD1Store(spec.d1ScopeLabel));
     return build.d1({ database, ...scope });
   }
   if (kind === 'cloudflare-do') {
@@ -361,94 +350,9 @@ export class WebAuthnCredentialRecords<R> {
   }
 }
 
-export interface D1WebAuthnStoreSchemaOptions {
-  readonly database: D1DatabaseLike;
-}
-
-export interface D1WebAuthnStoreOptions {
-  readonly database: D1DatabaseLike;
-  readonly namespace: string;
-  readonly orgId: string;
-  readonly projectId: string;
-  readonly envId: string;
-  readonly ensureSchema?: boolean;
-}
-
-/** The tenant scope that leads the key of every WebAuthn table. */
-export type WebAuthnD1Scope = {
-  readonly namespace: string;
-  readonly orgId: string;
-  readonly projectId: string;
-  readonly envId: string;
-};
-
-function requireWebAuthnD1Scope(
-  input: { readonly [K in keyof WebAuthnD1Scope]: unknown },
-  label: string,
-): WebAuthnD1Scope {
-  const field = (value: unknown, name: string): string => {
-    const normalized = toOptionalTrimmedString(value);
-    if (!normalized) throw new Error(`${name} is required for D1 WebAuthn ${label} store`);
-    return normalized;
-  };
-  return {
-    namespace: field(input.namespace, 'namespace'),
-    orgId: field(input.orgId, 'orgId'),
-    projectId: field(input.projectId, 'projectId'),
-    envId: field(input.envId, 'envId'),
-  };
-}
-
-export async function ensureWebAuthnD1Schema(
-  database: D1DatabaseLike,
-  statements: readonly string[],
-): Promise<void> {
-  for (const statement of statements) {
-    await database.exec(formatD1ExecStatement(statement));
-  }
-}
-
-/** Prepares `sql` with the scope bound to its first four parameters and `values` after them. */
-export function prepareWebAuthnD1Statement(
-  database: D1DatabaseLike,
-  scope: WebAuthnD1Scope,
-  sql: string,
-  ...values: unknown[]
-): D1PreparedStatementLike {
-  return database
-    .prepare(sql)
-    .bind(scope.namespace, scope.orgId, scope.projectId, scope.envId, ...values);
-}
-
-/**
- * A store's D1 table in one tenant scope. The store's schema is created on first use unless the
- * caller manages it (`ensureSchema: false`).
- */
-export class WebAuthnD1Table {
-  readonly database: D1DatabaseLike;
-  readonly scope: WebAuthnD1Scope;
-  private readonly ensureSchemaOnUse: boolean;
-  private schemaReady = false;
-
-  constructor(
-    input: D1WebAuthnStoreOptions,
-    label: string,
-    private readonly schema: readonly string[],
-  ) {
-    this.database = input.database;
-    this.scope = requireWebAuthnD1Scope(input, label);
-    this.ensureSchemaOnUse = input.ensureSchema !== false;
-  }
-
-  async ensureSchema(): Promise<void> {
-    if (!this.ensureSchemaOnUse || this.schemaReady) return;
-    await ensureWebAuthnD1Schema(this.database, this.schema);
-    this.schemaReady = true;
-  }
-
-  prepare(sql: string, ...values: unknown[]): D1PreparedStatementLike {
-    return prepareWebAuthnD1Statement(this.database, this.scope, sql, ...values);
-  }
+/** Names a WebAuthn store in D1 scope errors, e.g. `WebAuthn credential store`. */
+export function webAuthnD1Store(d1ScopeLabel: string): string {
+  return `WebAuthn ${d1ScopeLabel} store`;
 }
 
 type WebAuthnChallengeRecord = {
@@ -469,7 +373,7 @@ export type WebAuthnChallengeStoreSpec<R> = WebAuthnStoreSpec<R> & {
   readonly challengeKind: 'login' | 'sync';
 };
 
-export interface D1WebAuthnChallengeStoreOptions extends D1WebAuthnStoreOptions {
+export interface D1WebAuthnChallengeStoreOptions extends D1TenantStoreOptions {
   readonly now?: () => Date;
 }
 
@@ -507,15 +411,15 @@ export const WEBAUTHN_CHALLENGE_STORE_D1_SCHEMA_SQL = Object.freeze([
 ] as const);
 
 export async function ensureWebAuthnChallengeStoreD1Schema(
-  options: D1WebAuthnStoreSchemaOptions,
+  options: D1SchemaOptions,
 ): Promise<void> {
-  await ensureWebAuthnD1Schema(options.database, WEBAUTHN_CHALLENGE_STORE_D1_SCHEMA_SQL);
+  await ensureD1Schema(options.database, WEBAUTHN_CHALLENGE_STORE_D1_SCHEMA_SQL);
 }
 
 export function createWebAuthnChallengeStore<R extends WebAuthnChallengeRecord>(
   input: WebAuthnStoreInput,
   spec: WebAuthnChallengeStoreSpec<R>,
-  d1: (options: D1WebAuthnStoreOptions) => WebAuthnChallengeStore<R>,
+  d1: (options: D1TenantStoreOptions) => WebAuthnChallengeStore<R>,
 ): WebAuthnChallengeStore<R> {
   const keyValue = (records: WebAuthnRecords<R>, prefix: string): WebAuthnChallengeStore<R> =>
     new KeyValueWebAuthnChallengeStore(records, prefix, spec);
@@ -558,16 +462,16 @@ export class D1WebAuthnChallengeStore<R extends WebAuthnChallengeRecord>
   implements WebAuthnChallengeStore<R>
 {
   readonly adapterKind = 'd1';
-  private readonly table: WebAuthnD1Table;
+  private readonly table: D1TenantTable;
   private readonly now: () => Date;
 
   constructor(
     input: D1WebAuthnChallengeStoreOptions,
     private readonly spec: WebAuthnChallengeStoreSpec<R>,
   ) {
-    this.table = new WebAuthnD1Table(
+    this.table = new D1TenantTable(
       input,
-      spec.d1ScopeLabel,
+      webAuthnD1Store(spec.d1ScopeLabel),
       WEBAUTHN_CHALLENGE_STORE_D1_SCHEMA_SQL,
     );
     this.now = input.now || (() => new Date());
@@ -597,11 +501,13 @@ export class D1WebAuthnChallengeStore<R extends WebAuthnChallengeRecord>
           record_json = EXCLUDED.record_json,
           created_at_ms = EXCLUDED.created_at_ms,
           expires_at_ms = EXCLUDED.expires_at_ms`,
-        parsed.challengeId,
-        this.spec.challengeKind,
-        JSON.stringify(parsed),
-        parsed.createdAtMs,
-        parsed.expiresAtMs,
+        [
+          parsed.challengeId,
+          this.spec.challengeKind,
+          JSON.stringify(parsed),
+          parsed.createdAtMs,
+          parsed.expiresAtMs,
+        ],
       )
       .run();
   }
@@ -621,9 +527,7 @@ export class D1WebAuthnChallengeStore<R extends WebAuthnChallengeRecord>
             AND challenge_kind = ?
             AND expires_at_ms > ?
           RETURNING record_json`,
-        id,
-        this.spec.challengeKind,
-        this.now().getTime(),
+        [id, this.spec.challengeKind, this.now().getTime()],
       )
       .first<{ readonly record_json?: unknown }>();
     return this.spec.parse(parseD1JsonColumn(row?.record_json));
@@ -642,8 +546,7 @@ export class D1WebAuthnChallengeStore<R extends WebAuthnChallengeRecord>
             AND env_id = ?
             AND challenge_id = ?
             AND challenge_kind = ?`,
-        id,
-        this.spec.challengeKind,
+        [id, this.spec.challengeKind],
       )
       .run();
   }

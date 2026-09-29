@@ -1,5 +1,6 @@
 import { toOptionalTrimmedString } from '@shared/utils/validation';
 import type { D1DatabaseLike, D1PreparedStatementLike } from '../../../../storage/tenantRoute';
+import { prepareD1TenantStatement, type D1TenantScope } from '../../../../core/d1TenantStore';
 import {
   prepareD1WebAuthnCredentialBindingInsertStatement,
   type WebAuthnCredentialBindingRecord,
@@ -20,12 +21,7 @@ import {
 
 type WebAuthnChallengeKind = 'login' | 'sync' | 'recovery_registration';
 
-export type D1WebAuthnStoreScope = {
-  readonly namespace: string;
-  readonly orgId: string;
-  readonly projectId: string;
-  readonly envId: string;
-};
+export type D1WebAuthnStoreScope = D1TenantScope;
 
 export function prepareD1WebAuthnAuthenticatorPutStatement(input: {
   readonly database: D1DatabaseLike;
@@ -115,10 +111,7 @@ export function prepareD1WebAuthnAuthenticatorInsertStatement(input: {
 
 export class CloudflareD1WebAuthnStore {
   private readonly database: D1DatabaseLike;
-  private readonly namespace: string;
-  private readonly orgId: string;
-  private readonly projectId: string;
-  private readonly envId: string;
+  private readonly scope: D1TenantScope;
 
   constructor(input: {
     readonly database: D1DatabaseLike;
@@ -128,10 +121,12 @@ export class CloudflareD1WebAuthnStore {
     readonly envId: string;
   }) {
     this.database = input.database;
-    this.namespace = input.namespace;
-    this.orgId = input.orgId;
-    this.projectId = input.projectId;
-    this.envId = input.envId;
+    this.scope = {
+      namespace: input.namespace,
+      orgId: input.orgId,
+      projectId: input.projectId,
+      envId: input.envId,
+    };
   }
 
   async writeChallenge(input: {
@@ -254,12 +249,7 @@ export class CloudflareD1WebAuthnStore {
   }): Promise<void> {
     await prepareD1WebAuthnAuthenticatorPutStatement({
       database: this.database,
-      scope: {
-        namespace: this.namespace,
-        orgId: this.orgId,
-        projectId: this.projectId,
-        envId: this.envId,
-      },
+      scope: this.scope,
       userId: input.userId,
       record: input.record,
     }).run();
@@ -271,12 +261,7 @@ export class CloudflareD1WebAuthnStore {
   }): D1PreparedStatementLike {
     return prepareD1WebAuthnAuthenticatorInsertStatement({
       database: this.database,
-      scope: {
-        namespace: this.namespace,
-        orgId: this.orgId,
-        projectId: this.projectId,
-        envId: this.envId,
-      },
+      scope: this.scope,
       userId: input.userId,
       record: input.record,
     });
@@ -287,12 +272,7 @@ export class CloudflareD1WebAuthnStore {
   ): D1PreparedStatementLike {
     return prepareD1WebAuthnCredentialBindingInsertStatement({
       database: this.database,
-      scope: {
-        namespace: this.namespace,
-        orgId: this.orgId,
-        projectId: this.projectId,
-        envId: this.envId,
-      },
+      scope: this.scope,
       record,
     });
   }
@@ -319,10 +299,10 @@ export class CloudflareD1WebAuthnStore {
       .bind(
         input.newCounter,
         input.updatedAtMs,
-        this.namespace,
-        this.orgId,
-        this.projectId,
-        this.envId,
+        this.scope.namespace,
+        this.scope.orgId,
+        this.scope.projectId,
+        this.scope.envId,
         input.userId,
         input.credentialIdB64u,
         input.newCounter,
@@ -434,8 +414,6 @@ export class CloudflareD1WebAuthnStore {
   }
 
   private prepare(sql: string, values: readonly unknown[]): D1PreparedStatementLike {
-    return this.database
-      .prepare(sql)
-      .bind(this.namespace, this.orgId, this.projectId, this.envId, ...values);
+    return prepareD1TenantStatement(this.database, this.scope, sql, values);
   }
 }

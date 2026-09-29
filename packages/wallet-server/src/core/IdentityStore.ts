@@ -1,6 +1,6 @@
 import type { NormalizedLogger } from './logger';
 import type { CloudflareDurableObjectNamespaceLike, ThresholdStoreConfigInput } from './types';
-import { THRESHOLD_DO_OBJECT_NAME_DEFAULT, THRESHOLD_PREFIX_DEFAULT } from './defaultConfigsServer';
+import { THRESHOLD_DO_OBJECT_NAME_DEFAULT } from './defaultConfigsServer';
 import { isObject, toOptionalTrimmedString } from '@shared/utils/validation';
 import {
   RedisTcpClient,
@@ -9,9 +9,9 @@ import {
   redisGetJson,
   redisSetJson,
 } from './ThresholdService/kv';
-import { D1IdentityStore } from './d1IdentityStore';
-import type { D1IdentityStoreOptions } from './d1IdentityStore';
+import { D1IdentityStore, IDENTITY_D1_STORE } from './d1IdentityStore';
 import { resolveD1DatabaseFromConfig } from '../storage/d1Sql';
+import { d1TenantScopeFromConfig, resolveStorePrefix } from './d1TenantStore';
 
 export {
   D1IdentityStore,
@@ -61,21 +61,8 @@ export interface IdentityStore {
 
 }
 
-function toPrefixWithColon(prefix: unknown, defaultPrefix: string): string {
-  const p = toOptionalTrimmedString(prefix);
-  if (!p) return defaultPrefix;
-  return p.endsWith(':') ? p : `${p}:`;
-}
-
 export function resolveIdentityStoreNamespace(config: Record<string, unknown>): string {
-  const explicit =
-    toOptionalTrimmedString(config.IDENTITY_PREFIX) ||
-    toOptionalTrimmedString(config.IDENTITY_MAP_PREFIX);
-  if (explicit) return toPrefixWithColon(explicit, '');
-
-  const base = toOptionalTrimmedString(config.THRESHOLD_PREFIX) || THRESHOLD_PREFIX_DEFAULT;
-  const baseWithColon = toPrefixWithColon(base, `${THRESHOLD_PREFIX_DEFAULT}:`);
-  return `${baseWithColon}identity:`;
+  return resolveStorePrefix(config, ['IDENTITY_PREFIX', 'IDENTITY_MAP_PREFIX'], 'identity:');
 }
 
 function parseIdentitySubjectRecord(raw: unknown): IdentitySubjectRecord | null {
@@ -124,24 +111,6 @@ function parseIdentityUserRecord(raw: unknown): IdentityUserRecord | null {
     subjects: uniqueSubjects,
     createdAtMs: Math.floor(createdAtMs),
     updatedAtMs: Math.floor(updatedAtMs),
-  };
-}
-
-function requireD1ScopeString(input: unknown, field: string): string {
-  const normalized = toOptionalTrimmedString(input);
-  if (!normalized) throw new Error(`${field} is required for D1 identity store`);
-  return normalized;
-}
-
-function d1ScopeFromConfig(input: {
-  readonly config: Record<string, unknown>;
-  readonly namespace: string;
-}): Omit<D1IdentityStoreOptions, 'database'> {
-  return {
-    namespace: requireD1ScopeString(input.namespace, 'namespace'),
-    orgId: requireD1ScopeString(input.config.orgId || input.config.ORG_ID, 'orgId'),
-    projectId: requireD1ScopeString(input.config.projectId || input.config.PROJECT_ID, 'projectId'),
-    envId: requireD1ScopeString(input.config.envId || input.config.ENV_ID, 'envId'),
   };
 }
 
@@ -676,7 +645,7 @@ export function createIdentityStore(input: {
     input.logger.info('[identity] Using D1 identity store');
     return new D1IdentityStore({
       database,
-      ...d1ScopeFromConfig({ config, namespace: prefix }),
+      ...d1TenantScopeFromConfig(config, prefix, IDENTITY_D1_STORE),
     });
   }
   if (kind === 'cloudflare-do') {

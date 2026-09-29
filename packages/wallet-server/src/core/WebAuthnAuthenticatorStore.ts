@@ -7,17 +7,20 @@ import {
 } from '@shared/utils/webauthnDeviceInfo';
 import {
   WebAuthnCredentialRecords,
-  WebAuthnD1Table,
   createWebAuthnStore,
-  ensureWebAuthnD1Schema,
   resolveWebAuthnStorePrefix,
-  type D1WebAuthnStoreOptions,
-  type D1WebAuthnStoreSchemaOptions,
+  webAuthnD1Store,
   type InMemoryWebAuthnRecords,
   type WebAuthnRecords,
   type WebAuthnStoreInput,
   type WebAuthnStoreSpec,
 } from './webAuthnStoreBackends';
+import {
+  D1TenantTable,
+  ensureD1Schema,
+  type D1SchemaOptions,
+  type D1TenantStoreOptions,
+} from './d1TenantStore';
 
 export type WebAuthnAuthenticatorRecord = {
   version: 'webauthn_authenticator_v1';
@@ -46,9 +49,9 @@ export interface WebAuthnAuthenticatorStore {
   list?(userId: string): Promise<WebAuthnAuthenticatorRecord[]>;
 }
 
-export interface D1WebAuthnAuthenticatorStoreSchemaOptions extends D1WebAuthnStoreSchemaOptions {}
+export interface D1WebAuthnAuthenticatorStoreSchemaOptions extends D1SchemaOptions {}
 
-export interface D1WebAuthnAuthenticatorStoreOptions extends D1WebAuthnStoreOptions {}
+export interface D1WebAuthnAuthenticatorStoreOptions extends D1TenantStoreOptions {}
 
 type D1WebAuthnAuthenticatorRow = {
   readonly credential_id_b64u?: unknown;
@@ -98,7 +101,7 @@ export const WEBAUTHN_AUTHENTICATOR_STORE_D1_SCHEMA_SQL = Object.freeze([
 export async function ensureWebAuthnAuthenticatorStoreD1Schema(
   options: D1WebAuthnAuthenticatorStoreSchemaOptions,
 ): Promise<void> {
-  await ensureWebAuthnD1Schema(options.database, WEBAUTHN_AUTHENTICATOR_STORE_D1_SCHEMA_SQL);
+  await ensureD1Schema(options.database, WEBAUTHN_AUTHENTICATOR_STORE_D1_SCHEMA_SQL);
 }
 
 const AUTHENTICATOR_STORE: WebAuthnStoreSpec<WebAuthnAuthenticatorRecord> = {
@@ -211,12 +214,12 @@ class InMemoryWebAuthnAuthenticatorStore extends KeyValueWebAuthnAuthenticatorSt
 
 export class D1WebAuthnAuthenticatorStore implements WebAuthnAuthenticatorStore {
   readonly adapterKind = 'd1';
-  private readonly table: WebAuthnD1Table;
+  private readonly table: D1TenantTable;
 
   constructor(input: D1WebAuthnAuthenticatorStoreOptions) {
-    this.table = new WebAuthnD1Table(
+    this.table = new D1TenantTable(
       input,
-      AUTHENTICATOR_STORE.d1ScopeLabel,
+      webAuthnD1Store(AUTHENTICATOR_STORE.d1ScopeLabel),
       WEBAUTHN_AUTHENTICATOR_STORE_D1_SCHEMA_SQL,
     );
   }
@@ -237,8 +240,7 @@ export class D1WebAuthnAuthenticatorStore implements WebAuthnAuthenticatorStore 
             AND user_id = ?
             AND credential_id_b64u = ?
           LIMIT 1`,
-        uid,
-        cid,
+        [uid, cid],
       )
       .first<D1WebAuthnAuthenticatorRow>();
     return parseD1WebAuthnAuthenticatorRow(row);
@@ -279,13 +281,15 @@ export class D1WebAuthnAuthenticatorStore implements WebAuthnAuthenticatorStore 
             EXCLUDED.updated_at_ms
           ),
           device_info_json = EXCLUDED.device_info_json`,
-        uid,
-        parsed.credentialIdB64u,
-        parsed.credentialPublicKeyB64u,
-        parsed.counter,
-        parsed.createdAtMs,
-        parsed.updatedAtMs,
-        JSON.stringify(parsed.deviceInfo),
+        [
+          uid,
+          parsed.credentialIdB64u,
+          parsed.credentialPublicKeyB64u,
+          parsed.counter,
+          parsed.createdAtMs,
+          parsed.updatedAtMs,
+          JSON.stringify(parsed.deviceInfo),
+        ],
       )
       .run();
   }
@@ -304,8 +308,7 @@ export class D1WebAuthnAuthenticatorStore implements WebAuthnAuthenticatorStore 
             AND env_id = ?
             AND user_id = ?
             AND credential_id_b64u = ?`,
-        uid,
-        cid,
+        [uid, cid],
       )
       .run();
   }
@@ -324,7 +327,7 @@ export class D1WebAuthnAuthenticatorStore implements WebAuthnAuthenticatorStore 
             AND env_id = ?
             AND user_id = ?
           ORDER BY created_at_ms ASC`,
-        uid,
+        [uid],
       )
       .all<D1WebAuthnAuthenticatorRow>();
     const records: WebAuthnAuthenticatorRecord[] = [];

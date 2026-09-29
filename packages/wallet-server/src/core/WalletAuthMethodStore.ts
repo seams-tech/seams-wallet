@@ -2,23 +2,18 @@ import type {
   CloudflareDurableObjectNamespaceLike,
   ThresholdStoreConfigInput,
 } from './types';
-import {
-  THRESHOLD_DO_OBJECT_NAME_DEFAULT,
-  THRESHOLD_PREFIX_DEFAULT,
-} from './defaultConfigsServer';
+import { THRESHOLD_DO_OBJECT_NAME_DEFAULT } from './defaultConfigsServer';
 import type { NormalizedLogger } from './logger';
 import { resolveD1DatabaseFromConfig } from '../storage/d1Sql';
 import { toOptionalTrimmedString, isPlainObject } from '@shared/utils/validation';
 import {
   D1WalletAuthMethodStore,
+  WALLET_AUTH_METHOD_D1_STORE,
   normalizeWalletAuthMethod,
   walletAuthMethodId,
 } from './d1WalletAuthMethodStore';
-import type {
-  D1WalletAuthMethodStoreOptions,
-  WalletAuthMethodRecord,
-  WalletAuthMethodStore,
-} from './d1WalletAuthMethodStore';
+import type { WalletAuthMethodRecord, WalletAuthMethodStore } from './d1WalletAuthMethodStore';
+import { d1TenantScopeFromConfig, resolveStorePrefix } from './d1TenantStore';
 
 export {
   D1WalletAuthMethodStore,
@@ -44,37 +39,10 @@ function trimString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
 }
 
-function toPrefixWithColon(prefix: unknown, defaultPrefix: string): string {
-  const p = toOptionalTrimmedString(prefix);
-  if (!p) return defaultPrefix;
-  return p.endsWith(':') ? p : `${p}:`;
-}
-
 export function resolveWalletAuthMethodStoreNamespace(
   config: Record<string, unknown>,
 ): string {
-  const explicit = toOptionalTrimmedString(config.WALLET_AUTH_METHOD_PREFIX);
-  if (explicit) return toPrefixWithColon(explicit, '');
-  const base = toOptionalTrimmedString(config.THRESHOLD_PREFIX) || THRESHOLD_PREFIX_DEFAULT;
-  return `${toPrefixWithColon(base, `${THRESHOLD_PREFIX_DEFAULT}:`)}wallet-auth-method:`;
-}
-
-function requireD1ScopeString(input: unknown, field: string): string {
-  const normalized = toOptionalTrimmedString(input);
-  if (!normalized) throw new Error(`${field} is required for D1 wallet auth-method store`);
-  return normalized;
-}
-
-function d1ScopeFromConfig(input: {
-  readonly config: Record<string, unknown>;
-  readonly namespace: string;
-}): Omit<D1WalletAuthMethodStoreOptions, 'database'> {
-  return {
-    namespace: requireD1ScopeString(input.namespace, 'namespace'),
-    orgId: requireD1ScopeString(input.config.orgId || input.config.ORG_ID, 'orgId'),
-    projectId: requireD1ScopeString(input.config.projectId || input.config.PROJECT_ID, 'projectId'),
-    envId: requireD1ScopeString(input.config.envId || input.config.ENV_ID, 'envId'),
-  };
+  return resolveStorePrefix(config, ['WALLET_AUTH_METHOD_PREFIX'], 'wallet-auth-method:');
 }
 
 class InMemoryWalletAuthMethodStore implements WalletAuthMethodStore {
@@ -254,7 +222,7 @@ export function createWalletAuthMethodStore(input: {
     input.logger.info('[wallet-auth-method] Using D1 store');
     return new D1WalletAuthMethodStore({
       database,
-      ...d1ScopeFromConfig({ config, namespace }),
+      ...d1TenantScopeFromConfig(config, namespace, WALLET_AUTH_METHOD_D1_STORE),
     });
   }
   if (kind === 'cloudflare-do') {

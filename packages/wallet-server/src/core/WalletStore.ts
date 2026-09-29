@@ -40,7 +40,8 @@ import {
   type RouterAbEcdsaDerivationSignerSetV1,
   type RouterAbEcdsaRegistrationActivationReceiptV1,
 } from '@shared/utils/routerAbEcdsaDerivation';
-import { THRESHOLD_DO_OBJECT_NAME_DEFAULT, THRESHOLD_PREFIX_DEFAULT } from './defaultConfigsServer';
+import { THRESHOLD_DO_OBJECT_NAME_DEFAULT } from './defaultConfigsServer';
+import { d1TenantScopeFromConfig, resolveStorePrefix } from './d1TenantStore';
 import { resolveD1DatabaseFromConfig } from '../storage/d1Sql';
 import { toOptionalTrimmedString, isPlainObject } from '@shared/utils/validation';
 import { parseWalletId } from '@shared/utils/domainIds';
@@ -49,7 +50,6 @@ import {
   thresholdEcdsaChainTargetKey,
 } from './thresholdEcdsaChainTarget';
 import { D1WalletStore, parseWalletEd25519SignerRecord } from './d1WalletStore';
-import type { D1WalletStoreOptions } from './d1WalletStore';
 
 export {
   D1WalletStore,
@@ -288,18 +288,8 @@ function trimString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
 }
 
-function toPrefixWithColon(prefix: unknown, defaultPrefix: string): string {
-  const p = toOptionalTrimmedString(prefix);
-  if (!p) return defaultPrefix;
-  return p.endsWith(':') ? p : `${p}:`;
-}
-
 export function resolveWalletStoreNamespace(config: Record<string, unknown>): string {
-  const explicit = toOptionalTrimmedString(config.WALLET_PREFIX);
-  if (explicit) return toPrefixWithColon(explicit, '');
-  const base = toOptionalTrimmedString(config.THRESHOLD_PREFIX) || THRESHOLD_PREFIX_DEFAULT;
-  const baseWithColon = toPrefixWithColon(base, `${THRESHOLD_PREFIX_DEFAULT}:`);
-  return `${baseWithColon}wallet:`;
+  return resolveStorePrefix(config, ['WALLET_PREFIX'], 'wallet:');
 }
 
 function resolveDoNamespaceFromConfig(
@@ -482,24 +472,6 @@ function parseWalletEcdsaSignerKey(raw: Record<string, unknown>): WalletEcdsaSig
 function normalizeNonNegativeInteger(value: unknown): number | null {
   const normalized = Number(value);
   return Number.isSafeInteger(normalized) && normalized >= 0 ? normalized : null;
-}
-
-function requireD1ScopeString(input: unknown, field: string): string {
-  const normalized = toOptionalTrimmedString(input);
-  if (!normalized) throw new Error(`${field} is required for D1 wallet store`);
-  return normalized;
-}
-
-function d1ScopeFromConfig(input: {
-  readonly config: Record<string, unknown>;
-  readonly namespace: string;
-}): Omit<D1WalletStoreOptions, 'database'> {
-  return {
-    namespace: requireD1ScopeString(input.namespace, 'namespace'),
-    orgId: requireD1ScopeString(input.config.orgId || input.config.ORG_ID, 'orgId'),
-    projectId: requireD1ScopeString(input.config.projectId || input.config.PROJECT_ID, 'projectId'),
-    envId: requireD1ScopeString(input.config.envId || input.config.ENV_ID, 'envId'),
-  };
 }
 
 export function buildWalletEd25519SignerId(input: {
@@ -931,7 +903,7 @@ export function createWalletStore(input: {
     input.logger.info('[wallet] Using D1 store');
     return new D1WalletStore({
       database,
-      ...d1ScopeFromConfig({ config, namespace: prefix }),
+      ...d1TenantScopeFromConfig(config, prefix, 'wallet store'),
     });
   }
   if (kind === 'cloudflare-do') {

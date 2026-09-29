@@ -1,4 +1,4 @@
-import type { D1PreparedStatementLike } from '../../../../storage/tenantRoute';
+import type { ScopedD1Prepare } from '../../../../core/emailOtpD1Statements';
 import type { EmailOtpRateLimitPolicy } from '../auth/d1RouterApiAuthConfig';
 import {
   emailOtpRateLimitExceeded,
@@ -6,8 +6,6 @@ import {
   type D1EmailOtpRateLimitRow,
   type EmailOtpRateLimitScope,
 } from './d1EmailOtpRecords';
-
-type ScopedD1Prepare = (sql: string, values: readonly unknown[]) => D1PreparedStatementLike;
 
 type EmailOtpRateLimitPolicies = {
   readonly [K in EmailOtpRateLimitScope]: EmailOtpRateLimitPolicy;

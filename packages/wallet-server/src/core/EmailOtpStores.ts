@@ -1,13 +1,13 @@
 import type { NormalizedLogger } from './logger';
 import type { ThresholdRuntimePolicyScope, ThresholdStoreConfigInput } from './types';
-import { THRESHOLD_PREFIX_DEFAULT } from './defaultConfigsServer';
-import { toPrefixWithColon } from './ThresholdService/validation';
-import {
-  d1ChangedRows,
-  formatD1ExecStatement,
-  resolveD1DatabaseFromConfig,
-} from '../storage/d1Sql';
+import { d1ChangedRows, resolveD1DatabaseFromConfig } from '../storage/d1Sql';
 import type { D1DatabaseLike, D1PreparedStatementLike } from '../storage/tenantRoute';
+import {
+  D1TenantTable,
+  d1TenantScopeFromConfig,
+  resolveStorePrefix,
+  type D1TenantScope,
+} from './d1TenantStore';
 import { isPlainObject, toOptionalTrimmedString } from '@shared/utils/validation';
 import {
   parseCurrentEmailOtpAuthStateRecord,
@@ -319,13 +319,8 @@ type EmailOtpStoreFactoryInput = {
   isNode?: boolean;
 };
 
-/** The tenant scope that leads the key of every Email OTP table. */
-type D1EmailOtpScope = {
-  readonly namespace: string;
-  readonly orgId: string;
-  readonly projectId: string;
-  readonly envId: string;
-};
+/** Names the Email OTP stores in D1 scope errors. */
+const EMAIL_OTP_D1_STORE = 'Email OTP store';
 
 type D1EmailOtpRecordRow = {
   readonly record_json?: unknown;
@@ -584,23 +579,6 @@ const EMAIL_OTP_STORE_D1_SCHEMA_SQL = Object.freeze([
   `,
 ] as const);
 
-function resolveEmailOtpStoreNamespace(config: Record<string, unknown>): string {
-  const explicit =
-    toOptionalTrimmedString(config.EMAIL_OTP_PREFIX) ||
-    toOptionalTrimmedString(config.EMAIL_OTP_STORE_PREFIX);
-  if (explicit) return toPrefixWithColon(explicit, '');
-
-  const base = toOptionalTrimmedString(config.THRESHOLD_PREFIX) || THRESHOLD_PREFIX_DEFAULT;
-  const baseWithColon = toPrefixWithColon(base, `${THRESHOLD_PREFIX_DEFAULT}:`);
-  return `${baseWithColon}email-otp:`;
-}
-
-function requireD1ScopeString(input: unknown, field: string): string {
-  const normalized = toOptionalTrimmedString(input);
-  if (!normalized) throw new Error(`${field} is required for D1 Email OTP store`);
-  return normalized;
-}
-
 /**
  * Selects a store's backend: D1 when the config's `kind` is `d1`, else in memory; any other
  * `kind` is an error. `label` names the store in log lines and errors; the unknown-kind error
@@ -611,7 +589,7 @@ function createEmailOtpStore<S>(
   input: EmailOtpStoreFactoryInput | undefined,
   label: string,
   build: {
-    readonly d1: (database: D1DatabaseLike, scope: D1EmailOtpScope) => NoInfer<S>;
+    readonly d1: (database: D1DatabaseLike, scope: D1TenantScope) => NoInfer<S>;
     readonly inMemory: () => NoInfer<S>;
   },
   kindLabel = label,
@@ -623,12 +601,12 @@ function createEmailOtpStore<S>(
     if (!database) {
       throw new Error(`[email-otp] D1 ${label} store selected but no D1 database was provided`);
     }
-    const scope: D1EmailOtpScope = {
-      namespace: resolveEmailOtpStoreNamespace(config),
-      orgId: requireD1ScopeString(config.orgId || config.ORG_ID, 'orgId'),
-      projectId: requireD1ScopeString(config.projectId || config.PROJECT_ID, 'projectId'),
-      envId: requireD1ScopeString(config.envId || config.ENV_ID, 'envId'),
-    };
+    const namespace = resolveStorePrefix(
+      config,
+      ['EMAIL_OTP_PREFIX', 'EMAIL_OTP_STORE_PREFIX'],
+      'email-otp:',
+    );
+    const scope = d1TenantScopeFromConfig(config, namespace, EMAIL_OTP_D1_STORE);
     input?.logger?.info(`[email-otp] Using D1 ${label} store`);
     return build.d1(database, scope);
   }
@@ -979,44 +957,37 @@ type ScopedD1Statement = (prepare: ScopedD1Prepare, id: string) => D1PreparedSta
  */
 abstract class D1EmailOtpStore<R> {
   readonly adapterKind = 'd1';
-  private schemaReady = false;
+  protected readonly table: D1TenantTable;
 
   constructor(
-    private readonly database: D1DatabaseLike,
-    protected readonly scope: D1EmailOtpScope,
+    database: D1DatabaseLike,
+    scope: D1TenantScope,
     private readonly spec: EmailOtpRecordSpec<R>,
     private readonly rows: {
       readonly fromRow: (row: D1EmailOtpRecordRow | null) => R | null;
       readonly upsert: (prepare: ScopedD1Prepare, record: R) => D1PreparedStatementLike;
     },
-  ) {}
+  ) {
+    this.table = new D1TenantTable(
+      { database, ...scope },
+      EMAIL_OTP_D1_STORE,
+      EMAIL_OTP_STORE_D1_SCHEMA_SQL,
+    );
+  }
 
   abstract del(id: string): Promise<void>;
 
-  protected readonly prepare: ScopedD1Prepare = (sql, values) =>
-    this.database
-      .prepare(sql)
-      .bind(
-        this.scope.namespace,
-        this.scope.orgId,
-        this.scope.projectId,
-        this.scope.envId,
-        ...values,
-      );
+  protected readonly prepare: ScopedD1Prepare = (sql, values) => this.table.prepare(sql, values);
 
-  protected async ensureSchema(): Promise<void> {
-    if (this.schemaReady) return;
-    for (const statement of EMAIL_OTP_STORE_D1_SCHEMA_SQL) {
-      await this.database.exec(formatD1ExecStatement(statement));
-    }
-    this.schemaReady = true;
+  protected ensureSchema(): Promise<void> {
+    return this.table.ensureSchema();
   }
 
   async put(record: R): Promise<void> {
     await this.ensureSchema();
     const parsed = parseEmailOtpRecord(this.spec, record);
     const recordOrgId = this.spec.orgId(parsed);
-    if (recordOrgId && recordOrgId !== this.scope.orgId) {
+    if (recordOrgId && recordOrgId !== this.table.scope.orgId) {
       throw new Error(`${this.spec.label} orgId must match D1 Email OTP store orgId`);
     }
     await this.rows.upsert(this.prepare, parsed).run();
@@ -1091,7 +1062,7 @@ class D1EmailOtpChallengeStore
   extends D1EmailOtpStore<EmailOtpChallengeRecord>
   implements EmailOtpChallengeStore
 {
-  constructor(database: D1DatabaseLike, scope: D1EmailOtpScope) {
+  constructor(database: D1DatabaseLike, scope: D1TenantScope) {
     super(database, scope, CHALLENGE_RECORD, {
       fromRow: challengeFromRow,
       upsert: emailOtpChallengeRows.upsert,
@@ -1192,10 +1163,10 @@ class D1EmailOtpChallengeStore
       RETURNING record_json, expires_at_ms, challenge_id`,
       [
         ...challengeContextValues(input),
-        this.scope.namespace,
-        this.scope.orgId,
-        this.scope.projectId,
-        this.scope.envId,
+        this.table.scope.namespace,
+        this.table.scope.orgId,
+        this.table.scope.projectId,
+        this.table.scope.envId,
       ],
     ).first<D1EmailOtpRecordRow>();
     return this.recordOrDiscard(row, row?.challenge_id);
@@ -1226,7 +1197,7 @@ class D1EmailOtpGrantStore
   extends D1EmailOtpStore<EmailOtpGrantRecord>
   implements EmailOtpGrantStore
 {
-  constructor(database: D1DatabaseLike, scope: D1EmailOtpScope) {
+  constructor(database: D1DatabaseLike, scope: D1TenantScope) {
     super(database, scope, GRANT_RECORD, {
       fromRow: grantFromRow,
       upsert: emailOtpGrantRows.upsert,
@@ -1250,7 +1221,7 @@ class D1EmailOtpWalletEnrollmentStore
   extends D1EmailOtpStore<EmailOtpWalletEnrollmentRecord>
   implements EmailOtpWalletEnrollmentStore
 {
-  constructor(database: D1DatabaseLike, scope: D1EmailOtpScope) {
+  constructor(database: D1DatabaseLike, scope: D1TenantScope) {
     super(database, scope, WALLET_ENROLLMENT_RECORD, {
       fromRow: walletEnrollmentFromRow,
       upsert: emailOtpWalletEnrollmentRows.upsert,
@@ -1308,7 +1279,7 @@ class D1EmailOtpAuthStateStore
   extends D1EmailOtpStore<EmailOtpAuthStateRecord>
   implements EmailOtpAuthStateStore
 {
-  constructor(database: D1DatabaseLike, scope: D1EmailOtpScope) {
+  constructor(database: D1DatabaseLike, scope: D1TenantScope) {
     super(database, scope, AUTH_STATE_RECORD, {
       fromRow: authStateFromRow,
       upsert: emailOtpAuthStateRows.upsert,
@@ -1339,7 +1310,7 @@ class D1EmailOtpUnlockChallengeStore
   extends D1EmailOtpStore<EmailOtpUnlockChallengeRecord>
   implements EmailOtpUnlockChallengeStore
 {
-  constructor(database: D1DatabaseLike, scope: D1EmailOtpScope) {
+  constructor(database: D1DatabaseLike, scope: D1TenantScope) {
     super(database, scope, UNLOCK_CHALLENGE_RECORD, {
       fromRow: unlockChallengeFromRow,
       upsert: emailOtpUnlockChallengeRows.upsert,
@@ -1370,7 +1341,7 @@ class D1EmailOtpRegistrationAttemptStore
   extends D1EmailOtpStore<GoogleEmailOtpRegistrationAttemptRecord>
   implements EmailOtpRegistrationAttemptStore
 {
-  constructor(database: D1DatabaseLike, scope: D1EmailOtpScope) {
+  constructor(database: D1DatabaseLike, scope: D1TenantScope) {
     super(database, scope, REGISTRATION_ATTEMPT_RECORD, {
       fromRow: registrationAttemptFromRow,
       upsert: emailOtpRegistrationAttemptRows.upsert,
