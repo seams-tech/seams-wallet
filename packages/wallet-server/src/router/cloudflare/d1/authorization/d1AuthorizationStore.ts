@@ -77,7 +77,11 @@ import type {
   AuthorizedOperationMaterialScope,
   PreparedAuthorizedOperationAdmission,
 } from '../../../../authorization/service';
-import { prepareAuthorizedOperationInsert, prepareAuthorizedOperationRead } from './authorizedOperationStatements';
+import {
+  prepareAuthorizedOperationAdmissionRead,
+  prepareAuthorizedOperationInsert,
+  prepareAuthorizedOperationRead,
+} from './authorizedOperationStatements';
 import { D1WalletStore } from '../../../../core/d1WalletStore';
 import type { D1WalletStoreScope } from '../../../../core/d1WalletStore';
 import { parseD1WalletAuthorityRow } from '../wallet/d1WalletAuthorityStore';
@@ -2163,8 +2167,12 @@ export class CloudflareD1AuthorizationStore
     readonly tenantId: TenantId;
     readonly operationFingerprintDigest: CapabilityOperationFingerprintDigest;
   }): Promise<AuthorizedOperation | null> {
-    const record = await this.readAuthorizedOperationRecord(input);
-    return record?.operation ?? null;
+    const row = await prepareAuthorizedOperationRead(
+      this.database,
+      this.namespace,
+      input,
+    ).first<D1Row>();
+    return row ? await parseAuthorizedOperationRow(row) : null;
   }
 
   async readAuthorizedOperationById(input: {
@@ -2266,33 +2274,39 @@ export class CloudflareD1AuthorizationStore
     };
   }
 
-  private async readAuthorizedOperationRecord(input: {
+  private async readAuthorizedOperationForAdmission(input: {
     readonly tenantId: TenantId;
     readonly operationFingerprintDigest: CapabilityOperationFingerprintDigest;
-  }): Promise<AuthorizedOperationPersistenceRecord | null> {
-    const row = await prepareAuthorizedOperationRead(
-      this.database,
-      this.namespace,
-      input,
-    ).first<D1Row>();
-    return row
-      ? {
-          row,
-          operation: await parseAuthorizedOperationRow(row),
-        }
-      : null;
+    readonly nowMs: number;
+  }): Promise<AuthorizedOperationAdmissionRecord | null> {
+    const row = await prepareAuthorizedOperationAdmissionRead({
+      database: this.database,
+      namespace: this.namespace,
+      walletSignerScope: this.walletSignerScope,
+      tenantId: input.tenantId,
+      operationFingerprintDigest: input.operationFingerprintDigest,
+      nowMs: requirePositiveInteger(input.nowMs, 'operation replay time'),
+    }).first<D1Row>();
+    if (!row) return null;
+    if (row.authorization_source_active !== 0 && row.authorization_source_active !== 1) {
+      throw new Error('Authorized operation source status must be a SQL boolean');
+    }
+    return {
+      row,
+      operation: await parseAuthorizedOperationRow(row),
+      sourceActive: row.authorization_source_active === 1,
+    };
   }
 
   /** How an operation already admitted for this fingerprint answers another admission. */
-  private async answerExistingAuthorizedOperation(
-    existing: AuthorizedOperationPersistenceRecord,
+  private answerExistingAuthorizedOperation(
+    existing: AuthorizedOperationAdmissionRecord,
     operation: AuthorizedOperation,
     material: AuthorizedOperationMaterialScope | undefined,
-  ): Promise<
+  ):
     | { readonly kind: 'replayed'; readonly operation: AuthorizedOperation }
     | { readonly kind: 'operation_in_progress'; readonly operation: AuthorizedOperation }
-    | AuthorizedOperationAdmissionRejection
-  > {
+    | AuthorizedOperationAdmissionRejection {
     const replayMismatch = authorizedOperationReplayMismatch({
       existing: existing.row,
       incoming: operation,
@@ -2303,13 +2317,13 @@ export class CloudflareD1AuthorizationStore
     if (existing.operation.lifecycle === 'completed') {
       if (
         existing.operation.authorization.kind === 'authorization_grant' &&
-        !(await this.isAuthorizedOperationSourceActive(existing.row, operation.claimedAtMs))
+        !existing.sourceActive
       ) {
         return { kind: 'authorization_grant_rejected' };
       }
       return { kind: 'replayed', operation: existing.operation };
     }
-    if (!(await this.isAuthorizedOperationSourceActive(existing.row, operation.claimedAtMs))) {
+    if (!existing.sourceActive) {
       return authorizationSourceRejected(operation.authorization);
     }
     return { kind: 'operation_in_progress', operation: existing.operation };
@@ -2327,12 +2341,13 @@ export class CloudflareD1AuthorizationStore
     if (operation.operation.operation.capabilityKind === CAPABILITY_KINDS.evmEcdsaMpcSigning) {
       return { kind: 'material_mismatch' };
     }
-    const existing = await this.readAuthorizedOperationRecord({
+    const existing = await this.readAuthorizedOperationForAdmission({
       tenantId: operation.tenantId,
       operationFingerprintDigest: operation.operationFingerprintDigest,
+      nowMs: operation.claimedAtMs,
     });
     if (existing) {
-      return await this.answerExistingAuthorizedOperation(existing, operation, undefined);
+      return this.answerExistingAuthorizedOperation(existing, operation, undefined);
     }
     return {
       kind: 'prepared',
@@ -2383,12 +2398,13 @@ export class CloudflareD1AuthorizationStore
     ) {
       return { kind: 'material_mismatch' };
     }
-    const existing = await this.readAuthorizedOperationRecord({
+    const existing = await this.readAuthorizedOperationForAdmission({
       tenantId: operation.tenantId,
       operationFingerprintDigest: operation.operationFingerprintDigest,
+      nowMs: operation.claimedAtMs,
     });
     if (existing) {
-      return await this.answerExistingAuthorizedOperation(existing, operation, input.material);
+      return this.answerExistingAuthorizedOperation(existing, operation, input.material);
     }
     let committedRow: D1Row | null;
     try {
@@ -2409,12 +2425,13 @@ export class CloudflareD1AuthorizationStore
       if (input.material && d1ChangedRows(result) === 0) return { kind: 'material_mismatch' };
       committedRow = readback.results?.[0] ?? null;
     } catch (error: unknown) {
-      const raced = await this.readAuthorizedOperationRecord({
+      const raced = await this.readAuthorizedOperationForAdmission({
         tenantId: operation.tenantId,
         operationFingerprintDigest: operation.operationFingerprintDigest,
+        nowMs: operation.claimedAtMs,
       });
       if (raced) {
-        return await this.answerExistingAuthorizedOperation(raced, operation, input.material);
+        return this.answerExistingAuthorizedOperation(raced, operation, input.material);
       }
       const triggerFailure = classifyAuthorizedOperationAdmissionError(error);
       if (triggerFailure) return triggerFailure;
@@ -2422,101 +2439,6 @@ export class CloudflareD1AuthorizationStore
     }
     if (!committedRow) throw new Error('authorized operation admission could not be read back');
     return { kind: 'claimed', operation: await parseAuthorizedOperationRow(committedRow) };
-  }
-
-  private async isAuthorizedOperationSourceActive(row: D1Row, nowMs: number): Promise<boolean> {
-    const sourceKind = requireString(row.authorization_source_kind, 'operation.authorization.kind');
-    if (sourceKind === 'authorization_grant') {
-      const scope = [row.linked_scope_org_id, row.linked_scope_project_id, row.linked_scope_env_id];
-      if (scope.some((value) => typeof value !== 'string' || value.length === 0)) return false;
-      if (
-        scope[0] !== this.walletSignerScope.orgId ||
-        scope[1] !== this.walletSignerScope.projectId ||
-        scope[2] !== this.walletSignerScope.envId
-      ) {
-        return false;
-      }
-      const session = await this.database
-        .prepare(
-          `SELECT 1 AS active
-             FROM wallet_session_authorizations_v2 AS session
-             JOIN wallet_authorities AS authority
-               ON authority.namespace = session.namespace
-              AND authority.org_id = session.org_id
-              AND authority.project_id = session.project_id
-              AND authority.env_id = session.env_id
-              AND authority.authority_id = session.authority_id
-              AND authority.wallet_id = session.wallet_id
-             JOIN wallet_auth_methods AS auth_method
-               ON auth_method.namespace = session.namespace
-              AND auth_method.org_id = session.org_id
-              AND auth_method.project_id = session.project_id
-              AND auth_method.env_id = session.env_id
-              AND auth_method.wallet_auth_method_id = session.wallet_auth_method_id
-              AND auth_method.wallet_id = session.wallet_id
-              AND auth_method.wallet_authority_id = session.authority_id
-            WHERE session.namespace = ?
-              AND session.org_id = ?
-              AND session.project_id = ?
-              AND session.env_id = ?
-              AND session.tenant_id = ?
-              AND session.authorization_id = ?
-              AND session.principal_id = ?
-              AND (? = 'quota_neutral' OR session.quota_id = ?)
-              AND session.retired_at_ms IS NULL
-              AND session.expires_at_ms > ?
-              AND authority.lifecycle_state = 'active'
-              AND authority.authority_digest_b64u = session.authority_digest_b64u
-              AND authority.revocation_epoch = session.authority_revocation_epoch
-              AND auth_method.status = 'active'
-            LIMIT 1`,
-        )
-        .bind(
-          this.namespace,
-          ...scope,
-          requireString(row.tenant_id, 'operation.tenantId'),
-          requireString(row.authorization_id, 'operation.authorizationId'),
-          requireString(row.principal_id, 'operation.principalId'),
-          requireString(row.quota_kind, 'operation.quota.kind'),
-          row.quota_id,
-          requirePositiveInteger(nowMs, 'operation replay time'),
-        )
-        .first<D1Row>();
-      return session !== null;
-    }
-    if (sourceKind !== 'verified_step_up') return false;
-    const capabilityKind = requireString(row.capability_kind, 'operation.capabilityKind');
-    const evidence = await this.database
-      .prepare(
-        `SELECT 1 AS active
-           FROM verified_wallet_operation_evidence_sets AS evidence
-          WHERE evidence.namespace = ?
-            AND evidence.tenant_id = ?
-            AND evidence.evidence_set_digest = ?
-            AND evidence.principal_id = ?
-            AND evidence.capability_kind = ?
-            AND evidence.operation_kind = ?
-            AND evidence.lane_digest = ?
-            AND evidence.intent_digest = ?
-            AND evidence.display_digest = ?
-            AND evidence.assurance = 'step_up'
-            AND evidence.expires_at_ms > ?
-          LIMIT 1`,
-      )
-      .bind(
-        this.namespace,
-        requireString(row.tenant_id, 'operation.tenantId'),
-        requireString(row.evidence_set_digest, 'operation.evidenceSetDigest'),
-        requireString(row.principal_id, 'operation.principalId'),
-        capabilityKind,
-        requireString(row.operation_kind, 'operation.operationKind'),
-        requireString(row.lane_digest, 'operation.laneDigest'),
-        requireString(row.intent_digest, 'operation.intentDigest'),
-        requireString(row.display_digest, 'operation.displayDigest'),
-        requirePositiveInteger(nowMs, 'operation replay time'),
-      )
-      .first<D1Row>();
-    return evidence !== null;
   }
 
   async completeAuthorizedOperation(input: {
@@ -2611,9 +2533,10 @@ export class CloudflareD1AuthorizationStore
   }
 }
 
-type AuthorizedOperationPersistenceRecord = {
+type AuthorizedOperationAdmissionRecord = {
   readonly row: D1Row;
   readonly operation: AuthorizedOperation;
+  readonly sourceActive: boolean;
 };
 
 type AuthorizedOperationReplayMismatch =

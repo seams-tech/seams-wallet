@@ -230,6 +230,73 @@ regional cohorts remain separate. Next consolidate pinned-scope/finalize reads,
 trace repeated status-request owners, and isolate the remaining client-side
 critical path before reassessing placement.
 
+### Completed checkpoint: operation and live-source read
+
+Admission now reads the existing operation and evaluates its live authorization
+source in one SQL query. The reusable-session branch retains the exact owner
+scope, tenant, principal, quota identity, expiry, retirement, authority digest,
+revocation epoch, and active auth-method predicates. The step-up branch retains
+its exact evidence identity, operation digests, assurance, and expiry predicates.
+The existing completed-step-up replay rule is unchanged. The separate source
+query has been deleted; no authorization cache or public domain-type change was
+introduced. The pinned scope lookup still verifies the operation/session/wallet
+binding and remains a separate call.
+
+Three existing browser scenarios passed on each of Workers D1, wallet-DO, and
+VM (nine scenario/profile combinations): concurrent prepare with lost-finalize
+replay; recovery retiring material while a finalize is delayed; and page refresh
+with warm-budget signing, one-use step-up, and key export. VM replay evidence
+again records quota 3 → 2 and one SigningWorker effect. The Workers step-up case
+was rerun cleanly after a concurrent server build caused a transient dev-server
+reload error. Server build/type check and the bloat check pass.
+
+Run the isolated test runner with `passkey.presign-pool.contract.test.ts`,
+`passkey.recovery.contract.test.ts`, and `passkey.unlock.contract.test.ts` under
+`tests/e2e/intended-behaviours/`, selecting:
+
+```text
+--grep 'concurrent prepare and admitted ECDSA|a recovery retires the replaced activation|page refresh hydrates warm signing'
+```
+
+Use the three host profiles described in the preceding checkpoint. Reproduction
+commands, source hashes, and verification results are in
+`.artifacts/r150/d1-source-20260929/verification.json`; local lifecycle traces
+remain private under `.runtime/r150-d1-diagnostic/source-traces/`.
+
+Three hosted registrations and six verified signatures ran
+14:23:56–14:24:50 UTC on September 29, 2026, with the same preserved SDK hash and
+role Workers. Instrumented Gateway version:
+`9e5dc644-0d9c-4627-810d-52d3916c6041`. Evidence is in
+`.artifacts/r150/d1-source-20260929/`; private reproduction launcher:
+`.runtime/r150-d1-diagnostic/run-source-browser.mjs`.
+
+| Per complete signature | Batched claim/readback | Combined operation/source read |
+| --- | ---: | ---: |
+| D1 calls, every signature | 15 | 14 |
+| SQL statements | 16 | 15 |
+| Write-bearing calls / reported row writes | 2 / 14 | 2 / 14 |
+| First-sign D1 elapsed median | 1,077 ms | 1,025 ms |
+| Subsequent-sign D1 elapsed median | 1,091 ms | 1,002 ms |
+| First-sign server median | 1,330 ms | 1,300 ms |
+| Subsequent-sign server median | 1,289 ms | 1,178 ms |
+| First-sign server range | 1,263–1,379 ms | 1,229–1,425 ms |
+| Subsequent-sign server range | 1,224–1,298 ms | 1,163–1,541 ms |
+
+Prepare and finalize each make seven D1 calls. All 90 statement results across
+84 signing-path calls reported the APAC primary. SQL execution medians were
+15.09 ms and 14.04 ms. Browser-flow windows were 3,037–3,792 ms for first signing
+and 3,055–3,792 ms for subsequent signing; these include test/UI orchestration
+and background work. The complete system-controlled maximum remains unproven.
+Small sequential cohorts establish the call reduction; latency differences
+remain observational. No local binary builds overlapped this hosted run.
+
+The original benchmark Gateway was restored and authenticated readiness returned
+204. Estimated cumulative cost was $0.6427 through 14:27:20 UTC, subject to
+accounting lag and the existing $25 cap. Next remove the pinned-scope round trips
+through an explicitly verified persisted binding, preserving its wallet guard,
+then revisit the session/material reads and repeated status-request owners.
+The deferred minimum-call-budget phase remains open.
+
 ### 1. Consolidate reads while preserving decision boundaries
 
 - [x] Read project and abuse policy together through the existing admission store.
@@ -240,9 +307,11 @@ critical path before reassessing placement.
   Read back after the INSERT triggers in the same transaction.
 - [ ] Reuse the committed row's pinned scope projection where the existing
   guard can be retained, removing its separate lookup.
-- [ ] Join the finalize operation, live authorization source, and pinned scope
-  reads where they can enforce the same predicates. Preserve replay-time
-  revocation, expiry, wallet/environment binding, and operation identity checks.
+- [x] Read the finalize operation and live authorization source together.
+  Preserve replay-time revocation, expiry, wallet/environment binding, quota
+  identity, and operation identity checks.
+- [ ] Consolidate finalize's pinned owner-scope read while retaining its exact
+  operation/session/wallet binding guard.
 - [ ] Examine joining initial material resolution to the existing joined session
   lookup. Keep the fresh-material check at admission until equivalent atomic SQL
   predicates and race behavior are demonstrated. Two material reads at different
@@ -277,7 +346,7 @@ call budget after these incremental changes.
 ### 3. Revisit the minimum signing call budget (deferred follow-up)
 
 Revisit this after phases 1 and 2, before deciding on regional D1 provisioning.
-The current 15 foreground calls per signature remain expensive relative to the
+The remaining foreground calls per signature remain expensive relative to the
 small amount of SQL work. Reaching 12 calls does not close this follow-up.
 
 - [ ] Map every remaining foreground D1 call to the invariant it enforces and

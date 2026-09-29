@@ -63,6 +63,84 @@ export function prepareAuthorizedOperationRead(
   ).bind(namespace, input.tenantId, input.operationFingerprintDigest);
 }
 
+export function prepareAuthorizedOperationAdmissionRead(input: {
+  readonly database: D1DatabaseLike;
+  readonly namespace: string;
+  readonly walletSignerScope: D1WalletStoreScope;
+  readonly tenantId: TenantId;
+  readonly operationFingerprintDigest: CapabilityOperationFingerprintDigest;
+  readonly nowMs: number;
+}): D1PreparedStatementLike {
+  return input.database.prepare(
+    `SELECT operation.*,
+            CASE operation.authorization_source_kind
+              WHEN 'authorization_grant' THEN EXISTS (
+                SELECT 1
+                  FROM wallet_session_authorizations_v2 AS session
+                  JOIN wallet_authorities AS authority
+                    ON authority.namespace = session.namespace
+                   AND authority.org_id = session.org_id
+                   AND authority.project_id = session.project_id
+                   AND authority.env_id = session.env_id
+                   AND authority.authority_id = session.authority_id
+                   AND authority.wallet_id = session.wallet_id
+                  JOIN wallet_auth_methods AS auth_method
+                    ON auth_method.namespace = session.namespace
+                   AND auth_method.org_id = session.org_id
+                   AND auth_method.project_id = session.project_id
+                   AND auth_method.env_id = session.env_id
+                   AND auth_method.wallet_auth_method_id = session.wallet_auth_method_id
+                   AND auth_method.wallet_id = session.wallet_id
+                   AND auth_method.wallet_authority_id = session.authority_id
+                 WHERE session.namespace = operation.namespace
+                   AND session.org_id = operation.linked_scope_org_id
+                   AND session.project_id = operation.linked_scope_project_id
+                   AND session.env_id = operation.linked_scope_env_id
+                   AND session.org_id = ? AND session.project_id = ? AND session.env_id = ?
+                   AND session.tenant_id = operation.tenant_id
+                   AND session.authorization_id = operation.authorization_id
+                   AND session.principal_id = operation.principal_id
+                   AND (operation.quota_kind = 'quota_neutral' OR session.quota_id = operation.quota_id)
+                   AND session.retired_at_ms IS NULL
+                   AND session.expires_at_ms > ?
+                   AND authority.lifecycle_state = 'active'
+                   AND authority.authority_digest_b64u = session.authority_digest_b64u
+                   AND authority.revocation_epoch = session.authority_revocation_epoch
+                   AND auth_method.status = 'active'
+              )
+              WHEN 'verified_step_up' THEN EXISTS (
+                SELECT 1
+                  FROM verified_wallet_operation_evidence_sets AS evidence
+                 WHERE evidence.namespace = operation.namespace
+                   AND evidence.tenant_id = operation.tenant_id
+                   AND evidence.evidence_set_digest = operation.evidence_set_digest
+                   AND evidence.principal_id = operation.principal_id
+                   AND evidence.capability_kind = operation.capability_kind
+                   AND evidence.operation_kind = operation.operation_kind
+                   AND evidence.lane_digest = operation.lane_digest
+                   AND evidence.intent_digest = operation.intent_digest
+                   AND evidence.display_digest = operation.display_digest
+                   AND evidence.assurance = 'step_up'
+                   AND evidence.expires_at_ms > ?
+              )
+              ELSE 0
+            END AS authorization_source_active
+       FROM authorized_operations AS operation
+      WHERE operation.namespace = ? AND operation.tenant_id = ?
+        AND operation.operation_fingerprint_digest = ?
+      LIMIT 1`,
+  ).bind(
+    input.walletSignerScope.orgId,
+    input.walletSignerScope.projectId,
+    input.walletSignerScope.envId,
+    input.nowMs,
+    input.nowMs,
+    input.namespace,
+    input.tenantId,
+    input.operationFingerprintDigest,
+  );
+}
+
 export function prepareAuthorizedOperationInsert(input: {
   readonly database: D1DatabaseLike;
   readonly namespace: string;
