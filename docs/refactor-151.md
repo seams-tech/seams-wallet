@@ -2,9 +2,9 @@
 
 Date: September 29, 2026
 
-Status: measured proposal. Instrumentation and a bounded hosted diagnostic are
-complete. Query consolidation, write changes, and regional databases are not
-implemented or approved for production rollout.
+Status: the combined project/abuse policy read is implemented and verified in a
+bounded hosted diagnostic. Further query consolidation, write changes, and
+regional databases remain planned. Production rollout is separate.
 
 ## Decision
 
@@ -121,9 +121,54 @@ Cloudflare documents the returned metadata in
 
 ## Implementation order
 
+### Completed checkpoint: combined policy read
+
+The admission store now returns one policy decision from one query. Two exact
+primary-key joins fetch project and abuse policy together. Missing records allow
+the request; a present malformed record fails closed. Project rejection retains
+precedence, including over a malformed abuse record. Expired requests still fail
+before storage access. The separate provider/read interfaces have been removed
+from the store and its public exports.
+
+The local HTTP/D1 policy scenario and the VM SQLite and in-memory adapters cover
+both ECDSA and Ed25519 policy inputs, live changes, project/abuse precedence,
+wallet/environment/version/namespace isolation where applicable, expiry, and
+malformed records. Type fixtures reject invalid allowed/rejected combinations.
+Reproduce with `node tests/r150-hosted/gateway/admissionPolicy.e2e.mjs`; evidence
+is `.artifacts/r150/admission-policy/result.json`.
+
+Three further hosted registrations and six verified ECDSA signatures used the
+same SDK distribution hash as the initial diagnostic, unchanged role Workers,
+and instrumented Gateway `0385b2db-497f-411b-9e98-9811fb9cfccd`. They ran
+13:36:43–13:37:55 UTC on September 29, 2026. Artifacts and the run provenance are
+in `.artifacts/r150/d1-policy-20260929/`; the private launcher is
+`.runtime/r150-d1-diagnostic/run-policy-browser.mjs`.
+
+| Per complete signature | Before | Combined policy read |
+| --- | ---: | ---: |
+| D1 calls, every signature | 18 | 16 |
+| Write-bearing calls / reported row writes | 2 / 14 | 2 / 14 |
+| First-sign D1 elapsed median | 1,770 ms | 1,231 ms |
+| Subsequent-sign D1 elapsed median | 1,468 ms | 1,175 ms |
+| First-sign server median | 1,964 ms | 1,496 ms |
+| Subsequent-sign server median | 1,853 ms | 1,335 ms |
+| First-sign server range | 1,961–2,132 ms | 1,368–3,475 ms |
+| Subsequent-sign server range | 1,666–2,044 ms | 1,318–3,658 ms |
+
+All 96 signing-path calls reported the APAC primary. Each stage has three
+samples. The third new run was slower and remains included. The two-call
+reduction is established; the latency difference cannot be attributed wholly to
+this change from these sequential small cohorts. The 1–2 second maximum remains
+unmet, even on server-only timing. The benchmark Gateway is restored to its
+original version after the diagnostic.
+
+Server and intended-test type checks, policy adapter scenarios, and the bloat
+check pass. Next implement claim/readback batching with its concurrency/replay
+verification, then consolidate further reads and inspect status-request owners.
+
 ### 1. Consolidate reads while preserving decision boundaries
 
-- [ ] Read project and abuse policy together through the existing admission store.
+- [x] Read project and abuse policy together through the existing admission store.
   Both currently use the same SQL shape with different keys. Preserve rejection
   precedence and fresh policy evaluation for each operation. This should remove
   one round trip from prepare and one from finalize.

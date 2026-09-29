@@ -145,10 +145,9 @@ export {
   createInMemoryRouterAbNormalSigningAdmissionStore,
   createRouterAbNormalSigningAdmissionAdapter,
   type RouterAbNormalSigningAbuseDecision,
-  type RouterAbNormalSigningAbuseProvider,
+  type RouterAbNormalSigningPolicyDecision,
   type RouterAbNormalSigningAdmissionStore,
   type RouterAbNormalSigningProjectPolicyDecision,
-  type RouterAbNormalSigningProjectPolicyProvider,
 } from './router/domains/signingOperations/routerAbNormalSigningAdmissionCore';
 export {
   CloudflareD1RouterAbNormalSigningAdmissionStore,
