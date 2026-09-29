@@ -125,9 +125,9 @@ struct ActivationEntropyBytes {
     deriver_b_seal_seed: [u8; 32],
 }
 
+/// Registration from a Client root the caller derived from the wallet custody
+/// seed, which is how wallets register.
 struct SeedRootActivationCase {
-    /// Registration from a Client root the caller derived from the wallet
-    /// custody seed, which is how Refactor 100 registers.
     session_byte: u8,
     wallet_custody_seed: [u8; 32],
     entropy: ActivationEntropyBytes,
@@ -634,8 +634,8 @@ fn a_different_wallet_custody_seed_registers_a_different_key() {
     );
 }
 
-/// Refactor 100. The same-device continuity cache, sealed under the wallet
-/// custody seed rather than a factor.
+/// The same-device continuity cache, sealed under the wallet custody seed
+/// rather than a factor.
 ///
 /// The point of the seed domain is that the record stops belonging to whichever
 /// factor happened to register. These run against a real activated Client from
