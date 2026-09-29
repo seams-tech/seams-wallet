@@ -288,5 +288,6 @@ branch's code and takes `dev`'s deletions. After the merge,
 `router-ab-cloudflare`'s native tests pass (480, none failed), as do
 `router-ab-core`'s source guards, `router-ab-ecdsa-derivation`'s boundary
 test, `router-ab-dev`'s all-target check, the intended suite's type check
-and the two merged unit tests. The browser suite's type check reports two
-errors in test files the merge does not touch.
+and the two merged unit tests. The browser suite's type check had two
+errors in test files the merge does not touch; 7435f58 fixes both, and the
+two tests pass on Chromium.
