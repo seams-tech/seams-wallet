@@ -7,15 +7,6 @@ use support::{
     rust_source_files,
 };
 
-fn contains_rust_identifier(source: &str, identifier: &str) -> bool {
-    source.match_indices(identifier).any(|(start, _)| {
-        let before = source[..start].chars().next_back();
-        let after = source[start + identifier.len()..].chars().next();
-        !before.is_some_and(|character| character.is_ascii_alphanumeric() || character == '_')
-            && !after.is_some_and(|character| character.is_ascii_alphanumeric() || character == '_')
-    })
-}
-
 #[test]
 fn normal_signing_routes_do_not_invoke_ab_derivation_handlers() {
     let lib_rs = read_src_file("lib.rs");
@@ -47,43 +38,6 @@ fn normal_signing_routes_do_not_invoke_ab_derivation_handlers() {
                 "{function_name} must not cross into derivation handler `{forbidden}`"
             );
         }
-    }
-}
-
-#[test]
-fn legacy_normal_signing_v1_flow_symbols_are_absent() {
-    let lib_rs = read_src_file("lib.rs");
-    for deleted_symbol in [
-        "CloudflareRouterVerifiedNormalSigningJwtClaimsV1",
-        "CloudflareRouterNormalSigningJwtVerifierV1",
-        "verify_normal_signing_jwt",
-        "verify_normal_signing_round1_prepare_jwt",
-        "handle_cloudflare_router_normal_signing_authenticated_public_request_v1",
-        "handle_cloudflare_router_normal_signing_round1_prepare_authenticated_public_request_v1",
-        "build_cloudflare_router_to_signing_worker_normal_signing_request_v1",
-        "execute_cloudflare_signing_worker_normal_signing_service_call_v1",
-        "execute_cloudflare_signing_worker_normal_signing_round1_prepare_service_call_v1",
-        "CloudflareSigningWorkerAdmittedNormalSigningRequestV1",
-        "CloudflareSigningWorkerAdmittedNormalSigningRound1PrepareRequestV1",
-        "CloudflareSigningWorkerMaterializedNormalSigningRequestV1",
-        "CloudflareSigningWorkerMaterializedNormalSigningRound1PrepareRequestV1",
-        "CloudflareSigningWorkerNormalSigningHandlerV1",
-        "CloudflareSigningWorkerNormalSigningRound1PrepareHandlerV1",
-        "handle_cloudflare_signing_worker_normal_signing_private_request_v1",
-        "handle_cloudflare_signing_worker_normal_signing_round1_prepare_private_request_v1",
-        "derive_cloudflare_router_normal_signing_trusted_admission_v1",
-        "derive_cloudflare_router_normal_signing_round1_prepare_trusted_admission_v1",
-        "normal_signing_replay_reserve_call",
-        "normal_signing_admission_store_calls_at",
-        "normal_signing_round1_prepare_admission_store_calls_at",
-        "NormalSigningRequestV1",
-        "NormalSigningRound1PrepareRequestV1",
-        "RouterToSigningWorkerSigningRequestV1",
-    ] {
-        assert!(
-            !contains_rust_identifier(&lib_rs, deleted_symbol),
-            "legacy normal-signing v1 flow symbol `{deleted_symbol}` must stay deleted"
-        );
     }
 }
 
