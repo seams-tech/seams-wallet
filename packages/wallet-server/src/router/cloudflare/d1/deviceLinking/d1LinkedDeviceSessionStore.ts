@@ -22,8 +22,17 @@ import type {
 import { assertNeverLinkSessionStateV1 } from '@shared/device-linking/contracts';
 import {
   LinkedDeviceRetiredSessionShapeErrorV1,
+  approvalTranscriptMatchesDigest,
+  claimTranscriptMatchesDigest,
+  conflictResult,
+  integrityResult,
+  invalidStateResult,
+  isPrecommitState,
+  linkedDeviceEmailOtpChallengesEqualV1,
   linkedDeviceQrPayloadsEqualV1,
   parseLinkedDeviceSessionRecordV1,
+  sessionExpiryMsV1,
+  sourceContributionTranscriptMatchesDigest,
   type LinkedDeviceSessionListCursorV1,
   type LinkedDeviceSessionListPageV1,
   type LinkedDeviceSessionMutationResultV1,
@@ -60,6 +69,29 @@ const SESSION_SCOPED_TABLES = [
 ] as const;
 const SESSION_CAS_GUARD_SQL = `INSERT INTO linked_device_session_cas_guard (guard_id)
 SELECT 1 WHERE changes() = 0`;
+const PRECOMMIT_STATES: readonly LinkSessionStateV1['state'][] = [
+  'displaying_qr',
+  'claimed',
+  'awaiting_target_factor',
+  'awaiting_source_contribution',
+  'provisioning',
+];
+
+type D1LinkedDeviceSessionMutationV1 = {
+  readonly linkSessionId: LinkDeviceSessionId;
+  readonly expectedRevision: number;
+  readonly nextRecord: LinkedDeviceSessionRecordV1;
+  readonly nowMs: number;
+};
+
+type D1LinkedDeviceSessionStateCasV1 = D1LinkedDeviceSessionMutationV1 & {
+  readonly expectedStates: readonly LinkSessionStateV1['state'][];
+  readonly nextStates: readonly LinkSessionStateV1['state'][];
+  readonly replay: (
+    record: LinkedDeviceSessionRecordV1,
+    nextRecord: LinkedDeviceSessionRecordV1,
+  ) => boolean;
+};
 
 export class D1LinkedDeviceSessionStoreV1 implements LinkedDeviceSessionStoreV1 {
   private readonly database: D1DatabaseLike;
@@ -306,10 +338,7 @@ export class D1LinkedDeviceSessionStoreV1 implements LinkedDeviceSessionStoreV1 
     readonly nowMs: number;
   }): Promise<LinkedDeviceSessionMutationResultV1> {
     return this.applyStateCas({
-      linkSessionId: input.linkSessionId,
-      expectedRevision: input.expectedRevision,
-      nextRecord: input.nextRecord,
-      nowMs: input.nowMs,
+      ...sessionMutationFieldsV1(input),
       expectedStates: ['awaiting_target_factor'],
       nextStates: ['awaiting_source_contribution'],
       replay: isAwaitingSourceContributionRecord,
@@ -352,10 +381,7 @@ export class D1LinkedDeviceSessionStoreV1 implements LinkedDeviceSessionStoreV1 
     readonly nowMs: number;
   }): Promise<LinkedDeviceSessionMutationResultV1> {
     return this.applyStateCas({
-      linkSessionId: input.linkSessionId,
-      expectedRevision: input.expectedRevision,
-      nextRecord: input.nextRecord,
-      nowMs: input.nowMs,
+      ...sessionMutationFieldsV1(input),
       expectedStates: ['awaiting_target_factor'],
       nextStates: ['awaiting_target_factor'],
       replay: sameEmailOtpChallenge,
@@ -419,10 +445,7 @@ export class D1LinkedDeviceSessionStoreV1 implements LinkedDeviceSessionStoreV1 
     readonly nowMs: number;
   }): Promise<LinkedDeviceSessionMutationResultV1> {
     return this.applyStateCas({
-      linkSessionId: input.linkSessionId,
-      expectedRevision: input.expectedRevision,
-      nextRecord: input.nextRecord,
-      nowMs: input.nowMs,
+      ...sessionMutationFieldsV1(input),
       expectedStates: ['provisioning'],
       nextStates: ['authority_pending_local_install'],
       replay: (record) =>
@@ -464,10 +487,7 @@ export class D1LinkedDeviceSessionStoreV1 implements LinkedDeviceSessionStoreV1 
       );
     }
     return this.applyStateCas({
-      linkSessionId: input.linkSessionId,
-      expectedRevision: input.expectedRevision,
-      nextRecord: input.nextRecord,
-      nowMs: input.nowMs,
+      ...sessionMutationFieldsV1(input),
       expectedStates: ['authority_pending_local_install'],
       nextStates: ['active'],
       replay: isActiveRecord,
@@ -481,17 +501,8 @@ export class D1LinkedDeviceSessionStoreV1 implements LinkedDeviceSessionStoreV1 
     readonly nowMs: number;
   }): Promise<LinkedDeviceSessionMutationResultV1> {
     return this.applyTerminalStateCas({
-      linkSessionId: input.linkSessionId,
-      expectedRevision: input.expectedRevision,
-      nextRecord: input.nextRecord,
-      nowMs: input.nowMs,
-      expectedStates: [
-        'displaying_qr',
-        'claimed',
-        'awaiting_target_factor',
-        'awaiting_source_contribution',
-        'provisioning',
-      ],
+      ...sessionMutationFieldsV1(input),
+      expectedStates: PRECOMMIT_STATES,
       nextStates: ['failed_before_commit'],
       replay: isFailedRecord,
     });
@@ -504,17 +515,8 @@ export class D1LinkedDeviceSessionStoreV1 implements LinkedDeviceSessionStoreV1 
     readonly nowMs: number;
   }): Promise<LinkedDeviceSessionMutationResultV1> {
     return this.applyTerminalStateCas({
-      linkSessionId: input.linkSessionId,
-      expectedRevision: input.expectedRevision,
-      nextRecord: input.nextRecord,
-      nowMs: input.nowMs,
-      expectedStates: [
-        'displaying_qr',
-        'claimed',
-        'awaiting_target_factor',
-        'awaiting_source_contribution',
-        'provisioning',
-      ],
+      ...sessionMutationFieldsV1(input),
+      expectedStates: PRECOMMIT_STATES,
       nextStates: ['cancelled'],
       replay: isCancelledRecord,
     });
@@ -529,20 +531,11 @@ export class D1LinkedDeviceSessionStoreV1 implements LinkedDeviceSessionStoreV1 
     const current = await this.getSessionV1(input.linkSessionId);
     if (!current) return conflictResult(input.expectedRevision, null);
     if (current.state.state === 'expired') return { outcome: 'replayed', record: current };
-    if (!isExpirableState(current.state)) return invalidStateResult(current);
-    if (input.nowMs < expiryMs(current)) return invalidStateResult(current);
+    if (!isPrecommitState(current.state)) return invalidStateResult(current);
+    if (input.nowMs < sessionExpiryMsV1(current)) return invalidStateResult(current);
     return this.applyTerminalStateCas({
-      linkSessionId: input.linkSessionId,
-      expectedRevision: input.expectedRevision,
-      nextRecord: input.nextRecord,
-      nowMs: input.nowMs,
-      expectedStates: [
-        'displaying_qr',
-        'claimed',
-        'awaiting_target_factor',
-        'awaiting_source_contribution',
-        'provisioning',
-      ],
+      ...sessionMutationFieldsV1(input),
+      expectedStates: PRECOMMIT_STATES,
       nextStates: ['expired'],
       replay: isExpiredRecord,
     });
@@ -693,20 +686,12 @@ export class D1LinkedDeviceSessionStoreV1 implements LinkedDeviceSessionStoreV1 
       : resolveMutationRace(input.expectedRevision, persisted);
   }
 
-  private async applyStateCas(input: {
-    readonly linkSessionId: LinkDeviceSessionId;
-    readonly expectedRevision: number;
-    readonly nextRecord: LinkedDeviceSessionRecordV1;
-    readonly nowMs: number;
-    readonly expectedStates: readonly LinkSessionStateV1['state'][];
-    readonly nextStates: readonly LinkSessionStateV1['state'][];
-    readonly replay: (
-      record: LinkedDeviceSessionRecordV1,
-      nextRecord: LinkedDeviceSessionRecordV1,
-    ) => boolean;
-    /** Terminal transitions shrink the record and drop session-scoped rows. */
-    readonly terminal?: boolean;
-  }): Promise<LinkedDeviceSessionMutationResultV1> {
+  private async applyStateCas(
+    input: D1LinkedDeviceSessionStateCasV1 & {
+      /** Terminal transitions shrink the record and drop session-scoped rows. */
+      readonly terminal?: boolean;
+    },
+  ): Promise<LinkedDeviceSessionMutationResultV1> {
     const current = await this.getSessionV1(input.linkSessionId);
     if (!current) return conflictResult(input.expectedRevision, null);
     const normalized = normalizeMutationRecordV1(input);
@@ -769,27 +754,13 @@ export class D1LinkedDeviceSessionStoreV1 implements LinkedDeviceSessionStoreV1 
       : resolveMutationRace(input.expectedRevision, persisted);
   }
 
-  private async applyTerminalStateCas(input: {
-    readonly linkSessionId: LinkDeviceSessionId;
-    readonly expectedRevision: number;
-    readonly nextRecord: LinkedDeviceSessionRecordV1;
-    readonly nowMs: number;
-    readonly expectedStates: readonly LinkSessionStateV1['state'][];
-    readonly nextStates: readonly LinkSessionStateV1['state'][];
-    readonly replay: (
-      record: LinkedDeviceSessionRecordV1,
-      nextRecord: LinkedDeviceSessionRecordV1,
-    ) => boolean;
-  }): Promise<LinkedDeviceSessionMutationResultV1> {
+  private async applyTerminalStateCas(
+    input: D1LinkedDeviceSessionStateCasV1,
+  ): Promise<LinkedDeviceSessionMutationResultV1> {
     return await this.applyStateCas({ ...input, terminal: true });
   }
 
-  private updateStatement(input: {
-    readonly linkSessionId: LinkDeviceSessionId;
-    readonly expectedRevision: number;
-    readonly nextRecord: LinkedDeviceSessionRecordV1;
-    readonly nowMs: number;
-  }): D1PreparedStatementLike {
+  private updateStatement(input: D1LinkedDeviceSessionMutationV1): D1PreparedStatementLike {
     const record = normalizeMutationRecordV1(input);
     return this.database
       .prepare(
@@ -993,6 +964,17 @@ function sessionColumnValues(record: LinkedDeviceSessionRecordV1): readonly unkn
   ];
 }
 
+function sessionMutationFieldsV1(
+  input: D1LinkedDeviceSessionMutationV1,
+): D1LinkedDeviceSessionMutationV1 {
+  return {
+    linkSessionId: input.linkSessionId,
+    expectedRevision: input.expectedRevision,
+    nextRecord: input.nextRecord,
+    nowMs: input.nowMs,
+  };
+}
+
 function normalizeMutationRecordV1(input: {
   readonly linkSessionId: LinkDeviceSessionId;
   readonly expectedRevision: number;
@@ -1039,29 +1021,8 @@ function minimalTerminalRecordV1(record: LinkedDeviceSessionRecordV1): LinkedDev
   }
 }
 
-function claimTranscriptMatchesDigest(
-  record: LinkedDeviceSessionRecordV1,
-  digest: DigestB64u,
-): boolean {
-  return record.claimTranscript?.digestB64u === digest;
-}
-
-function approvalTranscriptMatchesDigest(
-  record: LinkedDeviceSessionRecordV1,
-  digest: DigestB64u,
-): boolean {
-  return record.approvalTranscript?.digestB64u === digest;
-}
-
 function isAwaitingSourceContributionRecord(record: LinkedDeviceSessionRecordV1): boolean {
   return record.state.state === 'awaiting_source_contribution';
-}
-
-function sourceContributionTranscriptMatchesDigest(
-  record: LinkedDeviceSessionRecordV1,
-  digest: DigestB64u,
-): boolean {
-  return record.sourceContributionTranscript?.digestB64u === digest;
 }
 
 function sameEmailOtpChallenge(
@@ -1077,25 +1038,7 @@ function sameEmailOtpChallenge(
   const left = record.emailOtpChallenge;
   const right = nextRecord.emailOtpChallenge;
   if (left === undefined || right === undefined) return left === right;
-  switch (left.state) {
-    case 'available':
-      return right.state === 'available' && left.maskedEmailHint === right.maskedEmailHint;
-    case 'sent':
-      return (
-        right.state === 'sent' &&
-        left.challengeId === right.challengeId &&
-        left.workerEphemeralPublicKey65B64u === right.workerEphemeralPublicKey65B64u &&
-        left.maskedEmailHint === right.maskedEmailHint &&
-        left.expiresAtMs === right.expiresAtMs &&
-        left.resendAvailableAtMs === right.resendAvailableAtMs
-      );
-    default:
-      return assertNeverLinkedDeviceEmailOtpChallengeV1(left);
-  }
-}
-
-function assertNeverLinkedDeviceEmailOtpChallengeV1(value: never): never {
-  throw new Error(`unsupported linked-device email OTP challenge: ${String(value)}`);
+  return linkedDeviceEmailOtpChallengesEqualV1(left, right);
 }
 
 function isActiveRecord(record: LinkedDeviceSessionRecordV1): boolean {
@@ -1114,75 +1057,10 @@ function isExpiredRecord(record: LinkedDeviceSessionRecordV1): boolean {
   return record.state.state === 'expired';
 }
 
-function isExpirableState(state: LinkSessionStateV1): boolean {
-  switch (state.state) {
-    case 'displaying_qr':
-    case 'claimed':
-    case 'awaiting_target_factor':
-    case 'awaiting_source_contribution':
-    case 'provisioning':
-      return true;
-    case 'authority_pending_local_install':
-    case 'active':
-    case 'failed_before_commit':
-    case 'cancelled':
-    case 'expired':
-      return false;
-    default:
-      return assertNeverLinkSessionStateV1(state);
-  }
-}
-
-function expiryMs(record: LinkedDeviceSessionRecordV1): number {
-  switch (record.state.state) {
-    case 'displaying_qr':
-      return record.qrPayload.expiresAtMs;
-    case 'claimed':
-      return record.claimTranscript?.value.claimExpiresAtMs ?? record.qrPayload.expiresAtMs;
-    case 'awaiting_target_factor':
-    case 'awaiting_source_contribution':
-    case 'provisioning':
-      return record.approvalTranscript?.value.expiresAtMs ?? record.qrPayload.expiresAtMs;
-    case 'authority_pending_local_install':
-    case 'active':
-    case 'failed_before_commit':
-    case 'cancelled':
-    case 'expired':
-      return Number.POSITIVE_INFINITY;
-    default:
-      return assertNeverLinkSessionStateV1(record.state);
-  }
-}
-
 function resolveMutationRace(
   expectedRevision: number,
   record: LinkedDeviceSessionRecordV1,
 ): LinkedDeviceSessionMutationResultV1 {
   if (record.revision === expectedRevision) return invalidStateResult(record);
   return conflictResult(expectedRevision, record);
-}
-
-function conflictResult(
-  expectedRevision: number,
-  record: LinkedDeviceSessionRecordV1 | null,
-): LinkedDeviceSessionMutationResultV1 {
-  return {
-    outcome: 'conflict',
-    expectedRevision,
-    actualRevision: record?.revision ?? null,
-    record,
-  };
-}
-
-function invalidStateResult(
-  record: LinkedDeviceSessionRecordV1,
-): LinkedDeviceSessionMutationResultV1 {
-  return { outcome: 'invalid_state', state: record.state.state, record };
-}
-
-function integrityResult(
-  record: LinkedDeviceSessionRecordV1,
-  reason: 'authority_id_mismatch' | 'package_set_digest_mismatch',
-): LinkedDeviceSessionMutationResultV1 {
-  return { outcome: 'integrity_error', reason, record };
 }
