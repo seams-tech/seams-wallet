@@ -1,10 +1,12 @@
 # Cleanup 1: dead, duplicated and boilerplate code
 
-**Status:** Phase 0 has started. The measurement script and its baseline are
-committed (164406d): `pnpm report:bloat` prints every measure below with its
-change since `scripts/bloat-baseline.json`, recorded on 2026-09-29 at
-`7c8a163`. Two type-level passes landed before the baseline (836cca3, 7d74e01).
-Nothing else in this plan has started.
+**Status:** Phase 0 is complete and Phase 1 has started. CI runs
+`pnpm report:bloat --check`, which fails when a ratcheted measure grows past
+`scripts/bloat-baseline.json`, now recorded at `964a714`. The packages compile
+with the unused-code checks, and every export in `packages/*/src` is named by
+another file or reachable from a public entry point. Since the first baseline
+(`7c8a163`), TypeScript code is down 15,958 lines. The findings below are the
+first baseline's; run `pnpm report:bloat` for current numbers.
 
 This plan reduces the code that has to be read, reviewed and kept consistent,
 without changing behavior. The repository holds about 540k lines of TypeScript
@@ -27,11 +29,14 @@ files that repeat themselves.
   have (836cca3).
 - [x] Name each registration response's success beside the response and use it
   at the 30 sites that narrowed `{ ok: true }` (7d74e01).
+- [x] Phase 0: a CI ratchet, unused-code compiler checks and agent rules.
+- [x] Delete every export nothing named: 687 exports and 25 emptied modules,
+  14,258 lines (5aa72f4, 87baab3, 9f0ee44).
 
 ### Remaining
 
-- [ ] Phase 0: a CI ratchet, unused-code compiler checks and agent rules.
-- [ ] Phase 1: remove dead exports, test-only code and dead-code suppressions.
+- [ ] Phase 1: test-only exports, local-only exports, dead-code suppressions,
+  refactor citations and finished plans.
 - [ ] Phase 2: consolidate the duplicated clusters listed below.
 - [ ] Phase 3: pilot declaring each wire field once.
 - [ ] Phase 4: restructure R150's largest files after R150 lands on `dev`.
@@ -105,16 +110,24 @@ formats, public APIs and behavior stay unchanged.
 **Scope:** measurement, compiler settings and agent rules; no code removal.
 
 - [x] Add the report and its baseline (164406d).
-- [ ] Add `--check` to the report: exit non-zero when a measure grows past the
-  baseline. Code lines are reported but not ratcheted. Run it after
-  `pnpm type-check` in `.github/workflows/validate-wallet.yml`.
-- [ ] Enable `noUnusedLocals` and `noUnusedParameters` for `packages/wallet`,
-  `packages/wallet-server` and `packages/shared-ts`, and fix the ~200 reports.
-- [ ] Add rules to `AGENTS.md`: use the shared validation helpers instead of
-  local copies; name a union's variants beside it with `Variant`; delete the
-  replaced path in the same change; do not cite refactor or phase numbers in code
-  comments; do not grow a file past 2,000 lines; move finished plans out of
-  `docs/`.
+- [x] Add `--check` to the report (0af6f39). It fails when dead exports, files
+  over 2,000 lines, local copies of the basic validation helpers, refactor
+  citations, Rust `allow(dead_code)` or duplicated lines grow; the other measures
+  grow with feature work and are only reported. Duplicated lines are ratcheted
+  rather than the percentage, which rises whenever other code is deleted.
+  `validate-wallet.yml` runs it after `pnpm install`.
+- [x] Add `--rev <commit>` so a baseline measures a commit, not a working tree
+  that other agents are editing, and leave generated modules out of dead
+  exports (acc9f9f).
+- [x] Enable `noUnusedLocals` and `noUnusedParameters` for `packages/wallet`
+  and `packages/wallet-server`; `shared-ts` and the test projects inherit them.
+  Fixing the reports deleted about 2,200 lines (5f5e527).
+- [x] Add rules to `AGENTS.md`: run the check before committing; use the shared
+  validation helpers instead of local copies; name a union's variants beside it
+  with `Variant`; delete the replaced path in the same change; export only what
+  another file uses; do not cite refactor or phase numbers in code comments; do
+  not grow a file past 2,000 lines (d1b55b9). The rule for finished plans waits
+  for the open decision below.
 
 **Exit:** CI fails when a ratcheted measure grows, and the compiler reports no
 unused locals or parameters.
@@ -124,8 +137,10 @@ unused locals or parameters.
 **Scope:** deletions that the compiler and the report verify; no behavior
 change.
 
-- [ ] Delete the 464 exports nothing else names (6,450 lines), one package per
-  commit. Re-run the report after each pass: removals expose more dead code.
+- [x] Delete the 464 exports nothing else names (6,450 lines), one package per
+  commit. Removals exposed more in six rounds: 687 exports and 25 modules left
+  without code, 14,258 lines (5aa72f4 wallet, 87baab3 wallet-server, 9f0ee44
+  shared-ts).
 - [ ] Review the 272 exports only tests name (3,285 lines). Delete an export and
   its tests when the tests exercise nothing else, as the `Drop ...` commits of
   2026-09-29 did; keep deliberate test seams and say why.
@@ -247,7 +262,6 @@ consolidated cluster before committing it.
 
 ## Open decisions
 
-- Which measures fail CI and which only warn.
 - Whether to add Prettier as a dev dependency. `.prettierrc.json` exists, but no
   package installs Prettier, so formatting depends on each editor's copy.
 - Which refactor plans are finished, and where finished plans go.
@@ -260,3 +274,10 @@ consolidated cluster before committing it.
   commits on this branch deleted 2,417 lines of dead tests and modules. After it,
   b143d76 merged `dev`'s test pruning (94c3aed, 5fabf28, 310f3a5, 4fb88bf), which
   deleted about 2,400 lines.
+- 2026-09-29: Phase 0 landed (0af6f39, d1b55b9, 5f5e527, acc9f9f), then the
+  dead-export pass (5aa72f4, 87baab3, 9f0ee44). Against the first baseline,
+  measured at `964a714`: TypeScript code 539,841 -> 523,883 lines; dead exports
+  464 -> 0; validation functions 4,276 -> 3,995 (86,063 -> 81,736 lines);
+  duplicated TypeScript lines 21,753 -> 20,811; exports used only in their own
+  file 2,272 -> 2,096. The baseline was re-recorded there, and CI now runs the
+  check.
