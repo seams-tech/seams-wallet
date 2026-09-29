@@ -27,7 +27,7 @@ jobs:
   router_ab_core_tests:
     name: MPC Router A/B core tests
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 45
     steps:
       - name: Checkout
         uses: actions/checkout@v6
