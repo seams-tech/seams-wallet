@@ -165,11 +165,11 @@ import {
   respondWalletRegistration,
   startWalletAddSigner,
   type WalletRegistrationActivateResponseV2,
-  type WalletRegistrationSetupResponseV2,
   type WalletRegistrationSetupEcdsaPreparePayload,
   type WalletRegistrationRespondEd25519DeferredWork,
   type WalletRegistrationEmailOtpEnrollmentMaterial,
   type WalletRegistrationEcdsaPreparePayload,
+  type WalletRegistrationSetupSuccessV2,
   type WalletRegistrationStartResponse,
   type WalletAddSignerFinalizeResponse,
   type WalletAddSignerStartResponse,
@@ -1061,7 +1061,7 @@ function awaitHostedPasskeyRegistrationStage<T>(args: {
 
 function startHostedPreparedEcdsaClientCeremony(args: {
   context: RegistrationWebContext;
-  setup: Extract<WalletRegistrationSetupResponseV2, { ok: true }>;
+  setup: WalletRegistrationSetupSuccessV2;
 }): HostedPreparedEcdsaClientCeremony {
   switch (args.setup.kind) {
     case 'near_ed25519':
@@ -1714,7 +1714,7 @@ async function setupThreeRouteRegistration(args: {
   recorder: RegistrationTimingRecorder;
 }): Promise<{
   relayerUrl: string;
-  setup: Extract<WalletRegistrationSetupResponseV2, { ok: true }>;
+  setup: WalletRegistrationSetupSuccessV2;
   registrationWarmup: Promise<RegistrationWarmupOutcome>;
 }> {
   const relayerUrl = String(args.context.configs.network.relayer.url || '').trim();
@@ -2179,8 +2179,8 @@ export type RegisterEcdsaOrMixedWalletArgs = RegisterEcdsaOrMixedWalletBaseArgs 
   );
 
 type EcdsaRegistrationSetupResponse = Extract<
-  WalletRegistrationSetupResponseV2,
-  { ok: true; kind: 'evm_family_ecdsa' | 'near_ed25519_and_evm_family_ecdsa' }
+  WalletRegistrationSetupSuccessV2,
+  { kind: 'evm_family_ecdsa' | 'near_ed25519_and_evm_family_ecdsa' }
 >;
 
 type WalletRegistrationSetupChainTarget =
@@ -2224,7 +2224,7 @@ function materializeWalletRegistrationSetupEcdsaPrepare(
 }
 
 function requireEcdsaRegistrationSetup(
-  setup: Extract<WalletRegistrationSetupResponseV2, { ok: true }>,
+  setup: WalletRegistrationSetupSuccessV2,
   expectedKind: RegisterEcdsaOrMixedWalletArgs['kind'],
 ): EcdsaRegistrationSetupResponse {
   switch (setup.kind) {

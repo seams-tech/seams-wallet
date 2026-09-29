@@ -7,6 +7,7 @@ import type {
   WalletRegistrationEcdsaPreparePayload,
   WalletRegistrationFinalizeRequest,
   WalletRegistrationFinalizeResponse,
+  WalletRegistrationFinalizeSuccess,
   WalletRegistrationStartResponse,
   WalletRegistrationStartRequest,
 } from './registrationContracts';
@@ -308,12 +309,12 @@ const invalidEd25519FinalizeWithoutActivation = {
 void invalidEd25519FinalizeWithoutActivation;
 
 declare const validEd25519FinalizeSuccess: Extract<
-  WalletRegistrationFinalizeResponse,
-  { ok: true; kind: 'near_ed25519' }
+  WalletRegistrationFinalizeSuccess,
+  { kind: 'near_ed25519' }
 >;
 declare const validEcdsaFinalizeSuccess: Extract<
-  WalletRegistrationFinalizeResponse,
-  { ok: true; kind: 'evm_family_ecdsa' }
+  WalletRegistrationFinalizeSuccess,
+  { kind: 'evm_family_ecdsa' }
 >;
 
 // @ts-expect-error Ed25519-only success cannot carry ECDSA wallet keys.

@@ -357,7 +357,7 @@ export type WalletAuthMethodStatusAnnotation<Status extends WalletAuthMethodReco
   status: Status;
 };
 
-export type WalletAddAuthMethodFinalizeResponse =
+export type WalletAddAuthMethodFinalizeSuccess =
   | {
       ok: true;
       walletId: WalletId;
@@ -381,7 +381,10 @@ export type WalletAddAuthMethodFinalizeResponse =
         kind: 'email_otp';
         status: 'active';
       };
-    }
+    };
+
+export type WalletAddAuthMethodFinalizeResponse =
+  | WalletAddAuthMethodFinalizeSuccess
   | {
       ok: false;
       code: string;
@@ -438,23 +441,25 @@ export type WalletAddSignerEd25519YaoStart = {
   custodyEnvelope: PasskeyCustodyEnvelopeRecord;
 };
 
+export type WalletAddSignerStartSuccess = {
+  ok: true;
+  addSignerCeremonyId: string;
+  intent: AddSignerIntentV1;
+} & { readonly authorizationKind: 'webauthn_assertion' } & (
+    | {
+        kind: 'near_ed25519';
+        ed25519: WalletAddSignerEd25519YaoStart;
+        ecdsa?: never;
+      }
+    | {
+        kind: 'evm_family_ecdsa';
+        ecdsa: WalletAddSignerEcdsaPreparePayload;
+        ed25519?: never;
+      }
+  );
+
 export type WalletAddSignerStartResponse =
-  | ({
-      ok: true;
-      addSignerCeremonyId: string;
-      intent: AddSignerIntentV1;
-    } & ({ readonly authorizationKind: 'webauthn_assertion' } & (
-      | {
-          kind: 'near_ed25519';
-          ed25519: WalletAddSignerEd25519YaoStart;
-          ecdsa?: never;
-        }
-      | {
-          kind: 'evm_family_ecdsa';
-          ecdsa: WalletAddSignerEcdsaPreparePayload;
-          ed25519?: never;
-        }
-    )))
+  | WalletAddSignerStartSuccess
   | {
       ok: false;
       code: string;
@@ -545,29 +550,31 @@ export type WalletAddSignerFinalizeRequest = {
     }
 );
 
+export type WalletAddSignerFinalizeSuccess = {
+  ok: true;
+  walletId: WalletId;
+} & (
+  | {
+      kind: 'near_ed25519';
+      rpId: string;
+      credentialIdB64u: string;
+      ed25519: WalletEd25519YaoSignerPublicResult;
+      ecdsa?: never;
+    }
+  | {
+      kind: 'evm_family_ecdsa';
+      rpId?: string;
+      ecdsa: {
+        walletKeys: WalletRegistrationEcdsaWalletKey[];
+      };
+      /** The authorizing authority, extended with the added ECDSA signer. */
+      authority: ActiveWalletAuthorityV1;
+      ed25519?: never;
+    }
+);
+
 export type WalletAddSignerFinalizeResponse =
-  | ({
-      ok: true;
-      walletId: WalletId;
-    } & (
-      | {
-          kind: 'near_ed25519';
-          rpId: string;
-          credentialIdB64u: string;
-          ed25519: WalletEd25519YaoSignerPublicResult;
-          ecdsa?: never;
-        }
-      | {
-          kind: 'evm_family_ecdsa';
-          rpId?: string;
-          ecdsa: {
-            walletKeys: WalletRegistrationEcdsaWalletKey[];
-          };
-          /** The authorizing authority, extended with the added ECDSA signer. */
-          authority: ActiveWalletAuthorityV1;
-          ed25519?: never;
-        }
-    ))
+  | WalletAddSignerFinalizeSuccess
   | {
       ok: false;
       code: string;

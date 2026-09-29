@@ -646,7 +646,7 @@ type WalletRegistrationSetupSuccessBase = {
   signedSetup: string;
 };
 
-export type WalletRegistrationSetupResponseV2 =
+export type WalletRegistrationSetupSuccessV2 =
   | (WalletRegistrationSetupSuccessBase & {
       kind: 'evm_family_ecdsa' | 'near_ed25519_and_evm_family_ecdsa';
       ecdsa: WalletRegistrationSetupEcdsaPreparePayload;
@@ -654,7 +654,10 @@ export type WalletRegistrationSetupResponseV2 =
   | (WalletRegistrationSetupSuccessBase & {
       kind: 'near_ed25519';
       ecdsa?: never;
-    })
+    });
+
+export type WalletRegistrationSetupResponseV2 =
+  | WalletRegistrationSetupSuccessV2
   | { ok: false; code: string; message: string; retryAfterMs?: number };
 
 function requireWalletRegistrationResponseObject(args: {
@@ -2535,7 +2538,7 @@ function registrationIntentWithExpectedSetupRequest(
 }
 
 async function assertWalletRegistrationSetupRequestBindings(args: {
-  response: Extract<WalletRegistrationSetupResponseV2, { ok: true }>;
+  response: WalletRegistrationSetupSuccessV2;
   requestedWallet?: RegisterWalletInput;
   request: ReturnType<typeof normalizeWalletRegistrationSetupRequestForBinding>;
 }): Promise<void> {

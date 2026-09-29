@@ -10,12 +10,12 @@ import type {
   AddSignerIntentGrant,
   AddSignerIntentV1,
   RegistrationIntentV1,
-  WalletAddSignerStartResponse,
+  WalletAddAuthMethodFinalizeSuccess,
+  WalletAddSignerEcdsaPreparePayload,
   WalletAddSignerFinalizeRequest,
-  WalletAddAuthMethodFinalizeResponse,
-  WalletAddSignerFinalizeResponse,
   WalletAddAuthMethodRegistrationOptions,
-  WalletRegistrationStartResponse,
+  WalletAddSignerFinalizeSuccess,
+  WalletRegistrationEcdsaPreparePayload,
   WalletId,
   WalletEd25519YaoSignerPublicResult,
   WalletRegistrationEcdsaWalletKey,
@@ -158,14 +158,7 @@ export type StoredRegistrationWebAuthnCredential = {
 
 export type StoredRegistrationAuthority = RegistrationAuthority;
 
-type WalletRegistrationEcdsaStartPayload = NonNullable<
-  Extract<WalletRegistrationStartResponse, { ok: true }>['ecdsa']
->;
-
-type WalletAddSignerEcdsaStartPayload = Omit<
-  NonNullable<Extract<WalletAddSignerStartResponse, { ok: true }>['ecdsa']>,
-  'custodyEnvelope'
->;
+type WalletAddSignerEcdsaStartPayload = Omit<WalletAddSignerEcdsaPreparePayload, 'custodyEnvelope'>;
 
 export type StoredWalletRegistrationRuntimePolicyContext =
   | {
@@ -303,8 +296,8 @@ export function storedRegistrationAuthoritiesMatch(
   }
 }
 
-type StoredEcdsaRegistrationBase = Omit<WalletRegistrationEcdsaStartPayload, 'kind'> & {
-  derivationKind: WalletRegistrationEcdsaStartPayload['kind'];
+type StoredEcdsaRegistrationBase = Omit<WalletRegistrationEcdsaPreparePayload, 'kind'> & {
+  derivationKind: WalletRegistrationEcdsaPreparePayload['kind'];
   strictRegistrationBindingJson: string;
 };
 
@@ -695,10 +688,7 @@ export type StoredEd25519YaoAddSignerActivated = StoredEd25519YaoAddSignerActiva
 
 export type StoredEd25519YaoAddSignerFinalizing = StoredEd25519YaoAddSignerActivation & {
   kind: 'near_ed25519_yao_add_signer_finalizing';
-  response: Extract<
-    Extract<WalletAddSignerFinalizeResponse, { ok: true }>,
-    { kind: 'near_ed25519' }
-  >;
+  response: Extract<WalletAddSignerFinalizeSuccess, { kind: 'near_ed25519' }>;
   signer: WalletEd25519SignerRecord;
   finalizingAtMs: number;
 };
@@ -733,7 +723,7 @@ export type StoredWalletAddSignerFinalizeReplay = {
   addSignerCeremonyId: string;
   idempotencyKey: string;
   request: StoredWalletAddSignerFinalizeRequest;
-  response: Extract<WalletAddSignerFinalizeResponse, { ok: true }>;
+  response: WalletAddSignerFinalizeSuccess;
   createdAtMs: number;
   expiresAtMs: number;
 };
@@ -756,7 +746,7 @@ export type StoredWalletAddAuthMethodFinalizeReplay = {
   kind: 'wallet_add_auth_method_finalize_replay_v1';
   addAuthMethodCeremonyId: string;
   requestDigestB64u: string;
-  response: Extract<WalletAddAuthMethodFinalizeResponse, { ok: true }>;
+  response: WalletAddAuthMethodFinalizeSuccess;
   createdAtMs: number;
   expiresAtMs: number;
 };
@@ -1372,7 +1362,7 @@ function parseStoredWalletAddSignerFinalizeEcdsaWalletKey(
 
 function parseStoredWalletAddSignerFinalizeEcdsaResult(
   value: unknown,
-): Extract<WalletAddSignerFinalizeResponse, { ok: true }>['ecdsa'] | null {
+): WalletAddSignerFinalizeSuccess['ecdsa'] | null {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) return null;
   const record: StoredWalletAddSignerFinalizeEcdsaRecord = value;
   if (!Array.isArray(record.walletKeys) || record.walletKeys.length === 0) return null;
@@ -1387,7 +1377,7 @@ function parseStoredWalletAddSignerFinalizeEcdsaResult(
 
 function parseStoredWalletAddSignerFinalizeSuccess(
   value: unknown,
-): Extract<WalletAddSignerFinalizeResponse, { ok: true }> | null {
+): WalletAddSignerFinalizeSuccess | null {
   const parsed = parseJsonValue(value);
   if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
   const record: StoredWalletAddSignerFinalizeSuccessRecord = parsed;
@@ -2729,10 +2719,10 @@ function parseStoredEcdsaDerivationServerBootstrapResponse(
 
 type StoredWalletRegistrationEcdsaBranchBase = {
   readonly branchKey: RegistrationSignerBranchKey;
-  readonly derivationKind: WalletRegistrationEcdsaStartPayload['kind'];
+  readonly derivationKind: WalletRegistrationEcdsaPreparePayload['kind'];
   readonly chainTargets: readonly [ThresholdEcdsaChainTarget, ...ThresholdEcdsaChainTarget[]];
-  readonly prepare: WalletRegistrationEcdsaStartPayload['prepare'];
-  readonly strictRegistration: WalletRegistrationEcdsaStartPayload['strictRegistration'];
+  readonly prepare: WalletRegistrationEcdsaPreparePayload['prepare'];
+  readonly strictRegistration: WalletRegistrationEcdsaPreparePayload['strictRegistration'];
   readonly strictRegistrationBindingJson: string;
 };
 
@@ -2754,7 +2744,7 @@ function parseStoredWalletRegistrationEcdsaBranchBase(
   ) {
     return null;
   }
-  let strictRegistration: WalletRegistrationEcdsaStartPayload['strictRegistration'];
+  let strictRegistration: WalletRegistrationEcdsaPreparePayload['strictRegistration'];
   try {
     strictRegistration = parseRouterAbEcdsaRegistrationRequestFactsV1(record.strictRegistration);
   } catch {

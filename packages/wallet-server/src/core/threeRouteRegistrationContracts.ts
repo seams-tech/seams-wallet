@@ -8,11 +8,11 @@ import type { CorrelationId } from '@shared/utils/canonicalPrimitives';
 import type { RouterAbEcdsaVerifiedClientActivationFactsV1 } from '@shared/utils/routerAbEcdsaDerivation';
 import type {
   WalletRegistrationEcdsaPreparePayload,
+  WalletRegistrationFinalizeSuccess,
   WalletRegistrationStartRequest,
   WalletRegistrationAuthorityInput,
   WalletRegistrationStartResponse,
   WalletRegistrationFinalizeRequest,
-  WalletRegistrationFinalizeResponse,
   WalletRegistrationEcdsaActivationResponse,
   WalletRegistrationEcdsaWalletKey,
   WalletRegistrationEd25519YaoPublicResult,
@@ -87,8 +87,8 @@ type SetupEd25519Work =
 type ActivateIdempotencyKey = WalletRegistrationFinalizeRequest['idempotencyKey'];
 type FinalizeRequestBase = WalletRegistrationFinalizeRequest;
 type EcdsaFinalizeSuccess = Extract<
-  WalletRegistrationFinalizeResponse,
-  { ok: true; kind: 'evm_family_ecdsa' }
+  WalletRegistrationFinalizeSuccess,
+  { kind: 'evm_family_ecdsa' }
 >;
 type EcdsaActivationSuccess = Extract<WalletRegistrationEcdsaActivationResponse, { ok: true }>;
 
@@ -433,10 +433,7 @@ type ActivateEcdsaTerminalPayload = EcdsaFinalizeSuccess['ecdsa'] & {
   bootstrap: EcdsaActivationSuccess['ecdsa']['bootstrap'];
 };
 
-type Ed25519FinalizeSuccess = Extract<
-  WalletRegistrationFinalizeResponse,
-  { ok: true; kind: 'near_ed25519' }
->;
+type Ed25519FinalizeSuccess = Extract<WalletRegistrationFinalizeSuccess, { kind: 'near_ed25519' }>;
 
 type DistributiveOmit<T, K extends keyof any> = T extends unknown ? Omit<T, K> : never;
 
@@ -520,8 +517,8 @@ export type WalletRegistrationNearProvisioningRequestV2 = {
 };
 
 type WalletRegistrationNearProvisioningFinalizeSuccessV2 = Extract<
-  WalletRegistrationFinalizeResponse,
-  { ok: true; kind: 'near_ed25519' }
+  WalletRegistrationFinalizeSuccess,
+  { kind: 'near_ed25519' }
 >;
 
 type WalletRegistrationNearProvisioningSuccessBaseV2 = {

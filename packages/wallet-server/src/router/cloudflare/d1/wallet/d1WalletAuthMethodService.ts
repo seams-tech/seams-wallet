@@ -58,6 +58,7 @@ import type { D1WalletAuthMethodStore } from '../../../../core/d1WalletAuthMetho
 import type { StoredWalletAddAuthMethodCeremony } from '../../../../core/RegistrationCeremonyStore';
 import type {
   WalletAddAuthMethodFinalizeResponse,
+  WalletAddAuthMethodFinalizeSuccess,
   WalletAddAuthMethodStartRequest,
   WalletAddAuthMethodStartResponse,
   WalletAddAuthMethodEmailOtpTargetV1,
@@ -1397,7 +1398,7 @@ export class CloudflareD1WalletAuthMethodService {
           credentialIdB64u: credential.credentialIdB64u,
           now,
         });
-        const response: Extract<WalletAddAuthMethodFinalizeResponse, { ok: true }> = {
+        const response: WalletAddAuthMethodFinalizeSuccess = {
           ok: true,
           walletId,
           authority: walletAuthAuthorityFromRegistrationAuthority({
@@ -1577,7 +1578,7 @@ export class CloudflareD1WalletAuthMethodService {
         authority: ceremony.authority,
         walletAuthMethodId: ceremony.targetWalletAuthMethodId,
       });
-      const emailOtpResponse: Extract<WalletAddAuthMethodFinalizeResponse, { ok: true }> = {
+      const emailOtpResponse: WalletAddAuthMethodFinalizeSuccess = {
         ok: true,
         walletId: ceremony.intent.walletId,
         authority,

@@ -1,4 +1,8 @@
-import type { WalletAddAuthMethodFinalizeResponse } from '../../../../core/registrationContracts';
+import type {
+  WalletAddAuthMethodFinalizeSuccess,
+  WalletAddSignerFinalizeSuccess,
+  WalletRegistrationFinalizeSuccess,
+} from '../../../../core/registrationContracts';
 import { parseWalletAddAuthMethodRegistrationOptions } from '@shared/utils/addAuthMethodRegistration';
 import { secureRandomBase64Url } from '@shared/utils/secureRandomId';
 import {
@@ -100,7 +104,6 @@ import type {
   WalletRegistrationEcdsaPreparePayload,
   WalletRegistrationEcdsaWalletKey,
   WalletRegistrationFinalizeAuthMethod,
-  WalletRegistrationFinalizeResponse,
   WalletEd25519YaoSignerPublicResult,
   WalletRegistrationEd25519YaoPublicResult,
   WalletAddSignerFinalizeResponse,
@@ -166,11 +169,7 @@ type GoogleSsoEmailOtpRegistrationAuthority = Extract<
   EmailOtpRegistrationAuthority,
   { proofKind: 'google_sso_registration' }
 >;
-type D1WalletRegistrationFinalizeSuccess = Extract<
-  WalletRegistrationFinalizeResponse,
-  { ok: true }
->;
-type D1WalletRegistrationFinalizeReplaySuccess = D1WalletRegistrationFinalizeSuccess;
+type D1WalletRegistrationFinalizeReplaySuccess = WalletRegistrationFinalizeSuccess;
 type D1WalletRegistrationFinalizeEcdsaPayload = {
   readonly walletKeys: WalletRegistrationEcdsaWalletKey[];
 };
@@ -495,7 +494,7 @@ export function parseD1StoredWalletAddAuthMethodFinalizeReplay(
 
 function parseD1WalletAddAuthMethodFinalizeReplayResponse(
   raw: unknown,
-): Extract<WalletAddAuthMethodFinalizeResponse, { ok: true }> | null {
+): WalletAddAuthMethodFinalizeSuccess | null {
   const record = toRecordValue(raw);
   if (!record || record.ok !== true) return null;
   const walletId = parseWalletIdForIntent(record.walletId);
@@ -578,7 +577,7 @@ export function parseD1StoredWalletAddSignerFinalizeReplay(
 
 function parseD1WalletAddSignerFinalizeSuccessResponse(
   raw: unknown,
-): Extract<WalletAddSignerFinalizeResponse, { ok: true }> | null {
+): WalletAddSignerFinalizeSuccess | null {
   const record = toRecordValue(raw);
   if (!record || record.ok !== true) return null;
   const walletId = parseWalletIdForIntent(record.walletId);

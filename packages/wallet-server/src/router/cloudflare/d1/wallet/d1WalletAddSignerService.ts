@@ -25,7 +25,11 @@ import {
 import { parseSecp256k1CompressedPublicKeyB64u } from '@shared/passkey-custody/primitives';
 import { routerAbMpcMaterialActivationRefFromWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import type { WalletSignerRecord } from '../../../../core/d1WalletStore';
-import type { WalletRegistrationEcdsaWalletKey } from '../../../../core/registrationContracts';
+import type {
+  WalletAddSignerFinalizeSuccess,
+  WalletAddSignerStartSuccess,
+  WalletRegistrationEcdsaWalletKey,
+} from '../../../../core/registrationContracts';
 import { WalletAuthorityCommitConflictError } from './d1WalletAuthorityStore';
 import type { CloudflareD1Ed25519YaoLifecycleDecisionStoreV1 } from '../ed25519Yao/d1Ed25519YaoLifecycleDecisionStore';
 import {
@@ -127,30 +131,15 @@ type ActivateWalletAddSignerEcdsaInput = WalletAddSignerEcdsaActivationRequest;
 type FinalizeWalletAddSignerInput = WalletAddSignerFinalizeRequest;
 
 type WalletAddSignerStartCoreResponse =
-  | (Omit<
-      Extract<WalletAddSignerStartResponse, { readonly ok: true; readonly kind: 'near_ed25519' }>,
-      'ed25519'
-    > & {
+  | (Omit<Extract<WalletAddSignerStartSuccess, { kind: 'near_ed25519' }>, 'ed25519'> & {
       readonly ed25519: Omit<
-        Extract<
-          WalletAddSignerStartResponse,
-          { readonly ok: true; readonly kind: 'near_ed25519' }
-        >['ed25519'],
+        Extract<WalletAddSignerStartSuccess, { kind: 'near_ed25519' }>['ed25519'],
         'custodyEnvelope'
       >;
     })
-  | (Omit<
-      Extract<
-        WalletAddSignerStartResponse,
-        { readonly ok: true; readonly kind: 'evm_family_ecdsa' }
-      >,
-      'ecdsa'
-    > & {
+  | (Omit<Extract<WalletAddSignerStartSuccess, { kind: 'evm_family_ecdsa' }>, 'ecdsa'> & {
       readonly ecdsa: Omit<
-        Extract<
-          WalletAddSignerStartResponse,
-          { readonly ok: true; readonly kind: 'evm_family_ecdsa' }
-        >['ecdsa'],
+        Extract<WalletAddSignerStartSuccess, { kind: 'evm_family_ecdsa' }>['ecdsa'],
         'custodyEnvelope'
       >;
     })
@@ -2150,10 +2139,7 @@ export class CloudflareD1WalletAddSignerService {
         };
       }
 
-      let response: Extract<
-        Extract<WalletAddSignerFinalizeResponse, { ok: true }>,
-        { kind: 'near_ed25519' }
-      >;
+      let response: Extract<WalletAddSignerFinalizeSuccess, { kind: 'near_ed25519' }>;
       let signer: WalletEd25519SignerRecord;
       let finalizingAtMs: number;
       if (currentState.kind === 'near_ed25519_yao_add_signer_finalizing') {
@@ -2380,7 +2366,7 @@ export class CloudflareD1WalletAddSignerService {
       now: signerWriteNow,
     });
     if (!owner.ok) return owner;
-    const response: Extract<WalletAddSignerFinalizeResponse, { ok: true }> = {
+    const response: WalletAddSignerFinalizeSuccess = {
       ok: true,
       kind: 'evm_family_ecdsa',
       walletId: ceremony.intent.walletId,
