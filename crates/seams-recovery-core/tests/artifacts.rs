@@ -247,7 +247,7 @@ fn base64_fingerprint(key_material: [u8; 32]) -> String {
 
 #[test]
 fn proving_recipient_control_needs_the_matching_key_and_challenge() {
-    use seams_recovery_core::prove_recovery_recipient_control_v1;
+    use seams_recovery_core::prove_recovery_recipient_control_from_bytes_v1;
 
     let scratch = Scratch::new("recipient-proof");
     let key_a = key_file(
@@ -255,11 +255,14 @@ fn proving_recipient_control_needs_the_matching_key_and_challenge() {
         TwoPartyDeriverRole::DeriverA,
         DERIVER_A_KEY_MATERIAL,
     );
-    let challenge = fixture("recipient-challenge-deriver-a.bin");
+    let challenge = std::fs::read(fixture("recipient-challenge-deriver-a.bin")).expect("challenge");
 
-    let proof =
-        prove_recovery_recipient_control_v1(&key_a, TwoPartyDeriverRole::DeriverA, &challenge)
-            .expect("proof of control");
+    let proof = prove_recovery_recipient_control_from_bytes_v1(
+        &key_a,
+        TwoPartyDeriverRole::DeriverA,
+        &challenge,
+    )
+    .expect("proof of control");
     assert_eq!(proof.role, "deriver_a");
     assert_eq!(
         proof.fingerprint_b64u,
@@ -275,14 +278,18 @@ fn proving_recipient_control_needs_the_matching_key_and_challenge() {
         TwoPartyDeriverRole::DeriverB,
         DERIVER_B_KEY_MATERIAL,
     );
-    assert!(
-        prove_recovery_recipient_control_v1(&key_b, TwoPartyDeriverRole::DeriverB, &challenge,)
-            .is_err()
-    );
+    assert!(prove_recovery_recipient_control_from_bytes_v1(
+        &key_b,
+        TwoPartyDeriverRole::DeriverB,
+        &challenge,
+    )
+    .is_err());
 
     // The role argument must agree with the key file it names.
-    assert!(
-        prove_recovery_recipient_control_v1(&key_a, TwoPartyDeriverRole::DeriverB, &challenge,)
-            .is_err()
-    );
+    assert!(prove_recovery_recipient_control_from_bytes_v1(
+        &key_a,
+        TwoPartyDeriverRole::DeriverB,
+        &challenge,
+    )
+    .is_err());
 }

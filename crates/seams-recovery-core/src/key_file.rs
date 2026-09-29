@@ -129,18 +129,6 @@ impl RecoveryKeyFileV1 {
     }
 }
 
-/// Checks that two holders have distinct roles and keys.
-pub fn require_distinct_role_key_files_v1(
-    left: &RecoveryKeyFileV1,
-    right: &RecoveryKeyFileV1,
-) -> RecoveryCoreResult<()> {
-    if left.role == right.role || left.fingerprint() == right.fingerprint() {
-        return Err(invalid(
-            "Recovery holders must have distinct roles and keys",
-        ));
-    }
-    Ok(())
-}
 fn invalid(message: &str) -> RecoveryCoreError {
     RecoveryCoreError::new(RecoveryCoreErrorCode::KeyProviderFailure, message)
 }
