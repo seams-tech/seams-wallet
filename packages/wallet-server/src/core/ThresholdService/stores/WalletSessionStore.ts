@@ -124,31 +124,63 @@ export type WalletSessionRecordParser<TRecord extends WalletSessionRecord> = (
   raw: unknown,
 ) => TRecord | null;
 
+/** A wallet session store's keys: record, use counter, consume-once markers, replay guards. */
+class WalletSessionKeys {
+  private readonly prefix: string;
+
+  constructor(keyPrefix: string | undefined) {
+    this.prefix = toThresholdEd25519WalletSessionPrefix(keyPrefix);
+  }
+
+  meta(id: string): string {
+    return `${this.prefix}${id}`;
+  }
+
+  uses(id: string): string {
+    return `${this.prefix}${id}:uses`;
+  }
+
+  consumeOnce(id: string, idempotencyKey: string): string {
+    return `${this.uses(id)}:once:${normalizeConsumeOnceKey(idempotencyKey)}`;
+  }
+
+  replayGuard(scopeId: string, replayKey: string): string {
+    return `${this.prefix}replay:${normalizeConsumeOnceKey(scopeId)}:${normalizeConsumeOnceKey(replayKey)}`;
+  }
+}
+
+type WalletSessionStoreFailure = { ok: false; code: string; message: string };
+
+type InMemoryWalletSessionEntry<TRecord extends WalletSessionRecord> = {
+  record: TRecord;
+  remainingUses: number;
+  expiresAtMs: number;
+  consumedIdempotencyKeys: Set<string>;
+};
+
 class InMemoryWalletSessionStore<
   TRecord extends WalletSessionRecord,
 > implements WalletSessionStore<TRecord> {
-  private readonly keyPrefix: string;
-  private readonly map = new Map<
-    string,
-    {
-      record: TRecord;
-      remainingUses: number;
-      expiresAtMs: number;
-      consumedIdempotencyKeys: Set<string>;
-    }
-  >();
+  private readonly keys: WalletSessionKeys;
+  private readonly map = new Map<string, InMemoryWalletSessionEntry<TRecord>>();
   private readonly replayGuards = new Map<string, number>();
 
   constructor(input: { keyPrefix?: string }) {
-    this.keyPrefix = toThresholdEd25519WalletSessionPrefix(input.keyPrefix);
+    this.keys = new WalletSessionKeys(input.keyPrefix);
   }
 
-  private key(id: string): string {
-    return `${this.keyPrefix}${id}`;
-  }
-
-  private replayGuardKey(scopeId: string, replayKey: string): string {
-    return `${this.keyPrefix}replay:${normalizeConsumeOnceKey(scopeId)}:${normalizeConsumeOnceKey(replayKey)}`;
+  /** The session's entry, or why it cannot be used: missing, or expired (and dropped). */
+  private liveEntry(id: string): InMemoryWalletSessionEntry<TRecord> | WalletSessionStoreFailure {
+    const key = this.keys.meta(id);
+    const entry = this.map.get(key);
+    if (!entry) {
+      return { ok: false, code: 'wallet_session_missing', message: 'Wallet Session is missing' };
+    }
+    if (entry.expiresAtMs <= Date.now()) {
+      this.map.delete(key);
+      return { ok: false, code: 'wallet_session_expired', message: 'Wallet Session expired' };
+    }
+    return entry;
   }
 
   async putSession(
@@ -156,7 +188,7 @@ class InMemoryWalletSessionStore<
     record: TRecord,
     opts: { ttlMs: number; remainingUses: number },
   ): Promise<void> {
-    const key = this.key(id);
+    const key = this.keys.meta(id);
     const ttlMs = Math.max(0, Number(opts.ttlMs) || 0);
     const expiresAtMs = Date.now() + ttlMs;
     this.map.set(key, {
@@ -168,7 +200,7 @@ class InMemoryWalletSessionStore<
   }
 
   async getSession(id: string): Promise<TRecord | null> {
-    const key = this.key(id);
+    const key = this.keys.meta(id);
     const entry = this.map.get(key);
     if (!entry) return null;
     if (entry.expiresAtMs <= Date.now()) {
@@ -179,7 +211,7 @@ class InMemoryWalletSessionStore<
   }
 
   async getSessionStatus(id: string): Promise<WalletSessionStatusLookupResult<TRecord>> {
-    const key = this.key(id);
+    const key = this.keys.meta(id);
     const entry = this.map.get(key);
     if (!entry) return { ok: false, code: 'wallet_session_missing' };
     if (entry.expiresAtMs <= Date.now()) {
@@ -197,14 +229,8 @@ class InMemoryWalletSessionStore<
   }
 
   async consumeUseCount(id: string): Promise<WalletSessionConsumeUsesResult> {
-    const key = this.key(id);
-    const entry = this.map.get(key);
-    if (!entry)
-      return { ok: false, code: 'wallet_session_missing', message: 'Wallet Session is missing' };
-    if (entry.expiresAtMs <= Date.now()) {
-      this.map.delete(key);
-      return { ok: false, code: 'wallet_session_expired', message: 'Wallet Session expired' };
-    }
+    const entry = this.liveEntry(id);
+    if ('ok' in entry) return entry;
     if (entry.remainingUses <= 0) {
       return { ok: false, code: 'wallet_budget_exhausted', message: 'Wallet Session exhausted' };
     }
@@ -216,14 +242,8 @@ class InMemoryWalletSessionStore<
     id: string,
     idempotencyKey: string,
   ): Promise<WalletSessionConsumeUsesResult> {
-    const key = this.key(id);
-    const entry = this.map.get(key);
-    if (!entry)
-      return { ok: false, code: 'wallet_session_missing', message: 'Wallet Session is missing' };
-    if (entry.expiresAtMs <= Date.now()) {
-      this.map.delete(key);
-      return { ok: false, code: 'wallet_session_expired', message: 'Wallet Session expired' };
-    }
+    const entry = this.liveEntry(id);
+    if ('ok' in entry) return entry;
     const consumeKey = String(idempotencyKey || '').trim();
     if (consumeKey && entry.consumedIdempotencyKeys.has(consumeKey)) {
       return { ok: true, remainingUses: entry.remainingUses };
@@ -240,15 +260,8 @@ class InMemoryWalletSessionStore<
     id: string,
     idempotencyKey: string,
   ): Promise<WalletSessionConsumedUseResult> {
-    const key = this.key(id);
-    const entry = this.map.get(key);
-    if (!entry) {
-      return { ok: false, code: 'wallet_session_missing', message: 'Wallet Session is missing' };
-    }
-    if (entry.expiresAtMs <= Date.now()) {
-      this.map.delete(key);
-      return { ok: false, code: 'wallet_session_expired', message: 'Wallet Session expired' };
-    }
+    const entry = this.liveEntry(id);
+    if ('ok' in entry) return entry;
     const consumeKey = String(idempotencyKey || '').trim();
     return { ok: true, consumed: !!consumeKey && entry.consumedIdempotencyKeys.has(consumeKey) };
   }
@@ -258,7 +271,7 @@ class InMemoryWalletSessionStore<
     replayKey: string,
     expiresAtMs: number,
   ): Promise<WalletSessionReplayGuardResult> {
-    const key = this.replayGuardKey(scopeId, replayKey);
+    const key = this.keys.replayGuard(scopeId, replayKey);
     if (!key) return replayGuardInvalid();
     const nowMs = Date.now();
     const existingExpiresAtMs = this.replayGuards.get(key);
@@ -270,6 +283,47 @@ class InMemoryWalletSessionStore<
     if (ttlMs <= 0) return replayGuardExpired();
     this.replayGuards.set(key, nowMs + ttlMs);
     return { ok: true };
+  }
+}
+
+/** A backend failure as an `internal` result: the error's message, else `fallback`. */
+function walletSessionStoreFailure(error: unknown, fallback: string): WalletSessionStoreFailure {
+  const message = String(
+    error && typeof error === 'object' && 'message' in error
+      ? (error as { message?: unknown }).message
+      : error || fallback,
+  );
+  return { ok: false, code: 'internal', message };
+}
+
+/**
+ * A remote store's session status: the parsed record while it is live, with its remaining uses.
+ * A backend failure, or a use count that is not a non-negative integer, reads as unavailable.
+ */
+async function readWalletSessionStatus<TRecord extends WalletSessionRecord>(input: {
+  readonly readRecord: () => Promise<TRecord | null>;
+  readonly readRemainingUses: () => Promise<unknown>;
+}): Promise<WalletSessionStatusLookupResult<TRecord>> {
+  try {
+    const record = await input.readRecord();
+    if (!record) return { ok: false, code: 'wallet_session_missing' };
+    if (record.expiresAtMs <= Date.now()) {
+      return { ok: false, code: 'wallet_session_expired' };
+    }
+    const remainingUses = Number(await input.readRemainingUses());
+    if (!Number.isSafeInteger(remainingUses) || remainingUses < 0) {
+      return { ok: false, code: 'wallet_session_unavailable' };
+    }
+    return {
+      ok: true,
+      status: {
+        record,
+        expiresAtMs: record.expiresAtMs,
+        remainingUses,
+      },
+    };
+  } catch {
+    return { ok: false, code: 'wallet_session_unavailable' };
   }
 }
 
@@ -416,39 +470,22 @@ class UpstashRedisRestWalletSessionStore<
   TRecord extends WalletSessionRecord,
 > implements WalletSessionStore<TRecord> {
   private readonly client: UpstashRedisRestClient;
-  private readonly keyPrefix: string;
+  private readonly keys: WalletSessionKeys;
   private readonly parseRecord: WalletSessionRecordParser<TRecord>;
 
   constructor(input: {
     url: string;
     token: string;
     keyPrefix?: string;
-    parseRecord?: WalletSessionRecordParser<TRecord>;
+    parseRecord: WalletSessionRecordParser<TRecord>;
   }) {
     const url = toOptionalTrimmedString(input.url);
     const token = toOptionalTrimmedString(input.token);
     if (!url) throw new Error('Upstash wallet session store missing url');
     if (!token) throw new Error('Upstash wallet session store missing token');
     this.client = new UpstashRedisRestClient({ url, token });
-    this.keyPrefix = toThresholdEd25519WalletSessionPrefix(input.keyPrefix);
-    this.parseRecord =
-      input.parseRecord || (parseEd25519WalletSessionRecord as WalletSessionRecordParser<TRecord>);
-  }
-
-  private metaKey(id: string): string {
-    return `${this.keyPrefix}${id}`;
-  }
-
-  private usesKey(id: string): string {
-    return `${this.keyPrefix}${id}:uses`;
-  }
-
-  private consumeOnceKey(id: string, idempotencyKey: string): string {
-    return `${this.usesKey(id)}:once:${normalizeConsumeOnceKey(idempotencyKey)}`;
-  }
-
-  private replayGuardKey(scopeId: string, replayKey: string): string {
-    return `${this.keyPrefix}replay:${normalizeConsumeOnceKey(scopeId)}:${normalizeConsumeOnceKey(replayKey)}`;
+    this.keys = new WalletSessionKeys(input.keyPrefix);
+    this.parseRecord = input.parseRecord;
   }
 
   async putSession(
@@ -457,54 +494,32 @@ class UpstashRedisRestWalletSessionStore<
     opts: { ttlMs: number; remainingUses: number },
   ): Promise<void> {
     const ttlMs = Math.max(0, Number(opts.ttlMs) || 0);
-    await this.client.setJson(this.metaKey(id), record, ttlMs);
+    await this.client.setJson(this.keys.meta(id), record, ttlMs);
     await this.client.setRaw(
-      this.usesKey(id),
+      this.keys.uses(id),
       String(Math.max(0, Number(opts.remainingUses) || 0)),
       ttlMs,
     );
   }
 
   async getSession(id: string): Promise<TRecord | null> {
-    const raw = await this.client.getJson(this.metaKey(id));
+    const raw = await this.client.getJson(this.keys.meta(id));
     return this.parseRecord(raw);
   }
 
   async getSessionStatus(id: string): Promise<WalletSessionStatusLookupResult<TRecord>> {
-    try {
-      const record = this.parseRecord(await this.client.getJson(this.metaKey(id)));
-      if (!record) return { ok: false, code: 'wallet_session_missing' };
-      if (record.expiresAtMs <= Date.now()) {
-        return { ok: false, code: 'wallet_session_expired' };
-      }
-      const remainingUses = Number(await this.client.getRaw(this.usesKey(id)));
-      if (!Number.isSafeInteger(remainingUses) || remainingUses < 0) {
-        return { ok: false, code: 'wallet_session_unavailable' };
-      }
-      return {
-        ok: true,
-        status: {
-          record,
-          expiresAtMs: record.expiresAtMs,
-          remainingUses,
-        },
-      };
-    } catch {
-      return { ok: false, code: 'wallet_session_unavailable' };
-    }
+    return readWalletSessionStatus({
+      readRecord: async () => this.parseRecord(await this.client.getJson(this.keys.meta(id))),
+      readRemainingUses: () => this.client.getRaw(this.keys.uses(id)),
+    });
   }
 
   async consumeUseCount(id: string): Promise<WalletSessionConsumeUsesResult> {
     try {
-      const raw = await this.client.eval(CONSUME_USE_COUNT_LUA, [this.usesKey(id)], []);
+      const raw = await this.client.eval(CONSUME_USE_COUNT_LUA, [this.keys.uses(id)], []);
       return parseRedisConsumeOnceResult(raw);
     } catch (e: unknown) {
-      const msg = String(
-        e && typeof e === 'object' && 'message' in e
-          ? (e as { message?: unknown }).message
-          : e || 'Failed to consume threshold session',
-      );
-      return { ok: false, code: 'internal', message: msg };
+      return walletSessionStoreFailure(e, 'Failed to consume threshold session');
     }
   }
 
@@ -515,17 +530,12 @@ class UpstashRedisRestWalletSessionStore<
     try {
       const raw = await this.client.eval(
         CONSUME_ONCE_LUA,
-        [this.usesKey(id), this.consumeOnceKey(id, idempotencyKey)],
+        [this.keys.uses(id), this.keys.consumeOnce(id, idempotencyKey)],
         [],
       );
       return parseRedisConsumeOnceResult(raw);
     } catch (e: unknown) {
-      const msg = String(
-        e && typeof e === 'object' && 'message' in e
-          ? (e as { message?: unknown }).message
-          : e || 'Failed to consume threshold session',
-      );
-      return { ok: false, code: 'internal', message: msg };
+      return walletSessionStoreFailure(e, 'Failed to consume threshold session');
     }
   }
 
@@ -538,17 +548,12 @@ class UpstashRedisRestWalletSessionStore<
     try {
       const raw = await this.client.eval(
         CONSUME_ONCE_EXISTS_LUA,
-        [this.consumeOnceKey(id, consumeKey)],
+        [this.keys.consumeOnce(id, consumeKey)],
         [],
       );
       return parseRedisConsumedUseResult(raw);
     } catch (e: unknown) {
-      const msg = String(
-        e && typeof e === 'object' && 'message' in e
-          ? (e as { message?: unknown }).message
-          : e || 'Failed to check consumed threshold session operation',
-      );
-      return { ok: false, code: 'internal', message: msg };
+      return walletSessionStoreFailure(e, 'Failed to check consumed threshold session operation');
     }
   }
 
@@ -562,17 +567,12 @@ class UpstashRedisRestWalletSessionStore<
       if (ttlMs <= 0) return replayGuardExpired();
       const raw = await this.client.eval(
         REPLAY_GUARD_LUA,
-        [this.replayGuardKey(scopeId, replayKey)],
+        [this.keys.replayGuard(scopeId, replayKey)],
         [String(Math.max(1, Math.ceil(ttlMs / 1000)))],
       );
       return parseRedisReplayGuardResult(raw);
     } catch (e: unknown) {
-      const msg = String(
-        e && typeof e === 'object' && 'message' in e
-          ? (e as { message?: unknown }).message
-          : e || 'Failed to reserve replay guard',
-      );
-      return { ok: false, code: 'internal', message: msg };
+      return walletSessionStoreFailure(e, 'Failed to reserve replay guard');
     }
   }
 }
@@ -581,36 +581,19 @@ class RedisTcpWalletSessionStore<
   TRecord extends WalletSessionRecord,
 > implements WalletSessionStore<TRecord> {
   private readonly client: RedisTcpClient;
-  private readonly keyPrefix: string;
+  private readonly keys: WalletSessionKeys;
   private readonly parseRecord: WalletSessionRecordParser<TRecord>;
 
   constructor(input: {
     redisUrl: string;
     keyPrefix?: string;
-    parseRecord?: WalletSessionRecordParser<TRecord>;
+    parseRecord: WalletSessionRecordParser<TRecord>;
   }) {
     const url = toOptionalTrimmedString(input.redisUrl);
     if (!url) throw new Error('redis-tcp wallet session store missing redisUrl');
     this.client = new RedisTcpClient(url);
-    this.keyPrefix = toThresholdEd25519WalletSessionPrefix(input.keyPrefix);
-    this.parseRecord =
-      input.parseRecord || (parseEd25519WalletSessionRecord as WalletSessionRecordParser<TRecord>);
-  }
-
-  private metaKey(id: string): string {
-    return `${this.keyPrefix}${id}`;
-  }
-
-  private usesKey(id: string): string {
-    return `${this.keyPrefix}${id}:uses`;
-  }
-
-  private consumeOnceKey(id: string, idempotencyKey: string): string {
-    return `${this.usesKey(id)}:once:${normalizeConsumeOnceKey(idempotencyKey)}`;
-  }
-
-  private replayGuardKey(scopeId: string, replayKey: string): string {
-    return `${this.keyPrefix}replay:${normalizeConsumeOnceKey(scopeId)}:${normalizeConsumeOnceKey(replayKey)}`;
+    this.keys = new WalletSessionKeys(input.keyPrefix);
+    this.parseRecord = input.parseRecord;
   }
 
   async putSession(
@@ -619,57 +602,43 @@ class RedisTcpWalletSessionStore<
     opts: { ttlMs: number; remainingUses: number },
   ): Promise<void> {
     const ttlMs = Math.max(0, Number(opts.ttlMs) || 0);
-    await redisSetJson(this.client, this.metaKey(id), record, ttlMs);
+    await redisSetJson(this.client, this.keys.meta(id), record, ttlMs);
     const ttlSeconds = Math.max(1, Math.ceil(ttlMs / 1000));
     const uses = String(Math.max(0, Number(opts.remainingUses) || 0));
-    const resp = await this.client.send(['SET', this.usesKey(id), uses, 'EX', String(ttlSeconds)]);
+    const resp = await this.client.send([
+      'SET',
+      this.keys.uses(id),
+      uses,
+      'EX',
+      String(ttlSeconds),
+    ]);
     if (resp.type === 'error') throw new Error(`Redis SET error: ${resp.value}`);
   }
 
   async getSession(id: string): Promise<TRecord | null> {
-    const raw = await redisGetJson(this.client, this.metaKey(id));
+    const raw = await redisGetJson(this.client, this.keys.meta(id));
     return this.parseRecord(raw);
   }
 
   async getSessionStatus(id: string): Promise<WalletSessionStatusLookupResult<TRecord>> {
-    try {
-      const record = this.parseRecord(await redisGetJson(this.client, this.metaKey(id)));
-      if (!record) return { ok: false, code: 'wallet_session_missing' };
-      if (record.expiresAtMs <= Date.now()) {
-        return { ok: false, code: 'wallet_session_expired' };
-      }
-      const usesResponse = await this.client.send(['GET', this.usesKey(id)]);
-      if (usesResponse.type === 'error') return { ok: false, code: 'wallet_session_unavailable' };
-      const remainingUses = Number(redisRawValue(usesResponse));
-      if (!Number.isSafeInteger(remainingUses) || remainingUses < 0) {
-        return { ok: false, code: 'wallet_session_unavailable' };
-      }
-      return {
-        ok: true,
-        status: {
-          record,
-          expiresAtMs: record.expiresAtMs,
-          remainingUses,
-        },
-      };
-    } catch {
-      return { ok: false, code: 'wallet_session_unavailable' };
-    }
+    return readWalletSessionStatus({
+      readRecord: async () => this.parseRecord(await redisGetJson(this.client, this.keys.meta(id))),
+      // An error reply reads as no count, which is unavailable.
+      readRemainingUses: async () => {
+        const usesResponse = await this.client.send(['GET', this.keys.uses(id)]);
+        return usesResponse.type === 'error' ? undefined : redisRawValue(usesResponse);
+      },
+    });
   }
 
   async consumeUseCount(id: string): Promise<WalletSessionConsumeUsesResult> {
     try {
-      const resp = await this.client.send(['EVAL', CONSUME_USE_COUNT_LUA, '1', this.usesKey(id)]);
+      const resp = await this.client.send(['EVAL', CONSUME_USE_COUNT_LUA, '1', this.keys.uses(id)]);
       if (resp.type === 'error')
         return { ok: false, code: 'internal', message: `Redis EVAL error: ${resp.value}` };
       return parseRedisConsumeOnceResult(redisRawValue(resp));
     } catch (e: unknown) {
-      const msg = String(
-        e && typeof e === 'object' && 'message' in e
-          ? (e as { message?: unknown }).message
-          : e || 'Failed to consume threshold session',
-      );
-      return { ok: false, code: 'internal', message: msg };
+      return walletSessionStoreFailure(e, 'Failed to consume threshold session');
     }
   }
 
@@ -682,8 +651,8 @@ class RedisTcpWalletSessionStore<
         'EVAL',
         CONSUME_ONCE_LUA,
         '2',
-        this.usesKey(id),
-        this.consumeOnceKey(id, idempotencyKey),
+        this.keys.uses(id),
+        this.keys.consumeOnce(id, idempotencyKey),
       ]);
       if (resp.type === 'error') {
         return { ok: false, code: 'internal', message: `Redis EVAL error: ${resp.value}` };
@@ -691,12 +660,7 @@ class RedisTcpWalletSessionStore<
       const raw = resp.type === 'integer' ? String(resp.value) : resp.value;
       return parseRedisConsumeOnceResult(raw);
     } catch (e: unknown) {
-      const msg = String(
-        e && typeof e === 'object' && 'message' in e
-          ? (e as { message?: unknown }).message
-          : e || 'Failed to consume threshold session',
-      );
-      return { ok: false, code: 'internal', message: msg };
+      return walletSessionStoreFailure(e, 'Failed to consume threshold session');
     }
   }
 
@@ -707,18 +671,13 @@ class RedisTcpWalletSessionStore<
     const consumeKey = normalizeConsumeOnceKey(idempotencyKey);
     if (!consumeKey) return { ok: true, consumed: false };
     try {
-      const resp = await this.client.send(['EXISTS', this.consumeOnceKey(id, consumeKey)]);
+      const resp = await this.client.send(['EXISTS', this.keys.consumeOnce(id, consumeKey)]);
       if (resp.type === 'error') {
         return { ok: false, code: 'internal', message: `Redis EXISTS error: ${resp.value}` };
       }
       return parseRedisConsumedUseResult(resp.value);
     } catch (e: unknown) {
-      const msg = String(
-        e && typeof e === 'object' && 'message' in e
-          ? (e as { message?: unknown }).message
-          : e || 'Failed to check consumed threshold session operation',
-      );
-      return { ok: false, code: 'internal', message: msg };
+      return walletSessionStoreFailure(e, 'Failed to check consumed threshold session operation');
     }
   }
 
@@ -732,7 +691,7 @@ class RedisTcpWalletSessionStore<
       if (ttlMs <= 0) return replayGuardExpired();
       const resp = await this.client.send([
         'SET',
-        this.replayGuardKey(scopeId, replayKey),
+        this.keys.replayGuard(scopeId, replayKey),
         '1',
         'NX',
         'EX',
@@ -749,51 +708,62 @@ class RedisTcpWalletSessionStore<
         message: 'Redis replay guard returned invalid response',
       };
     } catch (e: unknown) {
-      const msg = String(
-        e && typeof e === 'object' && 'message' in e
-          ? (e as { message?: unknown }).message
-          : e || 'Failed to reserve replay guard',
-      );
-      return { ok: false, code: 'internal', message: msg };
+      return walletSessionStoreFailure(e, 'Failed to reserve replay guard');
     }
   }
 }
 
-export function createEd25519WalletSessionStore(input: {
+type WalletSessionStoreFactoryInput = {
   config?: ThresholdStoreConfigInput | null;
   logger: NormalizedLogger;
   isNode: boolean;
-}): Ed25519WalletSessionStore {
-  const doStores = createCloudflareDurableObjectThresholdEd25519Stores({
-    config: input.config,
-    logger: input.logger,
-  });
-  if (doStores) return doStores.walletSessionStore;
+};
 
+/** What sets the Ed25519 and ECDSA wallet session stores apart. */
+type WalletSessionStoreSpec<TRecord extends WalletSessionRecord> = {
+  /** Tags log lines and errors, `[<tag>] …`. */
+  readonly tag: 'threshold-ed25519' | 'threshold-ecdsa';
+  /** The Durable Object store when the config selects Durable Objects, else null. */
+  readonly durableObjectStore: (
+    input: WalletSessionStoreFactoryInput,
+  ) => WalletSessionStore<TRecord> | null;
+  /** The key prefix env-shaped config gives, or '' for the store's default. */
+  readonly envPrefix: (config: WalletSessionStoreConfigRecord) => string;
+  readonly parseRecord: WalletSessionRecordParser<TRecord>;
+};
+
+/**
+ * Selects a wallet session store: Durable Objects, else the config's explicit `kind`, else Upstash
+ * or Redis from env-shaped config, else in memory where the runtime allows it.
+ */
+function createWalletSessionStore<TRecord extends WalletSessionRecord>(
+  input: WalletSessionStoreFactoryInput,
+  spec: WalletSessionStoreSpec<TRecord>,
+): WalletSessionStore<TRecord> {
+  const durableObjectStore = spec.durableObjectStore(input);
+  if (durableObjectStore) return durableObjectStore;
+
+  const { tag, parseRecord } = spec;
   const config = (
     isPlainObject(input.config) ? input.config : {}
   ) as WalletSessionStoreConfigRecord;
   const allowInMemory = toOptionalTrimmedString(config.THRESHOLD_ALLOW_IN_MEMORY_STORES) === '1';
   const requirePersistent = !input.isNode && !allowInMemory;
-  const basePrefix = toOptionalTrimmedString(config.THRESHOLD_PREFIX);
-  const envPrefix =
-    toOptionalTrimmedString(config.THRESHOLD_ED25519_WALLET_SESSION_PREFIX) ||
-    toThresholdEd25519PrefixFromBase(basePrefix, 'wallet-session') ||
-    '';
+  const envPrefix = spec.envPrefix(config);
+  const inMemory = () =>
+    new InMemoryWalletSessionStore<TRecord>({ keyPrefix: envPrefix || undefined });
 
-  const kind = readNonDurableObjectThresholdStoreKind(config, 'threshold-ed25519');
+  const kind = readNonDurableObjectThresholdStoreKind(config, tag);
   if (kind === 'in-memory') {
     if (requirePersistent) {
       throw new Error(
-        '[threshold-ed25519] In-memory wallet session store is not supported in this runtime; configure Upstash/Redis or Durable Objects',
+        `[${tag}] In-memory wallet session store is not supported in this runtime; configure Upstash/Redis or Durable Objects`,
       );
     }
-    return new InMemoryWalletSessionStore<Ed25519WalletSessionRecord>({
-      keyPrefix: envPrefix || undefined,
-    });
+    return inMemory();
   }
   if (kind === 'upstash-redis-rest') {
-    return new UpstashRedisRestWalletSessionStore<Ed25519WalletSessionRecord>({
+    return new UpstashRedisRestWalletSessionStore<TRecord>({
       url:
         toOptionalTrimmedString(config.url) ||
         toOptionalTrimmedString(config.UPSTASH_REDIS_REST_URL),
@@ -801,28 +771,26 @@ export function createEd25519WalletSessionStore(input: {
         toOptionalTrimmedString(config.token) ||
         toOptionalTrimmedString(config.UPSTASH_REDIS_REST_TOKEN),
       keyPrefix: toOptionalTrimmedString(config.keyPrefix) || envPrefix,
-      parseRecord: parseEd25519WalletSessionRecord,
+      parseRecord,
     });
   }
   if (kind === 'redis-tcp') {
     if (!input.isNode) {
       if (requirePersistent) {
         throw new Error(
-          '[threshold-ed25519] redis-tcp wallet session store is not supported in this runtime; configure Upstash/Redis REST or Durable Objects',
+          `[${tag}] redis-tcp wallet session store is not supported in this runtime; configure Upstash/Redis REST or Durable Objects`,
         );
       }
       input.logger.warn(
-        '[threshold-ed25519] redis-tcp wallet session store is not supported in this runtime; falling back to in-memory',
+        `[${tag}] redis-tcp wallet session store is not supported in this runtime; falling back to in-memory`,
       );
-      return new InMemoryWalletSessionStore<Ed25519WalletSessionRecord>({
-        keyPrefix: envPrefix || undefined,
-      });
+      return inMemory();
     }
-    return new RedisTcpWalletSessionStore<Ed25519WalletSessionRecord>({
+    return new RedisTcpWalletSessionStore<TRecord>({
       redisUrl:
         toOptionalTrimmedString(config.redisUrl) || toOptionalTrimmedString(config.REDIS_URL),
       keyPrefix: toOptionalTrimmedString(config.keyPrefix) || envPrefix,
-      parseRecord: parseEd25519WalletSessionRecord,
+      parseRecord,
     });
   }
   // Env-shaped config: prefer Redis/Upstash for wallet session storage (TTL + counters).
@@ -834,11 +802,12 @@ export function createEd25519WalletSessionStore(input: {
         'Upstash wallet session store enabled but UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN are not both set',
       );
     }
-    input.logger.info('[threshold-ed25519] Using Upstash REST store for Wallet Session records');
-    return new UpstashRedisRestWalletSessionStore<Ed25519WalletSessionRecord>({
+    input.logger.info(`[${tag}] Using Upstash REST store for Wallet Session records`);
+    return new UpstashRedisRestWalletSessionStore<TRecord>({
       url: upstashUrl,
       token: upstashToken,
       keyPrefix: envPrefix || undefined,
+      parseRecord,
     });
   }
 
@@ -847,31 +816,50 @@ export function createEd25519WalletSessionStore(input: {
     if (!input.isNode) {
       if (requirePersistent) {
         throw new Error(
-          '[threshold-ed25519] REDIS_URL is set but TCP Redis is not supported in this runtime; use Upstash/Redis REST or Durable Objects',
+          `[${tag}] REDIS_URL is set but TCP Redis is not supported in this runtime; use Upstash/Redis REST or Durable Objects`,
         );
       }
       input.logger.warn(
-        '[threshold-ed25519] REDIS_URL is set but TCP Redis is not supported in this runtime; falling back to in-memory',
+        `[${tag}] REDIS_URL is set but TCP Redis is not supported in this runtime; falling back to in-memory`,
       );
-      return new InMemoryWalletSessionStore<Ed25519WalletSessionRecord>({
-        keyPrefix: envPrefix || undefined,
-      });
+      return inMemory();
     }
-    input.logger.info('[threshold-ed25519] Using redis-tcp store for Wallet Session records');
-    return new RedisTcpWalletSessionStore<Ed25519WalletSessionRecord>({
+    input.logger.info(`[${tag}] Using redis-tcp store for Wallet Session records`);
+    return new RedisTcpWalletSessionStore<TRecord>({
       redisUrl,
       keyPrefix: envPrefix || undefined,
+      parseRecord,
     });
   }
 
   if (requirePersistent) {
     throw new Error(
-      '[threshold-ed25519] Wallet Session records require persistent storage in this runtime; configure UPSTASH_REDIS_REST_URL/UPSTASH_REDIS_REST_TOKEN or Durable Objects',
+      `[${tag}] Wallet Session records require persistent storage in this runtime; configure UPSTASH_REDIS_REST_URL/UPSTASH_REDIS_REST_TOKEN or Durable Objects`,
     );
   }
-  input.logger.info('[threshold-ed25519] Using in-memory Wallet Session store (non-persistent)');
-  return new InMemoryWalletSessionStore<Ed25519WalletSessionRecord>({
-    keyPrefix: envPrefix || undefined,
+  input.logger.info(`[${tag}] Using in-memory Wallet Session store (non-persistent)`);
+  return inMemory();
+}
+
+export function createEd25519WalletSessionStore(input: {
+  config?: ThresholdStoreConfigInput | null;
+  logger: NormalizedLogger;
+  isNode: boolean;
+}): Ed25519WalletSessionStore {
+  return createWalletSessionStore(input, {
+    tag: 'threshold-ed25519',
+    durableObjectStore: ({ config, logger }) =>
+      createCloudflareDurableObjectThresholdEd25519Stores({ config, logger })?.walletSessionStore ??
+      null,
+    envPrefix: (config) => {
+      const basePrefix = toOptionalTrimmedString(config.THRESHOLD_PREFIX);
+      return (
+        toOptionalTrimmedString(config.THRESHOLD_ED25519_WALLET_SESSION_PREFIX) ||
+        toThresholdEd25519PrefixFromBase(basePrefix, 'wallet-session') ||
+        ''
+      );
+    },
+    parseRecord: parseEd25519WalletSessionRecord,
   });
 }
 
@@ -880,107 +868,18 @@ export function createEcdsaWalletSessionStore(input: {
   logger: NormalizedLogger;
   isNode: boolean;
 }): EcdsaWalletSessionStore {
-  const doStores = createCloudflareDurableObjectThresholdEcdsaStores({
-    config: input.config,
-    logger: input.logger,
+  return createWalletSessionStore(input, {
+    tag: 'threshold-ecdsa',
+    durableObjectStore: ({ config, logger }) =>
+      createCloudflareDurableObjectThresholdEcdsaStores({ config, logger })?.walletSessionStore ??
+      null,
+    envPrefix: (config) => {
+      const basePrefix = toOptionalTrimmedString(config.THRESHOLD_PREFIX);
+      return toThresholdEcdsaWalletSessionPrefix(
+        toOptionalTrimmedString(config.THRESHOLD_ECDSA_WALLET_SESSION_PREFIX) ||
+          toThresholdEcdsaPrefixFromBase(basePrefix, 'wallet-session'),
+      );
+    },
+    parseRecord: parseEcdsaWalletSessionRecord,
   });
-  if (doStores) return doStores.walletSessionStore;
-
-  const config = (
-    isPlainObject(input.config) ? input.config : {}
-  ) as WalletSessionStoreConfigRecord;
-  const allowInMemory = toOptionalTrimmedString(config.THRESHOLD_ALLOW_IN_MEMORY_STORES) === '1';
-  const requirePersistent = !input.isNode && !allowInMemory;
-  const basePrefix = toOptionalTrimmedString(config.THRESHOLD_PREFIX);
-  const envPrefix = toThresholdEcdsaWalletSessionPrefix(
-    toOptionalTrimmedString(config.THRESHOLD_ECDSA_WALLET_SESSION_PREFIX) ||
-      toThresholdEcdsaPrefixFromBase(basePrefix, 'wallet-session'),
-  );
-
-  const kind = readNonDurableObjectThresholdStoreKind(config, 'threshold-ecdsa');
-  if (kind === 'in-memory') {
-    if (requirePersistent) {
-      throw new Error(
-        '[threshold-ecdsa] In-memory wallet session store is not supported in this runtime; configure Upstash/Redis or Durable Objects',
-      );
-    }
-    return new InMemoryWalletSessionStore<EcdsaWalletSessionRecord>({ keyPrefix: envPrefix });
-  }
-  if (kind === 'upstash-redis-rest') {
-    return new UpstashRedisRestWalletSessionStore<EcdsaWalletSessionRecord>({
-      url:
-        toOptionalTrimmedString(config.url) ||
-        toOptionalTrimmedString(config.UPSTASH_REDIS_REST_URL),
-      token:
-        toOptionalTrimmedString(config.token) ||
-        toOptionalTrimmedString(config.UPSTASH_REDIS_REST_TOKEN),
-      keyPrefix: toOptionalTrimmedString(config.keyPrefix) || envPrefix,
-      parseRecord: parseEcdsaWalletSessionRecord,
-    });
-  }
-  if (kind === 'redis-tcp') {
-    if (!input.isNode) {
-      if (requirePersistent) {
-        throw new Error(
-          '[threshold-ecdsa] redis-tcp wallet session store is not supported in this runtime; configure Upstash/Redis REST or Durable Objects',
-        );
-      }
-      input.logger.warn(
-        '[threshold-ecdsa] redis-tcp wallet session store is not supported in this runtime; falling back to in-memory',
-      );
-      return new InMemoryWalletSessionStore<EcdsaWalletSessionRecord>({ keyPrefix: envPrefix });
-    }
-    return new RedisTcpWalletSessionStore<EcdsaWalletSessionRecord>({
-      redisUrl:
-        toOptionalTrimmedString(config.redisUrl) || toOptionalTrimmedString(config.REDIS_URL),
-      keyPrefix: toOptionalTrimmedString(config.keyPrefix) || envPrefix,
-      parseRecord: parseEcdsaWalletSessionRecord,
-    });
-  }
-  // Env-shaped config: prefer Redis/Upstash for wallet session storage (TTL + counters).
-  const upstashUrl = toOptionalTrimmedString(config.UPSTASH_REDIS_REST_URL);
-  const upstashToken = toOptionalTrimmedString(config.UPSTASH_REDIS_REST_TOKEN);
-  if (upstashUrl || upstashToken) {
-    if (!upstashUrl || !upstashToken) {
-      throw new Error(
-        'Upstash wallet session store enabled but UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN are not both set',
-      );
-    }
-    input.logger.info('[threshold-ecdsa] Using Upstash REST store for Wallet Session records');
-    return new UpstashRedisRestWalletSessionStore<EcdsaWalletSessionRecord>({
-      url: upstashUrl,
-      token: upstashToken,
-      keyPrefix: envPrefix,
-      parseRecord: parseEcdsaWalletSessionRecord,
-    });
-  }
-
-  const redisUrl = toOptionalTrimmedString(config.REDIS_URL);
-  if (redisUrl) {
-    if (!input.isNode) {
-      if (requirePersistent) {
-        throw new Error(
-          '[threshold-ecdsa] REDIS_URL is set but TCP Redis is not supported in this runtime; use Upstash/Redis REST or Durable Objects',
-        );
-      }
-      input.logger.warn(
-        '[threshold-ecdsa] REDIS_URL is set but TCP Redis is not supported in this runtime; falling back to in-memory',
-      );
-      return new InMemoryWalletSessionStore<EcdsaWalletSessionRecord>({ keyPrefix: envPrefix });
-    }
-    input.logger.info('[threshold-ecdsa] Using redis-tcp store for Wallet Session records');
-    return new RedisTcpWalletSessionStore<EcdsaWalletSessionRecord>({
-      redisUrl,
-      keyPrefix: envPrefix,
-      parseRecord: parseEcdsaWalletSessionRecord,
-    });
-  }
-
-  if (requirePersistent) {
-    throw new Error(
-      '[threshold-ecdsa] Wallet Session records require persistent storage in this runtime; configure UPSTASH_REDIS_REST_URL/UPSTASH_REDIS_REST_TOKEN or Durable Objects',
-    );
-  }
-  input.logger.info('[threshold-ecdsa] Using in-memory Wallet Session store (non-persistent)');
-  return new InMemoryWalletSessionStore<EcdsaWalletSessionRecord>({ keyPrefix: envPrefix });
 }
