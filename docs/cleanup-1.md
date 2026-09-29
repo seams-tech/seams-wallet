@@ -46,7 +46,9 @@ files that repeat themselves.
 ### Remaining
 
 - [ ] Phase 1: move finished refactor plans, once decided.
-- [ ] Phase 3: decide whether to roll the combinators out further.
+- [ ] Phase 3: roll the combinators out, one domain at a time (approved
+  2026-09-29).
+- [ ] Phase 2 follow-ups: the duplicated clusters found after Phase 2's list.
 - [ ] Phase 4: restructure R150's largest files after R150 lands on `dev`.
 
 ## Findings
@@ -285,6 +287,22 @@ by side; the commit messages describe each harness.
   `thresholdEd25519.ts` (89 runs). R150's Gateway and presignature work changes
   both: 14 feature commits in 30 days, the latest on 2026-09-27.
 
+Follow-ups: the largest clusters left outside R150's most-changed files, with
+the same proof standard.
+
+- [ ] The Email OTP stores: `core/EmailOtpStores.ts` (2,123 lines) against
+  `d1GoogleEmailOtpRegistrationAttemptStore.ts` (42 runs) and
+  `d1EmailOtpEnrollmentStore.ts` (24), and the Email OTP record modules against
+  `d1EmailOtpRecords.ts` (21 and 18). This is the shape the WebAuthn stores had
+  before 996423f.
+- [ ] `core/d1WalletAuthMethodStore.ts`'s internal repetition (40 runs), and the
+  wallet's copy of `sameVerifiedActiveWalletAuthorityV1` in
+  `walletRecoveryCommit.ts`.
+- [ ] After the device-linking parser conversion: `core/deviceLinking/linkedDeviceSession.ts`
+  (38 runs internally, 28 with `d1LinkedDeviceSessionStore.ts`), and
+  `authorization/walletAuthority.ts` (39 internally, 22 with
+  `device-linking/digests.ts`).
+
 **Exit:** each listed cluster has one implementation, and both languages'
 duplication is below the baseline.
 
@@ -358,11 +376,16 @@ the file defines its own small parsers such as `parseIso`.
   - `exactRecord` and `rejectUnknownFields` moved from `passkey-custody/primitives`
     to `utils/exactRecord.ts`. In `utils/validation.ts` they would have added
     609 bytes gzip to the wallet iframe's boot path.
-- [ ] Roll out domain by domain, once decided (Phase 4 has the lane files).
-  Candidates, by exact-key sites: `device-linking/parsers.ts` (88),
-  `device-linking/sourceContribution.ts` (13), `passkey-custody/custodyEnvelope.ts`
-  and `ordinaryInactiveSignerMaterialReservation.ts` (7 each), then
-  `recordParsers.ts` and `participants.ts`. Build each schema in a function, and
+- [ ] Roll out domain by domain (approved 2026-09-29; Phase 4 has the lane
+  files). Order: `device-linking/parsers.ts` (3,178 lines, 88 exact-key sites);
+  then `device-linking/sourceContribution.ts` (13),
+  `passkey-custody/custodyEnvelope.ts` and
+  `ordinaryInactiveSignerMaterialReservation.ts` (7 each), `recordParsers.ts`
+  and `participants.ts`; then `utils/registrationIntent.ts` (3,025 lines) and
+  `utils/routerAbEd25519Yao.ts` (2,052), which R150 is not changing. One domain
+  at a time, so additions to `wireSchema.ts` do not conflict. Each needs zero
+  single-fault parity differences, identical declarations and no larger
+  worker. Build each schema in a function, and
   keep client parsers apart from server-only schemas in modules that workers
   import. Use `ts-rs` only for Rust-owned messages, as the declared type that
   `ParsesExactly` checks the schema against.
@@ -431,9 +454,6 @@ consolidated cluster before committing it.
 - Whether to add Prettier as a dev dependency. `.prettierrc.json` exists, but no
   package installs Prettier, so formatting depends on each editor's copy.
 - Which refactor plans are finished, and where finished plans go.
-- Whether to roll Phase 3's combinators out beyond the pilot. The pilot
-  recommends it, domain by domain, and efe17f1 shows the module layout that
-  keeps the workers from growing.
 - Whether the Vite plugin factories are public API. `packages/wallet` builds and
   ships them, but its `package.json` exports no path to them, so users cannot
   import them. b74937c restored them after the dead-export pass removed them.
