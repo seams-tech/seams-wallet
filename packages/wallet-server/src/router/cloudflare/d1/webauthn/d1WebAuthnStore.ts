@@ -23,15 +23,7 @@ type WebAuthnChallengeKind = 'login' | 'sync' | 'recovery_registration';
 
 export type D1WebAuthnStoreScope = D1TenantScope;
 
-export function prepareD1WebAuthnAuthenticatorPutStatement(input: {
-  readonly database: D1DatabaseLike;
-  readonly scope: D1WebAuthnStoreScope;
-  readonly userId: string;
-  readonly record: WebAuthnAuthenticatorRecord;
-}): D1PreparedStatementLike {
-  return input.database
-    .prepare(
-      `INSERT INTO webauthn_authenticators (
+const INSERT_AUTHENTICATOR_SQL = `INSERT INTO webauthn_authenticators (
         namespace,
         org_id,
         project_id,
@@ -44,15 +36,21 @@ export function prepareD1WebAuthnAuthenticatorPutStatement(input: {
         updated_at_ms,
         device_info_json
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT (namespace, org_id, project_id, env_id, user_id, credential_id_b64u)
-      DO UPDATE SET
-        credential_public_key_b64u = EXCLUDED.credential_public_key_b64u,
-        counter = MAX(webauthn_authenticators.counter, EXCLUDED.counter),
-        created_at_ms = MIN(webauthn_authenticators.created_at_ms, EXCLUDED.created_at_ms),
-        updated_at_ms = MAX(webauthn_authenticators.updated_at_ms, EXCLUDED.updated_at_ms),
-        device_info_json = EXCLUDED.device_info_json`,
-    )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+
+type AuthenticatorStatementInput = {
+  readonly database: D1DatabaseLike;
+  readonly scope: D1WebAuthnStoreScope;
+  readonly userId: string;
+  readonly record: WebAuthnAuthenticatorRecord;
+};
+
+function prepareAuthenticatorStatement(
+  sql: string,
+  input: AuthenticatorStatementInput,
+): D1PreparedStatementLike {
+  return input.database
+    .prepare(sql)
     .bind(
       input.scope.namespace,
       input.scope.orgId,
@@ -68,45 +66,29 @@ export function prepareD1WebAuthnAuthenticatorPutStatement(input: {
     );
 }
 
+export function prepareD1WebAuthnAuthenticatorPutStatement(
+  input: AuthenticatorStatementInput,
+): D1PreparedStatementLike {
+  return prepareAuthenticatorStatement(
+    `${INSERT_AUTHENTICATOR_SQL}
+      ON CONFLICT (namespace, org_id, project_id, env_id, user_id, credential_id_b64u)
+      DO UPDATE SET
+        credential_public_key_b64u = EXCLUDED.credential_public_key_b64u,
+        counter = MAX(webauthn_authenticators.counter, EXCLUDED.counter),
+        created_at_ms = MIN(webauthn_authenticators.created_at_ms, EXCLUDED.created_at_ms),
+        updated_at_ms = MAX(webauthn_authenticators.updated_at_ms, EXCLUDED.updated_at_ms),
+        device_info_json = EXCLUDED.device_info_json`,
+    input,
+  );
+}
+
 /** Insert-only variant used by recovery promotion. A credential collision must
  * abort the surrounding envelope/code transaction instead of reassigning an
  * existing authenticator's public key. */
-export function prepareD1WebAuthnAuthenticatorInsertStatement(input: {
-  readonly database: D1DatabaseLike;
-  readonly scope: D1WebAuthnStoreScope;
-  readonly userId: string;
-  readonly record: WebAuthnAuthenticatorRecord;
-}): D1PreparedStatementLike {
-  return input.database
-    .prepare(
-      `INSERT INTO webauthn_authenticators (
-        namespace,
-        org_id,
-        project_id,
-        env_id,
-        user_id,
-        credential_id_b64u,
-        credential_public_key_b64u,
-        counter,
-        created_at_ms,
-        updated_at_ms,
-        device_info_json
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    )
-    .bind(
-      input.scope.namespace,
-      input.scope.orgId,
-      input.scope.projectId,
-      input.scope.envId,
-      input.userId,
-      input.record.credentialIdB64u,
-      input.record.credentialPublicKeyB64u,
-      input.record.counter,
-      input.record.createdAtMs,
-      input.record.updatedAtMs,
-      JSON.stringify(input.record.deviceInfo),
-    );
+export function prepareD1WebAuthnAuthenticatorInsertStatement(
+  input: AuthenticatorStatementInput,
+): D1PreparedStatementLike {
+  return prepareAuthenticatorStatement(INSERT_AUTHENTICATOR_SQL, input);
 }
 
 export class CloudflareD1WebAuthnStore {
