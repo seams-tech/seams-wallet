@@ -293,15 +293,18 @@ Cloudflare:
   eight benchmark databases. Both arms, their Gateways and ingresses, and
   the probe Worker are deployed. The first smoke attempts found setup and
   probe bugs (fixed) and the two product failures behind items 21 and 22.
-  The pilot restarts from 85b935a. Its log and results are in the
-  [hosted comparison](./refactor-150-hosted-comparison.md).
+  The pilot then ran from 85b935a with HTTP/2 probes. APAC and WEUR ran
+  40 of 40, ENAM 35 of 36, and all 230 signatures verified. DO's p95
+  signing is 23% lower near the D1 primary and 28-35% lower in WEUR and
+  ENAM; registration is within 6% either way. The cost was at most $0.64.
+  Results are in the [hosted comparison](./refactor-150-hosted-comparison.md).
 
 ## Before the managed milestone
 
 - The review items the cross-owner plan leaves open. Explicit recovery
   abandonment stays deferred.
-- The hosted pilot's latency and cost results, and the rollout decision
-  made on them.
+- The rollout decision on the hosted pilot's results (recorded 2026-09-29;
+  ENAM has 17 D1 samples, short of the complete gate's 20).
 - If the decision is DO: a production wallet-object configuration and
   build for the managed roles. Today the wallet-object features build only
   the local harness and the isolated comparison.
