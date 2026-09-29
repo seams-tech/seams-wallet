@@ -8,6 +8,7 @@ import {
   type CloudflareD1GatewayEnv,
 } from '../../../packages/wallet-server/src/hosted-wallet-gateway';
 import type { CfExecutionContext } from '../../../packages/wallet-server/src/router/cloudflare/runtime/cloudflare.types';
+import { TracedD1Database } from './d1Trace';
 
 type BenchmarkGatewayEnv = CloudflareD1GatewayBaseEnv & {
   readonly BENCHMARK_WALLET_DEPLOYMENT_JSON: string;
@@ -28,11 +29,13 @@ async function fetch(
   ) {
     return new Response(null, { status: 503 });
   }
+  const database = new TracedD1Database(env.SIGNER_DB);
   const gatewayEnv: CloudflareD1GatewayEnv = {
     ...env,
+    SIGNER_DB: database,
     WALLET_CONSOLE: createStaticWalletConsoleBindingV1(deployment),
   };
-  return await handleSplitGatewayRequest(request, gatewayEnv, ctx);
+  return database.response(await handleSplitGatewayRequest(request, gatewayEnv, ctx));
 }
 
 export default { fetch };

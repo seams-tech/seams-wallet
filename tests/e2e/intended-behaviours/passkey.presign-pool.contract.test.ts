@@ -137,16 +137,19 @@ class FirstSigningPoolFlow {
     path: string;
     status: number;
     stagesMs: Record<string, number>;
+    d1: unknown;
   }[]> {
     const timings = [];
     for (const entry of this.gatewayResponses) {
       if (entry.atMs < startedAtMs || entry.atMs > endedAtMs) continue;
       const stages = parseEcdsaServerTiming(await entry.response.headerValue('Server-Timing'));
-      if (stages.size === 0) continue;
+      const d1Header = await entry.response.headerValue('X-Benchmark-D1');
+      if (stages.size === 0 && d1Header === null) continue;
       timings.push({
         path: entry.path,
         status: entry.response.status(),
         stagesMs: Object.fromEntries(stages),
+        d1: d1Header === null ? null : JSON.parse(d1Header),
       });
     }
     return timings;
