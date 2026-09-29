@@ -229,26 +229,6 @@ export class ScanQRCodeFlow {
     }
   }
 
-  /**
-   * Get available video devices
-   */
-  async getAvailableCameras(): Promise<MediaDeviceInfo[]> {
-    try {
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      return devices.filter((device) => device.kind === 'videoinput');
-    } catch (error) {
-      console.error('Error enumerating cameras:', error);
-      throw new Error('Failed to access camera devices');
-    }
-  }
-
-  /**
-   * Get the current media stream (for external video elements)
-   */
-  getMediaStream(): MediaStream | null {
-    return this.mediaStream;
-  }
-
   // Private methods
 
   private setState(newState: ScanQRCodeFlowState): void {

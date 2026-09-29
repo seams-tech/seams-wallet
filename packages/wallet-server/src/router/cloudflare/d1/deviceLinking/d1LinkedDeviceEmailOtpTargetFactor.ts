@@ -150,20 +150,6 @@ type D1LinkedDeviceEmailOtpTargetFactorOptionsV1 = {
   readonly resendCooldownMs?: number;
 };
 
-type LinkedDeviceEmailOtpTargetEnrollmentResolutionV1 =
-  | {
-      readonly kind: 'existing_enrollment';
-      readonly targetEmail: VerifiedEmailAddress;
-    }
-  | {
-      readonly kind: 'new_enrollment';
-      readonly targetEmail: VerifiedEmailAddress;
-    }
-  | {
-      readonly kind: 'conflict';
-      readonly message: string;
-    };
-
 export class D1LinkedDeviceEmailOtpTargetFactorV1 implements DeviceLinkingEmailOtpTargetFactorProviderV1 {
   private readonly options: D1LinkedDeviceEmailOtpTargetFactorOptionsV1;
   private readonly grantTtlMs: number;
@@ -176,26 +162,6 @@ export class D1LinkedDeviceEmailOtpTargetFactorV1 implements DeviceLinkingEmailO
       options.resendCooldownMs ?? DEFAULT_RESEND_COOLDOWN_MS,
       'resendCooldownMs',
     );
-  }
-
-  async resolveTargetEnrollmentV1(input: {
-    readonly walletId: WalletId;
-    readonly targetEmail: VerifiedEmailAddress;
-  }): Promise<LinkedDeviceEmailOtpTargetEnrollmentResolutionV1> {
-    const enrollment = await this.options.enrollments.readEnrollment(String(input.walletId));
-    if (!enrollment) {
-      return { kind: 'new_enrollment', targetEmail: input.targetEmail };
-    }
-    if (enrollment.verifiedEmail !== input.targetEmail) {
-      return {
-        kind: 'conflict',
-        message: 'target Email OTP address conflicts with the wallet enrollment',
-      };
-    }
-    const candidates = await this.listEligibleBaseFactorsV1(input.walletId);
-    return candidates.length > 0
-      ? { kind: 'existing_enrollment', targetEmail: input.targetEmail }
-      : { kind: 'new_enrollment', targetEmail: input.targetEmail };
   }
 
   async resolveBaseFactorSelectionV1(input: {

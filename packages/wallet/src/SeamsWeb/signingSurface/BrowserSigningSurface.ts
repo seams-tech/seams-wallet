@@ -3154,14 +3154,6 @@ export class BrowserSigningSurface {
     }
   }
 
-  hasActiveNearEd25519YaoMaterial(args: {
-    readonly walletId: WalletId;
-    readonly nearAccountId: AccountId;
-    readonly materialActivation: MpcMaterialActivationRef;
-  }): boolean {
-    return this.enginePorts.ed25519YaoActiveClients.resolve(args) !== null;
-  }
-
   async readPersistedAvailableSigningLanes(
     args: Omit<ReadAvailableSigningLanesInput, 'ecdsaChainTargets'>,
   ): Promise<AvailableSigningLanes> {

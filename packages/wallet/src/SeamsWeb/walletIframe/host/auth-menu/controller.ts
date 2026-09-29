@@ -171,10 +171,6 @@ export class AuthMenuController {
 
   constructor(private readonly deps: AuthMenuControllerDeps) {}
 
-  get activeSessionCount(): number {
-    return this.sessions.size;
-  }
-
   async open(args: {
     request: HostedAuthMenuOpenRequest;
     requestId: string | undefined;
@@ -444,11 +440,5 @@ export class AuthMenuController {
     const session = this.sessions.get(resolution.authMenuSessionId);
     if (!session || session.identity.requestId !== resolution.requestId) return false;
     return session.acceptExternalAuthResolution(resolution);
-  }
-
-  cancelByRequestId(requestId: string, reason: 'connection_closed' | 'component_unmounted'): void {
-    for (const session of this.sessions.values()) {
-      if (session.identity.requestId === requestId) session.cancel(reason);
-    }
   }
 }

@@ -108,14 +108,6 @@ export class D1RegistrationCeremonyRecordStore {
     throw conflict('Registration ceremony record conflicts with the stored value');
   }
 
-  async reserveExclusive(mutation: D1RegistrationCeremonyRecordMutation): Promise<boolean> {
-    const key = this.normalizeKey(mutation.scope, mutation.id);
-    const prepared = prepareValue(mutation.value, mutation.expiresAtMs);
-    if (await this.insert(key, prepared)) return true;
-    await this.get(mutation.scope, mutation.id);
-    return await this.insert(key, prepared);
-  }
-
   async updateExpected(input: {
     readonly scope: string;
     readonly id: string;

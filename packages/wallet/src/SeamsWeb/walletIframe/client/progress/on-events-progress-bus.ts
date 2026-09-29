@@ -133,11 +133,6 @@ export class OnEventsProgressBus {
     return false;
   }
 
-  getStats(requestId: string): ProgressStats | null {
-    const sub = this.subs.get(requestId);
-    return sub ? sub.stats : null;
-  }
-
   private findSticky(requestId: string): ProgressSubscriber | null {
     const sub = this.subs.get(requestId);
     if (sub && sub.sticky) return sub;

@@ -104,7 +104,6 @@ export class EmailOtpWalletSessionRuntime {
       worker: deps.signerWorkerManager,
     });
     this.sealedRefreshPolicy = new EmailOtpSealedRefreshPolicy({
-      deleteDurableSealedSessionRecord: deps.deleteDurableSealedSessionRecord,
       updateExactSealedSessionPolicy: deps.updateExactSealedSessionPolicy,
       clearEcdsaRestoreCaches: () => this.clearEcdsaRestoreCaches(),
     });

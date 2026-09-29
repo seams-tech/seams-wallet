@@ -2180,15 +2180,6 @@ export class CloudflareD1WalletRegistrationService {
     this.yaoLifecycleDecisions = input.yaoLifecycleDecisions;
   }
 
-  async getWalletRegistrationRuntimePolicyScope(
-    registrationCeremonyId: string,
-  ): Promise<RuntimePolicyScope | undefined> {
-    const store = this.getRegistrationCeremonyIntentStore();
-    const ceremony = await store.getCeremony(registrationCeremonyId);
-    if (!ceremony) return undefined;
-    return registrationPreparedContextRuntimePolicyScope(ceremony.preparedContext);
-  }
-
   async resolveEd25519MaterialActivation(input: {
     readonly walletId: string;
     readonly materialActivation: RouterAbMpcMaterialActivationRefWire;

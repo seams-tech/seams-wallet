@@ -103,7 +103,6 @@ export function createStepUpRuntime(args: {
     listExactSealedSessionsForWallet: args.sealedSessionStore.listExactSealedSessionsForWallet,
     acquireSigningSessionRestoreLease: args.sealedSessionStore.acquireSigningSessionRestoreLease,
     releaseSigningSessionRestoreLease: args.sealedSessionStore.releaseSigningSessionRestoreLease,
-    deleteDurableSealedSessionRecord: args.sealedSessionStore.deleteDurableSealedSessionRecord,
     updateExactSealedSessionPolicy: args.sealedSessionStore.updateExactSealedSessionPolicy,
   });
 

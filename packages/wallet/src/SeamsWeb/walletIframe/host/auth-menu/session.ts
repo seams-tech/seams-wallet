@@ -755,7 +755,6 @@ export class AuthMenuSession {
   private outcomeResolver: OutcomeResolver | null = null;
   private outcomePromise: Promise<HostedAuthMenuOutcome> | null = null;
   private cleanedUp = false;
-  private externalAuthResolution: HostedAuthMenuExternalAuthResolution | null = null;
   private prepared: HostedPasskeyMenuPrepared | null = null;
   private preparePasskey: PreparePasskey | null = null;
   private registrationPreparation: PrepareRegistration | null = null;
@@ -824,10 +823,6 @@ export class AuthMenuSession {
 
   get state(): AuthMenuSessionState {
     return this.stateValue;
-  }
-
-  get externalResolution(): HostedAuthMenuExternalAuthResolution | null {
-    return this.externalAuthResolution;
   }
 
   setRegistrationPreparation(prepare: PrepareRegistration): void {
@@ -1381,7 +1376,6 @@ export class AuthMenuSession {
       ) {
         return false;
       }
-      this.externalAuthResolution = resolution;
       if (resolution.evidence.kind === 'google_id_token') {
         this.startRecoveryGoogleVerification(state, resolution.evidence.idToken);
         return true;
@@ -1415,7 +1409,6 @@ export class AuthMenuSession {
     ) {
       return false;
     }
-    this.externalAuthResolution = resolution;
     switch (resolution.evidence.kind) {
       case 'google_id_token':
         this.startGoogleFlow(resolution.evidence.idToken, state.authTarget);
@@ -1740,7 +1733,6 @@ export class AuthMenuSession {
     if (this.stateValue.kind === 'complete' || this.stateValue.kind === 'link_device') return;
     const currentViewModel = this.currentViewModel();
     this.invalidatePreparation();
-    this.externalAuthResolution = null;
     const nextViewModel = createPreparingViewModel({
       request: { ...this.request, initialMode: mode },
       appearance: currentViewModel.appearance,

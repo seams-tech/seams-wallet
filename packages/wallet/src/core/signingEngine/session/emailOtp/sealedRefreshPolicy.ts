@@ -3,27 +3,12 @@ import type {
   WarmSessionStatusResult,
 } from '@/core/signingEngine/uiConfirm/uiConfirm.types';
 import type {
-  deleteDurableSealedSessionRecord,
   updateExactSealedSessionPolicy,
   SigningSessionSealedRecordFilter,
 } from '@/core/signingEngine/session/persistence/sealedSessionStore';
-import {
-  createDeleteDurableSealedSessionCommand,
-  type DurableSealedSessionDeleteReason,
-} from '@/core/signingEngine/session/persistence/durableSealedSessionCommands';
 import type { EmailOtpEcdsaSealedRuntimePurpose } from './sealedRuntimePurpose';
 
-/** Only invalid persisted state justifies destroying sealed material. Expiry
- * and exhaustion are authorization states: they compose with an unchanged
- * material hydration result and cannot remove its activation, so the sealed
- * secret survives them for rehydration after re-authorization. */
-type EmailOtpDurableSealedSessionDeleteReason = Extract<
-  DurableSealedSessionDeleteReason,
-  'invalid_persisted_record'
->;
-
 type EmailOtpSealedRefreshPolicyPorts = {
-  deleteDurableSealedSessionRecord: typeof deleteDurableSealedSessionRecord;
   updateExactSealedSessionPolicy: typeof updateExactSealedSessionPolicy;
   clearEcdsaRestoreCaches: () => void;
 };
@@ -38,38 +23,6 @@ export class EmailOtpSealedRefreshPolicy {
     purpose: EmailOtpEcdsaSealedRuntimePurpose,
   ): SigningSessionSealedRecordFilter {
     return { authMethod: 'email_otp', curve: 'ecdsa', chainTarget: purpose.chainTarget };
-  }
-
-  /** Corrupt persisted state or explicit user removal only. Expiry and
-   * exhaustion never reach here. */
-  async deleteEmailOtpDurableSealedSessionRecord(args: {
-    purpose: EmailOtpEcdsaSealedRuntimePurpose;
-    deleteReason: EmailOtpDurableSealedSessionDeleteReason;
-  }): Promise<void> {
-    const thresholdSessionId = String(args.purpose.thresholdSessionId || '').trim();
-    if (!thresholdSessionId) {
-      this.ports.clearEcdsaRestoreCaches();
-      return;
-    }
-    const command = createDeleteDurableSealedSessionCommand({
-      durableRecord: {
-        authMethod: 'email_otp',
-        curve: 'ecdsa',
-        thresholdSessionId,
-        chainTarget: args.purpose.chainTarget,
-      },
-      deleteReason: args.deleteReason,
-      preserveResolvedIdentity: false,
-    });
-    await this.ports.deleteDurableSealedSessionRecord(command).catch(() => undefined);
-    this.ports.clearEcdsaRestoreCaches();
-  }
-
-  async recordSessionMaterialClaimed(
-    purpose: EmailOtpEcdsaSealedRuntimePurpose,
-    result: WarmSessionClaimResult,
-  ): Promise<void> {
-    await this.recordSessionPolicyResult({ purpose, result });
   }
 
   async recordSessionUseConsumed(

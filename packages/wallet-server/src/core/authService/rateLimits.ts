@@ -47,43 +47,6 @@ function parseRateLimiterKind(input: {
   throw new Error(`${input.name} must be one of in-memory, upstash-redis-rest, or redis-tcp`);
 }
 
-export function createRegistrationPrepareRateLimiter(input: {
-  thresholdStore: AuthServiceConfigSource;
-}): SigningSessionSealRateLimiter {
-  const thresholdStore = input.thresholdStore;
-  return resolveSigningSessionSealRateLimitFromEnv({
-    limiterKind: parseRateLimiterKind({
-      raw: readRateLimitConfigValue({
-        thresholdStore,
-        name: 'REGISTRATION_PREPARE_RATE_LIMITER_KIND',
-      }),
-      name: 'REGISTRATION_PREPARE_RATE_LIMITER_KIND',
-    }),
-    upstashUrl:
-      readRateLimitConfigValue({
-        thresholdStore,
-        name: 'REGISTRATION_PREPARE_RATE_LIMIT_UPSTASH_URL',
-      }) || null,
-    upstashToken:
-      readRateLimitConfigValue({
-        thresholdStore,
-        name: 'REGISTRATION_PREPARE_RATE_LIMIT_UPSTASH_TOKEN',
-      }) || null,
-    redisUrl:
-      readRateLimitConfigValue({
-        thresholdStore,
-        name: 'REGISTRATION_PREPARE_RATE_LIMIT_REDIS_URL',
-      }) || null,
-    keyPrefix:
-      readRateLimitConfigValue({
-        thresholdStore,
-        name: 'REGISTRATION_PREPARE_RATE_LIMIT_KEY_PREFIX',
-      }) || 'registration-prepare:v1:',
-    limit: 1,
-    windowMs: 1,
-  }).limiter;
-}
-
 export function createEmailOtpRateLimiter(input: {
   thresholdStore: AuthServiceConfigSource;
 }): SigningSessionSealRateLimiter {

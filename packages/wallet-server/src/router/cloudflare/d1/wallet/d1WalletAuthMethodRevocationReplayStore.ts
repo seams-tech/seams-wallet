@@ -5,11 +5,7 @@ import type { WalletRevokeAuthMethodResponse } from '../../../../core/registrati
 import { alphabetizeStringify, sha256BytesUtf8 } from '@shared/utils/digests';
 import { base64UrlEncode } from '@shared/utils/encoders';
 import type { WalletAuthMethodId, WalletAuthorityId, WalletId } from '@shared/utils/domainIds';
-import type {
-  D1DatabaseLike,
-  D1PreparedStatementLike,
-  D1ResultLike,
-} from '../../../../storage/tenantRoute';
+import type { D1DatabaseLike, D1PreparedStatementLike } from '../../../../storage/tenantRoute';
 import { D1_BATCH_CAS_GUARD_SQL } from '../../../../storage/d1Sql';
 
 const REVOCATION_PROOF_DIGEST_DOMAIN_V1 = 'seams/wallet-auth-method-revocation-proof/v1';
@@ -214,14 +210,5 @@ export class D1WalletAuthMethodRevocationReplayStoreV1 {
         ),
       this.database.prepare(D1_BATCH_CAS_GUARD_SQL),
     ];
-  }
-
-  /** Runs statements a verified proof owes on their own, such as its consumption. */
-  async runBatch(statements: readonly D1PreparedStatementLike[]): Promise<void> {
-    if (statements.length === 0) return;
-    const results = await this.database.batch<D1ResultLike>([...statements]);
-    if (results.length !== statements.length || results.some((result) => !result.success)) {
-      throw new Error('auth-method revocation batch did not complete');
-    }
   }
 }
