@@ -109,13 +109,9 @@ pub struct SigningWorkerBaseRotSenderHello(SenderHello);
 pub struct ClientBaseRotReceiverChoices(ReceiverChoices);
 pub struct SigningWorkerBaseRotReceiverChoices(ReceiverChoices);
 // These sealed outputs are consumed by the pending OT-extension state.
-#[allow(dead_code)]
 pub struct ClientBaseRotSenderOutput(SenderOutput);
-#[allow(dead_code)]
 pub struct SigningWorkerBaseRotSenderOutput(SenderOutput);
-#[allow(dead_code)]
 pub struct ClientBaseRotReceiverOutput(ReceiverOutput);
-#[allow(dead_code)]
 pub struct SigningWorkerBaseRotReceiverOutput(ReceiverOutput);
 
 macro_rules! define_hello {
