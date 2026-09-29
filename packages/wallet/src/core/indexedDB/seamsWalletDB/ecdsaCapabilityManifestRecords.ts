@@ -12,7 +12,6 @@ import {
   parseCapabilityInstanceRef,
   parseMpcMaterialOwnerRef,
   type CapabilityInstanceRef,
-  type DomainIdParseResult,
 } from '@shared/utils/domainIds';
 import {
   parseCanonicalEcdsaServerActivationRequest,
@@ -106,6 +105,7 @@ import {
   type ReplacedEcdsaCapabilityManifest,
   type ServerCommittedEcdsaActivationJournal,
   type ValidatedEncryptedEcdsaReadyMaterial,
+  unwrapDomainId,
 } from '@/core/signingEngine/session/material/ecdsaCapabilityManifest';
 import type { VerifiedEcdsaPublicFacts } from '@/core/signingEngine/session/identity/evmFamilyEcdsaIdentity';
 import type { ThresholdEcdsaChainTarget } from '@/core/platform/types';
@@ -189,11 +189,6 @@ export function requireExactKeys(
   ) {
     throw new Error(`${label} has unexpected fields`);
   }
-}
-
-function unwrapDomainId<T>(result: DomainIdParseResult<T>): T {
-  if (!result.ok) throw new Error(result.error.message);
-  return result.value;
 }
 
 export function normalizeSelector(selector: EcdsaCapabilitySelector): EcdsaCapabilitySelector {

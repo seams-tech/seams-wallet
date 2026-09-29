@@ -1,6 +1,7 @@
 import {
   mpcMaterialActivationRefsEqual,
   type CapabilityInstanceRef,
+  type DomainIdParseResult,
   type MpcMaterialActivationRef,
   type MpcMaterialOwnerRef,
 } from '@shared/utils/domainIds';
@@ -672,6 +673,11 @@ class ReplacedEcdsaCapabilityManifestProof extends EcdsaCapabilityManifestProof 
 
 export type ReplacedEcdsaCapabilityManifest = ReplacedEcdsaCapabilityManifestProof &
   ReplacedEcdsaCapabilityManifestExclusions;
+
+export function unwrapDomainId<T>(result: DomainIdParseResult<T>): T {
+  if (!result.ok) throw new Error(result.error.message);
+  return result.value;
+}
 
 export function buildEcdsaCapabilityScope(input: {
   readonly targetMemberships: readonly [ThresholdEcdsaChainTarget, ...ThresholdEcdsaChainTarget[]];

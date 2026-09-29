@@ -6,11 +6,7 @@ import {
   type SigningRootVersion,
 } from '@shared/threshold/ecdsaDerivationRoleLocalBootstrap';
 import { deriveThresholdEcdsaKeyHandle } from '@shared/utils/thresholdEcdsaKeyHandle';
-import {
-  parseCapabilityInstanceRef,
-  parseMpcMaterialOwnerRef,
-  type DomainIdParseResult,
-} from '@shared/utils/domainIds';
+import { parseCapabilityInstanceRef, parseMpcMaterialOwnerRef } from '@shared/utils/domainIds';
 import {
   parseCorrelationId,
   parseDigestB64u,
@@ -68,6 +64,7 @@ import {
   type EcdsaActivationBinding,
   type NoCurrentEcdsaManifestExpectation,
   type NoCurrentEcdsaServerGenerationExpectation,
+  unwrapDomainId,
 } from './ecdsaCapabilityManifest';
 
 type PlannerOwnedIdentityExclusions = {
@@ -433,11 +430,6 @@ export function assertInitialEcdsaActivationPlanMatchesVerifiedCeremony(input: {
     planInput: input.planInput,
     clientActivation,
   });
-}
-
-function unwrapDomainId<T>(result: DomainIdParseResult<T>): T {
-  if (!result.ok) throw new Error(result.error.message);
-  return result.value;
 }
 
 function requireAuthority(authority: unknown): WalletAuthAuthorityRef {
