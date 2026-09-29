@@ -111,10 +111,9 @@ async function addPasskeyWalletAuthMethodInternal(args: {
     );
   }
 
-  /* R109C: the intent names the source it is minted for, so the fresh
-     assertion taken over its digest binds the wallet, authority, source
-     method, source session, authority state, and the server-allocated target
-     method id. */
+  /* The intent names the source it is minted for, so the fresh assertion
+     taken over its digest binds the wallet, authority, source method, source
+     session, authority state, and the server-allocated target method id. */
   const sourceClaim = await resolveAddAuthMethodSourceClaimV1(args.walletId);
   if (sourceClaim.kind !== 'resolved') {
     throw new Error(`Wallet add-passkey requires a selected active source: ${sourceClaim.reason}`);
@@ -153,7 +152,7 @@ async function addPasskeyWalletAuthMethodInternal(args: {
   ) {
     throw new Error('Wallet add-passkey requires an initialized wallet profile');
   }
-  /* R109C `email_otp_to_passkey`: the source is the wallet's Email OTP method,
+  /* `email_otp_to_passkey`: the source is the wallet's Email OTP method,
      so the fresh proof is a one-time code taken over this intent's digest
      rather than an assertion. The seed itself is not re-released — the Email
      unlock that opened this session left its factor secret in the worker, and

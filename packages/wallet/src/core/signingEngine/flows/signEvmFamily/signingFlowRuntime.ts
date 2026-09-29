@@ -347,11 +347,11 @@ async function resolveCurrentActiveWalletAuthorityRuntime(args: {
   return runtime;
 }
 
-/** R90-INV-010. The wallet's active manifest names the material that may be
- * used right now. When it has moved on from the one this operation was prepared
- * against, the preparation is superseded -- material activation is advance-only,
- * so the prepared side is always the stale one. That is a re-resolution, not a
- * failure and not a request for the wrong material. */
+/** The wallet's active manifest names the material that may be used right now.
+ * When it has moved on from the one this operation was prepared against, the
+ * preparation is superseded -- material activation is advance-only, so the
+ * prepared side is always the stale one. That is a re-resolution, not a failure
+ * and not a request for the wrong material. */
 function ecdsaSigningMaterialSupersession(args: {
   preparedMaterialActivation: EvmFamilyEcdsaMaterialActivation;
   currentMaterialActivation: EvmFamilyEcdsaMaterialActivation;

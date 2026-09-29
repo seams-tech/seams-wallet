@@ -489,9 +489,9 @@ export function selectedEcdsaLane(input: SelectedEcdsaLaneInput): SelectedEcdsaL
 
 export type LaneCandidateState = 'ready' | 'restorable' | 'deferred' | 'expired' | 'exhausted';
 
-/** Shared Refactor 92 classification of a session's runtime allowance and
- * expiry. Expiry is checked before exhaustion so an expired session is never
- * reported as merely out of uses. */
+/** Shared classification of a session's runtime allowance and expiry. Expiry
+ * is checked before exhaustion so an expired session is never reported as
+ * merely out of uses. */
 export function laneCandidateStateFromRuntimePolicy(args: {
   remainingUses: number;
   expiresAtMs: number;

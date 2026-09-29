@@ -2135,9 +2135,9 @@ export class CloudflareD1WalletRegistrationService {
   private readonly ecdsaStrictRegistration: RouterAbEcdsaStrictRegistrationPort;
   private readonly tenantRootCustodyLineage: TenantRootCustodyLineageResolverV1;
   private readonly getWalletStore: WalletStoreProvider;
-  /** The single Gateway operation row for activate-with-finalize (94C). */
+  /** The single Gateway operation row for activate-with-finalize. */
   private readonly activateSideEffects: D1WalletRegistrationActivateSideEffectStore;
-  /** Deferred NEAR provisioning's own operation row (94C). */
+  /** Deferred NEAR provisioning's own operation row. */
   private readonly nearProvisioningSideEffects: D1WalletRegistrationNearProvisioningSideEffectStore;
   private readonly walletRegistrationCommitStore: D1WalletRegistrationCommitStore;
   /** Where a ceremony's sealed custody seed and its recovery set land. */
@@ -5782,11 +5782,11 @@ export class CloudflareD1WalletRegistrationService {
       if (sequenceFailure) {
         return { ok: false, ...sequenceFailure };
       }
-      /* Refactor 94 Phase 4+5. Which half this call commits comes from the
-         request, not from the plan: a mixed plan finalizes ECDSA first and
-         Ed25519 later, so the plan alone no longer says what is being
-         committed now. The sequence check above has already confirmed the
-         requested half is admitted and legal at this point. */
+      /* Which half this call commits comes from the request, not from the
+         plan: a mixed plan finalizes ECDSA first and Ed25519 later, so the
+         plan alone no longer says what is being committed now. The sequence
+         check above has already confirmed the requested half is admitted and
+         legal at this point. */
       const finalizeEvmFamilyEcdsa =
         request.kind === 'evm_family_ecdsa' ? requestedEvmFamilyEcdsa : null;
       const finalizeNearEd25519 = request.kind === 'near_ed25519' ? requestedNearEd25519 : null;
@@ -6543,9 +6543,9 @@ export class CloudflareD1WalletRegistrationService {
                 ecdsa: { walletKeys: ecdsaWalletKeys },
               };
       }
-      /* Refactor 94 Phase 4+5. On a mixed plan this is step one of two: mark
-         the ECDSA branch finalized and keep the ceremony, which is what the
-         Ed25519 finalize resumes from. Deleting here would strand it. */
+      /* On a mixed plan this is step one of two: mark the ECDSA branch
+         finalized and keep the ceremony, which is what the Ed25519 finalize
+         resumes from. Deleting here would strand it. */
       if (ed25519FinalizePending) {
         if (!activatedEcdsaBranch) {
           return {

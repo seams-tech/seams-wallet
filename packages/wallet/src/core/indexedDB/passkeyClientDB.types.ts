@@ -136,8 +136,8 @@ export interface ProfileRecord {
   defaultSignerSlot: number;
   passkeyCredential?: PasskeyCredentialRecord;
   preferences?: UserPreferences;
-  /* Refactor 94 Phase 6. Survives reloads so a wallet that registered
-     ECDSA-ready does not come back looking NEAR-capable. */
+  /* Survives reloads so a wallet that registered ECDSA-ready does not come
+     back looking NEAR-capable. */
   nearProvisioning?: NearProvisioningState;
   createdAt: number;
   updatedAt: number;

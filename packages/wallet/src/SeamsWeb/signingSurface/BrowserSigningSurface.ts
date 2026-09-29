@@ -2715,9 +2715,9 @@ export class BrowserSigningSurface {
       session: this.enginePorts.registrationSessionDeps,
     };
 
-    /* R109C: every path that unlocks a pre-109C envelope reseals it, and the
-       reseal has nowhere to go without the relayer and the Wallet Session that
-       only the host holds. Registered once, from the one object that has both. */
+    /* Every path that unlocks an unbound envelope reseals it, and the reseal
+       has nowhere to go without the relayer and the Wallet Session that only
+       the host holds. Registered once, from the one object that has both. */
     setUnlockedCustodyEnvelopeUpgradeSinkV1((upgrade) => {
       void this.persistUpgradedWalletCustodyEnvelopeV1(upgrade);
     });
@@ -3440,7 +3440,7 @@ export class BrowserSigningSurface {
   }
 
   /**
-   * Stores a resealed pre-109C envelope under the method that opened it.
+   * Stores the reseal of an unbound envelope under the method that opened it.
    *
    * Absorbed the same way establishment is, and for the same reason: the V2 row
    * still opens the wallet, so a failure here costs a retry at the next unlock

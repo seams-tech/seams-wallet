@@ -1140,7 +1140,7 @@ async function parseWalletAddAuthMethodStartBody(
       expectedChallengeDigestB64u,
     };
   } else if (auth.kind === 'email_otp') {
-    /* R109C `email_otp_to_passkey`: the source is the wallet's Email OTP
+    /* `email_otp_to_passkey`: the source is the wallet's Email OTP
        method. The body carries only the one-time code and the digest it was
        taken over; every identity fact — provider subject, enrollment, authority
        — is resolved from the verified challenge in the route handler, so a
@@ -1172,9 +1172,9 @@ async function parseWalletAddAuthMethodStartBody(
       expectedChallengeDigestB64u: emailExpectedDigest,
     };
   } else if (auth.kind === 'wallet_session') {
-    /* R103 zero-prompt handoff: the body names only the auth kind. Every
-       identity fact is resolved from the verified bearer admission in the
-       route handler before a service request is built. */
+    /* The body names only the auth kind. Every identity fact is resolved from
+       the verified bearer admission in the route handler before a service
+       request is built. */
     if (Object.keys(auth).length !== 1) {
       return {
         ok: false,
@@ -1778,7 +1778,7 @@ function parseWalletAddAuthMethodFinalizeRequest(
     };
   }
   if (!hasRegistration && hasEnvelope) {
-    /* R109C's Email OTP target: the factor was verified by its one-use grant
+    /* The Email OTP target: the factor was verified by its one-use grant
        rather than by a created credential, so the body carries the resealed
        envelope alone. Requiring the pair here would refuse the exact request
        the finalize service now demands for this branch. */
@@ -2964,7 +2964,7 @@ export async function handleRouterApiWalletAddAuthMethodStart(
       },
     };
   } else if (parsedRequest.auth.kind === 'email_otp_source_proof') {
-    /* R109C `email_otp_to_passkey`. The same rule as the assertion branch: a
+    /* `email_otp_to_passkey`. The same rule as the assertion branch: a
        same-device addition proves its source freshly, so the linked-device
        ceremony cannot borrow this path. */
     if (parsedRequest.intent.caller !== 'same_device_addition') {
@@ -3003,10 +3003,10 @@ export async function handleRouterApiWalletAddAuthMethodStart(
         'Same-device add-auth-method requires a fresh source proof, not a Wallet Session',
       );
     }
-    /* R103 zero-prompt handoff: the exact V2 administration admission proves
-       the owner Wallet Session and its link_devices authority. The session's
-       own auth method names the passkey whose custody envelope the ceremony
-       binds; the body supplies none of these facts. */
+    /* The exact V2 administration admission proves the owner Wallet Session
+       and its link_devices authority. The session's own auth method names the
+       passkey whose custody envelope the ceremony binds; the body supplies
+       none of these facts. */
     const admission = await resolveRouteExactWalletSessionAdministration(
       input,
       parsedRequest.walletId,

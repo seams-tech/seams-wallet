@@ -83,7 +83,7 @@ export type LinkSessionSubscriptionV1 = {
 export type LinkSessionSnapshotV1 = LinkSessionProjectionV1;
 export type { LinkedDeviceApprovalResultV1 };
 
-/** Strict R103E authority-package delivery and activation acknowledgement. */
+/** Strict authority-package delivery and activation acknowledgement. */
 export type DeviceLinkingAuthorityActivationTransportPortV1 = {
   receiveCommittedAuthorityPackagesV1(input: {
     readonly linkSessionId: LinkDeviceSessionId;

@@ -219,19 +219,19 @@ export class LinkedDeviceManagementServiceV1 {
       });
       const activeMethods = methods.filter(isActiveAuthMethod);
       if (authority.provenance.kind === 'device_link') {
-        /* One entry per active method here too. R109D gives a linked authority
-           both factor families, and the same truncation would hide the sibling
-           and make it unremovable — the defect R109C fixed on the founding
-           branch. Today a linked authority holds one method, so this loop is
-           the same single entry it always produced. */
+        /* One entry per active method here too. If a linked authority held both
+           factor families, the same truncation would hide the sibling and make
+           it unremovable — the defect fixed on the founding branch. Today a
+           linked authority holds one method, so this loop is the same single
+           entry it always produced. */
         for (const activeMethod of activeMethods) {
           devices.push(
             await this.buildLinkedDeviceSummaryV1(authority, activeMethod, emailOtpAddress),
           );
         }
       } else if (request.cursor === null) {
-        /* One entry per active method, not per authority. R109C puts both
-           factor families on one founding authority, and the settings surface
+        /* One entry per active method, not per authority. A founding authority
+           can hold both factor families, and the settings surface
            has to name each of them exactly — to decide which family is still
            missing, and to offer removal of one while its sibling stays. A
            projection that stopped at the first method made the second

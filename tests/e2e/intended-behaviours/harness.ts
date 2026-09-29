@@ -2737,7 +2737,7 @@ export class IntendedBehaviourHarness {
     );
   }
 
-  /** Refactor 109C matrix: an Email OTP wallet whose signer set is ECDSA only. */
+  /** Signer-profile matrix: an Email OTP wallet whose signer set is ECDSA only. */
   async registerEmailOtpEcdsaOnlyWallet(): Promise<void> {
     this.recordStage('register_email_otp_ecdsa_only_wallet');
     const snapshot = await this.runIntendedPageAction(
@@ -2764,7 +2764,7 @@ export class IntendedBehaviourHarness {
     this.recordService(`ECDSA-only Email OTP registration succeeded wallet=${result.walletId}`);
   }
 
-  /** Refactor 109C matrix: an Email OTP wallet whose signer set is Ed25519 only. */
+  /** Signer-profile matrix: an Email OTP wallet whose signer set is Ed25519 only. */
   async registerEmailOtpEd25519OnlyWallet(): Promise<void> {
     this.recordStage('register_email_otp_ed25519_only_wallet');
     const snapshot = await this.runIntendedPageAction(
@@ -2791,7 +2791,7 @@ export class IntendedBehaviourHarness {
     this.recordService(`Ed25519-only Email OTP registration succeeded wallet=${result.walletId}`);
   }
 
-  /** Refactor 109C acceptance: an Email OTP wallet gains a Passkey method. */
+  /** An Email OTP wallet gains a Passkey method. */
   async addPasskeyAuthMethod(
     options: { readonly loseFinalizeResponseOnce?: boolean } = {},
   ): Promise<void> {
@@ -4380,7 +4380,7 @@ export class IntendedBehaviourHarness {
   }
 
   assertNoWrongAuthPath(): void {
-    /* Refactor 109C additions are the one lifecycle that legitimately uses
+    /* Auth-method additions are the one lifecycle that legitimately uses
        both families: the wallet authorizes with the factor it already has and
        verifies the one being added. The guard exists to catch a lifecycle
        silently falling back to the other factor, which is still worth checking

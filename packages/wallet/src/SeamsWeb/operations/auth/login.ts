@@ -5852,11 +5852,11 @@ async function openAndActivatePasskeyEd25519CustodyLogin(
       }),
       materialActivation: activated.materialActivation,
     });
-    /* R103 zero-prompt handoff. The passkey factor was presented for this
-       unlock and the owner Wallet Session persisted above is active, so this
-       is where the linking capability is established — the linking flow itself
-       never prompts and never opens the envelope again. Runs last: everything
-       above has succeeded, so a failed unlock never leaves a capability. */
+    /* The passkey factor was presented for this unlock and the owner Wallet
+       Session persisted above is active, so this is where the linking
+       capability is established — the linking flow itself never prompts and
+       never opens the envelope again. Runs last: everything above has
+       succeeded, so a failed unlock never leaves a capability. */
     await input.signingEngine.establishUnlockedWalletEd25519ExportRootCapabilityV1({
       existingEnvelope: input.custody.envelope,
       passkeyPrfFirstB64u: input.passkeyPrfFirstB64u,
@@ -6598,7 +6598,7 @@ export async function getWalletSession(
         '[WalletSession] Wallet Session authorization requires a newer client',
       );
   }
-  /* R109C: the session's capabilities belong to the method that opened it.
+  /* The session's capabilities belong to the method that opened it.
      Sibling methods on one authority keep their own ECDSA continuity rows for
      their own unlocks - a wallet that recovered and then added a method holds
      one capability under each - so an authenticated read scopes the ECDSA

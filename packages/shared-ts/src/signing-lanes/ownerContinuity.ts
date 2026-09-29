@@ -23,7 +23,7 @@ export type WalletSignerId = string & {
   readonly __ownerLaneWalletSignerIdBrand: 'WalletSignerId';
 };
 
-/** Owner lanes bind to signer facts that predate independently provisioned R102 lanes. */
+/** Owner lanes bind to signer facts that predate independently provisioned lanes. */
 export type OwnerLaneParticipantContinuityV1 = {
   readonly kind: 'owner_lane_participant_continuity_v1';
   readonly signerId: WalletSignerId;

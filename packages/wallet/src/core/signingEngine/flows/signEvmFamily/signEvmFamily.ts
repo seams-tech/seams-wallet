@@ -489,11 +489,11 @@ async function signEvmFamilyAttempt(
     args.request.senderSignatureAlgorithm === 'secp256k1'
       ? getPreparedEcdsaSigningSession()
       : undefined;
-  // R90-INV-010: a superseded preparation is discarded whole and current
-  // canonical state resolved again — once. Shared by the execute-phase retry
-  // ladder below and the pre-execute wrap, because capability resolution
-  // during auth planning and runtime creation can hit the replacement race
-  // before the executor's catch exists.
+  // A superseded preparation is discarded whole and current canonical state
+  // resolved again — once. Shared by the execute-phase retry ladder below and
+  // the pre-execute wrap, because capability resolution during auth planning
+  // and runtime creation can hit the replacement race before the executor's
+  // catch exists.
   const reResolveSupersededPreparation = async (
     error: unknown,
   ): Promise<TempoSignedResult | EvmSignedResult | null> => {
@@ -650,10 +650,9 @@ async function signEvmFamilyAttempt(
   const retryWithFreshAuth = async (
     error: unknown,
   ): Promise<TempoSignedResult | EvmSignedResult | null> => {
-    // R90-INV-010: a superseded preparation is discarded whole and current
-    // canonical state resolved again. Nothing about it is an auth problem, so
-    // it is handled before the fresh-auth ladder and prompts the user for
-    // nothing.
+    // A superseded preparation is discarded whole and current canonical state
+    // resolved again. Nothing about it is an auth problem, so it is handled
+    // before the fresh-auth ladder and prompts the user for nothing.
     if (isEvmFamilyEcdsaMaterialSupersededError(error)) {
       const reResolved = await reResolveSupersededPreparation(error);
       if (reResolved) {

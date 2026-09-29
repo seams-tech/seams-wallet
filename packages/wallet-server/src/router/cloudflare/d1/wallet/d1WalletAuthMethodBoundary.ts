@@ -399,7 +399,7 @@ export async function resolveD1AddAuthMethodExistingAuth(input: {
     };
   }
   if (input.auth.kind === 'wallet_session') {
-    /* R103: wallet-session authorization is resolved against active wallet
+    /* Wallet-session authorization is resolved against active wallet
        methods in the wallet auth service boundary, not here. */
     return {
       ok: false,

@@ -30,7 +30,7 @@ export type WalletRegistrationSetupInput = {
   readonly expectedOrigin: string;
   /* The Gateway session signer, supplied at the route boundary where the
      other wallet-session minting already happens. Gateway is the sole
-     minting authority (94C checkpoint decision 4). */
+     minting authority. */
   readonly signer: WalletRegistrationSetupMinter;
   readonly runtimePolicyScope?: ThresholdRuntimePolicyScope;
   readonly signingRootId?: string;

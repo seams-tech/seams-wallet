@@ -967,12 +967,12 @@ async function establishUnlockedWalletEd25519ExportRootCapability(
       expiresAtMs,
     });
     factorSecretStored = true;
-    /* R109C: a V2 envelope opened under its original AAD is immediately
-       resealed as V3 under the method that just authenticated. This is the only
-       place the upgrade can happen — it needs the factor secret and the exact
-       selected method at the same instant, which is precisely what an unlock
-       has and a migration never does. The caller persists what comes back;
-       until it does, the V2 row stands and the next unlock retries. */
+    /* A V2 envelope opened under its original AAD is immediately resealed as
+       V3 under the method that just authenticated. This is the only place the
+       upgrade can happen — it needs the factor secret and the exact selected
+       method at the same instant, which is precisely what an unlock has and a
+       migration never does. The caller persists what comes back; until it
+       does, the V2 row stands and the next unlock retries. */
     if (source === 'linked_device_client_root') {
       return {
         kind: 'unlocked_linked_device_ed25519_client_root_capability_v1',
@@ -1007,7 +1007,7 @@ async function establishUnlockedWalletEd25519ExportRootCapability(
 }
 
 /**
- * Reseals an opened pre-109C envelope under the method that just authenticated.
+ * Reseals an opened unbound envelope under the method that just authenticated.
  *
  * The factor secret is unchanged — this is not a factor change — so the only
  * things that move are ownership, from `unbound` to the exact method, and the

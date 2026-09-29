@@ -971,10 +971,10 @@ async function resolveBrowserCanonicalEcdsaSigningCapability(
   // Replacement race: preparation named a capability whose manifest has since
   // been replaced. That surfaces here as either no active subject for the
   // prepared capability ref, or a lookup that returns `retired`. Both are
-  // R90-INV-010 supersession, not a missing wallet: when a replacement
-  // covering the same target exists, throw the typed superseded error so
-  // `signEvmFamily` performs its one bounded re-resolution instead of
-  // reporting a terminal signing failure.
+  // supersession, not a missing wallet: when a replacement covering the same
+  // target exists, throw the typed superseded error so `signEvmFamily`
+  // performs its one bounded re-resolution instead of reporting a terminal
+  // signing failure.
   const throwSupersededByReplacement = async (fallback: () => never): Promise<never> => {
     const replacement = await activeEcdsaReplacementManifestForTarget({
       walletId,

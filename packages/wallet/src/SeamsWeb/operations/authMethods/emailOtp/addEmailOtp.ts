@@ -113,10 +113,9 @@ async function addEmailOtpWalletAuthMethodInternal(args: {
   if (!parsedRpId.ok) throw new Error(`registration.addEmailOtp ${parsedRpId.error.message}`);
   const rpId = parsedRpId.value;
 
-  /* R109C: the intent names the source it is minted for, so the fresh
-     assertion taken over its digest binds the wallet, authority, source
-     method, source session, authority state, and the server-allocated target
-     method id. */
+  /* The intent names the source it is minted for, so the fresh assertion
+     taken over its digest binds the wallet, authority, source method, source
+     session, authority state, and the server-allocated target method id. */
   const sourceClaim = await resolveAddAuthMethodSourceClaimV1(args.walletId);
   if (sourceClaim.kind !== 'resolved') {
     throw new Error(
@@ -247,7 +246,7 @@ async function addEmailOtpWalletAuthMethodInternal(args: {
     await persistFinalizedEmailOtpAuthMethodV1({
       walletId: args.walletId,
       walletAuthMethodId: intentResponse.intent.targetWalletAuthMethodId,
-      /* R109C adds to the authority the source method already belongs to, so
+      /* This adds to the authority the source method already belongs to, so
          the new method's authority is the source claim's — no authority is
          created here, and none is read back from the finalize. */
       walletAuthorityId: sourceClaim.source.walletAuthorityId,

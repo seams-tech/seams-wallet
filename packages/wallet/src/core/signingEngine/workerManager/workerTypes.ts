@@ -1858,7 +1858,7 @@ export type UnlockedWalletEd25519ExportRootCapabilityV1 = {
   readonly walletSessionId: string;
   readonly expiresAtMs: number;
   /**
-   * Present only when this unlock opened a pre-109C envelope and resealed it
+   * Present only when this unlock opened an unbound envelope and resealed it
    * under the method that authenticated. The caller persists it; until it does,
    * the old row stands and the next unlock produces the upgrade again, so a
    * failed write costs a retry rather than access.

@@ -137,7 +137,7 @@ function parseTargetAuthenticatorRow(row: TargetAuthenticatorRowV1): WebAuthnAut
     createdAtMs: registeredAtMs,
     updatedAtMs: registeredAtMs,
     /* The signing-only target registration captures no server-derived device
-       metadata, and Refactor 103B deliberately does not add any to it. */
+       metadata, and this store deliberately adds none. */
     deviceInfo: unknownWebAuthnAuthenticatorDeviceInfo(),
   };
 }

@@ -1580,9 +1580,9 @@ export interface RouterApiServiceBag {
    * a port on the bag is what makes it callable from a route.
    */
   passkeyCustody: RouterApiPasskeyCustodyService;
-  /** Durable R103 link-session transport; omitted by deployments that disable linking. */
+  /** Durable link-session transport; omitted by deployments that disable linking. */
   deviceLinking?: DeviceLinkingRouteServiceV1;
-  /** Authenticated R103 linked-device projection and revocation transport. */
+  /** Authenticated linked-device projection and revocation transport. */
   deviceManagement?: DeviceManagementRouteServiceV1;
   /** Request-scoped owner Wallet Session metadata for Device 1 approval. */
   deviceLinkingOwnerAuthorization?: DeviceLinkingOwnerAuthorizationRouteServiceV1;

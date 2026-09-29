@@ -918,7 +918,7 @@ export interface RegistrationHooksOptions {
    * to Recovery Codes in the account menu without opening a dialog.
    */
   recoveryCodeBackup?: WalletRecoveryCodeBackupDuringRegistrationV1;
-  /** Optional sink for sanitized Refactor 93 registration timing spans. */
+  /** Optional sink for sanitized registration timing spans. */
   onTimingSpan?: RegistrationTimingSpanCallbackV1;
   // Signer provisioning options used during registration.
   // When omitted, defaults are taken from

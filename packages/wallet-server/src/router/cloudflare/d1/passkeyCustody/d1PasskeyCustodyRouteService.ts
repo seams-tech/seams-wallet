@@ -255,7 +255,7 @@ export interface RouterApiPasskeyCustodyService {
   ): Promise<PasskeyCustodyEnvelopeRetrievalRouteResponse>;
 
   /**
-   * Binds a pre-109C custody envelope to the auth method that just opened it.
+   * Binds an unbound custody envelope to the auth method that just opened it.
    *
    * The ciphertext is the client's — the server never holds a factor secret and
    * cannot verify a reseal. What it can verify, and does, is that the submitted

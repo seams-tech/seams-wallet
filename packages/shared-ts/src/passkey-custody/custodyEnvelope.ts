@@ -511,7 +511,7 @@ type WalletCustodyEnvelopeOwnershipReplacementAdmissionV1 =
  * what was sealed before ownership was authenticated. And a stored owner may
  * only be replaced by itself: an envelope already bound to one method is never
  * rebound to a sibling, which is the whole point of putting the owner in the
- * AAD. That leaves exactly one transition that moves anything — the pre-109C
+ * AAD. That leaves exactly one transition that moves anything — the ownership
  * upgrade, `unbound` to the method that just proved it can open the envelope.
  */
 export function admitWalletCustodyEnvelopeOwnershipReplacementV1(input: {

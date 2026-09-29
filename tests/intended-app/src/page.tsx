@@ -1609,7 +1609,7 @@ class IntendedPageController {
     }
   }
 
-  /** Refactor 109C: an Email OTP wallet adds a Passkey on the same authority. */
+  /** An Email OTP wallet adds a Passkey on the same authority. */
   private async addPasskeyAuthMethod(): Promise<void> {
     const action: IntendedActionName = 'addPasskeyAuthMethod';
     this.dispatch({ kind: 'action_started', action });
@@ -1668,7 +1668,7 @@ class IntendedPageController {
     }
   }
 
-  /** Refactor 109C matrix: an Email OTP wallet whose signer set is ECDSA only. */
+  /** Signer-profile matrix: an Email OTP wallet whose signer set is ECDSA only. */
   private async registerEmailOtpEcdsaOnlyWallet(): Promise<void> {
     const action: IntendedActionName = 'registerEmailOtpEcdsaOnlyWallet';
     this.dispatch({ kind: 'action_started', action });
@@ -1823,8 +1823,8 @@ class IntendedPageController {
       if (String(outcome.walletId) !== this.walletId || outcome.method !== 'passkey') {
         throw new Error('Passkey unlock returned the wrong wallet or auth method');
       }
-      /* R109C: which credential the session names is the point of an added
-         method - the family alone cannot tell it from the method that added it. */
+      /* Which credential the session names is the point of an added method -
+         the family alone cannot tell it from the method that added it. */
       const unlockedSession = await this.seams.auth.getWalletSession(this.walletId);
       const summary = assertPasskeyUnlockSucceeded(unlockedSession, this.walletId);
       await this.refreshLoginState(summary.walletId);
@@ -3096,10 +3096,10 @@ function assertPasskeyRegistrationSucceeded(args: {
       };
     }
     case 'tempo': {
-      /* Refactor 94 Phase 7. A mixed plan resolves ECDSA-ready with the NEAR
-         branch still settling, so registration reports no NEAR identity here.
-         Callers that need it await near_ready through the public provisioning
-         API rather than reading it off the registration result. */
+      /* A mixed plan resolves ECDSA-ready with the NEAR branch still settling,
+         so registration reports no NEAR identity here. Callers that need it
+         await near_ready through the public provisioning API rather than
+         reading it off the registration result. */
       if (result.kind !== 'ecdsa_wallet_registered_near_pending') {
         throw new Error(`Mixed passkey registration returned result kind: ${result.kind}`);
       }

@@ -444,7 +444,7 @@ async function resolveEmailOtpAuthContextAuthoritySource(args: {
     throw new Error(`Email OTP authority selection is unavailable: ${selected.kind}`);
   }
   if (selected.authMethod.kind !== 'email_otp') {
-    /* R109C: a wallet can hold an Email OTP method without it being the
+    /* A wallet can hold an Email OTP method without it being the
        selected one - invariant 9 keeps the source method selected after an
        addition, so a Passkey wallet that has just added Email OTP still selects
        the Passkey. Falling straight through to the canonical boundary here

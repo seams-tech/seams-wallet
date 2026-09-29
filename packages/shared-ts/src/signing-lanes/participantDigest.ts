@@ -68,14 +68,14 @@ function u32(value: number): Uint8Array {
   ]);
 }
 
-/** LP32(UTF8(value)) from the Refactor 102 canonical encoding. */
+/** LP32(UTF8(value)) from the canonical lane encoding. */
 export function encodeLaneCanonicalTextV1(value: string): Uint8Array {
   if (typeof value !== 'string') throw new Error('canonical text must be a string');
   const bytes = new TextEncoder().encode(value);
   return concat([u32(bytes.length), bytes]);
 }
 
-/** LP32(BASE64URL_DECODE_CANONICAL_32(value)) from the Refactor 102 encoding. */
+/** LP32(BASE64URL_DECODE_CANONICAL_32(value)) from the canonical lane encoding. */
 export function encodeLaneCanonicalDigestV1(value: DigestB64u): Uint8Array {
   const parsed = parseDigestB64u(value);
   return concat([u32(32), base64UrlDecode(parsed)]);

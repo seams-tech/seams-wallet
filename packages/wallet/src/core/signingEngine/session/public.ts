@@ -89,7 +89,7 @@ export async function readPersistedAvailableSigningLanes(
   );
 }
 
-/** R103C human operational read: one exact owner, configured ECDSA targets. */
+/** Human operational read: one exact owner, configured ECDSA targets. */
 export async function readOwnerScopedSigningLanes(
   deps: SessionPublicDeps,
   args: {

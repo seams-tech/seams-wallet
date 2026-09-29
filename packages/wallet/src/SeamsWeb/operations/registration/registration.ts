@@ -890,10 +890,10 @@ function startRegistrationWarmup(input: {
       signerSelection: input.signerSelection,
     }),
   );
-  /* Refactor 94C. ECDSA WASM init pays 654 ms cold on the first ceremony
-     call; starting it here lets the authentication prompt absorb it. Not
-     awaited by the warmup barrier: the create path still lazily initializes,
-     so a failed or slow prewarm changes nothing. */
+  /* ECDSA WASM init pays 654 ms cold on the first ceremony call; starting it
+     here lets the authentication prompt absorb it. Not awaited by the warmup
+     barrier: the create path still lazily initializes, so a failed or slow
+     prewarm changes nothing. */
   if (registrationSelectionIncludesEcdsa(input.signerSelection)) {
     void input.context.signingEngine.prewarmEcdsaRegistrationCrypto?.().catch(() => {});
   }
@@ -4918,15 +4918,15 @@ async function registerPasskeyEd25519YaoWalletOnly(args: {
     if (responded.kind !== 'near_ed25519') {
       throw new Error('Ed25519-only registration respond returned a different signer branch');
     }
-    /* Refactor 100. The key set is provisioned from the wallet custody seed
-       rather than the passkey PRF: the ceremony generates the seed, derives
-       this key set's root under it, and seals the seed under the passkey as a
-       factor. The passkey is now an unwrap factor, not the root.
+    /* The key set is provisioned from the wallet custody seed rather than the
+       passkey PRF: the ceremony generates the seed, derives this key set's root
+       under it, and seals the seed under the passkey as a factor. The passkey
+       is now an unwrap factor, not the root.
 
        Ed25519-only wallets first, deliberately. A mixed wallet whose NEAR key
        set came from the seed while its EVM key set is still PRF-derived would
        be covered by the recovery set only halfway — recovery would restore
-       NEAR and silently miss EVM, the exact failure this refactor exists to
+       NEAR and silently miss EVM, the exact failure the seed exists to
        prevent. */
     const parsedCredentialId = parseWebAuthnCredentialIdB64u(
       String(passkeyAuthority.credential.rawId || passkeyAuthority.credential.id || '').trim(),
@@ -5192,11 +5192,10 @@ async function registerPasskeyEd25519YaoWalletOnly(args: {
       passkeyPrfFirstB64u: passkeyAuthority.prfFirstB64u,
       relayerUrl,
     });
-    /* R103 zero-prompt handoff. The owner factor was presented for this
-       registration and the atomic publication above made the owner Wallet
-       Session active, so the linking capability can be established here from
-       the envelope this ceremony just sealed — never later, and never from
-       the linking flow. */
+    /* The owner factor was presented for this registration and the atomic
+       publication above made the owner Wallet Session active, so the linking
+       capability can be established here from the envelope this ceremony just
+       sealed — never later, and never from the linking flow. */
     await establishPasskeyRegistrationEd25519ExportRootCapability({
       signingEngine: context.signingEngine,
       commit: established.commitPayload,

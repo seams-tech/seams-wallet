@@ -128,10 +128,10 @@ type EcdsaSigningMaterialSource =
     };
 
 /** The material this operation was prepared against is no longer the one the
- * wallet's active manifest names. R90-INV-010: supersession invalidates the
- * preparation -- the caller discards the prepared lane and resolves current
- * canonical state again. It is a retry condition, not a failure, and it is
- * distinct from an activation mismatch caused by asking for the wrong material. */
+ * wallet's active manifest names. Supersession invalidates the preparation --
+ * the caller discards the prepared lane and resolves current canonical state
+ * again. It is a retry condition, not a failure, and it is distinct from an
+ * activation mismatch caused by asking for the wrong material. */
 export type SupersededEcdsaSigningMaterial = {
   kind: 'superseded';
   supersessionKind:

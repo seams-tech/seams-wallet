@@ -651,8 +651,8 @@ export function parseD1WalletRegistrationFinalizeReplayResponse(
     } as const;
     return response;
   }
-  /* Refactor 94 Phase 4+5: finalize commits one signer branch per call, so a
-     replayed Ed25519 response never carries ECDSA work. */
+  /* Finalize commits one signer branch per call, so a replayed Ed25519 response
+     never carries ECDSA work. */
   if (record.kind !== 'near_ed25519') {
     return null;
   }
@@ -2692,7 +2692,7 @@ export function parseD1StoredWalletAddAuthMethodCeremony(
   }
   /* Both branches carry the SOURCE method's envelope under the same rules: it
      belongs to this wallet, it is sealed under the factor that authorized the
-     ceremony, and it is still active. R109C's Email OTP target reseals the seed
+     ceremony, and it is still active. The Email OTP target reseals the seed
      from it, so the validation is shared rather than passkey-only. */
   let custodyEnvelope: PasskeyCustodyEnvelopeRecord;
   try {

@@ -178,10 +178,9 @@ type AddAuthMethodExistingAuth =
       expectedChallengeDigestB64u: string;
     }
   | {
-      /* R103 zero-prompt handoff: owner authority proven by the active owner
-         Wallet Session bearer token. Every field here is resolved from the
-         verified session admission at the route — a request body cannot
-         supply them. */
+      /* Owner authority proven by the active owner Wallet Session bearer
+         token. Every field here is resolved from the verified session
+         admission at the route — a request body cannot supply them. */
       kind: 'wallet_session';
       walletSessionId: string;
       authorizationId: string;
@@ -747,7 +746,7 @@ export type WalletRegistrationRouteTimingName =
   | 'relayPersistenceMs'
   | 'registrationFinalizeReplayCacheMs'
   | 'registerFinalizeTotalMs'
-  /* 94C setup: the ceremony insert is the route's only D1 write, so it gets
+  /* Setup: the ceremony insert is the route's only D1 write, so it gets
      its own mark rather than being folded into a persistence total. */
   | 'registrationCeremonyInsertMs'
   | 'registerSetupTotalMs';

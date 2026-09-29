@@ -425,9 +425,9 @@ function custodyFactorFromAddAuthMethodAuth(auth: StoredWalletAddAuthMethodCerem
         credentialIdB64u: requireStoredCredentialId(auth.credentialIdB64u),
       };
     case 'wallet_session':
-      /* R103 zero-prompt handoff: the custody factor is the passkey that
-         minted the authorizing owner Wallet Session, carried on the resolved
-         session binding rather than a fresh assertion. */
+      /* The custody factor is the passkey that minted the authorizing owner
+         Wallet Session, carried on the resolved session binding rather than a
+         fresh assertion. */
       return {
         kind: 'passkey' as const,
         rpId: requireStoredRpId(auth.rpId),
@@ -466,7 +466,7 @@ async function buildAddedPasskeyCredentialBinding(input: {
   readonly now: number;
 }): Promise<WebAuthnCredentialBindingRecord> {
   if (input.ceremony.auth.kind === 'email_otp') {
-    /* R109C: an Email OTP source has no credential binding to copy identity
+    /* An Email OTP source has no credential binding to copy identity
        fields from, so they come from the wallet's own Ed25519 signer. Without
        them the added passkey claims no Ed25519 capability at unlock and the
        wallet answers that the requested Ed25519 Wallet Session is unavailable -
@@ -687,7 +687,7 @@ export class CloudflareD1WalletAuthMethodService {
          proving the addition rather than the target being added. Both are
          bound to this intent's digest, which is what the ceremony checks. */
       if (!isEmailOtpAddAuthMethodIntent(stored.intent)) {
-        /* R109C admission, here rather than only at start: this is the last
+        /* Admission, here rather than only at start: this is the last
            hop before a code leaves the building. A repeat Passkey addition
            must not issue the source Email challenge first. */
         const activeOnAuthority = await this.activeMethodsOnIntentAuthority({
@@ -708,7 +708,7 @@ export class CloudflareD1WalletAuthMethodService {
           requestOrigin: input.requestOrigin,
         });
       }
-      /* R109C admission, here rather than only at start: this is the last hop
+      /* Admission, here rather than only at start: this is the last hop
          before a code leaves the building. `startWalletAddAuthMethod` also
          admits, but the client reaches it after the challenge, so checking
          only there means a repeat addition costs the user a code and a wait
@@ -949,7 +949,7 @@ export class CloudflareD1WalletAuthMethodService {
         };
       }
 
-      /* R109C admission, and deliberately before the intent is consumed: a
+      /* Admission, and deliberately before the intent is consumed: a
          family the authority already holds is a state the caller asked for and
          already has, so it answers `already_configured` without verifying a
          target factor, minting a ceremony, or letting the browser write
@@ -1028,8 +1028,8 @@ export class CloudflareD1WalletAuthMethodService {
           /* By the exact method the caller named, not by 'the wallet's only
              active Email method'. Linking gives one wallet several active
              Email methods sharing its verified address, so the wallet-wide
-             resolver cannot survive it — the same shape as the three escaped
-             defects R103E repaired. */
+             resolver cannot survive it — the same shape as three escaped
+             defects already repaired. */
           const authority = await this.resolveActiveEmailOtpAuthorityForVerifiedMethod({
             walletId: String(walletId),
             walletAuthMethodId: String(storedAuth.auth.authorityRef.walletAuthMethodId),
@@ -1137,7 +1137,7 @@ export class CloudflareD1WalletAuthMethodService {
         sourceWalletAuthorityId: sourceMethod.walletAuthorityId,
       });
       if (!authority.ok) return authority;
-      /* R109C: the browser reseals the wallet's existing custody seed under the
+      /* The browser reseals the wallet's existing custody seed under the
          verified Email OTP factor, so this branch carries the source method's
          envelope exactly as the Passkey branch above does. The lookup is by the
          source factor, which is what makes an addition impossible on a wallet
@@ -1459,11 +1459,11 @@ export class CloudflareD1WalletAuthMethodService {
       /* Authority-scoped, not wallet-wide. `findDuplicateAuthority` asks
          whether the WALLET already has an active Email OTP method for this
          address, which is the right question at registration and the wrong one
-         here: R103E gives every linked device its own Email OTP method sharing
-         the wallet's verified address, so the wallet-wide answer would reject
-         R109C's addition on any wallet that has ever linked a device. What
-         must be unique is one active Email OTP method per authority, and this
-         repeats at activation the admission the start already made. */
+         here: each linked device gets its own Email OTP method sharing the
+         wallet's verified address, so the wallet-wide answer would reject this
+         addition on any wallet that has ever linked a device. What must be
+         unique is one active Email OTP method per authority, and this repeats
+         at activation the admission the start already made. */
       const authorityEmailOtpMethods = (
         await this.getWalletAuthMethodStore().listForWalletV2({ walletId })
       )
@@ -1502,7 +1502,7 @@ export class CloudflareD1WalletAuthMethodService {
           message: 'Email OTP add-auth-method finalize must state its enrollment target',
         };
       }
-      /* R109C: the browser opened the source envelope this ceremony carried and
+      /* The browser opened the source envelope this ceremony carried and
          resealed the same seed under the verified Email OTP factor. The
          enrollment the envelope must name is resolved here rather than trusted
          from the request — either the wallet's existing shared one, or the one
@@ -1579,8 +1579,8 @@ export class CloudflareD1WalletAuthMethodService {
       };
       /* The Passkey branch has always written a replay record; this one did
          not, so an exact retry after a lost response found neither ceremony nor
-         replay and answered not_found. R109C requires a retry to return the
-         same active method. */
+         replay and answered not_found. A retry must return the same active
+         method. */
       const emailOtpReplayStatements = await store.buildAddAuthMethodFinalizeReplayStatements({
         kind: 'wallet_add_auth_method_finalize_replay_v1',
         addAuthMethodCeremonyId: ceremony.addAuthMethodCeremonyId,
@@ -1596,9 +1596,9 @@ export class CloudflareD1WalletAuthMethodService {
           /* The transactional half of the missing-family rule. The admission
              at start is a read and cannot close a race; this aborts the batch
              if a concurrent ceremony activated an Email method on the same
-             authority first. Applied to the Email branch only: R109C permits
-             several active Passkeys on one authority, and Passkey uniqueness
-             is credential-scoped and already enforced by its own index. */
+             authority first. Applied to the Email branch only: one authority
+             may hold several active Passkeys, and Passkey uniqueness is
+             credential-scoped and already enforced by its own index. */
           ...this.getWalletAuthMethodStore().prepareActiveV2TargetFamilyAbsentGuardStatements({
             walletId,
             walletAuthorityId: ceremony.sourceWalletAuthorityId,
@@ -1871,11 +1871,10 @@ export class CloudflareD1WalletAuthMethodService {
       };
     }
     if (input.auth.kind === 'wallet_session') {
-      /* R103 zero-prompt handoff: the route already verified the bearer
-         session and resolved its minting passkey. This re-checks that the
-         passkey is still an active auth method of this exact wallet, so a
-         revoked credential cannot keep authorizing ceremonies through a
-         session it minted earlier. */
+      /* The route already verified the bearer session and resolved its
+         minting passkey. This re-checks that the passkey is still an active
+         auth method of this exact wallet, so a revoked credential cannot keep
+         authorizing ceremonies through a session it minted earlier. */
       const sessionFactorIsActive = activeWalletMethods.some(
         (method) =>
           method.kind === 'passkey' &&
@@ -3294,10 +3293,10 @@ export class CloudflareD1WalletAuthMethodService {
        returns the earliest matching row regardless of status, so it both
        blocked this addition because a SIBLING authority held an Email method
        — every wallet that has linked a device — and could miss a later active
-       row behind an earlier revoked one. The invariant R109C states is one
-       active Email OTP method per authority, so that is what is checked. The
-       registration path above keeps the wallet-wide question, which is the
-       right one for a wallet that has no authority yet. */
+       row behind an earlier revoked one. The invariant is one active Email OTP
+       method per authority, so that is what is checked. The registration path
+       above keeps the wallet-wide question, which is the right one for a
+       wallet that has no authority yet. */
     const authorityEmailOtpMethods = (
       await this.getWalletAuthMethodStore().listForWalletV2({ walletId: input.intent.walletId })
     )

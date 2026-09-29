@@ -1630,14 +1630,14 @@ export type AddAuthMethodAuth =
       expectedChallengeDigestB64u: string;
     }
   | {
-      /* R103 zero-prompt handoff: owner authority carried by the active owner
-         Wallet Session. The token travels as the bearer credential, never in
-         the request body; the server resolves every identity fact from it. */
+      /* Owner authority carried by the active owner Wallet Session. The token
+         travels as the bearer credential, never in the request body; the
+         server resolves every identity fact from it. */
       kind: 'wallet_session';
       walletSessionToken: string;
     }
   | {
-      /* R109C `email_otp_to_passkey`: the source is the wallet's Email OTP
+      /* `email_otp_to_passkey`: the source is the wallet's Email OTP
          method, proved freshly by a one-time code the server verifies against
          this addition's intent digest. The digest travels so the server can
          refuse a code taken for any other operation. */
@@ -1685,7 +1685,7 @@ export type WalletAddAuthMethodStartResponse =
       ok: true;
       addAuthMethodCeremonyId: string;
       intent: AddAuthMethodIntentV1;
-      /* R109C: the Email OTP target reseals the wallet's existing seed under
+      /* The Email OTP target reseals the wallet's existing seed under
          its new factor, so this branch carries the source envelope too. Only
          the created-credential options are passkey-specific. */
       custodyEnvelope: PasskeyCustodyEnvelopeRecord;
@@ -4675,7 +4675,7 @@ export async function finalizeWalletAddAuthMethod(
         emailOtpTarget?: never;
       }
     | {
-        /* R109C's Email OTP target: verified by its one-use grant, so the body
+        /* The Email OTP target: verified by its one-use grant, so the body
            carries the resealed envelope and no created credential. The
            enrollment target says whether this addition creates the wallet's
            shared Email enrollment or binds to the one it already has. */

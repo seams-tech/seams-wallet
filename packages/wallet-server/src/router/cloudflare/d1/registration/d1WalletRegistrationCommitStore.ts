@@ -125,7 +125,7 @@ function assertCommitWalletIdentity(input: D1WalletRegistrationCommitInput): voi
   }
   /* No signer-count floor. An Ed25519-only wallet is committed pending, with
      its sole signer arriving later from deferred Yao — the wallet legitimately
-     exists before any signer does (94C). What must hold is that every signer
+     exists before any signer does. What must hold is that every signer
      present belongs to this wallet, which the loop below enforces. */
   for (const signer of input.walletSigners) {
     if (signer.walletId !== input.wallet.walletId) {

@@ -729,10 +729,9 @@ type StoredWalletAddAuthMethodCeremonyBase = {
         credentialIdB64u: string;
       }
     | {
-        /* R103 zero-prompt handoff: the ceremony was authorized by an active
-           owner Wallet Session. The passkey identity is the session's minting
-           authority, resolved server-side from the session binding — never
-           from the request body. */
+        /* The ceremony was authorized by an active owner Wallet Session. The
+           passkey identity is the session's minting authority, resolved
+           server-side from the session binding — never from the request body. */
         kind: 'wallet_session';
         walletSessionId: string;
         authorizationId: string;
@@ -3459,7 +3458,7 @@ function parseStoredWalletAddAuthMethodCeremony(
   if (!auth || !intentRecord) return null;
   /* Both branches carry the SOURCE method's envelope, and both validate it the
      same way: it belongs to this wallet, it is sealed under the factor that
-     authorized this ceremony, and it is still active. R109C's Email OTP target
+     authorized this ceremony, and it is still active. The Email OTP target
      needs it to reseal the seed, so the check is shared rather than duplicated
      into the branch below. */
   let custodyEnvelope: PasskeyCustodyEnvelopeRecord;

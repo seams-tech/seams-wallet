@@ -186,8 +186,8 @@ const ecdsaRegistrationSuccess: RegistrationResult = {
 };
 void ecdsaRegistrationSuccess;
 
-/* Refactor 94 Phase 7. A mixed plan resolves ECDSA-ready with NEAR still
-   settling; there is no synchronous mixed result to model any more. */
+/* A mixed plan resolves ECDSA-ready with NEAR still settling; there is no
+   synchronous mixed result to model any more. */
 const mixedRegistrationPendingSuccess: RegistrationResult = {
   success: true,
   kind: 'ecdsa_wallet_registered_near_pending',
