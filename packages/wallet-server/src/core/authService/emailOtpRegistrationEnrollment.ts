@@ -1,4 +1,3 @@
-import { base64UrlDecode } from '@shared/utils/encoders';
 import {
   EMAIL_OTP_INITIAL_ENROLLMENT_VERSION,
   emailOtpDeviceEnrollmentId,
@@ -16,6 +15,7 @@ import type {
 import type { IdentityStore } from '../IdentityStore';
 import type { WalletStore } from '../WalletStore';
 import { validateSecp256k1PublicKey33 } from '../ThresholdService/evmCryptoWasm';
+import { validateEmailOtpEnrollmentMaterial } from '../../router/cloudflare/d1/emailOtp/d1EmailOtpRecords';
 import {
   parseRawEmailOtpRegistrationChallengeProofInput,
   type EmailOtpRegistrationChallengeProofInput,
@@ -28,16 +28,6 @@ import type { VerifyEmailOtpChallengeCodeRequest } from './emailOtpChallengeVeri
 function assertNever(value: never): never {
   throw new Error(`Unexpected value: ${String(value)}`);
 }
-
-export type EmailOtpEnrollmentMaterialValidationResult =
-  | {
-      ok: true;
-      enrollmentSealKeyVersion: string;
-      serverSealedFactorCiphertextB64u: string;
-      clientUnlockPublicKeyB64u: string;
-      unlockKeyVersion: string;
-    }
-  | { ok: false; code: string; message: string };
 
 export type VerifyEmailOtpEnrollmentInput = {
   request: VerifyEmailOtpEnrollmentRequest;
@@ -67,83 +57,6 @@ type VerifyEmailOtpEnrollmentRequest = {
   unlockKeyVersion?: unknown;
   googleEmailOtpRegistrationAttemptId?: unknown;
 };
-
-export async function validateEmailOtpEnrollmentMaterial(request: {
-  enrollmentSealKeyVersion?: unknown;
-  clientUnlockPublicKeyB64u?: unknown;
-  unlockKeyVersion?: unknown;
-  serverSealedFactorCiphertextB64u?: unknown;
-}): Promise<
-  | {
-      ok: true;
-      enrollmentSealKeyVersion: string;
-      clientUnlockPublicKeyB64u: string;
-      unlockKeyVersion: string;
-      serverSealedFactorCiphertextB64u: string;
-    }
-  | { ok: false; code: string; message: string }
-> {
-  const enrollmentSealKeyVersion = toOptionalTrimmedString(request.enrollmentSealKeyVersion);
-  const clientUnlockPublicKeyB64u = toOptionalTrimmedString(request.clientUnlockPublicKeyB64u);
-  const unlockKeyVersion = toOptionalTrimmedString(request.unlockKeyVersion);
-  const serverSealedFactorCiphertextB64u = toOptionalTrimmedString(
-    request.serverSealedFactorCiphertextB64u,
-  );
-  if (!enrollmentSealKeyVersion) {
-    return {
-      ok: false,
-      code: 'invalid_body',
-      message: 'enrollmentSealKeyVersion is required',
-    };
-  }
-  if (!clientUnlockPublicKeyB64u) {
-    return { ok: false, code: 'invalid_body', message: 'clientUnlockPublicKeyB64u is required' };
-  }
-  if (!unlockKeyVersion) {
-    return { ok: false, code: 'invalid_body', message: 'unlockKeyVersion is required' };
-  }
-  if (!serverSealedFactorCiphertextB64u) {
-    return {
-      ok: false,
-      code: 'invalid_body',
-      message: 'serverSealedFactorCiphertextB64u is required',
-    };
-  }
-  let unlockPublicKeyBytes: Uint8Array;
-  try {
-    unlockPublicKeyBytes = base64UrlDecode(clientUnlockPublicKeyB64u);
-  } catch {
-    return {
-      ok: false,
-      code: 'invalid_body',
-      message: 'clientUnlockPublicKeyB64u must be valid base64url',
-    };
-  }
-  if (unlockPublicKeyBytes.length !== 33) {
-    return {
-      ok: false,
-      code: 'invalid_body',
-      message: 'clientUnlockPublicKeyB64u must decode to 33 bytes (compressed secp256k1 pubkey)',
-    };
-  }
-  try {
-    await validateSecp256k1PublicKey33(unlockPublicKeyBytes);
-  } catch {
-    return {
-      ok: false,
-      code: 'invalid_body',
-      message: 'clientUnlockPublicKeyB64u is not a valid secp256k1 public key',
-    };
-  }
-
-  return {
-    ok: true,
-    enrollmentSealKeyVersion,
-    clientUnlockPublicKeyB64u,
-    unlockKeyVersion,
-    serverSealedFactorCiphertextB64u,
-  };
-}
 
 async function resolveEmailOtpRegistrationChallengeProof(input: {
   proofInput: EmailOtpRegistrationChallengeProofInput;
@@ -260,7 +173,10 @@ export async function verifyEmailOtpEnrollment(input: VerifyEmailOtpEnrollmentIn
       message: 'Email OTP enrollment verification did not include a verified email',
     };
   }
-  const enrollmentMaterial = await validateEmailOtpEnrollmentMaterial(request);
+  const enrollmentMaterial = await validateEmailOtpEnrollmentMaterial({
+    material: request,
+    validateSecp256k1PublicKey33,
+  });
   if (!enrollmentMaterial.ok) return enrollmentMaterial;
   const orgId = toOptionalTrimmedString(verified.orgId) || '';
   if (!orgId) {

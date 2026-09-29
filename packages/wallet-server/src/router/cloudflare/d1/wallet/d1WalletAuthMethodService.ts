@@ -90,8 +90,8 @@ import type { CloudflareD1GoogleEmailOtpRegistrationAttemptStore } from '../emai
 import {
   expiredGoogleEmailOtpRegistrationAttemptRecord,
   pendingGoogleEmailOtpRegistrationAttemptWithSelectedCandidate,
-  runtimePolicyScopeKey,
 } from '../emailOtp/d1GoogleEmailOtpRegistrationRecords';
+import { runtimePolicyScopeKey } from '../../../../core/EmailOtpRecords';
 import { toRecordValue } from '../auth/d1RouterApiAuthBoundary';
 import {
   d1HostIsWithinWebAuthnRpId,

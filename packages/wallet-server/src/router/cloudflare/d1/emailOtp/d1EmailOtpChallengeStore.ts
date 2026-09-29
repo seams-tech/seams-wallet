@@ -1,9 +1,13 @@
-import { EMAIL_OTP_CHANNEL } from '@shared/utils/emailOtpDomain';
 import type {
   EmailOtpChallengeOperation,
   EmailOtpChallengeRecord,
   EmailOtpUnlockChallengeRecord,
 } from '../../../../core/EmailOtpStores';
+import {
+  emailOtpChallengeRows,
+  emailOtpUnlockChallengeRows,
+  type ScopedD1Prepare,
+} from '../../../../core/emailOtpD1Statements';
 import type {
   D1DatabaseLike,
   D1PreparedStatementLike,
@@ -169,41 +173,7 @@ export class CloudflareD1EmailOtpChallengeStore {
   }
 
   async put(record: EmailOtpChallengeRecord): Promise<void> {
-    await this.prepare(
-      `INSERT INTO email_otp_challenges (
-        namespace,
-        org_id,
-        project_id,
-        env_id,
-        challenge_id,
-        challenge_subject_id,
-        wallet_id,
-        record_org_id,
-        otp_channel,
-        owner_proof_binding_digest,
-        action,
-        operation,
-        otp_code,
-        record_json,
-        created_at_ms,
-        expires_at_ms
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        record.challengeId,
-        record.challengeSubjectId,
-        record.walletId,
-        record.orgId || '',
-        EMAIL_OTP_CHANNEL,
-        record.ownerProofBindingDigest,
-        record.action,
-        record.operation,
-        record.otpCode,
-        JSON.stringify(record),
-        record.createdAtMs,
-        record.expiresAtMs,
-      ],
-    ).run();
+    await emailOtpChallengeRows.insert(this.prepare, record).run();
   }
 
   async updateAttemptCount(record: EmailOtpChallengeRecord, attemptCount: number): Promise<void> {
@@ -223,15 +193,7 @@ export class CloudflareD1EmailOtpChallengeStore {
   }
 
   async delete(challengeId: string): Promise<void> {
-    await this.prepare(
-      `DELETE FROM email_otp_challenges
-        WHERE namespace = ?
-          AND org_id = ?
-          AND project_id = ?
-          AND env_id = ?
-          AND challenge_id = ?`,
-      [challengeId],
-    ).run();
+    await emailOtpChallengeRows.delete(this.prepare, challengeId).run();
   }
 
   async consume(challengeId: string): Promise<EmailOtpChallengeRecord | null> {
@@ -452,44 +414,13 @@ export class CloudflareD1EmailOtpChallengeStore {
   }
 
   async putUnlock(record: EmailOtpUnlockChallengeRecord): Promise<void> {
-    await this.prepare(
-      `INSERT INTO email_otp_unlock_challenges (
-        namespace,
-        org_id,
-        project_id,
-        env_id,
-        challenge_id,
-        wallet_id,
-        user_id,
-        record_org_id,
-        record_json,
-        created_at_ms,
-        expires_at_ms
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        record.challengeId,
-        record.walletId,
-        record.userId,
-        record.orgId || '',
-        JSON.stringify(record),
-        record.createdAtMs,
-        record.expiresAtMs,
-      ],
-    ).run();
+    await emailOtpUnlockChallengeRows.insert(this.prepare, record).run();
   }
 
   async consumeUnlock(challengeId: string): Promise<EmailOtpUnlockChallengeRecord | null> {
-    const row = await this.prepare(
-      `DELETE FROM email_otp_unlock_challenges
-        WHERE namespace = ?
-          AND org_id = ?
-          AND project_id = ?
-          AND env_id = ?
-          AND challenge_id = ?
-      RETURNING record_json, expires_at_ms`,
-      [challengeId],
-    ).first<D1EmailOtpUnlockChallengeRow>();
+    const row = await emailOtpUnlockChallengeRows
+      .consume(this.prepare, challengeId)
+      .first<D1EmailOtpUnlockChallengeRow>();
     return parseEmailOtpUnlockChallengeRow(row);
   }
 
@@ -552,9 +483,8 @@ export class CloudflareD1EmailOtpChallengeStore {
     return parseEmailOtpChallengeRow(row);
   }
 
-  private prepare(sql: string, values: readonly unknown[]): D1PreparedStatementLike {
-    return this.database.prepare(sql).bind(...this.scopeValues(values));
-  }
+  private readonly prepare: ScopedD1Prepare = (sql, values) =>
+    this.database.prepare(sql).bind(...this.scopeValues(values));
 
   private scopeValues(values: readonly unknown[]): readonly unknown[] {
     return [this.namespace, this.orgId, this.projectId, this.envId, ...values];

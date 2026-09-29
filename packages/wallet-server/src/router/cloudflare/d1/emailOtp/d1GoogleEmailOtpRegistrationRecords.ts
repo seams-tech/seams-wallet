@@ -58,20 +58,12 @@ export function requireRuntimePolicyScope(input: unknown): RuntimePolicyScope {
   );
 }
 
-export function runtimePolicyScopeKey(scope: RuntimePolicyScope | undefined): string {
-  if (!scope) return '';
-  return `${scope.orgId}\n${scope.projectId}\n${scope.envId}\n${scope.signingRootVersion}`;
-}
-
 export function activeGoogleEmailOtpRegistrationAttemptRecord(input: {
   readonly record: PendingGoogleEmailOtpRegistrationAttemptRecord;
   readonly updatedAtMs: number;
 }): GoogleEmailOtpRegistrationAttemptRecord {
   const terminal = terminalGoogleEmailOtpRegistrationAttemptRecord({
-    fields: {
-      ...googleEmailOtpRegistrationAttemptFields(input.record),
-      updatedAtMs: input.updatedAtMs,
-    },
+    fields: { ...input.record, updatedAtMs: input.updatedAtMs },
     state: 'active',
     ...(input.record.state === 'key_finalized'
       ? { finalizedPublicKey: input.record.finalizedPublicKey }
@@ -86,10 +78,7 @@ export function expiredGoogleEmailOtpRegistrationAttemptRecord(input: {
   readonly updatedAtMs: number;
 }): GoogleEmailOtpRegistrationAttemptRecord {
   const terminal = terminalGoogleEmailOtpRegistrationAttemptRecord({
-    fields: {
-      ...googleEmailOtpRegistrationAttemptFields(input.record),
-      updatedAtMs: input.updatedAtMs,
-    },
+    fields: { ...input.record, updatedAtMs: input.updatedAtMs },
     state: 'expired',
     ...('finalizedPublicKey' in input.record && input.record.finalizedPublicKey
       ? { finalizedPublicKey: input.record.finalizedPublicKey }
@@ -108,10 +97,7 @@ export function failedGoogleEmailOtpRegistrationAttemptWithCode(input: {
   readonly updatedAtMs: number;
 }): GoogleEmailOtpRegistrationAttemptRecord {
   const terminal = terminalGoogleEmailOtpRegistrationAttemptRecord({
-    fields: {
-      ...googleEmailOtpRegistrationAttemptFields(input.record),
-      updatedAtMs: input.updatedAtMs,
-    },
+    fields: { ...input.record, updatedAtMs: input.updatedAtMs },
     state: 'failed',
     failureCode: input.failureCode,
     ...(input.record.state === 'key_finalized'
@@ -195,10 +181,10 @@ function parseGoogleEmailOtpRegistrationAttemptRecord(
   };
   switch (state) {
     case 'started':
-      return startedGoogleEmailOtpRegistrationAttemptRecord(fields);
+      return registrationAttemptRecord(fields, { state });
     case 'key_finalized':
-      return keyFinalizedGoogleEmailOtpRegistrationAttemptRecord({
-        ...fields,
+      return registrationAttemptRecord(fields, {
+        state,
         finalizedPublicKey: finalizedPublicKey || '',
       });
     case 'active':
@@ -229,60 +215,6 @@ export function parseGoogleEmailOtpRegistrationAttemptRow(
   return record;
 }
 
-export function registrationAttemptMatchesStartedScope(
-  record: GoogleEmailOtpRegistrationAttemptRecord,
-  input: {
-    readonly providerSubject: string;
-    readonly email: string;
-    readonly orgId: string;
-    readonly ownerProofBindingDigest: string;
-    readonly runtimePolicyScope?: RuntimePolicyScope;
-    readonly nowMs: number;
-  },
-): record is PendingGoogleEmailOtpRegistrationAttemptRecord {
-  return (
-    record.providerSubject === input.providerSubject &&
-    record.email === input.email &&
-    record.ownerProofBindingDigest === input.ownerProofBindingDigest &&
-    record.runtimePolicyScope?.orgId === input.orgId &&
-    runtimePolicyScopeKey(record.runtimePolicyScope) ===
-      runtimePolicyScopeKey(input.runtimePolicyScope) &&
-    (record.state === 'started' || record.state === 'key_finalized') &&
-    record.expiresAtMs > input.nowMs
-  );
-}
-
-export function registrationAttemptMatchesReplacementScope(
-  record: GoogleEmailOtpRegistrationAttemptRecord,
-  input: {
-    readonly providerSubject: string;
-    readonly email: string;
-    readonly orgId: string;
-    readonly ownerProofBindingDigest: string;
-    readonly runtimePolicyScope?: RuntimePolicyScope;
-    readonly nowMs: number;
-  },
-): record is PendingGoogleEmailOtpRegistrationAttemptRecord {
-  return (
-    record.providerSubject === input.providerSubject &&
-    record.email === input.email &&
-    record.ownerProofBindingDigest !== input.ownerProofBindingDigest &&
-    record.runtimePolicyScope?.orgId === input.orgId &&
-    runtimePolicyScopeKey(record.runtimePolicyScope) ===
-      runtimePolicyScopeKey(input.runtimePolicyScope) &&
-    (record.state === 'started' || record.state === 'key_finalized') &&
-    record.expiresAtMs > input.nowMs
-  );
-}
-
-export function googleEmailOtpRegistrationOfferWalletIdsJson(
-  candidates: NonEmptyGoogleEmailOtpRegistrationOfferCandidates,
-): string {
-  const walletIds: string[] = [];
-  for (const candidate of candidates) walletIds.push(candidate.walletId);
-  return JSON.stringify(walletIds);
-}
-
 export function googleEmailOtpRegistrationOfferForResponse(
   input: Pick<
     PendingGoogleEmailOtpRegistrationAttemptRecord,
@@ -309,49 +241,7 @@ export function pendingGoogleEmailOtpRegistrationAttemptWithUpdatedAt(
   record: PendingGoogleEmailOtpRegistrationAttemptRecord,
   updatedAtMs: number,
 ): PendingGoogleEmailOtpRegistrationAttemptRecord {
-  if (record.state === 'started') {
-    return {
-      version: 'google_email_otp_registration_attempt_v1',
-      attemptId: record.attemptId,
-      providerSubject: record.providerSubject,
-      email: record.email,
-      walletId: record.walletId,
-      offerId: record.offerId,
-      offerCandidates: record.offerCandidates,
-      selectedCandidateId: record.selectedCandidateId,
-      ownerProofBindingDigest: record.ownerProofBindingDigest,
-      authProvider: record.authProvider,
-      accountIdSlugVersion: 'hmac_readable_v1',
-      walletIdDerivationNonce: record.walletIdDerivationNonce,
-      collisionCounter: record.collisionCounter,
-      state: 'started',
-      createdAtMs: record.createdAtMs,
-      updatedAtMs,
-      expiresAtMs: record.expiresAtMs,
-      ...(record.runtimePolicyScope ? { runtimePolicyScope: record.runtimePolicyScope } : {}),
-    };
-  }
-  return {
-    version: 'google_email_otp_registration_attempt_v1',
-    attemptId: record.attemptId,
-    providerSubject: record.providerSubject,
-    email: record.email,
-    walletId: record.walletId,
-    offerId: record.offerId,
-    offerCandidates: record.offerCandidates,
-    selectedCandidateId: record.selectedCandidateId,
-    ownerProofBindingDigest: record.ownerProofBindingDigest,
-    authProvider: record.authProvider,
-    accountIdSlugVersion: 'hmac_readable_v1',
-    walletIdDerivationNonce: record.walletIdDerivationNonce,
-    collisionCounter: record.collisionCounter,
-    state: 'key_finalized',
-    finalizedPublicKey: record.finalizedPublicKey,
-    createdAtMs: record.createdAtMs,
-    updatedAtMs,
-    expiresAtMs: record.expiresAtMs,
-    ...(record.runtimePolicyScope ? { runtimePolicyScope: record.runtimePolicyScope } : {}),
-  };
+  return pendingRegistrationAttemptRecord({ ...record, updatedAtMs }, record);
 }
 
 export function pendingGoogleEmailOtpRegistrationAttemptWithSelectedCandidate(input: {
@@ -359,53 +249,16 @@ export function pendingGoogleEmailOtpRegistrationAttemptWithSelectedCandidate(in
   readonly candidate: GoogleEmailOtpRegistrationOfferCandidateRecord;
   readonly updatedAtMs: number;
 }): PendingGoogleEmailOtpRegistrationAttemptRecord {
-  if (input.record.state === 'started') {
-    return {
-      version: 'google_email_otp_registration_attempt_v1',
-      attemptId: input.record.attemptId,
-      providerSubject: input.record.providerSubject,
-      email: input.record.email,
+  return pendingRegistrationAttemptRecord(
+    {
+      ...input.record,
       walletId: input.candidate.walletId,
-      offerId: input.record.offerId,
-      offerCandidates: input.record.offerCandidates,
       selectedCandidateId: input.candidate.candidateId,
-      ownerProofBindingDigest: input.record.ownerProofBindingDigest,
-      authProvider: input.record.authProvider,
-      accountIdSlugVersion: 'hmac_readable_v1',
-      walletIdDerivationNonce: input.record.walletIdDerivationNonce,
       collisionCounter: input.candidate.collisionCounter,
-      state: 'started',
-      createdAtMs: input.record.createdAtMs,
       updatedAtMs: input.updatedAtMs,
-      expiresAtMs: input.record.expiresAtMs,
-      ...(input.record.runtimePolicyScope
-        ? { runtimePolicyScope: input.record.runtimePolicyScope }
-        : {}),
-    };
-  }
-  return {
-    version: 'google_email_otp_registration_attempt_v1',
-    attemptId: input.record.attemptId,
-    providerSubject: input.record.providerSubject,
-    email: input.record.email,
-    walletId: input.candidate.walletId,
-    offerId: input.record.offerId,
-    offerCandidates: input.record.offerCandidates,
-    selectedCandidateId: input.candidate.candidateId,
-    ownerProofBindingDigest: input.record.ownerProofBindingDigest,
-    authProvider: input.record.authProvider,
-    accountIdSlugVersion: 'hmac_readable_v1',
-    walletIdDerivationNonce: input.record.walletIdDerivationNonce,
-    collisionCounter: input.candidate.collisionCounter,
-    state: 'key_finalized',
-    finalizedPublicKey: input.record.finalizedPublicKey,
-    createdAtMs: input.record.createdAtMs,
-    updatedAtMs: input.updatedAtMs,
-    expiresAtMs: input.record.expiresAtMs,
-    ...(input.record.runtimePolicyScope
-      ? { runtimePolicyScope: input.record.runtimePolicyScope }
-      : {}),
-  };
+    },
+    input.record,
+  );
 }
 
 export function abandonedGoogleEmailOtpRegistrationAttemptRecord(input: {
@@ -413,32 +266,16 @@ export function abandonedGoogleEmailOtpRegistrationAttemptRecord(input: {
   readonly failureCode: 'owner_proof_binding_replaced' | 'offer_restarted_by_user';
   readonly updatedAtMs: number;
 }): GoogleEmailOtpRegistrationAttemptRecord {
-  return {
-    version: 'google_email_otp_registration_attempt_v1',
-    attemptId: input.record.attemptId,
-    providerSubject: input.record.providerSubject,
-    email: input.record.email,
-    walletId: input.record.walletId,
-    offerId: input.record.offerId,
-    offerCandidates: input.record.offerCandidates,
-    selectedCandidateId: input.record.selectedCandidateId,
-    ownerProofBindingDigest: input.record.ownerProofBindingDigest,
-    authProvider: input.record.authProvider,
-    accountIdSlugVersion: 'hmac_readable_v1',
-    walletIdDerivationNonce: input.record.walletIdDerivationNonce,
-    collisionCounter: input.record.collisionCounter,
-    state: 'abandoned',
-    ...(input.record.state === 'key_finalized'
-      ? { finalizedPublicKey: input.record.finalizedPublicKey }
-      : {}),
-    failureCode: input.failureCode,
-    createdAtMs: input.record.createdAtMs,
-    updatedAtMs: input.updatedAtMs,
-    expiresAtMs: input.record.expiresAtMs,
-    ...(input.record.runtimePolicyScope
-      ? { runtimePolicyScope: input.record.runtimePolicyScope }
-      : {}),
-  };
+  return registrationAttemptRecord(
+    { ...input.record, updatedAtMs: input.updatedAtMs },
+    {
+      state: 'abandoned',
+      ...(input.record.state === 'key_finalized'
+        ? { finalizedPublicKey: input.record.finalizedPublicKey }
+        : {}),
+      failureCode: input.failureCode,
+    },
+  );
 }
 
 function parseRuntimePolicyScope(input: unknown): RuntimePolicyScope | undefined {
@@ -506,55 +343,46 @@ function googleEmailOtpRegistrationAttemptState(
   }
 }
 
-function startedGoogleEmailOtpRegistrationAttemptRecord(
-  input: GoogleEmailOtpRegistrationAttemptParseFields,
-): GoogleEmailOtpRegistrationAttemptRecord {
+/**
+ * Builds an attempt from its fields, with `state` carrying the state and the fields stored beside
+ * it. The key order is the stored JSON's: terminal states append their own fields after these.
+ */
+function registrationAttemptRecord<
+  const S extends { readonly state: GoogleEmailOtpRegistrationAttemptRecord['state'] },
+>(fields: GoogleEmailOtpRegistrationAttemptParseFields, state: S) {
   return {
-    version: 'google_email_otp_registration_attempt_v1',
-    attemptId: input.attemptId,
-    providerSubject: input.providerSubject,
-    email: input.email,
-    walletId: input.walletId,
-    offerId: input.offerId,
-    offerCandidates: input.offerCandidates,
-    selectedCandidateId: input.selectedCandidateId,
-    ownerProofBindingDigest: input.ownerProofBindingDigest,
-    authProvider: input.authProvider,
-    accountIdSlugVersion: 'hmac_readable_v1',
-    walletIdDerivationNonce: input.walletIdDerivationNonce,
-    collisionCounter: input.collisionCounter,
-    state: 'started',
-    createdAtMs: input.createdAtMs,
-    updatedAtMs: input.updatedAtMs,
-    expiresAtMs: input.expiresAtMs,
-    ...(input.runtimePolicyScope ? { runtimePolicyScope: input.runtimePolicyScope } : {}),
+    version: 'google_email_otp_registration_attempt_v1' as const,
+    attemptId: fields.attemptId,
+    providerSubject: fields.providerSubject,
+    email: fields.email,
+    walletId: fields.walletId,
+    offerId: fields.offerId,
+    offerCandidates: fields.offerCandidates,
+    selectedCandidateId: fields.selectedCandidateId,
+    ownerProofBindingDigest: fields.ownerProofBindingDigest,
+    authProvider: fields.authProvider,
+    accountIdSlugVersion: 'hmac_readable_v1' as const,
+    walletIdDerivationNonce: fields.walletIdDerivationNonce,
+    collisionCounter: fields.collisionCounter,
+    ...state,
+    createdAtMs: fields.createdAtMs,
+    updatedAtMs: fields.updatedAtMs,
+    expiresAtMs: fields.expiresAtMs,
+    ...(fields.runtimePolicyScope ? { runtimePolicyScope: fields.runtimePolicyScope } : {}),
   };
 }
 
-function keyFinalizedGoogleEmailOtpRegistrationAttemptRecord(
-  input: GoogleEmailOtpRegistrationAttemptParseFields & { readonly finalizedPublicKey: string },
-): GoogleEmailOtpRegistrationAttemptRecord {
-  return {
-    version: 'google_email_otp_registration_attempt_v1',
-    attemptId: input.attemptId,
-    providerSubject: input.providerSubject,
-    email: input.email,
-    walletId: input.walletId,
-    offerId: input.offerId,
-    offerCandidates: input.offerCandidates,
-    selectedCandidateId: input.selectedCandidateId,
-    ownerProofBindingDigest: input.ownerProofBindingDigest,
-    authProvider: input.authProvider,
-    accountIdSlugVersion: 'hmac_readable_v1',
-    walletIdDerivationNonce: input.walletIdDerivationNonce,
-    collisionCounter: input.collisionCounter,
-    state: 'key_finalized',
-    finalizedPublicKey: input.finalizedPublicKey,
-    createdAtMs: input.createdAtMs,
-    updatedAtMs: input.updatedAtMs,
-    expiresAtMs: input.expiresAtMs,
-    ...(input.runtimePolicyScope ? { runtimePolicyScope: input.runtimePolicyScope } : {}),
-  };
+/** Rebuilds a pending attempt from changed fields, keeping its state. */
+function pendingRegistrationAttemptRecord(
+  fields: GoogleEmailOtpRegistrationAttemptParseFields,
+  record: PendingGoogleEmailOtpRegistrationAttemptRecord,
+): PendingGoogleEmailOtpRegistrationAttemptRecord {
+  return record.state === 'started'
+    ? registrationAttemptRecord(fields, { state: 'started' })
+    : registrationAttemptRecord(fields, {
+        state: 'key_finalized',
+        finalizedPublicKey: record.finalizedPublicKey,
+      });
 }
 
 function terminalGoogleEmailOtpRegistrationAttemptRecord(input: {
@@ -563,123 +391,25 @@ function terminalGoogleEmailOtpRegistrationAttemptRecord(input: {
   readonly finalizedPublicKey?: string;
   readonly failureCode?: string;
 }): GoogleEmailOtpRegistrationAttemptRecord | null {
-  const fields = input.fields;
+  const finalized = input.finalizedPublicKey
+    ? { finalizedPublicKey: input.finalizedPublicKey }
+    : {};
   switch (input.state) {
     case 'active':
-      return {
-        version: 'google_email_otp_registration_attempt_v1',
-        attemptId: fields.attemptId,
-        providerSubject: fields.providerSubject,
-        email: fields.email,
-        walletId: fields.walletId,
-        offerId: fields.offerId,
-        offerCandidates: fields.offerCandidates,
-        selectedCandidateId: fields.selectedCandidateId,
-        ownerProofBindingDigest: fields.ownerProofBindingDigest,
-        authProvider: fields.authProvider,
-        accountIdSlugVersion: 'hmac_readable_v1',
-        walletIdDerivationNonce: fields.walletIdDerivationNonce,
-        collisionCounter: fields.collisionCounter,
-        state: 'active',
-        createdAtMs: fields.createdAtMs,
-        updatedAtMs: fields.updatedAtMs,
-        expiresAtMs: fields.expiresAtMs,
-        ...(fields.runtimePolicyScope ? { runtimePolicyScope: fields.runtimePolicyScope } : {}),
-        ...(input.finalizedPublicKey ? { finalizedPublicKey: input.finalizedPublicKey } : {}),
-      };
+      return { ...registrationAttemptRecord(input.fields, { state: 'active' }), ...finalized };
     case 'abandoned':
-      if (!input.failureCode) return null;
-      return {
-        version: 'google_email_otp_registration_attempt_v1',
-        attemptId: fields.attemptId,
-        providerSubject: fields.providerSubject,
-        email: fields.email,
-        walletId: fields.walletId,
-        offerId: fields.offerId,
-        offerCandidates: fields.offerCandidates,
-        selectedCandidateId: fields.selectedCandidateId,
-        ownerProofBindingDigest: fields.ownerProofBindingDigest,
-        authProvider: fields.authProvider,
-        accountIdSlugVersion: 'hmac_readable_v1',
-        walletIdDerivationNonce: fields.walletIdDerivationNonce,
-        collisionCounter: fields.collisionCounter,
-        state: 'abandoned',
-        createdAtMs: fields.createdAtMs,
-        updatedAtMs: fields.updatedAtMs,
-        expiresAtMs: fields.expiresAtMs,
-        ...(fields.runtimePolicyScope ? { runtimePolicyScope: fields.runtimePolicyScope } : {}),
-        ...(input.finalizedPublicKey ? { finalizedPublicKey: input.finalizedPublicKey } : {}),
-        failureCode: input.failureCode,
-      };
     case 'failed':
       if (!input.failureCode) return null;
       return {
-        version: 'google_email_otp_registration_attempt_v1',
-        attemptId: fields.attemptId,
-        providerSubject: fields.providerSubject,
-        email: fields.email,
-        walletId: fields.walletId,
-        offerId: fields.offerId,
-        offerCandidates: fields.offerCandidates,
-        selectedCandidateId: fields.selectedCandidateId,
-        ownerProofBindingDigest: fields.ownerProofBindingDigest,
-        authProvider: fields.authProvider,
-        accountIdSlugVersion: 'hmac_readable_v1',
-        walletIdDerivationNonce: fields.walletIdDerivationNonce,
-        collisionCounter: fields.collisionCounter,
-        state: 'failed',
-        createdAtMs: fields.createdAtMs,
-        updatedAtMs: fields.updatedAtMs,
-        expiresAtMs: fields.expiresAtMs,
-        ...(fields.runtimePolicyScope ? { runtimePolicyScope: fields.runtimePolicyScope } : {}),
-        ...(input.finalizedPublicKey ? { finalizedPublicKey: input.finalizedPublicKey } : {}),
+        ...registrationAttemptRecord(input.fields, { state: input.state }),
+        ...finalized,
         failureCode: input.failureCode,
       };
     case 'expired':
       return {
-        version: 'google_email_otp_registration_attempt_v1',
-        attemptId: fields.attemptId,
-        providerSubject: fields.providerSubject,
-        email: fields.email,
-        walletId: fields.walletId,
-        offerId: fields.offerId,
-        offerCandidates: fields.offerCandidates,
-        selectedCandidateId: fields.selectedCandidateId,
-        ownerProofBindingDigest: fields.ownerProofBindingDigest,
-        authProvider: fields.authProvider,
-        accountIdSlugVersion: 'hmac_readable_v1',
-        walletIdDerivationNonce: fields.walletIdDerivationNonce,
-        collisionCounter: fields.collisionCounter,
-        state: 'expired',
-        createdAtMs: fields.createdAtMs,
-        updatedAtMs: fields.updatedAtMs,
-        expiresAtMs: fields.expiresAtMs,
-        ...(fields.runtimePolicyScope ? { runtimePolicyScope: fields.runtimePolicyScope } : {}),
-        ...(input.finalizedPublicKey ? { finalizedPublicKey: input.finalizedPublicKey } : {}),
+        ...registrationAttemptRecord(input.fields, { state: 'expired' }),
+        ...finalized,
         ...(input.failureCode ? { failureCode: input.failureCode } : {}),
       };
   }
-}
-
-function googleEmailOtpRegistrationAttemptFields(
-  record: GoogleEmailOtpRegistrationAttemptRecord,
-): GoogleEmailOtpRegistrationAttemptParseFields {
-  return {
-    attemptId: record.attemptId,
-    providerSubject: record.providerSubject,
-    email: record.email,
-    walletId: record.walletId,
-    offerId: record.offerId,
-    offerCandidates: record.offerCandidates,
-    selectedCandidateId: record.selectedCandidateId,
-    ownerProofBindingDigest: record.ownerProofBindingDigest,
-    authProvider: record.authProvider,
-    accountIdSlugVersion: 'hmac_readable_v1',
-    walletIdDerivationNonce: record.walletIdDerivationNonce,
-    collisionCounter: record.collisionCounter,
-    createdAtMs: record.createdAtMs,
-    updatedAtMs: record.updatedAtMs,
-    expiresAtMs: record.expiresAtMs,
-    ...(record.runtimePolicyScope ? { runtimePolicyScope: record.runtimePolicyScope } : {}),
-  };
 }

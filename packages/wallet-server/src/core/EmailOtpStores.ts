@@ -1,6 +1,7 @@
 import type { NormalizedLogger } from './logger';
 import type { ThresholdRuntimePolicyScope, ThresholdStoreConfigInput } from './types';
 import { THRESHOLD_PREFIX_DEFAULT } from './defaultConfigsServer';
+import { toPrefixWithColon } from './ThresholdService/validation';
 import {
   d1ChangedRows,
   formatD1ExecStatement,
@@ -21,7 +22,19 @@ import {
   parseCurrentEmailOtpWalletEnrollmentRow,
   parseCurrentGoogleEmailOtpRegistrationAttemptRecord,
   parseCurrentGoogleEmailOtpRegistrationAttemptRow,
+  parseJsonRecord,
+  registrationAttemptMatchesReplacementScope,
+  registrationAttemptMatchesStartedScope,
 } from './EmailOtpRecords';
+import {
+  emailOtpAuthStateRows,
+  emailOtpChallengeRows,
+  emailOtpGrantRows,
+  emailOtpRegistrationAttemptRows,
+  emailOtpUnlockChallengeRows,
+  emailOtpWalletEnrollmentRows,
+  type ScopedD1Prepare,
+} from './emailOtpD1Statements';
 import type {
   WalletEmailOtpChannel,
   WalletEmailOtpLoginOperation,
@@ -271,17 +284,22 @@ export type PendingGoogleEmailOtpRegistrationAttemptRecord =
   | StartedGoogleEmailOtpRegistrationAttemptRecord
   | KeyFinalizedGoogleEmailOtpRegistrationAttemptRecord;
 
+/** A registration's subject, email, owner binding and runtime scope, as of `nowMs`. */
+export type GoogleEmailOtpRegistrationAttemptScopeInput = {
+  providerSubject: string;
+  email: string;
+  orgId: string;
+  ownerProofBindingDigest: string;
+  runtimePolicyScope?: ThresholdRuntimePolicyScope;
+  nowMs: number;
+};
+
 export interface EmailOtpRegistrationAttemptStore {
   put(record: GoogleEmailOtpRegistrationAttemptRecord): Promise<void>;
   get(attemptId: string): Promise<GoogleEmailOtpRegistrationAttemptRecord | null>;
-  findStartedBySubjectEmail(input: {
-    providerSubject: string;
-    email: string;
-    orgId: string;
-    ownerProofBindingDigest: string;
-    runtimePolicyScope?: ThresholdRuntimePolicyScope;
-    nowMs: number;
-  }): Promise<PendingGoogleEmailOtpRegistrationAttemptRecord | null>;
+  findStartedBySubjectEmail(
+    input: GoogleEmailOtpRegistrationAttemptScopeInput,
+  ): Promise<PendingGoogleEmailOtpRegistrationAttemptRecord | null>;
   abandonStartedBySubjectEmailExceptBinding(input: {
     providerSubject: string;
     email: string;
@@ -295,85 +313,13 @@ export interface EmailOtpRegistrationAttemptStore {
   deleteExpired(nowMs: number): Promise<number>;
 }
 
-function runtimePolicyScopeKey(scope: ThresholdRuntimePolicyScope | undefined): string {
-  if (!scope) return '';
-  return `${scope.orgId}\n${scope.projectId}\n${scope.envId}\n${scope.signingRootVersion}`;
-}
-
-function registrationAttemptMatchesStartedScope(
-  record: GoogleEmailOtpRegistrationAttemptRecord,
-  input: {
-    providerSubject: string;
-    email: string;
-    orgId: string;
-    ownerProofBindingDigest: string;
-    runtimePolicyScope?: ThresholdRuntimePolicyScope;
-    nowMs: number;
-  },
-): record is PendingGoogleEmailOtpRegistrationAttemptRecord {
-  return (
-    record.providerSubject === input.providerSubject &&
-    record.email === input.email &&
-    record.ownerProofBindingDigest === input.ownerProofBindingDigest &&
-    record.runtimePolicyScope?.orgId === input.orgId &&
-    runtimePolicyScopeKey(record.runtimePolicyScope) ===
-      runtimePolicyScopeKey(input.runtimePolicyScope) &&
-    (record.state === 'started' || record.state === 'key_finalized') &&
-    record.expiresAtMs > input.nowMs
-  );
-}
-
-function registrationAttemptMatchesReplacementScope(
-  record: GoogleEmailOtpRegistrationAttemptRecord,
-  input: {
-    providerSubject: string;
-    email: string;
-    orgId: string;
-    ownerProofBindingDigest: string;
-    runtimePolicyScope?: ThresholdRuntimePolicyScope;
-    nowMs: number;
-  },
-): record is PendingGoogleEmailOtpRegistrationAttemptRecord {
-  return (
-    record.providerSubject === input.providerSubject &&
-    record.email === input.email &&
-    record.ownerProofBindingDigest !== input.ownerProofBindingDigest &&
-    record.runtimePolicyScope?.orgId === input.orgId &&
-    runtimePolicyScopeKey(record.runtimePolicyScope) ===
-      runtimePolicyScopeKey(input.runtimePolicyScope) &&
-    (record.state === 'started' || record.state === 'key_finalized') &&
-    record.expiresAtMs > input.nowMs
-  );
-}
-
 type EmailOtpStoreFactoryInput = {
   config?: ThresholdStoreConfigInput | null;
   logger?: NormalizedLogger;
   isNode?: boolean;
 };
 
-interface D1EmailOtpStoreSchemaOptions {
-  readonly database: D1DatabaseLike;
-}
-
-interface D1EmailOtpStoreOptions {
-  readonly database: D1DatabaseLike;
-  readonly namespace: string;
-  readonly orgId: string;
-  readonly projectId: string;
-  readonly envId: string;
-  readonly ensureSchema?: boolean;
-}
-
-type NormalizedD1EmailOtpStoreOptions = {
-  readonly database: D1DatabaseLike;
-  readonly namespace: string;
-  readonly orgId: string;
-  readonly projectId: string;
-  readonly envId: string;
-  readonly ensureSchema: boolean;
-};
-
+/** The tenant scope that leads the key of every Email OTP table. */
 type D1EmailOtpScope = {
   readonly namespace: string;
   readonly orgId: string;
@@ -387,7 +333,6 @@ type D1EmailOtpRecordRow = {
   readonly updated_at_ms?: unknown;
   readonly challenge_id?: unknown;
   readonly wallet_id?: unknown;
-  readonly recovery_key_id?: unknown;
   readonly attempt_id?: unknown;
 };
 
@@ -639,18 +584,6 @@ const EMAIL_OTP_STORE_D1_SCHEMA_SQL = Object.freeze([
   `,
 ] as const);
 
-async function ensureEmailOtpStoreD1Schema(options: D1EmailOtpStoreSchemaOptions): Promise<void> {
-  for (const statement of EMAIL_OTP_STORE_D1_SCHEMA_SQL) {
-    await options.database.exec(formatD1ExecStatement(statement));
-  }
-}
-
-function toPrefixWithColon(prefix: unknown, defaultPrefix: string): string {
-  const p = toOptionalTrimmedString(prefix);
-  if (!p) return defaultPrefix;
-  return p.endsWith(':') ? p : `${p}:`;
-}
-
 function resolveEmailOtpStoreNamespace(config: Record<string, unknown>): string {
   const explicit =
     toOptionalTrimmedString(config.EMAIL_OTP_PREFIX) ||
@@ -662,100 +595,112 @@ function resolveEmailOtpStoreNamespace(config: Record<string, unknown>): string 
   return `${baseWithColon}email-otp:`;
 }
 
-function getStoreConfig(input?: EmailOtpStoreFactoryInput): Record<string, unknown> {
-  return (isPlainObject(input?.config) ? input.config : {}) as Record<string, unknown>;
-}
-
 function requireD1ScopeString(input: unknown, field: string): string {
   const normalized = toOptionalTrimmedString(input);
   if (!normalized) throw new Error(`${field} is required for D1 Email OTP store`);
   return normalized;
 }
 
-function normalizeD1EmailOtpStoreOptions(
-  input: D1EmailOtpStoreOptions,
-): NormalizedD1EmailOtpStoreOptions {
-  return {
-    database: input.database,
-    namespace: requireD1ScopeString(input.namespace, 'namespace'),
-    orgId: requireD1ScopeString(input.orgId, 'orgId'),
-    projectId: requireD1ScopeString(input.projectId, 'projectId'),
-    envId: requireD1ScopeString(input.envId, 'envId'),
-    ensureSchema: input.ensureSchema !== false,
-  };
-}
-
-function d1ScopeFromConfig(input: {
-  readonly config: Record<string, unknown>;
-  readonly namespace: string;
-}): Omit<D1EmailOtpStoreOptions, 'database'> {
-  return {
-    namespace: requireD1ScopeString(input.namespace, 'namespace'),
-    orgId: requireD1ScopeString(input.config.orgId || input.config.ORG_ID, 'orgId'),
-    projectId: requireD1ScopeString(input.config.projectId || input.config.PROJECT_ID, 'projectId'),
-    envId: requireD1ScopeString(input.config.envId || input.config.ENV_ID, 'envId'),
-  };
-}
-
-function bindD1EmailOtpScope(
-  database: D1DatabaseLike,
-  scope: D1EmailOtpScope,
-  statement: string,
-  values: readonly unknown[] = [],
-): D1PreparedStatementLike {
-  return database
-    .prepare(statement)
-    .bind(scope.namespace, scope.orgId, scope.projectId, scope.envId, ...values);
-}
-
-function assertD1EmailOtpOrgScope(input: {
-  readonly recordOrgId: string | undefined;
-  readonly scope: D1EmailOtpScope;
-  readonly label: string;
-}): void {
-  if (!input.recordOrgId) return;
-  if (input.recordOrgId !== input.scope.orgId) {
-    throw new Error(`${input.label} orgId must match D1 Email OTP store orgId`);
-  }
-}
-
-function resolveD1EmailOtpStoreOptions(
+/**
+ * Selects a store's backend: D1 when the config's `kind` is `d1`, else in memory; any other
+ * `kind` is an error. `label` names the store in log lines and errors; the unknown-kind error
+ * uses `kindLabel`, which the wallet enrollment store shortens to `enrollment`. The store type
+ * `S` comes from the caller's return type.
+ */
+function createEmailOtpStore<S>(
   input: EmailOtpStoreFactoryInput | undefined,
-  storeLabel: string,
-): D1EmailOtpStoreOptions | null {
-  const config = getStoreConfig(input);
-  if (toOptionalTrimmedString(config.kind) !== 'd1') return null;
-  const database = resolveD1DatabaseFromConfig(config);
-  if (!database) {
-    throw new Error(`[email-otp] D1 ${storeLabel} store selected but no D1 database was provided`);
-  }
-  return {
-    database,
-    ...d1ScopeFromConfig({ config, namespace: resolveEmailOtpStoreNamespace(config) }),
-  };
-}
-
-function assertEmailOtpStoreKindKnown(
-  input: EmailOtpStoreFactoryInput | undefined,
-  storeLabel: string,
-): void {
-  const config = getStoreConfig(input);
+  label: string,
+  build: {
+    readonly d1: (database: D1DatabaseLike, scope: D1EmailOtpScope) => NoInfer<S>;
+    readonly inMemory: () => NoInfer<S>;
+  },
+  kindLabel = label,
+): S {
+  const config = (isPlainObject(input?.config) ? input.config : {}) as Record<string, unknown>;
   const kind = toOptionalTrimmedString(config.kind);
-  if (!kind || kind === 'in-memory') return;
-  throw new Error(`[email-otp] Unknown ${storeLabel} store kind: ${kind}`);
+  if (kind === 'd1') {
+    const database = resolveD1DatabaseFromConfig(config);
+    if (!database) {
+      throw new Error(`[email-otp] D1 ${label} store selected but no D1 database was provided`);
+    }
+    const scope: D1EmailOtpScope = {
+      namespace: resolveEmailOtpStoreNamespace(config),
+      orgId: requireD1ScopeString(config.orgId || config.ORG_ID, 'orgId'),
+      projectId: requireD1ScopeString(config.projectId || config.PROJECT_ID, 'projectId'),
+      envId: requireD1ScopeString(config.envId || config.ENV_ID, 'envId'),
+    };
+    input?.logger?.info(`[email-otp] Using D1 ${label} store`);
+    return build.d1(database, scope);
+  }
+  if (kind && kind !== 'in-memory') {
+    throw new Error(`[email-otp] Unknown ${kindLabel} store kind: ${kind}`);
+  }
+  input?.logger?.info(`[email-otp] Using in-memory ${label} store (non-persistent)`);
+  return build.inMemory();
+}
+
+/** What sets one Email OTP record apart, in either backend. */
+type EmailOtpRecordSpec<R> = {
+  /** Names the record in errors, e.g. `Email OTP grant`. */
+  readonly label: string;
+  /** Validates a record being written; null when it is invalid. */
+  readonly parse: (raw: unknown) => R | null;
+  /** The id that keys the record in memory. */
+  readonly id: (record: R) => string;
+  /** The org the record names, which must match a D1 store's org when set. */
+  readonly orgId: (record: R) => string | undefined;
+};
+
+const CHALLENGE_RECORD: EmailOtpRecordSpec<EmailOtpChallengeRecord> = {
+  label: 'Email OTP challenge',
+  parse: parseCurrentEmailOtpChallengeRecord,
+  id: (record) => record.challengeId,
+  orgId: (record) => record.orgId,
+};
+
+const GRANT_RECORD: EmailOtpRecordSpec<EmailOtpGrantRecord> = {
+  label: 'Email OTP grant',
+  parse: parseCurrentEmailOtpGrantRecord,
+  id: (record) => record.grantToken,
+  orgId: (record) => record.orgId,
+};
+
+const WALLET_ENROLLMENT_RECORD: EmailOtpRecordSpec<EmailOtpWalletEnrollmentRecord> = {
+  label: 'Email OTP wallet enrollment',
+  parse: parseCurrentEmailOtpWalletEnrollmentRecord,
+  id: (record) => record.walletId,
+  orgId: (record) => record.orgId,
+};
+
+const AUTH_STATE_RECORD: EmailOtpRecordSpec<EmailOtpAuthStateRecord> = {
+  label: 'Email OTP auth state',
+  parse: parseCurrentEmailOtpAuthStateRecord,
+  id: (record) => record.walletId,
+  orgId: (record) => record.orgId,
+};
+
+const UNLOCK_CHALLENGE_RECORD: EmailOtpRecordSpec<EmailOtpUnlockChallengeRecord> = {
+  label: 'Email OTP unlock challenge',
+  parse: parseCurrentEmailOtpUnlockChallengeRecord,
+  id: (record) => record.challengeId,
+  orgId: (record) => record.orgId,
+};
+
+const REGISTRATION_ATTEMPT_RECORD: EmailOtpRecordSpec<GoogleEmailOtpRegistrationAttemptRecord> = {
+  label: 'Google Email OTP registration attempt',
+  parse: parseCurrentGoogleEmailOtpRegistrationAttemptRecord,
+  id: (record) => record.attemptId,
+  orgId: (record) => record.runtimePolicyScope?.orgId,
+};
+
+function parseEmailOtpRecord<R>(spec: EmailOtpRecordSpec<R>, record: R): R {
+  const parsed = spec.parse(record);
+  if (!parsed) throw new Error(`Invalid ${spec.label} record`);
+  return parsed;
 }
 
 function cloneRecord<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
-}
-
-function parseJsonRecord(raw: unknown): unknown {
-  if (typeof raw !== 'string') return raw;
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return raw;
-  }
 }
 
 function challengeContextMatches(
@@ -774,20 +719,49 @@ function challengeContextMatches(
   );
 }
 
-class InMemoryEmailOtpChallengeStore implements EmailOtpChallengeStore {
-  private readonly map = new Map<string, EmailOtpChallengeRecord>();
+/** Keeps copies of parsed records by id, so no caller shares a stored object. */
+class InMemoryEmailOtpStore<R> {
+  protected readonly map = new Map<string, R>();
 
-  async put(record: EmailOtpChallengeRecord): Promise<void> {
-    const parsed = parseCurrentEmailOtpChallengeRecord(record);
-    if (!parsed) throw new Error('Invalid Email OTP challenge record');
-    this.map.set(parsed.challengeId, cloneRecord(parsed));
+  constructor(protected readonly spec: EmailOtpRecordSpec<R>) {}
+
+  async put(record: R): Promise<void> {
+    this.set(parseEmailOtpRecord(this.spec, record));
   }
 
-  async get(challengeId: string): Promise<EmailOtpChallengeRecord | null> {
-    const id = toOptionalTrimmedString(challengeId);
-    if (!id) return null;
-    const record = this.map.get(id);
+  protected set(record: R): void {
+    this.map.set(this.spec.id(record), cloneRecord(record));
+  }
+
+  async get(id: string): Promise<R | null> {
+    const key = toOptionalTrimmedString(id);
+    if (!key) return null;
+    const record = this.map.get(key);
     return record ? cloneRecord(record) : null;
+  }
+
+  /** Reads and deletes, so a one-time record is used at most once. */
+  async consume(id: string): Promise<R | null> {
+    const key = toOptionalTrimmedString(id);
+    if (!key) return null;
+    const record = this.map.get(key);
+    this.map.delete(key);
+    return record ? cloneRecord(record) : null;
+  }
+
+  async del(id: string): Promise<void> {
+    const key = toOptionalTrimmedString(id);
+    if (!key) return;
+    this.map.delete(key);
+  }
+}
+
+class InMemoryEmailOtpChallengeStore
+  extends InMemoryEmailOtpStore<EmailOtpChallengeRecord>
+  implements EmailOtpChallengeStore
+{
+  constructor() {
+    super(CHALLENGE_RECORD);
   }
 
   async deleteExpired(nowMs: number): Promise<EmailOtpChallengeRecord[]> {
@@ -843,53 +817,14 @@ class InMemoryEmailOtpChallengeStore implements EmailOtpChallengeStore {
     }
     return null;
   }
-
-  async del(challengeId: string): Promise<void> {
-    const id = toOptionalTrimmedString(challengeId);
-    if (!id) return;
-    this.map.delete(id);
-  }
 }
 
-class InMemoryEmailOtpGrantStore implements EmailOtpGrantStore {
-  private readonly map = new Map<string, EmailOtpGrantRecord>();
-
-  async put(record: EmailOtpGrantRecord): Promise<void> {
-    const parsed = parseCurrentEmailOtpGrantRecord(record);
-    if (!parsed) throw new Error('Invalid Email OTP grant record');
-    this.map.set(parsed.grantToken, cloneRecord(parsed));
-  }
-
-  async get(grantToken: string): Promise<EmailOtpGrantRecord | null> {
-    const token = toOptionalTrimmedString(grantToken);
-    if (!token) return null;
-    const record = this.map.get(token);
-    return record ? cloneRecord(record) : null;
-  }
-
-  async consume(grantToken: string): Promise<EmailOtpGrantRecord | null> {
-    const token = toOptionalTrimmedString(grantToken);
-    if (!token) return null;
-    const record = this.map.get(token);
-    this.map.delete(token);
-    return record ? cloneRecord(record) : null;
-  }
-
-  async del(grantToken: string): Promise<void> {
-    const token = toOptionalTrimmedString(grantToken);
-    if (!token) return;
-    this.map.delete(token);
-  }
-}
-
-class InMemoryEmailOtpWalletEnrollmentStore implements EmailOtpWalletEnrollmentStore {
-  private readonly map = new Map<string, EmailOtpWalletEnrollmentRecord>();
-
-  async get(walletId: string): Promise<EmailOtpWalletEnrollmentRecord | null> {
-    const key = toOptionalTrimmedString(walletId);
-    if (!key) return null;
-    const record = this.map.get(key);
-    return record ? cloneRecord(record) : null;
+class InMemoryEmailOtpWalletEnrollmentStore
+  extends InMemoryEmailOtpStore<EmailOtpWalletEnrollmentRecord>
+  implements EmailOtpWalletEnrollmentStore
+{
+  constructor() {
+    super(WALLET_ENROLLMENT_RECORD);
   }
 
   async getByProviderUserId(input: {
@@ -907,8 +842,7 @@ class InMemoryEmailOtpWalletEnrollmentStore implements EmailOtpWalletEnrollmentS
   }
 
   async put(record: EmailOtpWalletEnrollmentRecord): Promise<void> {
-    const parsed = parseCurrentEmailOtpWalletEnrollmentRecord(record);
-    if (!parsed) throw new Error('Invalid Email OTP wallet enrollment record');
+    const parsed = parseEmailOtpRecord(this.spec, record);
     const duplicate = Array.from(this.map.values()).find(
       (existing) =>
         existing.walletId !== parsed.walletId &&
@@ -918,87 +852,21 @@ class InMemoryEmailOtpWalletEnrollmentStore implements EmailOtpWalletEnrollmentS
     if (duplicate) {
       throw new Error('Email OTP wallet enrollment already exists for this provider user in org');
     }
-    this.map.set(parsed.walletId, cloneRecord(parsed));
-  }
-
-  async del(walletId: string): Promise<void> {
-    const key = toOptionalTrimmedString(walletId);
-    if (!key) return;
-    this.map.delete(key);
+    this.set(parsed);
   }
 }
 
-class InMemoryEmailOtpAuthStateStore implements EmailOtpAuthStateStore {
-  private readonly map = new Map<string, EmailOtpAuthStateRecord>();
-
-  async get(walletId: string): Promise<EmailOtpAuthStateRecord | null> {
-    const key = toOptionalTrimmedString(walletId);
-    if (!key) return null;
-    const record = this.map.get(key);
-    return record ? cloneRecord(record) : null;
+class InMemoryEmailOtpRegistrationAttemptStore
+  extends InMemoryEmailOtpStore<GoogleEmailOtpRegistrationAttemptRecord>
+  implements EmailOtpRegistrationAttemptStore
+{
+  constructor() {
+    super(REGISTRATION_ATTEMPT_RECORD);
   }
 
-  async put(record: EmailOtpAuthStateRecord): Promise<void> {
-    const parsed = parseCurrentEmailOtpAuthStateRecord(record);
-    if (!parsed) throw new Error('Invalid Email OTP auth state record');
-    this.map.set(parsed.walletId, cloneRecord(parsed));
-  }
-
-  async del(walletId: string): Promise<void> {
-    const key = toOptionalTrimmedString(walletId);
-    if (!key) return;
-    this.map.delete(key);
-  }
-}
-
-class InMemoryEmailOtpUnlockChallengeStore implements EmailOtpUnlockChallengeStore {
-  private readonly map = new Map<string, EmailOtpUnlockChallengeRecord>();
-
-  async put(record: EmailOtpUnlockChallengeRecord): Promise<void> {
-    const parsed = parseCurrentEmailOtpUnlockChallengeRecord(record);
-    if (!parsed) throw new Error('Invalid Email OTP unlock challenge record');
-    this.map.set(parsed.challengeId, cloneRecord(parsed));
-  }
-
-  async consume(challengeId: string): Promise<EmailOtpUnlockChallengeRecord | null> {
-    const id = toOptionalTrimmedString(challengeId);
-    if (!id) return null;
-    const record = this.map.get(id);
-    this.map.delete(id);
-    return record ? cloneRecord(record) : null;
-  }
-
-  async del(challengeId: string): Promise<void> {
-    const id = toOptionalTrimmedString(challengeId);
-    if (!id) return;
-    this.map.delete(id);
-  }
-}
-
-class InMemoryEmailOtpRegistrationAttemptStore implements EmailOtpRegistrationAttemptStore {
-  private readonly map = new Map<string, GoogleEmailOtpRegistrationAttemptRecord>();
-
-  async put(record: GoogleEmailOtpRegistrationAttemptRecord): Promise<void> {
-    const parsed = parseCurrentGoogleEmailOtpRegistrationAttemptRecord(record);
-    if (!parsed) throw new Error('Invalid Google Email OTP registration attempt record');
-    this.map.set(parsed.attemptId, cloneRecord(parsed));
-  }
-
-  async get(attemptId: string): Promise<GoogleEmailOtpRegistrationAttemptRecord | null> {
-    const id = toOptionalTrimmedString(attemptId);
-    if (!id) return null;
-    const record = this.map.get(id);
-    return record ? cloneRecord(record) : null;
-  }
-
-  async findStartedBySubjectEmail(input: {
-    providerSubject: string;
-    email: string;
-    orgId: string;
-    ownerProofBindingDigest: string;
-    runtimePolicyScope?: ThresholdRuntimePolicyScope;
-    nowMs: number;
-  }): Promise<PendingGoogleEmailOtpRegistrationAttemptRecord | null> {
+  async findStartedBySubjectEmail(
+    input: GoogleEmailOtpRegistrationAttemptScopeInput,
+  ): Promise<PendingGoogleEmailOtpRegistrationAttemptRecord | null> {
     for (const record of this.map.values()) {
       if (registrationAttemptMatchesStartedScope(record, input)) {
         return cloneRecord(record);
@@ -1007,15 +875,11 @@ class InMemoryEmailOtpRegistrationAttemptStore implements EmailOtpRegistrationAt
     return null;
   }
 
-  async abandonStartedBySubjectEmailExceptBinding(input: {
-    providerSubject: string;
-    email: string;
-    orgId: string;
-    ownerProofBindingDigest: string;
-    runtimePolicyScope?: ThresholdRuntimePolicyScope;
-    nowMs: number;
-    failureCode: 'owner_proof_binding_replaced';
-  }): Promise<number> {
+  async abandonStartedBySubjectEmailExceptBinding(
+    input: GoogleEmailOtpRegistrationAttemptScopeInput & {
+      failureCode: 'owner_proof_binding_replaced';
+    },
+  ): Promise<number> {
     let abandoned = 0;
     for (const record of this.map.values()) {
       if (!registrationAttemptMatchesReplacementScope(record, input)) continue;
@@ -1056,102 +920,189 @@ class InMemoryEmailOtpRegistrationAttemptStore implements EmailOtpRegistrationAt
   }
 }
 
-abstract class D1EmailOtpStoreBase {
-  protected readonly database: D1DatabaseLike;
-  protected readonly scope: D1EmailOtpScope;
-  private readonly ensureSchemaOnUse: boolean;
+// Rows are read back through the record parsers; record_json is decoded once here and again by
+// the parser, so a record stored as a JSON string of JSON text still reads.
+function challengeFromRow(row: D1EmailOtpRecordRow | null): EmailOtpChallengeRecord | null {
+  return parseCurrentEmailOtpChallengeRow({
+    recordJson: parseJsonRecord(row?.record_json),
+    expiresAtMs: row?.expires_at_ms,
+  });
+}
+
+function grantFromRow(row: D1EmailOtpRecordRow | null): EmailOtpGrantRecord | null {
+  return parseCurrentEmailOtpGrantRow({
+    recordJson: parseJsonRecord(row?.record_json),
+    expiresAtMs: row?.expires_at_ms,
+  });
+}
+
+function walletEnrollmentFromRow(
+  row: D1EmailOtpRecordRow | null,
+): EmailOtpWalletEnrollmentRecord | null {
+  return parseCurrentEmailOtpWalletEnrollmentRow({
+    recordJson: parseJsonRecord(row?.record_json),
+    updatedAtMs: row?.updated_at_ms,
+  });
+}
+
+function authStateFromRow(row: D1EmailOtpRecordRow | null): EmailOtpAuthStateRecord | null {
+  return parseCurrentEmailOtpAuthStateRow({
+    recordJson: parseJsonRecord(row?.record_json),
+    updatedAtMs: row?.updated_at_ms,
+  });
+}
+
+function unlockChallengeFromRow(
+  row: D1EmailOtpRecordRow | null,
+): EmailOtpUnlockChallengeRecord | null {
+  return parseCurrentEmailOtpUnlockChallengeRow({
+    recordJson: parseJsonRecord(row?.record_json),
+    expiresAtMs: row?.expires_at_ms,
+  });
+}
+
+function registrationAttemptFromRow(
+  row: D1EmailOtpRecordRow | null,
+): GoogleEmailOtpRegistrationAttemptRecord | null {
+  return parseCurrentGoogleEmailOtpRegistrationAttemptRow({
+    recordJson: parseJsonRecord(row?.record_json),
+    expiresAtMs: row?.expires_at_ms,
+    updatedAtMs: row?.updated_at_ms,
+  });
+}
+
+type ScopedD1Statement = (prepare: ScopedD1Prepare, id: string) => D1PreparedStatementLike;
+
+/**
+ * A record's store in one D1 tenant scope. The core schema is created on first use, and a row
+ * that no longer parses is deleted when it is read.
+ */
+abstract class D1EmailOtpStore<R> {
+  readonly adapterKind = 'd1';
   private schemaReady = false;
 
-  constructor(input: D1EmailOtpStoreOptions) {
-    const normalized = normalizeD1EmailOtpStoreOptions(input);
-    this.database = normalized.database;
-    this.scope = {
-      namespace: normalized.namespace,
-      orgId: normalized.orgId,
-      projectId: normalized.projectId,
-      envId: normalized.envId,
-    };
-    this.ensureSchemaOnUse = normalized.ensureSchema;
-  }
+  constructor(
+    private readonly database: D1DatabaseLike,
+    protected readonly scope: D1EmailOtpScope,
+    private readonly spec: EmailOtpRecordSpec<R>,
+    private readonly rows: {
+      readonly fromRow: (row: D1EmailOtpRecordRow | null) => R | null;
+      readonly upsert: (prepare: ScopedD1Prepare, record: R) => D1PreparedStatementLike;
+    },
+  ) {}
+
+  abstract del(id: string): Promise<void>;
+
+  protected readonly prepare: ScopedD1Prepare = (sql, values) =>
+    this.database
+      .prepare(sql)
+      .bind(
+        this.scope.namespace,
+        this.scope.orgId,
+        this.scope.projectId,
+        this.scope.envId,
+        ...values,
+      );
 
   protected async ensureSchema(): Promise<void> {
-    if (!this.ensureSchemaOnUse || this.schemaReady) return;
-    await ensureEmailOtpStoreD1Schema({ database: this.database });
+    if (this.schemaReady) return;
+    for (const statement of EMAIL_OTP_STORE_D1_SCHEMA_SQL) {
+      await this.database.exec(formatD1ExecStatement(statement));
+    }
     this.schemaReady = true;
   }
 
-  protected bindScope(statement: string, values: readonly unknown[] = []): D1PreparedStatementLike {
-    return bindD1EmailOtpScope(this.database, this.scope, statement, values);
+  async put(record: R): Promise<void> {
+    await this.ensureSchema();
+    const parsed = parseEmailOtpRecord(this.spec, record);
+    const recordOrgId = this.spec.orgId(parsed);
+    if (recordOrgId && recordOrgId !== this.scope.orgId) {
+      throw new Error(`${this.spec.label} orgId must match D1 Email OTP store orgId`);
+    }
+    await this.rows.upsert(this.prepare, parsed).run();
+  }
+
+  protected async getById(id: string, select: ScopedD1Statement): Promise<R | null> {
+    await this.ensureSchema();
+    const key = toOptionalTrimmedString(id);
+    if (!key) return null;
+    const row = await select(this.prepare, key).first<D1EmailOtpRecordRow>();
+    return row ? this.recordOrDiscard(row, key) : null;
+  }
+
+  /** Reads and deletes, so a one-time record is used at most once. */
+  protected async consumeById(id: string, consume: ScopedD1Statement): Promise<R | null> {
+    await this.ensureSchema();
+    const key = toOptionalTrimmedString(id);
+    if (!key) return null;
+    const row = await consume(this.prepare, key).first<D1EmailOtpRecordRow>();
+    const parsed = this.rows.fromRow(row);
+    return parsed ? cloneRecord(parsed) : null;
+  }
+
+  protected async deleteById(id: string, remove: ScopedD1Statement): Promise<void> {
+    await this.ensureSchema();
+    const key = toOptionalTrimmedString(id);
+    if (!key) return;
+    await remove(this.prepare, key).run();
+  }
+
+  /** The row's record; a row that does not parse is deleted by `malformedId` and reads as null. */
+  protected async recordOrDiscard(
+    row: D1EmailOtpRecordRow | null,
+    malformedId: unknown,
+  ): Promise<R | null> {
+    const parsed = this.rows.fromRow(row);
+    if (parsed) return cloneRecord(parsed);
+    const id = toOptionalTrimmedString(malformedId);
+    if (id) await this.del(id);
+    return null;
   }
 }
 
-class D1EmailOtpChallengeStore extends D1EmailOtpStoreBase implements EmailOtpChallengeStore {
-  readonly adapterKind = 'd1';
+// Scopes a challenge query to one live challenge context; binds challengeContextValues.
+const ACTIVE_CHALLENGE_CONTEXT_SQL = `WHERE namespace = ?
+          AND org_id = ?
+          AND project_id = ?
+          AND env_id = ?
+          AND expires_at_ms > ?
+          AND challenge_subject_id = ?
+          AND wallet_id = ?
+          AND record_org_id = ?
+          AND otp_channel = ?
+          AND owner_proof_binding_digest = ?
+          AND action = ?
+          AND operation = ?`;
 
-  async put(record: EmailOtpChallengeRecord): Promise<void> {
-    await this.ensureSchema();
-    const parsed = parseCurrentEmailOtpChallengeRecord(record);
-    if (!parsed) throw new Error('Invalid Email OTP challenge record');
-    assertD1EmailOtpOrgScope({
-      recordOrgId: parsed.orgId,
-      scope: this.scope,
-      label: 'Email OTP challenge',
+function challengeContextValues(input: EmailOtpChallengeContextInput): unknown[] {
+  return [
+    input.nowMs,
+    input.challengeSubjectId,
+    input.walletId,
+    String(input.orgId || ''),
+    input.otpChannel,
+    input.ownerProofBindingDigest,
+    input.action,
+    input.operation,
+  ];
+}
+
+class D1EmailOtpChallengeStore
+  extends D1EmailOtpStore<EmailOtpChallengeRecord>
+  implements EmailOtpChallengeStore
+{
+  constructor(database: D1DatabaseLike, scope: D1EmailOtpScope) {
+    super(database, scope, CHALLENGE_RECORD, {
+      fromRow: challengeFromRow,
+      upsert: emailOtpChallengeRows.upsert,
     });
-    await this.bindScope(
-      `INSERT INTO email_otp_challenges (
-        namespace,
-        org_id,
-        project_id,
-        env_id,
-        challenge_id,
-        challenge_subject_id,
-        wallet_id,
-        record_org_id,
-        otp_channel,
-        owner_proof_binding_digest,
-        action,
-        operation,
-        otp_code,
-        record_json,
-        created_at_ms,
-        expires_at_ms
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT (namespace, org_id, project_id, env_id, challenge_id)
-      DO UPDATE SET
-        challenge_subject_id = EXCLUDED.challenge_subject_id,
-        wallet_id = EXCLUDED.wallet_id,
-        record_org_id = EXCLUDED.record_org_id,
-        otp_channel = EXCLUDED.otp_channel,
-        owner_proof_binding_digest = EXCLUDED.owner_proof_binding_digest,
-        action = EXCLUDED.action,
-        operation = EXCLUDED.operation,
-        otp_code = EXCLUDED.otp_code,
-        record_json = EXCLUDED.record_json,
-        created_at_ms = EXCLUDED.created_at_ms,
-        expires_at_ms = EXCLUDED.expires_at_ms`,
-      [
-        parsed.challengeId,
-        parsed.challengeSubjectId,
-        parsed.walletId,
-        parsed.orgId || '',
-        parsed.otpChannel,
-        parsed.ownerProofBindingDigest,
-        parsed.action,
-        parsed.operation,
-        parsed.otpCode,
-        JSON.stringify(parsed),
-        parsed.createdAtMs,
-        parsed.expiresAtMs,
-      ],
-    ).run();
   }
 
   async get(challengeId: string): Promise<EmailOtpChallengeRecord | null> {
     await this.ensureSchema();
     const id = toOptionalTrimmedString(challengeId);
     if (!id) return null;
-    const row = await this.bindScope(
+    const row = await this.prepare(
       `SELECT record_json, expires_at_ms, challenge_id
          FROM email_otp_challenges
         WHERE namespace = ?
@@ -1162,21 +1113,12 @@ class D1EmailOtpChallengeStore extends D1EmailOtpStoreBase implements EmailOtpCh
         LIMIT 1`,
       [id],
     ).first<D1EmailOtpRecordRow>();
-    const parsed = parseCurrentEmailOtpChallengeRow({
-      recordJson: parseJsonRecord(row?.record_json),
-      expiresAtMs: row?.expires_at_ms,
-    });
-    if (!row) return null;
-    if (!parsed) {
-      await this.del(id);
-      return null;
-    }
-    return cloneRecord(parsed);
+    return row ? this.recordOrDiscard(row, id) : null;
   }
 
   async deleteExpired(nowMs: number): Promise<EmailOtpChallengeRecord[]> {
     await this.ensureSchema();
-    const result = await this.bindScope(
+    const result = await this.prepare(
       `DELETE FROM email_otp_challenges
         WHERE namespace = ?
           AND org_id = ?
@@ -1187,43 +1129,18 @@ class D1EmailOtpChallengeStore extends D1EmailOtpStoreBase implements EmailOtpCh
       [nowMs],
     ).all<D1EmailOtpRecordRow>();
     return (result.results || [])
-      .map((row) =>
-        parseCurrentEmailOtpChallengeRow({
-          recordJson: parseJsonRecord(row.record_json),
-          expiresAtMs: row.expires_at_ms,
-        }),
-      )
+      .map((row) => challengeFromRow(row))
       .filter((record): record is EmailOtpChallengeRecord => Boolean(record))
       .map((record) => cloneRecord(record));
   }
 
   async countActiveByContext(input: EmailOtpChallengeContextInput): Promise<number> {
     await this.ensureSchema();
-    const row = await this.bindScope(
+    const row = await this.prepare(
       `SELECT COUNT(*) AS count
          FROM email_otp_challenges
-        WHERE namespace = ?
-          AND org_id = ?
-          AND project_id = ?
-          AND env_id = ?
-          AND expires_at_ms > ?
-          AND challenge_subject_id = ?
-          AND wallet_id = ?
-          AND record_org_id = ?
-          AND otp_channel = ?
-          AND owner_proof_binding_digest = ?
-          AND action = ?
-          AND operation = ?`,
-      [
-        input.nowMs,
-        input.challengeSubjectId,
-        input.walletId,
-        String(input.orgId || ''),
-        input.otpChannel,
-        input.ownerProofBindingDigest,
-        input.action,
-        input.operation,
-      ],
+        ${ACTIVE_CHALLENGE_CONTEXT_SQL}`,
+      challengeContextValues(input),
     ).first<{ count?: unknown }>();
     return Number(row?.count || 0);
   }
@@ -1232,49 +1149,22 @@ class D1EmailOtpChallengeStore extends D1EmailOtpStoreBase implements EmailOtpCh
     input: EmailOtpChallengeContextInput,
   ): Promise<EmailOtpChallengeRecord | null> {
     await this.ensureSchema();
-    const row = await this.bindScope(
+    const row = await this.prepare(
       `SELECT record_json, expires_at_ms, challenge_id
          FROM email_otp_challenges
-        WHERE namespace = ?
-          AND org_id = ?
-          AND project_id = ?
-          AND env_id = ?
-          AND expires_at_ms > ?
-          AND challenge_subject_id = ?
-          AND wallet_id = ?
-          AND record_org_id = ?
-          AND otp_channel = ?
-          AND owner_proof_binding_digest = ?
-          AND action = ?
-          AND operation = ?
+        ${ACTIVE_CHALLENGE_CONTEXT_SQL}
         ORDER BY expires_at_ms DESC, created_at_ms DESC
         LIMIT 1`,
-      [
-        input.nowMs,
-        input.challengeSubjectId,
-        input.walletId,
-        String(input.orgId || ''),
-        input.otpChannel,
-        input.ownerProofBindingDigest,
-        input.action,
-        input.operation,
-      ],
+      challengeContextValues(input),
     ).first<D1EmailOtpRecordRow>();
-    const parsed = parseCurrentEmailOtpChallengeRow({
-      recordJson: parseJsonRecord(row?.record_json),
-      expiresAtMs: row?.expires_at_ms,
-    });
-    if (parsed) return cloneRecord(parsed);
-    const malformedId = toOptionalTrimmedString(row?.challenge_id);
-    if (malformedId) await this.del(malformedId);
-    return null;
+    return this.recordOrDiscard(row, row?.challenge_id);
   }
 
   async deleteOldestActiveByContext(
     input: EmailOtpChallengeContextInput,
   ): Promise<EmailOtpChallengeRecord | null> {
     await this.ensureSchema();
-    const row = await this.bindScope(
+    const row = await this.prepare(
       `WITH oldest AS (
         SELECT challenge_id
           FROM email_otp_challenges
@@ -1301,218 +1191,77 @@ class D1EmailOtpChallengeStore extends D1EmailOtpStoreBase implements EmailOtpCh
          AND challenge_id IN (SELECT challenge_id FROM oldest)
       RETURNING record_json, expires_at_ms, challenge_id`,
       [
-        input.nowMs,
-        input.challengeSubjectId,
-        input.walletId,
-        String(input.orgId || ''),
-        input.otpChannel,
-        input.ownerProofBindingDigest,
-        input.action,
-        input.operation,
+        ...challengeContextValues(input),
         this.scope.namespace,
         this.scope.orgId,
         this.scope.projectId,
         this.scope.envId,
       ],
     ).first<D1EmailOtpRecordRow>();
-    const parsed = parseCurrentEmailOtpChallengeRow({
-      recordJson: parseJsonRecord(row?.record_json),
-      expiresAtMs: row?.expires_at_ms,
-    });
-    if (parsed) return cloneRecord(parsed);
-    const malformedId = toOptionalTrimmedString(row?.challenge_id);
-    if (malformedId) await this.del(malformedId);
-    return null;
+    return this.recordOrDiscard(row, row?.challenge_id);
   }
 
   async findActiveByContext(
     input: EmailOtpChallengeContextInput & { otpCode: string },
   ): Promise<EmailOtpChallengeRecord | null> {
     await this.ensureSchema();
-    const row = await this.bindScope(
+    const row = await this.prepare(
       `SELECT record_json, expires_at_ms, challenge_id
          FROM email_otp_challenges
-        WHERE namespace = ?
-          AND org_id = ?
-          AND project_id = ?
-          AND env_id = ?
-          AND expires_at_ms > ?
-          AND challenge_subject_id = ?
-          AND wallet_id = ?
-          AND record_org_id = ?
-          AND otp_channel = ?
-          AND owner_proof_binding_digest = ?
-          AND action = ?
-          AND operation = ?
+        ${ACTIVE_CHALLENGE_CONTEXT_SQL}
           AND otp_code = ?
         ORDER BY expires_at_ms DESC
         LIMIT 1`,
-      [
-        input.nowMs,
-        input.challengeSubjectId,
-        input.walletId,
-        String(input.orgId || ''),
-        input.otpChannel,
-        input.ownerProofBindingDigest,
-        input.action,
-        input.operation,
-        input.otpCode,
-      ],
+      [...challengeContextValues(input), input.otpCode],
     ).first<D1EmailOtpRecordRow>();
-    const parsed = parseCurrentEmailOtpChallengeRow({
-      recordJson: parseJsonRecord(row?.record_json),
-      expiresAtMs: row?.expires_at_ms,
-    });
-    if (parsed) return cloneRecord(parsed);
-    const malformedId = toOptionalTrimmedString(row?.challenge_id);
-    if (malformedId) await this.del(malformedId);
-    return null;
+    return this.recordOrDiscard(row, row?.challenge_id);
   }
 
-  async del(challengeId: string): Promise<void> {
-    await this.ensureSchema();
-    const id = toOptionalTrimmedString(challengeId);
-    if (!id) return;
-    await this.bindScope(
-      `DELETE FROM email_otp_challenges
-        WHERE namespace = ?
-          AND org_id = ?
-          AND project_id = ?
-          AND env_id = ?
-          AND challenge_id = ?`,
-      [id],
-    ).run();
+  del(challengeId: string): Promise<void> {
+    return this.deleteById(challengeId, emailOtpChallengeRows.delete);
   }
 }
 
-class D1EmailOtpGrantStore extends D1EmailOtpStoreBase implements EmailOtpGrantStore {
-  readonly adapterKind = 'd1';
-
-  async put(record: EmailOtpGrantRecord): Promise<void> {
-    await this.ensureSchema();
-    const parsed = parseCurrentEmailOtpGrantRecord(record);
-    if (!parsed) throw new Error('Invalid Email OTP grant record');
-    assertD1EmailOtpOrgScope({
-      recordOrgId: parsed.orgId,
-      scope: this.scope,
-      label: 'Email OTP grant',
+class D1EmailOtpGrantStore
+  extends D1EmailOtpStore<EmailOtpGrantRecord>
+  implements EmailOtpGrantStore
+{
+  constructor(database: D1DatabaseLike, scope: D1EmailOtpScope) {
+    super(database, scope, GRANT_RECORD, {
+      fromRow: grantFromRow,
+      upsert: emailOtpGrantRows.upsert,
     });
-    await this.bindScope(
-      `INSERT INTO email_otp_grants (
-        namespace,
-        org_id,
-        project_id,
-        env_id,
-        grant_token,
-        user_id,
-        wallet_id,
-        record_org_id,
-        challenge_id,
-        action,
-        record_json,
-        issued_at_ms,
-        expires_at_ms
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT (namespace, org_id, project_id, env_id, grant_token)
-      DO UPDATE SET
-        user_id = EXCLUDED.user_id,
-        wallet_id = EXCLUDED.wallet_id,
-        record_org_id = EXCLUDED.record_org_id,
-        challenge_id = EXCLUDED.challenge_id,
-        action = EXCLUDED.action,
-        record_json = EXCLUDED.record_json,
-        issued_at_ms = EXCLUDED.issued_at_ms,
-        expires_at_ms = EXCLUDED.expires_at_ms`,
-      [
-        parsed.grantToken,
-        parsed.userId,
-        parsed.walletId,
-        parsed.orgId || '',
-        parsed.challengeId,
-        parsed.action,
-        JSON.stringify(parsed),
-        parsed.issuedAtMs,
-        parsed.expiresAtMs,
-      ],
-    ).run();
   }
 
-  async get(grantToken: string): Promise<EmailOtpGrantRecord | null> {
-    await this.ensureSchema();
-    const token = toOptionalTrimmedString(grantToken);
-    if (!token) return null;
-    const row = await this.bindScope(
-      `SELECT record_json, expires_at_ms
-         FROM email_otp_grants
-        WHERE namespace = ?
-          AND org_id = ?
-          AND project_id = ?
-          AND env_id = ?
-          AND grant_token = ?
-        LIMIT 1`,
-      [token],
-    ).first<D1EmailOtpRecordRow>();
-    const parsed = parseCurrentEmailOtpGrantRow({
-      recordJson: parseJsonRecord(row?.record_json),
-      expiresAtMs: row?.expires_at_ms,
-    });
-    if (!row) return null;
-    if (!parsed) {
-      await this.del(token);
-      return null;
-    }
-    return cloneRecord(parsed);
+  get(grantToken: string): Promise<EmailOtpGrantRecord | null> {
+    return this.getById(grantToken, emailOtpGrantRows.select);
   }
 
-  async consume(grantToken: string): Promise<EmailOtpGrantRecord | null> {
-    await this.ensureSchema();
-    const token = toOptionalTrimmedString(grantToken);
-    if (!token) return null;
-    const row = await this.bindScope(
-      `DELETE FROM email_otp_grants
-        WHERE namespace = ?
-          AND org_id = ?
-          AND project_id = ?
-          AND env_id = ?
-          AND grant_token = ?
-      RETURNING record_json, expires_at_ms`,
-      [token],
-    ).first<D1EmailOtpRecordRow>();
-    const parsed = parseCurrentEmailOtpGrantRow({
-      recordJson: parseJsonRecord(row?.record_json),
-      expiresAtMs: row?.expires_at_ms,
-    });
-    return parsed ? cloneRecord(parsed) : null;
+  consume(grantToken: string): Promise<EmailOtpGrantRecord | null> {
+    return this.consumeById(grantToken, emailOtpGrantRows.consume);
   }
 
-  async del(grantToken: string): Promise<void> {
-    await this.ensureSchema();
-    const token = toOptionalTrimmedString(grantToken);
-    if (!token) return;
-    await this.bindScope(
-      `DELETE FROM email_otp_grants
-        WHERE namespace = ?
-          AND org_id = ?
-          AND project_id = ?
-          AND env_id = ?
-          AND grant_token = ?`,
-      [token],
-    ).run();
+  del(grantToken: string): Promise<void> {
+    return this.deleteById(grantToken, emailOtpGrantRows.delete);
   }
 }
 
 class D1EmailOtpWalletEnrollmentStore
-  extends D1EmailOtpStoreBase
+  extends D1EmailOtpStore<EmailOtpWalletEnrollmentRecord>
   implements EmailOtpWalletEnrollmentStore
 {
-  readonly adapterKind = 'd1';
+  constructor(database: D1DatabaseLike, scope: D1EmailOtpScope) {
+    super(database, scope, WALLET_ENROLLMENT_RECORD, {
+      fromRow: walletEnrollmentFromRow,
+      upsert: emailOtpWalletEnrollmentRows.upsert,
+    });
+  }
 
   async get(walletId: string): Promise<EmailOtpWalletEnrollmentRecord | null> {
     await this.ensureSchema();
     const key = toOptionalTrimmedString(walletId);
     if (!key) return null;
-    const row = await this.bindScope(
+    const row = await this.prepare(
       `SELECT record_json, updated_at_ms, wallet_id
          FROM email_otp_wallet_enrollments
         WHERE namespace = ?
@@ -1523,16 +1272,7 @@ class D1EmailOtpWalletEnrollmentStore
         LIMIT 1`,
       [key],
     ).first<D1EmailOtpRecordRow>();
-    const parsed = parseCurrentEmailOtpWalletEnrollmentRow({
-      recordJson: parseJsonRecord(row?.record_json),
-      updatedAtMs: row?.updated_at_ms,
-    });
-    if (!row) return null;
-    if (!parsed) {
-      await this.del(key);
-      return null;
-    }
-    return cloneRecord(parsed);
+    return row ? this.recordOrDiscard(row, key) : null;
   }
 
   async getByProviderUserId(input: {
@@ -1543,7 +1283,7 @@ class D1EmailOtpWalletEnrollmentStore
     const providerUserId = toOptionalTrimmedString(input.providerUserId);
     const orgId = toOptionalTrimmedString(input.orgId);
     if (!providerUserId || !orgId) return null;
-    const row = await this.bindScope(
+    const row = await this.prepare(
       `SELECT record_json, updated_at_ms, wallet_id
          FROM email_otp_wallet_enrollments
         WHERE namespace = ?
@@ -1556,152 +1296,34 @@ class D1EmailOtpWalletEnrollmentStore
         LIMIT 1`,
       [orgId, providerUserId],
     ).first<D1EmailOtpRecordRow>();
-    const parsed = parseCurrentEmailOtpWalletEnrollmentRow({
-      recordJson: parseJsonRecord(row?.record_json),
-      updatedAtMs: row?.updated_at_ms,
-    });
-    if (parsed) return cloneRecord(parsed);
-    const malformedWalletId = toOptionalTrimmedString(row?.wallet_id);
-    if (malformedWalletId) await this.del(malformedWalletId);
-    return null;
+    return this.recordOrDiscard(row, row?.wallet_id);
   }
 
-  async put(record: EmailOtpWalletEnrollmentRecord): Promise<void> {
-    await this.ensureSchema();
-    const parsed = parseCurrentEmailOtpWalletEnrollmentRecord(record);
-    if (!parsed) throw new Error('Invalid Email OTP wallet enrollment record');
-    assertD1EmailOtpOrgScope({
-      recordOrgId: parsed.orgId,
-      scope: this.scope,
-      label: 'Email OTP wallet enrollment',
-    });
-    await this.bindScope(
-      `INSERT INTO email_otp_wallet_enrollments (
-        namespace,
-        org_id,
-        project_id,
-        env_id,
-        wallet_id,
-        provider_user_id,
-        record_org_id,
-        verified_email,
-        record_json,
-        created_at_ms,
-        updated_at_ms
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT (namespace, org_id, project_id, env_id, wallet_id)
-      DO UPDATE SET
-        provider_user_id = EXCLUDED.provider_user_id,
-        record_org_id = EXCLUDED.record_org_id,
-        verified_email = EXCLUDED.verified_email,
-        record_json = EXCLUDED.record_json,
-        created_at_ms = EXCLUDED.created_at_ms,
-        updated_at_ms = EXCLUDED.updated_at_ms`,
-      [
-        parsed.walletId,
-        parsed.providerUserId,
-        parsed.orgId,
-        parsed.verifiedEmail,
-        JSON.stringify(parsed),
-        parsed.createdAtMs,
-        parsed.updatedAtMs,
-      ],
-    ).run();
-  }
-
-  async del(walletId: string): Promise<void> {
-    await this.ensureSchema();
-    const key = toOptionalTrimmedString(walletId);
-    if (!key) return;
-    await this.bindScope(
-      `DELETE FROM email_otp_wallet_enrollments
-        WHERE namespace = ?
-          AND org_id = ?
-          AND project_id = ?
-          AND env_id = ?
-          AND wallet_id = ?`,
-      [key],
-    ).run();
+  del(walletId: string): Promise<void> {
+    return this.deleteById(walletId, emailOtpWalletEnrollmentRows.delete);
   }
 }
 
-class D1EmailOtpAuthStateStore extends D1EmailOtpStoreBase implements EmailOtpAuthStateStore {
-  readonly adapterKind = 'd1';
-
-  async get(walletId: string): Promise<EmailOtpAuthStateRecord | null> {
-    await this.ensureSchema();
-    const key = toOptionalTrimmedString(walletId);
-    if (!key) return null;
-    const row = await this.bindScope(
-      `SELECT record_json, updated_at_ms
-         FROM email_otp_auth_states
-        WHERE namespace = ?
-          AND org_id = ?
-          AND project_id = ?
-          AND env_id = ?
-          AND wallet_id = ?
-        LIMIT 1`,
-      [key],
-    ).first<D1EmailOtpRecordRow>();
-    const parsed = parseCurrentEmailOtpAuthStateRow({
-      recordJson: parseJsonRecord(row?.record_json),
-      updatedAtMs: row?.updated_at_ms,
+class D1EmailOtpAuthStateStore
+  extends D1EmailOtpStore<EmailOtpAuthStateRecord>
+  implements EmailOtpAuthStateStore
+{
+  constructor(database: D1DatabaseLike, scope: D1EmailOtpScope) {
+    super(database, scope, AUTH_STATE_RECORD, {
+      fromRow: authStateFromRow,
+      upsert: emailOtpAuthStateRows.upsert,
     });
-    if (!row) return null;
-    if (!parsed) {
-      await this.del(key);
-      return null;
-    }
-    return cloneRecord(parsed);
   }
 
-  async put(record: EmailOtpAuthStateRecord): Promise<void> {
-    await this.ensureSchema();
-    const parsed = parseCurrentEmailOtpAuthStateRecord(record);
-    if (!parsed) throw new Error('Invalid Email OTP auth state record');
-    assertD1EmailOtpOrgScope({
-      recordOrgId: parsed.orgId,
-      scope: this.scope,
-      label: 'Email OTP auth state',
-    });
-    await this.bindScope(
-      `INSERT INTO email_otp_auth_states (
-        namespace,
-        org_id,
-        project_id,
-        env_id,
-        wallet_id,
-        provider_user_id,
-        record_org_id,
-        record_json,
-        created_at_ms,
-        updated_at_ms
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT (namespace, org_id, project_id, env_id, wallet_id)
-      DO UPDATE SET
-        provider_user_id = EXCLUDED.provider_user_id,
-        record_org_id = EXCLUDED.record_org_id,
-        record_json = EXCLUDED.record_json,
-        created_at_ms = EXCLUDED.created_at_ms,
-        updated_at_ms = EXCLUDED.updated_at_ms`,
-      [
-        parsed.walletId,
-        parsed.providerUserId,
-        parsed.orgId,
-        JSON.stringify(parsed),
-        parsed.createdAtMs,
-        parsed.updatedAtMs,
-      ],
-    ).run();
+  get(walletId: string): Promise<EmailOtpAuthStateRecord | null> {
+    return this.getById(walletId, emailOtpAuthStateRows.select);
   }
 
   async del(walletId: string): Promise<void> {
     await this.ensureSchema();
     const key = toOptionalTrimmedString(walletId);
     if (!key) return;
-    await this.bindScope(
+    await this.prepare(
       `DELETE FROM email_otp_auth_states
         WHERE namespace = ?
           AND org_id = ?
@@ -1714,81 +1336,25 @@ class D1EmailOtpAuthStateStore extends D1EmailOtpStoreBase implements EmailOtpAu
 }
 
 class D1EmailOtpUnlockChallengeStore
-  extends D1EmailOtpStoreBase
+  extends D1EmailOtpStore<EmailOtpUnlockChallengeRecord>
   implements EmailOtpUnlockChallengeStore
 {
-  readonly adapterKind = 'd1';
-
-  async put(record: EmailOtpUnlockChallengeRecord): Promise<void> {
-    await this.ensureSchema();
-    const parsed = parseCurrentEmailOtpUnlockChallengeRecord(record);
-    if (!parsed) throw new Error('Invalid Email OTP unlock challenge record');
-    assertD1EmailOtpOrgScope({
-      recordOrgId: parsed.orgId,
-      scope: this.scope,
-      label: 'Email OTP unlock challenge',
+  constructor(database: D1DatabaseLike, scope: D1EmailOtpScope) {
+    super(database, scope, UNLOCK_CHALLENGE_RECORD, {
+      fromRow: unlockChallengeFromRow,
+      upsert: emailOtpUnlockChallengeRows.upsert,
     });
-    await this.bindScope(
-      `INSERT INTO email_otp_unlock_challenges (
-        namespace,
-        org_id,
-        project_id,
-        env_id,
-        challenge_id,
-        wallet_id,
-        user_id,
-        record_org_id,
-        record_json,
-        created_at_ms,
-        expires_at_ms
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT (namespace, org_id, project_id, env_id, challenge_id)
-      DO UPDATE SET
-        wallet_id = EXCLUDED.wallet_id,
-        user_id = EXCLUDED.user_id,
-        record_org_id = EXCLUDED.record_org_id,
-        record_json = EXCLUDED.record_json,
-        created_at_ms = EXCLUDED.created_at_ms,
-        expires_at_ms = EXCLUDED.expires_at_ms`,
-      [
-        parsed.challengeId,
-        parsed.walletId,
-        parsed.userId,
-        parsed.orgId || '',
-        JSON.stringify(parsed),
-        parsed.createdAtMs,
-        parsed.expiresAtMs,
-      ],
-    ).run();
   }
 
-  async consume(challengeId: string): Promise<EmailOtpUnlockChallengeRecord | null> {
-    await this.ensureSchema();
-    const id = toOptionalTrimmedString(challengeId);
-    if (!id) return null;
-    const row = await this.bindScope(
-      `DELETE FROM email_otp_unlock_challenges
-        WHERE namespace = ?
-          AND org_id = ?
-          AND project_id = ?
-          AND env_id = ?
-          AND challenge_id = ?
-      RETURNING record_json, expires_at_ms`,
-      [id],
-    ).first<D1EmailOtpRecordRow>();
-    const parsed = parseCurrentEmailOtpUnlockChallengeRow({
-      recordJson: parseJsonRecord(row?.record_json),
-      expiresAtMs: row?.expires_at_ms,
-    });
-    return parsed ? cloneRecord(parsed) : null;
+  consume(challengeId: string): Promise<EmailOtpUnlockChallengeRecord | null> {
+    return this.consumeById(challengeId, emailOtpUnlockChallengeRows.consume);
   }
 
   async del(challengeId: string): Promise<void> {
     await this.ensureSchema();
     const id = toOptionalTrimmedString(challengeId);
     if (!id) return;
-    await this.bindScope(
+    await this.prepare(
       `DELETE FROM email_otp_unlock_challenges
         WHERE namespace = ?
           AND org_id = ?
@@ -1801,186 +1367,46 @@ class D1EmailOtpUnlockChallengeStore
 }
 
 class D1EmailOtpRegistrationAttemptStore
-  extends D1EmailOtpStoreBase
+  extends D1EmailOtpStore<GoogleEmailOtpRegistrationAttemptRecord>
   implements EmailOtpRegistrationAttemptStore
 {
-  readonly adapterKind = 'd1';
-
-  async put(record: GoogleEmailOtpRegistrationAttemptRecord): Promise<void> {
-    await this.ensureSchema();
-    const parsed = parseCurrentGoogleEmailOtpRegistrationAttemptRecord(record);
-    if (!parsed) throw new Error('Invalid Google Email OTP registration attempt record');
-    assertD1EmailOtpOrgScope({
-      recordOrgId: parsed.runtimePolicyScope?.orgId,
-      scope: this.scope,
-      label: 'Google Email OTP registration attempt',
+  constructor(database: D1DatabaseLike, scope: D1EmailOtpScope) {
+    super(database, scope, REGISTRATION_ATTEMPT_RECORD, {
+      fromRow: registrationAttemptFromRow,
+      upsert: emailOtpRegistrationAttemptRows.upsert,
     });
-    await this.bindScope(
-      `INSERT INTO email_otp_registration_attempts (
-        namespace,
-        org_id,
-        project_id,
-        env_id,
-        attempt_id,
-        provider_subject,
-        email,
-        wallet_id,
-        state,
-        owner_proof_binding_digest,
-        runtime_org_id,
-        runtime_policy_key,
-        offer_wallet_ids_json,
-        record_json,
-        created_at_ms,
-        updated_at_ms,
-        expires_at_ms
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT (namespace, org_id, project_id, env_id, attempt_id)
-      DO UPDATE SET
-        provider_subject = EXCLUDED.provider_subject,
-        email = EXCLUDED.email,
-        wallet_id = EXCLUDED.wallet_id,
-        state = EXCLUDED.state,
-        owner_proof_binding_digest = EXCLUDED.owner_proof_binding_digest,
-        runtime_org_id = EXCLUDED.runtime_org_id,
-        runtime_policy_key = EXCLUDED.runtime_policy_key,
-        offer_wallet_ids_json = EXCLUDED.offer_wallet_ids_json,
-        record_json = EXCLUDED.record_json,
-        created_at_ms = EXCLUDED.created_at_ms,
-        updated_at_ms = EXCLUDED.updated_at_ms,
-        expires_at_ms = EXCLUDED.expires_at_ms`,
-      [
-        parsed.attemptId,
-        parsed.providerSubject,
-        parsed.email,
-        parsed.walletId,
-        parsed.state,
-        parsed.ownerProofBindingDigest,
-        parsed.runtimePolicyScope?.orgId || '',
-        runtimePolicyScopeKey(parsed.runtimePolicyScope),
-        JSON.stringify(parsed.offerCandidates.map((candidate) => candidate.walletId)),
-        JSON.stringify(parsed),
-        parsed.createdAtMs,
-        parsed.updatedAtMs,
-        parsed.expiresAtMs,
-      ],
-    ).run();
   }
 
-  async get(attemptId: string): Promise<GoogleEmailOtpRegistrationAttemptRecord | null> {
-    await this.ensureSchema();
-    const id = toOptionalTrimmedString(attemptId);
-    if (!id) return null;
-    const row = await this.bindScope(
-      `SELECT record_json, expires_at_ms, updated_at_ms, attempt_id
-         FROM email_otp_registration_attempts
-        WHERE namespace = ?
-          AND org_id = ?
-          AND project_id = ?
-          AND env_id = ?
-          AND attempt_id = ?
-        LIMIT 1`,
-      [id],
-    ).first<D1EmailOtpRecordRow>();
-    const parsed = parseCurrentGoogleEmailOtpRegistrationAttemptRow({
-      recordJson: parseJsonRecord(row?.record_json),
-      expiresAtMs: row?.expires_at_ms,
-      updatedAtMs: row?.updated_at_ms,
-    });
-    if (!row) return null;
-    if (!parsed) {
-      await this.deleteAttempt(id);
-      return null;
-    }
-    return cloneRecord(parsed);
+  get(attemptId: string): Promise<GoogleEmailOtpRegistrationAttemptRecord | null> {
+    return this.getById(attemptId, emailOtpRegistrationAttemptRows.select);
   }
 
-  async findStartedBySubjectEmail(input: {
-    providerSubject: string;
-    email: string;
-    orgId: string;
-    ownerProofBindingDigest: string;
-    runtimePolicyScope?: ThresholdRuntimePolicyScope;
-    nowMs: number;
-  }): Promise<PendingGoogleEmailOtpRegistrationAttemptRecord | null> {
+  async findStartedBySubjectEmail(
+    input: GoogleEmailOtpRegistrationAttemptScopeInput,
+  ): Promise<PendingGoogleEmailOtpRegistrationAttemptRecord | null> {
     await this.ensureSchema();
-    const row = await this.bindScope(
-      `SELECT record_json, expires_at_ms, updated_at_ms, attempt_id
-         FROM email_otp_registration_attempts
-        WHERE namespace = ?
-          AND org_id = ?
-          AND project_id = ?
-          AND env_id = ?
-          AND provider_subject = ?
-          AND email = ?
-          AND state IN ('started', 'key_finalized')
-          AND expires_at_ms > ?
-          AND owner_proof_binding_digest = ?
-          AND runtime_org_id = ?
-          AND runtime_policy_key = ?
-        ORDER BY updated_at_ms DESC
-        LIMIT 1`,
-      [
-        input.providerSubject,
-        input.email,
-        input.nowMs,
-        input.ownerProofBindingDigest,
-        input.orgId,
-        runtimePolicyScopeKey(input.runtimePolicyScope),
-      ],
-    ).first<D1EmailOtpRecordRow>();
-    const parsed = parseCurrentGoogleEmailOtpRegistrationAttemptRow({
-      recordJson: parseJsonRecord(row?.record_json),
-      expiresAtMs: row?.expires_at_ms,
-      updatedAtMs: row?.updated_at_ms,
-    });
-    if (parsed && registrationAttemptMatchesStartedScope(parsed, input)) {
-      return cloneRecord(parsed);
-    }
-    const malformedAttemptId = toOptionalTrimmedString(row?.attempt_id);
-    if (row && !parsed && malformedAttemptId) await this.deleteAttempt(malformedAttemptId);
-    return null;
+    const row = await emailOtpRegistrationAttemptRows
+      .selectStarted(this.prepare, input)
+      .first<D1EmailOtpRecordRow>();
+    const record = await this.recordOrDiscard(row, row?.attempt_id);
+    return record && registrationAttemptMatchesStartedScope(record, input) ? record : null;
   }
 
-  async abandonStartedBySubjectEmailExceptBinding(input: {
-    providerSubject: string;
-    email: string;
-    orgId: string;
-    ownerProofBindingDigest: string;
-    runtimePolicyScope?: ThresholdRuntimePolicyScope;
-    nowMs: number;
-    failureCode: 'owner_proof_binding_replaced';
-  }): Promise<number> {
+  async abandonStartedBySubjectEmailExceptBinding(
+    input: GoogleEmailOtpRegistrationAttemptScopeInput & {
+      failureCode: 'owner_proof_binding_replaced';
+    },
+  ): Promise<number> {
     await this.ensureSchema();
-    const result = await this.bindScope(
-      `SELECT record_json, expires_at_ms, updated_at_ms, attempt_id
-         FROM email_otp_registration_attempts
-        WHERE namespace = ?
-          AND org_id = ?
-          AND project_id = ?
-          AND env_id = ?
-          AND provider_subject = ?
-          AND email = ?
-          AND state IN ('started', 'key_finalized')
-          AND expires_at_ms > ?`,
-      [input.providerSubject, input.email, input.nowMs],
-    ).all<D1EmailOtpRecordRow>();
+    const result = await emailOtpRegistrationAttemptRows
+      .selectPending(this.prepare, input)
+      .all<D1EmailOtpRecordRow>();
     let abandoned = 0;
     for (const row of result.results || []) {
-      const parsed = parseCurrentGoogleEmailOtpRegistrationAttemptRow({
-        recordJson: parseJsonRecord(row.record_json),
-        expiresAtMs: row.expires_at_ms,
-        updatedAtMs: row.updated_at_ms,
-      });
-      if (!parsed) {
-        const attemptId = toOptionalTrimmedString(row.attempt_id);
-        if (attemptId) await this.deleteAttempt(attemptId);
-        continue;
-      }
-      if (!registrationAttemptMatchesReplacementScope(parsed, input)) continue;
+      const record = await this.recordOrDiscard(row, row.attempt_id);
+      if (!record || !registrationAttemptMatchesReplacementScope(record, input)) continue;
       await this.put({
-        ...parsed,
+        ...record,
         state: 'abandoned',
         failureCode: input.failureCode,
         updatedAtMs: input.nowMs,
@@ -1994,32 +1420,15 @@ class D1EmailOtpRegistrationAttemptStore
     await this.ensureSchema();
     const walletId = toOptionalTrimmedString(input.walletId);
     if (!walletId) return false;
-    const row = await this.bindScope(
-      `SELECT 1 AS found
-         FROM email_otp_registration_attempts
-        WHERE namespace = ?
-          AND org_id = ?
-          AND project_id = ?
-          AND env_id = ?
-          AND state IN ('started', 'key_finalized')
-          AND expires_at_ms > ?
-          AND (
-            wallet_id = ?
-            OR EXISTS (
-              SELECT 1
-                FROM json_each(offer_wallet_ids_json)
-               WHERE value = ?
-            )
-          )
-        LIMIT 1`,
-      [input.nowMs, walletId, walletId],
-    ).first<{ found?: unknown }>();
+    const row = await emailOtpRegistrationAttemptRows
+      .selectLiveForWallet(this.prepare, walletId, input.nowMs)
+      .first<{ found?: unknown }>();
     return Boolean(row);
   }
 
   async deleteExpired(nowMs: number): Promise<number> {
     await this.ensureSchema();
-    const result = await this.bindScope(
+    const result = await this.prepare(
       `DELETE FROM email_otp_registration_attempts
         WHERE namespace = ?
           AND org_id = ?
@@ -2031,93 +1440,64 @@ class D1EmailOtpRegistrationAttemptStore
     return d1ChangedRows(result);
   }
 
-  private async deleteAttempt(attemptId: string): Promise<void> {
-    const id = toOptionalTrimmedString(attemptId);
-    if (!id) return;
-    await this.bindScope(
-      `DELETE FROM email_otp_registration_attempts
-        WHERE namespace = ?
-          AND org_id = ?
-          AND project_id = ?
-          AND env_id = ?
-          AND attempt_id = ?`,
-      [id],
-    ).run();
+  del(attemptId: string): Promise<void> {
+    return this.deleteById(attemptId, emailOtpRegistrationAttemptRows.delete);
   }
 }
 
 export function createEmailOtpChallengeStore(
   input?: EmailOtpStoreFactoryInput,
 ): EmailOtpChallengeStore {
-  const d1 = resolveD1EmailOtpStoreOptions(input, 'challenge');
-  if (d1) {
-    input?.logger?.info('[email-otp] Using D1 challenge store');
-    return new D1EmailOtpChallengeStore(d1);
-  }
-  assertEmailOtpStoreKindKnown(input, 'challenge');
-  input?.logger?.info('[email-otp] Using in-memory challenge store (non-persistent)');
-  return new InMemoryEmailOtpChallengeStore();
+  return createEmailOtpStore(input, 'challenge', {
+    d1: (database, scope) => new D1EmailOtpChallengeStore(database, scope),
+    inMemory: () => new InMemoryEmailOtpChallengeStore(),
+  });
 }
 
 export function createEmailOtpGrantStore(input?: EmailOtpStoreFactoryInput): EmailOtpGrantStore {
-  const d1 = resolveD1EmailOtpStoreOptions(input, 'grant');
-  if (d1) {
-    input?.logger?.info('[email-otp] Using D1 grant store');
-    return new D1EmailOtpGrantStore(d1);
-  }
-  assertEmailOtpStoreKindKnown(input, 'grant');
-  input?.logger?.info('[email-otp] Using in-memory grant store (non-persistent)');
-  return new InMemoryEmailOtpGrantStore();
+  return createEmailOtpStore(input, 'grant', {
+    d1: (database, scope) => new D1EmailOtpGrantStore(database, scope),
+    inMemory: () => new InMemoryEmailOtpStore(GRANT_RECORD),
+  });
 }
 
 export function createEmailOtpWalletEnrollmentStore(
   input?: EmailOtpStoreFactoryInput,
 ): EmailOtpWalletEnrollmentStore {
-  const d1 = resolveD1EmailOtpStoreOptions(input, 'wallet enrollment');
-  if (d1) {
-    input?.logger?.info('[email-otp] Using D1 wallet enrollment store');
-    return new D1EmailOtpWalletEnrollmentStore(d1);
-  }
-  assertEmailOtpStoreKindKnown(input, 'enrollment');
-  input?.logger?.info('[email-otp] Using in-memory wallet enrollment store (non-persistent)');
-  return new InMemoryEmailOtpWalletEnrollmentStore();
+  return createEmailOtpStore(
+    input,
+    'wallet enrollment',
+    {
+      d1: (database, scope) => new D1EmailOtpWalletEnrollmentStore(database, scope),
+      inMemory: () => new InMemoryEmailOtpWalletEnrollmentStore(),
+    },
+    'enrollment',
+  );
 }
 
 export function createEmailOtpAuthStateStore(
   input?: EmailOtpStoreFactoryInput,
 ): EmailOtpAuthStateStore {
-  const d1 = resolveD1EmailOtpStoreOptions(input, 'auth state');
-  if (d1) {
-    input?.logger?.info('[email-otp] Using D1 auth state store');
-    return new D1EmailOtpAuthStateStore(d1);
-  }
-  assertEmailOtpStoreKindKnown(input, 'auth state');
-  input?.logger?.info('[email-otp] Using in-memory auth state store (non-persistent)');
-  return new InMemoryEmailOtpAuthStateStore();
+  return createEmailOtpStore(input, 'auth state', {
+    d1: (database, scope) => new D1EmailOtpAuthStateStore(database, scope),
+    inMemory: () => new InMemoryEmailOtpStore(AUTH_STATE_RECORD),
+  });
 }
 
 export function createEmailOtpUnlockChallengeStore(
   input?: EmailOtpStoreFactoryInput,
 ): EmailOtpUnlockChallengeStore {
-  const d1 = resolveD1EmailOtpStoreOptions(input, 'unlock challenge');
-  if (d1) {
-    input?.logger?.info('[email-otp] Using D1 unlock challenge store');
-    return new D1EmailOtpUnlockChallengeStore(d1);
-  }
-  assertEmailOtpStoreKindKnown(input, 'unlock challenge');
-  input?.logger?.info('[email-otp] Using in-memory unlock challenge store (non-persistent)');
-  return new InMemoryEmailOtpUnlockChallengeStore();
+  return createEmailOtpStore(input, 'unlock challenge', {
+    d1: (database, scope) => new D1EmailOtpUnlockChallengeStore(database, scope),
+    inMemory: () => new InMemoryEmailOtpStore(UNLOCK_CHALLENGE_RECORD),
+  });
 }
 
 export function createEmailOtpRegistrationAttemptStore(
   input?: EmailOtpStoreFactoryInput,
 ): EmailOtpRegistrationAttemptStore {
-  const d1 = resolveD1EmailOtpStoreOptions(input, 'registration attempt');
-  if (d1) {
-    input?.logger?.info('[email-otp] Using D1 registration attempt store');
-    return new D1EmailOtpRegistrationAttemptStore(d1);
-  }
-  assertEmailOtpStoreKindKnown(input, 'registration attempt');
-  input?.logger?.info('[email-otp] Using in-memory registration attempt store (non-persistent)');
-  return new InMemoryEmailOtpRegistrationAttemptStore();
+  return createEmailOtpStore(input, 'registration attempt', {
+    d1: (database, scope) => new D1EmailOtpRegistrationAttemptStore(database, scope),
+    inMemory: () => new InMemoryEmailOtpRegistrationAttemptStore(),
+  });
 }
