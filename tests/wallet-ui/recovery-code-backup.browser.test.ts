@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import path from 'node:path';
+import type { WalletIframeRequestId } from '@/core/types/walletIframeIdentity';
 import { injectImportMap } from '../setup/bootstrap';
 import { buildTestBrowserImportMapHtml } from '../setup/importMap';
 import { routePreactModules } from '../setup/preact';
@@ -390,15 +391,15 @@ test('recovery codes fit the wallet iframe at desktop and mobile widths', async 
     element.setAttribute('data-seams-recovery-surface', 'wallet-iframe');
   });
   await page.setViewportSize({ width: 480, height: 320 });
-  await dialog.evaluate(async element => {
-    const { createWalletIframeSurfaceMeasurementReporter } = await import(
+  await dialog.evaluate(async (element: HTMLElement) => {
+    const { createWalletIframeSurfaceMeasurementReporter } = (await import(
       '/_test-sdk/esm/SeamsWeb/walletIframe/host/surface-measurement-reporter.js'
-    );
+    )) as typeof import('@/SeamsWeb/walletIframe/host/surface-measurement-reporter');
     window.__recoveryHeights = [];
     createWalletIframeSurfaceMeasurementReporter({
       kind: 'request_scroll_surface',
       element,
-      requestId: 'recovery-sizing',
+      requestId: 'recovery-sizing' as WalletIframeRequestId,
       postMeasurement: measurement => window.__recoveryHeights.push(measurement.heightCssPx),
     });
   });
