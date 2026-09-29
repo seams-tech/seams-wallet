@@ -87,6 +87,9 @@ function startAttempt(attempt) {
   attempts.set(attempt.runId, state);
   const env = {
     ...process.env,
+    // The only origins each arm's ingress and Gateway accept.
+    SEAMS_INTENDED_APP_URL: 'http://localhost:4201',
+    SEAMS_INTENDED_WALLET_ORIGIN: 'http://localhost:4202',
     SEAMS_INTENDED_EXTERNAL_GATEWAY: '1',
     SEAMS_INTENDED_ROUTER_URL: attempt.selected.ingressUrl,
     SEAMS_INTENDED_BENCHMARK_ARM: attempt.arm,
