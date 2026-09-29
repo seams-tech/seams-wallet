@@ -137,7 +137,7 @@ export type LaneRefreshTargetV1 = {
   priorMaterialActivation: MpcMaterialActivationRef;
 };
 
-export type EcdsaTargetThresholdSessionBindingV1 = {
+type EcdsaTargetThresholdSessionBindingV1 = {
   chainTarget: ThresholdEcdsaChainTarget;
   thresholdSessionId: ThresholdEcdsaSessionId;
   participantBindingDigestB64u: string;
@@ -224,7 +224,7 @@ export type Ed25519YaoLaneCreationJobV1 = LaneProtocolJobCommonV1 &
   Ed25519YaoLaneJobCurveV1 &
   LaneCreationOperationV1 & { yaoRequestKind: 'lane_provisioning' };
 
-export type Ed25519YaoLaneRefreshJobV1 = LaneProtocolJobCommonV1 &
+type Ed25519YaoLaneRefreshJobV1 = LaneProtocolJobCommonV1 &
   Ed25519YaoLaneJobCurveV1 &
   LaneRefreshOperationV1 & { yaoRequestKind: 'lane_refresh' };
 
@@ -234,7 +234,7 @@ export type EcdsaAdditiveLaneCreationJobV1 = LaneProtocolJobCommonV1 &
   LaneCreationOperationV1 &
   EcdsaAdditiveLaneJobCurveV1;
 
-export type EcdsaAdditiveLaneRefreshJobV1 = LaneProtocolJobCommonV1 &
+type EcdsaAdditiveLaneRefreshJobV1 = LaneProtocolJobCommonV1 &
   LaneRefreshOperationV1 &
   EcdsaAdditiveLaneJobCurveV1;
 
@@ -529,7 +529,7 @@ export type LaneServerRetirementReceiptV1 =
   | EcdsaServerRetirementReceiptV1
   | Ed25519ServerRetirementReceiptV1;
 
-export type LaneProductEpochRecordCommonV1 = {
+type LaneProductEpochRecordCommonV1 = {
   kind: 'lane_product_epoch_record_v1';
   walletId: WalletId;
   walletKeyId: WalletKeyId;

@@ -2,11 +2,11 @@ import {
   WALLET_CUSTODY_ENVELOPE_VERSION_V2,
   parsePasskeyCustodyEnvelopeRecord,
   parseWalletCustodyEnvelopeOwnershipWireV1,
-  rejectUnknownFields,
   type PasskeyCustodyEnvelopeRecord,
   type RecoveryReplacementEnvelopePayload,
 } from '@shared/passkey-custody';
 import { requireRecord } from '@shared/utils/validation';
+import { rejectUnknownFields } from '@shared/utils/exactRecord';
 
 const RECOVERY_BINDING_FIELDS = [
   'walletId',

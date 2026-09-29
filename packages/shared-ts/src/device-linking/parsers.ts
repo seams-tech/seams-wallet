@@ -42,12 +42,7 @@ import {
   parseLinkedDeviceWalletSessionCredentialDeliveryBindingV1,
   parseLinkedDeviceWalletSessionCredentialDeliveryV1,
 } from './walletSessionCredentialDelivery';
-import {
-  exactRecord,
-  parseEd25519PublicKeyB64u,
-  parseUnixMs,
-  rejectUnknownFields,
-} from '../passkey-custody/primitives';
+import { parseEd25519PublicKeyB64u, parseUnixMs } from '../passkey-custody/primitives';
 import {
   parseWalletAuthorityV1,
   parseWalletSignerActivationSetV1,
@@ -121,6 +116,7 @@ import {
   parseLinkedDeviceOrdinaryMaterialSourceContributionTupleV1,
 } from './sourceContribution';
 import { requireRecord } from '../utils/validation';
+import { exactRecord, rejectUnknownFields } from '../utils/exactRecord';
 
 type UnknownRecord = Record<string, unknown>;
 

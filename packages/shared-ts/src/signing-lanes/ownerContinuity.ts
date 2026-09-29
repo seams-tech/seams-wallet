@@ -1,6 +1,6 @@
 import type { DomainIdParseResult, MpcSigningWorkerRef } from '../utils/domainIds';
 import { hasWhitespaceOrControlCharacters, parseMpcSigningWorkerRef } from '../utils/domainIds';
-import { parseDigestField, rejectUnknownFields } from '../passkey-custody/primitives';
+import { parseDigestField } from '../passkey-custody/primitives';
 import type { DigestB64u } from '../utils/canonicalPrimitives';
 import { base64UrlEncode } from '../utils/base64';
 import { sha256Bytes } from '../utils/digests';
@@ -14,6 +14,7 @@ import {
   type LaneParticipantBindingDigestB64u,
 } from './participants';
 import { requireRecord } from '../utils/validation';
+import { rejectUnknownFields } from '../utils/exactRecord';
 
 /** The durable signer identity used by canonical wallet-signer records. */
 export type WalletSignerId = string & {

@@ -8,7 +8,6 @@ import {
   parseEd25519PublicKeyB64u,
   parseEnvelopeCiphertextB64u,
   parseEnvelopeNonceB64u,
-  rejectUnknownFields,
   type Ed25519PublicKeyB64u,
   type EnvelopeCiphertextB64u,
   type EnvelopeNonceB64u,
@@ -31,6 +30,7 @@ import {
 } from '../utils/domainIds';
 import type { LinkedDeviceTargetFactorV1 } from './contracts';
 import { requireRecord } from '../utils/validation';
+import { rejectUnknownFields } from '../utils/exactRecord';
 
 /** Frozen by signer-core's Ed25519 Yao Client-root transfer module. */
 export const LINKED_DEVICE_ED25519_EXPORT_ROOT_TRANSFER_ALG_V1 =

@@ -22,9 +22,9 @@ import {
   parseEnvelopeNonceB64u,
   parseEnvelopeRevision,
   parseUnixMs,
-  rejectUnknownFields,
 } from './primitives';
 import { requireRecord } from '../utils/validation';
+import { rejectUnknownFields } from '../utils/exactRecord';
 
 export const WALLET_CUSTODY_ENVELOPE_VERSION_V2 = 'wallet_custody_envelope_v2' as const;
 export const PASSKEY_PRF_KEK_VERSION_V1 = 'passkey_prf_kek_hkdf_sha256_v1' as const;

@@ -2,6 +2,7 @@ export * from './ids';
 export * from './records';
 export * from './rotation';
 export * from './rotationParsers';
+export * from './rotationProtocolParsers';
 export * from './rotationDigests';
 export * from './rotationLifecycle';
 export * from './evmFamilySigningKeySlotId';

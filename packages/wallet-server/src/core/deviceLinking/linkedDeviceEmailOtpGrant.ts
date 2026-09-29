@@ -34,9 +34,10 @@ import {
   type LinkedDeviceEnrollmentId,
   type LinkedDeviceId,
 } from '@shared/signing-lanes/ids';
-import { rejectUnknownFields, parseUnixMs } from '@shared/passkey-custody/primitives';
+import { parseUnixMs } from '@shared/passkey-custody/primitives';
 import type { LinkedDeviceEmailOtpEnrollmentSelectionV1 } from '@shared/device-linking/contracts';
 import { requireRecord } from '@shared/utils/validation';
+import { rejectUnknownFields } from '@shared/utils/exactRecord';
 
 const GRANT_TOKEN_DIGEST_DOMAIN = 'seams:linked-device-email-otp-grant-token:v1';
 const DESCRIPTOR_CREDENTIAL_DOMAIN = 'seams:linked-device-email-otp-descriptor-credential:v1';

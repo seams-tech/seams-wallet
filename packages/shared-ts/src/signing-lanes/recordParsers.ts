@@ -10,7 +10,6 @@ import {
   parseKeyCreationSignerSlot,
   parseSecp256k1CompressedPublicKeyB64u,
   parseUnixMs,
-  rejectUnknownFields,
 } from '../passkey-custody/primitives';
 import { parseNearEd25519SigningKeyId } from '../utils/registrationIntent';
 import {
@@ -60,6 +59,7 @@ import {
   type OwnerLaneParticipantContinuityV1,
 } from './ownerContinuity';
 import { requireRecord } from '../utils/validation';
+import { rejectUnknownFields } from '../utils/exactRecord';
 
 type ActiveSigningLaneLifecycle = Extract<SigningLaneLifecycle, { readonly state: 'active' }>;
 

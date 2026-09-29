@@ -7,13 +7,13 @@ import {
   parseEnvelopeCiphertextB64u,
   parseEnvelopeNonceB64u,
   parseUnixMs,
-  rejectUnknownFields,
 } from '../passkey-custody';
 import { parseRecoveryCodeReservationId } from './recoveryCodeReservation';
 import type { DerivedWalletRecoveryKeyId } from './recoveryCodes';
 import { parseDerivedWalletRecoveryKeyId, WALLET_RECOVERY_CODE_COUNT } from './recoveryCodes';
 import type { RecoveryCodeLifecycleState } from './recoveryEnvelopes';
 import { requireRecord } from '../utils/validation';
+import { rejectUnknownFields } from '../utils/exactRecord';
 
 /**
  * The recovery-wrapped wallet custody seed, sealed under a key derived from the

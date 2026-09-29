@@ -26,9 +26,9 @@ import {
   parseDigestField,
   parseEd25519PublicKeyB64u,
   parseSecp256k1CompressedPublicKeyB64u,
-  rejectUnknownFields,
 } from './primitives';
 import { requireRecord } from '../utils/validation';
+import { rejectUnknownFields } from '../utils/exactRecord';
 
 /**
  * The protocol capability an opened envelope restores.

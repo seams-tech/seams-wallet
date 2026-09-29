@@ -8,7 +8,7 @@ import {
   parseEcdsaAdditiveLaneHolderRoundV1,
   parseLaneHolderPackageWireV1,
   parseRotatableSigningLaneJobV1,
-} from '@shared/signing-lanes/rotationParsers';
+} from '@shared/signing-lanes/rotationProtocolParsers';
 
 function parseEcdsaJob(value: unknown): EcdsaAdditiveLaneJobV1 {
   const parsed = parseRotatableSigningLaneJobV1(value);

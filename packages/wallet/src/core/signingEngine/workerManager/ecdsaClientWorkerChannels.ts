@@ -54,7 +54,7 @@ import type {
   EcdsaAdditiveLaneHolderPreparationV1,
   EcdsaAdditiveLaneJobV1,
 } from '@shared/signing-lanes/rotation';
-import { parseRotatableSigningLaneJobV1 } from '@shared/signing-lanes/rotationParsers';
+import { parseRotatableSigningLaneJobV1 } from '@shared/signing-lanes/rotationProtocolParsers';
 import {
   parseLinkedDeviceEcdsaSourceContributionPackageV1,
   parseLinkedDeviceEcdsaSourceContributionPreparationV1,
