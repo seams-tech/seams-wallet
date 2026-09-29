@@ -67,7 +67,7 @@ import {
   type LinkedDeviceId,
   type LinkDeviceSessionId,
 } from '@shared/signing-lanes/ids';
-import { requireCanonicalString } from '@shared/utils/validation';
+import { isPlainObject, requireCanonicalString } from '@shared/utils/validation';
 import initNearSigner, {
   ed25519_yao_client_root_transfer_recipient_v1,
   type WasmEd25519YaoClientRootTransferRecipientV1,
@@ -486,36 +486,43 @@ const laneRecipientWasmUrl = resolveWasmUrl(
   'router_ab_ed25519_yao_client_bg.wasm',
   'Ed25519 Yao Client',
 );
-let laneRecipientInitPromise: Promise<void> | null = null;
 const nearSignerWasmUrl = resolveWasmUrl('wasm_signer_worker_bg.wasm', 'NEAR Signer');
-let nearSignerInitPromise: Promise<void> | null = null;
 
-async function initializeLaneRecipientWasm(): Promise<void> {
-  if (!laneRecipientInitPromise) {
-    laneRecipientInitPromise = initEd25519YaoClient({
-      module_or_path: laneRecipientWasmUrl,
-    }).then(
-      () => undefined,
-      (error: unknown) => {
-        laneRecipientInitPromise = null;
-        throw error;
-      },
-    );
-  }
-  return await laneRecipientInitPromise;
+/** Initializes a WASM module once, and again on the next call after a failed attempt. */
+function wasmInitializer(initialize: () => Promise<unknown>): () => Promise<void> {
+  let initPromise: Promise<void> | null = null;
+  return async () => {
+    if (!initPromise) {
+      initPromise = initialize().then(
+        () => undefined,
+        (error: unknown) => {
+          initPromise = null;
+          throw error;
+        },
+      );
+    }
+    return await initPromise;
+  };
 }
 
-async function initializeNearSignerWasm(): Promise<void> {
-  if (!nearSignerInitPromise) {
-    nearSignerInitPromise = initNearSigner({ module_or_path: nearSignerWasmUrl }).then(
-      () => undefined,
-      (error: unknown) => {
-        nearSignerInitPromise = null;
-        throw error;
-      },
-    );
-  }
-  return await nearSignerInitPromise;
+const initializeLaneRecipientWasm = wasmInitializer(() =>
+  initEd25519YaoClient({ module_or_path: laneRecipientWasmUrl }),
+);
+const initializeNearSignerWasm = wasmInitializer(() =>
+  initNearSigner({ module_or_path: nearSignerWasmUrl }),
+);
+
+function requireKeySlot(handleId: string): DeviceLinkingKeySlotV1 {
+  const slot = keySlots.get(handleId);
+  if (!slot) throw new Error('device-linking key handle is unknown or discarded');
+  return slot;
+}
+
+function destroyKeySlot(slot: DeviceLinkingKeySlotV1): void {
+  destroyOrdinaryRecipientPreparation(slot);
+  destroyOrdinaryMaterial(slot);
+  slot.emailOtpExportRootRecipient?.free();
+  slot.emailOtpExportRootRecipient = null;
 }
 
 const productionOrdinaryMaterialSealer: DeviceLinkingOrdinaryMaterialSealerV1 = {
@@ -929,14 +936,13 @@ async function hmacSha256(keyBytes: Uint8Array, data: Uint8Array): Promise<Uint8
   return new Uint8Array(await globalThis.crypto.subtle.sign('HMAC', key, data));
 }
 
+// RFC 8410's fixed PKCS#8 wrapper for a 32-byte X25519 scalar.
+const X25519_PKCS8_PREFIX = Uint8Array.from([
+  0x30, 0x2e, 0x02, 0x01, 0x00, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x6e, 0x04, 0x22, 0x04, 0x20,
+]);
+
 function x25519PrivateKeyPkcs8(privateKey: Uint8Array): Uint8Array {
-  return concat([
-    Uint8Array.from([
-      0x30, 0x2e, 0x02, 0x01, 0x00, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x6e, 0x04, 0x22, 0x04,
-      0x20,
-    ]),
-    privateKey,
-  ]);
+  return concat([X25519_PKCS8_PREFIX, privateKey]);
 }
 
 function uint16Bytes(value: number): Uint8Array {
@@ -959,12 +965,9 @@ type DeviceLinkingSignRequestRecordV1 = {
 function isDeviceLinkingSignRequestRecordV1(
   value: unknown,
 ): value is DeviceLinkingSignRequestRecordV1 {
-  return (
-    value !== null &&
-    typeof value === 'object' &&
-    !Array.isArray(value) &&
-    Object.keys(value).sort().join('|') ===
-      'bodyDigestB64u|canonicalPath|challengeB64u|devicePublicKeyDigestB64u|expiresAtMs|handleId|issuedAtMs|kind|linkSessionId|method'
+  return hasExactKeys(
+    value,
+    'bodyDigestB64u|canonicalPath|challengeB64u|devicePublicKeyDigestB64u|expiresAtMs|handleId|issuedAtMs|kind|linkSessionId|method',
   );
 }
 
@@ -975,12 +978,7 @@ type DeviceLinkingCreateRequestRecordV1 = {
 function isDeviceLinkingCreateRequestRecordV1(
   value: unknown,
 ): value is DeviceLinkingCreateRequestRecordV1 {
-  return (
-    value !== null &&
-    typeof value === 'object' &&
-    !Array.isArray(value) &&
-    Object.keys(value).sort().join('|') === 'kind'
-  );
+  return hasExactKeys(value, 'kind');
 }
 
 type DeviceLinkingHandleRequestRecordV1 = {
@@ -991,12 +989,7 @@ type DeviceLinkingHandleRequestRecordV1 = {
 function isDeviceLinkingHandleRequestRecordV1(
   value: unknown,
 ): value is DeviceLinkingHandleRequestRecordV1 {
-  return (
-    value !== null &&
-    typeof value === 'object' &&
-    !Array.isArray(value) &&
-    Object.keys(value).sort().join('|') === 'handleId|kind'
-  );
+  return hasExactKeys(value, 'handleId|kind');
 }
 
 type DeviceLinkingEmailOtpFactorReleaseRequestRecordV1 = {
@@ -1017,12 +1010,9 @@ type DeviceLinkingEmailOtpFactorReleaseRequestRecordV1 = {
 function isDeviceLinkingEmailOtpFactorReleaseRequestRecordV1(
   value: unknown,
 ): value is DeviceLinkingEmailOtpFactorReleaseRequestRecordV1 {
-  return (
-    value !== null &&
-    typeof value === 'object' &&
-    !Array.isArray(value) &&
-    Object.keys(value).sort().join('|') ===
-      'baseWalletAuthMethodId|deviceId|enrollmentId|expectedChallengeId|factorRelease|handleId|kind|linkSessionId|targetPreparationDigestB64u|verificationGrant|walletAuthMethodId|walletId'
+  return hasExactKeys(
+    value,
+    'baseWalletAuthMethodId|deviceId|enrollmentId|expectedChallengeId|factorRelease|handleId|kind|linkSessionId|targetPreparationDigestB64u|verificationGrant|walletAuthMethodId|walletId',
   );
 }
 
@@ -1036,12 +1026,7 @@ type DeviceLinkingWalletSessionDeliveryRequestRecordV1 = {
 function isDeviceLinkingWalletSessionDeliveryRequestRecordV1(
   value: unknown,
 ): value is DeviceLinkingWalletSessionDeliveryRequestRecordV1 {
-  return (
-    value !== null &&
-    typeof value === 'object' &&
-    !Array.isArray(value) &&
-    Object.keys(value).sort().join('|') === 'delivery|expected|handleId|kind'
-  );
+  return hasExactKeys(value, 'delivery|expected|handleId|kind');
 }
 
 type DeviceLinkingWalletSessionExpectedRecordV1 = {
@@ -1063,12 +1048,9 @@ type DeviceLinkingWalletSessionExpectedRecordV1 = {
 function isDeviceLinkingWalletSessionExpectedRecordV1(
   value: unknown,
 ): value is DeviceLinkingWalletSessionExpectedRecordV1 {
-  return (
-    value !== null &&
-    typeof value === 'object' &&
-    !Array.isArray(value) &&
-    Object.keys(value).sort().join('|') ===
-      'authorityId|authorizationId|credentialDigestB64u|deliveryBinding|expiresAtMs|installationReceiptDigestB64u|issuedAtMs|linkSessionId|quotaId|recipientPublicKey65B64u|walletAuthMethodId|walletId|walletSessionId'
+  return hasExactKeys(
+    value,
+    'authorityId|authorizationId|credentialDigestB64u|deliveryBinding|expiresAtMs|installationReceiptDigestB64u|issuedAtMs|linkSessionId|quotaId|recipientPublicKey65B64u|walletAuthMethodId|walletId|walletSessionId',
   );
 }
 
@@ -1080,12 +1062,12 @@ type DeviceLinkingWorkerFrameRecordV1 = {
 function isDeviceLinkingWorkerFrameRecordV1(
   value: unknown,
 ): value is DeviceLinkingWorkerFrameRecordV1 {
-  return (
-    value !== null &&
-    typeof value === 'object' &&
-    !Array.isArray(value) &&
-    Object.keys(value).sort().join('|') === 'id|request'
-  );
+  return hasExactKeys(value, 'id|request');
+}
+
+// A plain object whose own keys, sorted and joined with `|`, are exactly `sortedKeys`.
+function hasExactKeys(value: unknown, sortedKeys: string): boolean {
+  return isPlainObject(value) && Object.keys(value).sort().join('|') === sortedKeys;
 }
 
 function parseHandleId(value: unknown): string {
@@ -1234,9 +1216,7 @@ function parseRequest(value: unknown): DeviceLinkingKeyWorkerRequestV1 {
     };
   }
   if (
-    value !== null &&
-    typeof value === 'object' &&
-    !Array.isArray(value) &&
+    isPlainObject(value) &&
     'kind' in value &&
     value.kind === 'device_linking_ordinary_signer_material_prepare_private_v1'
   ) {
@@ -1255,9 +1235,7 @@ function parseRequest(value: unknown): DeviceLinkingKeyWorkerRequestV1 {
     }
   }
   if (
-    value !== null &&
-    typeof value === 'object' &&
-    !Array.isArray(value) &&
+    isPlainObject(value) &&
     'kind' in value &&
     (value.kind === 'device_linking_ordinary_signer_material_recipient_prepare_v1' ||
       value.kind === 'device_linking_ordinary_signer_material_seal_v1')
@@ -1389,7 +1367,7 @@ function parseRequest(value: unknown): DeviceLinkingKeyWorkerRequestV1 {
 function zeroizeRawOrdinaryRecipientInputs(value: unknown): void {
   if (!Array.isArray(value)) return;
   for (const entry of value) {
-    if (entry === null || typeof entry !== 'object' || Array.isArray(entry)) continue;
+    if (!isPlainObject(entry)) continue;
     const privateKey =
       'recipientPrivateKey' in entry && entry.recipientPrivateKey instanceof ArrayBuffer
         ? entry.recipientPrivateKey
@@ -1523,8 +1501,7 @@ async function openEmailOtpFactorRelease(
   readonly verificationGrant: LinkedDeviceEmailOtpVerificationGrantV1;
   readonly factorSecret: ArrayBuffer;
 }> {
-  const slot = keySlots.get(request.handleId);
-  if (!slot) throw new Error('device-linking key handle is unknown or discarded');
+  const slot = requireKeySlot(request.handleId);
   assertEmailOtpFactorReleaseBinding(request);
   if (slot.emailOtpFactorReleaseChallengeId !== null) {
     throw new Error('device-linking Email OTP factor release has already been consumed');
@@ -1574,12 +1551,7 @@ function assertEmailOtpFactorReleaseBinding(
 
 function discardKeyMaterialSlot(handleId: string): void {
   const slot = keySlots.get(handleId);
-  if (slot) {
-    destroyOrdinaryRecipientPreparation(slot);
-    destroyOrdinaryMaterial(slot);
-    slot.emailOtpExportRootRecipient?.free();
-    slot.emailOtpExportRootRecipient = null;
-  }
+  if (slot) destroyKeySlot(slot);
   keySlots.delete(handleId);
 }
 
@@ -1589,8 +1561,7 @@ async function signRequest(
     { readonly kind: 'device_linking_request_sign_v1' }
   >,
 ): Promise<{ readonly signatureB64u: string }> {
-  const slot = keySlots.get(request.handleId);
-  if (!slot) throw new Error('device-linking key handle is unknown or discarded');
+  const slot = requireKeySlot(request.handleId);
   const zeroSignature = new Uint8Array(LINKED_DEVICE_REQUEST_PROOF_SIGNATURE_BYTES_V1);
   const proof: LinkedDeviceRequestProofV1 = {
     kind: 'linked_device_request_proof_v1',
@@ -1643,19 +1614,15 @@ async function createX25519RecipientPair(): Promise<{
 }
 
 function extractX25519PrivateKey(pkcs8: Uint8Array): Uint8Array {
-  // RFC 8410's fixed PKCS#8 wrapper for a 32-byte X25519 scalar.
-  const prefix = Uint8Array.from([
-    0x30, 0x2e, 0x02, 0x01, 0x00, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x6e, 0x04, 0x22, 0x04, 0x20,
-  ]);
-  if (pkcs8.length !== prefix.length + 32) {
+  if (pkcs8.length !== X25519_PKCS8_PREFIX.length + 32) {
     throw new Error('ordinary signer material recipient private key encoding is invalid');
   }
-  for (let index = 0; index < prefix.length; index += 1) {
-    if (pkcs8[index] !== prefix[index]) {
+  for (let index = 0; index < X25519_PKCS8_PREFIX.length; index += 1) {
+    if (pkcs8[index] !== X25519_PKCS8_PREFIX[index]) {
       throw new Error('ordinary signer material recipient private key encoding is invalid');
     }
   }
-  return pkcs8.slice(prefix.length);
+  return pkcs8.slice(X25519_PKCS8_PREFIX.length);
 }
 
 function x25519PublicKeyString(publicKey: Uint8Array): string {
@@ -1674,8 +1641,7 @@ async function createOrdinarySignerMaterialRecipientPreparation(
     readonly kind: 'device_linking_ordinary_signer_material_recipient_preparation_v1';
   }
 > {
-  const slot = keySlots.get(request.handleId);
-  if (!slot) throw new Error('device-linking key handle is unknown or discarded');
+  const slot = requireKeySlot(request.handleId);
   const existing = slot.ordinaryMaterialRecipientPreparation;
   if (existing) {
     if (!sameOrdinaryRecipientRequirements(existing.requirements, request.requirements)) {
@@ -1871,8 +1837,7 @@ async function sealCommittedOrdinarySignerMaterial(
   >,
   sealer: DeviceLinkingOrdinaryMaterialSealerV1,
 ): Promise<SealedLocalAuthorityMaterialSetV1> {
-  const slot = keySlots.get(request.handleId);
-  if (!slot) throw new Error('device-linking key handle is unknown or discarded');
+  const slot = requireKeySlot(request.handleId);
   const prepared = slot.ordinaryMaterial;
   if (!prepared) {
     throw new Error('ordinary signer material preparation is unavailable');
@@ -2032,8 +1997,7 @@ function destroyOrdinaryRecipientInputs(
 async function createEmailOtpEd25519ExportRootRecipient(
   handleId: string,
 ): Promise<{ readonly recipientPublicKeyB64u: string }> {
-  const slot = keySlots.get(handleId);
-  if (!slot) throw new Error('device-linking key handle is unknown or discarded');
+  const slot = requireKeySlot(handleId);
   if (slot.emailOtpExportRootRecipient) {
     throw new Error('device-linking Email OTP export-root recipient is already active');
   }
@@ -2055,16 +2019,41 @@ async function decryptEmailOtpFactorReleaseEnvelope(input: {
   if (input.expectedChallengeId !== release.challengeId) {
     throw new Error('Email OTP factor release challenge does not match the submitted challenge');
   }
+  const factorSecret = await openDeliveryRecipientEnvelope({
+    slot: input.slot,
+    envelope: release,
+    aad: () =>
+      `${EMAIL_OTP_FACTOR_RELEASE_AAD_PREFIX}\0${input.walletId}\0${release.enrollmentId}\0${release.enrollmentSealKeyVersion}\0${release.challengeId}`,
+  });
+  if (factorSecret.length !== 32) {
+    factorSecret.fill(0);
+    throw new Error('Email OTP factor release plaintext must contain exactly 32 bytes');
+  }
+  return factorSecret;
+}
+
+/**
+ * Opens a P-256 ECDH, AES-256-GCM envelope sealed to the slot's delivery recipient key. `aad`
+ * is encoded just before decryption, and every intermediate buffer is zeroed.
+ */
+async function openDeliveryRecipientEnvelope(input: {
+  readonly slot: DeviceLinkingKeySlotV1;
+  readonly envelope: {
+    readonly serverEphemeralPublicKey65B64u: string;
+    readonly nonce12B64u: string;
+    readonly ciphertextB64u: string;
+  };
+  readonly aad: () => string;
+}): Promise<Uint8Array> {
   let serverPublicKey: Uint8Array | null = null;
   let nonce: Uint8Array | null = null;
   let ciphertext: Uint8Array | null = null;
   let sharedSecret: Uint8Array | null = null;
   let aad: Uint8Array | null = null;
-  let factorSecret: Uint8Array | null = null;
   try {
-    serverPublicKey = base64UrlDecode(release.serverEphemeralPublicKey65B64u);
-    nonce = base64UrlDecode(release.nonce12B64u);
-    ciphertext = base64UrlDecode(release.ciphertextB64u);
+    serverPublicKey = base64UrlDecode(input.envelope.serverEphemeralPublicKey65B64u);
+    nonce = base64UrlDecode(input.envelope.nonce12B64u);
+    ciphertext = base64UrlDecode(input.envelope.ciphertextB64u);
     const importedServerKey = await globalThis.crypto.subtle.importKey(
       'raw',
       serverPublicKey,
@@ -2086,29 +2075,20 @@ async function decryptEmailOtpFactorReleaseEnvelope(input: {
       false,
       ['decrypt'],
     );
-    aad = new TextEncoder().encode(
-      `${EMAIL_OTP_FACTOR_RELEASE_AAD_PREFIX}\0${input.walletId}\0${release.enrollmentId}\0${release.enrollmentSealKeyVersion}\0${release.challengeId}`,
-    );
-    factorSecret = new Uint8Array(
+    aad = new TextEncoder().encode(input.aad());
+    return new Uint8Array(
       await globalThis.crypto.subtle.decrypt(
         { name: 'AES-GCM', iv: nonce, additionalData: aad, tagLength: 128 },
         aesKey,
         ciphertext,
       ),
     );
-    if (factorSecret.length !== 32) {
-      throw new Error('Email OTP factor release plaintext must contain exactly 32 bytes');
-    }
-    const owned = factorSecret;
-    factorSecret = null;
-    return owned;
   } finally {
     serverPublicKey?.fill(0);
     nonce?.fill(0);
     ciphertext?.fill(0);
     sharedSecret?.fill(0);
     aad?.fill(0);
-    factorSecret?.fill(0);
   }
 }
 
@@ -2118,8 +2098,7 @@ async function openWalletSessionCredentialDelivery(
     { readonly kind: 'device_linking_wallet_session_credential_delivery_open_v1' }
   >,
 ): Promise<WalletSessionOperationCredentialV1> {
-  const slot = keySlots.get(request.handleId);
-  if (!slot) throw new Error('device-linking key handle is unknown or discarded');
+  const slot = requireKeySlot(request.handleId);
   const delivery = request.delivery;
   await assertLinkedDeviceWalletSessionCredentialDeliveryIntegrityV1(delivery);
   assertWalletSessionCredentialDeliveryBinding({
@@ -2131,47 +2110,12 @@ async function openWalletSessionCredentialDelivery(
     throw new Error('linked-device Wallet Session credential delivery is expired');
   }
 
-  let serverPublicKey: Uint8Array | null = null;
-  let nonce: Uint8Array | null = null;
-  let ciphertext: Uint8Array | null = null;
-  let sharedSecret: Uint8Array | null = null;
-  let aadBytes: Uint8Array | null = null;
-  let plaintext: Uint8Array | null = null;
+  const plaintext = await openDeliveryRecipientEnvelope({
+    slot,
+    envelope: delivery.envelope,
+    aad: () => encodeLinkedDeviceWalletSessionCredentialDeliveryAadV1(delivery.aad),
+  });
   try {
-    serverPublicKey = base64UrlDecode(delivery.envelope.serverEphemeralPublicKey65B64u);
-    nonce = base64UrlDecode(delivery.envelope.nonce12B64u);
-    ciphertext = base64UrlDecode(delivery.envelope.ciphertextB64u);
-    const importedServerKey = await globalThis.crypto.subtle.importKey(
-      'raw',
-      serverPublicKey,
-      { name: 'ECDH', namedCurve: 'P-256' },
-      false,
-      [],
-    );
-    sharedSecret = new Uint8Array(
-      await globalThis.crypto.subtle.deriveBits(
-        { name: 'ECDH', public: importedServerKey },
-        slot.deliveryRecipientPrivateKey,
-        256,
-      ),
-    );
-    const decryptionKey = await globalThis.crypto.subtle.importKey(
-      'raw',
-      sharedSecret,
-      { name: 'AES-GCM' },
-      false,
-      ['decrypt'],
-    );
-    aadBytes = new TextEncoder().encode(
-      encodeLinkedDeviceWalletSessionCredentialDeliveryAadV1(delivery.aad),
-    );
-    plaintext = new Uint8Array(
-      await globalThis.crypto.subtle.decrypt(
-        { name: 'AES-GCM', iv: nonce, additionalData: aadBytes, tagLength: 128 },
-        decryptionKey,
-        ciphertext,
-      ),
-    );
     let decoded: unknown;
     try {
       decoded = JSON.parse(new TextDecoder().decode(plaintext));
@@ -2189,12 +2133,7 @@ async function openWalletSessionCredentialDelivery(
     }
     return operationCredential;
   } finally {
-    serverPublicKey?.fill(0);
-    nonce?.fill(0);
-    ciphertext?.fill(0);
-    sharedSecret?.fill(0);
-    aadBytes?.fill(0);
-    plaintext?.fill(0);
+    plaintext.fill(0);
   }
 }
 
@@ -2271,7 +2210,7 @@ async function handleRequest(
 function workerError(error: unknown): string {
   if (error instanceof Error && error.message.trim()) return error.message;
   if (typeof error === 'string' && error.trim()) return error;
-  if (error !== null && typeof error === 'object' && !Array.isArray(error) && 'message' in error) {
+  if (isPlainObject(error) && 'message' in error) {
     if (typeof error.message === 'string' && error.message.trim()) return error.message;
   }
   return 'device-linking worker request failed';
@@ -2309,12 +2248,7 @@ function installDeviceLinkingKeyWorkerV1(
       queue = queue
         .catch(() => undefined)
         .then(() => {
-          for (const slot of keySlots.values()) {
-            destroyOrdinaryRecipientPreparation(slot);
-            destroyOrdinaryMaterial(slot);
-            slot.emailOtpExportRootRecipient?.free();
-            slot.emailOtpExportRootRecipient = null;
-          }
+          for (const slot of keySlots.values()) destroyKeySlot(slot);
           keySlots.clear();
         });
       await queue;
