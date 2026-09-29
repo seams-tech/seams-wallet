@@ -2,12 +2,12 @@ import { base64UrlDecode, base64UrlEncode } from '@shared/utils/encoders';
 import { coerceNonEmptyString, requireRecordOrArray } from '@shared/utils/validation';
 import { decodeNearSecretKey, toPublicKeyStringFromSecretKey } from '../nearKeys';
 
-export type NearTxUnsignedBorshOutput = {
+type NearTxUnsignedBorshOutput = {
   unsignedTransactionBorshB64u: string;
   signingDigestB64u: string;
 };
 
-export type FinalizeNearTxFromSignatureOutput = {
+type FinalizeNearTxFromSignatureOutput = {
   signedTransactionBorshB64u: string;
   transactionHash: string;
 };
