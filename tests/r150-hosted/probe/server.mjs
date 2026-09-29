@@ -20,7 +20,8 @@ import { fileURLToPath } from 'node:url';
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const PORT = 8080;
 const MAX_BODY_BYTES = 64 * 1024;
-const OUTPUT_TAIL_BYTES = 16 * 1024;
+// Enough for a failing attempt's whole recorded console, which names the cause.
+const OUTPUT_TAIL_BYTES = 2 * 1024 * 1024;
 /** Identifies this boot of the container: a restart is a different probe. */
 const bootId = randomUUID();
 const source = JSON.parse(
