@@ -100,7 +100,9 @@ const YAO_CEREMONY_TIMEOUT: Duration = Duration::from_secs(15);
 const YAO_PREPARED_INPUT_LIFETIME_MS: u64 = 60_000;
 const YAO_RUNNING_LIFETIME_MS: u64 = 20_000;
 // Worker clocks expose the last I/O time, so a nested peer handoff can arrive slightly "future".
-const YAO_START_ACCEPTANCE_MAX_FUTURE_SKEW_MS: u64 = 1_000;
+// The shared pair admission applies the same bound to B's timestamps.
+const YAO_START_ACCEPTANCE_MAX_FUTURE_SKEW_MS: u64 =
+    router_ab_core::ED25519_YAO_PEER_MAX_FUTURE_SKEW_MS_V1;
 const ROLE_SPAN_EVENT_V1: &str = "router_ab_yao_role_span_v1";
 const ED25519_YAO_TARGET_PROOF_HPKE_INFO_V2: &[u8] = b"seams/ed25519-yao/target-proof/hpke/v2";
 
@@ -1098,6 +1100,9 @@ fn sign_role_start_acceptance_v1(
     accepted_at_ms: u64,
     expires_at_ms: u64,
 ) -> RouterAbProtocolResult<Ed25519YaoRoleStartAcceptanceV1> {
+    #[cfg(feature = "local-intended-yao-clock-skew")]
+    let (accepted_at_ms, expires_at_ms) =
+        local_intended_yao_clock_skew_v1(env, accepted_at_ms, expires_at_ms);
     let session = Ed25519YaoSessionIdV1::new(session)?;
     let placeholder_signature = router_ab_core::Ed25519YaoRoleSignatureV1::new(
         Ed25519YaoRoleSignatureSchemeV1::Ed25519V1,
@@ -1134,6 +1139,21 @@ fn sign_role_start_acceptance_v1(
         accepted_at_ms,
         expires_at_ms,
         signature,
+    )
+}
+
+/// Local only: the skew E2E runs Deriver B's clock
+/// `R150_TEST_YAO_ACCEPTANCE_SKEW_MS` ahead when it signs a start acceptance.
+#[cfg(feature = "local-intended-yao-clock-skew")]
+fn local_intended_yao_clock_skew_v1(env: &Env, at_ms: u64, expires_at_ms: u64) -> (u64, u64) {
+    let skew_ms = env
+        .var("R150_TEST_YAO_ACCEPTANCE_SKEW_MS")
+        .ok()
+        .and_then(|value| value.to_string().parse::<u64>().ok())
+        .unwrap_or(0);
+    (
+        at_ms.saturating_add(skew_ms),
+        expires_at_ms.saturating_add(skew_ms),
     )
 }
 

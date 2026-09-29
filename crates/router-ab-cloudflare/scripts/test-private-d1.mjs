@@ -306,6 +306,24 @@ if (workerBuildProfile !== 'dev' && workerBuildProfile !== 'release') {
   );
 }
 const walletObjectBuild = process.env.ROUTER_AB_WALLET_DO_HARNESS === 'enabled';
+// `--yao-acceptance-skew <ms>`: a dev Deriver B signs its start acceptances
+// that far ahead of the other roles' clocks.
+const yaoAcceptanceSkewMs = yaoAcceptanceSkewArgument();
+// ED25519_YAO_PEER_MAX_FUTURE_SKEW_MS_V1: how far ahead B's timestamps may be.
+const yaoPeerMaxFutureSkewMs = 1_000;
+
+function yaoAcceptanceSkewArgument() {
+  const index = process.argv.indexOf('--yao-acceptance-skew');
+  if (index === -1) return null;
+  const value = Number(process.argv[index + 1]);
+  if (!Number.isSafeInteger(value) || value < 0) {
+    throw new Error('--yao-acceptance-skew needs a non-negative number of milliseconds');
+  }
+  if (workerBuildProfile !== 'dev') {
+    throw new Error('--yao-acceptance-skew needs dev Worker builds');
+  }
+  return value;
+}
 
 function workerBuildRoot(role) {
   // Release wallet-object builds have their own directory; dev builds of
@@ -451,6 +469,9 @@ function deriverBWorker(fixture) {
     walletObjectClaimedRecoveryRun
   ) {
     bindings.R150_TEST_B_BURN_BEFORE_COMPLETE = 'enabled';
+  }
+  if (yaoAcceptanceSkewMs !== null) {
+    bindings.R150_TEST_YAO_ACCEPTANCE_SKEW_MS = String(yaoAcceptanceSkewMs);
   }
   return {
     ...strictWorker('deriver-b', 'deriver-b', bindings),
@@ -4656,6 +4677,50 @@ async function testDeriverBBurnBeforeCompletion(topology, fixture, tenantRoot, d
   console.log(JSON.stringify({ ...artifact, artifactPath }));
 }
 
+// Deriver B's start acceptance arrives `skewMs` ahead of Deriver A's clock.
+// Within the bound the pair starts and the activation completes; beyond it
+// Deriver A refuses the start, and nothing reaches the SigningWorker.
+async function testYaoAcceptanceSkew(topology, fixture, tenantRoot, skewMs) {
+  const withinBound = skewMs <= yaoPeerMaxFutureSkewMs;
+  let outcome;
+  let responseStatus;
+  if (withinBound) {
+    const activation = await captureValidActivationDelivery(topology, fixture, tenantRoot);
+    assert.ok(activation.delivery);
+    outcome = 'succeeded';
+    responseStatus = 200;
+  } else {
+    capturedSigningWorkerDelivery = undefined;
+    const router = await topology.getWorker('router');
+    const envelope = buildEd25519ExecuteRequest(fixture, 'activation', tenantRoot);
+    const response = await postWorkerJson(router, ed25519ExecutePath, envelope);
+    const body = (await responseBytes(response)).toString('utf8');
+    responseStatus = response.status;
+    if (response.status === 200) {
+      assert.notEqual(JSON.parse(body).status, 'succeeded', body);
+    }
+    assert.equal(capturedSigningWorkerDelivery, undefined);
+    outcome = 'refused';
+  }
+  const build = walletObjectBuild ? 'wallet_objects' : 'role_store';
+  const artifact = {
+    kind: 'yao_acceptance_clock_skew_e2e_v1',
+    reproduce: `${walletObjectBuild ? 'ROUTER_AB_WALLET_DO_HARNESS=enabled ' : ''}ROUTER_AB_WORKER_BUILD_PROFILE=dev node ./scripts/test-private-d1.mjs --yao-acceptance-skew ${skewMs}`,
+    build,
+    skewMs,
+    boundMs: yaoPeerMaxFutureSkewMs,
+    outcome,
+    responseStatus,
+  };
+  const artifactPath = join(
+    repoRoot,
+    `.artifacts/r150/yao-acceptance-skew-${build}-${skewMs}.json`,
+  );
+  await mkdir(dirname(artifactPath), { recursive: true });
+  await writeFile(artifactPath, `${JSON.stringify(artifact, null, 2)}\n`);
+  console.log(JSON.stringify({ ...artifact, artifactPath }));
+}
+
 async function callDeriverAWalletDo(object, body) {
   try {
     const response = await object.fetch(`https://router-ab-do.internal${deriverAWalletDoPath}`, {
@@ -5258,6 +5323,10 @@ async function main() {
     }
     if (testDeriverBCompletionBurn) {
       await testDeriverBBurnBeforeCompletion(topology, fixture, tenantRoot, databases);
+      return;
+    }
+    if (yaoAcceptanceSkewMs !== null) {
+      await testYaoAcceptanceSkew(topology, fixture, tenantRoot, yaoAcceptanceSkewMs);
       return;
     }
     if (process.argv.includes('--admission-races')) {

@@ -4,6 +4,13 @@ use super::{
 };
 use serde::{Deserialize, Serialize};
 
+/// How far ahead of Deriver A's clock a timestamp Deriver B issued may be.
+/// The Derivers run on separate hosts, and a Worker's clock reads the time of
+/// its last I/O, so B's readiness receipt or start acceptance can arrive
+/// slightly "future". Deriver A's own timestamps, and every expiry, are
+/// judged exactly.
+pub const ED25519_YAO_PEER_MAX_FUTURE_SKEW_MS_V1: u64 = 1_000;
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Ed25519YaoPairClaimIdentityV1 {
@@ -201,7 +208,10 @@ pub fn reserve_ed25519_yao_pair_v1<P: Clone, O>(
                     .is_err()
                 || reservation
                     .peer_receipt
-                    .validate_at(reservation.now_ms)
+                    .validate_at_with_max_future_skew(
+                        reservation.now_ms,
+                        ED25519_YAO_PEER_MAX_FUTURE_SKEW_MS_V1,
+                    )
                     .is_err()
             {
                 return Ed25519YaoPairTransitionV1::Reject(
@@ -510,8 +520,14 @@ pub fn admit_ed25519_yao_pair_start_v1(
             .validate_for_pair(claim.pair_binding)
             .is_err()
         || claim.local_receipt.validate_at(claim.now_ms).is_err()
-        || claim.peer_receipt.validate_at(claim.now_ms).is_err()
-        || claim.acceptance.validate_at(claim.now_ms).is_err()
+        || claim
+            .peer_receipt
+            .validate_at_with_max_future_skew(claim.now_ms, ED25519_YAO_PEER_MAX_FUTURE_SKEW_MS_V1)
+            .is_err()
+        || claim
+            .acceptance
+            .validate_at_with_max_future_skew(claim.now_ms, ED25519_YAO_PEER_MAX_FUTURE_SKEW_MS_V1)
+            .is_err()
     {
         return Ed25519YaoPairStartDecisionV1::ReadinessMismatch;
     }

@@ -81,7 +81,7 @@ pub use self::ed25519_yao_pair_lifecycle::{
     reserve_ed25519_yao_pair_v1, Ed25519YaoPairClaimIdentityV1, Ed25519YaoPairRecordV1,
     Ed25519YaoPairRejectionV1, Ed25519YaoPairReservationV1, Ed25519YaoPairStartClaimV1,
     Ed25519YaoPairStartDecisionV1, Ed25519YaoPairStoreResultV1, Ed25519YaoPairTransitionV1,
-    Ed25519YaoPreparedPairStartV1,
+    Ed25519YaoPreparedPairStartV1, ED25519_YAO_PEER_MAX_FUTURE_SKEW_MS_V1,
 };
 pub use self::ed25519_yao_router::{
     ed25519_yao_encrypted_input_digest_v1, ed25519_yao_input_pair_digest_v1,

@@ -69,6 +69,11 @@ fi
 if [[ "$worker_build_profile" == "dev" && "$role" == "router" ]]; then
   worker_features+=",local-intended-router-burn"
 fi
+# Local only: a dev Deriver B can run its start-acceptance clock ahead, so the
+# skew E2E can check Deriver A's bound for B's timestamps.
+if [[ "$worker_build_profile" == "dev" && "$role" == "deriver-b" ]]; then
+  worker_features+=",local-intended-yao-clock-skew"
+fi
 
 wallet_objects=false
 if [[ "${ROUTER_AB_WALLET_DO_HARNESS:-}" == "enabled" && "$role" != "tenant-root-control-plane" ]]; then
