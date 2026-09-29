@@ -78,40 +78,11 @@ export function parseSigningSessionSealApplyBody(
   };
 }
 
+/** Removal takes the same body as apply. */
 export function parseSigningSessionSealRemoveBody(
   body: unknown,
 ): ParseResult<SigningSessionSealRemoveServerSealRequest> {
-  const obj = asRecord(body);
-  if (!obj)
-    return { ok: false, code: 'invalid_body', message: 'Request body must be a JSON object' };
-
-  const thresholdSessionId = readRequiredString(obj, 'thresholdSessionId');
-  const ciphertext = readRequiredString(obj, 'ciphertext');
-  if (!thresholdSessionId || !ciphertext) {
-    return {
-      ok: false,
-      code: 'invalid_body',
-      message: 'thresholdSessionId and ciphertext are required',
-    };
-  }
-  const parsedThresholdSessionId = parseThresholdSessionId(thresholdSessionId);
-  if (!parsedThresholdSessionId.ok) {
-    return {
-      ok: false,
-      code: 'invalid_body',
-      message: 'thresholdSessionId is invalid',
-    };
-  }
-
-  return {
-    ok: true,
-    value: {
-      thresholdSessionId: parsedThresholdSessionId.value,
-      ciphertext,
-      keyVersion: readOptionalString(obj, 'keyVersion'),
-      metadata: readOptionalMetadata(obj.metadata),
-    },
-  };
+  return parseSigningSessionSealApplyBody(body);
 }
 
 export async function authorizeSigningSessionSealRequest(args: {
@@ -142,9 +113,9 @@ export async function authorizeSigningSessionSealRequest(args: {
   };
 }
 
-export function signingSessionSealStatusCode(result: SigningSessionSealRouteResult): number {
-  if (result.ok) return 200;
-  switch (result.code) {
+/** The statuses route and authorization failures share, or null for a code only one of them has. */
+function sharedFailureStatusCode(code: string | undefined): number | null {
+  switch (code) {
     case 'unauthorized':
     case 'wallet_session_missing':
     case 'wallet_session_signature_invalid':
@@ -159,10 +130,24 @@ export function signingSessionSealStatusCode(result: SigningSessionSealRouteResu
       return 409;
     case 'wallet_session_unavailable':
       return 503;
-    case 'not_found':
-      return 404;
     case 'rate_limited':
       return 429;
+    case 'sessions_disabled':
+      return 501;
+    case 'internal':
+      return 500;
+    default:
+      return null;
+  }
+}
+
+export function signingSessionSealStatusCode(result: SigningSessionSealRouteResult): number {
+  if (result.ok) return 200;
+  const shared = sharedFailureStatusCode(result.code);
+  if (shared !== null) return shared;
+  switch (result.code) {
+    case 'not_found':
+      return 404;
     case 'expired':
     case 'exhausted':
     case 'stale_session_state':
@@ -170,11 +155,8 @@ export function signingSessionSealStatusCode(result: SigningSessionSealRouteResu
       return 409;
     case 'not_configured':
       return 503;
-    case 'sessions_disabled':
     case 'not_implemented':
       return 501;
-    case 'internal':
-      return 500;
     default:
       return 400;
   }
@@ -187,28 +169,5 @@ export function signingSessionSealAuthorizeStatusCode(
   if (Number.isFinite(Number(result.status))) {
     return Math.max(100, Math.floor(Number(result.status)));
   }
-  switch (result.code) {
-    case 'unauthorized':
-    case 'wallet_session_missing':
-    case 'wallet_session_signature_invalid':
-    case 'wallet_session_claims_invalid':
-    case 'wallet_session_invalid':
-    case 'wallet_session_expired':
-      return 401;
-    case 'forbidden':
-    case 'wallet_session_scope_mismatch':
-      return 403;
-    case 'wallet_budget_exhausted':
-      return 409;
-    case 'wallet_session_unavailable':
-      return 503;
-    case 'rate_limited':
-      return 429;
-    case 'sessions_disabled':
-      return 501;
-    case 'internal':
-      return 500;
-    default:
-      return 400;
-  }
+  return sharedFailureStatusCode(result.code) ?? 400;
 }
