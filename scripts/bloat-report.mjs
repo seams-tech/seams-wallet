@@ -2,6 +2,7 @@
 // number moved since scripts/bloat-baseline.json.
 //
 //   pnpm report:bloat                    the report, with changes since the baseline
+//   pnpm report:bloat --check            also fail when a RATCHETED measure grew
 //   pnpm report:bloat --write-baseline   record the current numbers as the baseline
 //
 // Usage is textual: an export counts as used when any other tracked file names it, so a
@@ -19,6 +20,17 @@ const self = 'scripts/bloat-report.mjs';
 const baselinePath = path.join(root, 'scripts/bloat-baseline.json');
 const ts = createRequire(path.join(root, 'packages/wallet/package.json'))('typescript');
 
+// Measures that are waste whatever the feature work, so any growth is new waste. The
+// others grow with the codebase and are only reported.
+const RATCHETED = [
+  'deadExports',
+  'filesOver2000',
+  'helperCopies',
+  'refactorCitations',
+  'rustAllowDeadCode',
+  'rustDuplicatedLines',
+  'tsDuplicatedLines',
+];
 const WINDOW = 10;
 const VALIDATION = /^(parse|assert|require|is|normalize|expect|validate|decode|coerce)[A-Z]/;
 const HELPERS = new Set([
@@ -436,4 +448,19 @@ if (process.argv.includes('--write-baseline')) {
   const date = new Date().toISOString().slice(0, 10);
   writeFileSync(baselinePath, `${JSON.stringify({ commit, date, metrics }, null, 2)}\n`);
   console.log(`\nWrote ${path.relative(root, baselinePath)}`);
+} else if (process.argv.includes('--check')) {
+  if (!baseline) throw new Error(`--check needs ${path.relative(root, baselinePath)}`);
+  const change = (name) => `${name} ${baseline.metrics[name]} -> ${metrics[name]}`;
+  const grown = RATCHETED.filter((name) => metrics[name] > baseline.metrics[name]);
+  const shrunk = RATCHETED.filter((name) => metrics[name] < baseline.metrics[name]);
+  if (shrunk.length) {
+    console.log(`\nBelow the baseline: ${shrunk.map(change).join(', ')}.`);
+    console.log('Record the reduction with pnpm report:bloat --write-baseline.');
+  }
+  if (grown.length) {
+    console.error(`\nGrew past the baseline: ${grown.map(change).join(', ')}.`);
+    process.exitCode = 1;
+  } else {
+    console.log(`\nNo ratcheted measure grew (${RATCHETED.join(', ')}).`);
+  }
 }
