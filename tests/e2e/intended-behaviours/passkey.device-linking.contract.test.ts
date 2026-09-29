@@ -1,4 +1,36 @@
+import type { Response } from '@playwright/test';
+import { mkdir, writeFile } from 'node:fs/promises';
+import path from 'node:path';
 import { intendedTest as test } from './harness';
+
+class LinkedSigningMeasurements {
+  device = 0;
+  private readonly responses: { readonly device: number; readonly response: Response }[] = [];
+
+  record(response: Response): void {
+    const pathname = new URL(response.url()).pathname;
+    if (
+      pathname === '/router-ab/ecdsa-derivation/sign' ||
+      pathname === '/router-ab/ecdsa-derivation/sign/prepare'
+    ) {
+      this.responses.push({ device: this.device, response });
+    }
+  }
+
+  async evidence(): Promise<unknown[]> {
+    const measurements = [];
+    for (const { device, response } of this.responses) {
+      const header = await response.headerValue('X-Benchmark-D1');
+      measurements.push({
+        device,
+        path: new URL(response.url()).pathname,
+        status: response.status(),
+        d1: header === null ? null : JSON.parse(header),
+      });
+    }
+    return measurements;
+  }
+}
 
 /**
  * Linked Devices (docs/intended-behaviours.md): a second device joins an
@@ -59,7 +91,7 @@ test('a second device links with a passkey, signs NEAR and Tempo, and is revoked
 test('a linked device links a third device on an ECDSA-only wallet, which signs Tempo', async ({
   harness,
   browser,
-}) => {
+}, testInfo) => {
   await harness.registerPasskeyEcdsaOnlyWallet();
 
   const device2 = await harness.openLinkedDevice(browser);
@@ -67,11 +99,34 @@ test('a linked device links a third device on an ECDSA-only wallet, which signs 
   const device3 = await device2.openLinkedDevice(browser);
   await device2.linkDeviceWithPasskey(device3);
 
-  await device3.signTempoTransaction('post_device_link');
-  /* Linking Device 3 changed nothing for the devices that were already
-     signing. */
-  await device2.signTempoTransaction('post_device_link');
-  await harness.signTempoTransaction('post_registration');
+  const measurements = new LinkedSigningMeasurements();
+  const record = measurements.record.bind(measurements);
+  const contexts = browser.contexts();
+  for (const context of contexts) context.on('response', record);
+  try {
+    measurements.device = 3;
+    await device3.signTempoTransaction('post_device_link');
+    measurements.device = 2;
+    await device2.signTempoTransaction('post_device_link');
+    measurements.device = 1;
+    await harness.signTempoTransaction('post_registration');
+  } finally {
+    for (const context of contexts) context.off('response', record);
+  }
+  const evidence = {
+    kind: 'gateway_ecdsa_linked_custody_chain_v1',
+    host: process.env.SEAMS_INTENDED_WALLET_HOST ?? 'workers_local',
+    verifiedSignatures: 3,
+    responses: await measurements.evidence(),
+  };
+  const artifactName = `gateway-ecdsa-linked-chain-${evidence.host}.json`;
+  const artifactPath = path.resolve(testInfo.config.rootDir, '../.artifacts/r150', artifactName);
+  await mkdir(path.dirname(artifactPath), { recursive: true });
+  await writeFile(artifactPath, JSON.stringify(evidence, null, 2), 'utf8');
+  await testInfo.attach(artifactName, {
+    body: JSON.stringify(evidence, null, 2),
+    contentType: 'application/json',
+  });
 });
 
 /**

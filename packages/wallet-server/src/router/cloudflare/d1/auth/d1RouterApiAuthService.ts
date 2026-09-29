@@ -220,6 +220,7 @@ type LinkedDeviceEd25519AuthorityReader = Pick<
   | 'readInstalledEd25519AuthorityByIdentityV1'
   | 'readInstalledEd25519AuthorityByMaterialActivationV1'
   | 'readInstalledEcdsaAuthorityByMaterialActivationV1'
+  | 'readInstalledEcdsaAuthorityChainByMaterialActivationV1'
 >;
 
 type LinkedDeviceEd25519AuthorityReaderSlot = {

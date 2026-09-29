@@ -4,7 +4,9 @@ Date: September 29, 2026
 
 Status: policy, claim/readback, operation/source, and persisted owner-scope
 consolidation are implemented and verified in bounded hosted diagnostics. The
-reusable-session ECDSA path now makes 12 D1 calls per signature, down from 18.
+canonical reusable-session ECDSA path makes 12 D1 calls per signature, down from
+18. A local linked-device checkpoint reduces third-generation signing from 24
+to 20 calls; directly linked signing remains at 20.
 Further call reduction and the minimum-call-budget review remain open; regional
 databases are conditional. Production rollout is separate.
 
@@ -450,6 +452,47 @@ former for sharing within one public read. Preserve the latter's freshness
 boundary unless domain-state evidence supports replacing it. Avoid a global
 status cache or reuse across a signing effect, unlock, or authority transition.
 
+### Linked-device custody-chain checkpoint (September 30)
+
+Material resolution read the wallet's entire installation set again for each
+linked ancestor. Each read repeated the same package-digest validation. The
+resolver now reads and validates that set once per invocation, then follows the
+custody chain in memory with the existing 16-hop bound. The single-activation
+reader remains in use by authorization; both readers share the same projection
+validation. Duplicate activation matches, invalid receipts, key mismatches, and
+canonical signer ambiguity retain their rejection behavior.
+
+This reuse is confined to one resolver invocation. Prepare and finalize retain
+their separate initial and fresh material resolutions. Atomic material freshness
+for new claims and existing operations remains the next admission prerequisite.
+
+The existing three-device browser contract now records prepare/finalize D1
+traces alongside its three verified Tempo signatures. A fixed SDK distribution
+was used before and after the change. Local Workers measurements are:
+
+| Signing device | Before calls | After calls |
+| --- | ---: | ---: |
+| Original wallet | 12 | 12 |
+| Directly linked device | 20 | 20 |
+| Device linked by that linked device | 24 | 20 |
+
+The third device removes four installation reads across prepare/finalize and
+reduces SQL statements from 25 to 21. Every measured signature still has two
+write-bearing calls and 14 D1-reported rows written. The wallet-DO profile
+reproduces the new 12/20/20 counts; VM verifies all three signatures without D1
+trace headers. These measurements cover one signature per device in each local
+run. They establish the call reduction; they do not establish hosted latency or regional placement.
+Local D1 does not report served-region metadata. Artifacts are in
+`.artifacts/r150/d1-linked-chain-20260930/analysis.json`; verification details and
+reproduction commands are in `verification.json` beside it.
+
+Eight scenario/profile combinations passed: three-device signing and linked
+revocation on Workers D1, wallet-DO, and VM, plus recovery retirement and
+concurrent prepare/lost-finalize replay on Workers D1. The latter also verifies
+wrong-wallet refusal and exact replay afterward. Server build, intended-test
+type check, and bloat check pass. Temporary Gateway tracing was removed before
+the revocation/recovery/replay runs. No hosted resources changed.
+
 ### 1. Consolidate reads while preserving decision boundaries
 
 - [x] Read project and abuse policy together through the existing admission store.
@@ -465,6 +508,8 @@ status cache or reuse across a signing effect, unlock, or authority transition.
   identity, and operation identity checks.
 - [x] Consolidate reusable-session ECDSA finalize's pinned owner-scope read
   while retaining its exact operation/session/wallet binding guard.
+- [x] Read and verify linked ECDSA installations once per material resolution,
+  resolving custody ancestors from that set while preserving fresh admission reads.
 - [ ] Examine joining initial material resolution to the existing joined session
   lookup. Keep the fresh-material check at admission until equivalent atomic SQL
   predicates and race behavior are demonstrated. Two material reads at different
