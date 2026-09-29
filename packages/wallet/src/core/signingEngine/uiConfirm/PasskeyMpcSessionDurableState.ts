@@ -3,18 +3,20 @@ import type {
   WarmSessionSealAndPersistResult,
 } from '../../types/secure-confirm-worker';
 import {
-  buildCurrentSealedSessionRecord,
   readExactEd25519SealedSession,
   readExactSealedSession,
   updateExactEd25519SealedSessionPolicy,
   updateExactSealedSessionPolicy,
   writeExactSealedSession,
+  type SigningSessionSealedRecordFilter,
+} from '../session/persistence/sealedSessionStore';
+import {
+  buildCurrentSealedSessionRecord,
   type BuildCurrentSealedSessionRecordInput,
   type CurrentEd25519RestoreMetadata,
   type CurrentSealedSessionRecord,
-  type SigningSessionSealedRecordFilter,
   type SigningSessionSealedStoreRecord,
-} from '../session/persistence/sealedSessionStore';
+} from '../session/persistence/sealedSessionRecords';
 import { thresholdEcdsaChainTargetKey } from '../interfaces/ecdsaChainTarget';
 import { thresholdEcdsaChainTargetsEqual } from '../interfaces/ecdsaChainTarget';
 import { SIGNING_SESSION_SEAL_GROUP_ID } from '@shared/utils/signingSessionSeal';

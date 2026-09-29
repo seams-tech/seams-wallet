@@ -18,7 +18,7 @@ import {
 import type {
   CurrentEcdsaSealedSessionRecord,
   EcdsaInactiveSealedMaterialRecord,
-} from '../persistence/sealedSessionStore';
+} from '../persistence/sealedSessionRecords';
 import {
   parseEcdsaRoleLocalPersistedMaterialRef,
   type EcdsaClientVerifyingPublicKey33B64u,

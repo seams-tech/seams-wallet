@@ -19,7 +19,7 @@ import {
   type PasskeyWalletAuthAuthority,
   type WalletAuthAuthorityRef,
 } from '@shared/utils/walletAuthAuthority';
-import type { RawSealedSessionRecord } from '../persistence/sealedSessionStore';
+import type { RawSealedSessionRecord } from '../persistence/sealedSessionRecords';
 import type { ThresholdEcdsaSessionStoreSource } from '../identity/laneIdentity';
 import {
   parseEcdsaRoleLocalPersistedMaterialRef,

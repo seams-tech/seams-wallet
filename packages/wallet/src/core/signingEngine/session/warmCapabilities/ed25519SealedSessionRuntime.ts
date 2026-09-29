@@ -9,10 +9,8 @@ import {
 import { parseSignerSlot, type SignerSlot } from '@shared/utils/signerSlot';
 import { parseRouterAbEd25519NormalSigningState } from '@shared/utils/signingSessionSeal';
 import { SIGNER_AUTH_METHODS } from '@shared/utils/signerDomain';
-import {
-  listExactSealedSessionsForWallet,
-  type CurrentEd25519SealedSessionRecord,
-} from '../persistence/sealedSessionStore';
+import { listExactSealedSessionsForWallet } from '../persistence/sealedSessionStore';
+import { type CurrentEd25519SealedSessionRecord } from '../persistence/sealedSessionRecords';
 import {
   normalizeThresholdRuntimePolicyScope,
   type ThresholdRuntimePolicyScope,

@@ -1,7 +1,5 @@
-import {
-  type CurrentEcdsaSealedSessionRecord,
-  type listExactSealedSessionsForWallet,
-} from '../persistence/sealedSessionStore';
+import { type listExactSealedSessionsForWallet } from '../persistence/sealedSessionStore';
+import { type CurrentEcdsaSealedSessionRecord } from '../persistence/sealedSessionRecords';
 import {
   thresholdEcdsaChainTargetsEqual,
   type ThresholdEcdsaChainTarget,

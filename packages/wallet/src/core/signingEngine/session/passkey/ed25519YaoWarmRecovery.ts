@@ -1,4 +1,4 @@
-import type { CurrentEd25519SealedSessionRecord } from '@/core/signingEngine/session/persistence/sealedSessionStore';
+import type { CurrentEd25519SealedSessionRecord } from '@/core/signingEngine/session/persistence/sealedSessionRecords';
 import type { PasskeyCustodyEnvelopeRecord } from '@shared/passkey-custody';
 import {
   ed25519DurableMaterialLocator,

@@ -16,10 +16,8 @@ import {
   emailOtpAuthContextRetention,
   type ThresholdEcdsaEmailOtpAuthContext,
 } from '@/core/signingEngine/session/identity/laneIdentity';
-import {
-  readExactSealedSession,
-  type BuildCurrentSealedSessionRecordInput,
-} from '@/core/signingEngine/session/persistence/sealedSessionStore';
+import { readExactSealedSession } from '@/core/signingEngine/session/persistence/sealedSessionStore';
+import { type BuildCurrentSealedSessionRecordInput } from '@/core/signingEngine/session/persistence/sealedSessionRecords';
 import type { ThresholdEcdsaSessionBootstrapResult } from '@/core/signingEngine/threshold/ecdsa/activation';
 import { type ThresholdRuntimePolicyScope } from '@/core/signingEngine/threshold/sessionPolicy';
 import {

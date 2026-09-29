@@ -12,9 +12,11 @@ import {
 import {
   listEcdsaSealedSessionsForWallet,
   listExactSealedSessionsForWallet,
+} from '../persistence/sealedSessionStore';
+import {
   type EcdsaDurableLaneRecord,
   type SigningSessionSealedStoreRecord,
-} from '../persistence/sealedSessionStore';
+} from '../persistence/sealedSessionRecords';
 import {
   ecdsaAvailableLaneIdentityKey,
   readAvailableSigningLanes,
