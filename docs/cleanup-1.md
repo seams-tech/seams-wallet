@@ -1,14 +1,13 @@
 # Cleanup 1: dead, duplicated and boilerplate code
 
-**Status:** Phase 0 is complete. Phase 1 is complete apart from moving finished
-plans, which waits for a decision. Phase 2 has consolidated six clusters, three
-remain, and the threshold routes moved to Phase 4. The Phase 3 pilot has
-converted `rotationParsers.ts` and lands after one more change (see Phase 3).
-CI runs `pnpm report:bloat --check`, which fails when a ratcheted measure grows
-past `scripts/bloat-baseline.json`, now recorded at `9cbe238`. Since the first
-baseline (`7c8a163`), TypeScript code is down 20,397 lines and Rust code 4,523.
-The findings below are the first baseline's; run `pnpm report:bloat` for
-current numbers.
+**Status:** Phases 0 to 2 are complete, apart from moving finished plans, which
+waits for a decision; the threshold routes moved to Phase 4. The Phase 3 pilot
+has landed, and rolling it out further waits for a decision. Phase 4 waits for
+R150 to land on `dev`. CI runs `pnpm report:bloat --check`, which fails when a
+ratcheted measure grows past `scripts/bloat-baseline.json`, now recorded at
+`efe17f1`. Since the first baseline (`7c8a163`), TypeScript code is down 25,252
+lines and Rust code 4,831. The findings below are the first baseline's; run
+`pnpm report:bloat` for current numbers.
 
 This plan reduces the code that has to be read, reviewed and kept consistent,
 without changing behavior. The repository holds about 540k lines of TypeScript
@@ -34,20 +33,20 @@ files that repeat themselves.
 - [x] Phase 0: a CI ratchet, unused-code compiler checks and agent rules.
 - [x] Delete every export nothing named: 687 exports and 25 emptied modules,
   14,258 lines (5aa72f4, 87baab3, 9f0ee44).
-- [x] Phase 1, except finished plans: test-only and local-only exports, and
-  dead-code suppressions and refactor citations outside R150's crates.
+- [x] Phase 1, except finished plans: test-only and local-only exports, class
+  members nothing calls, and dead-code suppressions and refactor citations
+  outside R150's crates.
 - [x] Phase 2: validation helpers, WebAuthn stores, `NearClient` and key-material
-  brands, registration types, the NEAR signature-only flows and the Rust
-  role-command encodings.
-- [x] Phase 3 pilot: `rotationParsers.ts` converted and measured.
+  brands, registration types, the NEAR signature-only flows, registration
+  timing, wallet-recovery finalization, and the Rust role-command encodings and
+  activation tests.
+- [x] Phase 3 pilot: `rotationParsers.ts` converted, measured and landed
+  (efe17f1).
 
 ### Remaining
 
 - [ ] Phase 1: move finished refactor plans, once decided.
-- [ ] Phase 2: `registrationTiming.ts`, the wallet-recovery finalization files
-  and two Rust test pairs.
-- [ ] Phase 3: land the pilot with its client/server split, then decide the
-  rollout.
+- [ ] Phase 3: decide whether to roll the combinators out further.
 - [ ] Phase 4: restructure R150's largest files after R150 lands on `dev`.
 
 ## Findings
@@ -161,8 +160,8 @@ change.
   tested them (2,414 lines). Its message says 44, leaving out 8 that those
   deletions left unused. df764e0 deleted 10 more that were then reachable only by
   their own checks. 0ba6c71 and 9cbe238 then un-exported or deleted the names
-  those deletions left used only in their own file. The 205 left stay:
-  - 178 are test seams: their own module also uses them.
+  those deletions left used only in their own file. The 209 left stay:
+  - 182 are test seams: their own module also uses them.
   - 19 build values that fixtures need to check live types, such as
     `allocateWalletAuthMethodId` in the registration-intent fixtures.
   - 8 are named by tests under `tests/`. Six build inputs for, or read state
@@ -194,11 +193,27 @@ change.
   they carry. The measure counts only `Refactor N` and `R###` citations; "Phase
   N" alone is often a protocol term, since the Yao circuits have phases. No
   TypeScript comment under `packages/` or `tests/` cites one any more (63a82e6,
-  e406924), and no Rust comment outside R150's crates (6f5b240), which also put
-  two drifted doc comments in `signer-core` back on their items. Of the 29 left,
-  27 are in `router-ab-cloudflare` and `router-ab-dev` and wait for Phase 4.
-  The other 2 are in `router-ab-ed25519-yao-client/tests/registration.rs`,
-  which the Rust test consolidation below is editing.
+  e406924), and no Rust comment outside R150's crates (6f5b240, f5ded18), which
+  also put three drifted doc comments back on their items. The 27 left are in
+  `router-ab-cloudflare` and `router-ab-dev` and wait for Phase 4.
+- [x] Delete public class members that nothing calls. Neither `noUnusedLocals`
+  nor the dead-export pass reaches them. A language-service scan found 421
+  unreferenced members. 7f49898 and cbcfceb deleted 18 of them, each meeting
+  every one of these checks:
+  - no reference anywhere;
+  - the name appears nowhere else in any tracked file, including tests, Rust
+    and config;
+  - no published declaration reaches the class;
+  - no runtime calls the member by name, as Durable Objects, custom elements
+    and React do.
+
+  Two of those members were the only way to reach the in-memory and Durable
+  Object registration ceremony stores and the registration-prepare rate
+  limiter, so those went too: 3,189 lines in all. Of the rest, 35 members sit on
+  classes that public entry points return, such as the D1 stores and
+  `AuthService`, and wait for the public API decision in Phase 4. The others
+  have a name that appears elsewhere, which this check cannot tell apart from a
+  use.
 - [ ] Move finished refactor plans (32 docs, 13,291 lines) out of `docs/`; plans
   still in progress stay. This waits for the open decision below.
 
@@ -247,15 +262,25 @@ by side; the commit messages describe each harness.
   wire (7fc5eda), and the Yao generator's promotion digests and admission
   fixtures share their identical encodings. The committed vectors and goldens
   pass, and probes over 3,290 cases matched byte for byte.
-- [ ] Remove `registrationTiming.ts`'s internal repetition (184 runs): it writes
-  its 130 timing buckets out four times.
-- [ ] Merge the shared code of `d1WalletRecoveryGoogleEmailOtpService.ts`,
+- [x] Remove `registrationTiming.ts`'s internal repetition (184 runs): it writes
+  its 130 timing buckets out four times. 43112f4 lists the 125 buckets once, in
+  emitted order, and derives the types, zeroing and copying from that list. The
+  file shrinks from 1,665 to 1,058 lines, and 150 scenarios emit byte-identical
+  JSON.
+- [x] Merge the shared code of `d1WalletRecoveryGoogleEmailOtpService.ts`,
   `walletRecoveryFinalization.ts` and `d1WalletCustodyCommitStore.ts` (76, 44 and
-  33 runs between the pairs).
-- [ ] In Rust: `router-ab-core`'s activation evidence and receipt tests (111
+  33 runs between the pairs). 0639436 moved the storage-independent pieces into
+  the domain module (−459 lines), and the repeats between the three go to zero.
+  A harness over a SQLite-backed D1 with every migration recorded
+  byte-identical transcripts across 245 scenarios.
+- [x] In Rust: `router-ab-core`'s activation evidence and receipt tests (111
   runs), and `crates/router-ab-ed25519-yao-client/tests/registration.rs` against
   `wasm/wallet_custody_ceremony/src/circuit_tests.rs` (139 runs), which live in
-  different crates.
+  different crates. 9e72d4c gives the activation tests one fixture module,
+  whose signers use each file's original keys, and every test count is
+  unchanged. The second pair stays: its files are in separate workspaces.
+  Sharing their relay harness would need a new crate, a public API in an R150
+  crate, or a `#[path]` include across workspaces.
 - Moved to Phase 4: the shared halves of `thresholdEcdsa.ts` and
   `thresholdEd25519.ts` (89 runs). R150's Gateway and presignature work changes
   both: 14 feature commits in 30 days, the latest on 2026-09-27.
@@ -314,25 +339,32 @@ the file defines its own small parsers such as `parseIso`.
   `wireSchema.ts`.
 - [x] Record the change in lines and bundle size, then decide whether to roll
   out domain by domain.
-  - `rotationParsers.ts` shrinks from 2,675 to 1,329 lines. TypeScript code is
-    down 1,268 lines, validation functions 22 (1,736 lines), duplicated lines 345
-    and files over 2,000 lines 1.
-  - Built with Rolldown, the module shrinks from 11,646 to 9,163 bytes gzip.
-  - The production workers are built with Bun, which ignores
-    `@__NO_SIDE_EFFECTS__` and keeps every module-level schema. The ECDSA
-    derivation worker grew 1.45 kB gzip (66,660 to 68,111 bytes).
-  - Splitting the client messages (the jobs, holder package and holder round)
-    from the server records turns that into a 0.5 kB gain in a prototype.
-- [ ] Land the pilot with that split. Move `exactRecord` and
-  `rejectUnknownFields` into `utils/validation.ts` first, so `wireSchema.ts` does
-  not import from a domain module.
-- [ ] Roll out domain by domain, after the split (Phase 4 has the lane files).
+  - The production workers are built with Bun, which keeps every schema built
+    at module load, in every worker that imports the module, whether or not it
+    parses anything. It also ignores `@__NO_SIDE_EFFECTS__`. The first version
+    grew the ECDSA derivation worker by 1.45 kB gzip, and splitting the modules
+    alone grew four other workers by 1.5 to 4.3 kB.
+- [x] Land the pilot (efe17f1).
+  - The client messages (the jobs, holder package and holder round) are in
+    `rotationProtocolParsers.ts`, their shared fields in `rotationWireFields.ts`,
+    and the server records stay in `rotationParsers.ts`.
+  - Each schema is built inside a function, so bundlers drop the ones a worker
+    never calls.
+  - The four modules hold 1,601 lines where `rotationParsers.ts` had 2,675.
+    TypeScript code is down 1,137 lines, validation functions 22 (1,733 lines),
+    duplicated lines 315, and files over 2,000 lines by one.
+  - The ECDSA derivation worker shrinks by 828 bytes gzip. The other twelve
+    workers and the wallet iframe's boot path are unchanged.
+  - `exactRecord` and `rejectUnknownFields` moved from `passkey-custody/primitives`
+    to `utils/exactRecord.ts`. In `utils/validation.ts` they would have added
+    609 bytes gzip to the wallet iframe's boot path.
+- [ ] Roll out domain by domain, once decided (Phase 4 has the lane files).
   Candidates, by exact-key sites: `device-linking/parsers.ts` (88),
   `device-linking/sourceContribution.ts` (13), `passkey-custody/custodyEnvelope.ts`
   and `ordinaryInactiveSignerMaterialReservation.ts` (7 each), then
-  `recordParsers.ts` and `participants.ts`. Any module that clients import must
-  keep client parsers apart from server-only schemas, or the workers must move to
-  Rolldown. Use `ts-rs` only for Rust-owned messages, as the declared type that
+  `recordParsers.ts` and `participants.ts`. Build each schema in a function, and
+  keep client parsers apart from server-only schemas in modules that workers
+  import. Use `ts-rs` only for Rust-owned messages, as the declared type that
   `ParsesExactly` checks the schema against.
 - [ ] Later, in a separate type-only change, infer the declared types from the
   schemas. That tightens about 70 digest fields in this module from `string` to
@@ -366,7 +398,16 @@ conflict with the agents changing them.
   the `Variant` pass.
 - [ ] Decide on the public exports that nothing in the repository uses (367 at
   the baseline, 399 since the report counts every Rolldown input as an entry):
-  keep and document them, or deprecate them.
+  keep and document them, or deprecate them. The same decision covers the 35
+  public class members that nothing calls, on classes such as the D1 stores
+  and `AuthService`, which public entry points return.
+- [ ] `ThresholdStoreDurableObject` still handles `registrationCancelTerminal`
+  and `getdelIfRelatedMatches`, which nothing has sent since cbcfceb deleted the
+  unreachable store that sent them. Before removing a Durable Object handler,
+  check that no deployed Worker version still sends it.
+- [ ] Move the wallet's copy of `sameVerifiedActiveWalletAuthorityV1`
+  (`SeamsWeb/operations/recovery/walletRecoveryCommit.ts`) into `shared-ts`
+  beside the server's.
 
 ## Verification
 
@@ -391,8 +432,8 @@ consolidated cluster before committing it.
   package installs Prettier, so formatting depends on each editor's copy.
 - Which refactor plans are finished, and where finished plans go.
 - Whether to roll Phase 3's combinators out beyond the pilot. The pilot
-  recommends it, domain by domain, once client parsers are kept apart from
-  server-only schemas.
+  recommends it, domain by domain, and efe17f1 shows the module layout that
+  keeps the workers from growing.
 - Whether the Vite plugin factories are public API. `packages/wallet` builds and
   ships them, but its `package.json` exports no path to them, so users cannot
   import them. b74937c restored them after the dead-export pass removed them.
@@ -467,3 +508,18 @@ Found during the cleanup and left unchanged, for their owners to check:
   2,684 -> 2,557; Rust `allow(dead_code)` 125 -> 111; refactor citations 206 ->
   29 on the narrowed measure. The Phase 3 pilot reported. The baseline was
   re-recorded at `9cbe238`.
+- 2026-09-29: Phase 2 finished, and the Phase 3 pilot landed. 43112f4 lists the
+  registration timing buckets once. 9e72d4c shares the activation tests'
+  fixtures. 0639436 shares the wallet-recovery finalization code. efe17f1
+  lands the pilot with its client/server split. f5ded18 removed the last
+  refactor citations outside R150's crates. 7f49898 and cbcfceb deleted 18
+  class members nothing calls, and the registration ceremony stores and rate
+  limiter that only they reached. R150 asked for a hold on packages/,
+  crates/, wasm/ and tests/ during its contract runs and redeploy, and the last
+  three patches landed after it, verified again on the new HEAD. Against the
+  first baseline, measured at `efe17f1`: TypeScript code 539,841 -> 514,589
+  lines; Rust code 433,451 -> 428,620; files over 2,000 lines 82 -> 80;
+  duplicated TypeScript lines 21,753 (5.1%) -> 17,785 (4.3%); duplicated Rust
+  lines 19,427 -> 18,524; validation functions 4,276 -> 3,848 (86,063 -> 77,776
+  lines); refactor citations 27, all in R150's crates. The baseline was
+  re-recorded at `efe17f1`.
