@@ -1,7 +1,7 @@
 import { parseLinkDeviceSessionId, type LinkDeviceSessionId } from '../signing-lanes/ids';
 import { base64UrlDecode, base64UrlEncode } from '../utils/base64';
 import { parseDigestB64u, type DigestB64u } from '../utils/canonicalPrimitives';
-import { sha256Bytes } from '../utils/digests';
+import { concat, sha256DigestB64u } from '../utils/digestEncoding';
 import type { LinkDevicePublicKeyB64u } from './contracts';
 
 const LINKED_DEVICE_REQUEST_PROOF_DOMAIN_V1 = 'seams/linked-device/request-proof/v1';
@@ -51,9 +51,7 @@ export function encodeLinkedDeviceRequestProofV1(proof: LinkedDeviceRequestProof
 export async function computeLinkedDeviceRequestProofDigestV1(
   proof: LinkedDeviceRequestProofV1,
 ): Promise<DigestB64u> {
-  return parseDigestB64u(
-    base64UrlEncode(await sha256Bytes(encodeLinkedDeviceRequestProofV1(proof))),
-  );
+  return sha256DigestB64u(encodeLinkedDeviceRequestProofV1(proof));
 }
 
 export async function computeLinkedDevicePublicKeyDigestV1(
@@ -64,7 +62,7 @@ export async function computeLinkedDevicePublicKeyDigestV1(
     LINK_DEVICE_PUBLIC_KEY_BYTES_V1,
     'devicePublicKeyB64u',
   );
-  return parseDigestB64u(base64UrlEncode(await sha256Bytes(publicKeyBytes)));
+  return sha256DigestB64u(publicKeyBytes);
 }
 
 function validateProofShapeV1(proof: LinkedDeviceRequestProofV1): void {
@@ -174,14 +172,4 @@ function u64(value: number, label: string): Uint8Array {
 
 function lp32(value: Uint8Array, label: string): Uint8Array {
   return concat([u32(value.length, `${label}.length`), value]);
-}
-
-function concat(parts: readonly Uint8Array[]): Uint8Array {
-  const output = new Uint8Array(parts.reduce((length, part) => length + part.length, 0));
-  let offset = 0;
-  for (const part of parts) {
-    output.set(part, offset);
-    offset += part.length;
-  }
-  return output;
 }

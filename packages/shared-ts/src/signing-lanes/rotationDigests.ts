@@ -1,6 +1,7 @@
 import { base64UrlDecode, base64UrlEncode } from '../utils/base64';
 import { parseDigestB64u, type DigestB64u } from '../utils/canonicalPrimitives';
 import { sha256Bytes } from '../utils/digests';
+import { concat, lp32, sha256DigestB64u, text, u32, u64 } from '../utils/digestEncoding';
 import type { MpcMaterialActivationRef } from '../utils/domainIds';
 import type {
   AggregateLaneActivationChildReceiptV1,
@@ -34,51 +35,6 @@ const ED25519_RETIREMENT_RECEIPT_DOMAIN =
   'seams/rotatable-signing-lanes/ed25519-retirement-receipt/v1';
 
 const TEXT_ENCODER = new TextEncoder();
-
-function bytes(value: number[]): Uint8Array {
-  return Uint8Array.from(value);
-}
-
-function concat(parts: readonly Uint8Array[]): Uint8Array {
-  let length = 0;
-  for (const part of parts) length += part.length;
-  const output = new Uint8Array(length);
-  let offset = 0;
-  for (const part of parts) {
-    output.set(part, offset);
-    offset += part.length;
-  }
-  return output;
-}
-
-function u32(value: number, label: string): Uint8Array {
-  if (!Number.isSafeInteger(value) || value < 0 || value > 0xffffffff) {
-    throw new Error(`${label} must be a non-negative u32`);
-  }
-  return bytes([(value >>> 24) & 0xff, (value >>> 16) & 0xff, (value >>> 8) & 0xff, value & 0xff]);
-}
-
-function u64(value: number, label: string): Uint8Array {
-  if (!Number.isSafeInteger(value) || value < 0) {
-    throw new Error(`${label} must be a non-negative safe integer`);
-  }
-  let remaining = BigInt(value);
-  const output = new Uint8Array(8);
-  for (let index = 7; index >= 0; index -= 1) {
-    output[index] = Number(remaining & 0xffn);
-    remaining >>= 8n;
-  }
-  return output;
-}
-
-function lp32(value: Uint8Array, label: string): Uint8Array {
-  return concat([u32(value.length, `${label}.length`), value]);
-}
-
-function text(value: string, label: string): Uint8Array {
-  if (typeof value !== 'string') throw new Error(`${label} must be a string`);
-  return lp32(TEXT_ENCODER.encode(value), label);
-}
 
 function digest(value: string, label: string): Uint8Array {
   try {
@@ -469,9 +425,7 @@ function encodeEcdsaServerRetirementReceiptCanonicalPayloadV1(
 export async function computeEcdsaServerRetirementReceiptDigestV1(
   value: EcdsaServerRetirementReceiptV1,
 ): Promise<DigestB64u> {
-  return parseDigestB64u(
-    base64UrlEncode(await sha256Bytes(encodeEcdsaServerRetirementReceiptCanonicalPayloadV1(value))),
-  );
+  return sha256DigestB64u(encodeEcdsaServerRetirementReceiptCanonicalPayloadV1(value));
 }
 
 function encodeSigningWorkerLaneMaterialIdentityV1(
@@ -516,9 +470,5 @@ function encodeEd25519ServerRetirementReceiptCanonicalPayloadV1(
 export async function computeEd25519ServerRetirementReceiptDigestV1(
   value: Ed25519ServerRetirementReceiptV1,
 ): Promise<DigestB64u> {
-  return parseDigestB64u(
-    base64UrlEncode(
-      await sha256Bytes(encodeEd25519ServerRetirementReceiptCanonicalPayloadV1(value)),
-    ),
-  );
+  return sha256DigestB64u(encodeEd25519ServerRetirementReceiptCanonicalPayloadV1(value));
 }

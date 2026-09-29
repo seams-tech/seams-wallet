@@ -1,6 +1,7 @@
 import { base64UrlEncode, base64UrlDecode } from '../utils/base64';
 import { parseDigestB64u, type DigestB64u } from '../utils/canonicalPrimitives';
 import { sha256Bytes } from '../utils/digests';
+import { concat } from '../utils/digestEncoding';
 import {
   buildLaneHolderParticipantRecordV1,
   buildSigningWorkerParticipantRecordV1,
@@ -38,17 +39,6 @@ type SigningWorkerParticipantBindingInputV1 = {
   readonly participantId: SigningWorkerParticipantId;
   readonly recipient: SigningWorkerRecipientIdentityV1;
 };
-
-function concat(parts: readonly Uint8Array[]): Uint8Array {
-  const length = parts.reduce((total, part) => total + part.length, 0);
-  const output = new Uint8Array(length);
-  let offset = 0;
-  for (const part of parts) {
-    output.set(part, offset);
-    offset += part.length;
-  }
-  return output;
-}
 
 function placeholderParticipantDigest(): LaneParticipantBindingDigestB64u {
   const parsed = parseLaneParticipantBindingDigestB64u(base64UrlEncode(new Uint8Array(32)));

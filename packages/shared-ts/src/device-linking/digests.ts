@@ -1,7 +1,16 @@
 import { base64UrlEncode } from '../utils/base64';
 import { parseDigestB64u, type DigestB64u } from '../utils/canonicalPrimitives';
-import { alphabetizeStringify, sha256Bytes, sha256BytesUtf8 } from '../utils/digests';
-import { concat, lp32, rawDigest, rawPublicKey, text, u32, u64 } from '../utils/digestEncoding';
+import { alphabetizeStringify, sha256BytesUtf8 } from '../utils/digests';
+import {
+  concat,
+  lp32,
+  rawDigest,
+  rawPublicKey,
+  sha256DigestB64u,
+  text,
+  u32,
+  u64,
+} from '../utils/digestEncoding';
 import {
   delegatedWalletPermissionNamesV1,
   type DelegatedWalletAuthorityV1,
@@ -188,9 +197,7 @@ function encodeLinkedDevicePasskeyTargetConfigurationV1(
 export async function computeLinkedDevicePasskeyTargetConfigurationDigestV1(
   value: LinkedDevicePasskeyTargetConfigurationFieldsV1,
 ): Promise<DigestB64u> {
-  return parseDigestB64u(
-    base64UrlEncode(await sha256Bytes(encodeLinkedDevicePasskeyTargetConfigurationV1(value))),
-  );
+  return sha256DigestB64u(encodeLinkedDevicePasskeyTargetConfigurationV1(value));
 }
 
 function encodeRecipientRequirement(
@@ -235,9 +242,7 @@ function encodeLinkedDeviceSessionClaimV1(value: LinkedDeviceSessionClaimV1): Ui
 export async function computeLinkedDeviceSessionClaimDigestV1(
   value: LinkedDeviceSessionClaimV1,
 ): Promise<DigestB64u> {
-  return parseDigestB64u(
-    base64UrlEncode(await sha256Bytes(encodeLinkedDeviceSessionClaimV1(value))),
-  );
+  return sha256DigestB64u(encodeLinkedDeviceSessionClaimV1(value));
 }
 
 function encodeLinkedDeviceApprovalV1(value: LinkedDeviceApprovalV1): Uint8Array {
@@ -269,7 +274,7 @@ function encodeLinkedDeviceApprovalV1(value: LinkedDeviceApprovalV1): Uint8Array
 export async function computeLinkedDeviceApprovalDigestV1(
   value: LinkedDeviceApprovalV1,
 ): Promise<DigestB64u> {
-  return parseDigestB64u(base64UrlEncode(await sha256Bytes(encodeLinkedDeviceApprovalV1(value))));
+  return sha256DigestB64u(encodeLinkedDeviceApprovalV1(value));
 }
 
 function encodeLinkedDeviceTargetPreparationV1(value: LinkedDeviceTargetPreparationV1): Uint8Array {
@@ -347,9 +352,7 @@ function isPasskeyTargetPreparationV1(
 export async function computeLinkedDeviceTargetPreparationDigestV1(
   value: LinkedDeviceTargetPreparationV1,
 ): Promise<DigestB64u> {
-  return parseDigestB64u(
-    base64UrlEncode(await sha256Bytes(encodeLinkedDeviceTargetPreparationV1(value))),
-  );
+  return sha256DigestB64u(encodeLinkedDeviceTargetPreparationV1(value));
 }
 
 export async function assertLinkedDeviceTargetCredentialRegistrationMatchesPreparationV1(input: {

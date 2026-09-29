@@ -4,6 +4,7 @@ import { parseDigestField } from '../passkey-custody/primitives';
 import type { DigestB64u } from '../utils/canonicalPrimitives';
 import { base64UrlEncode } from '../utils/base64';
 import { sha256Bytes } from '../utils/digests';
+import { concat } from '../utils/digestEncoding';
 import {
   encodeLaneCanonicalDigestV1,
   encodeLaneCanonicalTextV1,
@@ -128,17 +129,6 @@ export function parseOwnerLaneParticipantContinuityV1(
       `${label}.sourceIdentityDigestB64u`,
     ),
   });
-}
-
-function concat(parts: readonly Uint8Array[]): Uint8Array {
-  const length = parts.reduce((total, part) => total + part.length, 0);
-  const output = new Uint8Array(length);
-  let offset = 0;
-  for (const part of parts) {
-    output.set(part, offset);
-    offset += part.length;
-  }
-  return output;
 }
 
 export function ownerLaneParticipantContinuityCanonicalBytesV1(

@@ -1,14 +1,3 @@
-export function concatBytes(parts: Uint8Array[]): Uint8Array {
-  const total = parts.reduce((sum, p) => sum + p.length, 0);
-  const out = new Uint8Array(total);
-  let offset = 0;
-  for (const p of parts) {
-    out.set(p, offset);
-    offset += p.length;
-  }
-  return out;
-}
-
 export function hexToBytes(hex: string): Uint8Array {
   const raw = String(hex || '');
   const normalized = raw.startsWith('0x') ? raw.slice(2) : raw;

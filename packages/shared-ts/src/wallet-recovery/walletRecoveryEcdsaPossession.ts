@@ -1,5 +1,5 @@
 import { base64UrlDecode, base64UrlEncode } from '../utils/base64';
-import { sha256Bytes } from '../utils/digests';
+import { sha256DigestB64u } from '../utils/digestEncoding';
 import { parseDigestB64u, type DigestB64u } from '../utils/canonicalPrimitives';
 import { requireRecord } from '../utils/validation';
 
@@ -267,9 +267,5 @@ function expiryBytes(value: number): Uint8Array {
 export async function walletRecoveryEcdsaPossessionChallengeDigestB64uV1(
   challenge: WalletRecoveryEcdsaPossessionChallengeV1,
 ): Promise<DigestB64u> {
-  return parseDigestB64u(
-    base64UrlEncode(
-      await sha256Bytes(walletRecoveryEcdsaPossessionChallengeCanonicalBytesV1(challenge)),
-    ),
-  );
+  return sha256DigestB64u(walletRecoveryEcdsaPossessionChallengeCanonicalBytesV1(challenge));
 }

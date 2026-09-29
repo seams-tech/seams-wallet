@@ -32,9 +32,8 @@ import {
   LINKED_DEVICE_REQUEST_PROOF_NONCE_BYTES_V1,
   type LinkedDeviceRequestProofV1,
 } from '@shared/device-linking';
-import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';
 import { base64UrlEncode } from '@shared/utils/base64';
-import { sha256Bytes } from '@shared/utils/digests';
+import { sha256DigestB64u } from '@shared/utils/digestEncoding';
 import { secureRandomBase64Url } from '@shared/utils/secureRandomId';
 import { parseLinkDeviceSessionId, type LinkDeviceSessionId } from '@shared/signing-lanes/ids';
 import { parseLinkedDeviceEd25519ExportRootPackageV1 } from '@shared/device-linking/ed25519ExportRoot';
@@ -432,7 +431,7 @@ async function requestDeviceV1(input: {
     throw new Error('linked-device Passkey ceremony requires registration API credentials');
   }
   const bodyBytes = encodeRequestBodyV1(input.body);
-  const bodyDigestB64u = parseDigestB64u(base64UrlEncode(await sha256Bytes(bodyBytes)));
+  const bodyDigestB64u = await sha256DigestB64u(bodyBytes);
   const issuedAtMs = input.options.nowMs();
   if (!Number.isSafeInteger(issuedAtMs) || issuedAtMs <= 0) {
     throw new Error('linked-device request clock is invalid');

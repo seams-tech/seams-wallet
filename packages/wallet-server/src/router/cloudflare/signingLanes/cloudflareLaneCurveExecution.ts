@@ -20,9 +20,9 @@ import {
   parseLaneServerActivationReceiptV1,
   parseRevokeSigningLaneV1,
 } from '@shared/signing-lanes/rotationParsers';
-import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
+import { base64UrlDecode } from '@shared/utils/base64';
 import { parseDigestB64u, type DigestB64u } from '@shared/utils/canonicalPrimitives';
-import { sha256Bytes } from '@shared/utils/digests';
+import { sha256DigestB64u } from '@shared/utils/digestEncoding';
 import { base58Encode } from '@shared/utils/base58';
 import { parseEcdsaLifecycleId } from '@shared/utils/ecdsaCapabilityActivation';
 import {
@@ -985,8 +985,8 @@ async function identityFromProtocolReceiptV1(
     holderRecipientKeyDigestB64u: job.targetHolder.hpkePublicKeyDigestB64u,
     serverRecipientKeyDigestB64u: job.targetSigningWorker.hpkePublicKeyDigestB64u,
     transcriptHashB64u: parseDigestB64u(receipt.transcriptHashB64u),
-    protocolCommitReceiptDigestB64u: parseDigestB64u(
-      base64UrlEncode(await sha256Bytes(encodeLaneProtocolCommitReceiptV1(receipt))),
+    protocolCommitReceiptDigestB64u: await sha256DigestB64u(
+      encodeLaneProtocolCommitReceiptV1(receipt),
     ),
   };
 }
@@ -1033,8 +1033,8 @@ async function buildEd25519ActivationBindingV1(input: {
       holderRecipientKeyDigestB64u: input.job.targetHolder.hpkePublicKeyDigestB64u,
       serverRecipientKeyDigestB64u: input.job.targetSigningWorker.hpkePublicKeyDigestB64u,
       transcriptHashB64u: parseDigestB64u(receipt.transcriptHashB64u),
-      protocolCommitReceiptDigestB64u: parseDigestB64u(
-        base64UrlEncode(await sha256Bytes(encodeLaneProtocolCommitReceiptV1(receipt))),
+      protocolCommitReceiptDigestB64u: await sha256DigestB64u(
+        encodeLaneProtocolCommitReceiptV1(receipt),
       ),
     },
     targetMaterialActivation: buildMpcMaterialActivationRef({
@@ -1080,7 +1080,7 @@ export async function digestSigningWorkerLaneIdentityV1(
     bytes.set(chunk, offset);
     offset += chunk.length;
   }
-  return parseDigestB64u(base64UrlEncode(await sha256Bytes(bytes)));
+  return sha256DigestB64u(bytes);
 }
 
 function u64Length(value: number): Uint8Array {

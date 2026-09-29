@@ -1,9 +1,10 @@
 // Byte encoders for the canonical digest encodings: big-endian integers and u32 length-prefixed
-// fields. Every digest built from them depends on their exact output, so a change here changes
-// those digests.
+// fields, plus the SHA-256 step that turns an encoding into a DigestB64u. Every digest built from
+// them depends on their exact output, so a change here changes those digests.
 
 import { base64UrlDecode, base64UrlEncode } from './base64';
 import { parseDigestB64u, type DigestB64u } from './canonicalPrimitives';
+import { sha256Bytes } from './digests';
 
 const TEXT_ENCODER = new TextEncoder();
 
@@ -73,4 +74,8 @@ export function rawPublicKey(value: string, label: string): Uint8Array {
   } catch (error) {
     throw new Error(`${label} ${error instanceof Error ? error.message : 'is invalid'}`);
   }
+}
+
+export async function sha256DigestB64u(bytes: Uint8Array): Promise<DigestB64u> {
+  return parseDigestB64u(base64UrlEncode(await sha256Bytes(bytes)));
 }

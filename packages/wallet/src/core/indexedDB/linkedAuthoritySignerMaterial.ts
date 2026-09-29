@@ -6,6 +6,7 @@ import {
 } from '@shared/device-linking';
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
 import { alphabetizeStringify, sha256Bytes } from '@shared/utils/digests';
+import { sha256DigestB64u } from '@shared/utils/digestEncoding';
 import { parseDigestB64u, type DigestB64u } from '@shared/utils/canonicalPrimitives';
 import {
   mpcMaterialActivationRefsEqual,
@@ -158,7 +159,7 @@ export async function sealWalletAuthorityLinkedSignerMaterialV1(input: {
     sealed.set(nonce);
     sealed.set(ciphertext, nonce.length);
     const sealedMaterialB64u = base64UrlEncode(sealed);
-    const sealedMaterialDigestB64u = parseDigestB64u(base64UrlEncode(await sha256Bytes(sealed)));
+    const sealedMaterialDigestB64u = await sha256DigestB64u(sealed);
     sealed.fill(0);
     return { sealedMaterialB64u, sealedMaterialDigestB64u };
   } finally {
@@ -358,7 +359,7 @@ export async function openWalletAuthorityLinkedSignerMaterialV1(
       reason: 'sealed_material_invalid',
     };
   }
-  const digest = parseDigestB64u(base64UrlEncode(await sha256Bytes(sealed)));
+  const digest = await sha256DigestB64u(sealed);
   if (digest !== record.sealedMaterialDigestB64u) {
     sealed.fill(0);
     return {

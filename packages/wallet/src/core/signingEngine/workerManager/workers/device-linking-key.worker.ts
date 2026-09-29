@@ -27,6 +27,7 @@ import {
 import { computeWalletSessionOperationCredentialDigestB64u } from '@shared/device-linking/digests';
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
 import { alphabetizeStringify, sha256BytesUtf8 } from '@shared/utils/digests';
+import { concat } from '@shared/utils/digestEncoding';
 import { parseDigestB64u, type DigestB64u } from '@shared/utils/canonicalPrimitives';
 import {
   parseMpcWalletSigningQuotaId,
@@ -753,13 +754,13 @@ const LINKED_DEVICE_ECDSA_SOURCE_CONTRIBUTION_HPKE_INFO_V1 = new TextEncoder().e
   'seams/linked-device/ecdsa-source-contribution/hpke-x25519-hkdf-sha256-aes256gcm/v1',
 );
 const HPKE_VERSION_V1 = new TextEncoder().encode('HPKE-v1');
-const HPKE_KEM_SUITE_ID_V1 = concatBytes(new TextEncoder().encode('KEM'), uint16Bytes(0x0020));
-const HPKE_SUITE_ID_V1 = concatBytes(
+const HPKE_KEM_SUITE_ID_V1 = concat([new TextEncoder().encode('KEM'), uint16Bytes(0x0020)]);
+const HPKE_SUITE_ID_V1 = concat([
   new TextEncoder().encode('HPKE'),
   uint16Bytes(0x0020),
   uint16Bytes(0x0001),
   uint16Bytes(0x0002),
-);
+]);
 
 async function openLinkedDeviceEcdsaTargetClientShare(input: {
   readonly envelope: CommittedEcdsaSignerPackageV1['encryptedTargetClientShare'];
@@ -800,7 +801,7 @@ async function openLinkedDeviceEcdsaTargetClientShare(input: {
         256,
       ),
     );
-    const kemContext = concatBytes(encappedKey, recipientPublicKey);
+    const kemContext = concat([encappedKey, recipientPublicKey]);
     const eaePrk = await hpkeLabeledExtract(HPKE_KEM_SUITE_ID_V1, 'eae_prk', sharedSecret);
     kemSharedSecret = await hpkeLabeledExpand(
       HPKE_KEM_SUITE_ID_V1,
@@ -815,7 +816,7 @@ async function openLinkedDeviceEcdsaTargetClientShare(input: {
       'info_hash',
       LINKED_DEVICE_ECDSA_SOURCE_CONTRIBUTION_HPKE_INFO_V1,
     );
-    const keyScheduleContext = concatBytes(new Uint8Array([0]), pskIdHash, infoHash);
+    const keyScheduleContext = concat([new Uint8Array([0]), pskIdHash, infoHash]);
     secret = await hpkeLabeledExtract(
       HPKE_SUITE_ID_V1,
       'secret',
@@ -875,7 +876,7 @@ async function hpkeLabeledExtract(
 ): Promise<Uint8Array> {
   return await hmacSha256(
     salt.length === 0 ? new Uint8Array(32) : salt,
-    concatBytes(HPKE_VERSION_V1, suiteId, new TextEncoder().encode(label), input),
+    concat([HPKE_VERSION_V1, suiteId, new TextEncoder().encode(label), input]),
   );
 }
 
@@ -886,13 +887,13 @@ async function hpkeLabeledExpand(
   info: Uint8Array,
   length: number,
 ): Promise<Uint8Array> {
-  const labeledInfo = concatBytes(
+  const labeledInfo = concat([
     uint16Bytes(length),
     HPKE_VERSION_V1,
     suiteId,
     new TextEncoder().encode(label),
     info,
-  );
+  ]);
   return await hkdfExpand(prk, labeledInfo, length);
 }
 
@@ -901,7 +902,7 @@ async function hkdfExpand(prk: Uint8Array, info: Uint8Array, length: number): Pr
   let previous = new Uint8Array(0);
   try {
     for (let counter = 1, offset = 0; offset < length; counter += 1) {
-      const block = await hmacSha256(prk, concatBytes(previous, info, new Uint8Array([counter])));
+      const block = await hmacSha256(prk, concat([previous, info, new Uint8Array([counter])]));
       const copied = Math.min(block.length, length - offset);
       output.set(block.subarray(0, copied), offset);
       offset += copied;
@@ -929,28 +930,17 @@ async function hmacSha256(keyBytes: Uint8Array, data: Uint8Array): Promise<Uint8
 }
 
 function x25519PrivateKeyPkcs8(privateKey: Uint8Array): Uint8Array {
-  return concatBytes(
+  return concat([
     Uint8Array.from([
       0x30, 0x2e, 0x02, 0x01, 0x00, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x6e, 0x04, 0x22, 0x04,
       0x20,
     ]),
     privateKey,
-  );
+  ]);
 }
 
 function uint16Bytes(value: number): Uint8Array {
   return new Uint8Array([(value >>> 8) & 0xff, value & 0xff]);
-}
-
-function concatBytes(...parts: readonly Uint8Array[]): Uint8Array {
-  const total = parts.reduce((length, part) => length + part.length, 0);
-  const output = new Uint8Array(total);
-  let offset = 0;
-  for (const part of parts) {
-    output.set(part, offset);
-    offset += part.length;
-  }
-  return output;
 }
 
 type DeviceLinkingSignRequestRecordV1 = {
