@@ -1,8 +1,13 @@
 # Optimization 11: NEAR registration and signing latency
 
-Status: proposed implementation plan, 2026-09-29. No optimization or deployment
-is claimed by this document. R150 is integrated into wallet `dev`; measurements
+Status: local baseline established, 2026-09-29; optimization work remains proposed.
+No optimization or deployment is claimed. R150 is integrated into wallet `dev`; measurements
 must identify the exact source, SDK assets, role builds, and deployed versions.
+
+Execution order confirmed: establish the local development baseline first and
+optimize measured local work before starting network/placement experiments.
+The [local benchmark report](./optimization-11-NEAR-local-baseline.md) records the
+workload, results, reproduction commands, and known coverage gaps.
 
 ## Objective and scope
 
@@ -93,9 +98,10 @@ log credentials, factor secrets, signing material, recovery codes, or request bo
 
 ### Cohorts and evidence
 
-- Establish local release-build baselines, then hosted measurements in APAC,
-  WEUR, and ENAM when authorized. Record actual runtime locations and storage
-  topology; a location hint alone is insufficient evidence.
+- Establish local release-build baselines first. Defer hosted measurements in APAC,
+  WEUR, and ENAM until the local work is assessed and those runs are authorized.
+  Record actual runtime locations and storage topology; a location hint alone is
+  insufficient evidence.
 - Registration: NEAR-only and mixed, separated by factor; report ECDSA return,
   full NEAR readiness, and immediate first NEAR signature.
 - Signing: first after registration, warm reuse in one retained session, after
@@ -121,6 +127,9 @@ environment's transaction-context cost. Neither proves residential/mobile latenc
 
 ### 1. Establish the current critical path
 
+- [x] Record a frozen local Workers/D1 baseline: 20 passkey NEAR-only and 20 mixed
+  registrations, each followed by verified first and warm NEAR signing. Preserve
+  safe samples, artifact identity, reproduction commands, and diagnostic failures.
 - [ ] Verify optimized WASM artifacts and diagnostic coverage in the exact build.
 - [ ] Run the focused baseline and attribute uncovered time between existing spans.
 - [ ] Add only missing timing boundaries, including Gateway authorization/storage

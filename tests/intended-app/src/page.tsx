@@ -75,6 +75,16 @@ function isEvmFamilyEcdsaSigner(signer: IntendedRegistrationSignerKind): boolean
   return signer.kind === 'evm_family_ecdsa';
 }
 
+function recordNearBenchmarkDuration(
+  event: 'near_sdk_registration_timing' | 'near_sdk_signing_started' | 'near_sdk_signing_timing',
+  startedAt: number,
+): void {
+  console.info(
+    '[Intended NEAR benchmark]',
+    JSON.stringify({ event, durationMs: performance.now() - startedAt }),
+  );
+}
+
 type IntendedLifecycleEvent = {
   index: number;
   payload: unknown;
@@ -1206,6 +1216,7 @@ class IntendedPageController {
     const action: IntendedActionName = 'registerPasskeyWallet';
     this.dispatch({ kind: 'action_started', action });
     try {
+      const registrationStartedAt = performance.now();
       const result = await this.registerPasskey({
         wallet: {
           kind: 'provided',
@@ -1218,6 +1229,7 @@ class IntendedPageController {
         recoveryCodeBackup: { kind: 'show_builtin_dialog' },
         onEvent: this.recordLifecycleEvent,
       });
+      recordNearBenchmarkDuration('near_sdk_registration_timing', registrationStartedAt);
       const registration = assertPasskeyRegistrationSucceeded({
         result,
         expectedWalletId: this.walletId,
@@ -1339,6 +1351,7 @@ class IntendedPageController {
     const action: IntendedActionName = 'registerPasskeyEd25519YaoWallet';
     this.dispatch({ kind: 'action_started', action });
     try {
+      const registrationStartedAt = performance.now();
       const result = await this.seams.registration.registerWallet({
         authMethod: {
           kind: 'passkey',
@@ -1353,6 +1366,7 @@ class IntendedPageController {
           onEvent: this.recordLifecycleEvent,
         },
       });
+      recordNearBenchmarkDuration('near_sdk_registration_timing', registrationStartedAt);
       const registration = assertPasskeyRegistrationSucceeded({
         result,
         expectedWalletId: this.walletId,
@@ -2394,6 +2408,8 @@ class IntendedPageController {
 
   private async signNearTransactionWithPublicSdk(): Promise<NearSigningResultSummary> {
     const nearAccountId = requireNearAccountId(this.nearAccountId);
+    const signingStartedAt = performance.now();
+    recordNearBenchmarkDuration('near_sdk_signing_started', signingStartedAt);
     const result = await this.seams.near.signTransactionWithActions({
       walletSession: walletSessionRefFromSession({
         walletId: this.walletId,
@@ -2414,6 +2430,7 @@ class IntendedPageController {
         onEvent: this.recordLifecycleEvent,
       },
     });
+    recordNearBenchmarkDuration('near_sdk_signing_timing', signingStartedAt);
     const signedTransactionB64 = encodeSignedTransactionBase64(result.signedTransaction);
     const signedTransactionByteLength = normalizeSignedTransactionByteLength(
       result.signedTransaction,
