@@ -359,9 +359,9 @@ function createD1LinkedDeviceComposition(input: {
   readonly webAuthnStore: CloudflareD1WebAuthnStore;
   readonly webAuthnAuthService: CloudflareD1WebAuthnAuthService;
   /**
-   * Refactor 103 Phase 6: the R100 Email OTP pieces the linked-device Email
-   * OTP target factor composes. Left absent, `email_otp` linking fails closed
-   * at approval and the challenge routes answer 501.
+   * The Email OTP pieces the linked-device Email OTP target factor composes.
+   * Left absent, `email_otp` linking fails closed at approval and the challenge
+   * routes answer 501.
    */
   readonly emailOtpLinkedDevice?: {
     readonly issuer: Pick<CloudflareD1EmailOtpChallengeIssuer, 'create'>;
@@ -1786,7 +1786,7 @@ function createCloudflareD1RouterApiAuthAssembly(
     serverSeal: emailOtpServerSeal,
     orgId: options.orgId,
   });
-  // Composed after the R100 Email OTP pieces so the linked-device Email OTP
+  // Composed after the Email OTP pieces so the linked-device Email OTP
   // target factor reuses this deployment's exact issuer, verifier, enrollment
   // store, and server-seal runtime — never a second OTP implementation.
   const linkedDeviceComposition = createD1LinkedDeviceComposition({

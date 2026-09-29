@@ -1,5 +1,5 @@
 /**
- * Refactor 103 Phase 6 — the durable one-time Email OTP verification grant.
+ * The durable one-time Email OTP verification grant.
  *
  * Verifying the emailed code proves the person holding Device 2 controls the
  * wallet's base Email OTP destination. That proof must authorize exactly one

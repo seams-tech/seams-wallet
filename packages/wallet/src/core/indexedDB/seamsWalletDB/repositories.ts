@@ -5301,7 +5301,7 @@ export class SeamsWalletRepositories {
       throw new Error('wallet selection is missing or corrupt');
     }
     if (selection.record.walletAuthMethodId !== input.walletAuthMethodId) {
-      // R109C: unlocking with a sibling method on the same wallet authority
+      // Unlocking with a sibling method on the same wallet authority
       // moves the selection to it. Invariant 9 makes lock and unlock the route
       // by which a newly added method becomes the one in use, so a selection
       // still naming the source method is the expected state here rather than
@@ -5808,8 +5808,7 @@ export class SeamsWalletRepositories {
   }
 
   /**
-   * R109C: resolve the authority as a named method rather than as the selected
-   * one.
+   * Resolve the authority as a named method rather than as the selected one.
    *
    * Unlocking a sibling is how an added method comes into use - invariant 9
    * makes lock and unlock the route - and the unlock moves the selection to it.

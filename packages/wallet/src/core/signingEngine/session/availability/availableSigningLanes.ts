@@ -590,7 +590,7 @@ export type ReadAvailableSigningLanesInput = {
   ecdsaChainTargets: readonly ThresholdEcdsaChainTarget[];
   authMethod?: 'email_otp' | 'passkey';
   /**
-   * R103C: when present, candidates are filtered to this exact owner before
+   * When present, candidates are filtered to this exact owner before
    * canonicalization. Sibling owner lanes and lanes on other signer slots
    * never reach selection. Omitted only for persistence maintenance,
    * normalization, and diagnostics reads.
@@ -1611,7 +1611,7 @@ function canonicalEcdsaLaneSelectionForFacts(
 }
 
 /**
- * R109C: an added auth method holds its own access projection over the wallet's
+ * An added auth method holds its own access projection over the wallet's
  * existing activation, so the same lane is reachable through two credentials.
  * For a wallet-level read that names no method, those are one lane, not two
  * competing ones - and they are indistinguishable to the canonical tie-break,
@@ -1755,7 +1755,7 @@ function suppressPublicEd25519CandidatesWithDurablePolicy(
 }
 
 /**
- * R103C owner-scope matching. Ed25519 lanes bind an owner's credential AND
+ * Owner-scope matching. Ed25519 lanes bind an owner's credential AND
  * signer slot; ECDSA lanes bind the credential alone. State stays untouched:
  * the scope decides whose lane it is, never whether it is usable.
  */
@@ -1944,7 +1944,7 @@ export async function readAvailableSigningLanes(
     });
   }
 
-  // R103C: filter to the exact owner BEFORE canonicalization. A sibling
+  // Filter to the exact owner BEFORE canonicalization. A sibling
   // owner's lanes must not participate in duplicate collapse, priority
   // ordering, or canonical fact grouping for this owner's operation.
   const ownerScope = input.ownerScope;

@@ -15,10 +15,9 @@ import { WALLET_CUSTODY_ED25519_MATERIAL_KEY_KIND } from './ed25519SeedMaterial'
  *
  * **Authorization identity** — `AuthorizationGrantRef`, `WalletSessionId`,
  * `MpcWalletSigningQuotaId`, `AuthorizedOperationId`, bearer sessions. A
- * material handle is a key, not a permission; Refactor 90 owns those and
- * resolves them per operation. One embedded here would be a second source for
- * an identity that must have exactly one, and it would outlive the operation
- * it was minted for.
+ * material handle is a key, not a permission; those are resolved per
+ * operation. One embedded here would be a second source for an identity that
+ * must have exactly one, and it would outlive the operation it was minted for.
  *
  * **Factor identity** — `rpId`, `credentialIdB64u`, enrollment ids. The record
  * is sealed under the wallet custody seed so that a factor enrolled later

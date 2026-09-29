@@ -327,7 +327,7 @@ function expectedPresentCapabilityState(args: {
     if (prfClaim?.state !== 'warm') return 'prf_missing';
     return 'ready';
   }
-  // Allowance and expiry are classified by the shared Refactor 92 rule before
+  // Allowance and expiry are classified by the shared runtime-policy rule before
   // any worker or PRF state is considered: a warm claim over an expired or
   // exhausted session is not ready, and expiry must not be reported as
   // exhaustion. Both are authorization states, so they surface as

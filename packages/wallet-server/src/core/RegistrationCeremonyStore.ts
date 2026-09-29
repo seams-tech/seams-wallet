@@ -312,9 +312,8 @@ export type StoredWalletRegistrationEvmFamilyEcdsaActivatedBranch = StoredEcdsaR
 /**
  * The ECDSA signer is durable and the wallet is usable. Reached only on a plan
  * that also has an Ed25519 branch: registration returns ECDSA-ready here and
- * the ceremony stays open for the Ed25519 finalize (Refactor 94 Phase 4+5).
- * On an ECDSA-only plan the ceremony is deleted instead, so this state never
- * appears.
+ * the ceremony stays open for the Ed25519 finalize. On an ECDSA-only plan the
+ * ceremony is deleted instead, so this state never appears.
  */
 export type StoredWalletRegistrationEvmFamilyEcdsaFinalizedBranch = StoredEcdsaRegistrationBase & {
   kind: 'evm_family_ecdsa_finalized';
@@ -457,8 +456,7 @@ type StoredWalletRegistrationSignerState =
   | StoredWalletRegistrationFailed;
 
 /**
- * Refactor 94C. A registration ceremony now exists before its authority proof
- * does.
+ * A registration ceremony exists before its authority proof does.
  *
  * `/wallets/register/setup` issues the challenge the client's WebAuthn create
  * must sign, so the ceremony — and the Router preparation work bound to it —
@@ -663,7 +661,7 @@ export type StoredWalletAddSignerFinalizeReplay = {
 };
 
 /**
- * Refactor 103 Phase 8: an add-auth-method finalize that already succeeded.
+ * An add-auth-method finalize that already succeeded.
  *
  * Finalize consumes its ceremony, so a client that lost the response has no way
  * to ask again — the ceremony is gone and the credential is already registered.
@@ -759,7 +757,7 @@ export type StoredWalletAddAuthMethodCeremony =
        * The SOURCE method's envelope, exactly as the passkey branch below
        * carries it.
        *
-       * Refactor 109C adds Email OTP to a wallet that already holds its custody
+       * This ceremony adds Email OTP to a wallet that already holds its custody
        * seed, so the browser has to open this envelope with the source factor
        * and reseal the same seed under the new Email OTP factor. Without it the
        * ceremony could only ever create an auth method that unlocks nothing.

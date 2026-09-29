@@ -114,7 +114,7 @@ async function resolveEcdsaAuthorizationForResolution(args: {
 
 /** The PRF claim for a resolved ECDSA capability. Correlation has already proved
  * the material, so the claim is the sealed runtime's own allowance and expiry --
- * the same facts the shared Refactor 92 rule classifies. A blocked resolution
+ * the same facts the shared runtime-policy rule classifies. A blocked resolution
  * has no runtime and so no claim to report.
  *
  * The wallet-scoped relayer claim is not consulted here. It is read by lane, and

@@ -2,8 +2,7 @@ import type { NearProvisioningState } from '@/core/types/seams';
 import type { WalletId } from '@shared/utils/registrationIntent';
 
 /**
- * Refactor 94 Phase 6. Page-owned NEAR provisioning state for wallets that
- * registered ECDSA-ready.
+ * Page-owned NEAR provisioning state for wallets that registered ECDSA-ready.
  *
  * Registration returns before the Ed25519/NEAR branch settles, so the outcome
  * of that deferred work has nowhere to go on the already-returned

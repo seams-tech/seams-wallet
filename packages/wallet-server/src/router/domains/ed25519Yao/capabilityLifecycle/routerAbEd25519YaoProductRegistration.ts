@@ -610,7 +610,7 @@ export function createRouterAbEd25519YaoMaterialActivationRefV1(input: {
 
 /**
  * Takes the authority *scope* rather than the authority because setup admits
- * before the proof exists (Refactor 94C). Callers holding a verified authority
+ * before the proof exists. Callers holding a verified authority
  * pass `registrationEd25519AuthorityScopeFromAuthority(authority)`; setup
  * passes the scope derived from the requested auth method, and only when that
  * derivation is complete without a proof.

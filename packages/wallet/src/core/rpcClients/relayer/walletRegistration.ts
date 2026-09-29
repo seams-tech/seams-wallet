@@ -628,7 +628,7 @@ export type WalletRegistrationStartResponse = WalletRegistrationStartResponseBas
   );
 
 /**
- * Refactor 94C. The `/wallets/register/setup` response.
+ * The `/wallets/register/setup` response.
  *
  * `signedSetup` is opaque to the client: it is carried to routes 2 and 3 and
  * echoed verbatim, never parsed. `registrationIntentDigestB64u` is the
@@ -3095,8 +3095,8 @@ function parseWalletEcdsaKeyFactsInventoryResponse(args: {
 }
 
 /**
- * Refactor 94C. `POST /wallets/register/setup` — the single admitted entry
- * point replacing the grant, intent, and start calls below.
+ * `POST /wallets/register/setup` — the single admitted entry point replacing
+ * the grant, intent, and start calls below.
  *
  * It is called *before* the WebAuthn create prompt, because its response
  * carries the challenge that create must sign. The server-side preparation
@@ -3255,7 +3255,7 @@ function parseRevokeWalletAuthMethodResponse(value: unknown): RevokeWalletAuthMe
 }
 
 /**
- * R109C: revoke one auth method using a proof from a different active one.
+ * Revoke one auth method using a proof from a different active one.
  *
  * The route is the wallet's own auth-method management, not device linking:
  * a sibling on the same device is not a device, and the linked-device
@@ -3342,10 +3342,9 @@ export async function createWalletAddAuthMethodIntent(args: {
 }
 
 /**
- * Refactor 94C route 2. Authenticated respond: the proof the client just
- * collected against setup's challenge travels with the ECDSA registration
- * request, so one round trip both establishes the verified authority and runs
- * the Router leg.
+ * Route 2. Authenticated respond: the proof the client just collected against
+ * setup's challenge travels with the ECDSA registration request, so one round
+ * trip both establishes the verified authority and runs the Router leg.
  *
  * The result is a discriminated signer plan, not a bundle with an optional
  * Ed25519 member. A mixed plan always carries deferred NEAR work; an
@@ -3628,9 +3627,9 @@ export async function authorizeWalletRegistrationNearAdmission(
 }
 
 /**
- * Refactor 94C route 3. Activate absorbs finalize: one call carries the
- * browser-verified activation facts and the Email OTP enrollment material that
- * used to ride a separate finalize request, and returns the terminal wallet.
+ * Route 3. Activate absorbs finalize: one call carries the browser-verified
+ * activation facts and the Email OTP enrollment material that used to ride a
+ * separate finalize request, and returns the terminal wallet.
  *
  * `nearProvisioning` is a snapshot only. It never carries NEAR identifiers
  * before readiness — those appear once deferred provisioning reaches
@@ -4097,8 +4096,8 @@ export async function activateWalletRegistration(
 }
 
 /**
- * Refactor 94C route 4. The deferred NEAR completion, called once the Yao
- * computation the client started after respond has finished.
+ * Route 4. The deferred NEAR completion, called once the Yao computation the
+ * client started after respond has finished.
  *
  * One completion path serves both plans: an Ed25519-only wallet installs its
  * sole signer here, and a mixed wallet's NEAR arm lands here too. It carries

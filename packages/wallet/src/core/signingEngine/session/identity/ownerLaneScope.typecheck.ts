@@ -1,6 +1,6 @@
 /**
- * Compile-time contract for OwnerLaneScope (R103C): a Passkey owner scope
- * requires a signer slot, and an Email OTP scope cannot carry one.
+ * Compile-time contract for OwnerLaneScope: a Passkey owner scope requires a
+ * signer slot, and an Email OTP scope cannot carry one.
  */
 import type { OwnerLaneScope } from './signingLaneAuthBinding';
 import { toRpId } from './evmFamilyEcdsaIdentity';

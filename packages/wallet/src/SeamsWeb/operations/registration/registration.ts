@@ -1479,7 +1479,7 @@ function emailOtpProviderFromRegistrationProof(proof: EmailOtpRegistrationProof)
 }
 
 /**
- * Refactor 94C. The registration ceremony over the three routes.
+ * The registration ceremony over the three routes.
  *
  * Linear and registration-specific on purpose. Add-signer keeps the shared
  * `runStrictEcdsaFamilyCeremony`, which still has its own respond, activate,
@@ -1675,8 +1675,8 @@ function ethereumAddressFromAddress20B64u(value: string): `0x${string}` {
 }
 
 /**
- * Refactor 94C. Calls `/wallets/register/setup`, which replaces the bootstrap
- * grant, the registration intent, and registration start.
+ * Calls `/wallets/register/setup`, which replaces the bootstrap grant, the
+ * registration intent, and registration start.
  *
  * Runs before the authenticator prompt, because its response carries the
  * challenge that prompt must sign — so the Router's ECDSA preparation overlaps

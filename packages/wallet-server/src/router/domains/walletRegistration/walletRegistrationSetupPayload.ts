@@ -1,6 +1,5 @@
 /**
- * Refactor 94C. The opaque payload `/wallets/register/setup` mints and routes
- * 2 and 3 verify.
+ * The opaque payload `/wallets/register/setup` mints and routes 2 and 3 verify.
  *
  * Setup admits the application, allocates the wallet, and runs the Router
  * preparation in one request. Routes 2 and 3 then need to know that the

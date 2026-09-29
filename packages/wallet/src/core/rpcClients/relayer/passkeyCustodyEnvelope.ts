@@ -127,7 +127,7 @@ export async function fetchPasskeyCustodyEnvelope(args: {
 }
 
 /**
- * Refactor 109C: hands a resealed pre-109C envelope to the server.
+ * Hands a formerly unbound envelope, now resealed, to the server.
  *
  * The unlock that opened an `unbound` envelope has already resealed it under
  * the exact method that authenticated. This is the only thing left to do with

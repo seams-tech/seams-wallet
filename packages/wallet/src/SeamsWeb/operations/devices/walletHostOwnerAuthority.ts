@@ -63,9 +63,8 @@ export function createWalletHostOwnerAuthoritiesV1(input: {
   ) => Promise<ResolveSelectedWalletAuthorityResultV1>;
   readonly readWalletAuthenticationState: () => WalletAuthenticationState;
   /**
-   * R103 zero-prompt handoff: reads the worker-held unlocked Ed25519 export-root
-   * capability for a wallet, or undefined when none exists. Reading never
-   * prompts.
+   * Reads the worker-held unlocked Ed25519 export-root capability for a wallet,
+   * or undefined when none exists. Reading never prompts.
    */
   readonly readUnlockedEd25519ExportRootCapabilityV1: (
     walletId: WalletId,
@@ -125,7 +124,7 @@ function normalizeContext(input: {
 }
 
 /**
- * The R103 fail-closed preflight, exact result `wallet_unlock_required`.
+ * The fail-closed preflight, exact result `wallet_unlock_required`.
  *
  * The locked and missing-session arms run before any network I/O. The
  * export-root arm runs after the stateless owner-authorization read, because

@@ -1,5 +1,5 @@
 /**
- * Refactor 109C: the source claim a same-device addition puts in its intent.
+ * The source claim a same-device addition puts in its intent.
  *
  * The intent digest is what the fresh source proof signs, so every identity the
  * proof is meant to bind has to be inside it. The server resolves the true

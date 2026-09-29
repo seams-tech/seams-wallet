@@ -194,8 +194,8 @@ type IntendedActionState =
   | IntendedActionError;
 
 /**
- * Refactor 94 Phase 7. What a passkey registration can assert at return time
- * depends on whether it had a NEAR branch and whether that branch settled.
+ * What a passkey registration can assert at return time depends on whether it
+ * had a NEAR branch and whether that branch settled.
  * A NEAR-only plan resolves with its identity; a mixed plan resolves
  * ECDSA-ready with NEAR still provisioning, so no NEAR identifier exists yet.
  * Modelled as a closed union so neither branch can borrow the other's fields.
@@ -357,7 +357,7 @@ type EmailOtpUnlockCoreSummary = {
 type EmailOtpUnlockResultSummary = EmailOtpUnlockCoreSummary & IntendedEcdsaSummary;
 
 /**
- * Refactor 109C: the Email OTP method just added opened its wallet.
+ * The Email OTP method just added opened its wallet.
  *
  * The hosted Google flow names the selected wallet and returns through its
  * address-backed Email OTP method. This summary keeps the exact method id so
@@ -1263,7 +1263,7 @@ class IntendedPageController {
   }
 
   /**
-   * Refactor 109C matrix: a wallet whose signer set is ECDSA only.
+   * Signer-profile matrix: a wallet whose signer set is ECDSA only.
    *
    * The combined wallets the transition contracts use always have an Ed25519
    * signer for an added method to inherit. This one has none, so an added
@@ -1470,7 +1470,7 @@ class IntendedPageController {
   }
 
   /**
-   * Refactor 109C: the passkey wallet on screen gains an Email OTP method.
+   * The passkey wallet on screen gains an Email OTP method.
    *
    * The address is derived from the wallet so repeated runs against a
    * persistent local stack do not fight over one provider identity — an
@@ -1507,7 +1507,7 @@ class IntendedPageController {
   }
 
   /**
-   * Refactor 109C: retire the method that did the adding, from the added one.
+   * Retire the method that did the adding, from the added one.
    *
    * The sibling that stays is the one just added, so this is the case that
    * matters: a wallet must not become unopenable because the credential it was
@@ -1562,7 +1562,7 @@ class IntendedPageController {
   }
 
   /**
-   * Refactor 109C: unlock through the Email OTP method the wallet just added.
+   * Unlock through the Email OTP method the wallet just added.
    *
    * This uses the same Google menu path as the product. The selected wallet is
    * sent to `/auth/google/verify`, which resolves its verified-address factor
@@ -1640,7 +1640,7 @@ class IntendedPageController {
   }
 
   /**
-   * Refactor 109C matrix: an Email OTP wallet whose signer set is Ed25519 only.
+   * Signer-profile matrix: an Email OTP wallet whose signer set is Ed25519 only.
    *
    * Same registration flow as every other Email OTP wallet; only the signer
    * set differs, which is the point - a parallel registration variant would

@@ -760,7 +760,7 @@ export async function handleWalletCustodyCredentialsList(
 }
 
 /**
- * Refactor 109C: binds a pre-109C custody envelope to the method that opened it.
+ * Binds an unbound custody envelope to the method that opened it.
  *
  * The exact operation credential names the auth method that opened the
  * envelope. Unlock already proved that method, so finishing the ownership

@@ -24,7 +24,7 @@ import type {
 export type WalletAuthMethodRecord = SharedWalletAuthMethodRecord;
 
 /**
- * R103E's auth-method row. The v1 record remains exported for the older
+ * The V2 auth-method row. The v1 record remains exported for the older
  * registration/add-factor surface while the authority cutover is composed.
  * New authority-owned writes use this type and the V2 statements below.
  */
@@ -1025,7 +1025,7 @@ export class D1WalletAuthMethodStore implements WalletAuthMethodStore, WalletAut
    * Aborts the surrounding batch if the authority already holds an active
    * method of this family.
    *
-   * Refactor 109C's admission answers `already_configured` before a ceremony
+   * Add-auth-method admission answers `already_configured` before a ceremony
    * starts, but an admission read cannot close a race: two ceremonies can pass
    * it concurrently and both insert. The auth-method insert's own guard covers
    * only the allocated method id, and migration `0011` deliberately dropped

@@ -760,7 +760,7 @@ export class CloudflareD1PasskeyCustodyEnvelopeStore {
    * The envelope row is insert-only, so a repeated envelope identity or any
    * conflicting credential aborts the complete transaction.
    *
-   * The factor kind is the caller's to assert, not this store's. Refactor 109C
+   * The factor kind is the caller's to assert, not this store's. Method addition
    * enrols an Email OTP factor by exactly this route — a new envelope holding
    * the same seed, committed with the auth-method insert — and each branch has
    * already verified the factor it built the envelope for by the time it gets

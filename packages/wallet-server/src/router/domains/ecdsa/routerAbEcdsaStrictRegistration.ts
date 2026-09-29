@@ -130,17 +130,17 @@ type RouterAbRequestPolicyClaimsInputV1 = {
 };
 
 /**
- * Receives the Router's raw `Server-Timing` header, when it sent one
- * (Refactor 94B Phase 0). Diagnostics only: the Router's spans never reach the
- * response body, and a caller that omits this sink changes nothing about the
- * ceremony. Called at most once per forwarded request, before the result is
- * parsed, so a failing leg still reports where its time went.
+ * Receives the Router's raw `Server-Timing` header, when it sent one.
+ * Diagnostics only: the Router's spans never reach the response body, and a
+ * caller that omits this sink changes nothing about the ceremony. Called at
+ * most once per forwarded request, before the result is parsed, so a failing
+ * leg still reports where its time went.
  */
 export type RouterAbEcdsaStrictServerTimingSink = (header: string) => void;
 
 /**
- * Refactor 94B Phase 0. Reports whether a role leg returned the diagnostics
- * header we expect, and nothing about what it contained.
+ * Reports whether a role leg returned the diagnostics header we expect, and
+ * nothing about what it contained.
  *
  * `Server-Timing` carries role and span names from inside the MPC topology.
  * A missing header and an empty one are different failures — the first means

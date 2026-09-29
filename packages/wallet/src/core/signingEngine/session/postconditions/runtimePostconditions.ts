@@ -96,7 +96,7 @@ type WalletRuntimePostconditionResult =
     };
 
 /**
- * R103C: the postcondition read is owner-scoped at the source. The reader
+ * The postcondition read is owner-scoped at the source. The reader
  * already filtered to the exact owner authority and signer slot, so the
  * canonical aggregate lane IS the owner's one operational lane per curve.
  * There is nothing to search, rank, or repair here — a lane is usable,

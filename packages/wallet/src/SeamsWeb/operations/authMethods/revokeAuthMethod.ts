@@ -1,5 +1,5 @@
 /**
- * Refactor 109C: remove one auth method using a different active one.
+ * Remove one auth method using a different active one.
  *
  * The inverse of the two addition branches, and the reason they are safe to
  * offer: a wallet that can gain a second way in must be able to lose one it no

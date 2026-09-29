@@ -1,6 +1,5 @@
 /**
- * Refactor 94C. Compile-time fixture for the registration configuration
- * surface.
+ * Compile-time fixture for the registration configuration surface.
  *
  * `/wallets/register/setup` authenticates with a publishable key alone, so the
  * credential must reach the browser. The backend-proxied mode could not supply

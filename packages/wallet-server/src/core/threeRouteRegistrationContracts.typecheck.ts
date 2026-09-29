@@ -1,6 +1,6 @@
 /**
- * Refactor 94C. Compile-time proof that the three-route request unions make
- * invalid registrations unrepresentable.
+ * Compile-time proof that the three-route request unions make invalid
+ * registrations unrepresentable.
  *
  * These are the states a single object type with required `ecdsa` allowed and
  * shouldn't have: an Ed25519-only request carrying ECDSA work it has none of,

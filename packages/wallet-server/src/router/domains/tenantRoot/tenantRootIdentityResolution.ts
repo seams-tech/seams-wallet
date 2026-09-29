@@ -141,8 +141,8 @@ function ed25519StableMaterialRootBinding(
       activeMaterial.exportIdentity.scope.material_activation,
     ),
     signingRootId: activeMaterial.exportIdentity.application_binding.signing_root_id,
-    // This R103F field carries the stable signing-root version here. It is never
-    // interpreted as an R120 TenantRootShareEpoch.
+    // This field carries the stable signing-root version here. It is never
+    // interpreted as a TenantRootShareEpoch.
     signingRootVersion: activeMaterial.exportIdentity.scope.root_share_epoch,
   };
 }

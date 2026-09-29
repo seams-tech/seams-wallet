@@ -346,11 +346,11 @@ export class WorkerTransport implements SignerWorkerTransportProtocol {
   }
 
   /**
-   * Refactor 94C. Initializes the ECDSA derivation and registration WASM
-   * inside the derivation worker during the authentication prompt, so the
-   * first ceremony call after auth does not pay module init (measured 654 ms
-   * cold vs 88 ms warm on `ecdsaRegistrationClientCreateMs`). Fire-and-forget
-   * safe: failure leaves the lazy init path exactly as it was.
+   * Initializes the ECDSA derivation and registration WASM inside the
+   * derivation worker during the authentication prompt, so the first ceremony
+   * call after auth does not pay module init (measured 654 ms cold vs 88 ms
+   * warm on `ecdsaRegistrationClientCreateMs`). Fire-and-forget safe: failure
+   * leaves the lazy init path exactly as it was.
    */
   async prewarmEcdsaRegistrationCrypto(): Promise<{
     kind: 'succeeded' | 'failed';
@@ -1213,9 +1213,9 @@ export class WorkerTransport implements SignerWorkerTransportProtocol {
     this.messageHandlers.delete(kind);
     this.errorHandlers.delete(kind);
 
-    // R103 zero-prompt handoff: terminating the ceremony worker destroys its
-    // custody-seed handles with it. Drop the main-thread reference so the
-    // linking preflight cannot pass against a handle that no longer exists.
+    // Terminating the ceremony worker destroys its custody-seed handles with it.
+    // Drop the main-thread reference so the linking preflight cannot pass
+    // against a handle that no longer exists.
     if (kind === 'walletCustodyCeremony') {
       dropUnlockedWalletEd25519ExportRootCapabilityReferenceV1();
     }

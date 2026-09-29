@@ -885,9 +885,9 @@ interface SeamsIframeWalletConfigInput {
 }
 
 /**
- * Registration is managed-only (Refactor 94C). `/wallets/register/setup`
- * authenticates with a publishable key and nothing else, so the credential has
- * to reach the browser; a backend-proxied mode has no way to supply one.
+ * Registration is managed-only. `/wallets/register/setup` authenticates with a
+ * publishable key and nothing else, so the credential has to reach the browser;
+ * a backend-proxied mode has no way to supply one.
  */
 export type SeamsRegistrationConfigInput = {
   mode?: 'managed';

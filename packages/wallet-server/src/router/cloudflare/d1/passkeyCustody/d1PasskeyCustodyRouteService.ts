@@ -161,7 +161,7 @@ export type PasskeyCustodyEnvelopeRetrievalWireRequest = {
 };
 
 /**
- * Refactor 109C: what became of a pre-109C envelope's ownership upgrade.
+ * What became of an unbound envelope's ownership upgrade.
  *
  * `already_owned` is a success, not a near-miss. The upgrade runs on every
  * unlock until it lands, so the second unlock after a successful one finds the

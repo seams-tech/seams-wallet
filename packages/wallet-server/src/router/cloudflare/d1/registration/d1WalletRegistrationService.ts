@@ -1789,8 +1789,7 @@ function sponsoredNamedRegistrationAccountId(
 /**
  * A mixed plan finalizes in two calls: `evm_family_ecdsa` first, which returns
  * the wallet ECDSA-ready and leaves the ceremony open, then `near_ed25519`
- * once the Yao ceremony settles (Refactor 94 Phase 4+5). Single-signer plans
- * still finalize in one call.
+ * once the Yao ceremony settles. Single-signer plans still finalize in one call.
  *
  * The requested kind must name only branches the plan admitted, and must be
  * legal for the progress those branches have made — a `near_ed25519` call on a
@@ -2078,9 +2077,9 @@ const ROUTER_SERVER_TIMING_MERGE_LIMIT = 32;
 const ROUTER_SERVER_TIMING_NAME_PATTERN = /^[A-Za-z0-9_-]+$/;
 
 /**
- * Folds the Router's own `Server-Timing` header into the Gateway's span list
- * (Refactor 94B Phase 0), so the Router and role-worker breakdown reaches the
- * browser on the same header as the Gateway's own boundaries.
+ * Folds the Router's own `Server-Timing` header into the Gateway's span list,
+ * so the Router and role-worker breakdown reaches the browser on the same
+ * header as the Gateway's own boundaries.
  *
  * Entries without a finite non-negative `dur` are dropped, which also discards
  * Cloudflare's descriptive metrics, and names are restricted to a token
@@ -3227,8 +3226,8 @@ export class CloudflareD1WalletRegistrationService {
   }
 
   /**
-   * Refactor 94C. `/wallets/register/setup` — grant, intent, and start in one
-   * request, with one D1 write.
+   * `/wallets/register/setup` — grant, intent, and start in one request, with
+   * one D1 write.
    *
    * Setup runs before the client's WebAuthn create, because it issues the
    * challenge that create signs. So the ECDSA prepare and the Ed25519
@@ -5000,8 +4999,8 @@ export class CloudflareD1WalletRegistrationService {
   }
 
   /**
-   * Refactor 94C. `/wallets/register/activate` — activation and finalization
-   * as one irreversible step behind one Gateway operation row.
+   * `/wallets/register/activate` — activation and finalization as one
+   * irreversible step behind one Gateway operation row.
    *
    * Previously activation and finalization were separate requests with
    * separate idempotency: activation claimed and CAS'd the ceremony branch,

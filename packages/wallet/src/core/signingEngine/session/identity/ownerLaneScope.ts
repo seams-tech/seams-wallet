@@ -325,7 +325,7 @@ export async function resolveExactOwnerLaneScope(args: {
 }
 
 /**
- * R103C owner derivation chain: active Wallet Session authority -> one active
+ * Owner derivation chain: active Wallet Session authority -> one active
  * wallet auth method -> exact credential -> exact local authenticator and
  * signer slot (Passkey only). Every value comes from the previous link, and
  * the resolved method must reproduce the authority digest the active session

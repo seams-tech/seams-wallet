@@ -1,5 +1,5 @@
 /**
- * Refactor 109C — the internal contract for same-device auth-method addition.
+ * The internal contract for same-device auth-method addition.
  *
  * One product action ("Add authentication method") has exactly two branches:
  * a Passkey-only authority adds Email OTP, or an Email-OTP-only authority adds

@@ -396,8 +396,8 @@ export function parseD1StoredWalletRegistrationCeremony(
 }
 
 /**
- * Refactor 94C. Setup creates the ceremony before the WebAuthn proof exists,
- * so the stored authority is a two-arm state rather than a required record.
+ * Setup creates the ceremony before the WebAuthn proof exists, so the stored
+ * authority is a two-arm state rather than a required record.
  */
 function parseD1WalletRegistrationCeremonyAuthorityState(
   raw: unknown,

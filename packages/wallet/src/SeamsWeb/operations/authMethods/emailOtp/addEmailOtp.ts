@@ -1,5 +1,5 @@
 /**
- * Refactor 109C's `passkey_to_email_otp` branch: a wallet that unlocks with a
+ * The `passkey_to_email_otp` addition branch: a wallet that unlocks with a
  * passkey gains an Email OTP method on the same authority.
  *
  * One new `WalletAuthMethodRecordV2` and one custody envelope. No authority,

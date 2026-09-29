@@ -1558,7 +1558,7 @@ async function openEcdsaRoleLocalSigningMaterial(
   const lookup = await ecdsaCapabilityManifestStore.lookupByMaterialActivation({
     walletId: authority.walletId,
     materialActivation,
-    // R109C: siblings can share this activation, so name the exact method.
+    // Siblings can share this activation, so name the exact method.
     authority,
   });
   if (lookup.kind === 'persistence_unavailable') {

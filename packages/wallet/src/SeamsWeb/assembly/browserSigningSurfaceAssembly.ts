@@ -203,7 +203,7 @@ async function noWalletPasskeyAuthenticator(): Promise<null> {
 }
 
 /**
- * R103C: the active wallet auth-method store is the one source that resolves
+ * The active wallet auth-method store is the one source that resolves
  * an authority reference to its full authority. Sealed-session restores and
  * loose authenticator lists are history and hints; matching against them let
  * a stale or sibling credential answer for the active authority.
@@ -996,7 +996,7 @@ async function resolveBrowserCanonicalEcdsaSigningCapability(
     materialActivation: input.materialActivation,
   });
   if (manifestLookup.kind === 'ambiguous_authority') {
-    // R109C: several auth methods on one wallet authority each hold their own
+    // Several auth methods on one wallet authority each hold their own
     // access projection over this activation. Signing happens as the selected
     // method, so name it rather than taking whichever sibling scans first.
     manifestLookup = await resolveAmbiguousEcdsaActivationForSelectedAuthMethod({

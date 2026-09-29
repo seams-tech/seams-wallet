@@ -1,6 +1,6 @@
 /**
- * Refactor 103 zero-prompt handoff — the main thread's view of the unlocked
- * Ed25519 Yao Client export-root capability.
+ * The main thread's view of the unlocked Ed25519 Yao Client export-root
+ * capability.
  *
  * The wallet custody ceremony worker owns the opened custody-seed handle; this
  * module owns the one public reference to it and the discipline around it:
@@ -47,7 +47,7 @@ let currentCapabilityExpiryTimer: ReturnType<typeof setTimeout> | null = null;
 let currentUpgradedEnvelopeSink: UnlockedCustodyEnvelopeUpgradeSinkV1 | null = null;
 
 /**
- * Refactor 109C: where a pre-109C envelope's upgrade goes after an unlock.
+ * Where an unbound envelope's upgrade goes after an unlock.
  *
  * The reseal happens inside the worker, at the one instant both the factor
  * secret and the selected method are in hand. Only the host knows the relayer

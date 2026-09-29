@@ -75,8 +75,8 @@ export async function persistFinalizedPasskeyAuthMethodV1(
 }
 
 /**
- * Refactor 109C: the full local install for a passkey added to a wallet that
- * registered with another family.
+ * The full local install for a passkey added to a wallet that registered with
+ * another family.
  *
  * Three records, and unlock needs all of them. It reads the profile, then the
  * profile's authenticators, then keeps only those whose credential belongs to

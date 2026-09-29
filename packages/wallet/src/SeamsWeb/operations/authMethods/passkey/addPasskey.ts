@@ -230,7 +230,7 @@ async function addPasskeyWalletAuthMethodInternal(args: {
 }
 
 /**
- * Refactor 109C's `email_otp_to_passkey` branch.
+ * The `email_otp_to_passkey` addition branch.
  *
  * The Email OTP method that already unlocks this wallet authorizes adding a
  * passkey. Three things stay exactly as they are in the Passkey-source branch,

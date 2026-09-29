@@ -890,10 +890,9 @@ async function createLinkedDeviceEd25519ExportRootRecipient(
 }
 
 /**
- * Refactor 103 zero-prompt handoff: opens the wallet custody seed envelope
- * with the factor secret already in hand from registration or ordinary
- * unlock, and parks the opened handle for the owner Wallet Session that
- * authorized it. Only the public reference crosses back.
+ * Opens the wallet custody seed envelope with the factor secret already in hand
+ * from registration or ordinary unlock, and parks the opened handle for the
+ * owner Wallet Session that authorized it. Only the public reference crosses back.
  */
 async function establishUnlockedWalletEd25519ExportRootCapability(
   request: EstablishUnlockedCustodyCapabilityRequest,
@@ -1133,8 +1132,8 @@ async function sealEd25519ExportRootForLinkedDevice(
 }
 
 /**
- * Refactor 109C: reseals the wallet seed under a new factor from the unlocked
- * capability, for an addition whose source is Email OTP.
+ * Reseals the wallet seed under a new factor from the unlocked capability, for
+ * an addition whose source is Email OTP.
  *
  * The source factor secret is already parked here — an Email unlock left it
  * with the opened handle — so the addition needs no factor release and no

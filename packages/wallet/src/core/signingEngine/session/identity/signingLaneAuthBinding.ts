@@ -38,7 +38,7 @@ type EmailOtpOwnerAuthorityBindingV1 = {
 };
 
 /**
- * R103C: the exact owner an authenticated human operation acts as. Derived
+ * The exact owner an authenticated human operation acts as. Derived
  * from the active Wallet Session authority through the active wallet auth
  * method — never assembled from independently supplied wallet, credential,
  * and slot values. A Passkey owner carries the signer slot of its one local

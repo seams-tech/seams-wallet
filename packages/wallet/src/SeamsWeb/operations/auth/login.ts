@@ -754,7 +754,7 @@ function linkedDeviceUnlockIdentityMismatchLabels(input: {
   authority: WalletAuthorityV1;
   expectedKind?: WalletAuthMethodRecordV2['kind'];
   /**
-   * R109C: the caller named the method rather than taking the selected one.
+   * The caller named the method rather than taking the selected one.
    *
    * The selection still names the sibling that was in use, which is the
    * expected state for an added method rather than corruption - invariant 9
@@ -862,7 +862,7 @@ export async function resolveLinkedDeviceEmailOtpAuthoritySelection(args: {
   readonly provider: EmailOtpProvider;
   readonly providerSubjectId: string;
   /**
-   * R109C: resolve as this method rather than as the selected one.
+   * Resolve as this method rather than as the selected one.
    *
    * An added sibling is not selected yet - invariant 9 leaves the source
    * selected until a lock and unlock - so resolving through the selection would
@@ -2030,7 +2030,7 @@ async function assertPasskeyUnlockRuntimePostconditions(args: {
   if (!credentialIdB64u) {
     throw new Error('[login] runtime lane selection requires the authenticated credential');
   }
-  // R103C: during login the verified credential is the owner-scope source, and
+  // During login the verified credential is the owner-scope source, and
   // the signer slot comes from the one local authenticator that credential
   // resolves — never from the caller's slot hint, which is UI prioritization.
   const walletId = String(args.walletIdentity.walletId);
@@ -3152,7 +3152,7 @@ async function activateLinkedDeviceEd25519Runtime(args: {
 }
 
 /**
- * R109C: where an Email OTP unlock's signer material comes from.
+ * Where an Email OTP unlock's signer material comes from.
  *
  * A linked device carries sealed material of its own and must have it. An Email
  * method added to an existing authority has none and must not be given any -
@@ -3277,7 +3277,7 @@ function pendingNearRegistrationMatchesAuthority(
 }
 
 /**
- * R109C: install the Ed25519 runtime an owner authority's unlock just built.
+ * Install the Ed25519 runtime an owner authority's unlock just built.
  *
  * Everything is checked against the authority and method that were selected,
  * before the handle is used: a session naming a different method, or a
@@ -7409,7 +7409,7 @@ async function resolveCanonicalThresholdEcdsaWarmSessionContext(
   walletId: WalletId,
   keyFactsInventoryInput?: LoginEcdsaKeyFactsInventoryInput,
   /**
-   * R109C: sibling auth methods hold their own access projections over one
+   * Sibling auth methods hold their own access projections over one
    * activation, so a wallet-wide read returns a lane per method. Warming has to
    * name the method being unlocked, or it warms the sibling's lane and the
    * Wallet Session is minted against a credential the user is not presenting.

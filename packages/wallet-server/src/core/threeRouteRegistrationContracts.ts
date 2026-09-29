@@ -40,8 +40,7 @@ import type {
 } from './RegistrationCeremonyStore';
 
 /**
- * Refactor 94C: the three-route registration wire contract, frozen at the
- * 2026-07-28 checkpoint (docs/refactor-94C-product-contract.md §2).
+ * The three-route registration wire contract.
  *
  * Everything here derives from the existing contracts by indexed access, so a
  * change to an underlying payload surfaces as a compile error in this file

@@ -185,7 +185,7 @@ test('resolves a recovered Email OTP authority from its verified provider subjec
   expect(authority).toEqual(exactAuthority);
 });
 
-// R103C: the active auth-method store is the only resolution source. A wallet
+// The active auth-method store is the only resolution source. A wallet
 // whose authority reference has no active auth method fails closed — sealed
 // runtime restores and loose authenticator rows can no longer answer for it.
 test('fails closed when no active wallet auth method matches the authority', async () => {

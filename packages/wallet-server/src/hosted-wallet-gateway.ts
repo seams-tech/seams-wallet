@@ -689,11 +689,11 @@ function stagingLinkedDeviceSessionComposition(
 }
 
 /**
- * The split Wallet Gateway (R105 Phase 4 cutover target): serves the Wallet
- * runtime only, holds no Console database binding, and reaches the Wallet
- * Console deployment exclusively through the exact service-binding ops.
- * The sponsored-relay route extensions stay on the Wallet Console deployment
- * until policy/sponsorship resolution operations join the binding.
+ * The split Wallet Gateway: serves the Wallet runtime only, holds no Console
+ * database binding, and reaches the Wallet Console deployment exclusively
+ * through the exact service-binding ops. The sponsored-relay route extensions
+ * stay on the Wallet Console deployment until policy/sponsorship resolution
+ * operations join the binding.
  */
 export async function createHostedWalletGatewayCompositionV1(
   env: CloudflareD1GatewayEnv,
@@ -1240,7 +1240,7 @@ function createStagingYaoRequestScopedRuntime(
  * This is new composition wiring over the existing authorization classes, not a
  * second authorization implementation: the same adapter the tenant runtime uses
  * is constructed here against request-scoped state instead of runtime-held
- * state, which is the dependency Refactor 93 exists to remove.
+ * state, which is the dependency this wiring exists to remove.
  */
 export function createStagingRecoveryRequestScopedDependencies(
   env: CloudflareD1GatewayBaseEnv,

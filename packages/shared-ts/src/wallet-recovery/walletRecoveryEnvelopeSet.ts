@@ -25,7 +25,7 @@ import type { RecoveryCodeLifecycleState } from './recoveryEnvelopes';
  * under that device's own factor, so it never depended on the owner credential
  * and survives owner recovery untouched; including it here would instead let an
  * owner recovery code reconstruct that device's material. A lost lane is
- * revoked and reprovisioned through Refactor 102, not recovered.
+ * revoked and reprovisioned, not recovered.
  */
 export type WalletRecoveryEnvelopeEntry = {
   custodySecretKind: 'wallet_custody_seed_v1';

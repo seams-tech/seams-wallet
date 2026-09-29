@@ -612,9 +612,8 @@ export async function getWalletNearProvisioningState(
 }
 
 /**
- * Refactor 94 Phase 6. Writes the wallet root profile's NEAR provisioning
- * state. The durable record is authoritative, so this is the write every
- * publish is sequenced behind.
+ * Writes the wallet root profile's NEAR provisioning state. The durable record
+ * is authoritative, so this is the write every publish is sequenced behind.
  */
 export async function setWalletNearProvisioningState(
   deps: NearProvisioningWriteDeps,

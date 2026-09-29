@@ -1079,13 +1079,12 @@ export type AddSignerIntentV1 = {
 /**
  * Who is starting the ceremony, and therefore what the source has to present.
  *
- * One endpoint serves two operations. Refactor 109C's same-device addition
- * requires a fresh operation-specific source proof; Refactor 103E's
- * linked-device ceremony start deliberately does not, because Device 1's owner
- * Wallet Session is the authority and Device 2 holds the factor. Without this
- * discriminator the endpoint could not tell them apart, so the weaker
- * requirement applied to both and a same-device addition could be authorized
- * by a reusable bearer credential.
+ * One endpoint serves two operations. A same-device addition requires a fresh
+ * operation-specific source proof; a linked-device ceremony start deliberately
+ * does not, because Device 1's owner Wallet Session is the authority and
+ * Device 2 holds the factor. Without this discriminator the endpoint could not
+ * tell them apart, so the weaker requirement applied to both and a same-device
+ * addition could be authorized by a reusable bearer credential.
  *
  * The branch lives on the intent rather than the start request because the
  * intent is what the source proof signs: a caller cannot present a fresh proof

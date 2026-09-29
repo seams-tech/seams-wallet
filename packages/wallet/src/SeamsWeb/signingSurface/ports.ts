@@ -370,8 +370,7 @@ export interface Ed25519YaoCapabilityActivationSurface {
  * cache and never crosses.
  */
 /**
- * Refactor 103 zero-prompt handoff — the unlocked wallet Ed25519 export-root
- * capability at its auth choke points.
+ * The unlocked wallet Ed25519 export-root capability at its auth choke points.
  *
  * Establish runs during successful owner registration and ordinary unlock,
  * where the passkey factor is already being presented, and only after the

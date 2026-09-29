@@ -1,6 +1,6 @@
 /**
- * Refactor 94C. `/wallets/register/setup` — one request replacing the bootstrap
- * grant, the registration intent, and registration start.
+ * `/wallets/register/setup` — one request replacing the bootstrap grant, the
+ * registration intent, and registration start.
  *
  * The three legs it replaces made six-plus serialized storage round trips
  * between them, most of it bookkeeping written on every request and read on

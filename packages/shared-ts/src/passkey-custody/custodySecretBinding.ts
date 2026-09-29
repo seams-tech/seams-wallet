@@ -35,8 +35,8 @@ import {
  *
  * Owner custody is one wallet-scoped seed: every owner signing root derives
  * from it in parallel, so there is nothing per-curve to seal separately. Lane
- * holder shares stay per-lane because Refactor 102 provisions them
- * individually — they are not seed-derived.
+ * holder shares stay per-lane because they are provisioned individually, not
+ * derived from the seed.
  */
 export type PasskeyCustodySecretKind =
   | 'wallet_custody_seed_v1'

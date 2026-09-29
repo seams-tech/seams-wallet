@@ -219,7 +219,7 @@ export function deriveEcdsaCapabilityState(args: {
   // without it the capability is not signable regardless of material, and no
   // SelectedEcdsaLane can exist.
   if (!args.auth) return 'authorization_required';
-  // Allowance and expiry are classified by the shared Refactor 92 rule before
+  // Allowance and expiry are classified by the shared runtime-policy rule before
   // PRF state. An expired or exhausted session is an authorization state, not a
   // material one: the sealed material and its activation are untouched.
   const runtimeState = laneCandidateStateFromRuntimePolicy({

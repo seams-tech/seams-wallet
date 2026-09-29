@@ -1,6 +1,5 @@
 /**
- * Refactor 103 Phase 6 — D1 persistence for linked-device Email OTP
- * verification grants.
+ * D1 persistence for linked-device Email OTP verification grants.
  *
  * A grant is issued once, after the emailed code verifies against the exact
  * link-session binding, and consumed exactly once. The CAS guard makes a lost

@@ -1841,8 +1841,7 @@ export type EcdsaDerivationHolderOrdinaryExportOperationRequest<
   T extends EcdsaHolderOrdinaryExportOperationType,
 > = EcdsaDerivationWorkerOperationRequest<T>;
 /**
- * Refactor 103 zero-prompt handoff — the public reference to an unlocked
- * wallet Ed25519 export-root capability.
+ * The public reference to an unlocked wallet Ed25519 export-root capability.
  *
  * The worker owns the opened custody-seed handle; this reference carries only
  * the opaque handle id and the binding facts the worker will re-verify before
@@ -2105,11 +2104,11 @@ export interface WalletCustodyCeremonyWorkerOperationMap {
     result: { recipientHandleId: string; recipientPublicKeyB64u: string };
   };
   /**
-   * Refactor 103 zero-prompt handoff: opens the wallet custody seed envelope
-   * with the factor secret already present in registration or ordinary unlock,
-   * and parks the opened handle inside this worker for the lifetime of the
-   * owner Wallet Session that authorized it. The result is the public
-   * reference only — no seed bytes, and no serializable secret.
+   * Opens the wallet custody seed envelope with the factor secret already
+   * present in registration or ordinary unlock, and parks the opened handle
+   * inside this worker for the lifetime of the owner Wallet Session that
+   * authorized it. The result is the public reference only — no seed bytes,
+   * and no serializable secret.
    *
    * A linked device's unlock opens its own Ed25519 Yao Client-root envelope
    * the same way, into the distinct linked-device capability that only
@@ -2146,8 +2145,8 @@ export interface WalletCustodyCeremonyWorkerOperationMap {
    * draws a fresh X25519 ephemeral key and nonce.
    */
   /**
-   * Refactor 109C: reseals this wallet's seed under a new factor, from the
-   * capability an unlock already opened.
+   * Reseals this wallet's seed under a new factor, from the capability an
+   * unlock already opened.
    *
    * For an addition whose source is Email OTP. The source factor secret is
    * already in the worker, so the addition costs no factor release and no

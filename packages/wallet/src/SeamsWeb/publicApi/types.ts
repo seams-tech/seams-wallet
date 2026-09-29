@@ -814,10 +814,10 @@ export interface RegistrationCapability {
     options?: AddPasskeyHooksOptions;
   }): Promise<AddPasskeyResult>;
   /**
-   * Refactor 109C: adds an Email OTP method to a wallet that already unlocks
-   * with a passkey. The selected Wallet Session supplies the source method and
-   * authority; the caller supplies only the address being verified and the code
-   * that verifies it, the same way `registerWallet` and `loginWithEmailOtp*` do.
+   * Adds an Email OTP method to a wallet that already unlocks with a passkey.
+   * The selected Wallet Session supplies the source method and authority; the
+   * caller supplies only the address being verified and the code that verifies
+   * it, the same way `registerWallet` and `loginWithEmailOtp*` do.
    */
   addEmailOtp(args: {
     walletId: WalletId | string;

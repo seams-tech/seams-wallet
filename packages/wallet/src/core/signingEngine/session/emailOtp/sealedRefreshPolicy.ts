@@ -14,9 +14,9 @@ import {
 import type { EmailOtpEcdsaSealedRuntimePurpose } from './sealedRuntimePurpose';
 
 /** Only invalid persisted state justifies destroying sealed material. Expiry
- * and exhaustion are Refactor 92 authorization states: they compose with an
- * unchanged material hydration result and cannot remove its activation, so the
- * sealed secret survives them for rehydration after re-authorization. */
+ * and exhaustion are authorization states: they compose with an unchanged
+ * material hydration result and cannot remove its activation, so the sealed
+ * secret survives them for rehydration after re-authorization. */
 type EmailOtpDurableSealedSessionDeleteReason = Extract<
   DurableSealedSessionDeleteReason,
   'invalid_persisted_record'

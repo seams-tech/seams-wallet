@@ -206,8 +206,8 @@ export class CloudflareD1EmailOtpRegistrationEnrollmentFinalizer {
   }
 
   /**
-   * Refactor 109C: the enrollment statements for a wallet's first Email OTP
-   * method, to commit in the batch that inserts that method.
+   * The enrollment statements for a wallet's first Email OTP method, to commit
+   * in the batch that inserts that method.
    *
    * Same construction as registration's, deliberately — the shared enrollment
    * is one record whichever operation creates it, and a second builder would

@@ -1,12 +1,12 @@
 /**
- * Refactor 103 Phase 6.2 — the D1 composition behind the linked-device Email
- * OTP challenge routes and the approval-time base-factor provenance reader.
+ * The D1 composition behind the linked-device Email OTP challenge routes and
+ * the approval-time base-factor provenance reader.
  *
  * Everything identity-bearing is resolved server-side: the destination comes
  * from the wallet's active verified enrollment, the base factor from the
  * canonical wallet auth-method store, and the target authority identity
  * from the enrollment identity. Device 2 supplies only the code it received
- * and its worker's ephemeral recipient key. Challenges reuse the Refactor 100
+ * and its worker's ephemeral recipient key. Challenges reuse the Email OTP
  * issuer, verifier, rate limits, and lockouts under the dedicated
  * `wallet_email_otp_device_link` purpose, bound by a digest over the whole
  * device-link context.

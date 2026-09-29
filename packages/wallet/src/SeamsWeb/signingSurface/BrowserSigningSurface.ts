@@ -3350,9 +3350,9 @@ export class BrowserSigningSurface {
   setWalletAuthenticated(
     state: Extract<WalletAuthenticationState, { kind: 'authenticated' }>,
   ): void {
-    // R103 zero-prompt handoff: switching wallets ends the previous wallet's
-    // authority here without passing through clearWalletAuthentication, so its
-    // The unlocked export-root capability is destroyed at the switch itself.
+    // Switching wallets ends the previous wallet's authority here without
+    // passing through clearWalletAuthentication, so its unlocked export-root
+    // capability is destroyed at the switch itself.
     const previous = this.walletAuthenticationState;
     if (previous.kind === 'authenticated' && String(previous.walletId) !== String(state.walletId)) {
       void this.destroyUnlockedWalletEd25519ExportRootCapabilitiesV1({
@@ -3367,8 +3367,8 @@ export class BrowserSigningSurface {
   clearWalletAuthentication(): void {
     this.walletAuthenticationRestoreGeneration += 1;
     this.walletAuthenticationState = { kind: 'signed_out' };
-    // R103 zero-prompt handoff: logout and wallet switch both land here, and
-    // both end the authority the unlocked export-root capability was scoped to.
+    // Logout and wallet switch both land here, and both end the authority the
+    // unlocked export-root capability was scoped to.
     void this.destroyUnlockedWalletEd25519ExportRootCapabilitiesV1({ kind: 'all' });
   }
 
@@ -3390,11 +3390,11 @@ export class BrowserSigningSurface {
   }
 
   /**
-   * Refactor 103 zero-prompt handoff: parks the wallet custody seed inside the
-   * ceremony worker for the lifetime of the just-activated owner Wallet
-   * Session, reusing the factor secret this registration or unlock already
-   * collected. Failure is absorbed: the wallet stays usable, and device
-   * linking fails closed with `wallet_unlock_required` until the next unlock.
+   * Parks the wallet custody seed inside the ceremony worker for the lifetime of
+   * the just-activated owner Wallet Session, reusing the factor secret this
+   * registration or unlock already collected. Failure is absorbed: the wallet
+   * stays usable, and device linking fails closed with `wallet_unlock_required`
+   * until the next unlock.
    */
   async establishUnlockedWalletEd25519ExportRootCapabilityV1(input: {
     readonly existingEnvelope: PasskeyCustodyEnvelopeRecord;
@@ -6383,8 +6383,8 @@ export class BrowserSigningSurface {
   }
 
   /**
-   * R109C: what an owner authority needs to have its Ed25519 runtime built
-   * inside the unlock that verifies its factor.
+   * What an owner authority needs to have its Ed25519 runtime built inside the
+   * unlock that verifies its factor.
    *
    * Assembled here rather than by the caller because every field is read off
    * the exact authority projection - the identity, its runtime policy scope,
@@ -6432,7 +6432,7 @@ export class BrowserSigningSurface {
   }
 
   /**
-   * R109C: activate the runtime an owner authority's unlock built.
+   * Activate the runtime an owner authority's unlock built.
    *
    * The identity it is checked against comes from the same authority projection
    * that produced the unlock request, not from the bootstrap being checked -

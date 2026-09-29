@@ -519,7 +519,7 @@ export type EcdsaCapabilityMaterialRefLookup =
   | EcdsaCapabilityMaterialRefLookupFailure;
 
 /**
- * R109C: one cryptographic activation can back several exact method-bound
+ * One cryptographic activation can back several exact method-bound
  * access projections, one per wallet auth method installed on the same wallet
  * authority. A material activation therefore no longer names one manifest.
  * A caller that does not say which method it is acting as gets
@@ -4270,7 +4270,7 @@ async function assertSharedWalletAuthorityMembership(input: {
 }
 
 /**
- * R109C: give an added auth method its own encrypted access projection over the
+ * Give an added auth method its own encrypted access projection over the
  * activation the wallet already has. The activation is not re-created and the
  * source credential's authority is not widened; only a second method-bound
  * record over the same material appears.
@@ -4590,7 +4590,7 @@ async function lookupWithoutPointer(
     };
   }
   if (hasDifferentAuthority) {
-    // R109C: a sibling method on the same wallet authority holding its own
+    // A sibling method on the same wallet authority holding its own
     // projection is the ordinary state, not a mismatch. The question asked was
     // whether THIS authority has one, and it does not. Reporting a mismatch
     // here would make installing the second method's access look like

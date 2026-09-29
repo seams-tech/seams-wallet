@@ -273,10 +273,9 @@ export type WalletAddAuthMethodStartResponse =
         authMethod: Extract<AddAuthMethodInput, { kind: typeof WALLET_AUTH_METHODS.emailOtp }>;
       };
       /**
-       * The source method's envelope. Refactor 109C's browser opens it with the
-       * source factor and reseals the same custody seed under the verified
-       * Email OTP factor, so an added Email OTP method can unlock the wallet it
-       * was added to.
+       * The source method's envelope. The browser opens it with the source factor
+       * and reseals the same custody seed under the verified Email OTP factor, so
+       * an added Email OTP method can unlock the wallet it was added to.
        */
       custodyEnvelope: PasskeyCustodyEnvelopeRecord;
       registration?: never;
@@ -297,8 +296,8 @@ export type WalletAddAuthMethodStartResponse =
  * so a caller cannot assert it. See the finalize command's `authorization`.
  */
 /**
- * Refactor 109C: whether this addition expects to find the wallet's shared
- * Email OTP enrollment or to create it.
+ * Whether this addition expects to find the wallet's shared Email OTP
+ * enrollment or to create it.
  *
  * The enrollment is per wallet and per provider identity, not per method: a
  * wallet that has linked a device already has one, and every Email method on
@@ -331,8 +330,8 @@ export type WalletAddAuthMethodFinalizeRequest =
     }
   | {
       /**
-       * Refactor 109C's Email OTP target: the factor is verified by its one-use
-       * grant rather than by a created credential, so this finalize carries the
+       * The Email OTP target: the factor is verified by its one-use grant
+       * rather than by a created credential, so this finalize carries the
        * resealed custody envelope and no WebAuthn registration.
        */
       addAuthMethodCeremonyId: string;
@@ -706,9 +705,9 @@ export type WalletRegistrationEcdsaFinalize = {
 /**
  * One finalize call commits one signer branch. A wallet planned with both
  * signers finalizes twice — `evm_family_ecdsa` first, which returns the wallet
- * ECDSA-ready, then `near_ed25519` once the Yao ceremony settles (Refactor 94
- * Phase 4+5). There is deliberately no combined member: registration success
- * no longer waits on Ed25519, so nothing can commit both at once.
+ * ECDSA-ready, then `near_ed25519` once the Yao ceremony settles. There is
+ * deliberately no combined member: registration success no longer waits on
+ * Ed25519, so nothing can commit both at once.
  */
 export type WalletRegistrationFinalizeSignerWork =
   | {

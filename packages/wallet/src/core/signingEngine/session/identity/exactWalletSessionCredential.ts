@@ -1,5 +1,5 @@
 /**
- * R103F: the one exact Wallet Session credential a signing-session operation is
+ * The one exact Wallet Session credential a signing-session operation is
  * allowed to act on.
  *
  * The wallet-wide active projection cannot answer this question. It selects a

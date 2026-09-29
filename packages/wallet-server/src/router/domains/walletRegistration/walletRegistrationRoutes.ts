@@ -2025,8 +2025,8 @@ export async function handleRouterApiWalletAddSignerIntent(
 }
 
 /**
- * Refactor 94C. `POST /wallets/register/setup` — the single admitted entry
- * point that replaces the bootstrap grant, the intent, and start.
+ * `POST /wallets/register/setup` — the single admitted entry point that
+ * replaces the bootstrap grant, the intent, and start.
  *
  * Authentication is the same API-credential plane the intent route used, so
  * origin and environment binding are unchanged; what is gone is the stored
@@ -2116,7 +2116,7 @@ export async function handleRouterApiWalletRegistrationSetup(
 }
 
 /**
- * Refactor 94C. `POST /wallets/register/respond` — the authenticated leg.
+ * `POST /wallets/register/respond` — the authenticated leg.
  *
  * Bearing the proof, so it is a public-plane route authorized by the signed
  * setup payload plus the WebAuthn or Email OTP proof, exactly as the
@@ -2351,8 +2351,8 @@ async function projectActivatedWallet(input: {
 }
 
 /**
- * Refactor 94C. `POST /wallets/register/activate` — activation and
- * finalization behind one Gateway operation row.
+ * `POST /wallets/register/activate` — activation and finalization behind
+ * one Gateway operation row.
  */
 export async function handleRouterApiWalletRegistrationActivate(
   input: RouterApiWalletRegistrationInput,
@@ -2480,9 +2480,9 @@ export async function handleRouterApiWalletRegistrationActivate(
 }
 
 /**
- * Refactor 94C. `POST /wallets/register/near-provisioning` — the non-blocking
- * completion the client calls after activate, once its already-running Yao
- * computation produces an activation.
+ * `POST /wallets/register/near-provisioning` — the non-blocking completion
+ * the client calls after activate, once its already-running Yao computation
+ * produces an activation.
  */
 export async function handleRouterApiWalletRegistrationNearProvisioning(
   input: RouterApiWalletRegistrationInput,

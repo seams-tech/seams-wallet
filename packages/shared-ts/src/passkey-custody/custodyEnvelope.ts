@@ -102,7 +102,7 @@ export type PasskeyCustodyEnvelopeLifecycle =
  *
  * This record carries no authorization identity: no `AuthorizationGrantRef`,
  * `WalletSessionId`, `MpcWalletSigningQuotaId`, `AuthorizedOperationId`, or
- * bearer session. Those are resolved per operation at the Refactor 90 boundary.
+ * bearer session. Those are resolved per operation, not stored here.
  * It also carries no `MpcMaterialActivationRef` — activation identity is bound
  * when opened material enters the canonical activation boundary, so an explicit
  * reactivation can mint a fresh activation id without rewriting this envelope.

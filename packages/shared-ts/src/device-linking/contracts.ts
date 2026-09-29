@@ -602,7 +602,7 @@ export type OwnerDeviceSummaryV1 = {
   /**
    * The authority this method belongs to.
    *
-   * R109C puts both factor families on one founding authority and lists one
+   * A founding authority can hold both factor families, and the list gives one
    * entry per active method, so a reader needs this to group the entries it was
    * given — to decide which family is still missing on THIS authority, and to
    * know which sibling would remain if one were removed. Grouping by wallet

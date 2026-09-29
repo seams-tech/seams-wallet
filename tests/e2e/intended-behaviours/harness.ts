@@ -2207,9 +2207,9 @@ export class IntendedBehaviourHarness {
   }
 
   /**
-   * Refactor 109C acceptance: the registered passkey wallet gains an Email OTP
-   * method. The wallet prompts for the code on its own surface, so the same
-   * auto-confirm that drives every other Email OTP step drives this one.
+   * The registered passkey wallet gains an Email OTP method. The wallet prompts
+   * for the code on its own surface, so the same auto-confirm that drives every
+   * other Email OTP step drives this one.
    */
   async addEmailOtpAuthMethod(
     options: { readonly loseFinalizeResponseOnce?: boolean } = {},
@@ -2250,7 +2250,7 @@ export class IntendedBehaviourHarness {
   }
 
   /**
-   * Refactor 109C: retire the method that did the adding.
+   * Retire the method that did the adding.
    *
    * The page picks the target - the one sibling that is not the method just
    * added - so the test cannot accidentally revoke the credential it is about
@@ -2462,8 +2462,8 @@ export class IntendedBehaviourHarness {
   }
 
   /**
-   * Refactor 109C: adding a family the authority already has is refused at
-   * admission, before anything is verified or written.
+   * Adding a family the authority already has is refused at admission, before
+   * anything is verified or written.
    *
    * The counters matter as much as the refusal. A repeat that costs the user
    * another code, or writes a second enrollment before noticing, is a
@@ -2499,7 +2499,7 @@ export class IntendedBehaviourHarness {
   }
 
   /**
-   * Refactor 109C: the last way into a wallet cannot be removed.
+   * The last way into a wallet cannot be removed.
    *
    * A wallet with one method has no sibling to authorize the removal, and a
    * method may not authorize its own. Together those leave the last credential
@@ -2623,8 +2623,7 @@ export class IntendedBehaviourHarness {
   }
 
   /**
-   * Refactor 109C: the authenticated capability belongs to the method that
-   * opened it.
+   * The authenticated capability belongs to the method that opened it.
    *
    * The family alone proves nothing here - both methods live on one authority,
    * and the wallet would look identical if it had authenticated the method
@@ -2647,7 +2646,7 @@ export class IntendedBehaviourHarness {
   }
 
   /**
-   * Refactor 109C: the method just added actually opens the wallet.
+   * The method just added actually opens the wallet.
    *
    * Deliberately not `unlockPasskeyWallet`, which requires a passkey-REGISTERED
    * wallet. The point here is the opposite: this wallet was registered with the
@@ -2710,7 +2709,7 @@ export class IntendedBehaviourHarness {
   }
 
   /**
-   * Refactor 109C matrix: register a wallet whose signer set is ECDSA only.
+   * Signer-profile matrix: register a wallet whose signer set is ECDSA only.
    *
    * It becomes the registered wallet like any other, but with NEAR reported
    * absent rather than pending, so anything that would ask it to sign NEAR
@@ -2964,7 +2963,7 @@ export class IntendedBehaviourHarness {
   }
 
   /**
-   * Refactor 109C: the Email OTP method just added actually opens the wallet.
+   * The Email OTP method just added actually opens the wallet.
    *
    * The hosted Google menu names the selected wallet, proves its verified
    * address, and opens the exact Email OTP method added to a passkey-founded

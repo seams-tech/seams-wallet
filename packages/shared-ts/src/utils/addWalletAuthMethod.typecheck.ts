@@ -1,7 +1,7 @@
 /**
- * Compile-time fixtures for the Refactor 109C addition contract.
+ * Compile-time fixtures for the same-device auth-method addition contract.
  *
- * Every `@ts-expect-error` below is a state R109C forbids. If one of them ever
+ * Every `@ts-expect-error` below is a state the contract forbids. If one ever
  * starts compiling, the branch union has been widened — a same-family
  * addition, a mixed target draft, an unverified value, or a cast has become
  * expressible — and this file fails the build rather than the behaviour
@@ -246,7 +246,7 @@ const rawEpochSource: AddWalletAuthMethodSourceV1 = {
 void rawEpochSource;
 
 /* The result union has no open-ended branch. */
-// @ts-expect-error 'partially_configured' is not an R109C outcome
+// @ts-expect-error 'partially_configured' is not a result the contract models
 const unknownResult: AddWalletAuthMethodResultV1 = { kind: 'partially_configured' };
 void unknownResult;
 
@@ -264,7 +264,7 @@ function targetFamilyByHand(branch: AddWalletAuthMethodBranchV1): WalletAuthMeth
 void targetFamilyByHand;
 
 /* A third branch is not addable without changing the union. */
-// @ts-expect-error 'passkey_to_passkey' is not a branch R109C models
+// @ts-expect-error 'passkey_to_passkey' is not a branch the contract models
 const unsupportedBranch: AddWalletAuthMethodBranchV1 = 'passkey_to_passkey';
 void unsupportedBranch;
 

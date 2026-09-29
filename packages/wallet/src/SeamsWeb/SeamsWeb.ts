@@ -939,8 +939,8 @@ function createWalletHostEcdsaSourceContributionMetadataReaderV1(args: {
         materialActivation,
       });
       if (lookup.kind === 'ambiguous_authority') {
-        // R109C: the source contribution is made as the selected method, so
-        // name it rather than reading whichever sibling projection scans first.
+        // The source contribution is made as the selected method, so name it
+        // rather than reading whichever sibling projection scans first.
         lookup = await resolveAmbiguousEcdsaActivationForSelectedAuthMethod({
           walletId: authentication.walletId,
           materialActivation,

@@ -90,7 +90,7 @@ export class CloudflareD1EmailOtpEnrollmentStore {
    * Deletes the shared provider enrollment only once nothing references it.
    *
    * The enrollment is deliberately shared: every Email method on a wallet
-   * unwraps through it, and R109D keeps active and pending methods pointing at
+   * unwraps through it, and both active and pending methods keep pointing at
    * one row. So revoking a method must not remove it — only the disappearance
    * of its last reference may.
    *
