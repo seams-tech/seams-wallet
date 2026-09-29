@@ -108,7 +108,9 @@ It builds `router-ab-dev`, generates every env file, applies each role's
 schema, starts the five role processes, creates the tenant root from an
 operator-signed grant, prepares the Gateway configuration with the same
 preparer the Worker launcher uses, migrates the Gateway store and serves the
-Gateway on `http://127.0.0.1:4100`. Roles listen on 4102-4106. Set
+Gateway on `http://127.0.0.1:4100`. Once the tenant root exists it runs each
+role's deployment check, and the Gateway's after its migration; a failed check
+stops startup, and each outcome goes to stderr. Roles listen on 4102-4106. Set
 `SEAMS_LOCAL_PORT_OFFSET` and `SEAMS_INTENDED_ROUTER_URL` together to move the
 whole stack (the browser suites expect the Gateway at 4100 plus the offset).
 
@@ -198,8 +200,17 @@ The check generates no key, applies no migration, creates no database, sends
 no credential and repairs nothing. SQLite may create WAL index files beside
 a database it reads. A role's startup schema check is now read-only too.
 
-`nodeHostedWalletGatewayMain.ts check` reports the Gateway store's migration
-status without writing.
+The Gateway's check, `nodeHostedWalletGatewayMain.ts check`, takes the
+Gateway's own environment and prints one JSON report the same way:
+- `configuration`: its vars file parses, with a valid static deployment, and
+  its Router, SigningWorker and signer-wasm settings are present. It names
+  missing keys, never a value.
+- `artifact:signer_wasm`: the signer wasm file exists.
+- `storage:gateway_store`: the shared store, opened read-only, carries the
+  whole signer migration chain and nothing it does not ship.
+- `peer:router` and `peer:signing_worker`: each answers `/healthz` as that
+  role.
+- `peer_authentication` is `unverified`.
 
 `vm_deployment_check_reports_each_role_without_changing_it` prints
 `R150_VM_DEPLOYMENT_CHECK_E2E`:
@@ -259,8 +270,8 @@ wallets whose SigningWorker file is lost is not established by any test.
 
 - `router_ab_local_worker ... --migrate` prints what it applied; a started role
   that finds a pending migration exits with the file and the pending names.
-- `nodeHostedWalletGatewayMain.ts check` reports the Gateway store's migration
-  status without writing.
+- The deployment checks above, which the one-command setup runs at every
+  start.
 - Every role serves `GET /healthz`.
 - `vm_tenant_root_creation_is_authorized_replayable_and_role_isolated` in
   `crates/router-ab-dev/tests/local_worker_http.rs` prints

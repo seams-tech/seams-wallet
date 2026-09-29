@@ -1,7 +1,7 @@
 // Wallet Gateway process for conventional VM deployments.
 //
 //   migrate   Apply pending shared-store migrations (explicit; safe to retry).
-//   check     Read-only: report migration status and store accessibility.
+//   check     Read-only: report configuration, store schema and peer health.
 //   serve     Serve the Gateway. Refuses a store with pending migrations.
 //   serve-local
 //             Serve the local Gateway: the same, plus the intended-suite
@@ -16,9 +16,10 @@
 //   WALLET_GATEWAY_SIGNER_WASM_PATH      wasm_signer_worker_bg.wasm
 //   WALLET_GATEWAY_MIGRATIONS_DIR        d1-signer migration directory
 
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { handleLocalHostedWalletGatewayRequestV1 } from '../../localHostedWalletGatewayHandler';
 import { createNodeHostedWalletGatewayV1 } from './nodeHostedWalletGateway';
+import { checkNodeHostedWalletGatewayV1 } from './nodeHostedWalletGatewayCheck';
 import { listenNodeFetchHandler } from './nodeHttp';
 import { loadNodeDatabaseSync, nodeSqliteConnection, openNodeSqliteFile } from './nodeSqlite';
 import { applySignerSqlMigrationsV1, inspectSignerSqlMigrationsV1 } from './signerSqlMigrations';
@@ -29,19 +30,19 @@ async function main(argv: readonly string[]): Promise<number> {
   const migrationsDir = requireEnv('WALLET_GATEWAY_MIGRATIONS_DIR');
   const DatabaseSync = await loadNodeDatabaseSync();
   if (command === 'check') {
-    if (!existsSync(databasePath)) {
-      report({ kind: 'wallet_gateway_check_v1', ok: false, problem: 'database file is missing' });
-      return 1;
-    }
-    const database = new DatabaseSync(databasePath, { readOnly: true });
-    try {
-      const status = inspectSignerSqlMigrationsV1(nodeSqliteConnection(database), migrationsDir);
-      const ok = status.pending.length === 0 && status.unknown.length === 0;
-      report({ kind: 'wallet_gateway_check_v1', ok, ...status });
-      return ok ? 0 : 1;
-    } finally {
-      database.close();
-    }
+    const checks = await checkNodeHostedWalletGatewayV1({
+      DatabaseSync,
+      databasePath,
+      migrationsDir,
+      varsPath: optionalEnv('WALLET_GATEWAY_VARS_FILE'),
+      readVars: readVarsFile,
+      routerUrl: optionalEnv('WALLET_GATEWAY_ROUTER_URL'),
+      signingWorkerUrl: optionalEnv('WALLET_GATEWAY_SIGNING_WORKER_URL'),
+      signerWasmPath: optionalEnv('WALLET_GATEWAY_SIGNER_WASM_PATH'),
+    });
+    const ok = checks.every((check) => check.status !== 'failed');
+    report({ kind: 'wallet_gateway_check_v1', ok, checks });
+    return ok ? 0 : 1;
   }
   const database = openNodeSqliteFile(DatabaseSync, databasePath);
   const connection = nodeSqliteConnection(database);
@@ -107,6 +108,10 @@ function requireEnv(name: string): string {
   const value = process.env[name]?.trim();
   if (!value) throw new Error(`${name} is required`);
   return value;
+}
+
+function optionalEnv(name: string): string | undefined {
+  return process.env[name]?.trim() || undefined;
 }
 
 function splitListen(value: string): [string, number] {

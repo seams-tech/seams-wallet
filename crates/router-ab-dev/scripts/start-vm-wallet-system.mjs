@@ -98,6 +98,12 @@ async function main() {
 
   console.log('Provisioning tenant root...');
   const tenantRoot = bootstrapTenantRoot();
+  // Each role's read-only deployment check, as its operator runs it.
+  for (const role of ['router', 'deriver-a', 'deriver-b', 'signing-worker']) {
+    runDeploymentCheck(role, workerBinary(), ['--role', role, '--env', ENV_FILES[role], '--check'], {
+      cwd: root,
+    });
+  }
   const deployment = localDeployment(tenantRoot);
   const runtime = prepareLocalHostedWalletGatewayConfig({
     repoRoot,
@@ -128,6 +134,10 @@ async function main() {
   };
   const gatewayMain = path.join(walletServerRoot, 'src', 'router', 'node', 'nodeHostedWalletGatewayMain.ts');
   runRequired('Wallet Gateway migrations', process.execPath, ['--import', 'tsx', gatewayMain, 'migrate'], {
+    cwd: walletServerRoot,
+    env: gatewayEnv,
+  });
+  runDeploymentCheck('gateway', process.execPath, ['--import', 'tsx', gatewayMain, 'check'], {
     cwd: walletServerRoot,
     env: gatewayEnv,
   });
@@ -353,6 +363,20 @@ function startProcess(label, command, args, spawnOptions = {}) {
     console.error(`${label} failed: ${error.message}`);
     shutdown(1);
   });
+}
+
+/**
+ * Runs one process's read-only deployment check; a failed check stops
+ * startup. The outcome goes to stderr, which the browser suites keep.
+ */
+function runDeploymentCheck(role, command, args, spawnOptions) {
+  const result = spawnSync(command, args, { ...spawnOptions, encoding: 'utf8' });
+  if (result.error) throw new Error(`${role} deployment check failed to start: ${result.error.message}`);
+  if (result.status !== 0) {
+    process.stderr.write(result.stdout);
+    throw new Error(`${role} deployment check failed`);
+  }
+  process.stderr.write(`${JSON.stringify({ kind: 'wallet_vm_deployment_check_v1', role, passed: true })}\n`);
 }
 
 function runRequired(label, command, args, spawnOptions = {}) {
