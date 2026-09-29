@@ -53,7 +53,6 @@ generality does not cross the Router A/B ECDSA adapter.
 ## Canonical domains
 
 - `router-ab-ecdsa-threshold-prf/context/v1`
-- `router-ab-ecdsa-threshold-prf/context-digest/v1`
 - `router-ab-protocol/ecdsa-threshold-prf-request/v1`
 - `router-ab-protocol/ecdsa-threshold-prf-request-context/v1`
 - `router-ab-protocol/ecdsa-threshold-prf-proof-batch-payload/v1`

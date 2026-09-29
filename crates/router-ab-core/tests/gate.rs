@@ -1,7 +1,6 @@
 use router_ab_core::{
     ExpensiveWorkGateContextV1, ExpensiveWorkGateDecisionV1, ExpensiveWorkKindV1,
-    GateDeferReasonV1, GatePrincipalV1, GateRejectReasonV1, RegistrationPrepareHandleV1,
-    RouterAbProtocolErrorCode,
+    GateDeferReasonV1, GatePrincipalV1, GateRejectReasonV1, RouterAbProtocolErrorCode,
 };
 use router_ab_core::{PublicDigest32, RequestKind};
 
@@ -109,43 +108,4 @@ fn gate_decision_rejects_invalid_branch_data() {
     let err = ExpensiveWorkGateDecisionV1::rejected(GateRejectReasonV1::AbusePolicy, 0)
         .expect_err("zero retry-after must be rejected");
     assert_eq!(err.code(), RouterAbProtocolErrorCode::InvalidGateDecision);
-}
-
-#[test]
-fn registration_prepare_handle_binds_scope_and_expiry() {
-    let handle = RegistrationPrepareHandleV1::new(
-        "prepare-1",
-        "email_otp",
-        "wallet-1",
-        "example.com",
-        "router_ab_v1",
-        digest(0x10),
-        digest(0x11),
-        digest(0x12),
-        1000,
-        6000,
-    )
-    .expect("prepare handle");
-
-    assert_eq!(handle.handle_id, "prepare-1");
-    assert_eq!(handle.expires_at_ms, 6000);
-}
-
-#[test]
-fn registration_prepare_handle_rejects_expired_range() {
-    let err = RegistrationPrepareHandleV1::new(
-        "prepare-1",
-        "email_otp",
-        "wallet-1",
-        "example.com",
-        "router_ab_v1",
-        digest(0x10),
-        digest(0x11),
-        digest(0x12),
-        6000,
-        6000,
-    )
-    .expect_err("expired handle must be rejected");
-
-    assert_eq!(err.code(), RouterAbProtocolErrorCode::InvalidTimeRange);
 }

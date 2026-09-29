@@ -62,9 +62,7 @@ mod transcript;
 mod wire;
 mod x25519_canonical;
 
-pub use self::context::{
-    context_digest_v1, AccountScope, DerivationContext, RequestKind, RootShareEpoch,
-};
+pub use self::context::{AccountScope, DerivationContext, RequestKind, RootShareEpoch};
 pub use self::ecdsa_stable_context::StableTenantDerivationContextV2;
 pub use self::ecdsa_threshold_prf::{
     plan_mpc_prf_combine_v1, plan_mpc_prf_partial_verification_v1, plan_mpc_prf_purpose_binding_v1,

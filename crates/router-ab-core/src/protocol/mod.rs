@@ -109,8 +109,7 @@ pub use self::envelope::{
 pub use self::error::{RouterAbProtocolError, RouterAbProtocolErrorCode, RouterAbProtocolResult};
 pub use self::gate::{
     ExpensiveWorkGateContextV1, ExpensiveWorkGateDecisionV1, ExpensiveWorkKindV1,
-    GateDeferReasonV1, GatePrincipalV1, GateRejectReasonV1, RegistrationPrepareHandleV1,
-    RouterRequestPolicyClaimsV1,
+    GateDeferReasonV1, GatePrincipalV1, GateRejectReasonV1, RouterRequestPolicyClaimsV1,
 };
 pub use self::identity::{
     RoleEnvelopeAssignmentV1, ServerIdentityV1, SignerIdentityV1, SignerSetPolicyV1, SignerSetV1,

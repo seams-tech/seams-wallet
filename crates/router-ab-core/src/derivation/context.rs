@@ -1,13 +1,10 @@
 use serde::{de::Error as DeError, Deserialize, Deserializer, Serialize};
-use sha2::{Digest, Sha256};
 
 use crate::derivation::error::{
     RouterAbDerivationError, RouterAbDerivationErrorCode, RouterAbDerivationResult,
 };
-use crate::derivation::material::PublicDigest32;
 
 const CONTEXT_VERSION: &[u8] = b"router-ab-ecdsa-threshold-prf/context/v1";
-const CONTEXT_DIGEST_VERSION: &[u8] = b"router-ab-ecdsa-threshold-prf/context-digest/v1";
 
 /// Router/A/B derivation request kind.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -217,11 +214,6 @@ impl DerivationContext {
         push_field(&mut out, self.ceremony_id.as_bytes());
         Ok(out)
     }
-
-    /// Computes the fixed ECDSA threshold-PRF context digest.
-    pub fn context_digest_v1(&self) -> RouterAbDerivationResult<PublicDigest32> {
-        context_digest_v1(self)
-    }
 }
 
 impl<'de> Deserialize<'de> for DerivationContext {
@@ -249,15 +241,6 @@ impl<'de> Deserialize<'de> for DerivationContext {
     }
 }
 
-/// Computes the V1 context digest.
-pub fn context_digest_v1(context: &DerivationContext) -> RouterAbDerivationResult<PublicDigest32> {
-    let context_bytes = context.encode_context_v1()?;
-    let mut hasher = Sha256::new();
-    push_hash_field(&mut hasher, CONTEXT_DIGEST_VERSION);
-    push_hash_field(&mut hasher, &context_bytes);
-    Ok(PublicDigest32::new(hasher.finalize().into()))
-}
-
 fn require_non_empty(field: &'static str, value: &str) -> RouterAbDerivationResult<()> {
     if value.is_empty() {
         return Err(RouterAbDerivationError::new(
@@ -272,10 +255,4 @@ fn push_field(out: &mut Vec<u8>, value: &[u8]) {
     let len = value.len() as u32;
     out.extend_from_slice(&len.to_be_bytes());
     out.extend_from_slice(value);
-}
-
-fn push_hash_field(hasher: &mut Sha256, value: &[u8]) {
-    let len = value.len() as u32;
-    hasher.update(len.to_be_bytes());
-    hasher.update(value);
 }
