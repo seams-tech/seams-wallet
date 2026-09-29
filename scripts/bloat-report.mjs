@@ -172,11 +172,37 @@ function resolveModule(fromFile, specifier) {
   return candidates.find((c) => existsSync(path.join(sourceRoot, c))) ?? null;
 }
 
+// A package's build decides which sources its published files come from: a Rolldown
+// config object with a single-file input names its output with entryFileNames, and the
+// output path need not match the source path (src/router/express-adaptor.ts is published
+// as router/express.js). Every such standalone bundle, and every object-form input, counts
+// as an entry point whether or not package.json exports it.
+function rolldownEntries(dir) {
+  const text = read(`${dir}/rolldown.config.ts`) ?? '';
+  const byOutput = new Map();
+  const standalone = [];
+  const source = (p) => path.normalize(path.join(dir, p));
+  for (const [, input, output] of text.matchAll(
+    /input:\s*'([^']+)'[\s\S]*?entryFileNames:\s*'([^']+)'/g,
+  )) {
+    if (!/\.tsx?$/.test(input)) continue;
+    standalone.push(source(input));
+    if (!output.includes('[')) byOutput.set(output, source(input));
+  }
+  for (const [, body] of text.matchAll(/input:\s*\{([^}]*)\}/g)) {
+    for (const [, input] of body.matchAll(/:\s*'([^']+\.tsx?)'/g)) standalone.push(source(input));
+  }
+  return { byOutput, standalone };
+}
+
 function packageEntries() {
   const entries = new Set();
   for (const manifest of tracked.filter((f) => /^packages\/[^/]+\/package\.json$/.test(f))) {
     const pkg = JSON.parse(read(manifest));
     if (pkg.private) continue;
+    const dir = path.dirname(manifest);
+    const { byOutput, standalone } = rolldownEntries(dir);
+    standalone.forEach((entry) => entries.add(entry));
     const targets = [];
     const collect = (value) => {
       if (typeof value === 'string') targets.push(value);
@@ -184,9 +210,11 @@ function packageEntries() {
     };
     collect(pkg.exports ?? {});
     for (const target of targets) {
-      const match = /^\.\/dist\/esm\/(.+)\.js$/.exec(target);
+      const match = /^\.\/dist\/esm\/(.+\.js)$/.exec(target);
+      if (!match) continue;
       const entry =
-        match && resolveModule(`${path.dirname(manifest)}/src/index.ts`, `./${match[1]}`);
+        byOutput.get(match[1]) ??
+        resolveModule(`${dir}/src/index.ts`, `./${match[1].replace(/\.js$/, '')}`);
       if (entry) entries.add(entry);
     }
   }

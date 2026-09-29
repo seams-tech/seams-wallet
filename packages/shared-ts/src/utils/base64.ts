@@ -82,3 +82,15 @@ export function base64UrlDecode(base64Url: string): Uint8Array {
   const padding = '='.repeat((4 - (normalized.length % 4)) % 4);
   return base64Decode(normalized + padding);
 }
+
+/**
+ * Converts an ArrayBuffer or ArrayBufferLike object to a plain number array for WASM compatibility.
+ * WASM bindings require plain number arrays rather than TypedArrays for memory safety and direct access.
+ * The resulting array contains values from 0-255 representing raw bytes.
+ *
+ * @param buffer - The source buffer to convert, either ArrayBuffer or ArrayBufferLike
+ * @returns A plain number[] array containing the buffer's bytes
+ */
+export const toWasmByteArray = (buffer: ArrayBuffer | ArrayBufferLike): number[] => {
+  return Array.from(new Uint8Array(buffer));
+};
