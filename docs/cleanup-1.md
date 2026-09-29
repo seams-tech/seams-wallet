@@ -1,13 +1,14 @@
 # Cleanup 1: dead, duplicated and boilerplate code
 
 **Status:** Phases 0 to 2 are complete, apart from moving finished plans, which
-waits for a decision; the threshold routes moved to Phase 4. The Phase 3 pilot
-has landed, and rolling it out further waits for a decision. Phase 4 waits for
-R150 to land on `dev`. CI runs `pnpm report:bloat --check`, which fails when a
-ratcheted measure grows past `scripts/bloat-baseline.json`, now recorded at
-`efe17f1`. Since the first baseline (`7c8a163`), TypeScript code is down 25,252
-lines and Rust code 4,831. The findings below are the first baseline's; run
-`pnpm report:bloat` for current numbers.
+waits for a decision; the threshold routes moved to Phase 4. Phase 3 is rolled
+out as far as it goes without changing error messages. Phase 2's follow-ups
+are under way. Phase 4 waits for R150 to land on `dev`. CI runs
+`pnpm report:bloat --check`, which fails when a ratcheted measure grows past
+`scripts/bloat-baseline.json`, now recorded at `89e79fa`. Since the first
+baseline (`7c8a163`), TypeScript code is down 27,163 lines and Rust code 4,788.
+The findings below are the first baseline's; run `pnpm report:bloat` for
+current numbers.
 
 This plan reduces the code that has to be read, reviewed and kept consistent,
 without changing behavior. The repository holds about 540k lines of TypeScript
@@ -46,8 +47,9 @@ files that repeat themselves.
 ### Remaining
 
 - [ ] Phase 1: move finished refactor plans, once decided.
-- [ ] Phase 3: roll the combinators out, one domain at a time (approved
-  2026-09-29).
+- [x] Phase 3: roll the combinators out, one domain at a time (approved
+  2026-09-29). Rolled out to device-linking; every other parser module keeps
+  its own messages.
 - [ ] Phase 2 follow-ups: the duplicated clusters found after Phase 2's list.
 - [ ] Phase 4: restructure R150's largest files after R150 lands on `dev`.
 
@@ -290,18 +292,25 @@ by side; the commit messages describe each harness.
 Follow-ups: the largest clusters left outside R150's most-changed files, with
 the same proof standard.
 
-- [ ] The Email OTP stores: `core/EmailOtpStores.ts` (2,123 lines) against
+- [x] The Email OTP stores: `core/EmailOtpStores.ts` (2,123 lines) against
   `d1GoogleEmailOtpRegistrationAttemptStore.ts` (42 runs) and
   `d1EmailOtpEnrollmentStore.ts` (24), and the Email OTP record modules against
-  `d1EmailOtpRecords.ts` (21 and 18). This is the shape the WebAuthn stores had
-  before 996423f.
-- [ ] `core/d1WalletAuthMethodStore.ts`'s internal repetition (40 runs), and the
-  wallet's copy of `sameVerifiedActiveWalletAuthorityV1` in
-  `walletRecoveryCommit.ts`.
-- [ ] After the device-linking parser conversion: `core/deviceLinking/linkedDeviceSession.ts`
-  (38 runs internally, 28 with `d1LinkedDeviceSessionStore.ts`), and
-  `authorization/walletAuthority.ts` (39 internally, 22 with
-  `device-linking/digests.ts`).
+  `d1EmailOtpRecords.ts` (21 and 18). 89e79fa: the statements both sides run
+  live in `core/emailOtpD1Statements.ts`, the stores follow
+  `webAuthnStoreBackends`, and the repeats between the 11 files fall from 157
+  runs to 4. SQL recordings over real SQLite are byte-identical across 249
+  scenarios.
+- [x] `core/d1WalletAuthMethodStore.ts`'s internal repetition (40 runs, now 6;
+  e37ff6c), and the wallet's copy of `sameVerifiedActiveWalletAuthorityV1`, now
+  shared from `authorization/walletAuthority.ts` (47ad761).
+- [x] `authorization/walletAuthority.ts` (39 runs internally, 22 with
+  `device-linking/digests.ts`; b3be54a). The canonical encoders live in
+  `utils/digestEncoding.ts`, and every hashed byte string is unchanged.
+- [ ] `core/deviceLinking/linkedDeviceSession.ts` (38 runs internally, 28 with
+  `d1LinkedDeviceSessionStore.ts`).
+- [ ] The remaining copies of the canonical encoders (`rotationDigests.ts`,
+  `participantDigest.ts`, `ownerContinuity.ts`) and the repeated
+  `parseDigestB64u(base64UrlEncode(await sha256Bytes(...)))` pattern.
 
 **Exit:** each listed cluster has one implementation, and both languages'
 duplication is below the baseline.
@@ -376,16 +385,24 @@ the file defines its own small parsers such as `parseIso`.
   - `exactRecord` and `rejectUnknownFields` moved from `passkey-custody/primitives`
     to `utils/exactRecord.ts`. In `utils/validation.ts` they would have added
     609 bytes gzip to the wallet iframe's boot path.
-- [ ] Roll out domain by domain (approved 2026-09-29; Phase 4 has the lane
-  files). Order: `device-linking/parsers.ts` (3,178 lines, 88 exact-key sites);
-  then `device-linking/sourceContribution.ts` (13),
-  `passkey-custody/custodyEnvelope.ts` and
-  `ordinaryInactiveSignerMaterialReservation.ts` (7 each), `recordParsers.ts`
-  and `participants.ts`; then `utils/registrationIntent.ts` (3,025 lines) and
-  `utils/routerAbEd25519Yao.ts` (2,052), which R150 is not changing. One domain
-  at a time, so additions to `wireSchema.ts` do not conflict. Each needs zero
-  single-fault parity differences, identical declarations and no larger
-  worker. Build each schema in a function, and
+- [x] Roll out domain by domain (approved 2026-09-29; Phase 4 has the lane
+  files).
+  - `device-linking/parsers.ts` (f9a8ea4): 3,178 to 2,359 lines, and exact-key
+    sites from 88 to 26. `wireSchema.ts` gained `wireNullable`, and
+    `ParsesExactly` now ignores readonly. 27704f6 then moved the session
+    parsers, authority-activation records and device management out along
+    their seams, leaving 1,830 lines.
+  - Assessed and left as they are: `sourceContribution.ts`,
+    `custodyEnvelope.ts`, `ordinaryInactiveSignerMaterialReservation.ts`,
+    `recordParsers.ts`, `participants.ts`, `registrationIntent.ts` and
+    `routerAbEd25519Yao.ts`. Each uses its own key-check helper, messages and
+    optional per-state fields. Converting them would change error messages,
+    and for some, which inputs are accepted. Standardizing those messages
+    would be a separate, user-visible decision.
+  - The last two had clean seams instead. cf90d23 moved the Ed25519 Yao digest
+    derivations to their own module (2,052 to 1,807 lines), and 394bfb2 split
+    `registrationIntent.ts` into five modules by concern (3,025 to 778).
+  - For any later conversion: build each schema in a function, and
   keep client parsers apart from server-only schemas in modules that workers
   import. Use `ts-rs` only for Rust-owned messages, as the declared type that
   `ParsesExactly` checks the schema against.
@@ -428,9 +445,9 @@ conflict with the agents changing them.
   and `getdelIfRelatedMatches`, which nothing has sent since cbcfceb deleted the
   unreachable store that sent them. Before removing a Durable Object handler,
   check that no deployed Worker version still sends it.
-- [ ] Move the wallet's copy of `sameVerifiedActiveWalletAuthorityV1`
+- [x] Move the wallet's copy of `sameVerifiedActiveWalletAuthorityV1`
   (`SeamsWeb/operations/recovery/walletRecoveryCommit.ts`) into `shared-ts`
-  beside the server's.
+  beside the server's (47ad761).
 
 ## Verification
 
@@ -556,3 +573,13 @@ Found during the cleanup and left unchanged, for their owners to check:
   `phase2b-review-subject-check` run on a detached HEAD. With Mathlib's cache
   and the pinned Charon and Aeneas installed, every `just fv` step passes; the
   review-subject check still needs a clean checkout.
+- 2026-09-29: the parser rollout and Phase 2's follow-ups. f9a8ea4 converted
+  the device-linking parsers, and 27704f6, cf90d23 and 394bfb2 split three
+  files along their seams. e37ff6c, 47ad761, b3be54a and 89e79fa consolidated
+  the auth-method store, the authority comparison, the authority digest
+  encoders and the Email OTP stores. Seven more parser modules were assessed
+  and left alone, because converting them would change error messages.
+  Against the first baseline, measured at `89e79fa`: TypeScript code 539,841
+  -> 512,678 lines; files over 2,000 lines 82 -> 76; duplicated TypeScript
+  lines 21,753 (5.1%) -> 16,392 (4.0%); validation functions 4,276 -> 3,818
+  (86,063 -> 75,868 lines). The baseline was re-recorded at `89e79fa`.
