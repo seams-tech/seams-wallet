@@ -215,6 +215,23 @@ theorem generatedBoundary_explicitExportIsOnlyCanonicalSecretDisclosureException
   exact explicitExportIsOnlyCanonicalSecretDisclosureException_proved
     (toHandwrittenRespondBoundary boundary persisted) hPolicy
 
+/-- Both parties' views of the generated boundary carry the context binding that
+the extracted Rust projection copied from the finalize envelope. -/
+theorem generatedBoundary_views_expose_context_binding
+    (response : GeneratedRespondResponse)
+    (boundary : GeneratedVisibleRespondBoundary)
+    (persisted : GeneratedHiddenEvalPersistedStateBoundary)
+    (hExtracted :
+      router_ab_ecdsa_derivation.server.boundary.visible_boundary_from_respond_response response =
+        Aeneas.Std.Result.ok boundary) :
+    (clientVisibleBoundaryOfGeneratedBoundary boundary persisted).contextBinding32 =
+        response.finalize.context_binding32 ∧
+      (serverVisibleBoundaryOfGeneratedBoundary boundary persisted).contextBinding32 =
+        response.finalize.context_binding32 := by
+  have hBinding :=
+    visibleBoundaryFromRespondResponse_preserves_context_binding response boundary hExtracted
+  exact ⟨hBinding, hBinding⟩
+
 def hiddenEvalExecutionStateOfGeneratedBoundary
     (boundary : GeneratedHiddenEvalBoundary)
     (canonicalX32 : Bytes32)
@@ -300,5 +317,30 @@ theorem generatedHiddenEvalTransportExplicitExportIsOnlyCanonicalSecretDisclosur
   intro hPolicy
   exact hiddenEvalTransportExplicitExportIsOnlyCanonicalSecretDisclosureException_proved
     (toHandwrittenHiddenEvalBoundary boundary) hPolicy
+
+/-- Both parties' views of a generated hidden-eval state carry the context
+binding that the extracted transport projection kept from the finalize envelope. -/
+theorem generatedHiddenEvalBoundary_views_expose_context_binding
+    (response : GeneratedRespondResponse)
+    (boundary : GeneratedHiddenEvalBoundary)
+    (canonicalX32 : Bytes32)
+    (clientSecrets : ClientSecretState)
+    (serverSecrets : ServerSecretState)
+    (hExtracted :
+      router_ab_ecdsa_derivation.server.boundary.hidden_eval_transport_boundary_from_respond_response
+          response =
+        Aeneas.Std.Result.ok boundary.transport) :
+    (clientVisibleBoundaryOfHiddenEvalState
+        (hiddenEvalExecutionStateOfGeneratedBoundary
+          boundary canonicalX32 clientSecrets serverSecrets)).contextBinding32 =
+        response.finalize.context_binding32 ∧
+      (serverVisibleBoundaryOfHiddenEvalState
+        (hiddenEvalExecutionStateOfGeneratedBoundary
+          boundary canonicalX32 clientSecrets serverSecrets)).contextBinding32 =
+        response.finalize.context_binding32 := by
+  have hBinding :=
+    hiddenEvalTransportFromRespondResponse_preserves_context_binding
+      response boundary.transport hExtracted
+  exact ⟨hBinding, hBinding⟩
 
 end RouterAbEcdsaDerivationPrivacy

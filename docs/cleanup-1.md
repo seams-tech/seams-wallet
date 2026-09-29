@@ -489,9 +489,13 @@ Found during the cleanup and left unchanged, for their owners to check:
   server and client in a way that looks like drift, not design.
 - The unit tests `intendedYaoFault.isolation` and `walletSettingsPage` fail both
   before and after the cleanup changes.
-- The ECDSA-derivation Lean model has no counterpart for
-  `VisibleFinalizeBoundary`'s `context_binding32`, so its privacy proofs do not
-  cover that field.
+- The ECDSA-derivation Lean model treats `context_binding32` as an opaque public
+  value. The extracted Rust mirror copies it from `FinalizeEnvelope` and never
+  computes it, and neither Verus nor Lean models the SHA-256 of the context, so
+  no proof ties the binding to the stable-key context. The mirror's persisted
+  server state carries no binding. The client view still omits the finalize
+  envelope's `relayer_key_id` and `raw_root_material_dropped`, which the mirror
+  returns to the client in the same `RespondResponse`.
 
 ## Progress log
 
@@ -583,3 +587,26 @@ Found during the cleanup and left unchanged, for their owners to check:
   -> 512,678 lines; files over 2,000 lines 82 -> 76; duplicated TypeScript
   lines 21,753 (5.1%) -> 16,392 (4.0%); validation functions 4,276 -> 3,818
   (86,063 -> 75,868 lines). The baseline was re-recorded at `89e79fa`.
+- 2026-09-29: the ECDSA-derivation Lean model covers the finalize envelope's
+  `context_binding32`, the public SHA-256 digest of the stable-key context. The
+  server emits it, and the client receives it in the same `RespondResponse` as
+  its output. `FinalizeBoundaryModel`, `ServerVisibleBoundary` and
+  `ClientVisibleBoundary` gain `contextBinding32`, and both view equivalences
+  compare it. In lean-boundary,
+  `visibleBoundaryFromRespondResponse_preserves_context_binding` and
+  `hiddenEvalTransportFromRespondResponse_preserves_context_binding` prove the
+  extracted Rust projections copy the envelope's value unchanged; in
+  lean-privacy, `generatedBoundary_views_expose_context_binding` and
+  `generatedHiddenEvalBoundary_views_expose_context_binding` carry it into both
+  parties' views. The non-derivability theorems keep their statements, but now
+  relate only states that agree on the binding, as
+  `statesVaryOnlyInClientSecrets_share_context_binding` and
+  `statesVaryOnlyInServerSecrets_share_context_binding` state; the binding is
+  public boundary data, so no assumption or axiom was added. The Verus proofs
+  in `true_blind_boundary.rs`
+  (`client_server_state_match_implies_same_context_binding`,
+  `different_context_prevents_bound_signing_session`,
+  `client_export_authorization_match_implies_same_context_binding`) and their
+  `TrueBlindBoundary.lean` counterparts cover a separate handwritten
+  true-blind model: they prove matched states and export authorizations share
+  one binding, and say nothing about the extracted boundary or privacy.

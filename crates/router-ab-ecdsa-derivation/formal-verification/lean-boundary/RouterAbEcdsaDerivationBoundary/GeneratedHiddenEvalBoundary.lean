@@ -75,6 +75,25 @@ theorem hiddenEvalInputBoundary_matchesHandwrittenModel
       } := by
   rfl
 
+/-- The extracted transport projection keeps the finalize envelope's context
+binding, so the handwritten transport model holds the value on the wire. -/
+theorem hiddenEvalTransportFromRespondResponse_preserves_context_binding
+    (response : GeneratedRespondResponse)
+    (boundary : GeneratedHiddenEvalTransportBoundary)
+    (hExtracted :
+      server.boundary.hidden_eval_transport_boundary_from_respond_response response =
+        Aeneas.Std.Result.ok boundary) :
+    (toHandwrittenHiddenEvalTransportBoundary boundary).finalize.contextBinding32 =
+      response.finalize.context_binding32 := by
+  unfold server.boundary.hidden_eval_transport_boundary_from_respond_response at hExtracted
+  cases hVisible : server.boundary.visible_boundary_from_respond_response response with
+  | ok visible =>
+    simp only [hVisible, Aeneas.Std.bind_tc_ok, Aeneas.Std.Result.ok.injEq] at hExtracted
+    subst hExtracted
+    exact visibleBoundaryFromRespondResponse_preserves_context_binding response visible hVisible
+  | fail _ => simp [hVisible] at hExtracted
+  | div => simp [hVisible] at hExtracted
+
 theorem hiddenEvalPersistedStateBoundary_matchesHandwrittenModel
     (boundary : GeneratedHiddenEvalPersistedStateBoundary) :
     toHandwrittenHiddenEvalPersistedStateBoundary boundary =

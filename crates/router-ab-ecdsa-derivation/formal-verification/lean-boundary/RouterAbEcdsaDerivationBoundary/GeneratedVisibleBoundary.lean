@@ -71,6 +71,7 @@ def toHandwrittenFinalizeBoundary
     operation := boundary.operation
     rawRootMaterialDropped := boundary.raw_root_material_dropped
     relayerKeyId := boundary.relayer_key_id
+    contextBinding32 := boundary.context_binding32
     clientPublicKey33 := boundary.derivation_client_share_public_key33
     relayerPublicKey33 := boundary.relayer_public_key33
     thresholdPublicKey33 := boundary.threshold_public_key33
@@ -142,6 +143,44 @@ theorem explicitExportBoundary_matchesHandwrittenModel
         relayerShareRetryCounter := boundary.relayer_share_retry_counter
       } := by
   rfl
+
+theorem finalizeBoundary_matchesHandwrittenModel
+    (boundary : GeneratedVisibleFinalizeBoundary) :
+    toHandwrittenFinalizeBoundary boundary =
+      {
+        operation := boundary.operation
+        rawRootMaterialDropped := boundary.raw_root_material_dropped
+        relayerKeyId := boundary.relayer_key_id
+        contextBinding32 := boundary.context_binding32
+        clientPublicKey33 := boundary.derivation_client_share_public_key33
+        relayerPublicKey33 := boundary.relayer_public_key33
+        thresholdPublicKey33 := boundary.threshold_public_key33
+        thresholdEthereumAddress20 := boundary.threshold_ethereum_address20
+        clientShareRetryCounter := boundary.client_share_retry_counter
+        relayerShareRetryCounter := boundary.relayer_share_retry_counter
+      } := by
+  rfl
+
+/-- The extracted Rust projection copies the finalize envelope's context binding
+unchanged, so the handwritten finalize model holds the value the server sent. -/
+theorem visibleBoundaryFromRespondResponse_preserves_context_binding
+    (response : GeneratedRespondResponse)
+    (boundary : GeneratedVisibleRespondBoundary)
+    (hExtracted :
+      server.boundary.visible_boundary_from_respond_response response =
+        Aeneas.Std.Result.ok boundary) :
+    (toHandwrittenFinalizeBoundary boundary.finalize).contextBinding32 =
+      response.finalize.context_binding32 := by
+  obtain ⟨clientOutput, finalize⟩ := response
+  cases hOperation : finalize.operation <;> cases clientOutput <;>
+    simp_all [server.boundary.visible_boundary_from_respond_response,
+      server.boundary.operation_boundary_from_operation,
+      wire.ServerEvalOperation.allowed_output_kind,
+      server.boundary.visible_client_boundary_from_output,
+      server.boundary.non_export_boundary_from_output,
+      server.boundary.explicit_export_boundary_from_output,
+      server.boundary.visible_finalize_boundary_from_envelope] <;>
+    subst hExtracted <;> rfl
 
 theorem retainedStateBoundary_matchesHandwrittenModel
     (persisted : server.boundary.HiddenEvalPersistedStateBoundary) :
