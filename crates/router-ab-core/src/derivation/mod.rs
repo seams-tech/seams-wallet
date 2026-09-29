@@ -10,7 +10,6 @@ mod ecdsa_stable_context;
 mod ecdsa_threshold_prf;
 mod ecdsa_threshold_prf_backend;
 mod error;
-mod leakage;
 mod material;
 mod signer_plaintext;
 mod tenant_root;
@@ -94,7 +93,6 @@ pub use self::ecdsa_threshold_prf_backend::{
 pub use self::error::{
     RouterAbDerivationError, RouterAbDerivationErrorCode, RouterAbDerivationResult,
 };
-pub use self::leakage::{default_leakage_questions, LeakageQuestion, LeakageQuestionId};
 pub use self::material::{
     OpenedShareKind, PublicDigest32, PublicMaterial32, Role, SecretMaterial32,
 };

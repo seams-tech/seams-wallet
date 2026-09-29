@@ -936,16 +936,6 @@ pub fn encode_recipient_output_ciphertext_aad_v1(
     Ok(out)
 }
 
-/// Computes the public digest of recipient-output AEAD associated data.
-pub fn recipient_output_ciphertext_aad_digest_v1(
-    envelope: &RecipientOutputCiphertextV1,
-) -> RouterAbProtocolResult<PublicDigest32> {
-    let digest = Sha256::digest(encode_recipient_output_ciphertext_aad_v1(envelope)?);
-    let mut out = [0u8; 32];
-    out.copy_from_slice(&digest);
-    Ok(PublicDigest32::new(out))
-}
-
 /// Encodes a recipient proof-bundle ciphertext envelope with fixed field order.
 pub fn encode_recipient_proof_bundle_ciphertext_v1(
     envelope: &RecipientProofBundleCiphertextV1,
@@ -984,16 +974,6 @@ pub fn encode_recipient_proof_bundle_ciphertext_aad_v1(
     push_public_digest(&mut out, envelope.payload_digest);
     push_len32(&mut out, &envelope.nonce);
     Ok(out)
-}
-
-/// Computes the public digest of recipient proof-bundle AEAD associated data.
-pub fn recipient_proof_bundle_ciphertext_aad_digest_v1(
-    envelope: &RecipientProofBundleCiphertextV1,
-) -> RouterAbProtocolResult<PublicDigest32> {
-    let digest = Sha256::digest(encode_recipient_proof_bundle_ciphertext_aad_v1(envelope)?);
-    let mut out = [0u8; 32];
-    out.copy_from_slice(&digest);
-    Ok(PublicDigest32::new(out))
 }
 
 /// Computes the public digest of recipient proof-bundle ciphertext canonical bytes.
