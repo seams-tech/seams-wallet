@@ -2,9 +2,9 @@
 
 **Status:** Phase 0 is complete and Phase 1 has started. CI runs
 `pnpm report:bloat --check`, which fails when a ratcheted measure grows past
-`scripts/bloat-baseline.json`, now recorded at `964a714`. The packages compile
+`scripts/bloat-baseline.json`, now recorded at `d416446`. The packages compile
 with the unused-code checks, and every export in `packages/*/src` is named by
-another file or reachable from a public entry point. Since the first baseline
+another file or reachable from an entry point. Since the first baseline
 (`7c8a163`), TypeScript code is down 15,958 lines. The findings below are the
 first baseline's; run `pnpm report:bloat` for current numbers.
 
@@ -140,25 +140,44 @@ change.
 - [x] Delete the 464 exports nothing else names (6,450 lines), one package per
   commit. Removals exposed more in six rounds: 687 exports and 25 modules left
   without code, 14,258 lines (5aa72f4 wallet, 87baab3 wallet-server, 9f0ee44
-  shared-ts).
+  shared-ts). The pass mistook three published entries for dead code, because
+  Rolldown publishes them under other names (`router/express.js` is built from
+  `express-adaptor.ts`): b74937c restored `createRouterApiRouter`, the Vite
+  plugin factories and one base64 export, and the report now treats every
+  Rolldown input as an entry point.
 - [ ] Review the 272 exports only tests name (3,285 lines). Delete an export and
   its tests when the tests exercise nothing else, as the `Drop ...` commits of
-  2026-09-29 did; keep deliberate test seams and say why.
-- [ ] Remove `export` from the 2,272 exports used only in their own file, then
-  delete what `noUnusedLocals` reports.
+  2026-09-29 did; keep deliberate test seams and say why. Of the current 269,
+  about 200 are test seams that their own module also uses; about 70 (950
+  lines) are code that only tests reach, mostly types that only `*.typecheck.ts`
+  fixtures name.
+- [x] Remove `export` from the 2,272 exports used only in their own file, then
+  delete what `noUnusedLocals` reports: 2,080 exports, and
+  `walletAuthPolicyError.ts`, which nothing used (d79f236 shared-ts, e4ed6a8
+  wallet-server, 554a09d wallet).
 - [ ] Replace each Rust `#[allow(dead_code)]` with
   `#[expect(dead_code, reason = "...")]`, or delete the code the compiler then
-  reports. Start outside R150's active crates, for example
-  `tools/ed25519-yao-generator/src/lifecycle_domain.rs` (43);
-  `tenant_root_creation.rs` (48) waits for Phase 4.
-- [ ] Remove the 281 comments that cite refactor or phase numbers, keeping any
-  explanation they carry.
+  reports. Outside R150's crates this is done (710060d): with the attributes
+  removed and every feature and target checked, `router-ab-ecdsa-presign`'s 12
+  hid nothing, and `wasm/evm_crypto` and `wasm/tempo_signer` each carried the
+  same five dead codec helpers. The rest are legitimate and stay `allow`,
+  because `expect` would fail in the builds where the item is used:
+  `ed25519-yao`'s file-wide allows cover code that only feature-gated modules
+  and unit tests use, `signer-core`'s fixture is shared by two test binaries
+  that each use part of it, `near_signer`'s WebAuthn structs are constructed by
+  serde, and test-support modules are shared by several test files.
+  `router-ab-cloudflare`'s 46 wait for Phase 4.
+- [ ] Remove the comments that cite refactor numbers, keeping any explanation
+  they carry. The measure now counts only `Refactor N` and `R###` citations
+  (206); "Phase N" alone is often a protocol term, since the Yao circuits have
+  phases. The TypeScript ones in `packages/` and `tests/` are next; the Rust ones
+  sit mostly in R150's crates and wait for Phase 4.
 - [ ] Move finished refactor plans (32 docs, 13,291 lines) out of `docs/`; plans
   still in progress stay.
 
 **Exit:** no export is named nowhere else, every remaining dead-code
-suppression is an `expect` with a reason, and every test-only export has been
-reviewed.
+suppression either hides nothing the compiler can find in any build or waits
+for Phase 4, and every test-only export has been reviewed.
 
 ### 2. Consolidate duplicated code
 
@@ -290,3 +309,10 @@ consolidated cluster before committing it.
   `router-ab-ecdsa-near-oracle-tests` checks; and the ed25519-yao test-count
   pins (`toolchain.toml`, `tasks/src/main.rs`) and phase-13a evidence, which
   dev's pruning left stale.
+- 2026-09-29: Phase 1 continued. b74937c restored three published entries that
+  the dead-export pass had removed, and the report now reads Rolldown's inputs.
+  The un-export pass (d79f236, e4ed6a8, 554a09d) took exports used only in
+  their own file from 2,096 to 0. Outside R150's crates, 710060d removed 12
+  Rust `allow(dead_code)` that hid nothing and two dead codec modules (125 ->
+  111). d416446 narrowed the citation measure to refactor numbers (274 -> 206).
+  The baseline was re-recorded at `d416446`.
