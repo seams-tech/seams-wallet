@@ -258,7 +258,11 @@ import {
   parseWalletSessionAuthorizationId,
   parseWalletSessionMintId,
 } from '@shared/authorization/capabilityKinds';
-import { NEAR_ED25519_YAO_KEY_VERSION_V1 } from '@shared/utils/registrationIntent';
+import {
+  type ActiveEmailOtpWalletAuthMethodRecordV2,
+  type ActivePasskeyWalletAuthMethodRecordV2,
+  NEAR_ED25519_YAO_KEY_VERSION_V1,
+} from '@shared/utils/registrationIntent';
 import {
   mpcMaterialActivationRefsEqual,
   parseThresholdEd25519SessionId,
@@ -368,7 +372,6 @@ import {
   buildExactPasskeyOwnerLaneScope,
   resolveExactWalletAuthAuthority as resolveExactWalletAuthAuthorityFromActiveMethod,
   resolveExactOwnerLaneScope,
-  type ActiveWalletAuthMethodV2,
   type OwnerLaneScopeStores,
 } from '@/core/signingEngine/session/identity/ownerLaneScope';
 import { parseSignerSlot, type SignerSlot } from '@shared/utils/signerSlot';
@@ -662,7 +665,7 @@ function exactEmailOtpAuthorityRef(args: {
 }
 
 async function resolveExactEmailOtpFactorAuthority(args: {
-  readonly authMethod: Extract<ActiveWalletAuthMethodV2, { readonly kind: 'email_otp' }>;
+  readonly authMethod: ActiveEmailOtpWalletAuthMethodRecordV2;
   readonly emailHashHex: string;
   readonly providerSubject: string;
 }): Promise<EmailOtpWalletAuthAuthority> {
@@ -1379,7 +1382,7 @@ function resolveSelectedEmailOtpEd25519ExportRootV1(args: {
 
 async function resolveLinkedPasskeyOwnerSignerSlot(args: {
   walletId: WalletId;
-  authMethod: Extract<ActiveWalletAuthMethodV2, { kind: 'passkey' }>;
+  authMethod: ActivePasskeyWalletAuthMethodRecordV2;
   signerMaterials: readonly WalletAuthoritySignerMaterialRecordV1[];
   publicLaneStore: Ed25519YaoPublicCapabilityReferenceStorePort;
 }): Promise<SignerSlot> {

@@ -5,8 +5,8 @@ import type {
 import {
   parseWalletAuthMethodRecordV2,
   sameWalletAuthMethodRecordV2,
+  type ActiveWalletAuthMethodRecordV2,
   type RegistrationAuthority,
-  type WalletAuthMethodRecordV2,
 } from '@shared/utils/registrationIntent';
 import { mpcMaterialActivationRefsEqual } from '@shared/utils/domainIds';
 import { parseWalletAuthorityV1 } from '@shared/authorization/walletAuthority';
@@ -64,7 +64,7 @@ type D1WalletRegistrationFoundingFields =
     }
   | {
       readonly foundingAuthority: ActiveWalletAuthorityV1;
-      readonly foundingAuthMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+      readonly foundingAuthMethod: ActiveWalletAuthMethodRecordV2;
     };
 
 export type D1WalletRegistrationCommitInput =
@@ -140,9 +140,7 @@ function prepareAuthorityStatements(input: {
   readonly authority: RegistrationAuthority;
   readonly walletSigners: readonly WalletSignerRecord[];
   readonly foundingAuthority: ActiveWalletAuthorityV1 | undefined;
-  readonly foundingAuthMethod:
-    | Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>
-    | undefined;
+  readonly foundingAuthMethod: ActiveWalletAuthMethodRecordV2 | undefined;
   readonly foundingStatements: readonly D1PreparedStatementLike[];
   readonly now: number;
 }): readonly D1PreparedStatementLike[] {
@@ -217,8 +215,8 @@ function prepareAuthorityStatements(input: {
 }
 
 function requireFoundingAuthMethod(
-  value: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }> | undefined,
-): Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }> {
+  value: ActiveWalletAuthMethodRecordV2 | undefined,
+): ActiveWalletAuthMethodRecordV2 {
   if (!value) throw new Error('Founding wallet authority is missing its auth method');
   return value;
 }
@@ -338,9 +336,7 @@ async function prepareFoundingStatements(input: {
   readonly database: D1DatabaseLike;
   readonly scope: D1WalletRegistrationCommitScope;
   readonly foundingAuthority: ActiveWalletAuthorityV1 | undefined;
-  readonly foundingAuthMethod:
-    | Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>
-    | undefined;
+  readonly foundingAuthMethod: ActiveWalletAuthMethodRecordV2 | undefined;
   readonly now: number;
 }): Promise<readonly D1PreparedStatementLike[]> {
   if (!input.foundingAuthority) return [];

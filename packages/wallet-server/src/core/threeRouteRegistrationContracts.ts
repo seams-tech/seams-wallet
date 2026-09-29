@@ -1,4 +1,5 @@
 import type {
+  ActiveWalletAuthMethodRecordV2,
   RegisterWalletInput,
   RegistrationAuthMethodInput,
   RegistrationSignerSetSelection,
@@ -30,7 +31,6 @@ import type {
   ResolvedRegistrationNearAccount,
   RegistrationAuthority,
   RegistrationSignerPlan,
-  WalletAuthMethodRecordV2,
 } from '@shared/utils/registrationIntent';
 import type { WalletAuthAuthority } from '@shared/utils/walletAuthAuthority';
 import type { WalletCustodyRegistrationOutcome } from '@shared/passkey-custody';
@@ -125,7 +125,7 @@ type WalletRegistrationSessionCommitReceiptMetadataV2 = {
 type WalletRegistrationSessionCommitReadyBaseV2 =
   WalletRegistrationSessionCommitReceiptMetadataV2 & {
     readonly foundingAuthority: ActiveWalletAuthorityV1;
-    readonly foundingAuthMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+    readonly foundingAuthMethod: ActiveWalletAuthMethodRecordV2;
     readonly mintId: WalletSessionMintId;
     readonly issuedAtMs: number;
     readonly expiresAtMs: number;

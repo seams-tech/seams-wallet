@@ -26,7 +26,7 @@ import {
 } from '@shared/passkey-custody';
 import {
   parseWalletAuthMethodRecordV2,
-  type WalletAuthMethodRecordV2,
+  type ActiveWalletAuthMethodRecordV2,
 } from '@shared/utils/registrationIntent';
 import {
   parseRecoveryCodeReservationId,
@@ -130,7 +130,7 @@ export type WebAuthnSyncChallengeRecord = {
 export type WebAuthnRecoveryContinuityAnchorRecord = {
   readonly kind: 'wallet_recovery_continuity_anchor_v1';
   readonly authority: ActiveWalletAuthorityV1;
-  readonly method: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+  readonly method: ActiveWalletAuthMethodRecordV2;
   readonly envelope: WebAuthnRecoveryContinuityEnvelopeAnchorRecord;
 };
 
@@ -422,7 +422,7 @@ function parseWebAuthnRecoveryContinuityAnchor(
 
 export function buildWebAuthnRecoveryContinuityAnchorRecord(input: {
   readonly authority: ActiveWalletAuthorityV1;
-  readonly method: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+  readonly method: ActiveWalletAuthMethodRecordV2;
   readonly envelope: PasskeyCustodyEnvelopeRecord;
 }): WebAuthnRecoveryContinuityAnchorRecord {
   if (

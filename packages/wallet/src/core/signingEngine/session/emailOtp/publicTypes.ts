@@ -11,7 +11,7 @@ import {
 } from '@shared/utils/domainIds';
 import {
   parseWalletAuthMethodRecordV2,
-  type WalletAuthMethodRecordV2,
+  type ActiveEmailOtpWalletAuthMethodRecordV2,
 } from '@shared/utils/registrationIntent';
 
 export type EmailOtpUnlockEd25519Identity = {
@@ -112,10 +112,7 @@ export function parseEmailOtpUnlockEd25519Selection(raw: unknown): EmailOtpUnloc
 export type EmailOtpVerifiedAuthorityProjection = {
   readonly kind: 'email_otp_verified_authority_projection_v1';
   readonly authority: ActiveWalletAuthorityV1;
-  readonly authMethod: Extract<
-    WalletAuthMethodRecordV2,
-    { readonly kind: 'email_otp'; readonly status: 'active' }
-  >;
+  readonly authMethod: ActiveEmailOtpWalletAuthMethodRecordV2;
 };
 
 export function parseEmailOtpVerifiedAuthorityProjection(

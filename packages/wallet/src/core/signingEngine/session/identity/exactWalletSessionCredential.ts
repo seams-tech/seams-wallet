@@ -37,7 +37,7 @@ import {
   isExactEcdsaSigningLaneIdentity,
   type ExactSigningLaneIdentity,
 } from './exactSigningLaneIdentity';
-import type { ActiveWalletAuthMethodV2 } from './ownerLaneScope';
+import type { ActiveWalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
 
 /** The signer material one operation needs the exact session to authorize. */
 export type RequiredExactWalletSessionSigningSubject =
@@ -72,7 +72,7 @@ export type ExactWalletSessionCredentialUnavailableReason =
 export type ResolvedExactWalletSessionCredential = {
   readonly walletId: WalletId;
   readonly authority: ActiveWalletAuthorityV1;
-  readonly authMethod: ActiveWalletAuthMethodV2;
+  readonly authMethod: ActiveWalletAuthMethodRecordV2;
   readonly session: ActiveWalletSessionV1;
   readonly operationCredential: WalletSessionOperationCredentialV1;
   readonly walletSessionId: WalletSessionId;
@@ -109,7 +109,7 @@ export type ExactWalletSessionReadPorts = {
 
 type SelectedExactWalletAuthority = {
   readonly authority: ActiveWalletAuthorityV1;
-  readonly authMethod: ActiveWalletAuthMethodV2;
+  readonly authMethod: ActiveWalletAuthMethodRecordV2;
 };
 
 function unavailable(

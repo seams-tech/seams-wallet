@@ -30,7 +30,7 @@ import {
   buildWalletSessionCapabilitySubjectsV1,
   walletSessionCapabilitySubjectsV1Equal,
 } from '../../../../authorization/domain';
-import type { WalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
+import type { ActiveWalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
 import { extractBearerCredential } from '../../../auth/routerApiKeyAuth';
 import type {
   RouterApiAuthorizationSessionService,
@@ -420,7 +420,7 @@ async function ownerContextFromExactV2AuthorizationV1(input: {
 function walletAuthAuthorityFromExactV2MethodV1(input: {
   readonly walletId: WalletId;
   readonly principalId: PrincipalId;
-  readonly authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+  readonly authMethod: ActiveWalletAuthMethodRecordV2;
 }): {
   readonly authority: WalletAuthAuthority;
   readonly authSource: WalletExecutionLaneAuthSource;

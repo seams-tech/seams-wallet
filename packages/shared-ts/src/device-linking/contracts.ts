@@ -25,15 +25,14 @@ import type { WalletAddAuthMethodRegistrationOptions } from '../utils/addAuthMet
 import type { Ed25519PublicKeyB64u } from '../passkey-custody/primitives';
 import type {
   ActiveWalletAuthorityV1,
-  WalletAuthorityV1,
   WalletSignerActivationSetV1,
 } from '../authorization/walletAuthority';
 import type { CanonicalDelegatedWalletPermissionSetV1 } from '../authorization/delegatedAuthority';
 import type { ExactAdministeredSignerManifestV1 } from './delegatedActivationPlan';
 import type {
+  ActiveWalletAuthMethodRecordV2,
   EmailOtpWalletAuthMethodDraftV1,
   PasskeyWalletAuthMethodDraftV1,
-  WalletAuthMethodRecordV2,
   WalletEmailOtpEnrollmentMaterialV1,
 } from '../utils/registrationIntent';
 import type { VerifiedEmailAddress } from '../utils/domainIds';
@@ -67,7 +66,6 @@ export type {
   CommittedAuthorityPackagesV1,
   CommittedEd25519SignerPackageV1,
   CommittedEcdsaSignerPackageV1,
-  PendingWalletAuthMethodRecordV1,
   CommittedSignerPackageSetDigestInputV1,
   CommittedSignerPackageSetV1,
 } from './committedSignerPackages';
@@ -936,8 +934,8 @@ export type ActivationRetryReasonV1 =
 export type ActivateInstalledAuthorityResultV1 =
   | {
       readonly kind: 'active';
-      readonly authority: Extract<WalletAuthorityV1, { readonly state: 'active' }>;
-      readonly authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+      readonly authority: ActiveWalletAuthorityV1;
+      readonly authMethod: ActiveWalletAuthMethodRecordV2;
       readonly walletSession: ActiveWalletSessionV1;
       readonly deliveryBinding: LinkedDeviceWalletSessionCredentialDeliveryBindingV1;
       readonly sealedDelivery: LinkedDeviceWalletSessionCredentialDeliveryV1;

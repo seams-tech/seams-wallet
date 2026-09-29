@@ -12,7 +12,7 @@ import {
 } from '@shared/utils/domainIds';
 import type { DeviceId } from '@shared/authorization/capabilityKinds';
 import type { WalletAuthMethodId, WalletAuthorityId } from '@shared/utils/domainIds';
-import type { WalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
+import type { ActiveEmailOtpWalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
 import {
   parseRecoveryCodeReservationId,
   type RecoveryCodeReservationId,
@@ -74,10 +74,7 @@ export type WalletRecoveryGoogleEmailOtpFinalizeResult =
       readonly kind: 'promoted';
       readonly storeVersion: string;
       readonly authority: ActiveRecoveredWalletAuthorityV1;
-      readonly authMethod: Extract<
-        WalletAuthMethodRecordV2,
-        { readonly kind: 'email_otp'; readonly status: 'active' }
-      >;
+      readonly authMethod: ActiveEmailOtpWalletAuthMethodRecordV2;
     }
   | WalletRecoveryAttemptFailure;
 

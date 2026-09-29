@@ -5,6 +5,8 @@ import {
 } from '@shared/utils/domainIds';
 import {
   buildWalletAuthMethodRecordV2,
+  type ActiveEmailOtpWalletAuthMethodRecordV2,
+  type ActiveWalletAuthMethodRecordV2,
   type AddAuthMethodIntentV1,
   type AddSignerIntentV1,
   type RegistrationAuthority,
@@ -122,7 +124,7 @@ export function walletAuthMethodRecordFromRegistrationAuthority(input: {
   readonly walletAuthMethodId: WalletAuthMethodId;
   readonly walletAuthorityId: WalletAuthorityId;
   readonly now: number;
-}): Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }> {
+}): ActiveWalletAuthMethodRecordV2 {
   switch (input.authority.kind) {
     case 'passkey': {
       const credentialIdB64u = parseWebAuthnCredentialIdB64u(input.authority.credentialIdB64u);
@@ -169,7 +171,7 @@ export function walletAuthMethodRecordFromRegistrationAuthority(input: {
 
 function requireActiveWalletAuthMethodRecordV2(
   record: WalletAuthMethodRecordV2,
-): Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }> {
+): ActiveWalletAuthMethodRecordV2 {
   if (record.status !== 'active') throw new Error('Wallet auth method must be active');
   return record;
 }
@@ -259,9 +261,7 @@ export async function verifyD1LinkedDeviceFreshRevokeProofV1(input: {
     const sourceCandidates = (
       await input.walletAuthMethodStore.listForWalletV2({ walletId: String(input.walletId) })
     ).filter(
-      (
-        record,
-      ): record is Extract<WalletAuthMethodRecordV2, { kind: 'email_otp'; status: 'active' }> =>
+      (record): record is ActiveEmailOtpWalletAuthMethodRecordV2 =>
         record.kind === 'email_otp' &&
         record.status === 'active' &&
         record.walletId === input.walletId &&
@@ -281,10 +281,7 @@ export async function verifyD1LinkedDeviceFreshRevokeProofV1(input: {
        the source as the unique active method that reproduces the presented
        digest against current wallet state. */
     const provider = enrollment.providerUserId.startsWith('google:') ? 'google' : 'email';
-    let sourceMethod: Extract<
-      WalletAuthMethodRecordV2,
-      { kind: 'email_otp'; status: 'active' }
-    > | null = null;
+    let sourceMethod: ActiveEmailOtpWalletAuthMethodRecordV2 | null = null;
     for (const record of sourceCandidates) {
       let boundAuthority: EmailOtpWalletAuthAuthority;
       try {

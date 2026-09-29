@@ -7,6 +7,8 @@ import type {
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type { SignerAuthMethod, SignerKind, SignerSource } from '@shared/utils';
 import type {
+  EmailOtpWalletAuthMethodRecordV2,
+  PasskeyWalletAuthMethodRecordV2,
   WalletAuthMethodRecord,
   WalletAuthMethodRecordV2,
 } from '@shared/utils/registrationIntent';
@@ -216,12 +218,12 @@ export type WalletAuthMethodLocalPresentationV1 =
 export type LocalWalletAuthMethodProjectionV2 =
   | Readonly<{
       kind: 'passkey';
-      record: Extract<LocalWalletAuthMethodRecordV2, { readonly kind: 'passkey' }>;
+      record: PasskeyWalletAuthMethodRecordV2;
       presentation: Extract<WalletAuthMethodLocalPresentationV1, { readonly kind: 'passkey' }>;
     }>
   | Readonly<{
       kind: 'email_otp';
-      record: Extract<LocalWalletAuthMethodRecordV2, { readonly kind: 'email_otp' }>;
+      record: EmailOtpWalletAuthMethodRecordV2;
       presentation: Extract<WalletAuthMethodLocalPresentationV1, { readonly kind: 'email_otp' }>;
     }>;
 

@@ -62,7 +62,6 @@ import {
 } from '../identity/evmFamilyEcdsaIdentity';
 import type { ThresholdEcdsaChainTarget } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type { SigningLaneAuthBinding } from '../identity/signingLaneAuthBinding';
-import type { ActiveWalletAuthMethodV2 } from '../identity/ownerLaneScope';
 import {
   resolveLinkedEcdsaHolderRuntimeV1,
   type LinkedEcdsaHolderRuntimeV1,
@@ -71,6 +70,7 @@ import { bytesToHex } from '@/core/signingEngine/chains/evm/bytes';
 import { toWalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import { computeEcdsaDerivationRoleLocalRelayerKeyId } from '@shared/threshold/ecdsaDerivationRoleLocalBootstrap';
 import type { ExactWalletSessionReadPorts } from '../identity/exactWalletSessionCredential';
+import type { ActiveWalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
 
 type ActiveWalletAuthorityEcdsaAuth =
   | {
@@ -113,7 +113,7 @@ export type ActiveWalletAuthorityEcdsaRuntimeV1 = ActiveWalletAuthorityEcdsaAuth
   readonly ecdsaThresholdKeyId: string;
   readonly relayerKeyId: string;
   readonly authority: ActiveWalletAuthorityV1;
-  readonly authMethod: ActiveWalletAuthMethodV2;
+  readonly authMethod: ActiveWalletAuthMethodRecordV2;
   readonly holderRuntime: LinkedEcdsaHolderRuntimeV1;
   readonly normalSigning: RouterAbEcdsaDerivationNormalSigningStateV1;
   readonly key: EvmFamilyEcdsaKeyIdentity;
@@ -194,7 +194,7 @@ export type ResolveActiveWalletAuthorityEcdsaRuntimeV1Input = {
 
 type ResolvedSelectedWalletAuthority = {
   readonly selection: WalletSelectionRecordV1;
-  readonly authMethod: ActiveWalletAuthMethodV2;
+  readonly authMethod: ActiveWalletAuthMethodRecordV2;
   readonly authority: ActiveWalletAuthorityV1;
   readonly signerMaterials: readonly WalletAuthoritySignerMaterialRecordV1[];
 };
@@ -266,7 +266,7 @@ function exactAuthorityResolution(
 function exactEcdsaSignerMaterial(args: {
   readonly materials: readonly WalletAuthoritySignerMaterialRecordV1[];
   readonly authority: ActiveWalletAuthorityV1;
-  readonly authMethod: ActiveWalletAuthMethodV2;
+  readonly authMethod: ActiveWalletAuthMethodRecordV2;
   readonly materialActivation: MpcMaterialActivationRef;
 }): WalletAuthorityLinkedEcdsaSignerMaterialRecord | null {
   const matches = args.materials.filter(
@@ -284,7 +284,7 @@ function exactEcdsaSignerMaterial(args: {
 
 function linkedMaterialTargetFactorMatches(args: {
   readonly material: WalletAuthorityLinkedEcdsaSignerMaterialRecord;
-  readonly authMethod: ActiveWalletAuthMethodV2;
+  readonly authMethod: ActiveWalletAuthMethodRecordV2;
 }): boolean {
   const target = args.material.targetFactor;
   if (target.walletAuthMethodId !== args.authMethod.walletAuthMethodId) return false;
@@ -416,7 +416,7 @@ function linkedEcdsaActivationReceiptsEqual(
 function exactHolderRuntime(args: {
   readonly walletId: WalletId;
   readonly authority: ActiveWalletAuthorityV1;
-  readonly authMethod: ActiveWalletAuthMethodV2;
+  readonly authMethod: ActiveWalletAuthMethodRecordV2;
   readonly materialActivation: MpcMaterialActivationRef;
   readonly ecdsaThresholdKeyId: string;
   readonly material: WalletAuthorityLinkedEcdsaSignerMaterialRecord;

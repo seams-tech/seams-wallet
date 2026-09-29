@@ -15,7 +15,6 @@ import { buildPersistedEcdsaRoleLocalMaterial } from '../material/ecdsaRoleLocal
 import type { WalletSessionAuthorizationExactOperationCredentialReadResult } from '@/core/indexedDB/seamsWalletDB/walletSessionAuthorizationStore';
 import {
   resolveExactWalletAuthAuthority,
-  type ActiveWalletAuthMethodV2,
   type OwnerLaneScopeStores,
 } from '../identity/ownerLaneScope';
 import type { ResolveSelectedWalletAuthorityResultV1 } from '@/core/indexedDB/seamsWalletDB/repositories';
@@ -27,12 +26,13 @@ import {
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type { WalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type { ActiveEcdsaCapabilityRuntimeResolver } from '../material/activeEcdsaCapabilityRuntime';
+import type { ActiveWalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
 
 type ExactSelectedWalletAuthority = Extract<
   ResolveSelectedWalletAuthorityResultV1,
   { readonly kind: 'resolved' }
 > & {
-  readonly authMethod: ActiveWalletAuthMethodV2;
+  readonly authMethod: ActiveWalletAuthMethodRecordV2;
   readonly authority: ActiveWalletAuthorityV1;
 };
 
@@ -55,7 +55,7 @@ export type EmailOtpEcdsaSigningSessionAuthorityPorts = {
   readonly readExactWalletSessionAuthorization: (input: {
     walletId: WalletId;
     authorityId: ActiveWalletAuthorityV1['authorityId'];
-    authMethodId: ActiveWalletAuthMethodV2['walletAuthMethodId'];
+    authMethodId: ActiveWalletAuthMethodRecordV2['walletAuthMethodId'];
   }) => Promise<WalletSessionAuthorizationExactOperationCredentialReadResult>;
 };
 

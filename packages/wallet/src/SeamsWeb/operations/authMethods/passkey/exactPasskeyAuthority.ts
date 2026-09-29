@@ -1,12 +1,7 @@
 import { IndexedDBManager } from '@/core/indexedDB';
-import type { LocalWalletAuthMethodRecordV2 } from '@/core/indexedDB/passkeyClientDB.types';
 import type { WalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import { walletAuthAuthorityRef, type WalletAuthAuthorityRef } from '@shared/utils/walletAuthAuthority';
-
-export type ActivePasskeyWalletAuthMethodRecord = Extract<
-  LocalWalletAuthMethodRecordV2,
-  { kind: 'passkey'; status: 'active' }
->;
+import type { ActivePasskeyWalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
 
 /**
  * The wallet's one active passkey method for this credential. The local
@@ -17,10 +12,10 @@ export async function exactPasskeyWalletAuthMethodForCredential(args: {
   readonly walletId: WalletId;
   readonly rpId: string;
   readonly credentialIdB64u: string;
-}): Promise<ActivePasskeyWalletAuthMethodRecord> {
+}): Promise<ActivePasskeyWalletAuthMethodRecordV2> {
   const records = await IndexedDBManager.listWalletAuthMethodsV2ForWallet(String(args.walletId));
   const matches = records.filter(
-    (record): record is ActivePasskeyWalletAuthMethodRecord =>
+    (record): record is ActivePasskeyWalletAuthMethodRecordV2 =>
       record.kind === 'passkey' &&
       record.status === 'active' &&
       record.walletId === args.walletId &&

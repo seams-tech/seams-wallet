@@ -13,7 +13,7 @@ import {
 import {
   parseWalletAuthMethodRecordV2,
   walletIdFromString,
-  type WalletAuthMethodRecordV2,
+  type ActivePasskeyWalletAuthMethodRecordV2,
   type WalletId,
 } from '@shared/utils/registrationIntent';
 import { base58Encode } from '@shared/utils/base58';
@@ -100,10 +100,7 @@ export type ParsedPasskeyEd25519YaoSyncResponseV1 =
     readonly walletAuthMethodId: WalletAuthMethodId;
     readonly walletAuthorityId: WalletAuthorityId;
     readonly foundingAuthority: ActiveWalletAuthorityV1;
-    readonly foundingAuthMethod: Extract<
-      WalletAuthMethodRecordV2,
-      { readonly kind: 'passkey'; readonly status: 'active' }
-    >;
+    readonly foundingAuthMethod: ActivePasskeyWalletAuthMethodRecordV2;
     readonly keyVersion: string;
     readonly credentialPublicKeyB64u: string;
     readonly walletSession: ActiveWalletSessionV1;

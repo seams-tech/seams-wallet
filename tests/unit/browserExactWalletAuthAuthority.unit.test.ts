@@ -14,7 +14,11 @@ import {
   parseWebAuthnCredentialIdB64u,
   parseWebAuthnRpId,
 } from '@shared/utils/domainIds';
-import type { WalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
+import type {
+  EmailOtpWalletAuthMethodRecordV2,
+  PasskeyWalletAuthMethodRecordV2,
+  WalletAuthMethodRecordV2,
+} from '@shared/utils/registrationIntent';
 import type {
   LocalWalletAuthMethodRecord,
   WalletAuthoritySignerMaterialRecordV1,
@@ -64,7 +68,7 @@ function passkeyMethod(args: {
   };
 }
 
-function passkeyAuthority(method: Extract<WalletAuthMethodRecordV2, { kind: 'passkey' }>) {
+function passkeyAuthority(method: PasskeyWalletAuthMethodRecordV2) {
   return {
     walletId: method.walletId,
     factor: { kind: 'passkey' as const, credentialIdB64u: method.credentialIdB64u },
@@ -77,7 +81,7 @@ function emailOtpMethod(args: {
   walletId: string;
   walletAuthMethodId: string;
   emailHashHex: string;
-}): Extract<WalletAuthMethodRecordV2, { kind: 'email_otp' }> {
+}): EmailOtpWalletAuthMethodRecordV2 {
   return {
     version: 'wallet_auth_method_v2',
     walletAuthMethodId: required(parseWalletAuthMethodId(args.walletAuthMethodId)),

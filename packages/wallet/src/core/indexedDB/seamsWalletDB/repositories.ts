@@ -30,6 +30,10 @@ import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
 import {
   parseWalletAuthMethodRecordV2,
   walletIdFromString,
+  type ActiveWalletAuthMethodRecordV2,
+  type EmailOtpWalletAuthMethodRecordV2,
+  type PasskeyWalletAuthMethodRecordV2,
+  type PendingWalletAuthMethodRecordV2,
   type WalletAuthMethodRecordV2,
 } from '@shared/utils/registrationIntent';
 import {
@@ -42,6 +46,7 @@ import {
   parseWalletAuthorityV1,
   walletAuthorityDigestsMatchV1,
   type ActiveRecoveredWalletAuthorityV1,
+  type ActiveWalletAuthorityV1,
   type PendingWalletAuthorityV1,
   type WalletAuthorityV1,
   type WalletSignerActivationSetV1,
@@ -342,12 +347,12 @@ type WalletAuthMethodV2Row =
   | (WalletAuthMethodV2RowBase & {
       kind: 'passkey';
       presentation: Extract<WalletAuthMethodLocalPresentationV1, { readonly kind: 'passkey' }>;
-      record: Extract<WalletAuthMethodRecordV2, { readonly kind: 'passkey' }>;
+      record: PasskeyWalletAuthMethodRecordV2;
     })
   | (WalletAuthMethodV2RowBase & {
       kind: 'email_otp';
       presentation: Extract<WalletAuthMethodLocalPresentationV1, { readonly kind: 'email_otp' }>;
-      record: Extract<WalletAuthMethodRecordV2, { readonly kind: 'email_otp' }>;
+      record: EmailOtpWalletAuthMethodRecordV2;
     });
 
 type WalletAuthoritySignerMaterialRow = {
@@ -401,7 +406,7 @@ type LocalAuthorityPendingProfileProjectionV1 = {
 
 export type LocalAuthorityInstallationInputV1 = {
   readonly authority: PendingWalletAuthorityV1;
-  readonly authMethod: Extract<WalletAuthMethodRecordV2, { status: 'pending_local_install' }>;
+  readonly authMethod: PendingWalletAuthMethodRecordV2;
   readonly profile: UpsertProfileInput;
   readonly authenticator: ProfileAuthenticatorRecord | null;
   readonly localAuthMethod: Extract<LocalWalletAuthMethodRecord, { kind: 'email_otp' }> | null;
@@ -431,16 +436,16 @@ export type LocalAuthorityInstallationResultV1 =
     };
 
 export type LocalAuthorityActivationFinalizationInputV1 = {
-  readonly authority: Extract<WalletAuthorityV1, { readonly state: 'active' }>;
-  readonly authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+  readonly authority: ActiveWalletAuthorityV1;
+  readonly authMethod: ActiveWalletAuthMethodRecordV2;
   readonly walletSession: ActiveWalletSessionV1;
   readonly operationCredential: WalletSessionOperationCredentialV1;
   readonly expectedLockGeneration: number;
 };
 
 export type LocalAuthorityActivationPublicationInputV1 = {
-  readonly authority: Extract<WalletAuthorityV1, { readonly state: 'active' }>;
-  readonly authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+  readonly authority: ActiveWalletAuthorityV1;
+  readonly authMethod: ActiveWalletAuthMethodRecordV2;
   readonly expectedLockGeneration: number;
 };
 
@@ -472,7 +477,7 @@ export type WalletLockGenerationAdvanceInputV1 = {
 
 export type RecoveredWalletAuthorityProjectionInputV1 = {
   readonly authority: ActiveRecoveredWalletAuthorityV1;
-  readonly authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+  readonly authMethod: ActiveWalletAuthMethodRecordV2;
   readonly recoveredAtMs: number;
 };
 
@@ -500,15 +505,15 @@ export type ResolveSelectedWalletAuthorityResultV1 =
     };
 
 export type PersistFoundingWalletAuthorityInputV1 = {
-  readonly authority: Extract<WalletAuthorityV1, { readonly state: 'active' }>;
-  readonly authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+  readonly authority: ActiveWalletAuthorityV1;
+  readonly authMethod: ActiveWalletAuthMethodRecordV2;
 };
 
 type ValidatedFoundingWalletAuthorityInputV1 = PersistFoundingWalletAuthorityInputV1;
 
 type ValidatedLocalAuthorityInstallationInput = {
   readonly authority: PendingWalletAuthorityV1;
-  readonly authMethod: Extract<WalletAuthMethodRecordV2, { status: 'pending_local_install' }>;
+  readonly authMethod: PendingWalletAuthMethodRecordV2;
   readonly profile: UpsertProfileInput;
   readonly authenticator: ProfileAuthenticatorRecord | null;
   readonly localAuthMethod: Extract<LocalWalletAuthMethodRecord, { kind: 'email_otp' }> | null;
@@ -588,7 +593,7 @@ export type PublishPendingWalletRegistrationCommitInputV1 = {
 export type PublishPendingWalletRecoveryCommitInputV1 = {
   readonly pending: Extract<PendingWalletRecoveryCommitV1, { readonly stage: 'server_promoted' }>;
   readonly authority: ActiveRecoveredWalletAuthorityV1;
-  readonly authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+  readonly authMethod: ActiveWalletAuthMethodRecordV2;
   readonly registration: StoreWalletRegistrationPublicationInputV1;
   readonly ecdsaContinuity: readonly PreparedImportedWalletCustodyEcdsaContinuity[];
   readonly ed25519PublicCapabilityReferences: readonly Ed25519YaoPublicCapabilityReferenceV1[];
@@ -2609,7 +2614,7 @@ function walletAuthMethodV2StorageRow(
 }
 
 function verifiedEmailPresentationFromLocalRecords(
-  record: Extract<WalletAuthMethodRecordV2, { readonly kind: 'email_otp' }>,
+  record: EmailOtpWalletAuthMethodRecordV2,
   rows: readonly unknown[],
 ): WalletAuthMethodLocalPresentationV1 | null {
   const addresses = new Set<string>();
@@ -3329,8 +3334,8 @@ function walletAuthorityRecordsMatch(left: WalletAuthorityV1, right: WalletAutho
 }
 
 function walletAuthorityPendingMatchesActive(
-  pending: Extract<WalletAuthorityV1, { readonly state: 'pending_local_install' }>,
-  active: Extract<WalletAuthorityV1, { readonly state: 'active' }>,
+  pending: PendingWalletAuthorityV1,
+  active: ActiveWalletAuthorityV1,
 ): boolean {
   return (
     pending.kind === active.kind &&
@@ -3387,8 +3392,8 @@ function walletAuthMethodRecordsMatch(
 }
 
 function walletAuthMethodPendingMatchesActive(
-  pending: Extract<WalletAuthMethodRecordV2, { readonly status: 'pending_local_install' }>,
-  active: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>,
+  pending: PendingWalletAuthMethodRecordV2,
+  active: ActiveWalletAuthMethodRecordV2,
 ): boolean {
   if (
     pending.version !== active.version ||
@@ -5074,8 +5079,8 @@ export class SeamsWalletRepositories {
   }
 
   private async publishPendingLocalAuthorityProfileProjectionInTransaction(
-    authority: Extract<WalletAuthorityV1, { readonly state: 'active' }>,
-    authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>,
+    authority: ActiveWalletAuthorityV1,
+    authMethod: ActiveWalletAuthMethodRecordV2,
     projection: LocalAuthorityPendingProfileProjectionV1,
     ctx: SeamsWalletTransactionContext,
   ): Promise<void> {

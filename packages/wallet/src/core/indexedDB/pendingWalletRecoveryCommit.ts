@@ -27,7 +27,7 @@ import {
 import {
   parseWalletAuthMethodRecordV2,
   sameWalletAuthMethodRecordV2,
-  type WalletAuthMethodRecordV2,
+  type ActiveWalletAuthMethodRecordV2,
 } from '@shared/utils/registrationIntent';
 import {
   parseRecoveryCodeReservationId,
@@ -687,7 +687,7 @@ function samePendingRecoveryProjectionTargetV1(
 
 function samePendingRecoveryAuthMethodV1(
   raw: unknown,
-  expected: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>,
+  expected: ActiveWalletAuthMethodRecordV2,
 ): boolean {
   const fields = decodeExactPendingRecoveryFields(
     raw,

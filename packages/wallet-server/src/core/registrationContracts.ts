@@ -3,6 +3,7 @@ import type {
   WalletCustodyRegistrationOutcome,
 } from '@shared/passkey-custody';
 import type {
+  ActiveWalletAuthMethodRecordV2,
   WalletAddAuthMethodEmailOtpTargetV1,
   WalletEmailOtpEnrollmentMaterialV1,
 } from '@shared/utils/registrationIntent';
@@ -58,7 +59,6 @@ import type {
   ThresholdEcdsaAddSignerSpec,
   ThresholdEd25519AddSignerSpec,
   WalletAuthMethodRecord,
-  WalletAuthMethodRecordV2,
   WalletAuthMethodRevocationProof,
   WalletId,
 } from '@shared/utils/registrationIntent';
@@ -925,7 +925,7 @@ type WalletRegistrationFinalizeResponseBase = {
   walletId: WalletId;
   authority: WalletAuthAuthority;
   foundingAuthority: ActiveWalletAuthorityV1;
-  foundingAuthMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+  foundingAuthMethod: ActiveWalletAuthMethodRecordV2;
   registrationDiagnostics?: WalletRegistrationRouteDiagnostics;
   /**
    * What became of this leg's custody commit. Absent when no custody payload

@@ -15,6 +15,7 @@ import {
 } from '@shared/authorization/delegatedAuthority';
 import type {
   ActiveWalletAuthorityV1,
+  RevokedWalletAuthorityV1,
   WalletAuthorityV1,
 } from '@shared/authorization/walletAuthority';
 import type { AuthorizationService } from '../../authorization/service';
@@ -35,7 +36,11 @@ import type {
   WalletSessionAuthorizationId,
   WalletSessionId,
 } from '@shared/authorization/capabilityKinds';
-import type { WalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
+import type {
+  ActiveWalletAuthMethodRecordV2,
+  RevokedWalletAuthMethodRecordV2,
+  WalletAuthMethodRecordV2,
+} from '@shared/utils/registrationIntent';
 import type { WebAuthnAuthenticatorDeviceInfo } from '@shared/utils/webauthnDeviceInfo';
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
 import type { LinkedDeviceId, WalletKeyId } from '@shared/signing-lanes/ids';
@@ -87,7 +92,7 @@ export type LinkedDeviceRevocationCommitV1 = {
 export type LinkedDeviceManagementSourceResolutionV1 = {
   readonly session: LinkedDeviceManagementOwnerSessionV1;
   readonly authority: ActiveWalletAuthorityV1;
-  readonly authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+  readonly authMethod: ActiveWalletAuthMethodRecordV2;
   readonly permission: DelegatedWalletAuthorityV1;
 };
 
@@ -117,7 +122,7 @@ export type LinkedDeviceManagementAuthorityPortV1 = {
   }): Promise<
     | {
         readonly kind: 'revoked_method';
-        readonly authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'revoked' }>;
+        readonly authMethod: RevokedWalletAuthMethodRecordV2;
         readonly authority: WalletAuthorityV1;
       }
     | { readonly kind: 'would_remove_last_wallet_auth_method' }
@@ -421,7 +426,7 @@ export class LinkedDeviceManagementServiceV1 {
   }
 
   private async deactivateSignerMaterialV1(
-    authority: Extract<WalletAuthorityV1, { readonly state: 'revoked' }>,
+    authority: RevokedWalletAuthorityV1,
     requestedAtMs: number,
   ): Promise<void> {
     const port = this.options.materialDeactivation;
@@ -437,7 +442,7 @@ export class LinkedDeviceManagementServiceV1 {
 
   private async buildLinkedDeviceSummaryV1(
     authority: ActiveWalletAuthorityV1,
-    authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>,
+    authMethod: ActiveWalletAuthMethodRecordV2,
     emailOtpAddress: EmailOtpAddressLookupV1,
   ): Promise<LinkedDeviceSummaryV1> {
     if (authority.provenance.kind !== 'device_link') {
@@ -465,7 +470,7 @@ export class LinkedDeviceManagementServiceV1 {
 
   private async buildOwnerDeviceSummaryV1(
     authority: ActiveWalletAuthorityV1,
-    authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>,
+    authMethod: ActiveWalletAuthMethodRecordV2,
     emailOtpAddress: EmailOtpAddressLookupV1,
   ): Promise<OwnerDeviceSummaryV1> {
     return {
@@ -507,7 +512,7 @@ function hasFullOwnerPermissionsV1(authority: ActiveWalletAuthorityV1): boolean 
 
 function isActiveAuthMethod(
   record: WalletAuthMethodRecordV2,
-): record is Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }> {
+): record is ActiveWalletAuthMethodRecordV2 {
   return record.status === 'active';
 }
 
@@ -537,7 +542,7 @@ function emailOtpAddressOnceV1(
 async function credentialMetadataV1(
   credentials: LinkedDeviceManagementCredentialMetadataPortV1,
   walletId: WalletId,
-  authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>,
+  authMethod: ActiveWalletAuthMethodRecordV2,
   emailOtpAddress: EmailOtpAddressLookupV1,
 ): Promise<LinkedDeviceSummaryV1['credential']> {
   if (authMethod.kind === 'email_otp') {
@@ -577,7 +582,7 @@ function walletKeysFromAuthority(authority: ActiveWalletAuthorityV1): readonly W
 }
 
 function activationRefsFromAuthority(
-  authority: Extract<WalletAuthorityV1, { readonly state: 'revoked' }>,
+  authority: RevokedWalletAuthorityV1,
 ): readonly AuthorityMaterialActivationV1[] {
   const signers = authority.signerActivations;
   if (signers.keyFamilies.length === 1 && signers.keyFamilies[0] === 'ed25519') {

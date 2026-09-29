@@ -26,9 +26,12 @@ import {
   computeWalletAuthMethodRevokeOperationFingerprintV1,
   computeAddAuthMethodIntentDigestB64u,
   normalizeEmailOtpRegistrationProof,
+  type ActivePasskeyWalletAuthMethodRecordV2,
+  type ActiveWalletAuthMethodRecordV2,
   type AddAuthMethodIntentGrant,
   type AddAuthMethodIntentV1,
   type AddSignerIntentV1,
+  type PasskeyWalletAuthMethodRecordV2,
   type RegistrationAuthority,
   type RegistrationIntentV1,
   type WalletId,
@@ -241,7 +244,7 @@ function isEmailOtpAddAuthMethodIntent(
 
 function isActiveWalletAuthMethodRecordV2(
   record: WalletAuthMethodRecordV2,
-): record is Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }> {
+): record is ActiveWalletAuthMethodRecordV2 {
   return record.status === 'active';
 }
 
@@ -278,11 +281,6 @@ function allocateWalletAuthMethodId(): WalletAuthMethodId {
     throw new Error(`Generated wallet auth-method ID is invalid: ${parsed.error.message}`);
   return parsed.value;
 }
-
-type ActiveWalletAuthMethodRecordV2 = Extract<
-  WalletAuthMethodRecordV2,
-  { readonly status: 'active' }
->;
 
 async function resolveActiveAddAuthMethodSource(input: {
   readonly walletAuthMethodStore: Pick<D1WalletAuthMethodStore, 'readByIdV2' | 'getPasskeyV2'>;
@@ -637,7 +635,7 @@ export class CloudflareD1WalletAuthMethodService {
   private async activeMethodsOnIntentAuthority(input: {
     readonly walletId: WalletId;
     readonly intent: AddAuthMethodIntentV1;
-  }): Promise<readonly Extract<WalletAuthMethodRecordV2, { status: 'active' }>[]> {
+  }): Promise<readonly ActiveWalletAuthMethodRecordV2[]> {
     const active = (
       await this.getWalletAuthMethodStore().listForWalletV2({ walletId: input.walletId })
     ).filter(isActiveWalletAuthMethodRecordV2);
@@ -1768,7 +1766,7 @@ export class CloudflareD1WalletAuthMethodService {
 
   private async prepareRevokedMethodEnvelopeStatements(input: {
     readonly walletId: WalletId;
-    readonly method: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+    readonly method: ActiveWalletAuthMethodRecordV2;
     readonly revokedAtMs: number;
   }): Promise<
     | { readonly kind: 'prepared'; readonly statements: readonly D1PreparedStatementLike[] }
@@ -1955,10 +1953,7 @@ export class CloudflareD1WalletAuthMethodService {
     | {
         readonly ok: true;
         readonly authority: ActiveWalletAuthorityV1;
-        readonly authMethod: Extract<
-          WalletAuthMethodRecordV2,
-          { readonly kind: 'passkey'; readonly status: 'active' }
-        >;
+        readonly authMethod: ActivePasskeyWalletAuthMethodRecordV2;
       }
     | WalletAuthMethodError
   > {
@@ -2060,10 +2055,7 @@ export class CloudflareD1WalletAuthMethodService {
         readonly ok: true;
         readonly authority: PasskeyWalletAuthAuthority;
         readonly walletAuthority: ActiveWalletAuthorityV1;
-        readonly authMethod: Extract<
-          WalletAuthMethodRecordV2,
-          { readonly kind: 'passkey'; readonly status: 'active' }
-        >;
+        readonly authMethod: ActivePasskeyWalletAuthMethodRecordV2;
       }
     | WalletAuthMethodError
   > {
@@ -2403,7 +2395,7 @@ export class CloudflareD1WalletAuthMethodService {
     readonly walletAuthorityId: WalletAuthMethodRecordV2['walletAuthorityId'];
     readonly walletAuthMethodId: WalletAuthMethodRecordV2['walletAuthMethodId'];
     readonly authority: ActiveWalletAuthorityV1;
-    readonly authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+    readonly authMethod: ActiveWalletAuthMethodRecordV2;
   } | null> {
     let record: WalletAuthMethodRecordV2 | null;
     switch (authority.kind) {
@@ -2614,7 +2606,7 @@ export class CloudflareD1WalletAuthMethodService {
          passkey for the recovered authority. */
       excludeCredentials: input.walletMethods
         .filter(
-          (method): method is Extract<WalletAuthMethodRecordV2, { kind: 'passkey' }> =>
+          (method): method is PasskeyWalletAuthMethodRecordV2 =>
             method.kind === 'passkey' &&
             method.status === 'active' &&
             method.walletAuthorityId === input.sourceWalletAuthorityId &&

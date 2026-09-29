@@ -40,8 +40,8 @@ import type { ExactAdministeredSignerManifestV1 } from './delegatedActivationPla
 import type { CanonicalDelegatedWalletPermissionSetV1 } from '../authorization/delegatedAuthority';
 import type {
   ActiveWalletAuthorityV1,
+  PendingWalletAuthorityV1,
   RevokedWalletAuthorityV1,
-  WalletAuthorityV1,
   WalletEcdsaSignerActivationV1,
   WalletEd25519SignerActivationV1,
   WalletSignerActivationSetV1,
@@ -388,10 +388,7 @@ const ed25519AuthorityWithEcdsa: Extract<
 void ed25519AuthorityWithEcdsa;
 
 // @ts-expect-error A pending authority cannot retain an activation timestamp.
-const pendingAuthorityWithActivation: Extract<
-  WalletAuthorityV1,
-  { readonly state: 'pending_local_install' }
-> = {
+const pendingAuthorityWithActivation: PendingWalletAuthorityV1 = {
   ...activeAuthority,
   state: 'pending_local_install',
   localInstallPackageSetDigestB64u: activeAuthority.authorityDigestB64u,

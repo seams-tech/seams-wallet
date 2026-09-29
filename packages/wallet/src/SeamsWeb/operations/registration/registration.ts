@@ -85,6 +85,7 @@ import {
   type WebAuthnPromptCancellation,
 } from '@/core/signingEngine/stepUpConfirmation/passkeyPrompt/webauthnPromptCoordinator';
 import type {
+  ActiveWalletAuthMethodRecordV2,
   AddSignerSelection,
   RegistrationAuthMethodInput,
   RegistrationEvmFamilyEcdsaSignerPlan,
@@ -95,7 +96,6 @@ import type {
   RegisterWalletInput,
   RegistrationSignerSetSelection,
   RegistrationNearAccountProvisioning,
-  WalletAuthMethodRecordV2,
   WalletId,
 } from '@shared/utils/registrationIntent';
 import {
@@ -2976,7 +2976,7 @@ function mixedRegistrationSessionFromDeferredResult(
   existing: NearRegistrationSessionAuthority,
   result: RegistrationEstablishedSessionResultV2,
   finalAuthority: ActiveWalletAuthorityV1,
-  finalAuthMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>,
+  finalAuthMethod: ActiveWalletAuthMethodRecordV2,
 ): RegistrationEstablishedSessionV2 {
   if (
     result.kind !== 'already_committed' ||

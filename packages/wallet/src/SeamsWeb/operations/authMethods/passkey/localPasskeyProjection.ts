@@ -20,7 +20,7 @@ import {
 } from '@shared/utils/domainIds';
 import {
   buildWalletAuthMethodRecordV2,
-  type WalletAuthMethodRecordV2,
+  type ActivePasskeyWalletAuthMethodRecordV2,
   type WalletId,
 } from '@shared/utils/registrationIntent';
 import type { ActiveRecoveredWalletAuthorityV1 } from '@shared/authorization/walletAuthority';
@@ -141,7 +141,7 @@ export type SyncedPasskeyAuthMethodV2 = {
 
 export function localPasskeyAuthMethodFromSyncV2(
   args: SyncedPasskeyAuthMethodV2,
-): Extract<WalletAuthMethodRecordV2, { kind: 'passkey'; status: 'active' }> {
+): ActivePasskeyWalletAuthMethodRecordV2 {
   const rpId = parseWebAuthnRpId(args.rpId);
   const credentialIdB64u = parseWebAuthnCredentialIdB64u(args.credentialIdB64u);
   const walletAuthMethodId = parseWalletAuthMethodId(args.walletAuthMethodId);
@@ -186,10 +186,7 @@ export async function persistSyncedPasskeyAuthMethodV2(
 
 type RecoveredPasskeyLocalProjection = {
   readonly authority: ActiveRecoveredWalletAuthorityV1;
-  readonly authMethod: Extract<
-    WalletAuthMethodRecordV2,
-    { readonly kind: 'passkey'; readonly status: 'active' }
-  >;
+  readonly authMethod: ActivePasskeyWalletAuthMethodRecordV2;
   readonly credential: {
     readonly id: string;
     readonly rawId: string;

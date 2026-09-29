@@ -21,7 +21,7 @@ import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
 import { alphabetizeStringify, sha256BytesUtf8 } from '@shared/utils/digests';
 import type {
-  WalletAuthMethodRecordV2,
+  ActiveWalletAuthMethodRecordV2,
   PasskeyWalletAuthMethodDraftV1,
   EmailOtpWalletAuthMethodDraftV1,
   WalletEmailOtpEnrollmentMaterialV1,
@@ -39,7 +39,7 @@ const VERIFIED_TARGET_FACTOR_DOMAIN_V1 = 'seams/linked-device/verified-target-fa
 
 export type VerifiedLinkSourceReadV1 = {
   readonly authority: ActiveWalletAuthorityV1;
-  readonly authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+  readonly authMethod: ActiveWalletAuthMethodRecordV2;
   readonly signerManifest: ExactAdministeredSignerManifestV1;
   /** The custody manifest recorded on the requested source signer. */
   readonly keyManifestDigestB64u: DigestB64u;

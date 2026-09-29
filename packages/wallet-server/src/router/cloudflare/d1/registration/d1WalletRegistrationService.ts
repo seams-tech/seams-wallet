@@ -49,6 +49,7 @@ import {
   registrationNearEd25519BranchKey,
   registrationSignerPlanFromSelection,
   walletIdFromString,
+  type ActiveWalletAuthMethodRecordV2,
   type RegistrationEvmFamilyEcdsaSignerPlan,
   type RegistrationIntentV1,
   type RegistrationNearAccountProvisioning,
@@ -916,7 +917,7 @@ type FoundingSignerFacts =
 
 type FoundingAuthorityRecords = {
   readonly authority: ActiveWalletAuthorityV1;
-  readonly authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+  readonly authMethod: ActiveWalletAuthMethodRecordV2;
 };
 
 function requireFoundingWalletKeyId(raw: string, label: string): WalletKeyId {
@@ -1109,7 +1110,7 @@ function buildActiveFoundingAuthMethod(input: {
   readonly authority: StoredRegistrationAuthority;
   readonly prepared: D1WalletRegistrationOperationPreparedV1;
   readonly now: number;
-}): Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }> {
+}): ActiveWalletAuthMethodRecordV2 {
   switch (input.authority.kind) {
     case 'passkey':
       return requireActiveFoundingAuthMethod(
@@ -1153,7 +1154,7 @@ function buildActiveFoundingAuthMethod(input: {
 
 function requireActiveFoundingAuthMethod(
   record: WalletAuthMethodRecordV2,
-): Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }> {
+): ActiveWalletAuthMethodRecordV2 {
   if (record.status !== 'active') {
     throw new Error('Founding wallet auth method must be active');
   }
@@ -3041,7 +3042,7 @@ export class CloudflareD1WalletRegistrationService {
       }
       let activeAuthority: {
         readonly authority: ActiveWalletAuthorityV1;
-        readonly authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+        readonly authMethod: ActiveWalletAuthMethodRecordV2;
       };
       if (isPasskeyWalletAuthAuthority(authority)) {
         const verified = await this.walletAuthMethods.verifyActivePasskeyAuthority(authority);

@@ -51,7 +51,10 @@ import type { PasskeyCustodyEnvelopeRecord } from '@shared/passkey-custody';
 import { joinNormalizedUrl } from '@shared/utils/normalize';
 import { secureRandomId } from '@shared/utils/secureRandomId';
 import { isObject } from '@shared/utils/validation';
-import type { WalletAuthorityV1 } from '@shared/authorization/walletAuthority';
+import type {
+  ActiveWalletAuthorityV1,
+  WalletAuthorityV1,
+} from '@shared/authorization/walletAuthority';
 import { parseWalletSessionOperationCredentialV1 } from '@shared/device-linking';
 import type {
   ActiveWalletSessionV1,
@@ -98,7 +101,12 @@ import {
   type WalletAuthAuthority,
   type WalletAuthAuthorityRef,
 } from '@shared/utils/walletAuthAuthority';
-import type { WalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
+import type {
+  ActiveEmailOtpWalletAuthMethodRecordV2,
+  ActivePasskeyWalletAuthMethodRecordV2,
+  ActiveWalletAuthMethodRecordV2,
+  WalletAuthMethodRecordV2,
+} from '@shared/utils/registrationIntent';
 import { IndexedDBManager } from '@/core/indexedDB';
 import {
   exactPasskeyWalletAuthAuthorityRefForCredential,
@@ -647,7 +655,7 @@ function walletAuthMethodBindingFromRecord(
 }
 
 function walletAuthAuthorityForSelectedPasskeyMethod(
-  record: Extract<LocalWalletAuthMethodRecordV2, { kind: 'passkey'; status: 'active' }>,
+  record: ActivePasskeyWalletAuthMethodRecordV2,
 ): PasskeyWalletAuthAuthority {
   return {
     walletId: record.walletId,
@@ -664,7 +672,7 @@ function walletAuthAuthorityForSelectedPasskeyMethod(
 }
 
 async function walletAuthAuthorityRefForSelectedPasskeyMethod(
-  record: Extract<LocalWalletAuthMethodRecordV2, { kind: 'passkey'; status: 'active' }>,
+  record: ActivePasskeyWalletAuthMethodRecordV2,
 ): Promise<WalletAuthAuthorityRef> {
   return await walletAuthAuthorityRef({
     authority: walletAuthAuthorityForSelectedPasskeyMethod(record),
@@ -684,10 +692,7 @@ function linkedDeviceOwnerLaneScopeStores(): OwnerLaneScopeStores {
 }
 
 export async function resolveExactLinkedEmailOtpAuthority(args: {
-  readonly authMethod: Extract<
-    LocalWalletAuthMethodRecordV2,
-    { kind: 'email_otp'; status: 'active' }
-  >;
+  readonly authMethod: ActiveEmailOtpWalletAuthMethodRecordV2;
   readonly provider: EmailOtpProvider;
   readonly providerSubjectId: string;
 }): Promise<EmailOtpWalletAuthAuthority> {
@@ -799,8 +804,8 @@ function linkedDeviceUnlockIdentityMismatchLabels(input: {
 type LinkedDeviceAuthoritySelection = Readonly<{
   readonly walletId: WalletId;
   readonly selection: WalletSelectionRecordV1;
-  readonly authMethod: Extract<LocalWalletAuthMethodRecordV2, { status: 'active' }>;
-  readonly authority: Extract<WalletAuthorityV1, { state: 'active' }>;
+  readonly authMethod: ActiveWalletAuthMethodRecordV2;
+  readonly authority: ActiveWalletAuthorityV1;
   readonly signerMaterials: readonly WalletAuthoritySignerMaterialRecordV1[];
   readonly exportRoot: WalletAuthorityExportRootRecordV1 | null;
 }>;
@@ -810,11 +815,8 @@ export type LinkedDevicePasskeyAuthoritySelection = LinkedDeviceAuthoritySelecti
     readonly kind: 'linked_device_passkey_authority_selection_v1';
     readonly walletId: WalletId;
     readonly selection: WalletSelectionRecordV1;
-    readonly authMethod: Extract<
-      LocalWalletAuthMethodRecordV2,
-      { kind: 'passkey'; status: 'active' }
-    >;
-    readonly authority: Extract<WalletAuthorityV1, { state: 'active' }>;
+    readonly authMethod: ActivePasskeyWalletAuthMethodRecordV2;
+    readonly authority: ActiveWalletAuthorityV1;
     readonly signerMaterials: readonly WalletAuthoritySignerMaterialRecordV1[];
     readonly exportRoot: WalletAuthorityExportRootRecordV1 | null;
   }>;
@@ -822,10 +824,7 @@ export type LinkedDevicePasskeyAuthoritySelection = LinkedDeviceAuthoritySelecti
 export type LinkedDeviceEmailOtpAuthoritySelection = LinkedDeviceAuthoritySelection &
   Readonly<{
     readonly kind: 'linked_device_email_otp_authority_selection_v1';
-    readonly authMethod: Extract<
-      LocalWalletAuthMethodRecordV2,
-      { kind: 'email_otp'; status: 'active' }
-    >;
+    readonly authMethod: ActiveEmailOtpWalletAuthMethodRecordV2;
   }>;
 
 export type LinkedDeviceEmailOtpAuthorityResolution =
@@ -979,7 +978,7 @@ export async function resolveLinkedDeviceEmailOtpAuthoritySelection(args: {
 }
 
 function linkedDeviceActivationForCapability(
-  authority: Extract<WalletAuthorityV1, { state: 'active' }>,
+  authority: ActiveWalletAuthorityV1,
   subject: Extract<WalletCapabilitySubjectV1, { kind: 'sign' | 'export_keys' }>,
 ): MpcMaterialActivationRef {
   const activation =
@@ -2342,8 +2341,8 @@ type LinkedDeviceNearUnlockSubjectResolution =
 
 async function resolveLinkedDeviceNearUnlockSubject(args: {
   readonly walletId: WalletId;
-  readonly authMethod: Extract<LocalWalletAuthMethodRecordV2, { readonly status: 'active' }>;
-  readonly authority: Extract<WalletAuthorityV1, { readonly state: 'active' }>;
+  readonly authMethod: ActiveWalletAuthMethodRecordV2;
+  readonly authority: ActiveWalletAuthorityV1;
   readonly signerMaterials: readonly WalletAuthoritySignerMaterialRecordV1[];
 }): Promise<LinkedDeviceNearUnlockSubjectResolution> {
   const activation = args.authority.signerActivations.ed25519;
@@ -2424,8 +2423,8 @@ async function resolveLinkedDeviceNearUnlockSubject(args: {
  * methods may share.
  */
 function requireLinkedDeviceWalletAuthAuthorityRef(input: {
-  readonly authority: Extract<WalletAuthorityV1, { readonly state: 'active' }>;
-  readonly authMethod: Extract<LocalWalletAuthMethodRecordV2, { readonly status: 'active' }>;
+  readonly authority: ActiveWalletAuthorityV1;
+  readonly authMethod: ActiveWalletAuthMethodRecordV2;
 }): WalletAuthAuthorityRef {
   const authorityRef = parseWalletAuthAuthorityRef({
     kind: 'wallet_auth_authority_ref',

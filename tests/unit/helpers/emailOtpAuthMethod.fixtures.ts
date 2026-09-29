@@ -5,7 +5,7 @@ import {
 } from '@shared/utils/domainIds';
 import {
   buildWalletAuthMethodRecordV2,
-  type WalletAuthMethodRecordV2,
+  type ActiveEmailOtpWalletAuthMethodRecordV2,
 } from '@shared/utils/registrationIntent';
 import { buildEmailOtpWalletAuthAuthority } from '@shared/utils/walletAuthAuthority';
 
@@ -20,7 +20,7 @@ export function buildActiveEmailOtpAuthMethodFixture(args: {
   emailAddress: string;
   emailHashHex: string;
 }): {
-  record: Extract<WalletAuthMethodRecordV2, { kind: 'email_otp'; status: 'active' }>;
+  record: ActiveEmailOtpWalletAuthMethodRecordV2;
   localRecord: Extract<LocalWalletAuthMethodRecord, { kind: 'email_otp'; status: 'active' }>;
 } {
   const authority = buildEmailOtpWalletAuthAuthority({

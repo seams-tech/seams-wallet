@@ -28,6 +28,7 @@ import {
   type ImplicitNearAccountId,
   type NamedNearAccountId,
 } from './near';
+import type { Variant } from './variant';
 
 export type { WalletId, WebAuthnRpId } from './domainIds';
 export type { ImplicitNearAccountId, NamedNearAccountId, NearAccountId } from './near';
@@ -354,6 +355,34 @@ export type WalletAuthMethodRecordV2 = WalletAuthMethodCommonV1 &
     | (PasskeyWalletAuthMethodDraftV1 & WalletAuthMethodLifecycleV1)
     | (EmailOtpWalletAuthMethodDraftV1 & WalletAuthMethodLifecycleV1)
   );
+
+export type PasskeyWalletAuthMethodRecordV2 = Variant<WalletAuthMethodRecordV2, 'kind', 'passkey'>;
+export type EmailOtpWalletAuthMethodRecordV2 = Variant<
+  WalletAuthMethodRecordV2,
+  'kind',
+  'email_otp'
+>;
+export type PendingWalletAuthMethodRecordV2 = Variant<
+  WalletAuthMethodRecordV2,
+  'status',
+  'pending_local_install'
+>;
+export type ActiveWalletAuthMethodRecordV2 = Variant<WalletAuthMethodRecordV2, 'status', 'active'>;
+export type RevokedWalletAuthMethodRecordV2 = Variant<
+  WalletAuthMethodRecordV2,
+  'status',
+  'revoked'
+>;
+export type ActivePasskeyWalletAuthMethodRecordV2 = Variant<
+  ActiveWalletAuthMethodRecordV2,
+  'kind',
+  'passkey'
+>;
+export type ActiveEmailOtpWalletAuthMethodRecordV2 = Variant<
+  ActiveWalletAuthMethodRecordV2,
+  'kind',
+  'email_otp'
+>;
 
 export function sameWalletAuthMethodRecordV2(
   left: WalletAuthMethodRecordV2,

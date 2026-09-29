@@ -43,7 +43,10 @@ import {
   isHostWithinRpId,
   originHostnameOrEmpty,
 } from '../../../../core/authService/webauthnOidcHelpers';
-import type { WalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
+import type {
+  ActiveWalletAuthMethodRecordV2,
+  WalletAuthMethodRecordV2,
+} from '@shared/utils/registrationIntent';
 import { secureRandomBase64Url } from '@shared/utils/secureRandomId';
 import { base64UrlEncode } from '@shared/utils/encoders';
 import {
@@ -412,11 +415,6 @@ export type WalletRecoveryGoogleEmailOtpRouteFinalizationRequest =
 
 /** How long a reservation may sit before another attempt may take the code. */
 const RECOVERY_RESERVATION_TTL_MS = 5 * 60 * 1000;
-
-type ActiveWalletAuthMethodRecordV2 = Extract<
-  WalletAuthMethodRecordV2,
-  { readonly status: 'active' }
->;
 
 export type WalletRecoveryContinuityAnchor = {
   readonly kind: 'wallet_recovery_continuity_anchor_v1';

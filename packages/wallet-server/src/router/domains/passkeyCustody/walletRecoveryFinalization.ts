@@ -29,6 +29,8 @@ import { unknownWebAuthnAuthenticatorDeviceInfo } from '@shared/utils/webauthnDe
 import {
   buildWalletAuthMethodRecordV2,
   sameWalletAuthMethodRecordV2,
+  type ActivePasskeyWalletAuthMethodRecordV2,
+  type ActiveWalletAuthMethodRecordV2,
   type WalletAuthMethodRecordV2,
 } from '@shared/utils/registrationIntent';
 import type { WalletAuthAuthorityRef } from '@shared/utils/walletAuthAuthority';
@@ -62,16 +64,6 @@ import {
 } from './walletRecoveryKeyManifest';
 import type { WalletRecoveryEcdsaPossessionProofV1 } from '@shared/wallet-recovery/walletRecoveryEcdsaPossession';
 import type { WebAuthnCredentialBindingRecord } from '../../../core/WebAuthnCredentialBindingStore';
-
-type ActiveWalletAuthMethodRecordV2 = Extract<
-  WalletAuthMethodRecordV2,
-  { readonly status: 'active' }
->;
-
-type ActivePasskeyWalletAuthMethodRecordV2 = Extract<
-  WalletAuthMethodRecordV2,
-  { readonly kind: 'passkey'; readonly status: 'active' }
->;
 
 type ActivePasskeyCustodyEnvelopeRecord = Omit<PasskeyCustodyEnvelopeRecord, 'lifecycle'> & {
   readonly lifecycle: Extract<

@@ -23,7 +23,8 @@ import {
 } from '../utils/domainIds';
 import {
   parseWalletAuthMethodRecordV2,
-  type WalletAuthMethodRecordV2,
+  type ActiveEmailOtpWalletAuthMethodRecordV2,
+  type ActivePasskeyWalletAuthMethodRecordV2,
 } from '../utils/registrationIntent';
 
 export type WalletRecoveryEmailOtpEnrollmentReferenceV1 = {
@@ -46,10 +47,7 @@ type WalletRecoveryCommittedProjectionCommonV1 = {
 export type WalletRecoveryCommittedProjectionV1 =
   | (WalletRecoveryCommittedProjectionCommonV1 & {
       readonly kind: 'passkey';
-      readonly authMethod: Extract<
-        WalletAuthMethodRecordV2,
-        { readonly kind: 'passkey'; readonly status: 'active' }
-      >;
+      readonly authMethod: ActivePasskeyWalletAuthMethodRecordV2;
       readonly target: {
         readonly kind: 'passkey';
         readonly rpId: WebAuthnRpId;
@@ -58,10 +56,7 @@ export type WalletRecoveryCommittedProjectionV1 =
     })
   | (WalletRecoveryCommittedProjectionCommonV1 & {
       readonly kind: 'google_email_otp';
-      readonly authMethod: Extract<
-        WalletAuthMethodRecordV2,
-        { readonly kind: 'email_otp'; readonly status: 'active' }
-      >;
+      readonly authMethod: ActiveEmailOtpWalletAuthMethodRecordV2;
       readonly target: {
         readonly kind: 'google_email_otp';
         readonly provider: 'google';
@@ -106,10 +101,7 @@ export type WalletRecoveryCommittedProjectionBuilderInputV1 =
       readonly targetAuthorityId: WalletAuthorityId;
       readonly targetWalletAuthMethodId: WalletAuthMethodId;
       readonly authority: ActiveRecoveredWalletAuthorityV1;
-      readonly authMethod: Extract<
-        WalletAuthMethodRecordV2,
-        { readonly kind: 'passkey'; readonly status: 'active' }
-      >;
+      readonly authMethod: ActivePasskeyWalletAuthMethodRecordV2;
     }
   | {
       readonly kind: 'google_email_otp';
@@ -120,10 +112,7 @@ export type WalletRecoveryCommittedProjectionBuilderInputV1 =
       readonly targetAuthorityId: WalletAuthorityId;
       readonly targetWalletAuthMethodId: WalletAuthMethodId;
       readonly authority: ActiveRecoveredWalletAuthorityV1;
-      readonly authMethod: Extract<
-        WalletAuthMethodRecordV2,
-        { readonly kind: 'email_otp'; readonly status: 'active' }
-      >;
+      readonly authMethod: ActiveEmailOtpWalletAuthMethodRecordV2;
       readonly providerSubject: EmailOtpProviderUserId;
       readonly emailHashHex: string;
       readonly registrationAuthorityId: string;

@@ -1,6 +1,9 @@
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import type { TenantRootIdentityV1 } from '@shared/tenant-root/tenantRootIdentity';
 import type {
+  ActiveEmailOtpWalletAuthMethodRecordV2,
+  ActivePasskeyWalletAuthMethodRecordV2,
+  ActiveWalletAuthMethodRecordV2,
   AddAuthMethodIntentCallerV1,
   AddAuthMethodIntentGrant,
 } from '@shared/utils/registrationIntent';
@@ -134,10 +137,7 @@ export type WalletUnlockPasskeyAuthorityResolution =
   | {
       readonly kind: 'active_authority';
       readonly authority: ActiveWalletAuthorityV1;
-      readonly authMethod: Extract<
-        WalletAuthMethodRecordV2,
-        { readonly kind: 'passkey'; readonly status: 'active' }
-      >;
+      readonly authMethod: ActivePasskeyWalletAuthMethodRecordV2;
     }
   | {
       readonly kind: 'rejected';
@@ -150,10 +150,7 @@ export type WalletUnlockEmailOtpAuthorityResolution =
       readonly kind: 'active_authority';
       readonly authority: ActiveWalletAuthorityV1;
       readonly walletAuthAuthority: EmailOtpWalletAuthAuthority;
-      readonly authMethod: Extract<
-        WalletAuthMethodRecordV2,
-        { readonly kind: 'email_otp'; readonly status: 'active' }
-      >;
+      readonly authMethod: ActiveEmailOtpWalletAuthMethodRecordV2;
     }
   | {
       readonly kind: 'rejected';
@@ -203,7 +200,7 @@ export type RouterApiWalletSessionExactOperationContext =
 export type RouterApiWalletSessionAuthorizationV2ExhaustedCandidateContext = {
   readonly status: ExactWalletSessionStatusV2 & { readonly kind: 'exhausted' };
   readonly authority: ActiveWalletAuthorityV1;
-  readonly authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+  readonly authMethod: ActiveWalletAuthMethodRecordV2;
   readonly retiredAtMs: null;
 };
 
@@ -219,7 +216,7 @@ export type ActiveWalletSessionAuthorityResolution =
   | {
       readonly kind: 'active_authority';
       readonly authority: ActiveWalletAuthorityV1;
-      readonly authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+      readonly authMethod: ActiveWalletAuthMethodRecordV2;
     }
   | { readonly kind: 'rejected'; readonly code: string; readonly message: string };
 
@@ -1295,10 +1292,7 @@ export interface RouterApiWalletAuthMethodService {
         readonly ok: true;
         readonly authority: import('@shared/utils/walletAuthAuthority').PasskeyWalletAuthAuthority;
         readonly walletAuthority: ActiveWalletAuthorityV1;
-        readonly authMethod: Extract<
-          WalletAuthMethodRecordV2,
-          { readonly kind: 'passkey'; readonly status: 'active' }
-        >;
+        readonly authMethod: ActivePasskeyWalletAuthMethodRecordV2;
       }
     | { readonly ok: false; readonly code: string; readonly message: string }
   >;

@@ -1,4 +1,5 @@
 import type {
+  ActiveWalletAuthMethodRecordV2,
   AddAuthMethodInput,
   AddAuthMethodIntentGrant,
   AddAuthMethodIntentCallerV1,
@@ -15,7 +16,6 @@ import type {
   RegistrationSignerRequest,
   RegistrationSignerSetSelection,
   ResolvedRegistrationNearAccount,
-  WalletAuthMethodRecordV2,
   WalletId,
   WebAuthnRpId,
 } from '@shared/utils/registrationIntent';
@@ -1403,7 +1403,7 @@ type WalletRegistrationFinalizeResponseBase = {
   walletId: WalletId;
   authority: WalletAuthAuthority;
   foundingAuthority: ActiveWalletAuthorityV1;
-  foundingAuthMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+  foundingAuthMethod: ActiveWalletAuthMethodRecordV2;
   registrationDiagnostics?: WalletRegistrationRouteDiagnostics;
   /**
    * What became of the custody run that rode this leg, when one did. Absent

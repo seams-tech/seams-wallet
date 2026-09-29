@@ -32,6 +32,8 @@ import { base64UrlEncode } from '../../../packages/shared-ts/src/utils/base64';
 import { parseDigestB64u } from '../../../packages/shared-ts/src/utils/canonicalPrimitives';
 import {
   buildWalletAuthMethodRecordV2,
+  type ActiveEmailOtpWalletAuthMethodRecordV2,
+  type ActivePasskeyWalletAuthMethodRecordV2,
   type WalletAuthMethodRecordV2,
 } from '../../../packages/shared-ts/src/utils/registrationIntent';
 import {
@@ -70,19 +72,9 @@ import { buildMpcMaterialActivationRefFixture } from './ecdsaMaterialRef.fixture
 
 const MANAGEMENT_DIGEST = parseDigestB64u(base64UrlEncode(new Uint8Array(32).fill(33)));
 
-type ActivePasskeyWalletAuthMethodRecordV2 = Extract<
-  WalletAuthMethodRecordV2,
-  { readonly kind: 'passkey'; readonly status: 'active' }
->;
-
 type RevokedPasskeyWalletAuthMethodRecordV2 = Extract<
   WalletAuthMethodRecordV2,
   { readonly kind: 'passkey'; readonly status: 'revoked' }
->;
-
-type ActiveEmailOtpWalletAuthMethodRecordV2 = Extract<
-  WalletAuthMethodRecordV2,
-  { readonly kind: 'email_otp'; readonly status: 'active' }
 >;
 
 function required<T>(

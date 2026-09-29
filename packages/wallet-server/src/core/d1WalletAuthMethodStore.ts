@@ -9,6 +9,7 @@ import {
   parseWalletAuthMethodRecordV2,
   walletAuthMethodRecordId,
   walletIdFromString,
+  type ActiveWalletAuthMethodRecordV2,
   type WalletAuthMethodRecord as SharedWalletAuthMethodRecord,
   type WalletAuthMethodRecordV2,
 } from '@shared/utils/registrationIntent';
@@ -28,11 +29,6 @@ export type WalletAuthMethodRecord = SharedWalletAuthMethodRecord;
  * New authority-owned writes use this type and the V2 statements below.
  */
 export type WalletAuthMethodRecordV2Owned = WalletAuthMethodRecordV2;
-
-type ActiveWalletAuthMethodRecordV2 = Extract<
-  WalletAuthMethodRecordV2,
-  { readonly status: 'active' }
->;
 
 export type WalletAuthMethodV2Store = {
   putV2(record: WalletAuthMethodRecordV2): Promise<void>;

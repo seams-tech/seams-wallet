@@ -57,6 +57,9 @@ import {
 import { D1WalletAuthMethodStore } from '../../../../core/d1WalletAuthMethodStore';
 import {
   sameWalletAuthMethodRecordV2,
+  type ActiveEmailOtpWalletAuthMethodRecordV2,
+  type ActivePasskeyWalletAuthMethodRecordV2,
+  type PasskeyWalletAuthMethodRecordV2,
   type WalletAuthMethodRecordV2,
 } from '@shared/utils/registrationIntent';
 import {
@@ -73,16 +76,6 @@ import {
   type WalletRecoveryGoogleEmailOtpTargetEnrollmentV1,
 } from './d1WalletRecoveryGoogleEmailOtpRecords';
 import { emailOtpDeviceEnrollmentId, WALLET_EMAIL_OTP_ACTIONS } from '@shared/utils/emailOtpDomain';
-
-type ActivePasskeyWalletAuthMethodRecordV2 = Extract<
-  WalletAuthMethodRecordV2,
-  { readonly kind: 'passkey'; readonly status: 'active' }
->;
-
-type ActiveEmailOtpWalletAuthMethodRecordV2 = Extract<
-  WalletAuthMethodRecordV2,
-  { readonly kind: 'email_otp'; readonly status: 'active' }
->;
 
 function sameWalletSignerActivationSetV1(
   left: ActiveWalletAuthorityV1['signerActivations'],
@@ -1045,7 +1038,7 @@ export class CloudflareD1WalletCustodyCommitStore {
   async readPasskeyWalletAuthMethod(input: {
     readonly rpId: string;
     readonly credentialIdB64u: string;
-  }): Promise<Extract<WalletAuthMethodRecordV2, { readonly kind: 'passkey' }> | null> {
+  }): Promise<PasskeyWalletAuthMethodRecordV2 | null> {
     const method = await this.walletAuthMethodStore.getPasskeyV2(input);
     return method?.kind === 'passkey' ? method : null;
   }

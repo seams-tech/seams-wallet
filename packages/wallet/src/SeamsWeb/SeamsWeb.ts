@@ -211,7 +211,7 @@ import {
   walletAuthAuthorityRefForVerifiedEmailOtpUnlock,
   type EmailOtpWalletPostUnlockActivation,
 } from '@/SeamsWeb/operations/authMethods/emailOtp/walletActivation';
-import type { WalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
+import type { ActiveEmailOtpWalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
 import {
   nearAccountBindingFromRaw,
   type NearAccountBinding,
@@ -2290,9 +2290,7 @@ export class SeamsWeb {
       case 'none': {
         const localMethods = await IndexedDBManager.listWalletAuthMethodsV2ForWallet(args.walletId);
         const foundingMethods = localMethods.filter(
-          (
-            method,
-          ): method is Extract<WalletAuthMethodRecordV2, { kind: 'email_otp'; status: 'active' }> =>
+          (method): method is ActiveEmailOtpWalletAuthMethodRecordV2 =>
             method.kind === 'email_otp' &&
             method.status === 'active' &&
             method.emailHashHex.toLowerCase() === emailHashHex,

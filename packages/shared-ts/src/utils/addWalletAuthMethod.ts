@@ -32,6 +32,7 @@ import {
   type WalletId,
 } from './domainIds';
 import type {
+  ActiveWalletAuthMethodRecordV2,
   EmailOtpWalletAuthMethodDraftV1,
   PasskeyWalletAuthMethodDraftV1,
   WalletAuthMethodRecordV2,
@@ -320,12 +321,9 @@ export function addWalletAuthMethodSourceFamily(
  * which is why the operation needs no same-family rejection of its own.
  */
 export function admitAddWalletAuthMethod(input: {
-  readonly sourceMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+  readonly sourceMethod: ActiveWalletAuthMethodRecordV2;
   readonly targetFamily: WalletAuthMethodFamilyV1;
-  readonly activeMethodsOnAuthority: readonly Extract<
-    WalletAuthMethodRecordV2,
-    { readonly status: 'active' }
-  >[];
+  readonly activeMethodsOnAuthority: readonly ActiveWalletAuthMethodRecordV2[];
 }): AddWalletAuthMethodAdmissionV1 {
   const present = input.activeMethodsOnAuthority.find(
     (method) => method.kind === input.targetFamily,

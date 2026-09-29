@@ -15,7 +15,6 @@ import {
   type WalletSessionOperationCredentialV1,
 } from '@/core/indexedDB/seamsWalletDB/walletSessionAuthorizationStore';
 import type { ExactWalletSessionStatus } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
-import type { ActiveWalletAuthMethodV2 } from '@/core/signingEngine/session/identity/ownerLaneScope';
 import type { ActiveWalletAuthorityV1 } from '@shared/authorization/walletAuthority';
 import { activeWalletSessionV1RecordsEqual } from '@shared/device-linking/activeWalletSession';
 import {
@@ -42,6 +41,7 @@ import type {
   PasskeyCustodyEnvelopeRecord,
   PasskeyCustodySecretBinding,
 } from '@shared/passkey-custody';
+import type { ActiveEmailOtpWalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
 type EmailOtpEd25519LaneAuth = Extract<SigningLaneAuthBinding, { kind: 'email_otp' }>;
 type ExactEmailOtpWalletSessionStatus = Extract<
   ExactWalletSessionStatus,
@@ -65,7 +65,7 @@ type EmailOtpEd25519YaoWorkerActivationRequestV1 = {
 
 export type ExactWalletSessionAuthorizationForEd25519ExportV1 = {
   readonly selectedAuthority: ActiveWalletAuthorityV1;
-  readonly selectedAuthMethod: Extract<ActiveWalletAuthMethodV2, { readonly kind: 'email_otp' }>;
+  readonly selectedAuthMethod: ActiveEmailOtpWalletAuthMethodRecordV2;
   readonly factorAuthority: EmailOtpWalletAuthAuthority;
   readonly record: ActiveWalletSessionV1;
   readonly operationCredential: WalletSessionOperationCredentialV1;

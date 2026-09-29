@@ -20,6 +20,7 @@ import { routerAbMpcMaterialActivationRefFromWire } from '@shared/utils/routerAb
 import {
   buildWalletAuthMethodRecordV2,
   sameWalletAuthMethodRecordV2,
+  type ActiveEmailOtpWalletAuthMethodRecordV2,
   type WalletAuthMethodRecordV2,
 } from '@shared/utils/registrationIntent';
 import {
@@ -84,11 +85,6 @@ type GoogleRecoveryFailure = {
   readonly code: string;
   readonly message: string;
 };
-
-type ActiveEmailOtpWalletAuthMethodRecordV2 = Extract<
-  WalletAuthMethodRecordV2,
-  { readonly kind: 'email_otp'; readonly status: 'active' }
->;
 
 function sameWalletRecoveryGoogleEmailOtpFinalizationInputV1(
   left: WalletRecoveryGoogleEmailOtpFinalizationInput,

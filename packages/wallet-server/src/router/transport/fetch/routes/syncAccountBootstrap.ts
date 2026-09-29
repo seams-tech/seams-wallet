@@ -18,7 +18,7 @@ import type {
 import type { ActiveWalletAuthorityV1 } from '@shared/authorization/walletAuthority';
 import {
   walletIdFromString,
-  type WalletAuthMethodRecordV2,
+  type ActivePasskeyWalletAuthMethodRecordV2,
 } from '@shared/utils/registrationIntent';
 import type {
   MpcWalletSigningQuotaId,
@@ -84,10 +84,7 @@ type SyncAccountExactBootstrapBodyBaseV1 = {
   readonly walletAuthMethodId: WalletAuthMethodId;
   readonly walletAuthorityId: WalletAuthorityId;
   readonly foundingAuthority: ActiveWalletAuthorityV1;
-  readonly foundingAuthMethod: Extract<
-    WalletAuthMethodRecordV2,
-    { readonly kind: 'passkey'; readonly status: 'active' }
-  >;
+  readonly foundingAuthMethod: ActivePasskeyWalletAuthMethodRecordV2;
   readonly custodyKeyManifestDigestB64u: VerifiedSyncAccountResultV1['custodyKeyManifestDigestB64u'];
   readonly walletBinding: VerifiedSyncAccountResultV1['walletBinding'];
   readonly rpId: string;
@@ -140,10 +137,7 @@ export type SyncAccountBootstrapInputV1 = {
   readonly result: VerifiedSyncAccountResultV1;
   readonly authority: WalletAuthAuthority;
   readonly activeAuthority: ActiveWalletAuthorityV1;
-  readonly foundingAuthMethod: Extract<
-    WalletAuthMethodRecordV2,
-    { readonly kind: 'passkey'; readonly status: 'active' }
-  >;
+  readonly foundingAuthMethod: ActivePasskeyWalletAuthMethodRecordV2;
   readonly walletAuthMethodId: WalletAuthMethodId;
   readonly authorityRef: WalletAuthAuthorityRef;
   readonly proof: Extract<VerifiedOwnerProof, { readonly purpose: 'wallet_session' }>;

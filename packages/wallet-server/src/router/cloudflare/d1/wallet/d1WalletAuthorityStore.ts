@@ -30,6 +30,8 @@ import {
 } from '../../../../core/d1WalletAuthMethodStore';
 import {
   parseWalletAuthMethodRecordV2,
+  type ActiveWalletAuthMethodRecordV2,
+  type RevokedWalletAuthMethodRecordV2,
   type WalletAuthMethodRecordV2,
 } from '@shared/utils/registrationIntent';
 import { d1ChangedRows, formatD1ExecStatement, parseD1JsonColumn } from '../../../../storage/d1Sql';
@@ -84,12 +86,12 @@ export type WalletAuthorityActivationResultV1 =
   | {
       readonly kind: 'activated';
       readonly authority: ActiveWalletAuthorityV1;
-      readonly authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+      readonly authMethod: ActiveWalletAuthMethodRecordV2;
     }
   | {
       readonly kind: 'replayed';
       readonly authority: ActiveWalletAuthorityV1;
-      readonly authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+      readonly authMethod: ActiveWalletAuthMethodRecordV2;
     }
   | {
       readonly kind: 'conflict';
@@ -99,7 +101,7 @@ export type WalletAuthorityActivationResultV1 =
 export type WalletAuthorityRevocationResultV1 =
   | {
       readonly kind: 'revoked_method';
-      readonly authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'revoked' }>;
+      readonly authMethod: RevokedWalletAuthMethodRecordV2;
       readonly authority: WalletAuthorityV1;
     }
   | { readonly kind: 'would_remove_last_wallet_auth_method' }
@@ -508,7 +510,7 @@ function assertActivationInput(input: {
   readonly pendingAuthority: PendingWalletAuthorityV1;
   readonly activeAuthority: ActiveWalletAuthorityV1;
   readonly pendingAuthMethod: WalletAuthMethodRecordV2;
-  readonly activeAuthMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+  readonly activeAuthMethod: ActiveWalletAuthMethodRecordV2;
 }): void {
   if (input.pendingAuthMethod.status !== 'pending_local_install') {
     throw new Error('authority activation requires a pending auth method');
@@ -1016,7 +1018,7 @@ export class D1WalletAuthorityStore {
     readonly pendingAuthority: PendingWalletAuthorityV1;
     readonly activeAuthority: ActiveWalletAuthorityV1;
     readonly pendingAuthMethod: WalletAuthMethodRecordV2;
-    readonly activeAuthMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+    readonly activeAuthMethod: ActiveWalletAuthMethodRecordV2;
   }): Promise<WalletAuthorityActivationResultV1> {
     return await this.activatePendingAuthorityWithStatements(input, []);
   }
@@ -1031,7 +1033,7 @@ export class D1WalletAuthorityStore {
       readonly pendingAuthority: PendingWalletAuthorityV1;
       readonly activeAuthority: ActiveWalletAuthorityV1;
       readonly pendingAuthMethod: WalletAuthMethodRecordV2;
-      readonly activeAuthMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+      readonly activeAuthMethod: ActiveWalletAuthMethodRecordV2;
     },
     additionalStatements: readonly D1PreparedStatementLike[],
   ): Promise<WalletAuthorityActivationResultV1> {
@@ -1554,9 +1556,9 @@ function authMethodsEqual(
 }
 
 function buildRevokedAuthMethod(
-  method: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>,
+  method: ActiveWalletAuthMethodRecordV2,
   revokedAtMs: number,
-): Extract<WalletAuthMethodRecordV2, { readonly status: 'revoked' }> {
+): RevokedWalletAuthMethodRecordV2 {
   if (revokedAtMs < method.updatedAtMs) {
     throw new Error('auth method revocation time precedes the current record');
   }

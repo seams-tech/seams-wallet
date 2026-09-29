@@ -1,4 +1,4 @@
-import type { WalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
+import type { ActiveWalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
 import {
   CAPABILITY_KINDS,
   EVM_ECDSA_MPC_OPERATION_KINDS,
@@ -315,7 +315,7 @@ export type ExactWalletSessionQuotaProjectionV1 = {
 export type WalletSessionExactOperationContext = {
   readonly session: WalletSessionAuthorizationV2;
   readonly authority: ActiveWalletAuthorityV1;
-  readonly authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+  readonly authMethod: ActiveWalletAuthMethodRecordV2;
   readonly retiredAtMs: null;
   readonly ownerWalletScope: {
     readonly orgId: string;

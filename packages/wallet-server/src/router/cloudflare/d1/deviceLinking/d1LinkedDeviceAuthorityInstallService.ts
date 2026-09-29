@@ -78,6 +78,8 @@ import { type ExactAdministeredSignerV1 } from '@shared/device-linking/delegated
 import {
   buildWalletAuthMethodRecordV2,
   sameWalletAuthMethodRecordV2,
+  type ActiveWalletAuthMethodRecordV2,
+  type PendingWalletAuthMethodRecordV2,
   type WalletAuthMethodRecordV2,
 } from '@shared/utils/registrationIntent';
 import { parseLinkDeviceSessionId, parseWalletKeyId } from '@shared/signing-lanes/ids';
@@ -252,7 +254,7 @@ export type ActivateInstalledAuthorityResultV1 =
       readonly kind: 'active';
       readonly outcome: 'activated' | 'replayed';
       readonly authority: ActiveWalletAuthorityV1;
-      readonly authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+      readonly authMethod: ActiveWalletAuthMethodRecordV2;
       readonly session: LinkedDeviceSessionRecordV1;
       readonly walletSession: IssuedWalletSessionAuthorizationV2;
       readonly deliveryBinding: LinkedDeviceWalletSessionCredentialDeliveryBindingV1;
@@ -808,10 +810,7 @@ export class D1LinkedDeviceAuthorityInstallServiceV1 {
     readonly stored: StoredInstallationRow;
     readonly receipt: LocalAuthorityInstallationReceiptV1;
     readonly expectedPendingAuthority: PendingWalletAuthorityV1;
-    readonly expectedPendingAuthMethod: Extract<
-      WalletAuthMethodRecordV2,
-      { readonly status: 'pending_local_install' }
-    >;
+    readonly expectedPendingAuthMethod: PendingWalletAuthMethodRecordV2;
     readonly nowMs: number;
   }): Promise<Extract<ActivateInstalledAuthorityResultV1, { readonly kind: 'active' }> | null> {
     const authority = await this.options.authorityStore.readById(input.stored.authorityId);
@@ -1772,7 +1771,7 @@ export class D1LinkedDeviceAuthorityInstallServiceV1 {
 
   private async readCommittedWalletSession(
     authority: ActiveWalletAuthorityV1,
-    authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>,
+    authMethod: ActiveWalletAuthMethodRecordV2,
     issuedAtMs: number,
   ): Promise<
     IssuedWalletSessionAuthorizationV2 & {
@@ -1911,7 +1910,7 @@ export class D1LinkedDeviceAuthorityInstallServiceV1 {
 
   private buildWalletSessionAuthorizationInput(
     authority: ActiveWalletAuthorityV1,
-    authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>,
+    authMethod: ActiveWalletAuthMethodRecordV2,
     issuedAtMs: number,
   ): IssueWalletSessionAuthorizationV2Input {
     const tenantId = requireParsed(parseTenantId(this.options.tenantId), 'tenantId');
@@ -2734,7 +2733,7 @@ async function buildActiveAuthority(
 function buildActiveAuthMethod(
   pending: CommittedAuthorityPackagesV1['authMethod'],
   activatedAtMs: number,
-): Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }> {
+): ActiveWalletAuthMethodRecordV2 {
   if (pending.kind === 'passkey') {
     const record = buildWalletAuthMethodRecordV2({
       version: 'wallet_auth_method_v2',
@@ -2778,7 +2777,7 @@ async function buildPasskeyCredentialPromotionStatements(input: {
   readonly scope: D1WalletAuthorityStoreScope;
   readonly listWalletEd25519Signers: ListWalletEd25519SignersV1;
   readonly authority: ActiveWalletAuthorityV1;
-  readonly authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+  readonly authMethod: ActiveWalletAuthMethodRecordV2;
   readonly activatedAtMs: number;
 }): Promise<readonly D1PreparedStatementLike[]> {
   if (input.authMethod.kind !== 'passkey') return [];

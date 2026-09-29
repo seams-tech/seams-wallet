@@ -16,7 +16,7 @@ import { parseDigestB64u, type DigestB64u } from '../utils/canonicalPrimitives';
 import { alphabetizeStringify, sha256BytesUtf8 } from '../utils/digests';
 import {
   parseWalletAuthMethodRecordV2,
-  type WalletAuthMethodRecordV2,
+  type PendingWalletAuthMethodRecordV2,
 } from '../utils/registrationIntent';
 import { parseWalletAuthorityV1 } from '../authorization/walletAuthority';
 import {
@@ -84,15 +84,10 @@ export type CommittedSignerPackageSetV1 =
       readonly ecdsa: CommittedEcdsaSignerPackageV1;
     };
 
-export type PendingWalletAuthMethodRecordV1 = Extract<
-  WalletAuthMethodRecordV2,
-  { readonly status: 'pending_local_install' }
->;
-
 export type CommittedAuthorityPackagesV1 = {
   readonly kind: 'committed_authority_packages_v1';
   readonly authority: PendingWalletAuthorityV1;
-  readonly authMethod: PendingWalletAuthMethodRecordV1;
+  readonly authMethod: PendingWalletAuthMethodRecordV2;
   readonly signerPackages: CommittedSignerPackageSetV1;
   readonly ed25519ExportRootPackage: LinkedDeviceEd25519ExportRootPackageV1 | null;
   readonly packageSetDigestB64u: DigestB64u;
