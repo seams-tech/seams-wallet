@@ -289,7 +289,7 @@ export function parseWalletIdForIntent(raw: unknown): WalletId | null {
   }
 }
 
-export function parseD1RegistrationIntent(raw: unknown): RegistrationIntentV1 | null {
+function parseD1RegistrationIntent(raw: unknown): RegistrationIntentV1 | null {
   const record = toRecordValue(raw);
   if (!record || record.version !== 'registration_intent_v1') return null;
   const walletId = parseWalletIdForIntent(record.walletId);
@@ -1217,7 +1217,7 @@ function parseD1StoredSignerSetRegistrationBranch(
   }
 }
 
-export function parseD1StoredNearEd25519YaoAuthorizedBranch(
+function parseD1StoredNearEd25519YaoAuthorizedBranch(
   record: Record<string, unknown>,
 ): StoredWalletRegistrationNearEd25519YaoAuthorizedBranch | null {
   if (!hasExactKeys(record, ['kind', 'branchKey', 'admissionRequest']) &&
@@ -1783,7 +1783,7 @@ function parseD1StoredEd25519YaoAddSignerActivation(
   };
 }
 
-export function parseD1WalletAddSignerFinalizeRequest(
+function parseD1WalletAddSignerFinalizeRequest(
   raw: unknown,
 ): StoredWalletAddSignerFinalizeRequest | null {
   const record = toRecordValue(raw);
@@ -2207,7 +2207,7 @@ export function thresholdEcdsaChainTargetsEqual(
   return true;
 }
 
-export type D1EcdsaWalletKeyBuildResult =
+type D1EcdsaWalletKeyBuildResult =
   | {
       readonly ok: true;
       readonly walletKeys: WalletRegistrationEcdsaWalletKey[];
@@ -2586,7 +2586,7 @@ export function buildD1WalletEcdsaSignerRecords(input: {
 
 export { deriveEvmFamilySigningKeySlotId };
 
-export function parseD1PositiveIntegerArray(raw: unknown): number[] | null {
+function parseD1PositiveIntegerArray(raw: unknown): number[] | null {
   if (!Array.isArray(raw) || raw.length === 0) return null;
   const values: number[] = [];
   for (const item of raw) {
@@ -2767,7 +2767,7 @@ export function parseD1StoredWalletAddAuthMethodCeremony(
   };
 }
 
-export function parseD1AddAuthMethodIntent(raw: unknown): AddAuthMethodIntentV1 | null {
+function parseD1AddAuthMethodIntent(raw: unknown): AddAuthMethodIntentV1 | null {
   const record = toRecordValue(raw);
   if (!record || record.version !== 'add_auth_method_intent_v1') return null;
   const walletId = parseWalletIdForIntent(record.walletId);
@@ -2874,7 +2874,7 @@ function parseD1StoredAddAuthMethodAuth(
   return null;
 }
 
-export function parseD1RegistrationAuthority(raw: unknown): RegistrationAuthority | null {
+function parseD1RegistrationAuthority(raw: unknown): RegistrationAuthority | null {
   const record = toRecordValue(raw);
   if (!record) return null;
   const kind = toOptionalTrimmedString(record?.kind);

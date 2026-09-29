@@ -47,7 +47,7 @@ import type { LinkedDeviceId, WalletKeyId } from '@shared/signing-lanes/ids';
 
 export const MAX_LINKED_DEVICE_LIST_LIMIT_V1 = 50;
 
-export type LinkedDeviceManagementListCursorV1 = {
+type LinkedDeviceManagementListCursorV1 = {
   readonly kind: 'wallet_authority_v1';
   readonly updatedAtMs: number;
   readonly authorityId: WalletAuthorityId;
@@ -66,12 +66,12 @@ export type LinkedDeviceManagementSourceV1 = {
 };
 
 /** A fresh factor proof is produced by the request boundary after verification. */
-export type LinkedDeviceManagementFreshProofV1 = {
+type LinkedDeviceManagementFreshProofV1 = {
   readonly walletAuthMethodId: WalletAuthMethodId;
   readonly verifiedAtMs: number;
 };
 
-export type LinkedDeviceManagementRevocationSourceV1 = LinkedDeviceManagementSourceV1 & {
+type LinkedDeviceManagementRevocationSourceV1 = LinkedDeviceManagementSourceV1 & {
   readonly freshProof: LinkedDeviceManagementFreshProofV1;
 };
 
@@ -81,7 +81,7 @@ export type LinkedDeviceManagementRevocationSourceV1 = LinkedDeviceManagementSou
  * and the record of the answer, for an exact retry. The authority port runs
  * them in the revocation's own batch, so they commit together or not at all.
  */
-export type LinkedDeviceRevocationCommitV1 = {
+type LinkedDeviceRevocationCommitV1 = {
   readonly prerequisites: readonly D1PreparedStatementLike[];
   /** Run after the revocation's writes, which the record reads. */
   readonly recordAnswer: (target: {
@@ -89,7 +89,7 @@ export type LinkedDeviceRevocationCommitV1 = {
   }) => readonly D1PreparedStatementLike[];
 };
 
-export type LinkedDeviceManagementSourceResolutionV1 = {
+type LinkedDeviceManagementSourceResolutionV1 = {
   readonly session: LinkedDeviceManagementOwnerSessionV1;
   readonly authority: ActiveWalletAuthorityV1;
   readonly authMethod: ActiveWalletAuthMethodRecordV2;
@@ -101,7 +101,7 @@ export type LinkedDeviceManagementAuthorityPageV1 = {
   readonly nextCursor: LinkedDeviceManagementListCursorV1 | null;
 };
 
-export type LinkedDeviceManagementAuthorityPortV1 = {
+type LinkedDeviceManagementAuthorityPortV1 = {
   listActiveForWalletV1(input: {
     readonly walletId: WalletId;
     readonly limit: number;
@@ -130,7 +130,7 @@ export type LinkedDeviceManagementAuthorityPortV1 = {
   >;
 };
 
-export type LinkedDeviceManagementAuthMethodPortV1 = {
+type LinkedDeviceManagementAuthMethodPortV1 = {
   listForAuthorityV1(input: {
     readonly walletId: WalletId;
     readonly authorityId: WalletAuthorityId;
@@ -140,7 +140,7 @@ export type LinkedDeviceManagementAuthMethodPortV1 = {
   }): Promise<WalletAuthMethodRecordV2 | null>;
 };
 
-export type LinkedDeviceManagementOwnerSessionV1 = {
+type LinkedDeviceManagementOwnerSessionV1 = {
   readonly walletId: WalletId;
   readonly walletSessionId: WalletSessionId;
   readonly authorizationId: WalletSessionAuthorizationId;
@@ -149,7 +149,7 @@ export type LinkedDeviceManagementOwnerSessionV1 = {
   readonly expiresAtMs: number;
 };
 
-export type LinkedDeviceManagementAuthenticatorPortV1 = {
+type LinkedDeviceManagementAuthenticatorPortV1 = {
   readActiveOwnerWalletSessionV1(input: {
     readonly tenantId: TenantId;
     readonly walletId: WalletId;
@@ -159,12 +159,12 @@ export type LinkedDeviceManagementAuthenticatorPortV1 = {
   }): Promise<LinkedDeviceManagementOwnerSessionV1 | null>;
 };
 
-export type LinkedDeviceManagementSessionRetirementPortV1 = Pick<
+type LinkedDeviceManagementSessionRetirementPortV1 = Pick<
   AuthorizationService,
   'retireWalletSessionAuthorizationsForAuthMethod'
 >;
 
-export type LinkedDeviceManagementCredentialMetadataPortV1 = {
+type LinkedDeviceManagementCredentialMetadataPortV1 = {
   readPasskeyDeviceInfoV1(input: {
     readonly walletId: WalletId;
     readonly credentialIdB64u: string;
@@ -178,7 +178,7 @@ export type LinkedDeviceManagementCredentialMetadataPortV1 = {
   readEmailOtpAddressV1(input: { readonly walletId: WalletId }): Promise<string | null>;
 };
 
-export type LinkedDeviceManagementServiceOptionsV1 = {
+type LinkedDeviceManagementServiceOptionsV1 = {
   readonly tenantId: TenantId;
   readonly authenticator: LinkedDeviceManagementAuthenticatorPortV1;
   readonly authority: LinkedDeviceManagementAuthorityPortV1;
@@ -188,7 +188,7 @@ export type LinkedDeviceManagementServiceOptionsV1 = {
   readonly materialDeactivation?: OrdinaryInactiveSignerMaterialDeactivationPortV1;
 };
 
-export type LinkedDeviceManagementServiceResultV1 =
+type LinkedDeviceManagementServiceResultV1 =
   | LinkedDeviceListResultV1
   | { readonly kind: 'unauthorized' };
 
@@ -615,7 +615,7 @@ function parseLinkedDeviceIdValue(raw: string): LinkedDeviceId {
   return parsed.value;
 }
 
-export function encodeLinkedDeviceListCursorV1(cursor: LinkedDeviceManagementListCursorV1): string {
+function encodeLinkedDeviceListCursorV1(cursor: LinkedDeviceManagementListCursorV1): string {
   if (!Number.isSafeInteger(cursor.updatedAtMs) || cursor.updatedAtMs < 0) {
     throw new LinkedDeviceListCursorError('linked-device list cursor timestamp is invalid');
   }
@@ -637,7 +637,7 @@ export function encodeLinkedDeviceListCursorV1(cursor: LinkedDeviceManagementLis
   );
 }
 
-export function decodeLinkedDeviceListCursorV1(
+function decodeLinkedDeviceListCursorV1(
   raw: string | null,
 ): LinkedDeviceManagementListCursorV1 | null {
   if (raw === null) return null;

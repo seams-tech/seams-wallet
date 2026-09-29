@@ -26,9 +26,9 @@ import { readNonDurableObjectThresholdStoreKind } from './StoreConfig';
 
 export type ThresholdEd25519Commitments = { hiding: string; binding: string };
 
-export type ThresholdEd25519CommitmentsById = Record<string, ThresholdEd25519Commitments>;
+type ThresholdEd25519CommitmentsById = Record<string, ThresholdEd25519Commitments>;
 
-export type ThresholdEd25519SigningShareMaterial =
+type ThresholdEd25519SigningShareMaterial =
   | {
       kind: 'key_store';
     }
@@ -108,7 +108,7 @@ export type ThresholdEd25519CoordinatorSigningSessionRecord = {
 };
 
 
-export interface ThresholdMpcSessionStore<TRecord extends ThresholdMpcSessionRecord> {
+interface ThresholdMpcSessionStore<TRecord extends ThresholdMpcSessionRecord> {
   putMpcSession(id: string, record: TRecord, ttlMs: number): Promise<void>;
   readMpcSession(id: string): Promise<ThresholdReadMpcSessionResult<TRecord> | null>;
   claimMpcSession(id: string, version: string): Promise<ThresholdClaimMpcSessionResult<TRecord>>;

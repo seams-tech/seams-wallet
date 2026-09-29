@@ -18,14 +18,14 @@ import { createSyncSqliteDatabase, type SyncSqliteConnectionV1 } from '../../sto
 import { NODE_HOP_BY_HOP_HEADERS_V1 } from './nodeHttp';
 
 /** One Gateway request handler: the hosted Gateway or the local Gateway. */
-export type NodeWalletGatewayRequestHandlerV1 = (
+type NodeWalletGatewayRequestHandlerV1 = (
   request: Request,
   env: CloudflareD1GatewayEnv & { readonly WALLET_LOCAL_DEPLOYMENT_JSON: string },
   ctx: CfExecutionContext,
   dependencies: HostedWalletGatewayDependenciesV1,
 ) => Promise<Response>;
 
-export type NodeHostedWalletGatewayOptionsV1 = {
+type NodeHostedWalletGatewayOptionsV1 = {
   /** Gateway configuration and secrets, as the Worker receives them as vars. */
   readonly vars: Readonly<Record<string, string>>;
   /** Shared Gateway SQL store (already migrated). */
@@ -45,7 +45,7 @@ export type NodeHostedWalletGatewayOptionsV1 = {
   readonly handler?: NodeWalletGatewayRequestHandlerV1;
 };
 
-export type NodeHostedWalletGatewayV1 = {
+type NodeHostedWalletGatewayV1 = {
   handle(request: Request): Promise<Response>;
   /** Resolves when every background task started by handled requests settles. */
   drain(): Promise<void>;

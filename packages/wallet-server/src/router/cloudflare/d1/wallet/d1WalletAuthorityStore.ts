@@ -54,23 +54,23 @@ export type D1WalletAuthorityStoreScope = {
   readonly envId: string;
 };
 
-export type WalletAuthorityPageCursorV1 = {
+type WalletAuthorityPageCursorV1 = {
   readonly updatedAtMs: number;
   readonly authorityId: WalletAuthorityId;
 };
 
-export type WalletAuthorityPageV1 = {
+type WalletAuthorityPageV1 = {
   readonly records: readonly WalletAuthorityV1[];
   readonly nextCursor: WalletAuthorityPageCursorV1 | null;
 };
 
-export type CommittedWalletAuthorityV1 = {
+type CommittedWalletAuthorityV1 = {
   readonly kind: 'committed_wallet_authority_v1';
   readonly authority: PendingWalletAuthorityV1;
   readonly authMethod: WalletAuthMethodRecordV2;
 };
 
-export type WalletAuthorityCommitResultV1 =
+type WalletAuthorityCommitResultV1 =
   | CommittedWalletAuthorityV1
   | {
       readonly kind: 'replayed';
@@ -82,7 +82,7 @@ export type WalletAuthorityCommitResultV1 =
       readonly authorityId: WalletAuthorityId;
     };
 
-export type WalletAuthorityActivationResultV1 =
+type WalletAuthorityActivationResultV1 =
   | {
       readonly kind: 'activated';
       readonly authority: ActiveWalletAuthorityV1;
@@ -98,7 +98,7 @@ export type WalletAuthorityActivationResultV1 =
       readonly authorityId: WalletAuthorityId;
     };
 
-export type WalletAuthorityRevocationResultV1 =
+type WalletAuthorityRevocationResultV1 =
   | {
       readonly kind: 'revoked_method';
       readonly authMethod: RevokedWalletAuthMethodRecordV2;
@@ -107,7 +107,7 @@ export type WalletAuthorityRevocationResultV1 =
   | { readonly kind: 'would_remove_last_wallet_auth_method' }
   | { readonly kind: 'conflict' };
 
-export const WALLET_AUTHORITY_STORE_D1_SCHEMA_SQL = Object.freeze([
+const WALLET_AUTHORITY_STORE_D1_SCHEMA_SQL = Object.freeze([
   `
     CREATE TABLE IF NOT EXISTS wallet_authorities (
       namespace TEXT NOT NULL,

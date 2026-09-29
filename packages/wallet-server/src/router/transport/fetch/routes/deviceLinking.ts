@@ -92,7 +92,7 @@ import type { WalletAuthMethodId, WalletId } from '@shared/utils/domainIds';
 const DEVICE_LINKING_BASE = '/wallet/device-linking/v1/sessions';
 const TARGET_PREPARATION_ROUTE_ID = 'linked_device_target_preparation';
 const TARGET_CREDENTIAL_ROUTE_ID = 'linked_device_target_credential';
-export const DEVICE_LINKING_REQUEST_PROOF_HEADER_V1 = LINKED_DEVICE_REQUEST_PROOF_HEADER_V1;
+const DEVICE_LINKING_REQUEST_PROOF_HEADER_V1 = LINKED_DEVICE_REQUEST_PROOF_HEADER_V1;
 
 export type DeviceLinkingAuthDeniedV1 = {
   readonly kind: 'denied';
@@ -123,7 +123,7 @@ export type DeviceLinkingAuthenticatedRequestV1 = {
   readonly binding: DeviceLinkingRequestBindingV1;
 };
 
-export type DeviceLinkingRequestProofV1 = LinkedDeviceRequestProofV1;
+type DeviceLinkingRequestProofV1 = LinkedDeviceRequestProofV1;
 
 export type DeviceLinkingDeviceAuthenticatedRequestV1 = {
   readonly kind: 'authorized';
@@ -224,7 +224,7 @@ export type DeviceLinkingEmailOtpTargetFactorProviderV1 = {
   >;
 };
 
-export type DeviceLinkingInstallationReceiptPortV1 = {
+type DeviceLinkingInstallationReceiptPortV1 = {
   commitPendingAuthorityV1(input: {
     readonly input: VerifiedLinkInputV1;
     readonly nowMs: number;
@@ -1720,7 +1720,7 @@ function sessionProjectionResponse(
   return json({ ok: true, outcome, session: projectSession(record) }, { status: 200 });
 }
 
-export function targetCredentialResultResponse(
+function targetCredentialResultResponse(
   record: LinkedDeviceSessionRecordV1,
   outcome: 'applied' | 'replayed',
   targetCredential: LinkedDeviceTargetCredentialRegistrationResultV1,

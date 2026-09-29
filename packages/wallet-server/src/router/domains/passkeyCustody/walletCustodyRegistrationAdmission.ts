@@ -43,7 +43,7 @@ export type WalletCustodyRegistrationAdmissionOutcome =
    */
   | { readonly kind: 'no_custody_records'; readonly keyManifestDigestB64u: string };
 
-export type WalletCustodyRegistrationAdmissionInput = {
+type WalletCustodyRegistrationAdmissionInput = {
   /** What the ceremony produced. Client-supplied, therefore untrusted. */
   readonly payload: WalletCustodyCeremonyCommitPayload;
   /** The wallet this server verified the registration for. */

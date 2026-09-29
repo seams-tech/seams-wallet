@@ -17,7 +17,7 @@ import {
   type EmailOtpEnrollmentMaterialBoundaryInput,
 } from './d1EmailOtpRecords';
 
-export type D1EmailOtpRegistrationEnrollmentPersistence = {
+type D1EmailOtpRegistrationEnrollmentPersistence = {
   readonly enrollment: EmailOtpWalletEnrollmentRecord;
   readonly existingAuthState: EmailOtpAuthStateRecord | null;
 };

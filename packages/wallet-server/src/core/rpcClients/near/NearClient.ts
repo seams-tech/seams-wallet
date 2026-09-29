@@ -42,7 +42,7 @@ type NearRpcErrorType =
   | 'Failure'
   | 'Unknown';
 
-export type NearRpcFailureKind =
+type NearRpcFailureKind =
   | 'transaction_not_found'
   | 'account_not_found'
   | 'access_key_not_found'

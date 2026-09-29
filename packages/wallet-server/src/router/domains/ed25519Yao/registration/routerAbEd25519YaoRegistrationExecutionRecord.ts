@@ -101,9 +101,7 @@ export function pinRouterAbEd25519YaoRegistrationDispatchRootV1(
   registration.dispatchRoots.set(lifecycleId, dispatchRoot);
 }
 
-export function routerAbEd25519YaoRegistrationAdmissionBindingJsonV1(
-  receipt: AdmissionReceipt,
-): string {
+function routerAbEd25519YaoRegistrationAdmissionBindingJsonV1(receipt: AdmissionReceipt): string {
   return JSON.stringify(receipt.binding);
 }
 

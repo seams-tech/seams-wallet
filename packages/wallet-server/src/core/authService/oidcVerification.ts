@@ -11,17 +11,17 @@ import {
 } from './webauthnOidcHelpers';
 import { isObject } from './record';
 
-export type JwksCacheValue = {
+type JwksCacheValue = {
   keysByKid: Map<string, JsonWebKey>;
   expiresAtMs: number;
 };
 
-export type GoogleJwksState = {
+type GoogleJwksState = {
   cache: JwksCacheValue | null;
   fetchPromise: Promise<JwksCacheValue> | null;
 };
 
-export type GoogleLoginVerificationResult =
+type GoogleLoginVerificationResult =
   | {
       ok: true;
       verified: true;

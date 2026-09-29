@@ -2,7 +2,7 @@ import { alphabetizeStringify, sha256BytesUtf8 } from '@shared/utils/digests';
 import { base64UrlEncode } from '@shared/utils/encoders';
 import { type WalletEmailOtpChannel } from '@shared/utils/emailOtpDomain';
 
-export type EmailOtpFailureAuditInput = {
+type EmailOtpFailureAuditInput = {
   source:
     | 'registration_finalize'
     | 'login_challenge'
@@ -55,9 +55,7 @@ export function emailOtpStatusCode(code: string | undefined): number {
   return 400;
 }
 
-export function emailOtpFailureAuditPayload(
-  input: EmailOtpFailureAuditInput,
-): Record<string, unknown> {
+function emailOtpFailureAuditPayload(input: EmailOtpFailureAuditInput): Record<string, unknown> {
   return {
     source: input.source,
     code: input.code,
@@ -69,7 +67,7 @@ export function emailOtpFailureAuditPayload(
   };
 }
 
-export function shouldEmitEmailOtpLockedWebhook(code: string): boolean {
+function shouldEmitEmailOtpLockedWebhook(code: string): boolean {
   return code === 'otp_locked_out' || code === 'otp_attempts_exhausted';
 }
 

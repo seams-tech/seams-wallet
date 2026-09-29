@@ -155,7 +155,7 @@ function assertNeverWalletRecoveryGoogleEmailOtpComparison(value: never): never 
   throw new Error(`unsupported Google Email OTP comparison branch: ${String(value)}`);
 }
 
-export type WalletRecoveryGoogleEmailOtpFinalizationEnrollment =
+type WalletRecoveryGoogleEmailOtpFinalizationEnrollment =
   | {
       readonly kind: 'existing';
       readonly enrollmentId: string;
@@ -169,7 +169,7 @@ export type WalletRecoveryGoogleEmailOtpFinalizationEnrollment =
       readonly material: EmailOtpEnrollmentMaterialBoundaryInput;
     };
 
-export type WalletRecoveryGoogleEmailOtpFinalizationDependencies = {
+type WalletRecoveryGoogleEmailOtpFinalizationDependencies = {
   readonly envelopeStore: CloudflareD1PasskeyCustodyEnvelopeStore;
   readonly walletCustodyCommits: CloudflareD1WalletCustodyCommitStore;
   readonly walletAuthorityStore: Pick<D1WalletAuthorityStore, 'readById'>;
@@ -193,7 +193,7 @@ export type WalletRecoveryGoogleEmailOtpFinalizationResult =
   | { readonly kind: 'envelope_rejected'; readonly reason: string }
   | { readonly kind: 'enrollment_rejected'; readonly reason: string };
 
-export type WalletRecoveryGoogleEmailOtpFinalizationRequest =
+type WalletRecoveryGoogleEmailOtpFinalizationRequest =
   | {
       readonly kind: 'finalize';
       readonly recovery: WalletRecoveryGoogleEmailOtpFinalizationInput;
@@ -209,7 +209,7 @@ export type WalletRecoveryGoogleEmailOtpFinalizationRequest =
       readonly dependencies: WalletRecoveryGoogleEmailOtpFinalizationDependencies;
     };
 
-export type WalletRecoveryGoogleEmailOtpChallengeResult =
+type WalletRecoveryGoogleEmailOtpChallengeResult =
   | {
       readonly ok: true;
       readonly recoveryOperationId: string;
@@ -222,7 +222,7 @@ export type WalletRecoveryGoogleEmailOtpChallengeResult =
     }
   | GoogleRecoveryFailure;
 
-export type WalletRecoveryGoogleEmailOtpFactorReleaseResult =
+type WalletRecoveryGoogleEmailOtpFactorReleaseResult =
   | {
       readonly ok: true;
       readonly kind: 'email_otp_factor_release_v1';
@@ -248,7 +248,7 @@ export type WalletRecoveryGoogleEmailOtpFactorReleaseResult =
     }
   | GoogleRecoveryFailure;
 
-export type WalletRecoveryGoogleEmailOtpVerificationResult =
+type WalletRecoveryGoogleEmailOtpVerificationResult =
   | {
       readonly ok: true;
       readonly recovery: WalletRecoveryGoogleEmailOtpFinalizationInput;

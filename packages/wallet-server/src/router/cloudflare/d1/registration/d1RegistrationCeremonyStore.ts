@@ -47,14 +47,14 @@ type RegistrationIntentPutInput =
   | StoredAddAuthMethodIntent
   | StoredWalletAddAuthMethodCeremony;
 
-export type RegistrationCeremonyIntentStoreConfig = {
+type RegistrationCeremonyIntentStoreConfig = {
   readonly kind: 'partitioned_d1';
   readonly database: D1DatabaseLike;
   readonly scope: D1RegistrationCeremonyRecordScope;
   readonly keyPrefix: string;
 };
 
-export type D1WalletRegistrationEcdsaCeremonyClaimV1 = {
+type D1WalletRegistrationEcdsaCeremonyClaimV1 = {
   readonly ceremony: StoredWalletRegistrationCeremony;
   readonly version: number;
 };

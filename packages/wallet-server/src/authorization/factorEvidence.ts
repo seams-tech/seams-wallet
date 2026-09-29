@@ -112,13 +112,13 @@ type VerifiedWalletOperationFactorBinding = {
   readonly expiresAtMs: number;
 };
 
-export type VerifiedWalletOperationPasskeyFactorResult = VerifiedWalletOperationFactorBinding & {
+type VerifiedWalletOperationPasskeyFactorResult = VerifiedWalletOperationFactorBinding & {
   readonly kind: 'verified_wallet_operation_passkey_factor';
   readonly credentialIdB64u: WebAuthnCredentialIdB64u;
   readonly assertionDigest: DigestB64u;
 };
 
-export type VerifiedWalletOperationEmailOtpFactorResult = VerifiedWalletOperationFactorBinding & {
+type VerifiedWalletOperationEmailOtpFactorResult = VerifiedWalletOperationFactorBinding & {
   readonly kind: 'verified_wallet_operation_email_otp_factor';
   readonly challengeId: EmailOtpChallengeId;
   readonly verificationReceiptDigest: DigestB64u;
@@ -140,14 +140,14 @@ type VerifiedWalletSessionFactorBinding = {
   readonly expiresAtMs: number;
 };
 
-export type VerifiedWalletSessionPasskeyFactorResult =
+type VerifiedWalletSessionPasskeyFactorResult =
   VerifiedWalletSessionFactorBinding & {
     readonly kind: 'verified_wallet_session_passkey_factor';
     readonly credentialIdB64u: WebAuthnCredentialIdB64u;
     readonly assertionDigest: DigestB64u;
   };
 
-export type VerifiedWalletSessionEmailOtpFactorResult =
+type VerifiedWalletSessionEmailOtpFactorResult =
   VerifiedWalletSessionFactorBinding & {
     readonly kind: 'verified_wallet_session_email_otp_factor';
     readonly challengeId: EmailOtpChallengeId;

@@ -2,7 +2,7 @@ import { base64Decode, base64UrlDecode } from '@shared/utils/encoders';
 import { errorMessage } from '@shared/utils/errors';
 import type { WebAuthnRpId } from '@shared/utils/domainIds';
 
-export type SimpleWebAuthnRegistrationVerification = {
+type SimpleWebAuthnRegistrationVerification = {
   verified?: boolean;
   registrationInfo?: {
     credential?: {
@@ -13,22 +13,22 @@ export type SimpleWebAuthnRegistrationVerification = {
   };
 };
 
-export type SimpleWebAuthnAuthenticationVerification = {
+type SimpleWebAuthnAuthenticationVerification = {
   verified?: boolean;
   authenticationInfo?: {
     newCounter?: number;
   };
 };
 
-export type SimpleWebAuthnRegistrationVerifier = (
+type SimpleWebAuthnRegistrationVerifier = (
   args: SimpleWebAuthnRegistrationVerificationInput,
 ) => Promise<SimpleWebAuthnRegistrationVerification>;
 
-export type SimpleWebAuthnAuthenticationVerifier = (
+type SimpleWebAuthnAuthenticationVerifier = (
   args: SimpleWebAuthnAuthenticationVerificationInput,
 ) => Promise<SimpleWebAuthnAuthenticationVerification>;
 
-export type SimpleWebAuthnRegistrationVerificationInput = {
+type SimpleWebAuthnRegistrationVerificationInput = {
   response: unknown;
   expectedChallenge: string;
   expectedOrigin: string;
@@ -36,7 +36,7 @@ export type SimpleWebAuthnRegistrationVerificationInput = {
   requireUserVerification: boolean;
 };
 
-export type SimpleWebAuthnAuthenticationVerificationInput = {
+type SimpleWebAuthnAuthenticationVerificationInput = {
   response: unknown;
   expectedChallenge: string;
   expectedOrigin: string;

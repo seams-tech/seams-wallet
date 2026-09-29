@@ -16,7 +16,7 @@ import {
 } from '../../../../../wasm/near_signer/pkg/wasm_signer_worker.js';
 import type { NormalizedLogger } from '../logger';
 
-export type NearTxContext = {
+type NearTxContext = {
   nextNonce: string;
   blockHash: string;
 };

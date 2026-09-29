@@ -622,7 +622,7 @@ export type PreparedSponsoredNearAccountCreationV1 = {
   readonly signedTransactionBorshB64u: string;
 };
 
-export type PrepareSponsoredNearAccountCreationResultV1 =
+type PrepareSponsoredNearAccountCreationResultV1 =
   | { readonly ok: true; readonly prepared: PreparedSponsoredNearAccountCreationV1 }
   | { readonly ok: false; readonly error: string; readonly message: string };
 
@@ -682,7 +682,7 @@ export async function prepareSponsoredNearAccountCreationWithRelayer(
  * transaction that may already be on chain as a terminal failure, so it stays
  * distinct and must never be persisted as a completed outcome.
  */
-export type BroadcastPreparedSponsoredNearAccountResultV1 =
+type BroadcastPreparedSponsoredNearAccountResultV1 =
   | { readonly kind: 'created'; readonly result: AccountCreationResult }
   | { readonly kind: 'rejected'; readonly result: AccountCreationResult }
   | { readonly kind: 'uncertain'; readonly message: string };

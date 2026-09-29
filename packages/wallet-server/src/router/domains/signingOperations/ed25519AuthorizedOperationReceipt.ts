@@ -44,7 +44,7 @@ export function requireEd25519OperationKind(value: unknown): Ed25519OperationKin
   return value;
 }
 
-export function requireAuthorizedOperationReceiptString(
+function requireAuthorizedOperationReceiptString(
   record: Record<string, unknown>,
   name: string,
 ): string {
@@ -53,7 +53,7 @@ export function requireAuthorizedOperationReceiptString(
   return field;
 }
 
-export function requireExactAuthorizedOperationReceiptFields(
+function requireExactAuthorizedOperationReceiptFields(
   record: Record<string, unknown>,
   branchFields: readonly string[] = [],
 ): void {

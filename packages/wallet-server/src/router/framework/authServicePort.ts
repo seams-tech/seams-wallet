@@ -102,12 +102,12 @@ import type {
 import type { IssueWalletSessionAuthorizationV2Input } from '../../authorization/service';
 import type { WalletSessionOperationCredentialV1 } from '@shared/device-linking/contracts';
 
-export type WalletAuthMethodManagementSubject = Readonly<{
+type WalletAuthMethodManagementSubject = Readonly<{
   kind: 'wallet_auth_method_management';
   walletId: WalletId;
 }>;
 
-export type WalletUnlockIssuanceRejectionCode =
+type WalletUnlockIssuanceRejectionCode =
   | 'unauthorized'
   | 'invalid_body'
   | 'invalid_state'
@@ -158,7 +158,7 @@ export type WalletUnlockEmailOtpAuthorityResolution =
       readonly message: string;
     };
 
-export type WalletUnlockEmailOtpSessionRequest =
+type WalletUnlockEmailOtpSessionRequest =
   | { readonly kind: 'wallet_session' }
   | { readonly kind: 'ed25519_yao' };
 
@@ -204,7 +204,7 @@ export type RouterApiWalletSessionAuthorizationV2ExhaustedCandidateContext = {
   readonly retiredAtMs: null;
 };
 
-export type RouterApiHostedWalletSessionAuthorizationV2AdmissionContext =
+type RouterApiHostedWalletSessionAuthorizationV2AdmissionContext =
   RouterApiWalletSessionAuthorizationV2AdmissionContext & {
     readonly hostedCredentialId: HostedWalletSessionCredentialId;
     readonly appOrigin: SessionOrigin;
@@ -231,7 +231,7 @@ export type CreateAddAuthMethodIntentCommand = Readonly<{
   caller: AddAuthMethodIntentCallerV1;
 }>;
 
-export type WalletSignerManagementSubject = Readonly<{
+type WalletSignerManagementSubject = Readonly<{
   kind: 'wallet_signer_management';
   walletId: WalletId;
 }>;
@@ -268,7 +268,7 @@ export type RevokeWalletAuthMethodWithFreshProofResult =
       readonly message: string;
     };
 
-export type WalletAddAuthMethodFinalizeAuthorizationV1 = { readonly kind: 'owner' };
+type WalletAddAuthMethodFinalizeAuthorizationV1 = { readonly kind: 'owner' };
 
 export type FinalizeWalletAddAuthMethodCommand = Readonly<
   {
@@ -277,32 +277,30 @@ export type FinalizeWalletAddAuthMethodCommand = Readonly<
   } & WalletAddAuthMethodFinalizeRequest
 >;
 
-export type EmailOtpAuthorizationSessionSubject = Readonly<{
+type EmailOtpAuthorizationSessionSubject = Readonly<{
   kind: 'authorization_session';
   tenantId: TenantId;
   principalId: PrincipalId;
   walletId: WalletId;
 }>;
 
-export type EmailOtpProviderIdentitySubject = Readonly<{
+type EmailOtpProviderIdentitySubject = Readonly<{
   kind: 'provider_identity';
   orgId: OrgId;
   providerSubject: ProviderSubject;
   walletId: WalletId;
 }>;
 
-export type EmailOtpGrantSubject =
-  | EmailOtpAuthorizationSessionSubject
-  | EmailOtpProviderIdentitySubject;
+type EmailOtpGrantSubject = EmailOtpAuthorizationSessionSubject | EmailOtpProviderIdentitySubject;
 
-export type ConsumeEmailOtpGrantCommand = Readonly<{
+type ConsumeEmailOtpGrantCommand = Readonly<{
   subject: EmailOtpGrantSubject;
   loginGrant: string;
   otpChannel: EmailOtpChannel;
   clientIp?: string;
 }>;
 
-export type EmailOtpStrongAuthSubject = Readonly<{
+type EmailOtpStrongAuthSubject = Readonly<{
   kind: 'email_otp_strong_auth';
   walletId: WalletId;
 }>;
@@ -556,7 +554,7 @@ type RouterApiOkFailure = {
   readonly message: string;
 };
 
-export type RouterApiMethodTypes = {
+type RouterApiMethodTypes = {
   applyEmailOtpServerSeal: {
     readonly input: { readonly wrappedCiphertext?: unknown };
     readonly result:
@@ -1086,22 +1084,22 @@ export type RouterApiMethodTypes = {
   };
 };
 
-export type GoogleEmailOtpRegistrationCandidateWalletValidationRequest = {
+type GoogleEmailOtpRegistrationCandidateWalletValidationRequest = {
   readonly registrationAttemptId: string;
   readonly walletId: string;
   readonly ownerProofBindingDigest: string;
   readonly providerSubject: string;
 };
 
-export type GoogleEmailOtpRegistrationCandidateWalletValidationResult =
+type GoogleEmailOtpRegistrationCandidateWalletValidationResult =
   | { readonly ok: true }
   | { readonly ok: false; readonly code: string; readonly message: string };
 
-export interface RouterAbSigningRuntimeService {
+interface RouterAbSigningRuntimeService {
   getRouterAbEcdsaPresignRuntime(): RouterAbEcdsaPresignRuntime | null;
 }
 
-export interface RouterApiEmailOtpChallengeService {
+interface RouterApiEmailOtpChallengeService {
   createEmailOtpChallenge(
     input: RouterApiMethodTypes['createEmailOtpChallenge']['input'],
   ): Promise<RouterApiMethodTypes['createEmailOtpChallenge']['result']>;
@@ -1254,7 +1252,7 @@ export interface RouterApiWalletRegistrationService {
   >;
 }
 
-export interface RouterApiWalletAuthVerificationService {
+interface RouterApiWalletAuthVerificationService {
   verifyWebAuthnAuthenticationLite(
     input: RouterApiMethodTypes['verifyWebAuthnAuthenticationLite']['input'],
   ): Promise<RouterApiMethodTypes['verifyWebAuthnAuthenticationLite']['result']>;
@@ -1545,7 +1543,7 @@ export interface RouterApiWebAuthnService {
   ): Promise<RouterApiMethodTypes['verifyWebAuthnSyncAccount']['result']>;
 }
 
-export interface RouterApiNearFundingService {
+interface RouterApiNearFundingService {
   fundImplicitNearAccount(
     input: FundImplicitNearAccountRequest,
   ): Promise<FundImplicitNearAccountResult>;
@@ -1554,7 +1552,7 @@ export interface RouterApiNearFundingService {
   ): Promise<RouterApiMethodTypes['listNearPublicKeysForUser']['result']>;
 }
 
-export interface RouterApiRouterAccountService {
+interface RouterApiRouterAccountService {
   getConfiguredRelayerAccount(): string;
   getRelayerAccount(): Promise<{ accountId: string; publicKey: string }>;
 }

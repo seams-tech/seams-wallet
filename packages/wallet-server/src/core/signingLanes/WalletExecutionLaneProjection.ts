@@ -79,7 +79,7 @@ export type ActiveOwnerWalletExecutionLaneProjection = {
   readonly verifiedActivationReceiptDigestB64u: DigestB64u;
 };
 
-export type WalletExecutionLaneProjectionRefusalReason =
+type WalletExecutionLaneProjectionRefusalReason =
   | 'auth_method_missing'
   | 'auth_method_ambiguous'
   | 'auth_method_inactive'
@@ -185,7 +185,7 @@ export async function resolveActiveOwnerWalletExecutionLane(input: {
   }
 }
 
-export async function projectActiveOwnerWalletExecutionLane(input: {
+async function projectActiveOwnerWalletExecutionLane(input: {
   readonly walletId: WalletId;
   readonly walletAuthMethodId: WalletAuthMethodId;
   readonly authMethod: WalletAuthMethodRecordV2;

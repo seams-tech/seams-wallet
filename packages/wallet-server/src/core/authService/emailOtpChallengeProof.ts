@@ -31,7 +31,7 @@ function assertNever(value: never): never {
   throw new Error(`Unexpected value: ${String(value)}`);
 }
 
-export type EmailOtpRegistrationChallengePurpose =
+type EmailOtpRegistrationChallengePurpose =
   | {
       kind: 'registration';
       action: typeof WALLET_EMAIL_OTP_ACTIONS.registration;
@@ -67,7 +67,7 @@ export type EmailOtpRegistrationChallengeProof =
       ownerProofBindingDigest: string;
     };
 
-export type VerifiedEmailOtpRegistrationChallengeProofShared = {
+type VerifiedEmailOtpRegistrationChallengeProofShared = {
   providerSubject: ProviderSubject;
   challengeSubjectId: ChallengeSubjectId;
   challengeEmail: string;
@@ -79,7 +79,7 @@ export type VerifiedEmailOtpRegistrationChallengeProofShared = {
   purpose: EmailOtpRegistrationChallengePurpose;
 };
 
-export type VerifiedEmailOtpRegistrationChallengeProof =
+type VerifiedEmailOtpRegistrationChallengeProof =
   | (VerifiedEmailOtpRegistrationChallengeProofShared & {
       kind: 'registration_attempt';
       registrationAttemptId: EmailOtpRegistrationAttemptId;
@@ -89,7 +89,7 @@ export type VerifiedEmailOtpRegistrationChallengeProof =
       registrationAttemptId?: never;
     });
 
-export type EmailOtpChallengeVerificationIntent =
+type EmailOtpChallengeVerificationIntent =
   | {
       kind: 'registration';
       binding: EmailOtpRegistrationChallengeProof;
@@ -105,7 +105,7 @@ export type EmailOtpChallengeVerificationIntent =
       kind: 'export_key';
     };
 
-export type EmailOtpStoredChallengePurpose =
+type EmailOtpStoredChallengePurpose =
   | {
       kind: 'registration';
       action: typeof WALLET_EMAIL_OTP_ACTIONS.registration;
@@ -147,7 +147,7 @@ export type VerifiedEmailOtpChallengeCodeSuccessBase = {
   otpChannel: typeof EMAIL_OTP_CHANNEL;
 };
 
-export type VerifiedEmailOtpChallengeCodeSuccess =
+type VerifiedEmailOtpChallengeCodeSuccess =
   | (VerifiedEmailOtpChallengeCodeSuccessBase & {
       intent: 'registration';
       registrationChallengeProof: VerifiedEmailOtpRegistrationChallengeProof;
@@ -276,7 +276,7 @@ export function emailOtpStoredChallengePurposeMatches(input: {
   );
 }
 
-export function emailOtpRegistrationChallengePurposeForRecord(input: {
+function emailOtpRegistrationChallengePurposeForRecord(input: {
   storedPurpose: EmailOtpStoredChallengePurpose | null;
   allowWalletReroll: boolean;
 }): EmailOtpRegistrationChallengePurpose | null {
@@ -378,7 +378,7 @@ export type EmailOtpRegistrationChallengeProofInput =
       challengeId: EmailOtpChallengeId;
     };
 
-export type EmailOtpRegistrationChallengeProofInputResult =
+type EmailOtpRegistrationChallengeProofInputResult =
   | { ok: true; input: EmailOtpRegistrationChallengeProofInput }
   | { ok: false; code: string; message: string };
 

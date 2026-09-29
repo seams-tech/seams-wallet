@@ -19,26 +19,26 @@ export type D1RegistrationCeremonyRecordScope = {
   readonly envId: string;
 };
 
-export type D1RegistrationCeremonyRecordStoreOptions = {
+type D1RegistrationCeremonyRecordStoreOptions = {
   readonly database: D1DatabaseLike;
   readonly scope: D1RegistrationCeremonyRecordScope;
   readonly keyPrefix: string;
 };
 
-export type D1RegistrationCeremonyStoredRecord = {
+type D1RegistrationCeremonyStoredRecord = {
   readonly value: Record<string, unknown>;
   readonly version: number;
   readonly expiresAtMs: number;
 };
 
-export type D1RegistrationCeremonyRecordMutation = {
+type D1RegistrationCeremonyRecordMutation = {
   readonly scope: string;
   readonly id: string;
   readonly value: Record<string, unknown>;
   readonly expiresAtMs: number;
 };
 
-export type D1RegistrationCeremonyAtomicBranchClaim = {
+type D1RegistrationCeremonyAtomicBranchClaim = {
   readonly value: Record<string, unknown>;
   readonly version: number;
   readonly expiresAtMs: number;
@@ -50,7 +50,7 @@ type StoredRow = {
   readonly expires_at_ms?: unknown;
 };
 
-export class D1RegistrationCeremonyRecordConflictError extends Error {
+class D1RegistrationCeremonyRecordConflictError extends Error {
   constructor(message: string) {
     super(message);
     this.name = 'D1RegistrationCeremonyRecordConflictError';

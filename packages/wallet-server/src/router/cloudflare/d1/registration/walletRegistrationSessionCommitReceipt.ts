@@ -68,7 +68,7 @@ export function replayedRegistrationCommit<T>(response: T): RegistrationCommitEx
   return { kind: 'replayed', response };
 }
 
-export function projectRegistrationEstablishedSessionV2(
+function projectRegistrationEstablishedSessionV2(
   session: RegistrationEstablishedSessionV2,
 ): RegistrationEstablishedSessionProjectionV2 {
   return {
@@ -257,7 +257,7 @@ type WalletRegistrationIdentityCommitReceiptV2 = Exclude<
   { readonly committed: { readonly kind: 'error' } }
 >;
 
-export type RegistrationReplayAuthMethodFields =
+type RegistrationReplayAuthMethodFields =
   | {
       readonly kind: 'passkey';
       readonly authMethod: Extract<
@@ -314,7 +314,7 @@ export function registrationEstablishedMintId(registrationCeremonyId: string): W
   return parsed.value;
 }
 
-export type RegistrationCommitReceiptCommittedParser = (
+type RegistrationCommitReceiptCommittedParser = (
   raw: unknown,
 ) => WalletRegistrationSessionCommitReceiptV2['committed'] | null;
 

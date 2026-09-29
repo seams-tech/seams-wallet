@@ -32,7 +32,7 @@ type FreshRevokeProofVerifierV1 = (input: {
   readonly operationFingerprintDigest: DigestB64u;
 }) => ReturnType<typeof verifyD1LinkedDeviceFreshRevokeProofV1>;
 
-export type D1LinkedDeviceRevocationOutcomeV1 =
+type D1LinkedDeviceRevocationOutcomeV1 =
   | { readonly kind: 'answered'; readonly result: LinkedDeviceRevokeResultV1 }
   | DeviceLinkingAuthDeniedV1;
 

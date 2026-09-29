@@ -13,7 +13,7 @@ type EmailOtpRateLimitPolicies = {
   readonly [K in EmailOtpRateLimitScope]: EmailOtpRateLimitPolicy;
 };
 
-export type EmailOtpRateLimitConsumeInput = {
+type EmailOtpRateLimitConsumeInput = {
   readonly scope: EmailOtpRateLimitScope;
   readonly action?: string;
   readonly userId?: string;
@@ -23,7 +23,7 @@ export type EmailOtpRateLimitConsumeInput = {
   readonly clientIp?: string;
 };
 
-export type EmailOtpRateLimitConsumeResult =
+type EmailOtpRateLimitConsumeResult =
   | { readonly ok: true }
   | {
       readonly ok: false;

@@ -51,7 +51,7 @@ export type VerifyEmailOtpChallengeCodeRequest = {
   expectedOperation?: EmailOtpChallengeOperation;
 };
 
-export type EmailOtpVerificationRateLimitConsumer = (input: {
+type EmailOtpVerificationRateLimitConsumer = (input: {
   scope: 'verify';
   action: EmailOtpChallengeAction;
   userId: string;
@@ -60,7 +60,7 @@ export type EmailOtpVerificationRateLimitConsumer = (input: {
   clientIp?: string;
 }) => Promise<RateLimitResult>;
 
-export type VerifyEmailOtpChallengeCodeInput = {
+type VerifyEmailOtpChallengeCodeInput = {
   request: VerifyEmailOtpChallengeCodeRequest;
   challengeStore: EmailOtpChallengeStore;
   walletEnrollmentStore: EmailOtpWalletEnrollmentStore;

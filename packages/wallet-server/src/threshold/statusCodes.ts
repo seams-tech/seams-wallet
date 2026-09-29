@@ -1,9 +1,9 @@
-export type ThresholdRouteResult = { ok: boolean; code?: string };
+type ThresholdRouteResult = { ok: boolean; code?: string };
 
-export type ThresholdEd25519RouteResult = ThresholdRouteResult;
-export type ThresholdEcdsaRouteResult = ThresholdRouteResult;
+type ThresholdEd25519RouteResult = ThresholdRouteResult;
+type ThresholdEcdsaRouteResult = ThresholdRouteResult;
 
-export function thresholdStatusCode(result: ThresholdRouteResult): number {
+function thresholdStatusCode(result: ThresholdRouteResult): number {
   if (result.ok) return 200;
   switch (result.code) {
     case 'not_found':

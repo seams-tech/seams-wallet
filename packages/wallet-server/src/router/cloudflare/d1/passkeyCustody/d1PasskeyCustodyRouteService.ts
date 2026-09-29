@@ -168,7 +168,7 @@ export type PasskeyCustodyEnvelopeRetrievalWireRequest = {
  * work already done — reporting that as a conflict would turn the normal case
  * into an error the client has to special-case anyway.
  */
-export type WalletCustodyEnvelopeOwnershipUpgradeResult =
+type WalletCustodyEnvelopeOwnershipUpgradeResult =
   | { readonly kind: 'upgraded'; readonly envelopeRevision: number }
   | { readonly kind: 'already_owned' }
   | { readonly kind: 'not_found' }
@@ -416,7 +416,7 @@ export type WalletRecoveryGoogleEmailOtpRouteFinalizationRequest =
 /** How long a reservation may sit before another attempt may take the code. */
 const RECOVERY_RESERVATION_TTL_MS = 5 * 60 * 1000;
 
-export type WalletRecoveryContinuityAnchor = {
+type WalletRecoveryContinuityAnchor = {
   readonly kind: 'wallet_recovery_continuity_anchor_v1';
   readonly authority: ActiveWalletAuthorityV1;
   readonly method: ActiveWalletAuthMethodRecordV2;
@@ -430,14 +430,14 @@ type ActivePasskeyCustodyEnvelopeRecord = Omit<PasskeyCustodyEnvelopeRecord, 'li
   >;
 };
 
-export type WalletRecoveryAuthoritySelection = ActiveWalletAuthorityV1;
+type WalletRecoveryAuthoritySelection = ActiveWalletAuthorityV1;
 
 /**
  * Finds the one existing custody path that can authenticate a recovery code.
  * The target's RP is deliberately absent: it describes the new credential,
  * while continuity belongs to an already enrolled method and its envelope.
  */
-export function selectWalletRecoveryContinuityAnchor(input: {
+function selectWalletRecoveryContinuityAnchor(input: {
   readonly walletId: WalletId;
   readonly targetFamily: WalletAuthMethodRecordV2['kind'];
   readonly methods: readonly WalletAuthMethodRecordV2[];
@@ -569,7 +569,7 @@ function walletRecoveryAuthorityDigest(
   return parsed.value;
 }
 
-export type WalletRecoveryRoutePreparationResult =
+type WalletRecoveryRoutePreparationResult =
   | (Extract<WalletRecoveryPreparationResult, { readonly kind: 'prepared' }> & {
       readonly target: Extract<WalletRecoveryTargetV1, { readonly kind: 'passkey' }>;
       readonly recoveryOperationId: WalletRecoveryOperationId;
@@ -1285,7 +1285,7 @@ async function prepareRecoveryForRoute(
   }
 }
 
-export async function createWalletRecoveryRegistrationOptions(input: {
+async function createWalletRecoveryRegistrationOptions(input: {
   readonly webAuthnStore: Pick<CloudflareD1WebAuthnStore, 'writeChallenge'>;
   readonly walletId: WalletId;
   readonly reservationId: RecoveryCodeReservationId;

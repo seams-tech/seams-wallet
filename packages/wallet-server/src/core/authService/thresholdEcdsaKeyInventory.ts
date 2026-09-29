@@ -18,13 +18,13 @@ export type ThresholdEcdsaKeyInventoryDiagnostics = {
   rejected: Record<string, number>;
 };
 
-export type ThresholdEcdsaKeyInventorySelector = {
+type ThresholdEcdsaKeyInventorySelector = {
   kind: 'key_handle';
   keyHandle: string;
   ecdsaThresholdKeyId?: never;
 };
 
-export type ThresholdEcdsaKeyInventoryTarget = {
+type ThresholdEcdsaKeyInventoryTarget = {
   keySelector: ThresholdEcdsaKeyInventorySelector;
   selectorKey: string;
   chainTarget: ThresholdEcdsaChainTarget;
@@ -53,7 +53,7 @@ export type ThresholdEcdsaKeyInventoryRecord = {
   };
 };
 
-export function incrementCount(bucket: Record<string, number>, reason: string): void {
+function incrementCount(bucket: Record<string, number>, reason: string): void {
   bucket[reason] = (bucket[reason] || 0) + 1;
 }
 
@@ -73,14 +73,14 @@ function thresholdEcdsaKeyInventorySelectorKey(
   return `keyHandle:${selector.keyHandle}`;
 }
 
-export function thresholdEcdsaKeyInventorySelectorMatchesIdentity(
+function thresholdEcdsaKeyInventorySelectorMatchesIdentity(
   selector: ThresholdEcdsaKeyInventorySelector,
   identity: { keyHandle: string; ecdsaThresholdKeyId: string },
 ): boolean {
   return identity.keyHandle === selector.keyHandle;
 }
 
-export function parseThresholdEcdsaKeyInventoryTarget(
+function parseThresholdEcdsaKeyInventoryTarget(
   raw: unknown,
 ): { ok: true; value: ThresholdEcdsaKeyInventoryTarget } | { ok: false; reason: string } {
   if (!isObject(raw)) return { ok: false, reason: 'non_object' };
@@ -98,7 +98,7 @@ export function parseThresholdEcdsaKeyInventoryTarget(
   };
 }
 
-export function normalizeEvmAddress(value: unknown): string {
+function normalizeEvmAddress(value: unknown): string {
   const normalized = toOptionalTrimmedString(value)?.toLowerCase() || '';
   return /^0x[0-9a-f]{40}$/.test(normalized) ? normalized : '';
 }

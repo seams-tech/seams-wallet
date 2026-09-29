@@ -36,7 +36,7 @@ const SIDE_EFFECT_COMPLETION_V2_FIELDS = [
   'receipt',
 ] as const;
 
-export type RouterAbEd25519YaoRetryableSideEffectFailureV1 = {
+type RouterAbEd25519YaoRetryableSideEffectFailureV1 = {
   readonly ok: false;
   readonly code: string;
   readonly message: string;
@@ -107,7 +107,7 @@ export interface RouterAbEd25519YaoRegistrationSideEffectStoreV1<T, P> {
  * claim remains shared with the older journal shape because it contains no
  * response or bearer material.
  */
-export type RouterAbEd25519YaoRegistrationSideEffectCompletionV2<C, P> = {
+type RouterAbEd25519YaoRegistrationSideEffectCompletionV2<C, P> = {
   readonly kind: 'router_ab_ed25519_yao_registration_side_effect_completion_v2';
   readonly operation: RouterAbEd25519YaoRegistrationSideEffectOperationV1;
   readonly requestFingerprint: string;
@@ -288,7 +288,7 @@ export function parseRouterAbEd25519YaoRegistrationSideEffectRecordV1<T, P>(
  * broadcast it without observing the outcome. Execution must reconcile before
  * it repeats any network effect.
  */
-export type RouterAbEd25519YaoRegistrationSideEffectAttemptV1 = 'fresh' | 'resumed';
+type RouterAbEd25519YaoRegistrationSideEffectAttemptV1 = 'fresh' | 'resumed';
 
 export type RouterAbEd25519YaoRegistrationSideEffectRunInputV1<T, P> = {
   readonly kind: 'prepared_resumable';
@@ -497,7 +497,7 @@ export async function runRouterAbEd25519YaoRegistrationSideEffectV1<T, P>(
   };
 }
 
-export type RouterAbEd25519YaoRegistrationSideEffectRunInputV2<T, C, P> = {
+type RouterAbEd25519YaoRegistrationSideEffectRunInputV2<T, C, P> = {
   readonly kind: 'prepared_resumable';
   readonly operation: RouterAbEd25519YaoRegistrationSideEffectOperationV1;
   readonly key: string;
@@ -514,7 +514,7 @@ export type RouterAbEd25519YaoRegistrationSideEffectRunInputV2<T, C, P> = {
   readonly replay: (receipt: C) => Promise<T>;
 };
 
-export type RouterAbEd25519YaoRegistrationSideEffectRunResultV2<T, P> =
+type RouterAbEd25519YaoRegistrationSideEffectRunResultV2<T, P> =
   RouterAbEd25519YaoRegistrationSideEffectRunResultV1<T, P>;
 
 type RegistrationV2AdapterResponse<T, C> =

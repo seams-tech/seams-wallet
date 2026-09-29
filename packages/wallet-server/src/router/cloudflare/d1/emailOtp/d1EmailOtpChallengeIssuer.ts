@@ -37,7 +37,7 @@ type EmailOtpChallengeIssueBaseInput = {
   readonly requestOrigin?: unknown;
 };
 
-export type EmailOtpChallengeIssueInput =
+type EmailOtpChallengeIssueInput =
   | (EmailOtpChallengeIssueBaseInput & {
       readonly action: typeof WALLET_EMAIL_OTP_ACTIONS.login;
       readonly operation: EmailOtpLoginChallengeOperation;

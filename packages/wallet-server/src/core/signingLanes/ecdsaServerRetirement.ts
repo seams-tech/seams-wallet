@@ -30,7 +30,7 @@ export type EcdsaServerRetirementBindingV1 = {
   readonly lifecycleId: EcdsaLifecycleId;
 };
 
-export type EcdsaServerRetirementExpectationV1 = {
+type EcdsaServerRetirementExpectationV1 = {
   readonly manifest: EcdsaManifestIdentity;
   readonly materialActivation: MpcMaterialActivationRef;
   readonly walletKeyId: WalletKeyId;
@@ -46,7 +46,7 @@ export type EcdsaServerRetirementExpectationV1 = {
   readonly retirementEffectBindingDigestB64u: DigestB64u;
 };
 
-export type EcdsaServerRetirementRequestV1 = {
+type EcdsaServerRetirementRequestV1 = {
   readonly identity: EcdsaSigningWorkerLaneMaterialIdentityV1;
   readonly manifest: EcdsaManifestIdentity;
   readonly materialActivation: MpcMaterialActivationRef;
@@ -59,7 +59,7 @@ export type EcdsaServerRetirementRequestV1 = {
   readonly lifecycleId: EcdsaLifecycleId;
 };
 
-export type EcdsaServerRetirementEffectV1 = {
+type EcdsaServerRetirementEffectV1 = {
   readonly outcome: 'applied' | 'replayed';
   readonly receipt: EcdsaServerRetirementReceiptV1;
   /** The effect fence authorized by the Gateway command. */

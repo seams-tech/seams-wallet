@@ -170,7 +170,7 @@ type WalletRegistrationEcdsaReadyCommitBaseV2 = {
   readonly session: RegistrationEstablishedSessionProjectionV2;
 };
 
-export type WalletRegistrationEcdsaReadyCommitV2 =
+type WalletRegistrationEcdsaReadyCommitV2 =
   | (WalletRegistrationEcdsaReadyCommitBaseV2 & {
       readonly nearProvisioning?: never;
       readonly installation?: never;
@@ -298,7 +298,7 @@ export type WalletRegistrationRespondRequestV2 = WalletRegistrationRespondAuthor
  * asynchronously and must not await it: the wallet is usable on ECDSA alone,
  * and blocking registration on Yao is the coupling this refactor removes.
  */
-export type WalletRegistrationRespondSignerPlanV2 =
+type WalletRegistrationRespondSignerPlanV2 =
   | {
       kind: 'evm_family_ecdsa';
       ecdsa: RespondEcdsaProofBundles;
@@ -327,7 +327,7 @@ export type WalletRegistrationRespondSignerPlanV2 =
     };
 
 /** Exact A/B role bundles, unchanged from the derivation respond leg. */
-export type RespondEcdsaProofBundles = {
+type RespondEcdsaProofBundles = {
   kind: 'router_ab_ecdsa_registration_forwarded_v1';
   strictResult: unknown; // RouterAbEcdsaStrictForwardedRegistrationResponseV1; bound at the parser
 };

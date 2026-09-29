@@ -129,7 +129,7 @@ function resolveSentEmailOtpChallengeV1(
   return challenge;
 }
 
-export type D1LinkedDeviceEmailOtpTargetFactorOptionsV1 = {
+type D1LinkedDeviceEmailOtpTargetFactorOptionsV1 = {
   readonly issuer: Pick<CloudflareD1EmailOtpChallengeIssuer, 'create'>;
   readonly verifier: Pick<
     CloudflareD1EmailOtpChallengeVerifier,
@@ -150,7 +150,7 @@ export type D1LinkedDeviceEmailOtpTargetFactorOptionsV1 = {
   readonly resendCooldownMs?: number;
 };
 
-export type LinkedDeviceEmailOtpTargetEnrollmentResolutionV1 =
+type LinkedDeviceEmailOtpTargetEnrollmentResolutionV1 =
   | {
       readonly kind: 'existing_enrollment';
       readonly targetEmail: VerifiedEmailAddress;

@@ -100,7 +100,7 @@ import { parsePersistedWalletSessionAuthorizationV2 } from './persistedWalletSes
  * rather than the wallet signer rows, so the exact-status material check needs
  * this reader to recognize a linked session's capability subjects.
  */
-export type D1AuthorizationLinkedAuthorityMaterialReader = {
+type D1AuthorizationLinkedAuthorityMaterialReader = {
   readInstalledEd25519AuthorityByMaterialActivationV1(input: {
     readonly walletId: WalletId;
     readonly materialActivation: MpcMaterialActivationRef;
@@ -111,7 +111,7 @@ export type D1AuthorizationLinkedAuthorityMaterialReader = {
   }): Promise<D1AuthorizationLinkedAuthorityMaterialProjection | null>;
 };
 
-export type D1AuthorizationLinkedAuthorityMaterialProjection = {
+type D1AuthorizationLinkedAuthorityMaterialProjection = {
   readonly walletId: string;
   readonly materialActivation: MpcMaterialActivationRef;
 };

@@ -1,5 +1,5 @@
-export type RouteEventMeteringAction = 'wallet_created';
-export type RouteGasLedger = 'evm' | 'near_delegate';
+type RouteEventMeteringAction = 'wallet_created';
+type RouteGasLedger = 'evm' | 'near_delegate';
 
 export type RouteMeteringPolicy =
   | { kind: 'none' }

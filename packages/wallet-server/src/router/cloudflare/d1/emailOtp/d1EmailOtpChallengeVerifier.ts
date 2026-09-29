@@ -25,7 +25,7 @@ import {
   type EmailOtpRegistrationVerificationReceiptV1,
 } from './d1EmailOtpRecords';
 
-export type EmailOtpExistingChallengeVerifyBaseInput = {
+type EmailOtpExistingChallengeVerifyBaseInput = {
   readonly userId?: unknown;
   readonly walletId?: unknown;
   readonly orgId?: unknown;
@@ -77,7 +77,7 @@ export type EmailOtpExistingChallengeBatchVerifyResult =
     })
   | Extract<EmailOtpExistingChallengeVerifyResult, { ok: false }>;
 
-export type EmailOtpRegistrationChallengeVerifyInput = {
+type EmailOtpRegistrationChallengeVerifyInput = {
   readonly providerSubject?: unknown;
   readonly walletId?: unknown;
   readonly orgId?: unknown;
@@ -89,13 +89,13 @@ export type EmailOtpRegistrationChallengeVerifyInput = {
   readonly clientIp?: unknown;
 };
 
-export type EmailOtpRegistrationChallengeResumableVerifyInput =
+type EmailOtpRegistrationChallengeResumableVerifyInput =
   EmailOtpRegistrationChallengeVerifyInput & {
     readonly operationId: unknown;
     readonly receiptExpiresAtMs: unknown;
   };
 
-export type EmailOtpRegistrationChallengeVerifyResult =
+type EmailOtpRegistrationChallengeVerifyResult =
   | {
       ok: true;
       readonly challengeId: string;
@@ -146,11 +146,10 @@ function emailOtpEnrollmentTenantMismatch(): ActiveEmailOtpEnrollmentResult {
  * to; an existing enrollment is still checked by the recovery coordinator
  * before this verifier is called.
  */
-export type EmailOtpRecoveryBootstrapChallengeVerifyInput =
-  EmailOtpRegistrationChallengeVerifyInput & {
-    readonly action: typeof WALLET_EMAIL_OTP_ACTIONS.recoveryBootstrap;
-    readonly operation: typeof WALLET_EMAIL_OTP_UNLOCK_OPERATION;
-  };
+type EmailOtpRecoveryBootstrapChallengeVerifyInput = EmailOtpRegistrationChallengeVerifyInput & {
+  readonly action: typeof WALLET_EMAIL_OTP_ACTIONS.recoveryBootstrap;
+  readonly operation: typeof WALLET_EMAIL_OTP_UNLOCK_OPERATION;
+};
 
 async function emailOtpRegistrationVerificationFingerprint(input: {
   readonly operationId: string;

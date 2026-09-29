@@ -14,12 +14,12 @@ import { resolveRouterApiModuleRouteExtensions } from './modules';
 const ROUTER_API_ROUTE_SURFACE_SYMBOL = Symbol.for('seams.routerApiRouteSurface');
 const SIGNED_DELEGATE_ROUTE_ID = 'signed_delegate';
 
-export interface RouterApiRouteSurface {
+interface RouterApiRouteSurface {
   routeDefinitions: readonly RouteDefinition[];
   signedDelegatePath: string;
 }
 
-export function resolveRouterApiRouteDefinitionOptions(
+function resolveRouterApiRouteDefinitionOptions(
   opts: RouterApiOptions,
 ): RouterApiRouteDefinitionOptions {
   return {

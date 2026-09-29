@@ -13,13 +13,13 @@ import type {
   RouterAbEcdsaDerivationPoolFillStepRequest,
 } from '../../../core/types';
 
-export type ThresholdEcdsaRouteErrorBody = {
+type ThresholdEcdsaRouteErrorBody = {
   ok: false;
   code: 'invalid_body';
   message: string;
 };
 
-export type ThresholdEcdsaRouteParseResult<T> =
+type ThresholdEcdsaRouteParseResult<T> =
   | { ok: true; request: T }
   | { ok: false; body: ThresholdEcdsaRouteErrorBody };
 
@@ -51,7 +51,7 @@ const POOL_FILL_ENVELOPE_KEYS = [
   'materialExpiresAtMs',
 ] as const;
 
-export type RouterAbEcdsaPoolFillAuthorization =
+type RouterAbEcdsaPoolFillAuthorization =
   | {
       readonly authorization: Extract<
         RouterAbNormalSigningAuthorizationWire,

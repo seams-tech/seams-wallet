@@ -26,7 +26,7 @@ import type {
 import type { MpcMaterialActivationRef, WalletId } from '@shared/utils/domainIds';
 
 /** A version is monotonic inside one immutable protocol or enrollment row. */
-export type LaneVersionedRecord<T> = {
+type LaneVersionedRecord<T> = {
   readonly version: number;
   readonly commandDigestB64u: string;
   readonly value: T;

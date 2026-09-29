@@ -50,7 +50,7 @@ export type RouterAbEd25519YaoSessionRouteCommandV1 = {
   readonly sessionKind: 'opaque';
 };
 
-export type RouterAbEd25519YaoOperationStepUpMaterialRecoveryRequest =
+type RouterAbEd25519YaoOperationStepUpMaterialRecoveryRequest =
   | {
       readonly kind: 'not_requested';
     }
@@ -128,7 +128,7 @@ export type RouterAbEd25519YaoBudgetRefreshRequestV1 =
  * credential is unreachable. It is credential-free by construction: a replay
  * reads a committed digest, and no digest reproduces plaintext.
  */
-export type RouterAbEd25519YaoCommittedWalletSessionV1 = {
+type RouterAbEd25519YaoCommittedWalletSessionV1 = {
   readonly kind: 'already_committed_wallet_session_v1';
   readonly walletId: WalletId;
   readonly authorityId: WalletAuthorityId;
@@ -147,7 +147,7 @@ export type RouterAbEd25519YaoAlreadyCommittedResponseV1 = {
   readonly committed: RouterAbEd25519YaoCommittedWalletSessionV1;
 };
 
-export type RouterAbEd25519YaoWalletSessionRejectionV1 = {
+type RouterAbEd25519YaoWalletSessionRejectionV1 = {
   readonly ok: false;
   readonly code: string;
   readonly message: string;
@@ -194,7 +194,7 @@ type RouterAbEd25519YaoVerifiedWalletUnlockRequestBaseV1 = {
   readonly proof: Extract<VerifiedOwnerProof, { readonly purpose: 'wallet_session' }>;
 };
 
-export type RouterAbEd25519YaoWalletSessionIdentityV1 =
+type RouterAbEd25519YaoWalletSessionIdentityV1 =
   | { readonly kind: 'new_wallet_session' }
   | {
       readonly kind: 'reuse_wallet_session_v2';

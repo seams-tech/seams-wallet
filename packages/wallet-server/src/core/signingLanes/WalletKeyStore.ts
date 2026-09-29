@@ -1,7 +1,7 @@
 import type { WalletKeyId, WalletKeyRecord } from '@shared/signing-lanes';
 import type { WalletId } from '@shared/utils/domainIds';
 
-export type WalletKeyLookup = {
+type WalletKeyLookup = {
   readonly walletId: WalletId;
   readonly walletKeyId: WalletKeyId;
 };

@@ -51,7 +51,7 @@ export type VerifyEmailOtpEnrollmentInput = {
   ) => Promise<VerifiedEmailOtpChallengeCodeResult>;
 };
 
-export type VerifyEmailOtpEnrollmentRequest = {
+type VerifyEmailOtpEnrollmentRequest = {
   providerSubject: unknown;
   walletId: unknown;
   orgId: unknown;
@@ -145,7 +145,7 @@ export async function validateEmailOtpEnrollmentMaterial(request: {
   };
 }
 
-export async function resolveEmailOtpRegistrationChallengeProof(input: {
+async function resolveEmailOtpRegistrationChallengeProof(input: {
   proofInput: EmailOtpRegistrationChallengeProofInput;
   registrationAttemptStore: EmailOtpRegistrationAttemptStore;
   nowMs: number;

@@ -124,7 +124,7 @@ export type StoredAddSignerIntent = {
   consumedAtMs?: never;
 };
 
-export type ConsumedAddSignerIntent = Omit<StoredAddSignerIntent, 'kind' | 'consumedAtMs'> & {
+type ConsumedAddSignerIntent = Omit<StoredAddSignerIntent, 'kind' | 'consumedAtMs'> & {
   kind: 'add_signer_intent_consumed';
   consumedAtMs: number;
 };
@@ -142,10 +142,7 @@ export type StoredAddAuthMethodIntent = {
   consumedAtMs?: never;
 };
 
-export type ConsumedAddAuthMethodIntent = Omit<
-  StoredAddAuthMethodIntent,
-  'kind' | 'consumedAtMs'
-> & {
+type ConsumedAddAuthMethodIntent = Omit<StoredAddAuthMethodIntent, 'kind' | 'consumedAtMs'> & {
   kind: 'add_auth_method_intent_consumed';
   consumedAtMs: number;
 };
@@ -154,7 +151,7 @@ export type StoredRegistrationAuthority = RegistrationAuthority;
 
 type WalletAddSignerEcdsaStartPayload = Omit<WalletAddSignerEcdsaPreparePayload, 'custodyEnvelope'>;
 
-export type StoredWalletRegistrationRuntimePolicyContext =
+type StoredWalletRegistrationRuntimePolicyContext =
   | {
       kind: 'runtime_policy_scope';
       scope: RuntimePolicyScope;
@@ -164,7 +161,7 @@ export type StoredWalletRegistrationRuntimePolicyContext =
       scope?: never;
     };
 
-export type StoredWalletRegistrationEcdsaPreparedContext =
+type StoredWalletRegistrationEcdsaPreparedContext =
   | {
       kind: 'evm_family_ecdsa_requested';
       chainTargets: readonly ThresholdEcdsaChainTarget[];
@@ -350,7 +347,7 @@ export type StoredWalletRegistrationSignerSetState = {
   branches: readonly StoredWalletRegistrationSignerBranch[];
 };
 
-export type StoredWalletRegistrationEvmFamilyEcdsaBranch =
+type StoredWalletRegistrationEvmFamilyEcdsaBranch =
   | StoredWalletRegistrationEvmFamilyEcdsaPreparedBranch
   | StoredWalletRegistrationEvmFamilyEcdsaResponseClaimedBranch
   | StoredWalletRegistrationEvmFamilyEcdsaPendingActivationBranch
@@ -439,7 +436,7 @@ export function replaceStoredWalletRegistrationSignerBranch(input: {
   };
 }
 
-export type StoredWalletRegistrationFailed = {
+type StoredWalletRegistrationFailed = {
   kind: 'registration_failed';
   failedAtMs: number;
   failure: {
@@ -455,7 +452,7 @@ export type StoredWalletRegistrationFailed = {
   completed?: never;
 };
 
-export type StoredWalletRegistrationSignerState =
+type StoredWalletRegistrationSignerState =
   | StoredWalletRegistrationSignerSetState
   | StoredWalletRegistrationFailed;
 
@@ -529,7 +526,7 @@ export type TerminalRegistrationCeremonyCancellationResult =
       ceremonyDeleted: false;
     };
 
-export function parseTerminalRegistrationCeremonyCancellationResult(
+function parseTerminalRegistrationCeremonyCancellationResult(
   value: unknown,
 ): TerminalRegistrationCeremonyCancellationResult | null {
   const parsed = parseJsonValue(value);
@@ -554,7 +551,7 @@ type StoredEcdsaAddSignerBase = Omit<WalletAddSignerEcdsaStartPayload, 'kind'> &
   derivationKind: WalletAddSignerEcdsaStartPayload['kind'];
 };
 
-export type StoredEcdsaAddSignerPrepared = StoredEcdsaAddSignerBase & {
+type StoredEcdsaAddSignerPrepared = StoredEcdsaAddSignerBase & {
   kind: 'ecdsa_add_signer_prepared';
   pendingActivation?: never;
   publicResponse?: never;
@@ -563,7 +560,7 @@ export type StoredEcdsaAddSignerPrepared = StoredEcdsaAddSignerBase & {
   bootstrap?: never;
 };
 
-export type StoredEcdsaAddSignerPendingActivation = StoredEcdsaAddSignerBase & {
+type StoredEcdsaAddSignerPendingActivation = StoredEcdsaAddSignerBase & {
   kind: 'ecdsa_add_signer_pending_activation';
   registrationRequest: RouterAbEcdsaRegistrationRequestV1;
   pendingActivation: RouterAbEcdsaPendingActivationV1;
@@ -605,7 +602,7 @@ export type StoredEcdsaAddSignerActivated = StoredEcdsaAddSignerBase & {
   bootstrap: EcdsaDerivationServerBootstrapResponse;
 };
 
-export type StoredEd25519YaoAddSignerAuthorized = {
+type StoredEd25519YaoAddSignerAuthorized = {
   kind: 'near_ed25519_yao_add_signer_authorized';
   admissionRequest: RouterAbEd25519YaoRegistrationAdmissionRequestV1;
 };
@@ -619,11 +616,11 @@ export type StoredEd25519YaoAddSignerActivation = {
   };
 };
 
-export type StoredEd25519YaoAddSignerActivated = StoredEd25519YaoAddSignerActivation & {
+type StoredEd25519YaoAddSignerActivated = StoredEd25519YaoAddSignerActivation & {
   kind: 'near_ed25519_yao_add_signer_activated';
 };
 
-export type StoredEd25519YaoAddSignerFinalizing = StoredEd25519YaoAddSignerActivation & {
+type StoredEd25519YaoAddSignerFinalizing = StoredEd25519YaoAddSignerActivation & {
   kind: 'near_ed25519_yao_add_signer_finalizing';
   response: Extract<WalletAddSignerFinalizeSuccess, { kind: 'near_ed25519' }>;
   signer: WalletEd25519SignerRecord;
@@ -821,7 +818,7 @@ export interface RegistrationCeremonyStore {
   ): Promise<StoredWalletAddAuthMethodCeremony | null>;
 }
 
-export class MemoryRegistrationCeremonyStore implements RegistrationCeremonyStore {
+class MemoryRegistrationCeremonyStore implements RegistrationCeremonyStore {
   private readonly addAuthMethodIntents = new Map<string, StoredAddAuthMethodIntent>();
   private readonly addSignerIntents = new Map<string, StoredAddSignerIntent>();
   private readonly ceremonies = new Map<string, StoredWalletRegistrationCeremony>();

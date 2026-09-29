@@ -38,7 +38,7 @@ import {
   parseClientDataJsonBase64url,
 } from './webauthnOidcHelpers';
 
-export type WebAuthnCredentialVerificationResult =
+type WebAuthnCredentialVerificationResult =
   | {
       ok: true;
       credential: {
@@ -49,7 +49,7 @@ export type WebAuthnCredentialVerificationResult =
     }
   | { ok: false; code: string; message: string };
 
-export type WebAuthnAuthenticationLiteResult = {
+type WebAuthnAuthenticationLiteResult = {
   success: boolean;
   verified: boolean;
   code?: string;
@@ -61,7 +61,7 @@ export type WebAuthnAuthenticationLiteResult = {
  * contract declares it, and a binding with no authenticator row still gets the
  * `Unknown device` fallback rather than an absent field.
  */
-export type WebAuthnAuthenticatorListEntry = {
+type WebAuthnAuthenticatorListEntry = {
   credentialIdB64u: string;
   signerSlot?: number;
   publicKey?: string;
@@ -77,7 +77,7 @@ export type WebAuthnAuthenticatorListResult = {
   authenticators?: WebAuthnAuthenticatorListEntry[];
 };
 
-export type WebAuthnLoginOptionsResult = {
+type WebAuthnLoginOptionsResult = {
   ok: boolean;
   challengeId?: string;
   challengeB64u?: string;
@@ -832,7 +832,7 @@ export async function createWebAuthnSyncAccountOptionsWithStores(input: {
  * The one signer read sync needs. Shaped as the wallet store's own reader so
  * the existing store satisfies it structurally, with no adapter.
  */
-export type SyncAccountEd25519SignerReader = {
+type SyncAccountEd25519SignerReader = {
   getEd25519SignerBySlot(input: {
     walletId: WalletId;
     signerSlot: number;

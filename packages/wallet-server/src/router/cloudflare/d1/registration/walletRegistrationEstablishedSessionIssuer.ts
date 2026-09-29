@@ -69,7 +69,7 @@ import {
 import { routerAbMpcMaterialActivationRefFromWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import { registrationEstablishedMintId } from './walletRegistrationSessionCommitReceipt';
 
-export type RegistrationEstablishedSessionIssuerAuthorizationService = Pick<
+type RegistrationEstablishedSessionIssuerAuthorizationService = Pick<
   AuthorizationService,
   | 'issueDirectWalletSessionAuthorizationV2'
   | 'issueDirectRegistrationPromotedWalletSessionAuthorizationV2'
@@ -78,7 +78,7 @@ export type RegistrationEstablishedSessionIssuerAuthorizationService = Pick<
   | 'refreshWalletSessionAuthorizationV2AuthorityProjection'
 >;
 
-export type RegistrationEstablishedSessionIssuerWalletAuthMethodReader = {
+type RegistrationEstablishedSessionIssuerWalletAuthMethodReader = {
   readonly readActiveRegistrationAuthority: (authority: StoredRegistrationAuthority) => Promise<{
     readonly authority: ActiveWalletAuthorityV1;
     readonly walletAuthMethodId: WalletAuthMethodId;

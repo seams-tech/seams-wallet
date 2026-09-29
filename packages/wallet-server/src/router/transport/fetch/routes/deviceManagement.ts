@@ -32,7 +32,7 @@ import type { FetchRouterApiContext } from '../createFetchRouter';
 import { json } from '../../../framework/http';
 
 export const LINKED_DEVICE_MANAGEMENT_BASE_V1 = '/wallet/device-linking/v1/devices';
-export const LINKED_DEVICE_MANAGEMENT_MAX_PAGE_SIZE_V1 = MAX_LINKED_DEVICE_LIST_LIMIT_V1;
+const LINKED_DEVICE_MANAGEMENT_MAX_PAGE_SIZE_V1 = MAX_LINKED_DEVICE_LIST_LIMIT_V1;
 
 export type DeviceManagementRouteServiceV1 = {
   readonly management: Pick<LinkedDeviceManagementServiceV1, 'listLinkedDevicesV1'>;

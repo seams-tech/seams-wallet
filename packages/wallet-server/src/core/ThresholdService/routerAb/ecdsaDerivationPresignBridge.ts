@@ -8,15 +8,15 @@ import {
 import { postRouterAbInternalServiceJson } from './internalServiceHttp';
 export { ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1 } from './internalServiceHttp';
 
-export const CLOUDFLARE_SIGNING_WORKER_ECDSA_PRESIGN_SESSION_INIT_PATH =
+const CLOUDFLARE_SIGNING_WORKER_ECDSA_PRESIGN_SESSION_INIT_PATH =
   '/router-ab/signing-worker/ecdsa-derivation/presignature-session/init' as const;
-export const CLOUDFLARE_SIGNING_WORKER_ECDSA_PRESIGN_SESSION_STEP_PATH =
+const CLOUDFLARE_SIGNING_WORKER_ECDSA_PRESIGN_SESSION_STEP_PATH =
   '/router-ab/signing-worker/ecdsa-derivation/presignature-session/step' as const;
-export const CLOUDFLARE_SIGNING_WORKER_ECDSA_LINKED_PRESIGN_SESSION_INIT_PATH =
+const CLOUDFLARE_SIGNING_WORKER_ECDSA_LINKED_PRESIGN_SESSION_INIT_PATH =
   '/router-ab/signing-worker/ecdsa-derivation/linked-device/presignature-session/init' as const;
-export const CLOUDFLARE_SIGNING_WORKER_ECDSA_LINKED_PRESIGN_SESSION_STEP_PATH =
+const CLOUDFLARE_SIGNING_WORKER_ECDSA_LINKED_PRESIGN_SESSION_STEP_PATH =
   '/router-ab/signing-worker/ecdsa-derivation/linked-device/presignature-session/step' as const;
-export const CLOUDFLARE_SIGNING_WORKER_ECDSA_LINKED_EXPORT_SHARE_PATH =
+const CLOUDFLARE_SIGNING_WORKER_ECDSA_LINKED_EXPORT_SHARE_PATH =
   '/router-ab/signing-worker/ecdsa-derivation/linked-device/export-share' as const;
 
 export type RouterAbEcdsaDerivationPresignaturePoolFillAuth = {
@@ -52,7 +52,7 @@ function errorMessage(error: unknown): string {
   );
 }
 
-export type RouterAbEcdsaPresignSessionProgress =
+type RouterAbEcdsaPresignSessionProgress =
   | {
       kind: 'continue';
       presignSessionId: string;

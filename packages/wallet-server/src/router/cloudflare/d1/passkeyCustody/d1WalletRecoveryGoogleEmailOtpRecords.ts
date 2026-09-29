@@ -31,7 +31,7 @@ import type {
   WebAuthnRecoveryContinuityEnvelopeAnchorRecord,
 } from '../webauthn/d1WebAuthnRecords';
 
-export type WalletRecoveryGoogleEmailOtpTargetV1 = {
+type WalletRecoveryGoogleEmailOtpTargetV1 = {
   readonly kind: 'google_email_otp';
   readonly googleProvider: 'google';
 };
@@ -98,7 +98,7 @@ export type WalletRecoveryGoogleEmailOtpAttemptRecord =
       readonly targetEnrollment: WalletRecoveryGoogleEmailOtpTargetEnrollmentV1;
     });
 
-export type PreparedWalletRecoveryGoogleEmailOtpAttempt = Extract<
+type PreparedWalletRecoveryGoogleEmailOtpAttempt = Extract<
   WalletRecoveryGoogleEmailOtpAttemptRecord,
   { readonly state: 'prepared' }
 >;
@@ -113,7 +113,7 @@ export type OtpVerifiedWalletRecoveryGoogleEmailOtpAttempt = Extract<
   { readonly state: 'otp_verified' }
 >;
 
-export type FinalizableWalletRecoveryGoogleEmailOtpAttempt = Extract<
+type FinalizableWalletRecoveryGoogleEmailOtpAttempt = Extract<
   WalletRecoveryGoogleEmailOtpAttemptRecord,
   { readonly state: 'otp_verified' | 'finalized' }
 >;

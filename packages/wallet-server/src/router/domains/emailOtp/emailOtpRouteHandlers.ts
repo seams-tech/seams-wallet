@@ -3,7 +3,7 @@ import { isPlainObject, toOptionalTrimmedString } from '@shared/utils/validation
 import type { RouterApiEmailOtpRouteService } from '../../framework/authServicePort';
 import { emailOtpStatusCode } from './emailOtpSessionRouteHelpers';
 
-export type EmailOtpRouteResponse = {
+type EmailOtpRouteResponse = {
   status: number;
   body: Record<string, unknown>;
 };

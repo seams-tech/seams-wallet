@@ -22,7 +22,7 @@ export type ActiveEcdsaMaterialActivationV1 = Extract<
   { readonly ok: true }
 >;
 
-export type ForbiddenTenantRootSelectorFieldsV1 = {
+type ForbiddenTenantRootSelectorFieldsV1 = {
   readonly orgId?: never;
   readonly projectId?: never;
   readonly envId?: never;
@@ -76,10 +76,9 @@ const FORBIDDEN_TENANT_ROOT_SELECTOR_FIELDS_V1 = [
   'diagnostics',
 ] as const;
 
-export type ForbiddenTenantRootSelectorFieldV1 =
-  (typeof FORBIDDEN_TENANT_ROOT_SELECTOR_FIELDS_V1)[number];
+type ForbiddenTenantRootSelectorFieldV1 = (typeof FORBIDDEN_TENANT_ROOT_SELECTOR_FIELDS_V1)[number];
 
-export type ServerResolvedTenantRootMaterialV1 =
+type ServerResolvedTenantRootMaterialV1 =
   | (ForbiddenTenantRootSelectorFieldsV1 & {
       readonly kind: 'ed25519_b5_active_material';
       readonly activeMaterial: ActiveEd25519MaterialActivationV1;
@@ -89,14 +88,14 @@ export type ServerResolvedTenantRootMaterialV1 =
       readonly activeMaterial: ActiveEcdsaMaterialActivationV1;
     });
 
-export type TenantRootIdentityResolutionErrorCodeV1 =
+type TenantRootIdentityResolutionErrorCodeV1 =
   | 'caller_selected_tenant_root'
   | 'material_activation_mismatch'
   | 'non_canonical_tenant_root_field'
   | 'signing_root_id_mismatch'
   | 'signing_root_version_mismatch';
 
-export type TenantRootIdentityResolutionResultV1 =
+type TenantRootIdentityResolutionResultV1 =
   | {
       readonly ok: true;
       readonly identity: TenantRootIdentityV1;

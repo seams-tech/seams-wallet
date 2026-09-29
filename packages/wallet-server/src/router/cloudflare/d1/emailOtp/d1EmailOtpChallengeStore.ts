@@ -34,7 +34,7 @@ type D1EmailOtpRegistrationVerificationReceiptRow = {
   readonly expires_at_ms?: unknown;
 };
 
-export type EmailOtpRegistrationVerificationReceiptConsumeResult =
+type EmailOtpRegistrationVerificationReceiptConsumeResult =
   | { readonly kind: 'stored'; readonly receipt: EmailOtpRegistrationVerificationReceiptV1 }
   | { readonly kind: 'exact_replay'; readonly receipt: EmailOtpRegistrationVerificationReceiptV1 }
   | { readonly kind: 'conflict' }

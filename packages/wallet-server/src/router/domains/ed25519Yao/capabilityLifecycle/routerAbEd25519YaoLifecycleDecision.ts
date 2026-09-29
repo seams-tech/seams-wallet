@@ -54,7 +54,7 @@ export async function routerAbEd25519YaoLifecycleDecisionV1(input: {
 }
 
 /** What a finalization finds when it looks up its lifecycle's decision. */
-export type RouterAbEd25519YaoLifecycleDecisionLookupV1 =
+type RouterAbEd25519YaoLifecycleDecisionLookupV1 =
   /** No finalization has become visible: this one may decide. */
   | { readonly kind: 'undecided' }
   /** This finalization already became visible: its visibility writes are done. */

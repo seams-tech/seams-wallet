@@ -82,7 +82,7 @@ export type LinkedDeviceSessionListPageV1 = {
   readonly nextCursor: LinkedDeviceSessionListCursorV1 | null;
 };
 
-export type LinkedDeviceClaimTranscriptV1 = {
+type LinkedDeviceClaimTranscriptV1 = {
   readonly digestB64u: DigestB64u;
   readonly value: LinkedDeviceClaimV1;
 };
@@ -101,7 +101,7 @@ export type LinkedDeviceSourceKeyManifestDigestsV1 =
       readonly ecdsa_secp256k1: DigestB64u;
     };
 
-export type LinkedDeviceApprovalTranscriptV1 = {
+type LinkedDeviceApprovalTranscriptV1 = {
   readonly digestB64u: DigestB64u;
   readonly value: LinkedDeviceApprovalV1;
   readonly sourceSignerManifest: ExactAdministeredSignerManifestV1;
@@ -128,7 +128,7 @@ function assertNeverSourceKeyFamilyV1(value: never): never {
   throw new Error(`unsupported source key family: ${String(value)}`);
 }
 
-export type LinkedDeviceSourceContributionTranscriptV1 = LinkedDeviceApprovalTranscriptV1;
+type LinkedDeviceSourceContributionTranscriptV1 = LinkedDeviceApprovalTranscriptV1;
 
 type LinkedDeviceEmailOtpChallengeV1 =
   | { readonly state: 'available'; readonly maskedEmailHint: string }
@@ -273,14 +273,14 @@ export type LinkedDeviceSessionRecordV1 =
   | LinkedDeviceSessionActiveRecordV1
   | LinkedDeviceSessionTerminalRecordV1;
 
-export type LinkedDeviceSessionClaimIdentityV1 = {
+type LinkedDeviceSessionClaimIdentityV1 = {
   readonly walletId: WalletId;
   readonly enrollmentId: LinkedDeviceEnrollmentId;
   readonly deviceId: LinkedDeviceId;
   readonly claimExpiresAtMs: number;
 };
 
-export type LinkedDeviceOwnerAuthorizationDeniedV1 = {
+type LinkedDeviceOwnerAuthorizationDeniedV1 = {
   readonly kind: 'denied';
   readonly code: 'unauthorized' | 'expired' | 'invalid';
   readonly message: string;
@@ -437,40 +437,40 @@ export type LinkedDeviceSessionServiceResultV1 =
   | { readonly outcome: 'invalid_input'; readonly message: string }
   | { readonly outcome: 'unauthorized'; readonly code: string; readonly message: string };
 
-export type LinkedDeviceTargetCredentialMutationResultV1 =
+type LinkedDeviceTargetCredentialMutationResultV1 =
   | LinkedDeviceSessionMutationResultV1
   | { readonly outcome: 'invalid_input'; readonly message: string };
 
-export type LinkedDeviceSessionCreateInputV1 = {
+type LinkedDeviceSessionCreateInputV1 = {
   readonly payload: QrLinkedDeviceSessionPayloadV5;
   readonly nowMs: number;
 };
 
-export type LinkedDeviceSessionClaimInputV1 = {
+type LinkedDeviceSessionClaimInputV1 = {
   readonly payload: QrLinkedDeviceSessionPayloadV5;
   readonly nowMs: number;
   readonly owner: LinkedDeviceOwnerAuthorizationContextV1;
 };
 
-export type LinkedDeviceSessionApprovalInputV1 = {
+type LinkedDeviceSessionApprovalInputV1 = {
   readonly approval: LinkedDeviceApprovalV1;
   readonly nowMs: number;
   readonly owner: LinkedDeviceOwnerAuthorizationContextV1;
 };
 
-export type LinkedDeviceSessionCancelInputV1 = {
+type LinkedDeviceSessionCancelInputV1 = {
   readonly linkSessionId: LinkDeviceSessionId;
   readonly expectedRevision: number;
   readonly nowMs: number;
 };
 
-export type LinkedDeviceSessionExpireInputV1 = {
+type LinkedDeviceSessionExpireInputV1 = {
   readonly linkSessionId: LinkDeviceSessionId;
   readonly expectedRevision: number;
   readonly nowMs: number;
 };
 
-export type LinkedDeviceSessionDeleteInputV1 = {
+type LinkedDeviceSessionDeleteInputV1 = {
   readonly linkSessionId: LinkDeviceSessionId;
   readonly expectedRevision: number;
   readonly authorityId: WalletAuthorityId;
@@ -478,20 +478,20 @@ export type LinkedDeviceSessionDeleteInputV1 = {
   readonly nowMs: number;
 };
 
-export type LinkedDeviceSessionTargetCredentialInputV1 = {
+type LinkedDeviceSessionTargetCredentialInputV1 = {
   readonly linkSessionId: LinkDeviceSessionId;
   readonly expectedRevision: number;
   readonly sourceContributionPreparation: LinkedDeviceOrdinaryMaterialSourceContributionPreparationTupleV1;
   readonly nowMs: number;
 };
 
-export type LinkedDeviceSessionSourceContributionInputV1 = {
+type LinkedDeviceSessionSourceContributionInputV1 = {
   readonly approval: LinkedDeviceApprovalV1;
   readonly nowMs: number;
   readonly owner: LinkedDeviceOwnerAuthorizationContextV1;
 };
 
-export type LinkedDeviceSessionEmailOtpChallengeInputV1 = {
+type LinkedDeviceSessionEmailOtpChallengeInputV1 = {
   readonly linkSessionId: LinkDeviceSessionId;
   readonly expectedRevision: number;
   readonly challenge: {
@@ -504,7 +504,7 @@ export type LinkedDeviceSessionEmailOtpChallengeInputV1 = {
   readonly nowMs: number;
 };
 
-export type LinkedDeviceSessionCommitInputV1 = {
+type LinkedDeviceSessionCommitInputV1 = {
   readonly linkSessionId: LinkDeviceSessionId;
   readonly expectedRevision: number;
   readonly authorityId: WalletAuthorityId;
@@ -512,7 +512,7 @@ export type LinkedDeviceSessionCommitInputV1 = {
   readonly nowMs: number;
 };
 
-export type LinkedDeviceSessionActivationInputV1 = {
+type LinkedDeviceSessionActivationInputV1 = {
   readonly linkSessionId: LinkDeviceSessionId;
   readonly expectedRevision: number;
   readonly authorityId: WalletAuthorityId;
@@ -1050,12 +1050,9 @@ export class LinkedDeviceSessionServiceV1 {
   }
 }
 
-export function digestTranscriptV1(kind: 'claim', value: LinkedDeviceClaimV1): Promise<DigestB64u>;
-export function digestTranscriptV1(
-  kind: 'approval',
-  value: LinkedDeviceApprovalV1,
-): Promise<DigestB64u>;
-export async function digestTranscriptV1(
+function digestTranscriptV1(kind: 'claim', value: LinkedDeviceClaimV1): Promise<DigestB64u>;
+function digestTranscriptV1(kind: 'approval', value: LinkedDeviceApprovalV1): Promise<DigestB64u>;
+async function digestTranscriptV1(
   kind: 'claim' | 'approval',
   value: LinkedDeviceClaimV1 | LinkedDeviceApprovalV1,
 ): Promise<DigestB64u> {
@@ -1067,7 +1064,7 @@ export async function digestTranscriptV1(
   return computeLinkedDeviceApprovalDigestV1(value);
 }
 
-export function buildUnclaimedSessionRecordV1(
+function buildUnclaimedSessionRecordV1(
   payload: QrLinkedDeviceSessionPayloadV5,
   nowMs: number,
 ): LinkedDeviceSessionRecordV1 {

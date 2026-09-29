@@ -31,7 +31,7 @@ import type { D1DatabaseLike, D1PreparedStatementLike } from '../storage/tenantR
  * that signer is committed. They are written together or not at all — a
  * binding never carries a partial Ed25519 identity.
  */
-export type WebAuthnCredentialBindingEd25519Facts = {
+type WebAuthnCredentialBindingEd25519Facts = {
   nearAccountId: string;
   nearEd25519SigningKeyId: string;
   signerSlot: number;
@@ -105,7 +105,7 @@ type NormalizedD1WebAuthnCredentialBindingStoreOptions = {
   readonly ensureSchema: boolean;
 };
 
-export type D1WebAuthnCredentialBindingScope = {
+type D1WebAuthnCredentialBindingScope = {
   readonly namespace: string;
   readonly orgId: string;
   readonly projectId: string;

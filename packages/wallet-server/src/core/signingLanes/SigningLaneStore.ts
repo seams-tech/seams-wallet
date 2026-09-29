@@ -5,7 +5,7 @@ import type {
 } from '@shared/signing-lanes';
 import type { WalletId } from '@shared/utils/domainIds';
 
-export type SigningLaneLookup = {
+type SigningLaneLookup = {
   walletId: WalletId;
   walletKeyId: WalletKeyId;
   laneId: SigningLaneId;

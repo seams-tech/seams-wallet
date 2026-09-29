@@ -16,7 +16,7 @@ export type EmailOtpConfig = {
   maxActiveChallengesPerContext: number;
 };
 
-export type AuthRateLimitPolicy = {
+type AuthRateLimitPolicy = {
   limit: number;
   windowMs: number;
 };
@@ -29,7 +29,7 @@ export type EmailOtpRateLimitScope =
 
 export type EmailOtpRateLimitPolicies = Record<EmailOtpRateLimitScope, AuthRateLimitPolicy>;
 
-export type EmailOtpConfigInput = {
+type EmailOtpConfigInput = {
   thresholdStore: AuthServiceConfigSource;
   production: boolean;
 };
@@ -38,7 +38,7 @@ function readEmailOtpConfigValue(input: EmailOtpConfigInput, name: string): stri
   return readAuthServiceConfigValue({ thresholdStore: input.thresholdStore, name });
 }
 
-export function parseConfiguredInteger(input: {
+function parseConfiguredInteger(input: {
   name: string;
   raw: string;
   defaultValue: number;

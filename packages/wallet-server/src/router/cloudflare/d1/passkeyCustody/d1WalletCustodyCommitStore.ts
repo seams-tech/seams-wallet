@@ -330,14 +330,14 @@ type WalletCustodyCommitRecord =
   | WalletRecoveryEnvelopeSetRecord
   | WalletRecoveryBackupAcknowledgementV1;
 
-export type CloudflareD1WalletCustodyCommitStoreOptions = {
+type CloudflareD1WalletCustodyCommitStoreOptions = {
   readonly database: D1DatabaseLike;
   readonly scope: CloudflareD1VersionedJsonRecordScopeV1;
   readonly walletAuthMethodStore?: D1WalletAuthMethodStore;
   readonly walletAuthorityStore?: Pick<D1WalletAuthorityStore, 'readById'>;
 };
 
-export type WalletCustodyRegistrationCommit = {
+type WalletCustodyRegistrationCommit = {
   readonly envelope: PasskeyCustodyEnvelopeRecord;
   readonly recoverySet: WalletRecoveryEnvelopeSetRecord;
   readonly recoveryBackupAcknowledgement: WalletRecoveryBackupAcknowledgementV1;
@@ -377,7 +377,7 @@ export type WalletCustodyRegistrationCommitResult =
   /** The two records describe different wallets. */
   | { readonly kind: 'inconsistent'; readonly reason: string };
 
-export type WalletCustodyRecoveryAuthorityInstallCommitResult =
+type WalletCustodyRecoveryAuthorityInstallCommitResult =
   | { readonly kind: 'committed' | 'already_committed'; readonly envelopeStoreVersion: string }
   | { readonly kind: 'conflict' }
   | { readonly kind: 'inconsistent'; readonly reason: string };
@@ -394,7 +394,7 @@ export type WalletRecoveryEmailEnrollmentCommit =
       readonly statements: readonly D1PreparedStatementLike[];
     };
 
-export type WalletRecoveryGoogleEmailOtpAuthorityInstallCommit = {
+type WalletRecoveryGoogleEmailOtpAuthorityInstallCommit = {
   readonly recovery: WalletRecoveryGoogleEmailOtpFinalizationInput;
   readonly recoveryAttemptStoreVersion: string;
   readonly continuityAuthority: ActiveWalletAuthorityV1;
@@ -408,7 +408,7 @@ export type WalletRecoveryGoogleEmailOtpAuthorityInstallCommit = {
 };
 
 /** Recovery sets are wallet-scoped: one set covers the wallet, not one factor. */
-export function walletRecoveryBackupAcknowledgementRecordKey(walletId: WalletId): string {
+function walletRecoveryBackupAcknowledgementRecordKey(walletId: WalletId): string {
   return `wallet-recovery-backup-ack/${String(walletId)}`;
 }
 
@@ -420,7 +420,7 @@ export type WalletRecoveryAuthenticatorCommit = {
   readonly challengeDeleteStatement: D1PreparedStatementLike;
 };
 
-export function walletRecoveryEnvelopeSetRecordKey(walletId: WalletId): string {
+function walletRecoveryEnvelopeSetRecordKey(walletId: WalletId): string {
   return `recovery-set:${String(walletId)}`;
 }
 

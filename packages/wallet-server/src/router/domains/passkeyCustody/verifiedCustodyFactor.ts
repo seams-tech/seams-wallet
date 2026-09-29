@@ -26,7 +26,7 @@ import {
  * the caller must pass the enrollment it verified rather than one it looked up.
  */
 
-export type VerifiedCustodyFactorResult =
+type VerifiedCustodyFactorResult =
   | { readonly ok: true; readonly factor: WalletCustodyEnvelopeFactor }
   | { readonly ok: false; readonly reason: string };
 

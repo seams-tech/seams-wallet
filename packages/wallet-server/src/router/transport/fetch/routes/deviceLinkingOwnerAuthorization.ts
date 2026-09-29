@@ -93,7 +93,7 @@ export type DeviceLinkingOwnerWalletSessionContextV1 =
       readonly authorityScope?: never;
     };
 
-export type DeviceLinkingOwnerRequestAuthenticationV1 =
+type DeviceLinkingOwnerRequestAuthenticationV1 =
   | {
       readonly kind: 'authorized';
       readonly body: unknown;

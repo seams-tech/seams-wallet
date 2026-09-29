@@ -215,15 +215,14 @@ type GoogleEmailOtpRegistrationAttemptBaseRecord = {
   runtimePolicyScope?: ThresholdRuntimePolicyScope;
 };
 
-export type StartedGoogleEmailOtpRegistrationAttemptRecord =
-  GoogleEmailOtpRegistrationAttemptBaseRecord &
-    GoogleEmailOtpRegistrationOfferBinding & {
-      state: 'started';
-      finalizedPublicKey?: never;
-      failureCode?: never;
-    };
+type StartedGoogleEmailOtpRegistrationAttemptRecord = GoogleEmailOtpRegistrationAttemptBaseRecord &
+  GoogleEmailOtpRegistrationOfferBinding & {
+    state: 'started';
+    finalizedPublicKey?: never;
+    failureCode?: never;
+  };
 
-export type KeyFinalizedGoogleEmailOtpRegistrationAttemptRecord =
+type KeyFinalizedGoogleEmailOtpRegistrationAttemptRecord =
   GoogleEmailOtpRegistrationAttemptBaseRecord &
     GoogleEmailOtpRegistrationOfferBinding & {
       state: 'key_finalized';
@@ -231,15 +230,14 @@ export type KeyFinalizedGoogleEmailOtpRegistrationAttemptRecord =
       failureCode?: never;
     };
 
-export type ActiveGoogleEmailOtpRegistrationAttemptRecord =
-  GoogleEmailOtpRegistrationAttemptBaseRecord &
-    GoogleEmailOtpRegistrationOfferBinding & {
-      state: 'active';
-      finalizedPublicKey?: string;
-      failureCode?: never;
-    };
+type ActiveGoogleEmailOtpRegistrationAttemptRecord = GoogleEmailOtpRegistrationAttemptBaseRecord &
+  GoogleEmailOtpRegistrationOfferBinding & {
+    state: 'active';
+    finalizedPublicKey?: string;
+    failureCode?: never;
+  };
 
-export type AbandonedGoogleEmailOtpRegistrationAttemptRecord =
+type AbandonedGoogleEmailOtpRegistrationAttemptRecord =
   GoogleEmailOtpRegistrationAttemptBaseRecord &
     GoogleEmailOtpRegistrationOfferBinding & {
       state: 'abandoned';
@@ -247,21 +245,19 @@ export type AbandonedGoogleEmailOtpRegistrationAttemptRecord =
       failureCode: string;
     };
 
-export type FailedGoogleEmailOtpRegistrationAttemptRecord =
-  GoogleEmailOtpRegistrationAttemptBaseRecord &
-    GoogleEmailOtpRegistrationOfferBinding & {
-      state: 'failed';
-      finalizedPublicKey?: string;
-      failureCode: string;
-    };
+type FailedGoogleEmailOtpRegistrationAttemptRecord = GoogleEmailOtpRegistrationAttemptBaseRecord &
+  GoogleEmailOtpRegistrationOfferBinding & {
+    state: 'failed';
+    finalizedPublicKey?: string;
+    failureCode: string;
+  };
 
-export type ExpiredGoogleEmailOtpRegistrationAttemptRecord =
-  GoogleEmailOtpRegistrationAttemptBaseRecord &
-    GoogleEmailOtpRegistrationOfferBinding & {
-      state: 'expired';
-      finalizedPublicKey?: string;
-      failureCode?: string;
-    };
+type ExpiredGoogleEmailOtpRegistrationAttemptRecord = GoogleEmailOtpRegistrationAttemptBaseRecord &
+  GoogleEmailOtpRegistrationOfferBinding & {
+    state: 'expired';
+    finalizedPublicKey?: string;
+    failureCode?: string;
+  };
 
 export type GoogleEmailOtpRegistrationAttemptRecord =
   | StartedGoogleEmailOtpRegistrationAttemptRecord
@@ -356,11 +352,11 @@ type EmailOtpStoreFactoryInput = {
   isNode?: boolean;
 };
 
-export interface D1EmailOtpStoreSchemaOptions {
+interface D1EmailOtpStoreSchemaOptions {
   readonly database: D1DatabaseLike;
 }
 
-export interface D1EmailOtpStoreOptions {
+interface D1EmailOtpStoreOptions {
   readonly database: D1DatabaseLike;
   readonly namespace: string;
   readonly orgId: string;
@@ -395,7 +391,7 @@ type D1EmailOtpRecordRow = {
   readonly attempt_id?: unknown;
 };
 
-export const EMAIL_OTP_STORE_D1_SCHEMA_SQL = Object.freeze([
+const EMAIL_OTP_STORE_D1_SCHEMA_SQL = Object.freeze([
   `
     CREATE TABLE IF NOT EXISTS email_otp_challenges (
       namespace TEXT NOT NULL,
@@ -643,9 +639,7 @@ export const EMAIL_OTP_STORE_D1_SCHEMA_SQL = Object.freeze([
   `,
 ] as const);
 
-export async function ensureEmailOtpStoreD1Schema(
-  options: D1EmailOtpStoreSchemaOptions,
-): Promise<void> {
+async function ensureEmailOtpStoreD1Schema(options: D1EmailOtpStoreSchemaOptions): Promise<void> {
   for (const statement of EMAIL_OTP_STORE_D1_SCHEMA_SQL) {
     await options.database.exec(formatD1ExecStatement(statement));
   }
@@ -657,7 +651,7 @@ function toPrefixWithColon(prefix: unknown, defaultPrefix: string): string {
   return p.endsWith(':') ? p : `${p}:`;
 }
 
-export function resolveEmailOtpStoreNamespace(config: Record<string, unknown>): string {
+function resolveEmailOtpStoreNamespace(config: Record<string, unknown>): string {
   const explicit =
     toOptionalTrimmedString(config.EMAIL_OTP_PREFIX) ||
     toOptionalTrimmedString(config.EMAIL_OTP_STORE_PREFIX);
@@ -1091,10 +1085,7 @@ abstract class D1EmailOtpStoreBase {
   }
 }
 
-export class D1EmailOtpChallengeStore
-  extends D1EmailOtpStoreBase
-  implements EmailOtpChallengeStore
-{
+class D1EmailOtpChallengeStore extends D1EmailOtpStoreBase implements EmailOtpChallengeStore {
   readonly adapterKind = 'd1';
 
   async put(record: EmailOtpChallengeRecord): Promise<void> {
@@ -1394,7 +1385,7 @@ export class D1EmailOtpChallengeStore
   }
 }
 
-export class D1EmailOtpGrantStore extends D1EmailOtpStoreBase implements EmailOtpGrantStore {
+class D1EmailOtpGrantStore extends D1EmailOtpStoreBase implements EmailOtpGrantStore {
   readonly adapterKind = 'd1';
 
   async put(record: EmailOtpGrantRecord): Promise<void> {
@@ -1511,7 +1502,7 @@ export class D1EmailOtpGrantStore extends D1EmailOtpStoreBase implements EmailOt
   }
 }
 
-export class D1EmailOtpWalletEnrollmentStore
+class D1EmailOtpWalletEnrollmentStore
   extends D1EmailOtpStoreBase
   implements EmailOtpWalletEnrollmentStore
 {
@@ -1635,10 +1626,7 @@ export class D1EmailOtpWalletEnrollmentStore
   }
 }
 
-export class D1EmailOtpAuthStateStore
-  extends D1EmailOtpStoreBase
-  implements EmailOtpAuthStateStore
-{
+class D1EmailOtpAuthStateStore extends D1EmailOtpStoreBase implements EmailOtpAuthStateStore {
   readonly adapterKind = 'd1';
 
   async get(walletId: string): Promise<EmailOtpAuthStateRecord | null> {
@@ -1725,7 +1713,7 @@ export class D1EmailOtpAuthStateStore
   }
 }
 
-export class D1EmailOtpUnlockChallengeStore
+class D1EmailOtpUnlockChallengeStore
   extends D1EmailOtpStoreBase
   implements EmailOtpUnlockChallengeStore
 {
@@ -1812,7 +1800,7 @@ export class D1EmailOtpUnlockChallengeStore
   }
 }
 
-export class D1EmailOtpRegistrationAttemptStore
+class D1EmailOtpRegistrationAttemptStore
   extends D1EmailOtpStoreBase
   implements EmailOtpRegistrationAttemptStore
 {

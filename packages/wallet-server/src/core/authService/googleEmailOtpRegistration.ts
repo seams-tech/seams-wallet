@@ -69,7 +69,7 @@ export type GoogleEmailOtpResolutionResult =
       message: string;
     };
 
-export type GoogleEmailOtpRegistrationRateLimitRequest = {
+type GoogleEmailOtpRegistrationRateLimitRequest = {
   providerSubject?: unknown;
   email?: unknown;
   accountMode?: unknown;
@@ -100,7 +100,7 @@ export type GoogleEmailOtpRegistrationRateLimitConsumer = (input: {
   clientIp?: string;
 }) => Promise<GoogleEmailOtpRegistrationRateLimitResult>;
 
-export type GoogleEmailOtpSessionResolveRequest = {
+type GoogleEmailOtpSessionResolveRequest = {
   providerSubject?: string;
   sub?: string;
   email?: string;
@@ -110,7 +110,7 @@ export type GoogleEmailOtpSessionResolveRequest = {
   restartRegistrationOffer?: unknown;
 };
 
-export type GoogleEmailOtpHostedWalletDeriver = (input: {
+type GoogleEmailOtpHostedWalletDeriver = (input: {
   providerSubject: string;
   sub?: string;
   email?: string;
@@ -120,9 +120,9 @@ export type GoogleEmailOtpHostedWalletDeriver = (input: {
   runtimePolicyScope?: ThresholdRuntimePolicyScope;
 }) => Promise<string>;
 
-export type GoogleEmailOtpHostedWalletPredicate = (walletId: string) => boolean;
+type GoogleEmailOtpHostedWalletPredicate = (walletId: string) => boolean;
 
-export async function cleanupGoogleEmailOtpRegistrationAttemptsWithStore(input: {
+async function cleanupGoogleEmailOtpRegistrationAttemptsWithStore(input: {
   readonly registrationAttemptStore: EmailOtpRegistrationAttemptStore;
   readonly nowMs: number;
 }): Promise<void> {

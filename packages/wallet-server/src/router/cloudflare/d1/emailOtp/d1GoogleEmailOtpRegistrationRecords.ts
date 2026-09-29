@@ -20,7 +20,7 @@ export type D1EmailOtpRegistrationAttemptRow = {
   readonly updated_at_ms?: unknown;
 };
 
-export type GoogleEmailOtpRegistrationOfferForResponse = {
+type GoogleEmailOtpRegistrationOfferForResponse = {
   readonly offerId: string;
   readonly selectedCandidateId: string;
   readonly candidates: readonly [
@@ -122,7 +122,7 @@ export function failedGoogleEmailOtpRegistrationAttemptWithCode(input: {
   return terminal;
 }
 
-export function parseGoogleEmailOtpRegistrationAttemptRecord(
+function parseGoogleEmailOtpRegistrationAttemptRecord(
   input: unknown,
 ): GoogleEmailOtpRegistrationAttemptRecord | null {
   const record = parseJsonObject(input);

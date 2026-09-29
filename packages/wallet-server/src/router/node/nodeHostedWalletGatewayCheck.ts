@@ -9,15 +9,15 @@ import { parseStaticWalletConsoleBindingConfigV1 } from '../cloudflare/runtime/s
 import { nodeSqliteConnection, type NodeDatabaseSyncConstructor } from './nodeSqlite';
 import { inspectSignerSqlMigrationsV1 } from './signerSqlMigrations';
 
-export type NodeGatewayCheckStatusV1 = 'passed' | 'failed' | 'unverified';
+type NodeGatewayCheckStatusV1 = 'passed' | 'failed' | 'unverified';
 
-export type NodeGatewayCheckItemV1 = {
+type NodeGatewayCheckItemV1 = {
   readonly check: string;
   readonly status: NodeGatewayCheckStatusV1;
   readonly detail: Readonly<Record<string, unknown>>;
 };
 
-export type NodeGatewayCheckInputV1 = {
+type NodeGatewayCheckInputV1 = {
   readonly DatabaseSync: NodeDatabaseSyncConstructor;
   readonly databasePath: string;
   readonly migrationsDir: string;

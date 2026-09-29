@@ -52,7 +52,7 @@ import {
   parseWebAuthnAuthenticationCredential,
 } from '../../../framework/routeRequestValidation';
 
-export type ThresholdEd25519RouteErrorBody = {
+type ThresholdEd25519RouteErrorBody = {
   ok: false;
   code: 'invalid_body';
   message: string;
@@ -60,7 +60,7 @@ export type ThresholdEd25519RouteErrorBody = {
 
 type ThresholdEd25519RouteParseError = { ok: false; body: ThresholdEd25519RouteErrorBody };
 
-export type ThresholdEd25519RouteParseResult<T> =
+type ThresholdEd25519RouteParseResult<T> =
   | { ok: true; request: T }
   | ThresholdEd25519RouteParseError;
 
@@ -150,7 +150,7 @@ function parseOptionalWebAuthnAuthentication(
     : invalidThresholdEd25519Body('webauthn_authentication is invalid');
 }
 
-export function parseRouterAbEd25519YaoSessionPolicyV1(
+function parseRouterAbEd25519YaoSessionPolicyV1(
   raw: unknown,
 ): ThresholdEd25519RouteParseResult<RouterAbEd25519YaoSessionPolicyV1> {
   if (!isPlainObject(raw)) return invalidThresholdEd25519Body('sessionPolicy is required');

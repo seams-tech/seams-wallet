@@ -59,7 +59,7 @@ import { admitEnvelopeRevocation } from '../../../domains/passkeyCustody/envelop
 export const PASSKEY_ENVELOPE_KEY_PREFIX = 'passkey-envelope';
 const PASSKEY_CREDENTIAL_ACTIVITY_KEY_PREFIX = 'passkey-credential-activity';
 
-export type CloudflareD1PasskeyCustodyEnvelopeStoreOptions = {
+type CloudflareD1PasskeyCustodyEnvelopeStoreOptions = {
   readonly database: D1DatabaseLike;
   readonly scope: CloudflareD1VersionedJsonRecordScopeV1;
 };
@@ -151,7 +151,7 @@ function factorRefsMatch(left: WalletCustodyFactorRef, right: WalletCustodyFacto
  * branch is an explicit failure the caller must handle: none of them may fall
  * back to deriving a fresh custody root.
  */
-export type PasskeyCustodyEnvelopeLookupResult =
+type PasskeyCustodyEnvelopeLookupResult =
   | {
       readonly kind: 'active';
       readonly envelope: PasskeyCustodyEnvelopeRecord;
@@ -184,7 +184,7 @@ export type PasskeyCustodyEnvelopeFactorLookupResult =
  * Whether a browser's cached ciphertext may still be used. A cache is usable
  * only at the exact server revision and digest; anything else must be refetched.
  */
-export type PasskeyCustodyEnvelopeCacheValidation =
+type PasskeyCustodyEnvelopeCacheValidation =
   | { readonly kind: 'cache_valid'; readonly envelope: PasskeyCustodyEnvelopeRecord }
   | {
       readonly kind: 'cache_stale';
@@ -193,7 +193,7 @@ export type PasskeyCustodyEnvelopeCacheValidation =
     }
   | { readonly kind: 'cache_unusable'; readonly lookup: PasskeyCustodyEnvelopeLookupResult };
 
-export type PasskeyCustodyEnvelopePutResult =
+type PasskeyCustodyEnvelopePutResult =
   | { readonly kind: 'stored'; readonly storeVersion: string; readonly envelopeRevision: number }
   | { readonly kind: 'version_mismatch' }
   | { readonly kind: 'revision_conflict'; readonly expectedRevision: number }
@@ -201,22 +201,22 @@ export type PasskeyCustodyEnvelopePutResult =
   | { readonly kind: 'terminal_lifecycle'; readonly state: 'revoked' };
 
 /** What the caller believes it is replacing, checked before the ciphertext moves. */
-export type ExpectedCustodyEnvelopeState = {
+type ExpectedCustodyEnvelopeState = {
   readonly envelopeId: PasskeyEnvelopeId;
   readonly envelopeRevision: number;
   readonly ownership: WalletCustodyEnvelopeOwnership;
 };
 
-export type PasskeyCustodyEnvelopeRewrapResult =
+type PasskeyCustodyEnvelopeRewrapResult =
   | PasskeyCustodyEnvelopePutResult
   | { readonly kind: 'ownership_conflict'; readonly reason: string };
 
-export type PasskeyCustodyEnvelopeLinkResult =
+type PasskeyCustodyEnvelopeLinkResult =
   | { readonly kind: 'stored'; readonly storeVersion: string }
   | { readonly kind: 'version_mismatch' }
   | { readonly kind: 'conflict' };
 
-export type PasskeyFactorWithoutCustodyLinkResult =
+type PasskeyFactorWithoutCustodyLinkResult =
   | { readonly kind: 'stored' }
   | { readonly kind: 'conflict' };
 
@@ -225,7 +225,7 @@ export type WalletCredentialActivityProjection = {
   readonly activity: WalletCredentialActivityRecordV1;
 };
 
-export type WalletCredentialActivityMutationResult =
+type WalletCredentialActivityMutationResult =
   | { readonly kind: 'updated'; readonly projection: WalletCredentialActivityProjection }
   | { readonly kind: 'missing' }
   | { readonly kind: 'conflict' }

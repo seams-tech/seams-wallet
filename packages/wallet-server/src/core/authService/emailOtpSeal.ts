@@ -6,13 +6,13 @@ import type { SigningSessionSealCipherAdapter } from '../../threshold/session/si
 import { errorMessage } from '@shared/utils/errors';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
 
-export type EmailOtpShamirCipherConfig = {
+type EmailOtpShamirCipherConfig = {
   readonly rootSecretB64u: string;
   readonly currentKeyVersion: string;
   readonly acceptedWarmKeyVersions: readonly string[];
 };
 
-export type EmailOtpShamirCipherResult =
+type EmailOtpShamirCipherResult =
   | {
       readonly ok: true;
       readonly keyVersion: string;

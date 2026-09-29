@@ -170,7 +170,7 @@ export type CreateAddAuthMethodIntentResponse =
       retryAfterMs?: number;
     };
 
-export type AddAuthMethodExistingAuth =
+type AddAuthMethodExistingAuth =
   | {
       kind: 'webauthn_assertion';
       rpId: WebAuthnRpId;
@@ -218,7 +218,7 @@ export type EmailOtpWalletRegistrationAuthorityInput = Extract<
   { kind: typeof WALLET_AUTH_METHODS.emailOtp }
 >;
 
-export type WalletAddAuthMethodAuthorityInput =
+type WalletAddAuthMethodAuthorityInput =
   | {
       kind: typeof WALLET_AUTH_METHODS.passkey;
       webauthnRegistration?: never;
@@ -347,7 +347,7 @@ export type WalletAddAuthMethodFinalizeRequest =
       emailOtpTarget?: never;
     };
 
-export type WalletAuthMethodStatusAnnotation<Status extends WalletAuthMethodRecord['status']> = {
+type WalletAuthMethodStatusAnnotation<Status extends WalletAuthMethodRecord['status']> = {
   kind: WalletAuthMethodRecord['kind'];
   status: Status;
 };
@@ -672,7 +672,7 @@ export type WalletRegistrationEd25519YaoStart = {
   admissionReceipt: RouterAbEd25519YaoActivationAdmissionReceiptV1<'registration'>;
 };
 
-export type WalletRegistrationStartSignerWork =
+type WalletRegistrationStartSignerWork =
   | {
       kind: 'near_ed25519';
       ed25519: WalletRegistrationEd25519YaoStart;
@@ -695,7 +695,7 @@ export type WalletRegistrationEd25519YaoActivationReference = {
   session_id: RouterAbEd25519YaoBytes32V1;
 };
 
-export type WalletRegistrationEd25519YaoFinalize = {
+type WalletRegistrationEd25519YaoFinalize = {
   activationReference: WalletRegistrationEd25519YaoActivationReference;
 };
 

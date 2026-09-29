@@ -215,7 +215,7 @@ function computeSessionPrefixEcdsa(config: Record<string, unknown>): string {
   );
 }
 
-export class CloudflareDurableObjectWalletSessionStore<
+class CloudflareDurableObjectWalletSessionStore<
   TRecord extends WalletSessionRecord,
 > implements WalletSessionStore<TRecord> {
   private readonly stub: DurableObjectStubLike;
@@ -362,7 +362,7 @@ type CloudflareDoMpcSessionRecordParser<TRecord extends ThresholdMpcSessionRecor
   raw: unknown,
 ) => TRecord | null;
 
-export class CloudflareDurableObjectThresholdEd25519SessionStore<
+class CloudflareDurableObjectThresholdEd25519SessionStore<
   TMpcRecord extends ThresholdMpcSessionRecord = ThresholdEd25519MpcSessionRecord,
 > {
   private readonly stub: DurableObjectStubLike;
@@ -482,7 +482,7 @@ export class CloudflareDurableObjectThresholdEd25519SessionStore<
   }
 }
 
-export class CloudflareDurableObjectThresholdEd25519KeyStore implements ThresholdEd25519KeyStore {
+class CloudflareDurableObjectThresholdEd25519KeyStore implements ThresholdEd25519KeyStore {
   private readonly stub: DurableObjectStubLike;
   private readonly keyPrefix: string;
 

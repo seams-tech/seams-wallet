@@ -562,7 +562,7 @@ function projectWalletUnlockEcdsaCustodySigner(
   };
 }
 
-export type WalletUnlockEcdsaAuthoredRequest = {
+type WalletUnlockEcdsaAuthoredRequest = {
   readonly request: RouterAbEcdsaPostRegistrationSessionActivationRequestV1;
   readonly activationReceipt: WalletUnlockEcdsaCustodySignerV1['activationReceipt'];
   readonly continuity: {

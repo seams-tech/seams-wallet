@@ -89,7 +89,7 @@ function requireThresholdEd25519SessionId(
   return parsed.value;
 }
 
-export type RouterAbEd25519YaoRecoveryFailureCode =
+type RouterAbEd25519YaoRecoveryFailureCode =
   | 'invalid_request'
   | 'invalid_backend_response'
   | 'admission_failed'
@@ -134,7 +134,7 @@ export type RouterAbEd25519YaoRecoveryServiceResult<T> =
   | { readonly ok: true; readonly status: 200; readonly value: T }
   | RouterAbEd25519YaoRecoveryFailure;
 
-export type RouterAbEd25519YaoRecoveryBackendFailure = {
+type RouterAbEd25519YaoRecoveryBackendFailure = {
   readonly ok: false;
   readonly status: 400 | 408 | 409 | 429 | 500 | 502 | 503;
   readonly code: string;
@@ -145,11 +145,11 @@ export type RouterAbEd25519YaoRecoveryBackendResult =
   | { readonly ok: true; readonly body: unknown }
   | RouterAbEd25519YaoRecoveryBackendFailure;
 
-export type RouterAbEd25519YaoRecoveryAuthorityProjectionV1 =
+type RouterAbEd25519YaoRecoveryAuthorityProjectionV1 =
   | { readonly kind: 'replace_continuity_authority_projections' }
   | { readonly kind: 'replace_active_authority_projection' };
 
-export type RouterAbEd25519YaoRecoveryAuthorizationBindingV1 =
+type RouterAbEd25519YaoRecoveryAuthorizationBindingV1 =
   | {
       readonly kind: 'wallet_recovery';
       readonly walletId: string;
@@ -227,7 +227,7 @@ export type RouterAbEd25519YaoRecoveryAdmissionClaimV1 = {
   readonly recoveryKey: string;
 };
 
-export type RouterAbEd25519YaoRecoveryAdmissionPreparationV1 =
+type RouterAbEd25519YaoRecoveryAdmissionPreparationV1 =
   | {
       readonly kind: 'claimed';
       readonly claim: RouterAbEd25519YaoRecoveryAdmissionClaimV1;
@@ -241,7 +241,7 @@ export type RouterAbEd25519YaoRecoveryAdmissionPreparationV1 =
       readonly failure: RouterAbEd25519YaoRecoveryFailure;
     };
 
-export type RouterAbEd25519YaoRecoveryAdmissionCommitInputV1 = {
+type RouterAbEd25519YaoRecoveryAdmissionCommitInputV1 = {
   readonly request: RouterAbEd25519YaoRecoveryAdmissionRequestV1;
   readonly claim: RouterAbEd25519YaoRecoveryAdmissionClaimV1;
   readonly outcome: {
@@ -250,7 +250,7 @@ export type RouterAbEd25519YaoRecoveryAdmissionCommitInputV1 = {
   };
 };
 
-export interface RouterAbEd25519YaoRecoveryAdmissionBoundaryV1 {
+interface RouterAbEd25519YaoRecoveryAdmissionBoundaryV1 {
   prepareAdmitRecovery(
     request: RouterAbEd25519YaoRecoveryAdmissionRequestV1,
     authorization: RouterAbEd25519YaoRecoveryAuthorizationBindingV1,
@@ -276,7 +276,7 @@ export type RouterAbEd25519YaoRecoveryExecuteClaimV1 = {
   readonly replay: boolean;
 };
 
-export type RouterAbEd25519YaoRecoveryExecutePreparationV1 =
+type RouterAbEd25519YaoRecoveryExecutePreparationV1 =
   | {
       readonly kind: 'claimed';
       readonly claim: RouterAbEd25519YaoRecoveryExecuteClaimV1;
@@ -290,7 +290,7 @@ export type RouterAbEd25519YaoRecoveryExecutePreparationV1 =
       readonly failure: RouterAbEd25519YaoRecoveryFailure;
     };
 
-export type RouterAbEd25519YaoRecoveryExecuteCommitInputV1 = {
+type RouterAbEd25519YaoRecoveryExecuteCommitInputV1 = {
   readonly request: RecoveryExecuteRequest;
   readonly claim: RouterAbEd25519YaoRecoveryExecuteClaimV1;
   readonly outcome: {
@@ -299,7 +299,7 @@ export type RouterAbEd25519YaoRecoveryExecuteCommitInputV1 = {
   };
 };
 
-export interface RouterAbEd25519YaoRecoveryExecuteBoundaryV1 {
+interface RouterAbEd25519YaoRecoveryExecuteBoundaryV1 {
   prepareExecuteRecovery(
     request: RecoveryExecuteRequest,
     authorization: RouterAbEd25519YaoRecoveryAuthorizationBindingV1,
@@ -321,7 +321,7 @@ export type RouterAbEd25519YaoRecoveryActivationClaimV1 = {
   readonly dispatchRoot: RouterAbEd25519YaoTenantRootWireV1;
 };
 
-export type RouterAbEd25519YaoRecoveryActivationPreparationV1 =
+type RouterAbEd25519YaoRecoveryActivationPreparationV1 =
   | {
       readonly kind: 'claimed';
       readonly claim: RouterAbEd25519YaoRecoveryActivationClaimV1;
@@ -344,7 +344,7 @@ export type RouterAbEd25519YaoRecoveryActivationCommitInputV1 = {
   };
 };
 
-export type RouterAbEd25519YaoRecoveryActivationCommitResultV1 =
+type RouterAbEd25519YaoRecoveryActivationCommitResultV1 =
   | {
       readonly kind: 'completed';
       readonly value: RouterAbEd25519YaoRecoveryServiceResult<RouterAbEd25519YaoRecoveryActivationReceiptV1>;
@@ -367,7 +367,7 @@ export type RouterAbEd25519YaoRecoveryActivationCommitResultV1 =
       readonly failure: RouterAbEd25519YaoRecoveryFailure;
     };
 
-export interface RouterAbEd25519YaoRecoveryActivationBoundaryV1 {
+interface RouterAbEd25519YaoRecoveryActivationBoundaryV1 {
   prepareActivateRecovery(
     request: RouterAbEd25519YaoRecoveryActivationRequestV1,
     authorization: RouterAbEd25519YaoRecoveryAuthorizationBindingV1,
@@ -660,10 +660,9 @@ type RouterAbEd25519YaoExactRecoverySessionBinding = {
   readonly capability: RouterAbEd25519YaoActiveCapabilityDescriptorV1;
 };
 
-export type RouterAbEd25519YaoWarmRecoveryBootstrapV1 =
-  RouterAbEd25519YaoExactRecoverySessionBinding & {
-    readonly kind: 'router_ab_ed25519_yao_v2_session_bootstrap_v1';
-  };
+type RouterAbEd25519YaoWarmRecoveryBootstrapV1 = RouterAbEd25519YaoExactRecoverySessionBinding & {
+  readonly kind: 'router_ab_ed25519_yao_v2_session_bootstrap_v1';
+};
 
 export interface RouterAbEd25519YaoActiveCapabilityResolverV1 {
   resolveActiveCapability(
@@ -965,7 +964,7 @@ function exactRuntimePolicyScope(left: RuntimePolicyScope, right: RuntimePolicyS
  * on purpose: the concrete projection lives with the platform install service,
  * and this domain only reads the identity, binding, and receipt facts.
  */
-export type WarmBootstrapLinkedEd25519AuthorityProjectionV1 = {
+type WarmBootstrapLinkedEd25519AuthorityProjectionV1 = {
   readonly walletId: string;
   readonly authorityId: string;
   readonly walletAuthMethodId: string;
@@ -1072,7 +1071,7 @@ async function resolveWarmBootstrapCapabilityForAuthority(input: {
   };
 }
 
-export function warmBootstrapCapabilityMatchesStableIdentity(input: {
+function warmBootstrapCapabilityMatchesStableIdentity(input: {
   readonly request: RouterAbEd25519YaoWarmRecoveryBootstrapRequestV1;
   readonly context: WarmBootstrapWalletSessionContext;
   readonly capability: RouterAbEd25519YaoActiveCapabilityDescriptorV1;
@@ -1509,7 +1508,7 @@ function buildPersistedCapabilityIdentity(
   }
 }
 
-export type RouterAbEd25519YaoActiveCapabilityRecordBuildResultV1 =
+type RouterAbEd25519YaoActiveCapabilityRecordBuildResultV1 =
   | { readonly ok: true; readonly record: WalletEd25519YaoActiveCapabilityRecord }
   | Extract<
       RouterAbEd25519YaoRegistrationFinalizeCapabilityInstallResultV1,

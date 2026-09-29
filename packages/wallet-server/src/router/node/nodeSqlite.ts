@@ -3,7 +3,7 @@
 import type { SyncSqliteConnectionV1, SyncSqliteRow, SyncSqliteValue } from '../../storage/syncSqlite';
 
 /** The subset of `node:sqlite`'s DatabaseSync the VM hosts use. */
-export type NodeDatabaseSyncLike = {
+type NodeDatabaseSyncLike = {
   exec(sql: string): void;
   prepare(sql: string): { all(...params: SyncSqliteValue[]): unknown[] };
   close(): void;

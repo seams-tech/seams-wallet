@@ -191,7 +191,7 @@ const WALLET_ADD_SIGNER_START_RESUME_AFTER_MS = 30_000;
 const WALLET_ADD_SIGNER_FINALIZE_RESUME_AFTER_MS = 30_000;
 const WALLET_ADD_SIGNER_ROUTER_POLICY_VERSION = 'wallet-add-signer-v1';
 
-export type D1WalletAddSignerStartPreparedV1 = {
+type D1WalletAddSignerStartPreparedV1 = {
   readonly kind: 'd1_wallet_add_signer_start_prepared_v1';
   readonly addSignerCeremonyId: string;
   readonly registrationPreparationId: string;
@@ -200,7 +200,7 @@ export type D1WalletAddSignerStartPreparedV1 = {
   readonly auth: StoredWalletAddSignerCeremony['auth'];
 };
 
-export type D1WalletAddSignerStartTerminalV1 =
+type D1WalletAddSignerStartTerminalV1 =
   | {
       readonly kind: 'd1_wallet_add_signer_start_succeeded_v1';
       readonly ceremony: StoredWalletAddSignerCeremony;

@@ -53,7 +53,7 @@ export type WalletSessionOperationCredentialAdmission =
       >;
     };
 
-export type WalletSessionOperationCredentialResolution =
+type WalletSessionOperationCredentialResolution =
   | { readonly kind: 'not_found' }
   | { readonly kind: 'rejected' }
   | { readonly kind: 'admitted'; readonly admission: WalletSessionOperationCredentialAdmission };
@@ -143,7 +143,7 @@ export async function resolveWalletSessionOperationCredentialAdmission(input: {
   });
 }
 
-export type WalletSessionAdministrationRequest = Pick<
+type WalletSessionAdministrationRequest = Pick<
   WalletSessionAuthorizationV2AdministrationOperation,
   'kind' | 'walletId'
 >;
@@ -158,7 +158,7 @@ export type WalletSessionAdministrationAdmission = {
   >;
 };
 
-export type WalletSessionAdministrationResolution =
+type WalletSessionAdministrationResolution =
   | { readonly kind: 'not_found' }
   | { readonly kind: 'rejected' }
   | { readonly kind: 'admitted'; readonly admission: WalletSessionAdministrationAdmission };
@@ -396,7 +396,7 @@ export async function validateRouterAbEcdsaDerivationWalletSessionInputs(input: 
   };
 }
 
-export type ThresholdRuntimePolicyScopeResolution =
+type ThresholdRuntimePolicyScopeResolution =
   | { ok: true; scope?: ThresholdRuntimePolicyScope }
   | {
       ok: false;
@@ -502,7 +502,7 @@ export async function resolveThresholdRuntimePolicyScope(input: {
   };
 }
 
-export async function resolveActiveRuntimePolicyScopeFromFields(input: {
+async function resolveActiveRuntimePolicyScopeFromFields(input: {
   orgProjectEnv: RouterApiProjectEnvironmentResolver | null;
   fields: Omit<ThresholdRuntimePolicyScope, 'signingRootVersion'> & {
     readonly signingRootVersion?: string;

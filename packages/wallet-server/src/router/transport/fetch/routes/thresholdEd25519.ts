@@ -1178,7 +1178,7 @@ async function completeEd25519Operation(input: {
   });
 }
 
-export function replayCompletedEd25519Operation(operation: AuthorizedOperation): Response | null {
+function replayCompletedEd25519Operation(operation: AuthorizedOperation): Response | null {
   if (operation.lifecycle !== 'completed') return null;
   return new Response(authorizedOperationReplayBodyInit(operation.response), {
     status: operation.response.status,
@@ -1191,13 +1191,13 @@ export function replayCompletedEd25519Operation(operation: AuthorizedOperation):
  * operation must never fall back to the live upstream response after the
  * completion write, since that would make retries non-idempotent.
  */
-export function requireCompletedEd25519OperationResponse(operation: AuthorizedOperation): Response {
+function requireCompletedEd25519OperationResponse(operation: AuthorizedOperation): Response {
   const replay = replayCompletedEd25519Operation(operation);
   if (!replay) throw new Error('Ed25519 operation completion readback is not completed');
   return replay;
 }
 
-export function buildEd25519ReplayResponse(input: {
+function buildEd25519ReplayResponse(input: {
   readonly response: Response;
   readonly bodyText: string;
 }): AuthorizedOperationReplayResponse {
@@ -1213,7 +1213,7 @@ type Ed25519NormalSigningExecutionDecision =
   | { readonly kind: 'operation_in_progress'; readonly response: Response }
   | { readonly kind: 'replayed'; readonly response: Response };
 
-export function decideEd25519NormalSigningExecution(input: {
+function decideEd25519NormalSigningExecution(input: {
   readonly phase: RouterAbEd25519NormalSigningRoutePhase;
   readonly admissionKind: 'claimed' | 'operation_in_progress' | 'replayed';
   readonly operation: AuthorizedOperation;
@@ -1251,7 +1251,7 @@ type Ed25519OperationStepUpExecutionDecision =
   | { readonly kind: 'execute'; readonly operation: AuthorizedOperation }
   | { readonly kind: 'replay'; readonly response: Response };
 
-export function decideEd25519OperationStepUpExecution(input: {
+function decideEd25519OperationStepUpExecution(input: {
   readonly admissionKind: 'claimed' | 'operation_in_progress' | 'replayed';
   readonly operation: AuthorizedOperation;
 }): Ed25519OperationStepUpExecutionDecision {
@@ -1263,7 +1263,7 @@ export function decideEd25519OperationStepUpExecution(input: {
   return { kind: 'execute', operation: input.operation };
 }
 
-export function isRouterAbEd25519OperationInProgressResponse(input: {
+function isRouterAbEd25519OperationInProgressResponse(input: {
   readonly status: number;
   readonly bodyText: string;
 }): boolean {

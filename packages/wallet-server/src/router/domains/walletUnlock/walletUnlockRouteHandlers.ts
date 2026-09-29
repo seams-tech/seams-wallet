@@ -72,12 +72,12 @@ import type {
   WalletUnlockEmailOtpRequestedCapabilitiesV1,
 } from './walletUnlockRequestedCapabilitiesValidation';
 
-export type WalletUnlockRouteResponse = {
+type WalletUnlockRouteResponse = {
   status: number;
   body: Record<string, unknown>;
 };
 
-export type WalletUnlockAlreadyCommittedRouteBody = {
+type WalletUnlockAlreadyCommittedRouteBody = {
   readonly ok: false;
   readonly unlocked: false;
   readonly unlockBackend: 'passkey' | typeof EMAIL_OTP_CHANNEL;
@@ -85,14 +85,14 @@ export type WalletUnlockAlreadyCommittedRouteBody = {
   readonly message: 'Wallet Session unlock is already committed; retry the exact method';
 } & Extract<DirectV2IssueResult, { readonly kind: 'already_committed' }>;
 
-export type EmitWalletUnlockRouterApiWebhook = (input: {
+type EmitWalletUnlockRouterApiWebhook = (input: {
   eventType: string;
   userId?: string;
   eventId?: string;
   payload: Record<string, unknown>;
 }) => Promise<void>;
 
-export type EmitWalletUnlockEmailOtpWebhook = (input: {
+type EmitWalletUnlockEmailOtpWebhook = (input: {
   descriptor: EmailOtpWebhookEventDescriptor;
   userId: string;
   walletId?: string;
@@ -103,7 +103,7 @@ type WalletUnlockProvisionedCapabilityMaterialV1 = {
   readonly capability: RouterAbEd25519YaoActiveCapabilityDescriptorV1;
 };
 
-export type WalletUnlockProvisionedCapabilityV1 = WalletUnlockProvisionedCapabilityMaterialV1 & {
+type WalletUnlockProvisionedCapabilityV1 = WalletUnlockProvisionedCapabilityMaterialV1 & {
   readonly kind: typeof ROUTER_AB_ED25519_YAO_EMAIL_OTP_RECOVERY_BOOTSTRAP_KIND_V1;
 };
 
@@ -196,7 +196,7 @@ export type WalletUnlockEcdsaCustodySignerV1 = {
   readonly runtimePolicyScope: WalletEcdsaSignerRecord['runtimePolicyScope'];
 };
 
-export type WalletUnlockEcdsaCustodyContinuityV1 = {
+type WalletUnlockEcdsaCustodyContinuityV1 = {
   readonly kind: 'wallet_custody_ecdsa_sync_continuity_v1';
   readonly signers: readonly WalletUnlockEcdsaCustodySignerV1[];
 };
@@ -213,7 +213,7 @@ export type WalletUnlockEcdsaAuthorization =
       readonly proof: WalletSessionOwnerProof;
     };
 
-export type WalletUnlockEmailOtpCustodyProjectionV1 = {
+type WalletUnlockEmailOtpCustodyProjectionV1 = {
   readonly kind: 'wallet_custody_email_otp_unlock_v1';
   readonly walletId: string;
   readonly enrollmentId: string;
@@ -227,7 +227,7 @@ export type WalletUnlockEmailOtpCustodyProjectionV1 = {
   readonly envelope: PasskeyCustodyEnvelopeRecord;
 };
 
-export type WalletUnlockPasskeyCustodyProjectionV1 = {
+type WalletUnlockPasskeyCustodyProjectionV1 = {
   readonly kind: 'wallet_custody_passkey_login_v1';
   readonly envelope: PasskeyCustodyEnvelopeRecord;
   readonly storeVersion: string;
@@ -964,7 +964,7 @@ function walletUnlockEcdsaCredentialUnavailableResponse(): WalletUnlockRouteResp
   };
 }
 
-export function walletUnlockAlreadyCommittedRouteResponse(input: {
+function walletUnlockAlreadyCommittedRouteResponse(input: {
   readonly unlockBackend: WalletUnlockAlreadyCommittedRouteBody['unlockBackend'];
   readonly committed: Extract<DirectV2IssueResult, { readonly kind: 'already_committed' }>;
 }): WalletUnlockRouteResponse {

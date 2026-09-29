@@ -84,7 +84,7 @@ export async function computeLinkedDeviceEmailOtpChallengeBindingDigestV1(input:
   return parseDigestB64u(base64UrlEncode(await sha256BytesUtf8(preimage)));
 }
 
-export type LinkedDeviceEmailOtpGrantStateV1 =
+type LinkedDeviceEmailOtpGrantStateV1 =
   | { readonly kind: 'issued'; readonly consumedAtMs?: never }
   | { readonly kind: 'consumed'; readonly consumedAtMs: number };
 

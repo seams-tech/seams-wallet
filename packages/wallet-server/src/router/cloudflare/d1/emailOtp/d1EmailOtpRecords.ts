@@ -41,7 +41,7 @@ export type EmailOtpAuthStatePatch = {
   readonly lastStrongAuthAtMs?: number | null;
 };
 
-export type EmailOtpPublicKey33Validator = (input: Uint8Array) => Promise<unknown>;
+type EmailOtpPublicKey33Validator = (input: Uint8Array) => Promise<unknown>;
 
 export type EmailOtpEnrollmentMaterialBoundaryInput = {
   readonly enrollmentSealKeyVersion?: unknown;
@@ -206,7 +206,7 @@ export function emailOtpRateLimitExceeded(row: D1EmailOtpRateLimitRow | null): {
   };
 }
 
-export function parseEmailOtpWalletEnrollmentRecord(
+function parseEmailOtpWalletEnrollmentRecord(
   input: unknown,
 ): EmailOtpWalletEnrollmentRecord | null {
   const record = parseJsonObject(input);
@@ -270,7 +270,7 @@ export function parseEmailOtpWalletEnrollmentRow(
   return record;
 }
 
-export function parseEmailOtpAuthStateRecord(input: unknown): EmailOtpAuthStateRecord | null {
+function parseEmailOtpAuthStateRecord(input: unknown): EmailOtpAuthStateRecord | null {
   const record = parseJsonObject(input);
   if (!record) return null;
   const version = toOptionalTrimmedString(record.version);
@@ -324,7 +324,7 @@ export function parseEmailOtpAuthStateRow(
   return record;
 }
 
-export function parseEmailOtpChallengeOperation(input: unknown): EmailOtpChallengeOperation | null {
+function parseEmailOtpChallengeOperation(input: unknown): EmailOtpChallengeOperation | null {
   const operation = toOptionalTrimmedString(input);
   if (!operation) return null;
   if (isWalletEmailOtpLoginOperation(operation)) return operation;
@@ -339,7 +339,7 @@ export function parseEmailOtpLoginOperation(input: unknown): EmailOtpLoginChalle
   return WALLET_EMAIL_OTP_UNLOCK_OPERATION;
 }
 
-export function parseEmailOtpChallengeRecord(input: unknown): EmailOtpChallengeRecord | null {
+function parseEmailOtpChallengeRecord(input: unknown): EmailOtpChallengeRecord | null {
   const record = parseJsonObject(input);
   if (!record) return null;
   const version = toOptionalTrimmedString(record.version);
@@ -475,9 +475,7 @@ export function parseEmailOtpRegistrationVerificationReceiptV1(
   };
 }
 
-export function parseEmailOtpUnlockChallengeRecord(
-  input: unknown,
-): EmailOtpUnlockChallengeRecord | null {
+function parseEmailOtpUnlockChallengeRecord(input: unknown): EmailOtpUnlockChallengeRecord | null {
   const record = parseJsonObject(input);
   if (!record) return null;
   const version = toOptionalTrimmedString(record.version);
@@ -705,7 +703,7 @@ export function emailOtpUnlockChallengeRecord(input: {
   };
 }
 
-export function parseEmailOtpGrantRecord(input: unknown): EmailOtpGrantRecord | null {
+function parseEmailOtpGrantRecord(input: unknown): EmailOtpGrantRecord | null {
   const record = parseJsonObject(input);
   if (!record) return null;
   const version = toOptionalTrimmedString(record.version);

@@ -31,7 +31,7 @@ export type EmailOtpChallengeOperationsInput = {
   readonly resolveConfig: () => EmailOtpConfig;
 };
 
-export type CreateEmailOtpLoginChallengeRequest = {
+type CreateEmailOtpLoginChallengeRequest = {
   userId?: unknown;
   walletId?: unknown;
   orgId?: unknown;
@@ -43,7 +43,7 @@ export type CreateEmailOtpLoginChallengeRequest = {
   reuseActiveChallenge?: unknown;
 };
 
-export type CreateEmailOtpLoginChallengeResult =
+type CreateEmailOtpLoginChallengeResult =
   | {
       ok: true;
       challenge: {
@@ -66,7 +66,7 @@ export type CreateEmailOtpLoginChallengeResult =
     }
   | { ok: false; code: string; message: string };
 
-export type CreateEmailOtpEnrollmentChallengeRequest = {
+type CreateEmailOtpEnrollmentChallengeRequest = {
   userId?: unknown;
   walletId?: unknown;
   orgId?: unknown;
@@ -99,7 +99,7 @@ export type CreateEmailOtpEnrollmentChallengeResult =
     }
   | { ok: false; code: string; message: string };
 
-export type VerifyEmailOtpLoginChallengeRequest = {
+type VerifyEmailOtpLoginChallengeRequest = {
   userId?: unknown;
   walletId?: unknown;
   orgId?: unknown;
@@ -111,7 +111,7 @@ export type VerifyEmailOtpLoginChallengeRequest = {
   operation?: unknown;
 };
 
-export type VerifyEmailOtpLoginChallengeResult =
+type VerifyEmailOtpLoginChallengeResult =
   | {
       ok: true;
       challengeId: string;

@@ -439,7 +439,7 @@ type RouterAbEcdsaOperationStepUpExecutionDecision =
   | { readonly kind: 'replay'; readonly operation: AuthorizedOperation }
   | { readonly kind: 'missing' };
 
-export function decideRouterAbEcdsaOperationStepUpExecution(input: {
+function decideRouterAbEcdsaOperationStepUpExecution(input: {
   readonly phase: 'prepare' | 'finalize';
   readonly admissionKind: RouterAbEcdsaOperationAdmissionKind;
   readonly operation: AuthorizedOperation;
@@ -2488,7 +2488,7 @@ function strictEcdsaNormalSigningPublicIdentityMatchesSigner(input: {
   );
 }
 
-export function resolveV2EcdsaCustodySigner(input: {
+function resolveV2EcdsaCustodySigner(input: {
   readonly continuity: readonly RouterAbEcdsaCustodySigner[];
   readonly walletId: string;
   readonly admittedThresholdPublicKey33B64u: string;
@@ -3007,7 +3007,7 @@ function strictPostRegistrationFailureResponse(
   );
 }
 
-export type StrictEcdsaOperationCredentialAuthorization =
+type StrictEcdsaOperationCredentialAuthorization =
   | {
       readonly ok: true;
       readonly kind: 'wallet_session_operation_credential_v1';
@@ -3056,7 +3056,7 @@ async function authorizeStrictEcdsaSessionActivation(input: {
   };
 }
 
-export async function authorizeStrictEcdsaSessionActivationFromOperationCredential(input: {
+async function authorizeStrictEcdsaSessionActivationFromOperationCredential(input: {
   readonly authorizationSessions: FetchRouterApiContext['service']['authorizationSessions'];
   readonly walletId: string;
   readonly operationCredential: WalletSessionOperationCredentialV1;

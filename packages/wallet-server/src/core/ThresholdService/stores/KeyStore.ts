@@ -23,7 +23,7 @@ import { readNonDurableObjectThresholdStoreKind } from './StoreConfig';
 
 type ThresholdKeyStoreConfigRecord = Record<string, unknown>;
 
-export type ThresholdEd25519ProvisioningKeyRecord = {
+type ThresholdEd25519ProvisioningKeyRecord = {
   kind: 'provisioning';
   walletId: string;
   nearAccountId: string;

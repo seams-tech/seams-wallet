@@ -62,7 +62,7 @@ export type WalletSessionConsumeUsesResult =
   | { ok: true; remainingUses: number }
   | { ok: false; code: string; message: string };
 
-export type WalletSessionConsumedUseResult =
+type WalletSessionConsumedUseResult =
   | { ok: true; consumed: boolean }
   | { ok: false; code: string; message: string };
 

@@ -53,7 +53,7 @@ import type { WalletEcdsaSignerRecord } from '../../../../core/WalletStore';
 import { projectActiveWalletSession } from '../../../../authorization/domain';
 import type { RouterAbEd25519YaoActiveCapabilityDescriptorV1 } from '../../../domains/ed25519Yao/recovery/routerAbEd25519YaoRecovery';
 
-export type VerifiedSyncAccountResultV1 = Extract<
+type VerifiedSyncAccountResultV1 = Extract<
   WebAuthnSyncAccountVerificationResult,
   { readonly ok: true; readonly verified: true }
 >;
@@ -120,7 +120,7 @@ type SyncAccountExactBootstrapBodyBaseV1 = {
   };
 };
 
-export type SyncAccountExactBootstrapBodyV1 = SyncAccountExactBootstrapBodyBaseV1 &
+type SyncAccountExactBootstrapBodyV1 = SyncAccountExactBootstrapBodyBaseV1 &
   (
     | {
         readonly ecdsaSession?: never;
@@ -132,7 +132,7 @@ export type SyncAccountExactBootstrapBodyV1 = SyncAccountExactBootstrapBodyBaseV
       }
   );
 
-export type SyncAccountBootstrapInputV1 = {
+type SyncAccountBootstrapInputV1 = {
   readonly ctx: FetchRouterApiContext;
   readonly result: VerifiedSyncAccountResultV1;
   readonly authority: WalletAuthAuthority;
@@ -153,7 +153,7 @@ export type SyncAccountBootstrapInputV1 = {
       };
 };
 
-export type SyncAccountBootstrapResultV1 =
+type SyncAccountBootstrapResultV1 =
   | { readonly kind: 'ok'; readonly body: SyncAccountExactBootstrapBodyV1 }
   | {
       readonly kind: 'already_committed';

@@ -8,7 +8,7 @@ import type { SyncSqliteConnectionV1 } from '../../storage/syncSqlite';
 
 const LEDGER_TABLE = 'seams_signer_sql_migrations';
 
-export type SignerSqlMigrationStatusV1 = {
+type SignerSqlMigrationStatusV1 = {
   readonly applied: readonly string[];
   readonly pending: readonly string[];
   /** Applied migrations this package does not ship: a newer schema. */

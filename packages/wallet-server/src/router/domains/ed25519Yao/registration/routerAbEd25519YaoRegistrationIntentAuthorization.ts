@@ -60,7 +60,7 @@ export type RouterAbEd25519YaoVerifiedRegistrationIntentV1 = {
   readonly expiresAtMs: number;
 };
 
-export type RouterAbEd25519YaoVerifiedAddSignerIntentV1 = {
+type RouterAbEd25519YaoVerifiedAddSignerIntentV1 = {
   readonly kind: 'verified_add_signer_intent';
   readonly addSignerIntentGrant: AddSignerIntentGrant;
   readonly intent: AddSignerIntentV1 & {
@@ -103,7 +103,7 @@ type BearerExtractionResult =
       >;
     };
 
-export type RouterAbEd25519YaoBearerCredentialDigestResultV1 =
+type RouterAbEd25519YaoBearerCredentialDigestResultV1 =
   | { readonly ok: true; readonly digestSha256Hex: string }
   | {
       readonly ok: false;

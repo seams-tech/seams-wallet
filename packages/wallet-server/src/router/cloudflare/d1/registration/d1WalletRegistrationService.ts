@@ -394,7 +394,7 @@ function buildWalletRegistrationActivatePendingEmailOtpResponse(input: {
   };
 }
 
-export type D1LinkedDeviceEd25519AuthorityReaderV1 = {
+type D1LinkedDeviceEd25519AuthorityReaderV1 = {
   readInstalledEd25519AuthorityByIdentityV1(input: {
     readonly walletId: WalletId;
     readonly authorityId: WalletAuthorityId;
@@ -1591,7 +1591,7 @@ function normalizedKeyHandleSet(keyHandles: readonly string[]): Set<string> {
   return normalized;
 }
 
-export function hasEcdsaKeyHandleSetMismatch(
+function hasEcdsaKeyHandleSetMismatch(
   expectedKeyHandles: readonly string[],
   actualKeyHandles: readonly string[],
 ): boolean {
@@ -2086,10 +2086,7 @@ const ROUTER_SERVER_TIMING_NAME_PATTERN = /^[A-Za-z0-9_-]+$/;
  * Cloudflare's descriptive metrics, and names are restricted to a token
  * charset so a metric name can never forge extra entries downstream.
  */
-export function mergeRouterServerTiming(
-  target: Array<readonly [string, number]>,
-  header: string,
-): void {
+function mergeRouterServerTiming(target: Array<readonly [string, number]>, header: string): void {
   let merged = 0;
   for (const entry of header.split(',')) {
     if (merged >= ROUTER_SERVER_TIMING_MERGE_LIMIT) return;

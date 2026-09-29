@@ -67,7 +67,7 @@ type D1WalletRegistrationFoundingFields =
       readonly foundingAuthMethod: ActiveWalletAuthMethodRecordV2;
     };
 
-export type D1WalletRegistrationCommitInput =
+type D1WalletRegistrationCommitInput =
   | (D1WalletRegistrationCommitBase & D1WalletRegistrationFoundingFields & {
       readonly kind: 'passkey_wallet_registration_commit_v1';
       readonly authority: Extract<RegistrationAuthority, { readonly kind: 'passkey' }>;
