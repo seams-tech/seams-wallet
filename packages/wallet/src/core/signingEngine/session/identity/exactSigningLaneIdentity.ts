@@ -681,19 +681,6 @@ export function exactSigningLaneWalletId(identity: ExactSigningLaneIdentity): Wa
   }
 }
 
-type ExactSigningLaneCurve = 'ed25519' | 'ecdsa';
-
-export function exactSigningLaneCurve(identity: ExactSigningLaneIdentity): ExactSigningLaneCurve {
-  switch (identity.signer.kind) {
-    case 'near_ed25519_signer':
-      return 'ed25519';
-    case 'evm_family_ecdsa_signer':
-      return 'ecdsa';
-    default:
-      return assertNeverExactLane(identity.signer);
-  }
-}
-
 export function requireEvmFamilyEcdsaSigner(
   identity: ExactSigningLaneIdentity,
   context: string,

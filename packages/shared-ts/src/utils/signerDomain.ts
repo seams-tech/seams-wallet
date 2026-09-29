@@ -24,23 +24,6 @@ export const WALLET_AUTH_METHODS = {
 /** Authentication methods that can be enrolled on a wallet. */
 export type WalletAuthMethod = (typeof WALLET_AUTH_METHODS)[keyof typeof WALLET_AUTH_METHODS];
 
-export type WalletAuthMethodSignerResolution =
-  | {
-      kind: 'supported';
-      walletAuthMethod: typeof WALLET_AUTH_METHODS.passkey;
-      signerAuthMethod: typeof SIGNER_AUTH_METHODS.passkey;
-    }
-  | {
-      kind: 'supported';
-      walletAuthMethod: typeof WALLET_AUTH_METHODS.emailOtp;
-      signerAuthMethod: typeof SIGNER_AUTH_METHODS.emailOtp;
-    }
-  | {
-      kind: 'unsupported';
-      walletAuthMethod: Exclude<WalletAuthMethod, SignerAuthMethod>;
-      signerAuthMethod?: never;
-    };
-
 const SIGNING_SESSION_RETENTIONS = {
   session: 'session',
   singleUse: 'single_use',

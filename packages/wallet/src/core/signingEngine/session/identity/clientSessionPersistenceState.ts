@@ -235,9 +235,3 @@ export function parseWalletSessionAuthorizationBoundary(args: {
     }
   }
 }
-
-export function requireActiveWalletSessionAuthorization(
-  state: ActiveWalletSessionAuthorizationState,
-): ActiveWalletSessionAuthorizationState {
-  return state;
-}

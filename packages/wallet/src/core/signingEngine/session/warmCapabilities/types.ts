@@ -5,7 +5,6 @@ import type {
   WalletSessionId,
 } from '@shared/authorization/capabilityKinds';
 import type { SigningSessionStatus } from '@/core/types/seams';
-import type { EcdsaSessionProvisionPlan } from './ecdsaProvisionPlan';
 import type { ActiveEcdsaCapabilityManifest } from '../material/ecdsaCapabilityManifest';
 import type { ExactEcdsaSealedRuntime } from '../material/ecdsaSealedRuntime';
 import type { ExactEvmFamilyWalletSessionAuthorization } from '../material/ecdsaSigningCapability';
@@ -13,7 +12,6 @@ import type { EcdsaSealTransportAuthMaterial } from '../persistence/sealedSessio
 import type {
   ThresholdEcdsaEmailOtpAuthContext,
   SelectedEcdsaLane,
-  ThresholdEcdsaSessionStoreSource,
   ThresholdEd25519SessionStoreSource,
 } from '../identity/laneIdentity';
 import { laneCandidateStateFromRuntimePolicy } from '../identity/laneIdentity';
@@ -25,10 +23,8 @@ import type {
 } from '../../threshold/sessionPolicy';
 import type { Ed25519WalletSessionMintAuthorization } from '../../threshold/ed25519/walletSession';
 import type { RouterAbEd25519NormalSigningState } from '../../threshold/ed25519/routerAbNormalSigningState';
-import type { SigningOperationIntent } from '../operationState/types';
 import {
   thresholdEcdsaChainTargetsEqual,
-  type ThresholdEcdsaChainTarget,
   type WalletId,
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type { EvmFamilyEcdsaKeyIdentity } from '../identity/evmFamilyEcdsaIdentity';
@@ -668,38 +664,6 @@ type ProvisionWarmEd25519CapabilityFailureResult = {
 export type ProvisionWarmEd25519CapabilityResult =
   | ProvisionWarmEd25519CapabilitySuccessResult
   | ProvisionWarmEd25519CapabilityFailureResult;
-
-type EnsureWarmEcdsaProvisionPlanReadyCommonArgs = {
-  walletId: WalletId;
-  subjectId?: never;
-  chainTarget: ThresholdEcdsaChainTarget;
-  keyRef?: never;
-  source: ThresholdEcdsaSessionStoreSource;
-  runtimeScopeBootstrap?: {
-    projectEnvironmentId: string;
-    publishableKey: string;
-  };
-  usesNeeded?: number;
-  sessionBudgetUses: number;
-  operationIntent?: SigningOperationIntent;
-  beforeReconnect?: () => void | Promise<void>;
-  assertNotCancelled?: () => void;
-};
-
-export type EnsureWarmEcdsaProvisionPlanReadyArgs =
-  | (EnsureWarmEcdsaProvisionPlanReadyCommonArgs & {
-      plan: Extract<
-        EcdsaSessionProvisionPlan,
-        {
-          kind: 'passkey_ecdsa_session_provision';
-        }
-      >;
-      capability: WarmSessionEcdsaCapabilityState;
-    })
-  | (EnsureWarmEcdsaProvisionPlanReadyCommonArgs & {
-      plan: Extract<EcdsaSessionProvisionPlan, { kind: 'email_otp_ecdsa_session_provision' }>;
-      capability: WarmSessionEcdsaCapabilityState;
-    });
 
 export type WarmSessionCapabilityReader = {
   getWarmSession: (walletId: WalletId) => Promise<WarmSessionEnvelope>;

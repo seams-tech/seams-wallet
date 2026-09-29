@@ -5,7 +5,6 @@ import type {
 import type { EcdsaCommittedLane } from '../../flows/signEvmFamily/ecdsaSelection';
 import type { EmailOtpRoutePlan } from '../../stepUpConfirmation/otpPrompt/authLane';
 import type {
-  EmailOtpEcdsaTransactionStepUpInput,
   LoginEmailOtpEcdsaCapabilityForSigningArgs,
   LoginEmailOtpEcdsaCapabilityArgs,
 } from './ecdsaLogin';
@@ -14,65 +13,6 @@ declare const walletSession: WalletSessionRef;
 declare const chainTarget: ThresholdEcdsaChainTarget;
 declare const committedLane: EcdsaCommittedLane;
 declare const routePlan: EmailOtpRoutePlan;
-
-const transactionStepUpWithCommittedLane: EmailOtpEcdsaTransactionStepUpInput = {
-  mode: 'transaction_step_up',
-  walletSession,
-  chainTarget,
-  challengeId: 'challenge-1',
-  otpCode: '123456',
-  committedLane,
-  remainingUses: 3,
-};
-void transactionStepUpWithCommittedLane;
-
-// @ts-expect-error transaction step-up requires a concrete budget allowance.
-const transactionStepUpWithoutRemainingUses: EmailOtpEcdsaTransactionStepUpInput = {
-  mode: 'transaction_step_up',
-  walletSession,
-  chainTarget,
-  challengeId: 'challenge-1',
-  otpCode: '123456',
-  committedLane,
-};
-void transactionStepUpWithoutRemainingUses;
-
-const transactionStepUpWithRouteAuth: EmailOtpEcdsaTransactionStepUpInput = {
-  mode: 'transaction_step_up',
-  walletSession,
-  chainTarget,
-  challengeId: 'challenge-1',
-  otpCode: '123456',
-  committedLane,
-  remainingUses: 3,
-  // @ts-expect-error transaction step-up does not accept loose route auth.
-  routeAuth: { kind: 'wallet_session', jwt: 'jwt' },
-};
-void transactionStepUpWithRouteAuth;
-
-// @ts-expect-error transaction step-up requires a committed ECDSA lane.
-const transactionStepUpMissingAuth: EmailOtpEcdsaTransactionStepUpInput = {
-  mode: 'transaction_step_up',
-  walletSession,
-  chainTarget,
-  challengeId: 'challenge-1',
-  otpCode: '123456',
-  remainingUses: 3,
-};
-void transactionStepUpMissingAuth;
-
-const transactionStepUpWithRegistrationAttempt: EmailOtpEcdsaTransactionStepUpInput = {
-  mode: 'transaction_step_up',
-  walletSession,
-  chainTarget,
-  challengeId: 'challenge-1',
-  otpCode: '123456',
-  committedLane,
-  remainingUses: 3,
-  // @ts-expect-error transaction step-up does not accept registration attempts.
-  registrationAttemptId: 'registration-attempt',
-};
-void transactionStepUpWithRegistrationAttempt;
 
 const signingCapabilityWithCommittedLane: LoginEmailOtpEcdsaCapabilityForSigningArgs = {
   walletSession,

@@ -1,7 +1,5 @@
 import type {
-  EcdsaProvisioningTransition,
   RegisterWalletAuth,
-  RegisterWalletTransition,
   RegistrationReadyLanes,
   RestorePersistedSessionAuth,
   RestorePersistedSessionRequest,
@@ -25,7 +23,6 @@ import type {
   EmailOtpCode,
   RestoreAttemptId,
   RestorePersistedSessionsInput,
-  RestorePersistedSessionsTransition,
 } from './lifecycle';
 import type {
   CredentialIdB64u,
@@ -53,10 +50,6 @@ import type {
   SigningOperationId,
   ThresholdSessionId,
 } from '../session/operationState/types';
-import type {
-  MpcWalletSigningQuotaId,
-  WalletSessionId,
-} from '@shared/authorization/capabilityKinds';
 
 declare const walletId: WalletId;
 declare const rpId: RpId;
@@ -68,8 +61,6 @@ declare const emailOtpChallengeId: EmailOtpChallengeId;
 declare const emailOtpAuthSubjectId: EmailOtpAuthSubjectId;
 declare const userHandle: WebAuthnUserHandle;
 declare const thresholdSessionId: ThresholdSessionId;
-declare const walletSessionId: WalletSessionId;
-declare const quotaId: MpcWalletSigningQuotaId;
 declare const operationId: SigningOperationId;
 declare const emailOtpEd25519WorkerHandle: Extract<
   EmailOtpWorkerIssuedSessionHandle,
@@ -413,34 +404,5 @@ const readyReadinessWithReauth = {
 // @ts-expect-error ready readiness cannot carry reauth-required lanes
 readyReadinessWithReauth satisfies UseCaseWalletSessionReadiness;
 
-const invalidProvisioningTransition = {
-  from: 'ready',
-  to: 'failed',
-};
-// @ts-expect-error ECDSA provisioning ready state is terminal
-invalidProvisioningTransition satisfies EcdsaProvisioningTransition;
-
-const validRegisterTransition = {
-  from: 'authenticating',
-  to: 'provisioning_ed25519',
-} satisfies RegisterWalletTransition;
-void validRegisterTransition;
-
-const invalidRegisterTransition = {
-  from: 'ready',
-  to: 'authenticating',
-};
-// @ts-expect-error register-wallet ready state is terminal
-invalidRegisterTransition satisfies RegisterWalletTransition;
-
-const invalidRestoreTransition = {
-  from: 'ready',
-  to: 'cleaning_stale_records',
-};
-// @ts-expect-error restore ready state is terminal
-invalidRestoreTransition satisfies RestorePersistedSessionsTransition;
-
-declare const registerFailure: RegisterWalletTransition;
-void registerFailure;
 declare const hexValue: typeof hex;
 void hexValue;

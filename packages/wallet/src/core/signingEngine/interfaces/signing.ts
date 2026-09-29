@@ -31,13 +31,6 @@ export type ThresholdEcdsaCanonicalExportArtifact = {
 
 export type { EcdsaThresholdKeyId };
 
-export type ThresholdEcdsaDerivationRoleLocalClientState = {
-  kind: 'role_local_ready';
-  artifactKind: 'ecdsa-derivation-role-local-client-state';
-  stateBlob: EcdsaRoleLocalReadyStateBlob;
-  publicFacts: EcdsaRoleLocalPublicFacts;
-};
-
 type ThresholdEcdsaBackendBindingCommon = {
   /**
    * SigningWorker key identifier for the fixed Router A/B ECDSA path. This is

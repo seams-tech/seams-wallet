@@ -2,14 +2,8 @@ import type { AccountId } from '@/core/types/accountIds';
 import type {
   ThresholdEcdsaChainTarget,
   WalletId,
-  WalletSessionRef,
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
-import type {
-  EcdsaSigningListLookupArgs,
-  EcdsaSigningLookupArgs,
-  EvmFamilySigningDeps,
-  NearSigningApiDeps,
-} from './operationDeps';
+import type { EvmFamilySigningDeps, NearSigningApiDeps } from './operationDeps';
 import type {
   ExactEcdsaSigningLaneIdentity,
   ExactEd25519SigningLaneIdentity,
@@ -19,37 +13,10 @@ import type { NearEd25519MaterialIdentity } from './operationDeps';
 
 declare const nearAccountId: AccountId;
 declare const walletId: WalletId;
-declare const walletSession: WalletSessionRef;
 declare const chainTarget: ThresholdEcdsaChainTarget;
 declare const exactEcdsaLane: ExactEcdsaSigningLaneIdentity;
 declare const exactEd25519Lane: ExactEd25519SigningLaneIdentity;
 declare const ed25519Auth: SigningLaneAuthBinding;
-
-const ecdsaSigningLookupArgs: EcdsaSigningLookupArgs = {
-  walletId,
-  chainTarget,
-};
-void ecdsaSigningLookupArgs;
-
-const ecdsaSigningListLookupArgs: EcdsaSigningListLookupArgs = {
-  walletId,
-  chainTarget,
-};
-void ecdsaSigningListLookupArgs;
-
-const invalidEcdsaSigningLookupArgs: EcdsaSigningLookupArgs = {
-  // @ts-expect-error ECDSA signing lookup requires WalletId.
-  walletId: 'alice.testnet',
-  chainTarget,
-};
-void invalidEcdsaSigningLookupArgs;
-
-const invalidEcdsaSigningListLookupArgs: EcdsaSigningListLookupArgs = {
-  // @ts-expect-error ECDSA signing list lookup requires WalletId.
-  walletId: 'alice.testnet',
-  chainTarget,
-};
-void invalidEcdsaSigningListLookupArgs;
 
 declare const signingDeps: EvmFamilySigningDeps;
 declare const nearSigningDeps: NearSigningApiDeps;

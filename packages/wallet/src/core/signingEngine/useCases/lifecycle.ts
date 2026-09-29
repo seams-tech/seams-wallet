@@ -1,6 +1,5 @@
 import type {
   CredentialIdB64u,
-  EcdsaProvisioningState,
   EcdsaRoleLocalReadyRecord,
   EmailOtpWorkerIssuedSessionHandle,
   RelayerKeyId,
@@ -84,18 +83,6 @@ export function useCaseFailure<Code extends string>(input: {
     ...(input.cause === undefined ? {} : { cause: input.cause }),
   };
 }
-
-type LifecycleTransitionTable<StateKind extends string> = {
-  readonly [Kind in StateKind]: readonly StateKind[];
-};
-
-type LifecycleTransitionFromTable<T extends Record<string, readonly string[]>> = {
-  readonly [From in keyof T & string]: T[From][number] extends infer To
-    ? To extends string
-      ? { readonly from: From; readonly to: To }
-      : never
-    : never;
-}[keyof T & string];
 
 type ConfiguredEcdsaTargets = {
   kind: 'configured';
@@ -798,102 +785,3 @@ export type RestorePersistedSessionsInput = {
   ecdsaTargets: EcdsaTargetSelection;
   reason: 'page_load' | 'session_status' | 'pre_sign' | 'manual_refresh';
 };
-
-type RestorePersistedSessionCleanup = {
-  kind: 'cleanup_required';
-  walletId: WalletId;
-  rpId: RpId;
-  target: RestorePersistedSessionRequest;
-  reason: 'malformed_record' | 'expired_record' | 'incompatible_record' | 'seal_mismatch';
-};
-
-type RestorePersistedSessionsSuccess = {
-  ok: true;
-  walletId: WalletId;
-  readiness: UseCaseWalletSessionReadiness;
-  restored: readonly (ReadyEd25519Lane | EcdsaUseCaseReadyLane)[];
-  reauthRequired: readonly ReauthRequiredLane[];
-  cleanup: readonly RestorePersistedSessionCleanup[];
-  code?: never;
-  message?: never;
-  retryable?: never;
-};
-
-type RestorePersistedSessionsFailureCode =
-  | 'stale_persistence'
-  | 'unavailable_storage'
-  | 'seal_failed'
-  | 'incompatible_record'
-  | 'malformed_record'
-  | 'cleanup_failed'
-  | 'invalid_state';
-
-type RestorePersistedSessionsLifecycleState =
-  | ({ kind: 'received_input' } & RestorePersistedSessionsInput)
-  | {
-      kind: 'reading_persistence';
-      input: RestorePersistedSessionsInput;
-    }
-  | {
-      kind: 'classifying_material';
-      input: RestorePersistedSessionsInput;
-      material: readonly (ReadyEd25519Lane | EcdsaUseCaseReadyLane | ReauthRequiredLane)[];
-    }
-  | {
-      kind: 'cleaning_stale_records';
-      input: RestorePersistedSessionsInput;
-      cleanup: NonEmptyReadonlyArray<RestorePersistedSessionCleanup>;
-    }
-  | {
-      kind: 'ready';
-      result: RestorePersistedSessionsSuccess;
-      failed?: never;
-    }
-  | ({
-      kind: 'failed';
-      result?: never;
-    } & UseCaseFailure<RestorePersistedSessionsFailureCode>);
-
-type EcdsaProvisioningStateKind = EcdsaProvisioningState['kind'];
-type RegisterWalletLifecycleStateKind = RegisterWalletLifecycleState['kind'];
-type RestorePersistedSessionsLifecycleStateKind = RestorePersistedSessionsLifecycleState['kind'];
-
-const ecdsaProvisioningAllowedTransitions = {
-  needs_secret_source: ['preparing_client_bootstrap', 'failed'],
-  preparing_client_bootstrap: ['awaiting_relayer_identity', 'failed'],
-  awaiting_relayer_identity: ['finalizing_ready_state', 'failed'],
-  finalizing_ready_state: ['persisting_ready_record', 'failed'],
-  persisting_ready_record: ['ready', 'failed'],
-  ready: [],
-  failed: [],
-} as const satisfies LifecycleTransitionTable<EcdsaProvisioningStateKind>;
-
-const registerWalletAllowedTransitions = {
-  received_input: ['authenticating', 'failed'],
-  authenticating: ['provisioning_ed25519', 'failed'],
-  provisioning_ed25519: ['provisioning_ecdsa', 'failed'],
-  provisioning_ecdsa: ['sealing_sessions', 'failed'],
-  sealing_sessions: ['persisting_wallet', 'failed'],
-  persisting_wallet: ['ready', 'failed'],
-  ready: [],
-  failed: [],
-} as const satisfies LifecycleTransitionTable<RegisterWalletLifecycleStateKind>;
-
-const restorePersistedSessionsAllowedTransitions = {
-  received_input: ['reading_persistence', 'failed'],
-  reading_persistence: ['classifying_material', 'failed'],
-  classifying_material: ['cleaning_stale_records', 'ready', 'failed'],
-  cleaning_stale_records: ['ready', 'failed'],
-  ready: [],
-  failed: [],
-} as const satisfies LifecycleTransitionTable<RestorePersistedSessionsLifecycleStateKind>;
-
-export type EcdsaProvisioningTransition = LifecycleTransitionFromTable<
-  typeof ecdsaProvisioningAllowedTransitions
->;
-export type RegisterWalletTransition = LifecycleTransitionFromTable<
-  typeof registerWalletAllowedTransitions
->;
-export type RestorePersistedSessionsTransition = LifecycleTransitionFromTable<
-  typeof restorePersistedSessionsAllowedTransitions
->;

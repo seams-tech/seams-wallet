@@ -133,38 +133,12 @@ function requireNonEmptyString(value: unknown, field: string): string {
   return normalized;
 }
 
-function toPasskeyPrfFirstB64u(value: unknown): PasskeyPrfFirstB64u {
-  return requireNonEmptyString(value, 'passkeyPrfFirstB64u') as PasskeyPrfFirstB64u;
-}
-
 function requirePositiveInteger(value: unknown, field: string): number {
   const normalized = Math.floor(Number(value) || 0);
   if (normalized <= 0) {
     throw new Error(`[SigningEngine][ecdsa] ${field} must be a positive integer`);
   }
   return normalized;
-}
-
-export function buildPasskeyEcdsaProvisionSecretSource(args: {
-  passkeyPrfFirstB64u: string;
-  webauthnAuthentication: WebAuthnAuthenticationCredential;
-}): PasskeyEcdsaProvisionSecretSource {
-  return {
-    kind: 'webauthn_prf_first_v1',
-    passkeyPrfFirstB64u: toPasskeyPrfFirstB64u(args.passkeyPrfFirstB64u),
-    webauthnAuthentication: args.webauthnAuthentication,
-  };
-}
-
-export function buildEmailOtpEcdsaProvisionSecretSource(args: {
-  workerHandle: Extract<EmailOtpWorkerIssuedSessionHandle, { action: 'threshold_ecdsa_bootstrap' }>;
-  emailOtpAuthContext: ThresholdEcdsaEmailOtpAuthContext;
-}): EmailOtpEcdsaProvisionSecretSource {
-  return {
-    kind: 'email_otp_worker_session_v1',
-    workerHandle: args.workerHandle,
-    emailOtpAuthContext: args.emailOtpAuthContext,
-  };
 }
 
 export function buildEcdsaSessionIdentity(args: {

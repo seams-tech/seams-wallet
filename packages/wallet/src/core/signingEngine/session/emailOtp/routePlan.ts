@@ -52,13 +52,6 @@ export function throwEmailOtpSigningSessionAuthStateError(
   throw new EmailOtpSigningSessionAuthStateError(failure);
 }
 
-export type EmailOtpThresholdEd25519RouteAuth = {
-  kind: 'threshold_ed25519_session';
-  operationCredential: WalletSessionOperationCredentialV1;
-  curve: 'ed25519';
-  chainTarget?: never;
-};
-
 type EmailOtpThresholdEcdsaRouteAuth = {
   kind: 'threshold_ecdsa_session';
   operationCredential: WalletSessionOperationCredentialV1;

@@ -1,4 +1,3 @@
-import type { WebAuthnAuthenticationCredential } from '../../types/webauthn';
 import { errorMessage } from '@shared/utils/errors';
 import type { WalletSessionOperationCredentialV1 } from '@shared/device-linking';
 import { parseRootShareEpoch, type RootShareEpoch } from '@shared/utils/domainIds';
@@ -10,7 +9,6 @@ import {
   type RouterAbEcdsaPostRegistrationSessionActivationRequestV1,
   type RouterAbEcdsaPostRegistrationSessionActivationResponseV1,
 } from '@shared/utils/routerAbEcdsaDerivation';
-import type { ThresholdRuntimePolicyScope } from '../../signingEngine/threshold/sessionPolicy';
 import { toWalletId, type WalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type { EcdsaThresholdKeyId } from '@/core/signingEngine/session/identity/emailOtpEcdsaDerivationIdentity';
 import { toEcdsaDerivationThresholdKeyId } from '@/core/signingEngine/session/identity/emailOtpEcdsaDerivationIdentity';
@@ -46,58 +44,6 @@ export type ThresholdEcdsaDerivationRoleLocalClientRootProof = {
   digest32B64u: string;
   signature65B64u: string;
 };
-
-export type ThresholdEcdsaDerivationRoleLocalPasskeyBootstrapAuthorization =
-  | {
-      kind: 'passkey_bootstrap';
-      rpId: string;
-      webauthn_authentication: WebAuthnAuthenticationCredential;
-      runtimePolicyScope: ThresholdRuntimePolicyScope;
-      projectEnvironmentId?: never;
-      projectEnvironmentPublishableKey?: never;
-    }
-  | {
-      kind: 'passkey_bootstrap';
-      rpId: string;
-      webauthn_authentication: WebAuthnAuthenticationCredential;
-      projectEnvironmentId: string;
-      projectEnvironmentPublishableKey: string;
-      runtimePolicyScope?: never;
-    };
-
-export type ThresholdEcdsaDerivationRoleLocalBootstrapRequest = {
-  formatVersion: 'ecdsa-derivation-role-local';
-  walletId: WalletId;
-  evmFamilySigningKeySlotId: string;
-  ecdsaThresholdKeyId: EcdsaThresholdKeyId;
-  signingRootId: string;
-  signingRootVersion: string;
-  keyScope: 'evm-family';
-  relayerKeyId: string;
-  derivationClientSharePublicKey33B64u: DerivationClientSharePublicKey33B64u;
-  clientShareRetryCounter: number;
-  contextBinding32B64u: string;
-  requestId: string;
-  sessionId: string;
-  ttlMs: number;
-  remainingUses: number;
-  participantIds: number[];
-  auth?: ThresholdEcdsaDerivationRouteAuth;
-  runtimePolicyScope?: ThresholdRuntimePolicyScope;
-} & (
-  | {
-      clientRootProof: ThresholdEcdsaDerivationRoleLocalClientRootProof;
-      passkeyBootstrapAuthorization?: never;
-    }
-  | {
-      clientRootProof?: never;
-      passkeyBootstrapAuthorization: ThresholdEcdsaDerivationRoleLocalPasskeyBootstrapAuthorization;
-    }
-  | {
-      clientRootProof?: never;
-      passkeyBootstrapAuthorization?: never;
-    }
-);
 
 export type ThresholdEcdsaDerivationRoleLocalBootstrapValue = {
   formatVersion: 'ecdsa-derivation-role-local';

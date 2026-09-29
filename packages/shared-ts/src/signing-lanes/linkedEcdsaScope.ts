@@ -10,7 +10,6 @@ import {
   type SigningLaneId,
   type WalletKeyId,
 } from './ids';
-import { hasWhitespaceOrControlCharacters } from '../utils/domainIds';
 import { type DigestB64u } from '../utils/canonicalPrimitives';
 import { type Secp256k1CompressedPublicKeyB64u } from '../passkey-custody/primitives';
 import {
@@ -74,73 +73,3 @@ export type LinkedDeviceEcdsaNormalSigningScopeV1 = LinkedEcdsaScopeOwnerFieldsF
   readonly transcriptHashB64u: DigestB64u;
   readonly protocolCommitReceiptDigestB64u: DigestB64u;
 };
-
-export type LinkedDeviceEcdsaNormalSigningScopeInputV1 = Omit<
-  LinkedDeviceEcdsaNormalSigningScopeV1,
-  'kind' | 'keyFamily' | 'laneKind'
->;
-
-export function buildLinkedDeviceEcdsaNormalSigningScopeV1(
-  input: LinkedDeviceEcdsaNormalSigningScopeInputV1,
-): LinkedDeviceEcdsaNormalSigningScopeV1 {
-  const scope = {
-    kind: 'linked_device_ecdsa_normal_signing_scope_v1' as const,
-    keyFamily: 'ecdsa_secp256k1' as const,
-    laneKind: 'linked_device' as const,
-    walletId: input.walletId,
-    walletKeyId: input.walletKeyId,
-    enrollmentId: input.enrollmentId,
-    operationId: input.operationId,
-    laneId: input.laneId,
-    laneShareEpoch: input.laneShareEpoch,
-    revocationEpoch: input.revocationEpoch,
-    targetMaterialActivationId: input.targetMaterialActivationId,
-    materialActivation: input.materialActivation,
-    targetCapability: input.targetCapability,
-    thresholdPublicKey33B64u: input.thresholdPublicKey33B64u,
-    evmAddress: input.evmAddress,
-    publicIdentityDigestB64u: input.publicIdentityDigestB64u,
-    targetHolderPublicCommitmentB64u: input.targetHolderPublicCommitmentB64u,
-    targetServerPublicCommitmentB64u: input.targetServerPublicCommitmentB64u,
-    holderParticipantId: input.holderParticipantId,
-    signingWorkerParticipantId: input.signingWorkerParticipantId,
-    holderParticipantBindingDigestB64u: input.holderParticipantBindingDigestB64u,
-    signingWorkerParticipantBindingDigestB64u: input.signingWorkerParticipantBindingDigestB64u,
-    holderRecipientKeyDigestB64u: input.holderRecipientKeyDigestB64u,
-    serverRecipientKeyDigestB64u: input.serverRecipientKeyDigestB64u,
-    signingWorkerRecipientKeyId: input.signingWorkerRecipientKeyId,
-    signingWorkerHpkePublicKeyB64u: input.signingWorkerHpkePublicKeyB64u,
-    transcriptHashB64u: input.transcriptHashB64u,
-    protocolCommitReceiptDigestB64u: input.protocolCommitReceiptDigestB64u,
-  } satisfies LinkedDeviceEcdsaNormalSigningScopeV1;
-  validateLinkedDeviceEcdsaNormalSigningScopeV1(scope);
-  return scope;
-}
-
-function validateLinkedDeviceEcdsaNormalSigningScopeV1(
-  scope: LinkedDeviceEcdsaNormalSigningScopeV1,
-): void {
-  if (scope.kind !== 'linked_device_ecdsa_normal_signing_scope_v1') {
-    throw new Error('linked ECDSA scope kind is invalid');
-  }
-  if (scope.keyFamily !== 'ecdsa_secp256k1' || scope.laneKind !== 'linked_device') {
-    throw new Error('linked ECDSA scope discriminator is invalid');
-  }
-  if (scope.materialActivation.activationId !== scope.targetMaterialActivationId) {
-    throw new Error('linked ECDSA scope activation id does not match material activation');
-  }
-  if (!Number.isSafeInteger(scope.revocationEpoch) || scope.revocationEpoch < 0) {
-    throw new Error('linked ECDSA scope revocation epoch is invalid');
-  }
-  if (!/^0x[0-9a-fA-F]{40}$/.test(scope.evmAddress)) {
-    throw new Error('linked ECDSA scope EVM address is invalid');
-  }
-  requireVisibleText(scope.holderParticipantId, 'holderParticipantId');
-  requireVisibleText(scope.signingWorkerParticipantId, 'signingWorkerParticipantId');
-}
-
-function requireVisibleText(value: string, label: string): void {
-  if (!value || hasWhitespaceOrControlCharacters(value)) {
-    throw new Error(`${label} must contain visible non-whitespace text`);
-  }
-}

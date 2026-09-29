@@ -213,11 +213,6 @@ export type EmailOtpEcdsaCommittedLane =
       authLane: Extract<EmailOtpSigningSessionAuthLane, { curve: 'ecdsa' }>;
     };
 
-export type EmailOtpEcdsaDirectCapabilityCommittedLane = Extract<
-  EmailOtpEcdsaCommittedLane,
-  { authLane?: never }
->;
-
 export type EmailOtpEcdsaSigningSessionCommittedLane = Extract<
   EmailOtpEcdsaCommittedLane,
   { authLane: EmailOtpSigningSessionAuthLane }

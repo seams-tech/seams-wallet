@@ -760,25 +760,6 @@ export function parseHostedAuthMenuExternalAuthResolution(
   return { kind: record.kind, authMenuSessionId, externalAuthRequestId, requestId, evidence };
 }
 
-export function buildHostedAuthMenuExternalAuthResolution(args: {
-  authMenuSessionId: HostedAuthMenuSessionId;
-  externalAuthRequestId: HostedAuthMenuExternalAuthRequestId;
-  requestId: WalletIframeRequestId;
-  evidence: HostedAuthMenuExternalAuthEvidence;
-}): HostedAuthMenuExternalAuthResolution {
-  const resolution: HostedAuthMenuExternalAuthResolution = {
-    kind: 'hosted_auth_menu_external_auth_resolution_v1',
-    authMenuSessionId: args.authMenuSessionId,
-    externalAuthRequestId: args.externalAuthRequestId,
-    requestId: args.requestId,
-    evidence: args.evidence,
-  };
-  if (!parseHostedAuthMenuExternalAuthResolution(resolution)) {
-    throw new Error('Hosted auth-menu external-auth resolution is invalid');
-  }
-  return Object.freeze(resolution);
-}
-
 export function parseHostedAuthMenuCancelPayload(
   value: unknown,
 ): HostedAuthMenuCancelPayload | null {

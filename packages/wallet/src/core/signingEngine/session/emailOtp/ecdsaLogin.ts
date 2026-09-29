@@ -1236,20 +1236,6 @@ export type LoginEmailOtpEcdsaCapabilityForSigningArgs = {
   authLane?: never;
 };
 
-export type EmailOtpEcdsaTransactionStepUpInput = {
-  mode: 'transaction_step_up';
-  walletSession: WalletSessionRef;
-  chainTarget: ThresholdEcdsaChainTarget;
-  challengeId: string;
-  otpCode: string;
-  committedLane: EcdsaCommittedLane;
-  remainingUses: number;
-  record?: never;
-  routeAuth?: never;
-  authLane?: never;
-  registrationAttemptId?: never;
-};
-
 function normalizeEmailOtpEcdsaSigningRemainingUses(value: unknown): number {
   const remainingUses = Math.floor(Number(value) || 0);
   if (!Number.isFinite(remainingUses) || remainingUses <= 0) {

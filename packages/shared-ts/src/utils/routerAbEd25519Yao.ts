@@ -1,10 +1,8 @@
 import type {
   RouterAbEd25519YaoAdmittedLifecycleV1,
   RouterAbEd25519YaoCeremonyBindingV1 as GeneratedRouterAbEd25519YaoCeremonyBindingV1,
-  RouterAbEd25519YaoInputPairBindingV1,
   RouterAbEd25519YaoOperationV1,
   RouterAbEd25519YaoPrimitiveRequestKindV1,
-  RouterAbEd25519YaoPublicDigestV1,
   RouterAbEd25519YaoWorkKindV1,
   RouterAbEd25519YaoBytes32V1,
 } from './generated/routerAbEd25519YaoCore';
@@ -514,37 +512,6 @@ export type RouterAbEd25519YaoRecoveryStatusV1 =
       readonly execution_result: RouterAbEd25519YaoActivationResultV1<'recovery'>;
       readonly activation_receipt: RouterAbEd25519YaoRecoveryActivationReceiptV1;
     };
-
-type RouterAbEd25519YaoExecutionAuthorityV1 = {
-  authority_digest: RouterAbEd25519YaoPublicDigestV1;
-  issued_at_ms: number;
-  expires_at_ms: number;
-};
-
-type RouterAbEd25519YaoRouterExecuteCommonV1 = {
-  authority: RouterAbEd25519YaoExecutionAuthorityV1;
-  pair_binding: RouterAbEd25519YaoInputPairBindingV1;
-};
-
-export type RouterAbEd25519YaoRouterExecuteRequestV1 =
-  | (RouterAbEd25519YaoRouterExecuteCommonV1 & {
-      operation: 'registration';
-      binding: RouterAbEd25519YaoActivationBindingV1<'registration'>;
-      deriver_a_input: RouterAbEd25519YaoActivationEncryptedInputV1<'deriver_a', 'registration'>;
-      deriver_b_input: RouterAbEd25519YaoActivationEncryptedInputV1<'deriver_b', 'registration'>;
-    })
-  | (RouterAbEd25519YaoRouterExecuteCommonV1 & {
-      operation: 'recovery';
-      binding: RouterAbEd25519YaoActivationBindingV1<'recovery'>;
-      deriver_a_input: RouterAbEd25519YaoActivationEncryptedInputV1<'deriver_a', 'recovery'>;
-      deriver_b_input: RouterAbEd25519YaoActivationEncryptedInputV1<'deriver_b', 'recovery'>;
-    })
-  | (RouterAbEd25519YaoRouterExecuteCommonV1 & {
-      operation: 'export';
-      binding: RouterAbEd25519YaoExportBindingV1;
-      deriver_a_input: RouterAbEd25519YaoExportEncryptedInputV1<'deriver_a'>;
-      deriver_b_input: RouterAbEd25519YaoExportEncryptedInputV1<'deriver_b'>;
-    });
 
 type RouterAbEd25519YaoParseResult<T> =
   | { ok: true; value: T }

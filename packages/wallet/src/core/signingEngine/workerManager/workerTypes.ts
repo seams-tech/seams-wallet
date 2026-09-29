@@ -528,9 +528,6 @@ export type EmailOtpWalletRegistrationEcdsaPrepareHandlePayload = {
   chainTarget: ThresholdEcdsaChainTarget;
 };
 
-export type EmailOtpWorkerIssuedSessionHandlePayload =
-  EmailOtpEcdsaSessionBootstrapHandlePayload | EmailOtpWalletRegistrationEcdsaPrepareHandlePayload;
-
 type EmailOtpEcdsaSessionBootstrapHandleBindingBase = {
   authSubjectId: string;
   action?: 'threshold_ecdsa_bootstrap';
@@ -1167,23 +1164,6 @@ export type MultichainWorkerOperationResult<
   K extends MultichainWorkerKind,
   T extends MultichainOperationType<K>,
 > = MultichainWorkerOperationEntry<K, T>['result'];
-
-type EvmCryptoTransactionOperationType =
-  'computeEip1559TxHash' | 'encodeEip1559SignedTxFromSignature65';
-type EvmCryptoLocalSecp256k1OperationType =
-  | 'signSecp256k1Recoverable'
-  | 'verifySecp256k1RecoverableSignatureAgainstPublicKey33'
-  | 'secp256k1PrivateKey32ToPublicKey33'
-  | 'validateSecp256k1PublicKey33'
-  | 'addSecp256k1PublicKeys33'
-  | 'buildWebauthnP256Signature'
-  | 'decodeCoseP256PublicKey';
-
-export type EvmCryptoTransactionOperationRequest<T extends EvmCryptoTransactionOperationType> =
-  MultichainWorkerOperationRequest<'evmCrypto', T>;
-export type EvmCryptoLocalSecp256k1OperationRequest<
-  T extends EvmCryptoLocalSecp256k1OperationType,
-> = MultichainWorkerOperationRequest<'evmCrypto', T>;
 
 type NearSignerWorkerPublicWasmOperationType = keyof WorkerRequestTypeMap;
 

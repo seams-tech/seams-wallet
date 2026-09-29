@@ -12,7 +12,6 @@ import type {
   ReadAvailableSigningLanesForSigningInput,
 } from '../session/availability/availableSigningLanes';
 import type { SigningSessionCoordinator } from '../session/SigningSessionCoordinator';
-import type { ThresholdEcdsaSessionStoreSource } from '../session/identity/laneIdentity';
 import type { ExactEcdsaSigningLaneIdentity } from '../session/identity/exactSigningLaneIdentity';
 import type { RestorePersistedSessionForSigningInput } from '../session/sealedRecovery/sealedRecovery.types';
 import type {
@@ -108,17 +107,6 @@ export type NearSigningApiDeps = {
     queueTimeoutMs?: number;
     task: () => Promise<T>;
   }) => Promise<T>;
-};
-
-export type EcdsaSigningLookupArgs = {
-  walletId: WalletId;
-  chainTarget: ThresholdEcdsaChainTarget;
-};
-
-export type EcdsaSigningListLookupArgs = {
-  walletId: WalletId;
-  chainTarget: ThresholdEcdsaChainTarget;
-  source?: ThresholdEcdsaSessionStoreSource;
 };
 
 export type EvmFamilySigningDeps = DurableEmailOtpEcdsaSigningSessionAuthorityResolver & {

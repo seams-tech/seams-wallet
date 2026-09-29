@@ -235,12 +235,6 @@ export type MpcCapabilityHydrationPlan =
   | MpcReauthorizePublicAnchorHydrationPlan
   | MpcBlockedCapabilityHydrationPlan;
 
-export function buildMpcCapabilityPublicReauthAnchor(
-  fields: MpcCapabilityPublicReauthAnchorFields,
-): MpcCapabilityPublicReauthAnchor {
-  return new MpcCapabilityPublicReauthAnchorProof(fields);
-}
-
 export function buildUseLiveRuntimeHydrationPlan(
   fields: MpcUseLiveRuntimeHydrationPlanInput,
 ): MpcUseLiveRuntimeHydrationPlan {

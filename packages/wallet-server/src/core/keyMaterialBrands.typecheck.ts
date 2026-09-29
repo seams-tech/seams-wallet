@@ -22,7 +22,6 @@ import {
   parseEcdsaKeyHandle,
   parseEcdsaRelayerKeyId,
   parseEcdsaThresholdKeyId,
-  parseEd25519ClientVerifyingShareB64u,
   parseEd25519RelayerKeyId,
   parseSigningSessionSealKeyVersion,
 } from './keyMaterialBrands';
@@ -34,7 +33,6 @@ import {
 
 const ecdsa = parseEcdsaDerivationKeyVersion('ecdsa-derivation-material-test-v1');
 const seal = parseSigningSessionSealKeyVersion('signing-session-seal-kek-test-r1');
-const ed25519Verifier = parseEd25519ClientVerifyingShareB64u('ed25519-client-verifier');
 const ecdsaVerifier = parseEcdsaClientVerifyingShareB64u('ecdsa-client-verifier');
 const ed25519RelayerKeyId = parseEd25519RelayerKeyId('ed25519-relayer-key-id');
 const ecdsaRelayerKeyId = parseEcdsaRelayerKeyId('ecdsa-relayer-key-id');
@@ -87,7 +85,6 @@ function acceptsNearEd25519SigningKeyId(value: NearEd25519SigningKeyId) {
 
 acceptsEcdsa(ecdsa);
 acceptsSeal(seal);
-acceptsEd25519Verifier(ed25519Verifier);
 acceptsEcdsaVerifier(ecdsaVerifier);
 acceptsEd25519RelayerKeyId(ed25519RelayerKeyId);
 acceptsEcdsaRelayerKeyId(ecdsaRelayerKeyId);

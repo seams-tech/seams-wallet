@@ -9,7 +9,6 @@ import type {
 } from './emailOtpSigningSession';
 import type {
   EcdsaCommittedLane,
-  EmailOtpEcdsaDirectCapabilityCommittedLane,
   EmailOtpEcdsaSigningSessionCommittedLane,
 } from './ecdsaSelection';
 import type { EmailOtpPublicDeps } from './emailOtpPublic';
@@ -24,7 +23,6 @@ declare const chainTarget: ThresholdEcdsaChainTarget;
 declare const ecdsaAuthLane: Extract<EmailOtpSigningSessionAuthLane, { curve: 'ecdsa' }>;
 declare const committedLane: EcdsaCommittedLane;
 declare const signingSessionCommittedLane: EmailOtpEcdsaSigningSessionCommittedLane;
-declare const directCapabilityCommittedLane: EmailOtpEcdsaDirectCapabilityCommittedLane;
 const invalidLiveStepUpWithPublicLane: EmailOtpEcdsaStepUpAuthority = {
   kind: 'live_session',
   committedLane: signingSessionCommittedLane,
@@ -32,13 +30,6 @@ const invalidLiveStepUpWithPublicLane: EmailOtpEcdsaStepUpAuthority = {
   reauthLane: committedLane,
 };
 void invalidLiveStepUpWithPublicLane;
-
-const invalidLiveStepUpWithDirectCapability: EmailOtpEcdsaStepUpAuthority = {
-  kind: 'live_session',
-  // @ts-expect-error a direct capability cannot become a sealed signing-session lane.
-  committedLane: directCapabilityCommittedLane,
-};
-void invalidLiveStepUpWithDirectCapability;
 
 type WalletSessionSigningChallengeArgs = Parameters<
   EmailOtpEcdsaSigningSessionDeps['emailOtpSessions']['requestTransactionSigningChallenge']

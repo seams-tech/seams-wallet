@@ -1,20 +1,6 @@
-import {
-  buildLinkedDeviceEcdsaNormalSigningScopeV1,
-  type LinkedDeviceEcdsaNormalSigningScopeInputV1,
-  type LinkedDeviceEcdsaNormalSigningScopeV1,
-} from './linkedEcdsaScope';
-
-declare const input: LinkedDeviceEcdsaNormalSigningScopeInputV1;
+import { type LinkedDeviceEcdsaNormalSigningScopeV1 } from './linkedEcdsaScope';
 declare const scope: LinkedDeviceEcdsaNormalSigningScopeV1;
-declare const rootId: string;
 declare const publicIdentity: object;
-
-const built = buildLinkedDeviceEcdsaNormalSigningScopeV1(input);
-void built;
-
-const withOwnerRoot = { ...input, signingRootId: rootId };
-// @ts-expect-error linked lane scope cannot carry owner signing-root identity
-buildLinkedDeviceEcdsaNormalSigningScopeV1(withOwnerRoot);
 
 const withOwnerPublicIdentity = { ...scope, publicIdentity };
 // @ts-expect-error linked lane scope cannot carry owner public identity

@@ -94,18 +94,6 @@ type Ed25519SessionPolicyBaseParams = {
   remainingUses?: number;
 };
 
-export type BuildPasskeyEd25519SessionPolicyParams = Ed25519SessionPolicyBaseParams & {
-  authority: PasskeyWalletAuthAuthority;
-  authorityScope?: never;
-  rpId?: never;
-};
-
-export type BuildEmailOtpEd25519SessionPolicyParams = Ed25519SessionPolicyBaseParams & {
-  authority: EmailOtpWalletAuthAuthority;
-  rpId?: never;
-  authorityScope?: never;
-};
-
 type BuildExactEd25519SessionPolicyParams = Ed25519SessionPolicyBaseParams & {
   authority: WalletAuthAuthority;
   rpId?: never;

@@ -1,9 +1,4 @@
-import type {
-  DomainId,
-  DomainIdParseResult,
-  MpcMaterialActivationRef,
-  WalletId,
-} from '../utils/domainIds';
+import type { DomainId, DomainIdParseResult, WalletId } from '../utils/domainIds';
 import {
   hasWhitespaceOrControlCharacters,
   parseWalletAuthMethodId,
@@ -41,7 +36,6 @@ import {
   type WalletKeyId,
 } from './ids';
 import type {
-  ActiveSigningLaneReference,
   AgentCustodyBindingId,
   AgentIdentityKeyId,
   BreakGlassSigningLaneRecord,
@@ -93,11 +87,6 @@ type OwnerAuthSigningLaneRecordBuilderArgs = SigningLaneRecordBuilderCommonArgs 
 
 type PrivilegedOwnerSigningLaneRecordBuilderArgs = SigningLaneRecordBuilderCommonArgs & {
   readonly ownerParticipantContinuity: OwnerLaneParticipantContinuityV1;
-};
-
-type ActiveSigningLaneReferenceBuilderArgs = SigningLaneReferenceBuilderArgs & {
-  readonly lifecycle: ActiveSigningLaneLifecycle;
-  readonly materialActivation: MpcMaterialActivationRef;
 };
 
 const WALLET_KEY_COMMON_FIELDS = [
@@ -713,22 +702,6 @@ export function buildBreakGlassSigningLaneRecord(
     participantBindingDigestB64u: args.participantBindingDigestB64u,
     ownerParticipantContinuity: args.ownerParticipantContinuity,
     lifecycle: args.lifecycle,
-  };
-}
-
-export function buildActiveSigningLaneReference(
-  args: ActiveSigningLaneReferenceBuilderArgs & { readonly laneKind: SigningLaneKind },
-): ActiveSigningLaneReference {
-  return {
-    kind: 'signing_lane_reference_v1',
-    walletId: args.walletId,
-    walletKeyId: args.walletKeyId,
-    laneId: args.laneId,
-    laneKind: args.laneKind,
-    laneShareEpoch: args.laneShareEpoch,
-    participantBindingDigestB64u: args.participantBindingDigestB64u,
-    lifecycle: args.lifecycle,
-    materialActivation: args.materialActivation,
   };
 }
 

@@ -31,18 +31,6 @@ function requiredEmailOtpDerivationString(value: unknown, field: string): string
   return normalized;
 }
 
-function rejectProviderScopedWalletIdentity(value: string, field: string): void {
-  if (/^[a-z][a-z0-9+.-]*:/i.test(value)) {
-    throw new Error(`[email-otp-derivation] ${field} must be a wallet-scoped identity`);
-  }
-}
-
-export function toWalletSessionUserId(value: unknown): WalletSessionUserId {
-  const normalized = requiredEmailOtpDerivationString(value, 'walletSessionUserId');
-  rejectProviderScopedWalletIdentity(normalized, 'walletSessionUserId');
-  return normalized as WalletSessionUserId;
-}
-
 export function toEmailOtpAuthSubjectId(value: unknown): EmailOtpAuthSubjectId {
   return requiredEmailOtpDerivationString(value, 'authSubjectId') as EmailOtpAuthSubjectId;
 }

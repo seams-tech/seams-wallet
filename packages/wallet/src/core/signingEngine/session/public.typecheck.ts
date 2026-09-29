@@ -1,11 +1,7 @@
 import type { WalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type { ConnectEd25519SessionArgs } from './passkey/public';
 import type { RouterAbEd25519NormalSigningState } from '../threshold/ed25519/routerAbNormalSigningState';
-import type {
-  BuildEmailOtpEd25519SessionPolicyParams,
-  BuildPasskeyEd25519SessionPolicyParams,
-  Ed25519AuthorityScope,
-} from '../threshold/sessionPolicy';
+import type { Ed25519AuthorityScope } from '../threshold/sessionPolicy';
 import type { WebAuthnRpId } from '@shared/utils/domainIds';
 import { buildPasskeyWalletAuthAuthority } from '@shared/utils/walletAuthAuthority';
 import {
@@ -80,57 +76,6 @@ const invalidEmailOtpEd25519AuthorityScopeWithGoogleRegistrationIds = {
 } satisfies Ed25519AuthorityScope;
 void invalidEmailOtpEd25519AuthorityScopeWithProofKind;
 void invalidEmailOtpEd25519AuthorityScopeWithGoogleRegistrationIds;
-
-const passkeyEd25519PolicyParams: BuildPasskeyEd25519SessionPolicyParams = {
-  nearAccountId: 'alice.testnet',
-  nearEd25519SigningKeyId: 'ed25519ks_alice',
-  relayerKeyId: 'router-key-1',
-  routerAbNormalSigning,
-  authority: passkeyWalletAuthAuthority,
-};
-void passkeyEd25519PolicyParams;
-
-const invalidPasskeyEd25519PolicyParamsWithWalletId: BuildPasskeyEd25519SessionPolicyParams = {
-  ...passkeyEd25519PolicyParams,
-  // @ts-expect-error Ed25519 policy builders derive wallet identity from bound authority.
-  walletId,
-};
-void invalidPasskeyEd25519PolicyParamsWithWalletId;
-
-const invalidPasskeyEd25519PolicyParamsWithRpId: BuildPasskeyEd25519SessionPolicyParams = {
-  nearAccountId: 'alice.testnet',
-  nearEd25519SigningKeyId: 'ed25519ks_alice',
-  relayerKeyId: 'router-key-1',
-  routerAbNormalSigning,
-  authority: passkeyWalletAuthAuthority,
-  // @ts-expect-error passkey Ed25519 policy builder requires wallet auth authority, not raw RP ID.
-  rpId,
-};
-void invalidPasskeyEd25519PolicyParamsWithRpId;
-
-const invalidPasskeyEd25519PolicyParamsWithAuthorityScope: BuildPasskeyEd25519SessionPolicyParams =
-  {
-    ...passkeyEd25519PolicyParams,
-    // @ts-expect-error passkey Ed25519 policy builder rejects exact authority scope inputs.
-    authorityScope: { kind: 'passkey_rp', rpId },
-  };
-void invalidPasskeyEd25519PolicyParamsWithAuthorityScope;
-
-const emailOtpEd25519PolicyParams: BuildEmailOtpEd25519SessionPolicyParams = {
-  nearAccountId: 'alice.testnet',
-  nearEd25519SigningKeyId: 'ed25519ks_alice',
-  relayerKeyId: 'router-key-1',
-  routerAbNormalSigning,
-  authority: emailOtpAuthContext.authority,
-};
-void emailOtpEd25519PolicyParams;
-
-const invalidEmailOtpEd25519PolicyParamsWithRpId: BuildEmailOtpEd25519SessionPolicyParams = {
-  ...emailOtpEd25519PolicyParams,
-  // @ts-expect-error Email OTP Ed25519 policy builder rejects passkey RP ID inputs.
-  rpId,
-};
-void invalidEmailOtpEd25519PolicyParamsWithRpId;
 
 // @ts-expect-error Email OTP Ed25519 session minting must use Email OTP wallet authority.
 const invalidEmailOtpEd25519SessionPasskeyAuthorityArgs: ConnectEd25519SessionArgs = {

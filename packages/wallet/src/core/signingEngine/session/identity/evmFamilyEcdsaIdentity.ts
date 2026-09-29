@@ -142,17 +142,6 @@ export type EmailOtpEcdsaAuthBinding = {
 
 type EvmFamilyEcdsaAuthBinding = PasskeyEcdsaAuthBinding | EmailOtpEcdsaAuthBinding;
 
-export type EcdsaWalletSignerRecord = {
-  kind: 'ecdsa_wallet_signer_record';
-  walletKey: EvmFamilyEcdsaWalletKey;
-  authBinding: EvmFamilyEcdsaAuthBinding;
-  keyHandle?: never;
-  keyFacts?: never;
-  chainTarget?: never;
-  subjectId?: never;
-  ecdsaThresholdKeyId?: never;
-};
-
 export type ResolvedEvmFamilyEcdsaKey<
   TAuthBinding extends EvmFamilyEcdsaAuthBinding = EvmFamilyEcdsaAuthBinding,
 > = {

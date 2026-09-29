@@ -9,7 +9,6 @@ import {
   parseWebAuthnRpId,
   type EmailOtpChallengeId,
   type EmailOtpProviderUserId,
-  type VerifiedEmailAddress,
   type WalletAuthorityBindingDigest,
   type WalletAuthMethodId,
   type WalletId,
@@ -107,11 +106,6 @@ export function walletAuthAuthoritiesMatch(
   return false;
 }
 
-export type EmailOtpFactorProfile = {
-  factor: EmailOtpFactorIdentity;
-  email: VerifiedEmailAddress;
-};
-
 export type WalletAuthAuthorityRef = {
   kind: 'wallet_auth_authority_ref';
   walletId: WalletId;
@@ -180,10 +174,6 @@ export type AuthMethodProof =
 export type AuthBoundaryProof = {
   purpose: AuthOperationPurpose;
   proof: AuthMethodProof;
-};
-
-export type ProofFor<P extends AuthOperationPurpose> = AuthBoundaryProof & {
-  readonly __authOperationPurpose?: P;
 };
 
 function parseEmailOtpProvider(raw: unknown): EmailOtpProvider | null {

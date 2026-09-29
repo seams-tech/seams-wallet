@@ -1,21 +1,14 @@
 import type { AuthorizedOperationId, CapabilityId } from '../authorization/capabilityKinds';
 import type { CapabilityOperationFingerprintDigest } from '../authorization/operationFingerprint';
-import type { DomainId, MpcMaterialActivationRef } from '../utils/domainIds';
+import type { MpcMaterialActivationRef } from '../utils/domainIds';
 import type { LinkedDeviceEnrollmentId } from './ids';
-import type { ActiveSigningLaneReference, DelegatedSpendAuthorizationId } from './records';
-
-type DelegatedBudgetClaimId = DomainId<'DelegatedBudgetClaimId'>;
+import type { ActiveSigningLaneReference } from './records';
 
 export type ClaimedWalletExecutionAuthorization = {
   readonly kind: 'claimed_wallet_execution_authorization_v1';
   readonly authorizedOperationId: AuthorizedOperationId;
   readonly operationFingerprintDigest: CapabilityOperationFingerprintDigest;
   readonly capabilityId: CapabilityId;
-};
-
-export type ReservedDelegatedBudgetClaim = {
-  readonly kind: 'reserved_delegated_budget_claim_v1';
-  readonly budgetClaimId: DelegatedBudgetClaimId;
 };
 
 type PreparedWalletExecutionBase = {
@@ -43,15 +36,6 @@ export type PreparedLinkedDeviceWalletExecution = PreparedWalletExecutionBase & 
   readonly budgetClaim?: never;
 };
 
-export type PreparedDelegatedWalletExecution = PreparedWalletExecutionBase & {
-  readonly kind: 'prepared_delegated_wallet_execution';
-  readonly laneKind: 'delegated_execution';
-  readonly lane: ActiveSigningLaneReference & { readonly laneKind: 'delegated_execution' };
-  readonly delegatedAuthorizationId: DelegatedSpendAuthorizationId;
-  readonly budgetClaim: ReservedDelegatedBudgetClaim;
-  readonly linkedDeviceEnrollmentId?: never;
-};
-
 export function buildPreparedOwnerWalletExecution(input: {
   readonly authorization: ClaimedWalletExecutionAuthorization;
   readonly materialActivation: MpcMaterialActivationRef;
@@ -63,39 +47,5 @@ export function buildPreparedOwnerWalletExecution(input: {
     authorization: input.authorization,
     materialActivation: input.materialActivation,
     lane: input.lane,
-  };
-}
-
-export function buildPreparedLinkedDeviceWalletExecution(input: {
-  readonly authorization: ClaimedWalletExecutionAuthorization;
-  readonly materialActivation: MpcMaterialActivationRef;
-  readonly lane: PreparedLinkedDeviceWalletExecution['lane'];
-  readonly linkedDeviceEnrollmentId: LinkedDeviceEnrollmentId;
-}): PreparedLinkedDeviceWalletExecution {
-  return {
-    kind: 'prepared_linked_device_wallet_execution',
-    laneKind: 'linked_device',
-    authorization: input.authorization,
-    materialActivation: input.materialActivation,
-    lane: input.lane,
-    linkedDeviceEnrollmentId: input.linkedDeviceEnrollmentId,
-  };
-}
-
-export function buildPreparedDelegatedWalletExecution(input: {
-  readonly authorization: ClaimedWalletExecutionAuthorization;
-  readonly materialActivation: MpcMaterialActivationRef;
-  readonly lane: PreparedDelegatedWalletExecution['lane'];
-  readonly delegatedAuthorizationId: DelegatedSpendAuthorizationId;
-  readonly budgetClaim: ReservedDelegatedBudgetClaim;
-}): PreparedDelegatedWalletExecution {
-  return {
-    kind: 'prepared_delegated_wallet_execution',
-    laneKind: 'delegated_execution',
-    authorization: input.authorization,
-    materialActivation: input.materialActivation,
-    lane: input.lane,
-    delegatedAuthorizationId: input.delegatedAuthorizationId,
-    budgetClaim: input.budgetClaim,
   };
 }

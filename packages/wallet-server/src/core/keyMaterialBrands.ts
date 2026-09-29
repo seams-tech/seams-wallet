@@ -29,15 +29,6 @@ export type Ed25519ClientVerifyingShareB64u = Brand<
   'Ed25519ClientVerifyingShareB64u'
 >;
 
-export function parseEd25519ClientVerifyingShareB64u(
-  value: unknown,
-): Ed25519ClientVerifyingShareB64u {
-  return parseNonEmptyBrand<'Ed25519ClientVerifyingShareB64u'>(
-    value,
-    'Ed25519 client verifying share',
-  );
-}
-
 // Not shared: the wallet's parser reports a missing id with a different message.
 export function parseEcdsaThresholdKeyId(value: unknown): EcdsaThresholdKeyId {
   return parseNonEmptyBrand<'EcdsaThresholdKeyId'>(value, 'ECDSA threshold key id');

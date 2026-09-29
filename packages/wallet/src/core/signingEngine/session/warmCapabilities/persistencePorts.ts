@@ -1,15 +1,13 @@
-import type { AccountId } from '@/core/types/accountIds';
 import type {
   ThresholdEcdsaChainTarget,
   WalletId,
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type { ThresholdEcdsaEmailOtpAuthContext } from '../identity/laneIdentity';
-import type { ThresholdEcdsaSessionId, ThresholdEd25519SessionId } from '../operationState/types';
+import type { ThresholdEcdsaSessionId } from '../operationState/types';
 import type {
   MpcWalletSigningQuotaId,
   WalletSessionId,
 } from '@shared/authorization/capabilityKinds';
-import type { WarmSessionSealTransportInput } from '@/core/types/secure-confirm-worker';
 
 type EmailOtpWarmSessionMaterial =
   | {
@@ -23,12 +21,6 @@ type EmailOtpWarmSessionMaterial =
       clientSecretB64u?: never;
     };
 
-type PasskeyEcdsaWarmSessionMaterial = {
-  kind: 'ecdsa_prf_first';
-  passkeyPrfFirstB64u: string;
-  transport: WarmSessionSealTransportInput;
-};
-
 type BaseEmailOtpReadyPersistInput = {
   authMethod: 'email_otp';
   walletId: WalletId;
@@ -38,54 +30,11 @@ type BaseEmailOtpReadyPersistInput = {
   passkeyPrfSealMaterial?: never;
 };
 
-type BasePasskeyReadyPersistInput = {
-  authMethod: 'passkey';
-  walletId: WalletId;
-  walletSessionId: WalletSessionId;
-  quotaId: MpcWalletSigningQuotaId;
-  credentialIdB64u: string;
-  emailOtpAuthContext?: never;
-  material?: never;
-};
-
-type PasskeyReadyPersistenceSource =
-  | {
-      kind: 'fresh_webauthn';
-      credentialIdB64u: string;
-      restoredThresholdSessionId?: never;
-    }
-  | {
-      kind: 'session_reconnect';
-      restoredThresholdSessionId: ThresholdEcdsaSessionId | ThresholdEd25519SessionId;
-      credentialIdB64u?: never;
-    };
-
 export type EmailOtpEcdsaReadyPersistInput = BaseEmailOtpReadyPersistInput & {
   curve: 'ecdsa';
   chainTarget: ThresholdEcdsaChainTarget;
   thresholdSessionId: ThresholdEcdsaSessionId;
   emailOtpAuthContext: ThresholdEcdsaEmailOtpAuthContext;
   material: EmailOtpWarmSessionMaterial;
-  accountId?: never;
-};
-
-export type EmailOtpEd25519ReadyPersistInput = BaseEmailOtpReadyPersistInput & {
-  curve: 'ed25519';
-  accountId: AccountId;
-  thresholdSessionId: ThresholdEd25519SessionId;
-  material: EmailOtpWarmSessionMaterial;
-  chainTarget?: never;
-  emailOtpAuthContext?: never;
-};
-
-export type PasskeyEcdsaReadyPersistInput = Omit<
-  BasePasskeyReadyPersistInput,
-  'credentialIdB64u'
-> & {
-  curve: 'ecdsa';
-  chainTarget: ThresholdEcdsaChainTarget;
-  thresholdSessionId: ThresholdEcdsaSessionId;
-  persistenceSource: PasskeyReadyPersistenceSource;
-  passkeyPrfSealMaterial: PasskeyEcdsaWarmSessionMaterial;
   accountId?: never;
 };

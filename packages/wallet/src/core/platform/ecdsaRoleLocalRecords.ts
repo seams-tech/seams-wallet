@@ -5,7 +5,7 @@ import type {
   SigningRootId,
   SigningRootVersion,
 } from '@shared/threshold/ecdsaDerivationRoleLocalBootstrap';
-import type { MpcMaterialActivationRef, WalletId } from '@shared/utils/domainIds';
+import type { WalletId } from '@shared/utils/domainIds';
 import type { PlatformResult } from './http';
 import type { RouterAbEcdsaDerivationPublicCapabilityV1 } from '@shared/utils/routerAbEcdsaDerivation';
 
@@ -127,51 +127,6 @@ export type EcdsaRoleLocalMaterialState =
       cleanup: CleanupMalformedEcdsaRoleLocalRecordInput;
       reason: string;
       record?: never;
-      reauth?: never;
-    };
-
-export type EcdsaRoleLocalSessionRecordState =
-  | {
-      kind: 'ready_passkey_role_local_material_v1';
-      authMethod: Extract<EcdsaRoleLocalAuthMethod, { kind: 'passkey' }>;
-      publicFacts: EcdsaRoleLocalPublicFacts;
-      materialActivation: MpcMaterialActivationRef;
-      readyRecord?: never;
-      inlineSigningMaterial?: never;
-      reauth?: never;
-      cleanup?: never;
-    }
-  | {
-      kind: 'ready_email_otp_role_local_material_v1';
-      authMethod: Extract<EcdsaRoleLocalAuthMethod, { kind: 'email_otp' }>;
-      publicFacts: EcdsaRoleLocalPublicFacts;
-      materialActivation: MpcMaterialActivationRef;
-      readyRecord?: never;
-      inlineSigningMaterial?: never;
-      reauth?: never;
-      cleanup?: never;
-    }
-  | {
-      kind: 'reauth_required_role_local_material_v1';
-      authMethod: EcdsaRoleLocalAuthMethod;
-      publicFacts: EcdsaRoleLocalPublicFacts;
-      reason:
-        | 'missing_worker_share'
-        | 'missing_durable_material'
-        | 'expired'
-        | 'exhausted'
-        | 'unsupported_material_owner';
-      readyRecord?: never;
-      inlineSigningMaterial?: never;
-      cleanup?: never;
-    }
-  | {
-      kind: 'cleanup_only_raw_role_local_record_v1';
-      reason: 'malformed_record' | 'legacy_after_reset' | 'identity_mismatch';
-      message: string;
-      authMethod?: never;
-      readyRecord?: never;
-      inlineSigningMaterial?: never;
       reauth?: never;
     };
 

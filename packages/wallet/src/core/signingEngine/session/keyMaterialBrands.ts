@@ -54,10 +54,6 @@ export type EcdsaRoleLocalWorkerHandle = {
 };
 export type EcdsaClientAdditiveShareHandle = Brand<string, 'EcdsaClientAdditiveShareHandle'>;
 
-export function parseEd25519KeyVersion(value: unknown): Ed25519KeyVersion {
-  return parseNonEmptyBrand<'Ed25519KeyVersion'>(value, 'Ed25519 key version');
-}
-
 export function parseEcdsaClientVerifyingPublicKey33B64u(
   value: unknown,
 ): EcdsaClientVerifyingPublicKey33B64u {
@@ -164,27 +160,12 @@ export function parseEcdsaRoleLocalWorkerHandle(value: unknown): EcdsaRoleLocalW
   };
 }
 
-export function parseEcdsaClientAdditiveShareHandle(
-  value: unknown,
-): EcdsaClientAdditiveShareHandle {
-  return parseNonEmptyBrand<'EcdsaClientAdditiveShareHandle'>(
-    value,
-    'ECDSA client additive share handle',
-  );
-}
-
 export function formatEd25519KeyVersionForWire(value: Ed25519KeyVersion): string {
   return value;
 }
 
 export function formatEcdsaClientVerifyingPublicKey33B64uForWire(
   value: EcdsaClientVerifyingPublicKey33B64u,
-): string {
-  return value;
-}
-
-export function formatEcdsaClientAdditiveShareHandleForWire(
-  value: EcdsaClientAdditiveShareHandle,
 ): string {
   return value;
 }

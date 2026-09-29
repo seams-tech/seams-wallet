@@ -8,8 +8,6 @@ import {
   type AuthBoundaryProof,
   type AuthFactorIdentity,
   type AuthMethodProof,
-  type ProofFor,
-  type EmailOtpFactorProfile,
   type EmailOtpFactorIdentity,
   type EmailOtpWalletAuthAuthority,
   type PasskeyFactorIdentity,
@@ -20,7 +18,6 @@ import {
 import {
   parseEmailOtpChallengeId,
   parseEmailOtpProviderUserId,
-  parseVerifiedEmailAddress,
   parseWalletAuthorityBindingDigest,
   parseWalletAuthMethodId,
   parseWalletId,
@@ -39,7 +36,6 @@ const providerUserId = unwrapDomainId(parseEmailOtpProviderUserId('google:alice'
 const challengeId = unwrapDomainId(parseEmailOtpChallengeId('challenge-id'));
 const walletId = unwrapDomainId(parseWalletId('alice.testnet'));
 const authorityDigest = unwrapDomainId(parseWalletAuthorityBindingDigest('digest'));
-const verifiedEmail = unwrapDomainId(parseVerifiedEmailAddress('alice@example.test'));
 const emailHashHex = 'email-hash';
 
 const passkeyAuthority = {
@@ -204,24 +200,6 @@ void ({
 } satisfies AuthFactorIdentity);
 
 void ({
-  factor: emailOtpFactor,
-  email: verifiedEmail,
-} satisfies EmailOtpFactorProfile);
-
-void ({
-  factor: emailOtpFactor,
-  email: verifiedEmail,
-  // @ts-expect-error factor profiles do not carry a self-labeling kind.
-  kind: 'email_otp_authority_profile',
-} satisfies EmailOtpFactorProfile);
-
-void ({
-  email: verifiedEmail,
-  // @ts-expect-error factor profiles attach display email to factor identity, not wallet authority.
-  authority: emailOtpAuthority,
-} satisfies EmailOtpFactorProfile);
-
-void ({
   kind: 'wallet_auth_authority_ref',
   walletId,
   authorityDigest,
@@ -303,11 +281,6 @@ void ({
     assertion: {},
   },
 } satisfies AuthBoundaryProof);
-
-void ({
-  purpose: 'registration',
-  proof: googleSsoRegistrationProof,
-} satisfies ProofFor<'registration'>);
 
 void ({
   purpose: 'registration',
