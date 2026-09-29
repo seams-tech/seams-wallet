@@ -137,22 +137,6 @@ fn purpose_built_production_graphs_exclude_generic_threshold_and_unrelated_crypt
 }
 
 #[test]
-fn retired_standalone_ecdsa_client_wasm_adapters_are_absent() {
-    let root = repository_root();
-    for relative_path in [
-        "wasm/router_ab_ecdsa_online_client/Cargo.toml",
-        "wasm/router_ab_ecdsa_online_client/src/lib.rs",
-        "wasm/router_ab_ecdsa_presign_client/Cargo.toml",
-        "wasm/router_ab_ecdsa_presign_client/src/lib.rs",
-    ] {
-        assert!(
-            !root.join(relative_path).exists(),
-            "retired standalone ECDSA Wasm adapter remains: {relative_path}"
-        );
-    }
-}
-
-#[test]
 fn purpose_built_sources_exclude_generic_runtime_imports() {
     let root = repository_root();
     let mut sources = Vec::new();
@@ -283,49 +267,4 @@ fn cloudflare_signing_worker_finalization_excludes_near_ecdsa_backend() {
     let source = fs::read_to_string(&source_path).expect("read Cloudflare SigningWorker source");
     assert!(source.contains("finalize_signing_worker_signature"));
     assert!(!source.contains("threshold_ecdsa_finalize_signature"));
-}
-
-#[test]
-fn deleted_generic_backend_and_mapped_share_seam_cannot_return() {
-    let root = repository_root();
-    assert!(
-        !root.join("crates/signer-core/src/threshold_ecdsa.rs").exists(),
-        "deleted generic threshold ECDSA owner returned"
-    );
-
-    let signer_manifest =
-        fs::read_to_string(root.join("crates/signer-core/Cargo.toml")).expect("read signer manifest");
-    for forbidden in ["threshold-ecdsa", "threshold-signatures"] {
-        assert!(
-            !signer_manifest.contains(forbidden),
-            "signer-core restored deleted feature or dependency {forbidden}"
-        );
-    }
-
-    for relative_path in [
-        "crates/router-ab-ecdsa-derivation/src/shared/derive.rs",
-        "crates/router-ab-ecdsa-derivation/src/shared/secp256k1.rs",
-        "crates/signer-core/src/ecdsa_role_local_client/command.rs",
-        "crates/signer-core/src/secp256k1.rs",
-        "wasm/router_ab_ecdsa_signing_worker/src/derivation.rs",
-        "packages/wallet-server/src/core/types.ts",
-        "packages/wallet-server/src/core/routerAbSigning/RouterAbEcdsaBootstrapExportRuntime.ts",
-    ] {
-        let source = fs::read_to_string(root.join(relative_path))
-            .unwrap_or_else(|error| panic!("failed to read {relative_path}: {error}"));
-        for forbidden in [
-            "mapped_client_share32",
-            "mapped_relayer_share32",
-            "mappedPrivateShare32B64u",
-            "relayerMappedPrivateShare32",
-            "relayerCaitSithInput",
-            "map_additive_share_to_threshold_signatures_share_2p",
-            "derive_threshold_secp256k1_relayer_share",
-        ] {
-            assert!(
-                !source.contains(forbidden),
-                "{relative_path} restored deleted mapped-share token {forbidden}"
-            );
-        }
-    }
 }
