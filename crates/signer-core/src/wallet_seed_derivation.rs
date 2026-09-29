@@ -313,66 +313,6 @@ pub fn verify_wallet_key_set_manifest_v1(
     Ok(())
 }
 
-/// Both owner signing roots, derived together from one seed.
-///
-/// Registration derives them as a pair so the two cannot be produced from
-/// different seeds or in different orders by separate call sites. The struct
-/// zeroizes on drop; neither field is exposed by value.
-pub struct WalletSeedOwnerRootsV1 {
-    ed25519_yao_client_root: Zeroizing<[u8; WALLET_SIGNING_ROOT_LEN]>,
-    ecdsa_client_root_share: Zeroizing<[u8; WALLET_SIGNING_ROOT_LEN]>,
-}
-
-impl WalletSeedOwnerRootsV1 {
-    pub fn ed25519_yao_client_root(&self) -> &[u8; WALLET_SIGNING_ROOT_LEN] {
-        &self.ed25519_yao_client_root
-    }
-
-    pub fn ecdsa_client_root_share(&self) -> &[u8; WALLET_SIGNING_ROOT_LEN] {
-        &self.ecdsa_client_root_share
-    }
-}
-
-impl core::fmt::Debug for WalletSeedOwnerRootsV1 {
-    fn fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        formatter.write_str("WalletSeedOwnerRootsV1([REDACTED])")
-    }
-}
-
-/// Derives every owner signing root for one registration.
-///
-/// Each curve is bound to the application binding digest its own protocol
-/// computes. This function cannot check that the digests it receives came from
-/// those protocols — a caller can always fabricate two distinct byte arrays.
-/// Protocol provenance is a property of *where this is called from*, not of
-/// this signature: the ceremony module computes both digests from typed
-/// protocol outputs and passes them straight in, with no boundary in between at
-/// which a caller could substitute its own. The equality rejection below is a
-/// tripwire for the obvious mistake, not a provenance proof.
-pub fn derive_wallet_seed_owner_roots_v1(
-    seed: &[u8],
-    ed25519_application_binding_digest: &[u8; 32],
-    ecdsa_application_binding_digest: &[u8; 32],
-) -> CoreResult<WalletSeedOwnerRootsV1> {
-    // Two protocols, two digests. Equal digests mean one of them is not the
-    // protocol's own, and the roots would then differ only by salt.
-    if ed25519_application_binding_digest == ecdsa_application_binding_digest {
-        return Err(SignerCoreError::invalid_input(
-            "Ed25519 and ECDSA application binding digests must differ",
-        ));
-    }
-    Ok(WalletSeedOwnerRootsV1 {
-        ed25519_yao_client_root: derive_ed25519_yao_client_root_from_seed_v1(
-            seed,
-            ed25519_application_binding_digest,
-        )?,
-        ecdsa_client_root_share: derive_ecdsa_client_root_share_from_seed_v1(
-            seed,
-            ecdsa_application_binding_digest,
-        )?,
-    })
-}
-
 /// Proof that one key set's manifest was established or verified.
 ///
 /// The fields are private and the only constructors are
