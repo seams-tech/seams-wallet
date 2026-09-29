@@ -6,7 +6,6 @@ import type {
 } from '../utils/domainIds';
 import {
   hasWhitespaceOrControlCharacters,
-  parseMpcMaterialActivationRef,
   parseWalletAuthMethodId,
   parseWalletId,
 } from '../utils/domainIds';
@@ -69,13 +68,6 @@ import {
 } from './ownerContinuity';
 
 type ActiveSigningLaneLifecycle = Extract<SigningLaneLifecycle, { readonly state: 'active' }>;
-
-export type WalletKeyReferenceBuilderArgs = {
-  readonly walletId: WalletId;
-  readonly walletKeyId: WalletKeyId;
-  readonly walletKeyVersion: WalletKeyVersion;
-  readonly lifecycle: WalletKeyLifecycle;
-};
 
 export type SigningLaneReferenceBuilderArgs = {
   readonly walletId: WalletId;
@@ -147,11 +139,6 @@ const SIGNING_LANE_REFERENCE_FIELDS = [
   'laneKind',
   'laneShareEpoch',
   'participantBindingDigestB64u',
-] as const;
-const ACTIVE_SIGNING_LANE_REFERENCE_FIELDS = [
-  ...SIGNING_LANE_REFERENCE_FIELDS,
-  'lifecycle',
-  'materialActivation',
 ] as const;
 const SIGNING_LANE_RECORD_BASE_FIELDS = [...SIGNING_LANE_REFERENCE_FIELDS, 'lifecycle'] as const;
 const OWNER_AUTH_SIGNING_LANE_FIELDS = [
@@ -745,20 +732,6 @@ export function buildActiveSigningLaneReference(
   };
 }
 
-export function parseWalletKeyLifecycle(
-  raw: unknown,
-  label = 'walletKeyLifecycle',
-): WalletKeyLifecycle {
-  return parseWalletKeyLifecycleState(raw, label);
-}
-
-export function parseSigningLaneLifecycle(
-  raw: unknown,
-  label = 'signingLaneLifecycle',
-): SigningLaneLifecycle {
-  return parseSigningLaneLifecycleState(raw, label);
-}
-
 export function parseWalletKeyRecord(raw: unknown, label = 'walletKeyRecord'): WalletKeyRecord {
   const record = requireRecord(raw, label);
   if (record.kind !== 'wallet_key_record_v1') {
@@ -801,15 +774,6 @@ export function parseWalletKeyRecord(raw: unknown, label = 'walletKeyRecord'): W
     });
   }
   throw new Error(`${label}.keyFamily must be ed25519 or ecdsa_secp256k1`);
-}
-
-export function parseSigningLaneReference(
-  raw: unknown,
-  label = 'signingLaneReference',
-): SigningLaneReference {
-  const record = requireRecord(raw, label);
-  rejectUnknownFields(record, SIGNING_LANE_REFERENCE_FIELDS, label);
-  return parseSigningLaneReferenceFields(record, label);
 }
 
 export function parseSigningLaneRecord(
@@ -885,31 +849,4 @@ export function parseSigningLaneRecord(
         parsePrivilegedOwnerSigningLaneRecordBase(record, label),
       );
   }
-}
-
-export function parseActiveSigningLaneReference(
-  raw: unknown,
-  label = 'activeSigningLaneReference',
-): ActiveSigningLaneReference {
-  const record = requireRecord(raw, label);
-  rejectUnknownFields(record, ACTIVE_SIGNING_LANE_REFERENCE_FIELDS, label);
-  const reference = parseSigningLaneReferenceFields(record, label);
-  const lifecycle = parseSigningLaneLifecycleState(record.lifecycle, `${label}.lifecycle`);
-  if (lifecycle.state !== 'active') {
-    throw new Error(`${label}.lifecycle must be active`);
-  }
-  const materialActivation = requireResult(
-    parseMpcMaterialActivationRef(record.materialActivation),
-    `${label}.materialActivation`,
-  );
-  return buildActiveSigningLaneReference({
-    walletId: reference.walletId,
-    walletKeyId: reference.walletKeyId,
-    laneId: reference.laneId,
-    laneShareEpoch: reference.laneShareEpoch,
-    participantBindingDigestB64u: reference.participantBindingDigestB64u,
-    laneKind: reference.laneKind,
-    lifecycle,
-    materialActivation,
-  });
 }

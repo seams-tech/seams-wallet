@@ -30,14 +30,6 @@ export interface ThresholdEd25519ParticipantV1 {
   shareDerivation?: ThresholdEd25519ShareDerivation;
 }
 
-export const THRESHOLD_ED25519_PARTICIPANT_SET_V1 = 'threshold_ed25519_participants_v1' as const;
-
-export interface ThresholdEd25519ParticipantSetV1 {
-  version: typeof THRESHOLD_ED25519_PARTICIPANT_SET_V1;
-  groupPublicKey: string;
-  participants: ThresholdEd25519ParticipantV1[];
-}
-
 export function normalizeThresholdEd25519ParticipantId(id: unknown): number | null {
   const n = Number(id);
   if (!Number.isSafeInteger(n) || n < 1 || n > 65_535) return null;
@@ -58,17 +50,6 @@ export function normalizeThresholdEd25519ParticipantIds(input: unknown): number[
   }
   out.sort((a, b) => a - b);
   return out.length ? out : null;
-}
-
-export function areThresholdEd25519ParticipantIds2p(
-  participantIds: number[] | null | undefined,
-  expected: readonly number[] = THRESHOLD_ED25519_2P_PARTICIPANT_IDS,
-): boolean {
-  const ids = normalizeThresholdEd25519ParticipantIds(participantIds);
-  const expectedIds = normalizeThresholdEd25519ParticipantIds([...expected]);
-  if (!ids || !expectedIds) return false;
-  if (ids.length !== expectedIds.length) return false;
-  return ids.every((id, i) => id === expectedIds[i]);
 }
 
 export function parseThresholdEd25519ParticipantsV1(

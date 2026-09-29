@@ -182,36 +182,3 @@ export function consumeReservedRecoveryCode(args: {
     },
   };
 }
-
-/** Revocation is terminal from every state except consumption. */
-export function revokeRecoveryCode(args: {
-  lifecycle: RecoveryCodeLifecycleState;
-  nowMs: number;
-}): RecoveryCodeTransitionResult {
-  if (args.lifecycle.state === 'consumed') {
-    return reject('already_consumed', 'a consumed recovery code cannot be revoked');
-  }
-  if (args.lifecycle.state === 'revoked') {
-    return reject('revoked', 'recovery code has already been revoked');
-  }
-  return {
-    ok: true,
-    lifecycle: {
-      state: 'revoked',
-      issuedAtMs: args.lifecycle.issuedAtMs,
-      revokedAtMs: args.nowMs,
-    },
-  };
-}
-
-/**
- * Whether a code can back a new recovery attempt right now. An expired
- * reservation counts as available, matching `reserveRecoveryCode`.
- */
-export function isRecoveryCodeAvailable(
-  lifecycle: RecoveryCodeLifecycleState,
-  nowMs: number,
-): boolean {
-  if (lifecycle.state === 'active') return true;
-  return lifecycle.state === 'reserved' && lifecycle.reservationExpiresAtMs <= nowMs;
-}

@@ -43,11 +43,6 @@ export const EVM_ECDSA_MPC_OPERATION_KINDS = {
 export type EvmEcdsaMpcOperationKind =
   (typeof EVM_ECDSA_MPC_OPERATION_KINDS)[keyof typeof EVM_ECDSA_MPC_OPERATION_KINDS];
 
-export type CapabilityOperationKind =
-  | VaultOperationKind
-  | NearEd25519MpcOperationKind
-  | EvmEcdsaMpcOperationKind;
-
 export type CapabilityOperationKindByCapability = {
   readonly vault_access: VaultOperationKind;
   readonly near_ed25519_mpc_signing: NearEd25519MpcOperationKind;
@@ -65,8 +60,6 @@ export const AUTH_FACTOR_KINDS = {
   passkey: 'passkey',
   emailOtp: 'email_otp',
 } as const;
-
-export type AuthFactorKind = (typeof AUTH_FACTOR_KINDS)[keyof typeof AUTH_FACTOR_KINDS];
 
 export const AUTHORIZATION_EVIDENCE_KINDS = {
   seamsSession: 'seams_session',
@@ -103,9 +96,6 @@ export type WalletSessionAuthorizationId = DomainId<'WalletSessionAuthorizationI
 export const AUTHORIZATION_GRANT_KINDS = {
   walletSession: 'wallet_session_authorization',
 } as const;
-
-export type AuthorizationGrantKind =
-  (typeof AUTHORIZATION_GRANT_KINDS)[keyof typeof AUTHORIZATION_GRANT_KINDS];
 
 export type WalletSessionAuthorizationRef = {
   readonly kind: 'wallet_session_authorization';
@@ -242,18 +232,10 @@ export function parseEcdsaAuthorizationSessionId(
   return parseAuthorizationId(value, 'ecdsaAuthorizationSessionId');
 }
 
-export function parseSeamsSession(value: unknown): AuthorizationParseResult<SeamsSession> {
-  return parseAuthorizationId(value, 'seamsSession');
-}
-
 export function parseHostedWalletSessionExchangeCodeId(
   value: unknown,
 ): AuthorizationParseResult<HostedWalletSessionExchangeCodeId> {
   return parseAuthorizationId(value, 'hostedWalletSessionExchangeCodeId');
-}
-
-export function parseSessionClientId(value: unknown): AuthorizationParseResult<SessionClientId> {
-  return parseAuthorizationId(value, 'sessionClientId');
 }
 
 export function parseDeviceId(value: unknown): AuthorizationParseResult<DeviceId> {
@@ -266,12 +248,6 @@ export function parseAuthFactorId(value: unknown): AuthorizationParseResult<Auth
 
 export function parseCapabilityId(value: unknown): AuthorizationParseResult<CapabilityId> {
   return parseAuthorizationId(value, 'capabilityId');
-}
-
-export function parseCapabilityBindingId(
-  value: unknown,
-): AuthorizationParseResult<CapabilityBindingId> {
-  return parseAuthorizationId(value, 'capabilityBindingId');
 }
 
 export function parseCapabilityOperationId(
@@ -354,14 +330,6 @@ export function parseAuthorizationEvidenceSetId(
   return parseAuthorizationId(value, 'authorizationEvidenceSetId');
 }
 
-export function parseGrantChallengeId(value: unknown): AuthorizationParseResult<GrantChallengeId> {
-  return parseAuthorizationId(value, 'grantChallengeId');
-}
-
-export function parsePolicyId(value: unknown): AuthorizationParseResult<PolicyId> {
-  return parseAuthorizationId(value, 'policyId');
-}
-
 export function parseAuthorizationAuditEventId(
   value: unknown,
 ): AuthorizationParseResult<AuthorizationAuditEventId> {
@@ -374,12 +342,6 @@ export function parseVaultId(value: unknown): AuthorizationParseResult<VaultId> 
 
 export function parseVaultItemId(value: unknown): AuthorizationParseResult<VaultItemId> {
   return parseAuthorizationId(value, 'vaultItemId');
-}
-
-export function parseCapabilityOperationResultStorageRef(
-  value: unknown,
-): AuthorizationParseResult<CapabilityOperationResultStorageRef> {
-  return parseAuthorizationId(value, 'capabilityOperationResultStorageRef');
 }
 
 function isVaultOperationKind(value: unknown): value is VaultOperationKind {

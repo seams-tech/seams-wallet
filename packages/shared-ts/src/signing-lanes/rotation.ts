@@ -185,8 +185,6 @@ export type LaneRefreshOperationV1 = {
   authorization: OwnerLaneRefreshAuthorizationBindingV1;
 };
 
-export type LaneProtocolOperationV1 = LaneCreationOperationV1 | LaneRefreshOperationV1;
-
 export type Ed25519YaoLaneJobCurveV1 = {
   kind: 'ed25519_yao_lane_job_v1';
   keyFamily: 'ed25519';
@@ -366,11 +364,6 @@ export type LaneProtocolRecordV1 = {
   lifecycle: LaneProtocolLifecycle;
 };
 
-export type EcdsaAdditiveLaneTranscriptPreambleV1 = {
-  kind: 'ecdsa_additive_lane_transcript_preamble_v1';
-  job: EcdsaAdditiveLaneJobV1;
-};
-
 export type EcdsaAdditiveLaneHolderRoundV1 = {
   kind: 'ecdsa_additive_lane_holder_round_v1';
   preambleHashB64u: string;
@@ -379,25 +372,6 @@ export type EcdsaAdditiveLaneHolderRoundV1 = {
   sealedTargetHolderMaterialDigestB64u: string;
   holderAttestationB64u: string;
   holderCommittedAtMs: number;
-};
-
-export type EcdsaAdditiveLaneServerRoundV1 = {
-  kind: 'ecdsa_additive_lane_server_round_v1';
-  preambleHashB64u: string;
-  holderRoundHashB64u: string;
-  targetServerPublicCommitment33B64u: string;
-  sealedTargetServerMaterialDigestB64u: string;
-  targetThresholdSessionSetDigestB64u: string;
-  publicIdentityRelationDigestB64u: string;
-  serverAttestationB64u: string;
-  serverCommittedAtMs: number;
-};
-
-export type EcdsaAdditiveLaneTranscriptV1 = {
-  kind: 'ecdsa_additive_lane_transcript_v1';
-  preambleHashB64u: string;
-  holderRoundHashB64u: string;
-  serverRoundHashB64u: string;
 };
 
 export type LaneEnrollmentManifestChildV1 = {

@@ -279,5 +279,3 @@ export async function walletRecoveryEcdsaPossessionChallengeDigestB64uV1(
     ),
   );
 }
-
-export const WALLET_RECOVERY_ECDSA_POSSESSION_PROOF_SCHEME_V1 = POSSESSION_PROOF_SCHEME_V1;

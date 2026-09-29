@@ -1,5 +1,4 @@
 import {
-  formatWebAuthnRpIdForWire,
   parseWalletAuthMethodId,
   parseWalletId,
   parseWebAuthnRpId,
@@ -133,10 +132,6 @@ export function parseRpId(raw: unknown): WalletCapabilityBindingParseResult<RpId
   return { ok: true, value: parsed.value };
 }
 
-export function formatRpIdForWire(value: RpId): string {
-  return formatWebAuthnRpIdForWire(value);
-}
-
 export function walletIdentityFromRaw(
   raw: unknown,
 ): WalletCapabilityBindingParseResult<WalletIdentity> {
@@ -262,24 +257,6 @@ export function walletAuthMethodBindingFromRaw(
     ok: false,
     error: { code: 'invalid', message: 'WalletAuthMethodBinding kind is invalid' },
   };
-}
-
-export function currentWalletAuthMethodFromRaw(
-  raw: unknown,
-): WalletCapabilityBindingParseResult<CurrentWalletAuthMethod> {
-  const record = objectRecord(raw);
-  if (!record) return missingObject('CurrentWalletAuthMethod');
-  const kind = trimString(record.kind);
-  if (kind === 'none') return { ok: true, value: { kind: 'none' } };
-  if (kind !== 'selected') {
-    return {
-      ok: false,
-      error: { code: 'invalid', message: 'CurrentWalletAuthMethod kind is invalid' },
-    };
-  }
-  const binding = walletAuthMethodBindingFromRaw(record.binding);
-  if (!binding.ok) return binding;
-  return { ok: true, value: { kind: 'selected', binding: binding.value } };
 }
 
 export function buildNoCurrentWalletAuthMethod(): Extract<

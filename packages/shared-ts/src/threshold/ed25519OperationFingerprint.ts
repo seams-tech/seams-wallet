@@ -98,34 +98,6 @@ export type ThresholdEd25519DelegateActionFingerprintInput = ThresholdEd25519Can
   };
 };
 
-type ThresholdEd25519FinalizeRequestIntegrityCommonInput = {
-  operation: {
-    kind: 'threshold_ed25519_signing_operation_v1';
-    operationId: string;
-    operationFingerprint: string;
-    purpose: 'near_transaction' | 'nep413_message' | 'delegate_action';
-  };
-  presignId: string;
-  relayerKeyId: string;
-  nearAccountId: string;
-  nearNetworkId: string;
-  expectedSignerPublicKey: string;
-  clientSignatureShareB64u: string;
-};
-
-export type ThresholdEd25519FinalizeRequestIntegrityInput =
-  | (ThresholdEd25519FinalizeRequestIntegrityCommonInput & {
-      kind: 'threshold_ed25519_finalize_signature_only_v1';
-      intent: unknown;
-    })
-  | (ThresholdEd25519FinalizeRequestIntegrityCommonInput & {
-      kind: 'threshold_ed25519_finalize_and_dispatch_near_tx_v1';
-      transactions: unknown;
-      unsignedTransactionBorshB64u: string;
-      signingDigestB64u: string;
-      dispatch: { kind: 'near_rpc_configured_default_v1' };
-    });
-
 export async function thresholdEd25519NearTransactionPlanningOperationFingerprint(
   input: ThresholdEd25519NearTransactionPlanningFingerprintInput,
 ): Promise<string> {
@@ -182,41 +154,6 @@ export async function thresholdEd25519DelegateActionOperationFingerprint(
       purpose: 'delegate_action',
       ...canonicalScope(input),
       delegate: canonicalDelegate(input.delegate),
-    },
-  });
-}
-
-export async function thresholdEd25519FinalizeRequestIntegrityHash(
-  input: ThresholdEd25519FinalizeRequestIntegrityInput,
-): Promise<string> {
-  const common = {
-    operation: input.operation,
-    presignId: input.presignId,
-    relayerKeyId: input.relayerKeyId,
-    nearAccountId: input.nearAccountId,
-    nearNetworkId: input.nearNetworkId,
-    expectedSignerPublicKey: input.expectedSignerPublicKey,
-    clientSignatureShareB64u: input.clientSignatureShareB64u,
-  };
-  if (input.kind === 'threshold_ed25519_finalize_signature_only_v1') {
-    return thresholdEd25519OperationFingerprint({
-      kind: 'threshold-ed25519:finalize-request-integrity:v1',
-      payload: {
-        kind: input.kind,
-        ...common,
-        intent: input.intent,
-      },
-    });
-  }
-  return thresholdEd25519OperationFingerprint({
-    kind: 'threshold-ed25519:finalize-request-integrity:v1',
-    payload: {
-      kind: input.kind,
-      ...common,
-      transactions: input.transactions,
-      unsignedTransactionBorshB64u: input.unsignedTransactionBorshB64u,
-      signingDigestB64u: input.signingDigestB64u,
-      dispatch: input.dispatch,
     },
   });
 }

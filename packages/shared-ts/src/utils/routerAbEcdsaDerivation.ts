@@ -1,10 +1,6 @@
 import { base64UrlDecode, base64UrlEncode } from './encoders';
 import { alphabetizeStringify, sha256BytesUtf8 } from './digests';
 import {
-  computeSdkEcdsaDerivationApplicationBindingDigestB64u,
-  type SdkEcdsaDerivationBindingFacts,
-} from '../threshold/ecdsaDerivationRoleLocalBootstrap';
-import {
   normalizeRuntimePolicyScope,
   type RuntimePolicyScope,
 } from '../threshold/signingRootScope';
@@ -76,11 +72,8 @@ export const ROUTER_AB_ECDSA_PRESIGN_CEREMONY_MAX_LIFETIME_MS = 5 * 60_000;
 
 export const ROUTER_AB_ECDSA_DERIVATION_NORMAL_SIGNING_STATE_KIND_V1 =
   'router_ab_ecdsa_derivation_normal_signing_v1' as const;
-export const ROUTER_AB_ECDSA_DERIVATION_KEY_SCOPE_V1 = 'evm-family' as const;
 export const ROUTER_AB_ECDSA_DERIVATION_HEALTH_PATH =
   '/router-ab/ecdsa-derivation/healthz' as const;
-export const ROUTER_AB_ECDSA_DERIVATION_BOOTSTRAP_PATH =
-  '/router-ab/ecdsa-derivation/bootstrap' as const;
 export const ROUTER_AB_ECDSA_DERIVATION_EXPORT_PATH = '/router-ab/ecdsa-derivation/export' as const;
 export const ROUTER_AB_ECDSA_DERIVATION_PRESIGNATURE_POOL_FILL_INIT_PATH =
   '/router-ab/ecdsa-derivation/presignature-pool/fill/init' as const;
@@ -228,22 +221,9 @@ export type RouterAbEcdsaClientProofBundlePairV1 = {
   signerB: RouterAbEcdsaClientProofBundleV1;
 };
 
-export type RouterAbEcdsaClientProofFinalizationV1 = {
-  kind: 'finalize_encrypted_client_proof_bundles_v1';
-  bundles: RouterAbEcdsaClientProofBundlePairV1;
-};
-
 export type RouterAbEcdsaStableClientProofFinalizationV2 = {
   kind: 'finalize_encrypted_client_proof_bundles_v2';
   bundles: RouterAbEcdsaClientProofBundlePairV1;
-};
-
-export type RouterAbEcdsaRegistrationPublicIdentityV1 = {
-  relayerKeyId: string;
-  relayerPublicKey33B64u: string;
-  groupPublicKey33B64u: string;
-  ethereumAddress: `0x${string}`;
-  relayerShareRetryCounter: number;
 };
 
 export type RouterAbEcdsaVerifiedClientActivationFactsV1 = {
@@ -591,17 +571,6 @@ export type RouterAbPublicDigest32V1Wire = {
   bytes: number[];
 };
 
-export type RouterAbActiveSigningWorkerStateV1 = {
-  account_id: string;
-  material_activation: RouterAbMpcMaterialActivationRefWire;
-  account_public_key: string;
-  signing_worker: RouterAbServerIdentityV1;
-  activation_transcript_digest: RouterAbPublicDigest32V1Wire;
-  activation_digest: RouterAbPublicDigest32V1Wire;
-  signing_worker_material_handle: string;
-  activated_at_ms: number;
-};
-
 export type RouterAbEcdsaDerivationNormalSigningScopeV1 = {
   wallet_id: string;
   ecdsa_threshold_key_id: string;
@@ -617,31 +586,6 @@ export type RouterAbEcdsaDerivationNormalSigningScopeV1 = {
 export type RouterAbEcdsaDerivationNormalSigningStateV1 = {
   kind: typeof ROUTER_AB_ECDSA_DERIVATION_NORMAL_SIGNING_STATE_KIND_V1;
   scope: RouterAbEcdsaDerivationNormalSigningScopeV1;
-};
-
-export type RouterAbEcdsaDerivationServerPresignatureShareV1 = {
-  serverKeyId: string;
-  presignatureId: string;
-  bigRB64u: string;
-  kShareB64u: string;
-  sigmaShareB64u: string;
-  createdAtMs: number;
-};
-
-export type CloudflareSigningWorkerEcdsaDerivationPresignaturePoolPutRequestV1Wire = {
-  scope: RouterAbEcdsaDerivationNormalSigningScopeV1;
-  server_presignature_id: string;
-  server_big_r33_b64u: string;
-  server_k_share32_b64u: string;
-  server_sigma_share32_b64u: string;
-  expires_at_ms: number;
-};
-
-export type CloudflareSigningWorkerEcdsaDerivationPresignaturePoolPutReceiptV1Wire = {
-  active_signing_worker_state: RouterAbActiveSigningWorkerStateV1;
-  server_presignature_id: string;
-  server_big_r33_b64u: string;
-  stored: boolean;
 };
 
 export type RouterAbEcdsaDerivationSignatureSchemeV1Wire = 'ecdsa_secp256k1_recoverable_v1';
@@ -1099,11 +1043,6 @@ function requireU32(value: unknown, label: string): number {
   return parsed;
 }
 
-function requireBoolean(value: unknown, label: string): boolean {
-  if (typeof value !== 'boolean') throw new Error(`${label} must be a boolean`);
-  return value;
-}
-
 function requireByte(value: unknown, label: string): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) {
     throw new Error(`${label} must be a finite number`);
@@ -1400,16 +1339,6 @@ function parsePostRegistrationRoleEnvelope<Role extends 'signer_a' | 'signer_b'>
       ),
     },
   };
-}
-
-export function parseRouterAbEcdsaDerivationRoleEncryptedEnvelopeV1<
-  Role extends 'signer_a' | 'signer_b',
->(
-  value: unknown,
-  label: string,
-  expectedRole: Role,
-): RouterAbEcdsaDerivationRoleEncryptedEnvelopeV1<Role> {
-  return parsePostRegistrationRoleEnvelope(value, label, expectedRole);
 }
 
 function parseRegistrationLifecycle(value: unknown): RouterAbEcdsaRegistrationLifecycleV1 {
@@ -2097,53 +2026,6 @@ export function parseRouterAbEcdsaRegistrationActivationReceiptV1(
     lifecycle_id: requireAsciiNonEmptyString(record.lifecycle_id, `${label}.lifecycle_id`),
     transcript_digest: transcriptDigest,
   };
-}
-
-export function parseRouterAbEcdsaDerivationActivationPrepareResultV1(
-  value: unknown,
-): RouterAbEcdsaDerivationActivationPrepareResultV1 {
-  const label = 'activationPrepareResult';
-  const record = requireRecord(value, label);
-  requireExactKeys(record, label, ['activation_correlation_id', 'activation_request_digest']);
-  return {
-    activation_correlation_id: parseCorrelationId(record.activation_correlation_id),
-    activation_request_digest: parsePublicDigest32(
-      record.activation_request_digest,
-      `${label}.activation_request_digest`,
-    ),
-  };
-}
-
-export function parseRouterAbEcdsaDerivationActivationCommitQueryResultV1(
-  value: unknown,
-): RouterAbEcdsaDerivationActivationCommitQueryResultV1 {
-  const label = 'activationCommitQueryResult';
-  const record = requireRecord(value, label);
-  switch (record.kind) {
-    case 'committed':
-      requireExactKeys(record, label, ['kind', 'receipt']);
-      return {
-        kind: 'committed',
-        receipt: parseRouterAbEcdsaRegistrationActivationReceiptV1(record.receipt),
-      };
-    case 'not_committed':
-    case 'correlation_conflict':
-      requireExactKeys(record, label, [
-        'kind',
-        'activation_correlation_id',
-        'activation_request_digest',
-      ]);
-      return {
-        kind: record.kind,
-        activation_correlation_id: parseCorrelationId(record.activation_correlation_id),
-        activation_request_digest: parsePublicDigest32(
-          record.activation_request_digest,
-          `${label}.activation_request_digest`,
-        ),
-      };
-    default:
-      throw new Error(`${label}.kind must be committed, not_committed, or correlation_conflict`);
-  }
 }
 
 export function parseRouterAbEcdsaRegistrationPublicActivationReceiptV1(
@@ -3071,15 +2953,6 @@ function canonicalStableKeyContextBytes(
   return new Uint8Array(out);
 }
 
-export async function routerAbEcdsaDerivationStableKeyContextFromSdkFactsV1(
-  facts: SdkEcdsaDerivationBindingFacts,
-): Promise<RouterAbEcdsaDerivationStableKeyContextV1> {
-  return {
-    application_binding_digest_b64u:
-      await computeSdkEcdsaDerivationApplicationBindingDigestB64u(facts),
-  };
-}
-
 function contextBindingFrame(contextBytes: Uint8Array): Uint8Array {
   const out: number[] = [];
   pushBytes(out, asciiBytes(ECDSA_DERIVATION_CONTEXT_BINDING_DOMAIN_V1));
@@ -3783,31 +3656,6 @@ export function parseRouterAbEcdsaDerivationEvmDigestSigningFinalizeRequestV1(
   return parseRouterAbEcdsaDerivationEvmDigestSigningFinalizeCoreRequestFields(record);
 }
 
-function parseServerPresignatureShare(
-  value: unknown,
-): RouterAbEcdsaDerivationServerPresignatureShareV1 {
-  const record = requireRecord(value, 'presignature');
-  requireExactKeys(record, 'presignature', [
-    'serverKeyId',
-    'presignatureId',
-    'bigRB64u',
-    'kShareB64u',
-    'sigmaShareB64u',
-    'createdAtMs',
-  ]);
-  return {
-    serverKeyId: requireAsciiNonEmptyString(record.serverKeyId, 'presignature.serverKeyId'),
-    presignatureId: requireAsciiNonEmptyString(
-      record.presignatureId,
-      'presignature.presignatureId',
-    ),
-    bigRB64u: requireBase64UrlFixed(record.bigRB64u, 'presignature.bigRB64u', 33),
-    kShareB64u: requireBase64UrlFixed(record.kShareB64u, 'presignature.kShareB64u', 32),
-    sigmaShareB64u: requireBase64UrlFixed(record.sigmaShareB64u, 'presignature.sigmaShareB64u', 32),
-    createdAtMs: requirePositiveUnixMs(record.createdAtMs, 'presignature.createdAtMs'),
-  };
-}
-
 export function parseRouterAbEcdsaDerivationEvmDigestSigningPrepareResponseV1(
   value: unknown,
 ): RouterAbEcdsaDerivationEvmDigestSigningPrepareResponseV1Wire {
@@ -3965,145 +3813,4 @@ export async function parseRouterAbEcdsaDerivationEvmDigestSigningResponseForCor
     throw new Error('ecdsaSigningResponse.request_digest does not match request');
   }
   return response;
-}
-
-function parseActiveSigningWorkerState(value: unknown): RouterAbActiveSigningWorkerStateV1 {
-  const record = requireRecord(value, 'receipt.active_signing_worker_state');
-  requireExactKeys(record, 'receipt.active_signing_worker_state', [
-    'account_id',
-    'material_activation',
-    'account_public_key',
-    'signing_worker',
-    'activation_transcript_digest',
-    'activation_digest',
-    'signing_worker_material_handle',
-    'activated_at_ms',
-  ]);
-  return {
-    account_id: requireAsciiNonEmptyString(
-      record.account_id,
-      'receipt.active_signing_worker_state.account_id',
-    ),
-    material_activation: parseRouterAbMpcMaterialActivationRef(record.material_activation),
-    account_public_key: requireAsciiNonEmptyString(
-      record.account_public_key,
-      'receipt.active_signing_worker_state.account_public_key',
-    ),
-    signing_worker: parseServerIdentityWithLabel(
-      record.signing_worker,
-      'receipt.active_signing_worker_state.signing_worker',
-    ),
-    activation_transcript_digest: parsePublicDigest32(
-      record.activation_transcript_digest,
-      'receipt.active_signing_worker_state.activation_transcript_digest',
-    ),
-    activation_digest: parsePublicDigest32(
-      record.activation_digest,
-      'receipt.active_signing_worker_state.activation_digest',
-    ),
-    signing_worker_material_handle: requireAsciiNonEmptyString(
-      record.signing_worker_material_handle,
-      'receipt.active_signing_worker_state.signing_worker_material_handle',
-    ),
-    activated_at_ms: requirePositiveUnixMs(
-      record.activated_at_ms,
-      'receipt.active_signing_worker_state.activated_at_ms',
-    ),
-  };
-}
-
-export function buildCloudflareSigningWorkerEcdsaDerivationPresignaturePoolPutRequestV1(input: {
-  scope: RouterAbEcdsaDerivationNormalSigningScopeV1;
-  presignature: RouterAbEcdsaDerivationServerPresignatureShareV1;
-  expiresAtMs: number;
-}): CloudflareSigningWorkerEcdsaDerivationPresignaturePoolPutRequestV1Wire {
-  const scope = parseRouterAbEcdsaDerivationNormalSigningScopeV1(input.scope);
-  const presignature = parseServerPresignatureShare(input.presignature);
-  const expiresAtMs = requirePositiveUnixMs(input.expiresAtMs, 'expiresAtMs');
-  return {
-    scope,
-    server_presignature_id: presignature.presignatureId,
-    server_big_r33_b64u: presignature.bigRB64u,
-    server_k_share32_b64u: presignature.kShareB64u,
-    server_sigma_share32_b64u: presignature.sigmaShareB64u,
-    expires_at_ms: expiresAtMs,
-  };
-}
-
-export function parseCloudflareSigningWorkerEcdsaDerivationPresignaturePoolPutRequestV1(
-  value: unknown,
-): CloudflareSigningWorkerEcdsaDerivationPresignaturePoolPutRequestV1Wire {
-  const record = requireRecord(value, 'poolFillRequest');
-  requireExactKeys(record, 'poolFillRequest', [
-    'scope',
-    'server_presignature_id',
-    'server_big_r33_b64u',
-    'server_k_share32_b64u',
-    'server_sigma_share32_b64u',
-    'expires_at_ms',
-  ]);
-  return {
-    scope: parseRouterAbEcdsaDerivationNormalSigningScopeV1(record.scope),
-    server_presignature_id: requireAsciiNonEmptyString(
-      record.server_presignature_id,
-      'poolFillRequest.server_presignature_id',
-    ),
-    server_big_r33_b64u: requireBase64UrlFixed(
-      record.server_big_r33_b64u,
-      'poolFillRequest.server_big_r33_b64u',
-      33,
-    ),
-    server_k_share32_b64u: requireBase64UrlFixed(
-      record.server_k_share32_b64u,
-      'poolFillRequest.server_k_share32_b64u',
-      32,
-    ),
-    server_sigma_share32_b64u: requireBase64UrlFixed(
-      record.server_sigma_share32_b64u,
-      'poolFillRequest.server_sigma_share32_b64u',
-      32,
-    ),
-    expires_at_ms: requirePositiveUnixMs(record.expires_at_ms, 'poolFillRequest.expires_at_ms'),
-  };
-}
-
-export function parseCloudflareSigningWorkerEcdsaDerivationPresignaturePoolPutReceiptV1(
-  value: unknown,
-): CloudflareSigningWorkerEcdsaDerivationPresignaturePoolPutReceiptV1Wire {
-  const record = requireRecord(value, 'receipt');
-  requireExactKeys(record, 'receipt', [
-    'active_signing_worker_state',
-    'server_presignature_id',
-    'server_big_r33_b64u',
-    'stored',
-  ]);
-  return {
-    active_signing_worker_state: parseActiveSigningWorkerState(record.active_signing_worker_state),
-    server_presignature_id: requireAsciiNonEmptyString(
-      record.server_presignature_id,
-      'receipt.server_presignature_id',
-    ),
-    server_big_r33_b64u: requireBase64UrlFixed(
-      record.server_big_r33_b64u,
-      'receipt.server_big_r33_b64u',
-      33,
-    ),
-    stored: requireBoolean(record.stored, 'receipt.stored'),
-  };
-}
-
-export function parseCloudflareSigningWorkerEcdsaDerivationPresignaturePoolPutReceiptForRequestV1(
-  request: CloudflareSigningWorkerEcdsaDerivationPresignaturePoolPutRequestV1Wire,
-  value: unknown,
-): CloudflareSigningWorkerEcdsaDerivationPresignaturePoolPutReceiptV1Wire {
-  const parsedRequest =
-    parseCloudflareSigningWorkerEcdsaDerivationPresignaturePoolPutRequestV1(request);
-  const receipt = parseCloudflareSigningWorkerEcdsaDerivationPresignaturePoolPutReceiptV1(value);
-  if (receipt.server_presignature_id !== parsedRequest.server_presignature_id) {
-    throw new Error('receipt.server_presignature_id does not match pool-fill request');
-  }
-  if (receipt.server_big_r33_b64u !== parsedRequest.server_big_r33_b64u) {
-    throw new Error('receipt.server_big_r33_b64u does not match pool-fill request');
-  }
-  return receipt;
 }

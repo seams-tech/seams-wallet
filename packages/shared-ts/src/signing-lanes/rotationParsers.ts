@@ -71,16 +71,12 @@ import type {
   AggregateLaneActivationReceiptV1,
   AggregateLaneRevocationChildReceiptV1,
   AggregateLaneRevocationReceiptV1,
-  CommitLaneEnrollmentActivationV1,
   CommitLaneEnrollmentRevocationV1,
   CompleteSigningLaneRevocationV1,
   EcdsaAdditiveLaneCreationJobV1,
   EcdsaAdditiveLaneHolderRoundV1,
   EcdsaAdditiveLaneJobV1,
   EcdsaAdditiveLaneRefreshJobV1,
-  EcdsaAdditiveLaneServerRoundV1,
-  EcdsaAdditiveLaneTranscriptPreambleV1,
-  EcdsaAdditiveLaneTranscriptV1,
   EcdsaServerRetirementReceiptV1,
   Ed25519ServerRetirementReceiptV1,
   EcdsaSourceCapabilityBindingV1,
@@ -91,21 +87,16 @@ import type {
   Ed25519YaoLaneRefreshJobV1,
   LaneCreationTargetV1,
   LaneEnrollmentLifecycleV1,
-  LaneEnrollmentPreparationResultV1,
   LaneEnrollmentManifestChildV1,
   LaneEnrollmentManifestV1,
   LaneHolderDeliveryReceiptV1,
   LaneHolderPackageWireV1,
   LaneOperationAuthorizationBindingV1,
-  LaneProductEpochActiveV1,
   LaneProductEpochPendingVisibilityV1,
-  LaneProductEpochRevocationPendingV1,
   LaneProductEpochRecordCommonV1,
   LaneProductEpochRecordV1,
-  LaneProductEpochRetiredV1,
   LaneProductEpochRevokedV1,
   LaneProtocolCommitReceiptV1,
-  LaneProtocolCasResultV1,
   LaneProtocolLifecycle,
   LaneProtocolRecordV1,
   LaneRefreshTargetV1,
@@ -1476,12 +1467,6 @@ function parseAggregateActivationChild(
   };
 }
 
-export function buildAggregateLaneActivationChildReceiptV1(
-  input: AggregateLaneActivationChildReceiptV1,
-): AggregateLaneActivationChildReceiptV1 {
-  return parseAggregateActivationChild(input, 'aggregateLaneActivationChildReceipt');
-}
-
 export function parseAggregateLaneActivationReceiptV1(
   raw: unknown,
   label = 'aggregateActivationReceipt',
@@ -1516,62 +1501,6 @@ export function parseAggregateLaneActivationReceiptV1(
     manifestDigestB64u: digest(record.manifestDigestB64u, `${label}.manifestDigestB64u`),
     orderedChildReceipts,
     activatedAtMs: requiredInteger(record.activatedAtMs, `${label}.activatedAtMs`),
-  };
-}
-
-export function parseCommitLaneEnrollmentActivationV1(
-  raw: unknown,
-  label = 'commitLaneEnrollmentActivation',
-): CommitLaneEnrollmentActivationV1 {
-  const record = exactRecord(
-    raw,
-    [
-      'kind',
-      'enrollmentId',
-      'walletId',
-      'manifestDigestB64u',
-      'orderedChildReceipts',
-      'orderedPredecessorRetirements',
-      'activatedAtMs',
-    ],
-    label,
-  );
-  if (record.kind !== 'commit_lane_enrollment_activation_v1')
-    throw new Error(`${label}.kind is invalid`);
-  const receipt = parseAggregateLaneActivationReceiptV1(
-    {
-      kind: 'aggregate_lane_activation_receipt_v1',
-      enrollmentId: record.enrollmentId,
-      walletId: record.walletId,
-      manifestDigestB64u: record.manifestDigestB64u,
-      orderedChildReceipts: record.orderedChildReceipts,
-      activatedAtMs: record.activatedAtMs,
-    },
-    `${label}.receipt`,
-  );
-  const predecessorRetirementsRaw = requiredArray(
-    record.orderedPredecessorRetirements,
-    `${label}.orderedPredecessorRetirements`,
-  );
-  const orderedPredecessorRetirements = predecessorRetirementsRaw.map((value, index) =>
-    parseLaneRefreshPredecessorRetirementV1(
-      value,
-      `${label}.orderedPredecessorRetirements[${index}]`,
-    ),
-  );
-  const refreshOperationIds = orderedPredecessorRetirements.map((value) =>
-    String(value.refreshOperationId),
-  );
-  if (new Set(refreshOperationIds).size !== refreshOperationIds.length)
-    throw new Error(`${label}.orderedPredecessorRetirements contains duplicate refresh operation`);
-  return {
-    kind: 'commit_lane_enrollment_activation_v1',
-    enrollmentId: receipt.enrollmentId,
-    walletId: receipt.walletId,
-    manifestDigestB64u: receipt.manifestDigestB64u,
-    orderedChildReceipts: receipt.orderedChildReceipts,
-    orderedPredecessorRetirements,
-    activatedAtMs: receipt.activatedAtMs,
   };
 }
 
@@ -2465,197 +2394,6 @@ export function buildLaneProtocolRecordV1(args: {
   return { job: args.job, lifecycle: args.lifecycle };
 }
 
-export function parseLaneProtocolRecordV1(
-  raw: unknown,
-  label = 'laneProtocolRecord',
-): LaneProtocolRecordV1 {
-  const record = exactRecord(raw, ['job', 'lifecycle'], label);
-  return {
-    job: parseRotatableSigningLaneJobV1(record.job, `${label}.job`),
-    lifecycle: parseLaneProtocolLifecycleV1(record.lifecycle, `${label}.lifecycle`),
-  };
-}
-
-export function parseLaneProtocolCasResultV1(
-  raw: unknown,
-  label = 'laneProtocolCasResult',
-): LaneProtocolCasResultV1 {
-  const record = requireRecord(raw, label);
-  if (record.outcome === 'applied' || record.outcome === 'replayed') {
-    const value = exactRecord(record, ['outcome', 'version', 'record', 'commandDigestB64u'], label);
-    return {
-      outcome: record.outcome,
-      version: requiredInteger(value.version, `${label}.version`),
-      record: parseLaneProtocolRecordV1(value.record, `${label}.record`),
-      commandDigestB64u: digest(value.commandDigestB64u, `${label}.commandDigestB64u`),
-    };
-  }
-  if (record.outcome === 'conflict') {
-    const value = exactRecord(
-      record,
-      [
-        'outcome',
-        'expectedVersion',
-        'actualVersion',
-        'requestedCommandDigestB64u',
-        'storedCommandDigestB64u',
-      ],
-      label,
-    );
-    return {
-      outcome: 'conflict',
-      expectedVersion: requiredInteger(value.expectedVersion, `${label}.expectedVersion`),
-      actualVersion: requiredInteger(value.actualVersion, `${label}.actualVersion`),
-      requestedCommandDigestB64u: digest(
-        value.requestedCommandDigestB64u,
-        `${label}.requestedCommandDigestB64u`,
-      ),
-      storedCommandDigestB64u: digest(
-        value.storedCommandDigestB64u,
-        `${label}.storedCommandDigestB64u`,
-      ),
-    };
-  }
-  throw new Error(`${label}.outcome is invalid`);
-}
-
-export function parseLaneEnrollmentPreparationResultV1(
-  raw: unknown,
-  label = 'laneEnrollmentPreparationResult',
-): LaneEnrollmentPreparationResultV1 {
-  const record = requireRecord(raw, label);
-  if (record.kind !== 'lane_enrollment_preparation_result_v1') {
-    throw new Error(`${label}.kind is invalid`);
-  }
-  if (record.outcome === 'conflict') {
-    const value = exactRecord(
-      record,
-      [
-        'kind',
-        'outcome',
-        'enrollmentId',
-        'expectedVersion',
-        'actualVersion',
-        'requestedCommandDigestB64u',
-        'storedCommandDigestB64u',
-      ],
-      label,
-    );
-    return {
-      kind: 'lane_enrollment_preparation_result_v1',
-      outcome: 'conflict',
-      enrollmentId: parseEnrollmentId(value.enrollmentId, `${label}.enrollmentId`),
-      expectedVersion:
-        value.expectedVersion === null
-          ? null
-          : requiredInteger(value.expectedVersion, `${label}.expectedVersion`),
-      actualVersion: requiredInteger(value.actualVersion, `${label}.actualVersion`),
-      requestedCommandDigestB64u: digest(
-        value.requestedCommandDigestB64u,
-        `${label}.requestedCommandDigestB64u`,
-      ),
-      storedCommandDigestB64u: digest(
-        value.storedCommandDigestB64u,
-        `${label}.storedCommandDigestB64u`,
-      ),
-    };
-  }
-  if (record.outcome !== 'applied' && record.outcome !== 'replayed') {
-    throw new Error(`${label}.outcome is invalid`);
-  }
-  const value = exactRecord(
-    record,
-    [
-      'kind',
-      'outcome',
-      'enrollmentId',
-      'version',
-      'commandDigestB64u',
-      'lifecycle',
-      'orderedProtocols',
-    ],
-    label,
-  );
-  const protocols = requiredArray(value.orderedProtocols, `${label}.orderedProtocols`).map(
-    (entry, index) => {
-      const prepared = exactRecord(
-        entry,
-        ['version', 'commandDigestB64u', 'record'],
-        `${label}.orderedProtocols[${index}]`,
-      );
-      return {
-        version: requiredInteger(prepared.version, `${label}.orderedProtocols[${index}].version`),
-        commandDigestB64u: digest(
-          prepared.commandDigestB64u,
-          `${label}.orderedProtocols[${index}].commandDigestB64u`,
-        ),
-        record: parseLaneProtocolRecordV1(
-          prepared.record,
-          `${label}.orderedProtocols[${index}].record`,
-        ),
-      };
-    },
-  );
-  return {
-    kind: 'lane_enrollment_preparation_result_v1',
-    outcome: record.outcome,
-    enrollmentId: parseEnrollmentId(value.enrollmentId, `${label}.enrollmentId`),
-    version: requiredInteger(value.version, `${label}.version`),
-    commandDigestB64u: digest(value.commandDigestB64u, `${label}.commandDigestB64u`),
-    lifecycle: parseLaneEnrollmentLifecycleV1(value.lifecycle, `${label}.lifecycle`),
-    orderedProtocols: nonEmptyTuple(protocols, `${label}.orderedProtocols`),
-  };
-}
-
-export function buildRotatableSigningLaneJobV1(
-  raw: unknown,
-  label = 'laneProtocolJob',
-): RotatableSigningLaneJobV1 {
-  return parseRotatableSigningLaneJobV1(raw, label);
-}
-
-export function buildLaneProtocolCommitReceiptV1(
-  args: Omit<LaneProtocolCommitReceiptV1, 'kind'>,
-): LaneProtocolCommitReceiptV1 {
-  return parseLaneProtocolCommitReceiptV1({ kind: 'lane_protocol_commit_receipt_v1', ...args });
-}
-
-export function buildLaneHolderDeliveryReceiptV1(
-  args: Omit<LaneHolderDeliveryReceiptV1, 'kind'>,
-): LaneHolderDeliveryReceiptV1 {
-  return parseLaneHolderDeliveryReceiptV1({ kind: 'lane_holder_delivery_receipt_v1', ...args });
-}
-
-export function buildLaneServerActivationReceiptV1(
-  args: Omit<LaneServerActivationReceiptV1, 'kind'>,
-): LaneServerActivationReceiptV1 {
-  return parseLaneServerActivationReceiptV1({ kind: 'lane_server_activation_receipt_v1', ...args });
-}
-
-export function buildLaneEnrollmentManifestV1(
-  args: Omit<LaneEnrollmentManifestV1, 'kind'>,
-): LaneEnrollmentManifestV1 {
-  return parseLaneEnrollmentManifestV1({ kind: 'lane_enrollment_manifest_v1', ...args });
-}
-
-export function buildAggregateLaneActivationReceiptV1(
-  args: Omit<AggregateLaneActivationReceiptV1, 'kind'>,
-): AggregateLaneActivationReceiptV1 {
-  return parseAggregateLaneActivationReceiptV1({
-    kind: 'aggregate_lane_activation_receipt_v1',
-    ...args,
-  });
-}
-
-export function buildCommitLaneEnrollmentActivationV1(
-  args: Omit<CommitLaneEnrollmentActivationV1, 'kind'>,
-): CommitLaneEnrollmentActivationV1 {
-  return parseCommitLaneEnrollmentActivationV1({
-    kind: 'commit_lane_enrollment_activation_v1',
-    ...args,
-  });
-}
-
 export function buildAggregateLaneRevocationReceiptV1(
   args: Omit<AggregateLaneRevocationReceiptV1, 'kind'>,
 ): AggregateLaneRevocationReceiptV1 {
@@ -2665,25 +2403,10 @@ export function buildAggregateLaneRevocationReceiptV1(
   });
 }
 
-export function buildRevokeLaneEnrollmentV1(
-  args: Omit<RevokeLaneEnrollmentV1, 'kind'>,
-): RevokeLaneEnrollmentV1 {
-  return parseRevokeLaneEnrollmentV1({ kind: 'revoke_lane_enrollment_v1', ...args });
-}
-
 export function buildRevokeSigningLaneV1(
   args: Omit<RevokeSigningLaneV1, 'kind'>,
 ): RevokeSigningLaneV1 {
   return parseRevokeSigningLaneV1({ kind: 'revoke_signing_lane_v1', ...args });
-}
-
-export function buildCompleteSigningLaneRevocationV1(
-  args: Omit<CompleteSigningLaneRevocationV1, 'kind'>,
-): CompleteSigningLaneRevocationV1 {
-  return parseCompleteSigningLaneRevocationV1({
-    kind: 'complete_signing_lane_revocation_v1',
-    ...args,
-  });
 }
 
 export function buildCommitLaneEnrollmentRevocationV1(
@@ -2707,42 +2430,6 @@ export function buildLaneProductEpochPendingVisibilityV1(
   return value;
 }
 
-export function buildLaneProductEpochActiveV1(
-  args: Omit<LaneProductEpochActiveV1, 'kind' | 'state'>,
-): LaneProductEpochActiveV1 {
-  const value = parseLaneProductEpochRecordV1({
-    kind: 'lane_product_epoch_record_v1',
-    state: 'active',
-    ...args,
-  });
-  if (value.state !== 'active') throw new Error('product epoch state changed');
-  return value;
-}
-
-export function buildLaneProductEpochRetiredV1(
-  args: Omit<LaneProductEpochRetiredV1, 'kind' | 'state'>,
-): LaneProductEpochRetiredV1 {
-  const value = parseLaneProductEpochRecordV1({
-    kind: 'lane_product_epoch_record_v1',
-    state: 'retired',
-    ...args,
-  });
-  if (value.state !== 'retired') throw new Error('product epoch state changed');
-  return value;
-}
-
-export function buildLaneProductEpochRevocationPendingV1(
-  args: Omit<LaneProductEpochRevocationPendingV1, 'kind' | 'state'>,
-): LaneProductEpochRevocationPendingV1 {
-  const value = parseLaneProductEpochRecordV1({
-    kind: 'lane_product_epoch_record_v1',
-    state: 'revocation_pending',
-    ...args,
-  });
-  if (value.state !== 'revocation_pending') throw new Error('product epoch state changed');
-  return value;
-}
-
 export function buildLaneProductEpochRevokedV1(
   args: Omit<LaneProductEpochRevokedV1, 'kind' | 'state'>,
 ): LaneProductEpochRevokedV1 {
@@ -2753,19 +2440,6 @@ export function buildLaneProductEpochRevokedV1(
   });
   if (value.state !== 'revoked') throw new Error('product epoch state changed');
   return value;
-}
-
-export function parseEcdsaAdditiveLaneTranscriptPreambleV1(
-  raw: unknown,
-  label = 'ecdsaPreamble',
-): EcdsaAdditiveLaneTranscriptPreambleV1 {
-  const record = exactRecord(raw, ['kind', 'job'], label);
-  if (record.kind !== 'ecdsa_additive_lane_transcript_preamble_v1')
-    throw new Error(`${label}.kind is invalid`);
-  return {
-    kind: 'ecdsa_additive_lane_transcript_preamble_v1',
-    job: parseEcdsaJob(requireRecord(record.job, `${label}.job`), `${label}.job`),
-  };
 }
 
 export function parseEcdsaAdditiveLaneHolderRoundV1(
@@ -2809,76 +2483,6 @@ export function parseEcdsaAdditiveLaneHolderRoundV1(
       record.holderCommittedAtMs,
       `${label}.holderCommittedAtMs`,
     ),
-  };
-}
-
-export function parseEcdsaAdditiveLaneServerRoundV1(
-  raw: unknown,
-  label = 'ecdsaServerRound',
-): EcdsaAdditiveLaneServerRoundV1 {
-  const record = exactRecord(
-    raw,
-    [
-      'kind',
-      'preambleHashB64u',
-      'holderRoundHashB64u',
-      'targetServerPublicCommitment33B64u',
-      'sealedTargetServerMaterialDigestB64u',
-      'targetThresholdSessionSetDigestB64u',
-      'publicIdentityRelationDigestB64u',
-      'serverAttestationB64u',
-      'serverCommittedAtMs',
-    ],
-    label,
-  );
-  if (record.kind !== 'ecdsa_additive_lane_server_round_v1')
-    throw new Error(`${label}.kind is invalid`);
-  return {
-    kind: 'ecdsa_additive_lane_server_round_v1',
-    preambleHashB64u: digest(record.preambleHashB64u, `${label}.preambleHashB64u`),
-    holderRoundHashB64u: digest(record.holderRoundHashB64u, `${label}.holderRoundHashB64u`),
-    targetServerPublicCommitment33B64u: parseSecp256k1CompressedPublicKeyB64u(
-      record.targetServerPublicCommitment33B64u,
-    ),
-    sealedTargetServerMaterialDigestB64u: digest(
-      record.sealedTargetServerMaterialDigestB64u,
-      `${label}.sealedTargetServerMaterialDigestB64u`,
-    ),
-    targetThresholdSessionSetDigestB64u: digest(
-      record.targetThresholdSessionSetDigestB64u,
-      `${label}.targetThresholdSessionSetDigestB64u`,
-    ),
-    publicIdentityRelationDigestB64u: digest(
-      record.publicIdentityRelationDigestB64u,
-      `${label}.publicIdentityRelationDigestB64u`,
-    ),
-    serverAttestationB64u: requiredString(
-      record.serverAttestationB64u,
-      `${label}.serverAttestationB64u`,
-    ),
-    serverCommittedAtMs: requiredInteger(
-      record.serverCommittedAtMs,
-      `${label}.serverCommittedAtMs`,
-    ),
-  };
-}
-
-export function parseEcdsaAdditiveLaneTranscriptV1(
-  raw: unknown,
-  label = 'ecdsaTranscript',
-): EcdsaAdditiveLaneTranscriptV1 {
-  const record = exactRecord(
-    raw,
-    ['kind', 'preambleHashB64u', 'holderRoundHashB64u', 'serverRoundHashB64u'],
-    label,
-  );
-  if (record.kind !== 'ecdsa_additive_lane_transcript_v1')
-    throw new Error(`${label}.kind is invalid`);
-  return {
-    kind: 'ecdsa_additive_lane_transcript_v1',
-    preambleHashB64u: digest(record.preambleHashB64u, `${label}.preambleHashB64u`),
-    holderRoundHashB64u: digest(record.holderRoundHashB64u, `${label}.holderRoundHashB64u`),
-    serverRoundHashB64u: digest(record.serverRoundHashB64u, `${label}.serverRoundHashB64u`),
   };
 }
 

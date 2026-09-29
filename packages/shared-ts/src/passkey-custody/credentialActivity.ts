@@ -110,22 +110,6 @@ export function parseWalletCredentialActivityRecordV1(
   };
 }
 
-/** Records one use of a credential, for the list the user reads. */
-export function recordWalletCredentialUseV1(
-  record: WalletCredentialActivityRecordV1,
-  usedAtMs: number,
-): WalletCredentialActivityRecordV1 {
-  // Monotonic: an out-of-order or replayed report must not move the clock
-  // backwards, which would read as a credential going unused.
-  const lastUsedAtMs = Math.max(usedAtMs, record.lastUsedAtMs ?? 0);
-  return {
-    ...record,
-    lastUsedAtMs,
-    useCount: record.useCount + 1,
-    updatedAtMs: Math.max(usedAtMs, record.updatedAtMs),
-  };
-}
-
 function trimmed(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
 }

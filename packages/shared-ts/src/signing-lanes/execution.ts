@@ -2,41 +2,7 @@ import type { AuthorizedOperationId, CapabilityId } from '../authorization/capab
 import type { CapabilityOperationFingerprintDigest } from '../authorization/operationFingerprint';
 import type { DomainId, MpcMaterialActivationRef } from '../utils/domainIds';
 import type { LinkedDeviceEnrollmentId } from './ids';
-import type { LinkedDeviceId, LaneShareEpoch, SigningLaneId, WalletKeyId } from './ids';
 import type { ActiveSigningLaneReference, DelegatedSpendAuthorizationId } from './records';
-import {
-  routerAbMpcMaterialActivationRefToWire,
-  type RouterAbMpcMaterialActivationRefWire,
-} from '../utils/routerAbNormalSigningIdentity';
-
-export type LinkedDeviceExecutionEnvelopeV1 = {
-  readonly kind: 'linked_device_execution_v1';
-  readonly enrollmentId: LinkedDeviceEnrollmentId;
-  readonly deviceId: LinkedDeviceId;
-  readonly walletKeyId: WalletKeyId;
-  readonly laneId: SigningLaneId;
-  readonly laneShareEpoch: LaneShareEpoch;
-  readonly materialActivation: RouterAbMpcMaterialActivationRefWire;
-};
-
-export function buildLinkedDeviceExecutionEnvelopeV1(input: {
-  readonly enrollmentId: LinkedDeviceEnrollmentId;
-  readonly deviceId: LinkedDeviceId;
-  readonly walletKeyId: WalletKeyId;
-  readonly laneId: SigningLaneId;
-  readonly laneShareEpoch: LaneShareEpoch;
-  readonly materialActivation: MpcMaterialActivationRef;
-}): LinkedDeviceExecutionEnvelopeV1 {
-  return {
-    kind: 'linked_device_execution_v1',
-    enrollmentId: input.enrollmentId,
-    deviceId: input.deviceId,
-    walletKeyId: input.walletKeyId,
-    laneId: input.laneId,
-    laneShareEpoch: input.laneShareEpoch,
-    materialActivation: routerAbMpcMaterialActivationRefToWire(input.materialActivation),
-  };
-}
 
 export type DelegatedBudgetClaimId = DomainId<'DelegatedBudgetClaimId'>;
 
@@ -86,11 +52,6 @@ export type PreparedDelegatedWalletExecution = PreparedWalletExecutionBase & {
   readonly linkedDeviceEnrollmentId?: never;
 };
 
-export type PreparedWalletExecution =
-  | PreparedOwnerWalletExecution
-  | PreparedLinkedDeviceWalletExecution
-  | PreparedDelegatedWalletExecution;
-
 export function buildPreparedOwnerWalletExecution(input: {
   readonly authorization: ClaimedWalletExecutionAuthorization;
   readonly materialActivation: MpcMaterialActivationRef;
@@ -137,8 +98,4 @@ export function buildPreparedDelegatedWalletExecution(input: {
     delegatedAuthorizationId: input.delegatedAuthorizationId,
     budgetClaim: input.budgetClaim,
   };
-}
-
-export function assertNeverPreparedWalletExecution(value: never): never {
-  throw new Error(`Unsupported prepared wallet execution: ${String(value)}`);
 }

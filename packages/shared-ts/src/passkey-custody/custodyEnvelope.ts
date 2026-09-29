@@ -27,8 +27,6 @@ import {
 } from './primitives';
 
 export const WALLET_CUSTODY_ENVELOPE_VERSION_V2 = 'wallet_custody_envelope_v2' as const;
-/** Refactor 109C: an envelope whose owning auth method is part of its AAD. */
-export const WALLET_CUSTODY_ENVELOPE_VERSION_V3 = 'wallet_custody_envelope_v3' as const;
 export const PASSKEY_PRF_KEK_VERSION_V1 = 'passkey_prf_kek_hkdf_sha256_v1' as const;
 export const EMAIL_OTP_FACTOR_KEK_VERSION_V1 = 'email_otp_factor_kek_hkdf_sha256_v1' as const;
 

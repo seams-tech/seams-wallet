@@ -368,26 +368,6 @@ export async function computeWalletSignerActivationSetDigestB64u(
   );
 }
 
-export function parseWalletSignerActivationSetDigestB64u(raw: unknown): DigestB64u {
-  try {
-    return parseDigestB64u(raw);
-  } catch (error) {
-    throw new Error(errorMessage(error, 'wallet signer activation set digest is invalid'));
-  }
-}
-
-export function buildWalletAuthorityV1(input: WalletAuthorityV1): WalletAuthorityV1 {
-  validateWalletAuthorityV1(input);
-  switch (input.state) {
-    case 'pending_local_install':
-      return buildPendingWalletAuthorityV1(input);
-    case 'active':
-      return buildActiveWalletAuthorityV1(input);
-    case 'revoked':
-      return buildRevokedWalletAuthorityV1(input);
-  }
-}
-
 export function buildPendingWalletAuthorityV1(
   input: PendingWalletAuthorityV1,
 ): PendingWalletAuthorityV1 {
@@ -702,14 +682,6 @@ export async function computeWalletAuthorityDigestB64u(
   value: WalletAuthorityV1,
 ): Promise<DigestB64u> {
   return parseDigestB64u(base64UrlEncode(await sha256Bytes(encodeWalletAuthorityV1(value))));
-}
-
-export function parseWalletAuthorityDigestB64u(raw: unknown): DigestB64u {
-  try {
-    return parseDigestB64u(raw);
-  } catch (error) {
-    throw new Error(errorMessage(error, 'wallet authority digest is invalid'));
-  }
 }
 
 export async function walletAuthorityDigestsMatchV1(value: WalletAuthorityV1): Promise<boolean> {

@@ -187,14 +187,6 @@ export function validateDelegatedWalletAuthorityAttenuationV1(input: {
   return { ok: true, value: true };
 }
 
-export function assertDelegatedWalletAuthorityAttenuationV1(input: {
-  readonly parent: DelegatedWalletAuthorityV1;
-  readonly child: DelegatedWalletAuthorityV1;
-}): void {
-  const result = validateDelegatedWalletAuthorityAttenuationV1(input);
-  if (!result.ok) throw new Error(result.error.message);
-}
-
 function buildPresetPermissionSet(
   permissions: readonly DelegatedWalletPermissionV1[],
 ): CanonicalDelegatedWalletPermissionSetV1 {

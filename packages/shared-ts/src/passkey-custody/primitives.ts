@@ -59,7 +59,6 @@ export function parseDigestField(value: unknown, label: string): DigestB64u {
 // Frozen AEAD for every passkey custody wrap: ChaCha20Poly1305 (IETF) under an
 // HKDF-SHA256-derived key, matching EMAIL_OTP_RECOVERY_WRAP_ALG and the
 // Rust/WASM activated-Client seal.
-export const PASSKEY_CUSTODY_WRAP_ALG_V1 = 'chacha20poly1305-hkdf-sha256-v1' as const;
 export const PASSKEY_CUSTODY_WRAP_NONCE_LENGTH = 12 as const;
 export const PASSKEY_CUSTODY_WRAP_TAG_LENGTH = 16 as const;
 

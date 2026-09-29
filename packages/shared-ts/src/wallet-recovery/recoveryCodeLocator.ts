@@ -1,20 +1,10 @@
 import { sha256Bytes } from '../utils/digests';
 import { base64UrlEncode } from '../utils/encoders';
 import { parseDigestB64u, type DigestB64u } from '../utils/canonicalPrimitives';
-import {
-  decodeEmailOtpRecoveryKey,
-  normalizeEmailOtpRecoveryKey,
-  EMAIL_OTP_RECOVERY_KEY_BYTE_LENGTH,
-} from '../utils/emailOtpRecoveryKey';
-import type { DerivedWalletRecoveryKeyId } from './recoveryKeyId';
+import { EMAIL_OTP_RECOVERY_KEY_BYTE_LENGTH } from '../utils/emailOtpRecoveryKey';
 
 /** The code-only digest used to locate a wallet recovery set. */
 export type RecoveryCodeLocatorV1 = DigestB64u;
-
-export type WalletRecoveryCodeLocatorRecordV1 = {
-  readonly locatorB64u: RecoveryCodeLocatorV1;
-  readonly recoveryKeyId: DerivedWalletRecoveryKeyId;
-};
 
 const RECOVERY_CODE_LOCATOR_CONTEXT_V1 = 'seams/wallet-recovery/code-locator/v1';
 
@@ -28,23 +18,6 @@ export function parseRecoveryCodeLocatorV1(
     throw new Error(
       `${label} ${error instanceof Error ? error.message : 'must be a canonical digest'}`,
     );
-  }
-}
-
-/**
- * Derives the code-only locator from the normalized recovery code.
- *
- * The locator identifies a set for lookup. It never replaces the existing
- * wallet-bound recovery-key derivation that authenticates a wrap.
- */
-export async function deriveRecoveryCodeLocatorV1(
-  recoveryCode: string,
-): Promise<RecoveryCodeLocatorV1> {
-  const codeBytes = decodeEmailOtpRecoveryKey(normalizeEmailOtpRecoveryKey(recoveryCode));
-  try {
-    return await deriveRecoveryCodeLocatorV1FromBytes(codeBytes);
-  } finally {
-    codeBytes.fill(0);
   }
 }
 
@@ -72,18 +45,4 @@ export async function deriveRecoveryCodeLocatorV1FromBytes(
   } finally {
     tuple?.fill(0);
   }
-}
-
-export async function deriveRecoveryCodeLocatorRecordsV1(
-  inputs: readonly {
-    readonly codeBytes: Uint8Array;
-    readonly recoveryKeyId: DerivedWalletRecoveryKeyId;
-  }[],
-): Promise<readonly WalletRecoveryCodeLocatorRecordV1[]> {
-  return await Promise.all(
-    inputs.map(async (input) => ({
-      locatorB64u: await deriveRecoveryCodeLocatorV1FromBytes(input.codeBytes),
-      recoveryKeyId: input.recoveryKeyId,
-    })),
-  );
 }

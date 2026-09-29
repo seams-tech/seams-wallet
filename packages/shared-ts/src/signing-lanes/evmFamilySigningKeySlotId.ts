@@ -48,13 +48,6 @@ export function parseEvmFamilySigningKeySlotId(
   return { ok: true, value: String(parsed.value) as EvmFamilySigningKeySlotId };
 }
 
-export function parseEvmFamilySigningKeySlotIdOrNull(
-  raw: unknown,
-): EvmFamilySigningKeySlotId | null {
-  const parsed = parseEvmFamilySigningKeySlotId(raw);
-  return parsed.ok ? parsed.value : null;
-}
-
 export function requireEvmFamilySigningKeySlotId(
   value: unknown,
   label = 'evmFamilySigningKeySlotId',
@@ -63,48 +56,6 @@ export function requireEvmFamilySigningKeySlotId(
   if (parsed.ok) return parsed.value;
   if (parsed.error.code === 'missing') throw new Error(`${label} is required`);
   throw new Error(`${label} must be an EVM-family signing key slot id`);
-}
-
-export function assertMatchingEvmFamilySigningKeySlotId(args: {
-  expected: unknown;
-  actual: unknown;
-  expectedLabel?: string;
-  actualLabel?: string;
-  message?: string;
-}): EvmFamilySigningKeySlotId {
-  const expected = requireEvmFamilySigningKeySlotId(
-    args.expected,
-    args.expectedLabel || 'expected evmFamilySigningKeySlotId',
-  );
-  const actual = requireEvmFamilySigningKeySlotId(
-    args.actual,
-    args.actualLabel || 'actual evmFamilySigningKeySlotId',
-  );
-  if (String(actual) !== String(expected)) {
-    throw new Error(args.message || `${args.actualLabel || 'evmFamilySigningKeySlotId'} mismatch`);
-  }
-  return actual;
-}
-
-export function assertEvmFamilySigningKeySlotIdMatchesPlan(args: {
-  evmFamilySigningKeySlotId: unknown;
-  walletId: unknown;
-  signingRootId: unknown;
-  signingRootVersion: unknown;
-  message?: string;
-}): EvmFamilySigningKeySlotId {
-  const actual = requireEvmFamilySigningKeySlotId(args.evmFamilySigningKeySlotId);
-  const expected = deriveEvmFamilySigningKeySlotId({
-    walletId: args.walletId,
-    signingRootId: args.signingRootId,
-    signingRootVersion: args.signingRootVersion,
-  });
-  if (String(actual) !== String(expected)) {
-    throw new Error(
-      args.message || 'signing key slot id does not match wallet/signing-root scope',
-    );
-  }
-  return actual;
 }
 
 export function deriveEvmFamilySigningKeySlotId(input: {

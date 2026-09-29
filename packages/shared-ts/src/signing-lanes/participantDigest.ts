@@ -179,39 +179,11 @@ export async function computeLaneHolderParticipantBindingDigestV1(
   );
 }
 
-export async function computeSigningWorkerParticipantBindingDigestV1(
-  input: SigningWorkerParticipantBindingInputV1,
-): Promise<LaneParticipantBindingDigestB64u> {
-  return await digestCanonicalBytes(
-    signingWorkerParticipantCanonicalBytesV1(
-      buildSigningWorkerParticipantRecordV1({
-        ...input,
-        participantBindingDigestB64u: placeholderParticipantDigest(),
-      }),
-    ),
-  );
-}
-
 export async function computeLaneParticipantSetBindingDigestV1(input: {
   readonly holderParticipant: LaneHolderParticipantRecordV1;
   readonly signingWorkerParticipant: SigningWorkerParticipantRecordV1;
 }): Promise<LaneParticipantBindingDigestB64u> {
   return await digestCanonicalBytes(laneParticipantSetCanonicalBytesV1(input));
-}
-
-export async function buildLaneHolderParticipantRecordWithDigestV1(
-  input: LaneHolderParticipantBindingInputV1,
-): Promise<LaneHolderParticipantRecordV1> {
-  const draft = buildLaneHolderParticipantRecordV1({
-    ...input,
-    participantBindingDigestB64u: placeholderParticipantDigest(),
-  });
-  return buildLaneHolderParticipantRecordV1({
-    ...input,
-    participantBindingDigestB64u: await digestCanonicalBytes(
-      laneHolderParticipantCanonicalBytesV1(draft),
-    ),
-  });
 }
 
 export async function buildSigningWorkerParticipantRecordWithDigestV1(
@@ -227,24 +199,4 @@ export async function buildSigningWorkerParticipantRecordWithDigestV1(
       signingWorkerParticipantCanonicalBytesV1(draft),
     ),
   });
-}
-
-export async function assertLaneHolderParticipantBindingDigestV1(
-  record: LaneHolderParticipantRecordV1,
-): Promise<LaneHolderParticipantRecordV1> {
-  const expected = await digestCanonicalBytes(laneHolderParticipantCanonicalBytesV1(record));
-  if (expected !== record.participantBindingDigestB64u) {
-    throw new Error('lane holder participant binding digest mismatch');
-  }
-  return record;
-}
-
-export async function assertSigningWorkerParticipantBindingDigestV1(
-  record: SigningWorkerParticipantRecordV1,
-): Promise<SigningWorkerParticipantRecordV1> {
-  const expected = await digestCanonicalBytes(signingWorkerParticipantCanonicalBytesV1(record));
-  if (expected !== record.participantBindingDigestB64u) {
-    throw new Error('SigningWorker participant binding digest mismatch');
-  }
-  return record;
 }

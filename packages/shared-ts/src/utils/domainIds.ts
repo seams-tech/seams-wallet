@@ -508,10 +508,6 @@ export function parseMpcMaterialActivationRef(
   };
 }
 
-export function formatWebAuthnRpIdForWire(value: WebAuthnRpId): string {
-  return value;
-}
-
 export function parseThresholdEd25519SessionId(
   raw: unknown,
 ): DomainIdParseResult<ThresholdEd25519SessionId> {

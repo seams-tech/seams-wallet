@@ -541,51 +541,6 @@ export type RouterAbEd25519YaoRouterExecuteRequestV1 =
       deriver_b_input: RouterAbEd25519YaoExportEncryptedInputV1<'deriver_b'>;
     });
 
-export type RouterAbEd25519YaoRouterExecuteSuccessV1 =
-  | {
-      operation: 'registration';
-      result: RouterAbEd25519YaoActivationResultV1<'registration'>;
-    }
-  | {
-      operation: 'recovery';
-      result: RouterAbEd25519YaoActivationResultV1<'recovery'>;
-    }
-  | {
-      operation: 'export';
-      result: RouterAbEd25519YaoExportResultV1;
-    };
-
-export type RouterAbEd25519YaoRouterExecuteResultV1 =
-  | { status: 'succeeded'; result: RouterAbEd25519YaoRouterExecuteSuccessV1 }
-  | {
-      status: 'recoverable_failure';
-      code:
-        | 'service_unavailable'
-        | 'conflicting_pair'
-        | 'missing_preparation'
-        | 'ceremony_expired'
-        | 'signing_worker_uncertain'
-        | 'terminal_role_failure'
-        | 'authorization_rejected';
-      retry_after_ms: number;
-    }
-  | {
-      status: 'rejected';
-      code:
-        | 'service_unavailable'
-        | 'conflicting_pair'
-        | 'missing_preparation'
-        | 'ceremony_expired'
-        | 'signing_worker_uncertain'
-        | 'terminal_role_failure'
-        | 'authorization_rejected';
-    }
-  | {
-      status: 'burned';
-      execution_id: RouterAbEd25519YaoBytes32V1;
-      reason: 'caller_disconnected' | 'peer_uncertain' | 'protocol_failure';
-    };
-
 export type RouterAbEd25519YaoParseResult<T> =
   | { ok: true; value: T }
   | { ok: false; code: 'invalid_body'; message: string };
@@ -1946,73 +1901,6 @@ function parseRecoveryActivationReceiptValue(
   };
 }
 
-function requireRecoveryAdmissionReceipt(
-  value: unknown,
-): RouterAbEd25519YaoActivationAdmissionReceiptV1<'recovery'> {
-  const receipt = parseActivationAdmissionReceiptValue(value);
-  if (!isActivationAdmissionReceiptFor(receipt, 'recovery')) {
-    throw new Error('recovery status admission receipt must use the recovery operation');
-  }
-  return receipt;
-}
-
-function requireRecoveryExecutionResult(
-  value: unknown,
-): RouterAbEd25519YaoActivationResultV1<'recovery'> {
-  const result = parseActivationResultValue(value);
-  if (!isActivationResultFor(result, 'recovery')) {
-    throw new Error('recovery status execution result must use the recovery operation');
-  }
-  return result;
-}
-
-function parseRecoveryStatusValue(value: unknown): RouterAbEd25519YaoRecoveryStatusV1 {
-  const record = requireRecord(value, 'recovery status');
-  const lifecycleId = requireVisibleIdentifier(record.lifecycle_id, 'recovery status.lifecycle_id');
-  switch (record.stage) {
-    case 'missing':
-      requireExactKeys(record, 'recovery status', ['stage', 'lifecycle_id']);
-      return { stage: 'missing', lifecycle_id: lifecycleId };
-    case 'admitted':
-      requireExactKeys(record, 'recovery status', ['stage', 'lifecycle_id', 'admission_receipt']);
-      return {
-        stage: 'admitted',
-        lifecycle_id: lifecycleId,
-        admission_receipt: requireRecoveryAdmissionReceipt(record.admission_receipt),
-      };
-    case 'executed':
-      requireExactKeys(record, 'recovery status', [
-        'stage',
-        'lifecycle_id',
-        'admission_receipt',
-        'execution_result',
-      ]);
-      return {
-        stage: 'executed',
-        lifecycle_id: lifecycleId,
-        admission_receipt: requireRecoveryAdmissionReceipt(record.admission_receipt),
-        execution_result: requireRecoveryExecutionResult(record.execution_result),
-      };
-    case 'promoted':
-      requireExactKeys(record, 'recovery status', [
-        'stage',
-        'lifecycle_id',
-        'admission_receipt',
-        'execution_result',
-        'activation_receipt',
-      ]);
-      return {
-        stage: 'promoted',
-        lifecycle_id: lifecycleId,
-        admission_receipt: requireRecoveryAdmissionReceipt(record.admission_receipt),
-        execution_result: requireRecoveryExecutionResult(record.execution_result),
-        activation_receipt: parseRecoveryActivationReceiptValue(record.activation_receipt),
-      };
-    default:
-      throw new Error('recovery status.stage is invalid');
-  }
-}
-
 function isActivationAdmissionReceiptFor<Operation extends RouterAbEd25519YaoActivationOperationV1>(
   value: RouterAbEd25519YaoActivationAdmissionReceiptV1,
   operation: Operation,
@@ -2186,12 +2074,6 @@ export function parseRouterAbEd25519YaoRecoveryActivationReceiptV1(
   value: unknown,
 ): RouterAbEd25519YaoParseResult<RouterAbEd25519YaoRecoveryActivationReceiptV1> {
   return parseBoundary(parseRecoveryActivationReceiptValue, value);
-}
-
-export function parseRouterAbEd25519YaoRecoveryStatusV1(
-  value: unknown,
-): RouterAbEd25519YaoParseResult<RouterAbEd25519YaoRecoveryStatusV1> {
-  return parseBoundary(parseRecoveryStatusValue, value);
 }
 
 export function parseRouterAbEd25519YaoEncryptedPackageV1(

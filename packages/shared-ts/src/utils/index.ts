@@ -11,8 +11,6 @@ export * from './theme';
 export * from './keccak';
 export * from './jsonRpc';
 export * from './nearRpcResults';
-export * from './recoveryDomain';
-export * from './paillier';
 export * from './signingSessionSeal';
 export * from './emailOtpRecoveryKey';
 export * from './addAuthMethodRegistration';

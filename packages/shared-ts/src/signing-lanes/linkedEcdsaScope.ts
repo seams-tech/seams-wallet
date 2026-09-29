@@ -1,39 +1,19 @@
 import type {
-  DomainIdParseResult,
   MpcMaterialActivationRef,
   MpcMaterialActivationId,
   WalletId,
 } from '../utils/domainIds';
 import {
-  parseLaneEnrollmentId,
-  parseLaneOperationId,
-  parseLaneShareEpoch,
-  parseSigningLaneId,
-  parseWalletKeyId,
   type LaneEnrollmentId,
   type LaneOperationId,
   type LaneShareEpoch,
   type SigningLaneId,
   type WalletKeyId,
 } from './ids';
+import { hasWhitespaceOrControlCharacters } from '../utils/domainIds';
+import { type DigestB64u } from '../utils/canonicalPrimitives';
+import { type Secp256k1CompressedPublicKeyB64u } from '../passkey-custody/primitives';
 import {
-  hasWhitespaceOrControlCharacters,
-  parseMpcMaterialActivationId,
-  parseMpcMaterialActivationRef,
-  parseWalletId,
-} from '../utils/domainIds';
-import { parseDigestB64u, type DigestB64u } from '../utils/canonicalPrimitives';
-import {
-  parseSecp256k1CompressedPublicKeyB64u,
-  type Secp256k1CompressedPublicKeyB64u,
-} from '../passkey-custody/primitives';
-import {
-  parseLaneHolderParticipantId,
-  parseHpkePublicKeyB64u,
-  parseLaneParticipantBindingDigestB64u,
-  parseSigningWorkerParticipantId,
-  parseSigningWorkerRecipientKeyDigestB64u,
-  parseSigningWorkerRecipientKeyId,
   type LaneHolderParticipantId,
   type HpkePublicKeyB64u,
   type LaneParticipantBindingDigestB64u,
@@ -42,69 +22,6 @@ import {
   type SigningWorkerRecipientKeyId,
 } from './participants';
 import type { EcdsaTargetCapabilityBindingV1 } from './rotation';
-import { parseEcdsaTargetCapabilityBindingV1 } from './rotationParsers';
-
-const LINKED_ECDSA_SCOPE_FIELDS = [
-  'kind',
-  'keyFamily',
-  'laneKind',
-  'walletId',
-  'walletKeyId',
-  'enrollmentId',
-  'operationId',
-  'laneId',
-  'laneShareEpoch',
-  'revocationEpoch',
-  'targetMaterialActivationId',
-  'materialActivation',
-  'targetCapability',
-  'thresholdPublicKey33B64u',
-  'evmAddress',
-  'publicIdentityDigestB64u',
-  'targetHolderPublicCommitmentB64u',
-  'targetServerPublicCommitmentB64u',
-  'holderParticipantId',
-  'signingWorkerParticipantId',
-  'holderParticipantBindingDigestB64u',
-  'signingWorkerParticipantBindingDigestB64u',
-  'holderRecipientKeyDigestB64u',
-  'serverRecipientKeyDigestB64u',
-  'signingWorkerRecipientKeyId',
-  'signingWorkerHpkePublicKeyB64u',
-  'transcriptHashB64u',
-  'protocolCommitReceiptDigestB64u',
-] as const;
-
-type LinkedEcdsaScopeWireV1 = {
-  readonly kind: unknown;
-  readonly keyFamily: unknown;
-  readonly laneKind: unknown;
-  readonly walletId: unknown;
-  readonly walletKeyId: unknown;
-  readonly enrollmentId: unknown;
-  readonly operationId: unknown;
-  readonly laneId: unknown;
-  readonly laneShareEpoch: unknown;
-  readonly revocationEpoch: unknown;
-  readonly targetMaterialActivationId: unknown;
-  readonly materialActivation: unknown;
-  readonly targetCapability: unknown;
-  readonly thresholdPublicKey33B64u: unknown;
-  readonly evmAddress: unknown;
-  readonly publicIdentityDigestB64u: unknown;
-  readonly targetHolderPublicCommitmentB64u: unknown;
-  readonly targetServerPublicCommitmentB64u: unknown;
-  readonly holderParticipantId: unknown;
-  readonly signingWorkerParticipantId: unknown;
-  readonly holderParticipantBindingDigestB64u: unknown;
-  readonly signingWorkerParticipantBindingDigestB64u: unknown;
-  readonly holderRecipientKeyDigestB64u: unknown;
-  readonly serverRecipientKeyDigestB64u: unknown;
-  readonly signingWorkerRecipientKeyId: unknown;
-  readonly signingWorkerHpkePublicKeyB64u: unknown;
-  readonly transcriptHashB64u: unknown;
-  readonly protocolCommitReceiptDigestB64u: unknown;
-};
 
 type LinkedEcdsaScopeOwnerFieldsForbiddenV1 = {
   readonly signingRootId?: never;
@@ -220,159 +137,6 @@ export function validateLinkedDeviceEcdsaNormalSigningScopeV1(
   }
   requireVisibleText(scope.holderParticipantId, 'holderParticipantId');
   requireVisibleText(scope.signingWorkerParticipantId, 'signingWorkerParticipantId');
-}
-
-export function parseLinkedDeviceEcdsaNormalSigningScopeV1(
-  value: unknown,
-  label = 'LinkedDeviceEcdsaNormalSigningScopeV1',
-): LinkedDeviceEcdsaNormalSigningScopeV1 {
-  const record = parseLinkedEcdsaScopeWireV1(value, label);
-  if (record.kind !== 'linked_device_ecdsa_normal_signing_scope_v1') {
-    throw new Error(`${label}.kind is invalid`);
-  }
-  if (record.keyFamily !== 'ecdsa_secp256k1' || record.laneKind !== 'linked_device') {
-    throw new Error(`${label} discriminator is invalid`);
-  }
-  return buildLinkedDeviceEcdsaNormalSigningScopeV1({
-    walletId: parseDomain(parseWalletId(record.walletId), `${label}.walletId`),
-    walletKeyId: parseDomain(parseWalletKeyId(record.walletKeyId), `${label}.walletKeyId`),
-    enrollmentId: parseDomain(parseLaneEnrollmentId(record.enrollmentId), `${label}.enrollmentId`),
-    operationId: parseDomain(parseLaneOperationId(record.operationId), `${label}.operationId`),
-    laneId: parseDomain(parseSigningLaneId(record.laneId), `${label}.laneId`),
-    laneShareEpoch: parseDomain(
-      parseLaneShareEpoch(record.laneShareEpoch),
-      `${label}.laneShareEpoch`,
-    ),
-    revocationEpoch: parseEpoch(record.revocationEpoch, `${label}.revocationEpoch`),
-    targetMaterialActivationId: parseDomain(
-      parseMpcMaterialActivationId(record.targetMaterialActivationId),
-      `${label}.targetMaterialActivationId`,
-    ),
-    materialActivation: parseDomain(
-      parseMpcMaterialActivationRef(record.materialActivation),
-      `${label}.materialActivation`,
-    ),
-    targetCapability: parseEcdsaTargetCapabilityBindingV1(
-      record.targetCapability,
-      `${label}.targetCapability`,
-    ),
-    thresholdPublicKey33B64u: parseSecp256k1CompressedPublicKeyB64u(
-      record.thresholdPublicKey33B64u,
-    ),
-    evmAddress: parseEvmAddress(record.evmAddress, `${label}.evmAddress`),
-    publicIdentityDigestB64u: parseDigestB64u(record.publicIdentityDigestB64u),
-    targetHolderPublicCommitmentB64u: parseSecp256k1CompressedPublicKeyB64u(
-      record.targetHolderPublicCommitmentB64u,
-    ),
-    targetServerPublicCommitmentB64u: parseSecp256k1CompressedPublicKeyB64u(
-      record.targetServerPublicCommitmentB64u,
-    ),
-    holderParticipantId: parseDomain(
-      parseLaneHolderParticipantId(record.holderParticipantId),
-      `${label}.holderParticipantId`,
-    ),
-    signingWorkerParticipantId: parseDomain(
-      parseSigningWorkerParticipantId(record.signingWorkerParticipantId),
-      `${label}.signingWorkerParticipantId`,
-    ),
-    holderParticipantBindingDigestB64u: parseDomain(
-      parseLaneParticipantBindingDigestB64u(record.holderParticipantBindingDigestB64u),
-      `${label}.holderParticipantBindingDigestB64u`,
-    ),
-    signingWorkerParticipantBindingDigestB64u: parseDomain(
-      parseLaneParticipantBindingDigestB64u(record.signingWorkerParticipantBindingDigestB64u),
-      `${label}.signingWorkerParticipantBindingDigestB64u`,
-    ),
-    holderRecipientKeyDigestB64u: parseDomain(
-      parseSigningWorkerRecipientKeyDigestB64u(record.holderRecipientKeyDigestB64u),
-      `${label}.holderRecipientKeyDigestB64u`,
-    ),
-    serverRecipientKeyDigestB64u: parseDomain(
-      parseSigningWorkerRecipientKeyDigestB64u(record.serverRecipientKeyDigestB64u),
-      `${label}.serverRecipientKeyDigestB64u`,
-    ),
-    signingWorkerRecipientKeyId: parseDomain(
-      parseSigningWorkerRecipientKeyId(record.signingWorkerRecipientKeyId),
-      `${label}.signingWorkerRecipientKeyId`,
-    ),
-    signingWorkerHpkePublicKeyB64u: parseDomain(
-      parseHpkePublicKeyB64u(record.signingWorkerHpkePublicKeyB64u),
-      `${label}.signingWorkerHpkePublicKeyB64u`,
-    ),
-    transcriptHashB64u: parseDigestB64u(record.transcriptHashB64u),
-    protocolCommitReceiptDigestB64u: parseDigestB64u(record.protocolCommitReceiptDigestB64u),
-  });
-}
-
-function parseLinkedEcdsaScopeWireV1(value: unknown, label: string): LinkedEcdsaScopeWireV1 {
-  const record = inspectRawObject(value);
-  if (record === null) {
-    throw new Error(`${label} must be an object`);
-  }
-  requireExactWireFields(record, LINKED_ECDSA_SCOPE_FIELDS, label);
-  return {
-    kind: Reflect.get(record, 'kind'),
-    keyFamily: Reflect.get(record, 'keyFamily'),
-    laneKind: Reflect.get(record, 'laneKind'),
-    walletId: Reflect.get(record, 'walletId'),
-    walletKeyId: Reflect.get(record, 'walletKeyId'),
-    enrollmentId: Reflect.get(record, 'enrollmentId'),
-    operationId: Reflect.get(record, 'operationId'),
-    laneId: Reflect.get(record, 'laneId'),
-    laneShareEpoch: Reflect.get(record, 'laneShareEpoch'),
-    revocationEpoch: Reflect.get(record, 'revocationEpoch'),
-    targetMaterialActivationId: Reflect.get(record, 'targetMaterialActivationId'),
-    materialActivation: Reflect.get(record, 'materialActivation'),
-    targetCapability: Reflect.get(record, 'targetCapability'),
-    thresholdPublicKey33B64u: Reflect.get(record, 'thresholdPublicKey33B64u'),
-    evmAddress: Reflect.get(record, 'evmAddress'),
-    publicIdentityDigestB64u: Reflect.get(record, 'publicIdentityDigestB64u'),
-    targetHolderPublicCommitmentB64u: Reflect.get(record, 'targetHolderPublicCommitmentB64u'),
-    targetServerPublicCommitmentB64u: Reflect.get(record, 'targetServerPublicCommitmentB64u'),
-    holderParticipantId: Reflect.get(record, 'holderParticipantId'),
-    signingWorkerParticipantId: Reflect.get(record, 'signingWorkerParticipantId'),
-    holderParticipantBindingDigestB64u: Reflect.get(record, 'holderParticipantBindingDigestB64u'),
-    signingWorkerParticipantBindingDigestB64u: Reflect.get(
-      record,
-      'signingWorkerParticipantBindingDigestB64u',
-    ),
-    holderRecipientKeyDigestB64u: Reflect.get(record, 'holderRecipientKeyDigestB64u'),
-    serverRecipientKeyDigestB64u: Reflect.get(record, 'serverRecipientKeyDigestB64u'),
-    signingWorkerRecipientKeyId: Reflect.get(record, 'signingWorkerRecipientKeyId'),
-    signingWorkerHpkePublicKeyB64u: Reflect.get(record, 'signingWorkerHpkePublicKeyB64u'),
-    transcriptHashB64u: Reflect.get(record, 'transcriptHashB64u'),
-    protocolCommitReceiptDigestB64u: Reflect.get(record, 'protocolCommitReceiptDigestB64u'),
-  };
-}
-
-function inspectRawObject(value: unknown): object | null {
-  return value !== null && typeof value === 'object' && !Array.isArray(value) ? value : null;
-}
-
-function requireExactWireFields(record: object, expected: readonly string[], label: string): void {
-  const actual = Object.keys(record);
-  if (actual.length !== expected.length || actual.some((field) => !expected.includes(field))) {
-    throw new Error(`${label} fields are invalid`);
-  }
-}
-
-function parseDomain<T>(result: DomainIdParseResult<T>, label: string): T {
-  if (!result.ok) throw new Error(`${label}: ${result.error.message}`);
-  return result.value;
-}
-
-function parseEpoch(value: unknown, label: string): number {
-  if (!Number.isSafeInteger(value) || Number(value) < 0) {
-    throw new Error(`${label} must be a non-negative safe integer`);
-  }
-  return Number(value);
-}
-
-function parseEvmAddress(value: unknown, label: string): string {
-  if (typeof value !== 'string' || !/^0x[0-9a-fA-F]{40}$/.test(value)) {
-    throw new Error(`${label} must be a 20-byte hexadecimal EVM address`);
-  }
-  return value;
 }
 
 function requireVisibleText(value: string, label: string): void {

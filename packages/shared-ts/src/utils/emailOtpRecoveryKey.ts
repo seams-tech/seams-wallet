@@ -30,14 +30,6 @@ const RECOVERY_KEY_DECODE: Record<string, number> = Object.freeze(
   }, {}),
 );
 
-function cryptoRandomBytes(length: number): Uint8Array {
-  const cryptoApi = globalThis.crypto;
-  if (!cryptoApi || typeof cryptoApi.getRandomValues !== 'function') {
-    throw new Error('crypto.getRandomValues is required to generate Email OTP recovery keys');
-  }
-  return cryptoApi.getRandomValues(new Uint8Array(length));
-}
-
 function isDecimalOnly(value: string): boolean {
   if (!value) return false;
   for (let i = 0; i < value.length; i++) {
@@ -137,25 +129,4 @@ export function decodeEmailOtpRecoveryKey(input: string): Uint8Array {
   }
 
   return out;
-}
-
-export function generateEmailOtpRecoveryKey(): string {
-  for (;;) {
-    const normalized = encodeEmailOtpRecoveryKeyBytes(
-      cryptoRandomBytes(EMAIL_OTP_RECOVERY_KEY_BYTE_LENGTH),
-    );
-    if (!isDecimalOnly(normalized)) return formatEmailOtpRecoveryKey(normalized);
-  }
-}
-
-export function generateEmailOtpRecoveryKeySet(): EmailOtpRecoveryCodeSet {
-  const keys: string[] = [];
-  const seen = new Set<string>();
-  while (keys.length < EMAIL_OTP_RECOVERY_KEY_COUNT) {
-    const key = generateEmailOtpRecoveryKey();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    keys.push(key);
-  }
-  return buildEmailOtpRecoveryCodeSet(keys);
 }

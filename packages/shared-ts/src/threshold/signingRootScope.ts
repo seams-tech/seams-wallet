@@ -68,15 +68,3 @@ export function signingRootScopeFromRuntimePolicyScope(
     signingRootVersion: requireScopeField('signingRootVersion', scope.signingRootVersion),
   };
 }
-
-export function normalizeSigningRootScope(input: {
-  readonly signingRootId: unknown;
-  readonly signingRootVersion?: unknown;
-}): SigningRootScope {
-  const signingRootId = requireScopeField('signingRootId', input.signingRootId);
-  const signingRootVersion = toOptionalTrimmedString(input.signingRootVersion);
-  return {
-    signingRootId,
-    ...(signingRootVersion ? { signingRootVersion } : {}),
-  };
-}

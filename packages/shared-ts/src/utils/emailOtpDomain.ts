@@ -54,7 +54,6 @@ export const WALLET_EMAIL_OTP_TRANSACTION_SIGN_OPERATION = 'transaction_sign' as
 export type WalletEmailOtpExportOperation = typeof WALLET_EMAIL_OTP_EXPORT_OPERATION;
 export type WalletEmailOtpTransactionSignOperation =
   typeof WALLET_EMAIL_OTP_TRANSACTION_SIGN_OPERATION;
-export type WalletEmailOtpUnlockOperation = typeof WALLET_EMAIL_OTP_UNLOCK_OPERATION;
 
 export function isWalletUnlockBackend(value: string): value is WalletUnlockBackend {
   return (WALLET_UNLOCK_BACKENDS as readonly string[]).includes(value);

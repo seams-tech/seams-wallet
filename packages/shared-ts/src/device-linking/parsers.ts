@@ -774,19 +774,6 @@ export function parseLinkedDeviceListRequestV1(raw: unknown): LinkedDeviceListRe
   };
 }
 
-export function buildLinkedDeviceListRequestV1(args: {
-  readonly walletId: WalletId;
-  readonly limit: number;
-  readonly cursor: string | null;
-}): LinkedDeviceListRequestV1 {
-  return parseLinkedDeviceListRequestV1({
-    kind: 'linked_device_list_request_v1',
-    walletId: args.walletId,
-    limit: args.limit,
-    cursor: args.cursor,
-  });
-}
-
 export function parseOwnerDeviceSummaryV1(raw: unknown): OwnerDeviceSummaryV1 {
   const record = exactRecord(raw, OWNER_DEVICE_SUMMARY_FIELDS, 'OwnerDeviceSummaryV1');
   return {
@@ -821,18 +808,6 @@ export function parseLinkedDeviceListResultV1(raw: unknown): LinkedDeviceListRes
   };
 }
 
-export function buildLinkedDeviceListResultV1(args: {
-  readonly devices: readonly LinkedDeviceSummaryV1[];
-  readonly ownerDevices: readonly OwnerDeviceSummaryV1[];
-  readonly nextCursor: string | null;
-}): LinkedDeviceListResultV1 {
-  return parseLinkedDeviceListResultV1({
-    devices: args.devices,
-    ownerDevices: args.ownerDevices,
-    nextCursor: args.nextCursor,
-  });
-}
-
 export function parseLinkedDeviceRevokeRequestV1(raw: unknown): LinkedDeviceRevokeRequestV1 {
   const record = exactRecord(
     raw,
@@ -851,17 +826,6 @@ export function parseLinkedDeviceRevokeRequestV1(raw: unknown): LinkedDeviceRevo
     ),
     requestedAtMs: parseUnixTime(record.requestedAtMs, 'LinkedDeviceRevokeRequestV1.requestedAtMs'),
   };
-}
-
-export function buildLinkedDeviceRevokeRequestV1(args: {
-  readonly walletId: WalletId;
-  readonly walletAuthMethodId: WalletAuthMethodId;
-  readonly requestedAtMs: number;
-}): LinkedDeviceRevokeRequestV1 {
-  return parseLinkedDeviceRevokeRequestV1({
-    kind: 'linked_device_revoke_request_v1',
-    ...args,
-  });
 }
 
 export function parseLinkedDeviceRevokeResultV1(raw: unknown): LinkedDeviceRevokeResultV1 {
@@ -911,12 +875,6 @@ export function parseLinkedDeviceRevokeResultV1(raw: unknown): LinkedDeviceRevok
       'LinkedDeviceRevokeResultV1.revocationEpoch',
     ),
   };
-}
-
-export function buildLinkedDeviceRevokeResultV1(
-  value: LinkedDeviceRevokeResultV1,
-): LinkedDeviceRevokeResultV1 {
-  return parseLinkedDeviceRevokeResultV1(value);
 }
 
 function parseQrPayloadRecord(record: UnknownRecord): QrLinkedDeviceSessionPayloadV5 {
@@ -2766,18 +2724,6 @@ export function buildLinkedDeviceSessionClaimRequestV1(
   return { kind: 'linked_device_session_claim_request_v1', payload };
 }
 
-export function buildLinkedDeviceSessionClaimV1(
-  args: Omit<LinkedDeviceSessionClaimV1, 'kind'>,
-): LinkedDeviceSessionClaimV1 {
-  const claimedAtMs = parseUnixTime(args.claimedAtMs, 'LinkedDeviceSessionClaimV1.claimedAtMs');
-  const claimExpiresAtMs = parseUnixTime(
-    args.claimExpiresAtMs,
-    'LinkedDeviceSessionClaimV1.claimExpiresAtMs',
-  );
-  assertExpiryAfterIssued(claimedAtMs, claimExpiresAtMs, 'LinkedDeviceSessionClaimV1');
-  return { kind: 'linked_device_session_claim_v1', ...args, claimedAtMs, claimExpiresAtMs };
-}
-
 export function buildWalletSessionLinkedDeviceOwnerAuthorizationV1(args: {
   readonly walletSessionId: WalletSessionId;
   readonly authorizationId: WalletSessionAuthorizationId;
@@ -2882,25 +2828,6 @@ export function buildLinkedDeviceSessionCancelClaimedRequestV1(args: {
     requestedAtMs: parseUnixTime(
       args.requestedAtMs,
       'LinkedDeviceSessionCancelClaimedRequestV1.requestedAtMs',
-    ),
-  };
-}
-
-export function buildLinkedDeviceSessionRetryCommittedDeliveryRequestV1(args: {
-  readonly linkSessionId: LinkDeviceSessionId;
-  readonly enrollmentId: LinkedDeviceEnrollmentId;
-  readonly deviceId: LinkedDeviceId;
-  readonly requestedAtMs: number;
-}): Extract<
-  LinkedDeviceSessionTransportRequestV1,
-  { readonly kind: 'linked_device_session_retry_committed_delivery_request_v1' }
-> {
-  return {
-    kind: 'linked_device_session_retry_committed_delivery_request_v1',
-    ...args,
-    requestedAtMs: parseUnixTime(
-      args.requestedAtMs,
-      'LinkedDeviceSessionRetryCommittedDeliveryRequestV1.requestedAtMs',
     ),
   };
 }

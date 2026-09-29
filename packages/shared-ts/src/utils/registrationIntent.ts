@@ -1390,10 +1390,6 @@ export function parseNearEd25519SigningKeyId(value: unknown): NearEd25519Signing
   return nearEd25519SigningKeyIdFromString(value);
 }
 
-export function formatNearEd25519SigningKeyIdForWire(value: NearEd25519SigningKeyId): string {
-  return value;
-}
-
 export function nearEd25519SigningKeyIdFromWalletId(walletId: WalletId): NearEd25519SigningKeyId {
   return nearEd25519SigningKeyIdFromString(String(walletId));
 }
@@ -1480,15 +1476,6 @@ export type RegistrationEd25519AuthorityScope =
       googleEmailOtpRegistrationCandidateId?: never;
     };
 
-export function registrationEd25519AuthorityScope(
-  authMethod: Extract<RegistrationAuthMethodInput, { kind: 'passkey' }>,
-): Extract<RegistrationEd25519AuthorityScope, { kind: 'passkey' }> {
-  return {
-    kind: 'passkey',
-    rpId: authMethod.rpId,
-  };
-}
-
 function emailOtpProviderUserIdFromRegistrationAuthority(
   authority: Extract<RegistrationAuthority, { kind: 'email_otp' }>,
 ): EmailOtpProviderUserId {
@@ -1564,21 +1551,6 @@ export function sponsoredNamedNearAccountProvisioning(
     requestedAccountId,
     sponsor: 'relayer',
   };
-}
-
-export function registrationProvisioningScopeKey(
-  provisioning: RegistrationNearAccountProvisioning,
-): string {
-  switch (provisioning.kind) {
-    case 'implicit_account':
-      return 'implicit_account';
-    case 'sponsored_named_account':
-      return `sponsored_named_account:${String(provisioning.requestedAccountId)}`;
-    default: {
-      const exhaustive: never = provisioning;
-      return exhaustive;
-    }
-  }
 }
 
 export function registrationIntentGrantFromString(value: string): RegistrationIntentGrant {

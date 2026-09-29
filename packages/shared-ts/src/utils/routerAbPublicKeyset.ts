@@ -199,12 +199,6 @@ function parseSignerEnvelopeHpkeRotationPublicKeySet(
   };
 }
 
-function hasPreviousSignerEnvelopeHpkeKeySet(
-  keyset: RouterAbSignerEnvelopeHpkeRotationPublicKeySetV1,
-): keyset is RouterAbSignerEnvelopeHpkeRotatingPublicKeySetV1 {
-  return keyset.previous !== undefined && keyset.previous_retire_at_ms !== undefined;
-}
-
 function parseSignerPeerVerifyingKey(
   value: unknown,
   label: string,
@@ -280,39 +274,4 @@ export function parseRouterAbPublicKeysetV2(value: unknown): RouterAbPublicKeyse
       'signing_worker_server_output_hpke',
     ),
   };
-}
-
-export function selectRouterAbSignerEnvelopeHpkeKeyForEpoch(args: {
-  keyset: RouterAbSignerEnvelopeHpkeRotationPublicKeySetV1;
-  role: RouterAbSignerRoleV1;
-  keyEpoch: string;
-  nowMs: number;
-}): RouterAbSignerEnvelopeHpkePublicKeyV1 {
-  const keyEpoch = requireNonEmptyString(args.keyEpoch, 'keyEpoch');
-  const nowMs = requirePositiveInteger(args.nowMs, 'nowMs');
-  const current = selectSignerEnvelopeHpkeKey(args.keyset.current, args.role, 'current');
-  if (current.key_epoch === keyEpoch) return current;
-  if (hasPreviousSignerEnvelopeHpkeKeySet(args.keyset)) {
-    const previous = selectSignerEnvelopeHpkeKey(args.keyset.previous, args.role, 'previous');
-    if (previous.key_epoch === keyEpoch) {
-      if (nowMs <= args.keyset.previous_retire_at_ms) return previous;
-      throw new Error('previous signer-envelope HPKE key epoch is retired');
-    }
-  }
-  throw new Error('signer-envelope HPKE key epoch is not in the current or previous keyset');
-}
-
-function selectSignerEnvelopeHpkeKey(
-  keyset: RouterAbSignerEnvelopeHpkePublicKeySetV1,
-  role: RouterAbSignerRoleV1,
-  label: string,
-): RouterAbSignerEnvelopeHpkePublicKeyV1 {
-  switch (role) {
-    case 'signer_a':
-      return keyset.deriver_a;
-    case 'signer_b':
-      return keyset.deriver_b;
-    default:
-      throw new Error(`${label}.role must be signer_a or signer_b`);
-  }
 }

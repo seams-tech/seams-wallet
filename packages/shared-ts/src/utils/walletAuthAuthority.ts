@@ -2,7 +2,6 @@ import { base64UrlEncode } from './encoders';
 import { alphabetizeStringify, sha256BytesUtf8 } from './digests';
 import {
   parseEmailOtpProviderUserId,
-  parseVerifiedEmailAddress,
   parseWalletAuthorityBindingDigest,
   parseWalletAuthMethodId,
   parseWalletId,
@@ -192,122 +191,6 @@ export type ProofFor<P extends AuthOperationPurpose> = AuthBoundaryProof & {
   readonly __authOperationPurpose?: P;
 };
 
-export type AuthBoundaryProofPurposeRejectionReason =
-  | 'registration_requires_registration_proof'
-  | 'recovery_requires_email_otp_challenge'
-  | 'interactive_operation_requires_assertion_or_email_otp_challenge';
-
-export type AuthBoundaryProofPurposeValidation =
-  | {
-      ok: true;
-      proof: AuthBoundaryProof;
-    }
-  | {
-      ok: false;
-      reason: AuthBoundaryProofPurposeRejectionReason;
-      proof: AuthBoundaryProof;
-    };
-
-function acceptedAuthBoundaryProof(proof: AuthBoundaryProof): AuthBoundaryProofPurposeValidation {
-  return { ok: true, proof };
-}
-
-function rejectedAuthBoundaryProof(args: {
-  proof: AuthBoundaryProof;
-  reason: AuthBoundaryProofPurposeRejectionReason;
-}): AuthBoundaryProofPurposeValidation {
-  return { ok: false, proof: args.proof, reason: args.reason };
-}
-
-function validateRegistrationAuthBoundaryProof(
-  proof: AuthBoundaryProof,
-): AuthBoundaryProofPurposeValidation {
-  switch (proof.proof.kind) {
-    case 'passkey_registration_credential':
-    case 'email_otp_challenge':
-    case 'google_sso_registration':
-      return acceptedAuthBoundaryProof(proof);
-    case 'passkey_assertion':
-      return rejectedAuthBoundaryProof({
-        proof,
-        reason: 'registration_requires_registration_proof',
-      });
-  }
-  proof.proof satisfies never;
-  return rejectedAuthBoundaryProof({
-    proof,
-    reason: 'registration_requires_registration_proof',
-  });
-}
-
-function validateRecoveryAuthBoundaryProof(
-  proof: AuthBoundaryProof,
-): AuthBoundaryProofPurposeValidation {
-  switch (proof.proof.kind) {
-    case 'email_otp_challenge':
-      return acceptedAuthBoundaryProof(proof);
-    case 'passkey_registration_credential':
-    case 'passkey_assertion':
-    case 'google_sso_registration':
-      return rejectedAuthBoundaryProof({
-        proof,
-        reason: 'recovery_requires_email_otp_challenge',
-      });
-  }
-  proof.proof satisfies never;
-  return rejectedAuthBoundaryProof({
-    proof,
-    reason: 'recovery_requires_email_otp_challenge',
-  });
-}
-
-function validateInteractiveAuthBoundaryProof(
-  proof: AuthBoundaryProof,
-): AuthBoundaryProofPurposeValidation {
-  switch (proof.proof.kind) {
-    case 'passkey_assertion':
-    case 'email_otp_challenge':
-      return acceptedAuthBoundaryProof(proof);
-    case 'passkey_registration_credential':
-    case 'google_sso_registration':
-      return rejectedAuthBoundaryProof({
-        proof,
-        reason: 'interactive_operation_requires_assertion_or_email_otp_challenge',
-      });
-  }
-  proof.proof satisfies never;
-  return rejectedAuthBoundaryProof({
-    proof,
-    reason: 'interactive_operation_requires_assertion_or_email_otp_challenge',
-  });
-}
-
-export function validateAuthBoundaryProofPurpose(
-  proof: AuthBoundaryProof,
-): AuthBoundaryProofPurposeValidation {
-  switch (proof.purpose) {
-    case 'registration':
-      return validateRegistrationAuthBoundaryProof(proof);
-    case 'recovery':
-      return validateRecoveryAuthBoundaryProof(proof);
-    case 'unlock':
-    case 'step_up':
-    case 'key_export':
-      return validateInteractiveAuthBoundaryProof(proof);
-  }
-  proof.purpose satisfies never;
-  return rejectedAuthBoundaryProof({
-    proof,
-    reason: 'interactive_operation_requires_assertion_or_email_otp_challenge',
-  });
-}
-
-export type RegistrationWalletCandidate = {
-  kind: 'registration_wallet_candidate';
-  walletId: WalletId;
-  registrationAttemptId: string;
-};
-
 function parseEmailOtpProvider(raw: unknown): EmailOtpProvider | null {
   const provider = String(raw || '')
     .trim()
@@ -367,18 +250,6 @@ export function buildPasskeyWalletAuthAuthority(args: {
       rpId,
     },
     bindingId,
-  };
-}
-
-export function buildPasskeyFactorIdentity(args: {
-  credentialIdB64u: unknown;
-}): PasskeyFactorIdentity {
-  return {
-    kind: 'passkey',
-    credentialIdB64u: requireParsed(
-      parseWebAuthnCredentialIdB64u(args.credentialIdB64u),
-      'Passkey factor identity requires credentialIdB64u',
-    ),
   };
 }
 
@@ -446,55 +317,6 @@ export function emailOtpWalletAuthAuthorityEmailHashHex(
   authority: EmailOtpWalletAuthAuthority,
 ): string {
   return authority.verifier.emailHashHex;
-}
-
-export function parseAuthFactorIdentity(raw: unknown): AuthFactorIdentity | null {
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
-  const obj = raw as Record<string, unknown>;
-  const kind = String(obj.kind || '')
-    .trim()
-    .toLowerCase();
-  try {
-    if (kind === 'passkey') {
-      if (
-        hasAnyOwnField(obj, [
-          'rpId',
-          'provider',
-          'providerUserId',
-          'walletId',
-          'verifier',
-          'bindingId',
-        ])
-      ) {
-        return null;
-      }
-      return buildPasskeyFactorIdentity({
-        credentialIdB64u: obj.credentialIdB64u,
-      });
-    }
-    if (kind === 'email_otp') {
-      if (hasAnyOwnField(obj, ['rpId', 'credentialIdB64u', 'walletId', 'verifier', 'bindingId'])) {
-        return null;
-      }
-      return buildEmailOtpFactorIdentity({
-        provider: obj.provider,
-        providerUserId: obj.providerUserId,
-      });
-    }
-  } catch {
-    return null;
-  }
-  return null;
-}
-
-export function parsePasskeyFactorIdentity(raw: unknown): PasskeyFactorIdentity | null {
-  const factor = parseAuthFactorIdentity(raw);
-  return factor?.kind === 'passkey' ? factor : null;
-}
-
-export function parseEmailOtpFactorIdentity(raw: unknown): EmailOtpFactorIdentity | null {
-  const factor = parseAuthFactorIdentity(raw);
-  return factor?.kind === 'email_otp' ? factor : null;
 }
 
 function parsePasskeyWalletAuthAuthorityObject(
@@ -588,19 +410,6 @@ export function parseEmailOtpWalletAuthAuthority(raw: unknown): EmailOtpWalletAu
 export function parsePasskeyWalletAuthAuthority(raw: unknown): PasskeyWalletAuthAuthority | null {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
   return parsePasskeyWalletAuthAuthorityObject(raw as Record<string, unknown>);
-}
-
-export function emailOtpFactorProfile(args: {
-  factor: EmailOtpFactorIdentity;
-  email: unknown;
-}): EmailOtpFactorProfile {
-  return {
-    factor: args.factor,
-    email: requireParsed(
-      parseVerifiedEmailAddress(args.email),
-      'Email OTP factor profile requires verified email',
-    ),
-  };
 }
 
 export function canonicalWalletAuthorityBindingDigestInput(args: {
