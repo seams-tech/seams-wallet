@@ -603,14 +603,6 @@ pub fn cloudflare_service_json_request_body_v1<T: Serialize>(
     })
 }
 
-/// Serializes one Cloudflare Service Binding JSON request body as UTF-8 bytes.
-pub fn cloudflare_service_json_request_body_bytes_v1<T: Serialize>(
-    request_kind: &str,
-    request: &T,
-) -> RouterAbProtocolResult<Vec<u8>> {
-    Ok(cloudflare_service_json_request_body_v1(request_kind, request)?.into_bytes())
-}
-
 /// Text-reader boundary used before binding descriptors are constructed.
 pub trait CloudflareEnvReaderV1 {
     /// Returns a raw environment value if present.

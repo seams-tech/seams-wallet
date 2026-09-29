@@ -1,16 +1,15 @@
 use router_ab_cloudflare::{
-    cloudflare_service_json_request_body_bytes_v1, CLOUDFLARE_DERIVER_A_PEER_REQUEST_PATH,
-    CLOUDFLARE_DERIVER_A_PRIVATE_REQUEST_PATH, CLOUDFLARE_DERIVER_B_PEER_REQUEST_PATH,
-    CLOUDFLARE_DERIVER_B_PRIVATE_REQUEST_PATH,
+    CLOUDFLARE_DERIVER_A_PEER_REQUEST_PATH, CLOUDFLARE_DERIVER_A_PRIVATE_REQUEST_PATH,
+    CLOUDFLARE_DERIVER_B_PEER_REQUEST_PATH, CLOUDFLARE_DERIVER_B_PRIVATE_REQUEST_PATH,
     CLOUDFLARE_ROUTER_NORMAL_SIGNING_PUBLIC_REQUEST_PATH,
     CLOUDFLARE_SIGNING_WORKER_NORMAL_SIGNING_PATH,
 };
 use router_ab_dev::{
     local_dev_http_handle_request_v1, local_env_materialization_plan_v1,
     local_worker_owned_paths_v1, parse_local_env_file_contents_v1,
-    parse_local_worker_role_config_for_role_v1, run_example_local_router_ab_dev_http_ceremony_v1,
-    LocalDevHttpRequestPartsV1, LocalDevHttpTopologyV1, LOCAL_DERIVER_A_ED25519_YAO_BURN_PAIR_PATH,
-    LOCAL_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH, LOCAL_DERIVER_A_ED25519_YAO_PREPARE_PAIR_PATH,
+    parse_local_worker_role_config_for_role_v1, LocalDevHttpRequestPartsV1, LocalDevHttpTopologyV1,
+    LOCAL_DERIVER_A_ED25519_YAO_BURN_PAIR_PATH, LOCAL_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH,
+    LOCAL_DERIVER_A_ED25519_YAO_PREPARE_PAIR_PATH,
     LOCAL_DERIVER_A_ED25519_YAO_READ_PAIR_STATUS_PATH, LOCAL_DERIVER_A_PEER_PATH,
     LOCAL_DERIVER_A_PRIVATE_PATH, LOCAL_DERIVER_B_ED25519_YAO_BURN_PAIR_PATH,
     LOCAL_DERIVER_B_ED25519_YAO_PREPARE_PAIR_PATH,
@@ -162,44 +161,6 @@ fn local_router_boundary_requires_an_installed_native_dispatcher() {
             local_dev_http_handle_request_v1(LocalDevHttpTopologyV1::Router(router), &unauthorized)
                 .expect("unauthorized Router route response");
         assert_eq!(status, 401);
-    }
-}
-
-#[test]
-fn local_http_wire_message_bodies_match_cloudflare_service_binding_bytes() {
-    let ceremony = run_example_local_router_ab_dev_http_ceremony_v1().expect("typed HTTP ceremony");
-    let cases = [
-        (
-            "Router to Deriver A request",
-            &ceremony.deriver_a_request.envelope.message,
-        ),
-        (
-            "Router to Deriver B request",
-            &ceremony.deriver_b_request.envelope.message,
-        ),
-        (
-            "Deriver A to Deriver B peer request",
-            &ceremony
-                .core_http_ceremony
-                .deriver_a_peer_request
-                .envelope
-                .message,
-        ),
-        (
-            "Deriver B to Deriver A peer request",
-            &ceremony
-                .core_http_ceremony
-                .deriver_b_peer_request
-                .envelope
-                .message,
-        ),
-    ];
-
-    for (label, message) in cases {
-        let local_body = serde_json::to_vec(message).expect("local JSON request body");
-        let cloudflare_body =
-            cloudflare_service_json_request_body_bytes_v1(label, message).expect(label);
-        assert_eq!(local_body, cloudflare_body, "{label}");
     }
 }
 

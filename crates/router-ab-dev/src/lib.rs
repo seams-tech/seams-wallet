@@ -42,7 +42,6 @@ mod local_ed25519_yao_delivery;
 mod local_ed25519_yao_input;
 mod local_ed25519_yao_pair;
 mod local_ed25519_yao_pair_sqlite;
-mod local_ed25519_yao_profiles;
 mod local_ed25519_yao_refresh;
 mod local_ed25519_yao_router;
 mod local_ed25519_yao_signing_worker;
@@ -149,15 +148,6 @@ pub use local_ed25519_yao_pair::{
     LocalEd25519YaoRoleReadinessReceiptV1,
 };
 pub use local_ed25519_yao_pair_sqlite::LocalDeriverAPairSqliteV1;
-pub use local_ed25519_yao_profiles::{
-    build_local_ed25519_yao_one_account_plan_v1, build_local_ed25519_yao_two_administrator_plan_v1,
-    local_ed25519_yao_worker_artifact_digest_v1, LocalEd25519YaoArtifactIdentityV1,
-    LocalEd25519YaoLocalEvidenceClaimV1, LocalEd25519YaoOneAccountDevV1,
-    LocalEd25519YaoOneAccountPlanV1, LocalEd25519YaoRoleRootV1,
-    LocalEd25519YaoTwoAdministratorDevV1, LocalEd25519YaoTwoAdministratorPlanV1,
-    LOCAL_ED25519_YAO_ACTIVATION_CIRCUIT_ID_V1, LOCAL_ED25519_YAO_EXPORT_CIRCUIT_ID_V1,
-    LOCAL_ED25519_YAO_PROTOCOL_ID_V1,
-};
 pub use local_ed25519_yao_refresh::{
     derive_local_ed25519_yao_joint_refresh_delta_v1,
     generate_local_ed25519_yao_deriver_a_refresh_delta_v1,
