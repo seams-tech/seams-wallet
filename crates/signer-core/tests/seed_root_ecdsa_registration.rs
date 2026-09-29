@@ -2,7 +2,7 @@
 
 //! Does a seed-derived EVM key set actually register?
 //!
-//! Refactor 100 replaces the strict Router A/B derivation rounds for the
+//! Seed-root registration replaces the strict Router A/B derivation rounds for the
 //! EVM-family key set: instead of the client receiving `xClientBase` from the
 //! two Derivers, it derives its own root share from the wallet custody seed.
 //! Everything downstream of that substitution is plumbing — but only if the two

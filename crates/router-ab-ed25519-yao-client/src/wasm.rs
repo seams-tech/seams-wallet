@@ -182,7 +182,7 @@ pub struct WasmLaneHolderSigningMaterialV1 {
 #[wasm_bindgen]
 impl WasmLaneHolderSigningMaterialV1 {
     /// Opens one digest-verified sealed holder record and binds it to the exact
-    /// persisted R102 job and protocol receipt.
+    /// persisted job and protocol receipt.
     #[wasm_bindgen(constructor)]
     #[allow(clippy::too_many_arguments)]
     pub fn new(

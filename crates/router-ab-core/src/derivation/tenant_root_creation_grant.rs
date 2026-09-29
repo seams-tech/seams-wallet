@@ -1,6 +1,6 @@
 //! Authenticated authorization to create one tenant root.
 //!
-//! Every other R120 creation artifact is derived from authoritative state the
+//! Every other creation artifact is derived from authoritative state the
 //! control plane can read. Genesis has none: before the Started journal exists
 //! there is no Durable Object record to consult, so the authorization to create
 //! a root has to arrive as an independently signed grant.

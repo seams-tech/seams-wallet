@@ -371,7 +371,7 @@ impl fmt::Debug for ActivatedClientV1 {
 
 /// Prepares registration from a Client root the caller already derived.
 ///
-/// This is the seam Refactor 100 registers through: the root comes from the
+/// Seed-based registration goes through this seam: the root comes from the
 /// wallet custody seed via `signer_core::wallet_seed_derivation`, bound to the
 /// same application binding digest the PRF-derived root used, so the protocol
 /// below is unchanged and only the secret's origin differs.

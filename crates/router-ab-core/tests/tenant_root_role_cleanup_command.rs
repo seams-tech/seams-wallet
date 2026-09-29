@@ -1,7 +1,7 @@
 //! Authorized pending- and retired-cleanup contract.
 //!
 //! Cleanup destroys a role's share, so the authorization has to be narrower
-//! than anything else in R120: one role, one exact row state, once.
+//! than any other tenant-root authorization: one role, one exact row state, once.
 
 use ed25519_dalek::SigningKey;
 use router_ab_core::{

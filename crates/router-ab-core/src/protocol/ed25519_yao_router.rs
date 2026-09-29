@@ -10,11 +10,11 @@ use crate::protocol::error::{
     RouterAbProtocolError, RouterAbProtocolErrorCode, RouterAbProtocolResult,
 };
 
-/// Stable protocol identity bound into every Refactor 93 ceremony digest.
+/// Stable protocol identity bound into every Ed25519 Yao ceremony digest.
 pub const ED25519_YAO_PROTOCOL_ID_V1: &str = "router_ab_ed25519_yao_v1";
-/// Activation circuit identity bound into Refactor 93 ceremony digests.
+/// Activation circuit identity bound into Ed25519 Yao ceremony digests.
 pub const ED25519_YAO_ACTIVATION_CIRCUIT_ID_V1: &str = "ed25519_yao_activation_v1";
-/// Export circuit identity bound into Refactor 93 ceremony digests.
+/// Export circuit identity bound into Ed25519 Yao ceremony digests.
 pub const ED25519_YAO_EXPORT_CIRCUIT_ID_V1: &str = "ed25519_yao_export_v1";
 /// Lane-materialization circuit identity bound into lane digests.
 pub const ED25519_YAO_LANE_MATERIALIZATION_CIRCUIT_ID_V1: &str =
@@ -62,7 +62,7 @@ impl Ed25519YaoCircuitIdV1 {
     }
 }
 
-/// Protocol version identity for the Refactor 93 Yao contracts.
+/// Protocol version identity for the Ed25519 Yao contracts.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "typescript-bindings", derive(ts_rs::TS))]
 #[serde(rename_all = "snake_case")]

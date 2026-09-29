@@ -1,4 +1,4 @@
-//! Offline trust for tenant derivation-root recovery artifacts (Refactor 121).
+//! Offline trust for tenant derivation-root recovery artifacts.
 //!
 //! Recovery artifacts are signed by three rotating signers: Deriver A, Deriver B,
 //! and the control plane. This module binds each of those signing keys to a

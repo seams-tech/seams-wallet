@@ -2,7 +2,7 @@
 //!
 //! Opened custody material never crosses back into JavaScript. Every operation
 //! that produces a custody secret returns an opaque handle whose bytes only
-//! Rust can read, which is what keeps the Refactor 100 invariant that
+//! Rust can read, which is what keeps the custody invariant that
 //! JavaScript, the app origin, Router, and persistence adapters never receive a
 //! plaintext client root, holder share, PRF output, or KEK.
 //!

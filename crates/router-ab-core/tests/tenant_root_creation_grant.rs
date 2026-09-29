@@ -1,6 +1,6 @@
 //! Genesis authorization contract.
 //!
-//! A creation grant is the one R120 artifact that cannot be derived from
+//! A creation grant is the one tenant-root artifact that cannot be derived from
 //! authoritative state, so it is the only place an external authority speaks.
 //! These fix what it may say, and what it must refuse.
 

@@ -20,15 +20,15 @@ pub const RISTRETTO_SCALAR_ORDER_LE_BYTES: [u8; 32] = [
 
 verus! {
 
-/// Fixed Deriver A share identifier in the R120 two-party root policy.
+/// Fixed Deriver A share identifier in the two-party root policy.
 pub const TWO_PARTY_DERIVER_A_SHARE_ID: u16 = 1;
-/// Fixed Deriver B share identifier in the R120 two-party root policy.
+/// Fixed Deriver B share identifier in the two-party root policy.
 pub const TWO_PARTY_DERIVER_B_SHARE_ID: u16 = 2;
-/// Fixed public commitment wire width used by the R120 refresh primitive.
+/// Fixed public commitment wire width used by the two-party refresh primitive.
 pub const TWO_PARTY_REFRESH_COMMITMENT_WIRE_LEN: usize = 34;
-/// Fixed recipient-specific contribution wire width used by the R120 refresh primitive.
+/// Fixed recipient-specific contribution wire width used by the two-party refresh primitive.
 pub const TWO_PARTY_REFRESH_CONTRIBUTION_WIRE_LEN: usize = 36;
-/// Fixed root-share knowledge-proof wire width used by the R120 refresh primitive.
+/// Fixed root-share knowledge-proof wire width used by the two-party refresh primitive.
 pub const TWO_PARTY_ROOT_SHARE_KNOWLEDGE_PROOF_WIRE_LEN: usize = 64;
 
 #[derive(PartialEq, Eq)]
