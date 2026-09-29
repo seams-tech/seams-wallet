@@ -460,6 +460,18 @@ export const emailOtpRegistrationAttemptRows = {
     input: { readonly providerSubject: string; readonly email: string; readonly nowMs: number },
   ) => prepare(PENDING_ATTEMPTS_SQL, [input.providerSubject, input.email, input.nowMs]),
 
+  /** Deletes the attempts that have expired or were marked expired. */
+  deleteExpired: (prepare: ScopedD1Prepare, nowMs: number) =>
+    prepare(
+      `DELETE FROM email_otp_registration_attempts
+        WHERE namespace = ?
+          AND org_id = ?
+          AND project_id = ?
+          AND env_id = ?
+          AND (expires_at_ms <= ? OR state = 'expired')`,
+      [nowMs],
+    ),
+
   /** Finds a live attempt that selected or offered the wallet. */
   selectLiveForWallet: (prepare: ScopedD1Prepare, walletId: string, nowMs: number) =>
     prepare(

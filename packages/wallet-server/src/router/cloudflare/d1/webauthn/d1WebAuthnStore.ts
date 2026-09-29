@@ -18,25 +18,18 @@ import {
   type WebAuthnLoginChallengeRecord,
   type WebAuthnSyncChallengeRecord,
 } from './d1WebAuthnRecords';
+import {
+  INSERT_WEBAUTHN_AUTHENTICATOR_SQL,
+  UPSERT_WEBAUTHN_AUTHENTICATOR_SQL,
+  webAuthnAuthenticatorRows,
+  webAuthnChallengeRows,
+  webAuthnCredentialBindingRows,
+} from '../../../../core/webAuthnD1Statements';
+import type { ScopedD1Prepare } from '../../../../core/emailOtpD1Statements';
 
 type WebAuthnChallengeKind = 'login' | 'sync' | 'recovery_registration';
 
 export type D1WebAuthnStoreScope = D1TenantScope;
-
-const INSERT_AUTHENTICATOR_SQL = `INSERT INTO webauthn_authenticators (
-        namespace,
-        org_id,
-        project_id,
-        env_id,
-        user_id,
-        credential_id_b64u,
-        credential_public_key_b64u,
-        counter,
-        created_at_ms,
-        updated_at_ms,
-        device_info_json
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
 type AuthenticatorStatementInput = {
   readonly database: D1DatabaseLike;
@@ -69,17 +62,7 @@ function prepareAuthenticatorStatement(
 export function prepareD1WebAuthnAuthenticatorPutStatement(
   input: AuthenticatorStatementInput,
 ): D1PreparedStatementLike {
-  return prepareAuthenticatorStatement(
-    `${INSERT_AUTHENTICATOR_SQL}
-      ON CONFLICT (namespace, org_id, project_id, env_id, user_id, credential_id_b64u)
-      DO UPDATE SET
-        credential_public_key_b64u = EXCLUDED.credential_public_key_b64u,
-        counter = MAX(webauthn_authenticators.counter, EXCLUDED.counter),
-        created_at_ms = MIN(webauthn_authenticators.created_at_ms, EXCLUDED.created_at_ms),
-        updated_at_ms = MAX(webauthn_authenticators.updated_at_ms, EXCLUDED.updated_at_ms),
-        device_info_json = EXCLUDED.device_info_json`,
-    input,
-  );
+  return prepareAuthenticatorStatement(UPSERT_WEBAUTHN_AUTHENTICATOR_SQL, input);
 }
 
 /** Insert-only variant used by recovery promotion. A credential collision must
@@ -88,7 +71,7 @@ export function prepareD1WebAuthnAuthenticatorPutStatement(
 export function prepareD1WebAuthnAuthenticatorInsertStatement(
   input: AuthenticatorStatementInput,
 ): D1PreparedStatementLike {
-  return prepareAuthenticatorStatement(INSERT_AUTHENTICATOR_SQL, input);
+  return prepareAuthenticatorStatement(INSERT_WEBAUTHN_AUTHENTICATOR_SQL, input);
 }
 
 export class CloudflareD1WebAuthnStore {
@@ -121,33 +104,7 @@ export class CloudflareD1WebAuthnStore {
     readonly createdAtMs: number;
     readonly expiresAtMs: number;
   }): Promise<void> {
-    await this.prepare(
-      `INSERT INTO webauthn_challenges (
-        namespace,
-        org_id,
-        project_id,
-        env_id,
-        challenge_id,
-        challenge_kind,
-        record_json,
-        created_at_ms,
-        expires_at_ms
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT (namespace, org_id, project_id, env_id, challenge_id)
-      DO UPDATE SET
-        challenge_kind = EXCLUDED.challenge_kind,
-        record_json = EXCLUDED.record_json,
-        created_at_ms = EXCLUDED.created_at_ms,
-        expires_at_ms = EXCLUDED.expires_at_ms`,
-      [
-        input.challengeId,
-        input.challengeKind,
-        JSON.stringify(input.record),
-        input.createdAtMs,
-        input.expiresAtMs,
-      ],
-    ).run();
+    await webAuthnChallengeRows.upsert(this.prepare, input).run();
   }
 
   async consumeLoginChallenge(challengeId: string): Promise<WebAuthnLoginChallengeRecord | null> {
@@ -210,18 +167,9 @@ export class CloudflareD1WebAuthnStore {
     readonly userId: string;
     readonly credentialIdB64u: string;
   }): Promise<WebAuthnAuthenticatorRecord | null> {
-    const row = await this.prepare(
-      `SELECT credential_id_b64u, credential_public_key_b64u, counter, created_at_ms, updated_at_ms, device_info_json
-         FROM webauthn_authenticators
-        WHERE namespace = ?
-          AND org_id = ?
-          AND project_id = ?
-          AND env_id = ?
-          AND user_id = ?
-          AND credential_id_b64u = ?
-        LIMIT 1`,
-      [input.userId, input.credentialIdB64u],
-    ).first<D1AuthenticatorRow>();
+    const row = await webAuthnAuthenticatorRows
+      .select(this.prepare, input.userId, input.credentialIdB64u)
+      .first<D1AuthenticatorRow>();
     return parseWebAuthnAuthenticator(row);
   }
 
@@ -296,18 +244,9 @@ export class CloudflareD1WebAuthnStore {
     readonly rpId: string;
     readonly credentialIdB64u: string;
   }): Promise<WebAuthnCredentialBindingRecord | null> {
-    const row = await this.prepare(
-      `SELECT record_json
-         FROM webauthn_credential_bindings
-        WHERE namespace = ?
-          AND org_id = ?
-          AND project_id = ?
-          AND env_id = ?
-          AND rp_id = ?
-          AND credential_id_b64u = ?
-        LIMIT 1`,
-      [input.rpId, input.credentialIdB64u],
-    ).first<D1RecordJsonRow>();
+    const row = await webAuthnCredentialBindingRows
+      .select(this.prepare, input.rpId, input.credentialIdB64u)
+      .first<D1RecordJsonRow>();
     return parseWebAuthnBinding(row || {});
   }
 
@@ -381,21 +320,11 @@ export class CloudflareD1WebAuthnStore {
     readonly challengeId: string;
     readonly challengeKind: WebAuthnChallengeKind;
   }): Promise<D1RecordJsonRow | null> {
-    return await this.prepare(
-      `DELETE FROM webauthn_challenges
-        WHERE namespace = ?
-          AND org_id = ?
-          AND project_id = ?
-          AND env_id = ?
-          AND challenge_id = ?
-          AND challenge_kind = ?
-          AND expires_at_ms > ?
-        RETURNING record_json`,
-      [input.challengeId, input.challengeKind, Date.now()],
-    ).first<D1RecordJsonRow>();
+    return await webAuthnChallengeRows
+      .consume(this.prepare, input.challengeId, input.challengeKind, Date.now())
+      .first<D1RecordJsonRow>();
   }
 
-  private prepare(sql: string, values: readonly unknown[]): D1PreparedStatementLike {
-    return prepareD1TenantStatement(this.database, this.scope, sql, values);
-  }
+  private readonly prepare: ScopedD1Prepare = (sql, values) =>
+    prepareD1TenantStatement(this.database, this.scope, sql, values);
 }

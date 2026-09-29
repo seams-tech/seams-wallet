@@ -69,8 +69,10 @@ const SESSION_SCOPED_TABLES = [
   'linked_device_target_commit_reservations',
   'linked_device_target_credentials',
 ] as const;
-const SESSION_CAS_GUARD_SQL = `INSERT INTO linked_device_session_cas_guard (guard_id)
-SELECT 1 WHERE changes() = 0`;
+/** Aborts the batch it is in when the statement just before it changed no row. */
+export const SESSION_CAS_GUARD_SQL = `INSERT INTO linked_device_session_cas_guard (guard_id)
+SELECT 1
+ WHERE changes() = 0`;
 const PRECOMMIT_STATES: readonly LinkSessionStateV1['state'][] = [
   'displaying_qr',
   'claimed',

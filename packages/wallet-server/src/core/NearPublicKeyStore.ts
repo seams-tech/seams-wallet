@@ -187,6 +187,16 @@ class InMemoryNearPublicKeyStore implements NearPublicKeyStore {
   }
 }
 
+/** A user's NEAR public keys, in signer-slot order; binds the scope, then the user. */
+export const NEAR_PUBLIC_KEYS_BY_USER_SQL = `SELECT record_json
+         FROM near_public_keys
+        WHERE namespace = ?
+          AND org_id = ?
+          AND project_id = ?
+          AND env_id = ?
+          AND user_id = ?
+        ORDER BY COALESCE(signer_slot, 0) ASC, created_at_ms ASC, public_key ASC`;
+
 export class D1NearPublicKeyStore implements NearPublicKeyStore {
   readonly adapterKind = 'd1';
   private readonly table: D1TenantTable;
@@ -247,17 +257,7 @@ export class D1NearPublicKeyStore implements NearPublicKeyStore {
     const uid = toOptionalTrimmedString(userId);
     if (!uid) return [];
     const result = await this.table
-      .prepare(
-        `SELECT record_json
-         FROM near_public_keys
-        WHERE namespace = ?
-          AND org_id = ?
-          AND project_id = ?
-          AND env_id = ?
-          AND user_id = ?
-        ORDER BY COALESCE(signer_slot, 0) ASC, created_at_ms ASC, public_key ASC`,
-        [uid],
-      )
+      .prepare(NEAR_PUBLIC_KEYS_BY_USER_SQL, [uid])
       .all<D1NearPublicKeyRow>();
     return (result.results || [])
       .map((row) => parseNearPublicKeyRecord(parseD1JsonColumn(row.record_json)))

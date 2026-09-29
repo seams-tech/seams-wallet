@@ -33,15 +33,7 @@ export class CloudflareD1GoogleEmailOtpRegistrationAttemptStore {
 
   async cleanupExpired(nowMs: number): Promise<number> {
     return d1MutationChanges(
-      await this.prepare(
-        `DELETE FROM email_otp_registration_attempts
-          WHERE namespace = ?
-            AND org_id = ?
-            AND project_id = ?
-            AND env_id = ?
-            AND (expires_at_ms <= ? OR state = 'expired')`,
-        [nowMs],
-      ).run(),
+      await emailOtpRegistrationAttemptRows.deleteExpired(this.prepare, nowMs).run(),
     );
   }
 

@@ -14,7 +14,7 @@ import {
 } from '@shared/utils/walletAuthMethodRecord';
 import { walletIdFromString } from '@shared/utils/registrationIds';
 import { toOptionalTrimmedString, isPlainObject } from '@shared/utils/validation';
-import { parseD1JsonColumn } from '../storage/d1Sql';
+import { D1_BATCH_CAS_GUARD_SQL, parseD1JsonColumn } from '../storage/d1Sql';
 import type {
   D1DatabaseLike,
   D1PreparedStatementLike,
@@ -728,11 +728,7 @@ async function readD1WalletAuthMethodJsonById(
 
 /** Aborts the enclosing batch when the statement just before it changed no row. */
 function prepareD1InsertCasGuardStatement(database: D1DatabaseLike): D1PreparedStatementLike {
-  return database.prepare(`
-      INSERT INTO router_ab_yao_versioned_json_cas_guard (guard_id)
-      SELECT 1
-       WHERE changes() = 0
-    `);
+  return database.prepare(D1_BATCH_CAS_GUARD_SQL);
 }
 
 export class D1WalletAuthMethodStore implements WalletAuthMethodStore, WalletAuthMethodV2Store {

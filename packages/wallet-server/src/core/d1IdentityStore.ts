@@ -29,6 +29,15 @@ type D1IdentityLinkRow = {
   readonly subject_count?: unknown;
 };
 
+/** How many subjects the user has; binds the scope, then the user. */
+const SUBJECT_COUNT_SQL = `SELECT COUNT(*) AS subject_count
+         FROM identity_links
+        WHERE namespace = ?
+          AND org_id = ?
+          AND project_id = ?
+          AND env_id = ?
+          AND user_id = ?`;
+
 export const IDENTITY_STORE_D1_SCHEMA_SQL = Object.freeze([
   `
     CREATE TABLE IF NOT EXISTS identity_links (
@@ -246,16 +255,7 @@ export class D1IdentityStore implements IdentityStore {
       );
       if (moved > 0) return { ok: true, movedFromUserId: existingUserId };
       const countRow = await this.table
-        .prepare(
-          `SELECT COUNT(*) AS subject_count
-           FROM identity_links
-          WHERE namespace = ?
-            AND org_id = ?
-            AND project_id = ?
-            AND env_id = ?
-            AND user_id = ?`,
-          [existingUserId],
-        )
+        .prepare(SUBJECT_COUNT_SQL, [existingUserId])
         .first<D1IdentityLinkRow>();
       if (parseSubjectCount(countRow?.subject_count) !== 1) {
         return {
@@ -367,16 +367,7 @@ export class D1IdentityStore implements IdentityStore {
       return { ok: false, code: 'not_found', message: 'Subject is not linked to this user' };
     }
     const countRow = await this.table
-      .prepare(
-        `SELECT COUNT(*) AS subject_count
-         FROM identity_links
-        WHERE namespace = ?
-          AND org_id = ?
-          AND project_id = ?
-          AND env_id = ?
-          AND user_id = ?`,
-        [userId],
-      )
+      .prepare(SUBJECT_COUNT_SQL, [userId])
       .first<D1IdentityLinkRow>();
     if (parseSubjectCount(countRow?.subject_count) <= 1) {
       return {

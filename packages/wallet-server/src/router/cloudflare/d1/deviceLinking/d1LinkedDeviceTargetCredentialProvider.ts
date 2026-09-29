@@ -49,7 +49,10 @@ import type {
   DeviceLinkingTargetCredentialProviderV1,
   LinkedDeviceTargetPreparationResultV1,
 } from '../../../../router/transport/fetch/routes/deviceLinking';
-import type { D1LinkedDeviceSessionScopeV1 } from './d1LinkedDeviceSessionStore';
+import {
+  SESSION_CAS_GUARD_SQL,
+  type D1LinkedDeviceSessionScopeV1,
+} from './d1LinkedDeviceSessionStore';
 import {
   buildVerifiedTargetFactorV1,
   buildVerifiedLinkInputV1,
@@ -781,11 +784,7 @@ export class D1LinkedDeviceTargetCredentialProviderV1 implements DeviceLinkingTa
     // A guard directly after the flip: if the row was not in `prepared` any
     // more, the whole batch fails before the grant consumption or binding
     // insert can run — a lost flip must not spend the grant.
-    const flipGuard = this.database.prepare(
-      `INSERT INTO linked_device_session_cas_guard (guard_id)
-SELECT 1
- WHERE changes() = 0`,
-    );
+    const flipGuard = this.database.prepare(SESSION_CAS_GUARD_SQL);
     const results = await this.database.batch<D1ResultLike>([
       flip,
       flipGuard,

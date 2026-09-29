@@ -1399,15 +1399,7 @@ class D1EmailOtpRegistrationAttemptStore
 
   async deleteExpired(nowMs: number): Promise<number> {
     await this.ensureSchema();
-    const result = await this.prepare(
-      `DELETE FROM email_otp_registration_attempts
-        WHERE namespace = ?
-          AND org_id = ?
-          AND project_id = ?
-          AND env_id = ?
-          AND (expires_at_ms <= ? OR state = 'expired')`,
-      [nowMs],
-    ).run();
+    const result = await emailOtpRegistrationAttemptRows.deleteExpired(this.prepare, nowMs).run();
     return d1ChangedRows(result);
   }
 

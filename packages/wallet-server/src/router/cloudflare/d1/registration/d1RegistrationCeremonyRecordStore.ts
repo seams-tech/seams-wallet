@@ -12,6 +12,20 @@ const CAS_GUARD_SQL = `INSERT INTO registration_ceremony_cas_guard (guard_id)
 SELECT 1
  WHERE changes() = 0`;
 
+/** Replaces the record when it is still at the expected version (?10) and bumps the version. */
+const UPDATE_EXPECTED_VERSION_SQL = `UPDATE ${TABLE_NAME}
+            SET version = version + 1,
+                record_json = ?7,
+                expires_at_ms = ?8,
+                updated_at_ms = ?9
+          WHERE namespace = ?1
+            AND org_id = ?2
+            AND project_id = ?3
+            AND env_id = ?4
+            AND record_scope = ?5
+            AND record_id = ?6
+            AND version = ?10`;
+
 export type D1RegistrationCeremonyRecordScope = {
   readonly namespace: string;
   readonly orgId: string;
@@ -122,20 +136,7 @@ export class D1RegistrationCeremonyRecordStore {
     }
     const next = prepareValue(input.next, input.expiresAtMs);
     const result = await this.database
-      .prepare(
-        `UPDATE ${TABLE_NAME}
-            SET version = version + 1,
-                record_json = ?7,
-                expires_at_ms = ?8,
-                updated_at_ms = ?9
-          WHERE namespace = ?1
-            AND org_id = ?2
-            AND project_id = ?3
-            AND env_id = ?4
-            AND record_scope = ?5
-            AND record_id = ?6
-            AND version = ?10`,
-      )
+      .prepare(UPDATE_EXPECTED_VERSION_SQL)
       .bind(...this.bindKey(key), next.recordJson, next.expiresAtMs, Date.now(), current.version)
       .run();
     if (changes(result) !== 1) {
@@ -240,20 +241,7 @@ export class D1RegistrationCeremonyRecordStore {
     }
     const next = prepareValue(input.next, input.expiresAtMs);
     const result = await this.database
-      .prepare(
-        `UPDATE ${TABLE_NAME}
-            SET version = version + 1,
-                record_json = ?7,
-                expires_at_ms = ?8,
-                updated_at_ms = ?9
-          WHERE namespace = ?1
-            AND org_id = ?2
-            AND project_id = ?3
-            AND env_id = ?4
-            AND record_scope = ?5
-            AND record_id = ?6
-            AND version = ?10`,
-      )
+      .prepare(UPDATE_EXPECTED_VERSION_SQL)
       .bind(
         ...this.bindKey(key),
         next.recordJson,

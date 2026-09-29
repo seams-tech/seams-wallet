@@ -1,6 +1,8 @@
 import { toOptionalTrimmedString } from '@shared/utils/validation';
 import { createKeyValueStore, type KeyValueRecords, type StoreFactoryInput } from './storeBackends';
 import { parseD1JsonColumn } from '../storage/d1Sql';
+import { webAuthnChallengeRows } from './webAuthnD1Statements';
+import type { ScopedD1Prepare } from './emailOtpD1Statements';
 import {
   D1TenantTable,
   ensureD1Schema,
@@ -251,6 +253,7 @@ export class D1WebAuthnChallengeStore<R extends WebAuthnChallengeRecord>
   readonly adapterKind = 'd1';
   private readonly table: D1TenantTable;
   private readonly now: () => Date;
+  private readonly prepare: ScopedD1Prepare = (sql, values) => this.table.prepare(sql, values);
 
   constructor(
     input: D1WebAuthnChallengeStoreOptions,
@@ -268,34 +271,14 @@ export class D1WebAuthnChallengeStore<R extends WebAuthnChallengeRecord>
     await this.table.ensureSchema();
     const parsed = this.spec.parse(record);
     if (!parsed) throw new Error(`Invalid ${this.spec.label} record`);
-    await this.table
-      .prepare(
-        `INSERT INTO webauthn_challenges (
-          namespace,
-          org_id,
-          project_id,
-          env_id,
-          challenge_id,
-          challenge_kind,
-          record_json,
-          created_at_ms,
-          expires_at_ms
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT (namespace, org_id, project_id, env_id, challenge_id)
-        DO UPDATE SET
-          challenge_kind = EXCLUDED.challenge_kind,
-          record_json = EXCLUDED.record_json,
-          created_at_ms = EXCLUDED.created_at_ms,
-          expires_at_ms = EXCLUDED.expires_at_ms`,
-        [
-          parsed.challengeId,
-          this.spec.challengeKind,
-          JSON.stringify(parsed),
-          parsed.createdAtMs,
-          parsed.expiresAtMs,
-        ],
-      )
+    await webAuthnChallengeRows
+      .upsert(this.prepare, {
+        challengeId: parsed.challengeId,
+        challengeKind: this.spec.challengeKind,
+        record: parsed,
+        createdAtMs: parsed.createdAtMs,
+        expiresAtMs: parsed.expiresAtMs,
+      })
       .run();
   }
 
@@ -303,19 +286,8 @@ export class D1WebAuthnChallengeStore<R extends WebAuthnChallengeRecord>
     await this.table.ensureSchema();
     const id = toOptionalTrimmedString(challengeId);
     if (!id) return null;
-    const row = await this.table
-      .prepare(
-        `DELETE FROM webauthn_challenges
-          WHERE namespace = ?
-            AND org_id = ?
-            AND project_id = ?
-            AND env_id = ?
-            AND challenge_id = ?
-            AND challenge_kind = ?
-            AND expires_at_ms > ?
-          RETURNING record_json`,
-        [id, this.spec.challengeKind, this.now().getTime()],
-      )
+    const row = await webAuthnChallengeRows
+      .consume(this.prepare, id, this.spec.challengeKind, this.now().getTime())
       .first<{ readonly record_json?: unknown }>();
     return this.spec.parse(parseD1JsonColumn(row?.record_json));
   }

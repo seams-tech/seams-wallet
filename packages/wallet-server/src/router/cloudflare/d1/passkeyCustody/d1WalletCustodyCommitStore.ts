@@ -38,6 +38,7 @@ import {
 } from '@shared/authorization';
 import type { VersionedJsonObject } from '../../../framework/versionedJsonRecordStore';
 import type { D1DatabaseLike, D1PreparedStatementLike } from '../../../../storage/tenantRoute';
+import { D1_BATCH_CAS_GUARD_SQL } from '../../../../storage/d1Sql';
 import {
   CloudflareD1VersionedJsonRecordStore,
   type CloudflareD1VersionedJsonRecordBatchPutResultV1,
@@ -168,24 +169,6 @@ function sameEmailOtpWalletEnrollmentRecordV1(
     left.updatedAtMs === right.updatedAtMs
   );
 }
-
-const WEB_AUTHN_RECOVERY_CHALLENGE_CAS_GUARD = `
-  INSERT INTO router_ab_yao_versioned_json_cas_guard (guard_id)
-  SELECT 1
-   WHERE changes() = 0
-`;
-
-const RECOVERY_CODE_LOCATOR_CAS_GUARD = `
-  INSERT INTO router_ab_yao_versioned_json_cas_guard (guard_id)
-  SELECT 1
-   WHERE changes() = 0
-`;
-
-const WALLET_RECOVERY_GOOGLE_EMAIL_OTP_ATTEMPT_CAS_GUARD = `
-  INSERT INTO router_ab_yao_versioned_json_cas_guard (guard_id)
-  SELECT 1
-   WHERE changes() = 0
-`;
 
 function requireWalletId(value: unknown): WalletId {
   const parsed = parseWalletId(value);
@@ -1196,12 +1179,12 @@ export class CloudflareD1WalletCustodyCommitStore {
           authenticatorStatement,
           bindingStatement,
           input.authenticatorCommit.challengeDeleteStatement,
-          this.database.prepare(WEB_AUTHN_RECOVERY_CHALLENGE_CAS_GUARD),
+          this.database.prepare(D1_BATCH_CAS_GUARD_SQL),
           this.prepareRecoveryCodeLocatorConsumeStatement({
             walletId,
             recoveryKeyId: input.recoveryKeyId,
           }),
-          this.database.prepare(RECOVERY_CODE_LOCATOR_CAS_GUARD),
+          this.database.prepare(D1_BATCH_CAS_GUARD_SQL),
         ],
       );
     } catch {
@@ -1506,12 +1489,12 @@ export class CloudflareD1WalletCustodyCommitStore {
             expectedVersion: input.recoveryAttemptStoreVersion,
             finalizedAtMs: input.authority.updatedAtMs,
           }),
-          this.database.prepare(WALLET_RECOVERY_GOOGLE_EMAIL_OTP_ATTEMPT_CAS_GUARD),
+          this.database.prepare(D1_BATCH_CAS_GUARD_SQL),
           this.prepareRecoveryCodeLocatorConsumeStatement({
             walletId,
             recoveryKeyId: input.recoveryKeyId,
           }),
-          this.database.prepare(RECOVERY_CODE_LOCATOR_CAS_GUARD),
+          this.database.prepare(D1_BATCH_CAS_GUARD_SQL),
         ],
       );
     } catch {

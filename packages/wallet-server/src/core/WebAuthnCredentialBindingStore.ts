@@ -10,6 +10,8 @@ import {
   type WebAuthnStoreSpec,
 } from './webAuthnStoreBackends';
 import type { KeyValueRecords, StoreFactoryInput } from './storeBackends';
+import { webAuthnCredentialBindingRows } from './webAuthnD1Statements';
+import type { ScopedD1Prepare } from './emailOtpD1Statements';
 import {
   D1TenantTable,
   ensureD1Schema,
@@ -397,6 +399,7 @@ class InMemoryWebAuthnCredentialBindingStore extends KeyValueWebAuthnCredentialB
 export class D1WebAuthnCredentialBindingStore implements WebAuthnCredentialBindingStore {
   readonly adapterKind = 'd1';
   private readonly table: D1TenantTable;
+  private readonly prepare: ScopedD1Prepare = (sql, values) => this.table.prepare(sql, values);
 
   constructor(input: D1WebAuthnCredentialBindingStoreOptions) {
     this.table = new D1TenantTable(
@@ -414,19 +417,8 @@ export class D1WebAuthnCredentialBindingStore implements WebAuthnCredentialBindi
     const r = toOptionalTrimmedString(rpId);
     const c = toOptionalTrimmedString(credentialIdB64u);
     if (!r || !c) return null;
-    const row = await this.table
-      .prepare(
-        `SELECT record_json
-           FROM webauthn_credential_bindings
-          WHERE namespace = ?
-            AND org_id = ?
-            AND project_id = ?
-            AND env_id = ?
-            AND rp_id = ?
-            AND credential_id_b64u = ?
-          LIMIT 1`,
-        [r, c],
-      )
+    const row = await webAuthnCredentialBindingRows
+      .select(this.prepare, r, c)
       .first<D1WebAuthnCredentialBindingRow>();
     return parseWebAuthnCredentialBindingRecord(parseD1JsonColumn(row?.record_json));
   }

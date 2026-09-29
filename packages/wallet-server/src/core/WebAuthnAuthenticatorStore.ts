@@ -15,6 +15,11 @@ import {
 } from './webAuthnStoreBackends';
 import type { KeyValueRecords, StoreFactoryInput } from './storeBackends';
 import {
+  UPSERT_WEBAUTHN_AUTHENTICATOR_SQL,
+  webAuthnAuthenticatorRows,
+} from './webAuthnD1Statements';
+import type { ScopedD1Prepare } from './emailOtpD1Statements';
+import {
   D1TenantTable,
   ensureD1Schema,
   type D1SchemaOptions,
@@ -214,6 +219,7 @@ class InMemoryWebAuthnAuthenticatorStore extends KeyValueWebAuthnAuthenticatorSt
 export class D1WebAuthnAuthenticatorStore implements WebAuthnAuthenticatorStore {
   readonly adapterKind = 'd1';
   private readonly table: D1TenantTable;
+  private readonly prepare: ScopedD1Prepare = (sql, values) => this.table.prepare(sql, values);
 
   constructor(input: D1WebAuthnAuthenticatorStoreOptions) {
     this.table = new D1TenantTable(
@@ -228,19 +234,8 @@ export class D1WebAuthnAuthenticatorStore implements WebAuthnAuthenticatorStore 
     const uid = toOptionalTrimmedString(userId);
     const cid = toOptionalTrimmedString(credentialIdB64u);
     if (!uid || !cid) return null;
-    const row = await this.table
-      .prepare(
-        `SELECT credential_id_b64u, credential_public_key_b64u, counter, created_at_ms, updated_at_ms, device_info_json
-           FROM webauthn_authenticators
-          WHERE namespace = ?
-            AND org_id = ?
-            AND project_id = ?
-            AND env_id = ?
-            AND user_id = ?
-            AND credential_id_b64u = ?
-          LIMIT 1`,
-        [uid, cid],
-      )
+    const row = await webAuthnAuthenticatorRows
+      .select(this.prepare, uid, cid)
       .first<D1WebAuthnAuthenticatorRow>();
     return parseD1WebAuthnAuthenticatorRow(row);
   }
@@ -252,44 +247,15 @@ export class D1WebAuthnAuthenticatorStore implements WebAuthnAuthenticatorStore 
     const parsed = parseWebAuthnAuthenticatorRecord(record);
     if (!parsed) throw new Error('Invalid authenticator record');
     await this.table
-      .prepare(
-        `INSERT INTO webauthn_authenticators (
-          namespace,
-          org_id,
-          project_id,
-          env_id,
-          user_id,
-          credential_id_b64u,
-          credential_public_key_b64u,
-          counter,
-          created_at_ms,
-          updated_at_ms,
-          device_info_json
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT (namespace, org_id, project_id, env_id, user_id, credential_id_b64u)
-        DO UPDATE SET
-          credential_public_key_b64u = EXCLUDED.credential_public_key_b64u,
-          counter = MAX(webauthn_authenticators.counter, EXCLUDED.counter),
-          created_at_ms = MIN(
-            webauthn_authenticators.created_at_ms,
-            EXCLUDED.created_at_ms
-          ),
-          updated_at_ms = MAX(
-            webauthn_authenticators.updated_at_ms,
-            EXCLUDED.updated_at_ms
-          ),
-          device_info_json = EXCLUDED.device_info_json`,
-        [
-          uid,
-          parsed.credentialIdB64u,
-          parsed.credentialPublicKeyB64u,
-          parsed.counter,
-          parsed.createdAtMs,
-          parsed.updatedAtMs,
-          JSON.stringify(parsed.deviceInfo),
-        ],
-      )
+      .prepare(UPSERT_WEBAUTHN_AUTHENTICATOR_SQL, [
+        uid,
+        parsed.credentialIdB64u,
+        parsed.credentialPublicKeyB64u,
+        parsed.counter,
+        parsed.createdAtMs,
+        parsed.updatedAtMs,
+        JSON.stringify(parsed.deviceInfo),
+      ])
       .run();
   }
 
