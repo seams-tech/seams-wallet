@@ -4,7 +4,7 @@ import type {
   RouterAbNormalSigningAdmissionAdapter,
   RouterAbNormalSigningAdmissionInput,
   RouterAbNormalSigningAdmissionResult,
-} from './routerAbPrivateSigningWorker';
+} from './routerAbNormalSigningAdmission';
 
 export type RouterAbNormalSigningProjectPolicyDecision =
   | { kind: 'allowed' }

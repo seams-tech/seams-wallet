@@ -10,7 +10,7 @@ import {
   abusePrincipalKey,
   runtimePolicyScopeKey,
 } from '../../../domains/signingOperations/routerAbNormalSigningAdmissionCore';
-import type { RouterAbNormalSigningAdmissionInput } from '../../../domains/signingOperations/routerAbPrivateSigningWorker';
+import type { RouterAbNormalSigningAdmissionInput } from '../../../domains/signingOperations/routerAbNormalSigningAdmission';
 import type {
   RouterAbNormalSigningAbuseDecision,
   RouterAbNormalSigningAdmissionStore,

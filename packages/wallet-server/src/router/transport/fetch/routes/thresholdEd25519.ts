@@ -11,17 +11,17 @@ import {
   resolveThresholdRuntimePolicyScope,
 } from '../../../auth/commonRouterUtils';
 import { normalizeCorsOrigin } from '../../../../core/SessionService';
+import { buildRouterAbEd25519PrivateSigningWorkerBody } from '../../../domains/signingOperations/routerAbPrivateSigningWorker';
+import { authenticateRouterAbWalletOperationStepUpIdentity } from '../../../domains/signingOperations/routerAbOperationStepUp';
 import {
-  authenticateRouterAbWalletOperationStepUpIdentity,
   authorizeRouterAbEd25519NormalSigningRoute,
   buildRouterAbEd25519OwnerOperationStepUpPreparation,
   decideRouterAbEd25519OwnerOperationAuthorization,
   routerAbEd25519OwnerOperationFailureResult,
-  buildRouterAbEd25519PrivateSigningWorkerBody,
   parseRouterAbEd25519OperationStepUpScope,
   parseRouterAbOperationStepUpOperation,
   type RouterAbEd25519NormalSigningRoutePhase,
-} from '../../../domains/signingOperations/routerAbPrivateSigningWorker';
+} from '../../../domains/signingOperations/routerAbEd25519NormalSigningRoute';
 import {
   parseThresholdEd25519OperationStepUpGrantRequest,
   parseThresholdEd25519SessionRouteRequest,

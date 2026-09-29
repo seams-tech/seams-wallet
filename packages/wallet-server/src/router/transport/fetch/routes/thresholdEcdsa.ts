@@ -36,9 +36,10 @@ import {
   type RouterAbEcdsaOperationStepUpExportTopologyV1Wire,
   type RouterAbEcdsaPostRegistrationSessionActivationRequestV1,
 } from '@shared/utils/routerAbEcdsaDerivation';
+import type { RouterAbEcdsaOperationAdmissionKind } from '../../../domains/signingOperations/routerAbNormalSigningAdmission';
+import { authenticateRouterAbWalletOperationStepUpIdentity } from '../../../domains/signingOperations/routerAbOperationStepUp';
 import {
   authenticateRouterAbEcdsaOperationStepUp,
-  authenticateRouterAbWalletOperationStepUpIdentity,
   authorizeRouterAbEcdsaDerivationNormalSigningRoute,
   admitRouterAbEcdsaReusableWalletSessionOperation,
   claimRouterAbEcdsaOperationStepUp,
@@ -51,8 +52,7 @@ import {
   resolveFreshRouterAbEcdsaMaterialActivation,
   routerAbEcdsaAtomicAuthorizationConfigured,
   routerAbEcdsaOwnerOperationFailureResult,
-  type RouterAbEcdsaOperationAdmissionKind,
-} from '../../../domains/signingOperations/routerAbPrivateSigningWorker';
+} from '../../../domains/signingOperations/routerAbEcdsaDerivationNormalSigningRoute';
 import {
   parseRouterAbEcdsaDerivationPoolFillInitRouteRequest,
   parseRouterAbEcdsaDerivationPoolFillStepRouteRequest,

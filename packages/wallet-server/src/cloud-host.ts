@@ -88,7 +88,42 @@ export * from './router/domains/ed25519Yao/recovery/routerAbEd25519YaoRecoveryRe
 export * from './router/domains/ed25519Yao/recovery/routerAbEd25519YaoRecoveryWalletSessionAuthorization';
 export * from './router/domains/ed25519Yao/registration/routerAbEd25519YaoRegistrationRequestScopedCloudflare';
 export * from './router/domains/signingOperations/routerAbNormalSigningAdmissionCore';
-export * from './router/domains/signingOperations/routerAbPrivateSigningWorker';
+export {
+  buildRouterAbEcdsaAcceptedAuthorizedOperationV1,
+  buildRouterAbEd25519AcceptedAuthorizedOperationV1,
+  evaluateRouterAbNormalSigningAdmission,
+  type RouterAbEcdsaOperationAdmission,
+  type RouterAbEcdsaOperationAdmissionKind,
+  type RouterAbJsonRouteResult,
+  type RouterAbNormalSigningAdmissionAdapter,
+  type RouterAbNormalSigningAdmissionEvaluationInput,
+  type RouterAbNormalSigningAdmissionFailure,
+  type RouterAbNormalSigningAdmissionFailureCode,
+  type RouterAbNormalSigningAdmissionInput,
+  type RouterAbNormalSigningAdmissionResult,
+  type RouterAbNormalSigningRouteAdmission,
+  type RouterAbNormalSigningRouteRuntime,
+  type RouterAbSigningWorkerJsonResult,
+} from './router/domains/signingOperations/routerAbNormalSigningAdmission';
+export { authenticateRouterAbWalletOperationStepUpIdentity } from './router/domains/signingOperations/routerAbOperationStepUp';
+export {
+  buildRouterAbEcdsaDerivationPrivateSigningWorkerBody,
+  buildRouterAbEd25519PrivateSigningWorkerBody,
+  computeRouterAbEd25519NormalSigningAdmissionMaterial,
+  parseRouterAbEd25519NormalSigningScopeV2,
+  postRouterAbSigningWorkerJson,
+  ROUTER_AB_ECDSA_DERIVATION_PRIVATE_SIGNING_PATHS,
+  ROUTER_AB_ED25519_PRIVATE_SIGNING_PATHS,
+  type RouterAbEcdsaDerivationPrivateSigningPath,
+  type RouterAbEcdsaDerivationPrivateSigningWorkerBody,
+  type RouterAbEd25519NormalSigningScopeV2,
+  type RouterAbEd25519PrivateSigningPath,
+  type RouterAbEd25519PrivateSigningWorkerBody,
+  routerAbNormalSigningMaterialSourceFromActiveLaneV1,
+  type RouterAbNormalSigningMaterialSourceV1,
+} from './router/domains/signingOperations/routerAbPrivateSigningWorker';
+export * from './router/domains/signingOperations/routerAbEd25519NormalSigningRoute';
+export * from './router/domains/signingOperations/routerAbEcdsaDerivationNormalSigningRoute';
 export * from './router/framework/routerApi';
 export * from './router/auth/routerApiCredentialAuth';
 export * from './router/auth/routerApiKeyAuth';
