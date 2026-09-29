@@ -366,9 +366,12 @@ latency. The benchmark image and hosted deployments remain unchanged.
   build for the managed roles. Today the wallet-object features build only
   the local harness and the isolated comparison.
 - seams-monorepo consuming exact package and artifact versions from the
-  integrated backend. The merge includes the hosted clock-skew and joined
-  session-snapshot fixes. seams-monorepo needs b74937c or later, which
-  restores the published `@seams/wallet-server/router/express` entry.
+  integrated backend. The branch is merged into `dev` (e0777b0, 2026-09-29).
+  The merge carries item 21's fix, the hosted clock-skew and joined
+  session-snapshot fixes, and b74937c's restored
+  `@seams/wallet-server/router/express` entry; no release from before that
+  merge may be used. The steps and authorization points are in the
+  [DO rollout plan](./refactor-150-do-rollout-plan.md).
 - The new-wallet cohort, and the Phase 3 clean reset, as separately
   coordinated operations. Superseded wallet-local D1 stores and routing are
   removed only after the DO path replaces them.
