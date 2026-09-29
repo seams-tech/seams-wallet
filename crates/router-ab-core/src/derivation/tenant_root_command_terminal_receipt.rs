@@ -66,6 +66,121 @@ impl fmt::Debug for TenantRootCommandTerminalReceiptDataV1 {
     }
 }
 
+/// Methods both terminal receipt outcomes share. `receipt` gives a receipt its
+/// signing constructor (documented by `$sign_doc`), the accessors over its signed
+/// fields and its canonical wire, all for the fixed `$outcome`; `verified` gives a
+/// verified receipt its accessors.
+macro_rules! terminal_receipt_methods {
+    (receipt $outcome:ident, $sign_doc:literal) => {
+        #[doc = $sign_doc]
+        pub fn sign(
+            key: TenantRootCommandReplayKeyV1,
+            command_digest: TenantRootProtocolDigestV1,
+            payload: Vec<u8>,
+            terminal_at_ms: u64,
+            role_signing_key_id: impl Into<String>,
+            role_signing_key_bytes: &[u8; 32],
+        ) -> RouterAbDerivationResult<Self> {
+            sign_receipt(
+                TenantRootCommandTerminalOutcomeV1::$outcome,
+                key,
+                command_digest,
+                payload,
+                terminal_at_ms,
+                role_signing_key_id.into(),
+                role_signing_key_bytes,
+            )
+            .map(|data| Self { data })
+        }
+
+        /// Returns the exact role-local replay key bound by this receipt.
+        pub const fn key(&self) -> &TenantRootCommandReplayKeyV1 {
+            &self.data.key
+        }
+
+        /// Returns the exact command digest bound by this receipt.
+        pub const fn command_digest(&self) -> TenantRootProtocolDigestV1 {
+            self.data.command_digest
+        }
+
+        /// Returns the exact public payload bytes.
+        pub fn payload_bytes(&self) -> &[u8] {
+            &self.data.payload
+        }
+
+        /// Returns the digest of the exact public payload bytes.
+        pub const fn payload_digest(&self) -> TenantRootProtocolDigestV1 {
+            self.data.payload_digest
+        }
+
+        /// Returns the terminal timestamp authenticated by the role signature.
+        pub const fn terminal_at_ms(&self) -> u64 {
+            self.data.terminal_at_ms
+        }
+
+        /// Returns the role signing-key identifier authenticated by the signature.
+        pub fn role_signing_key_id(&self) -> &str {
+            &self.data.role_signing_key_id
+        }
+
+        /// Returns the exact canonical signed receipt bytes.
+        pub fn canonical_bytes(&self) -> RouterAbDerivationResult<Vec<u8>> {
+            canonical_bytes(TenantRootCommandTerminalOutcomeV1::$outcome, &self.data)
+        }
+
+        /// Returns the digest of the exact canonical signed receipt bytes.
+        pub fn digest(&self) -> RouterAbDerivationResult<TenantRootProtocolDigestV1> {
+            receipt_digest(self.canonical_bytes()?)
+        }
+    };
+    (verified) => {
+        /// Returns the exact canonical signed receipt bytes accepted by verification.
+        pub fn canonical_bytes(&self) -> &[u8] {
+            &self.canonical_bytes
+        }
+
+        /// Returns the digest of the exact canonical signed receipt bytes.
+        pub const fn digest(&self) -> TenantRootProtocolDigestV1 {
+            self.digest
+        }
+
+        /// Returns the exact role-local replay key.
+        pub const fn key(&self) -> &TenantRootCommandReplayKeyV1 {
+            self.receipt.key()
+        }
+
+        /// Returns the exact command digest.
+        pub const fn command_digest(&self) -> TenantRootProtocolDigestV1 {
+            self.receipt.command_digest()
+        }
+
+        /// Returns the exact public payload bytes.
+        pub fn payload_bytes(&self) -> &[u8] {
+            self.receipt.payload_bytes()
+        }
+
+        /// Returns the exact public payload digest.
+        pub const fn payload_digest(&self) -> TenantRootProtocolDigestV1 {
+            self.receipt.payload_digest()
+        }
+
+        /// Returns the authenticated terminal timestamp.
+        pub const fn terminal_at_ms(&self) -> u64 {
+            self.receipt.terminal_at_ms()
+        }
+
+        /// Returns the authenticated role signing-key identifier.
+        pub fn role_signing_key_id(&self) -> &str {
+            self.receipt.role_signing_key_id()
+        }
+
+        /// Consumes this token into the exact canonical signed receipt bytes.
+        pub fn into_canonical_bytes(self) -> Vec<u8> {
+            self.canonical_bytes
+        }
+    };
+}
+
 /// Role-signed successful terminal receipt before signature verification.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TenantRootCommandSuccessReceiptV1 {
@@ -88,66 +203,10 @@ pub enum TenantRootCommandTerminalReceiptV1 {
 }
 
 impl TenantRootCommandSuccessReceiptV1 {
-    /// Signs one exact public payload as a successful command terminal receipt.
-    pub fn sign(
-        key: TenantRootCommandReplayKeyV1,
-        command_digest: TenantRootProtocolDigestV1,
-        payload: Vec<u8>,
-        terminal_at_ms: u64,
-        role_signing_key_id: impl Into<String>,
-        role_signing_key_bytes: &[u8; 32],
-    ) -> RouterAbDerivationResult<Self> {
-        sign_receipt(
-            TenantRootCommandTerminalOutcomeV1::Success,
-            key,
-            command_digest,
-            payload,
-            terminal_at_ms,
-            role_signing_key_id.into(),
-            role_signing_key_bytes,
-        )
-        .map(|data| Self { data })
-    }
-
-    /// Returns the exact role-local replay key bound by this receipt.
-    pub const fn key(&self) -> &TenantRootCommandReplayKeyV1 {
-        &self.data.key
-    }
-
-    /// Returns the exact command digest bound by this receipt.
-    pub const fn command_digest(&self) -> TenantRootProtocolDigestV1 {
-        self.data.command_digest
-    }
-
-    /// Returns the exact public payload bytes.
-    pub fn payload_bytes(&self) -> &[u8] {
-        &self.data.payload
-    }
-
-    /// Returns the digest of the exact public payload bytes.
-    pub const fn payload_digest(&self) -> TenantRootProtocolDigestV1 {
-        self.data.payload_digest
-    }
-
-    /// Returns the terminal timestamp authenticated by the role signature.
-    pub const fn terminal_at_ms(&self) -> u64 {
-        self.data.terminal_at_ms
-    }
-
-    /// Returns the role signing-key identifier authenticated by the signature.
-    pub fn role_signing_key_id(&self) -> &str {
-        &self.data.role_signing_key_id
-    }
-
-    /// Returns the exact canonical signed receipt bytes.
-    pub fn canonical_bytes(&self) -> RouterAbDerivationResult<Vec<u8>> {
-        canonical_bytes(TenantRootCommandTerminalOutcomeV1::Success, &self.data)
-    }
-
-    /// Returns the digest of the exact canonical signed receipt bytes.
-    pub fn digest(&self) -> RouterAbDerivationResult<TenantRootProtocolDigestV1> {
-        receipt_digest(self.canonical_bytes()?)
-    }
+    terminal_receipt_methods!(
+        receipt Success,
+        "Signs one exact public payload as a successful command terminal receipt."
+    );
 
     /// Verifies a success receipt from a remote role using public expectations.
     ///
@@ -203,6 +262,7 @@ impl TenantRootCommandSuccessReceiptV1 {
             &self.data,
             trusted_role_verifying_key,
         )
+        .map(drop)
     }
 
     /// Verifies this successful receipt against the exact executed replay token.
@@ -230,66 +290,10 @@ impl TenantRootCommandSuccessReceiptV1 {
 }
 
 impl TenantRootCommandFailureReceiptV1 {
-    /// Signs one exact public payload as a failed command terminal receipt.
-    pub fn sign(
-        key: TenantRootCommandReplayKeyV1,
-        command_digest: TenantRootProtocolDigestV1,
-        payload: Vec<u8>,
-        terminal_at_ms: u64,
-        role_signing_key_id: impl Into<String>,
-        role_signing_key_bytes: &[u8; 32],
-    ) -> RouterAbDerivationResult<Self> {
-        sign_receipt(
-            TenantRootCommandTerminalOutcomeV1::Failure,
-            key,
-            command_digest,
-            payload,
-            terminal_at_ms,
-            role_signing_key_id.into(),
-            role_signing_key_bytes,
-        )
-        .map(|data| Self { data })
-    }
-
-    /// Returns the exact role-local replay key bound by this receipt.
-    pub const fn key(&self) -> &TenantRootCommandReplayKeyV1 {
-        &self.data.key
-    }
-
-    /// Returns the exact command digest bound by this receipt.
-    pub const fn command_digest(&self) -> TenantRootProtocolDigestV1 {
-        self.data.command_digest
-    }
-
-    /// Returns the exact public payload bytes.
-    pub fn payload_bytes(&self) -> &[u8] {
-        &self.data.payload
-    }
-
-    /// Returns the digest of the exact public payload bytes.
-    pub const fn payload_digest(&self) -> TenantRootProtocolDigestV1 {
-        self.data.payload_digest
-    }
-
-    /// Returns the terminal timestamp authenticated by the role signature.
-    pub const fn terminal_at_ms(&self) -> u64 {
-        self.data.terminal_at_ms
-    }
-
-    /// Returns the role signing-key identifier authenticated by the signature.
-    pub fn role_signing_key_id(&self) -> &str {
-        &self.data.role_signing_key_id
-    }
-
-    /// Returns the exact canonical signed receipt bytes.
-    pub fn canonical_bytes(&self) -> RouterAbDerivationResult<Vec<u8>> {
-        canonical_bytes(TenantRootCommandTerminalOutcomeV1::Failure, &self.data)
-    }
-
-    /// Returns the digest of the exact canonical signed receipt bytes.
-    pub fn digest(&self) -> RouterAbDerivationResult<TenantRootProtocolDigestV1> {
-        receipt_digest(self.canonical_bytes()?)
-    }
+    terminal_receipt_methods!(
+        receipt Failure,
+        "Signs one exact public payload as a failed command terminal receipt."
+    );
 
     /// Verifies this failed receipt against the exact reserved replay token.
     pub fn verify(
@@ -508,50 +512,7 @@ impl fmt::Debug for VerifiedTenantRootCommandSuccessReceiptV1 {
 }
 
 impl VerifiedTenantRootCommandSuccessReceiptV1 {
-    /// Returns the exact canonical signed receipt bytes accepted by verification.
-    pub fn canonical_bytes(&self) -> &[u8] {
-        &self.canonical_bytes
-    }
-
-    /// Returns the digest of the exact canonical signed receipt bytes.
-    pub const fn digest(&self) -> TenantRootProtocolDigestV1 {
-        self.digest
-    }
-
-    /// Returns the exact role-local replay key.
-    pub const fn key(&self) -> &TenantRootCommandReplayKeyV1 {
-        self.receipt.key()
-    }
-
-    /// Returns the exact command digest.
-    pub const fn command_digest(&self) -> TenantRootProtocolDigestV1 {
-        self.receipt.command_digest()
-    }
-
-    /// Returns the exact public payload bytes.
-    pub fn payload_bytes(&self) -> &[u8] {
-        self.receipt.payload_bytes()
-    }
-
-    /// Returns the exact public payload digest.
-    pub const fn payload_digest(&self) -> TenantRootProtocolDigestV1 {
-        self.receipt.payload_digest()
-    }
-
-    /// Returns the authenticated terminal timestamp.
-    pub const fn terminal_at_ms(&self) -> u64 {
-        self.receipt.terminal_at_ms()
-    }
-
-    /// Returns the authenticated role signing-key identifier.
-    pub fn role_signing_key_id(&self) -> &str {
-        self.receipt.role_signing_key_id()
-    }
-
-    /// Consumes this token into the exact canonical signed receipt bytes.
-    pub fn into_canonical_bytes(self) -> Vec<u8> {
-        self.canonical_bytes
-    }
+    terminal_receipt_methods!(verified);
 }
 
 /// Signature-verified failed terminal receipt.
@@ -575,50 +536,7 @@ impl fmt::Debug for VerifiedTenantRootCommandFailureReceiptV1 {
 }
 
 impl VerifiedTenantRootCommandFailureReceiptV1 {
-    /// Returns the exact canonical signed receipt bytes accepted by verification.
-    pub fn canonical_bytes(&self) -> &[u8] {
-        &self.canonical_bytes
-    }
-
-    /// Returns the digest of the exact canonical signed receipt bytes.
-    pub const fn digest(&self) -> TenantRootProtocolDigestV1 {
-        self.digest
-    }
-
-    /// Returns the exact role-local replay key.
-    pub const fn key(&self) -> &TenantRootCommandReplayKeyV1 {
-        self.receipt.key()
-    }
-
-    /// Returns the exact command digest.
-    pub const fn command_digest(&self) -> TenantRootProtocolDigestV1 {
-        self.receipt.command_digest()
-    }
-
-    /// Returns the exact public payload bytes.
-    pub fn payload_bytes(&self) -> &[u8] {
-        self.receipt.payload_bytes()
-    }
-
-    /// Returns the exact public payload digest.
-    pub const fn payload_digest(&self) -> TenantRootProtocolDigestV1 {
-        self.receipt.payload_digest()
-    }
-
-    /// Returns the authenticated terminal timestamp.
-    pub const fn terminal_at_ms(&self) -> u64 {
-        self.receipt.terminal_at_ms()
-    }
-
-    /// Returns the authenticated role signing-key identifier.
-    pub fn role_signing_key_id(&self) -> &str {
-        self.receipt.role_signing_key_id()
-    }
-
-    /// Consumes this token into the exact canonical signed receipt bytes.
-    pub fn into_canonical_bytes(self) -> Vec<u8> {
-        self.canonical_bytes
-    }
+    terminal_receipt_methods!(verified);
 }
 
 fn sign_receipt(
@@ -699,15 +617,20 @@ fn verify_receipt(
             "tenant-root command receipt terminal time precedes its replay checkpoint",
         ));
     }
-    let unsigned = unsigned_canonical_bytes(
-        outcome,
-        &data.key,
-        data.command_digest,
-        &data.payload,
-        data.payload_digest,
-        data.terminal_at_ms,
-        &data.role_signing_key_id,
-    )?;
+    let unsigned = verify_receipt_signature(outcome, data, trusted_role_verifying_key)?;
+    let canonical_bytes = canonical_bytes_from_unsigned(unsigned, &data.signature)?;
+    let digest = receipt_digest(canonical_bytes.clone())?;
+    Ok((data.clone(), canonical_bytes, digest))
+}
+
+/// Verifies only the role signature over a receipt's canonical bytes, returning
+/// the unsigned bytes it covers.
+fn verify_receipt_signature(
+    outcome: TenantRootCommandTerminalOutcomeV1,
+    data: &TenantRootCommandTerminalReceiptDataV1,
+    trusted_role_verifying_key: &[u8; 32],
+) -> RouterAbDerivationResult<Vec<u8>> {
+    let unsigned = data_unsigned_canonical_bytes(outcome, data)?;
     let verifying_key = VerifyingKey::from_bytes(trusted_role_verifying_key)
         .map_err(|_| malformed("tenant-root command role verifying key is invalid"))?;
     verifying_key
@@ -716,34 +639,7 @@ fn verify_receipt(
             &Signature::from_bytes(&data.signature),
         )
         .map_err(|_| verification_failed("tenant-root command role signature is invalid"))?;
-    let canonical_bytes = canonical_bytes_from_unsigned(unsigned, &data.signature)?;
-    let digest = receipt_digest(canonical_bytes.clone())?;
-    Ok((data.clone(), canonical_bytes, digest))
-}
-
-/// Verifies only the role signature over a receipt's canonical bytes.
-fn verify_receipt_signature(
-    outcome: TenantRootCommandTerminalOutcomeV1,
-    data: &TenantRootCommandTerminalReceiptDataV1,
-    trusted_role_verifying_key: &[u8; 32],
-) -> RouterAbDerivationResult<()> {
-    let unsigned = unsigned_canonical_bytes(
-        outcome,
-        &data.key,
-        data.command_digest,
-        &data.payload,
-        data.payload_digest,
-        data.terminal_at_ms,
-        &data.role_signing_key_id,
-    )?;
-    let verifying_key = VerifyingKey::from_bytes(trusted_role_verifying_key)
-        .map_err(|_| malformed("tenant-root command role verifying key is invalid"))?;
-    verifying_key
-        .verify_strict(
-            &role_authentication_input(data.key.role(), &data.role_signing_key_id, &unsigned)?,
-            &Signature::from_bytes(&data.signature),
-        )
-        .map_err(|_| verification_failed("tenant-root command role signature is invalid"))
+    Ok(unsigned)
 }
 
 fn decode_data(
@@ -881,11 +777,11 @@ fn unsigned_canonical_bytes(
     Ok(bytes)
 }
 
-fn canonical_bytes(
+fn data_unsigned_canonical_bytes(
     outcome: TenantRootCommandTerminalOutcomeV1,
     data: &TenantRootCommandTerminalReceiptDataV1,
 ) -> RouterAbDerivationResult<Vec<u8>> {
-    let unsigned = unsigned_canonical_bytes(
+    unsigned_canonical_bytes(
         outcome,
         &data.key,
         data.command_digest,
@@ -893,7 +789,14 @@ fn canonical_bytes(
         data.payload_digest,
         data.terminal_at_ms,
         &data.role_signing_key_id,
-    )?;
+    )
+}
+
+fn canonical_bytes(
+    outcome: TenantRootCommandTerminalOutcomeV1,
+    data: &TenantRootCommandTerminalReceiptDataV1,
+) -> RouterAbDerivationResult<Vec<u8>> {
+    let unsigned = data_unsigned_canonical_bytes(outcome, data)?;
     canonical_bytes_from_unsigned(unsigned, &data.signature)
 }
 
