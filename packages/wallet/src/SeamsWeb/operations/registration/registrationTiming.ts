@@ -848,16 +848,6 @@ export class RegistrationTimingRecorder {
     }
   }
 
-  measureSync<K extends RegistrationTimingBucketName, T>(bucket: K, operation: () => T): T {
-    const startedAt = performance.now();
-    try {
-      return operation();
-    } finally {
-      this.buckets[bucket] = roundDurationMs(startedAt);
-      this.recordSpan(bucket, startedAt, performance.now());
-    }
-  }
-
   record<K extends RegistrationTimingBucketName>(bucket: K, durationMs: number): void {
     const rounded = Math.max(0, Math.round(durationMs));
     this.buckets[bucket] += rounded;
@@ -884,24 +874,9 @@ export class RegistrationTimingRecorder {
     });
   }
 
-  mergeSnapshot(snapshot: RegistrationTimingBucketValues): void {
-    for (const key of Object.keys(snapshot) as RegistrationTimingBucketName[]) {
-      const value = snapshot[key];
-      if (value > 0 && this.buckets[key] === 0) {
-        this.buckets[key] = value;
-      }
-    }
-  }
-
   captureRouteDiagnostics(value: unknown): void {
     const sanitized = sanitizeWalletRegistrationRouteDiagnostics(value);
     if (sanitized) this.relayDiagnostics.push(sanitized);
-  }
-
-  captureRouteDiagnosticsSnapshot(snapshot: readonly WalletRegistrationRouteDiagnostics[]): void {
-    for (const diagnostics of snapshot) {
-      this.relayDiagnostics.push(copyWalletRegistrationRouteDiagnostics(diagnostics));
-    }
   }
 
   captureWarmupDiagnostics(diagnostics: RegistrationWarmupDiagnostics): void {
