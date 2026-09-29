@@ -1,15 +1,15 @@
 # Cleanup 1: dead, duplicated and boilerplate code
 
 **Status:** Phases 0 to 3 are complete, apart from moving finished plans,
-which waits for a decision. Phase 2's follow-ups have consolidated the store
-and worker clusters outside R150's files, and several oversized files are
-split along their seams. Phase 4 waits for R150 to land on `dev`. CI runs
+which waits for a decision. Phase 2's follow-ups have consolidated the store,
+worker, route and fixture clusters outside R150's files, and split oversized
+files along their seams. Phase 4 waits for R150 to land on `dev`. CI runs
 `pnpm report:bloat --check`, which fails when a ratcheted measure grows past
-`scripts/bloat-baseline.json`, now recorded at `2e7cb6d`. Since the first
-baseline (`7c8a163`), TypeScript code is down 32,058 lines and Rust code 4,788;
-TypeScript duplication is down from 5.1% to 3.6%, and files over 2,000 lines
-from 82 to 73. The findings below are the first baseline's; run
-`pnpm report:bloat` for current numbers.
+`scripts/bloat-baseline.json`, now recorded at `db1a101`. Since the first
+baseline (`7c8a163`), TypeScript code is down 33,308 lines and Rust code 5,275.
+Duplication is down from 5.1% to 3.3% in TypeScript and from 5.7% to 5.2% in
+Rust, and files over 2,000 lines from 82 to 69. The findings below are the
+first baseline's; run `pnpm report:bloat` for current numbers.
 
 This plan reduces the code that has to be read, reviewed and kept consistent,
 without changing behavior. The repository holds about 540k lines of TypeScript
@@ -339,10 +339,39 @@ the same proof standard.
   unwired use-case layer and the 1,522-line `SeamsWebIframe.ts`. Workers,
   ESM output, the boot path, published declarations and every entry
   listing are unchanged.
-- [ ] In progress: `ecdsaCapabilityManifestStore.ts`, `linkDevice.ts`,
-  `accountLifecycle.ts`, `sealedSessionStore.ts`,
-  `device-linking-key.worker.ts`, the `passkeyCustody.ts` routes, and the
-  dead modules that were held back.
+- [x] More oversized files and clusters, each proven the same way:
+  - `ecdsaCapabilityManifestStore.ts`: deduplicated and split into five
+    modules, which also removes its import cycle with `repositories.ts`
+    (e5854d0, daacaea).
+  - `linkDevice.ts`: deduplicated, split into entry, flow, target activation
+    and support, and its dead reset, `'consuming'` state and QR shim deleted
+    (96e4955, 9e68d43, c3192da).
+  - `device-linking-key.worker.ts`: deduplicated and split (8574780, 07cae8c).
+  - `passkeyCustody.ts` routes: deduplicated under 2,000 lines (66501a0).
+  - `accountLifecycle.ts`: deduplicated (e6998cf). Its split is held: it
+    would add three SDK chunks and about 1.1 kB gzip for a file only 119
+    lines over the limit.
+  - Wallet-server: the unlock route handlers, wallet session stores and
+    seal transport (52db347, 786c62e, 9192050).
+  - Wallet: recovery-code rotation, Ed25519 Yao local material, the active
+    ECDSA runtime, and the account-menu dialogs and stroke icons (aa649dc,
+    3131c3f, a34fcac, db1a101). `SeamsWeb.ts` was skipped for R150
+    activity.
+  - Three more unreachable wallet modules and the shared-ts code only they
+    used (32f95bf), and small leftovers (904c5e8, 3e9ca39).
+- [x] Rust outside R150's crates: `router-ab-core`'s activation evidence
+  and receipt and its test support (9580057, 6b278d6, 257caab); the restore
+  grants' shared envelope, the terminal receipts, and the restore refresh
+  command on the shared wire (722d5a2, f156b76, 6fe4ed4); the seams-cli test
+  helpers (f2929fa). Each proved its encoded bytes unchanged with the
+  committed vectors and a before/after probe. `ed25519_yao_router.rs` was
+  skipped for R150 activity.
+- [ ] `sealedSessionStore.ts`, in progress.
+- Not shared, because each would need a new crate or dependency, or a
+  source include across crates: `wasm/evm_crypto` and `wasm/tempo_signer`'s
+  byte-identical `errors.rs` (61 lines each); the seams-cli and
+  seams-recovery-core test helpers; and the Yao client and ceremony test
+  harness.
 
 **Exit:** each listed cluster has one implementation, and both languages'
 duplication is below the baseline.
@@ -462,9 +491,10 @@ conflict with the agents changing them.
   remove their 27 refactor citations.
 - [ ] Merge the shared halves of `thresholdEcdsa.ts` and `thresholdEd25519.ts`
   (89 runs).
-- [ ] `tenant_root_restore_refresh_role_command.rs` repeats the role-command
+- [x] `tenant_root_restore_refresh_role_command.rs` repeats the role-command
   encoder that 7fc5eda shared, with its own label and a 24 KiB limit; its
-  encoder can use the shared wire, but its decoder's messages differ.
+  encoder can use the shared wire, but its decoder's messages differ
+  (6fe4ed4).
 - [ ] Replace `?: never` padding (2,684 lines) with a shared exclusive-union helper
   where it shortens definitions without changing the types; prove identity as in
   the `Variant` pass.
@@ -650,3 +680,11 @@ Found during the cleanup and left unchanged, for their owners to check:
   over 2,000 lines 82 -> 73; duplicated TypeScript lines 21,753 (5.1%) ->
   14,564 (3.6%); validation functions 4,276 -> 3,794 (86,063 -> 75,245
   lines). The baseline was re-recorded at `2e7cb6d`.
+- 2026-09-29: more follow-ups: the manifest store, device-linking flow and
+  worker, passkey custody routes, account lifecycle, wallet-server and wallet
+  clusters, the account-menu dialogs, three more unreachable modules, and two
+  Rust batches in router-ab-core and seams-cli. Against the first baseline,
+  measured at `db1a101`: TypeScript code 539,841 -> 506,533 lines; Rust code
+  433,451 -> 428,176; files over 2,000 lines 82 -> 69; duplicated TypeScript
+  lines 21,753 (5.1%) -> 13,441 (3.3%); duplicated Rust lines 19,427 (5.7%)
+  -> 17,492 (5.2%). The baseline was re-recorded at `db1a101`.
