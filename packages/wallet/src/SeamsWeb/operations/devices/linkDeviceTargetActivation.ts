@@ -66,11 +66,6 @@ export type TargetCredentialActivationState =
       readonly kind: 'factor_ready';
       readonly runEpoch: number;
       readonly factorSecret: Uint8Array;
-    }
-  | {
-      readonly kind: 'consuming';
-      readonly runEpoch: number;
-      readonly factorSecret: Uint8Array;
     };
 
 export type EmailOtpTargetActivationBaseContextV1 = {
@@ -210,10 +205,7 @@ export function resolvePostLinkActivationV1(input: {
   switch (input.targetFactor.kind) {
     case 'verified_passkey_target_v1': {
       const activation = input.targetCredentialActivationState;
-      if (
-        (activation.kind !== 'factor_ready' && activation.kind !== 'consuming') ||
-        activation.runEpoch !== input.runEpoch
-      ) {
+      if (activation.kind !== 'factor_ready' || activation.runEpoch !== input.runEpoch) {
         throw new Error('linked-device Passkey factor runtime is unavailable');
       }
       return {

@@ -330,19 +330,6 @@ export class LinkDeviceFlow {
     });
   }
 
-  async reset(): Promise<void> {
-    if (this.hasCommittedDeliveryState()) {
-      throw new Error('Device-link authority delivery is committed and must be resumed');
-    }
-    this.runEpoch += 1;
-    this.cancelled = true;
-    await this.cleanupLocalResources();
-    this.session = null;
-    this.error = undefined;
-    this.cancelled = false;
-    this.handledStates.clear();
-  }
-
   private async resolveLinkIdentityV1(
     linkSessionId: import('@shared/signing-lanes/ids').LinkDeviceSessionId,
   ): Promise<{
@@ -1041,13 +1028,6 @@ export class LinkDeviceFlow {
           );
         }
         return Promise.reject(new LinkDeviceFlowSupersededError());
-      case 'consuming':
-        if (this.targetCredentialActivationState.runEpoch === input.runEpoch) {
-          return Promise.reject(
-            new Error('Device-link target passkey activation is already being consumed'),
-          );
-        }
-        return Promise.reject(new LinkDeviceFlowSupersededError());
       default:
         return assertNeverTargetCredentialActivationState(this.targetCredentialActivationState);
     }
@@ -1123,7 +1103,7 @@ export class LinkDeviceFlow {
 
   private clearTargetCredentialActivationState(): void {
     const state = this.targetCredentialActivationState;
-    if (state.kind === 'factor_ready' || state.kind === 'consuming') {
+    if (state.kind === 'factor_ready') {
       zeroizeLiveBytes(state.factorSecret);
     }
     this.targetCredentialActivationState = { kind: 'idle' };
