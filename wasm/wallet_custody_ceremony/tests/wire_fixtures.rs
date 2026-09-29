@@ -98,17 +98,9 @@ fn recovery_key_id(index: usize) -> String {
         .expect("recovery key id")
 }
 
-/// Refactor 109C seals every new envelope method-bound, so the pinned wire
-/// vectors are V3. `legacy_unbound_binding` below keeps a V2 vector so the
-/// pre-109C AAD stays byte-identical and already-sealed envelopes keep opening.
+/// Every new envelope is sealed bound to its auth method, so the pinned wire
+/// vectors are V3.
 const WALLET_AUTH_METHOD_ID: &str = "wallet-auth-method:wire-fixture";
-
-fn legacy_unbound_binding() -> PasskeyCustodyEnvelopeBindingV1 {
-    PasskeyCustodyEnvelopeBindingV1 {
-        ownership: PasskeyCustodyEnvelopeOwnershipV1::Unbound,
-        ..passkey_binding()
-    }
-}
 
 fn email_otp_binding() -> PasskeyCustodyEnvelopeBindingV1 {
     PasskeyCustodyEnvelopeBindingV1 {

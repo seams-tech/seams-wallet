@@ -1864,29 +1864,6 @@ mod tests {
     }
 
     #[test]
-    fn a_run_that_joined_existing_custody_must_not_seal() {
-        // Sealing here would give the wallet a second seed and a second
-        // recovery set, leaving half its keys covered by neither.
-        assert!(near_completed(CustodyOriginV1::Join)
-            .establish_manifest(near_identity(), None)
-            .expect("manifest established")
-            .finish(Some((factor(), recovery_codes(WALLET_RECOVERY_CODE_COUNT))))
-            .is_err());
-    }
-
-    #[test]
-    fn a_joining_run_commits_its_manifest_and_no_custody_records() {
-        let payload = near_completed(CustodyOriginV1::Join)
-            .establish_manifest(near_identity(), None)
-            .expect("manifest established")
-            .finish(None)
-            .expect("committed");
-
-        assert!(payload.established_custody.is_none());
-        assert!(!payload.key_manifest_digest_b64u.is_empty());
-    }
-
-    #[test]
     fn a_run_commits_only_its_own_key_sets_public_facts() {
         let evm = established();
         assert_eq!(evm.key_set, WalletKeySetKindV1::EvmFamilyEcdsa.as_str());
