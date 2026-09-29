@@ -225,6 +225,72 @@ impl TenantRootActivationReceiptAvailabilityV1 {
     }
 }
 
+/// Accessors both receipt bindings share, each reading the binding's own field of
+/// the same name, and the constructor check both run after building the fields.
+macro_rules! activation_receipt_binding_accessors {
+    () => {
+        /// Returns the server-resolved tenant-root identity digest.
+        pub const fn identity_digest(&self) -> TenantRootIdentityDigestV1 {
+            self.identity_digest
+        }
+
+        /// Returns the deployment-local custody lineage.
+        pub const fn custody_lineage(&self) -> TenantRootCustodyLineageId {
+            self.custody_lineage
+        }
+
+        /// Returns the expected control-plane revision.
+        pub const fn expected_control_plane_revision(&self) -> u64 {
+            self.expected_control_plane_revision
+        }
+
+        /// Returns both exact role installation receipt digests.
+        pub const fn installation_receipts(&self) -> TenantRootRoleInstallationReceiptsV1 {
+            self.installation_receipts
+        }
+
+        /// Returns the exact availability branch authenticated by this binding.
+        pub const fn availability(&self) -> &TenantRootActivationReceiptAvailabilityV1 {
+            &self.availability
+        }
+
+        /// Returns both exact continuity-canary receipt digests.
+        pub const fn canary_receipts(&self) -> TenantRootCanaryReceiptsV1 {
+            self.canary_receipts
+        }
+
+        /// Returns the authenticated activation time.
+        pub const fn activated_at_ms(&self) -> u64 {
+            self.activated_at_ms
+        }
+
+        /// Returns the tenant-root control-plane authority.
+        pub const fn authority_id(&self) -> TenantRootControlPlaneAuthorityIdV1 {
+            self.authority_id
+        }
+
+        /// Returns the receipt issue time.
+        pub const fn issued_at_ms(&self) -> u64 {
+            self.issued_at_ms
+        }
+
+        /// Returns the receipt expiry time.
+        pub const fn expires_at_ms(&self) -> u64 {
+            self.expires_at_ms
+        }
+
+        /// Returns the issuer key identifier authenticated by the signature.
+        pub fn issuer_key_id(&self) -> &str {
+            &self.issuer_key_id
+        }
+
+        fn validated(self) -> RouterAbDerivationResult<Self> {
+            self.validate()?;
+            Ok(self)
+        }
+    };
+}
+
 /// Unsigned public fields expected for initial-creation activation.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TenantRootInitialCreationActivationReceiptBindingV1 {
@@ -255,62 +321,28 @@ impl TenantRootInitialCreationActivationReceiptBindingV1 {
     ) -> RouterAbDerivationResult<Self> {
         bundle.require_fresh(activated_at_ms)?;
         let context = bundle.context();
-        Self::new(
-            bundle.identity_digest(),
-            bundle.custody_lineage(),
-            bundle.context_digest(),
-            bundle.expected_control_plane_revision(),
-            bundle.result_control_plane_revision(),
-            bundle.commitments().clone(),
-            bundle.installation_receipts(),
-            TenantRootActivationReceiptAvailabilityV1::from_verified_availability(
+        Self {
+            identity_digest: bundle.identity_digest(),
+            custody_lineage: bundle.custody_lineage(),
+            context_digest: bundle.context_digest(),
+            expected_control_plane_revision: bundle.expected_control_plane_revision(),
+            result_control_plane_revision: bundle.result_control_plane_revision(),
+            commitments: bundle.commitments().clone(),
+            installation_receipts: bundle.installation_receipts(),
+            availability: TenantRootActivationReceiptAvailabilityV1::from_verified_availability(
                 bundle.availability(),
             )?,
-            bundle.canary_receipts(),
+            canary_receipts: bundle.canary_receipts(),
             activated_at_ms,
             authority_id,
-            context.issued_at_ms(),
-            context.expires_at_ms(),
-            issuer_key_id,
-        )
+            issued_at_ms: context.issued_at_ms(),
+            expires_at_ms: context.expires_at_ms(),
+            issuer_key_id: issuer_key_id.into(),
+        }
+        .validated()
     }
 
-    #[allow(clippy::too_many_arguments)]
-    fn new(
-        identity_digest: TenantRootIdentityDigestV1,
-        custody_lineage: TenantRootCustodyLineageId,
-        context_digest: TenantRootProtocolDigestV1,
-        expected_control_plane_revision: u64,
-        result_control_plane_revision: u64,
-        commitments: TenantRootEpochCommitmentsV1,
-        installation_receipts: TenantRootRoleInstallationReceiptsV1,
-        availability: TenantRootActivationReceiptAvailabilityV1,
-        canary_receipts: TenantRootCanaryReceiptsV1,
-        activated_at_ms: u64,
-        authority_id: TenantRootControlPlaneAuthorityIdV1,
-        issued_at_ms: u64,
-        expires_at_ms: u64,
-        issuer_key_id: impl Into<String>,
-    ) -> RouterAbDerivationResult<Self> {
-        let binding = Self {
-            identity_digest,
-            custody_lineage,
-            context_digest,
-            expected_control_plane_revision,
-            result_control_plane_revision,
-            commitments,
-            installation_receipts,
-            availability,
-            canary_receipts,
-            activated_at_ms,
-            authority_id,
-            issued_at_ms,
-            expires_at_ms,
-            issuer_key_id: issuer_key_id.into(),
-        };
-        binding.validate()?;
-        Ok(binding)
-    }
+    activation_receipt_binding_accessors!();
 
     /// Returns the fixed initial-creation transition.
     pub const fn transition(&self) -> TenantRootActivationReceiptTransitionV1 {
@@ -322,24 +354,9 @@ impl TenantRootInitialCreationActivationReceiptBindingV1 {
         TenantRootShareEpoch::INITIAL
     }
 
-    /// Returns the server-resolved tenant-root identity digest.
-    pub const fn identity_digest(&self) -> TenantRootIdentityDigestV1 {
-        self.identity_digest
-    }
-
-    /// Returns the deployment-local custody lineage.
-    pub const fn custody_lineage(&self) -> TenantRootCustodyLineageId {
-        self.custody_lineage
-    }
-
     /// Returns the exact creation ceremony context digest.
     pub const fn context_digest(&self) -> TenantRootProtocolDigestV1 {
         self.context_digest
-    }
-
-    /// Returns the expected control-plane revision.
-    pub const fn expected_control_plane_revision(&self) -> u64 {
-        self.expected_control_plane_revision
     }
 
     /// Returns the exact control-plane revision produced by activation.
@@ -350,46 +367,6 @@ impl TenantRootInitialCreationActivationReceiptBindingV1 {
     /// Returns the exact epoch-one A/B and root commitments.
     pub const fn commitments(&self) -> &TenantRootEpochCommitmentsV1 {
         &self.commitments
-    }
-
-    /// Returns both exact role installation receipt digests.
-    pub const fn installation_receipts(&self) -> TenantRootRoleInstallationReceiptsV1 {
-        self.installation_receipts
-    }
-
-    /// Returns the exact availability branch authenticated by this binding.
-    pub const fn availability(&self) -> &TenantRootActivationReceiptAvailabilityV1 {
-        &self.availability
-    }
-
-    /// Returns both exact continuity-canary receipt digests.
-    pub const fn canary_receipts(&self) -> TenantRootCanaryReceiptsV1 {
-        self.canary_receipts
-    }
-
-    /// Returns the authenticated activation time.
-    pub const fn activated_at_ms(&self) -> u64 {
-        self.activated_at_ms
-    }
-
-    /// Returns the tenant-root control-plane authority.
-    pub const fn authority_id(&self) -> TenantRootControlPlaneAuthorityIdV1 {
-        self.authority_id
-    }
-
-    /// Returns the receipt issue time.
-    pub const fn issued_at_ms(&self) -> u64 {
-        self.issued_at_ms
-    }
-
-    /// Returns the receipt expiry time.
-    pub const fn expires_at_ms(&self) -> u64 {
-        self.expires_at_ms
-    }
-
-    /// Returns the issuer key identifier authenticated by the signature.
-    pub fn issuer_key_id(&self) -> &str {
-        &self.issuer_key_id
     }
 
     fn validate(&self) -> RouterAbDerivationResult<()> {
@@ -450,71 +427,31 @@ impl TenantRootRefreshSwapActivationReceiptBindingV1 {
     ) -> RouterAbDerivationResult<Self> {
         bundle.require_fresh(activated_at_ms)?;
         let context = bundle.context();
-        Self::new(
-            bundle.identity_digest(),
-            bundle.custody_lineage(),
-            bundle.current_epoch(),
-            bundle.next_epoch(),
-            bundle.current_commitments().clone(),
-            bundle.next_commitments().clone(),
-            bundle.context_digest(),
-            bundle.expected_control_plane_revision(),
-            bundle.result_control_plane_revision(),
-            bundle.installation_receipts(),
-            TenantRootActivationReceiptAvailabilityV1::from_verified_availability(
+        Self {
+            identity_digest: bundle.identity_digest(),
+            custody_lineage: bundle.custody_lineage(),
+            current_epoch: bundle.current_epoch(),
+            next_epoch: bundle.next_epoch(),
+            current_commitments: bundle.current_commitments().clone(),
+            next_commitments: bundle.next_commitments().clone(),
+            context_digest: bundle.context_digest(),
+            expected_control_plane_revision: bundle.expected_control_plane_revision(),
+            result_control_plane_revision: bundle.result_control_plane_revision(),
+            installation_receipts: bundle.installation_receipts(),
+            availability: TenantRootActivationReceiptAvailabilityV1::from_verified_availability(
                 bundle.availability(),
             )?,
-            bundle.canary_receipts(),
+            canary_receipts: bundle.canary_receipts(),
             activated_at_ms,
             authority_id,
-            context.issued_at_ms(),
-            context.expires_at_ms(),
-            issuer_key_id,
-        )
+            issued_at_ms: context.issued_at_ms(),
+            expires_at_ms: context.expires_at_ms(),
+            issuer_key_id: issuer_key_id.into(),
+        }
+        .validated()
     }
 
-    #[allow(clippy::too_many_arguments)]
-    fn new(
-        identity_digest: TenantRootIdentityDigestV1,
-        custody_lineage: TenantRootCustodyLineageId,
-        current_epoch: TenantRootShareEpoch,
-        next_epoch: TenantRootShareEpoch,
-        current_commitments: TenantRootEpochCommitmentsV1,
-        next_commitments: TenantRootEpochCommitmentsV1,
-        context_digest: TenantRootProtocolDigestV1,
-        expected_control_plane_revision: u64,
-        result_control_plane_revision: u64,
-        installation_receipts: TenantRootRoleInstallationReceiptsV1,
-        availability: TenantRootActivationReceiptAvailabilityV1,
-        canary_receipts: TenantRootCanaryReceiptsV1,
-        activated_at_ms: u64,
-        authority_id: TenantRootControlPlaneAuthorityIdV1,
-        issued_at_ms: u64,
-        expires_at_ms: u64,
-        issuer_key_id: impl Into<String>,
-    ) -> RouterAbDerivationResult<Self> {
-        let binding = Self {
-            identity_digest,
-            custody_lineage,
-            current_epoch,
-            next_epoch,
-            current_commitments,
-            next_commitments,
-            context_digest,
-            expected_control_plane_revision,
-            result_control_plane_revision,
-            installation_receipts,
-            availability,
-            canary_receipts,
-            activated_at_ms,
-            authority_id,
-            issued_at_ms,
-            expires_at_ms,
-            issuer_key_id: issuer_key_id.into(),
-        };
-        binding.validate()?;
-        Ok(binding)
-    }
+    activation_receipt_binding_accessors!();
 
     /// Returns the fixed refresh-swap transition.
     pub const fn transition(&self) -> TenantRootActivationReceiptTransitionV1 {
@@ -531,24 +468,9 @@ impl TenantRootRefreshSwapActivationReceiptBindingV1 {
         self.next_epoch
     }
 
-    /// Returns the server-resolved tenant-root identity digest.
-    pub const fn identity_digest(&self) -> TenantRootIdentityDigestV1 {
-        self.identity_digest
-    }
-
-    /// Returns the deployment-local custody lineage.
-    pub const fn custody_lineage(&self) -> TenantRootCustodyLineageId {
-        self.custody_lineage
-    }
-
     /// Returns the exact refresh ceremony context digest.
     pub const fn context_digest(&self) -> TenantRootProtocolDigestV1 {
         self.context_digest
-    }
-
-    /// Returns the expected control-plane revision.
-    pub const fn expected_control_plane_revision(&self) -> u64 {
-        self.expected_control_plane_revision
     }
 
     /// Returns the exact control-plane revision produced by the swap.
@@ -564,46 +486,6 @@ impl TenantRootRefreshSwapActivationReceiptBindingV1 {
     /// Returns the exact commitments for the epoch being activated.
     pub const fn next_commitments(&self) -> &TenantRootEpochCommitmentsV1 {
         &self.next_commitments
-    }
-
-    /// Returns both exact role installation receipt digests.
-    pub const fn installation_receipts(&self) -> TenantRootRoleInstallationReceiptsV1 {
-        self.installation_receipts
-    }
-
-    /// Returns the exact availability branch authenticated by this binding.
-    pub const fn availability(&self) -> &TenantRootActivationReceiptAvailabilityV1 {
-        &self.availability
-    }
-
-    /// Returns both exact continuity-canary receipt digests.
-    pub const fn canary_receipts(&self) -> TenantRootCanaryReceiptsV1 {
-        self.canary_receipts
-    }
-
-    /// Returns the authenticated activation time.
-    pub const fn activated_at_ms(&self) -> u64 {
-        self.activated_at_ms
-    }
-
-    /// Returns the tenant-root control-plane authority.
-    pub const fn authority_id(&self) -> TenantRootControlPlaneAuthorityIdV1 {
-        self.authority_id
-    }
-
-    /// Returns the receipt issue time.
-    pub const fn issued_at_ms(&self) -> u64 {
-        self.issued_at_ms
-    }
-
-    /// Returns the receipt expiry time.
-    pub const fn expires_at_ms(&self) -> u64 {
-        self.expires_at_ms
-    }
-
-    /// Returns the issuer key identifier authenticated by the signature.
-    pub fn issuer_key_id(&self) -> &str {
-        &self.issuer_key_id
     }
 
     fn validate(&self) -> RouterAbDerivationResult<()> {
@@ -757,6 +639,20 @@ impl TenantRootActivationReceiptBindingV1 {
         match self {
             Self::InitialCreation(binding) => binding.issuer_key_id(),
             Self::RefreshSwap(binding) => binding.issuer_key_id(),
+        }
+    }
+
+    const fn installation_receipts(&self) -> TenantRootRoleInstallationReceiptsV1 {
+        match self {
+            Self::InitialCreation(binding) => binding.installation_receipts(),
+            Self::RefreshSwap(binding) => binding.installation_receipts(),
+        }
+    }
+
+    const fn canary_receipts(&self) -> TenantRootCanaryReceiptsV1 {
+        match self {
+            Self::InitialCreation(binding) => binding.canary_receipts(),
+            Self::RefreshSwap(binding) => binding.canary_receipts(),
         }
     }
 
@@ -1196,7 +1092,7 @@ fn decode_initial_creation_binding(
         "tenant-root initial activation issuer key id",
         TENANT_ROOT_ACTIVATION_ISSUER_KEY_ID_MAX_BYTES_V1,
     )?;
-    TenantRootInitialCreationActivationReceiptBindingV1::new(
+    TenantRootInitialCreationActivationReceiptBindingV1 {
         identity_digest,
         custody_lineage,
         context_digest,
@@ -1211,7 +1107,8 @@ fn decode_initial_creation_binding(
         issued_at_ms,
         expires_at_ms,
         issuer_key_id,
-    )
+    }
+    .validated()
 }
 
 fn decode_refresh_swap_binding(
@@ -1251,7 +1148,7 @@ fn decode_refresh_swap_binding(
         "tenant-root refresh activation issuer key id",
         TENANT_ROOT_ACTIVATION_ISSUER_KEY_ID_MAX_BYTES_V1,
     )?;
-    TenantRootRefreshSwapActivationReceiptBindingV1::new(
+    TenantRootRefreshSwapActivationReceiptBindingV1 {
         identity_digest,
         custody_lineage,
         current_epoch,
@@ -1269,7 +1166,8 @@ fn decode_refresh_swap_binding(
         issued_at_ms,
         expires_at_ms,
         issuer_key_id,
-    )
+    }
+    .validated()
 }
 
 fn decode_commitments(
@@ -1511,17 +1409,6 @@ fn unsigned_canonical_bytes(
                 &binding.result_control_plane_revision.to_be_bytes(),
             )?;
             append_commitments(&mut bytes, &binding.commitments)?;
-            append_installation_receipts(&mut bytes, &binding.installation_receipts)?;
-            append_availability(&mut bytes, &binding.availability)?;
-            append_canaries(&mut bytes, &binding.canary_receipts)?;
-            append_common_suffix(
-                &mut bytes,
-                binding.activated_at_ms,
-                binding.authority_id,
-                binding.issued_at_ms,
-                binding.expires_at_ms,
-                &binding.issuer_key_id,
-            )?;
         }
         TenantRootActivationReceiptBindingV1::RefreshSwap(binding) => {
             push_field(&mut bytes, &binding.current_epoch.get().get().to_be_bytes())?;
@@ -1537,19 +1424,19 @@ fn unsigned_canonical_bytes(
             )?;
             append_commitments(&mut bytes, &binding.current_commitments)?;
             append_commitments(&mut bytes, &binding.next_commitments)?;
-            append_installation_receipts(&mut bytes, &binding.installation_receipts)?;
-            append_availability(&mut bytes, &binding.availability)?;
-            append_canaries(&mut bytes, &binding.canary_receipts)?;
-            append_common_suffix(
-                &mut bytes,
-                binding.activated_at_ms,
-                binding.authority_id,
-                binding.issued_at_ms,
-                binding.expires_at_ms,
-                &binding.issuer_key_id,
-            )?;
         }
     }
+    append_installation_receipts(&mut bytes, &binding.installation_receipts())?;
+    append_availability(&mut bytes, binding.availability())?;
+    append_canaries(&mut bytes, &binding.canary_receipts())?;
+    append_common_suffix(
+        &mut bytes,
+        binding.activated_at_ms(),
+        binding.authority_id(),
+        binding.issued_at_ms(),
+        binding.expires_at_ms(),
+        binding.issuer_key_id(),
+    )?;
     if bytes.len() > TENANT_ROOT_ACTIVATION_RECEIPT_MAX_BYTES_V1 {
         return Err(malformed("tenant-root activation receipt wire is too long"));
     }

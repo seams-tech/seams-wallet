@@ -48,7 +48,7 @@ Three facts make a stop between steps 2 and 3 unrecoverable:
   retry does not match the active successor").
 - **A receipt is valid only inside its window.** Its activation time must fall
   within the ceremony window of at most five minutes (`validate_receipt_window`,
-  `router-ab-core/src/derivation/tenant_root_activation_receipt.rs:1456`), and a
+  `router-ab-core/src/derivation/tenant_root_activation_receipt.rs:1354`), and a
   first activation also requires freshness at the current time
   (`tenant_root_role_runtime.rs:3727`).
 
