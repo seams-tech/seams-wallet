@@ -30,7 +30,8 @@ Supporting entrypoints: `signTransactions.ts`, `signDelegate.ts`,
 2. Lane selection and auth mode: `shared/signingSessionAuthMode.ts`,
    `shared/routerAbEd25519WalletSessionState.ts`.
 3. Auth planning and confirmation: `signTransactions.ts`, `signDelegate.ts`,
-   `signNep413.ts`.
+   `signNep413.ts`. The delegate and NEP-413 flows share these steps in
+   `shared/signatureOnlySigning.ts`.
 4. Threshold admission: `nearSigningFlow.ts`.
 5. Payload and worker request assembly: `shared/signingMaterials.ts`,
    `chains/near/*`.

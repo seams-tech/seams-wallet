@@ -120,7 +120,7 @@ export function requireIssuedNearEd25519OperationStepUpAuthorization(args: {
   }
 }
 
-type RouterAbEd25519SignatureOnlyIntentWire =
+export type RouterAbEd25519SignatureOnlyIntentWire =
   | {
       kind: 'nep413_message_v1';
       message: string;

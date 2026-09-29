@@ -239,7 +239,7 @@ export type NearTransactionWithActionsPayload =
       ed25519SigningBoundary?: never;
     });
 
-type NearAdHocEd25519Selection =
+export type NearAdHocEd25519Selection =
   | {
       kind: 'authorized';
       selectedLane: SelectedEd25519Lane;
