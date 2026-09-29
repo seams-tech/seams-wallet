@@ -125,7 +125,8 @@ type IntendedHarnessAction =
   | 'exportEcdsaKey'
   | 'startDeviceLinkingAsTarget'
   | 'scanAndLinkDevice'
-  | 'revokeLinkedDevice';
+  | 'revokeLinkedDevice'
+  | 'revokeLinkedDeviceWithEmailOtp';
 
 const GOOGLE_ID_TOKEN_ACTIONS: ReadonlySet<IntendedHarnessAction> = new Set([
   'addEmailOtpAuthMethod',
@@ -134,6 +135,7 @@ const GOOGLE_ID_TOKEN_ACTIONS: ReadonlySet<IntendedHarnessAction> = new Set([
   'registerEmailOtpEcdsaOnlyWallet',
   'unlockWithAddedEmailOtp',
   'unlockEmailOtpWallet',
+  'revokeLinkedDeviceWithEmailOtp',
 ]);
 
 /** Test hooks into one signing action's lifecycle. */
@@ -1696,6 +1698,83 @@ export class IntendedBehaviourHarness {
   }
 
   /**
+   * Device 1 revokes its linked device with an email code from its Email OTP
+   * method, as the account menu does, so Device 1 must be unlocked with that
+   * method. The contract names the device and the time; the page requests a
+   * challenge bound to the revocation and presents the code.
+   */
+  async revokeLinkedDeviceWithOwnerEmailOtp(
+    options: { readonly refuseFirstRevocationCommit?: boolean } = {},
+  ): Promise<void> {
+    this.recordStage('revoke_linked_device_with_owner_email_otp');
+    const before = await this.readLinkedDeviceInventory();
+    const [linked, ...extra] = before.devices;
+    if (!linked || extra.length > 0) {
+      throw new Error(`revocation expects one linked device, found ${before.devices.length}`);
+    }
+    const targetWalletAuthMethodId = parseWalletAuthMethodId(linked.walletAuthMethodId);
+    if (!targetWalletAuthMethodId.ok) throw new Error(targetWalletAuthMethodId.error.message);
+    const requestedAtMs = Date.now();
+    const operationFingerprintDigest = String(
+      await computeWalletAuthMethodRevokeOperationFingerprintV1({
+        walletId: walletIdFromString(this.walletId),
+        targetWalletAuthMethodId: targetWalletAuthMethodId.value,
+        requestedAtMs,
+      }),
+    );
+    await this.page.evaluate(
+      presentLinkedDeviceRevocationToIntendedPage,
+      JSON.stringify({
+        walletAuthMethodId: linked.walletAuthMethodId,
+        requestedAtMs,
+        operationFingerprintDigest,
+      }),
+    );
+    const refusedCommit = options.refuseFirstRevocationCommit
+      ? await this.refuseFirstRevocationCommitOnce('linked_device')
+      : null;
+    let snapshot: IntendedPageSnapshot;
+    try {
+      snapshot = await this.runIntendedPageAction(
+        'revokeLinkedDeviceWithEmailOtp',
+        'intended-revoke-linked-device-email-otp',
+      );
+    } finally {
+      await refusedCommit?.release();
+    }
+    if (snapshot.action.status !== 'success') {
+      throw new Error(
+        `linked-device revocation with an email code ended with ${snapshot.action.status}: ${
+          snapshot.action.status === 'error' ? snapshot.action.error : ''
+        }`,
+      );
+    }
+    const result = snapshot.action.result;
+    if (result.kind !== 'linked_device_revoked') {
+      throw new Error(`linked-device revocation returned ${result.kind}`);
+    }
+    if (
+      result.walletId !== this.walletId ||
+      result.walletAuthMethodId !== linked.walletAuthMethodId
+    ) {
+      throw new Error(
+        `revocation removed ${result.walletAuthMethodId} of ${result.walletId}; expected ${linked.walletAuthMethodId}`,
+      );
+    }
+    refusedCommit?.assertRecovered('email_otp');
+    this.emailOtpVerificationCount += 1;
+
+    const after = await this.readLinkedDeviceInventory();
+    if (after.devices.length !== 0) {
+      throw new Error(`revoked device is still listed: ${JSON.stringify(after.devices)}`);
+    }
+    assertOwnerDevicesUnchanged(before, after, 'Linked-device revocation');
+    this.recordService(
+      `linked device revoked with an email code method=${result.walletAuthMethodId} authority=${result.authorityId} epoch=${result.revocationEpoch}`,
+    );
+  }
+
+  /**
    * Revocation retires Device 2's Wallet Session and signer activations, so
    * each signer family must refuse to sign rather than recover through
    * anything Device 1 still holds.
@@ -2192,7 +2271,7 @@ export class IntendedBehaviourHarness {
     const registration = this.requireRegisteredWalletForSigning();
     const sourceFamily = this.currentOperatingAuthFamily();
     const refusedCommit = options.refuseFirstRevocationCommit
-      ? await this.refuseFirstRevocationCommitOnce()
+      ? await this.refuseFirstRevocationCommitOnce('auth_method')
       : null;
     let snapshot: IntendedPageSnapshot;
     try {
@@ -2246,11 +2325,17 @@ export class IntendedBehaviourHarness {
    * only the Gateway's record of the revocation can answer, and the answer
    * must be exactly the one the retry received.
    */
-  private async refuseFirstRevocationCommitOnce(): Promise<{
+  private async refuseFirstRevocationCommitOnce(route: 'auth_method' | 'linked_device'): Promise<{
     readonly release: () => Promise<void>;
     readonly assertRecovered: (sourceFamily: 'passkey' | 'email_otp') => void;
   }> {
-    const revokePath = /\/wallets\/[^/]+\/auth-methods\/[^/]+\/revoke$/;
+    /* An auth method is revoked directly, or as a linked device's through
+       device management. Each route answers its refused commit its own way. */
+    const revokePath =
+      route === 'auth_method'
+        ? /\/wallets\/[^/]+\/auth-methods\/[^/]+\/revoke$/
+        : /\/wallet\/device-linking\/v1\/devices\/[^/]+\/revoke$/;
+    const label = route === 'auth_method' ? 'Auth-method revoke' : 'Linked-device revoke';
     /* The route needs the wallet's Origin, which Playwright's provisional
        headers may leave out of a forwarded request. */
     const origin = new URL(this.config.walletOrigin).origin;
@@ -2327,7 +2412,7 @@ export class IntendedBehaviourHarness {
         const replay: Attempt | null = replayed;
         if (attempts.length !== 2 || !refused || !committed || !replay) {
           throw new Error(
-            `Auth-method revoke expected a refused commit, one retry and a replay, saw ${attempts.length} attempts`,
+            `${label} expected a refused commit, one retry and a replay, saw ${attempts.length} attempts`,
           );
         }
         const expectedProof = `${token}:${
@@ -2337,44 +2422,47 @@ export class IntendedBehaviourHarness {
         }`;
         if (refused.proof !== expectedProof) {
           throw new Error(
-            `Auth-method revoke expected the refused-commit proof ${expectedProof}, saw ${refused.proof ?? 'none'}`,
+            `${label} expected the refused-commit proof ${expectedProof}, saw ${refused.proof ?? 'none'}`,
           );
         }
         const refusal = JSON.parse(refused.body) as {
           readonly ok?: unknown;
           readonly code?: unknown;
+          readonly kind?: unknown;
         };
-        if (refused.status !== 400 || refusal.ok !== false || refusal.code !== 'conflict') {
-          throw new Error(
-            `Auth-method revoke's refused commit answered ${refused.status}: ${refused.body}`,
-          );
+        const refusedAsConflict =
+          route === 'auth_method'
+            ? refused.status === 400 && refusal.ok === false && refusal.code === 'conflict'
+            : refused.status === 409 && refusal.ok === false && refusal.kind === 'conflict';
+        if (!refusedAsConflict) {
+          throw new Error(`${label}'s refused commit answered ${refused.status}: ${refused.body}`);
         }
         if (committed.request !== refused.request || replay.request !== refused.request) {
-          throw new Error('Auth-method revoke retry changed its request');
+          throw new Error(`${label} retry changed its request`);
         }
         const answer = JSON.parse(committed.body) as { readonly ok?: unknown };
         if (committed.status !== 200 || answer.ok !== true) {
           throw new Error(
-            `Auth-method revoke retry on the same proof answered ${committed.status}: ${committed.body}`,
+            `${label} retry on the same proof answered ${committed.status}: ${committed.body}`,
           );
         }
         if (replay.status !== committed.status || replay.body !== committed.body) {
           throw new Error(
-            `Auth-method revoke replay answered ${replay.status}: ${replay.body}, not the committed answer`,
+            `${label} replay answered ${replay.status}: ${replay.body}, not the committed answer`,
           );
         }
         if (changed.length !== 2) {
-          throw new Error(`Auth-method revoke sent ${changed.length} changed requests, expected 2`);
+          throw new Error(`${label} sent ${changed.length} changed requests, expected 2`);
         }
         for (const refusal of changed) {
           if (refusal.status !== 401 || refusal.body === committed.body) {
             throw new Error(
-              `Auth-method revoke with a changed ${refusal.change} answered ${refusal.status}: ${refusal.body}`,
+              `${label} with a changed ${refusal.change} answered ${refusal.status}: ${refusal.body}`,
             );
           }
         }
         this.recordService(
-          `auth-method revoke: a refused commit spent nothing, the retry committed on the same ${sourceFamily} proof, and a replay received the recorded answer`,
+          `${label}: a refused commit spent nothing, the retry committed on the same ${sourceFamily} proof, and a replay received the recorded answer`,
         );
       },
     };
@@ -7399,6 +7487,7 @@ function parseIntendedHarnessAction(raw: unknown): IntendedHarnessAction {
     case 'startDeviceLinkingAsTarget':
     case 'scanAndLinkDevice':
     case 'revokeLinkedDevice':
+    case 'revokeLinkedDeviceWithEmailOtp':
       return action;
     default:
       throw new Error(`Unknown intended action: ${action}`);

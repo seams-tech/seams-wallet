@@ -59,7 +59,8 @@ type IntendedActionName =
   | 'exportEcdsaKey'
   | 'startDeviceLinkingAsTarget'
   | 'scanAndLinkDevice'
-  | 'revokeLinkedDevice';
+  | 'revokeLinkedDevice'
+  | 'revokeLinkedDeviceWithEmailOtp';
 
 type IntendedAuthMethodIdentity = {
   readonly kind: 'passkey' | 'email_otp';
@@ -971,6 +972,15 @@ export const IntendedBehaviourE2EPage: React.FC = () => {
           >
             Revoke Linked Device
           </button>
+          <button
+            type="button"
+            data-testid="intended-revoke-linked-device-email-otp"
+            disabled={state.action.status === 'running'}
+            onClick={controller.runRevokeLinkedDeviceWithEmailOtp}
+            style={buttonStyle}
+          >
+            Revoke Linked Device With Email Code
+          </button>
         </div>
         <output
           data-testid="intended-action-status"
@@ -1142,6 +1152,10 @@ class IntendedPageController {
 
   runRevokeLinkedDevice = (): void => {
     void this.revokeLinkedDevice();
+  };
+
+  runRevokeLinkedDeviceWithEmailOtp = (): void => {
+    void this.revokeLinkedDeviceWithEmailOtp();
   };
 
   /**
@@ -2244,6 +2258,64 @@ class IntendedPageController {
         walletAuthMethodId: revocation.walletAuthMethodId,
         requestedAtMs: revocation.requestedAtMs,
         sourceProof: revocation.sourceProof,
+      });
+      if (result.kind !== 'revoked') {
+        throw new Error(`Linked-device revocation returned ${result.kind}`);
+      }
+      this.dispatch({
+        kind: 'action_succeeded',
+        action,
+        result: {
+          kind: 'linked_device_revoked',
+          walletId: this.walletId,
+          walletAuthMethodId: String(result.walletAuthMethodId),
+          authorityId: String(result.authorityId),
+          revocationEpoch: result.revocationEpoch,
+        },
+      });
+    } catch (error) {
+      this.dispatch({ kind: 'action_failed', action, error: errorMessage(error) });
+    }
+  }
+
+  /**
+   * Device 1 revokes its linked device with an email code, as the account
+   * menu does: a challenge bound to the revocation's operation, then the code
+   * as its fresh proof. The code comes from the dev outbox.
+   */
+  private async revokeLinkedDeviceWithEmailOtp(): Promise<void> {
+    const action: IntendedActionName = 'revokeLinkedDeviceWithEmailOtp';
+    this.dispatch({ kind: 'action_started', action });
+    try {
+      const rawRevocation = window.__seamsIntendedE2ELinkedDeviceRevocationJson;
+      delete window.__seamsIntendedE2ELinkedDeviceRevocationJson;
+      const revocation = parseIntendedLinkedDeviceEmailOtpRevocation(rawRevocation);
+      /* The code is sent under the added method's derived address, as for
+         the other added-method flows. */
+      intendedEmailOtpChallengeSubjectOverride = intendedGoogleEmailAddress(
+        requireGoogleIdToken(this.googleIdToken),
+      );
+      const operation: IntendedEmailOtpChallengeOperation = 'transaction_sign';
+      const challenge = await this.seams.auth.requestEmailOtpChallenge({
+        walletId: this.walletId,
+        operation,
+        operationFingerprintDigest: revocation.operationFingerprintDigest,
+      });
+      const otpCode = await this.readEmailOtpCodeForChallenge({
+        kind: 'challenge',
+        challengeId: challenge.challengeId,
+        walletId: this.walletId,
+      });
+      const result = await this.seams.devices.revokeLinkedDevice({
+        walletId: this.walletId,
+        walletAuthMethodId: revocation.walletAuthMethodId,
+        requestedAtMs: revocation.requestedAtMs,
+        sourceProof: {
+          kind: 'email_otp',
+          challengeId: challenge.challengeId,
+          otpCode,
+          ownerProofBindingDigest: challenge.ownerProofBindingDigest,
+        },
       });
       if (result.kind !== 'revoked') {
         throw new Error(`Linked-device revocation returned ${result.kind}`);
@@ -3770,6 +3842,56 @@ type IntendedLinkedDeviceRevocation = {
     IntendedSeams['devices']['revokeLinkedDevice']
   >[0]['sourceProof'];
 };
+
+type IntendedEmailOtpChallengeOperation = NonNullable<
+  Parameters<IntendedSeams['auth']['requestEmailOtpChallenge']>[0]['operation']
+>;
+type IntendedOperationFingerprintDigest = NonNullable<
+  Parameters<IntendedSeams['auth']['requestEmailOtpChallenge']>[0]['operationFingerprintDigest']
+>;
+
+type IntendedLinkedDeviceEmailOtpRevocation = {
+  readonly walletAuthMethodId: string;
+  readonly requestedAtMs: number;
+  readonly operationFingerprintDigest: IntendedOperationFingerprintDigest;
+};
+
+/**
+ * The contract names the device and the time; the page proves the
+ * revocation with a code. The fingerprint is the contract's, computed from
+ * the same three values the Gateway computes it from.
+ */
+function parseIntendedLinkedDeviceEmailOtpRevocation(
+  raw: unknown,
+): IntendedLinkedDeviceEmailOtpRevocation {
+  if (typeof raw !== 'string' || !raw) {
+    throw new Error('No linked-device revocation was presented to Device 1');
+  }
+  const parsed: unknown = JSON.parse(raw);
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error('Linked-device revocation must be an object');
+  }
+  const record = parsed as Record<string, unknown>;
+  const requestedAtMs = record.requestedAtMs;
+  if (typeof requestedAtMs !== 'number' || !Number.isSafeInteger(requestedAtMs)) {
+    throw new Error('linked-device revocation requestedAtMs must be a safe integer');
+  }
+  const digest = requireNonEmptyString(
+    record.operationFingerprintDigest,
+    'linked-device revocation operationFingerprintDigest',
+  );
+  if (!/^[A-Za-z0-9_-]{43}$/.test(digest)) {
+    throw new Error('linked-device revocation operationFingerprintDigest is not a SHA-256 digest');
+  }
+  return {
+    walletAuthMethodId: requireNonEmptyString(
+      record.walletAuthMethodId,
+      'linked-device revocation walletAuthMethodId',
+    ),
+    requestedAtMs,
+    operationFingerprintDigest: digest as IntendedOperationFingerprintDigest,
+  };
+}
 
 /** The contract hands the page one exact revocation; parse it before sending. */
 function parseIntendedLinkedDeviceRevocation(raw: unknown): IntendedLinkedDeviceRevocation {

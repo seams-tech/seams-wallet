@@ -6,7 +6,6 @@ import {
   parseWalletSessionMintId,
 } from '@shared/authorization/capabilityKinds';
 import { parseWalletAuthMethodId, parseWalletAuthorityId } from '@shared/utils/domainIds';
-import { computeWalletAuthMethodRevokeOperationFingerprintV1 } from '@shared/utils/registrationIntent';
 import type { WalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
 import {
   DEFAULT_WALLET_SESSION_REMAINING_USES,
@@ -150,6 +149,7 @@ import { createD1LinkedDeviceManagementServiceV1 } from '../deviceLinking/d1Link
 import { D1WalletAuthorityStore } from '../wallet/d1WalletAuthorityStore';
 import { D1WalletAuthMethodRevocationReplayStoreV1 } from '../wallet/d1WalletAuthMethodRevocationReplayStore';
 import { verifyD1LinkedDeviceFreshRevokeProofV1 } from '../wallet/d1WalletAuthMethodBoundary';
+import { createD1LinkedDeviceRevocationV1 } from '../deviceLinking/d1LinkedDeviceRevocation';
 import { createD1LinkedDeviceVerifiedLinkSourceReaderV1 } from '../deviceLinking/d1LinkedDeviceVerifiedLinkSourceReader';
 import { LinkedDeviceWebAuthnRegistrationVerifierV1 } from '../deviceLinking/d1LinkedDeviceTargetCredentialProvider';
 import {
@@ -367,7 +367,7 @@ function createD1LinkedDeviceComposition(input: {
     readonly issuer: Pick<CloudflareD1EmailOtpChallengeIssuer, 'create'>;
     readonly verifier: Pick<
       CloudflareD1EmailOtpChallengeVerifier,
-      'verifyExisting' | 'verifyRegistration'
+      'verifyExisting' | 'verifyExistingForBatch' | 'verifyRegistration'
     >;
     readonly enrollments: Pick<CloudflareD1EmailOtpEnrollmentStore, 'readEnrollment'>;
     readonly walletAuthMethodStore: {
@@ -430,31 +430,25 @@ function createD1LinkedDeviceComposition(input: {
       endpoint: deactivationEndpoint,
     }),
   });
-  const deviceManagement: RouterApiServiceBag['deviceManagement'] = {
+  const revokeLinkedDeviceWithFreshProof = createD1LinkedDeviceRevocationV1({
     management: deviceManagementService,
+    replays: new D1WalletAuthMethodRevocationReplayStoreV1({
+      database: input.options.database,
+      scope,
+    }),
+    authMethodStore: input.walletAuthMethodStore,
+    authorityStore,
     nowV1,
-    authenticateOwnerRequestV1: ownerRequestAuthenticator,
-    verifyFreshRevokeProofV1: async (proofInput) => {
-      const expectedOrigin = String(proofInput.request.headers.get('origin') || '').trim();
-      if (!expectedOrigin) {
-        return {
-          kind: 'denied' as const,
-          code: 'invalid' as const,
-          message: 'Fresh revocation proof requires an Origin header',
-        };
-      }
-      return await verifyD1LinkedDeviceFreshRevokeProofV1({
+    // The proof is left unspent here; an Email OTP code's spend rides in the revocation.
+    verifyProofForBatch: async (proofInput) =>
+      await verifyD1LinkedDeviceFreshRevokeProofV1({
         walletId: proofInput.walletId,
         orgId: String(input.options.orgId),
         targetWalletAuthMethodId: proofInput.targetWalletAuthMethodId,
         proof: proofInput.proof,
-        expectedOrigin,
-        verifiedAtMs: proofInput.requestedAtMs,
-        operationFingerprintDigest: await computeWalletAuthMethodRevokeOperationFingerprintV1({
-          walletId: proofInput.walletId,
-          targetWalletAuthMethodId: proofInput.targetWalletAuthMethodId,
-          requestedAtMs: proofInput.requestedAtMs,
-        }),
+        expectedOrigin: proofInput.expectedOrigin,
+        verifiedAtMs: proofInput.verifiedAtMs,
+        operationFingerprintDigest: proofInput.operationFingerprintDigest,
         walletAuthMethodStore: input.walletAuthMethodStore,
         verifyWebAuthnAuthenticationLite: async (verifyInput) => {
           const credential = parseWebAuthnAuthenticationCredential(
@@ -476,13 +470,34 @@ function createD1LinkedDeviceComposition(input: {
         ...(input.emailOtpLinkedDevice === undefined
           ? {}
           : {
-              verifyEmailOtpExisting: input.emailOtpLinkedDevice.verifier.verifyExisting.bind(
-                input.emailOtpLinkedDevice.verifier,
-              ),
+              verifyEmailOtpExistingForBatch:
+                input.emailOtpLinkedDevice.verifier.verifyExistingForBatch.bind(
+                  input.emailOtpLinkedDevice.verifier,
+                ),
               readEmailOtpEnrollment: input.emailOtpLinkedDevice.enrollments.readEnrollment.bind(
                 input.emailOtpLinkedDevice.enrollments,
               ),
             }),
+      }),
+  });
+  const deviceManagement: RouterApiServiceBag['deviceManagement'] = {
+    management: deviceManagementService,
+    nowV1,
+    authenticateOwnerRequestV1: ownerRequestAuthenticator,
+    revokeLinkedDeviceWithFreshProofV1: async (revokeInput) => {
+      const expectedOrigin = String(revokeInput.httpRequest.headers.get('origin') || '').trim();
+      if (!expectedOrigin) {
+        return {
+          kind: 'denied' as const,
+          code: 'invalid' as const,
+          message: 'Fresh revocation proof requires an Origin header',
+        };
+      }
+      return await revokeLinkedDeviceWithFreshProof({
+        request: revokeInput.request,
+        owner: revokeInput.owner,
+        proof: revokeInput.proof,
+        expectedOrigin,
       });
     },
   };

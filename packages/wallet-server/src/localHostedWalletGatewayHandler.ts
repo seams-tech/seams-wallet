@@ -86,6 +86,7 @@ import {
   responseWithLocalIntendedLinkExecuteFaultOutcomeV1,
 } from './localIntendedLinkExecuteFault';
 import {
+  LINKED_DEVICE_REVOKE_PATH_PATTERN_V1,
   LOCAL_INTENDED_REVOKE_FAULT_HEADER_V1,
   LOCAL_INTENDED_REVOKE_FAULT_TOKEN_HEADER_V1,
   LocalIntendedRevokeFaultDatabaseV1,
@@ -467,7 +468,10 @@ async function handleRevokeFault(
   if (
     url.protocol !== 'http:' ||
     url.hostname !== '127.0.0.1' ||
-    !WALLET_REVOKE_AUTH_METHOD_PATH_PATTERN_V1.test(url.pathname) ||
+    !(
+      WALLET_REVOKE_AUTH_METHOD_PATH_PATTERN_V1.test(url.pathname) ||
+      LINKED_DEVICE_REVOKE_PATH_PATTERN_V1.test(url.pathname)
+    ) ||
     request.method !== 'POST' ||
     !mode ||
     !token

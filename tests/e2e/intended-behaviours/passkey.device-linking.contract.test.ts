@@ -108,3 +108,32 @@ test('a linked device links a third device, which signs NEAR and Tempo and expor
   await device2.signNearTransaction('post_unlock');
   await harness.signTempoTransaction('post_registration');
 });
+
+/**
+ * Device 1 revokes Device 2 with an email code from the Email OTP method it
+ * added. The Gateway refuses the revocation's first commit and that answer is
+ * lost too, so the SDK sends the exact request again. The code is spent only
+ * by the batch that revokes, so the retry commits on it. The committed request
+ * sent once more is answered from the record, exactly, although its code is
+ * spent, and copies naming another time or another code are refused. Device 2
+ * then cannot sign, and Device 1 still signs.
+ */
+test('a linked device revoked with an email code across a refused commit is answered from what committed', async ({
+  harness,
+  browser,
+}) => {
+  await harness.registerPasskeyWallet();
+  await harness.awaitNearReady();
+
+  const device2 = await harness.openLinkedDevice(browser);
+  await harness.linkDeviceWithPasskey(device2);
+  await device2.signTempoTransaction('post_device_link');
+
+  /* Added after linking, which proves with the wallet's one founding passkey.
+     The code proves the revocation only from a session on its own method. */
+  await harness.addEmailOtpAuthMethod();
+  await harness.unlockWithAddedEmailOtp();
+  await harness.revokeLinkedDeviceWithOwnerEmailOtp({ refuseFirstRevocationCommit: true });
+  await device2.assertRevokedDeviceCannotSign();
+  await harness.signTempoTransaction('post_unlock');
+});

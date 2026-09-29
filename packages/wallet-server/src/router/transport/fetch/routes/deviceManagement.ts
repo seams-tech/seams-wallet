@@ -1,5 +1,7 @@
 import type {
   LinkedDeviceListRequestV1,
+  LinkedDeviceRevokeRequestV1,
+  LinkedDeviceRevokeResultV1,
 } from '@shared/device-linking/contracts';
 import {
   parseLinkedDeviceListRequestV1,
@@ -10,7 +12,6 @@ import {
   parseWalletAuthMethodId,
   parseWebAuthnRpId,
   type WalletAuthMethodId,
-  type WalletId,
 } from '@shared/utils/domainIds';
 import { base64UrlEncode } from '@shared/utils/base64';
 import { sha256Bytes } from '@shared/utils/digests';
@@ -24,7 +25,6 @@ import {
   LinkedDeviceListCursorError,
   MAX_LINKED_DEVICE_LIST_LIMIT_V1,
   type LinkedDeviceManagementSourceV1,
-  type LinkedDeviceManagementRevocationSourceV1,
   type LinkedDeviceManagementServiceV1,
 } from '../../../../core/deviceLinking/linkedDeviceManagement';
 import type { D1LinkedDeviceFreshRevokeProofV1 } from '../../../cloudflare/d1/wallet/d1WalletAuthMethodBoundary';
@@ -35,29 +35,23 @@ export const LINKED_DEVICE_MANAGEMENT_BASE_V1 = '/wallet/device-linking/v1/devic
 export const LINKED_DEVICE_MANAGEMENT_MAX_PAGE_SIZE_V1 = MAX_LINKED_DEVICE_LIST_LIMIT_V1;
 
 export type DeviceManagementRouteServiceV1 = {
-  readonly management: Pick<
-    LinkedDeviceManagementServiceV1,
-    'listLinkedDevicesV1' | 'revokeLinkedDeviceV1'
-  >;
+  readonly management: Pick<LinkedDeviceManagementServiceV1, 'listLinkedDevicesV1'>;
   readonly nowV1: () => number;
   authenticateOwnerRequestV1(
     input: DeviceLinkingOwnerRequestInputV1,
   ): Promise<DeviceLinkingAuthenticatedRequestV1 | DeviceLinkingAuthDeniedV1>;
-  verifyFreshRevokeProofV1(input: {
-    readonly walletId: WalletId;
-    readonly targetWalletAuthMethodId: WalletAuthMethodId;
+  /**
+   * Verifies the fresh proof and revokes in one call. An exact retry of a
+   * committed revocation is answered from its record, before its proof is
+   * examined again.
+   */
+  revokeLinkedDeviceWithFreshProofV1(input: {
+    readonly request: LinkedDeviceRevokeRequestV1;
+    readonly owner: LinkedDeviceManagementSourceV1;
     readonly proof: D1LinkedDeviceFreshRevokeProofV1;
-    readonly request: Request;
-    readonly method: string;
-    readonly pathname: string;
-    readonly bodyDigestB64u: DigestB64u;
-    readonly requestedAtMs: number;
+    readonly httpRequest: Request;
   }): Promise<
-    | {
-        readonly kind: 'authorized';
-        readonly walletAuthMethodId: WalletAuthMethodId;
-        readonly verifiedAtMs: number;
-      }
+    | { readonly kind: 'answered'; readonly result: LinkedDeviceRevokeResultV1 }
     | DeviceLinkingAuthDeniedV1
   >;
 };
@@ -156,31 +150,22 @@ async function handleRevoke(
     throw new DeviceManagementInputError('revoke path and body wallet auth method ids must agree');
   }
   if (authentication.owner.walletId !== request.walletId) return unauthorizedResponse();
-  const freshProof = await service.verifyFreshRevokeProofV1({
-    walletId: request.walletId,
-    targetWalletAuthMethodId: request.walletAuthMethodId,
-    proof: parsedBody.proof,
-    request: ctx.request,
-    method: ctx.method,
-    pathname: ctx.pathname,
-    bodyDigestB64u: body.digestB64u,
-    requestedAtMs: request.requestedAtMs,
-  });
-  if (freshProof.kind !== 'authorized') return authDeniedResponse(freshProof);
-  const source: LinkedDeviceManagementRevocationSourceV1 = {
-    walletId: authentication.owner.walletId,
-    walletSessionId: authentication.owner.walletSessionId,
-    authorizationId: authentication.owner.authorizationId,
-    expiresAtMs: authentication.owner.expiresAtMs,
-    freshProof: {
-      walletAuthMethodId: freshProof.walletAuthMethodId,
-      verifiedAtMs: freshProof.verifiedAtMs,
-    },
-  };
   if (request.requestedAtMs > nowMs) {
     throw new DeviceManagementInputError('revoke request is from the future');
   }
-  const result = await service.management.revokeLinkedDeviceV1(request, source);
+  const outcome = await service.revokeLinkedDeviceWithFreshProofV1({
+    request,
+    owner: {
+      walletId: authentication.owner.walletId,
+      walletSessionId: authentication.owner.walletSessionId,
+      authorizationId: authentication.owner.authorizationId,
+      expiresAtMs: authentication.owner.expiresAtMs,
+    },
+    proof: parsedBody.proof,
+    httpRequest: ctx.request,
+  });
+  if (outcome.kind === 'denied') return authDeniedResponse(outcome);
+  const result = outcome.result;
   switch (result.kind) {
     case 'revoked':
       return json({ ok: true, ...result }, { status: 200 });

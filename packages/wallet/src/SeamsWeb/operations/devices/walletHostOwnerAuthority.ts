@@ -25,6 +25,17 @@ import { awaitNearProvisioningInFlight } from '@/core/signingEngine/flows/regist
 
 const OWNER_AUTHORIZATION_PATH = '/wallet/device-linking/v1/owner-authorization';
 
+/** An owner request that received no answer: the network failed, or it timed out. */
+export class WalletHostOwnerRequestTransportError extends Error {
+  constructor(
+    readonly code: 'network_error' | 'timeout',
+    message: string,
+  ) {
+    super(`Owner Router request failed: ${message}`);
+    this.name = 'WalletHostOwnerRequestTransportError';
+  }
+}
+
 export type WalletHostManagementRequestV1 = {
   request(input: {
     readonly walletId: WalletId;
@@ -297,7 +308,7 @@ async function requestWithCredentialV1(
     headers: { authorization: `Bearer ${walletSessionToken}` },
     ...(input.body === undefined ? {} : { body: input.body }),
   });
-  if (!response.ok) throw new Error(`Owner Router request failed: ${response.message}`);
+  if (!response.ok) throw new WalletHostOwnerRequestTransportError(response.code, response.message);
   return response.value;
 }
 

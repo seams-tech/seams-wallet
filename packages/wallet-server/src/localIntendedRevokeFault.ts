@@ -6,11 +6,14 @@ export const LOCAL_INTENDED_REVOKE_FAULT_TOKEN_HEADER_V1 = 'x-seams-intended-rev
 const LOCAL_INTENDED_REVOKE_FAULT_PROOF_HEADER_V1 = 'x-seams-intended-revoke-fault-proof-v1';
 export const WALLET_REVOKE_AUTH_METHOD_PATH_PATTERN_V1 =
   /^\/wallets\/[^/]+\/auth-methods\/[^/]+\/revoke$/;
+/** A linked device's method, revoked through device management. */
+export const LINKED_DEVICE_REVOKE_PATH_PATTERN_V1 =
+  /^\/wallet\/device-linking\/v1\/devices\/[^/]+\/revoke$/;
 
 /**
  * `refuse_revocation_batch_once` refuses the batch that would revoke an auth
- * method and record its answer, as a commit that failed: nothing in it is
- * written. The proof says whether that batch carried the spend of the
+ * method, directly or as a linked device's, and record its answer, as a
+ * commit that failed: nothing in it is written. The proof says whether that batch carried the spend of the
  * request's Email OTP code, and whether anything spent a code outside it. A
  * code spent before its revocation commits is lost with a failed commit, and
  * the request could not be sent again.

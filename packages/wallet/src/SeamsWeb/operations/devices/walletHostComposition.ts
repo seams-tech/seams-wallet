@@ -20,7 +20,10 @@ import type {
   DeviceLinkingSourceContributionPortV1,
 } from './deviceLinkingPorts';
 import type { LinkedDeviceManagementPortV1 } from '@/SeamsWeb/publicApi/devices';
-import type { WalletHostManagementRequestV1 } from './walletHostOwnerAuthority';
+import {
+  WalletHostOwnerRequestTransportError,
+  type WalletHostManagementRequestV1,
+} from './walletHostOwnerAuthority';
 
 export const LINKED_DEVICE_MANAGEMENT_HTTP_BASE_PATH_V1 =
   '/wallet/device-linking/v1/devices' as const;
@@ -109,14 +112,27 @@ function createWalletHostLinkedDeviceManagementPortV1(args: {
         walletAuthMethodId,
         requestedAtMs,
       });
-      const response = await args.request.request({
-        method: 'POST',
-        canonicalPath: `${LINKED_DEVICE_MANAGEMENT_HTTP_BASE_PATH_V1}/${encodeURIComponent(
-          String(walletAuthMethodId),
-        )}/revoke`,
-        body: { ...request, sourceProof },
-        walletId,
-      });
+      const send = async () =>
+        await args.request.request({
+          method: 'POST',
+          canonicalPath: `${LINKED_DEVICE_MANAGEMENT_HTTP_BASE_PATH_V1}/${encodeURIComponent(
+            String(walletAuthMethodId),
+          )}/revoke`,
+          body: { ...request, sourceProof },
+          walletId,
+        });
+      let response: Awaited<ReturnType<typeof send>>;
+      try {
+        response = await send();
+      } catch (error: unknown) {
+        /* The Gateway records a committed revocation's answer and gives it to
+           the exact same request, so an answer lost to the network is
+           recovered by sending the same body again. A Gateway answer, even a
+           refusal, is final. */
+        if (!(error instanceof WalletHostOwnerRequestTransportError)) throw error;
+        if (error.code !== 'network_error') throw error;
+        response = await send();
+      }
       return parseManagementRevokeResult(response);
     },
   };

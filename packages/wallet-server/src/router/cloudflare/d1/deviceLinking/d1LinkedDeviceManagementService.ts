@@ -119,16 +119,21 @@ function authorityPortV1(input: {
     },
     readByIdV1: async (authorityId: WalletAuthorityId): Promise<WalletAuthorityV1 | null> =>
       await input.store.readById(authorityId),
-    revokeWalletAuthMethodV1: async (request) =>
+    revokeWalletAuthMethodV1: async ({ commit, ...request }) =>
       await input.store.revokeWalletAuthMethod({
         ...request,
-        sessionRevocationStatements:
-          input.walletSessionAuthorizations.prepareRetireWalletSessionAuthorizationsV2ForAuthority({
-            tenantId: input.tenantId,
-            walletId: request.walletId,
-            authorityId: request.authorityId,
-            nowMs: request.requestedAtMs,
-          }),
+        sessionRevocationStatements: [
+          ...input.walletSessionAuthorizations.prepareRetireWalletSessionAuthorizationsV2ForAuthority(
+            {
+              tenantId: input.tenantId,
+              walletId: request.walletId,
+              authorityId: request.authorityId,
+              nowMs: request.requestedAtMs,
+            },
+          ),
+          ...(commit?.statements ?? []),
+        ],
+        trailingStatements: commit?.trailingStatements ?? [],
       }),
   };
 }

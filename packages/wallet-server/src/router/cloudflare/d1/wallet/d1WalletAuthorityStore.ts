@@ -1192,6 +1192,11 @@ export class D1WalletAuthorityStore {
     readonly expectedAuthorityRevocationEpoch: number;
     readonly requestedAtMs: number;
     readonly sessionRevocationStatements?: readonly D1PreparedStatementLike[];
+    /**
+     * Run last, after the method and its authority are written, so they can
+     * read what the revocation wrote. They commit with it or not at all.
+     */
+    readonly trailingStatements?: readonly D1PreparedStatementLike[];
   }): Promise<WalletAuthorityRevocationResultV1> {
     await this.ensureSchema();
     const expectedEpoch = requireNonNegativeInteger(
@@ -1314,6 +1319,7 @@ export class D1WalletAuthorityStore {
       `,
         )
         .bind(...scopeValues(this.scope), String(authority.authorityId)),
+      ...(input.trailingStatements ?? []),
     ];
     let results: readonly D1ResultLike[];
     try {

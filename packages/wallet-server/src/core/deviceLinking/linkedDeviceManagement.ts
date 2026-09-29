@@ -18,6 +18,7 @@ import type {
   WalletAuthorityV1,
 } from '@shared/authorization/walletAuthority';
 import type { AuthorizationService } from '../../authorization/service';
+import type { D1PreparedStatementLike } from '../../storage/tenantRoute';
 import type { OrdinaryInactiveSignerMaterialDeactivationPortV1 } from '../signingMaterial/ordinaryInactiveSignerMaterialReservation';
 import {
   parseWalletAuthorityId,
@@ -69,6 +70,20 @@ export type LinkedDeviceManagementRevocationSourceV1 = LinkedDeviceManagementSou
   readonly freshProof: LinkedDeviceManagementFreshProofV1;
 };
 
+/**
+ * What the request boundary commits with one revocation: the statements its
+ * fresh proof owes (the approving method's guard, an Email OTP code's spend)
+ * and the record of the answer, for an exact retry. The authority port runs
+ * them in the revocation's own batch, so they commit together or not at all.
+ */
+export type LinkedDeviceRevocationCommitV1 = {
+  readonly prerequisites: readonly D1PreparedStatementLike[];
+  /** Run after the revocation's writes, which the record reads. */
+  readonly recordAnswer: (target: {
+    readonly authorityId: WalletAuthorityId;
+  }) => readonly D1PreparedStatementLike[];
+};
+
 export type LinkedDeviceManagementSourceResolutionV1 = {
   readonly session: LinkedDeviceManagementOwnerSessionV1;
   readonly authority: ActiveWalletAuthorityV1;
@@ -94,6 +109,11 @@ export type LinkedDeviceManagementAuthorityPortV1 = {
     readonly walletAuthMethodId: WalletAuthMethodId;
     readonly expectedAuthorityRevocationEpoch: number;
     readonly requestedAtMs: number;
+    /** Committed in the revocation's batch: before its writes, and after. */
+    readonly commit?: {
+      readonly statements: readonly D1PreparedStatementLike[];
+      readonly trailingStatements: readonly D1PreparedStatementLike[];
+    };
   }): Promise<
     | {
         readonly kind: 'revoked_method';
@@ -228,6 +248,7 @@ export class LinkedDeviceManagementServiceV1 {
   async revokeLinkedDeviceV1(
     request: LinkedDeviceRevokeRequestV1,
     source: LinkedDeviceManagementRevocationSourceV1,
+    commit?: LinkedDeviceRevocationCommitV1,
   ): Promise<LinkedDeviceRevokeResultV1> {
     const resolved = await this.resolveSourceV1(source, request.requestedAtMs);
     if (!resolved || !hasFullOwnerPermissionsV1(resolved.authority)) {
@@ -306,6 +327,14 @@ export class LinkedDeviceManagementServiceV1 {
       walletAuthMethodId: targetMethod.walletAuthMethodId,
       expectedAuthorityRevocationEpoch: targetAuthority.revocationEpoch,
       requestedAtMs: request.requestedAtMs,
+      ...(commit === undefined
+        ? {}
+        : {
+            commit: {
+              statements: commit.prerequisites,
+              trailingStatements: commit.recordAnswer({ authorityId: targetAuthority.authorityId }),
+            },
+          }),
     });
     if (result.kind === 'would_remove_last_wallet_auth_method' || result.kind === 'conflict') {
       return { kind: 'conflict' };
@@ -325,6 +354,37 @@ export class LinkedDeviceManagementServiceV1 {
       authorityId: result.authority.authorityId,
       revocationEpoch: result.authority.revocationEpoch,
     };
+  }
+
+  /**
+   * Finishes, again, what follows a committed revocation: the method's
+   * sessions retired and a revoked authority's signer material deactivated.
+   * Both are idempotent, so an exact retry answered from the record completes
+   * whatever its first attempt left undone.
+   */
+  async finishLinkedDeviceRevocationV1(input: {
+    readonly walletId: WalletId;
+    readonly walletAuthMethodId: WalletAuthMethodId;
+    readonly requestedAtMs: number;
+  }): Promise<void> {
+    const method = await this.options.authMethod.readByIdV1({
+      walletAuthMethodId: input.walletAuthMethodId,
+    });
+    if (!method || method.walletId !== input.walletId || method.status !== 'revoked') return;
+    await this.options.sessions.retireWalletSessionAuthorizationsForAuthMethod({
+      tenantId: this.options.tenantId,
+      walletId: input.walletId,
+      walletAuthMethodId: method.walletAuthMethodId,
+      nowMs: input.requestedAtMs,
+    });
+    const authority = await this.options.authority.readByIdV1(method.walletAuthorityId);
+    if (
+      authority?.state === 'revoked' &&
+      authority.walletId === input.walletId &&
+      authority.provenance.kind === 'device_link'
+    ) {
+      await this.deactivateSignerMaterialV1(authority, input.requestedAtMs);
+    }
   }
 
   private async resolveSourceV1(
