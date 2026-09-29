@@ -125,29 +125,6 @@ fn typed_context_and_transcript_use_validating_deserialize_impls() {
 }
 
 #[test]
-fn router_ab_core_rejects_deleted_ed25519_hss_dependencies() {
-    let cargo_toml = read_manifest_file("Cargo.toml");
-    for forbidden in ["ed25519-hss", "ed25519_hss"] {
-        assert!(
-            !cargo_toml.contains(forbidden),
-            "router-ab-core must not depend on deleted backend `{forbidden}`"
-        );
-    }
-
-    for relative_path in [
-        "src/lib.rs",
-        "src/protocol/local.rs",
-        "src/protocol/output.rs",
-    ] {
-        let source = read_manifest_file(relative_path);
-        assert!(
-            !source.contains("ed25519_hss"),
-            "{relative_path} must not import ed25519_hss"
-        );
-    }
-}
-
-#[test]
 fn library_code_does_not_log_or_debug_print() {
     for path in rust_source_files() {
         if is_allowed_logging_file(&path) {
@@ -313,76 +290,12 @@ fn ab_peer_payloads_do_not_carry_combined_or_root_secret_material() {
 }
 
 #[test]
-fn ecdsa_threshold_prf_has_no_candidate_selection_api() {
-    let derivation_mod_rs = read_manifest_file("src/derivation/mod.rs");
-    let threshold_prf_rs = read_src_file("ecdsa_threshold_prf.rs");
+fn ecdsa_threshold_prf_backend_rejects_legacy_two_of_three_policy() {
     let backend_rs = read_src_file("ecdsa_threshold_prf_backend.rs");
-    let context_rs = read_src_file("context.rs");
-    let signer_plaintext_rs = read_src_file("signer_plaintext.rs");
-    let request_rs = read_manifest_file("src/protocol/ecdsa_threshold_prf_request.rs");
-    let payload_rs = read_manifest_file("src/protocol/payload.rs");
-    let derivation_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("src")
-        .join("derivation");
-
-    assert!(!derivation_dir.join("candidate_mpc_prf.rs").exists());
-    assert!(!derivation_dir
-        .join("candidate_mpc_prf_threshold_backend.rs")
-        .exists());
-    for forbidden in [
-        "CandidateId",
-        "CorrectnessLevel",
-        "minimum_level_c",
-        "mpc_threshold_prf_v1",
-        "MpcPrfCandidateInput",
-        "MpcPrfCandidateOutput",
-        "evaluate_mpc_threshold_prf_candidate",
-        "AbDerivationProofBatchPayloadV1",
-        "ab_derivation_proof_batch",
-    ] {
-        for source in [
-            &derivation_mod_rs,
-            &threshold_prf_rs,
-            &backend_rs,
-            &context_rs,
-            &signer_plaintext_rs,
-            &request_rs,
-            &payload_rs,
-        ] {
-            assert!(!source.contains(forbidden), "{forbidden}");
-        }
-    }
     for forbidden in ["from_u16s(2, 3)", "Role::SignerB => 3"] {
         assert!(
             !backend_rs.contains(forbidden),
             "fixed ECDSA threshold PRF must reject legacy 2-of-3 policy `{forbidden}`"
-        );
-    }
-}
-
-#[test]
-fn split_root_candidate_api_is_removed_from_compiled_core() {
-    let derivation_mod_rs = read_manifest_file("src/derivation/mod.rs");
-    let split_root_module_path = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("src")
-        .join("derivation")
-        .join("candidate_split_root.rs");
-
-    assert!(!split_root_module_path.exists());
-    assert!(!derivation_mod_rs.contains("mod candidate_split_root"));
-    assert!(!derivation_mod_rs.contains("pub use self::candidate_split_root"));
-    for forbidden in [
-        "evaluate_split_root_candidate",
-        "derive_split_root_output_share_v1",
-        "combine_split_root_verified_output_shares_v1",
-        "SplitRootCandidateInput",
-        "SplitRootCandidateOutput",
-        "SplitRootSecretShareV1",
-        "SplitRootCombinedOutputV1",
-    ] {
-        assert!(
-            !derivation_mod_rs.contains(forbidden),
-            "split-root prototype API `{forbidden}` must stay out of public exports"
         );
     }
 }

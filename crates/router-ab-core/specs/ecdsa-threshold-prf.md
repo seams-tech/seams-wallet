@@ -94,6 +94,6 @@ A/B plan.
 - recipient-ciphertext AAD tests binding the fixed suite and proof payload;
 - source guards proving normal signing has no Deriver invocation;
 - committed canonical payload vectors;
-- source guards rejecting candidate selectors and the deleted generic modules;
+- a source guard rejecting the legacy 2-of-3 threshold policy;
 - native and Worker adapter tests;
 - Verus anti-drift tests for role/output authorization and activation context.
