@@ -452,6 +452,9 @@ Found during the cleanup and left unchanged, for their owners to check:
   server and client in a way that looks like drift, not design.
 - The unit tests `intendedYaoFault.isolation` and `walletSettingsPage` fail both
   before and after the cleanup changes.
+- The ECDSA-derivation Lean model has no counterpart for
+  `VisibleFinalizeBoundary`'s `context_binding32`, so its privacy proofs do not
+  cover that field.
 
 ## Progress log
 
@@ -523,3 +526,13 @@ Found during the cleanup and left unchanged, for their owners to check:
   lines 19,427 -> 18,524; validation functions 4,276 -> 3,848 (86,063 -> 77,776
   lines); refactor citations 27, all in R150's crates. The baseline was
   re-recorded at `efe17f1`.
+- 2026-09-29: formal verification passes in full. 79f9838 regenerated the
+  Ed25519 Yao `Funs.lean` that aeneas-check compares. d8cc3bd repaired the
+  ECDSA-derivation Lean bridge, which had not built since the initial commit:
+  the extracted Rust boundary renamed `client_public_key33` and no longer
+  carries the retained server state, so the bridge now takes it from the
+  persisted state. aae656d adds a dependency the ECDSA Verus lockfile lacked,
+  which the Verus step kept writing into the checkout. 9274d24 lets
+  `phase2b-review-subject-check` run on a detached HEAD. With Mathlib's cache
+  and the pinned Charon and Aeneas installed, every `just fv` step passes; the
+  review-subject check still needs a clean checkout.
