@@ -25,7 +25,7 @@ import {
   parseWalletAuthMethodRecordV2,
   type ActiveEmailOtpWalletAuthMethodRecordV2,
   type ActivePasskeyWalletAuthMethodRecordV2,
-} from '../utils/registrationIntent';
+} from '../utils/walletAuthMethodRecord';
 import { requireTrimmedString } from '../utils/validation';
 
 export type WalletRecoveryEmailOtpEnrollmentReferenceV1 = {

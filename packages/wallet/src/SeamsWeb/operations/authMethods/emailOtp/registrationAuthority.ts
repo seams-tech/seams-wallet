@@ -2,7 +2,7 @@ import { EMAIL_OTP_CHANNEL } from '@shared/utils/emailOtpDomain';
 import type {
   EmailOtpRegistrationAuthMethodInput,
   EmailOtpRegistrationProof,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/registrationAuthMethodInput';
 import { requestEmailOtpEnrollmentChallenge } from '@/SeamsWeb/operations/authMethods/emailOtp/challenge';
 
 type FetchLike = typeof fetch;

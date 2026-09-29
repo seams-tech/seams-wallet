@@ -92,7 +92,7 @@ import {
   EMAIL_OTP_CHANNEL,
   WALLET_EMAIL_OTP_TRANSACTION_SIGN_OPERATION,
 } from '@shared/utils/emailOtpDomain';
-import { walletIdFromString } from '@shared/utils/registrationIntent';
+import { walletIdFromString } from '@shared/utils/registrationIds';
 import type { RuntimePolicyScope } from '@shared/threshold/signingRootScope';
 import {
   emailOtpStatusCode,

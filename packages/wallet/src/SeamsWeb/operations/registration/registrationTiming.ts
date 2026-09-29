@@ -20,10 +20,10 @@ import type { WorkerResourceWarmupDiagnostics } from '@/core/signingEngine/assem
 import type { WarmSessionMaterialWriteDiagnosticBucket } from '@/core/signingEngine/session/passkey/warmSessionMaterialWriter';
 import type { EmailOtpYaoPrewarmOutcome } from '@/core/signingEngine/workerManager/workerTypes';
 import type {
-  RegistrationAuthMethodInput,
   RegistrationSignerPlan,
   RegistrationSignerPlanBranch,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/registrationSignerPlan';
+import type { RegistrationAuthMethodInput } from '@shared/utils/registrationAuthMethodInput';
 import {
   type WalletRegistrationRouteDiagnostics,
   type WalletRegistrationRouteTimingName,

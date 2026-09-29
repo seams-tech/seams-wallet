@@ -23,7 +23,7 @@ import {
   parseWebAuthnCredentialIdB64u,
   parseWebAuthnRpId,
 } from '@shared/utils/domainIds';
-import { buildWalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
+import { buildWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 import { buildMpcMaterialActivationRefFixture } from './helpers/ecdsaMaterialRef.fixtures';
 import { WalletFullLoginRequiredError } from '@/core/signingEngine/session/material/walletSigningStateFailure';
 

@@ -4,7 +4,7 @@ import {
   parseWalletAuthorityV1,
   parseWalletSignerActivationSetV1,
 } from '../authorization/walletAuthority';
-import { parseWalletAuthMethodRecordV2 } from '../utils/registrationIntent';
+import { parseWalletAuthMethodRecordV2 } from '../utils/walletAuthMethodRecord';
 import {
   parseLinkedDeviceWalletSessionCredentialDeliveryBindingV1,
   parseLinkedDeviceWalletSessionCredentialDeliveryV1,

@@ -36,7 +36,7 @@ import type {
   EmailOtpWalletAuthMethodDraftV1,
   PasskeyWalletAuthMethodDraftV1,
   WalletAuthMethodRecordV2,
-} from './registrationIntent';
+} from './walletAuthMethodRecord';
 import type { WalletAuthMethod } from './signerDomain';
 
 /**

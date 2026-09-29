@@ -16,6 +16,23 @@ export * from './emailOtpRecoveryKey';
 export * from './addAuthMethodRegistration';
 export * from './addWalletAuthMethod';
 export * from './registrationIntent';
+export * from './walletAuthMethodRecord';
+export * from './registrationIds';
+export * from './registrationSignerPlan';
+export {
+  normalizeAddAuthMethodInput,
+  normalizeEmailOtpRegistrationProof,
+  normalizeRegistrationAuthMethodInput,
+  type AddAuthMethodInput,
+  type EmailOtpRegistrationAuthMethodInput,
+  type EmailOtpRegistrationProof,
+  type PasskeyRegistrationAuthMethodInput,
+  type RegisterWalletInput,
+  type RegistrationAuthMethodInput,
+  type RegistrationAuthority,
+  type WalletAddAuthMethodEmailOtpTargetV1,
+  type WalletEmailOtpEnrollmentMaterialV1,
+} from './registrationAuthMethodInput';
 export * from './domainIds';
 export * from './webauthnDeviceInfo';
 export * from './walletCapabilityBindings';

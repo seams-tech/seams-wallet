@@ -9,7 +9,7 @@ import {
   type WalletId,
 } from '@shared/utils/domainIds';
 import type { LinkedDeviceListResultV1, LinkedDeviceRevokeResultV1 } from '@shared/device-linking';
-import type { WalletAuthMethodRevocationProof } from '@shared/utils/registrationIntent';
+import type { WalletAuthMethodRevocationProof } from '@shared/utils/walletAuthMethodRecord';
 import {
   parseLinkedDeviceListRequestV1,
   parseLinkedDeviceListResultV1,

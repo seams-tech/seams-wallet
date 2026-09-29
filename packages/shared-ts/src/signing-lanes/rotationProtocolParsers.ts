@@ -23,7 +23,7 @@ import {
   type ParsesExactly,
   type WireParser,
 } from '../utils/wireSchema';
-import { parseNearEd25519SigningKeyId } from '../utils/registrationIntent';
+import { parseNearEd25519SigningKeyId } from '../utils/registrationIds';
 import { parseSdkEcdsaDerivationThresholdKeyId } from '../threshold/ecdsaDerivationRoleLocalBootstrap';
 import { parseEvmFamilySigningKeySlotId } from './evmFamilySigningKeySlotId';
 import {

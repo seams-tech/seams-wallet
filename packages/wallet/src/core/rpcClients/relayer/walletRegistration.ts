@@ -1,38 +1,44 @@
 import type {
-  ActiveWalletAuthMethodRecordV2,
-  AddAuthMethodInput,
   AddAuthMethodIntentGrant,
   AddAuthMethodIntentCallerV1,
   AddAuthMethodIntentV1,
-  WalletAddAuthMethodEmailOtpTargetV1,
   AddSignerIntentV1,
   AddSignerIntentGrant,
-  EmailOtpRegistrationProof,
-  RegistrationAuthMethodInput,
-  RegisterWalletInput,
   RegistrationIntentGrant,
   RegistrationIntentV1,
+  WalletId,
+  WebAuthnRpId,
+} from '@shared/utils/registrationIntent';
+import type { ActiveWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
+import type {
   RegistrationNearAccountProvisioning,
   RegistrationSignerRequest,
   RegistrationSignerSetSelection,
   ResolvedRegistrationNearAccount,
-  WalletId,
-  WebAuthnRpId,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/registrationSignerPlan';
+import type {
+  AddAuthMethodInput,
+  WalletAddAuthMethodEmailOtpTargetV1,
+  EmailOtpRegistrationProof,
+  RegistrationAuthMethodInput,
+  RegisterWalletInput,
+} from '@shared/utils/registrationAuthMethodInput';
 import {
   addAuthMethodIntentGrantFromString,
   addSignerIntentGrantFromString,
   computeRegistrationIntentDigestB64u,
   parseAddAuthMethodIntentV1,
   parseAddSignerIntentV1,
-  normalizeRegistrationAuthMethodInput,
-  normalizeRegistrationSignerPlan,
-  registrationSignerSetSelectionFromPlan,
   sameAddAuthMethodIntentV1,
   sameAddSignerIntentV1,
-  walletIdFromString,
-  type WalletAuthMethodRevocationProof,
 } from '@shared/utils/registrationIntent';
+import { type WalletAuthMethodRevocationProof } from '@shared/utils/walletAuthMethodRecord';
+import { walletIdFromString } from '@shared/utils/registrationIds';
+import {
+  normalizeRegistrationSignerPlan,
+  registrationSignerSetSelectionFromPlan,
+} from '@shared/utils/registrationSignerPlan';
+import { normalizeRegistrationAuthMethodInput } from '@shared/utils/registrationAuthMethodInput';
 import {
   parseWalletAuthorityV1,
   type ActiveWalletAuthorityV1,

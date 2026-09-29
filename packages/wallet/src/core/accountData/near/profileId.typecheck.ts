@@ -1,4 +1,5 @@
-import { walletIdFromString, type WalletId } from '@shared/utils/registrationIntent';
+import { type WalletId } from '@shared/utils/registrationIntent';
+import { walletIdFromString } from '@shared/utils/registrationIds';
 import { toAccountId } from '../../types/accountIds';
 import {
   buildNearProfileId,

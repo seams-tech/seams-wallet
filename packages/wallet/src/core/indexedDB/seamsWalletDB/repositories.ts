@@ -29,13 +29,13 @@ import { SIGNER_KINDS } from '@shared/utils/signerDomain';
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
 import {
   parseWalletAuthMethodRecordV2,
-  walletIdFromString,
   type ActiveWalletAuthMethodRecordV2,
   type EmailOtpWalletAuthMethodRecordV2,
   type PasskeyWalletAuthMethodRecordV2,
   type PendingWalletAuthMethodRecordV2,
   type WalletAuthMethodRecordV2,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/walletAuthMethodRecord';
+import { walletIdFromString } from '@shared/utils/registrationIds';
 import {
   extendEcdsaWalletAuthorityWithEd25519,
   isActiveEcdsaWalletAuthorityV1,

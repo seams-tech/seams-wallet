@@ -10,7 +10,7 @@ import {
 import type {
   ActiveWalletAuthMethodRecordV2,
   WalletAuthMethodRecordV2,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/walletAuthMethodRecord';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import type {
   MpcMaterialActivationRef,

@@ -27,7 +27,7 @@ import {
 import {
   parseWalletAuthMethodRecordV2,
   type ActiveWalletAuthMethodRecordV2,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/walletAuthMethodRecord';
 import {
   parseRecoveryCodeReservationId,
   type RecoveryCodeReservationId,

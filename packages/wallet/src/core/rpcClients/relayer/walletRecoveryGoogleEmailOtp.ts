@@ -12,7 +12,7 @@ import {
 } from '@shared/utils/domainIds';
 import type { DeviceId } from '@shared/authorization/capabilityKinds';
 import type { WalletAuthMethodId, WalletAuthorityId } from '@shared/utils/domainIds';
-import type { ActiveEmailOtpWalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
+import type { ActiveEmailOtpWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 import {
   parseRecoveryCodeReservationId,
   type RecoveryCodeReservationId,

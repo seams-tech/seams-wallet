@@ -26,7 +26,7 @@ import {
   parseWalletAuthAuthority,
   type WalletAuthAuthority,
 } from '@shared/utils/walletAuthAuthority';
-import { parseWalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
+import { parseWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 import { parseWalletId, parseWalletAuthMethodId } from '@shared/utils/domainIds';
 import { parseDigestB64u, type DigestB64u } from '@shared/utils/canonicalPrimitives';
 import { parseWalletCustodyRegistrationOutcome } from '@shared/passkey-custody';

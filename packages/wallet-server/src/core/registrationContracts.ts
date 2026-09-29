@@ -2,11 +2,11 @@ import type {
   PasskeyCustodyEnvelopeRecord,
   WalletCustodyRegistrationOutcome,
 } from '@shared/passkey-custody';
+import type { ActiveWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 import type {
-  ActiveWalletAuthMethodRecordV2,
   WalletAddAuthMethodEmailOtpTargetV1,
   WalletEmailOtpEnrollmentMaterialV1,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/registrationAuthMethodInput';
 import type { RuntimePolicyScope } from '@shared/threshold/signingRootScope';
 import type { DerivationClientSharePublicKey33B64u } from '@shared/threshold/ecdsaDerivationRoleLocalBootstrap';
 import type { WalletAuthMethodId, WebAuthnRpId } from '@shared/utils/domainIds';
@@ -38,26 +38,32 @@ import type {
   RouterAbPublicDigest32V1Wire,
 } from '@shared/utils/routerAbEcdsaDerivation';
 import type {
-  AddAuthMethodInput,
   AddAuthMethodIntentCallerV1,
   AddAuthMethodIntentGrant,
   AddAuthMethodIntentV1,
   AddSignerIntentGrant,
   AddSignerIntentV1,
-  AddSignerSelection,
-  EmailOtpRegistrationProof,
-  RegistrationNearAccountProvisioning,
-  RegisterWalletInput,
   RegistrationIntentGrant,
   RegistrationIntentV1,
+  WalletId,
+} from '@shared/utils/registrationIntent';
+import type {
+  WalletAuthMethodRecord,
+  WalletAuthMethodRevocationProof,
+} from '@shared/utils/walletAuthMethodRecord';
+import type {
+  AddSignerSelection,
+  RegistrationNearAccountProvisioning,
   RegistrationSignerSetSelection,
   ResolvedRegistrationNearAccount,
   ThresholdEcdsaAddSignerSpec,
   ThresholdEd25519AddSignerSpec,
-  WalletAuthMethodRecord,
-  WalletAuthMethodRevocationProof,
-  WalletId,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/registrationSignerPlan';
+import type {
+  AddAuthMethodInput,
+  EmailOtpRegistrationProof,
+  RegisterWalletInput,
+} from '@shared/utils/registrationAuthMethodInput';
 import type {
   EcdsaDerivationKeyScope,
   EcdsaDerivationRoleLocalFormatVersion,
@@ -302,7 +308,7 @@ export type WalletAddAuthMethodStartResponse =
 export type {
   WalletAddAuthMethodEmailOtpTargetV1,
   WalletEmailOtpEnrollmentMaterialV1,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/registrationAuthMethodInput';
 
 export type WalletAddAuthMethodFinalizeRequest =
   | {

@@ -1,13 +1,15 @@
 import { type WalletAuthMethodId } from '@shared/utils/domainIds';
 import {
-  type ActiveEmailOtpWalletAuthMethodRecordV2,
   type AddAuthMethodIntentV1,
   type AddSignerIntentV1,
-  type RegistrationAuthority,
   type WebAuthnRpId,
   type WalletId,
-  type WalletAuthMethodRevocationProof,
 } from '@shared/utils/registrationIntent';
+import {
+  type ActiveEmailOtpWalletAuthMethodRecordV2,
+  type WalletAuthMethodRevocationProof,
+} from '@shared/utils/walletAuthMethodRecord';
+import { type RegistrationAuthority } from '@shared/utils/registrationAuthMethodInput';
 import {
   buildEmailOtpWalletAuthAuthority,
   buildPasskeyWalletAuthAuthority,

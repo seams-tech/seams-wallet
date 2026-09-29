@@ -106,7 +106,7 @@ import type {
   ActivePasskeyWalletAuthMethodRecordV2,
   ActiveWalletAuthMethodRecordV2,
   WalletAuthMethodRecordV2,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/walletAuthMethodRecord';
 import { IndexedDBManager } from '@/core/indexedDB';
 import {
   exactPasskeyWalletAuthAuthorityRefForCredential,
@@ -187,7 +187,7 @@ import {
   type EcdsaPreauthorizedSessionActivation,
 } from '@/core/signingEngine/threshold/ecdsa/postRegistrationSessionActivation';
 import { parseSignerSlot } from '@/core/signingEngine/webauthnAuth/device/signerSlot';
-import { nearEd25519SigningKeyIdFromString } from '@shared/utils/registrationIntent';
+import { nearEd25519SigningKeyIdFromString } from '@shared/utils/registrationIds';
 import type { ThresholdEcdsaEmailOtpAuthContext } from '@/core/signingEngine/session/identity/laneIdentity';
 import { type ThresholdEcdsaSessionBootstrapResult } from '@/core/signingEngine/threshold/ecdsa/activation';
 import {
@@ -293,7 +293,7 @@ import {
   collectFreshLocalPasskeyUnlockCredential,
   createLocalUnlockChallengeB64u,
 } from '@/SeamsWeb/operations/authMethods/passkey/localUnlock';
-import type { NearEd25519SigningKeyId } from '@shared/utils/registrationIntent';
+import type { NearEd25519SigningKeyId } from '@shared/utils/registrationIds';
 import {
   passkeyCredentialIdB64uFromAuthentication,
   passkeyPrfFirstB64uFromCredential,

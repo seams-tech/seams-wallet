@@ -9,7 +9,7 @@ import {
   nearEd25519SigningKeyIdFromString,
   walletIdFromString,
   type NearEd25519SigningKeyId,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/registrationIds';
 import { isObject } from '@shared/utils/validation';
 
 export type RecoveryResolvedWalletBinding = {

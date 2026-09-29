@@ -14,7 +14,7 @@ import type {
   EcdsaServerGeneration,
 } from '../utils/ecdsaCapabilityActivation';
 import type { CorrelationId, DigestB64u, IsoTimestamp } from '../utils/canonicalPrimitives';
-import type { NearEd25519SigningKeyId } from '../utils/registrationIntent';
+import type { NearEd25519SigningKeyId } from '../utils/registrationIds';
 import type { EcdsaThresholdKeyId } from '../threshold/ecdsaDerivationRoleLocalBootstrap';
 import type {
   EcdsaManifestIdentity,

@@ -10,14 +10,14 @@ import {
   normalizeRuntimePolicyScope,
   signingRootScopeFromRuntimePolicyScope,
 } from '@shared/threshold/signingRootScope';
+import { type WalletId } from '@shared/utils/registrationIntent';
 import {
   parseWalletAuthMethodRecordV2,
-  walletIdFromString,
   type ActivePasskeyWalletAuthMethodRecordV2,
-  type WalletId,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/walletAuthMethodRecord';
+import { walletIdFromString } from '@shared/utils/registrationIds';
 import { base58Encode } from '@shared/utils/base58';
-import { nearEd25519SigningKeyIdFromString } from '@shared/utils/registrationIntent';
+import { nearEd25519SigningKeyIdFromString } from '@shared/utils/registrationIds';
 import {
   mpcMaterialActivationRefsEqual,
   parseWalletAuthMethodId,

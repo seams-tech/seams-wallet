@@ -14,33 +14,39 @@ import type { WALLET_AUTH_METHODS } from '@shared/utils/signerDomain';
 import {
   addAuthMethodIntentGrantFromString,
   addSignerIntentGrantFromString,
-  createServerAllocatedWalletId,
-  normalizeAddAuthMethodInput,
   normalizeAddAuthMethodIntentCaller,
   type AddAuthMethodIntentCallerV1,
-  normalizeAddSignerSelection,
-  normalizeRegistrationAuthMethodInput,
-  normalizeRegistrationSignerPlan,
-  nearEd25519SigningKeyIdFromString,
-  registrationSignerBranchKeyFromString,
-  registrationSignerSetSelectionFromPlan,
-  parseWalletAuthMethodRecordV2,
-  walletIdFromString,
-  type AddAuthMethodInput,
   type AddAuthMethodIntentV1,
   type AddSignerIntentV1,
-  type AddSignerSelection,
-  type ServerAllocatedWalletId,
-  type RegistrationAuthority,
-  type RegistrationAuthMethodInput,
   type RegistrationIntentV1,
+  type RuntimePolicyScopeLike,
+  type WalletId,
+} from '@shared/utils/registrationIntent';
+import { parseWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
+import {
+  createServerAllocatedWalletId,
+  nearEd25519SigningKeyIdFromString,
+  walletIdFromString,
+  type ServerAllocatedWalletId,
+} from '@shared/utils/registrationIds';
+import {
+  normalizeAddSignerSelection,
+  normalizeRegistrationSignerPlan,
+  registrationSignerBranchKeyFromString,
+  registrationSignerSetSelectionFromPlan,
+  type AddSignerSelection,
   type RegistrationNearAccountProvisioning,
   type ResolvedRegistrationNearAccount,
   type RegistrationSignerSetSelection,
   type RegistrationSignerBranchKey,
-  type RuntimePolicyScopeLike,
-  type WalletId,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/registrationSignerPlan';
+import {
+  normalizeAddAuthMethodInput,
+  normalizeRegistrationAuthMethodInput,
+  type AddAuthMethodInput,
+  type RegistrationAuthority,
+  type RegistrationAuthMethodInput,
+} from '@shared/utils/registrationAuthMethodInput';
 import { parseWalletAuthorityV1 } from '@shared/authorization/walletAuthority';
 import {
   parseWebAuthnAuthenticatorDeviceInfo,

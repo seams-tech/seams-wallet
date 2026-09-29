@@ -49,7 +49,7 @@ import type {
 import type {
   EmailOtpWalletAuthMethodDraftV1,
   PasskeyWalletAuthMethodDraftV1,
-} from '../utils/registrationIntent';
+} from '../utils/walletAuthMethodRecord';
 
 declare const linkSessionId: LinkDeviceSessionId;
 declare const walletId: WalletId;

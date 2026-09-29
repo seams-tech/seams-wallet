@@ -31,7 +31,7 @@ import {
   sameWalletAuthMethodRecordV2,
   type ActivePasskeyWalletAuthMethodRecordV2,
   type WalletAuthMethodRecordV2,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/walletAuthMethodRecord';
 import type { WalletAuthAuthorityRef } from '@shared/utils/walletAuthAuthority';
 import {
   consumeReservedRecoveryCode,

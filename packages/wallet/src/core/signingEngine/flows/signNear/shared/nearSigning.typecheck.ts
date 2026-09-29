@@ -1,5 +1,5 @@
 import type { NamedNearAccountId } from '@shared/utils/near';
-import type { NearEd25519SigningKeyId } from '@shared/utils/registrationIntent';
+import type { NearEd25519SigningKeyId } from '@shared/utils/registrationIds';
 import {
   buildNamedNearAccountBinding,
   buildNearEd25519SignerBinding,

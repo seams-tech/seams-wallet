@@ -4,15 +4,17 @@ import {
 } from '@shared/utils/routerAbEd25519Yao';
 import { deriveRouterAbEd25519YaoStableContextBindingV1 } from '@shared/utils/routerAbEd25519YaoDigests';
 import {
-  computeAddSignerNearEd25519SigningKeyId,
-  findRegistrationSignerPlanNearEd25519Branch,
-  registrationNearEd25519BranchKey,
-  registrationSignerPlanFromSelection,
   type AddSignerIntentGrant,
   type AddSignerIntentV1,
   type RegistrationIntentGrant,
   type RegistrationIntentV1,
 } from '@shared/utils/registrationIntent';
+import { computeAddSignerNearEd25519SigningKeyId } from '@shared/utils/registrationIds';
+import {
+  findRegistrationSignerPlanNearEd25519Branch,
+  registrationNearEd25519BranchKey,
+  registrationSignerPlanFromSelection,
+} from '@shared/utils/registrationSignerPlan';
 import { deriveSigningRootId } from '@shared/threshold/signingRootScope';
 import { sameRouterAbMpcMaterialActivationRef } from '@shared/utils/routerAbNormalSigningIdentity';
 import type {

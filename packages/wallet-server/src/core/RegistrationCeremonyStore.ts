@@ -14,18 +14,18 @@ import type {
   WalletId,
 } from './registrationContracts';
 import type {
-  RegistrationAuthority,
   RegistrationNearAccountProvisioning,
   RegistrationSignerPlanBranch,
   RegistrationSignerRequest,
   RegistrationSignerPlan,
   RegistrationSignerBranchKey,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/registrationSignerPlan';
+import type { RegistrationAuthority } from '@shared/utils/registrationAuthMethodInput';
 import { type PasskeyCustodyEnvelopeRecord } from '@shared/passkey-custody';
 import {
   normalizeRegistrationSignerPlan,
   registrationSignerPlanFromSelection,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/registrationSignerPlan';
 import { type WalletAuthMethodId, type WalletAuthorityId } from '@shared/utils/domainIds';
 import { type DeviceId } from '@shared/authorization/capabilityKinds';
 import { type DigestB64u } from '@shared/utils/canonicalPrimitives';

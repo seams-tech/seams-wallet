@@ -37,7 +37,7 @@ import {
   isExactEcdsaSigningLaneIdentity,
   type ExactSigningLaneIdentity,
 } from './exactSigningLaneIdentity';
-import type { ActiveWalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
+import type { ActiveWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 
 /** The signer material one operation needs the exact session to authorize. */
 type RequiredExactWalletSessionSigningSubject =

@@ -71,18 +71,20 @@ export type {
 } from '../core/types/seams';
 export type {
   AddSignerIntentV1,
-  AddSignerSelection,
-  RegisterWalletInput,
   RegistrationIntentGrant,
   RegistrationIntentV1,
+  WalletId as RegistrationWalletId,
+} from '@shared/utils/registrationIntent';
+export type {
+  AddSignerSelection,
   RegistrationEvmFamilyEcdsaSignerRequest,
   RegistrationNearEd25519SignerRequest,
   RegistrationSignerRequest,
   RegistrationSignerSetSelection,
   ThresholdEcdsaAddSignerSpec,
   ThresholdEd25519AddSignerSpec,
-  WalletId as RegistrationWalletId,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/registrationSignerPlan';
+export type { RegisterWalletInput } from '@shared/utils/registrationAuthMethodInput';
 export type { StoreUserDataInput } from '../core/accountData/near/nearAccountData.types';
 
 // === RE-EXPORT ACTION TYPES ===

@@ -29,7 +29,8 @@ import {
 import { passkeyThresholdEd25519AuthorityScope, requireWebAuthnRpId } from './webauthnAuthority';
 import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
-import { walletIdFromString, type WalletId } from '@shared/utils/registrationIntent';
+import { type WalletId } from '@shared/utils/registrationIntent';
+import { walletIdFromString } from '@shared/utils/registrationIds';
 import {
   decodeBase64UrlOrBase64,
   isHostWithinRpId,

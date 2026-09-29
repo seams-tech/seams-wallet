@@ -30,7 +30,7 @@ import {
   buildWalletSessionCapabilitySubjectsV1,
   walletSessionCapabilitySubjectsV1Equal,
 } from '../../../../authorization/domain';
-import type { ActiveWalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
+import type { ActiveWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 import { extractBearerCredential } from '../../../auth/routerApiKeyAuth';
 import type {
   RouterApiAuthorizationSessionService,

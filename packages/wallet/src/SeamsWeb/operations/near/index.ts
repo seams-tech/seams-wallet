@@ -5,9 +5,9 @@ import type {
 } from '@/SeamsWeb/signingSurface/types';
 import {
   implicitNearAccountProvisioning,
-  type RegisterWalletInput,
   type RegistrationNearAccountProvisioning,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/registrationSignerPlan';
+import { type RegisterWalletInput } from '@shared/utils/registrationAuthMethodInput';
 import { buildNearWalletRegistrationSignerSetSelection } from '@/SeamsWeb/operations/registration/registrationSignerSet';
 
 type NearWalletRegistrationArgs = Parameters<RegistrationCapability['registerWallet']>[0] & {

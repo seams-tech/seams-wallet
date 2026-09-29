@@ -34,7 +34,7 @@ import {
   toRpId,
 } from './evmFamilyEcdsaIdentity';
 import type { SigningLaneAuthBinding } from './signingLaneAuthBinding';
-import type { NearEd25519SigningKeyId } from '@shared/utils/registrationIntent';
+import type { NearEd25519SigningKeyId } from '@shared/utils/registrationIds';
 import { SigningSessionIds, type ThresholdEd25519SessionId } from '../operationState/types';
 import type {
   MpcWalletSigningQuotaId,

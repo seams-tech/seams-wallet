@@ -15,10 +15,8 @@
 
 import { IndexedDBManager } from '@/core/indexedDB';
 import { walletSessionAuthorizations } from '@/core/indexedDB/seamsWalletDB/walletSessionAuthorizationStore';
-import type {
-  ActiveWalletAuthMethodRecordV2,
-  AddAuthMethodIntentSourceV1,
-} from '@shared/utils/registrationIntent';
+import type { AddAuthMethodIntentSourceV1 } from '@shared/utils/registrationIntent';
+import type { ActiveWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 import type { WalletId } from '@shared/utils/domainIds';
 
 type AddAuthMethodSourceClaimResultV1 =

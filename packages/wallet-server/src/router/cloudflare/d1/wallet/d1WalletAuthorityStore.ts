@@ -33,7 +33,7 @@ import {
   type ActiveWalletAuthMethodRecordV2,
   type RevokedWalletAuthMethodRecordV2,
   type WalletAuthMethodRecordV2,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/walletAuthMethodRecord';
 import { d1ChangedRows, formatD1ExecStatement, parseD1JsonColumn } from '../../../../storage/d1Sql';
 import type {
   D1DatabaseLike,

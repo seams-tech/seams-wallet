@@ -82,28 +82,29 @@ import {
   type ReservedRegistrationWebAuthnPrompt,
   type WebAuthnPromptCancellation,
 } from '@/core/signingEngine/stepUpConfirmation/passkeyPrompt/webauthnPromptCoordinator';
+import type { WalletId } from '@shared/utils/registrationIntent';
+import type { ActiveWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 import type {
-  ActiveWalletAuthMethodRecordV2,
   AddSignerSelection,
-  RegistrationAuthMethodInput,
   RegistrationEvmFamilyEcdsaSignerPlan,
   RegistrationNearEd25519SignerPlan,
   RegistrationSignerPlan,
   RegistrationSignerPlanBranch,
   RegistrationSignerRequest,
-  RegisterWalletInput,
   RegistrationSignerSetSelection,
   RegistrationNearAccountProvisioning,
-  WalletId,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/registrationSignerPlan';
+import type {
+  RegistrationAuthMethodInput,
+  RegisterWalletInput,
+} from '@shared/utils/registrationAuthMethodInput';
+import { parseNearEd25519SigningKeyId, walletIdFromString } from '@shared/utils/registrationIds';
 import {
   findRegistrationSignerPlanEvmFamilyEcdsaBranch,
   findRegistrationSignerPlanNearEd25519Branch,
   registrationEvmFamilyEcdsaBranchKey,
   registrationSignerPlanFromSelection,
-  parseNearEd25519SigningKeyId,
-  walletIdFromString,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/registrationSignerPlan';
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
 import { base58Encode } from '@shared/utils/base58';
 import { parseWebAuthnCredentialIdB64u } from '@shared/utils/domainIds';
@@ -151,7 +152,7 @@ import {
   type ThresholdEcdsaChainTarget,
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import { computeAddSignerIntentDigest } from '@/utils/intentDigest';
-import type { EmailOtpRegistrationProof } from '@shared/utils/registrationIntent';
+import type { EmailOtpRegistrationProof } from '@shared/utils/registrationAuthMethodInput';
 import {
   setupWalletRegistration,
   createWalletAddSignerIntent,

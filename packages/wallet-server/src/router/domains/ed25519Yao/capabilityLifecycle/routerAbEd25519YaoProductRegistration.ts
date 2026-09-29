@@ -1,12 +1,13 @@
+import { type AddSignerIntentV1, type WalletId } from '@shared/utils/registrationIntent';
 import {
   computeAddSignerNearEd25519SigningKeyId,
   computeRegistrationNearEd25519SigningKeyId,
-  registrationNearEd25519BranchKey,
-  type AddSignerIntentV1,
-  type RegistrationNearEd25519SignerPlan,
-  type WalletId,
   type RegistrationEd25519AuthorityScope,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/registrationIds';
+import {
+  registrationNearEd25519BranchKey,
+  type RegistrationNearEd25519SignerPlan,
+} from '@shared/utils/registrationSignerPlan';
 import {
   parseRouterAbEd25519YaoRegistrationAdmissionRequestV1,
   type RouterAbEd25519YaoActivationAdmissionReceiptV1,

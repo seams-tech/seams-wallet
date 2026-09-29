@@ -39,10 +39,8 @@ import {
   parseWebAuthnCredentialIdB64u,
 } from '@shared/utils/domainIds';
 import { alphabetizeStringify, sha256BytesUtf8 } from '@shared/utils/digests';
-import {
-  parseNearEd25519SigningKeyId,
-  type WalletAuthMethodRecordV2,
-} from '@shared/utils/registrationIntent';
+import { type WalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
+import { parseNearEd25519SigningKeyId } from '@shared/utils/registrationIds';
 import {
   routerAbMpcMaterialActivationRefFromWire,
   sameRouterAbMpcMaterialActivationRef,

@@ -1,14 +1,14 @@
 import { THRESHOLD_SECP256K1_ECDSA_2P_PARTICIPANT_IDS_V1 } from '@shared/threshold/secp256k1';
 import { THRESHOLD_ED25519_2P_PARTICIPANT_IDS } from '@shared/threshold/participants';
+import { type WalletId } from '@shared/utils/registrationIntent';
 import {
   implicitNearAccountProvisioning,
   sponsoredNamedNearAccountProvisioning,
   REGISTRATION_NEAR_ED25519_YAO_DERIVATION_VERSION,
-  type RegisterWalletInput,
   type RegistrationNearAccountProvisioning,
   type RegistrationSignerSetSelection,
-  type WalletId,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/registrationSignerPlan';
+import { type RegisterWalletInput } from '@shared/utils/registrationAuthMethodInput';
 import { parseNamedNearAccountId } from '@shared/utils/near';
 import type {
   SeamsConfigsReadonly,

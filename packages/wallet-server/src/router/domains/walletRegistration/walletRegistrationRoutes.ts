@@ -108,22 +108,26 @@ import {
 import {
   addAuthMethodIntentGrantFromString,
   computeAddAuthMethodIntentDigestB64u,
-  normalizeAddAuthMethodInput,
   normalizeAddAuthMethodIntentCaller,
   addSignerIntentGrantFromString,
   computeAddSignerIntentDigestB64u,
-  normalizeEmailOtpRegistrationProof,
-  normalizeRegistrationAuthMethodInput,
-  normalizeRegistrationSignerPlan,
-  registrationSignerSetSelectionFromPlan,
-  walletIdFromString,
   type AddSignerIntentV1,
   type AddAuthMethodIntentV1,
+} from '@shared/utils/registrationIntent';
+import { walletIdFromString } from '@shared/utils/registrationIds';
+import {
+  normalizeRegistrationSignerPlan,
+  registrationSignerSetSelectionFromPlan,
   type AddSignerSelection,
-  type RegisterWalletInput,
   type RegistrationSignerPlan,
   type RegistrationSignerSetSelection,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/registrationSignerPlan';
+import {
+  normalizeAddAuthMethodInput,
+  normalizeEmailOtpRegistrationProof,
+  normalizeRegistrationAuthMethodInput,
+  type RegisterWalletInput,
+} from '@shared/utils/registrationAuthMethodInput';
 import {
   parseWalletAuthMethodId,
   parseWalletId,

@@ -8,7 +8,7 @@ import type { Ed25519YaoActiveClientIdentityV1 } from './yaoActiveClientRegistry
 import type { ThresholdEd25519SessionId } from '../../session/operationState/types';
 import { normalizeThresholdRuntimePolicyScope } from '../sessionPolicy';
 import type { ThresholdRuntimePolicyScope } from '../sessionPolicy';
-import { nearEd25519SigningKeyIdFromString } from '@shared/utils/registrationIntent';
+import { nearEd25519SigningKeyIdFromString } from '@shared/utils/registrationIds';
 import { parseSignerSlot } from '@shared/utils/signerSlot';
 import { requireRecord, requireCanonicalString } from '@shared/utils/validation';
 import { toRpId } from '../../session/identity/evmFamilyEcdsaIdentity';

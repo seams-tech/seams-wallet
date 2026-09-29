@@ -1,13 +1,11 @@
 import type {
   AddSignerIntentGrant,
   AddSignerIntentV1,
-  AddSignerSelection,
   WalletId,
 } from '@shared/utils/registrationIntent';
-import {
-  computeAddSignerNearEd25519SigningKeyId,
-  registrationNearEd25519BranchKey,
-} from '@shared/utils/registrationIntent';
+import type { AddSignerSelection } from '@shared/utils/registrationSignerPlan';
+import { computeAddSignerNearEd25519SigningKeyId } from '@shared/utils/registrationIds';
+import { registrationNearEd25519BranchKey } from '@shared/utils/registrationSignerPlan';
 import {
   ROUTER_AB_ED25519_YAO_REGISTRATION_ADMISSION_PATH_V1,
   parseRouterAbEd25519YaoRegistrationActivationAdmissionReceiptV1,

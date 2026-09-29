@@ -45,7 +45,7 @@ import {
   type WalletCustodyEvmFamilyPublicFacts,
   type WalletCustodyRecoveryCodeLocatorPayload,
 } from '@shared/passkey-custody';
-import type { WalletEmailOtpEnrollmentMaterialV1 } from '@shared/utils/registrationIntent';
+import type { WalletEmailOtpEnrollmentMaterialV1 } from '@shared/utils/registrationAuthMethodInput';
 import type { RouterAbEd25519YaoBytes32V1 } from '@shared/utils/routerAbEd25519Yao';
 import {
   parseRouterAbEcdsaVerifiedClientActivationFactsV1,

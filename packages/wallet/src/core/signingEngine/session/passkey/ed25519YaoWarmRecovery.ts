@@ -22,7 +22,7 @@ import {
 } from '@shared/utils/routerAbEd25519Yao';
 import { parseRouterAbEd25519NormalSigningState } from '@shared/utils/signingSessionSeal';
 import type { WalletAuthAuthorityRef } from '@shared/utils/walletAuthAuthority';
-import { walletIdFromString } from '@shared/utils/registrationIntent';
+import { walletIdFromString } from '@shared/utils/registrationIds';
 import { isPlainObject, requireRecord, requireTrimmedString } from '@shared/utils/validation';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import {

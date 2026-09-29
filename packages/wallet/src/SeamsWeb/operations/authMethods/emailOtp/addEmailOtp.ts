@@ -21,9 +21,9 @@ import {
 } from '@/core/rpcClients/relayer/walletRegistration';
 import {
   computeAddAuthMethodIntentDigestB64u,
-  walletIdFromString,
   type WalletId,
 } from '@shared/utils/registrationIntent';
+import { walletIdFromString } from '@shared/utils/registrationIds';
 import { base64UrlDecode } from '@shared/utils/base64';
 import { parseWebAuthnRpId, type WalletAuthMethodId } from '@shared/utils/domainIds';
 import { toError } from '@shared/utils/errors';

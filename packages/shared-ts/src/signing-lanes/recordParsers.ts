@@ -11,7 +11,7 @@ import {
   parseSecp256k1CompressedPublicKeyB64u,
   parseUnixMs,
 } from '../passkey-custody/primitives';
-import { parseNearEd25519SigningKeyId } from '../utils/registrationIntent';
+import { parseNearEd25519SigningKeyId } from '../utils/registrationIds';
 import {
   requireEvmFamilySigningKeySlotId,
   type EvmFamilySigningKeySlotId,

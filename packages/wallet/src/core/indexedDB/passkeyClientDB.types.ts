@@ -11,7 +11,7 @@ import type {
   PasskeyWalletAuthMethodRecordV2,
   WalletAuthMethodRecord,
   WalletAuthMethodRecordV2,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/walletAuthMethodRecord';
 import type { EmailOtpWalletAuthAuthority } from '@shared/utils/walletAuthAuthority';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import type { PasskeyCustodyEnvelopeRecord } from '@shared/passkey-custody';

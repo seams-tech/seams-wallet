@@ -17,12 +17,12 @@ import type {
   SigningSessionRetention,
   WalletAuthMethod,
 } from '@shared/utils';
+import type { WalletId } from '@shared/utils/registrationIntent';
+import type { NearEd25519SigningKeyId } from '@shared/utils/registrationIds';
 import type {
-  NearEd25519SigningKeyId,
   RegistrationNearAccountProvisioning,
   ResolvedRegistrationNearAccount,
-  WalletId,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/registrationSignerPlan';
 import type { WalletAuthMethodBinding } from '@shared/utils/walletCapabilityBindings';
 import type { ThresholdEcdsaChainTarget } from '../signingEngine/interfaces/ecdsaChainTarget';
 import type {

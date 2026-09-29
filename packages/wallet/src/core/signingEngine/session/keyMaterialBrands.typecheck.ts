@@ -14,7 +14,7 @@ import { parseWebAuthnRpId, type WebAuthnRpId } from '@shared/utils/domainIds';
 import {
   parseNearEd25519SigningKeyId,
   type NearEd25519SigningKeyId,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/registrationIds';
 const ecdsa = parseEcdsaDerivationKeyVersion('ecdsa-derivation-material-test-v1');
 const seal = parseSigningSessionSealKeyVersion('signing-session-seal-kek-test-r1');
 const ecdsaVerifier = parseEcdsaClientVerifyingShareB64u('ecdsa-client-verifier');

@@ -114,16 +114,14 @@ import {
   setTempoFeeTokenPreference,
   validateConfiguredTempoFeeToken,
 } from '@/SeamsWeb/operations/tempo/feeTokenPreference';
-import {
-  implicitNearAccountProvisioning,
-  type RegisterWalletInput,
-} from '@shared/utils/registrationIntent';
+import { implicitNearAccountProvisioning } from '@shared/utils/registrationSignerPlan';
+import { type RegisterWalletInput } from '@shared/utils/registrationAuthMethodInput';
 import { parseWebAuthnRpId, type WebAuthnRpId } from '@shared/utils/domainIds';
 import {
   buildNearWalletRegistrationSignerSetSelection,
   resolvePasskeyRegistrationAccountProvisioning,
 } from '@/SeamsWeb/operations/registration/registrationSignerSet';
-import { createServerAllocatedWalletId } from '@shared/utils/registrationIntent';
+import { createServerAllocatedWalletId } from '@shared/utils/registrationIds';
 import {
   CAPABILITY_KINDS,
   EVM_ECDSA_MPC_OPERATION_KINDS,

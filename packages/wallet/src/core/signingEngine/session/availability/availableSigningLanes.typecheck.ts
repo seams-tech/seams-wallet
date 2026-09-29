@@ -15,7 +15,7 @@ import type {
 } from './availableSigningLanes';
 import { toAccountId } from '../../../types/accountIds';
 import { toWalletId } from '../../interfaces/ecdsaChainTarget';
-import { nearEd25519SigningKeyIdFromString } from '@shared/utils/registrationIntent';
+import { nearEd25519SigningKeyIdFromString } from '@shared/utils/registrationIds';
 import type { MpcMaterialActivationRef } from '@shared/utils/domainIds';
 import type { ExactNearEd25519WalletSessionAuthorization } from '../material/nearEd25519YaoSigningPreparation';
 import type { CanonicalEvmFamilyEcdsaSigningCapability } from '../material/ecdsaSigningCapability';

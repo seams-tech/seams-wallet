@@ -13,7 +13,7 @@ import {
   buildAuthorizedNearEd25519YaoSigningPreparation,
   type NearEd25519YaoSigningPreparation,
 } from './nearEd25519YaoSigningPreparation';
-import type { ActiveWalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
+import type { ActiveWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 
 declare const hydration: MpcCapabilityHydrationPlan;
 declare const requirement: SigningLaneAuthBinding;

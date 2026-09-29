@@ -1,9 +1,9 @@
 import type { CorrelationId } from '@shared/utils/canonicalPrimitives';
+import type { RegistrationSignerSetSelection } from '@shared/utils/registrationSignerPlan';
 import type {
   RegisterWalletInput,
   RegistrationAuthMethodInput,
-  RegistrationSignerSetSelection,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/registrationAuthMethodInput';
 import type {
   RouterAbEcdsaRegistrationRequestV1,
   RouterAbEcdsaVerifiedClientActivationFactsV1,

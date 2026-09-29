@@ -6,8 +6,8 @@ import {
   parseWalletAuthMethodRecordV2,
   sameWalletAuthMethodRecordV2,
   type ActiveWalletAuthMethodRecordV2,
-  type RegistrationAuthority,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/walletAuthMethodRecord';
+import { type RegistrationAuthority } from '@shared/utils/registrationAuthMethodInput';
 import { mpcMaterialActivationRefsEqual } from '@shared/utils/domainIds';
 import { parseWalletAuthorityV1 } from '@shared/authorization/walletAuthority';
 import { toOptionalTrimmedString } from '@shared/utils/validation';

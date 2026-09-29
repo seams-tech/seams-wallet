@@ -32,7 +32,7 @@ import {
   buildWalletAuthMethodRecordV2,
   type ActiveEmailOtpWalletAuthMethodRecordV2,
   type ActivePasskeyWalletAuthMethodRecordV2,
-} from '../../../packages/shared-ts/src/utils/registrationIntent';
+} from '../../../packages/shared-ts/src/utils/walletAuthMethodRecord';
 import {
   parseLinkedDeviceEnrollmentId,
   parseLinkDeviceSessionId,

@@ -1,11 +1,11 @@
 import { SIGNER_AUTH_METHODS, SIGNER_KINDS, SIGNER_SOURCES } from '@shared/utils/signerDomain';
 import type { NearProvisioningState, NearProvisioningWriteV1 } from '@/core/types/seams';
+import { type WalletId } from '@shared/utils/registrationIntent';
 import {
-  NEAR_ED25519_YAO_KEY_VERSION_V1,
   nearEd25519SigningKeyIdFromString,
   type NearEd25519SigningKeyId,
-  type WalletId,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/registrationIds';
+import { NEAR_ED25519_YAO_KEY_VERSION_V1 } from '@shared/utils/registrationSignerPlan';
 import type { WebAuthnRpId } from '@shared/utils/domainIds';
 import type { RouterAbEcdsaDerivationPublicCapabilityV1 } from '@shared/utils/routerAbEcdsaDerivation';
 import { compactImplicitNearAccountId } from '@shared/utils/near';

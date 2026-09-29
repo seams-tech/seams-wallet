@@ -5,7 +5,7 @@ import type {
   LinkedOwnerCredentialMetadataV1,
   OwnerDeviceSummaryV1,
 } from '@shared/device-linking';
-import { computeWalletAuthMethodRevokeOperationFingerprintV1 } from '@shared/utils/registrationIntent';
+import { computeWalletAuthMethodRevokeOperationFingerprintV1 } from '@shared/utils/walletAuthMethodRecord';
 import { parseWalletAuthMethodId, parseWalletId } from '@shared/utils/domainIds';
 import { WALLET_EMAIL_OTP_TRANSACTION_SIGN_OPERATION } from '@shared/utils/emailOtpDomain';
 import type { WalletAuthMethodBinding } from '@shared/utils/walletCapabilityBindings';

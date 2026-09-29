@@ -5,7 +5,7 @@ import {
   type WalletSessionOperationCredentialV1,
 } from '@shared/device-linking';
 import { activeWalletSessionV1RecordsEqual } from '@shared/device-linking/activeWalletSession';
-import type { WalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
+import type { WalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 import type { ResolveSelectedWalletAuthorityResultV1 } from '@/core/indexedDB/seamsWalletDB/repositories';
 import type { WalletSessionAuthorizationExactActiveReadResult } from '@/core/indexedDB/seamsWalletDB/walletSessionAuthorizationStore';
 import type {

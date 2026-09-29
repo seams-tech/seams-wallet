@@ -39,25 +39,31 @@ import type {
 import type { AuthorizationService } from '../../../../authorization/service';
 import { projectRouterAbEd25519YaoExactWalletSession } from '../../../domains/ed25519Yao/capabilityLifecycle/routerAbEd25519YaoProductRegistration';
 import {
+  registrationIntentGrantFromString,
+  type RegistrationIntentV1,
+  type WalletId,
+} from '@shared/utils/registrationIntent';
+import {
+  type ActiveWalletAuthMethodRecordV2,
+  buildWalletAuthMethodRecordV2,
+  type WalletAuthMethodRecordV2,
+} from '@shared/utils/walletAuthMethodRecord';
+import {
+  nearEd25519SigningKeyIdFromString,
+  walletIdFromString,
+  registrationEd25519AuthorityScopeFromAuthority,
+} from '@shared/utils/registrationIds';
+import {
   findRegistrationSignerPlanEvmFamilyEcdsaBranch,
   findRegistrationSignerPlanNearEd25519Branch,
-  nearEd25519SigningKeyIdFromString,
-  registrationIntentGrantFromString,
   registrationNearEd25519BranchKey,
   registrationSignerPlanFromSelection,
-  walletIdFromString,
-  type ActiveWalletAuthMethodRecordV2,
   type RegistrationEvmFamilyEcdsaSignerPlan,
-  type RegistrationIntentV1,
   type RegistrationNearAccountProvisioning,
   type RegistrationNearEd25519SignerPlan,
   type RegistrationSignerPlan,
   type ResolvedRegistrationNearAccount,
-  buildWalletAuthMethodRecordV2,
-  type WalletAuthMethodRecordV2,
-  type WalletId,
-  registrationEd25519AuthorityScopeFromAuthority,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/registrationSignerPlan';
 import type { RouterAbTraceContextV1 } from '@shared/utils/routerAbTraceContext';
 import { secureRandomBase64Url } from '@shared/utils/secureRandomId';
 import {

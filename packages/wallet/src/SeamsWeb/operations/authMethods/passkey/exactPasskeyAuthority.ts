@@ -1,7 +1,7 @@
 import { IndexedDBManager } from '@/core/indexedDB';
 import type { WalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import { walletAuthAuthorityRef, type WalletAuthAuthorityRef } from '@shared/utils/walletAuthAuthority';
-import type { ActivePasskeyWalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
+import type { ActivePasskeyWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 
 /**
  * The wallet's one active passkey method for this credential. The local

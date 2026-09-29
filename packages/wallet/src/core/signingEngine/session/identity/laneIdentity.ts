@@ -44,7 +44,7 @@ import type { MpcMaterialActivationRef } from '@shared/utils/domainIds';
 import type { ExactEvmFamilyWalletSessionAuthorization } from '../material/ecdsaSigningCapability';
 import type { ActiveWalletAuthorityEcdsaRuntimeV1 } from '../material/activeWalletAuthorityEcdsaRuntime';
 import type { ExactNearEd25519WalletSessionAuthorization } from '../material/nearEd25519YaoSigningPreparation';
-import type { NearEd25519SigningKeyId } from '@shared/utils/registrationIntent';
+import type { NearEd25519SigningKeyId } from '@shared/utils/registrationIds';
 import { parseSignerSlot } from '@shared/utils/signerSlot';
 
 export type { SigningCurve };

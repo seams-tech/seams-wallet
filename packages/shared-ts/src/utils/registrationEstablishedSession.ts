@@ -26,7 +26,7 @@ import {
   type ThresholdEcdsaKeyHandle,
 } from './thresholdEcdsaKeyHandle';
 import { parseNearAccountId, type NearAccountId } from './near';
-import { parseNearEd25519SigningKeyId, type NearEd25519SigningKeyId } from './registrationIntent';
+import { parseNearEd25519SigningKeyId, type NearEd25519SigningKeyId } from './registrationIds';
 import {
   normalizeRuntimePolicyScope,
   type RuntimePolicyScope,

@@ -16,10 +16,8 @@ import type {
   WalletAuthAuthorityRef,
 } from '@shared/utils/walletAuthAuthority';
 import type { ActiveWalletAuthorityV1 } from '@shared/authorization/walletAuthority';
-import {
-  walletIdFromString,
-  type ActivePasskeyWalletAuthMethodRecordV2,
-} from '@shared/utils/registrationIntent';
+import { type ActivePasskeyWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
+import { walletIdFromString } from '@shared/utils/registrationIds';
 import type {
   MpcWalletSigningQuotaId,
   WalletSessionId,

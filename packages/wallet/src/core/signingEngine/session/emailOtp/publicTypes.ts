@@ -12,7 +12,7 @@ import {
 import {
   parseWalletAuthMethodRecordV2,
   type ActiveEmailOtpWalletAuthMethodRecordV2,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/walletAuthMethodRecord';
 
 type EmailOtpUnlockEd25519Identity = {
   readonly materialActivation: MpcMaterialActivationRef;

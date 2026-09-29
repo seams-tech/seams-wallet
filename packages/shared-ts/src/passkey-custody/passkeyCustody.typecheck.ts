@@ -8,7 +8,7 @@ import type {
   WebAuthnRpId,
 } from '../utils/domainIds';
 import { parseWalletAuthMethodId } from '../utils/domainIds';
-import type { NearEd25519SigningKeyId } from '../utils/registrationIntent';
+import type { NearEd25519SigningKeyId } from '../utils/registrationIds';
 import type { DigestB64u } from '../utils/canonicalPrimitives';
 import type {
   Ed25519PublicKeyB64u,

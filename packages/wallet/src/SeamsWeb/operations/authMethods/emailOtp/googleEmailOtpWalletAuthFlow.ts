@@ -40,7 +40,8 @@ import type {
   EmailOtpChallengeDelivery,
   GoogleEmailOtpProviderResolution,
 } from '@/core/signingEngine/session/emailOtp/publicTypes';
-import { walletIdFromString, type WalletId } from '@shared/utils/registrationIntent';
+import { type WalletId } from '@shared/utils/registrationIntent';
+import { walletIdFromString } from '@shared/utils/registrationIds';
 import { parseGoogleEmailOtpRegistrationOffer } from './registrationOffer';
 import type { EmailOtpAuthoritySelector } from '@/core/signingEngine/workerManager/workerTypes';
 

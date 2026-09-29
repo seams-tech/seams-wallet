@@ -4,7 +4,7 @@ import type {
   GoogleEmailOtpRegistrationOffer,
   GoogleEmailOtpRegistrationOfferId,
 } from '@/SeamsWeb/publicApi/types';
-import { walletIdFromString } from '@shared/utils/registrationIntent';
+import { walletIdFromString } from '@shared/utils/registrationIds';
 import { requireRecord, requireTrimmedString } from '@shared/utils/validation';
 
 const OTP_ONLY_FORBIDDEN_FIELDS = [

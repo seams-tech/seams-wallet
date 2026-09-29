@@ -49,7 +49,7 @@ import type {
   VerifiedOwnerProof,
 } from '../../../../authorization/domain';
 import type { WalletAuthorityV1 } from '@shared/authorization/walletAuthority';
-import type { WalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
+import type { WalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 import {
   buildActiveWalletSessionQuota,
   buildExactWalletSessionQuotaProjectionV1,

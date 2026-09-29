@@ -6,7 +6,7 @@ import {
 import {
   buildWalletAuthMethodRecordV2,
   type ActiveEmailOtpWalletAuthMethodRecordV2,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/walletAuthMethodRecord';
 import { buildEmailOtpWalletAuthAuthority } from '@shared/utils/walletAuthAuthority';
 
 function requireWalletAuthorityId(value: string): WalletAuthorityId {

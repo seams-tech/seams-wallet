@@ -5,7 +5,7 @@ import { signingRootScopeFromRuntimePolicyScope } from '@shared/threshold/signin
 import {
   nearEd25519SigningKeyIdFromString,
   type NearEd25519SigningKeyId,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/registrationIds';
 import { parseSignerSlot, type SignerSlot } from '@shared/utils/signerSlot';
 import { parseRouterAbEd25519NormalSigningState } from '@shared/utils/signingSessionSeal';
 import { SIGNER_AUTH_METHODS } from '@shared/utils/signerDomain';

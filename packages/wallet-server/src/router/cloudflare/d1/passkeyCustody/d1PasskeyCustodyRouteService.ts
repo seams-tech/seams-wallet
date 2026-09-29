@@ -46,7 +46,7 @@ import {
 import type {
   ActiveWalletAuthMethodRecordV2,
   WalletAuthMethodRecordV2,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/walletAuthMethodRecord';
 import { secureRandomBase64Url } from '@shared/utils/secureRandomId';
 import { base64UrlEncode } from '@shared/utils/encoders';
 import {

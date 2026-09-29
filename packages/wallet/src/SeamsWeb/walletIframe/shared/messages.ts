@@ -49,15 +49,17 @@ import type {
   ResolveExactKeyExportLaneInput,
   WalletRecoveryRotationAuthorization,
 } from '@/SeamsWeb/publicApi/types';
+import type { WalletId } from '@shared/utils/registrationIntent';
+import type { WalletAuthMethodRevocationProof } from '@shared/utils/walletAuthMethodRecord';
 import type {
   AddSignerSelection,
+  RegistrationSignerSetSelection,
+} from '@shared/utils/registrationSignerPlan';
+import type {
   EmailOtpRegistrationAuthMethodInput,
   PasskeyRegistrationAuthMethodInput,
   RegisterWalletInput,
-  RegistrationSignerSetSelection,
-  WalletId,
-  WalletAuthMethodRevocationProof,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/registrationAuthMethodInput';
 import { parseWalletAuthMethodId, parseWalletId } from '@shared/utils/domainIds';
 import type { PMUnlockPayload } from '@/core/types/login.types';
 import {

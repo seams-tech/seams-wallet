@@ -33,7 +33,7 @@ import type {
   ActiveEmailOtpWalletAuthMethodRecordV2,
   ActivePasskeyWalletAuthMethodRecordV2,
   ActiveWalletAuthMethodRecordV2,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/walletAuthMethodRecord';
 
 type ExactEvmFamilyWalletSessionAuthorizationBase = {
   readonly kind: 'exact_evm_family_wallet_session_authorization_v1';

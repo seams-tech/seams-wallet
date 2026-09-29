@@ -20,8 +20,8 @@ import { parseEd25519PublicKeyB64u } from '../passkey-custody/primitives';
 import {
   type EmailOtpWalletAuthMethodDraftV1,
   type PasskeyWalletAuthMethodDraftV1,
-  type WalletEmailOtpEnrollmentMaterialV1,
-} from '../utils/registrationIntent';
+} from '../utils/walletAuthMethodRecord';
+import { type WalletEmailOtpEnrollmentMaterialV1 } from '../utils/registrationAuthMethodInput';
 import { requireRouterAbX25519PublicKey } from '../utils/routerAbPublicKeyset';
 import {
   type LinkedDeviceApprovalV1,

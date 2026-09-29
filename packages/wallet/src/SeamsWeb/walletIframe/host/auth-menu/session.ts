@@ -56,7 +56,7 @@ import {
   type HostedPasskeyPrepared,
 } from './passkey';
 import { parseWalletId, type WalletId } from '@shared/utils/domainIds';
-import { createReadableWalletId } from '@shared/utils/registrationIntent';
+import { createReadableWalletId } from '@shared/utils/registrationIds';
 import { classifyLinkDeviceFlowEvent, type LinkDeviceFlowEvent } from '@/core/types/sdkSentEvents';
 import type {
   LinkedDeviceTargetEmailOtpActivationV1,

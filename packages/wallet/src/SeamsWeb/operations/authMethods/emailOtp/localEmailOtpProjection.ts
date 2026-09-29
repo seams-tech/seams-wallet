@@ -23,7 +23,8 @@ import {
   type WalletAuthMethodId,
   type WalletAuthorityId,
 } from '@shared/utils/domainIds';
-import { buildWalletAuthMethodRecordV2, type WalletId } from '@shared/utils/registrationIntent';
+import { type WalletId } from '@shared/utils/registrationIntent';
+import { buildWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 import { IndexedDBManager } from '@/core/indexedDB';
 
 type FinalizedEmailOtpAuthMethodV1 = {

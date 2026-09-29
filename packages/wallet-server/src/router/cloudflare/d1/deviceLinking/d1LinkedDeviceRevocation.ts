@@ -4,7 +4,7 @@ import type {
 } from '@shared/device-linking/contracts';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import type { WalletAuthMethodId, WalletId } from '@shared/utils/domainIds';
-import { computeWalletAuthMethodRevokeOperationFingerprintV1 } from '@shared/utils/registrationIntent';
+import { computeWalletAuthMethodRevokeOperationFingerprintV1 } from '@shared/utils/walletAuthMethodRecord';
 import type {
   LinkedDeviceManagementServiceV1,
   LinkedDeviceManagementSourceV1,

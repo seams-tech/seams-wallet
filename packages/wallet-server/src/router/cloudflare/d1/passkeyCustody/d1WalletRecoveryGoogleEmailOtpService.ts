@@ -11,7 +11,7 @@ import {
   buildWalletAuthMethodRecordV2,
   type ActiveEmailOtpWalletAuthMethodRecordV2,
   type WalletAuthMethodRecordV2,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/walletAuthMethodRecord';
 import {
   consumeReservedRecoveryCode,
 } from '@shared/wallet-recovery/recoveryCodeReservation';

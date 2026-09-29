@@ -21,7 +21,7 @@ import {
 } from '@/core/signingEngine/session/routerAbSigningWalletSession';
 import type { WalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type { AccountId } from '@/core/types/accountIds';
-import type { NearEd25519SigningKeyId } from '@shared/utils/registrationIntent';
+import type { NearEd25519SigningKeyId } from '@shared/utils/registrationIds';
 import {
   walletAuthAuthorityRef,
   type WalletAuthAuthorityRef,

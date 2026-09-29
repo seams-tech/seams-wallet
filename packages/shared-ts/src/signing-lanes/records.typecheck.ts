@@ -22,7 +22,7 @@ import type {
   KeyCreationSignerSlot,
   Secp256k1CompressedPublicKeyB64u,
 } from '../passkey-custody/primitives';
-import type { NearEd25519SigningKeyId } from '../utils/registrationIntent';
+import type { NearEd25519SigningKeyId } from '../utils/registrationIds';
 import type { EvmFamilySigningKeySlotId } from './evmFamilySigningKeySlotId';
 import {
   buildActiveWalletKeyLifecycle,

@@ -70,7 +70,7 @@ import { bytesToHex } from '@/core/signingEngine/chains/evm/bytes';
 import { toWalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import { computeEcdsaDerivationRoleLocalRelayerKeyId } from '@shared/threshold/ecdsaDerivationRoleLocalBootstrap';
 import type { ExactWalletSessionReadPorts } from '../identity/exactWalletSessionCredential';
-import type { ActiveWalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
+import type { ActiveWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 
 type ActiveWalletAuthorityEcdsaAuth =
   | {

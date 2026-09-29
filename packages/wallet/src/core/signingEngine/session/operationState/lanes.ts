@@ -1,6 +1,6 @@
 import type { AccountId } from '@/core/types/accountIds';
 import type { SigningSessionRetention } from '@/core/types/seams';
-import type { NearEd25519SigningKeyId } from '@shared/utils/registrationIntent';
+import type { NearEd25519SigningKeyId } from '@shared/utils/registrationIds';
 import {
   selectedEcdsaLane,
   selectedEd25519Lane,

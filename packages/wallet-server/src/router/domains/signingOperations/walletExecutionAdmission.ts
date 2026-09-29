@@ -27,7 +27,7 @@ import type {
   ExactAdministeredEcdsaSignerV1,
   ExactAdministeredEd25519SignerV1,
 } from '@shared/device-linking/delegatedActivationPlan';
-import type { WalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
+import type { WalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 import type {
   AuthorizedOperation,
   WalletSessionAuthorizationV2,

@@ -1,14 +1,16 @@
 import {
-  implicitNearAccountProvisioning,
-  walletIdFromString,
   type AddAuthMethodIntentV1,
   type AddSignerIntentV1,
-  type AddSignerSelection,
   type RegistrationIntentV1,
+} from '@shared/utils/registrationIntent';
+import { walletIdFromString } from '@shared/utils/registrationIds';
+import {
+  implicitNearAccountProvisioning,
+  type AddSignerSelection,
   type ThresholdEcdsaAddSignerSpec,
   type ThresholdEd25519AddSignerSpec,
   type ThresholdEd25519RegistrationSpec,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/registrationSignerPlan';
 import {
   allocateWalletAuthMethodId,
   parseWalletAuthMethodId,

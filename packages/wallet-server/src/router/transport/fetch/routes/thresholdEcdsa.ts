@@ -98,7 +98,7 @@ import {
   walletAuthAuthorityRef,
   type WalletAuthAuthorityRef,
 } from '@shared/utils/walletAuthAuthority';
-import { walletIdFromString } from '@shared/utils/registrationIntent';
+import { walletIdFromString } from '@shared/utils/registrationIds';
 import {
   parseAuthFactorId,
   parseAuthorizationAuditEventId,

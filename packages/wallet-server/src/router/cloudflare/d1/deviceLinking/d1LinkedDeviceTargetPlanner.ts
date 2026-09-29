@@ -31,7 +31,7 @@ import type {
   RouterAbEd25519YaoApplicationBindingFactsV1,
   RouterAbEd25519YaoCeremonyBindingV1,
 } from '@shared/utils/routerAbEd25519Yao';
-import type { NearEd25519SigningKeyId } from '@shared/utils/registrationIntent';
+import type { NearEd25519SigningKeyId } from '@shared/utils/registrationIds';
 import type { WalletKeyId } from '@shared/signing-lanes/ids';
 import type { LinkedDeviceSessionRecordV1 } from '../../../../core/deviceLinking/linkedDeviceSession';
 import type { ExactAdministeredSignerV1 } from '@shared/device-linking/delegatedActivationPlan';

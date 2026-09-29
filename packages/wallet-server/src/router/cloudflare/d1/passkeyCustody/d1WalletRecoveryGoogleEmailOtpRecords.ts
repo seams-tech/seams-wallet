@@ -19,9 +19,7 @@ import {
 } from '@shared/utils/domainIds';
 import { parseEnvelopeRevision, type EnvelopeRevision } from '@shared/passkey-custody';
 import { parseWalletAuthorityV1 } from '@shared/authorization/walletAuthority';
-import {
-  parseWalletAuthMethodRecordV2,
-} from '@shared/utils/registrationIntent';
+import { parseWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 import {
   parseRecoveryCodeReservationId,
   type RecoveryCodeReservationId,

@@ -52,7 +52,7 @@ import type {
 import type { AwaitNearReadyResult } from '@/SeamsWeb/publicApi/awaitNearReady';
 import type { EmailOtpProvider } from '@shared/utils/walletAuthAuthority';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
-import type { WalletAuthMethodRevocationProof } from '@shared/utils/registrationIntent';
+import type { WalletAuthMethodRevocationProof } from '@shared/utils/walletAuthMethodRecord';
 import type {
   ConfirmationBehavior,
   ConfirmationConfig,
@@ -116,14 +116,16 @@ import type {
   WalletEmailOtpChannel,
   WalletEmailOtpLoginOperation,
 } from '@shared/utils/emailOtpDomain';
+import type { WalletId } from '@shared/utils/registrationIntent';
 import type {
   AddSignerSelection,
-  RegistrationAuthMethodInput,
-  RegisterWalletInput,
   RegistrationNearAccountProvisioning,
   RegistrationSignerSetSelection,
-  WalletId,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/registrationSignerPlan';
+import type {
+  RegistrationAuthMethodInput,
+  RegisterWalletInput,
+} from '@shared/utils/registrationAuthMethodInput';
 export type {
   WalletIframeRequestId,
   WalletIframeSurfaceId,

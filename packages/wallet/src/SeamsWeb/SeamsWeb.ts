@@ -211,7 +211,7 @@ import {
   walletAuthAuthorityRefForVerifiedEmailOtpUnlock,
   type EmailOtpWalletPostUnlockActivation,
 } from '@/SeamsWeb/operations/authMethods/emailOtp/walletActivation';
-import type { ActiveEmailOtpWalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
+import type { ActiveEmailOtpWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 import {
   nearAccountBindingFromRaw,
   type NearAccountBinding,
@@ -221,7 +221,7 @@ import {
   buildNearWalletRegistrationSignerSetSelection,
   resolvePasskeyRegistrationAccountProvisioning,
 } from '@/SeamsWeb/operations/registration/registrationSignerSet';
-import { createServerAllocatedWalletId } from '@shared/utils/registrationIntent';
+import { createServerAllocatedWalletId } from '@shared/utils/registrationIds';
 import { isObject } from '@shared/utils/validation';
 import type { WalletAuthorityProvenanceV1 } from '@shared/authorization/walletAuthority';
 

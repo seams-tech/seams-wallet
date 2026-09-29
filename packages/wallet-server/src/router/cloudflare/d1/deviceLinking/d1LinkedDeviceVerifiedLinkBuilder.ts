@@ -24,8 +24,8 @@ import type {
   ActiveWalletAuthMethodRecordV2,
   PasskeyWalletAuthMethodDraftV1,
   EmailOtpWalletAuthMethodDraftV1,
-  WalletEmailOtpEnrollmentMaterialV1,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/walletAuthMethodRecord';
+import type { WalletEmailOtpEnrollmentMaterialV1 } from '@shared/utils/registrationAuthMethodInput';
 import { parseWebAuthnCredentialIdB64u } from '@shared/utils/domainIds';
 import { parseDeviceId } from '@shared/authorization/capabilityKinds';
 import type { PrincipalId } from '@shared/authorization/capabilityKinds';

@@ -70,7 +70,7 @@ import {
   type WalletSessionId,
 } from '@shared/authorization/capabilityKinds';
 import { parseWebAuthnCredentialIdB64u, parseWebAuthnRpId } from '@shared/utils/domainIds';
-import { walletIdFromString } from '@shared/utils/registrationIntent';
+import { walletIdFromString } from '@shared/utils/registrationIds';
 import {
   parseHostedWalletSeamsSessionExchangeCode,
   parseHostedWalletSeamsSessionExchangeNonce,

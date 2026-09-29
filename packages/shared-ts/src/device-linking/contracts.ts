@@ -33,8 +33,8 @@ import type {
   ActiveWalletAuthMethodRecordV2,
   EmailOtpWalletAuthMethodDraftV1,
   PasskeyWalletAuthMethodDraftV1,
-  WalletEmailOtpEnrollmentMaterialV1,
-} from '../utils/registrationIntent';
+} from '../utils/walletAuthMethodRecord';
+import type { WalletEmailOtpEnrollmentMaterialV1 } from '../utils/registrationAuthMethodInput';
 import type { VerifiedEmailAddress } from '../utils/domainIds';
 import type {
   LinkedDeviceOrdinaryMaterialSourceContributionPreparationV1,

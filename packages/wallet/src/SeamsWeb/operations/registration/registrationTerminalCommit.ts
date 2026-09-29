@@ -14,11 +14,11 @@ import {
   parseVerifiedEmailAddress,
   type WebAuthnRpId,
 } from '@shared/utils/domainIds';
+import type { WalletId } from '@shared/utils/registrationIntent';
 import type {
   RegistrationAuthMethodInput,
   WalletEmailOtpEnrollmentMaterialV1,
-  WalletId,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/registrationAuthMethodInput';
 import type { WalletCustodyCeremonyCommitPayload } from '@shared/passkey-custody';
 import type { SeamsConfigsReadonly } from '@/core/types/seams';
 import type { WebAuthnRegistrationCredential } from '@/core/types/webauthn';

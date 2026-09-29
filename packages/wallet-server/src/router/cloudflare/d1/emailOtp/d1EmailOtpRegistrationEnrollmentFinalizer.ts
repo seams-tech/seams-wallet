@@ -2,7 +2,8 @@ import {
   EMAIL_OTP_INITIAL_ENROLLMENT_VERSION,
   emailOtpDeviceEnrollmentId,
 } from '@shared/utils/emailOtpDomain';
-import type { RegistrationAuthority, WalletId } from '@shared/utils/registrationIntent';
+import type { WalletId } from '@shared/utils/registrationIntent';
+import type { RegistrationAuthority } from '@shared/utils/registrationAuthMethodInput';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
 import type {
   EmailOtpAuthStateRecord,

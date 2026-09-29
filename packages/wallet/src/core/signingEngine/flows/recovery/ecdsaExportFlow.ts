@@ -60,7 +60,7 @@ import {
   type EmailOtpWalletAuthAuthority as CanonicalEmailOtpWalletAuthAuthority,
   type PasskeyWalletAuthAuthority,
 } from '@shared/utils/walletAuthAuthority';
-import { sameWalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
+import { sameWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 import { alphabetizeStringify, sha256BytesUtf8 } from '@shared/utils/digests';
 import { base64UrlEncode } from '@shared/utils/base64';
 import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';

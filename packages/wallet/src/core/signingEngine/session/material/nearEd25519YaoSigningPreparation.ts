@@ -16,7 +16,7 @@ import type {
   WalletAuthAuthorityRef,
 } from '@shared/utils/walletAuthAuthority';
 import { walletAuthAuthorityRef } from '@shared/utils/walletAuthAuthority';
-import type { ActiveWalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
+import type { ActiveWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 
 export type ActiveNearEd25519WalletSessionStatus = Extract<
   ExactWalletSessionStatus,

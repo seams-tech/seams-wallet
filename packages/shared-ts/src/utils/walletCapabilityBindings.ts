@@ -12,10 +12,7 @@ import {
   type ImplicitNearAccountId,
   type NamedNearAccountId,
 } from './near';
-import {
-  nearEd25519SigningKeyIdFromString,
-  type NearEd25519SigningKeyId,
-} from './registrationIntent';
+import { nearEd25519SigningKeyIdFromString, type NearEd25519SigningKeyId } from './registrationIds';
 
 export type { WebAuthnRpId };
 export type RpId = WebAuthnRpId;

@@ -5,7 +5,7 @@ import {
 } from '@/SeamsWeb/operations/recovery/syncAccount';
 import type { AccountSyncWebContext } from '@/SeamsWeb/signingSurface/types';
 import type { WalletIframeCoordinator } from '@/SeamsWeb/walletIframe/coordinator';
-import { walletIdFromString } from '@shared/utils/registrationIntent';
+import { walletIdFromString } from '@shared/utils/registrationIds';
 
 type AccountSyncDomainDeps = {
   getContext: () => AccountSyncWebContext;

@@ -6,7 +6,7 @@ import {
   parseWalletSessionMintId,
 } from '@shared/authorization/capabilityKinds';
 import { parseWalletAuthMethodId, parseWalletAuthorityId } from '@shared/utils/domainIds';
-import type { WalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
+import type { WalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 import {
   DEFAULT_WALLET_SESSION_REMAINING_USES,
   DEFAULT_WALLET_SESSION_TTL_MS,

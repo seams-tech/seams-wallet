@@ -35,7 +35,7 @@ import {
 import { parseSecp256k1CompressedPublicKeyB64u } from '@shared/passkey-custody/primitives';
 import { deriveRouterAbEd25519YaoApplicationBindingDigestV1 } from '@shared/utils/routerAbEd25519YaoDigests';
 import { routerAbMpcMaterialActivationRefFromWire } from '@shared/utils/routerAbNormalSigningIdentity';
-import type { WalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
+import type { WalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 import type { ActiveLaneProtocolSourceV1 } from '@shared/signing-lanes/rotation';
 import type {
   ActiveOwnerWalletExecutionLaneProjection,

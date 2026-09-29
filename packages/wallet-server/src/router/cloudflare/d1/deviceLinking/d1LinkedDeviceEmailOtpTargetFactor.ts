@@ -35,7 +35,7 @@ import {
   WALLET_EMAIL_OTP_REGISTRATION_OPERATION,
   WALLET_EMAIL_OTP_DEVICE_LINK_OPERATION,
 } from '@shared/utils/emailOtpDomain';
-import type { WalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
+import type { WalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 import {
   computeLinkedDeviceEmailOtpAuthorityDigestV1,
   computeLinkedDeviceEmailOtpChallengeBindingDigestV1,

@@ -41,7 +41,7 @@ import { activeWalletSessionV1RecordsEqual } from '@shared/device-linking/active
 import type { ResolveSelectedWalletAuthorityResultV1 } from '@/core/indexedDB/seamsWalletDB/repositories';
 import type { WalletSessionAuthorizationExactActiveReadResult } from '@/core/indexedDB/seamsWalletDB/walletSessionAuthorizationStore';
 import type { ExactWalletSessionStatus } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
-import { parseNearEd25519SigningKeyId } from '@shared/utils/registrationIntent';
+import { parseNearEd25519SigningKeyId } from '@shared/utils/registrationIds';
 import { parseSignerSlot } from '@shared/utils/signerSlot';
 import { isWalletAuthMethod, type WalletAuthMethod } from '@shared/utils/signerDomain';
 import {

@@ -18,11 +18,11 @@ import {
   type WalletAuthMethodId,
   type WalletAuthorityId,
 } from '@shared/utils/domainIds';
+import { type WalletId } from '@shared/utils/registrationIntent';
 import {
   buildWalletAuthMethodRecordV2,
   type ActivePasskeyWalletAuthMethodRecordV2,
-  type WalletId,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/walletAuthMethodRecord';
 import { IndexedDBManager, type LocalWalletAuthMethodRecord } from '@/core/indexedDB';
 
 /** The finalize fields this projection is built from, whichever route returned them. */

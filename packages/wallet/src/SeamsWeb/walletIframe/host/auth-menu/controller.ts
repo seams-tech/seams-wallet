@@ -13,7 +13,8 @@ import {
   buildNearWalletRegistrationSignerSetSelection,
   resolvePasskeyRegistrationAccountProvisioning,
 } from '@/SeamsWeb/operations/registration/registrationSignerSet';
-import { walletIdFromString, type WalletId } from '@shared/utils/registrationIntent';
+import { type WalletId } from '@shared/utils/registrationIntent';
+import { walletIdFromString } from '@shared/utils/registrationIds';
 import { parseWebAuthnRpId } from '@shared/utils/domainIds';
 import {
   walletIframeRequestIdFromBoundary,

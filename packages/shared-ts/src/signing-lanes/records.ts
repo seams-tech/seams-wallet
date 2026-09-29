@@ -9,7 +9,7 @@ import type {
   Ed25519PublicKeyB64u,
   Secp256k1CompressedPublicKeyB64u,
 } from '../passkey-custody/primitives';
-import type { NearEd25519SigningKeyId } from '../utils/registrationIntent';
+import type { NearEd25519SigningKeyId } from '../utils/registrationIds';
 import type {
   LaneHolderParticipantRecordV1,
   LaneParticipantBindingDigestB64u,

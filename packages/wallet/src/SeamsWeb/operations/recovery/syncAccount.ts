@@ -25,7 +25,7 @@ import {
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
 import { errorMessage } from '@shared/utils/errors';
 import type { WalletCapabilitySubjectV1 } from '@shared/device-linking/contracts';
-import { walletIdFromString } from '@shared/utils/registrationIntent';
+import { walletIdFromString } from '@shared/utils/registrationIds';
 import {
   parseWalletAuthMethodId,
   parseWalletAuthorityId,

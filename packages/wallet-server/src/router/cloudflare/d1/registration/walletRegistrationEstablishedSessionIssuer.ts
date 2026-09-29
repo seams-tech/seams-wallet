@@ -38,7 +38,7 @@ import {
 import {
   walletIdFromString,
   nearEd25519SigningKeyIdFromString,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/registrationIds';
 import { parseDigestB64u, type DigestB64u } from '@shared/utils/canonicalPrimitives';
 import { alphabetizeStringify, sha256BytesUtf8 } from '@shared/utils/digests';
 import { base64UrlEncode } from '@shared/utils/encoders';

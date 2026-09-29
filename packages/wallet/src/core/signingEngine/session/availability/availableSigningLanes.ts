@@ -3,7 +3,7 @@ import { toAccountId } from '@/core/types/accountIds';
 import {
   nearEd25519SigningKeyIdFromString,
   type NearEd25519SigningKeyId,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/registrationIds';
 import { parseSignerSlot } from '@shared/utils/signerSlot';
 import type { SigningSessionSealedStoreRecord } from '../persistence/sealedSessionStore';
 import type {

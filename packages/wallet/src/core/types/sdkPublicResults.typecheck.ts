@@ -1,8 +1,8 @@
 import {
   nearEd25519SigningKeyIdFromString,
-  implicitNearAccountProvisioning,
   walletIdFromString,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/registrationIds';
+import { implicitNearAccountProvisioning } from '@shared/utils/registrationSignerPlan';
 import { parseImplicitNearAccountId } from '@shared/utils/near';
 import type {
   ActionResult,

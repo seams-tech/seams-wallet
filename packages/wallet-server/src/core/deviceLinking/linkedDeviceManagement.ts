@@ -40,7 +40,7 @@ import type {
   ActiveWalletAuthMethodRecordV2,
   RevokedWalletAuthMethodRecordV2,
   WalletAuthMethodRecordV2,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/walletAuthMethodRecord';
 import type { WebAuthnAuthenticatorDeviceInfo } from '@shared/utils/webauthnDeviceInfo';
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
 import type { LinkedDeviceId, WalletKeyId } from '@shared/signing-lanes/ids';

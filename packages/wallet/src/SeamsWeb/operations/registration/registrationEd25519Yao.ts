@@ -6,12 +6,9 @@ import { RouterAbEd25519YaoHttpActivationTransportV1 } from '@/core/signingEngin
 import type { RouterAbEd25519YaoHttpTransportConfigV1 } from '@/core/signingEngine/threshold/ed25519/yaoClient';
 import { parseThresholdEd25519SessionId, type WebAuthnRpId } from '@shared/utils/domainIds';
 import type { ThresholdEd25519SessionId } from '@/core/signingEngine/session/operationState/types';
-import type {
-  RegistrationAuthMethodInput,
-  RegistrationIntentV1,
-  WalletId,
-} from '@shared/utils/registrationIntent';
-import { parseNearEd25519SigningKeyId } from '@shared/utils/registrationIntent';
+import type { RegistrationIntentV1, WalletId } from '@shared/utils/registrationIntent';
+import type { RegistrationAuthMethodInput } from '@shared/utils/registrationAuthMethodInput';
+import { parseNearEd25519SigningKeyId } from '@shared/utils/registrationIds';
 import {
   type WalletRegistrationRespondEd25519DeferredWork,
   type WalletRegistrationEd25519YaoPublicResult,

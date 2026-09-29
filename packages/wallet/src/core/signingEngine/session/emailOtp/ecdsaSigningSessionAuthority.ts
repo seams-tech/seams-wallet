@@ -26,7 +26,7 @@ import {
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type { WalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type { ActiveEcdsaCapabilityRuntimeResolver } from '../material/activeEcdsaCapabilityRuntime';
-import type { ActiveWalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
+import type { ActiveWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 
 type ExactSelectedWalletAuthority = Extract<
   ResolveSelectedWalletAuthorityResultV1,

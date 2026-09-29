@@ -6,12 +6,12 @@ import type {
 import type { WalletSessionOperationCredentialV1 } from '../device-linking/contracts';
 import type { Ed25519AuthorityScope } from '../threshold/sessionPolicy';
 import type { RuntimePolicyScope } from '../threshold/signingRootScope';
+import type { WalletId } from './registrationIntent';
+import type { RegistrationSignerSetSelection } from './registrationSignerPlan';
 import type {
   RegisterWalletInput,
   RegistrationAuthMethodInput,
-  RegistrationSignerSetSelection,
-  WalletId,
-} from './registrationIntent';
+} from './registrationAuthMethodInput';
 import type {
   RouterAbEd25519YaoActivationAdmissionReceiptV1,
   RouterAbEd25519YaoBytes32V1,

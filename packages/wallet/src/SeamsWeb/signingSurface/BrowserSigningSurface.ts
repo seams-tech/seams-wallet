@@ -256,8 +256,8 @@ import {
 import {
   type ActiveEmailOtpWalletAuthMethodRecordV2,
   type ActivePasskeyWalletAuthMethodRecordV2,
-  NEAR_ED25519_YAO_KEY_VERSION_V1,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/walletAuthMethodRecord';
+import { NEAR_ED25519_YAO_KEY_VERSION_V1 } from '@shared/utils/registrationSignerPlan';
 import {
   mpcMaterialActivationRefsEqual,
   parseThresholdEd25519SessionId,
@@ -369,7 +369,7 @@ import {
   type OwnerLaneScopeStores,
 } from '@/core/signingEngine/session/identity/ownerLaneScope';
 import { parseSignerSlot, type SignerSlot } from '@shared/utils/signerSlot';
-import { nearEd25519SigningKeyIdFromString } from '@shared/utils/registrationIntent';
+import { nearEd25519SigningKeyIdFromString } from '@shared/utils/registrationIds';
 import type { EmailOtpEd25519YaoRecoveryBootstrapV1 } from '@/core/signingEngine/workerManager/workerTypes';
 import type { RouterAbEd25519YaoActiveClientMetadataV1 } from '@/core/signingEngine/threshold/ed25519/yaoClient';
 import type { RouterAbOwnerNormalSigningCredential } from '@/core/rpcClients/relayer/routerAbNormalSigning';

@@ -18,7 +18,7 @@ import type {
   EmailOtpWalletAuthMethodRecordV2,
   PasskeyWalletAuthMethodRecordV2,
   WalletAuthMethodRecordV2,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/walletAuthMethodRecord';
 import type {
   LocalWalletAuthMethodRecord,
   WalletAuthoritySignerMaterialRecordV1,

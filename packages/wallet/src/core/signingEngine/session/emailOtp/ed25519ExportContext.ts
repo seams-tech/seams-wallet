@@ -41,7 +41,7 @@ import type {
   PasskeyCustodyEnvelopeRecord,
   PasskeyCustodySecretBinding,
 } from '@shared/passkey-custody';
-import type { ActiveEmailOtpWalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
+import type { ActiveEmailOtpWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 import { requireCanonicalString, requireRecord } from '@shared/utils/validation';
 type EmailOtpEd25519LaneAuth = Extract<SigningLaneAuthBinding, { kind: 'email_otp' }>;
 type ExactEmailOtpWalletSessionStatus = Extract<

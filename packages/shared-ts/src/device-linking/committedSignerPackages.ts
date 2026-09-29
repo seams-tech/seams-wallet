@@ -17,7 +17,7 @@ import { alphabetizeStringify, sha256BytesUtf8 } from '../utils/digests';
 import {
   parseWalletAuthMethodRecordV2,
   type PendingWalletAuthMethodRecordV2,
-} from '../utils/registrationIntent';
+} from '../utils/walletAuthMethodRecord';
 import { parseWalletAuthorityV1 } from '../authorization/walletAuthority';
 import {
   parseLinkedDeviceEd25519ExportRootPackageV1,

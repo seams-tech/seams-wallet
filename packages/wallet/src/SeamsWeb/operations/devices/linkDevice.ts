@@ -40,7 +40,7 @@ import type {
   LocalAuthorityActivationFinalAckV1,
   WalletSessionOperationCredentialV1,
 } from '@shared/device-linking';
-import type { WalletEmailOtpEnrollmentMaterialV1 } from '@shared/utils/registrationIntent';
+import type { WalletEmailOtpEnrollmentMaterialV1 } from '@shared/utils/registrationAuthMethodInput';
 import { parseLinkDeviceSessionId } from '@shared/signing-lanes/ids';
 import { secureRandomId } from '@shared/utils/secureRandomId';
 import { errorMessage } from '@shared/utils/errors';

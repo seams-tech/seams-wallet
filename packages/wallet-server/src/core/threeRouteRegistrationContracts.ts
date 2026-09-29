@@ -1,4 +1,4 @@
-import type { ActiveWalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
+import type { ActiveWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 import type { CorrelationId } from '@shared/utils/canonicalPrimitives';
 import type { RouterAbEcdsaVerifiedClientActivationFactsV1 } from '@shared/utils/routerAbEcdsaDerivation';
 import type {
@@ -24,9 +24,9 @@ import type { ActiveWalletAuthorityV1 } from '@shared/authorization/walletAuthor
 import type {
   RegistrationNearAccountProvisioning,
   ResolvedRegistrationNearAccount,
-  RegistrationAuthority,
   RegistrationSignerPlan,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/registrationSignerPlan';
+import type { RegistrationAuthority } from '@shared/utils/registrationAuthMethodInput';
 import type { WalletAuthAuthority } from '@shared/utils/walletAuthAuthority';
 import type { WalletCustodyRegistrationOutcome } from '@shared/passkey-custody';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';

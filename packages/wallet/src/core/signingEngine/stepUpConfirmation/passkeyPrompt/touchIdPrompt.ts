@@ -7,7 +7,8 @@ import {
 import type { WebAuthnAllowCredential } from '../../webauthnAuth/credentials/collectAuthenticationCredentialForChallengeB64u';
 import type { WebAuthnAuthenticationCredential } from '@/core/types/webauthn';
 import { executeWebAuthnWithParentFallbacksSafari } from '../../webauthnAuth/fallbacks/safari-fallbacks';
-import { type WalletId, walletIdFromString } from '@shared/utils/registrationIntent';
+import { type WalletId } from '@shared/utils/registrationIntent';
+import { walletIdFromString } from '@shared/utils/registrationIds';
 import {
   webAuthnPromptCoordinator,
   type RegistrationWebAuthnPromptOwner,

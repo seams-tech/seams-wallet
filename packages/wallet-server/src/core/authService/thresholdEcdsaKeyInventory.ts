@@ -6,7 +6,8 @@ import {
 } from '../thresholdEcdsaChainTarget';
 import type { NormalizedLogger } from '../logger';
 import type { WalletEcdsaSignerRecord } from '../WalletStore';
-import { walletIdFromString, type WalletId } from '@shared/utils/registrationIntent';
+import { type WalletId } from '@shared/utils/registrationIntent';
+import { walletIdFromString } from '@shared/utils/registrationIds';
 import type { RouterAbEcdsaDerivationPublicCapabilityV1 } from '@shared/utils/routerAbEcdsaDerivation';
 
 export type ThresholdEcdsaKeyInventoryDiagnostics = {

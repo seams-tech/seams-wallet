@@ -23,7 +23,7 @@ import {
   parseThresholdEd25519SessionId,
 } from '@shared/utils/domainIds';
 import { sameVerifiedActiveWalletAuthorityV1 } from '@shared/authorization/walletAuthority';
-import { sameWalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
+import { sameWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 import {
   buildEmailOtpWalletAuthAuthority,
   walletAuthAuthorityRef,

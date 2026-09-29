@@ -81,7 +81,7 @@ import {
   type ActiveWalletAuthMethodRecordV2,
   type PendingWalletAuthMethodRecordV2,
   type WalletAuthMethodRecordV2,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/walletAuthMethodRecord';
 import { parseLinkDeviceSessionId, parseWalletKeyId } from '@shared/signing-lanes/ids';
 import {
   OrdinaryInactiveSignerMaterialReservationServiceV1,

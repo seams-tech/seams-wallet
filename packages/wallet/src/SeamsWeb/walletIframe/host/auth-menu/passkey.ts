@@ -26,7 +26,8 @@ import {
   type PreparedSyncAccountChallenge,
 } from '@/SeamsWeb/operations/recovery/syncAccount';
 import type { SyncAccountResult } from '@/core/types/sdkPublicResults';
-import { walletIdFromString, type WalletId } from '@shared/utils/registrationIntent';
+import { type WalletId } from '@shared/utils/registrationIntent';
+import { walletIdFromString } from '@shared/utils/registrationIds';
 import type { HostedAuthMenuSessionId } from '../../shared/messages';
 import type { WalletIframeRequestId } from '@/core/types/walletIframeIdentity';
 import type { WebAuthnPromptCancellation } from '@/core/signingEngine/stepUpConfirmation/passkeyPrompt/webauthnPromptCoordinator';

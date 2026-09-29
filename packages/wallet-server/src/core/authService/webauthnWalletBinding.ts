@@ -1,5 +1,5 @@
 import { toOptionalTrimmedString } from '@shared/utils/validation';
-import { walletIdFromString } from '@shared/utils/registrationIntent';
+import { walletIdFromString } from '@shared/utils/registrationIds';
 import type {
   WebAuthnCredentialBindingRecord,
 } from '../WebAuthnCredentialBindingStore';

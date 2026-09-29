@@ -18,8 +18,8 @@ import type { EvmFamilySigningKeySlotId } from '../signing-lanes/evmFamilySignin
 import { requireEvmFamilySigningKeySlotId } from '../signing-lanes/evmFamilySigningKeySlotId';
 import type { ThresholdEcdsaSessionId } from '../utils/domainIds';
 import { parseThresholdEcdsaSessionId } from '../utils/domainIds';
-import type { NearEd25519SigningKeyId } from '../utils/registrationIntent';
-import { parseNearEd25519SigningKeyId } from '../utils/registrationIntent';
+import type { NearEd25519SigningKeyId } from '../utils/registrationIds';
+import { parseNearEd25519SigningKeyId } from '../utils/registrationIds';
 import type { DigestB64u } from '../utils/canonicalPrimitives';
 import type { Ed25519PublicKeyB64u, Secp256k1CompressedPublicKeyB64u } from './primitives';
 import {

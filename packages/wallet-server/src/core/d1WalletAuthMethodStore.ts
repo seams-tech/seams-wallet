@@ -8,11 +8,11 @@ import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import {
   parseWalletAuthMethodRecordV2,
   walletAuthMethodRecordId,
-  walletIdFromString,
   type ActiveWalletAuthMethodRecordV2,
   type WalletAuthMethodRecord as SharedWalletAuthMethodRecord,
   type WalletAuthMethodRecordV2,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/walletAuthMethodRecord';
+import { walletIdFromString } from '@shared/utils/registrationIds';
 import { toOptionalTrimmedString, isPlainObject } from '@shared/utils/validation';
 import { formatD1ExecStatement, parseD1JsonColumn } from '../storage/d1Sql';
 import type {

@@ -1,7 +1,7 @@
 import type { AccountId } from '@/core/types/accountIds';
 import type { SigningSessionRetention } from '@/core/types/seams';
 import type { SignerAuthMethod } from '@shared/utils/signerDomain';
-import type { NearEd25519SigningKeyId } from '@shared/utils/registrationIntent';
+import type { NearEd25519SigningKeyId } from '@shared/utils/registrationIds';
 import type {
   ThresholdEcdsaSessionStoreSource,
   ThresholdEd25519SessionStoreSource,

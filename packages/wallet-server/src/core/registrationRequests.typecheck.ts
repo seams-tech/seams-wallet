@@ -13,12 +13,12 @@ import type {
 import type { CreateRegistrationIntentRequest } from '@shared/utils/registrationContracts';
 import {
   addAuthMethodIntentGrantFromString,
-  implicitNearAccountProvisioning,
   registrationIntentGrantFromString,
-  walletIdFromString,
   type AddAuthMethodIntentV1,
   type RegistrationIntentV1,
 } from '@shared/utils/registrationIntent';
+import { walletIdFromString } from '@shared/utils/registrationIds';
+import { implicitNearAccountProvisioning } from '@shared/utils/registrationSignerPlan';
 import {
   parseWalletAuthMethodId,
   parseWalletAuthorityId,

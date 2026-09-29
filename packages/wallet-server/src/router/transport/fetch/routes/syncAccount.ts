@@ -8,7 +8,7 @@ import {
   walletAuthAuthorityRef,
   type PasskeyWalletAuthAuthority,
 } from '@shared/utils/walletAuthAuthority';
-import { walletIdFromString } from '@shared/utils/registrationIntent';
+import { walletIdFromString } from '@shared/utils/registrationIds';
 import {
   parsePrincipalId,
   parseWalletSessionMintId,

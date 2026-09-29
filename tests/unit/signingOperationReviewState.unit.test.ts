@@ -21,7 +21,7 @@ import {
   planSigningOperationAttempt,
 } from '@/core/signingEngine/flows/shared/signingStateMachine';
 import { shouldRenderNearTransactionReview } from '@/core/signingEngine/uiConfirm/handlers/flows/signing';
-import { parseNearEd25519SigningKeyId } from '@shared/utils/registrationIntent';
+import { parseNearEd25519SigningKeyId } from '@shared/utils/registrationIds';
 
 function buildPasskeySigningPlans(): {
   warm: SigningSessionPlan;

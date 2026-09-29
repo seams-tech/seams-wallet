@@ -61,7 +61,7 @@ import {
   type ActivePasskeyWalletAuthMethodRecordV2,
   type PasskeyWalletAuthMethodRecordV2,
   type WalletAuthMethodRecordV2,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/walletAuthMethodRecord';
 import {
   D1WalletAuthorityStore,
   prepareD1WalletAuthorityPutStatement,

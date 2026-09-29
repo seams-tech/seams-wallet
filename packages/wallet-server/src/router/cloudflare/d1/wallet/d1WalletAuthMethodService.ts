@@ -22,22 +22,26 @@ import {
 } from '@shared/utils/signingSessionSeal';
 import {
   addAuthMethodIntentGrantFromString,
-  buildWalletAuthMethodRecordV2,
-  computeWalletAuthMethodRevokeOperationFingerprintV1,
   computeAddAuthMethodIntentDigestB64u,
-  normalizeEmailOtpRegistrationProof,
-  type ActivePasskeyWalletAuthMethodRecordV2,
-  type ActiveWalletAuthMethodRecordV2,
   type AddAuthMethodIntentGrant,
   type AddAuthMethodIntentV1,
   type AddSignerIntentV1,
-  type PasskeyWalletAuthMethodRecordV2,
-  type RegistrationAuthority,
   type RegistrationIntentV1,
   type WalletId,
+} from '@shared/utils/registrationIntent';
+import {
+  buildWalletAuthMethodRecordV2,
+  computeWalletAuthMethodRevokeOperationFingerprintV1,
+  type ActivePasskeyWalletAuthMethodRecordV2,
+  type ActiveWalletAuthMethodRecordV2,
+  type PasskeyWalletAuthMethodRecordV2,
   type WalletAuthMethodRevocationProof,
   type WalletAuthMethodRecordV2,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/walletAuthMethodRecord';
+import {
+  normalizeEmailOtpRegistrationProof,
+  type RegistrationAuthority,
+} from '@shared/utils/registrationAuthMethodInput';
 import { admitAddWalletAuthMethod } from '@shared/utils/addWalletAuthMethod';
 import { secureRandomBase64Url } from '@shared/utils/secureRandomId';
 import { toOptionalTrimmedString } from '@shared/utils/validation';

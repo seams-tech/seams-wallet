@@ -1,12 +1,14 @@
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import type { TenantRootIdentityV1 } from '@shared/tenant-root/tenantRootIdentity';
 import type {
-  ActiveEmailOtpWalletAuthMethodRecordV2,
-  ActivePasskeyWalletAuthMethodRecordV2,
-  ActiveWalletAuthMethodRecordV2,
   AddAuthMethodIntentCallerV1,
   AddAuthMethodIntentGrant,
 } from '@shared/utils/registrationIntent';
+import type {
+  ActiveEmailOtpWalletAuthMethodRecordV2,
+  ActivePasskeyWalletAuthMethodRecordV2,
+  ActiveWalletAuthMethodRecordV2,
+} from '@shared/utils/walletAuthMethodRecord';
 import type {
   WalletRegistrationNearProvisioningResponseV2,
   WalletRegistrationNearAdmissionResponseV2,
@@ -94,7 +96,7 @@ import type {
   WalletRevokeAuthMethodRequest,
   WalletRevokeAuthMethodResponse,
 } from '../../core/registrationContracts';
-import type { WalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
+import type { WalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 import type {
   DirectV2IssueResult,
   IssuedWalletSessionAuthorizationV2,

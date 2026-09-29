@@ -5,7 +5,7 @@ import {
   parseOrgId,
   parseVerifiedGoogleEmail,
 } from '@shared/utils/domainIds';
-import { createServerAllocatedWalletId } from '@shared/utils/registrationIntent';
+import { createServerAllocatedWalletId } from '@shared/utils/registrationIds';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
 import type {
   EmailOtpWalletEnrollmentRecord,

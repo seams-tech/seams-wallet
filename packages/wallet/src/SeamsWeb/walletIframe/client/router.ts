@@ -274,11 +274,9 @@ import {
 } from '@shared/utils/validation';
 import { toError } from '@shared/utils/errors';
 import { secureRandomBase36 } from '@shared/utils/secureRandomId';
-import {
-  walletIdFromString,
-  type RegistrationAuthMethodInput,
-  type WalletAuthMethodRevocationProof,
-} from '@shared/utils/registrationIntent';
+import { type WalletAuthMethodRevocationProof } from '@shared/utils/walletAuthMethodRecord';
+import { walletIdFromString } from '@shared/utils/registrationIds';
+import { type RegistrationAuthMethodInput } from '@shared/utils/registrationAuthMethodInput';
 import { joinNormalizedUrl, stripTrailingSlashes } from '@shared/utils/normalize';
 import { needsExplicitActivation } from '@/utils/deviceDetection';
 import type { AuthenticatorOptions } from '@/core/types/authenticatorOptions';

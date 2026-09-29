@@ -18,7 +18,7 @@ import {
   parseWalletId,
   parseWalletRecoveryOperationId,
 } from '@shared/utils/domainIds';
-import type { ActivePasskeyWalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
+import type { ActivePasskeyWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 import {
   parseWalletRecoveryCommittedProjectionV1,
   type WalletRecoveryCommittedProjectionExpectationV1,

@@ -22,11 +22,8 @@ import {
 import * as ed25519 from '@noble/ed25519';
 import { base58Decode, base64UrlEncode } from '@shared/utils/encoders';
 import { decodeWalletRecoveryCode } from '@shared/wallet-recovery/recoveryCodes';
-import {
-  computeWalletAuthMethodRevokeOperationFingerprintV1,
-  createReadableWalletId,
-  walletIdFromString,
-} from '@shared/utils/registrationIntent';
+import { computeWalletAuthMethodRevokeOperationFingerprintV1 } from '@shared/utils/walletAuthMethodRecord';
+import { createReadableWalletId, walletIdFromString } from '@shared/utils/registrationIds';
 import { parseWalletAuthMethodId } from '@shared/utils/domainIds';
 import { parseQrLinkedDeviceSessionPayloadV5 } from '@shared/device-linking/parsers';
 import {

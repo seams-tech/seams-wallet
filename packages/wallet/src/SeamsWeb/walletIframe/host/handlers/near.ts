@@ -27,7 +27,7 @@ import {
   type PlainSignedTransactionLike,
 } from '@shared/utils/validation';
 import type { ActionArgs } from '@/core/types';
-import type { RegistrationAuthMethodInput } from '@shared/utils/registrationIntent';
+import type { RegistrationAuthMethodInput } from '@shared/utils/registrationAuthMethodInput';
 import type { HandlerDeps, HandlerMap, Req } from './walletIframeHandler.types';
 import { respondOk, respondOkResult, withProgress, withRegistrationProgress } from './shared';
 

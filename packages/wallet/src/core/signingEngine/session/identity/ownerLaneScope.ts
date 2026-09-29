@@ -13,7 +13,7 @@ import type {
   EmailOtpWalletAuthMethodRecordV2,
   PasskeyWalletAuthMethodRecordV2,
   WalletAuthMethodRecordV2,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/walletAuthMethodRecord';
 import { parseSignerSlot, type SignerSlot } from '@shared/utils/signerSlot';
 import type { LocalWalletAuthMethodRecord } from '@/core/indexedDB/passkeyClientDB.types';
 import { toRpId } from './evmFamilyEcdsaIdentity';

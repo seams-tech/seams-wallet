@@ -1,4 +1,4 @@
-import type { RegistrationSignerSetSelection } from '@shared/utils/registrationIntent';
+import type { RegistrationSignerSetSelection } from '@shared/utils/registrationSignerPlan';
 
 type RegistrationSignerSetRequest = RegistrationSignerSetSelection;
 
