@@ -205,7 +205,3 @@ export type SigningLaneRecord =
   | DelegatedExecutionSigningLaneRecord
   | RecoverySigningLaneRecord
   | BreakGlassSigningLaneRecord;
-
-export function assertNeverSigningLane(value: never): never {
-  throw new Error(`[SigningLaneRecord] unsupported lane: ${String(value)}`);
-}

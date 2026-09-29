@@ -45,8 +45,8 @@ export type PasskeyCustodySecretKind =
   | 'ecdsa_lane_holder_share_v1';
 
 /** The only derivation scheme owner custody supports. */
-export const WALLET_SEED_DERIVATION_SCHEME_V1 = 'wallet_seed_parallel_hkdf_sha256_v1' as const;
-export type WalletSeedDerivationScheme = typeof WALLET_SEED_DERIVATION_SCHEME_V1;
+const WALLET_SEED_DERIVATION_SCHEME_V1 = 'wallet_seed_parallel_hkdf_sha256_v1' as const;
+type WalletSeedDerivationScheme = typeof WALLET_SEED_DERIVATION_SCHEME_V1;
 
 export type PasskeyCustodySecretBinding =
   | {
@@ -137,7 +137,7 @@ type Ed25519YaoClientRootTargetFactorV1 =
   | { readonly kind: 'passkey_prf' }
   | { readonly kind: 'email_otp' };
 
-export type PasskeyCustodySecretBindingOfKind<TKind extends PasskeyCustodySecretKind> = Extract<
+type PasskeyCustodySecretBindingOfKind<TKind extends PasskeyCustodySecretKind> = Extract<
   PasskeyCustodySecretBinding,
   { kind: TKind }
 >;
@@ -152,7 +152,7 @@ export function isWalletCustodySeedBinding(
 // Builders are branch-specific on purpose: a shared builder plus a spread would
 // let one branch's identity fields reach another branch's envelope.
 
-export function buildWalletCustodySeedBinding(): PasskeyCustodySecretBindingOfKind<'wallet_custody_seed_v1'> {
+function buildWalletCustodySeedBinding(): PasskeyCustodySecretBindingOfKind<'wallet_custody_seed_v1'> {
   return {
     kind: 'wallet_custody_seed_v1',
     derivationScheme: WALLET_SEED_DERIVATION_SCHEME_V1,
@@ -182,7 +182,7 @@ export function buildEd25519YaoClientRootBinding(args: {
   };
 }
 
-export function buildEd25519LaneHolderShareBinding(args: {
+function buildEd25519LaneHolderShareBinding(args: {
   walletKeyId: WalletKeyId;
   laneId: SigningLaneId;
   laneShareEpoch: LaneShareEpoch;
@@ -201,7 +201,7 @@ export function buildEd25519LaneHolderShareBinding(args: {
   };
 }
 
-export function buildEcdsaLaneHolderShareBinding(args: {
+function buildEcdsaLaneHolderShareBinding(args: {
   walletKeyId: WalletKeyId;
   laneId: SigningLaneId;
   laneShareEpoch: LaneShareEpoch;

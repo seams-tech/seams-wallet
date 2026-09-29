@@ -27,12 +27,12 @@ import { requireRecord } from '../utils/validation';
 import { rejectUnknownFields } from '../utils/exactRecord';
 
 export const WALLET_CUSTODY_ENVELOPE_VERSION_V2 = 'wallet_custody_envelope_v2' as const;
-export const PASSKEY_PRF_KEK_VERSION_V1 = 'passkey_prf_kek_hkdf_sha256_v1' as const;
-export const EMAIL_OTP_FACTOR_KEK_VERSION_V1 = 'email_otp_factor_kek_hkdf_sha256_v1' as const;
+const PASSKEY_PRF_KEK_VERSION_V1 = 'passkey_prf_kek_hkdf_sha256_v1' as const;
+const EMAIL_OTP_FACTOR_KEK_VERSION_V1 = 'email_otp_factor_kek_hkdf_sha256_v1' as const;
 
-export type WalletCustodyEnvelopeVersion = typeof WALLET_CUSTODY_ENVELOPE_VERSION_V2;
-export type PasskeyPrfKekVersion = typeof PASSKEY_PRF_KEK_VERSION_V1;
-export type EmailOtpFactorKekVersion = typeof EMAIL_OTP_FACTOR_KEK_VERSION_V1;
+type WalletCustodyEnvelopeVersion = typeof WALLET_CUSTODY_ENVELOPE_VERSION_V2;
+type PasskeyPrfKekVersion = typeof PASSKEY_PRF_KEK_VERSION_V1;
+type EmailOtpFactorKekVersion = typeof EMAIL_OTP_FACTOR_KEK_VERSION_V1;
 
 /**
  * Which enrolled factor sealed this envelope.
@@ -74,8 +74,6 @@ export type WalletCustodyEnvelopeFactor =
       rpId?: never;
       credentialIdB64u?: never;
     };
-
-export type WalletCustodyFactorKind = WalletCustodyEnvelopeFactor['kind'];
 
 export type PasskeyCustodyEnvelopeLifecycle =
   | {
@@ -258,7 +256,7 @@ export function buildActiveEnvelopeLifecycle(args: {
   return { state: 'active', activatedAtMs: args.activatedAtMs };
 }
 
-export function buildRetiredEnvelopeLifecycle(args: {
+function buildRetiredEnvelopeLifecycle(args: {
   activatedAtMs: number;
   retiredAtMs: number;
 }): PasskeyCustodyEnvelopeLifecycle {
@@ -316,7 +314,7 @@ export function buildPasskeyCustodyEnvelopeRecord(args: {
 
 const ENVELOPE_LIFECYCLE_FIELDS = ['state', 'activatedAtMs', 'retiredAtMs', 'revokedAtMs'] as const;
 
-export function parsePasskeyCustodyEnvelopeLifecycle(
+function parsePasskeyCustodyEnvelopeLifecycle(
   raw: unknown,
   label = 'lifecycle',
 ): PasskeyCustodyEnvelopeLifecycle {
@@ -480,10 +478,6 @@ export function parsePasskeyCustodyEnvelopeRecord(
     createdAtMs,
     updatedAtMs,
   });
-}
-
-export function isActivePasskeyCustodyEnvelope(envelope: PasskeyCustodyEnvelopeRecord): boolean {
-  return envelope.lifecycle.state === 'active';
 }
 
 /** Two ownerships name the same owner. */

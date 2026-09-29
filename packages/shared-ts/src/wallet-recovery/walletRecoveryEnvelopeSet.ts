@@ -442,8 +442,3 @@ export function parseWalletRecoveryEnvelopeSetRecord(
     updatedAtMs,
   });
 }
-
-/** A set is openable while at least one recovery-code wrap remains active. */
-export function hasOpenableRecoveryCodeWrap(set: WalletRecoveryEnvelopeSetRecord): boolean {
-  return set.manifestKekWraps.some((wrap) => wrap.lifecycle.state === 'active');
-}
