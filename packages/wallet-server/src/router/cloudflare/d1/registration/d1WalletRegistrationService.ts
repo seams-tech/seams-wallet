@@ -1,9 +1,7 @@
 import { parseWalletRegistrationSetupClaims } from '../../../domains/walletRegistration/walletRegistrationSetupPayload';
 import type { VerifiedNearRegistrationContinuationV1 } from '../../../domains/ed25519Yao/registration/routerAbEd25519YaoRegistrationIntentAuthorization';
-import type {
-  WalletRegistrationAuthorityInput,
-  WalletRegistrationFinalizeAuthMethod,
-} from '../../../../core/registrationContracts';
+import type { WalletRegistrationAuthorityInput } from '../../../../core/registrationContracts';
+import type { WalletRegistrationFinalizeAuthMethod } from '@shared/utils/registrationContracts';
 import {
   parseDeviceId,
   parseWalletSessionMintId,

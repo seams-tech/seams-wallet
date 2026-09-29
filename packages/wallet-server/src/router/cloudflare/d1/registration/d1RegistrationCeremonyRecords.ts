@@ -91,12 +91,14 @@ import type {
   WalletRegistrationEcdsaPrepareContext,
   WalletRegistrationEcdsaPreparePayload,
   WalletRegistrationEcdsaWalletKey,
-  WalletRegistrationFinalizeAuthMethod,
-  WalletEd25519YaoSignerPublicResult,
   WalletRegistrationEd25519YaoPublicResult,
   WalletAddSignerFinalizeResponse,
   WalletAddAuthMethodRegistrationOptions,
 } from '../../../../core/registrationContracts';
+import type {
+  WalletEd25519YaoSignerPublicResult,
+  WalletRegistrationFinalizeAuthMethod,
+} from '@shared/utils/registrationContracts';
 import {
   parseWalletAuthAuthority,
   parseWalletAuthAuthorityRef,

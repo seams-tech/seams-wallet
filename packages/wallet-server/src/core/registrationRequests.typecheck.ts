@@ -2,7 +2,6 @@ import { allocateWalletAuthMethodId } from '@shared/utils/domainIds';
 import type {
   CreateAddAuthMethodIntentRequest,
   CreateAddSignerIntentRequest,
-  CreateRegistrationIntentRequest,
   WalletAddAuthMethodStartRequest,
   WalletRegistrationEcdsaPreparePayload,
   WalletRegistrationFinalizeRequest,
@@ -11,6 +10,7 @@ import type {
   WalletRegistrationStartResponse,
   WalletRegistrationStartRequest,
 } from './registrationContracts';
+import type { CreateRegistrationIntentRequest } from '@shared/utils/registrationContracts';
 import {
   addAuthMethodIntentGrantFromString,
   implicitNearAccountProvisioning,

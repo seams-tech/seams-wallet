@@ -17,9 +17,9 @@ import type {
   WalletAddSignerFinalizeSuccess,
   WalletRegistrationEcdsaPreparePayload,
   WalletId,
-  WalletEd25519YaoSignerPublicResult,
   WalletRegistrationEcdsaWalletKey,
 } from './registrationContracts';
+import type { WalletEd25519YaoSignerPublicResult } from '@shared/utils/registrationContracts';
 import type {
   RegistrationAuthority,
   RegistrationNearAccountProvisioning,

@@ -160,7 +160,7 @@ import {
 import type {
   WalletRegistrationEd25519YaoBootstrapSession,
   WalletRegistrationEd25519YaoSignerRuntimeBootstrap,
-} from '@/core/rpcClients/relayer/walletRegistration';
+} from '@shared/utils/registrationContracts';
 import {
   parseRouterAbEcdsaCredentialFreeSessionActivationResponseV1,
   parseRouterAbEcdsaPostRegistrationSessionActivationPolicyV1,

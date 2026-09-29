@@ -1,7 +1,5 @@
-import type {
-  WalletRegistrationEd25519YaoPublicResult,
-  WalletRegistrationFinalizeAuthMethod,
-} from '../../../../core/registrationContracts';
+import type { WalletRegistrationEd25519YaoPublicResult } from '../../../../core/registrationContracts';
+import type { WalletRegistrationFinalizeAuthMethod } from '@shared/utils/registrationContracts';
 import { parseSessionOrigin, parseVerifiedOwnerProofId } from '../../../../authorization/domain';
 import {
   buildVerifiedOwnerProof,

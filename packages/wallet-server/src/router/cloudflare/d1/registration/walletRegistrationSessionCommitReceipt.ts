@@ -1,10 +1,10 @@
 import type {
   WalletRegistrationFinalizeResponse,
   WalletRegistrationFinalizeSuccess,
-  WalletRegistrationFinalizeAuthMethod,
   WalletRegistrationRouteDiagnostics,
   WalletRegistrationRouteTimingName,
 } from '../../../../core/registrationContracts';
+import type { WalletRegistrationFinalizeAuthMethod } from '@shared/utils/registrationContracts';
 import { parseSessionOrigin } from '../../../../authorization/domain';
 import type {
   WalletRegistrationActivateResponseV2,

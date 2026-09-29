@@ -8,7 +8,6 @@ import {
   MAX_WALLET_SESSION_REMAINING_USES,
   MAX_WALLET_SESSION_TTL_MS,
 } from '@shared/threshold/sessionPolicy';
-import type { WebAuthnRpId } from '@shared/utils/domainIds';
 import type {
   EmailOtpWalletAuthAuthority,
   PasskeyWalletAuthAuthority,
@@ -24,31 +23,7 @@ export type ThresholdRuntimePolicyScope = RuntimePolicyScope;
 
 export const THRESHOLD_SESSION_POLICY_VERSION = 'threshold_session_v1' as const;
 
-export type Ed25519AuthorityScope =
-  | {
-      kind: 'passkey_rp';
-      rpId: WebAuthnRpId;
-      proofKind?: never;
-      email?: never;
-      provider?: never;
-      providerUserId?: never;
-      challengeId?: never;
-      googleEmailOtpRegistrationAttemptId?: never;
-      googleEmailOtpRegistrationOfferId?: never;
-      googleEmailOtpRegistrationCandidateId?: never;
-    }
-  | {
-      kind: 'email_otp';
-      provider: 'google' | 'email';
-      providerUserId: string;
-      proofKind?: never;
-      rpId?: never;
-      email?: never;
-      challengeId?: never;
-      googleEmailOtpRegistrationAttemptId?: never;
-      googleEmailOtpRegistrationOfferId?: never;
-      googleEmailOtpRegistrationCandidateId?: never;
-    };
+export type { Ed25519AuthorityScope } from '@shared/threshold/sessionPolicy';
 
 export type Ed25519SessionPolicyAuthority = {
   kind: 'wallet_auth_authority';

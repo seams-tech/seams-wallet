@@ -61,19 +61,18 @@ import {
   parseWebAuthnAuthenticatorDeviceInfo,
   type WebAuthnAuthenticatorDeviceInfo,
 } from '@shared/utils/webauthnDeviceInfo';
-import type { WalletSessionOperationCredentialV1 } from '@shared/device-linking';
 import type { EcdsaKeyFactsInventoryWalletSessionCredential } from '@/core/types/sdkSentEvents';
-import type {
-  MpcWalletSigningQuotaId,
-  WalletSessionAuthorizationId,
-  WalletSessionId,
-} from '@shared/authorization/capabilityKinds';
 import {
-  type RouterAbEd25519YaoActivationAdmissionReceiptV1,
   parseRouterAbEd25519YaoRegistrationAdmissionRequestV1,
-  type RouterAbEd25519YaoBytes32V1,
   type RouterAbEd25519YaoRegistrationAdmissionRequestV1,
 } from '@shared/utils/routerAbEd25519Yao';
+import type {
+  CreateRegistrationIntentRequest,
+  WalletEd25519YaoSignerPublicResult,
+  WalletRegistrationEd25519YaoActivationReference,
+  WalletRegistrationEd25519YaoStart,
+  WalletRegistrationFinalizeAuthMethod,
+} from '@shared/utils/registrationContracts';
 import {
   parseWalletAuthAuthority,
   type WalletAuthAuthority,
@@ -117,7 +116,6 @@ import {
   buildRelayerJsonPostRequestInit,
   normalizeRelayerBaseUrl,
 } from './relayerHttp';
-import { type RegistrationSignerSetRequest } from './registrationSignerSetRequest';
 import {
   parseWalletAddSignerChainTarget,
   parseWalletAddSignerEcdsaWalletKey,
@@ -311,12 +309,6 @@ async function postJson(args: {
   }
   throw new Error('wallet registration request exhausted retry attempts');
 }
-
-export type CreateRegistrationIntentRequest = {
-  wallet: RegisterWalletInput;
-  authMethod: RegistrationAuthMethodInput;
-  signerSelection: RegistrationSignerSetRequest;
-};
 
 export type CreateRegistrationIntentResponse = {
   ok: true;
@@ -546,11 +538,6 @@ export type WalletRegistrationRouteDiagnostics = {
     name: WalletRegistrationRouteTimingName;
     durationMs: number;
   }[];
-};
-
-export type WalletRegistrationEd25519YaoStart = {
-  admissionRequest: RouterAbEd25519YaoRegistrationAdmissionRequestV1;
-  admissionReceipt: RouterAbEd25519YaoActivationAdmissionReceiptV1<'registration'>;
 };
 
 export type WalletRegistrationEcdsaPreparePayload = {
@@ -1331,67 +1318,6 @@ function parseWalletAddSignerEcdsaActivationResponse(
     },
   };
 }
-
-export type WalletRegistrationFinalizeAuthMethod =
-  | {
-      kind: 'passkey';
-      credentialIdB64u: string;
-      credentialPublicKeyB64u: string;
-    }
-  | {
-      kind: 'email_otp';
-      registrationAuthorityId: string;
-    };
-
-export type WalletRegistrationEd25519YaoActivationReference = {
-  kind: 'router_ab_ed25519_yao_activation_reference_v1';
-  lifecycle_id: string;
-  session_id: RouterAbEd25519YaoBytes32V1;
-};
-
-export type WalletRegistrationEd25519YaoSignerRuntimeBootstrap = {
-  walletId: WalletId;
-  nearAccountId: string;
-  nearEd25519SigningKeyId: string;
-  authorityScope: Ed25519AuthorityScope;
-  thresholdSessionId: string;
-  authorizationId: WalletSessionAuthorizationId;
-  walletSessionId: WalletSessionId;
-  quotaId: MpcWalletSigningQuotaId;
-  expiresAtMs: number;
-  participantIds: readonly [number, number];
-  remainingUses: number;
-  signingRootId: string;
-  signingRootVersion: string;
-  runtimePolicyScope: ThresholdRuntimePolicyScope;
-  routerAbNormalSigning: RouterAbEd25519NormalSigningState;
-};
-
-/**
- * The response branch is retained alongside signer-runtime bootstrap facts.
- * A reused response carries no new credential; the caller's exact credential
- * remains the only admission proof for that existing session.
- */
-export type WalletRegistrationEd25519YaoBootstrapSession =
-  | (WalletRegistrationEd25519YaoSignerRuntimeBootstrap & {
-      sessionKind: 'issued_exact_wallet_session';
-      operationCredential: WalletSessionOperationCredentialV1;
-    })
-  | (WalletRegistrationEd25519YaoSignerRuntimeBootstrap & {
-      sessionKind: 'already_committed_exact_wallet_session';
-      operationCredential?: never;
-    });
-
-export type WalletEd25519YaoSignerPublicResult = {
-  signerSlot: number;
-  nearAccountId: string;
-  nearEd25519SigningKeyId: string;
-  publicKey: string;
-  relayerKeyId: string;
-  keyVersion: string;
-  recoveryExportCapable: true;
-  participantIds: readonly [number, number];
-};
 
 export type WalletRegistrationEd25519YaoPublicResult = WalletEd25519YaoSignerPublicResult & {
   thresholdSessionId: ThresholdEd25519SessionId;

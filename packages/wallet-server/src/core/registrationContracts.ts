@@ -18,18 +18,15 @@ import type {
 } from '@shared/utils/walletAuthAuthority';
 import type { WebAuthnAuthenticatorDeviceInfo } from '@shared/utils/webauthnDeviceInfo';
 import type { WALLET_AUTH_METHODS } from '@shared/utils/signerDomain';
-import type {
-  RouterAbEd25519YaoActivationAdmissionReceiptV1,
-  RouterAbEd25519YaoBytes32V1,
-  RouterAbEd25519YaoRegistrationAdmissionRequestV1,
-} from '@shared/utils/routerAbEd25519Yao';
+import type { RouterAbEd25519YaoRegistrationAdmissionRequestV1 } from '@shared/utils/routerAbEd25519Yao';
 import type { RouterAbEd25519NormalSigningState } from '@shared/utils/signingSessionSeal';
 import type {
-  MpcWalletSigningQuotaId,
-  WalletSessionAuthorizationId,
-  WalletSessionId,
-} from '@shared/authorization/capabilityKinds';
-import type { WalletSessionOperationCredentialV1 } from '@shared/device-linking';
+  EmailOtpWalletRegistrationFinalizeAuthMethod,
+  PasskeyWalletRegistrationFinalizeAuthMethod,
+  WalletEd25519YaoSignerPublicResult,
+  WalletRegistrationEd25519YaoActivationReference,
+  WalletRegistrationEd25519YaoStart,
+} from '@shared/utils/registrationContracts';
 import type {
   RouterAbEcdsaDerivationPublicCapabilityV1,
   RouterAbEcdsaRegistrationActivationRequestV1,
@@ -49,7 +46,6 @@ import type {
   AddSignerIntentV1,
   AddSignerSelection,
   EmailOtpRegistrationProof,
-  RegistrationAuthMethodInput,
   RegistrationNearAccountProvisioning,
   RegisterWalletInput,
   RegistrationIntentGrant,
@@ -93,12 +89,6 @@ export type {
   ThresholdEcdsaAddSignerSpec,
   ThresholdEd25519AddSignerSpec,
   WalletId,
-};
-
-export type CreateRegistrationIntentRequest = {
-  wallet: RegisterWalletInput;
-  authMethod: RegistrationAuthMethodInput;
-  signerSelection: RegistrationSignerSetSelection;
 };
 
 export type CreateRegistrationIntentResponse =
@@ -665,11 +655,6 @@ export type WalletRegistrationEcdsaWalletKey = {
   publicCapability: RouterAbEcdsaDerivationPublicCapabilityV1;
 };
 
-export type WalletRegistrationEd25519YaoStart = {
-  admissionRequest: RouterAbEd25519YaoRegistrationAdmissionRequestV1;
-  admissionReceipt: RouterAbEd25519YaoActivationAdmissionReceiptV1<'registration'>;
-};
-
 type WalletRegistrationStartSignerWork =
   | {
       kind: 'near_ed25519';
@@ -686,12 +671,6 @@ type WalletRegistrationStartSignerWork =
       ed25519: WalletRegistrationEd25519YaoStart;
       ecdsa: WalletRegistrationEcdsaPreparePayload;
     };
-
-export type WalletRegistrationEd25519YaoActivationReference = {
-  kind: 'router_ab_ed25519_yao_activation_reference_v1';
-  lifecycle_id: string;
-  session_id: RouterAbEd25519YaoBytes32V1;
-};
 
 type WalletRegistrationEd25519YaoFinalize = {
   activationReference: WalletRegistrationEd25519YaoActivationReference;
@@ -847,72 +826,6 @@ type WalletRegistrationFinalizeRequestBase = {
 
 export type WalletRegistrationFinalizeRequest = WalletRegistrationFinalizeRequestBase &
   WalletRegistrationFinalizeSignerWork;
-
-export type WalletRegistrationFinalizeAuthMethod =
-  | {
-      kind: typeof WALLET_AUTH_METHODS.passkey;
-      credentialIdB64u: string;
-      credentialPublicKeyB64u: string;
-    }
-  | {
-      kind: typeof WALLET_AUTH_METHODS.emailOtp;
-      registrationAuthorityId: string;
-    };
-
-export type PasskeyWalletRegistrationFinalizeAuthMethod = Extract<
-  WalletRegistrationFinalizeAuthMethod,
-  { kind: typeof WALLET_AUTH_METHODS.passkey }
->;
-
-export type EmailOtpWalletRegistrationFinalizeAuthMethod = Extract<
-  WalletRegistrationFinalizeAuthMethod,
-  { kind: typeof WALLET_AUTH_METHODS.emailOtp }
->;
-
-type WalletRegistrationEd25519YaoBootstrapSessionIdentity = {
-  walletId: WalletId;
-  nearAccountId: string;
-  nearEd25519SigningKeyId: string;
-  authorityScope: ThresholdEd25519AuthorityScope;
-  thresholdSessionId: string;
-  authorizationId: WalletSessionAuthorizationId;
-  walletSessionId: WalletSessionId;
-  quotaId: MpcWalletSigningQuotaId;
-  expiresAtMs: number;
-  participantIds: readonly [number, number];
-  remainingUses: number;
-  signingRootId: string;
-  signingRootVersion: string;
-  runtimePolicyScope: ThresholdRuntimePolicyScope;
-  routerAbNormalSigning: RouterAbEd25519NormalSigningState;
-};
-
-/**
- * The Ed25519 Yao view of one exact Wallet Session. A session this response
- * just issued carries its own primary operation credential; a session it
- * reuses carries none, because the credential was delivered once by the
- * issuing response and a committed digest cannot reproduce plaintext.
- */
-export type WalletRegistrationEd25519YaoBootstrapSession =
-  | (WalletRegistrationEd25519YaoBootstrapSessionIdentity & {
-      sessionKind: 'issued_exact_wallet_session';
-      operationCredential: WalletSessionOperationCredentialV1;
-    })
-  | (WalletRegistrationEd25519YaoBootstrapSessionIdentity & {
-      sessionKind: 'already_committed_exact_wallet_session';
-      operationCredential?: never;
-    });
-
-export type WalletEd25519YaoSignerPublicResult = {
-  signerSlot: number;
-  nearAccountId: string;
-  nearEd25519SigningKeyId: string;
-  publicKey: string;
-  relayerKeyId: string;
-  keyVersion: string;
-  recoveryExportCapable: true;
-  participantIds: readonly [number, number];
-};
 
 export type WalletRegistrationEd25519YaoPublicResult = WalletEd25519YaoSignerPublicResult & {
   thresholdSessionId: string;

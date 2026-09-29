@@ -44,14 +44,16 @@ import type {
 } from '@shared/utils/registrationIntent';
 import type {
   FinalizeWalletRegistrationArgs,
-  WalletEd25519YaoSignerPublicResult,
   WalletRegistrationEcdsaWalletKey,
   WalletRegistrationEd25519YaoPublicResult,
-  WalletRegistrationFinalizeAuthMethod,
   WalletRegistrationFinalizeResponse,
   WalletRegistrationRouteDiagnostics,
   WalletRegistrationRouteTimingName,
 } from './walletRegistration';
+import type {
+  WalletEd25519YaoSignerPublicResult,
+  WalletRegistrationFinalizeAuthMethod,
+} from '@shared/utils/registrationContracts';
 
 export function requireResponseString(args: {
   responseName: string;

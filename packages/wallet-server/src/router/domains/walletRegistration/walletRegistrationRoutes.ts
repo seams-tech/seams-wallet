@@ -42,11 +42,13 @@ import type {
   WalletAddAuthMethodStartRequest,
   WalletAddAuthMethodStartResponse,
   WalletRegistrationEcdsaFinalize,
-  WalletRegistrationEd25519YaoActivationReference,
   WalletRegistrationFinalizeSignerWork,
-  PasskeyWalletRegistrationFinalizeAuthMethod,
-  EmailOtpWalletRegistrationFinalizeAuthMethod,
 } from '../../../core/registrationContracts';
+import type {
+  EmailOtpWalletRegistrationFinalizeAuthMethod,
+  PasskeyWalletRegistrationFinalizeAuthMethod,
+  WalletRegistrationEd25519YaoActivationReference,
+} from '@shared/utils/registrationContracts';
 import type { ThresholdEcdsaChainTarget } from '../../../core/thresholdEcdsaChainTarget';
 import { thresholdEcdsaChainTargetFromValue } from '../../../core/thresholdEcdsaChainTarget';
 import {

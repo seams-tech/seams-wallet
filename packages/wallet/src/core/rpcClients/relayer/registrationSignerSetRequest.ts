@@ -1,6 +1,6 @@
 import type { RegistrationSignerSetSelection } from '@shared/utils/registrationIntent';
 
-export type RegistrationSignerSetRequest = RegistrationSignerSetSelection;
+type RegistrationSignerSetRequest = RegistrationSignerSetSelection;
 
 export function registrationSignerSetRequestSelection(
   selection: RegistrationSignerSetRequest,

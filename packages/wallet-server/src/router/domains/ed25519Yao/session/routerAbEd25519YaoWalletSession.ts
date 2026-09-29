@@ -7,7 +7,7 @@ import type {
 } from '@shared/utils/walletAuthAuthority';
 import type { WebAuthnAuthenticationCredential } from '../../../../core/types';
 import { thresholdEd25519AuthorityScopeFromWalletAuthAuthority } from '../../../../core/ThresholdService/validation';
-import type { WalletRegistrationEd25519YaoBootstrapSession } from '../../../../core/registrationContracts';
+import type { WalletRegistrationEd25519YaoBootstrapSession } from '@shared/utils/registrationContracts';
 import type { RouterAbEd25519YaoActiveCapabilityDescriptorV1 } from '../recovery/routerAbEd25519YaoRecovery';
 import type {
   MpcWalletSigningQuotaId,

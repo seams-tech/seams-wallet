@@ -113,7 +113,7 @@ import type {
   Ed25519YaoLaneJobV1,
 } from '@shared/signing-lanes/rotation';
 import type { ExactWalletSessionAuthorization } from '../session/persistence/walletSessionAuthorizationProjection';
-import type { WalletRegistrationEd25519YaoSignerRuntimeBootstrap } from '@/core/rpcClients/relayer/walletRegistration';
+import type { WalletRegistrationEd25519YaoSignerRuntimeBootstrap } from '@shared/utils/registrationContracts';
 import type { WebAuthnRegistrationCredential } from '@/core/types/webauthn';
 import type { WalletRecoverySetRotationWorkerResultV1 } from '@shared/wallet-recovery/walletRecoveryRotation';
 import type {

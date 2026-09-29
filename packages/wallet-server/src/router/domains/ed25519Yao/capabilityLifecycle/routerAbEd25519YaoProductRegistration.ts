@@ -46,7 +46,7 @@ import { ROUTER_AB_ED25519_NORMAL_SIGNING_STATE_KIND } from '@shared/utils/signi
 import { deriveSigningRootId, type RuntimePolicyScope } from '@shared/threshold/signingRootScope';
 import type { WalletAuthAuthority } from '@shared/utils/walletAuthAuthority';
 import type { WalletSessionOperationCredentialV1 } from '@shared/device-linking';
-import type { WalletRegistrationEd25519YaoBootstrapSession } from '../../../../core/registrationContracts';
+import type { WalletRegistrationEd25519YaoBootstrapSession } from '@shared/utils/registrationContracts';
 import { thresholdEd25519AuthorityScopeFromWalletAuthAuthority } from '../../../../core/ThresholdService/validation';
 import {
   createRouterAbEd25519YaoRecoveryModule,

@@ -11,9 +11,9 @@ import type {
   WalletRegistrationEcdsaActivationResponse,
   WalletRegistrationEcdsaWalletKey,
   WalletRegistrationEd25519YaoPublicResult,
-  WalletRegistrationFinalizeAuthMethod,
   WalletRegistrationRouteDiagnostics,
 } from './registrationContracts';
+import type { WalletRegistrationFinalizeAuthMethod } from '@shared/utils/registrationContracts';
 import type {
   RegistrationEstablishedSessionProjectionV2,
   RegistrationEstablishedSessionResultV2,

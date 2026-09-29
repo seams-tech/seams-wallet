@@ -43,7 +43,7 @@ import type {
   IssuedWalletSessionAuthorizationV2,
 } from '../../../authorization/domain';
 import type { WalletSessionOperationCredentialV1 } from '@shared/device-linking/contracts';
-import type { WalletRegistrationEd25519YaoBootstrapSession } from '../../../core/registrationContracts';
+import type { WalletRegistrationEd25519YaoBootstrapSession } from '@shared/utils/registrationContracts';
 import { thresholdEd25519StatusCode } from '../../../threshold/statusCodes';
 import type {
   RouterApiWalletRegistrationService,

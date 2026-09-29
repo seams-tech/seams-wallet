@@ -21,8 +21,8 @@ import type {
 import type {
   WalletAddAuthMethodStartRequest,
   WalletAddSignerStartRequest,
-  WalletRegistrationFinalizeAuthMethod,
 } from '../../../../core/registrationContracts';
+import type { WalletRegistrationFinalizeAuthMethod } from '@shared/utils/registrationContracts';
 import type { WalletAuthMethodV2Store } from '../../../../core/d1WalletAuthMethodStore';
 import { webAuthnCredentialIdB64uFromCredential } from '../../../auth/webAuthnCredentialCodecs';
 import { sha256HexUtf8 } from '@shared/utils/digests';

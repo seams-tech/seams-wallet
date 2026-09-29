@@ -25,7 +25,7 @@ import {
   EcdsaPresignClientRequestType,
 } from './workerTypes';
 import type { EcdsaRoleLocalPersistedMaterialRef } from '../session/keyMaterialBrands';
-import type { WalletRegistrationEd25519YaoBootstrapSession } from '@/core/rpcClients/relayer/walletRegistration';
+import type { WalletRegistrationEd25519YaoBootstrapSession } from '@shared/utils/registrationContracts';
 import type {
   InitialEcdsaCapabilityActivationPlan,
   InitialEcdsaCapabilityActivationPlanInput,

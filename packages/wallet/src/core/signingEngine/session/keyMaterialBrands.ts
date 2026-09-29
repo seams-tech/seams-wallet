@@ -2,6 +2,7 @@ import {
   parseSdkEcdsaDerivationThresholdKeyId,
   type EcdsaThresholdKeyId,
 } from '@shared/threshold/ecdsaDerivationRoleLocalBootstrap';
+import { parseNonEmptyBrand, type Brand } from '@shared/threshold/keyMaterialBrands';
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
 import {
   parseMpcMaterialActivationRef,
@@ -9,20 +10,33 @@ import {
 } from '@shared/utils/domainIds';
 
 export type { EcdsaThresholdKeyId };
-
-export type Brand<T, Name extends string> = T & { readonly __brand: Name };
+export {
+  formatEcdsaClientVerifyingShareB64uForWire,
+  formatEcdsaDerivationKeyVersionForWire,
+  formatEcdsaKeyHandleForWire,
+  formatEcdsaRelayerKeyIdForWire,
+  formatEcdsaThresholdKeyIdForWire,
+  formatEd25519RelayerKeyIdForWire,
+  formatSigningSessionSealKeyVersionForWire,
+  parseEcdsaClientVerifyingShareB64u,
+  parseEcdsaDerivationKeyVersion,
+  parseEcdsaKeyHandle,
+  parseEcdsaRelayerKeyId,
+  parseEd25519RelayerKeyId,
+  parseSigningSessionSealKeyVersion,
+  type EcdsaClientVerifyingShareB64u,
+  type EcdsaDerivationKeyVersion,
+  type EcdsaKeyHandle,
+  type EcdsaRelayerKeyId,
+  type Ed25519RelayerKeyId,
+  type SigningSessionSealKeyVersion,
+} from '@shared/threshold/keyMaterialBrands';
 
 export type Ed25519KeyVersion = Brand<string, 'Ed25519KeyVersion'>;
-export type EcdsaDerivationKeyVersion = Brand<string, 'EcdsaDerivationKeyVersion'>;
-export type SigningSessionSealKeyVersion = Brand<string, 'SigningSessionSealKeyVersion'>;
-export type EcdsaClientVerifyingShareB64u = Brand<string, 'EcdsaClientVerifyingShareB64u'>;
 export type EcdsaClientVerifyingPublicKey33B64u = Brand<
   string,
   'EcdsaClientVerifyingPublicKey33B64u'
 >;
-export type Ed25519RelayerKeyId = Brand<string, 'Ed25519RelayerKeyId'>;
-export type EcdsaRelayerKeyId = Brand<string, 'EcdsaRelayerKeyId'>;
-export type EcdsaKeyHandle = Brand<string, 'EcdsaKeyHandle'>;
 type EcdsaRoleLocalMaterialHandle = Brand<string, 'EcdsaRoleLocalMaterialHandle'>;
 export type EcdsaRoleLocalBindingDigest = Brand<string, 'EcdsaRoleLocalBindingDigest'>;
 export type EcdsaRoleLocalDurableMaterialRef = Brand<string, 'EcdsaRoleLocalDurableMaterialRef'>;
@@ -40,31 +54,8 @@ export type EcdsaRoleLocalWorkerHandle = {
 };
 export type EcdsaClientAdditiveShareHandle = Brand<string, 'EcdsaClientAdditiveShareHandle'>;
 
-function parseNonEmptyBrand<T extends string>(value: unknown, label: string): Brand<string, T> {
-  const normalized = String(value ?? '').trim();
-  if (!normalized) {
-    throw new Error(`${label} must be a non-empty string`);
-  }
-  return normalized as Brand<string, T>;
-}
-
 export function parseEd25519KeyVersion(value: unknown): Ed25519KeyVersion {
   return parseNonEmptyBrand<'Ed25519KeyVersion'>(value, 'Ed25519 key version');
-}
-
-export function parseEcdsaDerivationKeyVersion(value: unknown): EcdsaDerivationKeyVersion {
-  return parseNonEmptyBrand<'EcdsaDerivationKeyVersion'>(value, 'ECDSA DERIVATION key version');
-}
-
-export function parseSigningSessionSealKeyVersion(value: unknown): SigningSessionSealKeyVersion {
-  return parseNonEmptyBrand<'SigningSessionSealKeyVersion'>(
-    value,
-    'signing-session seal key version',
-  );
-}
-
-export function parseEcdsaClientVerifyingShareB64u(value: unknown): EcdsaClientVerifyingShareB64u {
-  return parseNonEmptyBrand<'EcdsaClientVerifyingShareB64u'>(value, 'ECDSA client verifying share');
 }
 
 export function parseEcdsaClientVerifyingPublicKey33B64u(
@@ -92,20 +83,8 @@ export function parseEcdsaClientVerifyingPublicKey33B64u(
   return normalized as EcdsaClientVerifyingPublicKey33B64u;
 }
 
-export function parseEd25519RelayerKeyId(value: unknown): Ed25519RelayerKeyId {
-  return parseNonEmptyBrand<'Ed25519RelayerKeyId'>(value, 'Ed25519 relayer key id');
-}
-
-export function parseEcdsaRelayerKeyId(value: unknown): EcdsaRelayerKeyId {
-  return parseNonEmptyBrand<'EcdsaRelayerKeyId'>(value, 'ECDSA relayer key id');
-}
-
 export function parseEcdsaThresholdKeyId(value: unknown): EcdsaThresholdKeyId {
   return parseSdkEcdsaDerivationThresholdKeyId(value);
-}
-
-export function parseEcdsaKeyHandle(value: unknown): EcdsaKeyHandle {
-  return parseNonEmptyBrand<'EcdsaKeyHandle'>(value, 'ECDSA key handle');
 }
 
 export function parseEcdsaRoleLocalMaterialHandle(value: unknown): EcdsaRoleLocalMaterialHandle {
@@ -198,41 +177,9 @@ export function formatEd25519KeyVersionForWire(value: Ed25519KeyVersion): string
   return value;
 }
 
-export function formatEcdsaDerivationKeyVersionForWire(value: EcdsaDerivationKeyVersion): string {
-  return value;
-}
-
-export function formatSigningSessionSealKeyVersionForWire(
-  value: SigningSessionSealKeyVersion,
-): string {
-  return value;
-}
-
-export function formatEcdsaClientVerifyingShareB64uForWire(
-  value: EcdsaClientVerifyingShareB64u,
-): string {
-  return value;
-}
-
 export function formatEcdsaClientVerifyingPublicKey33B64uForWire(
   value: EcdsaClientVerifyingPublicKey33B64u,
 ): string {
-  return value;
-}
-
-export function formatEd25519RelayerKeyIdForWire(value: Ed25519RelayerKeyId): string {
-  return value;
-}
-
-export function formatEcdsaRelayerKeyIdForWire(value: EcdsaRelayerKeyId): string {
-  return value;
-}
-
-export function formatEcdsaThresholdKeyIdForWire(value: EcdsaThresholdKeyId): string {
-  return value;
-}
-
-export function formatEcdsaKeyHandleForWire(value: EcdsaKeyHandle): string {
   return value;
 }
 
