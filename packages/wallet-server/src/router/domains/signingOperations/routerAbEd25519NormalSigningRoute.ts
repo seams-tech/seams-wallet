@@ -53,10 +53,10 @@ import {
 import { mpcMaterialActivationRefsEqual } from '@shared/utils/domainIds';
 import { isPlainObject } from '@shared/utils/validation';
 import {
-  errorMessage,
   evaluateRouterAbNormalSigningAdmission,
   requireAuthorizationValue,
   type RouterAbEcdsaOperationAdmissionKind,
+  routerAbErrorMessage,
   type RouterAbJsonRouteResult,
   type RouterAbNormalSigningAdmissionAdapter,
   type RouterAbNormalSigningRouteAdmission,
@@ -399,7 +399,7 @@ async function handleRouterAbEd25519OperationStepUpRoute(input: {
         headers: input.headers,
       });
     } catch (error: unknown) {
-      return routerAbStepUpError(400, 'invalid_body', errorMessage(error));
+      return routerAbStepUpError(400, 'invalid_body', routerAbErrorMessage(error));
     }
     const operation = parseRouterAbOperationStepUpOperation(input.body.intent);
     if (!operation.ok) {
@@ -434,7 +434,7 @@ async function handleRouterAbEd25519OperationStepUpRoute(input: {
         ),
       );
     } catch (error: unknown) {
-      return routerAbStepUpError(400, 'invalid_body', errorMessage(error));
+      return routerAbStepUpError(400, 'invalid_body', routerAbErrorMessage(error));
     }
     const operationEnvelope = buildCapabilityOperationEnvelope({
       tenantId: authenticated.session.tenantId,
@@ -467,7 +467,7 @@ async function handleRouterAbEd25519OperationStepUpRoute(input: {
         operation: claim.operation,
       });
     } catch (error: unknown) {
-      return routerAbStepUpError(400, 'invalid_body', errorMessage(error));
+      return routerAbStepUpError(400, 'invalid_body', routerAbErrorMessage(error));
     }
     const claimFailure = routerAbOperationStepUpClaimFailure(claimResult);
     if (claimFailure) return claimFailure;
@@ -698,7 +698,7 @@ function parseRouterAbEd25519NormalSigningOperationForAdmission(input: {
       }
     }
   } catch (error: unknown) {
-    return { ok: false, message: errorMessage(error) };
+    return { ok: false, message: routerAbErrorMessage(error) };
   }
 }
 
@@ -734,7 +734,7 @@ async function validateRouterAbEd25519V2FinalizeAuthorizedOperation(input: {
       result: routerAbEd25519OwnerOperationFailureResult({
         status: 400,
         code: 'invalid_authorized_operation',
-        message: errorMessage(error),
+        message: routerAbErrorMessage(error),
         phase: input.phase,
       }),
     };
@@ -752,7 +752,7 @@ async function validateRouterAbEd25519V2FinalizeAuthorizedOperation(input: {
       result: routerAbEd25519OwnerOperationFailureResult({
         status: 500,
         code: 'internal',
-        message: errorMessage(error),
+        message: routerAbErrorMessage(error),
         phase: input.phase,
       }),
     };
@@ -1048,7 +1048,7 @@ export async function authorizeRouterAbEd25519NormalSigningRoute(input: {
       result: routerAbEd25519OwnerOperationFailureResult({
         status: 400,
         code: 'invalid_body',
-        message: errorMessage(error),
+        message: routerAbErrorMessage(error),
         phase: input.phase,
       }),
     };

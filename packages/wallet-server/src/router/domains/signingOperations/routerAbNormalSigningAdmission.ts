@@ -479,7 +479,7 @@ export function routerAbStepUpError(
   return { status, body: { ok: false, code, message } };
 }
 
-export function errorMessage(error: unknown): string {
+export function routerAbErrorMessage(error: unknown): string {
   return String(
     error && typeof error === 'object' && 'message' in error
       ? (error as { message?: unknown }).message

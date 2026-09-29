@@ -62,12 +62,12 @@ import {
 import { parseWalletId } from '@shared/utils/domainIds';
 import {
   type AcceptedEcdsaRouteAdmission,
-  errorMessage,
   evaluateRouterAbNormalSigningAdmission,
   requireAuthorizationValue,
   requireMpcMaterialActivationId,
   type RouterAbEcdsaOperationAdmission,
   type RouterAbEcdsaOperationAdmissionKind,
+  routerAbErrorMessage,
   type RouterAbJsonRouteResult,
   type RouterAbNormalSigningAdmissionAdapter,
   type RouterAbNormalSigningRouteRuntime,
@@ -419,7 +419,7 @@ function validateRouterAbEcdsaV2NormalSigningRequestForSession(input: {
   } catch (error: unknown) {
     return {
       ok: false,
-      error: routerAbStepUpError(400, 'invalid_body', errorMessage(error)),
+      error: routerAbStepUpError(400, 'invalid_body', routerAbErrorMessage(error)),
     };
   }
   if (
@@ -619,7 +619,7 @@ export async function admitRouterAbEcdsaReusableWalletSessionOperation(input: {
   } catch (error: unknown) {
     return {
       ok: false,
-      error: routerAbStepUpError(400, 'invalid_body', errorMessage(error)),
+      error: routerAbStepUpError(400, 'invalid_body', routerAbErrorMessage(error)),
     };
   }
 }
@@ -1033,7 +1033,7 @@ export async function claimRouterAbEcdsaOperationStepUp(input: {
       },
     });
   } catch (error: unknown) {
-    return routerAbStepUpError(400, 'invalid_body', errorMessage(error));
+    return routerAbStepUpError(400, 'invalid_body', routerAbErrorMessage(error));
   }
   const existing = await input.authenticated.authorizedOperations.readAuthorizedOperation({
     tenantId: input.authenticated.session.tenantId,
@@ -1104,7 +1104,7 @@ async function handleRouterAbEcdsaOperationStepUpRoute(input: {
   try {
     request = parseRouterAbEcdsaOperationStepUpRequest(input);
   } catch (error: unknown) {
-    return routerAbStepUpError(400, 'invalid_body', errorMessage(error));
+    return routerAbStepUpError(400, 'invalid_body', routerAbErrorMessage(error));
   }
   if (request.authorization.kind !== 'operation_step_up') {
     return routerAbStepUpError(400, 'invalid_body', 'Operation step-up authority is required');
@@ -1234,7 +1234,10 @@ export async function authorizeRouterAbEcdsaDerivationNormalSigningRoute(input: 
       body: input.body,
     }).authorization.kind;
   } catch (error: unknown) {
-    return { ok: false, result: routerAbStepUpError(400, 'invalid_body', errorMessage(error)) };
+    return {
+      ok: false,
+      result: routerAbStepUpError(400, 'invalid_body', routerAbErrorMessage(error)),
+    };
   }
   if (requestedAuthorizationKind === 'operation_step_up') {
     const stepUp = await handleRouterAbEcdsaOperationStepUpRoute({
