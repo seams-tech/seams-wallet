@@ -7,4 +7,5 @@ COPY . .
 RUN pnpm install --frozen-lockfile
 
 ENV SEAMS_INTENDED_SKIP_BUILD=1
-CMD ["sleep", "infinity"]
+EXPOSE 8080
+CMD ["node", "tests/r150-hosted/probe/server.mjs"]

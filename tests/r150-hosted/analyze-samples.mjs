@@ -2,6 +2,9 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
+/** Cloudflare Containers placement regions, by their cohort names. */
+const PROBE_REGIONS = { apac: 'APAC', weur: 'WEUR', enam: 'ENAM' };
+
 const argumentsList = process.argv.slice(2);
 const requireComplete = argumentsList.includes('--complete');
 const outputIndex = argumentsList.indexOf('--output');
@@ -33,7 +36,7 @@ for (const directoryName of directoryNames) {
     }
   }
 }
-const allRegions = ['nrt', 'fra', 'iad'].every((region) => reports[region]?.complete === true);
+const allRegions = Object.keys(PROBE_REGIONS).every((region) => reports[region]?.complete === true);
 const sameRevision = revisions.size === 1;
 const sameWalletBuild = walletBuilds.size === 1;
 const sameDeployments = fingerprints.d1.size === 1 && fingerprints.do.size === 1 &&
@@ -83,14 +86,15 @@ function analyzeRegion(runDirectory) {
   }
   if (starts.length === 0 || starts.length > 40) throw new Error('Expected 1..40 bounded attempts');
   const region = starts[0].region;
-  if (!['nrt', 'fra', 'iad'].includes(region)) throw new Error(`Invalid region ${region}`);
+  if (!PROBE_REGIONS[region]) throw new Error(`Invalid region ${region}`);
   const revision = starts[0].revision;
   const walletBuildInputHash = starts[0].walletBuildInputHash;
   const probe = starts[0].probe;
   if (!/^[0-9a-f]{40}$/u.test(revision) ||
       !/^[0-9a-f]{64}$/u.test(walletBuildInputHash) ||
-      probe?.provider !== 'fly' ||
-      probe.region !== region || !probe.instanceId || !probe.appName ||
+      probe?.provider !== 'cloudflare' ||
+      probe.region !== region || probe.regionConstraint !== PROBE_REGIONS[region] ||
+      !probe.applicationId || !probe.instanceId || !probe.location || !probe.bootId ||
       !probe.evidenceRef || !Number.isFinite(Date.parse(probe.observedAt))) {
     throw new Error(`Invalid revision or probe identity in ${region} ledger`);
   }
@@ -162,11 +166,16 @@ function analyzeRegion(runDirectory) {
     walletBuildInputHash,
     deploymentFingerprints,
     probe: {
-      status: 'declared_by_probe_input_requires_provider_evidence_review',
+      status: 'reported_by_the_container_runtime_requires_evidence_review',
       provider: probe.provider,
-      instanceId: probe.instanceId,
-      appName: probe.appName,
       region: probe.region,
+      regionConstraint: probe.regionConstraint,
+      location: probe.location,
+      cloudflareRegion: probe.cloudflareRegion,
+      countryA2: probe.countryA2,
+      applicationId: probe.applicationId,
+      instanceId: probe.instanceId,
+      bootId: probe.bootId,
       observedAt: probe.observedAt,
       evidenceRef: probe.evidenceRef,
     },

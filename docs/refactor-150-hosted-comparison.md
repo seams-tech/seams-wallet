@@ -1,7 +1,8 @@
 # R150 isolated hosted comparison
 
-Status: isolated Cloudflare preparation is underway. The exact benchmark
-resource inventory is kept privately under `.runtime/r150-hosted/`.
+Status: the owner approved running the pilot entirely on Cloudflare, probes
+included (2026-09-29). The exact benchmark resource inventory is kept
+privately under `.runtime/r150-hosted/`.
 This is a pilot to decide whether the measured regional benefit warrants finishing
 the DO conversion. It is not the R150 release gate.
 
@@ -18,10 +19,17 @@ resources must remain untouched.
 ## Approved isolated scope
 
 - Use the currently authenticated Cloudflare account, subject to confirming its
-  plan. The incremental experiment spend cap is **$25 USD total across Cloudflare
-  and probe hosts**. The account was inventoried on
+  plan. The incremental experiment spend cap is **$25 USD total, probe
+  containers included**. The account was inventoried on
   2026-09-25; its existing D1 databases include shared staging and production
   stores. None is a benchmark store.
+- Confirmed 2026-09-29 before starting: the Wrangler login reaches the
+  account with Workers, D1 and Containers write scopes, and the account
+  already runs other container applications, so Containers are enabled on its
+  Workers Paid plan. The estimate is under $5: about three container-hours on
+  `standard-3` (about $0.66 even if all of it is billed beyond the monthly
+  allowance, which the account's other containers share), plus cents of
+  Workers, D1 and DO usage.
 - Reserve `r150-bench-20260925-{d1,do}-` for new resources. The exact suffixes
   for each arm are:
 
@@ -38,16 +46,23 @@ resources must remain untouched.
   arms.
 - Generate synthetic, arm-specific keys and tenant roots. Use the same source
   revision, protocol, Gateway/client code, presign-refill policy, and request
-  payloads. Serve the test app and wallet iframe from each probe host; send all
+  payloads. Serve the test app and wallet iframe from each probe container; send all
   custody requests to the arm's isolated HTTPS Gateway through an authenticated
   benchmark ingress. Disable implicit NEAR account test funding in both
   Gateways. No funded wallet, relayer transfer, or chain submission is part of
   the workload.
-- Set each new D1 primary's location hint to `apac`. The regional comparison
-  requires verified hosts in Tokyo (`nrt`), Frankfurt (`fra`), and US East
-  (`iad`) from an existing provider selected by the owner. Create fresh wallet
-  objects from their probe region and record actual routing evidence.
-  Cloudflare treats D1 and DO location hints as best-effort.
+- Set each new D1 primary's location hint to `apac`. The probes run on
+  Cloudflare too (owner decision, 2026-09-29): one Playwright container per
+  region in Cloudflare Containers, placed by the region constraints `APAC`,
+  `WEUR` and `ENAM`. A constraint names a region, not a city, so each
+  container's reported location is recorded as the cohort's evidence; the
+  earlier Tokyo, Frankfurt and US East requirement is relaxed to these
+  regions. No other provider is used. Create fresh wallet objects from their
+  probe region and record actual routing evidence. Cloudflare treats D1 and
+  DO location hints as best-effort.
+- The browsers measure from Cloudflare's network. That compares D1 against
+  DO on equal terms, but does not establish residential or mobile users'
+  absolute latency.
 
 The proposed initial pilot limit is 20 fresh-wallet registrations and 40
 ECDSA/Tempo signatures **per arm per region**, at concurrency one, alternating
@@ -74,8 +89,8 @@ product-cost acceptance threshold.
 
 Stop at the pilot limit, before the $25 incremental cap, or earlier on
 unexpected usage, errors, or scope drift. Do not upgrade a billing plan to
-run this pilot. Record baseline and final Cloudflare usage and the probe-host
-charges, leaving a margin for delayed metering.
+run this pilot. Record baseline and final Cloudflare usage, containers
+included, leaving a margin for delayed metering.
 No production route or existing wallet authority changes. Keep the isolated
 resources until the raw artifacts and cost report are reviewed, then remove
 only those explicitly inventoried benchmark resources.
@@ -84,7 +99,7 @@ only those explicitly inventoried benchmark resources.
 
 The existing E2E scenario now accepts `SEAMS_INTENDED_EXTERNAL_GATEWAY=1` and
 targets a benchmark-prefixed HTTPS Gateway while keeping its test app and wallet
-iframe local to the probe host. It requires explicit arm, region, run ID,
+iframe local to the probe container. It requires explicit arm, region, run ID,
 project environment, publishable key, SigningWorker identity, and a benchmark
 access token. The browser attaches the token only to the selected ingress
 origin; the ingress strips it before forwarding to the private Gateway. Hosted
@@ -92,32 +107,70 @@ Playwright traces, screenshots, and videos are disabled to keep request credenti
 and wallet material out of diagnostic artifacts. Each repeated
 run writes a distinct timing artifact. Local mode remains the default.
 
-Regional probe deployment is paused until the owner selects an existing
-provider and its runtime identity check is implemented. The current Fly-specific
-image-prep and runner assumptions are not approved for this pilot. Cloudflare
-deployment and one local hosted smoke may proceed; label that smoke
-non-regional, use separate synthetic wallet identities, and count its work
-against the pilot ledger and spend cap. Do not use the Mac smoke to populate
-the regional cohorts.
+### Probe containers
 
-After provider-specific runner validation, place a mode-0600 input on each
-private regional probe host at
-`.runtime/r150-hosted/probe/<region>/input.json`. Populate each arm from its
-rendered `probe-values/<arm>.json` and `ingress-secrets/<arm>.json`; copy the
-secret token into `accessToken` without printing it. The `deploymentFingerprint`
-is already in the rendered probe values. The input shape is:
+The probe image is `tests/r150-hosted/probe/Dockerfile`: the Playwright base
+image, the committed source and the built Wallet assets. Its entrypoint,
+`probe/server.mjs`, serves the probe Worker, `probe/worker.mjs`. The Worker
+has one container application per region, each with its region constraint,
+one instance, and a Durable Object that owns the container. A container that
+stays idle for ten minutes stops. `DELETE /<region>` stops one at once.
+
+The container reports its runtime identity from the variables Cloudflare
+sets: `CLOUDFLARE_APPLICATION_ID`, `CLOUDFLARE_DURABLE_OBJECT_ID`,
+`CLOUDFLARE_LOCATION`, `CLOUDFLARE_REGION` and `CLOUDFLARE_COUNTRY_A2`, with
+a boot id of its own and the source fingerprint of its image. A restarted
+container has a new boot id, so it is a different probe.
+
+1. `node tests/r150-hosted/probe/prepare-image-context.mjs` prepares the image
+   context from the committed source. It renders the probe Worker's
+   `wrangler.probe.jsonc` there (Worker `r150-bench-20260925-probe`,
+   `standard-3` instances).
+2. `node tests/r150-hosted/probe/prepare-probe-worker.mjs secrets <context> <expires-at-ms>`
+   writes the probe's access token and expiry, which bounds the probe, under
+   `.runtime/r150-hosted/probe/`.
+3. Deploy from the context with
+   `wrangler deploy -c <context>/wrangler.probe.jsonc --secrets-file .runtime/r150-hosted/probe/worker-secrets.json`,
+   which builds the image for `linux/amd64` and pushes it. Then record the
+   Worker's URL with `prepare-probe-worker.mjs url <https-url>`.
+4. `node tests/r150-hosted/probe/prepare-probe-input.mjs <apac|weur|enam>`
+   starts the region's container and records its identity in
+   `probe/<region>/evidence.json`. It writes the region's runner input,
+   `probe/<region>/input.json` (mode 0600), from the arms' rendered
+   `probe-values/<arm>.json` and `ingress-secrets/<arm>.json`, without
+   printing a token.
+
+The runner, `run-sample.mjs`, runs on the operator's machine and keeps each
+region's ledger there. Before each attempt it asks the region's container
+for its identity. The attempt runs only on the container and image the
+cohort recorded, and the container's own identity after the run must match
+too. The container runs the same Playwright scenario, with the same
+environment, as a probe host did. The arm's access token travels in the
+attempt request and is not stored. The input shape is:
 
 ```json
 {
   "kind": "r150_hosted_probe_input_v1",
-  "region": "nrt",
+  "region": "apac",
+  "source": {
+    "kind": "r150_hosted_probe_source_v1",
+    "revision": "<committed source revision>",
+    "walletBuildInputHash": "<wallet build fingerprint>"
+  },
+  "probeAccessToken": "<probe Worker token>",
   "probe": {
-    "provider": "<verified provider>",
-    "region": "nrt",
-    "instanceId": "<verified runtime identity>",
-    "appName": "<isolated probe application>",
+    "provider": "cloudflare",
+    "region": "apac",
+    "regionConstraint": "APAC",
+    "workerUrl": "https://r150-bench-20260925-probe.<account-subdomain>.workers.dev/",
+    "applicationId": "<container application>",
+    "instanceId": "<owning Durable Object>",
+    "location": "<reported location>",
+    "cloudflareRegion": "<reported region>",
+    "countryA2": "<reported country>",
+    "bootId": "<container boot>",
     "observedAt": "<UTC timestamp>",
-    "evidenceRef": "<private control-plane and runtime evidence file>"
+    "evidenceRef": "evidence.json"
   },
   "arms": {
     "d1": {
@@ -140,20 +193,19 @@ is already in the rendered probe values. The input shape is:
 }
 ```
 
-Capture control-plane and runtime identity in the private evidence file. The
-runner must verify the runtime values against the inventory before each
-attempt. A region label alone does not prove physical location. Keep probe
-and billing evidence available for review.
+A region constraint alone does not prove a location; the recorded runtime
+identity is the evidence, and the report carries it. Keep probe and billing
+evidence available for review.
 
 For case 1, run:
 
 ```sh
-node tests/r150-hosted/run-sample.mjs .runtime/r150-hosted/probe/nrt/input.json 1 d1
-node tests/r150-hosted/run-sample.mjs .runtime/r150-hosted/probe/nrt/input.json 1 do
+node tests/r150-hosted/run-sample.mjs .runtime/r150-hosted/probe/apac/input.json 1 d1
+node tests/r150-hosted/run-sample.mjs .runtime/r150-hosted/probe/apac/input.json 1 do
 ```
 
 For case 2, run `2 do` then `2 d1`; alternate that order through case
-20. Repeat in `fra` and `iad`. Each invocation runs one registration and two
+20. Repeat in `weur` and `enam`. Each invocation runs one registration and two
 signatures. The runner records an attempt before any wallet work, caps each
 region at 40 invocations, and refuses an automatic retry or continuation after
 a failure. Each start and end event is flushed before the next action.
@@ -166,7 +218,7 @@ successes. Preserve each probe directory's
 Analyze all three collected probe directories with:
 
 ```sh
-node tests/r150-hosted/analyze-samples.mjs <nrt-dir> <fra-dir> <iad-dir> --complete --output <private-report.json>
+node tests/r150-hosted/analyze-samples.mjs <apac-dir> <weur-dir> <enam-dir> --complete --output <private-report.json>
 ```
 
 A partial report omits `--complete`. The complete
@@ -324,15 +376,16 @@ receipts are never an authority check; the live bootstrap response and its
 Router state must be verified before use. Gateway and ingress Workers should
 remain undeployed until their own secrets and expiry are installed.
 
-Before the regional pilot, verify the account plan and selected provider's
-access, provision probe hosts with recorded region/instance evidence, estimate the $25 cap from
+Before the regional pilot, verify the account plan and access, deploy the
+probe containers and record their identities, estimate the $25 cap from
 current rates, and check the exact resource inventory,
 ingress authentication, and that the selected build exposes no unauthenticated
 dev fault, debug, or material-export endpoint. Verify a smoke registration and
 signature in both arms, then run the bounded matched pilot. Cloudflare's current
 [DO](https://developers.cloudflare.com/durable-objects/platform/pricing/),
 [D1](https://developers.cloudflare.com/d1/platform/pricing/), and
-[Workers](https://developers.cloudflare.com/workers/platform/pricing/) rates
+[Workers](https://developers.cloudflare.com/workers/platform/pricing/) and
+[Containers](https://developers.cloudflare.com/containers/pricing/) rates
 must be applied to measured usage and the account's actual billing plan.
 
 Run `node tests/r150-hosted/preflight.mjs` before provisioning to check the

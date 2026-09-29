@@ -1,8 +1,12 @@
 #!/usr/bin/env node
+// Runs one attempt of the R150 hosted pilot for one probe region, from the
+// operator's machine: the region's probe container runs the browser, and this
+// runner keeps the region's attempt ledger. It records the attempt's start
+// before any wallet work, refuses to continue after a failed or unfinished
+// attempt, and requires every attempt to run on the container the cohort
+// recorded: the same application, Durable Object, location and boot.
 import {
-  chmodSync,
   closeSync,
-  copyFileSync,
   existsSync,
   fsyncSync,
   mkdirSync,
@@ -10,14 +14,25 @@ import {
   readFileSync,
   statSync,
   unlinkSync,
+  writeFileSync,
   writeSync,
 } from 'node:fs';
-import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import { fileURLToPath } from 'node:url';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+const PROBE_REGIONS = { apac: 'APAC', weur: 'WEUR', enam: 'ENAM' };
+const IDENTITY_FIELDS = [
+  'applicationId',
+  'instanceId',
+  'location',
+  'cloudflareRegion',
+  'countryA2',
+  'bootId',
+];
+/** An attempt that has not finished by then is recorded as failed. */
+const ATTEMPT_TIMEOUT_MS = 15 * 60_000;
 const [inputName, caseText, arm] = process.argv.slice(2);
 if (process.argv.length !== 5 || !inputName ||
     !/^(?:[1-9]|1[0-9]|20)$/u.test(caseText ?? '') ||
@@ -35,23 +50,11 @@ const input = JSON.parse(readFileSync(inputPath, 'utf8'));
 validateInput(input);
 const evidencePath = path.resolve(runDirectory, input.probe.evidenceRef);
 if (!evidencePath.startsWith(`${runDirectory}${path.sep}`) || !existsSync(evidencePath)) {
-  throw new Error('Fly machine evidence must exist inside the private probe directory');
-}
-if (process.env.FLY_REGION !== input.region ||
-    process.env.FLY_MACHINE_ID !== input.probe.instanceId ||
-    process.env.FLY_APP_NAME !== input.probe.appName) {
-  throw new Error('Fly runtime region, machine, or app differs from the inventoried probe');
+  throw new Error('Probe identity evidence must exist inside the private probe directory');
 }
 const caseIndex = Number(caseText);
-const source = JSON.parse(readFileSync(
-  path.join(repoRoot, '.runtime', 'r150-hosted', 'probe-source.json'),
-  'utf8',
-));
-if (source.kind !== 'r150_hosted_probe_source_v1' ||
-    !/^[0-9a-f]{40}$/u.test(source.revision) ||
-    !/^[0-9a-f]{64}$/u.test(source.walletBuildInputHash)) {
-  throw new Error('Probe image has no valid committed source and wallet build fingerprint');
-}
+// The source and wallet build the probe image was built from.
+const source = input.source;
 const lock = openSync(lockPath, 'wx', 0o600);
 let dispatched = false;
 let completed = false;
@@ -64,10 +67,13 @@ try {
   const revision = source.revision;
   const runId = `${input.region}-case-${String(caseIndex).padStart(2, '0')}-${arm}`;
   const artifactName = `gateway-ecdsa-unforced-timing-hosted_${arm}-${input.region}-${runId}-0.json`;
-  const sourceArtifact = path.join(repoRoot, '.artifacts', 'r150', artifactName);
-  if (existsSync(sourceArtifact)) {
-    throw new Error(`Refusing to reuse prior benchmark artifact ${artifactName}`);
+  const artifactDirectory = path.join(runDirectory, 'artifacts');
+  const artifactCopy = path.join(artifactDirectory, artifactName);
+  if (existsSync(artifactCopy)) {
+    throw new Error(`Refusing to overwrite prior collected artifact ${artifactName}`);
   }
+  // The probe must still be the container this cohort recorded, on its image.
+  requireSameProbe(await probeRequest(input, 'GET', 'identity'), input);
 
   const start = {
     event: 'start',
@@ -87,35 +93,32 @@ try {
   dispatched = true;
 
   const selected = input.arms[arm];
-  const env = {
-    ...process.env,
-    SEAMS_INTENDED_EXTERNAL_GATEWAY: '1',
-    SEAMS_INTENDED_ROUTER_URL: selected.ingressUrl,
-    SEAMS_INTENDED_BENCHMARK_ARM: arm,
-    SEAMS_INTENDED_PROBE_REGION: input.region,
-    SEAMS_INTENDED_BENCHMARK_RUN_ID: runId,
-    SEAMS_INTENDED_PROJECT_ENVIRONMENT_ID: selected.environmentId,
-    SEAMS_INTENDED_PUBLISHABLE_KEY: selected.publishableKey,
-    SEAMS_INTENDED_SIGNING_WORKER_ID: selected.signingWorkerId,
-    SEAMS_INTENDED_BENCHMARK_ACCESS_TOKEN: selected.accessToken,
-  };
-  const result = spawnSync('pnpm', [
-    '-C', 'tests', 'exec', 'playwright', 'test',
-    '-c', 'playwright.wallet-intended.ci.config.ts',
-    'e2e/intended-behaviours/passkey.presign-pool.contract.test.ts',
-    '--grep', 'unforced ECDSA registration and repeated signing',
-  ], { cwd: repoRoot, env, stdio: 'inherit' });
-  const successful = result.status === 0 && result.signal === null &&
-    existsSync(sourceArtifact) && validArtifact(sourceArtifact, arm, input.region, runId);
+  const result = await runOnProbe(input, {
+    runId,
+    arm,
+    region: input.region,
+    selected: {
+      ingressUrl: selected.ingressUrl,
+      environmentId: selected.environmentId,
+      publishableKey: selected.publishableKey,
+      signingWorkerId: selected.signingWorkerId,
+      accessToken: selected.accessToken,
+    },
+    expectedIdentity: input.probe,
+  });
+  const logDirectory = path.join(runDirectory, 'logs');
+  mkdirSync(logDirectory, { recursive: true, mode: 0o700 });
+  writeFileSync(path.join(logDirectory, `${runId}.log`), result.outputTail ?? '', { mode: 0o600 });
+  const sameProbe = sameProbeIdentity(result.identity, input);
+  const successful = result.exitCode === 0 && result.signal === null && sameProbe &&
+    result.artifactName === artifactName &&
+    validArtifactRecord(result.artifact, arm, input.region, runId);
   if (successful) {
-    const artifactDirectory = path.join(runDirectory, 'artifacts');
     mkdirSync(artifactDirectory, { recursive: true, mode: 0o700 });
-    const artifactCopy = path.join(artifactDirectory, artifactName);
-    if (existsSync(artifactCopy)) {
-      throw new Error(`Refusing to overwrite prior collected artifact ${artifactName}`);
-    }
-    copyFileSync(sourceArtifact, artifactCopy);
-    chmodSync(artifactCopy, 0o600);
+    writeFileSync(artifactCopy, `${JSON.stringify(result.artifact, null, 2)}\n`, {
+      flag: 'wx',
+      mode: 0o600,
+    });
     syncFile(artifactCopy);
     syncFile(artifactDirectory);
   }
@@ -123,8 +126,10 @@ try {
     event: 'end',
     runId,
     status: successful ? 'succeeded' : 'failed',
-    exitCode: result.status,
-    signal: result.signal,
+    exitCode: result.exitCode ?? null,
+    signal: result.signal ?? null,
+    ...(sameProbe ? {} : { probeChanged: true }),
+    ...(result.error ? { error: result.error } : {}),
     artifact: successful ? artifactName : null,
     finishedAt: new Date().toISOString(),
   };
@@ -142,6 +147,74 @@ try {
   }
 }
 
+/** One request to the region's probe, authenticated with the probe token. */
+async function probeRequest(input, method, route, body) {
+  const url = new URL(`${input.region}/${route}`, input.probe.workerUrl);
+  const response = await fetch(url, {
+    method,
+    headers: {
+      authorization: `Bearer ${input.probeAccessToken}`,
+      'content-type': 'application/json',
+    },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  });
+  const text = await response.text();
+  let json = null;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    json = null;
+  }
+  if (!response.ok || json === null) {
+    throw new Error(`Probe ${method} ${route} answered ${response.status}: ${text.slice(0, 300)}`);
+  }
+  return json;
+}
+
+/**
+ * Starts the attempt on the probe and waits for its result. A probe that
+ * refuses the attempt, loses it or does not finish in time yields a failed
+ * result, which the ledger records.
+ */
+async function runOnProbe(input, attempt) {
+  try {
+    await probeRequest(input, 'POST', 'attempts', attempt);
+    const deadline = Date.now() + ATTEMPT_TIMEOUT_MS;
+    for (;;) {
+      await new Promise((resolve) => setTimeout(resolve, 5_000));
+      const state = await probeRequest(input, 'GET', `attempts/${attempt.runId}`);
+      if (state.status === 'finished') return state.result;
+      if (Date.now() > deadline) {
+        return { exitCode: null, signal: null, error: 'the attempt did not finish in time' };
+      }
+    }
+  } catch (error) {
+    return {
+      exitCode: null,
+      signal: null,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+function sameProbeIdentity(identity, input) {
+  return (
+    identity?.kind === 'r150_hosted_probe_identity_v1' &&
+    identity.provider === 'cloudflare' &&
+    IDENTITY_FIELDS.every((name) => identity[name] === input.probe[name]) &&
+    identity.source?.revision === input.source.revision &&
+    identity.source?.walletBuildInputHash === input.source.walletBuildInputHash
+  );
+}
+
+function requireSameProbe(identity, input) {
+  if (!sameProbeIdentity(identity, input)) {
+    throw new Error(
+      'The probe container differs from the recorded probe (application, object, location, boot or image); record a new cohort instead of continuing',
+    );
+  }
+}
+
 function requirePrivateInput(filePath) {
   const runtimeRoot = path.join(repoRoot, '.runtime', 'r150-hosted');
   if (!filePath.startsWith(`${runtimeRoot}${path.sep}`)) {
@@ -153,17 +226,39 @@ function requirePrivateInput(filePath) {
 }
 
 function validateInput(input) {
-  if (input.kind !== 'r150_hosted_probe_input_v1' || !['nrt', 'fra', 'iad'].includes(input.region)) {
+  if (input.kind !== 'r150_hosted_probe_input_v1' || !PROBE_REGIONS[input.region]) {
     throw new Error('Invalid R150 probe input or region');
   }
   const probe = input.probe;
-  if (probe?.provider !== 'fly' || probe.region !== input.region) {
-    throw new Error('Fly probe region must match the selected cohort');
+  if (
+    probe?.provider !== 'cloudflare' ||
+    probe.region !== input.region ||
+    probe.regionConstraint !== PROBE_REGIONS[input.region]
+  ) {
+    throw new Error('The Cloudflare probe must be placed by the selected cohort region');
   }
-  for (const name of ['instanceId', 'appName', 'observedAt', 'evidenceRef']) {
+  for (const name of [...IDENTITY_FIELDS, 'observedAt', 'evidenceRef']) {
     if (typeof probe[name] !== 'string' || probe[name].length === 0) {
       throw new Error(`Missing probe ${name}`);
     }
+  }
+  const workerUrl = new URL(probe.workerUrl);
+  if (
+    workerUrl.protocol !== 'https:' ||
+    workerUrl.hostname.split('.')[0] !== 'r150-bench-20260925-probe' ||
+    workerUrl.pathname !== '/'
+  ) {
+    throw new Error('The probe Worker URL must name the isolated R150 probe');
+  }
+  if (typeof input.probeAccessToken !== 'string' || input.probeAccessToken.length < 32) {
+    throw new Error('Missing probe access token');
+  }
+  if (
+    input.source?.kind !== 'r150_hosted_probe_source_v1' ||
+    !/^[0-9a-f]{40}$/u.test(input.source.revision) ||
+    !/^[0-9a-f]{64}$/u.test(input.source.walletBuildInputHash)
+  ) {
+    throw new Error('Probe input has no valid committed source and wallet build fingerprint');
   }
   for (const selectedArm of ['d1', 'do']) {
     const selected = input.arms?.[selectedArm];
@@ -254,17 +349,20 @@ function syncFile(filePath) {
 
 function validArtifact(filePath, arm, region, runId) {
   try {
-    const artifact = JSON.parse(readFileSync(filePath, 'utf8'));
-    return artifact.kind === 'gateway_ecdsa_unforced_hosted_timing_pilot_v1' &&
-      artifact.requestedBackendProfile === `hosted_${arm}` &&
-      artifact.probeRegion === region &&
-      artifact.runId === runId &&
-      artifact.repeatEachIndex === 0 &&
-      artifact.sampleCountPerStage === 1 &&
-      artifact.signaturesVerified === 2;
+    return validArtifactRecord(JSON.parse(readFileSync(filePath, 'utf8')), arm, region, runId);
   } catch {
     return false;
   }
+}
+
+function validArtifactRecord(artifact, arm, region, runId) {
+  return artifact?.kind === 'gateway_ecdsa_unforced_hosted_timing_pilot_v1' &&
+    artifact.requestedBackendProfile === `hosted_${arm}` &&
+    artifact.probeRegion === region &&
+    artifact.runId === runId &&
+    artifact.repeatEachIndex === 0 &&
+    artifact.sampleCountPerStage === 1 &&
+    artifact.signaturesVerified === 2;
 }
 
 function expectedArm(sequence) {

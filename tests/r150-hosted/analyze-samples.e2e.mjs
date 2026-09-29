@@ -15,7 +15,8 @@ const walletBuildInputHash = 'd'.repeat(64);
 const fingerprint = { d1: 'b'.repeat(64), do: 'c'.repeat(64) };
 const regionDirectories = [];
 
-for (const region of ['nrt', 'fra', 'iad']) {
+const REGION_CONSTRAINTS = { apac: 'APAC', weur: 'WEUR', enam: 'ENAM' };
+for (const region of Object.keys(REGION_CONSTRAINTS)) {
   const runDirectory = path.join(sampleRoot, region);
   const artifactDirectory = path.join(runDirectory, 'artifacts');
   mkdirSync(artifactDirectory, { recursive: true });
@@ -40,12 +41,18 @@ for (const region of ['nrt', 'fra', 'iad']) {
       walletBuildInputHash,
       deploymentFingerprint: fingerprint[arm],
       probe: {
-        provider: 'fly',
+        provider: 'cloudflare',
         region,
-        instanceId: `synthetic-${region}`,
-        appName: 'synthetic-probe',
+        regionConstraint: REGION_CONSTRAINTS[region],
+        workerUrl: 'https://r150-bench-20260925-probe.example.workers.dev/',
+        applicationId: 'synthetic-application',
+        instanceId: `synthetic-object-${region}`,
+        location: `synthetic-location-${region}`,
+        cloudflareRegion: `synthetic-region-${region}`,
+        countryA2: 'ZZ',
+        bootId: `synthetic-boot-${region}`,
         observedAt: '2026-09-25T00:00:00.000Z',
-        evidenceRef: 'synthetic-machine-status.json',
+        evidenceRef: 'evidence.json',
       },
       startedAt: startedAt.toISOString(),
     }));
@@ -69,7 +76,7 @@ const complete = runAnalysis(regionDirectories, completePath);
 assert.equal(complete.status, 0, complete.stderr);
 const completeReport = JSON.parse(readFileSync(completePath, 'utf8'));
 assert.equal(completeReport.complete, true);
-for (const region of ['nrt', 'fra', 'iad']) {
+for (const region of Object.keys(REGION_CONSTRAINTS)) {
   assert.equal(completeReport.regions[region].pairedCases.n, 20);
   assert.equal(completeReport.regions[region].arms.d1.phases.firstSigning.elapsedMs.n, 20);
   assert.equal(completeReport.regions[region].arms.do.phases.subsequentSigning.elapsedMs.n, 20);
@@ -91,8 +98,8 @@ const incomplete = runAnalysis(regionDirectories, incompletePath);
 assert.equal(incomplete.status, 1, incomplete.stderr);
 const incompleteReport = JSON.parse(readFileSync(incompletePath, 'utf8'));
 assert.equal(incompleteReport.complete, false);
-assert.equal(incompleteReport.regions.fra.failures.length, 1);
-assert.equal(incompleteReport.regions.fra.pairedCases.n, 1);
+assert.equal(incompleteReport.regions.weur.failures.length, 1);
+assert.equal(incompleteReport.regions.weur.pairedCases.n, 1);
 
 const evidenceRoot = path.join(repoRoot, '.runtime', 'r150-hosted');
 mkdirSync(evidenceRoot, { recursive: true });
@@ -103,7 +110,7 @@ const result = {
   fullCohortAttempts: 120,
   fullCohortComplete: completeReport.complete,
   failureRejected: !incompleteReport.complete,
-  retainedPairCountAfterFailure: incompleteReport.regions.fra.pairedCases.n,
+  retainedPairCountAfterFailure: incompleteReport.regions.weur.pairedCases.n,
   fullReportSha256: createHash('sha256').update(readFileSync(completePath)).digest('hex'),
   reproduce: 'node tests/r150-hosted/analyze-samples.e2e.mjs',
 };
@@ -112,7 +119,7 @@ console.log(`R150 hosted analyzer E2E passed; evidence: ${resultPath}`);
 
 function artifact(region, arm, runId, caseIndex) {
   const base = arm === 'd1' ? 300 : 200;
-  const offset = region === 'nrt' ? 0 : region === 'fra' ? 100 : 120;
+  const offset = region === 'apac' ? 0 : region === 'weur' ? 100 : 120;
   return {
     kind: 'gateway_ecdsa_unforced_hosted_timing_pilot_v1',
     requestedBackendProfile: `hosted_${arm}`,

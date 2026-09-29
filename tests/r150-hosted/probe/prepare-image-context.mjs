@@ -47,25 +47,41 @@ writeFileSync(path.join(sourceRoot, 'probe-source.json'), `${JSON.stringify({
   revision,
   walletBuildInputHash,
 }, null, 2)}\n`, { flag: 'wx', mode: 0o600 });
-for (const region of ['nrt', 'fra', 'iad']) {
-  const config = [
-    `app = "r150-bench-20260925-probe-${region}"`,
-    `primary_region = "${region}"`,
-    '',
-    '[build]',
-    'dockerfile = "tests/r150-hosted/probe/Dockerfile"',
-    '',
-    '[[vm]]',
-    'size = "shared-cpu-2x"',
-    'memory = "2gb"',
-    'persist_rootfs = "restart"',
-    '',
-  ].join('\n');
-  writeFileSync(path.join(contextRoot, `fly-${region}.toml`), config, {
-    flag: 'wx',
-    mode: 0o600,
-  });
-}
+/* One container application per probe region, placed by its region
+   constraint; Cloudflare picks the location inside it. The probe Worker and
+   the image are deployed from this context, so both carry the source above. */
+const probeRegions = { apac: 'APAC', weur: 'WEUR', enam: 'ENAM' };
+const probeClass = (region) => `Probe${region[0].toUpperCase()}${region.slice(1)}`;
+const probeConfig = {
+  name: 'r150-bench-20260925-probe',
+  main: 'tests/r150-hosted/probe/worker.mjs',
+  compatibility_date: '2026-06-12',
+  workers_dev: true,
+  preview_urls: false,
+  containers: Object.entries(probeRegions).map(([region, constraint]) => ({
+    class_name: probeClass(region),
+    image: './tests/r150-hosted/probe/Dockerfile',
+    image_build_context: '.',
+    instance_type: 'standard-3',
+    max_instances: 1,
+    constraints: { regions: [constraint] },
+  })),
+  durable_objects: {
+    bindings: Object.keys(probeRegions).map((region) => ({
+      name: `PROBE_${region.toUpperCase()}`,
+      class_name: probeClass(region),
+    })),
+  },
+  migrations: [
+    { tag: 'r150-bench-probe-v1', new_sqlite_classes: Object.keys(probeRegions).map(probeClass) },
+  ],
+  secrets: { required: ['PROBE_ACCESS_TOKEN', 'PROBE_EXPIRES_AT_MS'] },
+};
+writeFileSync(
+  path.join(contextRoot, 'wrangler.probe.jsonc'),
+  `${JSON.stringify(probeConfig, null, 2)}\n`,
+  { flag: 'wx', mode: 0o600 },
+);
 console.log(`Prepared tracked-only R150 probe image context at ${contextRoot}`);
 console.log(`Source revision: ${revision.slice(0, 12)}; Wallet build: ${walletBuildInputHash.slice(0, 12)}`);
 
