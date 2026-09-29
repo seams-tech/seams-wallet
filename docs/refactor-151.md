@@ -255,6 +255,8 @@ First measurable goal: at least two fewer sequential calls per signature from
 the policy change. Then target 12 or fewer from the larger consolidation, subject
 to the correctness cases below. Each change needs its own before/after call
 counts and timings; these are engineering targets, not predicted latency wins.
+The 12-call target is an intermediate milestone. Phase 3 revisits the complete
+call budget after these incremental changes.
 
 ### 2. Reduce unnecessary work and classify writes
 
@@ -272,7 +274,38 @@ counts and timings; these are engineering targets, not predicted latency wins.
   Batching saves calls; it does not itself eliminate writes. Preserve atomic
   quota effects, one-use material, audit semantics, and durable response replay.
 
-### 3. Reassess placement using measured residual cost
+### 3. Revisit the minimum signing call budget (deferred follow-up)
+
+Revisit this after phases 1 and 2, before deciding on regional D1 provisioning.
+The current 15 foreground calls per signature remain expensive relative to the
+small amount of SQL work. Reaching 12 calls does not close this follow-up.
+
+- [ ] Map every remaining foreground D1 call to the invariant it enforces and
+  the point at which its data must be fresh. Identify dependencies introduced
+  by store boundaries that can be removed without weakening those invariants.
+- [ ] Evaluate a roughly three-round-trip design for a successful signature:
+  prepare validates authority/policy/material and atomically claims the operation
+  with quota consumption; finalize resolves the claim and checks live authority
+  and material before signing; completion durably records the replay response.
+  This is a design hypothesis, not a proven minimum or a promise of three calls.
+  Document any additional round trip that correctness requires.
+- [ ] Consolidate reads and guarded writes around those decision points using
+  the existing stores and SQL transactions. Preserve rejection precedence,
+  tenant/environment binding, expiry/revocation checks, material retirement,
+  one-use material, atomic quota consumption, and exact durable replay.
+- [ ] Prioritize read round trips. Retain the admission and completion writes
+  unless an equivalent durable invariant is demonstrated. Count calls, SQL
+  statements, write-bearing calls, and reported row writes separately.
+- [ ] Verify concurrent last-quota contention, duplicate admission, revocation
+  and retirement races, and lost-response replay with behavioral E2Es. Measure
+  successful signing, replay, and rejection paths separately; retain repeatable
+  before/after artifacts and complete system-controlled latency measurements.
+- [ ] Close this phase only after implementing the supported reductions and
+  recording the resulting call budget, the reason for each remaining round
+  trip, and any explicitly deferred blocker. A green latency median alone does
+  not establish that the call budget or the 1–2 second maximum is satisfied.
+
+### 4. Reassess placement using measured residual cost
 
 - [ ] Repeat with fixed SDK/role builds and verified probe locations, recording
   per-call D1 region/primary metadata and actual Gateway/DO placement evidence.
