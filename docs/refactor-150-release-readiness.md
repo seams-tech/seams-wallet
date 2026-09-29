@@ -299,6 +299,44 @@ Cloudflare:
   ENAM; registration is within 6% either way. The cost was at most $0.64.
   Results are in the [hosted comparison](./refactor-150-hosted-comparison.md).
 
+## Activation response-loss recovery (2026-09-29)
+
+The existing exact-method resume API now passes a browser contract on local
+Workers D1 for both passkey ECDSA-only and mixed NEAR/ECDSA registration.
+The contract commits activation, discards its first answer, delivers its
+credential-free replay, reloads the page, and resumes the same ceremony.
+It first changes the replay's activation digest and requires rejection before
+unlock. The valid retry unlocks once, publishes the original wallet, and signs
+an Arc transaction whose recovered address matches the registered key.
+Setup/respond request counts remain unchanged during recovery.
+
+This exposed four production defects in the previously unexercised path:
+
+- The activation receipt digest was compared with the registration request
+  digest. Each now checks the corresponding saved protocol message.
+- The passkey challenge decoder rejected current server metadata. It now
+  validates the required challenge fields with the shared boundary helpers.
+- Custody continuity depended on array order. It now matches exact chain
+  targets, rejecting duplicates and omissions while retaining key and receipt
+  checks.
+- Reload reconciliation had already restored the original capability, and
+  explicit recovery imported a second one. Recovery now verifies and reuses
+  the existing activation; it prepares an import when the activation is absent.
+
+Reproduce with:
+
+```sh
+node tests/scripts/run-wallet-intended-isolated.mjs -- \
+  e2e/intended-behaviours/passkey.registration.activation-resume.contract.test.ts
+```
+
+The two repeatable signature artifacts are
+`.artifacts/r150/registration-activation-resume-{ecdsa_only,mixed}.json`.
+The SDK build, intended-suite type check, and bloat check pass. This evidence
+covers passkey EVM signing after recovery on local Workers D1; it does not
+establish Email OTP recovery, deferred NEAR completion, other hosts, or hosted
+latency. The benchmark image and hosted deployments remain unchanged.
+
 ## Before the managed milestone
 
 - Complete the interrupted US East comparison after diagnosing the probe
@@ -316,10 +354,10 @@ Cloudflare:
   3.734 seconds in authorization/admission. Human confirmation and chain
   broadcasting/finality are separate. The current browser measurement
   includes RPC and automated confirmation and cannot isolate this interval.
-- Verify ECDSA activation response-loss recovery through the existing
-  exact-method resume API. A committed activation replay remains
-  credential-free; completing registration requires a fresh exact-method
-  unlock, with the same wallet and ceremony identity.
+- Extend the new activation response-loss contract to the wallet-object and
+  VM hosts. Passkey ECDSA-only and mixed registration now pass locally on
+  Workers D1 through the existing exact-method resume API. A committed replay
+  remains credential-free; publication requires a fresh exact-method unlock.
 - The review items the cross-owner plan leaves open. Explicit recovery
   abandonment stays deferred.
 - The rollout decision on the hosted pilot's results (recorded 2026-09-29;

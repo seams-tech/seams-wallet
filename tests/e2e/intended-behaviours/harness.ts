@@ -5485,10 +5485,10 @@ function uniqueWalletId(): string {
 function lifecycleFlowFromTestFile(filePath: string): IntendedLifecycleFlow {
   const normalized = filePath.replaceAll('\\', '/');
   if (
-    normalized.endsWith('passkey.registration.contract.test.ts') ||
+    /\/passkey\.registration(?:\.(?:checkpoint|resume|activation-resume))?\.contract\.test\.ts$/u.test(
+      normalized,
+    ) ||
     normalized.endsWith('passkey.presign-pool.contract.test.ts') ||
-    normalized.endsWith('passkey.registration.checkpoint.contract.test.ts') ||
-    normalized.endsWith('passkey.registration.resume.contract.test.ts') ||
     normalized.endsWith('passkey.ed25519-yao-local.contract.test.ts') ||
     normalized.endsWith('passkey.add-email-otp.contract.test.ts') ||
     normalized.endsWith('passkey.device-linking.contract.test.ts') ||

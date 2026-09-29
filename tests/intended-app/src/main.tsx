@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { SeamsWebProvider, TransactionReviewHost, defineSeamsConfig } from '@seams/wallet/react';
 import '@seams/wallet/react/styles';
 import { IntendedBehaviourE2EPage } from './page';
+import { ResumeRegistration } from './ResumeRegistration';
 
 function requiredEnvironmentValue(name: string): string {
   const environment = import.meta.env as Record<string, unknown>;
@@ -57,6 +58,7 @@ createRoot(root).render(
     <SeamsWebProvider eager config={config}>
       <TransactionReviewHost>
         <IntendedBehaviourE2EPage />
+        <ResumeRegistration />
       </TransactionReviewHost>
     </SeamsWebProvider>
   </React.StrictMode>,
