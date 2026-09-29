@@ -281,3 +281,12 @@ consolidated cluster before committing it.
   duplicated TypeScript lines 21,753 -> 20,811; exports used only in their own
   file 2,272 -> 2,096. The baseline was re-recorded there, and CI now runs the
   check.
+- 2026-09-29: a second test audit (d6dc822 to 5bf62b2) removed 2,556 lines and
+  added 123. d6dc822 restored two checks that b143d76 had dropped. The rest
+  deleted tests that echoed their inputs, repeated a stronger test or pinned
+  deleted names, together with the Rust and test-fixture code that only those
+  tests called. Found broken along the way, not fixed: two
+  `tenant_root_role_cleanup_command` tests since 6877e11; four
+  `router-ab-ecdsa-near-oracle-tests` checks; and the ed25519-yao test-count
+  pins (`toolchain.toml`, `tasks/src/main.rs`) and phase-13a evidence, which
+  dev's pruning left stale.
