@@ -21,7 +21,6 @@ import {
   type PersistedEcdsaRoleLocalMaterial,
 } from '../../session/material/ecdsaRoleLocalMaterialResolver';
 import { mpcMaterialActivationRefsEqual } from '@shared/utils/domainIds';
-import type { EmailOtpSigningSessionAuthLane } from '../../stepUpConfirmation/otpPrompt/authLane';
 import {
   thresholdEcdsaChainTargetsEqual,
   type ThresholdEcdsaChainTarget,
@@ -43,7 +42,7 @@ import type {
 import type { ActiveWalletAuthorityEcdsaRuntimeV1 } from '../../session/material/activeWalletAuthorityEcdsaRuntime';
 import type { ThresholdEcdsaCanonicalExportArtifact } from '../../interfaces/signing';
 
-export type EcdsaExportMaterialAvailability =
+type EcdsaExportMaterialAvailability =
   | { kind: 'loaded_worker_material' }
   | { kind: 'sealed_worker_material' }
   | { kind: 'material_pending'; reason: 'email_otp_route_auth' };
@@ -89,11 +88,6 @@ export type EcdsaExportSessionStoreDeps = {
   exportArtifactsByLane: Map<string, ThresholdEcdsaCanonicalExportArtifact>;
   relayerUrl: string;
 };
-
-export type EmailOtpEcdsaExportAuthLane = Extract<
-  EmailOtpSigningSessionAuthLane,
-  { curve: 'ecdsa' }
->;
 
 type FreshEmailOtpEcdsaOperationExportAuthority = {
   kind: 'fresh_operation_authorization_required';
@@ -221,7 +215,7 @@ function exactEcdsaParticipantIds(value: readonly number[]): readonly [number, n
   return [first, second];
 }
 
-export function resolveCanonicalEmailOtpEcdsaExportMaterialForLane(args: {
+function resolveCanonicalEmailOtpEcdsaExportMaterialForLane(args: {
   deps: EcdsaExportSessionStoreDeps;
   exportLane: Extract<ExactEcdsaExportLane, { source: 'canonical_capability' }>;
 }): FreshEmailOtpEcdsaExportMaterial {
@@ -299,7 +293,7 @@ export function resolveCanonicalEmailOtpEcdsaExportMaterialForLane(args: {
   };
 }
 
-export function resolveCanonicalPasskeyEcdsaExportMaterialForLane(args: {
+function resolveCanonicalPasskeyEcdsaExportMaterialForLane(args: {
   deps: EcdsaExportSessionStoreDeps;
   exportLane: Extract<ExactEcdsaExportLane, { source: 'canonical_capability' }>;
 }): FreshPasskeyEcdsaExportMaterial {

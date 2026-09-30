@@ -45,7 +45,7 @@ fn field_range(bytes: &[u8], field_index: usize) -> core::ops::Range<usize> {
 }
 
 #[test]
-fn grant_round_trips_verifies_and_can_authorize_both_fixed_role_endpoints() {
+fn grant_round_trips_and_verifies() {
     let grant = signed_grant();
     let bytes = grant.canonical_bytes().expect("canonical grant");
     let decoded =
@@ -66,12 +66,6 @@ fn grant_round_trips_verifies_and_can_authorize_both_fixed_role_endpoints() {
     assert_eq!(verified.nonce().as_bytes(), &[0x15; 32]);
     assert_eq!(verified.grant_key_id(), GRANT_KEY_ID);
     assert_eq!(verified.operation(), "tenant_root_restore_cleanup_v1");
-
-    // The verified capability has one fixed operation and no role selector;
-    // both role endpoints receive the same authenticated bytes and digest.
-    let deriver_a_digest = verified.digest();
-    let deriver_b_digest = verified.digest();
-    assert_eq!(deriver_a_digest, deriver_b_digest);
 }
 
 #[test]

@@ -115,3 +115,13 @@ export function resolveD1DatabaseFromConfig(config: Record<string, unknown>): D1
   if (isD1DatabaseLike(config.SIGNER_DB)) return config.SIGNER_DB;
   return null;
 }
+
+/**
+ * Aborts the D1 batch it is in when the statement just before it changed no
+ * row: it collides with the guard table's immutable singleton, and the
+ * constraint failure rolls the whole batch back. The singleton is seeded by
+ * migration 0012.
+ */
+export const D1_BATCH_CAS_GUARD_SQL = `INSERT INTO router_ab_yao_versioned_json_cas_guard (guard_id)
+SELECT 1
+ WHERE changes() = 0`;

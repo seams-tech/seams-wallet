@@ -58,7 +58,7 @@ export type PersistInitialCanonicalEcdsaActivationRequestV1 =
     readonly clientActivation: RouterAbEcdsaVerifiedClientActivationFactsV1;
   };
 
-export type PersistInitialCanonicalEcdsaActivationFailureCode =
+type PersistInitialCanonicalEcdsaActivationFailureCode =
   | 'invalid_ceremony_state'
   | 'ceremony_plan_mismatch'
   | 'invalid_activation_plan'

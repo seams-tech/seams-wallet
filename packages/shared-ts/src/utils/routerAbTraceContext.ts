@@ -7,7 +7,7 @@ export type RouterAbTraceContextV1 = {
   readonly value: string;
 };
 
-export type RouterAbTraceContextParseResultV1 =
+type RouterAbTraceContextParseResultV1 =
   | { readonly ok: true; readonly value: RouterAbTraceContextV1 }
   | {
       readonly ok: false;

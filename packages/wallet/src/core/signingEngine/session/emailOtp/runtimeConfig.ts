@@ -1,7 +1,7 @@
 import type { SeamsConfigsReadonly } from '@/core/types/seams';
 import { SIGNING_SESSION_SEAL_GROUP_ID } from '@shared/utils/signingSessionSeal';
 
-export type EmailOtpRuntimeConfigPorts = {
+type EmailOtpRuntimeConfigPorts = {
   configs: SeamsConfigsReadonly;
   getRpId: () => string | null;
 };

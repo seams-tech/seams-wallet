@@ -562,8 +562,6 @@ pub struct MpcPrfCombinePlanV1 {
     pub recipient_role: Role,
     /// Recipient identity.
     pub recipient_identity: String,
-    /// Signer roles represented in the combine input.
-    pub signer_roles: [Role; 2],
 }
 
 /// Boundary input for ECDSA threshold-PRF partial proof verification planning.
@@ -592,12 +590,6 @@ pub struct MpcPrfPartialVerificationPlanV1 {
     pub signer_role: Role,
     /// Signer identity.
     pub signer_identity: String,
-    /// Fixed partial wire length.
-    pub partial_wire_len: usize,
-    /// Fixed commitment wire length.
-    pub commitment_wire_len: usize,
-    /// Fixed proof wire length.
-    pub proof_wire_len: usize,
 }
 
 /// Validates ECDSA threshold-PRF proof-bundle metadata before cryptographic verification.
@@ -634,9 +626,6 @@ pub fn plan_mpc_prf_partial_verification_v1(
         recipient_identity: binding.recipient_identity.clone(),
         signer_role: binding.signer_role,
         signer_identity: binding.signer_identity.clone(),
-        partial_wire_len: MPC_PRF_PARTIAL_WIRE_V1_LEN,
-        commitment_wire_len: MPC_PRF_COMMITMENT_WIRE_V1_LEN,
-        proof_wire_len: MPC_PRF_DLEQ_PROOF_WIRE_V1_LEN,
     })
 }
 
@@ -729,7 +718,6 @@ pub fn plan_mpc_prf_combine_v1(
         opened_share_kind: input.opened_share_kind,
         recipient_role: input.recipient_role,
         recipient_identity: input.recipient_identity,
-        signer_roles: [left.signer_role, right.signer_role],
     })
 }
 

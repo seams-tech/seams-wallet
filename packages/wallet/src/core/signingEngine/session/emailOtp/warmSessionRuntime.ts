@@ -19,7 +19,7 @@ import {
 import type { EmailOtpSealedRestoreOrchestrator } from './sealedRestoreOrchestrator';
 import type { EmailOtpWarmMaterialTarget } from '@/core/signingEngine/workerManager/workerTypes';
 
-export type EmailOtpWarmSessionWorkerClient = {
+type EmailOtpWarmSessionWorkerClient = {
   readStatus: (target: EmailOtpWarmMaterialTarget) => Promise<WarmSessionStatusResult>;
   consumeUses: (args: {
     target: EmailOtpWarmMaterialTarget;

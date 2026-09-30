@@ -8,7 +8,7 @@ export type TransactionReviewCapabilities = {
   readonly tempo: TempoSignerCapability;
 };
 
-export type TransactionReviewBridge = {
+type TransactionReviewBridge = {
   readonly getWalletIframe: () => WalletIframeCoordinator;
   readonly createCapabilities: (
     reservation: TransactionReviewReservation,

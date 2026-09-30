@@ -18,7 +18,7 @@ import type { PasskeyCustodyEnvelopeRecord } from '@shared/passkey-custody';
  * the removal is safe.
  */
 
-export type EnvelopeRevocationAdmission =
+type EnvelopeRevocationAdmission =
   | { readonly kind: 'admitted' }
   | { readonly kind: 'refused'; readonly reason: string };
 

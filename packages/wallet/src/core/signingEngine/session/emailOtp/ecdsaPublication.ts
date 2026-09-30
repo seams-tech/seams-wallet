@@ -16,10 +16,8 @@ import {
   emailOtpAuthContextRetention,
   type ThresholdEcdsaEmailOtpAuthContext,
 } from '@/core/signingEngine/session/identity/laneIdentity';
-import {
-  readExactSealedSession,
-  type BuildCurrentSealedSessionRecordInput,
-} from '@/core/signingEngine/session/persistence/sealedSessionStore';
+import { readExactSealedSession } from '@/core/signingEngine/session/persistence/sealedSessionStore';
+import { type BuildCurrentSealedSessionRecordInput } from '@/core/signingEngine/session/persistence/sealedSessionRecords';
 import type { ThresholdEcdsaSessionBootstrapResult } from '@/core/signingEngine/threshold/ecdsa/activation';
 import { type ThresholdRuntimePolicyScope } from '@/core/signingEngine/threshold/sessionPolicy';
 import {
@@ -52,7 +50,7 @@ import {
 import { type EcdsaRoleLocalPersistedMaterialRef } from '../keyMaterialBrands';
 import type { ActiveEcdsaCapabilityManifest } from '../material/ecdsaCapabilityManifest';
 
-export type EmailOtpEcdsaPublicationTimingBucket =
+type EmailOtpEcdsaPublicationTimingBucket =
   | 'signingSessionSealApplyMs'
   | 'warmCapabilityPersistenceMs';
 
@@ -336,7 +334,7 @@ export async function resolveEmailOtpExistingEcdsaKey(args: {
   });
 }
 
-export function buildEmailOtpEcdsaReadyPersistInput(args: {
+function buildEmailOtpEcdsaReadyPersistInput(args: {
   walletId: WalletId;
   chainTarget: ThresholdEcdsaChainTarget;
   walletSessionId: EmailOtpEcdsaReadyPersistInput['walletSessionId'];
@@ -360,7 +358,7 @@ export function buildEmailOtpEcdsaReadyPersistInput(args: {
   };
 }
 
-export function buildEmailOtpEcdsaSealBinding(args: {
+function buildEmailOtpEcdsaSealBinding(args: {
   warmThresholdSessionId: string;
   normalSigning: RouterAbEcdsaDerivationNormalSigningStateV1;
 }): {

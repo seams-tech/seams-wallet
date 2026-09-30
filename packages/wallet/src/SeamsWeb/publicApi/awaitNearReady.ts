@@ -2,7 +2,7 @@ import type { NearProvisioningState } from '@/core/types/seams';
 import type { NearProvisioningStateChangedEvent } from '@/core/types/sdkSentEvents';
 import type { RegistrationCapability } from '@/SeamsWeb/publicApi/types';
 
-export const DEFAULT_AWAIT_NEAR_READY_TIMEOUT_MS = 120_000;
+const DEFAULT_AWAIT_NEAR_READY_TIMEOUT_MS = 120_000;
 
 export type AwaitNearReadyResult =
   | { kind: 'near_ready'; nearAccountId: string }

@@ -1,5 +1,6 @@
 import { toOptionalTrimmedString } from '@shared/utils/validation';
 import type { D1DatabaseLike, D1PreparedStatementLike } from '../../../../storage/tenantRoute';
+import { prepareD1TenantStatement, type D1TenantScope } from '../../../../core/d1TenantStore';
 import {
   prepareD1WebAuthnCredentialBindingInsertStatement,
   type WebAuthnCredentialBindingRecord,
@@ -17,46 +18,32 @@ import {
   type WebAuthnLoginChallengeRecord,
   type WebAuthnSyncChallengeRecord,
 } from './d1WebAuthnRecords';
+import {
+  INSERT_WEBAUTHN_AUTHENTICATOR_SQL,
+  UPSERT_WEBAUTHN_AUTHENTICATOR_SQL,
+  webAuthnAuthenticatorRows,
+  webAuthnChallengeRows,
+  webAuthnCredentialBindingRows,
+} from '../../../../core/webAuthnD1Statements';
+import type { ScopedD1Prepare } from '../../../../core/emailOtpD1Statements';
 
 type WebAuthnChallengeKind = 'login' | 'sync' | 'recovery_registration';
 
-export type D1WebAuthnStoreScope = {
-  readonly namespace: string;
-  readonly orgId: string;
-  readonly projectId: string;
-  readonly envId: string;
-};
+export type D1WebAuthnStoreScope = D1TenantScope;
 
-export function prepareD1WebAuthnAuthenticatorPutStatement(input: {
+type AuthenticatorStatementInput = {
   readonly database: D1DatabaseLike;
   readonly scope: D1WebAuthnStoreScope;
   readonly userId: string;
   readonly record: WebAuthnAuthenticatorRecord;
-}): D1PreparedStatementLike {
+};
+
+function prepareAuthenticatorStatement(
+  sql: string,
+  input: AuthenticatorStatementInput,
+): D1PreparedStatementLike {
   return input.database
-    .prepare(
-      `INSERT INTO webauthn_authenticators (
-        namespace,
-        org_id,
-        project_id,
-        env_id,
-        user_id,
-        credential_id_b64u,
-        credential_public_key_b64u,
-        counter,
-        created_at_ms,
-        updated_at_ms,
-        device_info_json
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT (namespace, org_id, project_id, env_id, user_id, credential_id_b64u)
-      DO UPDATE SET
-        credential_public_key_b64u = EXCLUDED.credential_public_key_b64u,
-        counter = MAX(webauthn_authenticators.counter, EXCLUDED.counter),
-        created_at_ms = MIN(webauthn_authenticators.created_at_ms, EXCLUDED.created_at_ms),
-        updated_at_ms = MAX(webauthn_authenticators.updated_at_ms, EXCLUDED.updated_at_ms),
-        device_info_json = EXCLUDED.device_info_json`,
-    )
+    .prepare(sql)
     .bind(
       input.scope.namespace,
       input.scope.orgId,
@@ -70,55 +57,26 @@ export function prepareD1WebAuthnAuthenticatorPutStatement(input: {
       input.record.updatedAtMs,
       JSON.stringify(input.record.deviceInfo),
     );
+}
+
+export function prepareD1WebAuthnAuthenticatorPutStatement(
+  input: AuthenticatorStatementInput,
+): D1PreparedStatementLike {
+  return prepareAuthenticatorStatement(UPSERT_WEBAUTHN_AUTHENTICATOR_SQL, input);
 }
 
 /** Insert-only variant used by recovery promotion. A credential collision must
  * abort the surrounding envelope/code transaction instead of reassigning an
  * existing authenticator's public key. */
-export function prepareD1WebAuthnAuthenticatorInsertStatement(input: {
-  readonly database: D1DatabaseLike;
-  readonly scope: D1WebAuthnStoreScope;
-  readonly userId: string;
-  readonly record: WebAuthnAuthenticatorRecord;
-}): D1PreparedStatementLike {
-  return input.database
-    .prepare(
-      `INSERT INTO webauthn_authenticators (
-        namespace,
-        org_id,
-        project_id,
-        env_id,
-        user_id,
-        credential_id_b64u,
-        credential_public_key_b64u,
-        counter,
-        created_at_ms,
-        updated_at_ms,
-        device_info_json
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    )
-    .bind(
-      input.scope.namespace,
-      input.scope.orgId,
-      input.scope.projectId,
-      input.scope.envId,
-      input.userId,
-      input.record.credentialIdB64u,
-      input.record.credentialPublicKeyB64u,
-      input.record.counter,
-      input.record.createdAtMs,
-      input.record.updatedAtMs,
-      JSON.stringify(input.record.deviceInfo),
-    );
+export function prepareD1WebAuthnAuthenticatorInsertStatement(
+  input: AuthenticatorStatementInput,
+): D1PreparedStatementLike {
+  return prepareAuthenticatorStatement(INSERT_WEBAUTHN_AUTHENTICATOR_SQL, input);
 }
 
 export class CloudflareD1WebAuthnStore {
   private readonly database: D1DatabaseLike;
-  private readonly namespace: string;
-  private readonly orgId: string;
-  private readonly projectId: string;
-  private readonly envId: string;
+  private readonly scope: D1TenantScope;
 
   constructor(input: {
     readonly database: D1DatabaseLike;
@@ -128,10 +86,12 @@ export class CloudflareD1WebAuthnStore {
     readonly envId: string;
   }) {
     this.database = input.database;
-    this.namespace = input.namespace;
-    this.orgId = input.orgId;
-    this.projectId = input.projectId;
-    this.envId = input.envId;
+    this.scope = {
+      namespace: input.namespace,
+      orgId: input.orgId,
+      projectId: input.projectId,
+      envId: input.envId,
+    };
   }
 
   async writeChallenge(input: {
@@ -144,33 +104,7 @@ export class CloudflareD1WebAuthnStore {
     readonly createdAtMs: number;
     readonly expiresAtMs: number;
   }): Promise<void> {
-    await this.prepare(
-      `INSERT INTO webauthn_challenges (
-        namespace,
-        org_id,
-        project_id,
-        env_id,
-        challenge_id,
-        challenge_kind,
-        record_json,
-        created_at_ms,
-        expires_at_ms
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT (namespace, org_id, project_id, env_id, challenge_id)
-      DO UPDATE SET
-        challenge_kind = EXCLUDED.challenge_kind,
-        record_json = EXCLUDED.record_json,
-        created_at_ms = EXCLUDED.created_at_ms,
-        expires_at_ms = EXCLUDED.expires_at_ms`,
-      [
-        input.challengeId,
-        input.challengeKind,
-        JSON.stringify(input.record),
-        input.createdAtMs,
-        input.expiresAtMs,
-      ],
-    ).run();
+    await webAuthnChallengeRows.upsert(this.prepare, input).run();
   }
 
   async consumeLoginChallenge(challengeId: string): Promise<WebAuthnLoginChallengeRecord | null> {
@@ -233,18 +167,9 @@ export class CloudflareD1WebAuthnStore {
     readonly userId: string;
     readonly credentialIdB64u: string;
   }): Promise<WebAuthnAuthenticatorRecord | null> {
-    const row = await this.prepare(
-      `SELECT credential_id_b64u, credential_public_key_b64u, counter, created_at_ms, updated_at_ms, device_info_json
-         FROM webauthn_authenticators
-        WHERE namespace = ?
-          AND org_id = ?
-          AND project_id = ?
-          AND env_id = ?
-          AND user_id = ?
-          AND credential_id_b64u = ?
-        LIMIT 1`,
-      [input.userId, input.credentialIdB64u],
-    ).first<D1AuthenticatorRow>();
+    const row = await webAuthnAuthenticatorRows
+      .select(this.prepare, input.userId, input.credentialIdB64u)
+      .first<D1AuthenticatorRow>();
     return parseWebAuthnAuthenticator(row);
   }
 
@@ -254,12 +179,7 @@ export class CloudflareD1WebAuthnStore {
   }): Promise<void> {
     await prepareD1WebAuthnAuthenticatorPutStatement({
       database: this.database,
-      scope: {
-        namespace: this.namespace,
-        orgId: this.orgId,
-        projectId: this.projectId,
-        envId: this.envId,
-      },
+      scope: this.scope,
       userId: input.userId,
       record: input.record,
     }).run();
@@ -271,12 +191,7 @@ export class CloudflareD1WebAuthnStore {
   }): D1PreparedStatementLike {
     return prepareD1WebAuthnAuthenticatorInsertStatement({
       database: this.database,
-      scope: {
-        namespace: this.namespace,
-        orgId: this.orgId,
-        projectId: this.projectId,
-        envId: this.envId,
-      },
+      scope: this.scope,
       userId: input.userId,
       record: input.record,
     });
@@ -287,12 +202,7 @@ export class CloudflareD1WebAuthnStore {
   ): D1PreparedStatementLike {
     return prepareD1WebAuthnCredentialBindingInsertStatement({
       database: this.database,
-      scope: {
-        namespace: this.namespace,
-        orgId: this.orgId,
-        projectId: this.projectId,
-        envId: this.envId,
-      },
+      scope: this.scope,
       record,
     });
   }
@@ -319,10 +229,10 @@ export class CloudflareD1WebAuthnStore {
       .bind(
         input.newCounter,
         input.updatedAtMs,
-        this.namespace,
-        this.orgId,
-        this.projectId,
-        this.envId,
+        this.scope.namespace,
+        this.scope.orgId,
+        this.scope.projectId,
+        this.scope.envId,
         input.userId,
         input.credentialIdB64u,
         input.newCounter,
@@ -334,18 +244,9 @@ export class CloudflareD1WebAuthnStore {
     readonly rpId: string;
     readonly credentialIdB64u: string;
   }): Promise<WebAuthnCredentialBindingRecord | null> {
-    const row = await this.prepare(
-      `SELECT record_json
-         FROM webauthn_credential_bindings
-        WHERE namespace = ?
-          AND org_id = ?
-          AND project_id = ?
-          AND env_id = ?
-          AND rp_id = ?
-          AND credential_id_b64u = ?
-        LIMIT 1`,
-      [input.rpId, input.credentialIdB64u],
-    ).first<D1RecordJsonRow>();
+    const row = await webAuthnCredentialBindingRows
+      .select(this.prepare, input.rpId, input.credentialIdB64u)
+      .first<D1RecordJsonRow>();
     return parseWebAuthnBinding(row || {});
   }
 
@@ -419,23 +320,11 @@ export class CloudflareD1WebAuthnStore {
     readonly challengeId: string;
     readonly challengeKind: WebAuthnChallengeKind;
   }): Promise<D1RecordJsonRow | null> {
-    return await this.prepare(
-      `DELETE FROM webauthn_challenges
-        WHERE namespace = ?
-          AND org_id = ?
-          AND project_id = ?
-          AND env_id = ?
-          AND challenge_id = ?
-          AND challenge_kind = ?
-          AND expires_at_ms > ?
-        RETURNING record_json`,
-      [input.challengeId, input.challengeKind, Date.now()],
-    ).first<D1RecordJsonRow>();
+    return await webAuthnChallengeRows
+      .consume(this.prepare, input.challengeId, input.challengeKind, Date.now())
+      .first<D1RecordJsonRow>();
   }
 
-  private prepare(sql: string, values: readonly unknown[]): D1PreparedStatementLike {
-    return this.database
-      .prepare(sql)
-      .bind(this.namespace, this.orgId, this.projectId, this.envId, ...values);
-  }
+  private readonly prepare: ScopedD1Prepare = (sql, values) =>
+    prepareD1TenantStatement(this.database, this.scope, sql, values);
 }

@@ -1,0 +1,508 @@
+// The Email OTP statements that both the core D1 stores (EmailOtpStores.ts) and the Cloudflare
+// D1 stores (router/cloudflare/d1/emailOtp) run. Each binds the tenant scope first, through the
+// caller's `prepare`, and the statement's own values after it.
+import { EMAIL_OTP_CHANNEL } from '@shared/utils/emailOtpDomain';
+import type { D1PreparedStatementLike } from '../storage/tenantRoute';
+import { runtimePolicyScopeKey } from './EmailOtpRecords';
+import type {
+  EmailOtpAuthStateRecord,
+  EmailOtpChallengeRecord,
+  EmailOtpGrantRecord,
+  EmailOtpUnlockChallengeRecord,
+  EmailOtpWalletEnrollmentRecord,
+  GoogleEmailOtpRegistrationAttemptRecord,
+  GoogleEmailOtpRegistrationAttemptScopeInput,
+  NonEmptyGoogleEmailOtpRegistrationOfferCandidates,
+} from './EmailOtpStores';
+
+/** Prepares `sql` with the tenant scope bound to its first four parameters and `values` after. */
+export type ScopedD1Prepare = (sql: string, values: readonly unknown[]) => D1PreparedStatementLike;
+
+const INSERT_CHALLENGE_SQL = `INSERT INTO email_otp_challenges (
+        namespace,
+        org_id,
+        project_id,
+        env_id,
+        challenge_id,
+        challenge_subject_id,
+        wallet_id,
+        record_org_id,
+        otp_channel,
+        owner_proof_binding_digest,
+        action,
+        operation,
+        otp_code,
+        record_json,
+        created_at_ms,
+        expires_at_ms
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+
+// The core store binds a parsed record, whose channel is always EMAIL_OTP_CHANNEL.
+function challengeValues(record: EmailOtpChallengeRecord): readonly unknown[] {
+  return [
+    record.challengeId,
+    record.challengeSubjectId,
+    record.walletId,
+    record.orgId || '',
+    EMAIL_OTP_CHANNEL,
+    record.ownerProofBindingDigest,
+    record.action,
+    record.operation,
+    record.otpCode,
+    JSON.stringify(record),
+    record.createdAtMs,
+    record.expiresAtMs,
+  ];
+}
+
+/** Statements on `email_otp_challenges`. */
+export const emailOtpChallengeRows = {
+  insert: (prepare: ScopedD1Prepare, record: EmailOtpChallengeRecord) =>
+    prepare(INSERT_CHALLENGE_SQL, challengeValues(record)),
+
+  upsert: (prepare: ScopedD1Prepare, record: EmailOtpChallengeRecord) =>
+    prepare(
+      `${INSERT_CHALLENGE_SQL}
+      ON CONFLICT (namespace, org_id, project_id, env_id, challenge_id)
+      DO UPDATE SET
+        challenge_subject_id = EXCLUDED.challenge_subject_id,
+        wallet_id = EXCLUDED.wallet_id,
+        record_org_id = EXCLUDED.record_org_id,
+        otp_channel = EXCLUDED.otp_channel,
+        owner_proof_binding_digest = EXCLUDED.owner_proof_binding_digest,
+        action = EXCLUDED.action,
+        operation = EXCLUDED.operation,
+        otp_code = EXCLUDED.otp_code,
+        record_json = EXCLUDED.record_json,
+        created_at_ms = EXCLUDED.created_at_ms,
+        expires_at_ms = EXCLUDED.expires_at_ms`,
+      challengeValues(record),
+    ),
+
+  delete: (prepare: ScopedD1Prepare, challengeId: string) =>
+    prepare(
+      `DELETE FROM email_otp_challenges
+        WHERE namespace = ?
+          AND org_id = ?
+          AND project_id = ?
+          AND env_id = ?
+          AND challenge_id = ?`,
+      [challengeId],
+    ),
+};
+
+const INSERT_GRANT_SQL = `INSERT INTO email_otp_grants (
+        namespace,
+        org_id,
+        project_id,
+        env_id,
+        grant_token,
+        user_id,
+        wallet_id,
+        record_org_id,
+        challenge_id,
+        action,
+        record_json,
+        issued_at_ms,
+        expires_at_ms
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+
+function grantValues(record: EmailOtpGrantRecord): readonly unknown[] {
+  return [
+    record.grantToken,
+    record.userId,
+    record.walletId,
+    record.orgId || '',
+    record.challengeId,
+    record.action,
+    JSON.stringify(record),
+    record.issuedAtMs,
+    record.expiresAtMs,
+  ];
+}
+
+/** Statements on `email_otp_grants`. */
+export const emailOtpGrantRows = {
+  insert: (prepare: ScopedD1Prepare, record: EmailOtpGrantRecord) =>
+    prepare(INSERT_GRANT_SQL, grantValues(record)),
+
+  upsert: (prepare: ScopedD1Prepare, record: EmailOtpGrantRecord) =>
+    prepare(
+      `${INSERT_GRANT_SQL}
+      ON CONFLICT (namespace, org_id, project_id, env_id, grant_token)
+      DO UPDATE SET
+        user_id = EXCLUDED.user_id,
+        wallet_id = EXCLUDED.wallet_id,
+        record_org_id = EXCLUDED.record_org_id,
+        challenge_id = EXCLUDED.challenge_id,
+        action = EXCLUDED.action,
+        record_json = EXCLUDED.record_json,
+        issued_at_ms = EXCLUDED.issued_at_ms,
+        expires_at_ms = EXCLUDED.expires_at_ms`,
+      grantValues(record),
+    ),
+
+  select: (prepare: ScopedD1Prepare, grantToken: string) =>
+    prepare(
+      `SELECT record_json, expires_at_ms
+         FROM email_otp_grants
+        WHERE namespace = ?
+          AND org_id = ?
+          AND project_id = ?
+          AND env_id = ?
+          AND grant_token = ?
+        LIMIT 1`,
+      [grantToken],
+    ),
+
+  consume: (prepare: ScopedD1Prepare, grantToken: string) =>
+    prepare(
+      `DELETE FROM email_otp_grants
+        WHERE namespace = ?
+          AND org_id = ?
+          AND project_id = ?
+          AND env_id = ?
+          AND grant_token = ?
+      RETURNING record_json, expires_at_ms`,
+      [grantToken],
+    ),
+
+  delete: (prepare: ScopedD1Prepare, grantToken: string) =>
+    prepare(
+      `DELETE FROM email_otp_grants
+        WHERE namespace = ?
+          AND org_id = ?
+          AND project_id = ?
+          AND env_id = ?
+          AND grant_token = ?`,
+      [grantToken],
+    ),
+};
+
+const INSERT_WALLET_ENROLLMENT_SQL = `INSERT INTO email_otp_wallet_enrollments (
+        namespace,
+        org_id,
+        project_id,
+        env_id,
+        wallet_id,
+        provider_user_id,
+        record_org_id,
+        verified_email,
+        record_json,
+        created_at_ms,
+        updated_at_ms
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+
+function walletEnrollmentValues(record: EmailOtpWalletEnrollmentRecord): readonly unknown[] {
+  return [
+    record.walletId,
+    record.providerUserId,
+    record.orgId,
+    record.verifiedEmail,
+    JSON.stringify(record),
+    record.createdAtMs,
+    record.updatedAtMs,
+  ];
+}
+
+/** Statements on `email_otp_wallet_enrollments`. */
+export const emailOtpWalletEnrollmentRows = {
+  insert: (prepare: ScopedD1Prepare, record: EmailOtpWalletEnrollmentRecord) =>
+    prepare(INSERT_WALLET_ENROLLMENT_SQL, walletEnrollmentValues(record)),
+
+  upsert: (prepare: ScopedD1Prepare, record: EmailOtpWalletEnrollmentRecord) =>
+    prepare(
+      `${INSERT_WALLET_ENROLLMENT_SQL}
+      ON CONFLICT (namespace, org_id, project_id, env_id, wallet_id)
+      DO UPDATE SET
+        provider_user_id = EXCLUDED.provider_user_id,
+        record_org_id = EXCLUDED.record_org_id,
+        verified_email = EXCLUDED.verified_email,
+        record_json = EXCLUDED.record_json,
+        created_at_ms = EXCLUDED.created_at_ms,
+        updated_at_ms = EXCLUDED.updated_at_ms`,
+      walletEnrollmentValues(record),
+    ),
+
+  delete: (prepare: ScopedD1Prepare, walletId: string) =>
+    prepare(
+      `DELETE FROM email_otp_wallet_enrollments
+        WHERE namespace = ?
+          AND org_id = ?
+          AND project_id = ?
+          AND env_id = ?
+          AND wallet_id = ?`,
+      [walletId],
+    ),
+};
+
+/** Statements on `email_otp_auth_states`. */
+export const emailOtpAuthStateRows = {
+  select: (prepare: ScopedD1Prepare, walletId: string) =>
+    prepare(
+      `SELECT record_json, updated_at_ms
+         FROM email_otp_auth_states
+        WHERE namespace = ?
+          AND org_id = ?
+          AND project_id = ?
+          AND env_id = ?
+          AND wallet_id = ?
+        LIMIT 1`,
+      [walletId],
+    ),
+
+  upsert: (prepare: ScopedD1Prepare, record: EmailOtpAuthStateRecord) =>
+    prepare(
+      `INSERT INTO email_otp_auth_states (
+        namespace,
+        org_id,
+        project_id,
+        env_id,
+        wallet_id,
+        provider_user_id,
+        record_org_id,
+        record_json,
+        created_at_ms,
+        updated_at_ms
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT (namespace, org_id, project_id, env_id, wallet_id)
+      DO UPDATE SET
+        provider_user_id = EXCLUDED.provider_user_id,
+        record_org_id = EXCLUDED.record_org_id,
+        record_json = EXCLUDED.record_json,
+        created_at_ms = EXCLUDED.created_at_ms,
+        updated_at_ms = EXCLUDED.updated_at_ms`,
+      [
+        record.walletId,
+        record.providerUserId,
+        record.orgId,
+        JSON.stringify(record),
+        record.createdAtMs,
+        record.updatedAtMs,
+      ],
+    ),
+};
+
+const INSERT_UNLOCK_CHALLENGE_SQL = `INSERT INTO email_otp_unlock_challenges (
+        namespace,
+        org_id,
+        project_id,
+        env_id,
+        challenge_id,
+        wallet_id,
+        user_id,
+        record_org_id,
+        record_json,
+        created_at_ms,
+        expires_at_ms
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+
+function unlockChallengeValues(record: EmailOtpUnlockChallengeRecord): readonly unknown[] {
+  return [
+    record.challengeId,
+    record.walletId,
+    record.userId,
+    record.orgId || '',
+    JSON.stringify(record),
+    record.createdAtMs,
+    record.expiresAtMs,
+  ];
+}
+
+/** Statements on `email_otp_unlock_challenges`. */
+export const emailOtpUnlockChallengeRows = {
+  insert: (prepare: ScopedD1Prepare, record: EmailOtpUnlockChallengeRecord) =>
+    prepare(INSERT_UNLOCK_CHALLENGE_SQL, unlockChallengeValues(record)),
+
+  upsert: (prepare: ScopedD1Prepare, record: EmailOtpUnlockChallengeRecord) =>
+    prepare(
+      `${INSERT_UNLOCK_CHALLENGE_SQL}
+      ON CONFLICT (namespace, org_id, project_id, env_id, challenge_id)
+      DO UPDATE SET
+        wallet_id = EXCLUDED.wallet_id,
+        user_id = EXCLUDED.user_id,
+        record_org_id = EXCLUDED.record_org_id,
+        record_json = EXCLUDED.record_json,
+        created_at_ms = EXCLUDED.created_at_ms,
+        expires_at_ms = EXCLUDED.expires_at_ms`,
+      unlockChallengeValues(record),
+    ),
+
+  consume: (prepare: ScopedD1Prepare, challengeId: string) =>
+    prepare(
+      `DELETE FROM email_otp_unlock_challenges
+        WHERE namespace = ?
+          AND org_id = ?
+          AND project_id = ?
+          AND env_id = ?
+          AND challenge_id = ?
+      RETURNING record_json, expires_at_ms`,
+      [challengeId],
+    ),
+};
+
+function offerWalletIdsJson(candidates: NonEmptyGoogleEmailOtpRegistrationOfferCandidates): string {
+  const walletIds: string[] = [];
+  for (const candidate of candidates) walletIds.push(candidate.walletId);
+  return JSON.stringify(walletIds);
+}
+
+// Live attempts for one subject and email; binds the subject, the email and the time.
+const PENDING_ATTEMPTS_SQL = `SELECT record_json, expires_at_ms, updated_at_ms, attempt_id
+         FROM email_otp_registration_attempts
+        WHERE namespace = ?
+          AND org_id = ?
+          AND project_id = ?
+          AND env_id = ?
+          AND provider_subject = ?
+          AND email = ?
+          AND state IN ('started', 'key_finalized')
+          AND expires_at_ms > ?`;
+
+/** Statements on `email_otp_registration_attempts`. */
+export const emailOtpRegistrationAttemptRows = {
+  upsert: (prepare: ScopedD1Prepare, record: GoogleEmailOtpRegistrationAttemptRecord) =>
+    prepare(
+      `INSERT INTO email_otp_registration_attempts (
+        namespace,
+        org_id,
+        project_id,
+        env_id,
+        attempt_id,
+        provider_subject,
+        email,
+        wallet_id,
+        state,
+        owner_proof_binding_digest,
+        runtime_org_id,
+        runtime_policy_key,
+        offer_wallet_ids_json,
+        record_json,
+        created_at_ms,
+        updated_at_ms,
+        expires_at_ms
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT (namespace, org_id, project_id, env_id, attempt_id)
+      DO UPDATE SET
+        provider_subject = EXCLUDED.provider_subject,
+        email = EXCLUDED.email,
+        wallet_id = EXCLUDED.wallet_id,
+        state = EXCLUDED.state,
+        owner_proof_binding_digest = EXCLUDED.owner_proof_binding_digest,
+        runtime_org_id = EXCLUDED.runtime_org_id,
+        runtime_policy_key = EXCLUDED.runtime_policy_key,
+        offer_wallet_ids_json = EXCLUDED.offer_wallet_ids_json,
+        record_json = EXCLUDED.record_json,
+        created_at_ms = EXCLUDED.created_at_ms,
+        updated_at_ms = EXCLUDED.updated_at_ms,
+        expires_at_ms = EXCLUDED.expires_at_ms`,
+      [
+        record.attemptId,
+        record.providerSubject,
+        record.email,
+        record.walletId,
+        record.state,
+        record.ownerProofBindingDigest,
+        record.runtimePolicyScope?.orgId || '',
+        runtimePolicyScopeKey(record.runtimePolicyScope),
+        offerWalletIdsJson(record.offerCandidates),
+        JSON.stringify(record),
+        record.createdAtMs,
+        record.updatedAtMs,
+        record.expiresAtMs,
+      ],
+    ),
+
+  select: (prepare: ScopedD1Prepare, attemptId: string) =>
+    prepare(
+      `SELECT record_json, expires_at_ms, updated_at_ms, attempt_id
+         FROM email_otp_registration_attempts
+        WHERE namespace = ?
+          AND org_id = ?
+          AND project_id = ?
+          AND env_id = ?
+          AND attempt_id = ?
+        LIMIT 1`,
+      [attemptId],
+    ),
+
+  /** The latest live attempt for the subject, email, owner binding and runtime scope. */
+  selectStarted: (
+    prepare: ScopedD1Prepare,
+    input: Readonly<GoogleEmailOtpRegistrationAttemptScopeInput>,
+  ) =>
+    prepare(
+      `${PENDING_ATTEMPTS_SQL}
+          AND owner_proof_binding_digest = ?
+          AND runtime_org_id = ?
+          AND runtime_policy_key = ?
+        ORDER BY updated_at_ms DESC
+        LIMIT 1`,
+      [
+        input.providerSubject,
+        input.email,
+        input.nowMs,
+        input.ownerProofBindingDigest,
+        input.orgId,
+        runtimePolicyScopeKey(input.runtimePolicyScope),
+      ],
+    ),
+
+  /** Every live attempt for the subject and email, whatever its binding. */
+  selectPending: (
+    prepare: ScopedD1Prepare,
+    input: { readonly providerSubject: string; readonly email: string; readonly nowMs: number },
+  ) => prepare(PENDING_ATTEMPTS_SQL, [input.providerSubject, input.email, input.nowMs]),
+
+  /** Deletes the attempts that have expired or were marked expired. */
+  deleteExpired: (prepare: ScopedD1Prepare, nowMs: number) =>
+    prepare(
+      `DELETE FROM email_otp_registration_attempts
+        WHERE namespace = ?
+          AND org_id = ?
+          AND project_id = ?
+          AND env_id = ?
+          AND (expires_at_ms <= ? OR state = 'expired')`,
+      [nowMs],
+    ),
+
+  /** Finds a live attempt that selected or offered the wallet. */
+  selectLiveForWallet: (prepare: ScopedD1Prepare, walletId: string, nowMs: number) =>
+    prepare(
+      `SELECT 1 AS found
+         FROM email_otp_registration_attempts
+        WHERE namespace = ?
+          AND org_id = ?
+          AND project_id = ?
+          AND env_id = ?
+          AND state IN ('started', 'key_finalized')
+          AND expires_at_ms > ?
+          AND (
+            wallet_id = ?
+            OR EXISTS (
+              SELECT 1
+                FROM json_each(offer_wallet_ids_json)
+               WHERE value = ?
+            )
+          )
+        LIMIT 1`,
+      [nowMs, walletId, walletId],
+    ),
+
+  delete: (prepare: ScopedD1Prepare, attemptId: string) =>
+    prepare(
+      `DELETE FROM email_otp_registration_attempts
+        WHERE namespace = ?
+          AND org_id = ?
+          AND project_id = ?
+          AND env_id = ?
+          AND attempt_id = ?`,
+      [attemptId],
+    ),
+};

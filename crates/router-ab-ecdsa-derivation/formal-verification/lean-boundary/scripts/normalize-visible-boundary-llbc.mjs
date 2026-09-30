@@ -1,5 +1,9 @@
 #!/usr/bin/env node
 import { readFileSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const boundaryDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 function stableStringify(value) {
   if (Array.isArray(value)) {
@@ -28,4 +32,11 @@ if (!Array.isArray(shortNames)) {
 }
 
 shortNames.sort((left, right) => stableStringify(left).localeCompare(stableStringify(right)));
+
+// Charon records the absolute --dest-file; keep it relative so every checkout extracts the
+// same bytes.
+const options = llbc.translated.options;
+if (typeof options?.dest_file === 'string' && path.isAbsolute(options.dest_file)) {
+  options.dest_file = path.relative(boundaryDir, options.dest_file);
+}
 writeFileSync(llbcPath, JSON.stringify(llbc));

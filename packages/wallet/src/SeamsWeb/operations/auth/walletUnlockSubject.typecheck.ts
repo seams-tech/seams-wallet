@@ -6,7 +6,7 @@ import {
   parseCapabilityInstanceRef,
   parseWalletAuthorityBindingDigest,
 } from '@shared/utils/domainIds';
-import { parseNearEd25519SigningKeyId } from '@shared/utils/registrationIntent';
+import { parseNearEd25519SigningKeyId } from '@shared/utils/registrationIds';
 import { parseSignerSlot } from '@shared/utils/signerSlot';
 import {
   resolveWalletUnlockSubjectSet,

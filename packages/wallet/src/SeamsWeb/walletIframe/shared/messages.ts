@@ -49,15 +49,17 @@ import type {
   ResolveExactKeyExportLaneInput,
   WalletRecoveryRotationAuthorization,
 } from '@/SeamsWeb/publicApi/types';
+import type { WalletId } from '@shared/utils/registrationIntent';
+import type { WalletAuthMethodRevocationProof } from '@shared/utils/walletAuthMethodRecord';
 import type {
   AddSignerSelection,
+  RegistrationSignerSetSelection,
+} from '@shared/utils/registrationSignerPlan';
+import type {
   EmailOtpRegistrationAuthMethodInput,
   PasskeyRegistrationAuthMethodInput,
   RegisterWalletInput,
-  RegistrationSignerSetSelection,
-  WalletId,
-  WalletAuthMethodRevocationProof,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/registrationAuthMethodInput';
 import { parseWalletAuthMethodId, parseWalletId } from '@shared/utils/domainIds';
 import type { PMUnlockPayload } from '@/core/types/login.types';
 import {
@@ -80,7 +82,7 @@ export type {
  */
 export type HostedAuthMenuSessionId = WalletIframeAuthMenuSessionId;
 
-export const WALLET_IFRAME_SURFACE_MEASUREMENT_MAX_CSS_PX = 4096;
+const WALLET_IFRAME_SURFACE_MEASUREMENT_MAX_CSS_PX = 4096;
 
 export type WalletIframeSurfaceMeasurement =
   | {
@@ -117,7 +119,7 @@ export type HostedAuthMenuLoginTarget =
   | { readonly kind: 'wallet'; readonly walletId: WalletId }
   | { readonly kind: 'wallet_sync'; readonly walletId: WalletId };
 
-export type HostedAuthMenuModeCopy = {
+type HostedAuthMenuModeCopy = {
   title: string;
   subtitle: string;
   passkeyCta: string;
@@ -169,14 +171,14 @@ export type HostedAuthMenuDemoEmailOtpDelivery = {
 
 export const HOSTED_AUTH_MENU_ERROR_EVENT = 'seams:hosted-auth-menu-error' as const;
 
-export type HostedAuthMenuErrorEvent = {
+type HostedAuthMenuErrorEvent = {
   kind: 'hosted_auth_menu_error_v1';
   authMenuSessionId: HostedAuthMenuSessionId;
   mode: HostedAuthMenuMode;
   message: string;
 };
 
-export type HostedAuthMenuExternalAuthFailureCode =
+type HostedAuthMenuExternalAuthFailureCode =
   | 'provider_unavailable'
   | 'provider_error'
   | 'invalid_evidence';
@@ -210,10 +212,7 @@ export type HostedAuthMenuExternalAuthResolutionInput = Omit<
   'requestId'
 >;
 
-export type HostedAuthMenuCancelReason =
-  | 'close_button'
-  | 'component_unmounted'
-  | 'connection_closed';
+type HostedAuthMenuCancelReason = 'close_button' | 'component_unmounted' | 'connection_closed';
 
 export type HostedAuthMenuCancelPayload = {
   kind: 'hosted_auth_menu_cancel_v1';
@@ -264,9 +263,9 @@ export type HostedAuthMenuOutcome =
       message: string;
     };
 
-export type PMOpenAuthMenuPayload = HostedAuthMenuOpenRequest;
-export type PMCancelAuthMenuPayload = HostedAuthMenuCancelPayload;
-export type PMResolveAuthMenuExternalAuthPayload = HostedAuthMenuExternalAuthResolution;
+type PMOpenAuthMenuPayload = HostedAuthMenuOpenRequest;
+type PMCancelAuthMenuPayload = HostedAuthMenuCancelPayload;
+type PMResolveAuthMenuExternalAuthPayload = HostedAuthMenuExternalAuthResolution;
 
 const DEFAULT_HOSTED_AUTH_MENU_COPY: HostedAuthMenuCopy = {
   login: {
@@ -763,25 +762,6 @@ export function parseHostedAuthMenuExternalAuthResolution(
   return { kind: record.kind, authMenuSessionId, externalAuthRequestId, requestId, evidence };
 }
 
-export function buildHostedAuthMenuExternalAuthResolution(args: {
-  authMenuSessionId: HostedAuthMenuSessionId;
-  externalAuthRequestId: HostedAuthMenuExternalAuthRequestId;
-  requestId: WalletIframeRequestId;
-  evidence: HostedAuthMenuExternalAuthEvidence;
-}): HostedAuthMenuExternalAuthResolution {
-  const resolution: HostedAuthMenuExternalAuthResolution = {
-    kind: 'hosted_auth_menu_external_auth_resolution_v1',
-    authMenuSessionId: args.authMenuSessionId,
-    externalAuthRequestId: args.externalAuthRequestId,
-    requestId: args.requestId,
-    evidence: args.evidence,
-  };
-  if (!parseHostedAuthMenuExternalAuthResolution(resolution)) {
-    throw new Error('Hosted auth-menu external-auth resolution is invalid');
-  }
-  return Object.freeze(resolution);
-}
-
 export function parseHostedAuthMenuCancelPayload(
   value: unknown,
 ): HostedAuthMenuCancelPayload | null {
@@ -939,20 +919,7 @@ export type ParentToChildType =
   | 'PM_CANCEL_DEVICE_LINKING'
   | 'PM_SYNC_ACCOUNT_FLOW';
 
-export type ChildToParentType =
-  | 'TRANSACTION_ACTIVITY'
-  | 'READY'
-  | 'PONG'
-  | 'PROGRESS'
-  | 'SDK_LIFECYCLE_EVENT'
-  | 'PREFERENCES_CHANGED'
-  | 'AUTH_MENU_EXTERNAL_AUTH_REQUEST'
-  | 'AUTH_MENU_ERROR'
-  | 'SURFACE_MEASUREMENT'
-  | 'PM_RESULT'
-  | 'ERROR';
-
-export interface RpcEnvelope<T extends string = string, P = unknown> {
+interface RpcEnvelope<T extends string = string, P = unknown> {
   type: T;
   requestId?: string;
   payload?: P;
@@ -966,11 +933,11 @@ export type WalletIframeConnectMessage = RpcEnvelope<'CONNECT', ConnectPayload>;
 
 // ===== Payloads =====
 
-export interface ReadyPayload {
+interface ReadyPayload {
   protocolVersion: WalletProtocolVersion;
 }
 
-export interface ConnectPayload {
+interface ConnectPayload {
   protocolVersion: WalletProtocolVersion;
 }
 
@@ -990,7 +957,7 @@ export interface PMSetConfigPayload extends Partial<SeamsConfigsInput> {
   assetsBaseUrl?: string;
 }
 
-export interface PMCancelPayload {
+interface PMCancelPayload {
   requestId?: string; // when omitted, host may attempt best-effort global cancel (close UIs)
   transactionReview?: TransactionReviewWire;
   reviewErrorCode?: import('./transactionReview').TransactionReviewCancellationCode;
@@ -999,11 +966,11 @@ export interface PMCancelPayload {
 declare const hostedWalletExchangeCodeBrand: unique symbol;
 declare const hostedWalletExchangeNonceBrand: unique symbol;
 
-export type HostedWalletExchangeCode = string & {
+type HostedWalletExchangeCode = string & {
   readonly [hostedWalletExchangeCodeBrand]: true;
 };
 
-export type HostedWalletExchangeNonce = string & {
+type HostedWalletExchangeNonce = string & {
   readonly [hostedWalletExchangeNonceBrand]: true;
 };
 
@@ -1114,7 +1081,7 @@ export type PMRegistrationAuthMethodInput =
   | PMEmailOtpChallengeRegistrationAuthMethod
   | PMGoogleSsoRegistrationAuthMethod;
 
-export interface PMRegisterWalletPayload {
+interface PMRegisterWalletPayload {
   authMethod: PMRegistrationAuthMethodInput;
   wallet: RegisterWalletInput;
   signerSelection: RegistrationSignerSetSelection;
@@ -1122,9 +1089,9 @@ export interface PMRegisterWalletPayload {
   options?: Record<string, unknown>;
 }
 
-export type PMResumePendingEcdsaRegistrationPayload = PendingEcdsaRegistrationResumeRequest;
+type PMResumePendingEcdsaRegistrationPayload = PendingEcdsaRegistrationResumeRequest;
 
-export interface PMAddWalletSignerPayload {
+interface PMAddWalletSignerPayload {
   walletId: WalletId | string;
   rpId: string;
   signerSelection: AddSignerSelection;
@@ -1132,20 +1099,20 @@ export interface PMAddWalletSignerPayload {
   options?: Record<string, unknown>;
 }
 
-export interface PMAddPasskeyPayload {
+interface PMAddPasskeyPayload {
   walletId: WalletId | string;
   rpId: string;
   confirmationConfig?: Partial<ConfirmationConfig>;
   options?: Record<string, unknown>;
 }
 
-export interface PMAddEmailOtpPayload {
+interface PMAddEmailOtpPayload {
   walletId: WalletId | string;
   emailAddress: string;
   options?: Record<string, unknown>;
 }
 
-export interface PMUnlockAddedEmailOtpWalletPayload {
+interface PMUnlockAddedEmailOtpWalletPayload {
   walletId: string;
   walletAuthMethodId: string;
   email: string;
@@ -1155,7 +1122,7 @@ export interface PMUnlockAddedEmailOtpWalletPayload {
   relayUrl: string;
 }
 
-export interface PMRevokeAuthMethodPayload {
+interface PMRevokeAuthMethodPayload {
   walletId: WalletId | string;
   walletAuthMethodId: string;
 }
@@ -1182,14 +1149,14 @@ export type PMGoogleEmailOtpWalletAuthStartPayload = PMGoogleEmailOtpWalletAuthS
     | { mode: 'register'; loginTarget?: never }
   );
 
-export type PMGoogleEmailOtpWalletAuthHandlePayload = {
+type PMGoogleEmailOtpWalletAuthHandlePayload = {
   flowHandleId: string;
   flowId: string;
   walletId: string;
   mode: GoogleEmailOtpWalletAuthResolvedMode;
 };
 
-export type PMGoogleEmailOtpWalletAuthSubmitPayload = PMGoogleEmailOtpWalletAuthHandlePayload & {
+type PMGoogleEmailOtpWalletAuthSubmitPayload = PMGoogleEmailOtpWalletAuthHandlePayload & {
   otpCode: string;
 };
 
@@ -1206,7 +1173,7 @@ export type PMGoogleEmailOtpWalletAuthRegistrationWireFlow = {
   expiresAtMs: number;
 };
 
-export type PMGoogleEmailOtpWalletAuthLoginWireFlow = {
+type PMGoogleEmailOtpWalletAuthLoginWireFlow = {
   kind: 'google_email_otp_wallet_auth_flow_v1';
   state: 'challenge_sent';
   flowHandleId: string;
@@ -1237,7 +1204,7 @@ export type PMGoogleEmailOtpWalletAuthSubmitWireResult =
 export type PMGoogleEmailOtpWalletAuthCompleteRegistrationWireResult =
   PMGoogleEmailOtpWalletAuthWireResult<GoogleEmailOtpWalletAuthRegistrationCompleted>;
 
-export interface PMSignTxPayload {
+interface PMSignTxPayload {
   walletId: string;
   nearAccountId: string;
   transaction: TransactionInput;
@@ -1249,7 +1216,7 @@ export interface PMSignTxPayload {
   };
 }
 
-export interface PMSignAndSendTxPayload {
+interface PMSignAndSendTxPayload {
   walletId: string;
   nearAccountId: string;
   transaction: TransactionInput;
@@ -1296,7 +1263,7 @@ export interface PMExecuteActionPayload {
   };
 }
 
-export interface PMSignDelegateActionPayload {
+interface PMSignDelegateActionPayload {
   walletId: string;
   nearAccountId: string;
   delegate: DelegateActionInput;
@@ -1308,7 +1275,7 @@ export interface PMSignDelegateActionPayload {
   };
 }
 
-export interface PMSignNep413Payload {
+interface PMSignNep413Payload {
   walletId: string;
   nearAccountId: string;
   params: { message: string; recipient: string; state?: string };
@@ -1327,7 +1294,7 @@ type PMSignTempoPayloadBase = {
   };
 };
 
-export type PMSignTempoPayload =
+type PMSignTempoPayload =
   | (PMSignTempoPayloadBase & {
       operationKind: 'tempo_transaction';
       request: TempoSigningRequest;
@@ -1344,7 +1311,7 @@ export type PMSignTempoPayload =
       chainTarget: TempoChainTarget;
     });
 
-export interface PMTempoNonceLifecyclePayloadBase {
+interface PMTempoNonceLifecyclePayloadBase {
   walletSession: WalletSessionRef;
   signedResult: TempoSignedResult | EvmSignedResult;
 }
@@ -1353,7 +1320,7 @@ export interface PMReportTempoBroadcastAcceptedPayload extends PMTempoNonceLifec
   txHash: `0x${string}`;
 }
 
-export interface PMReportTempoBroadcastRejectedPayload extends PMTempoNonceLifecyclePayloadBase {
+interface PMReportTempoBroadcastRejectedPayload extends PMTempoNonceLifecyclePayloadBase {
   error?: {
     code?: string;
     message?: string;
@@ -1361,19 +1328,19 @@ export interface PMReportTempoBroadcastRejectedPayload extends PMTempoNonceLifec
   };
 }
 
-export interface PMReportTempoFinalizedPayload extends PMTempoNonceLifecyclePayloadBase {
+interface PMReportTempoFinalizedPayload extends PMTempoNonceLifecyclePayloadBase {
   txHash?: `0x${string}`;
   receiptStatus?: 'success' | 'reverted';
 }
 
-export interface PMReportTempoDroppedOrReplacedPayload extends PMTempoNonceLifecyclePayloadBase {
+interface PMReportTempoDroppedOrReplacedPayload extends PMTempoNonceLifecyclePayloadBase {
   reason: 'dropped' | 'replaced';
   txHash?: `0x${string}`;
 }
 
-export type PMReconcileTempoNonceLanePayload = PMTempoNonceLifecyclePayloadBase;
+type PMReconcileTempoNonceLanePayload = PMTempoNonceLifecyclePayloadBase;
 
-export type PMResolveExactKeyExportLanePayload = ResolveExactKeyExportLaneInput;
+type PMResolveExactKeyExportLanePayload = ResolveExactKeyExportLaneInput;
 
 type PMExportKeypairUiOptions = {
   variant?: 'modal' | 'drawer';
@@ -1399,17 +1366,17 @@ export type PMExportKeypairUiPayload =
       options: PMExportKeypairUiOptions;
     };
 
-export interface PMSetConfirmBehaviorPayload {
+interface PMSetConfirmBehaviorPayload {
   behavior: 'requireClick' | 'skipClick';
   walletId?: string;
 }
 
-export interface PMSetConfirmationConfigPayload {
+interface PMSetConfirmationConfigPayload {
   config: Partial<ConfirmationConfig>;
   walletId?: string;
 }
 
-export interface PMGetWalletSessionPayload {
+interface PMGetWalletSessionPayload {
   walletId?: string;
 }
 
@@ -1425,7 +1392,7 @@ export type PMGetExactWalletSessionStatePayload =
         | { readonly kind: 'exact'; readonly walletId: string };
     };
 
-export interface PMEmailOtpChallengePayload {
+interface PMEmailOtpChallengePayload {
   walletId: string;
   walletAuthMethodId?: string;
   relayUrl?: string;
@@ -1433,7 +1400,7 @@ export interface PMEmailOtpChallengePayload {
   operationFingerprintDigest?: DigestB64u;
 }
 
-export interface PMEmailOtpSigningSessionChallengePayload {
+interface PMEmailOtpSigningSessionChallengePayload {
   walletSession: WalletSessionRef;
   chainTarget: ThresholdEcdsaChainTarget;
 }
@@ -1447,11 +1414,11 @@ export interface PMEnrollEmailOtpPayload {
   walletSessionToken?: never;
 }
 
-export interface PMWalletRecoverySessionPayload {
+interface PMWalletRecoverySessionPayload {
   walletId: string;
 }
 
-export interface PMRequestWalletCustodyEmailOtpChallengePayload {
+interface PMRequestWalletCustodyEmailOtpChallengePayload {
   walletId: string;
   providerSubjectId: string;
   operation: WalletCustodyAdminOperation;
@@ -1459,7 +1426,7 @@ export interface PMRequestWalletCustodyEmailOtpChallengePayload {
   requestOrigin?: string;
 }
 
-export interface PMRotateWalletRecoveryCodesPayload extends PMWalletRecoverySessionPayload {
+interface PMRotateWalletRecoveryCodesPayload extends PMWalletRecoverySessionPayload {
   authorization: WalletRecoveryRotationAuthorization;
 }
 
@@ -1480,7 +1447,7 @@ export interface PMEmailOtpEcdsaCapabilityPayload {
   emailOtpAuthorityEmail?: string;
 }
 
-export interface PMRefreshEmailOtpSigningSessionPayload {
+interface PMRefreshEmailOtpSigningSessionPayload {
   walletSession: WalletSessionRef;
   chainTarget: ThresholdEcdsaChainTarget;
   challengeId: string;
@@ -1489,7 +1456,7 @@ export interface PMRefreshEmailOtpSigningSessionPayload {
   remainingUses?: number;
 }
 
-export interface PMPrefillRouterAbEcdsaDerivationPresignaturePoolPayload {
+interface PMPrefillRouterAbEcdsaDerivationPresignaturePoolPayload {
   walletSession: WalletSessionRef;
   options: {
     chainTarget: ThresholdEcdsaChainTarget;
@@ -1497,17 +1464,17 @@ export interface PMPrefillRouterAbEcdsaDerivationPresignaturePoolPayload {
   };
 }
 
-export interface PMHasPasskeyPayload {
+interface PMHasPasskeyPayload {
   walletId: string;
 }
 
-export interface PMListLinkedDevicesPayload {
+interface PMListLinkedDevicesPayload {
   walletId: string;
   limit: number;
   cursor: string | null;
 }
 
-export interface PMRevokeLinkedDevicePayload {
+interface PMRevokeLinkedDevicePayload {
   walletId: string;
   walletAuthMethodId: string;
   requestedAtMs: number;
@@ -1522,7 +1489,7 @@ export type DeviceLinkEmailOtpBaseFactorSelectionProgressV1 = {
   ];
 };
 
-export type DeviceLinkEmailOtpBaseFactorActionV1 =
+type DeviceLinkEmailOtpBaseFactorActionV1 =
   | {
       readonly kind: 'select';
       readonly baseWalletAuthMethodId: LinkedDeviceEmailOtpBaseFactorChoiceV1['baseWalletAuthMethodId'];
@@ -1749,7 +1716,7 @@ export interface PMResultPayload {
   error?: string;
 }
 
-export type PMGetNearProvisioningStatePayload = {
+type PMGetNearProvisioningStatePayload = {
   walletId: string;
 };
 

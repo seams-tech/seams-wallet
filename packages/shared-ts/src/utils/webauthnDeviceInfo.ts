@@ -11,9 +11,9 @@
  * so profile UIs can label signers ("Chrome on macOS", "iCloud Keychain").
  */
 
-export type WebAuthnDeviceBrowser = 'chrome' | 'safari' | 'firefox' | 'edge' | 'other';
+type WebAuthnDeviceBrowser = 'chrome' | 'safari' | 'firefox' | 'edge' | 'other';
 
-export type WebAuthnDeviceOs = 'macos' | 'ios' | 'windows' | 'android' | 'linux' | 'other';
+type WebAuthnDeviceOs = 'macos' | 'ios' | 'windows' | 'android' | 'linux' | 'other';
 
 export type WebAuthnAuthenticatorDeviceInfo = {
   /** Display-ready label, e.g. "Chrome on macOS". Never empty. */
@@ -90,7 +90,7 @@ const OS_DISPLAY: Record<WebAuthnDeviceOs, string> = {
   other: '',
 };
 
-export function webAuthnDeviceBrowserFromUserAgent(userAgent: string): WebAuthnDeviceBrowser {
+function webAuthnDeviceBrowserFromUserAgent(userAgent: string): WebAuthnDeviceBrowser {
   const ua = userAgent.toLowerCase();
   if (!ua) return 'other';
   // Order matters: Edge and Chrome both contain "chrome"; everything on iOS
@@ -102,7 +102,7 @@ export function webAuthnDeviceBrowserFromUserAgent(userAgent: string): WebAuthnD
   return 'other';
 }
 
-export function webAuthnDeviceOsFromUserAgent(userAgent: string): WebAuthnDeviceOs {
+function webAuthnDeviceOsFromUserAgent(userAgent: string): WebAuthnDeviceOs {
   const ua = userAgent.toLowerCase();
   if (!ua) return 'other';
   // iPad Safari masquerades as macOS; genuine iPadOS UAs contain "ipad".

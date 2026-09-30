@@ -1,3 +1,4 @@
+import type { UpdateExactSealedSessionPolicyInput } from './sealedSessionStore';
 import type {
   BuildCurrentEd25519SealedSessionRecordInput,
   BuildCurrentEcdsaSealedSessionRecordInput,
@@ -5,8 +6,7 @@ import type {
   CurrentEcdsaSealedSessionRecord,
   EcdsaInactiveMaterialPublicRestore,
   EcdsaInactiveSealedMaterialRecord,
-  UpdateExactSealedSessionPolicyInput,
-} from './sealedSessionStore';
+} from './sealedSessionRecords';
 import type {
   SealedSigningSessionEcdsaRestoreMetadata,
   SealedSigningSessionEcdsaRoleLocalMaterialRef,

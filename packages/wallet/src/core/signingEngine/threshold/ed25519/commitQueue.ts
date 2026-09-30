@@ -7,15 +7,15 @@ import {
   type ThresholdCommitQueueError,
 } from '../commitQueueShared';
 
-export type ThresholdEd25519CommitQueueError = ThresholdCommitQueueError;
+type ThresholdEd25519CommitQueueError = ThresholdCommitQueueError;
 
-export type ThresholdEd25519CommitQueueKeyInput = {
+type ThresholdEd25519CommitQueueKeyInput = {
   materialActivation: MpcMaterialActivationRef;
 };
 
 export type ThresholdEd25519CommitQueueByKey = ThresholdCommitQueueByKey;
 
-export function createThresholdEd25519CommitQueueOverflowError(
+function createThresholdEd25519CommitQueueOverflowError(
   nearAccountId: AccountId,
   queueKey: string,
   maxQueueLength: number,
@@ -28,7 +28,7 @@ export function createThresholdEd25519CommitQueueOverflowError(
   return err;
 }
 
-export function createThresholdEd25519CommitQueueTimeoutError(
+function createThresholdEd25519CommitQueueTimeoutError(
   nearAccountId: AccountId,
   queueKey: string,
   timeoutMs: number,
@@ -41,7 +41,7 @@ export function createThresholdEd25519CommitQueueTimeoutError(
   return err;
 }
 
-export function createThresholdEd25519CommitQueueCancelledError(
+function createThresholdEd25519CommitQueueCancelledError(
   nearAccountId: AccountId,
   queueKey: string,
   reason: ThresholdCommitQueueCancelledReason = 'cancelled',

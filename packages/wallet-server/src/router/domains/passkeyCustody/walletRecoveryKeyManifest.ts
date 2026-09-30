@@ -1,6 +1,6 @@
-import { alphabetizeStringify, sha256BytesUtf8 } from '@shared/utils/digests';
+import { alphabetizeStringify } from '@shared/utils/digests';
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/encoders';
-import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';
+import { parseDigestB64u, sha256Utf8DigestB64u } from '@shared/utils/canonicalPrimitives';
 import { deriveEvmFamilySigningKeySlotId } from '@shared/signing-lanes';
 import type { EcdsaClientRootPublicKey33B64u } from '@shared/threshold/ecdsaDerivationRoleLocalBootstrap';
 import type { EcdsaServerGeneration } from '@shared/utils/ecdsaCapabilityActivation';
@@ -46,7 +46,7 @@ import { verifySecp256k1Bip340SignatureAgainstPublicKey33 } from '../../../core/
 
 export type { WalletRecoveryKeySetId } from '@shared/wallet-recovery/recoveryCodeReservation';
 
-export type WalletRecoveryKeyManifestEntryV1 =
+type WalletRecoveryKeyManifestEntryV1 =
   | {
       readonly kind: 'near_ed25519';
       readonly keySetId: `near_ed25519:${string}`;
@@ -104,7 +104,7 @@ export type PreparedEd25519RecoveryAdmissionV1 = {
   >[];
 };
 
-export type WalletRecoveryPreparationKeyManifestEntryV1 =
+type WalletRecoveryPreparationKeyManifestEntryV1 =
   | {
       readonly kind: 'near_ed25519';
       readonly keySetId: `near_ed25519:${string}`;
@@ -122,7 +122,7 @@ export type WalletRecoveryPreparationKeyManifestEntryV1 =
       readonly recoveryBasis: WalletRecoveryPreparationEcdsaRecoveryBasisV1;
     };
 
-export type WalletRecoveryPreparationNearRecoveryBasisV1 = {
+type WalletRecoveryPreparationNearRecoveryBasisV1 = {
   readonly capabilityKind: 'registration' | 'recovery';
   readonly activeCapabilityBinding: RouterAbEd25519YaoBytes32V1;
   readonly scope: RouterAbEd25519YaoLifecycleScopeV1;
@@ -135,7 +135,7 @@ export type WalletRecoveryPreparationNearRecoveryBasisV1 = {
   readonly signingWorkerVerifyingShare: RouterAbEd25519YaoBytes32V1;
 };
 
-export type WalletRecoveryPreparationEcdsaRecoveryBasisV1 = {
+type WalletRecoveryPreparationEcdsaRecoveryBasisV1 = {
   readonly publicCapability: RouterAbEcdsaDerivationPublicCapabilityV1;
   readonly activationReceipt: RouterAbEcdsaRegistrationActivationReceiptV1;
   readonly serverGeneration: EcdsaServerGeneration;
@@ -149,7 +149,7 @@ export type WalletRecoveryPreparationEcdsaRecoveryBasisV1 = {
   readonly possessionChallenge: WalletRecoveryEcdsaPossessionChallengeV1;
 };
 
-export type WalletUnlockKeyManifestEntryV1 =
+type WalletUnlockKeyManifestEntryV1 =
   | {
       readonly kind: 'near_ed25519';
       readonly keySetId: `near_ed25519:${string}`;
@@ -184,7 +184,7 @@ export type WalletRecoveryPreparationKeyManifestV1 = {
   readonly entries: readonly WalletRecoveryPreparationKeyManifestEntryV1[];
 };
 
-export type WalletRecoveryActivationVerification =
+type WalletRecoveryActivationVerification =
   | {
       readonly kind: 'verified';
       readonly keySetIds: readonly WalletRecoveryKeySetId[];
@@ -196,7 +196,7 @@ export type WalletRecoveryEcdsaMaterialPossessionProofInputV1 = {
   readonly proof: WalletRecoveryEcdsaPossessionProofV1;
 };
 
-export type WalletRecoveryEcdsaActivationReceiptInputV1 = {
+type WalletRecoveryEcdsaActivationReceiptInputV1 = {
   readonly keySetId: string;
   readonly activationReceipt: RouterAbEcdsaRegistrationActivationReceiptV1;
 };
@@ -221,15 +221,11 @@ export async function buildWalletRecoveryEcdsaPossessionChallengesV1(input: {
   >();
   for (const entry of input.manifest.entries) {
     if (entry.kind !== 'evm_family_ecdsa') continue;
-    const publicCapabilityDigestB64u = parseDigestB64u(
-      base64UrlEncode(await sha256BytesUtf8(alphabetizeStringify(entry.publicCapability))),
+    const publicCapabilityDigestB64u = await sha256Utf8DigestB64u(
+      alphabetizeStringify(entry.publicCapability),
     );
-    const serverNonceB64u = parseDigestB64u(
-      base64UrlEncode(
-        await sha256BytesUtf8(
-          `seams:wallet-recovery-ecdsa-server-nonce:v1|${input.challengeB64u}|${entry.keySetId}`,
-        ),
-      ),
+    const serverNonceB64u = await sha256Utf8DigestB64u(
+      `seams:wallet-recovery-ecdsa-server-nonce:v1|${input.challengeB64u}|${entry.keySetId}`,
     );
     challenges.set(entry.keySetId, {
       kind: 'wallet_recovery_ecdsa_possession_challenge_v1',
@@ -774,8 +770,8 @@ async function verifyEcdsaMaterialPossessionActivation(input: {
   ) {
     return `wallet recovery ECDSA activation receipt changed for ${input.entry.keySetId}`;
   }
-  const expectedPublicCapabilityDigestB64u = parseDigestB64u(
-    base64UrlEncode(await sha256BytesUtf8(alphabetizeStringify(input.entry.publicCapability))),
+  const expectedPublicCapabilityDigestB64u = await sha256Utf8DigestB64u(
+    alphabetizeStringify(input.entry.publicCapability),
   );
   const expected = parseWalletRecoveryEcdsaPossessionChallengeV1({
     ...challenge,

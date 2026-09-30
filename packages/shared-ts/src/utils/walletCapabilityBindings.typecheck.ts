@@ -1,6 +1,6 @@
 import type { WalletAuthMethodId, WalletId } from './domainIds';
 import type { NamedNearAccountId } from './near';
-import type { NearEd25519SigningKeyId } from './registrationIntent';
+import type { NearEd25519SigningKeyId } from './registrationIds';
 import type {
   CurrentWalletAuthMethod,
   NearAccountBinding,

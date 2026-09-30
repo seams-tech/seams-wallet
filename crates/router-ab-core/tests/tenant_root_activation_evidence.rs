@@ -1,318 +1,44 @@
-use curve25519_dalek::scalar::Scalar;
-use ed25519_dalek::SigningKey;
-use rand_chacha::ChaCha20Rng;
-use rand_core::SeedableRng;
 use router_ab_core::{
-    tenant_root_restore_refresh_context_nonce_v1,
-    TenantRootAcceptedPermanentLossAuthorizationBindingV1,
-    TenantRootActivationAvailabilityEvidenceV1, TenantRootActivationReceiptTransitionV1,
-    TenantRootBackupPolicyV1, TenantRootCanaryCurveFamilyV1, TenantRootCeremonyContextV1,
-    TenantRootCeremonyEpochsV1, TenantRootCeremonyNonceV1, TenantRootCeremonySessionIdV1,
-    TenantRootControlPlaneAuthorityIdV1, TenantRootCustodyLineageId, TenantRootEpochCommitmentsV1,
-    TenantRootIdentityDigestV1, TenantRootLifecycleReceiptDigestV1,
-    TenantRootManagedBackupBindingV1, TenantRootManagedBackupSealRequestV1,
-    TenantRootProtocolDigestV1, TenantRootProviderCanaryReceiptBindingV1, TenantRootRecoverySetId,
-    TenantRootRestoreDestinationFingerprintV1, TenantRootRestoreRefreshRoleCommandV1,
-    TenantRootRestoreSessionIdV1, TenantRootRoleInstallationReceiptsV1, TenantRootShareEpoch,
-    TenantRootShareInstallationEvidenceV1, TenantRootShareInstallationTranscriptV1,
-    TenantRootSignedAcceptedPermanentLossAuthorizationV1, TenantRootSignedManagedBackupV1,
-    TenantRootSignedProviderCanaryReceiptV1, TenantRootSignedShareInstallationEvidenceV1,
+    TenantRootActivationReceiptTransitionV1, TenantRootBackupPolicyV1,
+    TenantRootCanaryCurveFamilyV1, TenantRootCeremonyEpochsV1, TenantRootEpochCommitmentsV1,
+    TenantRootLifecycleReceiptDigestV1, TenantRootProtocolDigestV1,
+    TenantRootRoleInstallationReceiptsV1, TenantRootShareEpoch,
     VerifiedTenantRootInitialCreationActivationEvidenceBundleV1,
     VerifiedTenantRootRefreshSwapActivationEvidenceBundleV1,
-    VerifiedTenantRootRestoreRefreshRoleCommandV1,
 };
-use threshold_prf::{
-    prove_root_share_knowledge, SigningRootShare, SigningRootShareCommitment, SigningRootShareWire,
-    TwoPartyDeriverRole,
+use threshold_prf::TwoPartyDeriverRole;
+
+mod support;
+
+use support::activation::{
+    commitments, context, identity, lineage, refresh_epochs, restore_context,
+    restore_refresh_scope, role_signing_key_id, AcceptedLossScope, Signers,
 };
+use support::{EXPIRES_AT_MS, ISSUED_AT_MS};
 
-const ISSUED_AT_MS: u64 = 1_000_000;
-const EXPIRES_AT_MS: u64 = 1_030_000;
-const CANARY_SIGNING_KEY_BYTES: [u8; 32] = [0x41; 32];
-const FIRST_AUTHORITY_KEY_BYTES: [u8; 32] = [0x41; 32];
-const SECOND_AUTHORITY_KEY_BYTES: [u8; 32] = [0x42; 32];
-
-fn identity() -> TenantRootIdentityDigestV1 {
-    TenantRootIdentityDigestV1::from_bytes([0x11; 32])
-}
-
-fn lineage() -> TenantRootCustodyLineageId {
-    TenantRootCustodyLineageId::from_bytes([0x22; 16]).expect("lineage")
-}
-
-fn context(epochs: TenantRootCeremonyEpochsV1) -> TenantRootCeremonyContextV1 {
-    TenantRootCeremonyContextV1::new(
-        identity(),
-        lineage(),
-        epochs,
-        TenantRootCeremonySessionIdV1::from_bytes([0x33; 16]).expect("session"),
-        TenantRootCeremonyNonceV1::from_bytes([0x44; 32]).expect("nonce"),
-        ISSUED_AT_MS,
-        EXPIRES_AT_MS,
-        "deriver-a-signing-key-7",
-        "deriver-b-signing-key-9",
-    )
-    .expect("context")
-}
-
-fn role_signing_key(role: TwoPartyDeriverRole) -> SigningKey {
-    SigningKey::from_bytes(
-        &[match role {
-            TwoPartyDeriverRole::DeriverA => 0x51,
-            TwoPartyDeriverRole::DeriverB => 0x61,
-        }; 32],
-    )
-}
-
-fn role_signing_key_id(role: TwoPartyDeriverRole) -> &'static str {
-    match role {
-        TwoPartyDeriverRole::DeriverA => "deriver-a-signing-key-7",
-        TwoPartyDeriverRole::DeriverB => "deriver-b-signing-key-9",
-    }
-}
-
-fn share(role: TwoPartyDeriverRole, scalar: u64) -> SigningRootShare {
-    SigningRootShare::from_canonical_bytes(role.share_id(), Scalar::from(scalar).to_bytes())
-        .expect("share")
-}
-
-fn commitments(a_scalar: u64, b_scalar: u64) -> TenantRootEpochCommitmentsV1 {
-    TenantRootEpochCommitmentsV1::new(
-        commitment(TwoPartyDeriverRole::DeriverA, a_scalar),
-        commitment(TwoPartyDeriverRole::DeriverB, b_scalar),
-    )
-    .expect("commitments")
-}
-
-fn commitment(
-    role: TwoPartyDeriverRole,
-    scalar: u64,
-) -> router_ab_core::MpcPrfShareCommitmentWireV1 {
-    let share = share(role, scalar);
-    router_ab_core::MpcPrfShareCommitmentWireV1::new(
-        SigningRootShareCommitment::from_share(&share)
-            .to_bytes()
-            .to_vec(),
-    )
-    .expect("commitment")
-}
-
-fn installation(
-    epochs: TenantRootCeremonyEpochsV1,
-    role: TwoPartyDeriverRole,
-    scalar: u64,
-    peer_scalar: u64,
-    proof_seed: u8,
-) -> (
-    router_ab_core::VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
-    router_ab_core::MpcPrfSigningRootShareWireV1,
-) {
-    installation_with_context(context(epochs), role, scalar, peer_scalar, proof_seed)
-}
-
-fn installation_with_context(
-    ceremony_context: TenantRootCeremonyContextV1,
-    role: TwoPartyDeriverRole,
-    scalar: u64,
-    peer_scalar: u64,
-    proof_seed: u8,
-) -> (
-    router_ab_core::VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
-    router_ab_core::MpcPrfSigningRootShareWireV1,
-) {
-    let signing_share = share(role, scalar);
-    let peer = share(role.peer(), peer_scalar);
-    let transcript = TenantRootShareInstallationTranscriptV1::new(
-        ceremony_context,
-        role,
-        SigningRootShareCommitment::from_share(&signing_share),
-        SigningRootShareCommitment::from_share(&peer),
-    )
-    .expect("installation transcript");
-    let proof = prove_root_share_knowledge(
-        &signing_share,
-        &transcript.canonical_bytes().expect("transcript bytes"),
-        &mut ChaCha20Rng::from_seed([proof_seed; 32]),
-    )
-    .expect("knowledge proof");
-    let evidence = TenantRootShareInstallationEvidenceV1::new(transcript, proof)
-        .expect("installation evidence");
-    let signing_key = role_signing_key(role);
-    let signed =
-        TenantRootSignedShareInstallationEvidenceV1::sign(evidence, &signing_key.to_bytes())
-            .expect("signed installation evidence");
-    let bytes = signed.canonical_bytes().expect("installation bytes");
-    let verified = TenantRootSignedShareInstallationEvidenceV1::decode_and_verify_canonical_bytes(
-        &bytes,
-        signing_key.verifying_key().as_bytes(),
-    )
-    .expect("verified installation evidence");
-    let share_wire = router_ab_core::MpcPrfSigningRootShareWireV1::new(
-        SigningRootShareWire::from_share(&signing_share)
-            .to_bytes()
-            .to_vec(),
-    )
-    .expect("share wire");
-    (verified, share_wire)
-}
-
-struct RestoreRefreshScope {
-    destination_fingerprint: TenantRootRestoreDestinationFingerprintV1,
-    restore_session_id: TenantRootRestoreSessionIdV1,
-    recovery_set_id: TenantRootRecoverySetId,
-    manifest_digest: [u8; 32],
-    deriver_a_acceptance_receipt_digest: TenantRootLifecycleReceiptDigestV1,
-    deriver_b_acceptance_receipt_digest: TenantRootLifecycleReceiptDigestV1,
-    commitments: TenantRootEpochCommitmentsV1,
-    ceremony_session_id: TenantRootCeremonySessionIdV1,
-}
-
-fn restore_refresh_scope() -> RestoreRefreshScope {
-    RestoreRefreshScope {
-        destination_fingerprint: TenantRootRestoreDestinationFingerprintV1::from_bytes([0x58; 32])
-            .expect("destination fingerprint"),
-        restore_session_id: TenantRootRestoreSessionIdV1::from_bytes([0x59; 16])
-            .expect("restore session"),
-        recovery_set_id: TenantRootRecoverySetId::from_bytes([0x5a; 16]).expect("recovery set"),
-        manifest_digest: [0x5b; 32],
-        deriver_a_acceptance_receipt_digest: TenantRootLifecycleReceiptDigestV1::from_bytes(
-            [0x5c; 32],
-        )
-        .expect("Deriver A acceptance receipt"),
-        deriver_b_acceptance_receipt_digest: TenantRootLifecycleReceiptDigestV1::from_bytes(
-            [0x5d; 32],
-        )
-        .expect("Deriver B acceptance receipt"),
-        commitments: commitments(12, 19),
-        ceremony_session_id: TenantRootCeremonySessionIdV1::from_bytes([0x5e; 16])
-            .expect("ceremony session"),
-    }
-}
-
-fn restore_context(scope: &RestoreRefreshScope) -> TenantRootCeremonyContextV1 {
-    let ceremony_nonce = tenant_root_restore_refresh_context_nonce_v1(
-        identity(),
-        lineage(),
-        scope.ceremony_session_id,
-        scope.destination_fingerprint,
-        scope.restore_session_id,
-        scope.manifest_digest,
-        scope.deriver_a_acceptance_receipt_digest,
-        scope.deriver_b_acceptance_receipt_digest,
-        scope.commitments.deriver_a(),
-        scope.commitments.deriver_b(),
-        *scope.commitments.root_commitment(),
-    )
-    .expect("restore context nonce");
-    TenantRootCeremonyContextV1::new(
-        identity(),
-        lineage(),
-        TenantRootCeremonyEpochsV1::create(),
-        scope.ceremony_session_id,
-        ceremony_nonce,
-        ISSUED_AT_MS,
-        EXPIRES_AT_MS,
-        "deriver-a-signing-key-7",
-        "deriver-b-signing-key-9",
-    )
-    .expect("restore context")
-}
-
-fn restore_command(
-    scope: &RestoreRefreshScope,
-    context: &TenantRootCeremonyContextV1,
-    role: TwoPartyDeriverRole,
-) -> VerifiedTenantRootRestoreRefreshRoleCommandV1 {
-    let signed = TenantRootRestoreRefreshRoleCommandV1::sign(
-        context,
-        scope.destination_fingerprint,
-        scope.restore_session_id,
-        scope.manifest_digest,
-        scope.deriver_a_acceptance_receipt_digest,
-        scope.deriver_b_acceptance_receipt_digest,
-        scope.commitments.deriver_a().clone(),
-        scope.commitments.deriver_b().clone(),
-        *scope.commitments.root_commitment(),
-        role,
-        "control-plane-restore-refresh-v1",
-        &CANARY_SIGNING_KEY_BYTES,
-    )
-    .expect("signed restore refresh command");
-    let bytes = signed.canonical_bytes().expect("restore command bytes");
-    let issuer = SigningKey::from_bytes(&CANARY_SIGNING_KEY_BYTES);
-    TenantRootRestoreRefreshRoleCommandV1::decode_canonical_bytes(&bytes)
-        .expect("decoded restore refresh command")
-        .verify(
-            "control-plane-restore-refresh-v1",
-            issuer.verifying_key().as_bytes(),
-        )
-        .expect("verified restore refresh command")
-}
+const SIGNERS: Signers = Signers {
+    deriver_a: [0x51; 32],
+    deriver_b: [0x61; 32],
+    canary: [0x41; 32],
+    loss_authorities: [[0x41; 32], [0x42; 32]],
+    restore_issuer_key_id: "control-plane-restore-refresh-v1",
+    restore_issuer: [0x41; 32],
+};
 
 fn managed_backup(
     installation: &router_ab_core::VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
     share: &router_ab_core::MpcPrfSigningRootShareWireV1,
     role: TwoPartyDeriverRole,
 ) -> router_ab_core::VerifiedTenantRootManagedBackupV1 {
-    let binding = TenantRootManagedBackupBindingV1::from_verified_installation_evidence(
+    let key_id = role_signing_key_id(role);
+    SIGNERS.managed_backup(
         installation,
-        format!("kms/{}/epoch", role_signing_key_id(role)),
-        format!("kms-key/{}/v1", role_signing_key_id(role)),
-        role_signing_key_id(role),
-        ISSUED_AT_MS,
+        share,
+        role,
+        &format!("kms/{key_id}/epoch"),
+        &format!("kms-key/{key_id}/v1"),
+        key_id,
     )
-    .expect("backup binding");
-    let request = TenantRootManagedBackupSealRequestV1::new(binding.clone(), share.clone())
-        .expect("backup seal request");
-    let signing_key = role_signing_key(role);
-    let signed =
-        TenantRootSignedManagedBackupV1::sign(request, vec![0xa5; 96], &signing_key.to_bytes())
-            .expect("signed backup");
-    signed
-        .verify(&binding, signing_key.verifying_key().as_bytes())
-        .expect("verified backup")
-}
-
-fn canary(
-    epochs: TenantRootCeremonyEpochsV1,
-    commitments: &TenantRootEpochCommitmentsV1,
-    family: TenantRootCanaryCurveFamilyV1,
-) -> router_ab_core::VerifiedTenantRootProviderCanaryReceiptV1 {
-    let (transition, target_epoch) = match epochs {
-        TenantRootCeremonyEpochsV1::Create { next } => (
-            TenantRootActivationReceiptTransitionV1::InitialCreation,
-            next,
-        ),
-        TenantRootCeremonyEpochsV1::Refresh { next, .. } => {
-            (TenantRootActivationReceiptTransitionV1::RefreshSwap, next)
-        }
-    };
-    let binding = TenantRootProviderCanaryReceiptBindingV1::new(
-        identity(),
-        lineage(),
-        transition,
-        target_epoch,
-        commitments.clone(),
-        family,
-        "kms/tenant-11/epoch",
-        ISSUED_AT_MS + 10,
-        TenantRootControlPlaneAuthorityIdV1::from_bytes([0x71; 32]),
-        "control-plane-canary-v1",
-        ISSUED_AT_MS,
-        EXPIRES_AT_MS,
-    )
-    .expect("canary binding");
-    let signed =
-        TenantRootSignedProviderCanaryReceiptV1::sign(binding.clone(), &CANARY_SIGNING_KEY_BYTES)
-            .expect("signed canary");
-    signed
-        .verify(
-            &binding,
-            &SigningKey::from_bytes(&CANARY_SIGNING_KEY_BYTES)
-                .verifying_key()
-                .to_bytes(),
-        )
-        .expect("verified canary")
 }
 
 fn accepted_loss(
@@ -344,67 +70,26 @@ fn accepted_loss_with_scope(
     issued_at_ms: u64,
     expires_at_ms: u64,
 ) -> router_ab_core::VerifiedTenantRootAcceptedPermanentLossAuthorizationV1 {
-    let (transition, target_epoch) = match epochs {
-        TenantRootCeremonyEpochsV1::Create { next } => (
-            TenantRootActivationReceiptTransitionV1::InitialCreation,
-            next,
-        ),
-        TenantRootCeremonyEpochsV1::Refresh { next, .. } => {
-            (TenantRootActivationReceiptTransitionV1::RefreshSwap, next)
-        }
-    };
-    let binding = TenantRootAcceptedPermanentLossAuthorizationBindingV1::new(
-        identity(),
-        lineage(),
-        transition,
-        target_epoch,
+    SIGNERS.accepted_loss(AcceptedLossScope {
+        epochs,
+        identity_digest: identity(),
+        custody_lineage: lineage(),
         context_digest,
-        target_commitments.clone(),
+        commitments: target_commitments,
         installation_receipts,
         expected_control_plane_revision,
         result_control_plane_revision,
-        "policy-accept-loss-001",
-        "incident-2026-0001",
-        "both managed backups are unavailable",
         issued_at_ms,
         expires_at_ms,
-        TenantRootControlPlaneAuthorityIdV1::from_bytes([0x71; 32]),
-        "operator-a-v1",
-        TenantRootControlPlaneAuthorityIdV1::from_bytes([0x72; 32]),
-        "operator-b-v1",
-    )
-    .expect("accepted-loss binding");
-    let signed = TenantRootSignedAcceptedPermanentLossAuthorizationV1::sign(
-        binding.clone(),
-        &FIRST_AUTHORITY_KEY_BYTES,
-        &SECOND_AUTHORITY_KEY_BYTES,
-    )
-    .expect("signed accepted-loss authorization");
-    signed
-        .verify(
-            &binding,
-            &SigningKey::from_bytes(&FIRST_AUTHORITY_KEY_BYTES)
-                .verifying_key()
-                .to_bytes(),
-            &SigningKey::from_bytes(&SECOND_AUTHORITY_KEY_BYTES)
-                .verifying_key()
-                .to_bytes(),
-        )
-        .expect("verified accepted-loss authorization")
-}
-
-fn refresh_epochs() -> TenantRootCeremonyEpochsV1 {
-    TenantRootCeremonyEpochsV1::refresh(
-        TenantRootShareEpoch::new(7).expect("current epoch"),
-        TenantRootShareEpoch::new(8).expect("next epoch"),
-    )
-    .expect("refresh epochs")
+    })
 }
 
 fn refresh_installation_receipts() -> TenantRootRoleInstallationReceiptsV1 {
     let epochs = refresh_epochs();
-    let (installation_a, _) = installation(epochs, TwoPartyDeriverRole::DeriverA, 19, 33, 0x71);
-    let (installation_b, _) = installation(epochs, TwoPartyDeriverRole::DeriverB, 33, 19, 0x81);
+    let (installation_a, _) =
+        SIGNERS.installation(epochs, TwoPartyDeriverRole::DeriverA, 19, 33, 0x71);
+    let (installation_b, _) =
+        SIGNERS.installation(epochs, TwoPartyDeriverRole::DeriverB, 33, 19, 0x81);
     TenantRootRoleInstallationReceiptsV1::new(
         installation_a
             .lifecycle_receipt_digest()
@@ -425,10 +110,12 @@ fn refresh_bundle_with_authorization(
     let current = commitments(12, 19);
     let epochs = refresh_epochs();
     let next = commitments(19, 33);
-    let (installation_a, _) = installation(epochs, TwoPartyDeriverRole::DeriverA, 19, 33, 0x71);
-    let (installation_b, _) = installation(epochs, TwoPartyDeriverRole::DeriverB, 33, 19, 0x81);
-    let ecdsa = canary(epochs, &next, TenantRootCanaryCurveFamilyV1::Ecdsa);
-    let ed25519 = canary(epochs, &next, TenantRootCanaryCurveFamilyV1::Ed25519);
+    let (installation_a, _) =
+        SIGNERS.installation(epochs, TwoPartyDeriverRole::DeriverA, 19, 33, 0x71);
+    let (installation_b, _) =
+        SIGNERS.installation(epochs, TwoPartyDeriverRole::DeriverB, 33, 19, 0x81);
+    let ecdsa = SIGNERS.canary(epochs, &next, TenantRootCanaryCurveFamilyV1::Ecdsa);
+    let ed25519 = SIGNERS.canary(epochs, &next, TenantRootCanaryCurveFamilyV1::Ed25519);
     VerifiedTenantRootRefreshSwapActivationEvidenceBundleV1::from_verified_accepted_loss(
         &current,
         installation_a,
@@ -446,21 +133,21 @@ fn initial_creation_bundle_derives_strict_projections_and_consumes_installation_
     let epochs = TenantRootCeremonyEpochsV1::create();
     let expected_commitments = commitments(12, 19);
     let (installation_a, share_a) =
-        installation(epochs, TwoPartyDeriverRole::DeriverA, 12, 19, 0x51);
+        SIGNERS.installation(epochs, TwoPartyDeriverRole::DeriverA, 12, 19, 0x51);
     let (installation_b, share_b) =
-        installation(epochs, TwoPartyDeriverRole::DeriverB, 19, 12, 0x61);
+        SIGNERS.installation(epochs, TwoPartyDeriverRole::DeriverB, 19, 12, 0x61);
     let installation_a_bytes = installation_a.canonical_bytes().to_vec();
     let installation_b_bytes = installation_b.canonical_bytes().to_vec();
     let backup_a = managed_backup(&installation_a, &share_a, TwoPartyDeriverRole::DeriverA);
     let backup_b = managed_backup(&installation_b, &share_b, TwoPartyDeriverRole::DeriverB);
     let backup_a_receipt = backup_a.receipt_digest();
     let backup_b_receipt = backup_b.receipt_digest();
-    let ecdsa = canary(
+    let ecdsa = SIGNERS.canary(
         epochs,
         &expected_commitments,
         TenantRootCanaryCurveFamilyV1::Ecdsa,
     );
-    let ed25519 = canary(
+    let ed25519 = SIGNERS.canary(
         epochs,
         &expected_commitments,
         TenantRootCanaryCurveFamilyV1::Ed25519,
@@ -520,8 +207,10 @@ fn initial_creation_bundle_derives_strict_projections_and_consumes_installation_
 fn tenant_held_external_restore_provenance_survives_initial_activation_and_refresh() {
     let scope = restore_refresh_scope();
     let restore_context = restore_context(&scope);
-    let command_a = restore_command(&scope, &restore_context, TwoPartyDeriverRole::DeriverA);
-    let command_b = restore_command(&scope, &restore_context, TwoPartyDeriverRole::DeriverB);
+    let command_a =
+        SIGNERS.restore_command(&scope, &restore_context, TwoPartyDeriverRole::DeriverA);
+    let command_b =
+        SIGNERS.restore_command(&scope, &restore_context, TwoPartyDeriverRole::DeriverB);
     assert_eq!(command_a.context(), command_b.context());
     assert_eq!(
         command_a.destination_fingerprint(),
@@ -542,42 +231,8 @@ fn tenant_held_external_restore_provenance_survives_initial_activation_and_refre
         scope.commitments.root_commitment()
     );
 
-    let (installation_a, _) = installation_with_context(
-        restore_context.clone(),
-        TwoPartyDeriverRole::DeriverA,
-        12,
-        19,
-        0xa1,
-    );
-    let (installation_b, _) = installation_with_context(
-        restore_context.clone(),
-        TwoPartyDeriverRole::DeriverB,
-        19,
-        12,
-        0xb1,
-    );
-    let initial_bundle = VerifiedTenantRootInitialCreationActivationEvidenceBundleV1::new(
-        installation_a,
-        installation_b,
-        TenantRootActivationAvailabilityEvidenceV1::from_verified_restore(
-            &command_a,
-            scope.recovery_set_id,
-        )
-        .expect("tenant-held external availability"),
-        canary(
-            TenantRootCeremonyEpochsV1::create(),
-            &scope.commitments,
-            TenantRootCanaryCurveFamilyV1::Ecdsa,
-        ),
-        canary(
-            TenantRootCeremonyEpochsV1::create(),
-            &scope.commitments,
-            TenantRootCanaryCurveFamilyV1::Ed25519,
-        ),
-        2,
-        3,
-    )
-    .expect("tenant-held external initial activation evidence");
+    let initial_bundle =
+        SIGNERS.tenant_held_external_initial_bundle(&scope, &restore_context, &command_a);
 
     assert_eq!(
         initial_bundle.transition(),
@@ -644,43 +299,7 @@ fn tenant_held_external_restore_provenance_survives_initial_activation_and_refre
         TenantRootBackupPolicyV1::TenantHeldExternal(provenance.clone())
     );
 
-    let refresh_epochs = TenantRootCeremonyEpochsV1::refresh(
-        TenantRootShareEpoch::new(7).expect("current epoch"),
-        TenantRootShareEpoch::new(8).expect("next epoch"),
-    )
-    .expect("refresh epochs");
-    let next_commitments = commitments(19, 33);
-    let refresh_context = context(refresh_epochs);
-    let (refresh_installation_a, _) = installation_with_context(
-        refresh_context.clone(),
-        TwoPartyDeriverRole::DeriverA,
-        19,
-        33,
-        0xc1,
-    );
-    let (refresh_installation_b, _) =
-        installation_with_context(refresh_context, TwoPartyDeriverRole::DeriverB, 33, 19, 0xd1);
-    let refresh_bundle = VerifiedTenantRootRefreshSwapActivationEvidenceBundleV1::new(
-        &scope.commitments,
-        refresh_installation_a,
-        refresh_installation_b,
-        TenantRootActivationAvailabilityEvidenceV1::from_verified_external_provenance(
-            provenance.clone(),
-        ),
-        canary(
-            refresh_epochs,
-            &next_commitments,
-            TenantRootCanaryCurveFamilyV1::Ecdsa,
-        ),
-        canary(
-            refresh_epochs,
-            &next_commitments,
-            TenantRootCanaryCurveFamilyV1::Ed25519,
-        ),
-        5,
-        6,
-    )
-    .expect("tenant-held external refresh activation evidence");
+    let refresh_bundle = SIGNERS.tenant_held_external_refresh_bundle(&scope, &provenance);
     assert_eq!(
         refresh_bundle.transition(),
         TenantRootActivationReceiptTransitionV1::RefreshSwap
@@ -710,8 +329,10 @@ fn refresh_bundle_derives_root_continuity_and_accepted_loss_projection() {
     )
     .expect("refresh epochs");
     let next = commitments(19, 33);
-    let (installation_a, _) = installation(epochs, TwoPartyDeriverRole::DeriverA, 19, 33, 0x71);
-    let (installation_b, _) = installation(epochs, TwoPartyDeriverRole::DeriverB, 33, 19, 0x81);
+    let (installation_a, _) =
+        SIGNERS.installation(epochs, TwoPartyDeriverRole::DeriverA, 19, 33, 0x71);
+    let (installation_b, _) =
+        SIGNERS.installation(epochs, TwoPartyDeriverRole::DeriverB, 33, 19, 0x81);
     let installation_receipts = TenantRootRoleInstallationReceiptsV1::new(
         installation_a
             .lifecycle_receipt_digest()
@@ -724,8 +345,8 @@ fn refresh_bundle_derives_root_continuity_and_accepted_loss_projection() {
     let authorization = accepted_loss(epochs, &next, installation_receipts, 11, 12);
     let authorization_bytes = authorization.canonical_bytes().to_vec();
     let authorization_digest = authorization.digest();
-    let ecdsa = canary(epochs, &next, TenantRootCanaryCurveFamilyV1::Ecdsa);
-    let ed25519 = canary(epochs, &next, TenantRootCanaryCurveFamilyV1::Ed25519);
+    let ecdsa = SIGNERS.canary(epochs, &next, TenantRootCanaryCurveFamilyV1::Ecdsa);
+    let ed25519 = SIGNERS.canary(epochs, &next, TenantRootCanaryCurveFamilyV1::Ed25519);
 
     let bundle =
         VerifiedTenantRootRefreshSwapActivationEvidenceBundleV1::from_verified_accepted_loss(
@@ -929,22 +550,24 @@ fn accepted_loss_bundle_rejects_scope_replays() {
 fn bundle_rejects_installation_source_digest_and_canary_family_substitution() {
     let epochs = TenantRootCeremonyEpochsV1::create();
     let expected_commitments = commitments(12, 19);
-    let (original_a, share_a) = installation(epochs, TwoPartyDeriverRole::DeriverA, 12, 19, 0x91);
+    let (original_a, share_a) =
+        SIGNERS.installation(epochs, TwoPartyDeriverRole::DeriverA, 12, 19, 0x91);
     let (installation_b, share_b) =
-        installation(epochs, TwoPartyDeriverRole::DeriverB, 19, 12, 0xa1);
+        SIGNERS.installation(epochs, TwoPartyDeriverRole::DeriverB, 19, 12, 0xa1);
     let backup_a = managed_backup(&original_a, &share_a, TwoPartyDeriverRole::DeriverA);
     let backup_b = managed_backup(&installation_b, &share_b, TwoPartyDeriverRole::DeriverB);
-    let ecdsa = canary(
+    let ecdsa = SIGNERS.canary(
         epochs,
         &expected_commitments,
         TenantRootCanaryCurveFamilyV1::Ecdsa,
     );
-    let ed25519 = canary(
+    let ed25519 = SIGNERS.canary(
         epochs,
         &expected_commitments,
         TenantRootCanaryCurveFamilyV1::Ed25519,
     );
-    let (substituted_a, _) = installation(epochs, TwoPartyDeriverRole::DeriverA, 12, 19, 0xb1);
+    let (substituted_a, _) =
+        SIGNERS.installation(epochs, TwoPartyDeriverRole::DeriverA, 12, 19, 0xb1);
 
     assert!(
         VerifiedTenantRootInitialCreationActivationEvidenceBundleV1::from_verified_managed_backups(
@@ -962,17 +585,17 @@ fn bundle_rejects_installation_source_digest_and_canary_family_substitution() {
     );
 
     let (installation_a, share_a) =
-        installation(epochs, TwoPartyDeriverRole::DeriverA, 12, 19, 0xc1);
+        SIGNERS.installation(epochs, TwoPartyDeriverRole::DeriverA, 12, 19, 0xc1);
     let (installation_b, share_b) =
-        installation(epochs, TwoPartyDeriverRole::DeriverB, 19, 12, 0xd1);
+        SIGNERS.installation(epochs, TwoPartyDeriverRole::DeriverB, 19, 12, 0xd1);
     let backup_a = managed_backup(&installation_a, &share_a, TwoPartyDeriverRole::DeriverA);
     let backup_b = managed_backup(&installation_b, &share_b, TwoPartyDeriverRole::DeriverB);
-    let ecdsa = canary(
+    let ecdsa = SIGNERS.canary(
         epochs,
         &expected_commitments,
         TenantRootCanaryCurveFamilyV1::Ecdsa,
     );
-    let wrong_family = canary(
+    let wrong_family = SIGNERS.canary(
         epochs,
         &expected_commitments,
         TenantRootCanaryCurveFamilyV1::Ecdsa,

@@ -4,12 +4,9 @@ import type {
   EmailOtpEd25519YaoActiveCapabilityDescriptorV1,
   EmailOtpEcdsaSessionBootstrapHandlePayload,
   EmailOtpWalletRegistrationEcdsaPrepareHandlePayload,
-  EmailOtpWorkerIssuedSessionHandlePayload,
   EmailOtpWorkerOperationMap,
   SignerWorkerOperationRequest,
   SignerWorkerOperationResult,
-  EvmCryptoLocalSecp256k1OperationRequest,
-  EvmCryptoTransactionOperationRequest,
   EcdsaDerivationRoleLocalMaterialOperationRequest,
   EcdsaPresignClientSessionInitRequest,
   EcdsaPresignClientSessionStepRequest,
@@ -25,7 +22,7 @@ import {
   EcdsaPresignClientRequestType,
 } from './workerTypes';
 import type { EcdsaRoleLocalPersistedMaterialRef } from '../session/keyMaterialBrands';
-import type { WalletRegistrationEd25519YaoBootstrapSession } from '@/core/rpcClients/relayer/walletRegistration';
+import type { WalletRegistrationEd25519YaoBootstrapSession } from '@shared/utils/registrationContracts';
 import type {
   InitialEcdsaCapabilityActivationPlan,
   InitialEcdsaCapabilityActivationPlanInput,
@@ -247,9 +244,6 @@ const bootstrapHandleFromRegistrationPrepare: EmailOtpEcdsaSessionBootstrapHandl
   walletRegistrationEcdsaPrepareHandle;
 void bootstrapHandleFromRegistrationPrepare;
 
-const issuedHandle: EmailOtpWorkerIssuedSessionHandlePayload = walletRegistrationEcdsaPrepareHandle;
-void issuedHandle;
-
 type PresignStepPayload = EcdsaPresignClientSessionStepRequest;
 type EmailOtpEd25519YaoExportPayload =
   EmailOtpWorkerOperationMap['exportEmailOtpEd25519YaoSeed']['payload'];
@@ -408,23 +402,6 @@ const presignStep: PresignStepPayload = {
   incomingMessages: [incomingMessage],
 };
 void presignStep;
-
-const ethRecoverableSignatureVerifyRequest: EvmCryptoLocalSecp256k1OperationRequest<'verifySecp256k1RecoverableSignatureAgainstPublicKey33'> =
-  {
-    type: 'verifySecp256k1RecoverableSignatureAgainstPublicKey33',
-    payload: {
-      digest32: incomingMessage,
-      signature65: incomingMessage,
-      publicKey33: incomingMessage,
-    },
-  };
-void ethRecoverableSignatureVerifyRequest;
-
-type InvalidRecoverableSignatureVerifyAsEthTransaction =
-  // @ts-expect-error Recoverable signature verification is not an ETH transaction encoding operation.
-  EvmCryptoTransactionOperationRequest<'verifySecp256k1RecoverableSignatureAgainstPublicKey33'>;
-declare const invalidRecoverableSignatureVerifyAsEthTransaction: InvalidRecoverableSignatureVerifyAsEthTransaction;
-void invalidRecoverableSignatureVerifyAsEthTransaction;
 
 const ecdsaPresignInitRequest: EcdsaPresignClientSessionInitRequest = {
   authority: {

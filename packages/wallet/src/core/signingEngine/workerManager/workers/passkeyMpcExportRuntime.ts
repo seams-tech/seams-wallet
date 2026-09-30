@@ -37,13 +37,15 @@ import {
   RouterAbEd25519YaoHttpActivationTransportV1,
 } from '../../threshold/ed25519/yaoClient';
 import {
-  deriveRouterAbEd25519YaoExportAuthorizationDigestV1,
-  deriveRouterAbEd25519YaoExportConfirmationDigestV1,
-  deriveRouterAbEd25519YaoRuntimePolicyBindingV1,
   parseRouterAbEd25519YaoExportAdmissionRequestV1,
   parseRouterAbEd25519YaoRegistrationAdmissionRequestV1,
   type RouterAbEd25519YaoExportAuthorizationIdentityV1,
 } from '@shared/utils/routerAbEd25519Yao';
+import {
+  deriveRouterAbEd25519YaoExportAuthorizationDigestV1,
+  deriveRouterAbEd25519YaoExportConfirmationDigestV1,
+  deriveRouterAbEd25519YaoRuntimePolicyBindingV1,
+} from '@shared/utils/routerAbEd25519YaoDigests';
 import { normalizeThresholdRuntimePolicyScope } from '../../threshold/sessionPolicy';
 import { normalizeAuthenticationCredential } from '../../webauthnAuth/credentials/helpers';
 import {

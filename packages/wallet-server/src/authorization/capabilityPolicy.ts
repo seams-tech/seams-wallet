@@ -58,7 +58,7 @@ export interface CapabilityPolicyPort {
   ): AuthorizationEvidenceRequirementEvaluation;
 }
 
-export function parseAuthorizationEvidenceRequirement(
+function parseAuthorizationEvidenceRequirement(
   value: unknown,
 ): ParseAuthorizationEvidenceRequirementResult {
   if (!isExactRequirementRecord(value)) {

@@ -7,12 +7,10 @@ import type {
 } from '@shared/signing-lanes';
 import type { WalletId } from '@shared/utils/domainIds';
 
-export type LaneEffectKind =
+type LaneEffectKind =
   | 'activate_server_material'
   | 'retire_server_material'
   | 'invalidate_holder_material';
-
-export type LaneEffectStatus = 'recorded' | 'confirmed';
 
 type LaneEffectRecordBaseV1 = {
   readonly kind: 'lane_effect_record_v1';
@@ -61,7 +59,7 @@ export type LaneEffectMutationResult =
       readonly storedCommandDigestB64u: string;
     };
 
-export type LaneEffectLookup = {
+type LaneEffectLookup = {
   readonly effectId: string;
 };
 

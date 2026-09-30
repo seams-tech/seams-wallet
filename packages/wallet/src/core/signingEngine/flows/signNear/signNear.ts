@@ -44,8 +44,7 @@ import type {
   NearEd25519MaterialIdentity,
   NearSigningApiDeps,
 } from '../../interfaces/operationDeps';
-import type { TxDisplayModel } from '../../interfaces/display';
-import { buildNearDisplayModel } from '../../chains/near/display';
+import { buildNearPreparationDisplayModel } from '../../chains/near/display';
 import { signNearWithUiConfirm } from './nearSigningFlow';
 import { resolveThresholdEd25519CommitQueueKey } from '../../threshold/ed25519/commitQueue';
 import type { MpcMaterialActivationRef, ThresholdEd25519SessionId } from '@shared/utils/domainIds';
@@ -108,6 +107,7 @@ import { resolveNearSigningSessionAuthContext } from './shared/signingSessionAut
 import {
   createSigningBoundaryTraceEvent,
   emitSigningBoundaryTrace,
+  emitEd25519SigningTiming,
   emitSigningLaneResolutionTrace,
   emitSigningPlannerDecisionTrace,
 } from '../../session/operationState/trace';
@@ -200,7 +200,7 @@ export type SignDelegateActionResult = {
   logs?: string[];
 };
 
-export type SignNep413MessagePayload = {
+type SignNep413MessagePayload = {
   message: string;
   recipient: string;
   nonce: string;
@@ -213,7 +213,7 @@ export type SignNep413MessagePayload = {
   confirmationConfigOverride?: Partial<ConfirmationConfig>;
 };
 
-export type SignNep413MessageResult =
+type SignNep413MessageResult =
   | {
       success: true;
       accountId: string;
@@ -231,7 +231,7 @@ export type SignNep413MessageResult =
       state?: never;
     };
 
-export type SignTransactionWithActionsInput = {
+type SignTransactionWithActionsInput = {
   commandSubject: NearCommandSubject;
   transaction: TransactionInputWasm;
   rpcCall: RpcCallPayload;
@@ -249,7 +249,7 @@ type NearTransactionPublicSigningOptions = Pick<
   'confirmationConfigOverride' | 'title' | 'body' | 'onEvent' | 'signerSlot'
 >;
 
-export type SignDelegateActionInput = {
+type SignDelegateActionInput = {
   commandSubject: NearCommandSubject;
   delegate: DelegateActionInput;
   rpcCall: RpcCallPayload;
@@ -277,7 +277,7 @@ export type NearSignIntentRequest =
       args: SignNep413MessagePayload;
     };
 
-export type NearSignIntentResultByKind = {
+type NearSignIntentResultByKind = {
   transactionWithActions: SignTransactionResult;
   delegateAction: SignDelegateActionResult;
   nep413: SignNep413MessageResult;
@@ -1431,41 +1431,26 @@ type NearTransactionSigningAttempt = {
   signingSessionCoordinator?: SigningSessionCoordinator;
 };
 
-function buildNearTransactionPreparationDisplayModel(
-  args: SignTransactionWithActionsInput,
-): TxDisplayModel {
-  const signerAccount = String(args.commandSubject.nearAccount.accountId);
-  try {
-    return buildNearDisplayModel({
-      txSigningRequests: [args.transaction],
-      signerAccount,
-      title: args.title,
-      subtitle: args.body,
-    });
-  } catch {
-    return {
-      chain: 'near',
-      signerAccount,
-      ...(args.title ? { title: args.title } : {}),
-      ...(args.body ? { subtitle: args.body } : {}),
-      operations: [],
-    };
-  }
-}
-
 export async function signTransactionWithActions(
   deps: NearSigningApiDeps,
   args: SignTransactionWithActionsInput,
 ): Promise<SignTransactionResult> {
+  const modalStartedAt = performance.now();
   await deps.touchConfirm.openTransactionPreparationModal({
     chain: 'near',
     walletLabel: String(args.commandSubject.nearAccount.accountId),
     txSigningRequests: [args.transaction],
-    model: buildNearTransactionPreparationDisplayModel(args),
+    model: buildNearPreparationDisplayModel({
+      txSigningRequests: [args.transaction],
+      signerAccount: String(args.commandSubject.nearAccount.accountId),
+      title: args.title,
+      subtitle: args.body,
+    }),
     confirmationConfigOverride: args.confirmationConfigOverride,
   });
   try {
     const operationId = createNearTransactionSigningOperationId();
+    emitEd25519SigningTiming(String(operationId), 'preparation_modal', modalStartedAt);
     return await signTransactionWithActionsAttempt(deps, args, {
       signingOperationState: createSigningOperationStateRef({ operationId }),
     });
@@ -1491,12 +1476,18 @@ async function signTransactionWithActionsAttempt(
   const confirmationOperationId = attempt.signingOperationState.operationId;
   const signingSessionCoordinator =
     attempt.signingSessionCoordinator || deps.signingSessionCoordinator;
+  const authorizationProbeStartedAt = performance.now();
   const authorizationRequired = await prepareNearAuthorizationRequiredTransaction({
     deps,
     input: args,
     commandSubject: args.commandSubject,
     operationId: confirmationOperationId,
   });
+  emitEd25519SigningTiming(
+    String(confirmationOperationId),
+    'authorization_probe',
+    authorizationProbeStartedAt,
+  );
   if (authorizationRequired) {
     const ctx = deps.getSignerWorkerContext();
     return await withThresholdEd25519CommitQueue({
@@ -1536,6 +1527,7 @@ async function signTransactionWithActionsAttempt(
         })) as SignTransactionResult,
     });
   }
+  const lanePreparationStartedAt = performance.now();
   const preparedSigningSession = await prepareNearEd25519TransactionSigningSession({
     deps,
     input: args,
@@ -1544,6 +1536,12 @@ async function signTransactionWithActionsAttempt(
     operationId: confirmationOperationId,
     forceFreshAuth: attempt.forceFreshAuth === true,
   });
+  emitEd25519SigningTiming(
+    String(confirmationOperationId),
+    'lane_preparation',
+    lanePreparationStartedAt,
+  );
+  const executionSetupStartedAt = performance.now();
   const preparationAuthorization = preparedSigningSession.preparation.authorization;
   const signingAuthPlan = preparedSigningSession.signingAuthPlan;
   const signingLane = preparedSigningSession.signingLane;
@@ -1623,6 +1621,11 @@ async function signTransactionWithActionsAttempt(
               }
             : {}),
         };
+        emitEd25519SigningTiming(
+          String(confirmationOperationId),
+          'execution_setup',
+          executionSetupStartedAt,
+        );
         const result = (await signNearWithUiConfirm({
           chain: 'near',
           kind: 'transactionWithActions',

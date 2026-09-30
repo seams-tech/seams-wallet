@@ -8,7 +8,7 @@ export const WALLET_SIGNING_MATERIAL_TEMPORARILY_UNAVAILABLE =
 export const WALLET_OPERATION_STEP_UP_CANCELLED =
   'wallet_operation_step_up_cancelled' as const;
 
-export type InvalidWalletSigningMaterialReason =
+type InvalidWalletSigningMaterialReason =
   | Exclude<
       MpcCapabilityHydrationBlockedReason,
       'persistence_unavailable' | 'revoked' | 'replaced'
@@ -16,13 +16,13 @@ export type InvalidWalletSigningMaterialReason =
   | 'missing_runtime'
   | 'runtime_conflict';
 
-export type WalletFullLoginRequiredReason =
+type WalletFullLoginRequiredReason =
   | NearEd25519WalletSessionFullLoginReason
   | 'wallet_locked'
   | 'revoked'
   | 'replaced';
 
-export type WalletSigningMaterialDisposition =
+type WalletSigningMaterialDisposition =
   | {
       readonly kind: 'invalid_material';
       readonly reason: InvalidWalletSigningMaterialReason;
@@ -58,7 +58,7 @@ export function classifyWalletSigningMaterialBlock(
   }
 }
 
-export class InvalidWalletSigningMaterialError extends Error {
+class InvalidWalletSigningMaterialError extends Error {
   readonly name = 'InvalidWalletSigningMaterialError';
   readonly code = WALLET_SIGNING_MATERIAL_INVALID;
 
@@ -76,7 +76,7 @@ export class WalletFullLoginRequiredError extends Error {
   }
 }
 
-export class WalletOperationStepUpCancelled extends Error {
+class WalletOperationStepUpCancelled extends Error {
   readonly name = 'WalletOperationStepUpCancelled';
   readonly code = WALLET_OPERATION_STEP_UP_CANCELLED;
 
@@ -85,12 +85,12 @@ export class WalletOperationStepUpCancelled extends Error {
   }
 }
 
-export type WalletSigningStateFailure =
+type WalletSigningStateFailure =
   | InvalidWalletSigningMaterialError
   | WalletFullLoginRequiredError
   | WalletOperationStepUpCancelled;
 
-export class WalletSigningMaterialTemporarilyUnavailableError extends Error {
+class WalletSigningMaterialTemporarilyUnavailableError extends Error {
   readonly name = 'WalletSigningMaterialTemporarilyUnavailableError';
   readonly code = WALLET_SIGNING_MATERIAL_TEMPORARILY_UNAVAILABLE;
   readonly reason = 'persistence_unavailable';
@@ -100,7 +100,7 @@ export class WalletSigningMaterialTemporarilyUnavailableError extends Error {
   }
 }
 
-export type WalletSigningMaterialBlockError =
+type WalletSigningMaterialBlockError =
   | WalletSigningStateFailure
   | WalletSigningMaterialTemporarilyUnavailableError;
 

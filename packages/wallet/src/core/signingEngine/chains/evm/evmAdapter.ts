@@ -16,7 +16,7 @@ export type EvmSignedResult = {
   managedNonce?: ManagedNonceReservationSnapshot;
 };
 
-export type EvmIntentUiModel = {
+type EvmIntentUiModel = {
   kind: 'eip1559';
   tx: Eip1559UnsignedTx;
 };

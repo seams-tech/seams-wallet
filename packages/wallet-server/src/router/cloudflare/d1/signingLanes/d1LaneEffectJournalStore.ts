@@ -47,13 +47,11 @@ export type CloudflareD1LaneEffectJournalStoreOptions = CloudflareD1LaneStoreOpt
 export class CloudflareD1LaneEffectJournalStore implements LaneEffectJournalStore {
   private readonly database: CloudflareD1LaneStoreOptions['database'];
   private readonly scope: CloudflareD1LaneStoreOptions['scope'];
-  private readonly now: () => number;
 
   constructor(options: CloudflareD1LaneEffectJournalStoreOptions) {
     const normalized = requireD1LaneStoreOptions(options);
     this.database = normalized.database;
     this.scope = normalized.scope;
-    this.now = normalized.now;
   }
 
   async getEffect(input: { readonly effectId: string }): Promise<{

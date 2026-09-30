@@ -8,7 +8,6 @@ import type {
   WalletSessionOperationCredentialV1,
 } from '@shared/device-linking/contracts';
 import type { ActiveWalletAuthorityV1 } from '@shared/authorization/walletAuthority';
-import type { ActiveWalletAuthMethodV2 } from '../identity/ownerLaneScope';
 import type { ExactWalletSessionStatus } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 import type { SigningLaneAuthBinding } from '../identity/signingLaneAuthBinding';
 import type { MpcCapabilityHydrationPlan } from './mpcCapabilityHydration';
@@ -17,6 +16,7 @@ import type {
   WalletAuthAuthorityRef,
 } from '@shared/utils/walletAuthAuthority';
 import { walletAuthAuthorityRef } from '@shared/utils/walletAuthAuthority';
+import type { ActiveWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 
 export type ActiveNearEd25519WalletSessionStatus = Extract<
   ExactWalletSessionStatus,
@@ -31,7 +31,7 @@ export type ActiveNearEd25519WalletSessionStatus = Extract<
 export type ExactNearEd25519WalletSessionAuthorization = {
   readonly kind: 'exact_near_ed25519_wallet_session_authorization_v1';
   readonly selectedAuthority: ActiveWalletAuthorityV1;
-  readonly selectedAuthMethod: ActiveWalletAuthMethodV2;
+  readonly selectedAuthMethod: ActiveWalletAuthMethodRecordV2;
   readonly selectedFactorAuthority: WalletAuthAuthority;
   readonly session: ActiveWalletSessionV1;
   readonly operationCredential: WalletSessionOperationCredentialV1;
@@ -117,7 +117,7 @@ export function classifyNearEd25519WalletSessionAuthorization(
   }
 }
 
-export type NearEd25519OperationAuthorizationState =
+type NearEd25519OperationAuthorizationState =
   | {
       readonly kind: 'authorized';
       readonly authorization: ExactNearEd25519WalletSessionAuthorization;
@@ -155,7 +155,7 @@ function hydrationAuthority(hydration: MpcCapabilityHydrationPlan): WalletAuthAu
 
 function selectedAuthorityMatchesAuthMethod(args: {
   readonly selectedAuthority: ActiveWalletAuthorityV1;
-  readonly selectedAuthMethod: ActiveWalletAuthMethodV2;
+  readonly selectedAuthMethod: ActiveWalletAuthMethodRecordV2;
   readonly selectedFactorAuthority: WalletAuthAuthority;
 }): boolean {
   const { selectedAuthority, selectedAuthMethod, selectedFactorAuthority } = args;
@@ -297,7 +297,7 @@ function assertAuthorizationMatchesRequirement(args: {
 
 export function buildActiveNearEd25519WalletSessionAuthorization(args: {
   readonly selectedAuthority: ActiveWalletAuthorityV1;
-  readonly selectedAuthMethod: ActiveWalletAuthMethodV2;
+  readonly selectedAuthMethod: ActiveWalletAuthMethodRecordV2;
   readonly selectedFactorAuthority: WalletAuthAuthority;
   readonly session: ActiveWalletSessionV1;
   readonly operationCredential: WalletSessionOperationCredentialV1;

@@ -1,6 +1,7 @@
 import { parseLinkDeviceSessionId, type LinkDeviceSessionId } from '@shared/signing-lanes/ids';
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
 import { parseDigestB64u, type DigestB64u } from '@shared/utils/canonicalPrimitives';
+import { requireCanonicalString } from '@shared/utils/validation';
 import type { D1DatabaseLike } from '../../../../storage/tenantRoute';
 import { d1ChangedRows } from '../../../../storage/d1Sql';
 import type { LinkedDeviceRequestProofNonceStoreV1 } from '../../../../core/deviceLinking/requestProof';
@@ -164,8 +165,8 @@ function parseNonceRowV1(
   row: D1LinkedDeviceRequestProofNonceRowV1,
 ): LinkedDeviceRequestProofNonceRecordV1 {
   return parseNonceRecord({
-    linkSessionId: parseSessionId(requireString(row.link_session_id, 'link_session_id')),
-    requestNonceB64u: requireString(row.request_nonce_b64u, 'request_nonce_b64u'),
+    linkSessionId: parseSessionId(requireCanonicalString(row.link_session_id, 'link_session_id')),
+    requestNonceB64u: requireCanonicalString(row.request_nonce_b64u, 'request_nonce_b64u'),
     proofDigestB64u: parseDigest(row.proof_digest_b64u, 'proof_digest_b64u'),
     issuedAtMs: requirePositiveInteger(row.issued_at_ms, 'issued_at_ms'),
     expiresAtMs: requirePositiveInteger(row.expires_at_ms, 'expires_at_ms'),
@@ -193,12 +194,6 @@ function parseDigest(raw: unknown, field: string): DigestB64u {
   } catch {
     throw new Error(`${field} is invalid`);
   }
-}
-
-function requireString(raw: unknown, field: string): string {
-  if (typeof raw !== 'string' || raw.length === 0 || raw.trim() !== raw)
-    throw new Error(`${field} is invalid`);
-  return raw;
 }
 
 function requirePositiveInteger(raw: unknown, field: string): number {

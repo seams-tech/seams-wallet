@@ -20,7 +20,7 @@ import {
 import type { ProfileAccountContextPort } from '../../indexedDB/profileAccountProjection';
 import { buildNearAccountRefs } from './accountRefs';
 
-export interface NearKeyMaterialDeps {
+interface NearKeyMaterialDeps {
   clientDB: ProfileAccountContextPort;
   keyMaterialStore: AccountKeyMaterialStorePort;
 }
@@ -48,7 +48,7 @@ type StoreNearKeyMaterialInputBase = {
   schemaVersion?: number;
 };
 
-export type StoreNearKeyMaterialInput = StoreNearKeyMaterialInputBase & StoreNearKeyMaterialTarget;
+type StoreNearKeyMaterialInput = StoreNearKeyMaterialInputBase & StoreNearKeyMaterialTarget;
 
 type StoreNearThresholdKeyMaterialInputBase = {
   nearAccountId: AccountId;
@@ -196,7 +196,7 @@ export async function getNearThresholdKeyMaterial(
   return mapThresholdNearKey(nearAccountId, signerSlot, keyRecord);
 }
 
-export async function storeNearKeyMaterial(
+async function storeNearKeyMaterial(
   deps: NearKeyMaterialDeps,
   input: StoreNearKeyMaterialInput,
 ): Promise<void> {

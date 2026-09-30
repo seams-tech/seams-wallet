@@ -113,7 +113,7 @@ import type {
   Ed25519YaoLaneJobV1,
 } from '@shared/signing-lanes/rotation';
 import type { ExactWalletSessionAuthorization } from '../session/persistence/walletSessionAuthorizationProjection';
-import type { WalletRegistrationEd25519YaoSignerRuntimeBootstrap } from '@/core/rpcClients/relayer/walletRegistration';
+import type { WalletRegistrationEd25519YaoSignerRuntimeBootstrap } from '@shared/utils/registrationContracts';
 import type { WebAuthnRegistrationCredential } from '@/core/types/webauthn';
 import type { WalletRecoverySetRotationWorkerResultV1 } from '@shared/wallet-recovery/walletRecoveryRotation';
 import type {
@@ -376,12 +376,7 @@ export const WorkerControlMessage = {
   WORKER_READY: 'WORKER_READY',
 } as const;
 
-export type WorkerControlMessageType =
-  (typeof WorkerControlMessage)[keyof typeof WorkerControlMessage];
-
-export type ThresholdEcdsaPresignStage = 'triples' | 'triples_done' | 'presign' | 'done';
-export type ThresholdEcdsaPresignEvent =
-  'none' | 'triples_done' | 'final_batch_ready' | 'presign_done';
+type ThresholdEcdsaPresignStage = 'triples' | 'triples_done' | 'presign' | 'done';
 
 export type ThresholdEcdsaPresignProgressResult<Bytes = ArrayBuffer> = {
   outgoingMessages: Bytes[];
@@ -421,7 +416,7 @@ export type RpcSignerWorkerProgressEvent = {
   data?: Record<string, unknown>;
 };
 
-export interface EvmCryptoWorkerOperationMap {
+interface EvmCryptoWorkerOperationMap {
   computeEip1559TxHash: {
     payload: { tx: unknown };
     result: ArrayBuffer;
@@ -467,7 +462,7 @@ export interface EvmCryptoWorkerOperationMap {
   };
 }
 
-export interface TempoSignerWorkerOperationMap {
+interface TempoSignerWorkerOperationMap {
   computeTempoSenderHash: {
     payload: { tx: unknown };
     result: ArrayBuffer;
@@ -533,9 +528,6 @@ export type EmailOtpWalletRegistrationEcdsaPrepareHandlePayload = {
   chainTarget: ThresholdEcdsaChainTarget;
 };
 
-export type EmailOtpWorkerIssuedSessionHandlePayload =
-  EmailOtpEcdsaSessionBootstrapHandlePayload | EmailOtpWalletRegistrationEcdsaPrepareHandlePayload;
-
 type EmailOtpEcdsaSessionBootstrapHandleBindingBase = {
   authSubjectId: string;
   action?: 'threshold_ecdsa_bootstrap';
@@ -564,12 +556,12 @@ export type EmailOtpWalletRegistrationEcdsaPrepareHandleBinding = {
   chainTarget: ThresholdEcdsaChainTarget;
 };
 
-export type EmailOtpWalletRegistrationEcdsaPrepareHandleBindings = readonly [
+type EmailOtpWalletRegistrationEcdsaPrepareHandleBindings = readonly [
   EmailOtpWalletRegistrationEcdsaPrepareHandleBinding,
   ...EmailOtpWalletRegistrationEcdsaPrepareHandleBinding[],
 ];
 
-export type EmailOtpWalletRegistrationEcdsaPrepareHandlePayloads = readonly [
+type EmailOtpWalletRegistrationEcdsaPrepareHandlePayloads = readonly [
   EmailOtpWalletRegistrationEcdsaPrepareHandlePayload,
   ...EmailOtpWalletRegistrationEcdsaPrepareHandlePayload[],
 ];
@@ -599,11 +591,11 @@ export type EmailOtpWalletRegistrationEcdsaPrepareHandleResult =
 export type EmailOtpEcdsaSessionHandleBinding =
   EmailOtpEcdsaSessionBootstrapHandleBinding | EmailOtpWalletRegistrationEcdsaPrepareHandleBinding;
 
-export type EmailOtpYaoPrewarmFailureStage = 'worker_ready' | 'yao_wasm_init';
+type EmailOtpYaoPrewarmFailureStage = 'worker_ready' | 'yao_wasm_init';
 
 export type EmailOtpYaoPrewarmRequest = { kind: 'not_requested' } | { kind: 'requested' };
 
-export type EmailOtpYaoPrewarmWorkerResult =
+type EmailOtpYaoPrewarmWorkerResult =
   | {
       kind: 'succeeded';
       elapsedMs: number;
@@ -1128,7 +1120,7 @@ export interface EmailOtpWorkerOperationMap {
   };
 }
 
-export type EmailOtpWorkerOperationRequestEnvelopeFor<T extends keyof EmailOtpWorkerOperationMap> =
+type EmailOtpWorkerOperationRequestEnvelopeFor<T extends keyof EmailOtpWorkerOperationMap> =
   {
     id: string;
     type: T;
@@ -1139,7 +1131,7 @@ export type EmailOtpWorkerOperationRequestEnvelope = {
   [T in keyof EmailOtpWorkerOperationMap]: EmailOtpWorkerOperationRequestEnvelopeFor<T>;
 }[keyof EmailOtpWorkerOperationMap];
 
-export interface MultichainSignerWorkerOperationMapByKind {
+interface MultichainSignerWorkerOperationMapByKind {
   evmCrypto: EvmCryptoWorkerOperationMap;
   tempoSigner: TempoSignerWorkerOperationMap;
 }
@@ -1173,76 +1165,16 @@ export type MultichainWorkerOperationResult<
   T extends MultichainOperationType<K>,
 > = MultichainWorkerOperationEntry<K, T>['result'];
 
-export type EvmCryptoTransactionOperationType =
-  'computeEip1559TxHash' | 'encodeEip1559SignedTxFromSignature65';
-export type EvmCryptoLocalSecp256k1OperationType =
-  | 'signSecp256k1Recoverable'
-  | 'verifySecp256k1RecoverableSignatureAgainstPublicKey33'
-  | 'secp256k1PrivateKey32ToPublicKey33'
-  | 'validateSecp256k1PublicKey33'
-  | 'addSecp256k1PublicKeys33'
-  | 'buildWebauthnP256Signature'
-  | 'decodeCoseP256PublicKey';
-export type EvmCryptoDomainOperationType =
-  EvmCryptoTransactionOperationType | EvmCryptoLocalSecp256k1OperationType;
-
-export type EvmCryptoTransactionOperationRequest<T extends EvmCryptoTransactionOperationType> =
-  MultichainWorkerOperationRequest<'evmCrypto', T>;
-export type EvmCryptoLocalSecp256k1OperationRequest<
-  T extends EvmCryptoLocalSecp256k1OperationType,
-> = MultichainWorkerOperationRequest<'evmCrypto', T>;
-
-export type TempoSignerTransactionOperationType = 'computeTempoSenderHash' | 'encodeTempoSignedTx';
-export type TempoSignerTransactionOperationRequest<T extends TempoSignerTransactionOperationType> =
-  MultichainWorkerOperationRequest<'tempoSigner', T>;
-
-export type EmailOtpChallengeOperationType =
-  'requestEmailOtpChallenge' | 'requestEmailOtpEnrollmentChallenge';
-export type EmailOtpEnrollmentOperationType =
-  | 'enrollEmailOtpWallet'
-  | 'prepareEmailOtpRegistrationEnrollmentMaterial'
-  | 'createEmailOtpEd25519YaoSigningShare'
-  | 'disposeEmailOtpEd25519YaoActiveClient'
-  | 'prepareEmailOtpPasskeyCustodyLink'
-  | 'completeEmailOtpPasskeyCustodyLink'
-  | 'discardEmailOtpPasskeyCustodyLink'
-  | 'rotateEmailOtpWalletRecoverySet';
-export type EmailOtpWarmSessionOperationType =
-  | 'loginWithEmailOtpWallet'
-  | 'getEmailOtpWarmSessionStatus'
-  | 'consumeEmailOtpWarmSessionUses'
-  | 'sealEmailOtpWarmSessionMaterial'
-  | 'rehydrateEmailOtpEcdsaWarmSessionMaterial'
-  | 'rehydrateEmailOtpEd25519YaoOperationMaterial'
-  | 'rehydrateActiveEmailOtpEd25519YaoSessionMaterial'
-  | 'activateEmailOtpEd25519YaoRegistrationMaterial'
-  | 'clearEmailOtpWarmSessionMaterial';
-export type EmailOtpExportOperationType = 'exportEmailOtpEd25519YaoSeed';
-export type EmailOtpDomainOperationType =
-  | EmailOtpChallengeOperationType
-  | EmailOtpEnrollmentOperationType
-  | EmailOtpWarmSessionOperationType
-  | EmailOtpExportOperationType;
-
-export type EmailOtpChallengeOperationRequest<T extends EmailOtpChallengeOperationType> =
-  EmailOtpWorkerOperationRequestEnvelopeFor<T>;
-export type EmailOtpEnrollmentOperationRequest<T extends EmailOtpEnrollmentOperationType> =
-  EmailOtpWorkerOperationRequestEnvelopeFor<T>;
-export type EmailOtpWarmSessionOperationRequest<T extends EmailOtpWarmSessionOperationType> =
-  EmailOtpWorkerOperationRequestEnvelopeFor<T>;
-export type EmailOtpExportOperationRequest<T extends EmailOtpExportOperationType> =
-  EmailOtpWorkerOperationRequestEnvelopeFor<T>;
-
 type NearSignerWorkerPublicWasmOperationType = keyof WorkerRequestTypeMap;
 
-export type NearSignerWorkerWasmOperationMap = {
+type NearSignerWorkerWasmOperationMap = {
   [T in NearSignerWorkerPublicWasmOperationType]: {
     payload: WorkerRequestTypeMap[T]['request'];
     result: WorkerResponseForRequest<T>;
   };
 };
 
-export type NearSignerWorkerCustomOperationMap = {
+type NearSignerWorkerCustomOperationMap = {
   [NearSignerWorkerCustomRequestType.ThresholdEd25519ComputeNep413SigningDigest]: {
     payload: ThresholdEd25519ComputeNep413SigningDigestRequest;
     result: ThresholdEd25519ComputeSigningDigestResult;
@@ -1273,7 +1205,7 @@ export type NearSignerWorkerCustomOperationMap = {
   };
 };
 
-export type NearSignerWorkerOperationMap = NearSignerWorkerWasmOperationMap &
+type NearSignerWorkerOperationMap = NearSignerWorkerWasmOperationMap &
   NearSignerWorkerCustomOperationMap;
 
 export type NearWorkerOperationType = keyof NearSignerWorkerOperationMap;
@@ -1290,21 +1222,6 @@ export type NearWorkerOperationRequest<T extends NearWorkerOperationType> = {
 
 export type NearWorkerOperationResult<T extends NearWorkerOperationType> =
   NearWorkerOperationEntry<T>['result'];
-
-export type NearEd25519DigestOperationType =
-  | typeof NearSignerWorkerCustomRequestType.ThresholdEd25519ComputeNep413SigningDigest
-  | typeof NearSignerWorkerCustomRequestType.ThresholdEd25519ComputeDelegateSigningDigest
-  | typeof NearSignerWorkerCustomRequestType.ThresholdEd25519BuildDelegateSigningPayload;
-export type NearEd25519FinalizeOperationType =
-  | typeof NearSignerWorkerCustomRequestType.ThresholdEd25519FinalizeDelegateFromSignature
-  | typeof NearSignerWorkerCustomRequestType.ThresholdEd25519FinalizeNearTxFromSignature
-  | typeof NearSignerWorkerCustomRequestType.ThresholdEd25519BuildNearTxUnsignedBorsh
-  | typeof NearSignerWorkerCustomRequestType.ThresholdEd25519DecodeSignedNearTxBorsh;
-
-export type NearEd25519DigestOperationRequest<T extends NearEd25519DigestOperationType> =
-  NearWorkerOperationRequest<T>;
-export type NearEd25519FinalizeOperationRequest<T extends NearEd25519FinalizeOperationType> =
-  NearWorkerOperationRequest<T>;
 
 export const EcdsaDerivationClientCustomRequestType = {
   PrepareThresholdEcdsaDerivationRoleLocalClientBootstrap: 70_000,
@@ -1373,7 +1290,7 @@ export type StoreThresholdEcdsaRoleLocalSigningMaterialResult = {
   bindingDigest: string;
 };
 
-export type StoreThresholdEcdsaRoleLocalSigningMaterialResponse = {
+type StoreThresholdEcdsaRoleLocalSigningMaterialResponse = {
   type: typeof EcdsaDerivationClientCustomResponseType.StoreThresholdEcdsaRoleLocalSigningMaterialSuccess;
   payload: StoreThresholdEcdsaRoleLocalSigningMaterialResult;
   diagnostics?: WorkerResponseDiagnostics;
@@ -1385,7 +1302,7 @@ export type StoreLinkedDeviceEcdsaHolderMaterialRequestV1 = {
   readonly activationReceiptJson: string;
 };
 
-export type StoreLinkedDeviceEcdsaHolderMaterialResponseV1 = {
+type StoreLinkedDeviceEcdsaHolderMaterialResponseV1 = {
   readonly type: typeof EcdsaDerivationClientCustomResponseType.StoreLinkedDeviceEcdsaHolderMaterialSuccess;
   readonly payload: { readonly holderHandleId: string };
   readonly diagnostics?: WorkerResponseDiagnostics;
@@ -1401,7 +1318,7 @@ export type DisposeLinkedDeviceEcdsaHolderMaterialsRequestV1 =
       readonly holderHandleId: string;
     };
 
-export type DisposeLinkedDeviceEcdsaHolderMaterialsResponseV1 = {
+type DisposeLinkedDeviceEcdsaHolderMaterialsResponseV1 = {
   readonly type: typeof EcdsaDerivationClientCustomResponseType.DisposeLinkedDeviceEcdsaHolderMaterialsSuccess;
   readonly payload:
     | { readonly kind: 'all'; readonly holderHandleId?: never }
@@ -1409,19 +1326,19 @@ export type DisposeLinkedDeviceEcdsaHolderMaterialsResponseV1 = {
   readonly diagnostics?: WorkerResponseDiagnostics;
 };
 
-export type CreateEcdsaHolderOrdinaryExportRequestWorkerV1 =
+type CreateEcdsaHolderOrdinaryExportRequestWorkerV1 =
   CreateEcdsaHolderOrdinaryExportRequestV1;
 
-export type CreateEcdsaHolderOrdinaryExportResponseWorkerV1 = {
+type CreateEcdsaHolderOrdinaryExportResponseWorkerV1 = {
   readonly type: typeof EcdsaDerivationClientCustomResponseType.CreateEcdsaHolderOrdinaryExportRequestSuccess;
   readonly payload: CreateEcdsaHolderOrdinaryExportResultV1;
   readonly diagnostics?: WorkerResponseDiagnostics;
 };
 
-export type FinalizeEcdsaHolderOrdinaryExportRequestWorkerV1 =
+type FinalizeEcdsaHolderOrdinaryExportRequestWorkerV1 =
   FinalizeEcdsaHolderOrdinaryExportRequestV1;
 
-export type FinalizeEcdsaHolderOrdinaryExportResponseWorkerV1 = {
+type FinalizeEcdsaHolderOrdinaryExportResponseWorkerV1 = {
   readonly type: typeof EcdsaDerivationClientCustomResponseType.FinalizeEcdsaHolderOrdinaryExportSuccess;
   readonly payload: FinalizeEcdsaHolderOrdinaryExportResultV1;
   readonly diagnostics?: WorkerResponseDiagnostics;
@@ -1464,7 +1381,7 @@ export type EcdsaPresignClientSessionInitRequest = EcdsaPresignClientSessionPara
       }
   );
 
-export type EcdsaPresignClientSessionInitResult =
+type EcdsaPresignClientSessionInitResult =
   | {
       authority: { kind: 'role_local_derivation_handle' };
       progress: ThresholdEcdsaPresignProgressResult;
@@ -1474,7 +1391,7 @@ export type EcdsaPresignClientSessionInitResult =
       progress: ThresholdEcdsaPresignProgressResult;
     };
 
-export type EcdsaPresignClientSessionInitResponse = {
+type EcdsaPresignClientSessionInitResponse = {
   type: typeof EcdsaPresignClientResponseType.SessionInitSuccess;
   payload: EcdsaPresignClientSessionInitResult;
   diagnostics?: WorkerResponseDiagnostics;
@@ -1486,30 +1403,30 @@ export type EcdsaPresignClientSessionStepRequest = {
   incomingMessages: ArrayBuffer[];
 };
 
-export type EcdsaPresignClientSessionStepResponse = {
+type EcdsaPresignClientSessionStepResponse = {
   type: typeof EcdsaPresignClientResponseType.SessionStepSuccess;
   payload: ThresholdEcdsaPresignProgressResult;
   diagnostics?: WorkerResponseDiagnostics;
 };
 
-export type EcdsaPresignClientSessionAbortRequest = {
+type EcdsaPresignClientSessionAbortRequest = {
   sessionId: string;
 };
 
-export type EcdsaPresignClientSessionAbortResponse = {
+type EcdsaPresignClientSessionAbortResponse = {
   type: typeof EcdsaPresignClientResponseType.SessionAbortSuccess;
   payload: ThresholdEcdsaPresignAbortResult;
   diagnostics?: WorkerResponseDiagnostics;
 };
 
-export type EcdsaPresignClientAdmitRequest = {
+type EcdsaPresignClientAdmitRequest = {
   materialHandle: string;
   expectedPresignatureId: string;
   poolIdentity: EcdsaClientPresignPoolIdentity;
   admissionMode: 'durable' | 'resident';
 };
 
-export type EcdsaPresignClientAdmitResponse = {
+type EcdsaPresignClientAdmitResponse = {
   type: typeof EcdsaPresignClientResponseType.AdmitSuccess;
   payload: {
     kind: 'ecdsa_client_presignature_admitted_v1';
@@ -1520,12 +1437,12 @@ export type EcdsaPresignClientAdmitResponse = {
   diagnostics?: WorkerResponseDiagnostics;
 };
 
-export type EcdsaPresignClientDestroyRequest = {
+type EcdsaPresignClientDestroyRequest = {
   materialHandle: string;
   poolIdentity: EcdsaClientPresignPoolIdentity;
 };
 
-export type EcdsaPresignClientDestroyResponse = {
+type EcdsaPresignClientDestroyResponse = {
   type: typeof EcdsaPresignClientResponseType.DestroySuccess;
   payload: {
     kind: 'ecdsa_client_presignature_destroyed_v1';
@@ -1534,11 +1451,11 @@ export type EcdsaPresignClientDestroyResponse = {
   diagnostics?: WorkerResponseDiagnostics;
 };
 
-export type EcdsaPresignClientClearWalletRequest = {
+type EcdsaPresignClientClearWalletRequest = {
   walletId: string;
 };
 
-export type EcdsaPresignClientClearWalletResponse = {
+type EcdsaPresignClientClearWalletResponse = {
   type: typeof EcdsaPresignClientResponseType.ClearWalletSuccess;
   payload: {
     kind: 'ecdsa_client_wallet_worker_state_cleared_v1';
@@ -1548,25 +1465,25 @@ export type EcdsaPresignClientClearWalletResponse = {
   diagnostics?: WorkerResponseDiagnostics;
 };
 
-export type EcdsaPresignClientUseBinding = {
+type EcdsaPresignClientUseBinding = {
   materialHandle: string;
   poolIdentity: EcdsaClientPresignPoolIdentity;
   requestBinding: string;
   reservationId: string;
 };
 
-export type EcdsaPresignClientReserveRequest = EcdsaPresignClientUseBinding & {
+type EcdsaPresignClientReserveRequest = EcdsaPresignClientUseBinding & {
   expectedPresignatureId: string;
   leaseExpiresAtMs: number;
 };
 
-export type EcdsaPresignClientReserveResponse = {
+type EcdsaPresignClientReserveResponse = {
   type: typeof EcdsaPresignClientResponseType.ReserveSuccess;
   payload: EcdsaClientPresignReservationResult;
   diagnostics?: WorkerResponseDiagnostics;
 };
 
-export type EcdsaPresignClientCommitResponse = {
+type EcdsaPresignClientCommitResponse = {
   type: typeof EcdsaPresignClientResponseType.CommitSuccess;
   payload: {
     kind: 'ecdsa_client_presignature_lifecycle_advanced_v1';
@@ -1575,11 +1492,11 @@ export type EcdsaPresignClientCommitResponse = {
   diagnostics?: WorkerResponseDiagnostics;
 };
 
-export type EcdsaPresignClientListAvailableRequest = {
+type EcdsaPresignClientListAvailableRequest = {
   poolIdentity: EcdsaClientPresignPoolIdentity;
 };
 
-export type EcdsaPresignClientListAvailableResponse = {
+type EcdsaPresignClientListAvailableResponse = {
   type: typeof EcdsaPresignClientResponseType.ListAvailableSuccess;
   payload: Array<{
     presignatureId: string;
@@ -1591,7 +1508,7 @@ export type EcdsaPresignClientListAvailableResponse = {
   diagnostics?: WorkerResponseDiagnostics;
 };
 
-export type EcdsaOnlineClientComputeSignatureShareRequest = {
+type EcdsaOnlineClientComputeSignatureShareRequest = {
   materialHandle: string;
   poolIdentity: EcdsaClientPresignPoolIdentity;
   requestBinding: string;
@@ -1603,7 +1520,7 @@ export type EcdsaOnlineClientComputeSignatureShareRequest = {
   signingWorkerRerandomizationContribution32: ArrayBuffer;
 };
 
-export type EcdsaOnlineClientComputeSignatureShareResponse = {
+type EcdsaOnlineClientComputeSignatureShareResponse = {
   type: typeof EcdsaOnlineClientResponseType.ComputeSignatureShareSuccess;
   payload: ArrayBuffer;
   diagnostics?: WorkerResponseDiagnostics;
@@ -1864,7 +1781,7 @@ export type EcdsaDerivationWorkerOperationRequest<T extends EcdsaDerivationWorke
 export type EcdsaDerivationWorkerOperationResult<T extends EcdsaDerivationWorkerOperationType> =
   EcdsaDerivationWorkerOperationEntry<T>['result'];
 
-export type DerivationSignerWorkerOperationMap = {
+type DerivationSignerWorkerOperationMap = {
   [T in EcdsaDerivationWorkerOperationType]: {
     payload: EcdsaDerivationWorkerOperationEntry<T>['payload'];
     result: EcdsaDerivationWorkerOperationEntry<T>['result'];
@@ -1904,8 +1821,7 @@ export type EcdsaDerivationHolderOrdinaryExportOperationRequest<
   T extends EcdsaHolderOrdinaryExportOperationType,
 > = EcdsaDerivationWorkerOperationRequest<T>;
 /**
- * Refactor 103 zero-prompt handoff — the public reference to an unlocked
- * wallet Ed25519 export-root capability.
+ * The public reference to an unlocked wallet Ed25519 export-root capability.
  *
  * The worker owns the opened custody-seed handle; this reference carries only
  * the opaque handle id and the binding facts the worker will re-verify before
@@ -1922,13 +1838,32 @@ export type UnlockedWalletEd25519ExportRootCapabilityV1 = {
   readonly walletSessionId: string;
   readonly expiresAtMs: number;
   /**
-   * Present only when this unlock opened a pre-109C envelope and resealed it
+   * Present only when this unlock opened an unbound envelope and resealed it
    * under the method that authenticated. The caller persists it; until it does,
    * the old row stands and the next unlock produces the upgrade again, so a
    * failed write costs a retry rather than access.
    */
   readonly upgradedEnvelope?: PasskeyCustodyEnvelopeRecord;
 };
+
+/**
+ * A linked device's unlocked export-root capability: the Ed25519 Yao Client
+ * root that device opened from its own envelope at an unlock. It carries the
+ * same public binding facts as the seed-backed reference. Only linking
+ * accepts it — never a seed reseal or an auth-method addition.
+ */
+type UnlockedLinkedDeviceEd25519ClientRootCapabilityV1 = {
+  readonly kind: 'unlocked_linked_device_ed25519_client_root_capability_v1';
+  readonly capabilityHandleId: string;
+  readonly walletId: string;
+  readonly walletAuthMethodId: string;
+  readonly walletSessionId: string;
+  readonly expiresAtMs: number;
+};
+
+/** The unlocked capability a device approving a link seals the export root from. */
+export type UnlockedEd25519ExportRootLinkingCapabilityV1 =
+  UnlockedWalletEd25519ExportRootCapabilityV1 | UnlockedLinkedDeviceEd25519ClientRootCapabilityV1;
 
 /**
  * What a destroy call invalidates. Lock and logout destroy by wallet, session
@@ -1971,7 +1906,7 @@ export interface WalletCustodyCeremonyWorkerOperationMap {
         }
       | {
           kind: 'unlocked_ed25519_export_root_capability';
-          capability: UnlockedWalletEd25519ExportRootCapabilityV1;
+          capability: UnlockedEd25519ExportRootLinkingCapabilityV1;
           applicationBindingDigestB64u: string;
           walletKeyId: string;
           enrollmentId: string;
@@ -2149,11 +2084,15 @@ export interface WalletCustodyCeremonyWorkerOperationMap {
     result: { recipientHandleId: string; recipientPublicKeyB64u: string };
   };
   /**
-   * Refactor 103 zero-prompt handoff: opens the wallet custody seed envelope
-   * with the factor secret already present in registration or ordinary unlock,
-   * and parks the opened handle inside this worker for the lifetime of the
-   * owner Wallet Session that authorized it. The result is the public
-   * reference only — no seed bytes, and no serializable secret.
+   * Opens the wallet custody seed envelope with the factor secret already
+   * present in registration or ordinary unlock, and parks the opened handle
+   * inside this worker for the lifetime of the owner Wallet Session that
+   * authorized it. The result is the public reference only — no seed bytes,
+   * and no serializable secret.
+   *
+   * A linked device's unlock opens its own Ed25519 Yao Client-root envelope
+   * the same way, into the distinct linked-device capability that only
+   * linking accepts.
    *
    * At most one capability exists per wallet and owner Wallet Session;
    * establishing a new one destroys the previous handle first.
@@ -2167,7 +2106,7 @@ export interface WalletCustodyCeremonyWorkerOperationMap {
       walletSessionId: string;
       expiresAtMs: number;
     };
-    result: UnlockedWalletEd25519ExportRootCapabilityV1;
+    result: UnlockedEd25519ExportRootLinkingCapabilityV1;
   };
   /**
    * Destroys unlocked Ed25519 export-root capabilities. Wired into lock, logout,
@@ -2186,8 +2125,8 @@ export interface WalletCustodyCeremonyWorkerOperationMap {
    * draws a fresh X25519 ephemeral key and nonce.
    */
   /**
-   * Refactor 109C: reseals this wallet's seed under a new factor, from the
-   * capability an unlock already opened.
+   * Reseals this wallet's seed under a new factor, from the capability an
+   * unlock already opened.
    *
    * For an addition whose source is Email OTP. The source factor secret is
    * already in the worker, so the addition costs no factor release and no
@@ -2209,7 +2148,7 @@ export interface WalletCustodyCeremonyWorkerOperationMap {
   };
   sealEd25519ExportRootForLinkedDevice: {
     payload: {
-      capability: UnlockedWalletEd25519ExportRootCapabilityV1;
+      capability: UnlockedEd25519ExportRootLinkingCapabilityV1;
       transferBindingJson: string;
     };
     result: {
@@ -2264,7 +2203,7 @@ export interface WalletCustodyCeremonyWorkerOperationMap {
   };
 }
 
-export interface SignerWorkerOperationMapByKind {
+interface SignerWorkerOperationMapByKind {
   nearSigner: NearSignerWorkerOperationMap;
   ecdsaDerivationClient: DerivationSignerWorkerOperationMap;
   ecdsaPresignClient: EcdsaPresignClientOperationMap;
@@ -2280,7 +2219,7 @@ export type SignerWorkerKind = keyof SignerWorkerOperationMapByKind;
 export type SignerWorkerOperationType<K extends SignerWorkerKind> =
   keyof SignerWorkerOperationMapByKind[K];
 
-export type SignerWorkerProgressEvent<K extends SignerWorkerKind> = K extends 'nearSigner'
+type SignerWorkerProgressEvent<K extends SignerWorkerKind> = K extends 'nearSigner'
   ? NearWorkerProgressEvent
   : K extends 'evmCrypto' | 'tempoSigner'
     ? RpcSignerWorkerProgressEvent
@@ -2322,7 +2261,7 @@ export type SignerWorkerOperationResult<
   T extends SignerWorkerOperationType<K>,
 > = SignerWorkerOperationEntry<K, T>['result'];
 
-export type EmailOtpYaoPrewarmDiagnostics = {
+type EmailOtpYaoPrewarmDiagnostics = {
   workerPrewarmMs: number;
   yaoWasmInitMs: number;
 };
@@ -2354,7 +2293,7 @@ export interface SignerWorkerTransportProtocol {
   }): Promise<SignerWorkerOperationResult<K, T>>;
 }
 
-export type SignerHostErrorCode =
+type SignerHostErrorCode =
   | 'SIGNER_INVALID_INPUT'
   | 'SIGNER_INVALID_LENGTH'
   | 'SIGNER_DECODE_ERROR'
@@ -2369,7 +2308,7 @@ export type SignerHostErrorCode =
   | 'WORKER_PROTOCOL_ERROR'
   | 'TIMEOUT';
 
-export const DEFAULT_SIGNER_HOST_ERROR_CODE: SignerHostErrorCode = 'SIGNER_INTERNAL';
+const DEFAULT_SIGNER_HOST_ERROR_CODE: SignerHostErrorCode = 'SIGNER_INTERNAL';
 
 export class SignerWorkerOperationError extends Error {
   readonly code: string;

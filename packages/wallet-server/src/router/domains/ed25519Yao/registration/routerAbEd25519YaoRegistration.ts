@@ -26,7 +26,10 @@ import type {
   RouterApiFetchRouteExtensionInput,
   RouterApiRouteExtension,
 } from '../../../framework/routeExtensions';
-import type { RouterAbEd25519YaoRegistrationExecuteAdmissionContextV1 } from '../routerAbEd25519YaoGatewayEnvelope';
+import type {
+  RouterAbEd25519YaoRegistrationExecuteAdmissionContextV1,
+  RouterAbEd25519YaoTenantRootWireV1,
+} from '../routerAbEd25519YaoGatewayEnvelope';
 
 type RouterAbEd25519YaoRegistrationAdmissionReceiptV1 =
   RouterAbEd25519YaoActivationAdmissionReceiptV1<'registration'>;
@@ -35,7 +38,7 @@ export type RouterAbEd25519YaoRegistrationExecuteRequestV1 =
 export type RouterAbEd25519YaoRegistrationResultV1 =
   RouterAbEd25519YaoActivationResultV1<'registration'>;
 
-export type RouterAbEd25519YaoRegistrationFailureCode =
+type RouterAbEd25519YaoRegistrationFailureCode =
   | 'invalid_backend_response'
   | 'admission_failed'
   | 'admission_in_progress'
@@ -262,6 +265,8 @@ export class InMemoryRouterAbEd25519YaoRegistrationStateV1 {
   readonly states = new Map<string, RegistrationLifecycleState>();
   readonly lifecycleSessions = new Map<string, string>();
   readonly admissionClaims = new Map<string, RouterAbEd25519YaoRegistrationAdmissionClaimV1>();
+  /** The tenant root each admitted lifecycle dispatches to, pinned at admission. */
+  readonly dispatchRoots = new Map<string, RouterAbEd25519YaoTenantRootWireV1>();
 }
 
 export type RouterAbEd25519YaoActivationReferenceV1 = {
@@ -274,7 +279,7 @@ export type RouterAbEd25519YaoActivationConsumptionRequestV1 = {
   consumerBinding: string;
 };
 
-export type RouterAbEd25519YaoActivatedRegistrationV1 = {
+type RouterAbEd25519YaoActivatedRegistrationV1 = {
   admissionRequest: RouterAbEd25519YaoRegistrationAdmissionRequestV1;
   admissionReceipt: RouterAbEd25519YaoRegistrationAdmissionReceiptV1;
   result: RouterAbEd25519YaoRegistrationResultV1;
@@ -351,7 +356,7 @@ export function routerAbEd25519YaoExecutionMatchesAdmissionV1(
   return sameRouterAbEd25519YaoActivationBindingV1(request.binding, receipt.binding);
 }
 
-export function routerAbEd25519YaoResultMatchesExecutionV1(
+function routerAbEd25519YaoResultMatchesExecutionV1(
   request: RouterAbEd25519YaoRegistrationExecuteRequestV1,
   result: RouterAbEd25519YaoRegistrationResultV1,
 ): boolean {

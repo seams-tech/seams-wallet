@@ -25,7 +25,7 @@ import {
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
 import { errorMessage } from '@shared/utils/errors';
 import type { WalletCapabilitySubjectV1 } from '@shared/device-linking/contracts';
-import { walletIdFromString } from '@shared/utils/registrationIntent';
+import { walletIdFromString } from '@shared/utils/registrationIds';
 import {
   parseWalletAuthMethodId,
   parseWalletAuthorityId,
@@ -131,7 +131,7 @@ export type PreparedSyncAccountChallenge = Readonly<{
   readonly syncOptions: SyncOptionsV1;
 }>;
 
-export type PasskeyEd25519YaoUnlockRecoveryV1 =
+type PasskeyEd25519YaoUnlockRecoveryV1 =
   | {
       readonly kind: 'recovered';
       readonly recovery: PasskeyEd25519YaoRecoveryResultV1;
@@ -181,7 +181,7 @@ type ParsedWalletCustodyEcdsaContinuityV1 =
       readonly sessionActivation: RouterAbEcdsaCredentialFreeSessionActivationResponseV1;
     };
 
-export type RecoverPasskeyEd25519YaoForUnlockInputV1 = {
+type RecoverPasskeyEd25519YaoForUnlockInputV1 = {
   readonly walletId: string | null;
   readonly relayerUrl: string;
   readonly rpId: string;
@@ -1042,7 +1042,7 @@ async function restoreWalletCustodyEcdsaContinuity(input: {
   }
 }
 
-export async function recoverPasskeyEd25519YaoForUnlockV1(
+async function recoverPasskeyEd25519YaoForUnlockV1(
   input: RecoverPasskeyEd25519YaoForUnlockInputV1,
 ): Promise<PasskeyEd25519YaoUnlockRecoveryV1> {
   const requestedWalletIdString = input.walletId === null ? null : String(input.walletId).trim();

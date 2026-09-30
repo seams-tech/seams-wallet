@@ -3,9 +3,9 @@ import { toAccountId } from '@/core/types/accountIds';
 import {
   nearEd25519SigningKeyIdFromString,
   type NearEd25519SigningKeyId,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/registrationIds';
 import { parseSignerSlot } from '@shared/utils/signerSlot';
-import type { SigningSessionSealedStoreRecord } from '../persistence/sealedSessionStore';
+import type { SigningSessionSealedStoreRecord } from '../persistence/sealedSessionRecords';
 import type {
   EcdsaLaneCandidate,
   Ed25519LaneCandidate,
@@ -38,10 +38,6 @@ import {
   type SigningLaneAuthBinding,
 } from '../identity/signingLaneAuthBinding';
 import {
-  type FreshStepUpRequired,
-  type StepUpExpiryState,
-} from '../operationState/stepUpFreshness';
-import {
   canonicalizeLaneFacts,
   serverIssuedGenerationFromNumber,
   type CanonicalFactSupersession,
@@ -69,19 +65,14 @@ import type {
   ActiveWalletAuthorityEcdsaRuntimeV1,
 } from '../material/activeWalletAuthorityEcdsaRuntime';
 
-export type AvailableSigningLaneState =
-  | 'ready'
-  | 'restorable'
-  | 'deferred'
-  | 'expired'
-  | 'exhausted';
+type AvailableSigningLaneState = 'ready' | 'restorable' | 'deferred' | 'expired' | 'exhausted';
 
-export type AvailableSigningLanePolicyHint = {
+type AvailableSigningLanePolicyHint = {
   remainingUses?: number;
   expiresAtMs?: number;
 };
 
-export type MissingAvailableEcdsaSigningLane = {
+type MissingAvailableEcdsaSigningLane = {
   curve: 'ecdsa';
   chainTarget: ThresholdEcdsaChainTarget;
   state: 'missing';
@@ -99,7 +90,7 @@ export type MissingAvailableEcdsaSigningLane = {
   publicReauthAuthority?: never;
 };
 
-export type ResolvedPasskeyAvailableEcdsaKey = ResolvedEvmFamilyEcdsaKey<PasskeyEcdsaAuthBinding>;
+type ResolvedPasskeyAvailableEcdsaKey = ResolvedEvmFamilyEcdsaKey<PasskeyEcdsaAuthBinding>;
 
 type ConcreteAvailableEcdsaSigningLaneAuth =
   | {
@@ -124,7 +115,7 @@ type ConcreteAvailableEcdsaSigningLaneBase = {
   updatedAtMs?: number;
 } & ConcreteAvailableEcdsaSigningLaneAuth;
 
-export type ActiveWalletAuthorityAvailableEcdsaSigningLane = Omit<
+type ActiveWalletAuthorityAvailableEcdsaSigningLane = Omit<
   ActiveWalletAuthorityEcdsaLaneProjectionV1,
   'kind'
 > &
@@ -223,9 +214,9 @@ function materialActivationKey(activation: MpcMaterialActivationRef): string {
     .join(':');
 }
 
-export type EcdsaLaneRecordFactSource = 'canonical_capability' | 'active_wallet_authority';
+type EcdsaLaneRecordFactSource = 'canonical_capability' | 'active_wallet_authority';
 
-export type EcdsaLaneGroupKey = {
+type EcdsaLaneGroupKey = {
   walletId: string;
   authKey: string;
   materialActivationKey: string;
@@ -246,7 +237,7 @@ export type EcdsaLaneGroup = {
   facts: readonly EcdsaLaneRecordFact[];
 };
 
-export type EcdsaLaneConflict = {
+type EcdsaLaneConflict = {
   groupKey: EcdsaLaneGroupKey;
   field:
     | 'ecdsaThresholdKeyId'
@@ -257,7 +248,7 @@ export type EcdsaLaneConflict = {
   values: readonly string[];
 };
 
-export type EcdsaCanonicalLaneSelection =
+type EcdsaCanonicalLaneSelection =
   | {
       kind: 'selected';
       selectedFact: EcdsaLaneRecordFact;
@@ -277,7 +268,7 @@ export function availableEcdsaSigningLaneAuthMethod(
   return signingLaneAuthMethod(lane.auth);
 }
 
-export type MissingAvailableEd25519SigningLane = {
+type MissingAvailableEd25519SigningLane = {
   curve: 'ed25519';
   chain: 'near';
   state: 'missing';
@@ -533,7 +524,7 @@ function publicCapabilityReferenceToEd25519Lane(
   }
 }
 
-export type InvalidAvailableSigningLaneDiagnostic =
+type InvalidAvailableSigningLaneDiagnostic =
   | {
       curve: 'ed25519';
       source: 'canonical_lane_inventory';
@@ -564,7 +555,7 @@ export type InvalidAvailableSigningLaneDiagnostic =
       conflicts?: readonly EcdsaLaneConflict[];
     };
 
-export type AvailableSigningLaneDiagnostics = {
+type AvailableSigningLaneDiagnostics = {
   invalidLanes: InvalidAvailableSigningLaneDiagnostic[];
 };
 
@@ -599,7 +590,7 @@ export type ReadAvailableSigningLanesInput = {
   ecdsaChainTargets: readonly ThresholdEcdsaChainTarget[];
   authMethod?: 'email_otp' | 'passkey';
   /**
-   * R103C: when present, candidates are filtered to this exact owner before
+   * When present, candidates are filtered to this exact owner before
    * canonicalization. Sibling owner lanes and lanes on other signer slots
    * never reach selection. Omitted only for persistence maintenance,
    * normalization, and diagnostics reads.
@@ -945,12 +936,6 @@ export function ecdsaAvailableLaneForTarget(
   return availableLanes.ecdsa.lanesByTarget[targetKey] || emptyEcdsaLane({ chainTarget });
 }
 
-export function ecdsaAvailableLaneTargets(
-  availableLanes: AvailableSigningLanes,
-): ThresholdEcdsaChainTarget[] {
-  return availableLanes.ecdsa.targets;
-}
-
 export function ecdsaAvailableLaneCandidatesForTarget(
   availableLanes: AvailableSigningLanes,
   chainTarget: ThresholdEcdsaChainTarget,
@@ -987,40 +972,6 @@ function availableLaneUpdatedAtMs(
   lane: AvailableEcdsaSigningLane | AvailableEd25519SigningLane,
 ): number {
   return Math.floor(Number('updatedAtMs' in lane ? lane.updatedAtMs : 0) || 0);
-}
-
-function laneCandidateUpdatedAtMs(candidate: EcdsaLaneCandidate | Ed25519LaneCandidate): number {
-  return candidate.curve === 'ecdsa' ? 0 : Math.floor(Number(candidate.updatedAtMs) || 0);
-}
-
-function laneCandidateExpiry(
-  candidate: EcdsaLaneCandidate | Ed25519LaneCandidate,
-): StepUpExpiryState {
-  if (candidate.curve === 'ecdsa' && candidate.authorizationState !== 'authorized') {
-    return { kind: 'unavailable', reason: 'restored_record_has_no_expiry' };
-  }
-  const expiresAtMs =
-    candidate.curve === 'ecdsa'
-      ? candidate.authorization.runtime.expiresAtMs
-      : nullablePositiveInteger(candidate.expiresAtMs);
-  return expiresAtMs
-    ? { kind: 'known', expiresAtMs }
-    : { kind: 'unavailable', reason: 'restored_record_has_no_expiry' };
-}
-
-function laneCandidateStepUpReason(
-  candidate: EcdsaLaneCandidate | Ed25519LaneCandidate,
-): FreshStepUpRequired['reason'] {
-  switch (candidate.state) {
-    case 'expired':
-      return 'threshold_session_expired';
-    case 'exhausted':
-      return 'threshold_session_exhausted';
-    case 'ready':
-    case 'restorable':
-    case 'deferred':
-      throw new Error('[SigningEngine] lane candidate does not require fresh auth');
-  }
 }
 
 function availableLaneServerIssuedGeneration(
@@ -1660,7 +1611,7 @@ function canonicalEcdsaLaneSelectionForFacts(
 }
 
 /**
- * R109C: an added auth method holds its own access projection over the wallet's
+ * An added auth method holds its own access projection over the wallet's
  * existing activation, so the same lane is reachable through two credentials.
  * For a wallet-level read that names no method, those are one lane, not two
  * competing ones - and they are indistinguishable to the canonical tie-break,
@@ -1804,11 +1755,11 @@ function suppressPublicEd25519CandidatesWithDurablePolicy(
 }
 
 /**
- * R103C owner-scope matching. Ed25519 lanes bind an owner's credential AND
+ * Owner-scope matching. Ed25519 lanes bind an owner's credential AND
  * signer slot; ECDSA lanes bind the credential alone. State stays untouched:
  * the scope decides whose lane it is, never whether it is usable.
  */
-export async function ed25519LaneMatchesOwnerScope(
+async function ed25519LaneMatchesOwnerScope(
   lane: AvailableEd25519SigningLane,
   scope: OwnerLaneScope,
 ): Promise<boolean> {
@@ -1820,7 +1771,7 @@ export async function ed25519LaneMatchesOwnerScope(
   return lane.signerSlot === scope.signerSlot;
 }
 
-export function ecdsaLaneMatchesOwnerScope(
+function ecdsaLaneMatchesOwnerScope(
   lane: AvailableEcdsaSigningLane,
   scope: OwnerLaneScope,
 ): boolean {
@@ -1993,7 +1944,7 @@ export async function readAvailableSigningLanes(
     });
   }
 
-  // R103C: filter to the exact owner BEFORE canonicalization. A sibling
+  // Filter to the exact owner BEFORE canonicalization. A sibling
   // owner's lanes must not participate in duplicate collapse, priority
   // ordering, or canonical fact grouping for this owner's operation.
   const ownerScope = input.ownerScope;

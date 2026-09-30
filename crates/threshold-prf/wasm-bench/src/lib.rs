@@ -64,7 +64,7 @@ const R120_EXPECTED_ED25519_B_OUTPUT: [u8; 32] = [
     127, 244, 97, 146, 205, 38, 11, 183, 199, 164, 249,
 ];
 
-/// Executes the R120 refresh, continuity, and share-knowledge vector in WASM.
+/// Executes the root-share refresh, continuity, and share-knowledge vector in WASM.
 #[wasm_bindgen]
 pub fn verify_r120_share_refresh_vector() -> bool {
     run_r120_share_refresh_vector().is_ok()

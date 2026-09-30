@@ -6,7 +6,11 @@ import {
 } from '@shared/device-linking';
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
 import { alphabetizeStringify, sha256Bytes } from '@shared/utils/digests';
-import { parseDigestB64u, type DigestB64u } from '@shared/utils/canonicalPrimitives';
+import {
+  parseDigestB64u,
+  sha256DigestB64u,
+  type DigestB64u,
+} from '@shared/utils/canonicalPrimitives';
 import {
   mpcMaterialActivationRefsEqual,
   parseMpcMaterialActivationRef,
@@ -26,6 +30,7 @@ import {
   parseRouterAbEd25519YaoParticipantIdsV1,
 } from '@shared/utils/routerAbEd25519Yao';
 import { routerAbMpcMaterialActivationRefFromWire } from '@shared/utils/routerAbNormalSigningIdentity';
+import { requireRecord, requireCanonicalString } from '@shared/utils/validation';
 import type {
   WalletAuthorityLinkedMaterialTargetFactorV1,
   WalletAuthorityLinkedSignerMaterialPublicFactsV1,
@@ -43,7 +48,7 @@ export type LinkedSignerPackageForMaterialV1 =
       readonly package: CommittedEcdsaSignerPackageV1;
     };
 
-export type LinkedAuthorityMaterialSealInputV1 = {
+type LinkedAuthorityMaterialSealInputV1 = {
   readonly authorityId: WalletAuthorityId;
   readonly walletId: WalletId;
   readonly walletAuthMethodId: WalletAuthMethodId;
@@ -53,7 +58,7 @@ export type LinkedAuthorityMaterialSealInputV1 = {
   readonly keyFamily: 'ed25519' | 'ecdsa_secp256k1';
 };
 
-export type OpenWalletAuthorityLinkedSignerMaterialInputV1 = {
+type OpenWalletAuthorityLinkedSignerMaterialInputV1 = {
   readonly record: WalletAuthorityLinkedSignerMaterialRecordV1;
   readonly factorSecret: Uint8Array;
   readonly expected: LinkedAuthorityMaterialSealInputV1;
@@ -96,9 +101,7 @@ export type OpenWalletAuthorityLinkedSignerMaterialResultV1 =
         | 'sealed_material_authentication_failed';
     };
 
-export function linkedAuthorityMaterialSealAadV1(
-  input: LinkedAuthorityMaterialSealInputV1,
-): string {
+function linkedAuthorityMaterialSealAadV1(input: LinkedAuthorityMaterialSealInputV1): string {
   return alphabetizeStringify({
     domain: 'seams/wallet/ordinary-authority-material-seal-aad/v1',
     authorityId: String(input.authorityId),
@@ -159,7 +162,7 @@ export async function sealWalletAuthorityLinkedSignerMaterialV1(input: {
     sealed.set(nonce);
     sealed.set(ciphertext, nonce.length);
     const sealedMaterialB64u = base64UrlEncode(sealed);
-    const sealedMaterialDigestB64u = parseDigestB64u(base64UrlEncode(await sha256Bytes(sealed)));
+    const sealedMaterialDigestB64u = await sha256DigestB64u(sealed);
     sealed.fill(0);
     return { sealedMaterialB64u, sealedMaterialDigestB64u };
   } finally {
@@ -253,7 +256,11 @@ export function parseWalletAuthorityLinkedSignerMaterialRecordV1(
     parseMpcMaterialActivationRef(record.materialActivation),
     'materialActivation',
   );
-  const activationId = requireNonEmptyString(record.activationId, 'activationId');
+  const activationId = requireCanonicalString(
+    record.activationId,
+    'activationId',
+    'must be a non-empty canonical string',
+  );
   if (materialActivation.activationId !== activationId) {
     throw new Error('linked signer material activationId does not match materialActivation');
   }
@@ -355,7 +362,7 @@ export async function openWalletAuthorityLinkedSignerMaterialV1(
       reason: 'sealed_material_invalid',
     };
   }
-  const digest = parseDigestB64u(base64UrlEncode(await sha256Bytes(sealed)));
+  const digest = await sha256DigestB64u(sealed);
   if (digest !== record.sealedMaterialDigestB64u) {
     sealed.fill(0);
     return {
@@ -468,7 +475,11 @@ function parseWalletAuthorityLinkedMaterialTargetFactorV1(
       ],
       'linked signer material email target factor',
     );
-    const emailHashHex = requireNonEmptyString(record.emailHashHex, 'targetFactor.emailHashHex');
+    const emailHashHex = requireCanonicalString(
+      record.emailHashHex,
+      'targetFactor.emailHashHex',
+      'must be a non-empty canonical string',
+    );
     if (!/^[0-9a-f]{64}$/.test(emailHashHex)) {
       throw new Error('targetFactor.emailHashHex is invalid');
     }
@@ -480,9 +491,10 @@ function parseWalletAuthorityLinkedMaterialTargetFactorV1(
       ),
       verificationDigestB64u: parseDigestB64u(record.verificationDigestB64u),
       emailHashHex,
-      registrationAuthorityId: requireNonEmptyString(
+      registrationAuthorityId: requireCanonicalString(
         record.registrationAuthorityId,
         'targetFactor.registrationAuthorityId',
+        'must be a non-empty canonical string',
       ),
     };
   }
@@ -578,20 +590,6 @@ function parseBoundaryValue<T>(
 ): T {
   if (!result.ok) throw new Error(`${label}: ${result.error.message}`);
   return result.value;
-}
-
-function requireNonEmptyString(value: unknown, label: string): string {
-  if (typeof value !== 'string' || value.length === 0 || value.trim() !== value) {
-    throw new Error(`${label} must be a non-empty canonical string`);
-  }
-  return value;
-}
-
-function requireRecord(value: unknown, label: string): Record<string, unknown> {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    throw new Error(`${label} must be an object`);
-  }
-  return value as Record<string, unknown>;
 }
 
 function exactKeys(record: Record<string, unknown>, keys: readonly string[], label: string): void {

@@ -1,18 +1,15 @@
+import { type WalletAuthMethodId } from '@shared/utils/domainIds';
 import {
-  parseWebAuthnCredentialIdB64u,
-  type WalletAuthMethodId,
-  type WalletAuthorityId,
-} from '@shared/utils/domainIds';
-import {
-  buildWalletAuthMethodRecordV2,
   type AddAuthMethodIntentV1,
   type AddSignerIntentV1,
-  type RegistrationAuthority,
   type WebAuthnRpId,
   type WalletId,
-  type WalletAuthMethodRevocationProof,
-  type WalletAuthMethodRecordV2,
 } from '@shared/utils/registrationIntent';
+import {
+  type ActiveEmailOtpWalletAuthMethodRecordV2,
+  type WalletAuthMethodRevocationProof,
+} from '@shared/utils/walletAuthMethodRecord';
+import { type RegistrationAuthority } from '@shared/utils/registrationAuthMethodInput';
 import {
   buildEmailOtpWalletAuthAuthority,
   buildPasskeyWalletAuthAuthority,
@@ -26,8 +23,8 @@ import type {
 import type {
   WalletAddAuthMethodStartRequest,
   WalletAddSignerStartRequest,
-  WalletRegistrationFinalizeAuthMethod,
 } from '../../../../core/registrationContracts';
+import type { WalletRegistrationFinalizeAuthMethod } from '@shared/utils/registrationContracts';
 import type { WalletAuthMethodV2Store } from '../../../../core/d1WalletAuthMethodStore';
 import { webAuthnCredentialIdB64uFromCredential } from '../../../auth/webAuthnCredentialCodecs';
 import { sha256HexUtf8 } from '@shared/utils/digests';
@@ -40,8 +37,10 @@ import {
 import type { EmailOtpWalletEnrollmentRecord } from '../../../../core/EmailOtpStores';
 import type {
   EmailOtpExistingChallengeVerifyInput,
+  EmailOtpExistingChallengeBatchVerifyResult,
   EmailOtpExistingChallengeVerifyResult,
 } from '../emailOtp/d1EmailOtpChallengeVerifier';
+import type { D1PreparedStatementLike } from '../../../../storage/tenantRoute';
 import { hashEmailOtpOperationBinding } from '../../../domains/emailOtp/emailOtpSessionRouteHelpers';
 import { walletAuthAuthorityRef } from '@shared/utils/walletAuthAuthority';
 
@@ -115,63 +114,6 @@ export function walletAuthAuthorityFromRegistrationAuthority(input: {
   return unreachableRegistrationAuthority(input.authority);
 }
 
-export function walletAuthMethodRecordFromRegistrationAuthority(input: {
-  readonly authority: RegistrationAuthority;
-  readonly walletAuthMethodId: WalletAuthMethodId;
-  readonly walletAuthorityId: WalletAuthorityId;
-  readonly now: number;
-}): Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }> {
-  switch (input.authority.kind) {
-    case 'passkey': {
-      const credentialIdB64u = parseWebAuthnCredentialIdB64u(input.authority.credentialIdB64u);
-      if (!credentialIdB64u.ok) {
-        throw new Error(`Registration credential ID is invalid: ${credentialIdB64u.error.message}`);
-      }
-      return requireActiveWalletAuthMethodRecordV2(
-        buildWalletAuthMethodRecordV2({
-          version: 'wallet_auth_method_v2',
-          walletAuthMethodId: input.walletAuthMethodId,
-          kind: 'passkey',
-          status: 'active',
-          walletId: input.authority.walletId,
-          walletAuthorityId: input.walletAuthorityId,
-          rpId: input.authority.rpId,
-          credentialIdB64u: credentialIdB64u.value,
-          credentialPublicKeyB64u: input.authority.credentialPublicKeyB64u,
-          counter: input.authority.counter,
-          createdAtMs: input.now,
-          updatedAtMs: input.now,
-          activatedAtMs: input.now,
-        }),
-      );
-    }
-    case 'email_otp':
-      return requireActiveWalletAuthMethodRecordV2(
-        buildWalletAuthMethodRecordV2({
-          version: 'wallet_auth_method_v2',
-          walletAuthMethodId: input.walletAuthMethodId,
-          kind: 'email_otp',
-          status: 'active',
-          walletId: input.authority.walletId,
-          walletAuthorityId: input.walletAuthorityId,
-          emailHashHex: input.authority.emailHashHex,
-          registrationAuthorityId: input.authority.registrationAuthorityId,
-          createdAtMs: input.now,
-          updatedAtMs: input.now,
-          activatedAtMs: input.now,
-        }),
-      );
-  }
-  return unreachableRegistrationAuthority(input.authority);
-}
-
-function requireActiveWalletAuthMethodRecordV2(
-  record: WalletAuthMethodRecordV2,
-): Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }> {
-  if (record.status !== 'active') throw new Error('Wallet auth method must be active');
-  return record;
-}
-
 function unreachableRegistrationAuthority(value: never): never {
   throw new Error(`Unhandled registration authority kind: ${String(value)}`);
 }
@@ -206,6 +148,14 @@ export async function verifyD1LinkedDeviceFreshRevokeProofV1(input: {
   readonly verifyEmailOtpExisting?: (
     input: EmailOtpExistingChallengeVerifyInput,
   ) => Promise<EmailOtpExistingChallengeVerifyResult>;
+  /**
+   * Given, an Email OTP proof is verified without consuming its challenge,
+   * and the authorization carries the statements that consume it inside the
+   * caller's batch.
+   */
+  readonly verifyEmailOtpExistingForBatch?: (
+    input: EmailOtpExistingChallengeVerifyInput,
+  ) => Promise<EmailOtpExistingChallengeBatchVerifyResult>;
   readonly readEmailOtpEnrollment?: (
     walletId: string,
   ) => Promise<EmailOtpWalletEnrollmentRecord | null>;
@@ -214,6 +164,7 @@ export async function verifyD1LinkedDeviceFreshRevokeProofV1(input: {
       readonly kind: 'authorized';
       readonly walletAuthMethodId: WalletAuthMethodId;
       readonly verifiedAtMs: number;
+      readonly emailOtpConsumeInBatch?: readonly D1PreparedStatementLike[];
     }
   | {
       readonly kind: 'denied';
@@ -222,7 +173,10 @@ export async function verifyD1LinkedDeviceFreshRevokeProofV1(input: {
     }
 > {
   if (input.proof.kind === 'email_otp') {
-    if (!input.verifyEmailOtpExisting || !input.readEmailOtpEnrollment) {
+    if (
+      (!input.verifyEmailOtpExisting && !input.verifyEmailOtpExistingForBatch) ||
+      !input.readEmailOtpEnrollment
+    ) {
       return {
         kind: 'denied',
         code: 'invalid',
@@ -245,9 +199,7 @@ export async function verifyD1LinkedDeviceFreshRevokeProofV1(input: {
     const sourceCandidates = (
       await input.walletAuthMethodStore.listForWalletV2({ walletId: String(input.walletId) })
     ).filter(
-      (
-        record,
-      ): record is Extract<WalletAuthMethodRecordV2, { kind: 'email_otp'; status: 'active' }> =>
+      (record): record is ActiveEmailOtpWalletAuthMethodRecordV2 =>
         record.kind === 'email_otp' &&
         record.status === 'active' &&
         record.walletId === input.walletId &&
@@ -267,10 +219,7 @@ export async function verifyD1LinkedDeviceFreshRevokeProofV1(input: {
        the source as the unique active method that reproduces the presented
        digest against current wallet state. */
     const provider = enrollment.providerUserId.startsWith('google:') ? 'google' : 'email';
-    let sourceMethod: Extract<
-      WalletAuthMethodRecordV2,
-      { kind: 'email_otp'; status: 'active' }
-    > | null = null;
+    let sourceMethod: ActiveEmailOtpWalletAuthMethodRecordV2 | null = null;
     for (const record of sourceCandidates) {
       let boundAuthority: EmailOtpWalletAuthAuthority;
       try {
@@ -313,7 +262,7 @@ export async function verifyD1LinkedDeviceFreshRevokeProofV1(input: {
         message: 'Fresh Email OTP proof is bound to another revoke operation',
       };
     }
-    const verified = await input.verifyEmailOtpExisting({
+    const challenge: EmailOtpExistingChallengeVerifyInput = {
       userId: enrollment.providerUserId,
       walletId: String(input.walletId),
       orgId: input.orgId,
@@ -323,7 +272,22 @@ export async function verifyD1LinkedDeviceFreshRevokeProofV1(input: {
       ownerProofBindingDigest: input.proof.ownerProofBindingDigest,
       action: WALLET_EMAIL_OTP_ACTIONS.login,
       operation: WALLET_EMAIL_OTP_TRANSACTION_SIGN_OPERATION,
-    });
+    };
+    let verified: EmailOtpExistingChallengeVerifyResult;
+    let emailOtpConsumeInBatch: readonly D1PreparedStatementLike[] | undefined;
+    if (input.verifyEmailOtpExistingForBatch) {
+      const batchVerified = await input.verifyEmailOtpExistingForBatch(challenge);
+      if (batchVerified.ok) emailOtpConsumeInBatch = batchVerified.consumeInBatch;
+      verified = batchVerified;
+    } else if (input.verifyEmailOtpExisting) {
+      verified = await input.verifyEmailOtpExisting(challenge);
+    } else {
+      return {
+        kind: 'denied',
+        code: 'invalid',
+        message: 'Email OTP revocation proof is not configured',
+      };
+    }
     if (!verified.ok) {
       return {
         kind: 'denied',
@@ -335,6 +299,7 @@ export async function verifyD1LinkedDeviceFreshRevokeProofV1(input: {
       kind: 'authorized',
       walletAuthMethodId: sourceMethod.walletAuthMethodId,
       verifiedAtMs: input.verifiedAtMs,
+      ...(emailOtpConsumeInBatch ? { emailOtpConsumeInBatch } : {}),
     };
   }
   if (input.proof.kind !== 'webauthn_assertion') {
@@ -436,7 +401,7 @@ export async function resolveD1AddAuthMethodExistingAuth(input: {
     };
   }
   if (input.auth.kind === 'wallet_session') {
-    /* R103: wallet-session authorization is resolved against active wallet
+    /* Wallet-session authorization is resolved against active wallet
        methods in the wallet auth service boundary, not here. */
     return {
       ok: false,

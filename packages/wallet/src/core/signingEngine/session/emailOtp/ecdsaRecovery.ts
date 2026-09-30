@@ -64,9 +64,9 @@ export type EmailOtpThresholdEcdsaRehydrateResult = {
   expiresAtMs: number;
 };
 
-export type EmailOtpEcdsaSealedRestoreSupersededPhase = 'before_rehydrate' | 'before_commit';
+type EmailOtpEcdsaSealedRestoreSupersededPhase = 'before_rehydrate' | 'before_commit';
 
-export class EmailOtpEcdsaSealedRestoreSupersededError extends Error {
+class EmailOtpEcdsaSealedRestoreSupersededError extends Error {
   readonly code = 'material_activation_superseded' as const;
 
   constructor(readonly phase: EmailOtpEcdsaSealedRestoreSupersededPhase) {
@@ -79,7 +79,7 @@ export type EmailOtpEcdsaSealedRecoveryRecordInput = {
   sealedRecord: EmailOtpEcdsaSealedRecoveryRecord;
 };
 
-export type EmailOtpEcdsaSealedRecoveryPorts = {
+type EmailOtpEcdsaSealedRecoveryPorts = {
   configs: SeamsConfigsReadonly;
   withThresholdEcdsaSigningQueue: <T>(args: {
     queueKey: string;
@@ -112,7 +112,7 @@ export type EmailOtpEcdsaSealedRecoveryPorts = {
   resolveCurrentEcdsaCapabilityRuntime: ActiveEcdsaCapabilityRuntimeResolver;
 };
 
-export type EmailOtpEcdsaSealedRecoveryInput = EmailOtpEcdsaSealedRecoveryPorts &
+type EmailOtpEcdsaSealedRecoveryInput = EmailOtpEcdsaSealedRecoveryPorts &
   EmailOtpEcdsaSealedRecoveryRecordInput;
 
 export type EmailOtpEcdsaRestoreSource = {
@@ -288,7 +288,7 @@ function requireEmailOtpRuntimeAuthority(
   return runtime.authBinding.emailOtpAuthority;
 }
 
-export function requireEmailOtpSealedRestoreAuthorization(args: {
+function requireEmailOtpSealedRestoreAuthorization(args: {
   sealedRecord: EmailOtpEcdsaSealedRecoveryRecord;
   authorizationRead: WalletSessionAuthorizationExactOperationCredentialReadResult;
   selected: BuildExactEvmFamilyWalletSessionAuthorizationInput['selected'];
@@ -348,7 +348,7 @@ export function createEmailOtpEcdsaSigningSessionMaterialRestorer(
     });
 }
 
-export async function restoreEmailOtpEcdsaSigningSessionMaterialFromSealedRecord(
+async function restoreEmailOtpEcdsaSigningSessionMaterialFromSealedRecord(
   args: EmailOtpEcdsaSealedRecoveryInput,
 ): Promise<EmailOtpThresholdEcdsaRehydrateResult | null> {
   const sealedRecord = args.sealedRecord;

@@ -8,7 +8,7 @@ import type {
   GenericContractCallOperation,
 } from '@/core/signingEngine/interfaces/display';
 
-export type BuildNearDisplayModelArgs = {
+type BuildNearDisplayModelArgs = {
   txSigningRequests: TransactionInputWasm[];
   intentDigest?: string;
   signerAccount?: string;
@@ -16,7 +16,7 @@ export type BuildNearDisplayModelArgs = {
   subtitle?: string;
 };
 
-export type BuildNearMessageDisplayModelArgs = {
+type BuildNearMessageDisplayModelArgs = {
   signerAccount: string;
   recipient: string;
   message: string;
@@ -354,4 +354,18 @@ export function buildNearMessageDisplayModel(
     subtitle: args.subtitle,
     operations: [operation],
   };
+}
+
+export function buildNearPreparationDisplayModel(args: BuildNearDisplayModelArgs): TxDisplayModel {
+  try {
+    return buildNearDisplayModel(args);
+  } catch {
+    return {
+      chain: 'near',
+      signerAccount: args.signerAccount,
+      ...(args.title ? { title: args.title } : {}),
+      ...(args.subtitle ? { subtitle: args.subtitle } : {}),
+      operations: [],
+    };
+  }
 }

@@ -13,7 +13,6 @@ import type { WalletSessionAuthorizationExactOperationCredentialReadResult } fro
 import type { ResolveSelectedWalletAuthorityResultV1 } from '@/core/indexedDB/seamsWalletDB/repositories';
 import type {
   acquireSigningSessionRestoreLease,
-  deleteDurableSealedSessionRecord,
   listExactSealedSessionsForWallet,
   releaseSigningSessionRestoreLease,
   readExactSealedSession,
@@ -27,7 +26,7 @@ import type { ExactWalletSessionAuthorization } from '../persistence/walletSessi
 import type { WalletAuthAuthorityRef } from '@shared/utils/walletAuthAuthority';
 import type { WalletAuthorityId, WalletAuthMethodId } from '@shared/utils/domainIds';
 import type { EmailOtpWalletCustodyEd25519MaterialRequest } from '../../workerManager/workerTypes';
-import type { ImportWalletCustodyEcdsaContinuityInput } from '@/core/indexedDB/seamsWalletDB/ecdsaCapabilityManifestStore';
+import type { ImportWalletCustodyEcdsaContinuityInput } from '@/core/indexedDB/seamsWalletDB/walletCustodyEcdsaContinuity';
 import type { OwnerLaneScopeStores } from '../identity/ownerLaneScope';
 
 export type EmailOtpCoordinatorRuntimePorts = {
@@ -89,7 +88,6 @@ export type EmailOtpSealedSessionStorePorts = {
   listExactSealedSessionsForWallet: typeof listExactSealedSessionsForWallet;
   acquireSigningSessionRestoreLease: typeof acquireSigningSessionRestoreLease;
   releaseSigningSessionRestoreLease: typeof releaseSigningSessionRestoreLease;
-  deleteDurableSealedSessionRecord: typeof deleteDurableSealedSessionRecord;
   updateExactSealedSessionPolicy: typeof updateExactSealedSessionPolicy;
 };
 

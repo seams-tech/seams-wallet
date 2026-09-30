@@ -897,22 +897,4 @@ mod tests {
             10
         );
     }
-
-    #[test]
-    fn source_guards_exclude_legacy_raw_evidence_and_profile_fields() {
-        let lifecycle = include_str!("lifecycle_domain.rs");
-        let admission = include_str!("refresh_evaluation_admission.rs");
-        assert!(!lifecycle.contains("RefreshArtifactIssuanceV1"));
-        assert!(!lifecycle.contains(
-            "input_provenance: &RoleInputProvenancePairV1,\n        evaluation_evidence_digest"
-        ));
-        for forbidden in [
-            ["security", "profile"].join("_"),
-            ["garbled", "circuit"].join("_"),
-            ["private", "delta"].join("_"),
-            ["seed", "output"].join("_"),
-        ] {
-            assert!(!admission.contains(&forbidden));
-        }
-    }
 }

@@ -56,8 +56,12 @@ import type {
   RouterApiWalletSessionAuthorizationV2AdmissionContext,
   RouterApiWalletSessionAuthorizationV2ExhaustedCandidateContext,
 } from '../../../framework/authServicePort';
-import type { RouterAbEd25519YaoRecoveryExecuteAdmissionContextV1 } from '../routerAbEd25519YaoGatewayEnvelope';
+import type {
+  RouterAbEd25519YaoRecoveryExecuteAdmissionContextV1,
+  RouterAbEd25519YaoTenantRootWireV1,
+} from '../routerAbEd25519YaoGatewayEnvelope';
 import type { WalletEd25519YaoActiveCapabilityRecord } from '../../../../core/WalletStore';
+import type { RouterAbEd25519YaoPreparedWriteV1 } from '../capabilityLifecycle/routerAbEd25519YaoProductRegistrationPartitionedStateStore';
 import {
   parseThresholdEd25519SessionId,
   type MpcMaterialActivationRef,
@@ -85,7 +89,7 @@ function requireThresholdEd25519SessionId(
   return parsed.value;
 }
 
-export type RouterAbEd25519YaoRecoveryFailureCode =
+type RouterAbEd25519YaoRecoveryFailureCode =
   | 'invalid_request'
   | 'invalid_backend_response'
   | 'admission_failed'
@@ -103,7 +107,21 @@ export type RouterAbEd25519YaoRecoveryFailureCode =
   | 'capability_retired'
   | 'capability_conflict'
   | 'continuity_mismatch'
-  | 'stale_epoch';
+  | 'stale_epoch'
+  | 'execution_interrupted'
+  | 'recovery_superseded';
+
+/**
+ * A live admission claim older than this is presumed dead. The same attempt
+ * takes it over, and a new attempt of the same recovery may supersede it.
+ */
+const RECOVERY_ADMISSION_CLAIM_RESUME_AFTER_MS = 30_000;
+/**
+ * A live execution claim older than this is presumed dead: the same attempt
+ * replays its payload, and a new attempt of the same recovery may supersede
+ * it. It outlasts the Router's longest execution.
+ */
+const RECOVERY_EXECUTION_CLAIM_RESUME_AFTER_MS = 60_000;
 
 export type RouterAbEd25519YaoRecoveryFailure = {
   readonly ok: false;
@@ -116,7 +134,7 @@ export type RouterAbEd25519YaoRecoveryServiceResult<T> =
   | { readonly ok: true; readonly status: 200; readonly value: T }
   | RouterAbEd25519YaoRecoveryFailure;
 
-export type RouterAbEd25519YaoRecoveryBackendFailure = {
+type RouterAbEd25519YaoRecoveryBackendFailure = {
   readonly ok: false;
   readonly status: 400 | 408 | 409 | 429 | 500 | 502 | 503;
   readonly code: string;
@@ -127,11 +145,11 @@ export type RouterAbEd25519YaoRecoveryBackendResult =
   | { readonly ok: true; readonly body: unknown }
   | RouterAbEd25519YaoRecoveryBackendFailure;
 
-export type RouterAbEd25519YaoRecoveryAuthorityProjectionV1 =
+type RouterAbEd25519YaoRecoveryAuthorityProjectionV1 =
   | { readonly kind: 'replace_continuity_authority_projections' }
   | { readonly kind: 'replace_active_authority_projection' };
 
-export type RouterAbEd25519YaoRecoveryAuthorizationBindingV1 =
+type RouterAbEd25519YaoRecoveryAuthorizationBindingV1 =
   | {
       readonly kind: 'wallet_recovery';
       readonly walletId: string;
@@ -154,13 +172,31 @@ export interface RouterAbEd25519YaoRecoveryBackend {
     request: RouterAbEd25519YaoRecoveryAdmissionRequestV1,
     traceContext?: RouterAbTraceContextV1,
   ): Promise<RouterAbEd25519YaoRecoveryBackendResult> | RouterAbEd25519YaoRecoveryBackendResult;
+  /**
+   * The tenant root one recovery attempt runs under, resolved once when the
+   * attempt is admitted. Its executions and its promotion use that root.
+   */
+  resolveRecoveryDispatchRoot(
+    admissionRequest: RouterAbEd25519YaoRecoveryAdmissionRequestV1,
+  ): Promise<RouterAbEd25519YaoTenantRootWireV1>;
+  /**
+   * Runs one recovery execution at the Router, for the Gateway's attempt
+   * `attempt`. `replay` marks a payload whose earlier claim may have reached
+   * the Router, which then reconciles the roles' records instead of starting
+   * fresh.
+   */
   executeRecovery(
     request: RecoveryExecuteRequest,
     admissionRequest: RouterAbEd25519YaoRecoveryExecuteAdmissionContextV1,
+    dispatchRoot: RouterAbEd25519YaoTenantRootWireV1,
+    attempt: number,
+    replay: boolean,
     traceContext?: RouterAbTraceContextV1,
   ): Promise<RouterAbEd25519YaoRecoveryBackendResult> | RouterAbEd25519YaoRecoveryBackendResult;
+  /** Promotes the recovery at the SigningWorker of the attempt's tenant root. */
   activateRecovery(
     request: RouterAbEd25519YaoRecoveryActivationRequestV1,
+    dispatchRoot: RouterAbEd25519YaoTenantRootWireV1,
     traceContext?: RouterAbTraceContextV1,
   ): Promise<RouterAbEd25519YaoRecoveryBackendResult> | RouterAbEd25519YaoRecoveryBackendResult;
 }
@@ -191,7 +227,7 @@ export type RouterAbEd25519YaoRecoveryAdmissionClaimV1 = {
   readonly recoveryKey: string;
 };
 
-export type RouterAbEd25519YaoRecoveryAdmissionPreparationV1 =
+type RouterAbEd25519YaoRecoveryAdmissionPreparationV1 =
   | {
       readonly kind: 'claimed';
       readonly claim: RouterAbEd25519YaoRecoveryAdmissionClaimV1;
@@ -205,7 +241,7 @@ export type RouterAbEd25519YaoRecoveryAdmissionPreparationV1 =
       readonly failure: RouterAbEd25519YaoRecoveryFailure;
     };
 
-export type RouterAbEd25519YaoRecoveryAdmissionCommitInputV1 = {
+type RouterAbEd25519YaoRecoveryAdmissionCommitInputV1 = {
   readonly request: RouterAbEd25519YaoRecoveryAdmissionRequestV1;
   readonly claim: RouterAbEd25519YaoRecoveryAdmissionClaimV1;
   readonly outcome: {
@@ -214,10 +250,12 @@ export type RouterAbEd25519YaoRecoveryAdmissionCommitInputV1 = {
   };
 };
 
-export interface RouterAbEd25519YaoRecoveryAdmissionBoundaryV1 {
+interface RouterAbEd25519YaoRecoveryAdmissionBoundaryV1 {
   prepareAdmitRecovery(
     request: RouterAbEd25519YaoRecoveryAdmissionRequestV1,
     authorization: RouterAbEd25519YaoRecoveryAuthorizationBindingV1,
+    dispatchRoot: RouterAbEd25519YaoTenantRootWireV1,
+    nowMs: number,
   ): RouterAbEd25519YaoRecoveryAdmissionPreparationV1;
   commitAdmitRecovery(
     input: RouterAbEd25519YaoRecoveryAdmissionCommitInputV1,
@@ -231,9 +269,14 @@ export type RouterAbEd25519YaoRecoveryExecuteClaimV1 = {
   readonly sessionId: string;
   readonly executeFingerprint: string;
   readonly admissionRequest: RouterAbEd25519YaoRecoveryExecuteAdmissionContextV1;
+  readonly dispatchRoot: RouterAbEd25519YaoTenantRootWireV1;
+  /** The attempt this execution runs for. */
+  readonly attempt: number;
+  /** An earlier claim of this payload may have reached the Router. */
+  readonly replay: boolean;
 };
 
-export type RouterAbEd25519YaoRecoveryExecutePreparationV1 =
+type RouterAbEd25519YaoRecoveryExecutePreparationV1 =
   | {
       readonly kind: 'claimed';
       readonly claim: RouterAbEd25519YaoRecoveryExecuteClaimV1;
@@ -247,7 +290,7 @@ export type RouterAbEd25519YaoRecoveryExecutePreparationV1 =
       readonly failure: RouterAbEd25519YaoRecoveryFailure;
     };
 
-export type RouterAbEd25519YaoRecoveryExecuteCommitInputV1 = {
+type RouterAbEd25519YaoRecoveryExecuteCommitInputV1 = {
   readonly request: RecoveryExecuteRequest;
   readonly claim: RouterAbEd25519YaoRecoveryExecuteClaimV1;
   readonly outcome: {
@@ -256,10 +299,11 @@ export type RouterAbEd25519YaoRecoveryExecuteCommitInputV1 = {
   };
 };
 
-export interface RouterAbEd25519YaoRecoveryExecuteBoundaryV1 {
+interface RouterAbEd25519YaoRecoveryExecuteBoundaryV1 {
   prepareExecuteRecovery(
     request: RecoveryExecuteRequest,
     authorization: RouterAbEd25519YaoRecoveryAuthorizationBindingV1,
+    nowMs: number,
   ): RouterAbEd25519YaoRecoveryExecutePreparationV1;
   commitExecuteRecovery(
     input: RouterAbEd25519YaoRecoveryExecuteCommitInputV1,
@@ -274,9 +318,10 @@ export type RouterAbEd25519YaoRecoveryActivationClaimV1 = {
   readonly activationFingerprint: string;
   readonly authorityProjection: RouterAbEd25519YaoRecoveryAuthorityProjectionV1;
   readonly disposition: 'initial' | 'reconciliation';
+  readonly dispatchRoot: RouterAbEd25519YaoTenantRootWireV1;
 };
 
-export type RouterAbEd25519YaoRecoveryActivationPreparationV1 =
+type RouterAbEd25519YaoRecoveryActivationPreparationV1 =
   | {
       readonly kind: 'claimed';
       readonly claim: RouterAbEd25519YaoRecoveryActivationClaimV1;
@@ -299,17 +344,30 @@ export type RouterAbEd25519YaoRecoveryActivationCommitInputV1 = {
   };
 };
 
-export type RouterAbEd25519YaoRecoveryActivationCommitResultV1 =
+type RouterAbEd25519YaoRecoveryActivationCommitResultV1 =
   | {
       readonly kind: 'completed';
       readonly value: RouterAbEd25519YaoRecoveryServiceResult<RouterAbEd25519YaoRecoveryActivationReceiptV1>;
+    }
+  /**
+   * Promoted in this state. The capability replacement commits with it, or
+   * neither does.
+   */
+  | {
+      readonly kind: 'promoted';
+      readonly value: {
+        readonly ok: true;
+        readonly status: 200;
+        readonly value: RouterAbEd25519YaoRecoveryActivationReceiptV1;
+      };
+      readonly write: RouterAbEd25519YaoPreparedWriteV1;
     }
   | {
       readonly kind: 'uncertain';
       readonly failure: RouterAbEd25519YaoRecoveryFailure;
     };
 
-export interface RouterAbEd25519YaoRecoveryActivationBoundaryV1 {
+interface RouterAbEd25519YaoRecoveryActivationBoundaryV1 {
   prepareActivateRecovery(
     request: RouterAbEd25519YaoRecoveryActivationRequestV1,
     authorization: RouterAbEd25519YaoRecoveryAuthorizationBindingV1,
@@ -500,7 +558,14 @@ export type RouterAbEd25519YaoCapabilityReplacementOperationV1 = {
 };
 
 export type RouterAbEd25519YaoCapabilityPersistenceResultV1 =
-  | { readonly ok: true; readonly disposition: 'applied' | 'exact_retry' }
+  /** The replacement already committed, for this operation. */
+  | { readonly ok: true; readonly disposition: 'exact_retry' }
+  | {
+      readonly ok: true;
+      readonly disposition: 'prepared';
+      /** Applies the replacement. It commits with the promoted recovery or not at all. */
+      readonly write: RouterAbEd25519YaoPreparedWriteV1;
+    }
   | {
       readonly ok: false;
       readonly disposition: 'rejected' | 'uncertain';
@@ -508,8 +573,15 @@ export type RouterAbEd25519YaoCapabilityPersistenceResultV1 =
       readonly message: string;
     };
 
+/**
+ * Replaces a wallet's active Ed25519 Yao capability in its durable records:
+ * the signer row, the replacement receipt, and the active authorities and
+ * live sessions that project it. The writes are prepared, not applied: they
+ * commit in the same batch as the promoted recovery state, so a promotion is
+ * visible everywhere or nowhere.
+ */
 export interface RouterAbEd25519YaoCapabilityPersistenceV1 {
-  replaceActiveCapability(input: {
+  prepareActiveCapabilityReplacement(input: {
     readonly operation: RouterAbEd25519YaoCapabilityReplacementOperationV1;
     readonly previous: WalletEd25519YaoActiveCapabilityRecord;
     readonly next: WalletEd25519YaoActiveCapabilityRecord;
@@ -519,8 +591,8 @@ export interface RouterAbEd25519YaoCapabilityPersistenceV1 {
 }
 
 class EphemeralRouterAbEd25519YaoCapabilityPersistenceV1 implements RouterAbEd25519YaoCapabilityPersistenceV1 {
-  replaceActiveCapability(): RouterAbEd25519YaoCapabilityPersistenceResultV1 {
-    return { ok: true, disposition: 'applied' };
+  prepareActiveCapabilityReplacement(): RouterAbEd25519YaoCapabilityPersistenceResultV1 {
+    return { ok: true, disposition: 'prepared', write: { statements: [] } };
   }
 }
 
@@ -588,10 +660,9 @@ type RouterAbEd25519YaoExactRecoverySessionBinding = {
   readonly capability: RouterAbEd25519YaoActiveCapabilityDescriptorV1;
 };
 
-export type RouterAbEd25519YaoWarmRecoveryBootstrapV1 =
-  RouterAbEd25519YaoExactRecoverySessionBinding & {
-    readonly kind: 'router_ab_ed25519_yao_v2_session_bootstrap_v1';
-  };
+type RouterAbEd25519YaoWarmRecoveryBootstrapV1 = RouterAbEd25519YaoExactRecoverySessionBinding & {
+  readonly kind: 'router_ab_ed25519_yao_v2_session_bootstrap_v1';
+};
 
 export interface RouterAbEd25519YaoActiveCapabilityResolverV1 {
   resolveActiveCapability(
@@ -639,11 +710,21 @@ type RecoveryContext = {
   readonly admissionRequest: RouterAbEd25519YaoRecoveryAdmissionRequestV1;
   readonly activeCapability: CapabilityIdentity;
   readonly authorization: RouterAbEd25519YaoRecoveryAuthorizationBindingV1;
+  /** The tenant root the attempt was admitted under: its execute and promotion use it. */
+  readonly dispatchRoot: RouterAbEd25519YaoTenantRootWireV1;
+  /**
+   * The attempt's number: 1 for a recovery's first attempt, and one more than
+   * the attempt it supersedes otherwise. The SigningWorker keeps only the
+   * highest attempt delivered to it, so a superseded attempt's late delivery
+   * never displaces the current one.
+   */
+  readonly attempt: number;
 };
 
 type RecoveryAdmittingState = {
   readonly kind: 'admitting';
   readonly context: RecoveryContext;
+  readonly claimedAtMs: number;
 };
 
 type RecoveryAdmissionFailedState = {
@@ -663,6 +744,31 @@ type RecoveryExecutingState = {
   readonly context: RecoveryContext;
   readonly admissionReceipt: RecoveryAdmissionReceipt;
   readonly executeFingerprint: string;
+  readonly claimedAtMs: number;
+};
+
+/**
+ * The last execution of this payload ended without a definitive answer: the
+ * Router or a role was unavailable, or the reply was lost. The same payload
+ * replays, and a new attempt of the same recovery may supersede it.
+ */
+type RecoveryExecutionInterruptedState = {
+  readonly kind: 'execution_interrupted';
+  readonly context: RecoveryContext;
+  readonly admissionReceipt: RecoveryAdmissionReceipt;
+  readonly executeFingerprint: string;
+  readonly failure: RouterAbEd25519YaoRecoveryFailure;
+};
+
+/**
+ * A newer attempt of the same recovery took this attempt's place before it
+ * began activating. It can never execute or activate again. The capability
+ * it suspended stays suspended, now by the newer attempt.
+ */
+type RecoverySupersededState = {
+  readonly kind: 'superseded';
+  readonly context: RecoveryContext;
+  readonly supersededByRecoveryKey: string;
 };
 
 type RecoveryExecutionFailedState = {
@@ -715,11 +821,13 @@ type RecoveryLifecycleState =
   | RecoveryAdmissionFailedState
   | RecoveryAdmittedState
   | RecoveryExecutingState
+  | RecoveryExecutionInterruptedState
   | RecoveryExecutionFailedState
   | RecoveryStagedState
   | RecoveryActivatingState
   | RecoveryActivationFailedState
-  | RecoveryPromotedState;
+  | RecoveryPromotedState
+  | RecoverySupersededState;
 
 export class InMemoryRouterAbEd25519YaoRecoveryStateV1 {
   readonly capabilities = new Map<string, CapabilityState>();
@@ -856,7 +964,7 @@ function exactRuntimePolicyScope(left: RuntimePolicyScope, right: RuntimePolicyS
  * on purpose: the concrete projection lives with the platform install service,
  * and this domain only reads the identity, binding, and receipt facts.
  */
-export type WarmBootstrapLinkedEd25519AuthorityProjectionV1 = {
+type WarmBootstrapLinkedEd25519AuthorityProjectionV1 = {
   readonly walletId: string;
   readonly authorityId: string;
   readonly walletAuthMethodId: string;
@@ -963,7 +1071,7 @@ async function resolveWarmBootstrapCapabilityForAuthority(input: {
   };
 }
 
-export function warmBootstrapCapabilityMatchesStableIdentity(input: {
+function warmBootstrapCapabilityMatchesStableIdentity(input: {
   readonly request: RouterAbEd25519YaoWarmRecoveryBootstrapRequestV1;
   readonly context: WarmBootstrapWalletSessionContext;
   readonly capability: RouterAbEd25519YaoActiveCapabilityDescriptorV1;
@@ -1400,7 +1508,7 @@ function buildPersistedCapabilityIdentity(
   }
 }
 
-export type RouterAbEd25519YaoActiveCapabilityRecordBuildResultV1 =
+type RouterAbEd25519YaoActiveCapabilityRecordBuildResultV1 =
   | { readonly ok: true; readonly record: WalletEd25519YaoActiveCapabilityRecord }
   | Extract<
       RouterAbEd25519YaoRegistrationFinalizeCapabilityInstallResultV1,
@@ -1561,9 +1669,11 @@ function admittedReceiptForState(state: RecoveryLifecycleState): RecoveryAdmissi
   switch (state.kind) {
     case 'admitting':
     case 'admission_failed':
+    case 'superseded':
       return null;
     case 'admitted':
     case 'executing':
+    case 'execution_interrupted':
     case 'execution_failed':
     case 'staged':
     case 'activating':
@@ -1587,8 +1697,11 @@ function admissionReplayResult(
       });
     case 'admission_failed':
       return state.failure;
+    case 'superseded':
+      return recoverySupersededFailure();
     case 'admitted':
     case 'executing':
+    case 'execution_interrupted':
     case 'execution_failed':
     case 'staged':
     case 'activating':
@@ -1597,6 +1710,73 @@ function admissionReplayResult(
       return { ok: true, status: 200, value: state.admissionReceipt };
     default:
       return assertNever(state);
+  }
+}
+
+function recoverySupersededFailure(): RouterAbEd25519YaoRecoveryFailure {
+  return recoveryFailure({
+    status: 409,
+    code: 'recovery_superseded',
+    message: 'a newer attempt of this recovery took its place',
+  });
+}
+
+/**
+ * Whether a new attempt of the same recovery may take the place of
+ * `previous`, the attempt holding the capability's suspension. It must be the
+ * same recovery, the same lifecycle authorized the same way, and `previous`
+ * must not have begun activating: its promotion could already be at the
+ * SigningWorker, so it can only be resumed.
+ */
+function supersedesRecoveryAttempt(
+  previous: RecoveryLifecycleState,
+  request: RouterAbEd25519YaoRecoveryAdmissionRequestV1,
+  authorization: RouterAbEd25519YaoRecoveryAuthorizationBindingV1,
+  nowMs: number,
+): boolean {
+  if (previous.context.admissionRequest.scope.lifecycle_id !== request.scope.lifecycle_id) {
+    return false;
+  }
+  if (!sameRecoveryAuthorizationBindingV1(previous.context.authorization, authorization)) {
+    return false;
+  }
+  switch (previous.kind) {
+    case 'admission_failed':
+    case 'admitted':
+    case 'execution_interrupted':
+    case 'execution_failed':
+    case 'staged':
+      return true;
+    case 'admitting':
+      return nowMs - previous.claimedAtMs >= RECOVERY_ADMISSION_CLAIM_RESUME_AFTER_MS;
+    case 'executing':
+      return nowMs - previous.claimedAtMs >= RECOVERY_EXECUTION_CLAIM_RESUME_AFTER_MS;
+    case 'activating':
+    case 'activation_failed':
+    case 'promoted':
+    case 'superseded':
+      return false;
+    default:
+      return assertNever(previous);
+  }
+}
+
+/**
+ * A Router or SigningWorker answer that ends an execution or promotion
+ * without deciding it: a role or the Router was unavailable, another run held
+ * the execution, or the call failed in transit. Retrying reconciles it.
+ */
+function isRecoverableRecoveryBackendFailure(
+  result: RouterAbEd25519YaoRecoveryBackendFailure,
+): boolean {
+  switch (result.code) {
+    case 'router_execution_retryable':
+    case 'execution_in_progress':
+    case 'worker_unavailable':
+    case 'worker_rejected':
+      return true;
+    default:
+      return false;
   }
 }
 
@@ -1893,7 +2073,8 @@ export class InMemoryRouterAbEd25519YaoRecoveryService
     authorization: RouterAbEd25519YaoRecoveryAuthorizationBindingV1,
     traceContext?: RouterAbTraceContextV1,
   ): Promise<RouterAbEd25519YaoRecoveryServiceResult<RecoveryAdmissionReceipt>> {
-    const preparation = this.prepareAdmitRecovery(request, authorization);
+    const dispatchRoot = await this.backend.resolveRecoveryDispatchRoot(request);
+    const preparation = this.prepareAdmitRecovery(request, authorization, dispatchRoot, Date.now());
     switch (preparation.kind) {
       case 'completed':
         return { ok: true, status: 200, value: preparation.value };
@@ -1917,6 +2098,8 @@ export class InMemoryRouterAbEd25519YaoRecoveryService
   prepareAdmitRecovery(
     request: RouterAbEd25519YaoRecoveryAdmissionRequestV1,
     authorization: RouterAbEd25519YaoRecoveryAuthorizationBindingV1,
+    dispatchRoot: RouterAbEd25519YaoTenantRootWireV1,
+    nowMs: number,
   ): RouterAbEd25519YaoRecoveryAdmissionPreparationV1 {
     const parsed = parseRouterAbEd25519YaoRecoveryAdmissionRequestV1(request);
     if (!parsed.ok) {
@@ -1941,6 +2124,26 @@ export class InMemoryRouterAbEd25519YaoRecoveryService
       ) {
         return { kind: 'failed', failure: recoveryAuthorizationMismatchFailure() };
       }
+      if (
+        existingRecovery.kind === 'admitting' &&
+        nowMs - existingRecovery.claimedAtMs >= RECOVERY_ADMISSION_CLAIM_RESUME_AFTER_MS
+      ) {
+        /* The stale claim never committed a receipt, so it recorded no
+           session. Admission is local, and this takeover runs it again. */
+        this.recoveries.set(recoveryKey, {
+          kind: 'admitting',
+          context: existingRecovery.context,
+          claimedAtMs: nowMs,
+        });
+        return {
+          kind: 'claimed',
+          claim: {
+            kind: 'router_ab_ed25519_yao_recovery_admission_claim_v1',
+            lifecycleId: admittedRequest.scope.lifecycle_id,
+            recoveryKey,
+          },
+        };
+      }
       const replay = admissionReplayResult(existingRecovery);
       return replay.ok
         ? { kind: 'completed', value: replay.value }
@@ -1959,16 +2162,26 @@ export class InMemoryRouterAbEd25519YaoRecoveryService
         }),
       };
     }
+    let superseded: RecoveryLifecycleState | null = null;
     switch (activeCapability.kind) {
-      case 'suspended':
-        return {
-          kind: 'failed',
-          failure: recoveryFailure({
-            status: 409,
-            code: 'capability_suspended',
-            message: 'recovery active capability is already suspended',
-          }),
-        };
+      case 'suspended': {
+        /* Another attempt holds the suspension. A new attempt of the same
+           recovery may take its place, and the capability stays suspended:
+           a failed or abandoned attempt never reactivates it. */
+        const holder = this.recoveries.get(activeCapability.recoveryKey);
+        if (!holder || !supersedesRecoveryAttempt(holder, admittedRequest, authorization, nowMs)) {
+          return {
+            kind: 'failed',
+            failure: recoveryFailure({
+              status: 409,
+              code: 'capability_suspended',
+              message: 'recovery active capability is already suspended',
+            }),
+          };
+        }
+        superseded = holder;
+        break;
+      }
       case 'retired':
         return {
           kind: 'failed',
@@ -2014,13 +2227,22 @@ export class InMemoryRouterAbEd25519YaoRecoveryService
       admissionRequest: admittedRequest,
       activeCapability: activeCapability.identity,
       authorization,
+      dispatchRoot,
+      attempt: superseded ? superseded.context.attempt + 1 : 1,
     };
+    if (superseded) {
+      this.recoveries.set(superseded.context.recoveryKey, {
+        kind: 'superseded',
+        context: superseded.context,
+        supersededByRecoveryKey: recoveryKey,
+      });
+    }
     this.capabilities.set(activeCapabilityKey, {
       kind: 'suspended',
       identity: activeCapability.identity,
       recoveryKey,
     });
-    this.recoveries.set(recoveryKey, { kind: 'admitting', context });
+    this.recoveries.set(recoveryKey, { kind: 'admitting', context, claimedAtMs: nowMs });
     return {
       kind: 'claimed',
       claim: {
@@ -2099,7 +2321,7 @@ export class InMemoryRouterAbEd25519YaoRecoveryService
     authorization: RouterAbEd25519YaoRecoveryAuthorizationBindingV1,
     traceContext?: RouterAbTraceContextV1,
   ): Promise<RouterAbEd25519YaoRecoveryServiceResult<RecoveryExecutionResult>> {
-    const preparation = this.prepareExecuteRecovery(request, authorization);
+    const preparation = this.prepareExecuteRecovery(request, authorization, Date.now());
     switch (preparation.kind) {
       case 'completed':
         return { ok: true, status: 200, value: preparation.value };
@@ -2113,6 +2335,9 @@ export class InMemoryRouterAbEd25519YaoRecoveryService
             result: await this.backend.executeRecovery(
               request,
               preparation.claim.admissionRequest,
+              preparation.claim.dispatchRoot,
+              preparation.claim.attempt,
+              preparation.claim.replay,
               traceContext,
             ),
           };
@@ -2127,6 +2352,7 @@ export class InMemoryRouterAbEd25519YaoRecoveryService
   prepareExecuteRecovery(
     request: RecoveryExecuteRequest,
     authorization: RouterAbEd25519YaoRecoveryAuthorizationBindingV1,
+    nowMs: number,
   ): RouterAbEd25519YaoRecoveryExecutePreparationV1 {
     const parsed = parseRouterAbEd25519YaoRecoveryActivationExecuteRequestV1(request);
     if (!parsed.ok) {
@@ -2156,6 +2382,9 @@ export class InMemoryRouterAbEd25519YaoRecoveryService
     if (!sameRecoveryAuthorizationBindingV1(state.context.authorization, authorization)) {
       return { kind: 'failed', failure: recoveryAuthorizationMismatchFailure() };
     }
+    if (state.kind === 'superseded') {
+      return { kind: 'failed', failure: recoverySupersededFailure() };
+    }
     const admissionReceipt = admittedReceiptForState(state);
     if (
       !admissionReceipt ||
@@ -2171,28 +2400,60 @@ export class InMemoryRouterAbEd25519YaoRecoveryService
       };
     }
     const executeFingerprint = canonicalFingerprint(executionRequest);
-    switch (state.kind) {
-      case 'admitted': {
-        const executing: RecoveryExecutingState = {
-          kind: 'executing',
-          context: state.context,
-          admissionReceipt: state.admissionReceipt,
+    const claimExecution = (
+      claimed: RecoveryAdmittedState | RecoveryExecutingState | RecoveryExecutionInterruptedState,
+      replay: boolean,
+    ): RouterAbEd25519YaoRecoveryExecutePreparationV1 => {
+      this.recoveries.set(claimed.context.recoveryKey, {
+        kind: 'executing',
+        context: claimed.context,
+        admissionReceipt: claimed.admissionReceipt,
+        executeFingerprint,
+        claimedAtMs: nowMs,
+      });
+      return {
+        kind: 'claimed',
+        claim: {
+          kind: 'router_ab_ed25519_yao_recovery_execute_claim_v1',
+          lifecycleId: executionRequest.binding.lifecycle.lifecycle_id,
+          recoveryKey: claimed.context.recoveryKey,
+          sessionId,
           executeFingerprint,
-        };
-        this.recoveries.set(state.context.recoveryKey, executing);
-        return {
-          kind: 'claimed',
-          claim: {
-            kind: 'router_ab_ed25519_yao_recovery_execute_claim_v1',
-            lifecycleId: executionRequest.binding.lifecycle.lifecycle_id,
-            recoveryKey: state.context.recoveryKey,
-            sessionId,
-            executeFingerprint,
-            admissionRequest: state.context.admissionRequest,
-          },
-        };
+          admissionRequest: claimed.context.admissionRequest,
+          dispatchRoot: claimed.context.dispatchRoot,
+          attempt: claimed.context.attempt,
+          replay,
+        },
+      };
+    };
+    switch (state.kind) {
+      case 'admitted':
+        return claimExecution(state, false);
+      case 'execution_interrupted':
+        // The last execution of this payload may have reached the Router.
+        return state.executeFingerprint === executeFingerprint
+          ? claimExecution(state, true)
+          : {
+              kind: 'failed',
+              failure: recoveryFailure({
+                status: 409,
+                code: 'binding_mismatch',
+                message: 'recovery execution retry does not match the committed payload',
+              }),
+            };
+      case 'executing': {
+        if (
+          state.executeFingerprint === executeFingerprint &&
+          nowMs - state.claimedAtMs >= RECOVERY_EXECUTION_CLAIM_RESUME_AFTER_MS
+        ) {
+          // The claim outlived any execution: its run may have reached the Router.
+          return claimExecution(state, true);
+        }
+        const replay = executionReplayResult(state, executeFingerprint);
+        return replay.ok
+          ? { kind: 'completed', value: replay.value }
+          : { kind: 'failed', failure: replay };
       }
-      case 'executing':
       case 'execution_failed':
       case 'staged':
       case 'activating':
@@ -2242,6 +2503,12 @@ export class InMemoryRouterAbEd25519YaoRecoveryService
     }
     const backendResult = input.outcome.result;
     if (!backendResult.ok) {
+      if (isRecoverableRecoveryBackendFailure(backendResult)) {
+        return this.interruptExecution(
+          state,
+          `${backendResult.code}: ${backendResult.message}`,
+        );
+      }
       const failure = backendFailure(backendResult, 'execution_failed');
       this.storeExecutionFailure(state, failure);
       return failure;
@@ -2290,7 +2557,11 @@ export class InMemoryRouterAbEd25519YaoRecoveryService
         try {
           outcome = {
             kind: 'backend_response',
-            result: await this.backend.activateRecovery(request, traceContext),
+            result: await this.backend.activateRecovery(
+              request,
+              preparation.claim.dispatchRoot,
+              traceContext,
+            ),
           };
         } catch (error: unknown) {
           return this.activationUncertainFailure(error);
@@ -2300,7 +2571,19 @@ export class InMemoryRouterAbEd25519YaoRecoveryService
           claim: preparation.claim,
           outcome,
         });
-        return committed.kind === 'completed' ? committed.value : committed.failure;
+        switch (committed.kind) {
+          case 'uncertain':
+            return committed.failure;
+          case 'completed':
+            return committed.value;
+          case 'promoted':
+            if (committed.write.statements.length > 0) {
+              throw new Error(
+                'In-memory Yao recovery cannot commit a capability replacement prepared for a database',
+              );
+            }
+            return committed.value;
+        }
       }
     }
   }
@@ -2334,6 +2617,9 @@ export class InMemoryRouterAbEd25519YaoRecoveryService
     }
     if (!sameRecoveryAuthorizationBindingV1(state.context.authorization, authorization)) {
       return { kind: 'failed', failure: recoveryAuthorizationMismatchFailure() };
+    }
+    if (state.kind === 'superseded') {
+      return { kind: 'failed', failure: recoverySupersededFailure() };
     }
     const admissionReceipt = admittedReceiptForState(state);
     if (
@@ -2417,6 +2703,7 @@ export class InMemoryRouterAbEd25519YaoRecoveryService
       }
       case 'admitted':
       case 'executing':
+      case 'execution_interrupted':
       case 'execution_failed':
         return {
           kind: 'failed',
@@ -2468,6 +2755,11 @@ export class InMemoryRouterAbEd25519YaoRecoveryService
     const backendResult = input.outcome.result;
     if (!backendResult.ok) {
       const failure = backendFailure(backendResult, 'activation_failed');
+      /* The promotion may yet reach, or have reached, the SigningWorker: the
+         attempt stays activating, and a retry reconciles it. */
+      if (isRecoverableRecoveryBackendFailure(backendResult)) {
+        return { kind: 'completed', value: failure };
+      }
       this.storeActivationFailure(state, failure);
       return { kind: 'completed', value: failure };
     }
@@ -2509,7 +2801,7 @@ export class InMemoryRouterAbEd25519YaoRecoveryService
       this.storeActivationFailure(state, promoted.failure);
       return { kind: 'completed', value: promoted.failure };
     }
-    const persisted = await this.capabilityPersistence.replaceActiveCapability({
+    const persisted = await this.capabilityPersistence.prepareActiveCapabilityReplacement({
       operation: {
         kind: 'router_ab_ed25519_yao_capability_replacement_operation_v1',
         operationId: input.claim.lifecycleId,
@@ -2548,10 +2840,10 @@ export class InMemoryRouterAbEd25519YaoRecoveryService
       activationFingerprint: input.claim.activationFingerprint,
       activationReceipt: activationReceipt.value,
     });
-    return {
-      kind: 'completed',
-      value: { ok: true, status: 200, value: activationReceipt.value },
-    };
+    const promotedValue = { ok: true, status: 200, value: activationReceipt.value } as const;
+    return persisted.disposition === 'prepared'
+      ? { kind: 'promoted', value: promotedValue, write: persisted.write }
+      : { kind: 'completed', value: promotedValue };
   }
 
   private activationClaim(
@@ -2567,6 +2859,7 @@ export class InMemoryRouterAbEd25519YaoRecoveryService
       activationFingerprint: state.activationFingerprint,
       authorityProjection,
       disposition,
+      dispatchRoot: state.context.dispatchRoot,
     };
   }
 
@@ -2714,9 +3007,7 @@ export class InMemoryRouterAbEd25519YaoRecoveryService
         message: 'recovery execution claim is no longer current',
       });
     }
-    const failure = uncertainFailure(error, 'execution_failed');
-    this.storeExecutionFailure(current, failure);
-    return failure;
+    return this.interruptExecution(current, error instanceof Error ? error.message : String(error));
   }
 
   private storeAdmissionFailure(
@@ -2728,6 +3019,22 @@ export class InMemoryRouterAbEd25519YaoRecoveryService
       context,
       failure,
     });
+  }
+
+  /** Records an execution that ended without a definitive answer: it resumes. */
+  private interruptExecution(
+    state: RecoveryExecutingState,
+    message: string,
+  ): RouterAbEd25519YaoRecoveryFailure {
+    const failure = recoveryFailure({ status: 503, code: 'execution_interrupted', message });
+    this.recoveries.set(state.context.recoveryKey, {
+      kind: 'execution_interrupted',
+      context: state.context,
+      admissionReceipt: state.admissionReceipt,
+      executeFingerprint: state.executeFingerprint,
+      failure,
+    });
+    return failure;
   }
 
   private storeExecutionFailure(

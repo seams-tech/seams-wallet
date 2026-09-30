@@ -40,8 +40,8 @@ import type { ExactAdministeredSignerManifestV1 } from './delegatedActivationPla
 import type { CanonicalDelegatedWalletPermissionSetV1 } from '../authorization/delegatedAuthority';
 import type {
   ActiveWalletAuthorityV1,
+  PendingWalletAuthorityV1,
   RevokedWalletAuthorityV1,
-  WalletAuthorityV1,
   WalletEcdsaSignerActivationV1,
   WalletEd25519SignerActivationV1,
   WalletSignerActivationSetV1,
@@ -49,7 +49,7 @@ import type {
 import type {
   EmailOtpWalletAuthMethodDraftV1,
   PasskeyWalletAuthMethodDraftV1,
-} from '../utils/registrationIntent';
+} from '../utils/walletAuthMethodRecord';
 
 declare const linkSessionId: LinkDeviceSessionId;
 declare const walletId: WalletId;
@@ -120,7 +120,7 @@ const invalidOwnerAuthorization: LinkedDeviceOwnerAuthorizationSourceV1 = {
   stepUpEvidenceSetId: digest,
 };
 
-const invalidStepUpOwnerAuthorization: LinkedDeviceOwnerAuthorizationSourceV1 = {
+export const invalidStepUpOwnerAuthorization: LinkedDeviceOwnerAuthorizationSourceV1 = {
   // @ts-expect-error linked-device authorization requires an exact Wallet Session
   kind: 'step_up',
   evidenceSetId: digest,
@@ -388,10 +388,7 @@ const ed25519AuthorityWithEcdsa: Extract<
 void ed25519AuthorityWithEcdsa;
 
 // @ts-expect-error A pending authority cannot retain an activation timestamp.
-const pendingAuthorityWithActivation: Extract<
-  WalletAuthorityV1,
-  { readonly state: 'pending_local_install' }
-> = {
+const pendingAuthorityWithActivation: PendingWalletAuthorityV1 = {
   ...activeAuthority,
   state: 'pending_local_install',
   localInstallPackageSetDigestB64u: activeAuthority.authorityDigestB64u,

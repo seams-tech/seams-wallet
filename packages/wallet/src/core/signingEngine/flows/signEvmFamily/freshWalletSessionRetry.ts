@@ -37,7 +37,7 @@ export type EvmFamilyWalletSessionExpiryCandidate =
       readonly kind: 'unavailable';
     };
 
-export type EvmFamilyWalletSessionExpiryContext =
+type EvmFamilyWalletSessionExpiryContext =
   | {
       readonly kind: 'authoritative_expiry';
       readonly state: ExpiredWalletSessionAuthorizationState;

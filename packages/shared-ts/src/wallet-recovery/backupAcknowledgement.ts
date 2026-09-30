@@ -29,7 +29,7 @@ export type WalletRecoveryBackupAcknowledgementV1 = {
   readonly acknowledgedAtMs: number;
 };
 
-export type WalletRecoveryBackupAcknowledgementParseResult =
+type WalletRecoveryBackupAcknowledgementParseResult =
   | { readonly ok: true; readonly record: WalletRecoveryBackupAcknowledgementV1 }
   | { readonly ok: false; readonly reason: string };
 

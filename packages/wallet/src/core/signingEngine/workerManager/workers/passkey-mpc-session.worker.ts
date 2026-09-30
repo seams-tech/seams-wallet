@@ -575,11 +575,6 @@ function recordWarmSessionSealAndPersistDiagnosticDuration(args: {
   args.diagnostics[args.bucket] += roundWorkerDurationMs(args.startedAt);
 }
 
-function overwriteBytes(bytes: Uint8Array | null | undefined): void {
-  if (!(bytes instanceof Uint8Array) || bytes.length === 0) return;
-  bytes.fill(0);
-}
-
 function toSessionId(prefix: string): string {
   const value = String(prefix || '').trim() || 'session';
   return `${value}:${secureRandomBase64Url(32, 'passkey confirm worker session IDs')}`;

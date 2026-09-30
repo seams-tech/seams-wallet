@@ -122,7 +122,7 @@ export function localPrfFirstForEd25519WalletSessionMintAuthorization(
   return auth.policySecretSource.secretSource.prfFirstB64u;
 }
 
-export type Ed25519WalletSessionMintSuccess =
+type Ed25519WalletSessionMintSuccess =
   | {
       readonly ok: true;
       readonly sessionKind: 'issued_exact_wallet_session';
@@ -148,7 +148,7 @@ export type Ed25519WalletSessionMintSuccess =
       readonly operationCredential?: never;
     };
 
-export type Ed25519WalletSessionMintAlreadyCommitted = {
+type Ed25519WalletSessionMintAlreadyCommitted = {
   readonly ok: false;
   readonly code: 'already_committed';
   readonly message: string;
@@ -156,7 +156,7 @@ export type Ed25519WalletSessionMintAlreadyCommitted = {
   readonly committed: WalletSessionCommittedIdentityV1;
 };
 
-export type Ed25519WalletSessionMintFailure = {
+type Ed25519WalletSessionMintFailure = {
   readonly ok: false;
   readonly code: string;
   readonly message: string;
@@ -164,7 +164,7 @@ export type Ed25519WalletSessionMintFailure = {
   readonly committed?: never;
 };
 
-export type Ed25519WalletSessionMintResult =
+type Ed25519WalletSessionMintResult =
   | Ed25519WalletSessionMintSuccess
   | Ed25519WalletSessionMintAlreadyCommitted
   | Ed25519WalletSessionMintFailure;
@@ -399,14 +399,14 @@ export type Ed25519OperationStepUpProof =
       authority?: never;
     };
 
-export type Ed25519OperationStepUpMaterialRecoveryRequest =
+type Ed25519OperationStepUpMaterialRecoveryRequest =
   | { kind: 'not_requested' }
   | {
       kind: 'email_otp_factor_release_v1';
       workerEphemeralPublicKey65B64u: string;
     };
 
-export type Ed25519OperationStepUpMaterialRecoveryResponse =
+type Ed25519OperationStepUpMaterialRecoveryResponse =
   | { kind: 'not_requested' }
   | {
       kind: 'email_otp_factor_release_v1';

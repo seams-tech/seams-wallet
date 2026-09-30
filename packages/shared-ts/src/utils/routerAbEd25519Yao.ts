@@ -1,10 +1,8 @@
 import type {
   RouterAbEd25519YaoAdmittedLifecycleV1,
   RouterAbEd25519YaoCeremonyBindingV1 as GeneratedRouterAbEd25519YaoCeremonyBindingV1,
-  RouterAbEd25519YaoInputPairBindingV1,
   RouterAbEd25519YaoOperationV1,
   RouterAbEd25519YaoPrimitiveRequestKindV1,
-  RouterAbEd25519YaoPublicDigestV1,
   RouterAbEd25519YaoWorkKindV1,
   RouterAbEd25519YaoBytes32V1,
 } from './generated/routerAbEd25519YaoCore';
@@ -13,6 +11,13 @@ import {
   sameRouterAbMpcMaterialActivationRef,
   type RouterAbMpcMaterialActivationRefWire,
 } from './routerAbNormalSigningIdentity';
+import { requireRecord } from './validation';
+import {
+  equalBytes,
+  requireBytes,
+  requireBytes32,
+  requireVisibleIdentifier,
+} from './routerAbEd25519YaoDigests';
 
 export type {
   RouterAbEd25519YaoAdmittedLifecycleV1,
@@ -57,11 +62,11 @@ export const ROUTER_AB_ED25519_YAO_EXPORT_ADMISSION_PATH_V1 =
   '/router-ab/ed25519/yao/export/admit' as const;
 export const ROUTER_AB_ED25519_YAO_EXPORT_EXECUTE_PATH_V1 =
   '/router-ab/ed25519/yao/export/execute' as const;
-export const ED25519_YAO_CONTROL_CIPHERTEXT_MAX_BYTES_V1 = 64 * 1024;
+const ED25519_YAO_CONTROL_CIPHERTEXT_MAX_BYTES_V1 = 64 * 1024;
 
-export type RouterAbEd25519YaoDeriverRoleV1 = 'deriver_a' | 'deriver_b';
-export type RouterAbEd25519YaoInputKindV1 = 'activation' | 'export';
-export type RouterAbEd25519YaoPackageKindV1 =
+type RouterAbEd25519YaoDeriverRoleV1 = 'deriver_a' | 'deriver_b';
+type RouterAbEd25519YaoInputKindV1 = 'activation' | 'export';
+type RouterAbEd25519YaoPackageKindV1 =
   | 'activation_client'
   | 'activation_signing_worker'
   | 'export_client';
@@ -109,7 +114,7 @@ export type RouterAbEd25519YaoWarmRecoveryBootstrapRequestV1 = {
   readonly participantIds: readonly [number, number];
 };
 
-export type RouterAbEd25519YaoExportAuthorizationV1 = {
+type RouterAbEd25519YaoExportAuthorizationV1 = {
   confirmation_digest: RouterAbEd25519YaoBytes32V1;
   authorization_digest: RouterAbEd25519YaoBytes32V1;
   nonce: RouterAbEd25519YaoBytes32V1;
@@ -132,19 +137,7 @@ export type RouterAbEd25519YaoExportAuthorizationIdentityV1 = Omit<
   'authorization'
 >;
 
-export type RouterAbEd25519YaoExportAuthorityBindingV1 =
-  | {
-      readonly kind: 'passkey';
-      readonly credentialIdB64u: string;
-      readonly providerSubjectId?: never;
-    }
-  | {
-      readonly kind: 'email_otp';
-      readonly providerSubjectId: string;
-      readonly credentialIdB64u?: never;
-    };
-
-export type RouterAbEd25519YaoRegistrationLifecycleV1 = Omit<
+type RouterAbEd25519YaoRegistrationLifecycleV1 = Omit<
   RouterAbEd25519YaoAdmittedLifecycleV1,
   'work_kind' | 'primitive_request_kind'
 > & {
@@ -152,7 +145,7 @@ export type RouterAbEd25519YaoRegistrationLifecycleV1 = Omit<
   primitive_request_kind: 'registration';
 };
 
-export type RouterAbEd25519YaoRecoveryLifecycleV1 = Omit<
+type RouterAbEd25519YaoRecoveryLifecycleV1 = Omit<
   RouterAbEd25519YaoAdmittedLifecycleV1,
   'work_kind' | 'primitive_request_kind'
 > & {
@@ -160,7 +153,7 @@ export type RouterAbEd25519YaoRecoveryLifecycleV1 = Omit<
   primitive_request_kind: 'recovery';
 };
 
-export type RouterAbEd25519YaoExportLifecycleV1 = Omit<
+type RouterAbEd25519YaoExportLifecycleV1 = Omit<
   RouterAbEd25519YaoAdmittedLifecycleV1,
   'work_kind' | 'primitive_request_kind'
 > & {
@@ -168,7 +161,7 @@ export type RouterAbEd25519YaoExportLifecycleV1 = Omit<
   primitive_request_kind: 'export';
 };
 
-export type RouterAbEd25519YaoExportCeremonyBindingV1 = Omit<
+type RouterAbEd25519YaoExportCeremonyBindingV1 = Omit<
   RouterAbEd25519YaoCeremonyBindingV1,
   'lifecycle' | 'operation'
 > & {
@@ -184,7 +177,7 @@ export type RouterAbEd25519YaoExportBindingV1 = {
   authorization_digest: RouterAbEd25519YaoBytes32V1;
 };
 
-export type RouterAbEd25519YaoActivationOperationV1 = 'registration' | 'recovery';
+type RouterAbEd25519YaoActivationOperationV1 = 'registration' | 'recovery';
 
 type RouterAbEd25519YaoActivationLifecycleForV1<
   Operation extends RouterAbEd25519YaoActivationOperationV1,
@@ -372,7 +365,7 @@ export type RouterAbEd25519YaoExportAdmissionReceiptV1 = {
   keyset: RouterAbEd25519YaoActivationKeysetV1;
 };
 
-export type RouterAbEd25519YaoEncryptedInputV1 = {
+type RouterAbEd25519YaoEncryptedInputV1 = {
   kind: RouterAbEd25519YaoInputKindV1;
   deriver: RouterAbEd25519YaoDeriverRoleV1;
   operation: RouterAbEd25519YaoOperationV1;
@@ -405,12 +398,14 @@ export type RouterAbEd25519YaoActivationExecuteRequestV1<
     }
   : never;
 
-export type RouterAbEd25519YaoExportEncryptedInputV1<Role extends RouterAbEd25519YaoDeriverRoleV1> =
-  Omit<RouterAbEd25519YaoEncryptedInputV1, 'kind' | 'deriver' | 'operation'> & {
-    kind: 'export';
-    deriver: Role;
-    operation: 'export';
-  };
+type RouterAbEd25519YaoExportEncryptedInputV1<Role extends RouterAbEd25519YaoDeriverRoleV1> = Omit<
+  RouterAbEd25519YaoEncryptedInputV1,
+  'kind' | 'deriver' | 'operation'
+> & {
+  kind: 'export';
+  deriver: Role;
+  operation: 'export';
+};
 
 export type RouterAbEd25519YaoExportExecuteRequestV1 = {
   binding: RouterAbEd25519YaoExportBindingV1;
@@ -434,11 +429,13 @@ export type RouterAbEd25519YaoActivationClientPackageV1<
   deriver: Role;
 };
 
-export type RouterAbEd25519YaoExportClientPackageV1<Role extends RouterAbEd25519YaoDeriverRoleV1> =
-  Omit<RouterAbEd25519YaoEncryptedPackageV1, 'kind' | 'deriver'> & {
-    kind: 'export_client';
-    deriver: Role;
-  };
+type RouterAbEd25519YaoExportClientPackageV1<Role extends RouterAbEd25519YaoDeriverRoleV1> = Omit<
+  RouterAbEd25519YaoEncryptedPackageV1,
+  'kind' | 'deriver'
+> & {
+  kind: 'export_client';
+  deriver: Role;
+};
 
 export type RouterAbEd25519YaoExportResultV1 = {
   binding: RouterAbEd25519YaoExportBindingV1;
@@ -510,83 +507,7 @@ export type RouterAbEd25519YaoRecoveryStatusV1 =
       readonly activation_receipt: RouterAbEd25519YaoRecoveryActivationReceiptV1;
     };
 
-export type RouterAbEd25519YaoExecutionAuthorityV1 = {
-  authority_digest: RouterAbEd25519YaoPublicDigestV1;
-  issued_at_ms: number;
-  expires_at_ms: number;
-};
-
-type RouterAbEd25519YaoRouterExecuteCommonV1 = {
-  authority: RouterAbEd25519YaoExecutionAuthorityV1;
-  pair_binding: RouterAbEd25519YaoInputPairBindingV1;
-};
-
-export type RouterAbEd25519YaoRouterExecuteRequestV1 =
-  | (RouterAbEd25519YaoRouterExecuteCommonV1 & {
-      operation: 'registration';
-      binding: RouterAbEd25519YaoActivationBindingV1<'registration'>;
-      deriver_a_input: RouterAbEd25519YaoActivationEncryptedInputV1<'deriver_a', 'registration'>;
-      deriver_b_input: RouterAbEd25519YaoActivationEncryptedInputV1<'deriver_b', 'registration'>;
-    })
-  | (RouterAbEd25519YaoRouterExecuteCommonV1 & {
-      operation: 'recovery';
-      binding: RouterAbEd25519YaoActivationBindingV1<'recovery'>;
-      deriver_a_input: RouterAbEd25519YaoActivationEncryptedInputV1<'deriver_a', 'recovery'>;
-      deriver_b_input: RouterAbEd25519YaoActivationEncryptedInputV1<'deriver_b', 'recovery'>;
-    })
-  | (RouterAbEd25519YaoRouterExecuteCommonV1 & {
-      operation: 'export';
-      binding: RouterAbEd25519YaoExportBindingV1;
-      deriver_a_input: RouterAbEd25519YaoExportEncryptedInputV1<'deriver_a'>;
-      deriver_b_input: RouterAbEd25519YaoExportEncryptedInputV1<'deriver_b'>;
-    });
-
-export type RouterAbEd25519YaoRouterExecuteSuccessV1 =
-  | {
-      operation: 'registration';
-      result: RouterAbEd25519YaoActivationResultV1<'registration'>;
-    }
-  | {
-      operation: 'recovery';
-      result: RouterAbEd25519YaoActivationResultV1<'recovery'>;
-    }
-  | {
-      operation: 'export';
-      result: RouterAbEd25519YaoExportResultV1;
-    };
-
-export type RouterAbEd25519YaoRouterExecuteResultV1 =
-  | { status: 'succeeded'; result: RouterAbEd25519YaoRouterExecuteSuccessV1 }
-  | {
-      status: 'recoverable_failure';
-      code:
-        | 'service_unavailable'
-        | 'conflicting_pair'
-        | 'missing_preparation'
-        | 'ceremony_expired'
-        | 'signing_worker_uncertain'
-        | 'terminal_role_failure'
-        | 'authorization_rejected';
-      retry_after_ms: number;
-    }
-  | {
-      status: 'rejected';
-      code:
-        | 'service_unavailable'
-        | 'conflicting_pair'
-        | 'missing_preparation'
-        | 'ceremony_expired'
-        | 'signing_worker_uncertain'
-        | 'terminal_role_failure'
-        | 'authorization_rejected';
-    }
-  | {
-      status: 'burned';
-      execution_id: RouterAbEd25519YaoBytes32V1;
-      reason: 'caller_disconnected' | 'peer_uncertain' | 'protocol_failure';
-    };
-
-export type RouterAbEd25519YaoParseResult<T> =
+type RouterAbEd25519YaoParseResult<T> =
   | { ok: true; value: T }
   | { ok: false; code: 'invalid_body'; message: string };
 
@@ -596,21 +517,6 @@ const RECOVERY_WORK_KIND = 'recovery' as const;
 const RECOVERY_PRIMITIVE_REQUEST_KIND = 'recovery' as const;
 const EXPORT_WORK_KIND = 'key_export' as const;
 const EXPORT_PRIMITIVE_REQUEST_KIND = 'export' as const;
-const APPLICATION_BINDING_DOMAIN = 'seams/router-ab/ed25519-yao/application-binding/v1';
-const STABLE_KEY_CONTEXT_DOMAIN = 'seams/router-ab/ed25519-yao/stable-key-context/v1';
-const STABLE_KEY_CONTEXT_BINDING_DOMAIN =
-  'seams/router-ab/ed25519-yao/stable-key-context-binding/v1';
-const EXPORT_CONFIRMATION_DOMAIN = 'seams/router-ab/ed25519-yao/export-confirmation/v1';
-const EXPORT_AUTHORIZATION_DOMAIN = 'seams/router-ab/ed25519-yao/export-authorization/v1';
-const RUNTIME_POLICY_BINDING_DOMAIN = 'seams/router-ab/runtime-policy-binding/v1';
-const UTF8 = new TextEncoder();
-
-function requireRecord(value: unknown, label: string): Record<string, unknown> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    throw new Error(`${label} must be an object`);
-  }
-  return value as Record<string, unknown>;
-}
 
 function requireExactKeys(
   record: Record<string, unknown>,
@@ -626,19 +532,6 @@ function requireExactKeys(
   }
 }
 
-function requireVisibleIdentifier(value: unknown, label: string): string {
-  if (typeof value !== 'string' || value.length === 0) {
-    throw new Error(`${label} must be a non-empty visible ASCII string`);
-  }
-  for (let index = 0; index < value.length; index += 1) {
-    const code = value.charCodeAt(index);
-    if (code < 0x21 || code > 0x7e) {
-      throw new Error(`${label} must contain visible ASCII bytes`);
-    }
-  }
-  return value;
-}
-
 function requirePositiveU32(value: unknown, label: string): number {
   if (!Number.isInteger(value) || typeof value !== 'number' || value <= 0 || value > 0xffffffff) {
     throw new Error(`${label} must be a positive u32`);
@@ -651,224 +544,6 @@ function requirePositiveSafeInteger(value: unknown, label: string): number {
     throw new Error(`${label} must be a positive safe integer`);
   }
   return value;
-}
-
-function requireByte(value: unknown, label: string): number {
-  if (typeof value !== 'number' || !Number.isInteger(value) || value < 0 || value > 255) {
-    throw new Error(`${label} must be a byte`);
-  }
-  return value;
-}
-
-function requireBytes(
-  value: unknown,
-  label: string,
-  minimumLength: number,
-  maximumLength: number,
-): number[] {
-  if (!Array.isArray(value)) throw new Error(`${label} must be a byte array`);
-  if (value.length < minimumLength || value.length > maximumLength) {
-    throw new Error(`${label} has an invalid length`);
-  }
-  const parsed: number[] = [];
-  for (let index = 0; index < value.length; index += 1) {
-    parsed.push(requireByte(value[index], `${label}[${index}]`));
-  }
-  return parsed;
-}
-
-function requireBytes32(value: unknown, label: string, nonzero: boolean): number[] {
-  const parsed = requireBytes(value, label, 32, 32);
-  if (nonzero && isZeroBytes(parsed)) throw new Error(`${label} must be nonzero`);
-  return parsed;
-}
-
-function isZeroBytes(value: readonly number[]): boolean {
-  for (const byte of value) {
-    if (byte !== 0) return false;
-  }
-  return true;
-}
-
-function equalBytes(left: readonly number[], right: readonly number[]): boolean {
-  if (left.length !== right.length) return false;
-  for (let index = 0; index < left.length; index += 1) {
-    if (left[index] !== right[index]) return false;
-  }
-  return true;
-}
-
-function u32BigEndian(value: number): Uint8Array {
-  const bytes = new Uint8Array(4);
-  new DataView(bytes.buffer).setUint32(0, value, false);
-  return bytes;
-}
-
-function u16BigEndian(value: number): Uint8Array {
-  const bytes = new Uint8Array(2);
-  new DataView(bytes.buffer).setUint16(0, value, false);
-  return bytes;
-}
-
-function u64BigEndian(value: number): Uint8Array {
-  if (!Number.isSafeInteger(value) || value <= 0) {
-    throw new Error('u64 value must be a positive safe integer');
-  }
-  const bytes = new Uint8Array(8);
-  new DataView(bytes.buffer).setBigUint64(0, BigInt(value), false);
-  return bytes;
-}
-
-function concatenateBytes(chunks: readonly Uint8Array[]): Uint8Array {
-  let length = 0;
-  for (const chunk of chunks) length += chunk.length;
-  const output = new Uint8Array(length);
-  let offset = 0;
-  for (const chunk of chunks) {
-    output.set(chunk, offset);
-    offset += chunk.length;
-  }
-  return output;
-}
-
-function lengthDelimited(value: Uint8Array): Uint8Array {
-  return concatenateBytes([u32BigEndian(value.length), value]);
-}
-
-function labeledField(label: string, value: Uint8Array): Uint8Array {
-  return concatenateBytes([lengthDelimited(UTF8.encode(label)), lengthDelimited(value)]);
-}
-
-async function sha256(value: Uint8Array): Promise<Uint8Array> {
-  const digest = await globalThis.crypto.subtle.digest('SHA-256', value);
-  return new Uint8Array(digest);
-}
-
-export async function deriveRouterAbEd25519YaoApplicationBindingDigestV1(
-  facts: RouterAbEd25519YaoApplicationBindingFactsV1,
-): Promise<number[]> {
-  const encoded = concatenateBytes([
-    lengthDelimited(UTF8.encode(APPLICATION_BINDING_DOMAIN)),
-    labeledField('walletId', UTF8.encode(facts.wallet_id)),
-    labeledField('nearEd25519SigningKeyId', UTF8.encode(facts.near_ed25519_signing_key_id)),
-    labeledField('signingRootId', UTF8.encode(facts.signing_root_id)),
-    labeledField('keyCreationSignerSlot', u32BigEndian(facts.key_creation_signer_slot)),
-  ]);
-  return Array.from(await sha256(encoded));
-}
-
-export async function deriveRouterAbEd25519YaoStableContextBindingV1(
-  applicationBinding: RouterAbEd25519YaoApplicationBindingFactsV1,
-  participantIds: readonly [number, number],
-): Promise<number[]> {
-  const applicationDigest =
-    await deriveRouterAbEd25519YaoApplicationBindingDigestV1(applicationBinding);
-  const context = concatenateBytes([
-    UTF8.encode(STABLE_KEY_CONTEXT_DOMAIN),
-    Uint8Array.from(applicationDigest),
-    u16BigEndian(participantIds[0]),
-    u16BigEndian(participantIds[1]),
-  ]);
-  return Array.from(
-    await sha256(concatenateBytes([UTF8.encode(STABLE_KEY_CONTEXT_BINDING_DOMAIN), context])),
-  );
-}
-
-export async function deriveRouterAbEd25519YaoRuntimePolicyBindingV1(input: {
-  readonly orgId: string;
-  readonly projectId: string;
-  readonly envId: string;
-  readonly signingRootVersion: string;
-}): Promise<number[]> {
-  const encoded = concatenateBytes([
-    lengthDelimited(UTF8.encode(RUNTIME_POLICY_BINDING_DOMAIN)),
-    labeledField('orgId', UTF8.encode(requireVisibleIdentifier(input.orgId, 'orgId'))),
-    labeledField('projectId', UTF8.encode(requireVisibleIdentifier(input.projectId, 'projectId'))),
-    labeledField('envId', UTF8.encode(requireVisibleIdentifier(input.envId, 'envId'))),
-    labeledField(
-      'signingRootVersion',
-      UTF8.encode(requireVisibleIdentifier(input.signingRootVersion, 'signingRootVersion')),
-    ),
-  ]);
-  return Array.from(await sha256(encoded));
-}
-
-function exportIdentityFields(
-  identity: RouterAbEd25519YaoExportAuthorizationIdentityV1,
-): Uint8Array[] {
-  const scope = identity.scope;
-  const application = identity.application_binding;
-  return [
-    labeledField('lifecycleId', UTF8.encode(scope.lifecycle_id)),
-    labeledField('rootShareEpoch', UTF8.encode(scope.root_share_epoch)),
-    labeledField('accountId', UTF8.encode(scope.account_id)),
-    labeledField('thresholdSessionId', UTF8.encode(scope.threshold_session_id)),
-    labeledField('signerSetId', UTF8.encode(scope.signer_set_id)),
-    labeledField('signingWorkerId', UTF8.encode(scope.signing_worker_id)),
-    labeledField('walletId', UTF8.encode(application.wallet_id)),
-    labeledField('nearEd25519SigningKeyId', UTF8.encode(application.near_ed25519_signing_key_id)),
-    labeledField('signingRootId', UTF8.encode(application.signing_root_id)),
-    labeledField('keyCreationSignerSlot', u32BigEndian(application.key_creation_signer_slot)),
-    labeledField('participantA', u16BigEndian(identity.participant_ids[0])),
-    labeledField('participantB', u16BigEndian(identity.participant_ids[1])),
-    labeledField('registeredPublicKey', Uint8Array.from(identity.registered_public_key)),
-    labeledField('stateEpoch', u64BigEndian(identity.state_epoch)),
-    labeledField('runtimePolicyBinding', Uint8Array.from(identity.runtime_policy_binding)),
-  ];
-}
-
-export async function deriveRouterAbEd25519YaoExportConfirmationDigestV1(input: {
-  readonly identity: RouterAbEd25519YaoExportAuthorizationIdentityV1;
-  readonly nonce: RouterAbEd25519YaoBytes32V1;
-  readonly issuedAtMs: number;
-  readonly expiresAtMs: number;
-}): Promise<number[]> {
-  const nonce = requireBytes32(input.nonce, 'export authorization nonce', true);
-  if (input.expiresAtMs <= input.issuedAtMs) {
-    throw new Error('export authorization expiry must follow issue time');
-  }
-  const encoded = concatenateBytes([
-    lengthDelimited(UTF8.encode(EXPORT_CONFIRMATION_DOMAIN)),
-    ...exportIdentityFields(input.identity),
-    labeledField('nonce', Uint8Array.from(nonce)),
-    labeledField('issuedAtMs', u64BigEndian(input.issuedAtMs)),
-    labeledField('expiresAtMs', u64BigEndian(input.expiresAtMs)),
-  ]);
-  return Array.from(await sha256(encoded));
-}
-
-export async function deriveRouterAbEd25519YaoExportAuthorizationDigestV1(input: {
-  readonly identity: RouterAbEd25519YaoExportAuthorizationIdentityV1;
-  readonly confirmationDigest: RouterAbEd25519YaoBytes32V1;
-  readonly nonce: RouterAbEd25519YaoBytes32V1;
-  readonly issuedAtMs: number;
-  readonly expiresAtMs: number;
-  readonly authority: RouterAbEd25519YaoExportAuthorityBindingV1;
-}): Promise<number[]> {
-  const confirmationDigest = requireBytes32(
-    input.confirmationDigest,
-    'export confirmation digest',
-    true,
-  );
-  const nonce = requireBytes32(input.nonce, 'export authorization nonce', true);
-  const encoded = concatenateBytes([
-    lengthDelimited(UTF8.encode(EXPORT_AUTHORIZATION_DOMAIN)),
-    ...exportIdentityFields(input.identity),
-    labeledField('confirmationDigest', Uint8Array.from(confirmationDigest)),
-    labeledField('nonce', Uint8Array.from(nonce)),
-    labeledField('issuedAtMs', u64BigEndian(input.issuedAtMs)),
-    labeledField('expiresAtMs', u64BigEndian(input.expiresAtMs)),
-    labeledField('authorityKind', UTF8.encode(input.authority.kind)),
-    labeledField(
-      'authoritySubject',
-      UTF8.encode(
-        input.authority.kind === 'passkey'
-          ? requireVisibleIdentifier(input.authority.credentialIdB64u, 'credentialIdB64u')
-          : requireVisibleIdentifier(input.authority.providerSubjectId, 'providerSubjectId'),
-      ),
-    ),
-  ]);
-  return Array.from(await sha256(encoded));
 }
 
 function parseOperation(value: unknown, label: string): RouterAbEd25519YaoOperationV1 {
@@ -1946,73 +1621,6 @@ function parseRecoveryActivationReceiptValue(
   };
 }
 
-function requireRecoveryAdmissionReceipt(
-  value: unknown,
-): RouterAbEd25519YaoActivationAdmissionReceiptV1<'recovery'> {
-  const receipt = parseActivationAdmissionReceiptValue(value);
-  if (!isActivationAdmissionReceiptFor(receipt, 'recovery')) {
-    throw new Error('recovery status admission receipt must use the recovery operation');
-  }
-  return receipt;
-}
-
-function requireRecoveryExecutionResult(
-  value: unknown,
-): RouterAbEd25519YaoActivationResultV1<'recovery'> {
-  const result = parseActivationResultValue(value);
-  if (!isActivationResultFor(result, 'recovery')) {
-    throw new Error('recovery status execution result must use the recovery operation');
-  }
-  return result;
-}
-
-function parseRecoveryStatusValue(value: unknown): RouterAbEd25519YaoRecoveryStatusV1 {
-  const record = requireRecord(value, 'recovery status');
-  const lifecycleId = requireVisibleIdentifier(record.lifecycle_id, 'recovery status.lifecycle_id');
-  switch (record.stage) {
-    case 'missing':
-      requireExactKeys(record, 'recovery status', ['stage', 'lifecycle_id']);
-      return { stage: 'missing', lifecycle_id: lifecycleId };
-    case 'admitted':
-      requireExactKeys(record, 'recovery status', ['stage', 'lifecycle_id', 'admission_receipt']);
-      return {
-        stage: 'admitted',
-        lifecycle_id: lifecycleId,
-        admission_receipt: requireRecoveryAdmissionReceipt(record.admission_receipt),
-      };
-    case 'executed':
-      requireExactKeys(record, 'recovery status', [
-        'stage',
-        'lifecycle_id',
-        'admission_receipt',
-        'execution_result',
-      ]);
-      return {
-        stage: 'executed',
-        lifecycle_id: lifecycleId,
-        admission_receipt: requireRecoveryAdmissionReceipt(record.admission_receipt),
-        execution_result: requireRecoveryExecutionResult(record.execution_result),
-      };
-    case 'promoted':
-      requireExactKeys(record, 'recovery status', [
-        'stage',
-        'lifecycle_id',
-        'admission_receipt',
-        'execution_result',
-        'activation_receipt',
-      ]);
-      return {
-        stage: 'promoted',
-        lifecycle_id: lifecycleId,
-        admission_receipt: requireRecoveryAdmissionReceipt(record.admission_receipt),
-        execution_result: requireRecoveryExecutionResult(record.execution_result),
-        activation_receipt: parseRecoveryActivationReceiptValue(record.activation_receipt),
-      };
-    default:
-      throw new Error('recovery status.stage is invalid');
-  }
-}
-
 function isActivationAdmissionReceiptFor<Operation extends RouterAbEd25519YaoActivationOperationV1>(
   value: RouterAbEd25519YaoActivationAdmissionReceiptV1,
   operation: Operation,
@@ -2092,7 +1700,7 @@ export function parseRouterAbEd25519YaoExportResultV1(
   return parseBoundary(parseExportResultValue, value);
 }
 
-export function parseRouterAbEd25519YaoActivationAdmissionReceiptV1(
+function parseRouterAbEd25519YaoActivationAdmissionReceiptV1(
   value: unknown,
 ): RouterAbEd25519YaoParseResult<RouterAbEd25519YaoActivationAdmissionReceiptV1> {
   return parseBoundary(parseActivationAdmissionReceiptValue, value);
@@ -2120,7 +1728,7 @@ export function parseRouterAbEd25519YaoRecoveryActivationAdmissionReceiptV1(
   return { ok: true, value: parsed.value };
 }
 
-export function parseRouterAbEd25519YaoActivationExecuteRequestV1(
+function parseRouterAbEd25519YaoActivationExecuteRequestV1(
   value: unknown,
 ): RouterAbEd25519YaoParseResult<RouterAbEd25519YaoActivationExecuteRequestV1> {
   return parseBoundary(parseActivationExecuteRequestValue, value);
@@ -2186,12 +1794,6 @@ export function parseRouterAbEd25519YaoRecoveryActivationReceiptV1(
   value: unknown,
 ): RouterAbEd25519YaoParseResult<RouterAbEd25519YaoRecoveryActivationReceiptV1> {
   return parseBoundary(parseRecoveryActivationReceiptValue, value);
-}
-
-export function parseRouterAbEd25519YaoRecoveryStatusV1(
-  value: unknown,
-): RouterAbEd25519YaoParseResult<RouterAbEd25519YaoRecoveryStatusV1> {
-  return parseBoundary(parseRecoveryStatusValue, value);
 }
 
 export function parseRouterAbEd25519YaoEncryptedPackageV1(

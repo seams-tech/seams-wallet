@@ -188,12 +188,10 @@ function emailOtpEnrollmentTenantMismatch(): ReadEmailOtpEnrollmentResult {
 }
 
 export class CloudflareD1EmailOtpRecoveryService {
-  private readonly challengeVerifier: CloudflareD1EmailOtpChallengeVerifier;
   private readonly emailOtpChallenges: CloudflareD1EmailOtpChallengeStore;
   private readonly emailOtpEnrollments: CloudflareD1EmailOtpEnrollmentStore;
   private readonly emailOtpGrants: CloudflareD1EmailOtpGrantStore;
   private readonly emailOtpRateLimits: CloudflareD1EmailOtpRateLimitStore;
-  private readonly grantTtlMs: number;
 
   constructor(input: {
     readonly challengeVerifier: CloudflareD1EmailOtpChallengeVerifier;
@@ -203,12 +201,10 @@ export class CloudflareD1EmailOtpRecoveryService {
     readonly emailOtpRateLimits: CloudflareD1EmailOtpRateLimitStore;
     readonly grantTtlMs: number;
   }) {
-    this.challengeVerifier = input.challengeVerifier;
     this.emailOtpChallenges = input.emailOtpChallenges;
     this.emailOtpEnrollments = input.emailOtpEnrollments;
     this.emailOtpGrants = input.emailOtpGrants;
     this.emailOtpRateLimits = input.emailOtpRateLimits;
-    this.grantTtlMs = input.grantTtlMs;
   }
 
   async readEmailOtpEnrollment(

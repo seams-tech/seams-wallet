@@ -1,6 +1,11 @@
 import { toOptionalTrimmedString } from '@shared/utils/validation';
-import { d1ChangedRows, formatD1ExecStatement } from '../storage/d1Sql';
-import type { D1DatabaseLike } from '../storage/tenantRoute';
+import { d1ChangedRows } from '../storage/d1Sql';
+import {
+  D1TenantTable,
+  ensureD1Schema,
+  type D1SchemaOptions,
+  type D1TenantStoreOptions,
+} from './d1TenantStore';
 import type {
   IdentityStore,
   IdentitySubjectRecord,
@@ -8,36 +13,14 @@ import type {
   UnlinkIdentityResult,
 } from './IdentityStore';
 
-export interface D1IdentityStoreSchemaOptions {
-  readonly database: D1DatabaseLike;
-}
+export interface D1IdentityStoreSchemaOptions extends D1SchemaOptions {}
 
-export interface D1IdentityStoreOptions {
-  readonly database: D1DatabaseLike;
-  readonly namespace: string;
-  readonly orgId: string;
-  readonly projectId: string;
-  readonly envId: string;
-  readonly ensureSchema?: boolean;
+export interface D1IdentityStoreOptions extends D1TenantStoreOptions {
   readonly now?: () => Date;
 }
 
-type NormalizedD1IdentityStoreOptions = {
-  readonly database: D1DatabaseLike;
-  readonly namespace: string;
-  readonly orgId: string;
-  readonly projectId: string;
-  readonly envId: string;
-  readonly ensureSchema: boolean;
-  readonly now: () => Date;
-};
-
-type D1IdentityScope = {
-  readonly namespace: string;
-  readonly orgId: string;
-  readonly projectId: string;
-  readonly envId: string;
-};
+/** Names the identity store in D1 scope errors. */
+export const IDENTITY_D1_STORE = 'identity store';
 
 type D1IdentityLinkRow = {
   readonly subject?: unknown;
@@ -45,6 +28,15 @@ type D1IdentityLinkRow = {
   readonly created_at_ms?: unknown;
   readonly subject_count?: unknown;
 };
+
+/** How many subjects the user has; binds the scope, then the user. */
+const SUBJECT_COUNT_SQL = `SELECT COUNT(*) AS subject_count
+         FROM identity_links
+        WHERE namespace = ?
+          AND org_id = ?
+          AND project_id = ?
+          AND env_id = ?
+          AND user_id = ?`;
 
 export const IDENTITY_STORE_D1_SCHEMA_SQL = Object.freeze([
   `
@@ -91,33 +83,11 @@ export const IDENTITY_STORE_D1_SCHEMA_SQL = Object.freeze([
 export async function ensureIdentityStoreD1Schema(
   options: D1IdentityStoreSchemaOptions,
 ): Promise<void> {
-  for (const statement of IDENTITY_STORE_D1_SCHEMA_SQL) {
-    await options.database.exec(formatD1ExecStatement(statement));
-  }
+  await ensureD1Schema(options.database, IDENTITY_STORE_D1_SCHEMA_SQL);
 }
 
 function defaultNow(): Date {
   return new Date();
-}
-
-function requireD1ScopeString(input: unknown, field: string): string {
-  const normalized = toOptionalTrimmedString(input);
-  if (!normalized) throw new Error(`${field} is required for D1 identity store`);
-  return normalized;
-}
-
-function normalizeD1IdentityStoreOptions(
-  input: D1IdentityStoreOptions,
-): NormalizedD1IdentityStoreOptions {
-  return {
-    database: input.database,
-    namespace: requireD1ScopeString(input.namespace, 'namespace'),
-    orgId: requireD1ScopeString(input.orgId, 'orgId'),
-    projectId: requireD1ScopeString(input.projectId, 'projectId'),
-    envId: requireD1ScopeString(input.envId, 'envId'),
-    ensureSchema: input.ensureSchema !== false,
-    now: input.now || defaultNow,
-  };
 }
 
 function parseSubjectCount(raw: unknown): number {
@@ -150,49 +120,21 @@ function buildIdentitySubjectRecord(input: {
 
 export class D1IdentityStore implements IdentityStore {
   readonly adapterKind = 'd1';
-  private readonly database: D1DatabaseLike;
-  private readonly scope: D1IdentityScope;
-  private readonly ensureSchemaOnUse: boolean;
+  private readonly table: D1TenantTable;
   private readonly now: () => Date;
-  private schemaReady = false;
 
   constructor(input: D1IdentityStoreOptions) {
-    const normalized = normalizeD1IdentityStoreOptions(input);
-    this.database = normalized.database;
-    this.scope = {
-      namespace: normalized.namespace,
-      orgId: normalized.orgId,
-      projectId: normalized.projectId,
-      envId: normalized.envId,
-    };
-    this.ensureSchemaOnUse = normalized.ensureSchema;
-    this.now = normalized.now;
-  }
-
-  private async ensureSchema(): Promise<void> {
-    if (!this.ensureSchemaOnUse || this.schemaReady) return;
-    await ensureIdentityStoreD1Schema({ database: this.database });
-    this.schemaReady = true;
-  }
-
-  private bindScope(statement: string, values: readonly unknown[] = []) {
-    return this.database
-      .prepare(statement)
-      .bind(
-        this.scope.namespace,
-        this.scope.orgId,
-        this.scope.projectId,
-        this.scope.envId,
-        ...values,
-      );
+    this.table = new D1TenantTable(input, IDENTITY_D1_STORE, IDENTITY_STORE_D1_SCHEMA_SQL);
+    this.now = input.now || defaultNow;
   }
 
   async getUserIdBySubject(subject: string): Promise<string | null> {
-    await this.ensureSchema();
+    await this.table.ensureSchema();
     const normalizedSubject = toOptionalTrimmedString(subject);
     if (!normalizedSubject) return null;
-    const row = await this.bindScope(
-      `SELECT user_id
+    const row = await this.table
+      .prepare(
+        `SELECT user_id
          FROM identity_links
         WHERE namespace = ?
           AND org_id = ?
@@ -200,17 +142,19 @@ export class D1IdentityStore implements IdentityStore {
           AND env_id = ?
           AND subject = ?
         LIMIT 1`,
-      [normalizedSubject],
-    ).first<D1IdentityLinkRow>();
+        [normalizedSubject],
+      )
+      .first<D1IdentityLinkRow>();
     return toOptionalTrimmedString(row?.user_id) || null;
   }
 
   async listSubjectsByUserId(userId: string): Promise<string[]> {
-    await this.ensureSchema();
+    await this.table.ensureSchema();
     const normalizedUserId = toOptionalTrimmedString(userId);
     if (!normalizedUserId) return [];
-    const result = await this.bindScope(
-      `SELECT subject
+    const result = await this.table
+      .prepare(
+        `SELECT subject
          FROM identity_links
         WHERE namespace = ?
           AND org_id = ?
@@ -218,8 +162,9 @@ export class D1IdentityStore implements IdentityStore {
           AND env_id = ?
           AND user_id = ?
         ORDER BY created_at_ms ASC`,
-      [normalizedUserId],
-    ).all<D1IdentityLinkRow>();
+        [normalizedUserId],
+      )
+      .all<D1IdentityLinkRow>();
     return (result.results || [])
       .map(subjectFromIdentityLinkRow)
       .filter(isPresentString);
@@ -230,15 +175,16 @@ export class D1IdentityStore implements IdentityStore {
     subject: string;
     allowMoveIfSoleIdentity?: boolean;
   }): Promise<LinkIdentityResult> {
-    await this.ensureSchema();
+    await this.table.ensureSchema();
     const userId = toOptionalTrimmedString(input.userId);
     const subject = toOptionalTrimmedString(input.subject);
     if (!userId) return { ok: false, code: 'invalid_args', message: 'Missing userId' };
     if (!subject) return { ok: false, code: 'invalid_args', message: 'Missing subject' };
 
     const now = this.now().getTime();
-    const existing = await this.bindScope(
-      `SELECT user_id, created_at_ms
+    const existing = await this.table
+      .prepare(
+        `SELECT user_id, created_at_ms
          FROM identity_links
         WHERE namespace = ?
           AND org_id = ?
@@ -246,8 +192,9 @@ export class D1IdentityStore implements IdentityStore {
           AND env_id = ?
           AND subject = ?
         LIMIT 1`,
-      [subject],
-    ).first<D1IdentityLinkRow>();
+        [subject],
+      )
+      .first<D1IdentityLinkRow>();
     const existingUserId = toOptionalTrimmedString(existing?.user_id);
     const existingCreatedAtMs = Number(existing?.created_at_ms);
     const createdAtMs =
@@ -264,7 +211,7 @@ export class D1IdentityStore implements IdentityStore {
         };
       }
       const moved = d1ChangedRows(
-        await this.database
+        await this.table.database
           .prepare(
             `UPDATE identity_links
             SET user_id = ?,
@@ -292,31 +239,24 @@ export class D1IdentityStore implements IdentityStore {
               buildIdentitySubjectRecord({ subject, userId, createdAtMs, updatedAtMs: now }),
             ),
             now,
-            this.scope.namespace,
-            this.scope.orgId,
-            this.scope.projectId,
-            this.scope.envId,
+            this.table.scope.namespace,
+            this.table.scope.orgId,
+            this.table.scope.projectId,
+            this.table.scope.envId,
             subject,
             existingUserId,
-            this.scope.namespace,
-            this.scope.orgId,
-            this.scope.projectId,
-            this.scope.envId,
+            this.table.scope.namespace,
+            this.table.scope.orgId,
+            this.table.scope.projectId,
+            this.table.scope.envId,
             existingUserId,
           )
           .run(),
       );
       if (moved > 0) return { ok: true, movedFromUserId: existingUserId };
-      const countRow = await this.bindScope(
-        `SELECT COUNT(*) AS subject_count
-           FROM identity_links
-          WHERE namespace = ?
-            AND org_id = ?
-            AND project_id = ?
-            AND env_id = ?
-            AND user_id = ?`,
-        [existingUserId],
-      ).first<D1IdentityLinkRow>();
+      const countRow = await this.table
+        .prepare(SUBJECT_COUNT_SQL, [existingUserId])
+        .first<D1IdentityLinkRow>();
       if (parseSubjectCount(countRow?.subject_count) !== 1) {
         return {
           ok: false,
@@ -332,8 +272,9 @@ export class D1IdentityStore implements IdentityStore {
       };
     }
 
-    await this.bindScope(
-      `INSERT INTO identity_links (
+    await this.table
+      .prepare(
+        `INSERT INTO identity_links (
         namespace,
         org_id,
         project_id,
@@ -351,16 +292,17 @@ export class D1IdentityStore implements IdentityStore {
         record_json = EXCLUDED.record_json,
         updated_at_ms = EXCLUDED.updated_at_ms
       WHERE identity_links.user_id = EXCLUDED.user_id`,
-      [
-        subject,
-        userId,
-        JSON.stringify(
-          buildIdentitySubjectRecord({ subject, userId, createdAtMs, updatedAtMs: now }),
-        ),
-        createdAtMs,
-        now,
-      ],
-    ).run();
+        [
+          subject,
+          userId,
+          JSON.stringify(
+            buildIdentitySubjectRecord({ subject, userId, createdAtMs, updatedAtMs: now }),
+          ),
+          createdAtMs,
+          now,
+        ],
+      )
+      .run();
     const finalUserId = await this.getUserIdBySubject(subject);
     if (finalUserId === userId) return { ok: true };
     if (finalUserId) {
@@ -377,14 +319,14 @@ export class D1IdentityStore implements IdentityStore {
     userId: string;
     subject: string;
   }): Promise<UnlinkIdentityResult> {
-    await this.ensureSchema();
+    await this.table.ensureSchema();
     const userId = toOptionalTrimmedString(input.userId);
     const subject = toOptionalTrimmedString(input.subject);
     if (!userId) return { ok: false, code: 'invalid_args', message: 'Missing userId' };
     if (!subject) return { ok: false, code: 'invalid_args', message: 'Missing subject' };
 
     const deleted = d1ChangedRows(
-      await this.database
+      await this.table.database
         .prepare(
           `DELETE FROM identity_links
             WHERE namespace = ?
@@ -404,16 +346,16 @@ export class D1IdentityStore implements IdentityStore {
               ) > 1`,
         )
         .bind(
-          this.scope.namespace,
-          this.scope.orgId,
-          this.scope.projectId,
-          this.scope.envId,
+          this.table.scope.namespace,
+          this.table.scope.orgId,
+          this.table.scope.projectId,
+          this.table.scope.envId,
           subject,
           userId,
-          this.scope.namespace,
-          this.scope.orgId,
-          this.scope.projectId,
-          this.scope.envId,
+          this.table.scope.namespace,
+          this.table.scope.orgId,
+          this.table.scope.projectId,
+          this.table.scope.envId,
           userId,
         )
         .run(),
@@ -424,16 +366,9 @@ export class D1IdentityStore implements IdentityStore {
     if (existingUserId !== userId) {
       return { ok: false, code: 'not_found', message: 'Subject is not linked to this user' };
     }
-    const countRow = await this.bindScope(
-      `SELECT COUNT(*) AS subject_count
-         FROM identity_links
-        WHERE namespace = ?
-          AND org_id = ?
-          AND project_id = ?
-          AND env_id = ?
-          AND user_id = ?`,
-      [userId],
-    ).first<D1IdentityLinkRow>();
+    const countRow = await this.table
+      .prepare(SUBJECT_COUNT_SQL, [userId])
+      .first<D1IdentityLinkRow>();
     if (parseSubjectCount(countRow?.subject_count) <= 1) {
       return {
         ok: false,
@@ -448,7 +383,7 @@ export class D1IdentityStore implements IdentityStore {
     userId: string;
     subject: string;
   }): Promise<UnlinkIdentityResult> {
-    await this.ensureSchema();
+    await this.table.ensureSchema();
     const userId = toOptionalTrimmedString(input.userId);
     const subject = toOptionalTrimmedString(input.subject);
     if (!userId) return { ok: false, code: 'invalid_args', message: 'Missing userId' };
@@ -464,16 +399,18 @@ export class D1IdentityStore implements IdentityStore {
     readonly userId: string;
     readonly subject: string;
   }): Promise<number> {
-    const result = await this.bindScope(
-      `DELETE FROM identity_links
+    const result = await this.table
+      .prepare(
+        `DELETE FROM identity_links
         WHERE namespace = ?
           AND org_id = ?
           AND project_id = ?
           AND env_id = ?
           AND subject = ?
           AND user_id = ?`,
-      [input.subject, input.userId],
-    ).run();
+        [input.subject, input.userId],
+      )
+      .run();
     return d1ChangedRows(result);
   }
 }

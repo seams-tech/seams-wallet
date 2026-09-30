@@ -1,9 +1,4 @@
-import type { NormalizedLogger } from './logger';
-import type {
-  CloudflareDurableObjectNamespaceLike,
-  ThresholdEcdsaChainTarget,
-  ThresholdStoreConfigInput,
-} from './types';
+import type { CloudflareDurableObjectStubLike, ThresholdEcdsaChainTarget } from './types';
 import type { WalletRegistrationEcdsaWalletKey, WalletId } from './registrationContracts';
 import {
   ecdsaClientRootPublicKey33B64uFromString,
@@ -23,13 +18,6 @@ import type {
   RouterAbEd25519YaoRegistrationAdmissionRequestV1,
 } from '@shared/utils/routerAbEd25519Yao';
 import {
-  sameRouterAbEd25519YaoActivationBindingV1,
-  sameRouterAbEd25519YaoActivationKeysetV1,
-  sameRouterAbEd25519YaoActivationPublicReceiptV1,
-  sameRouterAbEd25519YaoRecoveryAdmissionRequestV1,
-  sameRouterAbEd25519YaoRegistrationAdmissionRequestV1,
-} from '@shared/utils/routerAbEd25519Yao';
-import {
   sameRouterAbMpcMaterialActivationRef,
   type RouterAbMpcMaterialActivationRefWire,
 } from '@shared/utils/routerAbNormalSigningIdentity';
@@ -47,16 +35,20 @@ import {
   type RouterAbEcdsaDerivationSignerSetV1,
   type RouterAbEcdsaRegistrationActivationReceiptV1,
 } from '@shared/utils/routerAbEcdsaDerivation';
-import { THRESHOLD_DO_OBJECT_NAME_DEFAULT, THRESHOLD_PREFIX_DEFAULT } from './defaultConfigsServer';
-import { resolveD1DatabaseFromConfig } from '../storage/d1Sql';
-import { toOptionalTrimmedString } from '@shared/utils/validation';
+import { resolveStorePrefix } from './d1TenantStore';
+import {
+  createDurableObjectStore,
+  postDurableObjectRequest,
+  type DurableObjectStoreSpec,
+  type StoreFactoryInput,
+} from './storeBackends';
+import { toOptionalTrimmedString, isPlainObject } from '@shared/utils/validation';
 import { parseWalletId } from '@shared/utils/domainIds';
 import {
   thresholdEcdsaChainTargetFromValue,
   thresholdEcdsaChainTargetKey,
 } from './thresholdEcdsaChainTarget';
 import { D1WalletStore, parseWalletEd25519SignerRecord } from './d1WalletStore';
-import type { D1WalletStoreOptions } from './d1WalletStore';
 
 export {
   D1WalletStore,
@@ -113,119 +105,6 @@ export type WalletEd25519SignerRecord = {
   createdAtMs: number;
   updatedAtMs: number;
 };
-
-function sameWalletEd25519ByteSequenceV1(
-  left: readonly number[],
-  right: readonly number[],
-): boolean {
-  if (left.length !== right.length) return false;
-  for (let index = 0; index < left.length; index += 1) {
-    if (left[index] !== right[index]) return false;
-  }
-  return true;
-}
-
-function sameWalletRuntimePolicyScopeV1(
-  left: RuntimePolicyScope,
-  right: RuntimePolicyScope,
-): boolean {
-  return (
-    left.orgId === right.orgId &&
-    left.projectId === right.projectId &&
-    left.envId === right.envId &&
-    left.signingRootVersion === right.signingRootVersion
-  );
-}
-
-function sameWalletEd25519YaoActiveCapabilityV1(
-  left: WalletEd25519YaoActiveCapabilityRecord,
-  right: WalletEd25519YaoActiveCapabilityRecord,
-): boolean {
-  if (
-    left.version !== right.version ||
-    !sameWalletEd25519ByteSequenceV1(left.activeCapabilityBinding, right.activeCapabilityBinding) ||
-    left.nearAccountId !== right.nearAccountId ||
-    !sameWalletRuntimePolicyScopeV1(left.runtimePolicyScope, right.runtimePolicyScope)
-  ) {
-    return false;
-  }
-  switch (left.version) {
-    case 'wallet_ed25519_yao_registration_capability_v1':
-      if (right.version !== 'wallet_ed25519_yao_registration_capability_v1') return false;
-      return (
-        sameRouterAbEd25519YaoRegistrationAdmissionRequestV1(
-          left.admissionRequest,
-          right.admissionRequest,
-        ) &&
-        sameRouterAbEd25519YaoActivationBindingV1(
-          left.admissionReceipt.binding,
-          right.admissionReceipt.binding,
-        ) &&
-        sameRouterAbEd25519YaoActivationKeysetV1(
-          left.admissionReceipt.keyset,
-          right.admissionReceipt.keyset,
-        ) &&
-        sameRouterAbEd25519YaoActivationBindingV1(
-          left.activationResult.binding,
-          right.activationResult.binding,
-        ) &&
-        sameRouterAbEd25519YaoActivationPublicReceiptV1(
-          left.activationResult.public_receipt,
-          right.activationResult.public_receipt,
-        )
-      );
-    case 'wallet_ed25519_yao_recovery_capability_v1':
-      if (right.version !== 'wallet_ed25519_yao_recovery_capability_v1') return false;
-      return (
-        sameRouterAbEd25519YaoRecoveryAdmissionRequestV1(
-          left.admissionRequest,
-          right.admissionRequest,
-        ) &&
-        sameRouterAbEd25519YaoActivationBindingV1(
-          left.activationResult.binding,
-          right.activationResult.binding,
-        ) &&
-        sameRouterAbEd25519YaoActivationPublicReceiptV1(
-          left.activationResult.public_receipt,
-          right.activationResult.public_receipt,
-        )
-      );
-    default:
-      return assertNeverWalletEd25519YaoCapability(left);
-  }
-}
-
-function assertNeverWalletEd25519YaoCapability(capability: never): never {
-  throw new Error(`Unexpected wallet Ed25519 Yao capability: ${String(capability)}`);
-}
-
-export function sameWalletEd25519SignerRecordV1(
-  left: WalletEd25519SignerRecord,
-  right: WalletEd25519SignerRecord,
-): boolean {
-  return (
-    left.version === right.version &&
-    left.walletId === right.walletId &&
-    left.signerId === right.signerId &&
-    left.nearAccountId === right.nearAccountId &&
-    left.nearEd25519SigningKeyId === right.nearEd25519SigningKeyId &&
-    left.thresholdSessionId === right.thresholdSessionId &&
-    left.signerSlot === right.signerSlot &&
-    left.publicKey === right.publicKey &&
-    left.signingWorkerId === right.signingWorkerId &&
-    left.keyVersion === right.keyVersion &&
-    left.recoveryExportCapable === right.recoveryExportCapable &&
-    left.participantIds[0] === right.participantIds[0] &&
-    left.participantIds[1] === right.participantIds[1] &&
-    left.signingRootId === right.signingRootId &&
-    left.signingRootVersion === right.signingRootVersion &&
-    sameWalletRuntimePolicyScopeV1(left.runtimePolicyScope, right.runtimePolicyScope) &&
-    sameWalletEd25519YaoActiveCapabilityV1(left.activeYaoCapability, right.activeYaoCapability) &&
-    left.custodyKeyManifestDigestB64u === right.custodyKeyManifestDigestB64u &&
-    left.createdAtMs === right.createdAtMs &&
-    left.updatedAtMs === right.updatedAtMs
-  );
-}
 
 export type WalletEcdsaSignerKey = Omit<
   WalletRegistrationEcdsaWalletKey,
@@ -314,7 +193,8 @@ export interface WalletStore {
 export function parseWalletEcdsaPendingSessionActivationRecord(
   raw: unknown,
 ): WalletEcdsaPendingSessionActivationRecord | null {
-  if (!isObject(raw) || raw.version !== 'wallet_ecdsa_pending_session_activation_v1') return null;
+  if (!isPlainObject(raw) || raw.version !== 'wallet_ecdsa_pending_session_activation_v1')
+    return null;
   const walletId = parseWalletId(raw.walletId);
   const lifecycleId = toOptionalTrimmedString(raw.lifecycleId);
   const requestId = toOptionalTrimmedString(raw.requestId);
@@ -403,40 +283,8 @@ export function ecdsaPostRegistrationRequestMatchesCapability(input: {
   );
 }
 
-function isObject(v: unknown): v is Record<string, unknown> {
-  return Boolean(v && typeof v === 'object' && !Array.isArray(v));
-}
-
-function trimString(value: unknown): string {
-  return typeof value === 'string' ? value.trim() : '';
-}
-
-function toPrefixWithColon(prefix: unknown, defaultPrefix: string): string {
-  const p = toOptionalTrimmedString(prefix);
-  if (!p) return defaultPrefix;
-  return p.endsWith(':') ? p : `${p}:`;
-}
-
 export function resolveWalletStoreNamespace(config: Record<string, unknown>): string {
-  const explicit = toOptionalTrimmedString(config.WALLET_PREFIX);
-  if (explicit) return toPrefixWithColon(explicit, '');
-  const base = toOptionalTrimmedString(config.THRESHOLD_PREFIX) || THRESHOLD_PREFIX_DEFAULT;
-  const baseWithColon = toPrefixWithColon(base, `${THRESHOLD_PREFIX_DEFAULT}:`);
-  return `${baseWithColon}wallet:`;
-}
-
-function resolveDoNamespaceFromConfig(
-  config: Record<string, unknown>,
-): CloudflareDurableObjectNamespaceLike | null {
-  const isNamespace = (value: unknown): value is CloudflareDurableObjectNamespaceLike =>
-    isObject(value) && typeof value.idFromName === 'function' && typeof value.get === 'function';
-  const direct = config.namespace;
-  if (isNamespace(direct)) return direct;
-  const durableObjectNamespace = config.durableObjectNamespace;
-  if (isNamespace(durableObjectNamespace)) return durableObjectNamespace;
-  const envStyle = config.THRESHOLD_DO_NAMESPACE;
-  if (isNamespace(envStyle)) return envStyle;
-  return null;
+  return resolveStorePrefix(config, ['WALLET_PREFIX'], 'wallet:');
 }
 
 function signerFamily(record: WalletSignerRecord): 'ed25519' | 'ecdsa' {
@@ -450,7 +298,7 @@ function normalizeTimestampMs(value: unknown): number | null {
 }
 
 function parseWalletRecord(raw: unknown): WalletRecord | null {
-  if (!isObject(raw)) return null;
+  if (!isPlainObject(raw)) return null;
   if (raw.version !== 'wallet_v1') return null;
   const walletId = parseWalletId(raw.walletId);
   const createdAtMs = normalizeTimestampMs(raw.createdAtMs);
@@ -465,13 +313,13 @@ function parseWalletRecord(raw: unknown): WalletRecord | null {
 }
 
 export function parseWalletEcdsaSignerRecord(raw: unknown): WalletEcdsaSignerRecord | null {
-  if (!isObject(raw) || raw.version !== 'wallet_signer_ecdsa_v1') return null;
+  if (!isPlainObject(raw) || raw.version !== 'wallet_signer_ecdsa_v1') return null;
   if ('evmFamilySigningKeySlotId' in raw) return null;
   const walletId = parseWalletId(raw.walletId);
   const signerId = toOptionalTrimmedString(raw.signerId);
   const chainTargetKey = toOptionalTrimmedString(raw.chainTargetKey);
   const chainTarget = thresholdEcdsaChainTargetFromValue(raw.chainTarget);
-  const walletKeyRaw = isObject(raw.walletKey) ? raw.walletKey : null;
+  const walletKeyRaw = isPlainObject(raw.walletKey) ? raw.walletKey : null;
   const walletKey = walletKeyRaw ? parseWalletEcdsaSignerKey(walletKeyRaw) : null;
   let activationReceipt: RouterAbEcdsaRegistrationActivationReceiptV1;
   let runtimePolicyScope: RuntimePolicyScope;
@@ -603,24 +451,6 @@ function parseWalletEcdsaSignerKey(raw: Record<string, unknown>): WalletEcdsaSig
 function normalizeNonNegativeInteger(value: unknown): number | null {
   const normalized = Number(value);
   return Number.isSafeInteger(normalized) && normalized >= 0 ? normalized : null;
-}
-
-function requireD1ScopeString(input: unknown, field: string): string {
-  const normalized = toOptionalTrimmedString(input);
-  if (!normalized) throw new Error(`${field} is required for D1 wallet store`);
-  return normalized;
-}
-
-function d1ScopeFromConfig(input: {
-  readonly config: Record<string, unknown>;
-  readonly namespace: string;
-}): Omit<D1WalletStoreOptions, 'database'> {
-  return {
-    namespace: requireD1ScopeString(input.namespace, 'namespace'),
-    orgId: requireD1ScopeString(input.config.orgId || input.config.ORG_ID, 'orgId'),
-    projectId: requireD1ScopeString(input.config.projectId || input.config.PROJECT_ID, 'projectId'),
-    envId: requireD1ScopeString(input.config.envId || input.config.ENV_ID, 'envId'),
-  };
 }
 
 export function buildWalletEd25519SignerId(input: {
@@ -781,32 +611,25 @@ class InMemoryWalletStore implements WalletStore {
   }
 }
 
-type DurableObjectStubLike = { fetch(input: RequestInfo, init?: RequestInit): Promise<Response> };
-
 class CloudflareDurableObjectWalletStore implements WalletStore {
-  private readonly stub: DurableObjectStubLike;
-
   constructor(
-    private readonly input: {
-      namespace: CloudflareDurableObjectNamespaceLike;
-      objectName: string;
-      prefix: string;
-    },
-  ) {
-    const id = input.namespace.idFromName(input.objectName);
-    this.stub = input.namespace.get(id) as unknown as DurableObjectStubLike;
-  }
+    private readonly stub: CloudflareDurableObjectStubLike,
+    private readonly prefix: string,
+  ) {}
 
   private key(scope: 'subject' | 'signer' | 'ecdsa-session-activation', id: string): string {
-    return `${this.input.prefix}${scope}:${id}`;
+    return `${this.prefix}${scope}:${id}`;
+  }
+
+  /** The object's reply to a `get`, or `undefined` when it answers with an HTTP error. */
+  private async get(key: string): Promise<{ value?: unknown } | null | undefined> {
+    const response = await postDurableObjectRequest(this.stub, { op: 'get', key });
+    if (!response.ok) return undefined;
+    return (await response.json().catch(() => null)) as { value?: unknown } | null;
   }
 
   private async put(key: string, value: unknown): Promise<void> {
-    const response = await this.stub.fetch('https://threshold-store.invalid/', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ op: 'set', key, value }),
-    });
+    const response = await postDurableObjectRequest(this.stub, { op: 'set', key, value });
     if (!response.ok) {
       throw new Error(`Wallet DO store HTTP ${response.status}: ${await response.text()}`);
     }
@@ -819,13 +642,8 @@ class CloudflareDurableObjectWalletStore implements WalletStore {
   async getWallet(input: { walletId: WalletId }): Promise<WalletRecord | null> {
     const walletId = toOptionalTrimmedString(input.walletId);
     if (!walletId) return null;
-    const response = await this.stub.fetch('https://threshold-store.invalid/', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ op: 'get', key: this.key('subject', walletId) }),
-    });
-    if (!response.ok) return null;
-    const current = (await response.json().catch(() => null)) as { value?: unknown } | null;
+    const current = await this.get(this.key('subject', walletId));
+    if (current === undefined) return null;
     return parseWalletRecord(current?.value);
   }
 
@@ -838,16 +656,10 @@ class CloudflareDurableObjectWalletStore implements WalletStore {
     const keyHandle = toOptionalTrimmedString(input.keyHandle);
     if (!walletId || !keyHandle) return null;
     const chainTargetKey = thresholdEcdsaChainTargetKey(input.chainTarget);
-    const response = await this.stub.fetch('https://threshold-store.invalid/', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        op: 'get',
-        key: this.key('signer', `${walletId}:ecdsa-key-handle:${keyHandle}:${chainTargetKey}`),
-      }),
-    });
-    if (!response.ok) return null;
-    const current = (await response.json().catch(() => null)) as { value?: unknown } | null;
+    const current = await this.get(
+      this.key('signer', `${walletId}:ecdsa-key-handle:${keyHandle}:${chainTargetKey}`),
+    );
+    if (current === undefined) return null;
     return parseWalletEcdsaSignerRecord(current?.value);
   }
 
@@ -855,16 +667,10 @@ class CloudflareDurableObjectWalletStore implements WalletStore {
     walletId: WalletId;
     signerSlot: number;
   }): Promise<WalletEd25519SignerRecord | null> {
-    const response = await this.stub.fetch('https://threshold-store.invalid/', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        op: 'get',
-        key: this.key('signer', `${input.walletId}:ed25519-slot:${input.signerSlot}`),
-      }),
-    });
-    if (!response.ok) return null;
-    const current = (await response.json().catch(() => null)) as { value?: unknown } | null;
+    const current = await this.get(
+      this.key('signer', `${input.walletId}:ed25519-slot:${input.signerSlot}`),
+    );
+    if (current === undefined) return null;
     return parseWalletEd25519SignerRecord(current?.value);
   }
 
@@ -872,19 +678,13 @@ class CloudflareDurableObjectWalletStore implements WalletStore {
     walletId: WalletId;
     publicCapability: RouterAbEcdsaDerivationPublicCapabilityV1;
   }): Promise<WalletEcdsaSignerRecord | null> {
-    const response = await this.stub.fetch('https://threshold-store.invalid/', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        op: 'get',
-        key: this.key(
-          'signer',
-          `${input.walletId}:ecdsa-public-capability:${input.publicCapability.registration_request_digest_b64u}`,
-        ),
-      }),
-    });
-    if (!response.ok) return null;
-    const current = (await response.json().catch(() => null)) as { value?: unknown } | null;
+    const current = await this.get(
+      this.key(
+        'signer',
+        `${input.walletId}:ecdsa-public-capability:${input.publicCapability.registration_request_digest_b64u}`,
+      ),
+    );
+    if (current === undefined) return null;
     const signer = parseWalletEcdsaSignerRecord(current?.value);
     return signer &&
       ecdsaPublicCapabilitiesEqual(signer.walletKey.publicCapability, input.publicCapability)
@@ -896,19 +696,13 @@ class CloudflareDurableObjectWalletStore implements WalletStore {
     walletId: WalletId;
     materialActivation: RouterAbMpcMaterialActivationRefWire;
   }): Promise<WalletEcdsaSignerRecord | null> {
-    const response = await this.stub.fetch('https://threshold-store.invalid/', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        op: 'get',
-        key: this.key(
-          'signer',
-          `${input.walletId}:ecdsa-material-activation:${input.materialActivation.activation_id}`,
-        ),
-      }),
-    });
-    if (!response.ok) return null;
-    const current = (await response.json().catch(() => null)) as { value?: unknown } | null;
+    const current = await this.get(
+      this.key(
+        'signer',
+        `${input.walletId}:ecdsa-material-activation:${input.materialActivation.activation_id}`,
+      ),
+    );
+    if (current === undefined) return null;
     const signer = parseWalletEcdsaSignerRecord(current?.value);
     return signer &&
       signer.walletId === input.walletId &&
@@ -925,16 +719,10 @@ class CloudflareDurableObjectWalletStore implements WalletStore {
     request: WalletEcdsaPostRegistrationPublicRequest;
   }): Promise<WalletEcdsaSignerRecord | null> {
     const capabilityDigest = input.request.public_identity.context_binding_b64u;
-    const response = await this.stub.fetch('https://threshold-store.invalid/', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        op: 'get',
-        key: this.key('signer', `${input.walletId}:ecdsa-context-binding:${capabilityDigest}`),
-      }),
-    });
-    if (!response.ok) return null;
-    const current = (await response.json().catch(() => null)) as { value?: unknown } | null;
+    const current = await this.get(
+      this.key('signer', `${input.walletId}:ecdsa-context-binding:${capabilityDigest}`),
+    );
+    if (current === undefined) return null;
     const signer = parseWalletEcdsaSignerRecord(current?.value);
     return signer &&
       ecdsaPostRegistrationRequestMatchesCapability({
@@ -948,16 +736,7 @@ class CloudflareDurableObjectWalletStore implements WalletStore {
   async listEcdsaSignersForWallet(input: {
     walletId: WalletId;
   }): Promise<readonly WalletEcdsaSignerRecord[]> {
-    const response = await this.stub.fetch('https://threshold-store.invalid/', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        op: 'get',
-        key: this.key('signer', `${input.walletId}:ecdsa-list`),
-      }),
-    });
-    if (!response.ok) return [];
-    const current = (await response.json().catch(() => null)) as { value?: unknown } | null;
+    const current = await this.get(this.key('signer', `${input.walletId}:ecdsa-list`));
     if (current?.value === undefined || current.value === null) return [];
     if (!Array.isArray(current.value)) throw new Error('Wallet ECDSA signer list is invalid');
     const signers: WalletEcdsaSignerRecord[] = [];
@@ -1036,38 +815,18 @@ class CloudflareDurableObjectWalletStore implements WalletStore {
   }
 }
 
-export function createWalletStore(input: {
-  config?: ThresholdStoreConfigInput | null;
-  logger: NormalizedLogger;
-  isNode: boolean;
-}): WalletStore {
-  const config = (isObject(input.config) ? input.config : {}) as Record<string, unknown>;
-  const prefix = resolveWalletStoreNamespace(config);
-  const kind = toOptionalTrimmedString(config.kind);
-  if (kind === 'd1') {
-    const database = resolveD1DatabaseFromConfig(config);
-    if (!database) {
-      throw new Error('[wallet] D1 store selected but no D1 database was provided');
-    }
-    input.logger.info('[wallet] Using D1 store');
-    return new D1WalletStore({
-      database,
-      ...d1ScopeFromConfig({ config, namespace: prefix }),
-    });
-  }
-  if (kind === 'cloudflare-do') {
-    const namespace = resolveDoNamespaceFromConfig(config);
-    if (!namespace) {
-      throw new Error(
-        'cloudflare-do wallet store selected but no Durable Object namespace was provided',
-      );
-    }
-    const objectName =
-      trimString(config.objectName) || trimString(config.name) || THRESHOLD_DO_OBJECT_NAME_DEFAULT;
-    input.logger.info('[wallet] Using Cloudflare Durable Object store');
-    return new CloudflareDurableObjectWalletStore({ namespace, objectName, prefix });
-  }
-  if (kind) throw new Error(`[wallet] Unknown wallet store kind: ${kind}`);
-  input.logger.info('[wallet] Using in-memory store (non-persistent)');
-  return new InMemoryWalletStore(prefix);
+const WALLET_STORE: DurableObjectStoreSpec = {
+  tag: 'wallet',
+  name: 'wallet',
+  inMemoryLog: 'Using in-memory store (non-persistent)',
+  d1StoreName: 'wallet store',
+  resolvePrefix: resolveWalletStoreNamespace,
+};
+
+export function createWalletStore(input: StoreFactoryInput): WalletStore {
+  return createDurableObjectStore(input, WALLET_STORE, {
+    d1: (options) => new D1WalletStore(options),
+    durableObject: (stub, prefix) => new CloudflareDurableObjectWalletStore(stub, prefix),
+    inMemory: (prefix) => new InMemoryWalletStore(prefix),
+  });
 }

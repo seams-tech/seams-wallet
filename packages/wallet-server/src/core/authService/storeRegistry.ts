@@ -17,10 +17,6 @@ import {
 import { createIdentityStore, type IdentityStore } from '../IdentityStore';
 import { createNearPublicKeyStore, type NearPublicKeyStore } from '../NearPublicKeyStore';
 import {
-  createRegistrationCeremonyStore,
-  type RegistrationCeremonyStore,
-} from '../RegistrationCeremonyStore';
-import {
   createWalletAuthMethodStore,
   type WalletAuthMethodStore,
 } from '../WalletAuthMethodStore';
@@ -43,10 +39,7 @@ import {
 } from '../WebAuthnSyncChallengeStore';
 import type { SigningSessionSealRateLimiter } from '../../threshold/session/signingSessionSeal';
 import type { AuthServiceConfigSource } from './configValues';
-import {
-  createEmailOtpRateLimiter,
-  createRegistrationPrepareRateLimiter,
-} from './rateLimits';
+import { createEmailOtpRateLimiter } from './rateLimits';
 
 type AuthServiceStoreRegistryInput = {
   readonly config: AuthServiceConfig;
@@ -80,10 +73,8 @@ export class AuthServiceStoreRegistry {
   private emailOtpUnlockChallengeStore: EmailOtpUnlockChallengeStore | null = null;
   private emailOtpRegistrationAttemptStore: EmailOtpRegistrationAttemptStore | null = null;
   private emailOtpRateLimiter: SigningSessionSealRateLimiter | null = null;
-  private registrationPrepareRateLimiter: SigningSessionSealRateLimiter | null = null;
   private nearPublicKeyStore: NearPublicKeyStore | null = null;
   private identityStore: IdentityStore | null = null;
-  private registrationCeremonyStore: RegistrationCeremonyStore | null = null;
   private walletStore: WalletStore | null = null;
   private walletAuthMethodStore: WalletAuthMethodStore | null = null;
 
@@ -115,13 +106,6 @@ export class AuthServiceStoreRegistry {
       createStoreFactoryInput(this.input),
     );
     return this.webAuthnSyncChallengeStore;
-  }
-
-  getRegistrationCeremonyStore(): RegistrationCeremonyStore {
-    this.registrationCeremonyStore ??= createRegistrationCeremonyStore(
-      createStoreFactoryInput(this.input),
-    );
-    return this.registrationCeremonyStore;
   }
 
   getWalletStore(): WalletStore {
@@ -168,13 +152,6 @@ export class AuthServiceStoreRegistry {
       createStoreFactoryInput(this.input),
     );
     return this.emailOtpRegistrationAttemptStore;
-  }
-
-  getRegistrationPrepareRateLimiter(): SigningSessionSealRateLimiter {
-    this.registrationPrepareRateLimiter ??= createRegistrationPrepareRateLimiter({
-      thresholdStore: this.input.config.thresholdStore as AuthServiceConfigSource,
-    });
-    return this.registrationPrepareRateLimiter;
   }
 
   getEmailOtpRateLimiter(): SigningSessionSealRateLimiter {

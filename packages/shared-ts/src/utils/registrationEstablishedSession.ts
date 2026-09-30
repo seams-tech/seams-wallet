@@ -26,7 +26,7 @@ import {
   type ThresholdEcdsaKeyHandle,
 } from './thresholdEcdsaKeyHandle';
 import { parseNearAccountId, type NearAccountId } from './near';
-import { parseNearEd25519SigningKeyId, type NearEd25519SigningKeyId } from './registrationIntent';
+import { parseNearEd25519SigningKeyId, type NearEd25519SigningKeyId } from './registrationIds';
 import {
   normalizeRuntimePolicyScope,
   type RuntimePolicyScope,
@@ -47,7 +47,7 @@ import type {
 import {
   parseActiveWalletSessionV1,
   parseWalletSessionOperationCredentialV1,
-} from '../device-linking/parsers';
+} from '../device-linking/activeWalletSession';
 
 /**
  * The registration journal's durable session projection. It keeps the
@@ -159,7 +159,7 @@ export function parseRegistrationEstablishedSessionResultV2(
   }
 }
 
-export function parseRegistrationEstablishedSessionV2(
+function parseRegistrationEstablishedSessionV2(
   raw: unknown,
 ): RegistrationEstablishedSessionV2 | null {
   try {

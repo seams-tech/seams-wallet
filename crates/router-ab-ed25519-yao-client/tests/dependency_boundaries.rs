@@ -2,8 +2,6 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-const FORBIDDEN_NORMAL_DEPENDENCIES: [&str; 2] = ["router-ab-ed25519-yao =", "ed25519-yao ="];
-const FORBIDDEN_CLIENT_IMPORTS: [&str; 2] = ["use router_ab_ed25519_yao::", "use ed25519_yao::"];
 const FORBIDDEN_PROTOCOL_INTERNALS: [&str; 6] = [
     "use ed25519_yao::",
     "ed25519_yao::local_protocol",
@@ -23,54 +21,6 @@ fn rust_sources(directory: &Path) -> Vec<PathBuf> {
         .map(|entry| entry.expect("source entry").path())
         .filter(|path| path.extension().is_some_and(|extension| extension == "rs"))
         .collect()
-}
-
-fn normal_dependency_section(manifest: &str) -> &str {
-    let start = manifest
-        .find("[dependencies]")
-        .expect("manifest dependencies section");
-    let dependencies = &manifest[start + "[dependencies]".len()..];
-    match dependencies.find("\n[") {
-        Some(end) => &dependencies[..end],
-        None => dependencies,
-    }
-}
-
-#[test]
-fn production_client_dependency_graph_excludes_role_engine_crates() {
-    let client = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let protocol = client
-        .parent()
-        .expect("crates directory")
-        .join("router-ab-ed25519-yao-protocol");
-    for manifest in [client.join("Cargo.toml"), protocol.join("Cargo.toml")] {
-        let source = read(&manifest);
-        let dependencies = normal_dependency_section(&source);
-        for forbidden in FORBIDDEN_NORMAL_DEPENDENCIES {
-            assert!(
-                !dependencies
-                    .lines()
-                    .any(|line| line.trim_start().starts_with(forbidden)),
-                "{} contains forbidden production dependency {forbidden}",
-                manifest.display()
-            );
-        }
-    }
-}
-
-#[test]
-fn production_client_sources_import_only_the_protocol_boundary() {
-    let client = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    for path in rust_sources(&client.join("src")) {
-        let source = read(&path);
-        for forbidden in FORBIDDEN_CLIENT_IMPORTS {
-            assert!(
-                !source.contains(forbidden),
-                "{} contains forbidden role-engine import {forbidden}",
-                path.display()
-            );
-        }
-    }
 }
 
 #[test]

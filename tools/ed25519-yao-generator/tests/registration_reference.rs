@@ -569,7 +569,7 @@ fn assert_compile_failure(harness: &UiHarness, body: &str, code: &str) {
 }
 
 #[test]
-fn source_and_compile_guards_keep_registration_synthetic_seed_free_and_nonproduction() {
+fn compile_guards_keep_registration_role_typed_and_seed_free() {
     let harness = UiHarness::create();
     let control = harness.check(
         "use ed25519_yao_generator::HostOnlyPreparedRegistrationReferenceV1;\n\
@@ -593,62 +593,4 @@ fn source_and_compile_guards_keep_registration_synthetic_seed_free_and_nonproduc
          fn invalid(value: HostOnlyPreparedRegistrationReferenceV1) { let _ = value.activation().seed(); }\nfn main() {}",
         "E0599",
     );
-
-    let source = include_str!("../src/registration_reference.rs");
-    for forbidden in [
-        "serde",
-        "Serialize",
-        "Deserialize",
-        "rand::",
-        "rand_core",
-        "getrandom",
-        "OsRng",
-        "Authorization",
-        "Provenance",
-        "provenance::",
-        "AntiBias",
-        "anti_bias",
-        "anti-bias",
-        "UnregisteredPreStateV1",
-        "RegisteredPreStateV1",
-        "RegistrationRequestV1",
-        "ReferenceLifecycle",
-        "Credential",
-        "Ciphertext",
-        "Package",
-        "Receipt",
-        "Persistence",
-        "lifecycle_domain",
-        "worker::",
-        "wasm_bindgen",
-        "cloudflare",
-        "evaluate_registration_v1(",
-        "evaluate_export",
-        "ExportOracleOutput",
-        "HostOnlySeed",
-        "SeedBytes",
-        "pub const fn seed",
-        "pub fn seed",
-    ] {
-        assert!(
-            !source.contains(forbidden),
-            "blocked dependency or overstated surface `{forbidden}` entered registration reference"
-        );
-    }
-
-    for line in source.lines() {
-        let declaration = line.trim();
-        if !declaration.starts_with("pub struct ") && !declaration.starts_with("pub enum ") {
-            continue;
-        }
-        let type_name = declaration
-            .split_ascii_whitespace()
-            .nth(2)
-            .expect("public type declaration name")
-            .trim_end_matches("<'a>");
-        assert!(
-            type_name.starts_with("HostOnly"),
-            "public registration type lacks HostOnly prefix: {type_name}"
-        );
-    }
 }

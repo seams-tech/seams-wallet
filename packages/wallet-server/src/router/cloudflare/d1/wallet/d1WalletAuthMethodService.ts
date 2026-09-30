@@ -1,4 +1,5 @@
 import { alphabetizeStringify } from '@shared/utils/digests';
+import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import { parseWalletAddAuthMethodRegistrationOptions } from '@shared/utils/addAuthMethodRegistration';
 import {
   parseChallengeSubjectId,
@@ -21,19 +22,26 @@ import {
 } from '@shared/utils/signingSessionSeal';
 import {
   addAuthMethodIntentGrantFromString,
-  buildWalletAuthMethodRecordV2,
-  computeWalletAuthMethodRevokeOperationFingerprintV1,
   computeAddAuthMethodIntentDigestB64u,
-  normalizeEmailOtpRegistrationProof,
   type AddAuthMethodIntentGrant,
   type AddAuthMethodIntentV1,
   type AddSignerIntentV1,
-  type RegistrationAuthority,
   type RegistrationIntentV1,
   type WalletId,
+} from '@shared/utils/registrationIntent';
+import {
+  buildWalletAuthMethodRecordV2,
+  computeWalletAuthMethodRevokeOperationFingerprintV1,
+  type ActivePasskeyWalletAuthMethodRecordV2,
+  type ActiveWalletAuthMethodRecordV2,
+  type PasskeyWalletAuthMethodRecordV2,
   type WalletAuthMethodRevocationProof,
   type WalletAuthMethodRecordV2,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/walletAuthMethodRecord';
+import {
+  normalizeEmailOtpRegistrationProof,
+  type RegistrationAuthority,
+} from '@shared/utils/registrationAuthMethodInput';
 import { admitAddWalletAuthMethod } from '@shared/utils/addWalletAuthMethod';
 import { secureRandomBase64Url } from '@shared/utils/secureRandomId';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
@@ -54,6 +62,7 @@ import type { D1WalletAuthMethodStore } from '../../../../core/d1WalletAuthMetho
 import type { StoredWalletAddAuthMethodCeremony } from '../../../../core/RegistrationCeremonyStore';
 import type {
   WalletAddAuthMethodFinalizeResponse,
+  WalletAddAuthMethodFinalizeSuccess,
   WalletAddAuthMethodStartRequest,
   WalletAddAuthMethodStartResponse,
   WalletAddAuthMethodEmailOtpTargetV1,
@@ -81,8 +90,8 @@ import type { CloudflareD1GoogleEmailOtpRegistrationAttemptStore } from '../emai
 import {
   expiredGoogleEmailOtpRegistrationAttemptRecord,
   pendingGoogleEmailOtpRegistrationAttemptWithSelectedCandidate,
-  runtimePolicyScopeKey,
 } from '../emailOtp/d1GoogleEmailOtpRegistrationRecords';
+import { runtimePolicyScopeKey } from '../../../../core/EmailOtpRecords';
 import { toRecordValue } from '../auth/d1RouterApiAuthBoundary';
 import {
   d1HostIsWithinWebAuthnRpId,
@@ -125,12 +134,17 @@ import {
 import type {
   ActiveWalletSessionAuthorityResolution,
   FinalizeWalletAddAuthMethodCommand,
-  RevokeWalletAuthMethodCommand,
+  RevokeWalletAuthMethodWithFreshProofCommand,
+  RevokeWalletAuthMethodWithFreshProofResult,
   StartWalletAddAuthMethodCommand,
-  WalletAuthMethodRevokeProofVerificationResult,
   WalletUnlockEmailOtpAuthorityResolution,
   WalletUnlockPasskeyAuthorityResolution,
 } from '../../../framework/authServicePort';
+import {
+  computeWalletAuthMethodRevocationProofDigestV1,
+  type D1WalletAuthMethodRevocationReplayStoreV1,
+  type WalletAuthMethodRevocationReplayIdentityV1,
+} from './d1WalletAuthMethodRevocationReplayStore';
 
 type StartWalletAddAuthMethodInput = StartWalletAddAuthMethodCommand;
 type StartWalletAddAuthMethodResult = WalletAddAuthMethodStartResponse;
@@ -139,8 +153,18 @@ const ADD_AUTH_METHOD_FINALIZE_REPLAY_TTL_MS = 24 * 60 * 60 * 1000;
 
 type FinalizeWalletAddAuthMethodInput = FinalizeWalletAddAuthMethodCommand;
 type FinalizeWalletAddAuthMethodResult = WalletAddAuthMethodFinalizeResponse;
-type RevokeWalletAuthMethodInput = RevokeWalletAuthMethodCommand;
-type RevokeWalletAuthMethodResult = WalletRevokeAuthMethodResponse;
+/** A verified source proof, with its commit-time authorization and consumption checks. */
+type VerifiedFreshRevokeProofV1 =
+  | {
+      readonly kind: 'authorized';
+      readonly walletAuthMethodId: WalletAuthMethodId;
+      readonly commitPrerequisites: readonly D1PreparedStatementLike[];
+    }
+  | {
+      readonly kind: 'denied';
+      readonly code: string;
+      readonly message: string;
+    };
 type OwnerWalletSessionRevocationStatementsV1 = (input: {
   readonly walletId: WalletId;
   readonly walletAuthMethodId: WalletAuthMethodId;
@@ -225,7 +249,7 @@ function isEmailOtpAddAuthMethodIntent(
 
 function isActiveWalletAuthMethodRecordV2(
   record: WalletAuthMethodRecordV2,
-): record is Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }> {
+): record is ActiveWalletAuthMethodRecordV2 {
   return record.status === 'active';
 }
 
@@ -255,18 +279,6 @@ function storedIntentOriginMatchesRequest(
     return false;
   }
 }
-
-function allocateWalletAuthMethodId(): WalletAuthMethodId {
-  const parsed = parseWalletAuthMethodId(`wallet-auth-method:${secureRandomBase64Url(32)}`);
-  if (!parsed.ok)
-    throw new Error(`Generated wallet auth-method ID is invalid: ${parsed.error.message}`);
-  return parsed.value;
-}
-
-type ActiveWalletAuthMethodRecordV2 = Extract<
-  WalletAuthMethodRecordV2,
-  { readonly status: 'active' }
->;
 
 async function resolveActiveAddAuthMethodSource(input: {
   readonly walletAuthMethodStore: Pick<D1WalletAuthMethodStore, 'readByIdV2' | 'getPasskeyV2'>;
@@ -355,9 +367,13 @@ function isFullOwnerAuthorityV1(authority: ActiveWalletAuthorityV1): boolean {
   );
 }
 
+/**
+ * The answer to revoking `record`. Only its kind and relying party shape it,
+ * so the answer can be recorded in the batch that revokes the method.
+ */
 function walletAuthMethodRevokedResponse(
   walletId: WalletId,
-  record: Extract<WalletAuthMethodRecordV2, { readonly status: 'revoked' }>,
+  record: WalletAuthMethodRecordV2,
 ): WalletRevokeAuthMethodResponse {
   switch (record.kind) {
     case 'passkey':
@@ -413,9 +429,9 @@ function custodyFactorFromAddAuthMethodAuth(auth: StoredWalletAddAuthMethodCerem
         credentialIdB64u: requireStoredCredentialId(auth.credentialIdB64u),
       };
     case 'wallet_session':
-      /* R103 zero-prompt handoff: the custody factor is the passkey that
-         minted the authorizing owner Wallet Session, carried on the resolved
-         session binding rather than a fresh assertion. */
+      /* The custody factor is the passkey that minted the authorizing owner
+         Wallet Session, carried on the resolved session binding rather than a
+         fresh assertion. */
       return {
         kind: 'passkey' as const,
         rpId: requireStoredRpId(auth.rpId),
@@ -454,7 +470,7 @@ async function buildAddedPasskeyCredentialBinding(input: {
   readonly now: number;
 }): Promise<WebAuthnCredentialBindingRecord> {
   if (input.ceremony.auth.kind === 'email_otp') {
-    /* R109C: an Email OTP source has no credential binding to copy identity
+    /* An Email OTP source has no credential binding to copy identity
        fields from, so they come from the wallet's own Ed25519 signer. Without
        them the added passkey claims no Ed25519 capability at unlock and the
        wallet answers that the requested Ed25519 Wallet Session is unavailable -
@@ -556,6 +572,7 @@ export class CloudflareD1WalletAuthMethodService {
   private readonly verifyWebAuthnAuthenticationLite: D1FreshRevokeWebAuthnVerifierV1;
 
   private readonly prepareOwnerWalletSessionRevocation: OwnerWalletSessionRevocationStatementsV1;
+  private readonly revocationReplays: D1WalletAuthMethodRevocationReplayStoreV1;
 
   constructor(input: {
     readonly emailOtpChallengeVerifier: CloudflareD1EmailOtpChallengeVerifier;
@@ -573,6 +590,7 @@ export class CloudflareD1WalletAuthMethodService {
     readonly orgId: string;
     readonly verifyWebAuthnAuthenticationLite: D1FreshRevokeWebAuthnVerifierV1;
     readonly prepareOwnerWalletSessionRevocation: OwnerWalletSessionRevocationStatementsV1;
+    readonly revocationReplays: D1WalletAuthMethodRevocationReplayStoreV1;
   }) {
     this.emailOtpChallengeVerifier = input.emailOtpChallengeVerifier;
     this.emailOtpEnrollmentChallengeIssuer = input.emailOtpEnrollmentChallengeIssuer;
@@ -589,6 +607,7 @@ export class CloudflareD1WalletAuthMethodService {
     this.orgId = input.orgId;
     this.verifyWebAuthnAuthenticationLite = input.verifyWebAuthnAuthenticationLite;
     this.prepareOwnerWalletSessionRevocation = input.prepareOwnerWalletSessionRevocation;
+    this.revocationReplays = input.revocationReplays;
   }
 
   /**
@@ -614,7 +633,7 @@ export class CloudflareD1WalletAuthMethodService {
   private async activeMethodsOnIntentAuthority(input: {
     readonly walletId: WalletId;
     readonly intent: AddAuthMethodIntentV1;
-  }): Promise<readonly Extract<WalletAuthMethodRecordV2, { status: 'active' }>[]> {
+  }): Promise<readonly ActiveWalletAuthMethodRecordV2[]> {
     const active = (
       await this.getWalletAuthMethodStore().listForWalletV2({ walletId: input.walletId })
     ).filter(isActiveWalletAuthMethodRecordV2);
@@ -672,7 +691,7 @@ export class CloudflareD1WalletAuthMethodService {
          proving the addition rather than the target being added. Both are
          bound to this intent's digest, which is what the ceremony checks. */
       if (!isEmailOtpAddAuthMethodIntent(stored.intent)) {
-        /* R109C admission, here rather than only at start: this is the last
+        /* Admission, here rather than only at start: this is the last
            hop before a code leaves the building. A repeat Passkey addition
            must not issue the source Email challenge first. */
         const activeOnAuthority = await this.activeMethodsOnIntentAuthority({
@@ -693,7 +712,7 @@ export class CloudflareD1WalletAuthMethodService {
           requestOrigin: input.requestOrigin,
         });
       }
-      /* R109C admission, here rather than only at start: this is the last hop
+      /* Admission, here rather than only at start: this is the last hop
          before a code leaves the building. `startWalletAddAuthMethod` also
          admits, but the client reaches it after the challenge, so checking
          only there means a repeat addition costs the user a code and a wait
@@ -934,7 +953,7 @@ export class CloudflareD1WalletAuthMethodService {
         };
       }
 
-      /* R109C admission, and deliberately before the intent is consumed: a
+      /* Admission, and deliberately before the intent is consumed: a
          family the authority already holds is a state the caller asked for and
          already has, so it answers `already_configured` without verifying a
          target factor, minting a ceremony, or letting the browser write
@@ -1013,8 +1032,8 @@ export class CloudflareD1WalletAuthMethodService {
           /* By the exact method the caller named, not by 'the wallet's only
              active Email method'. Linking gives one wallet several active
              Email methods sharing its verified address, so the wallet-wide
-             resolver cannot survive it — the same shape as the three escaped
-             defects R103E repaired. */
+             resolver cannot survive it — the same shape as three escaped
+             defects already repaired. */
           const authority = await this.resolveActiveEmailOtpAuthorityForVerifiedMethod({
             walletId: String(walletId),
             walletAuthMethodId: String(storedAuth.auth.authorityRef.walletAuthMethodId),
@@ -1122,7 +1141,7 @@ export class CloudflareD1WalletAuthMethodService {
         sourceWalletAuthorityId: sourceMethod.walletAuthorityId,
       });
       if (!authority.ok) return authority;
-      /* R109C: the browser reseals the wallet's existing custody seed under the
+      /* The browser reseals the wallet's existing custody seed under the
          verified Email OTP factor, so this branch carries the source method's
          envelope exactly as the Passkey branch above does. The lookup is by the
          source factor, which is what makes an addition impossible on a wallet
@@ -1376,7 +1395,7 @@ export class CloudflareD1WalletAuthMethodService {
           credentialIdB64u: credential.credentialIdB64u,
           now,
         });
-        const response: Extract<WalletAddAuthMethodFinalizeResponse, { ok: true }> = {
+        const response: WalletAddAuthMethodFinalizeSuccess = {
           ok: true,
           walletId,
           authority: walletAuthAuthorityFromRegistrationAuthority({
@@ -1444,11 +1463,11 @@ export class CloudflareD1WalletAuthMethodService {
       /* Authority-scoped, not wallet-wide. `findDuplicateAuthority` asks
          whether the WALLET already has an active Email OTP method for this
          address, which is the right question at registration and the wrong one
-         here: R103E gives every linked device its own Email OTP method sharing
-         the wallet's verified address, so the wallet-wide answer would reject
-         R109C's addition on any wallet that has ever linked a device. What
-         must be unique is one active Email OTP method per authority, and this
-         repeats at activation the admission the start already made. */
+         here: each linked device gets its own Email OTP method sharing the
+         wallet's verified address, so the wallet-wide answer would reject this
+         addition on any wallet that has ever linked a device. What must be
+         unique is one active Email OTP method per authority, and this repeats
+         at activation the admission the start already made. */
       const authorityEmailOtpMethods = (
         await this.getWalletAuthMethodStore().listForWalletV2({ walletId })
       )
@@ -1487,7 +1506,7 @@ export class CloudflareD1WalletAuthMethodService {
           message: 'Email OTP add-auth-method finalize must state its enrollment target',
         };
       }
-      /* R109C: the browser opened the source envelope this ceremony carried and
+      /* The browser opened the source envelope this ceremony carried and
          resealed the same seed under the verified Email OTP factor. The
          enrollment the envelope must name is resolved here rather than trusted
          from the request — either the wallet's existing shared one, or the one
@@ -1556,7 +1575,7 @@ export class CloudflareD1WalletAuthMethodService {
         authority: ceremony.authority,
         walletAuthMethodId: ceremony.targetWalletAuthMethodId,
       });
-      const emailOtpResponse: Extract<WalletAddAuthMethodFinalizeResponse, { ok: true }> = {
+      const emailOtpResponse: WalletAddAuthMethodFinalizeSuccess = {
         ok: true,
         walletId: ceremony.intent.walletId,
         authority,
@@ -1564,8 +1583,8 @@ export class CloudflareD1WalletAuthMethodService {
       };
       /* The Passkey branch has always written a replay record; this one did
          not, so an exact retry after a lost response found neither ceremony nor
-         replay and answered not_found. R109C requires a retry to return the
-         same active method. */
+         replay and answered not_found. A retry must return the same active
+         method. */
       const emailOtpReplayStatements = await store.buildAddAuthMethodFinalizeReplayStatements({
         kind: 'wallet_add_auth_method_finalize_replay_v1',
         addAuthMethodCeremonyId: ceremony.addAuthMethodCeremonyId,
@@ -1581,9 +1600,9 @@ export class CloudflareD1WalletAuthMethodService {
           /* The transactional half of the missing-family rule. The admission
              at start is a read and cannot close a race; this aborts the batch
              if a concurrent ceremony activated an Email method on the same
-             authority first. Applied to the Email branch only: R109C permits
-             several active Passkeys on one authority, and Passkey uniqueness
-             is credential-scoped and already enforced by its own index. */
+             authority first. Applied to the Email branch only: one authority
+             may hold several active Passkeys, and Passkey uniqueness is
+             credential-scoped and already enforced by its own index. */
           ...this.getWalletAuthMethodStore().prepareActiveV2TargetFamilyAbsentGuardStatements({
             walletId,
             walletAuthorityId: ceremony.sourceWalletAuthorityId,
@@ -1745,7 +1764,7 @@ export class CloudflareD1WalletAuthMethodService {
 
   private async prepareRevokedMethodEnvelopeStatements(input: {
     readonly walletId: WalletId;
-    readonly method: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+    readonly method: ActiveWalletAuthMethodRecordV2;
     readonly revokedAtMs: number;
   }): Promise<
     | { readonly kind: 'prepared'; readonly statements: readonly D1PreparedStatementLike[] }
@@ -1856,11 +1875,10 @@ export class CloudflareD1WalletAuthMethodService {
       };
     }
     if (input.auth.kind === 'wallet_session') {
-      /* R103 zero-prompt handoff: the route already verified the bearer
-         session and resolved its minting passkey. This re-checks that the
-         passkey is still an active auth method of this exact wallet, so a
-         revoked credential cannot keep authorizing ceremonies through a
-         session it minted earlier. */
+      /* The route already verified the bearer session and resolved its
+         minting passkey. This re-checks that the passkey is still an active
+         auth method of this exact wallet, so a revoked credential cannot keep
+         authorizing ceremonies through a session it minted earlier. */
       const sessionFactorIsActive = activeWalletMethods.some(
         (method) =>
           method.kind === 'passkey' &&
@@ -1932,10 +1950,7 @@ export class CloudflareD1WalletAuthMethodService {
     | {
         readonly ok: true;
         readonly authority: ActiveWalletAuthorityV1;
-        readonly authMethod: Extract<
-          WalletAuthMethodRecordV2,
-          { readonly kind: 'passkey'; readonly status: 'active' }
-        >;
+        readonly authMethod: ActivePasskeyWalletAuthMethodRecordV2;
       }
     | WalletAuthMethodError
   > {
@@ -2021,6 +2036,13 @@ export class CloudflareD1WalletAuthMethodService {
     return { kind: 'active_authority', authority, authMethod };
   }
 
+  /** Commits an added signer onto its owner's authority. */
+  async extendActiveWalletAuthority(
+    input: Parameters<D1WalletAuthorityStore['extendActiveAuthority']>[0],
+  ): Promise<void> {
+    await this.walletAuthorityStore.extendActiveAuthority(input);
+  }
+
   async resolveActivePasskeyAuthorityForVerifiedCredential(input: {
     readonly walletId: WalletId;
     readonly rpId: WebAuthnRpId;
@@ -2030,10 +2052,7 @@ export class CloudflareD1WalletAuthMethodService {
         readonly ok: true;
         readonly authority: PasskeyWalletAuthAuthority;
         readonly walletAuthority: ActiveWalletAuthorityV1;
-        readonly authMethod: Extract<
-          WalletAuthMethodRecordV2,
-          { readonly kind: 'passkey'; readonly status: 'active' }
-        >;
+        readonly authMethod: ActivePasskeyWalletAuthMethodRecordV2;
       }
     | WalletAuthMethodError
   > {
@@ -2373,7 +2392,7 @@ export class CloudflareD1WalletAuthMethodService {
     readonly walletAuthorityId: WalletAuthMethodRecordV2['walletAuthorityId'];
     readonly walletAuthMethodId: WalletAuthMethodRecordV2['walletAuthMethodId'];
     readonly authority: ActiveWalletAuthorityV1;
-    readonly authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+    readonly authMethod: ActiveWalletAuthMethodRecordV2;
   } | null> {
     let record: WalletAuthMethodRecordV2 | null;
     switch (authority.kind) {
@@ -2448,19 +2467,21 @@ export class CloudflareD1WalletAuthMethodService {
     };
   }
 
-  async verifyWalletAuthMethodRevokeProof(input: {
+  /**
+   * Verifies a revocation's source proof: bound to this operation, and from a
+   * different active method on an active full-owner authority. An Email OTP
+   * proof's challenge is left unspent here. The result carries the statements
+   * that spend it, which commit only with the revocation.
+   */
+  private async verifyFreshRevokeProof(input: {
     readonly walletId: WalletId;
     readonly targetWalletAuthMethodId: WalletAuthMethodId;
     readonly requestedAtMs: number;
     readonly sourceProof: WalletAuthMethodRevocationProof;
     readonly expectedOrigin: string;
-  }): Promise<WalletAuthMethodRevokeProofVerificationResult> {
+    readonly operationFingerprintDigest: DigestB64u;
+  }): Promise<VerifiedFreshRevokeProofV1> {
     try {
-      const operationFingerprintDigest = await computeWalletAuthMethodRevokeOperationFingerprintV1({
-        walletId: input.walletId,
-        targetWalletAuthMethodId: input.targetWalletAuthMethodId,
-        requestedAtMs: input.requestedAtMs,
-      });
       const verified = await verifyD1LinkedDeviceFreshRevokeProofV1({
         walletId: input.walletId,
         orgId: this.orgId,
@@ -2468,10 +2489,10 @@ export class CloudflareD1WalletAuthMethodService {
         proof: input.sourceProof,
         expectedOrigin: input.expectedOrigin,
         verifiedAtMs: input.requestedAtMs,
-        operationFingerprintDigest,
+        operationFingerprintDigest: input.operationFingerprintDigest,
         walletAuthMethodStore: this.getWalletAuthMethodStore(),
         verifyWebAuthnAuthenticationLite: this.verifyWebAuthnAuthenticationLite,
-        verifyEmailOtpExisting: this.emailOtpChallengeVerifier.verifyExisting.bind(
+        verifyEmailOtpExistingForBatch: this.emailOtpChallengeVerifier.verifyExistingForBatch.bind(
           this.emailOtpChallengeVerifier,
         ),
         readEmailOtpEnrollment: this.emailOtpChallengeVerifier.readEnrollmentForWallet.bind(
@@ -2479,6 +2500,14 @@ export class CloudflareD1WalletAuthMethodService {
         ),
       });
       if (verified.kind === 'denied') return verified;
+      const consumeInBatch = verified.emailOtpConsumeInBatch ?? [];
+      if (input.sourceProof.kind === 'email_otp' && consumeInBatch.length === 0) {
+        return {
+          kind: 'denied',
+          code: 'invalid',
+          message: 'Fresh Email OTP revocation proof cannot be spent with the revocation',
+        };
+      }
       const sourceMethod = await this.getWalletAuthMethodStore().readByIdV2({
         walletAuthMethodId: verified.walletAuthMethodId,
       });
@@ -2509,7 +2538,20 @@ export class CloudflareD1WalletAuthMethodService {
           message: 'Fresh revocation proof requires a full-owner authority',
         };
       }
-      return verified;
+      return {
+        kind: 'authorized',
+        walletAuthMethodId: verified.walletAuthMethodId,
+        commitPrerequisites: [
+          ...this.getWalletAuthMethodStore().prepareActiveV2SourceGuardStatements({
+            walletId: input.walletId,
+            walletAuthMethodId: sourceMethod.walletAuthMethodId,
+            walletAuthorityId: sourceMethod.walletAuthorityId,
+            authorityDigestB64u: sourceAuthority.authorityDigestB64u,
+            authorityRevocationEpoch: sourceAuthority.revocationEpoch,
+          }),
+          ...consumeInBatch,
+        ],
+      };
     } catch (error: unknown) {
       return {
         kind: 'denied',
@@ -2561,7 +2603,7 @@ export class CloudflareD1WalletAuthMethodService {
          passkey for the recovered authority. */
       excludeCredentials: input.walletMethods
         .filter(
-          (method): method is Extract<WalletAuthMethodRecordV2, { kind: 'passkey' }> =>
+          (method): method is PasskeyWalletAuthMethodRecordV2 =>
             method.kind === 'passkey' &&
             method.status === 'active' &&
             method.walletAuthorityId === input.sourceWalletAuthorityId &&
@@ -2571,49 +2613,104 @@ export class CloudflareD1WalletAuthMethodService {
     });
   }
 
-  async revokeWalletAuthMethod(
-    input: RevokeWalletAuthMethodInput,
-  ): Promise<RevokeWalletAuthMethodResult> {
+  /**
+   * Revokes one wallet auth method on a fresh proof from a different active
+   * full-owner method.
+   *
+   * The proof is spent, the method revoked and the answer recorded in one
+   * batch. The record binds the answer to the operation fingerprint and to a
+   * digest of the proof, never the proof or its code. An exact retry is
+   * answered from the record before its proof is examined again, so a request
+   * whose answer was lost receives what committed although its code is spent.
+   * A batch that does not commit spends nothing, so the same request can run
+   * again.
+   */
+  async revokeWalletAuthMethodWithFreshProof(
+    input: RevokeWalletAuthMethodWithFreshProofCommand,
+  ): Promise<RevokeWalletAuthMethodWithFreshProofResult> {
+    const walletId = input.subject.walletId;
+    let operationFingerprintDigest: DigestB64u;
+    let replay: WalletAuthMethodRevocationReplayIdentityV1;
     try {
-      const walletId = input.subject.walletId;
-      const sourceWalletAuthMethodId = input.verifiedSource.walletAuthMethodId;
-      if (sourceWalletAuthMethodId === input.walletAuthMethodId) {
-        return {
-          ok: false,
-          code: 'unauthorized',
-          message: 'Revocation requires a different active source auth method',
-        };
-      }
-      const walletAuthMethodStore = this.getWalletAuthMethodStore();
-      const sourceMethod = await walletAuthMethodStore.readByIdV2({
-        walletAuthMethodId: sourceWalletAuthMethodId,
+      operationFingerprintDigest = await computeWalletAuthMethodRevokeOperationFingerprintV1({
+        walletId,
+        targetWalletAuthMethodId: input.walletAuthMethodId,
+        requestedAtMs: input.requestedAtMs,
       });
-      const sourceAuthority = sourceMethod
-        ? await this.walletAuthorityStore.readById(sourceMethod.walletAuthorityId)
-        : null;
-      if (
-        !sourceMethod ||
-        sourceMethod.status !== 'active' ||
-        sourceMethod.walletId !== walletId ||
-        !sourceAuthority ||
-        sourceAuthority.state !== 'active' ||
-        sourceAuthority.walletId !== walletId ||
-        !isFullOwnerAuthorityV1(sourceAuthority)
-      ) {
-        return {
+      replay = {
+        walletId,
+        targetWalletAuthMethodId: input.walletAuthMethodId,
+        operationFingerprintDigestB64u: String(operationFingerprintDigest),
+        sourceProofDigestB64u: await computeWalletAuthMethodRevocationProofDigestV1(
+          input.sourceProof,
+        ),
+      };
+      const committed = await this.revocationReplays.readExactAnswerV1(replay);
+      if (committed) return { kind: 'answered', response: committed };
+    } catch (error: unknown) {
+      return {
+        kind: 'answered',
+        response: {
           ok: false,
-          code: 'unauthorized',
-          message: 'Fresh revocation proof requires a different active full-owner method',
-        };
-      }
+          code: 'internal',
+          message: errorMessage(error) || 'Failed to revoke wallet auth method',
+        },
+      };
+    }
+    const verified = await this.verifyFreshRevokeProof({
+      walletId,
+      targetWalletAuthMethodId: input.walletAuthMethodId,
+      requestedAtMs: input.requestedAtMs,
+      sourceProof: input.sourceProof,
+      expectedOrigin: input.expectedOrigin,
+      operationFingerprintDigest,
+    });
+    if (verified.kind === 'denied') {
+      // Another copy can commit and spend the proof after the first replay lookup.
+      const committed = await this.revocationReplays.readExactAnswerV1(replay).catch(() => null);
+      return committed ? { kind: 'answered', response: committed } : verified;
+    }
+    const response = await this.revokeWithVerifiedProof({
+      walletId,
+      targetWalletAuthMethodId: input.walletAuthMethodId,
+      requestedAtMs: input.requestedAtMs,
+      sourceWalletAuthMethodId: verified.walletAuthMethodId,
+      commitPrerequisites: verified.commitPrerequisites,
+      replay,
+    });
+    if (response.ok) return { kind: 'answered', response };
+    /* A refusal can follow this same request committing first, as a
+       concurrent copy or a batch whose outcome the store never learned. The
+       record answers for it. */
+    const committed = await this.revocationReplays.readExactAnswerV1(replay).catch(() => null);
+    return { kind: 'answered', response: committed ?? response };
+  }
+
+  private async revokeWithVerifiedProof(input: {
+    readonly walletId: WalletId;
+    readonly targetWalletAuthMethodId: WalletAuthMethodId;
+    readonly requestedAtMs: number;
+    readonly sourceWalletAuthMethodId: WalletAuthMethodId;
+    readonly commitPrerequisites: readonly D1PreparedStatementLike[];
+    readonly replay: WalletAuthMethodRevocationReplayIdentityV1;
+  }): Promise<WalletRevokeAuthMethodResponse> {
+    try {
+      const walletId = input.walletId;
+      const walletAuthMethodStore = this.getWalletAuthMethodStore();
       const targetMethod = await walletAuthMethodStore.readByIdV2({
-        walletAuthMethodId: input.walletAuthMethodId,
+        walletAuthMethodId: input.targetWalletAuthMethodId,
       });
       if (!targetMethod || targetMethod.walletId !== walletId) {
         return { ok: false, code: 'not_found', message: 'wallet auth method not found' };
       }
       if (targetMethod.status === 'revoked') {
-        return walletAuthMethodRevokedResponse(walletId, targetMethod);
+        /* Only this request's own record answers it as committed. Any other
+           request learns that the method is revoked, and spends nothing,
+           because nothing it proved was used. */
+        return (
+          (await this.revocationReplays.readExactAnswerV1(input.replay)) ??
+          walletAuthMethodRevokedResponse(walletId, targetMethod)
+        );
       }
       if (targetMethod.status !== 'active') {
         return {
@@ -2657,19 +2754,28 @@ export class CloudflareD1WalletAuthMethodService {
           message: 'wallet custody envelope changed; retry revocation',
         };
       }
+      const response = walletAuthMethodRevokedResponse(walletId, targetMethod);
       const revoked = await this.walletAuthorityStore.revokeWalletAuthMethod({
         walletId,
         authorityId: targetAuthority.authorityId,
-        walletAuthMethodId: input.walletAuthMethodId,
+        walletAuthMethodId: input.targetWalletAuthMethodId,
         expectedAuthorityRevocationEpoch: targetAuthority.revocationEpoch,
         requestedAtMs: input.requestedAtMs,
         sessionRevocationStatements: [
           ...this.prepareOwnerWalletSessionRevocation({
             walletId,
-            walletAuthMethodId: input.walletAuthMethodId,
+            walletAuthMethodId: input.targetWalletAuthMethodId,
             requestedAtMs: input.requestedAtMs,
           }),
           ...envelopeRevocation.statements,
+          // Source authorization, proof consumption and the answer share this commit.
+          ...input.commitPrerequisites,
+          ...this.revocationReplays.prepareRecordAnswerStatements({
+            identity: input.replay,
+            sourceWalletAuthMethodId: input.sourceWalletAuthMethodId,
+            response,
+            committedAtMs: Date.now(),
+          }),
           /* Last, so the reference count it tests already excludes the method
              this batch just revoked. The shared provider enrollment survives
              every revocation but the one that removes its final reference. */
@@ -2696,7 +2802,7 @@ export class CloudflareD1WalletAuthMethodService {
           message: 'wallet auth method changed; retry revocation',
         };
       }
-      return walletAuthMethodRevokedResponse(walletId, revoked.authMethod);
+      return response;
     } catch (error: unknown) {
       return {
         ok: false,
@@ -3191,10 +3297,10 @@ export class CloudflareD1WalletAuthMethodService {
        returns the earliest matching row regardless of status, so it both
        blocked this addition because a SIBLING authority held an Email method
        — every wallet that has linked a device — and could miss a later active
-       row behind an earlier revoked one. The invariant R109C states is one
-       active Email OTP method per authority, so that is what is checked. The
-       registration path above keeps the wallet-wide question, which is the
-       right one for a wallet that has no authority yet. */
+       row behind an earlier revoked one. The invariant is one active Email OTP
+       method per authority, so that is what is checked. The registration path
+       above keeps the wallet-wide question, which is the right one for a
+       wallet that has no authority yet. */
     const authorityEmailOtpMethods = (
       await this.getWalletAuthMethodStore().listForWalletV2({ walletId: input.intent.walletId })
     )

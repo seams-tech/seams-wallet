@@ -78,6 +78,55 @@ pub fn extract_function_body(source: &str, function_name: &str) -> String {
     panic!("function `{function_name}` body should end");
 }
 
+/// Checks that an owner-scoped ECDSA pool mutation reaches one owner store:
+/// the SigningWorker wallet DO when it is built in, otherwise the SigningWorker
+/// private D1 pool. Both apply the shared reducer; the D1 response is checked
+/// against its call, and the wallet DO writes with an owner check and a
+/// version compare-and-swap.
+pub fn assert_ecdsa_pool_mutation_reaches_owner_storage(lib_rs: &str) {
+    let router = extract_function_body(
+        lib_rs,
+        "execute_cloudflare_signing_worker_ecdsa_pool_mutation_for_wallet_v1",
+    );
+    for required in [
+        "wallet_scope.ok_or_else",
+        "SigningWorkerWalletDoRequestV1::EcdsaPoolMutate",
+        "outcome.validate()",
+        "execute_cloudflare_signing_worker_ecdsa_pool_mutation_v1(env, runtime, command)",
+    ] {
+        assert!(
+            router.contains(required),
+            "owner ECDSA pool routing must include `{required}`"
+        );
+    }
+    let private_d1 = extract_function_body(
+        lib_rs,
+        "execute_cloudflare_signing_worker_ecdsa_pool_mutation_v1",
+    );
+    for required in [
+        "signing_worker_ecdsa_pool_mutate_request",
+        "execute_cloudflare_signing_worker_private_d1_request_v1",
+        "require_signing_worker_ecdsa_pool_mutate_response_v1",
+    ] {
+        assert!(
+            private_d1.contains(required),
+            "private-D1 ECDSA pool mutation must include `{required}`"
+        );
+    }
+    // The wallet store: the wallet DO on Cloudflare, role-private SQLite on a VM.
+    let wallet_do = extract_function_body(lib_rs, "mutate_pool");
+    for required in [
+        "apply_cloudflare_signing_worker_ecdsa_pool_command_v1",
+        "ECDSA pool owner conflict",
+        "AND version = ?",
+    ] {
+        assert!(
+            wallet_do.contains(required),
+            "wallet-DO ECDSA pool mutation must include `{required}`"
+        );
+    }
+}
+
 pub fn extract_braced_block_after_marker(source: &str, marker: &str) -> String {
     let start = source
         .find(marker)

@@ -23,7 +23,7 @@ export {
   type LinkedDeviceRequestProofV1,
 } from '@shared/device-linking/requestProof';
 
-export type LinkedDeviceRequestProofVerificationInputV1 = {
+type LinkedDeviceRequestProofVerificationInputV1 = {
   readonly proof: LinkedDeviceRequestProofV1;
   readonly expectedDevicePublicKeyB64u: string;
   readonly expectedDevicePublicKeyDigestB64u: DigestB64u;
@@ -45,7 +45,7 @@ export type LinkedDeviceRequestProofNonceStoreV1 = {
   }): Promise<{ readonly outcome: 'consumed' } | { readonly outcome: 'already_used' }>;
 };
 
-export type LinkedDeviceRequestProofVerificationResultV1 =
+type LinkedDeviceRequestProofVerificationResultV1 =
   | {
       readonly kind: 'authorized';
       readonly proofDigestB64u: DigestB64u;

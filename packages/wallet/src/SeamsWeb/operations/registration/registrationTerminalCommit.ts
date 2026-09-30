@@ -14,11 +14,11 @@ import {
   parseVerifiedEmailAddress,
   type WebAuthnRpId,
 } from '@shared/utils/domainIds';
+import type { WalletId } from '@shared/utils/registrationIntent';
 import type {
   RegistrationAuthMethodInput,
   WalletEmailOtpEnrollmentMaterialV1,
-  WalletId,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/registrationAuthMethodInput';
 import type { WalletCustodyCeremonyCommitPayload } from '@shared/passkey-custody';
 import type { SeamsConfigsReadonly } from '@/core/types/seams';
 import type { WebAuthnRegistrationCredential } from '@/core/types/webauthn';
@@ -119,19 +119,6 @@ export type RegistrationPersistenceAuth =
       credential?: never;
       credentialPublicKeyB64u?: never;
     };
-
-export function registrationPersistenceAuthMethod(
-  auth: RegistrationPersistenceAuth,
-): RegistrationAuthMethodInput['kind'] {
-  switch (auth.kind) {
-    case 'passkey':
-      return 'passkey';
-    case 'email_otp':
-      return 'email_otp';
-    default:
-      return assertNever(auth);
-  }
-}
 
 type RegistrationPersistenceEcdsa = {
   kind: 'evm_family_ecdsa';

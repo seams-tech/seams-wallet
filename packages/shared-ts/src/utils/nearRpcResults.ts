@@ -7,7 +7,7 @@ import {
 
 export type NearRpcResultDecoder<T> = (value: unknown) => T;
 
-export type DecodedNearFunctionCallPermission = {
+type DecodedNearFunctionCallPermission = {
   FunctionCall: {
     allowance: string;
     receiver_id: string;
@@ -15,14 +15,14 @@ export type DecodedNearFunctionCallPermission = {
   };
 };
 
-export type DecodedNearAccessKeyView = {
+type DecodedNearAccessKeyView = {
   block_height: number;
   block_hash: string;
   nonce: bigint;
   permission: 'FullAccess' | DecodedNearFunctionCallPermission;
 };
 
-export type DecodedNearAccessKeyList = {
+type DecodedNearAccessKeyList = {
   block_height: number;
   block_hash: string;
   keys: Array<{
@@ -31,7 +31,7 @@ export type DecodedNearAccessKeyList = {
   }>;
 };
 
-export type DecodedNearAccountView = {
+type DecodedNearAccountView = {
   block_height: number;
   block_hash: string;
   amount: bigint;
@@ -48,7 +48,7 @@ export type DecodedNearBlockReference = {
   };
 };
 
-export type DecodedNearContractCallResult = {
+type DecodedNearContractCallResult = {
   block_height: number;
   block_hash: string;
   logs: string[];
@@ -60,12 +60,12 @@ type DecodedNearExecutionError = ExecutionError & {
   ActionError?: unknown;
 };
 
-export type DecodedNearFinalExecutionStatus =
+type DecodedNearFinalExecutionStatus =
   | { SuccessValue: string; Failure?: never }
   | { Failure: DecodedNearExecutionError; SuccessValue?: never }
   | FinalExecutionStatusBasic;
 
-export type DecodedNearExecutionStatus =
+type DecodedNearExecutionStatus =
   | { SuccessValue: string; SuccessReceiptId?: never; Failure?: never }
   | { SuccessReceiptId: string; SuccessValue?: never; Failure?: never }
   | { Failure: DecodedNearExecutionError; SuccessValue?: never; SuccessReceiptId?: never }

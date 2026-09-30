@@ -6,14 +6,14 @@ export type DelegatedWalletPermissionV1 =
   | 'link_devices'
   | 'revoke_devices';
 
-export const FULL_OWNER_PERMISSIONS = Object.freeze([
+const FULL_OWNER_PERMISSIONS = Object.freeze([
   'export_keys',
   'link_devices',
   'revoke_devices',
   'sign',
 ] as const) satisfies readonly DelegatedWalletPermissionV1[];
 
-export const SIGNING_ONLY_PERMISSIONS = Object.freeze([
+const SIGNING_ONLY_PERMISSIONS = Object.freeze([
   'sign',
 ] as const) satisfies readonly DelegatedWalletPermissionV1[];
 
@@ -57,9 +57,7 @@ export type DelegatedWalletAuthorityV1 = {
   readonly permissions: CanonicalDelegatedWalletPermissionSetV1;
 };
 
-export function isDelegatedWalletPermissionV1(
-  value: unknown,
-): value is DelegatedWalletPermissionV1 {
+function isDelegatedWalletPermissionV1(value: unknown): value is DelegatedWalletPermissionV1 {
   return typeof value === 'string' && DELEGATED_WALLET_PERMISSION_VALUE_SET.has(value);
 }
 
@@ -131,7 +129,7 @@ export function buildFullOwnerPermissionsV1(): CanonicalDelegatedWalletPermissio
   return buildPresetPermissionSet(FULL_OWNER_PERMISSIONS);
 }
 
-export function buildSigningOnlyPermissionsV1(): CanonicalDelegatedWalletPermissionSetV1 {
+function buildSigningOnlyPermissionsV1(): CanonicalDelegatedWalletPermissionSetV1 {
   return buildPresetPermissionSet(SIGNING_ONLY_PERMISSIONS);
 }
 
@@ -185,14 +183,6 @@ export function validateDelegatedWalletAuthorityAttenuationV1(input: {
     }
   }
   return { ok: true, value: true };
-}
-
-export function assertDelegatedWalletAuthorityAttenuationV1(input: {
-  readonly parent: DelegatedWalletAuthorityV1;
-  readonly child: DelegatedWalletAuthorityV1;
-}): void {
-  const result = validateDelegatedWalletAuthorityAttenuationV1(input);
-  if (!result.ok) throw new Error(result.error.message);
 }
 
 function buildPresetPermissionSet(

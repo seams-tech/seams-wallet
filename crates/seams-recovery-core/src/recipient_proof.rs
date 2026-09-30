@@ -41,21 +41,6 @@ pub struct RecipientProofResultV1 {
     pub confirmation_b64u: String,
 }
 
-/// Proves control of one recovery recipient key against one challenge.
-///
-/// The challenge must name this key file's own role and fingerprint. A
-/// challenge for the other role, or for a different key, fails before the
-/// private key is used.
-pub fn prove_recovery_recipient_control_v1(
-    key_file_path: &Path,
-
-    expected_role: TwoPartyDeriverRole,
-    challenge_path: &Path,
-) -> RecoveryCoreResult<RecipientProofResultV1> {
-    let challenge = read_capped_file_v1(challenge_path, RECOVERY_RECIPIENT_CHALLENGE_MAX_BYTES)?;
-    prove_recovery_recipient_control_from_bytes_v1(key_file_path, expected_role, &challenge)
-}
-
 /// Proves control of one recovery recipient key against one challenge envelope
 /// the console returned directly, without the envelope touching disk.
 pub fn prove_recovery_recipient_control_from_bytes_v1(

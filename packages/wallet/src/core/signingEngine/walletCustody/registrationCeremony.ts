@@ -28,7 +28,7 @@ import {
  * without its codes leaves a wallet whose owner holds nothing.
  */
 
-export type EstablishNearEd25519CustodyInput = {
+type EstablishNearEd25519CustodyInput = {
   readonly runStep: WalletCustodyCeremonyStepRunner;
   readonly walletId: string;
   /** The passkey or Email OTP factor, as the envelope will name it. */
@@ -48,7 +48,7 @@ export type EstablishNearEd25519CustodyInput = {
   readonly continuityRegisteredPublicKeyB64u?: string;
 };
 
-export type EstablishedNearEd25519Custody = {
+type EstablishedNearEd25519Custody = {
   /** Show these once. They are the only copy. */
   readonly recoveryCodes: readonly string[];
   /** Ready for the wire: carries no client signing material. */
@@ -160,7 +160,7 @@ export async function establishNearEd25519CustodyV1(
   }
 }
 
-export type EstablishEvmFamilyCustodyInput = {
+type EstablishEvmFamilyCustodyInput = {
   readonly runStep: WalletCustodyCeremonyStepRunner;
   readonly walletId: string;
   readonly factorJson: string;
@@ -177,7 +177,7 @@ export type EstablishEvmFamilyCustodyInput = {
   }) => Promise<string>;
 };
 
-export type EstablishedEvmFamilyCustody = {
+type EstablishedEvmFamilyCustody = {
   readonly recoveryCodes: readonly string[];
   /** The exact payload admitted during activation, before local completion. */
   readonly commitPayload: WalletCustodyCeremonyCommitPayload;
@@ -288,7 +288,7 @@ export async function establishEvmFamilyCustodyV1(
   }
 }
 
-export type RejoinEvmFamilyCustodyInput = {
+type RejoinEvmFamilyCustodyInput = {
   readonly runStep: WalletCustodyCeremonyStepRunner;
   readonly walletId: string;
   readonly custodyJson: string;
@@ -299,14 +299,14 @@ export type RejoinEvmFamilyCustodyInput = {
   readonly relayerPublicIdentityJson: string;
 };
 
-export type JoinEvmFamilyCustodyInput = Omit<
+type JoinEvmFamilyCustodyInput = Omit<
   EstablishEvmFamilyCustodyInput,
   'factorJson' | 'confirmRecoveryCodesBackedUp'
 > & {
   readonly custodyJson: string;
 };
 
-export type JoinedEvmFamilyCustody = Omit<EstablishedEvmFamilyCustody, 'recoveryCodes'>;
+type JoinedEvmFamilyCustody = Omit<EstablishedEvmFamilyCustody, 'recoveryCodes'>;
 
 export async function joinEvmFamilyCustodyV1(
   input: JoinEvmFamilyCustodyInput,
@@ -358,7 +358,7 @@ export async function joinEvmFamilyCustodyV1(
   };
 }
 
-export type RejoinedEvmFamilyCustody = {
+type RejoinedEvmFamilyCustody = {
   readonly readyStateBlobB64u: string;
   readonly publicFacts: WalletCustodyEvmFamilyPublicFacts;
 };
@@ -408,7 +408,7 @@ function assertNeverRecoveryFactorReplacement(value: never): never {
   throw new Error(`unsupported recovery factor replacement: ${String(value)}`);
 }
 
-export type RecoverEvmFamilyCustodyInput = WalletRecoveryCustodyInput & {
+type RecoverEvmFamilyCustodyInput = WalletRecoveryCustodyInput & {
   readonly runStep: WalletCustodyCeremonyStepRunner;
   readonly walletId: string;
   readonly evmFamilySigningKeySlotId: string;
@@ -417,7 +417,7 @@ export type RecoverEvmFamilyCustodyInput = WalletRecoveryCustodyInput & {
   readonly resolveRelayerPublicIdentity: EstablishEvmFamilyCustodyInput['runRelayerRound'];
 };
 
-export type RecoveredEvmFamilyCustody = RejoinedEvmFamilyCustody & {
+type RecoveredEvmFamilyCustody = RejoinedEvmFamilyCustody & {
   readonly recoveryReplacementEnvelope: NonNullable<
     WalletCustodyCeremonyCommitPayload['recoveryReplacementEnvelope']
   > | null;
@@ -511,7 +511,7 @@ function appendManifestField(output: number[], label: string, value: Uint8Array)
   output.push(...value);
 }
 
-export async function computeWalletCustodyEvmFamilyKeyManifestDigestB64u(input: {
+async function computeWalletCustodyEvmFamilyKeyManifestDigestB64u(input: {
   readonly walletId: string;
   readonly evmFamilySigningKeySlotId: string;
   readonly clientRootPublicKey33B64u: string;
@@ -534,7 +534,7 @@ export async function computeWalletCustodyEvmFamilyKeyManifestDigestB64u(input: 
   return base64UrlEncode(await sha256Bytes(Uint8Array.from(fields)));
 }
 
-export async function computeWalletCustodyNearEd25519KeyManifestDigestB64u(input: {
+async function computeWalletCustodyNearEd25519KeyManifestDigestB64u(input: {
   readonly walletId: string;
   readonly nearEd25519SigningKeyId: string;
   readonly registeredPublicKeyB64u: string;
@@ -661,7 +661,7 @@ function activationSessionIdFromResult(resultJson: string): readonly number[] {
  * *establish* a key set — registering a second, different key for a wallet
  * that already has one, which no later check would undo.
  */
-export type RejoinNearEd25519CustodyInput = Omit<
+type RejoinNearEd25519CustodyInput = Omit<
   EstablishNearEd25519CustodyInput,
   'factorJson' | 'registrationCeremonyId'
 > & {
@@ -682,12 +682,12 @@ type JoinedNearEd25519CustodyBase = {
   readonly localMaterial: EstablishedNearEd25519Custody['localMaterial'];
 };
 
-export type RejoinedNearEd25519Custody = JoinedNearEd25519CustodyBase & {
+type RejoinedNearEd25519Custody = JoinedNearEd25519CustodyBase & {
   readonly activationResultJson: string;
   readonly activationReceipt: RouterAbEd25519YaoRecoveryActivationReceiptV1;
 };
 
-export type JoinNearEd25519CustodyInput = Omit<
+type JoinNearEd25519CustodyInput = Omit<
   EstablishNearEd25519CustodyInput,
   'walletId' | 'factorJson' | 'continuityRegisteredPublicKeyB64u'
 > & {
@@ -697,9 +697,9 @@ export type JoinNearEd25519CustodyInput = Omit<
   readonly custodyJson: string;
 };
 
-export type JoinedNearEd25519Custody = JoinedNearEd25519CustodyBase;
+type JoinedNearEd25519Custody = JoinedNearEd25519CustodyBase;
 
-export type RecoverNearEd25519CustodyInput = WalletRecoveryCustodyInput & {
+type RecoverNearEd25519CustodyInput = WalletRecoveryCustodyInput & {
   readonly runStep: WalletCustodyCeremonyStepRunner;
   readonly walletId: string;
   readonly nearEd25519SigningKeyId: string;
@@ -714,7 +714,7 @@ export type RecoverNearEd25519CustodyInput = WalletRecoveryCustodyInput & {
   ) => Promise<RouterAbEd25519YaoRecoveryActivationReceiptV1>;
 };
 
-export type RecoveredNearEd25519Custody = {
+type RecoveredNearEd25519Custody = {
   readonly localMaterial: RejoinedNearEd25519Custody['localMaterial'];
   readonly activationResultJson: string;
   readonly activationReceipt: RouterAbEd25519YaoRecoveryActivationReceiptV1;

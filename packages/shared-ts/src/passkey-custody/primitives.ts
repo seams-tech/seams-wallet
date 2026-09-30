@@ -59,9 +59,8 @@ export function parseDigestField(value: unknown, label: string): DigestB64u {
 // Frozen AEAD for every passkey custody wrap: ChaCha20Poly1305 (IETF) under an
 // HKDF-SHA256-derived key, matching EMAIL_OTP_RECOVERY_WRAP_ALG and the
 // Rust/WASM activated-Client seal.
-export const PASSKEY_CUSTODY_WRAP_ALG_V1 = 'chacha20poly1305-hkdf-sha256-v1' as const;
-export const PASSKEY_CUSTODY_WRAP_NONCE_LENGTH = 12 as const;
-export const PASSKEY_CUSTODY_WRAP_TAG_LENGTH = 16 as const;
+const PASSKEY_CUSTODY_WRAP_NONCE_LENGTH = 12 as const;
+const PASSKEY_CUSTODY_WRAP_TAG_LENGTH = 16 as const;
 
 export function parseEnvelopeNonceB64u(value: unknown, label = 'nonceB64u'): EnvelopeNonceB64u {
   const decoded = requireCanonicalBase64Url(value, label);
@@ -137,66 +136,4 @@ export function parseUnixMs(value: unknown, label: string): number {
     throw new Error(`${label} must be a positive unix-millisecond timestamp`);
   }
   return value;
-}
-
-export function requireRecord(value: unknown, label: string): Record<string, unknown> {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    throw new Error(`${label} must be an object`);
-  }
-  return value as Record<string, unknown>;
-}
-
-// Substrings that mean an unexpected field is carrying plaintext custody
-// material rather than a public binding. Allowed fields are matched first, so
-// this only classifies fields that are already being rejected — it exists to
-// report a leak as a leak instead of a generic schema mismatch.
-const SECRET_BEARING_FIELD_SUBSTRINGS = [
-  'prf',
-  'kek',
-  'seed',
-  'scalar',
-  'secretkey',
-  'privatekey',
-  'plaintext',
-  'recoverycode',
-  'clientroot',
-  'holdershare',
-] as const;
-
-/**
- * Rejects every field outside this record's exact shape.
- *
- * `knownOnOtherBranches` names fields that are legitimate public bindings
- * somewhere else in the same union. Those are reported as the branch mismatch
- * they are; only genuinely unknown fields are classified as leaks, so a public
- * key like `clientRootPublicKey33B64u` on the wrong branch is never mistaken
- * for plaintext custody material.
- */
-export function rejectUnknownFields(
-  record: Record<string, unknown>,
-  allowed: readonly string[],
-  label: string,
-  knownOnOtherBranches: readonly string[] = [],
-): void {
-  const allowedSet = new Set(allowed);
-  const knownSet = new Set(knownOnOtherBranches);
-  for (const field of Object.keys(record)) {
-    if (allowedSet.has(field)) continue;
-    if (knownSet.has(field)) {
-      throw new Error(`${label}.${field} is not part of ${label}`);
-    }
-    const normalized = field.toLowerCase().replace(/_/g, '');
-    // A field that names itself a public key is not plaintext custody
-    // material, whatever else its name contains. `clientRootPublicKey33B64u`
-    // matches `clientroot` but is a published point; reporting it as a leak
-    // would send a reader hunting a secret that was never there.
-    const namesAPublicKey = normalized.includes('publickey');
-    if (
-      !namesAPublicKey &&
-      SECRET_BEARING_FIELD_SUBSTRINGS.some((substring) => normalized.includes(substring))
-    ) {
-      throw new Error(`${label}.${field} must never carry plaintext custody material`);
-    }
-    throw new Error(`${label}.${field} is not part of ${label}`);
-  }
 }

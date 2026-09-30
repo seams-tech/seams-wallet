@@ -11,10 +11,7 @@ import {
   type WalletRecoveryRotationOutcome,
   type WalletRecoveryFactorProofFactory,
 } from '@/core/signingEngine/walletCustody/walletRecoveryRotation';
-import {
-  requestWalletCustodyEmailOtpChallenge,
-  type WalletCustodyFactorProof,
-} from '@/core/rpcClients/relayer/walletRecoveryRotate';
+import { requestWalletCustodyEmailOtpChallenge } from '@/core/rpcClients/relayer/walletRecoveryRotate';
 import { SIGNING_SESSION_SEAL_GROUP_ID } from '@shared/utils/signingSessionSeal';
 import { buildEmailOtpRoutePlan } from '@/core/signingEngine/stepUpConfirmation/otpPrompt/authLane';
 import { WALLET_EMAIL_OTP_UNLOCK_OPERATION } from '@shared/utils/emailOtpDomain';
@@ -22,7 +19,6 @@ import { base64UrlDecode } from '@shared/utils/encoders';
 import { fetchPasskeyCustodyEnvelope } from '@/core/rpcClients/relayer/passkeyCustodyEnvelope';
 import { joinNormalizedUrl } from '@shared/utils/normalize';
 import { computeWalletCustodyAdminChallengeDigest } from '@shared/authorization/walletCustodyOperation';
-import type { WalletCustodyAdminOperation } from '@shared/authorization/walletCustodyOperation';
 import { redactCredentialExtensionOutputs } from '@/core/signingEngine/webauthnAuth/credentials/credentialExtensions';
 
 export type WalletRecoveryRotationAuthorization =
@@ -34,44 +30,6 @@ export type WalletRecoveryRotationAuthorization =
       readonly challenge_digest: string;
       readonly otpCode: string;
     };
-
-export async function buildWalletCustodyPasskeyFactorProof(args: {
-  readonly context: RegistrationWebContext;
-  readonly walletId: string;
-  readonly operation: WalletCustodyAdminOperation;
-  readonly payload: Record<string, unknown>;
-}): Promise<WalletCustodyFactorProof> {
-  const requestOrigin = typeof window === 'undefined' ? '' : window.location.origin;
-  if (!requestOrigin) throw new Error('Wallet custody administration requires a browser Origin');
-  const rpId = String(args.context.signingEngine.getRpId() || '').trim();
-  if (!rpId) throw new Error('Wallet custody administration requires an RP ID');
-  const challengeDigest = await computeWalletCustodyAdminChallengeDigest({
-    walletId: args.walletId,
-    operation: args.operation,
-    payload: args.payload,
-    requestOrigin,
-  });
-  const authenticators = await IndexedDBManager.listProfileAuthenticators(args.walletId);
-  const allowCredentials = passkeyAllowCredentials(authenticators);
-  const credential = await args.context.signingEngine.getAuthenticationCredentialsSerialized({
-    subjectId: args.walletId,
-    challengeB64u: challengeDigest,
-    allowCredentials,
-    includeSecondPrfOutput: false,
-  });
-  const credentialId = passkeyCredentialIdB64uFromAuthentication(credential);
-  if (!credentialId || !allowCredentials.some((candidate) => candidate.id === credentialId)) {
-    throw new Error('Wallet custody administration selected an unrelated passkey');
-  }
-  return {
-    kind: 'passkey',
-    walletId: args.walletId,
-    rpId,
-    credentialIdB64u: credentialId,
-    challenge_digest: challengeDigest,
-    webauthn_authentication: credential,
-  };
-}
 
 function authenticatorTransports(value: unknown): AuthenticatorTransport[] {
   if (!Array.isArray(value)) return [];

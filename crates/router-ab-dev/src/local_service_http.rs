@@ -125,6 +125,78 @@ impl LocalHttpServiceBindingClientV1 {
         })
     }
 
+    /// Posts JSON to a private route on a peer origin with the role-shared
+    /// credential and bounds the response. Used by the tenant-root
+    /// transports, whose peers are identified by origin rather than by the
+    /// Yao route table.
+    pub fn post_private_json_to_origin_v1<Request, Response>(
+        &self,
+        base_url: &str,
+        path: &str,
+        internal_service_auth: &str,
+        body: &Request,
+        response_max_bytes: usize,
+    ) -> RouterAbProtocolResult<Response>
+    where
+        Request: Serialize,
+        Response: DeserializeOwned,
+    {
+        let request_body = serde_json::to_vec(body).map_err(|error| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::MalformedWirePayload,
+                format!("local HTTP private JSON request serialization failed: {error}"),
+            )
+        })?;
+        let response_body = self.post_private_bytes_to_origin_v1(
+            base_url,
+            path,
+            internal_service_auth,
+            &request_body,
+            response_max_bytes,
+        )?;
+        serde_json::from_slice(&response_body).map_err(|error| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::MalformedWirePayload,
+                format!("local HTTP private JSON response parse failed: {error}"),
+            )
+        })
+    }
+
+    /// Posts an encoded JSON body to a private route on a peer origin with the
+    /// role-shared credential and returns the bounded response body.
+    pub fn post_private_bytes_to_origin_v1(
+        &self,
+        base_url: &str,
+        path: &str,
+        internal_service_auth: &str,
+        request_body: &[u8],
+        response_max_bytes: usize,
+    ) -> RouterAbProtocolResult<Vec<u8>> {
+        super::require_non_empty("local HTTP private route base URL", base_url)?;
+        if !path.starts_with('/') || path.bytes().any(|byte| byte.is_ascii_whitespace()) {
+            return Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidLocalHttpRequest,
+                "local HTTP private route must be an absolute path without whitespace",
+            ));
+        }
+        let url = format!("{}{path}", base_url.trim_end_matches('/'));
+        let parts = super::parse_http_url_parts_v1(&url)?;
+        let endpoint = LocalHttpServiceBindingEndpointV1 {
+            owner: LocalServiceRoleV1::Router,
+            url,
+            host_header: parts.authority.clone(),
+            bind_addr: parts.authority,
+            path: parts.path,
+        };
+        self.post_bytes_to_endpoint_bounded_v1(
+            &endpoint,
+            super::LOCAL_HTTP_JSON_CONTENT_TYPE_V1,
+            request_body,
+            Some(internal_service_auth),
+            Some(response_max_bytes),
+        )
+    }
+
     fn post_bytes_to_endpoint_v1(
         &self,
         endpoint: &LocalHttpServiceBindingEndpointV1,
@@ -132,9 +204,30 @@ impl LocalHttpServiceBindingClientV1 {
         body: &[u8],
         internal_service_auth: Option<&str>,
     ) -> RouterAbProtocolResult<Vec<u8>> {
+        self.post_bytes_to_endpoint_bounded_v1(
+            endpoint,
+            content_type,
+            body,
+            internal_service_auth,
+            None,
+        )
+    }
+
+    fn post_bytes_to_endpoint_bounded_v1(
+        &self,
+        endpoint: &LocalHttpServiceBindingEndpointV1,
+        content_type: &str,
+        body: &[u8],
+        internal_service_auth: Option<&str>,
+        response_max_bytes: Option<usize>,
+    ) -> RouterAbProtocolResult<Vec<u8>> {
+        // A peer that cannot be reached, answers with a broken or error
+        // response, or fails its call is a server-side failure, as a failed
+        // Service Binding fetch is on Cloudflare. Only a malformed route or
+        // credential supplied by the caller is its own error.
         let mut stream = TcpStream::connect(&endpoint.bind_addr).map_err(|error| {
             RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalHttpRequest,
+                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
                 format!(
                     "local HTTP service-binding connect to {} failed: {error}",
                     endpoint.bind_addr
@@ -170,14 +263,38 @@ impl LocalHttpServiceBindingClientV1 {
             .map_err(super::map_local_http_io_error_v1)?;
 
         let mut response = Vec::new();
-        stream
-            .read_to_end(&mut response)
-            .map_err(super::map_local_http_io_error_v1)?;
+        match response_max_bytes {
+            None => {
+                stream
+                    .read_to_end(&mut response)
+                    .map_err(super::map_local_http_io_error_v1)?;
+            }
+            Some(max_bytes) => {
+                // Headers are small; the allowance keeps the bound on the body.
+                let limit = max_bytes.saturating_add(16 * 1024);
+                (&mut stream)
+                    .take(u64::try_from(limit).unwrap_or(u64::MAX))
+                    .read_to_end(&mut response)
+                    .map_err(super::map_local_http_io_error_v1)?;
+                if response.len() >= limit {
+                    return Err(RouterAbProtocolError::new(
+                        RouterAbProtocolErrorCode::MalformedWirePayload,
+                        "local HTTP private response exceeds its maximum size",
+                    ));
+                }
+            }
+        }
         let (status, response_body) = super::split_local_http_response_v1(&response)?;
         if !(200..=299).contains(&status) {
+            // Carry the peer's typed error text, as the Cloudflare adapter
+            // does, so a caller can tell a replay rejection from a fault.
+            let detail = String::from_utf8_lossy(&response_body);
             return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalHttpRequest,
-                format!("local HTTP service-binding request failed with status {status}"),
+                router_ab_cloudflare::router_ab_peer_error_code_v1(&detail),
+                format!(
+                    "local HTTP service-binding request failed with status {status}: {}",
+                    detail.trim()
+                ),
             ));
         }
         Ok(response_body)

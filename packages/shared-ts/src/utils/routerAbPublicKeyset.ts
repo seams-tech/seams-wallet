@@ -1,47 +1,49 @@
+import { coerceNonEmptyString, requireRecord } from './validation';
+
 export const ROUTER_AB_PUBLIC_KEYSET_VERSION_V2 = 'router_ab_keyset_v2' as const;
 export const ROUTER_AB_PUBLIC_KEYSET_WELL_KNOWN_PATH = '/.well-known/router-ab/keyset' as const;
 export const ROUTER_AB_PUBLIC_KEYSET_PATH = '/router-ab/keyset' as const;
 
-export type RouterAbSignerRoleV1 = 'signer_a' | 'signer_b';
+type RouterAbSignerRoleV1 = 'signer_a' | 'signer_b';
 
-export type RouterAbSignerEnvelopeHpkePublicKeyV1 = {
+type RouterAbSignerEnvelopeHpkePublicKeyV1 = {
   role: RouterAbSignerRoleV1;
   key_epoch: string;
   public_key: string;
 };
 
-export type RouterAbSignerEnvelopeHpkePublicKeySetV1 = {
+type RouterAbSignerEnvelopeHpkePublicKeySetV1 = {
   deriver_a: RouterAbSignerEnvelopeHpkePublicKeyV1;
   deriver_b: RouterAbSignerEnvelopeHpkePublicKeyV1;
 };
 
-export type RouterAbSignerEnvelopeHpkeCurrentPublicKeySetV1 = {
+type RouterAbSignerEnvelopeHpkeCurrentPublicKeySetV1 = {
   current: RouterAbSignerEnvelopeHpkePublicKeySetV1;
   previous?: never;
   previous_retire_at_ms?: never;
 };
 
-export type RouterAbSignerEnvelopeHpkeRotatingPublicKeySetV1 = {
+type RouterAbSignerEnvelopeHpkeRotatingPublicKeySetV1 = {
   current: RouterAbSignerEnvelopeHpkePublicKeySetV1;
   previous: RouterAbSignerEnvelopeHpkePublicKeySetV1;
   previous_retire_at_ms: number;
 };
 
-export type RouterAbSignerEnvelopeHpkeRotationPublicKeySetV1 =
+type RouterAbSignerEnvelopeHpkeRotationPublicKeySetV1 =
   | RouterAbSignerEnvelopeHpkeCurrentPublicKeySetV1
   | RouterAbSignerEnvelopeHpkeRotatingPublicKeySetV1;
 
-export type RouterAbSignerPeerVerifyingKeyHexV1 = {
+type RouterAbSignerPeerVerifyingKeyHexV1 = {
   role: RouterAbSignerRoleV1;
   verifying_key_hex: string;
 };
 
-export type RouterAbSignerPeerVerifyingKeyHexSetV1 = {
+type RouterAbSignerPeerVerifyingKeyHexSetV1 = {
   deriver_a: RouterAbSignerPeerVerifyingKeyHexV1;
   deriver_b: RouterAbSignerPeerVerifyingKeyHexV1;
 };
 
-export type RouterAbPublicHpkeKeyDescriptorV1 = {
+type RouterAbPublicHpkeKeyDescriptorV1 = {
   key_epoch: string;
   public_key: string;
 };
@@ -52,13 +54,6 @@ export type RouterAbPublicKeysetV2 = {
   signer_peer_verifying_keys: RouterAbSignerPeerVerifyingKeyHexSetV1;
   signing_worker_server_output_hpke: RouterAbPublicHpkeKeyDescriptorV1;
 };
-
-function requireRecord(value: unknown, label: string): Record<string, unknown> {
-  if (value && typeof value === 'object' && !Array.isArray(value)) {
-    return value as Record<string, unknown>;
-  }
-  throw new Error(`${label} must be an object`);
-}
 
 function requireExactKeys(
   record: Record<string, unknown>,
@@ -73,12 +68,6 @@ function requireExactKeys(
   }
 }
 
-function requireNonEmptyString(value: unknown, label: string): string {
-  const normalized = String(value || '').trim();
-  if (!normalized) throw new Error(`${label} is required`);
-  return normalized;
-}
-
 function requirePositiveInteger(value: unknown, label: string): number {
   const parsed = Number(value);
   if (!Number.isSafeInteger(parsed) || parsed <= 0) {
@@ -88,7 +77,7 @@ function requirePositiveInteger(value: unknown, label: string): number {
 }
 
 function requireSignerRole(value: unknown, label: string): RouterAbSignerRoleV1 {
-  const role = requireNonEmptyString(value, label);
+  const role = coerceNonEmptyString(value, label);
   switch (role) {
     case 'signer_a':
     case 'signer_b':
@@ -99,7 +88,7 @@ function requireSignerRole(value: unknown, label: string): RouterAbSignerRoleV1 
 }
 
 function requireLowerHex(value: unknown, label: string, byteLength: number): string {
-  const hex = requireNonEmptyString(value, label);
+  const hex = coerceNonEmptyString(value, label);
   if (!new RegExp(`^[0-9a-f]{${byteLength * 2}}$`).test(hex)) {
     throw new Error(`${label} must be ${byteLength} lowercase-hex bytes`);
   }
@@ -107,7 +96,7 @@ function requireLowerHex(value: unknown, label: string, byteLength: number): str
 }
 
 export function requireRouterAbX25519PublicKey(value: unknown, label: string): string {
-  const publicKey = requireNonEmptyString(value, label);
+  const publicKey = coerceNonEmptyString(value, label);
   if (!/^x25519:[0-9a-f]{64}$/.test(publicKey)) {
     throw new Error(`${label} must use x25519:<64 lowercase hex chars> encoding`);
   }
@@ -122,7 +111,7 @@ function parseSignerEnvelopeHpkePublicKey(
   requireExactKeys(record, ['role', 'key_epoch', 'public_key'], label);
   return {
     role: requireSignerRole(record.role, `${label}.role`),
-    key_epoch: requireNonEmptyString(record.key_epoch, `${label}.key_epoch`),
+    key_epoch: coerceNonEmptyString(record.key_epoch, `${label}.key_epoch`),
     public_key: requireRouterAbX25519PublicKey(record.public_key, `${label}.public_key`),
   };
 }
@@ -199,12 +188,6 @@ function parseSignerEnvelopeHpkeRotationPublicKeySet(
   };
 }
 
-function hasPreviousSignerEnvelopeHpkeKeySet(
-  keyset: RouterAbSignerEnvelopeHpkeRotationPublicKeySetV1,
-): keyset is RouterAbSignerEnvelopeHpkeRotatingPublicKeySetV1 {
-  return keyset.previous !== undefined && keyset.previous_retire_at_ms !== undefined;
-}
-
 function parseSignerPeerVerifyingKey(
   value: unknown,
   label: string,
@@ -244,7 +227,7 @@ function parsePublicHpkeKeyDescriptor(
   const record = requireRecord(value, label);
   requireExactKeys(record, ['key_epoch', 'public_key'], label);
   return {
-    key_epoch: requireNonEmptyString(record.key_epoch, `${label}.key_epoch`),
+    key_epoch: coerceNonEmptyString(record.key_epoch, `${label}.key_epoch`),
     public_key: requireRouterAbX25519PublicKey(record.public_key, `${label}.public_key`),
   };
 }
@@ -261,7 +244,7 @@ export function parseRouterAbPublicKeysetV2(value: unknown): RouterAbPublicKeyse
     ],
     'Router A/B public keyset',
   );
-  const keysetVersion = requireNonEmptyString(record.keyset_version, 'keyset_version');
+  const keysetVersion = coerceNonEmptyString(record.keyset_version, 'keyset_version');
   if (keysetVersion !== ROUTER_AB_PUBLIC_KEYSET_VERSION_V2) {
     throw new Error(`Unsupported Router A/B public keyset version: ${keysetVersion}`);
   }
@@ -280,39 +263,4 @@ export function parseRouterAbPublicKeysetV2(value: unknown): RouterAbPublicKeyse
       'signing_worker_server_output_hpke',
     ),
   };
-}
-
-export function selectRouterAbSignerEnvelopeHpkeKeyForEpoch(args: {
-  keyset: RouterAbSignerEnvelopeHpkeRotationPublicKeySetV1;
-  role: RouterAbSignerRoleV1;
-  keyEpoch: string;
-  nowMs: number;
-}): RouterAbSignerEnvelopeHpkePublicKeyV1 {
-  const keyEpoch = requireNonEmptyString(args.keyEpoch, 'keyEpoch');
-  const nowMs = requirePositiveInteger(args.nowMs, 'nowMs');
-  const current = selectSignerEnvelopeHpkeKey(args.keyset.current, args.role, 'current');
-  if (current.key_epoch === keyEpoch) return current;
-  if (hasPreviousSignerEnvelopeHpkeKeySet(args.keyset)) {
-    const previous = selectSignerEnvelopeHpkeKey(args.keyset.previous, args.role, 'previous');
-    if (previous.key_epoch === keyEpoch) {
-      if (nowMs <= args.keyset.previous_retire_at_ms) return previous;
-      throw new Error('previous signer-envelope HPKE key epoch is retired');
-    }
-  }
-  throw new Error('signer-envelope HPKE key epoch is not in the current or previous keyset');
-}
-
-function selectSignerEnvelopeHpkeKey(
-  keyset: RouterAbSignerEnvelopeHpkePublicKeySetV1,
-  role: RouterAbSignerRoleV1,
-  label: string,
-): RouterAbSignerEnvelopeHpkePublicKeyV1 {
-  switch (role) {
-    case 'signer_a':
-      return keyset.deriver_a;
-    case 'signer_b':
-      return keyset.deriver_b;
-    default:
-      throw new Error(`${label}.role must be signer_a or signer_b`);
-  }
 }

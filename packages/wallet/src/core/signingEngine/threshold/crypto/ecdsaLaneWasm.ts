@@ -8,17 +8,7 @@ import {
   parseEcdsaAdditiveLaneHolderRoundV1,
   parseLaneHolderPackageWireV1,
   parseRotatableSigningLaneJobV1,
-} from '@shared/signing-lanes/rotationParsers';
-import {
-  executeWorkerOperation,
-  type WorkerOperationContext,
-} from '../../workerManager/executeWorkerOperation';
-import {
-  EcdsaDerivationClientCustomRequestType,
-  EcdsaDerivationClientCustomResponseType,
-} from '../../workerManager/workerTypes';
-
-const ECDSA_LANE_PREPARATION_TIMEOUT_MS = 20_000;
+} from '@shared/signing-lanes/rotationProtocolParsers';
 
 function parseEcdsaJob(value: unknown): EcdsaAdditiveLaneJobV1 {
   const parsed = parseRotatableSigningLaneJobV1(value);
@@ -74,62 +64,4 @@ export async function prepareEcdsaAdditiveLaneHolderRoundV1(
   return parseEcdsaAdditiveLaneHolderPreparationV1(
     await wasm.prepareEcdsaAdditiveLaneHolderRoundV1(job),
   );
-}
-
-export type EcdsaLaneWasmAdapterV1 = EcdsaLaneProtocolWasmV1;
-
-export function createEcdsaLaneWasmAdapterV1(
-  wasm: EcdsaLaneProtocolWasmV1,
-): EcdsaLaneWasmAdapterV1 {
-  return {
-    async prepareEcdsaAdditiveLaneHolderRoundV1(input) {
-      return await prepareEcdsaAdditiveLaneHolderRoundV1(wasm, input);
-    },
-  };
-}
-
-export const createEcdsaLaneWasmAdapter = createEcdsaLaneWasmAdapterV1;
-
-export type EcdsaLaneDerivationWorkerWasmV1Config = {
-  readonly workerCtx: WorkerOperationContext;
-  readonly nowMs: () => number;
-};
-
-class EcdsaLaneDerivationWorkerWasmV1 implements EcdsaLaneProtocolWasmV1 {
-  constructor(private readonly config: EcdsaLaneDerivationWorkerWasmV1Config) {}
-
-  async prepareEcdsaAdditiveLaneHolderRoundV1(
-    input: EcdsaAdditiveLaneJobV1,
-  ): Promise<EcdsaAdditiveLaneHolderPreparationV1> {
-    const job = parseEcdsaJob(input);
-    const holderCommittedAtMs = this.config.nowMs();
-    if (!Number.isSafeInteger(holderCommittedAtMs) || holderCommittedAtMs < 0) {
-      throw new Error('ECDSA lane holder commitment time must be a non-negative safe integer');
-    }
-    const result = await executeWorkerOperation({
-      ctx: this.config.workerCtx,
-      kind: 'ecdsaDerivationClient',
-      request: {
-        type: EcdsaDerivationClientCustomRequestType.PrepareEcdsaAdditiveLaneHolder,
-        payload: {
-          kind: 'prepare_ecdsa_additive_lane_holder_v1',
-          job,
-          holderCommittedAtMs,
-        },
-        timeoutMs: ECDSA_LANE_PREPARATION_TIMEOUT_MS,
-      },
-    });
-    if (
-      result.type !== EcdsaDerivationClientCustomResponseType.PrepareEcdsaAdditiveLaneHolderSuccess
-    ) {
-      throw new Error('ECDSA derivation worker returned an unexpected lane response type');
-    }
-    return parseEcdsaAdditiveLaneHolderPreparationV1(result.payload);
-  }
-}
-
-export function createEcdsaLaneDerivationWorkerWasmV1(
-  config: EcdsaLaneDerivationWorkerWasmV1Config,
-): EcdsaLaneProtocolWasmV1 {
-  return new EcdsaLaneDerivationWorkerWasmV1(config);
 }

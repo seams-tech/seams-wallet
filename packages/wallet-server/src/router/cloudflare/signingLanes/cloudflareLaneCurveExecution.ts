@@ -20,9 +20,12 @@ import {
   parseLaneServerActivationReceiptV1,
   parseRevokeSigningLaneV1,
 } from '@shared/signing-lanes/rotationParsers';
-import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
-import { parseDigestB64u, type DigestB64u } from '@shared/utils/canonicalPrimitives';
-import { sha256Bytes } from '@shared/utils/digests';
+import { base64UrlDecode } from '@shared/utils/base64';
+import {
+  parseDigestB64u,
+  sha256DigestB64u,
+  type DigestB64u,
+} from '@shared/utils/canonicalPrimitives';
 import { base58Encode } from '@shared/utils/base58';
 import { parseEcdsaLifecycleId } from '@shared/utils/ecdsaCapabilityActivation';
 import {
@@ -356,21 +359,6 @@ function targetSigningWorkerRefV1(
     throw new Error(`ECDSA target SigningWorker is invalid: ${parsed.error.message}`);
   }
   return parsed.value;
-}
-
-function isRegistrationBackedSourceLane(
-  laneKind: EcdsaAdditiveLaneJobV1['source']['laneKind'],
-): boolean {
-  switch (laneKind) {
-    case 'owner_passkey':
-    case 'owner_email_otp':
-    case 'recovery':
-    case 'break_glass':
-      return true;
-    case 'linked_device':
-    case 'delegated_execution':
-      return false;
-  }
 }
 
 async function resolveOwnerEcdsaSourceSignerV1(input: {
@@ -1000,8 +988,8 @@ async function identityFromProtocolReceiptV1(
     holderRecipientKeyDigestB64u: job.targetHolder.hpkePublicKeyDigestB64u,
     serverRecipientKeyDigestB64u: job.targetSigningWorker.hpkePublicKeyDigestB64u,
     transcriptHashB64u: parseDigestB64u(receipt.transcriptHashB64u),
-    protocolCommitReceiptDigestB64u: parseDigestB64u(
-      base64UrlEncode(await sha256Bytes(encodeLaneProtocolCommitReceiptV1(receipt))),
+    protocolCommitReceiptDigestB64u: await sha256DigestB64u(
+      encodeLaneProtocolCommitReceiptV1(receipt),
     ),
   };
 }
@@ -1048,8 +1036,8 @@ async function buildEd25519ActivationBindingV1(input: {
       holderRecipientKeyDigestB64u: input.job.targetHolder.hpkePublicKeyDigestB64u,
       serverRecipientKeyDigestB64u: input.job.targetSigningWorker.hpkePublicKeyDigestB64u,
       transcriptHashB64u: parseDigestB64u(receipt.transcriptHashB64u),
-      protocolCommitReceiptDigestB64u: parseDigestB64u(
-        base64UrlEncode(await sha256Bytes(encodeLaneProtocolCommitReceiptV1(receipt))),
+      protocolCommitReceiptDigestB64u: await sha256DigestB64u(
+        encodeLaneProtocolCommitReceiptV1(receipt),
       ),
     },
     targetMaterialActivation: buildMpcMaterialActivationRef({
@@ -1095,7 +1083,7 @@ export async function digestSigningWorkerLaneIdentityV1(
     bytes.set(chunk, offset);
     offset += chunk.length;
   }
-  return parseDigestB64u(base64UrlEncode(await sha256Bytes(bytes)));
+  return sha256DigestB64u(bytes);
 }
 
 function u64Length(value: number): Uint8Array {

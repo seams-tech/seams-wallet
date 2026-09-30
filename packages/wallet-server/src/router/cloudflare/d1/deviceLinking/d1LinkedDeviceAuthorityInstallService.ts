@@ -1,3 +1,8 @@
+import {
+  findInstalledEcdsaAuthority,
+  installedEcdsaAuthorityChain,
+  projectInstalledEcdsaAuthority,
+} from './installedEcdsaAuthority';
 import type {
   ActiveWalletAuthorityV1,
   PendingWalletAuthorityV1,
@@ -50,7 +55,7 @@ import {
   buildAuthorityActiveSessionRecordV1,
   buildAuthorityPendingLocalInstallSessionRecordV1,
   type LinkedDeviceSessionRecordV1,
-} from '../../../../core/deviceLinking/linkedDeviceSession';
+} from '../../../../core/deviceLinking/linkedDeviceSessionRecord';
 import type {
   LocalAuthorityActivationFinalAckV1,
   LocalAuthorityInstallationReceiptV1,
@@ -78,8 +83,10 @@ import { type ExactAdministeredSignerV1 } from '@shared/device-linking/delegated
 import {
   buildWalletAuthMethodRecordV2,
   sameWalletAuthMethodRecordV2,
+  type ActiveWalletAuthMethodRecordV2,
+  type PendingWalletAuthMethodRecordV2,
   type WalletAuthMethodRecordV2,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/walletAuthMethodRecord';
 import { parseLinkDeviceSessionId, parseWalletKeyId } from '@shared/signing-lanes/ids';
 import {
   OrdinaryInactiveSignerMaterialReservationServiceV1,
@@ -94,7 +101,7 @@ import {
   parseLinkedDeviceOrdinaryMaterialSourceContributionV1,
 } from '@shared/device-linking/sourceContribution';
 import type { LinkedDeviceEcdsaSourcePreservingActivationReceiptV1 } from '@shared/device-linking/sourceContribution';
-import { parseLocalAuthorityActivationFinalAckV1 } from '@shared/device-linking/parsers';
+import { parseLocalAuthorityActivationFinalAckV1 } from '@shared/device-linking/authorityActivation';
 import {
   computeWalletSessionInstallationReceiptDigestB64u,
   computeWalletSessionOperationCredentialDigestB64u,
@@ -110,7 +117,7 @@ import {
   type RouterAbEd25519YaoCeremonyBindingV1,
 } from '@shared/utils/routerAbEd25519Yao';
 import { routerAbMpcMaterialActivationRefFromWire } from '@shared/utils/routerAbNormalSigningIdentity';
-import { d1ChangedRows, parseD1JsonColumn } from '../../../../storage/d1Sql';
+import { parseD1JsonColumn } from '../../../../storage/d1Sql';
 import {
   D1WalletAuthorityStore,
   type D1WalletAuthorityStoreScope,
@@ -252,7 +259,7 @@ export type ActivateInstalledAuthorityResultV1 =
       readonly kind: 'active';
       readonly outcome: 'activated' | 'replayed';
       readonly authority: ActiveWalletAuthorityV1;
-      readonly authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+      readonly authMethod: ActiveWalletAuthMethodRecordV2;
       readonly session: LinkedDeviceSessionRecordV1;
       readonly walletSession: IssuedWalletSessionAuthorizationV2;
       readonly deliveryBinding: LinkedDeviceWalletSessionCredentialDeliveryBindingV1;
@@ -303,7 +310,7 @@ export type LocalAuthorityActivationAcknowledgementAuthenticationV1 =
       readonly expiresAtMs: number;
     };
 
-type StoredInstallationRow = {
+export type StoredInstallationRow = {
   readonly linkSessionId: LinkDeviceSessionId;
   readonly authorityId: WalletAuthorityId;
   readonly walletId: WalletId;
@@ -808,10 +815,7 @@ export class D1LinkedDeviceAuthorityInstallServiceV1 {
     readonly stored: StoredInstallationRow;
     readonly receipt: LocalAuthorityInstallationReceiptV1;
     readonly expectedPendingAuthority: PendingWalletAuthorityV1;
-    readonly expectedPendingAuthMethod: Extract<
-      WalletAuthMethodRecordV2,
-      { readonly status: 'pending_local_install' }
-    >;
+    readonly expectedPendingAuthMethod: PendingWalletAuthMethodRecordV2;
     readonly nowMs: number;
   }): Promise<Extract<ActivateInstalledAuthorityResultV1, { readonly kind: 'active' }> | null> {
     const authority = await this.options.authorityStore.readById(input.stored.authorityId);
@@ -994,26 +998,35 @@ export class D1LinkedDeviceAuthorityInstallServiceV1 {
     readonly materialActivation: MpcMaterialActivationRef;
   }): Promise<InstalledLinkedDeviceEcdsaAuthorityProjectionV1 | null> {
     try {
-      const walletId = parseWalletId(input.walletId);
-      if (!walletId.ok) return null;
-      const storedRows = await this.readInstallationsByWallet(walletId.value);
-      for (const stored of storedRows) {
-        await assertStoredPackageDigest(stored);
-      }
-      const candidates = storedRows.filter(
-        (stored) =>
-          stored.packages.signerPackages.ecdsa !== undefined &&
-          mpcMaterialActivationRefsEqual(
-            stored.packages.signerPackages.ecdsa.materialActivation,
-            input.materialActivation,
-          ),
-      );
-      if (candidates.length !== 1) return null;
-      const stored = candidates[0];
-      return stored ? projectInstalledEcdsaAuthority(stored) : null;
+      const rows = await this.readVerifiedEcdsaInstallations(input.walletId);
+      return findInstalledEcdsaAuthority(rows, input.materialActivation);
     } catch {
       return null;
     }
+  }
+
+  async readInstalledEcdsaAuthorityChainByMaterialActivationV1(input: {
+    readonly walletId: WalletId;
+    readonly materialActivation: MpcMaterialActivationRef;
+  }): Promise<readonly InstalledLinkedDeviceEcdsaAuthorityProjectionV1[]> {
+    try {
+      const rows = await this.readVerifiedEcdsaInstallations(input.walletId);
+      return installedEcdsaAuthorityChain(rows, input.materialActivation);
+    } catch {
+      return [];
+    }
+  }
+
+  private async readVerifiedEcdsaInstallations(
+    walletId: WalletId,
+  ): Promise<readonly StoredInstallationRow[]> {
+    const parsed = parseWalletId(walletId);
+    if (!parsed.ok) return [];
+    const rows = await this.readInstallationsByWallet(parsed.value);
+    for (const row of rows) {
+      await assertStoredPackageDigest(row);
+    }
+    return rows;
   }
 
   async readActivationCleanupReceiptV1(input: {
@@ -1772,7 +1785,7 @@ export class D1LinkedDeviceAuthorityInstallServiceV1 {
 
   private async readCommittedWalletSession(
     authority: ActiveWalletAuthorityV1,
-    authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>,
+    authMethod: ActiveWalletAuthMethodRecordV2,
     issuedAtMs: number,
   ): Promise<
     IssuedWalletSessionAuthorizationV2 & {
@@ -1911,7 +1924,7 @@ export class D1LinkedDeviceAuthorityInstallServiceV1 {
 
   private buildWalletSessionAuthorizationInput(
     authority: ActiveWalletAuthorityV1,
-    authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>,
+    authMethod: ActiveWalletAuthMethodRecordV2,
     issuedAtMs: number,
   ): IssueWalletSessionAuthorizationV2Input {
     const tenantId = requireParsed(parseTenantId(this.options.tenantId), 'tenantId');
@@ -1945,39 +1958,6 @@ export class D1LinkedDeviceAuthorityInstallServiceV1 {
       expiresAtMs: issuedAtMs + ttlMs,
     };
     return input;
-  }
-
-  private async markInstalled(
-    stored: StoredInstallationRow,
-    receipt: LocalAuthorityInstallationReceiptV1,
-  ): Promise<void> {
-    const result = await this.options.database
-      .prepare(
-        `UPDATE linked_device_authority_installations
-            SET installed_record_set_digest_b64u = ?, activated_at_ms = ?, updated_at_ms = ?
-          WHERE namespace = ? AND org_id = ? AND project_id = ? AND env_id = ?
-            AND link_session_id = ? AND package_set_digest_b64u = ?
-            AND (installed_record_set_digest_b64u IS NULL OR installed_record_set_digest_b64u = ?)`,
-      )
-      .bind(
-        String(receipt.installedRecordSetDigestB64u),
-        receipt.installedAtMs,
-        receipt.installedAtMs,
-        this.options.scope.namespace,
-        this.options.scope.orgId,
-        this.options.scope.projectId,
-        this.options.scope.envId,
-        String(stored.linkSessionId),
-        String(stored.packageSetDigestB64u),
-        String(receipt.installedRecordSetDigestB64u),
-      )
-      .run();
-    if (d1ChangedRows(result) !== 1) {
-      const replay = await this.readInstallation(stored.linkSessionId);
-      if (replay?.installedRecordSetDigestB64u !== receipt.installedRecordSetDigestB64u) {
-        throw new Error('installation acknowledgement conflicts with a prior receipt');
-      }
-    }
   }
 
   private async prepareAuthorityAllocation(
@@ -2137,21 +2117,7 @@ export class D1LinkedDeviceAuthorityInstallServiceV1 {
   private async readInstallationByAuthority(
     authorityId: WalletAuthorityId,
   ): Promise<StoredInstallationRow | null> {
-    const row = await this.options.database
-      .prepare(
-        `SELECT * FROM linked_device_authority_installations
-          WHERE namespace = ? AND org_id = ? AND project_id = ? AND env_id = ?
-            AND authority_id = ? LIMIT 1`,
-      )
-      .bind(
-        this.options.scope.namespace,
-        this.options.scope.orgId,
-        this.options.scope.projectId,
-        this.options.scope.envId,
-        String(authorityId),
-      )
-      .first<Readonly<Record<string, unknown>>>();
-    return row ? parseStoredInstallationRow(row) : null;
+    return await readStoredInstallationByAuthorityV1(this.options, authorityId);
   }
 
   private async readInstallationsByWallet(
@@ -2174,6 +2140,84 @@ export class D1LinkedDeviceAuthorityInstallServiceV1 {
       .all<Readonly<Record<string, unknown>>>();
     return (rows.results ?? []).map(parseStoredInstallationRow);
   }
+}
+
+async function readStoredInstallationByAuthorityV1(
+  sql: Pick<D1LinkedDeviceAuthorityInstallServiceOptionsV1, 'database' | 'scope'>,
+  authorityId: WalletAuthorityId,
+): Promise<StoredInstallationRow | null> {
+  const row = await sql.database
+    .prepare(
+      `SELECT * FROM linked_device_authority_installations
+        WHERE namespace = ? AND org_id = ? AND project_id = ? AND env_id = ?
+          AND authority_id = ? LIMIT 1`,
+    )
+    .bind(
+      sql.scope.namespace,
+      sql.scope.orgId,
+      sql.scope.projectId,
+      sql.scope.envId,
+      String(authorityId),
+    )
+    .first<Readonly<Record<string, unknown>>>();
+  return row ? parseStoredInstallationRow(row) : null;
+}
+
+/**
+ * The installed Ed25519 authority of a linked device, read from Gateway SQL
+ * alone: a linked device approving another link names its own binding as the
+ * source. Null when a link did not install the authority. An installation
+ * that does not project refuses.
+ */
+export async function readD1LinkedDeviceEd25519SourceV1(
+  sql: Pick<D1LinkedDeviceAuthorityInstallServiceOptionsV1, 'database' | 'scope'>,
+  input: {
+    readonly walletId: WalletId;
+    readonly authorityId: WalletAuthorityId;
+    readonly walletAuthMethodId: WalletAuthMethodId;
+  },
+): Promise<InstalledLinkedDeviceEd25519AuthorityProjectionV1 | null> {
+  const stored = await readStoredInstallationByAuthorityV1(sql, input.authorityId);
+  if (!stored) return null;
+  await assertStoredPackageDigest(stored);
+  const projection =
+    stored.walletId === input.walletId && stored.authMethodId === input.walletAuthMethodId
+      ? projectInstalledEd25519Authority(stored)
+      : null;
+  if (!projection) {
+    throw new Error(
+      'linked-device Ed25519 source authority does not project its installed material',
+    );
+  }
+  return projection;
+}
+
+/**
+ * The installed ECDSA authority of a linked device, read from Gateway SQL
+ * alone: a linked device approving another link contributes from it. Null
+ * when a link did not install the authority. An installation that does not
+ * project refuses, so a linked device never falls back to another device's
+ * material.
+ */
+export async function readD1LinkedDeviceEcdsaSourceV1(
+  sql: Pick<D1LinkedDeviceAuthorityInstallServiceOptionsV1, 'database' | 'scope'>,
+  input: {
+    readonly walletId: WalletId;
+    readonly authorityId: WalletAuthorityId;
+    readonly walletAuthMethodId: WalletAuthMethodId;
+  },
+): Promise<InstalledLinkedDeviceEcdsaAuthorityProjectionV1 | null> {
+  const stored = await readStoredInstallationByAuthorityV1(sql, input.authorityId);
+  if (!stored) return null;
+  await assertStoredPackageDigest(stored);
+  const projection =
+    stored.walletId === input.walletId && stored.authMethodId === input.walletAuthMethodId
+      ? projectInstalledEcdsaAuthority(stored)
+      : null;
+  if (!projection) {
+    throw new Error('linked-device ECDSA source authority does not project its installed material');
+  }
+  return projection;
 }
 
 function assertRecipientRequestsMatchManifest(input: VerifiedLinkInputV1): void {
@@ -2670,7 +2714,7 @@ async function buildActiveAuthority(
 function buildActiveAuthMethod(
   pending: CommittedAuthorityPackagesV1['authMethod'],
   activatedAtMs: number,
-): Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }> {
+): ActiveWalletAuthMethodRecordV2 {
   if (pending.kind === 'passkey') {
     const record = buildWalletAuthMethodRecordV2({
       version: 'wallet_auth_method_v2',
@@ -2714,7 +2758,7 @@ async function buildPasskeyCredentialPromotionStatements(input: {
   readonly scope: D1WalletAuthorityStoreScope;
   readonly listWalletEd25519Signers: ListWalletEd25519SignersV1;
   readonly authority: ActiveWalletAuthorityV1;
-  readonly authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+  readonly authMethod: ActiveWalletAuthMethodRecordV2;
   readonly activatedAtMs: number;
 }): Promise<readonly D1PreparedStatementLike[]> {
   if (input.authMethod.kind !== 'passkey') return [];
@@ -2870,100 +2914,6 @@ function projectInstalledEd25519Authority(
     installedRecordSetDigestB64u: stored.installedRecordSetDigestB64u,
     activatedAtMs: stored.activatedAtMs,
   };
-}
-
-function projectInstalledEcdsaAuthority(
-  stored: StoredInstallationRow,
-): InstalledLinkedDeviceEcdsaAuthorityProjectionV1 | null {
-  if (stored.activatedAtMs === null || stored.installedRecordSetDigestB64u === null) return null;
-  const packages = stored.packages;
-  if (
-    packages.authority.authorityId !== stored.authorityId ||
-    packages.authority.walletId !== stored.walletId ||
-    packages.authMethod.walletAuthMethodId !== stored.authMethodId ||
-    packages.authMethod.walletId !== stored.walletId ||
-    packages.authMethod.walletAuthorityId !== stored.authorityId ||
-    packages.authority.provenance.kind !== 'device_link' ||
-    packages.authority.provenance.linkSessionId !== stored.linkSessionId ||
-    packages.authority.principal.deviceId !== stored.deviceId
-  ) {
-    return null;
-  }
-  const signerPackage = packages.signerPackages.ecdsa;
-  const authorityActivation = packages.authority.signerActivations.ecdsa;
-  if (!signerPackage || !authorityActivation) return null;
-
-  const receipt = signerPackage.activationReceipt;
-  const source = receipt.binding.source;
-  const target = receipt.binding.target;
-  const sourceScope = receipt.sourceDerivation.sourceNormalSigning.scope;
-  const targetScope = receipt.normalSigning.scope;
-  const authorityEthereumAddress = ecdsaAuthorityEvmAddressB64u(
-    authorityActivation.signer.evmAddress,
-  );
-  if (
-    authorityEthereumAddress === null ||
-    !mpcMaterialActivationRefsEqual(
-      signerPackage.materialActivation,
-      authorityActivation.materialActivation,
-    ) ||
-    !mpcMaterialActivationRefsEqual(signerPackage.materialActivation, target.activation) ||
-    !mpcMaterialActivationRefsEqual(
-      signerPackage.materialActivation,
-      routerAbMpcMaterialActivationRefFromWire(targetScope.material_activation),
-    ) ||
-    String(receipt.binding.linkSessionId) !== String(stored.linkSessionId) ||
-    String(receipt.binding.enrollmentId) !== String(packages.authority.provenance.enrollmentId) ||
-    String(receipt.binding.sourceAuthorityId) !==
-      String(packages.authority.provenance.sourceAuthorityId) ||
-    target.targetDeviceId !== stored.deviceId ||
-    target.targetFactorVerificationDigestB64u !== stored.targetFactorVerificationDigestB64u ||
-    signerPackage.encryptedTargetClientShare.recipientPublicKeyB64u !==
-      target.clientRecipientPublicKeyB64u ||
-    sourceScope.wallet_id !== String(stored.walletId) ||
-    targetScope.wallet_id !== String(stored.walletId) ||
-    !mpcMaterialActivationRefsEqual(
-      routerAbMpcMaterialActivationRefFromWire(sourceScope.material_activation),
-      source.activation,
-    ) ||
-    sourceScope.public_identity.client_share_retry_counter !==
-      targetScope.public_identity.client_share_retry_counter ||
-    sourceScope.public_identity.server_share_retry_counter !==
-      targetScope.public_identity.server_share_retry_counter ||
-    targetScope.signing_worker.server_id !== target.activation.signingWorker ||
-    targetScope.public_identity.derivation_client_share_public_key33_b64u !==
-      receipt.binding.targetClientPublicKey33B64u ||
-    targetScope.public_identity.server_public_key33_b64u !== receipt.targetRelayerPublicKey33B64u ||
-    targetScope.public_identity.threshold_public_key33_b64u !== receipt.thresholdPublicKey33B64u ||
-    targetScope.public_identity.ethereum_address20_b64u !==
-      receipt.thresholdEthereumAddress20B64u ||
-    authorityActivation.signer.walletId !== stored.walletId ||
-    authorityActivation.signer.thresholdPublicKey33B64u !== receipt.thresholdPublicKey33B64u ||
-    authorityEthereumAddress !== receipt.thresholdEthereumAddress20B64u
-  ) {
-    return null;
-  }
-  return {
-    walletId: stored.walletId,
-    authorityId: stored.authorityId,
-    walletAuthMethodId: stored.authMethodId,
-    linkSessionId: stored.linkSessionId,
-    deviceId: stored.deviceId,
-    materialActivation: signerPackage.materialActivation,
-    signer: authorityActivation.signer,
-    activationReceipt: receipt,
-    installedRecordSetDigestB64u: stored.installedRecordSetDigestB64u,
-    activatedAtMs: stored.activatedAtMs,
-  };
-}
-
-function ecdsaAuthorityEvmAddressB64u(value: string): string | null {
-  if (!/^0x[0-9a-fA-F]{40}$/.test(value)) return null;
-  const bytes = new Uint8Array(20);
-  for (let index = 0; index < bytes.length; index += 1) {
-    bytes[index] = Number.parseInt(value.slice(2 + index * 2, 4 + index * 2), 16);
-  }
-  return base64UrlEncode(bytes);
 }
 
 function parseStoredInstallationRow(row: Readonly<Record<string, unknown>>): StoredInstallationRow {

@@ -1,7 +1,7 @@
 /**
- * Compile-time fixtures for the Refactor 109C addition contract.
+ * Compile-time fixtures for the same-device auth-method addition contract.
  *
- * Every `@ts-expect-error` below is a state R109C forbids. If one of them ever
+ * Every `@ts-expect-error` below is a state the contract forbids. If one ever
  * starts compiling, the branch union has been widened — a same-family
  * addition, a mixed target draft, an unverified value, or a cast has become
  * expressible — and this file fails the build rather than the behaviour
@@ -11,14 +11,11 @@
 import {
   addWalletAuthMethodSourceFamily,
   addWalletAuthMethodTargetFamily,
-  buildEmailOtpToPasskeyAdditionV1,
-  buildPasskeyToEmailOtpAdditionV1,
   parseAddWalletAuthMethodCeremonyIdV1,
   parseWalletAuthorityRevocationEpochV1,
   unreachableAddWalletAuthMethodBranch,
   type AddWalletAuthMethodBranchV1,
   type AddWalletAuthMethodIntentIdentityV1,
-  type AddWalletAuthMethodResultV1,
   type AddWalletAuthMethodSourceV1,
   type VerifiedAddWalletAuthMethodInputV1,
   type VerifiedAddWalletAuthMethodSourceProofV1,
@@ -67,14 +64,14 @@ const source: AddWalletAuthMethodSourceV1 = {
   revocationEpoch: parseWalletAuthorityRevocationEpochV1(0),
 };
 
-const intent: AddWalletAuthMethodIntentIdentityV1 = {
+export const intent: AddWalletAuthMethodIntentIdentityV1 = {
   addAuthMethodCeremonyId: parseAddWalletAuthMethodCeremonyIdV1('wauthc_fixture'),
   intentDigestB64u: digestB64u,
   targetWalletAuthMethodId,
   expiresAtMs: 1,
 };
 
-const passkeySourceProof: Extract<
+export const passkeySourceProof: Extract<
   VerifiedAddWalletAuthMethodSourceProofV1,
   { kind: 'verified_passkey_source_proof_v1' }
 > = {
@@ -84,7 +81,7 @@ const passkeySourceProof: Extract<
   verifiedAtMs: 1,
 };
 
-const emailOtpSourceProof: Extract<
+export const emailOtpSourceProof: Extract<
   VerifiedAddWalletAuthMethodSourceProofV1,
   { kind: 'verified_email_otp_source_proof_v1' }
 > = {
@@ -94,7 +91,7 @@ const emailOtpSourceProof: Extract<
   verifiedAtMs: 1,
 };
 
-const emailOtpTarget: Extract<
+export const emailOtpTarget: Extract<
   VerifiedAddWalletAuthMethodTargetV1,
   { kind: 'verified_email_otp_target_v1' }
 > = {
@@ -111,7 +108,7 @@ const emailOtpTarget: Extract<
   verifiedAtMs: 1,
 };
 
-const passkeyTarget: Extract<
+export const passkeyTarget: Extract<
   VerifiedAddWalletAuthMethodTargetV1,
   { kind: 'verified_passkey_target_v1' }
 > = {
@@ -130,58 +127,6 @@ const passkeyTarget: Extract<
   verifiedAtMs: 1,
 };
 
-/* Both supported branches build. */
-const passkeyToEmailOtp = buildPasskeyToEmailOtpAdditionV1({
-  source,
-  intent,
-  sourceProof: passkeySourceProof,
-  target: emailOtpTarget,
-});
-const emailOtpToPasskey = buildEmailOtpToPasskeyAdditionV1({
-  source,
-  intent,
-  sourceProof: emailOtpSourceProof,
-  target: passkeyTarget,
-});
-void passkeyToEmailOtp;
-void emailOtpToPasskey;
-
-/* Same-family addition: a Passkey source cannot add another Passkey. */
-buildPasskeyToEmailOtpAdditionV1({
-  source,
-  intent,
-  sourceProof: passkeySourceProof,
-  // @ts-expect-error a Passkey source branch cannot verify a Passkey target
-  target: passkeyTarget,
-});
-
-/* Same-family addition: an Email OTP source cannot add another Email OTP. */
-buildEmailOtpToPasskeyAdditionV1({
-  source,
-  intent,
-  sourceProof: emailOtpSourceProof,
-  // @ts-expect-error an Email OTP source branch cannot verify an Email OTP target
-  target: emailOtpTarget,
-});
-
-/* Source proof substitution across branches. */
-buildPasskeyToEmailOtpAdditionV1({
-  source,
-  intent,
-  // @ts-expect-error the Passkey-source branch requires a verified Passkey proof
-  sourceProof: emailOtpSourceProof,
-  target: emailOtpTarget,
-});
-
-/* The target factor cannot be satisfied by a source proof. */
-buildEmailOtpToPasskeyAdditionV1({
-  source,
-  intent,
-  sourceProof: emailOtpSourceProof,
-  // @ts-expect-error a source proof is not independent target verification
-  target: emailOtpSourceProof,
-});
-
 /* Mixed target fields: an Email OTP draft may not carry Passkey identity. */
 const mixedTarget: VerifiedAddWalletAuthMethodTargetV1 = {
   kind: 'verified_email_otp_target_v1',
@@ -199,15 +144,6 @@ const mixedTarget: VerifiedAddWalletAuthMethodTargetV1 = {
   verifiedAtMs: 1,
 };
 void mixedTarget;
-
-/* Unverified input: a raw factor value is not a verified target. */
-buildEmailOtpToPasskeyAdditionV1({
-  source,
-  intent,
-  sourceProof: emailOtpSourceProof,
-  // @ts-expect-error an unverified draft cannot stand in for a verified target
-  target: passkeyTarget.authMethod,
-});
 
 /* Identity substitution: a raw string cannot replace a branded identity. */
 const rawSource: AddWalletAuthMethodSourceV1 = {
@@ -245,11 +181,6 @@ const rawEpochSource: AddWalletAuthMethodSourceV1 = {
 };
 void rawEpochSource;
 
-/* The result union has no open-ended branch. */
-// @ts-expect-error 'partially_configured' is not an R109C outcome
-const unknownResult: AddWalletAuthMethodResultV1 = { kind: 'partially_configured' };
-void unknownResult;
-
 /* Exhaustiveness: the switch below must cover both branches to compile. */
 function targetFamilyByHand(branch: AddWalletAuthMethodBranchV1): WalletAuthMethodFamilyV1 {
   switch (branch) {
@@ -264,7 +195,7 @@ function targetFamilyByHand(branch: AddWalletAuthMethodBranchV1): WalletAuthMeth
 void targetFamilyByHand;
 
 /* A third branch is not addable without changing the union. */
-// @ts-expect-error 'passkey_to_passkey' is not a branch R109C models
+// @ts-expect-error 'passkey_to_passkey' is not a branch the contract models
 const unsupportedBranch: AddWalletAuthMethodBranchV1 = 'passkey_to_passkey';
 void unsupportedBranch;
 

@@ -329,7 +329,7 @@ export function setVisible(el: HTMLElement): void {
   el.classList.remove(CLASS_HIDDEN);
 }
 
-export type OverlayPresentation = 'modal' | 'drawer';
+type OverlayPresentation = 'modal' | 'drawer';
 
 export function setDialogPresentation(
   dialog: HTMLDialogElement,
@@ -357,7 +357,7 @@ export function setDialogAuthMenu(
   dialog.classList.toggle(CLASS_RESIZE_ANIMATED, authMenu && animateResize);
 }
 
-export type OverlayRect = {
+type OverlayRect = {
   topCssPx: number;
   leftCssPx: number;
   widthCssPx: number;
@@ -474,8 +474,6 @@ export const OverlayStyleClasses = {
   RESIZE_ANIMATED: CLASS_RESIZE_ANIMATED,
   REVEAL_PENDING: CLASS_REVEAL_PENDING,
 };
-
-export const WALLET_IFRAME_DIALOG_ID_PREFIX = DIALOG_ID_PREFIX;
 
 export function setTransactionReviewAppearance(
   slot: HTMLElement,

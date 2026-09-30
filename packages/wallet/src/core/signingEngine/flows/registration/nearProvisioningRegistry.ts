@@ -1,9 +1,8 @@
-import type { NearProvisioningState, NearProvisioningWriteV1 } from '@/core/types/seams';
+import type { NearProvisioningState } from '@/core/types/seams';
 import type { WalletId } from '@shared/utils/registrationIntent';
 
 /**
- * Refactor 94 Phase 6. Page-owned NEAR provisioning state for wallets that
- * registered ECDSA-ready.
+ * Page-owned NEAR provisioning state for wallets that registered ECDSA-ready.
  *
  * Registration returns before the Ed25519/NEAR branch settles, so the outcome
  * of that deferred work has nowhere to go on the already-returned
@@ -80,46 +79,6 @@ export function subscribeToNearProvisioning(listener: NearProvisioningListener):
 }
 
 /**
- * Seeds state observed from the durable wallet record on page load.
- *
- * A record still reading `near_pending` or `near_provisioning` describes an
- * attempt that died with the tab that owned it: neither the live factor nor the
- * promise survives a reload. Both converge to a retryable failure rather than
- * leaving the wallet looking busy forever. Recovery is a later authenticated
- * retry, which converges because finalize replay is exact.
- */
-export async function reconcileNearProvisioningOnLoad(args: {
-  walletId: WalletId;
-  persisted: NearProvisioningState | null | undefined;
-  nowMs: number;
-  /* The durable record is authoritative, so a convergence has to be written
-     back before it is published — otherwise the next reload sees the stale
-     in-flight status again. */
-  persist: (write: NearProvisioningWriteV1) => Promise<void>;
-}): Promise<NearProvisioningState> {
-  const interrupted =
-    args.persisted?.status === 'near_pending' || args.persisted?.status === 'near_provisioning';
-  if (!interrupted) {
-    const observed = args.persisted ?? { status: 'near_pending' as const, updatedAtMs: args.nowMs };
-    publishNearProvisioningState(args.walletId, observed);
-    return observed;
-  }
-  const converged: NearProvisioningState = {
-    status: 'near_failed_retryable',
-    updatedAtMs: args.nowMs,
-    error: 'NEAR provisioning was interrupted before it completed',
-    errorCode: 'near_provisioning_interrupted',
-  };
-  await args.persist({
-    walletId: String(args.walletId),
-    status: 'near_failed_retryable',
-    errorCode: 'near_provisioning_interrupted',
-  });
-  publishNearProvisioningState(args.walletId, converged);
-  return converged;
-}
-
-/**
  * Runs `attempt` as the wallet's single provisioning attempt, or joins the one
  * already in flight. The returned promise never rejects: a thrown attempt
  * becomes a published `near_failed_retryable`, because the ECDSA wallet is
@@ -158,10 +117,4 @@ export function runSingleFlightNearProvisioning(args: {
 
   entry.inFlight = inFlight;
   return inFlight;
-}
-
-/** Test seam: drops all page-owned state and subscribers. */
-export function resetNearProvisioningRegistryForTests(): void {
-  entries.clear();
-  listeners.clear();
 }

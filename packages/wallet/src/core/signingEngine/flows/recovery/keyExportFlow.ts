@@ -20,7 +20,7 @@ import type { MpcMaterialActivationRef } from '@shared/utils/domainIds';
 
 export type KeyExportEventCallback = (event: KeyExportFlowEvent) => void;
 
-export type SigningEngineKeyExportUiOptions = {
+type SigningEngineKeyExportUiOptions = {
   variant?: 'drawer' | 'modal';
   theme?: 'dark' | 'light';
   onEvent?: KeyExportEventCallback;
@@ -121,7 +121,7 @@ export function createExportUiRequestId(prefix: string): string {
   return secureRandomId(prefix, 32, 'key export UI request IDs');
 }
 
-export function createKeyExportFlowId(subjectId: string, chain: string): string {
+function createKeyExportFlowId(subjectId: string, chain: string): string {
   return `key-export:${subjectId}:${chain}:${createExportUiRequestId('flow')}`;
 }
 

@@ -5,9 +5,9 @@ import type {
 import {
   parseWalletAuthMethodRecordV2,
   sameWalletAuthMethodRecordV2,
-  type RegistrationAuthority,
-  type WalletAuthMethodRecordV2,
-} from '@shared/utils/registrationIntent';
+  type ActiveWalletAuthMethodRecordV2,
+} from '@shared/utils/walletAuthMethodRecord';
+import { type RegistrationAuthority } from '@shared/utils/registrationAuthMethodInput';
 import { mpcMaterialActivationRefsEqual } from '@shared/utils/domainIds';
 import { parseWalletAuthorityV1 } from '@shared/authorization/walletAuthority';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
@@ -35,6 +35,8 @@ import {
   parseD1JsonColumn,
 } from '../../../../storage/d1Sql';
 import {
+  prepareD1WalletAuthorityExtensionCasGuard,
+  prepareD1WalletAuthorityExtensionStatement,
   prepareD1WalletAuthorityPutStatement,
 } from '../wallet/d1WalletAuthorityStore';
 import { prepareD1WalletSessionAuthorityProjectionStatements } from '../authorization/walletSessionAuthorityProjection';
@@ -48,6 +50,11 @@ type D1WalletRegistrationCommitBase = {
   readonly wallet: WalletRecord;
   readonly walletSigners: readonly WalletSignerRecord[];
   readonly now: number;
+  /**
+   * The Ed25519 Yao lifecycle decision this commit makes visible, when it
+   * finalizes one: it commits in this batch or nothing does.
+   */
+  readonly decisionStatements: readonly D1PreparedStatementLike[];
 };
 
 type D1WalletRegistrationFoundingFields =
@@ -57,10 +64,10 @@ type D1WalletRegistrationFoundingFields =
     }
   | {
       readonly foundingAuthority: ActiveWalletAuthorityV1;
-      readonly foundingAuthMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+      readonly foundingAuthMethod: ActiveWalletAuthMethodRecordV2;
     };
 
-export type D1WalletRegistrationCommitInput =
+type D1WalletRegistrationCommitInput =
   | (D1WalletRegistrationCommitBase & D1WalletRegistrationFoundingFields & {
       readonly kind: 'passkey_wallet_registration_commit_v1';
       readonly authority: Extract<RegistrationAuthority, { readonly kind: 'passkey' }>;
@@ -118,7 +125,7 @@ function assertCommitWalletIdentity(input: D1WalletRegistrationCommitInput): voi
   }
   /* No signer-count floor. An Ed25519-only wallet is committed pending, with
      its sole signer arriving later from deferred Yao — the wallet legitimately
-     exists before any signer does (94C). What must hold is that every signer
+     exists before any signer does. What must hold is that every signer
      present belongs to this wallet, which the loop below enforces. */
   for (const signer of input.walletSigners) {
     if (signer.walletId !== input.wallet.walletId) {
@@ -133,9 +140,7 @@ function prepareAuthorityStatements(input: {
   readonly authority: RegistrationAuthority;
   readonly walletSigners: readonly WalletSignerRecord[];
   readonly foundingAuthority: ActiveWalletAuthorityV1 | undefined;
-  readonly foundingAuthMethod:
-    | Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>
-    | undefined;
+  readonly foundingAuthMethod: ActiveWalletAuthMethodRecordV2 | undefined;
   readonly foundingStatements: readonly D1PreparedStatementLike[];
   readonly now: number;
 }): readonly D1PreparedStatementLike[] {
@@ -210,8 +215,8 @@ function prepareAuthorityStatements(input: {
 }
 
 function requireFoundingAuthMethod(
-  value: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }> | undefined,
-): Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }> {
+  value: ActiveWalletAuthMethodRecordV2 | undefined,
+): ActiveWalletAuthMethodRecordV2 {
   if (!value) throw new Error('Founding wallet authority is missing its auth method');
   return value;
 }
@@ -323,62 +328,6 @@ function canExtendFoundingAuthorityWithEd25519(
   );
 }
 
-function prepareFoundingAuthorityExtensionStatement(input: {
-  readonly database: D1DatabaseLike;
-  readonly scope: D1WalletRegistrationCommitScope;
-  readonly expected: ActiveWalletAuthorityV1;
-  readonly next: ActiveWalletAuthorityV1;
-}): D1PreparedStatementLike {
-  return input.database
-    .prepare(
-      `UPDATE wallet_authorities
-          SET signer_activations_json = ?,
-              signer_activation_set_digest_b64u = ?,
-              authority_digest_b64u = ?,
-              record_json = ?,
-              updated_at_ms = ?
-        WHERE namespace = ? AND org_id = ? AND project_id = ? AND env_id = ?
-          AND authority_id = ?
-          AND wallet_id = ?
-          AND lifecycle_state = 'active'
-          AND signer_activation_set_digest_b64u = ?
-          AND authority_digest_b64u = ?
-          AND revocation_epoch = ?
-          AND created_at_ms = ?
-          AND updated_at_ms = ?
-          AND activated_at_ms = ?`,
-    )
-    .bind(
-      JSON.stringify(input.next.signerActivations),
-      String(input.next.signerActivationSetDigestB64u),
-      String(input.next.authorityDigestB64u),
-      JSON.stringify(input.next),
-      input.next.updatedAtMs,
-      input.scope.namespace,
-      input.scope.orgId,
-      input.scope.projectId,
-      input.scope.envId,
-      String(input.expected.authorityId),
-      String(input.expected.walletId),
-      String(input.expected.signerActivationSetDigestB64u),
-      String(input.expected.authorityDigestB64u),
-      input.expected.revocationEpoch,
-      input.expected.createdAtMs,
-      input.expected.updatedAtMs,
-      input.expected.activatedAtMs,
-    );
-}
-
-function prepareFoundingAuthorityExtensionCasGuard(
-  database: D1DatabaseLike,
-): D1PreparedStatementLike {
-  return database.prepare(`
-    INSERT INTO wallet_authority_cas_guard (guard_id)
-    SELECT 1
-     WHERE changes() = 0
-  `);
-}
-
 type D1RegistrationRecordJsonRow = {
   readonly record_json?: unknown;
 };
@@ -387,9 +336,7 @@ async function prepareFoundingStatements(input: {
   readonly database: D1DatabaseLike;
   readonly scope: D1WalletRegistrationCommitScope;
   readonly foundingAuthority: ActiveWalletAuthorityV1 | undefined;
-  readonly foundingAuthMethod:
-    | Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>
-    | undefined;
+  readonly foundingAuthMethod: ActiveWalletAuthMethodRecordV2 | undefined;
   readonly now: number;
 }): Promise<readonly D1PreparedStatementLike[]> {
   if (!input.foundingAuthority) return [];
@@ -476,13 +423,13 @@ async function prepareFoundingStatements(input: {
     );
   } else if (persistedAuthority && foundingAuthorityNeedsExtension) {
     statements.push(
-      prepareFoundingAuthorityExtensionStatement({
+      prepareD1WalletAuthorityExtensionStatement({
         database: input.database,
         scope: input.scope,
         expected: persistedAuthority,
         next: input.foundingAuthority,
       }),
-      prepareFoundingAuthorityExtensionCasGuard(input.database),
+      prepareD1WalletAuthorityExtensionCasGuard(input.database),
       ...prepareD1WalletSessionAuthorityProjectionStatements({
         database: input.database,
         scope: input.scope,
@@ -587,6 +534,7 @@ export class CloudflareD1WalletRegistrationCommitStore
       }),
     );
     statements.push(...emailOtpCommitStatements(input));
+    statements.push(...input.decisionStatements);
     const results = await this.database.batch<D1ResultLike>(statements);
     assertBatchSucceeded({
       expectedStatementCount: statements.length,

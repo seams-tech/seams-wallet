@@ -25,7 +25,7 @@ import {
   type EmailOtpRegistrationVerificationReceiptV1,
 } from './d1EmailOtpRecords';
 
-export type EmailOtpExistingChallengeVerifyBaseInput = {
+type EmailOtpExistingChallengeVerifyBaseInput = {
   readonly userId?: unknown;
   readonly walletId?: unknown;
   readonly orgId?: unknown;
@@ -67,7 +67,17 @@ export type EmailOtpExistingChallengeVerifyResult =
       resetAtMs?: number;
     };
 
-export type EmailOtpRegistrationChallengeVerifyInput = {
+/**
+ * A verified existing challenge that is not yet consumed: the statements
+ * consume it inside the caller's batch, or abort that batch.
+ */
+export type EmailOtpExistingChallengeBatchVerifyResult =
+  | (Extract<EmailOtpExistingChallengeVerifyResult, { ok: true }> & {
+      readonly consumeInBatch: readonly D1PreparedStatementLike[];
+    })
+  | Extract<EmailOtpExistingChallengeVerifyResult, { ok: false }>;
+
+type EmailOtpRegistrationChallengeVerifyInput = {
   readonly providerSubject?: unknown;
   readonly walletId?: unknown;
   readonly orgId?: unknown;
@@ -79,13 +89,13 @@ export type EmailOtpRegistrationChallengeVerifyInput = {
   readonly clientIp?: unknown;
 };
 
-export type EmailOtpRegistrationChallengeResumableVerifyInput =
+type EmailOtpRegistrationChallengeResumableVerifyInput =
   EmailOtpRegistrationChallengeVerifyInput & {
     readonly operationId: unknown;
     readonly receiptExpiresAtMs: unknown;
   };
 
-export type EmailOtpRegistrationChallengeVerifyResult =
+type EmailOtpRegistrationChallengeVerifyResult =
   | {
       ok: true;
       readonly challengeId: string;
@@ -136,11 +146,10 @@ function emailOtpEnrollmentTenantMismatch(): ActiveEmailOtpEnrollmentResult {
  * to; an existing enrollment is still checked by the recovery coordinator
  * before this verifier is called.
  */
-export type EmailOtpRecoveryBootstrapChallengeVerifyInput =
-  EmailOtpRegistrationChallengeVerifyInput & {
-    readonly action: typeof WALLET_EMAIL_OTP_ACTIONS.recoveryBootstrap;
-    readonly operation: typeof WALLET_EMAIL_OTP_UNLOCK_OPERATION;
-  };
+type EmailOtpRecoveryBootstrapChallengeVerifyInput = EmailOtpRegistrationChallengeVerifyInput & {
+  readonly action: typeof WALLET_EMAIL_OTP_ACTIONS.recoveryBootstrap;
+  readonly operation: typeof WALLET_EMAIL_OTP_UNLOCK_OPERATION;
+};
 
 async function emailOtpRegistrationVerificationFingerprint(input: {
   readonly operationId: string;
@@ -227,6 +236,27 @@ export class CloudflareD1EmailOtpChallengeVerifier {
   async verifyExisting(
     input: EmailOtpExistingChallengeVerifyInput,
   ): Promise<EmailOtpExistingChallengeVerifyResult> {
+    const verified = await this.verifyExistingChallenge(input, 'now');
+    if (!verified.ok) return verified;
+    const { consumeInBatch: _consumed, ...result } = verified;
+    return result;
+  }
+
+  /**
+   * Verifies an existing challenge for an operation that commits its
+   * consumption with its own writes. Nothing is consumed here: a batch that
+   * never commits leaves the challenge usable for an exact retry.
+   */
+  async verifyExistingForBatch(
+    input: EmailOtpExistingChallengeVerifyInput,
+  ): Promise<EmailOtpExistingChallengeBatchVerifyResult> {
+    return await this.verifyExistingChallenge(input, 'in_batch');
+  }
+
+  private async verifyExistingChallenge(
+    input: EmailOtpExistingChallengeVerifyInput,
+    consumption: 'now' | 'in_batch',
+  ): Promise<EmailOtpExistingChallengeBatchVerifyResult> {
     try {
       const userId = toOptionalTrimmedString(input.userId);
       const walletId = toOptionalTrimmedString(input.walletId);
@@ -315,8 +345,13 @@ export class CloudflareD1EmailOtpChallengeVerifier {
         });
       }
 
-      const consumed = await this.emailOtpChallenges.consume(record.challengeId);
-      if (!consumed) return emailOtpChallengeInvalidOrExpired();
+      let consumeInBatch: readonly D1PreparedStatementLike[] = [];
+      if (consumption === 'now') {
+        const consumed = await this.emailOtpChallenges.consume(record.challengeId);
+        if (!consumed) return emailOtpChallengeInvalidOrExpired();
+      } else {
+        consumeInBatch = this.emailOtpChallenges.prepareConsumeInBatchStatements(record, nowMs);
+      }
       await this.emailOtpEnrollments.resetFailureState({
         enrollment: enrollment.enrollment,
         authState: authState.state,
@@ -324,7 +359,8 @@ export class CloudflareD1EmailOtpChallengeVerifier {
 
       return {
         ok: true,
-        challengeId: consumed.challengeId,
+        consumeInBatch,
+        challengeId: record.challengeId,
         userId,
         walletId,
         orgId,

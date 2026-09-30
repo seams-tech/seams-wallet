@@ -54,6 +54,7 @@ structure ServerVisibleBoundary where
   finalizeOperation : wire.ServerEvalOperation
   rawRootMaterialDropped : Bool
   relayerKeyId : String
+  contextBinding32 : Bytes32
   clientPublicKey33 : Bytes33
   relayerPublicKey33 : Bytes33
   thresholdPublicKey33 : Bytes33

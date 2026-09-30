@@ -2,7 +2,7 @@
   "schemaVersion": "seams_wallet_server_artifact_manifest_v1",
   "package": {
     "name": "@seams/wallet-server",
-    "version": "0.6.2"
+    "version": "0.7.1"
   },
   "workers": {
     "router": {
@@ -33,7 +33,7 @@
     },
     "deriver-a": {
       "entry": "cloudflare-router-ab/build/deriver-a/worker/shim.mjs",
-      "fingerprint": "764c136597b26c15fe247e3e5660a52af4af5b758e111191fb1390191e7da4b1",
+      "fingerprint": "cc5b89a679bb87d4dfa5d91c9b842482dbec865a43ce5f3f629583d7d0a2129f",
       "files": [
         {
           "path": "cloudflare-router-ab/build/deriver-a/index.js",
@@ -42,8 +42,8 @@
         },
         {
           "path": "cloudflare-router-ab/build/deriver-a/index_bg.wasm",
-          "bytes": 13266034,
-          "sha256": "62a4adce965279a6e709b7293da23c072c54a237a4df6aa53dfeb08bd0051873"
+          "bytes": 13269962,
+          "sha256": "f36985c6a146a2794c8377009aa735be8ef61e79a2675edc3b6aed045cc7fda7"
         },
         {
           "path": "cloudflare-router-ab/build/deriver-a/package.json",

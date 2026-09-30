@@ -191,7 +191,7 @@ async function signingSessionSealRecordFromExactAdmission(input: {
   }
 }
 
-export async function authorizeSigningSessionSealWithExactWalletSession(
+async function authorizeSigningSessionSealWithExactWalletSession(
   authorizationSessions: RouterApiAuthorizationSessionService | null | undefined,
   walletRegistration: RouterApiWalletRegistrationService,
   input: SigningSessionSealAuthorizeInput,

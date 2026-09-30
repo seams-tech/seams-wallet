@@ -5,7 +5,7 @@ import { buildNearAccountRefs } from '@/core/accountData/near/accountRefs';
 import { resolveProfileAccountContextFromCandidates } from '@/core/indexedDB/profileAccountProjection';
 import type { WebAuthnAuthenticationCredential } from '@/core/types/webauthn';
 import type { WalletId } from '../../interfaces/ecdsaChainTarget';
-import type { WalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
+import type { WalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 
 export type WebAuthnAllowCredential = {
   id: string;
@@ -80,7 +80,7 @@ export type WebAuthnPromptPort = {
   }) => Promise<WebAuthnAuthenticationCredential>;
 };
 
-export function authenticatorsToAllowCredentials<TAuth extends WebAuthnAuthenticatorRecord>(
+function authenticatorsToAllowCredentials<TAuth extends WebAuthnAuthenticatorRecord>(
   authenticators: TAuth[],
 ): WebAuthnAllowCredential[] {
   return authenticators.map((auth) => ({

@@ -15,7 +15,7 @@ import type {
 } from '@shared/utils/domainIds';
 import { buildMpcMaterialActivationRef } from '@shared/utils/domainIds';
 import type { WalletAuthAuthorityRef } from '@shared/utils/walletAuthAuthority';
-import type { EcdsaCapabilityManifestLookup } from '@/core/indexedDB/seamsWalletDB/ecdsaCapabilityManifestStore';
+import type { EcdsaCapabilityManifestLookup } from '@/core/indexedDB/seamsWalletDB/ecdsaCapabilityManifestLookups';
 import { resolveEcdsaCapabilityHydration } from './ecdsaCapabilityHydration';
 import {
   resolveNearEd25519YaoCapabilityHydrationV1,
@@ -26,7 +26,6 @@ import {
 } from './nearEd25519YaoMaterialActivation';
 import {
   buildBlockedMpcCapabilityHydrationPlan,
-  buildMpcCapabilityPublicReauthAnchor,
   buildReauthorizePublicAnchorHydrationPlan,
   buildRehydrateMaterialActivationHydrationPlan,
   buildUseLiveRuntimeHydrationPlan,
@@ -83,34 +82,19 @@ const materialActivation = buildMpcMaterialActivationRef({
   signingWorker,
 });
 
-const publicReauthAnchor = buildMpcCapabilityPublicReauthAnchor({
-  capability,
-  materialOwner,
-  authority,
-  keyBinding,
-  lifecycleBinding,
-  reauthorizationPolicy,
-  registeredPublicKeyBinding,
-});
-
 const livePlan = buildUseLiveRuntimeHydrationPlan({
   authority,
   runtime,
   materialActivation,
 });
 
-const sealedPlan = buildRehydrateMaterialActivationHydrationPlan({
+buildRehydrateMaterialActivationHydrationPlan({
   authority,
   materialActivation,
   sealedMaterial,
 });
 
-const reauthPlan = buildReauthorizePublicAnchorHydrationPlan({
-  retirement: 'expired',
-  publicReauthAnchor,
-});
-
-const blockedPlan = buildBlockedMpcCapabilityHydrationPlan({
+buildBlockedMpcCapabilityHydrationPlan({
   capability: null,
   reason: 'missing_capability',
 });
@@ -200,15 +184,6 @@ const broadSpreadPlan: MpcCapabilityHydrationPlan = spreadLivePlan;
 // @ts-expect-error Derived capability fields cannot be supplied through broad builder inputs.
 buildUseLiveRuntimeHydrationPlan(spreadLivePlan);
 
-const reauthWithDuplicateAuthority = {
-  retirement: 'expired' as const,
-  publicReauthAnchor,
-  authority,
-};
-
-// @ts-expect-error Reauthorization authority is derived from the public anchor.
-buildReauthorizePublicAnchorHydrationPlan(reauthWithDuplicateAuthority);
-
 buildUseLiveRuntimeHydrationPlan({
   authority,
   runtime,
@@ -232,18 +207,6 @@ buildRehydrateMaterialActivationHydrationPlan({
 // @ts-expect-error Retired reauthorization requires a public reauthorization anchor.
 buildReauthorizePublicAnchorHydrationPlan({
   retirement: 'exhausted',
-});
-
-buildMpcCapabilityPublicReauthAnchor({
-  capability,
-  materialOwner,
-  authority,
-  keyBinding,
-  lifecycleBinding,
-  reauthorizationPolicy,
-  registeredPublicKeyBinding,
-  // @ts-expect-error Public anchors cannot carry bearer credentials.
-  bearerSessionCredential: 'jwt',
 });
 
 void directActivation;

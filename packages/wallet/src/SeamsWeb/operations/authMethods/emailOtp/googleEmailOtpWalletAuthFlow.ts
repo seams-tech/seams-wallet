@@ -9,7 +9,6 @@ import {
   walletSessionRefFromSession,
   type ThresholdEcdsaChainTarget,
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
-import { thresholdEcdsaChainTargetKey } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import { DEFAULT_UNLOCK_REMAINING_USES } from '@/core/signingEngine/threshold/sessionPolicy';
 import {
   listConfiguredThresholdEcdsaPublicationTargets,
@@ -41,7 +40,8 @@ import type {
   EmailOtpChallengeDelivery,
   GoogleEmailOtpProviderResolution,
 } from '@/core/signingEngine/session/emailOtp/publicTypes';
-import { walletIdFromString, type WalletId } from '@shared/utils/registrationIntent';
+import { type WalletId } from '@shared/utils/registrationIntent';
+import { walletIdFromString } from '@shared/utils/registrationIds';
 import { parseGoogleEmailOtpRegistrationOffer } from './registrationOffer';
 import type { EmailOtpAuthoritySelector } from '@/core/signingEngine/workerManager/workerTypes';
 
@@ -952,10 +952,4 @@ function createGoogleEmailOtpWalletLoginFlow(
       liveness.burn();
     },
   };
-}
-
-export function googleEmailOtpTargetKeys(
-  targets: readonly ThresholdEcdsaChainTarget[],
-): readonly string[] {
-  return targets.map((target) => thresholdEcdsaChainTargetKey(target));
 }

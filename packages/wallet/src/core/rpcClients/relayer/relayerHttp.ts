@@ -1,6 +1,6 @@
 import { stripTrailingSlashes } from '@shared/utils/normalize';
 
-export type RelayerHttpHeaders = Readonly<Record<string, string>>;
+type RelayerHttpHeaders = Readonly<Record<string, string>>;
 
 export function normalizeRelayerBaseUrl(
   value: unknown,
@@ -17,16 +17,6 @@ export function buildBearerAuthorizationHeader(args: {
   const token = String(args.token ?? '').trim();
   if (!token) throw new Error(args.missingMessage);
   return { Authorization: `Bearer ${token}` };
-}
-
-export function buildRelayerJsonGetRequestInit(): RequestInit {
-  return {
-    method: 'GET',
-    credentials: 'omit',
-    headers: {
-      Accept: 'application/json',
-    },
-  };
 }
 
 export function buildRelayerJsonPostRequestInit(args: {

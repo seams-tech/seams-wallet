@@ -36,11 +36,3 @@ export function createHostedAuthMenuHandlers(
     },
   };
 }
-
-export function createAuthMenuController(deps: HandlerDeps): AuthMenuController {
-  return new AuthMenuController({
-    getSeamsWeb: deps.getSeamsWeb,
-    getAppearance: () => deps.getSeamsWeb().configs.ui.appearance,
-    send: deps.post,
-  });
-}

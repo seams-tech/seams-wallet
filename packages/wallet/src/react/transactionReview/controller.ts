@@ -175,7 +175,7 @@ export class ReviewHostController {
   }
 }
 
-export class ReviewCall<T> {
+class ReviewCall<T> {
   private state: ReviewCallState = { kind: 'queued' };
   private readonly abort = new AbortController();
   private deadline: ReturnType<typeof setTimeout> | null = null;

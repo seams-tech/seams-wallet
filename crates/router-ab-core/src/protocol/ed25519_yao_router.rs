@@ -10,11 +10,11 @@ use crate::protocol::error::{
     RouterAbProtocolError, RouterAbProtocolErrorCode, RouterAbProtocolResult,
 };
 
-/// Stable protocol identity bound into every Refactor 93 ceremony digest.
+/// Stable protocol identity bound into every Ed25519 Yao ceremony digest.
 pub const ED25519_YAO_PROTOCOL_ID_V1: &str = "router_ab_ed25519_yao_v1";
-/// Activation circuit identity bound into Refactor 93 ceremony digests.
+/// Activation circuit identity bound into Ed25519 Yao ceremony digests.
 pub const ED25519_YAO_ACTIVATION_CIRCUIT_ID_V1: &str = "ed25519_yao_activation_v1";
-/// Export circuit identity bound into Refactor 93 ceremony digests.
+/// Export circuit identity bound into Ed25519 Yao ceremony digests.
 pub const ED25519_YAO_EXPORT_CIRCUIT_ID_V1: &str = "ed25519_yao_export_v1";
 /// Lane-materialization circuit identity bound into lane digests.
 pub const ED25519_YAO_LANE_MATERIALIZATION_CIRCUIT_ID_V1: &str =
@@ -62,7 +62,7 @@ impl Ed25519YaoCircuitIdV1 {
     }
 }
 
-/// Protocol version identity for the Refactor 93 Yao contracts.
+/// Protocol version identity for the Ed25519 Yao contracts.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "typescript-bindings", derive(ts_rs::TS))]
 #[serde(rename_all = "snake_case")]
@@ -428,6 +428,39 @@ impl<'de> Deserialize<'de> for RouterAdmittedExecutionAuthorityV1 {
     }
 }
 
+/// The Gateway's number for one attempt of a recovery. The first attempt is
+/// 1, and an attempt that supersedes another takes the next number, so the
+/// Gateway's current attempt always has the highest number it has issued.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+#[serde(transparent)]
+pub struct Ed25519YaoRecoveryAttemptV1(u32);
+
+impl Ed25519YaoRecoveryAttemptV1 {
+    /// Creates a nonzero attempt number.
+    pub fn new(value: u32) -> RouterAbProtocolResult<Self> {
+        if value == 0 {
+            return Err(invalid_router_yao(
+                "Ed25519 Yao recovery attempt numbers start at one",
+            ));
+        }
+        Ok(Self(value))
+    }
+
+    /// Returns the attempt number.
+    pub const fn get(self) -> u32 {
+        self.0
+    }
+}
+
+impl<'de> Deserialize<'de> for Ed25519YaoRecoveryAttemptV1 {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        Self::new(u32::deserialize(deserializer)?).map_err(D::Error::custom)
+    }
+}
+
 /// Operation-specific Router execution request.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(tag = "operation", rename_all = "snake_case", deny_unknown_fields)]
@@ -451,6 +484,8 @@ pub enum RouterEd25519YaoExecuteRequestV1 {
         authority: RouterAdmittedExecutionAuthorityV1,
         /// Admitted activation ceremony binding.
         binding: Ed25519YaoCeremonyBindingV1,
+        /// The Gateway's attempt this execution runs for.
+        attempt: Ed25519YaoRecoveryAttemptV1,
         /// Exact A/B ciphertext pair binding.
         pair_binding: Ed25519YaoInputPairBindingV1,
         /// Opaque Deriver A envelope.
@@ -524,6 +559,10 @@ pub enum RouterEd25519YaoGatewayExecuteTargetV2 {
     Recovery {
         /// Admitted activation ceremony binding.
         binding: Ed25519YaoCeremonyBindingV1,
+        /// The Gateway's attempt of the recovery. The authorization digest
+        /// commits it, and the SigningWorker keeps only the highest attempt
+        /// delivered to it.
+        attempt: Ed25519YaoRecoveryAttemptV1,
         /// Opaque Deriver A envelope.
         deriver_a_input: Ed25519YaoEncryptedInputV1,
         /// Opaque Deriver B envelope.
@@ -550,6 +589,7 @@ enum RawRouterEd25519YaoGatewayExecuteTargetV2 {
     },
     Recovery {
         binding: Ed25519YaoCeremonyBindingV1,
+        attempt: Ed25519YaoRecoveryAttemptV1,
         deriver_a_input: Ed25519YaoEncryptedInputV1,
         deriver_b_input: Ed25519YaoEncryptedInputV1,
     },
@@ -574,9 +614,10 @@ impl<'de> Deserialize<'de> for RouterEd25519YaoGatewayExecuteTargetV2 {
             } => Self::registration(binding, deriver_a_input, deriver_b_input),
             RawRouterEd25519YaoGatewayExecuteTargetV2::Recovery {
                 binding,
+                attempt,
                 deriver_a_input,
                 deriver_b_input,
-            } => Self::recovery(binding, deriver_a_input, deriver_b_input),
+            } => Self::recovery(binding, attempt, deriver_a_input, deriver_b_input),
             RawRouterEd25519YaoGatewayExecuteTargetV2::Export {
                 binding,
                 deriver_a_input,
@@ -610,6 +651,7 @@ impl RouterEd25519YaoGatewayExecuteTargetV2 {
     /// Builds a validated recovery target.
     pub fn recovery(
         binding: Ed25519YaoCeremonyBindingV1,
+        attempt: Ed25519YaoRecoveryAttemptV1,
         deriver_a_input: Ed25519YaoEncryptedInputV1,
         deriver_b_input: Ed25519YaoEncryptedInputV1,
     ) -> RouterAbProtocolResult<Self> {
@@ -621,6 +663,7 @@ impl RouterEd25519YaoGatewayExecuteTargetV2 {
         )?;
         Ok(Self::Recovery {
             binding,
+            attempt,
             deriver_a_input,
             deriver_b_input,
         })
@@ -738,11 +781,13 @@ impl RouterEd25519YaoGatewayExecuteTargetV2 {
             ),
             Self::Recovery {
                 binding,
+                attempt,
                 deriver_a_input,
                 deriver_b_input,
             } => RouterEd25519YaoExecuteRequestV1::recovery(
                 authority,
                 binding,
+                attempt,
                 pair_binding,
                 deriver_a_input,
                 deriver_b_input,
@@ -808,6 +853,7 @@ impl RouterEd25519YaoExecuteRequestV1 {
     pub fn recovery(
         authority: RouterAdmittedExecutionAuthorityV1,
         binding: Ed25519YaoCeremonyBindingV1,
+        attempt: Ed25519YaoRecoveryAttemptV1,
         pair_binding: Ed25519YaoInputPairBindingV1,
         deriver_a_input: Ed25519YaoEncryptedInputV1,
         deriver_b_input: Ed25519YaoEncryptedInputV1,
@@ -823,6 +869,7 @@ impl RouterEd25519YaoExecuteRequestV1 {
         Ok(Self::Recovery {
             authority,
             binding,
+            attempt,
             pair_binding,
             deriver_a_input,
             deriver_b_input,
@@ -949,6 +996,17 @@ impl RouterEd25519YaoExecuteRequestV1 {
             | Self::LaneRefresh { authority, .. } => authority,
         }
     }
+
+    /// Returns the Gateway's attempt of a recovery; other operations have none.
+    pub const fn recovery_attempt(&self) -> Option<Ed25519YaoRecoveryAttemptV1> {
+        match self {
+            Self::Recovery { attempt, .. } => Some(*attempt),
+            Self::Registration { .. }
+            | Self::Export { .. }
+            | Self::LaneProvisioning { .. }
+            | Self::LaneRefresh { .. } => None,
+        }
+    }
 }
 
 fn validate_lane_execute_pair(
@@ -1004,6 +1062,7 @@ enum RawRouterEd25519YaoExecuteRequestV1 {
     Recovery {
         authority: RouterAdmittedExecutionAuthorityV1,
         binding: Ed25519YaoCeremonyBindingV1,
+        attempt: Ed25519YaoRecoveryAttemptV1,
         pair_binding: Ed25519YaoInputPairBindingV1,
         deriver_a_input: Ed25519YaoEncryptedInputV1,
         deriver_b_input: Ed25519YaoEncryptedInputV1,
@@ -1056,12 +1115,14 @@ impl<'de> Deserialize<'de> for RouterEd25519YaoExecuteRequestV1 {
             RawRouterEd25519YaoExecuteRequestV1::Recovery {
                 authority,
                 binding,
+                attempt,
                 pair_binding,
                 deriver_a_input,
                 deriver_b_input,
             } => Self::recovery(
                 authority,
                 binding,
+                attempt,
                 pair_binding,
                 deriver_a_input,
                 deriver_b_input,
@@ -1308,6 +1369,14 @@ pub enum RouterEd25519YaoExecuteFailureCodeV1 {
     TerminalRoleFailure,
     /// The admitted authority was rejected at the Router boundary.
     AuthorizationRejected,
+    /// Another run holds this registration's execution until its lease
+    /// lapses; an exact retry after it replays the run.
+    ExecutionInProgress,
+    /// Another request already owns this registration's execution.
+    ExecutionMismatch,
+    /// A later attempt of the same recovery took this attempt's place at the
+    /// SigningWorker, so this attempt can never activate.
+    AttemptSuperseded,
 }
 
 /// Reason an activated execution identity is permanently burned.
@@ -2374,6 +2443,7 @@ mod tests {
         assert!(RouterEd25519YaoExecuteRequestV1::recovery(
             authority,
             binding(),
+            Ed25519YaoRecoveryAttemptV1::new(1).expect("attempt"),
             decoded.pair_binding().clone(),
             input(Ed25519YaoDeriverRoleV1::DeriverA, 4),
             input(Ed25519YaoDeriverRoleV1::DeriverB, 5),

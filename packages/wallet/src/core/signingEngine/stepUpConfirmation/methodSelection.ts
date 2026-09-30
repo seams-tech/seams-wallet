@@ -1,7 +1,7 @@
 import type { StepUpMethodRunners } from './methodRunners';
 import type { StepUpMethod, StepUpPolicy, StepUpWarmSessionAuthorization } from './types';
 
-export class StepUpMethodSelectionError extends Error {
+class StepUpMethodSelectionError extends Error {
   readonly code: 'missing_step_up_runner' | 'unsupported_step_up_method';
   readonly method: StepUpMethod;
 
@@ -17,12 +17,12 @@ type SelectableLane = {
   authMethod: 'passkey' | 'email_otp';
 };
 
-export type WarmSessionStepUpRoute = {
+type WarmSessionStepUpRoute = {
   method: 'warm_session';
   authorization: StepUpWarmSessionAuthorization;
 };
 
-export type PasskeyStepUpRoute<
+type PasskeyStepUpRoute<
   TLane extends SelectableLane,
   TOperation,
   TPasskeyAuthorization,
@@ -34,7 +34,7 @@ export type PasskeyStepUpRoute<
   >;
 };
 
-export type EmailOtpStepUpRoute<
+type EmailOtpStepUpRoute<
   TLane extends SelectableLane,
   TOperation,
   TPasskeyAuthorization,
@@ -51,7 +51,7 @@ export type EmailOtpStepUpRoute<
   >;
 };
 
-export type StepUpMethodRoute<
+type StepUpMethodRoute<
   TLane extends SelectableLane,
   TOperation,
   TPasskeyAuthorization,

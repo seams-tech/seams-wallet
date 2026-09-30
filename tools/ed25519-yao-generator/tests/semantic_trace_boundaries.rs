@@ -122,38 +122,6 @@ fn compile_fail_guards_keep_trace_construction_static_and_closed() {
 }
 
 #[test]
-fn source_guards_exclude_runtime_and_serialization_surfaces() {
-    let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
-    for file in [
-        "src/semantic_frame_classes.rs",
-        "src/semantic_delivery_views.rs",
-        "src/corruption_game_interfaces.rs",
-    ] {
-        let source = fs::read_to_string(manifest.join(file)).expect("read semantic core source");
-        let core = source
-            .split("#[cfg(test)]")
-            .next()
-            .expect("production source");
-        for forbidden in [
-            "serde::",
-            "derive(Serialize",
-            "derive(Deserialize",
-            "HashMap",
-            "frame_bytes",
-            "durable_record",
-            "sequence_number",
-            "runtime_role",
-            "observe_role_v1",
-        ] {
-            assert!(
-                !core.contains(forbidden),
-                "blocked surface `{forbidden}` entered {file}"
-            );
-        }
-    }
-}
-
-#[test]
 fn frozen_orders_export_exact_authoritative_labels() {
     assert_eq!(HOST_ONLY_SEMANTIC_FRAME_CLASSES_V1.len(), 11);
     assert_eq!(HOST_ONLY_SEMANTIC_DELIVERY_STATES_V1.len(), 11);

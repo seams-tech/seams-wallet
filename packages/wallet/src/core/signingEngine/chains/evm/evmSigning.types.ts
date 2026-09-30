@@ -9,7 +9,7 @@ export type EvmAbiParameter = {
   components?: readonly EvmAbiParameter[];
 };
 
-export type EvmAbiEntry = {
+type EvmAbiEntry = {
   type?: string;
   name?: string;
   inputs?: readonly EvmAbiParameter[];
@@ -40,5 +40,3 @@ export type EvmSigningRequest = {
   tx: Eip1559UnsignedTx;
   senderSignatureAlgorithm: 'secp256k1';
 };
-
-export type EvmSecp256k1SigningRequest = EvmSigningRequest;

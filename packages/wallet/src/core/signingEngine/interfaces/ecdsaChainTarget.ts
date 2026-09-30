@@ -29,7 +29,7 @@ export type NearAccountRef =
  * plus — for the ECDSA families — a chain id. `rpcUrl`/`explorerUrl` stay
  * accepted (so a resolved `SeamsChainConfig` is still assignable) but unread.
  */
-export type ThresholdEcdsaChainTargetConfigInput =
+type ThresholdEcdsaChainTargetConfigInput =
   | { network: SeamsNearChainNetwork; rpcUrl?: string; explorerUrl?: string }
   | { network: SeamsTempoChainNetwork; chainId: number; rpcUrl?: string; explorerUrl?: string }
   | { network: SeamsEvmChainNetwork; chainId: number; rpcUrl?: string; explorerUrl?: string };

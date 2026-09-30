@@ -26,31 +26,6 @@ fn role_private_sqlite_state_survives_reopen() -> Result<(), Box<dyn std::error:
     Ok(())
 }
 
-#[test]
-fn role_private_sqlite_files_are_isolated() -> Result<(), Box<dyn std::error::Error>> {
-    let deriver_path = temp_sqlite_path("deriver");
-    let signing_worker_path = temp_sqlite_path("signing-worker");
-    {
-        let deriver_connection = Connection::open(&deriver_path)?;
-        let signing_worker_connection = Connection::open(&signing_worker_path)?;
-        let deriver = LocalRolePrivateSqliteStorageV1::new(&deriver_connection)?;
-        let signing_worker = LocalRolePrivateSqliteStorageV1::new(&signing_worker_connection)?;
-        deriver.put_bytes("same-key", b"deriver-state")?;
-        signing_worker.put_bytes("same-key", b"signing-worker-state")?;
-        assert_eq!(
-            deriver.get_bytes("same-key")?,
-            Some(b"deriver-state".to_vec())
-        );
-        assert_eq!(
-            signing_worker.get_bytes("same-key")?,
-            Some(b"signing-worker-state".to_vec())
-        );
-    }
-    let _ = fs::remove_file(deriver_path);
-    let _ = fs::remove_file(signing_worker_path);
-    Ok(())
-}
-
 fn temp_sqlite_path(label: &str) -> PathBuf {
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)

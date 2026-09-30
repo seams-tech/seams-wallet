@@ -5,74 +5,105 @@
 //! The protocol crate remains transport-neutral and wasm-safe by default.
 
 use base64::Engine;
-use rand_core::OsRng;
-use router_ab_cloudflare::{
-    cloudflare_ed25519_yao_tenant_root_context_v2, CloudflareEd25519YaoTenantRootContextV2,
-    CloudflareSigningWorkerEcdsaPoolAdmissionReceiptV1, CloudflareSigningWorkerEcdsaPoolCommandV1,
-    CloudflareSigningWorkerEcdsaPoolMutationOutcomeV1,
-    CloudflareSigningWorkerEcdsaPresignaturePoolRecordV1,
-    CloudflareSigningWorkerEcdsaPresignatureRecordV1, CloudflareTenantRootCoordinatesV1,
-};
+use router_ab_cloudflare::CloudflareEd25519YaoTenantRootContextV2;
 use router_ab_core::{
     decode_ab_peer_message_payload_v1,
     decode_and_validate_ecdsa_threshold_prf_proof_batch_peer_payload_v1,
     execute_local_persistence_sql_seed_plan_v1, local_persistence_seed_sql_plan_v1,
-    router_transcript_digest_v1, ActiveSigningWorkerStateV1, EcdsaThresholdPrfRequestV1,
-    EncryptedPayloadV1, ExpensiveWorkKindV1, LifecycleScopeV1, LocalDeriverAEndpointV1,
-    LocalDeriverBEndpointV1, LocalEnvSnapshotV1, LocalHttpCeremonyResultV1, LocalHttpMethodV1,
-    LocalHttpPathV1, LocalHttpRequestV1, LocalPersistenceSeedV1,
-    LocalPersistenceSqlExecutionReceiptV1, LocalPersistenceSqlSeedExecutorV1,
-    LocalPersistenceSqlStatementV1, LocalPersistenceSqlValueV1, LocalRouterEndpointV1,
-    LocalSealedRootShareRecordV1, LocalServiceRoleV1, LocalServiceStackV1, LocalServiceStartupV1,
-    LocalSigningRootMetadataV1, LocalSigningWorkerEndpointV1, LocalTransportEnvelopeV1,
-    LocalTransportRouteV1, MpcMaterialActivationRefV1, RoleEncryptedEnvelopeV1,
-    RouterAbEcdsaDerivationEvmDigestSigningFinalizeRequestV1,
-    RouterAbEcdsaDerivationEvmDigestSigningPrepareResponseV1,
-    RouterAbEcdsaDerivationEvmDigestSigningRequestV1,
-    RouterAbEcdsaDerivationEvmDigestSigningResponseV1, RouterAbEcdsaDerivationNormalSigningScopeV1,
-    RouterAbEcdsaDerivationSignatureSchemeV1, RouterAbProtocolError, RouterAbProtocolErrorCode,
+    router_transcript_digest_v1, EcdsaThresholdPrfRequestV1, EncryptedPayloadV1,
+    ExpensiveWorkKindV1, LifecycleScopeV1, LocalDeriverAEndpointV1, LocalDeriverBEndpointV1,
+    LocalEnvSnapshotV1, LocalHttpCeremonyResultV1, LocalHttpMethodV1, LocalHttpPathV1,
+    LocalHttpRequestV1, LocalPersistenceSeedV1, LocalPersistenceSqlExecutionReceiptV1,
+    LocalPersistenceSqlSeedExecutorV1, LocalPersistenceSqlStatementV1, LocalPersistenceSqlValueV1,
+    LocalRouterEndpointV1, LocalSealedRootShareRecordV1, LocalServiceRoleV1, LocalServiceStackV1,
+    LocalServiceStartupV1, LocalSigningRootMetadataV1, LocalSigningWorkerEndpointV1,
+    LocalTransportEnvelopeV1, LocalTransportRouteV1, MpcMaterialActivationRefV1,
+    RoleEncryptedEnvelopeV1, RouterAbProtocolError, RouterAbProtocolErrorCode,
     RouterAbProtocolResult, RouterTranscriptMetadataV1, ServerIdentityV1, SignerIdentityV1,
-    SignerSetV1, SigningRootShareStore, TenantRootLifecycleReceiptDigestV1,
-    TenantRootOnlineRoleShareBindingV1, TenantRootShareEpoch, TenantRootSignedActivationReceiptV1,
-    TwoPartyDeriverRole, WireMessageKindV1, WireMessageV1,
+    SignerSetV1, SigningRootShareStore, TenantRootOnlineRoleShareBindingV1, WireMessageKindV1,
+    WireMessageV1,
 };
 use router_ab_core::{PublicDigest32, Role, RootShareEpoch};
-use router_ab_ecdsa_online::{
-    combine_rerandomization_contributions, finalize_signing_worker_signature, OnlineError,
-    SigningWorkerOnlineInput, SigningWorkerPresignMaterial,
-};
 use rusqlite::{params, params_from_iter, types::Value, Connection, OptionalExtension};
-use serde::{de::DeserializeOwned, ser::SerializeStruct, Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{
     collections::BTreeMap,
     time::{SystemTime, UNIX_EPOCH},
 };
-use threshold_prf::{SigningRootShareCommitment, SigningRootShareWire};
+use threshold_prf::SigningRootShareWire;
 
+mod local_cloudflare_bindings;
+mod local_deployment_check;
 mod local_dev_http;
 mod local_ed25519_yao_api;
 mod local_ed25519_yao_delivery;
 
 mod local_ed25519_yao_input;
 mod local_ed25519_yao_pair;
-mod local_ed25519_yao_profiles;
+mod local_ed25519_yao_pair_sqlite;
 mod local_ed25519_yao_refresh;
 mod local_ed25519_yao_router;
 mod local_ed25519_yao_signing_worker;
+mod local_ed25519_yao_sqlite_host;
 mod local_ed25519_yao_stream;
 mod local_ed25519_yao_worker;
-mod local_router_ab_ecdsa_derivation_pool_store;
+mod local_router_ab_ecdsa;
 mod local_router_coordinator;
+mod local_router_wallet;
 mod local_router_ed25519_yao_http;
+mod local_router_normal_signing;
 mod local_service_http;
+mod local_signing_worker_near_sqlite;
+mod local_signing_worker_wallet_sqlite;
+mod local_tenant_root;
+mod local_tenant_root_env;
+mod local_tenant_root_http;
+mod local_tenant_root_role_sql;
 mod local_worker_topology;
 
+pub use local_tenant_root::{
+    local_tenant_root_admission_recovery_window_ms_v1, local_tenant_root_creation_authority_id_v1,
+    local_tenant_root_refresh_scheduler_tick_ms_v1, run_local_tenant_root_refresh_scheduler_v1,
+    serve_local_tenant_root_creation_state_v1, LOCAL_TENANT_ROOT_REFRESH_SCHEDULER_TICK_MS_ENV_V1,
+    LOCAL_TENANT_ROOT_ADMISSION_RECOVERY_WINDOW_MS_ENV_V1,
+    LocalDeriverTenantRootConfigV1, LocalRouterCreationStateV1,
+    LocalRouterTenantRootConfigV1, LocalRouterTenantRootCreationHostV1,
+    LocalTenantRootControlPlaneConfigV1, LocalTenantRootControlPlaneHostV1,
+    LocalTenantRootCreationStateClientV1, LocalTenantRootCreationStateRequestV1,
+    LocalTenantRootDeriverHostV1, LocalTenantRootServiceTransportV1,
+    LOCAL_DERIVER_TENANT_ROOT_MANAGED_BACKUP_STORAGE_PATH_ENV_V1, LOCAL_ROUTER_PRIVATE_URL_ENV_V1,
+    LOCAL_ROUTER_TENANT_ROOT_CREATION_STATE_PATH_V1,
+    LOCAL_ROUTER_TENANT_ROOT_CREATION_STORAGE_PATH_ENV_V1,
+    LOCAL_TENANT_ROOT_CONTROL_PLANE_URL_ENV_V1, LOCAL_TENANT_ROOT_DEPLOYMENT_AUTHORITY_ID_ENV_V1,
+};
+pub use local_tenant_root_env::{
+    LOCAL_TENANT_ROOT_CONTROL_PLANE_DEFAULT_URL_V1, LOCAL_TENANT_ROOT_GRANT_KEY_ID_ENV_V1,
+    LOCAL_TENANT_ROOT_GRANT_SIGNING_KEY_ENV_V1,
+};
+pub use local_tenant_root_http::{
+    local_tenant_root_control_plane_route_v1, local_tenant_root_recovery_access_route_v1,
+    local_tenant_root_route_v1, LocalTenantRootBinaryResponseV1,
+    parse_local_tenant_root_control_plane_config_v1,
+};
+pub use local_tenant_root_role_sql::{
+    apply_local_sqlite_migrations_v1, local_sqlite_migration_status_v1, LocalRoleSqlOutcomeV1,
+    LocalRoleSqlSessionV1, LocalSqliteMigrationStatusV1, LocalSqliteMigrationV1,
+    LOCAL_DERIVER_A_ROLE_PRIVATE_MIGRATIONS_V1, LOCAL_DERIVER_B_ROLE_PRIVATE_MIGRATIONS_V1,
+    LOCAL_MANAGED_BACKUP_MIGRATIONS_V1, LOCAL_ROUTER_CREATION_STATE_MIGRATIONS_V1,
+};
+pub use local_deployment_check::{
+    local_worker_deployment_check_v1, local_worker_role_sqlite_stores_v1,
+    LocalDeploymentCheckItemV1, LocalDeploymentCheckReportV1, LocalDeploymentCheckStatusV1,
+    LocalRoleSqliteStoreV1, LOCAL_DEPLOYMENT_CHECK_REPORT_KIND_V1,
+};
 pub use local_dev_http::{
     local_dev_http_error_body_v1, local_dev_http_handle_request_v1,
     local_dev_http_handle_request_with_dispatcher_v1, local_dev_http_route_error_v1,
     local_dev_router_request_with_dispatcher_v1, read_local_dev_http_request_v1,
-    require_local_dev_internal_service_auth_v1, write_local_dev_http_response_v1,
+    require_local_dev_internal_service_auth_v1, write_local_dev_http_binary_response_v1,
+    write_local_dev_http_response_v1,
+    write_local_dev_http_response_with_server_timing_v1,
     LocalDevHttpErrorBodyV1, LocalDevHttpRequestPartsV1, LocalDevHttpTopologyV1,
     LocalRouterRequestDispatcherV1,
 };
@@ -116,15 +147,7 @@ pub use local_ed25519_yao_pair::{
     LocalEd25519YaoPairLifecycleV1, LocalEd25519YaoPairSigningKeysV1,
     LocalEd25519YaoRoleReadinessReceiptV1,
 };
-pub use local_ed25519_yao_profiles::{
-    build_local_ed25519_yao_one_account_plan_v1, build_local_ed25519_yao_two_administrator_plan_v1,
-    local_ed25519_yao_worker_artifact_digest_v1, LocalEd25519YaoArtifactIdentityV1,
-    LocalEd25519YaoLocalEvidenceClaimV1, LocalEd25519YaoOneAccountDevV1,
-    LocalEd25519YaoOneAccountPlanV1, LocalEd25519YaoRoleRootV1,
-    LocalEd25519YaoTwoAdministratorDevV1, LocalEd25519YaoTwoAdministratorPlanV1,
-    LOCAL_ED25519_YAO_ACTIVATION_CIRCUIT_ID_V1, LOCAL_ED25519_YAO_EXPORT_CIRCUIT_ID_V1,
-    LOCAL_ED25519_YAO_PROTOCOL_ID_V1,
-};
+pub use local_ed25519_yao_pair_sqlite::LocalDeriverAPairSqliteV1;
 pub use local_ed25519_yao_refresh::{
     derive_local_ed25519_yao_joint_refresh_delta_v1,
     generate_local_ed25519_yao_deriver_a_refresh_delta_v1,
@@ -143,11 +166,16 @@ pub use local_ed25519_yao_router::{
     LocalEd25519YaoRouterRegistrationAdmissionV1,
 };
 pub use local_ed25519_yao_signing_worker::{
+    LocalEd25519YaoInitialRegistrationFinalizationV1,
     LocalEd25519YaoSigningWorkerActivationReceiptV1, LocalEd25519YaoSigningWorkerPackageDeliveryV1,
     LocalEd25519YaoSigningWorkerPackagePairDeliveryV1,
     LocalEd25519YaoSigningWorkerRecoveryPromotionRequestV1,
     LocalEd25519YaoSigningWorkerRefreshPackageDeliveryV1,
     LocalEd25519YaoSigningWorkerRefreshReceiptV1, LocalEd25519YaoSigningWorkerStateV1,
+};
+pub use local_ed25519_yao_sqlite_host::{
+    LocalDeriverAPairPayloadV1, LocalDeriverAPairRecordV1, LocalDeriverAPairResultV1,
+    LocalDeriverAPairScopeV1, LocalEd25519YaoSqliteHostV1,
 };
 pub use local_ed25519_yao_stream::{
     authenticate_local_ed25519_yao_deriver_b_peer_http_v1, run_local_activation_deriver_a_http_v1,
@@ -157,13 +185,12 @@ pub use local_ed25519_yao_stream::{
     LocalEd25519YaoStreamErrorV1,
 };
 pub use local_ed25519_yao_worker::{
-    dispatch_local_ed25519_yao_connection_v1,
     dispatch_local_ed25519_yao_connection_with_persistence_v1, LocalEd25519YaoConnectionDispatchV1,
     LocalEd25519YaoPairRoleRecordV1, LocalEd25519YaoRefreshPromotionReceiptV1,
     LocalEd25519YaoRefreshPromotionRequestV1, LocalEd25519YaoRoleCompletionV1,
     LocalEd25519YaoWorkerStateV1,
 };
-use local_router_ab_ecdsa_derivation_pool_store::local_signing_worker_ecdsa_pool_mutate_v1;
+pub use local_router_ab_ecdsa::{local_router_ab_ecdsa_route_v1, LocalRouterAbEcdsaResponseV1};
 pub use local_router_coordinator::LocalRouterEd25519YaoCoordinatorV1;
 pub use local_router_ed25519_yao_http::{
     decode_local_router_ed25519_yao_execute_request_v1, LocalRouterEd25519YaoPairDispatchV1,
@@ -189,7 +216,6 @@ pub use router_ab_core::{
     ROUTER_AB_ED25519_YAO_REGISTRATION_EXECUTE_PATH_V1,
 };
 
-const LOCAL_NORMAL_SIGNING_ACTIVATION_MS_V1: u64 = 1_700_000_000_000;
 const LOCAL_DEV_ACCOUNT_ID_V1: &str = "alice.testnet";
 const LOCAL_DEV_APPLICATION_BINDING_DIGEST_B64U_V1: &str =
     "ERERERERERERERERERERERERERERERERERERERERERE";
@@ -210,10 +236,6 @@ pub const LOCAL_DERIVER_A_ENVELOPE_HPKE_PRIVATE_KEY_ENV_V1: &str =
 /// Deriver B envelope HPKE private-key env key.
 pub const LOCAL_DERIVER_B_ENVELOPE_HPKE_PRIVATE_KEY_ENV_V1: &str =
     "DERIVER_B_ENVELOPE_HPKE_PRIVATE_KEY";
-/// Required Router map of authenticated tenant-root coordinates and active receipts.
-pub const LOCAL_TENANT_ROOT_BINDINGS_JSON_ENV_V1: &str = "LOCAL_TENANT_ROOT_BINDINGS_JSON";
-/// Required Deriver-local map of authenticated role shares by tenant-root epoch.
-pub const LOCAL_TENANT_ROOT_ROLE_SHARES_JSON_ENV_V1: &str = "LOCAL_TENANT_ROOT_ROLE_SHARES_JSON";
 /// Deriver A Ed25519 Yao Client-input HPKE public-key env key.
 pub const LOCAL_DERIVER_A_ED25519_YAO_INPUT_PUBLIC_KEY_ENV_V1: &str =
     "DERIVER_A_ED25519_YAO_INPUT_PUBLIC_KEY";
@@ -263,6 +285,18 @@ pub const LOCAL_DERIVER_B_ENV_FILE_V1: &str = ".env.router-ab.deriver-b.local";
 pub const LOCAL_SIGNING_WORKER_ENV_FILE_V1: &str = ".env.router-ab.signing-worker.local";
 /// Local Deriver A state directory.
 pub const LOCAL_DERIVER_A_STATE_DIR_V1: &str = ".router-ab-local/deriver-a";
+/// Local Router state directory: its tenant-root creation state.
+pub const LOCAL_ROUTER_STATE_DIR_V1: &str = ".router-ab-local/router";
+/// Local tenant-root control-plane env file.
+pub const LOCAL_TENANT_ROOT_CONTROL_PLANE_ENV_FILE_V1: &str =
+    ".env.router-ab.tenant-root-control-plane.local";
+/// Local operator env file: creation grant and recovery authorities. No role
+/// process loads it.
+pub const LOCAL_TENANT_ROOT_OPERATOR_ENV_FILE_V1: &str = ".env.router-ab.tenant-root-operator.local";
+/// Plan label of the control-plane env file.
+pub const LOCAL_TENANT_ROOT_CONTROL_PLANE_ENV_LABEL_V1: &str = "tenant_root_control_plane";
+/// Plan label of the operator env file.
+pub const LOCAL_TENANT_ROOT_OPERATOR_ENV_LABEL_V1: &str = "tenant_root_operator";
 /// Local Deriver B state directory.
 pub const LOCAL_DERIVER_B_STATE_DIR_V1: &str = ".router-ab-local/deriver-b";
 /// Local SigningWorker state directory.
@@ -293,6 +327,8 @@ pub const LOCAL_DERIVER_B_ED25519_YAO_PREPARE_PAIR_PATH: &str =
 /// Deriver B pair-bound status path mirrored from the strict Cloudflare worker.
 pub const LOCAL_DERIVER_B_ED25519_YAO_READ_PAIR_STATUS_PATH: &str =
     "/router-ab/deriver-b/ed25519-yao/read-pair-status";
+pub const LOCAL_DERIVER_B_ED25519_YAO_READ_PAIR_OUTCOME_PATH: &str =
+    "/router-ab/deriver-b/ed25519-yao/read-pair-outcome";
 /// Deriver B pair-bound burn path mirrored from the strict Cloudflare worker.
 pub const LOCAL_DERIVER_B_ED25519_YAO_BURN_PAIR_PATH: &str =
     "/router-ab/deriver-b/ed25519-yao/burn-pair";
@@ -343,9 +379,15 @@ pub const LOCAL_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PATH: &str = "/router-ab/ecds
 /// Local private service-auth secret env key shared with the TypeScript relay.
 pub const LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET_ENV_V1: &str =
     "ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET";
-/// Local default private service-auth secret used when the env key is unset.
-pub const LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1: &str =
-    "dev-router-ab-internal-service-auth";
+/// Dedicated Gateway-to-Router credential env key; never the role-shared secret.
+pub const LOCAL_ROUTER_AB_ROUTER_TO_SIGNING_WORKER_ECDSA_AUTH_SECRET_ENV_V1: &str =
+    router_ab_cloudflare::ROUTER_AB_ROUTER_TO_SIGNING_WORKER_ECDSA_AUTH_SECRET_BINDING;
+/// Env key for the Gateway's SigningWorker presignature-session credential.
+pub const LOCAL_ROUTER_AB_GATEWAY_TO_SIGNING_WORKER_PRESIGN_AUTH_SECRET_ENV_V1: &str =
+    router_ab_cloudflare::ROUTER_AB_GATEWAY_TO_SIGNING_WORKER_PRESIGN_AUTH_SECRET_BINDING;
+/// Env key for the Gateway-to-Router credential.
+pub const LOCAL_ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET_ENV_V1: &str =
+    "ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET";
 /// Local private service-auth header mirrored from strict Cloudflare.
 pub const LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1: &str =
     "x-router-ab-internal-service-auth";
@@ -360,6 +402,8 @@ pub const LOCAL_DERIVER_B_PEER_PATH: &str = "/router-ab/deriver-b/peer";
 /// SigningWorker atomic activation package-pair delivery path.
 pub const LOCAL_SIGNING_WORKER_ED25519_YAO_ACTIVATION_PACKAGES_PATH: &str =
     "/router-ab/signing-worker/ed25519-yao/activation/packages";
+pub const LOCAL_SIGNING_WORKER_ED25519_YAO_INITIAL_REGISTRATION_FINALIZATION_PATH: &str =
+    "/router-ab/signing-worker/ed25519-yao/initial-registration/finalization";
 /// SigningWorker recovery-candidate promotion path owned by the Router.
 pub const LOCAL_SIGNING_WORKER_ED25519_YAO_RECOVERY_PROMOTE_PATH: &str =
     "/router-ab/signing-worker/ed25519-yao/recovery/promote";
@@ -374,9 +418,6 @@ pub const LOCAL_SIGNING_WORKER_NORMAL_SIGNING_PATH: &str = "/router-ab/signing-w
 /// SigningWorker normal-signing round-1 prepare path mirrored from production.
 pub const LOCAL_SIGNING_WORKER_NORMAL_SIGNING_PREPARE_PATH: &str =
     "/router-ab/signing-worker/sign/prepare";
-/// SigningWorker Router A/B ECDSA derivation presignature pool-fill path mirrored from production.
-pub const LOCAL_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_PRESIGNATURE_POOL_PUT_PATH: &str =
-    "/router-ab/signing-worker/ecdsa-derivation/presignature-pool/put";
 /// SigningWorker Router A/B ECDSA derivation digest-signing prepare path mirrored from production.
 pub const LOCAL_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PREPARE_PATH: &str =
     "/router-ab/signing-worker/ecdsa-derivation/sign/prepare";
@@ -390,22 +431,11 @@ pub const LOCAL_HTTP_JSON_CONTENT_TYPE_V1: &str = "application/json";
 /// Default local HTTP service-binding timeout.
 pub const LOCAL_HTTP_SERVICE_BINDING_TIMEOUT_MS_V1: u64 = 10_000;
 
-/// Returns the local private service-auth secret used between Router and workers.
-pub fn local_router_ab_internal_service_auth_secret_v1() -> String {
-    std::env::var(LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET_ENV_V1)
-        .ok()
-        .map(|value| value.trim().to_owned())
-        .filter(|value| !value.is_empty())
-        .unwrap_or_else(|| LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1.to_owned())
-}
-
 pub(crate) fn local_router_ab_internal_service_auth_matches_v1(
     actual: &str,
     expected: &str,
 ) -> bool {
-    use subtle::ConstantTimeEq;
-
-    actual.len() == expected.len() && bool::from(actual.as_bytes().ct_eq(expected.as_bytes()))
+    router_ab_cloudflare::router_ab_service_credential_matches_v1(expected, actual)
 }
 
 const LOCAL_ROUTER_FORBIDDEN_ENV_KEYS_V1: &[&str] = &[
@@ -444,717 +474,152 @@ const LOCAL_SIGNING_WORKER_FORBIDDEN_ENV_KEYS_V1: &[&str] = &[
     LOCAL_DERIVER_B_ROLE_PRIVATE_STORAGE_PATH_ENV_V1,
 ];
 
-/// One Router-owned authenticated tenant-root record parsed from the local map.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct LocalTenantRootBindingV1 {
-    pub(crate) activation_receipt_bytes: Vec<u8>,
-    pub(crate) issuer_verifying_key: [u8; 32],
-    pub(crate) application: RouterAbEd25519YaoApplicationBindingFactsV1,
-    pub(crate) participant_ids: [u16; 2],
-    pub(crate) deriver_a_identity: String,
-    pub(crate) deriver_b_identity: String,
+fn required_peer_verifying_keys_v1(
+    env: &BTreeMap<String, String>,
+) -> RouterAbProtocolResult<router_ab_cloudflare::CloudflareSignerPeerVerifyingKeySetV1> {
+    let key = |name: &'static str, role: Role| {
+        let bytes: [u8; 32] = hex::decode(required_env_v1(env, name)?)
+            .ok()
+            .and_then(|bytes| bytes.try_into().ok())
+            .ok_or_else(|| {
+                RouterAbProtocolError::new(
+                    RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+                    format!("{name} must be a 32-byte hex Ed25519 verifying key"),
+                )
+            })?;
+        router_ab_cloudflare::CloudflareSignerPeerVerifyingKeyBytesV1::new(role, bytes)
+    };
+    router_ab_cloudflare::CloudflareSignerPeerVerifyingKeySetV1::new(
+        key(LOCAL_DERIVER_A_PEER_VERIFYING_KEY_ENV_V1, Role::SignerA)?,
+        key(LOCAL_DERIVER_B_PEER_VERIFYING_KEY_ENV_V1, Role::SignerB)?,
+    )
 }
 
-impl Serialize for LocalTenantRootBindingV1 {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let mut state = serializer.serialize_struct("LocalTenantRootBindingV1", 6)?;
-        state.serialize_field(
-            "activation_receipt_b64u",
-            &base64::engine::general_purpose::URL_SAFE_NO_PAD
-                .encode(&self.activation_receipt_bytes),
-        )?;
-        state.serialize_field(
-            "issuer_verifying_key_hex",
-            &hex::encode(self.issuer_verifying_key),
-        )?;
-        state.serialize_field("application", &self.application)?;
-        state.serialize_field("participant_ids", &self.participant_ids)?;
-        state.serialize_field("deriver_a_identity", &self.deriver_a_identity)?;
-        state.serialize_field("deriver_b_identity", &self.deriver_b_identity)?;
-        state.end()
-    }
+/// The Router's credential for admitted ECDSA calls to the SigningWorker,
+/// distinct from the role-shared one as on Cloudflare.
+fn required_router_to_signing_worker_ecdsa_auth_v1(
+    env: &BTreeMap<String, String>,
+) -> RouterAbProtocolResult<String> {
+    let router = required_env_v1(
+        env,
+        LOCAL_ROUTER_AB_ROUTER_TO_SIGNING_WORKER_ECDSA_AUTH_SECRET_ENV_V1,
+    )?;
+    let shared = required_env_v1(env, LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET_ENV_V1)?;
+    router_ab_cloudflare::require_distinct_router_ab_service_credentials_v1(
+        "Router-to-SigningWorker ECDSA",
+        &router,
+        &shared,
+    )?;
+    Ok(router)
 }
 
-/// Router-owned map of authenticated tenant-root coordinates.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct LocalTenantRootResolverConfigV1 {
-    pub(crate) bindings: BTreeMap<String, LocalTenantRootBindingV1>,
+/// The Gateway's credential for owner ECDSA presignature sessions at the
+/// SigningWorker, distinct from the role-shared and Router credentials.
+fn required_gateway_to_signing_worker_presign_auth_v1(
+    env: &BTreeMap<String, String>,
+) -> RouterAbProtocolResult<String> {
+    let presign = required_env_v1(
+        env,
+        LOCAL_ROUTER_AB_GATEWAY_TO_SIGNING_WORKER_PRESIGN_AUTH_SECRET_ENV_V1,
+    )?;
+    let shared = required_env_v1(env, LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET_ENV_V1)?;
+    let router = required_router_to_signing_worker_ecdsa_auth_v1(env)?;
+    router_ab_cloudflare::require_distinct_router_ab_service_credentials_v1(
+        "Gateway-to-SigningWorker presign",
+        &presign,
+        &shared,
+    )?;
+    router_ab_cloudflare::require_distinct_router_ab_service_credentials_v1(
+        "Gateway-to-SigningWorker presign",
+        &presign,
+        &router,
+    )?;
+    Ok(presign)
 }
 
-impl Default for LocalTenantRootResolverConfigV1 {
-    fn default() -> Self {
-        Self {
-            bindings: BTreeMap::new(),
+fn required_gateway_to_router_auth_v1(
+    env: &BTreeMap<String, String>,
+) -> RouterAbProtocolResult<String> {
+    let gateway = required_env_v1(env, LOCAL_ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET_ENV_V1)?;
+    let shared = required_env_v1(env, LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET_ENV_V1)?;
+    router_ab_cloudflare::require_distinct_router_ab_service_credentials_v1(
+        "Gateway-to-Router",
+        &gateway,
+        &shared,
+    )?;
+    Ok(gateway)
+}
+
+fn parse_local_router_tenant_root_config_v1(
+    env: &BTreeMap<String, String>,
+) -> RouterAbProtocolResult<LocalRouterTenantRootConfigV1> {
+    Ok(LocalRouterTenantRootConfigV1 {
+        env: local_cloudflare_env_map_v1(env),
+        deployment_authority_id: required_env_v1(
+            env,
+            LOCAL_TENANT_ROOT_DEPLOYMENT_AUTHORITY_ID_ENV_V1,
+        )?,
+        creation_storage_path: std::path::PathBuf::from(required_env_v1(
+            env,
+            LOCAL_ROUTER_TENANT_ROOT_CREATION_STORAGE_PATH_ENV_V1,
+        )?),
+        control_plane_url: required_env_v1(env, LOCAL_TENANT_ROOT_CONTROL_PLANE_URL_ENV_V1)?,
+        deriver_a_url: required_env_v1(env, LOCAL_DERIVER_A_URL_ENV_V1)?,
+        deriver_b_url: required_env_v1(env, LOCAL_DERIVER_B_URL_ENV_V1)?,
+        internal_service_auth: required_env_v1(
+            env,
+            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET_ENV_V1,
+        )?,
+    })
+}
+
+fn parse_local_deriver_tenant_root_config_v1(
+    env: &BTreeMap<String, String>,
+    worker_role: router_ab_cloudflare::CloudflareWorkerRoleV1,
+) -> RouterAbProtocolResult<LocalDeriverTenantRootConfigV1> {
+    let (storage_env, peer_url_env) = match worker_role {
+        router_ab_cloudflare::CloudflareWorkerRoleV1::DeriverA => {
+            (LOCAL_DERIVER_A_ROLE_PRIVATE_STORAGE_PATH_ENV_V1, LOCAL_DERIVER_B_URL_ENV_V1)
         }
-    }
+        _ => (LOCAL_DERIVER_B_ROLE_PRIVATE_STORAGE_PATH_ENV_V1, LOCAL_DERIVER_A_URL_ENV_V1),
+    };
+    Ok(LocalDeriverTenantRootConfigV1 {
+        worker_role,
+        env: local_cloudflare_bindings::local_deriver_cloudflare_env_v1(worker_role, env)?,
+        deployment_authority_id: required_env_v1(
+            env,
+            LOCAL_TENANT_ROOT_DEPLOYMENT_AUTHORITY_ID_ENV_V1,
+        )?,
+        role_store_path: std::path::PathBuf::from(required_env_v1(env, storage_env)?),
+        managed_backup_path: std::path::PathBuf::from(required_env_v1(
+            env,
+            LOCAL_DERIVER_TENANT_ROOT_MANAGED_BACKUP_STORAGE_PATH_ENV_V1,
+        )?),
+        router_url: required_env_v1(env, LOCAL_ROUTER_PRIVATE_URL_ENV_V1)?,
+        peer_url: required_env_v1(env, peer_url_env)?,
+        internal_service_auth: required_env_v1(
+            env,
+            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET_ENV_V1,
+        )?,
+    })
 }
 
-/// One Deriver-owned authenticated role share parsed from the local map.
+fn local_cloudflare_env_map_v1(
+    env: &BTreeMap<String, String>,
+) -> router_ab_cloudflare::CloudflareEnvMapV1 {
+    router_ab_cloudflare::CloudflareEnvMapV1::new(
+        env.iter()
+            .map(|(key, value)| (key.clone(), value.clone()))
+            .collect(),
+    )
+}
+
+/// One Deriver's opened active tenant-root role share, loaded for one Yao pair
+/// from its role-private store.
 #[derive(Debug, Clone)]
 pub struct LocalTenantRootRoleShareV1 {
     pub(crate) binding: TenantRootOnlineRoleShareBindingV1,
     pub(crate) share_wire: SigningRootShareWire,
-    pub(crate) activation_receipt_digest: [u8; 32],
-}
-
-impl PartialEq for LocalTenantRootRoleShareV1 {
-    fn eq(&self, other: &Self) -> bool {
-        self.binding == other.binding
-            && self.share_wire.to_bytes() == other.share_wire.to_bytes()
-            && self.activation_receipt_digest == other.activation_receipt_digest
-    }
-}
-
-impl Eq for LocalTenantRootRoleShareV1 {}
-
-impl Serialize for LocalTenantRootRoleShareV1 {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let mut state = serializer.serialize_struct("LocalTenantRootRoleShareV1", 9)?;
-        state.serialize_field(
-            "identity_digest_b64u",
-            &base64::engine::general_purpose::URL_SAFE_NO_PAD
-                .encode(self.binding.identity_digest().as_bytes()),
-        )?;
-        state.serialize_field(
-            "custody_lineage_b64u",
-            &self.binding.custody_lineage().to_base64url(),
-        )?;
-        state.serialize_field("role", self.binding.role().as_str())?;
-        state.serialize_field("epoch", &self.binding.epoch().get().get())?;
-        state.serialize_field(
-            "share_commitment_b64u",
-            &base64::engine::general_purpose::URL_SAFE_NO_PAD
-                .encode(self.binding.share_commitment().as_bytes()),
-        )?;
-        state.serialize_field(
-            "epoch_wrapping_key_ref",
-            self.binding.epoch_wrapping_key_ref(),
-        )?;
-        state.serialize_field(
-            "installation_evidence_digest_b64u",
-            &base64::engine::general_purpose::URL_SAFE_NO_PAD
-                .encode(self.binding.installation_evidence_digest().as_bytes()),
-        )?;
-        state.serialize_field(
-            "share_wire_b64u",
-            &base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(self.share_wire.to_bytes()),
-        )?;
-        state.serialize_field(
-            "activation_receipt_digest_b64u",
-            &base64::engine::general_purpose::URL_SAFE_NO_PAD
-                .encode(self.activation_receipt_digest),
-        )?;
-        state.end()
-    }
-}
-
-/// Deriver-local map of authenticated role shares keyed by tenant coordinates and epoch.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct LocalTenantRootRoleSharesConfigV1 {
-    pub(crate) shares: BTreeMap<String, LocalTenantRootRoleShareV1>,
-}
-
-impl Default for LocalTenantRootRoleSharesConfigV1 {
-    fn default() -> Self {
-        Self {
-            shares: BTreeMap::new(),
-        }
-    }
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct RawLocalTenantRootBindingV1 {
-    activation_receipt_b64u: String,
-    issuer_verifying_key_hex: String,
-    application: RouterAbEd25519YaoApplicationBindingFactsV1,
-    participant_ids: [u16; 2],
-    deriver_a_identity: String,
-    deriver_b_identity: String,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct RawLocalTenantRootRoleShareV1 {
-    identity_digest_b64u: String,
-    custody_lineage_b64u: String,
-    role: String,
-    epoch: u64,
-    share_commitment_b64u: String,
-    epoch_wrapping_key_ref: String,
-    installation_evidence_digest_b64u: String,
-    share_wire_b64u: String,
-    activation_receipt_digest_b64u: String,
-}
-
-impl LocalTenantRootResolverConfigV1 {
-    pub(crate) fn resolve_context(
-        &self,
-        coordinates: &CloudflareTenantRootCoordinatesV1,
-        application: &RouterAbEd25519YaoApplicationBindingFactsV1,
-        participant_ids: [u16; 2],
-        pair_binding: &router_ab_core::Ed25519YaoInputPairBindingV1,
-        issued_at_ms: u64,
-        expires_at_ms: u64,
-    ) -> RouterAbProtocolResult<CloudflareEd25519YaoTenantRootContextV2> {
-        let key = local_tenant_root_coordinates_key(coordinates)?;
-        let record = self.bindings.get(&key).ok_or_else(|| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::MissingLocalBinding,
-                "local Router tenant-root coordinates are not configured",
-            )
-        })?;
-        if record.application != *application || record.participant_ids != participant_ids {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::ForbiddenLocalBinding,
-                "local Router tenant-root application facts do not match its configured binding",
-            ));
-        }
-        let receipt = TenantRootSignedActivationReceiptV1::decode_canonical_bytes(
-            &record.activation_receipt_bytes,
-        )
-        .map_err(|error| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::MalformedWirePayload,
-                format!("local tenant-root activation receipt is malformed: {error}"),
-            )
-        })?;
-        let verified = receipt
-            .verify_issuer_signature(&record.issuer_verifying_key)
-            .map_err(|error| {
-                RouterAbProtocolError::new(
-                    RouterAbProtocolErrorCode::ForbiddenLocalBinding,
-                    format!("local tenant-root activation receipt is not authenticated: {error}"),
-                )
-            })?;
-        if verified.identity_digest().into_bytes() != coordinates.resolve()?.0.into_bytes()
-            || verified.custody_lineage() != coordinates.resolve()?.1
-        {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::ForbiddenLocalBinding,
-                "local tenant-root activation receipt does not match its coordinates",
-            ));
-        }
-        if verified
-            .availability()
-            .current_role_backup_receipts()
-            .is_none()
-        {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::ForbiddenLocalBinding,
-                "local tenant-root binding does not contain active role backups",
-            ));
-        }
-        let derivers = router_ab_core::TenantRootDeriverIdentitiesV1::new(
-            record.deriver_a_identity.clone(),
-            record.deriver_b_identity.clone(),
-        )
-        .map_err(map_local_tenant_root_derivation_error)?;
-        cloudflare_ed25519_yao_tenant_root_context_v2(
-            &verified,
-            derivers,
-            application.clone(),
-            participant_ids,
-            pair_binding,
-            issued_at_ms,
-            expires_at_ms,
-        )
-    }
-}
-
-impl LocalTenantRootRoleSharesConfigV1 {
-    pub(crate) fn resolve_for_context(
-        &self,
-        coordinates: &CloudflareTenantRootCoordinatesV1,
-        context: &CloudflareEd25519YaoTenantRootContextV2,
-        role: TwoPartyDeriverRole,
-    ) -> RouterAbProtocolResult<LocalTenantRootRoleShareV1> {
-        let key = local_tenant_root_role_share_key(coordinates, role, context)?;
-        let share = self.shares.get(&key).ok_or_else(|| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::MissingLocalBinding,
-                format!(
-                    "local {} tenant-root role share is not configured",
-                    role.as_str()
-                ),
-            )
-        })?;
-        let (identity_digest, custody_lineage) = coordinates.resolve()?;
-        if share.binding.identity_digest() != identity_digest
-            || share.binding.custody_lineage() != custody_lineage
-            || share.binding.role() != role
-        {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::ForbiddenLocalBinding,
-                "local tenant-root role share identity does not match its request",
-            ));
-        }
-        let receipt_bytes = context.custody_binding.activation_receipt_bytes()?;
-        let receipt = TenantRootSignedActivationReceiptV1::decode_canonical_bytes(&receipt_bytes)
-            .map_err(|error| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::MalformedWirePayload,
-                format!("tenant-root activation receipt is malformed: {error}"),
-            )
-        })?;
-        let (epoch, commitment) = match receipt.binding() {
-            router_ab_core::TenantRootActivationReceiptBindingV1::InitialCreation(binding) => (
-                binding.epoch(),
-                match role {
-                    TwoPartyDeriverRole::DeriverA => binding.commitments().deriver_a(),
-                    TwoPartyDeriverRole::DeriverB => binding.commitments().deriver_b(),
-                },
-            ),
-            router_ab_core::TenantRootActivationReceiptBindingV1::RefreshSwap(binding) => (
-                binding.next_epoch(),
-                match role {
-                    TwoPartyDeriverRole::DeriverA => binding.next_commitments().deriver_a(),
-                    TwoPartyDeriverRole::DeriverB => binding.next_commitments().deriver_b(),
-                },
-            ),
-        };
-        let receipt_digest: [u8; 32] = Sha256::digest(&receipt_bytes).into();
-        if share.binding.epoch() != epoch
-            || share.binding.share_commitment() != commitment
-            || receipt_digest != share.activation_receipt_digest
-        {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::ForbiddenLocalBinding,
-                "local tenant-root role share does not match the active receipt",
-            ));
-        }
-        Ok(share.clone())
-    }
-}
-
-fn local_tenant_root_coordinates_key(
-    coordinates: &CloudflareTenantRootCoordinatesV1,
-) -> RouterAbProtocolResult<String> {
-    let (identity_digest, custody_lineage) = coordinates.resolve()?;
-    let canonical = format!(
-        "{}|{}",
-        base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(identity_digest.as_bytes()),
-        custody_lineage.to_base64url()
-    );
-    if canonical
-        != format!(
-            "{}|{}",
-            coordinates.identity_digest_b64u, coordinates.custody_lineage_b64u
-        )
-    {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::MalformedWirePayload,
-            "tenant-root coordinate map key is not canonical",
-        ));
-    }
-    Ok(canonical)
-}
-
-fn local_tenant_root_role_share_key(
-    coordinates: &CloudflareTenantRootCoordinatesV1,
-    role: TwoPartyDeriverRole,
-    context: &CloudflareEd25519YaoTenantRootContextV2,
-) -> RouterAbProtocolResult<String> {
-    let coordinates_key = local_tenant_root_coordinates_key(coordinates)?;
-    let epoch = match role {
-        TwoPartyDeriverRole::DeriverA | TwoPartyDeriverRole::DeriverB => {
-            let receipt_bytes = context.custody_binding.activation_receipt_bytes()?;
-            let receipt =
-                TenantRootSignedActivationReceiptV1::decode_canonical_bytes(&receipt_bytes)
-                    .map_err(|error| {
-                        RouterAbProtocolError::new(
-                            RouterAbProtocolErrorCode::MalformedWirePayload,
-                            format!("tenant-root activation receipt is malformed: {error}"),
-                        )
-                    })?;
-            match receipt.binding() {
-                router_ab_core::TenantRootActivationReceiptBindingV1::InitialCreation(binding) => {
-                    binding.epoch()
-                }
-                router_ab_core::TenantRootActivationReceiptBindingV1::RefreshSwap(binding) => {
-                    binding.next_epoch()
-                }
-            }
-        }
-    };
-    Ok(format!("{coordinates_key}|{}", epoch.get().get()))
-}
-
-pub(crate) fn local_tenant_root_coordinates_for_context_v1(
-    context: &CloudflareEd25519YaoTenantRootContextV2,
-) -> RouterAbProtocolResult<CloudflareTenantRootCoordinatesV1> {
-    let receipt_bytes = context.custody_binding.activation_receipt_bytes()?;
-    let receipt = TenantRootSignedActivationReceiptV1::decode_canonical_bytes(&receipt_bytes)
-        .map_err(|error| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::MalformedWirePayload,
-                format!("tenant-root activation receipt is malformed: {error}"),
-            )
-        })?;
-    let binding = receipt.binding();
-    let coordinates = CloudflareTenantRootCoordinatesV1 {
-        identity_digest_b64u: base64::engine::general_purpose::URL_SAFE_NO_PAD
-            .encode(binding.identity_digest().as_bytes()),
-        custody_lineage_b64u: binding.custody_lineage().to_base64url(),
-    };
-    coordinates.resolve()?;
-    Ok(coordinates)
-}
-
-fn parse_local_tenant_root_bindings_json_v1(
-    value: &str,
-) -> RouterAbProtocolResult<LocalTenantRootResolverConfigV1> {
-    let raw = serde_json::from_str::<BTreeMap<String, RawLocalTenantRootBindingV1>>(value)
-        .map_err(|error| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                format!("local tenant-root bindings JSON is malformed: {error}"),
-            )
-        })?;
-    let mut bindings = BTreeMap::new();
-    for (key, record) in raw {
-        let coordinates = parse_local_tenant_root_coordinate_key(&key)?;
-        let canonical_key = local_tenant_root_coordinates_key(&coordinates)?;
-        if key != canonical_key {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                "local tenant-root binding map key is not canonical",
-            ));
-        }
-        let activation_receipt_bytes = decode_local_base64url_bytes_v1(
-            "local tenant-root activation receipt",
-            &record.activation_receipt_b64u,
-        )?;
-        let receipt =
-            TenantRootSignedActivationReceiptV1::decode_canonical_bytes(&activation_receipt_bytes)
-                .map_err(|error| {
-                    RouterAbProtocolError::new(
-                        RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                        format!("local tenant-root activation receipt is malformed: {error}"),
-                    )
-                })?;
-        let issuer_verifying_key = decode_local_hex_fixed_v1(
-            "local tenant-root issuer verifying key",
-            &record.issuer_verifying_key_hex,
-            32,
-        )?;
-        if issuer_verifying_key.iter().all(|byte| *byte == 0) {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                "local tenant-root issuer verifying key must be nonzero",
-            ));
-        }
-        if record.participant_ids[0] == 0 || record.participant_ids[0] >= record.participant_ids[1]
-        {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                "local tenant-root participant ids must be ascending nonzero values",
-            ));
-        }
-        if receipt.binding().identity_digest() != coordinates.resolve()?.0
-            || receipt.binding().custody_lineage() != coordinates.resolve()?.1
-        {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                "local tenant-root activation receipt does not match its map key",
-            ));
-        }
-        router_ab_core::TenantRootDeriverIdentitiesV1::new(
-            record.deriver_a_identity.clone(),
-            record.deriver_b_identity.clone(),
-        )
-        .map_err(map_local_tenant_root_derivation_error)?;
-        let binding = LocalTenantRootBindingV1 {
-            activation_receipt_bytes,
-            issuer_verifying_key,
-            application: record.application,
-            participant_ids: record.participant_ids,
-            deriver_a_identity: record.deriver_a_identity,
-            deriver_b_identity: record.deriver_b_identity,
-        };
-        if bindings.insert(canonical_key, binding).is_some() {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                "local tenant-root binding map contains a duplicate key",
-            ));
-        }
-    }
-    Ok(LocalTenantRootResolverConfigV1 { bindings })
-}
-
-fn parse_local_tenant_root_role_shares_json_v1(
-    value: &str,
-) -> RouterAbProtocolResult<LocalTenantRootRoleSharesConfigV1> {
-    let raw = serde_json::from_str::<BTreeMap<String, RawLocalTenantRootRoleShareV1>>(value)
-        .map_err(|error| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                format!("local tenant-root role shares JSON is malformed: {error}"),
-            )
-        })?;
-    let mut shares = BTreeMap::new();
-    for (key, record) in raw {
-        let (coordinates, key_epoch) = parse_local_tenant_root_role_share_key(&key)?;
-        let (identity_digest, custody_lineage) = coordinates.resolve()?;
-        let record_identity = decode_local_base64url_fixed_v1(
-            "local tenant-root role-share identity digest",
-            &record.identity_digest_b64u,
-            32,
-        )?;
-        if record_identity != identity_digest.into_bytes() {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                "local tenant-root role-share identity does not match its map key",
-            ));
-        }
-        let record_lineage = router_ab_core::TenantRootCustodyLineageId::from_base64url(
-            &record.custody_lineage_b64u,
-        )
-        .map_err(map_local_tenant_root_derivation_error)?;
-        if record_lineage != custody_lineage {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                "local tenant-root role-share lineage does not match its map key",
-            ));
-        }
-        let role = match record.role.as_str() {
-            "deriver_a" => TwoPartyDeriverRole::DeriverA,
-            "deriver_b" => TwoPartyDeriverRole::DeriverB,
-            _ => {
-                return Err(RouterAbProtocolError::new(
-                    RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                    "local tenant-root role-share role is invalid",
-                ))
-            }
-        };
-        let epoch = TenantRootShareEpoch::new(record.epoch)
-            .map_err(map_local_tenant_root_derivation_error)?;
-        if epoch.get().get() != key_epoch {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                "local tenant-root role-share epoch does not match its map key",
-            ));
-        }
-        let commitment =
-            router_ab_core::MpcPrfShareCommitmentWireV1::new(decode_local_base64url_bytes_v1(
-                "local tenant-root role-share commitment",
-                &record.share_commitment_b64u,
-            )?)
-            .map_err(map_local_tenant_root_derivation_error)?;
-        let evidence_digest =
-            TenantRootLifecycleReceiptDigestV1::from_bytes(decode_local_base64url_fixed_v1(
-                "local tenant-root installation evidence digest",
-                &record.installation_evidence_digest_b64u,
-                32,
-            )?)
-            .map_err(map_local_tenant_root_derivation_error)?;
-        let activation_receipt_digest = decode_local_base64url_fixed_v1(
-            "local tenant-root activation receipt digest",
-            &record.activation_receipt_digest_b64u,
-            32,
-        )?;
-        if activation_receipt_digest.iter().all(|byte| *byte == 0) {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                "local tenant-root activation receipt digest must be non-zero",
-            ));
-        }
-        let binding = TenantRootOnlineRoleShareBindingV1::from_persisted(
-            identity_digest,
-            custody_lineage,
-            role,
-            epoch,
-            commitment,
-            record.epoch_wrapping_key_ref,
-            evidence_digest,
-        )
-        .map_err(map_local_tenant_root_derivation_error)?;
-        let share_wire = SigningRootShareWire::decode_slice(&decode_local_base64url_bytes_v1(
-            "local tenant-root role-share wire",
-            &record.share_wire_b64u,
-        )?)
-        .map_err(|error| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                format!("local tenant-root role-share wire is invalid: {error}"),
-            )
-        })?;
-        let share = share_wire.to_share().map_err(|error| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                format!("local tenant-root role-share wire is invalid: {error}"),
-            )
-        })?;
-        if TwoPartyDeriverRole::from_share_id(share.id()).map_err(|error| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                format!("local tenant-root role-share id is invalid: {error}"),
-            )
-        })? != role
-            || SigningRootShareCommitment::from_share(&share)
-                .to_bytes()
-                .as_ref()
-                != binding.share_commitment().as_bytes()
-        {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                "local tenant-root role-share wire does not match its commitment",
-            ));
-        }
-        if shares
-            .insert(
-                key,
-                LocalTenantRootRoleShareV1 {
-                    binding,
-                    share_wire,
-                    activation_receipt_digest,
-                },
-            )
-            .is_some()
-        {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                "local tenant-root role-share map contains a duplicate key",
-            ));
-        }
-    }
-    Ok(LocalTenantRootRoleSharesConfigV1 { shares })
-}
-
-fn parse_local_tenant_root_coordinate_key(
-    value: &str,
-) -> RouterAbProtocolResult<CloudflareTenantRootCoordinatesV1> {
-    let mut parts = value.split('|');
-    let identity_digest_b64u = parts.next().unwrap_or_default().to_owned();
-    let custody_lineage_b64u = parts.next().unwrap_or_default().to_owned();
-    if parts.next().is_some() || identity_digest_b64u.is_empty() || custody_lineage_b64u.is_empty()
-    {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-            "local tenant-root map key must be identity_digest_b64u|custody_lineage_b64u",
-        ));
-    }
-    let coordinates = CloudflareTenantRootCoordinatesV1 {
-        identity_digest_b64u,
-        custody_lineage_b64u,
-    };
-    coordinates.resolve()?;
-    Ok(coordinates)
-}
-
-fn parse_local_tenant_root_role_share_key(
-    value: &str,
-) -> RouterAbProtocolResult<(CloudflareTenantRootCoordinatesV1, u64)> {
-    let mut parts = value.split('|');
-    let identity = parts.next().unwrap_or_default();
-    let lineage = parts.next().unwrap_or_default();
-    let epoch = parts.next().unwrap_or_default();
-    if parts.next().is_some() || identity.is_empty() || lineage.is_empty() || epoch.is_empty() {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-            "local tenant-root role-share key must be coordinates|epoch",
-        ));
-    }
-    let epoch = epoch.parse::<u64>().map_err(|error| {
-        RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-            format!("local tenant-root role-share epoch is invalid: {error}"),
-        )
-    })?;
-    if epoch == 0 || epoch.to_string() != value.rsplit('|').next().unwrap_or_default() {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-            "local tenant-root role-share epoch is not canonical",
-        ));
-    }
-    Ok((
-        parse_local_tenant_root_coordinate_key(&format!("{identity}|{lineage}"))?,
-        epoch,
-    ))
-}
-
-fn decode_local_base64url_bytes_v1(
-    field: &'static str,
-    value: &str,
-) -> RouterAbProtocolResult<Vec<u8>> {
-    let bytes = base64::engine::general_purpose::URL_SAFE_NO_PAD
-        .decode(value)
-        .map_err(|error| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                format!("{field} is not canonical base64url: {error}"),
-            )
-        })?;
-    if base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(&bytes) != value {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-            format!("{field} is not canonical base64url"),
-        ));
-    }
-    Ok(bytes)
-}
-
-fn decode_local_base64url_fixed_v1<const N: usize>(
-    field: &'static str,
-    value: &str,
-    expected: usize,
-) -> RouterAbProtocolResult<[u8; N]> {
-    if expected != N {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-            "local fixed-base64 helper size mismatch",
-        ));
-    }
-    decode_local_base64url_bytes_v1(field, value)?
-        .try_into()
-        .map_err(|_| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                format!("{field} must contain exactly {N} bytes"),
-            )
-        })
-}
-
-fn decode_local_hex_fixed_v1<const N: usize>(
-    field: &'static str,
-    value: &str,
-    expected: usize,
-) -> RouterAbProtocolResult<[u8; N]> {
-    if expected != N {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-            "local fixed-hex helper size mismatch",
-        ));
-    }
-    hex::decode(value)
-        .map_err(|error| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                format!("{field} is not hex: {error}"),
-            )
-        })?
-        .try_into()
-        .map_err(|_| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                format!("{field} must contain exactly {N} bytes"),
-            )
-        })
-}
-
-fn map_local_tenant_root_derivation_error(
-    error: router_ab_core::RouterAbDerivationError,
-) -> RouterAbProtocolError {
-    RouterAbProtocolError::new(
-        RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-        error.to_string(),
-    )
 }
 
 /// Router local worker config after raw env parsing.
@@ -1176,10 +641,24 @@ pub struct LocalRouterWorkerConfigV1 {
     pub signing_worker_ed25519_yao_recipient_public_key: String,
     /// SigningWorker selected for local Ed25519 Yao registration.
     pub signing_worker_id: String,
-    /// Local private service authentication value.
+    /// Role-shared credential for Router-to-role calls.
+    #[serde(skip_serializing)]
     pub internal_service_auth: String,
-    /// Authenticated server-owned tenant-root resolver.
-    pub tenant_root_resolver: LocalTenantRootResolverConfigV1,
+    /// Dedicated credential the Gateway presents to the Router.
+    #[serde(skip_serializing)]
+    pub gateway_to_router_auth: String,
+    /// Dedicated credential the Router presents to the SigningWorker for
+    /// ECDSA activation and signing.
+    #[serde(skip_serializing)]
+    pub router_to_signing_worker_ecdsa_auth: String,
+    /// Deriver A/B verifying keys for their signed readiness receipts.
+    pub peer_verifying_keys: router_ab_cloudflare::CloudflareSignerPeerVerifyingKeySetV1,
+    /// Wallet Session JWT verifier and project policy, parsed exactly as the
+    /// Cloudflare Router parses them.
+    pub admission_bindings: router_ab_cloudflare::CloudflareRouterAdmissionBindingsV1,
+    /// Tenant-root provisioning and the Router-owned creation state.
+    #[serde(skip)]
+    pub tenant_root: LocalRouterTenantRootConfigV1,
 }
 
 /// Deriver A local worker config after raw env parsing.
@@ -1191,8 +670,9 @@ pub struct LocalDeriverAWorkerConfigV1 {
     pub deriver_b_url: String,
     /// Deriver A envelope HPKE private key.
     pub envelope_hpke_private_key: String,
-    /// Authenticated Deriver A role-share map.
-    pub tenant_root_role_shares: LocalTenantRootRoleSharesConfigV1,
+    /// Tenant-root role share store, managed backups and ceremony peers.
+    #[serde(skip)]
+    pub tenant_root: LocalDeriverTenantRootConfigV1,
     /// Deriver B HPKE public key used to seal A's V2 target proof.
     pub target_proof_peer_public_key: String,
     /// Deriver A peer signing key.
@@ -1203,6 +683,9 @@ pub struct LocalDeriverAWorkerConfigV1 {
     pub deriver_b_peer_verifying_key: String,
     /// Deriver A role-private SQLite path.
     pub role_private_storage_path: String,
+    /// Role-shared credential for Router and peer calls.
+    #[serde(skip_serializing)]
+    pub internal_service_auth: String,
 }
 
 /// Deriver B local worker config after raw env parsing.
@@ -1214,8 +697,9 @@ pub struct LocalDeriverBWorkerConfigV1 {
     pub deriver_a_url: String,
     /// Deriver B envelope HPKE private key.
     pub envelope_hpke_private_key: String,
-    /// Authenticated Deriver B role-share map.
-    pub tenant_root_role_shares: LocalTenantRootRoleSharesConfigV1,
+    /// Tenant-root role share store, managed backups and ceremony peers.
+    #[serde(skip)]
+    pub tenant_root: LocalDeriverTenantRootConfigV1,
     /// Deriver A HPKE public key used to seal B's V2 target proof.
     pub target_proof_peer_public_key: String,
     /// Deriver B peer signing key.
@@ -1226,6 +710,9 @@ pub struct LocalDeriverBWorkerConfigV1 {
     pub deriver_b_peer_verifying_key: String,
     /// Deriver B role-private SQLite path.
     pub role_private_storage_path: String,
+    /// Role-shared credential for Router and peer calls.
+    #[serde(skip_serializing)]
+    pub internal_service_auth: String,
 }
 
 /// SigningWorker local worker config after raw env parsing.
@@ -1243,6 +730,18 @@ pub struct LocalSigningWorkerConfigV1 {
     pub server_output_hpke_private_key: String,
     /// SigningWorker role-private SQLite path.
     pub role_private_storage_path: String,
+    /// Role-shared credential for Router and peer calls.
+    #[serde(skip_serializing)]
+    pub internal_service_auth: String,
+    /// The Router's credential for ECDSA activation and signing.
+    #[serde(skip_serializing)]
+    pub router_to_signing_worker_ecdsa_auth: String,
+    /// The Gateway's credential for owner ECDSA presignature sessions.
+    #[serde(skip_serializing)]
+    pub gateway_to_signing_worker_presign_auth: String,
+    /// The role's bindings under their Cloudflare names.
+    #[serde(skip)]
+    pub cloudflare_env: router_ab_cloudflare::CloudflareEnvMapV1,
 }
 
 /// Role-specific local worker config.
@@ -1260,6 +759,16 @@ pub enum LocalWorkerRoleConfigV1 {
 }
 
 impl LocalWorkerRoleConfigV1 {
+    /// Role-shared credential this process presents to and expects from peers.
+    pub fn internal_service_auth(&self) -> &str {
+        match self {
+            Self::Router(config) => &config.internal_service_auth,
+            Self::DeriverA(config) => &config.internal_service_auth,
+            Self::DeriverB(config) => &config.internal_service_auth,
+            Self::SigningWorker(config) => &config.internal_service_auth,
+        }
+    }
+
     /// Returns this config's local service role.
     pub fn role(&self) -> LocalServiceRoleV1 {
         match self {
@@ -1341,6 +850,17 @@ pub struct LocalEnvMaterializedFileV1 {
     pub contents: String,
 }
 
+/// A generated env file for a tenant-root process or the operator.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct LocalEnvMaterializedTenantRootFileV1 {
+    /// `tenant_root_control_plane` or `tenant_root_operator`.
+    pub label: String,
+    /// Relative path to write.
+    pub path: String,
+    /// File contents.
+    pub contents: String,
+}
+
 /// Files and directories needed by the local Router/A/B dev harness.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct LocalEnvMaterializationPlanV1 {
@@ -1348,6 +868,8 @@ pub struct LocalEnvMaterializationPlanV1 {
     pub directories: Vec<String>,
     /// Env files to write.
     pub files: Vec<LocalEnvMaterializedFileV1>,
+    /// The control-plane and operator env files.
+    pub tenant_root_files: Vec<LocalEnvMaterializedTenantRootFileV1>,
 }
 
 impl LocalEnvMaterializationPlanV1 {
@@ -1356,9 +878,20 @@ impl LocalEnvMaterializationPlanV1 {
         require_exact_len_v1(
             "local env materialization directories",
             self.directories.len(),
-            3,
+            4,
         )?;
         require_exact_len_v1("local env materialization files", self.files.len(), 4)?;
+        require_exact_len_v1(
+            "local env materialization tenant-root files",
+            self.tenant_root_files.len(),
+            2,
+        )?;
+        for file in &self.tenant_root_files {
+            let entries = parse_local_env_file_contents_v1(&file.contents)?;
+            if file.label == LOCAL_TENANT_ROOT_CONTROL_PLANE_ENV_LABEL_V1 {
+                parse_local_tenant_root_control_plane_config_v1(entries)?;
+            }
+        }
         for directory in &self.directories {
             require_non_empty("local state directory", directory)?;
         }
@@ -1385,44 +918,61 @@ pub fn local_env_materialization_plan_v1(
     seed: &[u8],
 ) -> RouterAbProtocolResult<LocalEnvMaterializationPlanV1> {
     require_non_empty("local env materialization seed", &hex::encode(seed))?;
+    let tenant_root = local_tenant_root_env::local_tenant_root_env_lines_v1(seed)?;
+    let role_file = |role, path: &str, template: &str, tenant_root_lines: &str| {
+        Ok::<_, RouterAbProtocolError>(LocalEnvMaterializedFileV1 {
+            role,
+            path: path.to_owned(),
+            contents: materialize_template_v1(&format!("{template}{tenant_root_lines}"), seed)?
+                .replace(
+                    "dev-only-tenant-root-deployment-authority",
+                    &tenant_root.deployment_authority_id,
+                ),
+        })
+    };
     let plan = LocalEnvMaterializationPlanV1 {
         directories: vec![
+            LOCAL_ROUTER_STATE_DIR_V1.to_owned(),
             LOCAL_DERIVER_A_STATE_DIR_V1.to_owned(),
             LOCAL_DERIVER_B_STATE_DIR_V1.to_owned(),
             LOCAL_SIGNING_WORKER_STATE_DIR_V1.to_owned(),
         ],
         files: vec![
-            LocalEnvMaterializedFileV1 {
-                role: LocalServiceRoleV1::Router,
-                path: LOCAL_ROUTER_ENV_FILE_V1.to_owned(),
-                contents: materialize_template_v1(
-                    include_str!("../env/router.local.example"),
-                    seed,
-                )?,
+            role_file(
+                LocalServiceRoleV1::Router,
+                LOCAL_ROUTER_ENV_FILE_V1,
+                include_str!("../env/router.local.example"),
+                &tenant_root.router,
+            )?,
+            role_file(
+                LocalServiceRoleV1::DeriverA,
+                LOCAL_DERIVER_A_ENV_FILE_V1,
+                include_str!("../env/deriver-a.local.example"),
+                &tenant_root.deriver_a,
+            )?,
+            role_file(
+                LocalServiceRoleV1::DeriverB,
+                LOCAL_DERIVER_B_ENV_FILE_V1,
+                include_str!("../env/deriver-b.local.example"),
+                &tenant_root.deriver_b,
+            )?,
+            role_file(
+                LocalServiceRoleV1::SigningWorker,
+                LOCAL_SIGNING_WORKER_ENV_FILE_V1,
+                include_str!("../env/signing-worker.local.example"),
+                "",
+            )?,
+        ],
+        tenant_root_files: vec![
+            LocalEnvMaterializedTenantRootFileV1 {
+                label: LOCAL_TENANT_ROOT_CONTROL_PLANE_ENV_LABEL_V1.to_owned(),
+                path: LOCAL_TENANT_ROOT_CONTROL_PLANE_ENV_FILE_V1.to_owned(),
+                contents: materialize_template_v1(&tenant_root.control_plane, seed)?,
             },
-            LocalEnvMaterializedFileV1 {
-                role: LocalServiceRoleV1::DeriverA,
-                path: LOCAL_DERIVER_A_ENV_FILE_V1.to_owned(),
-                contents: materialize_template_v1(
-                    include_str!("../env/deriver-a.local.example"),
-                    seed,
-                )?,
-            },
-            LocalEnvMaterializedFileV1 {
-                role: LocalServiceRoleV1::DeriverB,
-                path: LOCAL_DERIVER_B_ENV_FILE_V1.to_owned(),
-                contents: materialize_template_v1(
-                    include_str!("../env/deriver-b.local.example"),
-                    seed,
-                )?,
-            },
-            LocalEnvMaterializedFileV1 {
-                role: LocalServiceRoleV1::SigningWorker,
-                path: LOCAL_SIGNING_WORKER_ENV_FILE_V1.to_owned(),
-                contents: materialize_template_v1(
-                    include_str!("../env/signing-worker.local.example"),
-                    seed,
-                )?,
+            LocalEnvMaterializedTenantRootFileV1 {
+                label: LOCAL_TENANT_ROOT_OPERATOR_ENV_LABEL_V1.to_owned(),
+                path: LOCAL_TENANT_ROOT_OPERATOR_ENV_FILE_V1.to_owned(),
+                contents: tenant_root.operator,
             },
         ],
     };
@@ -1520,10 +1070,18 @@ pub fn parse_local_worker_role_config_for_role_v1(
                     &env,
                     LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET_ENV_V1,
                 )?,
-                tenant_root_resolver: parse_local_tenant_root_bindings_json_v1(&required_env_v1(
-                    &env,
-                    LOCAL_TENANT_ROOT_BINDINGS_JSON_ENV_V1,
-                )?)?,
+                gateway_to_router_auth: required_gateway_to_router_auth_v1(&env)?,
+                router_to_signing_worker_ecdsa_auth:
+                    required_router_to_signing_worker_ecdsa_auth_v1(&env)?,
+                peer_verifying_keys: required_peer_verifying_keys_v1(&env)?,
+                admission_bindings: router_ab_cloudflare::parse_cloudflare_router_admission_bindings_v1(
+                    &router_ab_cloudflare::CloudflareEnvMapV1::new(
+                        env.iter()
+                            .map(|(key, value)| (key.clone(), value.clone()))
+                            .collect(),
+                    ),
+                )?,
+                tenant_root: parse_local_router_tenant_root_config_v1(&env)?,
             }))
         }
         LocalServiceRoleV1::DeriverA => {
@@ -1536,8 +1094,9 @@ pub fn parse_local_worker_role_config_for_role_v1(
                         &env,
                         LOCAL_DERIVER_A_ENVELOPE_HPKE_PRIVATE_KEY_ENV_V1,
                     )?,
-                    tenant_root_role_shares: parse_local_tenant_root_role_shares_json_v1(
-                        &required_env_v1(&env, LOCAL_TENANT_ROOT_ROLE_SHARES_JSON_ENV_V1)?,
+                    tenant_root: parse_local_deriver_tenant_root_config_v1(
+                        &env,
+                        router_ab_cloudflare::CloudflareWorkerRoleV1::DeriverA,
                     )?,
                     target_proof_peer_public_key: required_x25519_public_key_env_v1(
                         &env,
@@ -1559,6 +1118,10 @@ pub fn parse_local_worker_role_config_for_role_v1(
                         &env,
                         LOCAL_DERIVER_A_ROLE_PRIVATE_STORAGE_PATH_ENV_V1,
                     )?,
+                    internal_service_auth: required_env_v1(
+                        &env,
+                        LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET_ENV_V1,
+                    )?,
                 },
             ))
         }
@@ -1572,8 +1135,9 @@ pub fn parse_local_worker_role_config_for_role_v1(
                         &env,
                         LOCAL_DERIVER_B_ENVELOPE_HPKE_PRIVATE_KEY_ENV_V1,
                     )?,
-                    tenant_root_role_shares: parse_local_tenant_root_role_shares_json_v1(
-                        &required_env_v1(&env, LOCAL_TENANT_ROOT_ROLE_SHARES_JSON_ENV_V1)?,
+                    tenant_root: parse_local_deriver_tenant_root_config_v1(
+                        &env,
+                        router_ab_cloudflare::CloudflareWorkerRoleV1::DeriverB,
                     )?,
                     target_proof_peer_public_key: required_x25519_public_key_env_v1(
                         &env,
@@ -1594,6 +1158,10 @@ pub fn parse_local_worker_role_config_for_role_v1(
                     role_private_storage_path: required_env_v1(
                         &env,
                         LOCAL_DERIVER_B_ROLE_PRIVATE_STORAGE_PATH_ENV_V1,
+                    )?,
+                    internal_service_auth: required_env_v1(
+                        &env,
+                        LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET_ENV_V1,
                     )?,
                 },
             ))
@@ -1620,6 +1188,16 @@ pub fn parse_local_worker_role_config_for_role_v1(
                         &env,
                         LOCAL_SIGNING_WORKER_PRIVATE_STORAGE_PATH_ENV_V1,
                     )?,
+                    internal_service_auth: required_env_v1(
+                        &env,
+                        LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET_ENV_V1,
+                    )?,
+                    router_to_signing_worker_ecdsa_auth:
+                        required_router_to_signing_worker_ecdsa_auth_v1(&env)?,
+                    gateway_to_signing_worker_presign_auth:
+                        required_gateway_to_signing_worker_presign_auth_v1(&env)?,
+                    cloudflare_env:
+                        local_cloudflare_bindings::local_signing_worker_cloudflare_env_v1(&env)?,
                 },
             ))
         }
@@ -1782,551 +1360,6 @@ pub fn handle_local_deriver_peer_message_v1(
     })
 }
 
-/// Private SigningWorker request to fill the local Router A/B ECDSA derivation presignature pool.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct LocalSigningWorkerRouterAbEcdsaDerivationPresignaturePoolPutRequestV1 {
-    /// Normal-signing identity and active SigningWorker scope.
-    pub scope: RouterAbEcdsaDerivationNormalSigningScopeV1,
-    /// Client-selected presignature id shared by the client and SigningWorker.
-    pub server_presignature_id: String,
-    /// Compressed secp256k1 presignature R point encoded as unpadded base64url.
-    pub server_big_r33_b64u: String,
-    /// SigningWorker-local ECDSA presignature k share encoded as unpadded base64url.
-    pub server_k_share32_b64u: String,
-    /// SigningWorker-local ECDSA presignature sigma share encoded as unpadded base64url.
-    pub server_sigma_share32_b64u: String,
-    /// Expiry timestamp in Unix milliseconds.
-    pub expires_at_ms: u64,
-}
-
-impl LocalSigningWorkerRouterAbEcdsaDerivationPresignaturePoolPutRequestV1 {
-    /// Validates request fields without applying wall-clock expiry.
-    pub fn validate(&self) -> RouterAbProtocolResult<()> {
-        self.scope.validate()?;
-        require_non_empty("server_presignature_id", &self.server_presignature_id)?;
-        decode_base64url_fixed_33_v1("server_big_r33_b64u", &self.server_big_r33_b64u)?;
-        decode_base64url_fixed_32_v1("server_k_share32_b64u", &self.server_k_share32_b64u)?;
-        decode_base64url_fixed_32_v1("server_sigma_share32_b64u", &self.server_sigma_share32_b64u)?;
-        require_positive_unix_ms_v1(
-            "Router A/B ECDSA derivation presignature pool fill expires_at_ms",
-            self.expires_at_ms,
-        )
-    }
-
-    /// Validates this pool-fill request can be accepted at the supplied timestamp.
-    pub fn validate_at(&self, now_unix_ms: u64) -> RouterAbProtocolResult<()> {
-        self.validate()?;
-        require_positive_unix_ms_v1(
-            "Router A/B ECDSA derivation presignature pool fill now_unix_ms",
-            now_unix_ms,
-        )?;
-        if self.expires_at_ms <= now_unix_ms {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::ExpiredLocalRequest,
-                "Router A/B ECDSA derivation presignature pool fill request expired",
-            ));
-        }
-        Ok(())
-    }
-
-    fn to_pool_record(
-        &self,
-        active_signing_worker_state: ActiveSigningWorkerStateV1,
-        now_unix_ms: u64,
-    ) -> RouterAbProtocolResult<CloudflareSigningWorkerEcdsaPresignaturePoolRecordV1> {
-        self.validate_at(now_unix_ms)?;
-        CloudflareSigningWorkerEcdsaPresignaturePoolRecordV1::new(
-            self.scope.clone(),
-            active_signing_worker_state,
-            self.server_presignature_id.clone(),
-            self.server_big_r33_b64u.clone(),
-            self.server_k_share32_b64u.clone(),
-            self.server_sigma_share32_b64u.clone(),
-            now_unix_ms,
-            self.expires_at_ms,
-        )
-    }
-}
-
-/// Local Router admission attached to a private Router A/B ECDSA derivation SigningWorker request.
-#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct LocalRouterAbEcdsaDerivationTrustedAdmissionV1 {
-    /// Wallet/account id admitted by Router.
-    pub account_id: String,
-    /// Active Router A/B ECDSA derivation signing session id admitted by Router.
-    pub session_id: String,
-    /// Canonical request digest admitted by Router.
-    pub request_digest: PublicDigest32,
-    /// Exact EVM digest admitted for SigningWorker signing.
-    pub signing_digest: PublicDigest32,
-    /// Admission timestamp in Unix milliseconds.
-    pub admitted_at_ms: u64,
-    /// Expiry timestamp copied from the admitted request.
-    pub expires_at_ms: u64,
-}
-
-impl LocalRouterAbEcdsaDerivationTrustedAdmissionV1 {
-    fn validate_common(&self) -> RouterAbProtocolResult<()> {
-        require_non_empty(
-            "local Router A/B ECDSA derivation admission account_id",
-            &self.account_id,
-        )?;
-        require_non_empty(
-            "local Router A/B ECDSA derivation admission session_id",
-            &self.session_id,
-        )?;
-        require_positive_unix_ms_v1(
-            "local Router A/B ECDSA derivation admission admitted_at_ms",
-            self.admitted_at_ms,
-        )?;
-        require_positive_unix_ms_v1(
-            "local Router A/B ECDSA derivation admission expires_at_ms",
-            self.expires_at_ms,
-        )?;
-        if self.expires_at_ms <= self.admitted_at_ms {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidGateDecision,
-                "local Router A/B ECDSA derivation admission expiry must be after admission",
-            ));
-        }
-        Ok(())
-    }
-
-    fn validate_for_prepare(
-        &self,
-        request: &RouterAbEcdsaDerivationEvmDigestSigningRequestV1,
-    ) -> RouterAbProtocolResult<()> {
-        self.validate_common()?;
-        request.validate()?;
-        if self.account_id != request.scope.wallet_id {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidGateDecision,
-                "local Router A/B ECDSA derivation prepare admission account_id does not match request scope",
-            ));
-        }
-        if self.session_id != request.scope.material_activation.activation_id {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidGateDecision,
-                "local Router A/B ECDSA derivation prepare admission session_id does not match request scope",
-            ));
-        }
-        if self.request_digest != request.request_digest()?
-            || self.signing_digest != request.signing_digest()?
-            || self.expires_at_ms != request.expires_at_ms
-        {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidGateDecision,
-                "local Router A/B ECDSA derivation prepare admission does not match request",
-            ));
-        }
-        Ok(())
-    }
-
-    fn validate_for_finalize(
-        &self,
-        request: &RouterAbEcdsaDerivationEvmDigestSigningFinalizeRequestV1,
-    ) -> RouterAbProtocolResult<()> {
-        self.validate_common()?;
-        request.validate()?;
-        if self.account_id != request.scope.wallet_id {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidGateDecision,
-                "local Router A/B ECDSA derivation finalize admission account_id does not match request scope",
-            ));
-        }
-        if self.session_id != request.scope.material_activation.activation_id {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidGateDecision,
-                "local Router A/B ECDSA derivation finalize admission session_id does not match request scope",
-            ));
-        }
-        if self.request_digest != request.request_digest()?
-            || self.signing_digest != request.signing_digest()?
-            || self.expires_at_ms != request.expires_at_ms
-        {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidGateDecision,
-                "local Router A/B ECDSA derivation finalize admission does not match request",
-            ));
-        }
-        Ok(())
-    }
-}
-
-/// Local Router-admitted Router A/B ECDSA derivation prepare request sent to SigningWorker.
-#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct LocalSigningWorkerAdmittedRouterAbEcdsaDerivationPrepareRequestV1 {
-    /// Typed public Router A/B ECDSA derivation prepare request accepted by Router.
-    pub request: RouterAbEcdsaDerivationEvmDigestSigningRequestV1,
-    /// Trusted local Router admission for this exact request.
-    pub trusted_admission: LocalRouterAbEcdsaDerivationTrustedAdmissionV1,
-}
-
-impl LocalSigningWorkerAdmittedRouterAbEcdsaDerivationPrepareRequestV1 {
-    fn validate(&self) -> RouterAbProtocolResult<()> {
-        self.trusted_admission.validate_for_prepare(&self.request)
-    }
-}
-
-/// Local Router-admitted Router A/B ECDSA derivation finalize request sent to SigningWorker.
-#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct LocalSigningWorkerAdmittedRouterAbEcdsaDerivationFinalizeRequestV1 {
-    /// Typed public Router A/B ECDSA derivation finalize request accepted by Router.
-    pub request: RouterAbEcdsaDerivationEvmDigestSigningFinalizeRequestV1,
-    /// Trusted local Router admission for this exact finalize request.
-    pub trusted_admission: LocalRouterAbEcdsaDerivationTrustedAdmissionV1,
-}
-
-impl LocalSigningWorkerAdmittedRouterAbEcdsaDerivationFinalizeRequestV1 {
-    fn validate(&self) -> RouterAbProtocolResult<()> {
-        self.trusted_admission.validate_for_finalize(&self.request)
-    }
-}
-
-/// Handles the local SigningWorker Router A/B ECDSA derivation presignature pool-fill route.
-pub fn handle_local_signing_worker_router_ab_ecdsa_derivation_presignature_pool_put_json_v1(
-    config: &LocalSigningWorkerConfigV1,
-    receiver_role: LocalServiceRoleV1,
-    path: &str,
-    body: &[u8],
-) -> RouterAbProtocolResult<String> {
-    if receiver_role != LocalServiceRoleV1::SigningWorker {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidRole,
-            "local Router A/B ECDSA derivation presignature pool-fill route requires SigningWorker receiver",
-        ));
-    }
-    if path != LOCAL_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_PRESIGNATURE_POOL_PUT_PATH {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLocalHttpRequest,
-            format!(
-                "SigningWorker Router A/B ECDSA derivation presignature pool-fill route must be served at {}",
-                LOCAL_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_PRESIGNATURE_POOL_PUT_PATH
-            ),
-        ));
-    }
-    let now_unix_ms = local_now_unix_ms_v1()?;
-    let request = parse_local_json_body_v1::<
-        LocalSigningWorkerRouterAbEcdsaDerivationPresignaturePoolPutRequestV1,
-    >(
-        "local Router A/B ECDSA derivation presignature pool-fill request",
-        body,
-    )?;
-    request.validate_at(now_unix_ms)?;
-    let active_signing_worker_state =
-        local_active_router_ab_ecdsa_derivation_signing_worker_state_v1(config, &request.scope)?;
-    let record = request.to_pool_record(active_signing_worker_state, now_unix_ms)?;
-    let outcome = local_signing_worker_ecdsa_pool_mutate_v1(
-        CloudflareSigningWorkerEcdsaPoolCommandV1::PutAvailable {
-            material: record.clone(),
-        },
-    )?;
-    let CloudflareSigningWorkerEcdsaPoolMutationOutcomeV1::Available { stored, .. } = outcome
-    else {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLifecycleState,
-            "local SigningWorker ECDSA pool admission returned the wrong lifecycle outcome",
-        ));
-    };
-    let receipt = CloudflareSigningWorkerEcdsaPoolAdmissionReceiptV1::from_record(&record, stored)?;
-    serde_json::to_string(&receipt).map_err(|error| {
-        RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::MalformedWirePayload,
-            format!(
-                "local SigningWorker Router A/B ECDSA derivation presignature pool-fill receipt JSON serialization failed: {error}"
-            ),
-        )
-    })
-}
-
-/// Handles the local SigningWorker Router A/B ECDSA derivation digest-signing prepare route.
-pub fn handle_local_signing_worker_router_ab_ecdsa_derivation_prepare_json_v1(
-    config: &LocalSigningWorkerConfigV1,
-    receiver_role: LocalServiceRoleV1,
-    path: &str,
-    body: &[u8],
-) -> RouterAbProtocolResult<String> {
-    if receiver_role != LocalServiceRoleV1::SigningWorker {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidRole,
-            "local Router A/B ECDSA derivation prepare route requires SigningWorker receiver",
-        ));
-    }
-    if path != LOCAL_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PREPARE_PATH {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLocalHttpRequest,
-            format!(
-                "SigningWorker Router A/B ECDSA derivation prepare route must be served at {}",
-                LOCAL_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PREPARE_PATH
-            ),
-        ));
-    }
-    let now_unix_ms = local_now_unix_ms_v1()?;
-    let admitted = parse_local_json_body_v1::<
-        LocalSigningWorkerAdmittedRouterAbEcdsaDerivationPrepareRequestV1,
-    >(
-        "local admitted Router A/B ECDSA derivation prepare request",
-        body,
-    )?;
-    admitted.validate()?;
-    let request = admitted.request;
-    request.validate_at(now_unix_ms)?;
-    local_active_router_ab_ecdsa_derivation_signing_worker_state_v1(config, &request.scope)?;
-    let mut signing_worker_rerandomization_contribution32 = [0u8; 32];
-    let mut rng = OsRng;
-    rand_core::RngCore::fill_bytes(&mut rng, &mut signing_worker_rerandomization_contribution32);
-    let signing_worker_rerandomization_contribution32_b64u =
-        encode_base64url_bytes_v1(&signing_worker_rerandomization_contribution32);
-    let outcome = local_signing_worker_ecdsa_pool_mutate_v1(
-        CloudflareSigningWorkerEcdsaPoolCommandV1::Reserve {
-            scope: request.scope.clone(),
-            server_presignature_id: request.client_presignature_id.clone(),
-            expected_revision: 0,
-            request_digest: request.request_digest()?,
-            admitted_signing_digest: request.signing_digest()?,
-            signing_worker_rerandomization_contribution32_b64u,
-            reserved_at_ms: now_unix_ms,
-            request_expires_at_ms: request.expires_at_ms,
-        },
-    )?;
-    let CloudflareSigningWorkerEcdsaPoolMutationOutcomeV1::Reserved { record } = outcome else {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLifecycleState,
-            "local SigningWorker ECDSA reserve returned the wrong lifecycle outcome",
-        ));
-    };
-    let reserved_material = record.reserved_material()?;
-    let response = RouterAbEcdsaDerivationEvmDigestSigningPrepareResponseV1::new_for_request(
-        &request,
-        reserved_material.server_presignature_id.clone(),
-        reserved_material.server_big_r33_b64u.clone(),
-        reserved_material
-            .signing_worker_rerandomization_contribution32_b64u
-            .clone(),
-        now_unix_ms,
-    )?;
-    serde_json::to_string(&response).map_err(|error| {
-        RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::MalformedWirePayload,
-            format!(
-                "local SigningWorker Router A/B ECDSA derivation prepare response JSON serialization failed: {error}"
-            ),
-        )
-    })
-}
-
-/// Handles the local SigningWorker Router A/B ECDSA derivation digest-signing finalize route.
-pub fn handle_local_signing_worker_router_ab_ecdsa_derivation_finalize_json_v1(
-    config: &LocalSigningWorkerConfigV1,
-    receiver_role: LocalServiceRoleV1,
-    path: &str,
-    body: &[u8],
-) -> RouterAbProtocolResult<String> {
-    if receiver_role != LocalServiceRoleV1::SigningWorker {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidRole,
-            "local Router A/B ECDSA derivation finalize route requires SigningWorker receiver",
-        ));
-    }
-    if path != LOCAL_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PATH {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLocalHttpRequest,
-            format!(
-                "SigningWorker Router A/B ECDSA derivation finalize route must be served at {}",
-                LOCAL_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PATH
-            ),
-        ));
-    }
-    let now_unix_ms = local_now_unix_ms_v1()?;
-    let admitted = parse_local_json_body_v1::<
-        LocalSigningWorkerAdmittedRouterAbEcdsaDerivationFinalizeRequestV1,
-    >(
-        "local admitted Router A/B ECDSA derivation finalize request",
-        body,
-    )?;
-    admitted.validate()?;
-    let request = admitted.request;
-    request.validate_at(now_unix_ms)?;
-    let prepare_request_digest = request.prepare_request_digest()?;
-    let consume_outcome = local_signing_worker_ecdsa_pool_mutate_v1(
-        CloudflareSigningWorkerEcdsaPoolCommandV1::Consume {
-            scope: request.scope.clone(),
-            server_presignature_id: request.server_presignature_id.clone(),
-            expected_revision: 1,
-            request_digest: prepare_request_digest,
-            now_unix_ms,
-        },
-    )?;
-    let server_presignature = match consume_outcome {
-        CloudflareSigningWorkerEcdsaPoolMutationOutcomeV1::Consumed {
-            record: _,
-            material,
-        } => material,
-        CloudflareSigningWorkerEcdsaPoolMutationOutcomeV1::Burned { .. } => {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::ReplayedLocalRequest,
-                "local SigningWorker ECDSA reservation was terminally burned",
-            ));
-        }
-        _ => {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLifecycleState,
-                "local SigningWorker ECDSA consume returned the wrong lifecycle outcome",
-            ));
-        }
-    };
-    let active_signing_worker_state =
-        local_active_router_ab_ecdsa_derivation_signing_worker_state_v1(config, &request.scope)?;
-    let response = finalize_consumed_local_signing_worker_ecdsa_v1(
-        &server_presignature,
-        &active_signing_worker_state,
-        &request,
-        now_unix_ms,
-    )?;
-    serde_json::to_string(&response).map_err(|error| {
-        RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::MalformedWirePayload,
-            format!(
-                "local SigningWorker Router A/B ECDSA derivation finalize response JSON serialization failed: {error}"
-            ),
-        )
-    })
-}
-
-fn finalize_consumed_local_signing_worker_ecdsa_v1(
-    record: &CloudflareSigningWorkerEcdsaPresignatureRecordV1,
-    active_signing_worker_state: &ActiveSigningWorkerStateV1,
-    request: &RouterAbEcdsaDerivationEvmDigestSigningFinalizeRequestV1,
-    now_unix_ms: u64,
-) -> RouterAbProtocolResult<RouterAbEcdsaDerivationEvmDigestSigningResponseV1> {
-    record.validate_for_request(
-        active_signing_worker_state,
-        &request.server_presignature_id,
-        request.prepare_request_digest()?,
-        request.signing_digest()?,
-        now_unix_ms,
-    )?;
-    finalize_local_signing_worker_ecdsa_v1(record, request)
-}
-
-fn finalize_local_signing_worker_ecdsa_v1(
-    record: &CloudflareSigningWorkerEcdsaPresignatureRecordV1,
-    request: &RouterAbEcdsaDerivationEvmDigestSigningFinalizeRequestV1,
-) -> RouterAbProtocolResult<RouterAbEcdsaDerivationEvmDigestSigningResponseV1> {
-    let public_key33 = decode_base64url_fixed_33_v1(
-        "local Router A/B ECDSA derivation threshold_public_key33_b64u",
-        &request.scope.public_identity.threshold_public_key33_b64u,
-    )?;
-    let server_big_r33 = decode_base64url_fixed_33_v1(
-        "local Router A/B ECDSA derivation server_big_r33_b64u",
-        &record.server_big_r33_b64u,
-    )?;
-    let server_k_share32 = decode_base64url_fixed_32_v1(
-        "local Router A/B ECDSA derivation server_k_share32_b64u",
-        &record.server_k_share32_b64u,
-    )?;
-    let server_sigma_share32 = decode_base64url_fixed_32_v1(
-        "local Router A/B ECDSA derivation server_sigma_share32_b64u",
-        &record.server_sigma_share32_b64u,
-    )?;
-    let signing_worker_rerandomization_contribution32 = decode_base64url_fixed_32_v1(
-        "local Router A/B ECDSA derivation signing_worker_rerandomization_contribution32_b64u",
-        &record.signing_worker_rerandomization_contribution32_b64u,
-    )?;
-    let rerandomization_entropy32 = combine_rerandomization_contributions(
-        request.client_rerandomization_contribution32()?,
-        signing_worker_rerandomization_contribution32,
-    );
-    let material = SigningWorkerPresignMaterial::from_bytes(
-        server_big_r33,
-        server_k_share32,
-        server_sigma_share32,
-    )
-    .map_err(map_online_ecdsa_error_v1)?;
-    let input = SigningWorkerOnlineInput::new(
-        public_key33,
-        server_big_r33,
-        *record.admitted_signing_digest.as_bytes(),
-        rerandomization_entropy32,
-    )
-    .map_err(map_online_ecdsa_error_v1)?;
-    let committed = material
-        .reserve()
-        .commit(input)
-        .map_err(map_online_ecdsa_error_v1)?;
-    let signature65 =
-        finalize_signing_worker_signature(committed, request.client_signature_share32()?)
-            .map_err(map_online_ecdsa_error_v1)?;
-    let response = RouterAbEcdsaDerivationEvmDigestSigningResponseV1 {
-        scope: request.scope.clone(),
-        request_id: request.request_id.clone(),
-        request_digest: request.request_digest()?,
-        signing_digest: request.signing_digest()?,
-        signature_scheme: RouterAbEcdsaDerivationSignatureSchemeV1::EcdsaSecp256k1RecoverableV1,
-        signature65_b64u: encode_base64url_bytes_v1(&signature65),
-    };
-    response.validate()?;
-    Ok(response)
-}
-
-fn parse_local_json_body_v1<T>(label: &str, body: &[u8]) -> RouterAbProtocolResult<T>
-where
-    T: DeserializeOwned,
-{
-    serde_json::from_slice::<T>(body).map_err(|error| {
-        RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::MalformedWirePayload,
-            format!("{label} JSON parse failed: {error}"),
-        )
-    })
-}
-
-fn local_active_router_ab_ecdsa_derivation_signing_worker_state_v1(
-    config: &LocalSigningWorkerConfigV1,
-    scope: &RouterAbEcdsaDerivationNormalSigningScopeV1,
-) -> RouterAbProtocolResult<ActiveSigningWorkerStateV1> {
-    scope.validate()?;
-    let signing_worker = ServerIdentityV1::new(
-        config.signing_worker_id.clone(),
-        config.signing_worker_key_epoch.clone(),
-        config.server_output_hpke_public_key.clone(),
-    )?;
-    if scope.signing_worker != signing_worker {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLifecycleState,
-            "local Router A/B ECDSA derivation scope SigningWorker does not match local worker config",
-        ));
-    }
-    let state = ActiveSigningWorkerStateV1::new(
-        scope.wallet_id.clone(),
-        scope.material_activation.clone(),
-        scope.public_identity.threshold_public_key33_b64u.clone(),
-        signing_worker,
-        local_router_ab_ecdsa_derivation_digest_v1(b"activation-transcript"),
-        local_router_ab_ecdsa_derivation_digest_v1(b"activation"),
-        format!(
-            "local-router-ab-ecdsa-derivation/{}/{}/{}",
-            scope.ecdsa_threshold_key_id, scope.signing_root_version, scope.activation_epoch
-        ),
-        LOCAL_NORMAL_SIGNING_ACTIVATION_MS_V1,
-    )?;
-    if state.signing_worker != scope.signing_worker {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLifecycleState,
-            "local Router A/B ECDSA derivation active state SigningWorker mismatch",
-        ));
-    }
-    Ok(state)
-}
-
-fn local_router_ab_ecdsa_derivation_digest_v1(label: &[u8]) -> PublicDigest32 {
-    let mut hasher = Sha256::new();
-    push_hash_field_v1(&mut hasher, b"router-ab-dev/router-ab-ecdsa-derivation/v1");
-    push_hash_field_v1(&mut hasher, label);
-    PublicDigest32::new(hasher.finalize().into())
-}
-
 fn local_now_unix_ms_v1() -> RouterAbProtocolResult<u64> {
     let elapsed = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -2342,69 +1375,6 @@ fn local_now_unix_ms_v1() -> RouterAbProtocolResult<u64> {
             "local Unix timestamp exceeds u64 milliseconds",
         )
     })
-}
-
-fn encode_base64url_bytes_v1(bytes: &[u8]) -> String {
-    base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(bytes)
-}
-
-fn decode_base64url_fixed_32_v1(field: &str, encoded: &str) -> RouterAbProtocolResult<[u8; 32]> {
-    let bytes = decode_base64url_bytes_v1(field, encoded)?;
-    bytes.try_into().map_err(|bytes: Vec<u8>| {
-        RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::MalformedWirePayload,
-            format!("{field} must decode to 32 bytes, received {}", bytes.len()),
-        )
-    })
-}
-
-fn decode_base64url_fixed_33_v1(field: &str, encoded: &str) -> RouterAbProtocolResult<[u8; 33]> {
-    let bytes = decode_base64url_bytes_v1(field, encoded)?;
-    bytes.try_into().map_err(|bytes: Vec<u8>| {
-        RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::MalformedWirePayload,
-            format!("{field} must decode to 33 bytes, received {}", bytes.len()),
-        )
-    })
-}
-
-fn decode_base64url_bytes_v1(field: &str, encoded: &str) -> RouterAbProtocolResult<Vec<u8>> {
-    require_non_empty(field, encoded)?;
-    require_no_ascii_whitespace_v1(field, encoded)?;
-    if encoded.contains('=') {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::MalformedWirePayload,
-            format!("{field} must be unpadded base64url"),
-        ));
-    }
-    base64::engine::general_purpose::URL_SAFE_NO_PAD
-        .decode(encoded.as_bytes())
-        .map_err(|error| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::MalformedWirePayload,
-                format!("{field} base64url decode failed: {error}"),
-            )
-        })
-}
-
-fn require_no_ascii_whitespace_v1(field: &str, value: &str) -> RouterAbProtocolResult<()> {
-    if value.bytes().any(|byte| byte.is_ascii_whitespace()) {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::MalformedWirePayload,
-            format!("{field} must not contain ASCII whitespace"),
-        ));
-    }
-    Ok(())
-}
-
-fn require_positive_unix_ms_v1(field: &str, value: u64) -> RouterAbProtocolResult<()> {
-    if value == 0 {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidTimeRange,
-            format!("{field} must be positive"),
-        ));
-    }
-    Ok(())
 }
 
 /// SQLite executor for protocol-generated local seed statements.
@@ -2951,16 +1921,18 @@ fn parse_http_url_parts_v1(url: &str) -> RouterAbProtocolResult<LocalHttpUrlPart
     })
 }
 
+/// Splits a peer's HTTP response. A truncated or malformed response is a peer
+/// transport failure, not an error in the caller's request.
 fn split_local_http_response_v1(response: &[u8]) -> RouterAbProtocolResult<(u16, Vec<u8>)> {
     let Some(header_end) = response.windows(4).position(|window| window == b"\r\n\r\n") else {
         return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLocalHttpRequest,
+            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
             "local HTTP service-binding response missing header terminator",
         ));
     };
     let headers = std::str::from_utf8(&response[..header_end]).map_err(|error| {
         RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLocalHttpRequest,
+            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
             format!("local HTTP service-binding response headers are not UTF-8: {error}"),
         )
     })?;
@@ -2969,7 +1941,7 @@ fn split_local_http_response_v1(response: &[u8]) -> RouterAbProtocolResult<(u16,
     let protocol = status_parts.next().unwrap_or_default();
     if protocol != "HTTP/1.1" && protocol != "HTTP/1.0" {
         return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLocalHttpRequest,
+            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
             "local HTTP service-binding response has invalid HTTP version",
         ));
     }
@@ -2979,16 +1951,18 @@ fn split_local_http_response_v1(response: &[u8]) -> RouterAbProtocolResult<(u16,
         .parse::<u16>()
         .map_err(|error| {
             RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalHttpRequest,
+                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
                 format!("local HTTP service-binding response status is invalid: {error}"),
             )
         })?;
     Ok((status, response[header_end + 4..].to_vec()))
 }
 
+/// Maps an I/O failure on a call to a peer: a transport failure, not an error
+/// in the caller's request.
 fn map_local_http_io_error_v1(error: std::io::Error) -> RouterAbProtocolError {
     RouterAbProtocolError::new(
-        RouterAbProtocolErrorCode::InvalidLocalHttpRequest,
+        RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
         format!("local HTTP service-binding I/O failed: {error}"),
     )
 }
@@ -2997,6 +1971,19 @@ fn materialize_template_v1(template: &str, seed: &[u8]) -> RouterAbProtocolResul
     require_non_empty("local env materialization template", template)?;
     let mut contents = template.to_owned();
     for (placeholder, label) in [
+        (
+            "dev-only-role-shared-service-auth",
+            "role-shared-service-auth",
+        ),
+        ("dev-only-gateway-to-router-auth", "gateway-to-router-auth"),
+        (
+            "dev-only-router-to-signing-worker-ecdsa-auth",
+            "router-to-signing-worker-ecdsa-auth",
+        ),
+        (
+            "dev-only-gateway-to-signing-worker-presign-auth",
+            "gateway-to-signing-worker-presign-auth",
+        ),
         (
             "dev-only-deriver-a-peer-signing-key",
             "deriver-a-peer-signing-key",
@@ -3010,6 +1997,8 @@ fn materialize_template_v1(template: &str, seed: &[u8]) -> RouterAbProtocolResul
         let material = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(seed_bytes);
         contents = contents.replace(placeholder, &material);
     }
+    // The Router template carries parseable placeholder verifying keys (it
+    // validates them at startup); the Derivers carry named placeholders.
     for (placeholder, label) in [
         (
             "dev-only-deriver-a-peer-verifying-key",
@@ -3017,6 +2006,14 @@ fn materialize_template_v1(template: &str, seed: &[u8]) -> RouterAbProtocolResul
         ),
         (
             "dev-only-deriver-b-peer-verifying-key",
+            "deriver-b-peer-signing-key",
+        ),
+        (
+            "c050c5637a44fa8629fff3cccce2300cb362a63d99d95fc54145266f4332445a",
+            "deriver-a-peer-signing-key",
+        ),
+        (
+            "2012cb90ca60e8e5d8daf66e2272d2233e0486d557e8c66141ed8920177d7eb7",
             "deriver-b-peer-signing-key",
         ),
     ] {
@@ -3049,6 +2046,14 @@ fn materialize_template_v1(template: &str, seed: &[u8]) -> RouterAbProtocolResul
             &hex::encode(key_pair.private_key.as_bytes()),
         );
     }
+    let gateway_ceremony_seed = local_generated_secret_bytes_v1("gateway-ceremony-jwt-signing-key", seed)?;
+    let gateway_ceremony_public = ed25519_dalek::SigningKey::from_bytes(&gateway_ceremony_seed)
+        .verifying_key()
+        .to_bytes();
+    contents = contents.replace(
+        "-AzM3OSuHAeuIIoq35mjEK5CB-Awb6AjYRCwaCe7uNA",
+        &base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(gateway_ceremony_public),
+    );
     let signing_worker_hpke_ikm =
         local_generated_secret_bytes_v1("signing-worker-server-output-hpke-key-pair", seed)?;
     let signing_worker_hpke =
@@ -3061,10 +2066,25 @@ fn materialize_template_v1(template: &str, seed: &[u8]) -> RouterAbProtocolResul
         "x25519:3333333333333333333333333333333333333333333333333333333333333333",
         &format!("x25519:{}", hex::encode(signing_worker_hpke.public_key)),
     );
+    // The key that seals the SigningWorker's wallet rows at rest.
+    let wallet_kek_ikm =
+        local_generated_secret_bytes_v1("signing-worker-private-d1-kek-key-pair", seed)?;
+    let wallet_kek = derive_local_ed25519_yao_recipient_key_pair_v1(&wallet_kek_ikm)?;
+    contents = contents.replace(
+        "6666666666666666666666666666666666666666666666666666666666666666",
+        &hex::encode(wallet_kek.private_key.as_bytes()),
+    );
+    contents = contents.replace(
+        "x25519:5555555555555555555555555555555555555555555555555555555555555555",
+        &format!("x25519:{}", hex::encode(wallet_kek.public_key)),
+    );
     Ok(contents)
 }
 
-fn local_generated_secret_bytes_v1(label: &str, seed: &[u8]) -> RouterAbProtocolResult<[u8; 32]> {
+pub(crate) fn local_generated_secret_bytes_v1(
+    label: &str,
+    seed: &[u8],
+) -> RouterAbProtocolResult<[u8; 32]> {
     require_non_empty("local generated secret label", label)?;
     if seed.is_empty() {
         return Err(RouterAbProtocolError::new(
@@ -3104,10 +2124,11 @@ fn required_hex_32_env_v1(
     key: &'static str,
 ) -> RouterAbProtocolResult<String> {
     let value = required_env_v1(env, key)?;
-    let bytes = hex::decode(&value).map_err(|error| {
+    // The decoder's error names a character of the value; the key is enough.
+    let bytes = hex::decode(&value).map_err(|_| {
         RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-            format!("local worker env key {key} must be hex: {error}"),
+            format!("local worker env key {key} must be hex"),
         )
     })?;
     if bytes.len() != 32 {
@@ -3130,10 +2151,10 @@ fn required_x25519_public_key_env_v1(
             format!("local worker env key {key} must use x25519:<hex>"),
         ));
     };
-    let bytes = hex::decode(encoded).map_err(|error| {
+    let bytes = hex::decode(encoded).map_err(|_| {
         RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-            format!("local worker env key {key} must be hex: {error}"),
+            format!("local worker env key {key} must be hex"),
         )
     })?;
     if bytes.len() != 32 || bytes.iter().all(|byte| *byte == 0) {
@@ -3203,13 +2224,6 @@ fn map_sqlite_error(error: rusqlite::Error) -> RouterAbProtocolError {
     RouterAbProtocolError::new(
         RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
         format!("local SQLite seed failed: {error}"),
-    )
-}
-
-fn map_online_ecdsa_error_v1(error: OnlineError) -> RouterAbProtocolError {
-    RouterAbProtocolError::new(
-        RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-        format!("local Router A/B ECDSA derivation signature finalization failed: {error}"),
     )
 }
 

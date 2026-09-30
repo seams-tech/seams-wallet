@@ -29,7 +29,8 @@ import {
 import { passkeyThresholdEd25519AuthorityScope, requireWebAuthnRpId } from './webauthnAuthority';
 import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
-import { walletIdFromString, type WalletId } from '@shared/utils/registrationIntent';
+import { type WalletId } from '@shared/utils/registrationIntent';
+import { walletIdFromString } from '@shared/utils/registrationIds';
 import {
   decodeBase64UrlOrBase64,
   isHostWithinRpId,
@@ -37,8 +38,14 @@ import {
   originHostnameOrEmpty,
   parseClientDataJsonBase64url,
 } from './webauthnOidcHelpers';
+import {
+  webAuthnAuthenticationFailure,
+  webAuthnLoginEd25519,
+  webAuthnSyncCredentialBinding,
+  type WebAuthnLoginEd25519,
+} from './webauthnVerificationOutcomes';
 
-export type WebAuthnCredentialVerificationResult =
+type WebAuthnCredentialVerificationResult =
   | {
       ok: true;
       credential: {
@@ -49,7 +56,7 @@ export type WebAuthnCredentialVerificationResult =
     }
   | { ok: false; code: string; message: string };
 
-export type WebAuthnAuthenticationLiteResult = {
+type WebAuthnAuthenticationLiteResult = {
   success: boolean;
   verified: boolean;
   code?: string;
@@ -61,7 +68,7 @@ export type WebAuthnAuthenticationLiteResult = {
  * contract declares it, and a binding with no authenticator row still gets the
  * `Unknown device` fallback rather than an absent field.
  */
-export type WebAuthnAuthenticatorListEntry = {
+type WebAuthnAuthenticatorListEntry = {
   credentialIdB64u: string;
   signerSlot?: number;
   publicKey?: string;
@@ -77,7 +84,7 @@ export type WebAuthnAuthenticatorListResult = {
   authenticators?: WebAuthnAuthenticatorListEntry[];
 };
 
-export type WebAuthnLoginOptionsResult = {
+type WebAuthnLoginOptionsResult = {
   ok: boolean;
   challengeId?: string;
   challengeB64u?: string;
@@ -146,17 +153,7 @@ export type WebAuthnLoginVerificationResult =
       userId: string;
       rpId: string;
       credentialIdB64u: string;
-      ed25519:
-        | { readonly kind: 'absent' }
-        | {
-            readonly kind: 'active';
-            readonly nearAccountId: string;
-            readonly nearEd25519SigningKeyId: string;
-            readonly signerSlot: number;
-            readonly publicKey: string;
-            readonly relayerKeyId: string;
-            readonly participantIds: readonly [number, number];
-          };
+      ed25519: WebAuthnLoginEd25519;
     }
   | {
       ok: false;
@@ -832,7 +829,7 @@ export async function createWebAuthnSyncAccountOptionsWithStores(input: {
  * The one signer read sync needs. Shaped as the wallet store's own reader so
  * the existing store satisfies it structurally, with no adapter.
  */
-export type SyncAccountEd25519SignerReader = {
+type SyncAccountEd25519SignerReader = {
   getEd25519SignerBySlot(input: {
     walletId: WalletId;
     signerSlot: number;
@@ -873,26 +870,12 @@ export async function verifyWebAuthnSyncAccountWithStores(input: {
       };
     }
 
-    const binding = await input.credentialBindingStore.get(
-      challenge.rpId,
-      credentialId.credentialIdB64u,
+    const syncBinding = webAuthnSyncCredentialBinding(
+      await input.credentialBindingStore.get(challenge.rpId, credentialId.credentialIdB64u),
+      challenge,
     );
-    if (!binding) {
-      return {
-        ok: false,
-        verified: false,
-        code: 'unknown_credential',
-        message: 'Credential is not registered on this relay',
-      };
-    }
-    if (challenge.expectedUserId && binding.userId !== challenge.expectedUserId) {
-      return {
-        ok: false,
-        verified: false,
-        code: 'unknown_credential',
-        message: `Credential is not registered for account ${challenge.expectedUserId}`,
-      };
-    }
+    if (!syncBinding.ok) return syncBinding;
+    const binding = syncBinding.binding;
 
     const expectedOrigin = toOptionalTrimmedString(request.expected_origin);
     if (!expectedOrigin) {
@@ -912,14 +895,8 @@ export async function verifyWebAuthnSyncAccountWithStores(input: {
       authenticatorStore: input.authenticatorStore,
       logger: input.logger,
     });
-    if (!verification.success || !verification.verified) {
-      return {
-        ok: false,
-        verified: false,
-        code: verification.code || 'not_verified',
-        message: verification.message || 'Authentication verification failed',
-      };
-    }
+    const verificationFailure = webAuthnAuthenticationFailure(verification);
+    if (verificationFailure) return verificationFailure;
 
     const auth = await input.authenticatorStore.get(binding.userId, credentialId.credentialIdB64u);
     if (!auth) {
@@ -1070,14 +1047,8 @@ export async function verifyWebAuthnLoginWithStores(input: {
       logger: input.logger,
     });
 
-    if (!verification.success || !verification.verified) {
-      return {
-        ok: false,
-        verified: false,
-        code: verification.code || 'not_verified',
-        message: verification.message || 'Authentication verification failed',
-      };
-    }
+    const verificationFailure = webAuthnAuthenticationFailure(verification);
+    if (verificationFailure) return verificationFailure;
 
     const credentialIdB64u = String(credential.rawId || credential.id || '').trim();
     const binding = credentialIdB64u
@@ -1086,32 +1057,8 @@ export async function verifyWebAuthnLoginWithStores(input: {
     const walletBinding = binding
       ? resolvedEd25519WalletBindingFromCredentialBinding({ binding })
       : null;
-    const firstParticipantId = binding?.participantIds?.[0];
-    const secondParticipantId = binding?.participantIds?.[1];
-    if (!binding) {
-      return {
-        ok: false,
-        verified: false,
-        code: 'unknown_credential',
-        message: 'Credential has no wallet binding',
-      };
-    }
-    const ed25519 =
-      walletBinding &&
-      binding.publicKey &&
-      binding.relayerKeyId &&
-      firstParticipantId !== undefined &&
-      secondParticipantId !== undefined
-        ? {
-            kind: 'active' as const,
-            nearAccountId: walletBinding.nearAccountId,
-            nearEd25519SigningKeyId: walletBinding.nearEd25519SigningKeyId,
-            signerSlot: walletBinding.signerSlot,
-            publicKey: binding.publicKey,
-            relayerKeyId: binding.relayerKeyId,
-            participantIds: [firstParticipantId, secondParticipantId] as const,
-          }
-        : { kind: 'absent' as const };
+    const loginSigner = webAuthnLoginEd25519(binding, walletBinding);
+    if (!loginSigner.ok) return loginSigner;
 
     await linkNearSubjectForWebAuthnLogin({
       identityStore: input.identityStore,
@@ -1124,7 +1071,7 @@ export async function verifyWebAuthnLoginWithStores(input: {
       userId: record.userId,
       rpId: record.rpId,
       credentialIdB64u,
-      ed25519,
+      ed25519: loginSigner.ed25519,
     };
   } catch (e: unknown) {
     return {

@@ -288,8 +288,7 @@ test.describe('wallet-host Preact auth menu surface', () => {
     ).toEqual([{ kind: 'recovery_open' }]);
 
     await page.evaluate(
-      async ({ tagName, viewModel }) => {
-        const element = document.querySelector(tagName) as HTMLElement;
+      async ({ viewModel }) => {
         window.__authMenu.model = viewModel;
         window.__authMenu.handle.update(window.__authMenu.model);
         await Promise.resolve();
@@ -314,8 +313,7 @@ test.describe('wallet-host Preact auth menu surface', () => {
     await codeInput.fill('ABCD-EFGH');
 
     await page.evaluate(
-      async ({ tagName, viewModel }) => {
-        const element = document.querySelector(tagName) as HTMLElement;
+      async ({ viewModel }) => {
         window.__authMenu.model = viewModel;
         window.__authMenu.handle.update(window.__authMenu.model);
         await Promise.resolve();
@@ -350,8 +348,7 @@ test.describe('wallet-host Preact auth menu surface', () => {
     ]);
 
     await page.evaluate(
-      async ({ tagName, viewModel }) => {
-        const element = document.querySelector(tagName) as HTMLElement;
+      async ({ viewModel }) => {
         window.__authMenu.model = viewModel;
         window.__authMenu.handle.update(window.__authMenu.model);
         await Promise.resolve();
@@ -551,8 +548,7 @@ test.describe('wallet-host Preact auth menu surface', () => {
   }) => {
     await mountAuthMenu(page, loginViewModel({ kind: 'busy', headline: 'Signing in…' }));
 
-    const fromWaiting = await page.evaluate(async (tagName) => {
-      const element = document.querySelector(tagName) as HTMLElement;
+    const fromWaiting = await page.evaluate(async () => {
       const received: unknown[] = [];
       window.__authMenu.onIntent = (intent) => {
         received.push(intent);
@@ -563,8 +559,7 @@ test.describe('wallet-host Preact auth menu surface', () => {
     expect(fromWaiting).toEqual([{ kind: 'back' }]);
 
     await mountAuthMenu(page, loginViewModel({ kind: 'idle', interaction: 'actionable' }));
-    const fromMenu = await page.evaluate(async (tagName) => {
-      const element = document.querySelector(tagName) as HTMLElement;
+    const fromMenu = await page.evaluate(async () => {
       const received: unknown[] = [];
       window.__authMenu.onIntent = (intent) => {
         received.push(intent);
@@ -960,8 +955,7 @@ test.describe('wallet-host Preact auth menu surface', () => {
     await page.keyboard.press('Shift+Tab');
     await expect(controls.last()).toBeFocused();
 
-    const detachedIntents = await page.evaluate((tagName) => {
-      const element = document.querySelector(tagName) as HTMLElement;
+    const detachedIntents = await page.evaluate(() => {
       const intents: unknown[] = [];
       window.__authMenu.onIntent = (intent) => {
         intents.push(intent);

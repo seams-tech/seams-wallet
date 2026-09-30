@@ -44,7 +44,7 @@ import type { MpcMaterialActivationRef } from '@shared/utils/domainIds';
 import type { ExactEvmFamilyWalletSessionAuthorization } from '../material/ecdsaSigningCapability';
 import type { ActiveWalletAuthorityEcdsaRuntimeV1 } from '../material/activeWalletAuthorityEcdsaRuntime';
 import type { ExactNearEd25519WalletSessionAuthorization } from '../material/nearEd25519YaoSigningPreparation';
-import type { NearEd25519SigningKeyId } from '@shared/utils/registrationIntent';
+import type { NearEd25519SigningKeyId } from '@shared/utils/registrationIds';
 import { parseSignerSlot } from '@shared/utils/signerSlot';
 
 export type { SigningCurve };
@@ -57,17 +57,6 @@ export type ThresholdEcdsaSessionStoreSource =
   | 'registration'
   | 'manual-bootstrap'
   | 'email_otp';
-
-export const THRESHOLD_ECDSA_PASSKEY_SESSION_STORE_SOURCES = [
-  'login',
-  'registration',
-  'manual-bootstrap',
-] as const satisfies readonly ThresholdEcdsaSessionStoreSource[];
-
-export const THRESHOLD_ECDSA_SESSION_STORE_SOURCES = [
-  'email_otp',
-  ...THRESHOLD_ECDSA_PASSKEY_SESSION_STORE_SOURCES,
-] as const satisfies readonly ThresholdEcdsaSessionStoreSource[];
 
 export type ThresholdEd25519SessionStoreSource =
   | 'login'
@@ -107,10 +96,9 @@ export type ThresholdEcdsaEmailOtpPendingSingleUseAuthContext =
     use: Extract<EmailOtpAuthUse, { kind: 'single_use_pending' }>;
   };
 
-export type ThresholdEcdsaEmailOtpConsumedSingleUseAuthContext =
-  ThresholdEcdsaEmailOtpAuthContext & {
-    use: Extract<EmailOtpAuthUse, { kind: 'single_use_consumed' }>;
-  };
+type ThresholdEcdsaEmailOtpConsumedSingleUseAuthContext = ThresholdEcdsaEmailOtpAuthContext & {
+  use: Extract<EmailOtpAuthUse, { kind: 'single_use_consumed' }>;
+};
 
 export function emailOtpAuthContextProviderUserId(
   context: ThresholdEcdsaEmailOtpAuthContext,
@@ -128,20 +116,6 @@ export function emailOtpAuthContextEmailHashHex(
   context: ThresholdEcdsaEmailOtpAuthContext,
 ): string {
   return emailOtpWalletAuthAuthorityEmailHashHex(context.authority);
-}
-
-export function emailOtpAuthContextReason(
-  context: ThresholdEcdsaEmailOtpAuthContext,
-): 'login' | 'sign' {
-  switch (context.use.kind) {
-    case 'session':
-      return context.use.reason;
-    case 'single_use_pending':
-    case 'single_use_consumed':
-      return 'sign';
-  }
-  context.use satisfies never;
-  throw new Error('[SigningSession] unsupported Email OTP auth use');
 }
 
 export function emailOtpAuthContextRetention(
@@ -174,12 +148,6 @@ export function isEmailOtpPendingSingleUseAuthContext(
   context: ThresholdEcdsaEmailOtpAuthContext,
 ): context is ThresholdEcdsaEmailOtpPendingSingleUseAuthContext {
   return context.use.kind === 'single_use_pending';
-}
-
-export function isEmailOtpConsumedSingleUseAuthContext(
-  context: ThresholdEcdsaEmailOtpAuthContext,
-): context is ThresholdEcdsaEmailOtpConsumedSingleUseAuthContext {
-  return context.use.kind === 'single_use_consumed';
 }
 
 type BuildEmailOtpSessionAuthContextArgs = {
@@ -413,7 +381,7 @@ type CommonSelectedLane = {
   curve: SigningCurve;
 };
 
-export type BaseSelectedLane = CommonSelectedLane & {
+type BaseSelectedLane = CommonSelectedLane & {
   walletSessionId: WalletSessionId;
   quotaId: MpcWalletSigningQuotaId;
   thresholdSessionId: ThresholdSessionId;
@@ -437,7 +405,7 @@ export type SelectedEcdsaLane = CommonSelectedLane & {
 
 export type SelectedLane = SelectedEd25519Lane | SelectedEcdsaLane;
 
-export type SelectedEd25519LaneInput = {
+type SelectedEd25519LaneInput = {
   walletId: WalletId;
   nearAccountId: AccountId;
   nearEd25519SigningKeyId: NearEd25519SigningKeyId;
@@ -521,9 +489,9 @@ export function selectedEcdsaLane(input: SelectedEcdsaLaneInput): SelectedEcdsaL
 
 export type LaneCandidateState = 'ready' | 'restorable' | 'deferred' | 'expired' | 'exhausted';
 
-/** Shared Refactor 92 classification of a session's runtime allowance and
- * expiry. Expiry is checked before exhaustion so an expired session is never
- * reported as merely out of uses. */
+/** Shared classification of a session's runtime allowance and expiry. Expiry
+ * is checked before exhaustion so an expired session is never reported as
+ * merely out of uses. */
 export function laneCandidateStateFromRuntimePolicy(args: {
   remainingUses: number;
   expiresAtMs: number;
@@ -552,7 +520,7 @@ type CommonLaneCandidate = {
   source: LaneCandidateSource;
 };
 
-export type BaseLaneCandidate = CommonLaneCandidate & {
+type BaseLaneCandidate = CommonLaneCandidate & {
   thresholdSessionId: string;
   remainingUses: number | null;
   expiresAtMs: number | null;

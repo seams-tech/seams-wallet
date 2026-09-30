@@ -7,7 +7,7 @@ import type { NormalizedLogger } from '../logger';
 import type { EmailOtpConfig, EmailOtpDeliveryMode } from './emailOtpConfig';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
 
-export type EmailOtpMemoryOutboxEntry = {
+type EmailOtpMemoryOutboxEntry = {
   walletId: string;
   userId: string;
   otpChannel: EmailOtpChannel;
@@ -19,7 +19,7 @@ export type EmailOtpMemoryOutboxEntry = {
 
 export type EmailOtpMemoryOutbox = Map<string, EmailOtpMemoryOutboxEntry>;
 
-export type EmailOtpDeliveryInput = {
+type EmailOtpDeliveryInput = {
   config: EmailOtpConfig;
   production: boolean;
   logger: NormalizedLogger;
@@ -39,7 +39,7 @@ export type EmailOtpDeliveryResult =
   | { ok: true; deliveryMode: EmailOtpDeliveryMode; emailHint: string }
   | { ok: false; code: string; message: string; lockedUntilMs?: number };
 
-export type EmailOtpOutboxReadRequest = {
+type EmailOtpOutboxReadRequest = {
   challengeId?: unknown;
   userId?: unknown;
   walletId?: unknown;

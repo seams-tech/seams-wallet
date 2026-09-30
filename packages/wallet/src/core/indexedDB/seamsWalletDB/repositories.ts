@@ -29,18 +29,24 @@ import { SIGNER_KINDS } from '@shared/utils/signerDomain';
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
 import {
   parseWalletAuthMethodRecordV2,
-  walletIdFromString,
+  type ActiveWalletAuthMethodRecordV2,
+  type EmailOtpWalletAuthMethodRecordV2,
+  type PasskeyWalletAuthMethodRecordV2,
+  type PendingWalletAuthMethodRecordV2,
   type WalletAuthMethodRecordV2,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/walletAuthMethodRecord';
+import { walletIdFromString } from '@shared/utils/registrationIds';
 import {
   extendEcdsaWalletAuthorityWithEd25519,
   isActiveEcdsaWalletAuthorityV1,
+  isEcdsaExtensionOfEd25519WalletAuthority,
   type ActiveCombinedWalletAuthorityV1,
   encodeWalletSignerActivationSetV1,
   isActiveRecoveredWalletAuthorityV1,
   parseWalletAuthorityV1,
   walletAuthorityDigestsMatchV1,
   type ActiveRecoveredWalletAuthorityV1,
+  type ActiveWalletAuthorityV1,
   type PendingWalletAuthorityV1,
   type WalletAuthorityV1,
   type WalletSignerActivationSetV1,
@@ -341,12 +347,12 @@ type WalletAuthMethodV2Row =
   | (WalletAuthMethodV2RowBase & {
       kind: 'passkey';
       presentation: Extract<WalletAuthMethodLocalPresentationV1, { readonly kind: 'passkey' }>;
-      record: Extract<WalletAuthMethodRecordV2, { readonly kind: 'passkey' }>;
+      record: PasskeyWalletAuthMethodRecordV2;
     })
   | (WalletAuthMethodV2RowBase & {
       kind: 'email_otp';
       presentation: Extract<WalletAuthMethodLocalPresentationV1, { readonly kind: 'email_otp' }>;
-      record: Extract<WalletAuthMethodRecordV2, { readonly kind: 'email_otp' }>;
+      record: EmailOtpWalletAuthMethodRecordV2;
     });
 
 type WalletAuthoritySignerMaterialRow = {
@@ -400,7 +406,7 @@ type LocalAuthorityPendingProfileProjectionV1 = {
 
 export type LocalAuthorityInstallationInputV1 = {
   readonly authority: PendingWalletAuthorityV1;
-  readonly authMethod: Extract<WalletAuthMethodRecordV2, { status: 'pending_local_install' }>;
+  readonly authMethod: PendingWalletAuthMethodRecordV2;
   readonly profile: UpsertProfileInput;
   readonly authenticator: ProfileAuthenticatorRecord | null;
   readonly localAuthMethod: Extract<LocalWalletAuthMethodRecord, { kind: 'email_otp' }> | null;
@@ -430,16 +436,16 @@ export type LocalAuthorityInstallationResultV1 =
     };
 
 export type LocalAuthorityActivationFinalizationInputV1 = {
-  readonly authority: Extract<WalletAuthorityV1, { readonly state: 'active' }>;
-  readonly authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+  readonly authority: ActiveWalletAuthorityV1;
+  readonly authMethod: ActiveWalletAuthMethodRecordV2;
   readonly walletSession: ActiveWalletSessionV1;
   readonly operationCredential: WalletSessionOperationCredentialV1;
   readonly expectedLockGeneration: number;
 };
 
 export type LocalAuthorityActivationPublicationInputV1 = {
-  readonly authority: Extract<WalletAuthorityV1, { readonly state: 'active' }>;
-  readonly authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+  readonly authority: ActiveWalletAuthorityV1;
+  readonly authMethod: ActiveWalletAuthMethodRecordV2;
   readonly expectedLockGeneration: number;
 };
 
@@ -471,7 +477,7 @@ export type WalletLockGenerationAdvanceInputV1 = {
 
 export type RecoveredWalletAuthorityProjectionInputV1 = {
   readonly authority: ActiveRecoveredWalletAuthorityV1;
-  readonly authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+  readonly authMethod: ActiveWalletAuthMethodRecordV2;
   readonly recoveredAtMs: number;
 };
 
@@ -499,15 +505,15 @@ export type ResolveSelectedWalletAuthorityResultV1 =
     };
 
 export type PersistFoundingWalletAuthorityInputV1 = {
-  readonly authority: Extract<WalletAuthorityV1, { readonly state: 'active' }>;
-  readonly authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+  readonly authority: ActiveWalletAuthorityV1;
+  readonly authMethod: ActiveWalletAuthMethodRecordV2;
 };
 
 type ValidatedFoundingWalletAuthorityInputV1 = PersistFoundingWalletAuthorityInputV1;
 
 type ValidatedLocalAuthorityInstallationInput = {
   readonly authority: PendingWalletAuthorityV1;
-  readonly authMethod: Extract<WalletAuthMethodRecordV2, { status: 'pending_local_install' }>;
+  readonly authMethod: PendingWalletAuthMethodRecordV2;
   readonly profile: UpsertProfileInput;
   readonly authenticator: ProfileAuthenticatorRecord | null;
   readonly localAuthMethod: Extract<LocalWalletAuthMethodRecord, { kind: 'email_otp' }> | null;
@@ -544,7 +550,7 @@ export type StoreWalletRegistrationFinalizeBatchInput = {
   };
 };
 
-export type WalletRegistrationCommitPublicationRequestV1 = {
+type WalletRegistrationCommitPublicationRequestV1 = {
   readonly operation: PendingWalletRegistrationCommitV1['operation'];
   readonly registrationCeremonyId: string;
   readonly idempotencyKey: string;
@@ -563,7 +569,7 @@ export type StoreWalletRegistrationPublicationInputV1 = Omit<
   };
 };
 
-export type WalletRegistrationSessionPublicationV1 =
+type WalletRegistrationSessionPublicationV1 =
   | {
       readonly kind: 'issued';
       readonly walletSession: ActiveWalletSessionV1;
@@ -587,7 +593,7 @@ export type PublishPendingWalletRegistrationCommitInputV1 = {
 export type PublishPendingWalletRecoveryCommitInputV1 = {
   readonly pending: Extract<PendingWalletRecoveryCommitV1, { readonly stage: 'server_promoted' }>;
   readonly authority: ActiveRecoveredWalletAuthorityV1;
-  readonly authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+  readonly authMethod: ActiveWalletAuthMethodRecordV2;
   readonly registration: StoreWalletRegistrationPublicationInputV1;
   readonly ecdsaContinuity: readonly PreparedImportedWalletCustodyEcdsaContinuity[];
   readonly ed25519PublicCapabilityReferences: readonly Ed25519YaoPublicCapabilityReferenceV1[];
@@ -857,26 +863,26 @@ export type StoreWalletSignerFinalizeBatchInput = {
   };
 };
 
-export type AccountSignerRollbackMetadataBaselineV1 =
+type AccountSignerRollbackMetadataBaselineV1 =
   | { readonly kind: 'account_signer_rollback_metadata_absent_v1' }
   | {
       readonly kind: 'account_signer_rollback_metadata_json_v1';
       readonly json: string;
     };
 
-export type KeyMaterialRollbackPayloadBaselineV1 =
+type KeyMaterialRollbackPayloadBaselineV1 =
   | { readonly kind: 'key_material_rollback_payload_absent_v1' }
   | {
       readonly kind: 'key_material_rollback_payload_json_v1';
       readonly json: string;
     };
 
-export type AccountSignerRollbackEntryV1 = {
+type AccountSignerRollbackEntryV1 = {
   readonly committed: AccountSignerRecord;
   readonly metadataBaseline: AccountSignerRollbackMetadataBaselineV1;
 };
 
-export type KeyMaterialRollbackEntryV1 = {
+type KeyMaterialRollbackEntryV1 = {
   readonly committed: KeyMaterialRecord;
   readonly payloadBaseline: KeyMaterialRollbackPayloadBaselineV1;
 };
@@ -960,7 +966,7 @@ function requireWebAuthnRpId(value: string): WebAuthnRpId {
 }
 const CHAIN_ACCOUNT_PROJECTION_SIGNER_SLOT = 0;
 
-export class SeamsWalletDBConstraintError extends Error {
+class SeamsWalletDBConstraintError extends Error {
   readonly code: DBConstraintErrorCode;
   readonly details?: Record<string, unknown>;
 
@@ -2608,7 +2614,7 @@ function walletAuthMethodV2StorageRow(
 }
 
 function verifiedEmailPresentationFromLocalRecords(
-  record: Extract<WalletAuthMethodRecordV2, { readonly kind: 'email_otp' }>,
+  record: EmailOtpWalletAuthMethodRecordV2,
   rows: readonly unknown[],
 ): WalletAuthMethodLocalPresentationV1 | null {
   const addresses = new Set<string>();
@@ -3328,8 +3334,8 @@ function walletAuthorityRecordsMatch(left: WalletAuthorityV1, right: WalletAutho
 }
 
 function walletAuthorityPendingMatchesActive(
-  pending: Extract<WalletAuthorityV1, { readonly state: 'pending_local_install' }>,
-  active: Extract<WalletAuthorityV1, { readonly state: 'active' }>,
+  pending: PendingWalletAuthorityV1,
+  active: ActiveWalletAuthorityV1,
 ): boolean {
   return (
     pending.kind === active.kind &&
@@ -3386,8 +3392,8 @@ function walletAuthMethodRecordsMatch(
 }
 
 function walletAuthMethodPendingMatchesActive(
-  pending: Extract<WalletAuthMethodRecordV2, { readonly status: 'pending_local_install' }>,
-  active: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>,
+  pending: PendingWalletAuthMethodRecordV2,
+  active: ActiveWalletAuthMethodRecordV2,
 ): boolean {
   if (
     pending.version !== active.version ||
@@ -5073,8 +5079,8 @@ export class SeamsWalletRepositories {
   }
 
   private async publishPendingLocalAuthorityProfileProjectionInTransaction(
-    authority: Extract<WalletAuthorityV1, { readonly state: 'active' }>,
-    authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>,
+    authority: ActiveWalletAuthorityV1,
+    authMethod: ActiveWalletAuthMethodRecordV2,
     projection: LocalAuthorityPendingProfileProjectionV1,
     ctx: SeamsWalletTransactionContext,
   ): Promise<void> {
@@ -5295,7 +5301,7 @@ export class SeamsWalletRepositories {
       throw new Error('wallet selection is missing or corrupt');
     }
     if (selection.record.walletAuthMethodId !== input.walletAuthMethodId) {
-      // R109C: unlocking with a sibling method on the same wallet authority
+      // Unlocking with a sibling method on the same wallet authority
       // moves the selection to it. Invariant 9 makes lock and unlock the route
       // by which a newly added method becomes the one in use, so a selection
       // still naming the source method is the expected state here rather than
@@ -5802,8 +5808,7 @@ export class SeamsWalletRepositories {
   }
 
   /**
-   * R109C: resolve the authority as a named method rather than as the selected
-   * one.
+   * Resolve the authority as a named method rather than as the selected one.
    *
    * Unlocking a sibling is how an added method comes into use - invariant 9
    * makes lock and unlock the route - and the unlock moves the selection to it.
@@ -6175,6 +6180,105 @@ export class SeamsWalletRepositories {
         }),
       );
     });
+  }
+
+  /**
+   * Adopts the authority the Gateway returned after this wallet added an ECDSA
+   * signer: the local authority extended with exactly the activation this
+   * device made, nothing else changed. The Gateway promoted the wallet's live
+   * Wallet Sessions to it; the next exact status read carries that promotion
+   * into the local session, which keeps its operation credential.
+   */
+  async adoptAddedEcdsaSignerAuthority(input: {
+    readonly authority: WalletAuthorityV1;
+    readonly materialActivation: MpcMaterialActivationRef;
+  }): Promise<void> {
+    const parsed = parseWalletAuthorityV1(input.authority);
+    if (
+      !parsed.ok ||
+      parsed.value.state !== 'active' ||
+      !(await walletAuthorityDigestsMatchV1(parsed.value))
+    ) {
+      throw new Error('Added ECDSA signer authority is invalid');
+    }
+    const next = parsed.value;
+    const nextEcdsa = next.signerActivations.ecdsa;
+    if (
+      !nextEcdsa ||
+      !mpcMaterialActivationRefsEqual(nextEcdsa.materialActivation, input.materialActivation)
+    ) {
+      throw new Error('Added ECDSA signer authority does not carry the activated signer');
+    }
+    await this.manager.runTransaction(
+      [SEAMS_WALLET_STORES.walletAuthorities],
+      'readwrite',
+      async (ctx) => {
+        const store = ctx.store(SEAMS_WALLET_STORES.walletAuthorities);
+        const current = parseWalletAuthorityStorageRow(await store.get(next.authorityId));
+        if (!current || current.record.state !== 'active') {
+          throw new Error('Added ECDSA signer has no active local authority to extend');
+        }
+        if (current.record.authorityDigestB64u === next.authorityDigestB64u) return;
+        if (!isEcdsaExtensionOfEd25519WalletAuthority(current.record, next)) {
+          throw new Error('Added ECDSA signer authority is not an extension of the local authority');
+        }
+        await store.put(walletAuthorityStorageRow(next));
+      },
+    );
+  }
+
+  /**
+   * Replaces the exact active Wallet Session with the one a status read
+   * returned, only while it still binds the wallet's stored authority and its
+   * unlocked selection. The status crosses the network, and a publication
+   * can commit meanwhile: deferred NEAR provisioning extends the authority
+   * and rebinds the session in one transaction. Writing the older status
+   * after it would bind the session to an authority digest no longer stored,
+   * and every exact-session check would refuse it until another status read.
+   */
+  async replaceExactActiveWalletSessionFromStatus(input: {
+    readonly active: ActiveWalletSessionV1;
+    readonly operationCredential: WalletSessionOperationCredentialV1;
+  }): Promise<{ readonly kind: 'replaced' } | { readonly kind: 'superseded' }> {
+    return await this.manager.runTransaction(
+      [
+        SEAMS_WALLET_STORES.walletAuthorities,
+        SEAMS_WALLET_STORES.walletSessionAuthorizations,
+        SEAMS_WALLET_STORES.walletSelections,
+      ],
+      'readwrite',
+      this.replaceExactActiveWalletSessionFromStatusInTransaction.bind(this, input),
+    );
+  }
+
+  private async replaceExactActiveWalletSessionFromStatusInTransaction(
+    input: Parameters<SeamsWalletRepositories['replaceExactActiveWalletSessionFromStatus']>[0],
+    ctx: SeamsWalletTransactionContext,
+  ): Promise<{ readonly kind: 'replaced' } | { readonly kind: 'superseded' }> {
+    const authority = parseWalletAuthorityStorageRow(
+      await ctx.store(SEAMS_WALLET_STORES.walletAuthorities).get(input.active.authorityId),
+    );
+    const selection = parseWalletSelectionStorageRow(
+      await ctx.store(SEAMS_WALLET_STORES.walletSelections).get(input.active.walletId),
+    );
+    if (
+      !authority ||
+      authority.record.state !== 'active' ||
+      authority.record.walletId !== input.active.walletId ||
+      authority.record.authorityDigestB64u !== input.active.authorityDigestB64u ||
+      authority.record.revocationEpoch !== input.active.authorityRevocationEpoch ||
+      !selection ||
+      selection.record.lockState !== 'unlocked' ||
+      selection.record.walletAuthMethodId !== input.active.authMethodId
+    ) {
+      return { kind: 'superseded' };
+    }
+    await replaceExactActiveWalletSessionAuthorizationInTransaction({
+      ctx,
+      active: input.active,
+      operationCredential: input.operationCredential,
+    });
+    return { kind: 'replaced' };
   }
 
   async reconcilePendingNearRegistrationAuthority(input: {

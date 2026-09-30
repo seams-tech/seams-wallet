@@ -30,7 +30,7 @@ export function buildNearTransactionSigningPayload(args: {
   };
 }
 
-export type NearDelegateConfirmationPayload = {
+type NearDelegateConfirmationPayload = {
   senderId: string;
   receiverId: string;
   actions: ActionArgsWasm[];
@@ -38,7 +38,7 @@ export type NearDelegateConfirmationPayload = {
   maxBlockHeight: DelegateActionInput['maxBlockHeight'];
 };
 
-export type NearDelegateWorkerPayload = {
+type NearDelegateWorkerPayload = {
   senderId: string;
   receiverId: string;
   actions: ActionArgsWasm[];
@@ -47,7 +47,7 @@ export type NearDelegateWorkerPayload = {
   publicKey: string;
 };
 
-export type NearDelegateSigningPayloads = {
+type NearDelegateSigningPayloads = {
   confirmationDelegate: NearDelegateConfirmationPayload;
   workerDelegate: NearDelegateWorkerPayload;
 };

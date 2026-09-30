@@ -3,7 +3,7 @@ import { parseEcdsaServerTiming } from '@shared/utils/ecdsaServerTiming';
 import { summarizeSigningLane } from './types';
 import type { SigningPlannerDecisionTraceEvent } from '../planning/planner';
 
-export type SigningSessionTraceScope = 'evm-family' | 'near';
+type SigningSessionTraceScope = 'evm-family' | 'near';
 
 export function emitEcdsaServerTiming(
   operationId: string,
@@ -39,7 +39,7 @@ export function emitEcdsaPresignServerTiming(
   }
 }
 
-export type EcdsaSigningTimingStage =
+type EcdsaSigningTimingStage =
   | 'material_queue'
   | 'material_authorization'
   | 'material_load'
@@ -73,12 +73,24 @@ export function emitEcdsaSigningTiming(
   });
 }
 
-export type Ed25519SigningTimingStage =
+type Ed25519SigningTimingStage =
+  | 'preparation_modal'
+  | 'authorization_probe'
+  | 'execution_setup'
+  | 'lane_preparation'
+  | 'pre_confirmation'
+  | 'confirmation'
   | 'confirmed_to_signed'
+  | 'durable_lease_recovery_wait'
+  | 'material_resolution_wait'
+  | 'transaction_context'
+  | 'wallet_session_authorization'
   | 'prepare'
   | 'client_share'
   | 'finalize'
-  | 'signature_total';
+  | 'signature_total'
+  | 'nonce_lease_commit'
+  | 'transaction_assembly';
 
 export function emitEd25519SigningTiming(
   operationId: string,
@@ -95,13 +107,13 @@ export function emitEd25519SigningTiming(
   });
 }
 
-export type SigningLaneResolutionTraceEvent = {
+type SigningLaneResolutionTraceEvent = {
   event: 'signing_lane_resolved';
   lane: SigningLaneSummary;
   reason?: string;
 };
 
-export type SigningBoundaryTraceEvent = {
+type SigningBoundaryTraceEvent = {
   event: 'pre_confirm_readiness_checked' | 'auth_side_effect_started';
   lane?: SigningLaneSummary;
   readinessStatus?: string;
@@ -188,7 +200,7 @@ export function emitSigningSessionFlowFailure(
   } catch {}
 }
 
-export function isSigningSessionTraceEnabled(): boolean {
+function isSigningSessionTraceEnabled(): boolean {
   try {
     const storage = (globalThis as { localStorage?: Storage }).localStorage;
     return storage?.getItem('seams:debug:signing-session') === '1';

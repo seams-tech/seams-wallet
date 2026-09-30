@@ -15,6 +15,7 @@ use super::{
 };
 
 use super::tenant_root_protocol::TenantRootWireDecoderV1;
+use super::tenant_root_role_command_wire::TenantRootRoleCommandWireV1;
 
 const TENANT_ROOT_RESTORE_REFRESH_ROLE_COMMAND_DOMAIN_V1: &[u8] =
     b"tenant_root_restore_refresh_role_command_v1";
@@ -28,6 +29,11 @@ pub const TENANT_ROOT_RESTORE_REFRESH_ROLE_COMMAND_OPERATION_V1: &str = "restore
 
 /// Maximum canonical wire size accepted for one restore refresh role command.
 pub const TENANT_ROOT_RESTORE_REFRESH_ROLE_COMMAND_MAX_BYTES_V1: usize = 24 * 1024;
+
+const COMMAND_WIRE: TenantRootRoleCommandWireV1 = TenantRootRoleCommandWireV1::new(
+    "tenant-root restore refresh role command",
+    TENANT_ROOT_RESTORE_REFRESH_ROLE_COMMAND_MAX_BYTES_V1,
+);
 
 #[derive(Clone, PartialEq, Eq)]
 struct TenantRootRestoreRefreshRoleCommandDataV1 {
@@ -279,7 +285,7 @@ impl TenantRootRestoreRefreshRoleCommandV1 {
 
     pub fn canonical_bytes(&self) -> RouterAbDerivationResult<Vec<u8>> {
         let unsigned = unsigned_canonical_bytes(&self.data)?;
-        canonical_bytes_from_unsigned(unsigned, &self.data.signature)
+        COMMAND_WIRE.append_signature(unsigned, &self.data.signature)
     }
 
     pub fn digest(&self) -> RouterAbDerivationResult<TenantRootProtocolDigestV1> {
@@ -511,21 +517,21 @@ pub fn tenant_root_restore_refresh_context_nonce_v1(
         ));
     }
     let mut bytes = Vec::new();
-    push_field(
+    COMMAND_WIRE.push_field(
         &mut bytes,
         b"tenant_root_restore_refresh_role_context_nonce_v1",
     )?;
-    push_field(&mut bytes, identity_digest.as_bytes())?;
-    push_field(&mut bytes, custody_lineage.as_bytes())?;
-    push_field(&mut bytes, ceremony_session_id.as_bytes())?;
-    push_field(&mut bytes, destination_fingerprint.as_bytes())?;
-    push_field(&mut bytes, restore_session_id.as_bytes())?;
-    push_field(&mut bytes, &manifest_digest)?;
-    push_field(&mut bytes, deriver_a_acceptance_receipt_digest.as_bytes())?;
-    push_field(&mut bytes, deriver_b_acceptance_receipt_digest.as_bytes())?;
-    push_field(&mut bytes, deriver_a_imported_commitment.as_bytes())?;
-    push_field(&mut bytes, deriver_b_imported_commitment.as_bytes())?;
-    push_field(&mut bytes, &stable_root_commitment)?;
+    COMMAND_WIRE.push_field(&mut bytes, identity_digest.as_bytes())?;
+    COMMAND_WIRE.push_field(&mut bytes, custody_lineage.as_bytes())?;
+    COMMAND_WIRE.push_field(&mut bytes, ceremony_session_id.as_bytes())?;
+    COMMAND_WIRE.push_field(&mut bytes, destination_fingerprint.as_bytes())?;
+    COMMAND_WIRE.push_field(&mut bytes, restore_session_id.as_bytes())?;
+    COMMAND_WIRE.push_field(&mut bytes, &manifest_digest)?;
+    COMMAND_WIRE.push_field(&mut bytes, deriver_a_acceptance_receipt_digest.as_bytes())?;
+    COMMAND_WIRE.push_field(&mut bytes, deriver_b_acceptance_receipt_digest.as_bytes())?;
+    COMMAND_WIRE.push_field(&mut bytes, deriver_a_imported_commitment.as_bytes())?;
+    COMMAND_WIRE.push_field(&mut bytes, deriver_b_imported_commitment.as_bytes())?;
+    COMMAND_WIRE.push_field(&mut bytes, &stable_root_commitment)?;
     TenantRootCeremonyNonceV1::from_bytes(Sha256::digest(bytes).into())
 }
 
@@ -561,17 +567,17 @@ fn push_authorization_fields(
     bytes: &mut Vec<u8>,
     data: &TenantRootRestoreRefreshRoleCommandDataV1,
 ) -> RouterAbDerivationResult<()> {
-    push_field(bytes, TENANT_ROOT_RESTORE_REFRESH_ROLE_OPERATION_V1)?;
-    push_field(bytes, &data.context.canonical_bytes()?)?;
-    push_field(bytes, data.destination_fingerprint.as_bytes())?;
-    push_field(bytes, data.restore_session_id.as_bytes())?;
-    push_field(bytes, &data.manifest_digest)?;
-    push_field(bytes, data.deriver_a_acceptance_receipt_digest.as_bytes())?;
-    push_field(bytes, data.deriver_b_acceptance_receipt_digest.as_bytes())?;
-    push_field(bytes, data.deriver_a_imported_commitment.as_bytes())?;
-    push_field(bytes, data.deriver_b_imported_commitment.as_bytes())?;
-    push_field(bytes, &data.stable_root_commitment)?;
-    push_role(bytes, data.role)?;
+    COMMAND_WIRE.push_field(bytes, TENANT_ROOT_RESTORE_REFRESH_ROLE_OPERATION_V1)?;
+    COMMAND_WIRE.push_field(bytes, &data.context.canonical_bytes()?)?;
+    COMMAND_WIRE.push_field(bytes, data.destination_fingerprint.as_bytes())?;
+    COMMAND_WIRE.push_field(bytes, data.restore_session_id.as_bytes())?;
+    COMMAND_WIRE.push_field(bytes, &data.manifest_digest)?;
+    COMMAND_WIRE.push_field(bytes, data.deriver_a_acceptance_receipt_digest.as_bytes())?;
+    COMMAND_WIRE.push_field(bytes, data.deriver_b_acceptance_receipt_digest.as_bytes())?;
+    COMMAND_WIRE.push_field(bytes, data.deriver_a_imported_commitment.as_bytes())?;
+    COMMAND_WIRE.push_field(bytes, data.deriver_b_imported_commitment.as_bytes())?;
+    COMMAND_WIRE.push_field(bytes, &data.stable_root_commitment)?;
+    COMMAND_WIRE.push_role(bytes, data.role)?;
     Ok(())
 }
 
@@ -580,70 +586,25 @@ fn unsigned_canonical_bytes(
 ) -> RouterAbDerivationResult<Vec<u8>> {
     validate_unsigned_data(data)?;
     let mut bytes = Vec::new();
-    push_field(
+    COMMAND_WIRE.push_field(
         &mut bytes,
         TENANT_ROOT_RESTORE_REFRESH_ROLE_COMMAND_DOMAIN_V1,
     )?;
     push_authorization_fields(&mut bytes, data)?;
-    push_field(&mut bytes, data.issuer_key_id.as_bytes())?;
-    Ok(bytes)
-}
-
-fn canonical_bytes_from_unsigned(
-    unsigned: Vec<u8>,
-    signature: &[u8; 64],
-) -> RouterAbDerivationResult<Vec<u8>> {
-    if signature.iter().all(|byte| *byte == 0) {
-        return Err(malformed(
-            "tenant-root restore refresh role command signature must be nonzero",
-        ));
-    }
-    let mut bytes = unsigned;
-    push_field(&mut bytes, signature)?;
+    COMMAND_WIRE.push_field(&mut bytes, data.issuer_key_id.as_bytes())?;
     Ok(bytes)
 }
 
 fn authentication_input(issuer_key_id: &str, unsigned: &[u8]) -> RouterAbDerivationResult<Vec<u8>> {
     require_issuer_key_id(issuer_key_id)?;
     let mut bytes = Vec::new();
-    push_field(
+    COMMAND_WIRE.push_field(
         &mut bytes,
         TENANT_ROOT_RESTORE_REFRESH_ROLE_COMMAND_AUTH_DOMAIN_V1,
     )?;
-    push_field(&mut bytes, issuer_key_id.as_bytes())?;
-    push_field(&mut bytes, unsigned)?;
+    COMMAND_WIRE.push_field(&mut bytes, issuer_key_id.as_bytes())?;
+    COMMAND_WIRE.push_field(&mut bytes, unsigned)?;
     Ok(bytes)
-}
-
-fn push_role(bytes: &mut Vec<u8>, role: TwoPartyDeriverRole) -> RouterAbDerivationResult<()> {
-    push_field(bytes, role.as_str().as_bytes())?;
-    push_field(bytes, &role.share_id().get().get().to_be_bytes())
-}
-
-fn push_field(bytes: &mut Vec<u8>, value: &[u8]) -> RouterAbDerivationResult<()> {
-    if value.is_empty() {
-        return Err(RouterAbDerivationError::new(
-            RouterAbDerivationErrorCode::EmptyField,
-            "tenant-root restore refresh role command field is required",
-        ));
-    }
-    let length = u32::try_from(value.len())
-        .map_err(|_| malformed("tenant-root restore refresh role command field is too long"))?;
-    let new_len = bytes
-        .len()
-        .checked_add(4)
-        .and_then(|length| length.checked_add(value.len()))
-        .ok_or_else(|| {
-            malformed("tenant-root restore refresh role command wire length overflows")
-        })?;
-    if new_len > TENANT_ROOT_RESTORE_REFRESH_ROLE_COMMAND_MAX_BYTES_V1 {
-        return Err(malformed(
-            "tenant-root restore refresh role command wire is too long",
-        ));
-    }
-    bytes.extend_from_slice(&length.to_be_bytes());
-    bytes.extend_from_slice(value);
-    Ok(())
 }
 
 fn malformed(message: impl Into<String>) -> RouterAbDerivationError {

@@ -31,7 +31,7 @@ export function redactedPasskeyRegistrationCredential(
  * @returns SerializableCredential - The serialized credential
  * - Does not return PRF outputs
  */
-export function serializeRegistrationCredential(
+function serializeRegistrationCredential(
   credential: PublicKeyCredential,
 ): WebAuthnRegistrationCredential {
   const response = credential.response as AuthenticatorAttestationResponse;
@@ -67,7 +67,7 @@ export function serializeRegistrationCredential(
   };
 }
 
-export function serializeAuthenticationCredential(
+function serializeAuthenticationCredential(
   credential: PublicKeyCredential,
 ): WebAuthnAuthenticationCredential {
   const response = credential.response as AuthenticatorAssertionResponse;

@@ -1,4 +1,4 @@
-export const SURFACE_RESIZE_BEGIN_EVENT = 'seams-surface-resize-begin';
+const SURFACE_RESIZE_BEGIN_EVENT = 'seams-surface-resize-begin';
 
 export type SurfaceResizeDriver = {
   /** 0 renders the pre-change height, 1 the post-change height. */
@@ -16,7 +16,7 @@ export type SurfaceResizeBeginDetail = {
   claim(): SurfaceResizeDriver | null;
 };
 
-export type SurfaceResizeBeginListener = (event: CustomEvent<SurfaceResizeBeginDetail>) => void;
+type SurfaceResizeBeginListener = (event: CustomEvent<SurfaceResizeBeginDetail>) => void;
 
 export function dispatchSurfaceResizeBegin(
   target: EventTarget,

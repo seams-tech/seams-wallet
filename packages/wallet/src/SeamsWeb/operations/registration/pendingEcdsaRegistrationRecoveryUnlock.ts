@@ -22,6 +22,7 @@ import {
 import { SIGNING_SESSION_SEAL_GROUP_ID } from '@shared/utils/signingSessionSeal';
 import { joinNormalizedUrl } from '@shared/utils/normalize';
 import { base64UrlDecode } from '@shared/utils/base64';
+import { requireRecord, requireNonEmptyString } from '@shared/utils/validation';
 import { generateSessionId } from '@/core/signingEngine/session/passkey/prfCache';
 import {
   toWalletId,
@@ -46,48 +47,6 @@ type PasskeyUnlockChallenge = {
   readonly challengeB64u: string;
 };
 
-type PasskeyUnlockChallengeResponseDto =
-  | { readonly kind: 'success'; readonly challengeId: string; readonly challengeB64u: string }
-  | { readonly kind: 'error'; readonly message: string | null };
-
-function decodePasskeyUnlockChallengeResponse(value: unknown): PasskeyUnlockChallengeResponseDto {
-  if (
-    value === null ||
-    typeof value !== 'object' ||
-    Array.isArray(value) ||
-    (Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null)
-  ) {
-    return { kind: 'error', message: null };
-  }
-  const fields = new Map<string, unknown>(Object.entries(value));
-  const names = [...fields.keys()];
-  const successFields = new Set(['ok', 'challengeId', 'challengeB64u']);
-  if (
-    names.length === successFields.size &&
-    names.every((name) => successFields.has(name)) &&
-    fields.get('ok') === true
-  ) {
-    const challengeId = fields.get('challengeId');
-    const challengeB64u = fields.get('challengeB64u');
-    if (
-      typeof challengeId === 'string' &&
-      challengeId.trim() &&
-      typeof challengeB64u === 'string' &&
-      challengeB64u.trim()
-    ) {
-      return {
-        kind: 'success',
-        challengeId: challengeId.trim(),
-        challengeB64u: challengeB64u.trim(),
-      };
-    }
-  }
-  if (names.every((name) => name === 'ok' || name === 'message')) {
-    const message = fields.get('message');
-    return { kind: 'error', message: typeof message === 'string' ? message : null };
-  }
-  return { kind: 'error', message: null };
-}
 function requireParsedThresholdSessionId(value: string) {
   const parsed = parseThresholdEcdsaSessionId(value);
   if (!parsed.ok) throw new Error('ECDSA registration recovery could not create a session id');
@@ -130,15 +89,18 @@ async function requestPasskeyUnlockChallenge(args: {
     body: JSON.stringify({ unlockBackend: 'passkey', userId: args.walletId, rpId: args.rpId }),
   });
   const raw: unknown = await response.json().catch(() => ({}));
-  const body = decodePasskeyUnlockChallengeResponse(raw);
-  if (!response.ok || body.kind !== 'success') {
+  const body = requireRecord(raw, 'Passkey unlock challenge response');
+  if (!response.ok || body.ok !== true) {
     throw new Error(
-      body.kind === 'error' && body.message
+      typeof body.message === 'string' && body.message
         ? body.message
         : `wallet/unlock/challenge failed (HTTP ${response.status})`,
     );
   }
-  return body;
+  return {
+    challengeId: requireNonEmptyString(body.challengeId, 'Passkey unlock challenge ID'),
+    challengeB64u: requireNonEmptyString(body.challengeB64u, 'Passkey unlock challenge'),
+  };
 }
 function isAuthenticatorTransport(value: string): value is AuthenticatorTransport {
   return (
@@ -198,12 +160,20 @@ function assertCustodyContinuityMatchesRegistration(args: {
   if (args.signers.length !== args.walletKeys.length) {
     throw new Error('ECDSA registration unlock returned incomplete custody continuity');
   }
-  args.signers.forEach((signer, index) => {
-    const walletKey = args.walletKeys[index];
+  const remainingTargets = new Map<string, WalletRegistrationEcdsaWalletKey>();
+  for (const walletKey of args.walletKeys) {
+    const target = thresholdEcdsaChainTargetKey(walletKey.chainTarget);
+    if (remainingTargets.has(target)) {
+      throw new Error('ECDSA registration has duplicate custody targets');
+    }
+    remainingTargets.set(target, walletKey);
+  }
+  for (const signer of args.signers) {
+    const target = thresholdEcdsaChainTargetKey(signer.chainTarget);
+    const walletKey = remainingTargets.get(target);
     if (!walletKey) throw new Error('ECDSA registration unlock returned an unknown target');
+    remainingTargets.delete(target);
     if (
-      thresholdEcdsaChainTargetKey(signer.chainTarget) !==
-        thresholdEcdsaChainTargetKey(walletKey.chainTarget) ||
       signer.walletKey.walletId !== args.pending.walletId ||
       signer.walletKey.keyHandle !== walletKey.keyHandle ||
       signer.walletKey.ecdsaThresholdKeyId !== walletKey.ecdsaThresholdKeyId ||
@@ -224,7 +194,7 @@ function assertCustodyContinuityMatchesRegistration(args: {
     ) {
       throw new Error('ECDSA registration unlock returned different custody continuity');
     }
-  });
+  }
 }
 function zeroizeArrayBuffer(buffer: ArrayBuffer): void {
   new Uint8Array(buffer).fill(0);

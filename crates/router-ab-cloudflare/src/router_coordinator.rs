@@ -1,26 +1,25 @@
 //! Cloudflare Worker adapter for the Router-owned Refactor 93 ceremony.
 
-use crate::durable_object::tenant_root_creation::execute_cloudflare_router_tenant_root_creation_active_state_read_call_v1;
 use crate::{
     build_cloudflare_router_public_keyset_v2, cloudflare_now_unix_ms_v1,
     cloudflare_router_error_status, cloudflare_service_json_request_body_v1,
     cloudflare_tenant_root_ed25519_yao_binding_v2, encode_base64url_bytes_v1,
     parse_cloudflare_deriver_peer_verifying_key_set_v1, parse_cloudflare_trace_id_from_request_v1,
-    require_cloudflare_internal_service_auth_request_v1,
+    require_cloudflare_gateway_to_router_auth_request_v1,
     set_cloudflare_internal_service_auth_header_v1, set_cloudflare_trace_id_header_v1,
-    CloudflareEd25519YaoInactiveReservationResponseV1, CloudflareEd25519YaoPackagePairDeliveryV1,
-    CloudflareEd25519YaoPairExecuteRequestV1, CloudflareEd25519YaoPairExecuteResponseV1,
-    CloudflareEd25519YaoPairLookupRequestV1, CloudflareEd25519YaoPairPrepareRequestV1,
-    CloudflareEd25519YaoPairStatusResponseV1, CloudflareEd25519YaoRoleFailureResponseV1,
+    CloudflareDeriverBWalletPairScopeV1, CloudflareEd25519YaoInactiveReservationResponseV1,
+    CloudflareEd25519YaoPackagePairDeliveryV1, CloudflareEd25519YaoPairExecuteRequestV1,
+    CloudflareEd25519YaoPairExecuteResponseV1, CloudflareEd25519YaoPairLookupRequestV1,
+    CloudflareEd25519YaoPairPrepareRequestV1, CloudflareEd25519YaoPairStatusResponseV1,
+    CloudflareEd25519YaoRoleFailureResponseV1,
     CloudflareEd25519YaoSourcePreservingInactiveReservationRequestV1,
     CloudflareEd25519YaoTenantRootContextV2, CloudflareRouterEd25519YaoExecuteRequestV2,
-    CloudflareRouterProjectPolicyV1, CloudflareRouterWorkerRuntimeV1,
-    CloudflareTenantRootCoordinatesV1, CloudflareWorkerEnvReaderV1,
-    CLOUDFLARE_DERIVER_A_ED25519_YAO_BURN_PAIR_PATH,
-    CLOUDFLARE_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH,
+    CloudflareRouterEd25519YaoTenantRootV1, CloudflareRouterProjectPolicyV1,
+    CloudflareRouterWorkerRuntimeV1, CloudflareScopedEd25519YaoPackagePairDeliveryV1,
+    CloudflareScopedEd25519YaoRecoveryPromotionRequestV1, CloudflareSigningWorkerWalletScopeV1,
+    CloudflareWorkerEnvReaderV1, CLOUDFLARE_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH,
     CLOUDFLARE_DERIVER_A_ED25519_YAO_PREPARE_PAIR_PATH,
     CLOUDFLARE_DERIVER_A_ED25519_YAO_READ_PAIR_STATUS_PATH,
-    CLOUDFLARE_DERIVER_B_ED25519_YAO_BURN_PAIR_PATH,
     CLOUDFLARE_DERIVER_B_ED25519_YAO_PREPARE_PAIR_PATH,
     CLOUDFLARE_DERIVER_B_ED25519_YAO_READ_PAIR_STATUS_PATH,
     CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_PACKAGES_PATH,
@@ -28,20 +27,39 @@ use crate::{
     CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_RESERVE_INACTIVE_SOURCE_PRESERVING_PATH,
     CLOUDFLARE_SIGNING_WORKER_LANE_MATERIAL_COMMAND_PATH,
 };
+use crate::{
+    validate_source_preserving_participant_ids_v1,
+    validate_source_preserving_reservation_response_v1, validate_source_target_identity_v1,
+    CloudflareRouterEd25519YaoSourcePreservingExecuteRequestV1,
+};
+#[cfg(feature = "wallet-do-router-harness")]
+use crate::{
+    CloudflareDeriverAWalletPairOutcomeResponseV1, CloudflareDeriverAWalletPairStatusRequestV1,
+    CloudflareEd25519YaoInitialRegistrationFinalizationLookupRequestV1,
+    CloudflareEd25519YaoInitialRegistrationFinalizationLookupResponseV1,
+    CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_INITIAL_REGISTRATION_FINALIZATION_LOOKUP_PATH,
+};
+#[cfg(not(feature = "wallet-do-router-harness"))]
+use crate::{
+    CLOUDFLARE_DERIVER_A_ED25519_YAO_BURN_PAIR_PATH,
+    CLOUDFLARE_DERIVER_B_ED25519_YAO_BURN_PAIR_PATH,
+};
+#[cfg(feature = "wallet-do-router-harness")]
+use router_ab_core::TenantRootSignedActivationReceiptV1;
 use router_ab_core::{
     ed25519_yao_recipient_set_digest_v1, Ed25519YaoCeremonyBindingV1, Ed25519YaoDeriverRoleV1,
-    Ed25519YaoInputPairBindingV1, Ed25519YaoOperationV1, Ed25519YaoPackageKindV1,
-    Ed25519YaoRoleReadinessReceiptV1, PublicDigest32, RouterAbEd25519YaoActivationPublicReceiptV1,
+    Ed25519YaoInputPairBindingV1, Ed25519YaoOperationV1, Ed25519YaoRoleReadinessReceiptV1,
+    PublicDigest32, RouterAbEd25519YaoActivationPublicReceiptV1,
     RouterAbEd25519YaoActivationResultV1, RouterAbEd25519YaoApplicationBindingFactsV1,
     RouterAbEd25519YaoExportResultV1, RouterAbEd25519YaoLaneDispatchRequestV1,
     RouterAbEd25519YaoLaneDispatchResponseV1, RouterAbProtocolError, RouterAbProtocolErrorCode,
     RouterAbProtocolResult, RouterEd25519YaoExecuteRequestV1, RouterEd25519YaoExecuteResultV1,
-    RouterEd25519YaoExecuteSuccessV1,
+    RouterEd25519YaoExecuteSuccessV1, TenantRootIdentityV1,
 };
 use router_ab_ed25519_yao::{
     commit_ed25519_yao_lane_result_v1, lane_protocol_commit_receipt_v1,
     stable_key_derivation_context_v1, Ed25519YaoActivationRoleExecutionV1,
-    Ed25519YaoExportRoleExecutionV1, Ed25519YaoLaneRoleExecutionV1, Ed25519YaoRoleExecutionV1,
+    Ed25519YaoRoleExecutionV1,
     Ed25519YaoSigningWorkerPackageDeliveryV1,
 };
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
@@ -51,14 +69,14 @@ const DERIVER_A_SERVICE_URL: &str = "https://router-ab-deriver-a.internal";
 const DERIVER_B_SERVICE_URL: &str = "https://router-ab-deriver-b.internal";
 const SIGNING_WORKER_SERVICE_URL: &str = "https://router-ab-signing-worker.internal";
 const ROUTER_SPAN_EVENT: &str = "router_ab_yao_coordinator_span_v1";
-const ROUTER_REPLAY_HEADER: &str = "x-seams-yao-replay";
+const ROUTER_REPLAY_HEADER: &str = crate::ROUTER_ED25519_YAO_REPLAY_HEADER_V1;
 const ROUTER_AUTHORITY_TTL_MS: u64 = 60_000;
 
 /// Server-admitted lane envelope with the same tenant-root binding as ceremonies.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareRouterEd25519YaoLaneExecuteRequestV2 {
-    pub tenant_root: CloudflareTenantRootCoordinatesV1,
+    pub tenant_root: CloudflareRouterEd25519YaoTenantRootV1,
     pub application: RouterAbEd25519YaoApplicationBindingFactsV1,
     pub participant_ids: [u16; 2],
     pub target: RouterAbEd25519YaoLaneDispatchRequestV1,
@@ -86,38 +104,6 @@ impl CloudflareRouterEd25519YaoLaneExecuteRequestV2 {
             ));
         }
         Ok(())
-    }
-}
-
-/// Source-preserving target execution request. The target remains the normal
-/// Gateway request shape; the source binding is carried beside it so Router
-/// can preserve the exact active public identity without persisting a link
-/// ceremony or invoking lifecycle activation.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct CloudflareRouterEd25519YaoSourcePreservingExecuteRequestV1 {
-    pub source_binding: Ed25519YaoCeremonyBindingV1,
-    pub target: CloudflareRouterEd25519YaoExecuteRequestV2,
-}
-
-impl CloudflareRouterEd25519YaoSourcePreservingExecuteRequestV1 {
-    pub fn validate(&self) -> RouterAbProtocolResult<()> {
-        self.source_binding.validate()?;
-        self.target.validate()?;
-        if self.source_binding.operation != Ed25519YaoOperationV1::Registration {
-            return Err(invalid_coordinator(
-                "source-preserving Router execution requires a registration source binding",
-            ));
-        }
-        if self.target.target.operation() != Ed25519YaoOperationV1::Registration {
-            return Err(invalid_coordinator(
-                "source-preserving Router execution requires a registration target request",
-            ));
-        }
-        validate_source_target_identity_v1(
-            &self.source_binding,
-            self.target.target.ceremony_binding(),
-        )
     }
 }
 
@@ -200,6 +186,11 @@ fn emit_span(
     }
 }
 
+/// Local only: the Gateway's terminal-failure fault asks a dev Router to end a
+/// registration burned instead of running it.
+#[cfg(feature = "local-intended-router-burn")]
+const LOCAL_INTENDED_ROUTER_BURN_HEADER_V1: &str = "x-seams-local-intended-router-burn-v1";
+
 /// Handles one authenticated Gateway-to-Router Yao execution request.
 pub async fn handle_cloudflare_router_ed25519_yao_execute_private_fetch_v1(
     mut request: Request,
@@ -208,7 +199,7 @@ pub async fn handle_cloudflare_router_ed25519_yao_execute_private_fetch_v1(
     if request.method() != Method::Post {
         return Response::error("Router Yao execute route requires POST", 405);
     }
-    if let Err(error) = require_cloudflare_internal_service_auth_request_v1(&request, env) {
+    if let Err(error) = require_cloudflare_gateway_to_router_auth_request_v1(&request, env) {
         return crate::cloudflare_private_service_auth_error_response_v1(error);
     }
     let parse_started_at_ms = cloudflare_now_unix_ms_v1().unwrap_or_default();
@@ -216,11 +207,16 @@ pub async fn handle_cloudflare_router_ed25519_yao_execute_private_fetch_v1(
         Ok(trace_id) => trace_id,
         Err(error) => return protocol_error_response(error),
     };
-    let replay = match parse_router_replay_header(&request) {
+    let mut replay = match parse_router_replay_header(&request) {
         Ok(replay) => replay,
         Err(error) => return protocol_error_response(error),
     };
-    let gateway_envelope = match request
+    #[cfg(feature = "local-intended-router-burn")]
+    let burn = matches!(
+        request.headers().get(LOCAL_INTENDED_ROUTER_BURN_HEADER_V1),
+        Ok(Some(_))
+    );
+    let mut gateway_envelope = match request
         .json::<CloudflareRouterEd25519YaoExecuteRequestV2>()
         .await
     {
@@ -234,6 +230,48 @@ pub async fn handle_cloudflare_router_ed25519_yao_execute_private_fetch_v1(
     };
     if let Err(error) = gateway_envelope.validate() {
         return protocol_error_response(error);
+    }
+    // A registration is claimed in the Router's wallet object before it runs.
+    // The claim decides whether this run replays, and an exact retry of a
+    // finished run gets the recorded answer. The run records its answer under
+    // the claim generation it holds.
+    let registration = match crate::RouterWalletRegistrationV1::from_request(&gateway_envelope) {
+        Ok(registration) => registration,
+        Err(error) => return protocol_error_response(error),
+    };
+    let mut claimed = None;
+    if let Some(registration) = registration {
+        if replay {
+            return protocol_error_response(crate::router_wallet_registration_replay_refused_v1());
+        }
+        let claim = match cloudflare_now_unix_ms_v1().and_then(|now_ms| {
+            crate::parse_router_yao_registration_lease_ms_v1(&CloudflareWorkerEnvReaderV1::new(env))
+                .map(|lease_ms| registration.claim(now_ms, lease_ms))
+        }) {
+            Ok(claim) => claim,
+            Err(error) => return protocol_error_response(error),
+        };
+        match crate::durable_object::call_router_wallet_v1(env, &claim).await {
+            Ok(crate::RouterWalletResponseV1::Run {
+                request_json,
+                replay: takes_over,
+                generation,
+            }) => {
+                gateway_envelope = match serde_json::from_str(&request_json) {
+                    Ok(pinned) => pinned,
+                    Err(error) => {
+                        return protocol_error_response(RouterAbProtocolError::new(
+                            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+                            format!("Router wallet object pinned an unreadable request: {error}"),
+                        ))
+                    }
+                };
+                replay = takes_over;
+                claimed = Some((registration, generation));
+            }
+            Ok(answer) => return router_wallet_answer_response(answer),
+            Err(error) => return protocol_error_response(error),
+        }
     }
     let CloudflareRouterEd25519YaoExecuteRequestV2 {
         tenant_root,
@@ -261,6 +299,33 @@ pub async fn handle_cloudflare_router_ed25519_yao_execute_private_fetch_v1(
         Ok(request) => request,
         Err(error) => return protocol_error_response(error),
     };
+    // Local only, in dev builds: the claimed registration ends burned, as a
+    // run that burned its pair would, and its answer is recorded like one.
+    #[cfg(feature = "local-intended-router-burn")]
+    if burn && claimed.is_some() {
+        let result = router_execution_id(execute_request.pair_binding()).map(|execution_id| {
+            RouterEd25519YaoExecuteResultV1::burned(
+                execution_id,
+                router_ab_core::RouterEd25519YaoBurnReasonV1::ProtocolFailure,
+            )
+        });
+        return finish_router_execution_response(env, claimed.as_ref(), result).await;
+    }
+    #[cfg(feature = "wallet-do-router-harness")]
+    if replay && execute_request.operation() == Ed25519YaoOperationV1::Registration {
+        let result = execute_historical_registration_replay_v1(
+            env,
+            &runtime,
+            &execute_request,
+            &tenant_root,
+            &application,
+            participant_ids,
+            now_ms,
+            trace_id,
+        )
+        .await;
+        return finish_router_execution_response(env, claimed.as_ref(), result).await;
+    }
     let tenant_root = match resolve_ed25519_yao_tenant_root_context_v2(
         env,
         tenant_root,
@@ -302,14 +367,102 @@ pub async fn handle_cloudflare_router_ed25519_yao_execute_private_fetch_v1(
         started_at_ms,
         if result.is_ok() { "success" } else { "failure" },
     );
-    let response = match result {
-        Ok(result) => Response::from_json(&result)?,
-        Err(error) => protocol_error_response(error)?,
-    };
+    let response = finish_router_execution_response(env, claimed.as_ref(), result).await?;
     response
         .headers()
         .set("Server-Timing", &timing.server_timing())?;
     Ok(response)
+}
+
+/// Answers one run. A registration's terminal answer is recorded in the
+/// Router's wallet object under the claim generation the run holds, and the
+/// recorded answer is the one sent. A run whose lapsed claim another run took
+/// over is answered that the execution is in progress. A recoverable answer
+/// leaves the claim to lapse.
+async fn finish_router_execution_response(
+    env: &Env,
+    claimed: Option<&(crate::RouterWalletRegistrationV1, u64)>,
+    result: RouterAbProtocolResult<RouterEd25519YaoExecuteResultV1>,
+) -> worker::Result<Response> {
+    let result = match result {
+        Ok(result) => result,
+        Err(error) => return protocol_error_response(error),
+    };
+    let Some((registration, generation)) = claimed else {
+        return Response::from_json(&result);
+    };
+    let finish = match cloudflare_now_unix_ms_v1()
+        .and_then(|now_ms| registration.finish(&result, *generation, now_ms))
+    {
+        Ok(Some(finish)) => finish,
+        Ok(None) => return Response::from_json(&result),
+        Err(error) => return protocol_error_response(error),
+    };
+    match crate::durable_object::call_router_wallet_v1(env, &finish).await {
+        Ok(answer) => router_wallet_answer_response(answer),
+        Err(error) => protocol_error_response(error),
+    }
+}
+
+/// The Router's answer from its wallet object's response to a registration
+/// claim or finish.
+fn router_wallet_answer_response(answer: crate::RouterWalletResponseV1) -> worker::Result<Response> {
+    let result = match answer {
+        crate::RouterWalletResponseV1::Answered { response_json } => {
+            let response = Response::ok(response_json)?;
+            response.headers().set("content-type", "application/json")?;
+            return Ok(response);
+        }
+        crate::RouterWalletResponseV1::InProgress { retry_after_ms } => {
+            RouterEd25519YaoExecuteResultV1::recoverable(
+                router_ab_core::RouterEd25519YaoExecuteFailureCodeV1::ExecutionInProgress,
+                retry_after_ms,
+            )
+        }
+        crate::RouterWalletResponseV1::Mismatch => Ok(RouterEd25519YaoExecuteResultV1::rejected(
+            router_ab_core::RouterEd25519YaoExecuteFailureCodeV1::ExecutionMismatch,
+        )),
+        _ => Err(invalid_coordinator(
+            "Router wallet object answered a registration execute with another command's response",
+        )),
+    };
+    match result {
+        Ok(result) => Response::from_json(&result),
+        Err(error) => protocol_error_response(error),
+    }
+}
+
+/// Consumes one completed registration's activation for one finalization, in
+/// the Router's wallet object.
+pub async fn handle_cloudflare_router_ed25519_yao_registration_consume_private_fetch_v1(
+    mut request: Request,
+    env: &Env,
+) -> worker::Result<Response> {
+    if request.method() != Method::Post {
+        return Response::error("Router registration consume route requires POST", 405);
+    }
+    if let Err(error) = require_cloudflare_gateway_to_router_auth_request_v1(&request, env) {
+        return crate::cloudflare_private_service_auth_error_response_v1(error);
+    }
+    let consume = match request
+        .json::<crate::CloudflareRouterEd25519YaoRegistrationConsumeRequestV1>()
+        .await
+    {
+        Ok(consume) => consume,
+        Err(error) => {
+            return protocol_error_response(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::MalformedWirePayload,
+                format!("Router registration consume request JSON is malformed: {error}"),
+            ))
+        }
+    };
+    if let Err(error) = consume.tenant_root.resolve() {
+        return protocol_error_response(error);
+    }
+    match crate::durable_object::call_router_wallet_v1(env, &consume.into_wallet_request()).await {
+        Ok(response) => Response::from_json(&response),
+        Err(error) => protocol_error_response(error),
+    }
 }
 
 /// Handles one authenticated source-preserving target registration.
@@ -323,7 +476,7 @@ pub async fn handle_cloudflare_router_ed25519_yao_source_preserving_execute_priv
             405,
         );
     }
-    if let Err(error) = require_cloudflare_internal_service_auth_request_v1(&request, env) {
+    if let Err(error) = require_cloudflare_gateway_to_router_auth_request_v1(&request, env) {
         return crate::cloudflare_private_service_auth_error_response_v1(error);
     }
     let parse_started_at_ms = cloudflare_now_unix_ms_v1().unwrap_or_default();
@@ -438,7 +591,7 @@ pub async fn handle_cloudflare_router_ed25519_yao_lane_execute_private_fetch_v1(
     if request.method() != Method::Post {
         return Response::error("Router Ed25519 lane execute route requires POST", 405);
     }
-    if let Err(error) = require_cloudflare_internal_service_auth_request_v1(&request, env) {
+    if let Err(error) = require_cloudflare_gateway_to_router_auth_request_v1(&request, env) {
         return crate::cloudflare_private_service_auth_error_response_v1(error);
     }
     let trace_id = match parse_cloudflare_trace_id_from_request_v1(&request) {
@@ -580,6 +733,37 @@ fn router_recipient_set_digest_v1(env: &Env) -> RouterAbProtocolResult<PublicDig
     ed25519_yao_recipient_set_digest_v1(deriver_a, deriver_b, signing_worker)
 }
 
+/// The Gateway's recovery promotion: the verified recovery result, and the
+/// tenant root the recovery was admitted under. The root names the wallet's
+/// SigningWorker scope, derived as the recovery's delivery derived it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CloudflareRouterEd25519YaoRecoveryPromotionRequestV1 {
+    pub binding: router_ab_core::Ed25519YaoCeremonyBindingV1,
+    pub public_receipt: router_ab_core::RouterAbEd25519YaoActivationPublicReceiptV1,
+    pub tenant_root: CloudflareRouterEd25519YaoTenantRootV1,
+}
+
+impl CloudflareRouterEd25519YaoRecoveryPromotionRequestV1 {
+    fn scoped(
+        self,
+    ) -> RouterAbProtocolResult<CloudflareScopedEd25519YaoRecoveryPromotionRequestV1> {
+        self.tenant_root.coordinates()?;
+        let scoped = CloudflareScopedEd25519YaoRecoveryPromotionRequestV1 {
+            scope: CloudflareSigningWorkerWalletScopeV1::from_tenant_root(
+                &self.tenant_root.identity,
+                &self.binding.lifecycle.account_id,
+            )?,
+            promotion: crate::CloudflareEd25519YaoRecoveryPromotionRequestV1 {
+                binding: self.binding,
+                public_receipt: self.public_receipt,
+            },
+        };
+        scoped.validate()?;
+        Ok(scoped)
+    }
+}
+
 /// Handles explicit recovery promotion without exposing the SigningWorker to the Gateway.
 pub async fn handle_cloudflare_router_ed25519_yao_recovery_promote_private_fetch_v1(
     mut request: Request,
@@ -588,7 +772,7 @@ pub async fn handle_cloudflare_router_ed25519_yao_recovery_promote_private_fetch
     if request.method() != Method::Post {
         return Response::error("Router recovery promotion route requires POST", 405);
     }
-    if let Err(error) = require_cloudflare_internal_service_auth_request_v1(&request, env) {
+    if let Err(error) = require_cloudflare_gateway_to_router_auth_request_v1(&request, env) {
         return crate::cloudflare_private_service_auth_error_response_v1(error);
     }
     let trace_id = match parse_cloudflare_trace_id_from_request_v1(&request) {
@@ -596,7 +780,7 @@ pub async fn handle_cloudflare_router_ed25519_yao_recovery_promote_private_fetch
         Err(error) => return protocol_error_response(error),
     };
     let promotion = match request
-        .json::<crate::CloudflareEd25519YaoRecoveryPromotionRequestV1>()
+        .json::<CloudflareRouterEd25519YaoRecoveryPromotionRequestV1>()
         .await
     {
         Ok(promotion) => promotion,
@@ -607,9 +791,10 @@ pub async fn handle_cloudflare_router_ed25519_yao_recovery_promote_private_fetch
             ))
         }
     };
-    if let Err(error) = promotion.validate() {
-        return protocol_error_response(error);
-    }
+    let promotion = match promotion.scoped() {
+        Ok(promotion) => promotion,
+        Err(error) => return protocol_error_response(error),
+    };
     let runtime = match CloudflareRouterWorkerRuntimeV1::from_worker_env(env) {
         Ok(runtime) => runtime,
         Err(error) => return protocol_error_response(error),
@@ -635,20 +820,25 @@ pub async fn handle_cloudflare_router_ed25519_yao_recovery_promote_private_fetch
 
 async fn resolve_ed25519_yao_tenant_root_context_v2(
     env: &Env,
-    coordinates: CloudflareTenantRootCoordinatesV1,
+    root: CloudflareRouterEd25519YaoTenantRootV1,
     application: RouterAbEd25519YaoApplicationBindingFactsV1,
     participant_ids: [u16; 2],
     pair_binding: &Ed25519YaoInputPairBindingV1,
     now_ms: u64,
 ) -> RouterAbProtocolResult<CloudflareEd25519YaoTenantRootContextV2> {
-    let (identity_digest, custody_lineage) = coordinates.resolve()?;
+    let (identity_digest, custody_lineage) = root.resolve()?;
     let activation_receipt =
-        execute_cloudflare_router_tenant_root_creation_active_state_read_call_v1(
+        crate::tenant_root_refresh_coordinator::execute_cloudflare_router_tenant_root_admission_receipt_v1(
             env,
             identity_digest,
             custody_lineage,
         )
         .await?;
+    if activation_receipt.identity_digest() != identity_digest {
+        return Err(invalid_coordinator(
+            "Router Yao root identity differs from active activation receipt",
+        ));
+    }
     let (custody_binding, outer_binding) = cloudflare_tenant_root_ed25519_yao_binding_v2(
         env,
         pair_binding,
@@ -657,6 +847,7 @@ async fn resolve_ed25519_yao_tenant_root_context_v2(
         now_ms.saturating_add(ROUTER_AUTHORITY_TTL_MS),
     )?;
     let context = CloudflareEd25519YaoTenantRootContextV2 {
+        identity: root.identity,
         custody_binding,
         outer_binding,
         application,
@@ -763,6 +954,7 @@ async fn execute_router_ceremony_with_finalization_v1(
     let operation = request.operation();
     let pair_binding = request.pair_binding().clone();
     let work = pair_work(&request);
+    let root_identity = tenant_root.identity.clone();
 
     if replay {
         if let Some(result) = reconcile_router_replay_v1(
@@ -771,6 +963,7 @@ async fn execute_router_ceremony_with_finalization_v1(
             &request,
             &binding,
             &pair_binding,
+            &tenant_root.identity,
             trace_id,
             finalization,
             timing,
@@ -840,7 +1033,7 @@ async fn execute_router_ceremony_with_finalization_v1(
     timing.prepare_pair_ms = cloudflare_now_unix_ms_v1()?.saturating_sub(prepare_started_at_ms);
     let readiness_now_ms = cloudflare_now_unix_ms_v1()?;
     let readiness_started_at_ms = cloudflare_now_unix_ms_v1()?;
-    let readiness_result = validate_readiness(
+    let readiness_result = crate::validate_router_ed25519_yao_readiness_v1(
         &receipt_a,
         &pair_binding,
         readiness_now_ms,
@@ -848,7 +1041,7 @@ async fn execute_router_ceremony_with_finalization_v1(
         &verifying_keys,
     )
     .and_then(|()| {
-        validate_readiness(
+        crate::validate_router_ed25519_yao_readiness_v1(
             &receipt_b,
             &pair_binding,
             readiness_now_ms,
@@ -908,7 +1101,7 @@ async fn execute_router_ceremony_with_finalization_v1(
         }
     };
     let execution_validation = match execution.deriver_a_execution.validate() {
-        Ok(()) => validate_execution(
+        Ok(()) => crate::validate_router_ed25519_yao_role_execution_v1(
             &execution.deriver_a_execution,
             Ed25519YaoDeriverRoleV1::DeriverA,
             &binding,
@@ -930,12 +1123,12 @@ async fn execute_router_ceremony_with_finalization_v1(
     timing.role_execution_ms = cloudflare_now_unix_ms_v1()?.saturating_sub(execute_started_at_ms);
     execution_validation?;
 
-    let transcript = execution_transcript(&execution.deriver_a_execution);
+    let transcript = crate::ed25519_yao_role_execution_transcript_v1(&execution.deriver_a_execution);
     let completed_b = serde_json::from_str::<Ed25519YaoRoleExecutionV1>(
         &execution.deriver_b_sealed_execution_json,
     )
     .map_err(|_| invalid_coordinator("Deriver B sealed execution is malformed"))?;
-    validate_execution(
+    crate::validate_router_ed25519_yao_role_execution_v1(
         &completed_b,
         Ed25519YaoDeriverRoleV1::DeriverB,
         &binding,
@@ -947,6 +1140,7 @@ async fn execute_router_ceremony_with_finalization_v1(
         runtime,
         &request,
         &binding,
+        &root_identity,
         execution.deriver_a_execution,
         completed_b,
         trace_id,
@@ -956,34 +1150,279 @@ async fn execute_router_ceremony_with_finalization_v1(
     .await
 }
 
+#[cfg(feature = "wallet-do-router-harness")]
+async fn execute_historical_registration_replay_v1(
+    env: &Env,
+    runtime: &CloudflareRouterWorkerRuntimeV1,
+    request: &RouterEd25519YaoExecuteRequestV1,
+    root: &CloudflareRouterEd25519YaoTenantRootV1,
+    application: &RouterAbEd25519YaoApplicationBindingFactsV1,
+    participant_ids: [u16; 2],
+    now_ms: u64,
+    trace_id: Option<crate::CloudflareTraceIdV1>,
+) -> RouterAbProtocolResult<RouterEd25519YaoExecuteResultV1> {
+    request.authority().validate_at(now_ms)?;
+    let pair_binding = request.pair_binding();
+    pair_binding.validate()?;
+    let (identity_digest, custody_lineage) = root.resolve()?;
+    if let CloudflareRouterProjectPolicyV1::Rejected { retry_after_ms } = runtime
+        .evaluate_project_policy_for_yao_work_kind_v1(pair_binding.binding().lifecycle.work_kind)?
+    {
+        return RouterEd25519YaoExecuteResultV1::recoverable(
+            router_ab_core::RouterEd25519YaoExecuteFailureCodeV1::AuthorizationRejected,
+            retry_after_ms,
+        );
+    }
+    let outcome_a = read_deriver_a_wallet_pair_outcome_v1(
+        env,
+        runtime.deriver_a_peer().binding_name.as_str(),
+        pair_binding,
+        &root.identity,
+        trace_id,
+    )
+    .await?;
+    let (outcome, stored_root) = match outcome_a {
+        CloudflareDeriverAWalletPairOutcomeResponseV1::Completed {
+            outcome,
+            tenant_root,
+        } => (outcome, tenant_root),
+        CloudflareDeriverAWalletPairOutcomeResponseV1::Missing { .. }
+        | CloudflareDeriverAWalletPairOutcomeResponseV1::Prepared { .. }
+        | CloudflareDeriverAWalletPairOutcomeResponseV1::Running { .. } => {
+            return RouterEd25519YaoExecuteResultV1::recoverable(
+                router_ab_core::RouterEd25519YaoExecuteFailureCodeV1::ServiceUnavailable,
+                1_000,
+            )
+        }
+        CloudflareDeriverAWalletPairOutcomeResponseV1::Burned { .. } => {
+            return Ok(RouterEd25519YaoExecuteResultV1::burned(
+                router_execution_id(pair_binding)?,
+                router_ab_core::RouterEd25519YaoBurnReasonV1::PeerUncertain,
+            ))
+        }
+        CloudflareDeriverAWalletPairOutcomeResponseV1::Expired { .. } => {
+            return RouterEd25519YaoExecuteResultV1::recoverable(
+                router_ab_core::RouterEd25519YaoExecuteFailureCodeV1::CeremonyExpired,
+                1_000,
+            )
+        }
+    };
+    stored_root.validate_for_pair(pair_binding)?;
+    let signed_receipt = TenantRootSignedActivationReceiptV1::decode_canonical_bytes(
+        &stored_root.custody_binding.activation_receipt_bytes()?,
+    )
+    .map_err(|_| invalid_coordinator("saved A root activation receipt is malformed"))?;
+    if stored_root.identity != root.identity
+        || stored_root.application != *application
+        || stored_root.participant_ids != participant_ids
+        || signed_receipt.identity_digest() != identity_digest
+        || signed_receipt.custody_lineage() != custody_lineage
+    {
+        return Err(invalid_coordinator(
+            "saved A registration root or custody lineage differs from the admitted request",
+        ));
+    }
+    outcome.deriver_a_execution.validate()?;
+    crate::validate_router_ed25519_yao_role_execution_v1(
+        &outcome.deriver_a_execution,
+        Ed25519YaoDeriverRoleV1::DeriverA,
+        pair_binding.binding(),
+        None,
+    )?;
+    let execution_b =
+        serde_json::from_str::<Ed25519YaoRoleExecutionV1>(&outcome.deriver_b_sealed_execution_json)
+            .map_err(|_| invalid_coordinator("saved B execution is malformed"))?;
+    execution_b.validate()?;
+    crate::validate_router_ed25519_yao_role_execution_v1(
+        &execution_b,
+        Ed25519YaoDeriverRoleV1::DeriverB,
+        pair_binding.binding(),
+        Some(crate::ed25519_yao_role_execution_transcript_v1(&outcome.deriver_a_execution)),
+    )?;
+    let activation_a = crate::ed25519_yao_activation_role_execution_v1(&outcome.deriver_a_execution)?;
+    let activation_b = crate::ed25519_yao_activation_role_execution_v1(&execution_b)?;
+    let lookup = CloudflareEd25519YaoInitialRegistrationFinalizationLookupRequestV1 {
+        scope: CloudflareSigningWorkerWalletScopeV1::from_tenant_root(
+            &root.identity,
+            &pair_binding.binding().lifecycle.account_id,
+        )?,
+        delivery: CloudflareEd25519YaoPackagePairDeliveryV1 {
+            deriver_a: signing_worker_delivery(activation_a),
+            deriver_b: signing_worker_delivery(activation_b),
+        },
+        deriver_a_client_package: activation_a.client_package.clone(),
+        deriver_b_client_package: activation_b.client_package.clone(),
+    };
+    let finalization =
+        post_role_json::<_, CloudflareEd25519YaoInitialRegistrationFinalizationLookupResponseV1>(
+            env,
+            runtime.signing_worker_peer().binding_name.as_str(),
+            SIGNING_WORKER_SERVICE_URL,
+            CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_INITIAL_REGISTRATION_FINALIZATION_LOOKUP_PATH,
+            "SigningWorker registration finalization lookup",
+            &lookup,
+            trace_id,
+        )
+        .await?;
+    match finalization {
+        CloudflareEd25519YaoInitialRegistrationFinalizationLookupResponseV1::Committed {
+            receipt,
+        } => {
+            let binding = pair_binding.binding();
+            if receipt.session != binding.session_id.into_bytes()
+                || receipt.transcript != crate::ed25519_yao_role_execution_transcript_v1(&outcome.deriver_a_execution)
+            {
+                return Err(invalid_coordinator(
+                    "SigningWorker committed receipt differs from saved pair execution",
+                ));
+            }
+            let public_receipt = RouterAbEd25519YaoActivationPublicReceiptV1::new(
+                receipt.transcript,
+                receipt.registered_public_key,
+                receipt.joined_client_commitment,
+                receipt.joined_signing_worker_commitment,
+                receipt.signing_worker_verifying_share,
+                receipt.state_epoch,
+                binding.material_activation().clone(),
+            )?;
+            let result = RouterAbEd25519YaoActivationResultV1::new(
+                binding.clone(),
+                activation_a.client_package.clone(),
+                activation_b.client_package.clone(),
+                public_receipt,
+            )?;
+            Ok(RouterEd25519YaoExecuteResultV1::succeeded(
+                RouterEd25519YaoExecuteSuccessV1::registration(result)?,
+            ))
+        }
+        CloudflareEd25519YaoInitialRegistrationFinalizationLookupResponseV1::Missing
+        | CloudflareEd25519YaoInitialRegistrationFinalizationLookupResponseV1::Pending => {
+            RouterEd25519YaoExecuteResultV1::recoverable(
+                router_ab_core::RouterEd25519YaoExecuteFailureCodeV1::SigningWorkerUncertain,
+                1_000,
+            )
+        }
+        CloudflareEd25519YaoInitialRegistrationFinalizationLookupResponseV1::Revoked => {
+            Ok(RouterEd25519YaoExecuteResultV1::rejected(
+                router_ab_core::RouterEd25519YaoExecuteFailureCodeV1::AuthorizationRejected,
+            ))
+        }
+        CloudflareEd25519YaoInitialRegistrationFinalizationLookupResponseV1::Conflict => {
+            Ok(RouterEd25519YaoExecuteResultV1::rejected(
+                router_ab_core::RouterEd25519YaoExecuteFailureCodeV1::ConflictingPair,
+            ))
+        }
+    }
+}
+
 async fn reconcile_router_replay_v1(
     env: &Env,
     runtime: &CloudflareRouterWorkerRuntimeV1,
     request: &RouterEd25519YaoExecuteRequestV1,
     binding: &router_ab_core::Ed25519YaoCeremonyBindingV1,
     pair_binding: &Ed25519YaoInputPairBindingV1,
+    root_identity: &TenantRootIdentityV1,
     trace_id: Option<crate::CloudflareTraceIdV1>,
     finalization: &RouterCeremonyFinalizationV1,
     timing: &mut RouterExecutionTimingV1,
 ) -> RouterAbProtocolResult<Option<RouterCeremonyOutcomeV1>> {
     let reconciliation_started_at_ms = cloudflare_now_unix_ms_v1()?;
-    let statuses = futures::try_join!(
-        read_pair_status_v1(
-            env,
-            runtime.deriver_a_peer().binding_name.as_str(),
-            DERIVER_A_SERVICE_URL,
-            CLOUDFLARE_DERIVER_A_ED25519_YAO_READ_PAIR_STATUS_PATH,
-            "Deriver A pair status",
-            pair_binding,
+    #[cfg(feature = "wallet-do-router-harness")]
+    let outcome_a = match read_deriver_a_wallet_pair_outcome_v1(
+        env,
+        runtime.deriver_a_peer().binding_name.as_str(),
+        pair_binding,
+        root_identity,
+        trace_id,
+    )
+    .await
+    {
+        Ok(outcome) => outcome,
+        Err(error) => {
+            emit_span(
+                trace_id,
+                "router.role_status_reconciliation",
+                operation_label(request.operation()),
+                reconciliation_started_at_ms,
+                "failure",
+            );
+            return Err(error);
+        }
+    };
+    #[cfg(feature = "wallet-do-router-harness")]
+    if let CloudflareDeriverAWalletPairOutcomeResponseV1::Completed { outcome, .. } = &outcome_a {
+        outcome.deriver_a_execution.validate()?;
+        crate::validate_router_ed25519_yao_role_execution_v1(
+            &outcome.deriver_a_execution,
+            Ed25519YaoDeriverRoleV1::DeriverA,
+            binding,
+            None,
+        )?;
+        let completed_b = serde_json::from_str::<Ed25519YaoRoleExecutionV1>(
+            &outcome.deriver_b_sealed_execution_json,
+        )
+        .map_err(|_| invalid_coordinator("Deriver B saved execution is malformed"))?;
+        completed_b.validate()?;
+        crate::validate_router_ed25519_yao_role_execution_v1(
+            &completed_b,
+            Ed25519YaoDeriverRoleV1::DeriverB,
+            binding,
+            Some(crate::ed25519_yao_role_execution_transcript_v1(&outcome.deriver_a_execution)),
+        )?;
+        emit_span(
             trace_id,
-        ),
+            "router.role_status_reconciliation",
+            operation_label(request.operation()),
+            reconciliation_started_at_ms,
+            "success",
+        );
+        return finalize_router_result_v1(
+            env,
+            runtime,
+            request,
+            binding,
+            root_identity,
+            outcome.deriver_a_execution.clone(),
+            completed_b,
+            trace_id,
+            finalization,
+            timing,
+        )
+        .await
+        .map(Some);
+    }
+    #[cfg(feature = "wallet-do-router-harness")]
+    let status_a = async { wallet_pair_outcome_status(outcome_a) };
+    #[cfg(not(feature = "wallet-do-router-harness"))]
+    let a_lookup = CloudflareEd25519YaoPairLookupRequestV1 {
+        session: pair_binding.session(),
+        pair_digest: pair_binding.pair_digest().bytes,
+    };
+    let b_scope = CloudflareDeriverBWalletPairScopeV1 {
+        root_identity: root_identity.clone(),
+        pair_binding: pair_binding.clone(),
+    };
+    #[cfg(not(feature = "wallet-do-router-harness"))]
+    let status_a = read_pair_status_v1(
+        env,
+        runtime.deriver_a_peer().binding_name.as_str(),
+        DERIVER_A_SERVICE_URL,
+        CLOUDFLARE_DERIVER_A_ED25519_YAO_READ_PAIR_STATUS_PATH,
+        "Deriver A pair status",
+        &a_lookup,
+        trace_id,
+    );
+    #[cfg(not(feature = "wallet-do-router-harness"))]
+    let _ = root_identity;
+    let statuses = futures::try_join!(
+        status_a,
         read_pair_status_v1(
             env,
             runtime.deriver_b_peer().binding_name.as_str(),
             DERIVER_B_SERVICE_URL,
             CLOUDFLARE_DERIVER_B_ED25519_YAO_READ_PAIR_STATUS_PATH,
             "Deriver B pair status",
-            pair_binding,
+            &b_scope,
             trace_id,
         )
     );
@@ -1014,14 +1453,14 @@ async fn reconcile_router_replay_v1(
         let execution_b = completed_execution(&status_b)?;
         execution_a.validate()?;
         execution_b.validate()?;
-        validate_execution(
+        crate::validate_router_ed25519_yao_role_execution_v1(
             &execution_a,
             Ed25519YaoDeriverRoleV1::DeriverA,
             binding,
             None,
         )?;
-        let transcript = execution_transcript(&execution_a);
-        validate_execution(
+        let transcript = crate::ed25519_yao_role_execution_transcript_v1(&execution_a);
+        crate::validate_router_ed25519_yao_role_execution_v1(
             &execution_b,
             Ed25519YaoDeriverRoleV1::DeriverB,
             binding,
@@ -1032,6 +1471,7 @@ async fn reconcile_router_replay_v1(
             runtime,
             request,
             binding,
+            root_identity,
             execution_a,
             execution_b,
             trace_id,
@@ -1047,33 +1487,49 @@ async fn reconcile_router_replay_v1(
         || pair_status_is_completed(&status_a)
         || pair_status_is_completed(&status_b)
     {
-        let _ = burn_pair_v1(
-            env,
-            runtime.deriver_a_peer().binding_name.as_str(),
-            DERIVER_A_SERVICE_URL,
-            CLOUDFLARE_DERIVER_A_ED25519_YAO_BURN_PAIR_PATH,
-            "Deriver A pair burn",
-            pair_binding,
-            trace_id,
-        )
-        .await;
-        let _ = burn_pair_v1(
-            env,
-            runtime.deriver_b_peer().binding_name.as_str(),
-            DERIVER_B_SERVICE_URL,
-            CLOUDFLARE_DERIVER_B_ED25519_YAO_BURN_PAIR_PATH,
-            "Deriver B pair burn",
-            pair_binding,
-            trace_id,
-        )
-        .await;
-        let execution_id = router_execution_id(pair_binding)?;
+        #[cfg(feature = "wallet-do-router-harness")]
         return Ok(Some(RouterCeremonyOutcomeV1::Standard(
-            RouterEd25519YaoExecuteResultV1::burned(
-                execution_id,
-                router_ab_core::RouterEd25519YaoBurnReasonV1::PeerUncertain,
-            ),
+            RouterEd25519YaoExecuteResultV1::recoverable(
+                router_ab_core::RouterEd25519YaoExecuteFailureCodeV1::ServiceUnavailable,
+                1_000,
+            )?,
         )));
+        #[cfg(not(feature = "wallet-do-router-harness"))]
+        {
+            let _ = burn_pair_v1(
+                env,
+                runtime.deriver_a_peer().binding_name.as_str(),
+                DERIVER_A_SERVICE_URL,
+                CLOUDFLARE_DERIVER_A_ED25519_YAO_BURN_PAIR_PATH,
+                "Deriver A pair burn",
+                &CloudflareEd25519YaoPairLookupRequestV1 {
+                    session: pair_binding.session(),
+                    pair_digest: pair_binding.pair_digest().bytes,
+                },
+                trace_id,
+            )
+            .await;
+            let _ = burn_pair_v1(
+                env,
+                runtime.deriver_b_peer().binding_name.as_str(),
+                DERIVER_B_SERVICE_URL,
+                CLOUDFLARE_DERIVER_B_ED25519_YAO_BURN_PAIR_PATH,
+                "Deriver B pair burn",
+                &CloudflareDeriverBWalletPairScopeV1 {
+                    root_identity: root_identity.clone(),
+                    pair_binding: pair_binding.clone(),
+                },
+                trace_id,
+            )
+            .await;
+            let execution_id = router_execution_id(pair_binding)?;
+            return Ok(Some(RouterCeremonyOutcomeV1::Standard(
+                RouterEd25519YaoExecuteResultV1::burned(
+                    execution_id,
+                    router_ab_core::RouterEd25519YaoBurnReasonV1::PeerUncertain,
+                ),
+            )));
+        }
     }
 
     if pair_status_is_burned(&status_a) || pair_status_is_burned(&status_b) {
@@ -1098,6 +1554,77 @@ async fn reconcile_router_replay_v1(
     Ok(None)
 }
 
+#[cfg(feature = "wallet-do-router-harness")]
+async fn read_deriver_a_wallet_pair_outcome_v1(
+    env: &Env,
+    binding_name: &str,
+    pair_binding: &Ed25519YaoInputPairBindingV1,
+    root_identity: &TenantRootIdentityV1,
+    trace_id: Option<crate::CloudflareTraceIdV1>,
+) -> RouterAbProtocolResult<CloudflareDeriverAWalletPairOutcomeResponseV1> {
+    post_role_json::<_, CloudflareDeriverAWalletPairOutcomeResponseV1>(
+        env,
+        binding_name,
+        DERIVER_A_SERVICE_URL,
+        CLOUDFLARE_DERIVER_A_ED25519_YAO_READ_PAIR_STATUS_PATH,
+        "Deriver A wallet pair status",
+        &CloudflareDeriverAWalletPairStatusRequestV1 {
+            root_identity: root_identity.clone(),
+            pair_binding: pair_binding.clone(),
+        },
+        trace_id,
+    )
+    .await
+}
+
+#[cfg(feature = "wallet-do-router-harness")]
+fn wallet_pair_outcome_status(
+    outcome: CloudflareDeriverAWalletPairOutcomeResponseV1,
+) -> RouterAbProtocolResult<CloudflareEd25519YaoPairStatusResponseV1> {
+    Ok(match outcome {
+        CloudflareDeriverAWalletPairOutcomeResponseV1::Missing {
+            session,
+            pair_digest,
+        } => CloudflareEd25519YaoPairStatusResponseV1::Missing {
+            session,
+            pair_digest,
+        },
+        CloudflareDeriverAWalletPairOutcomeResponseV1::Prepared {
+            session,
+            pair_digest,
+        } => CloudflareEd25519YaoPairStatusResponseV1::Prepared {
+            session,
+            pair_digest,
+        },
+        CloudflareDeriverAWalletPairOutcomeResponseV1::Running {
+            session,
+            pair_digest,
+        } => CloudflareEd25519YaoPairStatusResponseV1::Running {
+            session,
+            pair_digest,
+        },
+        CloudflareDeriverAWalletPairOutcomeResponseV1::Burned {
+            session,
+            pair_digest,
+        } => CloudflareEd25519YaoPairStatusResponseV1::Burned {
+            session,
+            pair_digest,
+        },
+        CloudflareDeriverAWalletPairOutcomeResponseV1::Expired {
+            session,
+            pair_digest,
+        } => CloudflareEd25519YaoPairStatusResponseV1::Expired {
+            session,
+            pair_digest,
+        },
+        CloudflareDeriverAWalletPairOutcomeResponseV1::Completed { .. } => {
+            return Err(invalid_coordinator(
+                "completed A outcome must finalize before status",
+            ));
+        }
+    })
+}
+
 fn completed_execution(
     status: &CloudflareEd25519YaoPairStatusResponseV1,
 ) -> RouterAbProtocolResult<Ed25519YaoRoleExecutionV1> {
@@ -1117,13 +1644,13 @@ fn router_execution_id(
     router_ab_core::Ed25519YaoExecutionIdV1::new(pair_binding.pair_digest().bytes)
 }
 
-async fn read_pair_status_v1(
+async fn read_pair_status_v1<TRequest: Serialize>(
     env: &Env,
     binding_name: &str,
     service_origin: &str,
     path: &str,
     label: &str,
-    pair_binding: &Ed25519YaoInputPairBindingV1,
+    request: &TRequest,
     trace_id: Option<crate::CloudflareTraceIdV1>,
 ) -> RouterAbProtocolResult<CloudflareEd25519YaoPairStatusResponseV1> {
     post_role_json::<_, CloudflareEd25519YaoPairStatusResponseV1>(
@@ -1132,22 +1659,20 @@ async fn read_pair_status_v1(
         service_origin,
         path,
         label,
-        &CloudflareEd25519YaoPairLookupRequestV1 {
-            session: pair_binding.session(),
-            pair_digest: pair_binding.pair_digest().bytes,
-        },
+        request,
         trace_id,
     )
     .await
 }
 
-async fn burn_pair_v1(
+#[cfg(not(feature = "wallet-do-router-harness"))]
+async fn burn_pair_v1<TRequest: Serialize>(
     env: &Env,
     binding_name: &str,
     service_origin: &str,
     path: &str,
     label: &str,
-    pair_binding: &Ed25519YaoInputPairBindingV1,
+    request: &TRequest,
     trace_id: Option<crate::CloudflareTraceIdV1>,
 ) -> RouterAbProtocolResult<CloudflareEd25519YaoPairStatusResponseV1> {
     post_role_json::<_, CloudflareEd25519YaoPairStatusResponseV1>(
@@ -1156,10 +1681,7 @@ async fn burn_pair_v1(
         service_origin,
         path,
         label,
-        &CloudflareEd25519YaoPairLookupRequestV1 {
-            session: pair_binding.session(),
-            pair_digest: pair_binding.pair_digest().bytes,
-        },
+        request,
         trace_id,
     )
     .await
@@ -1170,6 +1692,7 @@ async fn finalize_router_result_v1(
     runtime: &CloudflareRouterWorkerRuntimeV1,
     request: &RouterEd25519YaoExecuteRequestV1,
     binding: &router_ab_core::Ed25519YaoCeremonyBindingV1,
+    root_identity: &TenantRootIdentityV1,
     execution: Ed25519YaoRoleExecutionV1,
     completed_b: Ed25519YaoRoleExecutionV1,
     trace_id: Option<crate::CloudflareTraceIdV1>,
@@ -1179,8 +1702,8 @@ async fn finalize_router_result_v1(
     let operation = request.operation();
     let success = match operation {
         Ed25519YaoOperationV1::Registration | Ed25519YaoOperationV1::Recovery => {
-            let activation_a = activation_execution(&execution)?;
-            let activation_b = activation_execution(&completed_b)?;
+            let activation_a = crate::ed25519_yao_activation_role_execution_v1(&execution)?;
+            let activation_b = crate::ed25519_yao_activation_role_execution_v1(&completed_b)?;
             let delivery = CloudflareEd25519YaoPackagePairDeliveryV1 {
                 deriver_a: signing_worker_delivery(activation_a),
                 deriver_b: signing_worker_delivery(activation_b),
@@ -1188,13 +1711,21 @@ async fn finalize_router_result_v1(
             match finalization {
                 RouterCeremonyFinalizationV1::Standard => {
                     let delivery_started_at_ms = cloudflare_now_unix_ms_v1()?;
+                    let scoped_delivery = CloudflareScopedEd25519YaoPackagePairDeliveryV1 {
+                        scope: CloudflareSigningWorkerWalletScopeV1::from_tenant_root(
+                            root_identity,
+                            &binding.lifecycle.account_id,
+                        )?,
+                        delivery,
+                        recovery_attempt: request.recovery_attempt(),
+                    };
                     let worker_response = post_role_json::<_, SigningWorkerReceiptV1>(
                         env,
                         runtime.signing_worker_peer().binding_name.as_str(),
                         SIGNING_WORKER_SERVICE_URL,
                         CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_PACKAGES_PATH,
                         "SigningWorker Yao package delivery",
-                        &delivery,
+                        &scoped_delivery,
                         trace_id,
                     )
                     .await;
@@ -1221,6 +1752,15 @@ async fn finalize_router_result_v1(
                                 delivery_started_at_ms,
                                 "failure",
                             );
+                            // A later attempt took this one's place at the
+                            // SigningWorker: this attempt ends, terminally.
+                            if error.code() == RouterAbProtocolErrorCode::SupersededAttempt {
+                                return Ok(RouterCeremonyOutcomeV1::Standard(
+                                    RouterEd25519YaoExecuteResultV1::rejected(
+                                        router_ab_core::RouterEd25519YaoExecuteFailureCodeV1::AttemptSuperseded,
+                                    ),
+                                ));
+                            }
                             return Err(error);
                         }
                     };
@@ -1273,6 +1813,14 @@ async fn finalize_router_result_v1(
                         CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_RESERVE_INACTIVE_SOURCE_PRESERVING_PATH,
                         "SigningWorker source-preserving Yao reservation",
                         &CloudflareEd25519YaoSourcePreservingInactiveReservationRequestV1 {
+                            // The wallet the admitted binding names, under
+                            // the tenant root this execution was admitted
+                            // with: the SigningWorker checks it against the
+                            // source activation it holds.
+                            scope: CloudflareSigningWorkerWalletScopeV1::from_tenant_root(
+                                root_identity,
+                                &binding.lifecycle.account_id,
+                            )?,
                             source_binding: source_binding.clone(),
                             delivery,
                             participant_ids: *participant_ids,
@@ -1322,11 +1870,11 @@ async fn finalize_router_result_v1(
                 RouterEd25519YaoExecuteRequestV1::Export { binding, .. } => binding.clone(),
                 _ => unreachable!("export operation must carry export binding"),
             };
-            let export_a = export_execution(&execution)?;
-            let export_b = export_execution(&completed_b)?;
+            let export_a = crate::ed25519_yao_export_role_execution_v1(&execution)?;
+            let export_b = crate::ed25519_yao_export_role_execution_v1(&completed_b)?;
             let result = RouterAbEd25519YaoExportResultV1::new(
                 export_binding,
-                execution_transcript(&execution),
+                crate::ed25519_yao_role_execution_transcript_v1(&execution),
                 export_a.client_package.clone(),
                 export_b.client_package.clone(),
             )?;
@@ -1350,8 +1898,8 @@ async fn finalize_router_result_v1(
                 }
             };
             let result = commit_ed25519_yao_lane_result_v1(
-                lane_execution(&execution)?.clone(),
-                lane_execution(&completed_b)?.clone(),
+                crate::ed25519_yao_lane_role_execution_v1(&execution)?.clone(),
+                crate::ed25519_yao_lane_role_execution_v1(&completed_b)?.clone(),
                 cloudflare_now_unix_ms_v1()?,
             )?;
             if &result.job != expected_job {
@@ -1489,103 +2037,6 @@ async fn commit_lane_material_to_signing_worker_v1(
     }
 }
 
-fn validate_source_target_identity_v1(
-    source: &Ed25519YaoCeremonyBindingV1,
-    target: &Ed25519YaoCeremonyBindingV1,
-) -> RouterAbProtocolResult<()> {
-    source.validate()?;
-    target.validate()?;
-    if source.operation != Ed25519YaoOperationV1::Registration
-        || target.operation != Ed25519YaoOperationV1::Registration
-        || source.material_activation == target.material_activation
-        || source.material_activation.kind != target.material_activation.kind
-        || source.material_activation.capability != target.material_activation.capability
-        || source.material_activation.material_owner != target.material_activation.material_owner
-        || source.material_activation.key_binding != target.material_activation.key_binding
-        || source.material_activation.lifecycle_binding
-            != target.material_activation.lifecycle_binding
-        || source.material_activation.signing_worker != target.material_activation.signing_worker
-        || source.stable_key_context_binding != target.stable_key_context_binding
-        || source.lifecycle.root_share_epoch != target.lifecycle.root_share_epoch
-        || source.lifecycle.account_id != target.lifecycle.account_id
-        || source.lifecycle.signer_set_id != target.lifecycle.signer_set_id
-        || source.lifecycle.selected_server_id != target.lifecycle.selected_server_id
-    {
-        return Err(invalid_coordinator(
-            "source-preserving Router execution changed the stable signing identity",
-        ));
-    }
-    Ok(())
-}
-
-fn validate_source_preserving_participant_ids_v1(
-    participant_ids: [u16; 2],
-) -> RouterAbProtocolResult<()> {
-    if participant_ids[0] == 0
-        || participant_ids[1] == 0
-        || participant_ids[0] >= participant_ids[1]
-    {
-        return Err(invalid_coordinator(
-            "source-preserving Router participant ids must be distinct, nonzero, ascending values",
-        ));
-    }
-    Ok(())
-}
-
-fn validate_source_preserving_reservation_response_v1(
-    response: &CloudflareEd25519YaoInactiveReservationResponseV1,
-    target_binding: &Ed25519YaoCeremonyBindingV1,
-    participant_ids: [u16; 2],
-    deriver_a_client_package: &router_ab_core::Ed25519YaoEncryptedPackageV1,
-    deriver_b_client_package: &router_ab_core::Ed25519YaoEncryptedPackageV1,
-) -> RouterAbProtocolResult<()> {
-    if response.state != "inactive"
-        || response.reservation_id.is_empty()
-        || response
-            .reservation_id
-            .chars()
-            .any(|character| character.is_ascii_control())
-        || response.participant_ids != participant_ids
-        || response.deriver_a_client_package != *deriver_a_client_package
-        || response.deriver_b_client_package != *deriver_b_client_package
-        || response.activation_receipt.material_activation() != target_binding.material_activation()
-        || response.activation_receipt.transcript() != deriver_a_client_package.transcript()
-        || response.activation_receipt.transcript() != deriver_b_client_package.transcript()
-    {
-        return Err(invalid_coordinator(
-            "source-preserving SigningWorker reservation response does not match the target",
-        ));
-    }
-    validate_activation_client_package_v1(
-        deriver_a_client_package,
-        target_binding,
-        Ed25519YaoDeriverRoleV1::DeriverA,
-    )?;
-    validate_activation_client_package_v1(
-        deriver_b_client_package,
-        target_binding,
-        Ed25519YaoDeriverRoleV1::DeriverB,
-    )
-}
-
-fn validate_activation_client_package_v1(
-    package: &router_ab_core::Ed25519YaoEncryptedPackageV1,
-    target_binding: &Ed25519YaoCeremonyBindingV1,
-    deriver: Ed25519YaoDeriverRoleV1,
-) -> RouterAbProtocolResult<()> {
-    package.validate()?;
-    if package.kind() != Ed25519YaoPackageKindV1::ActivationClient
-        || package.deriver() != deriver
-        || package.session() != target_binding.session_id.into_bytes()
-        || package.transcript() == [0; 32]
-    {
-        return Err(invalid_coordinator(
-            "source-preserving client package does not match the target binding",
-        ));
-    }
-    Ok(())
-}
-
 fn pair_status_is_completed(status: &CloudflareEd25519YaoPairStatusResponseV1) -> bool {
     matches!(
         status,
@@ -1678,101 +2129,6 @@ fn pair_work(request: &RouterEd25519YaoExecuteRequestV1) -> crate::CloudflareEd2
         | RouterEd25519YaoExecuteRequestV1::LaneRefresh { job, .. } => {
             crate::CloudflareEd25519YaoPairWorkV1::Lane { job: job.clone() }
         }
-    }
-}
-
-fn validate_readiness(
-    receipt: &Ed25519YaoRoleReadinessReceiptV1,
-    pair_binding: &Ed25519YaoInputPairBindingV1,
-    now_ms: u64,
-    role: Ed25519YaoDeriverRoleV1,
-    verifying_keys: &crate::CloudflareSignerPeerVerifyingKeySetV1,
-) -> RouterAbProtocolResult<()> {
-    if receipt.role() != role {
-        return Err(invalid_coordinator("readiness receipt role mismatch"));
-    }
-    receipt.validate_for_pair(pair_binding)?;
-    crate::ed25519_yao_lifecycle::validate_cloudflare_role_readiness_receipt_v1(receipt, now_ms)?;
-    crate::verify_role_readiness_receipt_v1(receipt, verifying_keys)
-}
-
-fn validate_execution(
-    execution: &Ed25519YaoRoleExecutionV1,
-    role: Ed25519YaoDeriverRoleV1,
-    binding: &router_ab_core::Ed25519YaoCeremonyBindingV1,
-    transcript: Option<[u8; 32]>,
-) -> RouterAbProtocolResult<()> {
-    let binding_matches = match execution {
-        Ed25519YaoRoleExecutionV1::Activation(value) => &value.binding == binding,
-        Ed25519YaoRoleExecutionV1::Export(value) => &value.binding == binding,
-        Ed25519YaoRoleExecutionV1::Lane(value) => {
-            value.job.yao_request_kind.operation() == binding.operation
-                && value.session == binding.session_id.into_bytes()
-                && value
-                    .job
-                    .stable_context_binding_v1()
-                    .is_ok_and(|stable| stable == binding.stable_key_context_binding.into_bytes())
-                && value.job.source.material_activation == *binding.material_activation()
-        }
-    };
-    if execution.deriver() != role || !binding_matches {
-        return Err(invalid_coordinator("role execution binding mismatch"));
-    }
-    if let Some(transcript) = transcript {
-        if execution_transcript(execution) != transcript {
-            return Err(invalid_coordinator("role execution transcript mismatch"));
-        }
-    }
-    Ok(())
-}
-
-fn execution_transcript(execution: &Ed25519YaoRoleExecutionV1) -> [u8; 32] {
-    match execution {
-        Ed25519YaoRoleExecutionV1::Activation(value) => value.transcript,
-        Ed25519YaoRoleExecutionV1::Export(value) => value.transcript,
-        Ed25519YaoRoleExecutionV1::Lane(value) => value.transcript,
-    }
-}
-
-fn activation_execution(
-    execution: &Ed25519YaoRoleExecutionV1,
-) -> RouterAbProtocolResult<&Ed25519YaoActivationRoleExecutionV1> {
-    match execution {
-        Ed25519YaoRoleExecutionV1::Activation(value) => Ok(value),
-        Ed25519YaoRoleExecutionV1::Export(_) => Err(invalid_coordinator(
-            "activation operation returned an export role execution",
-        )),
-        Ed25519YaoRoleExecutionV1::Lane(_) => Err(invalid_coordinator(
-            "activation operation returned a lane role execution",
-        )),
-    }
-}
-
-fn export_execution(
-    execution: &Ed25519YaoRoleExecutionV1,
-) -> RouterAbProtocolResult<&Ed25519YaoExportRoleExecutionV1> {
-    match execution {
-        Ed25519YaoRoleExecutionV1::Export(value) => Ok(value),
-        Ed25519YaoRoleExecutionV1::Activation(_) => Err(invalid_coordinator(
-            "export operation returned an activation role execution",
-        )),
-        Ed25519YaoRoleExecutionV1::Lane(_) => Err(invalid_coordinator(
-            "export operation returned a lane role execution",
-        )),
-    }
-}
-
-fn lane_execution(
-    execution: &Ed25519YaoRoleExecutionV1,
-) -> RouterAbProtocolResult<&Ed25519YaoLaneRoleExecutionV1> {
-    match execution {
-        Ed25519YaoRoleExecutionV1::Lane(value) => Ok(value),
-        Ed25519YaoRoleExecutionV1::Activation(_) => Err(invalid_coordinator(
-            "lane operation returned an activation role execution",
-        )),
-        Ed25519YaoRoleExecutionV1::Export(_) => Err(invalid_coordinator(
-            "lane operation returned an export role execution",
-        )),
     }
 }
 
@@ -1953,7 +2309,17 @@ where
     .await?;
     if !(200..=299).contains(&response.status_code()) {
         let status = response.status_code();
-        let _ = response.text().await;
+        let body = response.text().await.unwrap_or_default();
+        // A peer's refusal of a superseded attempt is final; the caller
+        // answers it as such rather than as a service failure.
+        if crate::router_ab_peer_error_code_v1(&body)
+            == RouterAbProtocolErrorCode::SupersededAttempt
+        {
+            return Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::SupersededAttempt,
+                format!("{label} refused a superseded attempt: {}", body.trim()),
+            ));
+        }
         return Err(RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
             format!("{label} service returned HTTP {status}"),
@@ -2017,7 +2383,7 @@ where
     })
 }
 
-async fn post_role_request<TRequest>(
+pub(crate) async fn post_role_request<TRequest>(
     env: &Env,
     binding_name: &str,
     service_origin: &str,
@@ -2144,15 +2510,7 @@ fn parse_router_replay_header(request: &Request) -> RouterAbProtocolResult<bool>
                 format!("Router replay header read failed: {error}"),
             )
         })?;
-    match value.as_deref() {
-        None => Ok(false),
-        Some("1") => Ok(true),
-        Some("0") => Ok(false),
-        Some(_) => Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLocalHttpRequest,
-            "Router replay header must be 0 or 1",
-        )),
-    }
+    crate::parse_router_ed25519_yao_replay_header_v1(value.as_deref())
 }
 
 fn operation_label(operation: Ed25519YaoOperationV1) -> &'static str {
@@ -2260,8 +2618,15 @@ mod tests {
         participant_ids: [u16; 2],
     ) -> CloudflareRouterEd25519YaoExecuteRequestV2 {
         CloudflareRouterEd25519YaoExecuteRequestV2 {
-            tenant_root: CloudflareTenantRootCoordinatesV1 {
-                identity_digest_b64u: crate::encode_base64url_bytes_v1(&[7; 32]),
+            tenant_root: crate::CloudflareRouterEd25519YaoTenantRootV1 {
+                identity: router_ab_core::TenantRootIdentityV1::new(
+                    "org-1",
+                    "project-1",
+                    "env-1",
+                    "signing-root-1",
+                    "root-version-1",
+                )
+                .expect("tenant root identity"),
                 custody_lineage_b64u: TenantRootCustodyLineageId::from_bytes([8; 16])
                     .expect("lineage")
                     .to_base64url(),
@@ -2369,5 +2734,75 @@ mod tests {
             ),
         };
         assert!(request.validate().is_err());
+    }
+
+    #[test]
+    fn yao_gateway_scope_uses_canonical_root_identity() {
+        let target = gateway_registration(binding("target-activation", 2));
+        let request = server_envelope(target, [1, 2]);
+        request.validate().expect("canonical request");
+        let coordinates = request.tenant_root.coordinates().expect("coordinates");
+        let (digest, _) = coordinates.resolve().expect("resolved coordinates");
+        assert_eq!(
+            digest,
+            request
+                .tenant_root
+                .identity
+                .digest()
+                .expect("identity digest")
+        );
+
+        for changed in [
+            router_ab_core::TenantRootIdentityV1::new(
+                "other-org",
+                "project-1",
+                "env-1",
+                "signing-root-1",
+                "root-version-1",
+            ),
+            router_ab_core::TenantRootIdentityV1::new(
+                "org-1",
+                "other-project",
+                "env-1",
+                "signing-root-1",
+                "root-version-1",
+            ),
+            router_ab_core::TenantRootIdentityV1::new(
+                "org-1",
+                "project-1",
+                "other-env",
+                "signing-root-1",
+                "root-version-1",
+            ),
+            router_ab_core::TenantRootIdentityV1::new(
+                "org-1",
+                "project-1",
+                "env-1",
+                "signing-root-1",
+                "other-version",
+            ),
+        ] {
+            let mut changed_request = request.clone();
+            changed_request.tenant_root.identity = changed.expect("changed identity");
+            let changed_coordinates = changed_request
+                .tenant_root
+                .coordinates()
+                .expect("changed coordinates");
+            assert_ne!(
+                changed_coordinates.identity_digest_b64u,
+                coordinates.identity_digest_b64u
+            );
+        }
+
+        let mut wrong_root = request;
+        wrong_root.tenant_root.identity = router_ab_core::TenantRootIdentityV1::new(
+            "org-1",
+            "project-1",
+            "env-1",
+            "other-root",
+            "root-version-1",
+        )
+        .expect("other root");
+        assert!(wrong_root.validate().is_err());
     }
 }

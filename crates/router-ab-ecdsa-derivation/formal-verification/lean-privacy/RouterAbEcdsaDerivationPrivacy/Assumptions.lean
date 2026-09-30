@@ -42,6 +42,7 @@ def ClientVisibleBoundaryEquivalent
     (left right : ClientVisibleBoundary) : Prop :=
   left.operation = right.operation ∧
   left.allowedOutputKind = right.allowedOutputKind ∧
+  left.contextBinding32 = right.contextBinding32 ∧
   left.clientOutput = right.clientOutput
 
 def ServerVisibleBoundaryEquivalent
@@ -51,6 +52,7 @@ def ServerVisibleBoundaryEquivalent
   left.finalizeOperation = right.finalizeOperation ∧
   left.rawRootMaterialDropped = right.rawRootMaterialDropped ∧
   left.relayerKeyId = right.relayerKeyId ∧
+  left.contextBinding32 = right.contextBinding32 ∧
   left.clientPublicKey33 = right.clientPublicKey33 ∧
   left.relayerPublicKey33 = right.relayerPublicKey33 ∧
   left.thresholdPublicKey33 = right.thresholdPublicKey33 ∧

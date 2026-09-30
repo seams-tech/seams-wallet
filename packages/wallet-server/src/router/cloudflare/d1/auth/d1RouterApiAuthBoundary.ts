@@ -4,7 +4,7 @@ import {
   type WalletId,
 } from '@shared/utils/domainIds';
 
-export type D1BoundaryWalletIdParseResult =
+type D1BoundaryWalletIdParseResult =
   | {
       readonly ok: true;
       readonly value: WalletId;
@@ -72,7 +72,7 @@ export function optionalNonNegativeInteger(input: unknown): number | undefined {
   return Math.floor(value);
 }
 
-export type D1MutationResultLike = {
+type D1MutationResultLike = {
   readonly meta?: {
     readonly changes?: unknown;
     readonly rows_written?: unknown;

@@ -3,11 +3,11 @@ import { base64Decode, base64UrlDecode, base64UrlEncode } from '@shared/utils/en
 import { toOptionalTrimmedString } from '@shared/utils/validation';
 import type { WebAuthnAuthenticationCredential } from '../../core/types';
 
-export type WebAuthnCredentialIdParseResult =
+type WebAuthnCredentialIdParseResult =
   | { readonly ok: true; readonly credentialIdB64u: string }
   | { readonly ok: false; readonly code: string; readonly message: string };
 
-export type WebAuthnClientDataJson = {
+type WebAuthnClientDataJson = {
   readonly challenge: string;
   readonly origin: string;
   readonly type: string;

@@ -11,7 +11,7 @@ export type PreparedEvmFamilyPublicIdentityContinuity =
       verifiedMaterialThresholdOwnerAddress: ThresholdOwnerAddress;
     };
 
-export function resolvePreparedEvmFamilyThresholdOwnerAddress(args: {
+function resolvePreparedEvmFamilyThresholdOwnerAddress(args: {
   laneThresholdOwnerAddress: ThresholdOwnerAddress;
   publicIdentityContinuity: PreparedEvmFamilyPublicIdentityContinuity;
 }): ThresholdOwnerAddress {

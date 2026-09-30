@@ -152,37 +152,23 @@ export type WorkerConfirmationResponse =
           }
       ));
 
-// ===== V2 MESSAGE TYPES =====
-
-// V2 summaries (render-oriented / UI hints)
-export interface TxSummary {
-  totalAmount?: string;
-  method?: string;
-  receiverId?: string;
-}
-export interface RegistrationSummary {
+interface RegistrationSummary {
   walletId: string;
   nearAccountId?: string;
   signerSlot?: number;
   title?: string;
   body?: string;
 }
-export type ExportOperation = 'Export Private Key' | 'Export Recovery Key';
+type ExportOperation = 'Export Private Key' | 'Export Recovery Key';
 export interface ExportSummary {
   operation: ExportOperation;
   accountId: string;
   publicKey: string;
   warning: string;
 }
-export interface Nep413Summary {
-  operation: 'Sign NEP-413 Message';
-  message: string;
-  recipient: string;
-  accountId: string;
-}
 
 // V2 request envelope
-export type UserConfirmPayloadByType = {
+type UserConfirmPayloadByType = {
   [UserConfirmationType.SIGN_TRANSACTION]: SignTransactionPayload;
   [UserConfirmationType.REGISTER_ACCOUNT]: RegisterAccountPayload;
   [UserConfirmationType.LINK_DEVICE]: RegisterAccountPayload;
@@ -192,7 +178,7 @@ export type UserConfirmPayloadByType = {
   [UserConfirmationType.SIGN_INTENT_DIGEST]: SignIntentDigestPayload;
 };
 
-export type UserConfirmSummaryByType = {
+type UserConfirmSummaryByType = {
   [UserConfirmationType.SIGN_TRANSACTION]: TransactionSummary;
   [UserConfirmationType.REGISTER_ACCOUNT]: RegistrationSummary;
   [UserConfirmationType.LINK_DEVICE]: RegistrationSummary;
@@ -362,7 +348,7 @@ export interface ShowSecurePrivateKeyUiPayload {
   onLifecycle?: (event: 'opened' | 'closed') => void;
 }
 
-export interface SignNep413Payload {
+interface SignNep413Payload {
   walletId: string;
   nearAccountId: string;
   nearPublicKeyStr?: string;
@@ -411,7 +397,7 @@ export type SignIntentDigestPayload =
     });
 
 // Discriminated unions to bind `type` to payload shape
-export type UserConfirmRequestByType<TType extends UserConfirmationType> = Extract<
+type UserConfirmRequestByType<TType extends UserConfirmationType> = Extract<
   UserConfirmRequest,
   { type: TType }
 >;

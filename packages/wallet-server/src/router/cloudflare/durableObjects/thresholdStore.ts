@@ -109,10 +109,6 @@ function err(code: string, message: string): DoErr {
   return { ok: false, code, message };
 }
 
-function isDoErr(input: unknown): input is DoErr {
-  return isPlainObject(input) && input.ok === false;
-}
-
 function toKey(input: unknown): string {
   const k = typeof input === 'string' ? input.trim() : '';
   return k;

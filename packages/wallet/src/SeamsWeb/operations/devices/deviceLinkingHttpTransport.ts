@@ -32,9 +32,8 @@ import {
   LINKED_DEVICE_REQUEST_PROOF_NONCE_BYTES_V1,
   type LinkedDeviceRequestProofV1,
 } from '@shared/device-linking';
-import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';
 import { base64UrlEncode } from '@shared/utils/base64';
-import { sha256Bytes } from '@shared/utils/digests';
+import { sha256DigestB64u } from '@shared/utils/canonicalPrimitives';
 import { secureRandomBase64Url } from '@shared/utils/secureRandomId';
 import { parseLinkDeviceSessionId, type LinkDeviceSessionId } from '@shared/signing-lanes/ids';
 import { parseLinkedDeviceEd25519ExportRootPackageV1 } from '@shared/device-linking/ed25519ExportRoot';
@@ -109,7 +108,7 @@ async function waitForCommittedAuthorityPackagesV1(input: {
   throw new Error('committed authority packages were not ready before the activation deadline');
 }
 
-export type DeviceLinkingAuthenticatedSessionTransportOptionsV1 = {
+type DeviceLinkingAuthenticatedSessionTransportOptionsV1 = {
   readonly http: HttpTransport;
   readonly relayerUrl: string;
   readonly publishableKey: string;
@@ -121,7 +120,7 @@ export type DeviceLinkingAuthenticatedSessionTransportOptionsV1 = {
   readonly pollIntervalMs: number;
 };
 
-export type DeviceLinkingSessionTransportAssemblyOptionsV1 = {
+type DeviceLinkingSessionTransportAssemblyOptionsV1 = {
   readonly owner: LinkSessionOwnerTransportPortV1;
   readonly http: HttpTransport;
   readonly relayerUrl: string;
@@ -132,7 +131,7 @@ export type DeviceLinkingSessionTransportAssemblyOptionsV1 = {
   readonly pollIntervalMs: number;
 };
 
-export type DeviceLinkingWalletSessionAcknowledgementTransportOptionsV1 = {
+type DeviceLinkingWalletSessionAcknowledgementTransportOptionsV1 = {
   readonly http: HttpTransport;
   readonly relayerUrl: string;
   readonly projectEnvironmentId: string;
@@ -149,7 +148,7 @@ type DeviceRequestResponseV1 = {
   readonly body: unknown;
 };
 
-export function createDeviceLinkingAuthenticatedSessionTransportV1(
+function createDeviceLinkingAuthenticatedSessionTransportV1(
   options: DeviceLinkingAuthenticatedSessionTransportOptionsV1,
 ): DeviceLinkingAuthenticatedTransportPortV1 {
   const baseUrl = normalizeBaseUrl(options.relayerUrl);
@@ -326,7 +325,7 @@ export function createDeviceLinkingWalletSessionAcknowledgementReplayPortV1(
   };
 }
 
-export function createDeviceLinkingAuthorityActivationTransportV1(
+function createDeviceLinkingAuthorityActivationTransportV1(
   options: DeviceLinkingAuthenticatedSessionTransportOptionsV1,
 ): DeviceLinkingAuthorityActivationTransportPortV1 {
   const baseUrl = normalizeBaseUrl(options.relayerUrl);
@@ -432,7 +431,7 @@ async function requestDeviceV1(input: {
     throw new Error('linked-device Passkey ceremony requires registration API credentials');
   }
   const bodyBytes = encodeRequestBodyV1(input.body);
-  const bodyDigestB64u = parseDigestB64u(base64UrlEncode(await sha256Bytes(bodyBytes)));
+  const bodyDigestB64u = await sha256DigestB64u(bodyBytes);
   const issuedAtMs = input.options.nowMs();
   if (!Number.isSafeInteger(issuedAtMs) || issuedAtMs <= 0) {
     throw new Error('linked-device request clock is invalid');

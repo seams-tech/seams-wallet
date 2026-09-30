@@ -6,11 +6,7 @@ import {
   type SigningRootVersion,
 } from '@shared/threshold/ecdsaDerivationRoleLocalBootstrap';
 import { deriveThresholdEcdsaKeyHandle } from '@shared/utils/thresholdEcdsaKeyHandle';
-import {
-  parseCapabilityInstanceRef,
-  parseMpcMaterialOwnerRef,
-  type DomainIdParseResult,
-} from '@shared/utils/domainIds';
+import { parseCapabilityInstanceRef, parseMpcMaterialOwnerRef } from '@shared/utils/domainIds';
 import {
   parseCorrelationId,
   parseDigestB64u,
@@ -43,6 +39,7 @@ import {
   parseRouterAbEcdsaVerifiedClientActivationFactsV1,
   type RouterAbEcdsaVerifiedClientActivationFactsV1,
 } from '@shared/utils/routerAbEcdsaDerivation';
+import { requireRecord } from '@shared/utils/validation';
 import type { PersistInitialCanonicalEcdsaActivationRequestV1 } from '../../routerAb/ecdsaDerivation/clientCeremony';
 import { toParticipantId, type ParticipantId } from '../identity/evmFamilyEcdsaIdentity';
 import {
@@ -67,6 +64,7 @@ import {
   type EcdsaActivationBinding,
   type NoCurrentEcdsaManifestExpectation,
   type NoCurrentEcdsaServerGenerationExpectation,
+  unwrapDomainId,
 } from './ecdsaCapabilityManifest';
 
 type PlannerOwnedIdentityExclusions = {
@@ -287,13 +285,6 @@ function verifiedClientActivationFactsEqual(
   );
 }
 
-function requireRecord(value: unknown, label: string): Record<string, unknown> {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
-    throw new Error(`${label} must be an object`);
-  }
-  return value as Record<string, unknown>;
-}
-
 function requireExactKeys(
   record: Record<string, unknown>,
   label: string,
@@ -439,11 +430,6 @@ export function assertInitialEcdsaActivationPlanMatchesVerifiedCeremony(input: {
     planInput: input.planInput,
     clientActivation,
   });
-}
-
-function unwrapDomainId<T>(result: DomainIdParseResult<T>): T {
-  if (!result.ok) throw new Error(result.error.message);
-  return result.value;
 }
 
 function requireAuthority(authority: unknown): WalletAuthAuthorityRef {

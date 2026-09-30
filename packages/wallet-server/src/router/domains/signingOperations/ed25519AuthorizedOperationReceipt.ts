@@ -33,10 +33,6 @@ export type Ed25519VerifiedStepUpAuthorizedOperationReceipt = {
   readonly operation_fingerprint_digest: string;
 };
 
-export type Ed25519AuthorizedOperationReceipt =
-  | Ed25519ReusableAuthorizedOperationReceipt
-  | Ed25519VerifiedStepUpAuthorizedOperationReceipt;
-
 export function requireEd25519OperationKind(value: unknown): Ed25519OperationKind {
   if (
     value !== 'near.sign_transaction' &&
@@ -48,7 +44,7 @@ export function requireEd25519OperationKind(value: unknown): Ed25519OperationKin
   return value;
 }
 
-export function requireAuthorizedOperationReceiptString(
+function requireAuthorizedOperationReceiptString(
   record: Record<string, unknown>,
   name: string,
 ): string {
@@ -57,7 +53,7 @@ export function requireAuthorizedOperationReceiptString(
   return field;
 }
 
-export function requireExactAuthorizedOperationReceiptFields(
+function requireExactAuthorizedOperationReceiptFields(
   record: Record<string, unknown>,
   branchFields: readonly string[] = [],
 ): void {

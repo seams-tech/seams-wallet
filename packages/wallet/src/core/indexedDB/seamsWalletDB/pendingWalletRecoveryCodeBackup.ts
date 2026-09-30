@@ -17,7 +17,7 @@ type PendingWalletRecoveryCodeBackupRow = {
   readonly ciphertext: Uint8Array;
 };
 
-export type PendingWalletRecoveryCodeBackup = {
+type PendingWalletRecoveryCodeBackup = {
   readonly walletId: string;
   readonly issuedAtMs: number;
   readonly recoveryCodes: WalletRecoveryCodeSet;
@@ -117,7 +117,7 @@ function storageKey(walletId: string): [string, typeof RECORD_ID] {
   return [walletId, RECORD_ID];
 }
 
-export class PendingWalletRecoveryCodeBackupRepository {
+class PendingWalletRecoveryCodeBackupRepository {
   async write(input: {
     readonly walletId: string;
     readonly recoveryCodes: readonly string[];

@@ -26,14 +26,14 @@ export type WalletCustodyCeremonyTransportPort = {
   ): Promise<WalletCustodyCeremonyOperationResult<T>>;
 };
 
-export type WalletCustodyCeremonyOperationType = keyof WalletCustodyCeremonyWorkerOperationMap;
+type WalletCustodyCeremonyOperationType = keyof WalletCustodyCeremonyWorkerOperationMap;
 
-export type WalletCustodyCeremonyOperation<T extends WalletCustodyCeremonyOperationType> = {
+type WalletCustodyCeremonyOperation<T extends WalletCustodyCeremonyOperationType> = {
   kind: 'walletCustodyCeremony';
   request: SignerWorkerOperationRequest<'walletCustodyCeremony', T>;
 };
 
-export type WalletCustodyCeremonyOperationResult<T extends WalletCustodyCeremonyOperationType> =
+type WalletCustodyCeremonyOperationResult<T extends WalletCustodyCeremonyOperationType> =
   SignerWorkerOperationResult<'walletCustodyCeremony', T>;
 
 export function requestWalletCustodyCeremonyOperation<T extends WalletCustodyCeremonyOperationType>(

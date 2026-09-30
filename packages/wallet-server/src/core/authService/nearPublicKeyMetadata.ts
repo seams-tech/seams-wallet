@@ -13,7 +13,7 @@ export type RecordNearPublicKeyMetadataResult =
   | { ok: true }
   | { ok: false; code: string; message: string };
 
-export type NearPublicKeyListEntry = {
+type NearPublicKeyListEntry = {
   publicKey: string;
   kind: NearPublicKeyKind;
   signerSlot?: number;

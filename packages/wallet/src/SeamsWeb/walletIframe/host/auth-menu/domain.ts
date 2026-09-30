@@ -30,7 +30,7 @@ import type { WalletAuthMethod } from '@shared/utils/signerDomain';
  * `headline` is required on `busy` so entering a wait forces naming what is
  * being waited on, rather than inheriting whatever copy the previous view had.
  */
-export type AuthMenuSurfaceStatus =
+type AuthMenuSurfaceStatus =
   | {
       /** Renders the form. */
       readonly kind: 'idle';
@@ -328,7 +328,7 @@ export type AuthMenuViewModel =
   | AuthMenuLinkDeviceViewModel
   | AuthMenuRecoveryViewModel;
 
-export type AuthMenuCloseReason = 'close_button' | 'escape';
+type AuthMenuCloseReason = 'close_button' | 'escape';
 
 export type AuthMenuIntent =
   | {
@@ -455,7 +455,7 @@ export function isAuthMenuReady(viewModel: AuthMenuViewModel): boolean {
  * primary control stays live and re-prepares on click. Only genuinely
  * in-flight work or a required input disables it.
  */
-export function isAuthMenuActionable(viewModel: AuthMenuViewModel): boolean {
+function isAuthMenuActionable(viewModel: AuthMenuViewModel): boolean {
   const status = viewModel.status;
   if (status.kind === 'recoverable') return true;
   return status.kind === 'idle' && status.interaction === 'actionable';

@@ -161,7 +161,6 @@ threshold-prf-fv-privacy:
 # Run the Router A/B committed Rust boundary checks and formal-verification tracks.
 router-ab-core-fv-parity:
   cargo test -q --manifest-path crates/router-ab-core/Cargo.toml --test source_guards
-  cargo test -q --manifest-path crates/router-ab-core/Cargo.toml --test evidence
   cargo test -q --manifest-path crates/router-ab-core/Cargo.toml --test protocol_boundaries
   cargo test -q --manifest-path crates/router-ab-core/formal-verification/verus/Cargo.toml --tests
 

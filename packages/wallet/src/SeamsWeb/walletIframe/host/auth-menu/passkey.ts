@@ -26,7 +26,8 @@ import {
   type PreparedSyncAccountChallenge,
 } from '@/SeamsWeb/operations/recovery/syncAccount';
 import type { SyncAccountResult } from '@/core/types/sdkPublicResults';
-import { walletIdFromString, type WalletId } from '@shared/utils/registrationIntent';
+import { type WalletId } from '@shared/utils/registrationIntent';
+import { walletIdFromString } from '@shared/utils/registrationIds';
 import type { HostedAuthMenuSessionId } from '../../shared/messages';
 import type { WalletIframeRequestId } from '@/core/types/walletIframeIdentity';
 import type { WebAuthnPromptCancellation } from '@/core/signingEngine/stepUpConfirmation/passkeyPrompt/webauthnPromptCoordinator';
@@ -45,10 +46,10 @@ type HostedPasskeyPreparationCancellation = Extract<
 
 type HostedPasskeySigningSurface = LoginUnlockSigningSurface & AccountSyncSigningSurface;
 
-export type HostedPasskeyContext = SeamsWebBaseContext<HostedPasskeySigningSurface> & {
+type HostedPasskeyContext = SeamsWebBaseContext<HostedPasskeySigningSurface> & {
   readonly resumePendingAcknowledgementsV1: () => void;
 };
-export type HostedPasskeyContextInput = Pick<
+type HostedPasskeyContextInput = Pick<
   HostedPasskeyContext,
   'signingEngine' | 'nearClient' | 'configs' | 'theme' | 'resumePendingAcknowledgementsV1'
 >;
@@ -72,7 +73,7 @@ type HostedPasskeyLoginPreparedBase = Readonly<{
   readonly [hostedPasskeyLoginPreparedBrand]: true;
 }>;
 
-export type HostedPasskeyLoginPrepared =
+type HostedPasskeyLoginPrepared =
   | (HostedPasskeyLoginPreparedBase & {
       readonly kind: 'hosted_passkey_owner_login_prepared_v1';
       readonly subjectSet: WalletUnlockSubjectSet;

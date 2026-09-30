@@ -1,4 +1,4 @@
-//! Passkey custody envelope sealing for Refactor 100.
+//! Passkey custody envelope sealing.
 //!
 //! A WebAuthn PRF result derives a key-encryption key that opens exactly one
 //! custody envelope. The envelope's additional authenticated data is recomputed
@@ -22,7 +22,7 @@ use crate::error::{CoreResult, SignerCoreError};
 
 pub const PASSKEY_CUSTODY_WRAP_ALG_V1: &str = "chacha20poly1305-hkdf-sha256-v1";
 pub const WALLET_CUSTODY_ENVELOPE_VERSION_V2: &str = "wallet_custody_envelope_v2";
-/// Refactor 109C: an envelope whose owning auth method is part of its AAD.
+/// An envelope whose owning auth method is part of its AAD.
 pub const WALLET_CUSTODY_ENVELOPE_VERSION_V3: &str = "wallet_custody_envelope_v3";
 pub const PASSKEY_CUSTODY_KEK_VERSION_V1: &str = "passkey_prf_kek_hkdf_sha256_v1";
 pub const EMAIL_OTP_FACTOR_KEK_VERSION_V1: &str = "email_otp_factor_kek_hkdf_sha256_v1";
@@ -241,9 +241,6 @@ fn target_factor_matches_envelope(
     )
 }
 
-/// Every public fact one envelope is bound to. This carries no authorization
-/// identity and no material-activation reference: those are resolved per
-/// operation at the Refactor 90 boundary, never sealed into custody.
 /// Which envelope generation a binding describes, and therefore whether the
 /// owning auth method is authenticated.
 ///
@@ -273,6 +270,9 @@ impl PasskeyCustodyEnvelopeOwnershipV1 {
     }
 }
 
+/// Every public fact one envelope is bound to. This carries no authorization
+/// identity and no material-activation reference: those are resolved per
+/// operation, never sealed into custody.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct PasskeyCustodyEnvelopeBindingV1 {
@@ -358,8 +358,6 @@ fn labeled_str(out: &mut Vec<u8>, label: &[u8], value: &str) {
     labeled_field(out, label, value.as_bytes());
 }
 
-/// Canonical KEK context: the exact `hash(rpId, credentialId, walletId,
-/// envelopeId, purpose, version)` input from the Refactor 100 plan.
 /// Encodes the factor identity. The factor kind is encoded before its fields,
 /// so a passkey factor and an Email OTP factor can never produce the same
 /// bytes even if their identity strings coincided.
@@ -397,6 +395,8 @@ fn encode_factor(out: &mut Vec<u8>, factor: &WalletCustodyEnvelopeFactorV1) -> C
     Ok(())
 }
 
+/// Canonical KEK context: the exact `hash(rpId, credentialId, walletId,
+/// envelopeId, purpose, version)` input.
 fn encode_kek_context(binding: &PasskeyCustodyEnvelopeBindingV1) -> CoreResult<Vec<u8>> {
     require_field("walletId", &binding.wallet_id)?;
     require_field("envelopeId", &binding.envelope_id)?;

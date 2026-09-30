@@ -1,13 +1,6 @@
 import {
   AUTHORIZATION_EVIDENCE_KINDS,
-  isAuthorizationEvidenceKind,
-  parseCapabilityOperationRef,
-  parseAuthorizationEvidenceId,
-  parseAuthorizationEvidenceSetId,
-  parsePrincipalId,
-  parseTenantId,
   type AuthFactorId,
-  type AuthorizationParseResult,
   type CapabilityOperationRef,
   type AuthorizationEvidenceId,
   type AuthorizationEvidenceSetId,
@@ -19,20 +12,15 @@ import {
   type CapabilityOperationEnvelope,
 } from '@shared/authorization/operationFingerprint';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
-import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';
+import { sha256Utf8DigestB64u } from '@shared/utils/canonicalPrimitives';
 import {
-  parseWalletId,
   parseProviderSubject,
   type EmailOtpChallengeId,
   type WalletId,
   type WebAuthnCredentialIdB64u,
 } from '@shared/utils/domainIds';
-import { alphabetizeStringify, sha256BytesUtf8 } from '@shared/utils/digests';
-import { base64UrlEncode } from '@shared/utils/encoders';
-import {
-  parseWalletAuthAuthorityRef,
-  type WalletAuthAuthorityRef,
-} from '@shared/utils/walletAuthAuthority';
+import { alphabetizeStringify } from '@shared/utils/digests';
+import { type WalletAuthAuthorityRef } from '@shared/utils/walletAuthAuthority';
 import type {
   OwnerOperationBinding,
   SessionOrigin,
@@ -41,7 +29,6 @@ import type {
   VerifiedOwnerProofId,
   VerifiedOwnerProofMethod,
 } from './domain';
-import { parseSessionOrigin } from './domain';
 
 const FACTOR_EVIDENCE_DIGEST_DOMAIN_V1 = 'seams:authorization:factor-evidence:v1';
 const EVIDENCE_SET_DIGEST_DOMAIN_V1 = 'seams:authorization:evidence-set:v1';
@@ -124,13 +111,13 @@ type VerifiedWalletOperationFactorBinding = {
   readonly expiresAtMs: number;
 };
 
-export type VerifiedWalletOperationPasskeyFactorResult = VerifiedWalletOperationFactorBinding & {
+type VerifiedWalletOperationPasskeyFactorResult = VerifiedWalletOperationFactorBinding & {
   readonly kind: 'verified_wallet_operation_passkey_factor';
   readonly credentialIdB64u: WebAuthnCredentialIdB64u;
   readonly assertionDigest: DigestB64u;
 };
 
-export type VerifiedWalletOperationEmailOtpFactorResult = VerifiedWalletOperationFactorBinding & {
+type VerifiedWalletOperationEmailOtpFactorResult = VerifiedWalletOperationFactorBinding & {
   readonly kind: 'verified_wallet_operation_email_otp_factor';
   readonly challengeId: EmailOtpChallengeId;
   readonly verificationReceiptDigest: DigestB64u;
@@ -152,14 +139,14 @@ type VerifiedWalletSessionFactorBinding = {
   readonly expiresAtMs: number;
 };
 
-export type VerifiedWalletSessionPasskeyFactorResult =
+type VerifiedWalletSessionPasskeyFactorResult =
   VerifiedWalletSessionFactorBinding & {
     readonly kind: 'verified_wallet_session_passkey_factor';
     readonly credentialIdB64u: WebAuthnCredentialIdB64u;
     readonly assertionDigest: DigestB64u;
   };
 
-export type VerifiedWalletSessionEmailOtpFactorResult =
+type VerifiedWalletSessionEmailOtpFactorResult =
   VerifiedWalletSessionFactorBinding & {
     readonly kind: 'verified_wallet_session_email_otp_factor';
     readonly challengeId: EmailOtpChallengeId;
@@ -245,7 +232,7 @@ export function buildVerifiedWalletSessionEmailOtpFactorResult(
 
 /** Nominal server-only owner proofs; private constructors block browser forgery. */
 class VerifiedOwnerWalletSessionProof {
-  private readonly __proofBrand = true;
+  protected readonly __proofBrand = true;
   readonly kind = 'verified_owner_proof_v1' as const;
   readonly proofId: VerifiedOwnerProofId;
   readonly method: VerifiedOwnerProofMethod;
@@ -280,7 +267,7 @@ class VerifiedOwnerWalletSessionProof {
 }
 
 class VerifiedOwnerOperationProof {
-  private readonly __proofBrand = true;
+  protected readonly __proofBrand = true;
   readonly kind = 'verified_owner_proof_v1' as const;
   readonly proofId: VerifiedOwnerProofId;
   readonly method: VerifiedOwnerProofMethod;
@@ -370,69 +357,6 @@ export async function buildVerifiedWalletOperationFactorEvidenceSet(
     assurance: 'step_up',
     verifiedAtMs: input.factor.verifiedAtMs,
     expiresAtMs: input.factor.expiresAtMs,
-  });
-}
-
-export function parseVerifiedAuthorizationEvidenceSetFromPersistence(
-  raw: unknown,
-): VerifiedAuthorizationEvidenceSet {
-  return parseVerifiedWalletOperationEvidenceSetFromPersistence(raw);
-}
-
-function parseVerifiedWalletOperationEvidenceSetFromPersistence(
-  raw: unknown,
-): VerifiedAuthorizationEvidenceSet {
-  const record = requireExactRecord(raw, [
-    'kind',
-    'tenantId',
-    'principalId',
-    'walletId',
-    'authorityRef',
-    'requestOrigin',
-    'audience',
-    'evidenceSetId',
-    'evidence',
-    'evidenceSetDigest',
-    'operation',
-    'laneDigest',
-    'intentDigest',
-    'displayDigest',
-    'assurance',
-    'verifiedAtMs',
-    'expiresAtMs',
-  ]);
-  if (record.kind !== 'verified_wallet_operation_evidence_set' || record.assurance !== 'step_up') {
-    throw new Error('persisted wallet operation evidence set kind is invalid');
-  }
-  const authorityRef = parseWalletAuthAuthorityRef(record.authorityRef);
-  if (!authorityRef) {
-    throw new Error('persisted wallet operation evidence authority is invalid');
-  }
-  const walletId = parseWalletId(record.walletId);
-  if (!walletId.ok) {
-    throw new Error('persisted wallet operation evidence wallet is invalid');
-  }
-  return new VerifiedWalletOperationEvidenceSetProof({
-    tenantId: parseAuthorizationField(record.tenantId, parseTenantId, 'tenantId'),
-    principalId: parseAuthorizationField(record.principalId, parsePrincipalId, 'principalId'),
-    walletId: walletId.value,
-    authorityRef,
-    requestOrigin: parseSessionOrigin(record.requestOrigin),
-    audience: parseSessionOrigin(record.audience),
-    evidenceSetId: parseAuthorizationField(
-      record.evidenceSetId,
-      parseAuthorizationEvidenceSetId,
-      'evidenceSetId',
-    ),
-    evidence: parsePersistedEvidence(record.evidence),
-    evidenceSetDigest: parsePersistenceDigest(record.evidenceSetDigest, 'evidenceSetDigest'),
-    operation: parseAuthorizationField(record.operation, parseCapabilityOperationRef, 'operation'),
-    laneDigest: parsePersistenceDigest(record.laneDigest, 'laneDigest'),
-    intentDigest: parsePersistenceDigest(record.intentDigest, 'intentDigest'),
-    displayDigest: parsePersistenceDigest(record.displayDigest, 'displayDigest'),
-    assurance: 'step_up',
-    verifiedAtMs: requirePositiveSafeInteger(record.verifiedAtMs, 'verifiedAtMs'),
-    expiresAtMs: requirePositiveSafeInteger(record.expiresAtMs, 'expiresAtMs'),
   });
 }
 
@@ -632,9 +556,7 @@ async function digestCanonical(
   domain: string,
   value: Record<string, unknown>,
 ): Promise<DigestB64u> {
-  return parseDigestB64u(
-    base64UrlEncode(await sha256BytesUtf8(`${domain}|${alphabetizeStringify(value)}`)),
-  );
+  return sha256Utf8DigestB64u(`${domain}|${alphabetizeStringify(value)}`);
 }
 
 function requireWalletOperationEvidenceSetFields(
@@ -655,76 +577,4 @@ function requireWalletOperationEvidenceSetFields(
 
 function evidenceIdFromEvidence(evidence: VerifiedAuthorizationEvidence): AuthorizationEvidenceId {
   return evidence.evidenceId;
-}
-
-function parsePersistedEvidence(
-  raw: unknown,
-): readonly [VerifiedAuthorizationEvidence, ...VerifiedAuthorizationEvidence[]] {
-  if (!Array.isArray(raw) || raw.length === 0) {
-    throw new Error('persisted evidence set requires evidence');
-  }
-  const evidence = raw.map(parsePersistedEvidenceEntry);
-  const [first, ...remaining] = evidence;
-  if (!first) throw new Error('persisted evidence set requires evidence');
-  return [first, ...remaining];
-}
-
-function parsePersistedEvidenceEntry(raw: unknown): VerifiedAuthorizationEvidence {
-  const record = requireExactRecord(raw, ['evidenceId', 'evidenceKind', 'evidenceDigest']);
-  if (!isAuthorizationEvidenceKind(record.evidenceKind)) {
-    throw new Error('persisted evidence kind is invalid');
-  }
-  return {
-    evidenceId: parseAuthorizationField(
-      record.evidenceId,
-      parseAuthorizationEvidenceId,
-      'evidenceId',
-    ),
-    evidenceKind: record.evidenceKind,
-    evidenceDigest: parsePersistenceDigest(record.evidenceDigest, 'evidenceDigest'),
-  };
-}
-
-function parseAuthorizationField<T>(
-  raw: unknown,
-  parser: (value: unknown) => AuthorizationParseResult<T>,
-  field: string,
-): T {
-  const parsed = parser(raw);
-  if (!parsed.ok) {
-    throw new Error(`persisted evidence set ${field} is invalid: ${parsed.error.message}`);
-  }
-  return parsed.value;
-}
-
-function parsePersistenceDigest(raw: unknown, field: string): DigestB64u {
-  try {
-    return parseDigestB64u(raw);
-  } catch {
-    throw new Error(`persisted evidence set ${field} is invalid`);
-  }
-}
-
-function requirePositiveSafeInteger(raw: unknown, field: string): number {
-  if (!Number.isSafeInteger(raw) || Number(raw) <= 0) {
-    throw new Error(`persisted evidence set ${field} must be a positive safe integer`);
-  }
-  return Number(raw);
-}
-
-function requireExactRecord(raw: unknown, fields: readonly string[]): Record<string, unknown> {
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
-    throw new Error('persisted evidence set must be an object');
-  }
-  const record = raw as Record<string, unknown>;
-  const keys = Object.keys(record);
-  if (keys.length !== fields.length) {
-    throw new Error('persisted evidence set fields are invalid');
-  }
-  for (const key of keys) {
-    if (!fields.includes(key)) {
-      throw new Error('persisted evidence set fields are invalid');
-    }
-  }
-  return record;
 }

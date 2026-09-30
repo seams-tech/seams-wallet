@@ -8,6 +8,11 @@ import {
   WALLET_EMAIL_OTP_UNLOCK_OPERATION,
   isWalletEmailOtpLoginOperation,
 } from '@shared/utils/emailOtpDomain';
+import {
+  parseCurrentEmailOtpChallengeRow,
+  parseCurrentEmailOtpGrantRow,
+  parseCurrentEmailOtpUnlockChallengeRow,
+} from '../../../../core/EmailOtpRecords';
 import type {
   EmailOtpAuthStateRecord,
   EmailOtpChallengeOperation,
@@ -41,7 +46,7 @@ export type EmailOtpAuthStatePatch = {
   readonly lastStrongAuthAtMs?: number | null;
 };
 
-export type EmailOtpPublicKey33Validator = (input: Uint8Array) => Promise<unknown>;
+type EmailOtpPublicKey33Validator = (input: Uint8Array) => Promise<unknown>;
 
 export type EmailOtpEnrollmentMaterialBoundaryInput = {
   readonly enrollmentSealKeyVersion?: unknown;
@@ -50,7 +55,7 @@ export type EmailOtpEnrollmentMaterialBoundaryInput = {
   readonly serverSealedFactorCiphertextB64u?: unknown;
 };
 
-export type EmailOtpEnrollmentMaterialValidationResult =
+type EmailOtpEnrollmentMaterialValidationResult =
   | {
       readonly ok: true;
       readonly enrollmentSealKeyVersion: string;
@@ -206,7 +211,7 @@ export function emailOtpRateLimitExceeded(row: D1EmailOtpRateLimitRow | null): {
   };
 }
 
-export function parseEmailOtpWalletEnrollmentRecord(
+function parseEmailOtpWalletEnrollmentRecord(
   input: unknown,
 ): EmailOtpWalletEnrollmentRecord | null {
   const record = parseJsonObject(input);
@@ -270,7 +275,7 @@ export function parseEmailOtpWalletEnrollmentRow(
   return record;
 }
 
-export function parseEmailOtpAuthStateRecord(input: unknown): EmailOtpAuthStateRecord | null {
+function parseEmailOtpAuthStateRecord(input: unknown): EmailOtpAuthStateRecord | null {
   const record = parseJsonObject(input);
   if (!record) return null;
   const version = toOptionalTrimmedString(record.version);
@@ -324,85 +329,31 @@ export function parseEmailOtpAuthStateRow(
   return record;
 }
 
-export function parseEmailOtpChallengeOperation(input: unknown): EmailOtpChallengeOperation | null {
-  const operation = toOptionalTrimmedString(input);
-  if (!operation) return null;
-  if (isWalletEmailOtpLoginOperation(operation)) return operation;
-  if (operation === WALLET_EMAIL_OTP_REGISTRATION_OPERATION) return operation;
-  if (operation === WALLET_EMAIL_OTP_DEVICE_LINK_OPERATION) return operation;
-  return null;
-}
-
 export function parseEmailOtpLoginOperation(input: unknown): EmailOtpLoginChallengeOperation {
   const operation = toOptionalTrimmedString(input);
   if (operation && isWalletEmailOtpLoginOperation(operation)) return operation;
   return WALLET_EMAIL_OTP_UNLOCK_OPERATION;
 }
 
-export function parseEmailOtpChallengeRecord(input: unknown): EmailOtpChallengeRecord | null {
-  const record = parseJsonObject(input);
-  if (!record) return null;
-  const version = toOptionalTrimmedString(record.version);
-  const challengeId = toOptionalTrimmedString(record.challengeId);
-  const challengeSubjectId = toOptionalTrimmedString(record.challengeSubjectId);
-  const walletId = toOptionalTrimmedString(record.walletId);
-  const orgId = toOptionalTrimmedString(record.orgId);
-  const otpChannel = toOptionalTrimmedString(record.otpChannel);
-  const email = toOptionalTrimmedString(record.email)?.toLowerCase() || '';
-  const otpCode = toOptionalTrimmedString(record.otpCode);
-  const ownerProofBindingDigest = toOptionalTrimmedString(record.ownerProofBindingDigest);
-  const action = parseEmailOtpChallengeAction(record.action);
-  const operation = parseEmailOtpChallengeOperation(record.operation);
-  const createdAtMs = positiveSafeInteger(record.createdAtMs);
-  const expiresAtMs = positiveSafeInteger(record.expiresAtMs);
-  const attemptCount = nonNegativeSafeInteger(record.attemptCount);
-  const maxAttempts = positiveSafeInteger(record.maxAttempts);
-  if (
-    version !== 'email_otp_challenge_v1' ||
-    !challengeId ||
-    !challengeSubjectId ||
-    !walletId ||
-    !email ||
-    !otpCode ||
-    !ownerProofBindingDigest ||
-    !action ||
-    !operation ||
-    !emailOtpChallengePurposeIsValid({ action, operation }) ||
-    otpChannel !== EMAIL_OTP_CHANNEL ||
-    !createdAtMs ||
-    !expiresAtMs ||
-    attemptCount === null ||
-    !maxAttempts ||
-    expiresAtMs <= createdAtMs
-  ) {
-    return null;
-  }
-  return {
-    version: 'email_otp_challenge_v1',
-    challengeId,
-    challengeSubjectId,
-    walletId,
-    ...(orgId ? { orgId } : {}),
-    otpChannel: EMAIL_OTP_CHANNEL,
-    email,
-    otpCode,
-    ownerProofBindingDigest,
-    action,
-    operation,
-    createdAtMs,
-    expiresAtMs,
-    attemptCount,
-    maxAttempts,
-  };
-}
-
+/**
+ * Reads a challenge row with the core parser and holds it to more: the operation must fit the
+ * action and the challenge must expire after it was created. The email is lowercased.
+ */
 export function parseEmailOtpChallengeRow(
   row: D1EmailOtpChallengeRow | null,
 ): EmailOtpChallengeRecord | null {
-  const record = parseEmailOtpChallengeRecord(row?.record_json);
-  const expiresAtMs = positiveSafeInteger(row?.expires_at_ms);
-  if (!record || !expiresAtMs || record.expiresAtMs !== expiresAtMs) return null;
-  return record;
+  const record = parseCurrentEmailOtpChallengeRow({
+    recordJson: row?.record_json,
+    expiresAtMs: row?.expires_at_ms,
+  });
+  if (
+    !record ||
+    record.expiresAtMs <= record.createdAtMs ||
+    !emailOtpChallengePurposeIsValid(record)
+  ) {
+    return null;
+  }
+  return { ...record, email: record.email.toLowerCase() };
 }
 
 export function parseEmailOtpRegistrationVerificationReceiptV1(
@@ -475,50 +426,15 @@ export function parseEmailOtpRegistrationVerificationReceiptV1(
   };
 }
 
-export function parseEmailOtpUnlockChallengeRecord(
-  input: unknown,
-): EmailOtpUnlockChallengeRecord | null {
-  const record = parseJsonObject(input);
-  if (!record) return null;
-  const version = toOptionalTrimmedString(record.version);
-  const challengeId = toOptionalTrimmedString(record.challengeId);
-  const walletId = toOptionalTrimmedString(record.walletId);
-  const userId = toOptionalTrimmedString(record.userId);
-  const orgId = toOptionalTrimmedString(record.orgId);
-  const challengeB64u = toOptionalTrimmedString(record.challengeB64u);
-  const createdAtMs = positiveSafeInteger(record.createdAtMs);
-  const expiresAtMs = positiveSafeInteger(record.expiresAtMs);
-  if (
-    version !== 'email_otp_unlock_challenge_v1' ||
-    !challengeId ||
-    !walletId ||
-    !userId ||
-    !challengeB64u ||
-    !createdAtMs ||
-    !expiresAtMs ||
-    expiresAtMs <= createdAtMs
-  ) {
-    return null;
-  }
-  return {
-    version: 'email_otp_unlock_challenge_v1',
-    challengeId,
-    walletId,
-    userId,
-    ...(orgId ? { orgId } : {}),
-    challengeB64u,
-    createdAtMs,
-    expiresAtMs,
-  };
-}
-
+/** An unlock challenge row as the core parser reads it, which must also expire after creation. */
 export function parseEmailOtpUnlockChallengeRow(
   row: D1EmailOtpUnlockChallengeRow | null,
 ): EmailOtpUnlockChallengeRecord | null {
-  const record = parseEmailOtpUnlockChallengeRecord(row?.record_json);
-  const expiresAtMs = positiveSafeInteger(row?.expires_at_ms);
-  if (!record || !expiresAtMs || record.expiresAtMs !== expiresAtMs) return null;
-  return record;
+  const record = parseCurrentEmailOtpUnlockChallengeRow({
+    recordJson: row?.record_json,
+    expiresAtMs: row?.expires_at_ms,
+  });
+  return record && record.expiresAtMs > record.createdAtMs ? record : null;
 }
 
 export function emailOtpChallengeContextValues(input: {
@@ -705,61 +621,13 @@ export function emailOtpUnlockChallengeRecord(input: {
   };
 }
 
-export function parseEmailOtpGrantRecord(input: unknown): EmailOtpGrantRecord | null {
-  const record = parseJsonObject(input);
-  if (!record) return null;
-  const version = toOptionalTrimmedString(record.version);
-  const grantToken = toOptionalTrimmedString(record.grantToken);
-  const userId = toOptionalTrimmedString(record.userId);
-  const walletId = toOptionalTrimmedString(record.walletId);
-  const orgId = toOptionalTrimmedString(record.orgId);
-  const challengeId = toOptionalTrimmedString(record.challengeId);
-  const otpChannel = toOptionalTrimmedString(record.otpChannel);
-  const ownerProofBindingDigest = toOptionalTrimmedString(record.ownerProofBindingDigest);
-  const action = toOptionalTrimmedString(record.action);
-  const issuedAtMs = positiveSafeInteger(record.issuedAtMs);
-  const expiresAtMs = positiveSafeInteger(record.expiresAtMs);
-  if (
-    version !== 'email_otp_grant_v1' ||
-    !grantToken ||
-    !userId ||
-    !walletId ||
-    !challengeId ||
-    otpChannel !== EMAIL_OTP_CHANNEL ||
-    !ownerProofBindingDigest ||
-    !action ||
-    !issuedAtMs ||
-    !expiresAtMs ||
-    expiresAtMs <= issuedAtMs
-  ) {
-    return null;
-  }
-  if (
-    action !== WALLET_EMAIL_OTP_ACTIONS.unseal &&
-    action !== WALLET_EMAIL_OTP_ACTIONS.recoveryBootstrap
-  ) {
-    return null;
-  }
-  return {
-    version: 'email_otp_grant_v1',
-    grantToken,
-    userId,
-    walletId,
-    ...(orgId ? { orgId } : {}),
-    challengeId,
-    otpChannel: EMAIL_OTP_CHANNEL,
-    ownerProofBindingDigest,
-    action,
-    issuedAtMs,
-    expiresAtMs,
-  };
-}
-
+/** A grant row as the core parser reads it, which must also expire after it was issued. */
 export function parseEmailOtpGrantRow(row: D1EmailOtpGrantRow | null): EmailOtpGrantRecord | null {
-  const record = parseEmailOtpGrantRecord(row?.record_json);
-  const expiresAtMs = positiveSafeInteger(row?.expires_at_ms);
-  if (!record || !expiresAtMs || record.expiresAtMs !== expiresAtMs) return null;
-  return record;
+  const record = parseCurrentEmailOtpGrantRow({
+    recordJson: row?.record_json,
+    expiresAtMs: row?.expires_at_ms,
+  });
+  return record && record.expiresAtMs > record.issuedAtMs ? record : null;
 }
 
 export async function validateEmailOtpEnrollmentMaterial(input: {
@@ -869,19 +737,6 @@ export function emailOtpAuthStateRecord(input: {
     ...(lastEmailOtpLoginAtMs != null ? { lastEmailOtpLoginAtMs } : {}),
     ...(lastStrongAuthAtMs != null ? { lastStrongAuthAtMs } : {}),
   };
-}
-
-function parseEmailOtpChallengeAction(input: unknown): EmailOtpChallengeIssueAction | null {
-  const action = toOptionalTrimmedString(input);
-  switch (action) {
-    case WALLET_EMAIL_OTP_ACTIONS.login:
-    case WALLET_EMAIL_OTP_ACTIONS.registration:
-    case WALLET_EMAIL_OTP_ACTIONS.recoveryBootstrap:
-    case WALLET_EMAIL_OTP_ACTIONS.deviceLink:
-      return action;
-    default:
-      return null;
-  }
 }
 
 export function emailOtpChallengePurposeIsValid(input: {

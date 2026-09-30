@@ -26,9 +26,23 @@ wasm-opt = ["-O4"]
 default = []
 strict-worker-router-entrypoint = ["workers-rs"]
 strict-worker-deriver-a-entrypoint = ["workers-rs"]
+wallet-do-harness = ["strict-worker-deriver-a-entrypoint"]
+wallet-do-router-harness = ["strict-worker-router-entrypoint"]
+wallet-do-b-completion-harness = ["strict-worker-deriver-b-entrypoint"]
+wallet-do-b-harness = ["strict-worker-deriver-b-entrypoint"]
+wallet-do-signing-worker-harness = ["strict-worker-signing-worker-entrypoint"]
 strict-worker-deriver-b-entrypoint = ["workers-rs"]
 strict-worker-signing-worker-entrypoint = ["workers-rs"]
 strict-worker-tenant-root-control-plane-entrypoint = ["workers-rs"]
+# Local only: dev builds of the D1 SigningWorker can hold a NEAR finalize
+# between signing and committing, for the intended suite.
+local-intended-signing-hold = ["strict-worker-signing-worker-entrypoint"]
+# Local only: dev builds of the Router can end a registration burned when the
+# local Gateway's terminal-failure fault asks, for the intended suite.
+local-intended-router-burn = ["strict-worker-router-entrypoint"]
+# Local only: dev builds of Deriver B can sign start acceptances with a clock
+# that runs ahead, for the Yao clock-skew E2E.
+local-intended-yao-clock-skew = ["strict-worker-deriver-b-entrypoint"]
 workers-rs = [
     "dep:wasm-bindgen",
     "dep:web-sys",

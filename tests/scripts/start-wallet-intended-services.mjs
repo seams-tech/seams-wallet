@@ -2,6 +2,7 @@
 
 import { spawn, spawnSync } from 'node:child_process';
 import http from 'node:http';
+import https from 'node:https';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -14,6 +15,13 @@ const runtimeRoot =
   process.env.SEAMS_INTENDED_ROUTER_AB_ROOT ||
   path.join(tmpdir(), `${path.basename(repoRoot)}-wallet-intended`);
 const walletDistRoot = path.join(repoRoot, 'packages', 'wallet', 'dist');
+const externalGateway = parseExternalGatewayMode();
+// `vm` runs the Wallet on the VM reference (ordinary processes, SQLite, the
+// Gateway on Node); the default runs it on local Workers.
+const walletHost = process.env.SEAMS_INTENDED_WALLET_HOST || 'workers';
+if (walletHost !== 'workers' && walletHost !== 'vm') {
+  throw new Error('SEAMS_INTENDED_WALLET_HOST must be workers or vm');
+}
 const children = [];
 let stopping = false;
 
@@ -21,9 +29,14 @@ await main().catch(handleFatalError);
 
 async function main() {
   installSignalHandlers();
+  if (externalGateway) assertHostedBenchmarkTarget();
   if (process.env.SEAMS_INTENDED_SKIP_BUILD !== '1') buildWalletRuntime();
-  startWalletSystem();
-  await waitForHttp(`${gatewayUrl}/readyz`, 180_000);
+  if (!externalGateway) startWalletSystem();
+  await waitForHttp(
+    `${gatewayUrl}/readyz`,
+    180_000,
+    externalGateway ? requiredBenchmarkEnvironment('SEAMS_INTENDED_BENCHMARK_ACCESS_TOKEN') : null,
+  );
   startIntendedApp('app', appOrigin, 'app');
   startIntendedApp('wallet-host', walletOrigin, 'wallet-host');
   await waitForHttp(`${appOrigin}/__intended-e2e`, 120_000);
@@ -34,6 +47,7 @@ async function main() {
 
 function buildWalletRuntime() {
   runRequired('Wallet SDK build', 'pnpm', ['-C', 'packages/wallet', 'run', 'build:sdk-full']);
+  if (externalGateway || walletHost === 'vm') return;
   for (const role of [
     'signing-worker',
     'deriver-a',
@@ -53,6 +67,26 @@ function buildWalletRuntime() {
 }
 
 function startWalletSystem() {
+  if (walletHost === 'vm') {
+    const child = spawn(
+      process.execPath,
+      [
+        path.join(repoRoot, 'crates/router-ab-dev/scripts/start-vm-wallet-system.mjs'),
+        '--root',
+        runtimeRoot,
+        '--app-origin',
+        appOrigin,
+        '--wallet-origin',
+        walletOrigin,
+      ],
+      childOptions({
+        ...process.env,
+        SEAMS_VM_SKIP_BUILD: process.env.SEAMS_INTENDED_SKIP_BUILD === '1' ? '1' : '',
+      }),
+    );
+    trackChild('Wallet system', child);
+    return;
+  }
   const child = spawn(
     process.execPath,
     [
@@ -82,9 +116,15 @@ function startIntendedApp(label, origin, cacheName) {
     VITE_CACHE_DIR:
       cacheName === 'app' ? configuredCacheRoot : `${configuredCacheRoot}-${cacheName}`,
     VITE_RELAYER_URL: gatewayUrl,
-    VITE_ROUTER_AB_NORMAL_SIGNING_WORKER_ID: 'local-signing-worker',
-    VITE_SEAMS_PROJECT_ENVIRONMENT_ID: 'local-smoke-project:dev',
-    VITE_SEAMS_PUBLISHABLE_KEY: 'pk_local',
+    VITE_ROUTER_AB_NORMAL_SIGNING_WORKER_ID: externalGateway
+      ? process.env.SEAMS_INTENDED_SIGNING_WORKER_ID
+      : 'local-signing-worker',
+    VITE_SEAMS_PROJECT_ENVIRONMENT_ID: externalGateway
+      ? process.env.SEAMS_INTENDED_PROJECT_ENVIRONMENT_ID
+      : 'local-smoke-project:dev',
+    VITE_SEAMS_PUBLISHABLE_KEY: externalGateway
+      ? process.env.SEAMS_INTENDED_PUBLISHABLE_KEY
+      : 'pk_local',
     VITE_SEAMS_WALLET_ASSET_HOST: cacheName === 'wallet-host' ? '1' : '0',
     VITE_SEAMS_WALLET_DIST_ROOT: walletDistRoot,
     VITE_SIGNING_SESSION_PERSISTENCE_MODE: 'sealed_refresh_v1',
@@ -135,25 +175,79 @@ function runRequired(label, command, args) {
   }
 }
 
-async function waitForHttp(url, timeoutMs) {
+async function waitForHttp(url, timeoutMs, accessToken = null) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     if (stopping) throw new Error('Wallet intended services stopped during startup');
-    const status = await requestStatus(url);
+    const status = await requestStatus(url, accessToken);
     if (status !== null && status >= 200 && status < 400) return;
     await delay(250);
   }
   throw new Error(`${url} did not become ready`);
 }
 
-function requestStatus(url) {
-  return new Promise(requestStatusExecutor.bind(undefined, url));
+function requestStatus(url, accessToken) {
+  return new Promise(requestStatusExecutor.bind(undefined, url, accessToken));
 }
 
-function requestStatusExecutor(url, resolve) {
-  const request = http.get(url, handleStatusResponse.bind(undefined, resolve));
-  request.setTimeout(750, handleRequestTimeout.bind(undefined, request));
+function requestStatusExecutor(url, accessToken, resolve) {
+  const transport = new URL(url).protocol === 'https:' ? https : http;
+  const headers = accessToken ? { 'x-r150-benchmark-access': accessToken } : {};
+  const request = transport.get(url, { headers }, handleStatusResponse.bind(undefined, resolve));
+  request.setTimeout(externalGateway ? 5_000 : 750, handleRequestTimeout.bind(undefined, request));
   request.once('error', resolve.bind(undefined, null));
+}
+
+function parseExternalGatewayMode() {
+  const value = process.env.SEAMS_INTENDED_EXTERNAL_GATEWAY;
+  if (value === undefined || value === '0') return false;
+  if (value === '1') return true;
+  throw new Error('SEAMS_INTENDED_EXTERNAL_GATEWAY must be 0 or 1');
+}
+
+function assertHostedBenchmarkTarget() {
+  const arm = requiredBenchmarkEnvironment('SEAMS_INTENDED_BENCHMARK_ARM');
+  if (arm !== 'd1' && arm !== 'do') {
+    throw new Error('SEAMS_INTENDED_BENCHMARK_ARM must be d1 or do');
+  }
+  const benchmarkPrefix = `r150-bench-20260925-${arm}`;
+  const gatewayUrl = new URL(requiredBenchmarkEnvironment('SEAMS_INTENDED_ROUTER_URL'));
+  if (
+    gatewayUrl.protocol !== 'https:' ||
+    gatewayUrl.hostname.split('.')[0] !== `${benchmarkPrefix}-ingress` ||
+    gatewayUrl.pathname !== '/' ||
+    gatewayUrl.search !== ''
+  ) {
+    throw new Error('Hosted benchmark Gateway URL must name the selected arm ingress');
+  }
+  const region = requiredBenchmarkEnvironment('SEAMS_INTENDED_PROBE_REGION');
+  if (!/^[a-z0-9-]+$/u.test(region)) {
+    throw new Error('SEAMS_INTENDED_PROBE_REGION must be a lowercase region label');
+  }
+  const runId = requiredBenchmarkEnvironment('SEAMS_INTENDED_BENCHMARK_RUN_ID');
+  if (!/^[a-z0-9-]+$/u.test(runId)) {
+    throw new Error('SEAMS_INTENDED_BENCHMARK_RUN_ID must be a lowercase run label');
+  }
+  const projectEnvironmentId = requiredBenchmarkEnvironment(
+    'SEAMS_INTENDED_PROJECT_ENVIRONMENT_ID',
+  );
+  const signingWorkerId = requiredBenchmarkEnvironment('SEAMS_INTENDED_SIGNING_WORKER_ID');
+  if (
+    !projectEnvironmentId.startsWith(benchmarkPrefix) ||
+    signingWorkerId !== `${benchmarkPrefix}-signing-worker`
+  ) {
+    throw new Error('Hosted benchmark project and SigningWorker must be isolated R150 resources');
+  }
+  requiredBenchmarkEnvironment('SEAMS_INTENDED_PUBLISHABLE_KEY');
+  if (requiredBenchmarkEnvironment('SEAMS_INTENDED_BENCHMARK_ACCESS_TOKEN').length < 32) {
+    throw new Error('Hosted benchmark access token must contain at least 32 characters');
+  }
+}
+
+function requiredBenchmarkEnvironment(name) {
+  const value = process.env[name]?.trim();
+  if (!value) throw new Error(`${name} is required for hosted benchmarking`);
+  return value;
 }
 
 function handleStatusResponse(resolve, response) {

@@ -1,3 +1,4 @@
+import { ROUTER_AB_ECDSA_PRESIGN_CEREMONY_MAX_LIFETIME_MS } from '@shared/utils/routerAbEcdsaDerivation';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
 import { WALLET_SESSION_FAILURE_CODES } from '@shared/utils/walletSessionFailure';
 import {
@@ -23,6 +24,7 @@ import {
   startRouterAbEcdsaPresignSession,
   stepRouterAbEcdsaPresignSession,
   type RouterAbEcdsaDerivationPresignaturePoolFillAuth,
+  type RouterAbEcdsaPresignAuthorityV1,
 } from './ecdsaDerivationPresignBridge';
 import { parseEcdsaKeyHandle, type EcdsaKeyHandle } from '../../keyMaterialBrands';
 
@@ -30,21 +32,60 @@ type ParseOk<T> = { ok: true; value: T };
 type ParseErr = { ok: false; code: string; message: string };
 type ParseResult<T> = ParseOk<T> | ParseErr;
 const PRESIGN_SESSION_ID_PREFIX = 'ecdsa-presign-v2';
-const MAX_PRESIGN_CEREMONY_LIFETIME_MS = 5 * 60_000;
 const MAX_DURABLE_PRESIGNATURE_LIFETIME_MS = 90 * 24 * 60 * 60_000;
 
-type RouterAbEcdsaDerivationPoolFillBinding = {
+export type RouterAbEcdsaOwnerWalletScope = {
+  readonly orgId: string;
+  readonly projectId: string;
+  readonly projectEnvironmentId: string;
+  readonly walletId: string;
+};
+
+export type RouterAbEcdsaDerivationPoolFillBinding = {
   readonly walletId: string;
   readonly relayerKeyId: string;
   readonly keyHandle: string;
   readonly runtimePolicyScope: RuntimePolicyScope;
   readonly participantIds: readonly [number, number];
   readonly thresholdExpiresAtMs: number;
+  readonly routerAbEcdsaDerivationNormalSigning: RouterAbEcdsaDerivationNormalSigningStateV1;
+  /** The wallet whose pool this fill admits into, for either authority. */
+  readonly ownerWalletScope: RouterAbEcdsaOwnerWalletScope;
   readonly authorization:
     | { readonly kind: 'wallet_session' }
-    | { readonly kind: 'operation_step_up'; readonly materialExpiresAtMs: number };
-  readonly routerAbEcdsaDerivationNormalSigning: RouterAbEcdsaDerivationNormalSigningStateV1;
+    | {
+        readonly kind: 'operation_step_up';
+        readonly materialExpiresAtMs: number;
+      };
 };
+
+function ownerWalletScopeMatchesBinding(
+  binding: RouterAbEcdsaDerivationPoolFillBinding,
+): boolean {
+  const owner = binding.ownerWalletScope;
+  const policy = binding.runtimePolicyScope;
+  return (
+    owner.orgId === policy.orgId &&
+    owner.projectId === policy.projectId &&
+    owner.walletId === binding.walletId &&
+    owner.projectEnvironmentId.length > 0
+  );
+}
+
+function presignAuthorityForBinding(
+  binding: RouterAbEcdsaDerivationPoolFillBinding,
+): RouterAbEcdsaPresignAuthorityV1 {
+  const scope = binding.ownerWalletScope;
+  const walletScope = {
+    org_id: scope.orgId,
+    project_id: scope.projectId,
+    project_environment_id: scope.projectEnvironmentId,
+    wallet_id: scope.walletId,
+  };
+  return binding.authorization.kind === 'operation_step_up'
+    ? { kind: 'operation_step_up', wallet_scope: walletScope }
+    : { kind: 'owner_wallet_session', wallet_scope: walletScope };
+}
 
 export function resolveRouterAbEcdsaPresignDeadlines(input: {
   readonly requestedCeremonyExpiresAtMs: number;
@@ -56,7 +97,7 @@ export function resolveRouterAbEcdsaPresignDeadlines(input: {
   const ceremonyExpiresAtMs = Math.min(
     input.requestedCeremonyExpiresAtMs,
     input.thresholdExpiresAtMs,
-    input.nowMs + MAX_PRESIGN_CEREMONY_LIFETIME_MS,
+    input.nowMs + ROUTER_AB_ECDSA_PRESIGN_CEREMONY_MAX_LIFETIME_MS,
   );
   const maximumAuthorizedMaterialExpiry =
     input.authorization.kind === 'operation_step_up'
@@ -361,6 +402,13 @@ export class RouterAbEcdsaDerivationPoolFillHandlers {
     signingRoot: Pick<ThresholdEcdsaSigningRootMetadata, 'signingRootId' | 'signingRootVersion'>;
   }): Promise<RouterAbEcdsaDerivationPoolFillInitResponse> {
     const transport = this.signingWorkerTransport;
+    if (!ownerWalletScopeMatchesBinding(input.binding)) {
+      return {
+        ok: false,
+        code: WALLET_SESSION_FAILURE_CODES.scopeMismatch,
+        message: 'Presign owner Wallet Session scope does not match active material',
+      };
+    }
     const scope = input.poolFill.scope;
     const trustedScope = input.binding.routerAbEcdsaDerivationNormalSigning.scope;
     if (!sameRouterAbEcdsaDerivationNormalSigningScopeV1(scope, trustedScope)) {
@@ -419,13 +467,14 @@ export class RouterAbEcdsaDerivationPoolFillHandlers {
       return {
         ok: false,
         code: 'invalid_pool_fill_expiry',
-        message: 'Presign initialization deadlines exceed live authorization',
+        message: `Presign initialization deadlines exceed live authorization (requested ceremony ${input.poolFill.ceremonyExpiresAtMs} material ${input.poolFill.materialExpiresAtMs}; authorized ceremony ${ceremonyExpiresAtMs} material ${materialExpiresAtMs})`,
       };
     }
     const presignSessionId = input.presignSessionId;
     const started = await startRouterAbEcdsaPresignSession({
       signingWorkerBaseUrl: transport.signingWorkerBaseUrl,
       scope,
+      authority: presignAuthorityForBinding(input.binding),
       presignSessionId,
       firstMessageB64u: input.firstMessageB64u,
       ceremonyExpiresAtMs,
@@ -464,10 +513,18 @@ export class RouterAbEcdsaDerivationPoolFillHandlers {
     outgoingMessagesB64u: string[];
   }): Promise<RouterAbEcdsaDerivationPoolFillStepResponse> {
     const transport = this.signingWorkerTransport;
+    if (!ownerWalletScopeMatchesBinding(input.binding)) {
+      return {
+        ok: false,
+        code: WALLET_SESSION_FAILURE_CODES.scopeMismatch,
+        message: 'Presign owner Wallet Session scope does not match active material',
+      };
+    }
     const scope = input.binding.routerAbEcdsaDerivationNormalSigning.scope;
     const stepped = await stepRouterAbEcdsaPresignSession({
       signingWorkerBaseUrl: transport.signingWorkerBaseUrl,
       scope,
+      authority: presignAuthorityForBinding(input.binding),
       presignSessionId: input.presignSessionId,
       requestedStage: input.requestedStage,
       outgoingMessagesB64u: input.outgoingMessagesB64u,

@@ -1,6 +1,6 @@
 /**
- * Refactor 109C: sealing the wallet's existing custody seed under a newly
- * verified Email OTP factor.
+ * Sealing the wallet's existing custody seed under a newly verified
+ * Email OTP factor.
  *
  * The mirror of `passkeyLink`, and deliberately the same shape: open the source
  * envelope with the factor secret the caller already collected, reseal the same
@@ -42,7 +42,7 @@ import type {
   PrepareEmailOtpRegistrationEnrollmentMaterialInternalResult,
 } from '@/core/signingEngine/flows/signEvmFamily/emailOtpPublic';
 
-export type EmailOtpCustodyEnrollmentPreparationPort = {
+type EmailOtpCustodyEnrollmentPreparationPort = {
   prepareEmailOtpRegistrationEnrollmentMaterialInternal(
     args: PrepareEmailOtpRegistrationEnrollmentMaterialInternalArgs,
   ): Promise<PrepareEmailOtpRegistrationEnrollmentMaterialInternalResult>;

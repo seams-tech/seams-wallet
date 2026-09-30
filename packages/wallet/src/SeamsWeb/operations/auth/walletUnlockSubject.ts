@@ -2,7 +2,7 @@ import { toAccountId } from '@/core/types/accountIds';
 import { IndexedDBManager } from '@/core/indexedDB';
 import type { AccountSignerRecord, LastProfileState } from '@/core/indexedDB/passkeyClientDB.types';
 import { toWalletId, type WalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
-import { parseNearEd25519SigningKeyId } from '@shared/utils/registrationIntent';
+import { parseNearEd25519SigningKeyId } from '@shared/utils/registrationIds';
 import { parseSignerSlot } from '@shared/utils/signerSlot';
 import {
   resolveEvmFamilyEcdsaWalletUnlockSubjects,
@@ -25,7 +25,7 @@ export type WalletUnlockCapabilityFamilyScope =
   | { readonly kind: 'evm_family_ecdsa_only' }
   | { readonly kind: 'all_registered_mpc' };
 
-export type WalletUnlockSubjectSetResolution =
+type WalletUnlockSubjectSetResolution =
   | {
       readonly kind: 'resolved';
       readonly subjectSet: WalletUnlockSubjectSet;
@@ -43,12 +43,12 @@ export type WalletUnlockSubjectSetResolution =
       readonly subjectSet?: never;
     };
 
-export type WalletIdentitySource =
+type WalletIdentitySource =
   | 'profile_projection'
   | 'host_last_used_profile'
   | 'local_wallet_authority';
 
-export type WalletIdentityResolveFailure =
+type WalletIdentityResolveFailure =
   | 'missing_wallet_profile'
   | 'ambiguous_wallet_profile'
   | 'missing_requested_capability_subject'
@@ -485,31 +485,6 @@ export async function resolveWalletUnlockSubjectSet(args: {
     appendUniqueWalletUnlockSubject(subjects, subject);
   }
   return buildWalletUnlockSubjectSet(normalizedWalletId, subjects);
-}
-
-function selectNearEd25519WalletUnlockSubject(
-  subjectSet: WalletUnlockSubjectSet,
-): Extract<WalletUnlockSubject, { kind: 'near_ed25519_wallet' }> | null {
-  const nearSubjects = subjectSet.subjects.filter(isNearEd25519WalletUnlockSubject);
-  if (nearSubjects.length === 0) return null;
-  if (nearSubjects.length > 1) {
-    throw new Error('wallet unlock found multiple active NEAR Ed25519 subjects');
-  }
-  return nearSubjects[0] || null;
-}
-
-export async function resolveNearEd25519WalletUnlockSubject(
-  walletId: string,
-): Promise<Extract<WalletUnlockSubject, { kind: 'near_ed25519_wallet' }> | null> {
-  const resolution = await resolveWalletUnlockSubjectSet({
-    walletId,
-    requestedCapabilityFamilies: { kind: 'near_ed25519_only' },
-  });
-  if (resolution.kind === 'missing_requested_capability_subject') return null;
-  if (resolution.kind === 'capability_subject_resolution_failed') {
-    throw new Error(`wallet unlock subject resolution failed: ${resolution.reason}`);
-  }
-  return selectNearEd25519WalletUnlockSubject(resolution.subjectSet);
 }
 
 export async function resolveWalletCapabilitySubjectResolution(

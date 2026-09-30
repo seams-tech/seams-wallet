@@ -23,7 +23,7 @@ export type ConfirmationSurfaceController = {
   dispose(): void;
 };
 
-export type CreateConfirmationSurfaceControllerInput = {
+type CreateConfirmationSurfaceControllerInput = {
   parent: HTMLElement;
   variant: 'modal' | 'drawer';
   context: 'standalone' | 'wallet-iframe';
@@ -110,6 +110,7 @@ function mergeConfirmationPresentation(
       ? update.securityContext
       : current.securityContext,
     loading: Object.hasOwn(update, 'loading') ? update.loading : current.loading,
+    preparing: Object.hasOwn(update, 'preparing') ? update.preparing : current.preparing,
     title: Object.hasOwn(update, 'title') ? update.title : current.title,
     body: Object.hasOwn(update, 'body') ? update.body : current.body,
     errorMessage: Object.hasOwn(update, 'errorMessage')

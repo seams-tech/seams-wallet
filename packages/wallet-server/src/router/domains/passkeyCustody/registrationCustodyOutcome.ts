@@ -32,7 +32,7 @@ import type { CloudflareD1WalletCustodyCommitStore } from '../../cloudflare/d1/p
  * The outcome shape itself is the wire contract, and lives in shared beside the
  * payload it answers.
  */
-export type RegistrationCustodyOutcome = WalletCustodyRegistrationOutcome;
+type RegistrationCustodyOutcome = WalletCustodyRegistrationOutcome;
 
 export async function commitRegistrationCustody(input: {
   /** Absent when the client did not run a custody ceremony for this leg. */

@@ -27,6 +27,7 @@ declare global {
       dispose(index: number): void;
       receipt(index: number, state: TransactionReceiptState, view?: 'expanded' | 'toast'): void;
       recipient(index: number, value: string): void;
+      contract(index: number, value: string): void;
       calls: string[];
       closed: number;
       violations: string[];
@@ -160,6 +161,27 @@ test.beforeEach(async ({ page }) => {
       viewModel.content.transaction.explorers.evm = 'https://basescan.org';
       handles[index].update(viewModel);
     }
+    function contract(index: number, value: string) {
+      const viewModel = model('Review contract call', true);
+      if (viewModel.content.kind !== 'transaction') throw new Error('Expected transaction fixture');
+      const label = 'Transaction to contract';
+      viewModel.content.review = {
+        detailsInitiallyOpen: true,
+        model: {
+          chain: 'evm',
+          chainId: 5042002,
+          operations: [{ id: 'call', kind: 'generic.contractCall', label, to: value }],
+        },
+        tree: {
+          id: 'root',
+          label: 'EVM Transaction',
+          type: 'folder',
+          open: true,
+          children: [{ id: 'call', label, type: 'folder', open: true, contractAddress: value }],
+        },
+      };
+      handles[index].update(viewModel);
+    }
     function receiptDismiss() {
       window.__confirmationMount.calls.push('receipt-dismiss');
     }
@@ -187,6 +209,7 @@ test.beforeEach(async ({ page }) => {
       dispose,
       receipt,
       recipient,
+      contract,
       calls: [],
       closed: 0,
       violations: [],
@@ -230,6 +253,11 @@ test('toast grows from signing to broadcasting to complete and sweeps its curren
   const fill = progress.locator('.seams-toast-progress-fill');
   const active = progress.locator('.seams-toast-progress-active');
   const spinner = page.locator('.seams-transaction-toast .seams-receipt-symbol svg');
+  await expect(page.locator('.modal-container-root')).toHaveCSS('border-radius', '12px');
+  await expect(page.locator('.seams-transaction-toast .seams-receipt-symbol')).toHaveCSS(
+    'border-radius',
+    '8px',
+  );
   const stages: { state: TransactionReceiptState; fraction: number; pending: boolean }[] = [
     { state: { kind: 'signing' }, fraction: 1 / 3, pending: true },
     { state: { kind: 'signed' }, fraction: 1 / 3, pending: false },
@@ -268,52 +296,40 @@ test('toast grows from signing to broadcasting to complete and sweeps its curren
   await expect.poll(() => page.evaluate(() => window.__confirmationMount.violations)).toEqual([]);
 });
 
-test('receipt hashes stay on one line and reveal their end on hover and keyboard focus', async ({
+test('the contract row keeps its address beside the label and copies it from hover', async ({
   page,
 }) => {
-  await page.setViewportSize({ width: 320, height: 800 });
-  const hash = `0x${'1234567890abcdef'.repeat(4)}`;
-  await page.evaluate((hash) => {
+  const contract = '0xeb7ab5a6f761072c96147a54b8a15f012e836691';
+  await page.evaluate((value) => {
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: {
+        async writeText(text: string) {
+          window.__confirmationMount.calls.push(text);
+        },
+      },
+    });
     window.__confirmationMount.mount('modal', 'wallet-iframe');
-    window.__confirmationMount.receipt(0, { kind: 'confirmed', hash }, 'expanded');
-  }, hash);
-  await page.locator('summary').filter({ hasText: 'Receipt details' }).click();
-  const address = page.locator('.seams-review-address');
-  await expect(address).toHaveCSS('white-space', 'nowrap');
-  await expect(address).toHaveCSS('text-overflow', 'ellipsis');
-  await expect(address).toHaveAttribute('aria-label', hash);
+    window.__confirmationMount.contract(0, value);
+  }, contract);
+  await expect(page.locator('.seams-review-eyebrow')).toHaveText('Transaction to contract');
+  const row = page.locator('.seams-review-contract');
+  const address = row.locator('.seams-review-contract-address');
+  await expect(address).toHaveAttribute('title', contract);
+  await expect(address.locator('span').last()).toHaveText(contract.slice(-8));
   await expect
-    .poll(() => address.evaluate((el) => el.firstElementChild!.scrollWidth > el.clientWidth))
-    .toBe(true);
-  await expect
-    .poll(() =>
-      page.locator('.modal-container-root').evaluate((el) => el.scrollWidth <= el.clientWidth),
-    )
-    .toBe(true);
-  await address.hover();
-  expect(await address.locator('span').evaluate(el => {
-    const timing = el.getAnimations()[0]?.effect?.getTiming();
-    return { duration: timing?.duration, delay: timing?.delay };
-  })).toEqual({ duration: 200, delay: 0 });
-  await expect(address).toHaveAttribute('data-revealing', 'true');
-  await expect
-    .poll(() => address.locator('span').evaluate((el) => getComputedStyle(el).transform))
-    .not.toBe('matrix(1, 0, 0, 1, 0, 0)');
+    .poll(() => row.evaluate((element) => element.getBoundingClientRect().height))
+    .toBeLessThan(24);
+  const copy = row.getByRole('button', { name: `Copy contract address ${contract}`, exact: true });
   await page.mouse.move(0, 0);
-  await expect(address).not.toHaveAttribute('data-revealing');
-  await page.emulateMedia({ reducedMotion: 'reduce' });
-  await address.focus();
-  await expect(address).toHaveAttribute('data-revealing', 'true');
+  await expect(copy.locator('.copy-icon')).toHaveCSS('opacity', '0');
+  await row.hover();
+  await expect(copy.locator('.copy-icon')).toHaveCSS('opacity', '1');
+  await copy.click();
   await expect
-    .poll(() =>
-      address.evaluate((el) => {
-        const text = el.firstElementChild!;
-        return Math.abs(text.getBoundingClientRect().right - el.getBoundingClientRect().right);
-      }),
-    )
-    .toBeLessThan(1);
-  await page.getByRole('button', { name: 'Done', exact: true }).focus();
-  await expect(address).not.toHaveAttribute('data-revealing');
+    .poll(() => page.evaluate(() => window.__confirmationMount.calls))
+    .toEqual([contract]);
+  await expect(row.locator('.seams-review-copy')).toHaveAccessibleName('Copied');
   await expect.poll(() => page.evaluate(() => window.__confirmationMount.violations)).toEqual([]);
 });
 
@@ -508,6 +524,29 @@ test('hosted drawer keeps its compact content inside the sheet', async ({ page }
   await page.evaluate(() => window.__confirmationMount.dispose(0));
   expect(await page.evaluate(() => window.__confirmationMount.violations)).toEqual([]);
 });
+
+for (const [variant, context, closeName] of [
+  ['modal', 'standalone', 'Cancel'],
+  ['modal', 'wallet-iframe', 'Cancel'],
+  ['drawer', 'standalone', 'Dismiss confirmation'],
+] as const) {
+  test(`a ${context} ${variant} opens without a focus ring and tabs to its close button`, async ({
+    page,
+  }) => {
+    await page.evaluate(
+      ({ variant, context }) => window.__confirmationMount.mount(variant, context),
+      { variant, context },
+    );
+    const focused = await page.evaluate(() => {
+      const element = document.activeElement!;
+      return { tag: element.tagName, outline: getComputedStyle(element).outlineStyle };
+    });
+    expect(focused.tag).not.toBe('BUTTON');
+    expect(focused.outline).toBe('none');
+    await page.keyboard.press('Tab');
+    await expect(page.getByRole('button', { name: closeName, exact: true })).toBeFocused();
+  });
+}
 
 test('drawer close filters callbacks and disposes after its transition', async ({ page }) => {
   await page.locator('#opener').focus();

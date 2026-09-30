@@ -1,6 +1,6 @@
 import type { RuntimeWalletHostRoute } from './requestRouter';
 
-export type WalletHostRuntimeModule = typeof import('./runtime');
+type WalletHostRuntimeModule = typeof import('./runtime');
 type WalletHostRuntimeKind = RuntimeWalletHostRoute['kind'];
 
 const runtimePromises: Partial<Record<WalletHostRuntimeKind, Promise<WalletHostRuntimeModule>>> =

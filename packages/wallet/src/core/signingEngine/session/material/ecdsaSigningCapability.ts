@@ -16,7 +16,6 @@ import type {
   ExactEcdsaWalletSessionRuntime,
 } from './ecdsaSealedRuntime';
 import type { ActiveWalletSessionQuotaStatusV1 } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
-import type { ActiveWalletAuthMethodV2 } from '../identity/ownerLaneScope';
 import type { ActiveWalletAuthorityV1 } from '@shared/authorization/walletAuthority';
 import {
   isEmailOtpWalletAuthAuthority,
@@ -30,6 +29,11 @@ import {
   type ThresholdEcdsaChainTarget,
   type WalletId,
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
+import type {
+  ActiveEmailOtpWalletAuthMethodRecordV2,
+  ActivePasskeyWalletAuthMethodRecordV2,
+  ActiveWalletAuthMethodRecordV2,
+} from '@shared/utils/walletAuthMethodRecord';
 
 type ExactEvmFamilyWalletSessionAuthorizationBase = {
   readonly kind: 'exact_evm_family_wallet_session_authorization_v1';
@@ -48,13 +52,13 @@ type ExactEmailOtpWalletSessionRuntime = ExactEcdsaWalletSessionRuntime & {
 
 type ExactPasskeyEvmFamilyWalletSessionAuthorization =
   ExactEvmFamilyWalletSessionAuthorizationBase & {
-    readonly selectedAuthMethod: Extract<ActiveWalletAuthMethodV2, { readonly kind: 'passkey' }>;
+    readonly selectedAuthMethod: ActivePasskeyWalletAuthMethodRecordV2;
     readonly runtime: ExactPasskeyWalletSessionRuntime;
   };
 
 type ExactEmailOtpEvmFamilyWalletSessionAuthorization =
   ExactEvmFamilyWalletSessionAuthorizationBase & {
-    readonly selectedAuthMethod: Extract<ActiveWalletAuthMethodV2, { readonly kind: 'email_otp' }>;
+    readonly selectedAuthMethod: ActiveEmailOtpWalletAuthMethodRecordV2;
     readonly runtime: ExactEmailOtpWalletSessionRuntime;
   };
 
@@ -62,7 +66,7 @@ export type ExactEvmFamilyWalletSessionAuthorization =
   | ExactPasskeyEvmFamilyWalletSessionAuthorization
   | ExactEmailOtpEvmFamilyWalletSessionAuthorization;
 
-export type ExactEcdsaWalletSessionAuthorizationLookup = {
+type ExactEcdsaWalletSessionAuthorizationLookup = {
   readonly walletId: WalletId;
   readonly chainTarget: ThresholdEcdsaChainTarget;
   readonly materialActivation: MpcMaterialActivationRef;
@@ -117,7 +121,7 @@ type ResolvedSelectedWalletAuthority = Omit<
   ResolvedSelectedWalletAuthorityRecord,
   'authMethod' | 'authority'
 > & {
-  readonly authMethod: ActiveWalletAuthMethodV2;
+  readonly authMethod: ActiveWalletAuthMethodRecordV2;
   readonly authority: ActiveWalletAuthorityV1;
 };
 
@@ -158,7 +162,7 @@ function participantIdsMatch(left: readonly number[], right: readonly number[]):
 
 function selectedAuthorityComponentsAreExact(args: {
   readonly selectedAuthority: ActiveWalletAuthorityV1;
-  readonly selectedAuthMethod: ActiveWalletAuthMethodV2;
+  readonly selectedAuthMethod: ActiveWalletAuthMethodRecordV2;
   readonly walletId: WalletId;
 }): boolean {
   const { selectedAuthority, selectedAuthMethod } = args;
@@ -197,7 +201,7 @@ function capabilityAuthorityMatchesRuntime(args: {
 }
 
 function selectedAuthMethodMatchesRuntime(args: {
-  readonly selectedAuthMethod: ActiveWalletAuthMethodV2;
+  readonly selectedAuthMethod: ActiveWalletAuthMethodRecordV2;
   readonly runtime: ExactEcdsaWalletSessionRuntime;
 }): boolean {
   switch (args.runtime.authBinding.kind) {

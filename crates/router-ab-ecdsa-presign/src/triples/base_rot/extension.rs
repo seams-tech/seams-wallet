@@ -325,14 +325,9 @@ pub struct ClientExtensionProofMessage(ConsistencyProof);
 pub struct SigningWorkerExtensionProofMessage(ConsistencyProof);
 pub struct ClientExtensionAcceptanceMessage(AcceptanceMessage);
 pub struct SigningWorkerExtensionAcceptanceMessage(AcceptanceMessage);
-
-#[allow(dead_code)]
 pub struct ClientRandomOtSenderOutput(ExtensionSenderOutput);
-#[allow(dead_code)]
 pub struct SigningWorkerRandomOtSenderOutput(ExtensionSenderOutput);
-#[allow(dead_code)]
 pub struct ClientRandomOtReceiverOutput(ExtensionReceiverOutput);
-#[allow(dead_code)]
 pub struct SigningWorkerRandomOtReceiverOutput(ExtensionReceiverOutput);
 
 macro_rules! define_correlation_message {

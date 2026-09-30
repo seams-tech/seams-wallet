@@ -12,29 +12,22 @@ import {
   redisGetdelJson,
   redisSetJson,
 } from '../kv';
-import { toOptionalTrimmedString } from '@shared/utils/validation';
+import { toOptionalTrimmedString, isPlainObject } from '@shared/utils/validation';
 import {
-  toThresholdEcdsaPrefixFromBase,
-  toThresholdEcdsaSessionPrefix,
   toThresholdEd25519SessionPrefix,
   toThresholdEd25519PrefixFromBase,
   parseThresholdEd25519MpcSessionRecord,
-  parseThresholdEcdsaMpcSessionRecord,
   parseThresholdEd25519CoordinatorSigningSessionRecord,
   parseThresholdEd25519SigningSessionRecord,
-  isObject,
 } from '../validation';
-import {
-  createCloudflareDurableObjectThresholdEcdsaStores,
-  createCloudflareDurableObjectThresholdEd25519Stores,
-} from './CloudflareDurableObjectStore';
+import { createCloudflareDurableObjectThresholdEd25519Stores } from './CloudflareDurableObjectStore';
 import { readNonDurableObjectThresholdStoreKind } from './StoreConfig';
 
 export type ThresholdEd25519Commitments = { hiding: string; binding: string };
 
-export type ThresholdEd25519CommitmentsById = Record<string, ThresholdEd25519Commitments>;
+type ThresholdEd25519CommitmentsById = Record<string, ThresholdEd25519Commitments>;
 
-export type ThresholdEd25519SigningShareMaterial =
+type ThresholdEd25519SigningShareMaterial =
   | {
       kind: 'key_store';
     }
@@ -114,7 +107,7 @@ export type ThresholdEd25519CoordinatorSigningSessionRecord = {
 };
 
 
-export interface ThresholdMpcSessionStore<TRecord extends ThresholdMpcSessionRecord> {
+interface ThresholdMpcSessionStore<TRecord extends ThresholdMpcSessionRecord> {
   putMpcSession(id: string, record: TRecord, ttlMs: number): Promise<void>;
   readMpcSession(id: string): Promise<ThresholdReadMpcSessionResult<TRecord> | null>;
   claimMpcSession(id: string, version: string): Promise<ThresholdClaimMpcSessionResult<TRecord>>;
@@ -525,7 +518,9 @@ export function createThresholdEd25519SessionStore(input: {
   });
   if (doStores) return doStores.sessionStore;
 
-  const config = (isObject(input.config) ? input.config : {}) as ThresholdSessionStoreConfigRecord;
+  const config = (
+    isPlainObject(input.config) ? input.config : {}
+  ) as ThresholdSessionStoreConfigRecord;
   const allowInMemory = toOptionalTrimmedString(config.THRESHOLD_ALLOW_IN_MEMORY_STORES) === '1';
   const requirePersistent = !input.isNode && !allowInMemory;
   const basePrefix = toOptionalTrimmedString(config.THRESHOLD_PREFIX);
@@ -623,131 +618,4 @@ export function createThresholdEd25519SessionStore(input: {
     '[threshold-ed25519] Using in-memory session store for threshold signing sessions (non-persistent)',
   );
   return new InMemoryThresholdEd25519SessionStore({ keyPrefix: envPrefix || undefined });
-}
-
-export function createThresholdEcdsaSessionStore(input: {
-  config?: ThresholdStoreConfigInput | null;
-  logger: NormalizedLogger;
-  isNode: boolean;
-}): ThresholdEcdsaSessionStore {
-  const doStores = createCloudflareDurableObjectThresholdEcdsaStores({
-    config: input.config,
-    logger: input.logger,
-  });
-  if (doStores) return doStores.sessionStore;
-
-  const config = (isObject(input.config) ? input.config : {}) as ThresholdSessionStoreConfigRecord;
-  const allowInMemory = toOptionalTrimmedString(config.THRESHOLD_ALLOW_IN_MEMORY_STORES) === '1';
-  const requirePersistent = !input.isNode && !allowInMemory;
-  const basePrefix = toOptionalTrimmedString(config.THRESHOLD_PREFIX);
-  const envPrefix = toThresholdEcdsaSessionPrefix(
-    toOptionalTrimmedString(config.THRESHOLD_ECDSA_SESSION_PREFIX) ||
-      toThresholdEcdsaPrefixFromBase(basePrefix, 'sess'),
-  );
-
-  // Explicit config object
-  const kind = readNonDurableObjectThresholdStoreKind(config, 'threshold-ecdsa');
-  if (kind === 'in-memory') {
-    if (requirePersistent) {
-      throw new Error(
-        '[threshold-ecdsa] In-memory session store is not supported in this runtime; configure Upstash/Redis or Durable Objects',
-      );
-    }
-    return new InMemoryThresholdEd25519SessionStore<ThresholdEcdsaMpcSessionRecord>({
-      keyPrefix: envPrefix,
-      parseMpcSessionRecord: parseThresholdEcdsaMpcSessionRecord,
-    });
-  }
-  if (kind === 'upstash-redis-rest') {
-    return new UpstashRedisRestThresholdEd25519SessionStore<ThresholdEcdsaMpcSessionRecord>({
-      url:
-        toOptionalTrimmedString(config.url) ||
-        toOptionalTrimmedString(config.UPSTASH_REDIS_REST_URL),
-      token:
-        toOptionalTrimmedString(config.token) ||
-        toOptionalTrimmedString(config.UPSTASH_REDIS_REST_TOKEN),
-      keyPrefix: toOptionalTrimmedString(config.keyPrefix) || envPrefix,
-      parseMpcSessionRecord: parseThresholdEcdsaMpcSessionRecord,
-    });
-  }
-  if (kind === 'redis-tcp') {
-    if (!input.isNode) {
-      if (requirePersistent) {
-        throw new Error(
-          '[threshold-ecdsa] redis-tcp session store is not supported in this runtime; configure Upstash/Redis REST or Durable Objects',
-        );
-      }
-      input.logger.warn(
-        '[threshold-ecdsa] redis-tcp session store is not supported in this runtime; falling back to in-memory',
-      );
-      return new InMemoryThresholdEd25519SessionStore<ThresholdEcdsaMpcSessionRecord>({
-        keyPrefix: envPrefix,
-        parseMpcSessionRecord: parseThresholdEcdsaMpcSessionRecord,
-      });
-    }
-    return new RedisTcpThresholdEd25519SessionStore<ThresholdEcdsaMpcSessionRecord>({
-      redisUrl:
-        toOptionalTrimmedString(config.redisUrl) || toOptionalTrimmedString(config.REDIS_URL),
-      keyPrefix: toOptionalTrimmedString(config.keyPrefix) || envPrefix,
-      parseMpcSessionRecord: parseThresholdEcdsaMpcSessionRecord,
-    });
-  }
-  // Env-shaped config: prefer Redis/Upstash for session storage (TTL + lower churn).
-  const upstashUrl = toOptionalTrimmedString(config.UPSTASH_REDIS_REST_URL);
-  const upstashToken = toOptionalTrimmedString(config.UPSTASH_REDIS_REST_TOKEN);
-  if (upstashUrl || upstashToken) {
-    if (!upstashUrl || !upstashToken) {
-      throw new Error(
-        'Upstash session store enabled but UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN are not both set',
-      );
-    }
-    input.logger.info(
-      '[threshold-ecdsa] Using Upstash REST session store for signing session persistence',
-    );
-    return new UpstashRedisRestThresholdEd25519SessionStore<ThresholdEcdsaMpcSessionRecord>({
-      url: upstashUrl,
-      token: upstashToken,
-      keyPrefix: envPrefix,
-      parseMpcSessionRecord: parseThresholdEcdsaMpcSessionRecord,
-    });
-  }
-
-  const redisUrl = toOptionalTrimmedString(config.REDIS_URL);
-  if (redisUrl) {
-    if (!input.isNode) {
-      if (requirePersistent) {
-        throw new Error(
-          '[threshold-ecdsa] REDIS_URL is set but TCP Redis is not supported in this runtime; use Upstash/Redis REST or Durable Objects',
-        );
-      }
-      input.logger.warn(
-        '[threshold-ecdsa] REDIS_URL is set but TCP Redis is not supported in this runtime; falling back to in-memory',
-      );
-      return new InMemoryThresholdEd25519SessionStore<ThresholdEcdsaMpcSessionRecord>({
-        keyPrefix: envPrefix,
-        parseMpcSessionRecord: parseThresholdEcdsaMpcSessionRecord,
-      });
-    }
-    input.logger.info(
-      '[threshold-ecdsa] Using redis-tcp session store for signing session persistence',
-    );
-    return new RedisTcpThresholdEd25519SessionStore<ThresholdEcdsaMpcSessionRecord>({
-      redisUrl,
-      keyPrefix: envPrefix,
-      parseMpcSessionRecord: parseThresholdEcdsaMpcSessionRecord,
-    });
-  }
-
-  if (requirePersistent) {
-    throw new Error(
-      '[threshold-ecdsa] Threshold signing sessions require persistent storage in this runtime; configure UPSTASH_REDIS_REST_URL/UPSTASH_REDIS_REST_TOKEN or Durable Objects',
-    );
-  }
-  input.logger.info(
-    '[threshold-ecdsa] Using in-memory session store for threshold signing sessions (non-persistent)',
-  );
-  return new InMemoryThresholdEd25519SessionStore<ThresholdEcdsaMpcSessionRecord>({
-    keyPrefix: envPrefix,
-    parseMpcSessionRecord: parseThresholdEcdsaMpcSessionRecord,
-  });
 }

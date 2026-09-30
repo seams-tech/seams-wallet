@@ -42,7 +42,7 @@ import {
 import type { ReadClientWalletSessionAuthorizationRequest } from '../../session/persistence/clientSessionPersistence';
 import { walletSessionFailureFromError } from '../../session/lifecycle/walletSessionFailure';
 
-export type KeyExportWalletSessionLifecycleDeps = {
+type KeyExportWalletSessionLifecycleDeps = {
   readonly readAuthorization: (
     args: ReadClientWalletSessionAuthorizationRequest,
   ) => Promise<WalletSessionAuthorizationState>;

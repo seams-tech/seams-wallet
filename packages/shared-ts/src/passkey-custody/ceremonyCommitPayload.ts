@@ -1,27 +1,3 @@
-/**
- * What a wallet custody ceremony hands back when it seals.
- *
- * This is the wasm `WalletCustodyCommitPayloadV1` as it crosses the worker
- * boundary and then the wire: ciphertext and public facts only. It lives in
- * shared so the SDK worker channel and the Gateway commit path describe the
- * same shape once — two spellings of it would diverge silently, and the first
- * symptom would be a stored envelope that never opens.
- *
- * Nothing here is a capability. The seed, the owner roots, the manifest KEK,
- * and the manifest proof all stayed inside the ceremony module.
- */
-
-/**
- * The owner key sets a ceremony can provision, spelled as the Rust
- * `WalletKeySetKindV1` serializes them.
- *
- * Used where the SDK *chooses* a key set — the worker channel and the ceremony
- * driver. `WalletCustodyCeremonyCommitPayload.keySet` stays a `string`: it
- * arrives over the wire, and narrowing a parsed value to this union without
- * checking it would only move the assumption somewhere harder to see.
- */
-export type WalletCustodyKeySetKind = 'near_ed25519_v1' | 'evm_family_ecdsa_v1';
-
 export type WalletCustodyCeremonyRecoveryWrapPayload = {
   readonly recoveryKeyId: string;
   readonly nonceB64u: string;

@@ -63,8 +63,6 @@ export function createRecoveryPublicDeps(args: {
   resolveEmailOtpEd25519YaoExportContext: RecoveryPublicDeps['ed25519Yao']['emailOtp']['resolveExportContext'];
   sessionLifecycle: RecoveryPublicDeps['sessionLifecycle'];
 }): RecoveryPublicDeps {
-  const getEmailOtpWarmSessionStatus = (target: EmailOtpWarmMaterialTarget) =>
-    args.emailOtpSessions.readWarmSessionStatusOnly(target);
   const configuredChainTargets = configuredThresholdEcdsaChainTargets(
     args.seamsWebConfigs.network.chains,
   );

@@ -1,3 +1,4 @@
+import type { D1PreparedStatementLike } from '../storage/tenantRoute';
 import type { WalletAuthMethodId, WalletId } from '@shared/utils/domainIds';
 import type { ActiveWalletAuthorityV1 } from '@shared/authorization/walletAuthority';
 import type {
@@ -14,6 +15,8 @@ import type {
   RedeemHostedWalletSeamsSessionExchangeV2Input,
   RedeemHostedWalletSeamsSessionExchangeV2Result,
   ExactWalletSessionStatusV2,
+  ExactWalletSessionStatusSnapshotV2,
+  WalletSessionAdmissionSnapshotV2,
   WalletSessionExactOperationContext,
   ResolvedHostedWalletSessionOperationCredentialV2,
   SessionOrigin,
@@ -72,7 +75,7 @@ import type { AuthorizationEvidenceRequirement } from '@shared/authorization/cap
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import type { RouterAbMpcMaterialActivationRefWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import type { RuntimePolicyScope } from '@shared/threshold/signingRootScope';
-import { parseWalletSessionOperationCredentialV1 } from '@shared/device-linking/parsers';
+import { parseWalletSessionOperationCredentialV1 } from '@shared/device-linking/activeWalletSession';
 import type { CapabilityOperationFingerprintDigest } from '@shared/authorization/operationFingerprint';
 
 export interface AuthorizationSessionPort {
@@ -139,6 +142,11 @@ export interface AuthorizationGrantPort {
     readonly tokenHash: DigestB64u;
     readonly nowMs: number;
   }): Promise<IssuedWalletSessionAuthorizationV2 | null>;
+  readWalletSessionAdmissionSnapshotByOperationCredential(input: {
+    readonly tenantId: TenantId;
+    readonly tokenHash: DigestB64u;
+    readonly nowMs: number;
+  }): Promise<WalletSessionAdmissionSnapshotV2 | null>;
   readWalletSessionExactOperationContextByCredential(input: {
     readonly tenantId: TenantId;
     readonly tokenHash: DigestB64u;
@@ -149,6 +157,11 @@ export interface AuthorizationGrantPort {
     readonly tokenHash: DigestB64u;
     readonly nowMs: number;
   }): Promise<ExactWalletSessionStatusV2>;
+  readExactWalletSessionStatusSnapshotByOperationCredential(input: {
+    readonly tenantId: TenantId;
+    readonly tokenHash: DigestB64u;
+    readonly nowMs: number;
+  }): Promise<ExactWalletSessionStatusSnapshotV2>;
 }
 
 export interface AuthorizedOperationPort {
@@ -164,6 +177,14 @@ export interface AuthorizedOperationPort {
     readonly operation: AuthorizedOperationInput;
     readonly material?: AuthorizedOperationMaterialScope;
   }): Promise<AuthorizedOperationAdmissionResult>;
+  /** The admission `admitAuthorizedOperation` would make, prepared, not applied. */
+  prepareAuthorizedOperationAdmission(input: {
+    readonly operation: AuthorizedOperationInput;
+  }): Promise<PreparedAuthorizedOperationAdmission>;
+  /** The rejection a prepared admission's failed batch stands for, if any. */
+  classifyAuthorizedOperationAdmissionFailure(
+    error: unknown,
+  ): AuthorizedOperationAdmissionRejection | null;
   completeAuthorizedOperation(input: {
     readonly operation: AuthorizedOperation;
     readonly result: CompletedCapabilityOperationResult;
@@ -172,17 +193,30 @@ export interface AuthorizedOperationPort {
   }): Promise<AuthorizedOperation>;
 }
 
+export type AuthorizedOperationAdmissionRejection = {
+  readonly kind:
+    | 'authorization_grant_rejected'
+    | 'verified_step_up_rejected'
+    | 'wallet_session_quota_exhausted'
+    | 'material_mismatch';
+};
+
 export type AuthorizedOperationAdmissionResult =
   | { readonly kind: 'claimed'; readonly operation: AuthorizedOperation }
   | { readonly kind: 'replayed'; readonly operation: AuthorizedOperation }
   | { readonly kind: 'operation_in_progress'; readonly operation: AuthorizedOperation }
-  | {
-      readonly kind:
-        | 'authorization_grant_rejected'
-        | 'verified_step_up_rejected'
-        | 'wallet_session_quota_exhausted'
-        | 'material_mismatch';
-    };
+  | AuthorizedOperationAdmissionRejection;
+
+/**
+ * An admission prepared for a batch another store owns, after the reads
+ * `admitAuthorizedOperation` makes: an operation already admitted for the
+ * fingerprint answers as that call would, and nothing is written.
+ */
+export type PreparedAuthorizedOperationAdmission =
+  | { readonly kind: 'prepared'; readonly statements: readonly D1PreparedStatementLike[] }
+  | { readonly kind: 'replayed'; readonly operation: AuthorizedOperation }
+  | { readonly kind: 'operation_in_progress'; readonly operation: AuthorizedOperation }
+  | AuthorizedOperationAdmissionRejection;
 
 export type EcdsaMaterialActivationScope = Readonly<{
   readonly walletId: WalletId;
@@ -365,6 +399,18 @@ export class AuthorizationService {
     readonly material?: AuthorizedOperationMaterialScope;
   }): Promise<AuthorizedOperationAdmissionResult> {
     return await this.ports.authorizedOperations.admitAuthorizedOperation(input);
+  }
+
+  async prepareAuthorizedOperationAdmission(input: {
+    readonly operation: AuthorizedOperationInput;
+  }): Promise<PreparedAuthorizedOperationAdmission> {
+    return await this.ports.authorizedOperations.prepareAuthorizedOperationAdmission(input);
+  }
+
+  classifyAuthorizedOperationAdmissionFailure(
+    error: unknown,
+  ): AuthorizedOperationAdmissionRejection | null {
+    return this.ports.authorizedOperations.classifyAuthorizedOperationAdmissionFailure(error);
   }
 
   async completeAuthorizedOperation(input: {
@@ -595,6 +641,19 @@ export class AuthorizationService {
     });
   }
 
+  /** The session, its authority and its auth method from one read. */
+  async readWalletSessionAdmissionSnapshotByOperationCredential(input: {
+    readonly tenantId: TenantId;
+    readonly token: string;
+    readonly nowMs: number;
+  }): Promise<WalletSessionAdmissionSnapshotV2 | null> {
+    return await this.ports.grants.readWalletSessionAdmissionSnapshotByOperationCredential({
+      tenantId: input.tenantId,
+      tokenHash: await digestOpaqueValue(input.token),
+      nowMs: input.nowMs,
+    });
+  }
+
   async readLiveWalletSessionAuthorizationProjectionByCredential(input: {
     readonly tenantId: TenantId;
     readonly token: string;
@@ -640,6 +699,25 @@ export class AuthorizationService {
       return { kind: 'missing' };
     }
     return await this.ports.grants.readExactWalletSessionStatusByOperationCredential({
+      tenantId: input.tenantId,
+      tokenHash: await digestOpaqueValue(token),
+      nowMs: input.nowMs,
+    });
+  }
+
+  /** The exact status with the authority and auth method it was judged against. */
+  async readExactWalletSessionStatusSnapshotByOperationCredential(input: {
+    readonly tenantId: TenantId;
+    readonly token: string;
+    readonly nowMs: number;
+  }): Promise<ExactWalletSessionStatusSnapshotV2> {
+    let token: ReturnType<typeof parsePrimaryWalletSessionOperationCredentialToken>;
+    try {
+      token = parsePrimaryWalletSessionOperationCredentialToken(input.token);
+    } catch {
+      return { status: { kind: 'missing' }, authority: null, authMethod: null };
+    }
+    return await this.ports.grants.readExactWalletSessionStatusSnapshotByOperationCredential({
       tenantId: input.tenantId,
       tokenHash: await digestOpaqueValue(token),
       nowMs: input.nowMs,
@@ -787,9 +865,4 @@ function parseRequired<T>(
   const parsed = parser(value);
   if (!parsed.ok) throw new Error('generated authorization identifier was invalid');
   return parsed.value;
-}
-
-function requirePositiveTimestamp(value: number, label: string): number {
-  if (!Number.isSafeInteger(value) || value <= 0) throw new Error(`${label} must be positive`);
-  return value;
 }

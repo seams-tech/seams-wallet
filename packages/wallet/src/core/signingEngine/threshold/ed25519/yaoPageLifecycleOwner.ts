@@ -1,4 +1,4 @@
-export type DisposableEd25519YaoClientOwner = {
+type DisposableEd25519YaoClientOwner = {
   dispose(): void;
 };
 

@@ -40,7 +40,7 @@ type ConnectEd25519SessionSuccessBase = {
   readonly message?: never;
 };
 
-export type ConnectEd25519SessionResult =
+type ConnectEd25519SessionResult =
   | (ConnectEd25519SessionSuccessBase & {
       readonly sessionKind: 'issued_exact_wallet_session';
       readonly operationCredential: WalletSessionOperationCredentialV1;

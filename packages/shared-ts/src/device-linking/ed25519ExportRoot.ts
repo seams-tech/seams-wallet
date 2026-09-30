@@ -8,8 +8,6 @@ import {
   parseEd25519PublicKeyB64u,
   parseEnvelopeCiphertextB64u,
   parseEnvelopeNonceB64u,
-  rejectUnknownFields,
-  requireRecord,
   type Ed25519PublicKeyB64u,
   type EnvelopeCiphertextB64u,
   type EnvelopeNonceB64u,
@@ -31,6 +29,8 @@ import {
   type WalletId,
 } from '../utils/domainIds';
 import type { LinkedDeviceTargetFactorV1 } from './contracts';
+import { requireRecord } from '../utils/validation';
+import { rejectUnknownFields } from '../utils/exactRecord';
 
 /** Frozen by signer-core's Ed25519 Yao Client-root transfer module. */
 export const LINKED_DEVICE_ED25519_EXPORT_ROOT_TRANSFER_ALG_V1 =
@@ -40,12 +40,12 @@ const X25519_PUBLIC_KEY_LENGTH = 32 as const;
 const UNPADDED_BASE64URL = /^[A-Za-z0-9_-]+$/;
 
 /** One-use X25519 public key generated and retained by Device 2's worker. */
-export type LinkedDeviceEd25519ExportRootRecipientPublicKeyB64u = string & {
+type LinkedDeviceEd25519ExportRootRecipientPublicKeyB64u = string & {
   readonly __linkedDeviceEd25519ExportRootRecipientPublicKeyB64uBrand: 'LinkedDeviceEd25519ExportRootRecipientPublicKeyB64u';
 };
 
 /** Exact public facts authenticated by signer-core as transfer AAD. */
-export type LinkedDeviceEd25519ExportRootTransferBindingV1 = {
+type LinkedDeviceEd25519ExportRootTransferBindingV1 = {
   readonly linkSessionId: LinkDeviceSessionId;
   readonly walletId: WalletId;
   readonly walletKeyId: WalletKeyId;

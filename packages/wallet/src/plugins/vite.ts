@@ -128,7 +128,7 @@ export function seamsServeSdk(opts: ServeSdkOptions = {}): VitePlugin {
     configureServer(server) {
       // Optional debug route to confirm resolution
       if (enableDebugRoutes) {
-        server.middlewares.use('/__sdk-root', (req: any, res: any) => {
+        server.middlewares.use('/__sdk-root', (_req: any, res: any) => {
           res.setHeader('Content-Type', 'text/plain; charset=utf-8');
           res.setHeader('Cache-Control', 'no-store, max-age=0');
           res.end(sdkDistRoot);

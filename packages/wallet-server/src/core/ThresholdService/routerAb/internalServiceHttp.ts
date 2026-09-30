@@ -1,6 +1,6 @@
 export const ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1 = 'x-router-ab-internal-service-auth';
 
-export type RouterAbInternalServiceJsonResult =
+type RouterAbInternalServiceJsonResult =
   | { ok: true; status: number; bodyText: string; json: unknown }
   | { ok: false; code: 'network_error'; message: string }
   | { ok: false; code: 'http_error'; status: number; bodyText: string }

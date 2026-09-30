@@ -1,4 +1,8 @@
-import type { WalletAddAuthMethodFinalizeResponse } from '../../../../core/registrationContracts';
+import type {
+  WalletAddAuthMethodFinalizeSuccess,
+  WalletAddSignerFinalizeSuccess,
+  WalletRegistrationFinalizeSuccess,
+} from '../../../../core/registrationContracts';
 import { parseWalletAddAuthMethodRegistrationOptions } from '@shared/utils/addAuthMethodRegistration';
 import { secureRandomBase64Url } from '@shared/utils/secureRandomId';
 import {
@@ -10,33 +14,39 @@ import type { WALLET_AUTH_METHODS } from '@shared/utils/signerDomain';
 import {
   addAuthMethodIntentGrantFromString,
   addSignerIntentGrantFromString,
-  createServerAllocatedWalletId,
-  normalizeAddAuthMethodInput,
   normalizeAddAuthMethodIntentCaller,
   type AddAuthMethodIntentCallerV1,
-  normalizeAddSignerSelection,
-  normalizeRegistrationAuthMethodInput,
-  normalizeRegistrationSignerPlan,
-  nearEd25519SigningKeyIdFromString,
-  registrationSignerBranchKeyFromString,
-  registrationSignerSetSelectionFromPlan,
-  parseWalletAuthMethodRecordV2,
-  walletIdFromString,
-  type AddAuthMethodInput,
   type AddAuthMethodIntentV1,
   type AddSignerIntentV1,
-  type AddSignerSelection,
-  type ServerAllocatedWalletId,
-  type RegistrationAuthority,
-  type RegistrationAuthMethodInput,
   type RegistrationIntentV1,
+  type RuntimePolicyScopeLike,
+  type WalletId,
+} from '@shared/utils/registrationIntent';
+import { parseWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
+import {
+  createServerAllocatedWalletId,
+  nearEd25519SigningKeyIdFromString,
+  walletIdFromString,
+  type ServerAllocatedWalletId,
+} from '@shared/utils/registrationIds';
+import {
+  normalizeAddSignerSelection,
+  normalizeRegistrationSignerPlan,
+  registrationSignerBranchKeyFromString,
+  registrationSignerSetSelectionFromPlan,
+  type AddSignerSelection,
   type RegistrationNearAccountProvisioning,
   type ResolvedRegistrationNearAccount,
   type RegistrationSignerSetSelection,
   type RegistrationSignerBranchKey,
-  type RuntimePolicyScopeLike,
-  type WalletId,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/registrationSignerPlan';
+import {
+  normalizeAddAuthMethodInput,
+  normalizeRegistrationAuthMethodInput,
+  type AddAuthMethodInput,
+  type RegistrationAuthority,
+  type RegistrationAuthMethodInput,
+} from '@shared/utils/registrationAuthMethodInput';
 import { parseWalletAuthorityV1 } from '@shared/authorization/walletAuthority';
 import {
   parseWebAuthnAuthenticatorDeviceInfo,
@@ -55,16 +65,8 @@ import {
 } from '@shared/utils/domainIds';
 import { parseDeviceId } from '@shared/authorization/capabilityKinds';
 import type { RuntimePolicyScope } from '@shared/threshold/signingRootScope';
-import {
-  deriveEvmFamilySigningKeySlotId,
-  parseEvmFamilySigningKeySlotId,
-} from '@shared/signing-lanes';
+import { deriveEvmFamilySigningKeySlotId } from '@shared/signing-lanes';
 
-function requireEvmFamilySigningKeySlotId(value: unknown) {
-  const parsed = parseEvmFamilySigningKeySlotId(value);
-  if (!parsed.ok) throw new Error(parsed.error.message);
-  return parsed.value;
-}
 import { toOptionalTrimmedString } from '@shared/utils/validation';
 import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';
 import {
@@ -89,23 +91,20 @@ import {
   type PasskeyCustodyEnvelopeRecord,
 } from '@shared/passkey-custody';
 import { registrationPreparationIdFromString } from '../../../../core/registrationContracts';
-import type {
-  EcdsaDerivationClientBootstrapRequest,
-  EcdsaDerivationServerBootstrapResponse,
-} from '../../../../core/types';
+import type { EcdsaDerivationServerBootstrapResponse } from '../../../../core/types';
 import type { WalletRegistrationCommittedInstallationProjectionV1 } from '../../../../core/threeRouteRegistrationContracts';
 import type {
-  WalletRegistrationEcdsaClientBootstrap,
   WalletRegistrationEcdsaPrepareContext,
   WalletRegistrationEcdsaPreparePayload,
   WalletRegistrationEcdsaWalletKey,
-  WalletRegistrationFinalizeAuthMethod,
-  WalletRegistrationFinalizeResponse,
-  WalletEd25519YaoSignerPublicResult,
   WalletRegistrationEd25519YaoPublicResult,
   WalletAddSignerFinalizeResponse,
   WalletAddAuthMethodRegistrationOptions,
 } from '../../../../core/registrationContracts';
+import type {
+  WalletEd25519YaoSignerPublicResult,
+  WalletRegistrationFinalizeAuthMethod,
+} from '@shared/utils/registrationContracts';
 import {
   parseWalletAuthAuthority,
   parseWalletAuthAuthorityRef,
@@ -166,11 +165,7 @@ type GoogleSsoEmailOtpRegistrationAuthority = Extract<
   EmailOtpRegistrationAuthority,
   { proofKind: 'google_sso_registration' }
 >;
-type D1WalletRegistrationFinalizeSuccess = Extract<
-  WalletRegistrationFinalizeResponse,
-  { ok: true }
->;
-type D1WalletRegistrationFinalizeReplaySuccess = D1WalletRegistrationFinalizeSuccess;
+type D1WalletRegistrationFinalizeReplaySuccess = WalletRegistrationFinalizeSuccess;
 type D1WalletRegistrationFinalizeEcdsaPayload = {
   readonly walletKeys: WalletRegistrationEcdsaWalletKey[];
 };
@@ -292,38 +287,6 @@ function unreachableAddAuthMethodIntentCaller(value: never): never {
   throw new Error(`Unhandled add-auth-method intent caller: ${String(value)}`);
 }
 
-export function addAuthMethodInputMatches(
-  left: AddAuthMethodInput,
-  right: AddAuthMethodInput,
-): boolean {
-  if (left.kind !== right.kind) return false;
-  switch (left.kind) {
-    case 'passkey':
-      return right.kind === 'passkey' && left.rpId === right.rpId;
-    case 'email_otp':
-      return right.kind === 'email_otp' && left.email.toLowerCase() === right.email.toLowerCase();
-  }
-  return unreachableAddAuthMethodInput(left);
-}
-
-export function addSignerSelectionMatches(
-  left: AddSignerSelection,
-  right: AddSignerSelection,
-): boolean {
-  if (left.mode !== right.mode) return false;
-  switch (left.mode) {
-    case 'ecdsa':
-      return (
-        right.mode === 'ecdsa' &&
-        positiveIntegerArraysEqual(left.ecdsa.participantIds, right.ecdsa.participantIds) &&
-        thresholdEcdsaChainTargetsEqual(left.ecdsa.chainTargets, right.ecdsa.chainTargets)
-      );
-    case 'ed25519':
-      return right.mode === 'ed25519' && addSignerEd25519SelectionsMatch(left, right);
-  }
-  return unreachableAddSignerSelection(left);
-}
-
 export function parseWalletIdForIntent(raw: unknown): WalletId | null {
   const value = toOptionalTrimmedString(raw);
   if (!value) return null;
@@ -334,7 +297,7 @@ export function parseWalletIdForIntent(raw: unknown): WalletId | null {
   }
 }
 
-export function parseD1RegistrationIntent(raw: unknown): RegistrationIntentV1 | null {
+function parseD1RegistrationIntent(raw: unknown): RegistrationIntentV1 | null {
   const record = toRecordValue(raw);
   if (!record || record.version !== 'registration_intent_v1') return null;
   const walletId = parseWalletIdForIntent(record.walletId);
@@ -441,8 +404,8 @@ export function parseD1StoredWalletRegistrationCeremony(
 }
 
 /**
- * Refactor 94C. Setup creates the ceremony before the WebAuthn proof exists,
- * so the stored authority is a two-arm state rather than a required record.
+ * Setup creates the ceremony before the WebAuthn proof exists, so the stored
+ * authority is a two-arm state rather than a required record.
  */
 function parseD1WalletRegistrationCeremonyAuthorityState(
   raw: unknown,
@@ -495,7 +458,7 @@ export function parseD1StoredWalletAddAuthMethodFinalizeReplay(
 
 function parseD1WalletAddAuthMethodFinalizeReplayResponse(
   raw: unknown,
-): Extract<WalletAddAuthMethodFinalizeResponse, { ok: true }> | null {
+): WalletAddAuthMethodFinalizeSuccess | null {
   const record = toRecordValue(raw);
   if (!record || record.ok !== true) return null;
   const walletId = parseWalletIdForIntent(record.walletId);
@@ -578,7 +541,7 @@ export function parseD1StoredWalletAddSignerFinalizeReplay(
 
 function parseD1WalletAddSignerFinalizeSuccessResponse(
   raw: unknown,
-): Extract<WalletAddSignerFinalizeResponse, { ok: true }> | null {
+): WalletAddSignerFinalizeSuccess | null {
   const record = toRecordValue(raw);
   if (!record || record.ok !== true) return null;
   const walletId = parseWalletIdForIntent(record.walletId);
@@ -601,11 +564,12 @@ function parseD1WalletAddSignerFinalizeSuccessResponse(
   }
   if (record.kind !== 'evm_family_ecdsa') return null;
   const ecdsa = parseD1WalletRegistrationFinalizeEcdsa(record.ecdsa);
-  if (!ecdsa) return null;
+  const authority = parseWalletAuthorityV1(record.authority);
+  if (!ecdsa || !authority.ok || authority.value.state !== 'active') return null;
   const rpId = toOptionalTrimmedString(record.rpId);
   return rpId
-    ? { ok: true, kind: 'evm_family_ecdsa', walletId, rpId, ecdsa }
-    : { ok: true, kind: 'evm_family_ecdsa', walletId, ecdsa };
+    ? { ok: true, kind: 'evm_family_ecdsa', walletId, rpId, ecdsa, authority: authority.value }
+    : { ok: true, kind: 'evm_family_ecdsa', walletId, ecdsa, authority: authority.value };
 }
 
 export function parseD1WalletAddSignerFinalizeTerminalResponse(
@@ -695,8 +659,8 @@ export function parseD1WalletRegistrationFinalizeReplayResponse(
     } as const;
     return response;
   }
-  /* Refactor 94 Phase 4+5: finalize commits one signer branch per call, so a
-     replayed Ed25519 response never carries ECDSA work. */
+  /* Finalize commits one signer branch per call, so a replayed Ed25519 response
+     never carries ECDSA work. */
   if (record.kind !== 'near_ed25519') {
     return null;
   }
@@ -1261,7 +1225,7 @@ function parseD1StoredSignerSetRegistrationBranch(
   }
 }
 
-export function parseD1StoredNearEd25519YaoAuthorizedBranch(
+function parseD1StoredNearEd25519YaoAuthorizedBranch(
   record: Record<string, unknown>,
 ): StoredWalletRegistrationNearEd25519YaoAuthorizedBranch | null {
   if (!hasExactKeys(record, ['kind', 'branchKey', 'admissionRequest']) &&
@@ -1404,7 +1368,18 @@ function parseD1StoredEvmFamilyEcdsaResponseClaimedBranch(
 ): StoredWalletRegistrationEvmFamilyEcdsaResponseClaimedBranch | null {
   const branchKey = parseD1RegistrationSignerBranchKey(record.branchKey);
   const prepared = parseD1StoredEcdsaRegistrationBranchBase(record);
-  if (!branchKey || !prepared) return null;
+  const projectEnvironmentId = toOptionalTrimmedString(record.projectEnvironmentId);
+  const tenantRootIdentityDigestB64u = toOptionalTrimmedString(record.tenantRootIdentityDigestB64u);
+  const tenantRootCustodyLineageB64u = toOptionalTrimmedString(record.tenantRootCustodyLineageB64u);
+  if (
+    !branchKey ||
+    !prepared ||
+    !projectEnvironmentId ||
+    !tenantRootIdentityDigestB64u ||
+    !tenantRootCustodyLineageB64u
+  ) {
+    return null;
+  }
   try {
     return {
       kind: 'evm_family_ecdsa_response_claimed',
@@ -1415,6 +1390,9 @@ function parseD1StoredEvmFamilyEcdsaResponseClaimedBranch(
       strictRegistration: prepared.strictRegistration,
       strictRegistrationBindingJson: prepared.strictRegistrationBindingJson,
       registrationRequest: parseRouterAbEcdsaRegistrationRequestV1(record.registrationRequest),
+      projectEnvironmentId,
+      tenantRootIdentityDigestB64u,
+      tenantRootCustodyLineageB64u,
     };
   } catch {
     return null;
@@ -1813,7 +1791,7 @@ function parseD1StoredEd25519YaoAddSignerActivation(
   };
 }
 
-export function parseD1WalletAddSignerFinalizeRequest(
+function parseD1WalletAddSignerFinalizeRequest(
   raw: unknown,
 ): StoredWalletAddSignerFinalizeRequest | null {
   const record = toRecordValue(raw);
@@ -2237,59 +2215,7 @@ export function thresholdEcdsaChainTargetsEqual(
   return true;
 }
 
-export function isMatchingD1EcdsaClientBootstrap(input: {
-  readonly expected: WalletRegistrationEcdsaPrepareContext;
-  readonly actual: WalletRegistrationEcdsaClientBootstrap;
-}): boolean {
-  const expected = input.expected;
-  const actual = input.actual;
-  return (
-    actual.formatVersion === expected.formatVersion &&
-    actual.walletId === expected.walletId &&
-    actual.evmFamilySigningKeySlotId === expected.evmFamilySigningKeySlotId &&
-    actual.ecdsaThresholdKeyId === expected.ecdsaThresholdKeyId &&
-    actual.signingRootId === expected.signingRootId &&
-    actual.signingRootVersion === expected.signingRootVersion &&
-    actual.keyScope === expected.keyScope &&
-    actual.relayerKeyId === expected.relayerKeyId &&
-    actual.registrationPreparationId === expected.registrationPreparationId &&
-    actual.requestId === expected.requestId &&
-    actual.thresholdSessionId === expected.thresholdSessionId &&
-    actual.ttlMs === expected.ttlMs &&
-    actual.remainingUses === expected.remainingUses &&
-    positiveIntegerArraysEqual(actual.participantIds, expected.participantIds) &&
-    runtimePolicyScopeMatches(actual.runtimePolicyScope, expected.runtimePolicyScope)
-  );
-}
-
-export function toD1EcdsaDerivationClientBootstrapRequest(
-  clientBootstrap: WalletRegistrationEcdsaClientBootstrap,
-): EcdsaDerivationClientBootstrapRequest {
-  return {
-    formatVersion: clientBootstrap.formatVersion,
-    walletId: clientBootstrap.walletId,
-    evmFamilySigningKeySlotId: requireEvmFamilySigningKeySlotId(
-      clientBootstrap.evmFamilySigningKeySlotId,
-    ),
-    ecdsaThresholdKeyId: clientBootstrap.ecdsaThresholdKeyId,
-    signingRootId: clientBootstrap.signingRootId,
-    signingRootVersion: clientBootstrap.signingRootVersion,
-    keyScope: clientBootstrap.keyScope,
-    relayerKeyId: clientBootstrap.relayerKeyId,
-    registrationPreparationId: clientBootstrap.registrationPreparationId,
-    derivationClientSharePublicKey33B64u: clientBootstrap.derivationClientSharePublicKey33B64u,
-    clientShareRetryCounter: clientBootstrap.clientShareRetryCounter,
-    contextBinding32B64u: clientBootstrap.contextBinding32B64u,
-    requestId: clientBootstrap.requestId,
-    sessionId: clientBootstrap.thresholdSessionId,
-    ttlMs: clientBootstrap.ttlMs,
-    remainingUses: clientBootstrap.remainingUses,
-    participantIds: [...clientBootstrap.participantIds],
-    runtimePolicyScope: clientBootstrap.runtimePolicyScope,
-  };
-}
-
-export type D1EcdsaWalletKeyBuildResult =
+type D1EcdsaWalletKeyBuildResult =
   | {
       readonly ok: true;
       readonly walletKeys: WalletRegistrationEcdsaWalletKey[];
@@ -2668,7 +2594,7 @@ export function buildD1WalletEcdsaSignerRecords(input: {
 
 export { deriveEvmFamilySigningKeySlotId };
 
-export function parseD1PositiveIntegerArray(raw: unknown): number[] | null {
+function parseD1PositiveIntegerArray(raw: unknown): number[] | null {
   if (!Array.isArray(raw) || raw.length === 0) return null;
   const values: number[] = [];
   for (const item of raw) {
@@ -2774,7 +2700,7 @@ export function parseD1StoredWalletAddAuthMethodCeremony(
   }
   /* Both branches carry the SOURCE method's envelope under the same rules: it
      belongs to this wallet, it is sealed under the factor that authorized the
-     ceremony, and it is still active. R109C's Email OTP target reseals the seed
+     ceremony, and it is still active. The Email OTP target reseals the seed
      from it, so the validation is shared rather than passkey-only. */
   let custodyEnvelope: PasskeyCustodyEnvelopeRecord;
   try {
@@ -2849,7 +2775,7 @@ export function parseD1StoredWalletAddAuthMethodCeremony(
   };
 }
 
-export function parseD1AddAuthMethodIntent(raw: unknown): AddAuthMethodIntentV1 | null {
+function parseD1AddAuthMethodIntent(raw: unknown): AddAuthMethodIntentV1 | null {
   const record = toRecordValue(raw);
   if (!record || record.version !== 'add_auth_method_intent_v1') return null;
   const walletId = parseWalletIdForIntent(record.walletId);
@@ -2956,7 +2882,7 @@ function parseD1StoredAddAuthMethodAuth(
   return null;
 }
 
-export function parseD1RegistrationAuthority(raw: unknown): RegistrationAuthority | null {
+function parseD1RegistrationAuthority(raw: unknown): RegistrationAuthority | null {
   const record = toRecordValue(raw);
   if (!record) return null;
   const kind = toOptionalTrimmedString(record?.kind);
@@ -3147,26 +3073,6 @@ function safeInteger(raw: unknown): number | null {
   return Number.isSafeInteger(value) ? value : null;
 }
 
-function addSignerEd25519SelectionsMatch(
-  left: Extract<AddSignerSelection, { mode: 'ed25519' }>,
-  right: Extract<AddSignerSelection, { mode: 'ed25519' }>,
-): boolean {
-  const leftEd25519 = left.ed25519;
-  const rightEd25519 = right.ed25519;
-  return (
-    leftEd25519.mode === rightEd25519.mode &&
-    leftEd25519.signerSlot === rightEd25519.signerSlot &&
-    leftEd25519.keyPurpose === rightEd25519.keyPurpose &&
-    leftEd25519.keyVersion === rightEd25519.keyVersion &&
-    leftEd25519.derivationVersion === rightEd25519.derivationVersion &&
-    positiveIntegerArraysEqual(leftEd25519.participantIds, rightEd25519.participantIds)
-  );
-}
-
 function unreachableAddAuthMethodInput(value: never): never {
   throw new Error(`Unhandled add-auth-method input kind: ${String(value)}`);
-}
-
-function unreachableAddSignerSelection(value: never): never {
-  throw new Error(`Unhandled add-signer selection mode: ${String(value)}`);
 }

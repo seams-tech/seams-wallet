@@ -1,5 +1,4 @@
 import {
-  buildHostedAuthMenuExternalAuthResolution,
   buildHostedAuthMenuOpenRequest,
   hostedAuthMenuExternalAuthRequestIdFromBoundary,
   hostedAuthMenuSessionIdFromBoundary,
@@ -33,14 +32,6 @@ const externalRequest: HostedAuthMenuExternalAuthRequest = {
   mode: 'login',
 };
 void externalRequest;
-
-const externalResolution = buildHostedAuthMenuExternalAuthResolution({
-  authMenuSessionId: sessionId,
-  externalAuthRequestId: externalRequestId,
-  requestId,
-  evidence: { kind: 'cancelled', reason: 'user_cancelled' },
-});
-void externalResolution;
 
 const cancellation = buildHostedAuthMenuCancelPayload({
   authMenuSessionId: sessionId,

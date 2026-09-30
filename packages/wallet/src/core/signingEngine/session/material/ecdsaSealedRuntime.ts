@@ -18,7 +18,7 @@ import {
 import type {
   CurrentEcdsaSealedSessionRecord,
   EcdsaInactiveSealedMaterialRecord,
-} from '../persistence/sealedSessionStore';
+} from '../persistence/sealedSessionRecords';
 import {
   parseEcdsaRoleLocalPersistedMaterialRef,
   type EcdsaClientVerifyingPublicKey33B64u,
@@ -58,7 +58,7 @@ export type ExactEcdsaSealedRuntimeAuthBinding =
 
 /** The exact sealed record this runtime was read from. Carried so callers can
  * write allowance changes back to the same record they resolved. */
-export type ExactEcdsaSealedRecordIdentity = {
+type ExactEcdsaSealedRecordIdentity = {
   readonly storeKey: string;
   readonly thresholdSessionId: string;
   readonly authMethod: SigningSessionSealAuthMethod;
@@ -114,39 +114,10 @@ export type ExactEcdsaWalletSessionRuntime =
   | ExactEcdsaDirectCapabilityRuntime
   | ExactEcdsaSealedRuntime;
 
-export type ExactInactiveEcdsaMaterialRuntime = ExactEcdsaMaterialRuntime & {
-  readonly kind: 'exact_inactive_ecdsa_material_runtime_v1';
-  readonly inactiveMaterialRecord: {
-    readonly storeKey: string;
-    readonly authMethod: SigningSessionSealAuthMethod;
-    readonly authorizationRetirementReason: 'expired' | 'exhausted';
-  };
-  readonly expiresAtMs?: never;
-  readonly remainingUses?: never;
-  readonly sealedRecord?: never;
-  readonly thresholdSessionId?: never;
-  readonly authorization?: never;
-};
-
 export type ExactEcdsaSealedRuntimeResolution =
   | {
       readonly kind: 'resolved';
       readonly runtime: ExactEcdsaSealedRuntime;
-      readonly reason?: never;
-    }
-  | {
-      readonly kind: 'blocked';
-      readonly reason: Extract<
-        MpcCapabilityHydrationBlockedReason,
-        'missing_material' | 'binding_mismatch' | 'exact_record_conflict' | 'corrupt'
-      >;
-      readonly runtime?: never;
-    };
-
-export type ExactInactiveEcdsaMaterialRuntimeResolution =
-  | {
-      readonly kind: 'resolved';
-      readonly runtime: ExactInactiveEcdsaMaterialRuntime;
       readonly reason?: never;
     }
   | {
@@ -473,26 +444,6 @@ function runtimeFromSealedRecord(args: {
   };
 }
 
-function runtimeFromInactiveMaterialRecord(args: {
-  readonly manifest: ActiveEcdsaCapabilityManifest;
-  readonly walletId: WalletId;
-  readonly chainTarget: ThresholdEcdsaChainTarget;
-  readonly record: EcdsaInactiveSealedMaterialRecord;
-}): ExactInactiveEcdsaMaterialRuntime | null {
-  const materialRuntime = materialRuntimeFromRecord(args);
-  const storeKey = normalizedNonEmpty(args.record.storeKey);
-  if (!materialRuntime || !storeKey) return null;
-  return {
-    ...materialRuntime,
-    kind: 'exact_inactive_ecdsa_material_runtime_v1',
-    inactiveMaterialRecord: {
-      storeKey,
-      authMethod: args.record.authMethod,
-      authorizationRetirementReason: args.record.authorizationRetirementReason,
-    },
-  };
-}
-
 export function resolveExactEcdsaSealedRuntime(input: {
   readonly manifest: ActiveEcdsaCapabilityManifest;
   readonly walletId: WalletId;
@@ -527,46 +478,6 @@ export function resolveExactEcdsaSealedRuntime(input: {
     })
   ) {
     return blocked('binding_mismatch');
-  }
-  return { kind: 'resolved', runtime };
-}
-
-export function resolveExactInactiveEcdsaMaterialRuntime(input: {
-  readonly manifest: ActiveEcdsaCapabilityManifest;
-  readonly walletId: WalletId;
-  readonly chainTarget: ThresholdEcdsaChainTarget;
-  readonly authMethod: SigningSessionSealAuthMethod;
-  readonly inactiveRecords: readonly EcdsaInactiveSealedMaterialRecord[];
-}): ExactInactiveEcdsaMaterialRuntimeResolution {
-  const matches = input.inactiveRecords.filter(
-    (record) =>
-      record.authMethod === input.authMethod &&
-      sealedRecordNamesManifestMaterial({
-        manifest: input.manifest,
-        walletId: input.walletId,
-        chainTarget: input.chainTarget,
-        record,
-      }),
-  );
-  if (matches.length === 0) return { kind: 'blocked', reason: 'missing_material' };
-  if (matches.length > 1) return { kind: 'blocked', reason: 'exact_record_conflict' };
-  const record = matches[0]!;
-  const runtime = runtimeFromInactiveMaterialRecord({
-    manifest: input.manifest,
-    walletId: input.walletId,
-    chainTarget: input.chainTarget,
-    record,
-  });
-  if (!runtime) return { kind: 'blocked', reason: 'corrupt' };
-  if (
-    !sealedRecordBindsManifestFacts({
-      manifest: input.manifest,
-      walletId: input.walletId,
-      chainTarget: input.chainTarget,
-      record,
-    })
-  ) {
-    return { kind: 'blocked', reason: 'binding_mismatch' };
   }
   return { kind: 'resolved', runtime };
 }

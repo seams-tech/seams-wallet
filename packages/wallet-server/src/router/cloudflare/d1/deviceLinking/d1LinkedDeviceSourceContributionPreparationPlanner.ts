@@ -27,7 +27,7 @@ import type {
 } from '@shared/utils/routerAbEd25519Yao';
 import { routerAbMpcMaterialActivationRefToWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import { parseSecp256k1CompressedPublicKeyB64u } from '@shared/passkey-custody/primitives';
-import type { LinkedDeviceSessionRecordV1 } from '../../../../core/deviceLinking/linkedDeviceSession';
+import type { LinkedDeviceSessionRecordV1 } from '../../../../core/deviceLinking/linkedDeviceSessionRecord';
 import type {
   LinkedDeviceOwnerSourceChildResolutionV1,
   LinkedDeviceOwnerSourceChildResolverV1,
@@ -197,7 +197,7 @@ function buildEd25519Preparation(input: {
     walletKeyId: input.signer.walletKeyId,
     targetDeviceId: targetDeviceId.value,
     targetFactorVerificationDigestB64u: input.input.targetFactor.verificationDigestB64u,
-    sourceBinding: input.resolution.sourceBinding,
+    sourceBinding: input.resolution.linkedSourceBinding ?? input.resolution.sourceBinding,
     targetAdmission,
     applicationBinding: input.resolution.applicationBinding,
     sourceRevocationEpoch: input.resolution.source.revocationEpoch,
@@ -240,7 +240,9 @@ function buildEcdsaPreparation(input: {
     enrollmentId: input.input.registration.enrollmentId,
     sourceAuthorityId: input.input.source.authority.authorityId,
     source: {
-      activation: input.resolution.source.materialActivation,
+      activation:
+        input.resolution.linkedSourceMaterialActivation ??
+        input.resolution.source.materialActivation,
       clientPublicKey33B64u: parseSecp256k1CompressedPublicKeyB64u(
         input.resolution.sourceHolderVerifyingShare33B64u,
       ),

@@ -13,7 +13,7 @@ import type {
 } from './types';
 import { signingLaneAuthMethod } from '../identity/signingLaneAuthBinding';
 
-export type ThresholdSigningIntent =
+type ThresholdSigningIntent =
   | {
       kind: 'transaction_sign';
       chain: SigningChainFamily;

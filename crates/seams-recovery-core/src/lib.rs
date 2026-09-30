@@ -24,13 +24,13 @@ pub use self::durable_file::{
 };
 pub use self::host_capabilities::RecoveryHostSecretCapabilitiesV1;
 pub use self::key_file::{
-    require_distinct_role_key_files_v1, RecoveryKeyFileV1, TenantRootRecoveryKeyMaterialV1,
-    RECOVERY_KEY_FILE_MAGIC_V1, RECOVERY_KEY_FILE_MAX_BYTES,
+    RecoveryKeyFileV1, TenantRootRecoveryKeyMaterialV1, RECOVERY_KEY_FILE_MAGIC_V1,
+    RECOVERY_KEY_FILE_MAX_BYTES,
 };
 pub use self::pinned_trust::require_trust_bundle_continues_pinned_root_v1;
 pub use self::recipient_proof::{
-    prove_recovery_recipient_control_from_bytes_v1, prove_recovery_recipient_control_v1,
-    RecipientProofResultV1, RECOVERY_RECIPIENT_CHALLENGE_MAX_BYTES,
+    prove_recovery_recipient_control_from_bytes_v1, RecipientProofResultV1,
+    RECOVERY_RECIPIENT_CHALLENGE_MAX_BYTES,
 };
 pub use self::release_trust::{
     ReleaseArtifactEntryV1, ReleaseChecksumManifestV1, ReleaseTrustRootV1,

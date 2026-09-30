@@ -15,16 +15,14 @@ import {
   parseThresholdEd25519SessionId,
   type ThresholdEd25519SessionId,
 } from '@shared/utils/domainIds';
-import {
-  nearEd25519SigningKeyIdFromString,
-  registrationNearEd25519BranchKey,
-} from '@shared/utils/registrationIntent';
+import { nearEd25519SigningKeyIdFromString } from '@shared/utils/registrationIds';
+import { registrationNearEd25519BranchKey } from '@shared/utils/registrationSignerPlan';
 import type { WalletAuthAuthorityRef } from '@shared/utils/walletAuthAuthority';
 import type { WalletSessionOperationCredentialV1 } from '@shared/device-linking';
 import { base58Encode } from '@shared/utils/base58';
 import { WalletCustodyEd25519ActiveClientV1 } from './ed25519ActiveClient';
 
-export type WalletCustodyEd25519ActivationResult = {
+type WalletCustodyEd25519ActivationResult = {
   thresholdSessionId: ThresholdEd25519SessionId;
   material: NearEd25519YaoOperationMaterial;
   walletSessionState: ResolvedRouterAbEd25519WalletSessionState;

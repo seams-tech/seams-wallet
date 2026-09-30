@@ -21,7 +21,6 @@ import {
   type RouterAbEcdsaRegistrationRequestV1,
   type RouterAbEcdsaStrictForwardedRegistrationResponseV1,
   type RouterAbEcdsaVerifiedClientActivationFactsV1,
-  type RouterAbPublicDigest32V1Wire,
 } from '@shared/utils/routerAbEcdsaDerivation';
 import type { RouterAbNormalSigningAuthorizationWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import type { CorrelationId } from '@shared/utils/canonicalPrimitives';
@@ -121,6 +120,7 @@ export type RouterAbEcdsaRegistrationRequestPolicyV1 = {
 export type RouterAbEcdsaRegistrationTenantRootV1 = {
   readonly identityDigestB64u: string;
   readonly custodyLineageB64u: string;
+  readonly projectEnvironmentId: string;
 };
 
 type RouterAbRequestPolicyClaimsInputV1 = {
@@ -130,17 +130,17 @@ type RouterAbRequestPolicyClaimsInputV1 = {
 };
 
 /**
- * Receives the Router's raw `Server-Timing` header, when it sent one
- * (Refactor 94B Phase 0). Diagnostics only: the Router's spans never reach the
- * response body, and a caller that omits this sink changes nothing about the
- * ceremony. Called at most once per forwarded request, before the result is
- * parsed, so a failing leg still reports where its time went.
+ * Receives the Router's raw `Server-Timing` header, when it sent one.
+ * Diagnostics only: the Router's spans never reach the response body, and a
+ * caller that omits this sink changes nothing about the ceremony. Called at
+ * most once per forwarded request, before the result is parsed, so a failing
+ * leg still reports where its time went.
  */
 export type RouterAbEcdsaStrictServerTimingSink = (header: string) => void;
 
 /**
- * Refactor 94B Phase 0. Reports whether a role leg returned the diagnostics
- * header we expect, and nothing about what it contained.
+ * Reports whether a role leg returned the diagnostics header we expect, and
+ * nothing about what it contained.
  *
  * `Server-Timing` carries role and span names from inside the MPC topology.
  * A missing header and an empty one are different failures — the first means
@@ -214,6 +214,7 @@ export type RouterAbEcdsaCeremonyTokenClaims = {
   readonly orgId: string;
   readonly projectId: string;
   readonly environment: string;
+  readonly projectEnvironmentId: string;
   readonly accountId: string;
   readonly expiresAtMs: number;
 };
@@ -290,6 +291,7 @@ class StrictRegistrationForwarder implements RouterAbEcdsaStrictRegistrationPort
       requestPolicy: input.requestPolicy,
       request: input.request,
       tenantRoot: input.tenantRoot,
+      projectEnvironmentId: input.tenantRoot.projectEnvironmentId,
       traceContext: input.traceContext,
       onServerTiming: input.onServerTiming,
       onHeaderPresence: input.onHeaderPresence,
@@ -316,6 +318,7 @@ class StrictRegistrationForwarder implements RouterAbEcdsaStrictRegistrationPort
       activationCorrelationId: input.activationCorrelationId,
       requestPolicy: input.requestPolicy,
       pendingActivation: input.pendingActivation,
+      projectEnvironmentId: pendingProjectEnvironmentId(input.pendingActivation),
       clientActivation: input.clientActivation,
       traceContext: input.traceContext,
       onServerTiming: input.onServerTiming,
@@ -373,6 +376,7 @@ class StrictRegistrationForwarder implements RouterAbEcdsaStrictRegistrationPort
       readonly traceContext?: RouterAbTraceContextV1;
       readonly onServerTiming?: RouterAbEcdsaStrictServerTimingSink;
       readonly onHeaderPresence?: RouterAbEcdsaStrictHeaderPresenceSink;
+      readonly projectEnvironmentId: string;
     } & (
       | {
           readonly kind: 'tenant_root_registration';
@@ -397,7 +401,11 @@ class StrictRegistrationForwarder implements RouterAbEcdsaStrictRegistrationPort
       };
     }
     const token = await this.config.tokenIssuer.issueRequest(
-      ceremonyTokenClaimsForAuthority(input.authority, this.config.tokenScope),
+      ceremonyTokenClaimsForAuthority(
+        input.authority,
+        this.config.tokenScope,
+        input.projectEnvironmentId,
+      ),
       requestPolicy,
     );
     const headers: Record<string, string> = {
@@ -547,7 +555,11 @@ class StrictPostRegistrationForwarder implements RouterAbEcdsaStrictPostRegistra
        digest from the forwarded request and rejects a policy that does not
        match it, so refresh carries its own policy exactly as export does. */
     const token = await this.config.tokenIssuer.issueRequest(
-      ceremonyTokenClaimsForAuthority(input.authority, this.config.tokenScope),
+      ceremonyTokenClaimsForAuthority(
+        input.authority,
+        this.config.tokenScope,
+        input.tenantRoot.projectEnvironmentId,
+      ),
       postRegistrationRequestPolicy(
         input.kind === 'explicit_export'
           ? { workKind: 'key_export', requestDigestB64u: input.requestDigestB64u }
@@ -712,26 +724,6 @@ function assertNeverStrictRegistrationPurpose(value: never): never {
   throw new Error(`Unsupported strict ECDSA registration purpose: ${String(value)}`);
 }
 
-function publicDigest32Matches(
-  left: RouterAbPublicDigest32V1Wire,
-  right: RouterAbPublicDigest32V1Wire,
-): boolean {
-  return (
-    left.bytes.length === 32 &&
-    right.bytes.length === 32 &&
-    left.bytes.every((value, index) => value === right.bytes[index])
-  );
-}
-
-function activationDigestMismatchFailure(): RouterAbEcdsaStrictFailure {
-  return {
-    ok: false,
-    code: 'mpc_router_activation_digest_mismatch',
-    message: 'ECDSA activation request digest does not match the prepared journal command',
-    retryable: false,
-  };
-}
-
 function assertNeverStrictForwardBody(value: never): never {
   throw new Error(`Unexpected strict ECDSA forwarding body: ${String(value)}`);
 }
@@ -740,6 +732,8 @@ function canonicalPendingActivationJson(value: unknown): RouterAbEcdsaPendingAct
   const record = exactObject(value, [
     'registration',
     'tenant_root_custody_binding_digest',
+    'wallet_scope',
+    'environment_key',
     'activation_context',
     'activation',
   ]);
@@ -747,6 +741,17 @@ function canonicalPendingActivationJson(value: unknown): RouterAbEcdsaPendingAct
     throw new Error('MPCRouter pending activation has an invalid envelope');
   }
   return canonicalJson(value) as RouterAbEcdsaPendingActivationJsonV1;
+}
+
+function pendingProjectEnvironmentId(pending: RouterAbEcdsaPendingActivationV1): string {
+  const raw = JSON.parse(pending.canonicalPayloadJson) as unknown;
+  const record = objectValue(raw);
+  const scope = objectValue(record?.wallet_scope);
+  const projectEnvironmentId = nonEmptyString(scope?.project_environment_id);
+  if (!projectEnvironmentId) {
+    throw new Error('Stored ECDSA pending activation has no canonical project environment');
+  }
+  return projectEnvironmentId;
 }
 
 export function parseStoredRouterAbEcdsaPendingActivationV1(
@@ -842,6 +847,7 @@ function parseStrictRegistrationForwardingResult(
 function ceremonyTokenClaimsForAuthority(
   authority: RouterAbEcdsaStrictRegistrationAuthority,
   scope: StrictRegistrationForwarderConfig['tokenScope'],
+  projectEnvironmentId: string,
 ): RouterAbEcdsaCeremonyTokenClaims {
   return {
     subjectId: authority.subjectId,
@@ -849,6 +855,7 @@ function ceremonyTokenClaimsForAuthority(
     orgId: scope.orgId,
     projectId: scope.projectId,
     environment: scope.environment,
+    projectEnvironmentId,
     accountId: authority.accountId,
     expiresAtMs: authority.expiresAtMs,
   };
@@ -909,7 +916,8 @@ function validateRegistrationTenantRoot(
 ): RouterAbEcdsaStrictFailure | null {
   if (
     !base64UrlString(tenantRoot.identityDigestB64u, 32) ||
-    !base64UrlString(tenantRoot.custodyLineageB64u, 16)
+    !base64UrlString(tenantRoot.custodyLineageB64u, 16) ||
+    !nonEmptyString(tenantRoot.projectEnvironmentId)
   ) {
     return {
       ok: false,
@@ -1028,6 +1036,7 @@ class Ed25519CeremonyTokenIssuer implements RouterAbEcdsaCeremonyTokenIssuer {
       org_id: claims.orgId,
       project_id: claims.projectId,
       environment: claims.environment,
+      project_environment_id: claims.projectEnvironmentId,
       account_id: claims.accountId,
       ...(requestPolicy ? { routerAbRequestPolicy: requestPolicy } : {}),
     });
@@ -1242,6 +1251,7 @@ function validateCeremonyTokenClaims(claims: RouterAbEcdsaCeremonyTokenClaims): 
     !nonEmptyString(claims.orgId) ||
     !nonEmptyString(claims.projectId) ||
     !nonEmptyString(claims.environment) ||
+    !nonEmptyString(claims.projectEnvironmentId) ||
     !nonEmptyString(claims.accountId) ||
     !Number.isSafeInteger(claims.expiresAtMs) ||
     claims.expiresAtMs <= Date.now()

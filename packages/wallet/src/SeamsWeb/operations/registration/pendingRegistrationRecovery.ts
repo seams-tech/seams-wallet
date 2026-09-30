@@ -25,7 +25,6 @@ import {
 import {
   completeWalletRegistrationNearProvisioning,
   activateWalletRegistration,
-  type WalletRegistrationActivateResponseV2,
   type WalletRegistrationNearProvisioningResponseV2,
 } from '@/core/rpcClients/relayer/walletRegistration';
 import {
@@ -55,7 +54,7 @@ import {
 } from './pendingEcdsaRegistrationRecovery';
 import { unlockPendingEcdsaRegistration } from './pendingEcdsaRegistrationRecoveryUnlock';
 
-export type PendingNearProvisioningCommit = Extract<
+type PendingNearProvisioningCommit = Extract<
   PendingWalletRegistrationCommitV1,
   { readonly operation: 'near_provisioning'; readonly phase: 'joined' }
 >;
@@ -67,7 +66,7 @@ type FinalizedNearProvisioningResponse = Extract<
   { readonly ok: true; readonly kind: 'near_ed25519' }
 >;
 
-export type PendingRegistrationRecoveryPorts = {
+type PendingRegistrationRecoveryPorts = {
   readonly listPendingWalletRegistrationCommits: () => Promise<PendingWalletRegistrationCommitV1[]>;
   readonly completeWalletRegistrationNearProvisioning: (
     input: Parameters<typeof completeWalletRegistrationNearProvisioning>[0],
@@ -77,7 +76,7 @@ export type PendingRegistrationRecoveryPorts = {
   ) => Promise<StoreWalletRegistrationFinalizeBatchResult>;
 };
 
-export type PendingRegistrationRecoveryResult =
+type PendingRegistrationRecoveryResult =
   | {
       readonly kind: 'published';
       readonly registrationCeremonyId: string;
@@ -531,7 +530,7 @@ export async function restorePendingNearRegistrationMaterial(args: {
   };
 }
 
-export async function replayPendingNearProvisioning(args: {
+async function replayPendingNearProvisioning(args: {
   readonly relayerUrl: string;
   readonly pending: PendingNearProvisioningCommit;
   readonly ports: PendingRegistrationRecoveryPorts;
@@ -620,7 +619,7 @@ const defaultPendingEcdsaRegistrationRecoveryPorts: PendingEcdsaRegistrationReco
   unlockPendingEcdsaRegistration,
 };
 
-export type PendingEcdsaRegistrationResumeInput = {
+type PendingEcdsaRegistrationResumeInput = {
   readonly relayerUrl: string;
   readonly pending: PendingEcdsaRegistrationCommit;
   readonly exactMethod: PendingRegistrationExactMethod;

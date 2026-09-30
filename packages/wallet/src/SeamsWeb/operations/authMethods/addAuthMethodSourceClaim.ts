@@ -1,5 +1,5 @@
 /**
- * Refactor 109C: the source claim a same-device addition puts in its intent.
+ * The source claim a same-device addition puts in its intent.
  *
  * The intent digest is what the fresh source proof signs, so every identity the
  * proof is meant to bind has to be inside it. The server resolves the true
@@ -16,16 +16,16 @@
 import { IndexedDBManager } from '@/core/indexedDB';
 import { walletSessionAuthorizations } from '@/core/indexedDB/seamsWalletDB/walletSessionAuthorizationStore';
 import type { AddAuthMethodIntentSourceV1 } from '@shared/utils/registrationIntent';
+import type { ActiveWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 import type { WalletId } from '@shared/utils/domainIds';
-import type { WalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
 
-export type AddAuthMethodSourceClaimResultV1 =
+type AddAuthMethodSourceClaimResultV1 =
   | {
       readonly kind: 'resolved';
       readonly source: AddAuthMethodIntentSourceV1;
       /* Kept alongside the hashed claim so the proof uses the exact method
          named by that claim. */
-      readonly sourceAuthMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+      readonly sourceAuthMethod: ActiveWalletAuthMethodRecordV2;
     }
   | { readonly kind: 'unavailable'; readonly reason: string };
 

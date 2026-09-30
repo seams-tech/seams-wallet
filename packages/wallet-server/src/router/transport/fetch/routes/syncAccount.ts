@@ -8,7 +8,7 @@ import {
   walletAuthAuthorityRef,
   type PasskeyWalletAuthAuthority,
 } from '@shared/utils/walletAuthAuthority';
-import { walletIdFromString } from '@shared/utils/registrationIntent';
+import { walletIdFromString } from '@shared/utils/registrationIds';
 import {
   parsePrincipalId,
   parseWalletSessionMintId,
@@ -26,9 +26,8 @@ import {
   parseVerifiedOwnerProofId,
 } from '../../../../authorization/domain';
 import { buildVerifiedWalletSessionPasskeyFactorResult } from '../../../../authorization/factorEvidence';
-import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';
-import { alphabetizeStringify, sha256BytesUtf8 } from '@shared/utils/digests';
-import { base64UrlEncode } from '@shared/utils/encoders';
+import { alphabetizeStringify } from '@shared/utils/digests';
+import { sha256Utf8DigestB64u } from '@shared/utils/canonicalPrimitives';
 import { issueSyncAccountBootstrapV1 } from './syncAccountBootstrap';
 
 function syncAccountResponseStatus(result: { ok: boolean; verified?: boolean; code?: string }) {
@@ -194,9 +193,7 @@ export async function handleSyncAccount(ctx: FetchRouterApiContext): Promise<Res
           audience: origin,
           factorId: factorId.value,
           credentialIdB64u: credentialId.value,
-          assertionDigest: parseDigestB64u(
-            base64UrlEncode(await sha256BytesUtf8(alphabetizeStringify(parsed.request))),
-          ),
+          assertionDigest: await sha256Utf8DigestB64u(alphabetizeStringify(parsed.request)),
           verifiedAtMs: issuedAtMs,
           expiresAtMs,
         }),

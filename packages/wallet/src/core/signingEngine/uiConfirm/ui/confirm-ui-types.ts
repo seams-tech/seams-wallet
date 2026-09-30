@@ -20,6 +20,8 @@ export type ConfirmUIUpdate = {
   tempoExplorerUrl?: string;
   evmExplorerUrl?: string;
   loading?: boolean;
+  /** Shows the confirm button as loading while signing work finishes behind the review. */
+  preparing?: boolean;
   errorMessage?: string;
   confirmText?: string;
   cancelText?: string;

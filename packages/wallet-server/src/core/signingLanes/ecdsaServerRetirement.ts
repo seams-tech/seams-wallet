@@ -20,6 +20,7 @@ import type {
   EcdsaLifecycleId,
   EcdsaServerGeneration,
 } from '@shared/utils/ecdsaCapabilityActivation';
+import { isPlainObject } from '@shared/utils/validation';
 import type { EcdsaSigningWorkerLaneMaterialIdentityV1 } from './signingWorkerLaneMaterialIdentity';
 
 export type EcdsaServerRetirementBindingV1 = {
@@ -30,7 +31,7 @@ export type EcdsaServerRetirementBindingV1 = {
   readonly lifecycleId: EcdsaLifecycleId;
 };
 
-export type EcdsaServerRetirementExpectationV1 = {
+type EcdsaServerRetirementExpectationV1 = {
   readonly manifest: EcdsaManifestIdentity;
   readonly materialActivation: MpcMaterialActivationRef;
   readonly walletKeyId: WalletKeyId;
@@ -46,7 +47,7 @@ export type EcdsaServerRetirementExpectationV1 = {
   readonly retirementEffectBindingDigestB64u: DigestB64u;
 };
 
-export type EcdsaServerRetirementRequestV1 = {
+type EcdsaServerRetirementRequestV1 = {
   readonly identity: EcdsaSigningWorkerLaneMaterialIdentityV1;
   readonly manifest: EcdsaManifestIdentity;
   readonly materialActivation: MpcMaterialActivationRef;
@@ -59,7 +60,7 @@ export type EcdsaServerRetirementRequestV1 = {
   readonly lifecycleId: EcdsaLifecycleId;
 };
 
-export type EcdsaServerRetirementEffectV1 = {
+type EcdsaServerRetirementEffectV1 = {
   readonly outcome: 'applied' | 'replayed';
   readonly receipt: EcdsaServerRetirementReceiptV1;
   /** The effect fence authorized by the Gateway command. */
@@ -130,13 +131,6 @@ export async function parseAndVerifyEcdsaServerRetirementEffectV1(input: {
   };
 }
 
-export function assertEcdsaServerRetirementReceiptMatchesExpectationV1(
-  receipt: EcdsaServerRetirementReceiptV1,
-  expectation: EcdsaServerRetirementExpectationV1,
-): void {
-  assertReceiptMatchesExpectation(receipt, expectation);
-}
-
 function assertReceiptMatchesExpectation(
   receipt: EcdsaServerRetirementReceiptV1,
   expectation: EcdsaServerRetirementExpectationV1,
@@ -181,7 +175,7 @@ type EcdsaServerRetirementEffectEnvelopeV1 = {
 };
 
 function exactEffectEnvelope(value: unknown, label: string): EcdsaServerRetirementEffectEnvelopeV1 {
-  if (!isObject(value)) {
+  if (!isPlainObject(value)) {
     throw new Error(`${label} must be an object`);
   }
   const fields = ['outcome', 'receipt'] as const;
@@ -196,10 +190,6 @@ function exactEffectEnvelope(value: unknown, label: string): EcdsaServerRetireme
     outcome: Reflect.get(value, 'outcome'),
     receipt: Reflect.get(value, 'receipt'),
   };
-}
-
-function isObject(value: unknown): value is object {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function parseOutcome(value: unknown, label: string): 'applied' | 'replayed' {

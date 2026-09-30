@@ -42,13 +42,6 @@ export const PASSKEY_PRF_SECOND_SALT_V1 = new Uint8Array([
   0x0b, 0x32, 0xde, 0x51, 0xa9, 0xaf, 0x46, 0x52, 0x4b, 0x00, 0x6d, 0x8f, 0x7f, 0xe7, 0xf4, 0xd1,
 ]);
 
-export const EMAIL_OTP_HKDF_SALTS = {
-  signingSessionSecret: 'seams/email-otp/signing-session-secret/v1',
-  signingSessionRestoreRoot: 'seams/signing-session/restore-root/v1',
-  thresholdEcdsaClientRoot: 'seams/signing-session/threshold-ecdsa-client-root/v1',
-  thresholdEd25519RestoreSeed: 'seams/signing-session/threshold-ed25519-restore-seed/v1',
-} as const;
-
 export type SigningSessionSealAuthMethod = Extract<
   SignerAuthMethod,
   typeof SIGNER_AUTH_METHODS.passkey | typeof SIGNER_AUTH_METHODS.emailOtp
@@ -101,7 +94,7 @@ export function requireRouterAbEd25519NormalSigningState(
   return parsed;
 }
 
-export type SealedSigningSessionEcdsaChainTarget =
+type SealedSigningSessionEcdsaChainTarget =
   | {
       kind: 'tempo';
       chainId: number;

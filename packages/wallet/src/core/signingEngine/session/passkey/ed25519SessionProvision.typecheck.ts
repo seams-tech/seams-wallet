@@ -33,10 +33,10 @@ declare const exactProvisionWithoutCredentialFields: Omit<
   | 'sessionId'
 >;
 
-const _freshProvisionOk: FreshWarmEd25519CapabilityProvisionArgs = freshProvision;
-const _exactProvisionOk: ExactWarmEd25519CapabilityProvisionArgs = exactProvision;
+export const _freshProvisionOk: FreshWarmEd25519CapabilityProvisionArgs = freshProvision;
+export const _exactProvisionOk: ExactWarmEd25519CapabilityProvisionArgs = exactProvision;
 
-const _freshProvisionWithSessionId: FreshWarmEd25519CapabilityProvisionArgs = {
+export const _freshProvisionWithSessionId: FreshWarmEd25519CapabilityProvisionArgs = {
   kind: 'fresh_ed25519_provisioning',
   ...freshProvisionFields,
   // @ts-expect-error fresh Ed25519 provisioning cannot carry exact session identity
@@ -56,7 +56,7 @@ const _exactProvisionMissingCredential: ExactWarmEd25519CapabilityProvisionArgs 
   ...exactProvisionWithoutCredentialFields,
 };
 
-const _exactProvisionWithDetachedToken: ExactWarmEd25519CapabilityProvisionArgs = {
+export const _exactProvisionWithDetachedToken: ExactWarmEd25519CapabilityProvisionArgs = {
   kind: 'exact_ed25519_provisioning',
   laneIdentity: exactLaneIdentity,
   ...exactProvisionFields,
@@ -64,7 +64,7 @@ const _exactProvisionWithDetachedToken: ExactWarmEd25519CapabilityProvisionArgs 
   existingWalletSessionToken: 'wst_detached',
 };
 
-const _exactProvisionWithSessionId: ExactWarmEd25519CapabilityProvisionArgs = {
+export const _exactProvisionWithSessionId: ExactWarmEd25519CapabilityProvisionArgs = {
   kind: 'exact_ed25519_provisioning',
   laneIdentity: exactLaneIdentity,
   ...exactProvisionFields,
@@ -72,7 +72,7 @@ const _exactProvisionWithSessionId: ExactWarmEd25519CapabilityProvisionArgs = {
   sessionId: 'threshold-ed25519-session',
 };
 
-const _exactProvisionWithWalletId: ExactWarmEd25519CapabilityProvisionArgs = {
+export const _exactProvisionWithWalletId: ExactWarmEd25519CapabilityProvisionArgs = {
   kind: 'exact_ed25519_provisioning',
   laneIdentity: exactLaneIdentity,
   ...exactProvisionFields,

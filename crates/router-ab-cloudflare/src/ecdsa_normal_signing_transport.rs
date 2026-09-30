@@ -46,7 +46,7 @@ impl CloudflareRouterAbEcdsaNormalSigningServiceTransportV1
         Box::pin(async move {
             match request {
                 CloudflareRouterAbEcdsaNormalSigningServiceRequestV1::Prepare(request) => {
-                    let response = post_service_json(
+                    let response = post_service_json_with_router_to_signing_worker_ecdsa_auth(
                         self.env,
                         &peer.binding_name,
                         &cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_digest_prepare_service_url(peer)?,
@@ -57,7 +57,7 @@ impl CloudflareRouterAbEcdsaNormalSigningServiceTransportV1
                     Ok(CloudflareRouterAbEcdsaNormalSigningServiceResponseV1::Prepare(response))
                 }
                 CloudflareRouterAbEcdsaNormalSigningServiceRequestV1::Finalize(request) => {
-                    let response = post_service_json(
+                    let response = post_service_json_with_router_to_signing_worker_ecdsa_auth(
                         self.env,
                         &peer.binding_name,
                         &cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_digest_finalize_service_url(peer)?,

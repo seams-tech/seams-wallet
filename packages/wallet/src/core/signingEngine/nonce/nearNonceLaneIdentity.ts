@@ -10,7 +10,7 @@ function requiredNearNonceLaneString(value: string, field: string): string {
   return normalized;
 }
 
-export function resolveNearNonceNetworkKey(chains?: readonly SeamsChainConfig[]): string {
+function resolveNearNonceNetworkKey(chains?: readonly SeamsChainConfig[]): string {
   const nearChain = chains?.find((chain) => String(chain.network || '').startsWith('near-'));
   return String(nearChain?.network || 'near');
 }

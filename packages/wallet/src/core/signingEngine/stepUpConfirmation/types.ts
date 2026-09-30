@@ -58,7 +58,7 @@ export type ForbiddenMainThreadSecrets = {
   prfKey?: never;
 };
 
-export type UserConfirmDecisionBase = ForbiddenMainThreadSecrets & {
+type UserConfirmDecisionBase = ForbiddenMainThreadSecrets & {
   requestId: string;
   intentDigest?: string;
   _confirmHandle?: { close: (confirmed: boolean) => void };
@@ -74,7 +74,7 @@ type UserConfirmSuccessDecisionBase = UserConfirmDecisionBase & {
   error?: never;
 };
 
-export type UserConfirmSuccessDecision = UserConfirmSuccessDecisionBase &
+type UserConfirmSuccessDecision = UserConfirmSuccessDecisionBase &
   (
     | {
         nearTransactionReadiness: NearTransactionReadiness;
@@ -109,7 +109,7 @@ export type WalletSessionExpiredConfirmationFailure = Extract<
   { readonly kind: 'expired' }
 >;
 
-export type UserConfirmFailureDecision = UserConfirmFailureDecisionBase &
+type UserConfirmFailureDecision = UserConfirmFailureDecisionBase &
   (
     | {
         walletSessionFailure: WalletSessionExpiredConfirmationFailure;
@@ -157,21 +157,21 @@ type WarmSessionSigningAuthPlanBase = {
   remainingUses: number;
 };
 
-export type Ed25519WarmSessionSigningAuthPlan = WarmSessionSigningAuthPlanBase & {
+type Ed25519WarmSessionSigningAuthPlan = WarmSessionSigningAuthPlanBase & {
   curve: Extract<WalletAuthCurve, 'ed25519'>;
   thresholdSessionId: string;
   materialActivation?: never;
   authorization?: never;
 };
 
-export type EcdsaWarmSessionSigningAuthPlan = WarmSessionSigningAuthPlanBase & {
+type EcdsaWarmSessionSigningAuthPlan = WarmSessionSigningAuthPlanBase & {
   curve: Extract<WalletAuthCurve, 'ecdsa'>;
   materialActivation: MpcMaterialActivationRef;
   authorization: ExactEvmFamilyWalletSessionAuthorization;
   thresholdSessionId?: never;
 };
 
-export type WarmSessionSigningAuthPlan =
+type WarmSessionSigningAuthPlan =
   | Ed25519WarmSessionSigningAuthPlan
   | EcdsaWarmSessionSigningAuthPlan;
 
@@ -260,14 +260,14 @@ type StepUpWarmSessionAuthorizationBase = {
   remainingUses: number;
 };
 
-export type Ed25519StepUpWarmSessionAuthorization = StepUpWarmSessionAuthorizationBase & {
+type Ed25519StepUpWarmSessionAuthorization = StepUpWarmSessionAuthorizationBase & {
   curve: 'ed25519';
   thresholdSessionId: string;
   materialActivation?: never;
   authorization?: never;
 };
 
-export type EcdsaStepUpWarmSessionAuthorization = StepUpWarmSessionAuthorizationBase & {
+type EcdsaStepUpWarmSessionAuthorization = StepUpWarmSessionAuthorizationBase & {
   curve: 'ecdsa';
   materialActivation: MpcMaterialActivationRef;
   authorization: ExactEvmFamilyWalletSessionAuthorization;

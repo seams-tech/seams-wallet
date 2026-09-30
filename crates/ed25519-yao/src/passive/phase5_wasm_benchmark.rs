@@ -1196,27 +1196,4 @@ mod tests {
                 .expect("session");
         assert!(missing_eof.confirm_inbound_exact_eof().is_err());
     }
-
-    #[test]
-    fn adapter_source_has_no_blocking_or_whole_body_transport() {
-        let sources = [
-            include_str!("phase5_wasm_benchmark.rs"),
-            include_str!("../../wasm-bench/src/lib.rs"),
-            include_str!("../../wasm-bench/scripts/run_phase5_streaming.mjs"),
-        ];
-        let forbidden = [
-            ["std", "io"].join("::"),
-            ["array", "Buffer"].join(""),
-            [".", "text", "()"].join(""),
-            ["base", "64"].join(""),
-            ["post", "service", "json"].join("_"),
-            ["Router", "relay"].join(" "),
-            ["Vec", "<", "Vec", "<", "u8", ">", ">"].join(""),
-        ];
-        for source in sources {
-            for token in &forbidden {
-                assert!(!source.contains(token), "forbidden adapter token: {token}");
-            }
-        }
-    }
 }

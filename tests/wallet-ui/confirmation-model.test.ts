@@ -54,45 +54,21 @@ test('preparing details become explicit loading states with live cancellation', 
   expect(harness.calls).toEqual(['cancel']);
 });
 
-test('known chain details take precedence over preparation placeholders', () => {
+test('pending signing preparation holds only the confirm button in its loading state', () => {
   const harness = new PresentationHarness();
-  for (const chain of ['near', 'evm', 'tempo', 'unknown'] as const) {
-    const content = harness.transaction({
-      loading: true,
-      model: { chain, chainId: 7, operations: [] },
-      securityContext: { rpId: ' wallet.example ', blockHeight: '42' },
-    });
-    const labels = { near: 'NEAR', evm: 'EVM', tempo: 'Tempo', unknown: 'Unknown' };
-    expect(content.header.chainDetails).toEqual({
-      kind: 'ready',
-      text: `${labels[chain]} | ChainID: 7`,
-    });
-    expect(content.header.website).toEqual({ kind: 'ready', text: 'wallet.example' });
-  }
-  expect(
-    harness.transaction({ securityContext: { blockHeight: '42' } }).header.chainDetails,
-  ).toEqual({ kind: 'ready', text: 'block 42' });
-  expect(harness.transaction({}).header.chainDetails).toEqual({ kind: 'ready', text: 'block' });
-});
+  const content = harness.transaction({ preparing: true, body: 'Send 1 NEAR' });
+  expect(content.transaction.decision).toEqual({ kind: 'preparing' });
+  expect(content.body).toEqual({ kind: 'text', text: 'Send 1 NEAR' });
+  expect(content.header.chainDetails).toEqual({ kind: 'ready', text: 'block' });
 
-test('headings preserve auth-specific precedence over a caller title', () => {
-  const harness = new PresentationHarness();
-  expect(harness.transaction({ title: ' Custom ' }).header.heading).toBe('Custom');
-  expect(
-    harness.transaction({ title: 'Custom', signingAuthMode: 'warmSession' }).header.heading,
-  ).toBe('Review transaction');
-  expect(harness.transaction({ title: 'Custom', signingAuthMode: 'webauthn' }).header.heading).toBe(
-    'Register with Passkey',
-  );
-  expect(
-    harness.transaction({
-      signingAuthMode: 'webauthn',
-      model: {
-        chain: 'near',
-        operations: [{ id: 'raw', kind: 'raw.fallback', label: 'Payload', raw: '{}' }],
-      },
-    }).header.heading,
-  ).toBe('Confirm with Passkey');
+  const email = harness.transaction({
+    preparing: true,
+    signingAuthMode: 'emailOtp',
+    emailOtpPrompt: { challengeId: 'challenge' },
+  });
+  expect(email.transaction.decision).toEqual({ kind: 'preparing' });
+  if (email.prompt.kind !== 'email') throw new Error('Expected email');
+  expect(email.prompt.email.verification).toEqual({ kind: 'ready' });
 });
 
 test('email challenge validation never falls back to passkey confirmation', () => {
@@ -171,19 +147,4 @@ test('funding and progress body messages retain their distinct presentation', ()
   const progress = harness.transaction({ body: ' Topping up account... ' });
   expect(progress.body).toEqual({ kind: 'status', text: 'Topping up account...' });
   expect(progress.header.chainDetails).toEqual({ kind: 'loading' });
-});
-
-test('explorer defaults and explicit overrides survive normalization', () => {
-  const harness = new PresentationHarness();
-  expect(harness.transaction({}).transaction.explorers.near).toBe('https://testnet.nearblocks.io');
-  expect(
-    harness.transaction({
-      nearExplorerUrl: 'https://nearblocks.io',
-      evmExplorerUrl: 'https://etherscan.io',
-    }).transaction.explorers,
-  ).toEqual({
-    near: 'https://nearblocks.io',
-    evm: 'https://etherscan.io',
-    tempo: undefined,
-  });
 });

@@ -24,16 +24,6 @@ export function normalizeLowercaseString(value: unknown): string {
   return normalizeTrimmedString(value).toLowerCase();
 }
 
-/** String coercion + trimming + uppercase. */
-export function normalizeUppercaseString(value: unknown): string {
-  return normalizeTrimmedString(value).toUpperCase();
-}
-
-/** Normalize session kind into the canonical `'jwt' | 'cookie'` token. */
-export function normalizeJwtCookieSessionKind(value: unknown): 'jwt' | 'cookie' {
-  return normalizeLowercaseString(value) === 'cookie' ? 'cookie' : 'jwt';
-}
-
 /** String coercion + trimming; empty => undefined. */
 export function normalizeOptionalNonEmptyString(value: unknown): string | undefined {
   const normalized = normalizeTrimmedString(value);

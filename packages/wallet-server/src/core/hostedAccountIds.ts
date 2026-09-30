@@ -3,11 +3,11 @@ import { isValidAccountId, toOptionalTrimmedString } from '@shared/utils/validat
 
 const DOMAIN = 'near_account_slug_v1';
 
-export type HostedHmacReadableRelayerWalletId = WalletId & {
+type HostedHmacReadableRelayerWalletId = WalletId & {
   readonly __hostedHmacReadableRelayerWalletIdBrand: 'HostedHmacReadableRelayerWalletId';
 };
 
-export type HostedHmacReadableRelayerWalletIdParseResult =
+type HostedHmacReadableRelayerWalletIdParseResult =
   | {
       readonly ok: true;
       readonly value: HostedHmacReadableRelayerWalletId;
@@ -180,7 +180,7 @@ function bytesToBase36(bytes: Uint8Array): string {
   return value.toString(36);
 }
 
-export function parseHostedHmacReadableRelayerWalletId(input: {
+function parseHostedHmacReadableRelayerWalletId(input: {
   readonly walletId: unknown;
   readonly relayerAccount: unknown;
 }): HostedHmacReadableRelayerWalletIdParseResult {

@@ -24,7 +24,7 @@ export type SigningLaneAuthBinding =
  * `SigningLaneAuthBinding` because the provider subject describes the
  * authentication mechanism, while this tuple names the linked principal.
  */
-export type LinkedOwnerLaneIdentityV1 = {
+type LinkedOwnerLaneIdentityV1 = {
   readonly enrollmentId: LinkedDeviceEnrollmentId;
   readonly deviceId: LinkedDeviceId;
   readonly walletAuthMethodId: WalletAuthMethodId;
@@ -32,13 +32,13 @@ export type LinkedOwnerLaneIdentityV1 = {
 };
 
 /** Exact Wallet Authority address carried by every resolved Email OTP owner scope. */
-export type EmailOtpOwnerAuthorityBindingV1 = {
+type EmailOtpOwnerAuthorityBindingV1 = {
   readonly walletAuthMethodId: WalletAuthMethodId;
   readonly authorityDigest: WalletAuthorityBindingDigest;
 };
 
 /**
- * R103C: the exact owner an authenticated human operation acts as. Derived
+ * The exact owner an authenticated human operation acts as. Derived
  * from the active Wallet Session authority through the active wallet auth
  * method — never assembled from independently supplied wallet, credential,
  * and slot values. A Passkey owner carries the signer slot of its one local

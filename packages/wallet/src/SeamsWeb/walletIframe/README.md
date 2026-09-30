@@ -13,7 +13,7 @@ The WalletIframe isolates sensitive wallet operations (passkey authentication an
 
 The system consists of three layers:
 
-1. **SeamsWebIframe** - A proxy that provides the same API as the regular SeamsWeb but routes calls to the iframe
+1. **SeamsWeb** - The regular SDK class. When the wallet iframe is enabled, its `WalletIframeCoordinator` owns the iframe connection and each operation forwards to the router
 2. **WalletIframeRouter** - Handles communication between the main app and the iframe using MessagePort
 3. **Wallet Host** - The actual SeamsWeb running inside the iframe, executing the real operations
 
@@ -25,12 +25,10 @@ When you call methods like `registerPasskey()` or `signTransaction()`, the reque
 
 #### 1. **Entry Point Layer**
 
-- **`SeamsWebIframe.ts`** - The main API that developers interact with. It provides the same interface as the regular SeamsWeb but routes all calls to the iframe.
-- **`index.ts`** - Exports all public APIs and types for the WalletIframe system.
+- **`coordinator.ts`** - `WalletIframeCoordinator`, which `SeamsWeb` uses for the iframe lifecycle and preference mirroring. `requireRouter()` returns the connected router, created by `SeamsWeb/assembly/createWalletIframeRouter.ts`.
 
 #### 2. **Client-Side Communication Layer** (Runs in Parent App)
 
-- **`client/index.ts`** - Client entrypoint; exports `WalletIframeRouter` and `initWalletIframeClient()`.
 - **`client/router.ts`** - The `WalletIframeRouter` class that manages all communication with the iframe. It handles:
   - Request/response correlation using unique request IDs
   - Progress event bridging from iframe back to parent callbacks
@@ -76,8 +74,8 @@ When you call methods like `registerPasskey()` or `signTransaction()`, the reque
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
 │   Your App      │    │  WalletIframe    │    │  Wallet Host    │
 │                 │    │                  │    │                 │
-│ SeamsWeb   │───▶│ SeamsWeb    │───▶│ SeamsWeb   │
-│ Iframe          │    │ Router           │    │ (real instance) │
+│ SeamsWeb        │───▶│ SeamsWeb    │───▶│ SeamsWeb   │
+│ (coordinator)   │    │ Router           │    │ (real instance) │
 │                 │    │                  │    │                 │
 │                 │    │ IframeTransport  │    │                 │
 │                 │    │ ProgressBus      │    │ CustomElemMounter│
@@ -93,7 +91,7 @@ When you call methods like `registerPasskey()` or `signTransaction()`, the reque
 
 ### Key Design Patterns
 
-1. **Proxy Pattern**: `SeamsWebIframe` acts as a transparent proxy to the real SeamsWeb
+1. **One API**: apps call the same `SeamsWeb` methods whether or not the wallet iframe is enabled; in iframe mode each method forwards through the router
 2. **Message Passing**: All communication uses typed messages over MessagePort
 3. **Event Bridging**: Progress events flow from iframe back to parent callbacks
 4. **Overlay Management**: Explicit show/hide behavior from `WalletFlowEvent.interaction.overlay`
@@ -107,23 +105,19 @@ When you call methods like `registerPasskey()` or `signTransaction()`, the reque
 - **Capability Delegation**: The iframe grants WebAuthn and clipboard access via explicit `allow` attributes. Sandboxing is intentionally omitted for cross-origin deployments because Chromium drops transferred `MessagePort`s from sandboxed iframes, which would break the CONNECT → READY handshake.
 - **No Function Transfer**: Functions never cross the iframe boundary
 
-## Callback Chain for SeamsWebIframe Calls
+## Callback Chain for Wallet-Iframe Calls
 
 The callback chain follows this flow:
 
-### 1. **SeamsWebIframe** (Entry Point)
+### 1. **SeamsWeb** (Entry Point)
 
-- Acts as a proxy/wrapper around the WalletIframeRouter
-- Handles hook callbacks (`afterCall`, `onError`, `onEvent`)
-- For example, in `registerWallet()`:
+- Asks `WalletIframeCoordinator.requireRouter()` for the connected router and forwards the call
+- Handles hook callbacks (`afterCall`, `onError`); `onEvent` travels with the request options
+- For example, in `registerWalletDomain()` (`SeamsWeb.ts`):
   ```typescript
-  const res = await this.client.registerWallet({
-    wallet,
-    rpId,
-    authMethod,
-    signerSelection,
-    options: { onEvent: options?.onEvent },
-  });
+  const router = await this.walletIframe.requireRouter(walletRouterId);
+  const res = await router.registerWallet(args);
+  await args.options?.afterCall?.(true, res);
   ```
 
 ### 2. **WalletIframeRouter** (Communication Layer)
@@ -152,14 +146,14 @@ The callback chain follows this flow:
 
 ## Key Communication Flow:
 
-1. **SeamsWebIframe** → calls **WalletIframeRouter** method
+1. **SeamsWeb** → calls **WalletIframeRouter** method
 2. **WalletIframeRouter** → posts message to iframe via MessagePort
 3. **host/index.ts** → receives message, executes SeamsWeb operation
 4. **host/index.ts** → sends PROGRESS events during operation
 5. **WalletIframeRouter** → bridges PROGRESS events to caller's `onEvent` callback
 6. **host/index.ts** → sends final result
 7. **WalletIframeRouter** → resolves promise with result
-8. **SeamsWebIframe** → calls `afterCall` hook and returns result
+8. **SeamsWeb** → calls `afterCall` hook and returns result
 
 ## Progress Event Bridging:
 
@@ -171,7 +165,7 @@ The key point is that public progress events are bridged through the MessagePort
 
 `ev` is a v2 `WalletFlowEvent`. Private signer worker progress is not forwarded directly to the app; it is mapped into public flow events only when the flow intentionally exposes that state.
 
-So yes, your understanding is correct: **SeamsWebIframe → WalletIframeRouter → posts to host/index.ts**, with the additional detail that progress events flow back through the same channel to provide real-time updates to the caller.
+In short: **SeamsWeb → WalletIframeRouter → posts to host/index.ts**, and progress events flow back through the same channel to provide real-time updates to the caller.
 
 ## Modal Overlay (iframe sizing behavior)
 

@@ -4,7 +4,7 @@ import type {
   RouterAbNormalSigningAdmissionAdapter,
   RouterAbNormalSigningAdmissionInput,
   RouterAbNormalSigningAdmissionResult,
-} from './routerAbPrivateSigningWorker';
+} from './routerAbNormalSigningAdmission';
 
 export type RouterAbNormalSigningProjectPolicyDecision =
   | { kind: 'allowed' }
@@ -15,20 +15,18 @@ export type RouterAbNormalSigningAbuseDecision =
   | { kind: 'rate_limited'; retryAfterMs: number }
   | { kind: 'rejected'; retryAfterMs: number };
 
-export interface RouterAbNormalSigningProjectPolicyProvider {
-  evaluateProjectPolicy(
-    input: RouterAbNormalSigningAdmissionInput,
-  ): Promise<RouterAbNormalSigningProjectPolicyDecision>;
-}
+export type RouterAbNormalSigningPolicyDecision =
+  | { readonly kind: 'allowed'; readonly retryAfterMs?: never }
+  | {
+      readonly kind: 'project_policy_rejected' | 'abuse_rejected' | 'rate_limited';
+      readonly retryAfterMs: number;
+    };
 
-export interface RouterAbNormalSigningAbuseProvider {
-  evaluateAbuse(
+export interface RouterAbNormalSigningAdmissionStore {
+  evaluatePolicy(
     input: RouterAbNormalSigningAdmissionInput,
-  ): Promise<RouterAbNormalSigningAbuseDecision>;
+  ): Promise<RouterAbNormalSigningPolicyDecision>;
 }
-
-export interface RouterAbNormalSigningAdmissionStore
-  extends RouterAbNormalSigningProjectPolicyProvider, RouterAbNormalSigningAbuseProvider {}
 
 export class InMemoryRouterAbNormalSigningAdmissionStore implements RouterAbNormalSigningAdmissionStore {
   private readonly projectPolicies = new Map<string, RouterAbNormalSigningProjectPolicyDecision>();
@@ -56,20 +54,17 @@ export class InMemoryRouterAbNormalSigningAdmissionStore implements RouterAbNorm
     this.abuseDecisions.delete(abusePrincipalKey(input));
   }
 
-  async evaluateProjectPolicy(
+  async evaluatePolicy(
     input: RouterAbNormalSigningAdmissionInput,
-  ): Promise<RouterAbNormalSigningProjectPolicyDecision> {
-    return (
-      this.projectPolicies.get(runtimePolicyScopeKey(input.runtimePolicyScope)) || {
-        kind: 'allowed',
-      }
-    );
-  }
-
-  async evaluateAbuse(
-    input: RouterAbNormalSigningAdmissionInput,
-  ): Promise<RouterAbNormalSigningAbuseDecision> {
-    return this.abuseDecisions.get(abusePrincipalKey(input)) || { kind: 'allowed' };
+  ): Promise<RouterAbNormalSigningPolicyDecision> {
+    const project = this.projectPolicies.get(runtimePolicyScopeKey(input.runtimePolicyScope));
+    if (project?.kind === 'rejected') {
+      return { kind: 'project_policy_rejected', retryAfterMs: project.retryAfterMs };
+    }
+    const abuse = this.abuseDecisions.get(abusePrincipalKey(input)) ?? { kind: 'allowed' };
+    return abuse.kind === 'rejected'
+      ? { kind: 'abuse_rejected', retryAfterMs: abuse.retryAfterMs }
+      : abuse;
   }
 }
 
@@ -86,38 +81,30 @@ class DefaultRouterAbNormalSigningAdmissionAdapter implements RouterAbNormalSign
       return admissionFailure(408, 'invalid_body', 'Router A/B normal-signing request is expired');
     }
 
-    const projectPolicy = await this.store.evaluateProjectPolicy(input);
-    switch (projectPolicy.kind) {
+    const policy = await this.store.evaluatePolicy(input);
+    switch (policy.kind) {
       case 'allowed':
-        break;
-      case 'rejected':
+        return { ok: true };
+      case 'project_policy_rejected':
         return admissionFailure(
           403,
           'project_policy_rejected',
           'Router A/B normal-signing project policy rejected the request',
         );
-      default:
-        return assertNever(projectPolicy);
-    }
-
-    const abuse = await this.store.evaluateAbuse(input);
-    switch (abuse.kind) {
-      case 'allowed':
-        return { ok: true };
       case 'rate_limited':
         return admissionFailure(
           429,
           'rate_limited',
           'Router A/B normal-signing request is rate limited',
         );
-      case 'rejected':
+      case 'abuse_rejected':
         return admissionFailure(
           403,
           'abuse_rejected',
           'Router A/B normal-signing abuse policy rejected the request',
         );
       default:
-        return assertNever(abuse);
+        return assertNever(policy);
     }
   }
 }

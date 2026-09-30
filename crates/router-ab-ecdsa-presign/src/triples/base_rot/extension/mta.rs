@@ -268,10 +268,7 @@ struct MultiplicationShare {
     owner_role: u8,
     value: Scalar,
 }
-
-#[allow(dead_code)]
 pub struct ClientMultiplicationShare(MultiplicationShare);
-#[allow(dead_code)]
 pub struct SigningWorkerMultiplicationShare(MultiplicationShare);
 
 #[derive(Zeroize, ZeroizeOnDrop)]
@@ -281,10 +278,7 @@ struct TwoTripleMultiplicationShares {
     triple_zero: MultiplicationShare,
     triple_one: MultiplicationShare,
 }
-
-#[allow(dead_code)]
 pub struct ClientTwoTripleMultiplicationShares(TwoTripleMultiplicationShares);
-#[allow(dead_code)]
 pub struct SigningWorkerTwoTripleMultiplicationShares(TwoTripleMultiplicationShares);
 
 impl ClientTwoTripleMultiplicationShares {

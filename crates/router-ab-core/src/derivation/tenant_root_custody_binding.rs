@@ -12,6 +12,7 @@ use super::{
 };
 
 const TENANT_ROOT_CUSTODY_BINDING_DOMAIN_V1: &[u8] = b"seams/tenant-root-custody-binding/v1";
+const TENANT_ROOT_CUSTODY_ATTEMPT_DOMAIN_V1: &[u8] = b"seams/tenant-root-custody-attempt/v1";
 const TENANT_ROOT_DERIVATION_ID_LEN: usize = 16;
 const TENANT_ROOT_DERIVATION_NONCE_LEN: usize = 32;
 
@@ -382,6 +383,46 @@ impl TenantRootCustodyBindingV1 {
     /// Returns the stable-context digest without exposing custody metadata as context bytes.
     pub const fn stable_context_digest(&self) -> TenantRootProtocolDigestV1 {
         self.stable_context_digest
+    }
+
+    /// Returns the operation this binding authorizes.
+    pub const fn operation_id(&self) -> TenantRootDerivationOperationIdV1 {
+        self.operation_id
+    }
+
+    /// Returns when this binding's window opens.
+    pub const fn issued_at_ms(&self) -> u64 {
+        self.issued_at_ms
+    }
+
+    /// Returns when this binding's window closes.
+    pub const fn expires_at_ms(&self) -> u64 {
+        self.expires_at_ms
+    }
+
+    /// Returns the digest of every field except the window: what one
+    /// execution attempt keeps across its retries. A Router stamps a fresh
+    /// window on each attempt, so the window is validated at use and never
+    /// compared.
+    pub fn attempt_digest(&self) -> RouterAbDerivationResult<TenantRootProtocolDigestV1> {
+        self.validate()?;
+        let mut bytes = Vec::new();
+        push_field(&mut bytes, TENANT_ROOT_CUSTODY_ATTEMPT_DOMAIN_V1)?;
+        push_field(&mut bytes, self.identity_digest.as_bytes())?;
+        push_field(&mut bytes, self.custody_lineage.as_bytes())?;
+        push_field(&mut bytes, &self.epoch.get().get().to_be_bytes())?;
+        push_field(&mut bytes, self.derivers.deriver_a().as_bytes())?;
+        push_field(&mut bytes, self.derivers.deriver_b().as_bytes())?;
+        push_field(&mut bytes, self.commitments.deriver_a().as_bytes())?;
+        push_field(&mut bytes, self.commitments.deriver_b().as_bytes())?;
+        push_field(&mut bytes, self.commitments.root_commitment())?;
+        push_field(&mut bytes, self.activation_receipt_digest.as_bytes())?;
+        push_field(&mut bytes, self.operation_id.as_bytes())?;
+        push_field(&mut bytes, self.session_id.as_bytes())?;
+        push_field(&mut bytes, self.nonce.as_bytes())?;
+        push_field(&mut bytes, self.stable_context_digest.as_bytes())?;
+        push_field(&mut bytes, self.outer_transcript_digest.as_bytes())?;
+        TenantRootProtocolDigestV1::from_bytes(Sha256::digest(bytes).into())
     }
 
     /// Returns the exact canonical custody bytes.

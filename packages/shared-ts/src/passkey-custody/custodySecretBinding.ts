@@ -18,25 +18,25 @@ import type { EvmFamilySigningKeySlotId } from '../signing-lanes/evmFamilySignin
 import { requireEvmFamilySigningKeySlotId } from '../signing-lanes/evmFamilySigningKeySlotId';
 import type { ThresholdEcdsaSessionId } from '../utils/domainIds';
 import { parseThresholdEcdsaSessionId } from '../utils/domainIds';
-import type { NearEd25519SigningKeyId } from '../utils/registrationIntent';
-import { parseNearEd25519SigningKeyId } from '../utils/registrationIntent';
+import type { NearEd25519SigningKeyId } from '../utils/registrationIds';
+import { parseNearEd25519SigningKeyId } from '../utils/registrationIds';
 import type { DigestB64u } from '../utils/canonicalPrimitives';
 import type { Ed25519PublicKeyB64u, Secp256k1CompressedPublicKeyB64u } from './primitives';
 import {
   parseDigestField,
   parseEd25519PublicKeyB64u,
   parseSecp256k1CompressedPublicKeyB64u,
-  rejectUnknownFields,
-  requireRecord,
 } from './primitives';
+import { requireRecord } from '../utils/validation';
+import { rejectUnknownFields } from '../utils/exactRecord';
 
 /**
  * The protocol capability an opened envelope restores.
  *
  * Owner custody is one wallet-scoped seed: every owner signing root derives
  * from it in parallel, so there is nothing per-curve to seal separately. Lane
- * holder shares stay per-lane because Refactor 102 provisions them
- * individually — they are not seed-derived.
+ * holder shares stay per-lane because they are provisioned individually, not
+ * derived from the seed.
  */
 export type PasskeyCustodySecretKind =
   | 'wallet_custody_seed_v1'
@@ -45,8 +45,8 @@ export type PasskeyCustodySecretKind =
   | 'ecdsa_lane_holder_share_v1';
 
 /** The only derivation scheme owner custody supports. */
-export const WALLET_SEED_DERIVATION_SCHEME_V1 = 'wallet_seed_parallel_hkdf_sha256_v1' as const;
-export type WalletSeedDerivationScheme = typeof WALLET_SEED_DERIVATION_SCHEME_V1;
+const WALLET_SEED_DERIVATION_SCHEME_V1 = 'wallet_seed_parallel_hkdf_sha256_v1' as const;
+type WalletSeedDerivationScheme = typeof WALLET_SEED_DERIVATION_SCHEME_V1;
 
 export type PasskeyCustodySecretBinding =
   | {
@@ -133,11 +133,11 @@ export type PasskeyCustodySecretBinding =
       clientRootPublicKey33B64u?: never;
     };
 
-export type Ed25519YaoClientRootTargetFactorV1 =
+type Ed25519YaoClientRootTargetFactorV1 =
   | { readonly kind: 'passkey_prf' }
   | { readonly kind: 'email_otp' };
 
-export type PasskeyCustodySecretBindingOfKind<TKind extends PasskeyCustodySecretKind> = Extract<
+type PasskeyCustodySecretBindingOfKind<TKind extends PasskeyCustodySecretKind> = Extract<
   PasskeyCustodySecretBinding,
   { kind: TKind }
 >;
@@ -152,7 +152,7 @@ export function isWalletCustodySeedBinding(
 // Builders are branch-specific on purpose: a shared builder plus a spread would
 // let one branch's identity fields reach another branch's envelope.
 
-export function buildWalletCustodySeedBinding(): PasskeyCustodySecretBindingOfKind<'wallet_custody_seed_v1'> {
+function buildWalletCustodySeedBinding(): PasskeyCustodySecretBindingOfKind<'wallet_custody_seed_v1'> {
   return {
     kind: 'wallet_custody_seed_v1',
     derivationScheme: WALLET_SEED_DERIVATION_SCHEME_V1,
@@ -182,7 +182,7 @@ export function buildEd25519YaoClientRootBinding(args: {
   };
 }
 
-export function buildEd25519LaneHolderShareBinding(args: {
+function buildEd25519LaneHolderShareBinding(args: {
   walletKeyId: WalletKeyId;
   laneId: SigningLaneId;
   laneShareEpoch: LaneShareEpoch;
@@ -201,7 +201,7 @@ export function buildEd25519LaneHolderShareBinding(args: {
   };
 }
 
-export function buildEcdsaLaneHolderShareBinding(args: {
+function buildEcdsaLaneHolderShareBinding(args: {
   walletKeyId: WalletKeyId;
   laneId: SigningLaneId;
   laneShareEpoch: LaneShareEpoch;

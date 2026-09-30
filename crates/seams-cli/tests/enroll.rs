@@ -7,13 +7,13 @@
 
 #![cfg(unix)]
 
+mod recipient_key_files;
 mod support;
 
 use std::cell::RefCell;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use base64ct::{Base64UrlUnpadded, Encoding};
-use rand_core_09::{CryptoRng, RngCore};
 use router_ab_core::{
     decode_tenant_root_recovery_recipient_proof_v1, TenantRootRecoveryRecipientKeypairV1,
     TwoPartyDeriverRole,
@@ -23,94 +23,13 @@ use seams_cli::{
     ConsoleTransportErrorV1, ConsoleTransportV1, SeamsCommandV1, SeamsExitCodeV1, SeamsResultV1,
     SecretInputV1, CONSOLE_ENVIRONMENT_HEADER_V1,
 };
-use seams_recovery_core::{
-    write_new_file_durably_v1, RecoveryHostSecretCapabilitiesV1, RecoveryKeyFileV1,
-};
+use seams_recovery_core::RecoveryHostSecretCapabilitiesV1;
+
+use recipient_key_files::{key_file, DERIVER_A_KEY_MATERIAL, DERIVER_B_KEY_MATERIAL};
+use support::{fixture, Scratch};
 
 const CREDENTIAL: &str = "console-session-token";
-const DERIVER_A_KEY_MATERIAL: [u8; 32] = [0xa1; 32];
-const DERIVER_B_KEY_MATERIAL: [u8; 32] = [0xb1; 32];
-
-struct ScriptedRng {
-    key_material: [u8; 32],
-    consumed: bool,
-    counter: u8,
-}
-
-impl ScriptedRng {
-    const fn new(key_material: [u8; 32]) -> Self {
-        Self {
-            key_material,
-            consumed: false,
-            counter: 0,
-        }
-    }
-}
-
-impl RngCore for ScriptedRng {
-    fn next_u32(&mut self) -> u32 {
-        let mut bytes = [0_u8; 4];
-        self.fill_bytes(&mut bytes);
-        u32::from_le_bytes(bytes)
-    }
-
-    fn next_u64(&mut self) -> u64 {
-        let mut bytes = [0_u8; 8];
-        self.fill_bytes(&mut bytes);
-        u64::from_le_bytes(bytes)
-    }
-
-    fn fill_bytes(&mut self, destination: &mut [u8]) {
-        if !self.consumed && destination.len() == 32 {
-            destination.copy_from_slice(&self.key_material);
-            self.consumed = true;
-            return;
-        }
-        for byte in destination.iter_mut() {
-            self.counter = self.counter.wrapping_add(1);
-            *byte = self.counter;
-        }
-    }
-}
-
-impl CryptoRng for ScriptedRng {}
-
-struct Scratch {
-    root: PathBuf,
-}
-
-impl Scratch {
-    fn new(name: &str) -> Self {
-        let root = std::env::temp_dir().join(format!("seams-enroll-{name}"));
-        let _ = std::fs::remove_dir_all(&root);
-        std::fs::create_dir_all(&root).expect("scratch directory");
-        Self { root }
-    }
-
-    fn path(&self, name: &str) -> PathBuf {
-        self.root.join(name)
-    }
-}
-
-impl Drop for Scratch {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.root);
-    }
-}
-
-fn fixture(name: &str) -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../router-ab-core/tests/fixtures/tenant-root-recovery")
-        .join(name)
-}
-
-fn key_file(scratch: &Scratch, role: TwoPartyDeriverRole, material: [u8; 32]) -> PathBuf {
-    let (file, _) =
-        RecoveryKeyFileV1::create(role, &mut ScriptedRng::new(material)).expect("key file");
-    let path = scratch.path(&format!("{}.key", role.as_str()));
-    write_new_file_durably_v1(&path, &file.to_bytes().expect("bytes")).expect("write key file");
-    path
-}
+const SCRATCH_PREFIX: &str = "seams-enroll";
 
 fn fingerprint(material: [u8; 32]) -> String {
     let keypair = TenantRootRecoveryRecipientKeypairV1::derive_from_ikm(material).expect("keypair");
@@ -224,7 +143,7 @@ fn enroll(
 
 #[test]
 fn a_recipient_proves_control_and_is_enrolled_without_exposing_a_secret() {
-    let scratch = Scratch::new("proves-control");
+    let scratch = Scratch::new(SCRATCH_PREFIX, "proves-control");
     let console = EnrolmentConsole::new();
     let key_a = key_file(
         &scratch,
@@ -273,7 +192,7 @@ fn a_recipient_proves_control_and_is_enrolled_without_exposing_a_secret() {
 
 #[test]
 fn a_challenge_for_the_other_role_is_never_answered() {
-    let scratch = Scratch::new("other-role");
+    let scratch = Scratch::new(SCRATCH_PREFIX, "other-role");
     let console = EnrolmentConsole::new();
     // The console issues a Deriver A challenge whatever is asked; a Deriver B
     // key must refuse it before its private key is used, and never confirm.

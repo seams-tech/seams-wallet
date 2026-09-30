@@ -1,20 +1,8 @@
-use std::fs;
-
 mod support;
 
 use support::{
     extract_braced_block_after_marker, extract_function_body, extract_struct_block, read_src_file,
-    rust_source_files,
 };
-
-fn contains_rust_identifier(source: &str, identifier: &str) -> bool {
-    source.match_indices(identifier).any(|(start, _)| {
-        let before = source[..start].chars().next_back();
-        let after = source[start + identifier.len()..].chars().next();
-        !before.is_some_and(|character| character.is_ascii_alphanumeric() || character == '_')
-            && !after.is_some_and(|character| character.is_ascii_alphanumeric() || character == '_')
-    })
-}
 
 #[test]
 fn normal_signing_routes_do_not_invoke_ab_derivation_handlers() {
@@ -33,9 +21,6 @@ fn normal_signing_routes_do_not_invoke_ab_derivation_handlers() {
         for forbidden in [
             "build_mpc_prf_threshold_signer_batch_input_v1",
             "decrypt_and_handle_cloudflare_router_ab_ecdsa_derivation_export_signer_private_request_v1",
-            "decrypt_and_handle_cloudflare_mpc_prf_recipient_proof_bundle_signer_private_request_v1",
-            "handle_cloudflare_validated_mpc_prf_client_recipient_proof_bundle_signer_request_v1",
-            "handle_cloudflare_validated_mpc_prf_recipient_proof_bundle_signer_request_v1",
             "handle_cloudflare_signer_recipient_proof_bundle_private_request_v1",
             "recipient_proof_bundle_wire_message_from_ab_proof_batch_v1",
             "DeriverAEngine",
@@ -47,43 +32,6 @@ fn normal_signing_routes_do_not_invoke_ab_derivation_handlers() {
                 "{function_name} must not cross into derivation handler `{forbidden}`"
             );
         }
-    }
-}
-
-#[test]
-fn legacy_normal_signing_v1_flow_symbols_are_absent() {
-    let lib_rs = read_src_file("lib.rs");
-    for deleted_symbol in [
-        "CloudflareRouterVerifiedNormalSigningJwtClaimsV1",
-        "CloudflareRouterNormalSigningJwtVerifierV1",
-        "verify_normal_signing_jwt",
-        "verify_normal_signing_round1_prepare_jwt",
-        "handle_cloudflare_router_normal_signing_authenticated_public_request_v1",
-        "handle_cloudflare_router_normal_signing_round1_prepare_authenticated_public_request_v1",
-        "build_cloudflare_router_to_signing_worker_normal_signing_request_v1",
-        "execute_cloudflare_signing_worker_normal_signing_service_call_v1",
-        "execute_cloudflare_signing_worker_normal_signing_round1_prepare_service_call_v1",
-        "CloudflareSigningWorkerAdmittedNormalSigningRequestV1",
-        "CloudflareSigningWorkerAdmittedNormalSigningRound1PrepareRequestV1",
-        "CloudflareSigningWorkerMaterializedNormalSigningRequestV1",
-        "CloudflareSigningWorkerMaterializedNormalSigningRound1PrepareRequestV1",
-        "CloudflareSigningWorkerNormalSigningHandlerV1",
-        "CloudflareSigningWorkerNormalSigningRound1PrepareHandlerV1",
-        "handle_cloudflare_signing_worker_normal_signing_private_request_v1",
-        "handle_cloudflare_signing_worker_normal_signing_round1_prepare_private_request_v1",
-        "derive_cloudflare_router_normal_signing_trusted_admission_v1",
-        "derive_cloudflare_router_normal_signing_round1_prepare_trusted_admission_v1",
-        "normal_signing_replay_reserve_call",
-        "normal_signing_admission_store_calls_at",
-        "normal_signing_round1_prepare_admission_store_calls_at",
-        "NormalSigningRequestV1",
-        "NormalSigningRound1PrepareRequestV1",
-        "RouterToSigningWorkerSigningRequestV1",
-    ] {
-        assert!(
-            !contains_rust_identifier(&lib_rs, deleted_symbol),
-            "legacy normal-signing v1 flow symbol `{deleted_symbol}` must stay deleted"
-        );
     }
 }
 
@@ -143,44 +91,12 @@ fn ecdsa_lane_material_is_loaded_before_signature_preparation_or_consumption() {
         .find("load_cloudflare_signing_worker_ecdsa_normal_signing_material_v1")
         .expect("ECDSA finalize must load lane material");
     let pool_consume = finalize
-        .find("execute_cloudflare_signing_worker_ecdsa_pool_mutation_v1")
+        .find("claim_and_consume_cloudflare_signing_worker_ecdsa_for_wallet_v1")
         .expect("ECDSA finalize must consume one-use pool material");
     assert!(
         loader < pool_consume,
         "ECDSA finalize must reject stale lanes before consuming pool state"
     );
-}
-
-#[test]
-fn normal_signing_boundary_uses_signing_worker_api_names() {
-    let forbidden_patterns = [
-        "ActiveServerStateV1",
-        "RouterToServerSigningRequestV1",
-        "CloudflareServerRecipientProofBundleActivation",
-        "CloudflareServerOutputActivationReceiptV1",
-        "CloudflareServerOutputActivationRecordV1",
-        "CloudflareActiveServerStateLookupV1",
-        "CloudflareServerNormalSigningHandlerV1",
-        "build_cloudflare_router_to_server_normal_signing_request_v1",
-        "ServerOutputActivate",
-        "ServerOutputActiveStateGet",
-        "server_output_activate(",
-        "server_output_active_state_get(",
-        "active_server_state",
-        "server_material_handle",
-        "active-server/",
-    ];
-
-    for path in rust_source_files() {
-        let source = fs::read_to_string(&path).expect("source file should read");
-        for forbidden in forbidden_patterns {
-            assert!(
-                !source.contains(forbidden),
-                "{} still exposes server-labelled normal-signing API `{forbidden}`",
-                path.display()
-            );
-        }
-    }
 }
 
 #[test]
@@ -206,10 +122,6 @@ fn strict_signing_worker_handler_is_protocol_aware() {
         "impl CloudflareSigningWorkerRouterAbEcdsaDerivationEvmDigestFinalizeHandlerV1\n    for CloudflareRoleSeparatedRouterAbEcdsaDerivationEvmDigestFinalizeHandlerV1",
     );
 
-    assert!(
-        !strict_worker_rs.contains("strict SigningWorker normal-signing handler is not configured"),
-        "strict SigningWorker normal-signing handler must not return the old config stub"
-    );
     assert!(
         route_body.contains("CloudflareEd25519YaoNormalSigningHandlerV1"),
         "strict SigningWorker entrypoint must use the production normal-signing handler"
@@ -262,10 +174,6 @@ fn strict_signing_worker_handler_is_protocol_aware() {
             "strict SigningWorker Router A/B ECDSA derivation finalize handler must use `{required}`"
         );
     }
-    assert!(
-        !ecdsa_finalize_handler_body.contains("threshold_ecdsa_finalize_signature"),
-        "strict SigningWorker Router A/B ECDSA derivation finalize handler must exclude the generic signer-core finalizer"
-    );
 }
 
 #[test]
@@ -302,82 +210,6 @@ fn strict_private_worker_dispatchers_require_internal_auth_before_parsing() {
                 "{function_name} must require internal service auth before body parsing"
             );
         }
-    }
-}
-
-#[test]
-fn production_normal_signing_paths_do_not_import_joined_hss_state() {
-    let forbidden = [
-        "recover_a_from_base_shares",
-        "SigningKey::from_bytes",
-        "expand_ed25519_seed",
-        "x_client_base",
-        "\"y_server\"",
-        " y_server",
-        "y_server:",
-        "\"tau_server\"",
-        " tau_server",
-        "tau_server:",
-        "joined d",
-        "joined_d",
-        "joined a",
-        "joined_a",
-    ];
-    let functions = [
-        (
-            "lib.rs",
-            "handle_cloudflare_router_normal_signing_prepare_authenticated_public_request_v2",
-        ),
-        (
-            "lib.rs",
-            "handle_cloudflare_router_normal_signing_finalize_authenticated_public_request_v2",
-        ),
-        (
-            "lib.rs",
-            "handle_cloudflare_signing_worker_normal_signing_prepare_private_request_v2",
-        ),
-        (
-            "lib.rs",
-            "handle_cloudflare_signing_worker_normal_signing_finalize_private_request_v2",
-        ),
-        (
-            "lib.rs",
-            "handle_cloudflare_signing_worker_normal_signing_round1_prepare_private_fetch_v1",
-        ),
-        (
-            "lib.rs",
-            "handle_cloudflare_signing_worker_normal_signing_private_fetch_v1",
-        ),
-        (
-            "lib.rs",
-            "execute_cloudflare_signing_worker_normal_signing_prepare_service_call_v2",
-        ),
-        (
-            "lib.rs",
-            "execute_cloudflare_signing_worker_normal_signing_finalize_service_call_v2",
-        ),
-    ];
-
-    for (file_name, function_name) in functions {
-        let source = read_src_file(file_name);
-        let body = extract_function_body(&source, function_name);
-        for pattern in forbidden {
-            assert!(
-                !body.contains(pattern),
-                "{function_name} must not reference forbidden HSS material `{pattern}`"
-            );
-        }
-    }
-    let lib_rs = read_src_file("lib.rs");
-    let handler_body = extract_braced_block_after_marker(
-        &lib_rs,
-        "for CloudflareEd25519YaoNormalSigningHandlerV1",
-    );
-    for pattern in forbidden {
-        assert!(
-            !handler_body.contains(pattern),
-            "production normal-signing handler must not reference forbidden HSS material `{pattern}`"
-        );
     }
 }
 

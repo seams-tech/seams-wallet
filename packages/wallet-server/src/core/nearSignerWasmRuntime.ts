@@ -138,7 +138,3 @@ export async function ensureNearSignerWasm(): Promise<void> {
   }
   await signerWasmInitPromise;
 }
-
-export function isNearSignerWasmReady(): boolean {
-  return signerWasmReady;
-}

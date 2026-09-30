@@ -8,7 +8,7 @@ import type { CreateBrowserSigningRuntimeArgs } from './createBrowserSigningRunt
 import type { WorkerResourceWarmupPolicy } from '@/core/signingEngine/assembly/warmup';
 import type { Ed25519YaoPublicCapabilityReferenceStorePort } from '@/core/signingEngine/threshold/ed25519/yaoPublicCapabilityReferences';
 
-export type InitializeSigningRuntimePort = (args: {
+type InitializeSigningRuntimePort = (args: {
   config: SeamsConfigsReadonly;
   userPreferencesManager: Pick<UserPreferencesManager, 'initFromIndexedDB'>;
   getWorkerBaseOrigin: () => string;

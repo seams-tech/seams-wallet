@@ -11,28 +11,28 @@ import {
 import type { ThresholdEcdsaChainTarget } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type { EmailOtpChallengeDelivery } from '@/core/signingEngine/session/emailOtp/publicTypes';
 
-export type EmailOtpExportAuthorizationChain = 'near' | ThresholdEcdsaChainTarget['kind'];
+type EmailOtpExportAuthorizationChain = 'near' | ThresholdEcdsaChainTarget['kind'];
 
-export type EmailOtpExportAuthorizationChallenge = {
+type EmailOtpExportAuthorizationChallenge = {
   challengeId: string;
   emailHint: string;
   delivery: EmailOtpChallengeDelivery;
 };
 
-export type EmailOtpExportAuthorizationResult = {
+type EmailOtpExportAuthorizationResult = {
   challengeId: string;
   otpCode: string;
 };
 
-export type EmailOtpExportAuthorizationChallengeSource = {
+type EmailOtpExportAuthorizationChallengeSource = {
   requestChallenge: () => Promise<EmailOtpExportAuthorizationChallenge>;
 };
 
-export type EmailOtpExportAuthorizationConfirmer = {
+type EmailOtpExportAuthorizationConfirmer = {
   requestUserConfirmation: (request: UserConfirmRequest) => Promise<UserConfirmDecision>;
 };
 
-export type EmailOtpExportAuthorizationIdentity =
+type EmailOtpExportAuthorizationIdentity =
   | {
       kind: 'near_account';
       walletId: string;

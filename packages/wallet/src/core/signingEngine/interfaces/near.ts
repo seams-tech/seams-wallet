@@ -6,7 +6,6 @@ import type { SigningFlowEvent } from '@/core/types/sdkSentEvents';
 import type {
   ConfirmationConfig,
   RpcCallPayload,
-  TransactionPayload,
   WasmSignedDelegate,
 } from '@/core/types/signer-worker';
 import type { NearSigningRuntimeDeps } from './runtime';
@@ -47,7 +46,7 @@ import type { RouterAbNormalSigningPrepareRequestV2Wire } from '@/core/rpcClient
 import type { Ed25519OperationStepUpProof } from '../threshold/ed25519/walletSession';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import type { SigningOperationStateRef } from '../flows/shared/signingStateMachine';
-export type NearResolvedEd25519WalletSessionAuth = {
+type NearResolvedEd25519WalletSessionAuth = {
   kind: 'wallet_session_opaque';
   walletSessionToken: string;
 };
@@ -191,14 +190,14 @@ export type NearEmailOtpEd25519StepUpHook = {
   }) => Promise<EmailOtpTransactionSigningChallenge>;
 };
 
-export type NearEd25519TransactionAdmissionBoundary = {
+type NearEd25519TransactionAdmissionBoundary = {
   thresholdSessionId: ThresholdEd25519SessionId;
   signingSessionPlan: SigningSessionPlan;
   signingAuthPlan: SigningAuthPlan;
   signingLane: NearTransactionSigningLane;
 };
 
-export type NearEd25519TransactionSigningBoundary = NearEd25519TransactionAdmissionBoundary;
+type NearEd25519TransactionSigningBoundary = NearEd25519TransactionAdmissionBoundary;
 
 type NearTransactionWithActionsPayloadBase = {
   ctx: NearSigningRuntimeDeps;
@@ -317,23 +316,6 @@ export type NearSigningRequest =
       payload: NearNep413Payload;
     };
 
-export type NearEd25519SignRequest =
-  | {
-      kind: 'near-transaction-with-actions';
-      algorithm: 'ed25519';
-      payload: NearTransactionWithActionsPayload;
-    }
-  | {
-      kind: 'near-delegate-action';
-      algorithm: 'ed25519';
-      payload: NearDelegateActionPayload;
-    }
-  | {
-      kind: 'near-nep413-message';
-      algorithm: 'ed25519';
-      payload: NearNep413Payload;
-    };
-
 export type NearTransactionWithActionsResult = {
   signedTransaction: SignedTransaction;
   nearAccountId: AccountId;
@@ -356,23 +338,7 @@ export type NearNep413Result = {
   error?: string;
 };
 
-export type NearEd25519SignOutput =
-  | {
-      kind: 'near-transaction-with-actions';
-      result: NearTransactionWithActionsResult;
-    }
-  | {
-      kind: 'near-delegate-action';
-      result: NearDelegateActionResult;
-    }
-  | {
-      kind: 'near-nep413-message';
-      result: NearNep413Result;
-    };
-
-export type NearSignedResult = NearEd25519SignOutput['result'];
-
-export type NearIntentResultByKind = {
+type NearIntentResultByKind = {
   transactionWithActions: NearTransactionWithActionsResult;
   delegateAction: NearDelegateActionResult;
   nep413: NearNep413Result;
@@ -383,22 +349,3 @@ export type NearIntentResult<T extends NearSigningRequest> = T extends { kind: i
     ? NearIntentResultByKind[K]
     : never
   : never;
-
-export type NearIntentUiModel =
-  | {
-      kind: 'transactionWithActions';
-      nearAccountId: string;
-      totalActionCount: number;
-      txSigningRequest: TransactionPayload;
-    }
-  | {
-      kind: 'delegateAction';
-      nearAccountId: string;
-      receiverId: string;
-      actionCount: number;
-    }
-  | {
-      kind: 'nep413';
-      nearAccountId: string;
-      recipient: string;
-    };

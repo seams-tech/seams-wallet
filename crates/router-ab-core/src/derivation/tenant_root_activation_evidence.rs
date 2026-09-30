@@ -359,6 +359,136 @@ pub enum TenantRootActivationAvailabilityEvidenceViewV1<'a> {
     },
 }
 
+/// Methods both activation evidence bundles share: the constructors that name an
+/// availability branch, and the accessors that read the bundle's `common` parts. A
+/// refresh bundle's constructors also take the active epoch's commitments first.
+macro_rules! activation_evidence_bundle_methods {
+    ($evidence:literal $(, $current_commitments:ident)?) => {
+        #[doc = concat!(
+            "Builds ", $evidence, " evidence with explicit managed-backup availability."
+        )]
+        #[allow(clippy::too_many_arguments)]
+        pub fn from_verified_managed_backups(
+            $($current_commitments: &TenantRootEpochCommitmentsV1,)?
+            deriver_a_installation: VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
+            deriver_b_installation: VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
+            deriver_a_backup: VerifiedTenantRootManagedBackupV1,
+            deriver_b_backup: VerifiedTenantRootManagedBackupV1,
+            ecdsa_canary: VerifiedTenantRootProviderCanaryReceiptV1,
+            ed25519_canary: VerifiedTenantRootProviderCanaryReceiptV1,
+            expected_control_plane_revision: u64,
+            result_control_plane_revision: u64,
+        ) -> RouterAbDerivationResult<Self> {
+            Self::new(
+                $($current_commitments,)?
+                deriver_a_installation,
+                deriver_b_installation,
+                TenantRootActivationAvailabilityEvidenceV1::current_role_backups(
+                    deriver_a_backup,
+                    deriver_b_backup,
+                ),
+                ecdsa_canary,
+                ed25519_canary,
+                expected_control_plane_revision,
+                result_control_plane_revision,
+            )
+        }
+
+        #[doc = concat!(
+            "Builds ", $evidence, " evidence with an exact accepted-loss authorization."
+        )]
+        #[allow(clippy::too_many_arguments)]
+        pub fn from_verified_accepted_loss(
+            $($current_commitments: &TenantRootEpochCommitmentsV1,)?
+            deriver_a_installation: VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
+            deriver_b_installation: VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
+            authorization: VerifiedTenantRootAcceptedPermanentLossAuthorizationV1,
+            ecdsa_canary: VerifiedTenantRootProviderCanaryReceiptV1,
+            ed25519_canary: VerifiedTenantRootProviderCanaryReceiptV1,
+            expected_control_plane_revision: u64,
+            result_control_plane_revision: u64,
+        ) -> RouterAbDerivationResult<Self> {
+            Self::new(
+                $($current_commitments,)?
+                deriver_a_installation,
+                deriver_b_installation,
+                TenantRootActivationAvailabilityEvidenceV1::accepted_permanent_derivation_loss(
+                    TenantRootAcceptedLossReceiptV1::from_verified(authorization),
+                ),
+                ecdsa_canary,
+                ed25519_canary,
+                expected_control_plane_revision,
+                result_control_plane_revision,
+            )
+        }
+
+        /// Returns the forward-only activation transition.
+        pub const fn transition(&self) -> TenantRootActivationReceiptTransitionV1 {
+            self.common.transition()
+        }
+
+        /// Returns the server-resolved tenant identity digest.
+        pub const fn identity_digest(&self) -> TenantRootIdentityDigestV1 {
+            self.common.identity_digest()
+        }
+
+        /// Returns the deployment-local custody lineage.
+        pub const fn custody_lineage(&self) -> TenantRootCustodyLineageId {
+            self.common.custody_lineage()
+        }
+
+        /// Returns the exact ceremony context used by both installation wires.
+        pub const fn context(&self) -> &TenantRootCeremonyContextV1 {
+            self.common.context()
+        }
+
+        /// Returns the digest of the exact ceremony context.
+        pub const fn context_digest(&self) -> TenantRootProtocolDigestV1 {
+            self.common.context_digest()
+        }
+
+        /// Returns the authoritative lifecycle revision from which activation is claimed.
+        pub const fn expected_control_plane_revision(&self) -> u64 {
+            self.common.expected_control_plane_revision()
+        }
+
+        /// Returns the authoritative lifecycle revision produced by activation.
+        pub const fn result_control_plane_revision(&self) -> u64 {
+            self.common.result_control_plane_revision()
+        }
+
+        /// Returns the exact role-installation receipt digest projection.
+        pub const fn installation_receipts(&self) -> TenantRootRoleInstallationReceiptsV1 {
+            self.common.installation_receipts()
+        }
+
+        /// Returns the exact availability projection for a strict activation receipt.
+        pub fn backup_policy(&self) -> TenantRootBackupPolicyV1 {
+            self.common.backup_policy()
+        }
+
+        /// Returns both exact provider-canary receipt digest projections.
+        pub const fn canary_receipts(&self) -> TenantRootCanaryReceiptsV1 {
+            self.common.canary_receipts()
+        }
+
+        /// Returns read-only access to the owned availability artifact.
+        pub fn availability(&self) -> TenantRootActivationAvailabilityEvidenceViewV1<'_> {
+            self.common.availability()
+        }
+
+        /// Requires all freshness windows to contain the supplied activation time.
+        pub fn require_fresh(&self, now_ms: u64) -> RouterAbDerivationResult<()> {
+            self.common.require_fresh(now_ms)
+        }
+
+        /// Consumes the bundle into the exact A/B signed installation-evidence wires.
+        pub fn into_installation_evidence_bytes(self) -> (Vec<u8>, Vec<u8>) {
+            self.common.into_installation_evidence_bytes()
+        }
+    };
+}
+
 /// Verified initial-creation activation evidence assembled from exact source artifacts.
 ///
 /// The bundle owns every verified evidence token and intentionally does not
@@ -379,7 +509,8 @@ impl VerifiedTenantRootInitialCreationActivationEvidenceBundleV1 {
         expected_control_plane_revision: u64,
         result_control_plane_revision: u64,
     ) -> RouterAbDerivationResult<Self> {
-        let common = build_creation_evidence(
+        let common = build_activation_evidence(
+            ActivationEvidenceCeremonyV1::Creation,
             deriver_a_installation,
             deriver_b_installation,
             availability,
@@ -391,59 +522,7 @@ impl VerifiedTenantRootInitialCreationActivationEvidenceBundleV1 {
         Ok(Self { common })
     }
 
-    /// Builds epoch-one evidence with explicit managed-backup availability.
-    #[allow(clippy::too_many_arguments)]
-    pub fn from_verified_managed_backups(
-        deriver_a_installation: VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
-        deriver_b_installation: VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
-        deriver_a_backup: VerifiedTenantRootManagedBackupV1,
-        deriver_b_backup: VerifiedTenantRootManagedBackupV1,
-        ecdsa_canary: VerifiedTenantRootProviderCanaryReceiptV1,
-        ed25519_canary: VerifiedTenantRootProviderCanaryReceiptV1,
-        expected_control_plane_revision: u64,
-        result_control_plane_revision: u64,
-    ) -> RouterAbDerivationResult<Self> {
-        Self::new(
-            deriver_a_installation,
-            deriver_b_installation,
-            TenantRootActivationAvailabilityEvidenceV1::current_role_backups(
-                deriver_a_backup,
-                deriver_b_backup,
-            ),
-            ecdsa_canary,
-            ed25519_canary,
-            expected_control_plane_revision,
-            result_control_plane_revision,
-        )
-    }
-
-    /// Builds epoch-one evidence with an exact accepted-loss authorization.
-    pub fn from_verified_accepted_loss(
-        deriver_a_installation: VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
-        deriver_b_installation: VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
-        authorization: VerifiedTenantRootAcceptedPermanentLossAuthorizationV1,
-        ecdsa_canary: VerifiedTenantRootProviderCanaryReceiptV1,
-        ed25519_canary: VerifiedTenantRootProviderCanaryReceiptV1,
-        expected_control_plane_revision: u64,
-        result_control_plane_revision: u64,
-    ) -> RouterAbDerivationResult<Self> {
-        Self::new(
-            deriver_a_installation,
-            deriver_b_installation,
-            TenantRootActivationAvailabilityEvidenceV1::accepted_permanent_derivation_loss(
-                TenantRootAcceptedLossReceiptV1::from_verified(authorization),
-            ),
-            ecdsa_canary,
-            ed25519_canary,
-            expected_control_plane_revision,
-            result_control_plane_revision,
-        )
-    }
-
-    /// Returns the forward-only activation transition.
-    pub const fn transition(&self) -> TenantRootActivationReceiptTransitionV1 {
-        self.common.transition()
-    }
+    activation_evidence_bundle_methods!("epoch-one");
 
     /// Returns the exact epoch branch authenticated by the ceremony.
     pub const fn epochs(&self) -> TenantRootCeremonyEpochsV1 {
@@ -455,36 +534,6 @@ impl VerifiedTenantRootInitialCreationActivationEvidenceBundleV1 {
         TenantRootShareEpoch::INITIAL
     }
 
-    /// Returns the server-resolved tenant identity digest.
-    pub const fn identity_digest(&self) -> TenantRootIdentityDigestV1 {
-        self.common.identity_digest()
-    }
-
-    /// Returns the deployment-local custody lineage.
-    pub const fn custody_lineage(&self) -> TenantRootCustodyLineageId {
-        self.common.custody_lineage()
-    }
-
-    /// Returns the exact ceremony context used by both installation wires.
-    pub const fn context(&self) -> &TenantRootCeremonyContextV1 {
-        self.common.context()
-    }
-
-    /// Returns the digest of the exact ceremony context.
-    pub const fn context_digest(&self) -> TenantRootProtocolDigestV1 {
-        self.common.context_digest()
-    }
-
-    /// Returns the authoritative lifecycle revision from which activation is claimed.
-    pub const fn expected_control_plane_revision(&self) -> u64 {
-        self.common.expected_control_plane_revision()
-    }
-
-    /// Returns the authoritative lifecycle revision produced by activation.
-    pub const fn result_control_plane_revision(&self) -> u64 {
-        self.common.result_control_plane_revision()
-    }
-
     /// Returns the exact A/B commitments derived by creation verification.
     pub const fn commitments(&self) -> &TenantRootEpochCommitmentsV1 {
         self.common.commitments()
@@ -493,36 +542,6 @@ impl VerifiedTenantRootInitialCreationActivationEvidenceBundleV1 {
     /// Returns the stable joined public root commitment.
     pub const fn root_commitment(&self) -> &[u8; 32] {
         self.common.root_commitment()
-    }
-
-    /// Returns the exact role-installation receipt digest projection.
-    pub const fn installation_receipts(&self) -> TenantRootRoleInstallationReceiptsV1 {
-        self.common.installation_receipts()
-    }
-
-    /// Returns the exact availability projection for a strict activation receipt.
-    pub fn backup_policy(&self) -> TenantRootBackupPolicyV1 {
-        self.common.backup_policy()
-    }
-
-    /// Returns both exact provider-canary receipt digest projections.
-    pub const fn canary_receipts(&self) -> TenantRootCanaryReceiptsV1 {
-        self.common.canary_receipts()
-    }
-
-    /// Returns read-only access to the owned availability artifact.
-    pub fn availability(&self) -> TenantRootActivationAvailabilityEvidenceViewV1<'_> {
-        self.common.availability()
-    }
-
-    /// Requires all freshness windows to contain the supplied activation time.
-    pub fn require_fresh(&self, now_ms: u64) -> RouterAbDerivationResult<()> {
-        self.common.require_fresh(now_ms)
-    }
-
-    /// Consumes the bundle into the exact A/B signed installation-evidence wires.
-    pub fn into_installation_evidence_bytes(self) -> (Vec<u8>, Vec<u8>) {
-        self.common.into_installation_evidence_bytes()
     }
 }
 
@@ -552,8 +571,10 @@ impl VerifiedTenantRootRefreshSwapActivationEvidenceBundleV1 {
         result_control_plane_revision: u64,
     ) -> RouterAbDerivationResult<Self> {
         let current_commitments = clone_commitments(current_commitments)?;
-        let common = build_refresh_evidence(
-            &current_commitments,
+        let common = build_activation_evidence(
+            ActivationEvidenceCeremonyV1::Refresh {
+                current_commitments: &current_commitments,
+            },
             deriver_a_installation,
             deriver_b_installation,
             availability,
@@ -575,64 +596,7 @@ impl VerifiedTenantRootRefreshSwapActivationEvidenceBundleV1 {
         })
     }
 
-    /// Builds refresh evidence with explicit managed-backup availability.
-    #[allow(clippy::too_many_arguments)]
-    pub fn from_verified_managed_backups(
-        current_commitments: &TenantRootEpochCommitmentsV1,
-        deriver_a_installation: VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
-        deriver_b_installation: VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
-        deriver_a_backup: VerifiedTenantRootManagedBackupV1,
-        deriver_b_backup: VerifiedTenantRootManagedBackupV1,
-        ecdsa_canary: VerifiedTenantRootProviderCanaryReceiptV1,
-        ed25519_canary: VerifiedTenantRootProviderCanaryReceiptV1,
-        expected_control_plane_revision: u64,
-        result_control_plane_revision: u64,
-    ) -> RouterAbDerivationResult<Self> {
-        Self::new(
-            current_commitments,
-            deriver_a_installation,
-            deriver_b_installation,
-            TenantRootActivationAvailabilityEvidenceV1::current_role_backups(
-                deriver_a_backup,
-                deriver_b_backup,
-            ),
-            ecdsa_canary,
-            ed25519_canary,
-            expected_control_plane_revision,
-            result_control_plane_revision,
-        )
-    }
-
-    /// Builds refresh evidence with an exact accepted-loss authorization.
-    #[allow(clippy::too_many_arguments)]
-    pub fn from_verified_accepted_loss(
-        current_commitments: &TenantRootEpochCommitmentsV1,
-        deriver_a_installation: VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
-        deriver_b_installation: VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
-        authorization: VerifiedTenantRootAcceptedPermanentLossAuthorizationV1,
-        ecdsa_canary: VerifiedTenantRootProviderCanaryReceiptV1,
-        ed25519_canary: VerifiedTenantRootProviderCanaryReceiptV1,
-        expected_control_plane_revision: u64,
-        result_control_plane_revision: u64,
-    ) -> RouterAbDerivationResult<Self> {
-        Self::new(
-            current_commitments,
-            deriver_a_installation,
-            deriver_b_installation,
-            TenantRootActivationAvailabilityEvidenceV1::accepted_permanent_derivation_loss(
-                TenantRootAcceptedLossReceiptV1::from_verified(authorization),
-            ),
-            ecdsa_canary,
-            ed25519_canary,
-            expected_control_plane_revision,
-            result_control_plane_revision,
-        )
-    }
-
-    /// Returns the forward-only activation transition.
-    pub const fn transition(&self) -> TenantRootActivationReceiptTransitionV1 {
-        self.common.transition()
-    }
+    activation_evidence_bundle_methods!("refresh", current_commitments);
 
     /// Returns the exact refresh epoch branch authenticated by the ceremony.
     pub const fn epochs(&self) -> TenantRootCeremonyEpochsV1 {
@@ -649,36 +613,6 @@ impl VerifiedTenantRootRefreshSwapActivationEvidenceBundleV1 {
         self.next_epoch
     }
 
-    /// Returns the server-resolved tenant identity digest.
-    pub const fn identity_digest(&self) -> TenantRootIdentityDigestV1 {
-        self.common.identity_digest()
-    }
-
-    /// Returns the deployment-local custody lineage.
-    pub const fn custody_lineage(&self) -> TenantRootCustodyLineageId {
-        self.common.custody_lineage()
-    }
-
-    /// Returns the exact ceremony context used by both installation wires.
-    pub const fn context(&self) -> &TenantRootCeremonyContextV1 {
-        self.common.context()
-    }
-
-    /// Returns the digest of the exact ceremony context.
-    pub const fn context_digest(&self) -> TenantRootProtocolDigestV1 {
-        self.common.context_digest()
-    }
-
-    /// Returns the authoritative lifecycle revision from which activation is claimed.
-    pub const fn expected_control_plane_revision(&self) -> u64 {
-        self.common.expected_control_plane_revision()
-    }
-
-    /// Returns the authoritative lifecycle revision produced by activation.
-    pub const fn result_control_plane_revision(&self) -> u64 {
-        self.common.result_control_plane_revision()
-    }
-
     /// Returns the active epoch's exact A/B commitments.
     pub const fn current_commitments(&self) -> &TenantRootEpochCommitmentsV1 {
         &self.current_commitments
@@ -692,36 +626,6 @@ impl VerifiedTenantRootRefreshSwapActivationEvidenceBundleV1 {
     /// Returns the next epoch's stable joined public root commitment.
     pub const fn root_commitment(&self) -> &[u8; 32] {
         self.common.root_commitment()
-    }
-
-    /// Returns the exact role-installation receipt digest projection.
-    pub const fn installation_receipts(&self) -> TenantRootRoleInstallationReceiptsV1 {
-        self.common.installation_receipts()
-    }
-
-    /// Returns the exact availability projection for a strict activation receipt.
-    pub fn backup_policy(&self) -> TenantRootBackupPolicyV1 {
-        self.common.backup_policy()
-    }
-
-    /// Returns both exact provider-canary receipt digest projections.
-    pub const fn canary_receipts(&self) -> TenantRootCanaryReceiptsV1 {
-        self.common.canary_receipts()
-    }
-
-    /// Returns read-only access to the owned availability artifact.
-    pub fn availability(&self) -> TenantRootActivationAvailabilityEvidenceViewV1<'_> {
-        self.common.availability()
-    }
-
-    /// Requires all freshness windows to contain the supplied activation time.
-    pub fn require_fresh(&self, now_ms: u64) -> RouterAbDerivationResult<()> {
-        self.common.require_fresh(now_ms)
-    }
-
-    /// Consumes the bundle into the exact A/B signed installation-evidence wires.
-    pub fn into_installation_evidence_bytes(self) -> (Vec<u8>, Vec<u8>) {
-        self.common.into_installation_evidence_bytes()
     }
 }
 
@@ -875,76 +779,18 @@ impl ActivationEvidenceBundlePartsV1 {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
-fn build_creation_evidence(
-    deriver_a_installation: VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
-    deriver_b_installation: VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
-    availability: TenantRootActivationAvailabilityEvidenceV1,
-    ecdsa_canary: VerifiedTenantRootProviderCanaryReceiptV1,
-    ed25519_canary: VerifiedTenantRootProviderCanaryReceiptV1,
-    expected_control_plane_revision: u64,
-    result_control_plane_revision: u64,
-) -> RouterAbDerivationResult<ActivationEvidenceBundlePartsV1> {
-    validate_revisions(
-        expected_control_plane_revision,
-        result_control_plane_revision,
-        "tenant-root initial activation evidence",
-    )?;
-    let (identity_digest, custody_lineage, epochs, context_digest) = validate_installation_scope(
-        &deriver_a_installation,
-        &deriver_b_installation,
-        TenantRootActivationReceiptTransitionV1::InitialCreation,
-    )?;
-    let commitments =
-        TenantRootEpochCommitmentsV1::from_verified(verify_tenant_root_creation_evidence_v1(
-            deriver_a_installation.evidence(),
-            deriver_b_installation.evidence(),
-        )?)?;
-    let installation_receipts =
-        installation_receipts(&deriver_a_installation, &deriver_b_installation)?;
-    let backup_policy = validate_availability(
-        &availability,
-        identity_digest,
-        custody_lineage,
-        TenantRootShareEpoch::INITIAL,
-        &commitments,
-        &installation_receipts,
-        deriver_a_installation.evidence().transcript().context(),
-        expected_control_plane_revision,
-        result_control_plane_revision,
-    )?;
-    let canary_receipts = validate_canaries(
-        &ecdsa_canary,
-        &ed25519_canary,
-        identity_digest,
-        custody_lineage,
-        TenantRootActivationReceiptTransitionV1::InitialCreation,
-        TenantRootShareEpoch::INITIAL,
-        &commitments,
-        &deriver_a_installation,
-    )?;
-    Ok(ActivationEvidenceBundlePartsV1 {
-        deriver_a_installation,
-        deriver_b_installation,
-        availability,
-        ecdsa_canary,
-        ed25519_canary,
-        identity_digest,
-        custody_lineage,
-        epochs,
-        context_digest,
-        expected_control_plane_revision,
-        result_control_plane_revision,
-        commitments,
-        installation_receipts,
-        backup_policy,
-        canary_receipts,
-    })
+/// The ceremony whose installation evidence an activation bundle verifies.
+#[derive(Clone, Copy)]
+enum ActivationEvidenceCeremonyV1<'a> {
+    Creation,
+    Refresh {
+        current_commitments: &'a TenantRootEpochCommitmentsV1,
+    },
 }
 
 #[allow(clippy::too_many_arguments)]
-fn build_refresh_evidence(
-    current_commitments: &TenantRootEpochCommitmentsV1,
+fn build_activation_evidence(
+    ceremony: ActivationEvidenceCeremonyV1<'_>,
     deriver_a_installation: VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
     deriver_b_installation: VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
     availability: TenantRootActivationAvailabilityEvidenceV1,
@@ -953,34 +799,57 @@ fn build_refresh_evidence(
     expected_control_plane_revision: u64,
     result_control_plane_revision: u64,
 ) -> RouterAbDerivationResult<ActivationEvidenceBundlePartsV1> {
+    let (transition, prefix) = match ceremony {
+        ActivationEvidenceCeremonyV1::Creation => (
+            TenantRootActivationReceiptTransitionV1::InitialCreation,
+            "tenant-root initial activation evidence",
+        ),
+        ActivationEvidenceCeremonyV1::Refresh { .. } => (
+            TenantRootActivationReceiptTransitionV1::RefreshSwap,
+            "tenant-root refresh activation evidence",
+        ),
+    };
     validate_revisions(
         expected_control_plane_revision,
         result_control_plane_revision,
-        "tenant-root refresh activation evidence",
+        prefix,
     )?;
-    let (identity_digest, custody_lineage, epochs, context_digest) = validate_installation_scope(
-        &deriver_a_installation,
-        &deriver_b_installation,
-        TenantRootActivationReceiptTransitionV1::RefreshSwap,
-    )?;
-    let TenantRootCeremonyEpochsV1::Refresh { next, .. } = epochs else {
-        return Err(malformed(
-            "tenant-root refresh activation evidence scope has no refresh epochs",
-        ));
+    let (identity_digest, custody_lineage, epochs, context_digest) =
+        validate_installation_scope(&deriver_a_installation, &deriver_b_installation, transition)?;
+    let (target_epoch, verified_commitments) = match ceremony {
+        ActivationEvidenceCeremonyV1::Creation => (
+            TenantRootShareEpoch::INITIAL,
+            verify_tenant_root_creation_evidence_v1(
+                deriver_a_installation.evidence(),
+                deriver_b_installation.evidence(),
+            )?,
+        ),
+        ActivationEvidenceCeremonyV1::Refresh {
+            current_commitments,
+        } => {
+            let TenantRootCeremonyEpochsV1::Refresh { next, .. } = epochs else {
+                return Err(malformed(
+                    "tenant-root refresh activation evidence scope has no refresh epochs",
+                ));
+            };
+            (
+                next,
+                verify_tenant_root_refresh_evidence_v1(
+                    &current_commitments.threshold_pair()?,
+                    deriver_a_installation.evidence(),
+                    deriver_b_installation.evidence(),
+                )?,
+            )
+        }
     };
-    let commitments =
-        TenantRootEpochCommitmentsV1::from_verified(verify_tenant_root_refresh_evidence_v1(
-            &current_commitments.threshold_pair()?,
-            deriver_a_installation.evidence(),
-            deriver_b_installation.evidence(),
-        )?)?;
+    let commitments = TenantRootEpochCommitmentsV1::from_verified(verified_commitments)?;
     let installation_receipts =
         installation_receipts(&deriver_a_installation, &deriver_b_installation)?;
     let backup_policy = validate_availability(
         &availability,
         identity_digest,
         custody_lineage,
-        next,
+        target_epoch,
         &commitments,
         &installation_receipts,
         deriver_a_installation.evidence().transcript().context(),
@@ -992,8 +861,8 @@ fn build_refresh_evidence(
         &ed25519_canary,
         identity_digest,
         custody_lineage,
-        TenantRootActivationReceiptTransitionV1::RefreshSwap,
-        next,
+        transition,
+        target_epoch,
         &commitments,
         &deriver_a_installation,
     )?;

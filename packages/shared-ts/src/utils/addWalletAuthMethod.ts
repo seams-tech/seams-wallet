@@ -1,5 +1,5 @@
 /**
- * Refactor 109C — the internal contract for same-device auth-method addition.
+ * The internal contract for same-device auth-method addition.
  *
  * One product action ("Add authentication method") has exactly two branches:
  * a Passkey-only authority adds Email OTP, or an Email-OTP-only authority adds
@@ -32,10 +32,11 @@ import {
   type WalletId,
 } from './domainIds';
 import type {
+  ActiveWalletAuthMethodRecordV2,
   EmailOtpWalletAuthMethodDraftV1,
   PasskeyWalletAuthMethodDraftV1,
   WalletAuthMethodRecordV2,
-} from './registrationIntent';
+} from './walletAuthMethodRecord';
 import type { WalletAuthMethod } from './signerDomain';
 
 /**
@@ -70,7 +71,7 @@ export type AddWalletAuthMethodBranchV1 = 'passkey_to_email_otp' | 'email_otp_to
  * being read as any other integer on the authority — a signer slot, a counter,
  * a timestamp — at the boundaries where all of them arrive as bare numbers.
  */
-export type WalletAuthorityRevocationEpochV1 = number & {
+type WalletAuthorityRevocationEpochV1 = number & {
   readonly __walletAuthorityRevocationEpochBrand: 'WalletAuthorityRevocationEpochV1';
 };
 
@@ -79,7 +80,7 @@ export type WalletAuthorityRevocationEpochV1 = number & {
  * target method ID to it, and a client request can neither nominate nor
  * substitute one.
  */
-export type AddWalletAuthMethodCeremonyIdV1 = string & {
+type AddWalletAuthMethodCeremonyIdV1 = string & {
   readonly __addWalletAuthMethodCeremonyIdBrand: 'AddWalletAuthMethodCeremonyIdV1';
 };
 
@@ -198,67 +199,6 @@ export type VerifiedAddWalletAuthMethodInputV1 =
       readonly target: VerifiedPasskeyTargetV1;
     });
 
-export type AddWalletAuthMethodFailureReasonV1 =
-  | 'source_session_not_selected'
-  | 'source_method_not_active'
-  | 'source_authority_not_active'
-  | 'source_authority_not_full_owner'
-  | 'source_authority_changed'
-  | 'local_installation_incomplete'
-  | 'source_proof_rejected'
-  | 'target_factor_rejected'
-  | 'target_family_present'
-  | 'intent_expired'
-  | 'intent_digest_mismatch'
-  | 'identity_mismatch'
-  | 'custody_reseal_failed'
-  | 'local_persistence_failed'
-  | 'activation_conflict';
-
-/**
- * The one result union both SDK entry points return. UI control flow switches
- * on `kind`; `reason` and `message` are display and diagnostic data and never
- * select a code path.
- */
-export type AddWalletAuthMethodResultV1 =
-  | {
-      readonly kind: 'active';
-      readonly branch: AddWalletAuthMethodBranchV1;
-      readonly walletId: WalletId;
-      readonly walletAuthorityId: WalletAuthorityId;
-      readonly walletAuthMethodId: WalletAuthMethodId;
-      readonly family: WalletAuthMethodFamilyV1;
-      readonly sourceWalletAuthMethodId: WalletAuthMethodId;
-      readonly sourceWalletSessionId: WalletSessionId;
-    }
-  | {
-      readonly kind: 'already_configured';
-      readonly walletId: WalletId;
-      readonly walletAuthorityId: WalletAuthorityId;
-      readonly family: WalletAuthMethodFamilyV1;
-      readonly existingWalletAuthMethodId: WalletAuthMethodId;
-    }
-  | { readonly kind: 'cancelled'; readonly branch: AddWalletAuthMethodBranchV1 }
-  | { readonly kind: 'expired'; readonly branch: AddWalletAuthMethodBranchV1 }
-  | {
-      readonly kind: 'unauthorized';
-      readonly branch: AddWalletAuthMethodBranchV1;
-      readonly reason: AddWalletAuthMethodFailureReasonV1;
-      readonly message: string;
-    }
-  | {
-      readonly kind: 'target_verification_failed';
-      readonly branch: AddWalletAuthMethodBranchV1;
-      readonly reason: AddWalletAuthMethodFailureReasonV1;
-      readonly message: string;
-    }
-  | {
-      readonly kind: 'integrity_error';
-      readonly branch: AddWalletAuthMethodBranchV1;
-      readonly reason: AddWalletAuthMethodFailureReasonV1;
-      readonly message: string;
-    };
-
 /**
  * Admission: what the operation does before it verifies anything.
  *
@@ -267,7 +207,7 @@ export type AddWalletAuthMethodResultV1 =
  * holds. Resolving it here is what keeps the promise that a present family
  * never reaches target verification or a local write.
  */
-export type AddWalletAuthMethodAdmissionV1 =
+type AddWalletAuthMethodAdmissionV1 =
   | { readonly kind: 'proceed'; readonly branch: AddWalletAuthMethodBranchV1 }
   | {
       readonly kind: 'already_configured';
@@ -320,12 +260,9 @@ export function addWalletAuthMethodSourceFamily(
  * which is why the operation needs no same-family rejection of its own.
  */
 export function admitAddWalletAuthMethod(input: {
-  readonly sourceMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+  readonly sourceMethod: ActiveWalletAuthMethodRecordV2;
   readonly targetFamily: WalletAuthMethodFamilyV1;
-  readonly activeMethodsOnAuthority: readonly Extract<
-    WalletAuthMethodRecordV2,
-    { readonly status: 'active' }
-  >[];
+  readonly activeMethodsOnAuthority: readonly ActiveWalletAuthMethodRecordV2[];
 }): AddWalletAuthMethodAdmissionV1 {
   const present = input.activeMethodsOnAuthority.find(
     (method) => method.kind === input.targetFamily,
@@ -385,7 +322,7 @@ function requireBrandedId<T>(
  * the resolved session and authority, so a caller cannot widen the source by
  * supplying an extra one.
  */
-export function parseAddWalletAuthMethodSourceV1(raw: {
+function parseAddWalletAuthMethodSourceV1(raw: {
   readonly walletId: unknown;
   readonly walletAuthorityId: unknown;
   readonly sourceWalletAuthMethodId: unknown;
@@ -414,7 +351,7 @@ export function parseAddWalletAuthMethodSourceV1(raw: {
   };
 }
 
-export function parseAddWalletAuthMethodIntentIdentityV1(raw: {
+function parseAddWalletAuthMethodIntentIdentityV1(raw: {
   readonly addAuthMethodCeremonyId: unknown;
   readonly intentDigestB64u: unknown;
   readonly targetWalletAuthMethodId: unknown;
@@ -431,107 +368,4 @@ export function parseAddWalletAuthMethodIntentIdentityV1(raw: {
     ),
     expiresAtMs,
   };
-}
-
-function assertBranchIdentitiesAgree(input: {
-  readonly source: AddWalletAuthMethodSourceV1;
-  readonly intent: AddWalletAuthMethodIntentIdentityV1;
-  readonly sourceProof: VerifiedAddWalletAuthMethodSourceProofV1;
-  readonly target: VerifiedAddWalletAuthMethodTargetV1;
-}): void {
-  if (input.sourceProof.walletAuthMethodId !== input.source.sourceWalletAuthMethodId) {
-    throw new Error('add-auth-method source proof names another auth method');
-  }
-  if (input.sourceProof.boundIntentDigestB64u !== input.intent.intentDigestB64u) {
-    throw new Error('add-auth-method source proof is bound to another intent');
-  }
-  if (input.target.authMethod.walletId !== input.source.walletId) {
-    throw new Error('add-auth-method target draft names another wallet');
-  }
-  if (input.target.authMethod.walletAuthMethodId !== input.intent.targetWalletAuthMethodId) {
-    throw new Error('add-auth-method target draft names another auth method');
-  }
-}
-
-/**
- * Branch-specific builders rather than one constructor with a `branch`
- * parameter: each accepts only the proof and target its branch can hold, so a
- * mismatched pair is a compile error at the call site instead of a runtime
- * check inside the operation.
- */
-export function buildPasskeyToEmailOtpAdditionV1(input: {
-  readonly source: AddWalletAuthMethodSourceV1;
-  readonly intent: AddWalletAuthMethodIntentIdentityV1;
-  readonly sourceProof: VerifiedPasskeySourceProofV1;
-  readonly target: VerifiedEmailOtpTargetV1;
-}): Extract<VerifiedAddWalletAuthMethodInputV1, { readonly branch: 'passkey_to_email_otp' }> {
-  assertBranchIdentitiesAgree(input);
-  return {
-    branch: 'passkey_to_email_otp',
-    source: input.source,
-    intent: input.intent,
-    sourceProof: input.sourceProof,
-    target: input.target,
-  };
-}
-
-export function buildEmailOtpToPasskeyAdditionV1(input: {
-  readonly source: AddWalletAuthMethodSourceV1;
-  readonly intent: AddWalletAuthMethodIntentIdentityV1;
-  readonly sourceProof: VerifiedEmailOtpSourceProofV1;
-  readonly target: VerifiedPasskeyTargetV1;
-}): Extract<VerifiedAddWalletAuthMethodInputV1, { readonly branch: 'email_otp_to_passkey' }> {
-  assertBranchIdentitiesAgree(input);
-  return {
-    branch: 'email_otp_to_passkey',
-    source: input.source,
-    intent: input.intent,
-    sourceProof: input.sourceProof,
-    target: input.target,
-  };
-}
-
-/**
- * The exact active record the activation stage inserts.
- *
- * It reuses the source authority and the server-allocated target method ID,
- * and it is built from the verified target draft alone — no field is carried
- * across from the source method, which is what keeps addition from copying
- * permissions, activations, or credential identity onto the new method.
- */
-export function buildAddedWalletAuthMethodRecordV2Input(input: {
-  readonly verified: VerifiedAddWalletAuthMethodInputV1;
-  readonly nowMs: number;
-}): WalletAuthMethodRecordV2 {
-  const activatedAtMs = requireSafeNonNegativeInteger(input.nowMs, 'nowMs');
-  const common = {
-    version: 'wallet_auth_method_v2',
-    walletAuthMethodId: input.verified.intent.targetWalletAuthMethodId,
-    walletId: input.verified.source.walletId,
-    walletAuthorityId: input.verified.source.walletAuthorityId,
-    status: 'active',
-    createdAtMs: input.verified.target.authMethod.createdAtMs,
-    updatedAtMs: activatedAtMs,
-    activatedAtMs,
-  } as const;
-  switch (input.verified.branch) {
-    case 'passkey_to_email_otp':
-      return {
-        ...common,
-        kind: 'email_otp',
-        emailHashHex: input.verified.target.authMethod.emailHashHex,
-        registrationAuthorityId: input.verified.target.authMethod.registrationAuthorityId,
-      };
-    case 'email_otp_to_passkey':
-      return {
-        ...common,
-        kind: 'passkey',
-        rpId: input.verified.target.authMethod.rpId,
-        credentialIdB64u: input.verified.target.authMethod.credentialIdB64u,
-        credentialPublicKeyB64u: input.verified.target.authMethod.credentialPublicKeyB64u,
-        counter: input.verified.target.authMethod.counter,
-      };
-    default:
-      return unreachableAddWalletAuthMethodBranch(input.verified);
-  }
 }

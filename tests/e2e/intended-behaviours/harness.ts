@@ -7,6 +7,7 @@ import {
   expect,
   test as base,
   type APIRequestContext,
+  type Browser,
   type BrowserContext,
   type CDPSession,
   type Frame,
@@ -21,7 +22,10 @@ import {
 import * as ed25519 from '@noble/ed25519';
 import { base58Decode, base64UrlEncode } from '@shared/utils/encoders';
 import { decodeWalletRecoveryCode } from '@shared/wallet-recovery/recoveryCodes';
-import { createReadableWalletId } from '@shared/utils/registrationIntent';
+import { computeWalletAuthMethodRevokeOperationFingerprintV1 } from '@shared/utils/walletAuthMethodRecord';
+import { createReadableWalletId, walletIdFromString } from '@shared/utils/registrationIds';
+import { parseWalletAuthMethodId } from '@shared/utils/domainIds';
+import { parseQrLinkedDeviceSessionPayloadV5 } from '@shared/device-linking/parsers';
 import {
   ROUTER_AB_ED25519_YAO_EXPORT_ADMISSION_PATH_V1,
   ROUTER_AB_ED25519_YAO_EXPORT_EXECUTE_PATH_V1,
@@ -64,6 +68,7 @@ export type IntendedChainTarget = 'near' | 'tempo' | 'arc_evm';
 export type IntendedSigningStage =
   | 'post_registration'
   | 'post_unlock'
+  | 'post_device_link'
   | 'after_refresh_recovery'
   | 'step_up_required';
 
@@ -96,6 +101,7 @@ type IntendedHarnessAction =
   | 'registerPasskeyEd25519YaoWallet'
   | 'registerPasskeyEcdsaOnlyWallet'
   | 'addPasskeyEd25519YaoWalletSigner'
+  | 'addPasskeyEcdsaWalletSigner'
   | 'addEmailOtpAuthMethod'
   | 'addPasskeyAuthMethod'
   | 'registerEmailOtpWallet'
@@ -113,7 +119,11 @@ type IntendedHarnessAction =
   | 'signTempoTransaction'
   | 'signArcEvmTransaction'
   | 'exportEd25519Key'
-  | 'exportEcdsaKey';
+  | 'exportEcdsaKey'
+  | 'startDeviceLinkingAsTarget'
+  | 'scanAndLinkDevice'
+  | 'revokeLinkedDevice'
+  | 'revokeLinkedDeviceWithEmailOtp';
 
 const GOOGLE_ID_TOKEN_ACTIONS: ReadonlySet<IntendedHarnessAction> = new Set([
   'addEmailOtpAuthMethod',
@@ -122,7 +132,14 @@ const GOOGLE_ID_TOKEN_ACTIONS: ReadonlySet<IntendedHarnessAction> = new Set([
   'registerEmailOtpEcdsaOnlyWallet',
   'unlockWithAddedEmailOtp',
   'unlockEmailOtpWallet',
+  'revokeLinkedDeviceWithEmailOtp',
 ]);
+
+/** Test hooks into one signing action's lifecycle. */
+type IntendedSigningActionHooks = {
+  /** Runs as soon as the page reports the action started. */
+  readonly onActionStarted?: () => void;
+};
 
 type TraceEntry = {
   atMs: number;
@@ -130,11 +147,6 @@ type TraceEntry = {
   message: string;
   url?: string;
   status?: number;
-};
-
-type WebAuthnVirtualAuthenticatorHandle = {
-  readonly client: CDPSession;
-  readonly authenticatorId: string;
 };
 
 const WEB_AUTHN_VIRTUAL_AUTHENTICATOR_OPTIONS = {
@@ -172,11 +184,55 @@ const ROUTER_AB_ED25519_YAO_REGISTRATION_PATHS = [
 const LOCAL_INTENDED_YAO_FAULT_HEADER_V1 = 'x-seams-intended-yao-fault-v1';
 const LOCAL_INTENDED_YAO_FAULT_TOKEN_HEADER_V1 = 'x-seams-intended-yao-fault-token-v1';
 const LOCAL_INTENDED_YAO_FAULT_PROOF_HEADER_V1 = 'x-seams-intended-yao-fault-proof-v1';
+const LOCAL_INTENDED_YAO_FINALIZE_FAULT_HEADER_V1 = 'x-seams-intended-yao-finalize-fault-v1';
+const LOCAL_INTENDED_YAO_FINALIZE_FAULT_TOKEN_HEADER_V1 =
+  'x-seams-intended-yao-finalize-fault-token-v1';
+const WALLET_REGISTRATION_NEAR_PROVISIONING_PATH_V1 = '/wallets/register/near-provisioning';
+const LOCAL_INTENDED_YAO_RECOVERY_FAULT_HEADER_V1 = 'x-seams-intended-yao-recovery-fault-v1';
+const LOCAL_INTENDED_YAO_RECOVERY_FAULT_TOKEN_HEADER_V1 =
+  'x-seams-intended-yao-recovery-fault-token-v1';
+const LOCAL_INTENDED_YAO_SIGNING_FAULT_HEADER_V1 = 'x-seams-intended-yao-signing-fault-v1';
+const LOCAL_INTENDED_YAO_SIGNING_FAULT_TOKEN_HEADER_V1 =
+  'x-seams-intended-yao-signing-fault-token-v1';
+const ROUTER_AB_ED25519_SIGNING_FINALIZE_PATH = '/router-ab/ed25519/sign';
+const GOOGLE_EMAIL_OTP_VERIFY_PATH_V1 = '/auth/google/verify';
+/* The Gateway steps of an Email OTP unlock after Google verification. */
+const EMAIL_OTP_UNLOCK_GATEWAY_PATHS_V1: ReadonlySet<string> = new Set([
+  '/wallet/email-otp/challenge',
+  '/wallet/email-otp/factor-release',
+  '/wallet/unlock/verify',
+]);
+const LOCAL_INTENDED_LINK_EXECUTE_FAULT_HEADER_V1 = 'x-seams-intended-link-execute-fault-v1';
+const LOCAL_INTENDED_LINK_EXECUTE_FAULT_TOKEN_HEADER_V1 =
+  'x-seams-intended-link-execute-fault-token-v1';
+const LOCAL_INTENDED_LINK_EXECUTE_FAULT_PROOF_HEADER_V1 =
+  'x-seams-intended-link-execute-fault-proof-v1';
+const LOCAL_INTENDED_REVOKE_FAULT_HEADER_V1 = 'x-seams-intended-revoke-fault-v1';
+const LOCAL_INTENDED_REVOKE_FAULT_TOKEN_HEADER_V1 = 'x-seams-intended-revoke-fault-token-v1';
+const LOCAL_INTENDED_REVOKE_FAULT_PROOF_HEADER_V1 = 'x-seams-intended-revoke-fault-proof-v1';
+/* The SigningWorker's refusal of an activation a recovery replaced. */
+const SIGNING_WORKER_ACTIVATION_RETIRED_MESSAGE = 'SigningWorker activation is retired';
+const SIGNING_WORKER_ACTIVATION_RETIRED_AT_COMMIT_MESSAGE =
+  'SigningWorker activation is retired: retired after this finalize loaded its material, before it committed';
+const LOCAL_INTENDED_YAO_EXPORT_FAULT_HEADER_V1 = 'x-seams-intended-yao-export-fault-v1';
+const LOCAL_INTENDED_YAO_EXPORT_FAULT_TOKEN_HEADER_V1 =
+  'x-seams-intended-yao-export-fault-token-v1';
+/* The Gateway's side-effect journal lets a retry take an unfinished NEAR
+   finalize over only after this long. */
+const WALLET_REGISTRATION_NEAR_PROVISIONING_RESUME_AFTER_MS = 30_000;
 const LOCAL_INTENDED_YAO_ROUTER_ORIGIN_V1 = 'http://127.0.0.1:4100';
 
 type IntendedYaoFaultModeV1 = 'drop_router_response_once' | 'return_terminal_burned_once';
 
-type IntendedYaoFaultProofV1 = 'exact_request_replayed' | 'terminal_failure_not_retried';
+type IntendedYaoFaultProofV1 =
+  | 'exact_request_replayed'
+  | 'terminal_failure_not_retried'
+  | 'decision_committed_then_storage_lost'
+  | 'recovery_replies_lost_after_router_executed'
+  | 'recovery_execute_withheld'
+  | 'export_authorization_committed_then_storage_lost'
+  | 'signing_finalize_captured'
+  | 'signing_finalize_withheld';
 
 type IntendedYaoFaultInjectionStateV1 =
   | {
@@ -301,6 +357,10 @@ declare global {
     ) => Promise<string>;
     __seamsIntendedConcurrentActionObserver?: IntendedConcurrentActionObserver;
     __seamsIntendedE2ELockWallet?: () => Promise<void>;
+    __seamsIntendedNearHydrationHold?: {
+      readonly isHeld: () => boolean;
+      readonly release: (spoil: boolean) => void;
+    };
     __seamsIntendedE2EReadWalletLockState?: () => Promise<{
       authenticationKind: 'authenticated' | 'signed_out';
     }>;
@@ -308,7 +368,27 @@ declare global {
       ownerDeviceCount: number;
       linkedDeviceCount: number;
     }>;
+    /** The linked-device inventory, parsed strictly by the contract. */
+    __seamsIntendedE2EReadLinkedDevices?: () => Promise<unknown>;
+    /** The QR payload Device 1 "scans"; the contract has no camera. */
+    __seamsIntendedE2EDeviceLinkQrPayloadJson?: string;
+    /** The exact revocation Device 1 submits, with its fresh source proof. */
+    __seamsIntendedE2ELinkedDeviceRevocationJson?: string;
   }
+}
+
+async function readLinkedDevicesFromIntendedPage(): Promise<unknown> {
+  const read = window.__seamsIntendedE2EReadLinkedDevices;
+  if (!read) throw new Error('linked-device inventory helper is unavailable');
+  return await read();
+}
+
+function presentDeviceLinkQrToIntendedPage(qrPayloadJson: string): void {
+  window.__seamsIntendedE2EDeviceLinkQrPayloadJson = qrPayloadJson;
+}
+
+function presentLinkedDeviceRevocationToIntendedPage(revocationJson: string): void {
+  window.__seamsIntendedE2ELinkedDeviceRevocationJson = revocationJson;
 }
 
 async function readAuthenticationMethodsFromIntendedPage(): Promise<{
@@ -463,6 +543,11 @@ type Ed25519AddSignerResultSnapshot = {
   operationalPublicKey: string;
 };
 
+type EcdsaAddSignerResultSnapshot = {
+  kind: 'ecdsa_signer_added';
+  walletId: string;
+} & EcdsaEnabledSnapshot;
+
 type EmailOtpRegistrationCoreSnapshot = {
   kind: 'email_otp_registration_success';
   initialWalletId: string;
@@ -604,9 +689,68 @@ type AddedEmailOtpUnlockResultSnapshot = {
   authenticationKind: 'authenticated';
 };
 
+/* Device 2 does not know the wallet until the link names it. */
+type DeviceLinkQrReadySnapshot = {
+  kind: 'device_link_qr_ready';
+  linkSessionId: string;
+  qrPayloadJson: string;
+  walletId?: never;
+};
+
+type DeviceLinkApprovalRecordedSnapshot = {
+  kind: 'device_link_approval_recorded';
+  walletId: string;
+  enrollmentId: string;
+  deviceId: string;
+};
+
+/** Device 2's settled link, read from page state rather than an action. */
+type DeviceLinkActiveSnapshot = {
+  linkSessionId: string;
+  walletId: string;
+  enrollmentId: string;
+  sessionWalletAuthMethodId: string;
+  /* Null for a wallet whose signer set has no Ed25519. */
+  nearAccountId: string | null;
+  operationalPublicKey: string | null;
+  authenticationKind: 'authenticated';
+};
+
+type LinkedDeviceRevokedSnapshot = {
+  kind: 'linked_device_revoked';
+  walletId: string;
+  walletAuthMethodId: string;
+  authorityId: string;
+  revocationEpoch: number;
+};
+
+type LinkedDeviceOwnerMethodSnapshot = {
+  readonly walletAuthMethodId: string;
+  readonly credentialKind: 'passkey' | 'email_otp';
+  readonly credentialIdB64u: string | null;
+};
+
+type LinkedDeviceEntrySnapshot = {
+  readonly deviceId: string;
+  readonly enrollmentId: string;
+  readonly walletId: string;
+  readonly walletAuthMethodId: string;
+  readonly credentialKind: 'passkey' | 'email_otp';
+  readonly state: 'provisioning' | 'active' | 'suspended' | 'expired' | 'revoked';
+};
+
+type LinkedDeviceInventorySnapshot = {
+  readonly ownerDevices: readonly LinkedDeviceOwnerMethodSnapshot[];
+  readonly devices: readonly LinkedDeviceEntrySnapshot[];
+};
+
 type IntendedActionResultSnapshot =
+  | DeviceLinkQrReadySnapshot
+  | DeviceLinkApprovalRecordedSnapshot
+  | LinkedDeviceRevokedSnapshot
   | PasskeyRegistrationResultSnapshot
   | Ed25519AddSignerResultSnapshot
+  | EcdsaAddSignerResultSnapshot
   | AddEmailOtpAuthMethodResultSnapshot
   | AddedEmailOtpUnlockResultSnapshot
   | RevokeAuthMethodResultSnapshot
@@ -726,6 +870,10 @@ type SigningAuthEventSummary = {
   authenticationMethods: readonly SigningAuthMethod[];
   remainingUses: readonly number[];
   warmSessionClaimed: boolean;
+  /** Every warm claim came from an active Wallet Authority, whose budget the
+      server keeps: that plan carries no remaining uses. A warm-session plan
+      promises them, so any warm-session claim keeps the check. */
+  activeWalletAuthorityClaimed: boolean;
   passkeyPromptStarted: boolean;
   passkeyPromptSucceeded: boolean;
   passkeyAuthenticationComplete: boolean;
@@ -870,18 +1018,22 @@ function intendedLifecycleTraceDirectory(testInfo: TestInfo): string {
 function intendedLifecycleTraceFilePath(args: {
   testInfo: TestInfo;
   payload: IntendedLifecycleTracePayload;
+  attachmentName: string;
 }): string {
   const walletId = args.payload.walletId
     ? safeTraceFileSegment(args.payload.walletId)
     : 'no-wallet';
   const flow = safeTraceFileSegment(args.payload.flow);
-  const fileName = `${Date.now()}-${flow}-${walletId}-intended-lifecycle-trace.json`;
+  /* The devices of one linking contract share a wallet and can close in the
+     same millisecond; the attachment name keeps their traces apart. */
+  const fileName = `${Date.now()}-${flow}-${walletId}-${safeTraceFileSegment(args.attachmentName)}`;
   return path.join(intendedLifecycleTraceDirectory(args.testInfo), fileName);
 }
 
 async function persistIntendedLifecycleTrace(args: {
   testInfo: TestInfo;
   payload: IntendedLifecycleTracePayload;
+  attachmentName: string;
 }): Promise<void> {
   if (!shouldPersistIntendedLifecycleTrace()) return;
   const filePath = intendedLifecycleTraceFilePath(args);
@@ -1020,8 +1172,6 @@ export class IntendedBehaviourHarness {
 
   private readonly violations: string[] = [];
 
-  private webAuthnVirtualAuthenticator: WebAuthnVirtualAuthenticatorHandle | null = null;
-
   private emailOtpVerificationCount = 0;
 
   /** Set by an auth-method addition, which uses one family to add the other. */
@@ -1072,6 +1222,31 @@ export class IntendedBehaviourHarness {
   private intendedYaoFaultInjection: IntendedYaoFaultInjectionStateV1 = { kind: 'idle' };
 
   private readonly intendedYaoFaultProofs: string[] = [];
+  /** Armed once: the next NEAR finalize loses the Gateway's storage after its decision. */
+  private intendedYaoFinalizeFaultToken: string | null = null;
+  /** Armed once: the next recovery execution loses every Router reply, or is kept from it. */
+  private intendedYaoRecoveryFault: {
+    readonly mode: 'lose_router_recovery_replies' | 'withhold_router_recovery_execute';
+    readonly token: string;
+  } | null = null;
+
+  /** Armed once: the next export admission loses storage after its authorization commits. */
+  private intendedYaoExportFaultToken: string | null = null;
+
+  /** Armed for one NEAR signature: every finalize of it is kept, run or withheld. */
+  private intendedYaoSigningFault: {
+    readonly mode: 'capture_signing_finalize' | 'withhold_signing_finalize';
+    readonly token: string;
+  } | null = null;
+
+  /** The next device of a device-link contract, opened and closed by this one. */
+  private linkedDevice: {
+    readonly harness: IntendedBehaviourHarness;
+    readonly context: BrowserContext;
+  } | null = null;
+
+  /** This device's place in a device-link contract: Device 1 registered the wallet. */
+  private deviceNumber = 1;
 
   constructor(args: {
     context: BrowserContext;
@@ -1154,6 +1329,553 @@ export class IntendedBehaviourHarness {
     );
   }
 
+  /**
+   * Opens the next device for this wallet: a fresh browser context with its
+   * own storage and its own virtual authenticator. It shares nothing with the
+   * devices already open except the wallet it is about to join, which is why
+   * it starts on the same wallet id and no credential. A linked device opens
+   * the device it will approve in turn.
+   */
+  async openLinkedDevice(browser: Browser): Promise<IntendedBehaviourHarness> {
+    this.recordStage('open_linked_device');
+    requireLinkableRegisteredWallet(this.requireRegisteredWalletForSigning());
+    const deviceNumber = this.deviceNumber + 1;
+    if (this.linkedDevice) throw new Error(`Device ${deviceNumber} is already open`);
+    const context = await browser.newContext();
+    try {
+      if (this.networkMode === 'external_staging') {
+        await installHostedBenchmarkAccess(context);
+      }
+      const page = await context.newPage();
+      const device2 = new IntendedBehaviourHarness({
+        context,
+        flow: this.flow,
+        networkMode: this.networkMode,
+        page,
+        request: this.request,
+      });
+      device2.walletId = this.walletId;
+      device2.deviceNumber = deviceNumber;
+      this.linkedDevice = { harness: device2, context };
+      await device2.initialize();
+      this.recordService(
+        `Device ${deviceNumber} opened with its own storage and virtual authenticator`,
+      );
+      return device2;
+    } catch (error) {
+      if (!this.linkedDevice) await context.close();
+      throw error;
+    }
+  }
+
+  /**
+   * Fixture teardown: attach the linked device's trace, apply its guards,
+   * close it. A device it linked in turn closes first.
+   */
+  async closeLinkedDevice(testInfo: TestInfo): Promise<void> {
+    const linked = this.linkedDevice;
+    if (!linked) return;
+    this.linkedDevice = null;
+    try {
+      await linked.harness.closeLinkedDevice(testInfo);
+      await linked.harness.attachTrace(
+        testInfo,
+        `device-${linked.harness.deviceNumber}-intended-lifecycle-trace.json`,
+      );
+      linked.harness.assertNoLifecycleViolations();
+      linked.harness.assertNoWrongAuthPath();
+    } finally {
+      await linked.context.close();
+    }
+  }
+
+  /**
+   * Device 2 shows a link QR, Device 1 approves the scanned payload, and
+   * Device 2 answers its own passkey prompt. Both sides run at once, as they
+   * do for a user holding two devices.
+   *
+   * Linking must add exactly one device-link authority with a fresh method,
+   * leave Device 1's founding method untouched, and hand Device 2 a Wallet
+   * Session whose NEAR identity is the wallet's existing one.
+   */
+  async linkDeviceWithPasskey(device2: IntendedBehaviourHarness): Promise<void> {
+    this.recordStage('device_link_with_passkey');
+    const target = `Device ${device2.deviceNumber}`;
+    if (this.linkedDevice?.harness !== device2) {
+      throw new Error(`${target} must be opened by this Device ${this.deviceNumber} harness`);
+    }
+    const registration = requireLinkableRegisteredWallet(this.requireRegisteredWalletForSigning());
+    const before = await this.readLinkedDeviceInventory();
+    /* Device 1 links first; each later link comes from the device linked
+       just before it, so the wallet lists one linked device per earlier link. */
+    if (before.devices.length !== this.deviceNumber - 1) {
+      throw new Error(
+        `wallet lists ${before.devices.length} linked devices before linking ${target}`,
+      );
+    }
+    const owner = requireSingleOwnerPasskey(before);
+
+    const qr = await device2.showDeviceLinkQr();
+    await this.ensureIntendedPageOpen();
+    await this.page.evaluate(presentDeviceLinkQrToIntendedPage, qr.qrPayloadJson);
+    const approvalRun = this.runIntendedPageAction(
+      'scanAndLinkDevice',
+      'intended-device-link-scan',
+    );
+    const activationRun = device2.waitForDeviceLinkAsTarget(qr.linkSessionId);
+    /* Whichever side fails first names the failure. The other keeps running
+       only until teardown closes its page, so its rejection is observed here. */
+    approvalRun.catch(() => undefined);
+    activationRun.catch(() => undefined);
+    const [approvalSnapshot, active] = await Promise.all([approvalRun, activationRun]);
+    const approval = requireDeviceLinkApprovalResult(approvalSnapshot, this.walletId);
+    if (active.walletId !== this.walletId) {
+      throw new Error(`${target} joined wallet ${active.walletId}; expected ${this.walletId}`);
+    }
+    if (active.enrollmentId !== approval.enrollmentId) {
+      throw new Error(
+        `${target} activated enrollment ${active.enrollmentId}; Device ${this.deviceNumber} approved ${approval.enrollmentId}`,
+      );
+    }
+    if (active.sessionWalletAuthMethodId === owner.walletAuthMethodId) {
+      throw new Error(`${target}'s Wallet Session names Device 1's founding method`);
+    }
+    const walletNearAccountId = registration.nearAccountId ?? null;
+    const walletOperationalPublicKey = registration.operationalPublicKey ?? null;
+    if (
+      active.nearAccountId !== walletNearAccountId ||
+      active.operationalPublicKey !== walletOperationalPublicKey
+    ) {
+      throw new Error(
+        `${target} holds NEAR ${active.nearAccountId}/${active.operationalPublicKey}; the wallet's is ${walletNearAccountId}/${walletOperationalPublicKey}`,
+      );
+    }
+
+    /* Linking adds exactly one device and leaves every earlier one as it was. */
+    const after = await this.readLinkedDeviceInventory();
+    const earlier = new Set(before.devices.map((device) => JSON.stringify(device)));
+    const [linked, ...extra] = after.devices.filter(
+      (device) => !earlier.has(JSON.stringify(device)),
+    );
+    if (!linked || extra.length > 0 || after.devices.length !== before.devices.length + 1) {
+      throw new Error(
+        `linking ${target} must add exactly one device: ${JSON.stringify(before.devices)} -> ${JSON.stringify(after.devices)}`,
+      );
+    }
+    if (
+      linked.deviceId !== approval.deviceId ||
+      linked.enrollmentId !== approval.enrollmentId ||
+      linked.walletAuthMethodId !== active.sessionWalletAuthMethodId ||
+      linked.credentialKind !== 'passkey' ||
+      linked.state !== 'active'
+    ) {
+      throw new Error(
+        `linked-device inventory does not name the device just linked: ${JSON.stringify(linked)}`,
+      );
+    }
+    assertOwnerDevicesUnchanged(before, after, 'Device linking');
+
+    /* A linked device signs with the wallet's public keys, so its signatures
+       are verified against Device 1's registration rather than anything the
+       linked device reports about itself. */
+    device2.registeredWallet = registration;
+    device2.nearSignerSlot = this.nearSignerSlot;
+    device2.passkeyPromptCount += 1;
+    this.recordService(
+      `device linked wallet=${this.walletId} device=${linked.deviceId} method=${linked.walletAuthMethodId}`,
+    );
+  }
+
+  /**
+   * Device 1: its next source-contribution execute reaches the Router, which
+   * runs Device 2's target registration and reserves its material, and the
+   * local Gateway then loses the Router's answer. The Gateway must send that
+   * same request again, marked as the Router's replay, and the Router must
+   * answer it from the run it already made, with the same reservation. The
+   * Gateway reports what it saw in a proof header.
+   */
+  async loseLinkExecuteRouterResponseOnce(): Promise<{
+    readonly release: () => Promise<void>;
+    readonly assertReplayed: () => void;
+  }> {
+    const executePath =
+      /\/wallet\/device-linking\/v1\/sessions\/[^/]+\/source-contribution\/execute$/;
+    const token = randomUUID();
+    let armed = true;
+    let proof: string | null = null;
+    const handler = async (route: Route): Promise<void> => {
+      const request = route.request();
+      if (
+        !armed ||
+        request.method() !== 'POST' ||
+        !executePath.test(new URL(request.url()).pathname)
+      ) {
+        await route.fallback();
+        return;
+      }
+      armed = false;
+      const response = await route.fetch({
+        headers: {
+          ...request.headers(),
+          [LOCAL_INTENDED_LINK_EXECUTE_FAULT_HEADER_V1]: 'drop_router_response_once',
+          [LOCAL_INTENDED_LINK_EXECUTE_FAULT_TOKEN_HEADER_V1]: token,
+        },
+      });
+      proof = response.headers()[LOCAL_INTENDED_LINK_EXECUTE_FAULT_PROOF_HEADER_V1] ?? null;
+      await route.fulfill({ response });
+    };
+    await this.context.route('**/source-contribution/execute', handler);
+    return {
+      release: async () => {
+        await this.context.unroute('**/source-contribution/execute', handler);
+      },
+      assertReplayed: () => {
+        const expected = `${token}:replay_answered_same_reservation`;
+        if (proof !== expected) {
+          throw new Error(
+            `linked-device execute expected the Router replay proof ${expected}, saw ${proof ?? 'none'}`,
+          );
+        }
+        this.recordService(
+          'linked-device execute lost its Router answer and replayed the reservation',
+        );
+      },
+    };
+  }
+
+  /**
+   * Device 2: lets its first successful activation reach the Gateway, which
+   * activates the linked authority and both curves' reserved material, then
+   * drops the response. Device 2 retries its committed delivery on its own;
+   * the retry must carry the same installation receipt and receive exactly
+   * the activation that was lost, never a second authority or session.
+   */
+  async loseLinkedActivationResponseOnce(): Promise<{
+    readonly release: () => Promise<void>;
+    readonly assertReplayed: () => void;
+  }> {
+    const receiptPath = /\/wallet\/device-linking\/v1\/sessions\/[^/]+\/receipt$/;
+    type Attempt = { readonly request: string; readonly body: string };
+    let lost: Attempt | null = null;
+    let replayed: Attempt | null = null;
+    const handler = async (route: Route): Promise<void> => {
+      const request = route.request();
+      const requestBody = request.postData() ?? '';
+      if (
+        request.method() !== 'POST' ||
+        !receiptPath.test(new URL(request.url()).pathname) ||
+        !requestBody.includes('"local_authority_installation_receipt_v1"')
+      ) {
+        await route.fallback();
+        return;
+      }
+      const response = await route.fetch();
+      const attempt = { request: requestBody, body: await response.text() };
+      if (!lost && response.status() === 200) {
+        lost = attempt;
+        await route.abort('connectionreset');
+        return;
+      }
+      if (lost && !replayed) replayed = attempt;
+      await route.fulfill({ response });
+    };
+    await this.context.route('**/receipt', handler);
+    return {
+      release: async () => {
+        await this.context.unroute('**/receipt', handler);
+      },
+      assertReplayed: () => {
+        if (!lost || !replayed) {
+          throw new Error(
+            `linked-device activation expected one lost and one replayed response, saw lost=${Boolean(lost)} replayed=${Boolean(replayed)}`,
+          );
+        }
+        const lostAttempt: Attempt = lost;
+        const replayedAttempt: Attempt = replayed;
+        if (replayedAttempt.request !== lostAttempt.request) {
+          throw new Error('linked-device activation retry changed its installation receipt');
+        }
+        const activation = JSON.parse(lostAttempt.body) as {
+          readonly kind?: unknown;
+          readonly authority?: { readonly authorityId?: unknown };
+        };
+        if (activation.kind !== 'active') {
+          throw new Error(`lost linked-device activation answered ${String(activation.kind)}`);
+        }
+        expect(JSON.parse(replayedAttempt.body)).toEqual(activation);
+        this.recordService(
+          `linked-device activation lost its response and replayed authority=${String(activation.authority?.authorityId)}`,
+        );
+      },
+    };
+  }
+
+  /**
+   * Device 1 revokes Device 2's exact method with a fresh assertion from its
+   * own founding passkey, bound to this revocation's operation fingerprint.
+   *
+   * The SDK takes this proof as input and exposes no producer for it, so the
+   * contract asks the authenticator for it inside the wallet frame - the
+   * origin the Gateway checks for a request the wallet host sends.
+   */
+  async revokeLinkedDeviceWithOwnerPasskey(): Promise<void> {
+    this.recordStage('revoke_linked_device_with_owner_passkey');
+    const before = await this.readLinkedDeviceInventory();
+    const [linked, ...extra] = before.devices;
+    if (!linked || extra.length > 0) {
+      throw new Error(`revocation expects one linked device, found ${before.devices.length}`);
+    }
+    const owner = requireSingleOwnerPasskey(before);
+    const targetWalletAuthMethodId = parseWalletAuthMethodId(linked.walletAuthMethodId);
+    if (!targetWalletAuthMethodId.ok) throw new Error(targetWalletAuthMethodId.error.message);
+    const requestedAtMs = Date.now();
+    const operationFingerprintDigest = String(
+      await computeWalletAuthMethodRevokeOperationFingerprintV1({
+        walletId: walletIdFromString(this.walletId),
+        targetWalletAuthMethodId: targetWalletAuthMethodId.value,
+        requestedAtMs,
+      }),
+    );
+    const rpId = new URL(this.config.walletOrigin).hostname;
+    const walletFrame = await walletServiceFrame(this.page, this.config.walletOrigin);
+    const credential = await walletFrame.evaluate(getWalletOriginPasskeyAssertion, {
+      rpId,
+      challengeB64u: operationFingerprintDigest,
+      credentialIdB64u: owner.credentialIdB64u,
+    });
+    this.passkeyPromptCount += 1;
+    await this.page.evaluate(
+      presentLinkedDeviceRevocationToIntendedPage,
+      JSON.stringify({
+        walletAuthMethodId: linked.walletAuthMethodId,
+        requestedAtMs,
+        sourceProof: {
+          kind: 'webauthn_assertion',
+          rpId,
+          credential,
+          expectedChallengeDigestB64u: operationFingerprintDigest,
+        },
+      }),
+    );
+    const snapshot = await this.runIntendedPageAction(
+      'revokeLinkedDevice',
+      'intended-revoke-linked-device',
+    );
+    if (snapshot.action.status !== 'success') {
+      throw new Error(`linked-device revocation ended with ${snapshot.action.status}`);
+    }
+    const result = snapshot.action.result;
+    if (result.kind !== 'linked_device_revoked') {
+      throw new Error(`linked-device revocation returned ${result.kind}`);
+    }
+    if (
+      result.walletId !== this.walletId ||
+      result.walletAuthMethodId !== linked.walletAuthMethodId
+    ) {
+      throw new Error(
+        `revocation removed ${result.walletAuthMethodId} of ${result.walletId}; expected ${linked.walletAuthMethodId}`,
+      );
+    }
+
+    const after = await this.readLinkedDeviceInventory();
+    if (after.devices.length !== 0) {
+      throw new Error(`revoked device is still listed: ${JSON.stringify(after.devices)}`);
+    }
+    assertOwnerDevicesUnchanged(before, after, 'Linked-device revocation');
+    this.recordService(
+      `linked device revoked method=${result.walletAuthMethodId} authority=${result.authorityId} epoch=${result.revocationEpoch}`,
+    );
+  }
+
+  /**
+   * Device 1 revokes its linked device with an email code from its Email OTP
+   * method, as the account menu does, so Device 1 must be unlocked with that
+   * method. The contract names the device and the time; the page requests a
+   * challenge bound to the revocation and presents the code.
+   */
+  async revokeLinkedDeviceWithOwnerEmailOtp(
+    options: { readonly refuseFirstRevocationCommit?: boolean } = {},
+  ): Promise<void> {
+    this.recordStage('revoke_linked_device_with_owner_email_otp');
+    const before = await this.readLinkedDeviceInventory();
+    const [linked, ...extra] = before.devices;
+    if (!linked || extra.length > 0) {
+      throw new Error(`revocation expects one linked device, found ${before.devices.length}`);
+    }
+    const targetWalletAuthMethodId = parseWalletAuthMethodId(linked.walletAuthMethodId);
+    if (!targetWalletAuthMethodId.ok) throw new Error(targetWalletAuthMethodId.error.message);
+    const requestedAtMs = Date.now();
+    const operationFingerprintDigest = String(
+      await computeWalletAuthMethodRevokeOperationFingerprintV1({
+        walletId: walletIdFromString(this.walletId),
+        targetWalletAuthMethodId: targetWalletAuthMethodId.value,
+        requestedAtMs,
+      }),
+    );
+    await this.page.evaluate(
+      presentLinkedDeviceRevocationToIntendedPage,
+      JSON.stringify({
+        walletAuthMethodId: linked.walletAuthMethodId,
+        requestedAtMs,
+        operationFingerprintDigest,
+      }),
+    );
+    const refusedCommit = options.refuseFirstRevocationCommit
+      ? await this.refuseFirstRevocationCommitOnce('linked_device')
+      : null;
+    let snapshot: IntendedPageSnapshot;
+    try {
+      snapshot = await this.runIntendedPageAction(
+        'revokeLinkedDeviceWithEmailOtp',
+        'intended-revoke-linked-device-email-otp',
+      );
+    } finally {
+      await refusedCommit?.release();
+    }
+    if (snapshot.action.status !== 'success') {
+      throw new Error(
+        `linked-device revocation with an email code ended with ${snapshot.action.status}: ${
+          snapshot.action.status === 'error' ? snapshot.action.error : ''
+        }`,
+      );
+    }
+    const result = snapshot.action.result;
+    if (result.kind !== 'linked_device_revoked') {
+      throw new Error(`linked-device revocation returned ${result.kind}`);
+    }
+    if (
+      result.walletId !== this.walletId ||
+      result.walletAuthMethodId !== linked.walletAuthMethodId
+    ) {
+      throw new Error(
+        `revocation removed ${result.walletAuthMethodId} of ${result.walletId}; expected ${linked.walletAuthMethodId}`,
+      );
+    }
+    refusedCommit?.assertRecovered('email_otp');
+    this.emailOtpVerificationCount += 1;
+
+    const after = await this.readLinkedDeviceInventory();
+    if (after.devices.length !== 0) {
+      throw new Error(`revoked device is still listed: ${JSON.stringify(after.devices)}`);
+    }
+    assertOwnerDevicesUnchanged(before, after, 'Linked-device revocation');
+    this.recordService(
+      `linked device revoked with an email code method=${result.walletAuthMethodId} authority=${result.authorityId} epoch=${result.revocationEpoch}`,
+    );
+  }
+
+  /**
+   * Revocation retires Device 2's Wallet Session and signer activations, so
+   * each signer family must refuse to sign rather than recover through
+   * anything Device 1 still holds.
+   */
+  async assertRevokedDeviceCannotSign(): Promise<void> {
+    this.recordStage('revoked_device_signing_refused');
+    const registration = requireNearReadyRegisteredWallet(
+      this.requireRegisteredWalletForSigning(),
+      'Revoked-device signing',
+    );
+    const tempo = await this.runIntendedPageAction('signTempoTransaction', 'intended-sign-tempo', {
+      expectedOutcome: 'error',
+    });
+    const near = await this.runIntendedPageAction('signNearTransaction', 'intended-sign-near', {
+      nearAccountId: registration.nearAccountId,
+      expectedOutcome: 'error',
+    });
+    for (const [label, snapshot] of [
+      ['Tempo', tempo],
+      ['NEAR', near],
+    ] as const) {
+      if (snapshot.action.status !== 'error') {
+        throw new Error(`revoked Device 2 ${label} signing ended with ${snapshot.action.status}`);
+      }
+      this.recordService(`revoked Device 2 ${label} signing refused: ${snapshot.action.error}`);
+    }
+  }
+
+  private async readLinkedDeviceInventory(): Promise<LinkedDeviceInventorySnapshot> {
+    await this.ensureIntendedPageOpen();
+    const inventory = parseLinkedDeviceInventory(
+      await this.page.evaluate(readLinkedDevicesFromIntendedPage),
+    );
+    for (const device of inventory.devices) {
+      if (device.walletId !== this.walletId) {
+        throw new Error(`linked-device inventory listed a device of wallet ${device.walletId}`);
+      }
+    }
+    return inventory;
+  }
+
+  /** Device 2: show the link QR and hand back its strictly parsed payload. */
+  private async showDeviceLinkQr(): Promise<DeviceLinkQrReadySnapshot> {
+    this.recordStage('device_link_show_qr');
+    const snapshot = await this.runIntendedPageAction(
+      'startDeviceLinkingAsTarget',
+      'intended-device-link-start',
+    );
+    if (snapshot.action.status !== 'success') {
+      throw new Error(`device-link QR ended with ${snapshot.action.status}`);
+    }
+    const result = snapshot.action.result;
+    if (result.kind !== 'device_link_qr_ready') {
+      throw new Error(`device-link QR returned ${result.kind}`);
+    }
+    const payload = parseQrLinkedDeviceSessionPayloadV5(JSON.parse(result.qrPayloadJson));
+    if (String(payload.linkSessionId) !== result.linkSessionId) {
+      throw new Error('device-link QR payload names a different link session');
+    }
+    if (payload.targetFactor.kind !== 'passkey_prf') {
+      throw new Error(`device-link QR targets ${payload.targetFactor.kind}, not a passkey`);
+    }
+    this.recordService(
+      `Device ${this.deviceNumber} showing link QR session=${result.linkSessionId}`,
+    );
+    return result;
+  }
+
+  /**
+   * Device 2: wait for the link to settle. The page answers the passkey prompt
+   * itself; nothing is clicked on this page mid-link because the wallet keeps
+   * its link surface over the page until the link settles.
+   */
+  private async waitForDeviceLinkAsTarget(
+    linkSessionId: string,
+  ): Promise<DeviceLinkActiveSnapshot> {
+    this.recordStage('device_link_target_settle');
+    const diagnostics: WalletIframeAutoConfirmDiagnostics = { attempts: 0, clicked: false };
+    try {
+      await autoConfirmWalletIframeUntil(
+        this.page,
+        this.page.waitForFunction(intendedDeviceLinkSettled, undefined, { timeout: 150_000 }),
+        { timeoutMs: 150_000, intervalMs: 250, diagnostics },
+      );
+    } catch (error) {
+      throw new Error(
+        [
+          `Device ${this.deviceNumber} link did not settle: ${error instanceof Error ? error.message : String(error)}`,
+          `Wallet iframe auto-confirm diagnostics: ${JSON.stringify(diagnostics)}`,
+          this.recentTraceForError(),
+        ].join('\n'),
+      );
+    } finally {
+      this.recordService(`wallet iframe auto-confirm ${JSON.stringify(diagnostics)}`);
+    }
+    const state = await readSettledDeviceLinkState(this.page);
+    if (state.linkSessionId !== linkSessionId) {
+      throw new Error(
+        `Device ${this.deviceNumber} settled link ${state.linkSessionId}; expected ${linkSessionId}`,
+      );
+    }
+    if (state.status === 'failed') {
+      throw new Error(
+        `Device ${this.deviceNumber} link failed: ${state.error}\n${this.recentTraceForError()}`,
+      );
+    }
+    const { status: _status, ...active } = state;
+    this.recordService(`Device ${this.deviceNumber} link active session=${linkSessionId}`);
+    return active;
+  }
+
   async registerPasskeyEd25519YaoWallet(): Promise<void> {
     this.recordStage('register_passkey_ed25519_yao_wallet');
     const snapshot = await this.runIntendedPageAction(
@@ -1187,6 +1909,57 @@ export class IntendedBehaviourHarness {
     } finally {
       this.intendedYaoFaultInjection = { kind: 'idle' };
     }
+  }
+
+  /**
+   * A mixed passkey registration whose deferred NEAR finalize loses the
+   * Gateway's storage once, right after the batch that made the Ed25519
+   * signer visible committed the lifecycle's decision. NEAR is left
+   * retryable. Once the Gateway's journal lets a retry take the finalize
+   * over, unlocking retries it: the retry finds its own decision, commits
+   * nothing again, and completes.
+   */
+  async registerPasskeyWalletAcrossNearFinalizeStorageLoss(): Promise<void> {
+    this.recordStage('register_passkey_wallet_across_near_finalize_storage_loss');
+    if (this.config.passkeyEcdsaTargetProfile === 'none') {
+      throw new Error('A deferred NEAR finalize needs a mixed passkey registration');
+    }
+    if (this.intendedYaoFinalizeFaultToken !== null) {
+      throw new Error('An intended Yao finalize fault is already armed');
+    }
+    requireLocalIntendedYaoFaultRouterOrigin(this.config.routerUrl);
+    const proofStartIndex = this.intendedYaoFaultProofs.length;
+    const faultToken = randomUUID();
+    this.intendedYaoFinalizeFaultToken = faultToken;
+    const failedFinalize = this.page.waitForResponse(isNearProvisioningFinalizeResponse, {
+      timeout: 180_000,
+    });
+    let failedAtMs: number;
+    try {
+      await this.registerPasskeyWallet();
+      const failed = await failedFinalize;
+      expect(await failed.json()).toMatchObject({
+        ok: false,
+        nearProvisioning: { status: 'near_failed_retryable' },
+      });
+      failedAtMs = Date.now();
+    } finally {
+      this.intendedYaoFinalizeFaultToken = null;
+    }
+    this.assertIntendedYaoFaultProof(
+      proofStartIndex,
+      faultToken,
+      'decision_committed_then_storage_lost',
+    );
+    await this.page.waitForTimeout(
+      Math.max(
+        0,
+        failedAtMs + WALLET_REGISTRATION_NEAR_PROVISIONING_RESUME_AFTER_MS + 1_000 - Date.now(),
+      ),
+    );
+    await this.unlockPasskeyWithPendingNear();
+    await this.awaitNearReady();
+    this.recordService('deferred NEAR finalize resumed from its decision after losing storage');
   }
 
   async assertMixedNearTerminalFailureSurvivesUnlock(): Promise<void> {
@@ -1270,17 +2043,189 @@ export class IntendedBehaviourHarness {
   }
 
   /**
-   * Refactor 109C acceptance: the registered passkey wallet gains an Email OTP
-   * method. The wallet prompts for the code on its own surface, so the same
-   * auto-confirm that drives every other Email OTP step drives this one.
+   * A NEAR-ready passkey wallet without ECDSA gains an ECDSA signer through the
+   * public add-signer path; later EVM signatures must recover to its address.
    */
-  async addEmailOtpAuthMethod(): Promise<void> {
+  async addPasskeyEcdsaWalletSigner(
+    options: { readonly loseFinalizeResponseOnce?: boolean } = {},
+  ): Promise<void> {
+    this.recordStage('add_passkey_ecdsa_wallet_signer');
+    const previous = requireNearReadyRegisteredWallet(
+      requirePasskeyRegisteredWalletSnapshot(this.requireRegisteredWalletForSigning()),
+      'ECDSA signer addition',
+    );
+    if (previous.ecdsaTargetProfile !== 'none') {
+      throw new Error('ECDSA signer addition expects a wallet without an ECDSA signer');
+    }
+    const lostFinalize = options.loseFinalizeResponseOnce
+      ? await this.loseAddSignerFinalizeResponseOnce()
+      : null;
+    let snapshot: IntendedPageSnapshot;
+    try {
+      snapshot = await this.runIntendedPageAction(
+        'addPasskeyEcdsaWalletSigner',
+        'intended-add-passkey-ecdsa-signer',
+      );
+    } finally {
+      await lostFinalize?.release();
+    }
+    if (lostFinalize) lostFinalize.assertReplayed();
+    if (snapshot.action.status !== 'success') {
+      throw new Error(
+        `ECDSA add-signer ended with ${snapshot.action.status}: ${
+          snapshot.action.status === 'error' ? snapshot.action.error : ''
+        }`,
+      );
+    }
+    const result = snapshot.action.result;
+    if (result.kind !== 'ecdsa_signer_added' || result.walletId !== this.walletId) {
+      throw new Error(`ECDSA add-signer returned ${result.kind} for ${result.walletId}`);
+    }
+    if (result.ecdsaTargetProfile === 'none') {
+      throw new Error('ECDSA add-signer provisioned no ECDSA target');
+    }
+    if (snapshot.events.length === 0) {
+      throw new Error('ECDSA add-signer did not emit structured lifecycle events');
+    }
+    const { kind: _kind, walletId: _walletId, ...ecdsa } = result;
+    this.registeredWallet = {
+      kind: 'passkey_registration_success',
+      walletId: previous.walletId,
+      nearReadiness: 'ready',
+      nearAccountId: previous.nearAccountId,
+      operationalPublicKey: previous.operationalPublicKey,
+      ...ecdsa,
+    };
+    this.currentWarmSigningStage = 'post_registration';
+    this.passkeyPromptCount += 1;
+    this.recordService(
+      `ECDSA signer added wallet=${result.walletId} profile=${result.ecdsaTargetProfile}`,
+    );
+  }
+
+  /**
+   * Lets the first add-signer finalize reach the Gateway and commit, then drops
+   * its response, so the SDK must recover the committed outcome by asking
+   * again. The retry must carry the same idempotency key and receive exactly
+   * the response that was lost.
+   */
+  private async loseAddSignerFinalizeResponseOnce(): Promise<{
+    readonly release: () => Promise<void>;
+    readonly assertReplayed: () => void;
+  }> {
+    const finalizePath = /\/wallets\/[^/]+\/signers\/finalize$/;
+    const attempts: { readonly idempotencyKey: string; readonly body: string }[] = [];
+    const handler = async (route: Route): Promise<void> => {
+      if (route.request().method() !== 'POST' || !finalizePath.test(new URL(route.request().url()).pathname)) {
+        await route.fallback();
+        return;
+      }
+      const request = route.request().postDataJSON() as { readonly idempotencyKey?: unknown };
+      const response = await route.fetch();
+      attempts.push({
+        idempotencyKey: String(request.idempotencyKey ?? ''),
+        body: await response.text(),
+      });
+      if (attempts.length === 1) {
+        await route.abort('connectionreset');
+        return;
+      }
+      await route.fulfill({ response });
+    };
+    await this.context.route('**/signers/finalize', handler);
+    return {
+      release: async () => {
+        await this.context.unroute('**/signers/finalize', handler);
+      },
+      assertReplayed: () => {
+        const [lost, replayed] = attempts;
+        if (attempts.length !== 2 || !lost || !replayed) {
+          throw new Error(`Add-signer finalize expected one lost and one replayed response, saw ${attempts.length}`);
+        }
+        if (!lost.idempotencyKey || lost.idempotencyKey !== replayed.idempotencyKey) {
+          throw new Error('Add-signer finalize retry changed its idempotency key');
+        }
+        expect(JSON.parse(replayed.body)).toEqual(JSON.parse(lost.body));
+        this.recordService('add-signer finalize lost its response and replayed the committed outcome');
+      },
+    };
+  }
+
+  /**
+   * Lets the first add-auth-method finalize reach the Gateway and commit, then
+   * drops its response. The SDK recovers the committed outcome by asking
+   * again with the exact same request, and must receive exactly the response
+   * that was lost: one added method, not two.
+   */
+  private async loseAddAuthMethodFinalizeResponseOnce(): Promise<{
+    readonly release: () => Promise<void>;
+    readonly assertReplayed: () => void;
+  }> {
+    const finalizePath = /\/wallets\/[^/]+\/auth-methods\/finalize$/;
+    const attempts: { readonly request: string; readonly body: string }[] = [];
+    const handler = async (route: Route): Promise<void> => {
+      if (
+        route.request().method() !== 'POST' ||
+        !finalizePath.test(new URL(route.request().url()).pathname)
+      ) {
+        await route.fallback();
+        return;
+      }
+      const request = route.request().postData() ?? '';
+      const response = await route.fetch();
+      attempts.push({ request, body: await response.text() });
+      if (attempts.length === 1) {
+        await route.abort('connectionreset');
+        return;
+      }
+      await route.fulfill({ response });
+    };
+    await this.context.route('**/auth-methods/finalize', handler);
+    return {
+      release: async () => {
+        await this.context.unroute('**/auth-methods/finalize', handler);
+      },
+      assertReplayed: () => {
+        const [lost, replayed] = attempts;
+        if (attempts.length !== 2 || !lost || !replayed) {
+          throw new Error(
+            `Add-auth-method finalize expected one lost and one replayed response, saw ${attempts.length}`,
+          );
+        }
+        if (replayed.request !== lost.request) {
+          throw new Error('Add-auth-method finalize retry changed its request');
+        }
+        expect(JSON.parse(replayed.body)).toEqual(JSON.parse(lost.body));
+        this.recordService(
+          'add-auth-method finalize lost its response and replayed the committed outcome',
+        );
+      },
+    };
+  }
+
+  /**
+   * The registered passkey wallet gains an Email OTP method. The wallet prompts
+   * for the code on its own surface, so the same auto-confirm that drives every
+   * other Email OTP step drives this one.
+   */
+  async addEmailOtpAuthMethod(
+    options: { readonly loseFinalizeResponseOnce?: boolean } = {},
+  ): Promise<void> {
     this.recordStage('add_email_otp_auth_method');
     const registration = this.requireRegisteredWalletForSigning();
-    const snapshot = await this.runIntendedPageAction(
-      'addEmailOtpAuthMethod',
-      'intended-add-email-otp-auth-method',
-    );
+    const lostFinalize = options.loseFinalizeResponseOnce
+      ? await this.loseAddAuthMethodFinalizeResponseOnce()
+      : null;
+    let snapshot: IntendedPageSnapshot;
+    try {
+      snapshot = await this.runIntendedPageAction(
+        'addEmailOtpAuthMethod',
+        'intended-add-email-otp-auth-method',
+      );
+    } finally {
+      await lostFinalize?.release();
+    }
+    lostFinalize?.assertReplayed();
     if (snapshot.action.status !== 'success') {
       throw new Error(`add-email-code ended with ${snapshot.action.status}`);
     }
@@ -1302,19 +2247,31 @@ export class IntendedBehaviourHarness {
   }
 
   /**
-   * Refactor 109C: retire the method that did the adding.
+   * Retire the method that did the adding.
    *
    * The page picks the target - the one sibling that is not the method just
    * added - so the test cannot accidentally revoke the credential it is about
    * to rely on.
    */
-  async revokeSourceAuthMethod(expect: 'source' | 'added' = 'source'): Promise<void> {
+  async revokeSourceAuthMethod(
+    expect: 'source' | 'added' = 'source',
+    options: { readonly refuseFirstRevocationCommit?: boolean } = {},
+  ): Promise<void> {
     this.recordStage(`revoke_${expect}_auth_method`);
     const registration = this.requireRegisteredWalletForSigning();
-    const snapshot = await this.runIntendedPageAction(
-      'revokeSourceAuthMethod',
-      'intended-revoke-source-auth-method',
-    );
+    const sourceFamily = this.currentOperatingAuthFamily();
+    const refusedCommit = options.refuseFirstRevocationCommit
+      ? await this.refuseFirstRevocationCommitOnce('auth_method')
+      : null;
+    let snapshot: IntendedPageSnapshot;
+    try {
+      snapshot = await this.runIntendedPageAction(
+        'revokeSourceAuthMethod',
+        'intended-revoke-source-auth-method',
+      );
+    } finally {
+      await refusedCommit?.release();
+    }
     if (snapshot.action.status !== 'success') {
       throw new Error(
         `revoke ended with ${snapshot.action.status}: ${
@@ -1340,7 +2297,8 @@ export class IntendedBehaviourHarness {
     if (expect === 'source' && removedAdded) {
       throw new Error('revoke removed the added method instead of its sibling');
     }
-    if (this.currentOperatingAuthFamily() === 'passkey') {
+    refusedCommit?.assertRecovered(sourceFamily);
+    if (sourceFamily === 'passkey') {
       this.passkeyPromptCount += 1;
     } else {
       this.emailOtpVerificationCount += 1;
@@ -1349,8 +2307,160 @@ export class IntendedBehaviourHarness {
   }
 
   /**
-   * Refactor 109C: adding a family the authority already has is refused at
-   * admission, before anything is verified or written.
+   * The Gateway refuses the first revocation's commit, as a batch that failed,
+   * and that answer is lost too, so the SDK sends the exact request again. The
+   * retry must commit on the same proof: an Email OTP code is spent only by
+   * the batch that revokes, so a failed commit leaves it usable. The harness
+   * then sends the committed request once more. Its code is spent by then, so
+   * only the Gateway's record of the revocation can answer, and the answer
+   * must be exactly the one the retry received.
+   */
+  private async refuseFirstRevocationCommitOnce(route: 'auth_method' | 'linked_device'): Promise<{
+    readonly release: () => Promise<void>;
+    readonly assertRecovered: (sourceFamily: 'passkey' | 'email_otp') => void;
+  }> {
+    /* An auth method is revoked directly, or as a linked device's through
+       device management. Each route answers its refused commit its own way. */
+    const revokePath =
+      route === 'auth_method'
+        ? /\/wallets\/[^/]+\/auth-methods\/[^/]+\/revoke$/
+        : /\/wallet\/device-linking\/v1\/devices\/[^/]+\/revoke$/;
+    const label = route === 'auth_method' ? 'Auth-method revoke' : 'Linked-device revoke';
+    /* The route needs the wallet's Origin, which Playwright's provisional
+       headers may leave out of a forwarded request. */
+    const origin = new URL(this.config.walletOrigin).origin;
+    const token = randomUUID();
+    type Attempt = {
+      readonly request: string;
+      readonly status: number;
+      readonly body: string;
+      readonly proof: string | null;
+    };
+    const attempts: Attempt[] = [];
+    let replayed: Attempt | null = null;
+    const changed: { readonly change: string; readonly status: number; readonly body: string }[] =
+      [];
+    const handler = async (route: Route): Promise<void> => {
+      const request = route.request();
+      if (request.method() !== 'POST' || !revokePath.test(new URL(request.url()).pathname)) {
+        await route.fallback();
+        return;
+      }
+      const headers = { ...request.headers(), origin };
+      const body = request.postData() ?? '';
+      if (attempts.length === 0) {
+        const refused = await route.fetch({
+          headers: {
+            ...headers,
+            [LOCAL_INTENDED_REVOKE_FAULT_HEADER_V1]: 'refuse_revocation_batch_once',
+            [LOCAL_INTENDED_REVOKE_FAULT_TOKEN_HEADER_V1]: token,
+          },
+        });
+        attempts.push({
+          request: body,
+          status: refused.status(),
+          body: await refused.text(),
+          proof: refused.headers()[LOCAL_INTENDED_REVOKE_FAULT_PROOF_HEADER_V1] ?? null,
+        });
+        await route.abort('connectionreset');
+        return;
+      }
+      const committed = await route.fetch({ headers });
+      attempts.push({
+        request: body,
+        status: committed.status(),
+        body: await committed.text(),
+        proof: null,
+      });
+      if (attempts.length === 2) {
+        const replay = await route.fetch({ headers });
+        replayed = {
+          request: body,
+          status: replay.status(),
+          body: await replay.text(),
+          proof: null,
+        };
+        /* A changed request is not the one that committed: it must be refused,
+           never answered from the record. */
+        for (const change of ['operation', 'proof'] as const) {
+          const refused = await route.fetch({
+            headers,
+            postData: changedRevokeRequestBody(body, change),
+          });
+          changed.push({ change, status: refused.status(), body: await refused.text() });
+        }
+      }
+      await route.fulfill({ response: committed });
+    };
+    await this.context.route('**/revoke', handler);
+    return {
+      release: async () => {
+        await this.context.unroute('**/revoke', handler);
+      },
+      assertRecovered: (sourceFamily) => {
+        const [refused, committed] = attempts;
+        const replay: Attempt | null = replayed;
+        if (attempts.length !== 2 || !refused || !committed || !replay) {
+          throw new Error(
+            `${label} expected a refused commit, one retry and a replay, saw ${attempts.length} attempts`,
+          );
+        }
+        const expectedProof = `${token}:${
+          sourceFamily === 'email_otp'
+            ? 'refused_revocation_with_its_code'
+            : 'refused_revocation_without_code'
+        }`;
+        if (refused.proof !== expectedProof) {
+          throw new Error(
+            `${label} expected the refused-commit proof ${expectedProof}, saw ${refused.proof ?? 'none'}`,
+          );
+        }
+        const refusal = JSON.parse(refused.body) as {
+          readonly ok?: unknown;
+          readonly code?: unknown;
+          readonly kind?: unknown;
+        };
+        const refusedAsConflict =
+          route === 'auth_method'
+            ? refused.status === 400 && refusal.ok === false && refusal.code === 'conflict'
+            : refused.status === 409 && refusal.ok === false && refusal.kind === 'conflict';
+        if (!refusedAsConflict) {
+          throw new Error(`${label}'s refused commit answered ${refused.status}: ${refused.body}`);
+        }
+        if (committed.request !== refused.request || replay.request !== refused.request) {
+          throw new Error(`${label} retry changed its request`);
+        }
+        const answer = JSON.parse(committed.body) as { readonly ok?: unknown };
+        if (committed.status !== 200 || answer.ok !== true) {
+          throw new Error(
+            `${label} retry on the same proof answered ${committed.status}: ${committed.body}`,
+          );
+        }
+        if (replay.status !== committed.status || replay.body !== committed.body) {
+          throw new Error(
+            `${label} replay answered ${replay.status}: ${replay.body}, not the committed answer`,
+          );
+        }
+        if (changed.length !== 2) {
+          throw new Error(`${label} sent ${changed.length} changed requests, expected 2`);
+        }
+        for (const refusal of changed) {
+          if (refusal.status !== 401 || refusal.body === committed.body) {
+            throw new Error(
+              `${label} with a changed ${refusal.change} answered ${refusal.status}: ${refusal.body}`,
+            );
+          }
+        }
+        this.recordService(
+          `${label}: a refused commit spent nothing, the retry committed on the same ${sourceFamily} proof, and a replay received the recorded answer`,
+        );
+      },
+    };
+  }
+
+  /**
+   * Adding a family the authority already has is refused at admission, before
+   * anything is verified or written.
    *
    * The counters matter as much as the refusal. A repeat that costs the user
    * another code, or writes a second enrollment before noticing, is a
@@ -1386,7 +2496,7 @@ export class IntendedBehaviourHarness {
   }
 
   /**
-   * Refactor 109C: the last way into a wallet cannot be removed.
+   * The last way into a wallet cannot be removed.
    *
    * A wallet with one method has no sibling to authorize the removal, and a
    * method may not authorize its own. Together those leave the last credential
@@ -1411,8 +2521,106 @@ export class IntendedBehaviourHarness {
   }
 
   /**
-   * Refactor 109C: the authenticated capability belongs to the method that
-   * opened it.
+   * The wallet's Email OTP method was revoked: a fresh code must no longer
+   * open the wallet, and the refusal must come from the revocation, not from
+   * some unrelated failure.
+   * - `registered`, a wallet registered with Email OTP: the auth menu still
+   *   offers Google for it, so the Gateway's Google verification must refuse
+   *   this wallet, whose Email OTP enrollment the revocation removed.
+   * - `added`, a wallet that gained the method later: its session no longer
+   *   lists the method, so the unlock finds no Email OTP method to open.
+   * Either way the unlock never reaches an Email OTP challenge, a factor
+   * release or an unlock verification.
+   */
+  async assertRevokedEmailOtpCannotUnlock(method: 'registered' | 'added'): Promise<void> {
+    this.recordStage(`revoked_${method}_email_otp_unlock_refused`);
+    await this.resetRuntimeOnlyState();
+    const traceStartIndex = this.trace.length;
+    const refusal =
+      method === 'registered'
+        ? await this.refuseRevokedRegisteredEmailOtpUnlock()
+        : await this.refuseRevokedAddedEmailOtpUnlock();
+    const reached = this.trace
+      .slice(traceStartIndex)
+      .filter(isRequestTraceEntry)
+      .map((entry) => routePathAtRouter(entry.url, this.config.routerUrl))
+      .filter(
+        (path): path is string => path !== null && EMAIL_OTP_UNLOCK_GATEWAY_PATHS_V1.has(path),
+      );
+    if (reached.length > 0) {
+      throw new Error(`revoked Email OTP unlock still reached ${reached.join(', ')}`);
+    }
+    this.recordService(`revoked ${method} Email OTP unlock refused: ${refusal}`);
+  }
+
+  /**
+   * The Gateway answers the Google verification without this wallet: on
+   * fresh services no wallet is enrolled for the Google identity any more
+   * (`stale_identity_mapping` naming this wallet); where another wallet is
+   * enrolled for it, the answer names that one. The menu keeps the refusal on
+   * screen and never settles, so the harness closes it.
+   */
+  private async refuseRevokedRegisteredEmailOtpUnlock(): Promise<string> {
+    const verification = this.page.waitForResponse(
+      (response) =>
+        response.request().method() === 'POST' &&
+        routePathAtRouter(response.url(), this.config.routerUrl) ===
+          GOOGLE_EMAIL_OTP_VERIFY_PATH_V1,
+      { timeout: 60_000 },
+    );
+    const action = this.runIntendedPageAction('unlockEmailOtpWallet', 'intended-unlock-email-otp', {
+      expectedOutcome: 'error',
+    });
+    /* Settled below, once the menu is closed. */
+    action.catch(() => undefined);
+    const response = await verification;
+    const answer = (await response.json().catch(() => null)) as {
+      readonly code?: unknown;
+      readonly walletId?: unknown;
+    } | null;
+    const refusedHere =
+      response.status() === 400 &&
+      answer?.code === 'stale_identity_mapping' &&
+      answer.walletId === this.walletId;
+    const answeredAnotherWallet =
+      response.ok() && typeof answer?.walletId === 'string' && answer.walletId !== this.walletId;
+    if (!refusedHere && !answeredAnotherWallet) {
+      throw new Error(
+        `revoked Email OTP verification answered ${response.status()}: ${JSON.stringify(answer)}`,
+      );
+    }
+    await this.page
+      .locator('iframe[allow*="publickey-credentials-get"]')
+      .last()
+      .contentFrame()
+      .locator('.auth-menu-root')
+      .press('Escape');
+    const snapshot = await action;
+    const detail = snapshot.action.status === 'error' ? snapshot.action.error : '';
+    if (detail !== 'Google Email OTP unlock ended with cancelled') {
+      throw new Error(`revoked Email OTP unlock ended for another reason: ${detail}`);
+    }
+    return refusedHere
+      ? `Google verification found no enrollment for ${this.walletId}`
+      : `Google verification answered wallet ${String(answer?.walletId)}`;
+  }
+
+  /** The wallet's session no longer lists the revoked method. */
+  private async refuseRevokedAddedEmailOtpUnlock(): Promise<string> {
+    const snapshot = await this.runIntendedPageAction(
+      'unlockWithAddedEmailOtp',
+      'intended-unlock-added-email-otp',
+      { expectedOutcome: 'error' },
+    );
+    const detail = snapshot.action.status === 'error' ? snapshot.action.error : '';
+    if (detail !== 'added email-code unlock needs one email method, found 0') {
+      throw new Error(`revoked added Email OTP unlock ended for another reason: ${detail}`);
+    }
+    return 'the wallet lists no Email OTP method';
+  }
+
+  /**
+   * The authenticated capability belongs to the method that opened it.
    *
    * The family alone proves nothing here - both methods live on one authority,
    * and the wallet would look identical if it had authenticated the method
@@ -1435,7 +2643,7 @@ export class IntendedBehaviourHarness {
   }
 
   /**
-   * Refactor 109C: the method just added actually opens the wallet.
+   * The method just added actually opens the wallet.
    *
    * Deliberately not `unlockPasskeyWallet`, which requires a passkey-REGISTERED
    * wallet. The point here is the opposite: this wallet was registered with the
@@ -1498,7 +2706,7 @@ export class IntendedBehaviourHarness {
   }
 
   /**
-   * Refactor 109C matrix: register a wallet whose signer set is ECDSA only.
+   * Signer-profile matrix: register a wallet whose signer set is ECDSA only.
    *
    * It becomes the registered wallet like any other, but with NEAR reported
    * absent rather than pending, so anything that would ask it to sign NEAR
@@ -1526,7 +2734,7 @@ export class IntendedBehaviourHarness {
     );
   }
 
-  /** Refactor 109C matrix: an Email OTP wallet whose signer set is ECDSA only. */
+  /** Signer-profile matrix: an Email OTP wallet whose signer set is ECDSA only. */
   async registerEmailOtpEcdsaOnlyWallet(): Promise<void> {
     this.recordStage('register_email_otp_ecdsa_only_wallet');
     const snapshot = await this.runIntendedPageAction(
@@ -1553,7 +2761,7 @@ export class IntendedBehaviourHarness {
     this.recordService(`ECDSA-only Email OTP registration succeeded wallet=${result.walletId}`);
   }
 
-  /** Refactor 109C matrix: an Email OTP wallet whose signer set is Ed25519 only. */
+  /** Signer-profile matrix: an Email OTP wallet whose signer set is Ed25519 only. */
   async registerEmailOtpEd25519OnlyWallet(): Promise<void> {
     this.recordStage('register_email_otp_ed25519_only_wallet');
     const snapshot = await this.runIntendedPageAction(
@@ -1580,14 +2788,25 @@ export class IntendedBehaviourHarness {
     this.recordService(`Ed25519-only Email OTP registration succeeded wallet=${result.walletId}`);
   }
 
-  /** Refactor 109C acceptance: an Email OTP wallet gains a Passkey method. */
-  async addPasskeyAuthMethod(): Promise<void> {
+  /** An Email OTP wallet gains a Passkey method. */
+  async addPasskeyAuthMethod(
+    options: { readonly loseFinalizeResponseOnce?: boolean } = {},
+  ): Promise<void> {
     this.recordStage('add_passkey_auth_method');
     const registration = this.requireRegisteredWalletForSigning();
-    const snapshot = await this.runIntendedPageAction(
-      'addPasskeyAuthMethod',
-      'intended-add-passkey-auth-method',
-    );
+    const lostFinalize = options.loseFinalizeResponseOnce
+      ? await this.loseAddAuthMethodFinalizeResponseOnce()
+      : null;
+    let snapshot: IntendedPageSnapshot;
+    try {
+      snapshot = await this.runIntendedPageAction(
+        'addPasskeyAuthMethod',
+        'intended-add-passkey-auth-method',
+      );
+    } finally {
+      await lostFinalize?.release();
+    }
+    lostFinalize?.assertReplayed();
     if (snapshot.action.status !== 'success') {
       throw new Error(`add-passkey ended with ${snapshot.action.status}`);
     }
@@ -1640,6 +2859,88 @@ export class IntendedBehaviourHarness {
     );
   }
 
+  /** Resolves once the trace holds a console message containing `fragment`. */
+  async waitForTraceConsoleMessage(fragment: string, timeoutMs = 30_000): Promise<void> {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      if (
+        this.trace.some((entry) => entry.kind === 'console' && entry.message.includes(fragment))
+      ) {
+        return;
+      }
+      await this.page.waitForTimeout(10);
+    }
+    throw new Error(`The trace did not log ${fragment} within ${timeoutMs} ms`);
+  }
+
+  /**
+   * Holds every Wallet Session status answer until released. The Gateway
+   * answers each request when it arrives; only the answer's delivery to the
+   * wallet waits.
+   */
+  async holdWalletSessionStatusAnswers(): Promise<{
+    readonly heldCount: () => number;
+    readonly release: () => void;
+    readonly dispose: () => Promise<void>;
+  }> {
+    const statusPath = '/wallet/session/status';
+    /* The status route needs the wallet's Origin, which Playwright's
+       provisional headers may leave out of a forwarded request. */
+    const origin = new URL(this.config.walletOrigin).origin;
+    let holding = true;
+    let held = 0;
+    let releaseAll: () => void = () => undefined;
+    const released = new Promise<void>((resolve) => {
+      releaseAll = resolve;
+    });
+    const handler = async (route: Route): Promise<void> => {
+      const request = route.request();
+      if (
+        !holding ||
+        request.method() !== 'POST' ||
+        new URL(request.url()).pathname !== statusPath
+      ) {
+        await route.fallback();
+        return;
+      }
+      const response = await route.fetch({ headers: { ...request.headers(), origin } });
+      held += 1;
+      await released;
+      await route.fulfill({ response });
+    };
+    await this.context.route(`**${statusPath}`, handler);
+    const release = (): void => {
+      holding = false;
+      releaseAll();
+    };
+    return {
+      heldCount: () => held,
+      release,
+      dispose: async () => {
+        release();
+        await this.context.unroute(`**${statusPath}`, handler);
+      },
+    };
+  }
+
+  /**
+   * Holds a read-write transaction on one of the wallet's IndexedDB stores, in
+   * the wallet's frame, until released. Every transaction made meanwhile that
+   * touches the store waits behind it, and they run in the order they were
+   * made.
+   */
+  async holdWalletIndexedDbStore(
+    storeName: string,
+  ): Promise<{ readonly release: () => Promise<void> }> {
+    const frame = await walletServiceFrame(this.page, this.config.walletOrigin);
+    await frame.evaluate(startHeldWalletStore, storeName);
+    return {
+      release: async () => {
+        await frame.evaluate(releaseHeldWalletStore);
+      },
+    };
+  }
+
   async awaitNearReady(): Promise<void> {
     this.recordStage('near.await_ready');
     const registration = this.requireRegisteredWalletForSigning();
@@ -1659,7 +2960,7 @@ export class IntendedBehaviourHarness {
   }
 
   /**
-   * Refactor 109C: the Email OTP method just added actually opens the wallet.
+   * The Email OTP method just added actually opens the wallet.
    *
    * The hosted Google menu names the selected wallet, proves its verified
    * address, and opens the exact Email OTP method added to a passkey-founded
@@ -1877,6 +3178,151 @@ export class IntendedBehaviourHarness {
     this.operatingAuthFamily = 'passkey';
     this.currentWarmSigningStage = 'post_unlock';
     this.recordService('failed finalization left the admitted recovery code reusable');
+  }
+
+  /**
+   * A fresh-browser recovery whose first attempt is interrupted: the Router
+   * runs its execution, staging the attempt's candidate at the SigningWorker,
+   * and every reply to it is lost, the Gateway's replay included. The Gateway
+   * records the execution as interrupted. Retrying with the same code starts a
+   * new attempt of the same recovery, which takes the interrupted attempt's
+   * place at the Gateway and its candidate's place at the SigningWorker, then
+   * recovers.
+   */
+  async recoverPasskeyWalletAfterInterruptedAttempt(): Promise<void> {
+    this.recordStage('recover_passkey_wallet_after_interrupted_attempt');
+    const action = recoveryActionForTarget('passkey');
+    const { registration, recoveryCode } = await this.beginFreshBrowserRecovery({ action });
+    if (this.intendedYaoRecoveryFault !== null) {
+      throw new Error('An intended Yao recovery fault is already armed');
+    }
+    requireLocalIntendedYaoFaultRouterOrigin(this.config.routerUrl);
+    const proofStartIndex = this.intendedYaoFaultProofs.length;
+    const faultToken = randomUUID();
+    this.intendedYaoRecoveryFault = { mode: 'lose_router_recovery_replies', token: faultToken };
+    let frame: FrameLocator;
+    try {
+      frame = await fillHostedRecoveryCode(this.page, recoveryCode, 'passkey');
+      await expect(frame.locator('.seams-recovery-status').last()).toHaveText(
+        'Recovery couldn’t be completed. Try again.',
+        { timeout: 120_000 },
+      );
+    } finally {
+      this.intendedYaoRecoveryFault = null;
+    }
+    this.assertIntendedYaoFaultProof(
+      proofStartIndex,
+      faultToken,
+      'recovery_replies_lost_after_router_executed',
+    );
+    await frame.getByRole('button', { name: 'Retry finalization', exact: true }).click({
+      timeout: 30_000,
+    });
+    await waitForHostedPasskeyRecoverySignIn(this.page, frame);
+    const snapshot = await this.waitForIntendedPageActionCompletion(action.name, 'success');
+    const result = requirePasskeyRecoveryResult(snapshot, this.walletId);
+    this.assertRecoveryCodeConsumption(result);
+    await this.assertRecoveredWalletLoggedIn(registration.walletId);
+    this.passkeyPromptCount += 3;
+    this.operatingAuthFamily = 'passkey';
+    this.currentWarmSigningStage = 'post_unlock';
+    this.recordService('a retry with the same code superseded the interrupted recovery attempt');
+  }
+
+  /**
+   * A superseded recovery attempt reaches the SigningWorker late, after the
+   * attempt that superseded it staged its candidate, and displaces nothing.
+   * The first attempt's execution is kept from the Router, so the Gateway
+   * records it interrupted. A retry with the same code starts a new attempt,
+   * which supersedes the first, executes and stages. Before the new attempt
+   * promotes, the kept execution reaches the Router, which runs it and
+   * delivers its packages to the SigningWorker. The new attempt still
+   * promotes, and the wallet recovers.
+   */
+  async recoverPasskeyWalletAcrossALateSupersededAttempt(): Promise<void> {
+    this.recordStage('recover_passkey_wallet_across_late_superseded_attempt');
+    const action = recoveryActionForTarget('passkey');
+    const { registration, recoveryCode } = await this.beginFreshBrowserRecovery({ action });
+    if (this.intendedYaoRecoveryFault !== null) {
+      throw new Error('An intended Yao recovery fault is already armed');
+    }
+    requireLocalIntendedYaoFaultRouterOrigin(this.config.routerUrl);
+    const proofStartIndex = this.intendedYaoFaultProofs.length;
+    const kept = randomUUID();
+    this.intendedYaoRecoveryFault = { mode: 'withhold_router_recovery_execute', token: kept };
+    let frame: FrameLocator;
+    try {
+      frame = await fillHostedRecoveryCode(this.page, recoveryCode, 'passkey');
+      await expect(frame.locator('.seams-recovery-status').last()).toHaveText(
+        'Recovery couldn’t be completed. Try again.',
+        { timeout: 120_000 },
+      );
+    } finally {
+      this.intendedYaoRecoveryFault = null;
+    }
+    this.assertIntendedYaoFaultProof(proofStartIndex, kept, 'recovery_execute_withheld');
+    const activationGate = new RecoveryReplayGate();
+    const holdActivation = holdRecoveryReplayUntilReleased.bind(null, activationGate);
+    const activationPattern = `**${ROUTER_AB_ED25519_YAO_RECOVERY_ACTIVATE_PATH_V1}`;
+    const activationRequested = this.page.waitForRequest(
+      (request) =>
+        request.method() === 'POST' &&
+        new URL(request.url()).pathname === ROUTER_AB_ED25519_YAO_RECOVERY_ACTIVATE_PATH_V1,
+      { timeout: 120_000 },
+    );
+    await this.context.route(activationPattern, holdActivation);
+    try {
+      await frame.getByRole('button', { name: 'Retry finalization', exact: true }).click({
+        timeout: 30_000,
+      });
+      // The new attempt has executed and staged; its promotion waits here.
+      await activationRequested;
+      const late = await this.releaseKeptRecoveryExecute(kept);
+      this.recordService(
+        `the superseded attempt's late execution answered ${late.status} ${late.body}`,
+      );
+      let answer: unknown = null;
+      try {
+        answer = JSON.parse(late.body);
+      } catch {
+        // A refusal need not be JSON.
+      }
+      if (
+        late.status === 200 &&
+        (answer as { readonly status?: unknown } | null)?.status === 'succeeded'
+      ) {
+        throw new Error(
+          `The superseded attempt's late execution staged at the SigningWorker: ${late.body}`,
+        );
+      }
+      /* The Router ran the late execution, and the SigningWorker refused its
+         packages as a superseded attempt. Every Router answers that as
+         final, so nothing retries it. */
+      const refusal = answer as { readonly status?: unknown; readonly code?: unknown } | null;
+      if (
+        late.status !== 200 ||
+        refusal?.status !== 'rejected' ||
+        refusal.code !== 'attempt_superseded'
+      ) {
+        throw new Error(
+          `The superseded attempt's late execution was not refused as superseded: ${late.status} ${late.body}`,
+        );
+      }
+    } finally {
+      activationGate.release();
+      await this.context.unroute(activationPattern, holdActivation);
+    }
+    await waitForHostedPasskeyRecoverySignIn(this.page, frame);
+    const snapshot = await this.waitForIntendedPageActionCompletion(action.name, 'success');
+    const result = requirePasskeyRecoveryResult(snapshot, this.walletId);
+    this.assertRecoveryCodeConsumption(result);
+    await this.assertRecoveredWalletLoggedIn(registration.walletId);
+    this.passkeyPromptCount += 3;
+    this.operatingAuthFamily = 'passkey';
+    this.currentWarmSigningStage = 'post_unlock';
+    this.recordService(
+      'a superseded attempt that reached the SigningWorker after its successor staged was refused',
+    );
   }
 
   async recoverPasskeyWalletAfterLostFinalizationResponse(): Promise<void> {
@@ -2486,12 +3932,16 @@ export class IntendedBehaviourHarness {
     this.reloadIntendedPageBeforeNextAction = false;
   }
 
-  async signTempoTransaction(stage: IntendedSigningStage): Promise<SigningAuthEventSummary> {
+  async signTempoTransaction(
+    stage: IntendedSigningStage,
+    options: IntendedSigningActionHooks = {},
+  ): Promise<SigningAuthEventSummary> {
     this.recordStage(`${stage}:tempo.sign`);
     const registration = this.requireRegisteredWalletForSigning();
     const snapshot = await this.runIntendedPageAction(
       'signTempoTransaction',
       'intended-sign-tempo',
+      options,
     );
     const result = requireTempoSigningResult(snapshot, {
       walletId: this.walletId,
@@ -2509,12 +3959,16 @@ export class IntendedBehaviourHarness {
     return summary;
   }
 
-  async signArcEvmTransaction(stage: IntendedSigningStage): Promise<SigningAuthEventSummary> {
+  async signArcEvmTransaction(
+    stage: IntendedSigningStage,
+    options: IntendedSigningActionHooks = {},
+  ): Promise<SigningAuthEventSummary> {
     this.recordStage(`${stage}:arc_evm.sign`);
     const registration = this.requireRegisteredWalletForSigning();
     const snapshot = await this.runIntendedPageAction(
       'signArcEvmTransaction',
       'intended-sign-arc-evm',
+      options,
     );
     const result = requireArcEvmSigningResult(snapshot, {
       walletId: this.walletId,
@@ -2675,13 +4129,255 @@ export class IntendedBehaviourHarness {
     );
   }
 
+  /**
+   * A recovery retires, at the SigningWorker, the activation it replaced. Two
+   * NEAR signatures are authorized under that activation before the recovery
+   * begins: one is made, and the Gateway keeps its finalize; the other's
+   * finalize the Gateway withholds. The recovery is interrupted once and
+   * retried with the same code. Once it promotes, both finalizes reach the
+   * Router again: the withheld one is refused as retired, and the one already
+   * made answers with its signature.
+   */
+  async recoverPasskeyWalletRetiringTheReplacedActivation(): Promise<void> {
+    this.recordStage('recover_passkey_wallet_retiring_replaced_activation');
+    requireLocalIntendedYaoFaultRouterOrigin(this.config.routerUrl);
+    const made = await this.keepNearSigningFinalize('capture_signing_finalize');
+    const withheld = await this.keepNearSigningFinalize('withhold_signing_finalize');
+    await this.recoverPasskeyWalletAfterInterruptedAttempt();
+    const delayed = await this.releaseNearSigningFinalize(withheld);
+    if (delayed.status < 400 || !delayed.body.includes(SIGNING_WORKER_ACTIVATION_RETIRED_MESSAGE)) {
+      throw new Error(
+        `A finalize withheld across the recovery was not refused as retired: ${delayed.status} ${delayed.body}`,
+      );
+    }
+    const replayed = await this.releaseNearSigningFinalize(made);
+    if (
+      replayed.original === null ||
+      replayed.status !== replayed.original.status ||
+      JSON.stringify(JSON.parse(replayed.body)) !==
+        JSON.stringify(JSON.parse(replayed.original.body))
+    ) {
+      throw new Error(
+        `A signature made before the recovery did not answer again: ${replayed.status} ${replayed.body}`,
+      );
+    }
+    this.recordService(
+      'the recovery retired the replaced activation: a delayed finalize was refused, a made signature answered again',
+    );
+  }
+
+  /**
+   * A NEAR finalize that loaded the replaced activation's material before a
+   * recovery promoted is refused at its commit, and its signature never
+   * answers. Only the Workers D1 SigningWorker signs and commits in separate
+   * steps; the wallet object and the VM SigningWorker commit in the step that
+   * loads the material. The Gateway withholds the finalize of a signature
+   * authorized before the recovery, and the SigningWorker is asked to hold
+   * the wallet's next finalize after it signs, until its activation is
+   * retired. The withheld finalize reaches the Router, and the SigningWorker
+   * holds it. The recovery promotes, retiring the activation, and the held
+   * finalize's commit is refused.
+   */
+  async recoverPasskeyWalletWhileAFinalizeHoldsTheReplacedMaterial(): Promise<void> {
+    this.recordStage('recover_passkey_wallet_while_finalize_holds_replaced_material');
+    requireLocalIntendedYaoFaultRouterOrigin(this.config.routerUrl);
+    const withheld = await this.keepNearSigningFinalize('withhold_signing_finalize');
+    const armed = await this.commandSigningWorkerHold('arm_signing_worker_hold');
+    if (armed !== 'armed') {
+      throw new Error(`The SigningWorker did not arm its finalize hold: ${armed}`);
+    }
+    const held = this.releaseNearSigningFinalize(withheld, 300_000).then(
+      (released) => ({ kind: 'answered' as const, released }),
+      (error: unknown) => ({ kind: 'failed' as const, error }),
+    );
+    await this.waitForSigningWorkerHold('holding');
+    this.recordService(
+      'the SigningWorker holds a finalize that has signed with the active material',
+    );
+    await this.recoverPasskeyWalletFromFreshBrowser();
+    const outcome = await held;
+    if (outcome.kind === 'failed') throw outcome.error;
+    const refused = outcome.released;
+    if (
+      refused.status < 400 ||
+      !refused.body.includes(SIGNING_WORKER_ACTIVATION_RETIRED_AT_COMMIT_MESSAGE)
+    ) {
+      throw new Error(
+        `A finalize held across the recovery's promotion was not refused at its commit: ${refused.status} ${refused.body}`,
+      );
+    }
+    const released = await this.commandSigningWorkerHold('read_signing_worker_hold');
+    if (released !== 'released_retired') {
+      throw new Error(`The SigningWorker's hold did not end on the retirement: ${released}`);
+    }
+    this.recordService(
+      'a finalize that signed with the replaced material before the recovery promoted was refused at its commit',
+    );
+  }
+
+  /** Arms or reads the SigningWorker's hold on this wallet's next NEAR finalize. */
+  private async commandSigningWorkerHold(
+    mode: 'arm_signing_worker_hold' | 'read_signing_worker_hold',
+  ): Promise<string | null> {
+    const response = await this.page.request.post(
+      new URL(ROUTER_AB_ED25519_SIGNING_FINALIZE_PATH, this.config.routerUrl).href,
+      {
+        headers: {
+          [LOCAL_INTENDED_YAO_SIGNING_FAULT_HEADER_V1]: mode,
+          [LOCAL_INTENDED_YAO_SIGNING_FAULT_TOKEN_HEADER_V1]: randomUUID(),
+        },
+        data: { wallet_id: this.requireRegisteredWalletForSigning().walletId },
+      },
+    );
+    if (!response.ok()) {
+      throw new Error(
+        `The SigningWorker hold command failed: ${response.status()} ${await response.text()}`,
+      );
+    }
+    const reply = requireRecord(await response.json(), 'SigningWorker hold reply');
+    const body = requireString(reply.body, 'SigningWorker hold body');
+    if (Number(reply.status) !== 200) {
+      throw new Error(`The SigningWorker refused the hold command: ${reply.status} ${body}`);
+    }
+    const state = requireRecord(JSON.parse(body), 'SigningWorker hold state').state;
+    return typeof state === 'string' ? state : null;
+  }
+
+  private async waitForSigningWorkerHold(expected: string): Promise<void> {
+    const deadline = Date.now() + 60_000;
+    let state: string | null = null;
+    while (Date.now() < deadline) {
+      state = await this.commandSigningWorkerHold('read_signing_worker_hold');
+      if (state === expected) return;
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+    throw new Error(`The SigningWorker's finalize hold stayed ${state}, not ${expected}`);
+  }
+
+  /** Signs NEAR once with every finalize of it kept by the Gateway, run or withheld. */
+  private async keepNearSigningFinalize(
+    mode: 'capture_signing_finalize' | 'withhold_signing_finalize',
+  ): Promise<string> {
+    if (this.intendedYaoSigningFault !== null) {
+      throw new Error('An intended Yao signing fault is already armed');
+    }
+    const registration = requireNearReadyRegisteredWallet(
+      this.requireRegisteredWalletForSigning(),
+      'NEAR signing',
+    );
+    const proofStartIndex = this.intendedYaoFaultProofs.length;
+    const token = randomUUID();
+    this.intendedYaoSigningFault = { mode, token };
+    try {
+      if (mode === 'capture_signing_finalize') {
+        await this.signNearTransaction('post_registration');
+      } else {
+        let signed = false;
+        try {
+          await this.runNearSigningPageAction(registration.nearAccountId);
+          signed = true;
+        } catch {
+          // The Gateway withheld the finalize, so the signature failed.
+        }
+        if (signed) throw new Error('A NEAR signature signed although its finalize was withheld');
+      }
+    } finally {
+      this.intendedYaoSigningFault = null;
+    }
+    const expected = `${token}:${
+      mode === 'capture_signing_finalize'
+        ? 'signing_finalize_captured'
+        : 'signing_finalize_withheld'
+    }`;
+    const observed = this.intendedYaoFaultProofs.slice(proofStartIndex);
+    if (observed.length === 0 || observed.some((proof) => proof !== expected)) {
+      throw new Error(
+        `Expected intended Yao fault proof ${expected}; observed ${observed.join(', ') || '<none>'}`,
+      );
+    }
+    this.recordService(`intended Yao fault proof: ${expected.slice(token.length + 1)}`);
+    return token;
+  }
+
+  /** Sends a finalize the Gateway kept to the Router again, and reads the Router's reply. */
+  private async releaseNearSigningFinalize(
+    token: string,
+    timeoutMs = 30_000,
+  ): Promise<{
+    readonly status: number;
+    readonly body: string;
+    readonly original: { readonly status: number; readonly body: string } | null;
+  }> {
+    const response = await this.page.request.post(
+      new URL(ROUTER_AB_ED25519_SIGNING_FINALIZE_PATH, this.config.routerUrl).href,
+      {
+        headers: {
+          [LOCAL_INTENDED_YAO_SIGNING_FAULT_HEADER_V1]: 'release_signing_finalize',
+          [LOCAL_INTENDED_YAO_SIGNING_FAULT_TOKEN_HEADER_V1]: token,
+        },
+        data: {},
+        timeout: timeoutMs,
+      },
+    );
+    if (!response.ok()) {
+      throw new Error(
+        `Releasing a kept finalize failed: ${response.status()} ${await response.text()}`,
+      );
+    }
+    const released = requireRecord(await response.json(), 'released finalize');
+    const original = released.original;
+    return {
+      status: Number(released.status),
+      body: requireString(released.body, 'released finalize body'),
+      original:
+        original === null
+          ? null
+          : {
+              status: Number(requireRecord(original, 'original finalize').status),
+              body: requireString(
+                requireRecord(original, 'original finalize').body,
+                'original body',
+              ),
+            },
+    };
+  }
+
+  /**
+   * An Ed25519 export whose admission loses the Gateway's storage right after
+   * the batch that authorized it committed the export's `authorized` state,
+   * its nonce claim and its authorized operation. The Gateway sends the
+   * identical request again, which admits the export from that durable
+   * authorization, and the export completes.
+   */
+  async exportEd25519KeyAcrossInterruptedAuthorization(): Promise<void> {
+    this.recordStage('ed25519.export_across_interrupted_authorization');
+    if (this.intendedYaoExportFaultToken !== null) {
+      throw new Error('An intended Yao export fault is already armed');
+    }
+    requireLocalIntendedYaoFaultRouterOrigin(this.config.routerUrl);
+    const proofStartIndex = this.intendedYaoFaultProofs.length;
+    const faultToken = randomUUID();
+    this.intendedYaoExportFaultToken = faultToken;
+    try {
+      await this.exportEd25519Key();
+    } finally {
+      this.intendedYaoExportFaultToken = null;
+    }
+    this.assertIntendedYaoFaultProof(
+      proofStartIndex,
+      faultToken,
+      'export_authorization_committed_then_storage_lost',
+    );
+    this.recordService('the exact retry admitted an export interrupted after its authorization');
+  }
+
   assertNoLifecycleViolations(): void {
     if (this.violations.length === 0) return;
     throw new Error(`Intended lifecycle violations:\n${this.violations.join('\n')}`);
   }
 
   assertNoWrongAuthPath(): void {
-    /* Refactor 109C additions are the one lifecycle that legitimately uses
+    /* Auth-method additions are the one lifecycle that legitimately uses
        both families: the wallet authorizes with the factor it already has and
        verifies the one being added. The guard exists to catch a lifecycle
        silently falling back to the other factor, which is still worth checking
@@ -2702,7 +4398,11 @@ export class IntendedBehaviourHarness {
     }
   }
 
-  async attachTrace(testInfo: TestInfo): Promise<void> {
+  async attachTrace(
+    testInfo: TestInfo,
+    attachmentName = 'intended-lifecycle-trace.json',
+  ): Promise<void> {
+    if (this.networkMode === 'external_staging') return;
     const payload: IntendedLifecycleTracePayload = {
       flow: this.flow,
       walletId: this.walletId,
@@ -2717,8 +4417,8 @@ export class IntendedBehaviourHarness {
       trace: this.trace,
       violations: this.violations,
     };
-    await persistIntendedLifecycleTrace({ testInfo, payload });
-    await testInfo.attach('intended-lifecycle-trace.json', {
+    await persistIntendedLifecycleTrace({ testInfo, payload, attachmentName });
+    await testInfo.attach(attachmentName, {
       body: JSON.stringify(payload, null, 2),
       contentType: 'application/json',
     });
@@ -2750,27 +4450,38 @@ export class IntendedBehaviourHarness {
       `**${ROUTER_AB_ED25519_YAO_REGISTRATION_EXECUTE_PATH_V1}`,
       this.handleIntendedYaoFaultRoute.bind(this),
     );
+    await this.context.route(
+      `**${WALLET_REGISTRATION_NEAR_PROVISIONING_PATH_V1}`,
+      this.handleIntendedYaoFinalizeFaultRoute.bind(this),
+    );
+    await this.context.route(
+      `**${ROUTER_AB_ED25519_YAO_RECOVERY_EXECUTE_PATH_V1}`,
+      this.handleIntendedYaoRecoveryFaultRoute.bind(this),
+    );
+    await this.context.route(
+      `**${ROUTER_AB_ED25519_YAO_EXPORT_ADMISSION_PATH_V1}`,
+      this.handleIntendedYaoExportFaultRoute.bind(this),
+    );
+    await this.context.route(
+      `**${ROUTER_AB_ED25519_SIGNING_FINALIZE_PATH}`,
+      this.handleIntendedYaoSigningFaultRoute.bind(this),
+    );
   }
 
   private async installWebAuthnVirtualAuthenticator(): Promise<void> {
     const client = await this.context.newCDPSession(this.page);
     await client.send('WebAuthn.enable');
-    const authenticatorId = await addWebAuthnVirtualAuthenticator(client);
-    this.webAuthnVirtualAuthenticator = { client, authenticatorId };
+    await addWebAuthnVirtualAuthenticator(client);
     this.recordService('webauthn virtual authenticator ready');
   }
 
   private async resetBrowserStorage(): Promise<void> {
     await this.context.clearCookies();
-    await this.page.goto(this.config.appUrl, { waitUntil: 'domcontentloaded' });
-    try {
-      await this.page.evaluate(clearBrowserStorage);
-    } catch {
-      /* The app can still be settling a late navigation right after
-         domcontentloaded, which destroys the evaluation context. */
-      await this.page.waitForLoadState('load');
-      await this.page.evaluate(clearBrowserStorage);
-    }
+    await this.page.goto(`${new URL(this.config.appUrl).origin}/__storage-reset`, {
+      waitUntil: 'commit',
+    });
+    await this.page.evaluate(clearBrowserStorage);
+    await this.page.waitForFunction(browserStorageDatabasesEmpty, undefined, { timeout: 5_000 });
     if (this.config.signingSessionDebug) {
       await this.page.evaluate(() => {
         localStorage.setItem('seams:debug:signing-session', '1');
@@ -2782,9 +4493,25 @@ export class IntendedBehaviourHarness {
   }
 
   private async assertServicesReady(): Promise<void> {
+    // The hosted ingress admits readiness only with the benchmark token, and
+    // API requests do not pass through the context route that adds it.
+    const routerHeaders: Record<string, string> =
+      this.networkMode === 'external_staging'
+        ? { 'x-r150-benchmark-access': hostedBenchmarkAccessToken() }
+        : {};
     await assertHttpOk(this.request, this.config.appUrl, 'site');
-    await assertHttpOk(this.request, `${this.config.routerUrl}/healthz`, 'router healthz');
-    await assertHttpOk(this.request, `${this.config.routerUrl}/readyz`, 'router readyz');
+    await assertHttpOk(
+      this.request,
+      `${this.config.routerUrl}/healthz`,
+      'router healthz',
+      routerHeaders,
+    );
+    await assertHttpOk(
+      this.request,
+      `${this.config.routerUrl}/readyz`,
+      'router readyz',
+      routerHeaders,
+    );
     this.recordService('site and router ready');
   }
 
@@ -2826,8 +4553,8 @@ export class IntendedBehaviourHarness {
   private async clearBrowserStorageForColdSync(): Promise<void> {
     await this.context.clearCookies();
     const resetTargets = [
-      `${new URL(this.page.url()).origin}/robots.txt`,
-      `${new URL(this.config.walletOrigin).origin}/healthz`,
+      `${new URL(this.page.url()).origin}/__storage-reset`,
+      `${new URL(this.config.walletOrigin).origin}/__storage-reset`,
     ];
     for (const target of resetTargets) {
       await this.page.goto(target, { waitUntil: 'commit' });
@@ -2852,6 +4579,8 @@ export class IntendedBehaviourHarness {
       nearAccountId?: string;
       expectedOutcome?: 'success' | 'error';
       onRecoveryCodes?: (codes: readonly string[]) => void;
+      /** Runs as soon as the page reports the action started. */
+      onActionStarted?: () => void;
     },
   ): Promise<IntendedPageSnapshot> {
     if (opts?.nearAccountId && !this.registeredWallet) {
@@ -2863,6 +4592,7 @@ export class IntendedBehaviourHarness {
     await this.ensureIntendedPageOpen();
     await this.page.getByTestId(buttonTestId).click();
     await this.waitForIntendedPageActionStarted(action);
+    opts?.onActionStarted?.();
     const diagnostics: WalletIframeAutoConfirmDiagnostics = { attempts: 0, clicked: false };
     let diagnosticsRecorded = false;
     try {
@@ -3011,6 +4741,95 @@ export class IntendedBehaviourHarness {
         ...route.request().headers(),
         [LOCAL_INTENDED_YAO_FAULT_HEADER_V1]: current.mode,
         [LOCAL_INTENDED_YAO_FAULT_TOKEN_HEADER_V1]: current.token,
+      },
+    });
+  }
+
+  private async handleIntendedYaoRecoveryFaultRoute(route: Route): Promise<void> {
+    const armed = this.intendedYaoRecoveryFault;
+    if (armed === null || route.request().method() !== 'POST') {
+      await route.continue();
+      return;
+    }
+    this.intendedYaoRecoveryFault = null;
+    await route.continue({
+      headers: {
+        ...route.request().headers(),
+        [LOCAL_INTENDED_YAO_RECOVERY_FAULT_HEADER_V1]: armed.mode,
+        [LOCAL_INTENDED_YAO_RECOVERY_FAULT_TOKEN_HEADER_V1]: armed.token,
+      },
+    });
+  }
+
+  /** Sends a recovery execution the Gateway kept to the Router, and reads the Router's reply. */
+  private async releaseKeptRecoveryExecute(
+    token: string,
+  ): Promise<{ readonly status: number; readonly body: string }> {
+    const response = await this.page.request.post(
+      new URL(ROUTER_AB_ED25519_YAO_RECOVERY_EXECUTE_PATH_V1, this.config.routerUrl).href,
+      {
+        headers: {
+          [LOCAL_INTENDED_YAO_RECOVERY_FAULT_HEADER_V1]: 'release_router_recovery_execute',
+          [LOCAL_INTENDED_YAO_RECOVERY_FAULT_TOKEN_HEADER_V1]: token,
+        },
+        data: {},
+      },
+    );
+    if (!response.ok()) {
+      throw new Error(
+        `Releasing a kept recovery execution failed: ${response.status()} ${await response.text()}`,
+      );
+    }
+    const released = requireRecord(await response.json(), 'released recovery execution');
+    return {
+      status: Number(released.status),
+      body: requireString(released.body, 'released recovery execution body'),
+    };
+  }
+
+  private async handleIntendedYaoSigningFaultRoute(route: Route): Promise<void> {
+    const armed = this.intendedYaoSigningFault;
+    if (armed === null || route.request().method() !== 'POST') {
+      await route.continue();
+      return;
+    }
+    await route.continue({
+      headers: {
+        ...route.request().headers(),
+        [LOCAL_INTENDED_YAO_SIGNING_FAULT_HEADER_V1]: armed.mode,
+        [LOCAL_INTENDED_YAO_SIGNING_FAULT_TOKEN_HEADER_V1]: armed.token,
+      },
+    });
+  }
+
+  private async handleIntendedYaoExportFaultRoute(route: Route): Promise<void> {
+    const token = this.intendedYaoExportFaultToken;
+    if (token === null || route.request().method() !== 'POST') {
+      await route.continue();
+      return;
+    }
+    this.intendedYaoExportFaultToken = null;
+    await route.continue({
+      headers: {
+        ...route.request().headers(),
+        [LOCAL_INTENDED_YAO_EXPORT_FAULT_HEADER_V1]: 'lose_storage_after_export_authorization_once',
+        [LOCAL_INTENDED_YAO_EXPORT_FAULT_TOKEN_HEADER_V1]: token,
+      },
+    });
+  }
+
+  private async handleIntendedYaoFinalizeFaultRoute(route: Route): Promise<void> {
+    const token = this.intendedYaoFinalizeFaultToken;
+    if (token === null || route.request().method() !== 'POST') {
+      await route.continue();
+      return;
+    }
+    this.intendedYaoFinalizeFaultToken = null;
+    await route.continue({
+      headers: {
+        ...route.request().headers(),
+        [LOCAL_INTENDED_YAO_FINALIZE_FAULT_HEADER_V1]: 'lose_storage_after_decision_once',
+        [LOCAL_INTENDED_YAO_FINALIZE_FAULT_TOKEN_HEADER_V1]: token,
       },
     });
   }
@@ -3399,6 +5218,22 @@ function requirePasskeyRegisteredWalletSnapshot(
   }
 }
 
+/**
+ * Linking pins the source signer manifest, so a wallet with an Ed25519
+ * signer must have it before a device approves; a wallet without one has
+ * nothing to wait for.
+ */
+function requireLinkableRegisteredWallet(
+  registration: RegisteredWalletSnapshot,
+): RegisteredWalletSnapshot {
+  if (registration.nearReadiness === 'pending') {
+    throw new Error(
+      `Device linking requires NEAR readiness; current state is ${nearStateLabel(registration)}`,
+    );
+  }
+  return registration;
+}
+
 function requireNearReadyRegisteredWallet(
   registration: RegisteredWalletSnapshot,
   operation: string,
@@ -3496,20 +5331,79 @@ export const intendedTest = base.extend<{
 }>({
   harness: async ({ context, page, request }, use, testInfo) => {
     const flow = lifecycleFlowFromTestFile(testInfo.file);
+    const networkMode = intendedNetworkModeFromEnv();
+    if (networkMode === 'external_staging') {
+      await installHostedBenchmarkAccess(context);
+    }
     const harness = new IntendedBehaviourHarness({
       context,
       flow,
-      networkMode: 'managed_local',
+      networkMode,
       page,
       request,
     });
     await harness.initialize();
     await use(harness);
     await harness.attachTrace(testInfo);
+    await harness.closeLinkedDevice(testInfo);
     harness.assertNoLifecycleViolations();
     harness.assertNoWrongAuthPath();
   },
 });
+
+function hostedBenchmarkAccessToken(): string {
+  const accessToken = process.env.SEAMS_INTENDED_BENCHMARK_ACCESS_TOKEN;
+  if (!accessToken || accessToken.length < 32) {
+    throw new Error('Hosted benchmark access token must contain at least 32 characters');
+  }
+  return accessToken;
+}
+
+async function installHostedBenchmarkAccess(context: BrowserContext): Promise<void> {
+  const accessToken = hostedBenchmarkAccessToken();
+  const gatewayUrl = process.env.SEAMS_INTENDED_ROUTER_URL;
+  if (!gatewayUrl) throw new Error('Hosted benchmark Gateway URL is required');
+  const gatewayOrigin = new URL(gatewayUrl).origin;
+  await context.route(
+    `${gatewayOrigin}/**`,
+    forwardHostedBenchmarkRequest.bind(undefined, accessToken),
+  );
+}
+
+async function forwardHostedBenchmarkRequest(accessToken: string, route: Route): Promise<void> {
+  await route.continue({
+    headers: {
+      ...route.request().headers(),
+      'x-r150-benchmark-access': accessToken,
+    },
+  });
+}
+
+function intendedNetworkModeFromEnv(): 'managed_local' | 'external_staging' {
+  switch (process.env.SEAMS_INTENDED_EXTERNAL_GATEWAY) {
+    case undefined:
+    case '0':
+      return 'managed_local';
+    case '1': {
+      const arm = process.env.SEAMS_INTENDED_BENCHMARK_ARM;
+      const gatewayUrl = process.env.SEAMS_INTENDED_ROUTER_URL;
+      if (arm !== 'd1' && arm !== 'do') {
+        throw new Error('Hosted benchmark backend arm must be d1 or do');
+      }
+      if (!gatewayUrl) throw new Error('Hosted benchmark Gateway URL is required');
+      const gateway = new URL(gatewayUrl);
+      if (
+        gateway.protocol !== 'https:' ||
+        gateway.hostname.split('.')[0] !== `r150-bench-20260925-${arm}-ingress`
+      ) {
+        throw new Error('Hosted benchmark Gateway must name the selected arm ingress');
+      }
+      return 'external_staging';
+    }
+    default:
+      throw new Error('SEAMS_INTENDED_EXTERNAL_GATEWAY must be 0 or 1');
+  }
+}
 
 function intendedHarnessConfigFromEnv(): IntendedHarnessConfig {
   const googleClientId = resolveGoogleClientId({ processEnv: process.env });
@@ -3591,12 +5485,13 @@ function uniqueWalletId(): string {
 function lifecycleFlowFromTestFile(filePath: string): IntendedLifecycleFlow {
   const normalized = filePath.replaceAll('\\', '/');
   if (
-    normalized.endsWith('passkey.registration.contract.test.ts') ||
-    normalized.endsWith('passkey.presign-handoff.contract.test.ts') ||
-    normalized.endsWith('passkey.registration.checkpoint.contract.test.ts') ||
-    normalized.endsWith('passkey.registration.resume.contract.test.ts') ||
+    /\/passkey\.registration(?:\.(?:checkpoint|resume|activation-resume))?\.contract\.test\.ts$/u.test(
+      normalized,
+    ) ||
+    normalized.endsWith('passkey.presign-pool.contract.test.ts') ||
     normalized.endsWith('passkey.ed25519-yao-local.contract.test.ts') ||
     normalized.endsWith('passkey.add-email-otp.contract.test.ts') ||
+    normalized.endsWith('passkey.device-linking.contract.test.ts') ||
     normalized.endsWith('auth-method-addition.matrix.contract.test.ts') ||
     normalized.endsWith('passkey.registration.benchmark.test.ts')
   ) {
@@ -3664,12 +5559,17 @@ function scheduleServiceReadinessRetry(resolve: () => void): void {
   setTimeout(resolve, 250);
 }
 
-async function assertHttpOk(request: APIRequestContext, url: string, label: string): Promise<void> {
+async function assertHttpOk(
+  request: APIRequestContext,
+  url: string,
+  label: string,
+  headers: Record<string, string> = {},
+): Promise<void> {
   const deadline = Date.now() + 20_000;
   let lastStatus = 0;
   while (Date.now() < deadline) {
     try {
-      const response = await request.get(url, { ignoreHTTPSErrors: true, timeout: 5_000 });
+      const response = await request.get(url, { headers, ignoreHTTPSErrors: true, timeout: 5_000 });
       lastStatus = response.status();
       if (response.ok()) return;
     } catch {
@@ -3826,6 +5726,7 @@ function signingAuthExpectationForStage(
     case 'post_registration':
       return 'warm_session';
     case 'post_unlock':
+    case 'post_device_link':
     case 'after_refresh_recovery':
       return 'warm_session';
     case 'step_up_required':
@@ -3840,6 +5741,8 @@ function summarizeSigningAuthEvents(snapshot: IntendedPageSnapshot): SigningAuth
   const authenticationMethods: SigningAuthMethod[] = [];
   const remainingUses: number[] = [];
   let warmSessionClaimed = false;
+  let authorityClaims = 0;
+  let warmSessionPlanClaims = 0;
   let passkeyPromptStarted = false;
   let passkeyPromptSucceeded = false;
   let passkeyAuthenticationComplete = false;
@@ -3878,6 +5781,8 @@ function summarizeSigningAuthEvents(snapshot: IntendedPageSnapshot): SigningAuth
     switch (phase) {
       case SIGNING_AUTH_WARM_SESSION_CLAIMED:
         warmSessionClaimed = true;
+        if (signingEventClaimedActiveWalletAuthority(event.payload)) authorityClaims += 1;
+        else warmSessionPlanClaims += 1;
         break;
       case SIGNING_AUTH_PASSKEY_PROMPT_STARTED:
         passkeyPromptStarted = true;
@@ -3913,6 +5818,7 @@ function summarizeSigningAuthEvents(snapshot: IntendedPageSnapshot): SigningAuth
     authenticationMethods,
     remainingUses,
     warmSessionClaimed,
+    activeWalletAuthorityClaimed: authorityClaims > 0 && warmSessionPlanClaims === 0,
     passkeyPromptStarted,
     passkeyPromptSucceeded,
     passkeyAuthenticationComplete,
@@ -3953,6 +5859,7 @@ function signingAuthSummaryDetails(summary: SigningAuthEventSummary): string {
     authenticationMethods: summary.authenticationMethods,
     remainingUses: summary.remainingUses,
     warmSessionClaimed: summary.warmSessionClaimed,
+    activeWalletAuthorityClaimed: summary.activeWalletAuthorityClaimed,
     passkeyPromptStarted: summary.passkeyPromptStarted,
     passkeyPromptSucceeded: summary.passkeyPromptSucceeded,
     passkeyAuthenticationComplete: summary.passkeyAuthenticationComplete,
@@ -3992,7 +5899,11 @@ function assertWarmSessionSigningAuth(input: {
   if (hasAnyEmailOtpSigningEvent(input.summary)) {
     throw new Error(`${input.label} at ${input.stage} used Email OTP before exhaustion`);
   }
-  if (input.summary.remainingUses.length === 0 && !usedNoPromptReconnect) {
+  if (
+    input.summary.remainingUses.length === 0 &&
+    !usedNoPromptReconnect &&
+    !input.summary.activeWalletAuthorityClaimed
+  ) {
     throw new Error(`${input.label} at ${input.stage} did not report remaining signing uses`);
   }
 }
@@ -4138,6 +6049,16 @@ function signingEventPhase(payload: unknown): string | null {
   return typeof phase === 'string' ? phase : null;
 }
 
+function signingEventClaimedActiveWalletAuthority(payload: unknown): boolean {
+  if (payload === null || typeof payload !== 'object' || Array.isArray(payload)) return false;
+  const data = Reflect.get(payload, 'data');
+  if (data === null || typeof data !== 'object' || Array.isArray(data)) return false;
+  return (
+    typeof Reflect.get(data, 'authorityId') === 'string' &&
+    typeof Reflect.get(data, 'walletSessionId') === 'string'
+  );
+}
+
 function signingEventRemainingUses(payload: unknown): number | null {
   if (payload === null || typeof payload !== 'object' || Array.isArray(payload)) return null;
   const data = Reflect.get(payload, 'data');
@@ -4243,6 +6164,75 @@ function requireNearProvisioningReadyResult(
     throw new Error(`NEAR provisioning wallet mismatch: ${result.walletId}`);
   }
   return result;
+}
+
+function requireDeviceLinkApprovalResult(
+  snapshot: IntendedPageSnapshot,
+  expectedWalletId: string,
+): DeviceLinkApprovalRecordedSnapshot {
+  if (snapshot.action.status !== 'success') {
+    throw new Error(`Device 1 link approval ended with ${snapshot.action.status}`);
+  }
+  const result = snapshot.action.result;
+  if (result.kind !== 'device_link_approval_recorded') {
+    throw new Error(`Device 1 link approval returned ${result.kind}`);
+  }
+  if (result.walletId !== expectedWalletId) {
+    throw new Error(`Device 1 approved a link for ${result.walletId}`);
+  }
+  return result;
+}
+
+function intendedDeviceLinkSettled(): boolean {
+  const state = document
+    .querySelector('[data-testid="intended-e2e-page"]')
+    ?.getAttribute('data-device-link-state');
+  return state === 'active' || state === 'failed';
+}
+
+type DeviceLinkSettledSnapshot =
+  | ({ status: 'active' } & DeviceLinkActiveSnapshot)
+  | { status: 'failed'; linkSessionId: string; error: string };
+
+async function readSettledDeviceLinkState(page: Page): Promise<DeviceLinkSettledSnapshot> {
+  const text = await page.getByTestId('intended-result-json').textContent();
+  if (!text) throw new Error('Intended page snapshot is empty');
+  const snapshot = requireRecord(JSON.parse(text), 'intended page snapshot');
+  const record = requireRecord(snapshot.deviceLink, 'device-link state');
+  const status = requireString(record.status, 'device-link status');
+  const linkSessionId = requireString(record.linkSessionId, 'device-link linkSessionId');
+  switch (status) {
+    case 'active':
+      return {
+        status,
+        linkSessionId,
+        walletId: requireString(record.walletId, 'device-link activation walletId'),
+        enrollmentId: requireString(record.enrollmentId, 'device-link activation enrollmentId'),
+        sessionWalletAuthMethodId: requireString(
+          record.sessionWalletAuthMethodId,
+          'device-link activation sessionWalletAuthMethodId',
+        ),
+        nearAccountId:
+          record.nearAccountId === null
+            ? null
+            : requireString(record.nearAccountId, 'device-link activation nearAccountId'),
+        operationalPublicKey:
+          record.operationalPublicKey === null
+            ? null
+            : requireString(
+                record.operationalPublicKey,
+                'device-link activation operationalPublicKey',
+              ),
+        authenticationKind: requireAuthenticatedKind(
+          record.authenticationKind,
+          'device-link activation authenticationKind',
+        ),
+      };
+    case 'failed':
+      return { status, linkSessionId, error: requireString(record.error, 'device-link error') };
+    default:
+      throw new Error(`device-link state is ${status}, not settled`);
+  }
 }
 
 function requireNearSigningResult(
@@ -5134,6 +7124,12 @@ function parseIntendedActionResultSnapshot(raw: unknown): IntendedActionResultSn
           'Ed25519 add-signer operationalPublicKey',
         ),
       };
+    case 'ecdsa_signer_added':
+      return {
+        kind,
+        walletId: requireString(record.walletId, 'ECDSA add-signer walletId'),
+        ...parseEcdsaEnabledSnapshot(record, 'ECDSA add-signer'),
+      };
     case 'add_email_otp_success': {
       const authMethod = requireRecord(record.authMethod, 'add-email-code auth method');
       if (authMethod.kind !== 'email_otp' || authMethod.status !== 'active') {
@@ -5306,6 +7302,33 @@ function parseIntendedActionResultSnapshot(raw: unknown): IntendedActionResultSn
         walletId: requireString(record.walletId, 'Ed25519 export walletId'),
         nearAccountId: requireString(record.nearAccountId, 'Ed25519 export nearAccountId'),
       };
+    case 'device_link_qr_ready':
+      return {
+        kind,
+        linkSessionId: requireString(record.linkSessionId, 'device-link QR linkSessionId'),
+        qrPayloadJson: requireString(record.qrPayloadJson, 'device-link QR payload'),
+      };
+    case 'device_link_approval_recorded':
+      return {
+        kind,
+        walletId: requireString(record.walletId, 'device-link approval walletId'),
+        enrollmentId: requireString(record.enrollmentId, 'device-link approval enrollmentId'),
+        deviceId: requireString(record.deviceId, 'device-link approval deviceId'),
+      };
+    case 'linked_device_revoked':
+      return {
+        kind,
+        walletId: requireString(record.walletId, 'linked-device revocation walletId'),
+        walletAuthMethodId: requireString(
+          record.walletAuthMethodId,
+          'linked-device revocation walletAuthMethodId',
+        ),
+        authorityId: requireString(record.authorityId, 'linked-device revocation authorityId'),
+        revocationEpoch: requireNonNegativeInteger(
+          record.revocationEpoch,
+          'linked-device revocation revocationEpoch',
+        ),
+      };
     default:
       throw new Error(`Unknown intended action result kind: ${kind}`);
   }
@@ -5456,6 +7479,7 @@ function parseIntendedHarnessAction(raw: unknown): IntendedHarnessAction {
     case 'registerPasskeyEd25519YaoWallet':
     case 'registerPasskeyEcdsaOnlyWallet':
     case 'addPasskeyEd25519YaoWalletSigner':
+    case 'addPasskeyEcdsaWalletSigner':
     case 'addEmailOtpAuthMethod':
     case 'addPasskeyAuthMethod':
     case 'registerEmailOtpWallet':
@@ -5474,6 +7498,10 @@ function parseIntendedHarnessAction(raw: unknown): IntendedHarnessAction {
     case 'signArcEvmTransaction':
     case 'exportEd25519Key':
     case 'exportEcdsaKey':
+    case 'startDeviceLinkingAsTarget':
+    case 'scanAndLinkDevice':
+    case 'revokeLinkedDevice':
+    case 'revokeLinkedDeviceWithEmailOtp':
       return action;
     default:
       throw new Error(`Unknown intended action: ${action}`);
@@ -5749,14 +7777,6 @@ function requireHexString(raw: unknown, label: string): `0x${string}` {
   return value as `0x${string}`;
 }
 
-function nullableNumber(raw: unknown, label: string): number | null {
-  if (raw === null) return null;
-  if (typeof raw !== 'number' || !Number.isFinite(raw)) {
-    throw new Error(`${label} must be a finite number or null`);
-  }
-  return raw;
-}
-
 function requirePositiveInteger(raw: unknown, label: string): number {
   const value = Number(raw);
   if (!Number.isInteger(value) || value <= 0) {
@@ -5774,6 +7794,162 @@ function requireNonNegativeInteger(raw: unknown, label: string): number {
 
 function assertNever(value: never): never {
   throw new Error(`Unexpected intended e2e value: ${String(value)}`);
+}
+
+function parseLinkedDeviceCredentialKind(raw: unknown, label: string): 'passkey' | 'email_otp' {
+  const value = requireString(raw, label);
+  switch (value) {
+    case 'passkey':
+    case 'email_otp':
+      return value;
+    default:
+      throw new Error(`${label} is ${value}`);
+  }
+}
+
+function parseLinkedDeviceState(raw: unknown): LinkedDeviceEntrySnapshot['state'] {
+  const value = requireString(raw, 'linked device state');
+  switch (value) {
+    case 'provisioning':
+    case 'active':
+    case 'suspended':
+    case 'expired':
+    case 'revoked':
+      return value;
+    default:
+      throw new Error(`linked device state is ${value}`);
+  }
+}
+
+function parseLinkedDeviceInventory(raw: unknown): LinkedDeviceInventorySnapshot {
+  const record = requireRecord(raw, 'linked-device inventory');
+  if (!Array.isArray(record.ownerDevices) || !Array.isArray(record.devices)) {
+    throw new Error('linked-device inventory must list owner devices and linked devices');
+  }
+  return {
+    ownerDevices: record.ownerDevices.map((entry): LinkedDeviceOwnerMethodSnapshot => {
+      const owner = requireRecord(entry, 'owner device');
+      const credentialKind = parseLinkedDeviceCredentialKind(
+        owner.credentialKind,
+        'owner device credential kind',
+      );
+      return {
+        walletAuthMethodId: requireString(owner.walletAuthMethodId, 'owner walletAuthMethodId'),
+        credentialKind,
+        credentialIdB64u:
+          credentialKind === 'passkey'
+            ? requireString(owner.credentialIdB64u, 'owner passkey credential id')
+            : null,
+      };
+    }),
+    devices: record.devices.map((entry): LinkedDeviceEntrySnapshot => {
+      const device = requireRecord(entry, 'linked device');
+      return {
+        deviceId: requireString(device.deviceId, 'linked deviceId'),
+        enrollmentId: requireString(device.enrollmentId, 'linked enrollmentId'),
+        walletId: requireString(device.walletId, 'linked device walletId'),
+        walletAuthMethodId: requireString(
+          device.walletAuthMethodId,
+          'linked device walletAuthMethodId',
+        ),
+        credentialKind: parseLinkedDeviceCredentialKind(
+          device.credentialKind,
+          'linked device credential kind',
+        ),
+        state: parseLinkedDeviceState(device.state),
+      };
+    }),
+  };
+}
+
+/** The wallet's one founding passkey method: the source Device 1 proves with. */
+function requireSingleOwnerPasskey(
+  inventory: LinkedDeviceInventorySnapshot,
+): LinkedDeviceOwnerMethodSnapshot & { readonly credentialIdB64u: string } {
+  const [owner, ...extra] = inventory.ownerDevices;
+  if (!owner || extra.length > 0) {
+    throw new Error(`expected one founding owner method, found ${inventory.ownerDevices.length}`);
+  }
+  if (owner.credentialKind !== 'passkey' || owner.credentialIdB64u === null) {
+    throw new Error(`founding owner method is ${owner.credentialKind}, not a passkey`);
+  }
+  return { ...owner, credentialIdB64u: owner.credentialIdB64u };
+}
+
+function assertOwnerDevicesUnchanged(
+  before: LinkedDeviceInventorySnapshot,
+  after: LinkedDeviceInventorySnapshot,
+  label: string,
+): void {
+  const describe = (inventory: LinkedDeviceInventorySnapshot): string =>
+    JSON.stringify(inventory.ownerDevices.map((owner) => owner.walletAuthMethodId).sort());
+  if (describe(before) !== describe(after)) {
+    throw new Error(
+      `${label} changed Device 1's founding methods: ${describe(before)} -> ${describe(after)}`,
+    );
+  }
+}
+
+type IntendedWebAuthnAssertionRequest = {
+  readonly rpId: string;
+  readonly challengeB64u: string;
+  readonly credentialIdB64u: string;
+};
+
+/**
+ * Runs inside the wallet frame, so the assertion's client data names the
+ * wallet origin - the origin the Gateway expects for a request the wallet
+ * host sends. Playwright serializes this function alone; keep it
+ * self-contained.
+ */
+async function getWalletOriginPasskeyAssertion(
+  input: IntendedWebAuthnAssertionRequest,
+): Promise<Record<string, unknown>> {
+  function decodeB64u(value: string): Uint8Array {
+    const base64 = value.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4);
+    const binary = atob(padded);
+    const bytes = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index += 1) {
+      bytes[index] = binary.charCodeAt(index);
+    }
+    return bytes;
+  }
+  function encodeB64u(buffer: ArrayBuffer): string {
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    for (const byte of bytes) binary += String.fromCharCode(byte);
+    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+  const credential = await navigator.credentials.get({
+    publicKey: {
+      rpId: input.rpId,
+      challenge: decodeB64u(input.challengeB64u),
+      allowCredentials: [{ type: 'public-key', id: decodeB64u(input.credentialIdB64u) }],
+      userVerification: 'required',
+      timeout: 30_000,
+    },
+  });
+  if (!(credential instanceof PublicKeyCredential)) {
+    throw new Error('Wallet-origin passkey assertion returned no public-key credential');
+  }
+  const response = credential.response;
+  if (!(response instanceof AuthenticatorAssertionResponse)) {
+    throw new Error('Wallet-origin passkey assertion returned a non-assertion response');
+  }
+  return {
+    id: credential.id,
+    rawId: encodeB64u(credential.rawId),
+    type: credential.type,
+    authenticatorAttachment: credential.authenticatorAttachment ?? null,
+    response: {
+      clientDataJSON: encodeB64u(response.clientDataJSON),
+      authenticatorData: encodeB64u(response.authenticatorData),
+      signature: encodeB64u(response.signature),
+      userHandle: response.userHandle ? encodeB64u(response.userHandle) : null,
+    },
+    clientExtensionResults: {},
+  };
 }
 
 async function hostedAuthMenuFrame(page: Page): Promise<FrameLocator> {
@@ -6683,6 +8859,98 @@ async function readWalletIframeAuthMenuError(page: Page): Promise<string | null>
     .catch(() => null);
 }
 
+/**
+ * The committed revoke request with one thing changed: its operation (the
+ * time it names) or its proof (the code or the challenge digest it carries).
+ */
+function changedRevokeRequestBody(body: string, change: 'operation' | 'proof'): string {
+  const request = JSON.parse(body) as {
+    requestedAtMs: number;
+    sourceProof:
+      | { kind: 'email_otp'; otpCode: string }
+      | { kind: 'webauthn_assertion'; expectedChallengeDigestB64u: string };
+  };
+  if (change === 'operation') {
+    request.requestedAtMs += 1;
+  } else if (request.sourceProof.kind === 'email_otp') {
+    const last = request.sourceProof.otpCode.slice(-1);
+    request.sourceProof.otpCode = `${request.sourceProof.otpCode.slice(0, -1)}${last === '0' ? '1' : '0'}`;
+  } else {
+    const digest = request.sourceProof.expectedChallengeDigestB64u;
+    request.sourceProof.expectedChallengeDigestB64u = `${digest.slice(0, -1)}${digest.endsWith('A') ? 'B' : 'A'}`;
+  }
+  return JSON.stringify(request);
+}
+
+type HeldWalletStoreWindow = Window & {
+  __seamsHeldWalletStore?: { released: boolean; readonly done: Promise<void> };
+};
+
+/* Runs in the wallet's frame: keeps one read-write transaction on
+   `storeName` busy until releaseHeldWalletStore, and resolves once it holds
+   the store. */
+async function startHeldWalletStore(storeName: string): Promise<void> {
+  const names = (await indexedDB.databases()).map((database) => database.name ?? '');
+  const name = names.includes('seams_wallet')
+    ? 'seams_wallet'
+    : names.find((candidate) => candidate.startsWith('seams_test_wallet_'));
+  if (!name) throw new Error('The wallet IndexedDB is not open');
+  const db = await new Promise<IDBDatabase>((resolve, reject) => {
+    const request = indexedDB.open(name);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+  const transaction = db.transaction([storeName], 'readwrite');
+  const store = transaction.objectStore(storeName);
+  const state = {
+    released: false,
+    done: new Promise<void>((resolve) => {
+      transaction.oncomplete = () => {
+        db.close();
+        resolve();
+      };
+      transaction.onabort = () => {
+        db.close();
+        resolve();
+      };
+    }),
+  };
+  (window as HeldWalletStoreWindow).__seamsHeldWalletStore = state;
+  await new Promise<void>((resolve, reject) => {
+    let holding = false;
+    const keepBusy = (): void => {
+      if (state.released) return;
+      const request = store.count();
+      request.onsuccess = () => {
+        if (!holding) {
+          holding = true;
+          resolve();
+        }
+        keepBusy();
+      };
+      request.onerror = () => reject(request.error);
+    };
+    keepBusy();
+  });
+}
+
+/* Runs in the wallet's frame: lets the held transaction commit. */
+async function releaseHeldWalletStore(): Promise<void> {
+  const holder = window as HeldWalletStoreWindow;
+  const state = holder.__seamsHeldWalletStore;
+  if (!state) return;
+  state.released = true;
+  holder.__seamsHeldWalletStore = undefined;
+  await state.done;
+}
+
 function isNearRegistrationExecutionResponse(response: Response): boolean {
   return new URL(response.url()).pathname === ROUTER_AB_ED25519_YAO_REGISTRATION_EXECUTE_PATH_V1;
+}
+
+function isNearProvisioningFinalizeResponse(response: Response): boolean {
+  return (
+    response.request().method() === 'POST' &&
+    new URL(response.url()).pathname === WALLET_REGISTRATION_NEAR_PROVISIONING_PATH_V1
+  );
 }

@@ -11,13 +11,13 @@ export function emailOtpDeviceEnrollmentId(walletId: string, providerSubject: st
   return `email-otp-device-enrollment-v1:${normalizedWalletId}:${normalizedProviderSubject}`;
 }
 
-export const WALLET_UNLOCK_BACKENDS = ['passkey', EMAIL_OTP_CHANNEL] as const;
+const WALLET_UNLOCK_BACKENDS = ['passkey', EMAIL_OTP_CHANNEL] as const;
 
 export type WalletUnlockBackend = (typeof WALLET_UNLOCK_BACKENDS)[number];
 
 export type WalletEmailOtpChannel = typeof EMAIL_OTP_CHANNEL;
 
-export const WALLET_EMAIL_OTP_LOGIN_OPERATIONS = [
+const WALLET_EMAIL_OTP_LOGIN_OPERATIONS = [
   'wallet_unlock',
   'transaction_sign',
   'export_key',
@@ -27,8 +27,8 @@ export type WalletEmailOtpLoginOperation = (typeof WALLET_EMAIL_OTP_LOGIN_OPERAT
 
 export const WALLET_EMAIL_OTP_REGISTRATION_OPERATION = 'registration' as const;
 
-/** Linked-device enrollment (Refactor 103 Phase 6): prove control of the
- * wallet's enrolled email destination to complete one device link. */
+/** Linked-device enrollment: prove control of the wallet's enrolled email
+ * destination to complete one device link. */
 export const WALLET_EMAIL_OTP_DEVICE_LINK_OPERATION = 'device_link' as const;
 
 export type WalletEmailOtpOperation =
@@ -54,7 +54,6 @@ export const WALLET_EMAIL_OTP_TRANSACTION_SIGN_OPERATION = 'transaction_sign' as
 export type WalletEmailOtpExportOperation = typeof WALLET_EMAIL_OTP_EXPORT_OPERATION;
 export type WalletEmailOtpTransactionSignOperation =
   typeof WALLET_EMAIL_OTP_TRANSACTION_SIGN_OPERATION;
-export type WalletEmailOtpUnlockOperation = typeof WALLET_EMAIL_OTP_UNLOCK_OPERATION;
 
 export function isWalletUnlockBackend(value: string): value is WalletUnlockBackend {
   return (WALLET_UNLOCK_BACKENDS as readonly string[]).includes(value);

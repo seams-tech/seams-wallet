@@ -1,0 +1,43 @@
+{
+  "$schema": "../../../node_modules/wrangler/config-schema.json",
+  "main": "./worker.mjs",
+  "compatibility_date": "2026-07-17",
+  "workers_dev": true,
+  "preview_urls": false,
+  "env": {
+    "d1": {
+      "name": "r150-bench-20260925-d1-ingress",
+      "preview_urls": false,
+      "vars": {
+        "BENCHMARK_APP_ORIGIN": "http://localhost:4201",
+        "BENCHMARK_WALLET_ORIGIN": "http://localhost:4202"
+      },
+      "secrets": {
+        "required": ["BENCHMARK_ACCESS_TOKEN", "BENCHMARK_EXPIRES_AT_MS"]
+      },
+      "services": [
+        {
+          "binding": "GATEWAY",
+          "service": "r150-bench-20260925-d1-gateway"
+        }
+      ]
+    },
+    "do": {
+      "name": "r150-bench-20260925-do-ingress",
+      "preview_urls": false,
+      "vars": {
+        "BENCHMARK_APP_ORIGIN": "http://localhost:4201",
+        "BENCHMARK_WALLET_ORIGIN": "http://localhost:4202"
+      },
+      "secrets": {
+        "required": ["BENCHMARK_ACCESS_TOKEN", "BENCHMARK_EXPIRES_AT_MS"]
+      },
+      "services": [
+        {
+          "binding": "GATEWAY",
+          "service": "r150-bench-20260925-do-gateway"
+        }
+      ]
+    }
+  }
+}

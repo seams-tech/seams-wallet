@@ -6,11 +6,11 @@ import {
   parseLaneHolderDeliveryReceiptV1,
   parseLaneProductEpochRecordV1,
   parseLaneProtocolCommitReceiptV1,
-  parseLaneProtocolJobV1,
   parseLaneProtocolLifecycleV1,
   parseLaneServerActivationReceiptV1,
   parseLaneServerRetirementReceiptV1,
 } from '@shared/signing-lanes/rotationParsers';
+import { parseLaneProtocolJobV1 } from '@shared/signing-lanes/rotationProtocolParsers';
 import type {
   AggregateLaneActivationReceiptV1,
   AggregateLaneRevocationReceiptV1,

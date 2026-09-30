@@ -294,7 +294,7 @@ function buildExportChallengeRoutePlan(
 }
 
 function buildEcdsaExportVerificationRoutePlan(
-  authorization: EcdsaExplicitExportOperationAuthorization,
+  _authorization: EcdsaExplicitExportOperationAuthorization,
 ): EmailOtpRoutePlan {
   return buildEmailOtpRoutePlan({
     routeFamily: 'login',

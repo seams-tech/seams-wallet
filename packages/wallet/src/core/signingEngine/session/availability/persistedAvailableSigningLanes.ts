@@ -12,9 +12,11 @@ import {
 import {
   listEcdsaSealedSessionsForWallet,
   listExactSealedSessionsForWallet,
+} from '../persistence/sealedSessionStore';
+import {
   type EcdsaDurableLaneRecord,
   type SigningSessionSealedStoreRecord,
-} from '../persistence/sealedSessionStore';
+} from '../persistence/sealedSessionRecords';
 import {
   ecdsaAvailableLaneIdentityKey,
   readAvailableSigningLanes,
@@ -46,7 +48,7 @@ import {
   isPasskeyWalletAuthAuthority,
 } from '@shared/utils/walletAuthAuthority';
 
-export type EcdsaLaneCapability = 'sign' | 'export_keys';
+type EcdsaLaneCapability = 'sign' | 'export_keys';
 
 export type PersistedAvailableSigningLanesDeps = {
   activeWalletAuthorityEcdsaRuntimeReadPorts: ExactWalletSessionReadPorts;
@@ -165,7 +167,7 @@ export async function readPersistedAvailableSigningLanes(
 }
 
 /**
- * R103C human operational read: lanes for one exact owner. The auth-method
+ * Human operational read: lanes for one exact owner. The auth-method
  * narrowing and the owner filter both derive from the scope — callers supply
  * nothing the scope does not already carry.
  */

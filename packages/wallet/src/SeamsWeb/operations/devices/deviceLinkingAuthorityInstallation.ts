@@ -273,7 +273,7 @@ export function createDeviceLinkingAuthorityInstallationPortV1(
   };
 }
 
-export function createDeviceLinkingDeliveryResumePortV1(input: {
+function createDeviceLinkingDeliveryResumePortV1(input: {
   readonly indexedDB: UnifiedIndexedDBManager;
 }): DeviceLinkingDeliveryResumePortV1 {
   return {
@@ -315,7 +315,7 @@ export function createDeviceLinkingDeliveryResumePortV1(input: {
   };
 }
 
-export async function installLocalAuthorityV1(input: {
+async function installLocalAuthorityV1(input: {
   readonly indexedDB: UnifiedIndexedDBManager;
   readonly sealing: DeviceLinkingCommittedPackageSealingPortV1;
   readonly nowMs: () => number;

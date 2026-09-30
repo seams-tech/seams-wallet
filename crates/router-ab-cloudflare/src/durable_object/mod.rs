@@ -17,9 +17,59 @@ use crate::{
     CloudflareSigningWorkerEcdsaPoolCommandV1, CloudflareSigningWorkerEcdsaPoolMutationOutcomeV1,
     CloudflareSigningWorkerRecipientProofBundleActivationRequestV1,
 };
+#[cfg(all(
+    feature = "workers-rs",
+    any(feature = "strict-worker-deriver-a-entrypoint", test)
+))]
+mod deriver_a_pair;
+#[cfg(all(feature = "workers-rs", feature = "wallet-do-b-harness"))]
+mod deriver_b_pair;
 #[cfg(feature = "workers-rs")]
 mod ecdsa_presign_live_session;
-#[cfg(any(feature = "workers-rs", test))]
+#[cfg(feature = "workers-rs")]
+mod router_wallet;
+#[cfg(feature = "workers-rs")]
+pub(crate) use router_wallet::call_router_wallet_v1;
+#[cfg(feature = "workers-rs")]
+pub use router_wallet::RouterAbRouterWalletDurableObject;
+#[cfg(all(feature = "workers-rs", feature = "wallet-do-signing-worker-harness"))]
+mod signing_worker_wallet;
+#[cfg(all(
+    feature = "workers-rs",
+    any(feature = "strict-worker-deriver-a-entrypoint", test)
+))]
+pub use deriver_a_pair::RouterAbDeriverAWalletDurableObject;
+#[cfg(all(
+    feature = "workers-rs",
+    any(feature = "strict-worker-deriver-a-entrypoint", test)
+))]
+pub(crate) use deriver_a_pair::{
+    call_deriver_a_pair_do_v1, DeriverAPairDoCommandV1, DeriverAPairDoResponseV1,
+    DeriverAPairPayloadV1, DeriverAWalletOwnerV1,
+};
+#[cfg(all(feature = "workers-rs", feature = "wallet-do-harness"))]
+pub(crate) use deriver_a_pair::{
+    call_deriver_a_wallet_do_lookup_v1, call_deriver_a_wallet_do_work_v1,
+    deriver_a_wallet_do_burn_work_path_v1, deriver_a_wallet_do_execute_work_path_v1,
+    deriver_a_wallet_do_prepare_work_path_v1, deriver_a_wallet_do_status_work_path_v1,
+    reconcile_deriver_a_wallet_pair_v1,
+};
+#[cfg(all(feature = "workers-rs", feature = "wallet-do-b-harness"))]
+pub use deriver_b_pair::RouterAbDeriverBWalletDurableObject;
+#[cfg(all(feature = "workers-rs", feature = "wallet-do-b-harness"))]
+pub(crate) use deriver_b_pair::{
+    call_deriver_b_wallet_do_v1, deriver_b_wallet_object_name_v1,
+    reconcile_deriver_b_wallet_pair_v1, DeriverBWalletDoRequestV1,
+};
+#[cfg(all(feature = "workers-rs", feature = "wallet-do-signing-worker-harness"))]
+pub use signing_worker_wallet::RouterAbSigningWorkerWalletDurableObject;
+#[cfg(all(feature = "workers-rs", feature = "wallet-do-signing-worker-harness"))]
+pub(crate) use signing_worker_wallet::{
+    call_signing_worker_wallet_do_v1, SigningWorkerWalletDoRequestV1,
+};
+// Shared by every host. Its refresh, restore, retirement and cutover paths
+// still have only Cloudflare callers, so a Cloudflare-free build leaves them unused.
+#[cfg_attr(not(feature = "workers-rs"), allow(dead_code, unused_imports))]
 pub(crate) mod tenant_root_creation;
 #[cfg(any(feature = "workers-rs", test))]
 #[cfg(feature = "workers-rs")]
@@ -34,8 +84,6 @@ use ecdsa_presign_live_session::{
 };
 #[cfg(feature = "workers-rs")]
 pub(crate) use ecdsa_presign_live_session::{
-    CloudflareSigningWorkerEcdsaPresignSessionDoInitRequestV1,
-    CloudflareSigningWorkerEcdsaPresignSessionDoProgressV1,
     CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionDoInitRequestV1,
     CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionDoProgressV1,
     CloudflareSigningWorkerLinkedDeviceEcdsaPresignatureDoConsumeRequestV1,
@@ -96,7 +144,7 @@ impl worker::DurableObject for RouterAbSigningWorkerPresignSessionDurableObject 
     async fn alarm(&self) -> worker::Result<worker::Response> {
         // Owner identities include their immutable expiry, so expired claims can be removed safely.
         self.ecdsa_presign_sessions.borrow_mut().clear();
-        self.storage.delete("owner-presign-initialized").await?;
+        self.storage.delete("owner-presign-authority").await?;
         worker::Response::ok("expired")
     }
 

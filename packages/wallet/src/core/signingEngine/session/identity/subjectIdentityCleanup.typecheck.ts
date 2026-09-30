@@ -12,11 +12,6 @@ import {
   exactEcdsaSigningLaneIdentity,
   type ExactEcdsaSigningLaneIdentity,
 } from './exactSigningLaneIdentity';
-import {
-  buildFreshStepUpRequired,
-  type FreshStepUpRequired,
-} from '../operationState/stepUpFreshness';
-import { SigningSessionIds } from '../operationState/types';
 import type { MpcMaterialActivationRef } from '@shared/utils/domainIds';
 
 const walletId = toWalletId('wallet.testnet');
@@ -76,28 +71,3 @@ const invalidExactIdentity: ExactEcdsaSigningLaneIdentity = {
   subjectId: 'wallet.testnet',
 };
 void invalidExactIdentity;
-
-const operationId = SigningSessionIds.signingOperation('operation-1');
-const operationFingerprint = SigningSessionIds.signingOperationFingerprint('fingerprint-1');
-const freshness = buildFreshStepUpRequired({
-  walletId,
-  operationId,
-  operationFingerprint,
-  laneIdentity,
-  projection: { kind: 'unavailable', reason: 'budget_status_unavailable' },
-  expiry: { kind: 'unavailable', reason: 'budget_status_unavailable' },
-  provenance: {
-    kind: 'trusted_server_budget_status',
-    projectionVersion: 'projection-1',
-    observedAtMs: 1,
-  },
-  reason: 'wallet_budget_exhausted',
-});
-void freshness;
-
-const invalidFreshness: FreshStepUpRequired = {
-  ...freshness,
-  // @ts-expect-error freshness state rejects subjectId.
-  subjectId: 'wallet.testnet',
-};
-void invalidFreshness;

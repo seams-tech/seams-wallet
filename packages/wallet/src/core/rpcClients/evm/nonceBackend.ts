@@ -18,16 +18,16 @@ export type ReserveNonceInput = {
   nonceKey?: bigint;
 };
 
-export type EvmBroadcastTransactionLookupInput = ReserveNonceInput & {
+type EvmBroadcastTransactionLookupInput = ReserveNonceInput & {
   txHash: `0x${string}`;
 };
 
-export type EvmBroadcastTransactionStatus =
+type EvmBroadcastTransactionStatus =
   | { kind: 'finalized' }
   | { kind: 'pending' }
   | { kind: 'missing' };
 
-export type ReserveNonceBoundaryInput = {
+type ReserveNonceBoundaryInput = {
   chain: EvmNonceChain;
   networkKey: string;
   chainId: number;
@@ -49,7 +49,7 @@ export type ManagedNonceReservationSnapshot = {
   expiresAtMs?: number;
 };
 
-export type ManagedNonceReservationSnapshotInput = Omit<
+type ManagedNonceReservationSnapshotInput = Omit<
   ManagedNonceReservationSnapshot,
   'chainTarget' | 'leaseId' | 'operationId' | 'operationFingerprint' | 'subjectId'
 > & {
@@ -87,7 +87,7 @@ export type NonceLaneStatus = {
   blockedNonce?: bigint;
 };
 
-export type EvmNonceBackendFetchInput = {
+type EvmNonceBackendFetchInput = {
   chain: EvmNonceChain;
   networkKey: string;
   chainId: number;
@@ -96,18 +96,18 @@ export type EvmNonceBackendFetchInput = {
   walletId: string;
 };
 
-export type FetchChainNoncePort = (input: EvmNonceBackendFetchInput) => Promise<bigint>;
+type FetchChainNoncePort = (input: EvmNonceBackendFetchInput) => Promise<bigint>;
 
-export type FetchBroadcastTransactionStatusPort = (
+type FetchBroadcastTransactionStatusPort = (
   input: EvmNonceBackendFetchInput & { txHash: `0x${string}` },
 ) => Promise<EvmBroadcastTransactionStatus>;
 
-export type CreateEvmNonceBackendWithFetcherArgs = {
+type CreateEvmNonceBackendWithFetcherArgs = {
   fetchChainNonce: FetchChainNoncePort;
   fetchBroadcastTransactionStatus: FetchBroadcastTransactionStatusPort;
 };
 
-export type CreateEvmNonceBackendArgs = {
+type CreateEvmNonceBackendArgs = {
   chains: readonly SeamsChainConfig[];
   fetchImpl?: typeof fetch;
 };
@@ -201,7 +201,7 @@ export function reserveNonceInputFromBoundary(input: ReserveNonceBoundaryInput):
 
 const DEFAULT_RPC_TIMEOUT_MS = 15_000;
 
-export function createEvmNonceBackendWithFetcher(
+function createEvmNonceBackendWithFetcher(
   args: CreateEvmNonceBackendWithFetcherArgs,
 ): EvmNonceBackend {
   return {
@@ -531,11 +531,6 @@ function normalizeBigint(value: unknown, label: string): bigint {
   } catch {
     throw new Error(`[evmNonceBackend] invalid ${label}: expected bigint-compatible value`);
   }
-}
-
-function normalizeAccountId(value: unknown): string | undefined {
-  const normalized = String(value || '').trim();
-  return normalized || undefined;
 }
 
 function normalizeSessionStatusRequiredString(value: unknown, label: string): string {

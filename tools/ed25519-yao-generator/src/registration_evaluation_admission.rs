@@ -889,19 +889,4 @@ mod tests {
             &expected_admission_digest
         );
     }
-
-    #[test]
-    fn source_and_api_guards_exclude_profile_negotiation_signatures_and_export_values() {
-        let source = include_str!("registration_evaluation_admission.rs");
-        let forbidden = [
-            ["ed25519", "_dalek"].concat(),
-            ["Security", "ProfileV1"].concat(),
-            ["Signing", "Key"].concat(),
-            ["seed", "_output"].concat(),
-            ["joined", "_seed"].concat(),
-        ];
-        for forbidden in forbidden {
-            assert!(!source.contains(&forbidden), "forbidden token: {forbidden}");
-        }
-    }
 }

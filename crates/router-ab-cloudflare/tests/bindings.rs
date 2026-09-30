@@ -123,7 +123,7 @@ use router_ab_cloudflare::{
     CloudflareSigningWorkerRouterAbEcdsaDerivationEvmDigestFinalizeHandlerV1,
     CloudflareSigningWorkerRouterAbEcdsaDerivationEvmDigestPreparedV1,
     CloudflareSigningWorkerRouterAbEcdsaDerivationPresignaturePoolPutRequestV1,
-    CloudflareSigningWorkerRuntimeV1, CloudflareTenantRootControlPlaneIssuerVerifyingKeysV1,
+    CloudflareSigningWorkerWalletScopeV1, CloudflareTenantRootControlPlaneIssuerVerifyingKeysV1,
     CloudflareTenantRootCustodyBindingWireV1, CloudflareWorkerBindingsV1, CloudflareWorkerRoleV1,
     EcdsaVerifiedClientActivationFactsV1, PoolRecord, TombstoneReason,
     CLOUDFLARE_SERVER_OUTPUT_HPKE_PRIVATE_KEY_SECRET_PREFIX_V1,
@@ -1382,8 +1382,16 @@ fn router_ab_ecdsa_derivation_activation_request(
     )
     .expect("Router A/B ECDSA derivation SigningWorker proof-bundle activation");
     let pending = CloudflareRouterAbEcdsaDerivationPendingSigningWorkerActivationV1::new(
-        registration,
+        registration.clone(),
         TenantRootProtocolDigestV1::from_bytes([0x55; 32]).expect("custody binding digest"),
+        CloudflareSigningWorkerWalletScopeV1::new(
+            "org-fixture",
+            "project-fixture",
+            "environment-fixture",
+            &registration.lifecycle.account_id,
+        )
+        .expect("wallet scope"),
+        "test".to_owned(),
         router_payload,
         activation,
     )
@@ -7389,26 +7397,6 @@ fn deriver_a_runtime_exposes_role_private_secrets_and_peer() {
 }
 
 #[test]
-fn signing_worker_runtime_retains_only_ephemeral_presign_session_do() {
-    let runtime = CloudflareSigningWorkerRuntimeV1::new(
-        CloudflareSigningWorkerBindingsV1::new(
-            signing_worker_presign_session_binding(),
-            server_output_hpke_decrypt_key(),
-        )
-        .expect("signing worker bindings"),
-    )
-    .expect("signing worker runtime");
-    assert_eq!(
-        runtime.bindings().presign_session.binding_name,
-        "SIGNING_WORKER_PRESIGN_SESSION_DO"
-    );
-    assert_eq!(
-        runtime.server_output_decrypt_key().binding_name,
-        "SIGNING_WORKER_SERVER_OUTPUT_HPKE_PRIVATE_KEY"
-    );
-}
-
-#[test]
 fn deriver_b_runtime_exposes_role_private_secrets_and_peer() {
     let runtime = CloudflareDeriverBWorkerRuntimeV1::new(
         CloudflareDeriverBBindingsV1::new(
@@ -7901,7 +7889,9 @@ fn normal_signing_finalize_boundary_extracts_verified_step_up_authorized_operati
                 "org_id": "org-1",
                 "project_id": "project-1",
                 "environment": "dev",
-                "subject_id": "user-1"
+                "project_environment_id": "project-environment-1",
+                "subject_id": "user-1",
+                "account_id": "wallet-1"
             },
             "authorized_operation": {
                 "kind": "verified_step_up_authorized_operation_v1",

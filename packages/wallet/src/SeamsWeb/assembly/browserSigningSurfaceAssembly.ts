@@ -13,6 +13,7 @@ import {
 } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 import { readPersistedAvailableSigningLanesForSigning as readPersistedAvailableSigningLanesForSigningOperation } from '@/core/signingEngine/session/availability/persistedAvailableSigningLanes';
 import { createCanonicalWalletSessionStatusReader } from '@/core/signingEngine/session/lifecycle/canonicalWalletSessionStatus';
+import { emitSigningSessionFlowTrace } from '@/core/signingEngine/session/operationState/trace';
 import type { EmailOtpWalletSessionCoordinator } from '@/core/signingEngine/session/emailOtp/EmailOtpWalletSessionCoordinator';
 import type { BrowserSealedSigningSessionStorePorts } from './createBrowserSigningStores';
 import type { UserPreferencesManager } from '@/core/signingEngine/session/userPreferences';
@@ -96,7 +97,7 @@ import type { EmailOtpTransactionSigningChallenge } from '@/core/signingEngine/s
 import type { RestorePersistedSessionForSigningInput } from '@/core/signingEngine/session/sealedRecovery/sealedRecovery.types';
 import { readOwnerWalletExecutionLaneProjectionV1 } from '@/core/rpcClients/relayer/ownerWalletExecutionLanePreflight';
 import { hydrateWalletExecutionLane } from '@/core/signingEngine/session/lanes/walletExecutionLaneHydration';
-import type { EcdsaCapabilityManifestLookup } from '@/core/indexedDB/seamsWalletDB/ecdsaCapabilityManifestStore';
+import type { EcdsaCapabilityManifestLookup } from '@/core/indexedDB/seamsWalletDB/ecdsaCapabilityManifestLookups';
 import { readEmailOtpProviderSubjectForWalletV1 } from '@/core/signingEngine/threshold/ed25519/yaoPublicCapabilityReferences';
 import { readExactWalletSessionAuthorization } from './createBrowserRecoveryPublicDeps';
 import { resolveExactEcdsaSealedRuntime } from '@/core/signingEngine/session/material/ecdsaSealedRuntime';
@@ -110,11 +111,11 @@ import {
   ed25519SealedRuntimeAuthorityRef,
   type ExactEd25519SealedSessionRuntime,
 } from '@/core/signingEngine/session/warmCapabilities/ed25519SealedSessionRuntime';
+import { listExactSealedSessionsForWallet } from '@/core/signingEngine/session/persistence/sealedSessionStore';
 import {
-  listExactSealedSessionsForWallet,
   type CurrentEcdsaSealedSessionRecord,
   type CurrentSealedSessionRecord,
-} from '@/core/signingEngine/session/persistence/sealedSessionStore';
+} from '@/core/signingEngine/session/persistence/sealedSessionRecords';
 import type { ActiveWalletSessionV1 } from '@shared/device-linking/contracts';
 
 type SigningEnginePorts = ReturnType<typeof createSigningEnginePorts>;
@@ -202,7 +203,7 @@ async function noWalletPasskeyAuthenticator(): Promise<null> {
 }
 
 /**
- * R103C: the active wallet auth-method store is the one source that resolves
+ * The active wallet auth-method store is the one source that resolves
  * an authority reference to its full authority. Sealed-session restores and
  * loose authenticator lists are history and hints; matching against them let
  * a stale or sibling credential answer for the active authority.
@@ -506,13 +507,23 @@ export async function readBrowserExactNearEd25519WalletSessionAuthorization(
   ) {
     return { kind: 'corrupt' };
   }
+  let replaced: Awaited<
+    ReturnType<typeof IndexedDBManager.replaceExactActiveWalletSessionFromStatus>
+  >;
   try {
-    await walletSessionAuthorizations.replaceExactActive({
+    replaced = await IndexedDBManager.replaceExactActiveWalletSessionFromStatus({
       active: status.authorization,
       operationCredential: exactRead.operationCredential,
     });
   } catch {
     return { kind: 'persistence_unavailable' };
+  }
+  if (replaced.kind === 'superseded') {
+    emitSigningSessionFlowTrace('near', {
+      event: 'wallet_session_status_superseded',
+      walletSessionId: exactRead.operationCredential.walletSessionId,
+    });
+    return { kind: 'unavailable' };
   }
   let selectedFactorAuthority: WalletAuthAuthority;
   try {
@@ -697,7 +708,7 @@ async function buildBrowserEcdsaPreprocessingCapability(args: {
   }
 }
 
-export type BrowserWalletSessionAuthorizationResolution =
+type BrowserWalletSessionAuthorizationResolution =
   | { kind: 'active'; authorization: ExactEvmFamilyWalletSessionAuthorization }
   | { kind: 'inactive'; reason: string };
 
@@ -780,8 +791,11 @@ async function resolveBrowserEcdsaPreprocessingCapability(
   if (status.authorization.expiresAtMs <= authorizationNowMs) {
     return { kind: 'inactive', reason: 'Exact Wallet Session authorization is expired' };
   }
+  let replaced: Awaited<
+    ReturnType<typeof IndexedDBManager.replaceExactActiveWalletSessionFromStatus>
+  >;
   try {
-    await walletSessionAuthorizations.replaceExactActive({
+    replaced = await IndexedDBManager.replaceExactActiveWalletSessionFromStatus({
       active: status.authorization,
       operationCredential: exactAuthorization.operationCredential,
     });
@@ -789,6 +803,18 @@ async function resolveBrowserEcdsaPreprocessingCapability(
     return {
       kind: 'inactive',
       reason: 'Exact Wallet Session promotion reconciliation could not be persisted',
+    };
+  }
+  /* The authority or selection changed after the status was read, and the
+     session written with that change stands. */
+  if (replaced.kind === 'superseded') {
+    emitSigningSessionFlowTrace('evm-family', {
+      event: 'wallet_session_status_superseded',
+      walletSessionId: exactAuthorization.operationCredential.walletSessionId,
+    });
+    return {
+      kind: 'inactive',
+      reason: 'Exact Wallet Session status was superseded by a newer wallet authority',
     };
   }
   const authorizationResolution = await buildBrowserEcdsaPreprocessingCapability({
@@ -811,7 +837,7 @@ async function resolveBrowserEcdsaPreprocessingCapability(
   };
 }
 
-export async function resolveBrowserActiveEcdsaWalletSessionAuthorization(
+async function resolveBrowserActiveEcdsaWalletSessionAuthorization(
   args: BrowserEcdsaCapabilityReaderContext,
   input: BrowserEcdsaWalletSessionAuthorizationInput,
   statusReads: WalletSessionStatusReadScope,
@@ -932,7 +958,7 @@ export async function resolveAmbiguousEcdsaActivationForSelectedAuthMethod(input
 }
 
 async function resolveBrowserCanonicalEcdsaSigningCapability(
-  args: BrowserEcdsaCapabilityReaderContext,
+  _args: BrowserEcdsaCapabilityReaderContext,
   input: Parameters<
     Parameters<typeof createSigningEnginePorts>[0]['resolveCanonicalEcdsaSigningCapability']
   >[0],
@@ -945,10 +971,10 @@ async function resolveBrowserCanonicalEcdsaSigningCapability(
   // Replacement race: preparation named a capability whose manifest has since
   // been replaced. That surfaces here as either no active subject for the
   // prepared capability ref, or a lookup that returns `retired`. Both are
-  // R90-INV-010 supersession, not a missing wallet: when a replacement
-  // covering the same target exists, throw the typed superseded error so
-  // `signEvmFamily` performs its one bounded re-resolution instead of
-  // reporting a terminal signing failure.
+  // supersession, not a missing wallet: when a replacement covering the same
+  // target exists, throw the typed superseded error so `signEvmFamily`
+  // performs its one bounded re-resolution instead of reporting a terminal
+  // signing failure.
   const throwSupersededByReplacement = async (fallback: () => never): Promise<never> => {
     const replacement = await activeEcdsaReplacementManifestForTarget({
       walletId,
@@ -970,7 +996,7 @@ async function resolveBrowserCanonicalEcdsaSigningCapability(
     materialActivation: input.materialActivation,
   });
   if (manifestLookup.kind === 'ambiguous_authority') {
-    // R109C: several auth methods on one wallet authority each hold their own
+    // Several auth methods on one wallet authority each hold their own
     // access projection over this activation. Signing happens as the selected
     // method, so name it rather than taking whichever sibling scans first.
     manifestLookup = await resolveAmbiguousEcdsaActivationForSelectedAuthMethod({
@@ -1212,7 +1238,7 @@ export async function listBrowserActiveEcdsaCapabilityManifestsForWallet(
   return manifests;
 }
 
-export const browserActiveEcdsaCapabilityRuntimeReadPorts: ActiveEcdsaCapabilityRuntimeReadPorts = {
+const browserActiveEcdsaCapabilityRuntimeReadPorts: ActiveEcdsaCapabilityRuntimeReadPorts = {
   listActiveEcdsaCapabilityManifestsForWallet: listBrowserActiveEcdsaCapabilityManifestsForWallet,
   listExactSealedSessionsForWallet,
   resolveSelectedWalletAuthority:
@@ -1251,7 +1277,7 @@ async function requestEmailOtpEcdsaStepUpChallenge(args: {
   }
 }
 
-export type BrowserSigningSurfaceEnginePortsArgs = {
+type BrowserSigningSurfaceEnginePortsArgs = {
   runtimePorts: RuntimePorts;
   stores: SigningEngineStorePorts;
   ed25519YaoPublicCapabilityReferences: Ed25519YaoPublicCapabilityReferenceStorePort;

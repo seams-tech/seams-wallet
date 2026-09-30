@@ -54,7 +54,7 @@ export class EmailOtpWalletSessionRuntime {
   private readonly exportRecoveryRuntime: EmailOtpExportRecoveryRuntime;
   private readonly ecdsaLifecycleRuntime: EmailOtpEcdsaLifecycleRuntime;
 
-  constructor(private readonly deps: EmailOtpWalletSessionCoordinatorDeps) {
+  constructor(deps: EmailOtpWalletSessionCoordinatorDeps) {
     this.runtimeConfig = new EmailOtpRuntimeConfig({
       configs: deps.configs,
       getRpId: deps.getRpId,
@@ -104,7 +104,6 @@ export class EmailOtpWalletSessionRuntime {
       worker: deps.signerWorkerManager,
     });
     this.sealedRefreshPolicy = new EmailOtpSealedRefreshPolicy({
-      deleteDurableSealedSessionRecord: deps.deleteDurableSealedSessionRecord,
       updateExactSealedSessionPolicy: deps.updateExactSealedSessionPolicy,
       clearEcdsaRestoreCaches: () => this.clearEcdsaRestoreCaches(),
     });

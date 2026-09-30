@@ -131,6 +131,6 @@ export function requireResolvedEvmFamilyEcdsaSigningLane(args: {
 
 // `updateResolvedEvmFamilyEcdsaSigningLaneIdentity` is gone. It re-derived a
 // resolved lane after a record refresh rewrote its session identity -- a
-// lifecycle Refactor 90 deletes. Material is selected by manifest and sealed
+// lifecycle that no longer exists. Material is selected by manifest and sealed
 // runtime now, so a lane's identity never changes underneath it and there is
 // nothing to update in place. It had no production callers.

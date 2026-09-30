@@ -3,9 +3,9 @@ import { isDevHost } from '../../shared/is-dev-host';
 
 const loadedIframes = new WeakSet<HTMLIFrameElement>();
 
-export type IframeTestOptions = { routerId?: string; ownerTag?: string };
+type IframeTestOptions = { routerId?: string; ownerTag?: string };
 
-export function markIframeLoaded(iframe: HTMLIFrameElement): void {
+function markIframeLoaded(iframe: HTMLIFrameElement): void {
   loadedIframes.add(iframe);
 }
 
@@ -18,7 +18,7 @@ export function trackIframeLoad(iframe: HTMLIFrameElement): void {
   iframe.addEventListener('load', () => markIframeLoaded(iframe), { once: true });
 }
 
-export function buildAllowAttr(walletOrigin: string): string {
+function buildAllowAttr(walletOrigin: string): string {
   return `publickey-credentials-get 'self' ${walletOrigin}; publickey-credentials-create 'self' ${walletOrigin}; clipboard-read; clipboard-write`;
 }
 

@@ -5,8 +5,6 @@ import type {
   WalletSessionId,
 } from '@shared/authorization/capabilityKinds';
 import type { SigningSessionStatus } from '@/core/types/seams';
-import { SIGNER_AUTH_METHODS, type SignerAuthMethod } from '@shared/utils/signerDomain';
-import type { EcdsaSessionProvisionPlan } from './ecdsaProvisionPlan';
 import type { ActiveEcdsaCapabilityManifest } from '../material/ecdsaCapabilityManifest';
 import type { ExactEcdsaSealedRuntime } from '../material/ecdsaSealedRuntime';
 import type { ExactEvmFamilyWalletSessionAuthorization } from '../material/ecdsaSigningCapability';
@@ -14,7 +12,6 @@ import type { EcdsaSealTransportAuthMaterial } from '../persistence/sealedSessio
 import type {
   ThresholdEcdsaEmailOtpAuthContext,
   SelectedEcdsaLane,
-  ThresholdEcdsaSessionStoreSource,
   ThresholdEd25519SessionStoreSource,
 } from '../identity/laneIdentity';
 import { laneCandidateStateFromRuntimePolicy } from '../identity/laneIdentity';
@@ -26,10 +23,8 @@ import type {
 } from '../../threshold/sessionPolicy';
 import type { Ed25519WalletSessionMintAuthorization } from '../../threshold/ed25519/walletSession';
 import type { RouterAbEd25519NormalSigningState } from '../../threshold/ed25519/routerAbNormalSigningState';
-import type { SigningOperationIntent } from '../operationState/types';
 import {
   thresholdEcdsaChainTargetsEqual,
-  type ThresholdEcdsaChainTarget,
   type WalletId,
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type { EvmFamilyEcdsaKeyIdentity } from '../identity/evmFamilyEcdsaIdentity';
@@ -41,28 +36,6 @@ import type { ExactNearEd25519WalletSessionAuthorization } from '../material/nea
 import type { ExactEd25519SealedSessionRuntime } from './ed25519SealedSessionRuntime';
 import type { MpcMaterialActivationRef, ThresholdEd25519SessionId } from '@shared/utils/domainIds';
 import type { WalletSessionOperationCredentialV1 } from '@shared/device-linking';
-
-function authMethodForThresholdEcdsaSessionSource(
-  source: ThresholdEcdsaSessionStoreSource,
-): SignerAuthMethod {
-  switch (source) {
-    case SIGNER_AUTH_METHODS.emailOtp:
-      return SIGNER_AUTH_METHODS.emailOtp;
-    case 'login':
-    case 'registration':
-    case 'manual-bootstrap':
-      return SIGNER_AUTH_METHODS.passkey;
-    default:
-      return assertNeverThresholdEcdsaSessionSource(source);
-  }
-}
-
-function assertNeverThresholdEcdsaSessionSource(value: never): never {
-  throw new Error(`Unsupported threshold ECDSA session source: ${String(value)}`);
-}
-
-export type WarmSessionCapability = 'ed25519' | 'ecdsa';
-export type WarmSessionPrfClaimState = 'missing' | 'warm' | 'expired' | 'exhausted' | 'unavailable';
 
 export type WarmSessionMaterialWriteDiagnosticBucket =
   | 'worker_ready'
@@ -153,10 +126,7 @@ type WarmSessionEcdsaPresentCapabilityStateValue =
 /** Correlation failures that are not absence. A wallet with a manifest and a
  * sealed record that disagree is a different situation from a wallet with no
  * material, and collapsing the two would hide a real store fault. */
-export type WarmSessionEcdsaInvalidReason =
-  | 'binding_mismatch'
-  | 'exact_record_conflict'
-  | 'corrupt';
+type WarmSessionEcdsaInvalidReason = 'binding_mismatch' | 'exact_record_conflict' | 'corrupt';
 
 type WarmSessionMissingEd25519CapabilityState = {
   capability: 'ed25519';
@@ -167,7 +137,7 @@ type WarmSessionMissingEd25519CapabilityState = {
   state: 'missing';
 };
 
-export type WarmSessionEd25519InvalidReason = 'exact_record_conflict' | 'corrupt';
+type WarmSessionEd25519InvalidReason = 'exact_record_conflict' | 'corrupt';
 
 type WarmSessionInvalidEd25519CapabilityState = {
   capability: 'ed25519';
@@ -353,7 +323,7 @@ function expectedPresentCapabilityState(args: {
     if (prfClaim?.state !== 'warm') return 'prf_missing';
     return 'ready';
   }
-  // Allowance and expiry are classified by the shared Refactor 92 rule before
+  // Allowance and expiry are classified by the shared runtime-policy rule before
   // any worker or PRF state is considered: a warm claim over an expired or
   // exhausted session is not ready, and expiry must not be reported as
   // exhaustion. Both are authorization states, so they surface as
@@ -685,7 +655,7 @@ export type ProvisionWarmEd25519CapabilitySuccessResult =
       operationCredential: WalletSessionOperationCredentialV1;
     });
 
-export type ProvisionWarmEd25519CapabilityFailureResult = {
+type ProvisionWarmEd25519CapabilityFailureResult = {
   ok: false;
   code: string;
   message: string;
@@ -694,38 +664,6 @@ export type ProvisionWarmEd25519CapabilityFailureResult = {
 export type ProvisionWarmEd25519CapabilityResult =
   | ProvisionWarmEd25519CapabilitySuccessResult
   | ProvisionWarmEd25519CapabilityFailureResult;
-
-type EnsureWarmEcdsaProvisionPlanReadyCommonArgs = {
-  walletId: WalletId;
-  subjectId?: never;
-  chainTarget: ThresholdEcdsaChainTarget;
-  keyRef?: never;
-  source: ThresholdEcdsaSessionStoreSource;
-  runtimeScopeBootstrap?: {
-    projectEnvironmentId: string;
-    publishableKey: string;
-  };
-  usesNeeded?: number;
-  sessionBudgetUses: number;
-  operationIntent?: SigningOperationIntent;
-  beforeReconnect?: () => void | Promise<void>;
-  assertNotCancelled?: () => void;
-};
-
-export type EnsureWarmEcdsaProvisionPlanReadyArgs =
-  | (EnsureWarmEcdsaProvisionPlanReadyCommonArgs & {
-      plan: Extract<
-        EcdsaSessionProvisionPlan,
-        {
-          kind: 'passkey_ecdsa_session_provision';
-        }
-      >;
-      capability: WarmSessionEcdsaCapabilityState;
-    })
-  | (EnsureWarmEcdsaProvisionPlanReadyCommonArgs & {
-      plan: Extract<EcdsaSessionProvisionPlan, { kind: 'email_otp_ecdsa_session_provision' }>;
-      capability: WarmSessionEcdsaCapabilityState;
-    });
 
 export type WarmSessionCapabilityReader = {
   getWarmSession: (walletId: WalletId) => Promise<WarmSessionEnvelope>;

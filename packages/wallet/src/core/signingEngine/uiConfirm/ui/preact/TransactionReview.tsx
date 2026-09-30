@@ -1,12 +1,12 @@
 /** @jsxImportSource preact */
-import { Component, createRef } from 'preact';
+import { Component } from 'preact';
 import type { TreeNode } from '../transaction-display/tree';
 import type { TxDisplayModel } from '@/core/signingEngine/interfaces/display';
 import { copySurfaceText } from './clipboard';
 import { CopyStatusIcon } from './CopyStatusIcon';
 import { ReviewDisclosure } from './ReviewDisclosure';
 import { SeamsWordmark } from './SeamsWordmark';
-import { transactionLabelTitle } from './TransactionLabel';
+import { contractPrefix, transactionLabelTitle } from './TransactionLabel';
 
 export type TransactionReviewData = {
   detailsInitiallyOpen?: boolean;
@@ -74,93 +74,20 @@ export function reviewRecipient(model: TxDisplayModel | null): string | null {
     : null;
 }
 
-export class ReviewAddress extends Component<{ value: string }> {
-  private readonly root = createRef<HTMLSpanElement>();
-  private motion: Animation | null = null;
-  private observer: ResizeObserver | null = null;
-
-  private measure = (): void => {
-    const root = this.root.current;
-    if (!root) return;
-    this.clear();
-    const overflowing = (root.firstElementChild?.scrollWidth ?? 0) > root.clientWidth + 1;
-    root.dataset.overflowing = String(overflowing);
-    root.tabIndex = overflowing ? 0 : -1;
-  };
-
-  componentDidMount(): void {
-    this.measure();
-    this.observer = new ResizeObserver(this.measure);
-    if (this.root.current) this.observer.observe(this.root.current);
-  }
-
-  reveal = (): void => {
-    const root = this.root.current;
-    const text = root?.firstElementChild;
-    if (!root || !(text instanceof HTMLElement)) return;
-    const overflow = text.scrollWidth - root.clientWidth;
-    if (overflow <= 1 || this.motion) return;
-    root.dataset.revealing = 'true';
-    const reduced = root.ownerDocument.defaultView?.matchMedia(
-      '(prefers-reduced-motion: reduce)',
-    ).matches;
-    this.motion = text.animate(
-      [{ transform: 'translateX(0)' }, { transform: `translateX(-${overflow}px)` }],
-      {
-        duration: reduced ? 0 : 200,
-        easing: 'linear',
-        fill: 'forwards',
-      },
-    );
-    this.motion.onfinish = this.reachedEnd;
-  };
-
-  private reachedEnd = (): void => {
-    if (this.root.current) this.root.current.dataset.revealEnd = 'true';
-  };
-
-  reset = (): void => {
-    const root = this.root.current;
-    if (root?.matches(':hover, :focus')) return;
-    this.clear();
-  };
-
-  private clear(): void {
-    if (this.motion) this.motion.onfinish = null;
-    this.motion?.cancel();
-    this.motion = null;
-    if (this.root.current) {
-      delete this.root.current.dataset.revealing;
-      delete this.root.current.dataset.revealEnd;
-    }
-  }
-
-  componentDidUpdate(previous: { value: string }): void {
-    if (previous.value !== this.props.value) this.measure();
-  }
-
-  componentWillUnmount(): void {
-    this.observer?.disconnect();
-    this.clear();
-  }
-
-  render() {
-    return (
-      <span
-        ref={this.root}
-        class="seams-review-address"
-        dir="ltr"
-        title={this.props.value}
-        aria-label={this.props.value}
-        onMouseEnter={this.reveal}
-        onMouseLeave={this.reset}
-        onFocus={this.reveal}
-        onBlur={this.reset}
-      >
-        <span>{this.props.value}</span>
-      </span>
-    );
-  }
+/** The whole value when it fits; otherwise the middle truncates and the last eight characters stay. */
+export function ReviewMiddleTruncated({
+  value,
+  class: className,
+}: {
+  value: string;
+  class: string;
+}) {
+  return (
+    <bdi class={`seams-review-middle ${className}`} dir="ltr" title={value}>
+      <span>{value.slice(0, -8)}</span>
+      <span>{value.slice(-8)}</span>
+    </bdi>
+  );
 }
 
 function TokenIcon({ symbol }: { symbol: string }) {
@@ -226,9 +153,7 @@ function decimalUnits(value: string, decimals: number): string {
   return `${padded.slice(0, -decimals)}${fraction ? `.${fraction}` : ''}`;
 }
 
-export function reviewAmount(
-  model: TxDisplayModel | null,
-): { value: string; symbol: string } | null {
+function reviewAmount(model: TxDisplayModel | null): { value: string; symbol: string } | null {
   const total = model?.totals;
   if (!total?.nativeValue) return null;
   if (total.nativeSymbol === 'yoctoNEAR')
@@ -289,6 +214,19 @@ export class CopyReviewValue extends Component<{ value: string; address?: boolea
 function ReviewDetailLabel({ node }: { node: TreeNode }) {
   if (node.action || node.transaction) {
     return <>{transactionLabelTitle(node)}</>;
+  }
+  const contract = contractPrefix(node);
+  if (contract && node.contractAddress) {
+    const address = node.contractAddress;
+    return (
+      <span class="seams-review-contract">
+        {contract.trim()}
+        <span class="seams-review-contract-value">
+          <ReviewMiddleTruncated value={address} class="seams-review-contract-address" />
+          <CopyReviewValue value={address} label={`Copy contract address ${address}`} />
+        </span>
+      </span>
+    );
   }
   if (node.fieldLabel) {
     const value = node.label.slice(node.fieldLabel.length);

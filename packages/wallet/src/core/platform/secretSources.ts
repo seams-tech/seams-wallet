@@ -169,7 +169,7 @@ function requirePlatformObject(value: unknown, field: string): Record<string, un
   return value as Record<string, unknown>;
 }
 
-export type RequiredPrfSecretSourceInput = {
+type RequiredPrfSecretSourceInput = {
   prf: { prfFirstB64u: string };
   rpId: RpId;
   credentialIdB64u: string;

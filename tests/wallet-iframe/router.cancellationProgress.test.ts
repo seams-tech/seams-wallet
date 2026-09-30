@@ -107,7 +107,7 @@ test.describe('WalletIframeRouter cancellation progress', () => {
         };
 
         const runAndCancel = async (
-          name: keyof typeof events,
+          _name: keyof typeof events,
           run: () => Promise<unknown>,
         ): Promise<{
           message: string;

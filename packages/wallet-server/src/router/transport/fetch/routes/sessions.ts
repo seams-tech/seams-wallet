@@ -70,7 +70,7 @@ import {
   type WalletSessionId,
 } from '@shared/authorization/capabilityKinds';
 import { parseWebAuthnCredentialIdB64u, parseWebAuthnRpId } from '@shared/utils/domainIds';
-import { walletIdFromString } from '@shared/utils/registrationIntent';
+import { walletIdFromString } from '@shared/utils/registrationIds';
 import {
   parseHostedWalletSeamsSessionExchangeCode,
   parseHostedWalletSeamsSessionExchangeNonce,
@@ -562,7 +562,7 @@ function projectWalletUnlockEcdsaCustodySigner(
   };
 }
 
-export type WalletUnlockEcdsaAuthoredRequest = {
+type WalletUnlockEcdsaAuthoredRequest = {
   readonly request: RouterAbEcdsaPostRegistrationSessionActivationRequestV1;
   readonly activationReceipt: WalletUnlockEcdsaCustodySignerV1['activationReceipt'];
   readonly continuity: {

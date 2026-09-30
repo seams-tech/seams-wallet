@@ -2,26 +2,26 @@ import { isPlainObject, toOptionalTrimmedString } from '@shared/utils/validation
 import type { WebAuthnAuthenticationCredential } from '../../core/types';
 import { parseWebAuthnAuthenticationCredential } from './webAuthnCredentialCodecs';
 
-export type AuthProviderActionRoute =
+type AuthProviderActionRoute =
   | { kind: 'passkey_options' }
   | { kind: 'passkey_verify' }
   | { kind: 'google_options' }
   | { kind: 'google_verify' }
   | { kind: 'github_options' };
 
-export type PasskeyLoginOptionsRequest = {
+type PasskeyLoginOptionsRequest = {
   user_id: string;
   rp_id: string;
   ttl_ms?: number;
 };
 
-export type PasskeyLoginVerifyRequest = {
+type PasskeyLoginVerifyRequest = {
   challengeId: string;
   webauthn_authentication: WebAuthnAuthenticationCredential;
   expected_origin: string;
 };
 
-export type GoogleLoginVerifyRequest = {
+type GoogleLoginVerifyRequest = {
   idToken: string;
   accountMode: 'login' | 'register';
   projectEnvironmentId: string;
@@ -42,18 +42,18 @@ export type AuthPasskeyStepUpRequest = {
   expected_origin: string;
 };
 
-export type AuthLinkIdentityRequest = {
+type AuthLinkIdentityRequest = {
   provider: 'google';
   idToken: string;
   stepUp: AuthPasskeyStepUpRequest;
 };
 
-export type AuthUnlinkIdentityRequest = {
+type AuthUnlinkIdentityRequest = {
   subject: string;
   stepUp: AuthPasskeyStepUpRequest;
 };
 
-export type AuthIdentityMutationRequest =
+type AuthIdentityMutationRequest =
   | {
       kind: 'link';
       source: 'auth.link';
@@ -65,13 +65,13 @@ export type AuthIdentityMutationRequest =
       request: AuthUnlinkIdentityRequest;
     };
 
-export type AuthRouteErrorBody = {
+type AuthRouteErrorBody = {
   ok: false;
   code: 'invalid_body';
   message: string;
 };
 
-export type AuthRouteParseResult<T> =
+type AuthRouteParseResult<T> =
   | { ok: true; request: T }
   | { ok: false; status: 400; body: AuthRouteErrorBody };
 
@@ -154,7 +154,7 @@ function parseOptionalPositiveInteger(
   return { ok: true, value: Math.floor(value) };
 }
 
-export function parseAuthProviderAction(input: {
+function parseAuthProviderAction(input: {
   provider: unknown;
   action: unknown;
 }): AuthProviderActionRoute | null {
@@ -302,7 +302,7 @@ function parsePasskeyStepUpRequest(input: {
   };
 }
 
-export function parseAuthLinkIdentityRequest(input: {
+function parseAuthLinkIdentityRequest(input: {
   body: unknown;
   origin: unknown;
 }): AuthRouteParseResult<AuthLinkIdentityRequest> {
@@ -331,7 +331,7 @@ export function parseAuthLinkIdentityRequest(input: {
   };
 }
 
-export function parseAuthUnlinkIdentityRequest(input: {
+function parseAuthUnlinkIdentityRequest(input: {
   body: unknown;
   origin: unknown;
 }): AuthRouteParseResult<AuthUnlinkIdentityRequest> {

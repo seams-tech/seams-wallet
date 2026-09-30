@@ -146,7 +146,7 @@ function parseCredentialIdB64u(value: unknown, field = 'credentialIdB64u'): Cred
   return requiredString(value, field) as CredentialIdB64u;
 }
 
-export function parseEcdsaRoleLocalAuthMethod(input: unknown): EcdsaRoleLocalAuthMethod {
+function parseEcdsaRoleLocalAuthMethod(input: unknown): EcdsaRoleLocalAuthMethod {
   if (input === null || typeof input !== 'object' || Array.isArray(input)) {
     throw new Error('[platform][ecdsa-role-local] authMethod must be an object');
   }

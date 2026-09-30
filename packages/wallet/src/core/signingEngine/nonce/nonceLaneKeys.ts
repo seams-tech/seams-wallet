@@ -87,7 +87,7 @@ export function nonceLaneKey(lane: NonceLane): string {
   ]);
 }
 
-export function nearNonceLaneKey(lane: NearNonceLane): string {
+function nearNonceLaneKey(lane: NearNonceLane): string {
   return encodeNonceKeyParts([
     'near',
     lane.networkKey,
@@ -146,7 +146,7 @@ export function createNonceBatchId(args: {
   ])}`;
 }
 
-export function encodeNonceKeyParts(parts: readonly (string | number | bigint)[]): string {
+function encodeNonceKeyParts(parts: readonly (string | number | bigint)[]): string {
   return parts
     .map((part) => {
       const value = String(part);

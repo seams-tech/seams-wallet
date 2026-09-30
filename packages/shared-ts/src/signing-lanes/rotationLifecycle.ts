@@ -1,11 +1,8 @@
 import type {
-  AggregateLaneActivationReceiptV1,
-  AggregateLaneRevocationReceiptV1,
   LaneEnrollmentLifecycleV1,
   LaneProductEpochActiveV1,
   LaneProductEpochPendingVisibilityV1,
   LaneProductEpochRevocationPendingV1,
-  LaneProductEpochRecordV1,
   LaneProductEpochRetiredV1,
   LaneProductEpochRevokedV1,
   LaneProtocolLifecycle,
@@ -18,13 +15,7 @@ function requireForwardTime(previous: number, next: number, label: string): void
   }
 }
 
-function requireSafeTimestamp(value: number, label: string): void {
-  if (!Number.isSafeInteger(value) || value < 0) {
-    throw new Error(`${label} must be a non-negative safe timestamp`);
-  }
-}
-
-export type LaneProtocolLifecycleTransitionV1 =
+type LaneProtocolLifecycleTransitionV1 =
   | { action: 'await_protocol_commitment'; atMs: number }
   | {
       action: 'record_commit';
@@ -198,37 +189,7 @@ export function transitionLaneProtocolLifecycleV1(
   );
 }
 
-export function beginLaneProtocolLifecycleV1(
-  startedAtMs: number,
-): Extract<LaneProtocolLifecycle, { state: 'preparing' }> {
-  requireSafeTimestamp(startedAtMs, 'startedAtMs');
-  return { state: 'preparing', startedAtMs };
-}
-
-export function markLaneProtocolCompletionRequiredV1(
-  current: Extract<LaneProtocolLifecycle, { state: 'committed_awaiting_holder_delivery' }>,
-  recoveryReason: 'exact_redelivery_required' | 'recovery_required',
-): Extract<LaneProtocolLifecycle, { state: 'committed_completion_required' }> {
-  const next = transitionLaneProtocolLifecycleV1(current, {
-    action: 'require_completion',
-    recoveryReason,
-  });
-  if (next.state !== 'committed_completion_required')
-    throw new Error('completion transition did not produce completion state');
-  return next;
-}
-
-export function resumeLaneProtocolCompletionV1(
-  current: Extract<LaneProtocolLifecycle, { state: 'committed_completion_required' }>,
-  atMs: number,
-): Extract<LaneProtocolLifecycle, { state: 'committed_awaiting_holder_delivery' }> {
-  const next = transitionLaneProtocolLifecycleV1(current, { action: 'resume_completion', atMs });
-  if (next.state !== 'committed_awaiting_holder_delivery')
-    throw new Error('resume transition did not produce committed state');
-  return next;
-}
-
-export type LaneEnrollmentLifecycleTransitionV1 =
+type LaneEnrollmentLifecycleTransitionV1 =
   | {
       action: 'mark_committed_completion_required';
       committedChildOperationIds: readonly [LaneOperationId, ...LaneOperationId[]];
@@ -474,25 +435,3 @@ export function completeLaneProductEpochRevocationV1(
     revokedAtMs: args.revokedAtMs,
   };
 }
-
-export function assertForwardOnlyLaneProductEpochV1(value: LaneProductEpochRecordV1): void {
-  switch (value.state) {
-    case 'pending_visibility':
-    case 'active':
-    case 'retired':
-    case 'revocation_pending':
-    case 'revoked':
-      requireSafeTimestamp(value.createdAtMs, 'createdAtMs');
-      break;
-  }
-}
-
-export type LaneActivationReceiptInputV1 = {
-  readonly aggregateReceipt: AggregateLaneActivationReceiptV1;
-  readonly manifestDigestB64u: string;
-};
-
-export type LaneRevocationReceiptInputV1 = {
-  readonly aggregateReceipt: AggregateLaneRevocationReceiptV1;
-  readonly manifestDigestB64u: string;
-};

@@ -17,7 +17,7 @@ import { maxBigint, normalizeBigint, normalizeSessionStatusRequiredString } from
 
 type NearFreshDataClient = Pick<NearClient, 'viewAccessKey' | 'viewBlock'>;
 
-export type NearAccessKeySubject = {
+type NearAccessKeySubject = {
   walletId: string;
   nearAccountId: string;
   publicKey: string;
@@ -72,7 +72,7 @@ export type NearNonceLaneState = {
   inFlight: Map<string, NearInFlightNonceRecord>;
 };
 
-export type NearInFlightNonceRecord = {
+type NearInFlightNonceRecord = {
   nonce: bigint;
   txHash: string;
   acceptedAtMs: number;
@@ -182,7 +182,7 @@ export function readNearAccessKeySubject(state: NearNonceLaneState): NearAccessK
   }
 }
 
-export function requireNearAccessKeySubject(state: NearNonceLaneState): NearAccessKeySubject {
+function requireNearAccessKeySubject(state: NearNonceLaneState): NearAccessKeySubject {
   const subject = readNearAccessKeySubject(state);
   if (!subject) {
     throw new Error('[NonceCoordinator] NEAR access key is not initialized');
@@ -190,7 +190,7 @@ export function requireNearAccessKeySubject(state: NearNonceLaneState): NearAcce
   return subject;
 }
 
-export function readNearTransactionContext(state: NearNonceLaneState): TransactionContext | null {
+function readNearTransactionContext(state: NearNonceLaneState): TransactionContext | null {
   const ready = readNearReadyContext(state.lifecycle);
   return ready?.transactionContext ?? null;
 }
@@ -333,7 +333,7 @@ export function createNearNonceLaneState(): NearNonceLaneState {
   };
 }
 
-export function clearNearRefreshTimer(state: NearNonceLaneState): void {
+function clearNearRefreshTimer(state: NearNonceLaneState): void {
   if (!state.refreshTimer) return;
   clearTimeout(state.refreshTimer);
   state.refreshTimer = null;
@@ -345,7 +345,7 @@ export function clearNearPrefetchTimer(state: NearNonceLaneState): void {
   state.prefetchTimer = null;
 }
 
-export function clearNearTransactionContext(state: NearNonceLaneState): void {
+function clearNearTransactionContext(state: NearNonceLaneState): void {
   const subject = readNearAccessKeySubject(state);
   state.lifecycle = subject
     ? {
@@ -467,7 +467,7 @@ export async function reserveNearNoncesFromState(input: {
   return planned;
 }
 
-export function computeLastReservedNonce(reserved: Set<string>): string | null {
+function computeLastReservedNonce(reserved: Set<string>): string | null {
   let last: bigint | null = null;
   for (const value of reserved) {
     try {
@@ -481,11 +481,6 @@ export function computeLastReservedNonce(reserved: Set<string>): string | null {
 export function releaseNearNonceFromState(state: NearNonceLaneState, nonce: string): void {
   if (!state.reservedNonces.delete(String(nonce))) return;
   state.lastReservedNonce = computeLastReservedNonce(state.reservedNonces);
-}
-
-export function releaseAllNearNoncesFromState(state: NearNonceLaneState): void {
-  state.reservedNonces.clear();
-  state.lastReservedNonce = null;
 }
 
 export async function markNearBroadcastAcceptedState(input: {
@@ -645,7 +640,7 @@ async function readNearTxOutcome(input: {
   }
 }
 
-export function pruneReservedNearNonces(
+function pruneReservedNearNonces(
   chainNonce: bigint,
   reserved: Set<string>,
 ): { set: Set<string>; lastReserved: string | null } {
@@ -662,7 +657,7 @@ export function pruneReservedNearNonces(
   return { set: next, lastReserved: last === null ? null : last.toString() };
 }
 
-export function isMissingNearAccessKeyError(message: string): boolean {
+function isMissingNearAccessKeyError(message: string): boolean {
   const normalized = String(message || '').toLowerCase();
   return (
     normalized.includes('does not exist while viewing') ||
@@ -694,7 +689,7 @@ export class NearImplicitAccountFundingRequiredError extends Error {
   }
 }
 
-export class NearAccountLookupFailedError extends Error {
+class NearAccountLookupFailedError extends Error {
   readonly code = 'near_account_lookup_failed';
   readonly nearAccountId: string;
   readonly readiness: NearExecutionReadiness;
@@ -1047,7 +1042,7 @@ export function isAccessKeyViewLike(value: unknown): value is AccessKeyView {
   }
 }
 
-export function normalizeAccessKeyView(value: AccessKeyView): AccessKeyView {
+function normalizeAccessKeyView(value: AccessKeyView): AccessKeyView {
   const record = value as {
     nonce?: unknown;
     permission?: unknown;
@@ -1079,14 +1074,14 @@ function normalizeAccessKeyPermission(value: unknown): AccessKeyView['permission
   };
 }
 
-export function isBlockResultLike(value: unknown): value is BlockResult {
+function isBlockResultLike(value: unknown): value is BlockResult {
   const record = value as Partial<BlockResult> | null;
   if (!record || typeof record !== 'object') return false;
   const header = record.header as Partial<BlockResult['header']> | undefined;
   return !!header && typeof header.hash === 'string' && header.height !== undefined;
 }
 
-export function makePlaceholderAccessKey(): AccessKeyView {
+function makePlaceholderAccessKey(): AccessKeyView {
   return {
     nonce: 0n,
     permission: 'FullAccess',

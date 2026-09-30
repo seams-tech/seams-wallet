@@ -71,7 +71,7 @@ function redactAssignmentField(input: string, fieldName: string): string {
   );
 }
 
-export function redactSensitiveErrorText(input: string): string {
+function redactSensitiveErrorText(input: string): string {
   let redacted = String(input || '');
   for (const fieldName of SENSITIVE_ERROR_FIELD_NAMES) {
     redacted = redactJsonStringField(redacted, fieldName);
@@ -196,7 +196,7 @@ export function isUserCancellationError(error: unknown): boolean {
  * @param context - The context where the cancellation occurred (e.g., 'registration', 'login')
  * @returns A user-friendly error message
  */
-export function getTouchIdCancellationMessage(context: 'registration' | 'login'): string {
+function getTouchIdCancellationMessage(context: 'registration' | 'login'): string {
   switch (context) {
     case 'registration':
       return `Registration was cancelled. Please try again when you're ready to set up your passkey.`;

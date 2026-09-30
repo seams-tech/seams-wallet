@@ -604,8 +604,17 @@ fn clone_candidate(
 ) -> Result<(), ReviewSubjectErrorV1> {
     let mut clone_command = Command::new("git");
     hardened_git_environment(&mut clone_command);
+    // A detached source HEAD makes git consult init.defaultBranch, and it prints advice to
+    // stderr when that is unset. The checkout below detaches, so the branch name is unused.
     clone_command
-        .args(["clone", "--quiet", "--no-checkout", "--no-hardlinks"])
+        .args([
+            "-c",
+            "init.defaultBranch=main",
+            "clone",
+            "--quiet",
+            "--no-checkout",
+            "--no-hardlinks",
+        ])
         .arg(root)
         .arg(clone);
     command_bytes(&mut clone_command, "git clone captured candidate")?;
@@ -1623,5 +1632,43 @@ mod tests {
         );
         assert!(resolve_internal_symlink("packages/wasm", "../../outside").is_err());
         assert!(resolve_internal_symlink("packages/wasm", "/private/outside").is_err());
+    }
+
+    #[test]
+    fn candidate_clone_accepts_a_detached_source_head() {
+        let temporary = TemporaryDirectory::create("phase2b-review-detached-source")
+            .expect("temporary directory");
+        let source = temporary.path().join("source");
+        fs::create_dir(&source).expect("source directory");
+        let git = |arguments: &[&str]| {
+            let mut command = Command::new("git");
+            hardened_git_environment(&mut command);
+            let status = command
+                .args([
+                    "-c",
+                    "init.defaultBranch=trunk",
+                    "-c",
+                    "user.name=Review Subject Test",
+                    "-c",
+                    "user.email=review-subject@example.invalid",
+                ])
+                .args(arguments)
+                .current_dir(&source)
+                .status()
+                .expect("run git");
+            assert!(status.success(), "git {arguments:?} failed");
+        };
+        git(&["init", "--quiet"]);
+        for content in ["first", "second"] {
+            fs::write(source.join("tracked"), content).expect("write tracked file");
+            git(&["add", "tracked"]);
+            git(&["commit", "--quiet", "--message", content]);
+        }
+        let captured =
+            git_text(&source, &["rev-parse", "--verify", "HEAD~1"]).expect("first commit");
+        git(&["checkout", "--quiet", "--detach", captured.as_str()]);
+
+        clone_candidate(&source, &temporary.path().join("candidate"), &captured)
+            .expect("a detached source HEAD clones without git advice");
     }
 }

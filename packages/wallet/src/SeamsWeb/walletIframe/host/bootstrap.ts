@@ -76,7 +76,7 @@ export function bootstrapTransparentHost(): void {
 /**
  * Ensure the iframe document paints transparently, without dark-mode class bleed-through.
  */
-export function ensureTransparentSurface(): void {
+function ensureTransparentSurface(): void {
   const apply = () => {
     const doc = document;
     doc.documentElement.classList.add('seams-transparent');

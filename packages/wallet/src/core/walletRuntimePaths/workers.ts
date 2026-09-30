@@ -29,20 +29,6 @@ export function resolveWorkerBaseOrigin(): string {
   return currentOrigin;
 }
 
-/**
- * Build an absolute worker script URL from a path or absolute URL.
- * If `input` is a path (e.g., `/sdk/workers/foo.js`), it will be resolved
- * against the wallet origin (from `__SEAMS_WALLET_SDK_BASE__`) when available,
- * otherwise against the host origin.
- *
- * @param input - Absolute URL or path (e.g., `/sdk/workers/near-signer.worker.js`).
- * @returns Absolute URL to the worker script, resolved against the wallet origin when available,
- *          otherwise against the current window origin.
- */
-export function resolveWorkerScriptUrl(input: string): string {
-  return resolveWorkerUrl(input, { worker: detectWorkerFromPath(input) });
-}
-
 export function resolveWorkerUrl(
   input: string | undefined,
   opts: {
@@ -134,17 +120,6 @@ type DedicatedWorkerKind =
   | 'passkeyMpcExport'
   | 'touchConfirm'
   | 'deviceLinking';
-
-function detectWorkerFromPath(p: string): DedicatedWorkerKind {
-  if (/near-signer\.worker\.js(?:$|\?)/.test(p)) return 'signer';
-  if (/ecdsa-derivation-client\.worker\.js(?:$|\?)/.test(p)) return 'ecdsaDerivationClient';
-  if (/ecdsa-presign-client\.worker\.js(?:$|\?)/.test(p)) return 'ecdsaPresignClient';
-  if (/ecdsa-online-client\.worker\.js(?:$|\?)/.test(p)) return 'ecdsaOnlineClient';
-  if (/passkey-mpc-export\.worker\.js(?:$|\?)/.test(p)) return 'passkeyMpcExport';
-  if (/passkey-mpc-session\.worker\.js(?:$|\?)/.test(p)) return 'passkeyMpcSession';
-  if (/device-linking-key\.worker\.js(?:$|\?)/.test(p)) return 'deviceLinking';
-  return 'touchConfirm';
-}
 
 function defaultWorkerPath(worker: DedicatedWorkerKind): string {
   switch (worker) {

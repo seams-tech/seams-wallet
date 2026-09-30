@@ -10,7 +10,7 @@ import type {
   TxDisplayOperation,
 } from '@/core/signingEngine/interfaces/display';
 
-export type BuildEvmDisplayModelArgs = {
+type BuildEvmDisplayModelArgs = {
   request: EvmSigningRequest;
   intentDigest?: string;
   signerAccount?: string;
@@ -44,12 +44,6 @@ function makeField(
   };
 }
 
-function shortenHexAddress(address: string | undefined): string {
-  const normalized = String(address || '').trim();
-  if (!/^0x[0-9a-fA-F]{40}$/.test(normalized)) return normalized;
-  return `${normalized.slice(0, 8)}...${normalized.slice(-4)}`;
-}
-
 function buildAbiDecodeHint(args: {
   dataHex: string | undefined;
   abi: EvmSigningRequest['tx']['abi'];
@@ -73,9 +67,8 @@ function buildDefaultContractCallOperation(args: {
   const functionLabel = resolveFunctionDisplayName(args.selector, args.to);
   const hasCallData = !!args.to && args.dataHex !== '0x';
   const formattedGasLimit = formatCompactGas(args.tx.gasLimit);
-  const rowLabel = args.to
-    ? `Transaction to contract ${shortenHexAddress(args.to)}`
-    : 'Contract Deployment';
+  // The review shows the recipient beside this label, so the label leaves it out.
+  const rowLabel = args.to ? 'Transaction to contract' : 'Contract Deployment';
   const dataField = makeField('Data', formatCalldataForDisplay(args.dataHex), args.dataHex);
   if (dataField) {
     dataField.renderAs = 'file-content';

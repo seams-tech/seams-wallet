@@ -3,7 +3,7 @@ import {
   parseMpcWalletSigningQuotaId,
   type AuthorizationParseResult,
 } from '@shared/authorization/capabilityKinds';
-import { parseWalletSessionOperationCredentialV1 } from '@shared/device-linking/parsers';
+import { parseWalletSessionOperationCredentialV1 } from '@shared/device-linking/activeWalletSession';
 import { WalletSessionStatusReadScope } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 
 function requireParsed<T>(result: AuthorizationParseResult<T>): T {

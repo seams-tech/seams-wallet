@@ -6,7 +6,14 @@ import {
   type WalletAuthAuthorityRef,
   type WalletAuthAuthority,
 } from '@shared/utils/walletAuthAuthority';
-import type { WalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
+import type {
+  ActiveEmailOtpWalletAuthMethodRecordV2,
+  ActivePasskeyWalletAuthMethodRecordV2,
+  ActiveWalletAuthMethodRecordV2,
+  EmailOtpWalletAuthMethodRecordV2,
+  PasskeyWalletAuthMethodRecordV2,
+  WalletAuthMethodRecordV2,
+} from '@shared/utils/walletAuthMethodRecord';
 import { parseSignerSlot, type SignerSlot } from '@shared/utils/signerSlot';
 import type { LocalWalletAuthMethodRecord } from '@/core/indexedDB/passkeyClientDB.types';
 import { toRpId } from './evmFamilyEcdsaIdentity';
@@ -29,11 +36,6 @@ export type OwnerLaneScopeStores = {
   readEmailOtpProviderSubjectForWallet?(walletId: string): Promise<string | null>;
 };
 
-export type ActiveWalletAuthMethodV2 = Extract<
-  WalletAuthMethodRecordV2,
-  { readonly status: 'active' }
->;
-
 export class OwnerLaneScopeIntegrityError extends Error {
   constructor(message: string) {
     super(`[OwnerLaneScope] ${message}`);
@@ -49,7 +51,7 @@ export class OwnerLaneScopeIntegrityError extends Error {
  * boundaries and the UI can surface "link this device again" instead of a
  * generic integrity failure.
  */
-export class OwnerRelinkRequiredError extends Error {
+class OwnerRelinkRequiredError extends Error {
   readonly code = 'relink_required' as const;
   readonly reason = 'missing_canonical_owner_binding' as const;
 
@@ -70,7 +72,7 @@ export function isOwnerRelinkRequiredError(error: unknown): error is OwnerRelink
 }
 
 function passkeyWalletAuthAuthorityFromV2Record(
-  record: Extract<WalletAuthMethodRecordV2, { kind: 'passkey' }>,
+  record: PasskeyWalletAuthMethodRecordV2,
 ): PasskeyWalletAuthAuthority {
   return {
     walletId: record.walletId,
@@ -93,7 +95,7 @@ function passkeyWalletAuthAuthorityFromV2Record(
  * supplies from this installation's verified lanes.
  */
 function emailOtpWalletAuthAuthorityFromProviderSubject(args: {
-  readonly authMethod: Extract<WalletAuthMethodRecordV2, { kind: 'email_otp' }>;
+  readonly authMethod: EmailOtpWalletAuthMethodRecordV2;
   readonly providerSubjectId: string;
 }): EmailOtpWalletAuthAuthority {
   const providerUserId = String(args.providerSubjectId || '').trim();
@@ -120,7 +122,7 @@ function emailOtpWalletAuthAuthorityFromProviderSubject(args: {
 }
 
 function emailOtpWalletAuthAuthorityFromLocalFactor(args: {
-  readonly authMethod: Extract<WalletAuthMethodRecordV2, { kind: 'email_otp' }>;
+  readonly authMethod: EmailOtpWalletAuthMethodRecordV2;
   readonly localMethods: readonly LocalWalletAuthMethodRecord[];
 }): EmailOtpWalletAuthAuthority {
   const matches = args.localMethods.filter(
@@ -150,7 +152,7 @@ function emailOtpWalletAuthAuthorityFromLocalFactor(args: {
  * subject its own lanes carry.
  */
 async function resolveEmailOtpWalletAuthAuthority(args: {
-  readonly authMethod: Extract<WalletAuthMethodRecordV2, { kind: 'email_otp' }>;
+  readonly authMethod: EmailOtpWalletAuthMethodRecordV2;
   readonly stores: OwnerLaneScopeStores;
 }): Promise<EmailOtpWalletAuthAuthority> {
   const walletId = String(args.authMethod.walletId);
@@ -171,7 +173,7 @@ async function resolveEmailOtpWalletAuthAuthority(args: {
 }
 
 function assertExactFactorAuthorityBinding(args: {
-  readonly authMethod: ActiveWalletAuthMethodV2;
+  readonly authMethod: ActiveWalletAuthMethodRecordV2;
   readonly authority: WalletAuthAuthority;
 }): WalletAuthAuthority {
   if (
@@ -186,7 +188,7 @@ function assertExactFactorAuthorityBinding(args: {
 }
 
 export async function resolveExactWalletAuthAuthority(args: {
-  readonly authMethod: ActiveWalletAuthMethodV2;
+  readonly authMethod: ActiveWalletAuthMethodRecordV2;
   readonly stores: OwnerLaneScopeStores;
 }): Promise<WalletAuthAuthority> {
   if (args.authMethod.kind === 'passkey') {
@@ -224,7 +226,7 @@ async function assertOwnerAuthorityRefMatches(args: {
 }
 
 export function buildExactPasskeyOwnerLaneScope(args: {
-  readonly authMethod: Extract<ActiveWalletAuthMethodV2, { readonly kind: 'passkey' }>;
+  readonly authMethod: ActivePasskeyWalletAuthMethodRecordV2;
   readonly signerSlot: SignerSlot;
 }): Extract<OwnerLaneScope, { readonly auth: { readonly kind: 'passkey' } }> {
   return {
@@ -238,7 +240,7 @@ export function buildExactPasskeyOwnerLaneScope(args: {
 }
 
 export function buildExactEcdsaPasskeyOwnerLaneScope(args: {
-  readonly authMethod: Extract<ActiveWalletAuthMethodV2, { readonly kind: 'passkey' }>;
+  readonly authMethod: ActivePasskeyWalletAuthMethodRecordV2;
 }): Extract<OwnerLaneScope, { readonly keyFamily: 'ecdsa' }> {
   return {
     auth: {
@@ -251,7 +253,7 @@ export function buildExactEcdsaPasskeyOwnerLaneScope(args: {
 }
 
 export function buildExactLinkedEmailOtpOwnerLaneScope(args: {
-  readonly authMethod: Extract<ActiveWalletAuthMethodV2, { readonly kind: 'email_otp' }>;
+  readonly authMethod: ActiveEmailOtpWalletAuthMethodRecordV2;
   readonly factorAuthority: EmailOtpWalletAuthAuthority;
   readonly authorityRef: WalletAuthAuthorityRef;
 }): Extract<OwnerLaneScope, { readonly auth: { readonly kind: 'email_otp' } }> {
@@ -279,7 +281,7 @@ export function buildExactLinkedEmailOtpOwnerLaneScope(args: {
 }
 
 async function passkeyOwnerLaneScope(args: {
-  readonly authMethod: Extract<ActiveWalletAuthMethodV2, { readonly kind: 'passkey' }>;
+  readonly authMethod: ActivePasskeyWalletAuthMethodRecordV2;
   readonly stores: OwnerLaneScopeStores;
 }): Promise<Extract<OwnerLaneScope, { readonly auth: { readonly kind: 'passkey' } }>> {
   const authenticator = await args.stores.getWalletPasskeyAuthenticator({
@@ -299,7 +301,7 @@ async function passkeyOwnerLaneScope(args: {
 }
 
 export async function resolveExactOwnerLaneScope(args: {
-  readonly authMethod: ActiveWalletAuthMethodV2;
+  readonly authMethod: ActiveWalletAuthMethodRecordV2;
   readonly stores: OwnerLaneScopeStores;
 }): Promise<OwnerLaneScope> {
   if (args.authMethod.kind === 'passkey') {
@@ -323,7 +325,7 @@ export async function resolveExactOwnerLaneScope(args: {
 }
 
 /**
- * R103C owner derivation chain: active Wallet Session authority -> one active
+ * Owner derivation chain: active Wallet Session authority -> one active
  * wallet auth method -> exact credential -> exact local authenticator and
  * signer slot (Passkey only). Every value comes from the previous link, and
  * the resolved method must reproduce the authority digest the active session

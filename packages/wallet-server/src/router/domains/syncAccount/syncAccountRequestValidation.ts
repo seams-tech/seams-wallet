@@ -2,25 +2,25 @@ import { isPlainObject, toOptionalTrimmedString } from '@shared/utils/validation
 import type { WebAuthnAuthenticationCredential } from '../../../core/types';
 import { parseWebAuthnAuthenticationCredential } from '../../auth/webAuthnCredentialCodecs';
 
-export type SyncAccountOptionsRequest = {
+type SyncAccountOptionsRequest = {
   rp_id: string;
   account_id?: string;
   ttl_ms?: number;
 };
 
-export type SyncAccountVerifyRequest = {
+type SyncAccountVerifyRequest = {
   challengeId: string;
   webauthn_authentication: WebAuthnAuthenticationCredential;
   expected_origin: string;
 };
 
-export type SyncAccountRouteErrorBody = {
+type SyncAccountRouteErrorBody = {
   ok: false;
   code: 'invalid_body';
   message: string;
 };
 
-export type SyncAccountRouteParseResult<T> =
+type SyncAccountRouteParseResult<T> =
   | { ok: true; request: T }
   | { ok: false; status: 400; body: SyncAccountRouteErrorBody };
 

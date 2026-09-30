@@ -34,7 +34,7 @@ export function normalizeRorHost(hostRaw: unknown): string | null {
   }
 }
 
-export type WellKnownSigningSessionSealCapabilities =
+type WellKnownSigningSessionSealCapabilities =
   | { mode: 'none' }
   | {
       mode: 'sealed_refresh_v1';
@@ -42,7 +42,7 @@ export type WellKnownSigningSessionSealCapabilities =
       currentKeyVersion: string;
     };
 
-export function normalizeWellKnownSigningSessionSealCapabilities(
+function normalizeWellKnownSigningSessionSealCapabilities(
   value: unknown,
 ): WellKnownSigningSessionSealCapabilities | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;

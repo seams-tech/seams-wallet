@@ -1,6 +1,6 @@
 /**
- * Refactor 94C. `/wallets/register/setup` — one request replacing the bootstrap
- * grant, the registration intent, and registration start.
+ * `/wallets/register/setup` — one request replacing the bootstrap grant, the
+ * registration intent, and registration start.
  *
  * The three legs it replaces made six-plus serialized storage round trips
  * between them, most of it bookkeeping written on every request and read on
@@ -34,14 +34,18 @@
 
 import {
   computeRegistrationIntentDigestB64u,
-  normalizeRegistrationAuthMethodInput,
-  normalizeRegistrationSignerPlan,
-  registrationSignerSetSelectionFromPlan,
-  type RegisterWalletInput,
-  type RegistrationAuthMethodInput,
-  type RegistrationSignerSetSelection,
   type WalletId,
 } from '@shared/utils/registrationIntent';
+import {
+  normalizeRegistrationSignerPlan,
+  registrationSignerSetSelectionFromPlan,
+  type RegistrationSignerSetSelection,
+} from '@shared/utils/registrationSignerPlan';
+import {
+  normalizeRegistrationAuthMethodInput,
+  type RegisterWalletInput,
+  type RegistrationAuthMethodInput,
+} from '@shared/utils/registrationAuthMethodInput';
 import { secureRandomBase64Url } from '@shared/utils/secureRandomId';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
 import type {

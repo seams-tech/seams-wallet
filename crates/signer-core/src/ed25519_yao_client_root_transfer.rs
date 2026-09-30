@@ -411,6 +411,103 @@ pub fn seal_ed25519_yao_client_root_under_factor_v1(
     seal_custody_secret(factor_secret, new_binding, nonce, root.as_bytes())
 }
 
+/// Proof that a Client root was opened from this device's own verified
+/// factor envelope, at an unlock that factor authorized.
+///
+/// It authorizes exactly one write: sealing the root to the recipient of a
+/// further approved link, for the same wallet, wallet key, application
+/// binding and registered key. It cannot be serialized or cloned, reseal a
+/// factor, or stand in for a wallet custody seed.
+pub struct Ed25519YaoClientRootFromFactorEnvelopeV1 {
+    wallet_id: String,
+    wallet_key_id: String,
+    application_binding_digest: [u8; APPLICATION_BINDING_DIGEST_LEN],
+    registered_public_key: [u8; ED25519_PUBLIC_KEY_LEN],
+}
+
+impl core::fmt::Debug for Ed25519YaoClientRootFromFactorEnvelopeV1 {
+    fn fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        formatter.write_str("Ed25519YaoClientRootFromFactorEnvelopeV1")
+    }
+}
+
+/// Opens this device's own factor-sealed Client root for a further link.
+///
+/// Only the dedicated root branch opens here, and the envelope's AAD hash and
+/// ciphertext digest must match. The proof records the wallet-key facts the
+/// envelope authenticates.
+pub fn open_ed25519_yao_client_root_envelope_for_linking_v1(
+    factor_secret: &[u8],
+    binding: &PasskeyCustodyEnvelopeBindingV1,
+    nonce: &[u8],
+    ciphertext: &[u8],
+    expected_aad_hash: &[u8],
+    expected_ciphertext_digest: &[u8],
+) -> CoreResult<(
+    Ed25519YaoClientRootV1,
+    Ed25519YaoClientRootFromFactorEnvelopeV1,
+)> {
+    let PasskeyCustodySecretBindingV1::Ed25519YaoClientRoot {
+        wallet_key_id,
+        application_binding_digest_b64u,
+        registered_public_key_b64u,
+        ..
+    } = &binding.binding
+    else {
+        return Err(SignerCoreError::invalid_input(
+            "Ed25519 Yao Client-root link source requires an Ed25519 Yao Client-root envelope",
+        ));
+    };
+    let admitted = Ed25519YaoClientRootFromFactorEnvelopeV1 {
+        wallet_id: binding.wallet_id.clone(),
+        wallet_key_id: wallet_key_id.clone(),
+        application_binding_digest: decode_fixed_b64u(
+            "applicationBindingDigestB64u",
+            application_binding_digest_b64u,
+        )?,
+        registered_public_key: decode_fixed_b64u(
+            "registeredPublicKeyB64u",
+            registered_public_key_b64u,
+        )?,
+    };
+    let root = open_ed25519_yao_client_root_under_factor_v1(
+        factor_secret,
+        binding,
+        nonce,
+        ciphertext,
+        expected_aad_hash,
+        expected_ciphertext_digest,
+    )?;
+    Ok((root, admitted))
+}
+
+/// Seals this device's own Client root to the recipient of a further
+/// approved link.
+///
+/// The transfer must name the wallet, wallet key, application binding and
+/// registered key the envelope authenticated. Its link session, target and
+/// recipient are authenticated as AEAD additional data, as for a root derived
+/// from a wallet seed.
+pub fn seal_ed25519_yao_client_root_from_envelope_for_linked_device_v1(
+    admitted: &Ed25519YaoClientRootFromFactorEnvelopeV1,
+    root: &Ed25519YaoClientRootV1,
+    transfer: &Ed25519YaoClientRootTransferBindingV1,
+    ephemeral_secret_bytes: &[u8],
+    nonce: &[u8],
+) -> CoreResult<SealedEd25519YaoClientRootTransferV1> {
+    validate_transfer_binding(transfer)?;
+    if transfer.wallet_id != admitted.wallet_id
+        || transfer.wallet_key_id != admitted.wallet_key_id
+        || transfer.application_binding_digest()? != admitted.application_binding_digest
+        || transfer.registered_public_key()? != admitted.registered_public_key
+    {
+        return Err(SignerCoreError::invalid_input(
+            "Ed25519 Yao Client-root transfer names another wallet key than its envelope",
+        ));
+    }
+    seal_root_to_recipient_v1(root, transfer, ephemeral_secret_bytes, nonce)
+}
+
 /// Opens an already factor-sealed Client root for ordinary Yao operations.
 ///
 /// This source path accepts only the dedicated root branch. It never accepts

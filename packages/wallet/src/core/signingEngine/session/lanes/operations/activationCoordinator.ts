@@ -210,5 +210,3 @@ export async function buildLaneActivationEffectPlanV1(args: {
     },
   };
 }
-
-export const planLaneActivationV1 = buildLaneActivationEffectPlanV1;

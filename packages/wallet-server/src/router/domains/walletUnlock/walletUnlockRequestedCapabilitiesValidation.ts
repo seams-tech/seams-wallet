@@ -1,9 +1,9 @@
 import { isPlainObject } from '@shared/utils/validation';
 import { findUnexpectedRouteKey } from '../../framework/routeRequestValidation';
 
-export const EMAIL_OTP_NO_REQUESTED_CAPABILITIES_KIND = 'none' as const;
-export const EMAIL_OTP_WALLET_SESSION_REQUESTED_CAPABILITIES_KIND = 'wallet_session' as const;
-export const EMAIL_OTP_ED25519_YAO_REQUESTED_CAPABILITIES_KIND = 'ed25519_yao' as const;
+const EMAIL_OTP_NO_REQUESTED_CAPABILITIES_KIND = 'none' as const;
+const EMAIL_OTP_WALLET_SESSION_REQUESTED_CAPABILITIES_KIND = 'wallet_session' as const;
+const EMAIL_OTP_ED25519_YAO_REQUESTED_CAPABILITIES_KIND = 'ed25519_yao' as const;
 
 type WalletUnlockEmailOtpRequestedCapabilitiesBase = {
   readonly signerSlot: number;
@@ -34,7 +34,7 @@ type WalletUnlockRequestedCapabilitiesParseFailure = {
   };
 };
 
-export type WalletUnlockRequestedCapabilitiesParseResult =
+type WalletUnlockRequestedCapabilitiesParseResult =
   | { readonly ok: true; readonly request: null }
   | { readonly ok: true; readonly request: WalletUnlockEmailOtpRequestedCapabilitiesRequestV1 }
   | WalletUnlockRequestedCapabilitiesParseFailure;

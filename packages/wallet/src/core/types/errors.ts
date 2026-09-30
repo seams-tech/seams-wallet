@@ -4,7 +4,7 @@
  * Specific error codes for different failure scenarios throughout the passkey SDK
  * Enables precise error handling and better debugging
  */
-export enum PasskeyErrorCode {
+enum PasskeyErrorCode {
   // === Authentication Errors ===
   WEBAUTHN_NOT_SUPPORTED = 'WEBAUTHN_NOT_SUPPORTED',
   AUTHENTICATION_CANCELLED = 'AUTHENTICATION_CANCELLED',

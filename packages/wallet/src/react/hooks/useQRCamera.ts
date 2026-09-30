@@ -116,7 +116,7 @@ export const useQRCamera = (options: UseQRCameraOptions): UseQRCameraReturn => {
           setScanDurationMs(0);
           onError?.(err);
         },
-        onCameraReady: (stream) => {
+        onCameraReady: () => {
           // Camera stream is ready, but video element attachment is handled separately
           console.log('useQRCamera: Camera stream ready');
         },

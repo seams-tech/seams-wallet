@@ -38,19 +38,19 @@ export type WarmSessionReadPortsInput =
   | null
   | undefined;
 
-export type WarmSessionReadPortsSingle = {
+type WarmSessionReadPortsSingle = {
   statusPort: 'single';
   getWarmSessionStatus: WarmSessionStatusReader['getWarmSessionStatus'];
   getWarmSessionStatuses?: never;
 };
 
-export type WarmSessionReadPortsBatch = {
+type WarmSessionReadPortsBatch = {
   statusPort: 'batch';
   getWarmSessionStatus?: never;
   getWarmSessionStatuses: WarmSessionStatusBatchReader['getWarmSessionStatuses'];
 };
 
-export type WarmSessionReadPortsSingleAndBatch = {
+type WarmSessionReadPortsSingleAndBatch = {
   statusPort: 'single_and_batch';
   getWarmSessionStatus: WarmSessionStatusReader['getWarmSessionStatus'];
   getWarmSessionStatuses: WarmSessionStatusBatchReader['getWarmSessionStatuses'];
@@ -96,7 +96,7 @@ export function normalizeWarmSessionReadPorts(
   return null;
 }
 
-export function reportWarmSessionAvailabilityFailure(args: {
+function reportWarmSessionAvailabilityFailure(args: {
   operation: 'status_read' | 'claim';
   thresholdSessionId: string;
   code?: string;
@@ -154,51 +154,6 @@ export function toWarmSessionClaimFromStatusResult(args: {
     expiresAtMs: args.status.expiresAtMs,
     remainingUses: args.status.remainingUses,
   };
-}
-
-export async function readWarmSessionClaims(args: {
-  touchConfirm: WarmSessionReadPorts | null;
-  thresholdSessionIds: string[];
-}): Promise<Map<string, WarmSessionPrfClaim | null>> {
-  const normalizedThresholdSessionIds = Array.from(
-    new Set(args.thresholdSessionIds.map((value) => String(value || '').trim()).filter(Boolean)),
-  );
-  const out = new Map<string, WarmSessionPrfClaim | null>();
-  if (!normalizedThresholdSessionIds.length) {
-    return out;
-  }
-  if (!args.touchConfirm) {
-    for (const thresholdSessionId of normalizedThresholdSessionIds) {
-      out.set(thresholdSessionId, null);
-    }
-    return out;
-  }
-  if (args.touchConfirm.statusPort !== 'single') {
-    const batch = await args.touchConfirm.getWarmSessionStatuses({
-      thresholdSessionIds: normalizedThresholdSessionIds,
-    });
-    for (const thresholdSessionId of normalizedThresholdSessionIds) {
-      const matched = batch.results.find(
-        (entry) => entry.thresholdSessionId === thresholdSessionId,
-      );
-      out.set(
-        thresholdSessionId,
-        matched
-          ? toWarmSessionClaimFromStatusResult({ thresholdSessionId, status: matched.result })
-          : null,
-      );
-    }
-    return out;
-  }
-  await Promise.all(
-    normalizedThresholdSessionIds.map(async (thresholdSessionId) => {
-      out.set(
-        thresholdSessionId,
-        await readWarmSessionClaim(args.touchConfirm, thresholdSessionId),
-      );
-    }),
-  );
-  return out;
 }
 
 export function deriveEd25519CapabilityState(args: {
@@ -264,7 +219,7 @@ export function deriveEcdsaCapabilityState(args: {
   // without it the capability is not signable regardless of material, and no
   // SelectedEcdsaLane can exist.
   if (!args.auth) return 'authorization_required';
-  // Allowance and expiry are classified by the shared Refactor 92 rule before
+  // Allowance and expiry are classified by the shared runtime-policy rule before
   // PRF state. An expired or exhausted session is an authorization state, not a
   // material one: the sealed material and its activation are untouched.
   const runtimeState = laneCandidateStateFromRuntimePolicy({

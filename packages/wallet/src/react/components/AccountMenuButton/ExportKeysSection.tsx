@@ -4,7 +4,7 @@ import { SpinnerIcon } from './icons/SpinnerIcon';
 import type { ExportChain } from './types';
 import './ExportKeysSection.css';
 
-export interface ExportKeysSectionProps {
+interface ExportKeysSectionProps {
   isOpen?: boolean;
   presentation?: 'menu' | 'page';
   loadingChain: ExportChain | null;

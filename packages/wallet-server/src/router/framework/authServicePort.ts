@@ -1,8 +1,14 @@
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
+import type { TenantRootIdentityV1 } from '@shared/tenant-root/tenantRootIdentity';
 import type {
   AddAuthMethodIntentCallerV1,
   AddAuthMethodIntentGrant,
 } from '@shared/utils/registrationIntent';
+import type {
+  ActiveEmailOtpWalletAuthMethodRecordV2,
+  ActivePasskeyWalletAuthMethodRecordV2,
+  ActiveWalletAuthMethodRecordV2,
+} from '@shared/utils/walletAuthMethodRecord';
 import type {
   WalletRegistrationNearProvisioningResponseV2,
   WalletRegistrationNearAdmissionResponseV2,
@@ -90,8 +96,7 @@ import type {
   WalletRevokeAuthMethodRequest,
   WalletRevokeAuthMethodResponse,
 } from '../../core/registrationContracts';
-import type { WalletAuthMethodRevocationProof } from '@shared/utils/registrationIntent';
-import type { WalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
+import type { WalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 import type {
   DirectV2IssueResult,
   IssuedWalletSessionAuthorizationV2,
@@ -99,12 +104,12 @@ import type {
 import type { IssueWalletSessionAuthorizationV2Input } from '../../authorization/service';
 import type { WalletSessionOperationCredentialV1 } from '@shared/device-linking/contracts';
 
-export type WalletAuthMethodManagementSubject = Readonly<{
+type WalletAuthMethodManagementSubject = Readonly<{
   kind: 'wallet_auth_method_management';
   walletId: WalletId;
 }>;
 
-export type WalletUnlockIssuanceRejectionCode =
+type WalletUnlockIssuanceRejectionCode =
   | 'unauthorized'
   | 'invalid_body'
   | 'invalid_state'
@@ -134,10 +139,7 @@ export type WalletUnlockPasskeyAuthorityResolution =
   | {
       readonly kind: 'active_authority';
       readonly authority: ActiveWalletAuthorityV1;
-      readonly authMethod: Extract<
-        WalletAuthMethodRecordV2,
-        { readonly kind: 'passkey'; readonly status: 'active' }
-      >;
+      readonly authMethod: ActivePasskeyWalletAuthMethodRecordV2;
     }
   | {
       readonly kind: 'rejected';
@@ -150,10 +152,7 @@ export type WalletUnlockEmailOtpAuthorityResolution =
       readonly kind: 'active_authority';
       readonly authority: ActiveWalletAuthorityV1;
       readonly walletAuthAuthority: EmailOtpWalletAuthAuthority;
-      readonly authMethod: Extract<
-        WalletAuthMethodRecordV2,
-        { readonly kind: 'email_otp'; readonly status: 'active' }
-      >;
+      readonly authMethod: ActiveEmailOtpWalletAuthMethodRecordV2;
     }
   | {
       readonly kind: 'rejected';
@@ -161,7 +160,7 @@ export type WalletUnlockEmailOtpAuthorityResolution =
       readonly message: string;
     };
 
-export type WalletUnlockEmailOtpSessionRequest =
+type WalletUnlockEmailOtpSessionRequest =
   | { readonly kind: 'wallet_session' }
   | { readonly kind: 'ed25519_yao' };
 
@@ -203,11 +202,11 @@ export type RouterApiWalletSessionExactOperationContext =
 export type RouterApiWalletSessionAuthorizationV2ExhaustedCandidateContext = {
   readonly status: ExactWalletSessionStatusV2 & { readonly kind: 'exhausted' };
   readonly authority: ActiveWalletAuthorityV1;
-  readonly authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+  readonly authMethod: ActiveWalletAuthMethodRecordV2;
   readonly retiredAtMs: null;
 };
 
-export type RouterApiHostedWalletSessionAuthorizationV2AdmissionContext =
+type RouterApiHostedWalletSessionAuthorizationV2AdmissionContext =
   RouterApiWalletSessionAuthorizationV2AdmissionContext & {
     readonly hostedCredentialId: HostedWalletSessionCredentialId;
     readonly appOrigin: SessionOrigin;
@@ -219,7 +218,7 @@ export type ActiveWalletSessionAuthorityResolution =
   | {
       readonly kind: 'active_authority';
       readonly authority: ActiveWalletAuthorityV1;
-      readonly authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+      readonly authMethod: ActiveWalletAuthMethodRecordV2;
     }
   | { readonly kind: 'rejected'; readonly code: string; readonly message: string };
 
@@ -234,7 +233,7 @@ export type CreateAddAuthMethodIntentCommand = Readonly<{
   caller: AddAuthMethodIntentCallerV1;
 }>;
 
-export type WalletSignerManagementSubject = Readonly<{
+type WalletSignerManagementSubject = Readonly<{
   kind: 'wallet_signer_management';
   walletId: WalletId;
 }>;
@@ -248,21 +247,22 @@ export type StartWalletAddAuthMethodCommand = Readonly<
   { subject: WalletAuthMethodManagementSubject } & Omit<WalletAddAuthMethodStartRequest, 'walletId'>
 >;
 
-export type RevokeWalletAuthMethodCommand = Readonly<
+export type RevokeWalletAuthMethodWithFreshProofCommand = Readonly<
   {
     subject: WalletAuthMethodManagementSubject;
-    verifiedSource: {
-      readonly walletAuthMethodId: WalletAuthMethodId;
-      readonly verifiedAtMs: number;
-    };
+    /** The origin a WebAuthn source proof must have been made on. */
+    expectedOrigin: string;
   } & Omit<WalletRevokeAuthMethodRequest, 'walletId'>
 >;
 
-export type WalletAuthMethodRevokeProofVerificationResult =
+/**
+ * `denied` is a source proof that did not verify. Anything else, a
+ * revocation or a refusal, is the Gateway's answer to the request.
+ */
+export type RevokeWalletAuthMethodWithFreshProofResult =
   | {
-      readonly kind: 'authorized';
-      readonly walletAuthMethodId: WalletAuthMethodId;
-      readonly verifiedAtMs: number;
+      readonly kind: 'answered';
+      readonly response: WalletRevokeAuthMethodResponse;
     }
   | {
       readonly kind: 'denied';
@@ -270,7 +270,7 @@ export type WalletAuthMethodRevokeProofVerificationResult =
       readonly message: string;
     };
 
-export type WalletAddAuthMethodFinalizeAuthorizationV1 = { readonly kind: 'owner' };
+type WalletAddAuthMethodFinalizeAuthorizationV1 = { readonly kind: 'owner' };
 
 export type FinalizeWalletAddAuthMethodCommand = Readonly<
   {
@@ -279,32 +279,30 @@ export type FinalizeWalletAddAuthMethodCommand = Readonly<
   } & WalletAddAuthMethodFinalizeRequest
 >;
 
-export type EmailOtpAuthorizationSessionSubject = Readonly<{
+type EmailOtpAuthorizationSessionSubject = Readonly<{
   kind: 'authorization_session';
   tenantId: TenantId;
   principalId: PrincipalId;
   walletId: WalletId;
 }>;
 
-export type EmailOtpProviderIdentitySubject = Readonly<{
+type EmailOtpProviderIdentitySubject = Readonly<{
   kind: 'provider_identity';
   orgId: OrgId;
   providerSubject: ProviderSubject;
   walletId: WalletId;
 }>;
 
-export type EmailOtpGrantSubject =
-  | EmailOtpAuthorizationSessionSubject
-  | EmailOtpProviderIdentitySubject;
+type EmailOtpGrantSubject = EmailOtpAuthorizationSessionSubject | EmailOtpProviderIdentitySubject;
 
-export type ConsumeEmailOtpGrantCommand = Readonly<{
+type ConsumeEmailOtpGrantCommand = Readonly<{
   subject: EmailOtpGrantSubject;
   loginGrant: string;
   otpChannel: EmailOtpChannel;
   clientIp?: string;
 }>;
 
-export type EmailOtpStrongAuthSubject = Readonly<{
+type EmailOtpStrongAuthSubject = Readonly<{
   kind: 'email_otp_strong_auth';
   walletId: WalletId;
 }>;
@@ -558,12 +556,7 @@ type RouterApiOkFailure = {
   readonly message: string;
 };
 
-type RouterApiRateLimitedFailure = RouterApiOkFailure & {
-  readonly retryAfterMs?: number;
-  readonly resetAtMs?: number;
-};
-
-export type RouterApiMethodTypes = {
+type RouterApiMethodTypes = {
   applyEmailOtpServerSeal: {
     readonly input: { readonly wrappedCiphertext?: unknown };
     readonly result:
@@ -902,9 +895,9 @@ export type RouterApiMethodTypes = {
     };
     readonly result: string;
   };
-  revokeWalletAuthMethod: {
-    readonly input: RevokeWalletAuthMethodCommand;
-    readonly result: WalletRevokeAuthMethodResponse;
+  revokeWalletAuthMethodWithFreshProof: {
+    readonly input: RevokeWalletAuthMethodWithFreshProofCommand;
+    readonly result: RevokeWalletAuthMethodWithFreshProofResult;
   };
   startWalletAddAuthMethod: {
     readonly input: StartWalletAddAuthMethodCommand;
@@ -1093,22 +1086,22 @@ export type RouterApiMethodTypes = {
   };
 };
 
-export type GoogleEmailOtpRegistrationCandidateWalletValidationRequest = {
+type GoogleEmailOtpRegistrationCandidateWalletValidationRequest = {
   readonly registrationAttemptId: string;
   readonly walletId: string;
   readonly ownerProofBindingDigest: string;
   readonly providerSubject: string;
 };
 
-export type GoogleEmailOtpRegistrationCandidateWalletValidationResult =
+type GoogleEmailOtpRegistrationCandidateWalletValidationResult =
   | { readonly ok: true }
   | { readonly ok: false; readonly code: string; readonly message: string };
 
-export interface RouterAbSigningRuntimeService {
+interface RouterAbSigningRuntimeService {
   getRouterAbEcdsaPresignRuntime(): RouterAbEcdsaPresignRuntime | null;
 }
 
-export interface RouterApiEmailOtpChallengeService {
+interface RouterApiEmailOtpChallengeService {
   createEmailOtpChallenge(
     input: RouterApiMethodTypes['createEmailOtpChallenge']['input'],
   ): Promise<RouterApiMethodTypes['createEmailOtpChallenge']['result']>;
@@ -1162,6 +1155,7 @@ export interface RouterApiWalletRegistrationService {
   }): Promise<
     | {
         readonly ok: true;
+        readonly identity: TenantRootIdentityV1;
         readonly identityDigestB64u: string;
         readonly custodyLineageB64u: string;
       }
@@ -1194,6 +1188,7 @@ export interface RouterApiWalletRegistrationService {
         readonly ok: true;
         readonly identityDigestB64u: string;
         readonly custodyLineageB64u: string;
+        readonly projectEnvironmentId: string;
       }
     | {
         readonly ok: false;
@@ -1259,7 +1254,7 @@ export interface RouterApiWalletRegistrationService {
   >;
 }
 
-export interface RouterApiWalletAuthVerificationService {
+interface RouterApiWalletAuthVerificationService {
   verifyWebAuthnAuthenticationLite(
     input: RouterApiMethodTypes['verifyWebAuthnAuthenticationLite']['input'],
   ): Promise<RouterApiMethodTypes['verifyWebAuthnAuthenticationLite']['result']>;
@@ -1271,13 +1266,13 @@ export interface RouterApiWalletAuthMethodService {
     readonly authorityRef: WalletAuthAuthorityRef;
     readonly authSource: WalletExecutionLaneAuthSource;
   }): Promise<ActiveWalletSessionAuthorityResolution>;
-  verifyWalletAuthMethodRevokeProof(input: {
-    readonly walletId: WalletId;
-    readonly targetWalletAuthMethodId: WalletAuthMethodId;
-    readonly requestedAtMs: number;
-    readonly sourceProof: WalletAuthMethodRevocationProof;
-    readonly expectedOrigin: string;
-  }): Promise<WalletAuthMethodRevokeProofVerificationResult>;
+  /**
+   * Revokes one method on a fresh proof from a different active full-owner
+   * method. An exact retry receives the answer that committed.
+   */
+  revokeWalletAuthMethodWithFreshProof(
+    input: RevokeWalletAuthMethodWithFreshProofCommand,
+  ): Promise<RevokeWalletAuthMethodWithFreshProofResult>;
   verifyActivePasskeyAuthority(
     authority: import('@shared/utils/walletAuthAuthority').PasskeyWalletAuthAuthority,
   ): Promise<
@@ -1292,10 +1287,7 @@ export interface RouterApiWalletAuthMethodService {
         readonly ok: true;
         readonly authority: import('@shared/utils/walletAuthAuthority').PasskeyWalletAuthAuthority;
         readonly walletAuthority: ActiveWalletAuthorityV1;
-        readonly authMethod: Extract<
-          WalletAuthMethodRecordV2,
-          { readonly kind: 'passkey'; readonly status: 'active' }
-        >;
+        readonly authMethod: ActivePasskeyWalletAuthMethodRecordV2;
       }
     | { readonly ok: false; readonly code: string; readonly message: string }
   >;
@@ -1354,9 +1346,6 @@ export interface RouterApiWalletAuthMethodService {
   getWalletAddSignerRuntimePolicyScope(
     addSignerCeremonyId: string,
   ): Promise<ThresholdRuntimePolicyScope | null>;
-  revokeWalletAuthMethod(
-    input: RevokeWalletAuthMethodCommand,
-  ): Promise<WalletRevokeAuthMethodResponse>;
   /** Sends the enrollment code for an Email OTP addition, bound to its intent. */
   createAddAuthMethodEmailOtpChallenge(input: {
     readonly walletId: WalletId;
@@ -1556,7 +1545,7 @@ export interface RouterApiWebAuthnService {
   ): Promise<RouterApiMethodTypes['verifyWebAuthnSyncAccount']['result']>;
 }
 
-export interface RouterApiNearFundingService {
+interface RouterApiNearFundingService {
   fundImplicitNearAccount(
     input: FundImplicitNearAccountRequest,
   ): Promise<FundImplicitNearAccountResult>;
@@ -1565,7 +1554,7 @@ export interface RouterApiNearFundingService {
   ): Promise<RouterApiMethodTypes['listNearPublicKeysForUser']['result']>;
 }
 
-export interface RouterApiRouterAccountService {
+interface RouterApiRouterAccountService {
   getConfiguredRelayerAccount(): string;
   getRelayerAccount(): Promise<{ accountId: string; publicKey: string }>;
 }
@@ -1593,16 +1582,27 @@ export interface RouterApiServiceBag {
    * a port on the bag is what makes it callable from a route.
    */
   passkeyCustody: RouterApiPasskeyCustodyService;
-  /** Durable R103 link-session transport; omitted by deployments that disable linking. */
+  /** Durable link-session transport; omitted by deployments that disable linking. */
   deviceLinking?: DeviceLinkingRouteServiceV1;
-  /** Authenticated R103 linked-device projection and revocation transport. */
+  /** Authenticated linked-device projection and revocation transport. */
   deviceManagement?: DeviceManagementRouteServiceV1;
   /** Request-scoped owner Wallet Session metadata for Device 1 approval. */
   deviceLinkingOwnerAuthorization?: DeviceLinkingOwnerAuthorizationRouteServiceV1;
 }
 
 export interface RouterApiAuthorizedOperationService {
+  admitEcdsaWalletSessionOperation(
+    input: import('../../authorization/ecdsaWalletSessionAdmission').EcdsaWalletSessionAdmissionInput,
+  ): Promise<import('../../authorization/ecdsaWalletSessionAdmission').EcdsaWalletSessionAdmissionResult>;
   readonly tenantId: TenantId;
+  readPinnedOwnerWalletScope(input: {
+    readonly operation: AuthorizedOperation;
+    readonly walletId: WalletId;
+  }): Promise<{
+    readonly orgId: string;
+    readonly projectId: string;
+    readonly projectEnvironmentId: string;
+  }>;
   buildVerifiedOwnerProof(input: VerifiedOwnerProofInput): Promise<VerifiedOwnerProof>;
   recordVerifiedWalletOperationFactorEvidenceSet(
     input: VerifiedWalletOperationFactorEvidenceSetInput,
@@ -1630,6 +1630,14 @@ export interface RouterApiAuthorizedOperationService {
           | 'material_mismatch';
       }
   >;
+  /** The admission `admitAuthorizedOperation` would make, prepared for another store's batch. */
+  prepareAuthorizedOperationAdmission(input: {
+    readonly operation: AuthorizedOperationInput;
+  }): Promise<import('../../authorization/service').PreparedAuthorizedOperationAdmission>;
+  /** The rejection a prepared admission's failed batch stands for, if any. */
+  classifyAuthorizedOperationAdmissionFailure(
+    error: unknown,
+  ): import('../../authorization/service').AuthorizedOperationAdmissionRejection | null;
   completeAuthorizedOperation(input: {
     readonly operation: AuthorizedOperation;
     readonly result: import('../../authorization/domain').CompletedCapabilityOperationResult;

@@ -1,5 +1,4 @@
 import type {
-  ActiveSigningLaneReference,
   AgentCustodyBindingId,
   AgentIdentityKeyId,
   DelegatedExecutionSigningLaneRecord,
@@ -17,23 +16,17 @@ import type {
   SigningWorkerParticipantRecordV1,
 } from './participants';
 import type { LaneShareEpoch, LinkedDeviceId, SigningLaneId, WalletKeyId } from './ids';
-import type {
-  DomainId,
-  MpcMaterialActivationRef,
-  WalletAuthMethodId,
-  WalletId,
-} from '../utils/domainIds';
+import type { DomainId, WalletAuthMethodId, WalletId } from '../utils/domainIds';
 import type {
   Ed25519PublicKeyB64u,
   KeyCreationSignerSlot,
   Secp256k1CompressedPublicKeyB64u,
 } from '../passkey-custody/primitives';
-import type { NearEd25519SigningKeyId } from '../utils/registrationIntent';
+import type { NearEd25519SigningKeyId } from '../utils/registrationIds';
 import type { EvmFamilySigningKeySlotId } from './evmFamilySigningKeySlotId';
 import {
   buildActiveWalletKeyLifecycle,
   buildActiveSigningLaneLifecycle,
-  buildActiveSigningLaneReference,
   buildBreakGlassSigningLaneRecord,
   buildDelegatedExecutionSigningLaneRecord,
   buildEd25519WalletKeyRecord,
@@ -41,7 +34,6 @@ import {
   buildLinkedDeviceSigningLaneRecord,
   buildOwnerEmailOtpSigningLaneRecord,
   buildOwnerPasskeySigningLaneRecord,
-  buildProvisioningSigningLaneLifecycle,
   buildRecoverySigningLaneRecord,
   buildRetiredWalletKeyLifecycle,
 } from './recordParsers';
@@ -57,7 +49,6 @@ declare const holderParticipant: LaneHolderParticipantRecordV1;
 declare const serverParticipant: SigningWorkerParticipantRecordV1;
 declare const ownerParticipantContinuity: OwnerLaneParticipantContinuityV1;
 declare const walletAuthMethodId: WalletAuthMethodId;
-declare const materialActivation: MpcMaterialActivationRef;
 declare const nearEd25519SigningKeyId: NearEd25519SigningKeyId;
 declare const keyCreationSignerSlot: KeyCreationSignerSlot;
 declare const registeredPublicKeyB64u: Ed25519PublicKeyB64u;
@@ -75,10 +66,6 @@ const activeLaneLifecycle = buildActiveSigningLaneLifecycle({
   revocationEpoch: 1,
   activatedAtMs: 3,
   activationReceiptDigestB64u: 'digest',
-});
-const provisioningLaneLifecycle = buildProvisioningSigningLaneLifecycle({
-  revocationEpoch: 1,
-  startedAtMs: 4,
 });
 
 const ed25519WalletKey: Ed25519WalletKeyRecord = buildEd25519WalletKeyRecord({
@@ -154,18 +141,6 @@ const allLaneRecords: SigningLaneRecord[] = [
 void allLaneRecords;
 void ed25519WalletKey;
 void evmWalletKey;
-
-const activeReference: ActiveSigningLaneReference = buildActiveSigningLaneReference({
-  walletId,
-  walletKeyId,
-  laneId,
-  laneShareEpoch,
-  laneKind: 'owner_passkey',
-  participantBindingDigestB64u,
-  lifecycle: activeLaneLifecycle,
-  materialActivation,
-});
-void activeReference;
 void linkedDeviceEnrollmentId;
 
 const invalidEd25519WalletKey: Ed25519WalletKeyRecord = {
@@ -202,18 +177,5 @@ const invalidDelegatedLane: DelegatedExecutionSigningLaneRecord = {
   authorizationId: undefined,
 };
 void invalidDelegatedLane;
-
-const invalidInactiveReference: ActiveSigningLaneReference = buildActiveSigningLaneReference({
-  walletId,
-  walletKeyId,
-  laneId,
-  laneShareEpoch,
-  laneKind: 'owner_passkey',
-  participantBindingDigestB64u,
-  // @ts-expect-error Provisioning lanes cannot satisfy an active execution reference.
-  lifecycle: provisioningLaneLifecycle,
-  materialActivation,
-});
-void invalidInactiveReference;
 
 export {};

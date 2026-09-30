@@ -1,8 +1,70 @@
 # Optimization 10: registration readiness and MPC signing latency
 
-Status: 0.5.25 released and measured on production testnet. Cached Tempo signing
-meets the target in four diagnostic samples; immediate and sustained signing
-still exceed it. Production p95 and Arc acceptance remain unverified.
+The consolidated cross-release measurements are in
+[the Optimization 10 progress appendix](./optimization-10-appendix.md).
+
+Status: Wallet 0.6.2 is released and deployed to the production-hosted testnet.
+Hosted diagnostics verify durable ECDSA cache restoration, one-use consumption,
+post-consumption refill, and sustained Tempo signing for the tested browser
+profiles. Hosted NEAR samples place the FROST signing core at 1.234–2.683 seconds,
+while post-confirmation completion remains 5.237–8.710 seconds. The granular NEAR
+stage trace is committed on `dev` and remains undeployed. Population p95, hosted
+Arc acceptance, warm NEAR signing, and expired-session recovery remain open.
+
+## Current completion checklist
+
+### Released and verified
+
+- [x] Release Wallet and Wallet Server 0.6.2 and deploy the exact private consumer
+  through all frontend surfaces and the complete production-testnet backend.
+- [x] Verify both hosted manifests report 0.6.2 and pass frontend, Gateway, Router,
+  signing-worker, Deriver, tenant-root, wallet-runtime, migration, and smoke checks.
+- [x] Decouple mixed registration so durable ECDSA activation returns while NEAR
+  admission, Yao execution, finalization, and installation continue through the
+  recoverable background continuation.
+- [x] Prepare the passkey client seal during NEAR custody and overlap finalization,
+  hydration, and signer installation where their dependencies permit it.
+- [x] Isolate development Worker artifacts from release outputs and rebuild
+  production WASM during package release. Release signing-worker delivery measured
+  7 ms versus 373 ms with the overwritten development artifact.
+- [x] Verify hosted durable ECDSA entries survive reload, are consumed once, and
+  refill back to the five-entry target for the tested browser profiles.
+- [x] Exercise sustained hosted Tempo signing beyond the initial pool and reusable
+  allowance, including refill waits and exact-operation step-up authorization.
+- [x] Reduce owner presigning from eight authenticated exchanges to six, bound
+  stalled exchanges, preserve foreground recovery priority, and implement the
+  authenticated terminal-batch reservation path.
+- [x] Benchmark persistent internal transport. The measured local HTTP-to-RPC
+  difference was about 2–3 ms, so the HTTP path remains the production design.
+- [x] Separate hosted NEAR FROST prepare, client-share, finalize, and signature-total
+  timing from post-confirmation application completion.
+- [x] Add granular NEAR timings for durable-lease recovery, material resolution,
+  transaction context, Wallet Session authorization, nonce-lease commit, and
+  transaction assembly.
+- [x] Revise R150 around automatic, stable wallet placement and role-separated
+  Durable Objects; retain regional lanes as an optional reference design.
+- [x] Remove the superseded Wallet region controls, recommendations, settings,
+  routes, tests, and public exports.
+
+### Remaining acceptance and optimization work
+
+- [ ] Deploy the granular NEAR stage trace and capture equivalent first-sign and
+  warm-sign samples in one retained-authenticator session.
+- [ ] Diagnose the demo's repeated-transaction control lifecycle, then measure
+  valid-session reuse, final-use exhaustion, expired-session rejection, and
+  supported reauthentication recovery.
+- [ ] Collect comparable hosted registration, first-sign, cached-sign, refill,
+  and recovery cohorts at useful scale, with failures and tail latency.
+- [ ] Optimize the largest measured post-confirmation NEAR stage and rerun the
+  same cohort before claiming a consistent end-to-end improvement.
+- [ ] Complete hosted Arc acceptance and geographically representative p50/p95
+  measurements without treating small diagnostic samples as population results.
+- [ ] Reconcile existing regional-lane implementation work with revised R150,
+  then implement and verify the role-separated DO and conventional VM paths.
+- [ ] Pass R150's latency, cost, concurrency, restart, isolation, and one-use
+  safety gates before converting new-wallet hosting.
+- [ ] Design and review existing-wallet conversion separately; retain the current
+  D1 authority until that conversion passes its own safety and rollback review.
 
 Execution constraint: keep mixed registration's ECDSA-ready success asynchronous
 while NEAR provisioning is slow. Reduce and measure the underlying NEAR work
@@ -748,13 +810,19 @@ signing. Scheduled prewarming alone cannot establish this.
 
 ### ECDSA
 
-Status: steps 4.1 and 4.4 have local implementation. The next implementation
-slice starts registration refill at the earliest durable authorization boundary
-and adds a nested Durable Object timing span. Production comparison and the
-remaining decision gates are open. Production generation still takes
-5.32–9.93 seconds in the measured post-placement empty-pool samples. The share
-attributable to authorization, network transit, protocol computation, and
-completion storage has not yet been measured independently.
+Status:
+
+- [x] 4.0 starts refill at the earliest durable ECDSA authorization boundary.
+- [x] 4.1 instruments the request path and removes repeated authorization reads.
+- [ ] 4.2 still needs a controlled session Durable Object placement comparison;
+  Worker placement alone does not establish the object's location.
+- [x] 4.3 benchmarked persistent transport and retained HTTP because the measured
+  local improvement did not justify a production transport rewrite.
+- [x] 4.4 restores and replenishes material at the earliest authorized point.
+- [x] 4.5 implements five-entry durable pools, 90-day retention, zero-signing-use
+  preprocessing admission, bounded maintenance, and refill after consumption.
+- [ ] 4.6 production acceptance remains open for Arc, expired sessions, cold
+  runtimes, and statistically useful cache-hit and miss cohorts.
 
 The [client handshake](../packages/wallet/src/core/signingEngine/routerAb/ecdsaDerivation/presignaturePool.ts)
 issues an initialization request followed by dependent step requests. The
@@ -999,8 +1067,12 @@ Implementation checkpoints:
 - [x] Align capacity, login policy, and post-consumption refill at five entries.
 - [x] Reconcile on startup/resume and consumption; continue bounded partial fills
   and transient retries while eligible, without blocking registration or unlock.
-- [ ] Verify persisted cache hits and sustained production signing, including
-  refill after the final signing use and rejection after session expiry.
+- [x] Verify hosted persisted cache hits across reload, atomic one-use consumption,
+  and post-consumption refill to five entries for the tested browser profiles.
+- [x] Verify sustained production-hosted Tempo signing beyond the initial pool,
+  including successful refill waits and exact-operation step-up authorization.
+- [ ] Verify refill after the final signing use, explicit expired-session rejection,
+  and the supported reauthentication recovery path.
 
 Completed material survives ordinary session expiry under its own retention
 policy. Explicit logout/reset and material-retirement cleanup retain their
@@ -1328,18 +1400,16 @@ Sanitized measurement artifacts are retained in the private monorepo's ignored
 
 ## Execution order
 
-1. Capture the recurring production Tempo/ArcEVM delay, compare equivalent
-   local runs, and record the NEAR registration baseline in Phase 1.
-2. Prioritize the measured shared ECDSA bottleneck using Phase 3 and the ECDSA
-   sequence in Phase 4: repeated reads and timings → session placement →
-   persistent transport benchmark → authorized refill timing → explicit
-   preprocessing-permission decision. Validate the 1–3-second experience for
-   sustained subsequent signing, first-use signing, and cold conditions in
-   production after each deployed change.
-3. Shorten background NEAR activation in Phase 2 while preserving prompt
-   ECDSA-ready registration success.
-4. Pursue the Ed25519 pool and remaining Yao work according to the attributed
-   latency. The ECDSA fix can proceed independently of these protocol changes.
+- [x] Capture the production Tempo delay, equivalent local runs, and the NEAR
+  registration/readiness baseline in Phase 1.
+- [x] Implement the measured ECDSA fixes for repeated reads, durable restoration,
+  refill timing, exchange count, stalled recovery, terminal-batch reservation,
+  and completion storage. Benchmark persistent transport and retain HTTP.
+- [x] Shorten background NEAR activation in Phase 2 while preserving prompt
+  ECDSA-ready registration success.
+- [ ] Complete hosted Arc and production p50/p95 acceptance for all ECDSA cohorts.
+- [ ] Pursue the Ed25519 nonce pool or further Yao work only when the remaining
+  attributed latency justifies those protocol-state changes.
 
 ## Ownership and verification
 
@@ -2157,3 +2227,46 @@ through verified signature: ordinary 4942.8/2027.6/1952.9/1971.3/1931.2ms; combi
 client; it is not a hosted browser latency comparison. Samples alternate with the
 ordinary path first, include warm-up effects, and support only a small local
 observation. Production first-sign latency and the 1–3s objective remain unproven.
+
+### Hosted Wallet 0.6.2 NEAR signing boundary
+
+Wallet 0.6.2 was published from `9f9cc2259180a705db9ade068158e2e9cfe90799`
+and deployed through the private Console at
+`b60f25f4eb51a77fcda55da33f50bb6481e06c88`. The frontend and complete testnet
+backend deployment workflows passed, including their hosted smoke checks. Both
+hosted wallet manifests reported `@seams/wallet` 0.6.2.
+
+Three completed hosted NEAR signatures measured the cryptographic signing section
+at 1.379, 1.415, and 2.046 seconds. Their post-confirmation `confirmed_to_signed`
+measurements were 5.237, 5.789, and 6.792 seconds. A later fresh-wallet sample
+measured 0.592 seconds for prepare, 0.006 seconds for the client share, 0.636
+seconds for finalize, 1.234 seconds for the complete signature, and 8.710 seconds
+from confirmation completion to the signed result.
+
+`signature_total` covers the Router prepare request, local FROST share, and Router
+finalize request. `confirmed_to_signed` begins after the confirmation command
+returns and ends after nonce-lease persistence and signed-result assembly. It
+excludes transaction broadcast and chain confirmation. The remaining difference
+therefore cannot be attributed to the FROST core without another stage breakdown.
+
+One continuous-session probe completed the signature and then timed out locating
+the receipt UI. That timeout is a harness failure after signing and supplies no
+receipt-confirmation latency. Earlier attempts that issued separate browser CLI
+commands lost their virtual authenticator between commands and supply no evidence
+about Wallet Session exhaustion or reauthentication.
+
+A second retained-authenticator probe reached application readiness 2.937 seconds
+after registration began. Its first NEAR signature used 0.734 seconds for prepare,
+0.007 seconds for the client share, and 1.940 seconds for finalize: 2.683 seconds
+for `signature_total` and 6.801 seconds for `confirmed_to_signed`. The receipt was
+dismissed successfully. The demo's sign control did not accept the second click
+within the probe timeout, so this run supplies no warm-signing or session-exhaustion
+measurement.
+
+The signing trace now separates the post-confirmation path into durable-lease
+recovery wait, material-resolution wait, transaction-context resolution, Wallet
+Session authorization, nonce-lease commit, and transaction assembly. Deploy and
+collect these stages before changing the signing path. Optimize the largest
+observed stage, then repeat first-sign and warm-sign measurements in one retained
+authenticator session. These samples do not support a two-second end-to-end claim
+or a population tail-latency claim.

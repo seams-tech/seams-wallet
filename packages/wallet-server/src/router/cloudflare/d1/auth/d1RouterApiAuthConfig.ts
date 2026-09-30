@@ -129,8 +129,8 @@ type CloudflareD1LinkedDeviceCompositionDisabledV1 = {
 };
 
 /**
- * Optional R103 composition. Each enabled surface requires its complete
- * external boundary; omitted surfaces stay fail-closed at their route.
+ * Optional linked-device composition. Each enabled surface requires its
+ * complete external boundary; omitted surfaces stay fail-closed at their route.
  */
 export type CloudflareD1LinkedDeviceCompositionOptionsV1 =
   | CloudflareD1LinkedDeviceCompositionDisabledV1

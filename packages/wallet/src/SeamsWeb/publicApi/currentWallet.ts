@@ -7,7 +7,7 @@ import {
 import type { WalletSession } from '@/core/types/seams';
 
 /** A NEAR account named exactly, or by its account id. */
-export type NearAccountInput = NearAccountRef | string;
+type NearAccountInput = NearAccountRef | string;
 
 /**
  * A wallet named exactly, or by its wallet id.

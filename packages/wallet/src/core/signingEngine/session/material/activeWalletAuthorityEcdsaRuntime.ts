@@ -62,7 +62,6 @@ import {
 } from '../identity/evmFamilyEcdsaIdentity';
 import type { ThresholdEcdsaChainTarget } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type { SigningLaneAuthBinding } from '../identity/signingLaneAuthBinding';
-import type { ActiveWalletAuthMethodV2 } from '../identity/ownerLaneScope';
 import {
   resolveLinkedEcdsaHolderRuntimeV1,
   type LinkedEcdsaHolderRuntimeV1,
@@ -71,6 +70,7 @@ import { bytesToHex } from '@/core/signingEngine/chains/evm/bytes';
 import { toWalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import { computeEcdsaDerivationRoleLocalRelayerKeyId } from '@shared/threshold/ecdsaDerivationRoleLocalBootstrap';
 import type { ExactWalletSessionReadPorts } from '../identity/exactWalletSessionCredential';
+import type { ActiveWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 
 type ActiveWalletAuthorityEcdsaAuth =
   | {
@@ -113,7 +113,7 @@ export type ActiveWalletAuthorityEcdsaRuntimeV1 = ActiveWalletAuthorityEcdsaAuth
   readonly ecdsaThresholdKeyId: string;
   readonly relayerKeyId: string;
   readonly authority: ActiveWalletAuthorityV1;
-  readonly authMethod: ActiveWalletAuthMethodV2;
+  readonly authMethod: ActiveWalletAuthMethodRecordV2;
   readonly holderRuntime: LinkedEcdsaHolderRuntimeV1;
   readonly normalSigning: RouterAbEcdsaDerivationNormalSigningStateV1;
   readonly key: EvmFamilyEcdsaKeyIdentity;
@@ -148,7 +148,7 @@ export type ActiveWalletAuthorityEcdsaLaneProjectionV1 =
     readonly authorizationState: 'authorization_required';
   };
 
-export type ActiveWalletAuthorityEcdsaRuntimeBlockReason =
+type ActiveWalletAuthorityEcdsaRuntimeBlockReason =
   | 'missing_selected_authority'
   | 'invalid_selected_authority'
   | 'wallet_locked'
@@ -168,7 +168,7 @@ export type ActiveWalletAuthorityEcdsaRuntimeBlockReason =
   | 'invalid_public_facts'
   | 'persistence_unavailable';
 
-export type ActiveWalletAuthorityEcdsaRuntimeResolution =
+type ActiveWalletAuthorityEcdsaRuntimeResolution =
   | {
       readonly kind: 'resolved';
       readonly runtime: ActiveWalletAuthorityEcdsaRuntimeV1;
@@ -184,7 +184,7 @@ export type ActiveWalletAuthorityEcdsaRuntimeResolution =
       readonly lane?: never;
     };
 
-export type ResolveActiveWalletAuthorityEcdsaRuntimeV1Input = {
+type ResolveActiveWalletAuthorityEcdsaRuntimeV1Input = {
   readonly walletId: WalletId | string;
   readonly chainTarget?: ThresholdEcdsaChainTarget;
   readonly requiredCapability?: 'sign' | 'export_keys';
@@ -194,7 +194,7 @@ export type ResolveActiveWalletAuthorityEcdsaRuntimeV1Input = {
 
 type ResolvedSelectedWalletAuthority = {
   readonly selection: WalletSelectionRecordV1;
-  readonly authMethod: ActiveWalletAuthMethodV2;
+  readonly authMethod: ActiveWalletAuthMethodRecordV2;
   readonly authority: ActiveWalletAuthorityV1;
   readonly signerMaterials: readonly WalletAuthoritySignerMaterialRecordV1[];
 };
@@ -266,7 +266,7 @@ function exactAuthorityResolution(
 function exactEcdsaSignerMaterial(args: {
   readonly materials: readonly WalletAuthoritySignerMaterialRecordV1[];
   readonly authority: ActiveWalletAuthorityV1;
-  readonly authMethod: ActiveWalletAuthMethodV2;
+  readonly authMethod: ActiveWalletAuthMethodRecordV2;
   readonly materialActivation: MpcMaterialActivationRef;
 }): WalletAuthorityLinkedEcdsaSignerMaterialRecord | null {
   const matches = args.materials.filter(
@@ -284,7 +284,7 @@ function exactEcdsaSignerMaterial(args: {
 
 function linkedMaterialTargetFactorMatches(args: {
   readonly material: WalletAuthorityLinkedEcdsaSignerMaterialRecord;
-  readonly authMethod: ActiveWalletAuthMethodV2;
+  readonly authMethod: ActiveWalletAuthMethodRecordV2;
 }): boolean {
   const target = args.material.targetFactor;
   if (target.walletAuthMethodId !== args.authMethod.walletAuthMethodId) return false;
@@ -416,7 +416,7 @@ function linkedEcdsaActivationReceiptsEqual(
 function exactHolderRuntime(args: {
   readonly walletId: WalletId;
   readonly authority: ActiveWalletAuthorityV1;
-  readonly authMethod: ActiveWalletAuthMethodV2;
+  readonly authMethod: ActiveWalletAuthMethodRecordV2;
   readonly materialActivation: MpcMaterialActivationRef;
   readonly ecdsaThresholdKeyId: string;
   readonly material: WalletAuthorityLinkedEcdsaSignerMaterialRecord;
@@ -521,6 +521,28 @@ async function buildActiveRuntime(args: {
       error instanceof Error ? error.message : String(error),
     );
   }
+  const runtime: Omit<ActiveWalletAuthorityEcdsaRuntimeV1, keyof ActiveWalletAuthorityEcdsaAuth> = {
+    kind: 'active_wallet_authority_ecdsa_runtime_v1',
+    walletId: args.selected.authority.walletId,
+    authorityId: args.selected.authority.authorityId,
+    walletAuthMethodId: args.selected.authMethod.walletAuthMethodId,
+    authorityDigestB64u: args.selected.authority.authorityDigestB64u,
+    factorAuthorityRef,
+    authorityRevocationEpoch: args.selected.authority.revocationEpoch,
+    walletSessionId: args.operationCredential.walletSessionId,
+    operationCredential: args.operationCredential,
+    session: args.session,
+    requiredCapability: args.requiredCapability,
+    materialActivation: args.materialActivation,
+    ecdsaThresholdKeyId: key.ecdsaThresholdKeyId,
+    relayerKeyId,
+    authority: args.selected.authority,
+    authMethod: args.selected.authMethod,
+    holderRuntime: args.holderRuntime,
+    normalSigning,
+    key,
+    publicFacts,
+  };
   if (args.selected.authMethod.kind === 'passkey') {
     const auth = {
       kind: 'passkey' as const,
@@ -544,31 +566,7 @@ async function buildActiveRuntime(args: {
         credentialIdB64u: auth.credentialIdB64u,
       }),
     });
-    return {
-      kind: 'active_wallet_authority_ecdsa_runtime_v1',
-      walletId: args.selected.authority.walletId,
-      authorityId: args.selected.authority.authorityId,
-      walletAuthMethodId: args.selected.authMethod.walletAuthMethodId,
-      authorityDigestB64u: args.selected.authority.authorityDigestB64u,
-      factorAuthorityRef,
-      authorityRevocationEpoch: args.selected.authority.revocationEpoch,
-      walletSessionId: args.operationCredential.walletSessionId,
-      operationCredential: args.operationCredential,
-      session: args.session,
-      requiredCapability: args.requiredCapability,
-      materialActivation: args.materialActivation,
-      ecdsaThresholdKeyId: key.ecdsaThresholdKeyId,
-      relayerKeyId,
-      authority: args.selected.authority,
-      authMethod: args.selected.authMethod,
-      holderRuntime: args.holderRuntime,
-      normalSigning,
-      key,
-      publicFacts,
-      auth,
-      factorAuthority: args.factorAuthority,
-      resolvedKey,
-    };
+    return { ...runtime, auth, factorAuthority: args.factorAuthority, resolvedKey };
   }
   if (
     !isEmailOtpWalletAuthAuthority(args.factorAuthority) ||
@@ -582,30 +580,7 @@ async function buildActiveRuntime(args: {
     kind: 'email_otp' as const,
     providerSubjectId: String(args.factorAuthority.factor.providerUserId),
   };
-  return {
-    kind: 'active_wallet_authority_ecdsa_runtime_v1',
-    walletId: args.selected.authority.walletId,
-    authorityId: args.selected.authority.authorityId,
-    walletAuthMethodId: args.selected.authMethod.walletAuthMethodId,
-    authorityDigestB64u: args.selected.authority.authorityDigestB64u,
-    factorAuthorityRef,
-    authorityRevocationEpoch: args.selected.authority.revocationEpoch,
-    walletSessionId: args.operationCredential.walletSessionId,
-    operationCredential: args.operationCredential,
-    session: args.session,
-    requiredCapability: args.requiredCapability,
-    materialActivation: args.materialActivation,
-    ecdsaThresholdKeyId: key.ecdsaThresholdKeyId,
-    relayerKeyId,
-    authority: args.selected.authority,
-    authMethod: args.selected.authMethod,
-    holderRuntime: args.holderRuntime,
-    normalSigning,
-    key,
-    publicFacts,
-    auth,
-    factorAuthority: args.factorAuthority,
-  };
+  return { ...runtime, auth, factorAuthority: args.factorAuthority };
 }
 
 function projectActiveRuntime(args: {
@@ -613,23 +588,10 @@ function projectActiveRuntime(args: {
   readonly chainTarget?: ThresholdEcdsaChainTarget;
 }): ActiveWalletAuthorityEcdsaLaneProjectionV1 | null {
   if (!args.chainTarget) return null;
-  if (args.runtime.auth.kind === 'passkey') {
-    if (!args.runtime.resolvedKey) return null;
-    return {
-      kind: 'active_wallet_authority_ecdsa_lane_projection_v1',
-      source: 'active_wallet_authority',
-      chainTarget: args.chainTarget,
-      runtime: args.runtime,
-      key: args.runtime.key,
-      materialActivation: args.runtime.materialActivation,
-      publicFacts: args.runtime.publicFacts,
-      state: 'deferred',
-      authorizationState: 'authorization_required',
-      auth: args.runtime.auth,
-      resolvedKey: args.runtime.resolvedKey,
-    };
-  }
-  return {
+  const lane: Omit<
+    ActiveWalletAuthorityEcdsaLaneProjectionV1,
+    keyof ActiveWalletAuthorityEcdsaProjectionAuth
+  > = {
     kind: 'active_wallet_authority_ecdsa_lane_projection_v1',
     source: 'active_wallet_authority',
     chainTarget: args.chainTarget,
@@ -639,8 +601,12 @@ function projectActiveRuntime(args: {
     publicFacts: args.runtime.publicFacts,
     state: 'deferred',
     authorizationState: 'authorization_required',
-    auth: args.runtime.auth,
   };
+  if (args.runtime.auth.kind === 'passkey') {
+    if (!args.runtime.resolvedKey) return null;
+    return { ...lane, auth: args.runtime.auth, resolvedKey: args.runtime.resolvedKey };
+  }
+  return { ...lane, auth: args.runtime.auth };
 }
 
 export async function resolveActiveWalletAuthorityEcdsaRuntimeV1(args: {

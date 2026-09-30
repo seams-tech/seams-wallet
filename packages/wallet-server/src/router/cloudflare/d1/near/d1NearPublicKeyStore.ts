@@ -1,12 +1,11 @@
 import { toOptionalTrimmedString } from '@shared/utils/validation';
-import type { D1PreparedStatementLike } from '../../../../storage/tenantRoute';
+import type { ScopedD1Prepare } from '../../../../core/emailOtpD1Statements';
+import { NEAR_PUBLIC_KEYS_BY_USER_SQL } from '../../../../core/NearPublicKeyStore';
 import {
   parseNearPublicKey,
   type D1RecordJsonRow,
   type NearPublicKeyRecord,
 } from '../webauthn/d1WebAuthnRecords';
-
-type ScopedD1Prepare = (sql: string, values: readonly unknown[]) => D1PreparedStatementLike;
 
 type D1NearPublicKeyListResult =
   | {
@@ -52,17 +51,9 @@ export class CloudflareD1NearPublicKeyStore {
   }
 
   async listForUser(userId: string): Promise<NearPublicKeyRecord[]> {
-    const result = await this.prepare(
-      `SELECT record_json
-         FROM near_public_keys
-        WHERE namespace = ?
-          AND org_id = ?
-          AND project_id = ?
-          AND env_id = ?
-          AND user_id = ?
-        ORDER BY COALESCE(signer_slot, 0) ASC, created_at_ms ASC, public_key ASC`,
-      [userId],
-    ).all<D1RecordJsonRow>();
+    const result = await this.prepare(NEAR_PUBLIC_KEYS_BY_USER_SQL, [
+      userId,
+    ]).all<D1RecordJsonRow>();
     const records: NearPublicKeyRecord[] = [];
     for (const row of result.results || []) {
       const record = parseNearPublicKey(row);

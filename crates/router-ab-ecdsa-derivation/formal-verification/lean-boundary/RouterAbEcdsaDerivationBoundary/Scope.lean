@@ -60,11 +60,13 @@ inductive ClientBoundaryModel where
   | explicitExport (boundary : ExplicitExportBoundaryModel)
   deriving DecidableEq, Repr
 
-/-- Handwritten boundary model for the finalize envelope projection. -/
+/-- Handwritten boundary model for the finalize envelope projection.
+`contextBinding32` is the public SHA-256 digest of the stable-key context. -/
 structure FinalizeBoundaryModel where
   operation : wire.ServerEvalOperation
   rawRootMaterialDropped : Bool
   relayerKeyId : String
+  contextBinding32 : Array Std.U8 32#usize
   clientPublicKey33 : Array Std.U8 33#usize
   relayerPublicKey33 : Array Std.U8 33#usize
   thresholdPublicKey33 : Array Std.U8 33#usize

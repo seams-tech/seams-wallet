@@ -5,7 +5,7 @@ import type { NearAccountRef } from '@/core/signingEngine/interfaces/ecdsaChainT
 import type { NearEd25519YaoMaterialExecutor } from '@/core/signingEngine/interfaces/near';
 import { parseSignerSlot } from '@/core/signingEngine/webauthnAuth/device/signerSlot';
 
-export type ResolvedNearSigningMaterials = {
+type ResolvedNearSigningMaterials = {
   nearAccountId: AccountId;
   resolvedSignerSlot: number;
   thresholdKeyMaterial: ThresholdEd25519KeyMaterial | null;

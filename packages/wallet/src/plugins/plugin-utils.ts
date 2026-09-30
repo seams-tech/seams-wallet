@@ -78,7 +78,7 @@ export function resolveCoepMode(explicit?: 'strict' | 'off'): 'strict' | 'off' {
   return 'off';
 }
 
-export function applyCoepCorp(res: any) {
+function applyCoepCorp(res: any) {
   res.setHeader?.('Cross-Origin-Embedder-Policy', 'require-corp');
   res.setHeader?.('Cross-Origin-Resource-Policy', 'cross-origin');
 }
@@ -153,7 +153,7 @@ export function logRorConfig(origins: string[], endpoint = '/.well-known/webauth
 }
 
 // Sanitize a dynamic allowlist into a normalized set of absolute origins.
-export function sanitizeOrigins(values: unknown): string[] {
+function sanitizeOrigins(values: unknown): string[] {
   const out = new Set<string>();
   if (Array.isArray(values)) {
     for (const v of values) {
@@ -174,7 +174,7 @@ export function sanitizeOrigins(values: unknown): string[] {
   return Array.from(out);
 }
 
-export type RorOriginsInput = {
+type RorOriginsInput = {
   configuredOrigins: readonly string[];
   docsOrigin: string;
   walletOrigin: string;

@@ -52,7 +52,7 @@ import type {
 } from '@/core/signingEngine/threshold/ed25519/yaoPublicCapabilityReferences';
 import type { AccountId } from '@/core/types/accountIds';
 import type { MpcMaterialActivationRef, WalletAuthMethodId } from '@shared/utils/domainIds';
-import type { ImportWalletCustodyEcdsaContinuityInput } from '@/core/indexedDB/seamsWalletDB/ecdsaCapabilityManifestStore';
+import type { ImportWalletCustodyEcdsaContinuityInput } from '@/core/indexedDB/seamsWalletDB/walletCustodyEcdsaContinuity';
 import type { EcdsaRoleLocalPersistedMaterialRef } from '@/core/signingEngine/session/keyMaterialBrands';
 import type {
   ClientAuthenticatorData,
@@ -220,7 +220,7 @@ export interface WalletIframeSurfaceMeasurementSurface {
 
 export interface RegistrationResourceWarmupSurface {
   prewarmEmailOtpYao(): Promise<EmailOtpYaoPrewarmOutcome>;
-  /* Refactor 94C: ECDSA WASM init during the auth prompt; fire-and-forget. */
+  /* ECDSA WASM init during the auth prompt; fire-and-forget. */
   prewarmEcdsaRegistrationCrypto(): Promise<{ kind: 'succeeded' | 'failed'; wasmInitMs: number }>;
 }
 
@@ -272,8 +272,8 @@ export type LoginWarmSigningSurface = RuntimeStartupSurface &
   RpIdSurface;
 
 export interface RegistrationAccountSurface {
-  /* Refactor 94 Phase 6. Durable NEAR provisioning state on the wallet root
-     profile. This is authoritative; the page registry mirrors it. */
+  /* Durable NEAR provisioning state on the wallet root profile. This is
+     authoritative; the page registry mirrors it. */
   setWalletNearProvisioningState(write: NearProvisioningWriteV1): Promise<void>;
   getWalletNearProvisioningState(walletId: EcdsaWalletId): Promise<NearProvisioningState | null>;
   activateAuthenticatedWalletState(args: {
@@ -370,8 +370,7 @@ export interface Ed25519YaoCapabilityActivationSurface {
  * cache and never crosses.
  */
 /**
- * Refactor 103 zero-prompt handoff — the unlocked wallet Ed25519 export-root
- * capability at its auth choke points.
+ * The unlocked wallet Ed25519 export-root capability at its auth choke points.
  *
  * Establish runs during successful owner registration and ordinary unlock,
  * where the passkey factor is already being presented, and only after the
@@ -743,9 +742,6 @@ export type LockSigningSurface = NonceCoordinatorSurface &
     | 'retireActiveWalletSessionAuthorizationForLock'
     | 'clearWalletAuthenticationIfCurrent'
   >;
-
-export type LogoutSigningSurface = LockSigningSurface &
-  Pick<EcdsaSessionControlSurface, 'deleteDurableEcdsaPresignatures'>;
 
 export type LocalLoginStateSurface = WalletSessionReadSurface &
   Pick<

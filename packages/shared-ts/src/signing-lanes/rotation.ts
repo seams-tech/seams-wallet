@@ -14,7 +14,7 @@ import type {
   EcdsaServerGeneration,
 } from '../utils/ecdsaCapabilityActivation';
 import type { CorrelationId, DigestB64u, IsoTimestamp } from '../utils/canonicalPrimitives';
-import type { NearEd25519SigningKeyId } from '../utils/registrationIntent';
+import type { NearEd25519SigningKeyId } from '../utils/registrationIds';
 import type { EcdsaThresholdKeyId } from '../threshold/ecdsaDerivationRoleLocalBootstrap';
 import type {
   EcdsaManifestIdentity,
@@ -102,7 +102,7 @@ export function isProvisionedLaneProtocolSourceV1(
   return source.sourceKind === 'provisioned_lane';
 }
 
-export type LaneTargetHolderV1 = {
+type LaneTargetHolderV1 = {
   participantId: LaneHolderParticipantId;
   participantBindingDigestB64u: LaneParticipantBindingDigestB64u;
   custodyBindingId: LaneHolderCustodyBindingId;
@@ -137,7 +137,7 @@ export type LaneRefreshTargetV1 = {
   priorMaterialActivation: MpcMaterialActivationRef;
 };
 
-export type EcdsaTargetThresholdSessionBindingV1 = {
+type EcdsaTargetThresholdSessionBindingV1 = {
   chainTarget: ThresholdEcdsaChainTarget;
   thresholdSessionId: ThresholdEcdsaSessionId;
   participantBindingDigestB64u: string;
@@ -161,7 +161,7 @@ export type EcdsaTargetCapabilityBindingV1 = {
   ];
 };
 
-export type LaneProtocolJobCommonV1 = {
+type LaneProtocolJobCommonV1 = {
   operationId: LaneOperationId;
   enrollmentId: LaneEnrollmentId;
   idempotencyKey: LaneOperationIdempotencyKey;
@@ -175,19 +175,17 @@ export type LaneProtocolJobCommonV1 = {
   expiresAtMs: number;
 };
 
-export type LaneCreationOperationV1 = {
+type LaneCreationOperationV1 = {
   target: LaneCreationTargetV1;
   authorization: LinkedDeviceLaneAuthorizationBindingV1;
 };
 
-export type LaneRefreshOperationV1 = {
+type LaneRefreshOperationV1 = {
   target: LaneRefreshTargetV1;
   authorization: OwnerLaneRefreshAuthorizationBindingV1;
 };
 
-export type LaneProtocolOperationV1 = LaneCreationOperationV1 | LaneRefreshOperationV1;
-
-export type Ed25519YaoLaneJobCurveV1 = {
+type Ed25519YaoLaneJobCurveV1 = {
   kind: 'ed25519_yao_lane_job_v1';
   keyFamily: 'ed25519';
   registeredPublicKeyB64u: string;
@@ -226,7 +224,7 @@ export type Ed25519YaoLaneCreationJobV1 = LaneProtocolJobCommonV1 &
   Ed25519YaoLaneJobCurveV1 &
   LaneCreationOperationV1 & { yaoRequestKind: 'lane_provisioning' };
 
-export type Ed25519YaoLaneRefreshJobV1 = LaneProtocolJobCommonV1 &
+type Ed25519YaoLaneRefreshJobV1 = LaneProtocolJobCommonV1 &
   Ed25519YaoLaneJobCurveV1 &
   LaneRefreshOperationV1 & { yaoRequestKind: 'lane_refresh' };
 
@@ -236,7 +234,7 @@ export type EcdsaAdditiveLaneCreationJobV1 = LaneProtocolJobCommonV1 &
   LaneCreationOperationV1 &
   EcdsaAdditiveLaneJobCurveV1;
 
-export type EcdsaAdditiveLaneRefreshJobV1 = LaneProtocolJobCommonV1 &
+type EcdsaAdditiveLaneRefreshJobV1 = LaneProtocolJobCommonV1 &
   LaneRefreshOperationV1 &
   EcdsaAdditiveLaneJobCurveV1;
 
@@ -297,9 +295,9 @@ export type LaneServerActivationReceiptV1 = {
   activatedAtMs: number;
 };
 
-export type LaneProtocolAbortReason = 'cancelled' | 'expired' | 'revoked_before_commit';
+type LaneProtocolAbortReason = 'cancelled' | 'expired' | 'revoked_before_commit';
 
-export type LaneProtocolCompletionReason = 'exact_redelivery_required' | 'recovery_required';
+type LaneProtocolCompletionReason = 'exact_redelivery_required' | 'recovery_required';
 
 export type LaneProtocolLifecycle =
   | {
@@ -366,11 +364,6 @@ export type LaneProtocolRecordV1 = {
   lifecycle: LaneProtocolLifecycle;
 };
 
-export type EcdsaAdditiveLaneTranscriptPreambleV1 = {
-  kind: 'ecdsa_additive_lane_transcript_preamble_v1';
-  job: EcdsaAdditiveLaneJobV1;
-};
-
 export type EcdsaAdditiveLaneHolderRoundV1 = {
   kind: 'ecdsa_additive_lane_holder_round_v1';
   preambleHashB64u: string;
@@ -379,25 +372,6 @@ export type EcdsaAdditiveLaneHolderRoundV1 = {
   sealedTargetHolderMaterialDigestB64u: string;
   holderAttestationB64u: string;
   holderCommittedAtMs: number;
-};
-
-export type EcdsaAdditiveLaneServerRoundV1 = {
-  kind: 'ecdsa_additive_lane_server_round_v1';
-  preambleHashB64u: string;
-  holderRoundHashB64u: string;
-  targetServerPublicCommitment33B64u: string;
-  sealedTargetServerMaterialDigestB64u: string;
-  targetThresholdSessionSetDigestB64u: string;
-  publicIdentityRelationDigestB64u: string;
-  serverAttestationB64u: string;
-  serverCommittedAtMs: number;
-};
-
-export type EcdsaAdditiveLaneTranscriptV1 = {
-  kind: 'ecdsa_additive_lane_transcript_v1';
-  preambleHashB64u: string;
-  holderRoundHashB64u: string;
-  serverRoundHashB64u: string;
 };
 
 export type LaneEnrollmentManifestChildV1 = {
@@ -555,7 +529,7 @@ export type LaneServerRetirementReceiptV1 =
   | EcdsaServerRetirementReceiptV1
   | Ed25519ServerRetirementReceiptV1;
 
-export type LaneProductEpochRecordCommonV1 = {
+type LaneProductEpochRecordCommonV1 = {
   kind: 'lane_product_epoch_record_v1';
   walletId: WalletId;
   walletKeyId: WalletKeyId;
@@ -941,7 +915,7 @@ export type EcdsaLaneProtocolWasmV1 = {
 
 export type { LaneHolderRecipientHandleV1 } from '../utils/domainIds';
 
-export type LaneHolderRecipientDescriptorV1 = {
+type LaneHolderRecipientDescriptorV1 = {
   recipientHandle: LaneHolderRecipientHandleV1;
   hpkePublicKeyB64u: HpkePublicKeyB64u;
   hpkePublicKeyDigestB64u: HpkePublicKeyDigestB64u;
@@ -979,13 +953,13 @@ export type Ed25519YaoLaneClientCompletionV1 = {
   >;
 };
 
-export type SealedLaneHolderMaterialV1 = {
+type SealedLaneHolderMaterialV1 = {
   sealedHolderMaterialB64u: string;
   sealedHolderRecordDigestB64u: DigestB64u;
   verifiedHolderCiphertextDigestSetB64u: DigestB64u;
 };
 
-export type VerifiedLaneHolderPackageV1 = {
+type VerifiedLaneHolderPackageV1 = {
   verifiedHolderCiphertextDigestSetB64u: DigestB64u;
 };
 

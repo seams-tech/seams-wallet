@@ -1,23 +1,19 @@
-import type {
-  RegisterWalletInput,
-  RegistrationAuthMethodInput,
-  RegistrationSignerSetSelection,
-} from '@shared/utils/registrationIntent';
+import type { ActiveWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 import type { CorrelationId } from '@shared/utils/canonicalPrimitives';
 import type { RouterAbEcdsaVerifiedClientActivationFactsV1 } from '@shared/utils/routerAbEcdsaDerivation';
 import type {
   WalletRegistrationEcdsaPreparePayload,
+  WalletRegistrationFinalizeSuccess,
   WalletRegistrationStartRequest,
   WalletRegistrationAuthorityInput,
   WalletRegistrationStartResponse,
   WalletRegistrationFinalizeRequest,
-  WalletRegistrationFinalizeResponse,
   WalletRegistrationEcdsaActivationResponse,
   WalletRegistrationEcdsaWalletKey,
   WalletRegistrationEd25519YaoPublicResult,
-  WalletRegistrationFinalizeAuthMethod,
   WalletRegistrationRouteDiagnostics,
 } from './registrationContracts';
+import type { WalletRegistrationFinalizeAuthMethod } from '@shared/utils/registrationContracts';
 import type {
   RegistrationEstablishedSessionProjectionV2,
   RegistrationEstablishedSessionResultV2,
@@ -28,10 +24,9 @@ import type { ActiveWalletAuthorityV1 } from '@shared/authorization/walletAuthor
 import type {
   RegistrationNearAccountProvisioning,
   ResolvedRegistrationNearAccount,
-  RegistrationAuthority,
   RegistrationSignerPlan,
-  WalletAuthMethodRecordV2,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/registrationSignerPlan';
+import type { RegistrationAuthority } from '@shared/utils/registrationAuthMethodInput';
 import type { WalletAuthAuthority } from '@shared/utils/walletAuthAuthority';
 import type { WalletCustodyRegistrationOutcome } from '@shared/passkey-custody';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
@@ -45,8 +40,7 @@ import type {
 } from './RegistrationCeremonyStore';
 
 /**
- * Refactor 94C: the three-route registration wire contract, frozen at the
- * 2026-07-28 checkpoint (docs/refactor-94C-product-contract.md §2).
+ * The three-route registration wire contract.
  *
  * Everything here derives from the existing contracts by indexed access, so a
  * change to an underlying payload surfaces as a compile error in this file
@@ -87,8 +81,8 @@ type SetupEd25519Work =
 type ActivateIdempotencyKey = WalletRegistrationFinalizeRequest['idempotencyKey'];
 type FinalizeRequestBase = WalletRegistrationFinalizeRequest;
 type EcdsaFinalizeSuccess = Extract<
-  WalletRegistrationFinalizeResponse,
-  { ok: true; kind: 'evm_family_ecdsa' }
+  WalletRegistrationFinalizeSuccess,
+  { kind: 'evm_family_ecdsa' }
 >;
 type EcdsaActivationSuccess = Extract<WalletRegistrationEcdsaActivationResponse, { ok: true }>;
 
@@ -125,7 +119,7 @@ type WalletRegistrationSessionCommitReceiptMetadataV2 = {
 type WalletRegistrationSessionCommitReadyBaseV2 =
   WalletRegistrationSessionCommitReceiptMetadataV2 & {
     readonly foundingAuthority: ActiveWalletAuthorityV1;
-    readonly foundingAuthMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+    readonly foundingAuthMethod: ActiveWalletAuthMethodRecordV2;
     readonly mintId: WalletSessionMintId;
     readonly issuedAtMs: number;
     readonly expiresAtMs: number;
@@ -175,7 +169,7 @@ type WalletRegistrationEcdsaReadyCommitBaseV2 = {
   readonly session: RegistrationEstablishedSessionProjectionV2;
 };
 
-export type WalletRegistrationEcdsaReadyCommitV2 =
+type WalletRegistrationEcdsaReadyCommitV2 =
   | (WalletRegistrationEcdsaReadyCommitBaseV2 & {
       readonly nearProvisioning?: never;
       readonly installation?: never;
@@ -190,19 +184,6 @@ export type WalletRegistrationRouteErrorV2 = {
   code: string;
   message: string;
   retryAfterMs?: number;
-};
-
-/** Route 1 — one Gateway request replacing grant, intent, and start. */
-export type WalletRegistrationSetupRequestV2 = {
-  /** Omitted means server-allocated, matching the intent route it replaces. */
-  wallet?: RegisterWalletInput;
-  signerSelection: RegistrationSignerSetSelection;
-  /**
-   * The requested method, not a proof. Setup issues the challenge that the
-   * client's WebAuthn create must sign, so no proof can exist yet; it arrives
-   * on respond.
-   */
-  authMethod: RegistrationAuthMethodInput;
 };
 
 /**
@@ -316,7 +297,7 @@ export type WalletRegistrationRespondRequestV2 = WalletRegistrationRespondAuthor
  * asynchronously and must not await it: the wallet is usable on ECDSA alone,
  * and blocking registration on Yao is the coupling this refactor removes.
  */
-export type WalletRegistrationRespondSignerPlanV2 =
+type WalletRegistrationRespondSignerPlanV2 =
   | {
       kind: 'evm_family_ecdsa';
       ecdsa: RespondEcdsaProofBundles;
@@ -345,7 +326,7 @@ export type WalletRegistrationRespondSignerPlanV2 =
     };
 
 /** Exact A/B role bundles, unchanged from the derivation respond leg. */
-export type RespondEcdsaProofBundles = {
+type RespondEcdsaProofBundles = {
   kind: 'router_ab_ecdsa_registration_forwarded_v1';
   strictResult: unknown; // RouterAbEcdsaStrictForwardedRegistrationResponseV1; bound at the parser
 };
@@ -433,10 +414,7 @@ type ActivateEcdsaTerminalPayload = EcdsaFinalizeSuccess['ecdsa'] & {
   bootstrap: EcdsaActivationSuccess['ecdsa']['bootstrap'];
 };
 
-type Ed25519FinalizeSuccess = Extract<
-  WalletRegistrationFinalizeResponse,
-  { ok: true; kind: 'near_ed25519' }
->;
+type Ed25519FinalizeSuccess = Extract<WalletRegistrationFinalizeSuccess, { kind: 'near_ed25519' }>;
 
 type DistributiveOmit<T, K extends keyof any> = T extends unknown ? Omit<T, K> : never;
 
@@ -490,38 +468,9 @@ export type WalletRegistrationActivateRouteResponseV2 =
   | ActivateSuccessV2
   | WalletRegistrationRouteErrorV2;
 
-/**
- * Deferred NEAR provisioning — `POST /wallets/register/near-provisioning`.
- *
- * Not one of the three routes: it is the non-blocking completion the client
- * calls *after* activate has returned, with the Yao activation the already
- * running computation produced. It installs the wallet's Ed25519 signer,
- * derives the implicit-account projection, and moves provisioning to ready.
- *
- * Implicit-account registration is keypair derivation only — no NEAR RPC and
- * no on-chain transaction, so nothing here spends gas or creates irreversible
- * chain state.
- *
- * Both plans use it. On a mixed plan the wallet was already signable on ECDSA;
- * on an Ed25519-only plan this call is what makes the wallet signable at all.
- */
-export type WalletRegistrationNearProvisioningRequestV2 = {
-  registrationCeremonyId: string;
-  signedSetup: SignedSetupPayloadB64u;
-  /** Its own key: this commit is a separate effect from activate's. */
-  idempotencyKey: ActivateIdempotencyKey;
-  ed25519: Extract<WalletRegistrationFinalizeRequest, { kind: 'near_ed25519' }>['ed25519'];
-  emailOtpEnrollment?: NonNullable<WalletRegistrationFinalizeRequest['emailOtpEnrollment']>;
-  sessionSeal?: {
-    readonly thresholdSessionId: string;
-    readonly ciphertext: string;
-    readonly keyVersion?: string;
-  };
-};
-
 type WalletRegistrationNearProvisioningFinalizeSuccessV2 = Extract<
-  WalletRegistrationFinalizeResponse,
-  { ok: true; kind: 'near_ed25519' }
+  WalletRegistrationFinalizeSuccess,
+  { kind: 'near_ed25519' }
 >;
 
 type WalletRegistrationNearProvisioningSuccessBaseV2 = {

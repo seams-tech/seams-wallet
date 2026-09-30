@@ -1,5 +1,5 @@
-import { createHash, createPrivateKey, createPublicKey, sign } from 'node:crypto';
-import { chmodSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { createHash, createPrivateKey, createPublicKey, randomBytes, sign } from 'node:crypto';
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
@@ -50,6 +50,9 @@ const ED25519_SPKI_PREFIX = Buffer.from('302a300506032b6570032100', 'hex');
 const LOCAL_CEREMONY_JWT_AUDIENCE = 'router-ab';
 const LOCAL_CEREMONY_JWT_KEY_ID = 'local-router-ab-r1';
 const LOCAL_KEY_EPOCH = 'epoch-1';
+const workerBuildDirectory = process.env.ROUTER_AB_WORKER_BUILD_PROFILE === 'dev'
+  ? 'build/dev'
+  : 'build';
 
 export function prepareLocalHostedWalletGatewayConfig(input) {
   const repoRoot = path.resolve(input.repoRoot);
@@ -95,6 +98,9 @@ export function prepareLocalHostedWalletGatewayConfig(input) {
   writeFileSync(outputConfigPath, config);
 
   const internalAuthSecret = requiredEnv(routerEnv, 'ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET');
+  const gatewayToRouterAuthSecret = readOrCreateLocalGatewayToRouterAuthSecret(localEnvRoot);
+  const gatewayToSigningWorkerPresignAuthSecret =
+    readOrCreateLocalGatewayToSigningWorkerPresignAuthSecret(localEnvRoot);
   const secretValues = {
     ACCOUNT_ID_DERIVATION_SECRET: localSecret(internalAuthSecret, 'account-id-derivation'),
     GOOGLE_OIDC_CLIENT_ID: optionalText(input.googleOidcClientId),
@@ -114,6 +120,9 @@ export function prepareLocalHostedWalletGatewayConfig(input) {
       signingWorkerEnv,
     }),
     ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET: internalAuthSecret,
+    ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET: gatewayToRouterAuthSecret,
+    ROUTER_AB_GATEWAY_TO_SIGNING_WORKER_PRESIGN_AUTH_SECRET:
+      gatewayToSigningWorkerPresignAuthSecret,
     ROUTER_AB_NORMAL_SIGNING_WORKER_ID: requiredEnv(routerEnv, 'SIGNING_WORKER_ID'),
     ROUTER_AB_PUBLIC_KEYSET_JSON: localPublicKeysetJson({
       routerEnv,
@@ -262,6 +271,45 @@ function localSecret(seed, purpose) {
     .digest('base64url');
 }
 
+function readOrCreateLocalGatewayToRouterAuthSecret(localEnvRoot) {
+  return readOrCreateLocalGatewayAuthSecret(
+    localEnvRoot,
+    'gateway-router-auth.secret',
+    'Gateway-to-Router auth secret',
+  );
+}
+
+function readOrCreateLocalGatewayToSigningWorkerPresignAuthSecret(localEnvRoot) {
+  return readOrCreateLocalGatewayAuthSecret(
+    localEnvRoot,
+    'gateway-signing-worker-presign-auth.secret',
+    'Gateway-to-SigningWorker presign auth secret',
+  );
+}
+
+function readOrCreateLocalRouterToSigningWorkerEcdsaAuthSecret(localEnvRoot) {
+  return readOrCreateLocalGatewayAuthSecret(
+    localEnvRoot,
+    'router-signing-worker-ecdsa-auth.secret',
+    'Router-to-SigningWorker ECDSA auth secret',
+  );
+}
+
+function readOrCreateLocalGatewayAuthSecret(localEnvRoot, fileName, label) {
+  const secretPath = path.join(
+    localEnvRoot,
+    '.runtime',
+    'wallet-gateway',
+    fileName,
+  );
+  mkdirSync(path.dirname(secretPath), { recursive: true, mode: 0o700 });
+  if (!existsSync(secretPath)) {
+    writeFileSync(secretPath, `${randomBytes(32).toString('base64url')}\n`, { mode: 0o600 });
+  }
+  chmodSync(secretPath, 0o600);
+  return requireNonEmptyInput(readFileSync(secretPath, 'utf8').trim(), label);
+}
+
 function renderDevVars(values) {
   return `${Object.entries(values)
     .filter(([, value]) => value)
@@ -291,6 +339,11 @@ export function prepareRouterAbStrictLocalRuntimeConfigs(input) {
     input.outputRoot ?? path.join(localEnvRoot, '.runtime', 'router-ab-strict'),
   );
   const routerEnv = readEnvMap(path.join(localEnvRoot, '.env.router-ab.router.local'));
+  const gatewayToRouterAuthSecret = readOrCreateLocalGatewayToRouterAuthSecret(localEnvRoot);
+  const gatewayToSigningWorkerPresignAuthSecret =
+    readOrCreateLocalGatewayToSigningWorkerPresignAuthSecret(localEnvRoot);
+  const routerToSigningWorkerEcdsaAuthSecret =
+    readOrCreateLocalRouterToSigningWorkerEcdsaAuthSecret(localEnvRoot);
   const deriverAEnv = readEnvMap(path.join(localEnvRoot, '.env.router-ab.deriver-a.local'));
   const deriverBEnv = readEnvMap(path.join(localEnvRoot, '.env.router-ab.deriver-b.local'));
   const signingWorkerEnv = readEnvMap(
@@ -299,6 +352,7 @@ export function prepareRouterAbStrictLocalRuntimeConfigs(input) {
   const tenantRootKeys = resolveLocalTenantRootKeyMaterial({
     repoRoot,
     localEnvRoot,
+    issuerEnvPath: input.tenantRootIssuerEnvPath,
   });
   const privateD1Keys = Object.freeze({
     deriverA: deriveLocalPrivateD1KeyPair(
@@ -330,12 +384,45 @@ export function prepareRouterAbStrictLocalRuntimeConfigs(input) {
     const mainPath = path
       .relative(
         outputRoot,
-        path.join(runtimeRoot, 'build', role, 'worker', 'shim.mjs'),
+        path.join(runtimeRoot, workerBuildDirectory, role, 'worker', 'shim.mjs'),
       )
       .split(path.sep)
       .join('/');
     let config = stripBuildSection(readFileSync(sourcePath, 'utf8'));
     config = replaceTomlAssignment(config, 'main', mainPath);
+    if (role === 'deriver-b' && process.env.ROUTER_AB_WALLET_DO_HARNESS === 'enabled') {
+      config = config.replace(
+        '[[services]]',
+        `[[durable_objects.bindings]]
+name = "DERIVER_B_WALLET_DO"
+class_name = "RouterAbDeriverBWalletDurableObject"
+
+[[migrations]]
+tag = "r150-deriver-b-wallet-sqlite-v1"
+new_sqlite_classes = ["RouterAbDeriverBWalletDurableObject"]
+
+[[services]]`,
+      );
+    }
+    if (role === 'signing-worker' && process.env.ROUTER_AB_WALLET_DO_HARNESS === 'enabled') {
+      const presignBinding = '  { name = "SIGNING_WORKER_PRESIGN_SESSION_DO", class_name = "RouterAbSigningWorkerPresignSessionDurableObject" },';
+      if (!config.includes(presignBinding)) {
+        throw new Error('SigningWorker presign object binding is missing');
+      }
+      config = config.replace(
+        presignBinding,
+        `${presignBinding}
+  { name = "SIGNING_WORKER_WALLET_DO", class_name = "RouterAbSigningWorkerWalletDurableObject" },`,
+      );
+      config = config.replace(
+        '[vars]',
+        `[[migrations]]
+tag = "r150-signing-worker-wallet-sqlite-v1"
+new_sqlite_classes = ["RouterAbSigningWorkerWalletDurableObject"]
+
+[vars]`,
+      );
+    }
     config = applyRoleVars(config, role, {
       sdkRouterUrl,
       routerEnv,
@@ -356,6 +443,9 @@ export function prepareRouterAbStrictLocalRuntimeConfigs(input) {
       secretPath,
       strictRoleSecretFile(role, {
         routerEnv,
+        gatewayToRouterAuthSecret,
+        gatewayToSigningWorkerPresignAuthSecret,
+        routerToSigningWorkerEcdsaAuthSecret,
         deriverAEnv,
         deriverBEnv,
         signingWorkerEnv,
@@ -705,7 +795,12 @@ function strictRoleSecretFile(role, env) {
   )}`;
   switch (role) {
     case 'router':
-      return `${internalAuthSecret}\n`;
+      return [
+        internalAuthSecret,
+        `ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET=${env.gatewayToRouterAuthSecret}`,
+        `ROUTER_AB_ROUTER_TO_SIGNING_WORKER_ECDSA_AUTH_SECRET=${env.routerToSigningWorkerEcdsaAuthSecret}`,
+        '',
+      ].join('\n');
     case 'deriver-a':
       return [
         internalAuthSecret,
@@ -753,6 +848,8 @@ function strictRoleSecretFile(role, env) {
     case 'signing-worker':
       return [
         internalAuthSecret,
+        `ROUTER_AB_GATEWAY_TO_SIGNING_WORKER_PRESIGN_AUTH_SECRET=${env.gatewayToSigningWorkerPresignAuthSecret}`,
+        `ROUTER_AB_ROUTER_TO_SIGNING_WORKER_ECDSA_AUTH_SECRET=${env.routerToSigningWorkerEcdsaAuthSecret}`,
         `SIGNING_WORKER_SERVER_OUTPUT_HPKE_PRIVATE_KEY=${versionedHexSecret(
           requiredEnv(env.signingWorkerEnv, 'SIGNING_WORKER_SERVER_OUTPUT_HPKE_PRIVATE_KEY'),
           'hpke-x25519-server-output-private-v1:',
@@ -843,11 +940,7 @@ export function resolveLocalTenantRootKeyMaterial(input) {
   const repoRoot = path.resolve(input.repoRoot);
   const localEnvRoot = path.resolve(input.localEnvRoot ?? repoRoot);
   const controlPlaneEnv = readEnvMap(
-    path.join(
-      runtimeRoot,
-      'env',
-      'tenant-root-control-plane.local.example',
-    ),
+    input.issuerEnvPath ?? path.join(runtimeRoot, 'env', 'tenant-root-control-plane.local.example'),
   );
   const deriverAEnv = readEnvMap(path.join(localEnvRoot, '.env.router-ab.deriver-a.local'));
   const deriverBEnv = readEnvMap(path.join(localEnvRoot, '.env.router-ab.deriver-b.local'));

@@ -77,7 +77,7 @@ resolveTenantRootIdentityV1({
 resolveTenantRootIdentityV1({
   kind: 'ed25519_b5_active_material',
   activeMaterial: activeEd25519Material,
-  // @ts-expect-error Request bodies cannot carry an R120 identity override.
+  // @ts-expect-error Request bodies cannot carry a tenant-root identity override.
   tenantRootIdentity: {
     orgId: 'org-a',
     projectId: 'project-a',

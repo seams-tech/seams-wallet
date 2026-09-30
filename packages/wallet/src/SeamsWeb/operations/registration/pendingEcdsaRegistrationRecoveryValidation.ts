@@ -34,15 +34,14 @@ import type {
 } from '@/core/rpcClients/relayer/thresholdEcdsa';
 import { assertSharedRegistrationEvmFamilyWalletKeyMaterial } from './registrationStrictEcdsa';
 
-export type PendingEcdsaRegistrationKeyFamilies =
-  readonly ['ecdsa_secp256k1'];
+export type PendingEcdsaRegistrationKeyFamilies = readonly ['ecdsa_secp256k1'];
 
 type PendingEcdsaOnlyLocalMaterial = Extract<
   PendingWalletRegistrationLocalMaterialV1,
   { readonly keyFamilies: readonly ['ecdsa_secp256k1'] }
 >;
 
-export type PendingEcdsaOnlyRegistrationCommit = Extract<
+type PendingEcdsaOnlyRegistrationCommit = Extract<
   PendingWalletRegistrationCommitV1,
   { readonly operation: 'registration_activate' }
 > & {
@@ -50,7 +49,7 @@ export type PendingEcdsaOnlyRegistrationCommit = Extract<
   readonly localMaterial: PendingEcdsaOnlyLocalMaterial;
 };
 
-export type PendingMixedEcdsaRegistrationCommit = Extract<
+type PendingMixedEcdsaRegistrationCommit = Extract<
   PendingWalletRegistrationCommitV1,
   { readonly operation: 'registration_activate' }
 > & {
@@ -178,13 +177,12 @@ function samePendingEcdsaProjection(
 
 function samePendingEcdsaClientActivationFacts(
   activation: RouterAbEcdsaRegistrationActivationReceiptV1,
+  walletKey: WalletRegistrationEcdsaWalletKey,
   expected: RouterAbEcdsaVerifiedClientActivationFactsV1,
 ): boolean {
   const identity = activation.ecdsa_activation.public_identity;
   const actual: RouterAbEcdsaVerifiedClientActivationFactsV1 = {
-    registrationRequestDigestB64u: base64UrlEncode(
-      Uint8Array.from(activation.activation_request_digest.bytes),
-    ),
+    registrationRequestDigestB64u: walletKey.publicCapability.registration_request_digest_b64u,
     proofTranscriptDigestB64u: base64UrlEncode(Uint8Array.from(activation.transcript_digest.bytes)),
     contextBinding32B64u: identity.context_binding_b64u,
     derivationClientSharePublicKey33B64u: identity.derivation_client_share_public_key33_b64u,
@@ -344,7 +342,9 @@ function assertActivationFacts(
   const client = pending.localMaterial.ecdsa.clientActivation;
   if (
     activation.activation_correlation_id !== pending.localMaterial.ecdsa.activationJournalId ||
-    !samePendingEcdsaClientActivationFacts(activation, client) ||
+    base64UrlEncode(Uint8Array.from(activation.activation_request_digest.bytes)) !==
+      pending.localMaterial.ecdsa.activationRequestDigestB64u ||
+    !samePendingEcdsaClientActivationFacts(activation, walletKey, client) ||
     !samePendingEcdsaBootstrapPublicIdentity(response.ecdsa.bootstrap.publicIdentity, walletKey) ||
     receipt.context.application_binding_digest_b64u !==
       response.ecdsa.bootstrap.applicationBindingDigestB64u ||

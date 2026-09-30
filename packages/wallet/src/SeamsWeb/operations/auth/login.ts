@@ -35,7 +35,7 @@ import { toAccountId, type AccountId } from '@/core/types/accountIds';
 import type { WebAuthnAuthenticationCredential } from '@/core/types';
 import type { WorkerOperationContext } from '@/core/signingEngine/workerManager/executeWorkerOperation';
 import type { EcdsaClientPresignCleanupTarget } from '@/core/signingEngine/workerManager/ecdsaPresignLifecycle';
-import type { EcdsaCapabilitySelector } from '@/core/indexedDB/seamsWalletDB/ecdsaCapabilityManifestStore';
+import type { EcdsaCapabilitySelector } from '@/core/indexedDB/seamsWalletDB/ecdsaCapabilityManifestRecords';
 import {
   resolveManagedRuntimeScopeBootstrap,
   type ManagedRuntimeScopeBootstrap,
@@ -51,7 +51,10 @@ import type { PasskeyCustodyEnvelopeRecord } from '@shared/passkey-custody';
 import { joinNormalizedUrl } from '@shared/utils/normalize';
 import { secureRandomId } from '@shared/utils/secureRandomId';
 import { isObject } from '@shared/utils/validation';
-import type { WalletAuthorityV1 } from '@shared/authorization/walletAuthority';
+import type {
+  ActiveWalletAuthorityV1,
+  WalletAuthorityV1,
+} from '@shared/authorization/walletAuthority';
 import { parseWalletSessionOperationCredentialV1 } from '@shared/device-linking';
 import type {
   ActiveWalletSessionV1,
@@ -98,9 +101,17 @@ import {
   type WalletAuthAuthority,
   type WalletAuthAuthorityRef,
 } from '@shared/utils/walletAuthAuthority';
-import type { WalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
+import type {
+  ActiveEmailOtpWalletAuthMethodRecordV2,
+  ActivePasskeyWalletAuthMethodRecordV2,
+  ActiveWalletAuthMethodRecordV2,
+  WalletAuthMethodRecordV2,
+} from '@shared/utils/walletAuthMethodRecord';
 import { IndexedDBManager } from '@/core/indexedDB';
-import { type OwnerLaneScopeStores } from '@/core/signingEngine/session/identity/ownerLaneScope';
+import {
+  exactPasskeyWalletAuthAuthorityRefForCredential,
+  exactPasskeyWalletAuthMethodForCredential,
+} from '@/SeamsWeb/operations/authMethods/passkey/exactPasskeyAuthority';
 import {
   walletSessionAuthorizations,
   WalletSessionAuthorizationUpgradeRequiredError,
@@ -125,7 +136,7 @@ import {
   type PasskeyWalletUnlockInput,
   type PasskeyWalletUnlockEd25519Session,
 } from '@/core/rpcClients/near/rpcCalls';
-import type { WalletRegistrationEd25519YaoSignerRuntimeBootstrap } from '@/core/rpcClients/relayer/walletRegistration';
+import type { WalletRegistrationEd25519YaoSignerRuntimeBootstrap } from '@shared/utils/registrationContracts';
 import { rememberPasskeyCustodySessionEnvelope } from '@/core/signingEngine/session/passkey/passkeyCustodySessionCache';
 import { persistPasskeyEd25519YaoSignerMaterialV1 } from '@/core/signingEngine/session/passkey/ed25519YaoLocalMaterial';
 import {
@@ -176,7 +187,7 @@ import {
   type EcdsaPreauthorizedSessionActivation,
 } from '@/core/signingEngine/threshold/ecdsa/postRegistrationSessionActivation';
 import { parseSignerSlot } from '@/core/signingEngine/webauthnAuth/device/signerSlot';
-import { nearEd25519SigningKeyIdFromString } from '@shared/utils/registrationIntent';
+import { nearEd25519SigningKeyIdFromString } from '@shared/utils/registrationIds';
 import type { ThresholdEcdsaEmailOtpAuthContext } from '@/core/signingEngine/session/identity/laneIdentity';
 import { type ThresholdEcdsaSessionBootstrapResult } from '@/core/signingEngine/threshold/ecdsa/activation';
 import {
@@ -202,7 +213,6 @@ import type {
 } from '@/core/signingEngine/session/availability/availableSigningLanes';
 import {
   ecdsaAvailableLaneForTarget,
-  ecdsaAvailableLaneTargets,
   isConcreteAvailableSigningLane,
 } from '@/core/signingEngine/session/availability/availableSigningLanes';
 import { assertWalletRuntimePostconditions } from '@/core/signingEngine/session/postconditions/runtimePostconditions';
@@ -237,11 +247,9 @@ import {
   buildEvmFamilyEcdsaSessionLanePolicy,
   deriveEvmFamilySigningKeySlotId,
   evmFamilyEcdsaWalletKeyToIdentity,
-  resolveThresholdEcdsaKeyIdFromRecord,
   resolveThresholdSigningRootBindingFromRuntimePolicyScope,
   toEvmFamilyEcdsaKeyHandle,
   toRpId,
-  type EvmFamilyEcdsaKeyIdentity,
 } from '@/core/signingEngine/session/identity/evmFamilyEcdsaIdentity';
 import {
   exactEd25519SigningLaneIdentity,
@@ -285,7 +293,7 @@ import {
   collectFreshLocalPasskeyUnlockCredential,
   createLocalUnlockChallengeB64u,
 } from '@/SeamsWeb/operations/authMethods/passkey/localUnlock';
-import type { NearEd25519SigningKeyId } from '@shared/utils/registrationIntent';
+import type { NearEd25519SigningKeyId } from '@shared/utils/registrationIds';
 import {
   passkeyCredentialIdB64uFromAuthentication,
   passkeyPrfFirstB64uFromCredential,
@@ -363,7 +371,7 @@ function resolveLoginWalletUnlockSelection(
   return assertNeverLoginState(selection);
 }
 
-export function resolveLoginWalletUnlockSelectionForSubjectSet(args: {
+function resolveLoginWalletUnlockSelectionForSubjectSet(args: {
   selection: LoginHooksOptions['unlockSelection'] | undefined;
   subjectSet: WalletUnlockSubjectSet;
 }): WalletUnlockSelection {
@@ -642,56 +650,8 @@ function walletAuthMethodBindingFromRecord(
   }
 }
 
-type ActivePasskeyWalletAuthMethodRecord = Extract<
-  LocalWalletAuthMethodRecordV2,
-  { kind: 'passkey'; status: 'active' }
->;
-
-async function exactPasskeyWalletAuthMethodForCredential(args: {
-  readonly walletId: WalletId;
-  readonly rpId: string;
-  readonly credentialIdB64u: string;
-}): Promise<ActivePasskeyWalletAuthMethodRecord> {
-  const records = await IndexedDBManager.listWalletAuthMethodsV2ForWallet(String(args.walletId));
-  const matches = records.filter(
-    (record): record is ActivePasskeyWalletAuthMethodRecord =>
-      record.kind === 'passkey' &&
-      record.status === 'active' &&
-      record.walletId === args.walletId &&
-      String(record.rpId) === args.rpId &&
-      String(record.credentialIdB64u) === args.credentialIdB64u,
-  );
-  const [record] = matches;
-  if (matches.length !== 1 || !record) {
-    throw new Error('[login] passkey authority requires one exact active V2 auth method');
-  }
-  return record;
-}
-
-async function exactPasskeyWalletAuthAuthorityRefForCredential(args: {
-  readonly walletId: WalletId;
-  readonly rpId: string;
-  readonly credentialIdB64u: string;
-}): Promise<WalletAuthAuthorityRef> {
-  const record = await exactPasskeyWalletAuthMethodForCredential(args);
-  return await walletAuthAuthorityRef({
-    authority: {
-      walletId: record.walletId,
-      factor: {
-        kind: 'passkey',
-        credentialIdB64u: record.credentialIdB64u,
-      },
-      verifier: {
-        kind: 'webauthn',
-        rpId: record.rpId,
-      },
-      bindingId: record.walletAuthMethodId,
-    },
-  });
-}
-
 function walletAuthAuthorityForSelectedPasskeyMethod(
-  record: Extract<LocalWalletAuthMethodRecordV2, { kind: 'passkey'; status: 'active' }>,
+  record: ActivePasskeyWalletAuthMethodRecordV2,
 ): PasskeyWalletAuthAuthority {
   return {
     walletId: record.walletId,
@@ -708,30 +668,15 @@ function walletAuthAuthorityForSelectedPasskeyMethod(
 }
 
 async function walletAuthAuthorityRefForSelectedPasskeyMethod(
-  record: Extract<LocalWalletAuthMethodRecordV2, { kind: 'passkey'; status: 'active' }>,
+  record: ActivePasskeyWalletAuthMethodRecordV2,
 ): Promise<WalletAuthAuthorityRef> {
   return await walletAuthAuthorityRef({
     authority: walletAuthAuthorityForSelectedPasskeyMethod(record),
   });
 }
 
-function linkedDeviceOwnerLaneScopeStores(): OwnerLaneScopeStores {
-  return {
-    getWalletAuthMethodV2: IndexedDBManager.getWalletAuthMethodV2.bind(IndexedDBManager),
-    listWalletAuthMethodsForWallet:
-      IndexedDBManager.listWalletAuthMethodsForWallet.bind(IndexedDBManager),
-    getWalletPasskeyAuthenticator:
-      IndexedDBManager.getWalletPasskeyAuthenticator.bind(IndexedDBManager),
-    readEmailOtpProviderSubjectForWallet: (walletId: string) =>
-      readEmailOtpProviderSubjectForWalletV1(IndexedDBManager, walletId),
-  };
-}
-
 export async function resolveExactLinkedEmailOtpAuthority(args: {
-  readonly authMethod: Extract<
-    LocalWalletAuthMethodRecordV2,
-    { kind: 'email_otp'; status: 'active' }
-  >;
+  readonly authMethod: ActiveEmailOtpWalletAuthMethodRecordV2;
   readonly provider: EmailOtpProvider;
   readonly providerSubjectId: string;
 }): Promise<EmailOtpWalletAuthAuthority> {
@@ -809,7 +754,7 @@ function linkedDeviceUnlockIdentityMismatchLabels(input: {
   authority: WalletAuthorityV1;
   expectedKind?: WalletAuthMethodRecordV2['kind'];
   /**
-   * R109C: the caller named the method rather than taking the selected one.
+   * The caller named the method rather than taking the selected one.
    *
    * The selection still names the sibling that was in use, which is the
    * expected state for an added method rather than corruption - invariant 9
@@ -843,8 +788,8 @@ function linkedDeviceUnlockIdentityMismatchLabels(input: {
 type LinkedDeviceAuthoritySelection = Readonly<{
   readonly walletId: WalletId;
   readonly selection: WalletSelectionRecordV1;
-  readonly authMethod: Extract<LocalWalletAuthMethodRecordV2, { status: 'active' }>;
-  readonly authority: Extract<WalletAuthorityV1, { state: 'active' }>;
+  readonly authMethod: ActiveWalletAuthMethodRecordV2;
+  readonly authority: ActiveWalletAuthorityV1;
   readonly signerMaterials: readonly WalletAuthoritySignerMaterialRecordV1[];
   readonly exportRoot: WalletAuthorityExportRootRecordV1 | null;
 }>;
@@ -854,30 +799,24 @@ export type LinkedDevicePasskeyAuthoritySelection = LinkedDeviceAuthoritySelecti
     readonly kind: 'linked_device_passkey_authority_selection_v1';
     readonly walletId: WalletId;
     readonly selection: WalletSelectionRecordV1;
-    readonly authMethod: Extract<
-      LocalWalletAuthMethodRecordV2,
-      { kind: 'passkey'; status: 'active' }
-    >;
-    readonly authority: Extract<WalletAuthorityV1, { state: 'active' }>;
+    readonly authMethod: ActivePasskeyWalletAuthMethodRecordV2;
+    readonly authority: ActiveWalletAuthorityV1;
     readonly signerMaterials: readonly WalletAuthoritySignerMaterialRecordV1[];
     readonly exportRoot: WalletAuthorityExportRootRecordV1 | null;
   }>;
 
-export type LinkedDeviceEmailOtpAuthoritySelection = LinkedDeviceAuthoritySelection &
+type LinkedDeviceEmailOtpAuthoritySelection = LinkedDeviceAuthoritySelection &
   Readonly<{
     readonly kind: 'linked_device_email_otp_authority_selection_v1';
-    readonly authMethod: Extract<
-      LocalWalletAuthMethodRecordV2,
-      { kind: 'email_otp'; status: 'active' }
-    >;
+    readonly authMethod: ActiveEmailOtpWalletAuthMethodRecordV2;
   }>;
 
-export type LinkedDeviceEmailOtpAuthorityResolution =
+type LinkedDeviceEmailOtpAuthorityResolution =
   | { readonly kind: 'none' }
   | { readonly kind: 'selected'; readonly selection: LinkedDeviceEmailOtpAuthoritySelection }
   | { readonly kind: 'rejected'; readonly message: string };
 
-export type LinkedDevicePasskeyOpenedMaterial = Extract<
+type LinkedDevicePasskeyOpenedMaterial = Extract<
   OpenWalletAuthorityLinkedSignerMaterialResultV1,
   { readonly kind: 'opened_wallet_authority_linked_signer_material_v1' }
 >;
@@ -923,7 +862,7 @@ export async function resolveLinkedDeviceEmailOtpAuthoritySelection(args: {
   readonly provider: EmailOtpProvider;
   readonly providerSubjectId: string;
   /**
-   * R109C: resolve as this method rather than as the selected one.
+   * Resolve as this method rather than as the selected one.
    *
    * An added sibling is not selected yet - invariant 9 leaves the source
    * selected until a lock and unlock - so resolving through the selection would
@@ -1023,7 +962,7 @@ export async function resolveLinkedDeviceEmailOtpAuthoritySelection(args: {
 }
 
 function linkedDeviceActivationForCapability(
-  authority: Extract<WalletAuthorityV1, { state: 'active' }>,
+  authority: ActiveWalletAuthorityV1,
   subject: Extract<WalletCapabilitySubjectV1, { kind: 'sign' | 'export_keys' }>,
 ): MpcMaterialActivationRef {
   const activation =
@@ -1976,7 +1915,7 @@ type ThresholdLoginWarmupPhaseInput = {
   routeAuthorization: LoginWarmupRouteAuthorization;
 };
 
-export type LoginUnlockWarmupBranchPlan =
+type LoginUnlockWarmupBranchPlan =
   | {
       kind: 'near_ed25519_only';
       wantsEd25519Warmup: true;
@@ -1993,7 +1932,7 @@ export type LoginUnlockWarmupBranchPlan =
       wantsEcdsaWarmup: boolean;
     };
 
-export function resolveLoginUnlockWarmupBranchPlan(args: {
+function resolveLoginUnlockWarmupBranchPlan(args: {
   subjectSet: WalletUnlockSubjectSet;
   selection: WalletUnlockSelection;
   hasConfiguredEcdsaTargets: boolean;
@@ -2091,7 +2030,7 @@ async function assertPasskeyUnlockRuntimePostconditions(args: {
   if (!credentialIdB64u) {
     throw new Error('[login] runtime lane selection requires the authenticated credential');
   }
-  // R103C: during login the verified credential is the owner-scope source, and
+  // During login the verified credential is the owner-scope source, and
   // the signer slot comes from the one local authenticator that credential
   // resolves — never from the caller's slot hint, which is UI prioritization.
   const walletId = String(args.walletIdentity.walletId);
@@ -2386,8 +2325,8 @@ type LinkedDeviceNearUnlockSubjectResolution =
 
 async function resolveLinkedDeviceNearUnlockSubject(args: {
   readonly walletId: WalletId;
-  readonly authMethod: Extract<LocalWalletAuthMethodRecordV2, { readonly status: 'active' }>;
-  readonly authority: Extract<WalletAuthorityV1, { readonly state: 'active' }>;
+  readonly authMethod: ActiveWalletAuthMethodRecordV2;
+  readonly authority: ActiveWalletAuthorityV1;
   readonly signerMaterials: readonly WalletAuthoritySignerMaterialRecordV1[];
 }): Promise<LinkedDeviceNearUnlockSubjectResolution> {
   const activation = args.authority.signerActivations.ed25519;
@@ -2468,8 +2407,8 @@ async function resolveLinkedDeviceNearUnlockSubject(args: {
  * methods may share.
  */
 function requireLinkedDeviceWalletAuthAuthorityRef(input: {
-  readonly authority: Extract<WalletAuthorityV1, { readonly state: 'active' }>;
-  readonly authMethod: Extract<LocalWalletAuthMethodRecordV2, { readonly status: 'active' }>;
+  readonly authority: ActiveWalletAuthorityV1;
+  readonly authMethod: ActiveWalletAuthMethodRecordV2;
 }): WalletAuthAuthorityRef {
   const authorityRef = parseWalletAuthAuthorityRef({
     kind: 'wallet_auth_authority_ref',
@@ -2714,57 +2653,6 @@ async function activateLinkedDeviceEcdsaHolderRuntime(args: {
   }
 }
 
-export async function activateLinkedEmailOtpEcdsaHolderAfterLink(args: {
-  readonly context: LinkedEcdsaHolderActivationContext;
-  readonly walletId: WalletId;
-  readonly walletAuthMethodId: WalletAuthMethodId;
-  readonly emailHashHex: string;
-  readonly providerUserId: string;
-  readonly walletSession: ActiveWalletSessionV1;
-  readonly factorSecret32: Uint8Array;
-}): Promise<void> {
-  const resolution = await resolveLinkedDeviceEmailOtpAuthoritySelection({
-    walletIdInput: String(args.walletId),
-    walletAuthMethodId: String(args.walletAuthMethodId),
-    emailHashHex: args.emailHashHex,
-    provider: 'google',
-    providerSubjectId: args.providerUserId,
-  });
-  if (resolution.kind !== 'selected') {
-    throw new Error(
-      resolution.kind === 'rejected'
-        ? resolution.message
-        : '[login] linked Email OTP authority is unavailable after activation',
-    );
-  }
-  const selection = resolution.selection;
-  assertLinkedDeviceWalletSessionExact(selection, args.walletSession);
-  const openedMaterials = await openLinkedDeviceEmailOtpSignerMaterials({
-    selection,
-    factorSecret32: args.factorSecret32,
-  });
-  try {
-    const ecdsaMaterial = linkedDeviceEcdsaMaterial(openedMaterials);
-    if (!selection.authority.signerActivations.ecdsa) return;
-    if (!ecdsaMaterial) {
-      throw new Error(
-        '[login] linked Email OTP ECDSA runtime material is missing after activation',
-      );
-    }
-    await activateLinkedDeviceEcdsaHolderRuntime({
-      context: args.context,
-      selection,
-      factorAuthority: await walletAuthAuthorityForLinkedDeviceMethod({
-        selection,
-        providerIdentity: { provider: 'google', providerSubjectId: args.providerUserId },
-      }),
-      material: ecdsaMaterial,
-    });
-  } finally {
-    for (const openedMaterial of openedMaterials) openedMaterial.material.fill(0);
-  }
-}
-
 type LinkedDevicePostLinkFactor =
   | {
       readonly kind: 'passkey';
@@ -2954,7 +2842,10 @@ export async function activateLinkedDeviceSignerRuntimesAfterLink(args: {
           walletSessionId: String(args.operationCredential.walletSessionId),
           expiresAtMs: args.walletSession.expiresAtMs,
         });
-      } else if (isWalletCustodySeedBinding(selection.exportRoot.envelope.binding)) {
+      } else if (
+        isWalletCustodySeedBinding(selection.exportRoot.envelope.binding) ||
+        selection.exportRoot.envelope.binding.kind === 'ed25519_yao_client_root_v1'
+      ) {
         await establishUnlockedExportRootCapabilityV1(
           walletCustodyCeremonyTransportFromWorkerContextV1(
             args.context.signingEngine.getSignerWorkerContext(),
@@ -3261,35 +3152,7 @@ async function activateLinkedDeviceEd25519Runtime(args: {
 }
 
 /**
- * R109C: an Email method added to an existing authority asks for that
- * authority's Ed25519 capability.
- *
- * A linked device carries its own sealed Ed25519 material and is answered
- * above. An added sibling has none, and looking for one is what made a
- * NEAR-capable wallet lose NEAR the moment its Email method opened it: the
- * request was skipped, so the unlock issued no Yao capability and no lane
- * existed to sign with.
- *
- * The authority's own signer activation is the right question, because the
- * Ed25519 signer belongs to the authority rather than to whichever credential
- * authenticates. Nothing is copied and no activation is created - the existing
- * material activation is left exactly as it is, and the unlock mints a fresh
- * capability bound to this method. The signer slot comes from the wallet's own
- * profile, which is where its NEAR signer slot lives whether or not a passkey
- * ever existed.
- */
-async function ownerAuthorityEd25519UnlockRequest(
-  selection: LinkedDeviceEmailOtpAuthoritySelection,
-): Promise<{ signerSlot: number; remainingUses: number } | undefined> {
-  if (!selection.authority.signerActivations.ed25519) return undefined;
-  const profile = await IndexedDBManager.getProfile(String(selection.walletId));
-  const signerSlot = profile ? parseSignerSlot(profile.defaultSignerSlot, { min: 1 }) : null;
-  if (signerSlot === null) return undefined;
-  return { signerSlot, remainingUses: DEFAULT_UNLOCK_REMAINING_USES };
-}
-
-/**
- * R109C: where an Email OTP unlock's signer material comes from.
+ * Where an Email OTP unlock's signer material comes from.
  *
  * A linked device carries sealed material of its own and must have it. An Email
  * method added to an existing authority has none and must not be given any -
@@ -3414,7 +3277,7 @@ function pendingNearRegistrationMatchesAuthority(
 }
 
 /**
- * R109C: install the Ed25519 runtime an owner authority's unlock just built.
+ * Install the Ed25519 runtime an owner authority's unlock just built.
  *
  * Everything is checked against the authority and method that were selected,
  * before the handle is used: a session naming a different method, or a
@@ -3929,7 +3792,7 @@ async function unlockInternal(
   context: LoginWebContext,
   subjectSet: WalletUnlockSubjectSet,
   options: LoginHooksOptions | undefined,
-  completion: LoginUnlockCompletion,
+  _completion: LoginUnlockCompletion,
 ): Promise<LoginAndCreateSessionResult> {
   const { onEvent, onError, afterCall } = options || {};
   const { signingEngine } = context;
@@ -4165,10 +4028,6 @@ async function unlockInternal(
           context: storedCanonicalEcdsaContext,
         });
       }
-      const ecdsaTargetCompletion = buildConfiguredTargetKeyCompletion({
-        context: storedCanonicalEcdsaContext,
-        configuredTargets: warmupInput.selectedEcdsaTargets,
-      });
       const canFirstBootstrapThresholdEcdsa = Boolean(managedRuntimeScopeBootstrap);
 
       // The plan decides which signers warm, and whether Ed25519/ECDSA depends on the other.
@@ -5086,7 +4945,7 @@ async function validatePasskeyWalletSessionAuthorization(args: {
   return authority;
 }
 
-export function bindPasskeyEcdsaSessionPolicyToUnlockChallenge(
+function bindPasskeyEcdsaSessionPolicyToUnlockChallenge(
   policy: RouterAbEcdsaPostRegistrationSessionActivationPolicyV1,
   challengeId: string,
 ): RouterAbEcdsaPostRegistrationSessionActivationPolicyV1 {
@@ -5321,46 +5180,6 @@ type ThresholdLoginWarmupPhaseResult =
       signingSession?: never;
       signersWarmed: readonly ['ecdsa'];
     };
-
-function resolveLoginThresholdEcdsaBootstrapKey(args: {
-  bootstrap: ThresholdEcdsaSessionBootstrapResult;
-  walletId: unknown;
-  rpId: unknown;
-  thresholdOwnerAddress: unknown;
-}): {
-  keyHandle: string;
-  key: EvmFamilyEcdsaKeyIdentity;
-  runtimePolicyScope: ThresholdRuntimePolicyScope;
-} {
-  const bootstrap = args.bootstrap;
-  const keyRef = bootstrap.thresholdEcdsaKeyRef;
-  const keyHandle = String(keyRef.keyHandle || '').trim();
-  if (!keyHandle) {
-    throw new Error('[login] threshold ECDSA bootstrap missing keyHandle');
-  }
-  const runtimePolicyScope = bootstrap.session.runtimePolicyScope;
-  if (!runtimePolicyScope) {
-    throw new Error('[login] threshold ECDSA bootstrap requires runtimePolicyScope');
-  }
-  const signingRootBinding = resolveThresholdSigningRootBindingFromRuntimePolicyScope({
-    runtimePolicyScope,
-  });
-  const ecdsaThresholdKeyId = resolveThresholdEcdsaKeyIdFromRecord({
-    record: { ecdsaThresholdKeyId: keyRef.ecdsaThresholdKeyId },
-  });
-  return {
-    keyHandle,
-    runtimePolicyScope,
-    key: buildBaseEvmFamilyEcdsaKeyIdentity({
-      walletId: args.walletId,
-      ecdsaThresholdKeyId,
-      signingRootId: String(signingRootBinding.signingRootId),
-      signingRootVersion: String(signingRootBinding.signingRootVersion),
-      participantIds: keyRef.participantIds,
-      thresholdOwnerAddress: String(args.thresholdOwnerAddress || '').trim(),
-    }),
-  };
-}
 
 type ThresholdLoginWarmSigner = 'ed25519' | 'ecdsa';
 
@@ -5658,9 +5477,7 @@ async function runThresholdLoginWarmupTask(
   }
 }
 
-export async function runThresholdLoginWarmupTasks(
-  tasks: ThresholdLoginWarmupTask[],
-): Promise<void> {
+async function runThresholdLoginWarmupTasks(tasks: ThresholdLoginWarmupTask[]): Promise<void> {
   const pendingBySigner = new Map<ThresholdLoginWarmSigner, ThresholdLoginWarmupTask>();
   for (const task of tasks) {
     pendingBySigner.set(task.signer, task);
@@ -6035,11 +5852,11 @@ async function openAndActivatePasskeyEd25519CustodyLogin(
       }),
       materialActivation: activated.materialActivation,
     });
-    /* R103 zero-prompt handoff. The passkey factor was presented for this
-       unlock and the owner Wallet Session persisted above is active, so this
-       is where the linking capability is established — the linking flow itself
-       never prompts and never opens the envelope again. Runs last: everything
-       above has succeeded, so a failed unlock never leaves a capability. */
+    /* The passkey factor was presented for this unlock and the owner Wallet
+       Session persisted above is active, so this is where the linking
+       capability is established — the linking flow itself never prompts and
+       never opens the envelope again. Runs last: everything above has
+       succeeded, so a failed unlock never leaves a capability. */
     await input.signingEngine.establishUnlockedWalletEd25519ExportRootCapabilityV1({
       existingEnvelope: input.custody.envelope,
       passkeyPrfFirstB64u: input.passkeyPrfFirstB64u,
@@ -6411,34 +6228,6 @@ async function primeThresholdLoginWarmSigners(args: {
           }
           requireCompleteConfiguredTargetKeyContext({ completion, source });
         };
-        const rememberBootstrappedKey = (input: {
-          target: (typeof configuredEcdsaTargets)[number];
-          bootstrap: ThresholdEcdsaSessionBootstrapResult;
-        }): ConfiguredTargetThresholdEcdsaWarmKey => {
-          const keyRef = input.bootstrap.thresholdEcdsaKeyRef;
-          const thresholdOwnerAddress = keyRef.ethereumAddress;
-          const resolved = resolveLoginThresholdEcdsaBootstrapKey({
-            bootstrap: input.bootstrap,
-            walletId: args.walletIdentity.walletId,
-            rpId: String(args.signingEngine.getRpId() || '').trim(),
-            thresholdOwnerAddress,
-          });
-          const warmKey = configuredTargetThresholdEcdsaWarmKey({
-            chainTarget: input.target.chainTarget,
-            keyHandle: resolved.keyHandle,
-            key: resolved.key,
-            publicCapability: publicCapabilityFromThresholdEcdsaBootstrap(input.bootstrap),
-          });
-          sharedState.activeCanonicalEcdsaContext = mergeCanonicalThresholdEcdsaWarmSessionContexts(
-            sharedState.activeCanonicalEcdsaContext,
-            {
-              ecdsaKeys: [warmKey],
-              runtimePolicyScope: resolved.runtimePolicyScope,
-            },
-          );
-          completeActiveContextFromConfiguredTargets('login first-bootstrapped ECDSA key');
-          return warmKey;
-        };
         const rememberEcdsaAuthorizedEd25519Mint = (
           bootstrap: ThresholdEcdsaSessionBootstrapResult,
         ): void => {
@@ -6809,7 +6598,7 @@ export async function getWalletSession(
         '[WalletSession] Wallet Session authorization requires a newer client',
       );
   }
-  /* R109C: the session's capabilities belong to the method that opened it.
+  /* The session's capabilities belong to the method that opened it.
      Sibling methods on one authority keep their own ECDSA continuity rows for
      their own unlocks - a wallet that recovered and then added a method holds
      one capability under each - so an authenticated read scopes the ECDSA
@@ -7301,7 +7090,7 @@ function repairedEcdsaSignerMetadata(args: {
   };
 }
 
-export async function persistAuthenticatedEcdsaInventoryProfileRepairs(args: {
+async function persistAuthenticatedEcdsaInventoryProfileRepairs(args: {
   store: AuthenticatedEcdsaInventoryProfileRepairStore;
   walletId: WalletId;
   configuredTargets: readonly ThresholdEcdsaChainTarget[];
@@ -7620,7 +7409,7 @@ async function resolveCanonicalThresholdEcdsaWarmSessionContext(
   walletId: WalletId,
   keyFactsInventoryInput?: LoginEcdsaKeyFactsInventoryInput,
   /**
-   * R109C: sibling auth methods hold their own access projections over one
+   * Sibling auth methods hold their own access projections over one
    * activation, so a wallet-wide read returns a lane per method. Warming has to
    * name the method being unlocked, or it warms the sibling's lane and the
    * Wallet Session is minted against a credential the user is not presenting.
@@ -8039,7 +7828,7 @@ function buildWalletSessionCapabilityProjection(args: {
   };
 }
 
-export function selectNearOperationalPublicKeyForLogin(
+function selectNearOperationalPublicKeyForLogin(
   userData: Pick<ClientUserData, 'operationalPublicKey'> | null,
 ): string | null {
   return userData ? userData.operationalPublicKey : null;

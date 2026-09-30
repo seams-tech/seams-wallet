@@ -22,8 +22,6 @@ abbrev GeneratedVisibleClientBoundary :=
   server.boundary.VisibleClientBoundary
 abbrev GeneratedVisibleFinalizeBoundary :=
   server.boundary.VisibleFinalizeBoundary
-abbrev GeneratedVisibleRetainedServerStateBoundary :=
-  server.boundary.VisibleRetainedServerStateBoundary
 abbrev GeneratedVisibleRespondBoundary :=
   server.boundary.VisibleRespondBoundary
 
@@ -37,7 +35,7 @@ def toHandwrittenOperationBoundary
 def toHandwrittenNonExportBoundary
     (boundary : GeneratedVisibleNonExportBoundary) : NonExportBoundaryModel :=
   {
-    clientPublicKey33 := boundary.client_public_key33
+    clientPublicKey33 := boundary.derivation_client_share_public_key33
     relayerPublicKey33 := boundary.relayer_public_key33
     thresholdPublicKey33 := boundary.threshold_public_key33
     thresholdEthereumAddress20 := boundary.threshold_ethereum_address20
@@ -50,7 +48,7 @@ def toHandwrittenExplicitExportBoundary
     ExplicitExportBoundaryModel :=
   {
     relayerExportShare32 := boundary.relayer_export_share32
-    clientPublicKey33 := boundary.client_public_key33
+    clientPublicKey33 := boundary.derivation_client_share_public_key33
     relayerPublicKey33 := boundary.relayer_public_key33
     thresholdPublicKey33 := boundary.threshold_public_key33
     thresholdEthereumAddress20 := boundary.threshold_ethereum_address20
@@ -73,7 +71,8 @@ def toHandwrittenFinalizeBoundary
     operation := boundary.operation
     rawRootMaterialDropped := boundary.raw_root_material_dropped
     relayerKeyId := boundary.relayer_key_id
-    clientPublicKey33 := boundary.client_public_key33
+    contextBinding32 := boundary.context_binding32
+    clientPublicKey33 := boundary.derivation_client_share_public_key33
     relayerPublicKey33 := boundary.relayer_public_key33
     thresholdPublicKey33 := boundary.threshold_public_key33
     thresholdEthereumAddress20 := boundary.threshold_ethereum_address20
@@ -81,28 +80,32 @@ def toHandwrittenFinalizeBoundary
     relayerShareRetryCounter := boundary.relayer_share_retry_counter
   }
 
+/-- The retained server state is not part of the visible boundary; the server
+persists it after an accepted finalize, as the hidden-eval persisted state. -/
 def toHandwrittenRetainedStateBoundary
-    (boundary : GeneratedVisibleRetainedServerStateBoundary) :
+    (persisted : server.boundary.HiddenEvalPersistedStateBoundary) :
     RetainedStateBoundaryModel :=
   {
-    rawRootMaterialDropped := boundary.raw_root_material_dropped
-    relayerKeyId := boundary.relayer_key_id
-    relayerShare32 := boundary.relayer_share32
-    clientPublicKey33 := boundary.client_public_key33
-    relayerPublicKey33 := boundary.relayer_public_key33
-    thresholdPublicKey33 := boundary.threshold_public_key33
-    thresholdEthereumAddress20 := boundary.threshold_ethereum_address20
-    clientShareRetryCounter := boundary.client_share_retry_counter
-    relayerShareRetryCounter := boundary.relayer_share_retry_counter
+    rawRootMaterialDropped := persisted.raw_root_material_dropped
+    relayerKeyId := persisted.relayer_key_id
+    relayerShare32 := persisted.relayer_share32
+    clientPublicKey33 := persisted.derivation_client_share_public_key33
+    relayerPublicKey33 := persisted.relayer_public_key33
+    thresholdPublicKey33 := persisted.threshold_public_key33
+    thresholdEthereumAddress20 := persisted.threshold_ethereum_address20
+    clientShareRetryCounter := persisted.client_share_retry_counter
+    relayerShareRetryCounter := persisted.relayer_share_retry_counter
   }
 
 def toHandwrittenRespondBoundary
-    (boundary : GeneratedVisibleRespondBoundary) : RespondBoundaryModel :=
+    (boundary : GeneratedVisibleRespondBoundary)
+    (persisted : server.boundary.HiddenEvalPersistedStateBoundary) :
+    RespondBoundaryModel :=
   {
     operation := toHandwrittenOperationBoundary boundary.operation
     clientOutput := toHandwrittenClientBoundary boundary.client_output
     finalize := toHandwrittenFinalizeBoundary boundary.finalize
-    retained := toHandwrittenRetainedStateBoundary boundary.retained
+    retained := toHandwrittenRetainedStateBoundary persisted
   }
 
 theorem operationBoundary_matchesHandwrittenModel
@@ -118,7 +121,7 @@ theorem nonExportBoundary_matchesHandwrittenModel
     (boundary : GeneratedVisibleNonExportBoundary) :
     toHandwrittenNonExportBoundary boundary =
       {
-        clientPublicKey33 := boundary.client_public_key33
+        clientPublicKey33 := boundary.derivation_client_share_public_key33
         relayerPublicKey33 := boundary.relayer_public_key33
         thresholdPublicKey33 := boundary.threshold_public_key33
         thresholdEthereumAddress20 := boundary.threshold_ethereum_address20
@@ -132,7 +135,7 @@ theorem explicitExportBoundary_matchesHandwrittenModel
     toHandwrittenExplicitExportBoundary boundary =
       {
         relayerExportShare32 := boundary.relayer_export_share32
-        clientPublicKey33 := boundary.client_public_key33
+        clientPublicKey33 := boundary.derivation_client_share_public_key33
         relayerPublicKey33 := boundary.relayer_public_key33
         thresholdPublicKey33 := boundary.threshold_public_key33
         thresholdEthereumAddress20 := boundary.threshold_ethereum_address20
@@ -141,30 +144,69 @@ theorem explicitExportBoundary_matchesHandwrittenModel
       } := by
   rfl
 
-theorem retainedStateBoundary_matchesHandwrittenModel
-    (boundary : GeneratedVisibleRetainedServerStateBoundary) :
-    toHandwrittenRetainedStateBoundary boundary =
+theorem finalizeBoundary_matchesHandwrittenModel
+    (boundary : GeneratedVisibleFinalizeBoundary) :
+    toHandwrittenFinalizeBoundary boundary =
       {
+        operation := boundary.operation
         rawRootMaterialDropped := boundary.raw_root_material_dropped
         relayerKeyId := boundary.relayer_key_id
-        relayerShare32 := boundary.relayer_share32
-        clientPublicKey33 := boundary.client_public_key33
+        contextBinding32 := boundary.context_binding32
+        clientPublicKey33 := boundary.derivation_client_share_public_key33
         relayerPublicKey33 := boundary.relayer_public_key33
         thresholdPublicKey33 := boundary.threshold_public_key33
         thresholdEthereumAddress20 := boundary.threshold_ethereum_address20
         clientShareRetryCounter := boundary.client_share_retry_counter
         relayerShareRetryCounter := boundary.relayer_share_retry_counter
+      } := by
+  rfl
+
+/-- The extracted Rust projection copies the finalize envelope's context binding
+unchanged, so the handwritten finalize model holds the value the server sent. -/
+theorem visibleBoundaryFromRespondResponse_preserves_context_binding
+    (response : GeneratedRespondResponse)
+    (boundary : GeneratedVisibleRespondBoundary)
+    (hExtracted :
+      server.boundary.visible_boundary_from_respond_response response =
+        Aeneas.Std.Result.ok boundary) :
+    (toHandwrittenFinalizeBoundary boundary.finalize).contextBinding32 =
+      response.finalize.context_binding32 := by
+  obtain ⟨clientOutput, finalize⟩ := response
+  cases hOperation : finalize.operation <;> cases clientOutput <;>
+    simp_all [server.boundary.visible_boundary_from_respond_response,
+      server.boundary.operation_boundary_from_operation,
+      wire.ServerEvalOperation.allowed_output_kind,
+      server.boundary.visible_client_boundary_from_output,
+      server.boundary.non_export_boundary_from_output,
+      server.boundary.explicit_export_boundary_from_output,
+      server.boundary.visible_finalize_boundary_from_envelope] <;>
+    subst hExtracted <;> rfl
+
+theorem retainedStateBoundary_matchesHandwrittenModel
+    (persisted : server.boundary.HiddenEvalPersistedStateBoundary) :
+    toHandwrittenRetainedStateBoundary persisted =
+      {
+        rawRootMaterialDropped := persisted.raw_root_material_dropped
+        relayerKeyId := persisted.relayer_key_id
+        relayerShare32 := persisted.relayer_share32
+        clientPublicKey33 := persisted.derivation_client_share_public_key33
+        relayerPublicKey33 := persisted.relayer_public_key33
+        thresholdPublicKey33 := persisted.threshold_public_key33
+        thresholdEthereumAddress20 := persisted.threshold_ethereum_address20
+        clientShareRetryCounter := persisted.client_share_retry_counter
+        relayerShareRetryCounter := persisted.relayer_share_retry_counter
       } := by
   rfl
 
 theorem respondBoundary_matchesHandwrittenModel
-    (boundary : GeneratedVisibleRespondBoundary) :
-    toHandwrittenRespondBoundary boundary =
+    (boundary : GeneratedVisibleRespondBoundary)
+    (persisted : server.boundary.HiddenEvalPersistedStateBoundary) :
+    toHandwrittenRespondBoundary boundary persisted =
       {
         operation := toHandwrittenOperationBoundary boundary.operation
         clientOutput := toHandwrittenClientBoundary boundary.client_output
         finalize := toHandwrittenFinalizeBoundary boundary.finalize
-        retained := toHandwrittenRetainedStateBoundary boundary.retained
+        retained := toHandwrittenRetainedStateBoundary persisted
       } := by
   rfl
 

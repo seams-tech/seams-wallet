@@ -1,12 +1,12 @@
 /**
- * Refactor 103 Phase 6.2 — the D1 composition behind the linked-device Email
- * OTP challenge routes and the approval-time base-factor provenance reader.
+ * The D1 composition behind the linked-device Email OTP challenge routes and
+ * the approval-time base-factor provenance reader.
  *
  * Everything identity-bearing is resolved server-side: the destination comes
  * from the wallet's active verified enrollment, the base factor from the
  * canonical wallet auth-method store, and the target authority identity
  * from the enrollment identity. Device 2 supplies only the code it received
- * and its worker's ephemeral recipient key. Challenges reuse the Refactor 100
+ * and its worker's ephemeral recipient key. Challenges reuse the Email OTP
  * issuer, verifier, rate limits, and lockouts under the dedicated
  * `wallet_email_otp_device_link` purpose, bound by a digest over the whole
  * device-link context.
@@ -35,7 +35,7 @@ import {
   WALLET_EMAIL_OTP_REGISTRATION_OPERATION,
   WALLET_EMAIL_OTP_DEVICE_LINK_OPERATION,
 } from '@shared/utils/emailOtpDomain';
-import type { WalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
+import type { WalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 import {
   computeLinkedDeviceEmailOtpAuthorityDigestV1,
   computeLinkedDeviceEmailOtpChallengeBindingDigestV1,
@@ -44,7 +44,7 @@ import {
   linkedDeviceEmailOtpGrantAdmitsUseV1,
   parseLinkedDeviceEmailOtpGrantRecordV1,
 } from '../../../../core/deviceLinking/linkedDeviceEmailOtpGrant';
-import type { LinkedDeviceSessionRecordV1 } from '../../../../core/deviceLinking/linkedDeviceSession';
+import type { LinkedDeviceSessionRecordV1 } from '../../../../core/deviceLinking/linkedDeviceSessionRecord';
 import type { D1WalletAuthorityStore } from '../wallet/d1WalletAuthorityStore';
 import type { EmailOtpWalletEnrollmentRecord } from '../../../../core/EmailOtpStores';
 import { sealEmailOtpFactorSecretForWorker } from '../../../domains/emailOtp/emailOtpRouteHandlers';
@@ -129,7 +129,7 @@ function resolveSentEmailOtpChallengeV1(
   return challenge;
 }
 
-export type D1LinkedDeviceEmailOtpTargetFactorOptionsV1 = {
+type D1LinkedDeviceEmailOtpTargetFactorOptionsV1 = {
   readonly issuer: Pick<CloudflareD1EmailOtpChallengeIssuer, 'create'>;
   readonly verifier: Pick<
     CloudflareD1EmailOtpChallengeVerifier,
@@ -150,20 +150,6 @@ export type D1LinkedDeviceEmailOtpTargetFactorOptionsV1 = {
   readonly resendCooldownMs?: number;
 };
 
-export type LinkedDeviceEmailOtpTargetEnrollmentResolutionV1 =
-  | {
-      readonly kind: 'existing_enrollment';
-      readonly targetEmail: VerifiedEmailAddress;
-    }
-  | {
-      readonly kind: 'new_enrollment';
-      readonly targetEmail: VerifiedEmailAddress;
-    }
-  | {
-      readonly kind: 'conflict';
-      readonly message: string;
-    };
-
 export class D1LinkedDeviceEmailOtpTargetFactorV1 implements DeviceLinkingEmailOtpTargetFactorProviderV1 {
   private readonly options: D1LinkedDeviceEmailOtpTargetFactorOptionsV1;
   private readonly grantTtlMs: number;
@@ -176,26 +162,6 @@ export class D1LinkedDeviceEmailOtpTargetFactorV1 implements DeviceLinkingEmailO
       options.resendCooldownMs ?? DEFAULT_RESEND_COOLDOWN_MS,
       'resendCooldownMs',
     );
-  }
-
-  async resolveTargetEnrollmentV1(input: {
-    readonly walletId: WalletId;
-    readonly targetEmail: VerifiedEmailAddress;
-  }): Promise<LinkedDeviceEmailOtpTargetEnrollmentResolutionV1> {
-    const enrollment = await this.options.enrollments.readEnrollment(String(input.walletId));
-    if (!enrollment) {
-      return { kind: 'new_enrollment', targetEmail: input.targetEmail };
-    }
-    if (enrollment.verifiedEmail !== input.targetEmail) {
-      return {
-        kind: 'conflict',
-        message: 'target Email OTP address conflicts with the wallet enrollment',
-      };
-    }
-    const candidates = await this.listEligibleBaseFactorsV1(input.walletId);
-    return candidates.length > 0
-      ? { kind: 'existing_enrollment', targetEmail: input.targetEmail }
-      : { kind: 'new_enrollment', targetEmail: input.targetEmail };
   }
 
   async resolveBaseFactorSelectionV1(input: {

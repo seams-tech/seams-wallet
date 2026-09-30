@@ -1,7 +1,7 @@
 import { intendedTest as test } from './harness';
 
 /**
- * Refactor 109C: one product action, the `email_otp_to_passkey` branch.
+ * One product action, the `email_otp_to_passkey` branch.
  *
  * A wallet that unlocks with Email OTP gains a Passkey method on the same
  * authority. The source Email proof and target credential are independently
@@ -12,9 +12,13 @@ test('an Email OTP wallet can add a passkey as a second way in', async ({ harnes
   await harness.awaitNearReady();
   await harness.addPasskeyAuthMethod();
   /* The source removes what it just added, before anything has unlocked with
-     it. That is the direction whose proof comes from the Email OTP sibling. */
-  await harness.revokeSourceAuthMethod('added');
-  await harness.addPasskeyAuthMethod();
+     it. That is the direction whose proof comes from the Email OTP sibling.
+     Its first commit is refused and the answer lost: the retry must commit on
+     the same code, and a replay after it must receive the recorded answer. */
+  await harness.revokeSourceAuthMethod('added', { refuseFirstRevocationCommit: true });
+  /* The finalize commits but its answer is lost: the retry must receive that
+     same addition, not make a second one. */
+  await harness.addPasskeyAuthMethod({ loseFinalizeResponseOnce: true });
   await harness.assertRepeatAdditionIsAlreadyConfigured('addPasskeyAuthMethod');
   await harness.assertLockedPageReloadStaysLocked();
   await harness.unlockWithAddedPasskey();
@@ -35,4 +39,7 @@ test('an Email OTP wallet can add a passkey as a second way in', async ({ harnes
   /* A method added after registration is still a method: locking must strand it
      across a reload exactly as it strands the one the wallet was created with. */
   await harness.assertLockedPageReloadStaysLocked();
+  /* The Email OTP method that did the adding is revoked: its code no longer
+     opens the wallet. */
+  await harness.assertRevokedEmailOtpCannotUnlock('registered');
 });

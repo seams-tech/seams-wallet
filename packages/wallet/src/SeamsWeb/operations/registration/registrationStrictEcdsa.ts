@@ -114,7 +114,7 @@ export type RegistrationEcdsaSession = {
   registrationEstablishedSession: RegistrationEstablishedSessionV2;
 };
 
-export class RegistrationExactMethodUnlockRequiredError extends Error {
+class RegistrationExactMethodUnlockRequiredError extends Error {
   readonly code = 'wallet_unlock_required' as const;
   readonly next = 'unlock_exact_method' as const;
   readonly projection: RegistrationEstablishedSessionProjectionV2;

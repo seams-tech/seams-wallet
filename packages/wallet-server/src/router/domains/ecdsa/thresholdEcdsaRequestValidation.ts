@@ -13,13 +13,13 @@ import type {
   RouterAbEcdsaDerivationPoolFillStepRequest,
 } from '../../../core/types';
 
-export type ThresholdEcdsaRouteErrorBody = {
+type ThresholdEcdsaRouteErrorBody = {
   ok: false;
   code: 'invalid_body';
   message: string;
 };
 
-export type ThresholdEcdsaRouteParseResult<T> =
+type ThresholdEcdsaRouteParseResult<T> =
   | { ok: true; request: T }
   | { ok: false; body: ThresholdEcdsaRouteErrorBody };
 
@@ -51,7 +51,7 @@ const POOL_FILL_ENVELOPE_KEYS = [
   'materialExpiresAtMs',
 ] as const;
 
-export type RouterAbEcdsaPoolFillAuthorization =
+type RouterAbEcdsaPoolFillAuthorization =
   | {
       readonly authorization: Extract<
         RouterAbNormalSigningAuthorizationWire,
@@ -266,16 +266,4 @@ export function parseRouterAbEcdsaDerivationPoolFillStepRouteRequest(
       ...routeAuthorization,
     },
   };
-}
-
-export function thresholdEcdsaRouteDiagnosticMetadata(
-  raw: unknown,
-  fields: readonly string[],
-): Record<string, string | undefined> {
-  if (!isPlainObject(raw)) return {};
-  const metadata: Record<string, string | undefined> = {};
-  for (const field of fields) {
-    metadata[field] = optionalStringField(raw, field);
-  }
-  return metadata;
 }

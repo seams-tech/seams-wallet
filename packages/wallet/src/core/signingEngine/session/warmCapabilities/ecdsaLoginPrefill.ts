@@ -53,7 +53,7 @@ export type RouterAbEcdsaDerivationLoginPresignaturePrefillResult =
       error: string;
     };
 
-export type RouterAbEcdsaDerivationLoginPresignaturePrefillDeps = {
+type RouterAbEcdsaDerivationLoginPresignaturePrefillDeps = {
   getSignerWorkerContext: () => SignerWorkerManagerContext;
   resolveClientSigningMaterialSource: (args: {
     manifest: ActiveEcdsaCapabilityManifest;

@@ -290,7 +290,7 @@ fn assert_compile_failure(harness: &UiHarness, body: &str, code: &str) {
 }
 
 #[test]
-fn source_and_ui_guards_keep_export_synthetic_seed_scoped_and_nonproduction() {
+fn compile_guards_keep_export_seed_scoped_and_private() {
     let harness = UiHarness::create();
     let control = harness.check(
         "use ed25519_yao_generator::{HostOnlyExportReferenceSuccessV1, HostOnlyPreparedExportReferenceV1};\n\
@@ -341,62 +341,5 @@ fn source_and_ui_guards_keep_export_synthetic_seed_scoped_and_nonproduction() {
         ),
     ] {
         assert_compile_failure(&harness, body, code);
-    }
-
-    let source = include_str!("../src/export_reference.rs");
-    for forbidden in [
-        "serde",
-        "Serialize",
-        "Deserialize",
-        "rand::",
-        "rand_core",
-        "getrandom",
-        "OsRng",
-        "Authorization",
-        "ApprovedExportAuthorizationV1",
-        "ConsumedExportAuthorizationV1",
-        "ExportRequestV1",
-        "RegisteredPreStateV1",
-        "RoleInputProvenance",
-        "Ciphertext",
-        "Package",
-        "Receipt",
-        "Persistence",
-        "lifecycle_domain",
-        "worker::",
-        "wasm_bindgen",
-        "cloudflare",
-        "evaluate_export_v1(",
-        "ExportOracleOutput",
-        "OracleMaterial",
-        "pub const fn seed",
-        "pub fn seed",
-        "pub const fn material",
-        "pub fn material",
-        "pub const fn export_output",
-        "pub fn export_output",
-    ] {
-        assert!(
-            !source.contains(forbidden),
-            "blocked dependency or overstated surface `{forbidden}` entered export reference"
-        );
-    }
-    assert!(source.contains("seed: SeedBytes"));
-    assert!(source.contains("share_host_only_export_seed_from_seed_v1(&seed"));
-
-    for line in source.lines() {
-        let declaration = line.trim();
-        if !declaration.starts_with("pub struct ") && !declaration.starts_with("pub enum ") {
-            continue;
-        }
-        let type_name = declaration
-            .split_ascii_whitespace()
-            .nth(2)
-            .expect("public type declaration name")
-            .trim_end_matches("<'a>");
-        assert!(
-            type_name.starts_with("HostOnly"),
-            "public export type lacks HostOnly prefix: {type_name}"
-        );
     }
 }

@@ -1,20 +1,23 @@
 import {
-  implicitNearAccountProvisioning,
-  walletIdFromString,
   type AddAuthMethodIntentV1,
   type AddSignerIntentV1,
-  type AddSignerSelection,
   type RegistrationIntentV1,
+} from '@shared/utils/registrationIntent';
+import { walletIdFromString } from '@shared/utils/registrationIds';
+import {
+  implicitNearAccountProvisioning,
+  type AddSignerSelection,
   type ThresholdEcdsaAddSignerSpec,
   type ThresholdEd25519AddSignerSpec,
   type ThresholdEd25519RegistrationSpec,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/registrationSignerPlan';
 import {
   allocateWalletAuthMethodId,
   parseWalletAuthMethodId,
   parseWebAuthnRpId,
 } from '@shared/utils/domainIds';
 import type { PasskeyCustodyEnvelopeRecord } from '@shared/passkey-custody';
+import type { ActiveWalletAuthorityV1 } from '@shared/authorization/walletAuthority';
 import type {
   FinalizeWalletAddSignerArgs,
   WalletAddSignerFinalizeResponse,
@@ -44,8 +47,9 @@ function unwrapDomainId<T>(result: { ok: true; value: T } | { ok: false }): T {
 
 const rpId = unwrapDomainId(parseWebAuthnRpId('wallet.example.test'));
 declare const custodyEnvelope: PasskeyCustodyEnvelopeRecord;
+declare const addSignerAuthority: ActiveWalletAuthorityV1;
 
-const ed25519Spec = {
+export const ed25519Spec = {
   accountProvisioning: implicitNearAccountProvisioning(),
   signerSlot: 1,
   participantIds: [1, 2],
@@ -211,6 +215,7 @@ void ({
   kind: 'evm_family_ecdsa',
   rpId: 'wallet.example.test',
   ecdsa: { walletKeys: [] },
+  authority: addSignerAuthority,
 } satisfies WalletAddSignerFinalizeResponse);
 
 // @ts-expect-error Successful add-signer finalize responses require a branch discriminator.

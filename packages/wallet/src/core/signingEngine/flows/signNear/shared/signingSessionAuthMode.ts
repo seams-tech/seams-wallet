@@ -18,10 +18,7 @@ import type { SelectedEd25519Lane } from '@/core/signingEngine/session/identity/
 import type { NearEd25519YaoSigningPreparation } from '@/core/signingEngine/session/material/nearEd25519YaoSigningPreparation';
 import type { ThresholdEd25519SessionId } from '@shared/utils/domainIds';
 
-export const SIGNING_SESSION_AUTH_UNAVAILABLE_ERROR =
-  'Threshold signing session authorization is unavailable';
-
-export type NearSigningSessionAuthPlan = {
+type NearSigningSessionAuthPlan = {
   thresholdSessionId: ThresholdEd25519SessionId;
   lane: NearTransactionSigningLane;
   signingAuthPlan: SigningAuthPlan;
@@ -29,7 +26,7 @@ export type NearSigningSessionAuthPlan = {
   warmSessionReady: boolean;
 };
 
-export type NearSigningSessionAuthContext = {
+type NearSigningSessionAuthContext = {
   thresholdSessionId: ThresholdEd25519SessionId;
   walletId: string;
   nearAccountId: string;

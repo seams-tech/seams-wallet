@@ -33,9 +33,11 @@ use signer_core::error::{SignerCoreError, SignerCoreErrorCode};
 use wasm_bindgen::prelude::*;
 use zeroize::{Zeroize, Zeroizing};
 
-use crate::ceremony::build_explicit_export_request_with_keypair;
+use crate::ceremony::{
+    build_explicit_export_request_with_keypair, explicit_export_request_application_binding_digest,
+};
 use crate::client_proof_verifier::{
-    verify_encrypted_client_proof_input_for_export, FinalizeEncryptedClientProofBundlesInputV1,
+    verify_encrypted_client_proof_input_for_export_v2, FinalizeEncryptedClientProofBundlesInputV2,
 };
 
 const WALLET_RECOVERY_POSSESSION_CHALLENGE_KIND_V1: &str =
@@ -82,6 +84,7 @@ pub struct EcdsaLinkedHolderMaterialV1 {
     export_recipient: EcdsaClientEphemeralKeyPairV1,
     pending_export_request_digest: Option<[u8; 32]>,
     pending_export_transcript_digest: Option<[u8; 32]>,
+    pending_export_application_binding_digest: Option<[u8; 32]>,
 }
 
 fn generate_linked_holder_export_recipient() -> Result<EcdsaClientEphemeralKeyPairV1, JsValue> {
@@ -419,7 +422,7 @@ fn x25519_public_key_from_receipt_b64u(value: &str) -> Result<String, String> {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct LinkedEcdsaOrdinaryExportFinalizationInputV1 {
-    client_proof_finalization: FinalizeEncryptedClientProofBundlesInputV1,
+    client_proof_finalization: FinalizeEncryptedClientProofBundlesInputV2,
     signing_worker_export: EcdsaSigningWorkerExportShareEnvelopeV1,
     expected_binding: EcdsaSigningWorkerExportShareBindingV1,
 }
@@ -610,20 +613,58 @@ impl EcdsaLinkedHolderMaterialV1 {
             export_recipient,
             pending_export_request_digest: None,
             pending_export_transcript_digest: None,
+            pending_export_application_binding_digest: None,
         })
     }
 
+    /// Prepares the source contribution for a device this linked device
+    /// links in turn, from this holder's own share. The preparation must name
+    /// this holder's activation as its source.
+    pub fn prepare_source_contribution(&self, input_json: &str) -> Result<String, JsValue> {
+        let preparation =
+            crate::linked_device_source_contribution::parse_source_contribution_preparation_v1(
+                input_json,
+            )?;
+        if preparation.source.activation != self.target_material_activation {
+            return Err(js_error(
+                "linked-device source contribution names another activation than this holder's",
+            ));
+        }
+        crate::linked_device_source_contribution::prepare_source_contribution_from_share_v1(
+            &self.signing_share32,
+            preparation,
+        )
+    }
+
     /// Builds the ordinary explicit-export request with this holder's
-    /// recipient. The request digest and transcript stay private to WASM.
+    /// recipient. The request digest and transcript stay private to WASM, and
+    /// the request must name this holder's own application binding, which the
+    /// Derivers prove their bundles under.
     pub fn build_ordinary_export_request(&mut self, input_json: &str) -> Result<String, JsValue> {
         if self.pending_export_request_digest.is_some() {
             return Err(js_error("ECDSA holder export request was already built"));
+        }
+        let application_binding_digest =
+            explicit_export_request_application_binding_digest(input_json)?;
+        let holder_application_binding_digest = decode_base64_fixed::<32>(
+            &self
+                .normal_signing
+                .scope
+                .context
+                .application_binding_digest_b64u,
+            "normalSigning.scope.context.application_binding_digest_b64u",
+        )?;
+        if application_binding_digest != holder_application_binding_digest {
+            return Err(js_error(
+                "ECDSA holder export request names another application binding",
+            ));
         }
         self.export_recipient = generate_linked_holder_export_recipient()?;
         let (serialized, request_digest, transcript_digest) =
             build_explicit_export_request_with_keypair(input_json, &self.export_recipient)?;
         self.pending_export_request_digest = Some(request_digest);
         self.pending_export_transcript_digest = Some(transcript_digest);
+        self.pending_export_application_binding_digest = Some(application_binding_digest);
         Ok(serialized)
     }
 
@@ -646,6 +687,10 @@ impl EcdsaLinkedHolderMaterialV1 {
             .pending_export_transcript_digest
             .take()
             .ok_or_else(|| js_error("ECDSA holder export transcript was not prepared"))?;
+        let application_binding_digest = self
+            .pending_export_application_binding_digest
+            .take()
+            .ok_or_else(|| js_error("ECDSA holder export application binding was not prepared"))?;
         let input: LinkedEcdsaOrdinaryExportFinalizationInputV1 = parse_json(input_json)?;
         let expected_request_digest = decode_base64_fixed::<32>(
             &input.expected_binding.export_request_digest_b64u,
@@ -686,11 +731,12 @@ impl EcdsaLinkedHolderMaterialV1 {
                 "ECDSA holder export binding does not match the exact normal-signing scope",
             ));
         }
-        verify_encrypted_client_proof_input_for_export(
+        verify_encrypted_client_proof_input_for_export_v2(
             input.client_proof_finalization,
             self.export_recipient.private_key_bytes(),
             transcript_digest,
             &input.expected_binding.recipient_identity,
+            application_binding_digest,
         )?;
         let mut signing_worker_share32 = open_ecdsa_signing_worker_export_share_v1(
             &input.signing_worker_export,

@@ -22,19 +22,17 @@ import {
   parseEnvelopeNonceB64u,
   parseEnvelopeRevision,
   parseUnixMs,
-  rejectUnknownFields,
-  requireRecord,
 } from './primitives';
+import { requireRecord } from '../utils/validation';
+import { rejectUnknownFields } from '../utils/exactRecord';
 
 export const WALLET_CUSTODY_ENVELOPE_VERSION_V2 = 'wallet_custody_envelope_v2' as const;
-/** Refactor 109C: an envelope whose owning auth method is part of its AAD. */
-export const WALLET_CUSTODY_ENVELOPE_VERSION_V3 = 'wallet_custody_envelope_v3' as const;
-export const PASSKEY_PRF_KEK_VERSION_V1 = 'passkey_prf_kek_hkdf_sha256_v1' as const;
-export const EMAIL_OTP_FACTOR_KEK_VERSION_V1 = 'email_otp_factor_kek_hkdf_sha256_v1' as const;
+const PASSKEY_PRF_KEK_VERSION_V1 = 'passkey_prf_kek_hkdf_sha256_v1' as const;
+const EMAIL_OTP_FACTOR_KEK_VERSION_V1 = 'email_otp_factor_kek_hkdf_sha256_v1' as const;
 
-export type WalletCustodyEnvelopeVersion = typeof WALLET_CUSTODY_ENVELOPE_VERSION_V2;
-export type PasskeyPrfKekVersion = typeof PASSKEY_PRF_KEK_VERSION_V1;
-export type EmailOtpFactorKekVersion = typeof EMAIL_OTP_FACTOR_KEK_VERSION_V1;
+type WalletCustodyEnvelopeVersion = typeof WALLET_CUSTODY_ENVELOPE_VERSION_V2;
+type PasskeyPrfKekVersion = typeof PASSKEY_PRF_KEK_VERSION_V1;
+type EmailOtpFactorKekVersion = typeof EMAIL_OTP_FACTOR_KEK_VERSION_V1;
 
 /**
  * Which enrolled factor sealed this envelope.
@@ -77,8 +75,6 @@ export type WalletCustodyEnvelopeFactor =
       credentialIdB64u?: never;
     };
 
-export type WalletCustodyFactorKind = WalletCustodyEnvelopeFactor['kind'];
-
 export type PasskeyCustodyEnvelopeLifecycle =
   | {
       state: 'active';
@@ -104,7 +100,7 @@ export type PasskeyCustodyEnvelopeLifecycle =
  *
  * This record carries no authorization identity: no `AuthorizationGrantRef`,
  * `WalletSessionId`, `MpcWalletSigningQuotaId`, `AuthorizedOperationId`, or
- * bearer session. Those are resolved per operation at the Refactor 90 boundary.
+ * bearer session. Those are resolved per operation, not stored here.
  * It also carries no `MpcMaterialActivationRef` — activation identity is bound
  * when opened material enters the canonical activation boundary, so an explicit
  * reactivation can mint a fresh activation id without rewriting this envelope.
@@ -130,7 +126,7 @@ export type PasskeyCustodyEnvelopeRecord = {
 
 const ENVELOPE_OWNERSHIP_FIELDS = ['kind', 'walletAuthMethodId'] as const;
 
-export function parseWalletCustodyEnvelopeOwnership(
+function parseWalletCustodyEnvelopeOwnership(
   raw: unknown,
   label: string,
 ): WalletCustodyEnvelopeOwnership {
@@ -260,7 +256,7 @@ export function buildActiveEnvelopeLifecycle(args: {
   return { state: 'active', activatedAtMs: args.activatedAtMs };
 }
 
-export function buildRetiredEnvelopeLifecycle(args: {
+function buildRetiredEnvelopeLifecycle(args: {
   activatedAtMs: number;
   retiredAtMs: number;
 }): PasskeyCustodyEnvelopeLifecycle {
@@ -318,7 +314,7 @@ export function buildPasskeyCustodyEnvelopeRecord(args: {
 
 const ENVELOPE_LIFECYCLE_FIELDS = ['state', 'activatedAtMs', 'retiredAtMs', 'revokedAtMs'] as const;
 
-export function parsePasskeyCustodyEnvelopeLifecycle(
+function parsePasskeyCustodyEnvelopeLifecycle(
   raw: unknown,
   label = 'lifecycle',
 ): PasskeyCustodyEnvelopeLifecycle {
@@ -484,10 +480,6 @@ export function parsePasskeyCustodyEnvelopeRecord(
   });
 }
 
-export function isActivePasskeyCustodyEnvelope(envelope: PasskeyCustodyEnvelopeRecord): boolean {
-  return envelope.lifecycle.state === 'active';
-}
-
 /** Two ownerships name the same owner. */
 export function sameWalletCustodyEnvelopeOwnership(
   left: WalletCustodyEnvelopeOwnership,
@@ -501,7 +493,7 @@ export function sameWalletCustodyEnvelopeOwnership(
   );
 }
 
-export type WalletCustodyEnvelopeOwnershipReplacementAdmissionV1 =
+type WalletCustodyEnvelopeOwnershipReplacementAdmissionV1 =
   | { readonly kind: 'admitted' }
   | { readonly kind: 'refused'; readonly reason: string };
 
@@ -513,7 +505,7 @@ export type WalletCustodyEnvelopeOwnershipReplacementAdmissionV1 =
  * what was sealed before ownership was authenticated. And a stored owner may
  * only be replaced by itself: an envelope already bound to one method is never
  * rebound to a sibling, which is the whole point of putting the owner in the
- * AAD. That leaves exactly one transition that moves anything — the pre-109C
+ * AAD. That leaves exactly one transition that moves anything — the ownership
  * upgrade, `unbound` to the method that just proved it can open the envelope.
  */
 export function admitWalletCustodyEnvelopeOwnershipReplacementV1(input: {

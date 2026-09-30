@@ -7,7 +7,7 @@ import type {
   WalletIframeRequestId,
 } from '@/core/types/walletIframeIdentity';
 import type { RegistrationWebContext } from './signingSurface/types';
-import type { RegistrationSignerSetSelection } from '@shared/utils/registrationIntent';
+import type { RegistrationSignerSetSelection } from '@shared/utils/registrationSignerPlan';
 import { parseWebAuthnRpId } from '@shared/utils/domainIds';
 
 declare const context: RegistrationWebContext;

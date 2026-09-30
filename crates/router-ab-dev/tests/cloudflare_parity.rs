@@ -1,21 +1,20 @@
 use router_ab_cloudflare::{
-    cloudflare_service_json_request_body_bytes_v1, CLOUDFLARE_DERIVER_A_PEER_REQUEST_PATH,
-    CLOUDFLARE_DERIVER_A_PRIVATE_REQUEST_PATH, CLOUDFLARE_DERIVER_B_PEER_REQUEST_PATH,
-    CLOUDFLARE_DERIVER_B_PRIVATE_REQUEST_PATH,
+    CLOUDFLARE_DERIVER_A_PEER_REQUEST_PATH, CLOUDFLARE_DERIVER_A_PRIVATE_REQUEST_PATH,
+    CLOUDFLARE_DERIVER_B_PEER_REQUEST_PATH, CLOUDFLARE_DERIVER_B_PRIVATE_REQUEST_PATH,
     CLOUDFLARE_ROUTER_NORMAL_SIGNING_PUBLIC_REQUEST_PATH,
     CLOUDFLARE_SIGNING_WORKER_NORMAL_SIGNING_PATH,
 };
 use router_ab_dev::{
     local_dev_http_handle_request_v1, local_env_materialization_plan_v1,
     local_worker_owned_paths_v1, parse_local_env_file_contents_v1,
-    parse_local_worker_role_config_for_role_v1, run_example_local_router_ab_dev_http_ceremony_v1,
-    LocalDevHttpRequestPartsV1, LocalDevHttpTopologyV1, LOCAL_DERIVER_A_ED25519_YAO_BURN_PAIR_PATH,
-    LOCAL_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH, LOCAL_DERIVER_A_ED25519_YAO_PREPARE_PAIR_PATH,
+    parse_local_worker_role_config_for_role_v1, LocalDevHttpRequestPartsV1, LocalDevHttpTopologyV1,
+    LOCAL_DERIVER_A_ED25519_YAO_BURN_PAIR_PATH, LOCAL_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH,
+    LOCAL_DERIVER_A_ED25519_YAO_PREPARE_PAIR_PATH,
     LOCAL_DERIVER_A_ED25519_YAO_READ_PAIR_STATUS_PATH, LOCAL_DERIVER_A_PEER_PATH,
     LOCAL_DERIVER_A_PRIVATE_PATH, LOCAL_DERIVER_B_ED25519_YAO_BURN_PAIR_PATH,
     LOCAL_DERIVER_B_ED25519_YAO_PREPARE_PAIR_PATH,
     LOCAL_DERIVER_B_ED25519_YAO_READ_PAIR_STATUS_PATH, LOCAL_DERIVER_B_PEER_PATH,
-    LOCAL_DERIVER_B_PRIVATE_PATH, LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1,
+    LOCAL_DERIVER_B_PRIVATE_PATH,
     LOCAL_ROUTER_ED25519_YAO_EXECUTE_PATH, LOCAL_ROUTER_ED25519_YAO_RECOVERY_PROMOTE_PATH,
     LOCAL_ROUTER_NORMAL_SIGNING_PATH, LOCAL_SIGNING_WORKER_NORMAL_SIGNING_PATH,
 };
@@ -122,6 +121,9 @@ fn local_router_boundary_requires_an_installed_native_dispatcher() {
             path: path.to_owned(),
             authorization: None,
             internal_service_auth: None,
+            yao_replay: None,
+            local_intended_router_burn: None,
+            destination_bootstrap_token: None,
             body: Vec::new(),
         };
         let (health_status, health_body) =
@@ -139,9 +141,10 @@ fn local_router_boundary_requires_an_installed_native_dispatcher() {
             method: "POST".to_owned(),
             path: path.to_owned(),
             authorization: None,
-            internal_service_auth: Some(
-                LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1.to_owned(),
-            ),
+            internal_service_auth: Some(router.gateway_to_router_auth.clone()),
+            yao_replay: None,
+            local_intended_router_burn: None,
+            destination_bootstrap_token: None,
             body: Vec::new(),
         };
         let (status, body) =
@@ -158,44 +161,6 @@ fn local_router_boundary_requires_an_installed_native_dispatcher() {
             local_dev_http_handle_request_v1(LocalDevHttpTopologyV1::Router(router), &unauthorized)
                 .expect("unauthorized Router route response");
         assert_eq!(status, 401);
-    }
-}
-
-#[test]
-fn local_http_wire_message_bodies_match_cloudflare_service_binding_bytes() {
-    let ceremony = run_example_local_router_ab_dev_http_ceremony_v1().expect("typed HTTP ceremony");
-    let cases = [
-        (
-            "Router to Deriver A request",
-            &ceremony.deriver_a_request.envelope.message,
-        ),
-        (
-            "Router to Deriver B request",
-            &ceremony.deriver_b_request.envelope.message,
-        ),
-        (
-            "Deriver A to Deriver B peer request",
-            &ceremony
-                .core_http_ceremony
-                .deriver_a_peer_request
-                .envelope
-                .message,
-        ),
-        (
-            "Deriver B to Deriver A peer request",
-            &ceremony
-                .core_http_ceremony
-                .deriver_b_peer_request
-                .envelope
-                .message,
-        ),
-    ];
-
-    for (label, message) in cases {
-        let local_body = serde_json::to_vec(message).expect("local JSON request body");
-        let cloudflare_body =
-            cloudflare_service_json_request_body_bytes_v1(label, message).expect(label);
-        assert_eq!(local_body, cloudflare_body, "{label}");
     }
 }
 
@@ -237,7 +202,16 @@ fn local_env_templates_match_wrangler_startup_manifests() {
     router.assert_local("DERIVER_A_URL=http://127.0.0.1:4103");
     router.assert_local("DERIVER_B_URL=http://127.0.0.1:4104");
     router.assert_local("SIGNING_WORKER_URL=http://127.0.0.1:4105");
-    router.assert_local_absent("STORAGE_PATH");
+    // The Router owns the tenant-root creation state, as it owns the creation
+    // Durable Object on Cloudflare, and no other storage: no role shares.
+    router.assert_local(
+        "ROUTER_TENANT_ROOT_CREATION_STORAGE_PATH=.router-ab-local/router/tenant-root-creation.sqlite",
+    );
+    assert_eq!(
+        router.local.matches("STORAGE_PATH").count(),
+        1,
+        "the Router owns no storage besides its tenant-root creation state"
+    );
 
     let deriver_a = ManifestPair {
         local: include_str!("../env/deriver-a.local.example"),
@@ -322,17 +296,19 @@ fn local_env_templates_match_wrangler_startup_manifests() {
 
     // R120: each Deriver reads authoritative creation state through its own
     // external binding to the Router-owned Durable Object. The Router keeps the
-    // class and migrations; the Derivers name the matching Router script per env
-    // and declare no migrations of their own.
+    // class and its migration; the Derivers name the matching Router script per
+    // env and never declare that class. R150 gives Deriver A its own wallet
+    // object class, which it alone migrates.
     for deriver in [&deriver_a, &deriver_b] {
         deriver.assert_wrangler("name = \"ROUTER_TENANT_ROOT_CREATION_DO\"");
         deriver.assert_wrangler("class_name = \"RouterAbTenantRootCreationDurableObject\"");
         deriver.assert_wrangler("script_name = \"router-ab-mpc-router\"");
         deriver.assert_wrangler("script_name = \"router-ab-mpc-router-staging\"");
         deriver.assert_wrangler("script_name = \"router-ab-mpc-router-testnet\"");
-        deriver.assert_wrangler_absent("[[migrations]]");
-        deriver.assert_wrangler_absent("new_sqlite_classes");
+        deriver.assert_wrangler_absent("new_sqlite_classes = [\"RouterAbTenantRootCreationDurableObject\"]");
     }
+    deriver_a.assert_wrangler("new_sqlite_classes = [\"RouterAbDeriverAWalletDurableObject\"]");
+    deriver_b.assert_wrangler_absent("new_sqlite_classes");
     // The Router owns the class: it declares the migration and no script_name.
     router.assert_wrangler("[[migrations]]");
     router.assert_wrangler("new_sqlite_classes = [\"RouterAbTenantRootCreationDurableObject\"]");

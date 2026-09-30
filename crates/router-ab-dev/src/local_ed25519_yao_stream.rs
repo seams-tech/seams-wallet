@@ -75,6 +75,11 @@ impl From<io::Error> for LocalEd25519YaoStreamErrorV1 {
 
 type StreamResult<T> = Result<T, LocalEd25519YaoStreamErrorV1>;
 
+pub(crate) enum LocalEd25519YaoPairCompletionDeliveryV1 {
+    Received(Vec<u8>),
+    MissingAfterCleanEof,
+}
+
 pub(crate) struct LocalEd25519YaoCompletedDeriverBResponseV1 {
     stream: TcpStream,
 }
@@ -184,6 +189,12 @@ pub(crate) struct LocalEd25519YaoDeriverAPairConnectionV2 {
     acceptance: Ed25519YaoRoleStartAcceptanceV1,
 }
 
+impl LocalEd25519YaoDeriverAPairConnectionV2 {
+    pub(crate) fn acceptance(&self) -> &Ed25519YaoRoleStartAcceptanceV1 {
+        &self.acceptance
+    }
+}
+
 pub fn run_local_activation_deriver_a_http_v1(
     address: impl ToSocketAddrs,
     session: [u8; 32],
@@ -231,7 +242,7 @@ pub(crate) fn run_local_activation_deriver_a_pair_connected_v2(
 ) -> StreamResult<(
     ActivationDeriverACompletion,
     Ed25519YaoRoleStartAcceptanceV1,
-    Vec<u8>,
+    LocalEd25519YaoPairCompletionDeliveryV1,
 )> {
     let acceptance = connection.acceptance.clone();
     let (completion, _, sealed_completion) = run_local_deriver_a_stream_v1(
@@ -262,7 +273,7 @@ pub(crate) fn run_local_export_deriver_a_pair_connected_v2(
 ) -> StreamResult<(
     ExportDeriverACompletion,
     Ed25519YaoRoleStartAcceptanceV1,
-    Vec<u8>,
+    LocalEd25519YaoPairCompletionDeliveryV1,
 )> {
     let acceptance = connection.acceptance.clone();
     let (completion, _, sealed_completion) = run_local_deriver_a_stream_v1(
@@ -308,7 +319,7 @@ fn run_local_deriver_a_stream_v1<R>(
 ) -> StreamResult<(
     R::Completion,
     Option<Ed25519YaoRoleStartAcceptanceV1>,
-    Option<Vec<u8>>,
+    Option<LocalEd25519YaoPairCompletionDeliveryV1>,
 )>
 where
     R: LocalStreamingRole,
@@ -366,14 +377,21 @@ where
     require_receive_instruction(&role, &returned)?;
     role = expect_continue(role.handle(RelayEvent::Inbound(returned))?)?;
     let sealed_completion = if pair {
-        Some(
-            read_http_chunk(&mut reader)?
-                .ok_or_else(|| protocol("pair response ended before sealed completion"))?,
-        )
+        let delivery = match read_http_chunk(&mut reader)? {
+            Some(bytes) => {
+                require_http_eof(&mut reader)?;
+                LocalEd25519YaoPairCompletionDeliveryV1::Received(bytes)
+            }
+            None if reader.fill_buf()?.is_empty() => {
+                LocalEd25519YaoPairCompletionDeliveryV1::MissingAfterCleanEof
+            }
+            None => return Err(invalid_http("bytes follow zero chunk")),
+        };
+        Some(delivery)
     } else {
+        require_http_eof(&mut reader)?;
         None
     };
-    require_http_eof(&mut reader)?;
     let peer_eof = b_to_a_decoder
         .finish_at_transport_eof()
         .map_err(|_| protocol("A response EOF evidence"))?;
@@ -1185,9 +1203,9 @@ mod tests {
     use std::io::Cursor;
 
     use super::{
-        read_http_chunk, read_request_head, read_response_head,
-        require_http_eof, LOCAL_DERIVER_B_ED25519_YAO_PEER_PATH,
-        LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, SESSION_HEADER, STREAM_CONTENT_TYPE,
+        read_http_chunk, read_request_head, read_response_head, require_http_eof,
+        LOCAL_DERIVER_B_ED25519_YAO_PEER_PATH, LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
+        SESSION_HEADER, STREAM_CONTENT_TYPE,
     };
 
     fn request_head(extra_header: &str) -> Vec<u8> {
@@ -1231,8 +1249,12 @@ mod tests {
 
         let mut transfer_encoding_and_content_length =
             Cursor::new(request_head("content-length: 0\r\n"));
-        assert!(read_request_head(&mut transfer_encoding_and_content_length, [7_u8; 32], "secret")
-            .is_err());
+        assert!(read_request_head(
+            &mut transfer_encoding_and_content_length,
+            [7_u8; 32],
+            "secret"
+        )
+        .is_err());
 
         let duplicate_session = format!("{SESSION_HEADER}: {}\r\n", hex::encode([7_u8; 32]));
         let mut duplicate_session = Cursor::new(request_head(&duplicate_session));

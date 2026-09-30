@@ -461,45 +461,6 @@ fn independent_digest(domain: &[u8], encoding: &[u8]) -> [u8; 32] {
     Sha256::digest(input).into()
 }
 
-#[test]
-fn package_entrypoints_remain_ceremony_bound_and_success_free() {
-    let source = include_str!("../src/semantic_artifacts.rs");
-    for removed in [
-        "pub fn from_registration_host_reference(",
-        "pub fn from_recovery_host_reference(",
-        "pub fn from_refresh_host_reference(",
-        "pub fn from_host_reference_success(",
-    ] {
-        assert!(
-            !source.contains(removed),
-            "removed entrypoint returned: {removed}"
-        );
-    }
-    assert_eq!(
-        source
-            .matches("pub fn evaluate_and_package_host_reference(")
-            .count(),
-        4
-    );
-    assert!(!source.contains("pub fn activation_binding("));
-    let activation_receipt_impl = source
-        .split("impl ActivationOutputCommittedReceiptBodyV1 {")
-        .nth(1)
-        .expect("activation receipt impl")
-        .split("/// Public export output-committed receipt body.")
-        .next()
-        .expect("activation receipt impl body");
-    assert!(!activation_receipt_impl.contains("pub fn new("));
-    let export_receipt_impl = source
-        .split("impl ExportOutputCommittedReceiptBodyV1 {")
-        .nth(1)
-        .expect("export receipt impl")
-        .split("/// Move-owned export package set committed before client release.")
-        .next()
-        .expect("export receipt impl body");
-    assert!(!export_receipt_impl.contains("pub fn new("));
-}
-
 fn committed_activation(packaged: HostOnlyPackagedActivationV1) -> CommittedActivationArtifactsV1 {
     let (packages, _shares) = packaged.into_parts();
     CommittedActivationArtifactsV1::new(

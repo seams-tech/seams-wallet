@@ -1,7 +1,7 @@
 import type { AccountId } from '@/core/types/accountIds';
 import type { WalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type { EcdsaThresholdKeyId } from '../keyMaterialBrands';
-import type { NearEd25519SigningKeyId } from '@shared/utils/registrationIntent';
+import type { NearEd25519SigningKeyId } from '@shared/utils/registrationIds';
 import type { SignerSlot } from '@shared/utils/signerSlot';
 import type { CapabilityInstanceRef } from '@shared/utils/domainIds';
 import type { WalletAuthAuthorityRef } from '@shared/utils/walletAuthAuthority';

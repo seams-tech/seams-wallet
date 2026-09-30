@@ -113,7 +113,7 @@ async function requireCurrentEd25519WalletSessionToken(
   return read.operationCredential.token;
 }
 
-export async function fundImplicitNearAccountFromCurrentSession(args: {
+async function fundImplicitNearAccountFromCurrentSession(args: {
   configs: SeamsConfigsReadonly;
   walletSession: WalletSessionRef;
   nearAccount: NearAccountRef;

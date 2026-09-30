@@ -34,6 +34,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             deriver_a: free_port_url()?,
             deriver_b: free_port_url()?,
             signing_worker: free_port_url()?,
+            control_plane: free_port_url()?,
         })
     } else {
         None
@@ -48,8 +49,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         fs::create_dir_all(options.root.join(directory))?;
     }
 
-    for file in &plan.files {
-        let path = options.root.join(&file.path);
+    let paths: Vec<(&str, &str)> = plan
+        .files
+        .iter()
+        .map(|file| (file.path.as_str(), file.contents.as_str()))
+        .chain(
+            plan.tenant_root_files
+                .iter()
+                .map(|file| (file.path.as_str(), file.contents.as_str())),
+        )
+        .collect();
+    for (relative, contents) in paths {
+        let path = options.root.join(relative);
         if path.exists() && !options.force {
             return Err(format!(
                 "{} already exists; pass --force to regenerate local env files",
@@ -62,12 +73,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 fs::create_dir_all(parent)?;
             }
         }
-        fs::write(path, &file.contents)?;
+        fs::write(path, contents)?;
     }
     let summary = InitSummary {
         root: options.root.display().to_string(),
         directories: plan.directories,
-        files: plan.files.into_iter().map(|file| file.path).collect(),
+        files: plan
+            .files
+            .into_iter()
+            .map(|file| file.path)
+            .chain(plan.tenant_root_files.into_iter().map(|file| file.path))
+            .collect(),
         urls,
     };
     println!("{}", serde_json::to_string_pretty(&summary)?);
@@ -75,14 +91,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn replace_default_urls(plan: &mut LocalEnvMaterializationPlanV1, urls: &LocalWorkerUrls) {
-    for file in &mut plan.files {
-        file.contents = file
-            .contents
+    let replace = |contents: &str| {
+        contents
             .replace("http://127.0.0.1:4100", &urls.router)
             .replace("http://127.0.0.1:4102", &urls.router)
             .replace("http://127.0.0.1:4103", &urls.deriver_a)
             .replace("http://127.0.0.1:4104", &urls.deriver_b)
-            .replace("http://127.0.0.1:4105", &urls.signing_worker);
+            .replace("http://127.0.0.1:4105", &urls.signing_worker)
+            .replace("http://127.0.0.1:4106", &urls.control_plane)
+    };
+    for file in &mut plan.files {
+        file.contents = replace(&file.contents);
+    }
+    for file in &mut plan.tenant_root_files {
+        file.contents = replace(&file.contents);
     }
 }
 

@@ -1,4 +1,7 @@
-import type { WalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
+import type {
+  ActiveWalletAuthMethodRecordV2,
+  WalletAuthMethodRecordV2,
+} from '@shared/utils/walletAuthMethodRecord';
 import {
   CAPABILITY_KINDS,
   EVM_ECDSA_MPC_OPERATION_KINDS,
@@ -58,6 +61,7 @@ import type { AuthFactorIdentity, WalletAuthAuthorityRef } from '@shared/utils/w
 import { mpcMaterialActivationRefsEqual } from '@shared/utils/domainIds';
 import type {
   ActiveWalletAuthorityV1,
+  WalletAuthorityV1,
   WalletSignerActivationSetV1,
 } from '@shared/authorization/walletAuthority';
 import {
@@ -315,8 +319,14 @@ export type ExactWalletSessionQuotaProjectionV1 = {
 export type WalletSessionExactOperationContext = {
   readonly session: WalletSessionAuthorizationV2;
   readonly authority: ActiveWalletAuthorityV1;
-  readonly authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+  readonly authMethod: ActiveWalletAuthMethodRecordV2;
   readonly retiredAtMs: null;
+  readonly ownerWalletScope: {
+    readonly orgId: string;
+    readonly projectId: string;
+    readonly projectEnvironmentId: string;
+    readonly walletId: WalletId;
+  };
 };
 
 /**
@@ -347,6 +357,24 @@ export type ExactWalletSessionStatusV2 =
       readonly retiredAtMs: number;
     }
   | { readonly kind: 'missing'; readonly session?: never; readonly quota?: never };
+
+/**
+ * A live session with the authority and auth method read in the same
+ * statement. Admission judges all three from one snapshot, so a commit that
+ * lands between separate reads cannot pair a session with a newer authority.
+ */
+export type WalletSessionAdmissionSnapshotV2 = {
+  readonly authorization: IssuedWalletSessionAuthorizationV2;
+  readonly authority: WalletAuthorityV1 | null;
+  readonly authMethod: WalletAuthMethodRecordV2 | null;
+};
+
+/** An exact status with the authority and auth method it was judged against. */
+export type ExactWalletSessionStatusSnapshotV2 = {
+  readonly status: ExactWalletSessionStatusV2;
+  readonly authority: WalletAuthorityV1 | null;
+  readonly authMethod: WalletAuthMethodRecordV2 | null;
+};
 
 export function buildExactWalletSessionQuotaProjectionV1(
   fields: Omit<ExactWalletSessionQuotaProjectionV1, 'kind'>,
@@ -1313,11 +1341,4 @@ function requireOrderedTimes(createdAtMs: number, expiresAtMs: number, label: st
   if (expiresAtMs <= createdAtMs) {
     throw new Error(`${label} expiry must follow creation`);
   }
-}
-
-function requireDomainIdParse(
-  result: { readonly ok: true } | { readonly ok: false; readonly error: { message: string } },
-  label: string,
-): void {
-  if (!result.ok) throw new Error(`${label}: ${result.error.message}`);
 }

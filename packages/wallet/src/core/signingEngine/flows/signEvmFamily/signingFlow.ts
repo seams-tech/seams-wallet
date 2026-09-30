@@ -21,9 +21,9 @@ import type { WebAuthnAuthenticationCredential } from '@/core/types/webauthn';
 import type { ManagedNonceReservation } from '@/core/rpcClients/evm/nonceBackend';
 import { toManagedNonceReservationSnapshot } from '@/core/rpcClients/evm/nonceBackend';
 import { base64UrlEncode } from '@shared/utils/base64';
-import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';
+import { parseDigestB64u, sha256Utf8DigestB64u } from '@shared/utils/canonicalPrimitives';
 import type { MpcMaterialActivationRef } from '@shared/utils/domainIds';
-import { alphabetizeStringify, sha256BytesUtf8 } from '@shared/utils/digests';
+import { alphabetizeStringify } from '@shared/utils/digests';
 import type { OperationDigestSet } from '@shared/authorization/operationFingerprint';
 import { bytesToHex } from '@/core/signingEngine/chains/evm/bytes';
 import type { WorkerOperationContext } from '@/core/signingEngine/workerManager/executeWorkerOperation';
@@ -60,7 +60,6 @@ import {
   inferDigest32FromSignRequest,
   makeRequestId,
   mapSigningConfirmationProgress,
-  resolveSigningConfirmationAuth,
   resolveSigningConfirmationAuthMethod,
 } from '../shared/signingConfirmation';
 import {
@@ -111,7 +110,7 @@ type EvmFamilySigningEngines = {
   webauthnP256?: Signer<SignRequest, KeyRef, SignatureBytes>;
 };
 
-export type ReadyEcdsaSigningMaterialSource =
+type ReadyEcdsaSigningMaterialSource =
   | {
       kind: 'material_from_step_up';
       material: ReadySecp256k1SigningMaterial;
@@ -121,7 +120,7 @@ export type ReadyEcdsaSigningMaterialSource =
       material: ReadySecp256k1SigningMaterial;
     };
 
-export type EcdsaSigningMaterialSource =
+type EcdsaSigningMaterialSource =
   | ReadyEcdsaSigningMaterialSource
   | {
       kind: 'material_for_step_up';
@@ -129,10 +128,10 @@ export type EcdsaSigningMaterialSource =
     };
 
 /** The material this operation was prepared against is no longer the one the
- * wallet's active manifest names. R90-INV-010: supersession invalidates the
- * preparation -- the caller discards the prepared lane and resolves current
- * canonical state again. It is a retry condition, not a failure, and it is
- * distinct from an activation mismatch caused by asking for the wrong material. */
+ * wallet's active manifest names. Supersession invalidates the preparation --
+ * the caller discards the prepared lane and resolves current canonical state
+ * again. It is a retry condition, not a failure, and it is distinct from an
+ * activation mismatch caused by asking for the wrong material. */
 export type SupersededEcdsaSigningMaterial = {
   kind: 'superseded';
   supersessionKind:
@@ -187,9 +186,9 @@ export type EcdsaSigningMaterialPlan = Exclude<
   { kind: 'pending' }
 >;
 
-export type ResolveEcdsaSigningMaterialPlan = () => Promise<EcdsaSigningMaterialPlan>;
+type ResolveEcdsaSigningMaterialPlan = () => Promise<EcdsaSigningMaterialPlan>;
 
-export type RunEcdsaMaterialUse = <T>(task: () => Promise<T>) => Promise<T>;
+type RunEcdsaMaterialUse = <T>(task: () => Promise<T>) => Promise<T>;
 
 function warmSessionClaimedProgressData(
   plan: Extract<SigningAuthPlan, { kind: 'warmSession' }>,
@@ -240,9 +239,7 @@ async function buildEvmFamilyOperationDigests(input: {
       SigningSessionIds.signingOperationFingerprint(operationFingerprint),
     ),
     intentDigest: parseDigestB64u(base64UrlEncode(input.signingDigest32)),
-    displayDigest: parseDigestB64u(
-      base64UrlEncode(await sha256BytesUtf8(alphabetizeStringify(input.displayModel))),
-    ),
+    displayDigest: await sha256Utf8DigestB64u(alphabetizeStringify(input.displayModel)),
   };
 }
 
@@ -313,7 +310,7 @@ function requirePreparedEcdsaStepUpChallenge(args: {
   return challengeB64u;
 }
 
-export type EvmFamilyUiConfirmFlowConfig<TRequest, TResult extends object> = {
+type EvmFamilyUiConfirmFlowConfig<TRequest, TResult extends object> = {
   targetKind: ThresholdEcdsaChainTarget['kind'];
   flowName: 'evm' | 'tempo';
   explicitAuthErrorLabel: 'EVM' | 'Tempo';
@@ -339,11 +336,11 @@ export type EvmFamilyUiConfirmFlowConfig<TRequest, TResult extends object> = {
   webauthn: EvmFamilySigningWebAuthnMode<TRequest>;
 };
 
-export type OwnerEvmFamilySigningAuthorization = {
+type OwnerEvmFamilySigningAuthorization = {
   readonly kind: 'owner';
 };
 
-export type ActiveWalletAuthorityEvmFamilySigningAuthorization = {
+type ActiveWalletAuthorityEvmFamilySigningAuthorization = {
   readonly kind: 'active_wallet_authority';
   readonly confirmationAuthPlan: Extract<SigningAuthPlan, { kind: 'active_wallet_authority' }>;
   readonly sign: (input: {
@@ -354,7 +351,7 @@ export type ActiveWalletAuthorityEvmFamilySigningAuthorization = {
   }) => Promise<Uint8Array>;
 };
 
-export type EvmFamilySigningAuthorization =
+type EvmFamilySigningAuthorization =
   | OwnerEvmFamilySigningAuthorization
   | ActiveWalletAuthorityEvmFamilySigningAuthorization;
 
@@ -707,9 +704,6 @@ export async function signEvmFamilyWithUiConfirm<TRequest, TResult extends objec
       preparation: intentPreparationTask.then(intentDigestPreparationFromEvmIntent),
     });
   }
-  type ConfirmationAuthPayload = Awaited<
-    ReturnType<typeof resolveSigningConfirmationAuth>
-  >['confirmationAuthPayload'];
   type PreparedIntent = Awaited<typeof intentPreparationTask>;
 
   let preparedStepUpAuth: EvmFamilyPreparedStepUpAuth | null = null;
@@ -730,7 +724,7 @@ export async function signEvmFamilyWithUiConfirm<TRequest, TResult extends objec
   } | null = null;
 
   const ensureReadySecp256k1SigningMaterial = async (
-    signReq: SignRequest,
+    _signReq: SignRequest,
     operation: EvmFamilyThresholdEcdsaOperation,
     operationDigests: OperationDigestSet,
   ): Promise<ReadyEcdsaSigningMaterialSource> => {

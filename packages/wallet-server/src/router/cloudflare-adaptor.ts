@@ -29,7 +29,7 @@ export type {
   RouterAbNormalSigningAdmissionFailureCode,
   RouterAbNormalSigningAdmissionInput,
   RouterAbNormalSigningAdmissionResult,
-} from './domains/signingOperations/routerAbPrivateSigningWorker';
+} from './domains/signingOperations/routerAbNormalSigningAdmission';
 export {
   InMemoryRouterAbNormalSigningAdmissionStore,
   createInMemoryRouterAbNormalSigningAdmissionAdapter,
@@ -38,10 +38,9 @@ export {
 } from './domains/signingOperations/routerAbNormalSigningAdmissionCore';
 export type {
   RouterAbNormalSigningAbuseDecision,
-  RouterAbNormalSigningAbuseProvider,
+  RouterAbNormalSigningPolicyDecision,
   RouterAbNormalSigningAdmissionStore,
   RouterAbNormalSigningProjectPolicyDecision,
-  RouterAbNormalSigningProjectPolicyProvider,
 } from './domains/signingOperations/routerAbNormalSigningAdmissionCore';
 export {
   CloudflareD1RouterAbNormalSigningAdmissionStore,

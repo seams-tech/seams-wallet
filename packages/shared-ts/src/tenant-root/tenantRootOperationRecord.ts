@@ -6,7 +6,7 @@ import {
 } from './tenantRootIdentity';
 
 /**
- * The console operation record (Refactor 121).
+ * The console operation record.
  *
  * The console builds these records in TypeScript and the control plane
  * consumes their digests in Rust, so both sides must produce identical

@@ -28,6 +28,11 @@ import {
   type WebAuthnSyncWalletBinding,
 } from './d1WebAuthnRecords';
 import { D1WalletAuthMethodStore } from '../../../../core/d1WalletAuthMethodStore';
+import {
+  webAuthnAuthenticationFailure,
+  webAuthnLoginEd25519,
+  webAuthnSyncCredentialBinding,
+} from '../../../../core/authService/webauthnVerificationOutcomes';
 
 export type D1WebAuthnWalletManifestSource = {
   getEd25519KeyManifestBySlot(input: {
@@ -577,14 +582,8 @@ export class CloudflareD1WebAuthnAuthService {
         webauthn_authentication: credential,
         expected_origin: expectedOrigin,
       });
-      if (!verification.success || !verification.verified) {
-        return {
-          ok: false,
-          verified: false,
-          code: verification.code || 'not_verified',
-          message: verification.message || 'Authentication verification failed',
-        };
-      }
+      const verificationFailure = webAuthnAuthenticationFailure(verification);
+      if (verificationFailure) return verificationFailure;
       const binding = await this.webAuthnStore.readBindingByCredential({
         rpId: challenge.rpId,
         credentialIdB64u: credentialId.credentialIdB64u,
@@ -592,32 +591,8 @@ export class CloudflareD1WebAuthnAuthService {
       const walletBinding = binding
         ? webAuthnSyncWalletBindingFromCredentialBinding(binding)
         : null;
-      const firstParticipantId = binding?.participantIds?.[0];
-      const secondParticipantId = binding?.participantIds?.[1];
-      if (!binding) {
-        return {
-          ok: false,
-          verified: false,
-          code: 'unknown_credential',
-          message: 'Credential has no wallet binding',
-        };
-      }
-      const ed25519 =
-        walletBinding &&
-        binding.publicKey &&
-        binding.relayerKeyId &&
-        firstParticipantId !== undefined &&
-        secondParticipantId !== undefined
-          ? {
-              kind: 'active' as const,
-              nearAccountId: walletBinding.nearAccountId,
-              nearEd25519SigningKeyId: walletBinding.nearEd25519SigningKeyId,
-              signerSlot: walletBinding.signerSlot,
-              publicKey: binding.publicKey,
-              relayerKeyId: binding.relayerKeyId,
-              participantIds: [firstParticipantId, secondParticipantId] as const,
-            }
-          : { kind: 'absent' as const };
+      const loginSigner = webAuthnLoginEd25519(binding, walletBinding);
+      if (!loginSigner.ok) return loginSigner;
       return {
         ok: true,
         verified: true,
@@ -626,7 +601,7 @@ export class CloudflareD1WebAuthnAuthService {
         credentialIdB64u: credentialId.credentialIdB64u,
         walletAuthMethodId: activeMethod.walletAuthMethodId,
         walletAuthorityId: activeMethod.walletAuthorityId,
-        ed25519,
+        ed25519: loginSigner.ed25519,
       };
     } catch (error: unknown) {
       return {
@@ -671,26 +646,15 @@ export class CloudflareD1WebAuthnAuthService {
           message: credentialId.message,
         };
       }
-      const binding = await this.webAuthnStore.readBindingByCredential({
-        rpId: challenge.rpId,
-        credentialIdB64u: credentialId.credentialIdB64u,
-      });
-      if (!binding) {
-        return {
-          ok: false,
-          verified: false,
-          code: 'unknown_credential',
-          message: 'Credential is not registered on this relay',
-        };
-      }
-      if (challenge.expectedUserId && binding.userId !== challenge.expectedUserId) {
-        return {
-          ok: false,
-          verified: false,
-          code: 'unknown_credential',
-          message: `Credential is not registered for account ${challenge.expectedUserId}`,
-        };
-      }
+      const syncBinding = webAuthnSyncCredentialBinding(
+        await this.webAuthnStore.readBindingByCredential({
+          rpId: challenge.rpId,
+          credentialIdB64u: credentialId.credentialIdB64u,
+        }),
+        challenge,
+      );
+      if (!syncBinding.ok) return syncBinding;
+      const binding = syncBinding.binding;
       const activeMethod = await this.walletAuthMethodStore.getPasskeyV2({
         rpId: challenge.rpId,
         credentialIdB64u: credentialId.credentialIdB64u,
@@ -735,14 +699,8 @@ export class CloudflareD1WebAuthnAuthService {
         webauthn_authentication: credential,
         expected_origin: expectedOrigin,
       });
-      if (!verification.success || !verification.verified) {
-        return {
-          ok: false,
-          verified: false,
-          code: verification.code || 'not_verified',
-          message: verification.message || 'Authentication verification failed',
-        };
-      }
+      const verificationFailure = webAuthnAuthenticationFailure(verification);
+      if (verificationFailure) return verificationFailure;
       const authenticator = await this.webAuthnStore.readAuthenticator({
         userId: binding.userId,
         credentialIdB64u: credentialId.credentialIdB64u,

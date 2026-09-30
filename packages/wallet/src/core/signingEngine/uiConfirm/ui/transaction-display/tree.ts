@@ -14,10 +14,10 @@ import { isTempoDisplayOperation, renderTempoDisplayOperation } from './renderer
 import { renderFallbackDisplayOperation } from './renderers/fallback';
 import type { RenderDisplayOperation, RenderTreeNode } from './renderers/types';
 
-export type TreeNodeType = 'folder' | 'file';
+type TreeNodeType = 'folder' | 'file';
 
 // Structured highlight specification for labels
-export type HighlightSpec =
+type HighlightSpec =
   | { transaction: 'receiverId' }
   | { actionType: 'FunctionCall' | 'Transfer' | string; highlightKeys: string[] };
 
@@ -338,7 +338,7 @@ function buildActionNode(action: ActionArgs, idx: number): TreeNode {
   };
 }
 
-export function buildTransactionNode(
+function buildTransactionNode(
   tx: TransactionInput,
   tIdx: number,
   totalTransactions: number,

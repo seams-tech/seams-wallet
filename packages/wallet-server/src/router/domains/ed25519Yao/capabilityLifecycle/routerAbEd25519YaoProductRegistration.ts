@@ -1,12 +1,13 @@
+import { type AddSignerIntentV1, type WalletId } from '@shared/utils/registrationIntent';
 import {
   computeAddSignerNearEd25519SigningKeyId,
   computeRegistrationNearEd25519SigningKeyId,
-  registrationNearEd25519BranchKey,
-  type AddSignerIntentV1,
-  type RegistrationNearEd25519SignerPlan,
-  type WalletId,
   type RegistrationEd25519AuthorityScope,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/registrationIds';
+import {
+  registrationNearEd25519BranchKey,
+  type RegistrationNearEd25519SignerPlan,
+} from '@shared/utils/registrationSignerPlan';
 import {
   parseRouterAbEd25519YaoRegistrationAdmissionRequestV1,
   type RouterAbEd25519YaoActivationAdmissionReceiptV1,
@@ -46,7 +47,7 @@ import { ROUTER_AB_ED25519_NORMAL_SIGNING_STATE_KIND } from '@shared/utils/signi
 import { deriveSigningRootId, type RuntimePolicyScope } from '@shared/threshold/signingRootScope';
 import type { WalletAuthAuthority } from '@shared/utils/walletAuthAuthority';
 import type { WalletSessionOperationCredentialV1 } from '@shared/device-linking';
-import type { WalletRegistrationEd25519YaoBootstrapSession } from '../../../../core/registrationContracts';
+import type { WalletRegistrationEd25519YaoBootstrapSession } from '@shared/utils/registrationContracts';
 import { thresholdEd25519AuthorityScopeFromWalletAuthAuthority } from '../../../../core/ThresholdService/validation';
 import {
   createRouterAbEd25519YaoRecoveryModule,
@@ -70,6 +71,7 @@ import {
   type RouterAbEd25519YaoExportService,
 } from '../export/routerAbEd25519YaoExport';
 import { isPlainObject } from '@shared/utils/validation';
+import { parseRouterAbEd25519YaoTenantRootWireV1 } from '../routerAbEd25519YaoGatewayEnvelope';
 import { DEFAULT_WALLET_SESSION_REMAINING_USES } from '@shared/threshold/sessionPolicy';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 
@@ -224,15 +226,15 @@ const RECOVERY_STATE_KINDS = new Set([
   'admission_failed',
   'admitted',
   'executing',
+  'execution_interrupted',
   'execution_failed',
   'staged',
   'activating',
   'activation_failed',
   'promoted',
+  'superseded',
 ]);
 const EXPORT_STATE_KINDS = new Set([
-  'authorizing',
-  'authorization_failed',
   'authorized',
   'admitting',
   'admission_failed',
@@ -256,6 +258,18 @@ function isStringMap(input: unknown): input is Map<string, string> {
   if (!(input instanceof Map)) return false;
   for (const [key, value] of input) {
     if (typeof key !== 'string' || typeof value !== 'string') return false;
+  }
+  return true;
+}
+
+function isDispatchRootMap(
+  input: unknown,
+): input is InMemoryRouterAbEd25519YaoRegistrationStateV1['dispatchRoots'] {
+  if (!(input instanceof Map)) return false;
+  for (const [key, value] of input) {
+    if (typeof key !== 'string' || parseRouterAbEd25519YaoTenantRootWireV1(value) === null) {
+      return false;
+    }
   }
   return true;
 }
@@ -293,6 +307,7 @@ function hasProductStateCollections(
         registration.admissionClaims,
         REGISTRATION_ADMISSION_CLAIM_KINDS,
       )) &&
+    isDispatchRootMap(registration.dispatchRoots) &&
     Array.isArray(authorization.authorities) &&
     authorization.authorities.every(
       (authority) => isPlainObject(authority) && INTENT_AUTHORITY_KINDS.has(String(authority.kind)),
@@ -338,6 +353,7 @@ export function parseRouterAbEd25519YaoProductRegistrationStateV1(
         states: registration.states,
         lifecycleSessions: registration.lifecycleSessions,
         admissionClaims,
+        dispatchRoots: registration.dispatchRoots,
       },
       authorization: input.authorization,
       recovery: input.recovery,
@@ -595,7 +611,7 @@ export function createRouterAbEd25519YaoMaterialActivationRefV1(input: {
 
 /**
  * Takes the authority *scope* rather than the authority because setup admits
- * before the proof exists (Refactor 94C). Callers holding a verified authority
+ * before the proof exists. Callers holding a verified authority
  * pass `registrationEd25519AuthorityScopeFromAuthority(authority)`; setup
  * passes the scope derived from the requested auth method, and only when that
  * derivation is complete without a proof.

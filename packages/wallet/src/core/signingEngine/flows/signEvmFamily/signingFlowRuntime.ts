@@ -55,7 +55,10 @@ import {
   type ActiveWalletAuthorityEcdsaRuntimeV1,
 } from '../../session/material/activeWalletAuthorityEcdsaRuntime';
 import type { TransactionSigningIntent } from '../../session/operationState/transactionState';
-import type { ExactWalletSessionReadPorts } from '../../session/identity/exactWalletSessionCredential';
+import type {
+  ExactWalletSessionCredentialUnavailableReason,
+  ExactWalletSessionReadPorts,
+} from '../../session/identity/exactWalletSessionCredential';
 import type {
   ActiveWalletSessionV1,
   WalletSessionOperationCredentialV1,
@@ -137,7 +140,7 @@ function sessionAuthorizesCanonicalEcdsaCapability(args: {
   return matches.length === 1;
 }
 
-export async function resolveExactEcdsaOperationStepUpSession(args: {
+async function resolveExactEcdsaOperationStepUpSession(args: {
   readonly ports: ExactWalletSessionReadPorts;
   readonly scope: {
     readonly walletId: WalletId;
@@ -154,18 +157,9 @@ export async function resolveExactEcdsaOperationStepUpSession(args: {
   }
   const ports = args.ports;
   const selected = await ports.resolveSelectedWalletAuthority(String(args.scope.walletId));
-  if (
-    selected.kind !== 'resolved' ||
-    selected.selection.lockState !== 'unlocked' ||
-    selected.selection.walletId !== args.scope.walletId ||
-    selected.authMethod.status !== 'active' ||
-    selected.authMethod.walletId !== args.scope.walletId ||
-    selected.selection.walletAuthMethodId !== selected.authMethod.walletAuthMethodId ||
-    selected.authority.state !== 'active' ||
-    selected.authority.walletId !== args.scope.walletId ||
-    selected.authMethod.walletAuthorityId !== selected.authority.authorityId
-  ) {
-    throw new Error('[SigningEngine] exact ECDSA Wallet Session is unavailable');
+  const selectedReason = selectedStepUpAuthorityUnavailableReason(selected, args.scope.walletId);
+  if (selectedReason || selected.kind !== 'resolved') {
+    throw exactEcdsaWalletSessionUnavailable(selectedReason ?? 'selected_authority_invalid');
   }
   const capabilityAuthority = await walletAuthAuthorityRef({
     authority: args.capability.authority,
@@ -192,22 +186,91 @@ export async function resolveExactEcdsaOperationStepUpSession(args: {
     authMethodId: selected.authMethod.walletAuthMethodId,
   });
   if (read.kind !== 'found') {
-    throw new Error('[SigningEngine] exact ECDSA Wallet Session is unavailable');
+    throw exactEcdsaWalletSessionUnavailable(
+      read.kind === 'missing' ? 'wallet_session_missing' : 'wallet_session_upgrade_required',
+    );
   }
   const session = read.record;
-  if (
-    session.walletId !== args.scope.walletId ||
-    session.authorityId !== selected.authority.authorityId ||
-    session.authMethodId !== selected.authMethod.walletAuthMethodId ||
-    session.authorityDigestB64u !== selected.authority.authorityDigestB64u ||
-    session.authorityRevocationEpoch !== selected.authority.revocationEpoch ||
-    session.expiresAtMs <= Date.now() ||
-    !read.operationCredential.token.trim() ||
-    !sessionAuthorizesCanonicalEcdsaCapability({ session, capability: args.capability })
-  ) {
-    throw new Error('[SigningEngine] exact ECDSA Wallet Session is unavailable');
-  }
+  const sessionReason = stepUpSessionRecordUnavailableReason({
+    session,
+    operationCredential: read.operationCredential,
+    walletId: args.scope.walletId,
+    authority: selected.authority,
+    authMethod: selected.authMethod,
+    capability: args.capability,
+  });
+  if (sessionReason) throw exactEcdsaWalletSessionUnavailable(sessionReason);
   return { credential: read.operationCredential, expiresAtMs: session.expiresAtMs };
+}
+
+/* Each refusal names its check, so a failing trace says which state was
+   missing or changed. */
+function exactEcdsaWalletSessionUnavailable(reason: string): Error {
+  return new Error(`[SigningEngine] exact ECDSA Wallet Session is unavailable: ${reason}`);
+}
+
+type SelectedWalletAuthorityResult = Awaited<
+  ReturnType<ExactWalletSessionReadPorts['resolveSelectedWalletAuthority']>
+>;
+type ResolvedWalletAuthoritySelection = Extract<
+  SelectedWalletAuthorityResult,
+  { readonly kind: 'resolved' }
+>;
+
+function selectedStepUpAuthorityUnavailableReason(
+  selected: SelectedWalletAuthorityResult,
+  walletId: WalletId,
+): ExactWalletSessionCredentialUnavailableReason | null {
+  if (selected.kind !== 'resolved') {
+    return selected.kind === 'missing_selection'
+      ? 'selected_authority_missing'
+      : 'selected_authority_invalid';
+  }
+  if (
+    selected.selection.walletId !== walletId ||
+    selected.authMethod.walletId !== walletId ||
+    selected.authority.walletId !== walletId ||
+    selected.selection.walletAuthMethodId !== selected.authMethod.walletAuthMethodId ||
+    selected.authMethod.walletAuthorityId !== selected.authority.authorityId
+  ) {
+    return 'authority_identity_mismatch';
+  }
+  if (selected.selection.lockState !== 'unlocked') return 'wallet_locked';
+  if (selected.authMethod.status !== 'active') return 'auth_method_inactive';
+  if (selected.authority.state !== 'active') return 'authority_inactive';
+  return null;
+}
+
+function stepUpSessionRecordUnavailableReason(args: {
+  readonly session: ActiveWalletSessionV1;
+  readonly operationCredential: WalletSessionOperationCredentialV1;
+  readonly walletId: WalletId;
+  readonly authority: ResolvedWalletAuthoritySelection['authority'];
+  readonly authMethod: ResolvedWalletAuthoritySelection['authMethod'];
+  readonly capability: CanonicalEvmFamilyEcdsaSigningCapability;
+}): string | null {
+  const { session } = args;
+  if (
+    session.walletId !== args.walletId ||
+    session.authorityId !== args.authority.authorityId ||
+    session.authMethodId !== args.authMethod.walletAuthMethodId
+  ) {
+    return 'wallet_session_identity_mismatch (authority or method)';
+  }
+  if (session.authorityDigestB64u !== args.authority.authorityDigestB64u) {
+    return 'wallet_session_identity_mismatch (authority digest)';
+  }
+  if (session.authorityRevocationEpoch !== args.authority.revocationEpoch) {
+    return 'wallet_session_identity_mismatch (authority revocation epoch)';
+  }
+  if (!args.operationCredential.token.trim()) {
+    return 'wallet_session_identity_mismatch (operation credential)';
+  }
+  if (session.expiresAtMs <= Date.now()) return 'wallet_session_expired';
+  if (!sessionAuthorizesCanonicalEcdsaCapability({ session, capability: args.capability })) {
+    return 'wallet_session_capability_mismatch';
+  }
+  return null;
 }
 
 async function prepareSessionBoundEcdsaOperationStepUp(
@@ -284,12 +347,12 @@ async function resolveCurrentActiveWalletAuthorityRuntime(args: {
   return runtime;
 }
 
-/** R90-INV-010. The wallet's active manifest names the material that may be
- * used right now. When it has moved on from the one this operation was prepared
- * against, the preparation is superseded -- material activation is advance-only,
- * so the prepared side is always the stale one. That is a re-resolution, not a
- * failure and not a request for the wrong material. */
-export function ecdsaSigningMaterialSupersession(args: {
+/** The wallet's active manifest names the material that may be used right now.
+ * When it has moved on from the one this operation was prepared against, the
+ * preparation is superseded -- material activation is advance-only, so the
+ * prepared side is always the stale one. That is a re-resolution, not a failure
+ * and not a request for the wrong material. */
+function ecdsaSigningMaterialSupersession(args: {
   preparedMaterialActivation: EvmFamilyEcdsaMaterialActivation;
   currentMaterialActivation: EvmFamilyEcdsaMaterialActivation;
 }): SupersededEcdsaSigningMaterial | null {
@@ -306,7 +369,7 @@ export function ecdsaSigningMaterialSupersession(args: {
   };
 }
 
-export function ecdsaSigningCapabilitySupersession(args: {
+function ecdsaSigningCapabilitySupersession(args: {
   preparedCapability: CanonicalEvmFamilyEcdsaSigningCapability;
   currentManifest: ActiveEcdsaCapabilityManifest;
 }): SupersededEcdsaSigningMaterial | null {
@@ -340,7 +403,7 @@ export function ecdsaSigningCapabilitySupersession(args: {
   };
 }
 
-export function ecdsaSigningAuthorizationSupersession(args: {
+function ecdsaSigningAuthorizationSupersession(args: {
   preparedAuthorization: ExactEvmFamilyWalletSessionAuthorization;
   currentAuthorization: ExactEvmFamilyWalletSessionAuthorization | null;
   materialActivation: EvmFamilyEcdsaMaterialActivation;

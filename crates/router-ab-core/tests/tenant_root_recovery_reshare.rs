@@ -10,7 +10,7 @@ use threshold_prf::{
 mod support;
 
 use support::{
-    fixed_share, recovery_reshare_fixture as fixture, rng06, rng09, EXPIRES_AT_MS, ISSUED_AT_MS,
+    fixed_share, recovery_reshare_fixture as fixture, rng09, EXPIRES_AT_MS, ISSUED_AT_MS,
 };
 
 #[test]
@@ -27,40 +27,10 @@ fn dedicated_reshare_is_role_separated_fresh_and_root_continuous() {
         fixture.signing_b.verifying_key().as_bytes(),
     ).unwrap();
 
-    let verified_commitment_a = commitment_a
-        .verify(
-            &fixture.context,
-            fixture.signing_a.verifying_key().as_bytes(),
-        )
-        .unwrap();
-    let verified_commitment_b = commitment_b
-        .verify(
-            &fixture.context,
-            fixture.signing_b.verifying_key().as_bytes(),
-        )
-        .unwrap();
-    let hpke_a = TenantRootRecoveryReshareHpkeKeypairV1::derive_from_ikm([0x71; 32]).unwrap();
-    let hpke_b = TenantRootRecoveryReshareHpkeKeypairV1::derive_from_ikm([0x81; 32]).unwrap();
-    let contribution_a_to_b = TenantRootSignedRecoveryReshareContributionV1::seal(
-        &fixture.context,
-        &fixture.coefficient_a,
-        &verified_commitment_a,
-        "recovery-reshare-hpke-b-1",
-        &verified_commitment_b,
-        &mut rng09(0x91),
-        &fixture.signing_a.to_bytes(),
-    )
-    .unwrap();
-    let contribution_b_to_a = TenantRootSignedRecoveryReshareContributionV1::seal(
-        &fixture.context,
-        &fixture.coefficient_b,
-        &verified_commitment_b,
-        "recovery-reshare-hpke-a-1",
-        &verified_commitment_a,
-        &mut rng09(0xa1),
-        &fixture.signing_b.to_bytes(),
-    )
-    .unwrap();
+    let (verified_commitment_a, verified_commitment_b) =
+        fixture.verify_commitments(&commitment_a, &commitment_b);
+    let (contribution_a_to_b, contribution_b_to_a) =
+        fixture.seal_contributions(&verified_commitment_a, &verified_commitment_b);
     let contribution_a_to_b =
         TenantRootSignedRecoveryReshareContributionV1::decode_and_verify_canonical_bytes(
             &contribution_a_to_b.canonical_bytes().unwrap(),
@@ -89,40 +59,12 @@ fn dedicated_reshare_is_role_separated_fresh_and_root_continuous() {
         ),
         (TwoPartyDeriverRole::DeriverB, TwoPartyDeriverRole::DeriverA)
     );
-    let verified_b_for_a = contribution_b_to_a
-        .verify_and_open(
-            &fixture.context,
-            &verified_commitment_b,
-            "recovery-reshare-hpke-a-1",
-            &hpke_a,
-            fixture.signing_b.verifying_key().as_bytes(),
-        )
-        .unwrap();
-    let verified_a_for_b = contribution_a_to_b
-        .verify_and_open(
-            &fixture.context,
-            &verified_commitment_a,
-            "recovery-reshare-hpke-b-1",
-            &hpke_b,
-            fixture.signing_a.verifying_key().as_bytes(),
-        )
-        .unwrap();
-    let pending_a = router_ab_core::PendingTenantRootRecoveryShareV1::derive(
-        &fixture.context,
-        &fixture.active_a,
-        &fixture.coefficient_a,
+    let (pending_a, pending_b) = fixture.derive_pending(
         &verified_commitment_a,
-        verified_b_for_a,
-    )
-    .unwrap();
-    let pending_b = router_ab_core::PendingTenantRootRecoveryShareV1::derive(
-        &fixture.context,
-        &fixture.active_b,
-        &fixture.coefficient_b,
         &verified_commitment_b,
-        verified_a_for_b,
-    )
-    .unwrap();
+        &contribution_a_to_b,
+        &contribution_b_to_a,
+    );
 
     let expected_a = fixed_share(TwoPartyDeriverRole::DeriverA, 30);
     let expected_b = fixed_share(TwoPartyDeriverRole::DeriverB, 55);
@@ -143,24 +85,8 @@ fn dedicated_reshare_is_role_separated_fresh_and_root_continuous() {
         SigningRootShareCommitment::from_share(&fixture.active_b)
     );
 
-    let evidence_a = pending_a
-        .prove(&fixture.context, pending_b.commitment(), &mut rng06(0xb1))
-        .unwrap();
-    let evidence_b = pending_b
-        .prove(&fixture.context, pending_a.commitment(), &mut rng06(0xc1))
-        .unwrap();
-    let signed_evidence_a = TenantRootSignedRecoveryShareInstallationEvidenceV1::sign(
-        &fixture.context,
-        evidence_a,
-        &fixture.signing_a.to_bytes(),
-    )
-    .unwrap();
-    let signed_evidence_b = TenantRootSignedRecoveryShareInstallationEvidenceV1::sign(
-        &fixture.context,
-        evidence_b,
-        &fixture.signing_b.to_bytes(),
-    )
-    .unwrap();
+    let (signed_evidence_a, signed_evidence_b) =
+        fixture.sign_installation_evidence(&pending_a, &pending_b);
     let signed_evidence_a =
         TenantRootSignedRecoveryShareInstallationEvidenceV1::decode_and_verify_canonical_bytes(
             &signed_evidence_a.canonical_bytes(&fixture.context).unwrap(),
@@ -221,20 +147,8 @@ fn context_commitment_signature_recipient_and_active_share_substitution_fail_clo
         )
         .is_err());
 
-    let verified_commitment_a = fixture
-        .signed_commitment_a
-        .verify(
-            &fixture.context,
-            fixture.signing_a.verifying_key().as_bytes(),
-        )
-        .unwrap();
-    let verified_commitment_b = fixture
-        .signed_commitment_b
-        .verify(
-            &fixture.context,
-            fixture.signing_b.verifying_key().as_bytes(),
-        )
-        .unwrap();
+    let (verified_commitment_a, verified_commitment_b) =
+        fixture.verify_commitments(&fixture.signed_commitment_a, &fixture.signed_commitment_b);
     let hpke_a = TenantRootRecoveryReshareHpkeKeypairV1::derive_from_ikm([0x71; 32]).unwrap();
     let wrong_hpke_a = TenantRootRecoveryReshareHpkeKeypairV1::derive_from_ikm([0x72; 32]).unwrap();
     let contribution_b_to_a = TenantRootSignedRecoveryReshareContributionV1::seal(

@@ -17,29 +17,29 @@ import {
 } from '@shared/authorization/delegatedAuthority';
 import { walletAuthorityDigestsMatchV1 } from '@shared/authorization/walletAuthority';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
-import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';
+import { sha256Utf8DigestB64u } from '@shared/utils/canonicalPrimitives';
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
-import { alphabetizeStringify, sha256BytesUtf8 } from '@shared/utils/digests';
+import { alphabetizeStringify } from '@shared/utils/digests';
 import type {
-  WalletAuthMethodRecordV2,
+  ActiveWalletAuthMethodRecordV2,
   PasskeyWalletAuthMethodDraftV1,
   EmailOtpWalletAuthMethodDraftV1,
-  WalletEmailOtpEnrollmentMaterialV1,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/walletAuthMethodRecord';
+import type { WalletEmailOtpEnrollmentMaterialV1 } from '@shared/utils/registrationAuthMethodInput';
 import { parseWebAuthnCredentialIdB64u } from '@shared/utils/domainIds';
 import { parseDeviceId } from '@shared/authorization/capabilityKinds';
 import type { PrincipalId } from '@shared/authorization/capabilityKinds';
 import {
   sourceKeyManifestDigestForFamilyV1,
   type LinkedDeviceSessionRecordV1,
-} from '../../../../core/deviceLinking/linkedDeviceSession';
+} from '../../../../core/deviceLinking/linkedDeviceSessionRecord';
 import type { VerifiedLinkedDeviceTargetFactorEvidenceV1 } from './d1LinkedDeviceTargetCredentialProvider';
 
 const VERIFIED_TARGET_FACTOR_DOMAIN_V1 = 'seams/linked-device/verified-target-factor/v1';
 
 export type VerifiedLinkSourceReadV1 = {
   readonly authority: ActiveWalletAuthorityV1;
-  readonly authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+  readonly authMethod: ActiveWalletAuthMethodRecordV2;
   readonly signerManifest: ExactAdministeredSignerManifestV1;
   /** The custody manifest recorded on the requested source signer. */
   readonly keyManifestDigestB64u: DigestB64u;
@@ -178,21 +178,17 @@ export async function computeVerifiedTargetFactorVerificationDigestV1(input: {
           authorityDigestB64u: input.evidence.grant.authorityDigestB64u,
           descriptorCredentialIdB64u: input.evidence.grant.descriptorCredentialIdB64u,
         };
-  return parseDigestB64u(
-    base64UrlEncode(
-      await sha256BytesUtf8(
-        `${VERIFIED_TARGET_FACTOR_DOMAIN_V1}\u0000${alphabetizeStringify({
-          linkSessionId: input.registration.linkSessionId,
-          walletId: input.registration.walletId,
-          enrollmentId: input.registration.enrollmentId,
-          deviceId: input.registration.deviceId,
-          walletAuthMethodId: input.registration.walletAuthMethodId,
-          targetPreparationDigestB64u: input.registration.targetPreparationDigestB64u,
-          verifiedAtMs: input.verifiedAtMs,
-          evidence,
-        })}`,
-      ),
-    ),
+  return sha256Utf8DigestB64u(
+    `${VERIFIED_TARGET_FACTOR_DOMAIN_V1}\u0000${alphabetizeStringify({
+      linkSessionId: input.registration.linkSessionId,
+      walletId: input.registration.walletId,
+      enrollmentId: input.registration.enrollmentId,
+      deviceId: input.registration.deviceId,
+      walletAuthMethodId: input.registration.walletAuthMethodId,
+      targetPreparationDigestB64u: input.registration.targetPreparationDigestB64u,
+      verifiedAtMs: input.verifiedAtMs,
+      evidence,
+    })}`,
   );
 }
 

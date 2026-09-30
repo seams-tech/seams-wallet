@@ -6,7 +6,7 @@ import { base64UrlDecode } from '@shared/utils/base64';
 import { bytesToHex } from '../../../chains/evm/bytes';
 import type { Shamir3PassRuntime } from './runtime';
 
-export type PreparedClientSeal = {
+type PreparedClientSeal = {
   runtime: Shamir3PassRuntime;
   secretDigest: string;
   keyHandle: string;
@@ -43,7 +43,7 @@ function sameSecretDigest(left: string, right: string): boolean {
   return difference === 0;
 }
 
-export async function createClientSeal(
+async function createClientSeal(
   getRuntime: () => Promise<Shamir3PassRuntime>,
   secret: string,
 ): Promise<PreparedClientSeal> {

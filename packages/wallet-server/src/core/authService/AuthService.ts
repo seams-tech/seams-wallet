@@ -45,7 +45,6 @@ import {
   listWebAuthnAuthenticatorsForUserWithStores,
   verifyWebAuthnAuthenticationLiteWithStore,
   verifyWebAuthnLoginWithStores,
-  verifyWebAuthnRegistrationCredentialForIntent,
   verifyWebAuthnSyncAccountWithStores,
   type WebAuthnAuthenticatorListResult,
   type WebAuthnSyncAccountVerificationRequest,
@@ -71,7 +70,6 @@ import {
 } from './emailOtpDelivery';
 import {
   createEmailOtpChallengeWithAction as createEmailOtpChallengeWithActionWithStores,
-  pruneExpiredEmailOtpChallengesWithStore,
   type CreateEmailOtpChallengeWithActionResult,
 } from './emailOtpChallenges';
 import {
@@ -114,7 +112,6 @@ import {
   type EmailOtpGrantConsumeRequest,
   type EmailOtpGrantConsumeResult,
 } from './emailOtpGrant';
-import { cleanupGoogleEmailOtpRegistrationAttemptsWithStore } from './googleEmailOtpRegistration';
 import {
   cleanupGoogleEmailOtpDevRegistrationStateForAuthService,
   completeGoogleEmailOtpRegistrationAttemptForAuthService,
@@ -157,7 +154,6 @@ import {
   type EmailOtpChannel,
   type EmailOtpChallengeAction,
   type EmailOtpChallengeOperation,
-  type EmailOtpChallengeStore,
   type EmailOtpLoginChallengeOperation,
 } from '../EmailOtpStores';
 import { type NearPublicKeyKind } from '../NearPublicKeyStore';
@@ -168,8 +164,6 @@ import {
   type RecordNearPublicKeyMetadataResult,
 } from './nearPublicKeyMetadata';
 import { type LinkIdentityResult, type UnlinkIdentityResult } from '../IdentityStore';
-
-const REGISTRATION_WALLET_SIGNING_SESSION_REMAINING_USES = 3;
 
 type AuthServiceRouterAbSigningRuntimeState =
   | {
@@ -187,10 +181,6 @@ type AuthServiceRouterAbSigningRuntimeState =
       readonly normalSigning: RouterAbNormalSigningRuntime;
       readonly ecdsaPresign: RouterAbEcdsaPresignRuntime;
     };
-
-function assertNever(value: never): never {
-  throw new Error(`Unexpected variant: ${JSON.stringify(value)}`);
-}
 
 /**
  * Framework-agnostic NEAR account service
@@ -312,13 +302,6 @@ export class AuthService {
     return await resolveOidcWalletIdWithGoogleEmailOtp({
       deps: this.googleEmailOtpOperationsInput(),
       request: input,
-    });
-  }
-
-  private async cleanupGoogleEmailOtpRegistrationAttempts(nowMs = Date.now()): Promise<void> {
-    await cleanupGoogleEmailOtpRegistrationAttemptsWithStore({
-      registrationAttemptStore: this.stores.getEmailOtpRegistrationAttemptStore(),
-      nowMs,
     });
   }
 
@@ -707,15 +690,6 @@ export class AuthService {
     return await this.nearAccounts.fundImplicitNearAccount(request);
   }
 
-  private async verifyRegistrationCredentialForIntent(input: {
-    webauthnRegistration: unknown;
-    expectedChallenge: string;
-    expectedOrigin: string;
-    rpId: WebAuthnRpId;
-  }) {
-    return await verifyWebAuthnRegistrationCredentialForIntent(input);
-  }
-
   /**
    * Standard WebAuthn assertion verification for lite flows.
    *
@@ -857,17 +831,6 @@ export class AuthService {
       unlockChallengeStore: this.stores.getEmailOtpUnlockChallengeStore(),
       readActiveEnrollment: this.readActiveEmailOtpEnrollment.bind(this),
       putAuthStateForEnrollment: this.putEmailOtpAuthStateForEnrollment.bind(this),
-    });
-  }
-
-  private async pruneExpiredEmailOtpChallenges(
-    challengeStore: EmailOtpChallengeStore,
-    nowMs: number,
-  ): Promise<void> {
-    await pruneExpiredEmailOtpChallengesWithStore({
-      challengeStore,
-      memoryOutbox: this.emailOtpMemoryOutbox,
-      nowMs,
     });
   }
 

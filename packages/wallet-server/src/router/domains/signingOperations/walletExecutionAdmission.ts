@@ -27,7 +27,7 @@ import type {
   ExactAdministeredEcdsaSignerV1,
   ExactAdministeredEd25519SignerV1,
 } from '@shared/device-linking/delegatedActivationPlan';
-import type { WalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
+import type { WalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 import type {
   AuthorizedOperation,
   WalletSessionAuthorizationV2,
@@ -39,16 +39,12 @@ import {
 } from '../../../authorization/domain';
 import type { PrincipalId, TenantId } from '@shared/authorization/capabilityKinds';
 
-export type ClaimedAuthorizedOperation = AuthorizedOperation & {
+type ClaimedAuthorizedOperation = AuthorizedOperation & {
   readonly lifecycle: 'claimed';
   readonly result?: never;
   readonly response?: never;
   readonly resultDigest?: never;
   readonly completedAtMs?: never;
-};
-
-type ActiveWalletKeyRecord = WalletKeyRecord & {
-  readonly lifecycle: Extract<WalletKeyRecord['lifecycle'], { readonly state: 'active' }>;
 };
 
 type OwnerSigningLaneRecord = Extract<
@@ -62,7 +58,7 @@ type ActiveOwnerSigningLaneRecord = OwnerSigningLaneRecord & {
   readonly lifecycle: Extract<SigningLaneRecord['lifecycle'], { readonly state: 'active' }>;
 };
 
-export type WalletExecutionAdmissionRefusalReason =
+type WalletExecutionAdmissionRefusalReason =
   | 'operation_not_claimed'
   | 'wallet_key_inactive'
   | 'lane_inactive'
@@ -75,7 +71,7 @@ export type WalletExecutionAdmissionRefusalReason =
   | 'participant_binding_mismatch'
   | 'activation_receipt_mismatch';
 
-export type WalletExecutionAdmissionResult =
+type WalletExecutionAdmissionResult =
   | {
       readonly kind: 'prepared';
       readonly execution: PreparedOwnerWalletExecution;
@@ -85,7 +81,7 @@ export type WalletExecutionAdmissionResult =
       readonly reason: WalletExecutionAdmissionRefusalReason;
     };
 
-export type OwnerWalletExecutionEvidence = {
+type OwnerWalletExecutionEvidence = {
   readonly walletId: WalletId;
   readonly walletKey: WalletKeyRecord;
   readonly lane: SigningLaneRecord;
@@ -143,7 +139,7 @@ export type WalletSessionAuthorizationV2AdministrationOperation = {
   readonly walletId: WalletId;
 };
 
-export type WalletSessionAuthorizationV2AdmissionError =
+type WalletSessionAuthorizationV2AdmissionError =
   | 'invalid_time'
   | 'authorization_retired'
   | 'authorization_expired'

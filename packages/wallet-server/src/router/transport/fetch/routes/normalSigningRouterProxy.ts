@@ -3,16 +3,12 @@ import type { RouterAbNormalSigningRouterProxy } from '../../../framework/router
 import type { RouterApiWalletRegistrationService } from '../../../framework/authServicePort';
 import type { AuthorizedOperation } from '../../../../authorization/domain';
 import { prepareOwnerWalletExecution } from '../../../domains/signingOperations/walletExecutionAdmission';
-import type { RouterAbNormalSigningMaterialSourceV1 } from '../../../domains/signingOperations/routerAbPrivateSigningWorker';
 import { routerAbMpcMaterialActivationRefFromWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import type { RouterAbMpcMaterialActivationRefWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import {
   normalizeRouterAbInternalServiceAuthSecret,
   ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
 } from '../../../../core/ThresholdService/routerAb/internalServiceHttp';
-
-export const ROUTER_AB_ECDSA_DERIVATION_LINKED_DEVICE_SIGN_PATH =
-  '/router-ab/ecdsa-derivation/linked-device/sign' as const;
 
 export async function proxyNormalSigningRequestToMpcRouter(input: {
   readonly request: Request;
@@ -96,6 +92,7 @@ type NormalSigningGatewayOwnerBindingRecord = {
   readonly org_id: unknown;
   readonly project_id: unknown;
   readonly environment: unknown;
+  readonly project_environment_id: unknown;
   readonly signing_worker_id: unknown;
   readonly expires_at_ms: unknown;
 };
@@ -144,7 +141,7 @@ function isNormalSigningGatewayOwnerBindingRecord(
   if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
   return (
     Object.keys(value).sort().join('|') ===
-    'account_id|authorization_id|environment|expires_at_ms|kind|org_id|project_id|quota_id|signing_worker_id|subject_id|threshold_session_id|wallet_session_id'
+    'account_id|authorization_id|environment|expires_at_ms|kind|org_id|project_environment_id|project_id|quota_id|signing_worker_id|subject_id|threshold_session_id|wallet_session_id'
   );
 }
 
@@ -187,6 +184,8 @@ function isNormalSigningGatewayOwnerBindingValues(
     record.project_id.trim().length > 0 &&
     typeof record.environment === 'string' &&
     record.environment.trim().length > 0 &&
+    typeof record.project_environment_id === 'string' &&
+    record.project_environment_id.trim().length > 0 &&
     typeof record.signing_worker_id === 'string' &&
     record.signing_worker_id.trim().length > 0 &&
     typeof record.expires_at_ms === 'number' &&
@@ -257,27 +256,5 @@ export async function proxyOwnerLaneAdmittedNormalSigningRequest(input: {
     request: input.request,
     proxy: input.proxy,
     body: input.body,
-  });
-}
-
-/** Forwards a Gateway-admitted rotatable lane source to the private Router. */
-export async function proxyRotatableLaneAdmittedNormalSigningRequest(input: {
-  readonly request: Request;
-  readonly proxy: RouterAbNormalSigningRouterProxy | null | undefined;
-  readonly body: Record<string, unknown>;
-  readonly materialSource: Extract<
-    RouterAbNormalSigningMaterialSourceV1,
-    { readonly kind: 'rotatable_lane' }
-  >;
-  readonly targetPath?: string;
-}): Promise<Response> {
-  return await proxyNormalSigningRequestToMpcRouter({
-    request: input.request,
-    proxy: input.proxy,
-    body: {
-      ...input.body,
-      material_source: input.materialSource,
-    },
-    targetPath: input.targetPath,
   });
 }

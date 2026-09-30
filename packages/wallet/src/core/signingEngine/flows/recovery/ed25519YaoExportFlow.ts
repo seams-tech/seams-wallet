@@ -67,7 +67,7 @@ export type Ed25519YaoExportFlowDeps = {
   theme?: 'dark' | 'light';
 };
 
-export type ExportEd25519YaoKeyArgs = {
+type ExportEd25519YaoKeyArgs = {
   walletId: WalletId;
   nearAccountId: AccountId;
   laneIdentity: ExactEd25519ExportMaterialIdentity;

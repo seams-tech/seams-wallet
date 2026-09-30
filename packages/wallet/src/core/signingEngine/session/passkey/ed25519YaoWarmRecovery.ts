@@ -1,4 +1,4 @@
-import type { CurrentEd25519SealedSessionRecord } from '@/core/signingEngine/session/persistence/sealedSessionStore';
+import type { CurrentEd25519SealedSessionRecord } from '@/core/signingEngine/session/persistence/sealedSessionRecords';
 import type { PasskeyCustodyEnvelopeRecord } from '@shared/passkey-custody';
 import {
   ed25519DurableMaterialLocator,
@@ -22,8 +22,8 @@ import {
 } from '@shared/utils/routerAbEd25519Yao';
 import { parseRouterAbEd25519NormalSigningState } from '@shared/utils/signingSessionSeal';
 import type { WalletAuthAuthorityRef } from '@shared/utils/walletAuthAuthority';
-import { walletIdFromString } from '@shared/utils/registrationIntent';
-import { isPlainObject } from '@shared/utils/validation';
+import { walletIdFromString } from '@shared/utils/registrationIds';
+import { isPlainObject, requireRecord, requireTrimmedString } from '@shared/utils/validation';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import {
   parseMpcWalletSigningQuotaId,
@@ -78,7 +78,7 @@ type ExactSelectedPasskeyWalletSessionAuthorization = {
   readonly authorityRevocationEpoch: number;
 };
 
-export type PasskeyEd25519WarmRecoverySubject = {
+type PasskeyEd25519WarmRecoverySubject = {
   readonly kind: 'owner_sealed_runtime';
   readonly walletId: string;
   readonly nearAccountId: string;
@@ -88,7 +88,7 @@ export type PasskeyEd25519WarmRecoverySubject = {
   readonly materialActivation: MpcMaterialActivationRef;
 };
 
-export type PasskeyEd25519YaoWarmRecoveryUnavailableReason =
+type PasskeyEd25519YaoWarmRecoveryUnavailableReason =
   | 'sealed_session_missing'
   | 'sealed_session_expired'
   | 'sealed_session_exhausted'
@@ -149,17 +149,6 @@ type WarmRecoveryBootstrapResult =
       readonly descriptor: ParsedPasskeyEd25519YaoRecoveryDescriptorV1;
     }
   | { readonly kind: 'unavailable'; readonly reason: 'wallet_session_expired' };
-
-function requireRecord(value: unknown, label: string): Record<string, unknown> {
-  if (!isPlainObject(value)) throw new Error(`${label} must be an object`);
-  return value;
-}
-
-function requireString(value: unknown, label: string): string {
-  const parsed = typeof value === 'string' ? value.trim() : '';
-  if (!parsed) throw new Error(`${label} is required`);
-  return parsed;
-}
 
 function requirePositiveInteger(value: unknown, label: string): number {
   if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 1) {
@@ -312,7 +301,7 @@ async function readExactSelectedPasskeyWalletSessionAuthorization(args: {
   }
 }
 
-export async function requirePasskeyEd25519RestoreAuthorization(args: {
+async function requirePasskeyEd25519RestoreAuthorization(args: {
   readonly record: CurrentEd25519SealedSessionRecord;
   readonly authorizationRead: WalletSessionAuthorizationExactActiveReadResult;
   readonly expectedAuthorityRef: WalletAuthAuthorityRef;
@@ -458,18 +447,21 @@ async function parseWarmRecoveryDescriptor(args: {
     throw new Error('warm recovery bootstrap response kind is invalid');
   }
   const restore = record.ed25519Restore;
-  const walletId = requireString(response.walletId, 'response.walletId');
-  const nearAccountId = requireString(response.nearAccountId, 'response.nearAccountId');
-  const nearEd25519SigningKeyId = requireString(
+  const walletId = requireTrimmedString(response.walletId, 'response.walletId');
+  const nearAccountId = requireTrimmedString(response.nearAccountId, 'response.nearAccountId');
+  const nearEd25519SigningKeyId = requireTrimmedString(
     response.nearEd25519SigningKeyId,
     'response.nearEd25519SigningKeyId',
   );
   const signerSlot = requirePositiveInteger(response.signerSlot, 'response.signerSlot');
-  const thresholdSessionId = requireString(
+  const thresholdSessionId = requireTrimmedString(
     response.thresholdSessionId,
     'response.thresholdSessionId',
   );
-  const signingWorkerId = requireString(response.signingWorkerId, 'response.signingWorkerId');
+  const signingWorkerId = requireTrimmedString(
+    response.signingWorkerId,
+    'response.signingWorkerId',
+  );
   const thresholdExpiresAtMs = requirePositiveInteger(
     response.thresholdExpiresAtMs,
     'response.thresholdExpiresAtMs',
@@ -527,7 +519,10 @@ async function parseWarmRecoveryDescriptor(args: {
     signerSlot,
     operationalPublicKey: `ed25519:${base58Encode(Uint8Array.from(capability.registeredPublicKey))}`,
     relayerKeyId: signingWorkerId,
-    credentialIdB64u: requireString(restore.credentialIdB64u, 'ed25519Restore.credentialIdB64u'),
+    credentialIdB64u: requireTrimmedString(
+      restore.credentialIdB64u,
+      'ed25519Restore.credentialIdB64u',
+    ),
     session: {
       sessionKind: 'opaque',
       walletSessionToken,
@@ -569,7 +564,7 @@ export async function resolvePasskeyEd25519YaoExportContextV1(
   if (!walletId.ok) {
     throw new Error('[SigningEngine][near] sealed Ed25519 wallet identity is invalid');
   }
-  const credentialIdB64u = requireString(
+  const credentialIdB64u = requireTrimmedString(
     exactRecord.record.ed25519Restore.credentialIdB64u,
     'ed25519Restore.credentialIdB64u',
   );

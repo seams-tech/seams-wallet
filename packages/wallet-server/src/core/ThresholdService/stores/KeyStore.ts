@@ -10,9 +10,8 @@ import {
   redisGetJson,
   redisSetJson,
 } from '../kv';
-import { toOptionalTrimmedString } from '@shared/utils/validation';
+import { toOptionalTrimmedString, isPlainObject } from '@shared/utils/validation';
 import {
-  isObject,
   canonicalThresholdEd25519RelayerKeyId,
   toThresholdEd25519KeyPrefix,
   toThresholdEd25519PrefixFromBase,
@@ -23,7 +22,7 @@ import { readNonDurableObjectThresholdStoreKind } from './StoreConfig';
 
 type ThresholdKeyStoreConfigRecord = Record<string, unknown>;
 
-export type ThresholdEd25519ProvisioningKeyRecord = {
+type ThresholdEd25519ProvisioningKeyRecord = {
   kind: 'provisioning';
   walletId: string;
   nearAccountId: string;
@@ -165,7 +164,7 @@ export function createThresholdEd25519KeyStore(input: {
   });
   if (doStores) return doStores.keyStore;
 
-  const config = (isObject(input.config) ? input.config : {}) as ThresholdKeyStoreConfigRecord;
+  const config = (isPlainObject(input.config) ? input.config : {}) as ThresholdKeyStoreConfigRecord;
   const basePrefix = toOptionalTrimmedString(config.THRESHOLD_PREFIX);
   const envPrefix =
     toOptionalTrimmedString(config.THRESHOLD_ED25519_KEYSTORE_PREFIX) ||

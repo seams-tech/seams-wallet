@@ -6,7 +6,7 @@ import {
 import type {
   EcdsaCapabilityManifestLookup,
   EcdsaCapabilityMaterialRefLookup,
-} from '../../../indexedDB/seamsWalletDB/ecdsaCapabilityManifestStore';
+} from '../../../indexedDB/seamsWalletDB/ecdsaCapabilityManifestLookups';
 import {
   buildBlockedMpcCapabilityHydrationPlan,
   buildRehydrateMaterialActivationHydrationPlan,

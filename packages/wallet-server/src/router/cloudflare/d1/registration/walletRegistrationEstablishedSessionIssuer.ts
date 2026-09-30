@@ -1,7 +1,5 @@
-import type {
-  WalletRegistrationEd25519YaoPublicResult,
-  WalletRegistrationFinalizeAuthMethod,
-} from '../../../../core/registrationContracts';
+import type { WalletRegistrationEd25519YaoPublicResult } from '../../../../core/registrationContracts';
+import type { WalletRegistrationFinalizeAuthMethod } from '@shared/utils/registrationContracts';
 import { parseSessionOrigin, parseVerifiedOwnerProofId } from '../../../../authorization/domain';
 import {
   buildVerifiedOwnerProof,
@@ -40,7 +38,7 @@ import {
 import {
   walletIdFromString,
   nearEd25519SigningKeyIdFromString,
-} from '@shared/utils/registrationIntent';
+} from '@shared/utils/registrationIds';
 import { parseDigestB64u, type DigestB64u } from '@shared/utils/canonicalPrimitives';
 import { alphabetizeStringify, sha256BytesUtf8 } from '@shared/utils/digests';
 import { base64UrlEncode } from '@shared/utils/encoders';
@@ -69,7 +67,7 @@ import {
 import { routerAbMpcMaterialActivationRefFromWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import { registrationEstablishedMintId } from './walletRegistrationSessionCommitReceipt';
 
-export type RegistrationEstablishedSessionIssuerAuthorizationService = Pick<
+type RegistrationEstablishedSessionIssuerAuthorizationService = Pick<
   AuthorizationService,
   | 'issueDirectWalletSessionAuthorizationV2'
   | 'issueDirectRegistrationPromotedWalletSessionAuthorizationV2'
@@ -78,7 +76,7 @@ export type RegistrationEstablishedSessionIssuerAuthorizationService = Pick<
   | 'refreshWalletSessionAuthorizationV2AuthorityProjection'
 >;
 
-export type RegistrationEstablishedSessionIssuerWalletAuthMethodReader = {
+type RegistrationEstablishedSessionIssuerWalletAuthMethodReader = {
   readonly readActiveRegistrationAuthority: (authority: StoredRegistrationAuthority) => Promise<{
     readonly authority: ActiveWalletAuthorityV1;
     readonly walletAuthMethodId: WalletAuthMethodId;

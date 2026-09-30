@@ -1,5 +1,5 @@
 import React from 'react';
-import type { IconProps } from './SunIcon';
+import type { IconProps } from './strokeIcon';
 
 export const MailIcon: React.FC<IconProps> = ({
   size = 24,

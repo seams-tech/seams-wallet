@@ -45,10 +45,6 @@ import {
 } from './routerAbEd25519YaoRecovery';
 export type { WarmBootstrapLinkedEd25519AuthorityReaderV1 } from './routerAbEd25519YaoRecovery';
 import {
-  parseThresholdEd25519SessionId,
-  type ThresholdEd25519SessionId,
-} from '@shared/utils/domainIds';
-import {
   runRouterAbEd25519YaoRegistrationTwoPhaseV1,
   type RouterAbEd25519YaoRegistrationTwoPhaseBackendResultV1,
   type RouterAbEd25519YaoRegistrationTwoPhaseCompletionV1,
@@ -102,20 +98,6 @@ type TraceResolution =
   | { readonly ok: true; readonly value: RouterAbTraceContextV1 }
   | { readonly ok: false; readonly message: string };
 
-type WarmRecoveryWalletSessionIdentity = {
-  readonly thresholdSessionId: ThresholdEd25519SessionId;
-};
-
-function parseWarmRecoveryWalletSessionIdentity(input: {
-  readonly thresholdSessionId: unknown;
-}): WarmRecoveryWalletSessionIdentity | null {
-  const thresholdSessionId = parseThresholdEd25519SessionId(input.thresholdSessionId);
-  if (!thresholdSessionId.ok) return null;
-  return {
-    thresholdSessionId: thresholdSessionId.value,
-  };
-}
-
 export type RouterAbEd25519YaoRecoveryRequestScopedCloudflareInputV1 = {
   readonly request: Request;
   readonly store: RouterAbEd25519YaoProductRegistrationPartitionedStateStoreV1;
@@ -156,6 +138,8 @@ class RecoveryAdmissionRequestRun {
     const prepared = service.prepareAdmitRecovery(
       this.request,
       recoveryAuthorizationBinding(authorized.authorization),
+      await this.context.input.backend.resolveRecoveryDispatchRoot(this.request),
+      Date.now(),
     );
     switch (prepared.kind) {
       case 'claimed':
@@ -198,7 +182,7 @@ class RecoveryAdmissionRequestRun {
       claim,
       outcome: { kind: 'backend_response', result: backend },
     });
-    return { state, value };
+    return { kind: 'state', state, value };
   }
 
   private service(
@@ -236,6 +220,7 @@ class RecoveryExecutionRequestRun {
     const prepared = service.prepareExecuteRecovery(
       this.request,
       recoveryAuthorizationBinding(authorized.authorization),
+      Date.now(),
     );
     switch (prepared.kind) {
       case 'claimed':
@@ -251,7 +236,7 @@ class RecoveryExecutionRequestRun {
   }
 
   async backend(
-    _claim: RouterAbEd25519YaoRecoveryExecuteClaimV1,
+    claim: RouterAbEd25519YaoRecoveryExecuteClaimV1,
   ): Promise<
     RouterAbEd25519YaoRegistrationTwoPhaseBackendResultV1<RouterAbEd25519YaoRecoveryBackendResult>
   > {
@@ -260,7 +245,10 @@ class RecoveryExecutionRequestRun {
         kind: 'response',
         value: await this.context.input.backend.executeRecovery(
           this.request,
-          _claim.admissionRequest,
+          claim.admissionRequest,
+          claim.dispatchRoot,
+          claim.attempt,
+          claim.replay,
           this.context.trace,
         ),
       };
@@ -282,7 +270,7 @@ class RecoveryExecutionRequestRun {
       claim,
       outcome: { kind: 'backend_response', result: backend },
     });
-    return { state, value };
+    return { kind: 'state', state, value };
   }
 
   private service(
@@ -334,14 +322,18 @@ class RecoveryActivationRequestRun {
   }
 
   async backend(
-    _claim: RouterAbEd25519YaoRecoveryActivationClaimV1,
+    claim: RouterAbEd25519YaoRecoveryActivationClaimV1,
   ): Promise<
     RouterAbEd25519YaoRegistrationTwoPhaseBackendResultV1<RouterAbEd25519YaoRecoveryBackendResult>
   > {
     try {
       return {
         kind: 'response',
-        value: await this.context.input.backend.activateRecovery(this.request, this.context.trace),
+        value: await this.context.input.backend.activateRecovery(
+          this.request,
+          claim.dispatchRoot,
+          this.context.trace,
+        ),
       };
     } catch (error: unknown) {
       return {
@@ -361,10 +353,15 @@ class RecoveryActivationRequestRun {
       claim,
       outcome: { kind: 'backend_response', result: backend },
     });
-    return {
-      state,
-      value: committed.kind === 'completed' ? committed.value : committed.failure,
-    };
+    switch (committed.kind) {
+      case 'uncertain':
+        return { kind: 'state', state, value: committed.failure };
+      case 'completed':
+        return { kind: 'state', state, value: committed.value };
+      case 'promoted':
+        // The capability replacement commits with the promoted state, or neither does.
+        return { kind: 'state_with_write', state, value: committed.value, write: committed.write };
+    }
   }
 
   private service(
@@ -447,9 +444,11 @@ function recoveryStatus(
   switch (recovery.kind) {
     case 'admitting':
     case 'admission_failed':
+    case 'superseded':
       return { stage: 'missing', lifecycle_id: lifecycleId };
     case 'admitted':
     case 'executing':
+    case 'execution_interrupted':
     case 'execution_failed':
       return {
         stage: 'admitted',

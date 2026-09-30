@@ -7,6 +7,27 @@ body {
   color-scheme: normal;
 }
 
+/* The hosted sign-in menu sits in the host page's flow, so the wheel must
+   reach that page. While a modal surface shares the document, elastic
+   overscroll stays off. */
+html:has(.seams-auth-menu-surface):not(
+    :has(
+      .seams-confirmation-surface,
+      .seams-export-surface,
+      [data-seams-wallet-recovery-backup-dialog]
+    )
+  ),
+html:has(.seams-auth-menu-surface):not(
+    :has(
+      .seams-confirmation-surface,
+      .seams-export-surface,
+      [data-seams-wallet-recovery-backup-dialog]
+    )
+  )
+  body {
+  overscroll-behavior: auto;
+}
+
 html.seams-transparent,
 body.seams-transparent {
   background: transparent !important;

@@ -1,10 +1,10 @@
 import type { EvmSignedResult } from '../../chains/evm/evmAdapter';
 import type { TempoSignedResult } from '../../chains/tempo/tempoAdapter';
 
-export type Secp256k1EngineCtor = typeof import('./signers/secp256k1').Secp256k1Engine;
-export type WebAuthnP256EngineCtor = typeof import('./signers/webauthnP256').WebAuthnP256Engine;
-export type SignEvmWithUiConfirmFn = (args: unknown) => Promise<EvmSignedResult>;
-export type SignEvmFamilyWithUiConfirmForTempoFn = (
+type Secp256k1EngineCtor = typeof import('./signers/secp256k1').Secp256k1Engine;
+type WebAuthnP256EngineCtor = typeof import('./signers/webauthnP256').WebAuthnP256Engine;
+type SignEvmWithUiConfirmFn = (args: unknown) => Promise<EvmSignedResult>;
+type SignEvmFamilyWithUiConfirmForTempoFn = (
   args: unknown,
 ) => Promise<TempoSignedResult | EvmSignedResult>;
 

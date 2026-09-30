@@ -26,7 +26,7 @@ import type {
 import type { MpcMaterialActivationRef, WalletId } from '@shared/utils/domainIds';
 
 /** A version is monotonic inside one immutable protocol or enrollment row. */
-export type LaneVersionedRecord<T> = {
+type LaneVersionedRecord<T> = {
   readonly version: number;
   readonly commandDigestB64u: string;
   readonly value: T;
@@ -290,30 +290,3 @@ export type LaneEnrollmentRevocationCommitInput = {
   readonly expectedVersion: number;
   readonly commandDigestB64u: string;
 };
-
-export function protocolCasResultToAdmissionResult(
-  result: LaneProtocolCasResultV1,
-): LaneAdmissionMutationResult<LaneProtocolRecordV1> {
-  if (result.outcome === 'conflict') {
-    return {
-      outcome: 'conflict',
-      expectedVersion: result.expectedVersion,
-      actualVersion: result.actualVersion,
-      requestedCommandDigestB64u: result.requestedCommandDigestB64u,
-      storedCommandDigestB64u: result.storedCommandDigestB64u,
-    };
-  }
-  return {
-    outcome: result.outcome,
-    version: result.version,
-    commandDigestB64u: result.commandDigestB64u,
-    value: result.record,
-  };
-}
-
-export function assertNonEmptyVersion(value: number, label: string): number {
-  if (!Number.isSafeInteger(value) || value < 1) {
-    throw new Error(`${label} must be a positive safe integer`);
-  }
-  return value;
-}

@@ -1,0 +1,77 @@
+{
+  "$schema": "../../../node_modules/wrangler/config-schema.json",
+  "main": "../../../crates/router-ab-cloudflare/build/tenant-root-control-plane/worker/shim.mjs",
+  "compatibility_date": "2026-06-12",
+  "workers_dev": false,
+  "preview_urls": false,
+  "env": {
+    "d1": {
+      "name": "r150-bench-20260925-d1-tenant-root-control-plane",
+      "workers_dev": false,
+      "preview_urls": false,
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "ROUTER_TENANT_ROOT_CREATION_DO",
+            "class_name": "RouterAbTenantRootCreationDurableObject",
+            "script_name": "r150-bench-20260925-d1-router"
+          }
+        ]
+      },
+      "vars": {
+        "ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET_BINDING": "ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET",
+        "TENANT_ROOT_CONTROL_PLANE_ISSUER_SIGNING_KEY_BINDING": "TENANT_ROOT_CONTROL_PLANE_ISSUER_SIGNING_KEY",
+        "TENANT_ROOT_CONTROL_PLANE_ISSUER_SIGNING_KEY_ID": "__R150_BENCH_D1_ISSUER_KEY_ID__",
+        "TENANT_ROOT_RECOVERY_TRUST_BUNDLE_JSON": "__R150_BENCH_D1_RECOVERY_TRUST_BUNDLE_JSON__",
+        "TENANT_ROOT_CONTROL_PLANE_ISSUER_VERIFYING_KEYS_JSON": "__R150_BENCH_D1_ISSUER_KEYS_JSON__",
+        "TENANT_ROOT_CONTROL_PLANE_GRANT_AUTHORITY_VERIFYING_KEYS_JSON": "__R150_BENCH_D1_GRANT_KEYS_JSON__",
+        "ROUTER_TENANT_ROOT_CREATION_ROLE_VERIFYING_KEYS_JSON": "__R150_BENCH_D1_ROLE_KEYS_JSON__",
+        "OPERATIONS_INCIDENT_VERIFYING_KEY_HEX": "__R150_BENCH_D1_OPERATIONS_INCIDENT_VERIFYING_KEY__",
+        "DERIVER_A_CUSTODY_AUTHORITY_VERIFYING_KEY_HEX": "__R150_BENCH_D1_DERIVER_A_CUSTODY_VERIFYING_KEY__",
+        "DERIVER_B_CUSTODY_AUTHORITY_VERIFYING_KEY_HEX": "__R150_BENCH_D1_DERIVER_B_CUSTODY_VERIFYING_KEY__",
+        "DERIVER_A_PEER_VERIFYING_KEY_HEX": "__R150_BENCH_D1_DERIVER_A_PEER_VERIFYING_KEY__",
+        "DERIVER_B_PEER_VERIFYING_KEY_HEX": "__R150_BENCH_D1_DERIVER_B_PEER_VERIFYING_KEY__"
+      },
+      "secrets": {
+        "required": [
+          "ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET",
+          "TENANT_ROOT_CONTROL_PLANE_ISSUER_SIGNING_KEY"
+        ]
+      }
+    },
+    "do": {
+      "name": "r150-bench-20260925-do-tenant-root-control-plane",
+      "workers_dev": false,
+      "preview_urls": false,
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "ROUTER_TENANT_ROOT_CREATION_DO",
+            "class_name": "RouterAbTenantRootCreationDurableObject",
+            "script_name": "r150-bench-20260925-do-router"
+          }
+        ]
+      },
+      "vars": {
+        "ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET_BINDING": "ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET",
+        "TENANT_ROOT_CONTROL_PLANE_ISSUER_SIGNING_KEY_BINDING": "TENANT_ROOT_CONTROL_PLANE_ISSUER_SIGNING_KEY",
+        "TENANT_ROOT_CONTROL_PLANE_ISSUER_SIGNING_KEY_ID": "__R150_BENCH_DO_ISSUER_KEY_ID__",
+        "TENANT_ROOT_RECOVERY_TRUST_BUNDLE_JSON": "__R150_BENCH_DO_RECOVERY_TRUST_BUNDLE_JSON__",
+        "TENANT_ROOT_CONTROL_PLANE_ISSUER_VERIFYING_KEYS_JSON": "__R150_BENCH_DO_ISSUER_KEYS_JSON__",
+        "TENANT_ROOT_CONTROL_PLANE_GRANT_AUTHORITY_VERIFYING_KEYS_JSON": "__R150_BENCH_DO_GRANT_KEYS_JSON__",
+        "ROUTER_TENANT_ROOT_CREATION_ROLE_VERIFYING_KEYS_JSON": "__R150_BENCH_DO_ROLE_KEYS_JSON__",
+        "OPERATIONS_INCIDENT_VERIFYING_KEY_HEX": "__R150_BENCH_DO_OPERATIONS_INCIDENT_VERIFYING_KEY__",
+        "DERIVER_A_CUSTODY_AUTHORITY_VERIFYING_KEY_HEX": "__R150_BENCH_DO_DERIVER_A_CUSTODY_VERIFYING_KEY__",
+        "DERIVER_B_CUSTODY_AUTHORITY_VERIFYING_KEY_HEX": "__R150_BENCH_DO_DERIVER_B_CUSTODY_VERIFYING_KEY__",
+        "DERIVER_A_PEER_VERIFYING_KEY_HEX": "__R150_BENCH_DO_DERIVER_A_PEER_VERIFYING_KEY__",
+        "DERIVER_B_PEER_VERIFYING_KEY_HEX": "__R150_BENCH_DO_DERIVER_B_PEER_VERIFYING_KEY__"
+      },
+      "secrets": {
+        "required": [
+          "ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET",
+          "TENANT_ROOT_CONTROL_PLANE_ISSUER_SIGNING_KEY"
+        ]
+      }
+    }
+  }
+}
