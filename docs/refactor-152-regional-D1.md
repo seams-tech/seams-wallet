@@ -19,7 +19,8 @@ quotas, and durable operation records.
 
 [R151](refactor-151.md) reduced canonical reusable-session ECDSA signing from
 18 to seven Gateway D1 calls (eight SQL statements and two write-bearing calls).
-Linked-device signing currently requires nine calls. The earlier hosted
+Linked-device signing also requires seven calls after the joined custody read.
+The earlier hosted
 12-call cohort reported median summed D1 wall time
 of approximately 865–901 ms versus 14–15 ms of SQL execution, with all calls
 served by the APAC primary. Gateway and DO execution locations were unverified.
@@ -50,7 +51,10 @@ Subsequent hosted linked chains also passed in Tokyo, London, and the US
 (27 signatures), retaining nine D1 calls per linked signature. First linked
 signatures spent 6.15–13.44 seconds generating material in the foreground.
 R151 implements background preparation after linked activation and verifies
-consumption of that material before deciding on regional provisioning.
+consumption of that material. A subsequent joined linked-custody credential read
+(`09608843`) reduces both linked generations to seven calls/eight statements,
+matching canonical signing. Use that current budget in the regional experiment;
+the nine-call linked cohorts remain historical baselines.
 
 The first two placement preflights dispatched no wallet operations because a
 probe image rollout could not become healthy (Tokyo, then the US). Subsequent
@@ -98,10 +102,10 @@ Human decision time and transaction broadcasting are reported separately.
 
 - [x] Finish R151's supported-call-budget review and record the resulting canonical,
   linked, replay, and rejected-request budgets. Retain admission, atomic quota,
-      material freshness, and durable completion invariants. Canonical signing uses
-      seven calls and linked signing nine; wider policy/material and linked-source
-      joins are explicitly deferred at trusted verification/admission boundaries.
-      This is an adopted budget rather than a proven theoretical minimum.
+  material freshness, and durable completion invariants. Both canonical and linked
+  signing use seven calls. The wider policy/material join remains deferred at
+  trusted verification/admission boundaries. This is an adopted budget rather
+  than a proven theoretical minimum.
 - [ ] Freeze SDK, Gateway, role builds, schema, concurrency, and refill settings
   for each cohort. Record source revisions and distribution hashes.
 - [ ] Reuse the existing isolated benchmark and per-call D1 instrumentation.

@@ -4,10 +4,10 @@ Date: September 29, 2026
 
 Status: policy, claim/readback, operation/source, and persisted owner-scope
 consolidation are implemented and verified in bounded hosted diagnostics. The
-latest canonical reusable-session ECDSA path makes seven D1 calls per
-signature, down from 18, confirmed in a fresh hosted diagnostic. Local
-linked-device checkpoints reduce third-generation signing from 24 to nine calls
-and directly linked signing from 20 to nine. Bounded first/warm/burst
+latest reusable-session ECDSA path makes seven D1 calls per signature for both
+canonical and linked signing. Canonical signing started at 18 calls; directly
+linked signing started at 20 and third-generation signing at 24. The joined
+linked-custody credential read removes the last two-call linked surcharge. Bounded first/warm/burst
 diagnostics now have verified Tokyo, London, and US probe placement. Hosted linked
 chains now pass in all three regions. The historical unlock timeout remains
 unreproduced after five fresh successful attempts. The London
@@ -144,6 +144,40 @@ versions/images, default Gateway placement, inactive probes, and expired access
 were verified after restoration. Evidence scans found no benchmark credentials.
 Observed cumulative cost is $0.907 against $25, subject to accounting lag.
 
+The next Gateway change (`09608843`) joins linked installation and canonical-source
+records into the credential statement. Existing scope/package/chain validation
+and atomic material-freshness checks remain in force. All 27 local E2Es pass
+across Workers D1, wallet-DO, and VM, including policy denials, retirement races,
+revocation, last-quota contention, missing prepare, and exact lost-response replay.
+
+The frozen London follow-up retains the `57388d7f` SDK and role deployments:
+three attempts, 27 verified signatures, no failed attempts or foreground refills.
+Every signature now uses **seven D1 calls / eight statements**, including both
+linked generations, with two write-bearing calls and 14 reported row writes.
+All signing SQL results report the APAC primary.
+
+| Linked ready-pool signing | Previous Gateway, n=6 | Joined read, n=18 |
+| --- | ---: | ---: |
+| D1 calls / statements | 9 / 12 | 7 / 8 |
+| Median public SDK call | 3,517 ms | 3,061 ms |
+| Median summed D1 wall time | 2,477 ms | 2,073 ms |
+| Median summed SQL execution | 15.10 ms | 13.21 ms |
+| Observed public SDK range | 3,044–3,993 ms | 2,786–5,225 ms |
+
+Canonical calls remain seven, with SDK median 4,319 → 4,244 ms and D1 median
+1,832 → 1,814 ms. These are separate fresh-wallet cohorts at different times,
+with readiness waits before signing and automatic confirmation inside SDK timing.
+The linked SDK median improves about 13%; neither that diagnostic nor the small
+sample establishes the 1–2 second target. Keep the 5,225 ms outlier: its existing
+admission batch took 2,475 ms, while the joined credential read took 385 ms.
+Version-specific adaptive analytics locate the changed Gateway in LHR; role DO
+aggregates span LHR/AMS/NRT/KIX without individual RPC attribution. Evidence:
+`.artifacts/r151/regional-linked-read-20261001-r14/`, including `comparison.json`,
+`placement.json`, and individual request traces. Final restoration verifies
+original versions/images, inactive probes, default placement, and expired access;
+see `restoration-final.json`. Observed cumulative cost is $0.9401 against $25,
+subject to accounting lag.
+
 ### Remaining work
 
 The demonstrated R151 implementation gaps and bounded verification are complete.
@@ -154,8 +188,9 @@ The following outcome and follow-up gates remain open:
    implementation; a regional-D1 benefit has not been measured.
 2. The 1–2 second complete signing target remains unmet. Use the recorded stages
    to select the next demonstrated bottleneck and expand controlled sampling.
-   Seven/nine calls are adopted budgets rather than proven minima; the wider
-   policy/material and linked-source joins remain explicitly deferred below.
+   Seven calls is the adopted budget rather than a proven minimum; the wider
+   policy/material join remains explicitly deferred below. The linked-source
+   join is implemented and verified.
 3. Retain failure context if unlock stalls again; diagnose the observed failure
    before changing retry behavior. Five fresh successful attempts did not
    reproduce it. Visible network failure and explicit retry are E2E-verified.
@@ -308,7 +343,7 @@ policy-read deferral, refill fix, and latest regional cohort.
   lookup. Preserve the complete material candidate set despite the session's
   `LIMIT 1`; retain current parsers, snapshot predicates, and denial precedence.
 - [x] Implement and measure the signing-specific session/material projection,
-  retaining the linked custody fallback and verifying the admission races.
+  including the linked custody snapshot and verifying the admission races.
 - [x] Use the existing store/domain boundaries and narrow admitted result types.
   Delete replaced paths. Do not add request-wide caches of revocation or quota
   decisions, compatibility branches, or another authorization implementation.
@@ -318,8 +353,8 @@ the policy change. Then target 12 or fewer from the larger consolidation, subjec
 to the correctness cases below. Each change needs its own before/after call
 counts and timings; these are engineering targets, not predicted latency wins.
 The 12-call intermediate milestone is surpassed: canonical reusable-session
-ECDSA now takes seven calls; linked signing takes nine after the prepare batch.
-Phase 3 still revisits the complete call budget after these incremental changes.
+ECDSA and linked signing now each take seven calls. Phase 3 records the
+remaining dependencies and explicit policy/material deferral.
 
 ### 2. Reduce unnecessary work and classify writes
 
@@ -395,20 +430,24 @@ small amount of SQL work. Reaching 12 calls does not close this follow-up.
   and retirement races, and lost-response replay with behavioral E2Es. Measure
   successful signing, replay, and rejection paths separately; retain repeatable
       before/after artifacts. Complete latency evidence is tracked below.
+- [x] Join linked custody evidence into the credential read, preserving scope,
+  package-digest, chain-identity, and atomic record-set validation. Verify seven
+  calls/eight statements for canonical and both linked generations in a hosted cohort.
 - [x] Close the supported-reduction review after implementing those reductions and
   recording the resulting call budget, the reason for each remaining round
   trip, and any explicitly deferred blocker. A green latency median alone does
   not establish that the call budget or the 1–2 second maximum is satisfied.
 
-The adopted budget is **seven canonical calls / eight statements** and **nine
-linked calls / 12 statements**, with two write-bearing calls and 14 reported row
-writes. Prepare reads verified credential/material, reads live policy, and
+The adopted budget is **seven calls / eight statements** for both canonical and
+linked signing, with two write-bearing calls and 14 reported row writes. Prepare reads verified credential/material, reads live policy, and
 atomically claims/readbacks the operation. Finalize reads credential/material,
 live policy, and the existing operation/source, then durably records completion.
-Linked custody resolution adds one installation/canonical-candidate batch at
-each request boundary. These are the remaining dependencies, not a proven floor.
+Linked installation and canonical-source records accompany the credential read;
+package digests, chain identity, and scope are still verified before policy.
+Atomic admission/finalize checks still reject changed material record sets.
+These are the remaining dependencies, not a proven floor.
 
-The policy/material join and linked-source join are explicitly deferred: trusted
+The policy/material join remains explicitly deferred: trusted
 policy scope is established by material verification, and the separately
 configured admission adapter owns policy evaluation. Folding those boundaries
 together requires a wider contract change and fresh proofs of scope and denial
@@ -419,9 +458,10 @@ The retained prepare-batch E2E artifacts contain four baseline and 22 changed-bu
 scenario/profile checks; the policy cohort adds 27 denial checks and 18 verified
 signatures across Workers D1, wallet-DO, and VM. They cover last-quota contention,
 duplicate admission, missing prepare, retirement, revocation, and exact replay.
-The two production authorization-store files still match the recorded SHA-256
-values. Evidence: `.artifacts/r151/prepare-batch-20260930/` and
-`.artifacts/r151/policy-20260930/`. Latency and placement remain separate open gates.
+Those earlier checkpoints retain their recorded source hashes; the linked
+credential projection is changed by `09608843`. Evidence: `.artifacts/r151/prepare-batch-20260930/` and
+`.artifacts/r151/policy-20260930/` and `.artifacts/r151/linked-read-20261001/`.
+Latency and regional-D1 placement remain separate open gates.
 
 ### 4. Reassess placement using measured residual cost
 

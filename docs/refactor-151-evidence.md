@@ -1824,3 +1824,109 @@ probes inactive, expired access (probe 403, ingress 503), and default Gateway
 placement. The final scan covered 79 evidence files with zero benchmark-token
 matches. Observed cumulative cost is $0.907 through September 30 15:44 UTC
 (October 1 JST), with accounting lag possible, below the $25 cap.
+
+
+## October 1: join linked custody evidence into the signing credential read
+
+Commit `09608843` removes the separate installation/canonical-source read from
+each linked signing request. The credential statement now projects the linked
+wallet's installation records and canonical ECDSA source records when its stored
+authority provenance is `device_link`. Every subquery binds to the session's
+namespace, organization, project, environment, and wallet. The existing package
+digest and installation-chain parser converts this persistence evidence once;
+request-local `EcdsaMaterialRead` carries the parsed result. It rejects a different
+scope, wallet, or activation at either material store boundary. No fallback read
+is used for a missing or invalid credential snapshot.
+
+Material selection and live policy evaluation retain their existing order.
+Admission/finalize still compare the verified installation and signer record
+sets atomically, so retirement after the joined read invalidates signing. The
+separate database read remains the explicit source for non-credential callers.
+The policy/material join remains deferred because its adapter/scope contract has
+not changed. No write, quota effect, audit event, or durable replay is removed.
+
+The existing four device-linking scenarios pass on Workers D1, wallet-DO, and
+VM: 12 E2Es cover mixed-curve signing/revocation, third-generation ECDSA signing,
+third-generation mixed-curve signing/export, and material retirement races.
+Preserved chain artifacts contain 27 verified signatures; retirement artifacts
+add six verified signatures, 27 denied races with quota unchanged, and exact
+replay on all profiles. The local chain artifacts do not carry D1 timing headers;
+they establish behavior only. Evidence:
+`.artifacts/r151/linked-read-20261001/`, with run identities under
+`.artifacts/r151/attribution-20260930/linked-read-*-run.json`.
+
+The server build, intended-suite typecheck, state type fixtures, and bloat checks
+pass. Type fixtures continue rejecting fabricated, spread, or cast material
+reads and mixed database/credential sources. A frozen Gateway dry run passes.
+The hosted comparison retains the prior `57388d7f` probe SDK image and role
+Workers while changing the Gateway to `09608843`; all 18 generated WASM files
+used by that Gateway match the frozen baseline byte for byte.
+
+
+Five additional existing scenarios pass on each backend (15 more E2Es, 27 total):
+first/warm/concurrent-burst signing, missing-prepare rejection, live-policy
+rejection, concurrent prepare/lost finalize response, and last-quota contention.
+Each profile records nine policy denials, exact completed replay, and prepare
+statuses `[200, 409]` for competing last-quota operations. The policy, missing-
+prepare, and burst artifacts preserve three, three, and five verified signatures
+per profile respectively; lost-response replay matches the stored result. See
+`linked-read-20261001/{workers,wallet-do,vm}-policy/` and
+`policy-verification.json`. No behavior was changed to satisfy a failing test;
+all behavioral checks passed on their first run.
+
+
+The hosted r14 cohort ran September 30 16:03:49–16:15:53 UTC on London `lhr15`,
+boot `1e9df3fb-f8d0-4b34-9dc5-801e5ae4a340`. Gateway version
+`af9854c9-6a41-4eb6-b250-2890e5ba296e` contains frozen `09608843` source; the probe
+retains the r13 `57388d7f` SDK/image. All three attempts passed (27 signatures).
+Every signature uses seven calls/eight statements, two write-bearing calls,
+and 14 reported row writes, with complete metadata and APAC primary service.
+All six first linked signatures consume previously completed material IDs;
+no signature has foreground refill.
+
+| London SDK / D1 diagnostic | r13 baseline | r14 changed |
+| --- | ---: | ---: |
+| Canonical signatures | 3 | 9 |
+| Linked signatures | 6 | 18 |
+| Linked D1 calls / SQL statements | 9 / 12 | 7 / 8 |
+| Linked SDK median | 3,517.45 ms | 3,061.45 ms |
+| Linked SDK observed range | 3,043.70–3,993.20 ms | 2,786.30–5,225.30 ms |
+| Linked summed D1 wall median | 2,477 ms | 2,072.5 ms |
+| Linked SQL median | 15.095 ms | 13.21 ms |
+| Canonical SDK median | 4,318.8 ms | 4,243.8 ms |
+| Canonical summed D1 wall median | 1,832 ms | 1,814 ms |
+
+Linked call count falls 22%; median SDK time falls about 13% and D1 wall time
+about 16%. Preserve the limitations: fixed SDK/role builds, separate fresh wallets
+at different times, small cohorts, readiness-gated signing, and automatic
+confirmation inside SDK time. No production percentile or maximum is established.
+The slowest changed signature's admission batch took 2,475 ms (two statements,
+one attempt each); the joined read took 385 ms. This retains the outlier and
+locates its cost without claiming to explain the platform delay.
+
+Evidence: `.artifacts/r151/regional-linked-read-20261001-r14/`, including source
+and WASM identities, attempt ledger, per-signature SDK/D1 traces, `summary.json`,
+`comparison.json`, and prepared-material identity checks. Reanalyze each artifact
+with `node tests/r150-hosted/analyze-d1.mjs <artifact.json>`; the retained private
+cohort scripts additionally validate seven/eight/two/14, APAC-primary metadata,
+and first-signature material IDs. The policy/material join remains deferred;
+regional D1 benefits and the complete 1–2 second latency target remain unproven.
+
+Version-specific adaptive analytics locate the changed Gateway's 816 recorded
+invocations in LHR. DO aggregate locations include LHR, AMS, NRT, and KIX; these
+do not identify each signature's custody route. See r14 `placement.json`.
+
+After measurement, the local SDK was rebuilt and passed freshness/static-asset
+checks. All 1,829 JavaScript/WASM runtime files match the measured `57388d7f` SDK
+byte for byte; the rebuilt type outputs and input manifest reflect current server
+sources. See `linked-read-20261001/rebuilt-sdk-runtime-comparison.json`.
+
+The first post-run check found London still running after image restoration;
+that failed check is retained. A probe-only access window allowed an explicit
+stop after the rollout settled, then closed again. The cleanup helper's first
+response-logging error was corrected before retry; its finally block had already
+restored the Worker and expiry. `restoration-final.json` verifies baseline Worker
+versions/images, default Gateway placement, all three probes inactive, probe 403,
+and ingress 503. Final scanning covered 58 evidence files with no benchmark-token
+matches. Observed cumulative cost is $0.9401 at September 30 16:24 UTC, subject
+to accounting lag, against the existing $25 cap.
