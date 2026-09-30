@@ -7,10 +7,10 @@ consolidation are implemented and verified in bounded hosted diagnostics. The
 latest canonical reusable-session ECDSA path makes seven D1 calls per
 signature, down from 18, confirmed in a fresh hosted diagnostic. Local
 linked-device checkpoints reduce third-generation signing from 24 to nine calls
-and directly linked signing from 20 to nine. A bounded first/warm/burst
-diagnostic now has verified Tokyo probe placement.
-Wider regional and linked latency cohorts remain incomplete because of probe
-failures; Gateway and DO execution placement is still unverified.
+and directly linked signing from 20 to nine. Bounded first/warm/burst
+diagnostics now have verified Tokyo, London, and US probe placement. Linked
+latency, an observed unlock timeout, and the placement comparison remain open;
+Gateway and DO execution placement is still unverified.
 Active/exhausted credentials are classified in one read. Material snapshots are
 checked atomically at reusable-session claim and finalize/replay admission.
 Reusable-session finalize resolves existing operations without admitting new
@@ -1772,6 +1772,60 @@ Next, diagnose probe process termination and ENAM startup, then complete regiona
 and linked cohorts with fixed builds. Only then compare Gateway placement near
 the existing primary. R152 ownership and expected gains remain conditional.
 
+### Stable-rollout regional cohort — September 30
+
+The committed `tests/r150-hosted/probe/wait-for-rollouts.mjs` checker requires
+completed rollout records, matching application/target versions and image
+hashes, and two stable observations. Wrangler supplies and refreshes credentials.
+It reads the latest rollout history after `active_rollout_id` clears. Both
+measurement deployment and restoration use this gate; explicit image rollouts
+preserve the existing applications and configuration. No schema, role, SDK,
+or signing behavior changed for this cohort.
+
+The fresh cohort completed seven wallet attempts and verified 35 signatures:
+five in Tokyo (`nrt13`), 15 in London (`lhr15`), and 15 in the US (`ord12`). Each
+region retained one verified boot and the same frozen source/SDK image. All
+three London and US attempts completed without process termination or startup
+failure. This supports the corrected rollout preflight; it does not prove the
+origin of every earlier signal.
+
+| Probe | Completed wallets | First SDK median | Warm SDK median | Burst SDK median, individual calls | First/warm D1 wall median |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Tokyo | 1 | 2.91 s | 1.97 s | 4.36 s | 614 ms |
+| London | 3 | 5.43 s | 4.04 s | 8.91 s | 1,766 ms |
+| US | 3 | 5.76 s | 4.14 s | 9.52 s | 1,672 ms |
+
+D1 SQL medians for the same first/warm samples are 16.56, 11.94, and 11.18 ms.
+All 28 timed signatures retain seven calls, eight SQL statements, two
+write-bearing calls, and 14 reported row writes; all report the APAC primary.
+The seven untimed setup signatures also verify. Completed attempts show no
+failed background refills or foreground-refill fallbacks. Burst commit medians are 1.88, 4.63, and 4.84 seconds;
+SDK timings additionally include automated confirmation and concurrent calls
+overlap. These small cohorts do not satisfy the complete 1–2 second target.
+Gateway/DO execution placement and recoverable geographic overhead remain
+unproven. No Gateway-placement or regional-D1 treatment was compared.
+
+Eight wallet attempts were dispatched: seven completed and Tokyo's second
+attempt timed out during `unlockPasskeyWallet`, with exit code one and no
+process signal. The retained trace shows successful refill rounds, while the
+unlock action remains running. Classify this as an unresolved lifecycle or
+automation failure; its cause is not established. The runner withheld further
+Tokyo attempts and retained the failure. Do not count its partial work as a
+completed sample or silently retry it. No probe process signal recurred.
+
+Evidence: `.artifacts/r151/regional-workloads-20260930-r7/`, including per-region
+ledgers/results, `summary.json`, D1 analysis, rollout observations, and execution
+file hashes. Reanalyze with `python3 .runtime/r151-regional/analyze-r7.py`.
+Restoration is verified against direct application/rollout records: original
+images, inactive instances, baseline Workers, and expired access windows. The
+CLI list view retained older image values for two apps; both stable direct
+observations are retained. Observed cumulative spend is $0.7435 through
+`2026-09-30T13:36:40.621Z`, below the $25 cap, with accounting lag possible.
+Remaining work is diagnosing the unlock timeout, completing linked latency
+cohorts and larger regional samples, verifying actual Gateway/DO execution
+placement, and comparing Gateway placement near the existing primary. Retain
+the explicit policy-read deferral until that residual is understood.
+
 ### 1. Consolidate reads while preserving decision boundaries
 
 - [x] Classify active/exhausted credentials from one snapshot for ECDSA signing,
@@ -1835,9 +1889,11 @@ Phase 3 still revisits the complete call budget after these incremental changes.
   Workers D1, wallet-DO, and VM, preserving per-signature D1 evidence.
 - [x] Extend the hosted probe with first/warm/burst SDK timing and verify a
   bounded Tokyo diagnostic, retaining shared-quota and signature checks.
-- [ ] Resolve probe termination/startup failures and complete the regional and
-  linked cohorts. Reduce demonstrated refill waits using existing scheduling,
-  preserving distinct presign and signing authorization boundaries.
+- [x] Gate measurements on completed image rollouts and collect bounded
+  first/warm/burst evidence from verified Tokyo, London, and US probes.
+- [ ] Diagnose the hosted unlock timeout and complete linked/larger regional
+  cohorts. Reduce demonstrated refill waits using existing scheduling, preserving
+  distinct presign and signing authorization boundaries.
 - [x] Inventory foreground Gateway signing writes by invariant: claim/idempotency,
   quota consumption, completion/replay, audit, and unrelated maintenance. The measured signing path
   has two write-bearing calls, both enforcing current behavior. No demonstrated
