@@ -11,6 +11,9 @@ use threshold_prf::{
 };
 use zeroize::{Zeroize, Zeroizing};
 
+use super::tenant_root_protocol::{
+    tenant_root_wire_messages, verified_token_debug, TenantRootWireMessagesV1,
+};
 use super::x25519_canonical::is_canonical_nonzero_x25519_encoding;
 use super::{
     require_tenant_root_identifier, RouterAbDerivationError, RouterAbDerivationErrorCode,
@@ -43,6 +46,12 @@ const RESTORE_ROLE_IMPORT_GRANT_MAX_BYTES_V1: usize = 16 * 1024;
 const RESTORE_ROLE_IMPORT_COMMAND_MAX_BYTES_V1: usize = 32 * 1024;
 const RESTORE_ROLE_IMPORT_KEY_ID_MAX_BYTES_V1: usize = 128;
 const RESTORE_ROLE_IMPORT_AUTHORITY_KEY_ID_MAX_BYTES_V1: usize = 256;
+const ROLE_IMPORT_WIRE: &TenantRootWireMessagesV1 = &TenantRootWireMessagesV1 {
+    domain: "tenant-root restore role-import wire domain",
+    domain_invalid: "tenant-root restore role-import wire domain is invalid",
+    text_invalid_utf8: "tenant-root restore role-import text field is not UTF-8",
+    ..tenant_root_wire_messages!("tenant-root restore role-import")
+};
 
 type TenantRootRestoreImportHpkeV1 = Hpke<DhKemX25519HkdfSha256, HkdfSha256, Aes256Gcm>;
 
@@ -199,7 +208,7 @@ impl TenantRootRestoreRoleImportGrantV1 {
                 "tenant-root restore role-import grant wire length is invalid",
             ));
         }
-        let mut decoder = RestoreRoleImportWireDecoderV1::new(bytes);
+        let mut decoder = ROLE_IMPORT_WIRE.decoder(bytes);
         decoder.require_field(RESTORE_ROLE_IMPORT_GRANT_DOMAIN_V1)?;
         if decoder.field("tenant-root restore role-import grant operation")?
             != RESTORE_ROLE_IMPORT_OPERATION_V1
@@ -390,15 +399,7 @@ pub struct VerifiedTenantRootRestoreRoleImportGrantV1 {
     digest: TenantRootProtocolDigestV1,
 }
 
-impl fmt::Debug for VerifiedTenantRootRestoreRoleImportGrantV1 {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter
-            .debug_struct("VerifiedTenantRootRestoreRoleImportGrantV1")
-            .field("digest", &self.digest)
-            .field("canonical_bytes", &"[public bytes]")
-            .finish()
-    }
-}
+verified_token_debug!(VerifiedTenantRootRestoreRoleImportGrantV1);
 
 impl VerifiedTenantRootRestoreRoleImportGrantV1 {
     pub const fn operation_digest(&self) -> TenantRootProtocolDigestV1 {
@@ -611,7 +612,7 @@ impl TenantRootRestoreRoleImportCommandV1 {
                 "tenant-root restore role-import command wire length is invalid",
             ));
         }
-        let mut decoder = RestoreRoleImportWireDecoderV1::new(bytes);
+        let mut decoder = ROLE_IMPORT_WIRE.decoder(bytes);
         decoder.require_field(RESTORE_ROLE_IMPORT_COMMAND_DOMAIN_V1)?;
         if decoder.field("tenant-root restore role-import command operation")?
             != RESTORE_ROLE_IMPORT_OPERATION_V1
@@ -896,15 +897,7 @@ pub struct VerifiedTenantRootRestoreRoleImportCommandV1 {
     digest: TenantRootProtocolDigestV1,
 }
 
-impl fmt::Debug for VerifiedTenantRootRestoreRoleImportCommandV1 {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter
-            .debug_struct("VerifiedTenantRootRestoreRoleImportCommandV1")
-            .field("digest", &self.digest)
-            .field("canonical_bytes", &"[public bytes]")
-            .finish()
-    }
-}
+verified_token_debug!(VerifiedTenantRootRestoreRoleImportCommandV1);
 
 impl VerifiedTenantRootRestoreRoleImportCommandV1 {
     pub const fn operation_digest(&self) -> TenantRootProtocolDigestV1 {
@@ -1960,93 +1953,6 @@ fn parse_role(bytes: &[u8]) -> RouterAbDerivationResult<TwoPartyDeriverRole> {
         b"deriver_a" => Ok(TwoPartyDeriverRole::DeriverA),
         b"deriver_b" => Ok(TwoPartyDeriverRole::DeriverB),
         _ => Err(malformed("tenant-root restore import role is invalid")),
-    }
-}
-
-struct RestoreRoleImportWireDecoderV1<'a> {
-    bytes: &'a [u8],
-    offset: usize,
-}
-
-impl<'a> RestoreRoleImportWireDecoderV1<'a> {
-    const fn new(bytes: &'a [u8]) -> Self {
-        Self { bytes, offset: 0 }
-    }
-
-    fn field(&mut self, name: &'static str) -> RouterAbDerivationResult<&'a [u8]> {
-        let length_end = self
-            .offset
-            .checked_add(4)
-            .ok_or_else(|| malformed("tenant-root restore role-import wire offset overflows"))?;
-        let length_bytes = self.bytes.get(self.offset..length_end).ok_or_else(|| {
-            malformed("tenant-root restore role-import field length is truncated")
-        })?;
-        let length = u32::from_be_bytes(
-            length_bytes
-                .try_into()
-                .expect("fixed four-byte restore role-import field length"),
-        ) as usize;
-        let value_end = length_end
-            .checked_add(length)
-            .ok_or_else(|| malformed("tenant-root restore role-import field length overflows"))?;
-        let value = self
-            .bytes
-            .get(length_end..value_end)
-            .ok_or_else(|| malformed("tenant-root restore role-import field is truncated"))?;
-        self.offset = value_end;
-        if value.is_empty() {
-            return Err(RouterAbDerivationError::new(
-                RouterAbDerivationErrorCode::EmptyField,
-                format!("{name} is required"),
-            ));
-        }
-        Ok(value)
-    }
-
-    fn require_field(&mut self, expected: &[u8]) -> RouterAbDerivationResult<()> {
-        if self.field("tenant-root restore role-import wire domain")? != expected {
-            return Err(malformed(
-                "tenant-root restore role-import wire domain is invalid",
-            ));
-        }
-        Ok(())
-    }
-
-    fn fixed_field<const N: usize>(
-        &mut self,
-        name: &'static str,
-    ) -> RouterAbDerivationResult<[u8; N]> {
-        self.field(name)?
-            .try_into()
-            .map_err(|_| malformed("tenant-root restore role-import fixed field length is invalid"))
-    }
-
-    fn u64_field(&mut self, name: &'static str) -> RouterAbDerivationResult<u64> {
-        Ok(u64::from_be_bytes(self.fixed_field::<8>(name)?))
-    }
-
-    fn text_field(
-        &mut self,
-        name: &'static str,
-        maximum: usize,
-    ) -> RouterAbDerivationResult<String> {
-        let bytes = self.field(name)?;
-        if bytes.len() > maximum {
-            return Err(malformed(
-                "tenant-root restore role-import text field is too long",
-            ));
-        }
-        String::from_utf8(bytes.to_vec())
-            .map_err(|_| malformed("tenant-root restore role-import text field is not UTF-8"))
-    }
-
-    fn finish(self) -> RouterAbDerivationResult<()> {
-        if self.offset != self.bytes.len() {
-            return Err(malformed(
-                "tenant-root restore role-import wire has trailing bytes",
-            ));
-        }
-        Ok(())
     }
 }
 

@@ -196,7 +196,8 @@ fn require_signer_role(role: Role) -> RouterAbProtocolResult<()> {
     }
 }
 
-fn require_non_empty(field: &'static str, value: &str) -> RouterAbProtocolResult<()> {
+/// Rejects an empty `value`, naming `field` in the error.
+pub(super) fn require_non_empty(field: &'static str, value: &str) -> RouterAbProtocolResult<()> {
     if value.is_empty() {
         return Err(RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::EmptyField,

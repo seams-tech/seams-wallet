@@ -2,6 +2,10 @@ use core::num::NonZeroU64;
 
 use threshold_prf::{derive_two_party_root_share_refresh_commitments, TwoPartyDeriverRole};
 
+use super::tenant_root_protocol::{
+    push_bounded_field, tenant_root_wire_messages, TenantRootWireDecoderV1,
+    TenantRootWireMessagesV1,
+};
 use super::{
     verify_tenant_root_refresh_evidence_v1, MpcPrfShareCommitmentWireV1, RouterAbDerivationError,
     RouterAbDerivationErrorCode, RouterAbDerivationResult, TenantRootActivationReceiptBindingV1,
@@ -22,6 +26,13 @@ const TENANT_ROOT_REFRESH_COMMITMENT_CHECKPOINT_ONE_ROLE_TAG_V1: &[u8] = b"one_r
 const TENANT_ROOT_REFRESH_COMMITMENT_CHECKPOINT_BOTH_ROLES_TAG_V1: &[u8] = b"both_roles_committed";
 /// Maximum canonical wire size for one public refresh commitment checkpoint.
 pub const TENANT_ROOT_REFRESH_COMMITMENT_CHECKPOINT_MAX_BYTES_V1: usize = 16 * 1024;
+
+const CHECKPOINT_WIRE: &TenantRootWireMessagesV1 = &TenantRootWireMessagesV1 {
+    length_truncated: "{name} length is truncated",
+    length_overflows: "{name} length overflows",
+    truncated: "{name} is truncated",
+    ..tenant_root_wire_messages!("tenant-root refresh checkpoint")
+};
 
 /// Authoritative public active state required to admit a refresh checkpoint.
 ///
@@ -321,7 +332,7 @@ impl TenantRootRefreshCommitmentCheckpointScopeV1 {
     }
 
     fn decode_canonical_bytes(bytes: &[u8]) -> RouterAbDerivationResult<Self> {
-        let mut decoder = CheckpointWireDecoderV1::new(bytes)?;
+        let mut decoder = checkpoint_decoder(bytes)?;
         decoder.require_field(TENANT_ROOT_REFRESH_COMMITMENT_CHECKPOINT_SCOPE_DOMAIN_V1)?;
         let identity_digest = TenantRootIdentityDigestV1::from_bytes(
             decoder.fixed_field::<32>("tenant-root refresh checkpoint identity digest")?,
@@ -516,7 +527,7 @@ impl TenantRootRefreshCommitmentCheckpointStateV1 {
     }
 
     fn decode_canonical_bytes(
-        decoder: &mut CheckpointWireDecoderV1<'_>,
+        decoder: &mut TenantRootWireDecoderV1<'_>,
     ) -> RouterAbDerivationResult<Self> {
         let tag = decoder.field("tenant-root refresh checkpoint state tag")?;
         let state = if tag == TENANT_ROOT_REFRESH_COMMITMENT_CHECKPOINT_ONE_ROLE_TAG_V1 {
@@ -625,13 +636,13 @@ impl TenantRootRefreshCommitmentCheckpointV1 {
                 "tenant-root refresh checkpoint wire length is invalid",
             ));
         }
-        let mut decoder = CheckpointWireDecoderV1::new(bytes)?;
+        let mut decoder = checkpoint_decoder(bytes)?;
         decoder.require_field(TENANT_ROOT_REFRESH_COMMITMENT_CHECKPOINT_DOMAIN_V1)?;
         let scope_bytes = decoder.field("tenant-root refresh checkpoint scope")?;
         let scope =
             TenantRootRefreshCommitmentCheckpointScopeV1::decode_canonical_bytes(scope_bytes)?;
         let state_bytes = decoder.field("tenant-root refresh checkpoint state")?;
-        let mut state_decoder = CheckpointWireDecoderV1::new(state_bytes)?;
+        let mut state_decoder = checkpoint_decoder(state_bytes)?;
         let state = TenantRootRefreshCommitmentCheckpointStateV1::decode_canonical_bytes(
             &mut state_decoder,
         )?;
@@ -1071,25 +1082,12 @@ fn push_role(bytes: &mut Vec<u8>, role: TwoPartyDeriverRole) -> RouterAbDerivati
 }
 
 fn push_field(bytes: &mut Vec<u8>, value: &[u8]) -> RouterAbDerivationResult<()> {
-    if value.is_empty() {
-        return Err(RouterAbDerivationError::new(
-            RouterAbDerivationErrorCode::EmptyField,
-            "tenant-root refresh checkpoint field is required",
-        ));
-    }
-    let length = u32::try_from(value.len())
-        .map_err(|_| malformed("tenant-root refresh checkpoint field is too long"))?;
-    let new_len = bytes
-        .len()
-        .checked_add(4)
-        .and_then(|length| length.checked_add(value.len()))
-        .ok_or_else(|| malformed("tenant-root refresh checkpoint wire length overflows"))?;
-    if new_len > TENANT_ROOT_REFRESH_COMMITMENT_CHECKPOINT_MAX_BYTES_V1 {
-        return Err(malformed("tenant-root refresh checkpoint wire is too long"));
-    }
-    bytes.extend_from_slice(&length.to_be_bytes());
-    bytes.extend_from_slice(value);
-    Ok(())
+    push_bounded_field(
+        bytes,
+        value,
+        TENANT_ROOT_REFRESH_COMMITMENT_CHECKPOINT_MAX_BYTES_V1,
+        CHECKPOINT_WIRE.label,
+    )
 }
 
 fn malformed(message: impl Into<String>) -> RouterAbDerivationError {
@@ -1100,93 +1098,11 @@ fn replay_mismatch(message: &'static str) -> RouterAbDerivationError {
     RouterAbDerivationError::new(RouterAbDerivationErrorCode::ReplayMismatch, message)
 }
 
-struct CheckpointWireDecoderV1<'a> {
-    bytes: &'a [u8],
-    offset: usize,
-}
-
-impl<'a> CheckpointWireDecoderV1<'a> {
-    fn new(bytes: &'a [u8]) -> RouterAbDerivationResult<Self> {
-        if bytes.is_empty() || bytes.len() > TENANT_ROOT_REFRESH_COMMITMENT_CHECKPOINT_MAX_BYTES_V1
-        {
-            return Err(malformed(
-                "tenant-root refresh checkpoint nested wire length is invalid",
-            ));
-        }
-        Ok(Self { bytes, offset: 0 })
+fn checkpoint_decoder(bytes: &[u8]) -> RouterAbDerivationResult<TenantRootWireDecoderV1<'_>> {
+    if bytes.is_empty() || bytes.len() > TENANT_ROOT_REFRESH_COMMITMENT_CHECKPOINT_MAX_BYTES_V1 {
+        return Err(malformed(
+            "tenant-root refresh checkpoint nested wire length is invalid",
+        ));
     }
-
-    fn field(&mut self, name: &'static str) -> RouterAbDerivationResult<&'a [u8]> {
-        let length_end = self
-            .offset
-            .checked_add(4)
-            .ok_or_else(|| malformed("tenant-root refresh checkpoint wire offset overflows"))?;
-        let length_bytes = self
-            .bytes
-            .get(self.offset..length_end)
-            .ok_or_else(|| malformed(format!("{name} length is truncated")))?;
-        let length = u32::from_be_bytes(
-            length_bytes
-                .try_into()
-                .expect("fixed four-byte refresh checkpoint field length"),
-        ) as usize;
-        let value_end = length_end
-            .checked_add(length)
-            .ok_or_else(|| malformed(format!("{name} length overflows")))?;
-        let value = self
-            .bytes
-            .get(length_end..value_end)
-            .ok_or_else(|| malformed(format!("{name} is truncated")))?;
-        self.offset = value_end;
-        if value.is_empty() {
-            return Err(RouterAbDerivationError::new(
-                RouterAbDerivationErrorCode::EmptyField,
-                format!("{name} is required"),
-            ));
-        }
-        Ok(value)
-    }
-
-    fn require_field(&mut self, expected: &[u8]) -> RouterAbDerivationResult<()> {
-        if self.field("tenant-root refresh checkpoint domain")? != expected {
-            return Err(malformed(
-                "tenant-root refresh checkpoint domain is invalid",
-            ));
-        }
-        Ok(())
-    }
-
-    fn fixed_field<const N: usize>(
-        &mut self,
-        name: &'static str,
-    ) -> RouterAbDerivationResult<[u8; N]> {
-        self.field(name)?
-            .try_into()
-            .map_err(|_| malformed("tenant-root refresh checkpoint fixed field length is invalid"))
-    }
-
-    fn u64_field(&mut self, name: &'static str) -> RouterAbDerivationResult<u64> {
-        Ok(u64::from_be_bytes(self.fixed_field::<8>(name)?))
-    }
-
-    fn role(&mut self) -> RouterAbDerivationResult<TwoPartyDeriverRole> {
-        let label = self.field("tenant-root refresh checkpoint role")?;
-        let share_id = self.fixed_field::<2>("tenant-root refresh checkpoint role share id")?;
-        match (label, u16::from_be_bytes(share_id)) {
-            (b"deriver_a", 1) => Ok(TwoPartyDeriverRole::DeriverA),
-            (b"deriver_b", 2) => Ok(TwoPartyDeriverRole::DeriverB),
-            _ => Err(malformed(
-                "tenant-root refresh checkpoint role encoding is invalid",
-            )),
-        }
-    }
-
-    fn finish(self) -> RouterAbDerivationResult<()> {
-        if self.offset != self.bytes.len() {
-            return Err(malformed(
-                "tenant-root refresh checkpoint wire has trailing bytes",
-            ));
-        }
-        Ok(())
-    }
+    Ok(CHECKPOINT_WIRE.decoder(bytes))
 }

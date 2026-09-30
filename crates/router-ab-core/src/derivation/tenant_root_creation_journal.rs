@@ -1,5 +1,8 @@
 use sha2::{Digest, Sha256};
 
+use super::tenant_root_protocol::{
+    push_bounded_field, tenant_root_wire_messages, TenantRootWireMessagesV1,
+};
 use super::{
     RouterAbDerivationError, RouterAbDerivationErrorCode, RouterAbDerivationResult,
     TenantRootCeremonyContextV1, TenantRootCeremonyEpochsV1, TenantRootCreationStateV1,
@@ -11,6 +14,11 @@ const TENANT_ROOT_CREATION_EVENT_DOMAIN_V1: &[u8] = b"seams/tenant-root-creation
 const TENANT_ROOT_CREATION_STARTED_TAG_V1: &[u8] = b"started";
 const TENANT_ROOT_CREATION_STARTED_REVISION_V1: u64 = 1;
 const TENANT_ROOT_CREATION_GENESIS_PREVIOUS_EVENT_DIGEST_V1: [u8; 32] = [0; 32];
+const JOURNAL_WIRE: &TenantRootWireMessagesV1 = &TenantRootWireMessagesV1 {
+    offset_overflows: "tenant-root creation journal offset overflows",
+    trailing_bytes: "tenant-root creation journal has trailing bytes",
+    ..tenant_root_wire_messages!("tenant-root creation journal")
+};
 
 /// Maximum canonical wire size for the first tenant-root creation journal blob.
 pub const TENANT_ROOT_CREATION_JOURNAL_MAX_BYTES_V1: usize = 16 * 1024;
@@ -209,7 +217,7 @@ impl TenantRootCreationJournalV1 {
                 "tenant-root creation journal wire length is invalid",
             ));
         }
-        let mut decoder = CreationJournalWireDecoderV1::new(bytes);
+        let mut decoder = JOURNAL_WIRE.decoder(bytes);
         decoder.require_field(TENANT_ROOT_CREATION_EVENT_DOMAIN_V1)?;
         let revision = decoder.u64_field("tenant-root creation journal revision")?;
         if revision != TENANT_ROOT_CREATION_STARTED_REVISION_V1 {
@@ -242,7 +250,7 @@ impl TenantRootCreationJournalV1 {
             .to_vec();
         decoder.finish()?;
 
-        let mut payload_decoder = CreationJournalWireDecoderV1::new(&payload);
+        let mut payload_decoder = JOURNAL_WIRE.decoder(&payload);
         let identity_canonical_bytes = payload_decoder
             .field("tenant-root Started identity bytes")?
             .to_vec();
@@ -340,96 +348,14 @@ fn require_creation_context(context: &TenantRootCeremonyContextV1) -> RouterAbDe
 }
 
 fn push_field(out: &mut Vec<u8>, value: &[u8]) -> RouterAbDerivationResult<()> {
-    if value.is_empty() {
-        return Err(RouterAbDerivationError::new(
-            RouterAbDerivationErrorCode::EmptyField,
-            "tenant-root creation journal field is required",
-        ));
-    }
-    let length = u32::try_from(value.len())
-        .map_err(|_| malformed("tenant-root creation journal field is too long"))?;
-    let new_len = out
-        .len()
-        .checked_add(4)
-        .and_then(|length| length.checked_add(value.len()))
-        .ok_or_else(|| malformed("tenant-root creation journal wire length overflows"))?;
-    if new_len > TENANT_ROOT_CREATION_JOURNAL_MAX_BYTES_V1 {
-        return Err(malformed("tenant-root creation journal wire is too long"));
-    }
-    out.extend_from_slice(&length.to_be_bytes());
-    out.extend_from_slice(value);
-    Ok(())
+    push_bounded_field(
+        out,
+        value,
+        TENANT_ROOT_CREATION_JOURNAL_MAX_BYTES_V1,
+        JOURNAL_WIRE.label,
+    )
 }
 
 fn malformed(message: &'static str) -> RouterAbDerivationError {
     RouterAbDerivationError::new(RouterAbDerivationErrorCode::MalformedInput, message)
-}
-
-struct CreationJournalWireDecoderV1<'a> {
-    bytes: &'a [u8],
-    offset: usize,
-}
-
-impl<'a> CreationJournalWireDecoderV1<'a> {
-    const fn new(bytes: &'a [u8]) -> Self {
-        Self { bytes, offset: 0 }
-    }
-
-    fn field(&mut self, name: &'static str) -> RouterAbDerivationResult<&'a [u8]> {
-        let length_end = self
-            .offset
-            .checked_add(4)
-            .ok_or_else(|| malformed("tenant-root creation journal offset overflows"))?;
-        let length_bytes = self
-            .bytes
-            .get(self.offset..length_end)
-            .ok_or_else(|| malformed("tenant-root creation journal field length is truncated"))?;
-        let length = u32::from_be_bytes(
-            length_bytes
-                .try_into()
-                .expect("fixed four-byte creation journal field length"),
-        ) as usize;
-        let value_end = length_end
-            .checked_add(length)
-            .ok_or_else(|| malformed("tenant-root creation journal field length overflows"))?;
-        let value = self
-            .bytes
-            .get(length_end..value_end)
-            .ok_or_else(|| malformed("tenant-root creation journal field is truncated"))?;
-        self.offset = value_end;
-        if value.is_empty() {
-            return Err(RouterAbDerivationError::new(
-                RouterAbDerivationErrorCode::EmptyField,
-                format!("{name} is required"),
-            ));
-        }
-        Ok(value)
-    }
-
-    fn require_field(&mut self, expected: &[u8]) -> RouterAbDerivationResult<()> {
-        if self.field("tenant-root creation journal domain")? != expected {
-            return Err(malformed("tenant-root creation journal domain is invalid"));
-        }
-        Ok(())
-    }
-
-    fn fixed_field<const N: usize>(
-        &mut self,
-        name: &'static str,
-    ) -> RouterAbDerivationResult<[u8; N]> {
-        self.field(name)?
-            .try_into()
-            .map_err(|_| malformed("tenant-root creation journal fixed field length is invalid"))
-    }
-
-    fn u64_field(&mut self, name: &'static str) -> RouterAbDerivationResult<u64> {
-        Ok(u64::from_be_bytes(self.fixed_field::<8>(name)?))
-    }
-
-    fn finish(self) -> RouterAbDerivationResult<()> {
-        if self.offset != self.bytes.len() {
-            return Err(malformed("tenant-root creation journal has trailing bytes"));
-        }
-        Ok(())
-    }
 }

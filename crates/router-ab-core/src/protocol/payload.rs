@@ -20,7 +20,8 @@ use crate::protocol::error::{
 };
 use crate::protocol::gate::ExpensiveWorkKindV1;
 use crate::protocol::identity::{
-    RoleEnvelopeAssignmentV1, ServerIdentityV1, SignerIdentityV1, SignerSetPolicyV1, SignerSetV1,
+    require_non_empty, RoleEnvelopeAssignmentV1, ServerIdentityV1, SignerIdentityV1,
+    SignerSetPolicyV1, SignerSetV1,
 };
 use crate::protocol::lifecycle::LifecycleScopeV1;
 use crate::protocol::wire::CanonicalWireBytesV1;
@@ -1974,16 +1975,6 @@ fn validate_recipient_delivery_policy(
             "recipient delivery binding violates recipient policy",
         )),
     }
-}
-
-fn require_non_empty(field: &'static str, value: &str) -> RouterAbProtocolResult<()> {
-    if value.is_empty() {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::EmptyField,
-            format!("{field} is required"),
-        ));
-    }
-    Ok(())
 }
 
 fn require_signer_role(role: Role) -> RouterAbProtocolResult<()> {

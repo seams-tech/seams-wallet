@@ -3,6 +3,10 @@ use core::fmt;
 use ed25519_dalek::{Signature, Signer, SigningKey, VerifyingKey};
 use sha2::{Digest, Sha256};
 
+use super::tenant_root_protocol::{
+    push_bounded_field, tenant_root_wire_messages, TenantRootWireDecoderV1,
+    TenantRootWireMessagesV1,
+};
 use super::{
     require_tenant_root_identifier, MpcPrfShareCommitmentWireV1, RouterAbDerivationError,
     RouterAbDerivationErrorCode, RouterAbDerivationResult,
@@ -28,6 +32,10 @@ const TENANT_ROOT_ACTIVATION_ACCEPTED_PERMANENT_DERIVATION_LOSS_BRANCH_BYTES_V1:
     b"accepted_permanent_derivation_loss";
 const TENANT_ROOT_ACTIVATION_TENANT_HELD_EXTERNAL_BRANCH_BYTES_V1: &[u8] = b"tenant_held_external";
 const TENANT_ROOT_ACTIVATION_ISSUER_KEY_ID_MAX_BYTES_V1: usize = 256;
+const RECEIPT_WIRE: &TenantRootWireMessagesV1 = &TenantRootWireMessagesV1 {
+    offset_overflows: "tenant-root activation receipt offset overflows",
+    ..tenant_root_wire_messages!("tenant-root activation receipt")
+};
 
 /// Initial activation is committed from the creation `Verified` revision.
 pub const TENANT_ROOT_INITIAL_CREATION_ACTIVATION_EXPECTED_REVISION_V1: u64 = 2;
@@ -735,7 +743,7 @@ impl TenantRootSignedActivationReceiptV1 {
                 "tenant-root activation receipt wire length is invalid",
             ));
         }
-        let mut decoder = ActivationReceiptWireDecoderV1::new(bytes);
+        let mut decoder = RECEIPT_WIRE.decoder(bytes);
         decoder.require_field(TENANT_ROOT_ACTIVATION_RECEIPT_DOMAIN_V1)?;
         let operation = decoder.field("tenant-root activation receipt operation")?;
         let binding = match operation {
@@ -1055,7 +1063,7 @@ impl VerifiedTenantRootSignedActivationReceiptV1 {
 }
 
 fn decode_initial_creation_binding(
-    decoder: &mut ActivationReceiptWireDecoderV1<'_>,
+    decoder: &mut TenantRootWireDecoderV1<'_>,
 ) -> RouterAbDerivationResult<TenantRootInitialCreationActivationReceiptBindingV1> {
     let identity_digest = TenantRootIdentityDigestV1::from_bytes(
         decoder.fixed_field::<32>("tenant-root initial activation identity digest")?,
@@ -1112,7 +1120,7 @@ fn decode_initial_creation_binding(
 }
 
 fn decode_refresh_swap_binding(
-    decoder: &mut ActivationReceiptWireDecoderV1<'_>,
+    decoder: &mut TenantRootWireDecoderV1<'_>,
 ) -> RouterAbDerivationResult<TenantRootRefreshSwapActivationReceiptBindingV1> {
     let identity_digest = TenantRootIdentityDigestV1::from_bytes(
         decoder.fixed_field::<32>("tenant-root refresh activation identity digest")?,
@@ -1171,7 +1179,7 @@ fn decode_refresh_swap_binding(
 }
 
 fn decode_commitments(
-    decoder: &mut ActivationReceiptWireDecoderV1<'_>,
+    decoder: &mut TenantRootWireDecoderV1<'_>,
     prefix: &str,
 ) -> RouterAbDerivationResult<TenantRootEpochCommitmentsV1> {
     let deriver_a = MpcPrfShareCommitmentWireV1::new(
@@ -1195,7 +1203,7 @@ fn decode_commitments(
 }
 
 fn decode_installation_receipts(
-    decoder: &mut ActivationReceiptWireDecoderV1<'_>,
+    decoder: &mut TenantRootWireDecoderV1<'_>,
     _prefix: &str,
 ) -> RouterAbDerivationResult<TenantRootRoleInstallationReceiptsV1> {
     TenantRootRoleInstallationReceiptsV1::new(
@@ -1209,7 +1217,7 @@ fn decode_installation_receipts(
 }
 
 fn decode_availability(
-    decoder: &mut ActivationReceiptWireDecoderV1<'_>,
+    decoder: &mut TenantRootWireDecoderV1<'_>,
 ) -> RouterAbDerivationResult<TenantRootActivationReceiptAvailabilityV1> {
     let branch = decoder.field("tenant-root activation availability branch")?;
     match branch {
@@ -1323,7 +1331,7 @@ fn decode_availability(
 }
 
 fn decode_canary_receipts(
-    decoder: &mut ActivationReceiptWireDecoderV1<'_>,
+    decoder: &mut TenantRootWireDecoderV1<'_>,
     _prefix: &str,
 ) -> RouterAbDerivationResult<TenantRootCanaryReceiptsV1> {
     TenantRootCanaryReceiptsV1::new(
@@ -1569,25 +1577,12 @@ fn verify_signature(
 }
 
 fn push_field(bytes: &mut Vec<u8>, value: &[u8]) -> RouterAbDerivationResult<()> {
-    if value.is_empty() {
-        return Err(RouterAbDerivationError::new(
-            RouterAbDerivationErrorCode::EmptyField,
-            "tenant-root activation receipt field is required",
-        ));
-    }
-    let length = u32::try_from(value.len())
-        .map_err(|_| malformed("tenant-root activation receipt field is too long"))?;
-    let new_length = bytes
-        .len()
-        .checked_add(4)
-        .and_then(|length| length.checked_add(value.len()))
-        .ok_or_else(|| malformed("tenant-root activation receipt wire length overflows"))?;
-    if new_length > TENANT_ROOT_ACTIVATION_RECEIPT_MAX_BYTES_V1 {
-        return Err(malformed("tenant-root activation receipt wire is too long"));
-    }
-    bytes.extend_from_slice(&length.to_be_bytes());
-    bytes.extend_from_slice(value);
-    Ok(())
+    push_bounded_field(
+        bytes,
+        value,
+        TENANT_ROOT_ACTIVATION_RECEIPT_MAX_BYTES_V1,
+        RECEIPT_WIRE.label,
+    )
 }
 
 fn malformed(message: impl Into<String>) -> RouterAbDerivationError {
@@ -1596,93 +1591,4 @@ fn malformed(message: impl Into<String>) -> RouterAbDerivationError {
 
 fn replay_mismatch(message: &'static str) -> RouterAbDerivationError {
     RouterAbDerivationError::new(RouterAbDerivationErrorCode::ReplayMismatch, message)
-}
-
-struct ActivationReceiptWireDecoderV1<'a> {
-    bytes: &'a [u8],
-    offset: usize,
-}
-
-impl<'a> ActivationReceiptWireDecoderV1<'a> {
-    const fn new(bytes: &'a [u8]) -> Self {
-        Self { bytes, offset: 0 }
-    }
-
-    fn field(&mut self, name: &'static str) -> RouterAbDerivationResult<&'a [u8]> {
-        let length_end = self
-            .offset
-            .checked_add(4)
-            .ok_or_else(|| malformed("tenant-root activation receipt offset overflows"))?;
-        let length_bytes = self
-            .bytes
-            .get(self.offset..length_end)
-            .ok_or_else(|| malformed("tenant-root activation receipt field length is truncated"))?;
-        let length = u32::from_be_bytes(
-            length_bytes
-                .try_into()
-                .expect("fixed four-byte activation receipt field length"),
-        ) as usize;
-        let value_end = length_end
-            .checked_add(length)
-            .ok_or_else(|| malformed("tenant-root activation receipt field length overflows"))?;
-        let value = self
-            .bytes
-            .get(length_end..value_end)
-            .ok_or_else(|| malformed("tenant-root activation receipt field is truncated"))?;
-        self.offset = value_end;
-        if value.is_empty() {
-            return Err(RouterAbDerivationError::new(
-                RouterAbDerivationErrorCode::EmptyField,
-                format!("{name} is required"),
-            ));
-        }
-        Ok(value)
-    }
-
-    fn require_field(&mut self, expected: &[u8]) -> RouterAbDerivationResult<()> {
-        if self.field("tenant-root activation receipt domain")? != expected {
-            return Err(malformed(
-                "tenant-root activation receipt domain is invalid",
-            ));
-        }
-        Ok(())
-    }
-
-    fn fixed_field<const N: usize>(
-        &mut self,
-        name: &'static str,
-    ) -> RouterAbDerivationResult<[u8; N]> {
-        self.field(name)?
-            .try_into()
-            .map_err(|_| malformed("tenant-root activation receipt fixed field length is invalid"))
-    }
-
-    fn u64_field(&mut self, name: &'static str) -> RouterAbDerivationResult<u64> {
-        Ok(u64::from_be_bytes(self.fixed_field::<8>(name)?))
-    }
-
-    fn text_field(
-        &mut self,
-        name: &'static str,
-        max_bytes: usize,
-    ) -> RouterAbDerivationResult<String> {
-        let value = self.field(name)?;
-        if value.len() > max_bytes {
-            return Err(malformed(
-                "tenant-root activation receipt text field is too long",
-            ));
-        }
-        core::str::from_utf8(value)
-            .map(str::to_owned)
-            .map_err(|_| malformed("tenant-root activation receipt text field is invalid UTF-8"))
-    }
-
-    fn finish(self) -> RouterAbDerivationResult<()> {
-        if self.offset != self.bytes.len() {
-            return Err(malformed(
-                "tenant-root activation receipt wire has trailing bytes",
-            ));
-        }
-        Ok(())
-    }
 }

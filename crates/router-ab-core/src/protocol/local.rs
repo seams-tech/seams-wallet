@@ -12,7 +12,7 @@ use crate::protocol::envelope::EncryptedPayloadV1;
 use crate::protocol::error::{
     RouterAbProtocolError, RouterAbProtocolErrorCode, RouterAbProtocolResult,
 };
-use crate::protocol::identity::{ServerIdentityV1, SignerIdentityV1};
+use crate::protocol::identity::{require_non_empty, ServerIdentityV1, SignerIdentityV1};
 use crate::protocol::lifecycle::MpcMaterialActivationRefV1;
 use crate::protocol::normal_signing::ActiveSigningWorkerStateV1;
 use crate::protocol::output::{
@@ -2731,14 +2731,4 @@ fn local_signing_worker_material_handle_v1(
         server.server_id,
         hex::encode(activation_digest.as_bytes())
     )
-}
-
-fn require_non_empty(field: &'static str, value: &str) -> RouterAbProtocolResult<()> {
-    if value.is_empty() {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::EmptyField,
-            format!("{field} is required"),
-        ));
-    }
-    Ok(())
 }

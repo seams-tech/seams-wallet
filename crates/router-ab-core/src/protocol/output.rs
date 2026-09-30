@@ -13,7 +13,7 @@ use crate::protocol::envelope::EncryptedPayloadV1;
 use crate::protocol::error::{
     RouterAbProtocolError, RouterAbProtocolErrorCode, RouterAbProtocolResult,
 };
-use crate::protocol::identity::{SignerIdentityV1, SignerSetV1};
+use crate::protocol::identity::{require_non_empty, SignerIdentityV1, SignerSetV1};
 use crate::protocol::lifecycle::LifecycleScopeV1;
 use crate::protocol::payload::{
     router_transcript_binding_v1, verify_mpc_prf_stable_recipient_proof_bundle_payload_v2,
@@ -1206,16 +1206,6 @@ fn map_derivation_to_protocol_error(error: RouterAbDerivationError) -> RouterAbP
             error.code()
         ),
     )
-}
-
-fn require_non_empty(field: &'static str, value: &str) -> RouterAbProtocolResult<()> {
-    if value.is_empty() {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::EmptyField,
-            format!("{field} is required"),
-        ));
-    }
-    Ok(())
 }
 
 fn push_signer_identity(out: &mut Vec<u8>, identity: &SignerIdentityV1) {

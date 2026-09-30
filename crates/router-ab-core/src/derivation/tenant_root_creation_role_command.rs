@@ -13,6 +13,7 @@ use super::{
     TENANT_ROOT_MAX_LIFETIME_MS_V1,
 };
 
+use super::tenant_root_protocol::{tenant_root_wire_messages, verified_token_debug};
 use super::tenant_root_role_command_wire::TenantRootRoleCommandWireV1;
 
 const TENANT_ROOT_ROLE_CREATION_COMMAND_DOMAIN_V1: &[u8] = b"tenant_root_role_creation_command_v1";
@@ -40,7 +41,7 @@ pub const TENANT_ROOT_ROLE_CREATION_COMMAND_EXPECTED_REVISION_V1: u64 = 1;
 pub const TENANT_ROOT_ROLE_CREATION_COMMAND_MAX_BYTES_V1: usize = 16 * 1024;
 
 const COMMAND_WIRE: TenantRootRoleCommandWireV1 = TenantRootRoleCommandWireV1::new(
-    "tenant-root role creation command",
+    &tenant_root_wire_messages!("tenant-root role creation command"),
     TENANT_ROOT_ROLE_CREATION_COMMAND_MAX_BYTES_V1,
 );
 
@@ -156,7 +157,7 @@ impl TenantRootRoleCreationCommandV1 {
             ));
         }
         let mut decoder = COMMAND_WIRE.decoder(bytes);
-        decoder.require_domain(TENANT_ROOT_ROLE_CREATION_COMMAND_DOMAIN_V1)?;
+        decoder.require_field(TENANT_ROOT_ROLE_CREATION_COMMAND_DOMAIN_V1)?;
         if decoder.field("tenant-root role creation command operation")?
             != TENANT_ROOT_ROLE_CREATION_OPERATION_V1
         {
@@ -472,15 +473,7 @@ pub struct VerifiedTenantRootRoleCreationCommandV1 {
     digest: TenantRootProtocolDigestV1,
 }
 
-impl fmt::Debug for VerifiedTenantRootRoleCreationCommandV1 {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter
-            .debug_struct("VerifiedTenantRootRoleCreationCommandV1")
-            .field("digest", &self.digest)
-            .field("canonical_bytes", &"[public bytes]")
-            .finish()
-    }
-}
+verified_token_debug!(VerifiedTenantRootRoleCreationCommandV1);
 
 impl VerifiedTenantRootRoleCreationCommandV1 {
     /// Returns the exact role authenticated by this command.
@@ -833,7 +826,7 @@ const TENANT_ROOT_ROLE_CREATION_COMMAND_PACKAGE_DOMAIN_V1: &[u8] =
 pub const TENANT_ROOT_ROLE_CREATION_COMMAND_PACKAGE_MAX_BYTES_V1: usize = 64 * 1024;
 
 const PACKAGE_WIRE: TenantRootRoleCommandWireV1 = TenantRootRoleCommandWireV1::new(
-    "tenant-root role creation package",
+    &tenant_root_wire_messages!("tenant-root role creation package"),
     TENANT_ROOT_ROLE_CREATION_COMMAND_PACKAGE_MAX_BYTES_V1,
 );
 
@@ -947,7 +940,7 @@ impl TenantRootRoleCreationCommandPackageV1 {
             ));
         }
         let mut decoder = PACKAGE_WIRE.decoder(bytes);
-        decoder.require_domain(TENANT_ROOT_ROLE_CREATION_COMMAND_PACKAGE_DOMAIN_V1)?;
+        decoder.require_field(TENANT_ROOT_ROLE_CREATION_COMMAND_PACKAGE_DOMAIN_V1)?;
         let started_journal = TenantRootCreationJournalV1::decode_canonical_bytes(
             decoder.field("tenant-root role creation package Started journal")?,
         )?;

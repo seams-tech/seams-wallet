@@ -4,6 +4,10 @@ use ed25519_dalek::{Signature, Signer, SigningKey, VerifyingKey};
 use sha2::{Digest, Sha256};
 use threshold_prf::TwoPartyDeriverRole;
 
+use super::tenant_root_protocol::{
+    push_length_prefixed, tenant_root_wire_messages, verified_token_debug, TenantRootWireDecoderV1,
+    TenantRootWireMessagesV1,
+};
 use super::{
     require_tenant_root_identifier, ExecutedTenantRootCommandV1, ReservedTenantRootCommandV1,
     RouterAbDerivationError, RouterAbDerivationErrorCode, RouterAbDerivationResult,
@@ -17,6 +21,12 @@ const TENANT_ROOT_COMMAND_TERMINAL_RECEIPT_AUTH_DOMAIN_V1: &[u8] =
     b"tenant_root_command_terminal_receipt_authentication_v1";
 const MAX_ROLE_SIGNING_KEY_ID_BYTES_V1: usize = 256;
 const MAX_TERMINAL_PAYLOAD_BYTES_V1: usize = 64 * 1024;
+const RECEIPT_WIRE: &TenantRootWireMessagesV1 = &TenantRootWireMessagesV1 {
+    offset_overflows: "tenant-root command receipt wire offset overflow",
+    domain: "tenant-root command receipt wire domain",
+    domain_invalid: "tenant-root command receipt wire domain is invalid",
+    ..tenant_root_wire_messages!("tenant-root command receipt")
+};
 
 /// Maximum canonical wire size accepted for one terminal command receipt.
 pub const TENANT_ROOT_COMMAND_TERMINAL_RECEIPT_MAX_BYTES_V1: usize = 64 * 1024;
@@ -367,9 +377,9 @@ impl TenantRootCommandTerminalReceiptV1 {
                 "tenant-root command terminal receipt wire length is invalid",
             ));
         }
-        let mut decoder = TerminalReceiptWireDecoderV1::new(bytes);
+        let mut decoder = RECEIPT_WIRE.decoder(bytes);
         decoder.require_field(TENANT_ROOT_COMMAND_TERMINAL_RECEIPT_DOMAIN_V1)?;
-        let outcome = decoder.outcome()?;
+        let outcome = decode_outcome(&mut decoder)?;
         let data = decode_data(&mut decoder)?;
         decoder.finish()?;
         validate_data(&data)?;
@@ -501,15 +511,7 @@ pub struct VerifiedTenantRootCommandSuccessReceiptV1 {
     digest: TenantRootProtocolDigestV1,
 }
 
-impl fmt::Debug for VerifiedTenantRootCommandSuccessReceiptV1 {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter
-            .debug_struct("VerifiedTenantRootCommandSuccessReceiptV1")
-            .field("digest", &self.digest)
-            .field("canonical_bytes", &"[public bytes]")
-            .finish()
-    }
-}
+verified_token_debug!(VerifiedTenantRootCommandSuccessReceiptV1);
 
 impl VerifiedTenantRootCommandSuccessReceiptV1 {
     terminal_receipt_methods!(verified);
@@ -525,15 +527,7 @@ pub struct VerifiedTenantRootCommandFailureReceiptV1 {
     digest: TenantRootProtocolDigestV1,
 }
 
-impl fmt::Debug for VerifiedTenantRootCommandFailureReceiptV1 {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter
-            .debug_struct("VerifiedTenantRootCommandFailureReceiptV1")
-            .field("digest", &self.digest)
-            .field("canonical_bytes", &"[public bytes]")
-            .finish()
-    }
-}
+verified_token_debug!(VerifiedTenantRootCommandFailureReceiptV1);
 
 impl VerifiedTenantRootCommandFailureReceiptV1 {
     terminal_receipt_methods!(verified);
@@ -642,8 +636,26 @@ fn verify_receipt_signature(
     Ok(unsigned)
 }
 
+fn decode_outcome(
+    decoder: &mut TenantRootWireDecoderV1<'_>,
+) -> RouterAbDerivationResult<TenantRootCommandTerminalOutcomeV1> {
+    match decoder.field("tenant-root command receipt outcome")? {
+        b"success" => Ok(TenantRootCommandTerminalOutcomeV1::Success),
+        b"failure" => Ok(TenantRootCommandTerminalOutcomeV1::Failure),
+        _ => Err(malformed("tenant-root command receipt outcome is invalid")),
+    }
+}
+
+fn decode_payload(decoder: &mut TenantRootWireDecoderV1<'_>) -> RouterAbDerivationResult<Vec<u8>> {
+    let payload = decoder.field("tenant-root command receipt payload")?;
+    if payload.len() > MAX_TERMINAL_PAYLOAD_BYTES_V1 {
+        return Err(malformed("tenant-root command receipt payload is too long"));
+    }
+    Ok(payload.to_vec())
+}
+
 fn decode_data(
-    decoder: &mut TerminalReceiptWireDecoderV1<'_>,
+    decoder: &mut TenantRootWireDecoderV1<'_>,
 ) -> RouterAbDerivationResult<TenantRootCommandTerminalReceiptDataV1> {
     let identity_digest = TenantRootIdentityDigestV1::from_bytes(
         decoder.fixed_field::<32>("tenant-root command receipt identity digest")?,
@@ -664,7 +676,7 @@ fn decode_data(
     let payload_digest = TenantRootProtocolDigestV1::from_bytes(
         decoder.fixed_field::<32>("tenant-root command receipt payload digest")?,
     )?;
-    let payload = decoder.payload()?;
+    let payload = decode_payload(decoder)?;
     let terminal_at_ms = u64::from_be_bytes(
         decoder.fixed_field::<8>("tenant-root command receipt terminal timestamp")?,
     );
@@ -850,11 +862,7 @@ fn push_role(out: &mut Vec<u8>, role: TwoPartyDeriverRole) -> RouterAbDerivation
 }
 
 fn push_field(out: &mut Vec<u8>, value: &[u8]) -> RouterAbDerivationResult<()> {
-    let length = u32::try_from(value.len())
-        .map_err(|_| malformed("tenant-root command receipt field is too long"))?;
-    out.extend_from_slice(&length.to_be_bytes());
-    out.extend_from_slice(value);
-    Ok(())
+    push_length_prefixed(out, value, "tenant-root command receipt field is too long")
 }
 
 fn malformed(message: impl Into<String>) -> RouterAbDerivationError {
@@ -870,117 +878,4 @@ fn verification_failed(message: &'static str) -> RouterAbDerivationError {
         RouterAbDerivationErrorCode::OutputVerificationFailed,
         message,
     )
-}
-
-struct TerminalReceiptWireDecoderV1<'a> {
-    bytes: &'a [u8],
-    offset: usize,
-}
-
-impl<'a> TerminalReceiptWireDecoderV1<'a> {
-    const fn new(bytes: &'a [u8]) -> Self {
-        Self { bytes, offset: 0 }
-    }
-
-    fn field(&mut self, name: &'static str) -> RouterAbDerivationResult<&'a [u8]> {
-        let length_end = self
-            .offset
-            .checked_add(4)
-            .ok_or_else(|| malformed("tenant-root command receipt wire offset overflow"))?;
-        let length_bytes = self
-            .bytes
-            .get(self.offset..length_end)
-            .ok_or_else(|| malformed("tenant-root command receipt field length is truncated"))?;
-        let length = u32::from_be_bytes(
-            length_bytes
-                .try_into()
-                .expect("fixed four-byte command receipt field length"),
-        ) as usize;
-        let value_end = length_end
-            .checked_add(length)
-            .ok_or_else(|| malformed("tenant-root command receipt field length overflows"))?;
-        let value = self
-            .bytes
-            .get(length_end..value_end)
-            .ok_or_else(|| malformed("tenant-root command receipt field is truncated"))?;
-        self.offset = value_end;
-        if value.is_empty() {
-            return Err(RouterAbDerivationError::new(
-                RouterAbDerivationErrorCode::EmptyField,
-                format!("{name} is required"),
-            ));
-        }
-        Ok(value)
-    }
-
-    fn require_field(&mut self, expected: &[u8]) -> RouterAbDerivationResult<()> {
-        if self.field("tenant-root command receipt wire domain")? != expected {
-            return Err(malformed(
-                "tenant-root command receipt wire domain is invalid",
-            ));
-        }
-        Ok(())
-    }
-
-    fn outcome(&mut self) -> RouterAbDerivationResult<TenantRootCommandTerminalOutcomeV1> {
-        match self.field("tenant-root command receipt outcome")? {
-            b"success" => Ok(TenantRootCommandTerminalOutcomeV1::Success),
-            b"failure" => Ok(TenantRootCommandTerminalOutcomeV1::Failure),
-            _ => Err(malformed("tenant-root command receipt outcome is invalid")),
-        }
-    }
-
-    fn role(&mut self) -> RouterAbDerivationResult<TwoPartyDeriverRole> {
-        let label = self.field("tenant-root command receipt role")?;
-        let share_id = self.fixed_field::<2>("tenant-root command receipt role share id")?;
-        match (label, u16::from_be_bytes(share_id)) {
-            (b"deriver_a", 1) => Ok(TwoPartyDeriverRole::DeriverA),
-            (b"deriver_b", 2) => Ok(TwoPartyDeriverRole::DeriverB),
-            _ => Err(malformed(
-                "tenant-root command receipt role encoding is invalid",
-            )),
-        }
-    }
-
-    fn payload(&mut self) -> RouterAbDerivationResult<Vec<u8>> {
-        let payload = self.field("tenant-root command receipt payload")?;
-        if payload.len() > MAX_TERMINAL_PAYLOAD_BYTES_V1 {
-            return Err(malformed("tenant-root command receipt payload is too long"));
-        }
-        Ok(payload.to_vec())
-    }
-
-    fn fixed_field<const N: usize>(
-        &mut self,
-        name: &'static str,
-    ) -> RouterAbDerivationResult<[u8; N]> {
-        self.field(name)?
-            .try_into()
-            .map_err(|_| malformed("tenant-root command receipt fixed field length is invalid"))
-    }
-
-    fn text_field(
-        &mut self,
-        name: &'static str,
-        max_bytes: usize,
-    ) -> RouterAbDerivationResult<String> {
-        let bytes = self.field(name)?;
-        if bytes.len() > max_bytes {
-            return Err(malformed(
-                "tenant-root command receipt text field is too long",
-            ));
-        }
-        core::str::from_utf8(bytes)
-            .map(str::to_owned)
-            .map_err(|_| malformed("tenant-root command receipt text field is invalid UTF-8"))
-    }
-
-    fn finish(self) -> RouterAbDerivationResult<()> {
-        if self.offset != self.bytes.len() {
-            return Err(malformed(
-                "tenant-root command receipt wire has trailing bytes",
-            ));
-        }
-        Ok(())
-    }
 }

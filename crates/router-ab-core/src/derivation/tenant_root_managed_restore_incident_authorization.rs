@@ -12,7 +12,7 @@ use rand_core::{CryptoRng, RngCore};
 use sha2::{Digest, Sha256};
 use threshold_prf::TwoPartyDeriverRole;
 
-use super::tenant_root_protocol::TenantRootWireDecoderV1;
+use super::tenant_root_protocol::{push_bounded_field, TenantRootWireDecoderV1};
 use super::{
     require_tenant_root_identifier, RouterAbDerivationError, RouterAbDerivationErrorCode,
     RouterAbDerivationResult, TenantRootControlPlaneAuthorityIdV1, TenantRootCustodyLineageId,
@@ -712,30 +712,12 @@ fn verify_signature(
 }
 
 fn push_field(out: &mut Vec<u8>, value: &[u8]) -> RouterAbDerivationResult<()> {
-    if value.is_empty() {
-        return Err(RouterAbDerivationError::new(
-            RouterAbDerivationErrorCode::EmptyField,
-            "tenant-root managed-restore incident authorization field is required",
-        ));
-    }
-    let length = u32::try_from(value.len()).map_err(|_| {
-        malformed("tenant-root managed-restore incident authorization field is too long")
-    })?;
-    let new_len = out
-        .len()
-        .checked_add(4)
-        .and_then(|length| length.checked_add(value.len()))
-        .ok_or_else(|| {
-            malformed("tenant-root managed-restore incident authorization wire length overflows")
-        })?;
-    if new_len > TENANT_ROOT_MANAGED_RESTORE_INCIDENT_AUTHORIZATION_MAX_BYTES_V1 {
-        return Err(malformed(
-            "tenant-root managed-restore incident authorization wire is too long",
-        ));
-    }
-    out.extend_from_slice(&length.to_be_bytes());
-    out.extend_from_slice(value);
-    Ok(())
+    push_bounded_field(
+        out,
+        value,
+        TENANT_ROOT_MANAGED_RESTORE_INCIDENT_AUTHORIZATION_MAX_BYTES_V1,
+        "tenant-root managed-restore incident authorization",
+    )
 }
 
 fn malformed(message: impl Into<String>) -> RouterAbDerivationError {

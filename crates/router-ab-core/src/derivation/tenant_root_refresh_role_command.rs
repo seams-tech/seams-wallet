@@ -15,6 +15,7 @@ use super::{
     TENANT_ROOT_MAX_CLOCK_SKEW_MS_V1, TENANT_ROOT_MAX_LIFETIME_MS_V1,
 };
 
+use super::tenant_root_protocol::{tenant_root_wire_messages, verified_token_debug};
 use super::tenant_root_role_command_wire::TenantRootRoleCommandWireV1;
 
 const TENANT_ROOT_ROLE_REFRESH_COMMAND_DOMAIN_V1: &[u8] = b"tenant_root_role_refresh_command_v1";
@@ -32,7 +33,7 @@ pub const TENANT_ROOT_ROLE_REFRESH_COMMAND_OPERATION_V1: &str = "refresh_pending
 pub const TENANT_ROOT_ROLE_REFRESH_COMMAND_MAX_BYTES_V1: usize = 16 * 1024;
 
 const COMMAND_WIRE: TenantRootRoleCommandWireV1 = TenantRootRoleCommandWireV1::new(
-    "tenant-root role refresh command",
+    &tenant_root_wire_messages!("tenant-root role refresh command"),
     TENANT_ROOT_ROLE_REFRESH_COMMAND_MAX_BYTES_V1,
 );
 
@@ -174,7 +175,7 @@ impl TenantRootRoleRefreshCommandV1 {
             ));
         }
         let mut decoder = COMMAND_WIRE.decoder(bytes);
-        decoder.require_domain(TENANT_ROOT_ROLE_REFRESH_COMMAND_DOMAIN_V1)?;
+        decoder.require_field(TENANT_ROOT_ROLE_REFRESH_COMMAND_DOMAIN_V1)?;
         if decoder.field("tenant-root role refresh command operation")?
             != TENANT_ROOT_ROLE_REFRESH_OPERATION_V1
         {
@@ -549,15 +550,7 @@ pub struct VerifiedTenantRootRoleRefreshCommandV1 {
     digest: TenantRootProtocolDigestV1,
 }
 
-impl fmt::Debug for VerifiedTenantRootRoleRefreshCommandV1 {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter
-            .debug_struct("VerifiedTenantRootRoleRefreshCommandV1")
-            .field("digest", &self.digest)
-            .field("canonical_bytes", &"[public bytes]")
-            .finish()
-    }
-}
+verified_token_debug!(VerifiedTenantRootRoleRefreshCommandV1);
 
 impl VerifiedTenantRootRoleRefreshCommandV1 {
     /// Returns the exact role authenticated by this command.

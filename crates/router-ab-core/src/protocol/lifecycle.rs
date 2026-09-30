@@ -7,6 +7,7 @@ use crate::protocol::error::{
 use crate::protocol::gate::{
     ExpensiveWorkGateDecisionV1, ExpensiveWorkKindV1, GateDeferReasonV1, GateRejectReasonV1,
 };
+use crate::protocol::identity::require_non_empty;
 
 /// Public scope shared by Router lifecycle states.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -476,14 +477,4 @@ impl RouterAbLifecycleStateV1 {
             )),
         }
     }
-}
-
-fn require_non_empty(field: &'static str, value: &str) -> RouterAbProtocolResult<()> {
-    if value.is_empty() {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::EmptyField,
-            format!("{field} is required"),
-        ));
-    }
-    Ok(())
 }

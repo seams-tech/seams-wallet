@@ -4,6 +4,7 @@ use sha2::{Digest, Sha256};
 use subtle::ConstantTimeEq;
 use threshold_prf::{SigningRootShareCommitment, SigningRootShareWire, TwoPartyDeriverRole};
 
+use super::tenant_root_protocol::push_length_prefixed;
 use super::{
     require_tenant_root_identifier, validate_tenant_root_active_role_share_commitment_v1,
     MpcPrfShareCommitmentWireV1, RouterAbDerivationError, RouterAbDerivationErrorCode,
@@ -463,11 +464,11 @@ fn push_role(bytes: &mut Vec<u8>, role: TwoPartyDeriverRole) -> RouterAbDerivati
 }
 
 fn push_len32(bytes: &mut Vec<u8>, value: &[u8]) -> RouterAbDerivationResult<()> {
-    let length = u32::try_from(value.len())
-        .map_err(|_| malformed("tenant-root online role share binding field is too long"))?;
-    bytes.extend_from_slice(&length.to_be_bytes());
-    bytes.extend_from_slice(value);
-    Ok(())
+    push_length_prefixed(
+        bytes,
+        value,
+        "tenant-root online role share binding field is too long",
+    )
 }
 
 fn require_ciphertext(ciphertext: &[u8]) -> RouterAbDerivationResult<()> {

@@ -4,6 +4,9 @@ use ed25519_dalek::{Signature, Signer, SigningKey, VerifyingKey};
 use rand_core::{CryptoRng, RngCore};
 use sha2::{Digest, Sha256};
 
+use super::tenant_root_protocol::{
+    push_bounded_field, tenant_root_wire_messages, verified_token_debug, TenantRootWireMessagesV1,
+};
 use super::{
     require_tenant_root_identifier, RouterAbDerivationError, RouterAbDerivationErrorCode,
     RouterAbDerivationResult, TenantRootCustodyLineageId, TenantRootIdentityDigestV1,
@@ -17,6 +20,10 @@ const TENANT_ROOT_CREATION_OPERATION_V1: &[u8] = b"tenant_root_create_v1";
 const TENANT_ROOT_CONTROL_PLANE_AUTHORITY_ID_LEN_V1: usize = 32;
 const TENANT_ROOT_CREATION_CAPABILITY_NONCE_LEN_V1: usize = 32;
 const TENANT_ROOT_CREATION_CAPABILITY_ISSUER_KEY_ID_MAX_BYTES_V1: usize = 256;
+const CAPABILITY_WIRE: &TenantRootWireMessagesV1 = &TenantRootWireMessagesV1 {
+    offset_overflows: "tenant-root creation capability offset overflows",
+    ..tenant_root_wire_messages!("tenant-root creation capability")
+};
 
 /// Exact operation authenticated by an initial tenant-root creation capability.
 pub const TENANT_ROOT_CREATION_CAPABILITY_OPERATION_V1: &str = "tenant_root_create_v1";
@@ -194,7 +201,7 @@ impl TenantRootCreationCapabilityV1 {
                 "tenant-root creation capability wire length is invalid",
             ));
         }
-        let mut decoder = CreationCapabilityWireDecoderV1::new(bytes);
+        let mut decoder = CAPABILITY_WIRE.decoder(bytes);
         decoder.require_field(TENANT_ROOT_CREATION_CAPABILITY_DOMAIN_V1)?;
         if decoder.field("tenant-root creation capability operation")?
             != TENANT_ROOT_CREATION_OPERATION_V1
@@ -421,15 +428,7 @@ pub struct VerifiedTenantRootCreationCapabilityV1 {
     digest: TenantRootProtocolDigestV1,
 }
 
-impl fmt::Debug for VerifiedTenantRootCreationCapabilityV1 {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter
-            .debug_struct("VerifiedTenantRootCreationCapabilityV1")
-            .field("digest", &self.digest)
-            .field("canonical_bytes", &"[public bytes]")
-            .finish()
-    }
-}
+verified_token_debug!(VerifiedTenantRootCreationCapabilityV1);
 
 impl VerifiedTenantRootCreationCapabilityV1 {
     /// Returns the exact operation authenticated by this token.
@@ -594,27 +593,12 @@ fn authentication_input(issuer_key_id: &str, unsigned: &[u8]) -> RouterAbDerivat
 }
 
 fn push_field(out: &mut Vec<u8>, value: &[u8]) -> RouterAbDerivationResult<()> {
-    if value.is_empty() {
-        return Err(RouterAbDerivationError::new(
-            RouterAbDerivationErrorCode::EmptyField,
-            "tenant-root creation capability field is required",
-        ));
-    }
-    let length = u32::try_from(value.len())
-        .map_err(|_| malformed("tenant-root creation capability field is too long"))?;
-    let new_len = out
-        .len()
-        .checked_add(4)
-        .and_then(|length| length.checked_add(value.len()))
-        .ok_or_else(|| malformed("tenant-root creation capability wire length overflows"))?;
-    if new_len > TENANT_ROOT_CREATION_CAPABILITY_MAX_BYTES_V1 {
-        return Err(malformed(
-            "tenant-root creation capability wire is too long",
-        ));
-    }
-    out.extend_from_slice(&length.to_be_bytes());
-    out.extend_from_slice(value);
-    Ok(())
+    push_bounded_field(
+        out,
+        value,
+        TENANT_ROOT_CREATION_CAPABILITY_MAX_BYTES_V1,
+        CAPABILITY_WIRE.label,
+    )
 }
 
 fn malformed(message: impl Into<String>) -> RouterAbDerivationError {
@@ -630,92 +614,4 @@ fn verification_failed(message: &'static str) -> RouterAbDerivationError {
         RouterAbDerivationErrorCode::OutputVerificationFailed,
         message,
     )
-}
-
-struct CreationCapabilityWireDecoderV1<'a> {
-    bytes: &'a [u8],
-    offset: usize,
-}
-
-impl<'a> CreationCapabilityWireDecoderV1<'a> {
-    const fn new(bytes: &'a [u8]) -> Self {
-        Self { bytes, offset: 0 }
-    }
-
-    fn field(&mut self, name: &'static str) -> RouterAbDerivationResult<&'a [u8]> {
-        let length_end = self
-            .offset
-            .checked_add(4)
-            .ok_or_else(|| malformed("tenant-root creation capability offset overflows"))?;
-        let length_bytes = self.bytes.get(self.offset..length_end).ok_or_else(|| {
-            malformed("tenant-root creation capability field length is truncated")
-        })?;
-        let length = u32::from_be_bytes(
-            length_bytes
-                .try_into()
-                .expect("fixed four-byte creation capability field length"),
-        ) as usize;
-        let value_end = length_end
-            .checked_add(length)
-            .ok_or_else(|| malformed("tenant-root creation capability field length overflows"))?;
-        let value = self
-            .bytes
-            .get(length_end..value_end)
-            .ok_or_else(|| malformed("tenant-root creation capability field is truncated"))?;
-        self.offset = value_end;
-        if value.is_empty() {
-            return Err(RouterAbDerivationError::new(
-                RouterAbDerivationErrorCode::EmptyField,
-                format!("{name} is required"),
-            ));
-        }
-        Ok(value)
-    }
-
-    fn require_field(&mut self, expected: &[u8]) -> RouterAbDerivationResult<()> {
-        if self.field("tenant-root creation capability domain")? != expected {
-            return Err(malformed(
-                "tenant-root creation capability domain is invalid",
-            ));
-        }
-        Ok(())
-    }
-
-    fn fixed_field<const N: usize>(
-        &mut self,
-        name: &'static str,
-    ) -> RouterAbDerivationResult<[u8; N]> {
-        self.field(name)?
-            .try_into()
-            .map_err(|_| malformed("tenant-root creation capability fixed field length is invalid"))
-    }
-
-    fn u64_field(&mut self, name: &'static str) -> RouterAbDerivationResult<u64> {
-        Ok(u64::from_be_bytes(self.fixed_field::<8>(name)?))
-    }
-
-    fn text_field(
-        &mut self,
-        name: &'static str,
-        max_bytes: usize,
-    ) -> RouterAbDerivationResult<String> {
-        let bytes = self.field(name)?;
-        if bytes.len() > max_bytes {
-            return Err(malformed(
-                "tenant-root creation capability text field is too long",
-            ));
-        }
-        core::str::from_utf8(bytes)
-            .map(str::to_owned)
-            .map_err(|_| malformed("tenant-root creation capability text field is invalid UTF-8"))
-    }
-
-    fn finish(self) -> RouterAbDerivationResult<()> {
-        if self.offset != self.bytes.len() {
-            return Err(malformed(
-                "tenant-root creation capability wire has trailing bytes",
-            ));
-        }
-        Ok(())
-    }
 }

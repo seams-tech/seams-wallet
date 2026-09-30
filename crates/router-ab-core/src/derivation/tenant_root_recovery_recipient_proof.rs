@@ -8,6 +8,7 @@ use subtle::ConstantTimeEq;
 use threshold_prf::{ThresholdShareId, TwoPartyDeriverRole};
 use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
+use super::tenant_root_protocol::push_length_prefixed;
 use super::x25519_canonical::is_canonical_nonzero_x25519_encoding;
 use super::{
     RouterAbDerivationError, RouterAbDerivationErrorCode, RouterAbDerivationResult,
@@ -679,11 +680,11 @@ fn hmac_sha256(key: &[u8; RECOVERY_RECIPIENT_PROOF_KEY_BYTES], message: &[u8]) -
 }
 
 fn push_lp32(out: &mut Vec<u8>, value: &[u8]) -> RouterAbDerivationResult<()> {
-    let length = u32::try_from(value.len())
-        .map_err(|_| malformed("tenant-root recovery recipient proof field is too long"))?;
-    out.extend_from_slice(&length.to_be_bytes());
-    out.extend_from_slice(value);
-    Ok(())
+    push_length_prefixed(
+        out,
+        value,
+        "tenant-root recovery recipient proof field is too long",
+    )
 }
 
 fn take_lp32<'a>(bytes: &'a [u8], cursor: &mut usize) -> RouterAbDerivationResult<&'a [u8]> {

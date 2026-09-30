@@ -1,8 +1,6 @@
 use serde::{de::Error as DeError, Deserialize, Deserializer, Serialize};
 
-use crate::derivation::error::{
-    RouterAbDerivationError, RouterAbDerivationErrorCode, RouterAbDerivationResult,
-};
+use crate::derivation::error::{require_non_empty, RouterAbDerivationResult};
 
 const CONTEXT_VERSION: &[u8] = b"router-ab-ecdsa-threshold-prf/context/v1";
 
@@ -239,16 +237,6 @@ impl<'de> Deserialize<'de> for DerivationContext {
         )
         .map_err(D::Error::custom)
     }
-}
-
-fn require_non_empty(field: &'static str, value: &str) -> RouterAbDerivationResult<()> {
-    if value.is_empty() {
-        return Err(RouterAbDerivationError::new(
-            RouterAbDerivationErrorCode::EmptyField,
-            format!("{field} is required"),
-        ));
-    }
-    Ok(())
 }
 
 fn push_field(out: &mut Vec<u8>, value: &[u8]) {
