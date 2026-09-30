@@ -6,7 +6,11 @@ Status: planned. A controlled same-wallet London comparison now shows that
 moving the Gateway to Tokyo alone worsens complete signing latency, despite
 shorter D1 calls. Aligning a regional primary with the existing Gateway/custody
 path remains unmeasured. Provisioning and production rollout stay gated on the
-ownership checks and regional experiment below.
+ownership checks and regional experiment below. The October 1
+[ownership review and first experiment](refactor-152-ownership-review.md)
+defines a whole-deployment-namespace diagnostic and records the remaining
+production routing proof. Provisioning two new test databases requires expanding
+the existing-resources-only benchmark authorization.
 
 ## Objective and starting evidence
 
@@ -107,9 +111,11 @@ Human decision time and transaction broadcasting are reported separately.
 - [x] Finish R151's supported-call-budget review and record the resulting canonical,
   linked, replay, and rejected-request budgets. Retain admission, atomic quota,
   material freshness, and durable completion invariants. Both canonical and linked
-  signing use seven calls. The wider policy/material join remains deferred at
-  trusted verification/admission boundaries. This is an adopted budget rather
-  than a proven theoretical minimum.
+  prepare/finalize use five calls after the policy/material join. The full
+  ready-material owner path uses seven calls, including two status reads;
+  linked signing uses five. Replay/rejection correctness evidence remains
+  separate from successful-signature latency. These are adopted measured
+  budgets; a theoretical minimum remains unproven.
 - [ ] Freeze SDK, Gateway, role builds, schema, concurrency, and refill settings
   for each cohort. Record source revisions and distribution hashes.
 - [ ] Reuse the existing isolated benchmark and per-call D1 instrumentation.
@@ -126,6 +132,9 @@ Human decision time and transaction broadcasting are reported separately.
 
 Experiment preparation can proceed alongside R151. A regional ownership decision
 uses the residual cost after supported call reductions have been implemented.
+R151 r16/r17 already freeze builds and instrument the ready-material London
+workload. The unchecked items above require a matched regional treatment and
+the broader workload matrix; historical observations alone do not close them.
 
 ## Phase 2: controlled placement comparison
 
@@ -135,12 +144,13 @@ Use the same workloads and build identities in these arms:
 | --- | --- | --- |
 | A | Existing primary and current Gateway/DO configuration | What is the optimized baseline? |
 | B | Same primary and DOs; Gateway placement optimized near that primary | Can Gateway placement alone remove the relevant cost? |
-| C | Fresh isolated regional primary, aligned Gateway, and fresh role DOs | Does regional ownership improve complete signing beyond B? |
+| C | Fresh APAC control versus fresh WEUR primary; fixed Gateway and role builds, fresh wallets in both arms | Does regional D1 improve complete signing with the existing compute path? |
 
 - [x] Run A/B first. Include the Gateway-to-DO leg: improving D1 proximity can
   increase custody RPC latency. Confirm the placement treatment took effect.
 - [ ] If residual cost warrants C, provision isolated test databases using APAC,
-  WEUR, and ENAM hints where verified probes are available. Keep fresh data,
+  WEUR, and later ENAM hints where verified probes are available. Start with the
+  two-database London diagnostic in the ownership review. Keep fresh data,
   registration distribution, and object age comparable across arms. Add a
   matched fresh baseline when necessary to separate placement from data age.
 - [ ] Alternate arm order across at least two runs. Target at least 30 completed
@@ -164,7 +174,12 @@ Use the same workloads and build identities in these arms:
 
 ## Phase 3: prove the ownership boundary
 
-Proceed only when Phase 2 demonstrates material residual benefit.
+Complete the experiment's isolation review before Phase 2C. The
+[initial review](refactor-152-ownership-review.md) keeps all tables of each fresh
+deployment namespace in one database and records the authorization scope
+constraint. Proceed with production regional ownership/routing implementation
+only when Phase 2 demonstrates material benefit. The complete production proofs
+below remain open.
 
 - [ ] Inventory every table, trigger, admission check, revocation, policy update,
   quota, replay key, and administration path touched by a signature. Identify

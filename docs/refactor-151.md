@@ -230,7 +230,10 @@ following outcome and follow-up gates remain open:
 
 1. Evaluate an isolated regional primary under R152: moving the Gateway alone
    worsened total latency. Prove the ownership boundary before provisioning or
-   implementation; a regional-D1 benefit has not been measured.
+   implementation; a regional-D1 benefit has not been measured. The
+   [initial ownership review](refactor-152-ownership-review.md) specifies a
+   whole-deployment-namespace experiment and identifies the namespace/org replay
+   keys and shared project policy that prevent assuming wallet-level ownership.
 2. The 1–2 second complete signing target remains unmet. Use the recorded stages
    to select the next demonstrated bottleneck and expand controlled sampling.
    Five Gateway prepare/finalize calls is the adopted budget; a theoretical
