@@ -55,7 +55,8 @@ const IDENTITY_FIELDS = [
 
 function parseAttempt(body) {
   const request = JSON.parse(body);
-  const { runId, arm, region, selected, expectedIdentity } = request;
+  const { runId, arm, region, selected, expectedIdentity, workload } = request;
+  if (!['unforced', 'first_warm_burst'].includes(workload)) throw new Error('attempt workload is invalid');
   if (!/^[a-z0-9-]+$/u.test(runId ?? '') || !['d1', 'do'].includes(arm)) {
     throw new Error('attempt run id or arm is invalid');
   }
@@ -77,12 +78,15 @@ function parseAttempt(body) {
       throw new Error(`this container's ${name} differs from the probe the attempt names`);
     }
   }
-  return { runId, arm, region, selected };
+  return { runId, arm, region, selected, workload };
 }
 
 function startAttempt(attempt) {
-  const artifactName = `gateway-ecdsa-unforced-timing-hosted_${attempt.arm}-${attempt.region}-${attempt.runId}-0.json`;
-  const artifactPath = path.join(repoRoot, '.artifacts', 'r150', artifactName);
+  const unforced = attempt.workload === 'unforced';
+  const artifactName = unforced
+    ? `gateway-ecdsa-unforced-timing-hosted_${attempt.arm}-${attempt.region}-${attempt.runId}-0.json`
+    : `gateway-ecdsa-first-warm-burst-hosted_${attempt.arm}-${attempt.region}-${attempt.runId}-0.json`;
+  const artifactPath = path.join(repoRoot, '.artifacts', unforced ? 'r150' : 'r151', artifactName);
   if (existsSync(artifactPath)) throw new Error(`artifact ${artifactName} already exists`);
   const state = { status: 'running', startedAt: new Date().toISOString(), result: null };
   attempts.set(attempt.runId, state);
@@ -114,7 +118,7 @@ function startAttempt(attempt) {
       'playwright.wallet-intended.ci.config.ts',
       'e2e/intended-behaviours/passkey.presign-pool.contract.test.ts',
       '--grep',
-      'unforced ECDSA registration and repeated signing',
+      unforced ? 'unforced ECDSA registration and repeated signing' : 'first, warm, and concurrent burst',
     ],
     { cwd: repoRoot, env, stdio: ['ignore', 'pipe', 'pipe'] },
   );

@@ -11,12 +11,13 @@ const walletDist = path.join(repoRoot, 'packages', 'wallet', 'dist');
 if (process.argv.length !== 2) {
   throw new Error('Usage: node tests/r150-hosted/probe/prepare-image-context.mjs');
 }
-// The image is built from `git archive HEAD`, so only tracked changes matter.
-if (
-  run('git', ['status', '--porcelain', '--untracked-files=no'], { encoding: 'utf8' }).stdout.trim() !==
-  ''
-) {
-  throw new Error('Commit the exact probe source before preparing a deployment image');
+// The archived runtime must be committed; unrelated Markdown edits stay in the checkout.
+const changedPaths = run('git', ['diff', '--name-only', 'HEAD', '-z'], { encoding: 'utf8' })
+  .stdout.split('\0').filter(Boolean);
+for (const changedPath of changedPaths) {
+  if (!changedPath.endsWith('.md')) {
+    throw new Error('Commit the exact probe runtime source before preparing a deployment image');
+  }
 }
 run(path.join(repoRoot, 'packages/wallet/scripts/build/check-build-freshness.sh'), [], {
   encoding: 'utf8',

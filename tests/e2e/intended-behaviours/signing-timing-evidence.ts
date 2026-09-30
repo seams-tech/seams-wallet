@@ -90,7 +90,7 @@ export class SigningTimingEvidence {
     this.events.push({ receivedAtMs: performance.now(), stage, durationMs: event.durationMs });
   }
 
-  window(startedAt: number, endedAt: number) {
+  private observedWindow(startedAt: number, endedAt: number) {
     const events = [];
     for (const event of this.events) {
       if (event.receivedAtMs < startedAt || event.receivedAtMs > endedAt) continue;
@@ -106,6 +106,24 @@ export class SigningTimingEvidence {
         backgroundRefills.push(event);
       }
     }
+    return { stages: events, backgroundRefills };
+  }
+
+  concurrentWindow(startedAt: number, endedAt: number) {
+    const observed = this.observedWindow(startedAt, endedAt);
+    const sdk = observed.stages.filter(isPublicSdkCall);
+    expect(sdk).toHaveLength(2);
+    expect(observed.stages.filter(isCommitTotal)).toHaveLength(2);
+    return {
+      ...observed,
+      publicSdkCalls: sdk,
+      accounting:
+        'Concurrent calls overlap; report each SDK call and commit separately. SDK calls include confirmation.',
+    };
+  }
+
+  window(startedAt: number, endedAt: number) {
+    const { stages: events, backgroundRefills } = this.observedWindow(startedAt, endedAt);
     const sdk = events.filter(isPublicSdkCall);
     expect(sdk).toHaveLength(1);
     expect(events.some(isCommitTotal)).toBe(true);

@@ -3,6 +3,7 @@ import {
   expect,
   type APIResponse,
   type BrowserContext,
+  type Page,
   type Request,
   type Response,
   type Route,
@@ -627,13 +628,23 @@ function requestedEcdsaBackendProfile(): string {
   return walletDoRequested ? 'local_wallet_do_harness_requested' : 'local_default_d1';
 }
 
-async function measureFirstWarmAndBurstSigning({
-  harness,
-  context,
-}: {
-  harness: IntendedBehaviourHarness;
-  context: BrowserContext;
-}, testInfo: TestInfo): Promise<void> {
+async function measureFirstWarmAndBurstSigning(
+  {
+    harness,
+    context,
+    page,
+  }: {
+    harness: IntendedBehaviourHarness;
+    context: BrowserContext;
+    page: Page;
+  },
+  testInfo: TestInfo,
+): Promise<void> {
+  await context.addInitScript(enableSigningSessionDebugInFrame);
+  await page.evaluate(enableSigningSessionDebugInFrame);
+  const clientTiming = new SigningTimingEvidence();
+  const observeTiming = clientTiming.record.bind(clientTiming);
+  page.on('console', observeTiming);
   const flow = new FirstSigningPoolFlow();
   const record = flow.record.bind(flow);
   const recordResponse = flow.recordResponse.bind(flow);
@@ -646,9 +657,11 @@ async function measureFirstWarmAndBurstSigning({
     const firstEndedAt = performance.now();
     const firstSigning = await flow.timingWindow(firstStartedAt, firstEndedAt);
 
-    await expect.poll(flow.unusedServerPresignatureCount.bind(flow), {
-      timeout: 60_000,
-    }).toBeGreaterThan(0);
+    await expect
+      .poll(flow.unusedServerPresignatureCount.bind(flow), {
+        timeout: 60_000,
+      })
+      .toBeGreaterThan(0);
     const readyBeforeWarm = await flow.unusedServerPresignatures();
     const warmStartedAt = performance.now();
     await harness.signTempoTransaction('post_registration');
@@ -676,32 +689,50 @@ async function measureFirstWarmAndBurstSigning({
     expect(flow.terminalPrepares).toBe(0);
     const proof = {
       kind: 'gateway_ecdsa_first_warm_burst_diagnostic_v1',
-      reproduce: "node tests/scripts/run-wallet-intended-isolated.mjs -- e2e/intended-behaviours/passkey.presign-pool.contract.test.ts --grep 'first, warm, and concurrent burst'",
+      reproduce:
+        "node tests/scripts/run-wallet-intended-isolated.mjs -- e2e/intended-behaviours/passkey.presign-pool.contract.test.ts --grep 'first, warm, and concurrent burst'",
       requestedBackendProfile: requestedEcdsaBackendProfile(),
       timingScope: 'browser_harness_including_automatic_confirmation_and_signature_verification',
       requestScope: 'gateway_POSTs_during_each_window_including_background_work',
       timingPurpose: 'bounded_diagnostic_not_complete_system_controlled_latency_or_release_gate',
-      firstSigning,
+      firstSigning: {
+        ...firstSigning,
+        clientTiming: clientTiming.window(firstStartedAt, firstEndedAt),
+      },
       warmSigning: {
         ...warmSigning,
+        clientTiming: clientTiming.window(warmStartedAt, warmEndedAt),
         selectedServerMaterialCompletedBeforeStart: true,
       },
       concurrentBurst: {
         ...(await flow.timingWindow(burstStartedAt, burstEndedAt)),
+        clientTiming: clientTiming.concurrentWindow(burstStartedAt, burstEndedAt),
         signatures: 2,
         selectedServerMaterialsCompletedBeforeStart: burstMaterialReadyAtStart,
         sharedBudgetExhausted: true,
       },
       signaturesVerified: 5,
       untimedSetupSignatures: 1,
+      backgroundRefills: clientTiming.refillResults,
     };
-    const artifactName = `gateway-ecdsa-first-warm-burst-${proof.requestedBackendProfile}.json`;
+    const hosted = process.env.SEAMS_INTENDED_EXTERNAL_GATEWAY === '1';
+    const probeRegion = process.env.SEAMS_INTENDED_PROBE_REGION;
+    const runId = process.env.SEAMS_INTENDED_BENCHMARK_RUN_ID;
+    if (
+      hosted &&
+      (!probeRegion || !runId || !/^[a-z0-9-]+$/u.test(probeRegion) || !/^[a-z0-9-]+$/u.test(runId))
+    ) {
+      throw new Error('Hosted workload requires a probe region and run identity');
+    }
+    const suffix = hosted ? `-${probeRegion}-${runId}-${testInfo.repeatEachIndex}` : '';
+    const artifactName = `gateway-ecdsa-first-warm-burst-${proof.requestedBackendProfile}${suffix}.json`;
     const artifactPath = path.resolve(testInfo.config.rootDir, '../.artifacts/r151', artifactName);
     const body = JSON.stringify(proof, null, 2);
     await mkdir(path.dirname(artifactPath), { recursive: true });
     await writeFile(artifactPath, body, 'utf8');
     await testInfo.attach(artifactName, { body, contentType: 'application/json' });
   } finally {
+    page.off('console', observeTiming);
     context.off('request', record);
     context.off('response', recordResponse);
   }
