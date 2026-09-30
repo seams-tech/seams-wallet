@@ -12,6 +12,15 @@ import {
   type WalletRecoveryEnvelopeEntry,
 } from '@shared/wallet-recovery';
 import type { DigestB64u } from '@shared/utils';
+import { requireArray } from '@shared/utils/validation';
+import {
+  wireLiteral,
+  wireObject,
+  wireResult,
+  type AllTrue,
+  type ParsesExactly,
+  type WireParser,
+} from '@shared/utils/wireSchema';
 import { parseRouterAbMpcMaterialActivationRef } from '@shared/utils/routerAbNormalSigningIdentity';
 import type {
   RouterAbEd25519YaoApplicationBindingFactsV1,
@@ -378,7 +387,10 @@ async function parseWalletRecoveryPrepareResponse(args: {
           : WALLET_RECOVERY_PREPARE_COMMON_RESPONSE_FIELDS,
         'walletRecoveryPrepare',
       );
-      const wrap = parsePreparedRecoveryWrap(readJsonField(preparedResponse, 'wrap'));
+      const wrap = preparedRecoveryWrap()(
+        readJsonField(preparedResponse, 'wrap'),
+        'walletRecoveryPrepare.wrap',
+      );
       const entries = parsePreparedRecoveryEntries(readJsonField(preparedResponse, 'entries'));
       const walletIdResult = parseWalletId(readJsonField(preparedResponse, 'walletId'));
       if (!walletIdResult.ok) throw new Error('walletRecoveryPrepare.walletId is invalid');
@@ -439,10 +451,9 @@ async function parseWalletRecoveryPrepareResponse(args: {
       };
       switch (target.kind) {
         case 'passkey': {
-          const registration = parseWalletRecoveryRegistrationOptions(
+          const registration = walletRecoveryRegistrationOptions(String(walletId), target.rpId)(
             readJsonField(preparedResponse, 'registration'),
-            String(walletId),
-            target.rpId,
+            'registration',
           );
           if (registration.walletAuthMethodId !== targetWalletAuthMethodId.value) {
             throw new Error('wallet recovery registration changed the target auth method');
@@ -474,219 +485,96 @@ async function parseWalletRecoveryPrepareResponse(args: {
   return { kind: 'transport_uncertain' };
 }
 
-function parseWalletRecoveryRegistrationOptions(
-  raw: unknown,
-  expectedWalletId: string,
-  expectedRpId: WebAuthnRpId,
-): WalletRecoveryRegistrationOptions {
-  const registration = decodeExactJsonObject(
-    raw,
-    [
-      'kind',
-      'challengeId',
-      'challengeB64u',
-      'replacementId',
-      'walletAuthMethodId',
-      'rpId',
-      'user',
-      'pubKeyCredParams',
-      'authenticatorSelection',
-      'timeoutMs',
-      'attestation',
-      'extensions',
-      'excludeCredentials',
-    ],
-    'walletRecoveryPrepare.registration',
-  );
-  if (readJsonField(registration, 'kind') !== 'webauthn_recovery_registration_v1') {
-    throw new Error('walletRecoveryPrepare.registration kind is invalid');
-  }
-  const challengeId = requireResponseString(
-    readJsonField(registration, 'challengeId'),
-    'registration.challengeId',
-  );
-  const challengeB64u = requireCanonicalBytesB64u(
-    readJsonField(registration, 'challengeB64u'),
-    32,
-    'registration.challengeB64u',
-  );
-  const replacementId = requireResponseString(
-    readJsonField(registration, 'replacementId'),
-    'registration.replacementId',
-  );
-  const walletAuthMethodId = parseWalletAuthMethodId(
-    readJsonField(registration, 'walletAuthMethodId'),
-  );
-  if (!walletAuthMethodId.ok) {
-    throw new Error('walletRecoveryPrepare.registration.walletAuthMethodId is invalid');
-  }
-  const rpIdResult = parseWebAuthnRpId(readJsonField(registration, 'rpId'));
-  if (!rpIdResult.ok) throw new Error('walletRecoveryPrepare.registration.rpId is invalid');
-  if (rpIdResult.value !== expectedRpId) {
-    throw new Error('walletRecoveryPrepare.registration changed the relying party');
-  }
-
-  const user = decodeExactJsonObject(
-    readJsonField(registration, 'user'),
-    ['idB64u', 'name', 'displayName'],
-    'walletRecoveryPrepare.registration.user',
-  );
+function walletRecoveryRegistrationOptions(expectedWalletId: string, expectedRpId: WebAuthnRpId) {
   const expectedUserIdB64u = base64UrlEncode(new TextEncoder().encode(expectedWalletId));
-  const idB64u = requireCanonicalNonEmptyB64u(
-    readJsonField(user, 'idB64u'),
-    'registration.user.idB64u',
-  );
-  if (idB64u !== expectedUserIdB64u) {
-    throw new Error('walletRecoveryPrepare.registration user is bound to another wallet');
-  }
-  const name = requireResponseString(readJsonField(user, 'name'), 'registration.user.name');
-  const displayName = requireResponseString(
-    readJsonField(user, 'displayName'),
-    'registration.user.displayName',
-  );
-  if (name !== expectedWalletId || displayName !== expectedWalletId) {
-    throw new Error('walletRecoveryPrepare.registration user labels changed the wallet identity');
-  }
-
-  const pubKeyCredParams = parseRecoveryPublicKeyParameters(
-    readJsonField(registration, 'pubKeyCredParams'),
-  );
-  const authenticatorSelection = parseRecoveryAuthenticatorSelection(
-    readJsonField(registration, 'authenticatorSelection'),
-  );
-  const timeoutMs = Number(readJsonField(registration, 'timeoutMs'));
-  if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0) {
-    throw new Error('walletRecoveryPrepare.registration.timeoutMs is invalid');
-  }
-  if (readJsonField(registration, 'attestation') !== 'none') {
-    throw new Error('walletRecoveryPrepare.registration.attestation is invalid');
-  }
-  const extensions = parseRecoveryPrfExtensions(readJsonField(registration, 'extensions'));
-  const excludeCredentials = parseRecoveryExcludeCredentials(
-    readJsonField(registration, 'excludeCredentials'),
-  );
-  return {
-    kind: 'webauthn_recovery_registration_v1',
-    challengeId,
-    challengeB64u,
-    replacementId,
-    walletAuthMethodId: walletAuthMethodId.value,
-    rpId: rpIdResult.value,
-    user: { idB64u, name, displayName },
-    pubKeyCredParams,
-    authenticatorSelection,
-    timeoutMs,
-    attestation: 'none',
-    extensions,
-    excludeCredentials,
-  };
-}
-
-function parseRecoveryPrfExtensions(raw: unknown): WalletRecoveryRegistrationOptions['extensions'] {
-  const extensions = decodeExactJsonObject(
-    raw,
-    ['prf'],
-    'walletRecoveryPrepare.registration.extensions',
-  );
-  const prf = decodeExactJsonObject(
-    readJsonField(extensions, 'prf'),
-    ['eval'],
-    'walletRecoveryPrepare.registration.extensions.prf',
-  );
-  const evaluation = decodeExactJsonObject(
-    readJsonField(prf, 'eval'),
-    ['firstB64u', 'secondB64u'],
-    'walletRecoveryPrepare.registration.extensions.prf.eval',
-  );
-  const firstB64u = requireCanonicalBytesB64u(
-    readJsonField(evaluation, 'firstB64u'),
-    PASSKEY_PRF_FIRST_SALT_V1.length,
-    'registration.extensions.prf.eval.firstB64u',
-  );
-  const secondB64u = requireCanonicalBytesB64u(
-    readJsonField(evaluation, 'secondB64u'),
-    PASSKEY_PRF_SECOND_SALT_V1.length,
-    'registration.extensions.prf.eval.secondB64u',
-  );
-  if (
-    firstB64u !== base64UrlEncode(PASSKEY_PRF_FIRST_SALT_V1) ||
-    secondB64u !== base64UrlEncode(PASSKEY_PRF_SECOND_SALT_V1)
-  ) {
-    throw new Error('walletRecoveryPrepare.registration PRF salts are unsupported');
-  }
-  return { prf: { eval: { firstB64u, secondB64u } } };
-}
-
-function parseRecoveryPublicKeyParameters(
-  raw: unknown,
-): WalletRecoveryRegistrationOptions['pubKeyCredParams'] {
-  if (!Array.isArray(raw) || raw.length !== 2) {
-    throw new Error('walletRecoveryPrepare.registration.pubKeyCredParams is invalid');
-  }
-  const first = decodeExactJsonObject(
-    raw[0],
-    ['type', 'alg'],
-    'walletRecoveryPrepare.registration.pubKeyCredParams[0]',
-  );
-  const second = decodeExactJsonObject(
-    raw[1],
-    ['type', 'alg'],
-    'walletRecoveryPrepare.registration.pubKeyCredParams[1]',
-  );
-  if (readJsonField(first, 'type') !== 'public-key' || readJsonField(first, 'alg') !== -7) {
-    throw new Error('walletRecoveryPrepare.registration.pubKeyCredParams[0] is invalid');
-  }
-  if (readJsonField(second, 'type') !== 'public-key' || readJsonField(second, 'alg') !== -257) {
-    throw new Error('walletRecoveryPrepare.registration.pubKeyCredParams[1] is invalid');
-  }
-  return [
-    { type: 'public-key', alg: -7 },
-    { type: 'public-key', alg: -257 },
-  ];
-}
-
-function parseRecoveryAuthenticatorSelection(
-  raw: unknown,
-): WalletRecoveryRegistrationOptions['authenticatorSelection'] {
-  const selection = decodeExactJsonObject(
-    raw,
-    ['residentKey', 'userVerification'],
-    'walletRecoveryPrepare.registration.authenticatorSelection',
-  );
-  if (
-    readJsonField(selection, 'residentKey') !== 'required' ||
-    readJsonField(selection, 'userVerification') !== 'preferred'
-  ) {
-    throw new Error('walletRecoveryPrepare.registration.authenticatorSelection is invalid');
-  }
-  return { residentKey: 'required', userVerification: 'preferred' };
-}
-
-function parseRecoveryExcludeCredentials(
-  raw: unknown,
-): readonly WalletRecoveryRegistrationCredentialDescriptor[] {
-  if (!Array.isArray(raw)) {
-    throw new Error('walletRecoveryPrepare.registration.excludeCredentials is invalid');
-  }
-  return raw.map((entry, index) => {
-    const descriptor = decodeExactJsonObject(
-      entry,
-      ['type', 'id'],
-      `walletRecoveryPrepare.registration.excludeCredentials[${index}]`,
-    );
-    if (readJsonField(descriptor, 'type') !== 'public-key') {
-      throw new Error('walletRecoveryPrepare.registration.excludeCredentials type is invalid');
-    }
-    const parsedId = parseWebAuthnCredentialIdB64u(readJsonField(descriptor, 'id'));
-    if (!parsedId.ok) {
-      throw new Error('walletRecoveryPrepare.registration.excludeCredentials id is invalid');
-    }
-    requireCanonicalNonEmptyB64u(parsedId.value, 'registration.excludeCredentials.id');
-    return {
-      type: 'public-key',
-      id: parsedId.value,
-    };
+  const credentialDescriptor = wireObject({
+    type: wireLiteral('public-key'),
+    id: (raw, label) => {
+      const id = wireResult(parseWebAuthnCredentialIdB64u)(raw, label);
+      requireCanonicalNonEmptyB64u(id, label);
+      return id;
+    },
   });
+  return wireObject(
+    {
+      kind: wireLiteral('webauthn_recovery_registration_v1'),
+      challengeId: requireResponseString,
+      challengeB64u: (raw, label) => requireCanonicalBytesB64u(raw, 32, label),
+      replacementId: requireResponseString,
+      walletAuthMethodId: wireResult(parseWalletAuthMethodId),
+      rpId: wireResult(parseWebAuthnRpId),
+      user: wireObject(
+        {
+          idB64u: requireCanonicalNonEmptyB64u,
+          name: requireResponseString,
+          displayName: requireResponseString,
+        },
+        (user, label) => {
+          if (
+            user.idB64u !== expectedUserIdB64u ||
+            user.name !== expectedWalletId ||
+            user.displayName !== expectedWalletId
+          ) {
+            throw new Error(`${label} is bound to another wallet`);
+          }
+        },
+      ),
+      pubKeyCredParams: (raw, label): WalletRecoveryRegistrationOptions['pubKeyCredParams'] => {
+        if (!Array.isArray(raw) || raw.length !== 2) throw new Error(`${label} is invalid`);
+        return [
+          publicKeyCredentialParameter(-7)(raw[0], `${label}[0]`),
+          publicKeyCredentialParameter(-257)(raw[1], `${label}[1]`),
+        ];
+      },
+      authenticatorSelection: wireObject({
+        residentKey: wireLiteral('required'),
+        userVerification: wireLiteral('preferred'),
+      }),
+      timeoutMs: (raw, label) => {
+        const timeoutMs = Number(raw);
+        if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0) {
+          throw new Error(`${label} is invalid`);
+        }
+        return timeoutMs;
+      },
+      attestation: wireLiteral('none'),
+      extensions: wireObject({
+        prf: wireObject({
+          eval: wireObject({
+            firstB64u: prfSalt(PASSKEY_PRF_FIRST_SALT_V1),
+            secondB64u: prfSalt(PASSKEY_PRF_SECOND_SALT_V1),
+          }),
+        }),
+      }),
+      excludeCredentials: (raw, label) =>
+        requireArray(raw, label).map((entry, index) =>
+          credentialDescriptor(entry, `${label}[${index}]`),
+        ),
+    },
+    (registration, label) => {
+      if (registration.rpId !== expectedRpId) {
+        throw new Error(`${label} changed the relying party`);
+      }
+    },
+  );
+}
+
+function publicKeyCredentialParameter<A extends -7 | -257>(alg: A) {
+  return wireObject({
+    type: wireLiteral('public-key'),
+    alg: (raw, label): A => {
+      if (raw !== alg) throw new Error(`${label} is invalid`);
+      return alg;
+    },
+  });
+}
+
+function prfSalt(salt: Uint8Array): WireParser<string> {
+  return (raw, label) => {
+    const value = requireCanonicalBytesB64u(raw, salt.length, label);
+    if (value !== base64UrlEncode(salt)) throw new Error(`${label} is unsupported`);
+    return value;
+  };
 }
 
 function recoveryTargetsMatch(
@@ -708,28 +596,12 @@ function assertNeverRecoveryTarget(value: never): never {
   throw new Error(`unsupported wallet recovery target: ${String(value)}`);
 }
 
-const PREPARED_WRAP_FIELDS = ['nonceB64u', 'wrappedManifestKekB64u', 'aadHashB64u'] as const;
-
-function parsePreparedRecoveryWrap(raw: unknown): {
-  readonly nonceB64u: EnvelopeNonceB64u;
-  readonly wrappedManifestKekB64u: EnvelopeCiphertextB64u;
-  readonly aadHashB64u: DigestB64u;
-} {
-  const wrap = decodeExactJsonObject(raw, PREPARED_WRAP_FIELDS, 'walletRecoveryPrepare.wrap');
-  return {
-    nonceB64u: parseEnvelopeNonceB64u(
-      readJsonField(wrap, 'nonceB64u'),
-      'walletRecoveryPrepare.wrap.nonceB64u',
-    ),
-    wrappedManifestKekB64u: parseEnvelopeCiphertextB64u(
-      readJsonField(wrap, 'wrappedManifestKekB64u'),
-      'walletRecoveryPrepare.wrap.wrappedManifestKekB64u',
-    ),
-    aadHashB64u: parseDigestField(
-      readJsonField(wrap, 'aadHashB64u'),
-      'walletRecoveryPrepare.wrap.aadHashB64u',
-    ),
-  };
+function preparedRecoveryWrap() {
+  return wireObject({
+    nonceB64u: parseEnvelopeNonceB64u,
+    wrappedManifestKekB64u: parseEnvelopeCiphertextB64u,
+    aadHashB64u: parseDigestField,
+  });
 }
 
 function parsePreparedRecoveryEntries(raw: unknown): readonly [WalletRecoveryEnvelopeEntry] {
@@ -1412,3 +1284,13 @@ function requireByteArray(raw: unknown, length: number, label: string): readonly
   }
   return raw.map(Number);
 }
+
+declare const schemasParseTheirDeclaredTypes: AllTrue<
+  [
+    ParsesExactly<
+      ReturnType<typeof walletRecoveryRegistrationOptions>,
+      WalletRecoveryRegistrationOptions
+    >,
+    ParsesExactly<typeof preparedRecoveryWrap, PreparedWalletRecovery['wrap']>,
+  ]
+>;

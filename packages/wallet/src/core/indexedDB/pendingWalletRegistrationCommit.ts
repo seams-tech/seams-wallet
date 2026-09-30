@@ -51,6 +51,15 @@ import {
   parseRouterAbEcdsaVerifiedClientActivationFactsV1,
   type RouterAbEcdsaVerifiedClientActivationFactsV1,
 } from '@shared/utils/routerAbEcdsaDerivation';
+import {
+  wireLiteral,
+  wireObject,
+  wireResult,
+  wireUnion,
+  type AllTrue,
+  type ParsesExactly,
+  type WireParser,
+} from '@shared/utils/wireSchema';
 
 type PendingWalletRegistrationEcdsaReplayV1 = {
   readonly activationJournalId: CorrelationId;
@@ -576,7 +585,7 @@ export function parsePendingWalletRegistrationCommitV1(
   const signedSetup = parseCanonicalString(fields.get('signedSetup'));
   const walletId = parseWalletId(fields.get('walletId'));
   const walletAuthMethodId = parseWalletAuthMethodId(fields.get('walletAuthMethodId'));
-  const auth = parsePendingAuth(fields.get('auth'));
+  const auth = readJournalRecord(pendingAuthV1(), fields.get('auth'));
   const localMaterial = parsePendingLocalMaterial(fields.get('localMaterial'));
   const createdAtMs = parsePositiveSafeInteger(fields.get('createdAtMs'));
   const updatedAtMs = parsePositiveSafeInteger(fields.get('updatedAtMs'));
@@ -850,46 +859,22 @@ function parsePendingSignerPlanKind(
     : null;
 }
 
-function parsePendingAuth(raw: unknown): PendingWalletRegistrationCommitAuthV1 | null {
-  const kind = readJournalField(raw, 'kind');
-  if (kind === 'passkey') {
-    const fields = decodeJournalObject(raw, ['kind', 'rpId', 'credentialIdB64u', 'transports']);
-    if (!fields) return null;
-    const rpId = parseWebAuthnRpId(fields.get('rpId'));
-    const credentialIdB64u = parseWebAuthnCredentialIdB64u(fields.get('credentialIdB64u'));
-    const transports = parseCanonicalStringArray(fields.get('transports'));
-    return rpId.ok && credentialIdB64u.ok && transports
-      ? {
-          kind: 'passkey',
-          rpId: rpId.value,
-          credentialIdB64u: credentialIdB64u.value,
-          transports,
-        }
-      : null;
-  }
-  if (kind !== 'email_otp') return null;
-  const fields = decodeJournalObject(raw, [
-    'kind',
-    'email',
-    'registrationAuthorityId',
-    'providerSubject',
-    'enrollment',
+function pendingAuthV1() {
+  return wireUnion('kind', [
+    wireObject({
+      kind: wireLiteral('passkey'),
+      rpId: wireResult(parseWebAuthnRpId),
+      credentialIdB64u: wireResult(parseWebAuthnCredentialIdB64u),
+      transports: journalField(parseCanonicalStringArray),
+    }),
+    wireObject({
+      kind: wireLiteral('email_otp'),
+      email: wireResult(parseVerifiedEmailAddress),
+      registrationAuthorityId: wireResult(parseEmailOtpChallengeId),
+      providerSubject: wireResult(parseEmailOtpProviderUserId),
+      enrollment: emailOtpEnrollmentMaterialV1(),
+    }),
   ]);
-  if (!fields) return null;
-  const email = parseVerifiedEmailAddress(fields.get('email'));
-  const registrationAuthorityId = parseEmailOtpChallengeId(fields.get('registrationAuthorityId'));
-  const providerSubject = parseEmailOtpProviderUserId(fields.get('providerSubject'));
-  const enrollment = parseEmailOtpEnrollmentMaterial(fields.get('enrollment'));
-  if (!email.ok || !registrationAuthorityId.ok || !providerSubject.ok || !enrollment) {
-    return null;
-  }
-  return {
-    kind: 'email_otp',
-    email: email.value,
-    registrationAuthorityId: registrationAuthorityId.value,
-    providerSubject: providerSubject.value,
-    enrollment,
-  };
 }
 
 function parseCanonicalStringArray(raw: unknown): readonly string[] | null {
@@ -906,35 +891,14 @@ function parseCanonicalStringArray(raw: unknown): readonly string[] | null {
   return values;
 }
 
-function parseEmailOtpEnrollmentMaterial(raw: unknown): WalletEmailOtpEnrollmentMaterialV1 | null {
-  const keys = [
-    'enrollmentSealKeyVersion',
-    'serverSealedFactorCiphertextB64u',
-    'clientUnlockPublicKeyB64u',
-    'unlockKeyVersion',
-  ] as const;
-  const fields = decodeJournalObject(raw, keys);
-  if (!fields) return null;
-  const enrollmentSealKeyVersion = parseCanonicalString(fields.get('enrollmentSealKeyVersion'));
-  const serverSealedFactorCiphertextB64u = parseCanonicalString(
-    fields.get('serverSealedFactorCiphertextB64u'),
-  );
-  const clientUnlockPublicKeyB64u = parseCanonicalString(fields.get('clientUnlockPublicKeyB64u'));
-  const unlockKeyVersion = parseCanonicalString(fields.get('unlockKeyVersion'));
-  if (
-    !enrollmentSealKeyVersion ||
-    !serverSealedFactorCiphertextB64u ||
-    !clientUnlockPublicKeyB64u ||
-    !unlockKeyVersion
-  ) {
-    return null;
-  }
-  return {
-    enrollmentSealKeyVersion,
-    serverSealedFactorCiphertextB64u,
-    clientUnlockPublicKeyB64u,
-    unlockKeyVersion,
-  };
+function emailOtpEnrollmentMaterialV1() {
+  const text = journalField(parseCanonicalString);
+  return wireObject({
+    enrollmentSealKeyVersion: text,
+    serverSealedFactorCiphertextB64u: text,
+    clientUnlockPublicKeyB64u: text,
+    unlockKeyVersion: text,
+  });
 }
 
 function parsePendingLocalMaterial(
@@ -946,7 +910,7 @@ function parsePendingLocalMaterial(
     const fields = decodeJournalObject(raw, ['keyFamilies', 'custodyCommit', 'ecdsa']);
     if (!fields) return null;
     const custodyCommit = parseCustodyCommit(fields.get('custodyCommit'));
-    const ecdsa = parseEcdsaLocalMaterial(fields.get('ecdsa'));
+    const ecdsa = readJournalRecord(ecdsaReplayV1(), fields.get('ecdsa'));
     return custodyCommit && isCustodyCommitForKeySet(custodyCommit, 'evm_family_ecdsa_v1') && ecdsa
       ? { keyFamilies: ['ecdsa_secp256k1'], custodyCommit, ecdsa }
       : null;
@@ -955,7 +919,7 @@ function parsePendingLocalMaterial(
     const fields = decodeJournalObject(raw, ['keyFamilies', 'custodyCommit', 'ed25519']);
     if (!fields) return null;
     const custodyCommit = parseCustodyCommit(fields.get('custodyCommit'));
-    const ed25519 = parseEd25519LocalMaterial(fields.get('ed25519'));
+    const ed25519 = readJournalRecord(ed25519LocalMaterialV1(), fields.get('ed25519'));
     return custodyCommit && isCustodyCommitForKeySet(custodyCommit, 'near_ed25519_v1') && ed25519
       ? { keyFamilies: ['ed25519'], custodyCommit, ed25519 }
       : null;
@@ -968,8 +932,8 @@ function parsePendingLocalMaterial(
     const fields = decodeJournalObject(raw, ['keyFamilies', 'custodyCommit', 'ed25519', 'ecdsa']);
     if (!fields) return null;
     const custodyCommit = parseCustodyCommit(fields.get('custodyCommit'));
-    const ed25519 = parseMixedEd25519LocalMaterial(fields.get('ed25519'));
-    const ecdsa = parseEcdsaLocalMaterial(fields.get('ecdsa'));
+    const ed25519 = readJournalRecord(mixedEd25519LocalMaterialV1(), fields.get('ed25519'));
+    const ecdsa = readJournalRecord(ecdsaReplayV1(), fields.get('ecdsa'));
     return custodyCommit &&
       isCustodyCommitForKeySet(custodyCommit, 'evm_family_ecdsa_v1') &&
       ed25519 &&
@@ -1010,215 +974,94 @@ function isMixedLocalMaterial(
   );
 }
 
-function parseEd25519LocalMaterial(
-  raw: unknown,
-): PendingWalletRegistrationEd25519LocalMaterialV1 | null {
-  const fields = decodeJournalObject(raw, ['activationReference', 'localMaterial', 'metadata']);
-  return fields ? parseEd25519LocalMaterialValues(fields) : null;
+function ed25519LocalMaterialFields() {
+  const text = journalField(parseCanonicalString);
+  return {
+    activationReference: activationReferenceV1(),
+    localMaterial: wireObject({ b64u: text, nonceB64u: text, applicationBindingDigestB64u: text }),
+    metadata: ed25519MetadataV1(),
+  };
 }
 
-function parseMixedEd25519LocalMaterial(
-  raw: unknown,
-): PendingWalletRegistrationMixedEd25519LocalMaterialV1 | null {
-  const fields = decodeJournalObject(raw, [
-    'custodyCommit',
-    'activationReference',
-    'localMaterial',
-    'metadata',
-  ]);
-  if (!fields) return null;
-  const custodyCommit = parseCustodyCommit(fields.get('custodyCommit'));
-  if (!custodyCommit || !isCustodyCommitForKeySet(custodyCommit, 'near_ed25519_v1')) return null;
-  const ed25519 = parseEd25519LocalMaterialValues(fields);
-  return ed25519
-    ? {
-        activationReference: ed25519.activationReference,
-        localMaterial: ed25519.localMaterial,
-        metadata: ed25519.metadata,
-        custodyCommit,
+function ed25519LocalMaterialV1() {
+  return wireObject(ed25519LocalMaterialFields());
+}
+
+function mixedEd25519LocalMaterialV1() {
+  return wireObject({
+    ...ed25519LocalMaterialFields(),
+    custodyCommit: journalField((raw) => {
+      const custodyCommit = parseCustodyCommit(raw);
+      return custodyCommit && isCustodyCommitForKeySet(custodyCommit, 'near_ed25519_v1')
+        ? custodyCommit
+        : null;
+    }),
+  });
+}
+
+function ed25519MetadataV1() {
+  const text = journalField(parseCanonicalString);
+  return wireObject({
+    materialActivation: wireResult(parseMpcMaterialActivationRef),
+    registeredPublicKeyB64u: text,
+    signingWorkerVerifyingShareB64u: text,
+    stateEpoch: journalField(parseCanonicalStateEpoch),
+    signingWorkerId: text,
+    participantIds: (raw, label): readonly [number, number] => {
+      const ids = decodeJournalArray(raw);
+      if (!ids || ids.length !== 2 || ids.some((id) => parsePositiveSafeInteger(id) === null)) {
+        throw new Error(`${label} is invalid`);
       }
-    : null;
+      return [Number(ids[0]), Number(ids[1])];
+    },
+    nearEd25519SigningKeyId: text,
+    signerSlot: journalField(parsePositiveSafeInteger),
+  });
 }
 
-function parseEd25519LocalMaterialValues(
-  fields: ReadonlyMap<string, unknown>,
-): PendingWalletRegistrationEd25519LocalMaterialV1 | null {
-  const activationReference = parseActivationReference(fields.get('activationReference'));
-  const localMaterialFields = decodeJournalObject(fields.get('localMaterial'), [
-    'b64u',
-    'nonceB64u',
-    'applicationBindingDigestB64u',
-  ]);
-  if (!localMaterialFields) return null;
-  const b64u = parseCanonicalString(localMaterialFields.get('b64u'));
-  const nonceB64u = parseCanonicalString(localMaterialFields.get('nonceB64u'));
-  const applicationBindingDigestB64u = parseCanonicalString(
-    localMaterialFields.get('applicationBindingDigestB64u'),
-  );
-  const metadata = parseEd25519Metadata(fields.get('metadata'));
-  return activationReference && b64u && nonceB64u && applicationBindingDigestB64u && metadata
-    ? {
-        activationReference,
-        localMaterial: { b64u, nonceB64u, applicationBindingDigestB64u },
-        metadata,
+function ecdsaReplayV1() {
+  return wireObject({
+    activationJournalId: parseCorrelationId,
+    clientActivation: parseRouterAbEcdsaVerifiedClientActivationFactsV1,
+    activationRequestDigestB64u: parseDigestB64u,
+  });
+}
+
+function ecdsaPublicFactsV1() {
+  const text = journalField(parseCanonicalString);
+  const retryCounter = (raw: unknown, label: string): number => {
+    if (!Number.isSafeInteger(raw) || Number(raw) < 0) throw new Error(`${label} is invalid`);
+    return Number(raw);
+  };
+  return wireObject({
+    contextBinding32B64u: text,
+    derivationClientSharePublicKey33B64u: text,
+    clientVerifyingShare33B64u: text,
+    relayerPublicKey33B64u: text,
+    groupPublicKey33B64u: text,
+    ethereumAddress: text,
+    clientShareRetryCounter: retryCounter,
+    relayerShareRetryCounter: retryCounter,
+  });
+}
+
+function activationReferenceV1() {
+  return wireObject({
+    kind: wireLiteral('router_ab_ed25519_yao_activation_reference_v1'),
+    lifecycle_id: journalField(parseCanonicalString),
+    session_id: (raw, label): RouterAbEd25519YaoBytes32V1 => {
+      const values = decodeJournalArray(raw);
+      if (!values || values.length !== 32) throw new Error(`${label} is invalid`);
+      const sessionId: number[] = [];
+      for (const value of values) {
+        if (typeof value !== 'number' || !Number.isInteger(value) || value < 0 || value > 255) {
+          throw new Error(`${label} is invalid`);
+        }
+        sessionId.push(value);
       }
-    : null;
-}
-
-function parseEd25519Metadata(raw: unknown): PendingWalletRegistrationEd25519MetadataV1 | null {
-  const fields = decodeJournalObject(raw, [
-    'materialActivation',
-    'registeredPublicKeyB64u',
-    'signingWorkerVerifyingShareB64u',
-    'stateEpoch',
-    'signingWorkerId',
-    'participantIds',
-    'nearEd25519SigningKeyId',
-    'signerSlot',
-  ]);
-  if (!fields) return null;
-  const materialActivation = parseMpcMaterialActivationRef(fields.get('materialActivation'));
-  const registeredPublicKeyB64u = parseCanonicalString(fields.get('registeredPublicKeyB64u'));
-  const signingWorkerVerifyingShareB64u = parseCanonicalString(
-    fields.get('signingWorkerVerifyingShareB64u'),
-  );
-  const stateEpoch = parseCanonicalStateEpoch(fields.get('stateEpoch'));
-  const signingWorkerId = parseCanonicalString(fields.get('signingWorkerId'));
-  const nearEd25519SigningKeyId = parseCanonicalString(fields.get('nearEd25519SigningKeyId'));
-  const participantIds = decodeJournalArray(fields.get('participantIds'));
-  const signerSlot = fields.get('signerSlot');
-  if (
-    !materialActivation.ok ||
-    !registeredPublicKeyB64u ||
-    !signingWorkerVerifyingShareB64u ||
-    !stateEpoch ||
-    !signingWorkerId ||
-    !nearEd25519SigningKeyId ||
-    !participantIds ||
-    participantIds.length !== 2 ||
-    participantIds.some(
-      (participantId) =>
-        typeof participantId !== 'number' ||
-        !Number.isSafeInteger(participantId) ||
-        Number(participantId) < 1,
-    ) ||
-    !Number.isSafeInteger(signerSlot) ||
-    Number(signerSlot) < 1
-  ) {
-    return null;
-  }
-  return {
-    materialActivation: materialActivation.value,
-    registeredPublicKeyB64u,
-    signingWorkerVerifyingShareB64u,
-    stateEpoch,
-    signingWorkerId,
-    participantIds: [Number(participantIds[0]), Number(participantIds[1])],
-    nearEd25519SigningKeyId,
-    signerSlot: Number(signerSlot),
-  };
-}
-
-function parseEcdsaLocalMaterial(raw: unknown): {
-  readonly activationJournalId: CorrelationId;
-  readonly clientActivation: RouterAbEcdsaVerifiedClientActivationFactsV1;
-  readonly activationRequestDigestB64u: DigestB64u;
-} | null {
-  const fields = decodeJournalObject(raw, [
-    'activationJournalId',
-    'clientActivation',
-    'activationRequestDigestB64u',
-  ]);
-  if (!fields) return null;
-  const activationJournalId = parseCorrelationIdSafely(fields.get('activationJournalId'));
-  const activationRequestDigestB64u = parseDigestB64uSafely(
-    fields.get('activationRequestDigestB64u'),
-  );
-  if (!activationJournalId || !activationRequestDigestB64u) return null;
-  try {
-    return {
-      activationJournalId,
-      clientActivation: parseRouterAbEcdsaVerifiedClientActivationFactsV1(
-        fields.get('clientActivation'),
-      ),
-      activationRequestDigestB64u,
-    };
-  } catch {
-    return null;
-  }
-}
-
-function parseEcdsaPublicFacts(raw: unknown): WalletCustodyEvmFamilyPublicFacts | null {
-  const keys = [
-    'contextBinding32B64u',
-    'derivationClientSharePublicKey33B64u',
-    'clientVerifyingShare33B64u',
-    'relayerPublicKey33B64u',
-    'groupPublicKey33B64u',
-    'ethereumAddress',
-    'clientShareRetryCounter',
-    'relayerShareRetryCounter',
-  ] as const;
-  const fields = decodeJournalObject(raw, keys);
-  if (!fields) return null;
-  const contextBinding32B64u = parseCanonicalString(fields.get('contextBinding32B64u'));
-  const derivationClientSharePublicKey33B64u = parseCanonicalString(
-    fields.get('derivationClientSharePublicKey33B64u'),
-  );
-  const clientVerifyingShare33B64u = parseCanonicalString(fields.get('clientVerifyingShare33B64u'));
-  const relayerPublicKey33B64u = parseCanonicalString(fields.get('relayerPublicKey33B64u'));
-  const groupPublicKey33B64u = parseCanonicalString(fields.get('groupPublicKey33B64u'));
-  const ethereumAddress = parseCanonicalString(fields.get('ethereumAddress'));
-  const clientShareRetryCounter = fields.get('clientShareRetryCounter');
-  const relayerShareRetryCounter = fields.get('relayerShareRetryCounter');
-  if (
-    !contextBinding32B64u ||
-    !derivationClientSharePublicKey33B64u ||
-    !clientVerifyingShare33B64u ||
-    !relayerPublicKey33B64u ||
-    !groupPublicKey33B64u ||
-    !ethereumAddress ||
-    !Number.isSafeInteger(clientShareRetryCounter) ||
-    Number(clientShareRetryCounter) < 0 ||
-    !Number.isSafeInteger(relayerShareRetryCounter) ||
-    Number(relayerShareRetryCounter) < 0
-  ) {
-    return null;
-  }
-  return {
-    contextBinding32B64u,
-    derivationClientSharePublicKey33B64u,
-    clientVerifyingShare33B64u,
-    relayerPublicKey33B64u,
-    groupPublicKey33B64u,
-    ethereumAddress,
-    clientShareRetryCounter: Number(clientShareRetryCounter),
-    relayerShareRetryCounter: Number(relayerShareRetryCounter),
-  };
-}
-
-function parseActivationReference(
-  raw: unknown,
-): PendingWalletRegistrationActivationReferenceV1 | null {
-  const fields = decodeJournalObject(raw, ['kind', 'lifecycle_id', 'session_id']);
-  if (!fields || fields.get('kind') !== 'router_ab_ed25519_yao_activation_reference_v1') {
-    return null;
-  }
-  const lifecycleId = parseCanonicalString(fields.get('lifecycle_id'));
-  const sessionIdValues = decodeJournalArray(fields.get('session_id'));
-  if (!lifecycleId || !sessionIdValues || sessionIdValues.length !== 32) return null;
-  const sessionId: number[] = [];
-  for (const value of sessionIdValues) {
-    if (typeof value !== 'number' || !Number.isInteger(value) || value < 0 || value > 255) {
-      return null;
-    }
-    sessionId.push(value);
-  }
-  return {
-    kind: 'router_ab_ed25519_yao_activation_reference_v1',
-    lifecycle_id: lifecycleId,
-    session_id: sessionId,
-  };
+      return sessionId;
+    },
+  });
 }
 
 function parseCustodyCommit(raw: unknown): WalletCustodyCeremonyCommitPayload | null {
@@ -1267,7 +1110,7 @@ function parseCustodyCommit(raw: unknown): WalletCustodyCeremonyCommitPayload | 
   const recoveryReplacementEnvelope =
     recoveryReplacementEnvelopeRaw === undefined
       ? undefined
-      : parseRecoveryReplacementEnvelope(recoveryReplacementEnvelopeRaw);
+      : readJournalRecord(recoveryReplacementEnvelopeV1(), recoveryReplacementEnvelopeRaw);
   if (recoveryReplacementEnvelopeRaw !== undefined && !recoveryReplacementEnvelope) return null;
   const registeredPublicKeyB64uRaw = fields.get('registeredPublicKeyB64u');
   const registeredPublicKeyB64u =
@@ -1283,7 +1126,9 @@ function parseCustodyCommit(raw: unknown): WalletCustodyCeremonyCommitPayload | 
   if (clientRootPublicKey33B64uRaw !== undefined && !clientRootPublicKey33B64u) return null;
   const ecdsaPublicFactsRaw = fields.get('ecdsaPublicFacts');
   const ecdsaPublicFacts =
-    ecdsaPublicFactsRaw === undefined ? undefined : parseEcdsaPublicFacts(ecdsaPublicFactsRaw);
+    ecdsaPublicFactsRaw === undefined
+      ? undefined
+      : readJournalRecord(ecdsaPublicFactsV1(), ecdsaPublicFactsRaw);
   if (ecdsaPublicFactsRaw !== undefined && !ecdsaPublicFacts) return null;
   return {
     walletId,
@@ -1336,14 +1181,18 @@ function parseEstablishedCustody(raw: unknown): EstablishedCustodyRecordsPayload
   if (strings.some((value) => value === null)) return null;
   const recoveryManifestKekWrapValues = decodeJournalArray(fields.get('recoveryManifestKekWraps'));
   if (!recoveryManifestKekWrapValues) return null;
-  const parsedRecoveryManifestKekWraps = recoveryManifestKekWrapValues.map(parseRecoveryWrap);
+  const parsedRecoveryManifestKekWraps = recoveryManifestKekWrapValues.map((value) =>
+    readJournalRecord(recoveryWrapV1(), value),
+  );
   if (parsedRecoveryManifestKekWraps.some((value) => value === null)) return null;
   const recoveryManifestKekWraps = parsedRecoveryManifestKekWraps.filter(isPresent);
   let recoveryCodeLocators: WalletCustodyRecoveryCodeLocatorPayload[] | undefined;
   if (fields.has('recoveryCodeLocators')) {
     const recoveryCodeLocatorValues = decodeJournalArray(fields.get('recoveryCodeLocators'));
     if (!recoveryCodeLocatorValues) return null;
-    const parsedRecoveryCodeLocators = recoveryCodeLocatorValues.map(parseRecoveryCodeLocator);
+    const parsedRecoveryCodeLocators = recoveryCodeLocatorValues.map((value) =>
+      readJournalRecord(recoveryCodeLocatorV1(), value),
+    );
     if (parsedRecoveryCodeLocators.some((value) => value === null)) return null;
     recoveryCodeLocators = parsedRecoveryCodeLocators.filter(isPresent);
   }
@@ -1362,52 +1211,31 @@ function parseEstablishedCustody(raw: unknown): EstablishedCustodyRecordsPayload
   };
 }
 
-function parseRecoveryWrap(raw: unknown): WalletCustodyCeremonyRecoveryWrapPayload | null {
-  const fields = decodeJournalObject(raw, [
-    'recoveryKeyId',
-    'nonceB64u',
-    'ciphertextB64u',
-    'aadHashB64u',
-  ]);
-  if (!fields) return null;
-  const recoveryKeyId = parseCanonicalString(fields.get('recoveryKeyId'));
-  const nonceB64u = parseCanonicalString(fields.get('nonceB64u'));
-  const ciphertextB64u = parseCanonicalString(fields.get('ciphertextB64u'));
-  const aadHashB64u = parseCanonicalString(fields.get('aadHashB64u'));
-  return recoveryKeyId && nonceB64u && ciphertextB64u && aadHashB64u
-    ? { recoveryKeyId, nonceB64u, ciphertextB64u, aadHashB64u }
-    : null;
+function recoveryWrapV1() {
+  const text = journalField(parseCanonicalString);
+  return wireObject({
+    recoveryKeyId: text,
+    nonceB64u: text,
+    ciphertextB64u: text,
+    aadHashB64u: text,
+  });
 }
 
-function parseRecoveryCodeLocator(raw: unknown): WalletCustodyRecoveryCodeLocatorPayload | null {
-  const fields = decodeJournalObject(raw, ['locatorB64u', 'recoveryKeyId']);
-  if (!fields) return null;
-  const locatorB64u = parseCanonicalString(fields.get('locatorB64u'));
-  const recoveryKeyId = parseCanonicalString(fields.get('recoveryKeyId'));
-  return locatorB64u && recoveryKeyId ? { locatorB64u, recoveryKeyId } : null;
+function recoveryCodeLocatorV1() {
+  const text = journalField(parseCanonicalString);
+  return wireObject({ locatorB64u: text, recoveryKeyId: text });
 }
 
-function parseRecoveryReplacementEnvelope(raw: unknown): RecoveryReplacementEnvelopePayload | null {
-  const keys = [
-    'envelopeId',
-    'envelopeBindingJson',
-    'envelopeNonceB64u',
-    'sealedCustodySecretB64u',
-    'envelopeAadHashB64u',
-    'envelopeCiphertextDigestB64u',
-  ] as const;
-  const fields = decodeJournalObject(raw, keys);
-  if (!fields) return null;
-  const values = keys.map((key) => parseCanonicalString(fields.get(key)));
-  if (values.some((value) => value === null)) return null;
-  return {
-    envelopeId: values[0]!,
-    envelopeBindingJson: values[1]!,
-    envelopeNonceB64u: values[2]!,
-    sealedCustodySecretB64u: values[3]!,
-    envelopeAadHashB64u: values[4]!,
-    envelopeCiphertextDigestB64u: values[5]!,
-  };
+function recoveryReplacementEnvelopeV1() {
+  const text = journalField(parseCanonicalString);
+  return wireObject({
+    envelopeId: text,
+    envelopeBindingJson: text,
+    envelopeNonceB64u: text,
+    sealedCustodySecretB64u: text,
+    envelopeAadHashB64u: text,
+    envelopeCiphertextDigestB64u: text,
+  });
 }
 
 function isPresent<T>(value: T | null): value is T {
@@ -1432,20 +1260,22 @@ function parsePositiveSafeInteger(value: unknown): number | null {
   return Number.isSafeInteger(value) && Number(value) > 0 ? Number(value) : null;
 }
 
-function parseCorrelationIdSafely(value: unknown): CorrelationId | null {
+// A journal record that fails its schema is unreadable, which every caller treats as absent.
+function readJournalRecord<T>(schema: WireParser<T>, raw: unknown): T | null {
   try {
-    return parseCorrelationId(value);
+    return schema(raw, 'journal');
   } catch {
     return null;
   }
 }
 
-function parseDigestB64uSafely(value: unknown): DigestB64u | null {
-  try {
-    return parseDigestB64u(value);
-  } catch {
-    return null;
-  }
+// Adapts a journal parser, which returns null for a bad value, to a schema field.
+function journalField<T>(parse: (raw: unknown) => T | null): WireParser<T> {
+  return (raw, label) => {
+    const value = parse(raw);
+    if (value === null) throw new Error(`${label} is invalid`);
+    return value;
+  };
 }
 
 type JournalObjectFields = ReadonlyMap<string, unknown>;
@@ -1478,3 +1308,22 @@ function readJournalField(value: unknown, key: string): unknown {
 function decodeJournalArray(value: unknown): readonly unknown[] | null {
   return Array.isArray(value) ? value : null;
 }
+
+declare const schemasParseTheirDeclaredTypes: AllTrue<
+  [
+    ParsesExactly<typeof pendingAuthV1, PendingWalletRegistrationCommitAuthV1>,
+    ParsesExactly<typeof emailOtpEnrollmentMaterialV1, WalletEmailOtpEnrollmentMaterialV1>,
+    ParsesExactly<typeof ed25519LocalMaterialV1, PendingWalletRegistrationEd25519LocalMaterialV1>,
+    ParsesExactly<
+      typeof mixedEd25519LocalMaterialV1,
+      PendingWalletRegistrationMixedEd25519LocalMaterialV1
+    >,
+    ParsesExactly<typeof ed25519MetadataV1, PendingWalletRegistrationEd25519MetadataV1>,
+    ParsesExactly<typeof ecdsaReplayV1, PendingWalletRegistrationEcdsaReplayV1>,
+    ParsesExactly<typeof ecdsaPublicFactsV1, WalletCustodyEvmFamilyPublicFacts>,
+    ParsesExactly<typeof activationReferenceV1, PendingWalletRegistrationActivationReferenceV1>,
+    ParsesExactly<typeof recoveryWrapV1, WalletCustodyCeremonyRecoveryWrapPayload>,
+    ParsesExactly<typeof recoveryCodeLocatorV1, WalletCustodyRecoveryCodeLocatorPayload>,
+    ParsesExactly<typeof recoveryReplacementEnvelopeV1, RecoveryReplacementEnvelopePayload>,
+  ]
+>;
