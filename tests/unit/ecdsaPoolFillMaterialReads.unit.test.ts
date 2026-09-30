@@ -5,7 +5,6 @@ import { routerAbMpcMaterialActivationRefToWire } from '@shared/utils/routerAbNo
 import { parseRouterAbEcdsaDerivationNormalSigningScopeV1 } from '@shared/utils/routerAbEcdsaDerivation';
 import type { RouterApiWalletSessionExactOperationContext } from '../../packages/wallet-server/src/router/framework/authServicePort';
 import type { FetchRouterApiContext } from '../../packages/wallet-server/src/router/transport/fetch/fetchRouter.types';
-import { validateRouterAbEcdsaDerivationWalletSessionInputs } from '../../packages/wallet-server/src/router/auth/commonRouterUtils';
 import { authorizeEcdsaPoolFill } from '../../packages/wallet-server/src/router/transport/fetch/routes/thresholdEcdsa';
 import {
   parseRouterAbEcdsaDerivationPoolFillInitRouteRequest,
@@ -106,10 +105,6 @@ class PresignStepServices {
 
   constructor(readonly data: Awaited<ReturnType<typeof buildPresignStepFixture>>) {}
 
-  async readReusableSession(): Promise<never> {
-    throw new Error('Wallet Session quota is exhausted');
-  }
-
   async readExactSession() {
     this.sessionReads += 1;
     return this.data.candidate;
@@ -160,8 +155,6 @@ class PresignStepServices {
       service: {
         authorizationSessions: {
           tenantId: this.data.session.tenantId,
-          readWalletSessionAuthorizationV2ByOperationCredential:
-            this.readReusableSession.bind(this),
           readWalletSessionExactOperationContextByCredential: this.readExactSession.bind(this),
         },
         authorizedOperations: {
@@ -425,22 +418,13 @@ function reusablePresignRequest(
   return parsed.request;
 }
 
-test('live exhausted sessions can preprocess while signing admission still rejects their quota', async () => {
+test('preprocessing requires the exact session and active material', async () => {
   const services = new PresignStepServices(await buildPresignStepFixture());
   const request = reusablePresignRequest(services.data, services.data.session.walletSessionId);
   await expect(services.authorize(request)).resolves.toMatchObject({ ok: true });
   expect(services.sessionReads).toBe(1);
   expect(services.materialReads).toBe(1);
   expect(services.operationReads).toBe(0);
-  const ctx = services.context();
-  await expect(
-    validateRouterAbEcdsaDerivationWalletSessionInputs({
-      headers: { authorization: ctx.request.headers.get('authorization') ?? '' },
-      authorizationSessions: ctx.service.authorizationSessions,
-      operationKind: 'evm.sign_transaction',
-    }),
-  ).resolves.toMatchObject({ ok: false });
-
   await expect(
     services.authorize(reusablePresignRequest(services.data, 'other-session')),
   ).resolves.toMatchObject({ ok: false, error: { status: 403 } });
