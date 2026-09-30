@@ -11,6 +11,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 
+mod hex;
 mod phase2b_exit_evidence;
 mod phase2b_protected_inputs;
 mod phase2b_review_subject;
@@ -3195,11 +3196,7 @@ fn analyze_constant_time_fixture(
 }
 
 fn verify_sha256(path: &Path, expected: &str, label: &str) -> Result<(), DynError> {
-    let digest = Sha256::digest(fs::read(path)?);
-    let actual = digest
-        .iter()
-        .map(|byte| format!("{byte:02x}"))
-        .collect::<String>();
+    let actual = hex::encode_hex(&Sha256::digest(fs::read(path)?));
     if actual == expected {
         Ok(())
     } else {

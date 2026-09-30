@@ -12,6 +12,8 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
+use crate::hex::{decode_lowercase_hex, encode_hex};
+
 #[cfg(test)]
 use crate::phase2b_protected_inputs::{
     authority_digest, validate_policy, ReviewAuthorityPolicyV1, ReviewAuthorityV1, POLICY_SCHEMA,
@@ -1344,23 +1346,7 @@ fn decode_hex<const N: usize>(
     value: &str,
     field: &'static str,
 ) -> Result<[u8; N], ExitEvidenceErrorV1> {
-    if value.len() != N * 2
-        || !value
-            .bytes()
-            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
-    {
-        return Err(ExitEvidenceErrorV1::InvalidHex(field));
-    }
-    let mut output = [0u8; N];
-    for (index, byte) in output.iter_mut().enumerate() {
-        *byte = u8::from_str_radix(&value[index * 2..index * 2 + 2], 16)
-            .map_err(|_| ExitEvidenceErrorV1::InvalidHex(field))?;
-    }
-    Ok(output)
-}
-
-fn encode_hex(bytes: &[u8]) -> String {
-    bytes.iter().map(|byte| format!("{byte:02x}")).collect()
+    decode_lowercase_hex(value).ok_or(ExitEvidenceErrorV1::InvalidHex(field))
 }
 
 fn push_lp32(output: &mut Vec<u8>, value: &[u8]) {
