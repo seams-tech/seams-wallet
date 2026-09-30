@@ -9,15 +9,86 @@ signature, down from 18, confirmed in a fresh hosted diagnostic. Local
 linked-device checkpoints reduce third-generation signing from 24 to nine calls
 and directly linked signing from 20 to nine. Bounded first/warm/burst
 diagnostics now have verified Tokyo, London, and US probe placement. Linked
-latency, an observed unlock timeout, and the placement comparison remain open;
-Gateway and DO execution placement is still unverified.
+latency, an observed unlock timeout, and the placement comparison remain open.
+Cloudflare analytics now establish aggregate Gateway and role DO execution
+locations for the regional cohort; individual RPC-to-DO attribution remains open.
 Active/exhausted credentials are classified in one read. Material snapshots are
 checked atomically at reusable-session claim and finalize/replay admission.
 Reusable-session finalize resolves existing operations without admitting new
 claims; a missing prepare cannot consume quota or create an audit event.
-The minimum-call-budget design review is recorded below; implementation and
-measurement remain open. Regional databases are conditional. Production rollout
+The supported call-budget reductions and explicit boundary deferrals are
+recorded below. Regional databases are conditional. Production rollout
 is separate.
+
+## Current validation checkpoint
+
+Five fresh Tokyo attempts on the diagnostic build completed unlock and all
+25 signatures. The earlier timeout did not reproduce. Its retained evidence
+records no successful automated unlock click, so a failed unlock network call
+has not been established for that attempt. The probe now returns private
+failure context and opt-in lifecycle traces; confirmation diagnostics retain
+the last interaction error.
+
+A separate local behavioral E2E deliberately interrupts the first unlock
+verification request before forwarding it. The auth menu shows `Failed to fetch`;
+the user refreshes preparation and confirms a fresh passkey attempt. Exactly
+two verification requests are observed, and subsequent NEAR and ECDSA signatures
+verify. This validates the visible-error/retry path without claiming to repair
+the historical hosted timeout. Evidence:
+`.artifacts/r151/passkey-unlock-network-failure-recovery.json`.
+
+The new Tokyo cohort retains seven calls/eight statements/two write-bearing
+calls per timed signature. SDK medians are 2.74 seconds first, 2.16 seconds warm,
+and 4.86 seconds per burst call. One background refill reports
+`wallet_session_unavailable`; none of the measured signatures has a foreground
+refill fallback. Its SDK differs from the preceding cohort, so keep the samples
+separate. Evidence: `.artifacts/r151/regional-unlock-20260930-r8/`. Original
+Worker versions/images, an inactive probe, expired access, and credential scans
+are verified; observed cumulative spend was $0.7673.
+
+Linked signing now records SDK and transaction-completion timing on both owner
+and linked-authority paths. The nine-signature three-device E2E passes on
+Workers D1, wallet-DO, and VM, for 27 verified signatures. The shared completion
+timer previously omitted the linked-authority branch; signing behavior is
+unchanged. Evidence: `.artifacts/r151/linked-timing-20260930/`.
+
+The committed `tests/r150-hosted/probe/measure-placement.mjs` query reads
+Cloudflare's execution-location dimensions for the isolated benchmark. Across
+the preceding regional cohort, Gateway invocations ran in NRT, LHR, and ORD.
+Role DO invocations also include KIX and, for the signing worker, AMS. Adaptive
+aggregate counts identify execution locations without proving every request's
+individual route. Evidence:
+`.artifacts/r151/regional-workloads-20260930-r7/placement-complete.json`.
+
+Two subsequent hosted preflights dispatched no wallet operations. The first
+exceeded the ten-minute image rollout gate in Tokyo. After full restoration, a
+fresh preflight reached completed Tokyo/London image versions, while the US
+rollout reported a failed instance and zero healthy target instances. A read-only
+restart returned HTTP 500; the preflight was stopped. Both cohorts restored
+original Worker versions and images, inactive probes, expired access, and
+unchanged Gateway placement. The evidence scan found no benchmark tokens.
+Observed cumulative spend was $0.8141, subject to accounting lag.
+These are infrastructure failures, separate from the historical unlock timeout.
+Evidence: `.artifacts/r151/regional-placement-20260930-r9/` and
+`.artifacts/r151/regional-placement-20260930-r10/`.
+
+The committed linked workload and same-wallet placement controller are ready.
+The placement controller pauses between default and Tokyo Gateway deployments,
+then measures warm signatures with the same wallet/session and persistent
+custody ownership; one-use signing material differs between signatures.
+Neither hosted linked timings nor a placement benefit has been established.
+
+### Remaining work
+
+1. Obtain healthy completed probe rollouts and run the frozen hosted linked
+   workload. Keep failed preflights and SDK cohorts separate.
+2. Run the same-wallet default/Tokyo Gateway comparison, verify actual execution
+   placement, and compare complete SDK/commit, D1, and custody-leg timings.
+3. Retain failure context if unlock stalls again; diagnose the observed failure
+   before changing retry behavior. Five fresh successful attempts did not reproduce it.
+4. Use the residual latency evidence to decide R152. The 1–2 second complete
+   signing target remains unmet; seven/nine calls are adopted budgets rather
+   than proven minima. Production rollout remains a separate decision.
 
 ## Decision
 
@@ -214,7 +285,7 @@ Phase 3 still revisits the complete call budget after these incremental changes.
   Batching saves calls; it does not itself eliminate writes. Preserve atomic
   quota effects, one-use material, audit semantics, and durable response replay.
 
-### 3. Revisit the minimum signing call budget (deferred follow-up)
+### 3. Revisit the minimum signing call budget
 
 Revisit this after phases 1 and 2, before deciding on regional D1 provisioning.
 The remaining foreground calls per signature remain expensive relative to the
@@ -237,21 +308,44 @@ small amount of SQL work. Reaching 12 calls does not close this follow-up.
 - [x] Batch prepare's guarded claim and live readback, preserving explicit
   duplicate-insert failure for export-owned prepared transactions. Measure
   skipped replay INSERTs separately from calls reporting row writes.
-- [ ] Consolidate reads and guarded writes around those decision points using
+- [x] Consolidate the supported reads and guarded writes around those decision points using
   the existing stores and SQL transactions. Preserve rejection precedence,
   tenant/environment binding, expiry/revocation checks, material retirement,
   one-use material, atomic quota consumption, and exact durable replay.
-- [ ] Prioritize read round trips. Retain the admission and completion writes
+- [x] Prioritize read round trips. Retain the admission and completion writes
   unless an equivalent durable invariant is demonstrated. Count calls, SQL
   statements, write-bearing calls, and reported row writes separately.
-- [ ] Verify concurrent last-quota contention, duplicate admission, revocation
+- [x] Verify concurrent last-quota contention, duplicate admission, revocation
   and retirement races, and lost-response replay with behavioral E2Es. Measure
   successful signing, replay, and rejection paths separately; retain repeatable
-  before/after artifacts and complete system-controlled latency measurements.
-- [ ] Close this phase only after implementing the supported reductions and
+      before/after artifacts. Complete latency evidence is tracked below.
+- [x] Close the supported-reduction review after implementing those reductions and
   recording the resulting call budget, the reason for each remaining round
   trip, and any explicitly deferred blocker. A green latency median alone does
   not establish that the call budget or the 1–2 second maximum is satisfied.
+
+The adopted budget is **seven canonical calls / eight statements** and **nine
+linked calls / 12 statements**, with two write-bearing calls and 14 reported row
+writes. Prepare reads verified credential/material, reads live policy, and
+atomically claims/readbacks the operation. Finalize reads credential/material,
+live policy, and the existing operation/source, then durably records completion.
+Linked custody resolution adds one installation/canonical-candidate batch at
+each request boundary. These are the remaining dependencies, not a proven floor.
+
+The policy/material join and linked-source join are explicitly deferred: trusted
+policy scope is established by material verification, and the separately
+configured admission adapter owns policy evaluation. Folding those boundaries
+together requires a wider contract change and fresh proofs of scope and denial
+precedence. Retain both durable writes. The detailed rationale and per-call
+inventory are in [the evidence log](refactor-151-evidence.md).
+
+The retained prepare-batch E2E artifacts contain four baseline and 22 changed-build
+scenario/profile checks; the policy cohort adds 27 denial checks and 18 verified
+signatures across Workers D1, wallet-DO, and VM. They cover last-quota contention,
+duplicate admission, missing prepare, retirement, revocation, and exact replay.
+The two production authorization-store files still match the recorded SHA-256
+values. Evidence: `.artifacts/r151/prepare-batch-20260930/` and
+`.artifacts/r151/policy-20260930/`. Latency and placement remain separate open gates.
 
 ### 4. Reassess placement using measured residual cost
 
@@ -259,8 +353,10 @@ The controlled placement experiment and conditional regional ownership design
 are tracked in [R152: regional D1](refactor-152-regional-D1.md). R151 supplies
 the residual call budget and latency evidence required for that decision.
 
-- [ ] Repeat with fixed SDK/role builds and verified probe locations, recording
+- [x] Repeat with fixed SDK/role builds and verified probe locations, recording
   per-call D1 region/primary metadata and actual Gateway/DO placement evidence.
+      The regional cohort's adaptive analytics establish aggregate execution
+      locations; individual signing-RPC/DO attribution remains unproven.
 - [ ] Compare a Gateway near the existing D1 primary against the current path
   before changing data ownership. Measure complete signatures, including the
   resulting Gateway-to-DO leg.
@@ -282,19 +378,19 @@ also provides no exact-colocation guarantee.
 
 ## Verification and completion
 
-- [ ] Extend/reuse behavioral E2Es for concurrent last-quota admission, revocation
+- [x] Extend/reuse behavioral E2Es for concurrent last-quota admission, revocation
   and material retirement between authorization and admission, exact prepare
   replay, and lost finalize response followed by durable replay. Verify unchanged
   keys/signatures, one quota consumption, no repeated custody effect, and refusal
   of changed operation/environment inputs.
-- [ ] Exercise the shared behavior on Workers D1, the wallet-DO composition, and
+- [x] Exercise the shared behavior on Workers D1, the wallet-DO composition, and
   the VM reference wherever a shared store/domain contract changes. Use existing
   type fixtures for changed domain-state rejection guarantees; add no unit tests.
-- [ ] Produce repeatable artifacts containing build identities, call traces,
+- [x] Produce repeatable artifacts containing build identities, call traces,
   signature verification, quota/replay outcomes, and measured before/after totals.
 - [ ] Record complete system-controlled signing latency alongside server stages;
   neither a median nor a server-only measurement establishes a 1–2 second maximum.
-- [ ] Keep new hosted cohorts separate from R150's preserved comparison and its
+- [x] Keep new hosted cohorts separate from R150's preserved comparison and its
   unresolved ENAM infrastructure failure. Maintain the existing Cloudflare-only,
   isolated-resource, $25 cap. Production rollout requires its own decision.
 

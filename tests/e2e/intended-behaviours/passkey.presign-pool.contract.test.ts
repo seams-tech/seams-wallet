@@ -842,7 +842,7 @@ async function measureSameWalletPlacement(
       untimedSetupSignatures: 1,
       measurements,
       accounting:
-        'Same wallet, authority, session, and role objects; default then Tokyo. SDK time includes automatic confirmation. Deployment waits are outside timing windows.',
+        'Same wallet, authority, session, and persistent custody ownership; distinct one-use material per signature. Default then Tokyo. SDK time includes automatic confirmation. Deployment waits are outside timing windows.',
     };
     const artifactName = `gateway-ecdsa-placement-pair-hosted_${arm}-${region}-${runId}-${testInfo.repeatEachIndex}.json`;
     const artifactPath = path.resolve(testInfo.config.rootDir, '../.artifacts/r151', artifactName);

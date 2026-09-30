@@ -1695,3 +1695,35 @@ cohorts and larger regional samples, verifying actual Gateway/DO execution
 placement, and comparing Gateway placement near the existing primary. Retain
 the explicit policy-read deferral until that residual is understood.
 
+
+
+## September 30: unlock retries, linked timing, and placement preflights
+
+- Five fresh Tokyo attempts completed unlock and 25 signatures on the diagnostic
+  build. The historical timeout remains unreproduced. All 20 timed signatures
+  retain seven D1 calls, eight statements, two write-bearing calls, and 14 D1
+  reported row writes. One background refill returned `wallet_session_unavailable`;
+  timed signatures had no foreground refill fallback. Evidence:
+  `.artifacts/r151/regional-unlock-20260930-r8/`.
+- A local E2E interrupted the first unlock verification request before forwarding.
+  The auth menu displayed `Failed to fetch`. User re-preparation and fresh passkey
+  confirmation recovered; two subsequent signatures verified. Evidence:
+  `.artifacts/r151/passkey-unlock-network-failure-recovery.json`.
+- Linked SDK/completion timers pass the three-device, nine-signature contract on
+  Workers D1, wallet-DO, and VM (27 signatures). The completion diagnostic now
+  covers linked authority. Evidence: `.artifacts/r151/linked-timing-20260930/`.
+- Adaptive execution analytics for the preceding regional workload identify
+  Gateway execution in NRT/LHR/ORD and role DO execution also in KIX/AMS. Aggregate
+  dimensions do not prove individual signing-RPC routes. Evidence:
+  `.artifacts/r151/regional-workloads-20260930-r7/placement-complete.json`.
+- Hosted linked and same-wallet default/Tokyo placement workloads are committed.
+  The two preflights dispatched zero wallet attempts: r9 exceeded the rollout
+  deadline in Tokyo; r10 reached completed Tokyo/London images but the US reported
+  a failed instance and zero healthy target instances. A read-only restart
+  returned HTTP 500, and r10 was stopped before dispatch. Classify both as
+  `environment_or_infrastructure_failure`. No placement gain is established.
+- Original Worker versions, original images with completed stable rollouts,
+  inactive probes, expired access, and unchanged Gateway placement were verified
+  after both attempts. Evidence is retained separately in
+  `.artifacts/r151/regional-placement-20260930-r9/` and `-r10/`.
+  Observed cumulative cost: $0.8141 against $25, with accounting lag possible.

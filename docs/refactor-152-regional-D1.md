@@ -30,15 +30,27 @@ The subsequent stable-rollout cohort verifies 35 signatures across Tokyo
 seven D1 calls served by the APAC primary. First/warm D1 wall medians are 614,
 1,766, and 1,672 ms respectively, versus 16.56, 11.94, and 11.18 ms SQL execution.
 Warm SDK medians are 1.97, 4.04, and 4.14 seconds, including automated confirmation.
-Gateway and DO execution locations remain unknown; this is a regional-path
-observation with one configuration, with no isolated regional-D1 benefit.
+Cloudflare adaptive analytics subsequently identify aggregate Gateway execution
+in NRT, LHR, and ORD and role DO execution also in KIX and AMS. These aggregates
+do not identify each signing RPC. This remains a regional-path observation with
+one configuration and no isolated regional-D1 benefit. Execution evidence:
+`.artifacts/r151/regional-workloads-20260930-r7/placement-complete.json`.
 
 Seven of eight dispatched wallet attempts completed; one Tokyo unlock action
 timed out without a process signal and remains unresolved. London and US each
 completed all three attempts after preflight required completed image rollouts,
 matching application versions, and two stable observations. Preserve earlier
-failed cohorts separately. Complete linked/larger cohorts and execution-location
-evidence before the placement decision; see R151's latest checkpoint.
+failed cohorts separately. Five further fresh Tokyo attempts completed unlock
+and 25 verified signatures; the original timeout did not reproduce. A local
+network-failure E2E verifies a visible error and successful explicit user retry.
+Linked timing now passes on all three local backend profiles (27 signatures).
+Complete hosted linked cohorts and the controlled placement comparison before
+the placement decision; see R151's latest checkpoint.
+
+The first two placement preflights dispatched no wallet operations because a
+probe image rollout could not become healthy (Tokyo, then the US). The linked
+and same-wallet placement workloads are implemented; hosted results remain
+blocked on healthy probe startup. No regional database has been provisioned.
 
 R150's D1-versus-DO custody comparison did not measure the benefit of aligning
 the residual Gateway database. There is no measured regional-D1 gain yet.
@@ -68,9 +80,12 @@ Human decision time and transaction broadcasting are reported separately.
 
 ## Phase 1: establish the residual cost
 
-- [ ] Finish R151's minimum-call-budget review and record the resulting canonical,
+- [x] Finish R151's supported-call-budget review and record the resulting canonical,
   linked, replay, and rejected-request budgets. Retain admission, atomic quota,
-  material freshness, and durable completion invariants.
+      material freshness, and durable completion invariants. Canonical signing uses
+      seven calls and linked signing nine; wider policy/material and linked-source
+      joins are explicitly deferred at trusted verification/admission boundaries.
+      This is an adopted budget rather than a proven theoretical minimum.
 - [ ] Freeze SDK, Gateway, role builds, schema, concurrency, and refill settings
   for each cohort. Record source revisions and distribution hashes.
 - [ ] Reuse the existing isolated benchmark and per-call D1 instrumentation.
