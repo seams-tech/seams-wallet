@@ -903,6 +903,22 @@
   color: var(--seams-colors-textPrimary);
 }
 
+/* A chosen account blinks once, highlight off then on, before the list closes
+   (blinkMenuItem). The selection has already committed, so "on" shows the
+   selected tint once the host re-renders. */
+:where(.seams-auth-menu-surface) .seams-account-menu-option[data-blink] {
+  transition: none;
+}
+
+:where(.seams-auth-menu-surface) .seams-account-menu-option[data-blink='off'] {
+  background: transparent;
+  outline: none;
+}
+
+:where(.seams-auth-menu-surface) .seams-account-menu-option[data-blink='on']:not(.is-selected) {
+  background: var(--seams-colors-surface2);
+}
+
 :where(.seams-auth-menu-surface) .seams-account-menu-check {
   position: relative;
   width: 16px;

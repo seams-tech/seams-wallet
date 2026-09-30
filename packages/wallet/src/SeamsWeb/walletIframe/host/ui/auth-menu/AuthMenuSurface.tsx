@@ -17,6 +17,7 @@ import {
   type AuthMenuViewModel,
 } from '../../auth-menu/domain';
 import { isLinkedDeviceTargetEmailAddressV1 } from '@/core/types/linkDevice';
+import { blinkMenuItem } from '@/utils/menuItemBlink';
 
 const AUTH_MENU_TITLE_ID = 'seams-auth-menu-title';
 const AUTH_MENU_ACCOUNT_LIST_ID = 'seams-auth-menu-account-list';
@@ -613,20 +614,26 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, { accountMe
   };
 
   private onLoginAccountSelect = (event: Event): void => {
-    if (!(event.currentTarget instanceof HTMLButtonElement)) return;
-    const walletId = event.currentTarget.dataset.walletId;
-    const authMethod = event.currentTarget.dataset.authMethod;
+    const option = event.currentTarget;
+    if (!(option instanceof HTMLButtonElement)) return;
+    const walletId = option.dataset.walletId;
+    const authMethod = option.dataset.authMethod;
     const viewModel = this.viewModel;
     if (!walletId || viewModel.kind !== 'passkey' || viewModel.mode !== 'login') return;
     const selected = viewModel.accountOptions.find(
       (account) => account.walletId === walletId && account.authMethod === authMethod,
     );
     if (!selected) return;
-    this.accountMenuOpen = false;
+    const blink = blinkMenuItem(option);
+    if (!blink) return;
+    // The selection commits within the click; only the list's close waits for the blink.
     this.emitIntent({
       kind: 'login_account_selected',
       walletId: selected.walletId,
       authMethod: selected.authMethod,
+    });
+    void blink.then(() => {
+      this.accountMenuOpen = false;
     });
   };
 
