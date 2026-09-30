@@ -1,10 +1,17 @@
+import type { MpcMaterialActivationRef } from '@shared/utils/domainIds';
 import { normalizeBoundedPositiveInteger } from '@shared/utils/normalize';
 
 type ThresholdCommitQueueErrorCode = 'commit_queue_overflow' | 'commit_queue_timeout' | 'cancelled';
 
-export type ThresholdCommitQueueCancelledReason = 'cancelled' | 'queue_cleared';
+type ThresholdCommitQueueCancelledReason = 'cancelled' | 'queue_cleared';
 
-export type ThresholdCommitQueueError = Error & { code: ThresholdCommitQueueErrorCode };
+type ThresholdCommitQueueError = Error & { code: ThresholdCommitQueueErrorCode };
+
+// How a lane's queue names itself, and the entries it cancels, in the errors it reports.
+type ThresholdCommitQueueLabels = {
+  readonly queue: string;
+  readonly queuedOperation: string;
+};
 
 type ThresholdCommitQueueItem = {
   enqueuedAtMs: number;
@@ -25,12 +32,6 @@ type ThresholdCommitQueueState = {
 
 export type ThresholdCommitQueueByKey = Map<string, ThresholdCommitQueueState>;
 
-type ThresholdCommitQueueErrorFactory = {
-  makeOverflowError: (queueKey: string, maxQueueLength: number) => unknown;
-  makeTimeoutError: (queueKey: string, timeoutMs: number) => unknown;
-  makeCancelledError: (queueKey: string, reason: ThresholdCommitQueueCancelledReason) => unknown;
-};
-
 const DEFAULT_MAX_QUEUE_LENGTH = 8;
 const DEFAULT_QUEUE_TIMEOUT_MS = 45_000;
 
@@ -39,6 +40,15 @@ function normalizeQueueLimit(value: unknown, fallback: number): number {
     fallback,
     min: 1,
   });
+}
+
+function thresholdCommitQueueError(
+  code: ThresholdCommitQueueErrorCode,
+  message: string,
+): ThresholdCommitQueueError {
+  const err = new Error(`[SigningEngine] ${message}`) as ThresholdCommitQueueError;
+  err.code = code;
+  return err;
 }
 
 function getOrCreateQueueState(
@@ -112,28 +122,45 @@ export function clearThresholdCommitQueue(queueByKey: ThresholdCommitQueueByKey)
   queueByKey.clear();
 }
 
+export function resolveThresholdCommitQueueKey(args: {
+  materialActivation: MpcMaterialActivationRef;
+}): string {
+  return [
+    'material',
+    encodeURIComponent(String(args.materialActivation.materialOwner)),
+    encodeURIComponent(String(args.materialActivation.capability)),
+    encodeURIComponent(String(args.materialActivation.activationId)),
+  ].join(':');
+}
+
+// Errors name the lane's queue and `owner`, the account or wallet whose operation waited in it.
 export async function withThresholdCommitQueue<T>(args: {
   queueByKey: ThresholdCommitQueueByKey;
   queueKey: string;
+  labels: ThresholdCommitQueueLabels;
+  owner: string;
   enabled: boolean;
   shouldAbort?: () => boolean;
   maxQueueLength?: number;
   queueTimeoutMs?: number;
   task: () => Promise<T>;
-  errors: ThresholdCommitQueueErrorFactory;
 }): Promise<T> {
-  if (!args.enabled) return await args.task();
-
+  const { labels, owner } = args;
   const queueKey = String(args.queueKey || '').trim();
   if (!queueKey) {
-    throw new Error('[SigningEngine] threshold commit queue requires non-empty queueKey');
+    throw new Error(`[SigningEngine] ${labels.queue} requires non-empty queueKey`);
   }
+  if (!args.enabled) return await args.task();
+
   const maxQueueLength = normalizeQueueLimit(args.maxQueueLength, DEFAULT_MAX_QUEUE_LENGTH);
   const queueTimeoutMs = normalizeQueueLimit(args.queueTimeoutMs, DEFAULT_QUEUE_TIMEOUT_MS);
   const state = getOrCreateQueueState(args.queueByKey, queueKey);
   const queueDepth = state.items.length + (state.running ? 1 : 0);
   if (queueDepth >= maxQueueLength) {
-    throw args.errors.makeOverflowError(queueKey, maxQueueLength);
+    throw thresholdCommitQueueError(
+      'commit_queue_overflow',
+      `${labels.queue} overflow for ${owner} (queueKey=${queueKey}, max=${maxQueueLength})`,
+    );
   }
 
   return await new Promise<T>((resolve, reject) => {
@@ -158,9 +185,17 @@ export async function withThresholdCommitQueue<T>(args: {
     };
 
     const makeCancelledError = (reason: ThresholdCommitQueueCancelledReason): unknown =>
-      args.errors.makeCancelledError(queueKey, reason);
+      thresholdCommitQueueError(
+        'cancelled',
+        `${labels.queuedOperation} cancelled for ${owner} (queueKey=${queueKey}${
+          reason === 'queue_cleared' ? ', queue_cleared' : ''
+        })`,
+      );
     const makeTimeoutError = (timeoutMs: number): unknown =>
-      args.errors.makeTimeoutError(queueKey, timeoutMs);
+      thresholdCommitQueueError(
+        'commit_queue_timeout',
+        `${labels.queue} timeout for ${owner} (queueKey=${queueKey}, waited>${timeoutMs}ms before start)`,
+      );
 
     const item: ThresholdCommitQueueItem = {
       enqueuedAtMs: Date.now(),

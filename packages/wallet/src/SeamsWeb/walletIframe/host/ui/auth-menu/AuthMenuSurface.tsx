@@ -68,52 +68,53 @@ function googleButtonLabel(mode: AuthMenuViewModel['mode']): string {
   return mode === 'register' ? 'Sign up with Google' : 'Sign in with Google';
 }
 
-function fingerprintIcon(): ComponentChildren {
+// The frame the menu's 24-unit stroke icons share.
+function strokeIcon(
+  size: string,
+  strokeWidth: string,
+  ...shapes: ComponentChildren[]
+): ComponentChildren {
   return (
     <>
       <svg
-        width="22"
-        height="22"
+        width={size}
+        height={size}
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
-        stroke-width="1.5"
+        stroke-width={strokeWidth}
         stroke-linecap="round"
         stroke-linejoin="round"
         aria-hidden="true"
       >
-        <path d="M6.405 19.048c.184-.443.353-.894.507-1.351" />
-        <path d="M14.343 20.693c.266-.751.502-1.516.707-2.294.186-.706.346-1.422.478-2.147" />
-        <path d="M19.448 17.058c.364-1.964.555-3.989.555-6.058 0-4.418-3.582-8-8-8-1.255 0-2.443.289-3.501.805" />
-        <path d="M3.523 15.025c.314-1.29.48-2.638.48-4.025 0-1.74.556-3.351 1.499-4.664" />
-        <path d="M12.003 11c0 2.76-.447 5.416-1.273 7.899-.213.639-.451 1.266-.712 1.881" />
-        <path d="M7.712 14.5c.191-1.138.291-2.308.291-3.5 0-2.209 1.791-4 4-4s4 1.791 4 4c0 .617-.02 1.229-.058 1.836" />
+        {shapes}
       </svg>
     </>
   );
 }
 
+function fingerprintIcon(): ComponentChildren {
+  return strokeIcon(
+    '22',
+    '1.5',
+    <path d="M6.405 19.048c.184-.443.353-.894.507-1.351" />,
+    <path d="M14.343 20.693c.266-.751.502-1.516.707-2.294.186-.706.346-1.422.478-2.147" />,
+    <path d="M19.448 17.058c.364-1.964.555-3.989.555-6.058 0-4.418-3.582-8-8-8-1.255 0-2.443.289-3.501.805" />,
+    <path d="M3.523 15.025c.314-1.29.48-2.638.48-4.025 0-1.74.556-3.351 1.499-4.664" />,
+    <path d="M12.003 11c0 2.76-.447 5.416-1.273 7.899-.213.639-.451 1.266-.712 1.881" />,
+    <path d="M7.712 14.5c.191-1.138.291-2.308.291-3.5 0-2.209 1.791-4 4-4s4 1.791 4 4c0 .617-.02 1.229-.058 1.836" />,
+  );
+}
+
 function googleIcon(): ComponentChildren {
-  return (
-    <>
-      <svg
-        width="22"
-        height="22"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        aria-hidden="true"
-      >
-        <path d="M10.88 21.94 15.46 14" />
-        <path d="M21.17 8H12" />
-        <path d="M3.95 6.06 8.54 14" />
-        <circle cx="12" cy="12" r="10" />
-        <circle cx="12" cy="12" r="4" />
-      </svg>
-    </>
+  return strokeIcon(
+    '22',
+    '2',
+    <path d="M10.88 21.94 15.46 14" />,
+    <path d="M21.17 8H12" />,
+    <path d="M3.95 6.06 8.54 14" />,
+    <circle cx="12" cy="12" r="10" />,
+    <circle cx="12" cy="12" r="4" />,
   );
 }
 
@@ -148,77 +149,37 @@ function accountDropdownIcon(): ComponentChildren {
 }
 
 function backIcon(): ComponentChildren {
-  return (
-    <>
-      <svg
-        width="18"
-        height="18"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2.25"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        aria-hidden="true"
-      >
-        <path d="m15 18-6-6 6-6" />
-      </svg>
-    </>
-  );
+  return strokeIcon('18', '2.25', <path d="m15 18-6-6 6-6" />);
 }
 
 function linkDeviceIcon(): ComponentChildren {
-  return (
-    <>
-      <svg
-        width="18"
-        height="18"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        aria-hidden="true"
-      >
-        <rect width="5" height="5" x="3" y="3" rx="1" />
-        <rect width="5" height="5" x="16" y="3" rx="1" />
-        <rect width="5" height="5" x="3" y="16" rx="1" />
-        <path d="M21 16h-3a2 2 0 0 0-2 2v3" />
-        <path d="M21 21v.01" />
-        <path d="M12 7v3a2 2 0 0 1-2 2H7" />
-        <path d="M3 12h.01" />
-        <path d="M12 3h.01" />
-        <path d="M12 16v.01" />
-        <path d="M16 12h1" />
-        <path d="M21 12v.01" />
-        <path d="M12 21v-1" />
-      </svg>
-    </>
+  return strokeIcon(
+    '18',
+    '2',
+    <rect width="5" height="5" x="3" y="3" rx="1" />,
+    <rect width="5" height="5" x="16" y="3" rx="1" />,
+    <rect width="5" height="5" x="3" y="16" rx="1" />,
+    <path d="M21 16h-3a2 2 0 0 0-2 2v3" />,
+    <path d="M21 21v.01" />,
+    <path d="M12 7v3a2 2 0 0 1-2 2H7" />,
+    <path d="M3 12h.01" />,
+    <path d="M12 3h.01" />,
+    <path d="M12 16v.01" />,
+    <path d="M16 12h1" />,
+    <path d="M21 12v.01" />,
+    <path d="M12 21v-1" />,
   );
 }
 
 function recoveryIcon(): ComponentChildren {
-  return (
-    <>
-      <svg
-        width="18"
-        height="18"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        aria-hidden="true"
-      >
-        <path d="M20 11v6" />
-        <path d="M20 13h2" />
-        <path d="M3 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 2.072.578" />
-        <circle cx="10" cy="7" r="4" />
-        <circle cx="20" cy="19" r="2" />
-      </svg>
-    </>
+  return strokeIcon(
+    '18',
+    '2',
+    <path d="M20 11v6" />,
+    <path d="M20 13h2" />,
+    <path d="M3 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 2.072.578" />,
+    <circle cx="10" cy="7" r="4" />,
+    <circle cx="20" cy="19" r="2" />,
   );
 }
 
@@ -263,23 +224,11 @@ function linkDeviceDotRing(
 }
 
 function mailIcon(): ComponentChildren {
-  return (
-    <>
-      <svg
-        width="21"
-        height="21"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1.75"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        aria-hidden="true"
-      >
-        <rect x="2.75" y="5" width="18.5" height="14" rx="2.75" />
-        <path d="m3.75 7.75 6.94 4.86a2.25 2.25 0 0 0 2.62 0l6.94-4.86" />
-      </svg>
-    </>
+  return strokeIcon(
+    '21',
+    '1.75',
+    <rect x="2.75" y="5" width="18.5" height="14" rx="2.75" />,
+    <path d="m3.75 7.75 6.94 4.86a2.25 2.25 0 0 0 2.62 0l6.94-4.86" />,
   );
 }
 
@@ -371,25 +320,13 @@ function linkDeviceEmailOtpPresentation(
 }
 
 function linkFailedIcon(): ComponentChildren {
-  return (
-    <>
-      <svg
-        width="22"
-        height="22"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1.75"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        aria-hidden="true"
-      >
-        <path d="M9 17H7A5 5 0 0 1 7 7h2" />
-        <path d="M15 7h2a5 5 0 0 1 3.54 8.54" />
-        <path d="m2 2 20 20" />
-        <path d="M8 12h3" />
-      </svg>
-    </>
+  return strokeIcon(
+    '22',
+    '1.75',
+    <path d="M9 17H7A5 5 0 0 1 7 7h2" />,
+    <path d="M15 7h2a5 5 0 0 1 3.54 8.54" />,
+    <path d="m2 2 20 20" />,
+    <path d="M8 12h3" />,
   );
 }
 
@@ -1409,8 +1346,22 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, { accountMe
       return this.renderLinkDeviceEmailOtp(linkDevice);
     }
     if (linkDevice.kind === 'activating') return this.renderLinkedDeviceActivation(linkDevice);
-    if (linkDevice.kind === 'expired') return this.renderLinkDeviceExpired(linkDevice);
-    if (linkDevice.kind === 'cancelled') return this.renderLinkDeviceCancelled(linkDevice);
+    if (linkDevice.kind === 'expired') {
+      return this.renderLinkDeviceFailurePanel({
+        dismiss: 'expired',
+        title: 'Linking expired',
+        detail: linkDevice.message,
+        action: 'Try again',
+      });
+    }
+    if (linkDevice.kind === 'cancelled') {
+      return this.renderLinkDeviceFailurePanel({
+        dismiss: 'cancelled',
+        title: 'Linking cancelled',
+        detail: linkDevice.message,
+        action: 'Return to sign in',
+      });
+    }
     if (linkDevice.kind === 'error' || linkDevice.kind === 'activation_error') {
       return this.renderLinkDeviceFailure(linkDevice);
     }
@@ -1686,82 +1637,43 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, { accountMe
     linkDevice: Extract<AuthMenuLinkDeviceState, { kind: 'error' | 'activation_error' }>,
   ): ComponentChildren {
     const activationFailed = linkDevice.kind === 'activation_error';
-    return (
-      <>
-        <div class="seams-link-device-confirmation seams-link-device-failure">
-          <div class="seams-link-device-failure-icon">{linkFailedIcon()}</div>
-          <h2 class="qr-title" id={AUTH_MENU_TITLE_ID}>
-            {activationFailed ? 'Device linked' : "Couldn't link device"}
-          </h2>
-          <p class="seams-link-device-failure-detail" role="alert">
-            {activationFailed ? (
-              <>Unable to open the wallet. Return to sign in and try again. {linkDevice.message}</>
-            ) : (
-              linkDevice.message
-            )}
-          </p>
-          <button
-            class="seams-link-device-btn"
-            type="button"
-            data-auth-menu-primary
-            data-link-device-error-dismiss
-            onClick={this.onBackClick}
-          >
-            Return to sign in
-          </button>
-        </div>
-      </>
-    );
+    return this.renderLinkDeviceFailurePanel({
+      dismiss: 'error',
+      title: activationFailed ? 'Device linked' : "Couldn't link device",
+      detail: activationFailed ? (
+        <>Unable to open the wallet. Return to sign in and try again. {linkDevice.message}</>
+      ) : (
+        linkDevice.message
+      ),
+      action: 'Return to sign in',
+    });
   }
 
-  private renderLinkDeviceExpired(
-    linkDevice: Extract<AuthMenuLinkDeviceState, { kind: 'expired' }>,
-  ): ComponentChildren {
+  // `dismiss` names the button's data-link-device-*-dismiss attribute.
+  private renderLinkDeviceFailurePanel(panel: {
+    dismiss: 'error' | 'expired' | 'cancelled';
+    title: string;
+    detail: ComponentChildren;
+    action: string;
+  }): ComponentChildren {
     return (
       <>
         <div class="seams-link-device-confirmation seams-link-device-failure">
           <div class="seams-link-device-failure-icon">{linkFailedIcon()}</div>
           <h2 class="qr-title" id={AUTH_MENU_TITLE_ID}>
-            Linking expired
+            {panel.title}
           </h2>
           <p class="seams-link-device-failure-detail" role="alert">
-            {linkDevice.message}
+            {panel.detail}
           </p>
           <button
             class="seams-link-device-btn"
             type="button"
             data-auth-menu-primary
-            data-link-device-expired-dismiss
+            {...{ [`data-link-device-${panel.dismiss}-dismiss`]: true }}
             onClick={this.onBackClick}
           >
-            Try again
-          </button>
-        </div>
-      </>
-    );
-  }
-
-  private renderLinkDeviceCancelled(
-    linkDevice: Extract<AuthMenuLinkDeviceState, { kind: 'cancelled' }>,
-  ): ComponentChildren {
-    return (
-      <>
-        <div class="seams-link-device-confirmation seams-link-device-failure">
-          <div class="seams-link-device-failure-icon">{linkFailedIcon()}</div>
-          <h2 class="qr-title" id={AUTH_MENU_TITLE_ID}>
-            Linking cancelled
-          </h2>
-          <p class="seams-link-device-failure-detail" role="alert">
-            {linkDevice.message}
-          </p>
-          <button
-            class="seams-link-device-btn"
-            type="button"
-            data-auth-menu-primary
-            data-link-device-cancelled-dismiss
-            onClick={this.onBackClick}
-          >
-            Return to sign in
+            {panel.action}
           </button>
         </div>
       </>
