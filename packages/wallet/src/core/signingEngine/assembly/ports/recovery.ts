@@ -101,6 +101,7 @@ export function createRecoveryPublicDeps(args: {
             requiredEcdsaCapability: 'export_keys',
           },
           new WalletSessionStatusReadScope(),
+          'all',
         ),
       readOwnerScopedAvailableSigningLanesForTargets: async (availableLanesArgs) =>
         await readOwnerScopedAvailableSigningLanes(

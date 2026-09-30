@@ -1,3 +1,5 @@
+import type { Page, TestInfo } from '@playwright/test';
+import { WalletSessionStatusEvidence } from './walletSessionStatusEvidence';
 import { intendedTest as test, type IntendedBehaviourHarness } from './harness';
 
 async function verifyPasskeyUnlockImmediateLifecycle({
@@ -22,22 +24,31 @@ test(
 
 async function verifyPasskeyPageRefreshHydration({
   harness,
+  page,
 }: {
   harness: IntendedBehaviourHarness;
-}): Promise<void> {
+  page: Page;
+}, testInfo: TestInfo): Promise<void> {
+  const evidence = await WalletSessionStatusEvidence.start(page);
   await harness.registerPasskeyWallet();
   await harness.awaitNearReady();
+  evidence.setStage('unlock');
   await harness.unlockPasskeyWallet();
+  evidence.setStage('refresh-and-export');
   await harness.refreshPagePreservingWalletStorage();
   await harness.exportEd25519Key();
   await harness.exportEcdsaKey();
+  evidence.setStage('warm-signing');
   await harness.signNearTransactionAfterRefresh();
   await harness.signTempoTransaction('after_refresh_recovery');
   await harness.signArcEvmTransaction('after_refresh_recovery');
+  evidence.setStage('quota-exhaustion');
   await harness.exhaustSigningBudget();
+  evidence.setStage('step-up');
   await harness.signNearTransaction('step_up_required');
   await harness.signTempoTransaction('step_up_required');
   await harness.signArcEvmTransaction('step_up_required');
+  await evidence.finish(testInfo);
 }
 
 test(

@@ -163,6 +163,7 @@ export async function readPersistedAvailableSigningLanes(
       requiredEcdsaCapability: 'sign',
     },
     new WalletSessionStatusReadScope(),
+    'all',
   );
 }
 
@@ -193,6 +194,7 @@ export async function readOwnerScopedAvailableSigningLanes(
       ...(args.nowMs !== undefined ? { nowMs: args.nowMs } : {}),
     },
     statusReads,
+    'all',
   );
 }
 
@@ -215,6 +217,7 @@ export async function readPersistedAvailableSigningLanesForSigning(
         requiredEcdsaCapability: 'sign',
       },
       new WalletSessionStatusReadScope(),
+      'ecdsa',
     );
   }
   const { curve, ...availableLanesArgs } = args;
@@ -261,6 +264,7 @@ export async function readPersistedAvailableSigningLanesForTargets(
     requiredEcdsaCapability: EcdsaLaneCapability;
   },
   statusReads: WalletSessionStatusReadScope,
+  curves: 'all' | 'ecdsa',
 ): Promise<AvailableSigningLanes> {
   const walletId = String(toWalletId(args.walletId)).trim();
   return await readAvailableSigningLanes(
@@ -270,15 +274,15 @@ export async function readPersistedAvailableSigningLanesForTargets(
       ecdsaChainTargets: args.ecdsaChainTargets,
     },
     {
-      listPublicCapabilityReferences: deps.ed25519YaoPublicCapabilityLanes
+      listPublicCapabilityReferences: curves === 'all' && deps.ed25519YaoPublicCapabilityLanes
         ? deps.ed25519YaoPublicCapabilityLanes.listLanes.bind(deps.ed25519YaoPublicCapabilityLanes)
         : undefined,
       isPublicCapabilityActive: deps.isEd25519YaoPublicCapabilityActive,
-      readActiveWalletSessionAuthorization: deps.readActiveWalletSessionAuthorization?.bind(
-        null,
-        statusReads,
-      ),
+      readActiveWalletSessionAuthorization: curves === 'all'
+        ? deps.readActiveWalletSessionAuthorization?.bind(null, statusReads)
+        : undefined,
       listSealedRecordsForWallet: async ({ walletId: recordWalletId, filter }) => {
+        if (curves === 'ecdsa') return [];
         const listByAuthMethod = async (
           authMethod: SignerAuthMethod,
         ): Promise<SigningSessionSealedStoreRecord[]> => {

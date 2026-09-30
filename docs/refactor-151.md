@@ -493,6 +493,64 @@ wrong-wallet refusal and exact replay afterward. Server build, intended-test
 type check, and bloat check pass. Temporary Gateway tracing was removed before
 the revocation/recovery/replay runs. No hosted resources changed.
 
+### Current SDK status-request ownership checkpoint (September 30)
+
+A freshly built SDK now has browser initiator evidence for the mixed-wallet
+refresh lifecycle: registration, unlock, page refresh, both key exports, warm
+NEAR/Tempo/EVM signing, quota exhaustion, and one-use step-up signing. The
+existing browser contract writes `wallet-session-status-owners-<host>.json`
+under `.artifacts/r151/`. Chromium caller stacks retain function names and asset
+paths/locations, excluding request bodies, headers, credentials, and URL queries.
+Only status POSTs count; CORS preflights are excluded. This diagnostic is a
+bounded lifecycle window, not a per-signature foreground count.
+
+The matched Workers runs each observed 59 status POSTs:
+
+| Caller responsibility | Before | After |
+| --- | ---: | ---: |
+| Lane inventory/discovery | 26 | 26 |
+| NEAR material authorization | 10 | 10 |
+| Iframe exact-session reconciliation | 9 | 9 |
+| Presign refill | 6 | 6 |
+| ECDSA runtime preparation | 4 | 4 |
+| ECDSA material hydration | 2 | 2 |
+| Unlock authorization | 1 | 1 |
+| NEAR readiness planning | 1 | 1 |
+
+Six ECDSA preparation reads entered the NEAR authorization reader because
+curve-specific discovery loaded both curves. ECDSA signing discovery now skips
+NEAR sealed records, public references, and its authorization reader. Full-wallet
+inventory, owner/export discovery, and NEAR signing retain their existing reads.
+The six status requests remain: the ECDSA reader already shared each request
+through the existing operation scope and now initiates it itself. This removes
+unrelated local discovery work; it establishes **zero network or D1 call savings**.
+The suspected separate EVM/Tempo `getWarmSession` scopes were not observed in
+this scenario, so no scope-sharing change was retained there.
+
+Build input hashes, SDK/server distribution hashes, caller traces, classifications,
+and reproduction commands are recorded in
+`.artifacts/r151/status-owners-20260930/`. SDK builds are from current source;
+these lifecycle samples remain separate from the earlier hosted SDK cohorts.
+No hosted placement or complete-latency conclusion follows from these runs.
+
+The mixed-wallet scenario passed on Workers D1, wallet-DO, and VM, with 59
+status POSTs and the same caller classification in each after run. Three-device
+ECDSA-only signing also passed on Workers D1. SDK/server builds, SDK/intended-test
+type checks, and the bloat check pass. No hosted resources changed.
+
+Next steps now have two distinct boundaries:
+
+1. Material admission still needs a predicate covering original and linked
+   activations, validated receipt/custody-source identity, and ambiguity. The
+   registration-only INSERT guard cannot replace the linked resolver. Cover both
+   new claims and existing operations, including retirement/revocation between
+   policy and admission, before deleting a fresh read.
+2. Use the observed inventory/discovery callers to identify repeated reads
+   within one public operation. Distinguish lane selection and material-hydration
+   checks, and identify any intervening authority/material transition before
+   sharing a scope. Preserve separate later signing checks and avoid cross-action
+   status caching. Measure the next change with these current-build caller traces.
+
 ### 1. Consolidate reads while preserving decision boundaries
 
 - [x] Read project and abuse policy together through the existing admission store.
@@ -527,9 +585,11 @@ Phase 3 still revisits the complete call budget after these incremental changes.
 
 ### 2. Reduce unnecessary work and classify writes
 
-- [ ] Trace the SDK owners of repeated session-status requests. Coalesce
-  overlapping requests with the same semantics and reuse already returned
-  display data where valid. Keep server-side authorization fresh at admission.
+- [x] Record current-build status-request callers for the mixed-wallet refresh,
+  warm-signing, and step-up lifecycle, with repeatable browser evidence.
+- [ ] Extend caller coverage as needed and coalesce overlapping status requests
+  with the same semantics. Reuse already returned display data where valid.
+  Keep server-side authorization fresh at admission.
 - [ ] Measure warm pool, immediate first sign, and burst signing separately.
   Keep presign refill off the foreground wait using the established machinery.
   Preserve the distinct presign and signing authorization boundaries.
