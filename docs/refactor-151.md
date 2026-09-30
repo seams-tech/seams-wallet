@@ -10,8 +10,9 @@ signing from 24 to 10 calls and directly linked signing from 20 to 10. These
 latest reductions still need controlled hosted latency measurements.
 Active/exhausted credentials are classified in one read. Material snapshots are
 checked atomically at reusable-session claim and finalize/replay admission.
-Further call reduction and the minimum-call-budget review remain open; regional
-databases are conditional. Production rollout is separate.
+The minimum-call-budget design review is recorded below; implementation and
+measurement remain open. Regional databases are conditional. Production rollout
+is separate.
 
 ## Decision
 
@@ -1191,6 +1192,93 @@ Atomic admission snapshot predicates, policy reads, claim/quota/audit
 writes, and durable completion remain required. Acceptance requires measured counts and repeated retirement, revocation,
 last-quota contention, and lost-response replay checks.
 
+### Minimum-call-budget design review (September 30)
+
+The three-call proposal is not supported by the current execution dependencies.
+`authorizeRouterAbEcdsaWalletSessionRequest` resolves and validates the complete
+material candidate set before evaluating policy. The policy keys depend on the
+resolved material's runtime scope and activation. The subsequent admission uses
+`EcdsaMaterialReadSnapshot.condition` to check that the records examined by the
+application still match. A batch cannot use application verification of its own
+returned rows to decide an earlier claim in that batch. Claiming before that
+verification would allow rejected requests to consume quota.
+
+Finalize repeats the credential/material and policy decisions, then checks the
+existing operation and material snapshot before custody execution. Completion
+records the response after execution. Removing that completion write would lose
+durable exact replay. Joining finalize admission to its initial credential read
+would move the material/authority check before the intervening application and
+policy work; retaining the existing retirement boundary requires a later check.
+These are dependencies of the current implementation, not a proof of a universal
+minimum. A three-call design requires an explicit replacement for them and its
+own behavioral evidence.
+
+The immediate candidate is one fewer prepare call: a guarded claim followed by
+live operation readback in the same batch. A new claim would still consume quota
+and create its audit event through the current triggers. An existing fingerprint
+must skip insertion and then pass the existing identity, material, and live-source
+checks. The readback must distinguish a new claim, an existing operation, and a
+material mismatch; zero changed rows alone cannot identify the latter.
+[D1 batch transactions](https://developers.cloudflare.com/d1/worker-api/d1-database/#batch)
+provide ordered statements and rollback on failure. They do not replace those
+domain decisions.
+
+There is a prerequisite in the current call graph:
+
+- Both prepare and finalize call `admitRouterAbEcdsaReusableWalletSessionOperation`,
+  which invokes `D1AuthorizationStore.admitEcdsaWalletSessionOperation`.
+- If the fingerprint is absent, `admitAuthorizedOperationRecord` can insert a
+  claim. Both the fetch route in `thresholdEcdsa.ts` and the domain route in
+  `routerAbEcdsaDerivationNormalSigningRoute.ts` subsequently reject a newly
+  `claimed` finalize with `authorized_operation_missing`.
+- Therefore an otherwise admissible finalize without a prior prepare can reach
+  the quota/audit mutation before that rejection. This is a code-path finding;
+  a deployed reproduction and mutation measurement have not been performed.
+  Separate finalize's existing-operation resolution from prepare's claim before
+  optimizing the shared method. Require the phase at the domain boundary and
+  make a newly claimed finalize result unrepresentable.
+
+A generic insert/readback replacement would also execute a conditional INSERT
+on every normal finalize and replay. Even if it changed no rows, that would add
+SQL work to an existing read path. Keep finalize resolution read-only and retain
+its live-source/material predicates. The prepared-admission API used by Ed25519
+export also owns a larger transaction: preserve its duplicate-claim failure
+semantics rather than making its INSERT silently skip a row.
+
+Implementation and acceptance order:
+
+1. Add a behavioral E2E for an authenticated finalize with an absent prepare:
+   require the missing-operation response, unchanged quota, no claim/audit row,
+   and a subsequent successful prepare/finalize. Use required phase-specific
+   admission types and type fixtures to exclude newly claimed finalize results.
+   Update the intended behavior contract with the implementation.
+2. Separate claim and existing-operation resolution through the current store
+   and route boundaries. Preserve exhausted-session exact replay, live revocation,
+   material retirement, owner scope, and rejection precedence in both paths.
+3. Batch prepare's guarded claim and live readback. Scope the absence guard to
+   namespace, tenant, and fingerprint; retain uniqueness and all trigger failures.
+   Reuse the existing row parser and replay classifier. Keep the export-owned
+   prepared transaction's conflict semantics explicit.
+4. Run last-quota contention, duplicate prepare, lost-response replay, retirement,
+   revocation, and mixed-wallet lifecycle E2Es on Workers D1, wallet-DO, and VM.
+   Preserve fresh before/after artifacts and SDK/server build identities.
+   Material fault injection must still retire records between resolution and
+   the actual claim/existing-operation decision after the batch shape changes.
+5. Measure successful signatures, exact prepare/finalize replay, and rejection
+   separately. Report SQL INSERT attempts separately from calls with reported
+   row writes; a skipped INSERT is still a statement. Require no quota/audit
+   mutation on replay or missing finalize. Failed transactions may lack row-write
+   metadata, so verify persisted state as well as trace counters.
+
+With finalize kept read-only, the candidate success budget is seven calls/eight
+statements for canonical signing and nine calls/12 statements for linked signing.
+These are unmeasured targets. The measured budget remains eight/nine and 10/13,
+respectively, with two calls reporting row writes and 14 reported rows written.
+Policy remains a separate decision after material resolution. Linked installation
+resolution remains a separate batch on each request. Revisit those boundaries
+after this change; do not mark phase 3 complete at the next intermediate target.
+Hosted first/warm/burst latency and placement measurements remain required.
+
 ### 1. Consolidate reads while preserving decision boundaries
 
 - [x] Classify active/exhausted credentials from one snapshot for ECDSA signing,
@@ -1272,12 +1360,17 @@ small amount of SQL work. Reaching 12 calls does not close this follow-up.
 - [x] Map every remaining foreground D1 call to the invariant it enforces and
   the point at which its data must be fresh. Identify dependencies introduced
   by store boundaries that can be removed without weakening those invariants.
-- [ ] Evaluate a roughly three-round-trip design for a successful signature:
+- [x] Evaluate a roughly three-round-trip design for a successful signature:
   prepare validates authority/policy/material and atomically claims the operation
   with quota consumption; finalize resolves the claim and checks live authority
   and material before signing; completion durably records the replay response.
   This is a design hypothesis, not a proven minimum or a promise of three calls.
   Document any additional round trip that correctness requires.
+  The September 30 design review records current material-verification and
+  completion dependencies and the next seven-call canonical candidate.
+- [ ] Separate finalize's existing-operation resolution from prepare admission.
+  Verify that missing finalize cannot create a claim or consume quota before
+  consolidating prepare's guarded claim and live readback.
 - [ ] Consolidate reads and guarded writes around those decision points using
   the existing stores and SQL transactions. Preserve rejection precedence,
   tenant/environment binding, expiry/revocation checks, material retirement,
