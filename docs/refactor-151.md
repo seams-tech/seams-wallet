@@ -1072,6 +1072,55 @@ Next: trace the parent owners of the remaining repeated display requests before
 coalescing them. Continue the minimum-safe-call-budget review, then measure
 controlled hosted first/warm/burst workloads and residual placement cost for R152.
 
+### Remove duplicated React preference-triggered session refresh (September 30)
+
+Parent-side ownership inspection explains one group of matching display reads.
+`WalletIframeRouter.handlePreferencesChanged` refreshes exact session state when
+the selected wallet changes and emits login status. `useWalletIframeLifecycle`
+also subscribed to every preferences notification, launching a second exact
+session reconciliation. Subscription replays the last preference value, causing
+another reconciliation beside React's explicit initial read. Confirmation-config
+notifications were also used to trigger authentication reads.
+
+React now retains its initial exact-session reconciliation and login-status
+subscription. The preferences subscription and its background reconciliation
+wrapper are deleted. `WalletIframeCoordinator.ensureWalletIframePreferencesMirror`
+continues mirroring wallet-host preferences, and the router retains selected-wallet
+and registration/unlock-completion refreshes. No result cache or shared pending
+map is introduced; subsequent reads and signing admission remain fresh.
+
+The matched Workers refresh/export/warm/step-up lifecycle falls from 54 to 51
+status POSTs. Exact-session reconciliation reads fall from nine to six: one saved
+request each at registration, unlock, and page refresh. Inventory, prefill, warm
+signing, and step-up caller counts are unchanged. The live custom-review E2E
+also passes: NEAR readiness updates automatically while the review stays open,
+and the reviewed Arc signature still requires wallet approval.
+
+The concurrent-signing lifecycle falls from 41 to 39 POSTs, with exact-session
+reconciliation falling from six to four. Both lifecycle counts match on Workers
+D1, wallet-DO, and VM. Every other caller count is unchanged across the six
+comparisons. Nine scenario/profile checks pass: both lifecycles on all three
+profiles, custom review with a live NEAR readiness update, linked-device
+revocation, and recovery retirement. SDK build/type checking, intended and
+wallet-state type checks, and the bloat check pass. Hosted resources are unchanged.
+
+The remaining display reads have distinct owners: selected-wallet change,
+completed auth operations, initial React hydration, login-status projection, and
+explicit SDK reads made by the application/acceptance harness. Equal wire inputs
+across those boundaries do not establish a reusable snapshot. The local caller
+review is complete for these cohorts; additional hosted evidence may justify a
+further narrowly scoped reduction. The next implementation review is the minimum
+safe Gateway signing call budget, followed by controlled hosted workload and
+placement measurements. The Gateway budget remains eight canonical or 10 linked
+D1 calls per signature; this browser measurement establishes no latency gain.
+
+Evidence, source/build identities, unchanged-server hash checks, and private
+lifecycle trace hashes are retained in
+`.artifacts/r151/display-refresh-20260930/analysis.json`. Reproduce with the SDK
+build, the `after-lifecycle-workers` command recorded there,
+`node .runtime/r151-display-refresh/verify.mjs`, and
+`python3 .runtime/r151-display-refresh/analyze.py`.
+
 ### Remaining call and write inventory (September 30)
 
 The canonical reusable-session path has four foreground Gateway D1 calls per
@@ -1195,8 +1244,9 @@ Phase 3 still revisits the complete call budget after these incremental changes.
   request intervals; cover refresh and concurrent shared-budget signing.
 - [x] Share the restore operation's status-read scope across per-chain prefills,
   preserving separate pool and material validation and fresh independent calls.
-- [ ] Trace display-request owners before coalescing equivalent pending display
-  reads. Keep queued material and server-side admission authorization fresh.
+- [x] Trace display-request owners and remove the duplicated React preference
+  reconciliation. Retain distinct auth/selection/initialization/application reads
+  and fresh queued-material/server admission checks; revisit with hosted evidence.
 - [x] Measure warm pool, immediate first sign, and burst signing separately in
   a bounded local diagnostic with signature and shared-quota verification.
 - [x] Diagnose and fix the repeated linked-presign worker timeout/reset. Retire
