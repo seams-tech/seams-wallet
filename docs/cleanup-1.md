@@ -6,10 +6,10 @@ worker, route and fixture clusters outside R150's files, and split oversized
 files along their seams. R150 is on `dev`, but feature work still changes
 Phase 4's files. A second survey (below) found more to remove outside them. CI
 runs `pnpm report:bloat --check`, which fails when a ratcheted measure grows
-past `scripts/bloat-baseline.json`, now recorded at `1d733cf`. Since the first
-baseline (`7c8a163`), TypeScript code is down 33,958 lines and Rust code 6,078.
-Duplication is down from 5.1% to 3.1% in TypeScript and from 5.7% to 5.2% in
-Rust, and files over 2,000 lines from 82 to 68. The findings below are the
+past `scripts/bloat-baseline.json`, now recorded at `ae9a230`. Since the first
+baseline (`7c8a163`), TypeScript code is down 35,630 lines and Rust code 9,724.
+Duplication is down from 5.1% to 3.1% in TypeScript and from 5.7% to 4.8% in
+Rust, and files over 2,000 lines from 82 to 67. The findings below are the
 first baseline's; run `pnpm report:bloat` for current numbers.
 
 This plan reduces the code that has to be read, reviewed and kept consistent,
@@ -542,13 +542,22 @@ Landed:
   queue, seal-route, export-lane, icon and auth-menu code (569f1e3,
   e98aca4).
 - router-ab-core's tenant-root wire decoders and encoders (229aee7).
-
-In progress: a `failure(code, message)` helper for the
-`{ ok: false, code, message }` literals (about 800 multi-line sites), an
-exclusive-union helper for mechanically padded unions, dead Rust items and
-unused Cargo dependencies, the Yao generator's vectors CLI, compile-fail
-harness and corpus plumbing, router-ab-core's repeated test setup, and the
-parsers that convert to `wireSchema` without changing an observable message.
+- The pending registration journal's sub-records and the recovery
+  prepare options parse with `wireSchema`, keeping every observable
+  message (3321c97). The other parser modules it read stay as they are.
+- `ExclusiveUnion` and `ReadonlyExclusiveUnion` write 118 mechanically
+  padded unions (18c70a7). Editors now show a narrowed member as
+  `Flatten<... & ...>`.
+- `failure()`, `failedVerification()` and `jsonFailure()` build 518
+  failure results in wallet-server and shared-ts (1716d97). Files the
+  wallet bundles keep their literals, which keeps the helper off the boot
+  path.
+- router-ab-core's repeated test setup and the merged vector adapter tests
+  (c706a3a); the Yao generator's vectors CLI, compile-fail harness, corpus
+  type and hex helpers (7534b6f), and the FV tasks' hex helpers (28f9bb4).
+- Rust items nothing references, with 14 `allow(dead_code)` (a4d92e1), and
+  37 unused Cargo dependencies (ae9a230). router-ab-dev's three wait for
+  its manifest to settle.
 
 Waiting for feature work in these files to settle:
 - router-ab-cloudflare's five largest files, about 3,500 lines: 74
@@ -791,3 +800,11 @@ Found during the cleanup and left unchanged, for their owners to check:
   21,753 (5.1%) -> 12,615 (3.1%); duplicated Rust lines 19,427 -> 17,417;
   names exported from 2+ files 198 -> 156. The baseline was re-recorded at
   `1d733cf`.
+- 2026-09-30: the second survey's second batch (3321c97 to ae9a230).
+  Against the first baseline, measured at `ae9a230`: TypeScript code
+  539,841 -> 504,211 lines; Rust code 433,451 -> 423,727; files over 2,000
+  lines 82 -> 67; duplicated TypeScript lines 21,753 (5.1%) -> 12,307
+  (3.1%); duplicated Rust lines 19,427 (5.7%) -> 16,071 (4.8%); validation
+  functions 4,276 -> 3,729 (86,063 -> 73,986 lines); `?: never` lines 2,684
+  -> 1,945; Rust `allow(dead_code)` 125 -> 97. The baseline was re-recorded
+  at `ae9a230`.
