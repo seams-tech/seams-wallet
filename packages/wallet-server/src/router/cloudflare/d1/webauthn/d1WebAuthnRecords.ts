@@ -32,6 +32,7 @@ import {
   parseRecoveryCodeReservationId,
   type RecoveryCodeReservationId,
 } from '@shared/wallet-recovery/recoveryCodeReservation';
+import { hasExactKeys } from '@shared/utils/exactKeys';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
 import {
   parseWebAuthnAuthenticatorDeviceInfoJson,
@@ -189,7 +190,7 @@ export function parseWebAuthnLoginChallengeRecord(
   if (prototype !== Object.prototype && prototype !== null) return null;
   const record = candidate as Readonly<Record<string, unknown>>;
   if (
-    !hasExactFields(record, [
+    !hasExactKeys(record, [
       'version',
       'challengeId',
       'userId',
@@ -246,7 +247,7 @@ export function parseWebAuthnSyncChallengeRecord(
         'expiresAtMs',
       ]
     : ['version', 'challengeId', 'rpId', 'challengeB64u', 'createdAtMs', 'expiresAtMs'];
-  if (!hasExactFields(record, expectedFields)) return null;
+  if (!hasExactKeys(record, expectedFields)) return null;
   const version = toOptionalTrimmedString(record.version);
   const challengeId = toOptionalTrimmedString(record.challengeId);
   const rpId = toOptionalTrimmedString(record.rpId);
@@ -519,7 +520,7 @@ function parseWebAuthnRecoveryContinuityEnvelopeAnchor(
   }
   if (kind === 'passkey') {
     if (
-      !hasExactFields(record, [
+      !hasExactKeys(record, [
         'kind',
         'envelopeId',
         'walletId',
@@ -548,7 +549,7 @@ function parseWebAuthnRecoveryContinuityEnvelopeAnchor(
   }
   if (kind === 'email_otp') {
     if (
-      !hasExactFields(record, [
+      !hasExactKeys(record, [
         'kind',
         'envelopeId',
         'walletId',
@@ -584,17 +585,6 @@ function parseRecoveryEnvelopeRevision(input: unknown): EnvelopeRevision | null 
   } catch {
     return null;
   }
-}
-
-function hasExactFields(
-  record: Readonly<Record<string, unknown>>,
-  expectedFields: readonly string[],
-): boolean {
-  const fields = Object.keys(record);
-  return (
-    fields.length === expectedFields.length &&
-    expectedFields.every((field) => fields.includes(field))
-  );
 }
 
 export function parseWebAuthnAuthenticator(
@@ -779,7 +769,7 @@ function parseWebAuthnRuntimePolicyScope(raw: unknown): ThresholdRuntimePolicySc
   }
   if (prototype !== Object.prototype && prototype !== null) return undefined;
   const record = raw as Readonly<Record<string, unknown>>;
-  if (!hasExactFields(record, ['orgId', 'projectId', 'envId', 'signingRootVersion'])) {
+  if (!hasExactKeys(record, ['orgId', 'projectId', 'envId', 'signingRootVersion'])) {
     return undefined;
   }
   try {

@@ -1,5 +1,6 @@
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';
+import { hasExactKeys } from '@shared/utils/exactKeys';
 import { parseDeviceId, type DeviceId } from '@shared/authorization/capabilityKinds';
 import {
   parsePasskeyEnvelopeId,
@@ -338,7 +339,7 @@ export function parseWalletRecoveryGoogleEmailOtpAttemptRecord(
     expiresAtMs,
   };
   if (record.state === 'prepared') {
-    if (!hasExactFields(record, [...expectedCommonFields])) return null;
+    if (!hasExactKeys(record, [...expectedCommonFields])) return null;
     return { ...common, state: 'prepared' };
   }
   if (
@@ -356,7 +357,7 @@ export function parseWalletRecoveryGoogleEmailOtpAttemptRecord(
     'ownerProofBindingDigest',
     'targetEnrollment',
   ];
-  if (!hasExactFields(record, fields)) return null;
+  if (!hasExactKeys(record, fields)) return null;
   const providerSubject = nonEmpty(record.providerSubject);
   const verifiedEmail = nonEmpty(record.verifiedEmail)?.toLowerCase();
   const challengeId = nonEmpty(record.challengeId);
@@ -382,7 +383,7 @@ export function parseWalletRecoveryGoogleEmailOtpAttemptRecord(
 function parseContinuityAnchor(raw: unknown): WebAuthnRecoveryContinuityAnchorRecord | null {
   if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return null;
   const record = raw as Readonly<Record<string, unknown>>;
-  if (!hasExactFields(record, ['kind', 'authority', 'method', 'envelope'])) return null;
+  if (!hasExactKeys(record, ['kind', 'authority', 'method', 'envelope'])) return null;
   if (record.kind !== 'wallet_recovery_continuity_anchor_v1') return null;
   const authority = parseWalletAuthorityV1(record.authority);
   const method = parseWalletAuthMethodRecordV2(record.method);
@@ -447,7 +448,7 @@ function parseContinuityEnvelope(
   )
     return null;
   if (record.kind === 'passkey') {
-    if (!hasExactFields(record, [...commonFields, 'rpId', 'credentialIdB64u'])) return null;
+    if (!hasExactKeys(record, [...commonFields, 'rpId', 'credentialIdB64u'])) return null;
     const rpId = parseWebAuthnRpId(record.rpId);
     const credentialIdB64u = parseWebAuthnCredentialIdB64u(record.credentialIdB64u);
     if (!rpId.ok || !credentialIdB64u.ok) return null;
@@ -463,7 +464,7 @@ function parseContinuityEnvelope(
     };
   }
   if (record.kind === 'email_otp') {
-    if (!hasExactFields(record, [...commonFields, 'enrollmentId', 'enrollmentSealKeyVersion']))
+    if (!hasExactKeys(record, [...commonFields, 'enrollmentId', 'enrollmentSealKeyVersion']))
       return null;
     const enrollmentId = nonEmpty(record.enrollmentId);
     const enrollmentSealKeyVersion = nonEmpty(record.enrollmentSealKeyVersion);
@@ -485,7 +486,7 @@ function parseContinuityEnvelope(
 function parseTarget(raw: unknown): WalletRecoveryGoogleEmailOtpTargetV1 | null {
   if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return null;
   const record = raw as Readonly<Record<string, unknown>>;
-  return hasExactFields(record, ['kind', 'googleProvider']) &&
+  return hasExactKeys(record, ['kind', 'googleProvider']) &&
     record.kind === 'google_email_otp' &&
     record.googleProvider === 'google'
     ? { kind: 'google_email_otp', googleProvider: 'google' }
@@ -499,7 +500,7 @@ function parseTargetEnrollment(
   const record = raw as Readonly<Record<string, unknown>>;
   if (typeof record.kind !== 'string') return null;
   if (record.kind === 'existing') {
-    if (!hasExactFields(record, ['kind', 'enrollmentId', 'enrollmentSealKeyVersion'])) return null;
+    if (!hasExactKeys(record, ['kind', 'enrollmentId', 'enrollmentSealKeyVersion'])) return null;
     const enrollmentId = nonEmpty(record.enrollmentId);
     const enrollmentSealKeyVersion = nonEmpty(record.enrollmentSealKeyVersion);
     return enrollmentId && enrollmentSealKeyVersion
@@ -507,7 +508,7 @@ function parseTargetEnrollment(
       : null;
   }
   if (record.kind === 'create') {
-    if (!hasExactFields(record, ['kind', 'providerSubject', 'verifiedEmail'])) return null;
+    if (!hasExactKeys(record, ['kind', 'providerSubject', 'verifiedEmail'])) return null;
     const providerSubject = nonEmpty(record.providerSubject);
     const verifiedEmail = nonEmpty(record.verifiedEmail)?.toLowerCase();
     return providerSubject && verifiedEmail
@@ -531,17 +532,6 @@ function parsePositiveMs(raw: unknown): number | null {
 
 function nonEmpty(raw: unknown): string | null {
   return typeof raw === 'string' && raw.trim() ? raw.trim() : null;
-}
-
-function hasExactFields(
-  record: Readonly<Record<string, unknown>>,
-  fields: readonly string[],
-): boolean {
-  const actual = Object.keys(record).sort();
-  const expected = [...fields].sort();
-  return (
-    actual.length === expected.length && actual.every((field, index) => field === expected[index])
-  );
 }
 
 function hasFields(record: Readonly<Record<string, unknown>>, fields: readonly string[]): boolean {

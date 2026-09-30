@@ -1,6 +1,7 @@
 import { parseLinkDeviceSessionId, type LinkDeviceSessionId } from '@shared/signing-lanes/ids';
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
 import { parseDigestB64u, type DigestB64u } from '@shared/utils/canonicalPrimitives';
+import { hasExactKeys } from '@shared/utils/exactKeys';
 import {
   computeLinkedDevicePublicKeyDigestV1,
   computeLinkedDeviceRequestProofDigestV1,
@@ -156,7 +157,20 @@ export function parseLinkedDeviceRequestProofV1(raw: unknown): LinkedDeviceReque
   if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
     throw new Error('linked-device request proof must be an object');
   }
-  if (!isLinkedDeviceRequestProofRecordV1(raw)) {
+  if (
+    !hasExactKeys(raw, [
+      'kind',
+      'linkSessionId',
+      'devicePublicKeyDigestB64u',
+      'requestNonceB64u',
+      'method',
+      'canonicalPath',
+      'bodyDigestB64u',
+      'issuedAtMs',
+      'expiresAtMs',
+      'signatureB64u',
+    ])
+  ) {
     throw new Error('record contains invalid fields');
   }
   const record = raw;
@@ -336,28 +350,6 @@ function parseFixedB64u(raw: unknown, expectedBytes: number, field: string): str
 
 function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   return bytes.slice().buffer;
-}
-
-type LinkedDeviceRequestProofRecordV1 = {
-  readonly kind: unknown;
-  readonly linkSessionId: unknown;
-  readonly devicePublicKeyDigestB64u: unknown;
-  readonly requestNonceB64u: unknown;
-  readonly method: unknown;
-  readonly canonicalPath: unknown;
-  readonly bodyDigestB64u: unknown;
-  readonly issuedAtMs: unknown;
-  readonly expiresAtMs: unknown;
-  readonly signatureB64u: unknown;
-};
-
-function isLinkedDeviceRequestProofRecordV1(
-  value: object,
-): value is LinkedDeviceRequestProofRecordV1 {
-  return (
-    Object.keys(value).sort().join('|') ===
-    'bodyDigestB64u|canonicalPath|devicePublicKeyDigestB64u|expiresAtMs|issuedAtMs|kind|linkSessionId|method|requestNonceB64u|signatureB64u'
-  );
 }
 
 function errorMessage(error: unknown): string {

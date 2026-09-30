@@ -11,6 +11,7 @@ import type {
   WalletSessionOperationCredentialV1,
 } from '@shared/device-linking';
 import { parseDigestB64u, type DigestB64u } from '@shared/utils/canonicalPrimitives';
+import { hasExactKeys } from '@shared/utils/exactKeys';
 import {
   parseLinkDeviceSessionId,
   parseLinkedDeviceEnrollmentId,
@@ -357,15 +358,6 @@ function isPlainDeviceLinkingResumeRecord(value: unknown): value is PlainDeviceL
   } catch {
     return false;
   }
-}
-
-function hasExactKeys(
-  record: PlainDeviceLinkingResumeRecord,
-  expectedKeys: readonly string[],
-): boolean {
-  const actual = Object.keys(record).sort();
-  const expected = [...expectedKeys].sort();
-  return actual.length === expected.length && actual.every((key, index) => key === expected[index]);
 }
 
 function sameSignerActivations(

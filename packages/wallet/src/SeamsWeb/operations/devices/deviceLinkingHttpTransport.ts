@@ -34,6 +34,7 @@ import {
 } from '@shared/device-linking';
 import { base64UrlEncode } from '@shared/utils/base64';
 import { sha256DigestB64u } from '@shared/utils/canonicalPrimitives';
+import { hasExactKeys } from '@shared/utils/exactKeys';
 import { secureRandomBase64Url } from '@shared/utils/secureRandomId';
 import { parseLinkDeviceSessionId, type LinkDeviceSessionId } from '@shared/signing-lanes/ids';
 import { parseLinkedDeviceEd25519ExportRootPackageV1 } from '@shared/device-linking/ed25519ExportRoot';
@@ -585,7 +586,7 @@ function parseSessionMutationEnvelopeV1(raw: unknown): SessionMutationEnvelopeV1
   if (record === null) {
     throw new Error('linked-device response must be an object');
   }
-  if (!hasExactKeys(record, SESSION_MUTATION_RESPONSE_FIELDS)) {
+  if (!hasExactResponseKeys(record, SESSION_MUTATION_RESPONSE_FIELDS)) {
     throw new Error('linked-device response contains invalid fields');
   }
   if (record.ok !== true) {
@@ -616,7 +617,7 @@ function parseTargetCredentialRegistrationResponseV1(
   if (record === null) {
     throw new Error('linked-device target credential response must be an object');
   }
-  if (!hasExactKeys(record, TARGET_CREDENTIAL_RESPONSE_FIELDS)) {
+  if (!hasExactResponseKeys(record, TARGET_CREDENTIAL_RESPONSE_FIELDS)) {
     throw new Error('linked-device target credential response contains invalid fields');
   }
   if (record.ok !== true) {
@@ -655,7 +656,7 @@ function parseHttpFailureMessageV1(response: DeviceRequestResponseV1): string {
     return `linked-device request failed with HTTP ${response.status}`;
   }
   if (
-    hasExactKeys(record, CODED_FAILURE_RESPONSE_FIELDS) &&
+    hasExactResponseKeys(record, CODED_FAILURE_RESPONSE_FIELDS) &&
     typeof record.code === 'string' &&
     typeof record.message === 'string' &&
     record.message.trim()
@@ -663,7 +664,7 @@ function parseHttpFailureMessageV1(response: DeviceRequestResponseV1): string {
     return `linked-device request failed: ${record.message}`;
   }
   if (
-    hasExactKeys(record, OUTCOME_FAILURE_RESPONSE_FIELDS) &&
+    hasExactResponseKeys(record, OUTCOME_FAILURE_RESPONSE_FIELDS) &&
     typeof record.outcome === 'string' &&
     typeof record.code === 'string' &&
     typeof record.message === 'string' &&
@@ -673,22 +674,22 @@ function parseHttpFailureMessageV1(response: DeviceRequestResponseV1): string {
   }
   switch (record.outcome) {
     case 'conflict':
-      if (hasExactKeys(record, SESSION_CONFLICT_FAILURE_FIELDS)) {
+      if (hasExactResponseKeys(record, SESSION_CONFLICT_FAILURE_FIELDS)) {
         return 'linked-device request failed: conflict';
       }
       break;
     case 'expired':
-      if (hasExactKeys(record, SESSION_EXPIRED_FAILURE_FIELDS)) {
+      if (hasExactResponseKeys(record, SESSION_EXPIRED_FAILURE_FIELDS)) {
         return 'linked-device request failed: expired';
       }
       break;
     case 'invalid_state':
-      if (hasExactKeys(record, SESSION_INVALID_STATE_FAILURE_FIELDS)) {
+      if (hasExactResponseKeys(record, SESSION_INVALID_STATE_FAILURE_FIELDS)) {
         return 'linked-device request failed: invalid_state';
       }
       break;
     case 'integrity_error':
-      if (hasExactKeys(record, SESSION_INTEGRITY_FAILURE_FIELDS)) {
+      if (hasExactResponseKeys(record, SESSION_INTEGRITY_FAILURE_FIELDS)) {
         return 'linked-device request failed: integrity_error';
       }
       break;
@@ -712,17 +713,13 @@ function isPlainDeviceLinkingResponse(value: unknown): value is PlainDeviceLinki
   }
 }
 
-function hasExactKeys(
+// A body whose keys cannot be read (a throwing proxy trap) is malformed, not an error to raise.
+function hasExactResponseKeys(
   record: PlainDeviceLinkingResponse,
   expectedKeys: readonly string[],
 ): boolean {
   try {
-    const actualKeys = Object.keys(record).sort();
-    const expected = [...expectedKeys].sort();
-    return (
-      actualKeys.length === expected.length &&
-      actualKeys.every((key, index) => key === expected[index])
-    );
+    return hasExactKeys(record, expectedKeys);
   } catch {
     return false;
   }

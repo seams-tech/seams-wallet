@@ -23,6 +23,7 @@ import {
   parsePasskeyCustodyEnvelopeRecord,
   type PasskeyCustodyEnvelopeRecord,
 } from '@shared/passkey-custody';
+import { hasExactKeys } from '@shared/utils/exactKeys';
 import { requireCanonicalString } from '@shared/utils/validation';
 import type {
   WalletAuthorityExportRootRecordV1,
@@ -267,7 +268,7 @@ export function createDeviceLinkingOrdinaryMaterialWorkerPortV1(
 export function parseOrdinaryMaterialWorkerRequestV1(
   value: unknown,
 ): DeviceLinkingOrdinaryMaterialWorkerRequestV1 {
-  if (isOrdinaryMaterialRecipientPrepareRecordV1(value)) {
+  if (hasExactKeys(value, ['kind', 'handleId', 'requirements'])) {
     if (value.kind !== 'device_linking_ordinary_signer_material_recipient_prepare_v1') {
       throw new Error('ordinary material worker request kind is unsupported');
     }
@@ -277,7 +278,9 @@ export function parseOrdinaryMaterialWorkerRequestV1(
       requirements: parseRecipientRequirementTuple(value.requirements),
     };
   }
-  if (isOrdinaryMaterialSealRecordV1(value)) {
+  if (
+    hasExactKeys(value, ['kind', 'handleId', 'committed', 'targetFactor', 'resealedExportRoot'])
+  ) {
     if (value.kind !== 'device_linking_ordinary_signer_material_seal_v1') {
       throw new Error('ordinary material worker request kind is unsupported');
     }
@@ -307,7 +310,17 @@ export function parseOrdinaryMaterialWorkerRequestV1(
 export function parseOrdinaryMaterialWorkerPrivateRequestV1(
   value: unknown,
 ): DeviceLinkingOrdinaryMaterialWorkerPrivateRequestV1 {
-  if (!isOrdinaryMaterialPrivateRequestRecordV1(value)) {
+  if (
+    !hasExactKeys(value, [
+      'kind',
+      'handleId',
+      'targetFactor',
+      'preparations',
+      'recipientRequests',
+      'recipientInputs',
+      'factorSecret',
+    ])
+  ) {
     throw new Error('ordinary material private worker request has invalid fields');
   }
   if (value.kind !== 'device_linking_ordinary_signer_material_prepare_private_v1') {
@@ -381,7 +394,7 @@ function parseOrdinaryResealedExportRootRecordV1(
   value: unknown,
 ): OrdinaryMaterialResealedExportRootV1 | null {
   if (value === null) return null;
-  if (!isOrdinaryResealedExportRootRecordV1(value)) {
+  if (!hasExactKeys(value, ['envelope'])) {
     throw new Error('ordinary material resealed export root has unsupported fields');
   }
   return {
@@ -392,7 +405,7 @@ function parseOrdinaryResealedExportRootRecordV1(
 function parsePreparationResult(
   value: unknown,
 ): DeviceLinkingOrdinarySignerMaterialPreparationResultV1 {
-  if (!isOrdinaryMaterialPreparationResultRecordV1(value)) {
+  if (!hasExactKeys(value, ['kind', 'targetFactor', 'preparations'])) {
     throw new Error('ordinary material preparation result has invalid fields');
   }
   if (value.kind !== 'device_linking_ordinary_signer_material_preparation_v1') {
@@ -439,7 +452,7 @@ function parseRecipientRequirementTuple(
     );
   }
   const requirements = value.map((entry, index): OrdinarySignerMaterialRecipientRequirementV1 => {
-    if (!isOrdinaryRecipientRequirementRecordV1(entry)) {
+    if (!hasExactKeys(entry, ['kind', 'keyFamily', 'walletKeyId'])) {
       throw new Error(`ordinary recipient requirement ${index} has invalid fields`);
     }
     if (entry.kind !== 'ordinary_signer_material_recipient_requirement_v1') {
@@ -467,7 +480,7 @@ function parseRecipientRequestTuple(
     throw new Error('ordinary signer material recipient requests must contain one or two entries');
   }
   const requests = value.map((entry): OrdinarySignerMaterialRecipientRequestV1 => {
-    if (isOrdinaryEd25519RecipientRequestRecordV1(entry)) {
+    if (hasExactKeys(entry, ['kind', 'keyFamily', 'walletKeyId', 'recipientPublicKeyB64u'])) {
       if (
         entry.kind !== 'ordinary_ed25519_signer_material_recipient_request_v1' ||
         entry.keyFamily !== 'ed25519'
@@ -484,7 +497,7 @@ function parseRecipientRequestTuple(
         ),
       };
     }
-    if (isOrdinaryEcdsaRecipientRequestRecordV1(entry)) {
+    if (hasExactKeys(entry, ['kind', 'keyFamily', 'walletKeyId', 'clientEphemeralPublicKey'])) {
       if (
         entry.kind !== 'ordinary_ecdsa_signer_material_recipient_request_v1' ||
         entry.keyFamily !== 'ecdsa_secp256k1'
@@ -513,7 +526,7 @@ function parseRecipientRequestTuple(
 function parseRecipientPreparationResult(
   value: unknown,
 ): DeviceLinkingOrdinarySignerMaterialRecipientPreparationV1 {
-  if (!isOrdinaryRecipientPreparationResultRecordV1(value)) {
+  if (!hasExactKeys(value, ['kind', 'recipientRequests', 'recipientInputs'])) {
     throw new Error('ordinary recipient preparation result has invalid fields');
   }
   if (value.kind !== 'device_linking_ordinary_signer_material_recipient_preparation_v1') {
@@ -532,7 +545,7 @@ function parseRecipientInputTuple(
     throw new Error('ordinary signer material recipient inputs must contain one or two entries');
   }
   const inputs = value.map((entry): DeviceLinkingOrdinarySignerMaterialRecipientInputV1 => {
-    if (isOrdinaryEd25519RecipientInputRecordV1(entry)) {
+    if (hasExactKeys(entry, ['kind', 'keyFamily', 'walletKeyId', 'recipientPrivateKey'])) {
       if (
         entry.kind !== 'ordinary_ed25519_signer_material_recipient_input_v1' ||
         entry.keyFamily !== 'ed25519'
@@ -549,7 +562,7 @@ function parseRecipientInputTuple(
         ),
       };
     }
-    if (isOrdinaryEcdsaRecipientInputRecordV1(entry)) {
+    if (hasExactKeys(entry, ['kind', 'keyFamily', 'walletKeyId', 'clientEphemeralPrivateKey'])) {
       if (
         entry.kind !== 'ordinary_ecdsa_signer_material_recipient_input_v1' ||
         entry.keyFamily !== 'ecdsa_secp256k1'
@@ -644,7 +657,15 @@ function parsePreparation(
 }
 
 function parseTargetFactorBindingV1(value: unknown): DeviceLinkingOrdinaryTargetFactorBindingV1 {
-  if (isOrdinaryPasskeyTargetFactorRecordV1(value)) {
+  if (
+    hasExactKeys(value, [
+      'kind',
+      'walletAuthMethodId',
+      'verificationDigestB64u',
+      'rpId',
+      'credentialIdB64u',
+    ])
+  ) {
     if (value.kind !== 'passkey') {
       throw new Error('ordinary material target factor kind is unsupported');
     }
@@ -662,7 +683,15 @@ function parseTargetFactorBindingV1(value: unknown): DeviceLinkingOrdinaryTarget
       ),
     };
   }
-  if (isOrdinaryEmailOtpTargetFactorRecordV1(value)) {
+  if (
+    hasExactKeys(value, [
+      'kind',
+      'walletAuthMethodId',
+      'verificationDigestB64u',
+      'emailHashHex',
+      'registrationAuthorityId',
+    ])
+  ) {
     if (value.kind !== 'email_otp') {
       throw new Error('ordinary material target factor kind is unsupported');
     }
@@ -693,7 +722,9 @@ function parseTargetFactorBindingV1(value: unknown): DeviceLinkingOrdinaryTarget
 }
 
 function parseWalletAuthorityExportRootRecordV1(value: unknown): WalletAuthorityExportRootRecordV1 {
-  if (!isWalletAuthorityExportRootRecordV1(value)) {
+  if (
+    !hasExactKeys(value, ['kind', 'authorityId', 'walletAuthMethodId', 'walletKeyId', 'envelope'])
+  ) {
     throw new Error('ordinary material export-root record has invalid fields');
   }
   if (value.kind !== 'wallet_authority_export_root_v1') {
@@ -715,7 +746,7 @@ function parseWalletAuthorityExportRootRecordV1(value: unknown): WalletAuthority
 }
 
 function parseSealedLocalAuthorityMaterialSetV1(value: unknown): SealedLocalAuthorityMaterialSetV1 {
-  if (!isSealedLocalAuthorityMaterialSetRecordV1(value)) {
+  if (!hasExactKeys(value, ['signerMaterials', 'exportRoot', 'installedRecordSetDigestB64u'])) {
     throw new Error('ordinary material worker returned an invalid sealed record set');
   }
   if (!Array.isArray(value.signerMaterials) || value.signerMaterials.length === 0) {
@@ -750,277 +781,4 @@ function parseB64u(value: unknown, label: string): string {
   }
   decoded.fill(0);
   return encoded;
-}
-
-type OrdinaryMaterialRecipientPrepareRecordV1 = {
-  readonly kind: unknown;
-  readonly handleId: unknown;
-  readonly requirements: unknown;
-};
-
-function isOrdinaryMaterialRecipientPrepareRecordV1(
-  value: unknown,
-): value is OrdinaryMaterialRecipientPrepareRecordV1 {
-  return (
-    value !== null &&
-    typeof value === 'object' &&
-    !Array.isArray(value) &&
-    Object.keys(value).sort().join('|') === 'handleId|kind|requirements'
-  );
-}
-
-type OrdinaryMaterialSealRecordV1 = {
-  readonly kind: unknown;
-  readonly handleId: unknown;
-  readonly committed: unknown;
-  readonly targetFactor: unknown;
-  readonly resealedExportRoot: unknown;
-};
-
-function isOrdinaryMaterialSealRecordV1(value: unknown): value is OrdinaryMaterialSealRecordV1 {
-  return (
-    value !== null &&
-    typeof value === 'object' &&
-    !Array.isArray(value) &&
-    Object.keys(value).sort().join('|') ===
-      'committed|handleId|kind|resealedExportRoot|targetFactor'
-  );
-}
-
-type OrdinaryMaterialPrivateRequestRecordV1 = {
-  readonly kind: unknown;
-  readonly handleId: unknown;
-  readonly targetFactor: unknown;
-  readonly preparations: unknown;
-  readonly recipientRequests: unknown;
-  readonly recipientInputs: unknown;
-  readonly factorSecret: unknown;
-};
-
-function isOrdinaryMaterialPrivateRequestRecordV1(
-  value: unknown,
-): value is OrdinaryMaterialPrivateRequestRecordV1 {
-  return (
-    value !== null &&
-    typeof value === 'object' &&
-    !Array.isArray(value) &&
-    Object.keys(value).sort().join('|') ===
-      'factorSecret|handleId|kind|preparations|recipientInputs|recipientRequests|targetFactor'
-  );
-}
-
-type OrdinaryResealedExportRootRecordV1 = {
-  readonly envelope: unknown;
-};
-
-function isOrdinaryResealedExportRootRecordV1(
-  value: unknown,
-): value is OrdinaryResealedExportRootRecordV1 {
-  return (
-    value !== null &&
-    typeof value === 'object' &&
-    !Array.isArray(value) &&
-    Object.keys(value).sort().join('|') === 'envelope'
-  );
-}
-
-type OrdinaryMaterialPreparationResultRecordV1 = {
-  readonly kind: unknown;
-  readonly targetFactor: unknown;
-  readonly preparations: unknown;
-};
-
-function isOrdinaryMaterialPreparationResultRecordV1(
-  value: unknown,
-): value is OrdinaryMaterialPreparationResultRecordV1 {
-  return (
-    value !== null &&
-    typeof value === 'object' &&
-    !Array.isArray(value) &&
-    Object.keys(value).sort().join('|') === 'kind|preparations|targetFactor'
-  );
-}
-
-type OrdinaryRecipientRequirementRecordV1 = {
-  readonly kind: unknown;
-  readonly keyFamily: unknown;
-  readonly walletKeyId: unknown;
-};
-
-function isOrdinaryRecipientRequirementRecordV1(
-  value: unknown,
-): value is OrdinaryRecipientRequirementRecordV1 {
-  return (
-    value !== null &&
-    typeof value === 'object' &&
-    !Array.isArray(value) &&
-    Object.keys(value).sort().join('|') === 'keyFamily|kind|walletKeyId'
-  );
-}
-
-type OrdinaryEd25519RecipientRequestRecordV1 = {
-  readonly kind: unknown;
-  readonly keyFamily: unknown;
-  readonly walletKeyId: unknown;
-  readonly recipientPublicKeyB64u: unknown;
-};
-
-function isOrdinaryEd25519RecipientRequestRecordV1(
-  value: unknown,
-): value is OrdinaryEd25519RecipientRequestRecordV1 {
-  return (
-    value !== null &&
-    typeof value === 'object' &&
-    !Array.isArray(value) &&
-    Object.keys(value).sort().join('|') === 'keyFamily|kind|recipientPublicKeyB64u|walletKeyId'
-  );
-}
-
-type OrdinaryEcdsaRecipientRequestRecordV1 = {
-  readonly kind: unknown;
-  readonly keyFamily: unknown;
-  readonly walletKeyId: unknown;
-  readonly clientEphemeralPublicKey: unknown;
-};
-
-function isOrdinaryEcdsaRecipientRequestRecordV1(
-  value: unknown,
-): value is OrdinaryEcdsaRecipientRequestRecordV1 {
-  return (
-    value !== null &&
-    typeof value === 'object' &&
-    !Array.isArray(value) &&
-    Object.keys(value).sort().join('|') === 'clientEphemeralPublicKey|keyFamily|kind|walletKeyId'
-  );
-}
-
-type OrdinaryRecipientPreparationResultRecordV1 = {
-  readonly kind: unknown;
-  readonly recipientRequests: unknown;
-  readonly recipientInputs: unknown;
-};
-
-function isOrdinaryRecipientPreparationResultRecordV1(
-  value: unknown,
-): value is OrdinaryRecipientPreparationResultRecordV1 {
-  return (
-    value !== null &&
-    typeof value === 'object' &&
-    !Array.isArray(value) &&
-    Object.keys(value).sort().join('|') === 'kind|recipientInputs|recipientRequests'
-  );
-}
-
-type OrdinaryEd25519RecipientInputRecordV1 = {
-  readonly kind: unknown;
-  readonly keyFamily: unknown;
-  readonly walletKeyId: unknown;
-  readonly recipientPrivateKey: unknown;
-};
-
-function isOrdinaryEd25519RecipientInputRecordV1(
-  value: unknown,
-): value is OrdinaryEd25519RecipientInputRecordV1 {
-  return (
-    value !== null &&
-    typeof value === 'object' &&
-    !Array.isArray(value) &&
-    Object.keys(value).sort().join('|') === 'keyFamily|kind|recipientPrivateKey|walletKeyId'
-  );
-}
-
-type OrdinaryEcdsaRecipientInputRecordV1 = {
-  readonly kind: unknown;
-  readonly keyFamily: unknown;
-  readonly walletKeyId: unknown;
-  readonly clientEphemeralPrivateKey: unknown;
-};
-
-function isOrdinaryEcdsaRecipientInputRecordV1(
-  value: unknown,
-): value is OrdinaryEcdsaRecipientInputRecordV1 {
-  return (
-    value !== null &&
-    typeof value === 'object' &&
-    !Array.isArray(value) &&
-    Object.keys(value).sort().join('|') === 'clientEphemeralPrivateKey|keyFamily|kind|walletKeyId'
-  );
-}
-
-type OrdinaryPasskeyTargetFactorRecordV1 = {
-  readonly kind: unknown;
-  readonly walletAuthMethodId: unknown;
-  readonly verificationDigestB64u: unknown;
-  readonly rpId: unknown;
-  readonly credentialIdB64u: unknown;
-};
-
-function isOrdinaryPasskeyTargetFactorRecordV1(
-  value: unknown,
-): value is OrdinaryPasskeyTargetFactorRecordV1 {
-  return (
-    value !== null &&
-    typeof value === 'object' &&
-    !Array.isArray(value) &&
-    Object.keys(value).sort().join('|') ===
-      'credentialIdB64u|kind|rpId|verificationDigestB64u|walletAuthMethodId'
-  );
-}
-
-type OrdinaryEmailOtpTargetFactorRecordV1 = {
-  readonly kind: unknown;
-  readonly walletAuthMethodId: unknown;
-  readonly verificationDigestB64u: unknown;
-  readonly emailHashHex: unknown;
-  readonly registrationAuthorityId: unknown;
-};
-
-function isOrdinaryEmailOtpTargetFactorRecordV1(
-  value: unknown,
-): value is OrdinaryEmailOtpTargetFactorRecordV1 {
-  return (
-    value !== null &&
-    typeof value === 'object' &&
-    !Array.isArray(value) &&
-    Object.keys(value).sort().join('|') ===
-      'emailHashHex|kind|registrationAuthorityId|verificationDigestB64u|walletAuthMethodId'
-  );
-}
-
-type WalletAuthorityExportRootRecordRawV1 = {
-  readonly kind: unknown;
-  readonly authorityId: unknown;
-  readonly walletAuthMethodId: unknown;
-  readonly walletKeyId: unknown;
-  readonly envelope: unknown;
-};
-
-function isWalletAuthorityExportRootRecordV1(
-  value: unknown,
-): value is WalletAuthorityExportRootRecordRawV1 {
-  return (
-    value !== null &&
-    typeof value === 'object' &&
-    !Array.isArray(value) &&
-    Object.keys(value).sort().join('|') ===
-      'authorityId|envelope|kind|walletAuthMethodId|walletKeyId'
-  );
-}
-
-type SealedLocalAuthorityMaterialSetRecordV1 = {
-  readonly signerMaterials: unknown;
-  readonly exportRoot: unknown;
-  readonly installedRecordSetDigestB64u: unknown;
-};
-
-function isSealedLocalAuthorityMaterialSetRecordV1(
-  value: unknown,
-): value is SealedLocalAuthorityMaterialSetRecordV1 {
-  return (
-    value !== null &&
-    typeof value === 'object' &&
-    !Array.isArray(value) &&
-    Object.keys(value).sort().join('|') ===
-      'exportRoot|installedRecordSetDigestB64u|signerMaterials'
-  );
 }

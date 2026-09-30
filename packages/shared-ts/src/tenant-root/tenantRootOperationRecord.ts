@@ -1,5 +1,6 @@
 import { base64UrlDecode, base64UrlEncode } from '../utils/base64';
 import { alphabetizeStringify, sha256Bytes } from '../utils/digests';
+import { hasExactKeys } from '../utils/exactKeys';
 import {
   isTenantRootIdentityFieldCanonicalV1,
   type TenantRootIdentityV1,
@@ -330,11 +331,6 @@ const RESTORE_ROLE_IMPORT_KEY_RECORD_KEYS_V1 = [
   'subject',
   'tenantRootIdentityDigest',
 ] as const;
-
-function hasExactKeys(record: Record<string, unknown>, keys: readonly string[]): boolean {
-  const actual = Object.keys(record);
-  return actual.length === keys.length && keys.every((key) => actual.includes(key));
-}
 
 function parseRestoreRoleImportKeyIssueRecord(
   raw: Record<string, unknown>,

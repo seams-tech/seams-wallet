@@ -1,3 +1,4 @@
+import { hasExactKeys } from '@shared/utils/exactKeys';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
 import { base64UrlDecode } from '@shared/utils/encoders';
 import {
@@ -362,7 +363,7 @@ export function parseEmailOtpRegistrationVerificationReceiptV1(
   const record = parseJsonObject(input);
   if (
     !record ||
-    !hasExactRecordFields(record, [
+    !hasExactKeys(record, [
       'version',
       'requestFingerprint',
       'verified',
@@ -381,7 +382,7 @@ export function parseEmailOtpRegistrationVerificationReceiptV1(
     !requestFingerprint ||
     !isB64uString(requestFingerprint) ||
     !verified ||
-    !hasExactRecordFields(verified, [
+    !hasExactKeys(verified, [
       'challengeId',
       'challengeSubjectId',
       'walletId',
@@ -773,18 +774,6 @@ function optionalNonNegativeSafeIntegerField(
 
 function hasRecordField(record: Record<string, unknown>, field: string): boolean {
   return Object.prototype.hasOwnProperty.call(record, field);
-}
-
-function hasExactRecordFields(
-  record: Record<string, unknown>,
-  expectedFields: readonly string[],
-): boolean {
-  const actualFields = Object.keys(record).sort();
-  const expected = [...expectedFields].sort();
-  return (
-    actualFields.length === expected.length &&
-    actualFields.every((field, index) => field === expected[index])
-  );
 }
 
 function patchedPositiveAuthStateValue(

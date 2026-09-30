@@ -28,6 +28,7 @@ import {
 } from '@shared/utils/walletAuthAuthority';
 import { parseWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 import { parseWalletId, parseWalletAuthMethodId } from '@shared/utils/domainIds';
+import { hasExactKeys } from '@shared/utils/exactKeys';
 import { parseDigestB64u, type DigestB64u } from '@shared/utils/canonicalPrimitives';
 import { parseWalletCustodyRegistrationOutcome } from '@shared/passkey-custody';
 
@@ -712,14 +713,6 @@ function parsePositiveSafeInteger(value: unknown): number | null {
 
 function parseNonNegativeSafeInteger(value: unknown): number | null {
   return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : null;
-}
-
-function hasExactKeys(
-  record: Readonly<Record<string, unknown>>,
-  expected: readonly string[],
-): boolean {
-  const actual = Object.keys(record);
-  return actual.length === expected.length && expected.every((key) => actual.includes(key));
 }
 
 function containsPersistedRegistrationCredential(value: unknown): boolean {

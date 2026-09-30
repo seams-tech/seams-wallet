@@ -26,6 +26,7 @@ import {
   type DigestB64u,
 } from '@shared/utils/canonicalPrimitives';
 import { alphabetizeStringify } from '@shared/utils/digests';
+import { hasExactKeys } from '@shared/utils/exactKeys';
 import {
   AUTHORIZED_OPERATION_REPLAY_BODY_MAX_BYTES,
   authorizedOperationReplayBodyInit,
@@ -349,7 +350,7 @@ async function parseVaultProxyUseRequest(
   claimedAtMs: number,
 ): Promise<ParsedVaultProxyUseRequest> {
   if (
-    !isExactRecord(raw, [
+    !hasExactKeys(raw, [
       'tenantId',
       'principalId',
       'capabilityId',
@@ -462,15 +463,6 @@ function responseFromReplay(response: AuthorizedOperationReplayResponse): Respon
     status: response.status,
     headers: { 'content-type': response.contentType },
   });
-}
-
-function isExactRecord(
-  value: unknown,
-  fields: readonly string[],
-): value is Record<string, unknown> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
-  const keys = Object.keys(value);
-  return keys.length === fields.length && keys.every((key) => fields.includes(key));
 }
 
 function requireAuthorizationId<T>(

@@ -2,6 +2,7 @@ import type {
   VersionedJsonRecordPutResult,
   VersionedJsonRecordReadResult,
 } from '../../../framework/versionedJsonRecordStore';
+import { hasExactKeys } from '@shared/utils/exactKeys';
 
 export type RouterAbEd25519YaoRegistrationSideEffectOperationV1 =
   | 'finalize'
@@ -144,9 +145,7 @@ export function parseRouterAbEd25519YaoRegistrationSideEffectRecordV2<C, P>(
   const record = readRouterAbEd25519YaoRegistrationSideEffectRecordObjectV1(raw);
   if (record === null || record.operation !== input.operation) return null;
   if (record.kind === 'router_ab_ed25519_yao_registration_side_effect_claim_v1') {
-    if (
-      !hasExactRouterAbEd25519YaoRegistrationSideEffectRecordKeys(record, SIDE_EFFECT_CLAIM_FIELDS)
-    ) {
+    if (!hasExactKeys(record, SIDE_EFFECT_CLAIM_FIELDS)) {
       return null;
     }
     const requestFingerprint = parseFingerprint(record.requestFingerprint);
@@ -174,10 +173,7 @@ export function parseRouterAbEd25519YaoRegistrationSideEffectRecordV2<C, P>(
   }
   if (
     record.kind !== 'router_ab_ed25519_yao_registration_side_effect_completion_v2' ||
-    !hasExactRouterAbEd25519YaoRegistrationSideEffectRecordKeys(
-      record,
-      SIDE_EFFECT_COMPLETION_V2_FIELDS,
-    )
+    !hasExactKeys(record, SIDE_EFFECT_COMPLETION_V2_FIELDS)
   ) {
     return null;
   }
@@ -219,9 +215,7 @@ export function parseRouterAbEd25519YaoRegistrationSideEffectRecordV1<T, P>(
   const record = readRouterAbEd25519YaoRegistrationSideEffectRecordObjectV1(raw);
   if (record === null || record.operation !== input.operation) return null;
   if (record.kind === 'router_ab_ed25519_yao_registration_side_effect_claim_v1') {
-    if (
-      !hasExactRouterAbEd25519YaoRegistrationSideEffectRecordKeys(record, SIDE_EFFECT_CLAIM_FIELDS)
-    ) {
+    if (!hasExactKeys(record, SIDE_EFFECT_CLAIM_FIELDS)) {
       return null;
     }
     const requestFingerprint = parseFingerprint(record.requestFingerprint);
@@ -249,10 +243,7 @@ export function parseRouterAbEd25519YaoRegistrationSideEffectRecordV1<T, P>(
   }
   if (
     record.kind !== 'router_ab_ed25519_yao_registration_side_effect_completion_v1' ||
-    !hasExactRouterAbEd25519YaoRegistrationSideEffectRecordKeys(
-      record,
-      SIDE_EFFECT_COMPLETION_V1_FIELDS,
-    )
+    !hasExactKeys(record, SIDE_EFFECT_COMPLETION_V1_FIELDS)
   ) {
     return null;
   }
@@ -787,17 +778,6 @@ function isRouterAbEd25519YaoRegistrationSideEffectRecordObjectV1(
   value: unknown,
 ): value is RouterAbEd25519YaoRegistrationSideEffectRecordObjectV1 {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function hasExactRouterAbEd25519YaoRegistrationSideEffectRecordKeys(
-  record: RouterAbEd25519YaoRegistrationSideEffectRecordObjectV1,
-  expectedKeys: readonly string[],
-): boolean {
-  const actualKeys = Object.keys(record);
-  return (
-    actualKeys.length === expectedKeys.length &&
-    actualKeys.every((key) => expectedKeys.some((expectedKey) => expectedKey === key))
-  );
 }
 
 function parseFingerprint(value: unknown): string | null {
