@@ -3,6 +3,8 @@ import type { RouterApiAuthorizationSessionService } from '../framework/authServ
 import type {
   RouterApiWalletSessionAuthorizationV2AdmissionContext,
   RouterApiWalletSessionExactOperationContext,
+  RouterApiWalletSessionSigningCandidate,
+  RouterApiWalletSessionAuthorizationV2ExhaustedCandidateContext,
 } from '../framework/authServicePort';
 import type {
   RouterApiProjectEnvironmentResolver,
@@ -282,6 +284,14 @@ export type ThresholdEcdsaSessionInputs =
         { readonly curve: 'ecdsa' }
       >;
       readonly context: RouterApiWalletSessionAuthorizationV2AdmissionContext;
+      readonly candidate?: never;
+    }
+  | {
+      readonly ok: true;
+      readonly kind: 'wallet_session_operation_credential_exhausted_candidate_v1';
+      readonly candidate: RouterApiWalletSessionAuthorizationV2ExhaustedCandidateContext;
+      readonly admission?: never;
+      readonly context?: never;
     }
   | AuthorizeErr;
 
@@ -370,26 +380,37 @@ export async function validateRouterAbEcdsaDerivationWalletSessionInputs(input: 
   const token = extractBearerCredential(input.headers);
   if (!token) return walletSessionFailure('wallet_session_missing');
   const nowMs = input.nowMs || Date.now;
-  let resolution: WalletSessionOperationCredentialResolution;
+  let candidate: RouterApiWalletSessionSigningCandidate | null;
   try {
-    resolution = await resolveWalletSessionOperationCredentialAdmission({
-      authorizationSessions,
+    candidate = await authorizationSessions.readWalletSessionSigningCandidateByOperationCredential({
+      tenantId: authorizationSessions.tenantId,
       token,
       nowMs: nowMs(),
-      operation: { keyFamily: 'ecdsa_secp256k1', operationKind: input.operationKind },
     });
   } catch {
     return walletSessionFailure('wallet_session_unavailable');
   }
-  if (resolution.kind === 'rejected') {
-    return walletSessionFailure('wallet_session_scope_mismatch');
-  }
-  if (resolution.kind === 'not_found') {
+  if (!candidate) {
     return {
       ok: false,
       code: 'wallet_session_invalid',
       message: walletSessionFailureMessage('wallet_session_invalid'),
     };
+  }
+  if (candidate.kind === 'exhausted') {
+    return {
+      ok: true,
+      kind: 'wallet_session_operation_credential_exhausted_candidate_v1',
+      candidate: candidate.candidate,
+    };
+  }
+  const resolution = resolveWalletSessionOperationCredentialAdmissionFromContext({
+    context: candidate.context,
+    nowMs: nowMs(),
+    operation: { keyFamily: 'ecdsa_secp256k1', operationKind: input.operationKind },
+  });
+  if (resolution.kind === 'rejected') {
+    return walletSessionFailure('wallet_session_scope_mismatch');
   }
   if (resolution.admission.curve !== 'ecdsa') {
     return walletSessionFailure('wallet_session_scope_mismatch');

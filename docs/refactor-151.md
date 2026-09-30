@@ -7,6 +7,8 @@ consolidation are implemented and verified in bounded hosted diagnostics. The
 canonical reusable-session ECDSA path makes 12 D1 calls per signature, down from
 18. A local linked-device checkpoint reduces third-generation signing from 24
 to 20 calls; directly linked signing remains at 20.
+The active/exhausted credential snapshot is now classified in one read, reducing
+the two-signature last-quota burst from 25 to 24 calls.
 Further call reduction and the minimum-call-budget review remain open; regional
 databases are conditional. Production rollout is separate.
 
@@ -611,10 +613,9 @@ signatures across three scenario/profile checks.
 Both instrumented Workers profiles produced these counts. The burst's extra
 call re-reads the joined authorization snapshot: active-session validation fails
 after quota exhaustion, then the exhausted-candidate path reads the snapshot
-again so an already admitted operation can finish. Consolidating those two
-classifications into one precise active/exhausted/unavailable result is the next
-identified read reduction. It must preserve fresh authority/method checks and
-refuse new admission when quota is exhausted.
+again so an already admitted operation can finish. The following checkpoint
+removes that duplicate read while preserving fresh authority/method checks and
+refusal of new admission when quota is exhausted.
 
 First signing included foreground-tagged refill steps on wallet-DO and VM.
 Warm signing and the burst had background-tagged refill traffic; both selected
@@ -651,6 +652,68 @@ requiring a mixed wallet; the second fetched old response bodies after navigatio
 The scenario now uses the shared mixed-wallet lifecycle, and the observer retains
 only completion metadata captured when responses arrive. Production behavior
 was unchanged by this checkpoint.
+
+### Single active/exhausted credential snapshot (September 30)
+
+ECDSA signing now classifies its credential from one joined session, quota,
+authority, and auth-method snapshot. An active result carries reusable-session
+admission context. An exhausted result carries only an exact-operation candidate;
+the existing operation admission and quota guards decide whether it may complete
+or replay an admitted operation. Storage corruption, retired/expired sessions,
+and unavailable authority still fail closed. Each request reads a fresh snapshot.
+
+The exhausted quota is now a typed snapshot branch instead of an exception that
+causes the ECDSA route to read the same records again. Active-only readers remain
+for their existing consumers, including NEAR and administration. Their behavior
+is preserved through shared credential readers. Owner-lane preflight explicitly
+refuses exhausted candidates with its existing unavailable-session response.
+Type fixtures reject mixed active/exhausted branches, relabeled broad spreads,
+an exhausted snapshot carrying reusable authorization, and a direct exhausted
+context cast into active admission.
+
+| Workload | Before calls / statements | After calls / statements | Write-bearing calls / reported row writes |
+| --- | ---: | ---: | ---: |
+| First signature | 12 / 13 | 12 / 13 | 2 / 14 |
+| Warm signature | 12 / 13 | 12 / 13 | 2 / 14 |
+| Two-signature burst ending at zero quota | 25 / 27 | 24 / 26 | 4 / 28 |
+
+Both local instrumented Workers profiles produced these counts with the same
+SDK distribution as the preceding cohort. This saves the extra credential read
+when quota is exhausted; the ordinary six-call prepare and finalize paths are
+unchanged. Local elapsed times remain diagnostics rather than evidence of a
+hosted latency gain.
+
+The lost-finalize-response E2E now uses two verified signatures before its
+concurrent duplicate prepare and dropped response. Its final operation consumes
+the last quota use. An exact retry must return the same signature after
+exhaustion, a changed wallet must be refused, and a subsequent exact retry must
+still succeed. VM evidence checks zero remaining uses and exactly three custody
+effects total: two setup signatures and one effect for the retried operation.
+The separate last-quota race still checks that a distinct operation cannot claim
+the exhausted session.
+
+The old unit assertion that exhausted credentials fail at the active-only
+validation boundary is classified `obsolete_test_or_fixture` and removed with
+its unused mock. Preprocessing's exact-session/material assertions remain; the
+behavioral E2Es own the current new-admission versus exact-replay distinction.
+The fresh material resolver remains in place. Atomic canonical/linked material
+freshness is the next separate server consolidation boundary.
+
+Verification passed 15 scenario/profile checks: first/warm/burst signing,
+last-use lost-response replay, last-quota contention, and mixed-wallet
+refresh/signing/step-up/export on Workers D1, wallet-DO, and VM; plus recovery
+retirement, third-generation linked signing, and linked-device revocation on
+Workers D1. The VM replay artifact records remaining uses falling from one to
+zero, three total custody effects, an identical replayed signature, and HTTP
+403 for the changed wallet. Server build, intended-test types, state type
+fixtures, and the bloat check also passed.
+
+Local evidence is retained in `.artifacts/r151/credential-20260930/analysis.json`,
+with per-profile call counts, replay/quota artifacts, distribution hashes, and
+private lifecycle-trace hashes. Reproduce the cohort with
+`node .runtime/r151-credential/verify.mjs`, then verify the collected evidence
+with `python3 .runtime/r151-credential/analyze.py`. The existing local Gateway
+diagnostic wrapper was restored after measurement. No hosted resources changed.
 
 ### Remaining call and write inventory (September 30)
 
@@ -713,6 +776,8 @@ storage. No signing write is removed by this inventory.
 
 ### 1. Consolidate reads while preserving decision boundaries
 
+- [x] Classify active/exhausted credentials from one snapshot for ECDSA signing,
+  retaining exact-operation admission and refusal of new exhausted-quota claims.
 - [x] Read project and abuse policy together through the existing admission store.
   Both currently use the same SQL shape with different keys. Preserve rejection
   precedence and fresh policy evaluation for each operation. This should remove

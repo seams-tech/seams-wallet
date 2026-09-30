@@ -5,6 +5,7 @@ import {
   validateRouterAbEd25519WalletSessionInputs,
 } from '../../../auth/commonRouterUtils';
 import {
+  walletSessionFailure,
   walletSessionFailureStatus,
   type WalletSessionFailureCode,
 } from '../../../auth/walletSessionFailure';
@@ -242,6 +243,9 @@ export async function handleOwnerWalletExecutionLanePreflight(
       operationKind: EVM_ECDSA_MPC_OPERATION_KINDS.signTransaction,
     });
     if (!validated.ok) return validationFailure(validated);
+    if (validated.kind === 'wallet_session_operation_credential_exhausted_candidate_v1') {
+      return validationFailure(walletSessionFailure('wallet_session_unavailable'));
+    }
     walletIdRaw = String(validated.admission.context.authorization.session.walletId);
     authorization = {
       kind: 'wallet_auth_method',

@@ -1,3 +1,8 @@
+import {
+  readActiveWalletSessionCredential,
+  readExhaustedWalletSessionCredential,
+  readWalletSessionSigningCandidate,
+} from './walletSessionCredentialReaders';
 import { createD1AuthorizedOperationRouteService } from './d1AuthorizedOperationRouteService';
 import { parseRouterAbEcdsaRegistrationActivationReceiptV1 } from '@shared/utils/routerAbEcdsaDerivation';
 import { parseRegistrationEstablishedSessionProjectionV2 } from '@shared/utils/registrationEstablishedSession';
@@ -54,7 +59,6 @@ import {
 } from '../../../framework/authServicePort';
 import type {
   DirectV2IssueResult,
-  ExactWalletSessionStatusV2,
   IssuedWalletSessionAuthorizationV2,
 } from '../../../../authorization/domain';
 import { AuthorizationService } from '../../../../authorization/service';
@@ -2418,12 +2422,6 @@ function createD1IdentityRouteService(
   };
 }
 
-function isExhaustedWalletSessionStatus(
-  status: ExactWalletSessionStatusV2,
-): status is ExactWalletSessionStatusV2 & { readonly kind: 'exhausted' } {
-  return status.kind === 'exhausted';
-}
-
 function createD1AuthorizationSessionRouteService(
   assembly: D1AuthorizationSessionRouteServiceAssembly,
 ): RouterApiServiceBag['authorizationSessions'] {
@@ -2437,62 +2435,16 @@ function createD1AuthorizationSessionRouteService(
       assembly.authorizationService.issueDirectWalletSessionAuthorizationV2.bind(
         assembly.authorizationService,
       ),
-    // The session, its authority and its method come from one read, so a commit
-    // between separate reads (NEAR provisioning extending the authority) cannot
-    // pair the session with an authority it was never bound to.
-    readWalletSessionAuthorizationV2ByOperationCredential: async (input) => {
-      const snapshot =
-        await assembly.authorizationService.readWalletSessionAdmissionSnapshotByOperationCredential(
-          input,
-        );
-      if (!snapshot) return null;
-      const { authorization, authority, authMethod } = snapshot;
-      if (
-        !authority ||
-        authority.state !== 'active' ||
-        !authMethod ||
-        authMethod.status !== 'active'
-      ) {
-        return null;
-      }
-      return {
-        authorization,
-        authority,
-        authMethod,
-        retiredAtMs: null,
-      };
-    },
+    readWalletSessionAuthorizationV2ByOperationCredential:
+      readActiveWalletSessionCredential.bind(null, assembly.authorizationService),
+    readWalletSessionSigningCandidateByOperationCredential:
+      readWalletSessionSigningCandidate.bind(null, assembly.authorizationService),
     readWalletSessionExactOperationContextByCredential:
       assembly.authorizationService.readWalletSessionExactOperationContextByCredential.bind(
         assembly.authorizationService,
       ),
-    readExhaustedWalletSessionAuthorizationV2CandidateByOperationCredential: async (input) => {
-      const { status, authority, authMethod } =
-        await assembly.authorizationService.readExactWalletSessionStatusSnapshotByOperationCredential(
-          input,
-        );
-      if (!isExhaustedWalletSessionStatus(status)) return null;
-      if (
-        !authority ||
-        authority.state !== 'active' ||
-        !authMethod ||
-        authMethod.status !== 'active' ||
-        authority.walletId !== status.session.walletId ||
-        authority.authorityDigestB64u !== status.session.authorityDigestB64u ||
-        authority.revocationEpoch !== status.session.authorityRevocationEpoch ||
-        authMethod.walletId !== status.session.walletId ||
-        authMethod.walletAuthorityId !== status.session.authorityId ||
-        authMethod.walletAuthMethodId !== status.session.walletAuthMethodId
-      ) {
-        return null;
-      }
-      return {
-        status,
-        authority,
-        authMethod,
-        retiredAtMs: null,
-      };
-    },
+    readExhaustedWalletSessionAuthorizationV2CandidateByOperationCredential:
+      readExhaustedWalletSessionCredential.bind(null, assembly.authorizationService),
     readExactWalletSessionStatusByOperationCredential:
       assembly.authorizationService.readExactWalletSessionStatusByOperationCredential.bind(
         assembly.authorizationService,

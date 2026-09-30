@@ -700,7 +700,10 @@ test('concurrent prepare and admitted ECDSA finalize lost_response retry preserv
   const lostFinalize = new LostFinalize();
   const lose = lostFinalize.loseFirstResponse.bind(lostFinalize);
   await harness.registerPasskeyEcdsaOnlyWallet();
+  await harness.signTempoTransaction('post_registration');
+  await harness.signTempoTransaction('post_registration');
   const remainingUsesBefore = await vmRemainingSigningUses();
+  if (remainingUsesBefore !== null) expect(remainingUsesBefore).toBe(1);
   await context.route(preparePath, duplicate);
   await context.route(finalizePath, lose);
   try {
@@ -742,17 +745,18 @@ test('concurrent prepare and admitted ECDSA finalize lost_response retry preserv
   const effectsAfterRetry = await vmSigningWorkerEffects(walletId);
   const remainingUsesAfter = await vmRemainingSigningUses();
   if (remainingUsesBefore !== null) {
-    expect(remainingUsesAfter).toBe(remainingUsesBefore - 1);
+    expect(remainingUsesAfter).toBe(0);
   }
   if (effectsAfterRetry) {
-    expect(effectsAfterRetry).toHaveLength(1);
-    expect(effectsAfterRetry[0]?.terminal).toEqual(signature);
+    expect(effectsAfterRetry).toHaveLength(3);
+    expect(effectsAfterRetry.at(-1)?.terminal).toEqual(signature);
   }
 
   const evidence = {
     kind: 'gateway_ecdsa_finalize_lost_response_retry_v1',
     host: process.env.SEAMS_INTENDED_WALLET_HOST ?? 'workers_local',
     concurrentPrepareStatuses: concurrentPrepare.statuses,
+    verifiedSignaturesBeforeResponseLoss: 2,
     remainingUsesBefore,
     remainingUsesAfter,
     finalizationsAdmitted: lostFinalize.finalizations,

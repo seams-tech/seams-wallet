@@ -1775,8 +1775,18 @@ export class CloudflareD1AuthorizationStore
       tenantId: input.tenantId,
       nowMs: input.nowMs,
     });
+    const { authority, authMethod } = await joinedAuthorityAndMethod(row);
+    if (row.quota_lifecycle_kind === 'exhausted') {
+      return {
+        kind: 'exhausted',
+        session,
+        quota: parseExactWalletSessionQuotaProjectionRow(row, session),
+        authority,
+        authMethod,
+      };
+    }
     const quota = parseWalletSessionAuthorizationV2QuotaRow(row, session);
-    return { authorization: { session, quota }, ...(await joinedAuthorityAndMethod(row)) };
+    return { kind: 'active', authorization: { session, quota }, authority, authMethod };
   }
 
   async readWalletSessionExactOperationContextByCredential(input: {

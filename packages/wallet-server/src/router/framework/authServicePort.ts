@@ -206,6 +206,18 @@ export type RouterApiWalletSessionAuthorizationV2ExhaustedCandidateContext = {
   readonly retiredAtMs: null;
 };
 
+export type RouterApiWalletSessionSigningCandidate =
+  | {
+      readonly kind: 'active';
+      readonly context: RouterApiWalletSessionAuthorizationV2AdmissionContext;
+      readonly candidate?: never;
+    }
+  | {
+      readonly kind: 'exhausted';
+      readonly candidate: RouterApiWalletSessionAuthorizationV2ExhaustedCandidateContext;
+      readonly context?: never;
+    };
+
 type RouterApiHostedWalletSessionAuthorizationV2AdmissionContext =
   RouterApiWalletSessionAuthorizationV2AdmissionContext & {
     readonly hostedCredentialId: HostedWalletSessionCredentialId;
@@ -1657,6 +1669,11 @@ export interface RouterApiAuthorizationSessionService {
     readonly token: string;
     readonly nowMs: number;
   }) => Promise<RouterApiWalletSessionAuthorizationV2AdmissionContext | null>;
+  readonly readWalletSessionSigningCandidateByOperationCredential: (input: {
+    readonly tenantId: TenantId;
+    readonly token: string;
+    readonly nowMs: number;
+  }) => Promise<RouterApiWalletSessionSigningCandidate | null>;
   readonly readWalletSessionExactOperationContextByCredential: (input: {
     readonly tenantId: TenantId;
     readonly token: string;
