@@ -127,7 +127,7 @@ export class D1RegistrationCeremonyRecordStore {
   }): Promise<void> {
     const key = this.normalizeKey(input.scope, input.id);
     const current = await this.get(input.scope, input.id);
-    if (!current || stableJson(current.value) !== stableJson(input.expected)) {
+    if (!current || alphabetizeStringify(current.value) !== alphabetizeStringify(input.expected)) {
       throw conflict('Registration ceremony record changed before update');
     }
     const next = prepareValue(input.next, input.expiresAtMs);
@@ -161,7 +161,7 @@ export class D1RegistrationCeremonyRecordStore {
             16_384,
           )
         : '';
-    const patchJson = stableJson(input.patch);
+    const patchJson = alphabetizeStringify(input.patch);
     const nowMs = Date.now();
     const row = await this.database
       .prepare(
@@ -400,7 +400,7 @@ function prepareValue(value: Record<string, unknown>, expiresAtMs: number): Prep
   if (!Number.isSafeInteger(normalizedExpiresAtMs) || normalizedExpiresAtMs <= Date.now()) {
     throw new Error('Registration ceremony record expiry must be in the future');
   }
-  return { value, recordJson: stableJson(value), expiresAtMs: normalizedExpiresAtMs };
+  return { value, recordJson: alphabetizeStringify(value), expiresAtMs: normalizedExpiresAtMs };
 }
 
 function parseStoredRow(row: StoredRow): D1RegistrationCeremonyStoredRecord {
@@ -423,11 +423,10 @@ function parseStoredRow(row: StoredRow): D1RegistrationCeremonyStoredRecord {
 }
 
 function recordsMatch(current: D1RegistrationCeremonyStoredRecord, next: PreparedValue): boolean {
-  return current.expiresAtMs === next.expiresAtMs && stableJson(current.value) === next.recordJson;
-}
-
-function stableJson(value: Record<string, unknown>): string {
-  return alphabetizeStringify(value);
+  return (
+    current.expiresAtMs === next.expiresAtMs &&
+    alphabetizeStringify(current.value) === next.recordJson
+  );
 }
 
 function changes(result: D1ResultLike<unknown>): number {

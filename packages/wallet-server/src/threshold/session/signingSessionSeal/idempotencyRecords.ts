@@ -1,5 +1,4 @@
 import { toOptionalTrimmedString } from '@shared/utils/validation';
-import type { SigningSessionSealRouteResult } from './signingSessionSeal.types';
 
 function toPositiveInt(value: unknown): number | null {
   const parsed = Number(value);
@@ -29,7 +28,7 @@ type CurrentSigningSessionSealIdempotencyStoredEntry = {
   expiresAtMs: number;
 };
 
-function parseCurrentSigningSessionSealIdempotencyResultRecord(
+export function parseCurrentSigningSessionSealIdempotencyResultRecord(
   raw: unknown,
 ): CurrentSigningSessionSealIdempotencyResultRecord | null {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
@@ -80,10 +79,4 @@ export function parseCurrentSigningSessionSealIdempotencyStoredEntry(
     result,
     expiresAtMs,
   };
-}
-
-export function parseCurrentSigningSessionSealIdempotencyRouteResult(
-  raw: unknown,
-): SigningSessionSealRouteResult | null {
-  return parseCurrentSigningSessionSealIdempotencyResultRecord(raw);
 }

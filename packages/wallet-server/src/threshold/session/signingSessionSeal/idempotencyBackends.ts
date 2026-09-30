@@ -8,7 +8,7 @@ import {
 } from '../../../core/ThresholdService/kv';
 import { createInMemorySigningSessionSealIdempotencyStore } from './idempotency';
 import {
-  parseCurrentSigningSessionSealIdempotencyRouteResult,
+  parseCurrentSigningSessionSealIdempotencyResultRecord,
   parseCurrentSigningSessionSealIdempotencyStoredEntry,
 } from './idempotencyRecords';
 import type {
@@ -77,7 +77,7 @@ class UpstashSigningSessionSealIdempotencyStore implements SigningSessionSealIde
     if (!key) return;
     const expiresAtMs = toPositiveInt(input.expiresAtMs);
     if (expiresAtMs === undefined) return;
-    const normalizedResult = parseCurrentSigningSessionSealIdempotencyRouteResult(input.result);
+    const normalizedResult = parseCurrentSigningSessionSealIdempotencyResultRecord(input.result);
     if (!normalizedResult) return;
     const ttlMs = ttlMsUntilExpiry(expiresAtMs, this.nowMs());
     if (ttlMs <= 0) return;
@@ -129,7 +129,7 @@ class RedisTcpSigningSessionSealIdempotencyStore implements SigningSessionSealId
     if (!key) return;
     const expiresAtMs = toPositiveInt(input.expiresAtMs);
     if (expiresAtMs === undefined) return;
-    const normalizedResult = parseCurrentSigningSessionSealIdempotencyRouteResult(input.result);
+    const normalizedResult = parseCurrentSigningSessionSealIdempotencyResultRecord(input.result);
     if (!normalizedResult) return;
     const ttlMs = ttlMsUntilExpiry(expiresAtMs, this.nowMs());
     if (ttlMs <= 0) return;

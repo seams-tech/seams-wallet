@@ -13,8 +13,8 @@ import type {
 } from '@shared/device-linking/contracts';
 import { assertNeverLinkSessionStateV1 } from '@shared/device-linking/contracts';
 import {
-  parseLinkedDeviceApprovalV1 as parseSharedLinkedDeviceApprovalV1,
-  parseLinkedDeviceSessionClaimV1 as parseSharedLinkedDeviceSessionClaimV1,
+  parseLinkedDeviceApprovalV1,
+  parseLinkedDeviceSessionClaimV1,
   parseLinkSessionStateV1,
   parseQrLinkedDeviceSessionPayloadV5 as parseSharedQrLinkedDeviceSessionPayloadV5,
 } from '@shared/device-linking/parsers';
@@ -845,21 +845,13 @@ function assertNeverLinkPrecommitFailureV1(value: never): never {
   throw new Error(`unsupported linked-device precommit failure: ${String(value)}`);
 }
 
-function parseLinkedDeviceApprovalV1(raw: unknown): LinkedDeviceApprovalV1 {
-  return parseSharedLinkedDeviceApprovalV1(raw);
-}
-
-function parseLinkedDeviceClaimV1(raw: unknown): LinkedDeviceClaimV1 {
-  return parseSharedLinkedDeviceSessionClaimV1(raw);
-}
-
 function parseOptionalClaimTranscript(raw: unknown): LinkedDeviceClaimTranscriptV1 | undefined {
   if (raw === undefined) return undefined;
   const record = requireRecordCopy(raw, 'claimTranscript');
   requireExactKeys(record, ['digestB64u', 'value']);
   return {
     digestB64u: requireDigest(record.digestB64u, 'claimTranscript.digestB64u'),
-    value: parseLinkedDeviceClaimV1(record.value),
+    value: parseLinkedDeviceSessionClaimV1(record.value),
   };
 }
 

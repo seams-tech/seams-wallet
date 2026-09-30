@@ -46,10 +46,6 @@ const KNOWN_CONTRACT_FUNCTION_SIGNATURES: Readonly<
   }),
 });
 
-function normalizeSelector(selector: string | undefined): string | undefined {
-  return normalizeHexSelector(selector);
-}
-
 function normalizeContractAddress(contractAddress: string | undefined): string | undefined {
   const normalized = String(contractAddress || '')
     .trim()
@@ -66,7 +62,7 @@ function resolveFunctionSignature(
   selector: string | undefined,
   contractAddress?: string,
 ): string | undefined {
-  const normalized = normalizeSelector(selector);
+  const normalized = normalizeHexSelector(selector);
   if (!normalized) return undefined;
   const normalizedContractAddress = normalizeContractAddress(contractAddress);
   if (normalizedContractAddress) {
@@ -88,7 +84,7 @@ export function resolveFunctionDisplayName(
     if (normalizedName) return `${normalizedName}()`;
   }
 
-  const normalizedSelector = normalizeSelector(selector);
+  const normalizedSelector = normalizeHexSelector(selector);
   if (normalizedSelector) return `function ${normalizedSelector}`;
   return undefined;
 }

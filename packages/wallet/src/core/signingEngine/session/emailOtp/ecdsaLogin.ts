@@ -1121,7 +1121,7 @@ async function provisionEmailOtpExistingKeySessions(args: {
   const additionalBootstraps = await Promise.all(
     args.publicationChainTargets
       .slice(1)
-      .map(provisionEmailOtpAdditionalExistingKeySessionForTarget.bind(null, additionalContext)),
+      .map(provisionEmailOtpExistingKeySessionForTarget.bind(null, additionalContext)),
   );
   const bootstraps = [primaryBootstrap, ...additionalBootstraps];
   if (!primaryBootstrap) {
@@ -1159,13 +1159,6 @@ async function provisionEmailOtpExistingKeySessionForTarget(
       authorization: context.authorization,
     }),
   );
-}
-
-async function provisionEmailOtpAdditionalExistingKeySessionForTarget(
-  context: ProvisionEmailOtpExistingKeySessionContext,
-  chainTarget: ThresholdEcdsaChainTarget,
-): Promise<ThresholdEcdsaSessionBootstrapResult> {
-  return await provisionEmailOtpExistingKeySessionForTarget(context, chainTarget);
 }
 
 type EmailOtpEcdsaLoginAuthorityPorts = {

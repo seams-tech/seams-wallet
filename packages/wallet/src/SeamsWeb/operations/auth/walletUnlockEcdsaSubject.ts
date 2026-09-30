@@ -14,7 +14,7 @@ export type WalletUnlockCapabilitySubjectResolutionFailure =
 
 const ecdsaCapabilityManifestStore = new IndexedDbEcdsaCapabilityManifestStore();
 
-async function listEvmFamilyEcdsaWalletUnlockSubjects(walletId: WalletId): Promise<
+export async function resolveEvmFamilyEcdsaWalletUnlockSubjects(walletId: WalletId): Promise<
   | {
       readonly kind: 'resolved';
       readonly subjects: readonly EvmFamilyEcdsaWalletUnlockSubject[];
@@ -52,20 +52,6 @@ async function listEvmFamilyEcdsaWalletUnlockSubjects(walletId: WalletId): Promi
     kind: 'resolved',
     subjects,
   };
-}
-
-export async function resolveEvmFamilyEcdsaWalletUnlockSubjects(walletId: WalletId): Promise<
-  | {
-      readonly kind: 'resolved';
-      readonly subjects: readonly EvmFamilyEcdsaWalletUnlockSubject[];
-    }
-  | {
-      readonly kind: 'failed';
-      readonly reason: WalletUnlockCapabilitySubjectResolutionFailure;
-      readonly subjects?: never;
-    }
-> {
-  return await listEvmFamilyEcdsaWalletUnlockSubjects(walletId);
 }
 
 export async function resolveEcdsaActivationJournalSelectors(

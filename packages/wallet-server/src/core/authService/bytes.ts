@@ -6,10 +6,6 @@ export function randomBase64Url(bytes: number): string {
   return base64UrlEncode(data);
 }
 
-export function randomOpaqueId(byteLength = 16): string {
-  return randomBase64Url(byteLength);
-}
-
 export function randomNumericCode(length: number): string {
   const bytes = new Uint8Array(length);
   crypto.getRandomValues(bytes);

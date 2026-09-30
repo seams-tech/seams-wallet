@@ -109,12 +109,6 @@ function requireRawEip1559ThresholdOwnerNonceSenderIdentity(args: {
   return thresholdOwnerNonceSenderIdentity(args.state.thresholdOwnerAddress);
 }
 
-function resolvePreparedNonceSenderIdentity(args: {
-  state: EvmFamilyExecutorThresholdEcdsaState;
-}): EvmFamilyManagedNonceSenderIdentity | undefined {
-  return resolveThresholdOwnerNonceSenderIdentity(args);
-}
-
 function resolveFallbackChainAccountNonceSenderIdentity(args: {
   deps: EvmFamilyTransactionExecutorDeps;
   walletId: string;
@@ -206,7 +200,7 @@ export async function executeEvmFamilyTransactionSigning(args: {
             chainTarget: args.chainTarget,
           })
         : undefined;
-    const preparedSenderIdentity = resolvePreparedNonceSenderIdentity({
+    const preparedSenderIdentity = resolveThresholdOwnerNonceSenderIdentity({
       state: args.thresholdEcdsaState,
     });
     const getSenderIdentity = (nonceArgs: {
@@ -267,7 +261,7 @@ export async function executeEvmFamilyTransactionSigning(args: {
   }
   let tempoFallbackSenderIdentityPromise: Promise<EvmFamilyManagedNonceSenderIdentity> | null =
     null;
-  const tempoPreparedSenderIdentity = resolvePreparedNonceSenderIdentity({
+  const tempoPreparedSenderIdentity = resolveThresholdOwnerNonceSenderIdentity({
     state: args.thresholdEcdsaState,
   });
   const getTempoSenderIdentity = (nonceArgs: {

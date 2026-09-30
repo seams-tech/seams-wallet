@@ -268,15 +268,11 @@ export function registrationNearEd25519BranchKey(signerSlot: number): Registrati
   return registrationSignerBranchKeyFromString(`near_ed25519:slot:${signerSlot}`);
 }
 
-function registrationEvmFamilyEcdsaTargetKey(target: unknown): string {
-  return alphabetizeStringify(target);
-}
-
 export function registrationEvmFamilyEcdsaBranchKey(
   chainTargets: readonly unknown[],
 ): RegistrationSignerBranchKey {
   return registrationSignerBranchKeyFromString(
-    `evm_family_ecdsa:${chainTargets.map(registrationEvmFamilyEcdsaTargetKey).join('|')}`,
+    `evm_family_ecdsa:${chainTargets.map(alphabetizeStringify).join('|')}`,
   );
 }
 
@@ -393,7 +389,7 @@ function findDuplicateRegistrationEcdsaTarget(
   ecdsaTargetKeys: Set<string>,
 ): NormalizeSignerSelectionResult<RegistrationSignerPlan> | null {
   for (const target of branch.chainTargets) {
-    const targetKey = registrationEvmFamilyEcdsaTargetKey(target);
+    const targetKey = alphabetizeStringify(target);
     if (ecdsaTargetKeys.has(targetKey)) {
       return {
         ok: false,

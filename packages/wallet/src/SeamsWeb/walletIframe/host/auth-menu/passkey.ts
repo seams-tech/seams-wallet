@@ -260,7 +260,7 @@ export async function prepareHostedPasskeyAccountSync(args: {
   return prepared;
 }
 
-function startCredential(
+export function startHostedPasskeyAccountSyncCredential(
   prepared: HostedPasskeyAccountSyncPrepared,
 ): Promise<WebAuthnAuthenticationCredential> {
   const state = requireLivePreparation(prepared);
@@ -294,12 +294,6 @@ function startCredential(
     },
   );
   return authority;
-}
-
-export function startHostedPasskeyAccountSyncCredential(
-  prepared: HostedPasskeyAccountSyncPrepared,
-): Promise<WebAuthnAuthenticationCredential> {
-  return startCredential(prepared);
 }
 
 function requireContinuationState(prepared: HostedPasskeyPrepared): HostedPasskeyPreparationState {

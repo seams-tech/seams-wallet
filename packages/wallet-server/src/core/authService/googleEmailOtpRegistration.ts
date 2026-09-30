@@ -16,7 +16,7 @@ import type {
 } from '../EmailOtpStores';
 import type { IdentityStore } from '../IdentityStore';
 import { readActiveEmailOtpEnrollmentWithStore } from './emailOtpEnrollment';
-import { randomOpaqueId } from './bytes';
+import { randomBase64Url } from './bytes';
 import { GOOGLE_EMAIL_OTP_STALE_IDENTITY_MESSAGE } from './googleEmailOtpErrors';
 
 export type GoogleEmailOtpResolutionMode =
@@ -797,7 +797,7 @@ async function createGoogleEmailOtpRegistrationOffer(input: {
 }): Promise<GoogleEmailOtpResolutionResult> {
   const nowMs = Date.now();
   const authProvider = 'google_oidc';
-  const walletIdDerivationNonce = randomOpaqueId(18);
+  const walletIdDerivationNonce = randomBase64Url(18);
   const offerCandidates: GoogleEmailOtpRegistrationOfferCandidateRecord[] = [];
   for (let attempt = 0; attempt < 30 && offerCandidates.length < 5; attempt += 1) {
     const candidate = await input.deriveHostedWalletId({
@@ -821,7 +821,7 @@ async function createGoogleEmailOtpRegistrationOffer(input: {
       continue;
     }
     offerCandidates.push({
-      candidateId: randomOpaqueId(18),
+      candidateId: randomBase64Url(18),
       walletId: candidate,
       collisionCounter: attempt,
     });
@@ -843,7 +843,7 @@ async function createGoogleEmailOtpRegistrationOffer(input: {
     ...remainingOfferCandidates,
   ];
   const walletId = selectedCandidate.walletId;
-  const offerId = randomOpaqueId(18);
+  const offerId = randomBase64Url(18);
   const attempt = await createGoogleEmailOtpRegistrationAttempt({
     registrationAttemptStore: input.registrationAttemptStore,
     providerSubject: input.request.providerSubject,
@@ -886,7 +886,7 @@ async function createGoogleEmailOtpRegistrationAttempt(input: {
   });
   const attempt: GoogleEmailOtpRegistrationAttemptRecord = {
     version: 'google_email_otp_registration_attempt_v1',
-    attemptId: randomOpaqueId(18),
+    attemptId: randomBase64Url(18),
     providerSubject: input.providerSubject,
     email: input.email,
     walletId: input.walletId,
