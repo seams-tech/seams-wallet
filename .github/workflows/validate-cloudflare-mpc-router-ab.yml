@@ -43,7 +43,12 @@ jobs:
       - name: Run Router A/B core tests
         run: cargo test --manifest-path crates/router-ab-core/Cargo.toml
       - name: Run Router A/B dev tests
-        run: cargo test --manifest-path crates/router-ab-dev/Cargo.toml
+        # The VM tests run every role as its own process and garble Yao circuits
+        # between them under 10-second service timeouts. Unoptimized, four at a
+        # time on the hosted runner, they miss those timeouts.
+        env:
+          CARGO_PROFILE_DEV_OPT_LEVEL: '2'
+        run: cargo test --manifest-path crates/router-ab-dev/Cargo.toml -- --test-threads=2
 
   router_ab_cloudflare_tests:
     name: MPC Router A/B Cloudflare adapter tests
