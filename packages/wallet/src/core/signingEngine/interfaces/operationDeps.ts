@@ -44,6 +44,7 @@ import type {
 import type { OwnerLaneScope } from '../session/identity/signingLaneAuthBinding';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import type { ExactWalletSessionReadPorts } from '../session/identity/exactWalletSessionCredential';
+import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 
 export type EvmFamilyChain = 'tempo' | 'evm';
 
@@ -68,18 +69,13 @@ export type NearEd25519MaterialIdentity = {
 type NearEd25519MaterialBoundaryInput = {
   readonly walletId: WalletId;
   readonly nearAccountId: AccountId;
-} & (
+} & ReadonlyExclusiveUnion<
   | {
       readonly laneIdentity: ExactEd25519SigningLaneIdentity;
       readonly auth: SigningLaneAuthBinding;
-      readonly materialIdentity?: never;
     }
-  | {
-      readonly laneIdentity?: never;
-      readonly auth?: never;
-      readonly materialIdentity: NearEd25519MaterialIdentity;
-    }
-);
+  | { readonly materialIdentity: NearEd25519MaterialIdentity }
+>;
 
 export type NearSigningApiDeps = {
   nearRpcUrl: string;

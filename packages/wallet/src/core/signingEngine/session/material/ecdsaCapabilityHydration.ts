@@ -15,6 +15,7 @@ import {
   type RestorableMpcMaterialRef,
 } from './mpcCapabilityHydration';
 import { buildRestorableMpcMaterialRefInternal } from './restorableMpcMaterialRef.internal';
+import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 
 export function buildRestorableMpcMaterialRefForHydration(
   durableMaterialRef: string,
@@ -22,17 +23,14 @@ export function buildRestorableMpcMaterialRefForHydration(
   return buildRestorableMpcMaterialRefInternal(durableMaterialRef);
 }
 
-export type EcdsaCapabilityRuntimeObservation =
+export type EcdsaCapabilityRuntimeObservation = ReadonlyExclusiveUnion<
   | {
       readonly kind: 'live';
       readonly runtime: MpcCapabilityRuntimeRef;
       readonly materialActivation: MpcMaterialActivationRef;
     }
-  | {
-      readonly kind: 'absent';
-      readonly runtime?: never;
-      readonly materialActivation?: never;
-    };
+  | { readonly kind: 'absent' }
+>;
 
 type EcdsaCapabilityHydrationLookup =
   | EcdsaCapabilityManifestLookup

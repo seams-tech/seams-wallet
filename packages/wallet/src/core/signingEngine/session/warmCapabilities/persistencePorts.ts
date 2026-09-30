@@ -8,18 +8,11 @@ import type {
   MpcWalletSigningQuotaId,
   WalletSessionId,
 } from '@shared/authorization/capabilityKinds';
+import type { ExclusiveUnion } from '@shared/utils/variant';
 
-type EmailOtpWarmSessionMaterial =
-  | {
-      kind: 'inline';
-      clientSecretB64u: string;
-      workerSessionId?: never;
-    }
-  | {
-      kind: 'worker_handle';
-      workerSessionId: string;
-      clientSecretB64u?: never;
-    };
+type EmailOtpWarmSessionMaterial = ExclusiveUnion<
+  { kind: 'inline'; clientSecretB64u: string } | { kind: 'worker_handle'; workerSessionId: string }
+>;
 
 type BaseEmailOtpReadyPersistInput = {
   authMethod: 'email_otp';

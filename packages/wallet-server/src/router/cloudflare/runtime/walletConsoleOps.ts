@@ -10,6 +10,7 @@ import type {
   RouterApiPublishableKeyAuthRequest,
   RouterApiUsageMeterEvent,
 } from '../../framework/apiCredentialPorts';
+import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 
 // The exact private service-binding surface between the Wallet Gateway and
 // the Wallet Console deployment. Five operations cross the binding: API-key
@@ -91,21 +92,14 @@ export interface WalletConsoleTenantRootActiveLineageV1 {
   readonly custodyLineageB64u: string;
 }
 
-export type WalletConsoleTenantRootActiveLineageResponseV1 =
-  | {
-      readonly ok: true;
-      readonly identityDigestB64u: string;
-      readonly custodyLineageB64u: string;
-      readonly code?: never;
-      readonly message?: never;
-    }
+export type WalletConsoleTenantRootActiveLineageResponseV1 = ReadonlyExclusiveUnion<
+  | { readonly ok: true; readonly identityDigestB64u: string; readonly custodyLineageB64u: string }
   | {
       readonly ok: false;
       readonly code: 'invalid_body' | 'tenant_root_active_lineage_not_found';
       readonly message: string;
-      readonly identityDigestB64u?: never;
-      readonly custodyLineageB64u?: never;
-    };
+    }
+>;
 
 export type WalletConsoleDecodeResult<T, E> =
   | { readonly ok: true; readonly value: T }

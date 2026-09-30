@@ -13,11 +13,11 @@ import {
 } from '../export-private-key-reveal';
 import { copySurfaceText } from './clipboard';
 import { CopyStatusIcon } from './CopyStatusIcon';
+import type { ExclusiveUnion } from '@shared/utils/variant';
 
-export type ExportKeyMaterial =
-  | { kind: 'loading'; value?: never }
-  | { kind: 'unavailable'; value?: never }
-  | { kind: 'ready'; value: string };
+export type ExportKeyMaterial = ExclusiveUnion<
+  { kind: 'loading' } | { kind: 'unavailable' } | { kind: 'ready'; value: string }
+>;
 
 export type ExportKeyViewModel = {
   id: string;
@@ -31,13 +31,12 @@ export type ExportKeyViewModel = {
 export type ExportPrivateKeyViewModel = {
   accountId: string;
   guidance?: ExportGuidance;
-} & (
+} & ExclusiveUnion<
   | {
       kind: 'loading';
       entries: Array<
         Omit<ExportKeyViewModel, 'material'> & { material: { kind: 'loading'; value?: never } }
       >;
-      message?: never;
     }
   | {
       kind: 'ready';
@@ -46,10 +45,9 @@ export type ExportPrivateKeyViewModel = {
           material: Exclude<ExportKeyMaterial, { kind: 'loading' }>;
         }
       >;
-      message?: never;
     }
-  | { kind: 'failed'; message: string; entries?: never }
-);
+  | { kind: 'failed'; message: string }
+>;
 
 export function ExportPrivateKeySurface({ model, onClose }: {
   model: ExportPrivateKeyViewModel;

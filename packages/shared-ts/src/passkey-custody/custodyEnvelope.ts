@@ -25,6 +25,7 @@ import {
 } from './primitives';
 import { requireRecord } from '../utils/validation';
 import { rejectUnknownFields } from '../utils/exactRecord';
+import type { ExclusiveUnion } from '../utils/variant';
 
 export const WALLET_CUSTODY_ENVELOPE_VERSION_V2 = 'wallet_custody_envelope_v2' as const;
 const PASSKEY_PRF_KEK_VERSION_V1 = 'passkey_prf_kek_hkdf_sha256_v1' as const;
@@ -57,43 +58,26 @@ export type WalletCustodyEnvelopeOwnership =
   | { readonly kind: 'unbound'; readonly walletAuthMethodId?: never }
   | { readonly kind: 'method_bound'; readonly walletAuthMethodId: WalletAuthMethodId };
 
-export type WalletCustodyEnvelopeFactor =
+export type WalletCustodyEnvelopeFactor = ExclusiveUnion<
   | {
       kind: 'passkey';
       rpId: WebAuthnRpId;
       credentialIdB64u: WebAuthnCredentialIdB64u;
       kekVersion: PasskeyPrfKekVersion;
-      enrollmentId?: never;
-      enrollmentSealKeyVersion?: never;
     }
   | {
       kind: 'email_otp';
       enrollmentId: string;
       enrollmentSealKeyVersion: string;
       kekVersion: EmailOtpFactorKekVersion;
-      rpId?: never;
-      credentialIdB64u?: never;
-    };
+    }
+>;
 
-export type PasskeyCustodyEnvelopeLifecycle =
-  | {
-      state: 'active';
-      activatedAtMs: number;
-      retiredAtMs?: never;
-      revokedAtMs?: never;
-    }
-  | {
-      state: 'retired';
-      activatedAtMs: number;
-      retiredAtMs: number;
-      revokedAtMs?: never;
-    }
-  | {
-      state: 'revoked';
-      activatedAtMs: number;
-      revokedAtMs: number;
-      retiredAtMs?: never;
-    };
+export type PasskeyCustodyEnvelopeLifecycle = ExclusiveUnion<
+  | { state: 'active'; activatedAtMs: number }
+  | { state: 'retired'; activatedAtMs: number; retiredAtMs: number }
+  | { state: 'revoked'; activatedAtMs: number; revokedAtMs: number }
+>;
 
 /**
  * Ciphertext plus public binding data for one factor-sealed custody secret.

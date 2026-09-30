@@ -50,6 +50,7 @@ import type { WebAuthnSyncAccountVerificationResult } from '../../../../core/aut
 import type { WalletEcdsaSignerRecord } from '../../../../core/WalletStore';
 import { projectActiveWalletSession } from '../../../../authorization/domain';
 import type { RouterAbEd25519YaoActiveCapabilityDescriptorV1 } from '../../../domains/ed25519Yao/recovery/routerAbEd25519YaoRecovery';
+import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 
 type VerifiedSyncAccountResultV1 = Extract<
   WebAuthnSyncAccountVerificationResult,
@@ -119,16 +120,13 @@ type SyncAccountExactBootstrapBodyBaseV1 = {
 };
 
 type SyncAccountExactBootstrapBodyV1 = SyncAccountExactBootstrapBodyBaseV1 &
-  (
-    | {
-        readonly ecdsaSession?: never;
-        readonly ecdsaActivationReceipt?: never;
-      }
+  ReadonlyExclusiveUnion<
+    | {}
     | {
         readonly ecdsaSession: RouterAbEcdsaCredentialFreeSessionActivationResponseV1;
         readonly ecdsaActivationReceipt: RouterAbEcdsaRegistrationActivationReceiptV1;
       }
-  );
+  >;
 
 type SyncAccountBootstrapInputV1 = {
   readonly ctx: FetchRouterApiContext;

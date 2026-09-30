@@ -10,6 +10,7 @@ import {
   type WebAuthnRpId,
 } from './domainIds';
 import type { WebAuthnAuthenticatorDeviceInfo } from './webauthnDeviceInfo';
+import type { ExclusiveUnion } from './variant';
 
 export type RegisterWalletInput =
   | {
@@ -163,7 +164,7 @@ export type RegistrationAuthority =
       rpId?: never;
     };
 
-export type EmailOtpRegistrationProof =
+export type EmailOtpRegistrationProof = ExclusiveUnion<
   | {
       version: 'email_otp_registration_proof_v1';
       proofKind: 'otp_challenge';
@@ -175,9 +176,6 @@ export type EmailOtpRegistrationProof =
       otpChannel: 'email_otp';
       /** Registration intent digest that binds the OTP proof to the wallet-registration request. */
       registrationIntentDigestB64u: string;
-      googleEmailOtpRegistrationAttemptId?: never;
-      googleEmailOtpRegistrationOfferId?: never;
-      googleEmailOtpRegistrationCandidateId?: never;
     }
   | {
       version: 'email_otp_registration_proof_v1';
@@ -188,10 +186,8 @@ export type EmailOtpRegistrationProof =
       googleEmailOtpRegistrationOfferId: string;
       googleEmailOtpRegistrationCandidateId: string;
       registrationIntentDigestB64u: string;
-      challengeId?: never;
-      otpCode?: never;
-      otpChannel?: never;
-    };
+    }
+>;
 
 export function inspectRawObject(value: unknown): object | null {
   return value !== null && typeof value === 'object' && !Array.isArray(value) ? value : null;

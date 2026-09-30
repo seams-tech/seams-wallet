@@ -11,35 +11,21 @@ import {
   type TransactionReview,
   type TransactionReviewControls,
 } from './contract';
+import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 
-export type ReviewCallState =
-  | { readonly kind: 'queued'; readonly reservation?: never; readonly error?: never }
-  | {
-      readonly kind: 'reviewing';
-      readonly reservation: TransactionReviewReservation;
-      readonly error?: never;
-    }
+export type ReviewCallState = ReadonlyExclusiveUnion<
+  | { readonly kind: 'queued' }
+  | { readonly kind: 'reviewing'; readonly reservation: TransactionReviewReservation }
   | {
       readonly kind: 'review_failed';
       readonly reservation: TransactionReviewReservation;
       readonly error: TransactionReviewError;
     }
-  | {
-      readonly kind: 'preparing_approval';
-      readonly reservation: TransactionReviewReservation;
-      readonly error?: never;
-    }
-  | {
-      readonly kind: 'wallet_approval';
-      readonly reservation: TransactionReviewReservation;
-      readonly error?: never;
-    }
-  | {
-      readonly kind: 'signing';
-      readonly reservation: TransactionReviewReservation;
-      readonly error?: never;
-    }
-  | { readonly kind: 'settled'; readonly reservation?: never; readonly error?: never };
+  | { readonly kind: 'preparing_approval'; readonly reservation: TransactionReviewReservation }
+  | { readonly kind: 'wallet_approval'; readonly reservation: TransactionReviewReservation }
+  | { readonly kind: 'signing'; readonly reservation: TransactionReviewReservation }
+  | { readonly kind: 'settled' }
+>;
 
 export interface ReviewCallView {
   readonly review: TransactionReview;

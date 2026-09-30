@@ -24,6 +24,7 @@ import type { SigningOperationConfirmationStateKind } from '../../flows/shared/s
 import type { WalletRecoveryRegistrationOptions } from '@/core/rpcClients/relayer/walletRecoveryPrepare';
 import type { WalletAddAuthMethodRegistrationOptions } from '@/core/rpcClients/relayer/walletRegistration';
 import { UserConfirmationType } from '../userConfirmationType';
+import type { ExclusiveUnion } from '@shared/utils/variant';
 
 export { UserConfirmationType } from '../userConfirmationType';
 
@@ -141,16 +142,9 @@ export type WorkerConfirmationResponse =
       near_transaction_readiness?: never;
       transaction_context?: never;
       nonce_leases?: never;
-    } & (
-        | {
-            wallet_session_failure: WalletSessionExpiredConfirmationFailure;
-            error?: never;
-          }
-        | {
-            wallet_session_failure?: never;
-            error?: string;
-          }
-      ));
+    } & ExclusiveUnion<
+        { wallet_session_failure: WalletSessionExpiredConfirmationFailure } | { error?: string }
+      >);
 
 interface RegistrationSummary {
   walletId: string;
@@ -218,98 +212,59 @@ type SignTransactionPayloadBase = {
 type NearTransactionSigningPayload = SignTransactionPayloadBase & {
   signingKind: 'transaction';
   signingOperationStateKind: SigningOperationConfirmationStateKind;
-} & (
+} & ExclusiveUnion<
     | {
         signingAuthPlan: Extract<SigningAuthPlan, { kind: 'warmSession' }>;
         nearFundingRequest: NearFundingRequest;
-        webauthnChallenge?: never;
-        emailOtpPrompt?: never;
       }
     | {
         signingAuthPlan: Extract<SigningAuthPlan, { kind: 'active_wallet_authority' }>;
         nearFundingRequest: NearFundingRequest;
-        webauthnChallenge?: never;
-        emailOtpPrompt?: never;
       }
     | {
         signingAuthPlan: Extract<SigningAuthPlan, { kind: 'passkeyReauth' }>;
         nearFundingRequest: NearFundingRequest;
         webauthnChallenge?: WebAuthnChallenge;
-        emailOtpPrompt?: never;
       }
     | {
         signingAuthPlan: Extract<SigningAuthPlan, { kind: 'emailOtpReauth' }>;
         nearFundingRequest: NearFundingRequest;
-        webauthnChallenge?: never;
         emailOtpPrompt: EmailOtpConfirmPrompt;
       }
-  );
+  >;
 
 type NearDelegateSigningPayload = SignTransactionPayloadBase & {
   signingKind: 'delegate';
   nearFundingRequest?: never;
-} & (
-    | {
-        signingAuthPlan: Extract<SigningAuthPlan, { kind: 'warmSession' }>;
-        webauthnChallenge?: never;
-        emailOtpPrompt?: never;
-      }
-    | {
-        signingAuthPlan: Extract<SigningAuthPlan, { kind: 'active_wallet_authority' }>;
-        webauthnChallenge?: never;
-        emailOtpPrompt?: never;
-      }
+} & ExclusiveUnion<
+    | { signingAuthPlan: Extract<SigningAuthPlan, { kind: 'warmSession' }> }
+    | { signingAuthPlan: Extract<SigningAuthPlan, { kind: 'active_wallet_authority' }> }
     | {
         signingAuthPlan: Extract<SigningAuthPlan, { kind: 'passkeyReauth' }>;
         webauthnChallenge?: WebAuthnChallenge;
-        emailOtpPrompt?: never;
       }
     | {
         signingAuthPlan: Extract<SigningAuthPlan, { kind: 'emailOtpReauth' }>;
-        webauthnChallenge?: never;
         emailOtpPrompt: EmailOtpConfirmPrompt;
       }
-  );
+  >;
 
 export type SignTransactionPayload = NearTransactionSigningPayload | NearDelegateSigningPayload;
 
-export type RegisterAccountPayload =
+export type RegisterAccountPayload = ExclusiveUnion<
   | {
       walletId: string;
       nearAccountId?: string;
       signerSlot?: number;
       webauthnChallenge?: Extract<WebAuthnChallenge, { kind: 'intent_digest' }>;
-      walletRecoveryRegistration?: never;
-      walletAddAuthMethodRegistration?: never;
     }
-  | {
-      walletId: string;
-      walletRecoveryRegistration: WalletRecoveryRegistrationOptions;
-      nearAccountId?: never;
-      signerSlot?: never;
-      webauthnChallenge?: never;
-      walletAddAuthMethodRegistration?: never;
-    }
-  | {
-      walletId: string;
-      walletAddAuthMethodRegistration: WalletAddAuthMethodRegistrationOptions;
-      nearAccountId?: never;
-      signerSlot?: never;
-      webauthnChallenge?: never;
-      walletRecoveryRegistration?: never;
-    };
+  | { walletId: string; walletRecoveryRegistration: WalletRecoveryRegistrationOptions }
+  | { walletId: string; walletAddAuthMethodRegistration: WalletAddAuthMethodRegistrationOptions }
+>;
 
-export type LocalOnlyExportSubject =
-  | {
-      kind: 'near_wallet';
-      nearAccountId: string;
-      walletId?: never;
-    }
-  | {
-      kind: 'evm_wallet';
-      walletId: string;
-      nearAccountId?: never;
-    };
+export type LocalOnlyExportSubject = ExclusiveUnion<
+  { kind: 'near_wallet'; nearAccountId: string } | { kind: 'evm_wallet'; walletId: string }
+>;
 
 export interface AuthorizeKeyExportPayload {
   subject: LocalOnlyExportSubject;

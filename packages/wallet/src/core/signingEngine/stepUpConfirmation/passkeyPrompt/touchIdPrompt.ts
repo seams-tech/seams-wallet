@@ -18,6 +18,7 @@ import {
 import { secureRandomBase36 } from '@shared/utils/secureRandomId';
 import type { WalletRecoveryRegistrationOptions } from '@/core/rpcClients/relayer/walletRecoveryPrepare';
 import type { WalletAddAuthMethodRegistrationOptions } from '@/core/rpcClients/relayer/walletRegistration';
+import type { ExclusiveUnion } from '@shared/utils/variant';
 
 function resolveRpId(override: string | undefined, host: string | undefined): string {
   // The browser validates RP eligibility, including Related Origin Requests.
@@ -32,21 +33,15 @@ function decodeChallengeB64u(challengeB64u: string): Uint8Array {
   return decoded;
 }
 
-export type RegistrationCredentialPrompt =
-  | {
-      kind: 'immediate';
-      requestId: string;
-      cancellation: WebAuthnPromptCancellation;
-      reservation?: never;
-      owner?: never;
-    }
+export type RegistrationCredentialPrompt = ExclusiveUnion<
+  | { kind: 'immediate'; requestId: string; cancellation: WebAuthnPromptCancellation }
   | {
       kind: 'reserved';
       reservation: ReservedRegistrationWebAuthnPrompt;
       owner: RegistrationWebAuthnPromptOwner;
       cancellation: WebAuthnPromptCancellation;
-      requestId?: never;
-    };
+    }
+>;
 
 type RegisterCredentialsArgsCommon = {
   walletId: string;

@@ -36,25 +36,18 @@ import {
   type ExactAdministeredSignerManifestV1,
 } from '@shared/device-linking/delegatedActivationPlan';
 import { requireRecordCopy } from '@shared/utils/validation';
+import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 
 type LinkedDeviceClaimTranscriptV1 = {
   readonly digestB64u: DigestB64u;
   readonly value: LinkedDeviceClaimV1;
 };
 
-export type LinkedDeviceSourceKeyManifestDigestsV1 =
-  | {
-      readonly ed25519: DigestB64u;
-      readonly ecdsa_secp256k1?: never;
-    }
-  | {
-      readonly ed25519?: never;
-      readonly ecdsa_secp256k1: DigestB64u;
-    }
-  | {
-      readonly ed25519: DigestB64u;
-      readonly ecdsa_secp256k1: DigestB64u;
-    };
+export type LinkedDeviceSourceKeyManifestDigestsV1 = ReadonlyExclusiveUnion<
+  | { readonly ed25519: DigestB64u }
+  | { readonly ecdsa_secp256k1: DigestB64u }
+  | { readonly ed25519: DigestB64u; readonly ecdsa_secp256k1: DigestB64u }
+>;
 
 type LinkedDeviceApprovalTranscriptV1 = {
   readonly digestB64u: DigestB64u;

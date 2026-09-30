@@ -16,6 +16,7 @@ import type { NearOperationStepUpPreparationRef } from '../interfaces/operationS
 import type { ActiveWalletAuthorityEcdsaSigningAuthPlan } from '../session/material/activeWalletAuthorityEcdsaRuntime';
 import type { ExactEvmFamilyWalletSessionAuthorization } from '../session/material/ecdsaSigningCapability';
 import type { MpcMaterialActivationRef } from '@shared/utils/domainIds';
+import type { ExclusiveUnion } from '@shared/utils/variant';
 
 export interface UserConfirmProgressEvent {
   requestId: string;
@@ -75,23 +76,11 @@ type UserConfirmSuccessDecisionBase = UserConfirmDecisionBase & {
 };
 
 type UserConfirmSuccessDecision = UserConfirmSuccessDecisionBase &
-  (
-    | {
-        nearTransactionReadiness: NearTransactionReadiness;
-        transactionContext?: never;
-        nonceLeases?: never;
-      }
-    | {
-        nearTransactionReadiness?: never;
-        transactionContext: TransactionContext;
-        nonceLeases?: NonceLeaseRef[];
-      }
-    | {
-        nearTransactionReadiness?: never;
-        transactionContext?: never;
-        nonceLeases?: never;
-      }
-  );
+  ExclusiveUnion<
+    | { nearTransactionReadiness: NearTransactionReadiness }
+    | { transactionContext: TransactionContext; nonceLeases?: NonceLeaseRef[] }
+    | {}
+  >;
 
 type UserConfirmFailureDecisionBase = UserConfirmDecisionBase & {
   confirmed: false;
@@ -110,16 +99,9 @@ export type WalletSessionExpiredConfirmationFailure = Extract<
 >;
 
 type UserConfirmFailureDecision = UserConfirmFailureDecisionBase &
-  (
-    | {
-        walletSessionFailure: WalletSessionExpiredConfirmationFailure;
-        error?: never;
-      }
-    | {
-        walletSessionFailure?: never;
-        error?: string;
-      }
-  );
+  ExclusiveUnion<
+    { walletSessionFailure: WalletSessionExpiredConfirmationFailure } | { error?: string }
+  >;
 
 export type UserConfirmDecision = UserConfirmSuccessDecision | UserConfirmFailureDecision;
 
@@ -188,28 +170,16 @@ export type SigningAuthPlan =
       emailOtpPrompt?: EmailOtpConfirmPrompt;
     };
 
-export type WebAuthnChallenge =
-  | {
-      kind: 'intent_digest';
-      challengeB64u: string;
-      digest32B64u?: never;
-      requestId?: never;
-      thresholdSessionId?: never;
-    }
-  | {
-      kind: 'threshold_session_policy';
-      digest32B64u: string;
-      challengeB64u?: never;
-      requestId?: never;
-      thresholdSessionId?: never;
-    }
+export type WebAuthnChallenge = ExclusiveUnion<
+  | { kind: 'intent_digest'; challengeB64u: string }
+  | { kind: 'threshold_session_policy'; digest32B64u: string }
   | {
       kind: 'ecdsa_role_local_bootstrap';
       digest32B64u: string;
       requestId: string;
       thresholdSessionId: string;
-      challengeB64u?: never;
-    };
+    }
+>;
 
 export function isWarmSessionSigningAuthPlan(
   plan: Pick<SigningAuthPlan, 'kind'> | null | undefined,

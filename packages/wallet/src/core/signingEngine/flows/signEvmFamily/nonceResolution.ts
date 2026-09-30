@@ -6,6 +6,7 @@ import type { TempoSigningRequest } from '../../chains/tempo/tempoSigning.types'
 import type { ThresholdEcdsaChainTarget } from '../../interfaces/ecdsaChainTarget';
 import type { EvmFamilyAccountMetadataDeps } from './accountAuth';
 import { toOptionalEvmAddress } from './addresses';
+import type { ExclusiveUnion } from '@shared/utils/variant';
 
 export type { EvmFamilyAccountMetadataDeps };
 
@@ -90,17 +91,10 @@ function tryResolveNonceNetworkKey(args: {
   return null;
 }
 
-export type EvmFamilyManagedNonceSenderIdentity =
-  | {
-      kind: 'threshold_owner';
-      thresholdOwnerAddress: `0x${string}`;
-      chainAccountAddress?: never;
-    }
-  | {
-      kind: 'chain_account';
-      chainAccountAddress: `0x${string}`;
-      thresholdOwnerAddress?: never;
-    };
+export type EvmFamilyManagedNonceSenderIdentity = ExclusiveUnion<
+  | { kind: 'threshold_owner'; thresholdOwnerAddress: `0x${string}` }
+  | { kind: 'chain_account'; chainAccountAddress: `0x${string}` }
+>;
 
 export function thresholdOwnerNonceSenderIdentity(
   thresholdOwnerAddress: `0x${string}`,

@@ -10,6 +10,7 @@ import type { PlatformResult } from './http';
 import type { RouterAbEcdsaDerivationPublicCapabilityV1 } from '@shared/utils/routerAbEcdsaDerivation';
 import type { EcdsaRoleLocalReadyStateBlob } from './generated/signerCoreCommands';
 import type { ThresholdEcdsaChainTarget } from '@shared/utils/thresholdEcdsaChainTarget';
+import type { ExclusiveUnion } from '@shared/utils/variant';
 
 export type {
   EcdsaThresholdKeyId,
@@ -56,19 +57,10 @@ export type EcdsaRoleLocalPublicFacts = {
   publicCapability: RouterAbEcdsaDerivationPublicCapabilityV1;
 };
 
-export type EcdsaRoleLocalAuthMethod =
-  | {
-      kind: 'passkey';
-      credentialIdB64u: CredentialIdB64u;
-      rpId: RpId;
-      authSubjectId?: never;
-    }
-  | {
-      kind: 'email_otp';
-      authSubjectId: EmailOtpAuthSubjectId;
-      credentialIdB64u?: never;
-      rpId?: never;
-    };
+export type EcdsaRoleLocalAuthMethod = ExclusiveUnion<
+  | { kind: 'passkey'; credentialIdB64u: CredentialIdB64u; rpId: RpId }
+  | { kind: 'email_otp'; authSubjectId: EmailOtpAuthSubjectId }
+>;
 
 export type EcdsaRoleLocalReadyRecord =
   | {
@@ -110,23 +102,19 @@ export type EcdsaRoleLocalMaterialState =
       reauth?: never;
     };
 
-export type EcdsaRoleLocalRecordParseResult =
+export type EcdsaRoleLocalRecordParseResult = ExclusiveUnion<
   | {
       ok: true;
       source: 'ready_record';
       state: Extract<EcdsaRoleLocalMaterialState, { kind: 'ready' | 'reauth_required' }>;
-      code?: never;
-      message?: never;
-      cleanup?: never;
     }
   | {
       ok: false;
       code: 'malformed_record';
       message: string;
       cleanup: CleanupMalformedEcdsaRoleLocalRecordInput;
-      source?: never;
-      state?: never;
-    };
+    }
+>;
 
 export type LoadEcdsaRoleLocalReadyRecordInput = {
   walletId: WalletId;

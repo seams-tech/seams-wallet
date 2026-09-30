@@ -44,6 +44,7 @@ import type { WalletExecutionLaneAuthSource } from '../../../../core/signingLane
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import { sha256DigestB64u } from '@shared/utils/canonicalPrimitives';
 import type { ExactAdministeredSignerManifestV1 } from '@shared/device-linking/delegatedActivationPlan';
+import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 
 export const LINKED_DEVICE_OWNER_AUTHORIZATION_PATH_V1 =
   '/wallet/device-linking/v1/owner-authorization' as const;
@@ -62,7 +63,7 @@ export type DeviceLinkingOwnerAuthorizationResponseV1 = {
   readonly expiresAtMs: number;
 };
 
-export type DeviceLinkingOwnerWalletSessionContextV1 =
+export type DeviceLinkingOwnerWalletSessionContextV1 = ReadonlyExclusiveUnion<
   | {
       readonly walletId: WalletId;
       readonly walletSessionId: WalletSessionId;
@@ -74,8 +75,6 @@ export type DeviceLinkingOwnerWalletSessionContextV1 =
       readonly curve: 'ed25519';
       readonly authority: WalletAuthAuthority;
       readonly authorityScope: ThresholdEd25519AuthorityScope;
-      readonly walletAuthAuthorityRef?: never;
-      readonly authSource?: never;
     }
   | {
       readonly walletId: WalletId;
@@ -88,9 +87,8 @@ export type DeviceLinkingOwnerWalletSessionContextV1 =
       readonly curve: 'ecdsa';
       readonly walletAuthAuthorityRef: WalletAuthAuthorityRef;
       readonly authSource: WalletExecutionLaneAuthSource;
-      readonly authority?: never;
-      readonly authorityScope?: never;
-    };
+    }
+>;
 
 type DeviceLinkingOwnerRequestAuthenticationV1 =
   | {

@@ -39,6 +39,7 @@ import type { ThresholdEcdsaBackendBinding } from '../../interfaces/signing';
 import type { RouterAbEcdsaDerivationPublicCapabilityV1 } from '@shared/utils/routerAbEcdsaDerivation';
 import type { WalletSessionOperationCredentialV1 } from '@shared/device-linking';
 import type { EcdsaPreauthorizedSessionActivation } from '../../threshold/ecdsa/postRegistrationSessionActivation';
+import type { ExclusiveUnion } from '@shared/utils/variant';
 
 export type ProvisionThresholdEcdsaSessionDeps = {
   queueByWallet: Map<string, Promise<void>>;
@@ -128,16 +129,10 @@ type ThresholdEcdsaEmailOtpActivationRequestBase = ThresholdEcdsaActivationReque
 };
 
 export type ThresholdEcdsaEmailOtpActivationRequest = ThresholdEcdsaEmailOtpActivationRequestBase &
-  (
-    | {
-        walletSessionRouteAuth: WalletSessionOperationCredentialV1;
-        preauthorizedSessionActivation?: never;
-      }
-    | {
-        preauthorizedSessionActivation: EcdsaPreauthorizedSessionActivation;
-        walletSessionRouteAuth?: never;
-      }
-  );
+  ExclusiveUnion<
+    | { walletSessionRouteAuth: WalletSessionOperationCredentialV1 }
+    | { preauthorizedSessionActivation: EcdsaPreauthorizedSessionActivation }
+  >;
 
 export type ThresholdEcdsaEmailOtpExportActivationRequest =
   ThresholdEcdsaExplicitExportActivationRequestBase & {

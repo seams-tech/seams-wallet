@@ -46,6 +46,7 @@ import type { ActiveWalletAuthorityEcdsaRuntimeV1 } from '../material/activeWall
 import type { ExactNearEd25519WalletSessionAuthorization } from '../material/nearEd25519YaoSigningPreparation';
 import type { NearEd25519SigningKeyId } from '@shared/utils/registrationIds';
 import { parseSignerSlot } from '@shared/utils/signerSlot';
+import type { ExclusiveUnion } from '@shared/utils/variant';
 
 export type { SigningCurve };
 export type { EcdsaThresholdKeyId };
@@ -185,34 +186,18 @@ type BuildEmailOtpAuthContextForWalletAuthMethodArgs = {
   emailHashHex: unknown;
   provider: EmailOtpProvider;
   providerUserId: unknown;
-} & (
-  | {
-      retention: 'session';
-      reason: 'login' | 'sign';
-      consumedAtMs?: never;
-    }
-  | {
-      retention: 'single_use';
-      reason?: never;
-      consumedAtMs?: number;
-    }
-);
+} & ExclusiveUnion<
+  | { retention: 'session'; reason: 'login' | 'sign' }
+  | { retention: 'single_use'; consumedAtMs?: number }
+>;
 
 type BuildEmailOtpAuthContextFromExactAuthorityArgs = {
   policy: EmailOtpAuthPolicy;
   authority: EmailOtpWalletAuthAuthority;
-} & (
-  | {
-      retention: 'session';
-      reason: 'login' | 'sign';
-      consumedAtMs?: never;
-    }
-  | {
-      retention: 'single_use';
-      reason?: never;
-      consumedAtMs?: number;
-    }
-);
+} & ExclusiveUnion<
+  | { retention: 'session'; reason: 'login' | 'sign' }
+  | { retention: 'single_use'; consumedAtMs?: number }
+>;
 
 export function buildEmailOtpAuthContext(
   args: BuildEmailOtpSessionAuthContextArgs,

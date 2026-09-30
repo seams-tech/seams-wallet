@@ -10,6 +10,7 @@ import {
 } from '../../session/operationState/authorizationAdmission';
 import type { SigningSessionCoordinator } from '../../session/SigningSessionCoordinator';
 import type { EvmFamilySenderSignatureAlgorithm } from './types';
+import type { ExclusiveUnion } from '@shared/utils/variant';
 
 function ownerOperationAuthorizationDecisionFromError(
   error: unknown,
@@ -145,18 +146,14 @@ type EvmFamilyFreshAuthRetryInputBase = {
 };
 
 type EvmFamilyFreshAuthRetryInput = EvmFamilyFreshAuthRetryInputBase &
-  (
-    | {
-        trigger: 'wallet_session_reauthorization_required';
-        activeSigningAuthMethod?: never;
-        admissionRetryState?: never;
-      }
+  ExclusiveUnion<
+    | { trigger: 'wallet_session_reauthorization_required' }
     | {
         trigger: 'wallet_signing_budget_exhausted';
         activeSigningAuthMethod: SignerAuthMethod;
         admissionRetryState: EvmFamilyAdmissionRetryState;
       }
-  );
+  >;
 
 function blockEvmFamilyFreshAuthRetry(
   args: EvmFamilyFreshAuthRetryInput,

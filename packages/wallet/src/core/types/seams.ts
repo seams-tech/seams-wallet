@@ -31,6 +31,7 @@ import type {
   NearEd25519WalletUnlockSubject,
   WalletUnlockSubjectSet,
 } from '../signingEngine/session/identity/walletUnlockSubject';
+import type { ExclusiveUnion, ReadonlyExclusiveUnion } from '@shared/utils/variant';
 
 export type {
   SensitiveOperationPolicy,
@@ -319,28 +320,12 @@ export type WalletSessionIdentityResolveFailure =
   | 'activation_reconciliation_failed'
   | 'invalid_wallet_profile';
 
-export type WalletSessionAppIdentity =
-  | {
-      readonly kind: 'anonymous';
-      readonly walletId?: never;
-      readonly reason?: never;
-      readonly nearAccountId?: never;
-      readonly nearOperationalPublicKey?: never;
-      readonly userData?: never;
-      readonly authMethods?: never;
-      readonly thresholdEcdsaEthereumAddress?: never;
-      readonly thresholdEcdsaPublicKeyB64u?: never;
-    }
+export type WalletSessionAppIdentity = ReadonlyExclusiveUnion<
+  | { readonly kind: 'anonymous' }
   | {
       readonly kind: 'unresolvable';
       readonly walletId: WalletId;
       readonly reason: WalletSessionIdentityResolveFailure;
-      readonly nearAccountId?: never;
-      readonly nearOperationalPublicKey?: never;
-      readonly userData?: never;
-      readonly authMethods?: never;
-      readonly thresholdEcdsaEthereumAddress?: never;
-      readonly thresholdEcdsaPublicKeyB64u?: never;
     }
   | {
       readonly kind: 'resolved';
@@ -351,53 +336,29 @@ export type WalletSessionAppIdentity =
       readonly authMethods: readonly WalletAuthMethodBinding[];
       readonly thresholdEcdsaEthereumAddress: string | null;
       readonly thresholdEcdsaPublicKeyB64u: string | null;
-      readonly reason?: never;
-    };
-
-export type WalletAuthenticationState =
-  | {
-      readonly kind: 'signed_out';
-      readonly walletId?: never;
-      readonly authMethod?: never;
     }
+>;
+
+export type WalletAuthenticationState = ReadonlyExclusiveUnion<
+  | { readonly kind: 'signed_out' }
   | {
       readonly kind: 'authenticated';
       readonly walletId: WalletId;
       readonly authMethod: WalletAuthMethod;
-    };
+    }
+>;
 
-export type WalletSessionCapabilityLaneReadiness =
-  | {
-      readonly kind: 'ready';
-      readonly resume?: never;
-      readonly requirement?: never;
-      readonly replacement?: never;
-      readonly reason?: never;
-    }
-  | {
-      readonly kind: 'pending';
-      readonly resume: 'restore_material' | 'resolve_deferred_state';
-      readonly requirement?: never;
-      readonly replacement?: never;
-      readonly reason?: never;
-    }
+export type WalletSessionCapabilityLaneReadiness = ReadonlyExclusiveUnion<
+  | { readonly kind: 'ready' }
+  | { readonly kind: 'pending'; readonly resume: 'restore_material' | 'resolve_deferred_state' }
   | {
       readonly kind: 'authorization_required';
       readonly requirement:
         | 'same_method_step_up'
         | 'wallet_session_expired'
         | 'wallet_session_exhausted';
-      readonly resume?: never;
-      readonly replacement?: never;
-      readonly reason?: never;
     }
-  | {
-      readonly kind: 'superseded';
-      readonly replacement: 're_resolve_current_capability';
-      readonly resume?: never;
-      readonly requirement?: never;
-      readonly reason?: never;
-    }
+  | { readonly kind: 'superseded'; readonly replacement: 're_resolve_current_capability' }
   | {
       readonly kind: 'failed';
       readonly reason:
@@ -406,17 +367,14 @@ export type WalletSessionCapabilityLaneReadiness =
         | 'malformed'
         | 'identity_mismatch'
         | 'ambiguous_lane';
-      readonly resume?: never;
-      readonly requirement?: never;
-      readonly replacement?: never;
-    };
+    }
+>;
 
-export type WalletSessionCapabilityReadiness =
+export type WalletSessionCapabilityReadiness = ReadonlyExclusiveUnion<
   | {
       readonly kind: 'near_ed25519';
       readonly subject: NearEd25519WalletUnlockSubject;
       readonly lane: WalletSessionCapabilityLaneReadiness;
-      readonly targets?: never;
     }
   | {
       readonly kind: 'evm_family_ecdsa';
@@ -436,22 +394,12 @@ export type WalletSessionCapabilityReadiness =
               }[],
             ];
           };
-      readonly lane?: never;
-    };
+    }
+>;
 
-export type WalletSessionCapabilityProjection =
-  | {
-      readonly kind: 'not_requested';
-      readonly subjectSet?: never;
-      readonly capabilities?: never;
-      readonly reason?: never;
-    }
-  | {
-      readonly kind: 'unresolvable';
-      readonly reason: WalletSessionIdentityResolveFailure;
-      readonly subjectSet?: never;
-      readonly capabilities?: never;
-    }
+export type WalletSessionCapabilityProjection = ReadonlyExclusiveUnion<
+  | { readonly kind: 'not_requested' }
+  | { readonly kind: 'unresolvable'; readonly reason: WalletSessionIdentityResolveFailure }
   | {
       readonly kind: 'resolved';
       readonly subjectSet: WalletUnlockSubjectSet;
@@ -459,8 +407,8 @@ export type WalletSessionCapabilityProjection =
         WalletSessionCapabilityReadiness,
         ...WalletSessionCapabilityReadiness[],
       ];
-      readonly reason?: never;
-    };
+    }
+>;
 
 export interface WalletSession {
   readonly appIdentity: WalletSessionAppIdentity;
@@ -627,7 +575,7 @@ export type RegistrationResult =
 
 type RegistrationErrorCode = RouterApiKeyAuthFailureCode | string;
 
-export type LoginResult =
+export type LoginResult = ExclusiveUnion<
   | {
       success: true;
       kind: 'near_wallet_unlocked';
@@ -635,26 +583,10 @@ export type LoginResult =
       loggedInNearAccountId: string;
       operationalPublicKey: string | null;
       nearAccountId: AccountId;
-      error?: never;
     }
-  | {
-      success: true;
-      kind: 'ecdsa_wallet_unlocked';
-      walletId: WalletId;
-      loggedInNearAccountId?: never;
-      operationalPublicKey?: never;
-      nearAccountId?: never;
-      error?: never;
-    }
-  | {
-      success: false;
-      error: string;
-      kind?: never;
-      walletId?: never;
-      loggedInNearAccountId?: never;
-      operationalPublicKey?: never;
-      nearAccountId?: never;
-    };
+  | { success: true; kind: 'ecdsa_wallet_unlocked'; walletId: WalletId }
+  | { success: false; error: string }
+>;
 
 export interface SigningSessionStatus {
   sessionId: string;
@@ -693,22 +625,15 @@ export type ThresholdWarmLoginAndCreateSessionResult = Extract<
   signingSession: SigningSessionStatus & { status: 'active' };
 };
 
-export type ActionResult =
-  | {
-      success: true;
-      transactionId?: string;
-      result?: FinalExecutionOutcome;
-      error?: never;
-      errorDetails?: never;
-    }
+export type ActionResult = ExclusiveUnion<
+  | { success: true; transactionId?: string; result?: FinalExecutionOutcome }
   | {
       success: false;
       error: string;
       // Optional structured error details when available (e.g., NEAR RPC error payload)
       errorDetails?: unknown;
-      transactionId?: never;
-      result?: never;
-    };
+    }
+>;
 
 export interface SignTransactionResult {
   signedTransaction: SignedTransaction;

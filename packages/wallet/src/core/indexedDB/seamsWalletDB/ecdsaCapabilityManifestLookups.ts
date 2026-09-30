@@ -44,38 +44,23 @@ import {
   parseSealingKeyRow,
   assertNever,
 } from './ecdsaCapabilityManifestRecords';
+import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 
 export type ActiveEcdsaWalletCapabilitySubject = EcdsaCapabilitySelector & {
   readonly ecdsaThresholdKeyId: ReturnType<typeof parseEcdsaThresholdKeyId>;
 };
 
-export type ActiveEcdsaWalletCapabilitySubjectListResult =
-  | {
-      readonly kind: 'resolved';
-      readonly subjects: readonly ActiveEcdsaWalletCapabilitySubject[];
-    }
-  | {
-      readonly kind: 'invalid_current_state';
-      readonly subjects?: never;
-    }
-  | {
-      readonly kind: 'persistence_unavailable';
-      readonly subjects?: never;
-    };
+export type ActiveEcdsaWalletCapabilitySubjectListResult = ReadonlyExclusiveUnion<
+  | { readonly kind: 'resolved'; readonly subjects: readonly ActiveEcdsaWalletCapabilitySubject[] }
+  | { readonly kind: 'invalid_current_state' }
+  | { readonly kind: 'persistence_unavailable' }
+>;
 
-export type EcdsaWalletActivationSelectorListResult =
-  | {
-      readonly kind: 'resolved';
-      readonly selectors: readonly EcdsaCapabilitySelector[];
-    }
-  | {
-      readonly kind: 'invalid_current_state';
-      readonly selectors?: never;
-    }
-  | {
-      readonly kind: 'persistence_unavailable';
-      readonly selectors?: never;
-    };
+export type EcdsaWalletActivationSelectorListResult = ReadonlyExclusiveUnion<
+  | { readonly kind: 'resolved'; readonly selectors: readonly EcdsaCapabilitySelector[] }
+  | { readonly kind: 'invalid_current_state' }
+  | { readonly kind: 'persistence_unavailable' }
+>;
 
 type LookupFailureExclusions = {
   readonly manifest?: never;
@@ -156,17 +141,14 @@ export type EcdsaActivationJournalReadResult =
       readonly journal?: never;
     };
 
-export type EcdsaPreparedActivationOpenResult =
+export type EcdsaPreparedActivationOpenResult = ReadonlyExclusiveUnion<
   | {
       readonly kind: 'found';
       readonly journal: EcdsaCapabilityActivationCommitJournal;
       readonly pendingPayloadB64u: string;
     }
-  | {
-      readonly kind: 'missing' | 'corrupt' | 'persistence_unavailable';
-      readonly journal?: never;
-      readonly pendingPayloadB64u?: never;
-    };
+  | { readonly kind: 'missing' | 'corrupt' | 'persistence_unavailable' }
+>;
 
 type OpenedEcdsaActiveMaterial = {
   readonly kind: 'active';

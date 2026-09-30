@@ -71,6 +71,7 @@ import { toWalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import { computeEcdsaDerivationRoleLocalRelayerKeyId } from '@shared/threshold/ecdsaDerivationRoleLocalBootstrap';
 import type { ExactWalletSessionReadPorts } from '../identity/exactWalletSessionCredential';
 import type { ActiveWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
+import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 
 type ActiveWalletAuthorityEcdsaAuth =
   | {
@@ -168,21 +169,18 @@ type ActiveWalletAuthorityEcdsaRuntimeBlockReason =
   | 'invalid_public_facts'
   | 'persistence_unavailable';
 
-type ActiveWalletAuthorityEcdsaRuntimeResolution =
+type ActiveWalletAuthorityEcdsaRuntimeResolution = ReadonlyExclusiveUnion<
   | {
       readonly kind: 'resolved';
       readonly runtime: ActiveWalletAuthorityEcdsaRuntimeV1;
       readonly lane: ActiveWalletAuthorityEcdsaLaneProjectionV1 | null;
-      readonly reason?: never;
-      readonly message?: never;
     }
   | {
       readonly kind: 'blocked';
       readonly reason: ActiveWalletAuthorityEcdsaRuntimeBlockReason;
       readonly message?: string;
-      readonly runtime?: never;
-      readonly lane?: never;
-    };
+    }
+>;
 
 type ResolveActiveWalletAuthorityEcdsaRuntimeV1Input = {
   readonly walletId: WalletId | string;

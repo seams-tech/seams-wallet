@@ -44,6 +44,7 @@ import type {
 import type { EvmFamilySigningKeySlotId } from './evmFamilySigningKeySlotId';
 import type { SigningLaneKind } from './records';
 import type { OwnerLaneParticipantContinuityV1 } from './ownerContinuity';
+import type { ExclusiveUnion } from '../utils/variant';
 
 export type LinkedDeviceLaneAuthorizationBindingV1 = {
   kind: 'linked_device_enrollment';
@@ -921,19 +922,14 @@ type LaneHolderRecipientDescriptorV1 = {
   hpkePublicKeyDigestB64u: HpkePublicKeyDigestB64u;
 };
 
-export type LaneHolderPackageWireV1 =
+export type LaneHolderPackageWireV1 = ExclusiveUnion<
   | {
       kind: 'ed25519_yao_lane_holder_package_set_v1';
       deriverAEncryptedPackageJson: string;
       deriverBEncryptedPackageJson: string;
-      ecdsaEncryptedMaterialEnvelopeJson?: never;
     }
-  | {
-      kind: 'ecdsa_additive_lane_holder_package_v1';
-      ecdsaEncryptedMaterialEnvelopeJson: string;
-      deriverAEncryptedPackageJson?: never;
-      deriverBEncryptedPackageJson?: never;
-    };
+  | { kind: 'ecdsa_additive_lane_holder_package_v1'; ecdsaEncryptedMaterialEnvelopeJson: string }
+>;
 
 export type EcdsaAdditiveLaneHolderPreparationV1 = {
   kind: 'ecdsa_additive_lane_holder_preparation_v1';

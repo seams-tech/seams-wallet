@@ -51,6 +51,7 @@ import type {
 import type { EcdsaRoleLocalWorkerHandle } from '../signingEngine/session/keyMaterialBrands';
 import type { EcdsaBootstrapSecretSource } from './secretSources';
 import type { WalletAddAuthMethodRegistrationOptions } from '@shared/utils/addAuthMethodRegistration';
+import type { ExclusiveUnion } from '@shared/utils/variant';
 
 export type { CredentialIdB64u } from './ecdsaRoleLocalRecords';
 
@@ -60,28 +61,11 @@ export type SignerCryptoInvocationErrorCode =
   | 'native_binding_failure'
   | 'timeout';
 
-export type SignerCryptoResult<Ok, CommandCode extends string> =
-  | {
-      ok: true;
-      value: Ok;
-      failure?: never;
-      code?: never;
-      message?: never;
-    }
-  | {
-      ok: false;
-      failure: 'command';
-      code: CommandCode;
-      message: string;
-      value?: never;
-    }
-  | {
-      ok: false;
-      failure: 'invocation';
-      code: SignerCryptoInvocationErrorCode;
-      message: string;
-      value?: never;
-    };
+export type SignerCryptoResult<Ok, CommandCode extends string> = ExclusiveUnion<
+  | { ok: true; value: Ok }
+  | { ok: false; failure: 'command'; code: CommandCode; message: string }
+  | { ok: false; failure: 'invocation'; code: SignerCryptoInvocationErrorCode; message: string }
+>;
 
 export type DurableRecordStore = {
   kind: 'durable_record_store';

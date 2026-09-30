@@ -17,6 +17,7 @@ import type {
 } from '@shared/utils/walletAuthAuthority';
 import { walletAuthAuthorityRef } from '@shared/utils/walletAuthAuthority';
 import type { ActiveWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
+import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 
 export type ActiveNearEd25519WalletSessionStatus = Extract<
   ExactWalletSessionStatus,
@@ -69,27 +70,18 @@ export type NearEd25519WalletSessionFullLoginReason =
   | 'capability_unavailable'
   | 'unavailable';
 
-export type NearEd25519WalletSessionAuthorizationDisposition =
+export type NearEd25519WalletSessionAuthorizationDisposition = ReadonlyExclusiveUnion<
   | {
       readonly kind: 'authorized';
       readonly authorization: ExactNearEd25519WalletSessionAuthorization;
-      readonly reason?: never;
     }
-  | {
-      readonly kind: 'operation_step_up';
-      readonly reason: 'expired' | 'exhausted';
-      readonly authorization?: never;
-    }
+  | { readonly kind: 'operation_step_up'; readonly reason: 'expired' | 'exhausted' }
   | {
       readonly kind: 'full_login_required';
       readonly reason: NearEd25519WalletSessionFullLoginReason;
-      readonly authorization?: never;
     }
-  | {
-      readonly kind: 'temporarily_unavailable';
-      readonly reason: 'persistence_unavailable';
-      readonly authorization?: never;
-    };
+  | { readonly kind: 'temporarily_unavailable'; readonly reason: 'persistence_unavailable' }
+>;
 
 export function classifyNearEd25519WalletSessionAuthorization(
   result: NearEd25519WalletSessionAuthorizationReadResult,
@@ -117,17 +109,13 @@ export function classifyNearEd25519WalletSessionAuthorization(
   }
 }
 
-type NearEd25519OperationAuthorizationState =
+type NearEd25519OperationAuthorizationState = ReadonlyExclusiveUnion<
   | {
       readonly kind: 'authorized';
       readonly authorization: ExactNearEd25519WalletSessionAuthorization;
-      readonly requirement?: never;
     }
-  | {
-      readonly kind: 'authorization_required';
-      readonly requirement: SigningLaneAuthBinding;
-      readonly authorization?: never;
-    };
+  | { readonly kind: 'authorization_required'; readonly requirement: SigningLaneAuthBinding }
+>;
 
 export type NearEd25519YaoSigningPreparation = {
   readonly kind: 'near_ed25519_yao_signing_preparation';

@@ -1,3 +1,5 @@
+import type { ExclusiveUnion } from './variant';
+
 type JsonRpcId = string | number | null;
 
 export type JsonRpcErrorDetails = {
@@ -8,19 +10,10 @@ export type JsonRpcErrorDetails = {
   cause?: unknown;
 };
 
-export type JsonRpcEnvelope =
-  | {
-      kind: 'success';
-      id: JsonRpcId;
-      result: unknown;
-      error?: never;
-    }
-  | {
-      kind: 'failure';
-      id: JsonRpcId;
-      error: JsonRpcErrorDetails;
-      result?: never;
-    };
+export type JsonRpcEnvelope = ExclusiveUnion<
+  | { kind: 'success'; id: JsonRpcId; result: unknown }
+  | { kind: 'failure'; id: JsonRpcId; error: JsonRpcErrorDetails }
+>;
 
 type JsonRpcEnvelopeDecodeResult =
   | { ok: true; value: JsonRpcEnvelope; error?: never }

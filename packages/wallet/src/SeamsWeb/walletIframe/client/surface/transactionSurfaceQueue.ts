@@ -1,4 +1,5 @@
 import type { WalletIframeRequestId } from '@/core/types/walletIframeIdentity';
+import type { ExclusiveUnion } from '@shared/utils/variant';
 
 export type WalletIframeTransactionSurfaceLease = {
   kind: 'wallet_iframe_transaction_surface_lease_v1';
@@ -10,17 +11,9 @@ export type WalletIframeTransactionSurfaceDeadline =
   | { readonly kind: 'deadline'; readonly atMs: number }
   | { readonly kind: 'interactive' };
 
-type TransactionSurfaceQueueState =
-  | {
-      kind: 'idle';
-      leaseId?: never;
-      requestId?: never;
-    }
-  | {
-      kind: 'active';
-      leaseId: number;
-      requestId: WalletIframeRequestId;
-    };
+type TransactionSurfaceQueueState = ExclusiveUnion<
+  { kind: 'idle' } | { kind: 'active'; leaseId: number; requestId: WalletIframeRequestId }
+>;
 
 type TransactionSurfaceWaiter = {
   requestId: WalletIframeRequestId;

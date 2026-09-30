@@ -48,6 +48,7 @@ import {
   type ExactWalletSessionAuthorityIdentity,
 } from '../persistence/walletSessionAuthorizationProjection';
 import type { WalletAuthAuthorityRef } from '@shared/utils/walletAuthAuthority';
+import type { ExclusiveUnion } from '@shared/utils/variant';
 
 type ExistingEcdsaBootstrapKeyIntent = {
   kind: 'existing_ecdsa_key';
@@ -177,16 +178,10 @@ type EmailOtpEcdsaBootstrapRequestBase = EcdsaBootstrapExactRequestBase & {
 };
 
 export type EmailOtpEcdsaBootstrapRequest = EmailOtpEcdsaBootstrapRequestBase &
-  (
-    | {
-        routeAuth?: WalletSessionOperationCredentialV1;
-        sessionActivation?: never;
-      }
-    | {
-        sessionActivation: EcdsaPreauthorizedSessionActivation;
-        routeAuth?: never;
-      }
-  );
+  ExclusiveUnion<
+    | { routeAuth?: WalletSessionOperationCredentialV1 }
+    | { sessionActivation: EcdsaPreauthorizedSessionActivation }
+  >;
 
 export type EmailOtpEcdsaExplicitExportBootstrapRequest =
   EcdsaExplicitExportBootstrapRequestBase & {

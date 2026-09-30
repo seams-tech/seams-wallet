@@ -11,6 +11,7 @@ import {
   type WalletAuthAuthorityRef,
 } from '@shared/utils/walletAuthAuthority';
 import { isActiveRecoveredWalletAuthorityV1 } from '@shared/authorization/walletAuthority';
+import type { ExclusiveUnion } from '@shared/utils/variant';
 
 export async function persistVerifiedEmailOtpAuthorityAfterUnlock(args: {
   readonly walletId: string;
@@ -127,19 +128,14 @@ export async function walletAuthAuthorityRefForVerifiedEmailOtpUnlock(args: {
   });
 }
 
-export type EmailOtpWalletPostUnlockActivation =
+export type EmailOtpWalletPostUnlockActivation = ExclusiveUnion<
   | {
       kind: 'near_ed25519_wallet';
       signer: NearEd25519SignerBinding;
       walletAuthMethodId: WalletAuthMethodId;
-      walletId?: never;
     }
-  | {
-      kind: 'evm_family_ecdsa_wallet';
-      walletId: WalletId;
-      walletAuthMethodId: WalletAuthMethodId;
-      signer?: never;
-    };
+  | { kind: 'evm_family_ecdsa_wallet'; walletId: WalletId; walletAuthMethodId: WalletAuthMethodId }
+>;
 
 export type EmailOtpWalletPostUnlockActivationDeps = {
   signingEngine: {

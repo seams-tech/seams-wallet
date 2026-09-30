@@ -46,6 +46,7 @@ import type { RouterAbNormalSigningPrepareRequestV2Wire } from '@/core/rpcClient
 import type { Ed25519OperationStepUpProof } from '../threshold/ed25519/walletSession';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import type { SigningOperationStateRef } from '../flows/shared/signingStateMachine';
+import type { ExclusiveUnion } from '@shared/utils/variant';
 type NearResolvedEd25519WalletSessionAuth = {
   kind: 'wallet_session_opaque';
   walletSessionToken: string;
@@ -239,17 +240,10 @@ export type NearTransactionWithActionsPayload =
       ed25519SigningBoundary?: never;
     });
 
-export type NearAdHocEd25519Selection =
-  | {
-      kind: 'authorized';
-      selectedLane: SelectedEd25519Lane;
-      candidate?: never;
-    }
-  | {
-      kind: 'authorization_required';
-      selectedLane?: never;
-      candidate: AuthorizationRequiredEd25519LaneCandidate;
-    };
+export type NearAdHocEd25519Selection = ExclusiveUnion<
+  | { kind: 'authorized'; selectedLane: SelectedEd25519Lane }
+  | { kind: 'authorization_required'; candidate: AuthorizationRequiredEd25519LaneCandidate }
+>;
 
 export type NearDelegateActionPayload = {
   ctx: NearSigningRuntimeDeps;

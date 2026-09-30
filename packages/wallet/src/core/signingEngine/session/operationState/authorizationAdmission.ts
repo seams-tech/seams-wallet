@@ -1,5 +1,6 @@
 import type { RouterAbOwnerOperationAuthorizationDecisionV1Wire as RouterAbEcdsaOwnerOperationAuthorizationDecisionV1Wire } from '@shared/utils/routerAbEcdsaDerivation';
 import type { RouterAbEd25519OwnerOperationAuthorizationDecisionV1Wire } from '@shared/utils/routerAbNormalSigningIdentity';
+import type { ExclusiveUnion } from '@shared/utils/variant';
 
 export type RouterAbOwnerOperationAuthorizationDecisionV1Wire =
   | RouterAbEcdsaOwnerOperationAuthorizationDecisionV1Wire
@@ -17,22 +18,13 @@ type WalletSessionQuotaAdmissionFailureSource =
 
 type WalletSessionQuotaAdmissionRetryReason = 'exhausted' | 'stale_projection';
 
-type WalletSessionQuotaAdmissionFailure =
-  | {
-      kind: 'exhausted';
-      source: WalletSessionQuotaAdmissionFailureSource;
-      detail: string;
-      retryAfterMs?: never;
-      localProjectionVersion?: never;
-      serverProjectionVersion?: never;
-    }
+type WalletSessionQuotaAdmissionFailure = ExclusiveUnion<
+  | { kind: 'exhausted'; source: WalletSessionQuotaAdmissionFailureSource; detail: string }
   | {
       kind: 'in_flight';
       source: WalletSessionQuotaAdmissionFailureSource;
       detail: string;
       retryAfterMs: number;
-      localProjectionVersion?: never;
-      serverProjectionVersion?: never;
     }
   | {
       kind: 'stale_projection';
@@ -40,8 +32,8 @@ type WalletSessionQuotaAdmissionFailure =
       detail: string;
       localProjectionVersion: string;
       serverProjectionVersion: string;
-      retryAfterMs?: never;
-    };
+    }
+>;
 
 export type WalletSessionQuotaAdmissionDecision =
   | {

@@ -127,6 +127,7 @@ import type {
   RegistrationAuthMethodInput,
   RegisterWalletInput,
 } from '@shared/utils/registrationAuthMethodInput';
+import type { ExclusiveUnion } from '@shared/utils/variant';
 export type {
   WalletIframeRequestId,
   WalletIframeSurfaceId,
@@ -693,17 +694,10 @@ export type GoogleEmailOtpWalletAuthLoginTarget =
   | { readonly kind: 'wallet'; readonly walletId: WalletId | string };
 
 export type GoogleEmailOtpWalletAuthStartInput = GoogleEmailOtpWalletAuthStartBaseInput &
-  (
-    | {
-        mode: 'login';
-        loginTarget: GoogleEmailOtpWalletAuthLoginTarget;
-        replaceExistingWallet?: never;
-        signerSelection?: never;
-        recoveryCodeBackup?: never;
-      }
+  ExclusiveUnion<
+    | { mode: 'login'; loginTarget: GoogleEmailOtpWalletAuthLoginTarget }
     | {
         mode: 'register';
-        loginTarget?: never;
         /** Start a fresh wallet even when this Google account already holds one. */
         replaceExistingWallet?: boolean;
         /** The exact signer set to provision when configuration defaults are insufficient. */
@@ -714,7 +708,7 @@ export type GoogleEmailOtpWalletAuthStartInput = GoogleEmailOtpWalletAuthStartBa
           { readonly kind: 'defer_to_account_menu' | 'show_builtin_dialog' }
         >;
       }
-  );
+  >;
 export interface AuthCapability {
   unlock(walletId: string, options?: LoginHooksOptions): Promise<LoginAndCreateSessionResult>;
   lock(): Promise<void>;
@@ -1117,14 +1111,13 @@ export type KeyExportOutcome =
   | { kind: 'exported' }
   | { kind: 'relink_required'; reason: 'missing_canonical_owner_binding' };
 
-export type ExportKeypairInput =
+export type ExportKeypairInput = ExclusiveUnion<
   | {
       kind: 'ed25519';
       /** A `WalletSessionRef` or bare wallet id. Omitted, resolves to the authenticated wallet. */
       walletSession?: WalletSessionInput;
       /** Omitted, resolves to the authenticated wallet's NEAR account. */
       nearAccount?: NearAccountRef | string;
-      chainTarget?: never;
       options?: KeyExportUiOptions;
     }
   | {
@@ -1133,9 +1126,9 @@ export type ExportKeypairInput =
       walletSession?: WalletSessionInput;
       /** A configured EVM-family network slug, or an exact target. */
       chainTarget: EcdsaChainSelector;
-      nearAccount?: never;
       options?: KeyExportUiOptions;
-    };
+    }
+>;
 
 export interface KeyExportCapability {
   /**

@@ -5,18 +5,12 @@ import type {
   RouterAbEd25519YaoApplicationBindingFactsV1,
   RouterAbEd25519YaoExportAuthorizationIdentityV1,
 } from './routerAbEd25519Yao';
+import type { ReadonlyExclusiveUnion } from './variant';
 
-type RouterAbEd25519YaoExportAuthorityBindingV1 =
-  | {
-      readonly kind: 'passkey';
-      readonly credentialIdB64u: string;
-      readonly providerSubjectId?: never;
-    }
-  | {
-      readonly kind: 'email_otp';
-      readonly providerSubjectId: string;
-      readonly credentialIdB64u?: never;
-    };
+type RouterAbEd25519YaoExportAuthorityBindingV1 = ReadonlyExclusiveUnion<
+  | { readonly kind: 'passkey'; readonly credentialIdB64u: string }
+  | { readonly kind: 'email_otp'; readonly providerSubjectId: string }
+>;
 
 const APPLICATION_BINDING_DOMAIN = 'seams/router-ab/ed25519-yao/application-binding/v1';
 const STABLE_KEY_CONTEXT_DOMAIN = 'seams/router-ab/ed25519-yao/stable-key-context/v1';

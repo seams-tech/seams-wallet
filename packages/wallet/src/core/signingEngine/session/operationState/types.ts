@@ -40,6 +40,7 @@ import {
 import type { MpcMaterialActivationRef } from '@shared/utils/domainIds';
 import type { ExactEvmFamilyWalletSessionAuthorization } from '../material/ecdsaSigningCapability';
 import type { NearEd25519SignerBinding } from '@shared/utils/walletCapabilityBindings';
+import type { ExclusiveUnion } from '@shared/utils/variant';
 
 export type {
   EmailOtpChallengeId,
@@ -245,21 +246,19 @@ type EmailOtpChallengePlan = {
   lane: SelectedSigningSessionPlanningLane;
 };
 
-type PasskeyReconnectPlan =
+type PasskeyReconnectPlan = ExclusiveUnion<
   | {
       lane: SelectedEd25519SigningSessionPlanningLane;
       curve: 'ed25519';
       thresholdSessionId: ThresholdEd25519SessionId;
-      materialActivation?: never;
-      authorization?: never;
     }
   | {
       lane: SelectedEcdsaSigningSessionPlanningLane;
       curve: 'ecdsa';
       materialActivation: MpcMaterialActivationRef;
       authorization: ExactEvmFamilyWalletSessionAuthorization;
-      thresholdSessionId?: never;
-    };
+    }
+>;
 
 export type SigningSessionNotReadyReason =
   | 'missing_session'

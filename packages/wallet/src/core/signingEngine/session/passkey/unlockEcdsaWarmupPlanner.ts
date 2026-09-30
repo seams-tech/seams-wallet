@@ -22,23 +22,13 @@ import {
   type RouterAbEcdsaDerivationPublicCapabilityV1,
 } from '@shared/utils/routerAbEcdsaDerivation';
 import { mpcMaterialActivationRefsEqual } from '@shared/utils/domainIds';
+import type { ExclusiveUnion } from '@shared/utils/variant';
 
-export type WalletUnlockSelection =
-  | {
-      mode: 'ed25519_only';
-      ed25519: true;
-      ecdsa?: never;
-    }
-  | {
-      mode: 'ecdsa_only';
-      ecdsa: true;
-      ed25519?: never;
-    }
-  | {
-      mode: 'ed25519_and_ecdsa';
-      ed25519: true;
-      ecdsa: true;
-    };
+export type WalletUnlockSelection = ExclusiveUnion<
+  | { mode: 'ed25519_only'; ed25519: true }
+  | { mode: 'ecdsa_only'; ecdsa: true }
+  | { mode: 'ed25519_and_ecdsa'; ed25519: true; ecdsa: true }
+>;
 
 type EcdsaUnlockBlockedReason =
   | 'missing_key_handle'
@@ -110,38 +100,19 @@ export type CanonicalThresholdEcdsaWarmSessionContext = {
   runtimePolicyScope?: ThresholdRuntimePolicyScope;
 };
 
-export type ConfiguredTargetKeyCompletion =
-  | {
-      kind: 'complete_configured_target_keys';
-      context: CanonicalThresholdEcdsaWarmSessionContext;
-      missingTargets?: never;
-    }
-  | {
-      kind: 'missing_configured_target_keys';
-      missingTargets: string[];
-      context?: never;
-    };
+export type ConfiguredTargetKeyCompletion = ExclusiveUnion<
+  | { kind: 'complete_configured_target_keys'; context: CanonicalThresholdEcdsaWarmSessionContext }
+  | { kind: 'missing_configured_target_keys'; missingTargets: string[] }
+>;
 
 type EcdsaUnlockRuntimeConfig = {
   allowAuthenticatedKeyFactsInventory: boolean;
   explicitKeyFactsInventoryMode: boolean;
 };
 
-export type EcdsaWarmupPlannerResult =
-  | {
-      kind: 'no_configured_ecdsa_targets';
-      readyTargets?: never;
-      keyTargets?: never;
-      keyFactsInventoryRequiredRecords?: never;
-      blockedRecords?: never;
-    }
-  | {
-      kind: 'ready';
-      readyTargets: EcdsaWarmupReadyTarget[];
-      keyTargets?: never;
-      keyFactsInventoryRequiredRecords?: never;
-      blockedRecords?: never;
-    }
+export type EcdsaWarmupPlannerResult = ExclusiveUnion<
+  | { kind: 'no_configured_ecdsa_targets' }
+  | { kind: 'ready'; readyTargets: EcdsaWarmupReadyTarget[] }
   | {
       kind: 'awaiting_authenticated_key_facts_inventory';
       keyTargets: {
@@ -149,23 +120,13 @@ export type EcdsaWarmupPlannerResult =
         chainTarget: ThresholdEcdsaChainTarget;
       }[];
       keyFactsInventoryRequiredRecords: KeyFactsInventoryRequiredEcdsaSignerRecord[];
-      readyTargets?: never;
-      blockedRecords?: never;
     }
   | {
       kind: 'key_facts_inventory_required';
       keyFactsInventoryRequiredRecords: KeyFactsInventoryRequiredEcdsaSignerRecord[];
-      readyTargets?: never;
-      keyTargets?: never;
-      blockedRecords?: never;
     }
-  | {
-      kind: 'blocked';
-      blockedRecords: BlockedEcdsaSignerRecord[];
-      readyTargets?: never;
-      keyTargets?: never;
-      keyFactsInventoryRequiredRecords?: never;
-    };
+  | { kind: 'blocked'; blockedRecords: BlockedEcdsaSignerRecord[] }
+>;
 
 function walletUnlockSelectionIncludesEcdsa(selection: WalletUnlockSelection): boolean {
   switch (selection.mode) {

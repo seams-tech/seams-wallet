@@ -13,6 +13,7 @@ import type {
   WalletUnlockSubject,
   WalletUnlockSubjectSet,
 } from '@/core/signingEngine/session/identity/walletUnlockSubject';
+import type { ExclusiveUnion, ReadonlyExclusiveUnion } from '@shared/utils/variant';
 
 export type {
   NearEd25519WalletUnlockSubject,
@@ -55,47 +56,23 @@ type WalletIdentityResolveFailure =
   | WalletUnlockCapabilitySubjectResolutionFailure
   | 'invalid_wallet_profile';
 
-export type WalletCapabilitySubjectResolution =
-  | {
-      kind: 'no_session_request';
-      walletId?: never;
-      profileId?: never;
-      subjectSet?: never;
-      source?: never;
-      reason?: never;
-    }
+export type WalletCapabilitySubjectResolution = ExclusiveUnion<
+  | { kind: 'no_session_request' }
   | {
       kind: 'resolved';
       walletId: WalletId;
-      profileId?: never;
       subjectSet: WalletUnlockSubjectSet;
       source: WalletIdentitySource;
-      reason?: never;
     }
   | {
       kind: 'no_session_for_wallet';
       walletId: WalletId;
-      profileId?: never;
       reason: 'missing_requested_capability_subject';
       source: WalletIdentitySource;
-      subjectSet?: never;
     }
-  | {
-      kind: 'unresolvable';
-      walletId: WalletId;
-      profileId?: never;
-      reason: WalletIdentityResolveFailure;
-      subjectSet?: never;
-      source?: never;
-    }
-  | {
-      kind: 'unresolvable_profile';
-      profileId: string;
-      walletId?: never;
-      reason: WalletIdentityResolveFailure;
-      subjectSet?: never;
-      source?: never;
-    };
+  | { kind: 'unresolvable'; walletId: WalletId; reason: WalletIdentityResolveFailure }
+  | { kind: 'unresolvable_profile'; profileId: string; reason: WalletIdentityResolveFailure }
+>;
 
 type WalletSessionReadTarget =
   | {
@@ -112,43 +89,21 @@ type WalletSessionReadTarget =
       profileId?: never;
     };
 
-type LastUsedProfileWalletResolution =
-  | {
-      kind: 'resolved_wallet';
-      walletId: WalletId;
-      reason?: never;
-    }
-  | {
-      kind: 'unresolvable_profile';
-      walletId?: never;
-      reason: WalletIdentityResolveFailure;
-    };
+type LastUsedProfileWalletResolution = ExclusiveUnion<
+  | { kind: 'resolved_wallet'; walletId: WalletId }
+  | { kind: 'unresolvable_profile'; reason: WalletIdentityResolveFailure }
+>;
 
-type NearEd25519WalletUnlockSubjectParseResult =
-  | {
-      readonly kind: 'absent';
-      readonly subject?: never;
-    }
-  | {
-      readonly kind: 'valid';
-      readonly subject: NearEd25519WalletUnlockSubject;
-    }
-  | {
-      readonly kind: 'invalid';
-      readonly subject?: never;
-    };
+type NearEd25519WalletUnlockSubjectParseResult = ReadonlyExclusiveUnion<
+  | { readonly kind: 'absent' }
+  | { readonly kind: 'valid'; readonly subject: NearEd25519WalletUnlockSubject }
+  | { readonly kind: 'invalid' }
+>;
 
-type NearEd25519WalletUnlockSubjectsResolution =
-  | {
-      readonly kind: 'resolved';
-      readonly subjects: readonly NearEd25519WalletUnlockSubject[];
-      readonly reason?: never;
-    }
-  | {
-      readonly kind: 'failed';
-      readonly reason: WalletUnlockCapabilitySubjectResolutionFailure;
-      readonly subjects?: never;
-    };
+type NearEd25519WalletUnlockSubjectsResolution = ReadonlyExclusiveUnion<
+  | { readonly kind: 'resolved'; readonly subjects: readonly NearEd25519WalletUnlockSubject[] }
+  | { readonly kind: 'failed'; readonly reason: WalletUnlockCapabilitySubjectResolutionFailure }
+>;
 
 function requiredWalletUnlockMetadataString(
   metadata: Record<string, unknown> | undefined,

@@ -1,5 +1,6 @@
 import type { TransactionContext } from '@/core/types/rpc';
 import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';
+import type { ExclusiveUnion } from '@shared/utils/variant';
 
 declare const nearOperationStepUpHandleBrand: unique symbol;
 type NearOperationStepUpHandle = string & {
@@ -13,7 +14,7 @@ export type NearOperationStepUpPreparationRef = {
 
 export type NearOperationStepUpPreparationPort = {
   prepare(
-    input:
+    input: ExclusiveUnion<
       | {
           kind: 'near_transaction';
           requestId: string;
@@ -22,14 +23,8 @@ export type NearOperationStepUpPreparationPort = {
           operationFingerprint: string;
           displayDigest: string;
         }
-      | {
-          kind: 'near_signature_only';
-          requestId: string;
-          displayDigest: string;
-          transactionContext?: never;
-          operationId?: never;
-          operationFingerprint?: never;
-        },
+      | { kind: 'near_signature_only'; requestId: string; displayDigest: string }
+    >,
   ): Promise<NearOperationStepUpPreparationRef>;
   cancel(input: { requestId: string; handle?: NearOperationStepUpHandle }): void;
 };

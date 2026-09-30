@@ -14,6 +14,7 @@ import {
   type WalletSessionOperationCredentialV1,
 } from '@shared/device-linking';
 import { isPlainObject } from '@shared/utils/validation';
+import type { ExclusiveUnion } from '@shared/utils/variant';
 
 export type EmailOtpAuthLane = EmailOtpSigningSessionAuthLane;
 
@@ -33,24 +34,17 @@ export type EmailOtpSigningSessionAuthLane =
 
 export type EmailOtpRouteFamily = 'login' | 'registration' | 'signing_session';
 
-export type EmailOtpRoutePlan =
-  | {
-      routeFamily: 'login';
-      authLane?: never;
-      operation: WalletEmailOtpLoginOperation;
-    }
-  | {
-      routeFamily: 'registration';
-      authLane?: never;
-      operation: typeof WALLET_EMAIL_OTP_REGISTRATION_OPERATION;
-    }
+export type EmailOtpRoutePlan = ExclusiveUnion<
+  | { routeFamily: 'login'; operation: WalletEmailOtpLoginOperation }
+  | { routeFamily: 'registration'; operation: typeof WALLET_EMAIL_OTP_REGISTRATION_OPERATION }
   | {
       routeFamily: 'signing_session';
       authLane: EmailOtpSigningSessionAuthLane;
       operation:
         | typeof WALLET_EMAIL_OTP_TRANSACTION_SIGN_OPERATION
         | typeof WALLET_EMAIL_OTP_EXPORT_OPERATION;
-    };
+    }
+>;
 
 function nonEmptyString(value: unknown): string {
   return String(value || '').trim();
@@ -109,24 +103,17 @@ function buildEmailOtpSigningSessionAuthLane(args: {
 }
 
 export function buildEmailOtpRoutePlan(
-  args:
-    | {
-        routeFamily: 'login';
-        authLane?: never;
-        operation: WalletEmailOtpLoginOperation;
-      }
-    | {
-        routeFamily: 'registration';
-        authLane?: never;
-        operation: typeof WALLET_EMAIL_OTP_REGISTRATION_OPERATION;
-      }
+  args: ExclusiveUnion<
+    | { routeFamily: 'login'; operation: WalletEmailOtpLoginOperation }
+    | { routeFamily: 'registration'; operation: typeof WALLET_EMAIL_OTP_REGISTRATION_OPERATION }
     | {
         routeFamily: 'signing_session';
         authLane: EmailOtpSigningSessionAuthLane;
         operation:
           | typeof WALLET_EMAIL_OTP_TRANSACTION_SIGN_OPERATION
           | typeof WALLET_EMAIL_OTP_EXPORT_OPERATION;
-      },
+      }
+  >,
 ): EmailOtpRoutePlan {
   switch (args.routeFamily) {
     case 'registration':

@@ -70,6 +70,7 @@ import type {
   WalletUnlockEmailOtpRequestedCapabilitiesRequestV1,
   WalletUnlockEmailOtpRequestedCapabilitiesV1,
 } from './walletUnlockRequestedCapabilitiesValidation';
+import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 
 type WalletUnlockRouteResponse = {
   status: number;
@@ -280,17 +281,14 @@ type WalletUnlockEmailOtpCustodyResult =
   | { readonly ok: true; readonly projection: WalletUnlockEmailOtpCustodyProjectionV1 }
   | { readonly ok: false; readonly response: WalletUnlockRouteResponse };
 
-type WalletUnlockSessionState =
-  | {
-      readonly kind: 'absent';
-      readonly authorization?: never;
-      readonly operationCredential?: never;
-    }
+type WalletUnlockSessionState = ReadonlyExclusiveUnion<
+  | { readonly kind: 'absent' }
   | {
       readonly kind: 'active';
       readonly authorization: IssuedWalletSessionAuthorizationV2;
       readonly operationCredential: WalletSessionOperationCredentialV1;
-    };
+    }
+>;
 
 type WalletUnlockSessionRefreshResult =
   | { readonly ok: true; readonly state: WalletUnlockSessionState }

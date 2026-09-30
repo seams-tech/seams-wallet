@@ -24,6 +24,7 @@ import {
   type RouterAbSigningWorkerJsonResult,
 } from './routerAbNormalSigningAdmission';
 import type { RouterAbOperationStepUpWalletSession } from './routerAbOperationStepUp';
+import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 
 const ED25519_SIGNING_INTENT_VERSION_V2 = 'router-ab-protocol/ed25519-normal-signing/intent/v2';
 const ED25519_SIGNING_PAYLOAD_VERSION_V2 = 'router-ab-protocol/ed25519-normal-signing/payload/v2';
@@ -99,31 +100,23 @@ type RouterAbPrivateSigningAuthorization =
       readonly session: RouterAbOperationStepUpWalletSession;
     };
 
-type RouterAbOwnerAdmissionAuthV1 =
+type RouterAbOwnerAdmissionAuthV1 = ReadonlyExclusiveUnion<
   | {
       readonly auth: 'owner_wallet_session';
       readonly subject_id: string;
       readonly wallet_session_id: string;
-      readonly authorization_session_id?: never;
     }
   | {
       readonly auth: 'owner_operation_step_up';
       readonly subject_id: string;
       readonly authorization_session_id: string;
-      readonly wallet_session_id?: never;
-    };
-
-type RouterAbNormalSigningPrivateAuthorizationV2 =
-  | {
-      readonly kind: 'reusable_wallet_session';
-      readonly wallet_session_id: string;
-      readonly authorization_session_id?: never;
     }
-  | {
-      readonly kind: 'operation_step_up';
-      readonly authorization_session_id: string;
-      readonly wallet_session_id?: never;
-    };
+>;
+
+type RouterAbNormalSigningPrivateAuthorizationV2 = ReadonlyExclusiveUnion<
+  | { readonly kind: 'reusable_wallet_session'; readonly wallet_session_id: string }
+  | { readonly kind: 'operation_step_up'; readonly authorization_session_id: string }
+>;
 
 type RouterAbNormalSigningTrustedMetadataV1 = {
   readonly org_id: string;

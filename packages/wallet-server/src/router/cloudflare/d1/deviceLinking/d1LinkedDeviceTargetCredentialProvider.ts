@@ -63,6 +63,7 @@ import { linkedDeviceX25519RecipientPublicKeyB64uV1 } from './d1LinkedDeviceSour
 import type { ExactAdministeredSignerV1 } from '@shared/device-linking/delegatedActivationPlan';
 import type { MpcMaterialActivationRef } from '@shared/utils/domainIds';
 import { requireCanonicalString, requireRecord } from '@shared/utils/validation';
+import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 
 export type VerifiedLinkedDeviceWebAuthnCredentialV1 = {
   readonly credentialIdB64u: string;
@@ -95,17 +96,10 @@ export type VerifiedLinkedDeviceEmailOtpGrantV1 =
  * per target factor. A Passkey commit cannot carry a grant and an Email OTP
  * commit cannot carry WebAuthn material.
  */
-export type VerifiedLinkedDeviceTargetFactorEvidenceV1 =
-  | {
-      readonly kind: 'passkey_prf';
-      readonly credential: VerifiedLinkedDeviceWebAuthnCredentialV1;
-      readonly grant?: never;
-    }
-  | {
-      readonly kind: 'email_otp';
-      readonly grant: VerifiedLinkedDeviceEmailOtpGrantV1;
-      readonly credential?: never;
-    };
+export type VerifiedLinkedDeviceTargetFactorEvidenceV1 = ReadonlyExclusiveUnion<
+  | { readonly kind: 'passkey_prf'; readonly credential: VerifiedLinkedDeviceWebAuthnCredentialV1 }
+  | { readonly kind: 'email_otp'; readonly grant: VerifiedLinkedDeviceEmailOtpGrantV1 }
+>;
 
 /**
  * The complete registered-target replay record. It is kept as one payload so
@@ -416,18 +410,14 @@ export class D1LinkedDeviceTargetCredentialProviderV1 implements DeviceLinkingTa
       readonly session: LinkedDeviceSessionRecordV1;
       readonly approval: LinkedDeviceApprovalV1;
       readonly requestedAtMs: number;
-    } & (
+    } & ReadonlyExclusiveUnion<
       | {
           readonly access: 'create_or_replay';
           readonly expectedOrigin: string;
           readonly deliveryRecipientPublicKey65B64u: string;
         }
-      | {
-          readonly access: 'replay_only';
-          readonly expectedOrigin?: never;
-          readonly deliveryRecipientPublicKey65B64u?: never;
-        }
-    ),
+      | { readonly access: 'replay_only' }
+    >,
   ): Promise<LinkedDeviceTargetPreparationResultV1> {
     const persisted = await this.readV1(input.session.linkSessionId);
     if (persisted) {

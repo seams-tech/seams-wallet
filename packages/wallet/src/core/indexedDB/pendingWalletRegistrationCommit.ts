@@ -60,6 +60,7 @@ import {
   type ParsesExactly,
   type WireParser,
 } from '@shared/utils/wireSchema';
+import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 
 type PendingWalletRegistrationEcdsaReplayV1 = {
   readonly activationJournalId: CorrelationId;
@@ -252,18 +253,14 @@ export type PendingNearRegistrationContinuationV1 = PendingWalletRegistrationCom
   readonly baseCustodyCommit: PendingWalletRegistrationEcdsaCustodyCommitV1;
   readonly localMaterial?: never;
   readonly completion?: never;
-} & (
-    | {
-        readonly phase: 'planned';
-        readonly admissionReceipt?: never;
-        readonly checkpointJson?: never;
-      }
+} & ReadonlyExclusiveUnion<
+    | { readonly phase: 'planned' }
     | {
         readonly phase: 'execution_prepared';
         readonly admissionReceipt: RouterAbEd25519YaoActivationAdmissionReceiptV1<'registration'>;
         readonly checkpointJson: string;
       }
-  );
+  >;
 
 function pendingRegistrationIdentity(
   record: PendingWalletRegistrationCommitCommonV1,

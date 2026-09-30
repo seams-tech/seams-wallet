@@ -15,6 +15,7 @@ import type {
 } from '@shared/signing-lanes/ids';
 import type { VerifiedEmailAddress } from '@shared/utils/domainIds';
 import type { WalletAuthMethodId, WalletId } from '@shared/utils/domainIds';
+import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 
 export { LinkDeviceEventPhase } from './sdkSentEvents';
 
@@ -121,27 +122,19 @@ export type LinkedDeviceTargetPasskeyActivationV1 = {
  * OTP remain inside the operation; the browser receives display-safe timing
  * and destination data only.
  */
-export type LinkedDeviceEmailOtpActivationStateV1 =
-  | {
-      readonly kind: 'sending';
-      readonly maskedEmailHint: string;
-      readonly expiresAtMs?: never;
-      readonly resendAvailableAtMs?: never;
-      readonly message?: never;
-    }
+export type LinkedDeviceEmailOtpActivationStateV1 = ReadonlyExclusiveUnion<
+  | { readonly kind: 'sending'; readonly maskedEmailHint: string }
   | {
       readonly kind: 'code_input';
       readonly maskedEmailHint: string;
       readonly expiresAtMs: number;
       readonly resendAvailableAtMs: number;
-      readonly message?: never;
     }
   | {
       readonly kind: 'submitting';
       readonly maskedEmailHint: string;
       readonly expiresAtMs: number;
       readonly resendAvailableAtMs: number;
-      readonly message?: never;
     }
   | {
       readonly kind: 'incorrect';
@@ -150,34 +143,11 @@ export type LinkedDeviceEmailOtpActivationStateV1 =
       readonly resendAvailableAtMs: number;
       readonly message: string;
     }
-  | {
-      readonly kind: 'resending';
-      readonly maskedEmailHint: string;
-      readonly expiresAtMs?: never;
-      readonly resendAvailableAtMs?: never;
-      readonly message?: never;
-    }
-  | {
-      readonly kind: 'expired';
-      readonly maskedEmailHint: string;
-      readonly expiresAtMs?: never;
-      readonly resendAvailableAtMs?: never;
-      readonly message: string;
-    }
-  | {
-      readonly kind: 'unavailable';
-      readonly maskedEmailHint?: never;
-      readonly expiresAtMs?: never;
-      readonly resendAvailableAtMs?: never;
-      readonly message: string;
-    }
-  | {
-      readonly kind: 'completed';
-      readonly maskedEmailHint: string;
-      readonly expiresAtMs?: never;
-      readonly resendAvailableAtMs?: never;
-      readonly message?: never;
-    };
+  | { readonly kind: 'resending'; readonly maskedEmailHint: string }
+  | { readonly kind: 'expired'; readonly maskedEmailHint: string; readonly message: string }
+  | { readonly kind: 'unavailable'; readonly message: string }
+  | { readonly kind: 'completed'; readonly maskedEmailHint: string }
+>;
 
 export type LinkedDeviceTargetEmailOtpActivationV1 = {
   readonly kind: 'linked_device_target_email_otp_activation_v1';
