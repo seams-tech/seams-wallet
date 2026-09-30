@@ -4,10 +4,11 @@ Date: September 29, 2026
 
 Status: policy, claim/readback, operation/source, and persisted owner-scope
 consolidation are implemented and verified in bounded hosted diagnostics. The
-latest local canonical reusable-session ECDSA path makes seven D1 calls per
-signature, down from 18. Local linked-device checkpoints reduce third-generation
+latest canonical reusable-session ECDSA path makes seven D1 calls per
+signature, down from 18, confirmed in a fresh hosted diagnostic. Local linked-device checkpoints reduce third-generation
 signing from 24 to nine calls and directly linked signing from 20 to nine. These
-latest reductions still need controlled hosted latency measurements.
+latest reductions still need controlled hosted latency measurements with verified
+probe and execution placement.
 Active/exhausted credentials are classified in one read. Material snapshots are
 checked atomically at reusable-session claim and finalize/replay admission.
 Reusable-session finalize now resolves existing operations without admitting new claims; a missing
@@ -1443,6 +1444,92 @@ Next steps:
 This checkpoint adds behavioral coverage. The measured call budget remains
 seven canonical and nine linked calls; it makes no new hosted latency or
 regional-placement claim.
+
+### Current-build hosted diagnostic and policy-read disposition — September 30
+
+The policy/material join is deferred at the current boundary. The credential
+projection supplies material candidates; the resolver verifies the canonical
+signer or linked custody chain and establishes the trusted policy scope. A
+separately configured admission adapter then owns policy evaluation. Joining
+policy into the credential projection requires carrying a policy projection
+through those contracts and proving it belongs to the selected verified source,
+including namespace ownership and custom adapter behavior. Running policy after
+claim would change rejection precedence and risk quota effects before denial.
+The current seven-call path preserves those boundaries. This is an explicit
+engineering deferral, not a proof of the theoretical minimum. The live-policy
+E2E now covers the denial and replay invariants for a future redesign.
+
+A fresh SDK build and instrumented benchmark Gateway ran three registration,
+first-sign, and subsequent-sign flows on September 30. All six signatures
+verified. Each signature made **seven D1 calls / eight SQL statements**, with
+**two write-bearing calls / 14 D1-reported rows written**. All 48 signing SQL
+statement results reported APAC and primary service; no signing metadata was
+missing. Linked signing remains measured locally at nine calls.
+
+| Per complete signature | First signing, n=3 | Subsequent signing, n=3 |
+| --- | ---: | ---: |
+| D1 call elapsed, median | 559 ms | 533 ms |
+| D1 call elapsed, range | 557–567 ms | 529–560 ms |
+| SQL execution, median | 12.48 ms | 10.87 ms |
+| Prepare + finalize server time, median | 755 ms | 690 ms |
+| Prepare + finalize server time, range | 716–791 ms | 677–702 ms |
+| Automated browser window, median | 3,029 ms | 3,032 ms |
+| Automated browser window, range | 3,022–7,576 ms | 2,260–7,596 ms |
+
+The two policy calls totaled 734 ms across six signatures, averaging 122 ms
+per signature. This measures their current cost; it does not predict the savings
+from changing their ownership or query shape. Browser windows include harness
+orchestration, automated confirmation, and signature verification. Their excess
+over server time cannot be attributed to D1 or presign refill without a joined
+client/request timeline. Neither these windows nor the server-only totals prove
+the 1–2 second system-controlled maximum.
+
+Provenance and operational checks:
+
+- SDK rebuilt from `4da0e84c83c620081f2faa3e13d7d6b3598aff45` using the
+  existing WASM outputs; freshness and static asset checks passed. SDK artifact
+  SHA-256: `010e9e93991ce6e8597c835690e946aca48c67e1ff8044aa45674adb25f8b1ec`.
+- Instrumented Gateway version: `0e37484b-9118-42c1-a89f-59b5ece3249d`.
+  Bundle SHA-256: `6c9c9dcae2d11a7cb203dfd37e5b012d4152b446406d14356cb359872d6326a8`.
+  Existing database, schema, and five role Worker deployments were retained;
+  role deployment identities were captured during the run.
+- This was an operator-browser diagnostic. Browser, Gateway, and DO physical
+  locations were not independently verified. It is separate from R150's regional
+  cohorts and establishes no regional D1 gain or controlled before/after latency
+  comparison.
+- Both original benchmark ingresses returned 503 during readiness checks. Saved
+  access expiry was `2026-09-30T01:23:06.953Z`. Only the existing DO ingress's
+  expiry was temporarily extended with its existing credential. The baseline
+  Gateway `e1fa8688-6f5a-45bf-862b-442241789e16` and saved expiry were restored;
+  deployment inspection and a 503 health response verify restoration/closure.
+- Three preflight failures remain in separate artifact directories: an immediate
+  readiness failure, followed by two local-origin readiness failures involving
+  an existing IPv4 listener on port 4202. No wallet work ran in those attempts.
+  Explicit IPv6 readiness URLs allowed the final browser run to proceed without
+  disturbing that listener. No container restarts, wallet resets, new credentials,
+  schema changes, or production/staging deployments occurred.
+- Cumulative observed-usage cost estimate: **$0.6462** through
+  `2026-09-30T11:10:28.738Z`, within the $25 cap. Accounting can lag requests;
+  the report applies list rates without shared monthly allowances. Container
+  compute rates were checked against the current
+  [Cloudflare pricing](https://developers.cloudflare.com/containers/platform/pricing/).
+
+Artifacts: `.artifacts/r151/hosted-current-20260930-r4/`, including three full
+browser timing artifacts, `d1-analysis.json`, `summary.json`, build identities,
+role deployment identities, restoration evidence, and cost accounting. Recheck
+with `python3 .runtime/r151-hosted-readiness/analyze.py`. The earlier directories
+without a suffix and with `-r2` / `-r3` retain failed preflights. Access-token and
+private-key marker scans passed for the successful cohort's JSON artifacts.
+The existing D1 trace E2E also passed after the rebuild.
+
+The next executable work is to attribute the browser/server gap using the
+existing client lifecycle and request timings, including foreground refill and
+harness/confirmation time. Then run first/warm/burst and linked-signing cohorts
+on fixed builds with verified probe locations. Compare Gateway placement near
+the existing primary before any R152 regional ownership change. Revisit policy
+projection consolidation if that measured residual justifies the wider contract
+change; retain both durable writes until their invariants have an equivalent
+replacement. R151 remains open for complete latency and placement evidence.
 
 ### 1. Consolidate reads while preserving decision boundaries
 
