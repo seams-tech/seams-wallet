@@ -1,5 +1,6 @@
 import {
   ROUTER_AB_ED25519_YAO_RECOVERY_CHALLENGE_ID_HEADER_V1,
+  sameRouterAbEd25519YaoByteSequence,
   type RouterAbEd25519YaoRecoveryAdmissionRequestV1,
 } from '@shared/utils/routerAbEd25519Yao';
 import { base64UrlEncode } from '@shared/utils/base64';
@@ -51,13 +52,6 @@ export type RouterAbEd25519YaoRecoveryAuthorizationServicesV1 = {
   readonly resolveEd25519MaterialActivation: RouterApiWalletRegistrationService['resolveEd25519MaterialActivation'];
 };
 
-function sameRouterAbEd25519YaoByteSequenceV1(
-  left: readonly number[],
-  right: readonly number[],
-): boolean {
-  return left.length === right.length && left.every((value, index) => value === right[index]);
-}
-
 function sameRouterAbEd25519YaoApplicationBindingV1(
   left: RouterAbEd25519YaoRecoveryAdmissionRequestV1['application_binding'],
   right: RouterAbEd25519YaoRecoveryAdmissionRequestV1['application_binding'],
@@ -99,11 +93,11 @@ async function entryMatchesAdmission(input: {
     ) &&
     input.request.participant_ids[0] === basis.participantIds[0] &&
     input.request.participant_ids[1] === basis.participantIds[1] &&
-    sameRouterAbEd25519YaoByteSequenceV1(
+    sameRouterAbEd25519YaoByteSequence(
       input.request.active_capability_binding,
       basis.activeCapabilityBinding,
     ) &&
-    sameRouterAbEd25519YaoByteSequenceV1(
+    sameRouterAbEd25519YaoByteSequence(
       input.request.registered_public_key,
       basis.registeredPublicKey,
     )
@@ -453,7 +447,7 @@ function exactRecoveryAdmissionMatches(input: {
     request.participant_ids[1] === input.activeMaterial.participantIds[1] &&
     request.participant_ids[0] === identity.participant_ids[0] &&
     request.participant_ids[1] === identity.participant_ids[1] &&
-    sameRouterAbEd25519YaoByteSequenceV1(
+    sameRouterAbEd25519YaoByteSequence(
       request.registered_public_key,
       identity.registered_public_key,
     )

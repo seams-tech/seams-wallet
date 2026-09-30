@@ -516,7 +516,7 @@ export async function prepareOwnerWalletExecution(input: {
     return refused('capability_mismatch');
   }
   if (
-    !sameMaterialActivation(
+    !mpcMaterialActivationRefsEqual(
       input.evidence.materialActivation,
       input.evidence.expectedMaterialActivation,
     )
@@ -600,20 +600,6 @@ function operationMatchesWalletKey(
     case 'ecdsa_secp256k1':
       return operation.operation.operation.capabilityKind === CAPABILITY_KINDS.evmEcdsaMpcSigning;
   }
-}
-
-function sameMaterialActivation(
-  left: MpcMaterialActivationRef,
-  right: MpcMaterialActivationRef,
-): boolean {
-  return (
-    left.activationId === right.activationId &&
-    left.capability === right.capability &&
-    left.materialOwner === right.materialOwner &&
-    left.keyBinding === right.keyBinding &&
-    left.lifecycleBinding === right.lifecycleBinding &&
-    left.signingWorker === right.signingWorker
-  );
 }
 
 function refused(

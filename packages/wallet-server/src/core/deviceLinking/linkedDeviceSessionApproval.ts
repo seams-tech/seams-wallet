@@ -18,7 +18,10 @@ import {
   routerAbMpcMaterialActivationRefFromWire,
   sameRouterAbMpcMaterialActivationRef,
 } from '@shared/utils/routerAbNormalSigningIdentity';
-import type { RouterAbEd25519YaoCeremonyBindingV1 } from '@shared/utils/routerAbEd25519Yao';
+import {
+  sameRouterAbEd25519YaoByteSequence,
+  type RouterAbEd25519YaoCeremonyBindingV1,
+} from '@shared/utils/routerAbEd25519Yao';
 import { type LinkedDeviceSessionRecordV1, parseDeviceIdValue } from './linkedDeviceSessionRecord';
 
 export function validateApprovalMatchesSession(
@@ -248,11 +251,4 @@ function linkedDeviceEd25519BindingsEqualV1(
     left.lifecycle.signer_set_id === right.lifecycle.signer_set_id &&
     left.lifecycle.selected_server_id === right.lifecycle.selected_server_id
   );
-}
-
-function sameRouterAbEd25519YaoByteSequence(
-  left: readonly number[],
-  right: readonly number[],
-): boolean {
-  return left.length === right.length && left.every((value, index) => value === right[index]);
 }

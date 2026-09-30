@@ -13,6 +13,7 @@ import type {
 } from '../../../../authorization/vaultProxyUse';
 import { parseVaultProxyDestination } from '../../../../authorization/vaultProxyUse';
 import type { D1DatabaseLike } from '../../../../storage/tenantRoute';
+import { toArrayBufferCopy } from '../../../../core/authService/portableCrypto';
 
 const VAULT_PROXY_SECRET_AAD_DOMAIN_V1 = 'seams:vault:proxy-secret:v1';
 const AES_GCM_NONCE_BYTES = 12;
@@ -41,12 +42,12 @@ export class CloudflareD1VaultProxyStore implements VaultProxySecretStore {
       const ciphertext = await crypto.subtle.encrypt(
         {
           name: 'AES-GCM',
-          iv: toArrayBuffer(nonce),
-          additionalData: toArrayBuffer(aad(input)),
+          iv: toArrayBufferCopy(nonce),
+          additionalData: toArrayBufferCopy(aad(input)),
           tagLength: 128,
         },
         await this.key,
-        toArrayBuffer(plaintext),
+        toArrayBufferCopy(plaintext),
       );
       await this.database
         .prepare(
@@ -119,12 +120,12 @@ export class CloudflareD1VaultProxyStore implements VaultProxySecretStore {
         await crypto.subtle.decrypt(
           {
             name: 'AES-GCM',
-            iv: toArrayBuffer(nonce),
-            additionalData: toArrayBuffer(aad(input)),
+            iv: toArrayBufferCopy(nonce),
+            additionalData: toArrayBufferCopy(aad(input)),
             tagLength: 128,
           },
           await this.key,
-          toArrayBuffer(ciphertext),
+          toArrayBufferCopy(ciphertext),
         ),
       );
     } finally {
@@ -138,7 +139,7 @@ async function importEncryptionKey(bytes: Uint8Array): Promise<CryptoKey> {
   try {
     return await crypto.subtle.importKey(
       'raw',
-      toArrayBuffer(bytes),
+      toArrayBufferCopy(bytes),
       { name: 'AES-GCM' },
       false,
       ['encrypt', 'decrypt'],
@@ -186,10 +187,4 @@ function requireCompactString(value: unknown, label: string): string {
     throw new Error(`vault proxy ${label} is invalid`);
   }
   return value;
-}
-
-function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
-  const copy = new ArrayBuffer(bytes.byteLength);
-  new Uint8Array(copy).set(bytes);
-  return copy;
 }

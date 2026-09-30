@@ -21,6 +21,7 @@ import {
   parseRevokeSigningLaneV1,
 } from '@shared/signing-lanes/rotationParsers';
 import { base64UrlDecode } from '@shared/utils/base64';
+import { ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1 } from '../../../core/ThresholdService/routerAb/internalServiceHttp';
 import {
   parseDigestB64u,
   sha256DigestB64u,
@@ -1179,7 +1180,7 @@ async function postSigningWorkerJsonV1(input: {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
-        'x-router-ab-internal-service-auth': input.internalServiceAuth,
+        [ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1]: input.internalServiceAuth,
       },
       body: JSON.stringify(input.body),
     }),

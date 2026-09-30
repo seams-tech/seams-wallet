@@ -58,6 +58,7 @@ import {
   type ExactNearEd25519WalletSessionAuthorization,
   type NearEd25519WalletSessionAuthorizationReadResult,
 } from '../material/nearEd25519YaoSigningPreparation';
+import { materialActivationKey } from '../sealedRecovery/materialActivationKey';
 import type { Ed25519YaoPublicCapabilityLaneReferenceV1 } from '../../threshold/ed25519/yaoPublicCapabilityReferences';
 import type { DelegatedWalletAuthorityV1 } from '@shared/authorization/delegatedAuthority';
 import type {
@@ -199,19 +200,6 @@ function ecdsaAuthorizationPolicyMatchesLane(
     lane.remainingUses === authorization.runtime.remainingUses &&
     lane.expiresAtMs === authorization.runtime.expiresAtMs
   );
-}
-
-function materialActivationKey(activation: MpcMaterialActivationRef): string {
-  return [
-    activation.activationId,
-    activation.capability,
-    activation.materialOwner,
-    activation.keyBinding,
-    activation.lifecycleBinding,
-    activation.signingWorker,
-  ]
-    .map((part) => encodeURIComponent(String(part)))
-    .join(':');
 }
 
 type EcdsaLaneRecordFactSource = 'canonical_capability' | 'active_wallet_authority';

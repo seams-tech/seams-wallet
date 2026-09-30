@@ -10,12 +10,7 @@ import {
   parsePasskeyCustodyEnvelopeRecord,
   type PasskeyCustodyEnvelopeRecord,
 } from '@shared/passkey-custody';
-import {
-  mpcMaterialActivationRefsEqual,
-  parseWalletId,
-  type WalletAuthMethodId,
-  type WalletId,
-} from '@shared/utils/domainIds';
+import { parseWalletId, type WalletAuthMethodId, type WalletId } from '@shared/utils/domainIds';
 import type { RecoveryCodeReservationId } from '@shared/wallet-recovery/recoveryCodeReservation';
 import {
   parseRecoveryCodeLocatorV1,
@@ -33,9 +28,11 @@ import {
   sameVerifiedActiveWalletAuthorityV1,
   walletAuthorityDigestsMatchV1,
   type ActiveWalletAuthorityV1,
-  type WalletEcdsaSignerActivationV1,
-  type WalletEd25519SignerActivationV1,
 } from '@shared/authorization';
+import {
+  sameWalletEcdsaSignerActivationV1,
+  sameWalletEd25519SignerActivationV1,
+} from '@shared/authorization/walletSignerActivationEquality';
 import type { VersionedJsonObject } from '../../../framework/versionedJsonRecordStore';
 import type { D1DatabaseLike, D1PreparedStatementLike } from '../../../../storage/tenantRoute';
 import { D1_BATCH_CAS_GUARD_SQL } from '../../../../storage/d1Sql';
@@ -108,37 +105,6 @@ function sameWalletSignerActivationSetV1(
     leftEd25519 === undefined ||
     rightEd25519 === undefined ||
     sameWalletEd25519SignerActivationV1(leftEd25519, rightEd25519)
-  );
-}
-
-function sameWalletEcdsaSignerActivationV1(
-  left: WalletEcdsaSignerActivationV1,
-  right: WalletEcdsaSignerActivationV1,
-): boolean {
-  return (
-    left.kind === right.kind &&
-    left.signer.kind === right.signer.kind &&
-    left.signer.keyFamily === right.signer.keyFamily &&
-    left.signer.walletId === right.signer.walletId &&
-    left.signer.walletKeyId === right.signer.walletKeyId &&
-    left.signer.thresholdPublicKey33B64u === right.signer.thresholdPublicKey33B64u &&
-    left.signer.evmAddress === right.signer.evmAddress &&
-    mpcMaterialActivationRefsEqual(left.materialActivation, right.materialActivation)
-  );
-}
-
-function sameWalletEd25519SignerActivationV1(
-  left: WalletEd25519SignerActivationV1,
-  right: WalletEd25519SignerActivationV1,
-): boolean {
-  return (
-    left.kind === right.kind &&
-    left.signer.kind === right.signer.kind &&
-    left.signer.keyFamily === right.signer.keyFamily &&
-    left.signer.walletId === right.signer.walletId &&
-    left.signer.walletKeyId === right.signer.walletKeyId &&
-    left.signer.registeredPublicKeyB64u === right.signer.registeredPublicKeyB64u &&
-    mpcMaterialActivationRefsEqual(left.materialActivation, right.materialActivation)
   );
 }
 

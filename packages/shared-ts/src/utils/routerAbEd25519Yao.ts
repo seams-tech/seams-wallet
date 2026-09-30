@@ -218,7 +218,7 @@ export function sameRouterAbEd25519YaoActivationBindingV1(
   );
 }
 
-function sameRouterAbEd25519YaoByteSequence(
+export function sameRouterAbEd25519YaoByteSequence(
   left: readonly number[],
   right: readonly number[],
 ): boolean {

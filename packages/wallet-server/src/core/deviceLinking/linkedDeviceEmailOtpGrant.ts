@@ -38,7 +38,7 @@ import {
   type LinkedDeviceEnrollmentId,
   type LinkedDeviceId,
 } from '@shared/signing-lanes/ids';
-import { parseUnixMs } from '@shared/passkey-custody/primitives';
+import { parseUnixMs, requireParsed } from '@shared/passkey-custody/primitives';
 import type { LinkedDeviceEmailOtpEnrollmentSelectionV1 } from '@shared/device-linking/contracts';
 import { requireRecord } from '@shared/utils/validation';
 import { rejectUnknownFields } from '@shared/utils/exactRecord';
@@ -375,14 +375,4 @@ function requireGrantDigest(raw: unknown, label: string): DigestB64u {
   } catch (error) {
     throw new Error(`${label} ${error instanceof Error ? error.message : 'is invalid'}`);
   }
-}
-
-function requireParsed<T>(
-  parsed:
-    | { readonly ok: true; readonly value: T }
-    | { readonly ok: false; readonly error: { readonly message: string } },
-  label: string,
-): T {
-  if (!parsed.ok) throw new Error(`${label} ${parsed.error.message}`);
-  return parsed.value;
 }

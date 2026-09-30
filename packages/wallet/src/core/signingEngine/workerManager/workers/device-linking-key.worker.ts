@@ -19,6 +19,7 @@ import {
 import { computeWalletSessionOperationCredentialDigestB64u } from '@shared/device-linking/digests';
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
 import { alphabetizeStringify } from '@shared/utils/digests';
+import { EMAIL_OTP_FACTOR_RELEASE_AAD_DOMAIN_V1 } from '@shared/utils/emailOtpDomain';
 import { sha256Utf8DigestB64u } from '@shared/utils/canonicalPrimitives';
 import { mpcMaterialActivationRefsEqual } from '@shared/utils/domainIds';
 import { routerAbMpcMaterialActivationRefFromWire } from '@shared/utils/routerAbNormalSigningIdentity';
@@ -983,8 +984,6 @@ async function createEmailOtpEd25519ExportRootRecipient(
   return { recipientPublicKeyB64u: recipient.public_key_b64u() };
 }
 
-const EMAIL_OTP_FACTOR_RELEASE_AAD_PREFIX = 'seams/email-otp/factor-release/v1';
-
 async function decryptEmailOtpFactorReleaseEnvelope(input: {
   readonly slot: DeviceLinkingKeySlotV1;
   readonly walletId: string;
@@ -999,7 +998,7 @@ async function decryptEmailOtpFactorReleaseEnvelope(input: {
     slot: input.slot,
     envelope: release,
     aad: () =>
-      `${EMAIL_OTP_FACTOR_RELEASE_AAD_PREFIX}\0${input.walletId}\0${release.enrollmentId}\0${release.enrollmentSealKeyVersion}\0${release.challengeId}`,
+      `${EMAIL_OTP_FACTOR_RELEASE_AAD_DOMAIN_V1}\0${input.walletId}\0${release.enrollmentId}\0${release.enrollmentSealKeyVersion}\0${release.challengeId}`,
   });
   if (factorSecret.length !== 32) {
     factorSecret.fill(0);

@@ -1,4 +1,5 @@
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/encoders';
+import { EMAIL_OTP_FACTOR_RELEASE_AAD_DOMAIN_V1 } from '@shared/utils/emailOtpDomain';
 import { isPlainObject, toOptionalTrimmedString } from '@shared/utils/validation';
 import type { RouterApiEmailOtpRouteService } from '../../framework/authServicePort';
 import { emailOtpStatusCode } from './emailOtpSessionRouteHelpers';
@@ -7,8 +8,6 @@ type EmailOtpRouteResponse = {
   status: number;
   body: Record<string, unknown>;
 };
-
-const EMAIL_OTP_FACTOR_RELEASE_AAD_DOMAIN = 'seams/email-otp/factor-release/v1';
 
 function decodeEmailOtpFactorSecret32(value: string): Uint8Array {
   const magnitude = base64UrlDecode(value);
@@ -30,7 +29,7 @@ function emailOtpFactorReleaseAad(input: {
 }): Uint8Array {
   return new TextEncoder().encode(
     [
-      EMAIL_OTP_FACTOR_RELEASE_AAD_DOMAIN,
+      EMAIL_OTP_FACTOR_RELEASE_AAD_DOMAIN_V1,
       input.walletId,
       input.enrollmentId,
       input.enrollmentSealKeyVersion,

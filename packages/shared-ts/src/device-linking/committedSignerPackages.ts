@@ -38,6 +38,7 @@ import {
   parseRouterAbEd25519YaoApplicationBindingFactsV1,
   parseRouterAbEd25519YaoCeremonyBindingV1,
   parseRouterAbEd25519YaoParticipantIdsV1,
+  sameRouterAbEd25519YaoByteSequence,
   type RouterAbEd25519YaoApplicationBindingFactsV1,
   type RouterAbEd25519YaoActivationPublicReceiptV1,
   type RouterAbEd25519YaoActivationClientPackageV1,
@@ -366,8 +367,8 @@ function parseEd25519Package(raw: unknown): CommittedEd25519SignerPackageV1 {
     'deriver_b',
   );
   if (
-    !sameBytes(activationReceipt.transcript, deriverA.transcript) ||
-    !sameBytes(activationReceipt.transcript, deriverB.transcript)
+    !sameRouterAbEd25519YaoByteSequence(activationReceipt.transcript, deriverA.transcript) ||
+    !sameRouterAbEd25519YaoByteSequence(activationReceipt.transcript, deriverB.transcript)
   ) {
     throw new Error('CommittedEd25519SignerPackageV1 receipt transcript does not match packages');
   }
@@ -577,10 +578,6 @@ function parseCommittedEcdsaSignerPackageWireV1(
 
 function inspectRawObject(raw: unknown): object | null {
   return raw !== null && typeof raw === 'object' && !Array.isArray(raw) ? raw : null;
-}
-
-function sameBytes(left: readonly number[], right: readonly number[]): boolean {
-  return left.length === right.length && left.every((value, index) => value === right[index]);
 }
 
 function requireExactWireFields(record: object, keys: readonly string[], label: string): void {

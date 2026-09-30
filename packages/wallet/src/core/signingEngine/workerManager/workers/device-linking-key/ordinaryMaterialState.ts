@@ -11,6 +11,7 @@ import { sameRouterAbMpcMaterialActivationRef } from '@shared/utils/routerAbNorm
 import {
   sameRouterAbEd25519YaoActivationBindingV1,
   sameRouterAbEd25519YaoActivationKeysetV1,
+  sameRouterAbEd25519YaoByteSequence,
 } from '@shared/utils/routerAbEd25519Yao';
 import type {
   DeviceLinkingOrdinarySignerMaterialRecipientPreparationV1,
@@ -241,8 +242,11 @@ function sameOrdinaryEd25519SourceBinding(
 ): boolean {
   return (
     left.operation === right.operation &&
-    sameNumberArray(left.session_id, right.session_id) &&
-    sameNumberArray(left.stable_key_context_binding, right.stable_key_context_binding) &&
+    sameRouterAbEd25519YaoByteSequence(left.session_id, right.session_id) &&
+    sameRouterAbEd25519YaoByteSequence(
+      left.stable_key_context_binding,
+      right.stable_key_context_binding,
+    ) &&
     left.lifecycle.lifecycle_id === right.lifecycle.lifecycle_id &&
     left.lifecycle.work_kind === right.lifecycle.work_kind &&
     left.lifecycle.primitive_request_kind === right.lifecycle.primitive_request_kind &&
@@ -265,10 +269,6 @@ function sameOrdinaryEd25519ApplicationBinding(
     left.signing_root_id === right.signing_root_id &&
     left.key_creation_signer_slot === right.key_creation_signer_slot
   );
-}
-
-function sameNumberArray(left: readonly number[], right: readonly number[]): boolean {
-  return left.length === right.length && left.every((value, index) => value === right[index]);
 }
 
 export function sameOrdinaryTargetFactorAndPreparations(

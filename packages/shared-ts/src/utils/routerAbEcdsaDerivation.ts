@@ -124,7 +124,7 @@ export type RouterAbEcdsaDerivationPublicIdentityV1 = {
   server_share_retry_counter: number;
 };
 
-export type RouterAbServerIdentityV1 = {
+type RouterAbServerIdentityV1 = {
   server_id: string;
   key_epoch: string;
   recipient_encryption_key: string;
@@ -2053,7 +2053,7 @@ export function sameRouterAbEcdsaVerifiedClientActivationFactsV1(
   );
 }
 
-function sameRegistrationSignerSet(
+export function sameRegistrationSignerSet(
   left: RouterAbEcdsaDerivationSignerSetV1,
   right: RouterAbEcdsaDerivationSignerSetV1,
 ): boolean {
@@ -2744,7 +2744,7 @@ export function sameRouterAbPublicDigest32V1Wire(
   );
 }
 
-function sameRegistrationRecipientKeys(
+export function sameRegistrationRecipientKeys(
   left: RouterAbEcdsaRegistrationRecipientKeysV1,
   right: RouterAbEcdsaRegistrationRecipientKeysV1,
 ): boolean {

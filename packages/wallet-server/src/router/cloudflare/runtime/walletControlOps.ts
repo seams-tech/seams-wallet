@@ -1,3 +1,4 @@
+import { ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1 } from '../../../core/ThresholdService/routerAb/internalServiceHttp';
 import type { CloudflareServiceBindingFetcher } from './routerAbServiceBindings';
 import type { WalletRuntimeServiceBinding } from './walletRuntimeOps';
 
@@ -200,7 +201,7 @@ export async function handleWalletControlRequest(
       redirect: 'manual',
       headers: {
         'content-type': contentType,
-        'x-router-ab-internal-service-auth': requireInternalServiceAuth(env),
+        [ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1]: requireInternalServiceAuth(env),
       },
       body,
     }),

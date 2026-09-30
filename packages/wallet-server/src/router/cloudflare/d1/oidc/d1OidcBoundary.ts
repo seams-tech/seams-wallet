@@ -1,9 +1,7 @@
 import { base64UrlDecode } from '@shared/utils/encoders';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
-import {
-  toArrayBufferCopy,
-  toRecordValue,
-} from '../auth/d1RouterApiAuthBoundary';
+import { toArrayBufferCopy } from '../../../../core/authService/portableCrypto';
+import { toRecordValue } from '../auth/d1RouterApiAuthBoundary';
 
 export type JsonWebKeyCache = {
   readonly keysByKid: Map<string, JsonWebKey>;

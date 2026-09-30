@@ -4,6 +4,7 @@
  */
 import { initializeWasm, resolveWasmUrl } from '@/core/walletRuntimePaths/wasm-loader';
 import { base64UrlDecode } from '@shared/utils/encoders';
+import { EMAIL_OTP_FACTOR_RELEASE_AAD_DOMAIN_V1 } from '@shared/utils/emailOtpDomain';
 import {
   decodeEmailOtpEscrowSecret32,
   type EmailOtpEscrowSecret32DecodeResult,
@@ -156,8 +157,6 @@ export async function addClientSealFromBytes(args: {
   );
 }
 
-const EMAIL_OTP_FACTOR_RELEASE_AAD_PREFIX = 'seams/email-otp/factor-release/v1';
-
 type EmailOtpFactorReleaseEnvelope = {
   readonly kind: 'email_otp_factor_release_v1';
   readonly challengeId: string;
@@ -220,7 +219,7 @@ export async function openEmailOtpFactorReleaseCiphertext(args: {
       'decrypt',
     ]);
     aad = new TextEncoder().encode(
-      `${EMAIL_OTP_FACTOR_RELEASE_AAD_PREFIX}\0${args.walletId}\0${args.enrollmentId}\0${args.enrollmentSealKeyVersion}\0${args.challengeId}`,
+      `${EMAIL_OTP_FACTOR_RELEASE_AAD_DOMAIN_V1}\0${args.walletId}\0${args.enrollmentId}\0${args.enrollmentSealKeyVersion}\0${args.challengeId}`,
     );
     factorSecret32 = new Uint8Array(
       await args.subtle.decrypt(

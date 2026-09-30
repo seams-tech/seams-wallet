@@ -5,6 +5,10 @@ import type {
   ThresholdStoreConfigInput,
 } from '../../types';
 import { RedisTcpClient, UpstashRedisRestClient, redisGetJson, redisSetJson } from '../kv';
+import {
+  EXPORT_REPLAY_GUARD_CLOCK_SKEW_MS,
+  EXPORT_REPLAY_GUARD_MIN_RETENTION_MS,
+} from './exportReplayGuard';
 import { toOptionalTrimmedString, isPlainObject } from '@shared/utils/validation';
 import {
   WALLET_SESSION_FAILURE_CODES,
@@ -87,8 +91,6 @@ export type WalletSessionStatusLookupResult<TRecord extends WalletSessionRecord>
       >;
     };
 
-const EXPORT_REPLAY_GUARD_CLOCK_SKEW_MS = 5 * 60_000;
-const EXPORT_REPLAY_GUARD_MIN_RETENTION_MS = 24 * 60 * 60_000;
 type WalletSessionStoreConfigRecord = Record<string, unknown>;
 
 export interface WalletSessionStore<TRecord extends WalletSessionRecord> {

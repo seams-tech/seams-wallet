@@ -9,13 +9,13 @@ import { base64UrlEncode } from '@shared/utils/base64';
 import type { WalletAuthAuthorityRef } from '@shared/utils/walletAuthAuthority';
 import {
   parseRouterAbEcdsaRegistrationActivationReceiptV1,
+  sameRegistrationRecipientKeys,
+  sameRegistrationSignerSet,
+  sameRouterAbEcdsaDerivationPublicIdentityV1,
+  sameRouterAbServerIdentityV1,
   type RouterAbEcdsaDerivationPublicCapabilityV1,
-  type RouterAbEcdsaDerivationPublicIdentityV1,
-  type RouterAbEcdsaDerivationSignerSetV1,
   type RouterAbEcdsaDerivationNormalSigningStateV1,
-  type RouterAbEcdsaRegistrationRecipientKeysV1,
   type RouterAbEcdsaRegistrationActivationReceiptV1,
-  type RouterAbServerIdentityV1,
 } from '@shared/utils/routerAbEcdsaDerivation';
 import {
   routerAbMpcMaterialActivationRefFromWire,
@@ -1241,64 +1241,6 @@ function assertDurableMaterialMatchesActivation(
   });
 }
 
-function routerAbEcdsaPublicIdentitiesEqual(
-  left: RouterAbEcdsaDerivationPublicIdentityV1,
-  right: RouterAbEcdsaDerivationPublicIdentityV1,
-): boolean {
-  return (
-    left.context_binding_b64u === right.context_binding_b64u &&
-    left.derivation_client_share_public_key33_b64u ===
-      right.derivation_client_share_public_key33_b64u &&
-    left.server_public_key33_b64u === right.server_public_key33_b64u &&
-    left.threshold_public_key33_b64u === right.threshold_public_key33_b64u &&
-    left.ethereum_address20_b64u === right.ethereum_address20_b64u &&
-    left.client_share_retry_counter === right.client_share_retry_counter &&
-    left.server_share_retry_counter === right.server_share_retry_counter
-  );
-}
-
-function routerAbServerIdentitiesEqual(
-  left: RouterAbServerIdentityV1,
-  right: RouterAbServerIdentityV1,
-): boolean {
-  return (
-    left.server_id === right.server_id &&
-    left.key_epoch === right.key_epoch &&
-    left.recipient_encryption_key === right.recipient_encryption_key
-  );
-}
-
-function routerAbEcdsaSignerSetsEqual(
-  left: RouterAbEcdsaDerivationSignerSetV1,
-  right: RouterAbEcdsaDerivationSignerSetV1,
-): boolean {
-  return (
-    left.signer_set_id === right.signer_set_id &&
-    left.policy === right.policy &&
-    left.signer_a.role === right.signer_a.role &&
-    left.signer_a.signer_id === right.signer_a.signer_id &&
-    left.signer_a.key_epoch === right.signer_a.key_epoch &&
-    left.signer_b.role === right.signer_b.role &&
-    left.signer_b.signer_id === right.signer_b.signer_id &&
-    left.signer_b.key_epoch === right.signer_b.key_epoch &&
-    routerAbServerIdentitiesEqual(left.selected_server, right.selected_server)
-  );
-}
-
-function routerAbEcdsaRecipientKeysEqual(
-  left: RouterAbEcdsaRegistrationRecipientKeysV1,
-  right: RouterAbEcdsaRegistrationRecipientKeysV1,
-): boolean {
-  return (
-    left.deriver_a.role === right.deriver_a.role &&
-    left.deriver_a.key_epoch === right.deriver_a.key_epoch &&
-    left.deriver_a.public_key === right.deriver_a.public_key &&
-    left.deriver_b.role === right.deriver_b.role &&
-    left.deriver_b.key_epoch === right.deriver_b.key_epoch &&
-    left.deriver_b.public_key === right.deriver_b.public_key
-  );
-}
-
 export function routerAbEcdsaDerivationPublicCapabilitiesEqual(
   left: RouterAbEcdsaDerivationPublicCapabilityV1,
   right: RouterAbEcdsaDerivationPublicCapabilityV1,
@@ -1307,10 +1249,10 @@ export function routerAbEcdsaDerivationPublicCapabilitiesEqual(
     left.kind === right.kind &&
     left.context.application_binding_digest_b64u ===
       right.context.application_binding_digest_b64u &&
-    routerAbEcdsaPublicIdentitiesEqual(left.public_identity, right.public_identity) &&
+    sameRouterAbEcdsaDerivationPublicIdentityV1(left.public_identity, right.public_identity) &&
     sameRouterAbMpcMaterialActivationRef(left.material_activation, right.material_activation) &&
-    routerAbEcdsaSignerSetsEqual(left.signer_set, right.signer_set) &&
-    routerAbEcdsaRecipientKeysEqual(left.deriver_recipient_keys, right.deriver_recipient_keys) &&
+    sameRegistrationSignerSet(left.signer_set, right.signer_set) &&
+    sameRegistrationRecipientKeys(left.deriver_recipient_keys, right.deriver_recipient_keys) &&
     left.router_id === right.router_id &&
     left.client_id === right.client_id &&
     left.activation_epoch === right.activation_epoch &&
@@ -1345,11 +1287,11 @@ function assertNormalSigningMatchesActivation(input: {
     scope.signing_root_version !== String(input.activationBinding.signer.signingRootVersion) ||
     scope.context.application_binding_digest_b64u !==
       input.receipt.ecdsa_activation.context.application_binding_digest_b64u ||
-    !routerAbEcdsaPublicIdentitiesEqual(
+    !sameRouterAbEcdsaDerivationPublicIdentityV1(
       scope.public_identity,
       input.receipt.ecdsa_activation.public_identity,
     ) ||
-    !routerAbServerIdentitiesEqual(
+    !sameRouterAbServerIdentityV1(
       scope.signing_worker,
       input.receipt.ecdsa_activation.signing_worker,
     ) ||

@@ -4,6 +4,10 @@
 // (by re-exporting from their Worker entrypoint) without vendoring the code.
 
 import { isPlainObject } from '@shared/utils/validation';
+import {
+  EXPORT_REPLAY_GUARD_CLOCK_SKEW_MS,
+  EXPORT_REPLAY_GUARD_MIN_RETENTION_MS,
+} from '../../../core/ThresholdService/stores/exportReplayGuard';
 
 type DurableObjectStorageLike = {
   get(key: string): Promise<unknown>;
@@ -19,9 +23,6 @@ type DurableObjectStateLike = {
 type DoOk<T> = { ok: true; value: T };
 type DoErr = { ok: false; code: string; message: string };
 type DoResp<T> = DoOk<T> | DoErr;
-
-const EXPORT_REPLAY_GUARD_CLOCK_SKEW_MS = 5 * 60_000;
-const EXPORT_REPLAY_GUARD_MIN_RETENTION_MS = 24 * 60 * 60_000;
 
 type DoReq =
   | { op: 'get'; key: string }
