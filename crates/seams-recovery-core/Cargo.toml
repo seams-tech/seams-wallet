@@ -24,7 +24,6 @@ zeroize = { version = "1.8", features = ["zeroize_derive"] }
 [dev-dependencies]
 base64ct = { version = "1.6", features = ["alloc"] }
 ed25519-dalek = { version = "2.1", default-features = false }
-hex = "0.4"
 sha2 = "0.10"
 rand_chacha_09 = { package = "rand_chacha", version = "0.9", default-features = false }
 
