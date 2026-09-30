@@ -4,9 +4,10 @@ Date: September 29, 2026
 
 Status: policy, claim/readback, operation/source, and persisted owner-scope
 consolidation are implemented and verified in bounded hosted diagnostics. The
-canonical reusable-session ECDSA path makes 10 D1 calls per signature, down from
-18. Local linked-device checkpoints reduce third-generation signing from 24
-to 12 calls and directly linked signing from 20 to 12.
+latest local canonical reusable-session ECDSA path makes eight D1 calls per
+signature, down from 18. Local linked-device checkpoints reduce third-generation
+signing from 24 to 10 calls and directly linked signing from 20 to 10. These
+latest reductions still need controlled hosted latency measurements.
 Active/exhausted credentials are classified in one read. Material snapshots are
 checked atomically at reusable-session claim and finalize/replay admission.
 Further call reduction and the minimum-call-budget review remain open; regional
@@ -926,6 +927,49 @@ quota/replay outcomes, and private trace hashes. Reproduce with
 `python3 .runtime/r151-session-material/analyze.py`. The temporary Gateway
 measurement wrapper is restored. No hosted resources changed.
 
+### Reuse the verified NEAR rehydration result (September 30)
+
+Current-build initiator evidence identified another sequential duplicate inside
+one signing operation. After refreshing the page, NEAR rehydration activates
+its restored client and resolves the published signing lane. Its initiating
+caller then immediately resolved the same lane again, with no intervening
+local material or authority mutation. The second inventory includes a status POST.
+
+Rehydration now returns the verified operation material with its rebound subject.
+The initiating caller uses that material directly. A caller joining an already
+running rehydration still resolves the rebound subject itself. The live-client
+branch retains its existing single verification, and a failed post-activation
+verification still disposes the restored client. Subsequent signing authorization
+and server admission retain their existing freshness checks. No cross-operation
+cache is introduced.
+
+The matched Workers mixed-wallet lifecycle falls from 57 to 56 status POSTs:
+warm signing falls from 19 to 18 and lane inventory/discovery from 24 to 23.
+Registration, unlock, refresh/export, and step-up counts are unchanged. This is
+a bounded browser lifecycle count including background work; it does not change
+the measured ECDSA Gateway budget of eight canonical or 10 linked D1 calls.
+No complete-latency or hosted-placement improvement is established.
+
+Seven scenario/profile checks pass: refresh/signing/step-up/export on Workers
+D1, wallet-DO, and VM; immediate export/shared-quota signing; three-device mixed
+signing and export; linked-device revocation; and recovery retirement on Workers
+D1. Each lifecycle profile records 56 status POSTs. SDK build/type checking,
+intended and wallet-state type checks, and the bloat check pass. Hosted resources
+are unchanged.
+
+Evidence and reproduction commands are retained in
+`.artifacts/r151/near-read-20260930/analysis.json`, with current SDK/server hashes,
+caller stacks, source hashes, and private lifecycle trace hashes. Reproduce the
+current build with `pnpm -C packages/wallet build:sdk`, then
+`node .runtime/r151-near-read/run.mjs after-workers workers e2e/intended-behaviours/passkey.unlock.contract.test.ts 'page refresh hydrates warm signing'`,
+`node .runtime/r151-near-read/verify.mjs`, and
+`python3 .runtime/r151-near-read/analyze.py`.
+
+Remaining status work requires identifying equivalent overlapping reads and
+intervening transitions in additional caller traces before sharing their scope.
+The minimum safe call-budget review and controlled hosted workload/placement
+measurements remain open.
+
 ### Remaining call and write inventory (September 30)
 
 The canonical reusable-session path has four foreground Gateway D1 calls per
@@ -1043,6 +1087,8 @@ Phase 3 still revisits the complete call budget after these incremental changes.
   warm-signing, and step-up lifecycle, with repeatable browser evidence.
 - [x] Remove the second ECDSA preparation inventory read used only for generation
   metadata, retaining the inventory that selected the exact material candidate.
+- [x] Reuse the already verified NEAR material returned by rehydration in its
+  initiating caller; preserve fresh verification for joined callers.
 - [ ] Extend caller coverage as needed and coalesce overlapping status requests
   with the same semantics. Reuse already returned display data where valid.
   Keep server-side authorization fresh at admission.
