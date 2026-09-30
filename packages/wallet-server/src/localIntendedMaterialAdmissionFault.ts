@@ -83,7 +83,8 @@ class LocalMaterialAdmissionFaultDatabase implements D1DatabaseLike {
 
   async batch<T = unknown>(statements: readonly D1PreparedStatementLike[]): Promise<readonly T[]> {
     const roles = statements.filter(isFaultStatement).map(statementRole);
-    return this.execute<T>(statements.map(unwrap), roles.includes('claim') ? 'claim' : 'material');
+    const boundary = this.mode.endsWith('_claim') ? 'claim' : 'existing';
+    return this.execute<T>(statements.map(unwrap), roles.includes(boundary) ? boundary : 'material');
   }
 
   exec(query: string): Promise<unknown> {

@@ -4,13 +4,13 @@ Date: September 29, 2026
 
 Status: policy, claim/readback, operation/source, and persisted owner-scope
 consolidation are implemented and verified in bounded hosted diagnostics. The
-latest local canonical reusable-session ECDSA path makes eight D1 calls per
+latest local canonical reusable-session ECDSA path makes seven D1 calls per
 signature, down from 18. Local linked-device checkpoints reduce third-generation
-signing from 24 to 10 calls and directly linked signing from 20 to 10. These
+signing from 24 to nine calls and directly linked signing from 20 to nine. These
 latest reductions still need controlled hosted latency measurements.
 Active/exhausted credentials are classified in one read. Material snapshots are
 checked atomically at reusable-session claim and finalize/replay admission.
-Finalize now resolves existing operations without admitting new claims; a missing
+Reusable-session finalize now resolves existing operations without admitting new claims; a missing
 prepare cannot consume quota or create an audit event.
 The minimum-call-budget design review is recorded below; implementation and
 measurement remain open. Regional databases are conditional. Production rollout
@@ -1126,23 +1126,23 @@ build, the `after-lifecycle-workers` command recorded there,
 
 ### Remaining call and write inventory (September 30)
 
-The canonical reusable-session path has four foreground Gateway D1 calls per
-request: eight calls and nine SQL statements per successful signature. Status/refill
+The canonical reusable-session path has three foreground Gateway D1 calls on
+prepare and four on finalize: seven calls and eight SQL statements per successful signature. Status/refill
 traffic and storage internal to custody roles are outside that count.
 
 | Position | Prepare | Finalize | Freshness/invariant |
 | --- | --- | --- | --- |
 | 1 | Joined Wallet Session, authority, auth method, quota, and canonical material records | Same read | Authenticate the credential and owner/environment; verify the complete canonical candidate set and capture its material snapshot before policy evaluation. |
 | 2 | Combined project/abuse policy read | Same read | Evaluate the current signing policy in that material's scope. |
-| 3 | Existing operation, live authorization source, pinned owner scope, material snapshot predicate | Same read | Exact identity, replay/in-progress state, live authority, and material freshness in one SQL snapshot. |
-| 4 | Guarded claim INSERT plus committed readback in one batch | Completion UPDATE RETURNING | Atomically check material, admit, consume quota, and audit; then persist the exact terminal response for replay. |
+| 3 | Guarded claim INSERT plus live operation readback in one batch | Existing operation, live authorization source, pinned owner scope, material snapshot predicate | Prepare inserts only an absent fingerprint and atomically checks material, consumes quota, and audits. Its readback also classifies existing operations with exact identity and fresh authority/material checks. Finalize resolves existing operations without inserting. |
+| 4 | — | Completion UPDATE RETURNING | Persist the exact terminal response for durable replay. |
 
-Direct and third-generation linked signing take 10 calls and 13 statements.
+Direct and third-generation linked signing take nine calls and 12 statements.
 After the joined read yields no canonical match, one additional batch per
 request reads the verified installation chain and canonical signer candidates.
 The former second resolution remains replaced by admission predicates. Policy
-and existing-operation reads remain separate from the initial snapshot;
-revisiting those decision points and the complete call budget remains open.
+and admission remain separate from the initial snapshot; revisiting those
+decision points and the complete call budget remains open.
 The three-round-trip proposal is still a hypothesis.
 
 The two write-bearing calls have this invariant inventory:
@@ -1273,7 +1273,8 @@ Implementation and acceptance order:
 
 With finalize kept read-only, the candidate success budget is seven calls/eight
 statements for canonical signing and nine calls/12 statements for linked signing.
-These are unmeasured targets. The measured budget remains eight/nine and 10/13,
+At review these were unmeasured targets; the prepare batch checkpoint below
+verifies them. The preceding measured budgets were eight/nine and 10/13,
 respectively, with two calls reporting row writes and 14 reported rows written.
 Policy remains a separate decision after material resolution. Linked installation
 resolution remains a separate batch on each request. Revisit those boundaries
@@ -1317,11 +1318,81 @@ The first pilot failed in the new database-discovery helper before the probe;
 the helper now selects the authorization schema among local SQLite files.
 Passing final runs supersede that pilot.
 
-This closes the finalize prerequisite. Prepare batching remains next, targeting
-seven canonical/nine linked calls. The latest measured successful-signature
-budget remains eight/10 calls; this checkpoint does not remeasure it or establish
+This closed the finalize prerequisite for the prepare batching checkpoint below.
+At this checkpoint the measured successful-signature budget remained eight/10
+calls; the finalize change did not remeasure it or establish
 hosted latency or regional-placement gains. The claim and completion writes for
 successful signing remain required.
+
+### Guarded prepare batch checkpoint (September 30)
+
+Prepare now sends the conditional claim INSERT and live operation readback in
+one D1 batch. The INSERT preserves a fingerprint already present in the same
+namespace and tenant. New claims retain the material predicate and existing
+authority/quota/audit triggers. A skipped insert with an existing row enters the
+same replay identity, live-source, and material checks; a missing row after a
+material-filtered insert is classified separately. Both standalone and batched
+reads use the same admission-row parser.
+
+The statement builder requires explicit existing-operation behavior. The
+export-owned prepared transaction retains duplicate-insert rejection, so its
+surrounding writes cannot commit after a silently skipped claim. Reusable-session
+finalize continues through its read-only resolver. The material-retirement test
+adapter now recognizes the requested boundary within the batch and retires the
+records before that transaction, preserving the race being tested.
+
+Fresh local measurements use the same SDK build before and after. Workers D1 has
+matched baseline and changed-build cohorts; wallet-DO independently confirms the
+changed-build counts. Each chain cohort verifies three signatures on each of
+the owner, directly linked device, and third-generation linked device.
+
+| Successful signature | Before calls / statements | After calls / statements | Calls reporting writes / reported rows written |
+| --- | ---: | ---: | ---: |
+| Canonical reusable session | 8 / 9 | 7 / 8 | 2 / 14, unchanged |
+| Directly linked device | 10 / 13 | 9 / 12 | 2 / 14, unchanged |
+| Third-generation linked device | 10 / 13 | 9 / 12 | 2 / 14, unchanged |
+
+First, warm, and two-signature burst workloads confirm the same canonical
+per-signature reduction. Replay and rejection have separate measurements:
+
+| Canonical request | Before calls / statements | After calls / statements | Outcome |
+| --- | ---: | ---: | --- |
+| New prepare | 4 / 5 | 3 / 4 | One claim and one quota consumption. |
+| Existing prepare / concurrent loser observed in these cohorts | 3 / 3 | 3 / 4 | Zero reported row writes; the additional statement skips insertion. |
+| Successful finalize | 4 / 4 | 4 / 4 | Completion persists the exact response. |
+| Exact finalize replay | 3 / 3 | 3 / 3 | No INSERT and zero reported row writes. |
+| Wrong-wallet finalize | 1 / 1 | 1 / 1 | Rejected before admission. |
+| Last-quota loser, including retry | 5 / 6 | 4 / 5 | Trigger rejection followed by a read to classify the result. |
+
+These concurrency counts describe the recorded interleavings. Failed batch
+statements lack row-write metadata; missing metadata is recorded explicitly and
+does not establish zero writes. Behavioral quota and retirement checks establish
+the durable outcomes. A skipped INSERT on prepare replay still adds SQL work;
+hosted replay contention remains part of the residual latency measurement.
+
+Evidence is in `.artifacts/r151/prepare-batch-20260930/`, including separate
+success, replay, and quota-rejection traces and build identities. Reproduce the
+baseline with `node .runtime/r151-prepare-batch/measure.mjs before workers` on the
+preceding server build, then build this change and run
+`node .runtime/r151-prepare-batch/verify.mjs` and
+`python3 .runtime/r151-prepare-batch/analyze.py`.
+The baseline workload passed before an artifact-copy path was corrected; its
+completed artifact was retained and the remaining baseline cases resumed.
+All four baseline and 22 changed-build scenario/profile checks pass. Verification
+includes first/warm/burst and repeated three-device signing, duplicate admission,
+last-quota contention, lost-response replay, missing finalize, recovery, revocation,
+and mixed-wallet refresh/step-up/export. All three profiles retain nine
+quota-preserving retirement rejections each. Server build, intended and Wallet
+state type checks, diff checks, and the bloat ratchet pass. Temporary Gateway
+instrumentation is restored; no hosted resources were changed.
+
+The remaining prepare calls read credential/material, read policy, and perform
+atomic admission. Finalize reads credential/material, policy, and the live
+operation, then records completion after signing. Linked resolution adds its
+installation/canonical-source batch on each request. The minimum-call review
+remains open around policy and linked-resolution dependencies. Hosted complete
+latency and placement comparisons remain required; local timings establish no
+regional gain or 1–2 second maximum.
 
 ### 1. Consolidate reads while preserving decision boundaries
 
@@ -1361,7 +1432,7 @@ the policy change. Then target 12 or fewer from the larger consolidation, subjec
 to the correctness cases below. Each change needs its own before/after call
 counts and timings; these are engineering targets, not predicted latency wins.
 The 12-call intermediate milestone is surpassed: canonical reusable-session
-ECDSA now takes eight calls; linked signing takes 10.
+ECDSA now takes seven calls; linked signing takes nine after the prepare batch.
 Phase 3 still revisits the complete call budget after these incremental changes.
 
 ### 2. Reduce unnecessary work and classify writes
@@ -1415,6 +1486,9 @@ small amount of SQL work. Reaching 12 calls does not close this follow-up.
 - [x] Separate finalize's existing-operation resolution from prepare admission.
   Verify that missing finalize cannot create a claim or consume quota before
   consolidating prepare's guarded claim and live readback.
+- [x] Batch prepare's guarded claim and live readback, preserving explicit
+  duplicate-insert failure for export-owned prepared transactions. Measure
+  skipped replay INSERTs separately from calls reporting row writes.
 - [ ] Consolidate reads and guarded writes around those decision points using
   the existing stores and SQL transactions. Preserve rejection precedence,
   tenant/environment binding, expiry/revocation checks, material retirement,

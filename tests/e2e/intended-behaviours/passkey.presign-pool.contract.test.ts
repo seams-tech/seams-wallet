@@ -1,5 +1,6 @@
 import {
   expect,
+  type APIResponse,
   type BrowserContext,
   type Request,
   type Response,
@@ -539,10 +540,14 @@ for (const mode of ['lost_response', 'cancelled'] as const) {
 
 class ConcurrentPrepare {
   statuses: number[] = [];
+  d1: unknown[] = [];
 
   async duplicate(route: Route): Promise<void> {
     const responses = await Promise.all([route.fetch(), route.fetch()]);
-    for (const response of responses) this.statuses.push(response.status());
+    for (const response of responses) {
+      this.statuses.push(response.status());
+      this.d1.push(gatewayD1Evidence(response));
+    }
     this.statuses.sort();
     expect(this.statuses).toEqual([200, 409]);
     const [first, second] = responses;
@@ -556,6 +561,7 @@ class ConcurrentPrepare {
 class LastQuotaPrepareRace {
   statuses: number[] = [];
   replayCodes: string[] = [];
+  d1: { readonly stage: 'prepare' | 'retry'; readonly status: number; readonly trace: unknown }[] = [];
   walletId: string | null = null;
 
   async compete(route: Route): Promise<void> {
@@ -578,6 +584,7 @@ class LastQuotaPrepareRace {
     ]);
     for (const response of responses) {
       this.statuses.push(response.status());
+      this.d1.push({ stage: 'prepare', status: response.status(), trace: gatewayD1Evidence(response) });
     }
     this.statuses.sort();
     expect(this.statuses).toEqual([200, 409]);
@@ -592,6 +599,7 @@ class LastQuotaPrepareRace {
       route.fetch({ postData: contender }),
     ]);
     for (const response of retries) {
+      this.d1.push({ stage: 'retry', status: response.status(), trace: gatewayD1Evidence(response) });
       expect(response.status()).toBe(409);
       const payload: unknown = await response.json();
       if (!isPlainObject(payload) || typeof payload.code !== 'string') {
@@ -725,7 +733,7 @@ test('missing ECDSA prepare rejects finalize without quota or audit effects and 
 
 class LostFinalize {
   finalizations = 0;
-  lost: { readonly request: Request; readonly status: number; readonly body: string } | null =
+  lost: { readonly request: Request; readonly status: number; readonly body: string; readonly d1: unknown } | null =
     null;
 
   /** Lets the first finalize complete, then drops its response. */
@@ -736,9 +744,17 @@ class LostFinalize {
       return;
     }
     const response = await route.fetch();
-    this.lost = { request: route.request(), status: response.status(), body: await response.text() };
+    this.lost = {
+      request: route.request(), status: response.status(), body: await response.text(),
+      d1: gatewayD1Evidence(response),
+    };
     await route.abort('connectionclosed');
   }
+}
+
+function gatewayD1Evidence(response: APIResponse): unknown {
+  const header = response.headers()['x-benchmark-d1'];
+  return header === undefined ? null : JSON.parse(header);
 }
 
 /** The part of Node's `node:sqlite` this evidence reads. */
@@ -872,6 +888,13 @@ test('concurrent prepare and admitted ECDSA finalize lost_response retry preserv
 
   const evidence = {
     kind: 'gateway_ecdsa_finalize_lost_response_retry_v1',
+    d1: {
+      concurrentPrepare: concurrentPrepare.d1,
+      finalize: lost.d1,
+      replay: gatewayD1Evidence(retried),
+      wrongWallet: gatewayD1Evidence(denied),
+      replayAfterDenial: gatewayD1Evidence(retriedAfterDenial),
+    },
     host: process.env.SEAMS_INTENDED_WALLET_HOST ?? 'workers_local',
     concurrentPrepareStatuses: concurrentPrepare.statuses,
     verifiedSignaturesBeforeResponseLoss: 2,
@@ -923,6 +946,7 @@ test('distinct concurrent prepares consume the last quota use once and preserve 
   if (effects) expect(effects).toHaveLength(2);
   const evidence = {
     kind: 'gateway_ecdsa_last_quota_contention_v1',
+    d1: race.d1,
     host: process.env.SEAMS_INTENDED_WALLET_HOST ?? 'workers_local',
     distinctOperationCount: 2,
     prepareStatuses: race.statuses,

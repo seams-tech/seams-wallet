@@ -2314,16 +2314,7 @@ export class CloudflareD1AuthorizationStore
       operationFingerprintDigest: input.operationFingerprintDigest,
       nowMs: requirePositiveInteger(input.nowMs, 'operation replay time'),
     }).first<D1Row>();
-    if (!row) return null;
-    if (row.authorization_source_active !== 0 && row.authorization_source_active !== 1) {
-      throw new Error('Authorized operation source status must be a SQL boolean');
-    }
-    return {
-      row,
-      operation: await parseAuthorizedOperationRow(row),
-      sourceActive: row.authorization_source_active === 1,
-      materialActive: row.material_snapshot_active === 1,
-    };
+    return row ? parseAuthorizedOperationAdmissionRecord(row) : null;
   }
 
   /** How an operation already admitted for this fingerprint answers another admission. */
@@ -2396,6 +2387,7 @@ export class CloudflareD1AuthorizationStore
           operation,
           material: null,
           materialSnapshot: null,
+          existingOperation: 'reject',
         }),
       ],
     };
@@ -2513,16 +2505,8 @@ export class CloudflareD1AuthorizationStore
     if (!authorizedOperationMaterialScopeMatches(operation, input.material, input.materialSnapshot)) {
       return { kind: 'material_mismatch' };
     }
-    const existing = await this.readAuthorizedOperationForAdmission({
-      tenantId: operation.tenantId,
-      operationFingerprintDigest: operation.operationFingerprintDigest,
-      nowMs: operation.claimedAtMs,
-      materialSnapshot: input.materialSnapshot,
-    });
-    if (existing) {
-      return this.answerExistingAuthorizedOperation(existing, operation, input.material);
-    }
     let committedRow: D1Row | null;
+    let claimed: boolean;
     try {
       const statement = prepareAuthorizedOperationInsert({
         database: this.database,
@@ -2531,15 +2515,24 @@ export class CloudflareD1AuthorizationStore
         operation,
         material: input.material ?? null,
         materialSnapshot: input.materialSnapshot,
+        existingOperation: 'preserve',
       });
       const [result, readback] = await this.database.batch<D1ResultLike<D1Row>>([
         statement,
-        prepareAuthorizedOperationCommittedRead(this.database, this.namespace, operation),
+        prepareAuthorizedOperationAdmissionRead({
+          database: this.database,
+          namespace: this.namespace,
+          walletSignerScope: this.walletSignerScope,
+          tenantId: operation.tenantId,
+          operationFingerprintDigest: operation.operationFingerprintDigest,
+          nowMs: operation.claimedAtMs,
+          materialSnapshot: input.materialSnapshot,
+        }),
       ]);
       if (!result?.success || !readback?.success) {
         throw new Error('authorized operation admission batch returned incomplete results');
       }
-      if (input.material && d1ChangedRows(result) === 0) return { kind: 'material_mismatch' };
+      claimed = d1ChangedRows(result) !== 0;
       committedRow = readback.results?.[0] ?? null;
     } catch (error: unknown) {
       const raced = await this.readAuthorizedOperationForAdmission({
@@ -2555,10 +2548,15 @@ export class CloudflareD1AuthorizationStore
       if (triggerFailure) return triggerFailure;
       throw error;
     }
-    if (!committedRow) throw new Error('authorized operation admission could not be read back');
+    if (!committedRow) {
+      if (!claimed && input.material) return { kind: 'material_mismatch' };
+      throw new Error('authorized operation admission could not be read back');
+    }
+    const admitted = await parseAuthorizedOperationAdmissionRecord(committedRow);
+    if (!claimed) return this.answerExistingAuthorizedOperation(admitted, operation, input.material);
     return {
       kind: 'claimed',
-      operation: await parseAuthorizedOperationRow(committedRow),
+      operation: admitted.operation,
       row: committedRow,
     };
   }
@@ -2661,6 +2659,18 @@ type AuthorizedOperationAdmissionRecord = {
   readonly sourceActive: boolean;
   readonly materialActive: boolean;
 };
+
+async function parseAuthorizedOperationAdmissionRecord(row: D1Row): Promise<AuthorizedOperationAdmissionRecord> {
+  if (row.authorization_source_active !== 0 && row.authorization_source_active !== 1) {
+    throw new Error('Authorized operation source status must be a SQL boolean');
+  }
+  return {
+    row,
+    operation: await parseAuthorizedOperationRow(row),
+    sourceActive: row.authorization_source_active === 1,
+    materialActive: row.material_snapshot_active === 1,
+  };
+}
 
 function authorizedOperationMaterialScopeMatches(
   operation: AuthorizedOperation,

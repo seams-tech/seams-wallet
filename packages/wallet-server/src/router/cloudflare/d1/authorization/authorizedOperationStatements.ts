@@ -181,6 +181,7 @@ export function prepareAuthorizedOperationInsert(input: {
   readonly operation: AuthorizedOperation;
   readonly material: AuthorizedOperationMaterialScope | null;
   readonly materialSnapshot: EcdsaMaterialReadSnapshot | null;
+  readonly existingOperation: 'reject' | 'preserve';
 }): D1PreparedStatementLike {
   const { database, namespace, walletSignerScope, operation, material } = input;
   const claimedAtMs = Number(operation.claimedAtMs);
@@ -237,6 +238,13 @@ export function prepareAuthorizedOperationInsert(input: {
       ? { sql: ECDSA_SIGNER_MATCH, bindings: ecdsaSignerMatchBindings(walletSignerScope, material) }
       : { sql: '1', bindings: [] };
   }
+  const absence = input.existingOperation === 'preserve'
+    ? {
+        sql: `NOT EXISTS (SELECT 1 FROM authorized_operations
+               WHERE namespace = ? AND tenant_id = ? AND operation_fingerprint_digest = ?)`,
+        bindings: [namespace, operation.tenantId, operation.operationFingerprintDigest],
+      }
+    : { sql: '1', bindings: [] };
   return database.prepare(
     `INSERT INTO authorized_operations (
           namespace, tenant_id, authorized_operation_id, audit_event_id,
@@ -256,6 +264,6 @@ export function prepareAuthorizedOperationInsert(input: {
         ) SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                   'claimed', 'pending', NULL, NULL, NULL, NULL, ?, NULL, ?,
                   ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
-           WHERE ${condition.sql}`,
-  ).bind(...values, ...condition.bindings);
+           WHERE (${condition.sql}) AND (${absence.sql})`,
+  ).bind(...values, ...condition.bindings, ...absence.bindings);
 }
