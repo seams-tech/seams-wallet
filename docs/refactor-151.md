@@ -4,11 +4,11 @@ Date: September 29, 2026
 
 Status: policy, claim/readback, operation/source, and persisted owner-scope
 consolidation are implemented and verified in bounded hosted diagnostics. The
-canonical reusable-session ECDSA path makes 12 D1 calls per signature, down from
+canonical reusable-session ECDSA path makes 10 D1 calls per signature, down from
 18. Local linked-device checkpoints reduce third-generation signing from 24
-to 16 calls and directly linked signing from 20 to 16.
-The active/exhausted credential snapshot is now classified in one read, reducing
-the two-signature last-quota burst from 25 to 24 calls.
+to 12 calls and directly linked signing from 20 to 12.
+Active/exhausted credentials are classified in one read. Material snapshots are
+checked atomically at reusable-session claim and finalize/replay admission.
 Further call reduction and the minimum-call-budget review remain open; regional
 databases are conditional. Production rollout is separate.
 
@@ -766,38 +766,92 @@ preserve ambiguity rejection. Race coverage must retire or replace material
 between snapshot verification and each admission decision before the fresh
 resolver can be removed.
 
+### Atomic material admission checkpoint (September 30)
+
+Reusable-session ECDSA admission now carries the material snapshot that initial
+route authorization verified. The snapshot captures the complete scoped
+canonical signer record set for that activation, or the linked installation and
+canonical signer sets read together. The canonical lookup no longer truncates
+that set to four rows. Linked package digest, projection, custody-chain, and
+canonical-identity verification remain in the resolver.
+
+At a new claim, the existing INSERT checks both record-set cardinality and exact
+stored tuples in its WHERE predicate. The existing-operation read performs the
+same check for pending finalize and completed replay, alongside its live
+session/authority/method checks. A changed, added, removed, or retired record
+returns `material_mismatch`. Claim, quota consumption, and audit insertion still
+share the existing transaction; no freshness table, version write, or cache was
+introduced. Snapshot internals are private in-process fields and are not a wire
+credential. Type fixtures reject missing evidence, object-literal fabrication,
+spreads that lose it, and direct casts from serialized data.
+
+The second resolver call has been removed from reusable-session signing. Initial
+material and policy decisions now stay bound to the records actually admitted.
+Step-up and preprocessing retain their own existing freshness boundaries.
+
+| Signing device | Before calls / statements | After calls / statements | Write-bearing calls / reported row writes |
+| --- | ---: | ---: | ---: |
+| Canonical registration device | 12 / 13 | 10 / 11 | 2 / 14 |
+| Directly linked device | 16 / 21 | 12 / 15 | 2 / 14 |
+| Device linked by that linked device | 16 / 21 | 12 / 15 | 2 / 14 |
+
+Workers D1 and wallet-DO reproduce these local counts with the fixed SDK
+artifact; VM verifies the same three signatures. The guarded statements inspect
+more data internally, so these call savings are not a hosted latency result.
+
+The new behavioral E2E changes material after resolution, immediately before
+claim, pending finalize, and completed replay. It covers canonical material,
+linked installations, and the canonical source of a third-generation linked
+device. Test-only changes, the admission statement, and restoration run together
+so background requests never see the temporary retirement. All nine rejections
+per profile must return `material_mismatch` and preserve the transaction's quota
+total; subsequent ordinary signing and exact replay must verify.
+
+Fifteen scenario/profile checks passed: retirement races, three-device signing,
+last-use lost-response replay, and last-quota contention on Workers D1, wallet-DO,
+and VM; plus recovery retirement, linked-device revocation, and mixed-wallet
+refresh/signing/step-up/export on Workers D1. The 27 injected retirement
+rejections preserve quota. VM replay evidence still records one quota use and
+one custody effect for the operation whose response was lost. Server build,
+intended-test types, state type fixtures, and bloat checking passed.
+
+Evidence is retained in `.artifacts/r151/atomic-20260930/analysis.json`, including
+baseline/comparison counts, distribution hashes, quota/replay outcomes, source
+hashes, and private lifecycle trace hashes. Reproduce with
+`node .runtime/r151-atomic/verify.mjs`, then validate the artifacts with
+`python3 .runtime/r151-atomic/analyze.py`. The temporary Gateway measurement
+wrapper was restored. No hosted resources changed.
+
+An expanded diagnostic attempted additional linked signatures after the boundary
+checks. It hit a 20-second local presign worker timeout/reset and then lost its
+linked-holder handle. The same failure reproduced with fault injection disabled
+(`environment_or_infrastructure_failure` for this local run). The focused
+admission test checks quota directly instead of using extra signatures as its
+quota measurement. Failed traces remain under
+`.runtime/r150-d1-diagnostic/atomic-control-workers-traces/`; the repeated linked
+presign timeout remains a Phase 2 follow-up, not a passing workload claim.
+
 ### Remaining call and write inventory (September 30)
 
-The canonical reusable-session path has the following six call positions on
-each request. This accounts for all 12 foreground Gateway D1 calls and 13 SQL
-statements per successful signature. It excludes status/refill requests and
-storage internal to custody roles.
+The canonical reusable-session path has five foreground Gateway D1 calls per
+request: 10 calls and 11 SQL statements per successful signature. Status/refill
+traffic and storage internal to custody roles are outside that count.
 
 | Position | Prepare | Finalize | Freshness/invariant |
 | --- | --- | --- | --- |
 | 1 | Joined Wallet Session, authority, auth method, quota | Same read | Authenticate the current credential and its exact owner/environment before policy evaluation. |
-| 2 | Resolve active signing material | Same read | Bind the requested activation, key handle, and policy scope to current material. |
+| 2 | Resolve signing material and capture its read snapshot | Same read | Verify activation, key handle, policy scope, and canonical/linked provenance. |
 | 3 | Combined project/abuse policy read | Same read | Evaluate the current signing policy in that material's scope. |
-| 4 | Re-resolve material before admission | Same read | Reject material replaced or retired since initial authorization. |
-| 5 | Existing operation, live authorization source, pinned owner scope | Same read | Exact operation identity, replay/in-progress state, and live authority; preserve denial precedence. |
-| 6 | Claim INSERT plus committed readback in one batch | Completion UPDATE RETURNING | Atomically admit and consume quota, then persist the exact terminal response for replay. |
+| 4 | Existing operation, live authorization source, pinned owner scope, material snapshot predicate | Same read | Exact identity, replay/in-progress state, live authority, and material freshness in one SQL snapshot. |
+| 5 | Guarded claim INSERT plus committed readback in one batch | Completion UPDATE RETURNING | Atomically check material, admit, consume quota, and audit; then persist the exact terminal response for replay. |
 
-Direct and third-generation linked signing take 16 calls: each material
-resolution expands from one canonical lookup to two calls, adding two calls
-per request. The second call batches verified installation-chain evidence and
-canonical signer candidates. The chain is verified once per resolution; its
-two authorization/admission freshness boundaries remain distinct.
-
-Position 4 moves the material check closer to admission; it does not make that
-check atomic with the claim. Positions 1–5 enforce real invariants, but their separate transport calls are
-not all proven necessary. The next server reduction should consolidate the
-initial authority/material/policy decision and move the second material check
-into an atomic admission predicate that handles canonical and linked material.
-The existing registration-only signer SQL predicate is insufficient for linked
-installations. Exact installation identity, verified package/projection
-provenance, chain retirement, and canonical-signer ambiguity must survive any
-replacement. Until that boundary is implemented and raced in E2Es, retain the
-fresh resolver. R151's three-round-trip proposal remains a hypothesis.
+Direct and third-generation linked signing take 12 calls and 15 statements.
+Their one material resolution per request uses a canonical lookup followed by
+one batch for the verified installation chain and canonical signer candidates.
+The former second resolution has been replaced by the admission predicates.
+Initial credential, material, and policy reads remain separate; consolidating
+them and revisiting the complete call budget remain open. The three-round-trip
+proposal is still a hypothesis.
 
 The two write-bearing calls have this invariant inventory:
 
@@ -846,10 +900,11 @@ storage. No signing write is removed by this inventory.
   resolving custody ancestors from that set while preserving fresh admission reads.
 - [x] Batch linked installations and canonical signer candidates into one custody
   snapshot per material resolution, retaining both fresh decision boundaries.
+- [x] Bind verified canonical/linked material snapshots to atomic claim and
+  existing-operation admission predicates; verify retirement races and remove
+  the second reusable-session material resolver.
 - [ ] Examine joining initial material resolution to the existing joined session
-  lookup. Keep the fresh-material check at admission until equivalent atomic SQL
-  predicates and race behavior are demonstrated. Two material reads at different
-  decision points are not automatically redundant.
+  lookup, retaining the snapshot predicates and current rejection precedence.
 - [ ] Use the existing store/domain boundaries and narrow admitted result types.
   Delete replaced paths. Do not add request-wide caches of revocation or quota
   decisions, compatibility branches, or another authorization implementation.
@@ -858,7 +913,8 @@ First measurable goal: at least two fewer sequential calls per signature from
 the policy change. Then target 12 or fewer from the larger consolidation, subject
 to the correctness cases below. Each change needs its own before/after call
 counts and timings; these are engineering targets, not predicted latency wins.
-The 12-call intermediate milestone is reached for reusable-session ECDSA.
+The 12-call intermediate milestone is surpassed: canonical reusable-session
+ECDSA now takes 10 calls; linked signing takes 12.
 Phase 3 still revisits the complete call budget after these incremental changes.
 
 ### 2. Reduce unnecessary work and classify writes
@@ -872,6 +928,9 @@ Phase 3 still revisits the complete call budget after these incremental changes.
   Keep server-side authorization fresh at admission.
 - [x] Measure warm pool, immediate first sign, and burst signing separately in
   a bounded local diagnostic with signature and shared-quota verification.
+- [ ] Diagnose the repeated linked-presign worker timeout/reset observed in the
+  expanded local control, distinguishing resource pressure from holder-lifecycle
+  recovery behavior before claiming repeated linked-workload coverage.
 - [ ] Repeat the workloads in controlled hosted cohorts and reduce demonstrated
   foreground refill waits using the established machinery.
   Preserve the distinct presign and signing authorization boundaries.

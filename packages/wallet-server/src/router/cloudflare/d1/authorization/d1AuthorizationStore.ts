@@ -1,3 +1,4 @@
+import type { EcdsaMaterialReadSnapshot } from '../../../../core/ecdsaMaterialReadSnapshot';
 import type {
   EcdsaWalletSessionAdmissionInput,
   EcdsaWalletSessionAdmissionResult,
@@ -2264,11 +2265,13 @@ export class CloudflareD1AuthorizationStore
     readonly tenantId: TenantId;
     readonly operationFingerprintDigest: CapabilityOperationFingerprintDigest;
     readonly nowMs: number;
+    readonly materialSnapshot: EcdsaMaterialReadSnapshot | null;
   }): Promise<AuthorizedOperationAdmissionRecord | null> {
     const row = await prepareAuthorizedOperationAdmissionRead({
       database: this.database,
       namespace: this.namespace,
       walletSignerScope: this.walletSignerScope,
+      materialSnapshot: input.materialSnapshot,
       tenantId: input.tenantId,
       operationFingerprintDigest: input.operationFingerprintDigest,
       nowMs: requirePositiveInteger(input.nowMs, 'operation replay time'),
@@ -2281,6 +2284,7 @@ export class CloudflareD1AuthorizationStore
       row,
       operation: await parseAuthorizedOperationRow(row),
       sourceActive: row.authorization_source_active === 1,
+      materialActive: row.material_snapshot_active === 1,
     };
   }
 
@@ -2296,6 +2300,7 @@ export class CloudflareD1AuthorizationStore
         readonly row: D1Row;
       }
     | AuthorizedOperationAdmissionRejection {
+    if (!existing.materialActive) return { kind: 'material_mismatch' };
     const replayMismatch = authorizedOperationReplayMismatch({
       existing: existing.row,
       incoming: operation,
@@ -2334,6 +2339,7 @@ export class CloudflareD1AuthorizationStore
       tenantId: operation.tenantId,
       operationFingerprintDigest: operation.operationFingerprintDigest,
       nowMs: operation.claimedAtMs,
+      materialSnapshot: null,
     });
     if (existing) {
       const result = this.answerExistingAuthorizedOperation(existing, operation, undefined);
@@ -2351,6 +2357,7 @@ export class CloudflareD1AuthorizationStore
           walletSignerScope: this.walletSignerScope,
           operation,
           material: null,
+          materialSnapshot: null,
         }),
       ],
     };
@@ -2366,7 +2373,11 @@ export class CloudflareD1AuthorizationStore
     readonly operation: AuthorizedOperationInput;
     readonly material?: AuthorizedOperationMaterialScope;
   }): Promise<AuthorizedOperationAdmissionResult> {
-    const result = await this.admitAuthorizedOperationRecord(input);
+    const result = await this.admitAuthorizedOperationRecord({
+      operation: input.operation,
+      material: input.material,
+      materialSnapshot: null,
+    });
     if (
       result.kind === 'claimed' ||
       result.kind === 'replayed' ||
@@ -2383,6 +2394,7 @@ export class CloudflareD1AuthorizationStore
     const result = await this.admitAuthorizedOperationRecord({
       operation: input.operation,
       material: input.material,
+      materialSnapshot: input.material.readSnapshot,
     });
     switch (result.kind) {
       case 'claimed':
@@ -2408,8 +2420,16 @@ export class CloudflareD1AuthorizationStore
 
   private async admitAuthorizedOperationRecord(input: {
     readonly operation: AuthorizedOperationInput;
-    readonly material?: AuthorizedOperationMaterialScope;
-  }): Promise<
+  } & (
+    | {
+        readonly material: AuthorizedOperationMaterialScope | undefined;
+        readonly materialSnapshot: null;
+      }
+    | {
+        readonly material: EcdsaWalletSessionAdmissionInput['material'];
+        readonly materialSnapshot: EcdsaMaterialReadSnapshot;
+      }
+  )): Promise<
     | {
         readonly kind: 'claimed' | 'replayed' | 'operation_in_progress';
         readonly operation: AuthorizedOperation;
@@ -2417,13 +2437,15 @@ export class CloudflareD1AuthorizationStore
       }
     | AuthorizedOperationAdmissionRejection
   > {
+    if (input.materialSnapshot && input.materialSnapshot.walletId !== input.material?.walletId) {
+      return { kind: 'material_mismatch' };
+    }
     const operation = await buildAuthorizedOperation(input.operation);
     const requiresEcdsaMaterial =
       operation.operation.operation.capabilityKind === CAPABILITY_KINDS.evmEcdsaMpcSigning;
     if (requiresEcdsaMaterial && !input.material) return { kind: 'material_mismatch' };
     if (
       input.material &&
-      input.material.kind === 'ecdsa_material_activation' &&
       (operation.operation.operation.capabilityKind !== CAPABILITY_KINDS.evmEcdsaMpcSigning ||
         input.material.runtimePolicyScope.orgId !== operation.tenantId ||
         input.material.materialActivation.capability !== operation.operation.capabilityId ||
@@ -2435,6 +2457,7 @@ export class CloudflareD1AuthorizationStore
       tenantId: operation.tenantId,
       operationFingerprintDigest: operation.operationFingerprintDigest,
       nowMs: operation.claimedAtMs,
+      materialSnapshot: input.materialSnapshot,
     });
     if (existing) {
       return this.answerExistingAuthorizedOperation(existing, operation, input.material);
@@ -2447,6 +2470,7 @@ export class CloudflareD1AuthorizationStore
         walletSignerScope: this.walletSignerScope,
         operation,
         material: input.material ?? null,
+        materialSnapshot: input.materialSnapshot,
       });
       const [result, readback] = await this.database.batch<D1ResultLike<D1Row>>([
         statement,
@@ -2462,6 +2486,7 @@ export class CloudflareD1AuthorizationStore
         tenantId: operation.tenantId,
         operationFingerprintDigest: operation.operationFingerprintDigest,
         nowMs: operation.claimedAtMs,
+        materialSnapshot: input.materialSnapshot,
       });
       if (raced) {
         return this.answerExistingAuthorizedOperation(raced, operation, input.material);
@@ -2574,6 +2599,7 @@ type AuthorizedOperationAdmissionRecord = {
   readonly row: D1Row;
   readonly operation: AuthorizedOperation;
   readonly sourceActive: boolean;
+  readonly materialActive: boolean;
 };
 
 type AuthorizedOperationReplayMismatch =

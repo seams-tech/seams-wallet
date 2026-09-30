@@ -1,3 +1,4 @@
+import type { EcdsaMaterialReadSnapshot } from '../../../../core/ecdsaMaterialReadSnapshot';
 import type { InstalledEcdsaCustodySnapshotV1 } from '../deviceLinking/d1LinkedDeviceAuthorityInstallService';
 import { parseWalletRegistrationSetupClaims } from '../../../domains/walletRegistration/walletRegistrationSetupPayload';
 import type { VerifiedNearRegistrationContinuationV1 } from '../../../domains/ed25519Yao/registration/routerAbEd25519YaoRegistrationIntentAuthorization';
@@ -2355,6 +2356,7 @@ export class CloudflareD1WalletRegistrationService {
   }): Promise<
     | {
         readonly ok: true;
+        readonly readSnapshot: EcdsaMaterialReadSnapshot;
         readonly materialActivation: RouterAbMpcMaterialActivationRefWire;
         readonly keyHandle: string;
         readonly relayerKeyId: string;
@@ -2367,12 +2369,14 @@ export class CloudflareD1WalletRegistrationService {
     try {
       const walletId = walletIdFromString(input.walletId);
       const store = this.getWalletStore();
-      const signer = await store.getEcdsaSignerByMaterialActivation({
+      const canonical = await store.readEcdsaSignerMaterialSnapshot({
         walletId,
         materialActivation: input.materialActivation,
       });
-      if (signer) {
+      if (canonical) {
+        const { signer, readSnapshot } = canonical;
         return {
+          readSnapshot,
           ok: true,
           materialActivation: signer.walletKey.publicCapability.material_activation,
           keyHandle: signer.walletKey.keyHandle,
@@ -2433,6 +2437,7 @@ export class CloudflareD1WalletRegistrationService {
       }
       return {
         ok: true,
+        readSnapshot: custodySnapshot.readSnapshot,
         materialActivation: routerAbMpcMaterialActivationRefToWire(projection.materialActivation),
         keyHandle: canonicalSigner.walletKey.keyHandle,
         relayerKeyId: canonicalSigner.walletKey.relayerKeyId,

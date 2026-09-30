@@ -85,6 +85,14 @@ E2E enforcement lives in `tests/e2e/intended-behaviours` and follows
   under the existing lease. Exact completed finalization replay returns the
   durable first result, while altered finalization input is rejected.
 
+- Reusable-session ECDSA signing checks that the material verified during
+  authorization still matches when prepare claims the operation and when
+  finalize or replay is admitted. This covers canonical signer records, linked
+  installations, and their canonical custody source. Retirement or replacement
+  before that decision rejects the request without consuming quota or invoking
+  the signing worker. An exact retry with unchanged live material retains the
+  durable replay behavior.
+
 - Retain unused reusable ECDSA presignatures encrypted on both participants for
   up to 90 days, subject to material retirement and revocation. Session expiry
   alone does not invalidate the retained material. Operation-scoped preparation

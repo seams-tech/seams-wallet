@@ -1,4 +1,5 @@
-import type { Response } from '@playwright/test';
+import { expect, type Response, type BrowserContext, type Route } from '@playwright/test';
+import { randomUUID } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { intendedTest as test } from './harness';
@@ -191,4 +192,113 @@ test('a linked device revoked with an email code across a refused commit is answ
   await harness.revokeLinkedDeviceWithOwnerEmailOtp({ refuseFirstRevocationCommit: true });
   await device2.assertRevokedDeviceCannotSign();
   await harness.signTempoTransaction('post_unlock');
+});
+
+const preparePath = '**/router-ab/ecdsa-derivation/sign/prepare';
+const finalizePath = '**/router-ab/ecdsa-derivation/sign';
+
+class MaterialAdmissionRace {
+  readonly rejections: { boundary: string; status: number; proof: string; quotaBefore: number; quotaAfter: number }[] = [];
+  exactReplayMatches = false;
+
+  constructor(readonly material: 'canonical' | 'linked') {}
+
+  async rejectRetiredMaterial(
+    route: Route,
+    boundary: 'claim' | 'existing',
+    target: 'canonical' | 'linked',
+  ): Promise<void> {
+    const token = randomUUID();
+    const mode = `${target}_${boundary}`;
+    const response = await route.fetch({ headers: {
+      ...route.request().headers(),
+      'x-seams-intended-material-admission-fault-v1': mode,
+      'x-seams-intended-material-admission-token-v1': token,
+    } });
+    const proof = response.headers()['x-seams-intended-material-admission-proof-v1'];
+    expect(proof).toMatch(new RegExp(`^${token}:${mode}:[1-9][0-9]*:[0-9]+:[0-9]+$`));
+    const [observedToken, observedMode, rows, quotaBefore, quotaAfter] = proof.split(':');
+    expect(observedToken).toBe(token);
+    expect(observedMode).toBe(mode);
+    expect(Number(rows)).toBeGreaterThan(0);
+    expect(quotaAfter).toBe(quotaBefore);
+    expect(response.status()).toBe(403);
+    expect(await response.json()).toMatchObject({ code: 'material_mismatch' });
+    this.rejections.push({ boundary, status: response.status(), proof, quotaBefore: Number(quotaBefore), quotaAfter: Number(quotaAfter) });
+  }
+
+  async prepare(route: Route): Promise<void> {
+    await this.rejectRetiredMaterial(route, 'claim', this.material);
+    if (this.material === 'linked') await this.rejectRetiredMaterial(route, 'claim', 'canonical');
+    const response = await route.fetch();
+    expect(response.status()).toBe(200);
+    await route.fulfill({ response });
+  }
+
+  async finalize(route: Route): Promise<void> {
+    await this.rejectRetiredMaterial(route, 'existing', this.material);
+    if (this.material === 'linked') await this.rejectRetiredMaterial(route, 'existing', 'canonical');
+    const response = await route.fetch();
+    expect(response.status()).toBe(200);
+    const signature: unknown = await response.json();
+    await this.rejectRetiredMaterial(route, 'existing', this.material);
+    if (this.material === 'linked') await this.rejectRetiredMaterial(route, 'existing', 'canonical');
+    const replay = await route.fetch();
+    expect(replay.status()).toBe(200);
+    expect(await replay.json()).toEqual(signature);
+    this.exactReplayMatches = true;
+    await route.fulfill({ response });
+  }
+}
+
+async function installRace(contexts: readonly BrowserContext[], race: MaterialAdmissionRace): Promise<void> {
+  for (const context of contexts) {
+    await context.route(preparePath, race.prepare.bind(race));
+    await context.route(finalizePath, race.finalize.bind(race));
+  }
+}
+
+async function removeRace(contexts: readonly BrowserContext[]): Promise<void> {
+  for (const context of contexts) {
+    await context.unroute(preparePath);
+    await context.unroute(finalizePath);
+  }
+}
+
+test('material retirement between resolution and admission rejects canonical and linked claims, finalize, and replay', async ({ harness, browser }, testInfo) => {
+  await harness.registerPasskeyEcdsaOnlyWallet();
+  const canonical = new MaterialAdmissionRace('canonical');
+  let contexts = browser.contexts();
+  await installRace(contexts, canonical);
+  try {
+    await harness.signTempoTransaction('post_registration');
+  } finally {
+    await removeRace(contexts);
+  }
+  const device2 = await harness.openLinkedDevice(browser);
+  await harness.linkDeviceWithPasskey(device2);
+  const device3 = await device2.openLinkedDevice(browser);
+  await device2.linkDeviceWithPasskey(device3);
+  const linked = new MaterialAdmissionRace('linked');
+  contexts = browser.contexts();
+  await installRace(contexts, linked);
+  try {
+    await device3.signTempoTransaction('post_device_link');
+  } finally {
+    await removeRace(contexts);
+  }
+  expect(canonical.rejections).toHaveLength(3);
+  expect(linked.rejections).toHaveLength(6);
+  expect(canonical.exactReplayMatches && linked.exactReplayMatches).toBe(true);
+  const evidence = {
+    kind: 'ecdsa_material_admission_race_v1',
+    host: process.env.SEAMS_INTENDED_WALLET_HOST ?? 'workers_local',
+    verifiedSignatures: 2,
+    canonical, linked,
+  };
+  const artifact = `material-admission-race-${evidence.host}.json`;
+  const artifactPath = path.resolve(testInfo.config.rootDir, '../.artifacts/r151', artifact);
+  await mkdir(path.dirname(artifactPath), { recursive: true });
+  await writeFile(artifactPath, JSON.stringify(evidence, null, 2), 'utf8');
+  await testInfo.attach(artifact, { body: JSON.stringify(evidence, null, 2), contentType: 'application/json' });
 });

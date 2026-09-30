@@ -1,3 +1,4 @@
+import type { EcdsaMaterialReadSnapshot } from '../../core/ecdsaMaterialReadSnapshot';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import type { TenantRootIdentityV1 } from '@shared/tenant-root/tenantRootIdentity';
 import type {
@@ -1183,6 +1184,7 @@ export interface RouterApiWalletRegistrationService {
   }): Promise<
     | {
         readonly ok: true;
+        readonly readSnapshot: EcdsaMaterialReadSnapshot;
         readonly materialActivation: RouterAbMpcMaterialActivationRefWire;
         readonly keyHandle: string;
         readonly relayerKeyId: string;

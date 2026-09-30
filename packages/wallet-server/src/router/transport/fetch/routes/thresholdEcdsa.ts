@@ -576,7 +576,7 @@ async function executeRouterAbEcdsaDerivationNormalSigningRoute(
         : parseRouterAbEcdsaDerivationEvmDigestSigningFinalizeRequestV1(input.body);
     const operation = await admitRouterAbEcdsaReusableWalletSessionOperation({
       request,
-      materialActivation: authorization.admission.materialActivation,
+      material: authorization.activeMaterial,
       binding:
         authorization.kind === 'wallet_session_operation_credential_v1'
           ? {
@@ -588,10 +588,6 @@ async function executeRouterAbEcdsaDerivationNormalSigningRoute(
               candidate: authorization.candidate,
             },
       authorizedOperations: input.ctx.service.authorizedOperations,
-      resolveEcdsaMaterialActivation:
-        input.ctx.service.walletRegistration.resolveEcdsaMaterialActivation.bind(
-          input.ctx.service.walletRegistration,
-        ),
     });
     if (!operation.ok) {
       const failureBody = operation.error.body;
@@ -836,7 +832,7 @@ type RouterAbEcdsaResolvedMaterialActivation = Omit<
     Awaited<ReturnType<RouterApiWalletRegistrationService['resolveEcdsaMaterialActivation']>>,
     { readonly ok: true }
   >,
-  'routerAbEcdsaDerivationNormalSigning'
+  'routerAbEcdsaDerivationNormalSigning' | 'readSnapshot'
 >;
 
 type RouterAbEcdsaV2OperationStepUpResolution =

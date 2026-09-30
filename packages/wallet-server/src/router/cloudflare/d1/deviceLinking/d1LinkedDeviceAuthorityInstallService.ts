@@ -1,3 +1,4 @@
+import { EcdsaMaterialReadSnapshot } from '../../../../core/ecdsaMaterialReadSnapshot';
 import {
   prepareWalletEcdsaSignersRead,
   parseWalletEcdsaSignerRows,
@@ -160,6 +161,7 @@ import { unknownWebAuthnAuthenticatorDeviceInfo } from '@shared/utils/webauthnDe
 import type { CloudflareD1EmailOtpRegistrationEnrollmentFinalizer } from '../emailOtp/d1EmailOtpRegistrationEnrollmentFinalizer';
 
 export type InstalledEcdsaCustodySnapshotV1 = {
+  readonly readSnapshot: EcdsaMaterialReadSnapshot;
   readonly chain: readonly InstalledLinkedDeviceEcdsaAuthorityProjectionV1[];
   readonly signers: readonly WalletEcdsaSignerRecord[];
 };
@@ -1039,6 +1041,9 @@ export class D1LinkedDeviceAuthorityInstallServiceV1 {
         await assertStoredPackageDigest(row);
       }
       return {
+        readSnapshot: EcdsaMaterialReadSnapshot.linked(
+          this.options.scope, input.walletId, installations.results ?? [], signers.results ?? [],
+        ),
         chain: installedEcdsaAuthorityChain(rows, input.materialActivation),
         signers: parseWalletEcdsaSignerRows(signers.results ?? [], input.walletId),
       };

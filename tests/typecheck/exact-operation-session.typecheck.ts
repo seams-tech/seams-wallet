@@ -45,3 +45,17 @@ void mixed;
 void relabeled;
 void widenedSnapshot;
 void castAdmission;
+
+
+declare const snapshot: import('../../packages/wallet-server/src/core/ecdsaMaterialReadSnapshot').EcdsaMaterialReadSnapshot;
+declare const sessionOperation: import('../../packages/wallet-server/src/authorization/ecdsaWalletSessionAdmission').EcdsaWalletSessionAdmissionInput['operation'];
+declare const materialScope: import('../../packages/wallet-server/src/authorization/service').EcdsaMaterialActivationScope;
+// @ts-expect-error An admission requires the snapshot read with its verified material.
+const missingMaterialSnapshot: import('../../packages/wallet-server/src/authorization/ecdsaWalletSessionAdmission').EcdsaWalletSessionAdmissionInput = { operation: sessionOperation, material: materialScope };
+// @ts-expect-error A plain object cannot manufacture the private record-set evidence.
+const fabricatedSnapshot: typeof snapshot = { walletId: snapshot.walletId, condition: snapshot.condition };
+// @ts-expect-error Spreading a snapshot cannot carry its private evidence or prototype methods.
+const spreadSnapshot: typeof snapshot = { ...snapshot };
+// @ts-expect-error Raw serialized data cannot be cast directly to an in-process read snapshot.
+const serializedSnapshot = 'untrusted' as typeof snapshot;
+void [missingMaterialSnapshot, fabricatedSnapshot, spreadSnapshot, serializedSnapshot];

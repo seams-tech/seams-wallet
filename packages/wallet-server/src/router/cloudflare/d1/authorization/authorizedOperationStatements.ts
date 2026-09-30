@@ -1,3 +1,4 @@
+import type { EcdsaMaterialReadSnapshot } from '../../../../core/ecdsaMaterialReadSnapshot';
 import type { AuthorizedOperation } from '../../../../authorization/domain';
 import type { AuthorizedOperationMaterialScope, EcdsaMaterialActivationScope } from '../../../../authorization/service';
 import type { D1WalletStoreScope } from '../../../../core/d1WalletStore';
@@ -99,9 +100,11 @@ export function prepareAuthorizedOperationAdmissionRead(input: {
   readonly tenantId: TenantId;
   readonly operationFingerprintDigest: CapabilityOperationFingerprintDigest;
   readonly nowMs: number;
+  readonly materialSnapshot: EcdsaMaterialReadSnapshot | null;
 }): D1PreparedStatementLike {
+  const material = input.materialSnapshot?.condition(input.walletSignerScope) ?? { sql: '1', bindings: [] };
   return input.database.prepare(
-    `SELECT operation.*, ${PINNED_OWNER_WALLET},
+    `SELECT operation.*, ${PINNED_OWNER_WALLET}, (${material.sql}) AS material_snapshot_active,
             CASE operation.authorization_source_kind
               WHEN 'authorization_grant' THEN EXISTS (
                 SELECT 1
@@ -159,6 +162,7 @@ export function prepareAuthorizedOperationAdmissionRead(input: {
         AND operation.operation_fingerprint_digest = ?
       LIMIT 1`,
   ).bind(
+    ...material.bindings,
     input.walletSignerScope.orgId,
     input.walletSignerScope.projectId,
     input.walletSignerScope.envId,
@@ -176,6 +180,7 @@ export function prepareAuthorizedOperationInsert(input: {
   readonly walletSignerScope: D1WalletStoreScope;
   readonly operation: AuthorizedOperation;
   readonly material: AuthorizedOperationMaterialScope | null;
+  readonly materialSnapshot: EcdsaMaterialReadSnapshot | null;
 }): D1PreparedStatementLike {
   const { database, namespace, walletSignerScope, operation, material } = input;
   const claimedAtMs = Number(operation.claimedAtMs);
@@ -226,10 +231,14 @@ export function prepareAuthorizedOperationInsert(input: {
     source.kind === 'authorization_grant' ? walletSignerScope.projectId : null,
     source.kind === 'authorization_grant' ? walletSignerScope.envId : null,
   ] as const;
-  return material?.kind === 'ecdsa_material_activation'
-    ? database
-        .prepare(
-          `INSERT INTO authorized_operations (
+  let condition = input.materialSnapshot?.condition(walletSignerScope) ?? null;
+  if (condition === null) {
+    condition = material?.kind === 'ecdsa_material_activation'
+      ? { sql: ECDSA_SIGNER_MATCH, bindings: ecdsaSignerMatchBindings(walletSignerScope, material) }
+      : { sql: '1', bindings: [] };
+  }
+  return database.prepare(
+    `INSERT INTO authorized_operations (
           namespace, tenant_id, authorized_operation_id, audit_event_id,
           principal_id, capability_id, capability_kind, operation_kind, operation_id,
           operation_fingerprint_digest, lane_digest, intent_digest, display_digest,
@@ -247,29 +256,6 @@ export function prepareAuthorizedOperationInsert(input: {
         ) SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                   'claimed', 'pending', NULL, NULL, NULL, NULL, ?, NULL, ?,
                   ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
-           WHERE ${ECDSA_SIGNER_MATCH}`,
-        )
-        .bind(...values, ...ecdsaSignerMatchBindings(walletSignerScope, material))
-    : database
-        .prepare(
-          `INSERT INTO authorized_operations (
-          namespace, tenant_id, authorized_operation_id, audit_event_id,
-          principal_id, capability_id, capability_kind, operation_kind, operation_id,
-          operation_fingerprint_digest, lane_digest, intent_digest, display_digest,
-          authorization_source_kind, authorization_id, evidence_set_digest,
-          quota_id, quota_kind, authorization_grant_kind, lifecycle_kind, result_kind,
-          result_digest, result_status, result_content_type, result_body_text,
-          claimed_at_ms, completed_at_ms,
-          material_activation_id, material_activation_capability,
-          material_activation_owner, material_activation_key_binding,
-          material_activation_lifecycle_binding, material_activation_signing_worker,
-          linked_wallet_id, linked_enrollment_id, linked_device_id,
-          linked_wallet_key_id, linked_lane_id, linked_lane_share_epoch,
-          linked_revocation_epoch, linked_scope_org_id, linked_scope_project_id,
-          linked_scope_env_id
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                  'claimed', 'pending', NULL, NULL, NULL, NULL, ?, NULL, ?,
-                  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        )
-        .bind(...values);
+           WHERE ${condition.sql}`,
+  ).bind(...values, ...condition.bindings);
 }

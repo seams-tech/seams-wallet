@@ -1,3 +1,4 @@
+import { EcdsaMaterialReadSnapshot } from './ecdsaMaterialReadSnapshot';
 import { prepareWalletEcdsaSignersRead, parseWalletEcdsaSignerRows } from './d1EcdsaSignerRead';
 import { toOptionalTrimmedString, isPlainObject } from '@shared/utils/validation';
 import { parseWalletId } from '@shared/utils/domainIds';
@@ -758,6 +759,16 @@ export class D1WalletStore implements WalletStore {
     walletId: WalletId;
     materialActivation: RouterAbMpcMaterialActivationRefWire;
   }): Promise<WalletEcdsaSignerRecord | null> {
+    return (await this.readEcdsaSignerMaterialSnapshot(input))?.signer ?? null;
+  }
+
+  async readEcdsaSignerMaterialSnapshot(input: {
+    walletId: WalletId;
+    materialActivation: RouterAbMpcMaterialActivationRefWire;
+  }): Promise<{
+    readonly signer: WalletEcdsaSignerRecord;
+    readonly readSnapshot: EcdsaMaterialReadSnapshot;
+  } | null> {
     await this.ensureSchema();
     const walletId = toOptionalTrimmedString(input.walletId);
     if (!walletId) return null;
@@ -774,8 +785,7 @@ export class D1WalletStore implements WalletStore {
             AND json_extract(
               record_json,
               '$.walletKey.publicCapability.material_activation.activation_id'
-            ) = ?
-          LIMIT 4`,
+            ) = ?`,
       )
       .bind(
         this.scope.namespace,
@@ -802,7 +812,14 @@ export class D1WalletStore implements WalletStore {
     if (!keyHandle || matches.some((record) => record.walletKey.keyHandle !== keyHandle)) {
       throw new Error('Wallet has conflicting ECDSA material activations');
     }
-    return matches[0] ?? null;
+    const signer = matches[0];
+    if (!signer) return null;
+    return {
+      signer,
+      readSnapshot: EcdsaMaterialReadSnapshot.canonical(
+        this.scope, input.walletId, input.materialActivation.activation_id, result.results ?? [],
+      ),
+    };
   }
 
   async getEcdsaSignerByPostRegistrationRequest(input: {
