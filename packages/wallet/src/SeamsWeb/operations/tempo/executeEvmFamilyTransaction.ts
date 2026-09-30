@@ -69,7 +69,9 @@ export function withResolvedChainId(
 }
 
 type TempoLifecycleDeps = {
-  onBroadcastStarted?: (signedResult: TempoSignedResult | EvmSignedResult) => void;
+  onBroadcastStarted(
+    args: Pick<ReportTempoBroadcastAcceptedArgs, 'walletSession' | 'signedResult'>,
+  ): void;
   signEvmFamily(args: EvmFamilyTransactionSignArgs): Promise<TempoSignedResult | EvmSignedResult>;
   reportBroadcastAccepted(args: ReportTempoBroadcastAcceptedArgs): Promise<void>;
   reportBroadcastRejected(args: ReportTempoBroadcastRejectedArgs): Promise<void>;
@@ -612,7 +614,7 @@ export async function executeEvmFamilyTransactionLifecycle(args: {
       interaction: { kind: 'none', overlay: 'none' },
     });
     const rawTxHex = assertRawTxHexOrThrow(signedResult.rawTxHex);
-    args.lifecycle.onBroadcastStarted?.(signedResult);
+    args.lifecycle.onBroadcastStarted({ walletSession: args.input.walletSession, signedResult });
     txHash = normalizeTxHashOrThrow(
       await client.request({
         method: 'eth_sendRawTransaction',
