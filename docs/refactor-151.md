@@ -5,14 +5,16 @@ Date: September 29, 2026
 Status: policy, claim/readback, operation/source, and persisted owner-scope
 consolidation are implemented and verified in bounded hosted diagnostics. The
 latest canonical reusable-session ECDSA path makes seven D1 calls per
-signature, down from 18, confirmed in a fresh hosted diagnostic. Local linked-device checkpoints reduce third-generation
-signing from 24 to nine calls and directly linked signing from 20 to nine. These
-latest reductions still need controlled hosted latency measurements with verified
-probe and execution placement.
+signature, down from 18, confirmed in a fresh hosted diagnostic. Local
+linked-device checkpoints reduce third-generation signing from 24 to nine calls
+and directly linked signing from 20 to nine. A bounded first/warm/burst
+diagnostic now has verified Tokyo probe placement.
+Wider regional and linked latency cohorts remain incomplete because of probe
+failures; Gateway and DO execution placement is still unverified.
 Active/exhausted credentials are classified in one read. Material snapshots are
 checked atomically at reusable-session claim and finalize/replay admission.
-Reusable-session finalize now resolves existing operations without admitting new claims; a missing
-prepare cannot consume quota or create an audit event.
+Reusable-session finalize resolves existing operations without admitting new
+claims; a missing prepare cannot consume quota or create an audit event.
 The minimum-call-budget design review is recorded below; implementation and
 measurement remain open. Regional databases are conditional. Production rollout
 is separate.
@@ -1690,10 +1692,85 @@ were restored and checked (100% baseline version, readiness HTTP 503). Observed
 cumulative spend is $0.6607 through `2026-09-30T12:09:31.124Z`, below the existing
 $25 cap; usage accounting can lag. No staging or production deployment changed.
 
-Remaining R151 work is controlled first/warm/burst and linked-signing latency
-measurement with verified probe locations, then a placement comparison near
-the existing D1 primary. Revisit policy-read consolidation against that residual.
-R152 remains a separate regional-D1 plan with unmeasured gains.
+Remaining R151 work is reliable regional first/warm/burst and linked-signing
+measurement, then a placement comparison near the existing D1 primary. Revisit
+policy-read consolidation against that residual. R152 gains remain unmeasured.
+
+### Verified Tokyo first/warm/burst diagnostic — September 30
+
+The existing Cloudflare probe now selects the first/warm/burst workload and
+retains public SDK timing, overlapping commit stages, refill results, and D1
+traces. Two fresh-wallet attempts completed on `nrt13` (APAC, Japan), verifying
+ten signatures, including two untimed setup signatures. Both concurrent bursts
+exhausted the shared three-use session budget after their setup signature.
+Source revision `cad79fa2ab88` and SDK build-input hash `561bc6849011…` were
+verified against the container identity before each attempt; both used one boot.
+
+| Tokyo workload | Timed signatures | SDK median / observed maximum | Commit median / observed maximum |
+| --- | ---: | ---: | ---: |
+| First | 2 | 2,687 / 2,940 ms | 1,758 / 1,976 ms |
+| Ready-pool warm | 2 | 2,026 / 2,040 ms | 1,252 / 1,270 ms |
+| Concurrent burst, individual calls | 4 | 4,785 / 6,626 ms | 2,279 / 2,424 ms |
+
+SDK timing includes automated confirmation. Concurrent calls overlap; their
+elapsed times must not be added. Commit stages are narrower overlapping spans.
+These samples do not establish the complete 1–2 second target.
+
+No failed background refill or `foreground_refill` fallback was observed in the
+two completed attempts. First signatures waited 195–728 ms for material; burst
+signatures waited 957–1,257 ms. Neither burst had its selected material completed
+at its start. Warm signatures used previously completed material. The cancellation
+stall is absent from these samples; successful refill latency still contributes.
+All eight timed signatures retain seven D1 calls, eight statements, two
+write-bearing calls, and 14 reported row writes, served by the APAC primary.
+First/warm D1 wall totals are 534–619 ms versus 10.81–13.71 ms SQL execution.
+Gateway and custody DO execution locations remain unknown.
+
+The planned regional cohort did not complete. Tokyo attempt three returned no
+artifact and empty process output; its exit status was not persisted. London's
+first attempt on `lhr15` (WEUR, UK) ended with `SIGTERM`, captured in the improved
+result record. ENAM identity preflight returned HTTP 500 before any wallet
+attempt. Treat these as unresolved infrastructure failures, preserve all attempt
+ledgers, and do not retry operations with unknown outcomes. The current-build
+cohorts contain two completed and two failed wallet attempts, plus the ENAM
+preflight failure; only the completed Tokyo attempts supply latency samples.
+
+An earlier attempt exposed a valid harness gap: direct budget-status verification
+omitted the hosted ingress Origin and access token. The shared replay helper now
+supplies both; ordinary Wallet authorization remains unchanged. The existing
+first/warm/burst E2E passes locally after this correction, along with intended
+type checking and the bloat ratchet. Access-window propagation and an image
+mismatch were caught separately in preflight. No regional placement treatment
+or regional database was introduced.
+
+Evidence is retained in `.artifacts/r151/regional-workloads-20260930-r4/` (Tokyo),
+`regional-workloads-20260930-r5/` (London/ENAM), and
+`regional-workloads-20260930-summary/` (`summary.json`, `restoration.json`). Earlier
+preflights and the failed harness cohort remain separate. Reanalyze with
+`python3 .runtime/r151-regional/analyze.py`; the committed probe workload selector
+is `first_warm_burst`, using the existing intended E2E selected by
+`--grep 'first, warm, and concurrent burst'`. Private orchestration and exit logs
+remain under `.runtime/r151-regional/`.
+
+Rollout records show replacements continuing for two to four minutes after
+Wrangler returned. A matching serving image can appear before replacement has
+finished. Future preflight must check the latest rollout's completed state,
+application version, and target image before starting wallet work. Read the
+latest rollout record because `active_rollout_id` clears after completion.
+A separate attempt with the initial completion checker stopped before wallet
+work because it mishandled that cleared field. Restoration now waits for
+settled rollouts. Whether replacement caused the captured subprocess signals
+still needs confirmation; do not attribute them to the refill cancellation bug.
+
+Final verification confirms all three original probe images with completed
+rollouts, inactive probe instances, the original probe/Gateway Worker versions,
+and expired access windows (probe HTTP 403, ingress HTTP 503). Evidence contains
+no benchmark access-token values. Observed cumulative spend is $0.6994 through
+`2026-09-30T13:03:18.086Z`, below the $25 cap; accounting can lag.
+
+Next, diagnose probe process termination and ENAM startup, then complete regional
+and linked cohorts with fixed builds. Only then compare Gateway placement near
+the existing primary. R152 ownership and expected gains remain conditional.
 
 ### 1. Consolidate reads while preserving decision boundaries
 
@@ -1756,9 +1833,11 @@ Phase 3 still revisits the complete call budget after these incremental changes.
 - [x] Diagnose and fix the repeated linked-presign worker timeout/reset. Retire
   the stale authority channel and verify repeated three-device signing on
   Workers D1, wallet-DO, and VM, preserving per-signature D1 evidence.
-- [ ] Repeat the workloads in controlled hosted cohorts and reduce demonstrated
-  foreground refill waits using the established machinery.
-  Preserve the distinct presign and signing authorization boundaries.
+- [x] Extend the hosted probe with first/warm/burst SDK timing and verify a
+  bounded Tokyo diagnostic, retaining shared-quota and signature checks.
+- [ ] Resolve probe termination/startup failures and complete the regional and
+  linked cohorts. Reduce demonstrated refill waits using existing scheduling,
+  preserving distinct presign and signing authorization boundaries.
 - [x] Inventory foreground Gateway signing writes by invariant: claim/idempotency,
   quota consumption, completion/replay, audit, and unrelated maintenance. The measured signing path
   has two write-bearing calls, both enforcing current behavior. No demonstrated

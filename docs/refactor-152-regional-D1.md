@@ -16,13 +16,25 @@ its owning role; this plan concerns Gateway authorization, policy, sessions,
 quotas, and durable operation records.
 
 [R151](refactor-151.md) reduced canonical reusable-session ECDSA signing from
-18 to 12 Gateway D1 calls. Linked-device signing currently requires 20. The
-latest historical hosted 12-call cohort reported median summed D1 wall time
+18 to seven Gateway D1 calls (eight SQL statements and two write-bearing calls).
+Linked-device signing currently requires nine calls. The earlier hosted
+12-call cohort reported median summed D1 wall time
 of approximately 865–901 ms versus 14–15 ms of SQL execution, with all calls
 served by the APAC primary. Gateway and DO execution locations were unverified.
 These numbers justify investigation; the difference includes scheduling,
 binding, service, and transport overhead and cannot be attributed wholly to
 distance or treated as recoverable latency.
+
+The current-build Tokyo diagnostic in R151 verifies ten signatures across two
+completed first/warm/burst attempts. Eight timed signatures retain the seven-call
+budget; first/warm D1 wall totals are 534–619 ms versus 10.81–13.71 ms SQL execution.
+Probe identity is verified at `nrt13`; Gateway and DO placement remain unknown.
+The wider cohort is incomplete: a third Tokyo attempt produced no artifact,
+London's first attempt received `SIGTERM`, and ENAM identity preflight returned
+HTTP 500. Restore reliable probes before using these workloads for an A/B
+placement decision. Require completed image rollouts and matching application
+versions before dispatch; serving-image identity alone proved insufficient as
+a readiness gate. These partial observations do not measure regional-D1 gains.
 
 R150's D1-versus-DO custody comparison did not measure the benefit of aligning
 the residual Gateway database. There is no measured regional-D1 gain yet.
