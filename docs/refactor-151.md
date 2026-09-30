@@ -551,6 +551,48 @@ Next steps now have two distinct boundaries:
    sharing a scope. Preserve separate later signing checks and avoid cross-action
    status caching. Measure the next change with these current-build caller traces.
 
+### Remove the generation-only ECDSA inventory read (September 30)
+
+The caller trace identified two inventory reads inside one authorized ECDSA
+signing preparation. The first selects the material candidate and its authority.
+After resolving that exact candidate, the second inventory's lanes and
+authorization results were discarded; only its generation number was copied into
+prepared-operation metadata. That number does not drive authorization or signing
+control flow. Preparation now carries the generation from the inventory that
+actually selected the candidate, removing the second read entirely.
+
+Candidate/selection identity checks, readiness planning, subsequent runtime
+preparation, material-hydration authorization, and server admission are retained.
+Each new signing attempt still reads its own inventory. This change adds no cache,
+shared scope, new domain type, or alternative authorization path.
+
+The matched Workers browser lifecycle changes from 59 to 57 status POSTs. Both
+saved requests are in warm signing: one in Tempo preparation and one in EVM
+preparation. Lane inventory/discovery requests fall from 26 to 24; runtime
+preparation remains at four and material hydration at two. Registration, unlock,
+refresh/export, and step-up request counts remain unchanged in the observed
+window. The count covers the complete mixed-wallet test lifecycle, including
+background work; it is not the Gateway's per-signature D1 count.
+
+The baseline is the preceding checkpoint's Workers run. Before rebuilding, both
+SDK and server distribution hashes were checked against that artifact. Source
+baseline: `2a2be2b3`. The current SDK was then rebuilt from source with this
+single production edit; the server distribution is unchanged. Evidence, build
+identities, and reproduction commands are in
+`.artifacts/r151/inventory-read-20260930/analysis.json`.
+
+The lifecycle passes on Workers D1, wallet-DO, and VM, each recording 57 status
+POSTs with the same caller classification. Concurrent shared-budget signing,
+linked-device revocation, and recovery retirement also pass on Workers D1: six
+scenario/profile combinations in total. The SDK build/type check, intended-test
+type check, and bloat check pass.
+
+The next status-read candidates must similarly establish what the later read
+contributes before removing or sharing it. The atomic material-freshness work,
+minimum-call-budget review, full signing-span measurements, and conditional
+regional-placement decision remain open. No hosted resources changed, and no
+new D1-call or complete-latency result is claimed by this browser measurement.
+
 ### 1. Consolidate reads while preserving decision boundaries
 
 - [x] Read project and abuse policy together through the existing admission store.
@@ -587,6 +629,8 @@ Phase 3 still revisits the complete call budget after these incremental changes.
 
 - [x] Record current-build status-request callers for the mixed-wallet refresh,
   warm-signing, and step-up lifecycle, with repeatable browser evidence.
+- [x] Remove the second ECDSA preparation inventory read used only for generation
+  metadata, retaining the inventory that selected the exact material candidate.
 - [ ] Extend caller coverage as needed and coalesce overlapping status requests
   with the same semantics. Reuse already returned display data where valid.
   Keep server-side authorization fresh at admission.
