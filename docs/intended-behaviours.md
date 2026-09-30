@@ -689,6 +689,10 @@ Expected behaviour:
   ordinary signing, export, reload, lock, unlock, inventory, and revocation
   paths. Those operations do not read the completed link session or repair
   missing material.
+- Canonical, directly linked, and subsequently linked devices can each sign
+  repeatedly under their own live Wallet Session. Switching the client presign
+  worker to linked-holder authority retires its previous authority channel;
+  subsequent inventory reads preserve the active linked material.
 - Device inventory is derived from active wallet authorities with
   device-link provenance and their exact auth methods. A completed link
   session is temporary workflow state and is deleted after acknowledgement.

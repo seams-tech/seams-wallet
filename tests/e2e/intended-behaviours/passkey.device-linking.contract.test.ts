@@ -6,7 +6,12 @@ import { intendedTest as test } from './harness';
 
 class LinkedSigningMeasurements {
   device = 0;
-  private readonly responses: { readonly device: number; readonly response: Response }[] = [];
+  signature = 0;
+  private readonly responses: {
+    readonly device: number;
+    readonly signature: number;
+    readonly response: Response;
+  }[] = [];
 
   record(response: Response): void {
     const pathname = new URL(response.url()).pathname;
@@ -14,16 +19,17 @@ class LinkedSigningMeasurements {
       pathname === '/router-ab/ecdsa-derivation/sign' ||
       pathname === '/router-ab/ecdsa-derivation/sign/prepare'
     ) {
-      this.responses.push({ device: this.device, response });
+      this.responses.push({ device: this.device, signature: this.signature, response });
     }
   }
 
   async evidence(): Promise<unknown[]> {
     const measurements = [];
-    for (const { device, response } of this.responses) {
+    for (const { device, signature, response } of this.responses) {
       const header = await response.headerValue('X-Benchmark-D1');
       measurements.push({
         device,
+        signature,
         path: new URL(response.url()).pathname,
         status: response.status(),
         d1: header === null ? null : JSON.parse(header),
@@ -87,7 +93,8 @@ test('a second device links with a passkey, signs NEAR and Tempo, and is revoked
  * A linked device holds full owner authority, including linking. On a wallet
  * whose signers are ECDSA only, Device 2 approves Device 3 from its own ECDSA
  * share: Device 3's material is reserved from Device 2's, the wallet's key and
- * address stay the same, and every device keeps signing.
+ * address stay the same, and every device signs repeatedly so the second
+ * linked signing exercises inventory after the presign authority switch.
  */
 test('a linked device links a third device on an ECDSA-only wallet, which signs Tempo', async ({
   harness,
@@ -105,19 +112,22 @@ test('a linked device links a third device on an ECDSA-only wallet, which signs 
   const contexts = browser.contexts();
   for (const context of contexts) context.on('response', record);
   try {
-    measurements.device = 3;
-    await device3.signTempoTransaction('post_device_link');
-    measurements.device = 2;
-    await device2.signTempoTransaction('post_device_link');
-    measurements.device = 1;
-    await harness.signTempoTransaction('post_registration');
+    for (const signature of [1, 2, 3]) {
+      measurements.signature = signature;
+      measurements.device = 3;
+      await device3.signTempoTransaction('post_device_link');
+      measurements.device = 2;
+      await device2.signTempoTransaction('post_device_link');
+      measurements.device = 1;
+      await harness.signTempoTransaction('post_registration');
+    }
   } finally {
     for (const context of contexts) context.off('response', record);
   }
   const evidence = {
     kind: 'gateway_ecdsa_linked_custody_chain_v1',
     host: process.env.SEAMS_INTENDED_WALLET_HOST ?? 'workers_local',
-    verifiedSignatures: 3,
+    verifiedSignatures: 9,
     responses: await measurements.evidence(),
   };
   const artifactName = `gateway-ecdsa-linked-chain-${evidence.host}.json`;

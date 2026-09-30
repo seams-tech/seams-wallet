@@ -829,7 +829,50 @@ linked-holder handle. The same failure reproduced with fault injection disabled
 admission test checks quota directly instead of using extra signatures as its
 quota measurement. Failed traces remain under
 `.runtime/r150-d1-diagnostic/atomic-control-workers-traces/`; the repeated linked
-presign timeout remains a Phase 2 follow-up, not a passing workload claim.
+presign timeout was carried into Phase 2. The next checkpoint resolves that
+failure and adds repeated linked-workload coverage.
+
+### Repeated linked-presign checkpoint (September 30)
+
+The expanded control reproduced the timeout without material-retirement fault
+injection. Investigation reclassifies it as `production_regression`: the
+presign worker retained separate derivation and linked-holder ports, while the
+derivation worker owned one peer port. Switching to linked authority closed the
+old peer. A later `ListAvailable` request still queried that stale derivation
+port, waited 20 seconds, and reset the worker that held the linked material.
+The next presign then failed with `linked ECDSA holder material is unavailable`.
+
+The presign worker now holds one active authority channel with an explicit kind.
+Replacing it rejects pending requests and clears sessions/material references
+from the previous port before closing it. Durable canonical inventory is read
+only through an active canonical channel. Linked inventory retains its active
+in-memory material. Initialization shares the common request/retention flow
+while keeping branch-specific authority construction. No timeout increase or
+holder-recovery path was added.
+
+The existing three-device E2E now signs three times on each device, alternating
+between canonical, directly linked, and third-generation linked devices. Its
+artifact identifies each device and signature separately. Workers D1,
+wallet-DO, and VM verify 27 signatures across the three runs. Workers D1 and
+wallet-DO retain 10 calls / 11 statements per canonical signature and 12 calls /
+15 statements per linked signature, with two write-bearing calls and 14 reported
+row writes in each case. This closes repeated local workload coverage without
+claiming hosted latency or regional-placement gains.
+
+Eight scenario/profile checks pass: the original fault-disabled control, the
+three repeated chain profiles, retirement admission races, dual-curve linking
+and export, refresh/signing/step-up/export, and first/warm/concurrent burst
+signing. Private lifecycle traces contain no worker timeout/reset. The nine
+retirement rejections preserve quota and exact replay still matches. SDK build,
+SDK/intended/state type checks, and the bloat check pass.
+
+Evidence: `.artifacts/r151/presign-20260930/analysis.json` records source and
+built-distribution hashes, before/after failure evidence, per-signature call
+counts, and trace hashes. Reproduce with `pnpm -C packages/wallet build:sdk`,
+`node .runtime/r151-presign/control.mjs`,
+`node .runtime/r151-presign/verify.mjs`, and
+`python3 .runtime/r151-presign/analyze.py`. The temporary Gateway measurement
+wrapper is restored after the instrumented runs. Hosted resources are unchanged.
 
 ### Remaining call and write inventory (September 30)
 
@@ -879,6 +922,30 @@ Custody material consumption and refill persistence remain separate role-level
 invariants; the Gateway's two-call write count does not describe all system
 storage. No signing write is removed by this inventory.
 
+### Initial session/material read review (September 30)
+
+The next candidate is the first canonical material lookup in
+`D1WalletStore.readEcdsaSignerMaterialSnapshot`. The joined credential read in
+`D1AuthorizationStore.readJoinedWalletSessionAuthorizationV2Row` already has the
+wallet and environment identity needed to scope that lookup. It also serves
+status and other authorization consumers, so the added material projection
+should belong to signing's result rather than every session read.
+
+A direct multi-row JOIN under the session query's `LIMIT 1` would lose material
+candidates and weaken ambiguity detection and snapshot cardinality. Preserve
+the complete canonical record set with a scoped aggregate or an equivalent
+single-call projection. Reuse the existing signer parser and snapshot builder.
+Classify the session/authority/method first, then validate material, preserving
+current denial precedence. An empty canonical set must still enter the existing
+linked installation/canonical-source batch and custody-chain verification.
+
+Removing this one lookup from both prepare and finalize would target eight
+canonical calls and ten linked calls per signature. These are unimplemented
+projections. Atomic admission snapshot predicates, policy reads, claim/quota/audit
+writes, and durable completion remain required. The implementation must measure
+actual counts and repeat retirement, revocation, last-quota contention, and
+lost-response replay checks before accepting the reduction.
+
 ### 1. Consolidate reads while preserving decision boundaries
 
 - [x] Classify active/exhausted credentials from one snapshot for ECDSA signing,
@@ -903,8 +970,11 @@ storage. No signing write is removed by this inventory.
 - [x] Bind verified canonical/linked material snapshots to atomic claim and
   existing-operation admission predicates; verify retirement races and remove
   the second reusable-session material resolver.
-- [ ] Examine joining initial material resolution to the existing joined session
-  lookup, retaining the snapshot predicates and current rejection precedence.
+- [x] Examine joining initial material resolution to the existing joined session
+  lookup. Preserve the complete material candidate set despite the session's
+  `LIMIT 1`; retain current parsers, snapshot predicates, and denial precedence.
+- [ ] Implement and measure the signing-specific session/material projection,
+  retaining the linked custody fallback and verifying the admission races.
 - [ ] Use the existing store/domain boundaries and narrow admitted result types.
   Delete replaced paths. Do not add request-wide caches of revocation or quota
   decisions, compatibility branches, or another authorization implementation.
@@ -928,9 +998,9 @@ Phase 3 still revisits the complete call budget after these incremental changes.
   Keep server-side authorization fresh at admission.
 - [x] Measure warm pool, immediate first sign, and burst signing separately in
   a bounded local diagnostic with signature and shared-quota verification.
-- [ ] Diagnose the repeated linked-presign worker timeout/reset observed in the
-  expanded local control, distinguishing resource pressure from holder-lifecycle
-  recovery behavior before claiming repeated linked-workload coverage.
+- [x] Diagnose and fix the repeated linked-presign worker timeout/reset. Retire
+  the stale authority channel and verify repeated three-device signing on
+  Workers D1, wallet-DO, and VM, preserving per-signature D1 evidence.
 - [ ] Repeat the workloads in controlled hosted cohorts and reduce demonstrated
   foreground refill waits using the established machinery.
   Preserve the distinct presign and signing authorization boundaries.

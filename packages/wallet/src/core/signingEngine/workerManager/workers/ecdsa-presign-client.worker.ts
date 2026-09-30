@@ -67,6 +67,11 @@ type OpaquePresignMaterialEntry = {
   state: OpaqueEcdsaPresignMaterialState;
 };
 
+type PresignAuthorityChannel = {
+  readonly kind: 'role_local_derivation_handle' | 'linked_holder_signing_material';
+  readonly port: MessagePort;
+};
+
 const opaqueMaterials = new Map<string, OpaquePresignMaterialEntry>();
 const pendingOpaqueAuthorities = new Map<string, PendingOpaquePresignAuthority>();
 const opaqueSessionPorts = new Map<string, MessagePort>();
@@ -79,8 +84,7 @@ const opaqueSessionBindings = new Map<
     readonly materialExpiresAtMs: number;
   }
 >();
-let derivationPort: MessagePort | null = null;
-let linkedHolderPort: MessagePort | null = null;
+let authorityChannel: PresignAuthorityChannel | null = null;
 let onlinePort: MessagePort | null = null;
 let messageQueue: Promise<void> = Promise.resolve();
 
@@ -182,100 +186,80 @@ async function initializeSession(
   if (materialExpiresAtMs < ceremonyExpiresAtMs) {
     throw new Error('ECDSA presign material expiry must cover the ceremony');
   }
+  const channel = authorityChannel;
+  const requestId = randomHandle('ecdsa-presign-init');
+  const groupPublicKeyBuffer = groupPublicKey33.slice().buffer;
+  let request: Extract<
+    OpaqueEcdsaPresignAuthorityRequestV1,
+    { readonly kind: 'opaque_ecdsa_presign_session_init_v1' }
+  >;
   switch (payload.authority.kind) {
-    case 'role_local_derivation_handle': {
-      if (!derivationPort) {
+    case 'role_local_derivation_handle':
+      if (channel?.kind !== 'role_local_derivation_handle') {
         throw new Error('ECDSA presign client has no derivation material channel');
       }
-      const requestId = randomHandle('ecdsa-role-local-presign');
-      const groupPublicKeyBuffer = groupPublicKey33.slice().buffer;
-      const result = await requestOpaqueAuthority(
-        derivationPort,
-        {
-          kind: 'opaque_ecdsa_presign_session_init_v1',
-          requestId,
-          sessionId,
-          authority: {
-            kind: 'role_local_derivation_handle',
-            materialHandle: coerceNonNullishString(
-              payload.authority.materialHandle,
-              'materialHandle',
-            ),
-            material: payload.authority.material,
-          },
-          poolIdentity,
-          groupPublicKey33: groupPublicKeyBuffer,
-          ceremonyExpiresAtMs,
-          materialExpiresAtMs,
+      request = {
+        kind: 'opaque_ecdsa_presign_session_init_v1',
+        requestId,
+        sessionId,
+        authority: {
+          kind: 'role_local_derivation_handle',
+          materialHandle: coerceNonNullishString(payload.authority.materialHandle, 'materialHandle'),
+          material: payload.authority.material,
         },
-        [groupPublicKeyBuffer],
-      );
-      const progress = requireOpaqueProgress(result);
-      retainCompletedMaterial({
-        progress,
-        authorityPort: derivationPort,
         poolIdentity,
-        groupPublicKey33,
-        expiresAtMs: materialExpiresAtMs,
-      });
-      if (progress.event !== 'presign_done') {
-        opaqueSessionPorts.set(sessionId, derivationPort);
-        opaqueSessionBindings.set(sessionId, {
-          poolIdentity,
-          groupPublicKey33: groupPublicKey33.slice(),
-          ceremonyExpiresAtMs,
-          materialExpiresAtMs,
-        });
-      }
-      return { authority: { kind: 'role_local_derivation_handle' }, progress };
-    }
-    case 'linked_holder_signing_material': {
-      if (!linkedHolderPort) {
+        groupPublicKey33: groupPublicKeyBuffer,
+        ceremonyExpiresAtMs,
+        materialExpiresAtMs,
+      };
+      break;
+    case 'linked_holder_signing_material':
+      if (channel?.kind !== 'linked_holder_signing_material') {
         throw new Error('ECDSA presign client has no linked holder material channel');
       }
-      const requestId = randomHandle('linked-holder-ecdsa-presign');
-      const groupPublicKeyBuffer = groupPublicKey33.slice().buffer;
-      const result = await requestOpaqueAuthority(
-        linkedHolderPort,
-        {
-          kind: 'opaque_ecdsa_presign_session_init_v1',
-          requestId,
-          sessionId,
-          authority: {
-            kind: 'linked_holder_signing_material',
-            holderHandleId: coerceNonNullishString(
-              payload.authority.holderHandleId,
-              'holderHandleId',
-            ),
-          },
-          poolIdentity,
-          groupPublicKey33: groupPublicKeyBuffer,
-          ceremonyExpiresAtMs,
-          materialExpiresAtMs,
+      request = {
+        kind: 'opaque_ecdsa_presign_session_init_v1',
+        requestId,
+        sessionId,
+        authority: {
+          kind: 'linked_holder_signing_material',
+          holderHandleId: coerceNonNullishString(payload.authority.holderHandleId, 'holderHandleId'),
         },
-        [groupPublicKeyBuffer],
-      );
-      const progress = requireOpaqueProgress(result);
-      retainCompletedMaterial({
-        progress,
-        authorityPort: linkedHolderPort,
         poolIdentity,
-        groupPublicKey33,
-        expiresAtMs: materialExpiresAtMs,
-      });
-      if (progress.event !== 'presign_done') {
-        opaqueSessionPorts.set(sessionId, linkedHolderPort);
-        opaqueSessionBindings.set(sessionId, {
-          poolIdentity,
-          groupPublicKey33: groupPublicKey33.slice(),
-          ceremonyExpiresAtMs,
-          materialExpiresAtMs,
-        });
-      }
-      return { authority: { kind: 'linked_holder_signing_material' }, progress };
-    }
+        groupPublicKey33: groupPublicKeyBuffer,
+        ceremonyExpiresAtMs,
+        materialExpiresAtMs,
+      };
+      break;
     default:
       payload.authority satisfies never;
+      throw new Error('Unsupported ECDSA presign authority');
+  }
+  const result = await requestOpaqueAuthority(channel.port, request, [groupPublicKeyBuffer]);
+  const progress = requireOpaqueProgress(result);
+  retainCompletedMaterial({
+    progress,
+    authorityPort: channel.port,
+    poolIdentity,
+    groupPublicKey33,
+    expiresAtMs: materialExpiresAtMs,
+  });
+  if (progress.event !== 'presign_done') {
+    opaqueSessionPorts.set(sessionId, channel.port);
+    opaqueSessionBindings.set(sessionId, {
+      poolIdentity,
+      groupPublicKey33: groupPublicKey33.slice(),
+      ceremonyExpiresAtMs,
+      materialExpiresAtMs,
+    });
+  }
+  switch (request.authority.kind) {
+    case 'role_local_derivation_handle':
+      return { authority: { kind: 'role_local_derivation_handle' }, progress };
+    case 'linked_holder_signing_material':
+      return { authority: { kind: 'linked_holder_signing_material' }, progress };
+    default:
+      request.authority satisfies never;
       throw new Error('Unsupported ECDSA presign authority');
   }
 }
@@ -722,8 +706,9 @@ async function listAvailablePresignatures(
       expiresAtMs: entry.expiresAtMs,
     });
   }
-  if (derivationPort) {
-    const result = await requestOpaqueAuthority(derivationPort, {
+  const channel = authorityChannel;
+  if (channel?.kind === 'role_local_derivation_handle') {
+    const result = await requestOpaqueAuthority(channel.port, {
       kind: 'opaque_ecdsa_presign_material_list_v1',
       requestId: randomHandle('opaque-ecdsa-presign-list'),
       poolIdentity,
@@ -743,7 +728,7 @@ async function listAvailablePresignatures(
         continue;
       }
       opaqueMaterials.set(materialHandle, {
-        authorityPort: derivationPort,
+        authorityPort: channel.port,
         poolIdentity,
         groupPublicKey33,
         bigR33: bigR33.buffer,
@@ -766,33 +751,29 @@ async function listAvailablePresignatures(
   return refs.sort((left, right) => left.createdAtMs - right.createdAtMs);
 }
 
+function replaceAuthorityChannel(channel: PresignAuthorityChannel): void {
+  // The derivation worker owns one peer port across both authority kinds.
+  if (authorityChannel) {
+    purgeAuthorityPort(authorityChannel.port, 'ECDSA presign authority channel was replaced');
+    authorityChannel.port.close();
+  }
+  authorityChannel = channel;
+  channel.port.onmessage = handleOpaqueAuthorityResponse.bind(null, channel.port);
+  channel.port.onmessageerror = purgeAuthorityPort.bind(
+    null,
+    channel.port,
+    'ECDSA presign authority channel failed',
+  );
+  channel.port.start();
+}
+
 function attachControlChannel(value: unknown): boolean {
   if (isAttachEcdsaDerivationToPresignPort(value)) {
-    if (derivationPort) {
-      purgeAuthorityPort(derivationPort, 'ECDSA derivation presign authority channel was replaced');
-    }
-    derivationPort?.close();
-    derivationPort = value.port;
-    derivationPort.onmessage = (event) => handleOpaqueAuthorityResponse(value.port, event);
-    derivationPort.onmessageerror = () =>
-      purgeAuthorityPort(value.port, 'ECDSA derivation presign authority channel failed');
-    derivationPort.start();
+    replaceAuthorityChannel({ kind: 'role_local_derivation_handle', port: value.port });
     return true;
   }
   if (isAttachLinkedHolderToPresignPort(value)) {
-    if (linkedHolderPort) {
-      purgeAuthorityPort(
-        linkedHolderPort,
-        'Linked holder ECDSA presign authority channel was replaced',
-      );
-    }
-    linkedHolderPort?.close();
-    linkedHolderPort = value.port;
-    linkedHolderPort.onmessage = (event) => handleOpaqueAuthorityResponse(value.port, event);
-    linkedHolderPort.onmessageerror = () => {
-      purgeAuthorityPort(value.port, 'Linked holder ECDSA presign authority channel failed');
-    };
-    linkedHolderPort.start();
+    replaceAuthorityChannel({ kind: 'linked_holder_signing_material', port: value.port });
     return true;
   }
   if (isAttachPresignToOnlinePort(value)) {
