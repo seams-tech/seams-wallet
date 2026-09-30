@@ -7,6 +7,9 @@ use serde::Serialize;
 
 use crate::activation_recipient_party_view_fixtures::canonical_activated_recipient_fixture_v1;
 use crate::authenticated_store::{ActiveStoreStateVersionV1, StoreAuthoritySignature64V1};
+use crate::fixtures::strict_corpus::{
+    canonical_json_bytes, parse_canonical_json, StrictVectorCorpusV1,
+};
 use crate::lifecycle_domain::{ActivationPackageOriginV1, RegisteredLifecyclePreStateV1};
 use crate::recovery_credential_transition::{
     prepare_authenticated_recovery_promotion_v1, RecoveryPromotionTransactionReceiptDigest32V1,
@@ -19,36 +22,12 @@ pub const RECOVERY_CREDENTIAL_TRANSITION_VECTOR_CORPUS_SCHEMA_V1: &str =
 pub const RECOVERY_CREDENTIAL_TRANSITION_VECTOR_EVIDENCE_SCOPE_V1: &str =
     "host_only_synthetic_recovery_credential_transition_v1";
 
-#[derive(Serialize)]
 /// Strict one-case recovery suspension and promotion corpus.
-pub struct RecoveryCredentialTransitionVectorCorpusV1 {
-    schema: String,
-    protocol_id: String,
-    evidence_scope: String,
-    cases: Vec<RecoveryCredentialTransitionVectorCaseV1>,
-}
-
-impl RecoveryCredentialTransitionVectorCorpusV1 {
-    /// Returns the fixed corpus schema.
-    pub fn schema(&self) -> &str {
-        &self.schema
-    }
-    /// Returns the fixed protocol identifier.
-    pub fn protocol_id(&self) -> &str {
-        &self.protocol_id
-    }
-    /// Returns the narrow host-only evidence scope.
-    pub fn evidence_scope(&self) -> &str {
-        &self.evidence_scope
-    }
-    /// Returns the exact case count.
-    pub fn case_count(&self) -> usize {
-        self.cases.len()
-    }
-}
+pub type RecoveryCredentialTransitionVectorCorpusV1 =
+    StrictVectorCorpusV1<RecoveryCredentialTransitionVectorCaseV1>;
 
 #[derive(Serialize)]
-struct RecoveryCredentialTransitionVectorCaseV1 {
+pub struct RecoveryCredentialTransitionVectorCaseV1 {
     case_id: String,
     request_kind: RecoveryRequestKindVectorV1,
     source_references: RecoveryTransitionSourceReferencesV1,
@@ -162,11 +141,7 @@ pub fn canonical_recovery_credential_transition_vector_corpus_v1(
 
 /// Encodes the exact canonical corpus with one trailing LF.
 pub fn canonical_recovery_credential_transition_vector_corpus_json_bytes_v1() -> Vec<u8> {
-    let mut encoded =
-        serde_json::to_vec_pretty(&canonical_recovery_credential_transition_vector_corpus_v1())
-            .expect("fixed recovery credential-transition corpus serializes");
-    encoded.push(b'\n');
-    encoded
+    canonical_json_bytes(&canonical_recovery_credential_transition_vector_corpus_v1())
 }
 
 /// Parses only the exact canonical LF-terminated corpus bytes.
@@ -176,10 +151,11 @@ pub fn parse_canonical_recovery_credential_transition_vector_corpus_json_v1(
     RecoveryCredentialTransitionVectorCorpusV1,
     RecoveryCredentialTransitionVectorCorpusParseErrorV1,
 > {
-    if encoded != canonical_recovery_credential_transition_vector_corpus_json_bytes_v1() {
-        return Err(RecoveryCredentialTransitionVectorCorpusParseErrorV1);
-    }
-    Ok(canonical_recovery_credential_transition_vector_corpus_v1())
+    parse_canonical_json(
+        encoded,
+        canonical_recovery_credential_transition_vector_corpus_v1,
+    )
+    .ok_or(RecoveryCredentialTransitionVectorCorpusParseErrorV1)
 }
 
 fn recovery_credential_transition_case() -> RecoveryCredentialTransitionVectorCaseV1 {
@@ -198,19 +174,19 @@ fn recovery_credential_transition_case() -> RecoveryCredentialTransitionVectorCa
     let suspended = RecoverySuspendedCredentialVectorV1 {
         credential_state: RecoveryCredentialStateVectorV1::Suspended,
         old_active_state_version: old_state_version.value(),
-        old_credential_binding_digest_hex: encode_hex(
+        old_credential_binding_digest_hex: hex::encode(
             suspension
                 .continuity()
                 .active_credential_binding_digest()
                 .as_bytes(),
         ),
-        replacement_credential_binding_digest_hex: encode_hex(
+        replacement_credential_binding_digest_hex: hex::encode(
             suspension
                 .continuity()
                 .replacement_credential_binding_digest()
                 .as_bytes(),
         ),
-        same_root_evidence_artifact_digest_hex: encode_hex(
+        same_root_evidence_artifact_digest_hex: hex::encode(
             suspension
                 .continuity()
                 .same_root_evidence_artifact_digest()
@@ -218,15 +194,15 @@ fn recovery_credential_transition_case() -> RecoveryCredentialTransitionVectorCa
         ),
     };
     let worker_activated = RecoveryWorkerActivatedVectorV1 {
-        activation_receipt_digest_hex: encode_hex(activation.receipt().digest().as_bytes()),
-        package_set_digest_hex: encode_hex(activation.state().package_set_digest().as_bytes()),
-        output_committed_receipt_digest_hex: encode_hex(
+        activation_receipt_digest_hex: hex::encode(activation.receipt().digest().as_bytes()),
+        package_set_digest_hex: hex::encode(activation.state().package_set_digest().as_bytes()),
+        output_committed_receipt_digest_hex: hex::encode(
             activation
                 .state()
                 .output_committed_receipt_digest()
                 .as_bytes(),
         ),
-        worker_storage_receipt_digest_hex: encode_hex(
+        worker_storage_receipt_digest_hex: hex::encode(
             activation.state().storage_receipt_digest().as_bytes(),
         ),
         activation_epoch: activation.state().activation_epoch().value(),
@@ -260,22 +236,22 @@ fn recovery_credential_transition_case() -> RecoveryCredentialTransitionVectorCa
         next_state: registered_state_vector(next_state_version, promoted.next_state()),
         tombstone: RecoveryCredentialTombstoneVectorV1 {
             credential_state: RecoveryCredentialStateVectorV1::Tombstoned,
-            credential_binding_digest_hex: encode_hex(
+            credential_binding_digest_hex: hex::encode(
                 tombstone.credential_binding_digest().as_bytes(),
             ),
             retired_state_version: tombstone.retired_state_version().value(),
-            tombstone_digest_hex: encode_hex(tombstone.digest().as_bytes()),
+            tombstone_digest_hex: hex::encode(tombstone.digest().as_bytes()),
         },
-        transaction_receipt_digest_hex: encode_hex(transaction_receipt_digest.as_bytes()),
-        promotion_receipt_encoding_hex: encode_hex(
-            &promoted
+        transaction_receipt_digest_hex: hex::encode(transaction_receipt_digest.as_bytes()),
+        promotion_receipt_encoding_hex: hex::encode(
+            promoted
                 .receipt()
                 .body()
                 .encode()
                 .expect("promotion receipt bytes"),
         ),
-        promotion_receipt_digest_hex: encode_hex(promoted.receipt().digest().as_bytes()),
-        promotion_receipt_signature_hex: encode_hex(promoted.receipt().signature().as_bytes()),
+        promotion_receipt_digest_hex: hex::encode(promoted.receipt().digest().as_bytes()),
+        promotion_receipt_signature_hex: hex::encode(promoted.receipt().signature().as_bytes()),
     };
     RecoveryCredentialTransitionVectorCaseV1 {
         case_id: "recovery_credential_suspension_promotion_v1".to_owned(),
@@ -301,33 +277,23 @@ fn registered_state_vector(
 ) -> RecoveryRegisteredStateVectorV1 {
     RecoveryRegisteredStateVectorV1 {
         active_state_version: active_state_version.value(),
-        registered_public_key_hex: encode_hex(state.registered_public_key.as_bytes()),
-        active_credential_binding_digest_hex: encode_hex(
+        registered_public_key_hex: hex::encode(state.registered_public_key.as_bytes()),
+        active_credential_binding_digest_hex: hex::encode(
             state.active_credential_binding_digest.as_bytes(),
         ),
-        stable_scope_encoding_hex: encode_hex(
-            &state.stable_scope.encode().expect("canonical stable scope"),
+        stable_scope_encoding_hex: hex::encode(
+            state.stable_scope.encode().expect("canonical stable scope"),
         ),
         active_activation_epoch: state.active_activation_epoch.value(),
-        deriver_a_root_record_hex: encode_hex(state.deriver_a_root_record.as_bytes()),
-        deriver_a_root_binding_hex: encode_hex(state.deriver_a_root_binding.as_bytes()),
+        deriver_a_root_record_hex: hex::encode(state.deriver_a_root_record.as_bytes()),
+        deriver_a_root_binding_hex: hex::encode(state.deriver_a_root_binding.as_bytes()),
         deriver_a_root_epoch: state.deriver_a_root_epoch.value(),
-        deriver_a_state_record_hex: encode_hex(state.deriver_a_state_record.as_bytes()),
+        deriver_a_state_record_hex: hex::encode(state.deriver_a_state_record.as_bytes()),
         deriver_a_input_state_epoch: state.deriver_a_input_state_epoch.value(),
-        deriver_b_root_record_hex: encode_hex(state.deriver_b_root_record.as_bytes()),
-        deriver_b_root_binding_hex: encode_hex(state.deriver_b_root_binding.as_bytes()),
+        deriver_b_root_record_hex: hex::encode(state.deriver_b_root_record.as_bytes()),
+        deriver_b_root_binding_hex: hex::encode(state.deriver_b_root_binding.as_bytes()),
         deriver_b_root_epoch: state.deriver_b_root_epoch.value(),
-        deriver_b_state_record_hex: encode_hex(state.deriver_b_state_record.as_bytes()),
+        deriver_b_state_record_hex: hex::encode(state.deriver_b_state_record.as_bytes()),
         deriver_b_input_state_epoch: state.deriver_b_input_state_epoch.value(),
     }
-}
-
-fn encode_hex(bytes: &[u8]) -> String {
-    const HEX: &[u8; 16] = b"0123456789abcdef";
-    let mut encoded = String::with_capacity(bytes.len() * 2);
-    for byte in bytes {
-        encoded.push(char::from(HEX[usize::from(byte >> 4)]));
-        encoded.push(char::from(HEX[usize::from(byte & 0x0f)]));
-    }
-    encoded
 }

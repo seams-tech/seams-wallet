@@ -31,7 +31,7 @@ fn run() -> Result<(), String> {
                 .map_err(|error| error.to_string())?;
             println!(
                 "emitted provisional Phase 2A artifact bundle {}",
-                encode_hex(bundle.digest().expose_public_bytes())
+                hex::encode(bundle.digest().expose_public_bytes())
             );
             Ok(())
         }
@@ -41,19 +41,10 @@ fn run() -> Result<(), String> {
                 .map_err(|error| error.to_string())?;
             println!(
                 "checked provisional Phase 2A artifact bundle {}",
-                encode_hex(bundle.digest().expose_public_bytes())
+                hex::encode(bundle.digest().expose_public_bytes())
             );
             Ok(())
         }
         _ => Err(usage().to_owned()),
     }
-}
-
-fn encode_hex(bytes: [u8; 32]) -> String {
-    let mut output = String::with_capacity(64);
-    for byte in bytes {
-        use core::fmt::Write as _;
-        write!(output, "{byte:02x}").expect("writing to a String succeeds");
-    }
-    output
 }

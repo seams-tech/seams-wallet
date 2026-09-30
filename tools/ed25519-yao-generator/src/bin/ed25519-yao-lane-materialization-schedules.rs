@@ -39,8 +39,8 @@ fn run() -> Result<(), String> {
     let schedule = circuit.schedule_metrics();
     println!(
         "lane_materialization circuit_digest={} schedule_digest={} inputs={} outputs={} gates={} slots={} and={} xor={} inv={} schedule_bytes={} table_bytes={}",
-        encode_hex(circuit.benchmark_component_digest().expose_public_bytes()),
-        encode_hex(circuit.benchmark_schedule_digest().expose_public_bytes()),
+        hex::encode(circuit.benchmark_component_digest().expose_public_bytes()),
+        hex::encode(circuit.benchmark_schedule_digest().expose_public_bytes()),
         metrics.input_wire_count(),
         metrics.output_wire_count(),
         metrics.total_gate_count(),
@@ -52,13 +52,4 @@ fn run() -> Result<(), String> {
         metrics.and_gate_count() * 32,
     );
     Ok(())
-}
-
-fn encode_hex(bytes: [u8; 32]) -> String {
-    let mut output = String::with_capacity(64);
-    for byte in bytes {
-        use core::fmt::Write as _;
-        write!(output, "{byte:02x}").expect("writing to String succeeds");
-    }
-    output
 }

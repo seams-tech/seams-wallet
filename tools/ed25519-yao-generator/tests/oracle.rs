@@ -7,6 +7,7 @@ use ed25519_yao_generator::{
     wrapping_add_le_256, ContributionSide, DeriverAContribution, DeriverBContribution, DeriverRole,
     OracleError, OracleMaterial, RawDeriverAContribution, RawDeriverBContribution,
 };
+use hex::FromHex;
 use sha2::{Digest, Sha512};
 
 const SCALAR_ORDER_BYTES: [u8; 32] = [
@@ -15,27 +16,11 @@ const SCALAR_ORDER_BYTES: [u8; 32] = [
 ];
 
 fn decode_hex_32(value: &str) -> [u8; 32] {
-    assert_eq!(value.len(), 64);
-    let mut output = [0u8; 32];
-
-    for (index, output_byte) in output.iter_mut().enumerate() {
-        let offset = index * 2;
-        *output_byte = u8::from_str_radix(&value[offset..offset + 2], 16).expect("valid hex byte");
-    }
-
-    output
+    <[u8; 32]>::from_hex(value).expect("valid hex byte")
 }
 
 fn decode_hex_64(value: &str) -> [u8; 64] {
-    assert_eq!(value.len(), 128);
-    let mut output = [0u8; 64];
-
-    for (index, output_byte) in output.iter_mut().enumerate() {
-        let offset = index * 2;
-        *output_byte = u8::from_str_radix(&value[offset..offset + 2], 16).expect("valid hex byte");
-    }
-
-    output
+    <[u8; 64]>::from_hex(value).expect("valid hex byte")
 }
 
 fn validate_a(raw: RawDeriverAContribution) -> DeriverAContribution {

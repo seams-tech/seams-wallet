@@ -28,6 +28,7 @@ ed25519-dalek = "2.1"
 ed25519-yao = { path = "../../crates/ed25519-yao" }
 ed25519-yao-artifact-fs-policy = { path = "artifact-fs-policy" }
 getrandom = "0.2"
+hex = "0.4"
 hkdf = "0.12"
 rustix = { version = "1.1", features = ["fs", "process"] }
 serde = { version = "1", features = ["derive"] }
@@ -37,5 +38,4 @@ subtle = "=2.6.1"
 zeroize = "=1.9.0"
 
 [dev-dependencies]
-hex = "0.4"
 toml = "0.8"

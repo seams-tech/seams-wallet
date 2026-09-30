@@ -8,6 +8,7 @@ use ed25519_yao_generator::{
     EVALUATION_INPUT_PARTY_VIEW_VECTOR_CORPUS_SCHEMA_V1,
     EVALUATION_INPUT_PARTY_VIEW_VECTOR_EVIDENCE_SCOPE_V1,
 };
+use hex::FromHex;
 use serde_json::{Map, Value};
 use sha2::{Digest, Sha512};
 
@@ -270,11 +271,11 @@ fn activation_family_inputs_and_ideal_coins_reproduce_output_party_views() {
         assert_eq!(role_outputs["client"]["kind"], "client_no_private_output");
         assert_eq!(
             output_vector["common_public"]["x_client_hex"],
-            encode_hex((ED25519_BASEPOINT_POINT * x_client).compress().to_bytes())
+            hex::encode((ED25519_BASEPOINT_POINT * x_client).compress().to_bytes())
         );
         assert_eq!(
             output_vector["common_public"]["x_server_hex"],
-            encode_hex((ED25519_BASEPOINT_POINT * x_server).compress().to_bytes())
+            hex::encode((ED25519_BASEPOINT_POINT * x_server).compress().to_bytes())
         );
     }
 }
@@ -376,23 +377,7 @@ fn case_by_id<'a>(corpus: &'a Value, case_id: &str) -> &'a Value {
 }
 
 fn hex32(value: &Value) -> [u8; 32] {
-    let encoded = value.as_str().expect("hex string");
-    assert_eq!(encoded.len(), 64);
-    let mut decoded = [0_u8; 32];
-    for (index, byte) in decoded.iter_mut().enumerate() {
-        let offset = index * 2;
-        *byte = u8::from_str_radix(&encoded[offset..offset + 2], 16).expect("valid hex");
-    }
-    decoded
-}
-
-fn encode_hex(bytes: [u8; 32]) -> String {
-    let mut encoded = String::with_capacity(64);
-    for byte in bytes {
-        use std::fmt::Write;
-        write!(&mut encoded, "{byte:02x}").expect("writing to String cannot fail");
-    }
-    encoded
+    <[u8; 32]>::from_hex(value.as_str().expect("hex string")).expect("valid hex")
 }
 
 fn scalar(value: &Value) -> Scalar {

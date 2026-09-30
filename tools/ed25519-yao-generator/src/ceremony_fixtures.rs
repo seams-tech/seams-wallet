@@ -295,8 +295,8 @@ fn build_activation_case(origin: CeremonyValidatedDagV1) -> BuiltCaseV1 {
     let authorization_vector = CeremonyActivationAuthorizationVectorV1 {
         authorization_record_digest_hex: repeated_hex(0x32),
         origin_request_kind: origin.request_kind(),
-        origin_request_context_digest_hex: encode_hex(origin.request_context_digest().as_bytes()),
-        origin_transcript_digest_hex: encode_hex(origin.transcript_digest().as_bytes()),
+        origin_request_context_digest_hex: hex::encode(origin.request_context_digest().as_bytes()),
+        origin_transcript_digest_hex: hex::encode(origin.transcript_digest().as_bytes()),
         package_set_digest_hex: repeated_hex(0x42),
         activation_epoch: 19,
     };
@@ -365,7 +365,7 @@ fn build_export_case() -> BuiltCaseV1 {
     let (built, authorization, transcript) = build_export_fixture();
     let authorization_vector = CeremonyExportAuthorizationVectorV1 {
         authorization_record_digest_hex: repeated_hex(0x35),
-        registered_ed25519_public_key_hex: encode_hex(
+        registered_ed25519_public_key_hex: hex::encode(
             authorization.registered_public_key().as_bytes(),
         ),
     };
@@ -567,14 +567,14 @@ where
         authorization: authorization_vector,
         transcript: transcript_vector,
         expected: CeremonyExpectedEncodingsV1 {
-            public_request_context_encoding_hex: encode_hex(&request_encoding),
-            public_request_context_digest_sha256_hex: encode_hex(
+            public_request_context_encoding_hex: hex::encode(&request_encoding),
+            public_request_context_digest_sha256_hex: hex::encode(
                 dag.request_context_digest().as_bytes(),
             ),
-            authorization_encoding_hex: encode_hex(&authorization_encoding),
-            authorization_digest_sha256_hex: encode_hex(dag.authorization_digest().as_bytes()),
-            transcript_encoding_hex: encode_hex(&transcript_encoding),
-            transcript_digest_sha256_hex: encode_hex(dag.transcript_digest().as_bytes()),
+            authorization_encoding_hex: hex::encode(&authorization_encoding),
+            authorization_digest_sha256_hex: hex::encode(dag.authorization_digest().as_bytes()),
+            transcript_encoding_hex: hex::encode(&transcript_encoding),
+            transcript_digest_sha256_hex: hex::encode(dag.transcript_digest().as_bytes()),
         },
     };
     BuiltCaseV1 {
@@ -695,15 +695,5 @@ fn case_kind(case: &CeremonyContextVectorCaseV1) -> CeremonyRequestKindV1 {
 }
 
 fn repeated_hex(byte: u8) -> String {
-    encode_hex(&[byte; 32])
-}
-
-fn encode_hex(bytes: &[u8]) -> String {
-    const HEX: &[u8; 16] = b"0123456789abcdef";
-    let mut encoded = String::with_capacity(bytes.len() * 2);
-    for byte in bytes {
-        encoded.push(HEX[(byte >> 4) as usize] as char);
-        encoded.push(HEX[(byte & 0x0f) as usize] as char);
-    }
-    encoded
+    hex::encode([byte; 32])
 }

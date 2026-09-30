@@ -37,49 +37,49 @@ impl StoreResolutionVectorV1 {
         let projection = state.state();
         let authority = state.trusted_transition_authority();
         Self {
-            signing_bytes_hex: encode_hex(
-                &state
+            signing_bytes_hex: hex::encode(
+                state
                     .signed_resolution_bytes()
                     .expect("store signing bytes"),
             ),
-            signing_bytes_sha256_hex: encode_hex(
-                &state.signed_resolution_digest().expect("store digest"),
+            signing_bytes_sha256_hex: hex::encode(
+                state.signed_resolution_digest().expect("store digest"),
             ),
             authority_key_epoch: authority.key_epoch().value(),
-            authority_verifying_key_hex: encode_hex(&authority.verifying_key_bytes()),
-            authority_key_digest_hex: encode_hex(&authority.key_digest()),
-            authority_signature_hex: encode_hex(state.authority_signature().as_bytes()),
+            authority_verifying_key_hex: hex::encode(authority.verifying_key_bytes()),
+            authority_key_digest_hex: hex::encode(authority.key_digest()),
+            authority_signature_hex: hex::encode(state.authority_signature().as_bytes()),
             active_state_version: state.active_state_version().value(),
-            registered_public_key_hex: encode_hex(projection.registered_public_key.as_bytes()),
-            active_credential_binding_digest_hex: encode_hex(
+            registered_public_key_hex: hex::encode(projection.registered_public_key.as_bytes()),
+            active_credential_binding_digest_hex: hex::encode(
                 projection.active_credential_binding_digest.as_bytes(),
             ),
-            stable_scope_encoding_hex: encode_hex(
-                &projection
+            stable_scope_encoding_hex: hex::encode(
+                projection
                     .stable_scope
                     .encode()
                     .expect("stable scope encoding"),
             ),
             active_activation_epoch: projection.active_activation_epoch.value(),
-            deriver_a_root_record_digest_hex: encode_hex(
+            deriver_a_root_record_digest_hex: hex::encode(
                 projection.deriver_a_root_record.as_bytes(),
             ),
-            deriver_a_root_binding_artifact_digest_hex: encode_hex(
+            deriver_a_root_binding_artifact_digest_hex: hex::encode(
                 projection.deriver_a_root_binding.as_bytes(),
             ),
             deriver_a_root_epoch: projection.deriver_a_root_epoch.value(),
-            deriver_a_input_state_record_digest_hex: encode_hex(
+            deriver_a_input_state_record_digest_hex: hex::encode(
                 projection.deriver_a_state_record.as_bytes(),
             ),
             deriver_a_input_state_epoch: projection.deriver_a_input_state_epoch.value(),
-            deriver_b_root_record_digest_hex: encode_hex(
+            deriver_b_root_record_digest_hex: hex::encode(
                 projection.deriver_b_root_record.as_bytes(),
             ),
-            deriver_b_root_binding_artifact_digest_hex: encode_hex(
+            deriver_b_root_binding_artifact_digest_hex: hex::encode(
                 projection.deriver_b_root_binding.as_bytes(),
             ),
             deriver_b_root_epoch: projection.deriver_b_root_epoch.value(),
-            deriver_b_input_state_record_digest_hex: encode_hex(
+            deriver_b_input_state_record_digest_hex: hex::encode(
                 projection.deriver_b_state_record.as_bytes(),
             ),
             deriver_b_input_state_epoch: projection.deriver_b_input_state_epoch.value(),
@@ -113,30 +113,30 @@ impl AdmissionRequestVectorV1 {
     ) -> Self {
         Self {
             relation: "construction_independent_ideal_acceptance".to_owned(),
-            durable_identity_scope_encoding_hex: encode_hex(
-                &request
+            durable_identity_scope_encoding_hex: hex::encode(
+                request
                     .durable_store_identity_scope()
                     .encode()
                     .expect("durable identity encoding"),
             ),
             request_id: request.request_id().as_str().to_owned(),
-            replay_nonce_hex: encode_hex(request.replay_nonce().as_bytes()),
+            replay_nonce_hex: hex::encode(request.replay_nonce().as_bytes()),
             request_expiry_unix_ms: request.request_expiry().value(),
             checked_at_unix_ms,
-            request_context_digest_hex: encode_hex(dag.request_context_digest().as_bytes()),
-            authorization_digest_hex: encode_hex(dag.authorization_digest().as_bytes()),
-            transcript_digest_hex: encode_hex(dag.transcript_digest().as_bytes()),
-            provenance_pair_digest_hex: encode_hex(
+            request_context_digest_hex: hex::encode(dag.request_context_digest().as_bytes()),
+            authorization_digest_hex: hex::encode(dag.authorization_digest().as_bytes()),
+            transcript_digest_hex: hex::encode(dag.transcript_digest().as_bytes()),
+            provenance_pair_digest_hex: hex::encode(
                 provenance.digest().expect("pair digest").as_bytes(),
             ),
-            deriver_a_statement_digest_hex: encode_hex(
+            deriver_a_statement_digest_hex: hex::encode(
                 provenance
                     .deriver_a()
                     .digest()
                     .expect("A digest")
                     .as_bytes(),
             ),
-            deriver_b_statement_digest_hex: encode_hex(
+            deriver_b_statement_digest_hex: hex::encode(
                 provenance
                     .deriver_b()
                     .digest()
@@ -145,13 +145,4 @@ impl AdmissionRequestVectorV1 {
             ),
         }
     }
-}
-
-pub(crate) fn encode_hex(bytes: &[u8]) -> String {
-    let mut output = String::with_capacity(bytes.len() * 2);
-    for byte in bytes {
-        use core::fmt::Write as _;
-        write!(&mut output, "{byte:02x}").expect("writing to String cannot fail");
-    }
-    output
 }

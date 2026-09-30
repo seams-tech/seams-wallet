@@ -18,6 +18,9 @@ use crate::export_evaluation_acceptance::{
     DeriverBExportAuthorizationAcceptanceSignature64V1, ExportAuthorizationAcceptanceAuthoritiesV1,
     ExportAuthorizationCheckedAtUnixMsV1, VerifiedExportAuthorizationAcceptancePairV1,
 };
+use crate::fixtures::strict_corpus::{
+    canonical_json_bytes, parse_canonical_json, StrictVectorCorpusV1,
+};
 use crate::lifecycle_domain::{
     ExportArtifactIssuanceV1, ExportOutputCommitmentEvidenceV1, ExportRequestV1,
 };
@@ -44,39 +47,12 @@ pub const EXPORT_EVALUATOR_AUTHORIZATION_VECTOR_CORPUS_SCHEMA_V1: &str =
 pub const EXPORT_EVALUATOR_AUTHORIZATION_VECTOR_EVIDENCE_SCOPE_V1: &str =
     "host_only_synthetic_export_evaluator_authorization_v1";
 
-#[derive(Serialize)]
 /// Strict one-case authenticated export-evaluator corpus.
-pub struct ExportEvaluatorAuthorizationVectorCorpusV1 {
-    schema: String,
-    protocol_id: String,
-    evidence_scope: String,
-    cases: Vec<ExportEvaluatorAuthorizationVectorCaseV1>,
-}
-
-impl ExportEvaluatorAuthorizationVectorCorpusV1 {
-    /// Returns the exact corpus schema.
-    pub fn schema(&self) -> &str {
-        &self.schema
-    }
-
-    /// Returns the fixed protocol identifier.
-    pub fn protocol_id(&self) -> &str {
-        &self.protocol_id
-    }
-
-    /// Returns the narrow host-only evidence scope.
-    pub fn evidence_scope(&self) -> &str {
-        &self.evidence_scope
-    }
-
-    /// Returns the exact case count.
-    pub fn case_count(&self) -> usize {
-        self.cases.len()
-    }
-}
+pub type ExportEvaluatorAuthorizationVectorCorpusV1 =
+    StrictVectorCorpusV1<ExportEvaluatorAuthorizationVectorCaseV1>;
 
 #[derive(Serialize)]
-struct ExportEvaluatorAuthorizationVectorCaseV1 {
+pub struct ExportEvaluatorAuthorizationVectorCaseV1 {
     case_id: String,
     request_kind: ExportRequestKindVectorV1,
     source_references: ExportEvaluatorSourceReferencesV1,
@@ -199,11 +175,7 @@ pub fn canonical_export_evaluator_authorization_vector_corpus_v1(
 
 /// Encodes the exact canonical corpus with one trailing LF.
 pub fn canonical_export_evaluator_authorization_vector_corpus_json_bytes_v1() -> Vec<u8> {
-    let mut encoded =
-        serde_json::to_vec_pretty(&canonical_export_evaluator_authorization_vector_corpus_v1())
-            .expect("fixed export evaluator-authorization corpus serializes");
-    encoded.push(b'\n');
-    encoded
+    canonical_json_bytes(&canonical_export_evaluator_authorization_vector_corpus_v1())
 }
 
 /// Parses only the exact canonical LF-terminated corpus bytes.
@@ -213,10 +185,11 @@ pub fn parse_canonical_export_evaluator_authorization_vector_corpus_json_v1(
     ExportEvaluatorAuthorizationVectorCorpusV1,
     ExportEvaluatorAuthorizationVectorCorpusParseErrorV1,
 > {
-    if encoded != canonical_export_evaluator_authorization_vector_corpus_json_bytes_v1() {
-        return Err(ExportEvaluatorAuthorizationVectorCorpusParseErrorV1);
-    }
-    Ok(canonical_export_evaluator_authorization_vector_corpus_v1())
+    parse_canonical_json(
+        encoded,
+        canonical_export_evaluator_authorization_vector_corpus_v1,
+    )
+    .ok_or(ExportEvaluatorAuthorizationVectorCorpusParseErrorV1)
 }
 
 pub(crate) fn canonical_export_acceptance_authorities_v1(
@@ -322,33 +295,33 @@ fn export_evaluator_authorization_case() -> ExportEvaluatorAuthorizationVectorCa
     let store_authority = state.trusted_transition_authority();
     let common = ExportEvaluatorCommonVectorV1 {
         request_id: request.request_context().request_id().as_str().to_owned(),
-        replay_nonce_hex: encode_hex(request.request_context().replay_nonce().as_bytes()),
+        replay_nonce_hex: hex::encode(request.request_context().replay_nonce().as_bytes()),
         request_expiry_unix_ms: request.request_context().request_expiry().value(),
-        client_recipient_key_hex: encode_hex(
+        client_recipient_key_hex: hex::encode(
             request
                 .request_context()
                 .client_ephemeral_public_key()
                 .as_bytes(),
         ),
-        request_context_digest_hex: encode_hex(dag.request_context_digest().as_bytes()),
-        authorization_digest_hex: encode_hex(dag.authorization_digest().as_bytes()),
-        transcript_digest_hex: encode_hex(dag.transcript_digest().as_bytes()),
-        provenance_pair_digest_hex: encode_hex(
+        request_context_digest_hex: hex::encode(dag.request_context_digest().as_bytes()),
+        authorization_digest_hex: hex::encode(dag.authorization_digest().as_bytes()),
+        transcript_digest_hex: hex::encode(dag.transcript_digest().as_bytes()),
+        provenance_pair_digest_hex: hex::encode(
             provenance
                 .digest()
                 .expect("provenance pair digest")
                 .as_bytes(),
         ),
-        signed_store_resolution_digest_hex: encode_hex(
-            &state
+        signed_store_resolution_digest_hex: hex::encode(
+            state
                 .signed_resolution_digest()
                 .expect("signed store resolution digest"),
         ),
         store_authority_key_epoch: store_authority.key_epoch().value(),
-        store_authority_key_digest_hex: encode_hex(&store_authority.key_digest()),
+        store_authority_key_digest_hex: hex::encode(store_authority.key_digest()),
         active_state_version: state.active_state_version().value(),
-        registered_public_key_hex: encode_hex(state.state().registered_public_key().as_bytes()),
-        one_use_execution_id_hex: encode_hex(execution_id.as_bytes()),
+        registered_public_key_hex: hex::encode(state.state().registered_public_key().as_bytes()),
+        one_use_execution_id_hex: hex::encode(execution_id.as_bytes()),
     };
     let authorities_vector = ExportEvaluatorAuthoritiesVectorV1 {
         deriver_a: ExportEvaluatorAuthorityVectorV1 {
@@ -360,8 +333,8 @@ fn export_evaluator_authorization_case() -> ExportEvaluatorAuthorizationVectorCa
                 .as_str()
                 .to_owned(),
             key_epoch: authorities.deriver_a().key_epoch(),
-            verifying_key_hex: encode_hex(&authorities.deriver_a().verifying_key_bytes()),
-            key_digest_hex: encode_hex(&authorities.deriver_a().key_digest()),
+            verifying_key_hex: hex::encode(authorities.deriver_a().verifying_key_bytes()),
+            key_digest_hex: hex::encode(authorities.deriver_a().key_digest()),
         },
         deriver_b: ExportEvaluatorAuthorityVectorV1 {
             role: "deriver_b".to_owned(),
@@ -372,8 +345,8 @@ fn export_evaluator_authorization_case() -> ExportEvaluatorAuthorizationVectorCa
                 .as_str()
                 .to_owned(),
             key_epoch: authorities.deriver_b().key_epoch(),
-            verifying_key_hex: encode_hex(&authorities.deriver_b().verifying_key_bytes()),
-            key_digest_hex: encode_hex(&authorities.deriver_b().key_digest()),
+            verifying_key_hex: hex::encode(authorities.deriver_b().verifying_key_bytes()),
+            key_digest_hex: hex::encode(authorities.deriver_b().key_digest()),
         },
     };
     let acceptances = ExportEvaluatorAcceptancesVectorV1 {
@@ -381,8 +354,8 @@ fn export_evaluator_authorization_case() -> ExportEvaluatorAuthorizationVectorCa
         deriver_b: acceptance_b_vector(pair.deriver_b()),
     };
     let pair_vector = ExportEvaluatorAcceptedPairVectorV1 {
-        encoding_hex: encode_hex(pair.encode()),
-        digest_hex: encode_hex(pair.digest()),
+        encoding_hex: hex::encode(pair.encode()),
+        digest_hex: hex::encode(pair.digest()),
     };
     let expected_pair_digest = *pair.digest();
     let session = request
@@ -449,15 +422,15 @@ fn export_evaluator_authorization_case() -> ExportEvaluatorAuthorizationVectorCa
             deriver_a_invocations: 1,
             deriver_b_invocations: 1,
             output_committed_authorization_state: "unconsumed".to_owned(),
-            output_committed_receipt_encoding_hex: encode_hex(&committed_receipt_encoding),
-            output_committed_receipt_digest_hex: encode_hex(committed_receipt_digest.as_bytes()),
-            output_committed_evaluation_evidence_digest_hex: encode_hex(
+            output_committed_receipt_encoding_hex: hex::encode(&committed_receipt_encoding),
+            output_committed_receipt_digest_hex: hex::encode(committed_receipt_digest.as_bytes()),
+            output_committed_evaluation_evidence_digest_hex: hex::encode(
                 committed_evaluation_digest.as_bytes(),
             ),
             released_authorization_state: "consumed".to_owned(),
-            released_receipt_encoding_hex: encode_hex(&released_receipt.encode()),
-            released_receipt_digest_hex: encode_hex(released_receipt.digest().as_bytes()),
-            released_evaluation_evidence_digest_hex: encode_hex(
+            released_receipt_encoding_hex: hex::encode(released_receipt.encode()),
+            released_receipt_digest_hex: hex::encode(released_receipt.digest().as_bytes()),
+            released_evaluation_evidence_digest_hex: hex::encode(
                 released_receipt.evaluation_evidence_digest().as_bytes(),
             ),
             registered_state_retained: true,
@@ -471,10 +444,10 @@ fn acceptance_a_vector(
     ExportEvaluatorAcceptanceVectorV1 {
         role: "deriver_a".to_owned(),
         checked_at_unix_ms: acceptance.checked_at(),
-        provenance_statement_digest_hex: encode_hex(acceptance.provenance_statement_digest()),
-        signing_bytes_hex: encode_hex(&acceptance.signing_bytes().expect("A signing bytes")),
-        signature_hex: encode_hex(acceptance.signature_bytes()),
-        signed_artifact_digest_hex: encode_hex(&acceptance.digest().expect("A artifact digest")),
+        provenance_statement_digest_hex: hex::encode(acceptance.provenance_statement_digest()),
+        signing_bytes_hex: hex::encode(acceptance.signing_bytes().expect("A signing bytes")),
+        signature_hex: hex::encode(acceptance.signature_bytes()),
+        signed_artifact_digest_hex: hex::encode(acceptance.digest().expect("A artifact digest")),
     }
 }
 
@@ -484,18 +457,9 @@ fn acceptance_b_vector(
     ExportEvaluatorAcceptanceVectorV1 {
         role: "deriver_b".to_owned(),
         checked_at_unix_ms: acceptance.checked_at(),
-        provenance_statement_digest_hex: encode_hex(acceptance.provenance_statement_digest()),
-        signing_bytes_hex: encode_hex(&acceptance.signing_bytes().expect("B signing bytes")),
-        signature_hex: encode_hex(acceptance.signature_bytes()),
-        signed_artifact_digest_hex: encode_hex(&acceptance.digest().expect("B artifact digest")),
+        provenance_statement_digest_hex: hex::encode(acceptance.provenance_statement_digest()),
+        signing_bytes_hex: hex::encode(acceptance.signing_bytes().expect("B signing bytes")),
+        signature_hex: hex::encode(acceptance.signature_bytes()),
+        signed_artifact_digest_hex: hex::encode(acceptance.digest().expect("B artifact digest")),
     }
-}
-
-fn encode_hex(bytes: &[u8]) -> String {
-    let mut output = String::with_capacity(bytes.len() * 2);
-    for byte in bytes {
-        use core::fmt::Write as _;
-        write!(&mut output, "{byte:02x}").expect("writing to String cannot fail");
-    }
-    output
 }

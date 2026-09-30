@@ -6,6 +6,9 @@ use serde::Serialize;
 
 use crate::canonical_ceremony_fixture_dag_v1;
 use crate::ceremony_context::CeremonyRequestKindV1;
+use crate::fixtures::strict_corpus::{
+    canonical_json_bytes, parse_canonical_json, StrictVectorCorpusV1,
+};
 use crate::lifecycle_domain::{
     AbortedTerminalStateV1, RedactedFailureCodeV1, UniformLifecycleAbortV1,
 };
@@ -19,38 +22,10 @@ pub const EVALUATOR_ABORT_VIEW_VECTOR_EVIDENCE_SCOPE_V1: &str =
     "host_only_synthetic_evaluator_abort_state_party_views_v1";
 
 /// Strict four-case evaluator-abort state and party-view corpus.
-#[derive(Serialize)]
-pub struct EvaluatorAbortViewVectorCorpusV1 {
-    schema: String,
-    protocol_id: String,
-    evidence_scope: String,
-    cases: Vec<EvaluatorAbortViewVectorCaseV1>,
-}
-
-impl EvaluatorAbortViewVectorCorpusV1 {
-    /// Returns the fixed schema.
-    pub fn schema(&self) -> &str {
-        &self.schema
-    }
-
-    /// Returns the fixed protocol identifier.
-    pub fn protocol_id(&self) -> &str {
-        &self.protocol_id
-    }
-
-    /// Returns the host-only evidence scope.
-    pub fn evidence_scope(&self) -> &str {
-        &self.evidence_scope
-    }
-
-    /// Returns the exact case count.
-    pub fn case_count(&self) -> usize {
-        self.cases.len()
-    }
-}
+pub type EvaluatorAbortViewVectorCorpusV1 = StrictVectorCorpusV1<EvaluatorAbortViewVectorCaseV1>;
 
 #[derive(Serialize)]
-struct EvaluatorAbortViewVectorCaseV1 {
+pub struct EvaluatorAbortViewVectorCaseV1 {
     request_kind: EvaluatorRequestKindVectorV1,
     source_ceremony_case_id: &'static str,
     persistence: EvaluatorAbortPersistenceVectorV1,
@@ -183,20 +158,15 @@ pub fn canonical_evaluator_abort_view_vector_corpus_v1() -> EvaluatorAbortViewVe
 
 /// Encodes the exact canonical corpus with one trailing LF.
 pub fn canonical_evaluator_abort_view_vector_corpus_json_bytes_v1() -> Vec<u8> {
-    let mut encoded = serde_json::to_vec_pretty(&canonical_evaluator_abort_view_vector_corpus_v1())
-        .expect("fixed evaluator-abort corpus serializes");
-    encoded.push(b'\n');
-    encoded
+    canonical_json_bytes(&canonical_evaluator_abort_view_vector_corpus_v1())
 }
 
 /// Parses only the exact canonical LF-terminated corpus bytes.
 pub fn parse_canonical_evaluator_abort_view_vector_corpus_json_v1(
     encoded: &[u8],
 ) -> Result<EvaluatorAbortViewVectorCorpusV1, EvaluatorAbortViewVectorCorpusParseErrorV1> {
-    if encoded != canonical_evaluator_abort_view_vector_corpus_json_bytes_v1() {
-        return Err(EvaluatorAbortViewVectorCorpusParseErrorV1);
-    }
-    Ok(canonical_evaluator_abort_view_vector_corpus_v1())
+    parse_canonical_json(encoded, canonical_evaluator_abort_view_vector_corpus_v1)
+        .ok_or(EvaluatorAbortViewVectorCorpusParseErrorV1)
 }
 
 fn evaluator_abort_case(
@@ -225,10 +195,10 @@ fn evaluator_abort_case(
             transition: EvaluatorAbortTransitionVectorV1::SelfLoop,
             burned_attempt: BurnedAttemptVectorV1 {
                 request_kind: vector_kind,
-                request_context_digest_hex: encode_hex(dag.request_context_digest().as_bytes()),
-                authorization_digest_hex: encode_hex(dag.authorization_digest().as_bytes()),
-                transcript_digest_hex: encode_hex(dag.transcript_digest().as_bytes()),
-                one_use_execution_id_hex: encode_hex(&[execution_byte; 32]),
+                request_context_digest_hex: hex::encode(dag.request_context_digest().as_bytes()),
+                authorization_digest_hex: hex::encode(dag.authorization_digest().as_bytes()),
+                transcript_digest_hex: hex::encode(dag.transcript_digest().as_bytes()),
+                one_use_execution_id_hex: hex::encode([execution_byte; 32]),
             },
             public_abort: abort,
         },
@@ -248,18 +218,8 @@ fn abort_envelope(
     };
     EvaluatorAbortEnvelopeVectorV1 {
         request_kind: vector_kind,
-        public_transcript_digest_hex: encode_hex(abort.public_transcript_digest().as_bytes()),
+        public_transcript_digest_hex: hex::encode(abort.public_transcript_digest().as_bytes()),
         public_failure_code,
         terminal,
     }
-}
-
-fn encode_hex(bytes: &[u8]) -> String {
-    const HEX: &[u8; 16] = b"0123456789abcdef";
-    let mut encoded = String::with_capacity(bytes.len() * 2);
-    for byte in bytes {
-        encoded.push(char::from(HEX[usize::from(byte >> 4)]));
-        encoded.push(char::from(HEX[usize::from(byte & 0x0f)]));
-    }
-    encoded
 }

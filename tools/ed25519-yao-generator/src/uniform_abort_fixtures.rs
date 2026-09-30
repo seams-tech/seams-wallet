@@ -6,6 +6,9 @@ use serde::Serialize;
 
 use crate::canonical_ceremony_fixture_dag_v1;
 use crate::ceremony_context::CeremonyRequestKindV1;
+use crate::fixtures::strict_corpus::{
+    canonical_json_bytes, parse_canonical_json, StrictVectorCorpusV1,
+};
 use crate::lifecycle_domain::{
     AbortedTerminalStateV1, RedactedFailureCodeV1, UniformLifecycleAbortV1,
 };
@@ -19,38 +22,10 @@ pub const UNIFORM_ABORT_VECTOR_EVIDENCE_SCOPE_V1: &str =
     "host_only_synthetic_uniform_abort_envelope_v1";
 
 /// Strict five-case uniform-abort envelope corpus.
-#[derive(Serialize)]
-pub struct UniformAbortVectorCorpusV1 {
-    schema: String,
-    protocol_id: String,
-    evidence_scope: String,
-    cases: Vec<UniformAbortVectorCaseV1>,
-}
-
-impl UniformAbortVectorCorpusV1 {
-    /// Returns the fixed corpus schema.
-    pub fn schema(&self) -> &str {
-        &self.schema
-    }
-
-    /// Returns the fixed protocol identifier.
-    pub fn protocol_id(&self) -> &str {
-        &self.protocol_id
-    }
-
-    /// Returns the narrow host-only evidence scope.
-    pub fn evidence_scope(&self) -> &str {
-        &self.evidence_scope
-    }
-
-    /// Returns the exact case count.
-    pub fn case_count(&self) -> usize {
-        self.cases.len()
-    }
-}
+pub type UniformAbortVectorCorpusV1 = StrictVectorCorpusV1<UniformAbortVectorCaseV1>;
 
 #[derive(Serialize)]
-struct UniformAbortVectorCaseV1 {
+pub struct UniformAbortVectorCaseV1 {
     request_kind: AbortRequestKindVectorV1,
     source_ceremony_case_id: &'static str,
     envelope: UniformAbortEnvelopeVectorV1,
@@ -138,20 +113,15 @@ pub fn canonical_uniform_abort_vector_corpus_v1() -> UniformAbortVectorCorpusV1 
 
 /// Encodes the exact canonical corpus with one trailing LF.
 pub fn canonical_uniform_abort_vector_corpus_json_bytes_v1() -> Vec<u8> {
-    let mut encoded = serde_json::to_vec_pretty(&canonical_uniform_abort_vector_corpus_v1())
-        .expect("fixed uniform-abort corpus serializes");
-    encoded.push(b'\n');
-    encoded
+    canonical_json_bytes(&canonical_uniform_abort_vector_corpus_v1())
 }
 
 /// Parses only the exact canonical LF-terminated corpus bytes.
 pub fn parse_canonical_uniform_abort_vector_corpus_json_v1(
     encoded: &[u8],
 ) -> Result<UniformAbortVectorCorpusV1, UniformAbortVectorCorpusParseErrorV1> {
-    if encoded != canonical_uniform_abort_vector_corpus_json_bytes_v1() {
-        return Err(UniformAbortVectorCorpusParseErrorV1);
-    }
-    Ok(canonical_uniform_abort_vector_corpus_v1())
+    parse_canonical_json(encoded, canonical_uniform_abort_vector_corpus_v1)
+        .ok_or(UniformAbortVectorCorpusParseErrorV1)
 }
 
 fn abort_case(
@@ -172,19 +142,9 @@ fn abort_case(
         source_ceremony_case_id,
         envelope: UniformAbortEnvelopeVectorV1 {
             request_kind: vector_kind,
-            public_transcript_digest_hex: encode_hex(abort.public_transcript_digest().as_bytes()),
+            public_transcript_digest_hex: hex::encode(abort.public_transcript_digest().as_bytes()),
             public_failure_code,
             terminal,
         },
     }
-}
-
-fn encode_hex(bytes: &[u8]) -> String {
-    const HEX: &[u8; 16] = b"0123456789abcdef";
-    let mut encoded = String::with_capacity(bytes.len() * 2);
-    for byte in bytes {
-        encoded.push(char::from(HEX[usize::from(byte >> 4)]));
-        encoded.push(char::from(HEX[usize::from(byte & 0x0f)]));
-    }
-    encoded
 }

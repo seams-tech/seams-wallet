@@ -1,7 +1,6 @@
-use std::fs;
-use std::path::{Path, PathBuf};
-use std::process::Command;
-use std::time::{SystemTime, UNIX_EPOCH};
+mod support {
+    pub mod ui;
+}
 
 use ed25519_yao_generator::{
     evaluate_activation, evaluate_full_clear_reference_export_v1,
@@ -16,6 +15,8 @@ use ed25519_yao_generator::{
     HostOnlySeedOutputCoinV1, HostOnlySigningWorkerScalarOutputCoinV1, RawDeriverAContribution,
     RawDeriverBContribution,
 };
+
+use support::ui::{assert_compile_failure, UiHarness};
 
 const SCALAR_ORDER_BYTES: [u8; 32] = [
     0xed, 0xd3, 0xf5, 0x5c, 0x1a, 0x63, 0x12, 0x58, 0xd6, 0x9c, 0xf7, 0xa2, 0xde, 0xf9, 0xde, 0x14,
@@ -188,66 +189,9 @@ fn export_seed_shares_reconstruct_zero_one_and_wraparound_coins() {
     }
 }
 
-struct UiHarness {
-    directory: PathBuf,
-}
-
-impl UiHarness {
-    fn create() -> Self {
-        let nonce = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("system clock must follow Unix epoch")
-            .as_nanos();
-        let directory = std::env::temp_dir().join(format!(
-            "ed25519-yao-output-sharing-ui-{}-{nonce}",
-            std::process::id()
-        ));
-        fs::create_dir_all(directory.join("src")).expect("create UI harness source directory");
-        let manifest_directory = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .canonicalize()
-            .expect("canonical generator path");
-        let dependency_path = manifest_directory.to_string_lossy().replace('\\', "\\\\");
-        fs::write(
-            directory.join("Cargo.toml"),
-            format!(
-                "[package]\nname = \"output-sharing-ui\"\nversion = \"0.0.0\"\nedition = \"2021\"\n\
-                 [dependencies]\ned25519-yao-generator = {{ path = \"{dependency_path}\" }}\n"
-            ),
-        )
-        .expect("write UI harness manifest");
-        Self { directory }
-    }
-
-    fn check(&self, body: &str) -> std::process::Output {
-        fs::write(self.directory.join("src/main.rs"), body).expect("write UI harness source");
-        Command::new(std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into()))
-            .args(["check", "--quiet", "--offline"])
-            .current_dir(&self.directory)
-            .env("CARGO_TARGET_DIR", self.directory.join("target"))
-            .output()
-            .expect("execute UI cargo check")
-    }
-}
-
-impl Drop for UiHarness {
-    fn drop(&mut self) {
-        let _ = fs::remove_dir_all(&self.directory);
-    }
-}
-
-fn assert_compile_failure(harness: &UiHarness, body: &str, code: &str) {
-    let output = harness.check(body);
-    assert!(!output.status.success(), "UI case unexpectedly compiled");
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(
-        stderr.contains(code),
-        "UI case failed without {code}:\n{stderr}"
-    );
-}
-
 #[test]
 fn compile_fail_guards_reject_role_recipient_and_request_family_mixups() {
-    let harness = UiHarness::create();
+    let harness = UiHarness::create("output-sharing");
     let control = harness.check(
         "use ed25519_yao_generator::{HostOnlyClientScalarOutputCoinV1, HostOnlySigningWorkerScalarOutputCoinV1};\n\
          fn main() {\n\

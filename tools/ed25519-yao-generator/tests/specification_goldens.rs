@@ -11,10 +11,6 @@ use sha2::{Digest, Sha256};
 
 const COMMITTED_SPECIFICATION: &str = include_str!("../docs/fixed-reference-v1.md");
 
-fn encode_hex(bytes: &[u8]) -> String {
-    bytes.iter().map(|byte| format!("{byte:02x}")).collect()
-}
-
 fn marker_template(body: &str) -> String {
     format!(
         "prefix\n{FIXED_REFERENCE_GENERATED_BEGIN_V1}\n{body}\n{FIXED_REFERENCE_GENERATED_END_V1}\n"
@@ -73,7 +69,7 @@ fn generated_block_commits_the_exact_repository_corpora() {
     ] {
         let bytes =
             fs::read(manifest_dir.join(relative_path)).expect("committed corpus is readable");
-        let digest = encode_hex(&Sha256::digest(&bytes));
+        let digest = hex::encode(Sha256::digest(&bytes));
         let row = block
             .lines()
             .find(|line| line.contains(&format!("`{relative_path}`")))
@@ -105,7 +101,7 @@ fn generated_block_commits_the_exact_repository_corpora() {
     ] {
         let bytes = fs::read(manifest_dir.join(relative_path))
             .expect("companion specification is readable");
-        let digest = encode_hex(&Sha256::digest(&bytes));
+        let digest = hex::encode(Sha256::digest(&bytes));
         let row = block
             .lines()
             .find(|line| line.contains(&format!("`{relative_path}`")))
@@ -124,13 +120,13 @@ fn input_provenance_document_commitment_is_drift_sensitive() {
         .lines()
         .find(|line| line.contains("`docs/input-provenance-v1.md`"))
         .expect("generated block contains input-provenance specification row");
-    let digest = encode_hex(&Sha256::digest(&bytes));
+    let digest = hex::encode(Sha256::digest(&bytes));
     assert!(row.contains(&format!("| {} |", bytes.len())));
     assert!(row.contains(&format!("`{digest}`")));
 
     let mut drifted = bytes;
     drifted[0] ^= 1;
-    let drifted_digest = encode_hex(&Sha256::digest(&drifted));
+    let drifted_digest = hex::encode(Sha256::digest(&drifted));
     assert_ne!(drifted_digest, digest);
     assert!(!row.contains(&format!("`{drifted_digest}`")));
 }

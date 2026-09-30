@@ -1,8 +1,10 @@
+mod support {
+    pub mod cli;
+}
+
 use std::collections::BTreeSet;
 use std::fs;
 use std::path::PathBuf;
-use std::process::Command;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use ed25519_yao_generator::{
     canonical_semantic_frame_party_view_vector_corpus_json_bytes_v1,
@@ -12,6 +14,8 @@ use ed25519_yao_generator::{
     SEMANTIC_FRAME_PARTY_VIEW_VECTOR_EVIDENCE_SCOPE_V1,
 };
 use serde_json::{Map, Value};
+
+use support::cli::assert_emit_and_check;
 
 const COMMITTED: &[u8] =
     include_bytes!("../vectors/ed25519-yao-semantic-frame-party-views-v1.json");
@@ -39,17 +43,6 @@ fn corpus() -> Value {
 
 fn cases(value: &Value) -> &[Value] {
     field(value, "cases").as_array().expect("cases array")
-}
-
-fn temporary_path() -> PathBuf {
-    let nonce = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .expect("system clock follows Unix epoch")
-        .as_nanos();
-    std::env::temp_dir().join(format!(
-        "ed25519-yao-semantic-frame-party-views-{}-{nonce}.json",
-        std::process::id()
-    ))
 }
 
 fn source_vector_path(artifact_kind: &str) -> PathBuf {
@@ -404,34 +397,5 @@ fn strict_parser_and_cli_reject_drift() {
     extra_lf.push(b'\n');
     assert!(parse_canonical_semantic_frame_party_view_vector_corpus_json_v1(&extra_lf).is_err());
 
-    let output = temporary_path();
-    let binary = env!("CARGO_BIN_EXE_ed25519-yao-vectors");
-    let emit = Command::new(binary)
-        .args([
-            "emit-semantic-frame-party-views",
-            "--output",
-            output.to_str().expect("UTF-8 path"),
-        ])
-        .output()
-        .expect("run semantic-frame emitter");
-    assert!(
-        emit.status.success(),
-        "{}",
-        String::from_utf8_lossy(&emit.stderr)
-    );
-    assert_eq!(fs::read(&output).expect("emitted corpus"), COMMITTED);
-    let check = Command::new(binary)
-        .args([
-            "check-semantic-frame-party-views",
-            "--input",
-            output.to_str().expect("UTF-8 path"),
-        ])
-        .output()
-        .expect("run semantic-frame checker");
-    assert!(
-        check.status.success(),
-        "{}",
-        String::from_utf8_lossy(&check.stderr)
-    );
-    fs::remove_file(output).expect("remove emitted corpus");
+    assert_emit_and_check("semantic-frame-party-views", COMMITTED);
 }

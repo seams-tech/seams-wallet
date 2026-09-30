@@ -1,6 +1,7 @@
 use std::sync::OnceLock;
 
 use ed25519_yao::{CircuitMetrics, GateMetrics, ScheduleMetrics};
+use hex::FromHex;
 
 use crate::{
     canonical_vector_corpus_v1, differential_vector_corpus_v1, VectorCaseV1, VectorInputsV1,
@@ -33,23 +34,9 @@ fn export_core() -> &'static ProvisionalExportCoreV1 {
     CORE.get_or_init(compile_provisional_export_core_v1)
 }
 
-fn decode_hex_nibble(byte: u8) -> u8 {
-    match byte {
-        b'0'..=b'9' => byte - b'0',
-        b'a'..=b'f' => byte - b'a' + 10,
-        _ => panic!("fixture hex is lowercase ASCII"),
-    }
-}
-
-fn decode_hex_32(hex: &str) -> [u8; 32] {
-    assert_eq!(hex.len(), 64, "fixture field has 32 bytes");
-    let encoded = hex.as_bytes();
-    let mut decoded = [0u8; 32];
-    for (index, output) in decoded.iter_mut().enumerate() {
-        *output = (decode_hex_nibble(encoded[index * 2]) << 4)
-            | decode_hex_nibble(encoded[index * 2 + 1]);
-    }
-    decoded
+fn decode_hex_32(value: &str) -> [u8; 32] {
+    assert_eq!(value.len(), 64, "fixture field has 32 bytes");
+    <[u8; 32]>::from_hex(value).expect("fixture hex is lowercase ASCII")
 }
 
 fn arithmetic_reference_inputs(case: &VectorCaseV1) -> &VectorInputsV1 {

@@ -7,6 +7,7 @@ use ed25519_yao_generator::{
     parse_canonical_output_party_view_vector_corpus_json_v1,
     OUTPUT_PARTY_VIEW_VECTOR_CORPUS_SCHEMA_V1, OUTPUT_PARTY_VIEW_VECTOR_EVIDENCE_SCOPE_V1,
 };
+use hex::FromHex;
 use serde_json::Value;
 
 const COMMITTED: &[u8] = include_bytes!("../vectors/ed25519-yao-output-party-views-v1.json");
@@ -446,13 +447,7 @@ fn point_hex(scalar: Scalar) -> Value {
 }
 
 fn hex_32(value: &Value) -> [u8; 32] {
-    let text = value.as_str().expect("hex string");
-    assert_eq!(text.len(), 64);
-    let mut output = [0_u8; 32];
-    for (index, byte) in output.iter_mut().enumerate() {
-        *byte = u8::from_str_radix(&text[index * 2..index * 2 + 2], 16).expect("lower hex");
-    }
-    output
+    <[u8; 32]>::from_hex(value.as_str().expect("hex string")).expect("lower hex")
 }
 
 fn wrapping_add_le_256(left: [u8; 32], right: [u8; 32]) -> [u8; 32] {
@@ -520,17 +515,5 @@ fn assert_substrings_in_order(value: &str, expected: &[&str]) {
     for item in expected {
         let relative = value[offset..].find(item).expect("ordered substring");
         offset += relative + item.len();
-    }
-}
-
-mod hex {
-    pub fn encode(bytes: [u8; 32]) -> String {
-        const HEX: &[u8; 16] = b"0123456789abcdef";
-        let mut output = String::with_capacity(64);
-        for byte in bytes {
-            output.push(HEX[(byte >> 4) as usize] as char);
-            output.push(HEX[(byte & 0x0f) as usize] as char);
-        }
-        output
     }
 }

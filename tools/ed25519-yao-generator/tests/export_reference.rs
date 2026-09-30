@@ -1,8 +1,6 @@
-use std::ffi::OsString;
-use std::fs;
-use std::path::{Path, PathBuf};
-use std::process::Command;
-use std::time::{SystemTime, UNIX_EPOCH};
+mod support {
+    pub mod ui;
+}
 
 use curve25519_dalek::scalar::Scalar;
 use ed25519_dalek::{Signer, SigningKey, Verifier};
@@ -14,6 +12,8 @@ use ed25519_yao_generator::{
     HostOnlyPreparedExportReferenceV1, HostOnlySeedOutputCoinV1, RawDeriverAContribution,
     RawDeriverBContribution, RegisteredEd25519PublicKey32V1,
 };
+
+use support::ui::{assert_compile_failure, UiHarness};
 
 const RFC8032_SEED_ONE: [u8; 32] = [
     0x9d, 0x61, 0xb1, 0x9d, 0xef, 0xfd, 0x5a, 0x60, 0xba, 0x84, 0x4a, 0xf4, 0x92, 0xec, 0x2c, 0xc4,
@@ -225,73 +225,9 @@ fn reconstructed_rfc8032_seed_signs_and_verifies_with_registered_key() {
     accept_public_key_witness(success.public_key_equality_witness());
 }
 
-struct UiHarness {
-    directory: PathBuf,
-}
-
-impl UiHarness {
-    fn create() -> Self {
-        let nonce = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("system clock must follow Unix epoch")
-            .as_nanos();
-        let directory = std::env::temp_dir().join(format!(
-            "ed25519-yao-export-reference-ui-{}-{nonce}",
-            std::process::id()
-        ));
-        fs::create_dir_all(directory.join("src")).expect("create UI harness source directory");
-        let manifest_directory = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .canonicalize()
-            .expect("canonical generator path");
-        let dependency_path = manifest_directory.to_string_lossy().replace('\\', "\\\\");
-        fs::write(
-            directory.join("Cargo.toml"),
-            format!(
-                "[package]\nname = \"export-reference-ui\"\nversion = \"0.0.0\"\nedition = \"2021\"\n\
-                 [dependencies]\ned25519-yao-generator = {{ path = \"{dependency_path}\" }}\n"
-            ),
-        )
-        .expect("write UI harness manifest");
-        Self { directory }
-    }
-
-    fn check(&self, body: &str) -> std::process::Output {
-        fs::write(self.directory.join("src/main.rs"), body).expect("write UI harness source");
-        Command::new(cargo_command())
-            .args(["check", "--quiet", "--offline"])
-            .current_dir(&self.directory)
-            .env("CARGO_TARGET_DIR", self.directory.join("target"))
-            .output()
-            .expect("execute UI cargo check")
-    }
-}
-
-impl Drop for UiHarness {
-    fn drop(&mut self) {
-        let _ = fs::remove_dir_all(&self.directory);
-    }
-}
-
-fn cargo_command() -> OsString {
-    match std::env::var_os("CARGO") {
-        Some(command) => command,
-        None => OsString::from("cargo"),
-    }
-}
-
-fn assert_compile_failure(harness: &UiHarness, body: &str, code: &str) {
-    let output = harness.check(body);
-    assert!(!output.status.success(), "UI case unexpectedly compiled");
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(
-        stderr.contains(code),
-        "UI case failed without {code}:\n{stderr}"
-    );
-}
-
 #[test]
 fn compile_guards_keep_export_seed_scoped_and_private() {
-    let harness = UiHarness::create();
+    let harness = UiHarness::create("export-reference");
     let control = harness.check(
         "use ed25519_yao_generator::{HostOnlyExportReferenceSuccessV1, HostOnlyPreparedExportReferenceV1};\n\
          fn accept(prepared: &HostOnlyPreparedExportReferenceV1, success: &HostOnlyExportReferenceSuccessV1) {\n\

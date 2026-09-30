@@ -3,10 +3,6 @@ use ed25519_yao_generator::{
     STABLE_KEY_DERIVATION_CONTEXT_DOMAIN_V1, STABLE_KEY_DERIVATION_CONTEXT_ENCODED_LEN,
 };
 
-fn hex(bytes: &[u8]) -> String {
-    bytes.iter().map(|byte| format!("{byte:02x}")).collect()
-}
-
 #[test]
 fn context_encoding_is_golden_and_order_independent() {
     let digest = [0x42; 32];
@@ -29,13 +25,13 @@ fn context_encoding_is_golden_and_order_independent() {
         STABLE_KEY_DERIVATION_CONTEXT_DOMAIN_V1
     );
     assert_eq!(
-        hex(forward.encode().as_bytes()),
+        hex::encode(forward.encode().as_bytes()),
         "7365616d732f726f757465722d61622f656432353531392d79616f2f737461626c652d6b65792d636f6e746578742f7631\
          4242424242424242424242424242424242424242424242424242424242424242\
          00010002"
     );
     assert_eq!(
-        hex(forward.binding_digest().as_bytes()),
+        hex::encode(forward.binding_digest().as_bytes()),
         "ce5305908b0c31bfe09072b549cb349b0c901f7d3fde60c63fa8e2dfb088a42d"
     );
 }

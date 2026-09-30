@@ -577,25 +577,25 @@ pub fn canonical_fixed_reference_generated_block_v1(
     writeln!(
         output,
         "- Scalar order `l`, canonical LE32: `{}`",
-        encode_hex(&scalar_order)
+        hex::encode(scalar_order)
     )
     .unwrap();
     writeln!(
         output,
         "- Compressed Ed25519 basepoint: `{}`",
-        encode_hex(&basepoint)
+        hex::encode(basepoint)
     )
     .unwrap();
     writeln!(
         output,
         "- `clamp_rfc8032(00 * 32)`: `{}`",
-        encode_hex(&clamp_zero)
+        hex::encode(clamp_zero)
     )
     .unwrap();
     writeln!(
         output,
         "- `clamp_rfc8032(ff * 32)`: `{}`",
-        encode_hex(&clamp_ones)
+        hex::encode(clamp_ones)
     )
     .unwrap();
     writeln!(
@@ -651,13 +651,13 @@ pub fn canonical_fixed_reference_generated_block_v1(
     writeln!(
         output,
         "- `0x42 * 32`, participants `[1, 2]`, stable-context bytes: `{}`",
-        encode_hex(unit_context.encode().as_bytes())
+        hex::encode(unit_context.encode().as_bytes())
     )
     .unwrap();
     writeln!(
         output,
         "- `0x42 * 32`, participants `[1, 2]`, binding SHA-256: `{}`",
-        encode_hex(unit_context.binding_digest().as_bytes())
+        hex::encode(unit_context.binding_digest().as_bytes())
     )
     .unwrap();
 
@@ -699,7 +699,7 @@ pub fn canonical_fixed_reference_generated_block_v1(
             row.source_tag,
             row.output,
             row.output_tag,
-            encode_hex(&info),
+            hex::encode(info),
             row.output_hex
         )
         .unwrap();
@@ -727,51 +727,49 @@ pub fn canonical_fixed_reference_generated_block_v1(
         output,
         "| `docs/output-sharing-v1.md` | {} | `{}` |",
         OUTPUT_SHARING_SPECIFICATION_V1.len(),
-        encode_hex(&Sha256::digest(OUTPUT_SHARING_SPECIFICATION_V1))
+        hex::encode(Sha256::digest(OUTPUT_SHARING_SPECIFICATION_V1))
     )
     .unwrap();
     writeln!(
         output,
         "| `docs/circuit-ir-v1.md` | {} | `{}` |",
         CIRCUIT_IR_SPECIFICATION_V1.len(),
-        encode_hex(&Sha256::digest(CIRCUIT_IR_SPECIFICATION_V1))
+        hex::encode(Sha256::digest(CIRCUIT_IR_SPECIFICATION_V1))
     )
     .unwrap();
     writeln!(
         output,
         "| `docs/ceremony-context-v1.md` | {} | `{}` |",
         CEREMONY_CONTEXT_SPECIFICATION_V1.len(),
-        encode_hex(&Sha256::digest(CEREMONY_CONTEXT_SPECIFICATION_V1))
+        hex::encode(Sha256::digest(CEREMONY_CONTEXT_SPECIFICATION_V1))
     )
     .unwrap();
     writeln!(
         output,
         "| `docs/input-provenance-v1.md` | {} | `{}` |",
         INPUT_PROVENANCE_SPECIFICATION_V1.len(),
-        encode_hex(&Sha256::digest(INPUT_PROVENANCE_SPECIFICATION_V1))
+        hex::encode(Sha256::digest(INPUT_PROVENANCE_SPECIFICATION_V1))
     )
     .unwrap();
     writeln!(
         output,
         "| `docs/semantic-artifact-lifecycle-v1.md` | {} | `{}` |",
         SEMANTIC_ARTIFACT_LIFECYCLE_SPECIFICATION_V1.len(),
-        encode_hex(&Sha256::digest(
-            SEMANTIC_ARTIFACT_LIFECYCLE_SPECIFICATION_V1
-        ))
+        hex::encode(Sha256::digest(SEMANTIC_ARTIFACT_LIFECYCLE_SPECIFICATION_V1))
     )
     .unwrap();
     writeln!(
         output,
         "| `docs/output-party-views-v1.md` | {} | `{}` |",
         OUTPUT_PARTY_VIEWS_SPECIFICATION_V1.len(),
-        encode_hex(&Sha256::digest(OUTPUT_PARTY_VIEWS_SPECIFICATION_V1))
+        hex::encode(Sha256::digest(OUTPUT_PARTY_VIEWS_SPECIFICATION_V1))
     )
     .unwrap();
     writeln!(
         output,
         "| `docs/evaluation-input-party-views-v1.md` | {} | `{}` |",
         EVALUATION_INPUT_PARTY_VIEWS_SPECIFICATION_V1.len(),
-        encode_hex(&Sha256::digest(
+        hex::encode(Sha256::digest(
             EVALUATION_INPUT_PARTY_VIEWS_SPECIFICATION_V1
         ))
     )
@@ -780,14 +778,14 @@ pub fn canonical_fixed_reference_generated_block_v1(
         output,
         "| `docs/uniform-abort-envelope-v1.md` | {} | `{}` |",
         UNIFORM_ABORT_ENVELOPE_SPECIFICATION_V1.len(),
-        encode_hex(&Sha256::digest(UNIFORM_ABORT_ENVELOPE_SPECIFICATION_V1))
+        hex::encode(Sha256::digest(UNIFORM_ABORT_ENVELOPE_SPECIFICATION_V1))
     )
     .unwrap();
     writeln!(
         output,
         "| `docs/evaluator-abort-state-party-views-v1.md` | {} | `{}` |",
         EVALUATOR_ABORT_STATE_PARTY_VIEWS_SPECIFICATION_V1.len(),
-        encode_hex(&Sha256::digest(
+        hex::encode(Sha256::digest(
             EVALUATOR_ABORT_STATE_PARTY_VIEWS_SPECIFICATION_V1
         ))
     )
@@ -796,7 +794,7 @@ pub fn canonical_fixed_reference_generated_block_v1(
         output,
         "| `docs/authenticated-store-resolution-v1.md` | {} | `{}` |",
         AUTHENTICATED_STORE_RESOLUTION_SPECIFICATION_V1.len(),
-        encode_hex(&Sha256::digest(
+        hex::encode(Sha256::digest(
             AUTHENTICATED_STORE_RESOLUTION_SPECIFICATION_V1
         ))
     )
@@ -805,49 +803,49 @@ pub fn canonical_fixed_reference_generated_block_v1(
         output,
         "| `docs/signing-worker-activation-v1.md` | {} | `{}` |",
         SIGNING_WORKER_ACTIVATION_SPECIFICATION_V1.len(),
-        encode_hex(&Sha256::digest(SIGNING_WORKER_ACTIVATION_SPECIFICATION_V1))
+        hex::encode(Sha256::digest(SIGNING_WORKER_ACTIVATION_SPECIFICATION_V1))
     )
     .unwrap();
     writeln!(
         output,
         "| `docs/refresh-promotion-v1.md` | {} | `{}` |",
         REFRESH_PROMOTION_SPECIFICATION_V1.len(),
-        encode_hex(&Sha256::digest(REFRESH_PROMOTION_SPECIFICATION_V1))
+        hex::encode(Sha256::digest(REFRESH_PROMOTION_SPECIFICATION_V1))
     )
     .unwrap();
     writeln!(
         output,
         "| `docs/benchmark-manifest-v1.md` | {} | `{}` |",
         BENCHMARK_MANIFEST_SPECIFICATION_V1.len(),
-        encode_hex(&Sha256::digest(BENCHMARK_MANIFEST_SPECIFICATION_V1))
+        hex::encode(Sha256::digest(BENCHMARK_MANIFEST_SPECIFICATION_V1))
     )
     .unwrap();
     writeln!(
         output,
         "| `docs/artifact-filesystem-policy-v1.md` | {} | `{}` |",
         ARTIFACT_FILESYSTEM_POLICY_SPECIFICATION_V1.len(),
-        encode_hex(&Sha256::digest(ARTIFACT_FILESYSTEM_POLICY_SPECIFICATION_V1))
+        hex::encode(Sha256::digest(ARTIFACT_FILESYSTEM_POLICY_SPECIFICATION_V1))
     )
     .unwrap();
     writeln!(
         output,
         "| `docs/joint-refresh-delta-v1.md` | {} | `{}` |",
         JOINT_REFRESH_DELTA_SPECIFICATION_V1.len(),
-        encode_hex(&Sha256::digest(JOINT_REFRESH_DELTA_SPECIFICATION_V1))
+        hex::encode(Sha256::digest(JOINT_REFRESH_DELTA_SPECIFICATION_V1))
     )
     .unwrap();
     writeln!(
         output,
         "| `docs/export-delivery-lifecycle-v1.md` | {} | `{}` |",
         EXPORT_DELIVERY_LIFECYCLE_SPECIFICATION_V1.len(),
-        encode_hex(&Sha256::digest(EXPORT_DELIVERY_LIFECYCLE_SPECIFICATION_V1))
+        hex::encode(Sha256::digest(EXPORT_DELIVERY_LIFECYCLE_SPECIFICATION_V1))
     )
     .unwrap();
     writeln!(
         output,
         "| `docs/activation-delivery-lifecycle-v1.md` | {} | `{}` |",
         ACTIVATION_DELIVERY_LIFECYCLE_SPECIFICATION_V1.len(),
-        encode_hex(&Sha256::digest(
+        hex::encode(Sha256::digest(
             ACTIVATION_DELIVERY_LIFECYCLE_SPECIFICATION_V1
         ))
     )
@@ -856,7 +854,7 @@ pub fn canonical_fixed_reference_generated_block_v1(
         output,
         "| `docs/activation-recipient-party-views-v1.md` | {} | `{}` |",
         ACTIVATION_RECIPIENT_PARTY_VIEWS_SPECIFICATION_V1.len(),
-        encode_hex(&Sha256::digest(
+        hex::encode(Sha256::digest(
             ACTIVATION_RECIPIENT_PARTY_VIEWS_SPECIFICATION_V1
         ))
     )
@@ -865,7 +863,7 @@ pub fn canonical_fixed_reference_generated_block_v1(
         output,
         "| `docs/recovery-credential-transition-v1.md` | {} | `{}` |",
         RECOVERY_CREDENTIAL_TRANSITION_SPECIFICATION_V1.len(),
-        encode_hex(&Sha256::digest(
+        hex::encode(Sha256::digest(
             RECOVERY_CREDENTIAL_TRANSITION_SPECIFICATION_V1
         ))
     )
@@ -874,7 +872,7 @@ pub fn canonical_fixed_reference_generated_block_v1(
         output,
         "| `docs/export-evaluator-authorization-v1.md` | {} | `{}` |",
         EXPORT_EVALUATOR_AUTHORIZATION_SPECIFICATION_V1.len(),
-        encode_hex(&Sha256::digest(
+        hex::encode(Sha256::digest(
             EXPORT_EVALUATOR_AUTHORIZATION_SPECIFICATION_V1
         ))
     )
@@ -883,7 +881,7 @@ pub fn canonical_fixed_reference_generated_block_v1(
         output,
         "| `docs/registration-evaluator-admission-v1.md` | {} | `{}` |",
         REGISTRATION_EVALUATOR_ADMISSION_SPECIFICATION_V1.len(),
-        encode_hex(&Sha256::digest(
+        hex::encode(Sha256::digest(
             REGISTRATION_EVALUATOR_ADMISSION_SPECIFICATION_V1
         ))
     )
@@ -892,7 +890,7 @@ pub fn canonical_fixed_reference_generated_block_v1(
         output,
         "| `docs/recovery-evaluator-admission-v1.md` | {} | `{}` |",
         RECOVERY_EVALUATOR_ADMISSION_SPECIFICATION_V1.len(),
-        encode_hex(&Sha256::digest(
+        hex::encode(Sha256::digest(
             RECOVERY_EVALUATOR_ADMISSION_SPECIFICATION_V1
         ))
     )
@@ -901,25 +899,21 @@ pub fn canonical_fixed_reference_generated_block_v1(
         output,
         "| `docs/refresh-evaluator-admission-v1.md` | {} | `{}` |",
         REFRESH_EVALUATOR_ADMISSION_SPECIFICATION_V1.len(),
-        encode_hex(&Sha256::digest(
-            REFRESH_EVALUATOR_ADMISSION_SPECIFICATION_V1
-        ))
+        hex::encode(Sha256::digest(REFRESH_EVALUATOR_ADMISSION_SPECIFICATION_V1))
     )
     .unwrap();
     writeln!(
         output,
         "| `docs/semantic-frame-party-views-v1.md` | {} | `{}` |",
         SEMANTIC_FRAME_PARTY_VIEWS_SPECIFICATION_V1.len(),
-        encode_hex(&Sha256::digest(SEMANTIC_FRAME_PARTY_VIEWS_SPECIFICATION_V1))
+        hex::encode(Sha256::digest(SEMANTIC_FRAME_PARTY_VIEWS_SPECIFICATION_V1))
     )
     .unwrap();
     writeln!(
         output,
         "| `docs/phase2b-core-reconciliation-v1.md` | {} | `{}` |",
         PHASE2B_CORE_RECONCILIATION_SPECIFICATION_V1.len(),
-        encode_hex(&Sha256::digest(
-            PHASE2B_CORE_RECONCILIATION_SPECIFICATION_V1
-        ))
+        hex::encode(Sha256::digest(PHASE2B_CORE_RECONCILIATION_SPECIFICATION_V1))
     )
     .unwrap();
 
@@ -990,7 +984,7 @@ fn corpus_commitment<T: serde::Serialize>(
         schema,
         case_count,
         byte_length: bytes.len(),
-        sha256_hex: encode_hex(&Sha256::digest(&bytes)),
+        sha256_hex: hex::encode(Sha256::digest(&bytes)),
     })
 }
 
@@ -1005,7 +999,7 @@ fn corpus_commitment_from_bytes(
         schema,
         case_count,
         byte_length: bytes.len(),
-        sha256_hex: encode_hex(&Sha256::digest(bytes)),
+        sha256_hex: hex::encode(Sha256::digest(bytes)),
     }
 }
 
@@ -1015,7 +1009,7 @@ fn append_ascii_row(output: &mut String, name: &str, bytes: &[u8]) {
         output,
         "| {name} | `{value}` | {} | `{}` |",
         bytes.len(),
-        encode_hex(bytes)
+        hex::encode(bytes)
     )
     .unwrap();
 }
@@ -1025,7 +1019,7 @@ fn append_bytes_row(output: &mut String, name: &str, bytes: &[u8]) {
         output,
         "| {name} | {} | `{}` |",
         bytes.len(),
-        encode_hex(bytes)
+        hex::encode(bytes)
     )
     .unwrap();
 }
@@ -1040,12 +1034,4 @@ fn scalar_order_le() -> [u8; 32] {
         }
     }
     order
-}
-
-fn encode_hex(bytes: &[u8]) -> String {
-    let mut output = String::with_capacity(bytes.len() * 2);
-    for byte in bytes {
-        write!(output, "{byte:02x}").unwrap();
-    }
-    output
 }

@@ -1,69 +1,12 @@
-use std::fs;
-use std::path::{Path, PathBuf};
-use std::process::Command;
-use std::time::{SystemTime, UNIX_EPOCH};
-
-struct UiHarness {
-    directory: PathBuf,
+mod support {
+    pub mod ui;
 }
 
-impl UiHarness {
-    fn create() -> Self {
-        let nonce = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("system clock must follow Unix epoch")
-            .as_nanos();
-        let directory = std::env::temp_dir().join(format!(
-            "ed25519-yao-evaluation-input-views-ui-{}-{nonce}",
-            std::process::id()
-        ));
-        fs::create_dir_all(directory.join("src")).expect("create UI harness source directory");
-        let manifest_directory = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .canonicalize()
-            .expect("canonical generator path");
-        let dependency_path = manifest_directory.to_string_lossy().replace('\\', "\\\\");
-        fs::write(
-            directory.join("Cargo.toml"),
-            format!(
-                "[package]\nname = \"evaluation-input-views-ui\"\nversion = \"0.0.0\"\nedition = \"2021\"\n\
-                 [dependencies]\ned25519-yao-generator = {{ path = \"{dependency_path}\" }}\n\
-                 serde = {{ version = \"1\", features = [\"derive\"] }}\n"
-            ),
-        )
-        .expect("write UI harness manifest");
-        Self { directory }
-    }
-
-    fn check(&self, body: &str) -> std::process::Output {
-        fs::write(self.directory.join("src/main.rs"), body).expect("write UI harness source");
-        Command::new(std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into()))
-            .args(["check", "--quiet", "--offline"])
-            .current_dir(&self.directory)
-            .env("CARGO_TARGET_DIR", self.directory.join("target"))
-            .output()
-            .expect("execute UI cargo check")
-    }
-}
-
-impl Drop for UiHarness {
-    fn drop(&mut self) {
-        let _ = fs::remove_dir_all(&self.directory);
-    }
-}
-
-fn assert_compile_failure(harness: &UiHarness, body: &str, code: &str) {
-    let output = harness.check(body);
-    assert!(!output.status.success(), "UI case unexpectedly compiled");
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(
-        stderr.contains(code),
-        "UI case failed without {code}:\n{stderr}"
-    );
-}
+use support::ui::{assert_compile_failure, UiHarness};
 
 #[test]
 fn compile_fail_guards_enforce_input_custody_and_branch_coin_ownership() {
-    let harness = UiHarness::create();
+    let harness = UiHarness::create("evaluation-input-views");
     let control = harness.check(
         "use ed25519_yao_generator::HostOnlyEvaluationInputStageV1;\n\
          fn main() { let _ = HostOnlyEvaluationInputStageV1::ExportEvaluationAccepted; }",

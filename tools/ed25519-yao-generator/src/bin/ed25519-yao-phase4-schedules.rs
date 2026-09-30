@@ -149,8 +149,8 @@ impl Phase4CircuitReport for ed25519_yao_generator::Phase4PrivateOutputExportCor
 fn print_component(name: &str, circuit: &impl Phase4CircuitReport) {
     println!(
         "{name} circuit_digest={} schedule_digest={} inputs={} outputs={} gates={} slots={} and={} xor={} inv={} schedule_bytes={} table_bytes={}",
-        encode_hex(circuit.circuit_digest()),
-        encode_hex(circuit.schedule_digest()),
+        hex::encode(circuit.circuit_digest()),
+        hex::encode(circuit.schedule_digest()),
         circuit.input_count(),
         circuit.output_count(),
         circuit.gate_count(),
@@ -161,13 +161,4 @@ fn print_component(name: &str, circuit: &impl Phase4CircuitReport) {
         circuit.schedule_bytes(),
         circuit.and_count() * 32,
     );
-}
-
-fn encode_hex(bytes: [u8; 32]) -> String {
-    let mut output = String::with_capacity(64);
-    for byte in bytes {
-        use core::fmt::Write as _;
-        write!(output, "{byte:02x}").expect("writing to String succeeds");
-    }
-    output
 }

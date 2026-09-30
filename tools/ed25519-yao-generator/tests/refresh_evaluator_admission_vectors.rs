@@ -1,7 +1,9 @@
+mod support {
+    pub mod cli;
+}
+
 use std::fs;
 use std::path::PathBuf;
-use std::process::Command;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use ed25519_yao_generator::{
     canonical_refresh_evaluator_admission_vector_corpus_json_bytes_v1,
@@ -11,20 +13,11 @@ use ed25519_yao_generator::{
     REFRESH_EVALUATOR_ADMISSION_VECTOR_EVIDENCE_SCOPE_V1,
 };
 
+use support::cli::assert_emit_and_check;
+
 fn corpus_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("vectors/ed25519-yao-refresh-evaluator-admission-v1.json")
-}
-
-fn temporary_path(label: &str) -> PathBuf {
-    let nonce = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .expect("system clock follows Unix epoch")
-        .as_nanos();
-    std::env::temp_dir().join(format!(
-        "ed25519-yao-refresh-evaluator-{label}-{}-{nonce}.json",
-        std::process::id()
-    ))
 }
 
 fn assert_forbidden_keys_absent(value: &serde_json::Value, forbidden: &[&str]) {
@@ -143,39 +136,10 @@ fn corpus_commits_store_transition_output_and_audited_cross_links() {
 
 #[test]
 fn vector_cli_emits_and_checks_exact_corpus() {
-    let binary = env!("CARGO_BIN_EXE_ed25519-yao-vectors");
-    let output = temporary_path("emit");
-    let emit = Command::new(binary)
-        .args([
-            "emit-refresh-evaluator-admission",
-            "--output",
-            output.to_str().expect("UTF-8 path"),
-        ])
-        .output()
-        .expect("run vector emitter");
-    assert!(
-        emit.status.success(),
-        "{}",
-        String::from_utf8_lossy(&emit.stderr)
+    assert_emit_and_check(
+        "refresh-evaluator-admission",
+        &canonical_refresh_evaluator_admission_vector_corpus_json_bytes_v1(),
     );
-    assert_eq!(
-        fs::read(&output).expect("emitted corpus"),
-        canonical_refresh_evaluator_admission_vector_corpus_json_bytes_v1()
-    );
-    let check = Command::new(binary)
-        .args([
-            "check-refresh-evaluator-admission",
-            "--input",
-            output.to_str().expect("UTF-8 path"),
-        ])
-        .output()
-        .expect("run vector checker");
-    assert!(
-        check.status.success(),
-        "{}",
-        String::from_utf8_lossy(&check.stderr)
-    );
-    fs::remove_file(output).expect("remove emitted corpus");
 }
 
 #[test]

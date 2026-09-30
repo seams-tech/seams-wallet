@@ -6,8 +6,9 @@ use serde::Serialize;
 
 use crate::ceremony_context::{CeremonyActivationEpochV1, CeremonyRequestKindV1};
 use crate::ceremony_fixtures::canonical_refresh_ceremony_fixture_v1;
-use crate::evaluation_admission_fixtures::{
-    encode_hex, AdmissionRequestVectorV1, StoreResolutionVectorV1,
+use crate::evaluation_admission_fixtures::{AdmissionRequestVectorV1, StoreResolutionVectorV1};
+use crate::fixtures::strict_corpus::{
+    canonical_json_bytes, parse_canonical_json, StrictVectorCorpusV1,
 };
 use crate::lifecycle_domain::{ActivationReceiptEvidenceV1, RefreshRequestV1};
 use crate::provenance::{ProvenanceRoleStateBindingV1, ProvenanceRoleV1};
@@ -39,39 +40,12 @@ const ACTIVE_STATE_VERSION_V1: u64 = 12;
 const EXECUTION_ID_V1: [u8; 32] = [0x74; 32];
 const SELECTED_MECHANISM_EVIDENCE_V1: [u8; 32] = [0x93; 32];
 
-#[derive(Serialize)]
 /// Strict one-case construction-independent refresh evaluator corpus.
-pub struct RefreshEvaluatorAdmissionVectorCorpusV1 {
-    schema: String,
-    protocol_id: String,
-    evidence_scope: String,
-    cases: Vec<RefreshEvaluatorAdmissionVectorCaseV1>,
-}
-
-impl RefreshEvaluatorAdmissionVectorCorpusV1 {
-    /// Returns the exact corpus schema.
-    pub fn schema(&self) -> &str {
-        &self.schema
-    }
-
-    /// Returns the fixed protocol identifier.
-    pub fn protocol_id(&self) -> &str {
-        &self.protocol_id
-    }
-
-    /// Returns the narrow host-only evidence scope.
-    pub fn evidence_scope(&self) -> &str {
-        &self.evidence_scope
-    }
-
-    /// Returns the exact case count.
-    pub fn case_count(&self) -> usize {
-        self.cases.len()
-    }
-}
+pub type RefreshEvaluatorAdmissionVectorCorpusV1 =
+    StrictVectorCorpusV1<RefreshEvaluatorAdmissionVectorCaseV1>;
 
 #[derive(Serialize)]
-struct RefreshEvaluatorAdmissionVectorCaseV1 {
+pub struct RefreshEvaluatorAdmissionVectorCaseV1 {
     case_id: String,
     request_kind: RefreshRequestKindVectorV1,
     source_references: RefreshEvaluatorSourceReferencesV1,
@@ -199,11 +173,7 @@ pub fn canonical_refresh_evaluator_admission_vector_corpus_v1(
 
 /// Encodes the exact canonical corpus with one trailing LF.
 pub fn canonical_refresh_evaluator_admission_vector_corpus_json_bytes_v1() -> Vec<u8> {
-    let mut encoded =
-        serde_json::to_vec_pretty(&canonical_refresh_evaluator_admission_vector_corpus_v1())
-            .expect("fixed refresh evaluator-admission corpus serializes");
-    encoded.push(b'\n');
-    encoded
+    canonical_json_bytes(&canonical_refresh_evaluator_admission_vector_corpus_v1())
 }
 
 /// Parses only the exact canonical LF-terminated corpus bytes.
@@ -213,10 +183,11 @@ pub fn parse_canonical_refresh_evaluator_admission_vector_corpus_json_v1(
     RefreshEvaluatorAdmissionVectorCorpusV1,
     RefreshEvaluatorAdmissionVectorCorpusParseErrorV1,
 > {
-    if encoded != canonical_refresh_evaluator_admission_vector_corpus_json_bytes_v1() {
-        return Err(RefreshEvaluatorAdmissionVectorCorpusParseErrorV1);
-    }
-    Ok(canonical_refresh_evaluator_admission_vector_corpus_v1())
+    parse_canonical_json(
+        encoded,
+        canonical_refresh_evaluator_admission_vector_corpus_v1,
+    )
+    .ok_or(RefreshEvaluatorAdmissionVectorCorpusParseErrorV1)
 }
 
 fn refresh_evaluator_admission_case() -> RefreshEvaluatorAdmissionVectorCaseV1 {
@@ -278,17 +249,19 @@ fn refresh_evaluator_admission_case() -> RefreshEvaluatorAdmissionVectorCaseV1 {
         next_deriver_a: refresh_role_state_vector("deriver_a", refresh_binding.next_deriver_a()),
         current_deriver_b_input_state_epoch: store_vector.deriver_b_input_state_epoch,
         next_deriver_b: refresh_role_state_vector("deriver_b", refresh_binding.next_deriver_b()),
-        provenance_continuity_evidence_artifact_digest_hex: encode_hex(
+        provenance_continuity_evidence_artifact_digest_hex: hex::encode(
             provenance
                 .refresh_continuity_evidence_artifact_digest()
                 .expect("refresh continuity evidence")
                 .as_bytes(),
         ),
-        selected_mechanism_acceptance_evidence_digest_hex: encode_hex(selected_evidence.as_bytes()),
-        one_use_execution_id_hex: encode_hex(execution.as_bytes()),
+        selected_mechanism_acceptance_evidence_digest_hex: hex::encode(
+            selected_evidence.as_bytes(),
+        ),
+        one_use_execution_id_hex: hex::encode(execution.as_bytes()),
         admission_state: "accepted_terminal_registered_state_frozen".to_owned(),
-        encoding_hex: encode_hex(admission.terminal().encode()),
-        digest_hex: encode_hex(&admission_digest),
+        encoding_hex: hex::encode(admission.terminal().encode()),
+        digest_hex: hex::encode(admission_digest),
     };
     let session = request
         .begin_host_reference_artifact_session(admission, &provenance)
@@ -338,11 +311,11 @@ fn refresh_evaluator_admission_case() -> RefreshEvaluatorAdmissionVectorCaseV1 {
             deriver_b_invocations: 1,
             refresh_delta_contributions: 2,
             output_share_samples: 2,
-            registered_public_key_hex: encode_hex(receipt.registered_public_key().as_bytes()),
-            package_set_digest_hex: encode_hex(receipt.package_set_digest().as_bytes()),
-            output_committed_receipt_encoding_hex: encode_hex(&receipt.encode()),
-            output_committed_receipt_digest_hex: encode_hex(receipt.digest().as_bytes()),
-            output_committed_evaluation_evidence_digest_hex: encode_hex(
+            registered_public_key_hex: hex::encode(receipt.registered_public_key().as_bytes()),
+            package_set_digest_hex: hex::encode(receipt.package_set_digest().as_bytes()),
+            output_committed_receipt_encoding_hex: hex::encode(receipt.encode()),
+            output_committed_receipt_digest_hex: hex::encode(receipt.digest().as_bytes()),
+            output_committed_evaluation_evidence_digest_hex: hex::encode(
                 receipt.evaluation_evidence_digest().as_bytes(),
             ),
             pending_state: "refresh_pending_activation".to_owned(),
@@ -397,12 +370,12 @@ fn refresh_role_state_vector<Role: ProvenanceRoleV1>(
 ) -> RefreshRoleStateVectorV1 {
     RefreshRoleStateVectorV1 {
         role: role.to_owned(),
-        role_root_record_digest_hex: encode_hex(state.role_root_record_digest().as_bytes()),
-        root_binding_artifact_digest_hex: encode_hex(
+        role_root_record_digest_hex: hex::encode(state.role_root_record_digest().as_bytes()),
+        root_binding_artifact_digest_hex: hex::encode(
             state.root_binding_artifact_digest().as_bytes(),
         ),
         role_root_epoch: state.role_root_epoch().value(),
-        input_state_record_digest_hex: encode_hex(state.record_digest().as_bytes()),
+        input_state_record_digest_hex: hex::encode(state.record_digest().as_bytes()),
         input_state_epoch: state.epoch().value(),
     }
 }

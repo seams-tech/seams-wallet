@@ -32,11 +32,7 @@ fn cases() -> Vec<Value> {
 }
 
 fn decode_hex(encoded: &str) -> Vec<u8> {
-    assert_eq!(encoded.len() % 2, 0);
-    (0..encoded.len())
-        .step_by(2)
-        .map(|offset| u8::from_str_radix(&encoded[offset..offset + 2], 16).expect("lowercase hex"))
-        .collect()
+    hex::decode(encoded).expect("lowercase hex")
 }
 
 fn lp32(bytes: &[u8]) -> Vec<u8> {

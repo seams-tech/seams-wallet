@@ -23,6 +23,9 @@ use crate::evaluation_input_views::{
     HostOnlyExportEvaluationInputViewSetV1, HostOnlyRecoveryEvaluationInputViewSetV1,
     HostOnlyRefreshEvaluationInputViewSetV1, HostOnlyRegistrationEvaluationInputViewSetV1,
 };
+use crate::fixtures::strict_corpus::{
+    canonical_json_bytes, parse_canonical_json, StrictVectorCorpusV1,
+};
 use crate::lifecycle_domain::{
     ActivationPackageOriginV1, ExportRequestV1, RecoveryRequestV1, RefreshRequestV1,
     RegistrationRequestV1,
@@ -73,39 +76,12 @@ const REFRESH_OUTPUT_VIEW_CASE_ID_V1: &str = "refresh_output_party_views_package
 const EXPORT_OUTPUT_VIEW_CASE_ID_V1: &str = "export_output_party_views_released_v1";
 
 /// Strict five-case synthetic evaluation-input party-view corpus.
-#[derive(Serialize)]
-pub struct EvaluationInputPartyViewVectorCorpusV1 {
-    schema: String,
-    protocol_id: String,
-    evidence_scope: String,
-    cases: Vec<EvaluationInputPartyViewVectorCaseV1>,
-}
-
-impl EvaluationInputPartyViewVectorCorpusV1 {
-    /// Returns the exact schema identifier.
-    pub fn schema(&self) -> &str {
-        &self.schema
-    }
-
-    /// Returns the fixed protocol identifier.
-    pub fn protocol_id(&self) -> &str {
-        &self.protocol_id
-    }
-
-    /// Returns the narrow host-only evidence scope.
-    pub fn evidence_scope(&self) -> &str {
-        &self.evidence_scope
-    }
-
-    /// Returns the fixed case count.
-    pub fn case_count(&self) -> usize {
-        self.cases.len()
-    }
-}
+pub type EvaluationInputPartyViewVectorCorpusV1 =
+    StrictVectorCorpusV1<EvaluationInputPartyViewVectorCaseV1>;
 
 #[derive(Serialize)]
 #[serde(tag = "request_kind", content = "vector", rename_all = "snake_case")]
-enum EvaluationInputPartyViewVectorCaseV1 {
+pub enum EvaluationInputPartyViewVectorCaseV1 {
     Registration(ActivationFamilyEvaluationInputVectorV1),
     Activation(ActivationContinuationInputVectorV1),
     Recovery(ActivationFamilyEvaluationInputVectorV1),
@@ -114,7 +90,7 @@ enum EvaluationInputPartyViewVectorCaseV1 {
 }
 
 #[derive(Serialize)]
-struct ActivationFamilyEvaluationInputVectorV1 {
+pub struct ActivationFamilyEvaluationInputVectorV1 {
     case_id: String,
     stage: EvaluationInputStageVectorV1,
     host_only_source_references: ProducingSourceReferencesVectorV1,
@@ -128,7 +104,7 @@ struct ActivationFamilyEvaluationInputVectorV1 {
 }
 
 #[derive(Serialize)]
-struct ActivationContinuationInputVectorV1 {
+pub struct ActivationContinuationInputVectorV1 {
     case_id: String,
     stage: EvaluationInputStageVectorV1,
     host_only_source_references: ActivationSourceReferencesVectorV1,
@@ -140,7 +116,7 @@ struct ActivationContinuationInputVectorV1 {
 }
 
 #[derive(Serialize)]
-struct ExportEvaluationInputVectorV1 {
+pub struct ExportEvaluationInputVectorV1 {
     case_id: String,
     stage: EvaluationInputStageVectorV1,
     host_only_source_references: ProducingSourceReferencesVectorV1,
@@ -411,11 +387,7 @@ pub fn canonical_evaluation_input_party_view_vector_corpus_v1(
 
 /// Encodes the exact canonical corpus with one trailing LF.
 pub fn canonical_evaluation_input_party_view_vector_corpus_json_bytes_v1() -> Vec<u8> {
-    let mut encoded =
-        serde_json::to_vec_pretty(&canonical_evaluation_input_party_view_vector_corpus_v1())
-            .expect("fixed evaluation-input party-view corpus serializes");
-    encoded.push(b'\n');
-    encoded
+    canonical_json_bytes(&canonical_evaluation_input_party_view_vector_corpus_v1())
 }
 
 /// Parses only the exact canonical LF-terminated corpus bytes.
@@ -423,10 +395,11 @@ pub fn parse_canonical_evaluation_input_party_view_vector_corpus_json_v1(
     encoded: &[u8],
 ) -> Result<EvaluationInputPartyViewVectorCorpusV1, EvaluationInputPartyViewVectorCorpusParseErrorV1>
 {
-    if encoded != canonical_evaluation_input_party_view_vector_corpus_json_bytes_v1() {
-        return Err(EvaluationInputPartyViewVectorCorpusParseErrorV1);
-    }
-    Ok(canonical_evaluation_input_party_view_vector_corpus_v1())
+    parse_canonical_json(
+        encoded,
+        canonical_evaluation_input_party_view_vector_corpus_v1,
+    )
+    .ok_or(EvaluationInputPartyViewVectorCorpusParseErrorV1)
 }
 
 macro_rules! producing_common {
@@ -439,12 +412,12 @@ macro_rules! producing_common {
                 common.evaluation_plan(),
                 common.evaluation_counts(),
             ),
-            public_request_context_digest_hex: encode_hex(
+            public_request_context_digest_hex: hex::encode(
                 common.request_context_digest().as_bytes(),
             ),
-            authorization_digest_hex: encode_hex(common.authorization_digest().as_bytes()),
-            transcript_digest_hex: encode_hex(common.transcript_digest().as_bytes()),
-            input_provenance_pair_digest_hex: encode_hex(
+            authorization_digest_hex: hex::encode(common.authorization_digest().as_bytes()),
+            transcript_digest_hex: hex::encode(common.transcript_digest().as_bytes()),
+            input_provenance_pair_digest_hex: hex::encode(
                 common.provenance_pair_digest().as_bytes(),
             ),
         }
@@ -967,10 +940,10 @@ fn activation_deriver_a_extension<Common>(
 ) -> DeriverAActivationEvaluationInputsExtensionV1 {
     let contribution = view.contribution();
     DeriverAActivationEvaluationInputsExtensionV1::DeriverAActivationEvaluationInputs {
-        y_client_hex: encode_hex(&contribution.y_client().expose_bytes()),
-        y_server_hex: encode_hex(&contribution.y_server().expose_bytes()),
-        tau_client_hex: encode_hex(&contribution.tau_client().expose_bytes()),
-        tau_server_hex: encode_hex(&contribution.tau_server().expose_bytes()),
+        y_client_hex: hex::encode(contribution.y_client().expose_bytes()),
+        y_server_hex: hex::encode(contribution.y_server().expose_bytes()),
+        tau_client_hex: hex::encode(contribution.tau_client().expose_bytes()),
+        tau_server_hex: hex::encode(contribution.tau_server().expose_bytes()),
     }
 }
 
@@ -979,10 +952,10 @@ fn activation_deriver_b_extension<Common>(
 ) -> DeriverBActivationEvaluationInputsExtensionV1 {
     let contribution = view.contribution();
     DeriverBActivationEvaluationInputsExtensionV1::DeriverBActivationEvaluationInputs {
-        y_client_hex: encode_hex(&contribution.y_client().expose_bytes()),
-        y_server_hex: encode_hex(&contribution.y_server().expose_bytes()),
-        tau_client_hex: encode_hex(&contribution.tau_client().expose_bytes()),
-        tau_server_hex: encode_hex(&contribution.tau_server().expose_bytes()),
+        y_client_hex: hex::encode(contribution.y_client().expose_bytes()),
+        y_server_hex: hex::encode(contribution.y_server().expose_bytes()),
+        tau_client_hex: hex::encode(contribution.tau_client().expose_bytes()),
+        tau_server_hex: hex::encode(contribution.tau_server().expose_bytes()),
     }
 }
 
@@ -990,8 +963,8 @@ fn export_deriver_a_extension(
     view: &HostOnlyDeriverAExportEvaluationInputViewV1,
 ) -> DeriverAExportEvaluationInputsExtensionV1 {
     DeriverAExportEvaluationInputsExtensionV1::DeriverAExportEvaluationInputs {
-        y_client_hex: encode_hex(&view.y_client().expose_bytes()),
-        y_server_hex: encode_hex(&view.y_server().expose_bytes()),
+        y_client_hex: hex::encode(view.y_client().expose_bytes()),
+        y_server_hex: hex::encode(view.y_server().expose_bytes()),
     }
 }
 
@@ -999,8 +972,8 @@ fn export_deriver_b_extension(
     view: &HostOnlyDeriverBExportEvaluationInputViewV1,
 ) -> DeriverBExportEvaluationInputsExtensionV1 {
     DeriverBExportEvaluationInputsExtensionV1::DeriverBExportEvaluationInputs {
-        y_client_hex: encode_hex(&view.y_client().expose_bytes()),
-        y_server_hex: encode_hex(&view.y_server().expose_bytes()),
+        y_client_hex: hex::encode(view.y_client().expose_bytes()),
+        y_server_hex: hex::encode(view.y_server().expose_bytes()),
     }
 }
 
@@ -1014,9 +987,9 @@ fn activation_common(
             common.evaluation_plan(),
             common.evaluation_counts(),
         ),
-        public_request_context_digest_hex: encode_hex(common.request_context_digest().as_bytes()),
-        authorization_digest_hex: encode_hex(common.authorization_digest().as_bytes()),
-        transcript_digest_hex: encode_hex(common.transcript_digest().as_bytes()),
+        public_request_context_digest_hex: hex::encode(common.request_context_digest().as_bytes()),
+        authorization_digest_hex: hex::encode(common.authorization_digest().as_bytes()),
+        transcript_digest_hex: hex::encode(common.transcript_digest().as_bytes()),
     }
 }
 
@@ -1084,15 +1057,15 @@ fn producing_sources(
 fn activation_randomness() -> ActivationFamilyIdealRandomnessVectorV1 {
     let coins = activation_coins(3, 5);
     ActivationFamilyIdealRandomnessVectorV1::ActivationFamilyOutputSharingCoins {
-        client_scalar_coin_hex: encode_hex(&coins.client().expose_fixture_bytes()),
-        signing_worker_scalar_coin_hex: encode_hex(&coins.signing_worker().expose_fixture_bytes()),
+        client_scalar_coin_hex: hex::encode(coins.client().expose_fixture_bytes()),
+        signing_worker_scalar_coin_hex: hex::encode(coins.signing_worker().expose_fixture_bytes()),
     }
 }
 
 fn export_randomness() -> ExportIdealRandomnessVectorV1 {
     let coin = export_coin();
     ExportIdealRandomnessVectorV1::ExportSeedOutputCoin {
-        seed_output_coin_hex: encode_hex(&coin.expose_fixture_bytes()),
+        seed_output_coin_hex: hex::encode(coin.expose_fixture_bytes()),
     }
 }
 
@@ -1101,14 +1074,4 @@ fn require_empty_kind(
     expected: HostOnlyEvaluationInputExtensionKindV1,
 ) {
     assert_eq!(actual, expected);
-}
-
-fn encode_hex(bytes: &[u8]) -> String {
-    const HEX: &[u8; 16] = b"0123456789abcdef";
-    let mut encoded = String::with_capacity(bytes.len() * 2);
-    for byte in bytes {
-        encoded.push(char::from(HEX[usize::from(byte >> 4)]));
-        encoded.push(char::from(HEX[usize::from(byte & 0x0f)]));
-    }
-    encoded
 }

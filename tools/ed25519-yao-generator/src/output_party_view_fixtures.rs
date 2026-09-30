@@ -5,6 +5,9 @@ use core::fmt;
 use serde::Serialize;
 
 use crate::ceremony_context::CeremonyRequestKindV1;
+use crate::fixtures::strict_corpus::{
+    canonical_json_bytes, parse_canonical_json, StrictVectorCorpusV1,
+};
 use crate::lifecycle_domain::{ActivationMetadataConsumptionSuccessV1, ActivationPackageOriginV1};
 use crate::output_party_views::{
     build_host_only_activation_metadata_consumed_party_view_set_v1,
@@ -60,39 +63,11 @@ const SIGNING_WORKER_SCALAR_OUTPUT_TAG_V1: u8 = 0x02;
 const CLIENT_SEED_OUTPUT_TAG_V1: u8 = 0x03;
 
 /// Strict five-case synthetic output-party-view corpus.
-#[derive(Serialize)]
-pub struct OutputPartyViewVectorCorpusV1 {
-    schema: String,
-    protocol_id: String,
-    evidence_scope: String,
-    cases: Vec<OutputPartyViewVectorCaseV1>,
-}
-
-impl OutputPartyViewVectorCorpusV1 {
-    /// Returns the exact schema identifier.
-    pub fn schema(&self) -> &str {
-        &self.schema
-    }
-
-    /// Returns the fixed protocol identifier.
-    pub fn protocol_id(&self) -> &str {
-        &self.protocol_id
-    }
-
-    /// Returns the narrow host-only evidence scope.
-    pub fn evidence_scope(&self) -> &str {
-        &self.evidence_scope
-    }
-
-    /// Returns the fixed top-level case count.
-    pub fn case_count(&self) -> usize {
-        self.cases.len()
-    }
-}
+pub type OutputPartyViewVectorCorpusV1 = StrictVectorCorpusV1<OutputPartyViewVectorCaseV1>;
 
 #[derive(Serialize)]
 #[serde(tag = "request_kind", content = "vector", rename_all = "snake_case")]
-enum OutputPartyViewVectorCaseV1 {
+pub enum OutputPartyViewVectorCaseV1 {
     Registration(ActivationPackagePreparedVectorV1),
     Activation(ActivationMetadataConsumedVectorV1),
     Recovery(ActivationPackagePreparedVectorV1),
@@ -101,7 +76,7 @@ enum OutputPartyViewVectorCaseV1 {
 }
 
 #[derive(Serialize)]
-struct ActivationPackagePreparedVectorV1 {
+pub struct ActivationPackagePreparedVectorV1 {
     case_id: String,
     stage: OutputPartyViewStageVectorV1,
     common_public: ActivationPackagePreparedCommonPublicVectorV1,
@@ -113,7 +88,7 @@ struct ActivationPackagePreparedVectorV1 {
 }
 
 #[derive(Serialize)]
-struct ActivationMetadataConsumedVectorV1 {
+pub struct ActivationMetadataConsumedVectorV1 {
     case_id: String,
     stage: OutputPartyViewStageVectorV1,
     common_public: ActivationMetadataConsumedCommonPublicVectorV1,
@@ -125,7 +100,7 @@ struct ActivationMetadataConsumedVectorV1 {
 }
 
 #[derive(Serialize)]
-struct ExportReleasedVectorV1 {
+pub struct ExportReleasedVectorV1 {
     case_id: String,
     stage: OutputPartyViewStageVectorV1,
     common_public: ExportReleasedCommonPublicVectorV1,
@@ -577,20 +552,15 @@ pub fn canonical_output_party_view_vector_corpus_v1() -> OutputPartyViewVectorCo
 
 /// Encodes the exact canonical corpus with one trailing LF.
 pub fn canonical_output_party_view_vector_corpus_json_bytes_v1() -> Vec<u8> {
-    let mut encoded = serde_json::to_vec_pretty(&canonical_output_party_view_vector_corpus_v1())
-        .expect("fixed output party-view corpus serializes");
-    encoded.push(b'\n');
-    encoded
+    canonical_json_bytes(&canonical_output_party_view_vector_corpus_v1())
 }
 
 /// Parses only the exact canonical LF-terminated corpus bytes.
 pub fn parse_canonical_output_party_view_vector_corpus_json_v1(
     encoded: &[u8],
 ) -> Result<OutputPartyViewVectorCorpusV1, OutputPartyViewVectorCorpusParseErrorV1> {
-    if encoded != canonical_output_party_view_vector_corpus_json_bytes_v1() {
-        return Err(OutputPartyViewVectorCorpusParseErrorV1);
-    }
-    Ok(canonical_output_party_view_vector_corpus_v1())
+    parse_canonical_json(encoded, canonical_output_party_view_vector_corpus_v1)
+        .ok_or(OutputPartyViewVectorCorpusParseErrorV1)
 }
 
 fn activation_package_prepared_case(
@@ -722,7 +692,7 @@ fn export_released_case() -> ExportReleasedVectorV1 {
     let client_view = export_released_view_set().observe_client_v1();
     require_equal_export_common(client_view.common(), &common_public);
     let client = ClientAuthorizedSeedExtensionV1::ClientAuthorizedSeed {
-        seed_hex: encode_hex(&client_view.seed().expose_bytes()),
+        seed_hex: hex::encode(client_view.seed().expose_bytes()),
     };
 
     let signing_worker_view = export_released_view_set().observe_signing_worker_v1();
@@ -851,9 +821,9 @@ fn activation_deriver_a_extension(
     view: &HostOnlyDeriverAActivationOutputPartyViewV1,
 ) -> DeriverAActivationScalarSharesExtensionV1 {
     DeriverAActivationScalarSharesExtensionV1::DeriverAActivationScalarShares {
-        client_scalar_share_hex: encode_hex(&view.output_shares().client().expose_fixture_bytes()),
-        signing_worker_scalar_share_hex: encode_hex(
-            &view.output_shares().signing_worker().expose_fixture_bytes(),
+        client_scalar_share_hex: hex::encode(view.output_shares().client().expose_fixture_bytes()),
+        signing_worker_scalar_share_hex: hex::encode(
+            view.output_shares().signing_worker().expose_fixture_bytes(),
         ),
     }
 }
@@ -862,9 +832,9 @@ fn activation_deriver_b_extension(
     view: &HostOnlyDeriverBActivationOutputPartyViewV1,
 ) -> DeriverBActivationScalarSharesExtensionV1 {
     DeriverBActivationScalarSharesExtensionV1::DeriverBActivationScalarShares {
-        client_scalar_share_hex: encode_hex(&view.output_shares().client().expose_fixture_bytes()),
-        signing_worker_scalar_share_hex: encode_hex(
-            &view.output_shares().signing_worker().expose_fixture_bytes(),
+        client_scalar_share_hex: hex::encode(view.output_shares().client().expose_fixture_bytes()),
+        signing_worker_scalar_share_hex: hex::encode(
+            view.output_shares().signing_worker().expose_fixture_bytes(),
         ),
     }
 }
@@ -873,7 +843,7 @@ fn export_deriver_a_extension(
     view: &HostOnlyDeriverAExportOutputPartyViewV1,
 ) -> DeriverASeedShareExtensionV1 {
     DeriverASeedShareExtensionV1::DeriverASeedShare {
-        seed_share_hex: encode_hex(&view.seed_share().expose_fixture_bytes()),
+        seed_share_hex: hex::encode(view.seed_share().expose_fixture_bytes()),
     }
 }
 
@@ -881,7 +851,7 @@ fn export_deriver_b_extension(
     view: &HostOnlyDeriverBExportOutputPartyViewV1,
 ) -> DeriverBSeedShareExtensionV1 {
     DeriverBSeedShareExtensionV1::DeriverBSeedShare {
-        seed_share_hex: encode_hex(&view.seed_share().expose_fixture_bytes()),
+        seed_share_hex: hex::encode(view.seed_share().expose_fixture_bytes()),
     }
 }
 
@@ -1110,15 +1080,15 @@ fn activation_package_prepared_common(
         stage: expected_stage,
         request_kind,
         circuit_id: ACTIVATION_CIRCUIT_ID_V1.to_owned(),
-        public_request_context_digest_hex: encode_hex(&ceremony.public_request_context_digest),
-        authorization_digest_hex: encode_hex(&ceremony.authorization_digest),
-        transcript_digest_hex: encode_hex(&ceremony.transcript_digest),
-        transport_binding_digest_hex: encode_hex(&ceremony.transport_binding_digest),
-        artifact_suite_digest_hex: encode_hex(&ceremony.artifact_suite_digest),
-        one_use_execution_id_hex: encode_hex(&ceremony.one_use_execution_id),
-        input_provenance_pair_digest_hex: encode_hex(&ceremony.input_provenance_pair_digest),
-        host_reference_evaluation_evidence_digest_hex: encode_hex(
-            &ceremony.host_reference_evaluation_evidence_digest,
+        public_request_context_digest_hex: hex::encode(ceremony.public_request_context_digest),
+        authorization_digest_hex: hex::encode(ceremony.authorization_digest),
+        transcript_digest_hex: hex::encode(ceremony.transcript_digest),
+        transport_binding_digest_hex: hex::encode(ceremony.transport_binding_digest),
+        artifact_suite_digest_hex: hex::encode(ceremony.artifact_suite_digest),
+        one_use_execution_id_hex: hex::encode(ceremony.one_use_execution_id),
+        input_provenance_pair_digest_hex: hex::encode(ceremony.input_provenance_pair_digest),
+        host_reference_evaluation_evidence_digest_hex: hex::encode(
+            ceremony.host_reference_evaluation_evidence_digest,
         ),
         package_projection: ActivationPackageProjectionVectorV1 {
             deriver_a_client: deriver_a_client.projection,
@@ -1126,17 +1096,17 @@ fn activation_package_prepared_common(
             deriver_a_signing_worker: deriver_a_signing_worker.projection,
             deriver_b_signing_worker: deriver_b_signing_worker.projection,
         },
-        package_set_digest_hex: encode_hex(&receipt.package_set_digest),
-        receipt_body_digest_hex: encode_hex(identity.receipt_digest().as_bytes()),
+        package_set_digest_hex: hex::encode(receipt.package_set_digest),
+        receipt_body_digest_hex: hex::encode(identity.receipt_digest().as_bytes()),
         activation_epoch: receipt.activation_epoch,
-        registered_public_key_hex: encode_hex(&receipt.registered_public_key),
-        x_client_hex: encode_hex(&receipt.x_client),
-        x_server_hex: encode_hex(&receipt.x_server),
-        deriver_a_receipt_evidence_digest_hex: encode_hex(
-            &receipt.deriver_a_receipt_evidence_digest,
+        registered_public_key_hex: hex::encode(receipt.registered_public_key),
+        x_client_hex: hex::encode(receipt.x_client),
+        x_server_hex: hex::encode(receipt.x_server),
+        deriver_a_receipt_evidence_digest_hex: hex::encode(
+            receipt.deriver_a_receipt_evidence_digest,
         ),
-        deriver_b_receipt_evidence_digest_hex: encode_hex(
-            &receipt.deriver_b_receipt_evidence_digest,
+        deriver_b_receipt_evidence_digest_hex: hex::encode(
+            receipt.deriver_b_receipt_evidence_digest,
         ),
         terminal_state: OutputPartyViewTerminalVectorV1::OutputCommitted,
     }
@@ -1178,25 +1148,25 @@ fn activation_origin_projection_from_common(
     ActivationOriginMetadataProjectionVectorV1 {
         origin_kind: origin_request_kind,
         origin_case_id: origin_case_id.to_owned(),
-        origin_request_context_digest_hex: encode_hex(
+        origin_request_context_digest_hex: hex::encode(
             identity.origin_request_context_digest().as_bytes(),
         ),
-        origin_authorization_digest_hex: encode_hex(
+        origin_authorization_digest_hex: hex::encode(
             identity.origin_authorization_digest().as_bytes(),
         ),
-        origin_transcript_digest_hex: encode_hex(identity.origin_transcript_digest().as_bytes()),
-        one_use_execution_id_hex: encode_hex(identity.one_use_execution_id().as_bytes()),
-        package_set_digest_hex: encode_hex(identity.package_set_digest().as_bytes()),
-        receipt_body_digest_hex: encode_hex(identity.receipt_digest().as_bytes()),
+        origin_transcript_digest_hex: hex::encode(identity.origin_transcript_digest().as_bytes()),
+        one_use_execution_id_hex: hex::encode(identity.one_use_execution_id().as_bytes()),
+        package_set_digest_hex: hex::encode(identity.package_set_digest().as_bytes()),
+        receipt_body_digest_hex: hex::encode(identity.receipt_digest().as_bytes()),
         activation_epoch: identity.activation_epoch().value(),
-        registered_public_key_hex: encode_hex(identity.registered_public_key().as_bytes()),
-        activation_request_context_digest_hex: encode_hex(
+        registered_public_key_hex: hex::encode(identity.registered_public_key().as_bytes()),
+        activation_request_context_digest_hex: hex::encode(
             projection.activation_request_context_digest().as_bytes(),
         ),
-        activation_authorization_digest_hex: encode_hex(
+        activation_authorization_digest_hex: hex::encode(
             projection.activation_authorization_digest().as_bytes(),
         ),
-        activation_transcript_digest_hex: encode_hex(
+        activation_transcript_digest_hex: hex::encode(
             projection.activation_transcript_digest().as_bytes(),
         ),
         terminal_state: OutputPartyViewTerminalVectorV1::MetadataConsumed,
@@ -1268,27 +1238,27 @@ fn export_released_common(
         stage: OutputPartyViewStageVectorV1::ExportReleased,
         request_kind: CeremonyRequestKindV1::Export,
         circuit_id: EXPORT_CIRCUIT_ID_V1.to_owned(),
-        public_request_context_digest_hex: encode_hex(&ceremony.public_request_context_digest),
-        authorization_digest_hex: encode_hex(&ceremony.authorization_digest),
-        transcript_digest_hex: encode_hex(&ceremony.transcript_digest),
-        transport_binding_digest_hex: encode_hex(&ceremony.transport_binding_digest),
-        artifact_suite_digest_hex: encode_hex(&ceremony.artifact_suite_digest),
-        one_use_execution_id_hex: encode_hex(&ceremony.one_use_execution_id),
-        input_provenance_pair_digest_hex: encode_hex(&ceremony.input_provenance_pair_digest),
-        host_reference_evaluation_evidence_digest_hex: encode_hex(
-            &ceremony.host_reference_evaluation_evidence_digest,
+        public_request_context_digest_hex: hex::encode(ceremony.public_request_context_digest),
+        authorization_digest_hex: hex::encode(ceremony.authorization_digest),
+        transcript_digest_hex: hex::encode(ceremony.transcript_digest),
+        transport_binding_digest_hex: hex::encode(ceremony.transport_binding_digest),
+        artifact_suite_digest_hex: hex::encode(ceremony.artifact_suite_digest),
+        one_use_execution_id_hex: hex::encode(ceremony.one_use_execution_id),
+        input_provenance_pair_digest_hex: hex::encode(ceremony.input_provenance_pair_digest),
+        host_reference_evaluation_evidence_digest_hex: hex::encode(
+            ceremony.host_reference_evaluation_evidence_digest,
         ),
         package_projection: ExportPackageProjectionVectorV1 {
             deriver_a_client: deriver_a_client.projection,
             deriver_b_client: deriver_b_client.projection,
         },
-        package_set_digest_hex: encode_hex(&receipt.package_set_digest),
-        receipt_body_digest_hex: encode_hex(artifacts.receipt().digest().as_bytes()),
-        registered_public_key_hex: encode_hex(&receipt.registered_public_key),
-        output_committed_receipt_digest_hex: encode_hex(&receipt.output_committed_receipt_digest),
-        client_delivery_evidence_digest_hex: encode_hex(&receipt.client_delivery_evidence_digest),
-        export_authorization_consumption_evidence_digest_hex: encode_hex(
-            &receipt.export_authorization_consumption_evidence_digest,
+        package_set_digest_hex: hex::encode(receipt.package_set_digest),
+        receipt_body_digest_hex: hex::encode(artifacts.receipt().digest().as_bytes()),
+        registered_public_key_hex: hex::encode(receipt.registered_public_key),
+        output_committed_receipt_digest_hex: hex::encode(receipt.output_committed_receipt_digest),
+        client_delivery_evidence_digest_hex: hex::encode(receipt.client_delivery_evidence_digest),
+        export_authorization_consumption_evidence_digest_hex: hex::encode(
+            receipt.export_authorization_consumption_evidence_digest,
         ),
         terminal_state: OutputPartyViewTerminalVectorV1::ExportReleased,
         state_effect: OutputPartyViewStateEffectVectorV1::RegisteredStateRetained,
@@ -1322,13 +1292,13 @@ fn parse_activation_descriptor(
             role,
             recipient,
             output_family,
-            recipient_key_binding_hex: encode_hex(&fixed_32(fields[14])),
-            share_point_hex: encode_hex(&fixed_32(fields[15])),
-            recipient_protection_digest_hex: encode_hex(&fixed_32(fields[16])),
-            recipient_ciphertext_digest_hex: encode_hex(&fixed_32(fields[17])),
+            recipient_key_binding_hex: hex::encode(fixed_32(fields[14])),
+            share_point_hex: hex::encode(fixed_32(fields[15])),
+            recipient_protection_digest_hex: hex::encode(fixed_32(fields[16])),
+            recipient_ciphertext_digest_hex: hex::encode(fixed_32(fields[17])),
             ciphertext_length,
-            output_binding_digest_hex: encode_hex(&fixed_32(fields[19])),
-            package_authentication_digest_hex: encode_hex(&fixed_32(fields[20])),
+            output_binding_digest_hex: hex::encode(fixed_32(fields[19])),
+            package_authentication_digest_hex: hex::encode(fixed_32(fields[20])),
         },
     }
 }
@@ -1354,12 +1324,12 @@ fn parse_export_descriptor(
             role,
             recipient: OutputPartyViewRecipientVectorV1::Client,
             output_family: OutputPartyViewOutputFamilyVectorV1::ClientSeed,
-            recipient_key_binding_hex: encode_hex(&fixed_32(fields[13])),
-            recipient_protection_digest_hex: encode_hex(&fixed_32(fields[14])),
-            recipient_ciphertext_digest_hex: encode_hex(&fixed_32(fields[15])),
+            recipient_key_binding_hex: hex::encode(fixed_32(fields[13])),
+            recipient_protection_digest_hex: hex::encode(fixed_32(fields[14])),
+            recipient_ciphertext_digest_hex: hex::encode(fixed_32(fields[15])),
             ciphertext_length,
-            output_binding_digest_hex: encode_hex(&fixed_32(fields[17])),
-            package_authentication_digest_hex: encode_hex(&fixed_32(fields[18])),
+            output_binding_digest_hex: hex::encode(fixed_32(fields[17])),
+            package_authentication_digest_hex: hex::encode(fixed_32(fields[18])),
         },
     }
 }
@@ -1506,14 +1476,4 @@ fn fixed_32(value: &[u8]) -> [u8; 32] {
 
 fn parse_be_u64(value: &[u8]) -> u64 {
     u64::from_be_bytes(value.try_into().expect("canonical fixed u64 field"))
-}
-
-fn encode_hex(bytes: &[u8]) -> String {
-    const HEX: &[u8; 16] = b"0123456789abcdef";
-    let mut encoded = String::with_capacity(bytes.len() * 2);
-    for byte in bytes {
-        encoded.push(HEX[(byte >> 4) as usize] as char);
-        encoded.push(HEX[(byte & 0x0f) as usize] as char);
-    }
-    encoded
 }

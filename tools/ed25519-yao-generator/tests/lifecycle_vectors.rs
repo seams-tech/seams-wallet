@@ -8,6 +8,7 @@ use ed25519_yao_generator::{
     REFRESH_CONTINUITY_CASE_ID_V1, REGISTRATION_ACTIVATION_CASE_ID_V1,
     REGISTRATION_CANDIDATE_CASE_ID_V1,
 };
+use hex::FromHex;
 use serde_json::{Map, Value};
 
 const SOURCE: &str = include_str!("../src/lifecycle_fixtures.rs");
@@ -650,14 +651,7 @@ fn scalar(value: &str) -> Scalar {
 }
 
 fn hex_32(value: &str) -> [u8; 32] {
-    assert_eq!(value.len(), 64);
-    let mut output = [0u8; 32];
-    for (index, byte) in output.iter_mut().enumerate() {
-        let offset = index * 2;
-        *byte = u8::from_str_radix(&value[offset..offset + 2], 16)
-            .expect("fixture contains lowercase hex");
-    }
-    output
+    <[u8; 32]>::from_hex(value).expect("fixture contains lowercase hex")
 }
 
 fn wrapping_add_256(left: [u8; 32], right: [u8; 32]) -> [u8; 32] {

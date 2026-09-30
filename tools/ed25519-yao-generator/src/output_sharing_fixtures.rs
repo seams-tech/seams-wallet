@@ -5,6 +5,9 @@ use core::fmt;
 use serde::Serialize;
 
 use crate::ceremony_context::CeremonyRequestKindV1;
+use crate::fixtures::strict_corpus::{
+    canonical_json_bytes, parse_canonical_json, StrictVectorCorpusV1,
+};
 use crate::{
     canonical_vector_corpus_v1, evaluate_activation, evaluate_full_clear_reference_export_v1,
     share_host_only_activation_outputs_v1, share_host_only_export_seed_v1, DeriverAContribution,
@@ -51,35 +54,7 @@ const SCALAR_L_MINUS_TWO_BYTES: [u8; 32] = [
 ];
 
 /// Strict portable corpus for deterministic host-only output-sharing evidence.
-#[derive(Serialize)]
-pub struct OutputSharingVectorCorpusV1 {
-    schema: String,
-    protocol_id: String,
-    evidence_scope: String,
-    cases: Vec<OutputSharingVectorCaseV1>,
-}
-
-impl OutputSharingVectorCorpusV1 {
-    /// Returns the fixed corpus schema identifier.
-    pub fn schema(&self) -> &str {
-        &self.schema
-    }
-
-    /// Returns the fixed protocol identifier.
-    pub fn protocol_id(&self) -> &str {
-        &self.protocol_id
-    }
-
-    /// Returns the narrow host-only evidence scope.
-    pub fn evidence_scope(&self) -> &str {
-        &self.evidence_scope
-    }
-
-    /// Returns the exact number of canonical cases.
-    pub fn case_count(&self) -> usize {
-        self.cases.len()
-    }
-}
+pub type OutputSharingVectorCorpusV1 = StrictVectorCorpusV1<OutputSharingVectorCaseV1>;
 
 /// Failure returned for any noncanonical output-sharing corpus bytes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -97,7 +72,7 @@ impl std::error::Error for OutputSharingVectorCorpusParseErrorV1 {}
 
 #[derive(Serialize)]
 #[serde(tag = "output_family", content = "vector", rename_all = "snake_case")]
-pub(crate) enum OutputSharingVectorCaseV1 {
+pub enum OutputSharingVectorCaseV1 {
     Activation(ActivationOutputSharingVectorV1),
     Export(ExportOutputSharingVectorV1),
 }
@@ -117,7 +92,7 @@ pub(crate) struct HostOnlyOutputSharingSourceReferenceV1 {
 }
 
 #[derive(Serialize)]
-pub(crate) struct ActivationOutputSharingVectorV1 {
+pub struct ActivationOutputSharingVectorV1 {
     case_id: String,
     request_kind: ActivationOutputSharingRequestKindV1,
     host_only_source_reference: HostOnlyOutputSharingSourceReferenceV1,
@@ -151,7 +126,7 @@ pub(crate) struct HostOnlyActivationRoleSharesV1 {
 }
 
 #[derive(Serialize)]
-pub(crate) struct ExportOutputSharingVectorV1 {
+pub struct ExportOutputSharingVectorV1 {
     case_id: String,
     host_only_source_reference: HostOnlyOutputSharingSourceReferenceV1,
     host_only_joined_output: HostOnlyJoinedExportOutputV1,
@@ -184,11 +159,8 @@ pub(crate) struct HostOnlySeedRoleShareV1 {
 pub fn parse_canonical_output_sharing_vector_corpus_json_v1(
     encoded: &[u8],
 ) -> Result<OutputSharingVectorCorpusV1, OutputSharingVectorCorpusParseErrorV1> {
-    let corpus = canonical_output_sharing_vector_corpus_v1();
-    if encoded != canonical_output_sharing_vector_corpus_json_bytes_v1() {
-        return Err(OutputSharingVectorCorpusParseErrorV1);
-    }
-    Ok(corpus)
+    parse_canonical_json(encoded, canonical_output_sharing_vector_corpus_v1)
+        .ok_or(OutputSharingVectorCorpusParseErrorV1)
 }
 
 /// Encodes the exact canonical output-sharing corpus with one trailing LF.
@@ -231,13 +203,6 @@ pub fn canonical_output_sharing_vector_corpus_v1() -> OutputSharingVectorCorpusV
     }
 }
 
-fn canonical_json_bytes(corpus: &OutputSharingVectorCorpusV1) -> Vec<u8> {
-    let mut encoded =
-        serde_json::to_vec_pretty(corpus).expect("fixed output-sharing corpus must serialize");
-    encoded.push(b'\n');
-    encoded
-}
-
 fn activation_case(
     case_id: &str,
     request_kind: ActivationOutputSharingRequestKindV1,
@@ -262,28 +227,28 @@ fn activation_case(
         request_kind,
         host_only_source_reference: source,
         host_only_joined_outputs: HostOnlyJoinedActivationOutputsV1 {
-            x_client_base_hex: encode_hex(&output.material().x_client_base().expose_bytes()),
-            x_server_base_hex: encode_hex(&output.material().x_server_base().expose_bytes()),
+            x_client_base_hex: hex::encode(output.material().x_client_base().expose_bytes()),
+            x_server_base_hex: hex::encode(output.material().x_server_base().expose_bytes()),
         },
         host_only_reference_randomness: HostOnlyActivationReferenceRandomnessV1 {
-            r_client_hex: encode_hex(&client_coin_bytes),
-            r_signing_worker_hex: encode_hex(&signing_worker_coin_bytes),
+            r_client_hex: hex::encode(client_coin_bytes),
+            r_signing_worker_hex: hex::encode(signing_worker_coin_bytes),
         },
         role_output_shares: HostOnlyActivationRoleOutputSharesV1 {
             deriver_a: HostOnlyActivationRoleSharesV1 {
-                client_scalar_share_hex: encode_hex(
-                    &shares.deriver_a().client().expose_fixture_bytes(),
+                client_scalar_share_hex: hex::encode(
+                    shares.deriver_a().client().expose_fixture_bytes(),
                 ),
-                signing_worker_scalar_share_hex: encode_hex(
-                    &shares.deriver_a().signing_worker().expose_fixture_bytes(),
+                signing_worker_scalar_share_hex: hex::encode(
+                    shares.deriver_a().signing_worker().expose_fixture_bytes(),
                 ),
             },
             deriver_b: HostOnlyActivationRoleSharesV1 {
-                client_scalar_share_hex: encode_hex(
-                    &shares.deriver_b().client().expose_fixture_bytes(),
+                client_scalar_share_hex: hex::encode(
+                    shares.deriver_b().client().expose_fixture_bytes(),
                 ),
-                signing_worker_scalar_share_hex: encode_hex(
-                    &shares.deriver_b().signing_worker().expose_fixture_bytes(),
+                signing_worker_scalar_share_hex: hex::encode(
+                    shares.deriver_b().signing_worker().expose_fixture_bytes(),
                 ),
             },
         },
@@ -300,17 +265,17 @@ fn export_case(case_id: &str, coin_bytes: [u8; 32]) -> OutputSharingVectorCaseV1
         case_id: case_id.to_owned(),
         host_only_source_reference: source,
         host_only_joined_output: HostOnlyJoinedExportOutputV1 {
-            joined_seed_hex: encode_hex(&output.seed().expose_bytes()),
+            joined_seed_hex: hex::encode(output.seed().expose_bytes()),
         },
         host_only_reference_randomness: HostOnlyExportReferenceRandomnessV1 {
-            u_hex: encode_hex(&coin_bytes),
+            u_hex: hex::encode(coin_bytes),
         },
         role_output_shares: HostOnlyExportRoleOutputSharesV1 {
             deriver_a: HostOnlySeedRoleShareV1 {
-                seed_share_hex: encode_hex(&shares.deriver_a().expose_fixture_bytes()),
+                seed_share_hex: hex::encode(shares.deriver_a().expose_fixture_bytes()),
             },
             deriver_b: HostOnlySeedRoleShareV1 {
-                seed_share_hex: encode_hex(&shares.deriver_b().expose_fixture_bytes()),
+                seed_share_hex: hex::encode(shares.deriver_b().expose_fixture_bytes()),
             },
         },
     })
@@ -384,20 +349,6 @@ const fn scalar_u64_bytes(value: u64) -> [u8; 32] {
 fn decode_hex_32(value: &str) -> [u8; 32] {
     assert_eq!(value.len(), 64, "fixed source input is 32-byte hex");
     let mut bytes = [0; 32];
-    for (index, byte) in bytes.iter_mut().enumerate() {
-        let offset = index * 2;
-        *byte = u8::from_str_radix(&value[offset..offset + 2], 16)
-            .expect("fixed source input uses lowercase hex");
-    }
+    hex::decode_to_slice(value, &mut bytes).expect("fixed source input uses lowercase hex");
     bytes
-}
-
-fn encode_hex(bytes: &[u8]) -> String {
-    const HEX: &[u8; 16] = b"0123456789abcdef";
-    let mut encoded = String::with_capacity(bytes.len() * 2);
-    for byte in bytes {
-        encoded.push(char::from(HEX[usize::from(byte >> 4)]));
-        encoded.push(char::from(HEX[usize::from(byte & 0x0f)]));
-    }
-    encoded
 }
