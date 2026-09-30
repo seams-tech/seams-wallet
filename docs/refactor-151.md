@@ -5,8 +5,8 @@ Date: September 29, 2026
 Status: policy, claim/readback, operation/source, and persisted owner-scope
 consolidation are implemented and verified in bounded hosted diagnostics. The
 canonical reusable-session ECDSA path makes 12 D1 calls per signature, down from
-18. A local linked-device checkpoint reduces third-generation signing from 24
-to 20 calls; directly linked signing remains at 20.
+18. Local linked-device checkpoints reduce third-generation signing from 24
+to 16 calls and directly linked signing from 20 to 16.
 The active/exhausted credential snapshot is now classified in one read, reducing
 the two-signature last-quota burst from 25 to 24 calls.
 Further call reduction and the minimum-call-budget review remain open; regional
@@ -715,6 +715,57 @@ private lifecycle-trace hashes. Reproduce the cohort with
 with `python3 .runtime/r151-credential/analyze.py`. The existing local Gateway
 diagnostic wrapper was restored after measurement. No hosted resources changed.
 
+### Linked custody snapshot checkpoint (September 30)
+
+The linked ECDSA resolver now reads installed authority packages and canonical
+signer candidates in one D1 batch. It verifies package digests and installation
+projections from that snapshot, follows the existing bounded custody chain, and
+retains the canonical signer identity and ambiguity checks. The ordinary signer
+store and the snapshot share the same scoped signer query and boundary parser.
+The old chain-only reader has been replaced; there is no cross-request cache.
+
+[D1 batches execute as SQL transactions](https://developers.cloudflare.com/d1/worker-api/d1-database/#batch).
+This makes the installation/canonical-source snapshot internally consistent.
+The canonical activation lookup remains separate. Both initial material
+authorization and the fresh material resolution before admission remain in
+place, each taking a new snapshot. This checkpoint does not make material
+validation atomic with the operation claim or replay decision.
+
+| Signing device | Before calls / statements | After calls / statements | Write-bearing calls / reported row writes |
+| --- | ---: | ---: | ---: |
+| Canonical registration device | 12 / 13 | 12 / 13 | 2 / 14 |
+| Directly linked device | 20 / 21 | 16 / 21 | 2 / 14 |
+| Device linked by that linked device | 20 / 21 | 16 / 21 | 2 / 14 |
+
+The bounded local comparison uses one verified signature per device. Both
+Workers D1 and wallet-DO reproduce the new counts; VM verifies the same three
+signatures. The SDK distribution is fixed across the baseline and comparison
+runs. Four reads become part of existing calls per linked signature; statement
+and write counts stay unchanged. Local timings do not establish a hosted
+latency improvement.
+
+Nine scenario/profile checks passed: three-device ECDSA signing and linked-device
+revocation on Workers D1, wallet-DO, and VM; plus recovery retirement,
+last-use lost-response replay, and third-generation mixed-curve signing/export
+on Workers D1. The separately measured baseline also passed. Server build,
+intended-test type checking, and the bloat check passed.
+
+Evidence is retained in `.artifacts/r151/custody-20260930/analysis.json`, including
+per-device counts, distribution hashes, replay results, and private lifecycle
+trace hashes. Reproduce the comparison with
+`node .runtime/r151-custody/verify.mjs` and validate the artifacts with
+`python3 .runtime/r151-custody/analyze.py`. The local diagnostic wrapper is
+restored after measurement. No hosted resources changed.
+
+The remaining atomic-freshness boundary must cover both the INSERT that claims
+an operation and the existing-operation read used by finalize/replay. A predicate
+on registration signer rows alone cannot authorize linked material. It must bind
+the verified installation set and canonical signer identity to the exact
+tenant/environment, detect retirement or replacement after the snapshot, and
+preserve ambiguity rejection. Race coverage must retire or replace material
+between snapshot verification and each admission decision before the fresh
+resolver can be removed.
+
 ### Remaining call and write inventory (September 30)
 
 The canonical reusable-session path has the following six call positions on
@@ -731,11 +782,11 @@ storage internal to custody roles.
 | 5 | Existing operation, live authorization source, pinned owner scope | Same read | Exact operation identity, replay/in-progress state, and live authority; preserve denial precedence. |
 | 6 | Claim INSERT plus committed readback in one batch | Completion UPDATE RETURNING | Atomically admit and consume quota, then persist the exact terminal response for replay. |
 
-Direct and third-generation linked signing take 20 calls: each material
-resolution expands from one canonical lookup to three calls, adding four calls
-per request. Those calls resolve canonical material, verified installation-chain
-evidence, and canonical signer candidates. The chain is verified once per
-resolution; its two authorization/admission freshness boundaries remain distinct.
+Direct and third-generation linked signing take 16 calls: each material
+resolution expands from one canonical lookup to two calls, adding two calls
+per request. The second call batches verified installation-chain evidence and
+canonical signer candidates. The chain is verified once per resolution; its
+two authorization/admission freshness boundaries remain distinct.
 
 Position 4 moves the material check closer to admission; it does not make that
 check atomic with the claim. Positions 1–5 enforce real invariants, but their separate transport calls are
@@ -793,6 +844,8 @@ storage. No signing write is removed by this inventory.
   while retaining its exact operation/session/wallet binding guard.
 - [x] Read and verify linked ECDSA installations once per material resolution,
   resolving custody ancestors from that set while preserving fresh admission reads.
+- [x] Batch linked installations and canonical signer candidates into one custody
+  snapshot per material resolution, retaining both fresh decision boundaries.
 - [ ] Examine joining initial material resolution to the existing joined session
   lookup. Keep the fresh-material check at admission until equivalent atomic SQL
   predicates and race behavior are demonstrated. Two material reads at different

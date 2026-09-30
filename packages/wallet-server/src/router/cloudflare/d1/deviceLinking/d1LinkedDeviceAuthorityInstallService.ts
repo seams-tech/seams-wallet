@@ -1,4 +1,9 @@
 import {
+  prepareWalletEcdsaSignersRead,
+  parseWalletEcdsaSignerRows,
+} from '../../../../core/d1EcdsaSignerRead';
+import type { WalletEcdsaSignerRecord } from '../../../../core/WalletStore';
+import {
   findInstalledEcdsaAuthority,
   installedEcdsaAuthorityChain,
   projectInstalledEcdsaAuthority,
@@ -106,7 +111,11 @@ import {
   computeWalletSessionInstallationReceiptDigestB64u,
   computeWalletSessionOperationCredentialDigestB64u,
 } from '@shared/device-linking/digests';
-import type { D1DatabaseLike, D1PreparedStatementLike } from '../../../../storage/tenantRoute';
+import type {
+  D1DatabaseLike,
+  D1PreparedStatementLike,
+  D1ResultLike,
+} from '../../../../storage/tenantRoute';
 import {
   parseRouterAbEd25519YaoApplicationBindingFactsV1,
   parseRouterAbEd25519YaoCeremonyBindingV1,
@@ -149,6 +158,11 @@ import {
 } from '../../../../core/WebAuthnCredentialBindingStore';
 import { unknownWebAuthnAuthenticatorDeviceInfo } from '@shared/utils/webauthnDeviceInfo';
 import type { CloudflareD1EmailOtpRegistrationEnrollmentFinalizer } from '../emailOtp/d1EmailOtpRegistrationEnrollmentFinalizer';
+
+export type InstalledEcdsaCustodySnapshotV1 = {
+  readonly chain: readonly InstalledLinkedDeviceEcdsaAuthorityProjectionV1[];
+  readonly signers: readonly WalletEcdsaSignerRecord[];
+};
 
 type ExactSigner = ExactAdministeredSignerV1;
 
@@ -1005,15 +1019,31 @@ export class D1LinkedDeviceAuthorityInstallServiceV1 {
     }
   }
 
-  async readInstalledEcdsaAuthorityChainByMaterialActivationV1(input: {
+  async readInstalledEcdsaCustodySnapshotV1(input: {
     readonly walletId: WalletId;
     readonly materialActivation: MpcMaterialActivationRef;
-  }): Promise<readonly InstalledLinkedDeviceEcdsaAuthorityProjectionV1[]> {
+  }): Promise<InstalledEcdsaCustodySnapshotV1 | null> {
     try {
-      const rows = await this.readVerifiedEcdsaInstallations(input.walletId);
-      return installedEcdsaAuthorityChain(rows, input.materialActivation);
+      // The verified installation chain and its canonical custody source share one snapshot.
+      const [installations, signers] = await this.options.database.batch<
+        D1ResultLike<Readonly<Record<string, unknown>>>
+      >([
+        this.prepareInstallationsByWalletRead(input.walletId),
+        prepareWalletEcdsaSignersRead(this.options.database, this.options.scope, input.walletId),
+      ]);
+      if (!installations?.success || !signers?.success) {
+        throw new Error('Linked ECDSA custody snapshot is incomplete');
+      }
+      const rows = (installations.results ?? []).map(parseStoredInstallationRow);
+      for (const row of rows) {
+        await assertStoredPackageDigest(row);
+      }
+      return {
+        chain: installedEcdsaAuthorityChain(rows, input.materialActivation),
+        signers: parseWalletEcdsaSignerRows(signers.results ?? [], input.walletId),
+      };
     } catch {
-      return [];
+      return null;
     }
   }
 
@@ -2123,7 +2153,13 @@ export class D1LinkedDeviceAuthorityInstallServiceV1 {
   private async readInstallationsByWallet(
     walletId: WalletId,
   ): Promise<readonly StoredInstallationRow[]> {
-    const rows = await this.options.database
+    const rows = await this.prepareInstallationsByWalletRead(walletId)
+      .all<Readonly<Record<string, unknown>>>();
+    return (rows.results ?? []).map(parseStoredInstallationRow);
+  }
+
+  private prepareInstallationsByWalletRead(walletId: WalletId): D1PreparedStatementLike {
+    return this.options.database
       .prepare(
         `SELECT * FROM linked_device_authority_installations
           WHERE namespace = ? AND org_id = ? AND project_id = ? AND env_id = ?
@@ -2136,9 +2172,7 @@ export class D1LinkedDeviceAuthorityInstallServiceV1 {
         this.options.scope.projectId,
         this.options.scope.envId,
         String(walletId),
-      )
-      .all<Readonly<Record<string, unknown>>>();
-    return (rows.results ?? []).map(parseStoredInstallationRow);
+      );
   }
 }
 

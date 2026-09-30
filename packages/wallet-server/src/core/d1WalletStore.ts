@@ -1,3 +1,4 @@
+import { prepareWalletEcdsaSignersRead, parseWalletEcdsaSignerRows } from './d1EcdsaSignerRead';
 import { toOptionalTrimmedString, isPlainObject } from '@shared/utils/validation';
 import { parseWalletId } from '@shared/utils/domainIds';
 import { D1_BATCH_CAS_GUARD_SQL, formatD1ExecStatement, parseD1JsonColumn } from '../storage/d1Sql';
@@ -858,35 +859,12 @@ export class D1WalletStore implements WalletStore {
     walletId: WalletId;
   }): Promise<readonly WalletEcdsaSignerRecord[]> {
     await this.ensureSchema();
-    const result = await this.database
-      .prepare(
-        `SELECT record_json
-           FROM wallet_signers
-          WHERE namespace = ?
-            AND org_id = ?
-            AND project_id = ?
-            AND env_id = ?
-            AND wallet_id = ?
-            AND signer_family = 'ecdsa'
-          ORDER BY signer_id`,
-      )
-      .bind(
-        this.scope.namespace,
-        this.scope.orgId,
-        this.scope.projectId,
-        this.scope.envId,
-        input.walletId,
-      )
-      .all<D1WalletRow>();
-    const signers: WalletEcdsaSignerRecord[] = [];
-    for (const row of result.results || []) {
-      const signer = parseWalletEcdsaSignerRecord(parseD1JsonColumn(row.record_json));
-      if (!signer || signer.walletId !== input.walletId) {
-        throw new Error('Wallet ECDSA signer record is invalid');
-      }
-      signers.push(signer);
-    }
-    return signers;
+    const result = await prepareWalletEcdsaSignersRead(
+      this.database,
+      this.scope,
+      input.walletId,
+    ).all<D1WalletRow>();
+    return parseWalletEcdsaSignerRows(result.results ?? [], input.walletId);
   }
 
   async listEcdsaPendingSessionActivationsForLifecycle(input: {
