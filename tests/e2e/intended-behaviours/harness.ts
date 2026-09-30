@@ -1,3 +1,4 @@
+import { IntendedActionTiming } from './signing-timing-evidence';
 import { parseExactWalletSessionStatusResponse } from '../../../packages/wallet/src/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 import {
   parseWalletSessionId,
@@ -1193,6 +1194,8 @@ export class IntendedBehaviourHarness {
   private passkeyPromptCount = 0;
 
   private latestPageSnapshot: IntendedPageSnapshot | null = null;
+
+  private latestActionTiming: IntendedActionTiming | null = null;
 
   private latestWalletIframeAutoConfirmDiagnostics: WalletIframeAutoConfirmDiagnostics | null =
     null;
@@ -3932,6 +3935,20 @@ export class IntendedBehaviourHarness {
     this.reloadIntendedPageBeforeNextAction = false;
   }
 
+  signingActionTimingEvidence() {
+    if (!this.latestActionTiming) throw new Error('Expected action timing evidence');
+    const diagnostics = this.latestWalletIframeAutoConfirmDiagnostics;
+    return {
+      ...this.latestActionTiming.evidence(),
+      confirmationAutomation: {
+        clock: 'milliseconds since confirmation loop start',
+        buttonVisibleMs: diagnostics?.firstButtonVisibleMs ?? null,
+        clickDispatchMs: diagnostics?.firstClickDispatchMs ?? null,
+        clickDurationMs: diagnostics?.firstClickDurationMs ?? null,
+      },
+    };
+  }
+
   async signTempoTransaction(
     stage: IntendedSigningStage,
     options: IntendedSigningActionHooks = {},
@@ -4589,16 +4606,20 @@ export class IntendedBehaviourHarness {
     if (GOOGLE_ID_TOKEN_ACTIONS.has(action)) {
       requireUsableIntendedGoogleIdToken(this.config);
     }
+    const timing = new IntendedActionTiming();
     await this.ensureIntendedPageOpen();
+    timing.pageReadyAt = performance.now();
     await this.page.getByTestId(buttonTestId).click();
     await this.waitForIntendedPageActionStarted(action);
+    timing.actionObservedAt = performance.now();
     opts?.onActionStarted?.();
     const diagnostics: WalletIframeAutoConfirmDiagnostics = { attempts: 0, clicked: false };
     let diagnosticsRecorded = false;
     try {
       const snapshot = await autoConfirmWalletIframeUntil(
         this.page,
-        this.waitForIntendedPageActionCompletion(action, opts?.expectedOutcome ?? 'success'),
+        this.waitForIntendedPageActionCompletion(action, opts?.expectedOutcome ?? 'success')
+          .then(timing.complete.bind(timing)),
         {
           timeoutMs: 120_000,
           intervalMs: 250,
@@ -4606,10 +4627,13 @@ export class IntendedBehaviourHarness {
           onRecoveryCodes: opts?.onRecoveryCodes,
         },
       );
+      timing.automationFinishedAt = performance.now();
       this.latestPageSnapshot = snapshot;
       if (intendedActionRequiresConfirmationSettlement(action)) {
         await waitForWalletIframeConfirmationSettlement(this.page);
       }
+      timing.settledAt = performance.now();
+      this.latestActionTiming = timing;
       return snapshot;
     } catch (error) {
       this.latestWalletIframeAutoConfirmDiagnostics = diagnostics;
@@ -5541,7 +5565,7 @@ async function clearBrowserStorage(): Promise<void> {
   await Promise.all(deletions);
 }
 
-function enableSigningSessionDebugInFrame(): void {
+export function enableSigningSessionDebugInFrame(): void {
   try {
     localStorage.setItem('seams:debug:signing-session', '1');
   } catch {}

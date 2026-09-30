@@ -1531,6 +1531,86 @@ projection consolidation if that measured residual justifies the wider contract
 change; retain both durable writes until their invariants have an equivalent
 replacement. R151 remains open for complete latency and placement evidence.
 
+### SDK, refill, and harness attribution — September 30
+
+The unforced signing E2E now records the public `signTempo` call duration,
+existing SDK timing stages, Gateway request/response offsets, browser request
+elapsed time, and harness phases. The harness reports page setup, completion
+observation, confirmation-automation drain, and confirmation settlement
+separately. The public SDK duration includes confirmation. Stage timers overlap:
+`commit_total` contains authorization/signing work and `sign_total` contains its
+child stages. These values must not be added as independent intervals. Observer
+receive offsets use the test process clock and are distinct from browser-side
+durations. Artifacts retain only timing fields, route paths, and existing D1
+metadata; the new collector does not persist operation IDs or request bodies.
+
+The first attributed hosted cohort reproduced two slow signatures. Their
+public SDK calls took 7,059 and 7,167 ms, including 3,844 and 3,671 ms waiting on
+an in-flight presign refill. Each subsequently issued a foreground refill init
+and five step requests. Harness overhead therefore did not explain those slow
+samples. That cohort also exposed an observability gap: `foreground_refill` was
+already a declared timing stage but was never emitted. The signing path now
+emits that timer around successful foreground refill/retry and material retrieval;
+refill scheduling, authorization, and protocol behavior are unchanged.
+
+After rebuilding, a separate six-signature hosted cohort measured:
+
+| Measurement | Median | Range |
+| --- | ---: | ---: |
+| Automated browser window | 3,035 ms | 2,287–3,062 ms |
+| Public SDK call, including confirmation | 2,199 ms | 2,011–2,705 ms |
+| SDK commit work | 1,565 ms | 1,063–2,088 ms |
+| Waiting on in-flight refill | 531 ms | 0–750 ms |
+| Time outside the public SDK call | 737 ms | 277–979 ms |
+| Harness automation drain after completion observation | 521 ms | 62–754 ms |
+| Harness confirmation settlement | 152 ms | 139–167 ms |
+| Gateway prepare + finalize server time | 720 ms | 695–824 ms |
+
+All six signatures still made seven D1 calls / eight SQL statements, with two
+write-bearing calls. D1 reported APAC. This cohort did not enter foreground
+fallback, so it does not replace or invalidate the earlier slow observations.
+Its smaller windows demonstrate sampling variability, not a performance gain
+from adding a timer. Neither cohort establishes a 1–2 second maximum or regional
+placement benefit; probe and Gateway/DO physical locations remain unverified.
+
+A focused E2E now aborts background refill init requests, then signs twice through
+the normal SDK. It requires foreground-refill timing, independently verifies both
+signatures, and checks that exactly two of the three reusable quota uses were
+consumed. This passes on Workers, wallet-DO, and VM. Normal first/subsequent
+signing also passes on all three local profiles. Together with the final hosted
+cohort, these checks verify 18 signatures. SDK builds, intended-suite type checks,
+diff checks, and the bloat ratchet pass. No unit tests were added.
+
+Artifacts and reproduction:
+
+- Local normal/fault evidence: `.artifacts/r151/attribution-20260930/`.
+  Run `.runtime/r151-attribution/verify.mjs` for normal signing and
+  `.runtime/r151-attribution/verify-fallback.mjs` for wallet-DO/VM fallback;
+  use `run.mjs foreground-workers workers passkey.presign-pool.contract.test.ts
+  'failed background refill falls back'` for the Workers fallback case.
+- Initial hosted attribution: `.artifacts/r151/hosted-attribution-20260930/`.
+- Hosted cohort after adding the foreground timer:
+  `.artifacts/r151/hosted-attribution-20260930-complete/`, including build/source
+  hashes, six timing windows, D1 analysis, restoration evidence, and cost report.
+  Recheck with `python3 .runtime/r151-attribution/analyze.py`.
+- Both hosted runs used the existing isolated DO benchmark and retained its
+  database/schema and role deployments. The baseline Gateway and expired access
+  window were restored. Deployment inspection and ingress health checks confirmed
+  restoration. Cumulative observed-usage estimate is $0.6482 through
+  `2026-09-30T11:24:55.177Z`; accounting can lag. Artifact credential scans passed.
+
+Next steps are now narrower:
+
+1. Capture the existing background-refill result and progress events alongside
+   these timings. Determine why a waited-on refill sometimes yields no usable
+   material before foreground fallback. Preserve one-use material, cancellation,
+   and quota behavior while fixing a demonstrated cause.
+2. Repeat first/warm/burst and linked signing on fixed builds with verified probe
+   locations, retaining public-SDK and post-confirmation timing separately from
+   harness time. Establish the system-controlled latency distribution.
+3. Revisit the remaining policy-read contract only against the measured residual,
+   and compare Gateway placement near the existing D1 primary before regional D1.
+
 ### 1. Consolidate reads while preserving decision boundaries
 
 - [x] Classify active/exhausted credentials from one snapshot for ECDSA signing,

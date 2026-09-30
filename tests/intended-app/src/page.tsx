@@ -2597,6 +2597,7 @@ class IntendedPageController {
   };
 
   private async signTempoTransactionWithPublicSdk(): Promise<TempoSigningResultSummary> {
+    const sdkStartedAt = performance.now();
     const result = await this.seams.tempo.signTempo({
       walletSession: walletSessionRefFromSession({
         walletId: this.walletId,
@@ -2608,6 +2609,9 @@ class IntendedPageController {
         onEvent: this.recordLifecycleEvent,
       },
     });
+    console.info('[Intended ECDSA benchmark]', JSON.stringify({
+      event: 'ecdsa_sdk_call', durationMs: performance.now() - sdkStartedAt,
+    }));
     if (result.chain !== 'tempo' || result.kind !== 'tempoTransaction') {
       throw new Error(`Tempo signing returned unexpected result: ${result.chain}/${result.kind}`);
     }

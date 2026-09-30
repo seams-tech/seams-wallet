@@ -1,3 +1,4 @@
+import { SigningTimingEvidence } from './signing-timing-evidence';
 import {
   expect,
   type APIResponse,
@@ -7,7 +8,11 @@ import {
   type Route,
   type TestInfo,
 } from '@playwright/test';
-import { intendedTest as test, type IntendedBehaviourHarness } from './harness';
+import {
+  intendedTest as test,
+  enableSigningSessionDebugInFrame,
+  type IntendedBehaviourHarness,
+} from './harness';
 import { normalizeRuntimePolicyScope } from '../../../packages/shared-ts/src/threshold/signingRootScope';
 import { isPlainObject } from '../../../packages/shared-ts/src/utils/validation';
 import { parseEcdsaServerTiming } from '../../../packages/shared-ts/src/utils/ecdsaServerTiming';
@@ -54,7 +59,11 @@ class FirstSigningPoolFlow {
   private readonly gatewayOrigin = new URL(
     process.env.SEAMS_INTENDED_ROUTER_URL || 'http://127.0.0.1:4100',
   ).origin;
-  private readonly gatewayRequests: { readonly path: string; readonly atMs: number }[] = [];
+  private readonly gatewayRequests: {
+    readonly request: Request;
+    readonly path: string;
+    readonly atMs: number;
+  }[] = [];
   private readonly presignRefillRequests: {
     readonly route: PresignRefillRoute;
     readonly tag: PresignRefillTag;
@@ -97,7 +106,7 @@ class FirstSigningPoolFlow {
     const path = url.pathname;
     if (url.origin === this.gatewayOrigin) {
       const atMs = performance.now();
-      this.gatewayRequests.push({ path, atMs });
+      this.gatewayRequests.push({ request, path, atMs });
       if (path === '/router-ab/ecdsa-derivation/presignature-pool/fill/init') {
         this.presignRefillRequests.push({ route: 'init', tag: presignRefillTag(request), atMs });
       } else if (path === '/router-ab/ecdsa-derivation/presignature-pool/fill/step') {
@@ -190,17 +199,30 @@ class FirstSigningPoolFlow {
     path: string;
     status: number;
     stagesMs: Record<string, number>;
+    requestObservedOffsetMs: number | null;
+    responseHeadersObservedOffsetMs: number;
+    browserRequestElapsedMs: number | null;
     d1: unknown;
   }[]> {
     const timings = [];
     for (const entry of this.gatewayResponses) {
       if (entry.atMs < startedAtMs || entry.atMs > endedAtMs) continue;
+      const request = entry.response.request();
+      let requestObservedOffsetMs: number | null = null;
+      for (const recorded of this.gatewayRequests) {
+        if (recorded.request === request) requestObservedOffsetMs = recorded.atMs - startedAtMs;
+      }
+      await entry.response.finished();
+      const browserTiming = request.timing();
       const stages = parseEcdsaServerTiming(await entry.response.headerValue('Server-Timing'));
       const d1Header = await entry.response.headerValue('X-Benchmark-D1');
       if (stages.size === 0 && d1Header === null) continue;
       timings.push({
         path: entry.path,
         status: entry.response.status(),
+        requestObservedOffsetMs,
+        responseHeadersObservedOffsetMs: entry.atMs - startedAtMs,
+        browserRequestElapsedMs: browserTiming.responseEnd < 0 ? null : browserTiming.responseEnd,
         stagesMs: Object.fromEntries(stages),
         d1: d1Header === null ? null : JSON.parse(d1Header),
       });
@@ -208,6 +230,62 @@ class FirstSigningPoolFlow {
     return timings;
   }
 }
+
+class FailedBackgroundRefill {
+  failures = 0;
+
+  async intercept(route: Route): Promise<void> {
+    if (presignRefillTag(route.request()) === 'background') {
+      this.failures += 1;
+      await route.abort('connectionclosed');
+      return;
+    }
+    await route.continue();
+  }
+}
+
+test('failed background refill falls back to timed foreground refill and preserves signing quota', async ({
+  harness, context, page,
+}, testInfo) => {
+  await context.addInitScript(enableSigningSessionDebugInFrame);
+  await page.evaluate(enableSigningSessionDebugInFrame);
+  const timing = new SigningTimingEvidence();
+  page.on('console', timing.record.bind(timing));
+  const fault = new FailedBackgroundRefill();
+  const intercept = fault.intercept.bind(fault);
+  const initPath = '**/router-ab/ecdsa-derivation/presignature-pool/fill/init';
+  await context.route(initPath, intercept);
+  const signatures = [];
+  try {
+    await harness.registerPasskeyEcdsaOnlyWallet();
+    for (let index = 0; index < 2; index += 1) {
+      const startedAt = performance.now();
+      await harness.signTempoTransaction('post_registration');
+      signatures.push(timing.window(startedAt, performance.now()));
+    }
+    expect(fault.failures).toBeGreaterThan(0);
+    expect(signatures[0].stages).toEqual(expect.arrayContaining([
+      expect.objectContaining({ stage: 'foreground_refill', durationMs: expect.any(Number) }),
+    ]));
+    const persistence = await signingOperationPersistence('unclaimed-evidence-probe');
+    expect(persistence.remainingUses).toBe(1);
+    const evidence = {
+      kind: 'ecdsa_failed_background_refill_timing_v1',
+      host: process.env.SEAMS_INTENDED_WALLET_HOST ?? 'workers_local',
+      backgroundFailures: fault.failures,
+      verifiedSignatures: 2,
+      remainingUses: persistence.remainingUses,
+      signatures,
+    };
+    const name = `foreground-refill-timing-${evidence.host}.json`;
+    const file = path.resolve(testInfo.config.rootDir, '../.artifacts/r151', name);
+    await mkdir(path.dirname(file), { recursive: true });
+    await writeFile(file, JSON.stringify(evidence, null, 2));
+    await testInfo.attach(name, { path: file, contentType: 'application/json' });
+  } finally {
+    await context.unroute(initPath, intercept);
+  }
+});
 
 test('first ECDSA signing completes Gateway pool fill before available-pool prepare', async ({
   harness,
@@ -282,6 +360,7 @@ test('first ECDSA signing completes Gateway pool fill before available-pool prep
 test('unforced ECDSA registration and repeated signing capture Gateway timing', async ({
   harness,
   context,
+  page,
 }, testInfo) => {
   const requestedBackendProfile = requestedEcdsaBackendProfile();
   const hostedBenchmark = process.env.SEAMS_INTENDED_EXTERNAL_GATEWAY === '1';
@@ -295,6 +374,11 @@ test('unforced ECDSA registration and repeated signing capture Gateway timing', 
   if (!runId || !/^[a-z0-9-]+$/u.test(runId)) {
     throw new Error('Hosted benchmark run id is missing or invalid');
   }
+  await context.addInitScript(enableSigningSessionDebugInFrame);
+  await page.evaluate(enableSigningSessionDebugInFrame);
+  const clientTiming = new SigningTimingEvidence();
+  const observeTiming = clientTiming.record.bind(clientTiming);
+  page.on('console', observeTiming);
   const flow = new FirstSigningPoolFlow();
   const record = flow.record.bind(flow);
   const recordResponse = flow.recordResponse.bind(flow);
@@ -308,10 +392,12 @@ test('unforced ECDSA registration and repeated signing capture Gateway timing', 
     const firstSigningStartedAt = performance.now();
     await harness.signTempoTransaction('post_registration');
     const firstSigningEndedAt = performance.now();
+    const firstActionTiming = harness.signingActionTimingEvidence();
 
     const subsequentSigningStartedAt = performance.now();
     await harness.signTempoTransaction('post_registration');
     const subsequentSigningEndedAt = performance.now();
+    const subsequentActionTiming = harness.signingActionTimingEvidence();
 
     const proof = {
       kind: hostedBenchmark
@@ -344,6 +430,8 @@ test('unforced ECDSA registration and repeated signing capture Gateway timing', 
         ),
       },
       firstSigning: {
+        clientTiming: clientTiming.window(firstSigningStartedAt, firstSigningEndedAt),
+        harnessTiming: firstActionTiming,
         elapsedMs: firstSigningEndedAt - firstSigningStartedAt,
         gatewayRequestCounts: flow.gatewayRequestCounts(firstSigningStartedAt, firstSigningEndedAt),
         presignRefillRequestCounts: flow.presignRefillRequestCounts(
@@ -356,6 +444,8 @@ test('unforced ECDSA registration and repeated signing capture Gateway timing', 
         ),
       },
       subsequentSigning: {
+        clientTiming: clientTiming.window(subsequentSigningStartedAt, subsequentSigningEndedAt),
+        harnessTiming: subsequentActionTiming,
         elapsedMs: subsequentSigningEndedAt - subsequentSigningStartedAt,
         gatewayRequestCounts: flow.gatewayRequestCounts(
           subsequentSigningStartedAt,
@@ -372,6 +462,13 @@ test('unforced ECDSA registration and repeated signing capture Gateway timing', 
       },
       signaturesVerified: 2,
     };
+    for (const window of [proof.firstSigning, proof.subsequentSigning]) {
+      if ((window.presignRefillRequestCounts.foreground_init ?? 0) > 0) {
+        expect(window.clientTiming.stages).toEqual(expect.arrayContaining([
+          expect.objectContaining({ stage: 'foreground_refill', durationMs: expect.any(Number) }),
+        ]));
+      }
+    }
     const artifactName = hostedBenchmark
       ? `gateway-ecdsa-unforced-timing-${requestedBackendProfile}-${probeRegion}-${runId}-${testInfo.repeatEachIndex}.json`
       : `gateway-ecdsa-unforced-local-timing-${requestedBackendProfile}.json`;
@@ -383,6 +480,7 @@ test('unforced ECDSA registration and repeated signing capture Gateway timing', 
       contentType: 'application/json',
     });
   } finally {
+    page.off('console', observeTiming);
     context.off('request', record);
     context.off('response', recordResponse);
   }
