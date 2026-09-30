@@ -8,6 +8,8 @@ import type {
 import type { WalletId } from '@shared/utils/domainIds';
 import type { PlatformResult } from './http';
 import type { RouterAbEcdsaDerivationPublicCapabilityV1 } from '@shared/utils/routerAbEcdsaDerivation';
+import type { EcdsaRoleLocalReadyStateBlob } from './generated/signerCoreCommands';
+import type { ThresholdEcdsaChainTarget } from '@shared/utils/thresholdEcdsaChainTarget';
 
 export type {
   EcdsaThresholdKeyId,
@@ -15,21 +17,15 @@ export type {
   SigningRootVersion,
 } from '@shared/threshold/ecdsaDerivationRoleLocalBootstrap';
 export type { WalletId } from '@shared/utils/domainIds';
-
-export type EvmEip155ChainTarget = {
-  kind: 'evm';
-  namespace: 'eip155';
-  chainId: number;
-  networkSlug: string;
-};
-
-export type TempoChainTarget = {
-  kind: 'tempo';
-  chainId: number;
-  networkSlug: string;
-};
-
-export type ThresholdEcdsaChainTarget = EvmEip155ChainTarget | TempoChainTarget;
+export type {
+  EvmEip155ChainTarget,
+  TempoChainTarget,
+  ThresholdEcdsaChainTarget,
+} from '@shared/utils/thresholdEcdsaChainTarget';
+export type {
+  EcdsaRoleLocalPendingStateBlob,
+  EcdsaRoleLocalReadyStateBlob,
+} from './generated/signerCoreCommands';
 
 export type CredentialIdB64u = string & { readonly __brand: 'CredentialIdB64u' };
 export type RpId = string & { readonly __brand: 'RpId' };
@@ -40,22 +36,6 @@ export type EcdsaGroupPublicKey33B64u = string & {
   readonly __brand: 'EcdsaGroupPublicKey33B64u';
 };
 export type RelayerKeyId = string & { readonly __brand: 'RelayerKeyId' };
-
-export type EcdsaRoleLocalPendingStateBlob = {
-  kind: 'ecdsa_role_local_pending_state_blob_v1';
-  curve: 'secp256k1';
-  encoding: 'base64url';
-  producer: 'signer_core';
-  stateBlobB64u: string;
-};
-
-export type EcdsaRoleLocalReadyStateBlob = {
-  kind: 'ecdsa_role_local_state_blob_v1';
-  curve: 'secp256k1';
-  encoding: 'base64url';
-  producer: 'signer_core';
-  stateBlobB64u: string;
-};
 
 export type EcdsaRoleLocalPublicFacts = {
   walletId: WalletId;

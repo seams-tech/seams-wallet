@@ -1,25 +1,11 @@
 import type { SignerKind } from '@shared/utils/signerDomain';
 import type { ParentToChildType } from '../shared/messages';
 
-type CanonicalWalletSignerErrorCode =
-  | 'commit_queue_overflow'
-  | 'commit_queue_timeout'
-  | 'threshold_ed25519_session_not_ready'
-  | 'threshold_ecdsa_session_not_ready'
-  | 'stale_ecdsa_key_identity'
-  | 'threshold_session_kind_mismatch'
-  | 'session_not_ready'
-  | 'fresh_email_otp_required'
-  | 'passkey_step_up_required'
-  | 'operation_blocked_by_policy'
-  | 'nonce_conflict_retryable'
-  | 'nonce_lane_blocked'
-  | 'rpc_request_failed'
-  | 'cancelled';
+type CanonicalWalletSignerErrorCode = (typeof CANONICAL_WALLET_SIGNER_ERROR_CODES)[number];
 
 type WalletSignerBoundaryKind = SignerKind;
 
-const CANONICAL_SIGNER_CODES = new Set<CanonicalWalletSignerErrorCode>([
+const CANONICAL_WALLET_SIGNER_ERROR_CODES = [
   'commit_queue_overflow',
   'commit_queue_timeout',
   'threshold_ed25519_session_not_ready',
@@ -34,22 +20,11 @@ const CANONICAL_SIGNER_CODES = new Set<CanonicalWalletSignerErrorCode>([
   'nonce_lane_blocked',
   'rpc_request_failed',
   'cancelled',
-]);
+] as const;
 
-const SIGNER_BOUNDARY_REQUEST_TYPES = new Set<ParentToChildType>([
-  'PM_SIGN_TEMPO',
-  'PM_REPORT_TEMPO_BROADCAST_ACCEPTED',
-  'PM_REPORT_TEMPO_BROADCAST_REJECTED',
-  'PM_REPORT_TEMPO_FINALIZED',
-  'PM_REPORT_TEMPO_DROPPED_OR_REPLACED',
-  'PM_RECONCILE_TEMPO_NONCE_LANE',
-  'PM_SIGN_TX_WITH_ACTIONS',
-  'PM_SIGN_AND_SEND_TX',
-  'PM_SEND_TRANSACTION',
-  'PM_EXECUTE_ACTION',
-  'PM_SIGN_DELEGATE_ACTION',
-  'PM_SIGN_NEP413',
-]);
+const CANONICAL_SIGNER_CODES = new Set<CanonicalWalletSignerErrorCode>(
+  CANONICAL_WALLET_SIGNER_ERROR_CODES,
+);
 
 const THRESHOLD_ECDSA_REQUEST_TYPES = new Set<ParentToChildType>([
   'PM_SIGN_TEMPO',
@@ -346,7 +321,11 @@ function inferCanonicalCodeFromMessage(args: {
 }
 
 export function isWalletSignerBoundaryRequestType(value: unknown): value is ParentToChildType {
-  return typeof value === 'string' && SIGNER_BOUNDARY_REQUEST_TYPES.has(value as ParentToChildType);
+  return (
+    typeof value === 'string' &&
+    (THRESHOLD_ECDSA_REQUEST_TYPES.has(value as ParentToChildType) ||
+      THRESHOLD_ED25519_REQUEST_TYPES.has(value as ParentToChildType))
+  );
 }
 
 function resolveCanonicalWalletSignerErrorCode(args: {

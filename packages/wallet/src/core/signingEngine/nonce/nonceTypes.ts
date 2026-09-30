@@ -249,7 +249,7 @@ export type NonceCoordinatorSameOriginLockPort = {
   withLock<T>(key: string, task: () => Promise<T>): Promise<T>;
 };
 
-type NonceLaneCoordinationRecordBaseWithoutLifecycle = {
+export type NonceLaneCoordinationRecordBaseWithoutLifecycle = {
   v: 1;
   laneKey: string;
   leaseId: string;
@@ -276,7 +276,7 @@ export type NonceDurableLeaseLifecycle<TTransactionHash extends string = string>
       txHash: TTransactionHash;
     };
 
-type NonceLaneCoordinationRecordBase<TTransactionHash extends string> =
+export type NonceLaneCoordinationRecordBase<TTransactionHash extends string> =
   NonceLaneCoordinationRecordBaseWithoutLifecycle & NonceDurableLeaseLifecycle<TTransactionHash>;
 
 export type NonceLaneCoordinationRecord =

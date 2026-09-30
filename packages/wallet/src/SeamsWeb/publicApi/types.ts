@@ -94,6 +94,7 @@ import type {
 } from '@/core/signingEngine/chains/evm/evmSigning.types';
 import type { TempoSigningRequest } from '@/core/signingEngine/chains/tempo/tempoSigning.types';
 import type { TempoFeeTokenValidation } from '@/core/signingEngine/chains/tempo/feeToken';
+import type { EvmFamilyNonceLaneStatus } from '@/core/signingEngine/flows/signEvmFamily/types';
 import type {
   SigningEngineResolveExactKeyExportLaneInput,
   SigningEngineResolveExactKeyExportLaneResult,
@@ -323,12 +324,7 @@ export type ReportTempoDroppedOrReplacedArgs = ReportTempoNonceLifecycleBaseArgs
 
 export type ReconcileTempoNonceLaneArgs = ReportTempoNonceLifecycleBaseArgs;
 
-export type TempoNonceLaneStatus = {
-  chainNextNonce: string;
-  unresolvedInFlightNonces: string[];
-  blocked: boolean;
-  blockedNonce?: string;
-};
+export type TempoNonceLaneStatus = EvmFamilyNonceLaneStatus;
 
 export type FinalizedEvmEip1559PayloadExpectation = {
   kind: 'evm_eip1559';

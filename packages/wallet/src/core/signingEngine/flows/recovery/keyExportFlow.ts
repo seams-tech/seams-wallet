@@ -20,11 +20,14 @@ import type { MpcMaterialActivationRef } from '@shared/utils/domainIds';
 
 export type KeyExportEventCallback = (event: KeyExportFlowEvent) => void;
 
-type SigningEngineKeyExportUiOptions = {
+export type KeyExportUiOptions = {
   variant?: 'drawer' | 'modal';
   theme?: 'dark' | 'light';
-  onEvent?: KeyExportEventCallback;
 };
+
+interface SigningEngineKeyExportUiOptions extends KeyExportUiOptions {
+  onEvent?: KeyExportEventCallback;
+}
 
 export type SigningEngineExportKeypairWithUIInput =
   | {

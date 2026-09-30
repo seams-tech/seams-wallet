@@ -1,15 +1,10 @@
-export type ThresholdEcdsaChainTarget =
-  | {
-      kind: 'evm';
-      namespace: 'eip155';
-      chainId: number;
-      networkSlug?: string;
-    }
-  | {
-      kind: 'tempo';
-      chainId: number;
-      networkSlug?: string;
-    };
+import {
+  thresholdEcdsaChainTargetKey,
+  type ThresholdEcdsaChainTargetWire,
+} from '@shared/utils/thresholdEcdsaChainTarget';
+
+export { thresholdEcdsaChainTargetKey };
+export type ThresholdEcdsaChainTarget = ThresholdEcdsaChainTargetWire;
 
 function positiveSafeInteger(value: unknown): number | null {
   return typeof value === 'number' && Number.isSafeInteger(value) && value > 0 ? value : null;
@@ -47,10 +42,6 @@ export function thresholdEcdsaChainTargetFromValue(
     };
   }
   return null;
-}
-
-export function thresholdEcdsaChainTargetKey(target: ThresholdEcdsaChainTarget): string {
-  return target.kind === 'evm' ? `evm:eip155:${target.chainId}` : `tempo:${target.chainId}`;
 }
 
 export function thresholdEcdsaChainTargetsEqual(

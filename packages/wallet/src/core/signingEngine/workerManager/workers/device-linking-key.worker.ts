@@ -12,7 +12,6 @@ import {
   type WalletSessionOperationCredentialV1,
   type LinkDevicePublicKeyB64u,
   type CommittedAuthorityPackagesV1,
-  type CommittedEd25519SignerPackageV1,
   type CommittedEcdsaSignerPackageV1,
   type OrdinarySignerMaterialRecipientRequestV1,
 } from '@shared/device-linking';
@@ -213,20 +212,10 @@ const productionOrdinaryMaterialSealer: DeviceLinkingOrdinaryMaterialSealerV1 = 
   },
 };
 
-type OrdinarySignerPackageForWorkerV1 =
-  | {
-      readonly keyFamily: 'ed25519';
-      readonly package: CommittedEd25519SignerPackageV1;
-    }
-  | {
-      readonly keyFamily: 'ecdsa_secp256k1';
-      readonly package: CommittedEcdsaSignerPackageV1;
-    };
-
 function ordinarySignerPackageForPreparation(
   committed: CommittedAuthorityPackagesV1,
   preparation: DeviceLinkingOrdinarySignerMaterialReservationPreparationV1,
-): OrdinarySignerPackageForWorkerV1 {
+): LinkedSignerPackageForMaterialV1 {
   if ('kind' in preparation) {
     if (!committed.signerPackages.ed25519) {
       throw new Error('ordinary Ed25519 signer package is missing');
@@ -272,7 +261,7 @@ function ordinaryRecipientInputForPreparation(
 
 async function openOrdinarySignerMaterial(input: {
   readonly preparation: DeviceLinkingOrdinarySignerMaterialReservationPreparationV1;
-  readonly packageValue: OrdinarySignerPackageForWorkerV1;
+  readonly packageValue: LinkedSignerPackageForMaterialV1;
   readonly recipientInput: DeviceLinkingOrdinarySignerMaterialRecipientInputV1;
 }): Promise<Uint8Array> {
   if (

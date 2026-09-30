@@ -8,6 +8,7 @@ import type {
   WalletAuthAuthorityRef,
 } from './walletAuthAuthority';
 import type { MpcMaterialActivationRef } from './domainIds';
+import type { ThresholdEcdsaChainTarget } from './thresholdEcdsaChainTarget';
 import { SIGNER_AUTH_METHODS, type SignerAuthMethod } from './signerDomain';
 
 export const SIGNING_SESSION_SEALED_RECORD_VERSION = 2 as const;
@@ -102,21 +103,8 @@ export function requireRouterAbEd25519NormalSigningState(
   return parsed;
 }
 
-type SealedSigningSessionEcdsaChainTarget =
-  | {
-      kind: 'tempo';
-      chainId: number;
-      networkSlug: string;
-    }
-  | {
-      kind: 'evm';
-      namespace: 'eip155';
-      chainId: number;
-      networkSlug: string;
-    };
-
 type SealedSigningSessionEcdsaRestoreMetadataBase = {
-  chainTarget: SealedSigningSessionEcdsaChainTarget;
+  chainTarget: ThresholdEcdsaChainTarget;
   signingRootId: string;
   signingRootVersion: string;
   keyHandle: string;

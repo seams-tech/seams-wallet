@@ -8,6 +8,7 @@ import {
 } from './near';
 import { inspectRawObject, trimString } from './registrationAuthMethodInput';
 import type { NearEd25519SigningKeyId } from './registrationIds';
+import type { ThresholdEcdsaChainTargetWire } from './thresholdEcdsaChainTarget';
 
 export type RegistrationNearAccountProvisioning =
   | {
@@ -60,18 +61,7 @@ export type ThresholdEd25519AddSignerSpec = {
   derivationVersion: number;
 };
 
-export type ThresholdEcdsaAddSignerChainTarget =
-  | {
-      readonly kind: 'evm';
-      readonly namespace: 'eip155';
-      readonly chainId: number;
-      readonly networkSlug?: string;
-    }
-  | {
-      readonly kind: 'tempo';
-      readonly chainId: number;
-      readonly networkSlug?: string;
-    };
+export type ThresholdEcdsaAddSignerChainTarget = Readonly<ThresholdEcdsaChainTargetWire>;
 
 export type ThresholdEcdsaAddSignerSpec = {
   chainTargets: readonly ThresholdEcdsaAddSignerChainTarget[];

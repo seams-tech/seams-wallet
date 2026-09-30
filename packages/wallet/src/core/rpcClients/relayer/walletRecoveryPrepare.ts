@@ -67,6 +67,7 @@ import {
   type SigningRootVersion,
 } from '@shared/threshold/ecdsaDerivationRoleLocalBootstrap';
 import type { ThresholdEcdsaChainTarget } from '@/core/platform/types';
+import { thresholdEcdsaChainTargetKey } from '@shared/utils/thresholdEcdsaChainTarget';
 import { requireEvmFamilySigningKeySlotId } from '@shared/signing-lanes';
 import {
   parseRecoveryCodeReservationId,
@@ -1216,7 +1217,7 @@ function parseWalletRecoveryEcdsaChainTargets(
     throw new Error('walletRecoveryPrepare ECDSA recovery chain targets are invalid');
   }
   const targets = raw.map((value, index) => parseWalletRecoveryEcdsaChainTarget(value, index));
-  const keys = new Set(targets.map(walletRecoveryEcdsaChainTargetKey));
+  const keys = new Set(targets.map(thresholdEcdsaChainTargetKey));
   if (keys.size !== targets.length) {
     throw new Error('walletRecoveryPrepare ECDSA recovery chain targets are duplicated');
   }
@@ -1270,10 +1271,6 @@ function parseWalletRecoveryEcdsaChainTarget(
     };
   }
   throw new Error('walletRecoveryPrepare ECDSA recovery chain family is invalid');
-}
-
-function walletRecoveryEcdsaChainTargetKey(target: ThresholdEcdsaChainTarget): string {
-  return target.kind === 'evm' ? `evm:eip155:${target.chainId}` : `tempo:${target.chainId}`;
 }
 
 function parseWalletRecoveryEcdsaParticipantIds(raw: unknown): readonly [1, 2] {

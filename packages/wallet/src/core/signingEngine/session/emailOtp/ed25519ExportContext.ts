@@ -37,10 +37,8 @@ import {
 } from '@shared/threshold/signingRootScope';
 import { parseRouterAbEd25519NormalSigningState } from '@shared/utils/signingSessionSeal';
 import { base64UrlEncode } from '@shared/utils/base64';
-import type {
-  PasskeyCustodyEnvelopeRecord,
-  PasskeyCustodySecretBinding,
-} from '@shared/passkey-custody';
+import type { PasskeyCustodyEnvelopeRecord } from '@shared/passkey-custody';
+import type { Ed25519YaoClientRootEnvelopeRecordV1 } from '@/core/signingEngine/session/passkey/passkeyCustodySessionCache';
 import type { ActiveEmailOtpWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 import { requireCanonicalString, requireRecord } from '@shared/utils/validation';
 type EmailOtpEd25519LaneAuth = Extract<SigningLaneAuthBinding, { kind: 'email_otp' }>;
@@ -92,13 +90,6 @@ export type EmailOtpEd25519ExportAuthorizationReadResultV1 =
         | 'capability_unavailable';
       readonly authorization?: never;
     };
-
-type Ed25519YaoClientRootEnvelopeRecordV1 = PasskeyCustodyEnvelopeRecord & {
-  readonly binding: Extract<
-    PasskeyCustodySecretBinding,
-    { readonly kind: 'ed25519_yao_client_root_v1' }
-  >;
-};
 
 function isEd25519YaoClientRootEnvelopeV1(
   envelope: PasskeyCustodyEnvelopeRecord,

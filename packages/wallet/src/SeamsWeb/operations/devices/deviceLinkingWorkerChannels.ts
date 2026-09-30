@@ -5,9 +5,6 @@ import {
   parseLinkedDeviceWalletSessionCredentialDeliveryV1,
   parseLinkedDeviceWalletSessionCredentialDeliveryBindingV1,
   parseWalletSessionOperationCredentialV1,
-  type LinkedDeviceEmailOtpFactorReleaseEnvelopeV1,
-  type LinkedDeviceEmailOtpVerificationGrantV1,
-  type LinkedDeviceWalletSessionCredentialDeliveryV1,
 } from '@shared/device-linking';
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
 import { parseDigestB64u, type DigestB64u } from '@shared/utils/canonicalPrimitives';
@@ -16,23 +13,16 @@ import {
   parseLinkedDeviceEnrollmentId,
   parseLinkedDeviceId,
   parseLinkDeviceSessionId,
-  type LinkDeviceSessionId,
-  type LinkedDeviceEnrollmentId,
-  type LinkedDeviceId,
 } from '@shared/signing-lanes/ids';
 import {
   parseWalletAuthMethodId,
   parseWalletAuthorityId,
   parseWalletId,
-  type WalletAuthMethodId,
-  type WalletId,
 } from '@shared/utils/domainIds';
 import { resolveWorkerUrl } from '@/core/walletRuntimePaths';
 import {
   createDeviceLinkingOrdinaryMaterialWorkerPortV1,
   type DeviceLinkingOrdinaryMaterialWorkerPortV1,
-  type DeviceLinkingOrdinaryMaterialWorkerPrivateRequestV1,
-  type DeviceLinkingOrdinaryMaterialWorkerRequestV1,
 } from './deviceLinkingOrdinaryMaterialWorker';
 import type {
   DeviceLinkingEmailOtpFactorReleasePortV1,
@@ -40,8 +30,8 @@ import type {
   DeviceLinkingKeyMaterialHandleV1,
   DeviceLinkingKeyMaterialPortV1,
   DeviceLinkingKeyMaterialBundleV1,
-  DeviceLinkingWalletSessionCredentialDeliveryOpenInputV1,
 } from './deviceLinkingPorts';
+import type { DeviceLinkingKeyWorkerRequestV1 } from '@/core/signingEngine/workerManager/workers/device-linking-key/requests';
 
 export type DeviceLinkingWorkerEndpointV1 = {
   postMessage(message: unknown, transfer?: Transferable[]): void;
@@ -56,51 +46,6 @@ type DeviceLinkingWorkerKeyMaterialPortV1 = DeviceLinkingKeyMaterialPortV1 & {
   close(): void;
 } & DeviceLinkingEmailOtpFactorReleasePortV1 &
   DeviceLinkingOrdinaryMaterialWorkerPortV1;
-
-type DeviceLinkingWorkerRequestV1 =
-  | DeviceLinkingOrdinaryMaterialWorkerRequestV1
-  | DeviceLinkingOrdinaryMaterialWorkerPrivateRequestV1
-  | { readonly kind: 'device_linking_key_material_create_v1' }
-  | {
-      readonly kind: 'device_linking_email_otp_export_root_recipient_create_v1';
-      readonly handleId: string;
-    }
-  | {
-      readonly kind: 'device_linking_email_otp_factor_release_open_v1';
-      readonly handleId: string;
-      readonly walletId: WalletId;
-      readonly linkSessionId: LinkDeviceSessionId;
-      readonly enrollmentId: LinkedDeviceEnrollmentId;
-      readonly deviceId: LinkedDeviceId;
-      readonly walletAuthMethodId: WalletAuthMethodId;
-      readonly baseWalletAuthMethodId: WalletAuthMethodId;
-      readonly targetPreparationDigestB64u: DigestB64u;
-      readonly expectedChallengeId: string;
-      readonly verificationGrant: LinkedDeviceEmailOtpVerificationGrantV1;
-      readonly factorRelease: LinkedDeviceEmailOtpFactorReleaseEnvelopeV1;
-    }
-  | {
-      readonly kind: 'device_linking_wallet_session_credential_delivery_open_v1';
-      readonly handleId: string;
-      readonly delivery: LinkedDeviceWalletSessionCredentialDeliveryV1;
-      readonly expected: DeviceLinkingWalletSessionCredentialDeliveryOpenInputV1['expected'];
-    }
-  | {
-      readonly kind: 'device_linking_request_sign_v1';
-      readonly handleId: string;
-      readonly linkSessionId: LinkDeviceSessionId;
-      readonly method: 'GET' | 'POST';
-      readonly canonicalPath: string;
-      readonly bodyDigestB64u: DigestB64u;
-      readonly devicePublicKeyDigestB64u: DigestB64u;
-      readonly challengeB64u: string;
-      readonly issuedAtMs: number;
-      readonly expiresAtMs: number;
-    }
-  | {
-      readonly kind: 'device_linking_key_material_discard_v1';
-      readonly handleId: string;
-    };
 
 type DeviceLinkingWorkerResponseFrameV1 =
   | { readonly id: string; readonly ok: true; readonly result: unknown }
@@ -283,7 +228,7 @@ function assertTimestamp(value: number, label: string): number {
 
 function buildRequest(
   input: Parameters<DeviceLinkingKeyMaterialPortV1['signDeviceSessionRequestV1']>[0],
-): DeviceLinkingWorkerRequestV1 {
+): DeviceLinkingKeyWorkerRequestV1 {
   const parsedSession = parseLinkDeviceSessionId(input.linkSessionId);
   if (!parsedSession.ok) throw new Error(parsedSession.error.message);
   if (input.method !== 'GET' && input.method !== 'POST') throw new Error('method is invalid');
@@ -381,7 +326,7 @@ export function createDeviceLinkingKeyMaterialPortV1(
   };
 
   const request = (
-    input: DeviceLinkingWorkerRequestV1,
+    input: DeviceLinkingKeyWorkerRequestV1,
     transfer?: Transferable[],
   ): Promise<unknown> => {
     if (closed) return Promise.reject(new Error('device-linking worker transport is closed'));

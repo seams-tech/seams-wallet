@@ -4,6 +4,7 @@ import {
 } from './domainIds';
 import { requireRecord } from './validation';
 import type { RouterAbEcdsaOperationStepUpPreparationV1Wire } from './routerAbEcdsaDerivation';
+import type { RouterAbMpcMaterialActivationRefV1 } from './generated/routerAbEd25519YaoCore';
 
 export type RouterAbNormalSigningAuthorizationWire =
   | {
@@ -32,15 +33,7 @@ export type RouterAbEcdsaDerivationPoolFillAuthorization =
       readonly operation: RouterAbEcdsaOperationStepUpPreparationV1Wire;
     };
 
-export type RouterAbMpcMaterialActivationRefWire = {
-  readonly kind: 'mpc_material_activation_ref';
-  readonly activation_id: string;
-  readonly capability: string;
-  readonly material_owner: string;
-  readonly key_binding: string;
-  readonly lifecycle_binding: string;
-  readonly signing_worker: string;
-};
+export type RouterAbMpcMaterialActivationRefWire = Readonly<RouterAbMpcMaterialActivationRefV1>;
 
 export type RouterAbEd25519OperationStepUpPreparationV1Wire = {
   readonly wallet_id: string;

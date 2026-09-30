@@ -17,7 +17,7 @@ import type { LoadedWalletCustodyEd25519MaterialV1 } from '../../walletCustody/e
 import type { RouterAbEd25519YaoActiveClientMetadataV1 } from '../../threshold/ed25519/yaoClient';
 import type { EmailOtpRoutePlan } from '../../stepUpConfirmation/otpPrompt/authLane';
 import type { ThresholdRuntimePolicyScope } from '../../threshold/sessionPolicy';
-import type { EmailOtpVerifiedAuthorityProjection } from './publicTypes';
+import type { EmailOtpBootstrapRecovery } from '../../stepUpConfirmation/otpPrompt/bootstrapRecovery';
 import { EMAIL_OTP_CHANNEL } from '@shared/utils/emailOtpDomain';
 import { ROUTER_AB_ED25519_YAO_EMAIL_OTP_RECOVERY_BOOTSTRAP_KIND_V1 } from '@shared/utils/routerAbEd25519Yao';
 import type {
@@ -26,19 +26,9 @@ import type {
   RouterAbEcdsaPostRegistrationSessionActivationResponseV1,
 } from '@shared/utils/routerAbEcdsaDerivation';
 
-type EmailOtpWalletUnlockRecovery = {
-  challengeId: string;
-  enrollmentSealKeyVersion: string;
-  unlockChallengeId: string;
-  unlockChallengeB64u: string;
-  clientUnlockPublicKeyB64u: string;
-  unlockSignatureB64u: string;
-  verifiedAuthorityProjection: EmailOtpVerifiedAuthorityProjection;
-};
-
 export type EmailOtpWalletUnlockResult = {
   kind: 'ecdsa';
-  recovery: EmailOtpWalletUnlockRecovery;
+  recovery: EmailOtpBootstrapRecovery;
   emailOtpSessionHandle: EmailOtpEcdsaSessionBootstrapHandlePayload;
 } & (
   | {
@@ -55,12 +45,12 @@ export type EmailOtpWalletUnlockResult = {
 export type EmailOtpEd25519YaoUnlockResult =
   | {
       kind: 'wallet_custody_cache_absent';
-      recovery: EmailOtpWalletUnlockRecovery;
+      recovery: EmailOtpBootstrapRecovery;
       ed25519YaoRecovery: EmailOtpEd25519YaoRecoveryBootstrapV1;
     }
   | {
       kind: 'ed25519_yao_capability';
-      recovery: EmailOtpWalletUnlockRecovery;
+      recovery: EmailOtpBootstrapRecovery;
       activeClientHandle: string;
       metadata: RouterAbEd25519YaoActiveClientMetadataV1;
       ed25519YaoCapability: EmailOtpEd25519YaoRecoveryBootstrapV1;
@@ -74,7 +64,7 @@ export type EmailOtpEd25519YaoUnlockResult =
 
 export type EmailOtpWalletUnlockCapabilityResults = {
   kind: 'wallet_unlock_capabilities';
-  recovery: EmailOtpWalletUnlockRecovery;
+  recovery: EmailOtpBootstrapRecovery;
   walletSessionAuthorization: ExactWalletSessionAuthorization;
   ed25519ExportRootCustody: Extract<
     EmailOtpWalletUnlockMaterialResult,
@@ -83,7 +73,7 @@ export type EmailOtpWalletUnlockCapabilityResults = {
   ecdsa: {
     kind: 'ecdsa';
     operation: 'wallet_unlock';
-    recovery: EmailOtpWalletUnlockRecovery;
+    recovery: EmailOtpBootstrapRecovery;
     emailOtpSessionHandle: EmailOtpEcdsaSessionBootstrapHandlePayload;
     ecdsaSession: RouterAbEcdsaCredentialFreeSessionActivationResponseV1;
     ecdsaCustody: EmailOtpEcdsaCustodyRestoreV1;

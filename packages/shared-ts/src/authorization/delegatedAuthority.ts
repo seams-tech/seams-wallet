@@ -1,10 +1,6 @@
 import type { AuthorizationParseResult } from './capabilityKinds';
 
-export type DelegatedWalletPermissionV1 =
-  | 'sign'
-  | 'export_keys'
-  | 'link_devices'
-  | 'revoke_devices';
+export type DelegatedWalletPermissionV1 = (typeof DELEGATED_WALLET_PERMISSION_VALUES)[number];
 
 const FULL_OWNER_PERMISSIONS = Object.freeze([
   'export_keys',
@@ -17,12 +13,12 @@ const SIGNING_ONLY_PERMISSIONS = Object.freeze([
   'sign',
 ] as const) satisfies readonly DelegatedWalletPermissionV1[];
 
-const DELEGATED_WALLET_PERMISSION_VALUES: readonly DelegatedWalletPermissionV1[] = [
+const DELEGATED_WALLET_PERMISSION_VALUES = [
   'export_keys',
   'link_devices',
   'revoke_devices',
   'sign',
-];
+] as const;
 const DELEGATED_WALLET_PERMISSION_VALUE_SET = new Set<string>(DELEGATED_WALLET_PERMISSION_VALUES);
 
 type CanonicalPermissionTuple = readonly [

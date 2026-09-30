@@ -1006,25 +1006,7 @@ export interface ActionHooksOptions {
   confirmationConfig?: Partial<ConfirmationConfig>;
 }
 
-export interface SignAndSendTransactionHooksOptions {
-  onEvent?: EventCallback<SigningFlowEvent>;
-  onError?: (error: Error) => void;
-  waitUntil?: TxExecutionStatus;
-  /**
-   * Optional signer-slot override for this signing request.
-   */
-  signerSlot?: number;
-  /**
-   * Preferred grouping for per-call confirmer copy.
-   */
-  confirmerText?: { title?: string; body?: string };
-
-  afterCall?: AfterCall<ActionResult>;
-  // Per-call confirmation configuration. When provided, overrides user preferences
-  // for this request only (not persisted).
-  // Accept partial config so callers can pass minimal overrides like { uiMode: 'drawer' }
-  confirmationConfig?: Partial<ConfirmationConfig>;
-}
+export interface SignAndSendTransactionHooksOptions extends ActionHooksOptions {}
 
 export interface SignTransactionHooksOptions {
   onEvent?: EventCallback<SigningFlowEvent>;

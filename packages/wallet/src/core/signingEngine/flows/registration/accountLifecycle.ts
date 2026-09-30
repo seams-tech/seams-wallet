@@ -68,16 +68,7 @@ import {
   type ThresholdEcdsaChainTarget,
 } from '../../interfaces/ecdsaChainTarget';
 
-export type StoreAuthenticatorInput = {
-  credentialId: string;
-  credentialPublicKey: Uint8Array;
-  transports?: string[];
-  name?: string;
-  nearAccountId: AccountId;
-  registered: string;
-  syncedAt: string;
-  signerSlot: number;
-};
+export type StoreAuthenticatorInput = ClientAuthenticatorData;
 
 export type StoredRegistrationData = {
   signerSlot: number;

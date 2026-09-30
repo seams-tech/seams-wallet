@@ -20,11 +20,10 @@ import type {
   LocalWalletAuthMethodRecord,
   ProfileAuthenticatorRecord,
   UpsertProfileInput,
-  WalletAuthorityExportRootRecordV1,
-  WalletAuthoritySignerMaterialRecordV1,
 } from '@/core/indexedDB';
 import type { UnifiedIndexedDBManager } from '@/core/indexedDB';
 import type { LocalAuthorityActivationPublicationResultV1 } from '@/core/indexedDB';
+import type { SealedLocalAuthorityMaterialSetV1 } from '@/core/signingEngine/workerManager/deviceLinkingPorts';
 import { base64UrlDecode } from '@shared/utils/base64';
 import { buildEmailOtpWalletAuthAuthority } from '@shared/utils/walletAuthAuthority';
 import type {
@@ -50,14 +49,7 @@ export {
   type DeviceLinkingDurableAcknowledgementReplayResultV1,
 } from './deviceLinkingResume';
 
-export type DeviceLinkingSealedAuthorityRecordsV1 = {
-  readonly signerMaterials: readonly [
-    WalletAuthoritySignerMaterialRecordV1,
-    ...WalletAuthoritySignerMaterialRecordV1[],
-  ];
-  readonly exportRoot: WalletAuthorityExportRootRecordV1 | null;
-  readonly installedRecordSetDigestB64u: ReturnType<typeof parseDigestB64u>;
-};
+export type DeviceLinkingSealedAuthorityRecordsV1 = SealedLocalAuthorityMaterialSetV1;
 
 /**
  * The worker owns package decryption and factor sealing. The browser receives

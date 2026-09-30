@@ -9,6 +9,8 @@ import {
   NonceDurableLeaseState,
   type NonceCoordinatorDegradation,
   type NonceDurableLeaseLifecycle,
+  type NonceLaneCoordinationRecordBase,
+  type NonceLaneCoordinationRecordBaseWithoutLifecycle,
   type EvmNonceLane,
   type NonceLaneCoordinationReadResult,
   type NonceLaneCoordinationRecord,
@@ -185,32 +187,11 @@ function parseNearRecord(input: ParsedBaseInput): NonceLaneCoordinationReadResul
   };
 }
 
-type NonceLaneCoordinationRecordBaseFieldsWithoutLifecycle = {
-  v: 1;
-  laneKey: string;
-  leaseId: string;
-  networkKey: string;
-  nonce: bigint;
-  operationId: string;
-  operationFingerprint: string;
-  reservedAtMs: number;
-  expiresAtMs: number;
-  updatedAtMs: number;
-  runtimeId?: string;
-  fencingToken?: string;
-  batchId?: string;
-  txIndex?: number;
-};
-
-type NonceLaneCoordinationRecordBaseFields<TTransactionHash extends string> =
-  NonceLaneCoordinationRecordBaseFieldsWithoutLifecycle &
-    NonceDurableLeaseLifecycle<TTransactionHash>;
-
 function buildBaseRecord<TTransactionHash extends string>(
   input: ParsedBaseInput,
   lifecycle: NonceDurableLeaseLifecycle<TTransactionHash>,
-): NonceLaneCoordinationRecordBaseFields<TTransactionHash> {
-  const base: NonceLaneCoordinationRecordBaseFieldsWithoutLifecycle = {
+): NonceLaneCoordinationRecordBase<TTransactionHash> {
+  const base: NonceLaneCoordinationRecordBaseWithoutLifecycle = {
     v: 1 as const,
     leaseId: input.leaseId,
     laneKey: input.laneKey,

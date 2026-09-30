@@ -5,6 +5,7 @@
 import { initializeWasm, resolveWasmUrl } from '@/core/walletRuntimePaths/wasm-loader';
 import { base64UrlDecode } from '@shared/utils/encoders';
 import { EMAIL_OTP_FACTOR_RELEASE_AAD_DOMAIN_V1 } from '@shared/utils/emailOtpDomain';
+import type { LinkedDeviceEmailOtpFactorReleaseEnvelopeV1 } from '@shared/device-linking/contracts';
 import {
   decodeEmailOtpEscrowSecret32,
   type EmailOtpEscrowSecret32DecodeResult,
@@ -157,16 +158,6 @@ export async function addClientSealFromBytes(args: {
   );
 }
 
-type EmailOtpFactorReleaseEnvelope = {
-  readonly kind: 'email_otp_factor_release_v1';
-  readonly challengeId: string;
-  readonly enrollmentId: string;
-  readonly enrollmentSealKeyVersion: string;
-  readonly serverEphemeralPublicKey65B64u: string;
-  readonly nonce12B64u: string;
-  readonly ciphertextB64u: string;
-};
-
 /** A fresh P-256 key pair; the Router seals the released factor to its public half. */
 export async function generateEmailOtpFactorReleaseKeyPair(label: string): Promise<{
   readonly subtle: SubtleCrypto;
@@ -245,7 +236,7 @@ export async function decryptEmailOtpFactorReleaseEnvelope(args: {
   walletId: string;
   challengeId: string;
   workerPrivateKey: CryptoKey;
-  materialRecovery: EmailOtpFactorReleaseEnvelope;
+  materialRecovery: LinkedDeviceEmailOtpFactorReleaseEnvelopeV1;
 }): Promise<{
   challengeId: string;
   enrollmentId: string;

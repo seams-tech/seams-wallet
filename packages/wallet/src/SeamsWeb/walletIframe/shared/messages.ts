@@ -18,6 +18,8 @@ import type { EvmSigningRequest } from '@/core/signingEngine/chains/evm/evmSigni
 import type { TempoFeeTokenPreferenceSigningRequest } from '@/core/signingEngine/chains/tempo/feeToken';
 import type { EvmSignedResult } from '@/core/signingEngine/chains/evm/evmAdapter';
 import type { TempoSignedResult } from '@/core/signingEngine/chains/tempo/tempoAdapter';
+import type { RefreshEmailOtpSigningSessionArgs } from '@/core/signingEngine/flows/signEvmFamily/emailOtpSigningSession';
+import type { KeyExportUiOptions } from '@/core/signingEngine/flows/recovery/keyExportFlow';
 import type {
   EvmEip155ChainTarget,
   NearAccountRef,
@@ -1342,11 +1344,6 @@ type PMReconcileTempoNonceLanePayload = PMTempoNonceLifecyclePayloadBase;
 
 type PMResolveExactKeyExportLanePayload = ResolveExactKeyExportLaneInput;
 
-type PMExportKeypairUiOptions = {
-  variant?: 'modal' | 'drawer';
-  theme?: 'dark' | 'light';
-};
-
 export type PMExportKeypairUiPayload =
   | {
       kind: 'ecdsa';
@@ -1354,7 +1351,7 @@ export type PMExportKeypairUiPayload =
       walletSession: WalletSessionRef;
       laneIdentity: unknown;
       nearAccount?: never;
-      options: PMExportKeypairUiOptions;
+      options: KeyExportUiOptions;
     }
   | {
       kind: 'ed25519';
@@ -1363,7 +1360,7 @@ export type PMExportKeypairUiPayload =
       laneIdentity: unknown;
       materialActivation: MpcMaterialActivationRef;
       chainTarget?: never;
-      options: PMExportKeypairUiOptions;
+      options: KeyExportUiOptions;
     };
 
 interface PMSetConfirmBehaviorPayload {
@@ -1445,15 +1442,6 @@ export interface PMEmailOtpEcdsaCapabilityPayload {
   walletSessionToken?: never;
   registrationAttemptId?: string;
   emailOtpAuthorityEmail?: string;
-}
-
-interface PMRefreshEmailOtpSigningSessionPayload {
-  walletSession: WalletSessionRef;
-  chainTarget: ThresholdEcdsaChainTarget;
-  challengeId: string;
-  otpCode: string;
-  ttlMs?: number;
-  remainingUses?: number;
 }
 
 interface PMPrefillRouterAbEcdsaDerivationPresignaturePoolPayload {
@@ -1775,7 +1763,7 @@ export type ParentToChildEnvelope =
   | RpcEnvelope<'PM_GOOGLE_EMAIL_OTP_WALLET_AUTH_CANCEL', PMGoogleEmailOtpWalletAuthHandlePayload>
   | RpcEnvelope<'PM_ENROLL_EMAIL_OTP', PMEnrollEmailOtpPayload>
   | RpcEnvelope<'PM_LOGIN_EMAIL_OTP_ECDSA_CAPABILITY', PMEmailOtpEcdsaCapabilityPayload>
-  | RpcEnvelope<'PM_REFRESH_EMAIL_OTP_SIGNING_SESSION', PMRefreshEmailOtpSigningSessionPayload>
+  | RpcEnvelope<'PM_REFRESH_EMAIL_OTP_SIGNING_SESSION', RefreshEmailOtpSigningSessionArgs>
   | RpcEnvelope<'PM_GET_WALLET_RECOVERY_CODE_STATUS', PMWalletRecoverySessionPayload>
   | RpcEnvelope<'PM_ACKNOWLEDGE_WALLET_RECOVERY_CODE_BACKUP', PMWalletRecoverySessionPayload>
   | RpcEnvelope<'PM_ROTATE_WALLET_RECOVERY_CODES', PMRotateWalletRecoveryCodesPayload>
