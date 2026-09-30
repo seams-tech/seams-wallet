@@ -20,6 +20,7 @@ import { randomUUID } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { isHex, parseTransaction, recoverTransactionAddress } from 'viem';
+import { GatewayRequestEvidence } from './gateway-request-evidence';
 
 const ECDSA_RESPOND_FAULT_HEADER = 'x-seams-intended-ecdsa-respond-fault-v1';
 const ECDSA_RESPOND_FAULT_PROOF_HEADER = 'x-seams-intended-ecdsa-respond-proof-v1';
@@ -232,7 +233,8 @@ test('custom review requires wallet approval before a live Arc signature', async
   harness,
   context,
   page,
-}) => {
+}, testInfo) => {
+  const gateway = new GatewayRequestEvidence();
   const nearGate = new RegistrationPresignGate();
   const nearProvisioning = '**/wallets/register/near-provisioning';
   const holdNear = nearGate.hold.bind(nearGate);
@@ -245,6 +247,8 @@ test('custom review requires wallet approval before a live Arc signature', async
     const registration = JSON.parse(await page.getByTestId('intended-result-json').innerText());
     const expectedAddress = registration.action.result.ecdsaTargetKeys.arcEvm.thresholdOwnerAddress;
     expect(typeof expectedAddress).toBe('string');
+    gateway.start(context);
+    const signingStartedAt = performance.now();
     const result = page.getByTestId('reviewed-signing-result');
     await page.getByRole('button', { name: 'Review Arc testnet signature', exact: true }).click();
     const heading = page.getByRole('heading', { name: 'Review testnet signature', exact: true });
@@ -266,6 +270,10 @@ test('custom review requires wallet approval before a live Arc signature', async
     );
     await expect(confirm).toBeVisible({ timeout: 30_000 });
     await expect(result).toHaveAttribute('data-state', 'pending');
+    const beforeConfirmation = await gateway.window(signingStartedAt, performance.now());
+    expect(beforeConfirmation.requests.filter(isWalletSessionStatusRequest).length).toBeGreaterThan(0);
+    expect(beforeConfirmation.requests.filter(isEcdsaSigningPrepare)).toHaveLength(0);
+    const confirmedAt = performance.now();
     await confirm.click();
     await expect(result).toHaveAttribute('data-state', 'signed', { timeout: 60_000 });
     const signed = JSON.parse(await result.innerText());
@@ -280,11 +288,54 @@ test('custom review requires wallet approval before a live Arc signature', async
     expect(
       (await recoverTransactionAddress({ serializedTransaction: signed.rawTxHex })).toLowerCase(),
     ).toBe(expectedAddress.toLowerCase());
+    const complete = await gateway.window(signingStartedAt, performance.now());
+    const prepares = complete.requests.filter(isEcdsaSigningPrepare);
+    expect(prepares).toHaveLength(1);
+    const afterConfirmation = await gateway.window(
+      confirmedAt,
+      signingStartedAt + prepares[0].requestObservedOffsetMs,
+    );
+    const statuses = afterConfirmation.requests.filter(isWalletSessionStatusRequest);
+    expect(statuses.length).toBeGreaterThan(0);
+    for (const status of statuses) {
+      expect(status.startedBeforeWindow).toBe(false);
+      expect(status.outcome).toBe('completed');
+      if (status.completedOffsetMs === null) throw new Error('Session refresh did not complete');
+      expect(status.completedOffsetMs).toBeLessThanOrEqual(
+        signingStartedAt + prepares[0].requestObservedOffsetMs - confirmedAt,
+      );
+    }
+    const artifact = `ecdsa-confirmation-session-refresh-${process.env.SEAMS_INTENDED_WALLET_HOST ?? 'workers_local'}.json`;
+    const artifactPath = path.resolve(testInfo.config.rootDir, '../.artifacts/r151', artifact);
+    const proof = JSON.stringify(
+      {
+        kind: 'ecdsa_confirmation_session_refresh_v1',
+        verifiedSignatures: 1,
+        confirmationOffsetMs: confirmedAt - signingStartedAt,
+        beforeConfirmation,
+        afterConfirmation,
+        complete,
+      },
+      null,
+      2,
+    );
+    await mkdir(path.dirname(artifactPath), { recursive: true });
+    await writeFile(artifactPath, proof, 'utf8');
+    await testInfo.attach(artifact, { body: proof, contentType: 'application/json' });
   } finally {
+    gateway.stop(context);
     nearGate.release();
     await context.unroute(nearProvisioning, holdNear);
   }
 });
+
+function isWalletSessionStatusRequest(request: { path: string }): boolean {
+  return request.path === '/wallet/session/status';
+}
+
+function isEcdsaSigningPrepare(request: { path: string }): boolean {
+  return request.path === '/router-ab/ecdsa-derivation/sign/prepare';
+}
 
 type SigningRequests = {
   foregroundFills: number;

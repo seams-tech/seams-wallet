@@ -10,6 +10,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { intendedTest as test, type IntendedBehaviourHarness } from './harness';
 import { SigningTimingEvidence } from './signing-timing-evidence';
+import { GatewayRequestEvidence } from './gateway-request-evidence';
 import { isPlainObject } from '../../../packages/shared-ts/src/utils/validation';
 
 function enableLinkedSigningTiming(): void {
@@ -59,49 +60,23 @@ function isNewContext(previous: readonly BrowserContext[], context: BrowserConte
   return !previous.includes(context);
 }
 
-function preparedPresignatureId(response: Response): string | null {
-  if (!response.url().endsWith('/sign/prepare')) return null;
-  const body: unknown = response.request().postDataJSON();
-  if (!isPlainObject(body) || typeof body.client_presignature_id !== 'string') {
-    throw new Error('Signing prepare omitted its presignature identity');
-  }
-  return body.client_presignature_id;
-}
-
 class LinkedSigningMeasurements {
-  device = 0;
-  signature = 0;
   readonly timing = new SigningTimingEvidence();
   readonly signatures: {
     device: number;
     signature: number;
     browserWindowMs: number;
     clientTiming: ReturnType<SigningTimingEvidence['window']>;
+    gateway: Awaited<ReturnType<GatewayRequestEvidence['window']>>;
   }[] = [];
-  private readonly responses: {
-    readonly device: number;
-    readonly signature: number;
-    readonly response: Response;
-  }[] = [];
-
-  record(response: Response): void {
-    const pathname = new URL(response.url()).pathname;
-    if (
-      pathname === '/router-ab/ecdsa-derivation/sign' ||
-      pathname === '/router-ab/ecdsa-derivation/sign/prepare'
-    ) {
-      this.responses.push({ device: this.device, signature: this.signature, response });
-    }
-  }
 
   async sign(
     harness: IntendedBehaviourHarness,
     device: number,
     signature: number,
     stage: 'post_registration' | 'post_device_link',
+    gateway: GatewayRequestEvidence,
   ): Promise<void> {
-    this.device = device;
-    this.signature = signature;
     const startedAt = performance.now();
     await harness.signTempoTransaction(stage);
     const endedAt = performance.now();
@@ -110,22 +85,23 @@ class LinkedSigningMeasurements {
       signature,
       browserWindowMs: endedAt - startedAt,
       clientTiming: this.timing.window(startedAt, endedAt),
+      gateway: await gateway.window(startedAt, endedAt),
     });
   }
 
-  async evidence() {
+  evidence() {
     const measurements = [];
-    for (const { device, signature, response } of this.responses) {
-      const header = await response.headerValue('X-Benchmark-D1');
-      measurements.push({
-        device,
-        signature,
-        path: new URL(response.url()).pathname,
-        status: response.status(),
-        preparedPresignatureId: preparedPresignatureId(response),
-        gatewayPlacement: await response.headerValue('X-Benchmark-Placement'),
-        d1: header === null ? null : JSON.parse(header),
-      });
+    for (const { device, signature, gateway } of this.signatures) {
+      for (const request of gateway.requests) {
+        if (
+          request.path !== '/router-ab/ecdsa-derivation/sign' &&
+          request.path !== '/router-ab/ecdsa-derivation/sign/prepare'
+        )
+          continue;
+        expect(request.startedBeforeWindow).toBe(false);
+        expect(request.outcome).toBe('completed');
+        measurements.push({ device, signature, ...request });
+      }
     }
     return measurements;
   }
@@ -191,6 +167,7 @@ test('a second device links with a passkey, signs NEAR and Tempo, and is revoked
 test('a linked device links a third device on an ECDSA-only wallet, which signs Tempo', async ({
   harness,
   browser,
+  context: ownerContext,
 }, testInfo) => {
   await harness.registerPasskeyEcdsaOnlyWallet();
 
@@ -215,28 +192,37 @@ test('a linked device links a third device on an ECDSA-only wallet, which signs 
   };
 
   const measurements = new LinkedSigningMeasurements();
-  const record = measurements.record.bind(measurements);
   const recordTiming = measurements.timing.record.bind(measurements.timing);
   const contexts = browser.contexts();
+  const gatewayEvidence = new Map<BrowserContext, GatewayRequestEvidence>();
   for (const context of contexts) {
-    context.on('response', record);
+    const gateway = new GatewayRequestEvidence();
+    gatewayEvidence.set(context, gateway);
+    gateway.start(context);
     context.on('console', recordTiming);
+  }
+  const ownerGateway = gatewayEvidence.get(ownerContext);
+  const device2Gateway = gatewayEvidence.get(device2Context);
+  const device3Gateway = gatewayEvidence.get(device3Context);
+  if (!ownerGateway || !device2Gateway || !device3Gateway) {
+    throw new Error('Missing a device Gateway observer');
   }
   try {
     for (const signature of [1, 2, 3]) {
-      await measurements.sign(device3, 3, signature, 'post_device_link');
-      await measurements.sign(device2, 2, signature, 'post_device_link');
-      await measurements.sign(harness, 1, signature, 'post_registration');
+      await measurements.sign(device3, 3, signature, 'post_device_link', device3Gateway);
+      await measurements.sign(device2, 2, signature, 'post_device_link', device2Gateway);
+      await measurements.sign(harness, 1, signature, 'post_registration', ownerGateway);
     }
   } finally {
-    for (const context of contexts) {
-      context.off('response', record);
+    for (const [context, gateway] of gatewayEvidence) {
+      gateway.stop(context);
       context.off('console', recordTiming);
     }
   }
   device2Context.off('response', recordDevice2Prefill);
   device3Context.off('response', recordDevice3Prefill);
-  const responses = await measurements.evidence();
+  const responses = measurements.evidence();
+  expect(responses).toHaveLength(18);
   for (const response of responses) {
     if (response.signature !== 1 || response.preparedPresignatureId === null) continue;
     if (response.device === 2)
