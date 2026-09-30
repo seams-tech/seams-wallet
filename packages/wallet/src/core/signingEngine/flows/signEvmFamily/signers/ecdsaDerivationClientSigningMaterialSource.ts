@@ -9,7 +9,7 @@ import {
   thresholdEcdsaRoleLocalDestroyPresignatureWasm,
   thresholdEcdsaRoleLocalReservePresignatureWasm,
   thresholdEcdsaRoleLocalCommitPresignatureWasm,
-  thresholdEcdsaRoleLocalListAvailablePresignaturesWasm,
+  thresholdEcdsaListAvailablePresignaturesWasm,
   thresholdEcdsaRoleLocalComputeSignatureShareFromPresignatureHandleWasm,
   thresholdEcdsaRoleLocalPresignSessionAbortWasm,
   thresholdEcdsaRoleLocalPresignSessionInitFromMaterialHandleWasm,
@@ -55,23 +55,7 @@ export async function loadRouterAbEcdsaDerivationSigningMaterialSource(args: {
     const holderHandleId = clientShare.holderHandleId;
     return {
       signerSession,
-      clientSigningMaterial: {
-        kind: 'router_ab_ecdsa_derivation_client_signing_material_source_v1',
-        initClientPresignSession: async (input) =>
-          await thresholdEcdsaLinkedHolderPresignSessionInitWasm({
-            holderHandleId,
-            ...input,
-          }),
-        stepClientPresignSession: thresholdEcdsaRoleLocalPresignSessionStepWasm,
-        abortClientPresignSession: thresholdEcdsaRoleLocalPresignSessionAbortWasm,
-        admitClientPresignature: thresholdEcdsaRoleLocalAdmitPresignatureWasm,
-        destroyClientPresignature: thresholdEcdsaRoleLocalDestroyPresignatureWasm,
-        reserveClientPresignature: thresholdEcdsaRoleLocalReservePresignatureWasm,
-        commitClientPresignature: thresholdEcdsaRoleLocalCommitPresignatureWasm,
-        listAvailableClientPresignatures: thresholdEcdsaRoleLocalListAvailablePresignaturesWasm,
-        computeSignatureShareFromPresignatureHandle:
-          thresholdEcdsaRoleLocalComputeSignatureShareFromPresignatureHandleWasm,
-      },
+      clientSigningMaterial: createLinkedHolderClientSigningMaterialSource(holderHandleId),
       cleanupAfterSign: async () => undefined,
     };
   }
@@ -107,10 +91,43 @@ export async function loadRouterAbEcdsaDerivationSigningMaterialSource(args: {
       destroyClientPresignature: thresholdEcdsaRoleLocalDestroyPresignatureWasm,
       reserveClientPresignature: thresholdEcdsaRoleLocalReservePresignatureWasm,
       commitClientPresignature: thresholdEcdsaRoleLocalCommitPresignatureWasm,
-      listAvailableClientPresignatures: thresholdEcdsaRoleLocalListAvailablePresignaturesWasm,
+      listAvailableClientPresignatures: thresholdEcdsaListAvailablePresignaturesWasm.bind(
+        undefined,
+        'role_local_derivation_handle',
+      ),
       computeSignatureShareFromPresignatureHandle:
         thresholdEcdsaRoleLocalComputeSignatureShareFromPresignatureHandleWasm,
     },
     cleanupAfterSign: async () => undefined,
+  };
+}
+
+async function initLinkedHolderPresignSession(
+  holderHandleId: string,
+  input: Parameters<
+    RouterAbEcdsaDerivationClientSigningMaterialSource['initClientPresignSession']
+  >[0],
+) {
+  return await thresholdEcdsaLinkedHolderPresignSessionInitWasm({ holderHandleId, ...input });
+}
+
+export function createLinkedHolderClientSigningMaterialSource(
+  holderHandleId: string,
+): RouterAbEcdsaDerivationClientSigningMaterialSource {
+  return {
+    kind: 'router_ab_ecdsa_derivation_client_signing_material_source_v1',
+    initClientPresignSession: initLinkedHolderPresignSession.bind(undefined, holderHandleId),
+    stepClientPresignSession: thresholdEcdsaRoleLocalPresignSessionStepWasm,
+    abortClientPresignSession: thresholdEcdsaRoleLocalPresignSessionAbortWasm,
+    admitClientPresignature: thresholdEcdsaRoleLocalAdmitPresignatureWasm,
+    destroyClientPresignature: thresholdEcdsaRoleLocalDestroyPresignatureWasm,
+    reserveClientPresignature: thresholdEcdsaRoleLocalReservePresignatureWasm,
+    commitClientPresignature: thresholdEcdsaRoleLocalCommitPresignatureWasm,
+    listAvailableClientPresignatures: thresholdEcdsaListAvailablePresignaturesWasm.bind(
+      undefined,
+      'linked_holder_signing_material',
+    ),
+    computeSignatureShareFromPresignatureHandle:
+      thresholdEcdsaRoleLocalComputeSignatureShareFromPresignatureHandleWasm,
   };
 }

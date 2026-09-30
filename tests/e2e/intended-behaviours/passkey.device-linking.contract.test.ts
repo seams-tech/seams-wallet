@@ -1,15 +1,72 @@
-import { expect, type Response, type BrowserContext, type Route } from '@playwright/test';
+import {
+  expect,
+  type Response,
+  type BrowserContext,
+  type Route,
+  type Browser,
+} from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { intendedTest as test, type IntendedBehaviourHarness } from './harness';
 import { SigningTimingEvidence } from './signing-timing-evidence';
+import { isPlainObject } from '../../../packages/shared-ts/src/utils/validation';
 
 function enableLinkedSigningTiming(): void {
   process.env.SEAMS_INTENDED_SIGNING_SESSION_DEBUG = '1';
 }
 
 test.beforeAll(enableLinkedSigningTiming);
+
+class LinkedActivationPrefillEvidence {
+  private readonly responses: { device: number; response: Response }[] = [];
+
+  record(device: number, response: Response): void {
+    if (
+      response.ok() &&
+      new URL(response.url()).pathname === '/router-ab/ecdsa-derivation/presignature-pool/fill/step'
+    ) {
+      this.responses.push({ device, response });
+    }
+  }
+
+  async completed(device: number): Promise<string[]> {
+    const ids = [];
+    for (const entry of this.responses) {
+      if (entry.device !== device) continue;
+      const body: unknown = await entry.response.json();
+      if (!isPlainObject(body)) throw new Error('Invalid presign step response');
+      if (body.event !== 'presign_done') continue;
+      if (typeof body.presignatureId !== 'string')
+        throw new Error('Missing completed material identity');
+      ids.push(body.presignatureId);
+    }
+    return ids;
+  }
+
+  async count(device: number): Promise<number> {
+    return (await this.completed(device)).length;
+  }
+}
+
+function newlyOpenedContext(browser: Browser, previous: readonly BrowserContext[]): BrowserContext {
+  const opened = browser.contexts().filter(isNewContext.bind(undefined, previous));
+  if (opened.length !== 1) throw new Error('Expected one linked-device browser context');
+  return opened[0];
+}
+
+function isNewContext(previous: readonly BrowserContext[], context: BrowserContext): boolean {
+  return !previous.includes(context);
+}
+
+function preparedPresignatureId(response: Response): string | null {
+  if (!response.url().endsWith('/sign/prepare')) return null;
+  const body: unknown = response.request().postDataJSON();
+  if (!isPlainObject(body) || typeof body.client_presignature_id !== 'string') {
+    throw new Error('Signing prepare omitted its presignature identity');
+  }
+  return body.client_presignature_id;
+}
 
 class LinkedSigningMeasurements {
   device = 0;
@@ -56,7 +113,7 @@ class LinkedSigningMeasurements {
     });
   }
 
-  async evidence(): Promise<unknown[]> {
+  async evidence() {
     const measurements = [];
     for (const { device, signature, response } of this.responses) {
       const header = await response.headerValue('X-Benchmark-D1');
@@ -65,6 +122,7 @@ class LinkedSigningMeasurements {
         signature,
         path: new URL(response.url()).pathname,
         status: response.status(),
+        preparedPresignatureId: preparedPresignatureId(response),
         gatewayPlacement: await response.headerValue('X-Benchmark-Placement'),
         d1: header === null ? null : JSON.parse(header),
       });
@@ -136,10 +194,25 @@ test('a linked device links a third device on an ECDSA-only wallet, which signs 
 }, testInfo) => {
   await harness.registerPasskeyEcdsaOnlyWallet();
 
+  const prefills = new LinkedActivationPrefillEvidence();
+  const originalContexts = browser.contexts();
   const device2 = await harness.openLinkedDevice(browser);
+  const device2Context = newlyOpenedContext(browser, originalContexts);
+  const recordDevice2Prefill = prefills.record.bind(prefills, 2);
+  device2Context.on('response', recordDevice2Prefill);
   await harness.linkDeviceWithPasskey(device2);
+  await expect.poll(prefills.count.bind(prefills, 2), { timeout: 60_000 }).toBeGreaterThan(0);
+  const beforeDevice3 = browser.contexts();
   const device3 = await device2.openLinkedDevice(browser);
+  const device3Context = newlyOpenedContext(browser, beforeDevice3);
+  const recordDevice3Prefill = prefills.record.bind(prefills, 3);
+  device3Context.on('response', recordDevice3Prefill);
   await device2.linkDeviceWithPasskey(device3);
+  await expect.poll(prefills.count.bind(prefills, 3), { timeout: 60_000 }).toBeGreaterThan(0);
+  const readyBeforeSigning = {
+    device2: await prefills.completed(2),
+    device3: await prefills.completed(3),
+  };
 
   const measurements = new LinkedSigningMeasurements();
   const record = measurements.record.bind(measurements);
@@ -161,6 +234,16 @@ test('a linked device links a third device on an ECDSA-only wallet, which signs 
       context.off('console', recordTiming);
     }
   }
+  device2Context.off('response', recordDevice2Prefill);
+  device3Context.off('response', recordDevice3Prefill);
+  const responses = await measurements.evidence();
+  for (const response of responses) {
+    if (response.signature !== 1 || response.preparedPresignatureId === null) continue;
+    if (response.device === 2)
+      expect(readyBeforeSigning.device2).toContain(response.preparedPresignatureId);
+    if (response.device === 3)
+      expect(readyBeforeSigning.device3).toContain(response.preparedPresignatureId);
+  }
   const hosted = process.env.SEAMS_INTENDED_EXTERNAL_GATEWAY === '1';
   const region = process.env.SEAMS_INTENDED_PROBE_REGION;
   const runId = process.env.SEAMS_INTENDED_BENCHMARK_RUN_ID;
@@ -181,7 +264,8 @@ test('a linked device links a third device on an ECDSA-only wallet, which signs 
     verifiedSignatures: 9,
     signatures: measurements.signatures,
     backgroundRefills: measurements.timing.refillResults,
-    responses: await measurements.evidence(),
+    readyBeforeSigning,
+    responses,
   };
   const suffix = hosted ? `-${region}-${runId}-${testInfo.repeatEachIndex}` : '';
   const artifactName = `gateway-ecdsa-linked-chain-${evidence.host}${suffix}.json`;

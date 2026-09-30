@@ -705,6 +705,11 @@ Expected behaviour:
   ordinary signing, export, reload, lock, unlock, inventory, and revocation
   paths. Those operations do not read the completed link session or repair
   missing material.
+- Successful linked-device activation schedules bounded ECDSA presignature refill
+  under the new device's exact Wallet Session and installed holder. Linking returns
+  without awaiting pool readiness. The first signature uses completed background
+  material when available; preprocessing consumes no signing quota and does not
+  authorize the signature itself.
 - Canonical, directly linked, and subsequently linked devices can each sign
   repeatedly under their own live Wallet Session. Switching the client presign
   worker to linked-holder authority retires its previous authority channel;

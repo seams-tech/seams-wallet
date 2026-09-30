@@ -737,3 +737,32 @@ void walletCustodyCeremonyEstablished.walletCustodySeedB64u;
 void walletCustodyCeremonyEstablished.manifestKekB64u;
 
 export {};
+
+
+type PresignInventoryRequest = SignerWorkerOperationRequest<
+  'ecdsaPresignClient',
+  typeof EcdsaPresignClientRequestType.ListAvailable
+>;
+const linkedPresignInventoryRequest: PresignInventoryRequest = {
+  type: EcdsaPresignClientRequestType.ListAvailable,
+  payload: {
+    authority: { kind: 'linked_holder_signing_material' },
+    poolIdentity: ecdsaPresignInitRequest.poolIdentity,
+  },
+};
+const missingInventoryAuthority: PresignInventoryRequest = {
+  type: EcdsaPresignClientRequestType.ListAvailable,
+  // @ts-expect-error Inventory must select its authority before initializing a worker channel.
+  payload: { poolIdentity: ecdsaPresignInitRequest.poolIdentity },
+};
+const invalidSpreadInventoryAuthority: PresignInventoryRequest = {
+  ...linkedPresignInventoryRequest,
+  payload: {
+    ...linkedPresignInventoryRequest.payload,
+    // @ts-expect-error An arbitrary authority kind cannot survive an object spread.
+    authority: { kind: 'unknown_authority' },
+  },
+};
+void linkedPresignInventoryRequest;
+void missingInventoryAuthority;
+void invalidSpreadInventoryAuthority;

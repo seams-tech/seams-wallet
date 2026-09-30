@@ -1,3 +1,4 @@
+import { scheduleLinkedDevicePresignaturePrefill } from './scheduleLinkedDevicePresignaturePrefill';
 import { scheduleEcdsaSessionPresignaturePrefill } from './scheduleEcdsaSessionPresignaturePrefill';
 import { WalletSessionStatusReadScope } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 import type {
@@ -2807,11 +2808,18 @@ export async function activateLinkedDeviceSignerRuntimesAfterLink(args: {
     });
     const ecdsaMaterial = linkedDeviceEcdsaMaterial(openedMaterials);
     if (ecdsaMaterial) {
-      await activateLinkedDeviceEcdsaHolderRuntime({
+      const { runtime } = await activateLinkedDeviceEcdsaHolderRuntime({
         context: args.context,
         selection,
         factorAuthority,
         material: ecdsaMaterial,
+      });
+      void scheduleLinkedDevicePresignaturePrefill({
+        runtime,
+        operationCredential: args.operationCredential,
+        expiresAtMs: args.walletSession.expiresAtMs,
+        relayerUrl,
+        workerCtx: args.context.signingEngine.getSignerWorkerContext(),
       });
     }
     const ed25519Material = linkedDeviceEd25519Material(openedMaterials);
