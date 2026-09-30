@@ -4420,7 +4420,7 @@ export class IntendedBehaviourHarness {
     testInfo: TestInfo,
     attachmentName = 'intended-lifecycle-trace.json',
   ): Promise<void> {
-    if (this.networkMode === 'external_staging') return;
+    if (this.networkMode === 'external_staging' && !shouldPersistIntendedLifecycleTrace()) return;
     const payload: IntendedLifecycleTracePayload = {
       flow: this.flow,
       walletId: this.walletId,

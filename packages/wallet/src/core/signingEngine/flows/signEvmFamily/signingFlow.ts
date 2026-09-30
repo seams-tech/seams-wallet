@@ -1095,10 +1095,15 @@ export async function signEvmFamilyWithUiConfirm<TRequest, TResult extends objec
     signedResult = await intent.finalize(signatures);
     thresholdSignatureCreated = true;
     await markNonceReservationSigned();
+    let completedEcdsaOperationId: string | null = null;
     if (activeThresholdEcdsaOperation) {
-      const operationId = String(activeThresholdEcdsaOperation.intent.operationId);
-      emitEcdsaSigningTiming(operationId, 'transaction_assembly', assemblyStartedAt);
-      emitEcdsaSigningTiming(operationId, 'commit_total', commitStartedAt);
+      completedEcdsaOperationId = String(activeThresholdEcdsaOperation.intent.operationId);
+    } else if (input.authorization.kind === 'active_wallet_authority' && input.signingOperation) {
+      completedEcdsaOperationId = String(input.signingOperation.operationId);
+    }
+    if (completedEcdsaOperationId !== null) {
+      emitEcdsaSigningTiming(completedEcdsaOperationId, 'transaction_assembly', assemblyStartedAt);
+      emitEcdsaSigningTiming(completedEcdsaOperationId, 'commit_total', commitStartedAt);
     }
     emitProgress({
       phase: SigningEventPhase.STEP_11_TRANSACTION_SIGNED,

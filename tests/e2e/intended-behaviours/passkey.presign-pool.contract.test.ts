@@ -217,6 +217,7 @@ class FirstSigningPoolFlow {
     requestObservedOffsetMs: number | null;
     responseHeadersObservedOffsetMs: number;
     browserRequestElapsedMs: number | null;
+    gatewayPlacement: string | null;
     d1: unknown;
   }[]> {
     const timings = [];
@@ -238,6 +239,7 @@ class FirstSigningPoolFlow {
         requestObservedOffsetMs,
         responseHeadersObservedOffsetMs: entry.atMs - startedAtMs,
         browserRequestElapsedMs: browserTiming.responseEnd < 0 ? null : browserTiming.responseEnd,
+        gatewayPlacement: await entry.response.headerValue('X-Benchmark-Placement'),
         stagesMs: Object.fromEntries(stages),
         d1: d1Header === null ? null : JSON.parse(d1Header),
       });

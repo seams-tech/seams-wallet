@@ -35,7 +35,9 @@ async function fetch(
     SIGNER_DB: database,
     WALLET_CONSOLE: createStaticWalletConsoleBindingV1(deployment),
   };
-  return database.response(await handleSplitGatewayRequest(request, gatewayEnv, ctx));
+  const response = database.response(await handleSplitGatewayRequest(request, gatewayEnv, ctx));
+  response.headers.set('X-Benchmark-Placement', request.headers.get('cf-placement') ?? 'unreported');
+  return response;
 }
 
 export default { fetch };

@@ -2,11 +2,25 @@ import { expect, type Response, type BrowserContext, type Route } from '@playwri
 import { randomUUID } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { intendedTest as test } from './harness';
+import { intendedTest as test, type IntendedBehaviourHarness } from './harness';
+import { SigningTimingEvidence } from './signing-timing-evidence';
+
+function enableLinkedSigningTiming(): void {
+  process.env.SEAMS_INTENDED_SIGNING_SESSION_DEBUG = '1';
+}
+
+test.beforeAll(enableLinkedSigningTiming);
 
 class LinkedSigningMeasurements {
   device = 0;
   signature = 0;
+  readonly timing = new SigningTimingEvidence();
+  readonly signatures: {
+    device: number;
+    signature: number;
+    browserWindowMs: number;
+    clientTiming: ReturnType<SigningTimingEvidence['window']>;
+  }[] = [];
   private readonly responses: {
     readonly device: number;
     readonly signature: number;
@@ -23,6 +37,25 @@ class LinkedSigningMeasurements {
     }
   }
 
+  async sign(
+    harness: IntendedBehaviourHarness,
+    device: number,
+    signature: number,
+    stage: 'post_registration' | 'post_device_link',
+  ): Promise<void> {
+    this.device = device;
+    this.signature = signature;
+    const startedAt = performance.now();
+    await harness.signTempoTransaction(stage);
+    const endedAt = performance.now();
+    this.signatures.push({
+      device,
+      signature,
+      browserWindowMs: endedAt - startedAt,
+      clientTiming: this.timing.window(startedAt, endedAt),
+    });
+  }
+
   async evidence(): Promise<unknown[]> {
     const measurements = [];
     for (const { device, signature, response } of this.responses) {
@@ -32,6 +65,7 @@ class LinkedSigningMeasurements {
         signature,
         path: new URL(response.url()).pathname,
         status: response.status(),
+        gatewayPlacement: await response.headerValue('X-Benchmark-Placement'),
         d1: header === null ? null : JSON.parse(header),
       });
     }
@@ -109,29 +143,53 @@ test('a linked device links a third device on an ECDSA-only wallet, which signs 
 
   const measurements = new LinkedSigningMeasurements();
   const record = measurements.record.bind(measurements);
+  const recordTiming = measurements.timing.record.bind(measurements.timing);
   const contexts = browser.contexts();
-  for (const context of contexts) context.on('response', record);
+  for (const context of contexts) {
+    context.on('response', record);
+    context.on('console', recordTiming);
+  }
   try {
     for (const signature of [1, 2, 3]) {
-      measurements.signature = signature;
-      measurements.device = 3;
-      await device3.signTempoTransaction('post_device_link');
-      measurements.device = 2;
-      await device2.signTempoTransaction('post_device_link');
-      measurements.device = 1;
-      await harness.signTempoTransaction('post_registration');
+      await measurements.sign(device3, 3, signature, 'post_device_link');
+      await measurements.sign(device2, 2, signature, 'post_device_link');
+      await measurements.sign(harness, 1, signature, 'post_registration');
     }
   } finally {
-    for (const context of contexts) context.off('response', record);
+    for (const context of contexts) {
+      context.off('response', record);
+      context.off('console', recordTiming);
+    }
+  }
+  const hosted = process.env.SEAMS_INTENDED_EXTERNAL_GATEWAY === '1';
+  const region = process.env.SEAMS_INTENDED_PROBE_REGION;
+  const runId = process.env.SEAMS_INTENDED_BENCHMARK_RUN_ID;
+  const arm = process.env.SEAMS_INTENDED_BENCHMARK_ARM;
+  if (
+    hosted &&
+    (!region ||
+      !runId ||
+      !/^[a-z0-9-]+$/u.test(region) ||
+      !/^[a-z0-9-]+$/u.test(runId) ||
+      (arm !== 'do' && arm !== 'd1'))
+  ) {
+    throw new Error('Hosted linked workload requires region, run identity, and backend arm');
   }
   const evidence = {
     kind: 'gateway_ecdsa_linked_custody_chain_v1',
-    host: process.env.SEAMS_INTENDED_WALLET_HOST ?? 'workers_local',
+    host: hosted ? `hosted_${arm}` : (process.env.SEAMS_INTENDED_WALLET_HOST ?? 'workers_local'),
     verifiedSignatures: 9,
+    signatures: measurements.signatures,
+    backgroundRefills: measurements.timing.refillResults,
     responses: await measurements.evidence(),
   };
-  const artifactName = `gateway-ecdsa-linked-chain-${evidence.host}.json`;
-  const artifactPath = path.resolve(testInfo.config.rootDir, '../.artifacts/r150', artifactName);
+  const suffix = hosted ? `-${region}-${runId}-${testInfo.repeatEachIndex}` : '';
+  const artifactName = `gateway-ecdsa-linked-chain-${evidence.host}${suffix}.json`;
+  const artifactPath = path.resolve(
+    testInfo.config.rootDir,
+    hosted ? '../.artifacts/r151' : '../.artifacts/r150',
+    artifactName,
+  );
   await mkdir(path.dirname(artifactPath), { recursive: true });
   await writeFile(artifactPath, JSON.stringify(evidence, null, 2), 'utf8');
   await testInfo.attach(artifactName, {
@@ -208,7 +266,13 @@ const preparePath = '**/router-ab/ecdsa-derivation/sign/prepare';
 const finalizePath = '**/router-ab/ecdsa-derivation/sign';
 
 class MaterialAdmissionRace {
-  readonly rejections: { boundary: string; status: number; proof: string; quotaBefore: number; quotaAfter: number }[] = [];
+  readonly rejections: {
+    boundary: string;
+    status: number;
+    proof: string;
+    quotaBefore: number;
+    quotaAfter: number;
+  }[] = [];
   exactReplayMatches = false;
 
   constructor(readonly material: 'canonical' | 'linked') {}
@@ -220,11 +284,13 @@ class MaterialAdmissionRace {
   ): Promise<void> {
     const token = randomUUID();
     const mode = `${target}_${boundary}`;
-    const response = await route.fetch({ headers: {
-      ...route.request().headers(),
-      'x-seams-intended-material-admission-fault-v1': mode,
-      'x-seams-intended-material-admission-token-v1': token,
-    } });
+    const response = await route.fetch({
+      headers: {
+        ...route.request().headers(),
+        'x-seams-intended-material-admission-fault-v1': mode,
+        'x-seams-intended-material-admission-token-v1': token,
+      },
+    });
     const proof = response.headers()['x-seams-intended-material-admission-proof-v1'];
     expect(proof).toMatch(new RegExp(`^${token}:${mode}:[1-9][0-9]*:[0-9]+:[0-9]+$`));
     const [observedToken, observedMode, rows, quotaBefore, quotaAfter] = proof.split(':');
@@ -234,7 +300,13 @@ class MaterialAdmissionRace {
     expect(quotaAfter).toBe(quotaBefore);
     expect(response.status()).toBe(403);
     expect(await response.json()).toMatchObject({ code: 'material_mismatch' });
-    this.rejections.push({ boundary, status: response.status(), proof, quotaBefore: Number(quotaBefore), quotaAfter: Number(quotaAfter) });
+    this.rejections.push({
+      boundary,
+      status: response.status(),
+      proof,
+      quotaBefore: Number(quotaBefore),
+      quotaAfter: Number(quotaAfter),
+    });
   }
 
   async prepare(route: Route): Promise<void> {
@@ -247,12 +319,14 @@ class MaterialAdmissionRace {
 
   async finalize(route: Route): Promise<void> {
     await this.rejectRetiredMaterial(route, 'existing', this.material);
-    if (this.material === 'linked') await this.rejectRetiredMaterial(route, 'existing', 'canonical');
+    if (this.material === 'linked')
+      await this.rejectRetiredMaterial(route, 'existing', 'canonical');
     const response = await route.fetch();
     expect(response.status()).toBe(200);
     const signature: unknown = await response.json();
     await this.rejectRetiredMaterial(route, 'existing', this.material);
-    if (this.material === 'linked') await this.rejectRetiredMaterial(route, 'existing', 'canonical');
+    if (this.material === 'linked')
+      await this.rejectRetiredMaterial(route, 'existing', 'canonical');
     const replay = await route.fetch();
     expect(replay.status()).toBe(200);
     expect(await replay.json()).toEqual(signature);
@@ -261,7 +335,10 @@ class MaterialAdmissionRace {
   }
 }
 
-async function installRace(contexts: readonly BrowserContext[], race: MaterialAdmissionRace): Promise<void> {
+async function installRace(
+  contexts: readonly BrowserContext[],
+  race: MaterialAdmissionRace,
+): Promise<void> {
   for (const context of contexts) {
     await context.route(preparePath, race.prepare.bind(race));
     await context.route(finalizePath, race.finalize.bind(race));
@@ -275,7 +352,10 @@ async function removeRace(contexts: readonly BrowserContext[]): Promise<void> {
   }
 }
 
-test('material retirement between resolution and admission rejects canonical and linked claims, finalize, and replay', async ({ harness, browser }, testInfo) => {
+test('material retirement between resolution and admission rejects canonical and linked claims, finalize, and replay', async ({
+  harness,
+  browser,
+}, testInfo) => {
   await harness.registerPasskeyEcdsaOnlyWallet();
   const canonical = new MaterialAdmissionRace('canonical');
   let contexts = browser.contexts();
@@ -304,11 +384,15 @@ test('material retirement between resolution and admission rejects canonical and
     kind: 'ecdsa_material_admission_race_v1',
     host: process.env.SEAMS_INTENDED_WALLET_HOST ?? 'workers_local',
     verifiedSignatures: 2,
-    canonical, linked,
+    canonical,
+    linked,
   };
   const artifact = `material-admission-race-${evidence.host}.json`;
   const artifactPath = path.resolve(testInfo.config.rootDir, '../.artifacts/r151', artifact);
   await mkdir(path.dirname(artifactPath), { recursive: true });
   await writeFile(artifactPath, JSON.stringify(evidence, null, 2), 'utf8');
-  await testInfo.attach(artifact, { body: JSON.stringify(evidence, null, 2), contentType: 'application/json' });
+  await testInfo.attach(artifact, {
+    body: JSON.stringify(evidence, null, 2),
+    contentType: 'application/json',
+  });
 });

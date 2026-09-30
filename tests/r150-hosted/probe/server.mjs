@@ -56,7 +56,8 @@ const IDENTITY_FIELDS = [
 function parseAttempt(body) {
   const request = JSON.parse(body);
   const { runId, arm, region, selected, expectedIdentity, workload } = request;
-  if (!['unforced', 'first_warm_burst'].includes(workload)) throw new Error('attempt workload is invalid');
+  if (!['unforced', 'first_warm_burst', 'linked_chain'].includes(workload))
+    throw new Error('attempt workload is invalid');
   if (!/^[a-z0-9-]+$/u.test(runId ?? '') || !['d1', 'do'].includes(arm)) {
     throw new Error('attempt run id or arm is invalid');
   }
@@ -81,12 +82,38 @@ function parseAttempt(body) {
   return { runId, arm, region, selected, workload };
 }
 
+function workloadConfiguration(workload) {
+  switch (workload) {
+    case 'unforced':
+      return {
+        artifactPrefix: 'gateway-ecdsa-unforced-timing',
+        directory: 'r150',
+        file: 'passkey.presign-pool.contract.test.ts',
+        selection: 'unforced ECDSA registration and repeated signing',
+      };
+    case 'first_warm_burst':
+      return {
+        artifactPrefix: 'gateway-ecdsa-first-warm-burst',
+        directory: 'r151',
+        file: 'passkey.presign-pool.contract.test.ts',
+        selection: 'first, warm, and concurrent burst',
+      };
+    case 'linked_chain':
+      return {
+        artifactPrefix: 'gateway-ecdsa-linked-chain',
+        directory: 'r151',
+        file: 'passkey.device-linking.contract.test.ts',
+        selection: 'a linked device links a third device on an ECDSA-only wallet',
+      };
+    default:
+      throw new Error('attempt workload is invalid');
+  }
+}
+
 function startAttempt(attempt) {
-  const unforced = attempt.workload === 'unforced';
-  const artifactName = unforced
-    ? `gateway-ecdsa-unforced-timing-hosted_${attempt.arm}-${attempt.region}-${attempt.runId}-0.json`
-    : `gateway-ecdsa-first-warm-burst-hosted_${attempt.arm}-${attempt.region}-${attempt.runId}-0.json`;
-  const artifactPath = path.join(repoRoot, '.artifacts', unforced ? 'r150' : 'r151', artifactName);
+  const workload = workloadConfiguration(attempt.workload);
+  const artifactName = `${workload.artifactPrefix}-hosted_${attempt.arm}-${attempt.region}-${attempt.runId}-0.json`;
+  const artifactPath = path.join(repoRoot, '.artifacts', workload.directory, artifactName);
   const diagnosticsDirectory = path.join(repoRoot, '.runtime', 'probe-attempts', attempt.runId);
   if (existsSync(artifactPath)) throw new Error(`artifact ${artifactName} already exists`);
   const state = { status: 'running', startedAt: new Date().toISOString(), result: null };
@@ -119,9 +146,9 @@ function startAttempt(attempt) {
       'test',
       '-c',
       'playwright.wallet-intended.ci.config.ts',
-      'e2e/intended-behaviours/passkey.presign-pool.contract.test.ts',
+      `e2e/intended-behaviours/${workload.file}`,
       '--grep',
-      unforced ? 'unforced ECDSA registration and repeated signing' : 'first, warm, and concurrent burst',
+      workload.selection,
       '--output',
       path.join(diagnosticsDirectory, 'playwright'),
     ],
@@ -163,7 +190,11 @@ function readAttemptDiagnostics(directory, accessToken) {
   let remainingBytes = 8 * 1024 * 1024;
   if (!existsSync(directory)) return files;
   for (const name of readdirSync(directory, { recursive: true }).sort()) {
-    if (!name.endsWith('intended-lifecycle-trace.json') && !name.endsWith('error-context.md')) continue;
+    if (
+      !(name.startsWith(`lifecycle${path.sep}`) && name.endsWith('.json')) &&
+      !name.endsWith('error-context.md')
+    )
+      continue;
     const filePath = path.join(directory, name);
     const bytes = statSync(filePath).size;
     if (bytes > remainingBytes) {
@@ -171,7 +202,12 @@ function readAttemptDiagnostics(directory, accessToken) {
       continue;
     }
     remainingBytes -= bytes;
-    files.push({ name, bytes, content: readFileSync(filePath, 'utf8').split(accessToken).join('<redacted>'), omission: null });
+    files.push({
+      name,
+      bytes,
+      content: readFileSync(filePath, 'utf8').split(accessToken).join('<redacted>'),
+      omission: null,
+    });
   }
   return files;
 }
