@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { setupBasicPasskeyTest, handleInfrastructureErrors, SDK_ESM_PATHS } from '../setup';
+import { setupBasicPasskeyTest, SDK_ESM_PATHS } from '../setup';
 import {
   buildWalletServiceHtml,
   registerWalletServiceRoute,
@@ -309,7 +309,6 @@ test.describe('wallet-origin export flow integration', () => {
     );
 
     if (!result.success) {
-      if (handleInfrastructureErrors(result)) return;
       expect(result, result.error).toEqual(expect.objectContaining({ success: true }));
       return;
     }

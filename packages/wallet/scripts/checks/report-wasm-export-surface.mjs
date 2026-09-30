@@ -6,13 +6,7 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const sdkRoot = path.resolve(path.join(__dirname, '../..'));
-/**
- * `sdkRoot` is `packages/wallet`, so the repo root is two levels up, not one.
- * It read as one for as long as this script existed and still found the wasm
- * packages, because `packages/wasm` is a symlink to `../wasm` — so the only
- * visible symptom was that no source root resolved and every export looked
- * unused.
- */
+// `sdkRoot` is `packages/wallet`, so the repo root is two levels up.
 const repoRoot = path.resolve(path.join(sdkRoot, '../..'));
 
 const help = process.argv.includes('--help') || process.argv.includes('-h');
