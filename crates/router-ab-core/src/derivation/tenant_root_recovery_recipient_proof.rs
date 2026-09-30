@@ -36,10 +36,6 @@ const RECOVERY_RECIPIENT_PROOF_MAX_BYTES_V1: usize = 16 * 1024;
 type TenantRootRecoveryRecipientProofHpkeV1 = Hpke<DhKemX25519HkdfSha256, HkdfSha256, Aes256Gcm>;
 type HmacSha256 = Hmac<Sha256>;
 
-/// Maximum encoded size of one recovery-recipient proof envelope.
-pub const TENANT_ROOT_RECOVERY_RECIPIENT_PROOF_MAX_BYTES: usize =
-    RECOVERY_RECIPIENT_PROOF_MAX_BYTES_V1;
-
 /// One exact public binding for a recovery-recipient control challenge.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TenantRootRecoveryRecipientProofBindingV1 {

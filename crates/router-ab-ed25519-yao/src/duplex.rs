@@ -163,17 +163,6 @@ pub async fn run_export_deriver_a<T: YaoDuplexTransport>(
     run_role(role, transport).await
 }
 
-/// Runs the fixed activation Deriver B role over one selected duplex transport.
-pub async fn run_activation_deriver_b<T: YaoDuplexTransport>(
-    role: ActivationDeriverB,
-    transport: T,
-) -> Result<
-    YaoRoleCompletion<ActivationDeriverBCompletion, T::Completion>,
-    YaoRoleDriverError<T::Error>,
-> {
-    run_role(role, transport).await
-}
-
 /// Runs activation Deriver B while leaving the completed transport open.
 ///
 /// This permits a role adapter to durably seal its result before delivering
@@ -185,29 +174,11 @@ pub async fn run_activation_deriver_b_open<T: YaoDuplexTransport>(
     run_role_open(role, transport).await
 }
 
-/// Runs the fixed export Deriver B role over one selected duplex transport.
-pub async fn run_export_deriver_b<T: YaoDuplexTransport>(
-    role: ExportDeriverB,
-    transport: T,
-) -> Result<YaoRoleCompletion<ExportDeriverBCompletion, T::Completion>, YaoRoleDriverError<T::Error>>
-{
-    run_role(role, transport).await
-}
-
 /// Runs lane-materialization Deriver A over one selected duplex transport.
 pub async fn run_lane_materialization_deriver_a<T: YaoDuplexTransport>(
     role: LaneMaterializationDeriverA,
     transport: T,
 ) -> Result<YaoRoleCompletion<LaneDeriverACompletion, T::Completion>, YaoRoleDriverError<T::Error>>
-{
-    run_role(role, transport).await
-}
-
-/// Runs lane-materialization Deriver B over one selected duplex transport.
-pub async fn run_lane_materialization_deriver_b<T: YaoDuplexTransport>(
-    role: LaneMaterializationDeriverB,
-    transport: T,
-) -> Result<YaoRoleCompletion<LaneDeriverBCompletion, T::Completion>, YaoRoleDriverError<T::Error>>
 {
     run_role(role, transport).await
 }

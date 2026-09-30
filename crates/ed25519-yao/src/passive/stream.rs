@@ -215,8 +215,6 @@ impl FixedStreamFamily for LaneMaterializationStream {
 
 pub(super) type ActivationStreamManifest<C> = PassiveStreamManifest<ActivationStream, C>;
 pub(super) type ExportStreamManifest<C> = PassiveStreamManifest<ExportStream, C>;
-pub(super) type LaneMaterializationStreamManifest<C> =
-    PassiveStreamManifest<LaneMaterializationStream, C>;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) struct PassiveStreamManifest<F: FixedStreamFamily, C: FixedChunkProfile> {

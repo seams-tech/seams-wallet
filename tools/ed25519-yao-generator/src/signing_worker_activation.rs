@@ -342,12 +342,6 @@ impl ActivatedSigningWorkerStateV1 {
         self.release_identity
     }
 
-    /// Consumes activated worker state into the origin authority needed for promotion.
-    #[allow(dead_code)]
-    pub(crate) fn into_origin_state(self) -> ActivatedSigningWorkerOriginStateV1 {
-        self.origin_state
-    }
-
     /// Borrows the exact terminal refresh admission retained for promotion.
     pub(crate) const fn refresh_terminal_evaluation(
         &self,
@@ -371,7 +365,6 @@ impl ActivatedSigningWorkerStateV1 {
     }
 
     /// Borrows the candidate authority required for registration promotion.
-    #[allow(dead_code)]
     pub(crate) const fn registration_promotion_input(
         &self,
     ) -> Option<&RegistrationCandidateStateV1> {

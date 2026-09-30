@@ -1574,14 +1574,6 @@ pub struct HostOnlyExportOutputCommittedV1 {
 
 #[cfg_attr(not(test), allow(dead_code))]
 impl HostOnlyExportOutputCommittedV1 {
-    #[cfg_attr(test, allow(dead_code))]
-    pub(crate) fn semantic_trace_identity_v1(&self) -> ([u8; 32], [u8; 32]) {
-        (
-            *self.artifacts.packages().digest().as_bytes(),
-            *self.artifacts.receipt().digest().as_bytes(),
-        )
-    }
-
     /// Returns the still-unconsumed export request and authorization.
     pub const fn request(&self) -> &ExportRequestV1 {
         &self.request
@@ -1961,7 +1953,6 @@ define_metadata_consumed_activation!(
 
 impl MetadataConsumedRegistrationActivationV1 {
     /// Returns the registration request context that fixed recipient identity.
-    #[allow(dead_code)]
     pub(crate) const fn origin_request_context(&self) -> &CeremonyPublicRequestContextV1 {
         self.origin.request_context()
     }
@@ -1985,7 +1976,6 @@ impl MetadataConsumedRegistrationActivationV1 {
 
 impl MetadataConsumedRecoveryActivationV1 {
     /// Returns the recovery request context that fixed recipient identity.
-    #[allow(dead_code)]
     pub(crate) const fn origin_request_context(&self) -> &CeremonyPublicRequestContextV1 {
         self.origin.request_context()
     }
@@ -2021,7 +2011,6 @@ impl MetadataConsumedRecoveryActivationV1 {
 
 impl MetadataConsumedRefreshActivationV1 {
     /// Returns the refresh request context that fixed recipient identity.
-    #[allow(dead_code)]
     pub(crate) const fn origin_request_context(&self) -> &CeremonyPublicRequestContextV1 {
         self.origin.request_context()
     }
@@ -2173,7 +2162,6 @@ impl ActivationMetadataConsumptionSuccessV1 {
     }
 
     /// Consumes the metadata-control success into its origin-preserving state.
-    #[allow(dead_code)]
     pub(crate) fn into_post_state(self) -> MetadataConsumedActivationStateV1 {
         self.post_state
     }

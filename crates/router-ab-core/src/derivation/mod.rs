@@ -60,7 +60,6 @@ pub use self::tenant_root_time::format_tenant_root_rfc3339_millis_v1;
 
 pub use threshold_prf::TwoPartyDeriverRole;
 mod transcript;
-mod wire;
 mod x25519_canonical;
 
 pub use self::context::{AccountScope, DerivationContext, RequestKind, RootShareEpoch};
@@ -169,8 +168,7 @@ pub use self::tenant_root_recovery_artifacts::{
     TenantRootRecoveryRecipientKeypairV1, TenantRootRecoveryRecipientPublicKeyV1,
     TenantRootRecoveryRoleDescriptorV1, TenantRootRecoverySetId,
     TenantRootRecoveryTrustedVerifyingKeysV1, VerifiedTenantRootRecoveryRoleShareV1,
-    TENANT_ROOT_RECOVERY_MANIFEST_MAX_BYTES, TENANT_ROOT_RECOVERY_MANIFEST_MIME_TYPE,
-    TENANT_ROOT_RECOVERY_PACKAGE_MAX_BYTES, TENANT_ROOT_RECOVERY_PACKAGE_MIME_TYPE,
+    TENANT_ROOT_RECOVERY_MANIFEST_MAX_BYTES, TENANT_ROOT_RECOVERY_PACKAGE_MAX_BYTES,
 };
 pub use self::tenant_root_recovery_recipient_proof::{
     confirm_tenant_root_recovery_recipient_proof_v1,
@@ -178,7 +176,6 @@ pub use self::tenant_root_recovery_recipient_proof::{
     seal_tenant_root_recovery_recipient_proof_v1, verify_tenant_root_recovery_recipient_proof_v1,
     TenantRootRecoveryRecipientProofBindingV1, TenantRootRecoveryRecipientProofConfirmationV1,
     TenantRootRecoveryRecipientProofEnvelopeV1, TenantRootRecoveryRecipientProofSecretV1,
-    TENANT_ROOT_RECOVERY_RECIPIENT_PROOF_MAX_BYTES,
 };
 pub use self::tenant_root_recovery_reshare::{
     PendingTenantRootRecoveryShareV1, TenantRootRecoveryReshareContextV1,
@@ -226,7 +223,6 @@ pub use self::tenant_root_refresh_transport::{
 };
 pub use self::tenant_root_restore_cleanup_grant::{
     TenantRootRestoreCleanupGrantV1, VerifiedTenantRootRestoreCleanupGrantV1,
-    TENANT_ROOT_RESTORE_CLEANUP_GRANT_MAX_BYTES_V1,
     TENANT_ROOT_RESTORE_CLEANUP_GRANT_MAX_LIFETIME_MS_V1,
     TENANT_ROOT_RESTORE_CLEANUP_GRANT_OPERATION_V1,
 };
@@ -238,9 +234,7 @@ pub use self::tenant_root_restore_import::{
     TenantRootRestoreRoleImportCommandV1, TenantRootRestoreRoleImportGrantV1,
     TenantRootRestoreSessionIdV1, VerifiedTenantRootRestoreRoleImportCommandV1,
     VerifiedTenantRootRestoreRoleImportGrantV1, TENANT_ROOT_RESTORE_IMPORT_MAX_BYTES,
-    TENANT_ROOT_RESTORE_ROLE_IMPORT_COMMAND_MAX_BYTES_V1,
     TENANT_ROOT_RESTORE_ROLE_IMPORT_GRANT_MAX_BYTES_V1,
-    TENANT_ROOT_RESTORE_ROLE_IMPORT_OPERATION_LABEL_V1,
 };
 pub use self::tenant_root_restore_refresh_grant::{
     tenant_root_restore_refresh_ceremony_session_id_v1, TenantRootRestoreRefreshGrantV1,
@@ -258,10 +252,8 @@ pub use self::tenant_root_retention_key::{
 };
 pub use self::tenant_root_role_cleanup_command::*;
 pub use self::transcript::{
-    transcript_binding_digest, transcript_digest_v1, IndexedSignerBinding, QuorumPolicy,
-    SignerSetBinding, TranscriptBinding,
+    transcript_digest_v1, IndexedSignerBinding, QuorumPolicy, SignerSetBinding, TranscriptBinding,
 };
-pub use self::wire::{CanonicalEncoding, WireVersion};
 
 mod tenant_root_source_retirement;
 pub use tenant_root_source_retirement::{TenantRootSourceRetirementCommandV1, VerifiedTenantRootSourceRetirementCommandV1};

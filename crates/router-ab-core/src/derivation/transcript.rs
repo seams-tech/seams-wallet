@@ -375,13 +375,6 @@ impl<'de> Deserialize<'de> for TranscriptBinding {
     }
 }
 
-/// Computes the current transcript binding digest.
-pub fn transcript_binding_digest(
-    binding: &TranscriptBinding,
-) -> RouterAbDerivationResult<[u8; 32]> {
-    Ok(transcript_digest_v1(binding)?.bytes)
-}
-
 /// Computes the V1 transcript digest.
 pub fn transcript_digest_v1(
     binding: &TranscriptBinding,

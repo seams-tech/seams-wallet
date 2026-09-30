@@ -60,12 +60,6 @@ pub const TENANT_ROOT_RESTORE_IMPORT_MAX_BYTES: usize = RESTORE_IMPORT_MAX_BYTES
 /// Maximum encoded size of one restore role-import admission grant.
 pub const TENANT_ROOT_RESTORE_ROLE_IMPORT_GRANT_MAX_BYTES_V1: usize =
     RESTORE_ROLE_IMPORT_GRANT_MAX_BYTES_V1;
-/// Maximum encoded size of one issuer-signed restore role-import command.
-pub const TENANT_ROOT_RESTORE_ROLE_IMPORT_COMMAND_MAX_BYTES_V1: usize =
-    RESTORE_ROLE_IMPORT_COMMAND_MAX_BYTES_V1;
-/// Exact operation label authenticated by a restore role-import authorization.
-pub const TENANT_ROOT_RESTORE_ROLE_IMPORT_OPERATION_LABEL_V1: &str =
-    "tenant_root_restore_role_import_key_issue_v1";
 
 /// One-use nonce binding a restore role-import grant and its issuer command.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]

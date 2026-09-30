@@ -55,10 +55,6 @@ fn compile_fail_guards_keep_trace_construction_static_and_closed() {
             "use ed25519_yao_generator::RouterAndDeriverAAndDeriverBV1;\nfn main() {}",
             "E0432",
         ),
-        (
-            "use ed25519_yao_generator::semantic_delivery_views::build_export_success_semantic_trace_v1;\nfn main() { let _ = build_export_success_semantic_trace_v1; }",
-            "E0603",
-        ),
     ] {
         assert_compile_failure(&harness, source, code);
     }

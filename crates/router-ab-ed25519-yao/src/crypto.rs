@@ -5,8 +5,8 @@ use rand_core_09::{CryptoRng, RngCore};
 use router_ab_core::{
     Ed25519YaoCeremonyBindingV1, Ed25519YaoDeriverRoleV1, Ed25519YaoEncryptedInputV1,
     Ed25519YaoEncryptedPackageV1, Ed25519YaoInputKindV1, Ed25519YaoLaneJobV1,
-    Ed25519YaoOperationV1, Ed25519YaoPackageKindV1, Ed25519YaoRefreshBindingV1,
-    RouterAbProtocolError, RouterAbProtocolErrorCode, RouterAbProtocolResult,
+    Ed25519YaoOperationV1, Ed25519YaoPackageKindV1, RouterAbProtocolError,
+    RouterAbProtocolErrorCode, RouterAbProtocolResult,
 };
 use serde::de::DeserializeOwned;
 use sha2::{Digest, Sha256};
@@ -358,24 +358,6 @@ pub fn open_ed25519_yao_signing_worker_package_v1(
         ));
     }
     open_package(envelope, private_key)
-}
-
-/// Computes the exact digest binding one refresh transition.
-pub fn ed25519_yao_refresh_binding_digest_v1(binding: &Ed25519YaoRefreshBindingV1) -> [u8; 32] {
-    let mut hasher = Sha256::new();
-    hasher.update(b"seams/router-ab/ed25519-yao/refresh-binding/v1");
-    hasher.update(binding.ceremony().session_id.into_bytes());
-    hasher.update(binding.ceremony().stable_key_context_binding.into_bytes());
-    hasher.update(binding.registered_public_key());
-    for transition in [
-        binding.epochs().deriver_a,
-        binding.epochs().deriver_b,
-        binding.epochs().signing_worker,
-    ] {
-        hasher.update(transition.current().get().to_be_bytes());
-        hasher.update(transition.next().get().to_be_bytes());
-    }
-    hasher.finalize().into()
 }
 
 fn open_input<Request>(

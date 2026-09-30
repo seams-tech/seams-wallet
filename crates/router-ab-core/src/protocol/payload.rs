@@ -563,11 +563,6 @@ impl AbPeerMessagePayloadV1 {
         )
     }
 
-    /// Returns the digest covered by the A/B peer authentication.
-    pub fn authentication_input_digest(&self) -> PublicDigest32 {
-        digest_bytes(&self.authentication_input_bytes())
-    }
-
     /// Returns canonical bytes for this payload.
     pub fn canonical_bytes(&self) -> Vec<u8> {
         encode_ab_peer_message_payload_v1(self)

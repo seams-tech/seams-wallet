@@ -1583,31 +1583,6 @@ impl NormalSigningSignatureSchemeV1 {
     }
 }
 
-/// Role-separated signing protocol material supplied by the client.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "snake_case")]
-#[serde(deny_unknown_fields)]
-pub enum NormalSigningProtocolV1 {
-    /// Final Ed25519/FROST step after the SigningWorker has created round-1 nonces.
-    Ed25519TwoPartyFrostFinalizeV1(NormalSigningEd25519TwoPartyFrostFinalizeV1),
-}
-
-impl NormalSigningProtocolV1 {
-    /// Validates branch-specific protocol material.
-    pub fn validate(&self) -> RouterAbProtocolResult<()> {
-        match self {
-            Self::Ed25519TwoPartyFrostFinalizeV1(protocol) => protocol.validate(),
-        }
-    }
-
-    /// Returns the expected final signature scheme for this protocol.
-    pub fn signature_scheme(&self) -> NormalSigningSignatureSchemeV1 {
-        match self {
-            Self::Ed25519TwoPartyFrostFinalizeV1(_) => NormalSigningSignatureSchemeV1::Ed25519V1,
-        }
-    }
-}
-
 /// Public FROST round-1 commitments.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -1724,92 +1699,6 @@ impl NormalSigningRound1PrepareResponseV1 {
             RouterAbProtocolErrorCode::InvalidTimeRange,
             "normal signing round-1 response expiry must be after prepare time",
         ))
-    }
-
-    /// Validates the response binds to a typed v2 prepare request.
-    pub fn validate_for_v2_prepare_request(
-        &self,
-        request: &RouterAbEd25519NormalSigningPrepareRequestV2,
-    ) -> RouterAbProtocolResult<()> {
-        self.validate()?;
-        request.validate()?;
-        let admission = request.admission_material()?;
-        if self.scope == request.scope
-            && self.signing_payload_digest == admission.signing_payload_digest
-            && self.round1_binding_digest == request.round1_binding_digest()?
-            && self.expires_at_ms == request.expires_at_ms
-        {
-            return Ok(());
-        }
-        Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLifecycleState,
-            "normal signing round-1 response does not match v2 prepare request",
-        ))
-    }
-}
-
-/// Finalization material for a two-party Ed25519/FROST normal-signing request.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct NormalSigningEd25519TwoPartyFrostFinalizeV1 {
-    /// SigningWorker-local handle for the stored round-1 server nonces.
-    pub server_round1_handle: String,
-    /// Group public key bound to the threshold Ed25519 account.
-    pub group_public_key: String,
-    /// Client round-1 commitments.
-    pub client_commitments: NormalSigningEd25519TwoPartyFrostCommitmentsV1,
-    /// Server round-1 commitments returned for this server nonce handle.
-    pub server_commitments: NormalSigningEd25519TwoPartyFrostCommitmentsV1,
-    /// Client verifying share used to verify the client signature share.
-    pub client_verifying_share_b64u: String,
-    /// Server verifying share used to verify the server signature share.
-    pub server_verifying_share_b64u: String,
-    /// Client signature share over the canonical signing digest.
-    pub client_signature_share_b64u: String,
-}
-
-impl NormalSigningEd25519TwoPartyFrostFinalizeV1 {
-    /// Creates validated Ed25519/FROST finalization material.
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        server_round1_handle: impl Into<String>,
-        group_public_key: impl Into<String>,
-        client_commitments: NormalSigningEd25519TwoPartyFrostCommitmentsV1,
-        server_commitments: NormalSigningEd25519TwoPartyFrostCommitmentsV1,
-        client_verifying_share_b64u: impl Into<String>,
-        server_verifying_share_b64u: impl Into<String>,
-        client_signature_share_b64u: impl Into<String>,
-    ) -> RouterAbProtocolResult<Self> {
-        let protocol = Self {
-            server_round1_handle: server_round1_handle.into(),
-            group_public_key: group_public_key.into(),
-            client_commitments,
-            server_commitments,
-            client_verifying_share_b64u: client_verifying_share_b64u.into(),
-            server_verifying_share_b64u: server_verifying_share_b64u.into(),
-            client_signature_share_b64u: client_signature_share_b64u.into(),
-        };
-        protocol.validate()?;
-        Ok(protocol)
-    }
-
-    /// Validates required Ed25519/FROST finalization fields.
-    pub fn validate(&self) -> RouterAbProtocolResult<()> {
-        require_non_empty("server_round1_handle", &self.server_round1_handle)?;
-        require_non_empty("group_public_key", &self.group_public_key)?;
-        require_non_empty(
-            "client_verifying_share_b64u",
-            &self.client_verifying_share_b64u,
-        )?;
-        require_non_empty(
-            "server_verifying_share_b64u",
-            &self.server_verifying_share_b64u,
-        )?;
-        require_non_empty(
-            "client_signature_share_b64u",
-            &self.client_signature_share_b64u,
-        )?;
-        self.client_commitments.validate()?;
-        self.server_commitments.validate()
     }
 }
 
@@ -1953,25 +1842,6 @@ impl NormalSigningResponseV1 {
             return Err(RouterAbProtocolError::new(
                 RouterAbProtocolErrorCode::InvalidTimeRange,
                 "normal signing response signed_at_ms must be greater than zero",
-            ));
-        }
-        Ok(())
-    }
-
-    /// Validates the response binds to a typed v2 finalize request.
-    pub fn validate_for_v2_finalize_request(
-        &self,
-        request: &RouterAbEd25519NormalSigningFinalizeRequestV2,
-    ) -> RouterAbProtocolResult<()> {
-        self.validate()?;
-        request.validate()?;
-        if self.scope != request.scope
-            || self.signing_payload_digest != request.signing_payload_digest()
-            || self.signature_scheme != request.protocol.signature_scheme()
-        {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLifecycleState,
-                "normal signing response does not match v2 finalize request",
             ));
         }
         Ok(())

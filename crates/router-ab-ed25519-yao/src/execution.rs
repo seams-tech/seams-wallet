@@ -553,45 +553,6 @@ pub fn lane_protocol_commit_receipt_v1(
     )
 }
 
-/// Forward-only commitment state for exact lane output redelivery.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct Ed25519YaoLaneOutputCommitV1 {
-    /// Admitted operation identifier.
-    pub operation_id: String,
-    /// Committed transcript hash.
-    pub transcript: [u8; 32],
-    /// Digest of the exact committed package/result set.
-    pub result_digest: [u8; 32],
-    /// Commit timestamp.
-    pub committed_at_ms: u64,
-}
-
-impl Ed25519YaoLaneOutputCommitV1 {
-    /// Creates one immutable commit marker from an already-validated result.
-    pub fn from_result(result: &RouterAbEd25519YaoLaneResultV1) -> RouterAbProtocolResult<Self> {
-        result.validate()?;
-        Ok(Self {
-            operation_id: result.job.operation_id.clone(),
-            transcript: decode_lane_digest(&result.transcript_hash_b64u)?,
-            result_digest: lane_result_digest(result),
-            committed_at_ms: result.committed_at_ms,
-        })
-    }
-
-    /// Accepts only an exact same-operation, same-transcript, same-result redelivery.
-    pub fn accepts_redelivery(
-        &self,
-        operation_id: &str,
-        transcript: [u8; 32],
-        result_digest: [u8; 32],
-    ) -> bool {
-        self.operation_id == operation_id
-            && self.transcript == transcript
-            && self.result_digest == result_digest
-    }
-}
-
 #[allow(clippy::too_many_arguments)]
 fn seal_activation_role_execution<R>(
     rng: &mut R,
@@ -796,24 +757,6 @@ fn lane_ciphertext_digest_set(
         .chain_update([deriver_b.kind().wire_tag()])
         .chain_update(deriver_b.encapsulated_key())
         .chain_update(deriver_b.ciphertext())
-        .finalize()
-        .into()
-}
-
-fn lane_result_digest(result: &RouterAbEd25519YaoLaneResultV1) -> [u8; 32] {
-    Sha256::new()
-        .chain_update(b"seams/rotatable-signing-lanes/ed25519-result-commit/v1")
-        .chain_update(result.job.operation_id.as_bytes())
-        .chain_update(result.job.idempotency_key.as_bytes())
-        .chain_update(result.transcript_hash_b64u.as_bytes())
-        .chain_update(result.public_identity_digest_b64u.as_bytes())
-        .chain_update(result.target_holder_public_commitment_b64u.as_bytes())
-        .chain_update(result.target_server_public_commitment_b64u.as_bytes())
-        .chain_update(result.target_holder_ciphertext_digest_set_b64u.as_bytes())
-        .chain_update(result.target_server_ciphertext_digest_set_b64u.as_bytes())
-        .chain_update(result.holder_recipient_key_digest_b64u.as_bytes())
-        .chain_update(result.server_recipient_key_digest_b64u.as_bytes())
-        .chain_update(result.committed_at_ms.to_be_bytes())
         .finalize()
         .into()
 }

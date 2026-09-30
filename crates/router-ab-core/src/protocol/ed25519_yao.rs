@@ -13,12 +13,6 @@ pub const ROUTER_AB_ED25519_YAO_REGISTRATION_ADMISSION_PATH_V1: &str =
 /// Public SDK Router path for executing an admitted Ed25519 Yao registration.
 pub const ROUTER_AB_ED25519_YAO_REGISTRATION_EXECUTE_PATH_V1: &str =
     "/router-ab/ed25519/yao/registration/execute";
-/// Public SDK Router path for Ed25519 Yao exact-seed export admission.
-pub const ROUTER_AB_ED25519_YAO_EXPORT_ADMISSION_PATH_V1: &str =
-    "/router-ab/ed25519/yao/export/admit";
-/// Public SDK Router path for executing an admitted Ed25519 Yao exact-seed export.
-pub const ROUTER_AB_ED25519_YAO_EXPORT_EXECUTE_PATH_V1: &str =
-    "/router-ab/ed25519/yao/export/execute";
 /// Maximum ciphertext size accepted by compact Ed25519 Yao control envelopes.
 pub const ED25519_YAO_CONTROL_CIPHERTEXT_MAX_BYTES_V1: usize = 64 * 1024;
 
@@ -718,106 +712,6 @@ impl<'de> Deserialize<'de> for RouterAbEd25519YaoExportAuthorizationV1 {
             raw.nonce,
             raw.issued_at_ms,
             raw.expires_at_ms,
-        )
-        .map_err(D::Error::custom)
-    }
-}
-
-/// Public Ed25519 Yao export admission bound to one active wallet identity.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[serde(deny_unknown_fields)]
-pub struct RouterAbEd25519YaoExportAdmissionRequestV1 {
-    scope: RouterAbEd25519YaoLifecycleScopeV1,
-    application_binding: RouterAbEd25519YaoApplicationBindingFactsV1,
-    participant_ids: [u16; 2],
-    registered_public_key: [u8; 32],
-    state_epoch: Ed25519YaoStateEpochV1,
-    runtime_policy_binding: [u8; 32],
-    authorization: RouterAbEd25519YaoExportAuthorizationV1,
-}
-
-impl RouterAbEd25519YaoExportAdmissionRequestV1 {
-    /// Creates an exact active-identity export admission request.
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        scope: RouterAbEd25519YaoLifecycleScopeV1,
-        application_binding: RouterAbEd25519YaoApplicationBindingFactsV1,
-        participant_ids: [u16; 2],
-        registered_public_key: [u8; 32],
-        state_epoch: Ed25519YaoStateEpochV1,
-        runtime_policy_binding: [u8; 32],
-        authorization: RouterAbEd25519YaoExportAuthorizationV1,
-    ) -> RouterAbProtocolResult<Self> {
-        validate_participant_ids(participant_ids)?;
-        if registered_public_key.iter().all(|byte| *byte == 0)
-            || runtime_policy_binding.iter().all(|byte| *byte == 0)
-        {
-            return Err(invalid_yao_wire(
-                "Ed25519 Yao export admission contains a zero identity binding",
-            ));
-        }
-        Ok(Self {
-            scope,
-            application_binding,
-            participant_ids,
-            registered_public_key,
-            state_epoch,
-            runtime_policy_binding,
-            authorization,
-        })
-    }
-
-    /// Consumes the boundary request into validated admission facts.
-    #[allow(clippy::type_complexity)]
-    pub fn into_parts(
-        self,
-    ) -> (
-        RouterAbEd25519YaoLifecycleScopeV1,
-        RouterAbEd25519YaoApplicationBindingFactsV1,
-        [u16; 2],
-        [u8; 32],
-        Ed25519YaoStateEpochV1,
-        [u8; 32],
-        RouterAbEd25519YaoExportAuthorizationV1,
-    ) {
-        (
-            self.scope,
-            self.application_binding,
-            self.participant_ids,
-            self.registered_public_key,
-            self.state_epoch,
-            self.runtime_policy_binding,
-            self.authorization,
-        )
-    }
-}
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct RawRouterAbEd25519YaoExportAdmissionRequestV1 {
-    scope: RouterAbEd25519YaoLifecycleScopeV1,
-    application_binding: RouterAbEd25519YaoApplicationBindingFactsV1,
-    participant_ids: [u16; 2],
-    registered_public_key: [u8; 32],
-    state_epoch: Ed25519YaoStateEpochV1,
-    runtime_policy_binding: [u8; 32],
-    authorization: RouterAbEd25519YaoExportAuthorizationV1,
-}
-
-impl<'de> Deserialize<'de> for RouterAbEd25519YaoExportAdmissionRequestV1 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let raw = RawRouterAbEd25519YaoExportAdmissionRequestV1::deserialize(deserializer)?;
-        Self::new(
-            raw.scope,
-            raw.application_binding,
-            raw.participant_ids,
-            raw.registered_public_key,
-            raw.state_epoch,
-            raw.runtime_policy_binding,
-            raw.authorization,
         )
         .map_err(D::Error::custom)
     }
