@@ -8,11 +8,11 @@
 //
 // It runs one attempt at a time: the same Playwright scenario, with the same
 // environment, as a probe host has always run. The arm's access token arrives
-// in the request body and reaches only the browser run's environment; the
+// in the request body and reaches only the browser run's environment.
 // Each attempt retains its timing and private lifecycle/failure evidence.
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -56,7 +56,7 @@ const IDENTITY_FIELDS = [
 function parseAttempt(body) {
   const request = JSON.parse(body);
   const { runId, arm, region, selected, expectedIdentity, workload } = request;
-  if (!['unforced', 'first_warm_burst', 'linked_chain'].includes(workload))
+  if (!['unforced', 'first_warm_burst', 'linked_chain', 'placement_pair'].includes(workload))
     throw new Error('attempt workload is invalid');
   if (!/^[a-z0-9-]+$/u.test(runId ?? '') || !['d1', 'do'].includes(arm)) {
     throw new Error('attempt run id or arm is invalid');
@@ -105,6 +105,13 @@ function workloadConfiguration(workload) {
         file: 'passkey.device-linking.contract.test.ts',
         selection: 'a linked device links a third device on an ECDSA-only wallet',
       };
+    case 'placement_pair':
+      return {
+        artifactPrefix: 'gateway-ecdsa-placement-pair',
+        directory: 'r151',
+        file: 'passkey.presign-pool.contract.test.ts',
+        selection: 'same wallet warm signing across controlled Gateway placements',
+      };
     default:
       throw new Error('attempt workload is invalid');
   }
@@ -134,6 +141,7 @@ function startAttempt(attempt) {
     SEAMS_INTENDED_BENCHMARK_ACCESS_TOKEN: attempt.selected.accessToken,
     SEAMS_INTENDED_PERSIST_TRACE: '1',
     SEAMS_INTENDED_TRACE_DIR: path.join(diagnosticsDirectory, 'lifecycle'),
+    SEAMS_INTENDED_PLACEMENT_DIRECTORY: path.join(diagnosticsDirectory, 'placement'),
   };
   let output = '';
   const child = spawn(
@@ -217,6 +225,15 @@ function send(response, status, body) {
   response.end(JSON.stringify(body));
 }
 
+function placementRequest(runId) {
+  const directory = path.join(repoRoot, '.runtime', 'probe-attempts', runId, 'placement');
+  const requestedFile = path.join(directory, 'requested.json');
+  if (!existsSync(requestedFile)) return null;
+  const { placement } = JSON.parse(readFileSync(requestedFile, 'utf8'));
+  if (!['default', 'tokyo'].includes(placement)) throw new Error('Invalid placement checkpoint');
+  return { placement, released: existsSync(path.join(directory, `${placement}.ready`)) };
+}
+
 createServer((request, response) => {
   const url = new URL(request.url ?? '/', 'http://probe');
   if (request.method === 'GET' && url.pathname === '/identity') {
@@ -226,7 +243,32 @@ createServer((request, response) => {
   const attemptMatch = /^\/attempts\/([a-z0-9-]+)$/u.exec(url.pathname);
   if (request.method === 'GET' && attemptMatch) {
     const state = attempts.get(attemptMatch[1]);
-    send(response, state ? 200 : 404, state ?? { error: 'unknown attempt' });
+    send(
+      response,
+      state ? 200 : 404,
+      state
+        ? { ...state, placement: placementRequest(attemptMatch[1]) }
+        : { error: 'unknown attempt' },
+    );
+    return;
+  }
+  const placementMatch = /^\/attempts\/([a-z0-9-]+)\/placement\/(default|tokyo)$/u.exec(
+    url.pathname,
+  );
+  if (request.method === 'POST' && placementMatch) {
+    const [, runId, placement] = placementMatch;
+    const state = attempts.get(runId);
+    const checkpoint = state ? placementRequest(runId) : null;
+    if (state?.status !== 'running' || checkpoint?.placement !== placement || checkpoint.released) {
+      send(response, 409, { error: 'Placement checkpoint is absent or already released' });
+      return;
+    }
+    writeFileSync(
+      path.join(repoRoot, '.runtime', 'probe-attempts', runId, 'placement', `${placement}.ready`),
+      '',
+      { flag: 'wx' },
+    );
+    send(response, 200, { released: placement });
     return;
   }
   if (request.method === 'POST' && url.pathname === '/attempts') {

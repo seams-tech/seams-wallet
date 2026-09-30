@@ -18,7 +18,7 @@ import { normalizeRuntimePolicyScope } from '../../../packages/shared-ts/src/thr
 import { isPlainObject } from '../../../packages/shared-ts/src/utils/validation';
 import { parseEcdsaServerTiming } from '../../../packages/shared-ts/src/utils/ecdsaServerTiming';
 import { randomUUID } from 'node:crypto';
-import { mkdir, readdir, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, writeFile, access, rename } from 'node:fs/promises';
 import path from 'node:path';
 
 type PresignRefillTag = 'background' | 'foreground' | 'unidentified';
@@ -131,7 +131,10 @@ class FirstSigningPoolFlow {
     if (path === '/router-ab/ecdsa-derivation/sign/prepare') {
       const body: unknown = request.postDataJSON();
       if (!isPlainObject(body)) throw new Error('Expected an ECDSA prepare body');
-      if (isPlainObject(body.presign_source) && body.presign_source.kind === 'final_presign_batch') {
+      if (
+        isPlainObject(body.presign_source) &&
+        body.presign_source.kind === 'final_presign_batch'
+      ) {
         this.terminalPrepares += 1;
       } else {
         this.ordinaryPrepares += 1;
@@ -210,16 +213,21 @@ class FirstSigningPoolFlow {
     return counts;
   }
 
-  async gatewayServerTimings(startedAtMs: number, endedAtMs: number): Promise<{
-    path: string;
-    status: number;
-    stagesMs: Record<string, number>;
-    requestObservedOffsetMs: number | null;
-    responseHeadersObservedOffsetMs: number;
-    browserRequestElapsedMs: number | null;
-    gatewayPlacement: string | null;
-    d1: unknown;
-  }[]> {
+  async gatewayServerTimings(
+    startedAtMs: number,
+    endedAtMs: number,
+  ): Promise<
+    {
+      path: string;
+      status: number;
+      stagesMs: Record<string, number>;
+      requestObservedOffsetMs: number | null;
+      responseHeadersObservedOffsetMs: number;
+      browserRequestElapsedMs: number | null;
+      gatewayPlacement: string | null;
+      d1: unknown;
+    }[]
+  > {
     const timings = [];
     for (const entry of this.gatewayResponses) {
       if (entry.atMs < startedAtMs || entry.atMs > endedAtMs) continue;
@@ -376,7 +384,9 @@ class FailedBackgroundRefill {
 }
 
 test('failed background refill falls back to timed foreground refill and preserves signing quota', async ({
-  harness, context, page,
+  harness,
+  context,
+  page,
 }, testInfo) => {
   await context.addInitScript(enableSigningSessionDebugInFrame);
   await page.evaluate(enableSigningSessionDebugInFrame);
@@ -395,9 +405,11 @@ test('failed background refill falls back to timed foreground refill and preserv
       signatures.push(timing.window(startedAt, performance.now()));
     }
     expect(fault.failures).toBeGreaterThan(0);
-    expect(signatures[0].stages).toEqual(expect.arrayContaining([
-      expect.objectContaining({ stage: 'foreground_refill', durationMs: expect.any(Number) }),
-    ]));
+    expect(signatures[0].stages).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ stage: 'foreground_refill', durationMs: expect.any(Number) }),
+      ]),
+    );
     const persistence = await signingOperationPersistence('unclaimed-evidence-probe');
     expect(persistence.remainingUses).toBe(1);
     const evidence = {
@@ -495,9 +507,7 @@ test('unforced ECDSA registration and repeated signing capture Gateway timing', 
 }, testInfo) => {
   const requestedBackendProfile = requestedEcdsaBackendProfile();
   const hostedBenchmark = process.env.SEAMS_INTENDED_EXTERNAL_GATEWAY === '1';
-  const probeRegion = hostedBenchmark
-    ? process.env.SEAMS_INTENDED_PROBE_REGION
-    : 'local';
+  const probeRegion = hostedBenchmark ? process.env.SEAMS_INTENDED_PROBE_REGION : 'local';
   if (!probeRegion || !/^[a-z0-9-]+$/u.test(probeRegion)) {
     throw new Error('Hosted benchmark probe region is missing or invalid');
   }
@@ -745,6 +755,110 @@ test(
   measureFirstWarmAndBurstSigning,
 );
 
+async function placementReleased(file: string): Promise<boolean> {
+  try {
+    await access(file);
+    return true;
+  } catch (error) {
+    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return false;
+    throw error;
+  }
+}
+
+async function waitForHostedPlacement(placement: 'default' | 'tokyo'): Promise<void> {
+  const directory = process.env.SEAMS_INTENDED_PLACEMENT_DIRECTORY;
+  if (!directory) throw new Error('Hosted placement control directory is required');
+  await mkdir(directory, { recursive: true });
+  await writeFile(path.join(directory, 'requested.tmp'), JSON.stringify({ placement }));
+  await rename(path.join(directory, 'requested.tmp'), path.join(directory, 'requested.json'));
+  await expect
+    .poll(placementReleased.bind(undefined, path.join(directory, `${placement}.ready`)), {
+      timeout: 120_000,
+      intervals: [500],
+    })
+    .toBe(true);
+}
+
+async function measureSameWalletPlacement(
+  {
+    harness,
+    context,
+    page,
+  }: { harness: IntendedBehaviourHarness; context: BrowserContext; page: Page },
+  testInfo: TestInfo,
+): Promise<void> {
+  test.skip(
+    process.env.SEAMS_INTENDED_EXTERNAL_GATEWAY !== '1',
+    'Requires the hosted placement controller',
+  );
+  await context.addInitScript(enableSigningSessionDebugInFrame);
+  await page.evaluate(enableSigningSessionDebugInFrame);
+  const flow = new FirstSigningPoolFlow();
+  const timing = new SigningTimingEvidence();
+  const record = flow.record.bind(flow);
+  const recordResponse = flow.recordResponse.bind(flow);
+  const recordTiming = timing.record.bind(timing);
+  context.on('request', record);
+  context.on('response', recordResponse);
+  page.on('console', recordTiming);
+  try {
+    await harness.registerPasskeyEcdsaOnlyWallet();
+    await harness.signTempoTransaction('post_registration');
+    const measurements = [];
+    for (const placement of ['default', 'tokyo'] as const) {
+      await waitForHostedPlacement(placement);
+      await expect
+        .poll(flow.unusedServerPresignatureCount.bind(flow), { timeout: 60_000 })
+        .toBeGreaterThan(0);
+      const ready = await flow.unusedServerPresignatures();
+      const startedAt = performance.now();
+      await harness.signTempoTransaction('post_registration');
+      const endedAt = performance.now();
+      expect(ready).toContain(flow.preparePresignatureId);
+      measurements.push({
+        placement,
+        selectedServerMaterialCompletedBeforeStart: true,
+        ...(await flow.timingWindow(startedAt, endedAt)),
+        clientTiming: timing.window(startedAt, endedAt),
+      });
+    }
+    expect(flow.ordinaryPrepares).toBe(3);
+    expect(flow.finalizations).toBe(3);
+    const region = process.env.SEAMS_INTENDED_PROBE_REGION;
+    const runId = process.env.SEAMS_INTENDED_BENCHMARK_RUN_ID;
+    const arm = process.env.SEAMS_INTENDED_BENCHMARK_ARM;
+    if (
+      !region ||
+      !runId ||
+      !/^[a-z0-9-]+$/u.test(region) ||
+      !/^[a-z0-9-]+$/u.test(runId) ||
+      (arm !== 'do' && arm !== 'd1')
+    ) {
+      throw new Error('Hosted placement requires region, run identity, and backend arm');
+    }
+    const evidence = {
+      kind: 'gateway_ecdsa_same_wallet_placement_v1',
+      verifiedSignatures: 3,
+      untimedSetupSignatures: 1,
+      measurements,
+      accounting:
+        'Same wallet, authority, session, and role objects; default then Tokyo. SDK time includes automatic confirmation. Deployment waits are outside timing windows.',
+    };
+    const artifactName = `gateway-ecdsa-placement-pair-hosted_${arm}-${region}-${runId}-${testInfo.repeatEachIndex}.json`;
+    const artifactPath = path.resolve(testInfo.config.rootDir, '../.artifacts/r151', artifactName);
+    await mkdir(path.dirname(artifactPath), { recursive: true });
+    const body = JSON.stringify(evidence, null, 2);
+    await writeFile(artifactPath, body, 'utf8');
+    await testInfo.attach(artifactName, { body, contentType: 'application/json' });
+  } finally {
+    context.off('request', record);
+    context.off('response', recordResponse);
+    page.off('console', recordTiming);
+  }
+}
+
+test('same wallet warm signing across controlled Gateway placements', measureSameWalletPlacement);
+
 async function interruptAdmittedPrepare(
   harness: import('./harness').IntendedBehaviourHarness,
   mode: 'lost_response' | 'cancelled',
@@ -819,7 +933,8 @@ class ConcurrentPrepare {
 class LastQuotaPrepareRace {
   statuses: number[] = [];
   replayCodes: string[] = [];
-  d1: { readonly stage: 'prepare' | 'retry'; readonly status: number; readonly trace: unknown }[] = [];
+  d1: { readonly stage: 'prepare' | 'retry'; readonly status: number; readonly trace: unknown }[] =
+    [];
   walletId: string | null = null;
 
   async compete(route: Route): Promise<void> {
@@ -836,13 +951,14 @@ class LastQuotaPrepareRace {
       operation_id: `${original.operation_id}-contender`,
       request_id: randomUUID(),
     };
-    const responses = await Promise.all([
-      route.fetch(),
-      route.fetch({ postData: contender }),
-    ]);
+    const responses = await Promise.all([route.fetch(), route.fetch({ postData: contender })]);
     for (const response of responses) {
       this.statuses.push(response.status());
-      this.d1.push({ stage: 'prepare', status: response.status(), trace: gatewayD1Evidence(response) });
+      this.d1.push({
+        stage: 'prepare',
+        status: response.status(),
+        trace: gatewayD1Evidence(response),
+      });
     }
     this.statuses.sort();
     expect(this.statuses).toEqual([200, 409]);
@@ -852,12 +968,13 @@ class LastQuotaPrepareRace {
       }
     }
     // Retry both identities after the winner consumed the last use.
-    const retries = await Promise.all([
-      route.fetch(),
-      route.fetch({ postData: contender }),
-    ]);
+    const retries = await Promise.all([route.fetch(), route.fetch({ postData: contender })]);
     for (const response of retries) {
-      this.d1.push({ stage: 'retry', status: response.status(), trace: gatewayD1Evidence(response) });
+      this.d1.push({
+        stage: 'retry',
+        status: response.status(),
+        trace: gatewayD1Evidence(response),
+      });
       expect(response.status()).toBe(409);
       const payload: unknown = await response.json();
       if (!isPlainObject(payload) || typeof payload.code !== 'string') {
@@ -896,9 +1013,11 @@ async function isolatedGatewayDatabasePath(): Promise<string> {
       if (!file.endsWith('.sqlite')) continue;
       const candidate = new DatabaseSync(path.join(state, file), { readOnly: true });
       try {
-        const tables = candidate.prepare(
-          "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'authorized_operations'",
-        ).all();
+        const tables = candidate
+          .prepare(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'authorized_operations'",
+          )
+          .all();
         if (tables.length === 1) databases.push(file);
       } finally {
         candidate.close();
@@ -920,14 +1039,20 @@ async function signingOperationPersistence(operationId: string): Promise<{
   const databasePath = await isolatedGatewayDatabasePath();
   const database = new DatabaseSync(databasePath, { readOnly: true });
   try {
-    const [row] = database.prepare(
-      `SELECT
+    const [row] = database
+      .prepare(
+        `SELECT
          (SELECT SUM(remaining_uses) FROM authorization_wallet_session_quotas) AS remaining,
          (SELECT COUNT(*) FROM authorized_operations WHERE operation_id = ?) AS claims,
          (SELECT COUNT(*) FROM authorized_operation_audit_events WHERE audit_event_id = ?) AS audit_events`,
-    ).all(operationId, `ecdsa-operation-audit:${operationId}`);
-    if (!row || typeof row.remaining !== 'number' || typeof row.claims !== 'number' ||
-        typeof row.audit_events !== 'number') {
+      )
+      .all(operationId, `ecdsa-operation-audit:${operationId}`);
+    if (
+      !row ||
+      typeof row.remaining !== 'number' ||
+      typeof row.claims !== 'number' ||
+      typeof row.audit_events !== 'number'
+    ) {
       throw new Error('Expected Gateway quota, claim, and audit evidence');
     }
     return { remainingUses: row.remaining, claims: row.claims, auditEvents: row.audit_events };
@@ -1000,28 +1125,43 @@ type SigningPolicy = 'project_and_abuse' | 'abuse' | 'rate_limited' | 'allowed';
 
 async function setIsolatedSigningPolicy(request: Request, policy: SigningPolicy): Promise<void> {
   const body: unknown = request.postDataJSON();
-  if (!isPlainObject(body) || !isPlainObject(body.scope) ||
-      typeof body.scope.wallet_id !== 'string' || !isPlainObject(body.material_activation) ||
-      typeof body.material_activation.activation_id !== 'string') {
+  if (
+    !isPlainObject(body) ||
+    !isPlainObject(body.scope) ||
+    typeof body.scope.wallet_id !== 'string' ||
+    !isPlainObject(body.material_activation) ||
+    typeof body.material_activation.activation_id !== 'string'
+  ) {
     throw new Error('Expected an ECDSA signing request');
   }
   const sqliteModule: string = 'node:sqlite';
   const { DatabaseSync } = (await import(sqliteModule)) as NodeSqliteModule;
   const database = new DatabaseSync(await isolatedGatewayDatabasePath(), { readOnly: false });
   try {
-    const rows = database.prepare(
-      `SELECT DISTINCT namespace, json_extract(record_json, '$.runtimePolicyScope') AS scope_json
+    const rows = database
+      .prepare(
+        `SELECT DISTINCT namespace, json_extract(record_json, '$.runtimePolicyScope') AS scope_json
        FROM wallet_signers WHERE wallet_id = ? AND signer_family = 'ecdsa'
        AND json_extract(record_json, '$.activationReceipt.ecdsa_activation.material_activation.activation_id') = ?`,
-    ).all(body.scope.wallet_id, body.material_activation.activation_id);
-    if (rows.length !== 1 || typeof rows[0].namespace !== 'string' ||
-        typeof rows[0].scope_json !== 'string') {
+      )
+      .all(body.scope.wallet_id, body.material_activation.activation_id);
+    if (
+      rows.length !== 1 ||
+      typeof rows[0].namespace !== 'string' ||
+      typeof rows[0].scope_json !== 'string'
+    ) {
       throw new Error('Expected one isolated ECDSA material policy scope');
     }
     const scope = normalizeRuntimePolicyScope(JSON.parse(rows[0].scope_json));
-    const scopeKey = [scope.orgId, scope.projectId, scope.envId, scope.signingRootVersion].join('\x1f');
-    const abuseKey = [scopeKey, body.scope.wallet_id,
-      `material_activation:${body.material_activation.activation_id}`, 'ecdsa'].join('\x1f');
+    const scopeKey = [scope.orgId, scope.projectId, scope.envId, scope.signingRootVersion].join(
+      '\x1f',
+    );
+    const abuseKey = [
+      scopeKey,
+      body.scope.wallet_id,
+      `material_activation:${body.material_activation.activation_id}`,
+      'ecdsa',
+    ].join('\x1f');
     // This database belongs to this single-wallet scenario; policy rows are test-owned.
     database.prepare('DELETE FROM router_ab_normal_signing_admission_records').run();
     if (policy === 'allowed') return;
@@ -1031,7 +1171,13 @@ async function setIsolatedSigningPolicy(request: Request, policy: SigningPolicy)
         record_kind, record_key, decision, retry_after_ms, updated_at_ms)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     );
-    const tenant = [rows[0].namespace, scope.orgId, scope.projectId, scope.envId, scope.signingRootVersion];
+    const tenant = [
+      rows[0].namespace,
+      scope.orgId,
+      scope.projectId,
+      scope.envId,
+      scope.signingRootVersion,
+    ];
     const abuseDecision = policy === 'rate_limited' ? 'rate_limited' : 'rejected';
     insert.run(...tenant, 'abuse', abuseKey, abuseDecision, 1000, Date.now());
     if (policy === 'project_and_abuse') {
@@ -1090,7 +1236,8 @@ class SigningPolicyProbe {
 }
 
 test('live signing policy denies prepare finalize and completed replay without consuming quota', async ({
-  harness, context,
+  harness,
+  context,
 }, testInfo) => {
   await harness.registerPasskeyEcdsaOnlyWallet();
   const probe = new SigningPolicyProbe(context);
@@ -1136,8 +1283,12 @@ test('live signing policy denies prepare finalize and completed replay without c
 
 class LostFinalize {
   finalizations = 0;
-  lost: { readonly request: Request; readonly status: number; readonly body: string; readonly d1: unknown } | null =
-    null;
+  lost: {
+    readonly request: Request;
+    readonly status: number;
+    readonly body: string;
+    readonly d1: unknown;
+  } | null = null;
 
   /** Lets the first finalize complete, then drops its response. */
   async loseFirstResponse(route: Route): Promise<void> {
@@ -1148,7 +1299,9 @@ class LostFinalize {
     }
     const response = await route.fetch();
     this.lost = {
-      request: route.request(), status: response.status(), body: await response.text(),
+      request: route.request(),
+      status: response.status(),
+      body: await response.text(),
       d1: gatewayD1Evidence(response),
     };
     await route.abort('connectionclosed');
@@ -1180,9 +1333,9 @@ type NodeSqliteModule = {
  * presignature in the same transaction, so the effect count is the
  * consumed-presignature count.
  */
-async function vmSigningWorkerEffects(walletId: string): Promise<
-  { readonly operationKey: string; readonly terminal: unknown }[] | null
-> {
+async function vmSigningWorkerEffects(
+  walletId: string,
+): Promise<{ readonly operationKey: string; readonly terminal: unknown }[] | null> {
   const root = process.env.SEAMS_INTENDED_ROUTER_AB_ROOT;
   if (process.env.SEAMS_INTENDED_WALLET_HOST !== 'vm' || !root) return null;
   // The suite's Node types predate `node:sqlite`; the runtime provides it.
@@ -1219,9 +1372,9 @@ async function vmRemainingSigningUses(): Promise<number | null> {
   );
   try {
     // The isolated runner creates a fresh database for this single-wallet scenario.
-    const [row] = database.prepare(
-      'SELECT SUM(remaining_uses) AS remaining FROM authorization_wallet_session_quotas',
-    ).all();
+    const [row] = database
+      .prepare('SELECT SUM(remaining_uses) AS remaining FROM authorization_wallet_session_quotas')
+      .all();
     if (!row || typeof row.remaining !== 'number') throw new Error('Expected a signing quota');
     return row.remaining;
   } finally {

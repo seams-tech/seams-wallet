@@ -11,7 +11,9 @@ if (
   Date.parse(until) <= Date.parse(since) ||
   !output
 ) {
-  throw new Error('Usage: measure-placement.mjs <account-id> <since-iso> <until-iso> <new-evidence.json>');
+  throw new Error(
+    'Usage: measure-placement.mjs <account-id> <since-iso> <until-iso> <new-evidence.json>',
+  );
 }
 if (existsSync(output)) throw new Error('Placement evidence already exists');
 
@@ -20,7 +22,8 @@ const authentication = spawnSync('pnpm', ['exec', 'wrangler', 'auth', 'token', '
 });
 if (authentication.status !== 0) throw new Error('Wrangler authentication unavailable');
 const credentials = JSON.parse(authentication.stdout);
-if (!['oauth', 'api_token'].includes(credentials.type)) throw new Error('Expected bearer credential');
+if (!['oauth', 'api_token'].includes(credentials.type))
+  throw new Error('Expected bearer credential');
 
 // These dimensions describe execution locations. Request.cf.colo describes ingress.
 // Adaptive analytics are aggregate evidence; they cannot identify every signing RPC.
@@ -56,7 +59,8 @@ const evidence = {
   result,
 };
 writeFileSync(output, `${JSON.stringify(evidence, null, 2)}\n`, { flag: 'wx' });
-if (!response.ok || result.errors?.length) throw new Error('Placement query failed; inspect evidence');
+if (!response.ok || result.errors?.length)
+  throw new Error('Placement query failed; inspect evidence');
 const account = result.data?.viewer?.accounts?.[0];
 if (!account) throw new Error('Placement query returned no account');
 for (const [dataset, rows] of Object.entries(account)) {
