@@ -67,16 +67,7 @@ type RouterAbConfiguredSigningWorkerPrivateTransport = Extract<
   { readonly kind: 'configured' }
 >;
 
-export type RouterAbEd25519NormalSigningAuthorizationV2 =
-  | {
-      readonly kind: 'reusable_wallet_session';
-      readonly wallet_session_id: string;
-    }
-  | {
-      readonly kind: 'operation_step_up';
-      readonly evidence_set_digest?: never;
-      readonly wallet_session_id?: never;
-    };
+export type RouterAbEd25519NormalSigningAuthorizationV2 = RouterAbNormalSigningAuthorizationWire;
 
 type RouterAbMpcMaterialActivationRefV1 = {
   readonly kind: 'mpc_material_activation_ref';

@@ -6,6 +6,7 @@ import type {
   D1ResultLike,
 } from '../../../../storage/tenantRoute';
 import { isD1DatabaseLike } from '../../../../storage/d1Sql';
+import type { D1TenantScope } from '../../../../core/d1TenantStore';
 
 const TABLE_NAME = 'registration_ceremony_records';
 const CAS_GUARD_SQL = `INSERT INTO registration_ceremony_cas_guard (guard_id)
@@ -26,12 +27,7 @@ const UPDATE_EXPECTED_VERSION_SQL = `UPDATE ${TABLE_NAME}
             AND record_id = ?6
             AND version = ?10`;
 
-export type D1RegistrationCeremonyRecordScope = {
-  readonly namespace: string;
-  readonly orgId: string;
-  readonly projectId: string;
-  readonly envId: string;
-};
+export type D1RegistrationCeremonyRecordScope = D1TenantScope;
 
 type D1RegistrationCeremonyRecordStoreOptions = {
   readonly database: D1DatabaseLike;

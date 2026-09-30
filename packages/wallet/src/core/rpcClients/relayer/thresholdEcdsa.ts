@@ -15,6 +15,7 @@ import { toEcdsaDerivationThresholdKeyId } from '@/core/signingEngine/session/id
 import type {
   DerivationClientSharePublicKey33B64u,
   EcdsaDerivationRelayerPublicKey33B64u,
+  EcdsaDerivationRoleLocalPublicIdentity,
 } from '@shared/threshold/ecdsaDerivationRoleLocalBootstrap';
 import {
   buildBearerAuthorizationHeader,
@@ -30,12 +31,7 @@ function requireThresholdEcdsaRootShareEpoch(value: unknown, field: string) {
   return parsed.value;
 }
 
-export type EcdsaDerivationRoleLocalPublicIdentity = {
-  derivationClientSharePublicKey33B64u: DerivationClientSharePublicKey33B64u;
-  relayerPublicKey33B64u: EcdsaDerivationRelayerPublicKey33B64u;
-  groupPublicKey33B64u: string;
-  ethereumAddress: string;
-};
+export type { EcdsaDerivationRoleLocalPublicIdentity };
 
 export type ThresholdEcdsaDerivationRoleLocalBootstrapValue = {
   formatVersion: 'ecdsa-derivation-role-local';

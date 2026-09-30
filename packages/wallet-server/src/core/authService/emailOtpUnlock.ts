@@ -11,10 +11,7 @@ import {
   verifySecp256k1RecoverableSignatureAgainstPublicKey33,
 } from '../ThresholdService/evmCryptoWasm';
 import { parseBoundaryWalletId } from './webauthnWalletBinding';
-
-type EmailOtpUnlockEnrollmentReadResult =
-  | { ok: true; enrollment: EmailOtpWalletEnrollmentRecord }
-  | { ok: false; code: string; message: string };
+import type { EmailOtpEnrollmentReadResult } from './emailOtpEnrollment';
 
 type CreateEmailOtpUnlockChallengeRequest = {
   walletId?: unknown;
@@ -61,7 +58,7 @@ export type CreateEmailOtpUnlockChallengeInput = {
   readActiveEnrollment: (input: {
     walletId: string;
     orgId: string | undefined;
-  }) => Promise<EmailOtpUnlockEnrollmentReadResult>;
+  }) => Promise<EmailOtpEnrollmentReadResult>;
 };
 
 export type VerifyEmailOtpUnlockProofInput = {
@@ -70,7 +67,7 @@ export type VerifyEmailOtpUnlockProofInput = {
   readActiveEnrollment: (input: {
     walletId: string;
     orgId: string | undefined;
-  }) => Promise<EmailOtpUnlockEnrollmentReadResult>;
+  }) => Promise<EmailOtpEnrollmentReadResult>;
   putAuthStateForEnrollment: (
     enrollment: EmailOtpWalletEnrollmentRecord,
     patch: Pick<EmailOtpAuthStateRecord, 'lastEmailOtpLoginAtMs'>,

@@ -45,13 +45,9 @@ import { parseLinkDeviceSessionId, type LinkDeviceSessionId } from '@shared/sign
 import { hasControlCharacter } from '@shared/utils/domainIds';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import type { WalletAuthorityId, WalletId } from '@shared/utils/domainIds';
+import type { D1TenantScope } from '../../../../core/d1TenantStore';
 
-export type D1LinkedDeviceSessionScopeV1 = {
-  readonly namespace: string;
-  readonly orgId: string;
-  readonly projectId: string;
-  readonly envId: string;
-};
+export type D1LinkedDeviceSessionScopeV1 = D1TenantScope;
 
 export type D1LinkedDeviceSessionStoreOptionsV1 = {
   readonly database: D1DatabaseLike;

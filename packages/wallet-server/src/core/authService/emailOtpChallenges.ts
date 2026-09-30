@@ -19,7 +19,10 @@ import { toOptionalTrimmedString } from '@shared/utils/validation';
 import { errorMessage } from '@shared/utils/errors';
 import { randomNumericCode } from './bytes';
 import { type EmailOtpConfig } from './emailOtpConfig';
-import type { EmailOtpAuthStateReadResult } from './emailOtpEnrollment';
+import type {
+  EmailOtpAuthStateReadResult,
+  EmailOtpEnrollmentReadResult,
+} from './emailOtpEnrollment';
 import type { EmailOtpDeliveryResult, EmailOtpMemoryOutbox } from './emailOtpDelivery';
 import type { RateLimitResult } from './rateLimits';
 
@@ -92,10 +95,6 @@ export type CreateEmailOtpChallengeWithActionResult =
       resetAtMs?: number;
     };
 
-type EmailOtpChallengeEnrollmentReadResult =
-  | { ok: true; enrollment: EmailOtpWalletEnrollmentRecord }
-  | { ok: false; code: string; message: string };
-
 type EmailOtpChallengeRateLimitConsumer = (input: {
   scope: 'challenge';
   action: EmailOtpChallengeAction;
@@ -124,7 +123,7 @@ type CreateEmailOtpChallengeWithActionInput = {
   readActiveEnrollment: (input: {
     walletId: string;
     orgId: string;
-  }) => Promise<EmailOtpChallengeEnrollmentReadResult>;
+  }) => Promise<EmailOtpEnrollmentReadResult>;
   readEnrollmentAuthState: (
     enrollment: EmailOtpWalletEnrollmentRecord,
   ) => Promise<EmailOtpAuthStateReadResult>;

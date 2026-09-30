@@ -10,13 +10,13 @@ import { toOptionalTrimmedString } from '@shared/utils/validation';
 import type {
   EmailOtpChallengeOperation,
   EmailOtpLoginChallengeOperation,
-  EmailOtpWalletEnrollmentRecord,
 } from '../../../../core/EmailOtpStores';
 import { EMAIL_OTP_CODE_LENGTH } from '../../../../core/authService/emailOtpConfig';
 import type { CloudflareD1EmailOtpChallengeStore } from './d1EmailOtpChallengeStore';
 import type { CloudflareD1EmailOtpDeliveryRuntime } from './d1EmailOtpDeliveryRuntime';
 import type { CloudflareD1EmailOtpEnrollmentStore } from './d1EmailOtpEnrollmentStore';
 import type { CloudflareD1EmailOtpRateLimitStore } from './d1EmailOtpRateLimitStore';
+import type { ActiveEmailOtpEnrollmentResult } from './d1EmailOtpChallengeVerifier';
 import type { EmailOtpChallengeDelivery } from '../../../framework/authServicePort';
 import {
   emailOtpChallengePurposeIsValid,
@@ -80,10 +80,6 @@ export type EmailOtpChallengeIssueResult =
       retryAfterMs?: number;
       resetAtMs?: number;
     };
-
-type ActiveEmailOtpEnrollmentResult =
-  | { readonly ok: true; readonly enrollment: EmailOtpWalletEnrollmentRecord }
-  | { readonly ok: false; readonly code: string; readonly message: string };
 
 type EmailOtpChallengeIssuerConfig = {
   readonly challengeTtlMs: number;

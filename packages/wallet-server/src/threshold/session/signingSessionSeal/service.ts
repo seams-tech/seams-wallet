@@ -5,6 +5,7 @@ import type {
   SigningSessionSealAuthorizationSessionRecord,
   SigningSessionSealOperation,
   SigningSessionSealRouteResult,
+  SigningSessionSealServerSealRequest,
   SigningSessionSealService,
 } from './signingSessionSeal.types';
 
@@ -116,13 +117,6 @@ function emitOperationResultLog(input: {
   logger.warn(`${SIGNING_SESSION_SEAL_LOG_LABEL} ${input.operation} failure`, payload);
 }
 
-type SigningSessionSealRequestInput = {
-  thresholdSessionId: string;
-  ciphertext: string;
-  keyVersion?: string;
-  metadata?: Record<string, unknown>;
-};
-
 type SigningSessionSealAuthInput = {
   userId: string;
   session: SigningSessionSealAuthorizationSessionRecord;
@@ -159,7 +153,7 @@ async function hashCiphertextForIdempotency(ciphertext: string): Promise<string>
 
 async function makeOperationRequestKey(args: {
   operation: SigningSessionSealOperation;
-  request: SigningSessionSealRequestInput;
+  request: SigningSessionSealServerSealRequest;
   auth: SigningSessionSealAuthInput;
 }): Promise<string> {
   const thresholdSessionId = String(args.request.thresholdSessionId || '').trim();
@@ -380,7 +374,7 @@ export function createSigningSessionSealService(
 
   const runWithSingleFlight = async (
     operation: SigningSessionSealOperation,
-    request: SigningSessionSealRequestInput,
+    request: SigningSessionSealServerSealRequest,
     auth: SigningSessionSealAuthInput,
   ): Promise<SigningSessionSealRouteResult> => {
     const operationKey = await makeOperationRequestKey({ operation, request, auth });

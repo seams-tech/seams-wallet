@@ -8,6 +8,7 @@ import {
   type ScopedD1Prepare,
 } from '../../../../core/emailOtpD1Statements';
 import type { D1PreparedStatementLike } from '../../../../storage/tenantRoute';
+import type { EmailOtpAuthStateReadResult as CoreEmailOtpAuthStateReadResult } from '../../../../core/authService/emailOtpEnrollment';
 import {
   emailOtpAuthStateRecord,
   parseEmailOtpAuthStateRow,
@@ -17,16 +18,7 @@ import {
   type EmailOtpAuthStatePatch,
 } from './d1EmailOtpRecords';
 
-export type EmailOtpAuthStateReadResult =
-  | {
-      readonly ok: true;
-      readonly state: EmailOtpAuthStateRecord | null;
-    }
-  | {
-      readonly ok: false;
-      readonly code: string;
-      readonly message: string;
-    };
+export type EmailOtpAuthStateReadResult = Readonly<CoreEmailOtpAuthStateReadResult>;
 
 export class CloudflareD1EmailOtpEnrollmentStore {
   private readonly prepare: ScopedD1Prepare;

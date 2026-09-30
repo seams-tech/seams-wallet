@@ -1,17 +1,11 @@
 import { isPlainObject, toOptionalTrimmedString } from '@shared/utils/validation';
-import type { WebAuthnAuthenticationCredential } from '../../../core/types';
 import { parseWebAuthnAuthenticationCredential } from '../../auth/webAuthnCredentialCodecs';
+import type { PasskeyVerifyRequest } from '../../auth/authRequestValidation';
 
 type SyncAccountOptionsRequest = {
   rp_id: string;
   account_id?: string;
   ttl_ms?: number;
-};
-
-type SyncAccountVerifyRequest = {
-  challengeId: string;
-  webauthn_authentication: WebAuthnAuthenticationCredential;
-  expected_origin: string;
 };
 
 type SyncAccountRouteErrorBody = {
@@ -91,7 +85,7 @@ export function parseSyncAccountOptionsRequest(
 export function parseSyncAccountVerifyRequest(input: {
   body: unknown;
   origin: unknown;
-}): SyncAccountRouteParseResult<SyncAccountVerifyRequest> {
+}): SyncAccountRouteParseResult<PasskeyVerifyRequest> {
   if (!isPlainObject(input.body)) {
     return invalidSyncAccountBody('Expected JSON object body');
   }

@@ -18,6 +18,7 @@ import type {
   WalletAuthMethod,
 } from '@shared/utils';
 import type { WalletId } from '@shared/utils/registrationIntent';
+import type { RouterApiKeyAuthFailureCode } from '@shared/utils/routerApiKeyAuth';
 import type { NearEd25519SigningKeyId } from '@shared/utils/registrationIds';
 import type {
   RegistrationNearAccountProvisioning,
@@ -624,15 +625,7 @@ export type RegistrationResult =
       readonly capabilities?: never;
     };
 
-type RouterApiSecretKeyAuthErrorCode =
-  | 'secret_key_missing'
-  | 'secret_key_invalid'
-  | 'secret_key_revoked'
-  | 'secret_key_forbidden_scope'
-  | 'secret_key_ip_blocked'
-  | 'secret_key_environment_mismatch';
-
-type RegistrationErrorCode = RouterApiSecretKeyAuthErrorCode | string;
+type RegistrationErrorCode = RouterApiKeyAuthFailureCode | string;
 
 export type LoginResult =
   | {

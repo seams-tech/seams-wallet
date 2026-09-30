@@ -52,6 +52,14 @@ export type SigningSessionSealProtocol = {
   algorithm: typeof SIGNING_SESSION_SEAL_ALG;
   groupId: SigningSessionSealGroupId;
 };
+/** The signing-session seal capabilities a relayer publishes in its well-known document. */
+export type WellKnownSigningSessionSealCapabilities =
+  | { mode: 'none' }
+  | {
+      mode: 'sealed_refresh_v1';
+      protocol: SigningSessionSealProtocol;
+      currentKeyVersion: string;
+    };
 export type SealedSigningSessionEcdsaRestoreSource =
   | 'login'
   | 'registration'

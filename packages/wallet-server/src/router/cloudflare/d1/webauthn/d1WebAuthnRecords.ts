@@ -46,15 +46,13 @@ import {
 import { normalizeRuntimePolicyScope } from '@shared/threshold/signingRootScope';
 import type { ThresholdRuntimePolicyScope } from '../../../../core/types';
 import type { WebAuthnCredentialBindingRecord as CoreWebAuthnCredentialBindingRecord } from '../../../../core/WebAuthnCredentialBindingStore';
+import type { D1WebAuthnAuthenticatorRow } from '../../../../core/WebAuthnAuthenticatorStore';
+import type { WebAuthnLoginChallengeRecord as CoreWebAuthnLoginChallengeRecord } from '../../../../core/WebAuthnLoginChallengeStore';
+import type { WebAuthnSyncChallengeRecord as CoreWebAuthnSyncChallengeRecord } from '../../../../core/WebAuthnSyncChallengeStore';
+import type { NearPublicKeyAuthBinding } from '../../../../core/NearPublicKeyStore';
+import type { ResolvedEd25519WalletBinding } from '../../../../core/authService/webauthnWalletBinding';
 
-export type D1AuthenticatorRow = {
-  readonly credential_id_b64u?: unknown;
-  readonly credential_public_key_b64u?: unknown;
-  readonly counter?: unknown;
-  readonly created_at_ms?: unknown;
-  readonly updated_at_ms?: unknown;
-  readonly device_info_json?: unknown;
-};
+export type D1AuthenticatorRow = D1WebAuthnAuthenticatorRow;
 
 export type D1RecordJsonRow = {
   readonly record_json?: unknown;
@@ -62,20 +60,9 @@ export type D1RecordJsonRow = {
 
 export type WebAuthnCredentialBindingRecord = CoreWebAuthnCredentialBindingRecord;
 
-export type WebAuthnSyncWalletBinding = {
-  readonly walletId: string;
-  readonly nearAccountId: string;
-  readonly nearEd25519SigningKeyId: string;
-  readonly rpId: string;
-  readonly credentialIdB64u: string;
-  readonly signerSlot: number;
-};
+export type WebAuthnSyncWalletBinding = Readonly<ResolvedEd25519WalletBinding>;
 
-export type NearPublicKeyAuthBinding = {
-  readonly kind: 'passkey';
-  readonly rpId: WebAuthnRpId;
-  readonly credentialIdB64u: string;
-};
+export type { NearPublicKeyAuthBinding };
 
 export type NearPublicKeyRecord = {
   readonly publicKey: string;
@@ -103,25 +90,9 @@ export function parseWebAuthnAuthenticatorRowDeviceInfo(
   return parseWebAuthnAuthenticatorDeviceInfoJson(raw);
 }
 
-export type WebAuthnLoginChallengeRecord = {
-  readonly version: 'webauthn_login_challenge_v1';
-  readonly challengeId: string;
-  readonly userId: string;
-  readonly rpId: string;
-  readonly challengeB64u: string;
-  readonly createdAtMs: number;
-  readonly expiresAtMs: number;
-};
+export type WebAuthnLoginChallengeRecord = Readonly<CoreWebAuthnLoginChallengeRecord>;
 
-export type WebAuthnSyncChallengeRecord = {
-  readonly version: 'webauthn_sync_challenge_v1';
-  readonly challengeId: string;
-  readonly rpId: string;
-  readonly expectedUserId?: string;
-  readonly challengeB64u: string;
-  readonly createdAtMs: number;
-  readonly expiresAtMs: number;
-};
+export type WebAuthnSyncChallengeRecord = Readonly<CoreWebAuthnSyncChallengeRecord>;
 
 /**
  * The exact continuity snapshot selected by prepare. The snapshot is stored

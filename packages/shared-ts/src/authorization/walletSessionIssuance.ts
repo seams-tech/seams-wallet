@@ -36,12 +36,21 @@ export type WalletSessionCommittedIdentityV1 = {
 };
 
 /** The credential-free retry signal shared by issuer response boundaries. */
-type WalletSessionAlreadyCommittedResponseV1 = {
+export type WalletSessionAlreadyCommittedResponseV1 = {
   readonly ok: false;
   readonly code: 'already_committed';
   readonly message: string;
   readonly next: 'unlock_exact_method';
   readonly committed: WalletSessionCommittedIdentityV1;
+};
+
+/** An issuer rejection that carries no committed identity to retry against. */
+export type WalletSessionRejectionV1 = {
+  readonly ok: false;
+  readonly code: string;
+  readonly message: string;
+  readonly next?: never;
+  readonly committed?: never;
 };
 
 const COMMITTED_IDENTITY_FIELDS = [

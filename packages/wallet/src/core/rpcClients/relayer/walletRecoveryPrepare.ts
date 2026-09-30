@@ -15,9 +15,9 @@ import type { DigestB64u } from '@shared/utils';
 import { parseRouterAbMpcMaterialActivationRef } from '@shared/utils/routerAbNormalSigningIdentity';
 import type {
   RouterAbEd25519YaoApplicationBindingFactsV1,
-  RouterAbEd25519YaoBytes32V1,
   RouterAbEd25519YaoLifecycleScopeV1,
 } from '@shared/utils/routerAbEd25519Yao';
+import type { WalletRecoveryPreparationNearRecoveryBasisV1 } from '@shared/wallet-recovery/walletRecoveryPreparation';
 import {
   parseRouterAbEcdsaDerivationPublicCapabilityV1,
   parseRouterAbEcdsaRegistrationActivationReceiptV1,
@@ -154,7 +154,7 @@ export type WalletRecoveryPreparationKeyManifestEntry =
       readonly signerId: string;
       readonly nearAccountId: string;
       readonly recordedKeyManifestDigestB64u: DigestB64u;
-      readonly recoveryBasis: WalletRecoveryPreparationNearRecoveryBasis;
+      readonly recoveryBasis: WalletRecoveryPreparationNearRecoveryBasisV1;
     }
   | {
       readonly kind: 'evm_family_ecdsa';
@@ -164,19 +164,6 @@ export type WalletRecoveryPreparationKeyManifestEntry =
       readonly recordedKeyManifestDigestB64u: DigestB64u;
       readonly recoveryBasis: WalletRecoveryPreparationEcdsaRecoveryBasis;
     };
-
-type WalletRecoveryPreparationNearRecoveryBasis = {
-  readonly capabilityKind: 'registration' | 'recovery';
-  readonly activeCapabilityBinding: RouterAbEd25519YaoBytes32V1;
-  readonly scope: RouterAbEd25519YaoLifecycleScopeV1;
-  readonly applicationBinding: RouterAbEd25519YaoApplicationBindingFactsV1;
-  readonly participantIds: readonly [number, number];
-  readonly registeredPublicKey: RouterAbEd25519YaoBytes32V1;
-  readonly runtimePolicyScope: RuntimePolicyScope;
-  readonly activationTranscript: RouterAbEd25519YaoBytes32V1;
-  readonly activationStateEpoch: number;
-  readonly signingWorkerVerifyingShare: RouterAbEd25519YaoBytes32V1;
-};
 
 type WalletRecoveryPreparationEcdsaRecoveryBasis = {
   readonly publicCapability: RouterAbEcdsaDerivationPublicCapabilityV1;
@@ -1068,7 +1055,7 @@ function parseWalletRecoveryPreparationKeyManifestEntry(
 function parseWalletRecoveryPreparationNearRecoveryBasis(
   raw: unknown,
   expectedWalletId: string,
-): WalletRecoveryPreparationNearRecoveryBasis {
+): WalletRecoveryPreparationNearRecoveryBasisV1 {
   const basis = decodeExactJsonObject(
     raw,
     [

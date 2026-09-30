@@ -21,19 +21,19 @@ export type SigningSessionSealAuthorizeResult =
   | { ok: true; auth: SigningSessionSealAuthContext }
   | { ok: false; code?: string; message?: string; status?: number };
 
-export interface SigningSessionSealApplyServerSealRequest {
+/** Applying and removing the server seal take the same request. */
+export interface SigningSessionSealServerSealRequest {
   thresholdSessionId: string;
   ciphertext: string;
   keyVersion?: string;
   metadata?: Record<string, unknown>;
 }
 
-export interface SigningSessionSealRemoveServerSealRequest {
-  thresholdSessionId: string;
-  ciphertext: string;
-  keyVersion?: string;
-  metadata?: Record<string, unknown>;
-}
+export interface SigningSessionSealApplyServerSealRequest
+  extends SigningSessionSealServerSealRequest {}
+
+export interface SigningSessionSealRemoveServerSealRequest
+  extends SigningSessionSealServerSealRequest {}
 
 type SigningSessionSealRouteSuccessBase = {
   ok: true;
@@ -100,7 +100,7 @@ export interface SigningSessionSealStartupCapabilities {
 
 export type SigningSessionSealOperation = 'apply-server-seal' | 'remove-server-seal';
 
-export type SigningSessionSealCurve = 'ecdsa' | 'ed25519';
+export type { SigningSessionSealCurve } from '@shared/utils/signingSessionSeal';
 
 type SigningSessionSealAuthorizationSessionRecordBase = {
   userId: string;

@@ -42,6 +42,13 @@ export type EcdsaDerivationRelayerPublicKey33B64u = string & {
   readonly __brand: 'EcdsaDerivationRelayerPublicKey33B64u';
 };
 
+export type EcdsaDerivationRoleLocalPublicIdentity = {
+  derivationClientSharePublicKey33B64u: DerivationClientSharePublicKey33B64u;
+  relayerPublicKey33B64u: EcdsaDerivationRelayerPublicKey33B64u;
+  groupPublicKey33B64u: string;
+  ethereumAddress: string;
+};
+
 export type EcdsaThresholdKeyId = string & {
   readonly __brand: 'EcdsaThresholdKeyId';
 };

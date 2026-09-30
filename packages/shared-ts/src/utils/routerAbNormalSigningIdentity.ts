@@ -3,6 +3,7 @@ import {
   type MpcMaterialActivationRef,
 } from './domainIds';
 import { requireRecord } from './validation';
+import type { RouterAbEcdsaOperationStepUpPreparationV1Wire } from './routerAbEcdsaDerivation';
 
 export type RouterAbNormalSigningAuthorizationWire =
   | {
@@ -13,6 +14,22 @@ export type RouterAbNormalSigningAuthorizationWire =
       readonly kind: 'operation_step_up';
       readonly evidence_set_digest?: never;
       readonly wallet_session_id?: never;
+    };
+
+export type RouterAbEcdsaDerivationPoolFillAuthorization =
+  | {
+      readonly authorization: Extract<
+        RouterAbNormalSigningAuthorizationWire,
+        { readonly kind: 'reusable_wallet_session' }
+      >;
+      readonly operation?: never;
+    }
+  | {
+      readonly authorization: Extract<
+        RouterAbNormalSigningAuthorizationWire,
+        { readonly kind: 'operation_step_up' }
+      >;
+      readonly operation: RouterAbEcdsaOperationStepUpPreparationV1Wire;
     };
 
 export type RouterAbMpcMaterialActivationRefWire = {
@@ -41,6 +58,25 @@ export type RouterAbEd25519OperationStepUpPreparationV1Wire = {
   readonly participant_ids: readonly [number, number];
   readonly expires_at_ms: number;
 };
+
+export type RouterAbEd25519OperationStepUpMaterialRecoveryRequest =
+  | { kind: 'not_requested' }
+  | {
+      kind: 'email_otp_factor_release_v1';
+      workerEphemeralPublicKey65B64u: string;
+    };
+
+export type RouterAbEd25519OperationStepUpMaterialRecoveryResponse =
+  | { kind: 'not_requested' }
+  | {
+      kind: 'email_otp_factor_release_v1';
+      challengeId: string;
+      enrollmentId: string;
+      enrollmentSealKeyVersion: string;
+      serverEphemeralPublicKey65B64u: string;
+      nonce12B64u: string;
+      ciphertextB64u: string;
+    };
 
 export type RouterAbEd25519OwnerOperationAuthorizationDecisionV1Wire =
   | {

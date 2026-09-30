@@ -36,7 +36,7 @@ export type Ed25519WalletSessionRecord = {
   participantIds: number[];
 } & Partial<ThresholdEcdsaSigningRootMetadata>;
 
-type EcdsaWalletSessionRecordCore = {
+export type EcdsaWalletSessionRecordCore = {
   expiresAtMs: number;
   relayerKeyId: string;
   walletId: string;

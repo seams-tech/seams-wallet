@@ -9,7 +9,7 @@ import {
   parseGoogleLoginVerifyRequest,
   parsePasskeyLoginOptionsRequest,
   parsePasskeyLoginVerifyRequest,
-  type AuthPasskeyStepUpRequest,
+  type PasskeyVerifyRequest,
 } from '../../../auth/authRequestValidation';
 
 function assertNeverAuthProviderAction(route: never): never {
@@ -70,7 +70,7 @@ async function requireExactWalletSession(
 async function requireExactPasskeyStepUp(input: {
   readonly ctx: FetchRouterApiContext;
   readonly context: RouterApiWalletSessionAuthorizationV2AdmissionContext;
-  readonly stepUp: AuthPasskeyStepUpRequest;
+  readonly stepUp: PasskeyVerifyRequest;
 }): Promise<{ readonly ok: true } | { readonly ok: false; readonly response: Response }> {
   const result = await input.ctx.service.webAuthn.verifyWebAuthnLogin(input.stepUp);
   if (!result.ok) {

@@ -1,35 +1,13 @@
 import { toOptionalTrimmedString } from '@shared/utils/validation';
 import { createSigningSessionSealShamir3PassCipherAdapter } from '../../../../threshold/session/signingSessionSeal/crypto/cipher';
-import type { SigningSessionSealCipherAdapter } from '../../../../threshold/session/signingSessionSeal/signingSessionSeal.types';
 import type { EmailOtpServerSealRuntimeConfig } from '../auth/d1RouterApiAuthConfig';
+import type {
+  EmailOtpServerSealRequest,
+  EmailOtpServerSealResult as CoreEmailOtpServerSealResult,
+  EmailOtpShamirCipherResult,
+} from '../../../../core/authService/emailOtpSeal';
 
-type EmailOtpServerSealInput = {
-  readonly wrappedCiphertext?: unknown;
-};
-
-type EmailOtpServerSealResult =
-  | {
-      readonly ok: true;
-      readonly ciphertext: string;
-      readonly enrollmentSealKeyVersion: string;
-    }
-  | {
-      readonly ok: false;
-      readonly code: string;
-      readonly message: string;
-    };
-
-type EmailOtpServerSealCipherResult =
-  | {
-      readonly ok: true;
-      readonly keyVersion: string;
-      readonly cipher: SigningSessionSealCipherAdapter;
-    }
-  | {
-      readonly ok: false;
-      readonly code: 'not_configured';
-      readonly message: string;
-    };
+type EmailOtpServerSealResult = Readonly<CoreEmailOtpServerSealResult>;
 
 type EmailOtpServerSealOperation =
   | {
@@ -56,24 +34,26 @@ const removeEmailOtpServerSealOperation: EmailOtpServerSealOperation = {
 };
 
 export class CloudflareD1EmailOtpServerSealRuntime {
-  private readonly cipherResult: EmailOtpServerSealCipherResult;
+  private readonly cipherResult: EmailOtpShamirCipherResult;
 
   constructor(private readonly config: EmailOtpServerSealRuntimeConfig) {
     this.cipherResult = this.createCipher();
   }
 
   async removeEmailOtpServerSeal(
-    input: EmailOtpServerSealInput,
+    input: EmailOtpServerSealRequest,
   ): Promise<EmailOtpServerSealResult> {
     return await this.runServerSealOperation(input, removeEmailOtpServerSealOperation);
   }
 
-  async applyEmailOtpServerSeal(input: EmailOtpServerSealInput): Promise<EmailOtpServerSealResult> {
+  async applyEmailOtpServerSeal(
+    input: EmailOtpServerSealRequest,
+  ): Promise<EmailOtpServerSealResult> {
     return await this.runServerSealOperation(input, applyEmailOtpServerSealOperation);
   }
 
   private async runServerSealOperation(
-    input: EmailOtpServerSealInput,
+    input: EmailOtpServerSealRequest,
     operation: EmailOtpServerSealOperation,
   ): Promise<EmailOtpServerSealResult> {
     try {
@@ -109,7 +89,7 @@ export class CloudflareD1EmailOtpServerSealRuntime {
     }
   }
 
-  private createCipher(): EmailOtpServerSealCipherResult {
+  private createCipher(): EmailOtpShamirCipherResult {
     if (!this.config.configured) {
       return {
         ok: false,

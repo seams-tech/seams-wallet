@@ -1,18 +1,13 @@
 import { errorMessage } from '@shared/utils/errors';
 import type { JsonRpcErrorDetails } from '@shared/utils/jsonRpc';
-import type { DecodedNearFinalExecutionOutcome } from '@shared/utils/nearRpcResults';
+import type {
+  DecodedNearFinalExecutionOutcome,
+  NearRpcErrorType,
+} from '@shared/utils/nearRpcResults';
 import { NearJsonRpcClient } from '@shared/near/nearClient';
 
 export type { AccessKeyList } from '@near-js/types';
 export { SignedTransaction, type NearClient } from '@shared/near/nearClient';
-
-type NearRpcErrorType =
-  | 'InvalidTxError'
-  | 'ActionError'
-  | 'TxExecutionError'
-  | 'RpcError'
-  | 'Failure'
-  | 'Unknown';
 
 type NearRpcFailureKind =
   | 'transaction_not_found'

@@ -12,7 +12,7 @@ import {
   parseLaneShareEpoch,
   parseSigningLaneId,
   parseWalletKeyId,
-  type SigningLaneRecord,
+  type OwnerWalletExecutionLaneProjectionV1,
   type WalletKeyRecord,
 } from '@shared/signing-lanes';
 import {
@@ -70,16 +70,7 @@ import type {
 const SOURCE_IDENTITY_DOMAIN = 'seams/wallet-execution-lane/source-identity/v1';
 const ED25519_RECEIPT_DOMAIN = 'seams/wallet-execution-lane/ed25519-receipt/v1';
 
-export type ActiveOwnerWalletExecutionLaneProjection = {
-  readonly kind: 'active_owner_wallet_execution_lane_projection_v1';
-  readonly walletKey: WalletKeyRecord;
-  readonly lane: Extract<
-    SigningLaneRecord,
-    { readonly laneKind: 'owner_passkey' | 'owner_email_otp' }
-  >;
-  readonly materialActivation: MpcMaterialActivationRef;
-  readonly verifiedActivationReceiptDigestB64u: DigestB64u;
-};
+export type ActiveOwnerWalletExecutionLaneProjection = OwnerWalletExecutionLaneProjectionV1;
 
 type WalletExecutionLaneProjectionRefusalReason =
   | 'auth_method_missing'

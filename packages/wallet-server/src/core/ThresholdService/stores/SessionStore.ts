@@ -25,9 +25,9 @@ import { readNonDurableObjectThresholdStoreKind } from './StoreConfig';
 
 export type ThresholdEd25519Commitments = { hiding: string; binding: string };
 
-type ThresholdEd25519CommitmentsById = Record<string, ThresholdEd25519Commitments>;
+export type ThresholdEd25519CommitmentsById = Record<string, ThresholdEd25519Commitments>;
 
-type ThresholdEd25519SigningShareMaterial =
+export type ThresholdEd25519SigningShareMaterial =
   | {
       kind: 'key_store';
     }

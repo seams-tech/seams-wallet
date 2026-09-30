@@ -9,7 +9,6 @@ import type { WalletId } from '@shared/utils/domainIds';
 import type { ThresholdEcdsaChainTarget } from '../../../core/thresholdEcdsaChainTarget';
 import type {
   RouterAbEd25519YaoApplicationBindingFactsV1,
-  RouterAbEd25519YaoBytes32V1,
   RouterAbEd25519YaoLifecycleScopeV1,
 } from '@shared/utils/routerAbEd25519Yao';
 import {
@@ -42,6 +41,7 @@ import {
   type WalletRecoveryEcdsaPossessionProofV1,
 } from '@shared/wallet-recovery/walletRecoveryEcdsaPossession';
 import type { WalletAuthAuthorityRef } from '@shared/utils/walletAuthAuthority';
+import type { WalletRecoveryPreparationNearRecoveryBasisV1 } from '@shared/wallet-recovery/walletRecoveryPreparation';
 import { verifySecp256k1Bip340SignatureAgainstPublicKey33 } from '../../../core/ThresholdService/evmCryptoWasm';
 
 export type { WalletRecoveryKeySetId } from '@shared/wallet-recovery/recoveryCodeReservation';
@@ -121,19 +121,6 @@ type WalletRecoveryPreparationKeyManifestEntryV1 =
       readonly recordedKeyManifestDigestB64u: string;
       readonly recoveryBasis: WalletRecoveryPreparationEcdsaRecoveryBasisV1;
     };
-
-type WalletRecoveryPreparationNearRecoveryBasisV1 = {
-  readonly capabilityKind: 'registration' | 'recovery';
-  readonly activeCapabilityBinding: RouterAbEd25519YaoBytes32V1;
-  readonly scope: RouterAbEd25519YaoLifecycleScopeV1;
-  readonly applicationBinding: RouterAbEd25519YaoApplicationBindingFactsV1;
-  readonly participantIds: readonly [number, number];
-  readonly registeredPublicKey: RouterAbEd25519YaoBytes32V1;
-  readonly runtimePolicyScope: RuntimePolicyScope;
-  readonly activationTranscript: RouterAbEd25519YaoBytes32V1;
-  readonly activationStateEpoch: number;
-  readonly signingWorkerVerifyingShare: RouterAbEd25519YaoBytes32V1;
-};
 
 type WalletRecoveryPreparationEcdsaRecoveryBasisV1 = {
   readonly publicCapability: RouterAbEcdsaDerivationPublicCapabilityV1;

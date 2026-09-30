@@ -1,3 +1,5 @@
+import type { RouterApiKeyAuthFailureCode } from '@shared/utils/routerApiKeyAuth';
+
 export const ROUTER_API_CREDENTIAL_SCOPES = [
   'accounts.create',
   'wallets.read',
@@ -7,13 +9,7 @@ export const ROUTER_API_CREDENTIAL_SCOPES = [
 
 export type RouterApiCredentialScope = (typeof ROUTER_API_CREDENTIAL_SCOPES)[number];
 
-export type RouterApiKeyAuthFailureCode =
-  | 'secret_key_missing'
-  | 'secret_key_invalid'
-  | 'secret_key_revoked'
-  | 'secret_key_forbidden_scope'
-  | 'secret_key_ip_blocked'
-  | 'secret_key_environment_mismatch';
+export type { RouterApiKeyAuthFailureCode };
 
 export interface RouterApiKeyAuthRequest {
   secret: string;
@@ -82,6 +78,7 @@ export interface RouterApiUsageMeterEvent {
   action: RouterApiUsageMeterAction;
   succeeded: boolean;
   occurredAt?: string;
+  /** Producer-owned idempotency key; replays with the same id must not double-count. */
   sourceEventId?: string;
 }
 

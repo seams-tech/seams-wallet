@@ -16,6 +16,7 @@ import {
 } from '../../../../core/EmailOtpRecords';
 import type {
   EmailOtpAuthStateRecord,
+  EmailOtpChallengeAction,
   EmailOtpChallengeOperation,
   EmailOtpChallengeRecord,
   EmailOtpGrantAction,
@@ -24,6 +25,7 @@ import type {
   EmailOtpUnlockChallengeRecord,
   EmailOtpWalletEnrollmentRecord,
 } from '../../../../core/EmailOtpStores';
+import type { EmailOtpRateLimitScope } from '../../../../core/authService/emailOtpConfig';
 import {
   isB64uString,
   nonNegativeSafeInteger,
@@ -31,13 +33,9 @@ import {
   positiveSafeInteger,
 } from '../auth/d1RouterApiAuthBoundary';
 
-export type EmailOtpChallengeIssueAction =
-  | typeof WALLET_EMAIL_OTP_ACTIONS.login
-  | typeof WALLET_EMAIL_OTP_ACTIONS.registration
-  | typeof WALLET_EMAIL_OTP_ACTIONS.recoveryBootstrap
-  | typeof WALLET_EMAIL_OTP_ACTIONS.deviceLink;
+export type EmailOtpChallengeIssueAction = EmailOtpChallengeAction;
 
-export type EmailOtpRateLimitScope = 'challenge' | 'verify' | 'grant' | 'googleRegistrationAttempt';
+export type { EmailOtpRateLimitScope };
 
 export type EmailOtpAuthStatePatch = {
   readonly otpFailureCount?: number | null;

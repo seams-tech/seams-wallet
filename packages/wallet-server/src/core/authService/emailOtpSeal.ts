@@ -12,7 +12,7 @@ type EmailOtpShamirCipherConfig = {
   readonly acceptedWarmKeyVersions: readonly string[];
 };
 
-type EmailOtpShamirCipherResult =
+export type EmailOtpShamirCipherResult =
   | {
       readonly ok: true;
       readonly keyVersion: string;

@@ -1,10 +1,10 @@
 import { parseSigningLaneRecord, parseWalletKeyRecord } from '@shared/signing-lanes/recordParsers';
-import type { SigningLaneRecord, WalletKeyRecord } from '@shared/signing-lanes';
+import type { OwnerWalletExecutionLaneProjectionV1 } from '@shared/signing-lanes';
 import {
   parseMpcMaterialActivationRef,
   type MpcMaterialActivationRef,
 } from '@shared/utils/domainIds';
-import { parseDigestB64u, type DigestB64u } from '@shared/utils/canonicalPrimitives';
+import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';
 import {
   buildBearerAuthorizationHeader,
   buildRelayerJsonPostRequestInit,
@@ -13,16 +13,7 @@ import {
 
 export const OWNER_WALLET_EXECUTION_LANE_PREFLIGHT_PATH = '/wallet/execution-lane/owner';
 
-export type OwnerWalletExecutionLaneProjectionV1 = {
-  readonly kind: 'active_owner_wallet_execution_lane_projection_v1';
-  readonly walletKey: WalletKeyRecord;
-  readonly lane: Extract<
-    SigningLaneRecord,
-    { readonly laneKind: 'owner_passkey' | 'owner_email_otp' }
-  >;
-  readonly materialActivation: MpcMaterialActivationRef;
-  readonly verifiedActivationReceiptDigestB64u: DigestB64u;
-};
+export type { OwnerWalletExecutionLaneProjectionV1 };
 
 export async function readOwnerWalletExecutionLaneProjectionV1(input: {
   readonly relayerUrl: string;

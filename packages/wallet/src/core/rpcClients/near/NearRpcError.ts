@@ -1,12 +1,5 @@
 import type { JsonRpcErrorDetails } from '@shared/utils/jsonRpc';
-
-type NearRpcErrorType =
-  | 'InvalidTxError'
-  | 'ActionError'
-  | 'TxExecutionError'
-  | 'RpcError'
-  | 'Failure'
-  | 'Unknown';
+import type { NearRpcErrorType } from '@shared/utils/nearRpcResults';
 
 function isObj(v: unknown): v is Record<string, unknown> {
   return !!v && typeof v === 'object' && !Array.isArray(v);

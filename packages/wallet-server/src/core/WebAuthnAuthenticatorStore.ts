@@ -57,7 +57,7 @@ export interface D1WebAuthnAuthenticatorStoreSchemaOptions extends D1SchemaOptio
 
 export interface D1WebAuthnAuthenticatorStoreOptions extends D1TenantStoreOptions {}
 
-type D1WebAuthnAuthenticatorRow = {
+export type D1WebAuthnAuthenticatorRow = {
   readonly credential_id_b64u?: unknown;
   readonly credential_public_key_b64u?: unknown;
   readonly counter?: unknown;

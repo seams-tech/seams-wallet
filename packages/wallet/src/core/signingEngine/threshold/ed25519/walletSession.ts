@@ -22,6 +22,10 @@ import type {
   RouterAbOwnerNormalSigningCredential,
   RouterAbNormalSigningPrepareRequestV2Wire,
 } from '@/core/rpcClients/relayer/routerAbNormalSigning';
+import type {
+  RouterAbEd25519OperationStepUpMaterialRecoveryRequest,
+  RouterAbEd25519OperationStepUpMaterialRecoveryResponse,
+} from '@shared/utils/routerAbNormalSigningIdentity';
 import {
   buildBearerAuthorizationHeader,
   buildRelayerJsonPostRequestInit,
@@ -46,7 +50,8 @@ import {
 } from '@shared/device-linking';
 import {
   parseWalletSessionAlreadyCommittedResponseV1,
-  type WalletSessionCommittedIdentityV1,
+  type WalletSessionAlreadyCommittedResponseV1,
+  type WalletSessionRejectionV1,
 } from '@shared/authorization';
 
 const ED25519_WALLET_SESSION_MINT_TIMEOUT_MS = 15_000;
@@ -148,26 +153,10 @@ type Ed25519WalletSessionMintSuccess =
       readonly operationCredential?: never;
     };
 
-type Ed25519WalletSessionMintAlreadyCommitted = {
-  readonly ok: false;
-  readonly code: 'already_committed';
-  readonly message: string;
-  readonly next: 'unlock_exact_method';
-  readonly committed: WalletSessionCommittedIdentityV1;
-};
-
-type Ed25519WalletSessionMintFailure = {
-  readonly ok: false;
-  readonly code: string;
-  readonly message: string;
-  readonly next?: never;
-  readonly committed?: never;
-};
-
 type Ed25519WalletSessionMintResult =
   | Ed25519WalletSessionMintSuccess
-  | Ed25519WalletSessionMintAlreadyCommitted
-  | Ed25519WalletSessionMintFailure;
+  | WalletSessionAlreadyCommittedResponseV1
+  | WalletSessionRejectionV1;
 
 function parseWalletSessionMintExpiresAtMs(value: unknown): number | null {
   if (typeof value !== 'string') return null;
@@ -399,35 +388,16 @@ export type Ed25519OperationStepUpProof =
       authority?: never;
     };
 
-type Ed25519OperationStepUpMaterialRecoveryRequest =
-  | { kind: 'not_requested' }
-  | {
-      kind: 'email_otp_factor_release_v1';
-      workerEphemeralPublicKey65B64u: string;
-    };
-
-type Ed25519OperationStepUpMaterialRecoveryResponse =
-  | { kind: 'not_requested' }
-  | {
-      kind: 'email_otp_factor_release_v1';
-      challengeId: string;
-      enrollmentId: string;
-      enrollmentSealKeyVersion: string;
-      serverEphemeralPublicKey65B64u: string;
-      nonce12B64u: string;
-      ciphertextB64u: string;
-    };
-
 type Ed25519EmailOtpOperationStepUpProof = Extract<
   Ed25519OperationStepUpProof,
   { kind: 'email_otp' }
 >;
 type Ed25519NoMaterialRecoveryRequest = Extract<
-  Ed25519OperationStepUpMaterialRecoveryRequest,
+  RouterAbEd25519OperationStepUpMaterialRecoveryRequest,
   { kind: 'not_requested' }
 >;
 type Ed25519EmailOtpFactorReleaseRequest = Extract<
-  Ed25519OperationStepUpMaterialRecoveryRequest,
+  RouterAbEd25519OperationStepUpMaterialRecoveryRequest,
   { kind: 'email_otp_factor_release_v1' }
 >;
 
@@ -498,7 +468,7 @@ export type IssuedEd25519OperationStepUpAuthorization = {
   kind: 'verified_step_up';
   authorization: { kind: 'operation_step_up'; evidence_set_digest: string };
   expiresAtMs: number;
-  materialRecovery: Ed25519OperationStepUpMaterialRecoveryResponse;
+  materialRecovery: RouterAbEd25519OperationStepUpMaterialRecoveryResponse;
 };
 
 function requireEd25519OperationStepUpResponseRecord(
@@ -537,7 +507,7 @@ function requireNormalizedEd25519OperationStepUpString(value: unknown, field: st
 
 function buildEd25519OperationStepUpMaterialRecoveryRequest(
   request: Ed25519OperationStepUpAuthorizationRequest,
-): Ed25519OperationStepUpMaterialRecoveryRequest {
+): RouterAbEd25519OperationStepUpMaterialRecoveryRequest {
   switch (request.proof.kind) {
     case 'passkey':
       if (request.materialRecovery.kind !== 'not_requested') {
@@ -570,8 +540,8 @@ function buildEd25519OperationStepUpMaterialRecoveryRequest(
 
 function parseEd25519OperationStepUpMaterialRecoveryResponse(args: {
   value: unknown;
-  requested: Ed25519OperationStepUpMaterialRecoveryRequest;
-}): Ed25519OperationStepUpMaterialRecoveryResponse {
+  requested: RouterAbEd25519OperationStepUpMaterialRecoveryRequest;
+}): RouterAbEd25519OperationStepUpMaterialRecoveryResponse {
   const response = requireEd25519OperationStepUpResponseRecord(
     args.value,
     'operation step-up material recovery',
@@ -644,7 +614,7 @@ function parseEd25519OperationStepUpMaterialRecoveryResponse(args: {
 
 function parseIssuedEd25519OperationStepUpAuthorization(args: {
   body: unknown;
-  requestedMaterialRecovery: Ed25519OperationStepUpMaterialRecoveryRequest;
+  requestedMaterialRecovery: RouterAbEd25519OperationStepUpMaterialRecoveryRequest;
 }): IssuedEd25519OperationStepUpAuthorization {
   const body = requireEd25519OperationStepUpResponseRecord(args.body, 'operation step-up response');
   requireExactEd25519OperationStepUpResponseKeys(

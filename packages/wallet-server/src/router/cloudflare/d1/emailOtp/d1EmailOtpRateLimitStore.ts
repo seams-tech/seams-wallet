@@ -1,4 +1,5 @@
 import type { ScopedD1Prepare } from '../../../../core/emailOtpD1Statements';
+import type { RateLimitResult } from '../../../../core/authService/rateLimits';
 import type { EmailOtpRateLimitPolicy } from '../auth/d1RouterApiAuthConfig';
 import {
   emailOtpRateLimitExceeded,
@@ -21,15 +22,7 @@ type EmailOtpRateLimitConsumeInput = {
   readonly clientIp?: string;
 };
 
-type EmailOtpRateLimitConsumeResult =
-  | { readonly ok: true }
-  | {
-      readonly ok: false;
-      readonly code: 'rate_limited';
-      readonly message: string;
-      readonly retryAfterMs?: number;
-      readonly resetAtMs?: number;
-    };
+type EmailOtpRateLimitConsumeResult = Readonly<RateLimitResult>;
 
 export class CloudflareD1EmailOtpRateLimitStore {
   private readonly prepare: ScopedD1Prepare;
