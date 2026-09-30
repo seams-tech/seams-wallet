@@ -9,10 +9,10 @@
 // It runs one attempt at a time: the same Playwright scenario, with the same
 // environment, as a probe host has always run. The arm's access token arrives
 // in the request body and reaches only the browser run's environment; the
-// server writes nothing but the run's own timing artifact.
+// Each attempt retains its timing and private lifecycle/failure evidence.
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -87,6 +87,7 @@ function startAttempt(attempt) {
     ? `gateway-ecdsa-unforced-timing-hosted_${attempt.arm}-${attempt.region}-${attempt.runId}-0.json`
     : `gateway-ecdsa-first-warm-burst-hosted_${attempt.arm}-${attempt.region}-${attempt.runId}-0.json`;
   const artifactPath = path.join(repoRoot, '.artifacts', unforced ? 'r150' : 'r151', artifactName);
+  const diagnosticsDirectory = path.join(repoRoot, '.runtime', 'probe-attempts', attempt.runId);
   if (existsSync(artifactPath)) throw new Error(`artifact ${artifactName} already exists`);
   const state = { status: 'running', startedAt: new Date().toISOString(), result: null };
   attempts.set(attempt.runId, state);
@@ -104,6 +105,8 @@ function startAttempt(attempt) {
     SEAMS_INTENDED_PUBLISHABLE_KEY: attempt.selected.publishableKey,
     SEAMS_INTENDED_SIGNING_WORKER_ID: attempt.selected.signingWorkerId,
     SEAMS_INTENDED_BENCHMARK_ACCESS_TOKEN: attempt.selected.accessToken,
+    SEAMS_INTENDED_PERSIST_TRACE: '1',
+    SEAMS_INTENDED_TRACE_DIR: path.join(diagnosticsDirectory, 'lifecycle'),
   };
   let output = '';
   const child = spawn(
@@ -119,6 +122,8 @@ function startAttempt(attempt) {
       'e2e/intended-behaviours/passkey.presign-pool.contract.test.ts',
       '--grep',
       unforced ? 'unforced ECDSA registration and repeated signing' : 'first, warm, and concurrent burst',
+      '--output',
+      path.join(diagnosticsDirectory, 'playwright'),
     ],
     { cwd: repoRoot, env, stdio: ['ignore', 'pipe', 'pipe'] },
   );
@@ -144,12 +149,31 @@ function startAttempt(attempt) {
       signal,
       artifactName,
       artifact,
+      diagnostics: readAttemptDiagnostics(diagnosticsDirectory, attempt.selected.accessToken),
       identity: identity(),
       // The access token is never printed by the run; strip it regardless.
       outputTail: output.split(attempt.selected.accessToken).join('<redacted>'),
       finishedAt: new Date().toISOString(),
     };
   });
+}
+
+function readAttemptDiagnostics(directory, accessToken) {
+  const files = [];
+  let remainingBytes = 8 * 1024 * 1024;
+  if (!existsSync(directory)) return files;
+  for (const name of readdirSync(directory, { recursive: true }).sort()) {
+    if (!name.endsWith('intended-lifecycle-trace.json') && !name.endsWith('error-context.md')) continue;
+    const filePath = path.join(directory, name);
+    const bytes = statSync(filePath).size;
+    if (bytes > remainingBytes) {
+      files.push({ name, bytes, content: null, omission: 'diagnostic_size_limit' });
+      continue;
+    }
+    remainingBytes -= bytes;
+    files.push({ name, bytes, content: readFileSync(filePath, 'utf8').split(accessToken).join('<redacted>'), omission: null });
+  }
+  return files;
 }
 
 function send(response, status, body) {

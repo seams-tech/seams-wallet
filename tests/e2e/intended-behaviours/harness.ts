@@ -797,6 +797,7 @@ type WalletIframeAutoConfirmDiagnostics = {
   otpChallengeMissing?: boolean;
   otpLookupKind?: IntendedEmailOtpCodeRequestForPage['kind'];
   lastOtpError?: string;
+  lastConfirmationError?: string;
   firstIframeAttachedMs?: number;
   firstFrameResolvedMs?: number;
   firstOtpInputVisibleMs?: number;
@@ -8713,7 +8714,10 @@ async function clickWalletIframeConfirm(
       Date.now() - clickStartedAtMs,
     );
     return true;
-  } catch {
+  } catch (error) {
+    if (opts?.diagnostics) {
+      opts.diagnostics.lastConfirmationError = compactUnknownErrorForDiagnostics(error);
+    }
     return false;
   }
 }
