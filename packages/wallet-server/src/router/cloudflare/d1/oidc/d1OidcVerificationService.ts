@@ -1,4 +1,5 @@
 import { toOptionalTrimmedString } from '@shared/utils/validation';
+import { failedVerification } from '@shared/utils/failure';
 import type { IdentityStore, LinkIdentityResult } from '../../../../core/IdentityStore';
 import type {
   RouterApiIdentityService,
@@ -90,30 +91,18 @@ export class CloudflareD1OidcVerificationService {
     try {
       const clientId = toOptionalTrimmedString(this.googleOidcClientId);
       if (!clientId) {
-        return {
-          ok: false,
-          verified: false,
-          code: 'not_configured',
-          message: 'Google OIDC is not configured on this Worker',
-        };
+        return failedVerification('not_configured', 'Google OIDC is not configured on this Worker');
       }
       const idToken = toOptionalTrimmedString(input.idToken ?? input.id_token);
       if (!idToken) {
-        return {
-          ok: false,
-          verified: false,
-          code: 'invalid_body',
-          message: 'id_token is required',
-        };
+        return failedVerification('invalid_body', 'id_token is required');
       }
       const subtle = globalThis.crypto?.subtle;
       if (!subtle) {
-        return {
-          ok: false,
-          verified: false,
-          code: 'unsupported',
-          message: 'WebCrypto (crypto.subtle) is unavailable in this runtime',
-        };
+        return failedVerification(
+          'unsupported',
+          'WebCrypto (crypto.subtle) is unavailable in this runtime',
+        );
       }
 
       const parsed = parseRs256JwtForVerification({
@@ -126,12 +115,7 @@ export class CloudflareD1OidcVerificationService {
       const jwks = await this.oidcJwksCache.getGoogleJwks();
       const jwk = jwks.keysByKid.get(jwt.kid);
       if (!jwk) {
-        return {
-          ok: false,
-          verified: false,
-          code: 'unknown_kid',
-          message: 'Unknown Google key id (kid)',
-        };
+        return failedVerification('unknown_kid', 'Unknown Google key id (kid)');
       }
 
       const signature = await verifyRs256JwtSignature({
@@ -165,12 +149,10 @@ export class CloudflareD1OidcVerificationService {
         ...(claims.hostedDomain ? { hostedDomain: claims.hostedDomain } : {}),
       };
     } catch (error: unknown) {
-      return {
-        ok: false,
-        verified: false,
-        code: 'internal',
-        message: errorMessage(error) || 'Google OIDC verification failed',
-      };
+      return failedVerification(
+        'internal',
+        errorMessage(error) || 'Google OIDC verification failed',
+      );
     }
   }
 

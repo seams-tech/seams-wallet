@@ -1,5 +1,5 @@
 import type { FetchRouterApiContext } from '../createFetchRouter';
-import { json, readJson } from '../../../framework/http';
+import { json, jsonFailure, readJson } from '../../../framework/http';
 import { extractBearerCredential } from '../../../auth/routerApiKeyAuth';
 import { resolveThresholdRuntimePolicyScope } from '../../../auth/commonRouterUtils';
 import type { RouterApiWalletSessionAuthorizationV2AdmissionContext } from '../../../framework/authServicePort';
@@ -31,10 +31,7 @@ async function requireExactWalletSession(
   if (!token) {
     return {
       ok: false,
-      response: json(
-        { ok: false, code: 'unauthorized', message: 'No valid Wallet Session' },
-        { status: 401 },
-      ),
+      response: jsonFailure(401, 'unauthorized', 'No valid Wallet Session'),
     };
   }
   try {
@@ -49,20 +46,14 @@ async function requireExactWalletSession(
     if (!context) {
       return {
         ok: false,
-        response: json(
-          { ok: false, code: 'unauthorized', message: 'No valid Wallet Session' },
-          { status: 401 },
-        ),
+        response: jsonFailure(401, 'unauthorized', 'No valid Wallet Session'),
       };
     }
     return { ok: true, context };
   } catch {
     return {
       ok: false,
-      response: json(
-        { ok: false, code: 'wallet_session_unavailable', message: 'Wallet Session is unavailable' },
-        { status: 503 },
-      ),
+      response: jsonFailure(503, 'wallet_session_unavailable', 'Wallet Session is unavailable'),
     };
   }
 }
@@ -83,10 +74,7 @@ async function requireExactPasskeyStepUp(input: {
   if (String(result.userId).trim() !== walletId) {
     return {
       ok: false,
-      response: json(
-        { ok: false, code: 'forbidden', message: 'Step-up user mismatch' },
-        { status: 403 },
-      ),
+      response: jsonFailure(403, 'forbidden', 'Step-up user mismatch'),
     };
   }
   if (
@@ -95,10 +83,7 @@ async function requireExactPasskeyStepUp(input: {
   ) {
     return {
       ok: false,
-      response: json(
-        { ok: false, code: 'forbidden', message: 'Step-up authority mismatch' },
-        { status: 403 },
-      ),
+      response: jsonFailure(403, 'forbidden', 'Step-up authority mismatch'),
     };
   }
   return { ok: true };
@@ -174,10 +159,7 @@ export async function handleAuth(ctx: FetchRouterApiContext): Promise<Response |
 
     const subject = command.request.subject;
     if (subject.startsWith('near:')) {
-      return json(
-        { ok: false, code: 'not_supported', message: 'near: subjects cannot be unlinked' },
-        { status: 400 },
-      );
+      return jsonFailure(400, 'not_supported', 'near: subjects cannot be unlinked');
     }
     const out = await ctx.service.identity.unlinkIdentity({ userId: walletId, subject });
     if (!out.ok) {
@@ -239,19 +221,17 @@ export async function handleAuth(ctx: FetchRouterApiContext): Promise<Response |
         orgProjectEnv: ctx.opts.orgProjectEnv,
       });
       if (!runtimePolicyScope.ok) {
-        return json(
-          { ok: false, code: runtimePolicyScope.code, message: runtimePolicyScope.message },
-          { status: runtimePolicyScope.status },
+        return jsonFailure(
+          runtimePolicyScope.status,
+          runtimePolicyScope.code,
+          runtimePolicyScope.message,
         );
       }
       if (!runtimePolicyScope.scope) {
-        return json(
-          {
-            ok: false,
-            code: 'runtime_policy_scope_unavailable',
-            message: 'Google Email OTP requires an active managed runtime policy scope',
-          },
-          { status: 500 },
+        return jsonFailure(
+          500,
+          'runtime_policy_scope_unavailable',
+          'Google Email OTP requires an active managed runtime policy scope',
         );
       }
       const result = await ctx.service.identity.verifyGoogleLogin(parsed.request);

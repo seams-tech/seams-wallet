@@ -4,6 +4,7 @@
 // (by re-exporting from their Worker entrypoint) without vendoring the code.
 
 import { isPlainObject } from '@shared/utils/validation';
+import { failure } from '@shared/utils/failure';
 import {
   EXPORT_REPLAY_GUARD_CLOCK_SKEW_MS,
   EXPORT_REPLAY_GUARD_MIN_RETENTION_MS,
@@ -104,10 +105,6 @@ function json(body: unknown, init?: ResponseInit): Response {
 
 function ok<T>(value: T): DoOk<T> {
   return { ok: true, value };
-}
-
-function err(code: string, message: string): DoErr {
-  return { ok: false, code, message };
 }
 
 function toKey(input: unknown): string {
@@ -231,7 +228,7 @@ export class ThresholdStoreDurableObject {
 
   async fetch(request: Request): Promise<Response> {
     if (request.method.toUpperCase() !== 'POST') {
-      return json(err('method_not_allowed', 'POST required'), { status: 405 });
+      return json(failure('method_not_allowed', 'POST required'), { status: 405 });
     }
 
     let body: unknown;
@@ -240,27 +237,27 @@ export class ThresholdStoreDurableObject {
     } catch {
       body = null;
     }
-    if (!isPlainObject(body)) return json(err('invalid_body', 'Expected JSON object'));
+    if (!isPlainObject(body)) return json(failure('invalid_body', 'Expected JSON object'));
     const op = (body as { op?: unknown }).op;
-    if (typeof op !== 'string') return json(err('invalid_body', 'Missing op'));
+    if (typeof op !== 'string') return json(failure('invalid_body', 'Missing op'));
 
     const req = body as DoReq;
     if (op === 'get') {
       const key = toKey((req as { key?: unknown }).key);
-      if (!key) return json(err('invalid_body', 'Missing key'));
+      if (!key) return json(failure('invalid_body', 'Missing key'));
       const value = await this.state.storage.get(key);
       return json(ok(value ?? null));
     }
     if (op === 'readVersioned') {
       const key = toKey((req as { key?: unknown }).key);
-      if (!key) return json(err('invalid_body', 'Missing key'));
+      if (!key) return json(failure('invalid_body', 'Missing key'));
       const value = await this.state.storage.get(key);
       if (value === null || value === undefined) return json(ok(null));
       return json(ok({ value, version: stableStoreVersion(value) }));
     }
     if (op === 'readVersionedJson') {
       const key = toKey((req as { key?: unknown }).key);
-      if (!key) return json(err('invalid_body', 'Missing key'));
+      if (!key) return json(failure('invalid_body', 'Missing key'));
       const stored = await this.state.storage.get(key);
       if (stored === null || stored === undefined) return json(ok({ status: 'missing' }));
       if (!isVersionedJsonRecordEnvelope(stored)) {
@@ -276,16 +273,17 @@ export class ThresholdStoreDurableObject {
     }
     if (op === 'putVersionedJson') {
       const key = toKey((req as { key?: unknown }).key);
-      if (!key) return json(err('invalid_body', 'Missing key'));
+      if (!key) return json(failure('invalid_body', 'Missing key'));
       const expectedVersion = (req as { expectedVersion?: unknown }).expectedVersion;
       if (expectedVersion !== null && typeof expectedVersion !== 'string') {
-        return json(err('invalid_body', 'expectedVersion must be null or a non-empty string'));
+        return json(failure('invalid_body', 'expectedVersion must be null or a non-empty string'));
       }
       if (typeof expectedVersion === 'string' && !toKey(expectedVersion)) {
-        return json(err('invalid_body', 'expectedVersion must be null or a non-empty string'));
+        return json(failure('invalid_body', 'expectedVersion must be null or a non-empty string'));
       }
       const value = (req as { value?: unknown }).value;
-      if (!isJsonValue(value)) return json(err('invalid_body', 'value must be JSON serializable'));
+      if (!isJsonValue(value))
+        return json(failure('invalid_body', 'value must be JSON serializable'));
       const ttl = toTtlSeconds((req as { ttlMs?: unknown }).ttlMs);
       const result = await withRequiredTxn(this.state, async (store) => {
         const current = await store.get(key);
@@ -311,7 +309,7 @@ export class ThresholdStoreDurableObject {
     }
     if (op === 'set') {
       const key = toKey((req as { key?: unknown }).key);
-      if (!key) return json(err('invalid_body', 'Missing key'));
+      if (!key) return json(failure('invalid_body', 'Missing key'));
       const ttl = toTtlSeconds((req as { ttlMs?: unknown }).ttlMs);
       await this.state.storage.put(
         key,
@@ -323,8 +321,8 @@ export class ThresholdStoreDurableObject {
     if (op === 'claimVersioned') {
       const key = toKey((req as { key?: unknown }).key);
       const expectedVersion = toKey((req as { expectedVersion?: unknown }).expectedVersion);
-      if (!key) return json(err('invalid_body', 'Missing key'));
-      if (!expectedVersion) return json(err('invalid_body', 'Missing expectedVersion'));
+      if (!key) return json(failure('invalid_body', 'Missing key'));
+      if (!expectedVersion) return json(failure('invalid_body', 'Missing expectedVersion'));
       const result = await withTxn(this.state, async (store) => {
         const value = await store.get(key);
         if (value === null || value === undefined) return { status: 'not_found' };
@@ -346,16 +344,16 @@ export class ThresholdStoreDurableObject {
       const identityValue = toKey((req as { identityValue?: unknown }).identityValue);
       const keyHandleKey = toKey((req as { keyHandleKey?: unknown }).keyHandleKey);
       const keyHandleValue = toKey((req as { keyHandleValue?: unknown }).keyHandleValue);
-      if (!key) return json(err('invalid_body', 'Missing key'));
-      if (!identityKey) return json(err('invalid_body', 'Missing identityKey'));
-      if (!identityValue) return json(err('invalid_body', 'Missing identityValue'));
-      if (!keyHandleKey) return json(err('invalid_body', 'Missing keyHandleKey'));
-      if (!keyHandleValue) return json(err('invalid_body', 'Missing keyHandleValue'));
+      if (!key) return json(failure('invalid_body', 'Missing key'));
+      if (!identityKey) return json(failure('invalid_body', 'Missing identityKey'));
+      if (!identityValue) return json(failure('invalid_body', 'Missing identityValue'));
+      if (!keyHandleKey) return json(failure('invalid_body', 'Missing keyHandleKey'));
+      if (!keyHandleValue) return json(failure('invalid_body', 'Missing keyHandleValue'));
       const ttl = toTtlSeconds((req as { ttlMs?: unknown }).ttlMs);
       const result = await withTxn(this.state, async (store) => {
         const existing = await store.get(identityKey);
         if (existing !== null && existing !== undefined && existing !== identityValue) {
-          return err('conflict', ECDSA_SHARED_IDENTITY_CONFLICT_MESSAGE);
+          return failure('conflict', ECDSA_SHARED_IDENTITY_CONFLICT_MESSAGE);
         }
         const existingKeyHandle = await store.get(keyHandleKey);
         if (
@@ -363,7 +361,7 @@ export class ThresholdStoreDurableObject {
           existingKeyHandle !== undefined &&
           existingKeyHandle !== keyHandleValue
         ) {
-          return err('conflict', ECDSA_KEY_HANDLE_CONFLICT_MESSAGE);
+          return failure('conflict', ECDSA_KEY_HANDLE_CONFLICT_MESSAGE);
         }
         await store.put(
           key,
@@ -378,7 +376,7 @@ export class ThresholdStoreDurableObject {
     }
     if (op === 'del') {
       const key = toKey((req as { key?: unknown }).key);
-      if (!key) return json(err('invalid_body', 'Missing key'));
+      if (!key) return json(failure('invalid_body', 'Missing key'));
       const deleted = await this.state.storage.delete(key);
       return json(ok(deleted));
     }
@@ -388,11 +386,11 @@ export class ThresholdStoreDurableObject {
       const identityValue = toKey((req as { identityValue?: unknown }).identityValue);
       const keyHandleKey = toKey((req as { keyHandleKey?: unknown }).keyHandleKey);
       const keyHandleValue = toKey((req as { keyHandleValue?: unknown }).keyHandleValue);
-      if (!key) return json(err('invalid_body', 'Missing key'));
-      if (!identityKey) return json(err('invalid_body', 'Missing identityKey'));
-      if (!identityValue) return json(err('invalid_body', 'Missing identityValue'));
-      if (!keyHandleKey) return json(err('invalid_body', 'Missing keyHandleKey'));
-      if (!keyHandleValue) return json(err('invalid_body', 'Missing keyHandleValue'));
+      if (!key) return json(failure('invalid_body', 'Missing key'));
+      if (!identityKey) return json(failure('invalid_body', 'Missing identityKey'));
+      if (!identityValue) return json(failure('invalid_body', 'Missing identityValue'));
+      if (!keyHandleKey) return json(failure('invalid_body', 'Missing keyHandleKey'));
+      if (!keyHandleValue) return json(failure('invalid_body', 'Missing keyHandleValue'));
       await withTxn(this.state, async (store) => {
         await store.delete(key);
         if ((await store.get(identityKey)) === identityValue) {
@@ -406,7 +404,7 @@ export class ThresholdStoreDurableObject {
     }
     if (op === 'getdel') {
       const key = toKey((req as { key?: unknown }).key);
-      if (!key) return json(err('invalid_body', 'Missing key'));
+      if (!key) return json(failure('invalid_body', 'Missing key'));
       const value = await withTxn(this.state, async (store) => {
         const v = await store.get(key);
         await store.delete(key);
@@ -417,8 +415,8 @@ export class ThresholdStoreDurableObject {
     if (op === 'getdelIfRelatedMatches') {
       const key = toKey((req as { key?: unknown }).key);
       const relatedKey = toKey((req as { relatedKey?: unknown }).relatedKey);
-      if (!key) return json(err('invalid_body', 'Missing key'));
-      if (!relatedKey) return json(err('invalid_body', 'Missing relatedKey'));
+      if (!key) return json(failure('invalid_body', 'Missing key'));
+      if (!relatedKey) return json(failure('invalid_body', 'Missing relatedKey'));
       const expectedRelated = (req as { expectedRelated?: unknown }).expectedRelated;
       const value = await withTxn(this.state, async (store) => {
         const related = await store.get(relatedKey);
@@ -440,10 +438,10 @@ export class ThresholdStoreDurableObject {
     if (op === 'walletTakeEcdsaPendingSessionActivationPair') {
       const recoveryKey = toKey((req as { recoveryKey?: unknown }).recoveryKey);
       const refreshKey = toKey((req as { refreshKey?: unknown }).refreshKey);
-      if (!recoveryKey) return json(err('invalid_body', 'Missing recoveryKey'));
-      if (!refreshKey) return json(err('invalid_body', 'Missing refreshKey'));
+      if (!recoveryKey) return json(failure('invalid_body', 'Missing recoveryKey'));
+      if (!refreshKey) return json(failure('invalid_body', 'Missing refreshKey'));
       if (recoveryKey === refreshKey) {
-        return json(err('invalid_body', 'Recovery and refresh keys must be distinct'));
+        return json(failure('invalid_body', 'Recovery and refresh keys must be distinct'));
       }
       const value = await withRequiredTxn(this.state, async (store) => {
         const recovery = await store.get(recoveryKey);
@@ -470,12 +468,12 @@ export class ThresholdStoreDurableObject {
       );
       const walletId = toKey((req as { walletId?: unknown }).walletId);
       if (!ceremonyKey) {
-        return json(err('invalid_body', 'Missing terminal registration ceremony key'));
+        return json(failure('invalid_body', 'Missing terminal registration ceremony key'));
       }
       if (!registrationCeremonyId) {
-        return json(err('invalid_body', 'Missing terminal registration ceremony ID'));
+        return json(failure('invalid_body', 'Missing terminal registration ceremony ID'));
       }
-      if (!walletId) return json(err('invalid_body', 'Missing terminal registration walletId'));
+      if (!walletId) return json(failure('invalid_body', 'Missing terminal registration walletId'));
       const result = await withRequiredTxn(this.state, async (store) => {
         const ceremony = await store.get(ceremonyKey);
         if (ceremony === null || ceremony === undefined) {
@@ -491,7 +489,7 @@ export class ThresholdStoreDurableObject {
             walletId,
           })
         ) {
-          return err(
+          return failure(
             'registration_ceremony_identity_mismatch',
             'Terminal registration cancellation does not match the stored ceremony',
           );
@@ -507,19 +505,19 @@ export class ThresholdStoreDurableObject {
 
     if (op === 'authConsumeUseCount') {
       const key = toKey((req as { key?: unknown }).key);
-      if (!key) return json(err('invalid_body', 'Missing key'));
+      if (!key) return json(failure('invalid_body', 'Missing key'));
 
       const res: DoResp<unknown> = await withTxn(this.state, async (store) => {
         const raw = await store.get(key);
         const entry = parseAuthEntry(raw);
-        if (!entry) return err('wallet_session_missing', 'Wallet Session is missing');
+        if (!entry) return failure('wallet_session_missing', 'Wallet Session is missing');
 
         if (entry.expiresAtMs <= Date.now()) {
           await store.delete(key);
-          return err('wallet_session_expired', 'Wallet Session expired');
+          return failure('wallet_session_expired', 'Wallet Session expired');
         }
         if (entry.remainingUses <= 0) {
-          return err('wallet_budget_exhausted', 'Wallet Session exhausted');
+          return failure('wallet_budget_exhausted', 'Wallet Session exhausted');
         }
 
         entry.remainingUses -= 1;
@@ -538,17 +536,17 @@ export class ThresholdStoreDurableObject {
     if (op === 'authConsumeUseCountOnce') {
       const key = toKey((req as { key?: unknown }).key);
       const idempotencyKey = toKey((req as { idempotencyKey?: unknown }).idempotencyKey);
-      if (!key) return json(err('invalid_body', 'Missing key'));
-      if (!idempotencyKey) return json(err('invalid_body', 'Missing idempotencyKey'));
+      if (!key) return json(failure('invalid_body', 'Missing key'));
+      if (!idempotencyKey) return json(failure('invalid_body', 'Missing idempotencyKey'));
 
       const res: DoResp<unknown> = await withTxn(this.state, async (store) => {
         const raw = await store.get(key);
         const entry = parseAuthEntry(raw);
-        if (!entry) return err('wallet_session_missing', 'Wallet Session is missing');
+        if (!entry) return failure('wallet_session_missing', 'Wallet Session is missing');
 
         if (entry.expiresAtMs <= Date.now()) {
           await store.delete(key);
-          return err('wallet_session_expired', 'Wallet Session expired');
+          return failure('wallet_session_expired', 'Wallet Session expired');
         }
 
         const consumedIdempotencyKeys = entry.consumedIdempotencyKeys || {};
@@ -557,7 +555,7 @@ export class ThresholdStoreDurableObject {
         }
 
         if (entry.remainingUses <= 0) {
-          return err('wallet_budget_exhausted', 'Wallet Session exhausted');
+          return failure('wallet_budget_exhausted', 'Wallet Session exhausted');
         }
 
         entry.remainingUses -= 1;
@@ -580,17 +578,17 @@ export class ThresholdStoreDurableObject {
     if (op === 'authHasConsumedUseCountOnce') {
       const key = toKey((req as { key?: unknown }).key);
       const idempotencyKey = toKey((req as { idempotencyKey?: unknown }).idempotencyKey);
-      if (!key) return json(err('invalid_body', 'Missing key'));
-      if (!idempotencyKey) return json(err('invalid_body', 'Missing idempotencyKey'));
+      if (!key) return json(failure('invalid_body', 'Missing key'));
+      if (!idempotencyKey) return json(failure('invalid_body', 'Missing idempotencyKey'));
 
       const res: DoResp<unknown> = await withTxn(this.state, async (store) => {
         const raw = await store.get(key);
         const entry = parseAuthEntry(raw);
-        if (!entry) return err('wallet_session_missing', 'Wallet Session is missing');
+        if (!entry) return failure('wallet_session_missing', 'Wallet Session is missing');
 
         if (entry.expiresAtMs <= Date.now()) {
           await store.delete(key);
-          return err('wallet_session_expired', 'Wallet Session expired');
+          return failure('wallet_session_expired', 'Wallet Session expired');
         }
 
         const consumedIdempotencyKeys = entry.consumedIdempotencyKeys || {};
@@ -602,12 +600,12 @@ export class ThresholdStoreDurableObject {
 
     if (op === 'authGetSessionStatus') {
       const key = toKey((req as { key?: unknown }).key);
-      if (!key) return json(err('invalid_body', 'Missing key'));
+      if (!key) return json(failure('invalid_body', 'Missing key'));
       const entry = parseAuthEntry(await this.state.storage.get(key));
-      if (!entry) return json(err('wallet_session_missing', 'Wallet Session is missing'));
+      if (!entry) return json(failure('wallet_session_missing', 'Wallet Session is missing'));
       if (entry.expiresAtMs <= Date.now()) {
         await this.state.storage.delete(key);
-        return json(err('wallet_session_expired', 'Wallet Session expired'));
+        return json(failure('wallet_session_expired', 'Wallet Session expired'));
       }
       return json(ok({
         record: entry.record,
@@ -619,15 +617,15 @@ export class ThresholdStoreDurableObject {
     if (op === 'authReserveReplayGuard') {
       const key = toKey((req as { key?: unknown }).key);
       const expiresAtMs = Number((req as { expiresAtMs?: unknown }).expiresAtMs);
-      if (!key) return json(err('invalid_body', 'Missing key'));
+      if (!key) return json(failure('invalid_body', 'Missing key'));
       if (!Number.isFinite(expiresAtMs)) {
-        return json(err('invalid_body', 'Invalid expiresAtMs'));
+        return json(failure('invalid_body', 'Invalid expiresAtMs'));
       }
 
       const res: DoResp<unknown> = await withTxn(this.state, async (store) => {
         const nowMs = Date.now();
         if (expiresAtMs <= nowMs) {
-          return err('export_authorization_expired', 'Export authorization expired');
+          return failure('export_authorization_expired', 'Export authorization expired');
         }
         const raw = await store.get(key);
         const existingExpiresAtMs =
@@ -635,7 +633,7 @@ export class ThresholdStoreDurableObject {
             ? Number((raw as { expiresAtMs?: unknown }).expiresAtMs)
             : NaN;
         if (Number.isFinite(existingExpiresAtMs) && existingExpiresAtMs > nowMs) {
-          return err('export_nonce_replay', 'Export authorization nonce already used');
+          return failure('export_nonce_replay', 'Export authorization nonce already used');
         }
         const retainedUntilMs = Math.max(
           nowMs + EXPORT_REPLAY_GUARD_MIN_RETENTION_MS,
@@ -649,6 +647,6 @@ export class ThresholdStoreDurableObject {
       return json(res);
     }
 
-    return json(err('invalid_body', `Unknown op: ${op}`));
+    return json(failure('invalid_body', `Unknown op: ${op}`));
   }
 }

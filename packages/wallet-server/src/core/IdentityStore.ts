@@ -1,4 +1,5 @@
 import { isObject, toOptionalTrimmedString } from '@shared/utils/validation';
+import { failure } from '@shared/utils/failure';
 import { D1IdentityStore, IDENTITY_D1_STORE } from './d1IdentityStore';
 import { resolveStorePrefix } from './d1TenantStore';
 import {
@@ -145,29 +146,23 @@ class InMemoryIdentityStore implements IdentityStore {
   }): Promise<LinkIdentityResult> {
     const userId = toOptionalTrimmedString(input.userId);
     const subject = toOptionalTrimmedString(input.subject);
-    if (!userId) return { ok: false, code: 'invalid_args', message: 'Missing userId' };
-    if (!subject) return { ok: false, code: 'invalid_args', message: 'Missing subject' };
+    if (!userId) return failure('invalid_args', 'Missing userId');
+    if (!subject) return failure('invalid_args', 'Missing subject');
 
     const now = Date.now();
     const existing = this.subjectToUser.get(this.subjectKey(subject)) || null;
     if (existing && existing.userId !== userId) {
       if (!input.allowMoveIfSoleIdentity) {
-        return {
-          ok: false,
-          code: 'already_linked',
-          message: 'Subject is already linked to a different user',
-        };
+        return failure('already_linked', 'Subject is already linked to a different user');
       }
       const sourceUser = existing.userId;
       const source = this.userToSubjects.get(this.userKey(sourceUser)) || null;
       const sourceSubjects = source?.subjects || [];
       if (sourceSubjects.length !== 1 || sourceSubjects[0] !== subject) {
-        return {
-          ok: false,
-          code: 'already_linked',
-          message:
-            'Subject is linked to a different user with other identities; merge is not allowed',
-        };
+        return failure(
+          'already_linked',
+          'Subject is linked to a different user with other identities; merge is not allowed',
+        );
       }
       this.userToSubjects.set(this.userKey(sourceUser), {
         version: 'identity_user_v1',
@@ -228,22 +223,21 @@ class InMemoryIdentityStore implements IdentityStore {
   }): Promise<UnlinkIdentityResult> {
     const userId = toOptionalTrimmedString(input.userId);
     const subject = toOptionalTrimmedString(input.subject);
-    if (!userId) return { ok: false, code: 'invalid_args', message: 'Missing userId' };
-    if (!subject) return { ok: false, code: 'invalid_args', message: 'Missing subject' };
+    if (!userId) return failure('invalid_args', 'Missing userId');
+    if (!subject) return failure('invalid_args', 'Missing subject');
 
     const existing = this.subjectToUser.get(this.subjectKey(subject)) || null;
     if (!existing || existing.userId !== userId) {
-      return { ok: false, code: 'not_found', message: 'Subject is not linked to this user' };
+      return failure('not_found', 'Subject is not linked to this user');
     }
 
     const userRec = this.userToSubjects.get(this.userKey(userId)) || null;
     const subjects = userRec?.subjects || [];
     if (subjects.length <= 1) {
-      return {
-        ok: false,
-        code: 'cannot_unlink_last_identity',
-        message: 'Refusing to remove the last remaining identity',
-      };
+      return failure(
+        'cannot_unlink_last_identity',
+        'Refusing to remove the last remaining identity',
+      );
     }
 
     this.subjectToUser.delete(this.subjectKey(subject));
@@ -267,12 +261,12 @@ class InMemoryIdentityStore implements IdentityStore {
   }): Promise<UnlinkIdentityResult> {
     const userId = toOptionalTrimmedString(input.userId);
     const subject = toOptionalTrimmedString(input.subject);
-    if (!userId) return { ok: false, code: 'invalid_args', message: 'Missing userId' };
-    if (!subject) return { ok: false, code: 'invalid_args', message: 'Missing subject' };
+    if (!userId) return failure('invalid_args', 'Missing userId');
+    if (!subject) return failure('invalid_args', 'Missing subject');
 
     const existing = this.subjectToUser.get(this.subjectKey(subject)) || null;
     if (!existing || existing.userId !== userId) {
-      return { ok: false, code: 'not_found', message: 'Subject is not linked to this user' };
+      return failure('not_found', 'Subject is not linked to this user');
     }
 
     this.subjectToUser.delete(this.subjectKey(subject));
@@ -335,8 +329,8 @@ class KeyValueIdentityStore implements IdentityStore {
   }): Promise<LinkIdentityResult> {
     const userId = toOptionalTrimmedString(input.userId);
     const subject = toOptionalTrimmedString(input.subject);
-    if (!userId) return { ok: false, code: 'invalid_args', message: 'Missing userId' };
-    if (!subject) return { ok: false, code: 'invalid_args', message: 'Missing subject' };
+    if (!userId) return failure('invalid_args', 'Missing userId');
+    if (!subject) return failure('invalid_args', 'Missing subject');
 
     const now = Date.now();
     const existingSubject = parseIdentitySubjectRecord(
@@ -344,11 +338,7 @@ class KeyValueIdentityStore implements IdentityStore {
     );
     if (existingSubject && existingSubject.userId !== userId) {
       if (!input.allowMoveIfSoleIdentity) {
-        return {
-          ok: false,
-          code: 'already_linked',
-          message: 'Subject is already linked to a different user',
-        };
+        return failure('already_linked', 'Subject is already linked to a different user');
       }
       const sourceUser = existingSubject.userId;
       const sourceUserRec = parseIdentityUserRecord(
@@ -356,12 +346,10 @@ class KeyValueIdentityStore implements IdentityStore {
       );
       const sourceSubjects = sourceUserRec?.subjects || [];
       if (sourceSubjects.length !== 1 || sourceSubjects[0] !== subject) {
-        return {
-          ok: false,
-          code: 'already_linked',
-          message:
-            'Subject is linked to a different user with other identities; merge is not allowed',
-        };
+        return failure(
+          'already_linked',
+          'Subject is linked to a different user with other identities; merge is not allowed',
+        );
       }
 
       const destUserRec = parseIdentityUserRecord(await this.records.get(this.userKey(userId)));
@@ -421,22 +409,21 @@ class KeyValueIdentityStore implements IdentityStore {
   }): Promise<UnlinkIdentityResult> {
     const userId = toOptionalTrimmedString(input.userId);
     const subject = toOptionalTrimmedString(input.subject);
-    if (!userId) return { ok: false, code: 'invalid_args', message: 'Missing userId' };
-    if (!subject) return { ok: false, code: 'invalid_args', message: 'Missing subject' };
+    if (!userId) return failure('invalid_args', 'Missing userId');
+    if (!subject) return failure('invalid_args', 'Missing subject');
 
     const subjectRec = parseIdentitySubjectRecord(await this.records.get(this.subjectKey(subject)));
     if (!subjectRec || subjectRec.userId !== userId) {
-      return { ok: false, code: 'not_found', message: 'Subject is not linked to this user' };
+      return failure('not_found', 'Subject is not linked to this user');
     }
 
     const userRec = parseIdentityUserRecord(await this.records.get(this.userKey(userId)));
     const subjects = userRec?.subjects || [];
     if (subjects.length <= 1) {
-      return {
-        ok: false,
-        code: 'cannot_unlink_last_identity',
-        message: 'Refusing to remove the last remaining identity',
-      };
+      return failure(
+        'cannot_unlink_last_identity',
+        'Refusing to remove the last remaining identity',
+      );
     }
 
     const nextSubjects = subjects.filter((s) => s !== subject);
@@ -458,12 +445,12 @@ class KeyValueIdentityStore implements IdentityStore {
   }): Promise<UnlinkIdentityResult> {
     const userId = toOptionalTrimmedString(input.userId);
     const subject = toOptionalTrimmedString(input.subject);
-    if (!userId) return { ok: false, code: 'invalid_args', message: 'Missing userId' };
-    if (!subject) return { ok: false, code: 'invalid_args', message: 'Missing subject' };
+    if (!userId) return failure('invalid_args', 'Missing userId');
+    if (!subject) return failure('invalid_args', 'Missing subject');
 
     const subjectRec = parseIdentitySubjectRecord(await this.records.get(this.subjectKey(subject)));
     if (!subjectRec || subjectRec.userId !== userId) {
-      return { ok: false, code: 'not_found', message: 'Subject is not linked to this user' };
+      return failure('not_found', 'Subject is not linked to this user');
     }
 
     const userRec = parseIdentityUserRecord(await this.records.get(this.userKey(userId)));

@@ -103,6 +103,7 @@ import {
   buildWalletRecoveryCommittedProjectionV1,
   type WalletRecoveryCommittedProjectionV1,
 } from '@shared/wallet-recovery/walletRecoveryCommittedProjection';
+import { failure } from '@shared/utils/failure';
 import {
   projectWalletUnlockKeyManifestV1,
   projectWalletRecoveryPreparationKeyManifestV1,
@@ -856,11 +857,10 @@ export function createD1PasskeyCustodyRouteService(assembly: {
       if (!challengeId || !expectedOrigin) {
         return {
           status: 400,
-          body: {
-            ok: false,
-            code: 'challenge_required',
-            message: 'custody retrieval needs a server-issued challenge and an origin',
-          },
+          body: failure(
+            'challenge_required',
+            'custody retrieval needs a server-issued challenge and an origin',
+          ),
         };
       }
 
@@ -870,11 +870,7 @@ export function createD1PasskeyCustodyRouteService(assembly: {
       if (!challenge) {
         return {
           status: 401,
-          body: {
-            ok: false,
-            code: 'challenge_unknown',
-            message: 'the challenge is unknown, expired, or already used',
-          },
+          body: failure('challenge_unknown', 'the challenge is unknown, expired, or already used'),
         };
       }
 
@@ -897,11 +893,7 @@ export function createD1PasskeyCustodyRouteService(assembly: {
       if (!projection || projection.index.factor.kind !== 'passkey') {
         return {
           status: 404,
-          body: {
-            ok: false,
-            code: 'envelope_missing',
-            message: 'no custody envelope for this wallet and credential',
-          },
+          body: failure('envelope_missing', 'no custody envelope for this wallet and credential'),
         };
       }
       const locator: PasskeyCustodyEnvelopeRetrievalRequest['locator'] = {

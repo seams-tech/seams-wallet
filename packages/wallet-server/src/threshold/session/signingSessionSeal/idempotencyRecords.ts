@@ -1,4 +1,5 @@
 import { toOptionalTrimmedString } from '@shared/utils/validation';
+import { failure } from '@shared/utils/failure';
 
 function toPositiveInt(value: unknown): number | null {
   const parsed = Number(value);
@@ -57,11 +58,7 @@ export function parseCurrentSigningSessionSealIdempotencyResultRecord(
     const code = toOptionalTrimmedString(obj.code);
     const message = toOptionalTrimmedString(obj.message);
     if (!code || !message) return null;
-    return {
-      ok: false,
-      code,
-      message,
-    };
+    return failure(code, message);
   }
 
   return null;

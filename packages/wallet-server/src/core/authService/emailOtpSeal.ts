@@ -5,6 +5,7 @@ import {
 import type { SigningSessionSealCipherAdapter } from '../../threshold/session/signingSessionSeal/signingSessionSeal.types';
 import { errorMessage } from '@shared/utils/errors';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
+import { failure } from '@shared/utils/failure';
 
 type EmailOtpShamirCipherConfig = {
   readonly rootSecretB64u: string;
@@ -38,11 +39,10 @@ export function createEmailOtpShamirCipherFromConfig(
   input: EmailOtpShamirCipherConfig,
 ): EmailOtpShamirCipherResult {
   if (!input.rootSecretB64u || !input.currentKeyVersion) {
-    return {
-      ok: false,
-      code: 'not_configured',
-      message: 'Email OTP unseal requires a signing-session seal root and current key version',
-    };
+    return failure(
+      'not_configured',
+      'Email OTP unseal requires a signing-session seal root and current key version',
+    );
   }
   try {
     const config = parseSigningSessionSealRootConfig({
@@ -56,11 +56,10 @@ export function createEmailOtpShamirCipherFromConfig(
       cipher: createSigningSessionSealShamir3PassCipherAdapter({ config }),
     };
   } catch (error: unknown) {
-    return {
-      ok: false,
-      code: 'not_configured',
-      message: errorMessage(error) || 'Email OTP Shamir configuration is invalid',
-    };
+    return failure(
+      'not_configured',
+      errorMessage(error) || 'Email OTP Shamir configuration is invalid',
+    );
   }
 }
 
@@ -90,11 +89,7 @@ export async function runEmailOtpServerSealOperation(input: {
   try {
     const wrappedCiphertext = toOptionalTrimmedString(input.request.wrappedCiphertext);
     if (!wrappedCiphertext) {
-      return {
-        ok: false,
-        code: 'invalid_body',
-        message: 'Missing wrappedCiphertext',
-      };
+      return failure('invalid_body', 'Missing wrappedCiphertext');
     }
     if (!input.shamir.ok) return input.shamir;
     const result = await input.shamir.cipher.run({
@@ -111,10 +106,9 @@ export async function runEmailOtpServerSealOperation(input: {
       enrollmentSealKeyVersion: result.keyVersion || input.shamir.keyVersion,
     };
   } catch (error: unknown) {
-    return {
-      ok: false,
-      code: 'internal',
-      message: errorMessage(error) || emailOtpServerSealFailureMessage(input.operation),
-    };
+    return failure(
+      'internal',
+      errorMessage(error) || emailOtpServerSealFailureMessage(input.operation),
+    );
   }
 }

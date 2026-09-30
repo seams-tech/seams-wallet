@@ -1,4 +1,5 @@
 import { toOptionalTrimmedString } from '@shared/utils/validation';
+import { failure } from '@shared/utils/failure';
 import { deriveHostedNearAccountId } from '../../../../core/hostedAccountIds';
 import type { IdentityStore } from '../../../../core/IdentityStore';
 import type { RouterApiIdentityService } from '../../../framework/authServicePort';
@@ -80,15 +81,11 @@ export class CloudflareD1IdentityService {
   async listIdentities(input: ListIdentitiesInput): Promise<ListIdentitiesResult> {
     try {
       const userId = toOptionalTrimmedString(input.userId);
-      if (!userId) return { ok: false, code: 'invalid_args', message: 'Missing userId' };
+      if (!userId) return failure('invalid_args', 'Missing userId');
       const subjects = await this.identityStore.listSubjectsByUserId(userId);
       return { ok: true, subjects };
     } catch (error: unknown) {
-      return {
-        ok: false,
-        code: 'internal',
-        message: errorMessage(error) || 'Failed to list identities',
-      };
+      return failure('internal', errorMessage(error) || 'Failed to list identities');
     }
   }
 
@@ -96,19 +93,15 @@ export class CloudflareD1IdentityService {
     try {
       const userId = toOptionalTrimmedString(input.userId);
       const subject = toOptionalTrimmedString(input.subject);
-      if (!userId) return { ok: false, code: 'invalid_args', message: 'Missing userId' };
-      if (!subject) return { ok: false, code: 'invalid_args', message: 'Missing subject' };
+      if (!userId) return failure('invalid_args', 'Missing userId');
+      if (!subject) return failure('invalid_args', 'Missing subject');
       return await this.identityStore.linkSubjectToUserId({
         userId,
         subject,
         allowMoveIfSoleIdentity: Boolean(input.allowMoveIfSoleIdentity),
       });
     } catch (error: unknown) {
-      return {
-        ok: false,
-        code: 'internal',
-        message: errorMessage(error) || 'Failed to link identity',
-      };
+      return failure('internal', errorMessage(error) || 'Failed to link identity');
     }
   }
 
@@ -116,15 +109,11 @@ export class CloudflareD1IdentityService {
     try {
       const userId = toOptionalTrimmedString(input.userId);
       const subject = toOptionalTrimmedString(input.subject);
-      if (!userId) return { ok: false, code: 'invalid_args', message: 'Missing userId' };
-      if (!subject) return { ok: false, code: 'invalid_args', message: 'Missing subject' };
+      if (!userId) return failure('invalid_args', 'Missing userId');
+      if (!subject) return failure('invalid_args', 'Missing subject');
       return await this.identityStore.unlinkSubjectFromUserId({ userId, subject });
     } catch (error: unknown) {
-      return {
-        ok: false,
-        code: 'internal',
-        message: errorMessage(error) || 'Failed to unlink identity',
-      };
+      return failure('internal', errorMessage(error) || 'Failed to unlink identity');
     }
   }
 

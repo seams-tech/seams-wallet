@@ -1,4 +1,5 @@
 import { toOptionalTrimmedString } from '@shared/utils/validation';
+import { failure } from '@shared/utils/failure';
 import type {
   EmailOtpAuthStateRecord,
   EmailOtpAuthStateStore,
@@ -48,18 +49,17 @@ export async function readEmailOtpEnrollmentWithStore(input: {
 }): Promise<EmailOtpEnrollmentReadResult> {
   const walletId = toOptionalTrimmedString(input.request.walletId);
   const orgId = toOptionalTrimmedString(input.request.orgId);
-  if (!walletId) return { ok: false, code: 'invalid_body', message: 'Missing walletId' };
-  if (!orgId) return { ok: false, code: 'invalid_body', message: 'Missing orgId' };
+  if (!walletId) return failure('invalid_body', 'Missing walletId');
+  if (!orgId) return failure('invalid_body', 'Missing orgId');
   const enrollment = await input.walletEnrollmentStore.get(walletId);
   if (!enrollment) {
-    return { ok: false, code: 'not_found', message: 'Email OTP enrollment not found' };
+    return failure('not_found', 'Email OTP enrollment not found');
   }
   if (enrollment.orgId !== orgId) {
-    return {
-      ok: false,
-      code: 'tenant_scope_mismatch',
-      message: 'Email OTP enrollment does not match the requested orgId',
-    };
+    return failure(
+      'tenant_scope_mismatch',
+      'Email OTP enrollment does not match the requested orgId',
+    );
   }
   return { ok: true, enrollment };
 }
@@ -76,11 +76,10 @@ export async function readActiveEmailOtpEnrollmentWithStore(input: {
   if (!result.ok) return result;
   const providerUserId = toOptionalTrimmedString(input.request.providerUserId);
   if (providerUserId && result.enrollment.providerUserId !== providerUserId) {
-    return {
-      ok: false,
-      code: 'provider_identity_mismatch',
-      message: 'Email OTP enrollment does not match the requested provider user',
-    };
+    return failure(
+      'provider_identity_mismatch',
+      'Email OTP enrollment does not match the requested provider user',
+    );
   }
   return result;
 }
@@ -95,11 +94,10 @@ export async function readEmailOtpAuthStateForEnrollmentWithStore(input: {
     state.orgId !== input.enrollment.orgId ||
     state.providerUserId !== input.enrollment.providerUserId
   ) {
-    return {
-      ok: false,
-      code: 'auth_state_enrollment_mismatch',
-      message: 'Email OTP auth state does not match the active enrollment',
-    };
+    return failure(
+      'auth_state_enrollment_mismatch',
+      'Email OTP auth state does not match the active enrollment',
+    );
   }
   return { ok: true, state };
 }
@@ -144,7 +142,7 @@ export async function isEmailOtpStrongAuthRequiredWithStores(input: {
   readonly request: { walletId?: unknown };
 }): Promise<EmailOtpStrongAuthRequiredResult> {
   const walletId = toOptionalTrimmedString(input.request.walletId);
-  if (!walletId) return { ok: false, code: 'invalid_body', message: 'Missing walletId' };
+  if (!walletId) return failure('invalid_body', 'Missing walletId');
   const enrollment = await input.walletEnrollmentStore.get(walletId);
   if (!enrollment) {
     return { ok: true, required: false, walletId };
@@ -181,7 +179,7 @@ export async function markEmailOtpStrongAuthSatisfiedWithStores(input: {
   readonly nowMs: number;
 }): Promise<EmailOtpStrongAuthSatisfiedResult> {
   const walletId = toOptionalTrimmedString(input.request.walletId);
-  if (!walletId) return { ok: false, code: 'invalid_body', message: 'Missing walletId' };
+  if (!walletId) return failure('invalid_body', 'Missing walletId');
   const enrollment = await input.walletEnrollmentStore.get(walletId);
   if (!enrollment) return { ok: true, walletId };
   await putEmailOtpAuthStateForEnrollmentWithStore({

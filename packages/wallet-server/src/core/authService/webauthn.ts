@@ -31,6 +31,7 @@ import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import { type WalletId } from '@shared/utils/registrationIntent';
 import { walletIdFromString } from '@shared/utils/registrationIds';
+import { failedVerification, failure } from '@shared/utils/failure';
 import {
   decodeBase64UrlOrBase64,
   isHostWithinRpId,
@@ -189,11 +190,7 @@ function ensureCryptoRandomValues(): true | { ok: false; code: string; message: 
   if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
     return true;
   }
-  return {
-    ok: false,
-    code: 'unsupported',
-    message: 'crypto.getRandomValues is unavailable in this runtime',
-  };
+  return failure('unsupported', 'crypto.getRandomValues is unavailable in this runtime');
 }
 
 function randomWebAuthnB64u(byteLength: number): string {
@@ -207,11 +204,7 @@ function credentialRawIdB64u(
   const rawId = credential.rawId.trim();
   const chosen = rawId || credentialId;
   if (!chosen) {
-    return {
-      ok: false,
-      code: 'invalid_body',
-      message: 'Missing webauthn_authentication.id/rawId',
-    };
+    return failure('invalid_body', 'Missing webauthn_authentication.id/rawId');
   }
   try {
     return {
@@ -221,11 +214,7 @@ function credentialRawIdB64u(
       ),
     };
   } catch (e: unknown) {
-    return {
-      ok: false,
-      code: 'invalid_body',
-      message: errorMessage(e) || 'Invalid credential rawId',
-    };
+    return failure('invalid_body', errorMessage(e) || 'Invalid credential rawId');
   }
 }
 
@@ -241,11 +230,10 @@ function credentialPublicKeyBytes(
       ),
     };
   } catch (e: unknown) {
-    return {
-      ok: false,
-      code: 'internal',
-      message: `Stored credential public key is invalid: ${errorMessage(e) || 'decode failed'}`,
-    };
+    return failure(
+      'internal',
+      `Stored credential public key is invalid: ${errorMessage(e) || 'decode failed'}`,
+    );
   }
 }
 
@@ -305,11 +293,10 @@ async function persistAuthenticatorCounter(input: {
     }
     return { ok: true };
   } catch (e: unknown) {
-    return {
-      ok: false,
-      code: 'internal',
-      message: `Failed to persist authenticator counter: ${errorMessage(e) || 'store error'}`,
-    };
+    return failure(
+      'internal',
+      `Failed to persist authenticator counter: ${errorMessage(e) || 'store error'}`,
+    );
   }
 }
 
@@ -322,18 +309,17 @@ function parseWebAuthnClientDataForRegistration(input: {
   const clientDataJSON = response ? readStringField(response, 'clientDataJSON') : '';
   const clientData = parseClientDataJsonBase64url(clientDataJSON);
   if (clientData.type !== 'webauthn.create') {
-    return {
-      ok: false,
-      code: 'invalid_body',
-      message: 'Invalid webauthn_registration.clientDataJSON.type (expected webauthn.create)',
-    };
+    return failure(
+      'invalid_body',
+      'Invalid webauthn_registration.clientDataJSON.type (expected webauthn.create)',
+    );
   }
   if (clientData.challenge !== input.expectedChallenge) {
-    return { ok: false, code: 'challenge_mismatch', message: 'Registration challenge mismatch' };
+    return failure('challenge_mismatch', 'Registration challenge mismatch');
   }
   const originHost = originHostnameOrEmpty(clientData.origin);
   if (!isHostWithinRpId(originHost, input.rpId)) {
-    return { ok: false, code: 'invalid_origin', message: 'WebAuthn origin is not within rpId' };
+    return failure('invalid_origin', 'WebAuthn origin is not within rpId');
   }
   return { ok: true, originHost };
 }
@@ -407,7 +393,7 @@ export async function verifyWebAuthnRegistrationCredentialForIntent(input: {
 }): Promise<WebAuthnCredentialVerificationResult> {
   const credential = readRecord(input.webauthnRegistration);
   if (!credential) {
-    return { ok: false, code: 'invalid_body', message: 'Missing webauthn_registration' };
+    return failure('invalid_body', 'Missing webauthn_registration');
   }
   const parsedClientData = parseWebAuthnClientDataForRegistration({
     credential,
@@ -418,21 +404,16 @@ export async function verifyWebAuthnRegistrationCredentialForIntent(input: {
 
   const expectedOrigin = toOptionalTrimmedString(input.expectedOrigin);
   if (!expectedOrigin) {
-    return {
-      ok: false,
-      code: 'invalid_body',
-      message: 'expected_origin is required for WebAuthn registration verification',
-    };
+    return failure(
+      'invalid_body',
+      'expected_origin is required for WebAuthn registration verification',
+    );
   }
 
   const mod = await loadSimpleWebAuthnServer();
   const verifyRegistrationResponse = mod.verifyRegistrationResponse;
   if (typeof verifyRegistrationResponse !== 'function') {
-    return {
-      ok: false,
-      code: 'unsupported',
-      message: 'WebAuthn registration verifier is unavailable in this runtime',
-    };
+    return failure('unsupported', 'WebAuthn registration verifier is unavailable in this runtime');
   }
 
   const registration = await verifyRegistrationResponse({
@@ -443,18 +424,17 @@ export async function verifyWebAuthnRegistrationCredentialForIntent(input: {
     requireUserVerification: false,
   });
   if (!registration.verified) {
-    return { ok: false, code: 'not_verified', message: 'Registration verification failed' };
+    return failure('not_verified', 'Registration verification failed');
   }
 
   const verifiedCredential = registration.registrationInfo?.credential;
   const credentialIdB64u = String(verifiedCredential?.id || '').trim();
   const credentialPublicKey = verifiedCredential?.publicKey;
   if (!credentialIdB64u || !credentialPublicKey) {
-    return {
-      ok: false,
-      code: 'internal',
-      message: 'Registration verification did not return credential public key material',
-    };
+    return failure(
+      'internal',
+      'Registration verification did not return credential public key material',
+    );
   }
   return {
     ok: true,
@@ -633,13 +613,9 @@ export async function listWebAuthnAuthenticatorsForUserWithStores(input: {
   try {
     const userId = String(input.userId || '').trim();
     const rpId = String(input.rpId || '').trim();
-    if (!userId) return { ok: false, code: 'invalid_args', message: 'Missing userId' };
+    if (!userId) return failure('invalid_args', 'Missing userId');
     if (!input.authenticatorStore.list) {
-      return {
-        ok: false,
-        code: 'not_supported',
-        message: 'Authenticator listing is not supported by this store',
-      };
+      return failure('not_supported', 'Authenticator listing is not supported by this store');
     }
     const bindingList = await listCredentialBindingsForUser({
       bindingStore: input.credentialBindingStore,
@@ -675,11 +651,7 @@ export async function listWebAuthnAuthenticatorsForUserWithStores(input: {
     merged.sort(compareAuthenticatorListEntries);
     return { ok: true, authenticators: merged };
   } catch (e: unknown) {
-    return {
-      ok: false,
-      code: 'internal',
-      message: errorMessage(e) || 'Failed to list authenticators',
-    };
+    return failure('internal', errorMessage(e) || 'Failed to list authenticators');
   }
 }
 
@@ -697,10 +669,10 @@ export async function createWebAuthnLoginOptionsWithStore(input: {
   try {
     const userIdRaw = String(input.request.userId ?? input.request.user_id ?? '').trim();
     const rpId = String(input.request.rpId ?? input.request.rp_id ?? '').trim();
-    if (!userIdRaw) return { ok: false, code: 'invalid_body', message: 'Missing userId' };
+    if (!userIdRaw) return failure('invalid_body', 'Missing userId');
     const userId = parseBoundaryWalletId(userIdRaw);
-    if (!userId) return { ok: false, code: 'invalid_body', message: 'Invalid userId' };
-    if (!rpId) return { ok: false, code: 'invalid_body', message: 'Missing rpId' };
+    if (!userId) return failure('invalid_body', 'Invalid userId');
+    if (!rpId) return failure('invalid_body', 'Missing rpId');
 
     const randomAvailable = ensureCryptoRandomValues();
     if (randomAvailable !== true) return randomAvailable;
@@ -723,11 +695,7 @@ export async function createWebAuthnLoginOptionsWithStore(input: {
 
     return { ok: true, challengeId, challengeB64u, expiresAtMs };
   } catch (e: unknown) {
-    return {
-      ok: false,
-      code: 'internal',
-      message: errorMessage(e) || 'Failed to create login options',
-    };
+    return failure('internal', errorMessage(e) || 'Failed to create login options');
   }
 }
 
@@ -743,11 +711,11 @@ export async function createWebAuthnSyncAccountOptionsWithStores(input: {
 }): Promise<WebAuthnSyncAccountOptionsResult> {
   try {
     const rpId = String(input.request.rp_id || '').trim();
-    if (!rpId) return { ok: false, code: 'invalid_body', message: 'Missing rp_id' };
+    if (!rpId) return failure('invalid_body', 'Missing rp_id');
     const expectedUserIdRaw = toOptionalTrimmedString(input.request.account_id);
     const expectedUserId = expectedUserIdRaw ? parseBoundaryWalletId(expectedUserIdRaw) : null;
     if (expectedUserIdRaw && !expectedUserId) {
-      return { ok: false, code: 'invalid_body', message: 'Invalid wallet account_id' };
+      return failure('invalid_body', 'Invalid wallet account_id');
     }
 
     const randomAvailable = ensureCryptoRandomValues();
@@ -817,11 +785,7 @@ export async function createWebAuthnSyncAccountOptionsWithStores(input: {
     if (walletBinding) result.walletBinding = walletBinding;
     return result;
   } catch (e: unknown) {
-    return {
-      ok: false,
-      code: 'internal',
-      message: errorMessage(e) || 'Failed to create sync account options',
-    };
+    return failure('internal', errorMessage(e) || 'Failed to create sync account options');
   }
 }
 
@@ -847,27 +811,20 @@ export async function verifyWebAuthnSyncAccountWithStores(input: {
   try {
     const request = input.request;
     const challengeId = String(request.challengeId ?? request.challenge_id ?? '').trim();
-    if (!challengeId) return { ok: false, code: 'invalid_body', message: 'Missing challengeId' };
+    if (!challengeId) return failure('invalid_body', 'Missing challengeId');
 
     const challenge = await input.syncChallengeStore.consume(challengeId);
     if (!challenge) {
-      return {
-        ok: false,
-        verified: false,
-        code: 'challenge_expired_or_invalid',
-        message: 'Sync challenge expired or invalid',
-      };
+      return failedVerification(
+        'challenge_expired_or_invalid',
+        'Sync challenge expired or invalid',
+      );
     }
 
     const credential = request.webauthn_authentication;
     const credentialId = credentialRawIdB64u(credential);
     if (!credentialId.ok) {
-      return {
-        ok: false,
-        verified: false,
-        code: credentialId.code,
-        message: credentialId.message,
-      };
+      return failedVerification(credentialId.code, credentialId.message);
     }
 
     const syncBinding = webAuthnSyncCredentialBinding(
@@ -879,12 +836,10 @@ export async function verifyWebAuthnSyncAccountWithStores(input: {
 
     const expectedOrigin = toOptionalTrimmedString(request.expected_origin);
     if (!expectedOrigin) {
-      return {
-        ok: false,
-        verified: false,
-        code: 'invalid_body',
-        message: 'expected_origin is required for WebAuthn authentication verification',
-      };
+      return failedVerification(
+        'invalid_body',
+        'expected_origin is required for WebAuthn authentication verification',
+      );
     }
     const verification = await verifyWebAuthnAuthenticationLiteWithStore({
       userId: binding.userId,
@@ -900,12 +855,7 @@ export async function verifyWebAuthnSyncAccountWithStores(input: {
 
     const auth = await input.authenticatorStore.get(binding.userId, credentialId.credentialIdB64u);
     if (!auth) {
-      return {
-        ok: false,
-        verified: false,
-        code: 'unknown_credential',
-        message: 'Credential is not registered for user',
-      };
+      return failedVerification('unknown_credential', 'Credential is not registered for user');
     }
 
     const walletBinding = resolvedEd25519WalletBindingFromCredentialBinding({ binding });
@@ -914,12 +864,10 @@ export async function verifyWebAuthnSyncAccountWithStores(input: {
       // The credential is valid; the wallet simply has no Ed25519 signer yet
       // because its Yao ceremony has not settled. This is a distinct, retryable
       // state — never report it as an unknown credential.
-      return {
-        ok: false,
-        verified: false,
-        code: 'ed25519_not_provisioned',
-        message: 'Wallet has no Ed25519 signer yet; NEAR provisioning has not completed',
-      };
+      return failedVerification(
+        'ed25519_not_provisioned',
+        'Wallet has no Ed25519 signer yet; NEAR provisioning has not completed',
+      );
     }
     // Sync mints an owner Wallet Session, and that session names the manifest
     // its key set was registered against. The signer record is the only place
@@ -930,12 +878,10 @@ export async function verifyWebAuthnSyncAccountWithStores(input: {
       signerSlot: walletBinding.signerSlot,
     });
     if (!ed25519Signer) {
-      return {
-        ok: false,
-        verified: false,
-        code: 'ed25519_not_provisioned',
-        message: 'Wallet has no Ed25519 signer yet; NEAR provisioning has not completed',
-      };
+      return failedVerification(
+        'ed25519_not_provisioned',
+        'Wallet has no Ed25519 signer yet; NEAR provisioning has not completed',
+      );
     }
     const walletBindingAuthorityScope = passkeyThresholdEd25519AuthorityScope(
       requireWebAuthnRpId(walletBinding.rpId, 'sync credential binding rpId'),
@@ -979,12 +925,7 @@ export async function verifyWebAuthnSyncAccountWithStores(input: {
       ...(thresholdEd25519 ? { thresholdEd25519 } : {}),
     };
   } catch (e: unknown) {
-    return {
-      ok: false,
-      verified: false,
-      code: 'internal',
-      message: errorMessage(e) || 'Sync verification failed',
-    };
+    return failedVerification('internal', errorMessage(e) || 'Sync verification failed');
   }
 }
 
@@ -1005,37 +946,28 @@ export async function verifyWebAuthnLoginWithStores(input: {
     const challengeId = String(
       input.request.challengeId ?? input.request.challenge_id ?? '',
     ).trim();
-    if (!challengeId) return { ok: false, code: 'invalid_body', message: 'Missing challengeId' };
+    if (!challengeId) return failure('invalid_body', 'Missing challengeId');
 
     const record = await input.loginChallengeStore.consume(challengeId);
     if (!record) {
-      return {
-        ok: false,
-        verified: false,
-        code: 'challenge_expired_or_invalid',
-        message: 'Login challenge expired or invalid',
-      };
+      return failedVerification(
+        'challenge_expired_or_invalid',
+        'Login challenge expired or invalid',
+      );
     }
 
     const expectedOrigin = toOptionalTrimmedString(input.request.expected_origin);
     if (!expectedOrigin) {
-      return {
-        ok: false,
-        verified: false,
-        code: 'invalid_body',
-        message: 'expected_origin is required for WebAuthn authentication verification',
-      };
+      return failedVerification(
+        'invalid_body',
+        'expected_origin is required for WebAuthn authentication verification',
+      );
     }
     const credential = parseWebAuthnAuthenticationCredential(
       input.request.webauthn_authentication,
     );
     if (!credential) {
-      return {
-        ok: false,
-        verified: false,
-        code: 'invalid_body',
-        message: 'Missing webauthn_authentication',
-      };
+      return failedVerification('invalid_body', 'Missing webauthn_authentication');
     }
     const verification = await verifyWebAuthnAuthenticationLiteWithStore({
       userId: record.userId,
@@ -1074,11 +1006,6 @@ export async function verifyWebAuthnLoginWithStores(input: {
       ed25519: loginSigner.ed25519,
     };
   } catch (e: unknown) {
-    return {
-      ok: false,
-      verified: false,
-      code: 'internal',
-      message: errorMessage(e) || 'Login verification failed',
-    };
+    return failedVerification('internal', errorMessage(e) || 'Login verification failed');
   }
 }

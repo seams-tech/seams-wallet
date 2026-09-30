@@ -11,6 +11,7 @@ import {
   resolveSigningSessionSealBasePath,
 } from './shared';
 import type { SigningSessionSealRoutesOptions } from '../signingSessionSeal.types';
+import { failure } from '@shared/utils/failure';
 
 type FetchSigningSessionSealContext = {
   request: Request;
@@ -65,7 +66,7 @@ export async function handleSigningSessionSealRoutes(
         message: parsed.message,
         durationMs: Math.max(0, Date.now() - startedAtMs),
       });
-      return json({ ok: false, code: parsed.code, message: parsed.message }, 400);
+      return json(failure(parsed.code, parsed.message), 400);
     }
 
     const authorized = await authorizeSigningSessionSealRequest({
@@ -83,11 +84,7 @@ export async function handleSigningSessionSealRoutes(
         durationMs: Math.max(0, Date.now() - startedAtMs),
       });
       return json(
-        {
-          ok: false,
-          code: authorized.code || 'unauthorized',
-          message: authorized.message || 'Unauthorized',
-        },
+        failure(authorized.code || 'unauthorized', authorized.message || 'Unauthorized'),
         signingSessionSealAuthorizeStatusCode(authorized),
       );
     }
@@ -112,6 +109,6 @@ export async function handleSigningSessionSealRoutes(
       message,
       durationMs: Math.max(0, Date.now() - startedAtMs),
     });
-    return json({ ok: false, code: 'internal', message }, 500);
+    return json(failure('internal', message), 500);
   }
 }

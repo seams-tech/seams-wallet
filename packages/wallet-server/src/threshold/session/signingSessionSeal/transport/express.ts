@@ -12,6 +12,7 @@ import {
   resolveSigningSessionSealBasePath,
 } from './shared';
 import type { SigningSessionSealRoutesOptions } from '../signingSessionSeal.types';
+import { failure } from '@shared/utils/failure';
 
 type ExpressSigningSessionSealContext = {
   logger: NormalizedLogger;
@@ -53,7 +54,7 @@ export function registerSigningSessionSealRoutes(
             message: parsed.message,
             durationMs: Math.max(0, Date.now() - startedAtMs),
           });
-          res.status(400).json({ ok: false, code: parsed.code, message: parsed.message });
+          res.status(400).json(failure(parsed.code, parsed.message));
           return;
         }
 
@@ -70,11 +71,9 @@ export function registerSigningSessionSealRoutes(
             message: authorized.message || 'Unauthorized',
             durationMs: Math.max(0, Date.now() - startedAtMs),
           });
-          res.status(signingSessionSealAuthorizeStatusCode(authorized)).json({
-            ok: false,
-            code: authorized.code || 'unauthorized',
-            message: authorized.message || 'Unauthorized',
-          });
+          res
+            .status(signingSessionSealAuthorizeStatusCode(authorized))
+            .json(failure(authorized.code || 'unauthorized', authorized.message || 'Unauthorized'));
           return;
         }
 
@@ -98,7 +97,7 @@ export function registerSigningSessionSealRoutes(
           message,
           durationMs: Math.max(0, Date.now() - startedAtMs),
         });
-        res.status(500).json({ ok: false, code: 'internal', message });
+        res.status(500).json(failure('internal', message));
       }
     };
 

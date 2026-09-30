@@ -1,6 +1,7 @@
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/encoders';
 import { EMAIL_OTP_FACTOR_RELEASE_AAD_DOMAIN_V1 } from '@shared/utils/emailOtpDomain';
 import { isPlainObject, toOptionalTrimmedString } from '@shared/utils/validation';
+import { failure } from '@shared/utils/failure';
 import type { RouterApiEmailOtpRouteService } from '../../framework/authServicePort';
 import { emailOtpStatusCode } from './emailOtpSessionRouteHelpers';
 
@@ -60,11 +61,11 @@ export async function sealEmailOtpFactorSecretForWorker(input: {
     factorSecret32 = decodeEmailOtpFactorSecret32(input.factorSecret32B64u);
     workerPublicKey65 = base64UrlDecode(input.workerEphemeralPublicKey65B64u);
   } catch {
-    return { ok: false, code: 'invalid_body', message: 'Email OTP factor release key is invalid' };
+    return failure('invalid_body', 'Email OTP factor release key is invalid');
   }
   if (workerPublicKey65.length !== 65 || workerPublicKey65[0] !== 4) {
     factorSecret32.fill(0);
-    return { ok: false, code: 'invalid_body', message: 'Email OTP factor release key is invalid' };
+    return failure('invalid_body', 'Email OTP factor release key is invalid');
   }
   try {
     const workerPublicKey = await crypto.subtle.importKey(
@@ -109,11 +110,7 @@ export async function sealEmailOtpFactorSecretForWorker(input: {
       ciphertextB64u: base64UrlEncode(ciphertext),
     };
   } catch {
-    return {
-      ok: false,
-      code: 'factor_release_failed',
-      message: 'Email OTP factor release encryption failed',
-    };
+    return failure('factor_release_failed', 'Email OTP factor release encryption failed');
   } finally {
     factorSecret32.fill(0);
   }
@@ -139,7 +136,7 @@ export async function handleEmailOtpDevCleanupGoogleRegistrationRoute(input: {
             : 401;
     return {
       status,
-      body: { ok: false, code, message: verified.message || 'Google login failed' },
+      body: failure(code, verified.message || 'Google login failed'),
     };
   }
 
@@ -160,14 +157,14 @@ export async function handleEmailOtpRegistrationSealRoute(input: {
   service: RouterApiEmailOtpRouteService;
 }): Promise<EmailOtpRouteResponse> {
   if (!isPlainObject(input.body)) {
-    return { status: 400, body: { ok: false, code: 'invalid_body', message: 'Invalid body' } };
+    return { status: 400, body: failure('invalid_body', 'Invalid body') };
   }
   const allowedFields = new Set(['walletId', 'wrappedCiphertext']);
   for (const field of Object.keys(input.body)) {
     if (!allowedFields.has(field)) {
       return {
         status: 400,
-        body: { ok: false, code: 'invalid_body', message: `Unsupported field: ${field}` },
+        body: failure('invalid_body', `Unsupported field: ${field}`),
       };
     }
   }
@@ -176,11 +173,7 @@ export async function handleEmailOtpRegistrationSealRoute(input: {
   if (!walletId || !wrappedCiphertext) {
     return {
       status: 400,
-      body: {
-        ok: false,
-        code: 'invalid_body',
-        message: 'Missing walletId or wrappedCiphertext',
-      },
+      body: failure('invalid_body', 'Missing walletId or wrappedCiphertext'),
     };
   }
   const result = await input.service.applyEmailOtpServerSeal({ wrappedCiphertext });
@@ -195,14 +188,14 @@ export async function handleEmailOtpDevOutboxRoute(input: {
   service: RouterApiEmailOtpRouteService;
 }): Promise<EmailOtpRouteResponse> {
   if (!isPlainObject(input.body)) {
-    return { status: 400, body: { ok: false, code: 'invalid_body', message: 'Invalid body' } };
+    return { status: 400, body: failure('invalid_body', 'Invalid body') };
   }
   const allowedFields = new Set(['idToken', 'walletId', 'challengeId', 'challengeSubjectId']);
   for (const field of Object.keys(input.body)) {
     if (!allowedFields.has(field)) {
       return {
         status: 400,
-        body: { ok: false, code: 'invalid_body', message: `Unsupported field: ${field}` },
+        body: failure('invalid_body', `Unsupported field: ${field}`),
       };
     }
   }
@@ -225,17 +218,16 @@ export async function handleEmailOtpDevOutboxRoute(input: {
   if (!idToken || !walletId) {
     return {
       status: 400,
-      body: { ok: false, code: 'invalid_body', message: 'Missing idToken or walletId' },
+      body: failure('invalid_body', 'Missing idToken or walletId'),
     };
   }
   if (challengeSubjectId && !challengeId) {
     return {
       status: 400,
-      body: {
-        ok: false,
-        code: 'invalid_body',
-        message: 'challengeSubjectId requires the exact challengeId it belongs to',
-      },
+      body: failure(
+        'invalid_body',
+        'challengeSubjectId requires the exact challengeId it belongs to',
+      ),
     };
   }
   const verified = await input.service.verifyGoogleLogin({ idToken });
@@ -243,7 +235,7 @@ export async function handleEmailOtpDevOutboxRoute(input: {
     const code = verified.code || 'not_verified';
     return {
       status: code === 'internal' ? 500 : code === 'not_configured' ? 501 : 401,
-      body: { ok: false, code, message: verified.message || 'Google login failed' },
+      body: failure(code, verified.message || 'Google login failed'),
     };
   }
   const result = await input.service.readEmailOtpOutboxEntry({

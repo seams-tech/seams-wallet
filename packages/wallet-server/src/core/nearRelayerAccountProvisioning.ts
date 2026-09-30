@@ -9,6 +9,7 @@ import {
   parseNamedNearAccountId,
 } from '@shared/utils/near';
 import { coerceNonEmptyString, requireRecordOrArray } from '@shared/utils/validation';
+import { failure } from '@shared/utils/failure';
 import type { AccessKeyView, FinalExecutionOutcome, TxExecutionStatus } from '@near-js/types';
 import {
   threshold_ed25519_build_near_tx_unsigned_borsh,
@@ -456,11 +457,7 @@ export async function fundImplicitNearAccountWithRelayer(
       message: 'Implicit NEAR account funding transaction submitted',
     };
   } catch (error: unknown) {
-    return {
-      ok: false,
-      code: 'funding_failed',
-      message: errorMessage(error) || 'Failed to fund implicit NEAR account',
-    };
+    return failure('funding_failed', errorMessage(error) || 'Failed to fund implicit NEAR account');
   }
 }
 

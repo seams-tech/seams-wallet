@@ -4,6 +4,7 @@ import {
 } from '@shared/utils/emailOtpDomain';
 import { errorMessage } from '@shared/utils/errors';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
+import { failure } from '@shared/utils/failure';
 import type {
   EmailOtpChannel,
   EmailOtpGrantStore,
@@ -55,16 +56,12 @@ export async function consumeEmailOtpGrantWithStore(input: {
     const orgId = toOptionalTrimmedString(input.request.orgId) || '';
     const otpChannel = toOptionalTrimmedString(input.request.otpChannel);
     const clientIp = toOptionalTrimmedString(input.request.clientIp) || undefined;
-    if (!loginGrant) return { ok: false, code: 'invalid_body', message: 'Missing loginGrant' };
-    if (!userId) return { ok: false, code: 'invalid_body', message: 'Missing userId' };
-    if (!walletId) return { ok: false, code: 'invalid_body', message: 'Missing walletId' };
-    if (!orgId) return { ok: false, code: 'invalid_body', message: 'Missing orgId' };
+    if (!loginGrant) return failure('invalid_body', 'Missing loginGrant');
+    if (!userId) return failure('invalid_body', 'Missing userId');
+    if (!walletId) return failure('invalid_body', 'Missing walletId');
+    if (!orgId) return failure('invalid_body', 'Missing orgId');
     if (otpChannel !== EMAIL_OTP_CHANNEL) {
-      return {
-        ok: false,
-        code: 'invalid_body',
-        message: 'otpChannel must be email_otp',
-      };
+      return failure('invalid_body', 'otpChannel must be email_otp');
     }
 
     const rateLimit = await input.consumeRateLimit({
@@ -82,11 +79,7 @@ export async function consumeEmailOtpGrantWithStore(input: {
       input.nowMs > record.expiresAtMs ||
       record.action !== WALLET_EMAIL_OTP_ACTIONS.unseal;
     if (invalidGrant) {
-      return {
-        ok: false,
-        code: 'login_grant_invalid_or_expired',
-        message: 'Login grant is invalid or expired',
-      };
+      return failure('login_grant_invalid_or_expired', 'Login grant is invalid or expired');
     }
 
     const bindingMismatch =
@@ -95,11 +88,10 @@ export async function consumeEmailOtpGrantWithStore(input: {
       record.otpChannel !== EMAIL_OTP_CHANNEL ||
       record.orgId !== orgId;
     if (bindingMismatch) {
-      return {
-        ok: false,
-        code: 'recovery_grant_binding_mismatch',
-        message: 'Recovery grant is not valid for the current Email OTP authority',
-      };
+      return failure(
+        'recovery_grant_binding_mismatch',
+        'Recovery grant is not valid for the current Email OTP authority',
+      );
     }
 
     return {
@@ -108,10 +100,6 @@ export async function consumeEmailOtpGrantWithStore(input: {
       otpChannel: EMAIL_OTP_CHANNEL,
     };
   } catch (error: unknown) {
-    return {
-      ok: false,
-      code: 'internal',
-      message: errorMessage(error) || 'Failed to consume Email OTP grant',
-    };
+    return failure('internal', errorMessage(error) || 'Failed to consume Email OTP grant');
   }
 }

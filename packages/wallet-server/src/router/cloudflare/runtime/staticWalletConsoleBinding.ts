@@ -8,6 +8,7 @@ import {
 } from './walletConsoleOps';
 import { decodeWalletConsoleTenantRootActiveLineageRequestV1 } from './walletConsoleOps';
 import type { WalletConsoleServiceBinding } from './walletConsoleOpsClient';
+import { failure } from '@shared/utils/failure';
 
 export interface StaticWalletConsoleBindingConfigV1 {
   readonly credential: {
@@ -215,7 +216,7 @@ function projectEnvironmentsResponse(
   const body = record(value);
   const context = record(body?.context);
   if (!context || context.orgId !== config.deployment.orgId) {
-    return json({ ok: false, code: 'environment_not_found', message: 'Environment not found' }, 404);
+    return json(failure('environment_not_found', 'Environment not found'), 404);
   }
   return json({
     ok: true,
@@ -237,7 +238,7 @@ function activeLineageResponse(
 ): Response {
   const decoded = decodeWalletConsoleTenantRootActiveLineageRequestV1(value);
   if (!decoded.ok) {
-    return json({ ok: false, code: 'invalid_body', message: 'Identity is invalid' }, 400);
+    return json(failure('invalid_body', 'Identity is invalid'), 400);
   }
   const identity = decoded.value;
   if (
@@ -248,11 +249,7 @@ function activeLineageResponse(
     identity.signingRootVersion !== config.deployment.signingRootVersion
   ) {
     return json(
-      {
-        ok: false,
-        code: 'tenant_root_active_lineage_not_found',
-        message: 'Active tenant-root lineage was not found',
-      },
+      failure('tenant_root_active_lineage_not_found', 'Active tenant-root lineage was not found'),
       404,
     );
   }
@@ -275,7 +272,7 @@ function principal(config: StaticWalletConsoleBindingConfigV1): WalletConsolePri
 }
 
 function authFailure(code: string, message: string, status: 401 | 403 = 401): Response {
-  return json({ ok: false, code, message }, status);
+  return json(failure(code, message), status);
 }
 
 function record(value: unknown): Readonly<Record<string, unknown>> | null {

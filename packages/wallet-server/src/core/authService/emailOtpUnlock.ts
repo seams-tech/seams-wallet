@@ -1,6 +1,7 @@
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/encoders';
 import { errorMessage } from '@shared/utils/errors';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
+import { failedVerification, failure } from '@shared/utils/failure';
 import type {
   EmailOtpAuthStateRecord,
   EmailOtpUnlockChallengeStore,
@@ -135,20 +136,16 @@ export async function createEmailOtpUnlockChallenge(
     const walletId = parsedUnlockWalletId(input.request.walletId);
     const orgId = toOptionalTrimmedString(input.request.orgId) || undefined;
     if (!toOptionalTrimmedString(input.request.walletId)) {
-      return { ok: false, code: 'invalid_body', message: 'Missing walletId' };
+      return failure('invalid_body', 'Missing walletId');
     }
-    if (!walletId) return { ok: false, code: 'invalid_body', message: 'Invalid walletId' };
+    if (!walletId) return failure('invalid_body', 'Invalid walletId');
 
     const activeEnrollment = await input.readActiveEnrollment({ walletId, orgId });
     if (!activeEnrollment.ok) return activeEnrollment;
     const enrollment = activeEnrollment.enrollment;
 
     if (typeof crypto === 'undefined' || typeof crypto.getRandomValues !== 'function') {
-      return {
-        ok: false,
-        code: 'unsupported',
-        message: 'crypto.getRandomValues is unavailable in this runtime',
-      };
+      return failure('unsupported', 'crypto.getRandomValues is unavailable in this runtime');
     }
 
     const createdAtMs = Date.now();
@@ -175,11 +172,7 @@ export async function createEmailOtpUnlockChallenge(
       unlockKeyVersion: enrollment.unlockKeyVersion,
     };
   } catch (e: unknown) {
-    return {
-      ok: false,
-      code: 'internal',
-      message: errorMessage(e) || 'Failed to create Email OTP unlock challenge',
-    };
+    return failure('internal', errorMessage(e) || 'Failed to create Email OTP unlock challenge');
   }
 }
 
@@ -191,63 +184,47 @@ export async function verifyEmailOtpUnlockProof(
     const orgId = toOptionalTrimmedString(input.request.orgId) || undefined;
     const challengeId = toOptionalTrimmedString(input.request.challengeId);
     if (!toOptionalTrimmedString(input.request.walletId)) {
-      return { ok: false, verified: false, code: 'invalid_body', message: 'Missing walletId' };
+      return failedVerification('invalid_body', 'Missing walletId');
     }
     if (!walletId) {
-      return { ok: false, verified: false, code: 'invalid_body', message: 'Invalid walletId' };
+      return failedVerification('invalid_body', 'Invalid walletId');
     }
     if (!challengeId) {
-      return { ok: false, verified: false, code: 'invalid_body', message: 'Missing challengeId' };
+      return failedVerification('invalid_body', 'Missing challengeId');
     }
 
     const unlockProof = parseUnlockProof(input.request.unlockProof);
     if (!unlockProof) {
-      return {
-        ok: false,
-        verified: false,
-        code: 'invalid_body',
-        message: 'unlockProof is required',
-      };
+      return failedVerification('invalid_body', 'unlockProof is required');
     }
 
     const challengeRecord = await input.unlockChallengeStore.consume(challengeId);
     if (!challengeRecord || Date.now() > challengeRecord.expiresAtMs) {
-      return {
-        ok: false,
-        verified: false,
-        code: 'challenge_expired_or_invalid',
-        message: 'Email OTP unlock challenge expired or invalid',
-      };
+      return failedVerification(
+        'challenge_expired_or_invalid',
+        'Email OTP unlock challenge expired or invalid',
+      );
     }
     if (challengeRecord.walletId !== walletId) {
-      return {
-        ok: false,
-        verified: false,
-        code: 'challenge_binding_mismatch',
-        message: 'Email OTP unlock challenge is not valid for this walletId',
-      };
+      return failedVerification(
+        'challenge_binding_mismatch',
+        'Email OTP unlock challenge is not valid for this walletId',
+      );
     }
 
     const activeEnrollment = await input.readActiveEnrollment({ walletId, orgId });
     if (!activeEnrollment.ok) {
-      return {
-        ok: false,
-        verified: false,
-        code: activeEnrollment.code,
-        message: activeEnrollment.message,
-      };
+      return failedVerification(activeEnrollment.code, activeEnrollment.message);
     }
     const enrollment = activeEnrollment.enrollment;
     if (
       challengeRecord.userId !== enrollment.providerUserId ||
       challengeRecord.orgId !== enrollment.orgId
     ) {
-      return {
-        ok: false,
-        verified: false,
-        code: 'challenge_binding_mismatch',
-        message: 'Email OTP unlock challenge is not valid for this enrollment',
-      };
+      return failedVerification(
+        'challenge_binding_mismatch',
+        'Email OTP unlock challenge is not valid for this enrollment',
+      );
     }
 
     const publicKeyDecode = decodeBase64UrlField({
@@ -258,17 +235,15 @@ export async function verifyEmailOtpUnlockProof(
       expectedLengthMessage: 'unlockProof.publicKey must decode to 33 bytes',
     });
     if (!publicKeyDecode.ok) {
-      return { ok: false, verified: false, code: 'invalid_body', message: publicKeyDecode.message };
+      return failedVerification('invalid_body', publicKeyDecode.message);
     }
     try {
       await validateSecp256k1PublicKey33(publicKeyDecode.bytes);
     } catch {
-      return {
-        ok: false,
-        verified: false,
-        code: 'invalid_body',
-        message: 'unlockProof.publicKey is not a valid secp256k1 public key',
-      };
+      return failedVerification(
+        'invalid_body',
+        'unlockProof.publicKey is not a valid secp256k1 public key',
+      );
     }
 
     const signatureDecode = decodeBase64UrlField({
@@ -279,17 +254,15 @@ export async function verifyEmailOtpUnlockProof(
       expectedLengthMessage: 'unlockProof.signature must decode to 65 bytes',
     });
     if (!signatureDecode.ok) {
-      return { ok: false, verified: false, code: 'invalid_body', message: signatureDecode.message };
+      return failedVerification('invalid_body', signatureDecode.message);
     }
 
     const enrolledPublicKey = base64UrlDecode(enrollment.clientUnlockPublicKeyB64u);
     if (!byteArraysEqual(enrolledPublicKey, publicKeyDecode.bytes)) {
-      return {
-        ok: false,
-        verified: false,
-        code: 'invalid_unlock_proof',
-        message: 'unlockProof.publicKey does not match the enrolled clientUnlockPublicKeyB64u',
-      };
+      return failedVerification(
+        'invalid_unlock_proof',
+        'unlockProof.publicKey does not match the enrolled clientUnlockPublicKeyB64u',
+      );
     }
 
     const challengeDigestDecode = decodeBase64UrlField({
@@ -300,12 +273,7 @@ export async function verifyEmailOtpUnlockProof(
       expectedLengthMessage: 'Stored unlock challenge digest must decode to 32 bytes',
     });
     if (!challengeDigestDecode.ok) {
-      return {
-        ok: false,
-        verified: false,
-        code: 'internal',
-        message: challengeDigestDecode.message,
-      };
+      return failedVerification('internal', challengeDigestDecode.message);
     }
 
     try {
@@ -315,12 +283,10 @@ export async function verifyEmailOtpUnlockProof(
         publicKeyDecode.bytes,
       );
     } catch {
-      return {
-        ok: false,
-        verified: false,
-        code: 'invalid_unlock_proof',
-        message: 'unlockProof.signature did not verify against unlockProof.publicKey',
-      };
+      return failedVerification(
+        'invalid_unlock_proof',
+        'unlockProof.signature did not verify against unlockProof.publicKey',
+      );
     }
 
     const nowMs = Date.now();
@@ -340,11 +306,9 @@ export async function verifyEmailOtpUnlockProof(
       unlockKeyVersion: enrollment.unlockKeyVersion,
     };
   } catch (e: unknown) {
-    return {
-      ok: false,
-      verified: false,
-      code: 'internal',
-      message: errorMessage(e) || 'Failed to verify Email OTP unlock proof',
-    };
+    return failedVerification(
+      'internal',
+      errorMessage(e) || 'Failed to verify Email OTP unlock proof',
+    );
   }
 }

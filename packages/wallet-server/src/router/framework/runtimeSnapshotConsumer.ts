@@ -4,6 +4,7 @@ import type {
   RouterApiRuntimePolicyScope,
 } from './routerApi';
 import type { ThresholdRuntimeSnapshotExpectation } from '../../core/types';
+import { failure } from '@shared/utils/failure';
 
 type RuntimeSnapshotValidationErrorCode =
   | 'runtime_snapshots_not_configured'
@@ -80,57 +81,47 @@ export async function validateRuntimeSnapshotExpectation(input: {
 }): Promise<RuntimeSnapshotValidationResult> {
   const expectationResult = parseExpectation(input.expectationRaw);
   if (expectationResult.error) {
-    return {
-      ok: false,
-      code: 'runtime_snapshot_invalid_expectation',
-      message: expectationResult.error,
-    };
+    return failure('runtime_snapshot_invalid_expectation', expectationResult.error);
   }
   const expectation = expectationResult.parsed;
   if (!expectation) return { ok: true };
   const scope = input.scope;
   if (!scope) {
-    return {
-      ok: false,
-      code: 'runtime_snapshot_scope_missing',
-      message: 'threshold session is missing runtimePolicyScope',
-    };
+    return failure(
+      'runtime_snapshot_scope_missing',
+      'threshold session is missing runtimePolicyScope',
+    );
   }
   if (!input.runtimeSnapshots) {
-    return {
-      ok: false,
-      code: 'runtime_snapshots_not_configured',
-      message: 'Runtime snapshot consumer is not configured on this server',
-    };
+    return failure(
+      'runtime_snapshots_not_configured',
+      'Runtime snapshot consumer is not configured on this server',
+    );
   }
   const latest = await input.runtimeSnapshots.getLatestSnapshot(scope);
   if (!latest) {
-    return {
-      ok: false,
-      code: 'runtime_snapshot_not_found',
-      message: `No runtime snapshot found for org=${scope.orgId} project=${scope.projectId} env=${scope.envId}`,
-    };
+    return failure(
+      'runtime_snapshot_not_found',
+      `No runtime snapshot found for org=${scope.orgId} project=${scope.projectId} env=${scope.envId}`,
+    );
   }
   if (expectation.snapshotId && latest.snapshotId !== expectation.snapshotId) {
-    return {
-      ok: false,
-      code: 'runtime_snapshot_id_mismatch',
-      message: `Runtime snapshot id mismatch: expected ${expectation.snapshotId}, got ${latest.snapshotId}`,
-    };
+    return failure(
+      'runtime_snapshot_id_mismatch',
+      `Runtime snapshot id mismatch: expected ${expectation.snapshotId}, got ${latest.snapshotId}`,
+    );
   }
   if (expectation.version !== undefined && latest.version !== expectation.version) {
-    return {
-      ok: false,
-      code: 'runtime_snapshot_version_mismatch',
-      message: `Runtime snapshot version mismatch: expected ${expectation.version}, got ${latest.version}`,
-    };
+    return failure(
+      'runtime_snapshot_version_mismatch',
+      `Runtime snapshot version mismatch: expected ${expectation.version}, got ${latest.version}`,
+    );
   }
   if (expectation.checksum && latest.checksum !== expectation.checksum) {
-    return {
-      ok: false,
-      code: 'runtime_snapshot_checksum_mismatch',
-      message: `Runtime snapshot checksum mismatch: expected ${expectation.checksum}, got ${latest.checksum}`,
-    };
+    return failure(
+      'runtime_snapshot_checksum_mismatch',
+      `Runtime snapshot checksum mismatch: expected ${expectation.checksum}, got ${latest.checksum}`,
+    );
   }
   return { ok: true };
 }

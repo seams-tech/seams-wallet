@@ -1,4 +1,5 @@
 import { toOptionalTrimmedString } from '@shared/utils/validation';
+import { failure } from '@shared/utils/failure';
 import { createSigningSessionSealShamir3PassCipherAdapter } from '../../../../threshold/session/signingSessionSeal/crypto/cipher';
 import type { EmailOtpServerSealRuntimeConfig } from '../auth/d1RouterApiAuthConfig';
 import type {
@@ -59,11 +60,7 @@ export class CloudflareD1EmailOtpServerSealRuntime {
     try {
       const wrappedCiphertext = toOptionalTrimmedString(input.wrappedCiphertext);
       if (!wrappedCiphertext) {
-        return {
-          ok: false,
-          code: 'invalid_body',
-          message: 'Missing wrappedCiphertext',
-        };
+        return failure('invalid_body', 'Missing wrappedCiphertext');
       }
       const shamir = this.cipherResult;
       if (!shamir.ok) return shamir;
@@ -81,21 +78,13 @@ export class CloudflareD1EmailOtpServerSealRuntime {
         enrollmentSealKeyVersion: result.keyVersion || shamir.keyVersion,
       };
     } catch (error: unknown) {
-      return {
-        ok: false,
-        code: 'internal',
-        message: serverSealErrorMessage(error) || operation.failureMessage,
-      };
+      return failure('internal', serverSealErrorMessage(error) || operation.failureMessage);
     }
   }
 
   private createCipher(): EmailOtpShamirCipherResult {
     if (!this.config.configured) {
-      return {
-        ok: false,
-        code: 'not_configured',
-        message: this.config.message,
-      };
+      return failure('not_configured', this.config.message);
     }
     try {
       const keyVersion = this.config.rootConfig.currentKeyVersion;
@@ -107,11 +96,10 @@ export class CloudflareD1EmailOtpServerSealRuntime {
         }),
       };
     } catch (error: unknown) {
-      return {
-        ok: false,
-        code: 'not_configured',
-        message: serverSealErrorMessage(error) || 'Email OTP Shamir configuration is invalid',
-      };
+      return failure(
+        'not_configured',
+        serverSealErrorMessage(error) || 'Email OTP Shamir configuration is invalid',
+      );
     }
   }
 }

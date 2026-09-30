@@ -1,4 +1,5 @@
 import { toOptionalTrimmedString } from '@shared/utils/validation';
+import { failure } from '@shared/utils/failure';
 import { d1ChangedRows } from '../storage/d1Sql';
 import {
   D1TenantTable,
@@ -178,8 +179,8 @@ export class D1IdentityStore implements IdentityStore {
     await this.table.ensureSchema();
     const userId = toOptionalTrimmedString(input.userId);
     const subject = toOptionalTrimmedString(input.subject);
-    if (!userId) return { ok: false, code: 'invalid_args', message: 'Missing userId' };
-    if (!subject) return { ok: false, code: 'invalid_args', message: 'Missing subject' };
+    if (!userId) return failure('invalid_args', 'Missing userId');
+    if (!subject) return failure('invalid_args', 'Missing subject');
 
     const now = this.now().getTime();
     const existing = await this.table
@@ -204,11 +205,7 @@ export class D1IdentityStore implements IdentityStore {
 
     if (existingUserId && existingUserId !== userId) {
       if (!input.allowMoveIfSoleIdentity) {
-        return {
-          ok: false,
-          code: 'already_linked',
-          message: 'Subject is already linked to a different user',
-        };
+        return failure('already_linked', 'Subject is already linked to a different user');
       }
       const moved = d1ChangedRows(
         await this.table.database
@@ -258,18 +255,12 @@ export class D1IdentityStore implements IdentityStore {
         .prepare(SUBJECT_COUNT_SQL, [existingUserId])
         .first<D1IdentityLinkRow>();
       if (parseSubjectCount(countRow?.subject_count) !== 1) {
-        return {
-          ok: false,
-          code: 'already_linked',
-          message:
-            'Subject is linked to a different user with other identities; merge is not allowed',
-        };
+        return failure(
+          'already_linked',
+          'Subject is linked to a different user with other identities; merge is not allowed',
+        );
       }
-      return {
-        ok: false,
-        code: 'already_linked',
-        message: 'Subject is already linked to a different user',
-      };
+      return failure('already_linked', 'Subject is already linked to a different user');
     }
 
     await this.table
@@ -306,13 +297,9 @@ export class D1IdentityStore implements IdentityStore {
     const finalUserId = await this.getUserIdBySubject(subject);
     if (finalUserId === userId) return { ok: true };
     if (finalUserId) {
-      return {
-        ok: false,
-        code: 'already_linked',
-        message: 'Subject is already linked to a different user',
-      };
+      return failure('already_linked', 'Subject is already linked to a different user');
     }
-    return { ok: false, code: 'internal', message: 'Failed to link identity' };
+    return failure('internal', 'Failed to link identity');
   }
 
   async unlinkSubjectFromUserId(input: {
@@ -322,8 +309,8 @@ export class D1IdentityStore implements IdentityStore {
     await this.table.ensureSchema();
     const userId = toOptionalTrimmedString(input.userId);
     const subject = toOptionalTrimmedString(input.subject);
-    if (!userId) return { ok: false, code: 'invalid_args', message: 'Missing userId' };
-    if (!subject) return { ok: false, code: 'invalid_args', message: 'Missing subject' };
+    if (!userId) return failure('invalid_args', 'Missing userId');
+    if (!subject) return failure('invalid_args', 'Missing subject');
 
     const deleted = d1ChangedRows(
       await this.table.database
@@ -364,19 +351,18 @@ export class D1IdentityStore implements IdentityStore {
 
     const existingUserId = await this.getUserIdBySubject(subject);
     if (existingUserId !== userId) {
-      return { ok: false, code: 'not_found', message: 'Subject is not linked to this user' };
+      return failure('not_found', 'Subject is not linked to this user');
     }
     const countRow = await this.table
       .prepare(SUBJECT_COUNT_SQL, [userId])
       .first<D1IdentityLinkRow>();
     if (parseSubjectCount(countRow?.subject_count) <= 1) {
-      return {
-        ok: false,
-        code: 'cannot_unlink_last_identity',
-        message: 'Refusing to remove the last remaining identity',
-      };
+      return failure(
+        'cannot_unlink_last_identity',
+        'Refusing to remove the last remaining identity',
+      );
     }
-    return { ok: false, code: 'internal', message: 'Failed to unlink identity' };
+    return failure('internal', 'Failed to unlink identity');
   }
 
   async deleteSubjectLinkForDevCleanup(input: {
@@ -386,11 +372,11 @@ export class D1IdentityStore implements IdentityStore {
     await this.table.ensureSchema();
     const userId = toOptionalTrimmedString(input.userId);
     const subject = toOptionalTrimmedString(input.subject);
-    if (!userId) return { ok: false, code: 'invalid_args', message: 'Missing userId' };
-    if (!subject) return { ok: false, code: 'invalid_args', message: 'Missing subject' };
+    if (!userId) return failure('invalid_args', 'Missing userId');
+    if (!subject) return failure('invalid_args', 'Missing subject');
     const deleted = await this.deleteIdentityLink({ userId, subject });
     if (deleted === 0) {
-      return { ok: false, code: 'not_found', message: 'Subject is not linked to this user' };
+      return failure('not_found', 'Subject is not linked to this user');
     }
     return { ok: true };
   }

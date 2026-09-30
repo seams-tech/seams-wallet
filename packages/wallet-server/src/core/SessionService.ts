@@ -1,4 +1,5 @@
 import type { SessionParseFailureReason, SessionParseResult } from './sessionValidation';
+import { failure } from '@shared/utils/failure';
 
 export interface SessionConfig {
   jwt?: {
@@ -195,23 +196,19 @@ export class SessionService<TClaims extends Record<string, unknown> = Record<str
   ): Promise<{ ok: boolean; jwt?: string; code?: string; message?: string }> {
     try {
       const token = this.extractTokenFromHeaders(headers);
-      if (!token) return { ok: false, code: 'unauthorized', message: 'No session token' };
+      if (!token) return failure('unauthorized', 'No session token');
       const v = await this.verifyJwt(token);
       if (!v.valid) {
         if (v.reason === 'expired') {
-          return {
-            ok: false,
-            code: 'wallet_session_expired',
-            message: 'Wallet Session expired',
-          };
+          return failure('wallet_session_expired', 'Wallet Session expired');
         }
-        return { ok: false, code: 'unauthorized', message: 'Invalid token' };
+        return failure('unauthorized', 'Invalid token');
       }
       const payload: any = v.payload || {};
       if (!this.isWithinRefreshWindow(payload))
-        return { ok: false, code: 'not_eligible', message: 'Not within refresh window' };
+        return failure('not_eligible', 'Not within refresh window');
       const sub = String(payload.sub || '');
-      if (!sub) return { ok: false, code: 'invalid_claims', message: 'Missing sub claim' };
+      if (!sub) return failure('invalid_claims', 'Missing sub claim');
       // Preserve non-reserved claims so refreshed
       // sessions retain their scope and can't be "downgraded" into ambiguous tokens.
       const extra: Record<string, unknown> = {};
@@ -231,7 +228,7 @@ export class SessionService<TClaims extends Record<string, unknown> = Record<str
       const next = await this.signJwt(sub, extra);
       return { ok: true, jwt: next };
     } catch (e: any) {
-      return { ok: false, code: 'internal', message: e?.message || 'Refresh failed' };
+      return failure('internal', e?.message || 'Refresh failed');
     }
   }
 

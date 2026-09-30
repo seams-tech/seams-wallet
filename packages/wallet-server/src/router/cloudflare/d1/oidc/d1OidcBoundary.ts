@@ -1,5 +1,6 @@
 import { base64UrlDecode } from '@shared/utils/encoders';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
+import { failedVerification } from '@shared/utils/failure';
 import { toArrayBufferCopy } from '../../../../core/authService/portableCrypto';
 import { toRecordValue } from '../auth/d1RouterApiAuthBoundary';
 
@@ -127,52 +128,27 @@ export function parseRs256JwtForVerification(input: {
 }): ParsedRs256JwtResult {
   const parts = input.token.split('.');
   if (parts.length !== 3) {
-    return {
-      ok: false,
-      verified: false,
-      code: 'invalid_body',
-      message: `${input.tokenLabel} must be a JWT (3 segments)`,
-    };
+    return failedVerification('invalid_body', `${input.tokenLabel} must be a JWT (3 segments)`);
   }
   const headerB64u = parts[0] || '';
   const payloadB64u = parts[1] || '';
   const signatureB64u = parts[2] || '';
   const header = parseJwtSegmentJson(headerB64u);
   if (!header) {
-    return {
-      ok: false,
-      verified: false,
-      code: 'invalid_body',
-      message: `Invalid ${input.tokenLabel} header encoding`,
-    };
+    return failedVerification('invalid_body', `Invalid ${input.tokenLabel} header encoding`);
   }
   const payload = parseJwtSegmentJson(payloadB64u);
   if (!payload) {
-    return {
-      ok: false,
-      verified: false,
-      code: 'invalid_body',
-      message: `Invalid ${input.tokenLabel} payload encoding`,
-    };
+    return failedVerification('invalid_body', `Invalid ${input.tokenLabel} payload encoding`);
   }
 
   const kid = toOptionalTrimmedString(header.kid);
   const alg = toOptionalTrimmedString(header.alg);
   if (!kid) {
-    return {
-      ok: false,
-      verified: false,
-      code: 'invalid_body',
-      message: `${input.tokenLabel} header.kid is required`,
-    };
+    return failedVerification('invalid_body', `${input.tokenLabel} header.kid is required`);
   }
   if (alg !== 'RS256') {
-    return {
-      ok: false,
-      verified: false,
-      code: 'invalid_body',
-      message: `${input.tokenLabel} header.alg must be RS256`,
-    };
+    return failedVerification('invalid_body', `${input.tokenLabel} header.alg must be RS256`);
   }
 
   return {
@@ -198,12 +174,7 @@ export async function verifyRs256JwtSignature(input: {
   try {
     signatureBytes = base64UrlDecode(input.jwt.signatureB64u);
   } catch {
-    return {
-      ok: false,
-      verified: false,
-      code: 'invalid_body',
-      message: `Invalid ${input.tokenLabel} signature encoding`,
-    };
+    return failedVerification('invalid_body', `Invalid ${input.tokenLabel} signature encoding`);
   }
   const dataBytes = new TextEncoder().encode(`${input.jwt.headerB64u}.${input.jwt.payloadB64u}`);
   const key = await input.subtle.importKey(
@@ -220,12 +191,7 @@ export async function verifyRs256JwtSignature(input: {
     toArrayBufferCopy(dataBytes),
   );
   if (!verified) {
-    return {
-      ok: false,
-      verified: false,
-      code: 'invalid_signature',
-      message: input.invalidSignatureMessage,
-    };
+    return failedVerification('invalid_signature', input.invalidSignatureMessage);
   }
   return { ok: true };
 }
@@ -246,77 +212,37 @@ export function validateGoogleIdTokenClaims(input: {
   const payload = input.payload;
   const iss = toOptionalTrimmedString(payload.iss);
   if (iss !== 'https://accounts.google.com' && iss !== 'accounts.google.com') {
-    return {
-      ok: false,
-      verified: false,
-      code: 'invalid_issuer',
-      message: 'Invalid Google id_token issuer',
-    };
+    return failedVerification('invalid_issuer', 'Invalid Google id_token issuer');
   }
   const nowSec = Math.floor(Date.now() / 1000);
   const exp = Number(payload.exp);
   if (!Number.isFinite(exp) || exp <= 0) {
-    return {
-      ok: false,
-      verified: false,
-      code: 'invalid_claims',
-      message: 'Invalid Google id_token exp',
-    };
+    return failedVerification('invalid_claims', 'Invalid Google id_token exp');
   }
   if (nowSec >= exp) {
-    return {
-      ok: false,
-      verified: false,
-      code: 'expired',
-      message: 'Google id_token is expired',
-    };
+    return failedVerification('expired', 'Google id_token is expired');
   }
   if (payload.nbf !== undefined) {
     const nbf = Number(payload.nbf);
     if (!Number.isFinite(nbf)) {
-      return {
-        ok: false,
-        verified: false,
-        code: 'invalid_claims',
-        message: 'Invalid Google id_token nbf',
-      };
+      return failedVerification('invalid_claims', 'Invalid Google id_token nbf');
     }
     if (nowSec < nbf) {
-      return {
-        ok: false,
-        verified: false,
-        code: 'not_yet_valid',
-        message: 'Google id_token is not yet valid',
-      };
+      return failedVerification('not_yet_valid', 'Google id_token is not yet valid');
     }
   }
 
   const aud = parseJwtAud(payload.aud);
   if (aud.length === 0) {
-    return {
-      ok: false,
-      verified: false,
-      code: 'invalid_claims',
-      message: 'Missing Google id_token aud',
-    };
+    return failedVerification('invalid_claims', 'Missing Google id_token aud');
   }
   if (!aud.includes(input.clientId)) {
-    return {
-      ok: false,
-      verified: false,
-      code: 'invalid_audience',
-      message: 'Google id_token audience mismatch',
-    };
+    return failedVerification('invalid_audience', 'Google id_token audience mismatch');
   }
 
   const sub = toOptionalTrimmedString(payload.sub);
   if (!sub) {
-    return {
-      ok: false,
-      verified: false,
-      code: 'invalid_claims',
-      message: 'Missing Google id_token sub',
-    };
+    return failedVerification('invalid_claims', 'Missing Google id_token sub');
   }
   const email = toOptionalTrimmedString(payload.email);
   const name = toOptionalTrimmedString(payload.name);

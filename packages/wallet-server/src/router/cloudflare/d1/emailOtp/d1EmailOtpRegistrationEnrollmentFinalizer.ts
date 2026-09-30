@@ -5,6 +5,7 @@ import {
 import type { WalletId } from '@shared/utils/registrationIntent';
 import type { RegistrationAuthority } from '@shared/utils/registrationAuthMethodInput';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
+import { failure } from '@shared/utils/failure';
 import type {
   EmailOtpAuthStateRecord,
   EmailOtpWalletEnrollmentRecord,
@@ -81,38 +82,31 @@ export class CloudflareD1EmailOtpRegistrationEnrollmentFinalizer {
   }): Promise<EnrollmentResult> {
     if (input.authority.kind !== 'email_otp') {
       return input.request.emailOtpEnrollment
-        ? {
-            ok: false,
-            code: 'invalid_body',
-            message: 'Email OTP enrollment material is only valid for Email OTP registration',
-          }
+        ? failure(
+            'invalid_body',
+            'Email OTP enrollment material is only valid for Email OTP registration',
+          )
         : { ok: true };
     }
     if (!input.request.emailOtpEnrollment) {
-      return {
-        ok: false,
-        code: 'invalid_body',
-        message: 'Email OTP registration finalize requires emailOtpEnrollment',
-      };
+      return failure('invalid_body', 'Email OTP registration finalize requires emailOtpEnrollment');
     }
     if (
       input.authority.walletId !== input.walletId ||
       input.authority.finalWalletId !== input.walletId ||
       input.authority.orgId !== input.orgId
     ) {
-      return {
-        ok: false,
-        code: 'authority_binding_mismatch',
-        message: 'Email OTP registration authority does not match finalize scope',
-      };
+      return failure(
+        'authority_binding_mismatch',
+        'Email OTP registration authority does not match finalize scope',
+      );
     }
     const material = parseEmailOtpEnrollmentMaterialBoundaryInput(input.request.emailOtpEnrollment);
     if (!material) {
-      return {
-        ok: false,
-        code: 'invalid_body',
-        message: 'Email OTP enrollment material must be an object with the expected fields',
-      };
+      return failure(
+        'invalid_body',
+        'Email OTP enrollment material must be an object with the expected fields',
+      );
     }
     return await this.buildPersistence({
       walletId: input.walletId,
@@ -261,11 +255,10 @@ export class CloudflareD1EmailOtpRegistrationEnrollmentFinalizer {
     | { readonly ok: false; readonly code: string; readonly message: string }
   > {
     if (!(await this.emailOtpEnrollments.signerWalletExists(input.walletId))) {
-      return {
-        ok: false,
-        code: 'wallet_registration_incomplete',
-        message: 'Email OTP enrollment requires a canonical wallet',
-      };
+      return failure(
+        'wallet_registration_incomplete',
+        'Email OTP enrollment requires a canonical wallet',
+      );
     }
     if (await this.emailOtpEnrollments.readEnrollment(input.walletId)) {
       return {
@@ -309,11 +302,10 @@ export class CloudflareD1EmailOtpRegistrationEnrollmentFinalizer {
     const authSubjectId = toOptionalTrimmedString(input.authSubjectId) || '';
     const verifiedEmail = toOptionalTrimmedString(input.verifiedEmail)?.toLowerCase() || '';
     if (!orgId || !walletId || !authSubjectId || !verifiedEmail) {
-      return {
-        ok: false,
-        code: 'invalid_body',
-        message: 'Email OTP registration enrollment requires wallet, org, and email identity',
-      };
+      return failure(
+        'invalid_body',
+        'Email OTP registration enrollment requires wallet, org, and email identity',
+      );
     }
     const existing = await this.emailOtpEnrollments.readEnrollment(walletId);
     const existingAuthState = await this.emailOtpEnrollments.readAuthState(walletId);

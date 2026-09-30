@@ -14,6 +14,7 @@ import {
   WALLET_SESSION_FAILURE_CODES,
   type WalletSessionFailureCode,
 } from '@shared/utils/walletSessionFailure';
+import { failure } from '@shared/utils/failure';
 import {
   toThresholdEcdsaWalletSessionPrefix,
   toThresholdEcdsaPrefixFromBase,
@@ -176,11 +177,11 @@ class InMemoryWalletSessionStore<
     const key = this.keys.meta(id);
     const entry = this.map.get(key);
     if (!entry) {
-      return { ok: false, code: 'wallet_session_missing', message: 'Wallet Session is missing' };
+      return failure('wallet_session_missing', 'Wallet Session is missing');
     }
     if (entry.expiresAtMs <= Date.now()) {
       this.map.delete(key);
-      return { ok: false, code: 'wallet_session_expired', message: 'Wallet Session expired' };
+      return failure('wallet_session_expired', 'Wallet Session expired');
     }
     return entry;
   }
@@ -234,7 +235,7 @@ class InMemoryWalletSessionStore<
     const entry = this.liveEntry(id);
     if ('ok' in entry) return entry;
     if (entry.remainingUses <= 0) {
-      return { ok: false, code: 'wallet_budget_exhausted', message: 'Wallet Session exhausted' };
+      return failure('wallet_budget_exhausted', 'Wallet Session exhausted');
     }
     entry.remainingUses -= 1;
     return { ok: true, remainingUses: entry.remainingUses };
@@ -251,7 +252,7 @@ class InMemoryWalletSessionStore<
       return { ok: true, remainingUses: entry.remainingUses };
     }
     if (entry.remainingUses <= 0) {
-      return { ok: false, code: 'wallet_budget_exhausted', message: 'Wallet Session exhausted' };
+      return failure('wallet_budget_exhausted', 'Wallet Session exhausted');
     }
     entry.remainingUses -= 1;
     if (consumeKey) entry.consumedIdempotencyKeys.add(consumeKey);
@@ -295,7 +296,7 @@ function walletSessionStoreFailure(error: unknown, fallback: string): WalletSess
       ? (error as { message?: unknown }).message
       : error || fallback,
   );
-  return { ok: false, code: 'internal', message };
+  return failure('internal', message);
 }
 
 /**
@@ -345,23 +346,15 @@ function replayGuardTtlMs(expiresAtMs: number, nowMs = Date.now()): number {
 }
 
 function replayGuardInvalid(): WalletSessionReplayGuardResult {
-  return { ok: false, code: 'invalid_body', message: 'Invalid replay guard key' };
+  return failure('invalid_body', 'Invalid replay guard key');
 }
 
 function replayGuardExpired(): WalletSessionReplayGuardResult {
-  return {
-    ok: false,
-    code: 'export_authorization_expired',
-    message: 'Export authorization expired',
-  };
+  return failure('export_authorization_expired', 'Export authorization expired');
 }
 
 function replayGuardDuplicate(): WalletSessionReplayGuardResult {
-  return {
-    ok: false,
-    code: 'export_nonce_replay',
-    message: 'Export authorization nonce already used',
-  };
+  return failure('export_nonce_replay', 'Export authorization nonce already used');
 }
 
 function parseRedisReplayGuardResult(raw: unknown): WalletSessionReplayGuardResult {
@@ -369,7 +362,7 @@ function parseRedisReplayGuardResult(raw: unknown): WalletSessionReplayGuardResu
   if (text === 'ok') return { ok: true };
   if (text === 'duplicate') return replayGuardDuplicate();
   if (text === 'expired') return replayGuardExpired();
-  return { ok: false, code: 'internal', message: 'Redis replay guard returned invalid response' };
+  return failure('internal', 'Redis replay guard returned invalid response');
 }
 
 function parseRedisConsumeOnceResult(raw: unknown): WalletSessionConsumeUsesResult {
@@ -377,31 +370,23 @@ function parseRedisConsumeOnceResult(raw: unknown): WalletSessionConsumeUsesResu
   if (text.startsWith('ok:')) {
     const remainingUses = Number(text.slice(3));
     if (!Number.isFinite(remainingUses)) {
-      return { ok: false, code: 'internal', message: 'Redis consume-once returned invalid uses' };
+      return failure('internal', 'Redis consume-once returned invalid uses');
     }
     return { ok: true, remainingUses };
   }
   if (text === 'wallet_session_missing') {
-    return { ok: false, code: 'wallet_session_missing', message: 'Wallet Session is missing' };
+    return failure('wallet_session_missing', 'Wallet Session is missing');
   }
   if (text === 'wallet_budget_exhausted') {
-    return {
-      ok: false,
-      code: 'wallet_budget_exhausted',
-      message: 'Wallet Session signing budget is exhausted',
-    };
+    return failure('wallet_budget_exhausted', 'Wallet Session signing budget is exhausted');
   }
-  return { ok: false, code: 'internal', message: 'Redis consume-once returned invalid response' };
+  return failure('internal', 'Redis consume-once returned invalid response');
 }
 
 function parseRedisConsumedUseResult(raw: unknown): WalletSessionConsumedUseResult {
   const value = typeof raw === 'number' ? raw : Number(String(raw ?? '').trim());
   if (!Number.isFinite(value)) {
-    return {
-      ok: false,
-      code: 'internal',
-      message: 'Redis consumed-use check returned invalid response',
-    };
+    return failure('internal', 'Redis consumed-use check returned invalid response');
   }
   return { ok: true, consumed: value > 0 };
 }
@@ -636,8 +621,7 @@ class RedisTcpWalletSessionStore<
   async consumeUseCount(id: string): Promise<WalletSessionConsumeUsesResult> {
     try {
       const resp = await this.client.send(['EVAL', CONSUME_USE_COUNT_LUA, '1', this.keys.uses(id)]);
-      if (resp.type === 'error')
-        return { ok: false, code: 'internal', message: `Redis EVAL error: ${resp.value}` };
+      if (resp.type === 'error') return failure('internal', `Redis EVAL error: ${resp.value}`);
       return parseRedisConsumeOnceResult(redisRawValue(resp));
     } catch (e: unknown) {
       return walletSessionStoreFailure(e, 'Failed to consume threshold session');
@@ -657,7 +641,7 @@ class RedisTcpWalletSessionStore<
         this.keys.consumeOnce(id, idempotencyKey),
       ]);
       if (resp.type === 'error') {
-        return { ok: false, code: 'internal', message: `Redis EVAL error: ${resp.value}` };
+        return failure('internal', `Redis EVAL error: ${resp.value}`);
       }
       const raw = resp.type === 'integer' ? String(resp.value) : resp.value;
       return parseRedisConsumeOnceResult(raw);
@@ -675,7 +659,7 @@ class RedisTcpWalletSessionStore<
     try {
       const resp = await this.client.send(['EXISTS', this.keys.consumeOnce(id, consumeKey)]);
       if (resp.type === 'error') {
-        return { ok: false, code: 'internal', message: `Redis EXISTS error: ${resp.value}` };
+        return failure('internal', `Redis EXISTS error: ${resp.value}`);
       }
       return parseRedisConsumedUseResult(resp.value);
     } catch (e: unknown) {
@@ -700,15 +684,11 @@ class RedisTcpWalletSessionStore<
         String(Math.max(1, Math.ceil(ttlMs / 1000))),
       ]);
       if (resp.type === 'error') {
-        return { ok: false, code: 'internal', message: `Redis SET error: ${resp.value}` };
+        return failure('internal', `Redis SET error: ${resp.value}`);
       }
       if (resp.type === 'bulk' && resp.value === null) return replayGuardDuplicate();
       if (resp.type === 'simple' && resp.value === 'OK') return { ok: true };
-      return {
-        ok: false,
-        code: 'internal',
-        message: 'Redis replay guard returned invalid response',
-      };
+      return failure('internal', 'Redis replay guard returned invalid response');
     } catch (e: unknown) {
       return walletSessionStoreFailure(e, 'Failed to reserve replay guard');
     }

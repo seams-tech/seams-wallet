@@ -17,6 +17,7 @@ import {
 } from '@shared/utils/registrationSignerPlan';
 import { deriveSigningRootId } from '@shared/threshold/signingRootScope';
 import { sameRouterAbMpcMaterialActivationRef } from '@shared/utils/routerAbNormalSigningIdentity';
+import { failure } from '@shared/utils/failure';
 import type {
   RouterAbEd25519YaoRegistrationAuthorizationAdapter,
   RouterAbEd25519YaoRegistrationAuthorizationInput,
@@ -442,25 +443,19 @@ export class InMemoryRouterAbEd25519YaoRegistrationIntentAuthorizationAdapter im
   ): Promise<RouterAbEd25519YaoRegistrationIntentBindingResult> {
     const credential = activationIntentCredential(verified);
     if (!VERIFIED_INTENT_CREDENTIAL.test(credential)) {
-      return {
-        ok: false,
-        code: 'invalid_registration_intent',
-        message: 'registration intent grant is not a canonical Bearer credential',
-      };
+      return failure(
+        'invalid_registration_intent',
+        'registration intent grant is not a canonical Bearer credential',
+      );
     }
     if (!Number.isSafeInteger(verified.expiresAtMs) || verified.expiresAtMs <= Date.now()) {
-      return {
-        ok: false,
-        code: 'invalid_registration_intent',
-        message: 'registration intent authority is expired',
-      };
+      return failure('invalid_registration_intent', 'registration intent authority is expired');
     }
     if (!(await activationIntentMatchesAdmission(verified))) {
-      return {
-        ok: false,
-        code: 'invalid_registration_intent',
-        message: 'registration intent does not match the Ed25519 Yao admission subject',
-      };
+      return failure(
+        'invalid_registration_intent',
+        'registration intent does not match the Ed25519 Yao admission subject',
+      );
     }
 
     const credentialDigest = await credentialDigestSha256(credential);
@@ -485,11 +480,10 @@ export class InMemoryRouterAbEd25519YaoRegistrationIntentAuthorizationAdapter im
       credentialDigest.fill(0);
       return exactRetry
         ? { ok: true, admissionRequest: copyAdmissionRequest(existing.admissionRequest) }
-        : {
-            ok: false,
-            code: 'registration_intent_conflict',
-            message: 'registration intent credential or lifecycle is already bound',
-          };
+        : failure(
+            'registration_intent_conflict',
+            'registration intent credential or lifecycle is already bound',
+          );
     }
 
     this.authorities.push({
@@ -520,11 +514,10 @@ export class InMemoryRouterAbEd25519YaoRegistrationIntentAuthorizationAdapter im
       !verified.credential.startsWith('wst_') ||
       !VERIFIED_INTENT_CREDENTIAL.test(verified.credential)
     ) {
-      return {
-        ok: false,
-        code: 'registration_intent_conflict',
-        message: 'NEAR continuation does not match its original authorization',
-      };
+      return failure(
+        'registration_intent_conflict',
+        'NEAR continuation does not match its original authorization',
+      );
     }
     this.authorities[existing.index] = {
       kind: existing.authority.kind,
