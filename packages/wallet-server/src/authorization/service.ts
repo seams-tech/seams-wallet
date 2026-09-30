@@ -1,4 +1,4 @@
-import type { EcdsaCanonicalMaterialRead } from '../core/d1EcdsaSignerRead';
+import type { EcdsaMaterialRead } from '../core/d1EcdsaSignerRead';
 import type { D1PreparedStatementLike } from '../storage/tenantRoute';
 import type { WalletAuthMethodId, WalletId } from '@shared/utils/domainIds';
 import type { ActiveWalletAuthorityV1 } from '@shared/authorization/walletAuthority';
@@ -81,7 +81,7 @@ import type { CapabilityOperationFingerprintDigest } from '@shared/authorization
 
 export type EcdsaWalletSessionAdmissionRead = {
   readonly snapshot: WalletSessionAdmissionSnapshotV2;
-  readonly canonicalMaterial: EcdsaCanonicalMaterialRead;
+  readonly materialRead: EcdsaMaterialRead;
 };
 
 export interface AuthorizationSessionPort {

@@ -1,3 +1,4 @@
+import type { InstalledEcdsaCustodySnapshotV1 } from '../router/cloudflare/d1/deviceLinking/d1LinkedDeviceAuthorityInstallService';
 import { isPlainObject } from '@shared/utils/validation';
 import {
   sameRouterAbMpcMaterialActivationRef,
@@ -15,12 +16,14 @@ export function prepareWalletEcdsaSignersRead(
   scope: D1WalletStoreScope,
   walletId: WalletId,
 ): D1PreparedStatementLike {
-  return database.prepare(
-    `SELECT record_json FROM wallet_signers
+  return database
+    .prepare(
+      `SELECT record_json FROM wallet_signers
       WHERE namespace = ? AND org_id = ? AND project_id = ? AND env_id = ?
         AND wallet_id = ? AND signer_family = 'ecdsa'
       ORDER BY signer_id`,
-  ).bind(scope.namespace, scope.orgId, scope.projectId, scope.envId, walletId);
+    )
+    .bind(scope.namespace, scope.orgId, scope.projectId, scope.envId, walletId);
 }
 
 export function parseWalletEcdsaSignerRows(
@@ -39,7 +42,7 @@ export function parseWalletEcdsaSignerRows(
 }
 
 /** Parsed persistence evidence; material failures are surfaced after session validation. */
-export class EcdsaCanonicalMaterialRead {
+export class EcdsaMaterialRead {
   readonly #result: CanonicalMaterialReadResult;
 
   private constructor(
@@ -47,6 +50,7 @@ export class EcdsaCanonicalMaterialRead {
     private readonly scope: D1WalletStoreScope,
     private readonly activation: RouterAbMpcMaterialActivationRefWire,
     result: CanonicalMaterialReadResult,
+    private readonly linkedSnapshot: InstalledEcdsaCustodySnapshotV1 | null,
   ) {
     this.#result = result;
   }
@@ -56,7 +60,8 @@ export class EcdsaCanonicalMaterialRead {
     walletId: WalletId,
     activation: RouterAbMpcMaterialActivationRefWire,
     rows: unknown,
-  ): EcdsaCanonicalMaterialRead {
+    linkedSnapshot: InstalledEcdsaCustodySnapshotV1 | null,
+  ): EcdsaMaterialRead {
     try {
       if (!Array.isArray(rows)) throw new Error('ECDSA material rows are invalid');
       const storedRows: { readonly record_json: string }[] = [];
@@ -68,8 +73,11 @@ export class EcdsaCanonicalMaterialRead {
         storedRows.push({ record_json: raw.record_json });
         const signer = parseWalletEcdsaSignerRecord(parseD1JsonColumn(raw.record_json));
         if (
-          signer && signer.walletId === walletId && sameRouterAbMpcMaterialActivationRef(
-            signer.walletKey.publicCapability.material_activation, activation,
+          signer &&
+          signer.walletId === walletId &&
+          sameRouterAbMpcMaterialActivationRef(
+            signer.walletKey.publicCapability.material_activation,
+            activation,
           )
         ) {
           matches.push(signer);
@@ -77,28 +85,61 @@ export class EcdsaCanonicalMaterialRead {
       }
       const signer = matches[0];
       if (!signer) {
-        return new EcdsaCanonicalMaterialRead(walletId, scope, activation, { ok: true, value: null });
+        return new EcdsaMaterialRead(
+          walletId,
+          scope,
+          activation,
+          { ok: true, value: null },
+          linkedSnapshot,
+        );
       }
       for (const other of matches) {
-        if (!signer.walletKey.keyHandle || other.walletKey.keyHandle !== signer.walletKey.keyHandle) {
+        if (
+          !signer.walletKey.keyHandle ||
+          other.walletKey.keyHandle !== signer.walletKey.keyHandle
+        ) {
           throw new Error('Wallet has conflicting ECDSA material activations');
         }
       }
-      return new EcdsaCanonicalMaterialRead(walletId, scope, activation, {
-        ok: true,
-        value: {
-          signer,
-          readSnapshot: EcdsaMaterialReadSnapshot.canonical(
-            scope, walletId, activation.activation_id, storedRows,
-          ),
+      return new EcdsaMaterialRead(
+        walletId,
+        scope,
+        activation,
+        {
+          ok: true,
+          value: {
+            signer,
+            readSnapshot: EcdsaMaterialReadSnapshot.canonical(
+              scope,
+              walletId,
+              activation.activation_id,
+              storedRows,
+            ),
+          },
         },
-      });
+        linkedSnapshot,
+      );
     } catch (error: unknown) {
-      return new EcdsaCanonicalMaterialRead(walletId, scope, activation, {
-        ok: false,
-        message: error instanceof Error ? error.message : 'ECDSA material read failed',
-      });
+      return new EcdsaMaterialRead(
+        walletId,
+        scope,
+        activation,
+        {
+          ok: false,
+          message: error instanceof Error ? error.message : 'ECDSA material read failed',
+        },
+        linkedSnapshot,
+      );
     }
+  }
+
+  resolveLinked(
+    scope: D1WalletStoreScope,
+    walletId: WalletId,
+    activation: RouterAbMpcMaterialActivationRefWire,
+  ): InstalledEcdsaCustodySnapshotV1 | null {
+    this.resolve(scope, walletId, activation);
+    return this.linkedSnapshot;
   }
 
   resolve(
@@ -107,9 +148,12 @@ export class EcdsaCanonicalMaterialRead {
     activation: RouterAbMpcMaterialActivationRefWire,
   ): CanonicalMaterialSnapshot | null {
     if (
-      walletId !== this.walletId || !sameRouterAbMpcMaterialActivationRef(activation, this.activation) ||
-      scope.namespace !== this.scope.namespace || scope.orgId !== this.scope.orgId ||
-      scope.projectId !== this.scope.projectId || scope.envId !== this.scope.envId
+      walletId !== this.walletId ||
+      !sameRouterAbMpcMaterialActivationRef(activation, this.activation) ||
+      scope.namespace !== this.scope.namespace ||
+      scope.orgId !== this.scope.orgId ||
+      scope.projectId !== this.scope.projectId ||
+      scope.envId !== this.scope.envId
     ) {
       throw new Error('ECDSA material read scope does not match');
     }
@@ -128,8 +172,8 @@ type CanonicalMaterialReadResult =
   | { readonly ok: false; readonly message: string };
 
 export type EcdsaMaterialReadSource =
-  | { readonly kind: 'database'; readonly canonicalMaterial?: never }
-  | { readonly kind: 'credential_snapshot'; readonly canonicalMaterial: EcdsaCanonicalMaterialRead };
+  | { readonly kind: 'database'; readonly materialRead?: never }
+  | { readonly kind: 'credential_snapshot'; readonly materialRead: EcdsaMaterialRead };
 
 export type EcdsaMaterialActivationReadInput = {
   readonly walletId: string;

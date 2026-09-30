@@ -1,7 +1,7 @@
 import type { WalletId } from '@shared/utils/domainIds';
 import type { D1WalletStoreScope } from './d1WalletStore';
 
-const INSTALLATION_COLUMNS = [
+export const ECDSA_INSTALLATION_SNAPSHOT_COLUMNS = [
   'link_session_id', 'authority_id', 'wallet_id', 'auth_method_id', 'device_id',
   'package_set_digest_b64u', 'target_factor_verification_digest_b64u',
   'target_factor_verified_at_ms', 'source_manifest_digest_b64u',
@@ -47,7 +47,7 @@ export class EcdsaMaterialReadSnapshot {
   ): EcdsaMaterialReadSnapshot {
     return new EcdsaMaterialReadSnapshot(walletId, scope, [
       recordSetCondition('linked_device_authority_installations', scope, walletId,
-        INSTALLATION_COLUMNS, installations, '1', []),
+        ECDSA_INSTALLATION_SNAPSHOT_COLUMNS, installations, '1', []),
       recordSetCondition('wallet_signers', scope, walletId,
         ['record_json'], signers, "signer_family = 'ecdsa'", []),
     ]);

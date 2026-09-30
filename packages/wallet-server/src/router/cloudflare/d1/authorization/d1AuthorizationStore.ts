@@ -1,6 +1,9 @@
+import { routerAbMpcMaterialActivationRefFromWire } from '@shared/utils/routerAbNormalSigningIdentity';
+import { parseInstalledEcdsaCustodySnapshotV1 } from '../deviceLinking/d1LinkedDeviceAuthorityInstallService';
+import { ECDSA_INSTALLATION_SNAPSHOT_COLUMNS } from '../../../../core/ecdsaMaterialReadSnapshot';
 import type { EcdsaWalletSessionAdmissionRead } from '../../../../authorization/service';
 import type { RouterAbMpcMaterialActivationRefWire } from '@shared/utils/routerAbNormalSigningIdentity';
-import { EcdsaCanonicalMaterialRead } from '../../../../core/d1EcdsaSignerRead';
+import { EcdsaMaterialRead } from '../../../../core/d1EcdsaSignerRead';
 import type { EcdsaMaterialReadSnapshot } from '../../../../core/ecdsaMaterialReadSnapshot';
 import type {
   EcdsaWalletSessionAdmissionInput,
@@ -1797,9 +1800,16 @@ export class CloudflareD1AuthorizationStore
     const session = snapshot.kind === 'active' ? snapshot.authorization.session : snapshot.session;
     return {
       snapshot,
-      canonicalMaterial: EcdsaCanonicalMaterialRead.fromRows(
+      materialRead: EcdsaMaterialRead.fromRows(
         this.walletSignerScope, session.walletId, input.materialActivation,
         parseD1JsonColumn(row.ecdsa_material_records_json),
+        await parseInstalledEcdsaCustodySnapshotV1({
+          scope: this.walletSignerScope,
+          walletId: session.walletId,
+          materialActivation: routerAbMpcMaterialActivationRefFromWire(input.materialActivation),
+          installations: parseD1JsonColumn(row.ecdsa_installations_json),
+          signers: parseD1JsonColumn(row.ecdsa_source_signers_json),
+        }),
       ),
     };
   }
@@ -2091,6 +2101,8 @@ export class CloudflareD1AuthorizationStore
     readonly tenantId: unknown;
     readonly lookupValue: unknown;
   }): Promise<D1Row | null> {
+    const installationProjection = ECDSA_INSTALLATION_SNAPSHOT_COLUMNS
+      .map(installationJsonColumn).join(', ');
     const materialProjection = input.projection.kind === 'session' ? '' : `
            (SELECT json_group_array(json_object('record_json', signer.record_json))
               FROM wallet_signers AS signer
@@ -2104,7 +2116,26 @@ export class CloudflareD1AuthorizationStore
                  json_extract(signer.record_json,
                    '$.walletKey.publicCapability.material_activation.activation_id') = ?
                  ELSE 1 END
-           ) AS ecdsa_material_records_json,`;
+           ) AS ecdsa_material_records_json,
+           CASE WHEN authority.provenance_kind = 'device_link' THEN
+             (SELECT json_group_array(json_object(${installationProjection}))
+                FROM linked_device_authority_installations AS installation
+               WHERE installation.namespace = session.namespace
+                 AND installation.org_id = session.org_id
+                 AND installation.project_id = session.project_id
+                 AND installation.env_id = session.env_id
+                 AND installation.wallet_id = session.wallet_id)
+           END AS ecdsa_installations_json,
+           CASE WHEN authority.provenance_kind = 'device_link' THEN
+             (SELECT json_group_array(json_object('record_json', source_signer.record_json))
+                FROM wallet_signers AS source_signer
+               WHERE source_signer.namespace = session.namespace
+                 AND source_signer.org_id = session.org_id
+                 AND source_signer.project_id = session.project_id
+                 AND source_signer.env_id = session.env_id
+                 AND source_signer.wallet_id = session.wallet_id
+                 AND source_signer.signer_family = 'ecdsa')
+           END AS ecdsa_source_signers_json,`;
     const materialBindings = input.projection.kind === 'session'
       ? [] : [input.projection.materialActivation.activation_id];
     return await this.database
@@ -3330,4 +3361,8 @@ async function parseWalletSessionAdmissionRow(
   }
   const quota = parseWalletSessionAuthorizationV2QuotaRow(row, session);
   return { kind: 'active', authorization: { session, quota }, authority, authMethod };
+}
+
+function installationJsonColumn(column: typeof ECDSA_INSTALLATION_SNAPSHOT_COLUMNS[number]): string {
+  return `'${column}', installation.${column}`;
 }

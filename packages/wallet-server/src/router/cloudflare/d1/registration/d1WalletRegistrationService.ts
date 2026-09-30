@@ -417,6 +417,7 @@ type D1LinkedDeviceEd25519AuthorityReaderV1 = {
     readonly walletAuthMethodId: WalletAuthMethodId;
   }) => Promise<InstalledLinkedDeviceEcdsaAuthorityProjectionV1 | null>;
   readInstalledEcdsaCustodySnapshotV1(input: {
+    readonly source: EcdsaMaterialActivationReadInput['source'];
     readonly walletId: WalletId;
     readonly materialActivation: MpcMaterialActivationRef;
   }): Promise<InstalledEcdsaCustodySnapshotV1 | null>;
@@ -2392,6 +2393,7 @@ export class CloudflareD1WalletRegistrationService {
       const linkedDeviceReader = this.getLinkedDeviceEd25519AuthorityReader();
       const custodySnapshot = linkedDeviceReader
         ? await linkedDeviceReader.readInstalledEcdsaCustodySnapshotV1({
+            source: input.source,
             walletId,
             materialActivation: routerAbMpcMaterialActivationRefFromWire(input.materialActivation),
           })

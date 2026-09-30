@@ -1,5 +1,8 @@
+import { routerAbMpcMaterialActivationRefToWire } from '@shared/utils/routerAbNormalSigningIdentity';
+import { isPlainObject } from '@shared/utils/validation';
 import { EcdsaMaterialReadSnapshot } from '../../../../core/ecdsaMaterialReadSnapshot';
 import {
+  type EcdsaMaterialReadSource,
   prepareWalletEcdsaSignersRead,
   parseWalletEcdsaSignerRows,
 } from '../../../../core/d1EcdsaSignerRead';
@@ -1022,10 +1025,18 @@ export class D1LinkedDeviceAuthorityInstallServiceV1 {
   }
 
   async readInstalledEcdsaCustodySnapshotV1(input: {
+    readonly source: EcdsaMaterialReadSource;
     readonly walletId: WalletId;
     readonly materialActivation: MpcMaterialActivationRef;
   }): Promise<InstalledEcdsaCustodySnapshotV1 | null> {
     try {
+      if (input.source.kind === 'credential_snapshot') {
+        return input.source.materialRead.resolveLinked(
+          this.options.scope,
+          input.walletId,
+          routerAbMpcMaterialActivationRefToWire(input.materialActivation),
+        );
+      }
       // The verified installation chain and its canonical custody source share one snapshot.
       const [installations, signers] = await this.options.database.batch<
         D1ResultLike<Readonly<Record<string, unknown>>>
@@ -1036,17 +1047,13 @@ export class D1LinkedDeviceAuthorityInstallServiceV1 {
       if (!installations?.success || !signers?.success) {
         throw new Error('Linked ECDSA custody snapshot is incomplete');
       }
-      const rows = (installations.results ?? []).map(parseStoredInstallationRow);
-      for (const row of rows) {
-        await assertStoredPackageDigest(row);
-      }
-      return {
-        readSnapshot: EcdsaMaterialReadSnapshot.linked(
-          this.options.scope, input.walletId, installations.results ?? [], signers.results ?? [],
-        ),
-        chain: installedEcdsaAuthorityChain(rows, input.materialActivation),
-        signers: parseWalletEcdsaSignerRows(signers.results ?? [], input.walletId),
-      };
+      return await parseInstalledEcdsaCustodySnapshotV1({
+        scope: this.options.scope,
+        walletId: input.walletId,
+        materialActivation: input.materialActivation,
+        installations: installations.results ?? [],
+        signers: signers.results ?? [],
+      });
     } catch {
       return null;
     }
@@ -2178,6 +2185,42 @@ export class D1LinkedDeviceAuthorityInstallServiceV1 {
         this.options.scope.envId,
         String(walletId),
       );
+  }
+}
+
+export async function parseInstalledEcdsaCustodySnapshotV1(input: {
+  readonly scope: D1LinkedDeviceAuthorityInstallServiceOptionsV1['scope'];
+  readonly walletId: WalletId;
+  readonly materialActivation: MpcMaterialActivationRef;
+  readonly installations: unknown;
+  readonly signers: unknown;
+}): Promise<InstalledEcdsaCustodySnapshotV1 | null> {
+  try {
+    if (!Array.isArray(input.installations) || !Array.isArray(input.signers)) return null;
+    const installations: Readonly<Record<string, unknown>>[] = [];
+    const signers: Readonly<Record<string, unknown>>[] = [];
+    for (const row of input.installations) {
+      if (!isPlainObject(row)) return null;
+      installations.push(row);
+    }
+    for (const row of input.signers) {
+      if (!isPlainObject(row)) return null;
+      signers.push(row);
+    }
+    const rows = installations.map(parseStoredInstallationRow);
+    for (const row of rows) {
+      if (row.walletId !== input.walletId) return null;
+      await assertStoredPackageDigest(row);
+    }
+    return {
+      readSnapshot: EcdsaMaterialReadSnapshot.linked(
+        input.scope, input.walletId, installations, signers,
+      ),
+      chain: installedEcdsaAuthorityChain(rows, input.materialActivation),
+      signers: parseWalletEcdsaSignerRows(signers, input.walletId),
+    };
+  } catch {
+    return null;
   }
 }
 

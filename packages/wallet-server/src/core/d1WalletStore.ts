@@ -1,6 +1,6 @@
 import type { EcdsaMaterialReadSnapshot } from './ecdsaMaterialReadSnapshot';
 import {
-  EcdsaCanonicalMaterialRead,
+  EcdsaMaterialRead,
   type EcdsaMaterialReadSource,
   prepareWalletEcdsaSignersRead,
   parseWalletEcdsaSignerRows,
@@ -780,7 +780,7 @@ export class D1WalletStore implements WalletStore {
     readonly readSnapshot: EcdsaMaterialReadSnapshot;
   } | null> {
     if (input.source.kind === 'credential_snapshot') {
-      return input.source.canonicalMaterial.resolve(this.scope, input.walletId, input.materialActivation);
+      return input.source.materialRead.resolve(this.scope, input.walletId, input.materialActivation);
     }
     await this.ensureSchema();
     const walletId = toOptionalTrimmedString(input.walletId);
@@ -809,8 +809,8 @@ export class D1WalletStore implements WalletStore {
         input.materialActivation.activation_id,
       )
       .all<D1WalletRow>();
-    return EcdsaCanonicalMaterialRead.fromRows(
-      this.scope, input.walletId, input.materialActivation, result.results ?? [],
+    return EcdsaMaterialRead.fromRows(
+      this.scope, input.walletId, input.materialActivation, result.results ?? [], null,
     ).resolve(this.scope, input.walletId, input.materialActivation);
   }
 

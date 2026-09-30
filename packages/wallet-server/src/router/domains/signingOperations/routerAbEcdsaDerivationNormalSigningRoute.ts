@@ -1,4 +1,4 @@
-import type { EcdsaCanonicalMaterialRead } from '../../../core/d1EcdsaSignerRead';
+import type { EcdsaMaterialRead } from '../../../core/d1EcdsaSignerRead';
 import type { EcdsaWalletSessionAdmissionInput, EcdsaWalletSessionPhaseAdmission } from '../../../authorization/ecdsaWalletSessionAdmission';
 // The ECDSA derivation normal-signing route: Wallet Session and step-up authorization, operation
 // admission, replay and completion, and forwarding to the SigningWorker.
@@ -700,7 +700,7 @@ type RouterAbEcdsaWalletSessionAuthorization =
   | { readonly ok: false; readonly result: RouterAbJsonRouteResult };
 
 async function authorizeRouterAbEcdsaWalletSessionRequest(input: {
-  readonly canonicalMaterial: EcdsaCanonicalMaterialRead;
+  readonly materialRead: EcdsaMaterialRead;
   readonly phase: 'prepare' | 'finalize';
   readonly request: RouterAbEcdsaOperationStepUpRequest;
   readonly session: RouterApiWalletSessionAuthorizationV2AdmissionContext['authorization']['session'];
@@ -712,7 +712,7 @@ async function authorizeRouterAbEcdsaWalletSessionRequest(input: {
   if (!validated.ok) return { ok: false, result: validated.error };
 
   const activeMaterial = await input.resolveEcdsaMaterialActivation({
-    source: { kind: 'credential_snapshot', canonicalMaterial: input.canonicalMaterial },
+    source: { kind: 'credential_snapshot', materialRead: input.materialRead },
     walletId: String(input.session.walletId),
     materialActivation: validated.admission.materialActivation,
   });
@@ -797,7 +797,7 @@ type RouterAbEcdsaExhaustedCandidateAuthorization =
   | { readonly ok: false; readonly result: RouterAbJsonRouteResult };
 
 async function resolveRouterAbEcdsaExhaustedCandidateAuthorization(input: {
-  readonly canonicalMaterial: EcdsaCanonicalMaterialRead;
+  readonly materialRead: EcdsaMaterialRead;
   readonly phase: 'prepare' | 'finalize';
   readonly request: RouterAbEcdsaOperationStepUpRequest;
   readonly candidate: RouterApiWalletSessionAuthorizationV2ExhaustedCandidateContext;
@@ -817,7 +817,7 @@ async function resolveRouterAbEcdsaExhaustedCandidateAuthorization(input: {
     };
   }
   const authorized = await authorizeRouterAbEcdsaWalletSessionRequest({
-    canonicalMaterial: input.canonicalMaterial,
+    materialRead: input.materialRead,
     phase: input.phase,
     request: input.request,
     session,
@@ -1285,7 +1285,7 @@ export async function authorizeRouterAbEcdsaDerivationNormalSigningRoute(input: 
 
   if (validated.kind === 'wallet_session_operation_credential_exhausted_candidate_v1') {
     return await resolveRouterAbEcdsaExhaustedCandidateAuthorization({
-      canonicalMaterial: validated.canonicalMaterial,
+      materialRead: validated.materialRead,
       phase: input.phase,
       request: parsedRequest,
       candidate: validated.candidate,
@@ -1296,7 +1296,7 @@ export async function authorizeRouterAbEcdsaDerivationNormalSigningRoute(input: 
 
   const session = validated.admission.context.authorization.session;
   const authorized = await authorizeRouterAbEcdsaWalletSessionRequest({
-    canonicalMaterial: validated.canonicalMaterial,
+    materialRead: validated.materialRead,
     phase: input.phase,
     request: parsedRequest,
     session,
