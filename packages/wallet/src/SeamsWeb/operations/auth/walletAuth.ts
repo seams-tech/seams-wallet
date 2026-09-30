@@ -1,4 +1,4 @@
-import { WalletSessionStatusReadScope } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
+import type { WalletSessionStatusReadScope } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 import { toError } from '@shared/utils/errors';
 import type { NearClient } from '@/core/rpcClients/near/NearClient';
 import type { RouterAbEcdsaDerivationLoginPresignaturePrefillResult } from '@/core/signingEngine/session/warmCapabilities/ecdsaLoginPrefill';
@@ -259,6 +259,7 @@ export async function prefillRouterAbEcdsaDerivationPresignaturePoolDomain(
     chainTarget: ThresholdEcdsaChainTarget;
     waitForPoolReady?: boolean;
   },
+  statusReads: WalletSessionStatusReadScope,
 ): Promise<RouterAbEcdsaDerivationLoginPresignaturePrefillResult> {
   if (deps.walletIframe.shouldUseWalletIframe()) {
     const router = await deps.walletIframe.requireRouter(args.walletSession.walletId);
@@ -282,6 +283,6 @@ export async function prefillRouterAbEcdsaDerivationPresignaturePoolDomain(
         ? { waitForPoolReady: args.waitForPoolReady }
         : {}),
     },
-    new WalletSessionStatusReadScope(),
+    statusReads,
   );
 }

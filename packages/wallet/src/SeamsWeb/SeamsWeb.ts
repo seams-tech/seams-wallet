@@ -88,10 +88,12 @@ import {
   createBrowserHostPlatformRuntime,
   createBrowserSigningRuntime,
 } from './assembly/createBrowserSigningRuntime';
+import { scheduleRestoredSessionPresignaturePrefills } from './walletIframe/host/restoredSessionPresignaturePrefill';
 import { createBrowserSigningStores } from './assembly/createBrowserSigningStores';
 import { initializeBrowserSigningRuntime } from './assembly/initializeBrowserSigningRuntime';
 import {
   getWalletSessionDomain,
+  prefillRouterAbEcdsaDerivationPresignaturePoolDomain,
   type WalletAuthDomainDeps,
 } from '@/SeamsWeb/operations/auth/walletAuth';
 import {
@@ -1247,6 +1249,18 @@ export class SeamsWeb {
 
   async getWalletIframeExactSessionState(): Promise<WalletIframeExactSessionState> {
     return await this.walletIframe.getExactSessionState();
+  }
+
+  /** @internal One wallet-host restore owns all configured-chain prefills. */
+  async prefillRestoredWalletSession(state: WalletIframeExactSessionState): Promise<void> {
+    await scheduleRestoredSessionPresignaturePrefills({
+      state,
+      chainTargets: this.configuredChainTargets(),
+      prefill: prefillRouterAbEcdsaDerivationPresignaturePoolDomain.bind(
+        null,
+        this.getWalletAuthDeps(),
+      ),
+    });
   }
 
   async openHostedAuthMenu(

@@ -1026,6 +1026,52 @@ coverage checks, and reproduction commands. Reproduce with
 `node .runtime/r151-status-overlap/verify.mjs` and
 `python3 .runtime/r151-status-overlap/analyze.py` after the intended-test type check.
 
+### Share status reads within one restored-session prefill batch (September 30)
+
+One wallet-host restore now creates one `WalletSessionStatusReadScope` and passes
+it to every configured-chain prefill. The existing scope keys reads by relayer,
+operation credential, Wallet Session ID, quota ID, and fetch implementation.
+Each chain still resolves and validates its own material and schedules its own
+pool. The scope lives only for that restore batch.
+
+The internal SeamsWeb restore entry point binds the existing prefill domain
+function directly. The public single-chain prefill API keeps its existing inputs
+and creates a fresh scope for each call. The former host wrapper is removed;
+there is no module-wide cache or alternate authorization implementation.
+Active/exhausted restore eligibility, pool policy, and subsequent signing and
+server admission checks retain their existing behavior.
+
+The matched Workers refresh/export/warm/step-up lifecycle falls from 56 to 54
+status POSTs: one request is saved at unlock restoration and one after page
+refresh. The immediate-unlock/concurrent-signing lifecycle falls from 42 to 41,
+saving its one duplicate restore prefill read. Signing-stage request counts are
+unchanged. These are whole-lifecycle browser counts, including background work;
+they do not reduce the measured foreground Gateway budget of eight canonical or
+10 linked D1 calls per signature or establish a hosted latency improvement.
+
+The same 54/41 request counts hold on wallet-DO and VM. Presign-refill status
+reads fall from six to four in the refresh lifecycle and four to three in the
+concurrent lifecycle; all other caller counts stay unchanged. The recorded
+matching prefill-overlap pairs disappear in these cohorts.
+
+Nine scenario/profile checks pass: both measured lifecycles on all three
+profiles, plus linked-device revocation, recovery retirement, and verified
+first/warm/concurrent-burst signing on Workers D1. SDK build/type checking,
+intended and wallet-state type checks, and the bloat check pass. Hosted resources
+are unchanged.
+
+Before rebuilding, both installed SDK and server distribution hashes were
+verified against the preceding overlap-audit cohorts. The server build stays
+fixed. Evidence, caller traces, source/build identities, and lifecycle trace
+hashes are retained in `.artifacts/r151/restore-prefill-20260930/analysis.json`.
+Reproduce with `pnpm -C packages/wallet build:sdk`,
+`node .runtime/r151-restore-prefill/verify.mjs`, and
+`python3 .runtime/r151-restore-prefill/analyze.py`.
+
+Next: trace the parent owners of the remaining repeated display requests before
+coalescing them. Continue the minimum-safe-call-budget review, then measure
+controlled hosted first/warm/burst workloads and residual placement cost for R152.
+
 ### Remaining call and write inventory (September 30)
 
 The canonical reusable-session path has four foreground Gateway D1 calls per
@@ -1147,10 +1193,10 @@ Phase 3 still revisits the complete call budget after these incremental changes.
   initiating caller; preserve fresh verification for joined callers.
 - [x] Extend caller evidence with anonymous identity/frame grouping and completed
   request intervals; cover refresh and concurrent shared-budget signing.
-- [ ] Share the restore operation's status-read scope across per-chain prefills,
-  preserving separate pool and material validation. Trace display-request owners
-  before coalescing equivalent pending display reads. Keep queued material and
-  server-side admission authorization fresh.
+- [x] Share the restore operation's status-read scope across per-chain prefills,
+  preserving separate pool and material validation and fresh independent calls.
+- [ ] Trace display-request owners before coalescing equivalent pending display
+  reads. Keep queued material and server-side admission authorization fresh.
 - [x] Measure warm pool, immediate first sign, and burst signing separately in
   a bounded local diagnostic with signature and shared-quota verification.
 - [x] Diagnose and fix the repeated linked-presign worker timeout/reset. Retire

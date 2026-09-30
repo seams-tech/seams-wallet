@@ -29,7 +29,6 @@ import { toWalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import { IndexedDBManager } from '@/core/indexedDB';
 import { walletSessionAuthorizations } from '@/core/indexedDB/seamsWalletDB/walletSessionAuthorizationStore';
 import { WalletSessionStatusReadScope } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
-import { scheduleRestoredSessionPresignaturePrefills } from '../restoredSessionPresignaturePrefill';
 
 async function readWalletIframeExactSessionStatus(
   relayUrl: string,
@@ -189,18 +188,6 @@ function reportRestoredSessionPresignaturePrefillFailure(error: unknown): void {
   console.warn('[WalletIframeHost] Restored-session presignature prefill failed:', error);
 }
 
-function scheduleRestoredSessionPresignaturePrefill(
-  pm: ReturnType<HandlerDeps['getSeamsWeb']>,
-  state: WalletIframeExactSessionState,
-): void {
-  const prefill = scheduleRestoredSessionPresignaturePrefills({
-    state,
-    chainTargets: pm.configuredChainTargets(),
-    prefill: pm.auth.prefillRouterAbEcdsaDerivationPresignaturePool,
-  });
-  void prefill.catch(reportRestoredSessionPresignaturePrefillFailure);
-}
-
 export function createAuthWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
   return {
     ...createHostedAuthMenuHandlers(deps),
@@ -274,7 +261,9 @@ export function createAuthWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
       }
       const state = await resolveExactWalletSessionState(pm, payload);
       if (payload.authenticationRead === 'restore') {
-        scheduleRestoredSessionPresignaturePrefill(pm, state);
+        void pm.prefillRestoredWalletSession(state).catch(
+          reportRestoredSessionPresignaturePrefillFailure,
+        );
       }
       respondOkResult(deps, req.requestId, state);
     },
