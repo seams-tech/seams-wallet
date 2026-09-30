@@ -575,18 +575,10 @@ async function executeRouterAbEcdsaDerivationNormalSigningRoute(
         ? parseRouterAbEcdsaDerivationEvmDigestSigningRequestV1(input.body)
         : parseRouterAbEcdsaDerivationEvmDigestSigningFinalizeRequestV1(input.body);
     const operation = await admitRouterAbEcdsaReusableWalletSessionOperation({
+      phase: input.phase,
       request,
       material: authorization.activeMaterial,
-      binding:
-        authorization.kind === 'wallet_session_operation_credential_v1'
-          ? {
-              kind: 'wallet_session_operation_credential_v1' as const,
-              context: authorization.validated.admission.context,
-            }
-          : {
-              kind: 'wallet_session_operation_credential_exhausted_candidate_v1' as const,
-              candidate: authorization.candidate,
-            },
+      binding: authorization,
       authorizedOperations: input.ctx.service.authorizedOperations,
     });
     if (!operation.ok) {
@@ -629,16 +621,6 @@ async function executeRouterAbEcdsaDerivationNormalSigningRoute(
     }
     if (operation.admission.kind === 'replayed') {
       return routerAbEcdsaReplayResponse(operation.admission.operation);
-    }
-    if (operation.admission.kind === 'claimed' && input.phase === 'finalize') {
-      return json(
-        {
-          ok: false,
-          code: 'authorized_operation_missing',
-          message: 'ECDSA finalize requires a claimed prepare operation',
-        },
-        { status: 409 },
-      );
     }
     const ownerDecision = decideRouterAbEcdsaOwnerOperationAuthorization({
       operation: operation.admission.operation,

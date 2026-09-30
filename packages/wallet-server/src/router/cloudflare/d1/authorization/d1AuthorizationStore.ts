@@ -5,6 +5,7 @@ import type { EcdsaMaterialReadSnapshot } from '../../../../core/ecdsaMaterialRe
 import type {
   EcdsaWalletSessionAdmissionInput,
   EcdsaWalletSessionAdmissionResult,
+  EcdsaWalletSessionResolutionResult,
   PinnedOwnerWalletScope,
 } from '../../../../authorization/ecdsaWalletSessionAdmission';
 import {
@@ -2425,6 +2426,40 @@ export class CloudflareD1AuthorizationStore
     return result;
   }
 
+  async resolveEcdsaWalletSessionOperation(
+    input: EcdsaWalletSessionAdmissionInput,
+  ): Promise<EcdsaWalletSessionResolutionResult> {
+    const operation = await buildAuthorizedOperation(input.operation);
+    if (!authorizedOperationMaterialScopeMatches(operation, input.material, input.material.readSnapshot)) {
+      return { kind: 'material_mismatch' };
+    }
+    const existing = await this.readAuthorizedOperationForAdmission({
+      tenantId: operation.tenantId,
+      operationFingerprintDigest: operation.operationFingerprintDigest,
+      nowMs: operation.claimedAtMs,
+      materialSnapshot: input.material.readSnapshot,
+    });
+    if (!existing) return { kind: 'authorized_operation_missing' };
+    const result = this.answerExistingAuthorizedOperation(existing, operation, input.material);
+    if (result.kind === 'operation_in_progress') {
+      return {
+        kind: result.kind,
+        operation: result.operation,
+        ownerScope: this.pinnedWalletSessionOwnerScope(result.row, input.material.walletId),
+      };
+    }
+    if (result.kind === 'replayed') return { kind: result.kind, operation: result.operation };
+    switch (result.kind) {
+      case 'authorization_grant_rejected':
+      case 'verified_step_up_rejected':
+      case 'wallet_session_quota_exhausted':
+      case 'material_mismatch':
+        return result;
+      default:
+        throw new Error('Unexpected ECDSA operation resolution');
+    }
+  }
+
   async admitEcdsaWalletSessionOperation(
     input: EcdsaWalletSessionAdmissionInput,
   ): Promise<EcdsaWalletSessionAdmissionResult> {
@@ -2474,20 +2509,8 @@ export class CloudflareD1AuthorizationStore
       }
     | AuthorizedOperationAdmissionRejection
   > {
-    if (input.materialSnapshot && input.materialSnapshot.walletId !== input.material?.walletId) {
-      return { kind: 'material_mismatch' };
-    }
     const operation = await buildAuthorizedOperation(input.operation);
-    const requiresEcdsaMaterial =
-      operation.operation.operation.capabilityKind === CAPABILITY_KINDS.evmEcdsaMpcSigning;
-    if (requiresEcdsaMaterial && !input.material) return { kind: 'material_mismatch' };
-    if (
-      input.material &&
-      (operation.operation.operation.capabilityKind !== CAPABILITY_KINDS.evmEcdsaMpcSigning ||
-        input.material.runtimePolicyScope.orgId !== operation.tenantId ||
-        input.material.materialActivation.capability !== operation.operation.capabilityId ||
-        input.material.materialActivation.material_owner !== input.material.walletId)
-    ) {
+    if (!authorizedOperationMaterialScopeMatches(operation, input.material, input.materialSnapshot)) {
       return { kind: 'material_mismatch' };
     }
     const existing = await this.readAuthorizedOperationForAdmission({
@@ -2638,6 +2661,21 @@ type AuthorizedOperationAdmissionRecord = {
   readonly sourceActive: boolean;
   readonly materialActive: boolean;
 };
+
+function authorizedOperationMaterialScopeMatches(
+  operation: AuthorizedOperation,
+  material: AuthorizedOperationMaterialScope | undefined,
+  snapshot: EcdsaMaterialReadSnapshot | null,
+): boolean {
+  if (snapshot && snapshot.walletId !== material?.walletId) return false;
+  const requiresMaterial =
+    operation.operation.operation.capabilityKind === CAPABILITY_KINDS.evmEcdsaMpcSigning;
+  if (!material) return !requiresMaterial;
+  return requiresMaterial &&
+    material.runtimePolicyScope.orgId === operation.tenantId &&
+    material.materialActivation.capability === operation.operation.capabilityId &&
+    material.materialActivation.material_owner === material.walletId;
+}
 
 type AuthorizedOperationReplayMismatch =
   | { readonly kind: 'authorization_grant_rejected' }

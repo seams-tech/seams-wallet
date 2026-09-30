@@ -452,6 +452,13 @@ Failure behaviour:
 
 ## Transaction Signing
 
+ECDSA reusable Wallet Session finalization requires an already admitted prepare
+for the exact operation. An authenticated finalize with no matching prepare
+returns `authorized_operation_missing` without creating a claim or audit event,
+consuming quota, or invoking custody signing. Repeating that finalize preserves
+the same state. Existing exact-response replay remains available after quota
+exhaustion, subject to live authority and material checks.
+
 ### Passkey authentication
 
 Expected behaviour:

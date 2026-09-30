@@ -1605,6 +1605,9 @@ export interface RouterApiServiceBag {
 }
 
 export interface RouterApiAuthorizedOperationService {
+  resolveEcdsaWalletSessionOperation(
+    input: import('../../authorization/ecdsaWalletSessionAdmission').EcdsaWalletSessionAdmissionInput,
+  ): Promise<import('../../authorization/ecdsaWalletSessionAdmission').EcdsaWalletSessionResolutionResult>;
   admitEcdsaWalletSessionOperation(
     input: import('../../authorization/ecdsaWalletSessionAdmission').EcdsaWalletSessionAdmissionInput,
   ): Promise<import('../../authorization/ecdsaWalletSessionAdmission').EcdsaWalletSessionAdmissionResult>;

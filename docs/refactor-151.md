@@ -10,6 +10,8 @@ signing from 24 to 10 calls and directly linked signing from 20 to 10. These
 latest reductions still need controlled hosted latency measurements.
 Active/exhausted credentials are classified in one read. Material snapshots are
 checked atomically at reusable-session claim and finalize/replay admission.
+Finalize now resolves existing operations without admitting new claims; a missing
+prepare cannot consume quota or create an audit event.
 The minimum-call-budget design review is recorded below; implementation and
 measurement remain open. Regional databases are conditional. Production rollout
 is separate.
@@ -1223,20 +1225,19 @@ material mismatch; zero changed rows alone cannot identify the latter.
 provide ordered statements and rollback on failure. They do not replace those
 domain decisions.
 
-There is a prerequisite in the current call graph:
+The review found a prerequisite in the call graph, now addressed by the
+read-only finalize checkpoint below:
 
-- Both prepare and finalize call `admitRouterAbEcdsaReusableWalletSessionOperation`,
-  which invokes `D1AuthorizationStore.admitEcdsaWalletSessionOperation`.
-- If the fingerprint is absent, `admitAuthorizedOperationRecord` can insert a
+- Both prepare and finalize previously called `admitRouterAbEcdsaReusableWalletSessionOperation`
+  without a phase, invoking the same store admission method.
+- If the fingerprint was absent, `admitAuthorizedOperationRecord` could insert a
   claim. Both the fetch route in `thresholdEcdsa.ts` and the domain route in
-  `routerAbEcdsaDerivationNormalSigningRoute.ts` subsequently reject a newly
+  `routerAbEcdsaDerivationNormalSigningRoute.ts` subsequently rejected a newly
   `claimed` finalize with `authorized_operation_missing`.
-- Therefore an otherwise admissible finalize without a prior prepare can reach
-  the quota/audit mutation before that rejection. This is a code-path finding;
-  a deployed reproduction and mutation measurement have not been performed.
-  Separate finalize's existing-operation resolution from prepare's claim before
-  optimizing the shared method. Require the phase at the domain boundary and
-  make a newly claimed finalize result unrepresentable.
+- Therefore an otherwise admissible finalize without a prior prepare could reach
+  the quota/audit mutation before that rejection. This was a code-path finding;
+  a deployed reproduction was not performed. The implementation now requires the
+  phase at the domain boundary and excludes newly claimed finalize results.
 
 A generic insert/readback replacement would also execute a conditional INSERT
 on every normal finalize and replay. Even if it changed no rows, that would add
@@ -1278,6 +1279,49 @@ Policy remains a separate decision after material resolution. Linked installatio
 resolution remains a separate batch on each request. Revisit those boundaries
 after this change; do not mark phase 3 complete at the next intermediate target.
 Hosted first/warm/burst latency and placement measurements remain required.
+
+### Read-only finalize resolution checkpoint (September 30)
+
+The reusable-session route now dispatches prepare to claim admission and finalize
+to `resolveEcdsaWalletSessionOperation`. Finalize uses the existing live-source,
+material-snapshot, identity, and pinned-owner checks, and returns
+`authorized_operation_missing` when the operation is absent. Its store path has
+no INSERT. The two routes' former rejection after a successful claim is deleted.
+Phase-specific result types and static fixtures reject a newly claimed finalize,
+including direct construction, a relabeled spread, and a direct cast to the
+resolution result. Both callers pass their existing authorization object directly,
+removing duplicated binding construction.
+
+The new behavioral E2E runs against Workers D1, wallet-DO, and VM. Each registers
+an ECDSA wallet and verifies one signature, then submits a valid authenticated
+finalize naming an unprepared operation twice. Both responses are 409/missing;
+direct reads of the isolated Gateway database confirm two remaining uses and
+zero matching claim/audit rows after each rejection. Two further signatures
+verify and consume the remaining uses. Exact replay of the first signature
+still succeeds with exhausted quota. The three profiles produce nine verified
+signatures in this scenario.
+
+Concurrent duplicate prepare/lost-response replay, distinct last-quota contention,
+and canonical/linked retirement scenarios also pass on all three profiles.
+The retirement evidence contains 27 rejected requests with unchanged quota and
+retains exact replay after the temporary retirement is restored.
+Recovery, linked-device revocation, and the mixed-wallet refresh/warm/step-up
+lifecycle also pass on Workers, for 15 final scenario/profile checks. Server build,
+intended and Wallet state type checks, diff checks, and the bloat ratchet pass.
+
+Evidence and build identities are in
+`.artifacts/r151/finalize-resolution-20260930/`. Reproduce with the server build,
+`node .runtime/r151-finalize-resolution/verify.mjs`, and
+`python3 .runtime/r151-finalize-resolution/analyze.py`.
+The first pilot failed in the new database-discovery helper before the probe;
+the helper now selects the authorization schema among local SQLite files.
+Passing final runs supersede that pilot.
+
+This closes the finalize prerequisite. Prepare batching remains next, targeting
+seven canonical/nine linked calls. The latest measured successful-signature
+budget remains eight/10 calls; this checkpoint does not remeasure it or establish
+hosted latency or regional-placement gains. The claim and completion writes for
+successful signing remain required.
 
 ### 1. Consolidate reads while preserving decision boundaries
 
@@ -1368,7 +1412,7 @@ small amount of SQL work. Reaching 12 calls does not close this follow-up.
   Document any additional round trip that correctness requires.
   The September 30 design review records current material-verification and
   completion dependencies and the next seven-call canonical candidate.
-- [ ] Separate finalize's existing-operation resolution from prepare admission.
+- [x] Separate finalize's existing-operation resolution from prepare admission.
   Verify that missing finalize cannot create a claim or consume quota before
   consolidating prepare's guarded claim and live readback.
 - [ ] Consolidate reads and guarded writes around those decision points using

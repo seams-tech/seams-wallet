@@ -10,7 +10,7 @@ import { intendedTest as test, type IntendedBehaviourHarness } from './harness';
 import { isPlainObject } from '../../../packages/shared-ts/src/utils/validation';
 import { parseEcdsaServerTiming } from '../../../packages/shared-ts/src/utils/ecdsaServerTiming';
 import { randomUUID } from 'node:crypto';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 type PresignRefillTag = 'background' | 'foreground' | 'unidentified';
@@ -604,6 +604,124 @@ class LastQuotaPrepareRace {
     await route.abort('connectionclosed');
   }
 }
+
+class CapturedFinalize {
+  completed: { readonly request: Request; readonly body: unknown } | null = null;
+
+  async capture(route: Route): Promise<void> {
+    const response = await route.fetch();
+    expect(response.status()).toBe(200);
+    this.completed = { request: route.request(), body: await response.json() };
+    await route.fulfill({ response });
+  }
+}
+
+async function missingFinalizePersistence(operationId: string): Promise<{
+  readonly remainingUses: number;
+  readonly claims: number;
+  readonly auditEvents: number;
+}> {
+  const root = process.env.SEAMS_INTENDED_ROUTER_AB_ROOT;
+  if (!root) throw new Error('Missing-finalize evidence requires an isolated local root');
+  const sqliteModule: string = 'node:sqlite';
+  const { DatabaseSync } = (await import(sqliteModule)) as NodeSqliteModule;
+  let databasePath = path.join(root, '.runtime', 'wallet-gateway', 'gateway.sqlite');
+  if (process.env.SEAMS_INTENDED_WALLET_HOST !== 'vm') {
+    const state = path.join(root, '.local', 'cloudflare-state', 'wallet-gateway');
+    const files = await readdir(state, { recursive: true });
+    const databases: string[] = [];
+    for (const file of files) {
+      if (!file.endsWith('.sqlite')) continue;
+      const candidate = new DatabaseSync(path.join(state, file), { readOnly: true });
+      try {
+        const tables = candidate.prepare(
+          "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'authorized_operations'",
+        ).all();
+        if (tables.length === 1) databases.push(file);
+      } finally {
+        candidate.close();
+      }
+    }
+    if (databases.length !== 1) throw new Error('Expected one isolated Gateway D1 database');
+    databasePath = path.join(state, databases[0]);
+  }
+  const database = new DatabaseSync(databasePath, { readOnly: true });
+  try {
+    const [row] = database.prepare(
+      `SELECT
+         (SELECT SUM(remaining_uses) FROM authorization_wallet_session_quotas) AS remaining,
+         (SELECT COUNT(*) FROM authorized_operations WHERE operation_id = ?) AS claims,
+         (SELECT COUNT(*) FROM authorized_operation_audit_events WHERE audit_event_id = ?) AS audit_events`,
+    ).all(operationId, `ecdsa-operation-audit:${operationId}`);
+    if (!row || typeof row.remaining !== 'number' || typeof row.claims !== 'number' ||
+        typeof row.audit_events !== 'number') {
+      throw new Error('Expected Gateway quota, claim, and audit evidence');
+    }
+    return { remainingUses: row.remaining, claims: row.claims, auditEvents: row.audit_events };
+  } finally {
+    database.close();
+  }
+}
+
+test('missing ECDSA prepare rejects finalize without quota or audit effects and preserves signing', async ({
+  harness,
+  context,
+}, testInfo) => {
+  await harness.registerPasskeyEcdsaOnlyWallet();
+  const capture = new CapturedFinalize();
+  const record = capture.capture.bind(capture);
+  const finalizePath = '**/router-ab/ecdsa-derivation/sign';
+  await context.route(finalizePath, record);
+  try {
+    await harness.signTempoTransaction('post_registration');
+  } finally {
+    await context.unroute(finalizePath, record);
+  }
+  if (!capture.completed) throw new Error('Expected a verified finalize request');
+  const completed = capture.completed;
+  const missing: unknown = completed.request.postDataJSON();
+  if (!isPlainObject(missing)) throw new Error('Expected a finalize request body');
+  const operationId = `missing-prepare-${randomUUID()}`;
+  missing.operation_id = operationId;
+  missing.request_id = randomUUID();
+  const before = await missingFinalizePersistence(operationId);
+  expect(before).toEqual({ remainingUses: 2, claims: 0, auditEvents: 0 });
+  const statuses: number[] = [];
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const rejected = await context.request.fetch(completed.request, { data: missing });
+    statuses.push(rejected.status());
+    expect(rejected.status()).toBe(409);
+    expect(await rejected.json()).toMatchObject({ code: 'authorized_operation_missing' });
+    expect(await missingFinalizePersistence(operationId)).toEqual(before);
+  }
+  // Both remaining uses still produce verified signatures through ordinary preparation.
+  await harness.signTempoTransaction('post_registration');
+  await harness.signTempoTransaction('post_registration');
+  const after = await missingFinalizePersistence(operationId);
+  expect(after).toEqual({ remainingUses: 0, claims: 0, auditEvents: 0 });
+  const replay = await context.request.fetch(completed.request);
+  expect(replay.status()).toBe(200);
+  expect(await replay.json()).toEqual(completed.body);
+  expect(await missingFinalizePersistence(operationId)).toEqual(after);
+
+  const evidence = {
+    kind: 'gateway_ecdsa_missing_prepare_v1',
+    host: process.env.SEAMS_INTENDED_WALLET_HOST ?? 'workers_local',
+    missingFinalizeStatuses: statuses,
+    before,
+    after,
+    verifiedSignatures: 3,
+    exhaustedSessionReplayMatches: true,
+  };
+  const artifactName = `gateway-ecdsa-missing-prepare-${evidence.host}.json`;
+  const artifactPath = path.resolve(testInfo.config.rootDir, '../.artifacts/r151', artifactName);
+  await mkdir(path.dirname(artifactPath), { recursive: true });
+  await writeFile(artifactPath, JSON.stringify(evidence, null, 2), 'utf8');
+  await testInfo.attach(artifactName, {
+    body: JSON.stringify(evidence, null, 2),
+    contentType: 'application/json',
+  });
+});
 
 class LostFinalize {
   finalizations = 0;
