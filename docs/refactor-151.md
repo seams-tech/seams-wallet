@@ -8,8 +8,11 @@ latest canonical reusable-session ECDSA path makes seven D1 calls per
 signature, down from 18, confirmed in a fresh hosted diagnostic. Local
 linked-device checkpoints reduce third-generation signing from 24 to nine calls
 and directly linked signing from 20 to nine. Bounded first/warm/burst
-diagnostics now have verified Tokyo, London, and US probe placement. Linked
-latency, an observed unlock timeout, and the placement comparison remain open.
+diagnostics now have verified Tokyo, London, and US probe placement. Hosted linked
+chains now pass in all three regions. The historical unlock timeout remains
+unreproduced after five fresh successful attempts. The London
+same-wallet placement comparison is complete: moving only the Gateway toward
+D1 reduced database time but increased total signing time.
 Cloudflare analytics now establish aggregate Gateway and role DO execution
 locations for the regional cohort; individual RPC-to-DO attribution remains open.
 Active/exhausted credentials are classified in one read. Material snapshots are
@@ -76,19 +79,87 @@ The committed linked workload and same-wallet placement controller are ready.
 The placement controller pauses between default and Tokyo Gateway deployments,
 then measures warm signatures with the same wallet/session and persistent
 custody ownership; one-use signing material differs between signatures.
-Neither hosted linked timings nor a placement benefit has been established.
+The independent London cohort subsequently completed nine linked signatures
+and three same-wallet placement pairs (18 signatures total), using frozen source
+`f7f12c28`. Canonical signing retained seven calls/eight statements; both linked
+generations retained nine calls/12 statements. Every timed signing request used
+the APAC primary, with two write-bearing calls and 14 reported row writes per
+complete signature.
+
+| Median per warm signature, three pairs | Default Gateway | Tokyo Gateway |
+| --- | ---: | ---: |
+| Complete public SDK call | 4,650 ms | 6,627 ms |
+| SDK commit | 3,053 ms | 4,163 ms |
+| Summed D1 call wall time | 2,007 ms | 584 ms |
+| Summed D1 SQL time | 12.34 ms | 13.24 ms |
+| Gateway prepare + finalize | 2,167 ms | 2,863 ms |
+| Gateway custody proxy stages | 160 ms | 2,239 ms |
+
+All three pairs became slower end to end. D1 wall time fell by 71%, while the
+median public SDK time rose by 43%. Version-specific adaptive analytics place
+every measured default Gateway deployment in LHR and every Tokyo deployment in
+NRT; per-request placement headers were unavailable. DO analytics contain LHR,
+AMS, NRT, and KIX, without per-signature attribution. The same wallet/session and
+persistent custody ownership were retained within each pair. Distinct one-use
+material was consumed per signature. Default always preceded Tokyo, so order and
+time effects remain possible; this is a bounded diagnostic, not a tail guarantee.
+
+Keep the Gateway near its existing custody path. Moving the Gateway alone does
+not meet the complete latency target. R152 can evaluate bringing an authoritative
+regional D1 primary near that path, with its ownership and atomic quota constraints.
+No regional-D1 gain has been measured or database provisioned. Evidence:
+`.artifacts/r151/regional-placement-20260930-r11/`. Original versions, images,
+Gateway placement, inactive probes, and expired access were verified after the run.
+
+The hosted linked baseline also identified a cold-material cost: first linked
+signatures spent 11.66 and 13.44 seconds in foreground generation. Later linked
+signatures were much faster. Linked activation now schedules background prefill,
+and inventory requests
+explicitly select the same signing authority as generation to prevent channel
+initialization from invalidating a refill. The enhanced three-device E2E passes
+on Workers D1, wallet-DO, and VM (27 signatures); each linked first signature
+consumes material completed before signing. Canonical retained-material unlock
+and first/warm/concurrent-burst E2Es also pass. Commit: `57388d7f`. Evidence:
+`.artifacts/r151/linked-prefill-20261001/`. Keep the readiness-gated changed-build
+results separate from the baseline immediate-signing workload.
+
+Tokyo and US frozen-baseline linked chains subsequently completed another
+18 signatures, with verified NRT/ORD probe locations. First linked signatures
+spent about 6.2 seconds (Tokyo) and 12.6 seconds (US) in foreground generation.
+Later linked calls ranged from 1.67–1.87 seconds and 3.78–4.26 seconds respectively.
+Both generations retain nine calls/12 statements, and every signing request
+used the APAC primary. Evidence:
+`.artifacts/r151/regional-placement-20260930-r12/`.
+
+The changed London cohort (`57388d7f` SDK, frozen `f7f12c28` Gateway) passed all
+nine signatures. Both linked first signatures consumed IDs completed before
+signing, with no foreground refill; first ready-pool SDK calls were 3.74 and
+3.40 seconds. Linked subsequent calls ranged from 3.04–3.99 seconds. D1 budgets
+remained seven/nine calls, with APAC primary service. The test explicitly waits
+for background readiness before signing. Its timings verify ready-pool behavior;
+they are not an immediate-post-link latency comparison or evidence that
+preprocessing cost disappeared. Evidence:
+`.artifacts/r151/regional-linked-prefill-20261001-r13/`. Original Worker
+versions/images, default Gateway placement, inactive probes, and expired access
+were verified after restoration. Evidence scans found no benchmark credentials.
+Observed cumulative cost is $0.907 against $25, subject to accounting lag.
 
 ### Remaining work
 
-1. Obtain healthy completed probe rollouts and run the frozen hosted linked
-   workload. Keep failed preflights and SDK cohorts separate.
-2. Run the same-wallet default/Tokyo Gateway comparison, verify actual execution
-   placement, and compare complete SDK/commit, D1, and custody-leg timings.
+The demonstrated R151 implementation gaps and bounded verification are complete.
+The following outcome and follow-up gates remain open:
+
+1. Evaluate an isolated regional primary under R152: moving the Gateway alone
+   worsened total latency. Prove the ownership boundary before provisioning or
+   implementation; a regional-D1 benefit has not been measured.
+2. The 1–2 second complete signing target remains unmet. Use the recorded stages
+   to select the next demonstrated bottleneck and expand controlled sampling.
+   Seven/nine calls are adopted budgets rather than proven minima; the wider
+   policy/material and linked-source joins remain explicitly deferred below.
 3. Retain failure context if unlock stalls again; diagnose the observed failure
-   before changing retry behavior. Five fresh successful attempts did not reproduce it.
-4. Use the residual latency evidence to decide R152. The 1–2 second complete
-   signing target remains unmet; seven/nine calls are adopted budgets rather
-   than proven minima. Production rollout remains a separate decision.
+   before changing retry behavior. Five fresh successful attempts did not
+   reproduce it. Visible network failure and explicit retry are E2E-verified.
+4. Production rollout remains a separate decision.
 
 ## Decision
 
@@ -274,9 +345,14 @@ Phase 3 still revisits the complete call budget after these incremental changes.
   bounded Tokyo diagnostic, retaining shared-quota and signature checks.
 - [x] Gate measurements on completed image rollouts and collect bounded
   first/warm/burst evidence from verified Tokyo, London, and US probes.
-- [ ] Diagnose the hosted unlock timeout and complete linked/larger regional
-  cohorts. Reduce demonstrated refill waits using existing scheduling, preserving
-  distinct presign and signing authorization boundaries.
+- [x] Complete bounded hosted linked chains in Tokyo, London, and the US,
+  preserving successful samples and failed preflights separately.
+- [x] Reduce demonstrated linked cold-material waits with activation prefill,
+  preserving distinct preprocessing and signing authorization boundaries. Verify
+  the first signatures consume background-completed IDs across all backends.
+- [ ] Diagnose the historical hosted unlock timeout if it reproduces. Five fresh
+  Tokyo attempts passed; a deliberately failed network call shows a visible error
+  and recovers through explicit user retry. No historical network failure is proven.
 - [x] Inventory foreground Gateway signing writes by invariant: claim/idempotency,
   quota consumption, completion/replay, audit, and unrelated maintenance. The measured signing path
   has two write-bearing calls, both enforcing current behavior. No demonstrated
@@ -357,7 +433,7 @@ the residual call budget and latency evidence required for that decision.
   per-call D1 region/primary metadata and actual Gateway/DO placement evidence.
       The regional cohort's adaptive analytics establish aggregate execution
       locations; individual signing-RPC/DO attribution remains unproven.
-- [ ] Compare a Gateway near the existing D1 primary against the current path
+- [x] Compare a Gateway near the existing D1 primary against the current path
   before changing data ownership. Measure complete signatures, including the
   resulting Gateway-to-DO leg.
 - [ ] Propose regional D1 shards only if residual remote-primary calls still
@@ -388,8 +464,10 @@ also provides no exact-colocation guarantee.
   type fixtures for changed domain-state rejection guarantees; add no unit tests.
 - [x] Produce repeatable artifacts containing build identities, call traces,
   signature verification, quota/replay outcomes, and measured before/after totals.
-- [ ] Record complete system-controlled signing latency alongside server stages;
-  neither a median nor a server-only measurement establishes a 1–2 second maximum.
+- [x] Record complete public SDK signing latency alongside server stages for
+  canonical first/warm/burst and regional linked signing. Automatic confirmation
+  is included. Neither these small cohorts nor their medians establish a
+  1–2 second maximum; the target remains unmet.
 - [x] Keep new hosted cohorts separate from R150's preserved comparison and its
   unresolved ENAM infrastructure failure. Maintain the existing Cloudflare-only,
   isolated-resource, $25 cap. Production rollout requires its own decision.

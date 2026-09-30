@@ -2,9 +2,11 @@
 
 Date: September 30, 2026
 
-Status: planned. The benefit of aligning the Gateway, D1 primary, and custody
-Durable Objects has not been isolated experimentally. Provisioning and production
-rollout remain gated on the measurements and ownership checks below.
+Status: planned. A controlled same-wallet London comparison now shows that
+moving the Gateway to Tokyo alone worsens complete signing latency, despite
+shorter D1 calls. Aligning a regional primary with the existing Gateway/custody
+path remains unmeasured. Provisioning and production rollout stay gated on the
+ownership checks and regional experiment below.
 
 ## Objective and starting evidence
 
@@ -43,14 +45,28 @@ matching application versions, and two stable observations. Preserve earlier
 failed cohorts separately. Five further fresh Tokyo attempts completed unlock
 and 25 verified signatures; the original timeout did not reproduce. A local
 network-failure E2E verifies a visible error and successful explicit user retry.
-Linked timing now passes on all three local backend profiles (27 signatures).
-Complete hosted linked cohorts and the controlled placement comparison before
-the placement decision; see R151's latest checkpoint.
+Linked timing passes on all three local backend profiles (27 signatures).
+Subsequent hosted linked chains also passed in Tokyo, London, and the US
+(27 signatures), retaining nine D1 calls per linked signature. First linked
+signatures spent 6.15–13.44 seconds generating material in the foreground.
+R151 implements background preparation after linked activation and verifies
+consumption of that material before deciding on regional provisioning.
 
 The first two placement preflights dispatched no wallet operations because a
-probe image rollout could not become healthy (Tokyo, then the US). The linked
-and same-wallet placement workloads are implemented; hosted results remain
-blocked on healthy probe startup. No regional database has been provisioned.
+probe image rollout could not become healthy (Tokyo, then the US). Subsequent
+independent regional cohorts completed successfully. Preserve those failed
+preflights as infrastructure evidence. No regional database has been provisioned.
+
+An independent London cohort completed the A/B Gateway-placement experiment:
+three same-wallet pairs, all signatures verified. Median D1 wall time fell from
+2,007 to 584 ms, while custody proxy stages rose from 160 to 2,239 ms and complete
+SDK time rose from 4,650 to 6,627 ms. Every pair became slower. Execution analytics
+confirm LHR for default Gateway versions and NRT for Tokyo versions; per-request
+placement headers were unavailable. This supports testing a primary near the
+existing Gateway/custody path rather than moving only the Gateway. It does not
+establish a regional-D1 benefit. Fixed default-then-Tokyo ordering, three samples,
+and aggregate DO attribution limit the conclusion. Evidence:
+`.artifacts/r151/regional-placement-20260930-r11/`.
 
 R150's D1-versus-DO custody comparison did not measure the benefit of aligning
 the residual Gateway database. There is no measured regional-D1 gain yet.
@@ -113,7 +129,7 @@ Use the same workloads and build identities in these arms:
 | B | Same primary and DOs; Gateway placement optimized near that primary | Can Gateway placement alone remove the relevant cost? |
 | C | Fresh isolated regional primary, aligned Gateway, and fresh role DOs | Does regional ownership improve complete signing beyond B? |
 
-- [ ] Run A/B first. Include the Gateway-to-DO leg: improving D1 proximity can
+- [x] Run A/B first. Include the Gateway-to-DO leg: improving D1 proximity can
   increase custody RPC latency. Confirm the placement treatment took effect.
 - [ ] If residual cost warrants C, provision isolated test databases using APAC,
   WEUR, and ENAM hints where verified probes are available. Keep fresh data,

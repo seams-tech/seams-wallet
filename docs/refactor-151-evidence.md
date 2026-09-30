@@ -1727,3 +1727,100 @@ the explicit policy-read deferral until that residual is understood.
   after both attempts. Evidence is retained separately in
   `.artifacts/r151/regional-placement-20260930-r9/` and `-r10/`.
   Observed cumulative cost: $0.8141 against $25, with accounting lag possible.
+
+
+## October 1: regional linked signing and linked-activation prefill
+
+The frozen `f7f12c28` SDK completed nine-signature linked chains from London
+(r11), Tokyo, and the US (r12): 27 verified signatures, with independently
+verified probe locations LHR/NRT/ORD. All signing calls used the APAC primary.
+Canonical signing retained seven calls/eight statements, linked signing nine
+calls/12 statements, and both retained two write-bearing calls/14 reported writes.
+
+| Baseline location | First linked SDK calls, devices 2 / 3 | Foreground generation, devices 2 / 3 | Subsequent linked SDK range |
+| --- | ---: | ---: | ---: |
+| Tokyo | 8.27 / 8.07 s | 6.19 / 6.15 s | 1.67–1.87 s |
+| London | 25.25 / 14.97 s | 13.44 / 11.66 s | 3.39–4.89 s |
+| US | 16.59 / 16.57 s | 12.65 / 12.63 s | 3.78–4.26 s |
+
+Each location has only one three-device chain. London device 2's first signature
+also had 10.72 seconds of D1 wall time; retain this outlier. These are diagnostic
+samples, with automatic confirmation included in the public SDK timing.
+Evidence: `.artifacts/r151/regional-placement-20260930-r11/` and `-r12/`.
+
+London also completed three same-wallet default/Tokyo Gateway placement pairs,
+retaining the same wallet/session and persistent custody ownership. Every pair
+became slower end to end. Median SDK time rose from 4,650 to 6,627 ms while D1
+wall time fell from 2,007 to 584 ms; custody proxy time rose from 160 to 2,239 ms.
+Version-specific adaptive analytics place default Gateway executions in LHR and
+Tokyo deployments in NRT. DO aggregate locations include LHR/AMS/NRT/KIX, without
+individual RPC attribution. Default always preceded Tokyo; each signature used
+distinct one-use material. Preserve that limitation and the three individual
+pairs in r11 `summary.json`. Moving Gateway alone is rejected as the latency fix.
+A regional primary near the custody path remains an unmeasured R152 experiment.
+
+Linked activation installed the holder runtime without scheduling presignatures.
+Commit `57388d7f` schedules existing bounded background prefill immediately after
+activation. It also requires inventory requests to select the same canonical or
+linked authority as generation. The first E2E exposed that inventory previously
+selected the canonical channel, then linked session initialization invalidated
+the active refill. This demonstrated implementation failure was repaired; the
+original assertion that a first signature consumes already-completed material
+now passes unchanged.
+
+The enhanced existing three-device contract passes Workers D1, wallet-DO, and
+VM: 27 signatures verify, both linked devices consume IDs completed before their
+first signing call, and no first signature records foreground generation.
+Artifacts: `.artifacts/r151/linked-prefill-20261001/{workers,wallet-do,vm}.json`.
+This readiness-gated test establishes usable background material; it does not
+measure an immediate post-link signature or remove preprocessing cost.
+Canonical registration/retained-material unlock and first/warm/concurrent-burst
+contracts also pass. Intended-suite and Wallet typechecks pass, including missing
+and invalid inventory-authority type fixtures. Bloat ratchets pass; duplicated
+TypeScript lines decreased from 12,307 to 12,299.
+
+
+Repeat the local behavioral checks using the existing intended-suite runner and
+`passkey.device-linking.contract.test.ts` (selection `a linked device links a
+third device`), then `passkey.registration.contract.test.ts` (selection
+`passkey registration establishes an immediately usable owner session without
+waiting for presignatures`) and `passkey.presign-pool.contract.test.ts` (selection
+`first, warm, and concurrent burst`). Local run identities and exact SDK/server
+hashes are retained under `.artifacts/r151/attribution-20260930/` with the
+`linked-prefill-authority-*` and `linked-prefill-canonical-*` prefixes.
+
+The r12 post-run check confirms baseline Workers/images, all three probes
+inactive, expired benchmark access, and default Gateway placement. Scanning the
+r11/r12 and local prefill artifacts found zero exact benchmark-token matches.
+Observed cumulative cost after these cohorts was $0.892, with accounting lag
+possible, against the existing $25 cap.
+
+
+The changed hosted London cohort passed on source `57388d7f9ffb` / image
+`sha256:842fa08261267f201d1dd9cd905d624590a24d7a9e9f1d510db96cff82c9b585`.
+The Gateway remained on frozen `f7f12c28` source. Probe placement was `lhr15`,
+boot `25f284b9-0559-4bc1-a70f-639c9ffc7350`. Nine signatures verified; both linked
+first signatures consumed material recorded complete before signing (five
+completed IDs for device 2, two for device 3). No signature recorded foreground
+refill. Canonical calls remained seven/eight statements, linked nine/12,
+with two write-bearing calls/14 reported writes; all used the APAC primary.
+
+| Changed London ready-pool SDK timing | Signature 1 | Signature 2 | Signature 3 |
+| --- | ---: | ---: | ---: |
+| Canonical device | 4,783 ms | 4,049 ms | 4,319 ms |
+| Linked device 2 | 3,745 ms | 3,638 ms | 3,397 ms |
+| Linked device 3 | 3,396 ms | 3,993 ms | 3,044 ms |
+
+The test waits for successful background completion before signing. These
+measurements establish usable prefill and ready-pool signing, without establishing
+an immediate-post-link latency improvement. Preprocessing work still exists.
+Evidence: `.artifacts/r151/regional-linked-prefill-20261001-r13/`. Reanalyze D1
+requests using `node tests/r150-hosted/analyze-d1.mjs <linked-artifact.json>`;
+first linked prepare IDs must occur in the corresponding `readyBeforeSigning`
+array. The complete 1–2 second latency target remains unmet.
+
+Post-r13 restoration checks confirm original Worker versions/images, all three
+probes inactive, expired access (probe 403, ingress 503), and default Gateway
+placement. The final scan covered 79 evidence files with zero benchmark-token
+matches. Observed cumulative cost is $0.907 through September 30 15:44 UTC
+(October 1 JST), with accounting lag possible, below the $25 cap.
