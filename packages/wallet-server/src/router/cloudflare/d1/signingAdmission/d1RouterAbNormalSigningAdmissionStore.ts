@@ -1,6 +1,9 @@
-import type { RuntimePolicyScope } from '@shared/threshold/signingRootScope';
-import { requireNonEmptyString } from '@shared/utils/validation';
-import { isD1DatabaseLike } from '../../../../storage/d1Sql';
+import {
+  normalizeRuntimePolicyScope,
+  type RuntimePolicyScope,
+} from '@shared/threshold/signingRootScope';
+import { isPlainObject, requireNonEmptyString } from '@shared/utils/validation';
+import { isD1DatabaseLike, parseD1JsonColumn } from '../../../../storage/d1Sql';
 import type {
   D1DatabaseLike,
   D1PreparedStatementLike,
@@ -40,9 +43,7 @@ type CloudflareD1PolicyRow = {
 
 const ROUTER_AB_NORMAL_SIGNING_ADMISSION_TABLE = 'router_ab_normal_signing_admission_records';
 
-export class CloudflareD1RouterAbNormalSigningAdmissionStore
-  implements RouterAbNormalSigningAdmissionStore
-{
+export class CloudflareD1RouterAbNormalSigningAdmissionStore implements RouterAbNormalSigningAdmissionStore {
   private readonly database: D1DatabaseLike;
   private readonly storageNamespace: string;
   private readonly now: () => number;
@@ -59,9 +60,18 @@ export class CloudflareD1RouterAbNormalSigningAdmissionStore
   async evaluatePolicy(
     input: RouterAbNormalSigningAdmissionInput,
   ): Promise<RouterAbNormalSigningPolicyDecision> {
+    if (input.curve === 'ecdsa' && input.policyReadSource.kind === 'credential_snapshot') {
+      const decision = input.policyReadSource.policyRead.resolve(
+        this.database,
+        this.storageNamespace,
+        input,
+      );
+      if (decision) return decision;
+    }
     const scope = input.runtimePolicyScope;
-    const row = await this.database.prepare(
-      `WITH scope(namespace, org_id, project_id, env_id, signing_root_version,
+    const row = await this.database
+      .prepare(
+        `WITH scope(namespace, org_id, project_id, env_id, signing_root_version,
                   project_key, abuse_key) AS (VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7))
        SELECT project.record_key AS project_key, project.decision AS project_decision,
               project.retry_after_ms AS project_retry_after_ms,
@@ -78,33 +88,18 @@ export class CloudflareD1RouterAbNormalSigningAdmissionStore
           AND abuse.project_id = scope.project_id AND abuse.env_id = scope.env_id
           AND abuse.signing_root_version = scope.signing_root_version
           AND abuse.record_kind = 'abuse' AND abuse.record_key = scope.abuse_key`,
-    ).bind(
-      this.storageNamespace,
-      scope.orgId,
-      scope.projectId,
-      scope.envId,
-      scope.signingRootVersion,
-      runtimePolicyScopeKey(scope),
-      abusePrincipalKey(input),
-    ).first<CloudflareD1PolicyRow>();
-    if (!row) throw new Error('Router A/B admission policy snapshot is missing');
-    if (row.project_key !== null) {
-      const project = parseProjectPolicyDecision({
-        decision: row.project_decision,
-        retry_after_ms: row.project_retry_after_ms,
-      });
-      if (project.kind === 'rejected') {
-        return { kind: 'project_policy_rejected', retryAfterMs: project.retryAfterMs };
-      }
-    }
-    if (row.abuse_key === null) return { kind: 'allowed' };
-    const abuse = parseAbuseDecision({
-      decision: row.abuse_decision,
-      retry_after_ms: row.abuse_retry_after_ms,
-    });
-    return abuse.kind === 'rejected'
-      ? { kind: 'abuse_rejected', retryAfterMs: abuse.retryAfterMs }
-      : abuse;
+      )
+      .bind(
+        this.storageNamespace,
+        scope.orgId,
+        scope.projectId,
+        scope.envId,
+        scope.signingRootVersion,
+        runtimePolicyScopeKey(scope),
+        abusePrincipalKey(input),
+      )
+      .first<CloudflareD1PolicyRow>();
+    return parsePolicyRow(row);
   }
 
   async setProjectPolicy(
@@ -269,7 +264,9 @@ function parseProjectPolicyDecision(
   }
 }
 
-function parseAbuseDecision(row: CloudflareD1AdmissionDecisionRow): RouterAbNormalSigningAbuseDecision {
+function parseAbuseDecision(
+  row: CloudflareD1AdmissionDecisionRow,
+): RouterAbNormalSigningAbuseDecision {
   const decision = requireNonEmptyString(row.decision, 'decision');
   switch (decision) {
     case 'allowed':
@@ -315,3 +312,133 @@ function requirePositiveInteger(label: string, value: unknown): number {
 function assertNever(value: never): never {
   throw new Error(`Unexpected Router A/B normal-signing admission branch: ${String(value)}`);
 }
+
+function parsePolicyRow(row: CloudflareD1PolicyRow | null): RouterAbNormalSigningPolicyDecision {
+  if (!row) throw new Error('Router A/B admission policy snapshot is missing');
+  if (row.project_key !== null) {
+    const project = parseProjectPolicyDecision({
+      decision: row.project_decision,
+      retry_after_ms: row.project_retry_after_ms,
+    });
+    if (project.kind === 'rejected') {
+      return { kind: 'project_policy_rejected', retryAfterMs: project.retryAfterMs };
+    }
+  }
+  if (row.abuse_key === null) return { kind: 'allowed' };
+  const abuse = parseAbuseDecision({
+    decision: row.abuse_decision,
+    retry_after_ms: row.abuse_retry_after_ms,
+  });
+  return abuse.kind === 'rejected'
+    ? { kind: 'abuse_rejected', retryAfterMs: abuse.retryAfterMs }
+    : abuse;
+}
+
+// Credential candidates are selected by verified material before the adapter consumes a decision.
+export class D1EcdsaAdmissionPolicyRead {
+  readonly #decisions: ReadonlyMap<string, PolicyReadResult>;
+
+  private constructor(
+    private readonly database: D1DatabaseLike,
+    private readonly namespace: string,
+    private readonly walletId: string,
+    private readonly activationId: string,
+    decisions: ReadonlyMap<string, PolicyReadResult>,
+  ) {
+    this.#decisions = decisions;
+  }
+
+  static fromRows(
+    database: D1DatabaseLike,
+    namespace: string,
+    walletId: string,
+    activationId: string,
+    rows: unknown,
+  ): D1EcdsaAdmissionPolicyRead {
+    if (!Array.isArray(rows)) throw new Error('ECDSA policy candidates are invalid');
+    const decisions = new Map<string, PolicyReadResult>();
+    for (const row of rows) {
+      if (!isPlainObject(row)) throw new Error('ECDSA policy candidate is invalid');
+      const scope = normalizeRuntimePolicyScope(parseD1JsonColumn(row.scope_json));
+      const key = runtimePolicyScopeKey(scope);
+      if (decisions.has(key)) throw new Error('ECDSA policy scope is ambiguous');
+      try {
+        const decision = parsePolicyRow({
+          project_key: row.project_key,
+          project_decision: row.project_decision,
+          project_retry_after_ms: row.project_retry_after_ms,
+          abuse_key: row.abuse_key,
+          abuse_decision: row.abuse_decision,
+          abuse_retry_after_ms: row.abuse_retry_after_ms,
+        });
+        decisions.set(key, { ok: true, decision });
+      } catch (error: unknown) {
+        decisions.set(key, {
+          ok: false,
+          message: error instanceof Error ? error.message : 'ECDSA policy read failed',
+        });
+      }
+    }
+    return new D1EcdsaAdmissionPolicyRead(database, namespace, walletId, activationId, decisions);
+  }
+
+  resolve(
+    database: D1DatabaseLike,
+    namespace: string,
+    input: RouterAbNormalSigningAdmissionInput & { readonly curve: 'ecdsa' },
+  ): RouterAbNormalSigningPolicyDecision | null {
+    if (database !== this.database || namespace !== this.namespace) return null;
+    if (input.walletId !== this.walletId || input.materialActivationId !== this.activationId) {
+      throw new Error('ECDSA policy credential scope does not match');
+    }
+    const result = this.#decisions.get(runtimePolicyScopeKey(input.runtimePolicyScope));
+    if (!result) throw new Error('Verified ECDSA material policy scope is missing');
+    if (!result.ok) throw new Error(result.message);
+    return result.decision;
+  }
+}
+
+type PolicyReadResult =
+  | { readonly ok: true; readonly decision: RouterAbNormalSigningPolicyDecision }
+  | { readonly ok: false; readonly message: string };
+
+export const ECDSA_CREDENTIAL_POLICY_PROJECTION = `
+  (WITH candidates AS (
+     SELECT DISTINCT json_extract(signer.record_json, '$.runtimePolicyScope') AS scope_json
+       FROM wallet_signers AS signer
+      WHERE signer.namespace = session.namespace AND signer.org_id = session.org_id
+        AND signer.project_id = session.project_id AND signer.env_id = session.env_id
+        AND signer.wallet_id = session.wallet_id AND signer.signer_family = 'ecdsa'
+        AND json_valid(signer.record_json)
+   ), scopes AS (
+     SELECT scope_json,
+            json_extract(scope_json, '$.orgId') AS org_id,
+            json_extract(scope_json, '$.projectId') AS project_id,
+            json_extract(scope_json, '$.envId') AS env_id,
+            json_extract(scope_json, '$.signingRootVersion') AS signing_root_version,
+            json_extract(scope_json, '$.orgId') || char(31) ||
+            json_extract(scope_json, '$.projectId') || char(31) ||
+            json_extract(scope_json, '$.envId') || char(31) ||
+            json_extract(scope_json, '$.signingRootVersion') AS project_key
+       FROM candidates
+   )
+   SELECT json_group_array(json_object(
+     'scope_json', scopes.scope_json,
+     'project_key', project.record_key, 'project_decision', project.decision,
+     'project_retry_after_ms', project.retry_after_ms,
+     'abuse_key', abuse.record_key, 'abuse_decision', abuse.decision,
+     'abuse_retry_after_ms', abuse.retry_after_ms))
+     FROM scopes
+     LEFT JOIN router_ab_normal_signing_admission_records AS project
+       ON project.namespace = session.namespace AND project.org_id = scopes.org_id
+      AND project.project_id = scopes.project_id AND project.env_id = scopes.env_id
+      AND project.signing_root_version = scopes.signing_root_version
+      AND project.record_kind = 'project_policy' AND project.record_key = scopes.project_key
+     LEFT JOIN router_ab_normal_signing_admission_records AS abuse
+       ON abuse.namespace = session.namespace AND abuse.org_id = scopes.org_id
+      AND abuse.project_id = scopes.project_id AND abuse.env_id = scopes.env_id
+      AND abuse.signing_root_version = scopes.signing_root_version
+      AND abuse.record_kind = 'abuse'
+      AND abuse.record_key = scopes.project_key || char(31) || session.wallet_id || char(31) ||
+          'material_activation:' || ? || char(31) || 'ecdsa'
+  ) AS ecdsa_policy_records_json,`;

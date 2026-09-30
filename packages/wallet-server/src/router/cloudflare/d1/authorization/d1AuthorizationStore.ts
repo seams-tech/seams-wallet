@@ -1,3 +1,7 @@
+import {
+  D1EcdsaAdmissionPolicyRead,
+  ECDSA_CREDENTIAL_POLICY_PROJECTION,
+} from '../signingAdmission/d1RouterAbNormalSigningAdmissionStore';
 import { routerAbMpcMaterialActivationRefFromWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import { parseInstalledEcdsaCustodySnapshotV1 } from '../deviceLinking/d1LinkedDeviceAuthorityInstallService';
 import { ECDSA_INSTALLATION_SNAPSHOT_COLUMNS } from '../../../../core/ecdsaMaterialReadSnapshot';
@@ -1811,6 +1815,13 @@ export class CloudflareD1AuthorizationStore
           signers: parseD1JsonColumn(row.ecdsa_source_signers_json),
         }),
       ),
+      policyRead: D1EcdsaAdmissionPolicyRead.fromRows(
+        this.database,
+        this.namespace,
+        session.walletId,
+        input.materialActivation.activation_id,
+        parseD1JsonColumn(row.ecdsa_policy_records_json),
+      ),
     };
   }
 
@@ -2135,9 +2146,11 @@ export class CloudflareD1AuthorizationStore
                  AND source_signer.env_id = session.env_id
                  AND source_signer.wallet_id = session.wallet_id
                  AND source_signer.signer_family = 'ecdsa')
-           END AS ecdsa_source_signers_json,`;
+           END AS ecdsa_source_signers_json,
+           ${ECDSA_CREDENTIAL_POLICY_PROJECTION}`;
     const materialBindings = input.projection.kind === 'session'
-      ? [] : [input.projection.materialActivation.activation_id];
+      ? []
+      : [input.projection.materialActivation.activation_id, input.projection.materialActivation.activation_id];
     return await this.database
       .prepare(
         `SELECT ${materialProjection}

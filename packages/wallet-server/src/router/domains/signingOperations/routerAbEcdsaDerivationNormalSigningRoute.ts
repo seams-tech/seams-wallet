@@ -1,3 +1,4 @@
+import type { D1EcdsaAdmissionPolicyRead } from '../../cloudflare/d1/signingAdmission/d1RouterAbNormalSigningAdmissionStore';
 import type { EcdsaMaterialRead } from '../../../core/d1EcdsaSignerRead';
 import type { EcdsaWalletSessionAdmissionInput, EcdsaWalletSessionPhaseAdmission } from '../../../authorization/ecdsaWalletSessionAdmission';
 // The ECDSA derivation normal-signing route: Wallet Session and step-up authorization, operation
@@ -701,6 +702,7 @@ type RouterAbEcdsaWalletSessionAuthorization =
 
 async function authorizeRouterAbEcdsaWalletSessionRequest(input: {
   readonly materialRead: EcdsaMaterialRead;
+  readonly policyRead: D1EcdsaAdmissionPolicyRead;
   readonly phase: 'prepare' | 'finalize';
   readonly request: RouterAbEcdsaOperationStepUpRequest;
   readonly session: RouterApiWalletSessionAuthorizationV2AdmissionContext['authorization']['session'];
@@ -750,6 +752,7 @@ async function authorizeRouterAbEcdsaWalletSessionRequest(input: {
     };
   }
   const admissionDecision = await evaluateRouterAbNormalSigningAdmission({
+    policyReadSource: { kind: 'credential_snapshot', policyRead: input.policyRead },
     adapter: input.admissionAdapter,
     curve: 'ecdsa',
     authorizationKind: 'wallet_session_operation_credential_v1',
@@ -798,6 +801,7 @@ type RouterAbEcdsaExhaustedCandidateAuthorization =
 
 async function resolveRouterAbEcdsaExhaustedCandidateAuthorization(input: {
   readonly materialRead: EcdsaMaterialRead;
+  readonly policyRead: D1EcdsaAdmissionPolicyRead;
   readonly phase: 'prepare' | 'finalize';
   readonly request: RouterAbEcdsaOperationStepUpRequest;
   readonly candidate: RouterApiWalletSessionAuthorizationV2ExhaustedCandidateContext;
@@ -818,6 +822,7 @@ async function resolveRouterAbEcdsaExhaustedCandidateAuthorization(input: {
   }
   const authorized = await authorizeRouterAbEcdsaWalletSessionRequest({
     materialRead: input.materialRead,
+    policyRead: input.policyRead,
     phase: input.phase,
     request: input.request,
     session,
@@ -1145,6 +1150,7 @@ async function handleRouterAbEcdsaOperationStepUpRoute(input: {
     );
   }
   const admission = await input.admissionAdapter.evaluatePolicy({
+    policyReadSource: { kind: 'database' },
     curve: 'ecdsa',
     phase: input.phase,
     walletId: authenticated.session.walletId,
@@ -1286,6 +1292,7 @@ export async function authorizeRouterAbEcdsaDerivationNormalSigningRoute(input: 
   if (validated.kind === 'wallet_session_operation_credential_exhausted_candidate_v1') {
     return await resolveRouterAbEcdsaExhaustedCandidateAuthorization({
       materialRead: validated.materialRead,
+      policyRead: validated.policyRead,
       phase: input.phase,
       request: parsedRequest,
       candidate: validated.candidate,
@@ -1297,6 +1304,7 @@ export async function authorizeRouterAbEcdsaDerivationNormalSigningRoute(input: 
   const session = validated.admission.context.authorization.session;
   const authorized = await authorizeRouterAbEcdsaWalletSessionRequest({
     materialRead: validated.materialRead,
+    policyRead: validated.policyRead,
     phase: input.phase,
     request: parsedRequest,
     session,

@@ -68,16 +68,16 @@ export async function readWalletSessionSigningCandidate(
 ): Promise<RouterApiWalletSessionSigningCandidate | null> {
   const read = await service.readEcdsaWalletSessionAdmissionSnapshotByOperationCredential(input);
   if (!read) return null;
-  const { snapshot, materialRead } = read;
+  const { snapshot, materialRead, policyRead } = read;
   switch (snapshot.kind) {
     case 'active': {
       const context = activeContext(snapshot);
-      return context ? { kind: 'active', context, materialRead } : null;
+      return context ? { kind: 'active', context, materialRead, policyRead } : null;
     }
     case 'exhausted': {
       const candidate = exhaustedContext(snapshot);
       if (!candidate) throw new Error('Exhausted Wallet Session authority is unavailable');
-      return { kind: 'exhausted', candidate, materialRead };
+      return { kind: 'exhausted', candidate, materialRead, policyRead };
     }
     default: {
       const unexpected: never = snapshot;

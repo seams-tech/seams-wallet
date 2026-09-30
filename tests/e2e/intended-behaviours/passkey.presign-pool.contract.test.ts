@@ -335,7 +335,10 @@ test('canceling an admitted Gateway refill leaves subsequent background material
       await harness.signTempoTransaction('post_registration');
       signatures.push(timing.window(startedAt, performance.now()));
     }
-    const persistence = await signingOperationPersistence('unclaimed-evidence-probe');
+    const persistence = await signingOperationPersistence(
+      harness.walletId,
+      'unclaimed-evidence-probe',
+    );
     const evidence = {
       kind: 'ecdsa_canceled_gateway_refill_v1',
       reproduce:
@@ -410,7 +413,10 @@ test('failed background refill falls back to timed foreground refill and preserv
         expect.objectContaining({ stage: 'foreground_refill', durationMs: expect.any(Number) }),
       ]),
     );
-    const persistence = await signingOperationPersistence('unclaimed-evidence-probe');
+    const persistence = await signingOperationPersistence(
+      harness.walletId,
+      'unclaimed-evidence-probe',
+    );
     expect(persistence.remainingUses).toBe(1);
     const evidence = {
       kind: 'ecdsa_failed_background_refill_timing_v1',
@@ -1029,7 +1035,10 @@ async function isolatedGatewayDatabasePath(): Promise<string> {
   return databasePath;
 }
 
-async function signingOperationPersistence(operationId: string): Promise<{
+async function signingOperationPersistence(
+  walletId: string,
+  operationId: string,
+): Promise<{
   readonly remainingUses: number;
   readonly claims: number;
   readonly auditEvents: number;
@@ -1042,11 +1051,14 @@ async function signingOperationPersistence(operationId: string): Promise<{
     const [row] = database
       .prepare(
         `SELECT
-         (SELECT SUM(remaining_uses) FROM authorization_wallet_session_quotas) AS remaining,
+         (SELECT SUM(quota.remaining_uses) FROM authorization_wallet_session_quotas AS quota
+          WHERE EXISTS (SELECT 1 FROM wallet_session_authorizations_v2 AS session
+            WHERE session.namespace = quota.namespace AND session.tenant_id = quota.tenant_id
+              AND session.quota_id = quota.quota_id AND session.wallet_id = ?)) AS remaining,
          (SELECT COUNT(*) FROM authorized_operations WHERE operation_id = ?) AS claims,
          (SELECT COUNT(*) FROM authorized_operation_audit_events WHERE audit_event_id = ?) AS audit_events`,
       )
-      .all(operationId, `ecdsa-operation-audit:${operationId}`);
+      .all(walletId, operationId, `ecdsa-operation-audit:${operationId}`);
     if (
       !row ||
       typeof row.remaining !== 'number' ||
@@ -1082,7 +1094,7 @@ test('missing ECDSA prepare rejects finalize without quota or audit effects and 
   const operationId = `missing-prepare-${randomUUID()}`;
   missing.operation_id = operationId;
   missing.request_id = randomUUID();
-  const before = await signingOperationPersistence(operationId);
+  const before = await signingOperationPersistence(harness.walletId, operationId);
   expect(before).toEqual({ remainingUses: 2, claims: 0, auditEvents: 0 });
   const statuses: number[] = [];
   for (let attempt = 0; attempt < 2; attempt += 1) {
@@ -1090,17 +1102,17 @@ test('missing ECDSA prepare rejects finalize without quota or audit effects and 
     statuses.push(rejected.status());
     expect(rejected.status()).toBe(409);
     expect(await rejected.json()).toMatchObject({ code: 'authorized_operation_missing' });
-    expect(await signingOperationPersistence(operationId)).toEqual(before);
+    expect(await signingOperationPersistence(harness.walletId, operationId)).toEqual(before);
   }
   // Both remaining uses still produce verified signatures through ordinary preparation.
   await harness.signTempoTransaction('post_registration');
   await harness.signTempoTransaction('post_registration');
-  const after = await signingOperationPersistence(operationId);
+  const after = await signingOperationPersistence(harness.walletId, operationId);
   expect(after).toEqual({ remainingUses: 0, claims: 0, auditEvents: 0 });
   const replay = await context.request.fetch(completed.request);
   expect(replay.status()).toBe(200);
   expect(await replay.json()).toEqual(completed.body);
-  expect(await signingOperationPersistence(operationId)).toEqual(after);
+  expect(await signingOperationPersistence(harness.walletId, operationId)).toEqual(after);
 
   const evidence = {
     kind: 'gateway_ecdsa_missing_prepare_v1',
@@ -1121,7 +1133,7 @@ test('missing ECDSA prepare rejects finalize without quota or audit effects and 
   });
 });
 
-type SigningPolicy = 'project_and_abuse' | 'abuse' | 'rate_limited' | 'allowed';
+type SigningPolicy = 'project_and_abuse' | 'abuse' | 'rate_limited' | 'unrelated';
 
 async function setIsolatedSigningPolicy(request: Request, policy: SigningPolicy): Promise<void> {
   const body: unknown = request.postDataJSON();
@@ -1141,10 +1153,9 @@ async function setIsolatedSigningPolicy(request: Request, policy: SigningPolicy)
     const rows = database
       .prepare(
         `SELECT DISTINCT namespace, json_extract(record_json, '$.runtimePolicyScope') AS scope_json
-       FROM wallet_signers WHERE wallet_id = ? AND signer_family = 'ecdsa'
-       AND json_extract(record_json, '$.activationReceipt.ecdsa_activation.material_activation.activation_id') = ?`,
+       FROM wallet_signers WHERE wallet_id = ? AND signer_family = 'ecdsa'`,
       )
-      .all(body.scope.wallet_id, body.material_activation.activation_id);
+      .all(body.scope.wallet_id);
     if (
       rows.length !== 1 ||
       typeof rows[0].namespace !== 'string' ||
@@ -1164,7 +1175,6 @@ async function setIsolatedSigningPolicy(request: Request, policy: SigningPolicy)
     ].join('\x1f');
     // This database belongs to this single-wallet scenario; policy rows are test-owned.
     database.prepare('DELETE FROM router_ab_normal_signing_admission_records').run();
-    if (policy === 'allowed') return;
     const insert = database.prepare(
       `INSERT INTO router_ab_normal_signing_admission_records
        (namespace, org_id, project_id, env_id, signing_root_version,
@@ -1178,6 +1188,66 @@ async function setIsolatedSigningPolicy(request: Request, policy: SigningPolicy)
       scope.envId,
       scope.signingRootVersion,
     ];
+    if (policy === 'unrelated') {
+      const otherScopes = [
+        [
+          rows[0].namespace + ':other',
+          scope.orgId,
+          scope.projectId,
+          scope.envId,
+          scope.signingRootVersion,
+        ],
+        [
+          rows[0].namespace,
+          scope.orgId + ':other',
+          scope.projectId,
+          scope.envId,
+          scope.signingRootVersion,
+        ],
+        [
+          rows[0].namespace,
+          scope.orgId,
+          scope.projectId + ':other',
+          scope.envId,
+          scope.signingRootVersion,
+        ],
+        [
+          rows[0].namespace,
+          scope.orgId,
+          scope.projectId,
+          scope.envId + ':other',
+          scope.signingRootVersion,
+        ],
+        [
+          rows[0].namespace,
+          scope.orgId,
+          scope.projectId,
+          scope.envId,
+          scope.signingRootVersion + ':other',
+        ],
+      ];
+      for (const other of otherScopes) {
+        insert.run(...other, 'project_policy', scopeKey, 'rejected', 1000, Date.now());
+        insert.run(...other, 'abuse', abuseKey, 'rejected', 1000, Date.now());
+      }
+      for (const otherKey of [
+        [
+          scopeKey,
+          body.scope.wallet_id + ':other',
+          `material_activation:${body.material_activation.activation_id}`,
+          'ecdsa',
+        ].join('\x1f'),
+        [
+          scopeKey,
+          body.scope.wallet_id,
+          `material_activation:${body.material_activation.activation_id}:other`,
+          'ecdsa',
+        ].join('\x1f'),
+      ]) {
+        insert.run(...tenant, 'abuse', otherKey, 'rejected', 1000, Date.now());
+      }
+      return;
+    }
     const abuseDecision = policy === 'rate_limited' ? 'rate_limited' : 'rejected';
     insert.run(...tenant, 'abuse', abuseKey, abuseDecision, 1000, Date.now());
     if (policy === 'project_and_abuse') {
@@ -1196,10 +1266,15 @@ class SigningPolicyProbe {
 
   async verifyDenials(request: Request, phase: string): Promise<void> {
     const body: unknown = request.postDataJSON();
-    if (!isPlainObject(body) || typeof body.operation_id !== 'string') {
+    if (
+      !isPlainObject(body) ||
+      typeof body.operation_id !== 'string' ||
+      !isPlainObject(body.scope) ||
+      typeof body.scope.wallet_id !== 'string'
+    ) {
       throw new Error('Expected a signing operation identity');
     }
-    const before = await signingOperationPersistence(body.operation_id);
+    const before = await signingOperationPersistence(body.scope.wallet_id, body.operation_id);
     const cases: readonly { policy: SigningPolicy; code: string; status: number }[] = [
       { policy: 'project_and_abuse', code: 'project_policy_rejected', status: 403 },
       { policy: 'abuse', code: 'abuse_rejected', status: 403 },
@@ -1211,7 +1286,9 @@ class SigningPolicyProbe {
         const response = await this.context.request.fetch(request);
         expect(response.status()).toBe(scenario.status);
         expect(await response.json()).toMatchObject({ code: scenario.code });
-        expect(await signingOperationPersistence(body.operation_id)).toEqual(before);
+        expect(await signingOperationPersistence(body.scope.wallet_id, body.operation_id)).toEqual(
+          before,
+        );
         this.evidence.push({
           phase,
           code: scenario.code,
@@ -1220,7 +1297,7 @@ class SigningPolicyProbe {
         });
       }
     } finally {
-      await setIsolatedSigningPolicy(request, 'allowed');
+      await setIsolatedSigningPolicy(request, 'unrelated');
     }
   }
 
@@ -1235,17 +1312,18 @@ class SigningPolicyProbe {
   }
 }
 
-test('live signing policy denies prepare finalize and completed replay without consuming quota', async ({
-  harness,
-  context,
-}, testInfo) => {
-  await harness.registerPasskeyEcdsaOnlyWallet();
+async function verifyLiveSigningPolicy(
+  harness: IntendedBehaviourHarness,
+  context: BrowserContext,
+  stage: 'post_registration' | 'post_device_link',
+  testInfo: TestInfo,
+): Promise<void> {
   const probe = new SigningPolicyProbe(context);
   const intercept = probe.intercept.bind(probe);
   const signingPath = /\/router-ab\/ecdsa-derivation\/sign(?:\/prepare)?$/;
   await context.route(signingPath, intercept);
   try {
-    await harness.signTempoTransaction('post_registration');
+    await harness.signTempoTransaction(stage);
   } finally {
     await context.unroute(signingPath, intercept);
   }
@@ -1255,23 +1333,26 @@ test('live signing policy denies prepare finalize and completed replay without c
   expect(replay.status()).toBe(200);
   expect(await replay.json()).toEqual(probe.completed.body);
   expect(probe.evidence).toHaveLength(9);
-  await harness.signTempoTransaction('post_registration');
-  await harness.signTempoTransaction('post_registration');
+  await harness.signTempoTransaction(stage);
+  await harness.signTempoTransaction(stage);
   const body: unknown = probe.completed.request.postDataJSON();
   if (!isPlainObject(body) || typeof body.operation_id !== 'string') {
     throw new Error('Expected operation identity');
   }
-  const after = await signingOperationPersistence(body.operation_id);
-  expect(after).toEqual({ remainingUses: 0, claims: 1, auditEvents: 1 });
+  const after = await signingOperationPersistence(harness.walletId, body.operation_id);
+  expect(after).toMatchObject({ claims: 1, auditEvents: 1 });
+  if (stage === 'post_registration') expect(after.remainingUses).toBe(0);
   const evidence = {
     kind: 'gateway_ecdsa_live_policy_v1',
     host: process.env.SEAMS_INTENDED_WALLET_HOST ?? 'workers_local',
+    stage,
+    unrelatedPolicyRowsIgnored: 12,
     denials: probe.evidence,
     after,
     verifiedSignatures: 3,
     exactReplayMatches: true,
   };
-  const artifactName = `gateway-ecdsa-live-policy-${evidence.host}.json`;
+  const artifactName = `gateway-ecdsa-live-policy-${stage}-${evidence.host}.json`;
   const artifactPath = path.resolve(testInfo.config.rootDir, '../.artifacts/r151', artifactName);
   await mkdir(path.dirname(artifactPath), { recursive: true });
   await writeFile(artifactPath, JSON.stringify(evidence, null, 2), 'utf8');
@@ -1279,6 +1360,32 @@ test('live signing policy denies prepare finalize and completed replay without c
     body: JSON.stringify(evidence, null, 2),
     contentType: 'application/json',
   });
+}
+
+test('live signing policy denies prepare finalize and completed replay without consuming quota', async ({
+  harness,
+  context,
+}, testInfo) => {
+  await harness.registerPasskeyEcdsaOnlyWallet();
+  await verifyLiveSigningPolicy(harness, context, 'post_registration', testInfo);
+});
+
+test('third-generation linked signing enforces live policy and isolates unrelated scopes', async ({
+  harness,
+  browser,
+}, testInfo) => {
+  await harness.registerPasskeyEcdsaOnlyWallet();
+  const device2 = await harness.openLinkedDevice(browser);
+  await harness.linkDeviceWithPasskey(device2);
+  const priorContexts = browser.contexts();
+  const device3 = await device2.openLinkedDevice(browser);
+  const newContexts: BrowserContext[] = [];
+  for (const candidate of browser.contexts()) {
+    if (!priorContexts.includes(candidate)) newContexts.push(candidate);
+  }
+  expect(newContexts).toHaveLength(1);
+  await device2.linkDeviceWithPasskey(device3);
+  await verifyLiveSigningPolicy(device3, newContexts[0], 'post_device_link', testInfo);
 });
 
 class LostFinalize {
@@ -1361,25 +1468,9 @@ async function vmSigningWorkerEffects(
   }
 }
 
-async function vmRemainingSigningUses(): Promise<number | null> {
-  const root = process.env.SEAMS_INTENDED_ROUTER_AB_ROOT;
-  if (process.env.SEAMS_INTENDED_WALLET_HOST !== 'vm' || !root) return null;
-  const sqliteModule: string = 'node:sqlite';
-  const { DatabaseSync } = (await import(sqliteModule)) as NodeSqliteModule;
-  const database = new DatabaseSync(
-    path.join(root, '.runtime', 'wallet-gateway', 'gateway.sqlite'),
-    { readOnly: true },
-  );
-  try {
-    // The isolated runner creates a fresh database for this single-wallet scenario.
-    const [row] = database
-      .prepare('SELECT SUM(remaining_uses) AS remaining FROM authorization_wallet_session_quotas')
-      .all();
-    if (!row || typeof row.remaining !== 'number') throw new Error('Expected a signing quota');
-    return row.remaining;
-  } finally {
-    database.close();
-  }
+async function vmRemainingSigningUses(walletId: string): Promise<number | null> {
+  if (process.env.SEAMS_INTENDED_WALLET_HOST !== 'vm') return null;
+  return (await signingOperationPersistence(walletId, 'unclaimed-evidence-probe')).remainingUses;
 }
 
 test('concurrent prepare and admitted ECDSA finalize lost_response retry preserve one signing effect', async ({
@@ -1395,7 +1486,7 @@ test('concurrent prepare and admitted ECDSA finalize lost_response retry preserv
   await harness.registerPasskeyEcdsaOnlyWallet();
   await harness.signTempoTransaction('post_registration');
   await harness.signTempoTransaction('post_registration');
-  const remainingUsesBefore = await vmRemainingSigningUses();
+  const remainingUsesBefore = await vmRemainingSigningUses(harness.walletId);
   if (remainingUsesBefore !== null) expect(remainingUsesBefore).toBe(1);
   await context.route(preparePath, duplicate);
   await context.route(finalizePath, lose);
@@ -1436,7 +1527,7 @@ test('concurrent prepare and admitted ECDSA finalize lost_response retry preserv
   // the returned signature as its terminal response: the retry claimed and
   // consumed nothing.
   const effectsAfterRetry = await vmSigningWorkerEffects(walletId);
-  const remainingUsesAfter = await vmRemainingSigningUses();
+  const remainingUsesAfter = await vmRemainingSigningUses(harness.walletId);
   if (remainingUsesBefore !== null) {
     expect(remainingUsesAfter).toBe(0);
   }
@@ -1485,7 +1576,7 @@ test('distinct concurrent prepares consume the last quota use once and preserve 
   await harness.registerPasskeyEcdsaOnlyWallet();
   await harness.signTempoTransaction('post_registration');
   await harness.signTempoTransaction('post_registration');
-  const remainingUsesBefore = await vmRemainingSigningUses();
+  const remainingUsesBefore = await vmRemainingSigningUses(harness.walletId);
   if (remainingUsesBefore !== null) expect(remainingUsesBefore).toBe(1);
   const race = new LastQuotaPrepareRace();
   const compete = race.compete.bind(race);
@@ -1499,7 +1590,7 @@ test('distinct concurrent prepares consume the last quota use once and preserve 
   if (!race.walletId) throw new Error('The final-quota prepare race was never reached');
   expect(race.statuses).toEqual([200, 409]);
   expect(race.replayCodes).toEqual(['operation_in_progress', 'wallet_session_quota_exhausted']);
-  const remainingUsesAfter = await vmRemainingSigningUses();
+  const remainingUsesAfter = await vmRemainingSigningUses(harness.walletId);
   const effects = await vmSigningWorkerEffects(race.walletId);
   if (remainingUsesAfter !== null) expect(remainingUsesAfter).toBe(0);
   if (effects) expect(effects).toHaveLength(2);

@@ -1,3 +1,4 @@
+import type { D1EcdsaAdmissionPolicyRead } from '../cloudflare/d1/signingAdmission/d1RouterAbNormalSigningAdmissionStore';
 import type { EcdsaMaterialRead } from '../../core/d1EcdsaSignerRead';
 import type { ThresholdRuntimePolicyScope } from '../../core/types';
 import type { RouterApiAuthorizationSessionService } from '../framework/authServicePort';
@@ -280,6 +281,7 @@ export type ThresholdEcdsaSessionInputs =
   | {
       readonly ok: true;
       readonly materialRead: EcdsaMaterialRead;
+      readonly policyRead: D1EcdsaAdmissionPolicyRead;
       readonly kind: 'wallet_session_operation_credential_v1';
       readonly admission: Extract<
         WalletSessionOperationCredentialAdmission,
@@ -291,6 +293,7 @@ export type ThresholdEcdsaSessionInputs =
   | {
       readonly ok: true;
       readonly materialRead: EcdsaMaterialRead;
+      readonly policyRead: D1EcdsaAdmissionPolicyRead;
       readonly kind: 'wallet_session_operation_credential_exhausted_candidate_v1';
       readonly candidate: RouterApiWalletSessionAuthorizationV2ExhaustedCandidateContext;
       readonly admission?: never;
@@ -408,6 +411,7 @@ export async function validateRouterAbEcdsaDerivationWalletSessionInputs(input: 
       kind: 'wallet_session_operation_credential_exhausted_candidate_v1',
       candidate: candidate.candidate,
       materialRead: candidate.materialRead,
+      policyRead: candidate.policyRead,
     };
   }
   const resolution = resolveWalletSessionOperationCredentialAdmissionFromContext({
@@ -427,6 +431,7 @@ export async function validateRouterAbEcdsaDerivationWalletSessionInputs(input: 
     admission: resolution.admission,
     context: resolution.admission.context,
     materialRead: candidate.materialRead,
+    policyRead: candidate.policyRead,
   };
 }
 

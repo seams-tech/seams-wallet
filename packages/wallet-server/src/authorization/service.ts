@@ -1,3 +1,4 @@
+import type { D1EcdsaAdmissionPolicyRead } from '../router/cloudflare/d1/signingAdmission/d1RouterAbNormalSigningAdmissionStore';
 import type { EcdsaMaterialRead } from '../core/d1EcdsaSignerRead';
 import type { D1PreparedStatementLike } from '../storage/tenantRoute';
 import type { WalletAuthMethodId, WalletId } from '@shared/utils/domainIds';
@@ -82,6 +83,7 @@ import type { CapabilityOperationFingerprintDigest } from '@shared/authorization
 export type EcdsaWalletSessionAdmissionRead = {
   readonly snapshot: WalletSessionAdmissionSnapshotV2;
   readonly materialRead: EcdsaMaterialRead;
+  readonly policyRead: D1EcdsaAdmissionPolicyRead;
 };
 
 export interface AuthorizationSessionPort {

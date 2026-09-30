@@ -28,6 +28,7 @@ function admissionInput(url: URL): RouterAbNormalSigningAdmissionInput {
   const activation = parseMpcMaterialActivationId('policy-activation');
   if (!activation.ok) throw new Error(activation.error.message);
   return {
+    policyReadSource: { kind: 'database' },
     curve: 'ecdsa', phase: 'prepare', walletId, materialActivationId: activation.value,
     authorizationIdentity: { kind: 'reusable_wallet_session', walletSessionId: 'policy-session' },
     requestId: 'policy-request', expiresAtMs, signingWorkerId: 'policy-worker',

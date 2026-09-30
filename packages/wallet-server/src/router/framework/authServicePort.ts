@@ -1,3 +1,4 @@
+import type { D1EcdsaAdmissionPolicyRead } from '../cloudflare/d1/signingAdmission/d1RouterAbNormalSigningAdmissionStore';
 import type { EcdsaMaterialRead, EcdsaMaterialActivationReadInput } from '../../core/d1EcdsaSignerRead';
 import type { EcdsaMaterialReadSnapshot } from '../../core/ecdsaMaterialReadSnapshot';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
@@ -212,12 +213,14 @@ export type RouterApiWalletSessionSigningCandidate =
   | {
       readonly kind: 'active';
       readonly materialRead: EcdsaMaterialRead;
+      readonly policyRead: D1EcdsaAdmissionPolicyRead;
       readonly context: RouterApiWalletSessionAuthorizationV2AdmissionContext;
       readonly candidate?: never;
     }
   | {
       readonly kind: 'exhausted';
       readonly materialRead: EcdsaMaterialRead;
+      readonly policyRead: D1EcdsaAdmissionPolicyRead;
       readonly candidate: RouterApiWalletSessionAuthorizationV2ExhaustedCandidateContext;
       readonly context?: never;
     };
