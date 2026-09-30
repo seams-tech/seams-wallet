@@ -2,19 +2,35 @@ import type { Page, TestInfo } from '@playwright/test';
 import { WalletSessionStatusEvidence } from './walletSessionStatusEvidence';
 import { intendedTest as test, type IntendedBehaviourHarness } from './harness';
 
-async function verifyPasskeyUnlockImmediateLifecycle({
-  harness,
-}: {
-  harness: IntendedBehaviourHarness;
-}): Promise<void> {
+async function observePasskeyUnlock(
+  harness: IntendedBehaviourHarness,
+  page: Page,
+): Promise<WalletSessionStatusEvidence> {
+  const evidence = await WalletSessionStatusEvidence.start(page);
   await harness.registerPasskeyWallet();
   await harness.awaitNearReady();
+  evidence.setStage('unlock');
   await harness.unlockPasskeyWallet();
+  return evidence;
+}
+
+async function verifyPasskeyUnlockImmediateLifecycle({
+  harness,
+  page,
+}: {
+  harness: IntendedBehaviourHarness;
+  page: Page;
+}, testInfo: TestInfo): Promise<void> {
+  const evidence = await observePasskeyUnlock(harness, page);
+  evidence.setStage('export-and-near-signing');
   await harness.exportEd25519Key();
   await harness.exportEcdsaKey();
   await harness.signNearTransaction('post_unlock');
+  evidence.setStage('concurrent-signing');
   await harness.signTempoAndArcEvmConcurrently('post_unlock');
+  evidence.setStage('step-up');
   await harness.signNearTransaction('step_up_required');
+  await evidence.finish(testInfo);
 }
 
 test(
@@ -29,11 +45,7 @@ async function verifyPasskeyPageRefreshHydration({
   harness: IntendedBehaviourHarness;
   page: Page;
 }, testInfo: TestInfo): Promise<void> {
-  const evidence = await WalletSessionStatusEvidence.start(page);
-  await harness.registerPasskeyWallet();
-  await harness.awaitNearReady();
-  evidence.setStage('unlock');
-  await harness.unlockPasskeyWallet();
+  const evidence = await observePasskeyUnlock(harness, page);
   evidence.setStage('refresh-and-export');
   await harness.refreshPagePreservingWalletStorage();
   await harness.exportEd25519Key();

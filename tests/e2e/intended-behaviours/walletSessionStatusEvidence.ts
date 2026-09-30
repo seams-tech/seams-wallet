@@ -1,4 +1,5 @@
 import type { CDPSession, Page, TestInfo } from '@playwright/test';
+import { createHmac, randomBytes } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
@@ -16,18 +17,44 @@ type InitiatorStack = {
 
 type StatusRequestEvent = {
   readonly requestId: string;
-  readonly request: { readonly url: string; readonly method: string };
+  readonly timestamp: number;
+  readonly frameId?: string;
+  readonly request: {
+    readonly url: string;
+    readonly method: string;
+    readonly headers: Readonly<Record<string, string>>;
+    readonly postData?: string;
+  };
   readonly initiator: { readonly type: string; readonly stack?: InitiatorStack };
 };
 
-/** Browser initiators identify callers without recording credentials or request bodies. */
+type RequestCompletion =
+  | { readonly kind: 'pending'; readonly endMs?: never }
+  | { readonly kind: 'finished' | 'failed'; readonly endMs: number };
+
+type RequestIdentity =
+  | { readonly kind: 'identified'; readonly group: number }
+  | { readonly kind: 'unavailable'; readonly group?: never };
+
+type StatusRequestEvidence = {
+  readonly stage: string;
+  readonly initiator: string;
+  readonly frames: readonly CallFrame[];
+  readonly identity: RequestIdentity;
+  readonly frameGroup: number | null;
+  readonly startMs: number;
+  completion: RequestCompletion;
+};
+
+/** Only anonymous identity groups, timings, and caller frames leave this observer. */
 export class WalletSessionStatusEvidence {
   private stage = 'registration';
-  private readonly requests: {
-    readonly stage: string;
-    readonly initiator: string;
-    readonly frames: readonly CallFrame[];
-  }[] = [];
+  private readonly identityKey = randomBytes(32);
+  private readonly identityGroups = new Map<string, number>();
+  private readonly frameGroups = new Map<string, number>();
+  private readonly pending = new Map<string, StatusRequestEvidence>();
+  private readonly requests: StatusRequestEvidence[] = [];
+  private firstTimestamp: number | null = null;
 
   constructor(private readonly session: CDPSession) {}
 
@@ -35,6 +62,8 @@ export class WalletSessionStatusEvidence {
     const session = await page.context().newCDPSession(page);
     const observer = new WalletSessionStatusEvidence(session);
     session.on('Network.requestWillBeSent', observer.record.bind(observer));
+    session.on('Network.loadingFinished', observer.complete.bind(observer, 'finished'));
+    session.on('Network.loadingFailed', observer.complete.bind(observer, 'failed'));
     await session.send('Network.enable');
     await session.send('Debugger.enable');
     await session.send('Debugger.setAsyncCallStackDepth', { maxDepth: 32 });
@@ -61,7 +90,54 @@ export class WalletSessionStatusEvidence {
       }
       stack = stack.parent;
     }
-    this.requests.push({ stage: this.stage, initiator: event.initiator.type, frames });
+    this.firstTimestamp ??= event.timestamp;
+    const request: StatusRequestEvidence = {
+      stage: this.stage,
+      initiator: event.initiator.type,
+      frames,
+      identity: this.identify(event.request),
+      frameGroup: event.frameId ? groupNumber(this.frameGroups, event.frameId) : null,
+      startMs: (event.timestamp - this.firstTimestamp) * 1_000,
+      completion: { kind: 'pending' },
+    };
+    this.requests.push(request);
+    this.pending.set(event.requestId, request);
+  }
+
+  private identify(request: StatusRequestEvent['request']): RequestIdentity {
+    const authorization = Object.entries(request.headers).find(isAuthorizationHeader)?.[1];
+    if (!authorization || !request.postData) return { kind: 'unavailable' };
+    let body: unknown;
+    try {
+      body = JSON.parse(request.postData);
+    } catch {
+      return { kind: 'unavailable' };
+    }
+    if (
+      !body ||
+      typeof body !== 'object' ||
+      !('walletSessionId' in body) ||
+      typeof body.walletSessionId !== 'string' ||
+      !('quotaId' in body) ||
+      typeof body.quotaId !== 'string' ||
+      Object.keys(body).length !== 2
+    ) {
+      return { kind: 'unavailable' };
+    }
+    const fingerprint = createHmac('sha256', this.identityKey)
+      .update(JSON.stringify([request.url, authorization, body.walletSessionId, body.quotaId]))
+      .digest('hex');
+    return { kind: 'identified', group: groupNumber(this.identityGroups, fingerprint) };
+  }
+
+  private complete(
+    kind: 'finished' | 'failed',
+    event: { readonly requestId: string; readonly timestamp: number },
+  ): void {
+    const request = this.pending.get(event.requestId);
+    if (!request || this.firstTimestamp === null) return;
+    request.completion = { kind, endMs: (event.timestamp - this.firstTimestamp) * 1_000 };
+    this.pending.delete(event.requestId);
   }
 
   async finish(testInfo: TestInfo): Promise<void> {
@@ -71,7 +147,7 @@ export class WalletSessionStatusEvidence {
     const name = `wallet-session-status-owners-${host}.json`;
     const artifactPath = path.resolve(testInfo.config.rootDir, '../.artifacts/r151', name);
     const body = JSON.stringify({
-      kind: 'wallet_session_status_owners_v1',
+      kind: 'wallet_session_status_owners_v2',
       host,
       requests: this.requests,
     }, null, 2);
@@ -79,4 +155,16 @@ export class WalletSessionStatusEvidence {
     await writeFile(artifactPath, body, 'utf8');
     await testInfo.attach(name, { body, contentType: 'application/json' });
   }
+}
+
+function isAuthorizationHeader([name]: [string, string]): boolean {
+  return name.toLowerCase() === 'authorization';
+}
+
+function groupNumber(groups: Map<string, number>, key: string): number {
+  const existing = groups.get(key);
+  if (existing !== undefined) return existing;
+  const group = groups.size + 1;
+  groups.set(key, group);
+  return group;
 }

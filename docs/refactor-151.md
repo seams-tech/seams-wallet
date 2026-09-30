@@ -970,6 +970,62 @@ intervening transitions in additional caller traces before sharing their scope.
 The minimum safe call-budget review and controlled hosted workload/placement
 measurements remain open.
 
+### Status-request overlap audit (September 30)
+
+The browser evidence now records start/completion times, anonymous request
+identity groups, frame groups, and caller stacks. Matching identities include
+the exact URL, operation credential, Wallet Session ID, and quota ID. A fresh
+in-memory HMAC key groups those inputs for each run; neither its key, input
+values, fingerprints, request bodies, nor headers enter the artifact. Unknown
+identity/frame coverage and unfinished/failed requests remain explicit.
+
+The existing refresh/export/warm/step-up scenario and immediate unlock/export/
+shared-budget concurrent signing scenario supply separate stage windows. The
+same SDK/server builds are retained across Workers D1, wallet-DO, and VM. These
+runs identify overlap at registration and restore, especially repeated iframe
+exact-session reconciliation, full inventory reads, and per-chain restored
+presign prefill. Pair counts describe overlapping intervals; a request can
+participate in multiple pairs, so they are not a count of removable requests.
+
+All six scenario/profile checks pass. Every observed status request has an
+identified group, frame group, and completed interval. The refresh lifecycle
+records 56 POSTs per profile; the concurrent-signing lifecycle records 42.
+Matching overlap pairs number 12/15/10 for the refresh lifecycle and 12/9/12 for
+the concurrent lifecycle (Workers D1 / wallet-DO / VM). All pairs occur during
+registration, unlock, or restore/export; none occur during the measured warm,
+concurrent, or step-up signing stages. Scheduling differences explain why pair
+counts vary while request counts stay fixed. Intended-test type checking and
+the bloat check pass. Hosted resources are unchanged.
+
+Source inspection gives the next implementation order:
+
+1. Share one existing `WalletSessionStatusReadScope` across the configured-chain
+   prefills scheduled by one restore operation. Today each call through
+   `prefillRouterAbEcdsaDerivationPresignaturePoolDomain` creates a separate scope.
+   Keep separate pool scheduling and per-chain material validation. Preserve the
+   public single-chain API; give the host restore operation an internal batch
+   boundary rather than exposing a status-snapshot scope as public configuration.
+2. Trace the parent requests behind concurrent `PM_GET_EXACT_WALLET_SESSION_STATE`
+   and `PM_GET_WALLET_SESSION` display reads. Coalesce equivalent display reads
+   within their owning operation, retaining restore/current mode, selected wallet,
+   connection lifetime, and authority-transition boundaries. Equal status payloads
+   alone do not establish equivalent public operations.
+3. Retain fresh authorization during queued material use and server admission.
+   Avoid a module-wide pending-status map: it would merge independently owned
+   signing, display, and preprocessing checks merely because their wire inputs
+   happen to match.
+
+No production call reduction is claimed by this audit. The measured Gateway
+budget remains eight canonical and 10 linked D1 calls per signature. Controlled
+hosted first/warm/burst workloads, residual full-signature latency, the minimum
+safe call-budget review, and the R152 placement decision remain open.
+
+Evidence: `.artifacts/r151/status-overlap-20260930/analysis.json` contains build
+identities, caller ownership, pair indexes into the retained request traces,
+coverage checks, and reproduction commands. Reproduce with
+`node .runtime/r151-status-overlap/verify.mjs` and
+`python3 .runtime/r151-status-overlap/analyze.py` after the intended-test type check.
+
 ### Remaining call and write inventory (September 30)
 
 The canonical reusable-session path has four foreground Gateway D1 calls per
@@ -1089,9 +1145,12 @@ Phase 3 still revisits the complete call budget after these incremental changes.
   metadata, retaining the inventory that selected the exact material candidate.
 - [x] Reuse the already verified NEAR material returned by rehydration in its
   initiating caller; preserve fresh verification for joined callers.
-- [ ] Extend caller coverage as needed and coalesce overlapping status requests
-  with the same semantics. Reuse already returned display data where valid.
-  Keep server-side authorization fresh at admission.
+- [x] Extend caller evidence with anonymous identity/frame grouping and completed
+  request intervals; cover refresh and concurrent shared-budget signing.
+- [ ] Share the restore operation's status-read scope across per-chain prefills,
+  preserving separate pool and material validation. Trace display-request owners
+  before coalescing equivalent pending display reads. Keep queued material and
+  server-side admission authorization fresh.
 - [x] Measure warm pool, immediate first sign, and burst signing separately in
   a bounded local diagnostic with signature and shared-quota verification.
 - [x] Diagnose and fix the repeated linked-presign worker timeout/reset. Retire
