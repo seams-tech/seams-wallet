@@ -7,7 +7,10 @@ const requests = [];
 const queries = new Map();
 for (const file of paths) {
   const artifact = JSON.parse(readFileSync(file, 'utf8'));
-  for (const stage of ['registrationReturn', 'firstSigning', 'subsequentSigning']) {
+  const stages = artifact.kind === 'gateway_ecdsa_first_warm_burst_diagnostic_v1'
+    ? ['firstSigning', 'warmSigning', 'concurrentBurst']
+    : ['registrationReturn', 'firstSigning', 'subsequentSigning'];
+  for (const stage of stages) {
     for (const response of artifact[stage].gatewayServerTimings) {
       const trace = response.d1;
       if (!trace || trace.version !== 1 || trace.pending !== 0 || trace.dropped !== 0) {

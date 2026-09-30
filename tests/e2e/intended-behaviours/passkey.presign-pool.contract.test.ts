@@ -1,5 +1,12 @@
-import { expect, type Request, type Response, type Route } from '@playwright/test';
-import { intendedTest as test } from './harness';
+import {
+  expect,
+  type BrowserContext,
+  type Request,
+  type Response,
+  type Route,
+  type TestInfo,
+} from '@playwright/test';
+import { intendedTest as test, type IntendedBehaviourHarness } from './harness';
 import { isPlainObject } from '../../../packages/shared-ts/src/utils/validation';
 import { parseEcdsaServerTiming } from '../../../packages/shared-ts/src/utils/ecdsaServerTiming';
 import { randomUUID } from 'node:crypto';
@@ -8,6 +15,28 @@ import path from 'node:path';
 
 type PresignRefillTag = 'background' | 'foreground' | 'unidentified';
 type PresignRefillRoute = 'init' | 'step';
+type PresignCompletion =
+  | { kind: 'observed'; presignatureId: string | null }
+  | { kind: 'unavailable'; message: string };
+
+async function readPresignCompletion(response: Response): Promise<PresignCompletion> {
+  try {
+    const body: unknown = await response.json();
+    if (!isPlainObject(body)) throw new Error('Expected a presign step response');
+    if (body.event !== 'presign_done') return { kind: 'observed', presignatureId: null };
+    if (typeof body.presignatureId !== 'string') {
+      throw new Error('Completed presign response omitted its material identity');
+    }
+    return { kind: 'observed', presignatureId: body.presignatureId };
+  } catch (error) {
+    return { kind: 'unavailable', message: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+function observedPresignatureId(completion: PresignCompletion): string | null {
+  if (completion.kind === 'unavailable') throw new Error(completion.message);
+  return completion.presignatureId;
+}
 
 function presignRefillTag(request: Request): PresignRefillTag {
   const body: unknown = request.postDataJSON();
@@ -40,7 +69,8 @@ class FirstSigningPoolFlow {
   finalizations = 0;
   completedStepsBeforePrepare = 0;
   preparePresignatureId: string | null = null;
-  readonly stepResponses: Response[] = [];
+  readonly stepResponses: Promise<PresignCompletion>[] = [];
+  readonly preparedPresignatures: string[] = [];
 
   private captureRelease(resolve: () => void): void {
     this.releaseGate = resolve;
@@ -60,6 +90,7 @@ class FirstSigningPoolFlow {
   }
 
   record(request: Request): void {
+    if (request.method() !== 'POST') return;
     const url = new URL(request.url());
     const path = url.pathname;
     if (url.origin === this.gatewayOrigin) {
@@ -84,11 +115,13 @@ class FirstSigningPoolFlow {
         throw new Error('ECDSA prepare omitted its material identity');
       }
       this.preparePresignatureId = body.client_presignature_id;
+      this.preparedPresignatures.push(body.client_presignature_id);
     }
     if (path === '/router-ab/ecdsa-derivation/sign') this.finalizations += 1;
   }
 
   recordResponse(response: Response): void {
+    if (response.request().method() !== 'POST') return;
     const url = new URL(response.url());
     if (url.origin === this.gatewayOrigin) {
       this.gatewayResponses.push({ path: url.pathname, atMs: performance.now(), response });
@@ -97,21 +130,39 @@ class FirstSigningPoolFlow {
       response.ok() &&
       url.pathname === '/router-ab/ecdsa-derivation/presignature-pool/fill/step'
     ) {
-      this.stepResponses.push(response);
+      this.stepResponses.push(readPresignCompletion(response));
     }
   }
 
   async completedPresignatureId(): Promise<string | null> {
-    for (const response of this.stepResponses.slice(0, this.completedStepsBeforePrepare)) {
-      const body: unknown = await response.json();
-      if (isPlainObject(body) && body.event === 'presign_done') {
-        if (typeof body.presignatureId !== 'string') {
-          throw new Error('Completed presign response omitted its material identity');
-        }
-        if (body.presignatureId === this.preparePresignatureId) return body.presignatureId;
-      }
+    for (const completion of this.stepResponses.slice(0, this.completedStepsBeforePrepare)) {
+      const id = observedPresignatureId(await completion);
+      if (id && id === this.preparePresignatureId) return id;
     }
     return null;
+  }
+
+  async unusedServerPresignatures(): Promise<string[]> {
+    const consumed = new Set(this.preparedPresignatures);
+    const available = [];
+    for (const completion of this.stepResponses) {
+      const id = observedPresignatureId(await completion);
+      if (id && !consumed.has(id)) available.push(id);
+    }
+    return available;
+  }
+
+  async unusedServerPresignatureCount(): Promise<number> {
+    return (await this.unusedServerPresignatures()).length;
+  }
+
+  async timingWindow(startedAtMs: number, endedAtMs: number) {
+    return {
+      elapsedMs: endedAtMs - startedAtMs,
+      gatewayRequestCounts: this.gatewayRequestCounts(startedAtMs, endedAtMs),
+      presignRefillRequestCounts: this.presignRefillRequestCounts(startedAtMs, endedAtMs),
+      gatewayServerTimings: await this.gatewayServerTimings(startedAtMs, endedAtMs),
+    };
   }
 
   gatewayRequestCounts(startedAtMs: number, endedAtMs: number): Record<string, number> {
@@ -343,11 +394,97 @@ function requestedEcdsaBackendProfile(): string {
     }
     return `hosted_${arm}`;
   }
+  if (process.env.SEAMS_INTENDED_WALLET_HOST === 'vm') return 'local_vm';
   const walletDoRequested =
     process.env.ROUTER_AB_WORKER_BUILD_PROFILE === 'dev' &&
     process.env.ROUTER_AB_WALLET_DO_HARNESS === 'enabled';
   return walletDoRequested ? 'local_wallet_do_harness_requested' : 'local_default_d1';
 }
+
+async function measureFirstWarmAndBurstSigning({
+  harness,
+  context,
+}: {
+  harness: IntendedBehaviourHarness;
+  context: BrowserContext;
+}, testInfo: TestInfo): Promise<void> {
+  const flow = new FirstSigningPoolFlow();
+  const record = flow.record.bind(flow);
+  const recordResponse = flow.recordResponse.bind(flow);
+  context.on('request', record);
+  context.on('response', recordResponse);
+  try {
+    await harness.registerPasskeyWallet();
+    const firstStartedAt = performance.now();
+    await harness.signTempoTransaction('post_registration');
+    const firstEndedAt = performance.now();
+    const firstSigning = await flow.timingWindow(firstStartedAt, firstEndedAt);
+
+    await expect.poll(flow.unusedServerPresignatureCount.bind(flow), {
+      timeout: 60_000,
+    }).toBeGreaterThan(0);
+    const readyBeforeWarm = await flow.unusedServerPresignatures();
+    const warmStartedAt = performance.now();
+    await harness.signTempoTransaction('post_registration');
+    const warmEndedAt = performance.now();
+    expect(readyBeforeWarm).toContain(flow.preparePresignatureId);
+    const warmSigning = await flow.timingWindow(warmStartedAt, warmEndedAt);
+
+    // A fresh three-use session leaves exactly two uses for the concurrent burst.
+    await harness.awaitNearReady();
+    await harness.unlockPasskeyWallet();
+    await harness.signTempoTransaction('post_unlock');
+    const readyBeforeBurst = new Set(await flow.unusedServerPresignatures());
+    const burstPrepareStart = flow.preparedPresignatures.length;
+    const burstStartedAt = performance.now();
+    await harness.signTempoAndArcEvmConcurrently('post_unlock');
+    const burstEndedAt = performance.now();
+    const burstPresignatures = flow.preparedPresignatures.slice(burstPrepareStart);
+    expect(burstPresignatures).toHaveLength(2);
+    let burstMaterialReadyAtStart = 0;
+    for (const id of burstPresignatures) {
+      if (readyBeforeBurst.has(id)) burstMaterialReadyAtStart += 1;
+    }
+    expect(flow.ordinaryPrepares).toBe(5);
+    expect(flow.finalizations).toBe(5);
+    expect(flow.terminalPrepares).toBe(0);
+    const proof = {
+      kind: 'gateway_ecdsa_first_warm_burst_diagnostic_v1',
+      reproduce: "node tests/scripts/run-wallet-intended-isolated.mjs -- e2e/intended-behaviours/passkey.presign-pool.contract.test.ts --grep 'first, warm, and concurrent burst'",
+      requestedBackendProfile: requestedEcdsaBackendProfile(),
+      timingScope: 'browser_harness_including_automatic_confirmation_and_signature_verification',
+      requestScope: 'gateway_POSTs_during_each_window_including_background_work',
+      timingPurpose: 'bounded_diagnostic_not_complete_system_controlled_latency_or_release_gate',
+      firstSigning,
+      warmSigning: {
+        ...warmSigning,
+        selectedServerMaterialCompletedBeforeStart: true,
+      },
+      concurrentBurst: {
+        ...(await flow.timingWindow(burstStartedAt, burstEndedAt)),
+        signatures: 2,
+        selectedServerMaterialsCompletedBeforeStart: burstMaterialReadyAtStart,
+        sharedBudgetExhausted: true,
+      },
+      signaturesVerified: 5,
+      untimedSetupSignatures: 1,
+    };
+    const artifactName = `gateway-ecdsa-first-warm-burst-${proof.requestedBackendProfile}.json`;
+    const artifactPath = path.resolve(testInfo.config.rootDir, '../.artifacts/r151', artifactName);
+    const body = JSON.stringify(proof, null, 2);
+    await mkdir(path.dirname(artifactPath), { recursive: true });
+    await writeFile(artifactPath, body, 'utf8');
+    await testInfo.attach(artifactName, { body, contentType: 'application/json' });
+  } finally {
+    context.off('request', record);
+    context.off('response', recordResponse);
+  }
+}
+
+test(
+  'first, warm, and concurrent burst ECDSA signing preserve verified results and shared quota',
+  measureFirstWarmAndBurstSigning,
+);
 
 async function interruptAdmittedPrepare(
   harness: import('./harness').IntendedBehaviourHarness,

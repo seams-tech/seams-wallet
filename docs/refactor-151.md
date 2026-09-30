@@ -593,6 +593,124 @@ minimum-call-budget review, full signing-span measurements, and conditional
 regional-placement decision remain open. No hosted resources changed, and no
 new D1-call or complete-latency result is claimed by this browser measurement.
 
+### First, warm, and concurrent burst checkpoint (September 30)
+
+The browser diagnostic now measures an immediate post-registration signature,
+a signature whose selected server presignature is confirmed complete before the
+window starts, and concurrent Tempo/Arc signing that consumes the final two
+uses of a shared Wallet Session. A separate untimed sign sets up that burst.
+All five signatures verify in each of Workers D1, wallet-DO, and VM: 15 verified
+signatures across three scenario/profile checks.
+
+| Workload | Gateway calls / statements | Write-bearing calls / reported row writes |
+| --- | ---: | ---: |
+| First signature | 12 / 13 | 2 / 14 |
+| Warm signature | 12 / 13 | 2 / 14 |
+| Two-signature burst ending at zero quota | 25 / 27 | 4 / 28 |
+
+Both instrumented Workers profiles produced these counts. The burst's extra
+call re-reads the joined authorization snapshot: active-session validation fails
+after quota exhaustion, then the exhausted-candidate path reads the snapshot
+again so an already admitted operation can finish. Consolidating those two
+classifications into one precise active/exhausted/unavailable result is the next
+identified read reduction. It must preserve fresh authority/method checks and
+refuse new admission when quota is exhausted.
+
+First signing included foreground-tagged refill steps on wallet-DO and VM.
+Warm signing and the burst had background-tagged refill traffic; both selected
+burst presignatures were already server-complete at window start in all three
+profiles. Background traffic is reported separately and cannot be charged in
+full to the signing critical path. Server material availability also does not
+prove that every client preparation step is complete.
+
+Browser-harness windows (first / warm / two-signature burst) were 739 / 758 /
+1,263 ms on Workers D1, 1,487 / 1,478 / 2,531 ms on wallet-DO, and 1,472 / 749 /
+1,764 ms on VM. These are single local diagnostic samples, including automatic
+confirmation, test orchestration, and signature verification. The profiles use
+different local role builds; these values establish neither comparative hosted
+performance nor the complete system-controlled 1–2 second maximum.
+
+Evidence: `.artifacts/r151/workloads-20260930/analysis.json`, per-profile browser
+artifacts, D1 analyses, and run records with fixed distribution hashes. Reproduce:
+
+```sh
+node tests/scripts/run-wallet-intended-isolated.mjs -- \
+  e2e/intended-behaviours/passkey.presign-pool.contract.test.ts \
+  --grep 'first, warm, and concurrent burst'
+```
+
+The local cohort launcher is
+`.runtime/r151-workloads/run.mjs`; D1 samples use the existing temporary local
+Gateway wrapper and `node tests/r150-hosted/analyze-d1.mjs <artifact>`. The wrapper
+was restored after the two Workers profiles. No hosted resources changed.
+The existing forced-pool-wait E2E, intended-test type check, and bloat check also
+pass with the updated observer.
+
+Two diagnostic setup failures are retained: the first selected an unlock helper
+requiring a mixed wallet; the second fetched old response bodies after navigation.
+The scenario now uses the shared mixed-wallet lifecycle, and the observer retains
+only completion metadata captured when responses arrive. Production behavior
+was unchanged by this checkpoint.
+
+### Remaining call and write inventory (September 30)
+
+The canonical reusable-session path has the following six call positions on
+each request. This accounts for all 12 foreground Gateway D1 calls and 13 SQL
+statements per successful signature. It excludes status/refill requests and
+storage internal to custody roles.
+
+| Position | Prepare | Finalize | Freshness/invariant |
+| --- | --- | --- | --- |
+| 1 | Joined Wallet Session, authority, auth method, quota | Same read | Authenticate the current credential and its exact owner/environment before policy evaluation. |
+| 2 | Resolve active signing material | Same read | Bind the requested activation, key handle, and policy scope to current material. |
+| 3 | Combined project/abuse policy read | Same read | Evaluate the current signing policy in that material's scope. |
+| 4 | Re-resolve material before admission | Same read | Reject material replaced or retired since initial authorization. |
+| 5 | Existing operation, live authorization source, pinned owner scope | Same read | Exact operation identity, replay/in-progress state, and live authority; preserve denial precedence. |
+| 6 | Claim INSERT plus committed readback in one batch | Completion UPDATE RETURNING | Atomically admit and consume quota, then persist the exact terminal response for replay. |
+
+Direct and third-generation linked signing take 20 calls: each material
+resolution expands from one canonical lookup to three calls, adding four calls
+per request. Those calls resolve canonical material, verified installation-chain
+evidence, and canonical signer candidates. The chain is verified once per
+resolution; its two authorization/admission freshness boundaries remain distinct.
+
+Position 4 moves the material check closer to admission; it does not make that
+check atomic with the claim. Positions 1–5 enforce real invariants, but their separate transport calls are
+not all proven necessary. The next server reduction should consolidate the
+initial authority/material/policy decision and move the second material check
+into an atomic admission predicate that handles canonical and linked material.
+The existing registration-only signer SQL predicate is insufficient for linked
+installations. Exact installation identity, verified package/projection
+provenance, chain retirement, and canonical-signer ambiguity must survive any
+replacement. Until that boundary is implemented and raced in E2Es, retain the
+fresh resolver. R151's three-round-trip proposal remains a hypothesis.
+
+The two write-bearing calls have this invariant inventory:
+
+| Write boundary | Application state changed | Current requirement |
+| --- | --- | --- |
+| Prepare claim batch | Insert `authorized_operations`; trigger decrements `authorization_wallet_session_quotas`; trigger inserts `authorized_operation_audit_events` | Unique operation admission, exactly one quota consumption, and durable audit identity in the same transaction. Readback returns the committed claim and owner scope. |
+| Finalize completion | Update the claimed operation with status/content type/body/result digest; trigger completes its audit event | Durable exact response replay and a matching terminal audit result. The lifecycle guard prevents repeating the transition. |
+
+The quota/authority trigger is defined by the current exact-session cutover
+migration (`0034_r103f_exact_wallet_session_cutover.sql`); audit and completion
+guards originate in `0002_signer_post_103_canonical_upgrade.sql`. The admission
+and completion implementation is in
+`packages/wallet-server/src/router/cloudflare/d1/authorization/`.
+These are three logical row mutations on claim and two on completion. D1's
+reported 11 + 3 row writes are a separate accounting metric and do not imply
+14 independent application writes. There is no demonstrated unrelated
+maintenance write on this measured Gateway signing path. Audit writes occur
+inside these existing transactions and add no separate D1 call.
+
+Exact replay returns the persisted response after identity/live-source checks;
+it skips a new claim, quota consumption, and completion transition. Contended
+claims and failed completion races can require an additional read to classify
+the winner, so success-path counts cannot stand in for race/rejection counts.
+Custody material consumption and refill persistence remain separate role-level
+invariants; the Gateway's two-call write count does not describe all system
+storage. No signing write is removed by this inventory.
+
 ### 1. Consolidate reads while preserving decision boundaries
 
 - [x] Read project and abuse policy together through the existing admission store.
@@ -634,14 +752,16 @@ Phase 3 still revisits the complete call budget after these incremental changes.
 - [ ] Extend caller coverage as needed and coalesce overlapping status requests
   with the same semantics. Reuse already returned display data where valid.
   Keep server-side authorization fresh at admission.
-- [ ] Measure warm pool, immediate first sign, and burst signing separately.
-  Keep presign refill off the foreground wait using the established machinery.
+- [x] Measure warm pool, immediate first sign, and burst signing separately in
+  a bounded local diagnostic with signature and shared-quota verification.
+- [ ] Repeat the workloads in controlled hosted cohorts and reduce demonstrated
+  foreground refill waits using the established machinery.
   Preserve the distinct presign and signing authorization boundaries.
-- [ ] Inventory writes by invariant: claim/idempotency, quota consumption,
-  completion/replay, audit, and unrelated maintenance. The measured signing path
+- [x] Inventory foreground Gateway signing writes by invariant: claim/idempotency,
+  quota consumption, completion/replay, audit, and unrelated maintenance. The measured signing path
   has two write-bearing calls, both enforcing current behavior. No demonstrated
   redundant signing write is approved for deletion.
-- [ ] Report round trips, write-bearing calls, and D1 rows written separately.
+- [x] Report round trips, write-bearing calls, and D1 rows written separately.
   Batching saves calls; it does not itself eliminate writes. Preserve atomic
   quota effects, one-use material, audit semantics, and durable response replay.
 
@@ -651,7 +771,7 @@ Revisit this after phases 1 and 2, before deciding on regional D1 provisioning.
 The remaining foreground calls per signature remain expensive relative to the
 small amount of SQL work. Reaching 12 calls does not close this follow-up.
 
-- [ ] Map every remaining foreground D1 call to the invariant it enforces and
+- [x] Map every remaining foreground D1 call to the invariant it enforces and
   the point at which its data must be fresh. Identify dependencies introduced
   by store boundaries that can be removed without weakening those invariants.
 - [ ] Evaluate a roughly three-round-trip design for a successful signature:
@@ -677,6 +797,10 @@ small amount of SQL work. Reaching 12 calls does not close this follow-up.
   not establish that the call budget or the 1–2 second maximum is satisfied.
 
 ### 4. Reassess placement using measured residual cost
+
+The controlled placement experiment and conditional regional ownership design
+are tracked in [R152: regional D1](refactor-152-regional-D1.md). R151 supplies
+the residual call budget and latency evidence required for that decision.
 
 - [ ] Repeat with fixed SDK/role builds and verified probe locations, recording
   per-call D1 region/primary metadata and actual Gateway/DO placement evidence.
