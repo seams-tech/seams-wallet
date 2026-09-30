@@ -1930,3 +1930,29 @@ versions/images, default Gateway placement, all three probes inactive, probe 403
 and ingress 503. Final scanning covered 58 evidence files with no benchmark-token
 matches. Observed cumulative cost is $0.9401 at September 30 16:24 UTC, subject
 to accounting lag, against the existing $25 cap.
+
+
+## October 1: five-call policy snapshot follow-up
+
+Commit `78a6a4c2` completes the policy/material join deferred at the preceding
+checkpoint. A credential read now carries policy candidates for stored signer
+scopes; material verification and the configured adapter select the exact scope.
+All 30 browser scenario/profile checks and 72 direct policy-store assertions pass.
+The three London hosted cohorts verify 27 signatures with 5 Gateway signing D1
+calls / 6 statements / 2 write-bearing calls / 14 reported row writes each.
+Canonical public-SDK median is 3,654.6 ms; linked median is 2,511.8 ms, compared
+with 4,243.8 and 3,061.5 ms in r14. SDK/roles are fixed; wallets and times differ.
+
+The detailed contract, local fixture repairs, before/after measurements, source
+identities, and remaining foreground-attribution work are recorded separately
+in [the policy-read evidence](refactor-151-policy-read.md). Artifact roots:
+`.artifacts/r151/policy-read-20261001/` and
+`.artifacts/r151/regional-policy-read-20261001-r15/`. Gateway signing call counts
+cover prepare/finalize; the complete SDK path also includes material authorization
+and other work. Regional-primary benefit and the complete maximum remain open.
+
+R15 restoration verifies original Workers/images, inactive probes in all three
+regions, closed access, and default placement. Observed cumulative cost is
+$0.9873 at September 30 17:03 UTC, subject to accounting lag. The final evidence
+scan found no benchmark-token matches. See the follow-up for placement counts
+and the SDK runtime/freshness verification.

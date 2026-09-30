@@ -4,10 +4,12 @@ Date: September 29, 2026
 
 Status: policy, claim/readback, operation/source, and persisted owner-scope
 consolidation are implemented and verified in bounded hosted diagnostics. The
-latest reusable-session ECDSA path makes seven D1 calls per signature for both
-canonical and linked signing. Canonical signing started at 18 calls; directly
+latest reusable-session ECDSA Gateway prepare/finalize path makes five D1 calls
+per signature for both canonical and linked signing. Canonical signing started at 18 calls; directly
 linked signing started at 20 and third-generation signing at 24. The joined
-linked-custody credential read removes the last two-call linked surcharge. Bounded first/warm/burst
+linked-custody credential read removes the two-call linked surcharge. The policy
+snapshot now removes two further calls while retaining the configured adapter
+and verified material-scope boundary. Bounded first/warm/burst
 diagnostics now have verified Tokyo, London, and US probe placement. Hosted linked
 chains now pass in all three regions. The historical unlock timeout remains
 unreproduced after five fresh successful attempts. The London
@@ -40,7 +42,7 @@ verify. This validates the visible-error/retry path without claiming to repair
 the historical hosted timeout. Evidence:
 `.artifacts/r151/passkey-unlock-network-failure-recovery.json`.
 
-The new Tokyo cohort retains seven calls/eight statements/two write-bearing
+The earlier Tokyo cohort retained seven calls/eight statements/two write-bearing
 calls per timed signature. SDK medians are 2.74 seconds first, 2.16 seconds warm,
 and 4.86 seconds per burst call. One background refill reports
 `wallet_session_unavailable`; none of the measured signatures has a foreground
@@ -152,7 +154,7 @@ revocation, last-quota contention, missing prepare, and exact lost-response repl
 
 The frozen London follow-up retains the `57388d7f` SDK and role deployments:
 three attempts, 27 verified signatures, no failed attempts or foreground refills.
-Every signature now uses **seven D1 calls / eight statements**, including both
+That cohort recorded **seven D1 calls / eight statements**, including both
 linked generations, with two write-bearing calls and 14 reported row writes.
 All signing SQL results report the APAC primary.
 
@@ -164,7 +166,7 @@ All signing SQL results report the APAC primary.
 | Median summed SQL execution | 15.10 ms | 13.21 ms |
 | Observed public SDK range | 3,044–3,993 ms | 2,786–5,225 ms |
 
-Canonical calls remain seven, with SDK median 4,319 → 4,244 ms and D1 median
+Canonical calls remained seven at that checkpoint, with SDK median 4,319 → 4,244 ms and D1 median
 1,832 → 1,814 ms. These are separate fresh-wallet cohorts at different times,
 with readiness waits before signing and automatic confirmation inside SDK timing.
 The linked SDK median improves about 13%; neither that diagnostic nor the small
@@ -178,19 +180,37 @@ original versions/images, inactive probes, default placement, and expired access
 see `restoration-final.json`. Observed cumulative cost is $0.9401 against $25,
 subject to accounting lag.
 
+### Policy snapshot follow-up
+
+Commit `78a6a4c2` completes the previously deferred policy/material boundary.
+All 30 local scenario/profile checks and 27 hosted signatures pass. Canonical
+and both linked generations now use **five Gateway prepare/finalize D1 calls /
+six statements**, retaining two write-bearing calls and 14 reported row writes.
+In the bounded London comparison, canonical SDK median fell 4.244 → 3.655 seconds;
+linked median fell 3.061 → 2.512 seconds. The SDK image and role builds were held
+fixed; fresh wallets and times differ. These are ready-material measurements
+with automatic confirmation, and the complete 1–2 second maximum remains unmet.
+See [the policy-read evidence](refactor-151-policy-read.md) for scope validation,
+latency stages, retained failures from local verification, and benchmark limits.
+Original Workers/images and inactive probes are restored; observed cumulative
+benchmark spend is $0.9873, subject to accounting lag.
+
 ### Remaining work
 
-The demonstrated R151 implementation gaps and bounded verification are complete.
-The following outcome and follow-up gates remain open:
+The credential/material/policy consolidation is implemented. Its verification
+is recorded in [the policy-read evidence](refactor-151-policy-read.md). The
+following outcome and follow-up gates remain open:
 
 1. Evaluate an isolated regional primary under R152: moving the Gateway alone
    worsened total latency. Prove the ownership boundary before provisioning or
    implementation; a regional-D1 benefit has not been measured.
 2. The 1–2 second complete signing target remains unmet. Use the recorded stages
    to select the next demonstrated bottleneck and expand controlled sampling.
-   Seven calls is the adopted budget rather than a proven minimum; the wider
-   policy/material join remains explicitly deferred below. The linked-source
-   join is implemented and verified.
+   Five Gateway prepare/finalize calls is the adopted budget; a theoretical
+   minimum remains unproven. Attribute the observed canonical SDK material
+   authorization cost and count the full foreground request sequence, including
+   work before prepare. Preserve fresh validation after confirmation. The
+   linked-source and policy/material joins are implemented and verified.
 3. Retain failure context if unlock stalls again; diagnose the observed failure
    before changing retry behavior. Five fresh successful attempts did not
    reproduce it. Visible network failure and explicit retry are E2E-verified.
@@ -312,8 +332,9 @@ Cloudflare documents the returned metadata in
 ## Implementation order
 
 Completed implementation and measurement checkpoints are preserved in
-[the evidence log](refactor-151-evidence.md), including the seven-call budget,
-policy-read deferral, refill fix, and latest regional cohort.
+[the evidence log](refactor-151-evidence.md), including the earlier seven-call budget,
+refill fix, and regional cohorts. The [policy-read follow-up](refactor-151-policy-read.md)
+records the five-call Gateway budget and current residual costs.
 
 ### 1. Consolidate reads while preserving decision boundaries
 
@@ -353,8 +374,8 @@ the policy change. Then target 12 or fewer from the larger consolidation, subjec
 to the correctness cases below. Each change needs its own before/after call
 counts and timings; these are engineering targets, not predicted latency wins.
 The 12-call intermediate milestone is surpassed: canonical reusable-session
-ECDSA and linked signing now each take seven calls. Phase 3 records the
-remaining dependencies and explicit policy/material deferral.
+ECDSA and linked Gateway prepare/finalize now each take five calls. Phase 3
+records the remaining dependencies and completed policy/material consolidation.
 
 ### 2. Reduce unnecessary work and classify writes
 
@@ -433,26 +454,30 @@ small amount of SQL work. Reaching 12 calls does not close this follow-up.
 - [x] Join linked custody evidence into the credential read, preserving scope,
   package-digest, chain-identity, and atomic record-set validation. Verify seven
   calls/eight statements for canonical and both linked generations in a hosted cohort.
+- [x] Include project/abuse policy candidates in the credential read, then select
+  the verified material scope through the configured adapter. Preserve database
+  and namespace ownership, denial precedence, and fresh reads on replay.
 - [x] Close the supported-reduction review after implementing those reductions and
   recording the resulting call budget, the reason for each remaining round
   trip, and any explicitly deferred blocker. A green latency median alone does
   not establish that the call budget or the 1–2 second maximum is satisfied.
 
-The adopted budget is **seven calls / eight statements** for both canonical and
-linked signing, with two write-bearing calls and 14 reported row writes. Prepare reads verified credential/material, reads live policy, and
-atomically claims/readbacks the operation. Finalize reads credential/material,
-live policy, and the existing operation/source, then durably records completion.
-Linked installation and canonical-source records accompany the credential read;
-package digests, chain identity, and scope are still verified before policy.
-Atomic admission/finalize checks still reject changed material record sets.
-These are the remaining dependencies, not a proven floor.
+The adopted Gateway prepare/finalize budget is **five calls / six statements**
+for both canonical and linked signing, with two write-bearing calls and 14
+reported row writes. Prepare reads credential/material/policy together, then
+atomically claims/readbacks the operation. Finalize reads a fresh combined
+snapshot, resolves the existing operation/source, and durably records completion.
+Linked package digests, chain identity, and material scope are verified before
+policy evaluation. Atomic admission/finalize checks reject changed material
+record sets. These dependencies remain candidates for further measured review.
 
-The policy/material join remains explicitly deferred: trusted
-policy scope is established by material verification, and the separately
-configured admission adapter owns policy evaluation. Folding those boundaries
-together requires a wider contract change and fresh proofs of scope and denial
-precedence. Retain both durable writes. The detailed rationale and per-call
-inventory are in [the evidence log](refactor-151-evidence.md).
+The previously deferred policy/material boundary is now implemented. The
+credential query projects decisions for persisted signer scopes; verified
+material selects the applicable decision. The configured adapter checks the
+snapshot's database and namespace, then the wallet, activation, and scope. A
+separately configured store reads its own policy. Both durable writes remain.
+See [the policy-read evidence](refactor-151-policy-read.md) for the contract,
+30 browser scenario/profile checks, and hosted call/latency results.
 
 The retained prepare-batch E2E artifacts contain four baseline and 22 changed-build
 scenario/profile checks; the policy cohort adds 27 denial checks and 18 verified
