@@ -13,7 +13,6 @@ import type {
 
 declare const ed25519: ExactAdministeredEd25519SignerV1;
 declare const ecdsa: ExactAdministeredEcdsaSignerV1;
-declare const permissionSet: CanonicalDelegatedWalletPermissionSetV1;
 
 const fullOwner = buildFullOwnerDelegatedWalletAuthorityV1();
 const signingOnly = buildSigningOnlyDelegatedWalletAuthorityV1();

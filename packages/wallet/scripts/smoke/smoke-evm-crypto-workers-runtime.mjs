@@ -26,7 +26,9 @@ async function fileExists(absPath) {
 }
 
 if (!(await fileExists(wasmPkgJsAbs))) {
-  fail(`Missing wasm-bindgen JS at ${wasmPkgJsAbs}. Run 'pnpm build:sdk-prod' first.`);
+  fail(
+    `Missing wasm-bindgen JS at ${wasmPkgJsAbs}. Run 'pnpm -C packages/wallet build:prod' first.`,
+  );
 }
 if (!(await fileExists(workerWasmAbs))) {
   fail(`Missing worker WASM at ${workerWasmAbs}.`);
