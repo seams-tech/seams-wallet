@@ -75,9 +75,10 @@ export class TransactionReceipt extends Component<TransactionReceiptProps> {
     confirmationDocumentStyles(row.ownerDocument).deleteDynamicRule(this.explorerRowId);
   };
   // The explorer link arrives with confirmation. Open its row so the card grows
-  // to fit it, and bring the link in as the row opens. In a wallet iframe the
-  // parent eases the box and drives the row from the room it makes, so the
-  // card never outgrows the frame; elsewhere the row animates itself.
+  // to fit it, then bring the link in once the card has its new size; the link
+  // stays hidden while the row opens. In a wallet iframe the parent eases the
+  // box and drives the row from the room it makes, so the card never outgrows
+  // the frame; elsewhere the row animates itself.
   private revealExplorerLink(): void {
     const row = this.explorerRow.current;
     const link = row?.firstElementChild;
@@ -87,6 +88,16 @@ export class TransactionReceipt extends Component<TransactionReceiptProps> {
     }
     const height = row.getBoundingClientRect().height;
     row.dataset.opening = '';
+    const showLink = (): void => {
+      this.releaseExplorerRow();
+      link.animate(
+        [
+          { opacity: 0, filter: 'blur(4px)', transform: 'translateY(6px)' },
+          { opacity: 1, filter: 'blur(0)', transform: 'translateY(0)' },
+        ],
+        { duration: EXPLORER_REVEAL_MS, easing: EXPLORER_REVEAL_EASING },
+      );
+    };
     const hosted = announceClampedSurfaceResize({
       reason: 'receipt-explorer',
       element: row,
@@ -94,27 +105,16 @@ export class TransactionReceipt extends Component<TransactionReceiptProps> {
       toCssPx: height,
       drivenClasses: ['seams-receipt-explorer-driven'],
       setHeightCssPx: this.setExplorerRowHeight,
-      onSettled: this.releaseExplorerRow,
+      onSettled: showLink,
     });
     if (!hosted) {
       const opening = row.animate([{ height: '0px' }, { height: `${height}px` }], {
         duration: EXPLORER_REVEAL_MS,
         easing: EXPLORER_REVEAL_EASING,
       });
-      opening.onfinish = opening.oncancel = this.releaseExplorerRow;
+      opening.onfinish = showLink;
+      opening.oncancel = this.releaseExplorerRow;
     }
-    link.animate(
-      [
-        { opacity: 0, filter: 'blur(4px)', transform: 'translateY(6px)' },
-        { opacity: 1, filter: 'blur(0)', transform: 'translateY(0)' },
-      ],
-      {
-        duration: EXPLORER_REVEAL_MS,
-        delay: 60,
-        easing: EXPLORER_REVEAL_EASING,
-        fill: 'backwards',
-      },
-    );
   }
   render() {
     const { receipt, data } = this.props;

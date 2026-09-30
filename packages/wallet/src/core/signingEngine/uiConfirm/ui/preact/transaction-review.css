@@ -380,13 +380,21 @@
   justify-content: center;
   gap: 0.25rem;
   width: fit-content;
-  margin: 0.75rem auto;
+  margin: 0.75rem auto 0;
   color: var(--seams-colors-textSecondary);
   font-size: 0.75rem;
   text-decoration: none;
 }
+/* Holds the link's margin, so the row's height is all the room it takes
+   whether or not it is clipped while it opens. */
+:where(.seams-wallet-ui) .seams-receipt-explorer-row {
+  display: flow-root;
+}
 :where(.seams-wallet-ui) .seams-receipt-explorer-row[data-opening] {
   overflow: hidden;
+}
+:where(.seams-wallet-ui) .seams-receipt-explorer-row[data-opening] .seams-receipt-explorer {
+  opacity: 0;
 }
 /* Held at the height the wallet-iframe parent has made room for. */
 :where(.seams-wallet-ui) .seams-receipt-explorer-row.seams-receipt-explorer-driven {
