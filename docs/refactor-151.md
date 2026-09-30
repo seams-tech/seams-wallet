@@ -195,6 +195,33 @@ latency stages, retained failures from local verification, and benchmark limits.
 Original Workers/images and inactive probes are restored; observed cumulative
 benchmark spend is $0.9873, subject to accounting lag.
 
+### Session-status follow-up
+
+The SDK follow-up `a2c936ed` reuses the authorization already read during lane
+selection. It removes one duplicate pre-confirmation status request and retains
+the post-confirmation refresh. The ECDSA-only owner workload now reads status
+twice per signature; linked signing retains its existing path. Commit `dad8f5e9`
+also joins canonical ECDSA material into each status read, preserving the
+configured signer scope and existing material validation. The final change
+passes 23 scenario/profile checks across Workers D1, wallet-DO, and VM, including
+both Workers NEAR-promotion races. See [the session-read evidence](refactor-151-session-read.md)
+for the request inventory, confirmation-boundary proof, and Email OTP
+verification limitation.
+
+Two controlled London follow-ups each verify 27/27 signatures. The SDK reuse
+reduces owner SDK median from 3,654.6 to 3,123.6 ms; the subsequent status/material
+join reduces it to 2,680.5 ms (26.7% lower across both changes). Linked median
+stays near 2,487 ms. The full ready-material owner inventory now has **seven D1
+calls / eight statements**, including two status calls; both linked generations
+have **five calls / six statements**. Each retains two write-bearing calls and
+14 reported row writes. All SQL metadata reports the APAC primary. The bounded
+owner range is 2,562.6–2,751.6 ms and linked range 2,209.2–2,686.5 ms, so the
+complete 1–2 second target remains unmet. The five-call prepare/finalize budget
+continues to describe only those two HTTP requests.
+Original Workers/images, inactive probes, default placement, and expired access
+are verified after both cohorts. Latest observed cumulative benchmark spend is
+$1.0530 against $25, subject to accounting lag.
+
 ### Remaining work
 
 The credential/material/policy consolidation is implemented. Its verification
@@ -207,9 +234,11 @@ following outcome and follow-up gates remain open:
 2. The 1–2 second complete signing target remains unmet. Use the recorded stages
    to select the next demonstrated bottleneck and expand controlled sampling.
    Five Gateway prepare/finalize calls is the adopted budget; a theoretical
-   minimum remains unproven. Attribute the observed canonical SDK material
-   authorization cost and count the full foreground request sequence, including
-   work before prepare. Preserve fresh validation after confirmation. The
+   minimum remains unproven. The SDK request inventory and duplicate
+   pre-confirmation status-read reduction are implemented; the fresh
+   post-confirmation status read remains. Its sequential canonical-material
+   lookup is now joined into the status statement. Continue measuring the
+   complete path and other costs outside prepare/finalize. The
    linked-source and policy/material joins are implemented and verified.
 3. Retain failure context if unlock stalls again; diagnose the observed failure
    before changing retry behavior. Five fresh successful attempts did not
@@ -335,6 +364,9 @@ Completed implementation and measurement checkpoints are preserved in
 [the evidence log](refactor-151-evidence.md), including the earlier seven-call budget,
 refill fix, and regional cohorts. The [policy-read follow-up](refactor-151-policy-read.md)
 records the five-call Gateway budget and current residual costs.
+The [session-read follow-up](refactor-151-session-read.md) records SDK
+authorization reuse, the status/material projection, and the wider Gateway
+request inventory.
 
 ### 1. Consolidate reads while preserving decision boundaries
 
@@ -392,6 +424,15 @@ records the remaining dependencies and completed policy/material consolidation.
 - [x] Trace display-request owners and remove the duplicated React preference
   reconciliation. Retain distinct auth/selection/initialization/application reads
   and fresh queued-material/server admission checks; revisit with hosted evidence.
+- [x] Inventory all observed Gateway requests during ready-material signing,
+  binding late responses to their initiating request and identifying refill
+  activity explicitly. Preserve the prepare/finalize-only evidence projection.
+- [x] Reuse the prepared lane's authorization before confirmation, retaining the
+  fresh queued-material read after confirmation. Verify the live custom-review
+  freshness boundary and mixed-wallet NEAR promotion.
+- [x] Join canonical ECDSA material into the session-status snapshot using the
+  configured signer scope and existing activation/conflict parser. Retain
+  Ed25519 and installed-authority resolution and atomic signing admission.
 - [x] Measure warm pool, immediate first sign, and burst signing separately in
   a bounded local diagnostic with signature and shared-quota verification.
 - [x] Diagnose and fix the repeated linked-presign worker timeout/reset. Retire

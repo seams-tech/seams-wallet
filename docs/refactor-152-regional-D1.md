@@ -17,9 +17,12 @@ Retain the architecture established by
 its owning role; this plan concerns Gateway authorization, policy, sessions,
 quotas, and durable operation records.
 
-[R151](refactor-151.md) reduced canonical reusable-session ECDSA signing from
-18 to seven Gateway D1 calls (eight SQL statements and two write-bearing calls).
-Linked-device signing also requires seven calls after the joined custody read.
+[R151](refactor-151.md) reduced canonical reusable-session ECDSA prepare/finalize
+from 18 to five Gateway D1 calls (six SQL statements and two write-bearing calls).
+Both linked generations also use five calls after the custody and policy joins.
+The [session-read follow-up](refactor-151-session-read.md) inventories the wider
+SDK path and consolidates its status reads. Use its final source/build identities
+and complete request budget as the next experiment baseline.
 The earlier hosted
 12-call cohort reported median summed D1 wall time
 of approximately 865–901 ms versus 14–15 ms of SQL execution, with all calls
@@ -53,8 +56,9 @@ signatures spent 6.15–13.44 seconds generating material in the foreground.
 R151 implements background preparation after linked activation and verifies
 consumption of that material. A subsequent joined linked-custody credential read
 (`09608843`) reduces both linked generations to seven calls/eight statements,
-matching canonical signing. Use that current budget in the regional experiment;
-the nine-call linked cohorts remain historical baselines.
+matching canonical signing at that checkpoint. The subsequent policy snapshot
+join reduces prepare/finalize to five calls; the seven- and nine-call cohorts
+remain historical baselines.
 
 The first two placement preflights dispatched no wallet operations because a
 probe image rollout could not become healthy (Tokyo, then the US). Subsequent

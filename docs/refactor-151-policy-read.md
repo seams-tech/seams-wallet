@@ -137,11 +137,14 @@ benchmark-token matches. No regional database was provisioned.
 
 The full 1–2 second signing target and regional-primary benefit remain unproven.
 The Gateway budget covers the two signing requests. The SDK timing also includes
-material authorization and other work outside those requests. Follow up by
-attributing that stage to individual requests/local work and recording the full
-foreground request inventory. The canonical flow re-resolves authority after
-confirmation (`signingFlow.ts` / `signingFlowRuntime.ts`); retain that freshness
-boundary when evaluating reductions.
+material authorization and other work outside those requests. The subsequent
+[session-read follow-up](refactor-151-session-read.md) adds a wider request
+inventory and removes a duplicate pre-confirmation status read. The canonical
+ready-material flow now has seven total foreground D1 calls after joining
+material into status: two status calls plus the five signing calls. Linked
+signing remains five calls in the measured workload. The canonical
+flow still re-resolves authority after confirmation (`signingFlow.ts` /
+`signingFlowRuntime.ts`); preserve that freshness boundary in further reductions.
 Five calls is a dependency inventory, not a proven theoretical minimum. Further
 reductions require preserving the verified operation/source and atomic quota
 boundaries. R152 owns regional-D1 ownership and placement evaluation. Production
