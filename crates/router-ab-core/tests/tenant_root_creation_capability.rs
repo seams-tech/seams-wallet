@@ -1,5 +1,3 @@
-use std::ops::Range;
-
 use ed25519_dalek::SigningKey;
 use router_ab_core::{
     RouterAbDerivationErrorCode, TenantRootControlPlaneAuthorityIdV1,
@@ -9,6 +7,10 @@ use router_ab_core::{
     TENANT_ROOT_CREATION_CAPABILITY_MAX_BYTES_V1, TENANT_ROOT_CREATION_CAPABILITY_OPERATION_V1,
     TENANT_ROOT_MAX_LIFETIME_MS_V1,
 };
+
+mod wire_fields;
+
+use wire_fields::{field_ranges, replace_field};
 
 const ISSUER_KEY_ID: &str = "control-plane-issuer-v1";
 const SIGNING_KEY_BYTES: [u8; 32] = [0x41; 32];
@@ -354,25 +356,4 @@ fn verified_freshness_is_separate_from_signature_and_binding_verification() {
     assert!(expired_verified.require_fresh(1_015).is_ok());
     assert!(expired_verified.require_fresh(1_030).is_ok());
     assert!(expired_verified.require_fresh(1_031).is_err());
-}
-
-fn field_ranges(bytes: &[u8]) -> Vec<Range<usize>> {
-    let mut ranges = Vec::new();
-    let mut offset = 0;
-    while offset < bytes.len() {
-        let length = u32::from_be_bytes(bytes[offset..offset + 4].try_into().unwrap()) as usize;
-        let start = offset + 4;
-        ranges.push(start..start + length);
-        offset = start + length;
-    }
-    assert_eq!(offset, bytes.len());
-    ranges
-}
-
-fn replace_field(bytes: &[u8], index: usize, replacement: &[u8]) -> Vec<u8> {
-    let range = field_ranges(bytes)[index].clone();
-    assert_eq!(range.len(), replacement.len());
-    let mut result = bytes.to_vec();
-    result[range].copy_from_slice(replacement);
-    result
 }

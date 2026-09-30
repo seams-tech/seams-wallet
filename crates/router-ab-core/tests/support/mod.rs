@@ -7,14 +7,15 @@ use rand_chacha_09::ChaCha20Rng as ChaCha20Rng09;
 use rand_core::SeedableRng;
 use rand_core_09::SeedableRng as SeedableRng09;
 use router_ab_core::{
-    PendingTenantRootRecoveryShareV1, TenantRootActivationReceiptTransitionV1,
-    TenantRootBackupPolicyV1, TenantRootCanaryCurveFamilyV1, TenantRootCanaryReceiptsV1,
-    TenantRootCeremonyContextV1, TenantRootCeremonyEpochsV1, TenantRootCeremonyNonceV1,
-    TenantRootCeremonySessionIdV1, TenantRootControlPlaneAuthorityIdV1, TenantRootCustodyLineageId,
-    TenantRootEmptyCreationV1, TenantRootEpochCommitmentsV1, TenantRootIdentityV1,
-    TenantRootLifecycleReceiptDigestV1, TenantRootManagedBackupBindingV1,
-    TenantRootManagedBackupSealRequestV1, TenantRootProviderCanaryReceiptBindingV1,
-    TenantRootRecoveryDescriptorV1, TenantRootRecoveryRecipientKeypairV1,
+    seal_tenant_root_recovery_package_v1, PendingTenantRootRecoveryShareV1,
+    TenantRootActivationReceiptTransitionV1, TenantRootBackupPolicyV1,
+    TenantRootCanaryCurveFamilyV1, TenantRootCanaryReceiptsV1, TenantRootCeremonyContextV1,
+    TenantRootCeremonyEpochsV1, TenantRootCeremonyNonceV1, TenantRootCeremonySessionIdV1,
+    TenantRootControlPlaneAuthorityIdV1, TenantRootCustodyLineageId, TenantRootEmptyCreationV1,
+    TenantRootEpochCommitmentsV1, TenantRootIdentityV1, TenantRootLifecycleReceiptDigestV1,
+    TenantRootManagedBackupBindingV1, TenantRootManagedBackupSealRequestV1,
+    TenantRootProviderCanaryReceiptBindingV1, TenantRootRecoveryDescriptorV1,
+    TenantRootRecoveryPackageV1, TenantRootRecoveryRecipientKeypairV1,
     TenantRootRecoveryReshareContextV1, TenantRootRecoveryReshareHpkeKeypairV1,
     TenantRootRecoverySetId, TenantRootRoleBackupReceiptsV1, TenantRootRoleInstallationReceiptsV1,
     TenantRootShareInstallationEvidenceV1, TenantRootShareInstallationTranscriptV1,
@@ -294,14 +295,14 @@ fn epoch_commitments(
     .unwrap()
 }
 
-fn share_wire(share: &SigningRootShare) -> router_ab_core::MpcPrfSigningRootShareWireV1 {
+pub fn share_wire(share: &SigningRootShare) -> router_ab_core::MpcPrfSigningRootShareWireV1 {
     router_ab_core::MpcPrfSigningRootShareWireV1::new(
         SigningRootShareWire::from_share(share).to_bytes().to_vec(),
     )
     .unwrap()
 }
 
-fn signed_installation_wire(
+pub fn signed_installation_wire(
     context: TenantRootCeremonyContextV1,
     role: TwoPartyDeriverRole,
     share: &SigningRootShare,
@@ -456,6 +457,25 @@ pub struct VerifiedRecoveryArtifactFixture {
     pub recipient_b: TenantRootRecoveryRecipientKeypairV1,
     pub signing_a: SigningKey,
     pub signing_b: SigningKey,
+}
+
+impl VerifiedRecoveryArtifactFixture {
+    /// Seals each role's recovery package with fixed HPKE randomness.
+    pub fn seal_packages(&self) -> (TenantRootRecoveryPackageV1, TenantRootRecoveryPackageV1) {
+        let seal = |verified, seed, signing_key: &SigningKey| {
+            seal_tenant_root_recovery_package_v1(
+                &self.descriptor,
+                verified,
+                &mut rng09(seed),
+                &signing_key.to_bytes(),
+            )
+            .unwrap()
+        };
+        (
+            seal(&self.verified_a, 0x71, &self.signing_a),
+            seal(&self.verified_b, 0x81, &self.signing_b),
+        )
+    }
 }
 
 pub fn identity() -> TenantRootIdentityV1 {
@@ -762,6 +782,6 @@ fn active_root() -> (
     (active, active_a, active_b)
 }
 
-fn lifecycle_digest(seed: u8) -> TenantRootLifecycleReceiptDigestV1 {
+pub fn lifecycle_digest(seed: u8) -> TenantRootLifecycleReceiptDigestV1 {
     TenantRootLifecycleReceiptDigestV1::from_bytes([seed; 32]).unwrap()
 }

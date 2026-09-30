@@ -1,106 +1,22 @@
-use base64ct::{Base64UrlUnpadded, Encoding};
-use rand_chacha::ChaCha20Rng;
-use rand_core::SeedableRng;
 use router_ab_core::{
     combine_mpc_prf_batch_outputs_with_threshold_backend_v1,
     combine_mpc_prf_proof_bundles_with_threshold_backend_v1,
     evaluate_mpc_prf_signer_output_batch_with_threshold_backend_v1,
     evaluate_mpc_prf_signer_partial_with_threshold_backend_v1,
-    verify_mpc_prf_partial_with_threshold_backend_v1, AccountScope, DerivationContext,
-    MpcPrfDleqProofWireV1, MpcPrfOutputRequestV1, MpcPrfPartialProofBundleV1,
-    MpcPrfPartialVerificationInputV1, MpcPrfSignerPartialInputV1, MpcPrfSigningRootShareWireV1,
+    verify_mpc_prf_partial_with_threshold_backend_v1, MpcPrfDleqProofWireV1,
+    MpcPrfPartialProofBundleV1, MpcPrfPartialVerificationInputV1, MpcPrfSigningRootShareWireV1,
     MpcPrfThresholdBatchCombineInputV1, MpcPrfThresholdCombineInputV1,
     MpcPrfThresholdSignerBatchInputV1, MpcPrfThresholdSignerBatchOutputV1,
-    MpcPrfThresholdSignerInputV1, OpenedShareKind, RequestKind, Role, RootShareEpoch,
-    RouterAbDerivationErrorCode, SignerSetBinding, TranscriptBinding,
+    MpcPrfThresholdSignerInputV1, OpenedShareKind, Role, RootShareEpoch,
+    RouterAbDerivationErrorCode, TranscriptBinding,
 };
 use threshold_prf::reference::evaluate_direct_reference;
-use threshold_prf::{
-    generate_signing_root, split_signing_root, SigningRootShareWire, ThresholdPolicy,
-};
+use threshold_prf::{generate_signing_root, split_signing_root, SigningRootShareWire};
 use threshold_prf::{PrfContext, PrfOutputEncoding, PrfPurpose, SuiteId};
 
-fn context() -> DerivationContext {
-    context_with_epoch("epoch-1")
-}
+pub mod mpc_prf_inputs;
 
-fn context_with_epoch(epoch: &str) -> DerivationContext {
-    let application_binding_digest_b64u = Base64UrlUnpadded::encode_string(&[0x42; 32]);
-    DerivationContext::new(
-        RequestKind::Registration,
-        AccountScope::new(
-            "near-testnet",
-            "alice.testnet",
-            application_binding_digest_b64u,
-        )
-        .expect("account scope"),
-        RootShareEpoch::new(epoch).expect("epoch"),
-        "ceremony-1",
-    )
-    .expect("context")
-}
-
-fn transcript(context: DerivationContext) -> TranscriptBinding {
-    TranscriptBinding::new(
-        context,
-        "role:router:local:sha256-router",
-        SignerSetBinding::v1_all2(
-            "signer-set-v1",
-            "role:signer-a:local:sha256-a",
-            "key-epoch-a-1",
-            "role:signer-b:local:sha256-b",
-            "key-epoch-b-1",
-        )
-        .expect("signer set"),
-        "role:server:local:sha256-r",
-        "x25519:1111111111111111111111111111111111111111111111111111111111111111",
-        "role:client:local:sha256-c",
-        "x25519:client-ephemeral-public-key",
-    )
-    .expect("transcript")
-}
-
-fn output_request(opened_share_kind: OpenedShareKind) -> MpcPrfOutputRequestV1 {
-    match opened_share_kind {
-        OpenedShareKind::XClientBase => MpcPrfOutputRequestV1::new(
-            OpenedShareKind::XClientBase,
-            Role::Client,
-            "role:client:local:sha256-c",
-        ),
-        OpenedShareKind::XServerBase => MpcPrfOutputRequestV1::new(
-            OpenedShareKind::XServerBase,
-            Role::Server,
-            "role:server:local:sha256-r",
-        ),
-    }
-    .expect("output request")
-}
-
-fn signer_input(
-    role: Role,
-    identity: &str,
-    output_requests: Vec<MpcPrfOutputRequestV1>,
-) -> MpcPrfSignerPartialInputV1 {
-    let context = context();
-    let transcript = transcript(context.clone());
-    MpcPrfSignerPartialInputV1::new(
-        context,
-        transcript,
-        role,
-        identity,
-        RootShareEpoch::new("epoch-1").expect("epoch"),
-        output_requests,
-    )
-    .expect("signer input")
-}
-
-fn seeded_rng(seed: u8) -> ChaCha20Rng {
-    ChaCha20Rng::from_seed([seed; 32])
-}
-
-fn policy() -> ThresholdPolicy {
-    ThresholdPolicy::from_u16s(2, 2).expect("2-of-2 policy")
-}
+use mpc_prf_inputs::{output_request, policy, seeded_rng, signer_input};
 
 fn share_wire(bytes: [u8; 34]) -> MpcPrfSigningRootShareWireV1 {
     MpcPrfSigningRootShareWireV1::new(bytes.to_vec()).expect("share wire")

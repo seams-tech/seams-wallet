@@ -1,46 +1,27 @@
 use ed25519_dalek::SigningKey;
-use rand_chacha_09::ChaCha20Rng;
-use rand_core_09::SeedableRng;
 use router_ab_core::{
-    seal_tenant_root_recovery_package_v1, sign_tenant_root_recovery_manifest_v1,
-    verify_and_open_tenant_root_recovery_role_package_v1, ExpectedTenantRootRestoreImportV1,
-    TenantRootCustodyLineageId, TenantRootRecoveryTrustedVerifyingKeysV1,
-    TenantRootRestoreDestinationFingerprintV1, TenantRootRestoreImportEnvelopeV1,
-    TenantRootRestoreImportKeypairV1, TenantRootRestoreImportPublicKeyV1,
-    TenantRootRestoreSessionIdV1, VerifiedTenantRootRecoveryRoleShareV1,
+    sign_tenant_root_recovery_manifest_v1, verify_and_open_tenant_root_recovery_role_package_v1,
+    ExpectedTenantRootRestoreImportV1, TenantRootCustodyLineageId,
+    TenantRootRecoveryTrustedVerifyingKeysV1, TenantRootRestoreDestinationFingerprintV1,
+    TenantRootRestoreImportEnvelopeV1, TenantRootRestoreImportKeypairV1,
+    TenantRootRestoreImportPublicKeyV1, TenantRootRestoreSessionIdV1,
+    VerifiedTenantRootRecoveryRoleShareV1,
 };
 use threshold_prf::{SigningRootShareCommitment, TwoPartyDeriverRole};
 
 mod support;
 
-use support::verified_recovery_artifact_fixture;
+use support::{rng09, verified_recovery_artifact_fixture};
 
 fn signing_key(seed: u8) -> SigningKey {
     SigningKey::from_bytes(&[seed; 32])
 }
 
-fn hpke_rng(seed: u8) -> ChaCha20Rng {
-    ChaCha20Rng::from_seed([seed; 32])
-}
-
 fn verified_source_share() -> VerifiedTenantRootRecoveryRoleShareV1 {
     let fixture = verified_recovery_artifact_fixture();
+    let (package_a, package_b) = fixture.seal_packages();
     let descriptor = fixture.descriptor;
     let control = signing_key(0x91);
-    let package_a = seal_tenant_root_recovery_package_v1(
-        &descriptor,
-        &fixture.verified_a,
-        &mut hpke_rng(0x71),
-        &fixture.signing_a.to_bytes(),
-    )
-    .unwrap();
-    let package_b = seal_tenant_root_recovery_package_v1(
-        &descriptor,
-        &fixture.verified_b,
-        &mut hpke_rng(0x81),
-        &fixture.signing_b.to_bytes(),
-    )
-    .unwrap();
     let manifest = sign_tenant_root_recovery_manifest_v1(
         descriptor,
         &package_a,
@@ -88,7 +69,7 @@ fn verified_source_share_reseals_and_opens_at_the_destination_role() {
     let envelope = TenantRootRestoreImportEnvelopeV1::seal(
         &source,
         &expected_import(&source, &import_keypair),
-        &mut hpke_rng(0xe2),
+        &mut rng09(0xe2),
     )
     .unwrap();
     let bytes = envelope.to_bytes().unwrap();
@@ -118,7 +99,7 @@ fn import_envelope_rejects_wrong_recipient_mutation_and_noncanonical_keys() {
     let envelope = TenantRootRestoreImportEnvelopeV1::seal(
         &source,
         &expected_import(&source, &import_keypair),
-        &mut hpke_rng(0xe2),
+        &mut rng09(0xe2),
     )
     .unwrap();
     let wrong_keypair = TenantRootRestoreImportKeypairV1::derive_from_ikm([0xe3; 32]).unwrap();
@@ -171,7 +152,7 @@ fn import_decode_rejects_noncanonical_encapsulated_keys() {
     let envelope = TenantRootRestoreImportEnvelopeV1::seal(
         &share,
         &expected_import(&share, &keypair),
-        &mut hpke_rng(0xe2),
+        &mut rng09(0xe2),
     )
     .unwrap();
     let mut bytes = envelope.to_bytes().unwrap();

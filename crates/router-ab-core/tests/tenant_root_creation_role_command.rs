@@ -1,5 +1,3 @@
-use std::ops::Range;
-
 use ed25519_dalek::SigningKey;
 use router_ab_core::{
     RouterAbDerivationErrorCode, TenantRootCeremonyContextV1, TenantRootCeremonyEpochsV1,
@@ -13,6 +11,10 @@ use router_ab_core::{
     TENANT_ROOT_ROLE_CREATION_COMMAND_PACKAGE_MAX_BYTES_V1,
 };
 use threshold_prf::TwoPartyDeriverRole;
+
+mod wire_fields;
+
+use wire_fields::{field_ranges, replace_field};
 
 const ISSUER_KEY_ID: &str = "control-plane-issuer-v1";
 const SIGNING_KEY_BYTES: [u8; 32] = [0x41; 32];
@@ -400,27 +402,6 @@ fn signing_requires_command_window_inside_creation_ceremony_window() {
         &SIGNING_KEY_BYTES,
     )
     .is_err());
-}
-
-fn field_ranges(bytes: &[u8]) -> Vec<Range<usize>> {
-    let mut ranges = Vec::new();
-    let mut offset = 0;
-    while offset < bytes.len() {
-        let length = u32::from_be_bytes(bytes[offset..offset + 4].try_into().unwrap()) as usize;
-        let start = offset + 4;
-        ranges.push(start..start + length);
-        offset = start + length;
-    }
-    assert_eq!(offset, bytes.len());
-    ranges
-}
-
-fn replace_field(bytes: &[u8], index: usize, replacement: &[u8]) -> Vec<u8> {
-    let range = field_ranges(bytes)[index].clone();
-    assert_eq!(range.len(), replacement.len());
-    let mut result = bytes.to_vec();
-    result[range].copy_from_slice(replacement);
-    result
 }
 
 // --- Self-contained Router-attested role command package -------------------

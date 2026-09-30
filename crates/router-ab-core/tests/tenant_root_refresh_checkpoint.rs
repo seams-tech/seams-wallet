@@ -9,7 +9,7 @@ use router_ab_core::{
     TenantRootCeremonyContextV1, TenantRootCeremonyEpochsV1, TenantRootCeremonyNonceV1,
     TenantRootCeremonySessionIdV1, TenantRootControlPlaneAuthorityIdV1, TenantRootCustodyLineageId,
     TenantRootEmptyCreationV1, TenantRootEpochCommitmentsV1, TenantRootIdentityDigestV1,
-    TenantRootIdentityV1, TenantRootLifecycleReceiptDigestV1, TenantRootManagedRestoreRoleV1,
+    TenantRootLifecycleReceiptDigestV1, TenantRootManagedRestoreRoleV1,
     TenantRootPendingCleanupReceiptV1, TenantRootRefreshCommitmentCheckpointActiveBindingV1,
     TenantRootRefreshCommitmentCheckpointEvaluationV1,
     TenantRootRefreshCommitmentCheckpointOutcomeV1, TenantRootRefreshCommitmentCheckpointStateV1,
@@ -28,19 +28,14 @@ use threshold_prf::{
 
 mod support;
 
-const ISSUED_AT_MS: u64 = 1_000_000;
-const EXPIRES_AT_MS: u64 = 1_030_000;
+use support::{fixed_share, identity, lifecycle_digest, EXPIRES_AT_MS, ISSUED_AT_MS};
+
 const ACTIVE_EPOCH: u64 = 1;
 const NEXT_EPOCH: u64 = 2;
 const EXPECTED_REVISION: u64 = 3;
 const ACTIVATION_TIME_MS: u64 = 1_000_020;
 const ISSUER_KEY_ID: &str = "control-plane-issuer-v1";
 const ISSUER_SIGNING_KEY_BYTES: [u8; 32] = [0x41; 32];
-
-fn identity() -> TenantRootIdentityV1 {
-    TenantRootIdentityV1::new("org-1", "project-2", "production", "root-main", "v3")
-        .expect("identity")
-}
 
 fn identity_digest() -> TenantRootIdentityDigestV1 {
     identity().digest().expect("identity digest")
@@ -52,10 +47,6 @@ fn lineage(seed: u8) -> TenantRootCustodyLineageId {
 
 fn authority(seed: u8) -> TenantRootControlPlaneAuthorityIdV1 {
     TenantRootControlPlaneAuthorityIdV1::from_bytes([seed; 32])
-}
-
-fn lifecycle_digest(seed: u8) -> TenantRootLifecycleReceiptDigestV1 {
-    TenantRootLifecycleReceiptDigestV1::from_bytes([seed; 32]).expect("lifecycle digest")
 }
 
 fn context(session_seed: u8) -> TenantRootCeremonyContextV1 {
@@ -92,14 +83,9 @@ fn creation_context() -> TenantRootCeremonyContextV1 {
     .expect("creation context")
 }
 
-fn signing_root_share(role: TwoPartyDeriverRole, scalar: u64) -> SigningRootShare {
-    SigningRootShare::from_canonical_bytes(role.share_id(), Scalar::from(scalar).to_bytes())
-        .expect("signing root share")
-}
-
 fn active_share_commitment(role: TwoPartyDeriverRole, scalar: u64) -> MpcPrfShareCommitmentWireV1 {
     MpcPrfShareCommitmentWireV1::new(
-        SigningRootShareCommitment::from_share(&signing_root_share(role, scalar))
+        SigningRootShareCommitment::from_share(&fixed_share(role, scalar))
             .to_bytes()
             .to_vec(),
     )
@@ -131,8 +117,8 @@ struct ActiveStateFixture {
 }
 
 fn active_state_fixture() -> ActiveStateFixture {
-    let share_a = signing_root_share(TwoPartyDeriverRole::DeriverA, 12);
-    let share_b = signing_root_share(TwoPartyDeriverRole::DeriverB, 19);
+    let share_a = fixed_share(TwoPartyDeriverRole::DeriverA, 12);
+    let share_b = fixed_share(TwoPartyDeriverRole::DeriverB, 19);
     let fixture = support::initial_activation_evidence_fixture(
         creation_context(),
         &share_a,
@@ -457,8 +443,8 @@ struct RetriedActiveStateFixture {
 }
 
 fn active_state_after_failed_retry() -> RetriedActiveStateFixture {
-    let current_a = signing_root_share(TwoPartyDeriverRole::DeriverA, 12);
-    let current_b = signing_root_share(TwoPartyDeriverRole::DeriverB, 19);
+    let current_a = fixed_share(TwoPartyDeriverRole::DeriverA, 12);
+    let current_b = fixed_share(TwoPartyDeriverRole::DeriverB, 19);
     let initial = active_state_fixture();
     let current_commitments = initial.bundle.commitments().clone();
     let failed = initial
@@ -776,8 +762,8 @@ fn refresh_installation_transition_matches_active_and_accepted_coefficients() {
         ),
     )
     .expect("accepted refresh commitment pair");
-    let current_a = signing_root_share(TwoPartyDeriverRole::DeriverA, 12);
-    let current_b = signing_root_share(TwoPartyDeriverRole::DeriverB, 19);
+    let current_a = fixed_share(TwoPartyDeriverRole::DeriverA, 12);
+    let current_b = fixed_share(TwoPartyDeriverRole::DeriverB, 19);
     let next_a = refreshed_share(
         &current_a,
         TwoPartyDeriverRole::DeriverA,
@@ -818,8 +804,8 @@ fn refresh_installation_transition_matches_active_and_accepted_coefficients() {
     for (substituted_a, substituted_b, proof_seed) in
         [(31_u64, 57_u64, 0x73_u8), (29_u64, 53_u64, 0x75_u8)]
     {
-        let substituted_a_share = signing_root_share(TwoPartyDeriverRole::DeriverA, substituted_a);
-        let substituted_b_share = signing_root_share(TwoPartyDeriverRole::DeriverB, substituted_b);
+        let substituted_a_share = fixed_share(TwoPartyDeriverRole::DeriverA, substituted_a);
+        let substituted_b_share = fixed_share(TwoPartyDeriverRole::DeriverB, substituted_b);
         let (substituted_a_installation, substituted_b_installation) = installation_wires(
             &context,
             &active_commitments,
@@ -846,8 +832,8 @@ fn refresh_installation_transition_matches_active_and_accepted_coefficients() {
         active_share_commitment(TwoPartyDeriverRole::DeriverB, 21),
     )
     .expect("coefficient substitution active commitments");
-    let coefficient_share_a = signing_root_share(TwoPartyDeriverRole::DeriverA, 7);
-    let coefficient_share_b = signing_root_share(TwoPartyDeriverRole::DeriverB, 11);
+    let coefficient_share_a = fixed_share(TwoPartyDeriverRole::DeriverA, 7);
+    let coefficient_share_b = fixed_share(TwoPartyDeriverRole::DeriverB, 11);
     let (coefficient_installation_a, coefficient_installation_b) = installation_wires(
         &context,
         &coefficient_current,

@@ -1,124 +1,24 @@
-use rand_chacha::ChaCha20Rng;
-use rand_core::SeedableRng;
 use router_ab_core::{
-    plan_mpc_prf_purpose_binding_v1, AccountScope, DerivationContext, MpcPrfOutputPurposeV1,
-    MpcPrfOutputRequestV1, MpcPrfSignerPartialInputV1, OpenedShareKind, RequestKind, Role,
-    RootShareEpoch, SignerSetBinding, StableTenantDerivationContextV2, TranscriptBinding,
+    plan_mpc_prf_purpose_binding_v1, DerivationContext, MpcPrfOutputPurposeV1,
+    MpcPrfOutputRequestV1, MpcPrfSignerPartialInputV1, OpenedShareKind, Role,
+    StableTenantDerivationContextV2, TranscriptBinding,
 };
 use threshold_prf::reference::evaluate_direct_reference;
 use threshold_prf::{
     combine_verified_partials, evaluate_partial_with_dleq_proof, generate_signing_root,
-    split_signing_root, verify_partial_dleq_proof, ThresholdPolicy, ValidatedThresholdSet,
+    split_signing_root, verify_partial_dleq_proof, ValidatedThresholdSet,
 };
 use threshold_prf::{PrfContext, PrfOutputEncoding, PrfPurpose, SuiteId};
 
-fn context() -> DerivationContext {
-    let application_binding_digest_b64u = stable_context().application_binding_digest_b64u();
-    DerivationContext::new(
-        RequestKind::Registration,
-        AccountScope::new(
-            "near-testnet",
-            "alice.testnet",
-            application_binding_digest_b64u,
-        )
-        .expect("account scope"),
-        RootShareEpoch::new("epoch-1").expect("epoch"),
-        "ceremony-1",
-    )
-    .expect("context")
-}
+pub mod mpc_prf_inputs;
 
-fn transcript(context: DerivationContext) -> TranscriptBinding {
-    TranscriptBinding::new(
-        context,
-        "role:router:local:sha256-router",
-        SignerSetBinding::v1_all2(
-            "signer-set-v1",
-            "role:signer-a:local:sha256-a",
-            "key-epoch-a-1",
-            "role:signer-b:local:sha256-b",
-            "key-epoch-b-1",
-        )
-        .expect("signer set"),
-        "role:server:local:sha256-r",
-        "x25519:1111111111111111111111111111111111111111111111111111111111111111",
-        "role:client:local:sha256-c",
-        "x25519:client-ephemeral-public-key",
-    )
-    .expect("transcript")
-}
-
-fn output_request(opened_share_kind: OpenedShareKind) -> MpcPrfOutputRequestV1 {
-    match opened_share_kind {
-        OpenedShareKind::XClientBase => MpcPrfOutputRequestV1::new(
-            OpenedShareKind::XClientBase,
-            Role::Client,
-            "role:client:local:sha256-c",
-        ),
-        OpenedShareKind::XServerBase => MpcPrfOutputRequestV1::new(
-            OpenedShareKind::XServerBase,
-            Role::Server,
-            "role:server:local:sha256-r",
-        ),
-    }
-    .expect("output request")
-}
-
-fn signer_input(output_requests: Vec<MpcPrfOutputRequestV1>) -> MpcPrfSignerPartialInputV1 {
-    let context = context();
-    let transcript = transcript(context.clone());
-    MpcPrfSignerPartialInputV1::new(
-        context,
-        transcript,
-        Role::SignerA,
-        "role:signer-a:local:sha256-a",
-        RootShareEpoch::new("epoch-1").expect("epoch"),
-        output_requests,
-    )
-    .expect("signer input")
-}
+use mpc_prf_inputs::{
+    context_for_ceremony_and_epoch, output_request, policy, seeded_rng, signer_input,
+    transcript_for_client_recipient,
+};
 
 fn context_for_ceremony(ceremony_id: &str) -> DerivationContext {
     context_for_ceremony_and_epoch(ceremony_id, "epoch-1")
-}
-
-fn context_for_ceremony_and_epoch(ceremony_id: &str, epoch: &str) -> DerivationContext {
-    let application_binding_digest_b64u = stable_context().application_binding_digest_b64u();
-    DerivationContext::new(
-        RequestKind::Registration,
-        AccountScope::new(
-            "near-testnet",
-            "alice.testnet",
-            application_binding_digest_b64u,
-        )
-        .expect("account scope"),
-        RootShareEpoch::new(epoch).expect("epoch"),
-        ceremony_id,
-    )
-    .expect("context")
-}
-
-fn transcript_for_client_recipient(
-    context: DerivationContext,
-    client_ephemeral_public_key: &str,
-) -> TranscriptBinding {
-    TranscriptBinding::new(
-        context,
-        "role:router:local:sha256-router",
-        SignerSetBinding::v1_all2(
-            "signer-set-v1",
-            "role:signer-a:local:sha256-a",
-            "key-epoch-a-1",
-            "role:signer-b:local:sha256-b",
-            "key-epoch-b-1",
-        )
-        .expect("signer set"),
-        "role:server:local:sha256-r",
-        "x25519:1111111111111111111111111111111111111111111111111111111111111111",
-        "role:client:local:sha256-c",
-        client_ephemeral_public_key,
-    )
-    .expect("transcript")
 }
 
 fn signer_input_for_transcript(
@@ -162,18 +62,14 @@ fn threshold_context(plan: &router_ab_core::MpcPrfPurposeBindingPlanV1) -> PrfCo
     )
 }
 
-fn seeded_rng(seed: u8) -> ChaCha20Rng {
-    ChaCha20Rng::from_seed([seed; 32])
-}
-
-fn policy() -> ThresholdPolicy {
-    ThresholdPolicy::from_u16s(2, 2).expect("2-of-2 policy")
-}
-
 #[test]
 fn purpose_binding_plan_drives_threshold_prf_proof_and_combine_path() {
     let request = output_request(OpenedShareKind::XClientBase);
-    let signer_input = signer_input(vec![request.clone()]);
+    let signer_input = signer_input(
+        Role::SignerA,
+        "role:signer-a:local:sha256-a",
+        vec![request.clone()],
+    );
     let plan = plan_mpc_prf_purpose_binding_v1(&signer_input, &request).expect("purpose plan");
     let threshold_context = threshold_context(&plan);
 
@@ -210,7 +106,11 @@ fn purpose_binding_plan_drives_threshold_prf_proof_and_combine_path() {
 fn client_and_server_purpose_plans_produce_distinct_outputs() {
     let client_request = output_request(OpenedShareKind::XClientBase);
     let server_request = output_request(OpenedShareKind::XServerBase);
-    let signer_input = signer_input(vec![client_request.clone(), server_request.clone()]);
+    let signer_input = signer_input(
+        Role::SignerA,
+        "role:signer-a:local:sha256-a",
+        vec![client_request.clone(), server_request.clone()],
+    );
     let client_plan =
         plan_mpc_prf_purpose_binding_v1(&signer_input, &client_request).expect("client plan");
     let server_plan =

@@ -1,5 +1,3 @@
-use std::ops::Range;
-
 use curve25519_dalek::scalar::Scalar;
 use ed25519_dalek::SigningKey;
 use router_ab_core::{
@@ -14,6 +12,10 @@ use router_ab_core::{
     TENANT_ROOT_ROLE_REFRESH_COMMAND_OPERATION_V1,
 };
 use threshold_prf::{SigningRootShare, SigningRootShareCommitment, TwoPartyDeriverRole};
+
+mod wire_fields;
+
+use wire_fields::{field_ranges, replace_field};
 
 const ISSUER_KEY_ID: &str = "control-plane-issuer-v1";
 const SIGNING_KEY_BYTES: [u8; 32] = [0x41; 32];
@@ -679,25 +681,4 @@ fn signing_requires_authoritative_refresh_context_pair_and_command_window() {
         &SIGNING_KEY_BYTES,
     )
     .is_err());
-}
-
-fn field_ranges(bytes: &[u8]) -> Vec<Range<usize>> {
-    let mut ranges = Vec::new();
-    let mut offset = 0;
-    while offset < bytes.len() {
-        let length = u32::from_be_bytes(bytes[offset..offset + 4].try_into().unwrap()) as usize;
-        let start = offset + 4;
-        ranges.push(start..start + length);
-        offset = start + length;
-    }
-    assert_eq!(offset, bytes.len());
-    ranges
-}
-
-fn replace_field(bytes: &[u8], index: usize, replacement: &[u8]) -> Vec<u8> {
-    let range = field_ranges(bytes)[index].clone();
-    assert_eq!(range.len(), replacement.len());
-    let mut result = bytes.to_vec();
-    result[range].copy_from_slice(replacement);
-    result
 }

@@ -12,10 +12,10 @@ use ed25519_dalek::SigningKey;
 use rand_chacha_09::ChaCha20Rng;
 use rand_core_09::SeedableRng;
 use router_ab_core::{
-    seal_tenant_root_recovery_package_v1, seal_tenant_root_recovery_recipient_proof_v1,
-    sign_tenant_root_recovery_manifest_v1, TenantRootRecoveryRecipientKeypairV1,
-    TenantRootRecoveryRecipientProofBindingV1, TenantRootRecoverySignerCertificateV1,
-    TenantRootRecoverySignerRoleV1, TenantRootRecoveryTrustBundleV1, TenantRootRecoveryTrustRootV1,
+    seal_tenant_root_recovery_recipient_proof_v1, sign_tenant_root_recovery_manifest_v1,
+    TenantRootRecoveryRecipientKeypairV1, TenantRootRecoveryRecipientProofBindingV1,
+    TenantRootRecoverySignerCertificateV1, TenantRootRecoverySignerRoleV1,
+    TenantRootRecoveryTrustBundleV1, TenantRootRecoveryTrustRootV1,
 };
 use threshold_prf::TwoPartyDeriverRole;
 
@@ -85,21 +85,8 @@ fn expect_fixture(name: &str, bytes: &[u8]) {
 #[test]
 fn the_committed_cli_artifact_set_matches_the_current_protocol() {
     let fixture = verified_recovery_artifact_fixture();
+    let (package_a, package_b) = fixture.seal_packages();
     let descriptor = fixture.descriptor;
-    let package_a = seal_tenant_root_recovery_package_v1(
-        &descriptor,
-        &fixture.verified_a,
-        &mut ChaCha20Rng::from_seed([0x71; 32]),
-        &fixture.signing_a.to_bytes(),
-    )
-    .expect("package A");
-    let package_b = seal_tenant_root_recovery_package_v1(
-        &descriptor,
-        &fixture.verified_b,
-        &mut ChaCha20Rng::from_seed([0x81; 32]),
-        &fixture.signing_b.to_bytes(),
-    )
-    .expect("package B");
 
     let control_plane = signing_key(FIXTURE_CONTROL_PLANE_SEED);
     let manifest = sign_tenant_root_recovery_manifest_v1(

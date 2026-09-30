@@ -196,11 +196,35 @@ fn router_to_deriver_a_payload(
     )
 }
 
-fn router_to_deriver_a_payload_with_reconstructed_transcript(
-    lifecycle: LifecycleScopeV1,
-    assignment: RoleEnvelopeAssignmentV1,
+/// Deriver A's identity from `signer_set()` with its sealed envelope.
+fn deriver_a_assignment() -> RoleEnvelopeAssignmentV1 {
+    let deriver_a =
+        SignerIdentityV1::new(Role::SignerA, "signer-a", "epoch-a").expect("signer a identity");
+    let envelope_a = RoleEncryptedEnvelopeV1::new(
+        Role::SignerA,
+        digest(0x01),
+        digest(0x02),
+        EncryptedPayloadV1::new(vec![0xa0]).expect("payload"),
+    )
+    .expect("envelope a");
+    RoleEnvelopeAssignmentV1::new(deriver_a, envelope_a).expect("assignment a")
+}
+
+/// The router's payload to Deriver A for a registration prepare.
+fn deriver_a_payload() -> RouterToSignerPayloadV1 {
+    router_to_deriver_a_payload(
+        scope(ExpensiveWorkKindV1::RegistrationPrepare),
+        deriver_a_assignment(),
+    )
+    .expect("router-to-a payload")
+}
+
+/// `deriver_a_payload` with the transcript digest the router derives for `root_share_epoch`.
+fn deriver_a_payload_with_reconstructed_transcript(
     root_share_epoch: RootShareEpoch,
-) -> RouterAbProtocolResult<RouterToSignerPayloadV1> {
+) -> RouterToSignerPayloadV1 {
+    let lifecycle = scope(ExpensiveWorkKindV1::RegistrationPrepare);
+    let assignment = deriver_a_assignment();
     let envelope_digest_set = envelope_digest_set_for_assignment(&assignment);
     let signer_set = signer_set();
     let transcript_digest = router_transcript_digest_v1(
@@ -208,7 +232,8 @@ fn router_to_deriver_a_payload_with_reconstructed_transcript(
         &signer_set,
         &transcript_metadata(),
         root_share_epoch,
-    )?;
+    )
+    .expect("router transcript digest");
     RouterToSignerPayloadV1::signer_a(
         lifecycle,
         signer_set,
@@ -217,6 +242,7 @@ fn router_to_deriver_a_payload_with_reconstructed_transcript(
         transcript_digest,
         assignment,
     )
+    .expect("router-to-a payload")
 }
 
 fn client_output_request() -> MpcPrfOutputRequestV1 {
@@ -398,6 +424,21 @@ fn router_scoped_ab_proof_batches() -> (
     )
     .expect("signer b proof batch");
     (payload_a, proof_batch_a, proof_batch_b)
+}
+
+/// The client's view of one Deriver's proof batch for `router_payload`'s lifecycle.
+fn client_proof_bundle_payload(
+    router_payload: &RouterToSignerPayloadV1,
+    proof_batch: EcdsaThresholdPrfProofBatchPayloadV1,
+) -> RecipientProofBundlePayloadV1 {
+    recipient_proof_bundle_payload_from_ab_proof_batch_v1(
+        &router_payload.lifecycle().lifecycle_id,
+        proof_batch,
+        OpenedShareKind::XClientBase,
+        Role::Client,
+        "client-1",
+    )
+    .expect("client proof-bundle payload")
 }
 
 fn signed_proof_batch_peer_payload(
@@ -895,20 +936,7 @@ fn role_envelope_assignment_requires_matching_role() {
 
 #[test]
 fn router_to_signer_payload_enforces_branch_role() {
-    let lifecycle = scope(ExpensiveWorkKindV1::RegistrationPrepare);
-    let deriver_a =
-        SignerIdentityV1::new(Role::SignerA, "signer-a", "epoch-a").expect("signer a identity");
-    let envelope_a = RoleEncryptedEnvelopeV1::new(
-        Role::SignerA,
-        digest(0x01),
-        digest(0x02),
-        EncryptedPayloadV1::new(vec![0xa0]).expect("payload"),
-    )
-    .expect("envelope a");
-    let assignment_a = RoleEnvelopeAssignmentV1::new(deriver_a, envelope_a).expect("assignment a");
-
-    let payload =
-        router_to_deriver_a_payload(lifecycle, assignment_a).expect("router-to-a payload");
+    let payload = deriver_a_payload();
     assert!(matches!(payload, RouterToSignerPayloadV1::SignerA { .. }));
 
     let lifecycle = scope(ExpensiveWorkKindV1::RegistrationPrepare);
@@ -960,18 +988,8 @@ fn router_to_signer_payload_requires_lifecycle_signer_set_binding() {
         "server-a",
     )
     .expect("lifecycle scope");
-    let deriver_a =
-        SignerIdentityV1::new(Role::SignerA, "signer-a", "epoch-a").expect("signer a identity");
-    let envelope_a = RoleEncryptedEnvelopeV1::new(
-        Role::SignerA,
-        digest(0x01),
-        digest(0x02),
-        EncryptedPayloadV1::new(vec![0xa0]).expect("payload"),
-    )
-    .expect("envelope a");
-    let assignment_a = RoleEnvelopeAssignmentV1::new(deriver_a, envelope_a).expect("assignment a");
 
-    let err = router_to_deriver_a_payload(lifecycle, assignment_a)
+    let err = router_to_deriver_a_payload(lifecycle, deriver_a_assignment())
         .expect_err("lifecycle signer-set mismatch must fail");
 
     assert_eq!(err.code(), RouterAbProtocolErrorCode::InvalidLifecycleState);
@@ -989,18 +1007,8 @@ fn router_to_signer_payload_requires_lifecycle_server_binding() {
         "other-server",
     )
     .expect("lifecycle scope");
-    let deriver_a =
-        SignerIdentityV1::new(Role::SignerA, "signer-a", "epoch-a").expect("signer a identity");
-    let envelope_a = RoleEncryptedEnvelopeV1::new(
-        Role::SignerA,
-        digest(0x01),
-        digest(0x02),
-        EncryptedPayloadV1::new(vec![0xa0]).expect("payload"),
-    )
-    .expect("envelope a");
-    let assignment_a = RoleEnvelopeAssignmentV1::new(deriver_a, envelope_a).expect("assignment a");
 
-    let err = router_to_deriver_a_payload(lifecycle, assignment_a)
+    let err = router_to_deriver_a_payload(lifecycle, deriver_a_assignment())
         .expect_err("lifecycle server mismatch must fail");
 
     assert_eq!(err.code(), RouterAbProtocolErrorCode::InvalidLifecycleState);
@@ -1008,19 +1016,7 @@ fn router_to_signer_payload_requires_lifecycle_server_binding() {
 
 #[test]
 fn router_to_signer_payload_decodes_canonical_bytes() {
-    let lifecycle = scope(ExpensiveWorkKindV1::RegistrationPrepare);
-    let deriver_a =
-        SignerIdentityV1::new(Role::SignerA, "signer-a", "epoch-a").expect("signer a identity");
-    let envelope_a = RoleEncryptedEnvelopeV1::new(
-        Role::SignerA,
-        digest(0x01),
-        digest(0x02),
-        EncryptedPayloadV1::new(vec![0xa0]).expect("payload"),
-    )
-    .expect("envelope a");
-    let assignment_a = RoleEnvelopeAssignmentV1::new(deriver_a, envelope_a).expect("assignment a");
-    let payload =
-        router_to_deriver_a_payload(lifecycle, assignment_a).expect("router-to-a payload");
+    let payload = deriver_a_payload();
 
     let decoded = decode_router_to_signer_payload_v1(&payload.canonical_bytes())
         .expect("canonical payload decodes");
@@ -1030,19 +1026,7 @@ fn router_to_signer_payload_decodes_canonical_bytes() {
 
 #[test]
 fn router_to_signer_payload_decoder_rejects_trailing_bytes() {
-    let lifecycle = scope(ExpensiveWorkKindV1::RegistrationPrepare);
-    let deriver_a =
-        SignerIdentityV1::new(Role::SignerA, "signer-a", "epoch-a").expect("signer a identity");
-    let envelope_a = RoleEncryptedEnvelopeV1::new(
-        Role::SignerA,
-        digest(0x01),
-        digest(0x02),
-        EncryptedPayloadV1::new(vec![0xa0]).expect("payload"),
-    )
-    .expect("envelope a");
-    let assignment_a = RoleEnvelopeAssignmentV1::new(deriver_a, envelope_a).expect("assignment a");
-    let payload =
-        router_to_deriver_a_payload(lifecycle, assignment_a).expect("router-to-a payload");
+    let payload = deriver_a_payload();
     let mut bytes = payload.canonical_bytes();
     bytes.push(0);
 
@@ -1053,19 +1037,7 @@ fn router_to_signer_payload_decoder_rejects_trailing_bytes() {
 
 #[test]
 fn router_to_signer_payload_decoder_rejects_branch_role_mismatch() {
-    let lifecycle = scope(ExpensiveWorkKindV1::RegistrationPrepare);
-    let deriver_a =
-        SignerIdentityV1::new(Role::SignerA, "signer-a", "epoch-a").expect("signer a identity");
-    let envelope_a = RoleEncryptedEnvelopeV1::new(
-        Role::SignerA,
-        digest(0x01),
-        digest(0x02),
-        EncryptedPayloadV1::new(vec![0xa0]).expect("payload"),
-    )
-    .expect("envelope a");
-    let assignment_a = RoleEnvelopeAssignmentV1::new(deriver_a, envelope_a).expect("assignment a");
-    let payload =
-        router_to_deriver_a_payload(lifecycle, assignment_a).expect("router-to-a payload");
+    let payload = deriver_a_payload();
     let mut bytes = payload.canonical_bytes();
     let branch = b"signer_a";
     let index = bytes
@@ -1082,25 +1054,9 @@ fn router_to_signer_payload_decoder_rejects_branch_role_mismatch() {
 
 #[test]
 fn signer_input_plaintext_binding_accepts_matching_payload() {
-    let lifecycle = scope(ExpensiveWorkKindV1::RegistrationPrepare);
-    let deriver_a =
-        SignerIdentityV1::new(Role::SignerA, "signer-a", "epoch-a").expect("signer a identity");
-    let envelope_a = RoleEncryptedEnvelopeV1::new(
-        Role::SignerA,
-        digest(0x01),
-        digest(0x02),
-        EncryptedPayloadV1::new(vec![0xa0]).expect("payload"),
-    )
-    .expect("envelope a");
-    let assignment_a = RoleEnvelopeAssignmentV1::new(deriver_a, envelope_a).expect("assignment a");
     let router_request_digest = digest(0x44);
     let root_share_epoch = root_epoch();
-    let payload = router_to_deriver_a_payload_with_reconstructed_transcript(
-        lifecycle,
-        assignment_a,
-        root_share_epoch.clone(),
-    )
-    .expect("router-to-a payload");
+    let payload = deriver_a_payload_with_reconstructed_transcript(root_share_epoch.clone());
     let plaintext =
         signer_input_plaintext(&payload, router_request_digest, root_share_epoch.clone());
 
@@ -1115,25 +1071,9 @@ fn signer_input_plaintext_binding_accepts_matching_payload() {
 
 #[test]
 fn mpc_prf_signer_input_builder_accepts_matching_plaintext() {
-    let lifecycle = scope(ExpensiveWorkKindV1::RegistrationPrepare);
-    let deriver_a =
-        SignerIdentityV1::new(Role::SignerA, "signer-a", "epoch-a").expect("signer a identity");
-    let envelope_a = RoleEncryptedEnvelopeV1::new(
-        Role::SignerA,
-        digest(0x01),
-        digest(0x02),
-        EncryptedPayloadV1::new(vec![0xa0]).expect("payload"),
-    )
-    .expect("envelope a");
-    let assignment_a = RoleEnvelopeAssignmentV1::new(deriver_a, envelope_a).expect("assignment a");
     let router_request_digest = digest(0x44);
     let root_share_epoch = root_epoch();
-    let payload = router_to_deriver_a_payload_with_reconstructed_transcript(
-        lifecycle,
-        assignment_a,
-        root_share_epoch.clone(),
-    )
-    .expect("router-to-a payload");
+    let payload = deriver_a_payload_with_reconstructed_transcript(root_share_epoch.clone());
     let plaintext =
         signer_input_plaintext(&payload, router_request_digest, root_share_epoch.clone());
     let [share_a, _] = mpc_share_wires();
@@ -1158,23 +1098,7 @@ fn mpc_prf_signer_input_builder_accepts_matching_plaintext() {
 
 #[test]
 fn mpc_prf_signer_input_builder_rejects_transcript_mismatch() {
-    let lifecycle = scope(ExpensiveWorkKindV1::RegistrationPrepare);
-    let deriver_a =
-        SignerIdentityV1::new(Role::SignerA, "signer-a", "epoch-a").expect("signer a identity");
-    let envelope_a = RoleEncryptedEnvelopeV1::new(
-        Role::SignerA,
-        digest(0x01),
-        digest(0x02),
-        EncryptedPayloadV1::new(vec![0xa0]).expect("payload"),
-    )
-    .expect("envelope a");
-    let assignment_a = RoleEnvelopeAssignmentV1::new(deriver_a, envelope_a).expect("assignment a");
-    let payload = router_to_deriver_a_payload_with_reconstructed_transcript(
-        lifecycle,
-        assignment_a,
-        root_epoch(),
-    )
-    .expect("router-to-a payload");
+    let payload = deriver_a_payload_with_reconstructed_transcript(root_epoch());
     let mut plaintext = signer_input_plaintext(&payload, digest(0x44), root_epoch());
     plaintext.transcript_digest = digest(0x99);
 
@@ -1186,19 +1110,7 @@ fn mpc_prf_signer_input_builder_rejects_transcript_mismatch() {
 
 #[test]
 fn signer_input_plaintext_binding_rejects_recipient_identity_mismatch() {
-    let lifecycle = scope(ExpensiveWorkKindV1::RegistrationPrepare);
-    let deriver_a =
-        SignerIdentityV1::new(Role::SignerA, "signer-a", "epoch-a").expect("signer a identity");
-    let envelope_a = RoleEncryptedEnvelopeV1::new(
-        Role::SignerA,
-        digest(0x01),
-        digest(0x02),
-        EncryptedPayloadV1::new(vec![0xa0]).expect("payload"),
-    )
-    .expect("envelope a");
-    let assignment_a = RoleEnvelopeAssignmentV1::new(deriver_a, envelope_a).expect("assignment a");
-    let payload =
-        router_to_deriver_a_payload(lifecycle, assignment_a).expect("router-to-a payload");
+    let payload = deriver_a_payload();
     let router_request_digest = digest(0x44);
     let root_share_epoch = root_epoch();
     let mut plaintext =
@@ -1218,19 +1130,7 @@ fn signer_input_plaintext_binding_rejects_recipient_identity_mismatch() {
 
 #[test]
 fn signer_input_plaintext_binding_rejects_request_digest_mismatch() {
-    let lifecycle = scope(ExpensiveWorkKindV1::RegistrationPrepare);
-    let deriver_a =
-        SignerIdentityV1::new(Role::SignerA, "signer-a", "epoch-a").expect("signer a identity");
-    let envelope_a = RoleEncryptedEnvelopeV1::new(
-        Role::SignerA,
-        digest(0x01),
-        digest(0x02),
-        EncryptedPayloadV1::new(vec![0xa0]).expect("payload"),
-    )
-    .expect("envelope a");
-    let assignment_a = RoleEnvelopeAssignmentV1::new(deriver_a, envelope_a).expect("assignment a");
-    let payload =
-        router_to_deriver_a_payload(lifecycle, assignment_a).expect("router-to-a payload");
+    let payload = deriver_a_payload();
     let router_request_digest = digest(0x44);
     let root_share_epoch = root_epoch();
     let plaintext =
@@ -1249,19 +1149,7 @@ fn signer_input_plaintext_binding_rejects_request_digest_mismatch() {
 
 #[test]
 fn signer_input_plaintext_binding_rejects_root_epoch_mismatch() {
-    let lifecycle = scope(ExpensiveWorkKindV1::RegistrationPrepare);
-    let deriver_a =
-        SignerIdentityV1::new(Role::SignerA, "signer-a", "epoch-a").expect("signer a identity");
-    let envelope_a = RoleEncryptedEnvelopeV1::new(
-        Role::SignerA,
-        digest(0x01),
-        digest(0x02),
-        EncryptedPayloadV1::new(vec![0xa0]).expect("payload"),
-    )
-    .expect("envelope a");
-    let assignment_a = RoleEnvelopeAssignmentV1::new(deriver_a, envelope_a).expect("assignment a");
-    let payload =
-        router_to_deriver_a_payload(lifecycle, assignment_a).expect("router-to-a payload");
+    let payload = deriver_a_payload();
     let router_request_digest = digest(0x44);
     let plaintext = signer_input_plaintext(&payload, router_request_digest, root_epoch());
     let other_epoch = RootShareEpoch::new("epoch-2").expect("other epoch");
@@ -1456,16 +1344,8 @@ fn ecdsa_threshold_prf_proof_batch_recipient_view_keeps_only_requested_output() 
 #[test]
 fn recipient_proof_bundle_payload_round_trips_and_enforces_scope() {
     let (router_payload, proof_batch_a, _) = router_scoped_ab_proof_batches();
-    let lifecycle_id = router_payload.lifecycle().lifecycle_id.clone();
 
-    let payload = recipient_proof_bundle_payload_from_ab_proof_batch_v1(
-        &lifecycle_id,
-        proof_batch_a,
-        OpenedShareKind::XClientBase,
-        Role::Client,
-        "client-1",
-    )
-    .expect("recipient proof-bundle payload");
+    let payload = client_proof_bundle_payload(&router_payload, proof_batch_a);
     let encoded = encode_recipient_proof_bundle_payload_v1(&payload);
     let decoded =
         decode_recipient_proof_bundle_payload_v1(&encoded).expect("decoded recipient payload");
@@ -1525,14 +1405,7 @@ fn recipient_proof_bundle_payload_builder_rejects_missing_binding() {
 #[test]
 fn recipient_proof_bundle_ciphertext_round_trips_and_binds_payload() {
     let (router_payload, proof_batch_a, _) = router_scoped_ab_proof_batches();
-    let payload = recipient_proof_bundle_payload_from_ab_proof_batch_v1(
-        &router_payload.lifecycle().lifecycle_id,
-        proof_batch_a,
-        OpenedShareKind::XClientBase,
-        Role::Client,
-        "client-1",
-    )
-    .expect("recipient proof-bundle payload");
+    let payload = client_proof_bundle_payload(&router_payload, proof_batch_a);
     let mut encryptor = TestRecipientProofBundleEncryptor;
     let envelope = encrypt_recipient_proof_bundle_payload_v1(
         &payload,
@@ -1567,14 +1440,7 @@ fn recipient_proof_bundle_ciphertext_round_trips_and_binds_payload() {
 #[test]
 fn recipient_proof_bundle_aad_binds_recipient_output_transcript_lifecycle_root_epoch_and_suite() {
     let (router_payload, proof_batch_a, _) = router_scoped_ab_proof_batches();
-    let payload = recipient_proof_bundle_payload_from_ab_proof_batch_v1(
-        &router_payload.lifecycle().lifecycle_id,
-        proof_batch_a,
-        OpenedShareKind::XClientBase,
-        Role::Client,
-        "client-1",
-    )
-    .expect("recipient proof-bundle payload");
+    let payload = client_proof_bundle_payload(&router_payload, proof_batch_a);
     let mut encryptor = TestRecipientProofBundleEncryptor;
     let envelope = encrypt_recipient_proof_bundle_payload_v1(
         &payload,
@@ -1735,14 +1601,7 @@ fn recipient_proof_bundle_wire_message_carries_opaque_ciphertext() {
 #[test]
 fn recipient_proof_bundle_ciphertext_rejects_payload_mismatch() {
     let (router_payload, proof_batch_a, _) = router_scoped_ab_proof_batches();
-    let payload = recipient_proof_bundle_payload_from_ab_proof_batch_v1(
-        &router_payload.lifecycle().lifecycle_id,
-        proof_batch_a,
-        OpenedShareKind::XClientBase,
-        Role::Client,
-        "client-1",
-    )
-    .expect("recipient proof-bundle payload");
+    let payload = client_proof_bundle_payload(&router_payload, proof_batch_a);
     let wrong_digest_envelope = RecipientProofBundleCiphertextV1::new(
         RecipientOutputEncryptionAlgorithmV1::LocalDeterministicSha256V1,
         payload.signer.clone(),
@@ -1806,22 +1665,8 @@ fn mpc_prf_recipient_scoped_combine_opens_only_requested_output() {
 #[test]
 fn mpc_prf_recipient_scoped_combine_accepts_decrypted_proof_bundle_payloads() {
     let (payload, proof_batch_a, proof_batch_b) = router_scoped_ab_proof_batches();
-    let deriver_a_payload = recipient_proof_bundle_payload_from_ab_proof_batch_v1(
-        &payload.lifecycle().lifecycle_id,
-        proof_batch_a,
-        OpenedShareKind::XClientBase,
-        Role::Client,
-        "client-1",
-    )
-    .expect("signer a client proof-bundle payload");
-    let deriver_b_payload = recipient_proof_bundle_payload_from_ab_proof_batch_v1(
-        &payload.lifecycle().lifecycle_id,
-        proof_batch_b,
-        OpenedShareKind::XClientBase,
-        Role::Client,
-        "client-1",
-    )
-    .expect("signer b client proof-bundle payload");
+    let deriver_a_payload = client_proof_bundle_payload(&payload, proof_batch_a);
+    let deriver_b_payload = client_proof_bundle_payload(&payload, proof_batch_b);
 
     let client_output = combine_mpc_prf_recipient_output_from_proof_bundle_payloads_v1(
         &payload,
@@ -1844,14 +1689,7 @@ fn mpc_prf_recipient_scoped_combine_accepts_decrypted_proof_bundle_payloads() {
 #[test]
 fn mpc_prf_recipient_scoped_combine_rejects_mixed_proof_bundle_recipients() {
     let (payload, proof_batch_a, proof_batch_b) = router_scoped_ab_proof_batches();
-    let deriver_a_payload = recipient_proof_bundle_payload_from_ab_proof_batch_v1(
-        &payload.lifecycle().lifecycle_id,
-        proof_batch_a,
-        OpenedShareKind::XClientBase,
-        Role::Client,
-        "client-1",
-    )
-    .expect("signer a client proof-bundle payload");
+    let deriver_a_payload = client_proof_bundle_payload(&payload, proof_batch_a);
     let deriver_b_payload = recipient_proof_bundle_payload_from_ab_proof_batch_v1(
         &payload.lifecycle().lifecycle_id,
         proof_batch_b,
