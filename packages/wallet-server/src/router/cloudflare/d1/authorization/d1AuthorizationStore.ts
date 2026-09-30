@@ -1,3 +1,6 @@
+import type { EcdsaWalletSessionAdmissionRead } from '../../../../authorization/service';
+import type { RouterAbMpcMaterialActivationRefWire } from '@shared/utils/routerAbNormalSigningIdentity';
+import { EcdsaCanonicalMaterialRead } from '../../../../core/d1EcdsaSignerRead';
 import type { EcdsaMaterialReadSnapshot } from '../../../../core/ecdsaMaterialReadSnapshot';
 import type {
   EcdsaWalletSessionAdmissionInput,
@@ -1654,6 +1657,7 @@ export class CloudflareD1AuthorizationStore
     readonly nowMs: number;
   }): Promise<LiveWalletSessionAuthorizationProjectionV2 | null> {
     const row = await this.readJoinedWalletSessionAuthorizationV2Row({
+      projection: { kind: 'session' },
       lookupColumn: 'authorization_id',
       tenantId: input.expected.tenantId,
       lookupValue: input.expected.authorizationId,
@@ -1766,28 +1770,37 @@ export class CloudflareD1AuthorizationStore
     readonly nowMs: number;
   }): Promise<WalletSessionAdmissionSnapshotV2 | null> {
     const row = await this.readJoinedWalletSessionAuthorizationV2Row({
+      projection: { kind: 'session' },
       lookupColumn: 'operation_credential_hash',
       tenantId: input.tenantId,
       lookupValue: input.tokenHash,
     });
     if (!row) return null;
-    const session = parseLiveWalletSessionAuthorizationV2Row(row, {
-      operationCredentialHash: input.tokenHash,
+    return parseWalletSessionAdmissionRow(row, input);
+  }
+
+  async readEcdsaWalletSessionAdmissionSnapshotByOperationCredential(input: {
+    readonly tenantId: WalletSessionAuthorizationV2['tenantId'];
+    readonly tokenHash: import('@shared/utils/canonicalPrimitives').DigestB64u;
+    readonly nowMs: number;
+    readonly materialActivation: RouterAbMpcMaterialActivationRefWire;
+  }): Promise<EcdsaWalletSessionAdmissionRead | null> {
+    const row = await this.readJoinedWalletSessionAuthorizationV2Row({
+      projection: { kind: 'ecdsa_material', materialActivation: input.materialActivation },
+      lookupColumn: 'operation_credential_hash',
       tenantId: input.tenantId,
-      nowMs: input.nowMs,
+      lookupValue: input.tokenHash,
     });
-    const { authority, authMethod } = await joinedAuthorityAndMethod(row);
-    if (row.quota_lifecycle_kind === 'exhausted') {
-      return {
-        kind: 'exhausted',
-        session,
-        quota: parseExactWalletSessionQuotaProjectionRow(row, session),
-        authority,
-        authMethod,
-      };
-    }
-    const quota = parseWalletSessionAuthorizationV2QuotaRow(row, session);
-    return { kind: 'active', authorization: { session, quota }, authority, authMethod };
+    if (!row) return null;
+    const snapshot = await parseWalletSessionAdmissionRow(row, input);
+    const session = snapshot.kind === 'active' ? snapshot.authorization.session : snapshot.session;
+    return {
+      snapshot,
+      canonicalMaterial: EcdsaCanonicalMaterialRead.fromRows(
+        this.walletSignerScope, session.walletId, input.materialActivation,
+        parseD1JsonColumn(row.ecdsa_material_records_json),
+      ),
+    };
   }
 
   async readWalletSessionExactOperationContextByCredential(input: {
@@ -1796,6 +1809,7 @@ export class CloudflareD1AuthorizationStore
     readonly nowMs: number;
   }): Promise<WalletSessionExactOperationContext | null> {
     const row = await this.readJoinedWalletSessionAuthorizationV2Row({
+      projection: { kind: 'session' },
       lookupColumn: 'operation_credential_hash',
       tenantId: input.tenantId,
       lookupValue: input.tokenHash,
@@ -1872,6 +1886,7 @@ export class CloudflareD1AuthorizationStore
     });
     const nowMs = requirePositiveInteger(input.nowMs, 'exact Wallet Session status time');
     const row = await this.readJoinedWalletSessionAuthorizationV2Row({
+      projection: { kind: 'session' },
       lookupColumn: 'operation_credential_hash',
       tenantId: input.tenantId,
       lookupValue: input.tokenHash,
@@ -2068,14 +2083,34 @@ export class CloudflareD1AuthorizationStore
   }
 
   private async readJoinedWalletSessionAuthorizationV2Row(input: {
+    readonly projection:
+      | { readonly kind: 'session'; readonly materialActivation?: never }
+      | { readonly kind: 'ecdsa_material'; readonly materialActivation: RouterAbMpcMaterialActivationRefWire };
     readonly lookupColumn: 'mint_id' | 'authorization_id' | 'operation_credential_hash';
     readonly tenantId: unknown;
     readonly lookupValue: unknown;
   }): Promise<D1Row | null> {
+    const materialProjection = input.projection.kind === 'session' ? '' : `
+           (SELECT json_group_array(json_object('record_json', signer.record_json))
+              FROM wallet_signers AS signer
+             WHERE signer.namespace = session.namespace
+               AND signer.org_id = session.org_id
+               AND signer.project_id = session.project_id
+               AND signer.env_id = session.env_id
+               AND signer.wallet_id = session.wallet_id
+               AND signer.signer_family = 'ecdsa'
+               AND CASE WHEN json_valid(signer.record_json) THEN
+                 json_extract(signer.record_json,
+                   '$.walletKey.publicCapability.material_activation.activation_id') = ?
+                 ELSE 1 END
+           ) AS ecdsa_material_records_json,`;
+    const materialBindings = input.projection.kind === 'session'
+      ? [] : [input.projection.materialActivation.activation_id];
     return await this.database
       .prepare(
-        `SELECT
+        `SELECT ${materialProjection}
            authority.*,
+           session.namespace AS session_namespace,
            session.record_json AS session_record_json,
            session.capability_subjects_json AS session_capability_subjects_json,
            session.tenant_id AS session_tenant_id,
@@ -2141,6 +2176,7 @@ export class CloudflareD1AuthorizationStore
         LIMIT 1`,
       )
       .bind(
+        ...materialBindings,
         this.walletSignerScope.orgId,
         this.walletSignerScope.projectId,
         this.walletSignerScope.envId,
@@ -2166,6 +2202,7 @@ export class CloudflareD1AuthorizationStore
     const operationCredentialHash =
       'operationCredentialHash' in input ? input.operationCredentialHash : null;
     const row = await this.readJoinedWalletSessionAuthorizationV2Row({
+      projection: { kind: 'session' },
       lookupColumn,
       tenantId: 'operationCredentialHash' in input ? input.tenantId : lookup?.tenantId,
       lookupValue:
@@ -3218,4 +3255,31 @@ function parseExactWalletSessionQuotaProjectionRow(
 
 function assertNeverDirectV2CommitMode(value: never): never {
   throw new Error(`Unsupported direct V2 Wallet Session commit mode: ${String(value)}`);
+}
+
+async function parseWalletSessionAdmissionRow(
+  row: D1Row,
+  input: {
+    readonly tenantId: WalletSessionAuthorizationV2['tenantId'];
+    readonly tokenHash: import('@shared/utils/canonicalPrimitives').DigestB64u;
+    readonly nowMs: number;
+  },
+): Promise<WalletSessionAdmissionSnapshotV2> {
+  const session = parseLiveWalletSessionAuthorizationV2Row(row, {
+    operationCredentialHash: input.tokenHash,
+    tenantId: input.tenantId,
+    nowMs: input.nowMs,
+  });
+  const { authority, authMethod } = await joinedAuthorityAndMethod(row);
+  if (row.quota_lifecycle_kind === 'exhausted') {
+    return {
+      kind: 'exhausted',
+      session,
+      quota: parseExactWalletSessionQuotaProjectionRow(row, session),
+      authority,
+      authMethod,
+    };
+  }
+  const quota = parseWalletSessionAuthorizationV2QuotaRow(row, session);
+  return { kind: 'active', authorization: { session, quota }, authority, authMethod };
 }

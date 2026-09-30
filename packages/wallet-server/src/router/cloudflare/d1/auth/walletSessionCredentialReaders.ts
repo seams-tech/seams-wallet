@@ -63,20 +63,21 @@ export async function readActiveWalletSessionCredential(
 }
 
 export async function readWalletSessionSigningCandidate(
-  service: AdmissionSnapshotReader,
-  input: CredentialInput,
+  service: Pick<AuthorizationService, 'readEcdsaWalletSessionAdmissionSnapshotByOperationCredential'>,
+  input: Parameters<AuthorizationService['readEcdsaWalletSessionAdmissionSnapshotByOperationCredential']>[0],
 ): Promise<RouterApiWalletSessionSigningCandidate | null> {
-  const snapshot = await service.readWalletSessionAdmissionSnapshotByOperationCredential(input);
-  if (!snapshot) return null;
+  const read = await service.readEcdsaWalletSessionAdmissionSnapshotByOperationCredential(input);
+  if (!read) return null;
+  const { snapshot, canonicalMaterial } = read;
   switch (snapshot.kind) {
     case 'active': {
       const context = activeContext(snapshot);
-      return context ? { kind: 'active', context } : null;
+      return context ? { kind: 'active', context, canonicalMaterial } : null;
     }
     case 'exhausted': {
       const candidate = exhaustedContext(snapshot);
       if (!candidate) throw new Error('Exhausted Wallet Session authority is unavailable');
-      return { kind: 'exhausted', candidate };
+      return { kind: 'exhausted', candidate, canonicalMaterial };
     }
     default: {
       const unexpected: never = snapshot;

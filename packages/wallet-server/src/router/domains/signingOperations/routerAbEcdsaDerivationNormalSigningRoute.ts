@@ -1,3 +1,4 @@
+import type { EcdsaCanonicalMaterialRead } from '../../../core/d1EcdsaSignerRead';
 import type { EcdsaWalletSessionAdmission, EcdsaWalletSessionAdmissionInput } from '../../../authorization/ecdsaWalletSessionAdmission';
 // The ECDSA derivation normal-signing route: Wallet Session and step-up authorization, operation
 // admission, replay and completion, and forwarding to the SigningWorker.
@@ -57,7 +58,6 @@ import {
 import {
   routerAbMpcMaterialActivationRefToWire,
   sameRouterAbMpcMaterialActivationRef,
-  type RouterAbNormalSigningAuthorizationWire,
   type RouterAbMpcMaterialActivationRefWire,
 } from '@shared/utils/routerAbNormalSigningIdentity';
 import { parseWalletId } from '@shared/utils/domainIds';
@@ -159,6 +159,7 @@ async function resolveRouterAbEcdsaOwnerOperationStepUpPreparation(input: {
     const walletId = parseWalletId(request.scope.wallet_id);
     if (!walletId.ok) return undefined;
     const activeMaterial = await input.resolveEcdsaMaterialActivation({
+      source: { kind: 'database' },
       walletId: walletId.value,
       materialActivation: request.material_activation,
     });
@@ -368,6 +369,7 @@ export async function resolveFreshRouterAbEcdsaMaterialActivation(input: {
   | { readonly ok: false; readonly code: 'scope_mismatch'; readonly message: string }
 > {
   const resolved = await input.resolveEcdsaMaterialActivation({
+    source: { kind: 'database' },
     walletId: input.walletId,
     materialActivation: input.expected,
   });
@@ -408,20 +410,11 @@ type RouterAbEcdsaV2NormalSigningValidation =
   | { readonly ok: false; readonly error: RouterAbJsonRouteResult };
 
 function validateRouterAbEcdsaV2NormalSigningRequestForSession(input: {
-  readonly phase: 'prepare' | 'finalize';
-  readonly body: Record<string, unknown>;
+  readonly request: RouterAbEcdsaOperationStepUpRequest;
   readonly session: RouterApiWalletSessionAuthorizationV2AdmissionContext['authorization']['session'];
   readonly admittedMaterialActivation: RouterAbMpcMaterialActivationRefWire;
 }): RouterAbEcdsaV2NormalSigningValidation {
-  let request: RouterAbEcdsaOperationStepUpRequest;
-  try {
-    request = parseRouterAbEcdsaOperationStepUpRequest(input);
-  } catch (error: unknown) {
-    return {
-      ok: false,
-      error: routerAbStepUpError(400, 'invalid_body', routerAbErrorMessage(error)),
-    };
-  }
+  const request = input.request;
   if (
     request.authorization.kind !== 'reusable_wallet_session' ||
     request.authorization.wallet_session_id !== input.session.walletSessionId ||
@@ -691,8 +684,9 @@ type RouterAbEcdsaWalletSessionAuthorization =
   | { readonly ok: false; readonly result: RouterAbJsonRouteResult };
 
 async function authorizeRouterAbEcdsaWalletSessionRequest(input: {
+  readonly canonicalMaterial: EcdsaCanonicalMaterialRead;
   readonly phase: 'prepare' | 'finalize';
-  readonly body: Record<string, unknown>;
+  readonly request: RouterAbEcdsaOperationStepUpRequest;
   readonly session: RouterApiWalletSessionAuthorizationV2AdmissionContext['authorization']['session'];
   readonly admittedMaterialActivation: RouterAbMpcMaterialActivationRefWire;
   readonly admissionAdapter: RouterAbNormalSigningAdmissionAdapter | null | undefined;
@@ -702,6 +696,7 @@ async function authorizeRouterAbEcdsaWalletSessionRequest(input: {
   if (!validated.ok) return { ok: false, result: validated.error };
 
   const activeMaterial = await input.resolveEcdsaMaterialActivation({
+    source: { kind: 'credential_snapshot', canonicalMaterial: input.canonicalMaterial },
     walletId: String(input.session.walletId),
     materialActivation: validated.admission.materialActivation,
   });
@@ -786,8 +781,9 @@ type RouterAbEcdsaExhaustedCandidateAuthorization =
   | { readonly ok: false; readonly result: RouterAbJsonRouteResult };
 
 async function resolveRouterAbEcdsaExhaustedCandidateAuthorization(input: {
+  readonly canonicalMaterial: EcdsaCanonicalMaterialRead;
   readonly phase: 'prepare' | 'finalize';
-  readonly body: Record<string, unknown>;
+  readonly request: RouterAbEcdsaOperationStepUpRequest;
   readonly candidate: RouterApiWalletSessionAuthorizationV2ExhaustedCandidateContext;
   readonly admissionAdapter: RouterAbNormalSigningAdmissionAdapter | null | undefined;
   readonly resolveEcdsaMaterialActivation: RouterApiWalletRegistrationService['resolveEcdsaMaterialActivation'];
@@ -805,8 +801,9 @@ async function resolveRouterAbEcdsaExhaustedCandidateAuthorization(input: {
     };
   }
   const authorized = await authorizeRouterAbEcdsaWalletSessionRequest({
+    canonicalMaterial: input.canonicalMaterial,
     phase: input.phase,
-    body: input.body,
+    request: input.request,
     session,
     admittedMaterialActivation: routerAbMpcMaterialActivationRefToWire(
       admission.materialActivation,
@@ -912,6 +909,7 @@ export async function authenticateRouterAbEcdsaOperationStepUp(input: {
   >;
   try {
     resolvedMaterial = await input.resolveEcdsaMaterialActivation({
+      source: { kind: 'database' },
       walletId: scope.wallet_id,
       materialActivation: admittedMaterialActivation,
     });
@@ -1212,19 +1210,19 @@ export async function authorizeRouterAbEcdsaDerivationNormalSigningRoute(input: 
   resolveEcdsaMaterialActivation: RouterApiWalletRegistrationService['resolveEcdsaMaterialActivation'];
   phase: 'prepare' | 'finalize';
 }): Promise<RouterAbEcdsaNormalSigningAuthorizationResult> {
-  let requestedAuthorizationKind: RouterAbNormalSigningAuthorizationWire['kind'];
+  let parsedRequest: RouterAbEcdsaOperationStepUpRequest;
   try {
-    requestedAuthorizationKind = parseRouterAbEcdsaOperationStepUpRequest({
+    parsedRequest = parseRouterAbEcdsaOperationStepUpRequest({
       phase: input.phase,
       body: input.body,
-    }).authorization.kind;
+    });
   } catch (error: unknown) {
     return {
       ok: false,
       result: routerAbStepUpError(400, 'invalid_body', routerAbErrorMessage(error)),
     };
   }
-  if (requestedAuthorizationKind === 'operation_step_up') {
+  if (parsedRequest.authorization.kind === 'operation_step_up') {
     const stepUp = await handleRouterAbEcdsaOperationStepUpRoute({
       body: input.body,
       headers: input.headers,
@@ -1246,6 +1244,7 @@ export async function authorizeRouterAbEcdsaDerivationNormalSigningRoute(input: 
   }
 
   const validated = await validateRouterAbEcdsaDerivationWalletSessionInputs({
+    materialActivation: parsedRequest.material_activation,
     headers: input.headers,
     authorizationSessions: input.authorizationSessions,
     operationKind: 'evm.sign_transaction',
@@ -1270,8 +1269,9 @@ export async function authorizeRouterAbEcdsaDerivationNormalSigningRoute(input: 
 
   if (validated.kind === 'wallet_session_operation_credential_exhausted_candidate_v1') {
     return await resolveRouterAbEcdsaExhaustedCandidateAuthorization({
+      canonicalMaterial: validated.canonicalMaterial,
       phase: input.phase,
-      body: input.body,
+      request: parsedRequest,
       candidate: validated.candidate,
       admissionAdapter: input.admissionAdapter,
       resolveEcdsaMaterialActivation: input.resolveEcdsaMaterialActivation,
@@ -1280,8 +1280,9 @@ export async function authorizeRouterAbEcdsaDerivationNormalSigningRoute(input: 
 
   const session = validated.admission.context.authorization.session;
   const authorized = await authorizeRouterAbEcdsaWalletSessionRequest({
+    canonicalMaterial: validated.canonicalMaterial,
     phase: input.phase,
-    body: input.body,
+    request: parsedRequest,
     session,
     admittedMaterialActivation: routerAbMpcMaterialActivationRefToWire(
       validated.admission.admission.materialActivation,

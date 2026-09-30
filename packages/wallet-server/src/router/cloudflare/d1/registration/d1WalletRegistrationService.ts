@@ -1,3 +1,4 @@
+import type { EcdsaMaterialActivationReadInput } from '../../../../core/d1EcdsaSignerRead';
 import type { EcdsaMaterialReadSnapshot } from '../../../../core/ecdsaMaterialReadSnapshot';
 import type { InstalledEcdsaCustodySnapshotV1 } from '../deviceLinking/d1LinkedDeviceAuthorityInstallService';
 import { parseWalletRegistrationSetupClaims } from '../../../domains/walletRegistration/walletRegistrationSetupPayload';
@@ -2350,10 +2351,7 @@ export class CloudflareD1WalletRegistrationService {
     }
   }
 
-  async resolveEcdsaMaterialActivation(input: {
-    readonly walletId: string;
-    readonly materialActivation: RouterAbMpcMaterialActivationRefWire;
-  }): Promise<
+  async resolveEcdsaMaterialActivation(input: EcdsaMaterialActivationReadInput): Promise<
     | {
         readonly ok: true;
         readonly readSnapshot: EcdsaMaterialReadSnapshot;
@@ -2370,6 +2368,7 @@ export class CloudflareD1WalletRegistrationService {
       const walletId = walletIdFromString(input.walletId);
       const store = this.getWalletStore();
       const canonical = await store.readEcdsaSignerMaterialSnapshot({
+        source: input.source,
         walletId,
         materialActivation: input.materialActivation,
       });
@@ -2527,7 +2526,11 @@ export class CloudflareD1WalletRegistrationService {
         readonly message: string;
       }
   > {
-    const activeMaterial = await this.resolveEcdsaMaterialActivation(input);
+    const activeMaterial = await this.resolveEcdsaMaterialActivation({
+      walletId: input.walletId,
+      materialActivation: input.materialActivation,
+      source: { kind: 'database' },
+    });
     if (!activeMaterial.ok) return activeMaterial;
 
     const identity = resolveTenantRootIdentityV1({

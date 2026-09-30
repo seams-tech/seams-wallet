@@ -1015,6 +1015,7 @@ async function issueEcdsaOperationStepUpAuthorization(input: {
     v2Resolution.kind === 'admitted'
       ? v2Resolution.activeMaterial
       : await input.ctx.service.walletRegistration.resolveEcdsaMaterialActivation({
+          source: { kind: 'database' },
           walletId: operation.wallet_id,
           materialActivation: operation.material_activation,
         });
@@ -1823,6 +1824,7 @@ export async function authorizeEcdsaPoolFill(input: {
       const materialStartedAt = performance.now();
       const activeMaterial =
         await input.ctx.service.walletRegistration.resolveEcdsaMaterialActivation({
+          source: { kind: 'database' },
           walletId: String(session.walletId),
           materialActivation: routerAbMpcMaterialActivationRefToWire(admitted.materialActivation),
         });
@@ -2891,6 +2893,7 @@ async function authorizeStrictEcdsaExport(input: {
     }
     const activeMaterial =
       await input.ctx.service.walletRegistration.resolveEcdsaMaterialActivation({
+        source: { kind: 'database' },
         walletId: operation.wallet_id,
         materialActivation: input.request.material_activation,
       });

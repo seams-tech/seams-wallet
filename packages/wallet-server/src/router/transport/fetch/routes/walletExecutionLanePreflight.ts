@@ -1,3 +1,4 @@
+import { routerAbMpcMaterialActivationRefToWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import type { ActiveOwnerWalletExecutionLaneProjection } from '../../../../core/signingLanes/WalletExecutionLaneProjection';
 import type { RouterApiWalletRegistrationService } from '../../../framework/authServicePort';
 import {
@@ -238,6 +239,7 @@ export async function handleOwnerWalletExecutionLanePreflight(
     };
   } else {
     const validated = await validateRouterAbEcdsaDerivationWalletSessionInputs({
+      materialActivation: routerAbMpcMaterialActivationRefToWire(request.expectedMaterialActivation),
       headers,
       authorizationSessions: ctx.service.authorizationSessions,
       operationKind: EVM_ECDSA_MPC_OPERATION_KINDS.signTransaction,

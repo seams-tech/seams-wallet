@@ -1,3 +1,4 @@
+import type { EcdsaCanonicalMaterialRead } from '../../core/d1EcdsaSignerRead';
 import type { ThresholdRuntimePolicyScope } from '../../core/types';
 import type { RouterApiAuthorizationSessionService } from '../framework/authServicePort';
 import type {
@@ -278,6 +279,7 @@ export async function validateRouterAbEd25519WalletSessionInputs(input: {
 export type ThresholdEcdsaSessionInputs =
   | {
       readonly ok: true;
+      readonly canonicalMaterial: EcdsaCanonicalMaterialRead;
       readonly kind: 'wallet_session_operation_credential_v1';
       readonly admission: Extract<
         WalletSessionOperationCredentialAdmission,
@@ -288,6 +290,7 @@ export type ThresholdEcdsaSessionInputs =
     }
   | {
       readonly ok: true;
+      readonly canonicalMaterial: EcdsaCanonicalMaterialRead;
       readonly kind: 'wallet_session_operation_credential_exhausted_candidate_v1';
       readonly candidate: RouterApiWalletSessionAuthorizationV2ExhaustedCandidateContext;
       readonly admission?: never;
@@ -360,6 +363,7 @@ export async function validateEcdsaPreprocessingSession(input: {
 }
 
 export async function validateRouterAbEcdsaDerivationWalletSessionInputs(input: {
+  materialActivation: import('@shared/utils/routerAbNormalSigningIdentity').RouterAbMpcMaterialActivationRefWire;
   headers: Record<string, string | string[] | undefined>;
   authorizationSessions: RouterApiAuthorizationSessionService | null | undefined;
   nowMs?: () => number;
@@ -386,6 +390,7 @@ export async function validateRouterAbEcdsaDerivationWalletSessionInputs(input: 
       tenantId: authorizationSessions.tenantId,
       token,
       nowMs: nowMs(),
+      materialActivation: input.materialActivation,
     });
   } catch {
     return walletSessionFailure('wallet_session_unavailable');
@@ -402,6 +407,7 @@ export async function validateRouterAbEcdsaDerivationWalletSessionInputs(input: 
       ok: true,
       kind: 'wallet_session_operation_credential_exhausted_candidate_v1',
       candidate: candidate.candidate,
+      canonicalMaterial: candidate.canonicalMaterial,
     };
   }
   const resolution = resolveWalletSessionOperationCredentialAdmissionFromContext({
@@ -420,6 +426,7 @@ export async function validateRouterAbEcdsaDerivationWalletSessionInputs(input: 
     kind: 'wallet_session_operation_credential_v1',
     admission: resolution.admission,
     context: resolution.admission.context,
+    canonicalMaterial: candidate.canonicalMaterial,
   };
 }
 

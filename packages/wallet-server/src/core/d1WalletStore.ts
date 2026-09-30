@@ -1,5 +1,10 @@
-import { EcdsaMaterialReadSnapshot } from './ecdsaMaterialReadSnapshot';
-import { prepareWalletEcdsaSignersRead, parseWalletEcdsaSignerRows } from './d1EcdsaSignerRead';
+import type { EcdsaMaterialReadSnapshot } from './ecdsaMaterialReadSnapshot';
+import {
+  EcdsaCanonicalMaterialRead,
+  type EcdsaMaterialReadSource,
+  prepareWalletEcdsaSignersRead,
+  parseWalletEcdsaSignerRows,
+} from './d1EcdsaSignerRead';
 import { toOptionalTrimmedString, isPlainObject } from '@shared/utils/validation';
 import { parseWalletId } from '@shared/utils/domainIds';
 import { D1_BATCH_CAS_GUARD_SQL, formatD1ExecStatement, parseD1JsonColumn } from '../storage/d1Sql';
@@ -759,16 +764,24 @@ export class D1WalletStore implements WalletStore {
     walletId: WalletId;
     materialActivation: RouterAbMpcMaterialActivationRefWire;
   }): Promise<WalletEcdsaSignerRecord | null> {
-    return (await this.readEcdsaSignerMaterialSnapshot(input))?.signer ?? null;
+    return (await this.readEcdsaSignerMaterialSnapshot({
+      walletId: input.walletId,
+      materialActivation: input.materialActivation,
+      source: { kind: 'database' },
+    }))?.signer ?? null;
   }
 
   async readEcdsaSignerMaterialSnapshot(input: {
+    readonly source: EcdsaMaterialReadSource;
     walletId: WalletId;
     materialActivation: RouterAbMpcMaterialActivationRefWire;
   }): Promise<{
     readonly signer: WalletEcdsaSignerRecord;
     readonly readSnapshot: EcdsaMaterialReadSnapshot;
   } | null> {
+    if (input.source.kind === 'credential_snapshot') {
+      return input.source.canonicalMaterial.resolve(this.scope, input.walletId, input.materialActivation);
+    }
     await this.ensureSchema();
     const walletId = toOptionalTrimmedString(input.walletId);
     if (!walletId) return null;
@@ -796,30 +809,9 @@ export class D1WalletStore implements WalletStore {
         input.materialActivation.activation_id,
       )
       .all<D1WalletRow>();
-    const matches = (result.results || [])
-      .map((row) => parseWalletEcdsaSignerRecord(parseD1JsonColumn(row.record_json)))
-      .filter(
-        (record): record is WalletEcdsaSignerRecord =>
-          record !== null &&
-          record.walletId === walletId &&
-          sameRouterAbMpcMaterialActivationRef(
-            record.walletKey.publicCapability.material_activation,
-            input.materialActivation,
-          ),
-      );
-    if (matches.length === 0) return null;
-    const keyHandle = matches[0]?.walletKey.keyHandle;
-    if (!keyHandle || matches.some((record) => record.walletKey.keyHandle !== keyHandle)) {
-      throw new Error('Wallet has conflicting ECDSA material activations');
-    }
-    const signer = matches[0];
-    if (!signer) return null;
-    return {
-      signer,
-      readSnapshot: EcdsaMaterialReadSnapshot.canonical(
-        this.scope, input.walletId, input.materialActivation.activation_id, result.results ?? [],
-      ),
-    };
+    return EcdsaCanonicalMaterialRead.fromRows(
+      this.scope, input.walletId, input.materialActivation, result.results ?? [],
+    ).resolve(this.scope, input.walletId, input.materialActivation);
   }
 
   async getEcdsaSignerByPostRegistrationRequest(input: {

@@ -125,6 +125,7 @@ async function signingSessionSealRecordFromExactAdmission(input: {
   switch (admission.curve) {
     case 'ecdsa': {
       const active = await input.walletRegistration.resolveEcdsaMaterialActivation({
+      source: { kind: 'database' },
         walletId,
         materialActivation,
       });

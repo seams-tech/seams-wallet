@@ -62,7 +62,7 @@ class LocalMaterialAdmissionFaultDatabase implements D1DatabaseLike {
     if (query.includes('AS material_snapshot_active')) {
       return new FaultStatement(this, inner, 'existing');
     }
-    if (/FROM wallet_signers[\s\S]*material_activation\.activation_id/.test(query)) {
+    if (query.includes('AS ecdsa_material_records_json')) {
       return new FaultStatement(this, inner, 'material');
     }
     return inner;
@@ -91,6 +91,16 @@ class LocalMaterialAdmissionFaultDatabase implements D1DatabaseLike {
   }
 
   async first<T>(statement: FaultStatement, columnName: string | undefined): Promise<T | null> {
+    if (statement.role === 'material') {
+      const row = await statement.inner.first<T>(columnName);
+      if (isPlainObject(row)) {
+        this.captureScope([
+          row.session_namespace, row.session_org_id, row.session_project_id,
+          row.session_env_id, row.session_wallet_id,
+        ]);
+      }
+      return row;
+    }
     if (!this.shouldRetire(statement.role)) return statement.inner.first<T>(columnName);
     if (columnName !== undefined) throw new Error('Material admission reads must return a row');
     const [result] = await this.execute<D1ResultLike<T>>([statement.inner], statement.role);
@@ -183,7 +193,6 @@ class FaultStatement implements D1PreparedStatementLike {
   ) {}
 
   bind(...values: readonly unknown[]): D1PreparedStatementLike {
-    if (this.role === 'material') this.database.captureScope(values);
     return new FaultStatement(this.database, this.inner.bind(...values), this.role);
   }
   async first<T = unknown>(columnName?: string): Promise<T | null> {

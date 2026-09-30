@@ -1,3 +1,4 @@
+import type { EcdsaCanonicalMaterialRead, EcdsaMaterialActivationReadInput } from '../../core/d1EcdsaSignerRead';
 import type { EcdsaMaterialReadSnapshot } from '../../core/ecdsaMaterialReadSnapshot';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import type { TenantRootIdentityV1 } from '@shared/tenant-root/tenantRootIdentity';
@@ -210,11 +211,13 @@ export type RouterApiWalletSessionAuthorizationV2ExhaustedCandidateContext = {
 export type RouterApiWalletSessionSigningCandidate =
   | {
       readonly kind: 'active';
+      readonly canonicalMaterial: EcdsaCanonicalMaterialRead;
       readonly context: RouterApiWalletSessionAuthorizationV2AdmissionContext;
       readonly candidate?: never;
     }
   | {
       readonly kind: 'exhausted';
+      readonly canonicalMaterial: EcdsaCanonicalMaterialRead;
       readonly candidate: RouterApiWalletSessionAuthorizationV2ExhaustedCandidateContext;
       readonly context?: never;
     };
@@ -1178,10 +1181,7 @@ export interface RouterApiWalletRegistrationService {
         readonly message: string;
       }
   >;
-  resolveEcdsaMaterialActivation(input: {
-    readonly walletId: string;
-    readonly materialActivation: RouterAbMpcMaterialActivationRefWire;
-  }): Promise<
+  resolveEcdsaMaterialActivation(input: EcdsaMaterialActivationReadInput): Promise<
     | {
         readonly ok: true;
         readonly readSnapshot: EcdsaMaterialReadSnapshot;
@@ -1675,6 +1675,7 @@ export interface RouterApiAuthorizationSessionService {
     readonly tenantId: TenantId;
     readonly token: string;
     readonly nowMs: number;
+    readonly materialActivation: RouterAbMpcMaterialActivationRefWire;
   }) => Promise<RouterApiWalletSessionSigningCandidate | null>;
   readonly readWalletSessionExactOperationContextByCredential: (input: {
     readonly tenantId: TenantId;

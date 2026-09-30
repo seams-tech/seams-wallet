@@ -558,6 +558,7 @@ export async function authenticateRouterAbWalletOperationStepUpIdentity(
     if (admission.curve === 'ecdsa' && input.keyFamily === 'ecdsa_secp256k1') {
       const active = ecdsaStepUpActiveMaterial({
         activeMaterial: await input.resolveEcdsaMaterialActivation({
+          source: { kind: 'database' },
           walletId: input.walletId,
           materialActivation: admittedMaterialActivation,
         }),

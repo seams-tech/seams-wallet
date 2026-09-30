@@ -874,27 +874,78 @@ counts, and trace hashes. Reproduce with `pnpm -C packages/wallet build:sdk`,
 `python3 .runtime/r151-presign/analyze.py`. The temporary Gateway measurement
 wrapper is restored after the instrumented runs. Hosted resources are unchanged.
 
+### Joined session/material checkpoint (September 30)
+
+Reusable-session signing now projects its canonical material records in the
+initial credential/session/authority/method/quota read. A correlated JSON
+aggregate preserves every scoped candidate despite the outer session query's
+`LIMIT 1`. The already-parsed request selects the activation; session and scope
+validation still precede material rejection. General session/status readers
+retain their existing projection.
+
+The persistence boundary parses the canonical records once into scoped,
+in-process evidence. It retains parse failures until the material decision,
+checks wallet/environment/full activation identity when consumed, and uses the
+existing record-set snapshot builder. Both active and exhausted candidates
+require this evidence. Type fixtures reject missing evidence, object-literal
+fabrication, broad spreads, direct string casts, and mixed database/snapshot
+sources. Reusable signing also reuses its parsed request through validation.
+
+An empty canonical set still enters the existing linked installation/canonical
+source batch and custody-chain verification. Step-up, preprocessing, and other
+independent material consumers explicitly read the database. The claim and
+existing-operation snapshot predicates remain the freshness boundary; quota,
+audit, durable replay, and completion writes retain their existing semantics.
+The local retirement fault now captures scope from the joined row before
+retiring material at claim, pending finalize, or completed replay.
+
+| Signing device | Before calls / statements | After calls / statements | Write-bearing calls / reported row writes |
+| --- | ---: | ---: | ---: |
+| Canonical registration device | 10 / 11 | 8 / 9 | 2 / 14 |
+| Directly linked device | 12 / 15 | 10 / 13 | 2 / 14 |
+| Device linked by that linked device | 12 / 15 | 10 / 13 | 2 / 14 |
+
+Workers D1 and wallet-DO reproduce those counts for each of three signatures
+per device, using the same SDK distribution as the prior cohort. VM verifies
+the same nine signatures. These are local call-count results; hosted latency
+and regional-placement gains remain unmeasured.
+
+Fifteen scenario/profile checks pass: retirement races, repeated three-device
+signing, last-use lost-response replay, and last-quota contention on Workers D1,
+wallet-DO, and VM; plus recovery retirement, linked-device revocation, and
+refresh/signing/step-up/export on Workers D1. All 27 retirement rejections
+preserve quota. VM replay evidence retains one quota use and one custody effect
+for the operation whose response was lost. Server build, intended-test types,
+state type fixtures, and the bloat check pass.
+
+Evidence is retained in `.artifacts/r151/session-material-20260930/analysis.json`,
+including per-signature before/after counts, distribution and source hashes,
+quota/replay outcomes, and private trace hashes. Reproduce with
+`pnpm -C packages/wallet-server build`,
+`node .runtime/r151-session-material/verify.mjs`, and
+`python3 .runtime/r151-session-material/analyze.py`. The temporary Gateway
+measurement wrapper is restored. No hosted resources changed.
+
 ### Remaining call and write inventory (September 30)
 
-The canonical reusable-session path has five foreground Gateway D1 calls per
-request: 10 calls and 11 SQL statements per successful signature. Status/refill
+The canonical reusable-session path has four foreground Gateway D1 calls per
+request: eight calls and nine SQL statements per successful signature. Status/refill
 traffic and storage internal to custody roles are outside that count.
 
 | Position | Prepare | Finalize | Freshness/invariant |
 | --- | --- | --- | --- |
-| 1 | Joined Wallet Session, authority, auth method, quota | Same read | Authenticate the current credential and its exact owner/environment before policy evaluation. |
-| 2 | Resolve signing material and capture its read snapshot | Same read | Verify activation, key handle, policy scope, and canonical/linked provenance. |
-| 3 | Combined project/abuse policy read | Same read | Evaluate the current signing policy in that material's scope. |
-| 4 | Existing operation, live authorization source, pinned owner scope, material snapshot predicate | Same read | Exact identity, replay/in-progress state, live authority, and material freshness in one SQL snapshot. |
-| 5 | Guarded claim INSERT plus committed readback in one batch | Completion UPDATE RETURNING | Atomically check material, admit, consume quota, and audit; then persist the exact terminal response for replay. |
+| 1 | Joined Wallet Session, authority, auth method, quota, and canonical material records | Same read | Authenticate the credential and owner/environment; verify the complete canonical candidate set and capture its material snapshot before policy evaluation. |
+| 2 | Combined project/abuse policy read | Same read | Evaluate the current signing policy in that material's scope. |
+| 3 | Existing operation, live authorization source, pinned owner scope, material snapshot predicate | Same read | Exact identity, replay/in-progress state, live authority, and material freshness in one SQL snapshot. |
+| 4 | Guarded claim INSERT plus committed readback in one batch | Completion UPDATE RETURNING | Atomically check material, admit, consume quota, and audit; then persist the exact terminal response for replay. |
 
-Direct and third-generation linked signing take 12 calls and 15 statements.
-Their one material resolution per request uses a canonical lookup followed by
-one batch for the verified installation chain and canonical signer candidates.
-The former second resolution has been replaced by the admission predicates.
-Initial credential, material, and policy reads remain separate; consolidating
-them and revisiting the complete call budget remain open. The three-round-trip
-proposal is still a hypothesis.
+Direct and third-generation linked signing take 10 calls and 13 statements.
+After the joined read yields no canonical match, one additional batch per
+request reads the verified installation chain and canonical signer candidates.
+The former second resolution remains replaced by admission predicates. Policy
+and existing-operation reads remain separate from the initial snapshot;
+revisiting those decision points and the complete call budget remains open.
+The three-round-trip proposal is still a hypothesis.
 
 The two write-bearing calls have this invariant inventory:
 
@@ -924,7 +975,7 @@ storage. No signing write is removed by this inventory.
 
 ### Initial session/material read review (September 30)
 
-The next candidate is the first canonical material lookup in
+The review identified the first canonical material lookup in
 `D1WalletStore.readEcdsaSignerMaterialSnapshot`. The joined credential read in
 `D1AuthorizationStore.readJoinedWalletSessionAuthorizationV2Row` already has the
 wallet and environment identity needed to scope that lookup. It also serves
@@ -939,12 +990,11 @@ Classify the session/authority/method first, then validate material, preserving
 current denial precedence. An empty canonical set must still enter the existing
 linked installation/canonical-source batch and custody-chain verification.
 
-Removing this one lookup from both prepare and finalize would target eight
-canonical calls and ten linked calls per signature. These are unimplemented
-projections. Atomic admission snapshot predicates, policy reads, claim/quota/audit
-writes, and durable completion remain required. The implementation must measure
-actual counts and repeat retirement, revocation, last-quota contention, and
-lost-response replay checks before accepting the reduction.
+The joined session/material checkpoint above implements this reviewed
+projection and verifies eight canonical calls and ten linked calls per signature.
+Atomic admission snapshot predicates, policy reads, claim/quota/audit
+writes, and durable completion remain required. Acceptance requires measured counts and repeated retirement, revocation,
+last-quota contention, and lost-response replay checks.
 
 ### 1. Consolidate reads while preserving decision boundaries
 
@@ -973,9 +1023,9 @@ lost-response replay checks before accepting the reduction.
 - [x] Examine joining initial material resolution to the existing joined session
   lookup. Preserve the complete material candidate set despite the session's
   `LIMIT 1`; retain current parsers, snapshot predicates, and denial precedence.
-- [ ] Implement and measure the signing-specific session/material projection,
+- [x] Implement and measure the signing-specific session/material projection,
   retaining the linked custody fallback and verifying the admission races.
-- [ ] Use the existing store/domain boundaries and narrow admitted result types.
+- [x] Use the existing store/domain boundaries and narrow admitted result types.
   Delete replaced paths. Do not add request-wide caches of revocation or quota
   decisions, compatibility branches, or another authorization implementation.
 
@@ -984,7 +1034,7 @@ the policy change. Then target 12 or fewer from the larger consolidation, subjec
 to the correctness cases below. Each change needs its own before/after call
 counts and timings; these are engineering targets, not predicted latency wins.
 The 12-call intermediate milestone is surpassed: canonical reusable-session
-ECDSA now takes 10 calls; linked signing takes 12.
+ECDSA now takes eight calls; linked signing takes 10.
 Phase 3 still revisits the complete call budget after these incremental changes.
 
 ### 2. Reduce unnecessary work and classify writes

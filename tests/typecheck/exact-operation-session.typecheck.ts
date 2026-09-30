@@ -1,3 +1,4 @@
+import type { EcdsaCanonicalMaterialRead, EcdsaMaterialReadSource } from '../../packages/wallet-server/src/core/d1EcdsaSignerRead';
 import type {
   RouterApiWalletSessionExactOperationContext,
   RouterApiWalletSessionAuthorizationV2AdmissionContext,
@@ -31,9 +32,10 @@ declare const exhausted: RouterApiWalletSessionAuthorizationV2ExhaustedCandidate
 declare const active: RouterApiWalletSessionAuthorizationV2AdmissionContext;
 declare const exhaustedSnapshot: WalletSessionAdmissionSnapshotV2Variant<'exhausted'>;
 
-const candidate: RouterApiWalletSessionSigningCandidate = { kind: 'exhausted', candidate: exhausted };
+declare const canonicalMaterial: EcdsaCanonicalMaterialRead;
+const candidate: RouterApiWalletSessionSigningCandidate = { canonicalMaterial, kind: 'exhausted', candidate: exhausted };
 // @ts-expect-error An exhausted candidate cannot carry an active admission context.
-const mixed: RouterApiWalletSessionSigningCandidate = { kind: 'exhausted', candidate: exhausted, context: active };
+const mixed: RouterApiWalletSessionSigningCandidate = { canonicalMaterial, kind: 'exhausted', candidate: exhausted, context: active };
 // @ts-expect-error Changing the discriminant through a spread does not create active authority.
 const relabeled: RouterApiWalletSessionSigningCandidate = { ...candidate, kind: 'active', context: active };
 // @ts-expect-error A live snapshot with exhausted quota cannot carry a reusable allowance.
@@ -59,3 +61,19 @@ const spreadSnapshot: typeof snapshot = { ...snapshot };
 // @ts-expect-error Raw serialized data cannot be cast directly to an in-process read snapshot.
 const serializedSnapshot = 'untrusted' as typeof snapshot;
 void [missingMaterialSnapshot, fabricatedSnapshot, spreadSnapshot, serializedSnapshot];
+
+// @ts-expect-error Signing candidates require their joined material evidence.
+const missingCanonicalRead: RouterApiWalletSessionSigningCandidate = { kind: 'exhausted', candidate: exhausted };
+// @ts-expect-error Plain objects cannot construct a scoped canonical read.
+const fabricatedCanonicalRead: EcdsaCanonicalMaterialRead = { walletId: canonicalMaterial.walletId, resolve: canonicalMaterial.resolve };
+// @ts-expect-error Spreading a canonical read loses its private evidence.
+const spreadCanonicalRead: EcdsaCanonicalMaterialRead = { ...canonicalMaterial };
+// @ts-expect-error Serialized data cannot become canonical read evidence through a cast.
+const castCanonicalRead = 'stored material' as EcdsaCanonicalMaterialRead;
+// @ts-expect-error A database read cannot also consume a credential snapshot.
+const mixedMaterialSource: EcdsaMaterialReadSource = { kind: 'database', canonicalMaterial };
+void missingCanonicalRead;
+void fabricatedCanonicalRead;
+void spreadCanonicalRead;
+void castCanonicalRead;
+void mixedMaterialSource;
