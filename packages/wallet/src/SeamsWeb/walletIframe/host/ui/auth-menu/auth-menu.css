@@ -841,6 +841,7 @@
   width: calc(100% + 2px);
   max-height: 300px;
   overflow-y: auto;
+  overscroll-behavior-y: contain;
   padding: 10px;
   border: 1px solid color-mix(in srgb, var(--seams-colors-borderPrimary), transparent 8%);
   /* control radius + 2px, capped so the rounded preset stays list-friendly */
