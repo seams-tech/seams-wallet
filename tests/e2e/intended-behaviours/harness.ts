@@ -4919,10 +4919,7 @@ export class IntendedBehaviourHarness {
     const walletSessionId = parseWalletSessionId(captured.walletSessionId);
     const quotaId = parseMpcWalletSigningQuotaId(captured.quotaId);
     if (!walletSessionId.ok || !quotaId.ok) throw new Error('Invalid captured session identity');
-    const response = await this.request.post(captured.url, {
-      headers: { Authorization: captured.authorization, 'Content-Type': captured.contentType },
-      data: captured.body,
-    });
+    const response = await this.requestWalletBudgetStatus(captured);
     if (!response.ok()) throw new Error(`Wallet Session status failed: ${response.status()}`);
     const status = parseExactWalletSessionStatusResponse(await response.json(), {
       walletSessionId: walletSessionId.value,
@@ -4945,13 +4942,7 @@ export class IntendedBehaviourHarness {
   private async replayWalletBudgetStatus(
     captured: CapturedWalletBudgetStatusRequest,
   ): Promise<AuthoritativeWalletBudgetReplay> {
-    const response = await this.request.post(captured.url, {
-      headers: {
-        Authorization: captured.authorization,
-        'Content-Type': captured.contentType,
-      },
-      data: captured.body,
-    });
+    const response = await this.requestWalletBudgetStatus(captured);
     const responseText = await response.text();
     if (!response.ok()) {
       throw new Error(
@@ -4963,6 +4954,19 @@ export class IntendedBehaviourHarness {
       expectedWalletSessionId: captured.walletSessionId,
       expectedQuotaId: captured.quotaId,
     });
+  }
+
+  private requestWalletBudgetStatus(captured: CapturedWalletBudgetStatusRequest) {
+    const headers: Record<string, string> = {
+      Authorization: captured.authorization,
+      'Content-Type': captured.contentType,
+      Origin: new URL(this.config.walletOrigin).origin,
+    };
+    // API requests bypass the browser route that supplies benchmark access.
+    if (this.networkMode === 'external_staging') {
+      headers['x-r150-benchmark-access'] = hostedBenchmarkAccessToken();
+    }
+    return this.request.post(captured.url, { headers, data: captured.body });
   }
 
   private handleResponse(response: Response): void {
