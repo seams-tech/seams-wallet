@@ -145,6 +145,18 @@ export type D1AuthorizationStoreOptions = {
   readonly getLinkedDeviceAuthorityReader?: () => D1AuthorizationLinkedAuthorityMaterialReader | null;
 };
 
+type SessionStatusMaterialSubject =
+  | {
+      readonly keyFamily: 'ed25519';
+      readonly materialActivation: MpcMaterialActivationRef;
+      readonly materialRead?: never;
+    }
+  | {
+      readonly keyFamily: 'ecdsa_secp256k1';
+      readonly materialActivation: MpcMaterialActivationRef;
+      readonly materialRead: EcdsaMaterialRead;
+    };
+
 type DirectV2CommitMode = { readonly kind: 'strict' } | { readonly kind: 'replayable' };
 
 type HostedWalletExchangeV2Row = {
@@ -1908,7 +1920,7 @@ export class CloudflareD1AuthorizationStore
     });
     const nowMs = requirePositiveInteger(input.nowMs, 'exact Wallet Session status time');
     const row = await this.readJoinedWalletSessionAuthorizationV2Row({
-      projection: { kind: 'session' },
+      projection: { kind: 'session_status' },
       lookupColumn: 'operation_credential_hash',
       tenantId: input.tenantId,
       lookupValue: input.tokenHash,
@@ -1996,7 +2008,12 @@ export class CloudflareD1AuthorizationStore
     ) {
       return judged({ kind: 'capability_unavailable', session, quota });
     }
-    if (!(await this.exactWalletSessionCapabilitySubjectsResolveMaterial(session))) {
+    if (
+      !(await this.exactWalletSessionCapabilitySubjectsResolveMaterial(
+        session,
+        parseD1JsonColumn(row.status_ecdsa_material_records_json),
+      ))
+    ) {
       return judged({ kind: 'capability_unavailable', session, quota });
     }
     return judged({ kind: 'active', session, quota });
@@ -2004,11 +2021,9 @@ export class CloudflareD1AuthorizationStore
 
   private async exactWalletSessionCapabilitySubjectsResolveMaterial(
     session: WalletSessionAuthorizationV2,
+    ecdsaMaterialRows: unknown,
   ): Promise<boolean> {
-    const materials: {
-      readonly keyFamily: 'ed25519' | 'ecdsa_secp256k1';
-      readonly materialActivation: MpcMaterialActivationRef;
-    }[] = [];
+    const materials: SessionStatusMaterialSubject[] = [];
     for (const subject of session.capabilitySubjects) {
       switch (subject.kind) {
         case 'sign':
@@ -2022,10 +2037,24 @@ export class CloudflareD1AuthorizationStore
               ),
           );
           if (!alreadyRead) {
-            materials.push({
-              keyFamily: subject.keyFamily,
-              materialActivation: subject.materialActivation,
-            });
+            if (subject.keyFamily === 'ed25519') {
+              materials.push({
+                keyFamily: 'ed25519',
+                materialActivation: subject.materialActivation,
+              });
+            } else {
+              materials.push({
+                keyFamily: 'ecdsa_secp256k1',
+                materialActivation: subject.materialActivation,
+                materialRead: EcdsaMaterialRead.fromRows(
+                  this.walletSignerScope,
+                  session.walletId,
+                  routerAbMpcMaterialActivationRefToWire(subject.materialActivation),
+                  ecdsaMaterialRows,
+                  null,
+                ),
+              });
+            }
           }
           break;
         }
@@ -2044,10 +2073,7 @@ export class CloudflareD1AuthorizationStore
 
   private async exactWalletSessionMaterialResolves(
     walletId: WalletId,
-    subject: {
-      readonly keyFamily: 'ed25519' | 'ecdsa_secp256k1';
-      readonly materialActivation: MpcMaterialActivationRef;
-    },
+    subject: SessionStatusMaterialSubject,
   ): Promise<boolean> {
     const materialActivation = routerAbMpcMaterialActivationRefToWire(subject.materialActivation);
     const signer =
@@ -2056,10 +2082,8 @@ export class CloudflareD1AuthorizationStore
             walletId,
             materialActivation,
           })
-        : await this.walletStore.getEcdsaSignerByMaterialActivation({
-            walletId,
-            materialActivation,
-          });
+        : subject.materialRead.resolve(this.walletSignerScope, walletId, materialActivation)?.signer;
+
     if (!signer) {
       // Linked-device material lives on its installed authority projection.
       return (await this.readLinkedAuthorityMaterial(walletId, subject)) !== null;
@@ -2106,7 +2130,7 @@ export class CloudflareD1AuthorizationStore
 
   private async readJoinedWalletSessionAuthorizationV2Row(input: {
     readonly projection:
-      | { readonly kind: 'session'; readonly materialActivation?: never }
+      | { readonly kind: 'session' | 'session_status'; readonly materialActivation?: never }
       | { readonly kind: 'ecdsa_material'; readonly materialActivation: RouterAbMpcMaterialActivationRefWire };
     readonly lookupColumn: 'mint_id' | 'authorization_id' | 'operation_credential_hash';
     readonly tenantId: unknown;
@@ -2114,7 +2138,10 @@ export class CloudflareD1AuthorizationStore
   }): Promise<D1Row | null> {
     const installationProjection = ECDSA_INSTALLATION_SNAPSHOT_COLUMNS
       .map(installationJsonColumn).join(', ');
-    const materialProjection = input.projection.kind === 'session' ? '' : `
+    let materialProjection = '';
+    let materialBindings: readonly string[] = [];
+    if (input.projection.kind === 'ecdsa_material') {
+      materialProjection = `
            (SELECT json_group_array(json_object('record_json', signer.record_json))
               FROM wallet_signers AS signer
              WHERE signer.namespace = session.namespace
@@ -2148,9 +2175,28 @@ export class CloudflareD1AuthorizationStore
                  AND source_signer.signer_family = 'ecdsa')
            END AS ecdsa_source_signers_json,
            ${ECDSA_CREDENTIAL_POLICY_PROJECTION}`;
-    const materialBindings = input.projection.kind === 'session'
-      ? []
-      : [input.projection.materialActivation.activation_id, input.projection.materialActivation.activation_id];
+      materialBindings = [
+        input.projection.materialActivation.activation_id,
+        input.projection.materialActivation.activation_id,
+      ];
+    } else if (input.projection.kind === 'session_status') {
+      // Canonical ECDSA material shares the status snapshot. The configured
+      // signer scope may use a different namespace from session storage.
+      materialProjection = `
+        (SELECT json_group_array(json_object('record_json', signer.record_json))
+           FROM wallet_signers AS signer
+          WHERE signer.namespace = ? AND signer.org_id = ?
+            AND signer.project_id = ? AND signer.env_id = ?
+            AND signer.wallet_id = session.wallet_id
+            AND signer.signer_family = 'ecdsa'
+        ) AS status_ecdsa_material_records_json,`;
+      materialBindings = [
+        this.walletSignerScope.namespace,
+        this.walletSignerScope.orgId,
+        this.walletSignerScope.projectId,
+        this.walletSignerScope.envId,
+      ];
+    }
     return await this.database
       .prepare(
         `SELECT ${materialProjection}
