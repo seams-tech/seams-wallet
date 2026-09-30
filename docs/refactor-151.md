@@ -1394,6 +1394,56 @@ remains open around policy and linked-resolution dependencies. Hosted complete
 latency and placement comparisons remain required; local timings establish no
 regional gain or 1–2 second maximum.
 
+### Live policy denial and replay coverage
+
+The next policy-read consolidation depends on two existing boundaries:
+`resolveEcdsaMaterialActivation` establishes the trusted runtime policy scope,
+including linked canonical-source validation, and the separately configured
+admission adapter evaluates that scope. Gateway wiring owns the D1 policy store;
+the shared authorization service also supports other admission adapters.
+Project policy must win over abuse policy, and completed replay still evaluates
+live policy before returning its durable result.
+
+The existing E2Es covered material retirement, quota contention, and replay but
+had no project-denial, abuse-denial, or rate-limit assertions. The new intended
+scenario changes persisted policy in its isolated local Gateway database during
+prepare, finalize, and completed replay. Each phase checks project rejection
+with both project and abuse denial present, then abuse rejection, then rate
+limiting. Every rejection preserves quota, operation claims, and audit events.
+Clearing policy permits the original request; completed replay returns the exact
+first response. All three quota uses still produce verified signatures.
+
+Verification artifacts are recorded in `.artifacts/r151/policy-20260930/`.
+Each profile runs against a fresh local database and records SDK/server build
+hashes. Run the scenario with
+`node .runtime/r151-policy/run.mjs policy-workers workers passkey.presign-pool.contract.test.ts 'live signing policy'`,
+substituting `wallet-do` or `vm` for the profile and a distinct label. The existing
+missing-prepare scenario also checks the extracted database locator in all three
+compositions. Policy fixtures are confined to the isolated test database.
+All six scenario/profile runs pass: 27 policy denials, 18 verified signatures,
+unchanged denial-side quota/claim/audit state, and exact replay after clearing
+policy. `node .runtime/r151-policy/analyze.mjs` verifies the captured results and
+matching SDK/server hashes and writes `analysis.json`. Intended-suite type
+checking, diff checks, and the bloat ratchet pass.
+
+Next steps:
+
+1. Review whether a policy projection can accompany the verified material read
+   through the existing store/adapter contract. Preserve adapter ownership,
+   trusted scope derivation, and denial precedence; do not infer policy authority
+   from request scope or a diagnostic snapshot. Linked-source resolution remains
+   a separate dependency. Record a concrete consolidation or justified deferral.
+2. Re-measure any supported reduction across successful signing, replay, and
+   rejection paths, retaining atomic admission and durable completion writes.
+3. Run a controlled hosted cohort on fixed builds and verified probe locations.
+   Measure complete signing latency and per-call served regions, then compare
+   Gateway placement near the existing primary before evaluating regional D1
+   ownership under R152.
+
+This checkpoint adds behavioral coverage. The measured call budget remains
+seven canonical and nine linked calls; it makes no new hosted latency or
+regional-placement claim.
+
 ### 1. Consolidate reads while preserving decision boundaries
 
 - [x] Classify active/exhausted credentials from one snapshot for ECDSA signing,

@@ -8,6 +8,7 @@ import {
   type TestInfo,
 } from '@playwright/test';
 import { intendedTest as test, type IntendedBehaviourHarness } from './harness';
+import { normalizeRuntimePolicyScope } from '../../../packages/shared-ts/src/threshold/signingRootScope';
 import { isPlainObject } from '../../../packages/shared-ts/src/utils/validation';
 import { parseEcdsaServerTiming } from '../../../packages/shared-ts/src/utils/ecdsaServerTiming';
 import { randomUUID } from 'node:crypto';
@@ -624,13 +625,9 @@ class CapturedFinalize {
   }
 }
 
-async function missingFinalizePersistence(operationId: string): Promise<{
-  readonly remainingUses: number;
-  readonly claims: number;
-  readonly auditEvents: number;
-}> {
+async function isolatedGatewayDatabasePath(): Promise<string> {
   const root = process.env.SEAMS_INTENDED_ROUTER_AB_ROOT;
-  if (!root) throw new Error('Missing-finalize evidence requires an isolated local root');
+  if (!root) throw new Error('Signing evidence requires an isolated local root');
   const sqliteModule: string = 'node:sqlite';
   const { DatabaseSync } = (await import(sqliteModule)) as NodeSqliteModule;
   let databasePath = path.join(root, '.runtime', 'wallet-gateway', 'gateway.sqlite');
@@ -653,6 +650,17 @@ async function missingFinalizePersistence(operationId: string): Promise<{
     if (databases.length !== 1) throw new Error('Expected one isolated Gateway D1 database');
     databasePath = path.join(state, databases[0]);
   }
+  return databasePath;
+}
+
+async function signingOperationPersistence(operationId: string): Promise<{
+  readonly remainingUses: number;
+  readonly claims: number;
+  readonly auditEvents: number;
+}> {
+  const sqliteModule: string = 'node:sqlite';
+  const { DatabaseSync } = (await import(sqliteModule)) as NodeSqliteModule;
+  const databasePath = await isolatedGatewayDatabasePath();
   const database = new DatabaseSync(databasePath, { readOnly: true });
   try {
     const [row] = database.prepare(
@@ -692,7 +700,7 @@ test('missing ECDSA prepare rejects finalize without quota or audit effects and 
   const operationId = `missing-prepare-${randomUUID()}`;
   missing.operation_id = operationId;
   missing.request_id = randomUUID();
-  const before = await missingFinalizePersistence(operationId);
+  const before = await signingOperationPersistence(operationId);
   expect(before).toEqual({ remainingUses: 2, claims: 0, auditEvents: 0 });
   const statuses: number[] = [];
   for (let attempt = 0; attempt < 2; attempt += 1) {
@@ -700,17 +708,17 @@ test('missing ECDSA prepare rejects finalize without quota or audit effects and 
     statuses.push(rejected.status());
     expect(rejected.status()).toBe(409);
     expect(await rejected.json()).toMatchObject({ code: 'authorized_operation_missing' });
-    expect(await missingFinalizePersistence(operationId)).toEqual(before);
+    expect(await signingOperationPersistence(operationId)).toEqual(before);
   }
   // Both remaining uses still produce verified signatures through ordinary preparation.
   await harness.signTempoTransaction('post_registration');
   await harness.signTempoTransaction('post_registration');
-  const after = await missingFinalizePersistence(operationId);
+  const after = await signingOperationPersistence(operationId);
   expect(after).toEqual({ remainingUses: 0, claims: 0, auditEvents: 0 });
   const replay = await context.request.fetch(completed.request);
   expect(replay.status()).toBe(200);
   expect(await replay.json()).toEqual(completed.body);
-  expect(await missingFinalizePersistence(operationId)).toEqual(after);
+  expect(await signingOperationPersistence(operationId)).toEqual(after);
 
   const evidence = {
     kind: 'gateway_ecdsa_missing_prepare_v1',
@@ -722,6 +730,144 @@ test('missing ECDSA prepare rejects finalize without quota or audit effects and 
     exhaustedSessionReplayMatches: true,
   };
   const artifactName = `gateway-ecdsa-missing-prepare-${evidence.host}.json`;
+  const artifactPath = path.resolve(testInfo.config.rootDir, '../.artifacts/r151', artifactName);
+  await mkdir(path.dirname(artifactPath), { recursive: true });
+  await writeFile(artifactPath, JSON.stringify(evidence, null, 2), 'utf8');
+  await testInfo.attach(artifactName, {
+    body: JSON.stringify(evidence, null, 2),
+    contentType: 'application/json',
+  });
+});
+
+type SigningPolicy = 'project_and_abuse' | 'abuse' | 'rate_limited' | 'allowed';
+
+async function setIsolatedSigningPolicy(request: Request, policy: SigningPolicy): Promise<void> {
+  const body: unknown = request.postDataJSON();
+  if (!isPlainObject(body) || !isPlainObject(body.scope) ||
+      typeof body.scope.wallet_id !== 'string' || !isPlainObject(body.material_activation) ||
+      typeof body.material_activation.activation_id !== 'string') {
+    throw new Error('Expected an ECDSA signing request');
+  }
+  const sqliteModule: string = 'node:sqlite';
+  const { DatabaseSync } = (await import(sqliteModule)) as NodeSqliteModule;
+  const database = new DatabaseSync(await isolatedGatewayDatabasePath(), { readOnly: false });
+  try {
+    const rows = database.prepare(
+      `SELECT DISTINCT namespace, json_extract(record_json, '$.runtimePolicyScope') AS scope_json
+       FROM wallet_signers WHERE wallet_id = ? AND signer_family = 'ecdsa'
+       AND json_extract(record_json, '$.activationReceipt.ecdsa_activation.material_activation.activation_id') = ?`,
+    ).all(body.scope.wallet_id, body.material_activation.activation_id);
+    if (rows.length !== 1 || typeof rows[0].namespace !== 'string' ||
+        typeof rows[0].scope_json !== 'string') {
+      throw new Error('Expected one isolated ECDSA material policy scope');
+    }
+    const scope = normalizeRuntimePolicyScope(JSON.parse(rows[0].scope_json));
+    const scopeKey = [scope.orgId, scope.projectId, scope.envId, scope.signingRootVersion].join('\x1f');
+    const abuseKey = [scopeKey, body.scope.wallet_id,
+      `material_activation:${body.material_activation.activation_id}`, 'ecdsa'].join('\x1f');
+    // This database belongs to this single-wallet scenario; policy rows are test-owned.
+    database.prepare('DELETE FROM router_ab_normal_signing_admission_records').run();
+    if (policy === 'allowed') return;
+    const insert = database.prepare(
+      `INSERT INTO router_ab_normal_signing_admission_records
+       (namespace, org_id, project_id, env_id, signing_root_version,
+        record_kind, record_key, decision, retry_after_ms, updated_at_ms)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    );
+    const tenant = [rows[0].namespace, scope.orgId, scope.projectId, scope.envId, scope.signingRootVersion];
+    const abuseDecision = policy === 'rate_limited' ? 'rate_limited' : 'rejected';
+    insert.run(...tenant, 'abuse', abuseKey, abuseDecision, 1000, Date.now());
+    if (policy === 'project_and_abuse') {
+      insert.run(...tenant, 'project_policy', scopeKey, 'rejected', 1000, Date.now());
+    }
+  } finally {
+    database.close();
+  }
+}
+
+class SigningPolicyProbe {
+  readonly evidence: { phase: string; code: string; status: number; remainingUses: number }[] = [];
+  completed: { request: Request; body: unknown } | null = null;
+
+  constructor(private readonly context: BrowserContext) {}
+
+  async verifyDenials(request: Request, phase: string): Promise<void> {
+    const body: unknown = request.postDataJSON();
+    if (!isPlainObject(body) || typeof body.operation_id !== 'string') {
+      throw new Error('Expected a signing operation identity');
+    }
+    const before = await signingOperationPersistence(body.operation_id);
+    const cases: readonly { policy: SigningPolicy; code: string; status: number }[] = [
+      { policy: 'project_and_abuse', code: 'project_policy_rejected', status: 403 },
+      { policy: 'abuse', code: 'abuse_rejected', status: 403 },
+      { policy: 'rate_limited', code: 'rate_limited', status: 429 },
+    ];
+    try {
+      for (const scenario of cases) {
+        await setIsolatedSigningPolicy(request, scenario.policy);
+        const response = await this.context.request.fetch(request);
+        expect(response.status()).toBe(scenario.status);
+        expect(await response.json()).toMatchObject({ code: scenario.code });
+        expect(await signingOperationPersistence(body.operation_id)).toEqual(before);
+        this.evidence.push({
+          phase,
+          code: scenario.code,
+          status: response.status(),
+          remainingUses: before.remainingUses,
+        });
+      }
+    } finally {
+      await setIsolatedSigningPolicy(request, 'allowed');
+    }
+  }
+
+  async intercept(route: Route): Promise<void> {
+    const request = route.request();
+    const phase = request.url().endsWith('/prepare') ? 'prepare' : 'finalize';
+    await this.verifyDenials(request, phase);
+    const response = await route.fetch();
+    expect(response.status()).toBe(200);
+    if (phase === 'finalize') this.completed = { request, body: await response.json() };
+    await route.fulfill({ response });
+  }
+}
+
+test('live signing policy denies prepare finalize and completed replay without consuming quota', async ({
+  harness, context,
+}, testInfo) => {
+  await harness.registerPasskeyEcdsaOnlyWallet();
+  const probe = new SigningPolicyProbe(context);
+  const intercept = probe.intercept.bind(probe);
+  const signingPath = /\/router-ab\/ecdsa-derivation\/sign(?:\/prepare)?$/;
+  await context.route(signingPath, intercept);
+  try {
+    await harness.signTempoTransaction('post_registration');
+  } finally {
+    await context.unroute(signingPath, intercept);
+  }
+  if (!probe.completed) throw new Error('Expected a verified completed signature');
+  await probe.verifyDenials(probe.completed.request, 'completed_replay');
+  const replay = await context.request.fetch(probe.completed.request);
+  expect(replay.status()).toBe(200);
+  expect(await replay.json()).toEqual(probe.completed.body);
+  expect(probe.evidence).toHaveLength(9);
+  await harness.signTempoTransaction('post_registration');
+  await harness.signTempoTransaction('post_registration');
+  const body: unknown = probe.completed.request.postDataJSON();
+  if (!isPlainObject(body) || typeof body.operation_id !== 'string') {
+    throw new Error('Expected operation identity');
+  }
+  const after = await signingOperationPersistence(body.operation_id);
+  expect(after).toEqual({ remainingUses: 0, claims: 1, auditEvents: 1 });
+  const evidence = {
+    kind: 'gateway_ecdsa_live_policy_v1',
+    host: process.env.SEAMS_INTENDED_WALLET_HOST ?? 'workers_local',
+    denials: probe.evidence,
+    after,
+    verifiedSignatures: 3,
+    exactReplayMatches: true,
+  };
+  const artifactName = `gateway-ecdsa-live-policy-${evidence.host}.json`;
   const artifactPath = path.resolve(testInfo.config.rootDir, '../.artifacts/r151', artifactName);
   await mkdir(path.dirname(artifactPath), { recursive: true });
   await writeFile(artifactPath, JSON.stringify(evidence, null, 2), 'utf8');
@@ -757,13 +903,16 @@ function gatewayD1Evidence(response: APIResponse): unknown {
   return header === undefined ? null : JSON.parse(header);
 }
 
-/** The part of Node's `node:sqlite` this evidence reads. */
+/** SQLite operations used by isolated signing scenarios. */
 type NodeSqliteModule = {
   readonly DatabaseSync: new (
     path: string,
     options: { readonly readOnly: boolean },
   ) => {
-    prepare(sql: string): { all(...parameters: string[]): Record<string, unknown>[] };
+    prepare(sql: string): {
+      all(...parameters: (string | number | null)[]): Record<string, unknown>[];
+      run(...parameters: (string | number | null)[]): { changes: number };
+    };
     close(): void;
   };
 };

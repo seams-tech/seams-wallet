@@ -85,6 +85,12 @@ E2E enforcement lives in `tests/e2e/intended-behaviours` and follows
   under the existing lease. Exact completed finalization replay returns the
   durable first result, while altered finalization input is rejected.
 
+- Reusable-session ECDSA prepare, finalize, and completed replay evaluate live
+  signing policy. Project denial takes precedence over abuse denial; abuse
+  rejection and rate limiting return their respective errors. Policy denial
+  leaves quota, operation claims, and audit events unchanged. Clearing the
+  denial permits the original request, including exact durable replay.
+
 - Reusable-session ECDSA signing checks that the material verified during
   authorization still matches when prepare claims the operation and when
   finalize or replay is admitted. This covers canonical signer records, linked
