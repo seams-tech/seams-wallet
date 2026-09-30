@@ -1495,7 +1495,6 @@ type RouterAbEcdsaPoolFillAuthorizationResult =
     };
 
 type EcdsaPresignGatewayTiming = {
-  queue: number | null;
   authenticate: number | null;
   material: number | null;
   admit: number | null;
@@ -1510,7 +1509,6 @@ async function handleEcdsaPoolFillRoute(input: {
 }): Promise<Response> {
   const startedAt = performance.now();
   const timing: EcdsaPresignGatewayTiming = {
-    queue: null,
     authenticate: null,
     material: null,
     admit: null,
@@ -1574,34 +1572,25 @@ async function executeEcdsaPoolFillRoute(
     return json(parsed.body, { status: thresholdEcdsaStatusCode(parsed.body) });
   }
   const request = parsed.request;
-  const queuedAt = performance.now();
-  const gateTicket = await presignPriorityGate.acquire(
-    resolvePresignTrafficClass(request.requestTag),
-  );
-  timing.queue = performance.now() - queuedAt;
-  try {
-    const authorized = await authorizeEcdsaPoolFill({ ctx: input.ctx, request, timing });
-    if (!authorized.ok) {
-      return json(authorized.error.body, { status: authorized.error.status });
-    }
-    const proxyStartedAt = performance.now();
-    const result =
-      'poolFill' in request
-        ? await runtime.initializePoolFill({
-            binding: authorized.binding,
-            request: ecdsaPoolFillInitRuntimeRequest(request),
-            onServerTiming: collectEcdsaPresignWorkerTiming.bind(undefined, workerTimings),
-          })
-        : await runtime.advancePoolFill({
-            binding: authorized.binding,
-            request: ecdsaPoolFillStepRuntimeRequest(request),
-            onServerTiming: collectEcdsaPresignWorkerTiming.bind(undefined, workerTimings),
-          });
-    timing.proxy = performance.now() - proxyStartedAt;
-    return json(result, { status: thresholdEcdsaStatusCode(result) });
-  } finally {
-    gateTicket.release();
+  const authorized = await authorizeEcdsaPoolFill({ ctx: input.ctx, request, timing });
+  if (!authorized.ok) {
+    return json(authorized.error.body, { status: authorized.error.status });
   }
+  const proxyStartedAt = performance.now();
+  const result =
+    'poolFill' in request
+      ? await runtime.initializePoolFill({
+          binding: authorized.binding,
+          request: ecdsaPoolFillInitRuntimeRequest(request),
+          onServerTiming: collectEcdsaPresignWorkerTiming.bind(undefined, workerTimings),
+        })
+      : await runtime.advancePoolFill({
+          binding: authorized.binding,
+          request: ecdsaPoolFillStepRuntimeRequest(request),
+          onServerTiming: collectEcdsaPresignWorkerTiming.bind(undefined, workerTimings),
+        });
+  timing.proxy = performance.now() - proxyStartedAt;
+  return json(result, { status: thresholdEcdsaStatusCode(result) });
 }
 
 function poolFillMaterialActivation(
@@ -1938,63 +1927,6 @@ function ecdsaPoolFillStepRuntimeRequest(
     ...(request.requestTag === undefined ? {} : { requestTag: request.requestTag }),
   };
 }
-
-type PresignTrafficClass = 'foreground' | 'background';
-
-type PresignPriorityTicket = {
-  release: () => void;
-};
-
-// Workers cannot safely resolve a Promise created by another request context.
-function resolvePresignPriorityTurn(resolve: (value: void | PromiseLike<void>) => void): void {
-  setTimeout(resolve, 5);
-}
-
-function waitForPresignPriorityTurn(): Promise<void> {
-  return new Promise(resolvePresignPriorityTurn);
-}
-
-class PresignPriorityGate {
-  private foregroundInFlight = 0;
-  private backgroundInFlight = 0;
-
-  async acquire(trafficClass: PresignTrafficClass): Promise<PresignPriorityTicket> {
-    if (trafficClass === 'foreground') {
-      this.foregroundInFlight += 1;
-      return this.createTicket('foreground');
-    }
-    while (!this.canRunBackgroundNow()) {
-      await waitForPresignPriorityTurn();
-    }
-    this.backgroundInFlight += 1;
-    return this.createTicket('background');
-  }
-
-  private createTicket(trafficClass: PresignTrafficClass): PresignPriorityTicket {
-    let released = false;
-    return {
-      release: () => {
-        if (released) return;
-        released = true;
-        if (trafficClass === 'foreground') {
-          this.foregroundInFlight = Math.max(0, this.foregroundInFlight - 1);
-        } else {
-          this.backgroundInFlight = Math.max(0, this.backgroundInFlight - 1);
-        }
-      },
-    };
-  }
-
-  private canRunBackgroundNow(): boolean {
-    return this.foregroundInFlight === 0 && this.backgroundInFlight === 0;
-  }
-}
-
-function resolvePresignTrafficClass(requestTag: string | undefined): PresignTrafficClass {
-  return requestTag === 'background_presign_pool_refill' ? 'background' : 'foreground';
-}
-
-const presignPriorityGate = new PresignPriorityGate();
 
 type StrictEcdsaPostRegistrationRequest =
   | {

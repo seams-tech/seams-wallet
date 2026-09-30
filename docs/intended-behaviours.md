@@ -205,6 +205,9 @@ Expected behaviour:
   exchange is aborted; recovery starts a fresh ceremony identity. Foreground
   signing retains priority through failed-refill recovery so maintenance cannot
   launch competing generation before that signing operation finishes.
+  Gateway requests remain independent: cancellation of one refill cannot block
+  subsequent background ceremonies. Refill scheduling and foreground priority
+  belong to the client pool; live Gateway authorization still applies per exchange.
 - Deferred mixed-authority publication reconciles ECDSA refill against the newly
   committed authority, including when the session credential is retained. A late
   failure from an older attempt cannot cancel the reconciled refill. Rejection

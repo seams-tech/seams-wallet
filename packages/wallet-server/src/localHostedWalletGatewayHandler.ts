@@ -1,3 +1,4 @@
+import { localPresignCancellationProbe } from './localIntendedPresignCancellation';
 import { localMaterialAdmissionFault } from './localIntendedMaterialAdmissionFault';
 import {
   createStaticWalletConsoleBindingV1,
@@ -253,6 +254,13 @@ export async function handleLocalHostedWalletGatewayRequestV1(
     ...env,
     WALLET_CONSOLE: createStaticWalletConsoleBindingV1(config),
   };
+  const canceledPresign = await localPresignCancellationProbe(
+    request,
+    gatewayEnv,
+    ctx,
+    dependencies,
+  );
+  if (canceledPresign) return canceledPresign;
   const ecdsaFault = request.headers.get(ECDSA_RESPOND_FAULT_HEADER);
   if (ecdsaFault !== null) {
     return await handleEcdsaRespondFault(

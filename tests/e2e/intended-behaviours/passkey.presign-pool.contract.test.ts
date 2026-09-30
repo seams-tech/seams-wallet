@@ -83,6 +83,20 @@ class FirstSigningPoolFlow {
   readonly stepResponses: Promise<PresignCompletion>[] = [];
   readonly preparedPresignatures: string[] = [];
 
+  readonly failedRequests: { path: string; elapsedMs: number; error: string | null }[] = [];
+
+  recordFailure(request: Request): void {
+    for (const observed of this.gatewayRequests) {
+      if (observed.request !== request) continue;
+      this.failedRequests.push({
+        path: observed.path,
+        elapsedMs: performance.now() - observed.atMs,
+        error: request.failure()?.errorText ?? null,
+      });
+      return;
+    }
+  }
+
   private captureRelease(resolve: () => void): void {
     this.releaseGate = resolve;
   }
@@ -229,6 +243,120 @@ class FirstSigningPoolFlow {
     }
     return timings;
   }
+}
+
+class CanceledGatewayRefill {
+  private readonly token = randomUUID();
+  private intercepted = false;
+  canceledAfterAdmission = false;
+
+  async intercept(route: Route): Promise<void> {
+    if (this.intercepted || presignRefillTag(route.request()) !== 'background') {
+      await route.continue();
+      return;
+    }
+    this.intercepted = true;
+    const request = route.request();
+    const controller = new AbortController();
+    const headers = {
+      ...(await request.allHeaders()),
+      'x-seams-intended-presign-cancellation': this.token,
+    };
+    const pending = fetch(request.url(), {
+      method: 'POST',
+      headers,
+      body: request.postData(),
+      signal: controller.signal,
+    }).then(unexpectedPresignResponse, expectedPresignCancellation);
+    try {
+      await expect.poll(this.isHeld.bind(this, request.url()), { timeout: 3_000 }).toBe(true);
+      controller.abort();
+      await pending;
+      this.canceledAfterAdmission = true;
+      await route.continue();
+    } finally {
+      controller.abort();
+      await fetch(request.url(), {
+        method: 'DELETE',
+        headers: { 'x-seams-intended-presign-cancellation': this.token },
+      });
+    }
+  }
+
+  private async isHeld(url: string): Promise<boolean> {
+    const response = await fetch(url, {
+      headers: { 'x-seams-intended-presign-cancellation': this.token },
+    });
+    const body: unknown = await response.json();
+    return isPlainObject(body) && body.held === true;
+  }
+}
+
+function unexpectedPresignResponse(): never {
+  throw new Error('Held Gateway refill completed before cancellation');
+}
+
+function expectedPresignCancellation(error: unknown): void {
+  if (!(error instanceof Error) || error.name !== 'AbortError') throw error;
+}
+
+test('canceling an admitted Gateway refill leaves subsequent background material usable', async ({
+  harness,
+  context,
+  page,
+}, testInfo) => {
+  test.skip(process.env.SEAMS_INTENDED_EXTERNAL_GATEWAY === '1', 'Local cancellation probe');
+  await context.addInitScript(enableSigningSessionDebugInFrame);
+  await page.evaluate(enableSigningSessionDebugInFrame);
+  const timing = new SigningTimingEvidence();
+  page.on('console', timing.record.bind(timing));
+  const cancellation = new CanceledGatewayRefill();
+  const intercept = cancellation.intercept.bind(cancellation);
+  const initPath = '**/router-ab/ecdsa-derivation/presignature-pool/fill/init';
+  const flow = new FirstSigningPoolFlow();
+  context.on('request', flow.record.bind(flow));
+  await context.route(initPath, intercept);
+  const signatures = [];
+  try {
+    await harness.registerPasskeyEcdsaOnlyWallet();
+    for (let index = 0; index < 2; index += 1) {
+      const startedAt = performance.now();
+      await harness.signTempoTransaction('post_registration');
+      signatures.push(timing.window(startedAt, performance.now()));
+    }
+    const persistence = await signingOperationPersistence('unclaimed-evidence-probe');
+    const evidence = {
+      kind: 'ecdsa_canceled_gateway_refill_v1',
+      reproduce:
+        "node tests/scripts/run-wallet-intended-isolated.mjs -- e2e/intended-behaviours/passkey.presign-pool.contract.test.ts --grep 'canceling an admitted Gateway refill'",
+      host: requestedEcdsaBackendProfile(),
+      canceledAfterAdmission: cancellation.canceledAfterAdmission,
+      verifiedSignatures: 2,
+      remainingUses: persistence.remainingUses,
+      distinctPresignatures: new Set(flow.preparedPresignatures).size,
+      backgroundRefills: timing.refillResults,
+      signatures,
+    };
+    const name = `canceled-gateway-refill-${evidence.host}.json`;
+    const file = path.resolve(testInfo.config.rootDir, '../.artifacts/r151', name);
+    await mkdir(path.dirname(file), { recursive: true });
+    await writeFile(file, JSON.stringify(evidence, null, 2));
+    await testInfo.attach(name, { path: file, contentType: 'application/json' });
+    expect(evidence.canceledAfterAdmission).toBe(true);
+    expect(evidence.remainingUses).toBe(1);
+    expect(evidence.distinctPresignatures).toBe(2);
+    expect(evidence.backgroundRefills.length).toBeGreaterThan(0);
+    for (const refill of evidence.backgroundRefills) expect(refill.outcome).toBe('available');
+    for (const signature of signatures) {
+      expect(signature.stages.some(isForegroundRefill)).toBe(false);
+    }
+  } finally {
+    await context.unroute(initPath, intercept);
+  }
+});
+
+function isForegroundRefill(stage: { stage: string }): boolean {
+  return stage.stage === 'foreground_refill';
 }
 
 class FailedBackgroundRefill {
@@ -382,6 +510,8 @@ test('unforced ECDSA registration and repeated signing capture Gateway timing', 
   const flow = new FirstSigningPoolFlow();
   const record = flow.record.bind(flow);
   const recordResponse = flow.recordResponse.bind(flow);
+  const recordFailure = flow.recordFailure.bind(flow);
+  context.on('requestfailed', recordFailure);
   context.on('request', record);
   context.on('response', recordResponse);
   try {
@@ -461,14 +591,9 @@ test('unforced ECDSA registration and repeated signing capture Gateway timing', 
         ),
       },
       signaturesVerified: 2,
+      backgroundRefills: clientTiming.refillResults,
+      failedRequests: flow.failedRequests,
     };
-    for (const window of [proof.firstSigning, proof.subsequentSigning]) {
-      if ((window.presignRefillRequestCounts.foreground_init ?? 0) > 0) {
-        expect(window.clientTiming.stages).toEqual(expect.arrayContaining([
-          expect.objectContaining({ stage: 'foreground_refill', durationMs: expect.any(Number) }),
-        ]));
-      }
-    }
     const artifactName = hostedBenchmark
       ? `gateway-ecdsa-unforced-timing-${requestedBackendProfile}-${probeRegion}-${runId}-${testInfo.repeatEachIndex}.json`
       : `gateway-ecdsa-unforced-local-timing-${requestedBackendProfile}.json`;
@@ -480,6 +605,7 @@ test('unforced ECDSA registration and repeated signing capture Gateway timing', 
       contentType: 'application/json',
     });
   } finally {
+    context.off('requestfailed', recordFailure);
     page.off('console', observeTiming);
     context.off('request', record);
     context.off('response', recordResponse);

@@ -15,7 +15,11 @@ export class IntendedActionTiming {
   }
 
   evidence() {
-    if (this.completedAt === null || this.automationFinishedAt === null || this.settledAt === null) {
+    if (
+      this.completedAt === null ||
+      this.automationFinishedAt === null ||
+      this.settledAt === null
+    ) {
       throw new Error('Expected completed action timing');
     }
     return {
@@ -35,8 +39,18 @@ type TimingEvent = {
   readonly durationMs: number;
 };
 
+type RefillDiagnostic = {
+  readonly receivedAtMs: number;
+  readonly outcome: 'available' | 'failed';
+  readonly code: string | null;
+  readonly depth: number;
+  readonly targetDepth: number;
+};
+
 export class SigningTimingEvidence {
   private readonly events: TimingEvent[] = [];
+
+  readonly refillResults: RefillDiagnostic[] = [];
 
   record(message: ConsoleMessage): void {
     const text = message.text();
@@ -45,10 +59,32 @@ export class SigningTimingEvidence {
       : '[Intended ECDSA benchmark] ';
     if (!text.startsWith(prefix)) return;
     const event: unknown = JSON.parse(text.slice(prefix.length));
-    if (!isPlainObject(event) ||
-        (event.event !== 'ecdsa_signing_timing' && event.event !== 'ecdsa_sdk_call')) return;
-    if (typeof event.durationMs !== 'number' || !Number.isFinite(event.durationMs) ||
-        event.durationMs < 0) throw new Error('Invalid ECDSA diagnostic duration');
+    if (!isPlainObject(event)) return;
+    if (event.event === 'ecdsa_background_refill_result') {
+      if (
+        (event.outcome !== 'available' && event.outcome !== 'failed') ||
+        (event.code !== null && typeof event.code !== 'string') ||
+        typeof event.depth !== 'number' ||
+        typeof event.targetDepth !== 'number'
+      ) {
+        throw new Error('Invalid background refill diagnostic');
+      }
+      this.refillResults.push({
+        receivedAtMs: performance.now(),
+        outcome: event.outcome,
+        code: event.code,
+        depth: event.depth,
+        targetDepth: event.targetDepth,
+      });
+      return;
+    }
+    if (event.event !== 'ecdsa_signing_timing' && event.event !== 'ecdsa_sdk_call') return;
+    if (
+      typeof event.durationMs !== 'number' ||
+      !Number.isFinite(event.durationMs) ||
+      event.durationMs < 0
+    )
+      throw new Error('Invalid ECDSA diagnostic duration');
     const stage = event.event === 'ecdsa_sdk_call' ? 'public_sdk_call' : event.stage;
     if (typeof stage !== 'string') throw new Error('Missing ECDSA timing stage');
     this.events.push({ receivedAtMs: performance.now(), stage, durationMs: event.durationMs });
@@ -64,6 +100,12 @@ export class SigningTimingEvidence {
         receivedOffsetMs: event.receivedAtMs - startedAt,
       });
     }
+    const backgroundRefills = [];
+    for (const event of this.refillResults) {
+      if (event.receivedAtMs >= startedAt && event.receivedAtMs <= endedAt) {
+        backgroundRefills.push(event);
+      }
+    }
     const sdk = events.filter(isPublicSdkCall);
     expect(sdk).toHaveLength(1);
     expect(events.some(isCommitTotal)).toBe(true);
@@ -73,7 +115,9 @@ export class SigningTimingEvidence {
       publicSdkCallMs: sdkMs,
       outsidePublicSdkCallMs: endedAt - startedAt - sdkMs,
       stages: events,
-      accounting: 'Stages overlap; receive offsets use the observer clock. Public SDK time includes confirmation.',
+      backgroundRefills,
+      accounting:
+        'Stages overlap; receive offsets use the observer clock. Public SDK time includes confirmation.',
     };
   }
 }

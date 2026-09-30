@@ -402,7 +402,6 @@ function isCompletePresignCeremony(ceremony: { complete: boolean }): boolean {
 async function assertPresignResponseTiming(response: Response): Promise<void> {
   const timing = parseEcdsaServerTiming(await response.headerValue('Server-Timing'));
   for (const name of [
-    'ecdsa_presign_queue',
     'ecdsa_presign_authenticate',
     'ecdsa_presign_material',
     'ecdsa_presign_proxy',

@@ -1599,17 +1599,101 @@ Artifacts and reproduction:
   restoration. Cumulative observed-usage estimate is $0.6482 through
   `2026-09-30T11:24:55.177Z`; accounting can lag. Artifact credential scans passed.
 
-Next steps are now narrower:
+### Canceled Gateway refill diagnosis and correction — September 30
 
-1. Capture the existing background-refill result and progress events alongside
-   these timings. Determine why a waited-on refill sometimes yields no usable
-   material before foreground fallback. Preserve one-use material, cancellation,
-   and quota behavior while fixing a demonstrated cause.
-2. Repeat first/warm/burst and linked signing on fixed builds with verified probe
-   locations, retaining public-SDK and post-confirmation timing separately from
-   harness time. Establish the system-controlled latency distribution.
-3. Revisit the remaining policy-read contract only against the measured residual,
-   and compare Gateway placement near the existing D1 primary before regional D1.
+The demonstrated cause is the Gateway's module-global presign priority gate.
+Canceling a request after it acquired a background ticket can terminate the
+Worker invocation without executing its `finally` release. The isolate retains
+`backgroundInFlight = 1`. Subsequent background requests poll that stale counter
+until the SDK's five-second exchange deadline aborts them. Foreground replacement
+bypasses the background gate and succeeds, explaining the empty refill result
+followed by a second ceremony. The failure is a production regression in request
+isolation; the five-second deadline is working as intended.
+
+An unchanged-build hosted cohort recorded six `network_error` refill results
+and six foreground fallbacks across twenty verified signatures. Their init
+requests aborted at approximately 5,000 ms. A separate twenty-signature cohort
+with temporary gate tracing recorded eight fallbacks. The trace includes one
+isolate acquiring a background ticket, cancellation after 397 ms with no
+release, and subsequent background requests entering that same isolate with
+counter one and canceling after 4,991–4,995 ms. Foreground requests continued to
+acquire and release while the stale background count remained one. The temporary
+trace recorded only a random gate identifier, phase, traffic class, and counts;
+it has been removed from production source.
+
+The correction deletes the Gateway gate and its queue timing metric. Client
+pool scheduling still bounds refill concurrency and retains foreground priority
+through fallback. Every Gateway exchange still performs live authorization,
+material checks, admission, and the existing protocol operation. Ceremony and
+HTTP deadlines, quota consumption, persistence, and single-use material remain
+unchanged. Request-local execution follows Cloudflare's guidance on
+[avoiding mutable global request state](https://developers.cloudflare.com/workers/best-practices/workers-best-practices/).
+
+The new controlled E2E uses the existing local Gateway fault boundary. It holds
+an admitted init at the signing-worker proxy, aborts its HTTP request, and lets
+the ordinary SDK refill proceed. It signs twice and verifies distinct
+presignatures and quota three → one. With the old gate it produces two failed
+background refills and SDK calls of 4,538 and 4,451 ms. With the correction the
+Workers calls take 416 and 387 ms, with usable background material and no
+foreground fallback. The corrected scenario also passes on wallet-DO and VM.
+The natural hosted cohorts use the same SDK distribution hash and unchanged
+role deployments; only the Gateway changes:
+
+| Hosted cohort | Verified signatures | Failed refills / fallback signatures | Public SDK median | Public SDK range | Commit median |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Unchanged Gateway | 20 | 6 / 6 | 2,746 ms | 2,013–7,771 ms | 2,074 ms |
+| Diagnostic gate trace | 20 | 8 / 8 | 2,753 ms | 2,022–7,952 ms | 2,176 ms |
+| Corrected Gateway | 20 | 0 / 0 | 2,335 ms | 1,843–3,060 ms | 1,735 ms |
+
+The timing collector now retains sanitized refill outcomes and failed-request
+elapsed times. The old assertion that every foreground-tagged init implies a
+new foreground ceremony was retired: an existing background ceremony can be
+promoted when a signer starts waiting. The explicit SDK `foreground_refill`
+stage identifies actual fallback.
+
+Cancellation and first/warm/burst E2Es pass on all three local profiles;
+stalled-exchange recovery and third-generation linked signing also pass.
+One local attempt failed during tenant-root bootstrap before executing its test;
+the fresh-state retry passed. The failure was classified as infrastructure,
+and no production behavior was changed for it. A final cancellation recheck
+passes against rebuilt SDK/server distributions after removing the retired
+queue metric from the parser and its existing fixture. Intended-suite and
+server type checks, build freshness, diff checks, and the bloat ratchet pass.
+No unit tests were added.
+
+A preceding six-signature baseline had no failures, illustrating the intermittent
+nature of the defect. Keep these cohorts separate. SDK timing includes automated
+confirmation; commit timing overlaps child stages. These are ordered, small
+cohorts, with unverified browser/Gateway/DO physical locations. They establish
+removal of the reproduced cancellation stall, not a production tail bound or a
+regional D1 benefit. All 66 hosted signatures verify and retain seven Gateway
+D1 calls / eight SQL statements / two write-bearing calls; D1 reports APAC.
+
+Evidence and reproduction:
+
+- `.artifacts/r151/refill-cancellation-20260930/` contains the controlled before/
+  after artifacts and `comparison.json`. Run the intended contract selected by
+  `--grep 'canceling an admitted Gateway refill'` from
+  `tests/e2e/intended-behaviours/passkey.presign-pool.contract.test.ts`.
+- `.artifacts/r151/hosted-refill-before-20260930/`,
+  `hosted-refill-before-20260930-r2/`, `hosted-refill-gate-20260930/`, and
+  `hosted-refill-fixed-20260930/` retain source/build hashes, per-request D1
+  traces, refill results, request failures, and signing timings. The diagnostic
+  cohort also contains sanitized `gate-events.json`.
+- `.runtime/r151-refill/verify.mjs` runs the controlled cancellation and
+  first/warm/burst cases on Workers, wallet-DO, and VM, plus stalled-exchange
+  recovery and third-generation linked signing. The analysis command is
+  `python3 .runtime/r151-refill/analyze.py`.
+
+The isolated benchmark's original Gateway version and expired ingress window
+were restored and checked (100% baseline version, readiness HTTP 503). Observed
+cumulative spend is $0.6607 through `2026-09-30T12:09:31.124Z`, below the existing
+$25 cap; usage accounting can lag. No staging or production deployment changed.
+
+Remaining R151 work is controlled first/warm/burst and linked-signing latency
+measurement with verified probe locations, then a placement comparison near
+the existing D1 primary. Revisit policy-read consolidation against that residual.
+R152 remains a separate regional-D1 plan with unmeasured gains.
 
 ### 1. Consolidate reads while preserving decision boundaries
 
