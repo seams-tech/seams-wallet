@@ -1158,6 +1158,71 @@ these cohorts, retain the full query/Console accounting, and verify the recorded
 Gateway baseline remains inside the rollback window before another deployment.
 Authenticated regional repetition and production routing remain open.
 
+## Authenticated regional repeat preparation (October 1)
+
+The next cohort pins the verified server candidate `5ac59f45` and prepares two
+Tokyo browser boots with reversed APAC/WEUR database order. Each boot covers
+cold-unlock/first/warm/burst and activation-loss recovery in both homes. The
+browser image preserves the frozen SDK layers, adds the already-verified IPv4
+launcher, and sets the diagnostic Node header limit to 128 KiB. Its pinned Linux
+manifest is `d732c569c7bbaaf2763f5dd55594094676cc94cf313dfd86f289980f99450005`;
+image/layer evidence is retained separately from earlier candidates.
+
+The first start (`console-sign-r14`, private `console-hosted-auth-r21`) was
+interrupted before browser dispatch. It contributes **zero signatures and no
+latency samples**. The local runner had stopped before automatic cleanup, so
+explicit recovery restored Gateway/Console baseline versions, revoked all 36
+experiment credentials, removed the active binding, closed ingress (503) and
+verified original probes inactive with access closed (403). No temporary probe
+Worker, DO namespace or Container application remains. Console projections stay
+at 24 and monthly-active-resource rows at zero. Cumulative reported cost at
+12:24:03 UTC is $1.3396 / $25, subject to analytics lag.
+
+Evidence: `.artifacts/r152/console-sign-r14-20261001/` (`interruption.json`,
+image fingerprints, resource absence, restoration and cost), and private
+`.artifacts/r152/console-hosted-auth-r21-20261001/` (interruption state,
+revocation, projection and baseline restoration receipts). A retry uses fresh
+cohort and attempt IDs; this interrupted start remains outside successful-run
+statistics.
+
+### Fresh regional retry: Container allocation failure
+
+The fresh `console-sign-r15` / private `console-hosted-auth-r22` retry deploys
+its isolated Worker, DO namespace and Container application successfully. The
+probe access endpoint reaches 204. Two read-only identity requests time out;
+the final bounded request returns HTTP 503 with Cloudflare's message:
+“There is no container instance that can be provided to this Durable Object,
+try again later.” The provider instance-list observation is empty. Classify this
+as `environment_or_infrastructure_failure` before browser dispatch. Runtime image
+identity and Tokyo placement remain unverified; there are **zero browser attempts,
+zero signatures and zero new latency samples**. No Wallet code changes result
+from this failed preflight.
+
+Cleanup deletes the temporary application, retires its DO class/namespace and
+deletes the Worker. Postflight verifies all 38 experiment credentials revoked,
+zero active bindings, unchanged 24 Console projections, zero monthly-active-
+resource rows, restored Gateway/Console/custody-role versions, default placement,
+original probes inactive, and probe/ingress access closed (403/503). Transient
+secret files and both cohorts' log-stream processes are removed. Evidence hygiene
+finds zero credential matches in 55 files checked against nine known values.
+
+Cumulative reported cost at 12:39:32 UTC is **$1.3398 / $25**, subject to analytics
+lag. The conservative CPU/memory/disk allowance across eleven temporary Console
+probe applications is $0.4864, excluding egress; it remains separate from measured
+billing and from the earlier Tokyo probe allowance. This conservative bound
+assumes all three candidate instances ran throughout each application's lifetime,
+even though this retry observes no allocated instance.
+
+Evidence: `.artifacts/r152/console-sign-r15-20261001/`, including
+`failure-classification.json`, `network-retries.jsonl`,
+`startup-observation.json`, pinned browser-image and runner hashes, resource
+creation/deletion receipts, final restoration, cost and `evidence-hygiene.json`.
+Private Console evidence is `.artifacts/r152/console-hosted-auth-r22-20261001/`.
+The two-boot/reversed-order runner and analyzers remain prepared under the matching
+`.runtime` paths; any further execution requires fresh cohort/attempt IDs.
+Authenticated regional repetition remains open. Lifecycle call-budget analysis
+is separately queued in the [deferred audit](refactor-152-regional-D1.md#deferred-follow-up-lifecycle-d1-call-budgets).
+
 ## Target-image diagnosis and hosted Console lookup (October 1)
 
 Authenticated pull-only registry inspection verified that the target tag
