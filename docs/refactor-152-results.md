@@ -259,8 +259,9 @@ Private Console commit `286bc83` adds existing binding/total Gateway timing to
 the private workspace; `919406d` removes an invalid ambient Playwright type entry
 and its redundant Console override. Full production builds, application/server
 type-checks, type fixtures, Console E2E type-checking, and Console import-boundary
-checks pass. These changes are committed locally; they have not been deployed
-or included in the frozen regional cohorts.
+checks pass. At that checkpoint these changes were committed locally, undeployed, and
+excluded from the frozen regional cohorts. The hosted lookup cohort below
+subsequently deployed them only on isolated benchmark Workers.
 
 The composed intended-test harness still references Wallet source modules that
 moved out of the private repository, and has missing script/Vite declarations.
@@ -304,14 +305,143 @@ pnpm -C tests exec playwright test -c playwright.relayer.config.ts \
 
 The private intended harness migration remains open. This independent service
 scenario advances measurement readiness without restoring private Wallet imports.
-The instrumentation is committed locally and has not been deployed.
+At that checkpoint the instrumentation was committed locally and undeployed;
+the subsequent hosted cohort below closes the lookup-only measurement gap.
+
+
+## Target-image diagnosis and hosted Console lookup (October 1)
+
+Authenticated pull-only registry inspection verified that the target tag
+`r151-session-read-r16` and index digest `a30724af…` identify the same artifact.
+Its Linux/amd64 child is
+`sha256:0bf940dab37444f7915b6d4c7388f72d6fede2798b306d1642ca37907b6d5c7f`.
+The index also contains an attestation manifest. Both target and old images use
+Linux/amd64 and `node tests/r150-hosted/probe/server.mjs` in `/workspace`.
+Compressed layer totals are 1,158,492,849 bytes for the target and 1,158,677,572
+for the old image. The target's manifest and configuration are accessible; this
+inspection does not verify every layer's availability from Cloudflare's Tokyo
+image-pull infrastructure. Five-minute pull-only registry credentials were held
+in memory, with no persistent service credential or credential-bearing evidence.
+This supersedes run six's unauthenticated registry-inspection limitation.
+
+A controlled diagnostic pinned the Linux child directly, preserving its contents,
+application, region, CPU, memory, and disk. Rollout
+`f61741e6-8caf-4af2-9ea4-6c0842c50b88` targeted version 34 and failed the ten-minute
+readiness gate. An initial identity read returned the old image in `nrt13`;
+later reads returned HTTP 500 and the Worker tail recorded:
+
+> There is no container instance that can be provided to this Durable Object, try again later
+
+The application reported one starting target, zero healthy targets, and no health
+error details. The instance API exposed only the old inactive instance; the
+Dashboard instances API returned no running instance. The deployment-list API
+returned HTTP 404 with an authentication error and supplies no additional proof.
+No wallet attempt was dispatched. This narrows the failure to provisioning the
+target container before the benchmark process starts and makes OCI-index handling
+an unlikely sole cause. It does **not** identify whether allocation, regional image
+pull, or VM startup is responsible. The same target contents already succeeded in
+London; repeated identical Tokyo retries are not useful evidence of randomness.
+
+Evidence: `.artifacts/r152/tokyo-diagnosis-20261001/`, including verified manifests,
+`target-linux-verification.json`, target application/instance health,
+`target-errors.json`, and `linux-manifest-rollout.json`. The runtime harness is
+`.runtime/r152-diagnosis/run.mjs`; it restores the image and Worker in `finally`.
+Cloudflare investigation can use the account/application IDs, rollout ID, target
+manifest, UTC timestamps, and error receipts in this directory. No support message
+was sent.
+
+
+Restoration rollout `325fb9dd-807f-4c54-9923-1682fb048f52` completed at application
+version 35, and the old image answered in `nrt13` again. Cloudflare rejected rollback
+to Probe Worker `80d39252…` twice with code 10210 ("Version not found"), although
+its metadata and content remained readable. Cleanup therefore downloaded that
+version's exact `worker.js` and redeployed it without bundling as
+`c573e917-9faf-4448-a4a1-d6eb2d845fef`. Readback confirms identical module bytes
+(SHA-256 `afccfb2a97dd27c69f08fa15281a06dd38100b6530d9f0317667811efb95c23b`),
+identical bindings, and identical runtime settings. **Use this new Probe Worker
+version as the restoration baseline for later experiments.** The original digest
+and all other Worker baselines remain unchanged. `restored-probe-baseline.json`
+and `restoration-final.json` record this recovery and its verification.
+
+Both Gateway Workers returned to their prior versions; the three probe containers
+are inactive, access is closed (Probe 403 / ingress 503), default Gateway placement
+is restored, and all five custody-role versions are unchanged. The additional
+Console fixture tables/immutable rows are the intentional retained database delta;
+no active experiment pointers remain. Estimated cumulative spend is $1.2692 of $25
+at 04:57:52 UTC, subject to analytics lag. Evidence scans found no benchmark-token
+matches. The initial exact-version restoration check failed as expected and is
+retained separately from the successful final restoration.
+
+### Hosted production binding path
+
+Private source `78e3132`, with exact Wallet Server 0.7.3, was temporarily deployed
+on the **existing isolated benchmark Workers**. The path was authenticated
+benchmark ingress → production Gateway entrypoint → production Console entrypoint
+through `WALLET_CONSOLE` → remote D1. The old idle D1-arm Gateway hosted Console;
+the DO-arm Gateway hosted the production Gateway. Production and staging services
+were not deployed. Gateway, ingress, and Console placement remained default.
+
+The experiment changed only Console's D1 binding between the already authorized
+APAC and WEUR databases. Gateway `SIGNER_DB` stayed on APAC. Both databases received
+the same private Console migration `0046_tenant_deployment_bindings.sql`, two
+canonical synthetic deployment records, and a dedicated experiment lane. No valid
+browser/service credential was issued. Immutable fixture records and the added
+Console tables are retained in both benchmark databases; active pointers were
+removed during cleanup. Existing wallet data was preserved.
+
+Four blocks ran APAC → WEUR → WEUR → APAC. Each block verified the public deployment
+projection, then made 16 unauthenticated session-status requests. All 64 requests
+successfully resolved the Console binding and returned the expected HTTP 401.
+Every timing reported the intended D1 region and primary. The latter two blocks
+observed a new canonical binding revision after an active-pointer update. This
+verifies hosted freshness and Gateway timing propagation without requiring a
+signing credential. **No signatures were measured in this cohort.**
+
+Each arm has 32 requests; the first request of each block is retained separately,
+leaving 30 warm observations per arm. These first requests follow a successful
+projection request and must not be called cold starts. Nearest-rank quantiles:
+
+| Warm metric | APAC p50 / p95 / max | WEUR p50 / p95 / max |
+| --- | --- | --- |
+| Console D1 wall | 58 / 64 / 106 ms | 241 / 253 / 256 ms |
+| Console SQL | 0.403 / 0.670 / 2.093 ms | 0.307 / 0.424 / 0.504 ms |
+| Complete Gateway binding lookup | 64 / 149 / 166 ms | 246 / 260 / 339 ms |
+| Client request wall | 88.9 / 205.5 / 399.5 ms | 267.7 / 302.4 / 590.3 ms |
+
+All request rays identify NRT ingress. Adaptive invocation analytics also identify
+NRT execution for the Gateway and the first APAC/WEUR Console versions. They
+account for 51 of the 68 requests including projection checks; the final APAC
+redeployment was absent at read time. These are aggregate observations rather
+than per-request placement proof. D1 supplies APAC/WEUR region names, not the precise primary city. The median
+binding difference is 182 ms per request; median SQL execution remains below
+one millisecond in both arms. Subtracting D1 wall from binding wall per observation
+gives a median five milliseconds in both arms, with a 107 ms maximum in APAC.
+That remainder includes service/validation/runtime work and is not a pure transport
+measurement. Multiplying this lookup cost by signing HTTP-call counts is a budget
+estimate, not an observed signing result.
+
+Private evidence: `.artifacts/r152/hosted-console-20261001/` contains all responses,
+projection receipts, timing distributions, source/migration hashes, deployed
+versions/bindings, aggregate placement, and restoration receipts. Runtime and
+analysis scripts are `.runtime/r152-hosted-console/run.mjs` and `analyze.mjs`.
+Recompute without contacting Cloudflare:
+
+```sh
+# In seams-monorepo
+node .runtime/r152-hosted-console/analyze.mjs
+```
+
+The hosted binding lookup measurement gate is complete for this NRT cohort.
+Full authenticated Console/signing composition, other origins, real tenant data
+scale, and authority/home correctness remain open. These results are a separate
+cohort from the frozen SDK/London signing measurements and must not be pooled.
 
 ## Decision and remaining work
 
 London provides sufficient measured benefit to continue regional ownership
 **design**. Regional production activation remains gated on repeated first-sign/
-burst samples, other-region evidence, actual Console dependency timing, and the
-complete home/authority proof. The routing work should extend the existing
+burst samples, other-region evidence, authenticated Console/signing composition, and the
+complete home/authority proof. Hosted NRT binding timing is now measured separately. The routing work should extend the existing
 canonical deployment binding with an immutable initial home for a complete
 deployment namespace, keeping its organization’s projects together and including
 authenticated internal and scheduled paths.
