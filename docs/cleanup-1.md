@@ -819,3 +819,14 @@ Found during the cleanup and left unchanged, for their owners to check:
   `publicTranscriptDigest32B64u`, which carried the threshold-PRF proof
   transcript digest under the old name and which no client verified. The
   Lean and Verus models are unchanged and still describe the retired digest.
+- 2026-10-01: 3f30e6c deleted more dead Rust and the two tests that only
+  exercised it, recounted the Ed25519 Yao pins and regenerated `Funs.lean`;
+  `cargo yao-fv all` passes. That pass found two problems. First, a4d92e1
+  and ae9a230 had been checked with one cargo target directory shared by
+  the base and patched trees, so some base builds reused patched
+  artifacts. All 77 check, wasm32 and test-list rows were rebuilt with a
+  target directory per tree and are identical. Second, five `Cargo.lock`
+  files failed `--locked`: ae9a230 had landed two of them without the
+  router-ab-dev manifest change they were generated with, and three
+  predate it. ddb6572 brings them up to date, and 1c860da adds
+  `pnpm check:cargo-locks` to CI.
