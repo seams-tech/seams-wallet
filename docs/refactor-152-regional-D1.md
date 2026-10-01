@@ -33,12 +33,19 @@ locally in private commit `12784a3`. Concurrent callers share one immutable
 account/database assignment, including after interrupted provisioning and restart.
 Private commit `a09e454` integrates the reservation into authenticated
 provisioning admission: missing or conflicting assignments fail before cutover,
-custody or credential creation. Existing-resource inventory/pinning, canonical
-binding home identity, physical-resource verification and runtime routing remain
+custody or credential creation. Existing-resource inventory/pinning,
+physical-resource verification and regional runtime routing remain
 open. Private commit `afeea62` also requires the reserved resource at activation
 and records it in the activation transaction. Historical activation rows remain
 unattested; a new activation can record their pinned home without rewriting the
 binding. These changes have not been deployed.
+
+October 2 private commit `dd6f5bf` makes home identity required in the canonical
+binding hash, adds explicit historical-binding adoption to a new revision, and
+checks configured resource identity in bound runtime consumers. Operator-driven
+adoption with fresh readiness, physical-resource verification and remaining
+entry-point coverage are still rollout gates. See the
+[contract/adoption evidence](refactor-152-results.md#canonical-home-contract-and-adoption-october-2).
 
 ## Objective and starting evidence
 
@@ -418,12 +425,22 @@ below remain open.
   verifies competing activations, completed retry after readiness expiry, stale
   retry rejection, direct SQL home checks and historical adoption through a new
   activation. This records assignment identity, with physical verification open.
-- [ ] Require home identity in the canonical binding/runtime contract. Existing
-  revisions hash immutable payloads; introduce the new format with explicit
-  replacement revisions and an adoption procedure. Preserve existing binding
-  bytes/history rather than inserting a field under their existing revision.
-  Cover active-binding reuse and all runtime readers so historical activations
-  cannot silently count as verified regional activation.
+- [x] Require home identity in the canonical binding hash. Ordinary decoding
+  rejects bindings without it. Explicit persistence-boundary adoption verifies
+  the old hash, checks the namespace reservation and creates a deterministic new
+  revision while retaining the original row. Local E2E verifies adoption and
+  activation retries, preserved history and tampered-home rejection.
+- [x] Compare configured home identity in bound Gateway, Wallet Runtime and
+  combined runtime request paths, including Gateway scheduled work. Provisioning
+  candidate creation and active reuse also check the configured home. Generated
+  configurations carry the same signer-D1 identity. This is configuration
+  consistency; actual resource verification remains open.
+- [ ] Complete the operator-driven adoption workflow with fresh production
+  readiness and canary evidence, including the old source scope needed during
+  readiness. Ordinary readers now reject old bindings, so rollout must coordinate
+  replacement activation and consumer deployment. Cover remaining internal
+  control/inspection, discovery and administrative paths before claiming every
+  entry point enforces home identity. Preserve pre-activation custody bootstrap.
 - [ ] Reuse existing trusted tenant/environment routing where possible. Define
   required owner, home, and routing-generation identity at the server boundary.
   Reject inconsistent or stale routes before any mutation. Route lookup itself

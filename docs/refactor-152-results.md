@@ -2017,3 +2017,70 @@ administrative active-pointer writes are outside this activation-insert check.
 Before rollout, inventory/pin actual resources, complete canonical/runtime home
 enforcement, verify physical Worker bindings, and exercise full provisioning and
 canary success. No remote migration, deployment or latency measurement occurred.
+
+## Canonical home contract and adoption (October 2)
+
+Private source checkpoint: `seams-monorepo` commit `dd6f5bf`. A binding now requires
+`home.accountId` and `home.databaseId`; both participate in its canonical content
+hash. Ordinary decoding rejects old home-less bindings and modified homes under
+an existing revision. Resource parsing is shared with namespace reservations.
+The binding kind/schema remain V1; the required shape changes and exact content
+revision distinguishes the replacement. Consumer deployment must be coordinated.
+
+Explicit persistence adoption verifies the historical canonical hash and row
+metadata, requires a matching immutable reservation, and inserts a new binding
+revision. Repeating adoption returns the same replacement. It does not update the
+active pointer or rewrite the original row. Activation separately compares the
+requested home with the binding and reservation; migration
+`0049_tenant_deployment_binding_homes.sql` enforces canonical-home agreement in
+the activation INSERT transaction.
+
+Bound Gateway, Wallet Runtime and combined runtime environments reject a
+configured resource different from the binding. Gateway scheduled work uses the
+same binder. Provisioning candidates include the configured home; active reuse
+and candidate persistence reject mismatches. Gateway and Wallet Runtime config
+rendering was checked with a synthetic account ID, including exact agreement
+between the declared home UUID and generated `SIGNER_DB` binding UUID. This
+configuration check does not inspect deployed Cloudflare resources.
+
+The local adoption E2E verifies old-format rejection, corrupt historical-hash
+rejection, missing/conflicting reservations, deterministic replacement and
+activation retries, unchanged original binding JSON and an unchanged active
+pointer until activation. Changing the home changes the content revision; a
+runtime with another configured database is rejected. The service-binding E2E
+also exercises a wrong-home Worker consumer. The activation E2E now applies the
+latest migration and proves that SQL cannot activate a canonical home different
+from the otherwise-valid namespace reservation.
+
+Final validation: **6 E2Es passed in 8.1 seconds**, **8 existing binding tests
+passed in 1.4 seconds**, shared/server type checks, Console test type-check,
+type fixtures and targeted lint passed. No new unit tests were added. One test
+run failed before executing scenarios because concurrent Playwright runs cleaned
+a shared output directory; sequential execution resolved this harness issue.
+
+Private evidence: `.artifacts/r152/binding-home-20261002/` contains `e2e.log`,
+`existing-binding-tests.log`, `binding-home-adoption-evidence.json`, the other
+E2E artifacts, `source-sha256.json`, `verification.json` and generated Gateway/
+Wallet Runtime configurations. Reproduce from `seams-monorepo`:
+
+```sh
+pnpm -C tests exec playwright test -c playwright.relayer.config.ts \
+  relayer/tenant-binding-home-adoption.e2e.test.ts \
+  relayer/tenant-deployment-binding.e2e.test.ts \
+  relayer/namespace-home-activation.e2e.test.ts \
+  relayer/namespace-home-provisioning.e2e.test.ts \
+  relayer/namespace-d1-home.e2e.test.ts \
+  relayer/console-service-auth.e2e.test.ts \
+  --reporter=line --output=test-results/r152-binding-home
+```
+
+Limits: adoption uses a fixture readiness receipt in this test. Operator-driven
+adoption still needs fresh production readiness, historical source-scope handling,
+and successful canary verification. Old bindings fail ordinary decoding, so these
+changes must not be deployed ahead of that coordinated adoption workflow.
+Runtime comparison adds no D1 round trip, but trusts configured identity until
+physical Worker binding/resource verification is implemented. Internal control
+and inspection requests that run before binding resolution remain unmodified to
+preserve custody bootstrap; discovery/admin paths and historical activation
+attestation also need the full entry-point review. No deployment, hosted latency
+measurement or provider API operation occurred.

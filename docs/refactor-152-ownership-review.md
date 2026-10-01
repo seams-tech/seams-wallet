@@ -486,6 +486,24 @@ not an adoption operation; rollout still needs explicit inventory, adoption and
 runtime verification gates. See the
 [activation evidence](refactor-152-results.md#activation-home-enforcement-october-1).
 
+On October 2, private commit `dd6f5bf` adds required account/database identity to
+the canonical binding payload and its hash. Ordinary decoders reject home-less
+records. The explicit `adoptBindingHome` persistence operation verifies the old
+canonical hash and row metadata, requires a matching Console reservation and
+stores a deterministic new revision. It preserves the original row and leaves
+the active pointer unchanged until a separate activation succeeds. Migration
+`0049_tenant_deployment_binding_homes.sql` also checks that a new activation's
+home agrees with the canonical binding, in the activation transaction.
+
+Bound runtime environments compare their configured account/database IDs with
+the binding. Provisioning rejects mismatched active reuse and candidates. These
+comparisons add no request-time D1 calls. The local E2E proves mechanics using a
+fixture readiness receipt; production adoption orchestration still needs fresh
+readiness against the historical source scope. Internal control/inspection paths
+that precede binding resolution retain bootstrap behavior. This is not physical
+resource verification or complete entry-point enforcement. See the
+[October 2 results](refactor-152-results.md#canonical-home-contract-and-adoption-october-2).
+
 Review evidence: `.artifacts/r152/lifecycle-ownership-20261001/source-inventory.json`
 records SHA-256 hashes of the thirteen reviewed Wallet implementation files.
 The adjacent `table-source-index.json` indexes literal references for 53 of the
