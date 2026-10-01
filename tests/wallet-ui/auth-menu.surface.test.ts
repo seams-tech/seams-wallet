@@ -190,7 +190,7 @@ test.describe('wallet-host Preact auth menu surface', () => {
     await expect(page.locator(`${AUTH_MENU_TAG} #seams-auth-menu-login-account`)).toHaveCount(0);
     const primaryAction = page.locator(`${AUTH_MENU_TAG} [data-auth-menu-primary]`);
     await expect(primaryAction).toBeFocused();
-    await expect(primaryAction).toHaveAccessibleName('Sign in with Passkey');
+    await expect(primaryAction).toHaveAccessibleName('Sign in with passkey');
   });
 
   test('renders compact registration content and emits typed intents', async ({ page }) => {
@@ -222,7 +222,7 @@ test.describe('wallet-host Preact auth menu surface', () => {
     expect(initial.primaryDisabled).toBe(true);
     expect(initial.heading).toBe('Create your passkey');
     expect(initial.subtitle).toBe('Use a passkey to create your wallet.');
-    expect(initial.hasFingerprint).toBe(false);
+    expect(initial.hasFingerprint).toBe(true);
     expect(initial.hasPasskeyName).toBe(true);
     expect(initial.passkeyNameLabel).toBe('Passkey name');
     expect(initial.waitingText).toBe('');
@@ -686,6 +686,59 @@ test.describe('wallet-host Preact auth menu surface', () => {
     await expect(page.locator('[data-auth-menu-primary]')).toBeEnabled();
     await mountAuthMenu(page, loginViewModel({ kind: 'idle', interaction: 'actionable' }));
     await expect(page.getByRole('alert')).toHaveCount(0);
+  });
+
+  test('reports a failure in the footer strip without moving the menu, and retries from it', async ({
+    page,
+  }) => {
+    await mountAuthMenu(page, loginViewModel());
+    const card = page.locator(`${AUTH_MENU_TAG} .auth-menu-root`);
+    const footer = page.locator(`${AUTH_MENU_TAG} .seams-auth-footer`);
+    const notice = footer.locator('.seams-auth-footer-text');
+    await expect(footer).toHaveAttribute('data-state', 'brand');
+    await expect(footer.locator('.seams-auth-footer-brand')).toContainText('Secured by');
+    await expect(notice).toBeHidden();
+    const idleHeight = (await card.boundingBox())?.height ?? 0;
+
+    const failedStatus = {
+      kind: 'recoverable',
+      reason: 'error',
+      message: 'Can’t reach Seams right now.',
+      detail: 'sync-account/options failed (HTTP 502)',
+    } as const;
+    const retryIntents = await page.evaluate(async (status) => {
+      const received: unknown[] = [];
+      window.__authMenu.onIntent = (intent) => {
+        received.push(intent);
+      };
+      const model = window.__authMenu.model;
+      if (model.kind !== 'passkey') throw new Error('Expected the menu model');
+      window.__authMenu.model = { ...model, status };
+      window.__authMenu.handle.update(window.__authMenu.model);
+      await Promise.resolve();
+      (document.querySelector('.seams-auth-footer-action') as HTMLButtonElement).click();
+      return received;
+    }, failedStatus);
+
+    await expect(footer).toHaveAttribute('data-state', 'notice');
+    await expect(notice).toBeVisible();
+    await expect(notice).toHaveText('Can’t reach Seams right now.');
+    await expect(page.getByRole('alert')).toHaveText('Can’t reach Seams right now.');
+    await expect(card).not.toContainText('HTTP 502');
+    // Within a pixel: the card's height is synced from a rounded measurement.
+    expect(Math.abs(((await card.boundingBox())?.height ?? 0) - idleHeight)).toBeLessThan(1);
+    expect(retryIntents).toEqual([{ kind: 'submit', mode: 'login' }]);
+
+    await page.evaluate(() => {
+      const model = window.__authMenu.model;
+      if (model.kind !== 'passkey') throw new Error('Expected the menu model');
+      window.__authMenu.model = { ...model, status: { kind: 'idle', interaction: 'actionable' } };
+      window.__authMenu.handle.update(window.__authMenu.model);
+    });
+    await expect(footer).toHaveAttribute('data-state', 'brand');
+    await expect(notice).toBeHidden();
+    await expect(page.getByRole('alert')).toHaveCount(0);
+    await expect(footer.locator('.seams-auth-footer-action')).toBeDisabled();
   });
 
   test('keeps the primary action live without rendering an expired preparation error', async ({

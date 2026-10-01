@@ -17,7 +17,21 @@ import {
   type AuthMenuViewModel,
 } from '../../auth-menu/domain';
 import { isLinkedDeviceTargetEmailAddressV1 } from '@/core/types/linkDevice';
+import { PadlockIcon } from '@/core/signingEngine/uiConfirm/ui/preact/PadlockIcon';
 import { blinkMenuItem } from '@/utils/menuItemBlink';
+import { AuthMenuFooter } from './AuthMenuFooter';
+import {
+  accountDropdownIcon,
+  backIcon,
+  chevronIcon,
+  fingerprintIcon,
+  googleIcon,
+  linkDeviceIcon,
+  linkFailedIcon,
+  mailIcon,
+  recoveryIcon,
+  rerollIcon,
+} from './icons';
 
 const AUTH_MENU_TITLE_ID = 'seams-auth-menu-title';
 const AUTH_MENU_ACCOUNT_LIST_ID = 'seams-auth-menu-account-list';
@@ -61,127 +75,17 @@ function modeSwitchCopy(mode: AuthMenuViewModel['mode']): {
     : { prompt: "Don't have an account?", action: 'Sign up', nextMode: 'register' };
 }
 
-function passkeyButtonLabel(mode: AuthMenuViewModel['mode']): string {
-  return mode === 'register' ? 'Sign up with Passkey' : 'Sign in with Passkey';
+function modeLabel(mode: AuthMenuViewModel['mode']): string {
+  return mode === 'register' ? 'Sign up' : 'Sign in';
 }
 
-function googleButtonLabel(mode: AuthMenuViewModel['mode']): string {
-  return mode === 'register' ? 'Sign up with Google' : 'Sign in with Google';
-}
-
-// The frame the menu's 24-unit stroke icons share.
-function strokeIcon(
-  size: string,
-  strokeWidth: string,
-  ...shapes: ComponentChildren[]
-): ComponentChildren {
-  return (
-    <>
-      <svg
-        width={size}
-        height={size}
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width={strokeWidth}
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        aria-hidden="true"
-      >
-        {shapes}
-      </svg>
-    </>
-  );
-}
-
-function fingerprintIcon(): ComponentChildren {
-  return strokeIcon(
-    '22',
-    '1.5',
-    <path d="M6.405 19.048c.184-.443.353-.894.507-1.351" />,
-    <path d="M14.343 20.693c.266-.751.502-1.516.707-2.294.186-.706.346-1.422.478-2.147" />,
-    <path d="M19.448 17.058c.364-1.964.555-3.989.555-6.058 0-4.418-3.582-8-8-8-1.255 0-2.443.289-3.501.805" />,
-    <path d="M3.523 15.025c.314-1.29.48-2.638.48-4.025 0-1.74.556-3.351 1.499-4.664" />,
-    <path d="M12.003 11c0 2.76-.447 5.416-1.273 7.899-.213.639-.451 1.266-.712 1.881" />,
-    <path d="M7.712 14.5c.191-1.138.291-2.308.291-3.5 0-2.209 1.791-4 4-4s4 1.791 4 4c0 .617-.02 1.229-.058 1.836" />,
-  );
-}
-
-function googleIcon(): ComponentChildren {
-  return strokeIcon(
-    '22',
-    '2',
-    <path d="M10.88 21.94 15.46 14" />,
-    <path d="M21.17 8H12" />,
-    <path d="M3.95 6.06 8.54 14" />,
-    <circle cx="12" cy="12" r="10" />,
-    <circle cx="12" cy="12" r="4" />,
-  );
-}
-
-function arrowIcon(): ComponentChildren {
-  return (
-    <>
-      <div class="stripe-arrow seams-auth-method-arrow">
-        <svg class="HoverArrow" width="16" height="16" viewBox="0 0 10 10" aria-hidden="true">
-          <g fill-rule="evenodd">
-            <path class="HoverArrow__linePath" d="M0 5h7" />
-            <path class="HoverArrow__tipPath" d="M1 1l4 4-4 4" />
-          </g>
-        </svg>
-      </div>
-    </>
-  );
-}
-
-function accountDropdownIcon(): ComponentChildren {
-  return (
-    <>
-      <svg
-        class="seams-account-dropdown-arrow"
-        viewBox="0 0 24 24"
-        aria-hidden="true"
-        focusable="false"
-      >
-        <path d="M9.75 3h4.5v10.28l4.3-4.3 3.18 3.18L12 21.9l-9.73-9.74 3.18-3.18 4.3 4.3V3Z" />
-      </svg>
-    </>
-  );
-}
-
-function backIcon(): ComponentChildren {
-  return strokeIcon('18', '2.25', <path d="m15 18-6-6 6-6" />);
-}
-
-function linkDeviceIcon(): ComponentChildren {
-  return strokeIcon(
-    '18',
-    '2',
-    <rect width="5" height="5" x="3" y="3" rx="1" />,
-    <rect width="5" height="5" x="16" y="3" rx="1" />,
-    <rect width="5" height="5" x="3" y="16" rx="1" />,
-    <path d="M21 16h-3a2 2 0 0 0-2 2v3" />,
-    <path d="M21 21v.01" />,
-    <path d="M12 7v3a2 2 0 0 1-2 2H7" />,
-    <path d="M3 12h.01" />,
-    <path d="M12 3h.01" />,
-    <path d="M12 16v.01" />,
-    <path d="M16 12h1" />,
-    <path d="M21 12v.01" />,
-    <path d="M12 21v-1" />,
-  );
-}
-
-function recoveryIcon(): ComponentChildren {
-  return strokeIcon(
-    '18',
-    '2',
-    <path d="M20 11v6" />,
-    <path d="M20 13h2" />,
-    <path d="M3 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 2.072.578" />,
-    <circle cx="10" cy="7" r="4" />,
-    <circle cx="20" cy="19" r="2" />,
-  );
+/** The failure the footer strip reports. Only the menu itself reports there. */
+function menuNotice(viewModel: AuthMenuViewModel): string | null {
+  return viewModel.kind === 'passkey' &&
+    viewModel.status.kind === 'recoverable' &&
+    viewModel.status.reason === 'error'
+    ? viewModel.status.message
+    : null;
 }
 
 const LINK_DEVICE_DOT_COUNT = 12;
@@ -221,15 +125,6 @@ function linkDeviceDotRing(
         </svg>
       </div>
     </>
-  );
-}
-
-function mailIcon(): ComponentChildren {
-  return strokeIcon(
-    '21',
-    '1.75',
-    <rect x="2.75" y="5" width="18.5" height="14" rx="2.75" />,
-    <path d="m3.75 7.75 6.94 4.86a2.25 2.25 0 0 0 2.62 0l6.94-4.86" />,
   );
 }
 
@@ -320,39 +215,6 @@ function linkDeviceEmailOtpPresentation(
   }
 }
 
-function linkFailedIcon(): ComponentChildren {
-  return strokeIcon(
-    '22',
-    '1.75',
-    <path d="M9 17H7A5 5 0 0 1 7 7h2" />,
-    <path d="M15 7h2a5 5 0 0 1 3.54 8.54" />,
-    <path d="m2 2 20 20" />,
-    <path d="M8 12h3" />,
-  );
-}
-
-function rerollIcon(): ComponentChildren {
-  return (
-    <>
-      <svg
-        class="seams-input-action-icon"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        aria-hidden="true"
-      >
-        <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
-        <path d="M21 3v5h-5" />
-        <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
-        <path d="M8 16H3v5" />
-      </svg>
-    </>
-  );
-}
-
 function selectedLoginAccount(viewModel: AuthMenuLoginViewModel) {
   return resolveAuthMenuLoginAccount(viewModel.accountOptions, viewModel.selectedAccount)
     .selectedAccount;
@@ -420,6 +282,8 @@ export class AuthMenuSurface extends Component<
   private contentHeightFrame: number | null = null;
   private previousLinkDeviceStateKind: AuthMenuLinkDeviceState['kind'] | null = null;
   private previousRecoveryStage: AuthMenuRecoveryStage | null = null;
+  // The method the person last chose, which the footer's retry repeats.
+  private lastMethod: 'passkey' | 'google' = 'passkey';
 
   private get viewModel(): AuthMenuViewModel {
     return this.props.viewModel;
@@ -701,6 +565,7 @@ export class AuthMenuSurface extends Component<
       viewModel.mode === 'register'
         ? { kind: 'submit', mode: 'register', passkeyName: viewModel.passkeyName }
         : { kind: 'submit', mode: 'login' };
+    this.lastMethod = 'passkey';
     this.emitIntent(intent);
   };
 
@@ -724,7 +589,16 @@ export class AuthMenuSurface extends Component<
   };
 
   private onGoogleClick = (): void => {
+    this.lastMethod = 'google';
     this.emitIntent({ kind: 'external_auth', provider: 'google' });
+  };
+
+  private onNoticeRetry = (): void => {
+    if (this.lastMethod === 'google' && isAuthMenuGoogleActionReady(this.viewModel)) {
+      this.onGoogleClick();
+    } else {
+      this.onPrimaryClick();
+    }
   };
 
   private onLinkDeviceOpen = (): void => {
@@ -889,6 +763,7 @@ export class AuthMenuSurface extends Component<
               </div>
             </div>
           </div>
+          <AuthMenuFooter notice={menuNotice(viewModel)} onRetry={this.onNoticeRetry} />
         </div>
       </>
     );
@@ -901,15 +776,29 @@ export class AuthMenuSurface extends Component<
     if (viewModel.kind === 'google_registration') return this.renderGoogleRegistration(viewModel);
     return (
       <>
-        {this.renderHeader(viewModel)} {this.renderPasskeyInput(viewModel)}
-        {viewModel.status.kind === 'recoverable' && viewModel.status.reason === 'error' ? (
-          <p class="seams-auth-error" role="alert">
-            {viewModel.status.message}
-          </p>
-        ) : null}
-        {this.renderAuthMethods(viewModel)} {this.renderOtherOptions(viewModel)}
+        {this.renderMenuHeader(viewModel)} {this.renderPasskeyInput(viewModel)}
+        {this.renderAuthMethods(viewModel)} {this.renderOtherOptions()}
         {this.renderIntentSwitch(viewModel)}
       </>
+    );
+  }
+
+  private renderMenuHeader(
+    viewModel: AuthMenuLoginViewModel | AuthMenuRegisterViewModel,
+  ): ComponentChildren {
+    const eyebrow = modeLabel(viewModel.mode);
+    return (
+      <div class="seams-menu-header">
+        <div class="seams-menu-origin">
+          <PadlockIcon /> <span>{viewModel.hostname}</span>
+        </div>
+        {/* An app that titles the menu with the mode itself needs no second copy of it. */}
+        {eyebrow === viewModel.heading ? null : <div class="seams-menu-eyebrow">{eyebrow}</div>}
+        <div class="seams-title" id={AUTH_MENU_TITLE_ID}>
+          {viewModel.heading}
+        </div>
+        {viewModel.subtitle ? <div class="seams-subhead">{viewModel.subtitle}</div> : null}
+      </div>
     );
   }
 
@@ -1101,63 +990,57 @@ export class AuthMenuSurface extends Component<
     return (
       <>
         <div class="seams-auth-methods">
-          <div class="seams-auth-method-stack">
+          <button
+            class="seams-auth-method-btn seams-auth-method-btn-primary"
+            type="button"
+            data-auth-menu-primary
+            disabled={!isAuthMenuActionReady(viewModel)}
+            onClick={this.onPrimaryClick}
+          >
+            {fingerprintIcon()}
+            <span>{modeLabel(viewModel.mode)} with passkey</span>
+          </button>
+          {googleEnabled ? (
             <button
-              class="seams-auth-method-btn seams-auth-method-btn-primary"
+              class="seams-auth-method-btn"
               type="button"
-              data-auth-menu-primary
-              disabled={!isAuthMenuActionReady(viewModel)}
-              onClick={this.onPrimaryClick}
+              data-auth-menu-provider="google"
+              disabled={!isAuthMenuGoogleActionReady(viewModel)}
+              onClick={this.onGoogleClick}
             >
-              {viewModel.mode === 'login' ? fingerprintIcon() : null}
-              <span>{passkeyButtonLabel(viewModel.mode)}</span>
-              {arrowIcon()}
+              {googleIcon()}
+              <span>Continue with Google</span>
             </button>
-            {googleEnabled ? (
-              <>
-                <div class="seams-auth-method-stack seams-social-stack">
-                  <div class="seams-social-provider">
-                    <button
-                      class="seams-auth-method-btn seams-auth-method-btn-primary"
-                      type="button"
-                      data-auth-menu-provider="google"
-                      disabled={!isAuthMenuGoogleActionReady(viewModel)}
-                      onClick={this.onGoogleClick}
-                    >
-                      {googleIcon()}
-                      <span>{googleButtonLabel(viewModel.mode)}</span>
-                      {arrowIcon()}
-                    </button>
-                  </div>
-                </div>
-              </>
-            ) : null}
-          </div>
+          ) : null}
         </div>
       </>
     );
   }
 
-  private renderOtherOptions(_viewModel: AuthMenuLoginViewModel | AuthMenuRegisterViewModel) {
+  private renderOtherOptions(): ComponentChildren {
     return (
       <>
-        <div class="seams-scan-device-row">
-          <div class="seams-section-divider">
-            <span class="seams-section-divider-text">Other options</span>
-          </div>
-          <div class="seams-secondary-actions">
-            <button class="seams-link-device-btn" type="button" onClick={this.onLinkDeviceOpen}>
-              {linkDeviceIcon()} Scan and Link Device
-            </button>
-            <button
-              class="seams-link-device-btn"
-              type="button"
-              data-recovery-action
-              onClick={this.onRecoveryOpen}
-            >
-              {recoveryIcon()} Recover account
-            </button>
-          </div>
+        <div class="seams-menu-options-label">Other options</div>
+        <div class="seams-menu-options">
+          <button class="seams-menu-option" type="button" onClick={this.onLinkDeviceOpen}>
+            <span class="seams-menu-option-icon">{linkDeviceIcon()}</span>
+            <span class="seams-menu-option-text">
+              Link this device <small>Scan a code with a signed-in device</small>
+            </span>
+            {chevronIcon()}
+          </button>
+          <button
+            class="seams-menu-option"
+            type="button"
+            data-recovery-action
+            onClick={this.onRecoveryOpen}
+          >
+            <span class="seams-menu-option-icon">{recoveryIcon()}</span>
+            <span class="seams-menu-option-text">
+              Recover account <small>Use your recovery code</small>
+            </span>
+            {chevronIcon()}
+          </button>
         </div>
       </>
     );

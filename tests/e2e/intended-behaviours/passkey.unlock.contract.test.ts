@@ -114,7 +114,7 @@ class InterruptedUnlock {
 
   async retryFromVisibleError(page: Page): Promise<void> {
     const frame = page.locator('iframe[allow*="publickey-credentials-get"]').last().contentFrame();
-    const alert = frame.locator('.seams-auth-error[role="alert"]');
+    const alert = frame.locator('.seams-auth-footer[data-state="notice"] .seams-auth-footer-text');
     await expect(alert).toBeVisible({ timeout: 30_000 });
     this.visibleError = (await alert.innerText()).trim();
     expect(this.visibleError.length).toBeGreaterThan(0);

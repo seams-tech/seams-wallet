@@ -56,6 +56,7 @@
   /* CSS sentinel (used by tests/diagnostics to confirm stylesheet is applied) */
   --seams-auth-menu-css-ready: 1;
   --seams-auth-menu-padding-top: calc(var(--seams-spacing-lg) + 4px);
+  --seams-auth-menu-padding-inline: var(--seams-spacing-lg);
   position: relative;
   box-sizing: border-box;
   /* relative position to anchor back button */
@@ -81,7 +82,7 @@
      which follows the card's silhouette and can extend past the iframe. The
      variable remains as an escape hatch for embedders. */
   box-shadow: var(--seams-auth-menu-shadow, none);
-  padding: var(--seams-spacing-lg);
+  padding: var(--seams-spacing-lg) var(--seams-auth-menu-padding-inline);
   padding-top: var(--seams-auth-menu-padding-top);
   position: relative;
   display: flex;
@@ -325,27 +326,13 @@
 }
 
 :where(.seams-auth-menu-surface) .seams-auth-methods {
-  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
 }
 
 :where(.seams-auth-menu-surface) .seams-passkey-row + .seams-auth-methods {
-  margin-top: 6px;
-}
-
-:where(.seams-auth-menu-surface) .seams-auth-method-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-:where(.seams-auth-menu-surface) .seams-social-stack {
-  margin-top: 0;
-}
-
-:where(.seams-auth-menu-surface) .seams-social-provider {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  margin-top: 0.5rem;
 }
 
 :where(.seams-auth-menu-surface) .seams-auth-method-btn {
@@ -353,13 +340,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.6rem;
+  gap: 0.5rem;
   width: 100%;
   min-height: var(--seams-shape-controlHeight, 44px);
   padding: 0.5rem 1rem;
   border-radius: var(--seams-shape-control, 10px);
   border: 1px solid var(--seams-colors-borderPrimary);
-  background: var(--seams-colors-surface);
+  background: transparent;
   color: var(--seams-colors-textPrimary);
   font-family: var(
     --seams-font-family,
@@ -369,22 +356,26 @@
     Roboto,
     sans-serif
   );
-  font-size: 0.9rem;
-  font-weight: 600;
+  font-size: 0.875rem;
+  font-weight: 500;
   cursor: pointer;
   transition:
     background-color 160ms ease,
     border-color 160ms ease,
     transform 120ms ease,
-    box-shadow 160ms ease,
     border-radius 300ms cubic-bezier(0.22, 1, 0.36, 1),
     min-height 300ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+:where(.seams-auth-menu-surface) .seams-auth-method-btn svg {
+  flex: none;
+  width: 1.0625rem;
+  height: 1.0625rem;
 }
 
 :where(.seams-auth-menu-surface) .seams-auth-method-btn:hover:not(:disabled),
 :where(.seams-auth-menu-surface) .seams-auth-method-btn:focus-visible {
   background: var(--seams-colors-surface2);
-  box-shadow: var(--seams-shadows-sm);
 }
 
 /* Press acknowledgement. Lives in the existing transform transition, so a
@@ -397,7 +388,6 @@
 :where(.seams-auth-menu-surface) .seams-auth-method-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
-  box-shadow: none;
 }
 
 :where(.seams-auth-menu-surface) .seams-auth-method-btn-primary {
@@ -410,52 +400,6 @@
 :where(.seams-auth-menu-surface) .seams-auth-method-btn-primary:focus-visible {
   background: var(--seams-colors-buttonHoverBackground, var(--seams-colors-primaryHover, #2563eb));
   color: var(--seams-colors-textButton, white);
-}
-
-:where(.seams-auth-menu-surface) .seams-auth-method-arrow {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-}
-
-:where(.seams-auth-menu-surface) .seams-auth-method-btn .seams-auth-method-arrow > .HoverArrow {
-  position: relative;
-  margin-top: 0.1rem;
-  margin-left: 0;
-  stroke-width: 2;
-  fill: none;
-  stroke: currentColor;
-}
-
-:where(.seams-auth-menu-surface) .seams-auth-method-btn .seams-auth-method-arrow > .HoverArrow .HoverArrow__linePath {
-  opacity: 0;
-  filter: none;
-  transform: scaleX(1);
-  transform-origin: right center;
-  transition:
-    opacity 120ms cubic-bezier(0.215, 0.61, 0.355, 1),
-    filter 120ms cubic-bezier(0.215, 0.61, 0.355, 1),
-    transform 120ms cubic-bezier(0.215, 0.61, 0.355, 1);
-}
-
-:where(.seams-auth-menu-surface) .seams-auth-method-btn .seams-auth-method-arrow > .HoverArrow .HoverArrow__tipPath {
-  transition: transform 120ms cubic-bezier(0.215, 0.61, 0.355, 1);
-}
-
-:where(.seams-auth-menu-surface) .seams-auth-method-btn:hover:not(:disabled)
-  .seams-auth-method-arrow
-  > .HoverArrow
-  .HoverArrow__linePath,
-:where(.seams-auth-menu-surface) .seams-auth-method-btn:focus-visible .seams-auth-method-arrow > .HoverArrow .HoverArrow__linePath {
-  opacity: 1;
-  filter: none;
-  transform: scaleX(1);
-}
-
-:where(.seams-auth-menu-surface) .seams-auth-method-btn:hover:not(:disabled) .seams-auth-method-arrow > .HoverArrow .HoverArrow__tipPath,
-:where(.seams-auth-menu-surface) .seams-auth-method-btn:focus-visible .seams-auth-method-arrow > .HoverArrow .HoverArrow__tipPath {
-  transform: translateX(3px);
 }
 
 :where(.seams-auth-menu-surface) .seams-otp-prompt {
@@ -1637,30 +1581,6 @@
   }
 }
 
-/* Section divider */
-:where(.seams-auth-menu-surface) .seams-section-divider {
-  display: flex;
-  align-items: center;
-  margin: var(--seams-spacing-md) 0;
-  position: relative;
-}
-
-:where(.seams-auth-menu-surface) .seams-section-divider::before,
-:where(.seams-auth-menu-surface) .seams-section-divider::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: var(--seams-colors-borderSecondary);
-}
-
-:where(.seams-auth-menu-surface) .seams-section-divider-text {
-  padding: 0 var(--seams-spacing-sm);
-  font-size: 12px;
-  color: var(--seams-colors-textSecondary);
-  font-weight: 500;
-  background: var(--seams-colors-colorBackground);
-}
-
 /* Labels and helper text */
 :where(.seams-auth-menu-surface) .seams-field-label {
   font-size: 16px;
@@ -1682,10 +1602,6 @@
 }
 
 /* Button System */
-:where(.seams-auth-menu-surface) .seams-scan-device-row {
-  padding-bottom: 1px;
-}
-
 :where(.seams-auth-menu-surface) .seams-secondary-actions {
   display: flex;
   flex-direction: column;
@@ -1769,7 +1685,7 @@
 
 @media (max-width: 320px) {
   :where(.seams-auth-menu-surface) .seams-signup-menu-root {
-    padding-inline: 1rem;
+    --seams-auth-menu-padding-inline: 1rem;
   }
 
   :where(.seams-auth-menu-surface) .seams-recovery-form,
@@ -1783,10 +1699,9 @@
   align-items: center;
   justify-content: center;
   gap: 0.35rem;
-  margin: 1rem 0 0;
-  color: color-mix(in srgb, var(--seams-colors-textSecondary), var(--seams-colors-textPrimary) 10%);
-  font-size: 0.84rem;
-  font-weight: 500;
+  margin: 0.75rem 0 0;
+  color: var(--seams-colors-textSecondary);
+  font-size: 0.75rem;
   line-height: 1.3;
   text-align: center;
 }
@@ -1796,20 +1711,18 @@
   padding: 0;
   border: 0;
   background: transparent;
-  color: var(--seams-colors-primary);
+  color: var(--seams-colors-textPrimary);
   font: inherit;
-  font-weight: 700;
-}
-
-:where(.seams-auth-menu-surface) .seams-auth-intent-switch button {
+  font-weight: 500;
+  text-decoration: underline;
+  text-decoration-color: var(--seams-colors-borderPrimary);
+  text-underline-offset: 3px;
   cursor: pointer;
 }
 
 :where(.seams-auth-menu-surface) .seams-auth-intent-switch button:hover,
 :where(.seams-auth-menu-surface) .seams-auth-intent-switch button:focus-visible {
-  color: var(--seams-colors-primaryHover);
-  text-decoration: underline;
-  text-underline-offset: 0.16em;
+  text-decoration-color: currentColor;
 }
 
 :where(.seams-auth-menu-surface) .seams-link-device-btn {
@@ -1964,9 +1877,3 @@
 :where(.seams-auth-menu-surface) [data-dot-index="10"] { --dot-index: 10; }
 
 :where(.seams-auth-menu-surface) [data-dot-index="11"] { --dot-index: 11; }
-
-:where(.seams-auth-menu-surface) .seams-auth-error {
-  margin: 0 0 16px;
-  color: var(--seams-colors-error, #ef4444);
-  overflow-wrap: anywhere;
-}

@@ -270,16 +270,17 @@ type PMCancelAuthMenuPayload = HostedAuthMenuCancelPayload;
 type PMResolveAuthMenuExternalAuthPayload = HostedAuthMenuExternalAuthResolution;
 
 const DEFAULT_HOSTED_AUTH_MENU_COPY: HostedAuthMenuCopy = {
+  // No default subtitle: the menu's buttons already name the ways in.
   login: {
-    title: 'Sign in',
-    subtitle: 'Continue with Passkey or Google SSO',
-    passkeyCta: 'Sign in with Passkey',
+    title: 'Welcome back',
+    subtitle: '',
+    passkeyCta: 'Sign in with passkey',
   },
   register: {
     title: 'Create your account',
-    subtitle: 'Continue with Passkey or Google SSO',
+    subtitle: '',
     passkeyNameLabel: 'Wallet name',
-    passkeyCta: 'Sign up with Passkey',
+    passkeyCta: 'Sign up with passkey',
   },
   common: { closeLabel: 'Close' },
 };

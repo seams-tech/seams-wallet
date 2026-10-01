@@ -324,6 +324,7 @@ const buildWalletUiCss = async (sdkRoot: string): Promise<string> => {
     ['wallet-service.css', read('src/static/wallet-assets/wallet-service.css')],
     ['wallet-theme-tokens', walletThemeCss],
     ['auth-menu-surface', read('src/SeamsWeb/walletIframe/host/ui/auth-menu/auth-menu.css')],
+    ['auth-menu-view', read('src/SeamsWeb/walletIframe/host/ui/auth-menu/menu-view.css')],
     ['confirmation-surfaces', confirmationCss],
     [
       'recovery-backup-surface',
