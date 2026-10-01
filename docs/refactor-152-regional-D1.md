@@ -31,9 +31,11 @@ have the same 39 migrations; measured placement results are recorded in
 The Console namespace-home reservation primitive is implemented and verified
 locally in private commit `12784a3`. Concurrent callers share one immutable
 account/database assignment, including after interrupted provisioning and restart.
-Provisioner integration, canonical binding home identity, physical-resource
-verification and runtime routing remain open; this primitive is not active
-regional enforcement.
+Private commit `a09e454` integrates the reservation into authenticated
+provisioning admission: missing or conflicting assignments fail before cutover,
+custody or credential creation. Existing-resource inventory/pinning, canonical
+binding home identity, physical-resource verification and runtime routing remain
+open. Neither implementation has been deployed.
 
 ## Objective and starting evidence
 
@@ -399,10 +401,17 @@ below remain open.
   reject changed account/database identities. Local persistent-D1 E2E verifies
   twelve competing requests, response loss, restart and SQL overwrite guards;
   see [results](refactor-152-results.md#console-namespace-home-reservation-october-1).
-- [ ] Integrate that reservation into authenticated provisioning before lane
-  side effects. Inventory and pin existing namespaces to their current resource
-  before making the boundary mandatory. Require the assigned home in canonical
-  deployment bindings and verify it during activation, including concurrent lanes.
+- [x] Require the reserved home during authenticated provisioning before lane
+  side effects. The production Console Worker E2E verifies signed automation,
+  missing-home rejection, concurrent matching/conflicting lanes, refusal of a
+  request-supplied home and reservation preservation after custody failure/retry.
+  Hosted admission reads the existing reservation once; it cannot create one.
+- [ ] Inventory and explicitly pin existing namespaces to their current resource
+  before deploying the mandatory admission boundary. Initialize fresh hosted
+  namespaces through deployment control. Local bootstrap alone reserves its
+  configured development resource as part of provisioning.
+- [ ] Require the assigned home in canonical deployment bindings and verify it
+  during activation, including concurrent lanes, completed retry and stale routes.
 - [ ] Reuse existing trusted tenant/environment routing where possible. Define
   required owner, home, and routing-generation identity at the server boundary.
   Reject inconsistent or stale routes before any mutation. Route lookup itself

@@ -1888,3 +1888,68 @@ cost were not measured here. No remote migration or infrastructure deployment
 was performed. Next, pin existing namespace resources and integrate reservation
 before provisioning side effects, then verify actual Worker bindings before
 activation and regional Gateway routing.
+
+## Authenticated home admission (October 1)
+
+Private source checkpoint: `seams-monorepo` commit `a09e454`. Console provisioning
+now requires its configured namespace/account/database resource to match a
+pre-existing immutable home reservation. Missing homes return
+`namespace_home_unassigned`; mismatches return `namespace_home_conflict`. The
+check happens after environment resolution and before active-binding reuse,
+cutover creation, tenant-root creation and API-key creation. Hosted admission
+uses one Console D1 read and cannot assign or repin a namespace.
+
+The new E2E uses two production Console Workers, the actual automation route,
+cryptographically signed test OIDC tokens and all Console migrations on one local
+D1 authority. Only the external identity-provider key response and Wallet custody
+service are controlled by the harness; custody deliberately returns HTTP 503.
+
+Observed results:
+
+- An unauthenticated request returns HTTP 401. A signed request without an
+  assignment returns HTTP 409 with the specific unassigned-home code, creating
+  zero cutovers and sending zero custody requests.
+- A signed request containing its own home is rejected by the request parser;
+  no assignment is created.
+- After an explicit reservation, concurrent requests to matching and conflicting
+  lanes admit only the matching lane to custody work. The conflicting lane
+  returns the specific conflict code and creates zero cutovers.
+- The matching lane reaches the injected custody-service failure. Retry passes
+  home admission again and preserves the original resource/timestamp. Two matching
+  lane cutovers remain awaiting the tenant root; zero credentials and zero active
+  bindings are created. This proves admission and failure preservation, not a
+  completed provisioning retry or successful activation.
+
+The composed validation passed **4 E2Es in 5.4 seconds**: production Console
+credential service, immutable-home race/restart, provisioning admission, and
+binding freshness/timing. After adding the request-supplied-home assertion, the
+provisioning scenario passed again in **3.4 seconds**. Package type-check,
+Console test type-check, type fixtures and targeted ESLint passed. A test helper's
+overbroad DOM `RequestInit` annotation was narrowed after Miniflare type-check
+rejected it; runtime tests had passed. Console configuration rendering also
+passed with a synthetic account ID. No provider API was called.
+
+Evidence in the private checkout:
+`.artifacts/r152/home-provisioning-20261001/` contains `e2e.log`,
+`provisioning-final.log`, `namespace-home-provisioning-evidence.json`, the other
+E2E evidence, `source-sha256.json` and the local rendered Console configuration.
+The provisioning JSON records migration/bundle hashes, responses, custody request
+paths and the precise unverified gates. Reproduce:
+
+```sh
+pnpm -C tests exec playwright test -c playwright.relayer.config.ts \
+  relayer/namespace-home-provisioning.e2e.test.ts \
+  relayer/console-service-auth.e2e.test.ts \
+  relayer/namespace-d1-home.e2e.test.ts \
+  relayer/tenant-deployment-binding.e2e.test.ts \
+  --reporter=line --output=test-results/r152-home-provisioning
+```
+
+The local Worker bootstrap reserves its development home only when provisioning
+runs; that adapter was type-checked, while this E2E exercises the hosted Console
+composition. Existing hosted namespace resources must be inventoried and pinned
+before deployment; a configured UUID alone is insufficient evidence for that pin.
+Canonical binding identity, direct activation enforcement, physical D1 binding
+verification, completed provisioning/canary behavior and regional routing remain
+open. No infrastructure was deployed and no new hosted latency or cost claim is
+made by this run.

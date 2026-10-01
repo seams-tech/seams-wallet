@@ -450,6 +450,24 @@ binding activation and physical-resource verification remains required before
 regional routing can use it. Evidence and reproduction are recorded in the
 [results](refactor-152-results.md#console-namespace-home-reservation-october-1).
 
+Private commit `a09e454` subsequently adds the provisioning admission check.
+The provisioner requires a parsed namespace/account/database identity, reads its
+pre-existing reservation after environment resolution, and rejects missing or
+conflicting homes before creating a cutover. This also runs before active-binding
+reuse. Active and candidate binding namespaces must agree with the configured
+home. The automation route retains specific home error codes; its request schema
+continues to accept only lane and environment. The Console configuration renderer
+uses the deployment account and existing signer-D1 resource configuration.
+
+Hosted provisioning does not infer or create a home. Deployment control must
+inventory and pin existing namespaces before this admission code is deployed.
+The local Worker bootstrap reserves its configured development resource when
+provisioning runs; ordinary Console requests do not perform that initialization.
+Admission adds one Console D1 read per provisioning attempt. It adds no calls to
+hosted unlock/signing. Canonical binding resource identity, physical-resource
+proof and activation enforcement remain open. See the
+[authenticated provisioning evidence](refactor-152-results.md#authenticated-home-admission-october-1).
+
 Review evidence: `.artifacts/r152/lifecycle-ownership-20261001/source-inventory.json`
 records SHA-256 hashes of the thirteen reviewed Wallet implementation files.
 The adjacent `table-source-index.json` indexes literal references for 53 of the
