@@ -131,6 +131,7 @@ export interface AuthorizationGrantPort {
   commitDirectWalletSessionAuthorizationV2(input: {
     readonly persisted: PersistedActiveWalletSessionAuthorizationV2;
   }): Promise<DirectV2CommitResult>;
+  /** Inserted confirms readback of the exact session identity and primary credential digest. */
   commitDirectReplayableWalletSessionAuthorizationV2(input: {
     readonly persisted: PersistedActiveWalletSessionAuthorizationV2;
   }): Promise<DirectV2CommitResult>;
@@ -495,16 +496,6 @@ export class AuthorizationService {
     });
     if (commit.kind === 'already_committed') {
       return directV2AlreadyCommitted(prepared.session, commit.committed.session, replayMode);
-    }
-    const committed = await this.ports.grants.readWalletSessionAuthorizationV2ByMint(lookup);
-    if (!committed) {
-      throw new Error('Direct V2 Wallet Session authorization was not persisted');
-    }
-    if (
-      committed.primaryOperationCredentialDigestB64u !==
-      persisted.primaryOperationCredentialDigestB64u
-    ) {
-      throw new Error('Direct V2 Wallet Session credential digest does not match its commit');
     }
     return {
       kind: 'issued',
