@@ -200,12 +200,12 @@ The deterministic rule is:
 3. after receiving `X_client`, the server checks `X_client + X_relayer`
 4. if the sum is the identity point, the server increments
    `relayer_retry_counter` and rederives `x_relayer`
-5. the accepted relayer retry counter is persisted and included in the public
-   transcript
+5. the accepted relayer retry counter is persisted and carried in the public
+   identity
 
 Client verification must reject a public identity whose threshold public key is
 the identity point or whose relayer retry counter does not match the accepted
-public transcript.
+public identity.
 
 ### Public Key Validation
 
@@ -258,7 +258,8 @@ ethereum_address(X) == expected_address
 
 ## Operations
 
-The protocol defines four logical operation classes.
+The protocol defines four logical operation classes. They name protocol flows;
+the crate carries no operation type.
 
 ### 1. RegistrationBootstrap
 
@@ -371,21 +372,22 @@ The active role-local boundary shape is:
 - client bootstrap wire:
   - context binding
   - `X_client`
-  - transcript digest
 - server bootstrap wire:
-  - public transcript with context binding, `X_client`, `X_relayer`, `X`,
-    address, operation kind, and transcript digest
+  - public identity: context binding, `X_client`, `X_relayer`, `X`, address,
+    and both share retry counters
 - non-export retained server state:
   - `x_relayer`
   - public identity
-  - accepted transcript
 - non-export retained client state:
   - `x_client`
   - public identity
-  - accepted transcript
 - explicit export wire:
   - export-authorized `x_relayer`
-  - public transcript
+  - public identity
+
+This crate defines no transcript digest. Router A/B binds registration and
+activation to the threshold-PRF proof transcript; see
+`integration-purpose-built-ecdsa.md` and `router-ab-ecdsa-client-protocol`.
 
 Every active wire envelope must exclude:
 
@@ -488,7 +490,6 @@ Allowed log/audit fields:
 - client device/session identifiers
 - application binding digest fingerprint
 - context binding
-- public transcript digest
 - export authorization digest
 - compressed public key fingerprints
 - Ethereum address
@@ -519,9 +520,11 @@ This protocol excludes:
 
 ## Settled Byte-Level Items
 
-The implementation pass should use the framed digest and transcript formats in
-this document and in
+The implementation pass should use the framed digest formats in this document
+and in
 [docs/plans/true-server-blindness.md](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/docs/plans/true-server-blindness.md).
+The public transcript digest defined in that plan is retired; the crate does
+not implement it.
 
 Remaining implementation choices are limited to concrete Rust names, storage
 column names, and transport serialization wrappers. Those choices must preserve

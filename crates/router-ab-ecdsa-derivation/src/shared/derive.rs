@@ -14,26 +14,16 @@ use sha2::{Digest, Sha256, Sha512};
 use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
 use super::context::{encode_context, RouterAbEcdsaDerivationStableKeyContext};
-use crate::wire::ServerEvalOperation;
 
 const CONTEXT_BINDING_DOMAIN: &[u8] = b"router-ab-ecdsa-derivation/role-local/context-binding/v1";
 const CLIENT_SHARE_DOMAIN: &[u8] = b"router-ab-ecdsa-derivation/role-local/client-share/v1";
 const RELAYER_SHARE_DOMAIN: &[u8] = b"router-ab-ecdsa-derivation/role-local/relayer-share/v1";
-const PUBLIC_TRANSCRIPT_DOMAIN: &[u8] =
-    b"router-ab-ecdsa-derivation/role-local/public-transcript/v1";
 
 const FIELD_CONTEXT_BYTES: u8 = 0x01;
 const FIELD_CONTEXT_BINDING: u8 = 0x01;
 const FIELD_ROLE_CONTEXT_BYTES: u8 = 0x02;
 const FIELD_ROLE_ROOT: u8 = 0x03;
 const FIELD_ROLE_RETRY_COUNTER: u8 = 0x04;
-const FIELD_TRANSCRIPT_OPERATION: u8 = 0x02;
-const FIELD_CLIENT_PUBLIC_KEY: u8 = 0x03;
-const FIELD_RELAYER_PUBLIC_KEY: u8 = 0x04;
-const FIELD_THRESHOLD_PUBLIC_KEY: u8 = 0x05;
-const FIELD_THRESHOLD_ETHEREUM_ADDRESS: u8 = 0x06;
-const FIELD_CLIENT_SHARE_RETRY_COUNTER: u8 = 0x07;
-const FIELD_RELAYER_SHARE_RETRY_COUNTER: u8 = 0x08;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PublicIdentity {
@@ -589,49 +579,6 @@ pub fn reconstruct_ecdsa_additive_export_key_v1(
     Ok(export32)
 }
 
-pub fn public_transcript_digest(
-    operation: ServerEvalOperation,
-    identity: &PublicIdentity,
-) -> RouterAbEcdsaDerivationResult<[u8; 32]> {
-    let operation_kind = [operation_kind_byte(operation)];
-    let client_share_retry_counter = identity.client_share_retry_counter.to_be_bytes();
-    let relayer_share_retry_counter = identity.relayer_share_retry_counter.to_be_bytes();
-    let frame = frame_digest_input(
-        PUBLIC_TRANSCRIPT_DOMAIN,
-        &[
-            (FIELD_CONTEXT_BINDING, identity.context_binding32.as_slice()),
-            (FIELD_TRANSCRIPT_OPERATION, operation_kind.as_slice()),
-            (
-                FIELD_CLIENT_PUBLIC_KEY,
-                identity.derivation_client_share_public_key33.as_slice(),
-            ),
-            (
-                FIELD_RELAYER_PUBLIC_KEY,
-                identity.relayer_public_key33.as_slice(),
-            ),
-            (
-                FIELD_THRESHOLD_PUBLIC_KEY,
-                identity.threshold_public_key33.as_slice(),
-            ),
-            (
-                FIELD_THRESHOLD_ETHEREUM_ADDRESS,
-                identity.threshold_ethereum_address20.as_slice(),
-            ),
-            (
-                FIELD_CLIENT_SHARE_RETRY_COUNTER,
-                client_share_retry_counter.as_slice(),
-            ),
-            (
-                FIELD_RELAYER_SHARE_RETRY_COUNTER,
-                relayer_share_retry_counter.as_slice(),
-            ),
-        ],
-    )?;
-    let mut hasher = Sha256::new();
-    hasher.update(frame);
-    Ok(hasher.finalize().into())
-}
-
 fn derive_relayer_share_with_retry(
     context: &RouterAbEcdsaDerivationStableKeyContext,
     y_relayer32_le: [u8; 32],
@@ -770,15 +717,6 @@ fn context_binding_from_bytes(context_bytes: &[u8]) -> RouterAbEcdsaDerivationRe
     let mut hasher = Sha256::new();
     hasher.update(frame);
     Ok(hasher.finalize().into())
-}
-
-fn operation_kind_byte(operation: ServerEvalOperation) -> u8 {
-    match operation {
-        ServerEvalOperation::RegistrationBootstrap => 0x01,
-        ServerEvalOperation::SessionBootstrap => 0x02,
-        ServerEvalOperation::NonExportSign => 0x03,
-        ServerEvalOperation::ExplicitKeyExport => 0x04,
-    }
 }
 
 fn frame_digest_input(

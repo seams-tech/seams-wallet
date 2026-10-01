@@ -70,7 +70,7 @@ The server may hold:
 - relayer public key
 - threshold public key
 - threshold Ethereum address
-- accepted public transcript and audit metadata
+- the Router A/B activation transcript digest and audit metadata
 
 The server must reject and must not retain:
 
@@ -94,7 +94,7 @@ hold:
 - relayer public key
 - threshold public key
 - threshold Ethereum address
-- accepted public transcript and local audit metadata
+- the Router A/B activation transcript digest and local audit metadata
 
 The client must not receive `x_relayer` outside an explicit export envelope.
 
@@ -162,17 +162,20 @@ Client non-export retained state must exclude:
 
 Explicit export is the only allowed client-side `x_relayer` disclosure path.
 
-## Public Transcript Binding
+## Public Identity Binding
 
-Every active protocol transcript must bind:
+The public identity carries:
 
 - context binding
 - client public key
 - relayer public key
 - threshold public key
 - threshold Ethereum address
-- operation kind
-- transcript digest
+- client and relayer share retry counters
+
+This crate computes no transcript digest. Router A/B binds activation to the
+threshold-PRF proof transcript: the SigningWorker checks it against the pending
+registration, and the client checks it against its registration binding.
 
 Explicit export additionally requires an authorization witness bound to the
 same public identity and context. A mismatch in public identity or context must
@@ -187,7 +190,8 @@ Zero canonical key handling:
   probability
 - the server must retry relayer derivation if `X_client + X_relayer` is the
   identity point
-- the accepted relayer retry counter is public, persisted, and transcript-bound
+- the accepted relayer retry counter is public, persisted, and part of the
+  public identity
 - clients reject identity threshold public keys and retry-counter mismatches
 
 Public key validation:
@@ -266,7 +270,7 @@ state.
 
 Mitigation:
 
-- bind export authorization to the public transcript
+- bind export authorization to the public identity and context
 - burn failed export sessions
 - require fresh export state for retry
 - store and reject reused export nonces
@@ -396,6 +400,9 @@ Important caveat:
   - the production 2P mapper
   - the tie from backend group public key derivation to the effective group
     secret
+- the Lean true-blind model still takes the public transcript digest as an
+  axiom, and the Lean boundary model still carries the operation-kind output
+  policy. The crate implements neither any more.
 
 Remaining verification work:
 

@@ -7,7 +7,9 @@ purpose-built fixed 2-of-2 handoff in `../../specs/protocol.md` and
 
 Removal note: the old Router A/B ECDSA derivation context version described in early sections was
 removed after v2 invalidation. The active crate retains no old-version context,
-wire, server, client, integration, fixture, or benchmark path.
+wire, server, client, integration, fixture, or benchmark path. The public
+transcript digest and operation kinds defined below were removed from the crate
+on 2026-10-01; no production path called them.
 
 This plan updates
 [crates/router-ab-ecdsa-derivation](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation)

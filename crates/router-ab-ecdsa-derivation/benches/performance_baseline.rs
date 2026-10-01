@@ -1,7 +1,7 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use router_ab_ecdsa_derivation::{
-    derive_client_share, derive_relayer_share_for_client_public, public_transcript_digest,
-    reconstruct_export_key, RouterAbEcdsaDerivationStableKeyContext, ServerEvalOperation,
+    derive_client_share, derive_relayer_share_for_client_public, reconstruct_export_key,
+    RouterAbEcdsaDerivationStableKeyContext,
 };
 
 #[derive(Clone)]
@@ -72,15 +72,6 @@ pub fn bench_role_local(c: &mut Criterion) {
         client_share.retry_counter,
     )
     .expect("relayer share");
-    group.bench_function("public_transcript_digest", |b| {
-        b.iter(|| {
-            public_transcript_digest(
-                black_box(ServerEvalOperation::SessionBootstrap),
-                black_box(&identity),
-            )
-            .expect("public transcript")
-        })
-    });
     group.bench_function("export_reconstruct", |b| {
         b.iter(|| {
             reconstruct_export_key(

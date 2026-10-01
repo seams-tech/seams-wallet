@@ -45,7 +45,7 @@ The exported artifact delivered to wallet/import UI may contain:
 The server-side export response may contain only:
 
 - export-authorized `x_relayer_export`
-- public transcript and authorization metadata
+- public identity and authorization metadata
 
 The export response must never contain:
 
@@ -153,7 +153,7 @@ The export path must be unreachable from:
 - non-export retry/abort cleanup
 
 Existing crate export entrypoints must be replaced or constrained so they reject
-non-export responses and accept only `ExplicitKeyExport` transcripts.
+non-export responses and accept only explicit export authorizations.
 
 ## Confirmation Requirements
 
@@ -224,7 +224,7 @@ valid only if decrypting it yields the same scalar that verifies against `X`.
 
 Before the export result is accepted, the implementation must check:
 
-1. export authorization operation kind is `ExplicitKeyExport`
+1. export authorization is for an explicit key export
 2. export authorization public identity matches the retained client identity
 3. export authorization context binding matches the retained client context
 4. server export envelope transcript matches the authorization transcript

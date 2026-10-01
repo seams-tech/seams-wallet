@@ -6,9 +6,9 @@ use router_ab_ecdsa_derivation::shared::secp256k1::{
 };
 use router_ab_ecdsa_derivation::{
     compose_public_identity_from_public_keys, context_binding, derive_client_share,
-    derive_relayer_share_for_client_public, encode_context, public_transcript_digest,
+    derive_relayer_share_for_client_public, encode_context,
     reconstruct_ecdsa_additive_export_key_v1, reconstruct_export_key,
-    RouterAbEcdsaDerivationStableKeyContext, ServerEvalOperation,
+    RouterAbEcdsaDerivationStableKeyContext,
 };
 
 fn context() -> RouterAbEcdsaDerivationStableKeyContext {
@@ -264,27 +264,6 @@ fn zero_sum_public_identity_is_rejected_for_retry() {
     .expect_err("identity public-key sum rejects");
 
     assert!(err.message.contains("identity point"));
-}
-
-#[test]
-fn transcript_digest_depends_on_operation() {
-    let context = context();
-    let (y_client32_le, y_relayer32_le) = fixed_inputs();
-    let client_share = derive_client_share(&context, y_client32_le).expect("client share");
-    let (_, identity) = derive_relayer_share_for_client_public(
-        &context,
-        y_relayer32_le,
-        &client_share.derivation_client_share_public_key33,
-        client_share.retry_counter,
-    )
-    .expect("relayer share");
-
-    let session_digest =
-        public_transcript_digest(ServerEvalOperation::SessionBootstrap, &identity).unwrap();
-    let export_digest =
-        public_transcript_digest(ServerEvalOperation::ExplicitKeyExport, &identity).unwrap();
-
-    assert_ne!(session_digest, export_digest);
 }
 
 #[test]

@@ -15,7 +15,7 @@ X = x_clientG + x_relayerG
 That key is:
 
 - threshold-signable
-- explicitly exportable through the `ExplicitKeyExport` operation
+- explicitly exportable by the authorized client
 - deterministic from role-local client/server root-share material and an opaque
   SDK-owned application binding digest
 - server-blind
@@ -82,12 +82,15 @@ The sign-time backend seam is:
 
 ## Output Policy
 
-The operation type controls what leaves the Router A/B ECDSA derivation boundary:
+The flow controls what leaves the Router A/B ECDSA derivation boundary:
 
-- `RegistrationBootstrap`, `SessionBootstrap`, and `NonExportSign` return
-  threshold material only.
-- `ExplicitKeyExport` returns threshold material and an export-authorized relayer
+- registration, session bootstrap, and non-export signing return threshold
+  material only.
+- explicit export returns threshold material and an export-authorized relayer
   share envelope. The client reconstructs canonical `x`.
+
+The crate carries no operation type. Its callers decide which flow may release
+the export share.
 
 Server-retained state contains:
 
