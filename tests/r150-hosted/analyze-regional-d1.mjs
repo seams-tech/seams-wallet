@@ -3,9 +3,11 @@ import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-const [outputPath, ...directories] = process.argv.slice(2);
-if (directories.length === 0) {
-  throw new Error('Usage: analyze-regional-d1.mjs <output.json> <regional-cohort-directory> ...');
+const [outputPath, probeRegion, ...directories] = process.argv.slice(2);
+if (directories.length === 0 || !['apac', 'weur', 'enam'].includes(probeRegion)) {
+  throw new Error(
+    'Usage: analyze-regional-d1.mjs <output.json> <apac|weur|enam> <regional-cohort-directory> ...',
+  );
 }
 const attempts = new Map();
 const samples = [];
@@ -15,6 +17,10 @@ let baseline = null;
 for (const directory of directories) {
   const root = path.resolve(directory);
   const run = readJson(path.join(root, 'run.json'));
+  const probe = readJson(path.join(root, probeRegion, 'identity.json'));
+  assert.equal(probe.cloudflareRegion, probeRegion.toUpperCase());
+  assert.equal(probe.source.revision, run.source.revision);
+  assert.equal(probe.source.walletBuildInputHash, run.source.walletBuildInputHash);
   assert.equal(run.workload, 'linked_chain');
   const identity = {
     source: run.source,
@@ -23,8 +29,14 @@ for (const directory of directories) {
   };
   if (baseline === null) baseline = identity;
   else assert.deepEqual(identity, baseline, 'Cannot pool different builds or database assignments');
-  runs.push({ directory: path.basename(root), armOrder: run.armOrder });
-  const ledger = readFileSync(path.join(root, 'weur/attempts.jsonl'), 'utf8')
+  runs.push({
+    directory: path.basename(root),
+    armOrder: run.armOrder,
+    probeRegion,
+    location: probe.location,
+    bootId: probe.bootId,
+  });
+  const ledger = readFileSync(path.join(root, probeRegion, 'attempts.jsonl'), 'utf8')
     .trim()
     .split('\n')
     .map(parseJson);
@@ -33,6 +45,8 @@ for (const directory of directories) {
       assert(!attempts.has(event.runId), 'Duplicate attempt');
       assert(['apac', 'weur'].includes(event.arm), 'Unknown database arm');
       assert.deepEqual(event.database, run.databaseInventory.arms[event.arm]);
+      assert.deepEqual(event.source, run.source);
+      assert.deepEqual(event.identity, probe);
       attempts.set(event.runId, { arm: event.arm, status: 'incomplete' });
     } else if (event.event === 'finished') {
       const attempt = attempts.get(event.runId);
@@ -42,7 +56,7 @@ for (const directory of directories) {
       attempt.status = event.status;
       if (event.status === 'succeeded') {
         assert.equal(path.basename(event.artifact), event.artifact);
-        const artifact = readJson(path.join(root, 'weur', event.artifact));
+        const artifact = readJson(path.join(root, probeRegion, event.artifact));
         assert.equal(artifact.kind, 'gateway_ecdsa_linked_custody_chain_v1');
         assert.equal(artifact.verifiedSignatures, 9);
         assert.equal(artifact.signatures.length, 9);
@@ -95,8 +109,9 @@ for (const device of ['owner', 'linked']) {
 const output = {
   kind: 'regional_d1_linked_chain_comparison_v1',
   scope:
-    'London ready-material ECDSA signing with automatic confirmation. Fresh wallet per attempt; repeated signatures within each wallet. Background refill excluded from the signature dependency window.',
+    'Ready-material ECDSA signing with automatic confirmation. Fresh wallet per attempt; repeated signatures within each wallet. Background refill excluded from the signature dependency window.',
   percentileMethod: 'Nearest rank; p50 is median. Small cohorts do not establish a tail bound.',
+  probeRegion,
   runs,
   buildIdentity: baseline,
   arms,

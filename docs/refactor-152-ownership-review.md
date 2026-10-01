@@ -39,6 +39,8 @@ owner claim trigger in migration 0032 is replaced by migration 0034.
 | `email_otp_rate_limits`, `identity_links`, `webauthn_credential_bindings` | Project/environment scoped rate keys include IP, user, provider, wallet, and organization; identity and credential uniqueness also extends beyond one wallet. | A wallet split fragments existing rate limits and uniqueness unless another authority enforces them. These lifecycle paths remain relevant even when timing ECDSA-only signing. |
 | `wallet_auth_method_revocation_replays`, authority/method/session records | Revocation stores its exact answer in the mutation batch. | Admin/revoke retries must reach the same home as signing reads. |
 | Hosted credential/exchange/delivery tables | Effective triggers enforce session parents, immutable identities, retirement, and delivery lifecycle. | Unlock, iframe exchange, and linked delivery must follow the same home. |
+| `vault_proxy_secrets` | The store upserts and reads by namespace/tenant/vault/item; project/environment and wallet are absent from that identity. Opening also checks the capability and destination. | Keep the vault item with its tenant authority; a project-only split would fragment its existing identity. |
+| `lane_locks`, registration/lane/linked/authority/Yao CAS guards | Lane lock acquisition uses a scoped conditional upsert against expiry. CAS guards deliberately trigger a local constraint failure when the preceding update changes no row. | Preserve locks, their guarded records, and each mutation batch at one home. The guard tables enforce local CAS; they provide no cross-database writer fence. |
 | Registration, recovery, lane journals/locks/receipts, Yao lifecycle, vault and remaining signer tables | Some are outside the measured normal ECDSA path. They are included in the generated schema inventory, without a complete semantic partition proof. | Keep the entire deployment database together for the experiment; do not selectively copy signing tables. Production ownership review remains open for these paths. |
 
 The tenant ID is parsed from `options.orgId` in
@@ -98,6 +100,23 @@ requests before resolving the active tenant binding. Registration setup also
 checks the Console cutover-admission gate. Include those authenticated internal
 paths explicitly in the ownership proof; a check added only to the public
 Gateway would leave this control path outside that check.
+
+The Wallet runtime's `readWalletRuntimeIdentities` in `hosted-wallet-gateway.ts`
+also reads multiple wallet signers by namespace and organization, then filters
+returned records by the requested project. Its control request can span projects.
+Together with the vault store's namespace/tenant identity, this reinforces the
+whole-namespace/organization starting boundary. It does not prove that every
+remaining lifecycle operation is safely partitionable.
+
+For the next routing implementation, extend the existing canonical deployment
+binding with a server-assigned immutable initial database home. Bind that identity
+to the actual database used by public Gateway, internal control/inspection, and
+scheduled work before admitting mutations. Keep existing owners at their current
+database. Prove wrong-home and stale-binding rejection with the same operation
+sent through different entry regions, including last-quota and completed-replay
+cases. A binding revision or local CAS guard alone cannot supply this proof.
+Production Console dependency timing and the full lifecycle inventory remain
+prerequisites to activation.
 
 Custody remains in the existing role-specific DO deployments. Fresh wallet and
 presign identities create new wallet/session objects; shared tenant-root objects

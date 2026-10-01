@@ -1,7 +1,7 @@
 # Regional D1 empirical results
 
-Date: October 1, 2026. Status: repeated London ready-material comparison complete;
-immediate-first and burst diagnostic running.
+Date: October 1, 2026. Status: repeated London ready-material and first-sign/burst
+comparisons complete; Tokyo diagnostic blocked during infrastructure startup.
 
 This log implements the bounded experiment in
 [the ownership review](refactor-152-ownership-review.md) and preserves evidence
@@ -116,16 +116,110 @@ The combined evidence is `.artifacts/r152/combined-london-ready.json`. Reproduce
 
 ```sh
 node tests/r150-hosted/analyze-regional-d1.mjs \
-  .artifacts/r152/combined-london-ready.json \
+  .artifacts/r152/combined-london-ready.json weur \
   .artifacts/r152/regional-d1-20261001-r1 \
   .artifacts/r152/regional-d1-20261001-r2
 ```
 
-The next diagnostic uses the existing immediate-first/warm/concurrent-burst E2E
-on fresh mixed wallets. It verifies five signatures per attempt, including one
-untimed session setup signature and a two-signature burst consuming the last two
-uses of a shared quota. Its evidence stays separate from the ready-material
-linked-chain comparison.
+## London first-sign and concurrent-burst diagnostic
+
+Run three used the existing immediate-first/warm/concurrent-burst E2E on six
+fresh mixed wallets, in APAC, WEUR, WEUR, APAC, APAC, WEUR order. All six attempts
+passed, verifying 30 signatures. Each attempt includes one immediate first sign,
+one ready-material warm sign, one untimed setup signature in a fresh three-use
+session, and a concurrent pair consuming that session's remaining shared quota.
+The two concurrent durations overlap and must not be added together.
+
+| Workload | Timed samples per arm | APAC SDK p50 / p95 / max (ms) | WEUR SDK p50 / p95 / max (ms) |
+| --- | ---: | ---: | ---: |
+| Immediate first sign | 3 | 4,839.6 / 5,116.1 / 5,116.1 | 1,151.9 / 1,398.1 / 1,398.1 |
+| Ready-material warm sign | 3 | 2,753.8 / 2,810.6 / 2,810.6 | 804.2 / 853.1 / 853.1 |
+| Concurrent burst | 6 | 7,867.1 / 11,098.7 / 11,098.7 | 1,333.6 / 2,017.2 / 2,017.2 |
+
+There were zero failed/incomplete attempts and zero recorded background-refill
+failures. Every timed signature retained five prepare/finalize D1 calls, six
+statements, two write-bearing calls, and 14 rows written. These counts exclude
+status and refill requests. Status added two calls to first signs; warm signs
+added four APAC or two WEUR calls. Each burst window added eight status calls
+across its two signatures. All traced queries were served by the assigned
+regional primary.
+
+APAC bursts started with zero precompleted selected materials and needed seven
+or eight foreground refill steps per burst. WEUR bursts started with zero to
+two precompleted selected materials and had no foreground refill steps; their
+background work completed sufficiently quickly. This measures the complete
+system under its existing refill policy. It does not isolate a fixed ready-pool
+latency effect. The 2,017.2 ms observed WEUR maximum also leaves the universal
+two-second target unproven. Three fresh wallets per arm cannot close the repeated
+30-sample first-sign/burst acceptance gate.
+
+The London probe retained boot `ef1d6611-2330-4bde-bbdc-4d146e552fc4` and the
+same frozen SDK. All four Gateway versions were observed in LHR during
+03:24:05.506–03:31:31.256 UTC. The five custody-role versions were unchanged;
+aggregate custody activity includes LHR/AMS and shared Router activity in KIX.
+Per-operation role placement remains unknown.
+
+Evidence: `.artifacts/r152/regional-d1-20261001-r3/`. Reproduce the aggregate
+and validate the recorded signature, D1, quota, build, and primary-region facts:
+
+```sh
+node tests/r150-hosted/analyze-regional-burst.mjs \
+  .artifacts/r152/regional-d1-20261001-r3/summary.json weur \
+  .artifacts/r152/regional-d1-20261001-r3
+```
+
+The analyzer reuses `analyze-d1.mjs` for request/statement accounting. Raw
+artifacts retain browser, SDK, status, refill, and shared-quota evidence;
+`summary.json` reports every dispatched attempt, including failures or incomplete
+attempts. Run three restored original images and Worker versions, inactive probes,
+default Gateway placement, and HTTP 403/503 access closure. The evidence scan
+found zero benchmark-token matches in 46 files. Cumulative estimated cost reached
+$1.2289, including both databases and subject to analytics lag.
+
+## Other-region diagnostic
+
+Run four attempted the same ready-material comparison from the existing APAC
+probe, with three planned fresh chains per arm and the same fixed builds,
+databases/namespaces, default Gateway placement, and custody-role versions.
+No wallet attempt was dispatched: the target-image rollout did not complete
+within the ten-minute readiness gate.
+
+A startup identity read initially reached the old image in NRT13. Subsequent
+identity reads returned HTTP 500 with HTML responses. Captured Worker exceptions
+state: “There is no container instance that can be provided to this Durable
+Object, try again later.” This is an `environment_or_infrastructure_failure`.
+The first additional diagnostic failed while parsing HTML before retaining the
+HTTP status; its evidence explicitly records that missing observation. Subsequent
+receipts retain HTTP 500 and content type. No failed startup is counted as a
+successful signature or pooled into London's performance denominator.
+
+Evidence: `.artifacts/r152/regional-d1-20261001-r4/`, including
+`measurement-rollouts-apac.json`, the startup receipts, and
+`probe-startup-errors.json`. The original-image restoration rollout completed
+at application version 29. Postflight verifies the original Worker versions and
+images, all three probes inactive, default Gateway placement, and closed access
+(HTTP 403/503). All five custody-role versions are unchanged. The evidence scan
+found zero benchmark-token matches in 28 files. Cumulative estimated cost is
+$1.2413 against the $25 cap, including both regional databases and subject to
+analytics lag.
+
+A new Tokyo run requires a fresh evidence directory and another successful
+readiness gate. Existing wallets stay at their assigned database; this diagnostic
+provides no same-wallet travel or production routing proof. The infrastructure
+failure remains in the experiment log even if a future startup succeeds.
+
+## Decision and remaining work
+
+London provides sufficient measured benefit to continue regional ownership
+**design**. Regional production activation remains gated on repeated first-sign/
+burst samples, other-region evidence, actual Console dependency timing, and the
+complete home/authority proof. The routing work should extend the existing
+canonical deployment binding with an immutable initial home for a complete
+deployment namespace, keeping its organization’s projects together and including
+authenticated internal and scheduled paths.
+Keep existing owners pinned; defer transfer machinery until a transfer is needed.
+See [the ownership review](refactor-152-ownership-review.md) for the current
+cross-project constraints and outstanding correctness scenarios.
 
 ## Evidence and reproduction
 
@@ -146,7 +240,7 @@ Recompute distributions and validate call accounting with:
 
 ```sh
 node tests/r150-hosted/analyze-regional-d1.mjs \
-  .artifacts/r152/regional-d1-20261001-r1/summary.json \
+  .artifacts/r152/regional-d1-20261001-r1/summary.json weur \
   .artifacts/r152/regional-d1-20261001-r1
 ```
 

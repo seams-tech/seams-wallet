@@ -132,19 +132,21 @@ Human decision time and transaction broadcasting are reported separately.
   evidence, role DO placement evidence, and every D1 call's served region and
   primary flag. Mark unknown locations explicitly. Ingress colo alone cannot
   establish where application code executed.
-- [ ] Measure immediate first sign, ready-pool warm sign, and concurrent burst
-  separately, including refill overlap, queueing, and foreground wait. Report
-  calls, statements, write-bearing calls, row writes, D1 wall/SQL time, and full
-  system-controlled latency. Verify every returned signature.
+- [x] Measure London immediate first sign, ready-pool warm sign, and concurrent
+  burst separately, retaining refill overlap and foreground-wait evidence. All
+  30 diagnostic signatures verified. Report D1/write budgets and SDK distributions
+  separately from browser harness time; concurrent durations overlap. The repeated
+  sample target and other probe regions remain Phase 2 gates.
 
 Experiment preparation can proceed alongside R151. A regional ownership decision
 uses the residual cost after supported call reductions have been implemented.
 R151 r16/r17 freeze builds and instrument the ready-material London workload.
-The first R152 regional treatment completes the build, instrumentation, and
-placement evidence for that workload: 54 verified signatures, with owner p95
-2,638.4→899.1 ms and linked p95 2,473.0→952.2 ms. Its small cohort remains below
-the acceptance sample target. The broader workload matrix stays open; see
-[results and limitations](refactor-152-results.md).
+The repeated R152 regional treatment completes the London ready-material
+sample target with 180 verified signatures: owner p95 2,638.4→942.7 ms and linked
+p95 2,457.7→927.0 ms. A separate six-wallet first-sign/burst diagnostic verifies
+30 more signatures; its WEUR first-sign median is 1,151.9 ms and burst median
+1,333.6 ms, with a 2,017.2 ms burst maximum. The broader repeated workload/region
+matrix stays open; see [results and limitations](refactor-152-results.md).
 
 ## Phase 2: controlled placement comparison
 
@@ -169,20 +171,24 @@ Use the same workloads and build identities in these arms:
   deployed binding pairs, cost, and restoration evidence.
 - [ ] Extend the matched comparison to other probe regions and, when warranted,
   an ENAM primary. Keep registration distribution and object age comparable;
-  retain the original ENAM infrastructure failure separately.
+  retain the original ENAM infrastructure failure separately. The first R152
+  Tokyo attempt dispatched no wallets because Cloudflare could not allocate the
+  probe container; restoration is verified and the preflight failure is retained.
 - [ ] Alternate arm order across at least two runs. Target at least 30 completed
   signatures per arm, probe region, and workload; record errors and incomplete
   attempts in the denominator. Distinguish independent fresh-wallet first-sign
   samples from repeated signatures on an existing wallet.
-- [ ] Report p50, p95, observed maximum, sample count, error rate, and paired
-  differences where the workload permits pairing. Preserve raw redacted samples.
+- [x] Report p50, p95, observed maximum, sample count, and error rate for the
+  completed London workloads. Preserve raw redacted samples. Arms use distinct
+  wallets; distributions are unpaired. Continue this accounting for each region.
   A small cohort maximum does not establish a universal two-second bound.
 - [ ] Use a proposed benefit gate of at least 20% and 100 ms improvement in
   full-path p95 over the best simpler arm across repeated runs. Record uncertainty
   and tail/error regressions in other regions. Revisit the gate explicitly before
   running if the measured baseline makes it inappropriate.
-- [ ] Reconcile cumulative Cloudflare experiment cost before provisioning or
-  reruns; keep the existing $25 cap and isolated-resource scope. Preserve R150's
+- [x] Reconcile cumulative Cloudflare experiment cost before provisioning and
+  each completed run; continue before every rerun. Keep the existing $25 cap and
+  isolated-resource scope. Preserve R150's
   unresolved ENAM infrastructure failure separately. Stop at the budget limit
   and retain incomplete evidence rather than silently expanding the experiment.
 - [ ] Record a decision: retain current ownership, change Gateway placement only,
