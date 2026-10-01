@@ -59,11 +59,6 @@ const ECDSA_CLIENT_WASM_DTS_ABS = path.resolve(
 );
 const ECDSA_CLIENT_WASM_JS_OUT = 'wasm/router_ab_ecdsa_client/pkg/router_ab_ecdsa_client.js';
 const ECDSA_CLIENT_WASM_DTS_OUT = 'wasm/router_ab_ecdsa_client/pkg/router_ab_ecdsa_client.d.ts';
-const NEAR_SIGNER_WORKER_ENUM_EXPORTS = [
-  'ConfirmationBehavior',
-  'ConfirmationUIMode',
-  'UserVerificationPolicy',
-] as const;
 
 const toPosixPath = (p: string): string => p.split(path.sep).join('/');
 const stripExt = (p: string): string => p.replace(/\.[^/.]+$/, '');
@@ -81,26 +76,6 @@ const preservedModuleOut = (opts: { facadeModuleId: string; rootAbs: string; pre
   const rel = toPosixPath(path.relative(opts.rootAbs, facadeAbs));
   const relNoExt = stripExt(stripLeadingDotDots(rel));
   return opts.prefix ? `${opts.prefix}/${relNoExt}.js` : `${relNoExt}.js`;
-};
-
-const ensureNearSignerWorkerEnumExports = (code: string): string => {
-  const exportLinePattern = /export \{([^}]+)\};/;
-  const exportLineMatch = code.match(exportLinePattern);
-  if (!exportLineMatch) return code;
-
-  const exportedBindings = exportLineMatch[1]
-    .split(',')
-    .map((binding) => binding.trim())
-    .filter(Boolean);
-
-  const missingBindings = NEAR_SIGNER_WORKER_ENUM_EXPORTS.filter((binding) => {
-    if (!code.includes(`const ${binding} = Object.freeze(`)) return false;
-    return !exportedBindings.some((exportedBinding) => exportedBinding === binding);
-  });
-  if (missingBindings.length === 0) return code;
-
-  const mergedBindings = [...exportedBindings, ...missingBindings].join(', ');
-  return code.replace(exportLinePattern, `export { ${mergedBindings} };`);
 };
 
 const ensureEd25519YaoClientNamedInitExport = (code: string): string => {
@@ -579,11 +554,7 @@ const configs = [
     plugins: [
       {
         name: 'emit-near-signer-wasm',
-        generateBundle(_options, bundle) {
-          for (const output of Object.values(bundle)) {
-            if (output.type !== 'chunk' || output.fileName !== NEAR_SIGNER_WASM_JS_OUT) continue;
-            output.code = ensureNearSignerWorkerEnumExports(output.code);
-          }
+        generateBundle() {
           try {
             const source = fs.readFileSync(
               path.join(SDK_ROOT_ABS, '../../wasm/near_signer/pkg/wasm_signer_worker_bg.wasm'),

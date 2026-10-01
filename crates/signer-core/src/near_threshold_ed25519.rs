@@ -25,10 +25,6 @@ fn encode_base64_url(input: &[u8]) -> String {
     Base64UrlUnpadded::encode_string(input)
 }
 
-pub fn base64_url_encode(input: &[u8]) -> String {
-    encode_base64_url(input)
-}
-
 pub fn parse_near_public_key_to_bytes(public_key: &str) -> CoreResult<[u8; 32]> {
     let decoded = bs58::decode(public_key.strip_prefix("ed25519:").unwrap_or(public_key))
         .into_vec()

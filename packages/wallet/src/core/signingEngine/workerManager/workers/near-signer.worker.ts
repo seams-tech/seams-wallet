@@ -1,43 +1,15 @@
 /**
- * Enhanced WASM Signer Worker (v2)
- * This worker uses Rust-based message handling for better type safety and performance
- * Similar to the UserConfirm worker architecture
+ * NEAR signer worker.
  *
- * MESSAGING FLOW DOCUMENTATION:
- * =============================
- *
- * 1. PROGRESS MESSAGES (During Operation):
- *    Rust WASM calls send_typed_progress_message() →
- *    calls global sendProgressMessage() (defined below) →
- *    postMessage() to main thread with progress update
- *
- *    - Multiple progress messages per operation
- *    - Real-time updates for UX (e.g., "Verifying payload...", "Signing transaction...")
- *    - Does not affect final result
- *
- * 2. FINAL RESULTS (Operation Complete):
- *    Rust WASM returns result from handle_signer_message() →
- *    TypeScript receives return value →
- *    postMessage() to main thread with final result
- *
- *    - One result message per operation
- *    - Contains success/error and actual operation data
- *    - Main thread awaits this for completion
- *
- * TYPE SAFETY:
- * ============
- * All message types are auto-generated from Rust using wasm-bindgen:
- * - ProgressMessageType: VERIFICATION_PROGRESS, SIGNING_PROGRESS, etc.
- * - ProgressStep: preparation, payload_verification, transaction_signing, etc.
- * - ProgressStatus: progress, success, error
- * - WorkerProgressMessage: Complete message structure
+ * Numeric request types go to the Rust message handler, which returns one result per request.
+ * String request types call the transaction, delegate and NEP-413 helpers exported by the
+ * same WASM module directly.
  */
 
 import {
   NearSignerWorkerCustomRequestType,
   WorkerRequestType,
   type SignerWorkerRequestType,
-  WasmRequestPayload,
 } from '@/core/types/signer-worker';
 // Import WASM binary directly
 import init, {
@@ -71,77 +43,6 @@ const wasmUrl = resolveWasmUrl('wasm_signer_worker_bg.wasm', 'Signer Worker');
 
 let wasmInitPromise: Promise<void> | null = null;
 let messageQueue: Promise<void> = Promise.resolve();
-let activeRequestId: string | null = null;
-
-/**
- * Function called by WASM to send progress messages
- * This is imported into the WASM module as sendProgressMessage
- *
- * Now receives both numeric enum values AND message string names from Rust
- *
- * @param _messageType - Numeric ProgressMessageType enum value
- * @param messageTypeName - String name of the message type for debugging
- * @param step - Numeric ProgressStep enum value
- * @param stepName - String name of the step for debugging
- * @param message - Human-readable progress message
- * @param data - JSON string containing structured data
- * @param logs - Optional JSON string containing array of log messages
- */
-function sendProgressMessage(
-  _messageType: number,
-  messageTypeName: string,
-  step: number,
-  stepName: string,
-  message: string,
-  data: unknown,
-  logs?: unknown,
-): void {
-  try {
-    // Parse structured data and logs using helper if they are strings
-    const parsedData = typeof data === 'string' ? safeJsonParse(data, {}) : data || {};
-    const parsedLogs = typeof logs === 'string' ? safeJsonParse(logs || '', []) : logs || [];
-
-    // Create a worker-internal progress payload.
-    const progressPayload = {
-      step: step,
-      phase: stepName,
-      status:
-        messageTypeName === 'REGISTRATION_COMPLETE' ||
-        messageTypeName === 'EXECUTE_ACTIONS_COMPLETE'
-          ? 'success'
-          : 'progress',
-      message: message,
-      data: parsedData,
-      logs: parsedLogs,
-    };
-
-    if (!activeRequestId) {
-      console.warn('[signer-worker]: Dropping progress message without active request id');
-      return;
-    }
-
-    self.postMessage({
-      id: activeRequestId,
-      progress: true,
-      payload: progressPayload,
-    });
-  } catch (error: unknown) {
-    console.error('[signer-worker]: Failed to send progress message:', errorLogSummary(error));
-    if (!activeRequestId) return;
-    self.postMessage({
-      id: activeRequestId,
-      ok: false,
-      error: `Progress message failed: ${safeErrorMessage(error)}`,
-      code: 'WORKER_PROTOCOL_ERROR',
-    });
-  }
-}
-
-// Important: Make sendProgressMessage available globally for WASM to call
-type NearSignerWorkerGlobal = typeof globalThis & {
-  sendProgressMessage?: typeof sendProgressMessage;
-};
-(globalThis as NearSignerWorkerGlobal).sendProgressMessage = sendProgressMessage;
 
 /**
  * Initialize WASM module
@@ -181,8 +82,6 @@ async function processWorkerMessage(event: MessageEvent): Promise<void> {
     throw new Error('Signer worker request is missing RPC id');
   }
 
-  activeRequestId = requestId;
-
   try {
     const requestType = (event.data as { type?: unknown })?.type;
     // Guardrail: raw PRF fields must never traverse into signer payloads
@@ -208,15 +107,13 @@ async function processWorkerMessage(event: MessageEvent): Promise<void> {
       error: safeErrorMessage(error),
       code: 'WORKER_RUNTIME_ERROR',
     });
-  } finally {
-    activeRequestId = null;
   }
 }
 
 type SignerWorkerRpcRequest = {
   id: string;
   type: SignerWorkerRequestType;
-  payload: WasmRequestPayload | unknown;
+  payload: unknown;
 };
 
 self.onmessage = async (event: MessageEvent<SignerWorkerRpcRequest>): Promise<void> => {
@@ -402,15 +299,3 @@ self.onunhandledrejection = (event) => {
   console.error('[signer-worker]: Unhandled promise rejection:', errorLogSummary(event.reason));
   event.preventDefault();
 };
-
-/**
- * Helper function to safely parse JSON with fallback
- */
-function safeJsonParse(jsonString: string, fallback: unknown = {}): unknown {
-  try {
-    return jsonString ? JSON.parse(jsonString) : fallback;
-  } catch (error: unknown) {
-    console.warn('[signer-worker]: Failed to parse JSON:', errorLogSummary(error));
-    return Array.isArray(fallback) ? [jsonString] : { rawData: jsonString };
-  }
-}

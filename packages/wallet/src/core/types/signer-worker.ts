@@ -54,19 +54,6 @@ export type NearSignerWorkerCustomRequestType =
 export type SignerWorkerRequestType = WorkerRequestType | NearSignerWorkerCustomRequestType;
 type SignerWorkerResponseType = WorkerResponseType;
 
-interface ThresholdSignerConfig {
-  /** Base URL of the Router API server (e.g. https://router-api.example.com) */
-  relayerUrl: string;
-  /** Identifies which relayer-held key share to use */
-  relayerKeyId: string;
-  /** FROST participant identifier used for the client share (2P only, optional). */
-  clientParticipantId?: number;
-  /** FROST participant identifier used for the relayer share (2P only, optional). */
-  relayerParticipantId?: number;
-  /** Optional participant ids (signer set) associated with this threshold key/session. */
-  participantIds?: number[];
-}
-
 export type ThresholdEd25519ComputeNep413SigningDigestRequest = {
   message: string;
   recipient: string;
@@ -158,27 +145,6 @@ export type WasmFinalizeThresholdEcdsaDerivationRoleLocalClientBootstrapRequest 
   GeneratedFinalizeEcdsaClientBootstrapCommand;
 export type WasmFinalizeThresholdEcdsaDerivationRoleLocalClientBootstrapResult =
   GeneratedFinalizeEcdsaClientBootstrapOutput;
-interface WasmSignTransactionsWithActionsRequest {
-  rpcCall: RpcCallPayload;
-  sessionId: string;
-  createdAt?: number;
-  threshold: ThresholdSignerConfig;
-  txSigningRequests: TransactionPayload[];
-  intentDigest?: string;
-  transactionContext?: TransactionContext;
-  credential?: string;
-}
-
-interface WasmSignDelegateActionRequest {
-  rpcCall: RpcCallPayload;
-  sessionId: string;
-  createdAt?: number;
-  threshold: ThresholdSignerConfig;
-  delegate: DelegatePayload;
-  intentDigest?: string;
-  transactionContext?: TransactionContext;
-  credential?: string;
-}
 export interface DelegatePayload {
   senderId: string;
   receiverId: string;
@@ -187,28 +153,46 @@ export interface DelegatePayload {
   maxBlockHeight: string;
   publicKey: string;
 }
-interface WasmSignNep413MessageRequest {
-  sessionId: string;
-  accountId: string;
-  nearPublicKey: string;
-  threshold: ThresholdSignerConfig;
-  message: string;
-  recipient: string;
-  nonce: string;
-  state?: string;
-  credential?: string;
-}
-export type WasmRequestPayload =
-  | WasmDeriveThresholdEd25519ClientVerifyingShareRequest
-  | WasmSignTransactionsWithActionsRequest
-  | WasmSignDelegateActionRequest
-  | WasmSignNep413MessageRequest;
 
 // WASM Worker Response Types
 type WasmSignedTransaction = InstanceType<typeof wasmModule.WasmSignedTransaction>;
 export type WasmSignedDelegate = wasmModule.WasmSignedDelegate;
-type WasmTransactionSignResult = InstanceType<typeof wasmModule.TransactionSignResult>;
-type WasmDelegateSignResult = wasmModule.DelegateSignResult;
+
+// The NEAR signing results the Router A/B flows build. The signer WASM used to return these
+// shapes, so the accessor pairs and `free` are the ones its bindings declared.
+interface NearTransactionSignResult {
+  free(): void;
+  success: boolean;
+  get transactionHashes(): string[] | undefined;
+  set transactionHashes(value: string[] | null | undefined);
+  get signedTransactions(): WasmSignedTransaction[] | undefined;
+  set signedTransactions(value: WasmSignedTransaction[] | null | undefined);
+  logs: string[];
+  get error(): string | undefined;
+  set error(value: string | null | undefined);
+}
+
+interface NearDelegateSignResult {
+  free(): void;
+  success: boolean;
+  get hash(): string | undefined;
+  set hash(value: string | null | undefined);
+  get signedDelegate(): WasmSignedDelegate | undefined;
+  set signedDelegate(value: WasmSignedDelegate | null | undefined);
+  logs: string[];
+  get error(): string | undefined;
+  set error(value: string | null | undefined);
+}
+
+interface NearNep413SignResult {
+  free(): void;
+  accountId: string;
+  publicKey: string;
+  signature: string;
+  get state(): string | undefined;
+  set state(value: string | null | undefined);
+}
+
 // wasm-bindgen may generate classes with private constructors, which breaks
 // `InstanceType<typeof Class>`. Use the class name directly for the instance type.
 export type WasmDeriveThresholdEd25519ClientVerifyingShareResult =
@@ -221,21 +205,6 @@ export interface WorkerRequestTypeMap {
     type: WorkerRequestType.DeriveThresholdEd25519ClientVerifyingShare;
     request: WasmDeriveThresholdEd25519ClientVerifyingShareRequest;
     result: WasmDeriveThresholdEd25519ClientVerifyingShareResult;
-  };
-  [WorkerRequestType.SignTransactionsWithActions]: {
-    type: WorkerRequestType.SignTransactionsWithActions;
-    request: WasmSignTransactionsWithActionsRequest;
-    result: WasmTransactionSignResult;
-  };
-  [WorkerRequestType.SignDelegateAction]: {
-    type: WorkerRequestType.SignDelegateAction;
-    request: WasmSignDelegateActionRequest;
-    result: WasmDelegateSignResult;
-  };
-  [WorkerRequestType.SignNep413Message]: {
-    type: WorkerRequestType.SignNep413Message;
-    request: WasmSignNep413MessageRequest;
-    result: wasmModule.SignNep413Result;
   };
 }
 
@@ -272,28 +241,6 @@ export const DEFAULT_CONFIRMATION_CONFIG: ConfirmationConfig = {
   autoProceedDelay: 0,
 };
 
-// Type guard for basic progress message validation during development
-
-export enum ProgressMessageType {
-  REGISTRATION_PROGRESS = 'REGISTRATION_PROGRESS',
-  REGISTRATION_COMPLETE = 'REGISTRATION_COMPLETE',
-  EXECUTE_ACTIONS_PROGRESS = 'EXECUTE_ACTIONS_PROGRESS',
-  EXECUTE_ACTIONS_COMPLETE = 'EXECUTE_ACTIONS_COMPLETE',
-}
-
-// Step identifiers for progress tracking
-// This enum exactly matches the Rust WASM ProgressStep enum from:
-// packages/passkey/wasm/near_signer/src/types/progress.rs
-// The string values come from the progress_step_name() function in that file
-export enum ProgressStep {
-  PREPARATION = 'preparation', // Rust: Preparation
-  WEBAUTHN_AUTHENTICATION = 'webauthn-authentication', // Rust: WebauthnAuthentication
-  AUTHENTICATION_COMPLETE = 'authentication-complete', // Rust: AuthenticationComplete
-  TRANSACTION_SIGNING_PROGRESS = 'transaction-signing-progress', // Rust: TransactionSigningProgress
-  TRANSACTION_SIGNING_COMPLETE = 'transaction-signing-complete', // Rust: TransactionSigningComplete
-  ERROR = 'error', // Rust: Error
-}
-
 type NearWorkerProgressStatus = 'progress' | 'success' | 'error';
 
 export interface NearWorkerProgressEvent {
@@ -316,9 +263,9 @@ interface BaseWorkerResponse<TPayload = unknown> {
 // Map request types to their expected success response payloads (WASM types)
 export interface RequestResponseMap {
   [WorkerRequestType.DeriveThresholdEd25519ClientVerifyingShare]: WasmDeriveThresholdEd25519ClientVerifyingShareResult;
-  [WorkerRequestType.SignTransactionsWithActions]: WasmTransactionSignResult;
-  [WorkerRequestType.SignDelegateAction]: WasmDelegateSignResult;
-  [WorkerRequestType.SignNep413Message]: wasmModule.SignNep413Result;
+  [WorkerRequestType.SignTransactionsWithActions]: NearTransactionSignResult;
+  [WorkerRequestType.SignDelegateAction]: NearDelegateSignResult;
+  [WorkerRequestType.SignNep413Message]: NearNep413SignResult;
 }
 
 type RequestTypeKey = keyof RequestResponseMap;

@@ -313,8 +313,9 @@ impl ActionParams {
         }
     }
 
-    /// Lightweight validator used by tests and callers that only care about
-    /// parameter validity, not the constructed action.
+    /// Lightweight validator for tests that only care about parameter
+    /// validity, not the constructed action.
+    #[cfg(test)]
     pub fn validate(&self) -> Result<(), String> {
         self.to_action().map(|_| ())
     }
