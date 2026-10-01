@@ -243,6 +243,12 @@ recorded in [the experiment log](refactor-152-results.md). The $25 cap remains;
 production activation, existing-owner migration, and new credentials are outside
 this experiment.
 
+The user subsequently approved one temporary Worker, DO namespace and Container
+application to investigate the Tokyo blocker. This permits the isolated
+`r150-bench-20261001-tokyo-recovery` probe with the existing credential and frozen
+SDK image, followed by deletion of its temporary resources. The cumulative $25
+cap and exclusion of staging/production changes remain in force.
+
 ## Verification and remaining proof
 
 The focused Workers D1 run passed all three existing scenarios: canonical and

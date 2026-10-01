@@ -183,16 +183,22 @@ Use the same workloads and build identities in these arms:
   failed the original Tokyo application's readiness gate. Temporarily moving
   the existing idle WEUR application to APAC successfully started that frozen
   SDK in Hong Kong; the location gate rejected it before wallet dispatch.
-  Tokyo remains unmeasured. Preserve the separate failed preflight/rollout and
+  Those attempts supplied no Tokyo measurements. Preserve the separate failed preflight/rollout and
   Hong Kong startup receipts; use them for provider investigation of the
   original application and Tokyo provisioning path. APAC constraints cannot
   guarantee a Tokyo location. See the [repair attempts](refactor-152-results.md#tokyo-repair-attempts-image-format-and-alternate-application-october-1).
   A later WEUR→APAC placement reset recovered the original application's target
   rollout, first in London and then Hong Kong. A smaller 1-vCPU / 6-GiB probe
   also started in Hong Kong. Both failed the Tokyo location gate before wallet
-  dispatch. A separate probe using Durable Object scheduling has a successful
-  deployment dry run; provisioning its temporary resource bundle awaits approval
-  beyond the original existing-resources-only scope.
+  dispatch. The user approved a temporary Worker/namespace/Container bundle;
+  Durable Object scheduling with provider-verified placement subsequently
+  started the frozen SDK in `nrt08` and completed Tokyo signing. Keep rejected
+  Osaka placements and the between-arm probe restart separate. Use bounded
+  candidate discovery and a fresh, stable cohort per arm; broader sample-count,
+  workload and authenticated Console gates remain open. The initial Tokyo cohort
+  verifies 18 signatures (three owner and six linked per D1 arm); owner medians
+  are 1,673.8 ms with APAC D1 and 3,010.5 ms with WEUR D1. All temporary resources
+  were deleted after verification. See the [Tokyo results](refactor-152-results.md#tokyo-signing-results-and-cleanup).
 - [ ] Alternate arm order across at least two runs. Target at least 30 completed
   signatures per arm, probe region, and workload; record errors and incomplete
   attempts in the denominator. Distinguish independent fresh-wallet first-sign

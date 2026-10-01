@@ -1,7 +1,8 @@
 # Regional D1 empirical results
 
 Date: October 1, 2026. Status: repeated London ready-material and first-sign/burst
-comparisons complete; Tokyo diagnostic blocked during infrastructure startup.
+comparisons complete; temporary DO-scheduled probe unblocks verified Tokyo startup
+and signing. Broader regional and production gates remain open.
 
 This log implements the bounded experiment in
 [the ownership review](refactor-152-ownership-review.md) and preserves evidence
@@ -573,9 +574,141 @@ The proposed resource bundle is Worker `r150-bench-20261001-tokyo-recovery`, its
 `ProbeTokyo` DO namespace and associated Container application. Reuse the
 existing benchmark credential, keep the cumulative $25 cap, leave production
 untouched, preserve redacted evidence and delete only this new resource bundle
-after verification. It is **prepared, not deployed**: approval to expand the
-original existing-resources-only scope is pending. No new scheduling-policy
-result or Tokyo success is claimed.
+after verification. The user subsequently approved this temporary resource
+bundle. The deployment and Tokyo startup evidence are recorded below.
+
+## Temporary DO-scheduled probe: verified Tokyo startup (October 1)
+
+The approved alternative started the frozen SDK in **Tokyo, `nrt08`**, on two
+fresh boots under the `durable_object` scheduling policy. The successful probe
+omits the broad APAC location hint and lets the initial request select nearby
+DO placement. This is a verified workaround for this cohort; it does not prove
+the internal cause of the old rollout failures or guarantee Tokyo for future
+DOs. Cloudflare documents [best-effort initial placement](https://developers.cloudflare.com/durable-objects/reference/data-location/).
+
+The temporary Worker is `r150-bench-20261001-tokyo-recovery`; its successful
+application/namespace is `1d39c826777b4a14bceafbe911a7c563`, and its fixed probe DO
+is `0bb3ede4bfa2c3c34d76e10f38591bc3761d65c907e126accb00fc3dab4cfe2a`.
+The two boot IDs are `fb560e18-a0b5-4f7a-a4e3-c536b8ddd15f` and
+`40940b37-16be-4b70-a382-1e003bf0c834`. Both report `nrt08`, APAC, SDK revision
+`a2c936ed…` and build hash `04c22bce…`. Independent Cloudflare instance reads
+confirm the same instance/location, application ID, Docker manifest `747fdf75…`,
+and 2-vCPU / 8-GiB / 16-GB size. Instance lifecycle status briefly lagged the
+successful process response; process identity and the control-plane location
+were both recorded.
+
+This policy leaves the frozen probe server's `applicationId` and `countryA2`
+environment-derived fields null. Those fields remain null in the raw evidence.
+The runner instead verifies membership through Cloudflare's application-scoped
+instance API and requires the provider-reported `nrt*` location and APAC region.
+No region or country value was injected into the container to make the gate pass.
+
+Bootstrap attempts are retained independently:
+
+- Initial deployment rejected missing required secrets before creating resources.
+  The corrected bootstrap supplies the existing credential and expiry atomically
+  via a private temporary secrets file, removed immediately after deployment.
+- The second attempt deployed resources but encountered HTTP 404 on its first
+  probe request. Its ambiguous 404 readiness check was replaced with an
+  authenticated `/readyz` endpoint returning 204.
+- The third attempt reached that explicit readiness endpoint through NRT, then
+  returned a Worker exception on a stop request before first startup. The next
+  attempt starts a fresh container before exercising stop/restart.
+- The fourth attempt, with an APAC hint, started successfully in `kix06` (Osaka)
+  and exposed the missing environment-derived identity fields. It supplied no
+  Tokyo sample. The fifth attempt omits that hint, verifies the control-plane
+  instance identity, and passes both Tokyo boots.
+
+Evidence is under `.artifacts/r152/tokyo-do-policy-20261001/` and the separate
+`tokyo-do-policy-r2-20261001/` through `tokyo-do-policy-r5-20261001/` directories.
+Each preserves resource inventories and cleanup receipts; runner/config hashes
+are in `runner-fingerprints.json`. The successful private runner is
+`.runtime/r152-tokyo-do-policy-r5/run.mjs`. Use fresh evidence IDs for another run,
+verify the observed city again, and retain the expiry and resource-deletion path.
+
+The fifth attempt completed one APAC-D1 linked-chain wallet with nine verified
+signatures. While changing Gateway bindings for the next arm, a subsequent
+identity read found a different boot ID. The guard stopped before dispatching a
+WEUR wallet. This is a separate infrastructure failure of the planned two-arm
+run; the completed APAC artifact remains valid. The restart's internal cause is
+unresolved. Do not label that planned two-arm run successful or append samples
+under its old boot identity.
+
+The follow-up sets the Gateway arm before starting its probe and records each
+arm as a separate cohort. A sixth attempt placed the fresh probe in Osaka and
+dispatched no wallet. The seventh permits at most three sequential fresh probe
+objects inside the approved namespace, stops rejected candidates, and selects
+only a provider-verified Tokyo instance. Candidate 0 reported `kix06`; candidate
+1 reported `nrt08` and passed a stop/restart identity check. Only that candidate
+proceeds to the WEUR D1 workload. This bounded discovery is a measurement
+workaround for best-effort placement. Future runs must verify the actual city.
+
+### Tokyo signing results and cleanup
+
+Both dispatched wallet attempts succeeded: **18 verified signatures**, with
+three owner and six linked-device signatures per D1 arm. Each fresh wallet
+completed owner→second-device→third-device linking and signing. The seventh
+attempt's selected Tokyo object stayed on boot
+`393ed457-a45e-4b8a-9a7b-cd9414a30223` through its WEUR workload. The existing
+regional analyzer validated build/database identities, signature counts and
+dependency accounting: owner signatures use four HTTP requests, seven D1 calls
+and eight SQL statements; linked signatures use two HTTP requests, five D1 calls
+and six SQL statements. Both retain two write-bearing calls and 14 rows written.
+Statement region checks match each assigned database arm.
+
+| Tokyo ready-material workload | D1 arm | Signatures | SDK median | SDK p95 / maximum | D1 wall-time median | SQL-time median |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| Owner | APAC | 3 | 1,673.8 ms | 1,824.8 ms | 556 ms | 16.57 ms |
+| Owner | WEUR | 3 | 3,010.5 ms | 3,164.1 ms | 1,941 ms | 14.65 ms |
+| Linked devices | APAC | 6 | 1,429.8 ms | 1,666.7 ms | 524 ms | 16.55 ms |
+| Linked devices | WEUR | 6 | 2,702.1 ms | 2,873.1 ms | 1,746 ms | 13.56 ms |
+
+These are separate, unpaired cohorts on different verified Tokyo boots, with
+APAC measured before WEUR. The sample is small and includes repeated signatures
+within each wallet; it does not satisfy the broader 30-per-arm/workload sample
+target or establish a latency bound. It uses the same frozen SDK/Gateway and
+static-Console scope as the London experiment, so full authenticated hosted
+Console composition remains open. The observed preference for APAC in Tokyo and
+WEUR in London supports continuing regional-home design, while keeping its
+authority and rollout proofs separate.
+
+Reproduce the validated summary, preserving both cohort identities:
+
+```sh
+node tests/r150-hosted/analyze-regional-d1.mjs \
+  .artifacts/r152/tokyo-do-policy-r7-20261001/summary.json apac \
+  .artifacts/r152/tokyo-do-policy-r5-20261001 \
+  .artifacts/r152/tokyo-do-policy-r7-20261001
+```
+
+For another Tokyo run, use the seventh runner's sequence: set the D1 arm first,
+deploy the temporary DO-scheduled probe with its existing credential and expiry,
+wait for authenticated readiness HTTP 204, and start up to three sequential
+candidate objects without a location hint. Stop every rejected candidate. Match
+process identity to the application-scoped provider instance record, select only
+`nrt*` / APAC, then verify a fresh restart and keep that boot fixed through one
+wallet cohort. Retain failed placement candidates and any boot change. The
+private reference is `.runtime/r152-tokyo-do-policy-r7/run.mjs`; create fresh run
+directories and IDs before reusing it.
+
+Cleanup stopped the selected probe, restored ingress expiry and the original
+Gateway, deleted the temporary Container application, retired its DO namespace
+with a deletion migration, and deleted the temporary Worker. Readback confirms
+all six application/namespace/Worker bundles created across the bootstrap and
+measurement attempts are gone. The original three probe applications retain
+their original images, size and regional constraints; all are inactive. Original
+Worker versions, default Gateway placement, closed benchmark access (403/503),
+and all five custody-role deployments were verified. Temporary deployment-secret
+files were removed. No staging or production deployment occurred.
+
+The scan found zero benchmark-token matches in 121 evidence files. Reported
+cumulative spend at 06:32:08 UTC is $1.2920 of $25. All six temporary application
+IDs are included in the query, but their Container usage has not yet appeared
+in the analytics response. The conservative configured CPU/memory/disk ceiling
+over their full lifetimes is an additional $0.0568 before network transfer,
+recorded in `temporary-compute-bound.json`; this is a capacity-based allowance
+for delayed accounting, not an additional measured charge. Preserve the cost
+receipt's analytics-lag limitation.
 
 ## Decision and remaining work
 
