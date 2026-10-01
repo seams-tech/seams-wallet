@@ -1,6 +1,6 @@
-# Router A/B signing budget and step-up verification pilot
+# Router A/B formal verification strategy and signing pilot
 
-Status: planned. Time box: one working day, including setup and reporting.
+Status: TLA+ pilot planned. Time box: one working day, including setup and reporting.
 
 Run a small TLA+ pilot to check whether modeling adds useful evidence about our
 signing budgets, one-use presignatures, and step-up authorization. Focus on
@@ -8,6 +8,42 @@ concurrent admission, exact owner-approved operation binding, duplicate requests
 and failures between Gateway authorization and SigningWorker material consumption.
 Finish with a concrete continue-or-stop recommendation before investing in
 verification infrastructure.
+
+## Verification strategy
+
+Use Lean, Verus, and TLA+ as complementary tools. Choose the tool by the property
+being checked and its connection to production.
+
+| Tool | Intended responsibility | Evidence boundary |
+| --- | --- | --- |
+| Lean | Mathematical correctness and explicit protocol/security theorems for the Router A/B Yao design. | State the theorem, adversary model, and cryptographic assumptions. A model theorem needs a justified connection to the implementation. |
+| Verus | Functional correctness of selected Rust paths: arithmetic, encoding, bindings, and permitted state transitions. | Identify whether verification covers production code or a separate executable mirror. A proved mirror alone does not verify production. |
+| TLA+ / TLC | Quota budgets, presignature lifecycle, step-up authorization, and their behavior under concurrency, retries, response loss, crashes, and modeled expiry. | Check the distributed SDK, Gateway, and SigningWorker model within explicit finite bounds. Production correspondence requires separate evidence. |
+
+Cryptographic functional correctness and privacy are separate obligations.
+Correct derivation and output sharing do not establish server blindness. A privacy
+claim needs explicit party views, adversary and collusion assumptions, and
+assumptions or proofs for garbling, OT, randomness, and protocol composition.
+
+The [current Yao proof inventory](../crates/ed25519-yao/formal-verification/README.md)
+records structural/model proofs, a Rust-shaped Verus mirror, a narrow Aeneas
+Rust-to-Lean extraction boundary, and conformance checks. It explicitly makes no
+protocol-security claim. Preserve those limits when describing combined coverage.
+
+TLA+ models logical ordering and deadline/expiry decisions. Constant-time
+execution, timing side channels, and wall-clock performance require separate
+analysis. They are outside this pilot.
+
+For each checked property, record the behavioral contract, production enforcement
+point, and trusted inputs or atomicity assumptions in the existing pilot README.
+Relate model traces to actual guards and writes, and identify existing E2E
+evidence or a concrete coverage gap. A green finite model and passing E2E
+scenarios provide evidence for their stated scopes; they do not constitute a
+proof of all SDK executions or the cryptographic protocol.
+
+This strategy adds no Lean/Verus work, cryptographic privacy proof, extraction
+pipeline, or implementation refinement proof to the one-day TLA+ pilot. Scope any
+such follow-up independently after reviewing the pilot's findings.
 
 ## Pilot scope
 
@@ -123,8 +159,10 @@ atomicity assumption that remains unverified.
 4. **Report, up to one hour.** Save the TLC log, model/config hashes, tool version,
    exact command, bounds, checked properties, state counts, and qualification
    traces. Report findings, unresolved assumptions, existing behavior coverage,
-   and a continue-or-stop recommendation. An incomplete run is an incomplete
-   pilot result; do not extend the time box silently.
+   and a continue-or-stop recommendation. Distinguish model results, production
+   correspondence evidence, and trusted cryptographic/factor-verification inputs.
+   An incomplete run is an incomplete pilot result; do not extend the time box
+   silently.
 
 Expected committed files: one model, one configuration, and one short README
 with findings and reproduction instructions. Add no runner, CI job, generator,
@@ -155,4 +193,7 @@ or maintenance obligations. Any larger follow-up gets its own scope.
 - [Wallet Session allowance](./spec-3-wallet-sessions-and-execution-lanes.md)
 - [Intended behavior](./intended-behaviours.md), especially step-up auth, durable ECDSA preprocessing, and signing quota accounting
 - [Persistent pool lifecycle](../crates/router-ab-ecdsa-pool/specs/persistent-pool-lifecycle-v1.md)
+- [Current Yao proof scope](../crates/ed25519-yao/formal-verification/README.md)
+- [Verus Rust verification](https://verus-lang.github.io/verus/guide/)
+- [Aeneas Rust-to-Lean translation](https://github.com/AeneasVerif/aeneas)
 - [Official TLA+ CLI tools](https://github.com/tlaplus/tlaplus#use)
