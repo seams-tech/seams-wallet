@@ -852,6 +852,28 @@
   animation: content-enter 180ms var(--seams-ease-out, ease-out);
 }
 
+/* The list fades out over ACCOUNT_MENU_EXIT_MS (AuthMenuSurface) and takes no
+   clicks while it does. */
+:where(.seams-auth-menu-surface) .seams-account-menu-popover.is-closing {
+  pointer-events: none;
+  transform-origin: top center;
+  animation: account-menu-exit 160ms var(--seams-ease-out, ease-out) forwards;
+}
+
+@keyframes account-menu-exit {
+  to {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where(.seams-auth-menu-surface) .seams-account-menu-popover.is-closing {
+    animation: none;
+    opacity: 0;
+  }
+}
+
 :where(.seams-auth-menu-surface) .seams-account-menu-group + .seams-account-menu-group {
   margin-top: 10px;
   padding-top: 10px;
@@ -904,9 +926,13 @@
   color: var(--seams-colors-textPrimary);
 }
 
-/* A chosen account blinks once, highlight off then on, before the list closes
-   (blinkMenuItem). The selection has already committed, so "on" shows the
-   selected tint once the host re-renders. */
+/* A chosen account blinks once, highlight off then on (blinkMenuItem), and
+   keeps its highlight while the list fades out. The list holds the previous
+   selection's tint and check until it is gone, so only the highlight changes. */
+:where(.seams-auth-menu-surface) .seams-account-menu-option.is-chosen {
+  background: var(--seams-colors-surface2);
+}
+
 :where(.seams-auth-menu-surface) .seams-account-menu-option[data-blink] {
   transition: none;
 }

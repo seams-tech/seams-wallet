@@ -397,8 +397,23 @@ type AuthMenuSurfaceProps = {
   readonly styles: CspStylesheetManager;
 };
 
-export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, { accountMenuOpen: boolean }> {
-  state = { accountMenuOpen: false };
+type AccountMenuState = 'closed' | 'open' | 'closing';
+
+// Matches the account-menu-exit animation in auth-menu.css.
+const ACCOUNT_MENU_EXIT_MS = 160;
+
+export class AuthMenuSurface extends Component<
+  AuthMenuSurfaceProps,
+  { accountMenu: AccountMenuState }
+> {
+  state: { accountMenu: AccountMenuState } = { accountMenu: 'closed' };
+  private accountMenuExitTimer: ReturnType<typeof setTimeout> | null = null;
+  // The account a click chose and the one selected before it. The list keeps
+  // rendering both as they were at the click while it blinks and fades out.
+  private accountMenuChoice: {
+    readonly chosen: AuthMenuAccountOption;
+    readonly previous: AuthMenuAccountOption;
+  } | null = null;
   private previouslyFocusedElement: HTMLElement | null = null;
   private shouldFocusInitialControl = true;
   private contentResizeObserver: ResizeObserver | null = null;
@@ -410,10 +425,27 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, { accountMe
     return this.props.viewModel;
   }
   private get accountMenuOpen(): boolean {
-    return this.state.accountMenuOpen;
+    return this.state.accountMenu === 'open';
   }
-  private set accountMenuOpen(value: boolean) {
-    this.setState({ accountMenuOpen: value });
+
+  private openAccountMenu(): void {
+    this.endAccountMenuExit();
+    this.setState({ accountMenu: 'open' });
+  }
+
+  private closeAccountMenu(): void {
+    if (!this.accountMenuOpen) return;
+    this.setState({ accountMenu: 'closing' });
+    this.accountMenuExitTimer = setTimeout(() => {
+      this.endAccountMenuExit();
+      this.setState({ accountMenu: 'closed' });
+    }, ACCOUNT_MENU_EXIT_MS);
+  }
+
+  private endAccountMenuExit(): void {
+    if (this.accountMenuExitTimer !== null) clearTimeout(this.accountMenuExitTimer);
+    this.accountMenuExitTimer = null;
+    this.accountMenuChoice = null;
   }
 
   componentDidMount(): void {
@@ -435,6 +467,7 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, { accountMe
     this.contentResizeObserver = null;
     if (this.contentHeightFrame !== null) cancelAnimationFrame(this.contentHeightFrame);
     this.contentHeightFrame = null;
+    this.endAccountMenuExit();
     window.removeEventListener('resize', this.queueContentHeightSync);
     document.removeEventListener('pointerdown', this.onDocumentPointerDown);
     document.removeEventListener('keydown', this.onKeyDown, true);
@@ -544,7 +577,7 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, { accountMe
       event.preventDefault();
       if (this.viewModel && recoveryNavigationLocked(this.viewModel)) return;
       if (this.accountMenuOpen) {
-        this.accountMenuOpen = false;
+        this.closeAccountMenu();
         return;
       }
       this.emitIntent({ kind: 'close', reason: 'escape' });
@@ -623,9 +656,12 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, { accountMe
     const selected = viewModel.accountOptions.find(
       (account) => account.walletId === walletId && account.authMethod === authMethod,
     );
-    if (!selected) return;
+    const previous = selectedLoginAccount(viewModel);
+    if (!selected || !previous || this.accountMenuChoice) return;
     const blink = blinkMenuItem(option);
     if (!blink) return;
+    const choice = { chosen: selected, previous };
+    this.accountMenuChoice = choice;
     // The selection commits within the click; only the list's close waits for the blink.
     this.emitIntent({
       kind: 'login_account_selected',
@@ -633,18 +669,20 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, { accountMe
       authMethod: selected.authMethod,
     });
     void blink.then(() => {
-      this.accountMenuOpen = false;
+      // Closing or reopening the list during the blink drops the choice.
+      if (this.accountMenuChoice === choice) this.closeAccountMenu();
     });
   };
 
   private onAccountMenuToggle = (): void => {
-    this.accountMenuOpen = !this.accountMenuOpen;
+    if (this.accountMenuOpen) this.closeAccountMenu();
+    else this.openAccountMenu();
   };
 
   private onDocumentPointerDown = (event: PointerEvent): void => {
     if (!this.accountMenuOpen || !(event.target instanceof Node)) return;
     if (this.props.element.querySelector('.seams-account-menu')?.contains(event.target)) return;
-    this.accountMenuOpen = false;
+    this.closeAccountMenu();
   };
 
   private onPrimaryClick = (): void => {
@@ -898,6 +936,9 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, { accountMe
       if (!selected) return <></>;
 
       const groups = accountGroups(viewModel.accountOptions);
+      const accountMenu = this.state.accountMenu;
+      const choice = this.accountMenuChoice;
+      const listSelected = choice?.previous ?? selected;
       return (
         <>
           <div class="seams-passkey-row">
@@ -919,7 +960,7 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, { accountMe
                   ) : null}
                 </div>
               </div>
-              <div class={`seams-account-menu ${this.accountMenuOpen ? 'is-open' : ''}`}>
+              <div class={`seams-account-menu ${accountMenu === 'closed' ? '' : 'is-open'}`}>
                 <button
                   class="seams-account-menu-trigger"
                   type="button"
@@ -932,11 +973,13 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, { accountMe
                 >
                   {accountDropdownIcon()}
                 </button>
-                {this.accountMenuOpen ? (
+                {accountMenu !== 'closed' ? (
                   <>
                     <div
                       id={AUTH_MENU_ACCOUNT_LIST_ID}
-                      class="seams-account-menu-popover"
+                      class={`seams-account-menu-popover ${
+                        accountMenu === 'closing' ? 'is-closing' : ''
+                      }`}
                       role="listbox"
                     >
                       {groups.map((group) => {
@@ -953,15 +996,19 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, { accountMe
                               </div>
                               {group.accounts.map((account) => {
                                 const isSelected =
-                                  account.walletId === selected.walletId &&
-                                  account.authMethod === selected.authMethod;
+                                  account.walletId === listSelected.walletId &&
+                                  account.authMethod === listSelected.authMethod;
+                                const isChosen =
+                                  !isSelected &&
+                                  account.walletId === choice?.chosen.walletId &&
+                                  account.authMethod === choice.chosen.authMethod;
                                 const secondaryText = accountSecondaryText(account);
                                 return (
                                   <>
                                     <button
                                       class={`seams-account-menu-option ${
                                         isSelected ? 'is-selected' : ''
-                                      }`}
+                                      } ${isChosen ? 'is-chosen' : ''}`}
                                       type="button"
                                       role="option"
                                       aria-selected={isSelected ? 'true' : 'false'}
