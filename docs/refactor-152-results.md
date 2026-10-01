@@ -436,6 +436,77 @@ Full authenticated Console/signing composition, other origins, real tenant data
 scale, and authority/home correctness remain open. These results are a separate
 cohort from the frozen SDK/London signing measurements and must not be pooled.
 
+## Tokyo repair attempts: image format and alternate application (October 1)
+
+Tokyo remains blocked before wallet startup. A Docker-format manifest with the
+same image contents also failed on the original APAC application. The alternate
+existing application successfully started those contents in **Hong Kong**. This
+establishes an APAC startup result, with zero Tokyo signing samples; it does not
+isolate whether the original application's state or Tokyo's provisioning path
+causes the failure.
+
+Authenticated registry HEAD requests returned HTTP 200 and the expected sizes
+for the target configuration and all eight compressed layers. This establishes
+registry availability from the diagnostic client, leaving availability inside
+Tokyo's image-pull infrastructure unproven. A Docker v2 manifest was published as
+`r152-docker-manifest-20261001`, digest
+`sha256:747fdf75e8b820377d802ef4aa934af6e6605323679ba83ce611bb36ee88d877`.
+Only manifest media types changed; the configuration digest and ordered layer
+digests/sizes match the original Linux/amd64 child exactly. The SDK and Gateway
+sources remained frozen.
+
+The image-preparation API returned `ready` for this Docker manifest, with runtime
+artifact `sha256:9143f3f567524312a789564de255c6ec8958c86a7f2bd80b609fdabe2a51d569`.
+The original OCI index briefly reported `runtime image build failed`, then
+returned to pending. These snapshot-preparation observations concern the newer
+`durable_object` scheduling path; our applications use `default`. They cannot
+establish a cause or repair for the current application rollout. See Cloudflare's
+[image management documentation](https://developers.cloudflare.com/containers/guides/image-management/).
+
+| Diagnostic | Evidence | Outcome |
+| --- | --- | --- |
+| Docker manifest on original APAC application | Rollout `7962dee6-b25d-490e-9da1-363a276650ee`, target version 36 | Ten-minute gate failed; one starting target, zero healthy; zero wallets dispatched. |
+| Alternate existing WEUR application temporarily constrained to APAC | Rollout `190c0c61-e1f4-4e32-8f55-b3e38c39d97b`, target version 43 | Completed at 05:28:07 UTC, followed by a stable observation. Fresh identity reported `hkg13`, country `HK`, and the expected frozen SDK revision/build hash. |
+| Tokyo location gate on that fresh boot | Boot `d3230dff-9e13-4359-9b57-7ef77ed2d16f` | Correctly rejected Hong Kong before dispatching any wallet. No second fresh-boot verification or signing comparison ran. |
+
+The alternate probe reused an idle application; no new Worker, Container
+application, database, or persistent service credential was created. Its initial
+preflight failed because Cloudflare rejects direct secret updates when a rolled
+back Worker version is active and a newer uploaded version exists. The corrected
+harness redeploys the saved identical Worker with `--containers-rollout none`
+before opening its expiry window. That preflight is retained separately and is
+an orchestration failure with zero wallet attempts.
+
+Postflight readback verifies the original images and Worker baselines, WEUR
+constraints restored on the alternate application, all three probes inactive,
+default Gateway placement, closed access (Probe 403 / ingress 503), and unchanged
+versions of all five custody roles. The first read still reported the restored
+WEUR instance running; two subsequent reads confirmed it inactive. Retain that
+initial observation alongside `restoration-recheck.json` and
+`restoration-final.json`. The evidence scan found zero benchmark-token matches
+in 56 files. Estimated cumulative spend at 05:30:55 UTC is $1.2789 of the $25 cap,
+including both regional databases and subject to analytics lag. The additional
+Docker manifest/tag is retained as diagnostic evidence.
+
+Evidence directories are `.artifacts/r152/tokyo-fix-20261001/` (manifest
+equivalence, blob availability, preparation observations and failed Tokyo
+rollout), `.artifacts/r152/tokyo-fix-alt-20261001/` (failed preflight), and
+`.artifacts/r152/tokyo-fix-alt2-20261001/` (successful alternate rollout,
+`cold-starts.json`, original/restored constraints and cleanup). Private runners
+have corresponding `.runtime/r152-tokyo-fix*/` directories. Preserve these
+directories and use new attempt IDs for any future run.
+
+Cloudflare's documented [placement constraints](https://developers.cloudflare.com/containers/concepts/placement/)
+offer regions and jurisdictions; APAC placement does not guarantee Tokyo.
+Request provider investigation of the original APAC application
+`a0364754-239e-4823-967a-0888b9d89c08`, its failed rollouts above and in the prior
+diagnostic, and compare against the successful alternate application
+`a0362b6f-e9f6-4271-ad23-966e484b63d1` in Hong Kong. Supply the immutable image
+digest, UTC observations and health/allocation receipts. No support message was
+sent. Changing scheduling policy requires a new application and lies outside
+the current experiment's resource authorization. Keep the Tokyo gate open until
+the frozen image starts there and controlled signing measurements complete.
+
 ## Decision and remaining work
 
 London provides sufficient measured benefit to continue regional ownership

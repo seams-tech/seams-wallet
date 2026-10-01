@@ -179,6 +179,14 @@ Use the same workloads and build identities in these arms:
   provider cause remains unresolved. All failures and cleanup receipts are retained.
   Probe rollback required a byte-identical redeployment; the new restoration
   baseline is `c573e917-9faf-4448-a4a1-d6eb2d845fef`, recorded in the experiment log.
+  A subsequent Docker-format manifest with identical configuration/layers also
+  failed the original Tokyo application's readiness gate. Temporarily moving
+  the existing idle WEUR application to APAC successfully started that frozen
+  SDK in Hong Kong; the location gate rejected it before wallet dispatch.
+  Tokyo remains unmeasured. Preserve the separate failed preflight/rollout and
+  Hong Kong startup receipts; use them for provider investigation of the
+  original application and Tokyo provisioning path. APAC constraints cannot
+  guarantee a Tokyo location. See the [repair attempts](refactor-152-results.md#tokyo-repair-attempts-image-format-and-alternate-application-october-1).
 - [ ] Alternate arm order across at least two runs. Target at least 30 completed
   signatures per arm, probe region, and workload; record errors and incomplete
   attempts in the denominator. Distinguish independent fresh-wallet first-sign
