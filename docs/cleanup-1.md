@@ -589,7 +589,9 @@ Decisions:
   `router-ab-ecdsa-near-oracle-tests`, which nothing builds; the Yao
   client's lane holder, unwired on both sides (595 lines); and
   `benchmarks/router-ab-ecdsa-derivation-wasm`, whose documented script never
-  existed.
+  existed. That benchmark is the only importer of
+  `wasm/router_ab_ecdsa_signing_worker` (788 lines), which no package ships
+  and `pnpm build:wasm` no longer builds.
 - `@noble/hashes` and `tslib`, runtime dependencies of the published
   packages that nothing imports.
 

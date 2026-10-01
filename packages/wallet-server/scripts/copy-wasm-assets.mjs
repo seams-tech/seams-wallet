@@ -15,11 +15,6 @@ const assets = [
     target: 'dist/esm/wasm/evm_crypto/pkg/evm_crypto_bg.wasm',
   },
   {
-    source: 'wasm/router_ab_ecdsa_signing_worker/pkg/router_ab_ecdsa_signing_worker_bg.wasm',
-    target:
-      'dist/esm/wasm/router_ab_ecdsa_signing_worker/pkg/router_ab_ecdsa_signing_worker_bg.wasm',
-  },
-  {
     source: 'wasm/shamir3pass_runtime/pkg/shamir3pass_runtime_bg.wasm',
     target: 'dist/esm/wasm/shamir3pass_runtime/pkg/shamir3pass_runtime_bg.wasm',
   },
@@ -51,7 +46,7 @@ function rewriteBuiltWasmImports(esmRoot) {
 
 function rewriteWasmImportsInFile(source, filePath, esmRoot) {
   const pattern =
-    /(?:\.\.\/)+wasm\/(near_signer|evm_crypto|router_ab_ecdsa_signing_worker|shamir3pass_runtime)\/pkg\/([A-Za-z0-9_]+\.wasm)/gu;
+    /(?:\.\.\/)+wasm\/(near_signer|evm_crypto|shamir3pass_runtime)\/pkg\/([A-Za-z0-9_]+\.wasm)/gu;
   let rewritten = '';
   let cursor = 0;
   for (const match of source.matchAll(pattern)) {
