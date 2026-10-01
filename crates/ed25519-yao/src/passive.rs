@@ -21,7 +21,7 @@ pub mod phase5_wasm_benchmark;
 #[cfg(feature = "passive-benchmark")]
 mod process_support;
 #[doc(hidden)]
-#[cfg(any(test, feature = "phase9-role-benchmark", feature = "local-protocol"))]
+#[cfg(any(test, feature = "local-protocol"))]
 pub mod role_protocol;
 mod role_protocol_support;
 mod roles;

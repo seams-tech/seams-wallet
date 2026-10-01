@@ -16,7 +16,7 @@ use super::ot::{
     SenderPayloads, SenderStart,
 };
 use super::packages::{EncodedRecipientPackage, RecipientPackageError};
-#[cfg(any(feature = "phase9-role-benchmark", feature = "local-protocol"))]
+#[cfg(feature = "local-protocol")]
 use super::packages::{ACTIVATION_PACKAGE_BYTES, EXPORT_PACKAGE_BYTES};
 use super::phase4::{
     activation_ot_session, activation_transcript_start, advance_transcript, evaluator_inputs,
@@ -51,7 +51,7 @@ use super::runtime::{
     CircuitRunError, EvaluatorOutputTranslation, EvaluatorOwnedOutputLabels, ReturnedOutputDecoder,
     ReturnedOutputLabels,
 };
-#[cfg(any(feature = "phase9-role-benchmark", feature = "local-protocol"))]
+#[cfg(feature = "local-protocol")]
 use super::stream::STREAM_MANIFEST_BYTES;
 use super::stream::{
     ActivationStream, ExactTableStreamReceipt, ExportStream, FixedChunkProfile, FixedStreamFamily,
@@ -156,7 +156,7 @@ pub(super) trait ProtocolFamily: FixedStreamFamily + sealed::Sealed + Sized {
     fn transcript_start(binding: Self::Binding) -> Result<TranscriptDigest32, Phase4CeremonyError>;
     fn ot_session(binding: Self::Binding) -> Result<super::ot::OtSessionId, Phase4CeremonyError>;
     fn gate_domain(binding: Self::Binding) -> u64;
-    #[cfg(any(feature = "phase9-role-benchmark", feature = "local-protocol"))]
+    #[cfg(feature = "local-protocol")]
     fn session(binding: Self::Binding) -> [u8; 32];
     fn a_binding(start: &Self::AStart) -> Self::Binding;
     fn prepare_a(
@@ -247,7 +247,7 @@ impl ProtocolFamily for ActivationStream {
         binding.gate_domain()
     }
 
-    #[cfg(any(feature = "phase9-role-benchmark", feature = "local-protocol"))]
+    #[cfg(feature = "local-protocol")]
     fn session(binding: Self::Binding) -> [u8; 32] {
         *binding.session_bytes()
     }
@@ -412,7 +412,7 @@ impl ProtocolFamily for ExportStream {
         binding.gate_domain()
     }
 
-    #[cfg(any(feature = "phase9-role-benchmark", feature = "local-protocol"))]
+    #[cfg(feature = "local-protocol")]
     fn session(binding: Self::Binding) -> [u8; 32] {
         *binding.session_bytes()
     }
@@ -577,7 +577,7 @@ impl ProtocolFamily for LaneMaterializationStream {
         binding.gate_domain()
     }
 
-    #[cfg(any(feature = "phase9-role-benchmark", feature = "local-protocol"))]
+    #[cfg(feature = "local-protocol")]
     fn session(binding: Self::Binding) -> [u8; 32] {
         *binding.session_bytes()
     }
@@ -1411,7 +1411,7 @@ where
         Ok(CompletedRoleA {
             role,
             final_transcript: transcript,
-            #[cfg(any(feature = "phase9-role-benchmark", feature = "local-protocol"))]
+            #[cfg(feature = "local-protocol")]
             session: F::session(self.binding),
             metrics: self.metrics,
             marker: PhantomData,
@@ -1422,7 +1422,7 @@ where
 pub(super) struct CompletedRoleA<F: ProtocolFamily> {
     role: F::ACompleted,
     final_transcript: TranscriptDigest32,
-    #[cfg(any(feature = "phase9-role-benchmark", feature = "local-protocol"))]
+    #[cfg(feature = "local-protocol")]
     session: [u8; 32],
     metrics: RoleStreamMetrics,
     marker: PhantomData<F>,
@@ -1439,12 +1439,12 @@ impl<F: ProtocolFamily> CompletedRoleA<F> {
 }
 
 impl CompletedRoleA<ActivationStream> {
-    #[cfg(any(feature = "phase9-role-benchmark", feature = "local-protocol"))]
+    #[cfg(feature = "local-protocol")]
     pub(super) fn client_commitment(&self) -> [u8; 32] {
         self.role.client_commitment()
     }
 
-    #[cfg(any(feature = "phase9-role-benchmark", feature = "local-protocol"))]
+    #[cfg(feature = "local-protocol")]
     pub(super) fn signing_worker_commitment(&self) -> [u8; 32] {
         self.role.signing_worker_commitment()
     }
@@ -1465,12 +1465,12 @@ impl CompletedRoleA<ExportStream> {
 }
 
 impl CompletedRoleA<LaneMaterializationStream> {
-    #[cfg(any(feature = "phase9-role-benchmark", feature = "local-protocol"))]
+    #[cfg(feature = "local-protocol")]
     pub(super) fn holder_commitment(&self) -> [u8; 32] {
         self.role.holder_commitment()
     }
 
-    #[cfg(any(feature = "phase9-role-benchmark", feature = "local-protocol"))]
+    #[cfg(feature = "local-protocol")]
     pub(super) fn signing_worker_commitment(&self) -> [u8; 32] {
         self.role.signing_worker_commitment()
     }
@@ -1825,7 +1825,7 @@ where
             completed: CompletedRoleB {
                 role,
                 final_transcript,
-                #[cfg(any(feature = "phase9-role-benchmark", feature = "local-protocol"))]
+                #[cfg(feature = "local-protocol")]
                 session: F::session(self.binding),
                 metrics: self.metrics,
                 marker: PhantomData,
@@ -1843,7 +1843,7 @@ struct DeriverBTerminal<F: ProtocolFamily> {
 pub(super) struct CompletedRoleB<F: ProtocolFamily> {
     role: F::BCompleted,
     final_transcript: TranscriptDigest32,
-    #[cfg(any(feature = "phase9-role-benchmark", feature = "local-protocol"))]
+    #[cfg(feature = "local-protocol")]
     session: [u8; 32],
     metrics: RoleStreamMetrics,
     marker: PhantomData<F>,
@@ -1860,12 +1860,12 @@ impl<F: ProtocolFamily> CompletedRoleB<F> {
 }
 
 impl CompletedRoleB<ActivationStream> {
-    #[cfg(any(feature = "phase9-role-benchmark", feature = "local-protocol"))]
+    #[cfg(feature = "local-protocol")]
     pub(super) fn client_commitment(&self) -> [u8; 32] {
         self.role.client_commitment()
     }
 
-    #[cfg(any(feature = "phase9-role-benchmark", feature = "local-protocol"))]
+    #[cfg(feature = "local-protocol")]
     pub(super) fn signing_worker_commitment(&self) -> [u8; 32] {
         self.role.signing_worker_commitment()
     }
@@ -1886,12 +1886,12 @@ impl CompletedRoleB<ExportStream> {
 }
 
 impl CompletedRoleB<LaneMaterializationStream> {
-    #[cfg(any(feature = "phase9-role-benchmark", feature = "local-protocol"))]
+    #[cfg(feature = "local-protocol")]
     pub(super) fn holder_commitment(&self) -> [u8; 32] {
         self.role.holder_commitment()
     }
 
-    #[cfg(any(feature = "phase9-role-benchmark", feature = "local-protocol"))]
+    #[cfg(feature = "local-protocol")]
     pub(super) fn signing_worker_commitment(&self) -> [u8; 32] {
         self.role.signing_worker_commitment()
     }
@@ -1905,25 +1905,17 @@ impl CompletedRoleB<LaneMaterializationStream> {
     }
 }
 
-#[cfg(any(feature = "phase9-role-benchmark", feature = "local-protocol"))]
+#[cfg(feature = "local-protocol")]
 #[doc(hidden)]
 pub mod benchmark {
     #![allow(missing_docs)]
 
     use super::*;
-    #[cfg(feature = "local-protocol")]
     use crate::passive::packages::{
         derive_public_activation_receipt_bytes, verify_public_activation_receipt_bytes,
         DeriverAClientScalarPackage, DeriverAExportSeedPackage, DeriverASigningWorkerScalarPackage,
         DeriverBClientScalarPackage, DeriverBExportSeedPackage, DeriverBSigningWorkerScalarPackage,
     };
-    #[cfg(feature = "phase9-role-benchmark")]
-    use crate::passive::role_protocol_support::{
-        activation_deriver_a_fixture_start, activation_deriver_b_fixture_start,
-        export_deriver_a_fixture_start, export_deriver_b_fixture_start,
-        lane_deriver_a_fixture_start, lane_deriver_b_fixture_start,
-    };
-    #[cfg(feature = "local-protocol")]
     use crate::passive::roles::{
         ActivationDeriverAInputs as PrivateActivationDeriverAInputs,
         ActivationDeriverBInputs as PrivateActivationDeriverBInputs, ActivationSessionBinding,
@@ -1937,62 +1929,12 @@ pub mod benchmark {
         LaneDeriverAStart, LaneDeriverBInputs as PrivateLaneDeriverBInputs,
         LaneDeriverBOffsetShare, LaneDeriverBStart, LaneSessionBinding, SessionId,
     };
-    #[cfg(feature = "phase9-role-benchmark")]
-    use crate::passive::roles::{
-        ACTIVATION_CIRCUIT_DIGEST, ACTIVATION_SCHEDULE_DIGEST, EXPORT_CIRCUIT_DIGEST,
-        EXPORT_SCHEDULE_DIGEST, LANE_MATERIALIZATION_CIRCUIT_DIGEST,
-        LANE_MATERIALIZATION_SCHEDULE_DIGEST,
-    };
     use crate::passive::stream::Chunk128KiB;
-    #[cfg(feature = "phase9-role-benchmark")]
-    use crate::passive::stream::{Chunk256KiB, Chunk64KiB};
 
     const MAXIMUM_WIRE_MESSAGE_BYTES: usize = TABLE_FRAME_HEADER_BYTES + 256 * 1_024;
     const WIRE_ENVELOPE_MAGIC: &[u8; 8] = b"EYAORL01";
     const WIRE_ENVELOPE_VERSION: u8 = 1;
     pub const WIRE_ENVELOPE_HEADER_BYTES: usize = 16;
-
-    #[cfg(feature = "phase9-role-benchmark")]
-    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-    pub struct YaoArtifactIdentity {
-        circuit_digest: [u8; 32],
-        schedule_digest: [u8; 32],
-    }
-
-    #[cfg(feature = "phase9-role-benchmark")]
-    impl YaoArtifactIdentity {
-        pub const fn circuit_digest(self) -> [u8; 32] {
-            self.circuit_digest
-        }
-
-        pub const fn schedule_digest(self) -> [u8; 32] {
-            self.schedule_digest
-        }
-    }
-
-    #[cfg(feature = "phase9-role-benchmark")]
-    pub const fn activation_artifact_identity() -> YaoArtifactIdentity {
-        YaoArtifactIdentity {
-            circuit_digest: ACTIVATION_CIRCUIT_DIGEST,
-            schedule_digest: ACTIVATION_SCHEDULE_DIGEST,
-        }
-    }
-
-    #[cfg(feature = "phase9-role-benchmark")]
-    pub const fn export_artifact_identity() -> YaoArtifactIdentity {
-        YaoArtifactIdentity {
-            circuit_digest: EXPORT_CIRCUIT_DIGEST,
-            schedule_digest: EXPORT_SCHEDULE_DIGEST,
-        }
-    }
-
-    #[cfg(feature = "phase9-role-benchmark")]
-    pub const fn lane_materialization_artifact_identity() -> YaoArtifactIdentity {
-        YaoArtifactIdentity {
-            circuit_digest: LANE_MATERIALIZATION_CIRCUIT_DIGEST,
-            schedule_digest: LANE_MATERIALIZATION_SCHEDULE_DIGEST,
-        }
-    }
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     pub enum WireMessageKind {
@@ -2661,58 +2603,48 @@ pub mod benchmark {
         LANE_MATERIALIZATION_PACKAGE_BYTES
     );
 
-    #[cfg(feature = "local-protocol")]
     pub struct ClientBaseScalar(Zeroizing<[u8; 32]>);
 
-    #[cfg(feature = "local-protocol")]
     impl ClientBaseScalar {
         pub fn into_bytes(mut self) -> [u8; 32] {
             core::mem::take(&mut *self.0)
         }
     }
 
-    #[cfg(feature = "local-protocol")]
     impl fmt::Debug for ClientBaseScalar {
         fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
             formatter.write_str("ClientBaseScalar([REDACTED])")
         }
     }
 
-    #[cfg(feature = "local-protocol")]
     pub struct SigningWorkerBaseScalar(Zeroizing<[u8; 32]>);
 
-    #[cfg(feature = "local-protocol")]
     impl SigningWorkerBaseScalar {
         pub fn into_bytes(mut self) -> [u8; 32] {
             core::mem::take(&mut *self.0)
         }
     }
 
-    #[cfg(feature = "local-protocol")]
     impl fmt::Debug for SigningWorkerBaseScalar {
         fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
             formatter.write_str("SigningWorkerBaseScalar([REDACTED])")
         }
     }
 
-    #[cfg(feature = "local-protocol")]
     pub struct ExportedSeed32(Zeroizing<[u8; 32]>);
 
-    #[cfg(feature = "local-protocol")]
     impl ExportedSeed32 {
         pub fn into_bytes(mut self) -> [u8; 32] {
             core::mem::take(&mut *self.0)
         }
     }
 
-    #[cfg(feature = "local-protocol")]
     impl fmt::Debug for ExportedSeed32 {
         fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
             formatter.write_str("ExportedSeed32([REDACTED])")
         }
     }
 
-    #[cfg(feature = "local-protocol")]
     fn activation_package_binding(
         session: [u8; 32],
         final_transcript: [u8; 32],
@@ -2723,7 +2655,6 @@ pub mod benchmark {
         ))
     }
 
-    #[cfg(feature = "local-protocol")]
     fn export_package_binding(
         session: [u8; 32],
         final_transcript: [u8; 32],
@@ -2734,7 +2665,6 @@ pub mod benchmark {
         ))
     }
 
-    #[cfg(feature = "local-protocol")]
     fn add_canonical_scalar_shares(
         left: &[u8; 32],
         right: &[u8; 32],
@@ -2756,7 +2686,6 @@ pub mod benchmark {
         }
     }
 
-    #[cfg(feature = "local-protocol")]
     pub fn combine_client_activation_packages(
         session: [u8; 32],
         final_transcript: [u8; 32],
@@ -2772,7 +2701,6 @@ pub mod benchmark {
         )?))
     }
 
-    #[cfg(feature = "local-protocol")]
     pub fn combine_signing_worker_activation_packages(
         session: [u8; 32],
         final_transcript: [u8; 32],
@@ -2796,7 +2724,6 @@ pub mod benchmark {
         )?))
     }
 
-    #[cfg(feature = "local-protocol")]
     pub fn combine_export_packages(
         session: [u8; 32],
         final_transcript: [u8; 32],
@@ -2816,7 +2743,6 @@ pub mod benchmark {
         Ok(ExportedSeed32(Zeroizing::new(output)))
     }
 
-    #[cfg(feature = "local-protocol")]
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     pub struct ActivationPublicCommitments {
         deriver_a_client: [u8; 32],
@@ -2825,7 +2751,6 @@ pub mod benchmark {
         deriver_b_signing_worker: [u8; 32],
     }
 
-    #[cfg(feature = "local-protocol")]
     impl ActivationPublicCommitments {
         pub const fn new(
             deriver_a_client: [u8; 32],
@@ -2842,7 +2767,6 @@ pub mod benchmark {
         }
     }
 
-    #[cfg(feature = "local-protocol")]
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     pub struct ActivationPublicReceipt {
         registered_public_key: [u8; 32],
@@ -2850,7 +2774,6 @@ pub mod benchmark {
         joined_signing_worker_commitment: [u8; 32],
     }
 
-    #[cfg(feature = "local-protocol")]
     impl ActivationPublicReceipt {
         pub const fn registered_public_key(&self) -> &[u8; 32] {
             &self.registered_public_key
@@ -2865,7 +2788,6 @@ pub mod benchmark {
         }
     }
 
-    #[cfg(feature = "local-protocol")]
     pub fn derive_registration_receipt(
         commitments: ActivationPublicCommitments,
     ) -> Result<ActivationPublicReceipt, BenchmarkRoleError> {
@@ -2882,7 +2804,6 @@ pub mod benchmark {
         })
     }
 
-    #[cfg(feature = "local-protocol")]
     pub fn verify_activation_continuity(
         registered_public_key: [u8; 32],
         commitments: ActivationPublicCommitments,
@@ -3500,36 +3421,10 @@ pub mod benchmark {
         ))?)
     }
 
-    #[cfg(feature = "phase9-role-benchmark")]
-    fn activation_a_start(
-        session: [u8; 32],
-    ) -> Result<ActivationDeriverAStart, BenchmarkRoleError> {
-        activation_deriver_a_fixture_start(session).map_err(|_| BenchmarkRoleError)
-    }
-
-    #[cfg(feature = "phase9-role-benchmark")]
-    fn activation_b_start(
-        session: [u8; 32],
-    ) -> Result<ActivationDeriverBStart, BenchmarkRoleError> {
-        activation_deriver_b_fixture_start(session).map_err(|_| BenchmarkRoleError)
-    }
-
-    #[cfg(feature = "phase9-role-benchmark")]
-    fn export_a_start(session: [u8; 32]) -> Result<ExportDeriverAStart, BenchmarkRoleError> {
-        export_deriver_a_fixture_start(session).map_err(|_| BenchmarkRoleError)
-    }
-
-    #[cfg(feature = "phase9-role-benchmark")]
-    fn export_b_start(session: [u8; 32]) -> Result<ExportDeriverBStart, BenchmarkRoleError> {
-        export_deriver_b_fixture_start(session).map_err(|_| BenchmarkRoleError)
-    }
-
-    #[cfg(feature = "local-protocol")]
     pub struct ActivationDeriverAInputs {
         inner: PrivateActivationDeriverAInputs,
     }
 
-    #[cfg(feature = "local-protocol")]
     impl ActivationDeriverAInputs {
         pub fn new(
             client_contribution: [u8; 32],
@@ -3550,19 +3445,16 @@ pub mod benchmark {
         }
     }
 
-    #[cfg(feature = "local-protocol")]
     impl fmt::Debug for ActivationDeriverAInputs {
         fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
             formatter.write_str("ActivationDeriverAInputs([REDACTED])")
         }
     }
 
-    #[cfg(feature = "local-protocol")]
     pub struct ActivationDeriverBInputs {
         inner: PrivateActivationDeriverBInputs,
     }
 
-    #[cfg(feature = "local-protocol")]
     impl ActivationDeriverBInputs {
         pub fn new(
             client_contribution: [u8; 32],
@@ -3583,19 +3475,16 @@ pub mod benchmark {
         }
     }
 
-    #[cfg(feature = "local-protocol")]
     impl fmt::Debug for ActivationDeriverBInputs {
         fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
             formatter.write_str("ActivationDeriverBInputs([REDACTED])")
         }
     }
 
-    #[cfg(feature = "local-protocol")]
     pub struct ExportDeriverAInputs {
         inner: PrivateExportDeriverAInputs,
     }
 
-    #[cfg(feature = "local-protocol")]
     impl ExportDeriverAInputs {
         pub fn new(
             client_contribution: [u8; 32],
@@ -3611,19 +3500,16 @@ pub mod benchmark {
         }
     }
 
-    #[cfg(feature = "local-protocol")]
     impl fmt::Debug for ExportDeriverAInputs {
         fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
             formatter.write_str("ExportDeriverAInputs([REDACTED])")
         }
     }
 
-    #[cfg(feature = "local-protocol")]
     pub struct ExportDeriverBInputs {
         inner: PrivateExportDeriverBInputs,
     }
 
-    #[cfg(feature = "local-protocol")]
     impl ExportDeriverBInputs {
         pub fn new(
             client_contribution: [u8; 32],
@@ -3639,19 +3525,16 @@ pub mod benchmark {
         }
     }
 
-    #[cfg(feature = "local-protocol")]
     impl fmt::Debug for ExportDeriverBInputs {
         fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
             formatter.write_str("ExportDeriverBInputs([REDACTED])")
         }
     }
 
-    #[cfg(feature = "local-protocol")]
     pub struct LaneDeriverAInputs {
         inner: PrivateLaneDeriverAInputs,
     }
 
-    #[cfg(feature = "local-protocol")]
     impl LaneDeriverAInputs {
         pub fn new(
             y_client: [u8; 32],
@@ -3674,19 +3557,16 @@ pub mod benchmark {
         }
     }
 
-    #[cfg(feature = "local-protocol")]
     impl fmt::Debug for LaneDeriverAInputs {
         fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
             formatter.write_str("LaneDeriverAInputs([REDACTED])")
         }
     }
 
-    #[cfg(feature = "local-protocol")]
     pub struct LaneDeriverBInputs {
         inner: PrivateLaneDeriverBInputs,
     }
 
-    #[cfg(feature = "local-protocol")]
     impl LaneDeriverBInputs {
         pub fn new(
             y_client: [u8; 32],
@@ -3709,14 +3589,12 @@ pub mod benchmark {
         }
     }
 
-    #[cfg(feature = "local-protocol")]
     impl fmt::Debug for LaneDeriverBInputs {
         fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
             formatter.write_str("LaneDeriverBInputs([REDACTED])")
         }
     }
 
-    #[cfg(feature = "local-protocol")]
     fn activation_a_start_from_inputs(
         session: [u8; 32],
         inputs: ActivationDeriverAInputs,
@@ -3725,7 +3603,6 @@ pub mod benchmark {
         Ok(ActivationDeriverAStart::new(binding, inputs.inner))
     }
 
-    #[cfg(feature = "local-protocol")]
     fn activation_b_start_from_inputs(
         session: [u8; 32],
         inputs: ActivationDeriverBInputs,
@@ -3734,7 +3611,6 @@ pub mod benchmark {
         Ok(ActivationDeriverBStart::new(binding, inputs.inner))
     }
 
-    #[cfg(feature = "local-protocol")]
     fn export_a_start_from_inputs(
         session: [u8; 32],
         inputs: ExportDeriverAInputs,
@@ -3743,7 +3619,6 @@ pub mod benchmark {
         Ok(ExportDeriverAStart::new(binding, inputs.inner))
     }
 
-    #[cfg(feature = "local-protocol")]
     fn export_b_start_from_inputs(
         session: [u8; 32],
         inputs: ExportDeriverBInputs,
@@ -3752,7 +3627,6 @@ pub mod benchmark {
         Ok(ExportDeriverBStart::new(binding, inputs.inner))
     }
 
-    #[cfg(feature = "local-protocol")]
     fn lane_a_start_from_inputs(
         session: [u8; 32],
         inputs: LaneDeriverAInputs,
@@ -3761,7 +3635,6 @@ pub mod benchmark {
         Ok(LaneDeriverAStart::new(binding, inputs.inner))
     }
 
-    #[cfg(feature = "local-protocol")]
     fn lane_b_start_from_inputs(
         session: [u8; 32],
         inputs: LaneDeriverBInputs,
@@ -3777,14 +3650,6 @@ pub mod benchmark {
             }
 
             impl $a {
-                #[cfg(feature = "phase9-role-benchmark")]
-                pub fn new(session: [u8; 32]) -> Result<Self, BenchmarkRoleError> {
-                    Ok(Self {
-                        inner: DeriverA::new(activation_a_start(session)?),
-                    })
-                }
-
-                #[cfg(feature = "local-protocol")]
                 pub fn with_inputs(
                     session: [u8; 32],
                     inputs: ActivationDeriverAInputs,
@@ -3820,14 +3685,6 @@ pub mod benchmark {
             }
 
             impl $b {
-                #[cfg(feature = "phase9-role-benchmark")]
-                pub fn new(session: [u8; 32]) -> Result<Self, BenchmarkRoleError> {
-                    Ok(Self {
-                        inner: DeriverB::new(activation_b_start(session)?),
-                    })
-                }
-
-                #[cfg(feature = "local-protocol")]
                 pub fn with_inputs(
                     session: [u8; 32],
                     inputs: ActivationDeriverBInputs,
@@ -3867,14 +3724,6 @@ pub mod benchmark {
             }
 
             impl $a {
-                #[cfg(feature = "phase9-role-benchmark")]
-                pub fn new(session: [u8; 32]) -> Result<Self, BenchmarkRoleError> {
-                    Ok(Self {
-                        inner: DeriverA::new(export_a_start(session)?),
-                    })
-                }
-
-                #[cfg(feature = "local-protocol")]
                 pub fn with_inputs(
                     session: [u8; 32],
                     inputs: ExportDeriverAInputs,
@@ -3910,14 +3759,6 @@ pub mod benchmark {
             }
 
             impl $b {
-                #[cfg(feature = "phase9-role-benchmark")]
-                pub fn new(session: [u8; 32]) -> Result<Self, BenchmarkRoleError> {
-                    Ok(Self {
-                        inner: DeriverB::new(export_b_start(session)?),
-                    })
-                }
-
-                #[cfg(feature = "local-protocol")]
                 pub fn with_inputs(
                     session: [u8; 32],
                     inputs: ExportDeriverBInputs,
@@ -3957,14 +3798,6 @@ pub mod benchmark {
             }
 
             impl $a {
-                #[cfg(feature = "phase9-role-benchmark")]
-                pub fn new(session: [u8; 32]) -> Result<Self, BenchmarkRoleError> {
-                    Ok(Self {
-                        inner: DeriverA::new(lane_deriver_a_fixture_start(session)?),
-                    })
-                }
-
-                #[cfg(feature = "local-protocol")]
                 pub fn with_inputs(
                     session: [u8; 32],
                     inputs: LaneDeriverAInputs,
@@ -4000,14 +3833,6 @@ pub mod benchmark {
             }
 
             impl $b {
-                #[cfg(feature = "phase9-role-benchmark")]
-                pub fn new(session: [u8; 32]) -> Result<Self, BenchmarkRoleError> {
-                    Ok(Self {
-                        inner: DeriverB::new(lane_deriver_b_fixture_start(session)?),
-                    })
-                }
-
-                #[cfg(feature = "local-protocol")]
                 pub fn with_inputs(
                     session: [u8; 32],
                     inputs: LaneDeriverBInputs,
@@ -4040,29 +3865,17 @@ pub mod benchmark {
         };
     }
 
-    #[cfg(feature = "phase9-role-benchmark")]
-    define_activation_profile!(Activation64KiBDeriverA, Activation64KiBDeriverB, Chunk64KiB);
     define_activation_profile!(
         Activation128KiBDeriverA,
         Activation128KiBDeriverB,
         Chunk128KiB
     );
-    #[cfg(feature = "phase9-role-benchmark")]
-    define_activation_profile!(
-        Activation256KiBDeriverA,
-        Activation256KiBDeriverB,
-        Chunk256KiB
-    );
-    #[cfg(feature = "phase9-role-benchmark")]
-    define_export_profile!(Export64KiBDeriverA, Export64KiBDeriverB, Chunk64KiB);
     define_export_profile!(Export128KiBDeriverA, Export128KiBDeriverB, Chunk128KiB);
     define_lane_profile!(
         LaneMaterialization128KiBDeriverA,
         LaneMaterialization128KiBDeriverB,
         Chunk128KiB
     );
-    #[cfg(feature = "phase9-role-benchmark")]
-    define_export_profile!(Export256KiBDeriverA, Export256KiBDeriverB, Chunk256KiB);
 
     #[cfg(test)]
     mod codec_tests {
@@ -4653,371 +4466,5 @@ mod tests {
                 .err(),
             Some(RoleProtocolError::Ot(OtError::SessionMismatch))
         );
-    }
-
-    #[cfg(feature = "phase9-role-benchmark")]
-    fn route_facade_message(
-        message: benchmark::WireMessage,
-        encoder: &mut benchmark::DirectionalWireEncoder,
-        decoder: &mut benchmark::DirectionalWireDecoder,
-    ) -> benchmark::WireMessage {
-        let encoded = encoder.encode(message).expect("encode envelope");
-        let mut offset = 0_usize;
-        while offset < encoded.len() {
-            let end = core::cmp::min(offset + 17, encoded.len());
-            let consumed = decoder.push(&encoded[offset..end]).expect("decode chunk");
-            assert_ne!(consumed, 0);
-            offset += consumed;
-        }
-        decoder
-            .take_message()
-            .expect("take envelope")
-            .expect("complete envelope")
-    }
-
-    #[cfg(feature = "phase9-role-benchmark")]
-    fn expect_continue<R, C>(step: benchmark::RelayStep<R, C>) -> R {
-        match step {
-            benchmark::RelayStep::Continue(role) => role,
-            _ => panic!("expected continuation"),
-        }
-    }
-
-    #[cfg(feature = "phase9-role-benchmark")]
-    fn expect_send<R, C>(step: benchmark::RelayStep<R, C>) -> (R, benchmark::WireMessage) {
-        match step {
-            benchmark::RelayStep::Send { role, message } => (role, message),
-            _ => panic!("expected outbound message"),
-        }
-    }
-
-    #[cfg(feature = "phase9-role-benchmark")]
-    fn expect_complete<R, C>(step: benchmark::RelayStep<R, C>) -> C {
-        match step {
-            benchmark::RelayStep::Complete(completed) => completed,
-            _ => panic!("expected completion"),
-        }
-    }
-
-    #[cfg(feature = "phase9-role-benchmark")]
-    fn assert_instruction<R>(
-        role: &R,
-        instruction: fn(&R) -> Result<benchmark::RelayInstruction, benchmark::BenchmarkRoleError>,
-        expected: benchmark::RelayInstruction,
-    ) {
-        assert_eq!(instruction(role).expect("relay instruction"), expected);
-    }
-
-    #[cfg(feature = "phase9-role-benchmark")]
-    fn receive_instruction(message: &benchmark::WireMessage) -> benchmark::RelayInstruction {
-        benchmark::RelayInstruction::Receive {
-            kind: message.kind(),
-            payload_bytes: message.as_bytes().len(),
-        }
-    }
-
-    #[cfg(feature = "phase9-role-benchmark")]
-    fn run_facade<A, B, AC, BC>(
-        session: [u8; 32],
-        mut a: A,
-        mut b: B,
-        handle_a: fn(
-            A,
-            benchmark::RelayEvent,
-        ) -> Result<benchmark::RelayStep<A, AC>, benchmark::BenchmarkRoleError>,
-        handle_b: fn(
-            B,
-            benchmark::RelayEvent,
-        ) -> Result<benchmark::RelayStep<B, BC>, benchmark::BenchmarkRoleError>,
-        instruction_a: fn(&A) -> Result<benchmark::RelayInstruction, benchmark::BenchmarkRoleError>,
-        instruction_b: fn(&B) -> Result<benchmark::RelayInstruction, benchmark::BenchmarkRoleError>,
-    ) -> (AC, BC) {
-        let mut a_to_b_encoder = benchmark::DirectionalWireEncoder::new(
-            benchmark::WireDirection::DeriverAToDeriverB,
-            session,
-        )
-        .expect("A encoder");
-        let mut a_to_b_decoder = benchmark::DirectionalWireDecoder::new(
-            benchmark::WireDirection::DeriverAToDeriverB,
-            session,
-        )
-        .expect("B decoder");
-        let mut b_to_a_encoder = benchmark::DirectionalWireEncoder::new(
-            benchmark::WireDirection::DeriverBToDeriverA,
-            session,
-        )
-        .expect("B encoder");
-        let mut b_to_a_decoder = benchmark::DirectionalWireDecoder::new(
-            benchmark::WireDirection::DeriverBToDeriverA,
-            session,
-        )
-        .expect("A decoder");
-
-        assert_instruction(&b, instruction_b, benchmark::RelayInstruction::Advance);
-        let (next_b, offer) =
-            expect_send(handle_b(b, benchmark::RelayEvent::Advance).expect("B offer"));
-        b = next_b;
-        let offer = route_facade_message(offer, &mut b_to_a_encoder, &mut b_to_a_decoder);
-        assert_instruction(&a, instruction_a, receive_instruction(&offer));
-        a = expect_continue(
-            handle_a(a, benchmark::RelayEvent::Inbound(offer)).expect("A accepts offer"),
-        );
-
-        assert_instruction(&a, instruction_a, benchmark::RelayInstruction::Advance);
-        let (next_a, base_choices) =
-            expect_send(handle_a(a, benchmark::RelayEvent::Advance).expect("A base choices"));
-        a = next_a;
-        let base_choices =
-            route_facade_message(base_choices, &mut a_to_b_encoder, &mut a_to_b_decoder);
-        assert_instruction(&b, instruction_b, receive_instruction(&base_choices));
-        b = expect_continue(
-            handle_b(b, benchmark::RelayEvent::Inbound(base_choices))
-                .expect("B accepts base choices"),
-        );
-
-        assert_instruction(&a, instruction_a, benchmark::RelayInstruction::Advance);
-        let (next_a, direct) =
-            expect_send(handle_a(a, benchmark::RelayEvent::Advance).expect("A direct"));
-        a = next_a;
-        let direct = route_facade_message(direct, &mut a_to_b_encoder, &mut a_to_b_decoder);
-        assert_instruction(&b, instruction_b, receive_instruction(&direct));
-        let (next_b, extension) =
-            expect_send(handle_b(b, benchmark::RelayEvent::Inbound(direct)).expect("B extension"));
-        b = next_b;
-        let extension = route_facade_message(extension, &mut b_to_a_encoder, &mut b_to_a_decoder);
-        assert_instruction(&a, instruction_a, receive_instruction(&extension));
-        a = expect_continue(
-            handle_a(a, benchmark::RelayEvent::Inbound(extension)).expect("A accepts extension"),
-        );
-
-        assert_instruction(&a, instruction_a, benchmark::RelayInstruction::Advance);
-        let (next_a, masked) =
-            expect_send(handle_a(a, benchmark::RelayEvent::Advance).expect("A masked"));
-        a = next_a;
-        let masked = route_facade_message(masked, &mut a_to_b_encoder, &mut a_to_b_decoder);
-        assert_instruction(&b, instruction_b, receive_instruction(&masked));
-        b = expect_continue(
-            handle_b(b, benchmark::RelayEvent::Inbound(masked)).expect("B accepts masked"),
-        );
-
-        assert_instruction(&a, instruction_a, benchmark::RelayInstruction::Advance);
-        let (next_a, manifest) =
-            expect_send(handle_a(a, benchmark::RelayEvent::Advance).expect("A manifest"));
-        a = next_a;
-        let manifest = route_facade_message(manifest, &mut a_to_b_encoder, &mut a_to_b_decoder);
-        assert_instruction(&b, instruction_b, receive_instruction(&manifest));
-        b = expect_continue(
-            handle_b(b, benchmark::RelayEvent::Inbound(manifest)).expect("B accepts manifest"),
-        );
-
-        let translation = loop {
-            assert_instruction(&a, instruction_a, benchmark::RelayInstruction::Advance);
-            let (next_a, message) =
-                expect_send(handle_a(a, benchmark::RelayEvent::Advance).expect("A stream step"));
-            a = next_a;
-            match message.kind() {
-                benchmark::WireMessageKind::TableFrame => {
-                    let frame =
-                        route_facade_message(message, &mut a_to_b_encoder, &mut a_to_b_decoder);
-                    assert_instruction(&b, instruction_b, receive_instruction(&frame));
-                    b = expect_continue(
-                        handle_b(b, benchmark::RelayEvent::Inbound(frame))
-                            .expect("B accepts frame"),
-                    );
-                }
-                benchmark::WireMessageKind::OutputTranslation => break message,
-                kind => panic!("unexpected A stream message: {kind:?}"),
-            }
-        };
-
-        let translation =
-            route_facade_message(translation, &mut a_to_b_encoder, &mut a_to_b_decoder);
-        assert_instruction(&b, instruction_b, receive_instruction(&translation));
-        b = expect_continue(
-            handle_b(b, benchmark::RelayEvent::Inbound(translation))
-                .expect("B accepts translation"),
-        );
-        let a_local_eof = a_to_b_encoder
-            .finish_after_transport_close()
-            .expect("A request EOF");
-        assert_instruction(
-            &a,
-            instruction_a,
-            benchmark::RelayInstruction::CloseLocalDirection {
-                terminal_kind: benchmark::WireMessageKind::OutputTranslation,
-            },
-        );
-        a = expect_continue(
-            handle_a(a, benchmark::RelayEvent::LocalDirectionalEof(a_local_eof))
-                .expect("A records request EOF"),
-        );
-        let b_peer_eof = a_to_b_decoder
-            .finish_at_transport_eof()
-            .expect("B observes request EOF");
-        assert_instruction(
-            &b,
-            instruction_b,
-            benchmark::RelayInstruction::ObservePeerEof {
-                terminal_kind: benchmark::WireMessageKind::OutputTranslation,
-            },
-        );
-        b = expect_continue(
-            handle_b(b, benchmark::RelayEvent::InboundDirectionalEof(b_peer_eof))
-                .expect("B records request EOF"),
-        );
-
-        assert_instruction(&b, instruction_b, benchmark::RelayInstruction::Advance);
-        let (next_b, returned) =
-            expect_send(handle_b(b, benchmark::RelayEvent::Advance).expect("B returned labels"));
-        b = next_b;
-        let returned = route_facade_message(returned, &mut b_to_a_encoder, &mut b_to_a_decoder);
-        assert_instruction(&a, instruction_a, receive_instruction(&returned));
-        a = expect_continue(
-            handle_a(a, benchmark::RelayEvent::Inbound(returned))
-                .expect("A accepts returned labels"),
-        );
-        let b_local_eof = b_to_a_encoder
-            .finish_after_transport_close()
-            .expect("B response EOF");
-        assert_instruction(
-            &b,
-            instruction_b,
-            benchmark::RelayInstruction::CloseLocalDirection {
-                terminal_kind: benchmark::WireMessageKind::ReturnedOutputLabels,
-            },
-        );
-        let b_completed = expect_complete(
-            handle_b(b, benchmark::RelayEvent::LocalDirectionalEof(b_local_eof))
-                .expect("B records response EOF"),
-        );
-        let a_peer_eof = b_to_a_decoder
-            .finish_at_transport_eof()
-            .expect("A observes response EOF");
-        assert_instruction(
-            &a,
-            instruction_a,
-            benchmark::RelayInstruction::ObservePeerEof {
-                terminal_kind: benchmark::WireMessageKind::ReturnedOutputLabels,
-            },
-        );
-        let a_completed = expect_complete(
-            handle_a(a, benchmark::RelayEvent::InboundDirectionalEof(a_peer_eof))
-                .expect("A records response EOF"),
-        );
-        (a_completed, b_completed)
-    }
-
-    #[cfg(feature = "phase9-role-benchmark")]
-    #[test]
-    fn public_activation_facade_relays_enveloped_chunks_and_terminal_eofs() {
-        let session = [0x7c; 32];
-        let (a, b) = run_facade(
-            session,
-            benchmark::Activation64KiBDeriverA::new(session).expect("A"),
-            benchmark::Activation64KiBDeriverB::new(session).expect("B"),
-            benchmark::Activation64KiBDeriverA::handle,
-            benchmark::Activation64KiBDeriverB::handle,
-            benchmark::Activation64KiBDeriverA::instruction,
-            benchmark::Activation64KiBDeriverB::instruction,
-        );
-        assert_eq!(a.final_transcript(), b.final_transcript());
-        assert_eq!(a.stream_metrics().frame_count(), 33);
-        assert_eq!(b.stream_metrics().frame_count(), 33);
-    }
-
-    #[cfg(feature = "phase9-role-benchmark")]
-    #[test]
-    fn public_export_facade_relays_enveloped_chunks_and_rejects_wrong_event() {
-        let session = [0x7d; 32];
-        let wrong = benchmark::Export256KiBDeriverA::new(session).expect("wrong-event A");
-        assert!(wrong.handle(benchmark::RelayEvent::Advance).is_err());
-        let (a, b) = run_facade(
-            session,
-            benchmark::Export256KiBDeriverA::new(session).expect("A"),
-            benchmark::Export256KiBDeriverB::new(session).expect("B"),
-            benchmark::Export256KiBDeriverA::handle,
-            benchmark::Export256KiBDeriverB::handle,
-            benchmark::Export256KiBDeriverA::instruction,
-            benchmark::Export256KiBDeriverB::instruction,
-        );
-        assert_eq!(a.final_transcript(), b.final_transcript());
-        assert_eq!(a.stream_metrics().frame_count(), 1);
-        assert_eq!(b.stream_metrics().frame_count(), 1);
-    }
-
-    #[cfg(feature = "phase9-role-benchmark")]
-    #[test]
-    fn remaining_public_activation_profiles_relay_terminal_eofs() {
-        let session_128 = [0x7e; 32];
-        let (a_128, b_128) = run_facade(
-            session_128,
-            benchmark::Activation128KiBDeriverA::new(session_128).expect("A128"),
-            benchmark::Activation128KiBDeriverB::new(session_128).expect("B128"),
-            benchmark::Activation128KiBDeriverA::handle,
-            benchmark::Activation128KiBDeriverB::handle,
-            benchmark::Activation128KiBDeriverA::instruction,
-            benchmark::Activation128KiBDeriverB::instruction,
-        );
-        assert_eq!(a_128.final_transcript(), b_128.final_transcript());
-        assert_eq!(a_128.stream_metrics().frame_count(), 17);
-        let a_128_wire = a_128.wire_byte_ledger();
-        assert_eq!(a_128_wire, b_128.wire_byte_ledger());
-        assert_eq!(a_128_wire.table_payload_bytes(), 2_104_960);
-        assert_eq!(a_128_wire.table_framing_payload_bytes(), 1_564);
-        assert_eq!(a_128_wire.table_protocol_bytes(), 2_106_772);
-        assert_eq!(a_128_wire.ot_payload_bytes(), 82_112);
-        assert_eq!(a_128_wire.other_control_payload_bytes(), 33_300);
-        assert_eq!(a_128_wire.envelope_header_bytes(), 400);
-        assert_eq!(a_128_wire.table_transport_bytes(), 2_107_060);
-        assert_eq!(a_128_wire.control_transport_bytes(), 115_524);
-        assert_eq!(a_128_wire.deriver_a_to_b_transport_bytes(), 2_185_420);
-        assert_eq!(a_128_wire.deriver_b_to_a_transport_bytes(), 37_164);
-        assert_eq!(a_128_wire.total_ab_transport_bytes(), 2_222_584);
-        assert_eq!(a_128_wire.transport_message_count(), 25);
-        assert_eq!(a_128_wire.ot_message_count(), 4);
-        assert_eq!(a_128_wire.ot_sequential_round_count(), 4);
-
-        let session_256 = [0x7f; 32];
-        let (a_256, b_256) = run_facade(
-            session_256,
-            benchmark::Activation256KiBDeriverA::new(session_256).expect("A256"),
-            benchmark::Activation256KiBDeriverB::new(session_256).expect("B256"),
-            benchmark::Activation256KiBDeriverA::handle,
-            benchmark::Activation256KiBDeriverB::handle,
-            benchmark::Activation256KiBDeriverA::instruction,
-            benchmark::Activation256KiBDeriverB::instruction,
-        );
-        assert_eq!(a_256.final_transcript(), b_256.final_transcript());
-        assert_eq!(a_256.stream_metrics().frame_count(), 9);
-    }
-
-    #[cfg(feature = "phase9-role-benchmark")]
-    #[test]
-    fn remaining_public_export_profiles_relay_terminal_eofs() {
-        let session_64 = [0x80; 32];
-        let (a_64, b_64) = run_facade(
-            session_64,
-            benchmark::Export64KiBDeriverA::new(session_64).expect("A64"),
-            benchmark::Export64KiBDeriverB::new(session_64).expect("B64"),
-            benchmark::Export64KiBDeriverA::handle,
-            benchmark::Export64KiBDeriverB::handle,
-            benchmark::Export64KiBDeriverA::instruction,
-            benchmark::Export64KiBDeriverB::instruction,
-        );
-        assert_eq!(a_64.final_transcript(), b_64.final_transcript());
-        assert_eq!(a_64.stream_metrics().frame_count(), 1);
-
-        let session_128 = [0x81; 32];
-        let (a_128, b_128) = run_facade(
-            session_128,
-            benchmark::Export128KiBDeriverA::new(session_128).expect("A128"),
-            benchmark::Export128KiBDeriverB::new(session_128).expect("B128"),
-            benchmark::Export128KiBDeriverA::handle,
-            benchmark::Export128KiBDeriverB::handle,
-            benchmark::Export128KiBDeriverA::instruction,
-            benchmark::Export128KiBDeriverB::instruction,
-        );
-        assert_eq!(a_128.final_transcript(), b_128.final_transcript());
-        assert_eq!(a_128.stream_metrics().frame_count(), 1);
     }
 }

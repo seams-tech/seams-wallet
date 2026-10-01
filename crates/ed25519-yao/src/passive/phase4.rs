@@ -3,24 +3,14 @@
 use core::fmt;
 
 use sha2::{Digest, Sha256};
-#[cfg(any(
-    test,
-    feature = "passive-benchmark",
-    feature = "phase9-role-benchmark",
-    feature = "local-protocol"
-))]
+#[cfg(any(test, feature = "passive-benchmark", feature = "local-protocol"))]
 use zeroize::Zeroize;
 use zeroize::Zeroizing;
 
 use super::ot::OtError;
-#[cfg(any(
-    test,
-    feature = "passive-benchmark",
-    feature = "phase9-role-benchmark",
-    feature = "local-protocol"
-))]
+#[cfg(any(test, feature = "passive-benchmark", feature = "local-protocol"))]
 use super::ot::OtSessionId;
-#[cfg(any(test, feature = "phase9-role-benchmark", feature = "local-protocol"))]
+#[cfg(any(test, feature = "local-protocol"))]
 use super::roles::LaneSessionBinding;
 use super::roles::{
     ActivationSessionBinding, ExportSessionBinding, RoleBoundaryError, TranscriptDigest32,
@@ -30,22 +20,12 @@ use super::{EvaluatorWire, Garbler, GarblerWire, SessionDomain, WireValue, LABEL
 
 const ACTIVATION_FAMILY_TAG: u8 = 0x93;
 const EXPORT_FAMILY_TAG: u8 = 0x94;
-#[cfg(any(test, feature = "phase9-role-benchmark", feature = "local-protocol"))]
+#[cfg(any(test, feature = "local-protocol"))]
 const LANE_MATERIALIZATION_FAMILY_TAG: u8 = 0x95;
 const TRANSCRIPT_START_DOMAIN: &[u8] = b"seams:ed25519-yao:phase4:transcript-start:v1";
-#[cfg(any(
-    test,
-    feature = "passive-benchmark",
-    feature = "phase9-role-benchmark",
-    feature = "local-protocol"
-))]
+#[cfg(any(test, feature = "passive-benchmark", feature = "local-protocol"))]
 const TRANSCRIPT_STEP_DOMAIN: &[u8] = b"seams:ed25519-yao:phase4:transcript-step:v1";
-#[cfg(any(
-    test,
-    feature = "passive-benchmark",
-    feature = "phase9-role-benchmark",
-    feature = "local-protocol"
-))]
+#[cfg(any(test, feature = "passive-benchmark", feature = "local-protocol"))]
 const OT_DOMAIN: &[u8] = b"seams:ed25519-yao:phase4:ot-domain:v1";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -181,7 +161,7 @@ pub(super) fn export_transcript_start(
     )
 }
 
-#[cfg(any(test, feature = "phase9-role-benchmark", feature = "local-protocol"))]
+#[cfg(any(test, feature = "local-protocol"))]
 pub(super) fn lane_materialization_transcript_start(
     binding: LaneSessionBinding,
 ) -> Result<TranscriptDigest32, Phase4CeremonyError> {
@@ -210,12 +190,7 @@ fn transcript_start(
     TranscriptDigest32::new(digest).map_err(Into::into)
 }
 
-#[cfg(any(
-    test,
-    feature = "passive-benchmark",
-    feature = "phase9-role-benchmark",
-    feature = "local-protocol"
-))]
+#[cfg(any(test, feature = "passive-benchmark", feature = "local-protocol"))]
 pub(super) fn advance_transcript(
     predecessor: TranscriptDigest32,
     message: &[u8],
@@ -230,12 +205,7 @@ pub(super) fn advance_transcript(
     TranscriptDigest32::new(digest).map_err(Into::into)
 }
 
-#[cfg(any(
-    test,
-    feature = "passive-benchmark",
-    feature = "phase9-role-benchmark",
-    feature = "local-protocol"
-))]
+#[cfg(any(test, feature = "passive-benchmark", feature = "local-protocol"))]
 pub(super) fn activation_ot_session(
     binding: ActivationSessionBinding,
 ) -> Result<OtSessionId, Phase4CeremonyError> {
@@ -247,12 +217,7 @@ pub(super) fn activation_ot_session(
     )
 }
 
-#[cfg(any(
-    test,
-    feature = "passive-benchmark",
-    feature = "phase9-role-benchmark",
-    feature = "local-protocol"
-))]
+#[cfg(any(test, feature = "passive-benchmark", feature = "local-protocol"))]
 pub(super) fn export_ot_session(
     binding: ExportSessionBinding,
 ) -> Result<OtSessionId, Phase4CeremonyError> {
@@ -264,7 +229,7 @@ pub(super) fn export_ot_session(
     )
 }
 
-#[cfg(any(test, feature = "phase9-role-benchmark", feature = "local-protocol"))]
+#[cfg(any(test, feature = "local-protocol"))]
 pub(super) fn lane_materialization_ot_session(
     binding: LaneSessionBinding,
 ) -> Result<OtSessionId, Phase4CeremonyError> {
@@ -276,12 +241,7 @@ pub(super) fn lane_materialization_ot_session(
     )
 }
 
-#[cfg(any(
-    test,
-    feature = "passive-benchmark",
-    feature = "phase9-role-benchmark",
-    feature = "local-protocol"
-))]
+#[cfg(any(test, feature = "passive-benchmark", feature = "local-protocol"))]
 fn ot_session(
     family: u8,
     session: &[u8; 32],

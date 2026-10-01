@@ -1,6 +1,5 @@
 packages:
   - apps/docs
-  - crates/ed25519-yao-cloudflare-bench
   - crates/router-ab-cloudflare
   - examples/seams-auth-menu
   - examples/wallet-console-lite

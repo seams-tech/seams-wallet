@@ -215,7 +215,7 @@ The canonical benchmark sources are checked in with the implementation:
 
 - [deployed Cloudflare release evidence](https://github.com/seams-tech/seams-wallet/blob/main/docs/router-ab/ed25519-yao/deployment.md)
 - [local lifecycle latency report](https://github.com/seams-tech/seams-wallet/blob/main/crates/router-ab-dev/reports/ed25519-yao-local-latency-v1.json)
-- [same-account Worker benchmark report](https://github.com/seams-tech/seams-wallet/blob/main/crates/ed25519-yao-cloudflare-bench/docs/phase9b-same-account-report.md)
+- [same-account Worker benchmark report](https://github.com/seams-tech/seams-wallet/blob/main/crates/ed25519-yao/docs/phase9b-same-account-report.md)
 
 ## Cloudflare deployment
 

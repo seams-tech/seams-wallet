@@ -20,7 +20,6 @@ required-features = ["passive-benchmark"]
 default = []
 passive-benchmark = []
 passive-wasm-benchmark = []
-phase9-role-benchmark = []
 local-protocol = []
 
 [dependencies]

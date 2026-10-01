@@ -91,13 +91,14 @@ WHATWG-stream harness covers all six family/profile combinations, normal and
 delayed producer/consumer scheduling, exact EOF, and separate Rust/WASM plus
 JavaScript copy/allocation counters.
 
-The `phase9-role-benchmark` feature exposes six fixed-fixture, fixed-profile
-split-role facades for a separate Cloudflare viability harness. A and B consume
-one self-framed binary message or directional EOF witness at a time; the public
-instruction reports the next expected action, tag, and exact inner length. Its
-benchmark-only order, outer envelope, terminal semantics, fixture, and copy
-accounting are frozen in
-[`docs/passive-role-relay-v1.md`](docs/passive-role-relay-v1.md).
+In the split-role relay engine, A and B consume one self-framed binary message
+or directional EOF witness at a time; the public instruction reports the next
+expected action, tag, and exact inner length. Its order, outer envelope, and
+terminal semantics are frozen in
+[`docs/passive-role-relay-v1.md`](docs/passive-role-relay-v1.md). That document
+also describes the fixed-fixture 64, 128, and 256 KiB facades of the Cloudflare
+viability harness, which has been removed. The harness's Phase 9B and R120
+Phase 0 reports remain in [`docs/`](docs/).
 
 The non-default `local-protocol` feature reuses that exact move-only engine for
 Phase 9C local composition. It exposes only the fixed 128 KiB activation/export
@@ -161,3 +162,26 @@ wasm-pack build crates/ed25519-yao/wasm-bench --target nodejs --release --out-di
 node crates/ed25519-yao/wasm-bench/scripts/run_phase5_streaming.mjs
 PHASE5_SLOW_PRODUCER_MS=1 PHASE5_SLOW_CONSUMER_MS=1 node crates/ed25519-yao/wasm-bench/scripts/run_phase5_streaming.mjs
 ```
+
+## Local compute benchmarks
+
+Two collectors measure the kernel that `local-protocol` ships. Each runs one
+warm-up and twenty activation and export ceremonies at 128 KiB, prints a JSON
+report, and fails when activation exceeds the 250 ms ceremony, 150 ms combined
+role, or 96 MiB memory budget.
+
+```bash
+# Native: two release processes over Unix sockets; wall time, CPU and RSS per role.
+cargo build --manifest-path crates/ed25519-yao/Cargo.toml --release --features passive-benchmark --bin benchmark_phase5_role
+node crates/ed25519-yao/scripts/collect_phase5_native_compute.mjs
+
+# Node WASM: synchronous time per role, linear memory, and live allocations.
+wasm-pack build crates/ed25519-yao/wasm-bench --target nodejs --release --out-dir pkg-phase5
+node crates/ed25519-yao/wasm-bench/scripts/collect_phase5_compute.mjs
+```
+
+`run_phase5_streaming.mjs` above reports the same WASM measurements for one
+ceremony of each family at 64, 128, and 256 KiB. The last recorded results are
+in
+[`docs/phase13a-local-compute-report.md`](docs/phase13a-local-compute-report.md).
+Run the collectors on an idle machine: the budgets assume no CPU contention.

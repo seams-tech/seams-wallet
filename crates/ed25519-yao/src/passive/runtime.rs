@@ -166,22 +166,12 @@ impl EvaluatorOutputTranslation {
         }
     }
 
-    #[cfg(any(
-        test,
-        feature = "passive-benchmark",
-        feature = "phase9-role-benchmark",
-        feature = "local-protocol"
-    ))]
+    #[cfg(any(test, feature = "passive-benchmark", feature = "local-protocol"))]
     pub(super) fn encoded_bits(&self) -> &[u8] {
         &self.bits
     }
 
-    #[cfg(any(
-        test,
-        feature = "passive-benchmark",
-        feature = "phase9-role-benchmark",
-        feature = "local-protocol"
-    ))]
+    #[cfg(any(test, feature = "passive-benchmark", feature = "local-protocol"))]
     pub(super) fn from_encoded_bits(
         bits: Vec<u8>,
         output_count: usize,
@@ -212,12 +202,7 @@ impl EvaluatorOutputTranslation {
 }
 
 impl ReturnedOutputLabels {
-    #[cfg(any(
-        test,
-        feature = "passive-benchmark",
-        feature = "phase9-role-benchmark",
-        feature = "local-protocol"
-    ))]
+    #[cfg(any(test, feature = "passive-benchmark", feature = "local-protocol"))]
     pub(super) fn encode(self) -> Vec<u8> {
         let mut encoded = Vec::with_capacity(self.0.len() * super::LABEL_BYTES);
         for label in &self.0 {
@@ -226,12 +211,7 @@ impl ReturnedOutputLabels {
         encoded
     }
 
-    #[cfg(any(
-        test,
-        feature = "passive-benchmark",
-        feature = "phase9-role-benchmark",
-        feature = "local-protocol"
-    ))]
+    #[cfg(any(test, feature = "passive-benchmark", feature = "local-protocol"))]
     pub(super) fn decode(encoded: &[u8], output_count: usize) -> Result<Self, CircuitRunError> {
         let expected = output_count
             .checked_mul(super::LABEL_BYTES)

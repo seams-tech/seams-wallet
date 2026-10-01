@@ -215,13 +215,13 @@ to accept branchless selection and reject secret-dependent division at `O0` and
 analyzer otherwise classifies them as function boundaries. The command requires
 at least one scanned instruction, preventing that adaptation from producing an
 empty false green. This qualification command covers tooling only. The adjacent
-codegen script clean-builds the active benchmark kernel for optimized host code
-and exact Deriver A/B Worker WASM, qualifies its matcher with safe/vulnerable
-fixtures, and rejects the former secret IKNP branch. The variable-time
-generator remains outside constant-time evidence. The Phase 9B deployment
-path records the inspection against the exact prebuilt A/B WASM digests and
-uploads those modules with bundling disabled. Production native/WASM
-inspection remains open until Phase 6B selects its exact kernel and runtime.
+codegen script clean-builds the kernel for optimized host code and the
+`router-ab-cloudflare` Deriver A/B Worker WASM, qualifies its matcher with
+safe/vulnerable fixtures, and rejects the former secret IKNP branch. It inspects
+Cargo's WASM output, before `worker-build` runs `wasm-bindgen` and `wasm-opt`.
+The variable-time generator remains outside constant-time evidence. Production
+native/WASM inspection remains open until Phase 6B selects its exact kernel and
+runtime.
 
 `reference-spec-check` requires an exact twenty-seven-document gate: the fixed
 reference, twenty-five generator companions, and the separately pinned host-only

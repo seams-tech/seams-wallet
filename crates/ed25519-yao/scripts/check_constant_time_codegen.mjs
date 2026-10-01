@@ -18,11 +18,11 @@ import { spawnSync } from 'node:child_process';
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const REPOSITORY_ROOT = resolve(SCRIPT_DIR, '../../..');
 const CORE_MANIFEST = join(REPOSITORY_ROOT, 'crates/ed25519-yao/Cargo.toml');
-const WORKER_MANIFEST = join(REPOSITORY_ROOT, 'crates/ed25519-yao-cloudflare-bench/Cargo.toml');
+const WORKER_MANIFEST = join(REPOSITORY_ROOT, 'crates/router-ab-cloudflare/Cargo.toml');
 const CORE_SOURCE = join(REPOSITORY_ROOT, 'crates/ed25519-yao/src/passive.rs');
 const OT_SOURCE = join(REPOSITORY_ROOT, 'crates/ed25519-yao/src/passive/ot.rs');
 const WASM_TARGET = 'wasm32-unknown-unknown';
-const WORKER_WASM = 'ed25519_yao_cloudflare_bench.wasm';
+const WORKER_WASM = 'router_ab_cloudflare.wasm';
 const SENDER_ACCEPT_SYMBOLS = Object.freeze([
   Object.freeze({ family: 'activation', pattern: /SenderAwaitExtension.*18ActivationOtFamily.*6accept/ }),
   Object.freeze({ family: 'export', pattern: /SenderAwaitExtension.*14ExportOtFamily.*6accept/ }),
@@ -318,7 +318,7 @@ function buildAndInspectHost(targetDirectory) {
       '--release',
       '--lib',
       '--features',
-      'phase9-role-benchmark',
+      'local-protocol',
       '--',
       '-Cdebuginfo=2',
       '--emit=asm',
@@ -475,7 +475,7 @@ function sha256File(path) {
   return createHash('sha256').update(readFileSync(path)).digest('hex');
 }
 
-export function inspectWorkerArtifacts(aWasm, bWasm) {
+function inspectWorkerArtifacts(aWasm, bWasm) {
   qualifyWasmPatterns();
   const llvmObjdump = resolveLlvmObjdump();
   const before = Object.freeze({
@@ -491,15 +491,6 @@ export function inspectWorkerArtifacts(aWasm, bWasm) {
   if (before.a !== after.a || before.b !== after.b) {
     fail('Worker WASM changed while constant-time inspection was running');
   }
-  return Object.freeze({
-    schema: 'ed25519_yao_worker_constant_time_codegen_v1',
-    inspector: 'llvm-objdump-secret-bit-branch-gate-v1',
-    result: 'pass',
-    roles: Object.freeze({
-      a: Object.freeze({ wasm_sha256: before.a }),
-      b: Object.freeze({ wasm_sha256: before.b }),
-    }),
-  });
 }
 
 function main() {
@@ -511,10 +502,10 @@ function main() {
     assertSecretBitWrappersCannotUseDebug();
     const cargoTarget = join(temporary, 'cargo-target');
     buildAndInspectHost(cargoTarget);
-    const deriverA = buildWorker(cargoTarget, 'deriver-a-cross-account');
+    const deriverA = buildWorker(cargoTarget, 'strict-worker-deriver-a-entrypoint');
     const deriverACopy = join(temporary, 'deriver-a.wasm');
     copyFileSync(deriverA, deriverACopy);
-    const deriverB = buildWorker(cargoTarget, 'deriver-b-cross-account');
+    const deriverB = buildWorker(cargoTarget, 'strict-worker-deriver-b-entrypoint');
     inspectWorkerArtifacts(deriverACopy, deriverB);
   } finally {
     rmSync(temporary, { recursive: true, force: true });
