@@ -154,3 +154,28 @@ them. Retain both Wallet checkouts, including the old R150 worktree, and back up
 redacted evidence before cleanup. Private runtime configuration contains
 credentials and must never be published. The linked checkpoint documents name
 the exact artifact directories and analyses needed for later comparison.
+
+## Wallet 0.7.3 release verification
+
+On October 1, PR [#33](https://github.com/seams-tech/seams-wallet/pull/33) merged
+the frozen release candidate `7b5c95f8557f5398ae0103dd0aeb8e84afe0cf8d` after
+both validation workflows passed. The resulting main commit is
+`2bc58391ddeef44eb1432ccd15be8a0d31332d55`; subsequent R152 work on `dev` is
+outside that release.
+
+[Release run 36808399655](https://github.com/seams-tech/seams-wallet/actions/runs/36808399655)
+succeeded at 03:45:49 UTC. It passed all three native-tool builds, the production
+Wallet build, packed-package checks, and versioned documentation build, then
+published [@seams/wallet 0.7.3](https://www.npmjs.com/package/@seams/wallet/v/0.7.3)
+and [@seams/wallet-server 0.7.3](https://www.npmjs.com/package/@seams/wallet-server/v/0.7.3).
+
+Initial registry reads returned 404 after the publishing steps succeeded; these
+observations are retained. Subsequent verification fetched both package tarballs,
+matched their SHA-512 hashes against registry integrity and published provenance
+subjects, and matched provenance source/workflow identity to the exact commit and
+run above. Both package metadata records report that same `gitHead`.
+Evidence is `.artifacts/release-0.7.3/verified-release.json`, alongside registry,
+attestation, workflow-completion, and artifact-inventory receipts. The versioned
+documentation artifact is `wallet-docs-0.7.3-2bc58391ddeef44eb1432ccd15be8a0d31332d55`
+(artifact `11139995851`, retained until December 30). This workflow publishes
+packages and retains documentation; it does not deploy application Workers.
