@@ -50,9 +50,6 @@
     "intended-app/src/**/*.tsx"
   ],
   "exclude": [
-    "e2e/intended-behaviours/google-email-otp.recovery.contract.test.ts",
-    "e2e/intended-behaviours/tenant-root.rotation.contract.test.ts",
-    "e2e/intended-behaviours/refactor93-staging-cohort.staging.test.ts",
     "node_modules",
     "playwright-report",
     "test-results"

@@ -3550,6 +3550,7 @@ export class IntendedBehaviourHarness {
   }
 
   async assertReservedRecoveryCodeReportedAsUsed(): Promise<void> {
+    requireUsableIntendedGoogleIdToken(this.config);
     const action = recoveryActionForTarget('google_email_otp');
     const { recoveryCode } = await this.beginFreshBrowserRecovery({ action });
     const preparedResponse = this.page.waitForResponse(isSuccessfulRecoveryPrepareResponse);

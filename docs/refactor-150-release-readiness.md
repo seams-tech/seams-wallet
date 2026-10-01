@@ -163,8 +163,8 @@ type-check.
 
 Intended contracts: all 14 contract files on each host, with a Google test
 ID token for the Email OTP and Google flows. `google-email-otp.recovery`
-runs through a scratch config, since the committed intended-wallet config
-ignores it.
+ran through a scratch config in these runs, since the committed
+intended-wallet config ignored it then. The committed config now runs it.
 
 | Host | Passed | Failed | Skipped |
 | --- | --- | --- | --- |

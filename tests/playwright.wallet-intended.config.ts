@@ -6,10 +6,6 @@ export default defineConfig({
   tsconfig: './tsconfig.wallet-intended.json',
   testDir: '.',
   testMatch: ['**/e2e/intended-behaviours/**/*.contract.test.ts'],
-  testIgnore: [
-    '**/google-email-otp.recovery.contract.test.ts',
-    '**/tenant-root.rotation.contract.test.ts',
-  ],
   fullyParallel: false,
   workers: 1,
   retries: 0,
