@@ -12,6 +12,7 @@
     "build:example": "pnpm -C examples/seams-auth-menu build && pnpm -C examples/wallet-console-lite build",
     "build:test-app": "pnpm -C tests/intended-app build",
     "build:self-host": "pnpm -C examples/self-host-cloudflare-worker exec wrangler deploy --dry-run",
+    "check:cargo-locks": "node ./scripts/check-cargo-locks.mjs",
     "check:packed-wallet": "pnpm license:notices && node ./tests/scripts/check-packed-wallet-boundaries.mjs",
     "license:notices": "node ./scripts/generate-wallet-third-party-notices.mjs",
     "report:bloat": "node ./scripts/bloat-report.mjs",

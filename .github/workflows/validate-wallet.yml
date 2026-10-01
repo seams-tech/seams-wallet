@@ -35,6 +35,7 @@ jobs:
           cargo install worker-build --version 0.8.4 --locked
       - run: pnpm install --frozen-lockfile
       - run: pnpm report:bloat --check
+      - run: pnpm check:cargo-locks
       - run: pnpm build
       - run: pnpm type-check
       - run: pnpm exec playwright install --with-deps chromium firefox webkit
