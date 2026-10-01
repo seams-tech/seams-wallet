@@ -1836,3 +1836,55 @@ node tests/scripts/run-wallet-intended-isolated.mjs -- \
   e2e/intended-behaviours/passkey.ed25519-yao-local.contract.test.ts \
   --grep 'an Ed25519 export interrupted after its authorization committed'
 ```
+
+## Console namespace-home reservation (October 1)
+
+Private source checkpoint: `seams-monorepo` commit `12784a3`. The existing Console
+deployment service now supports immutable namespace-to-D1 resource reservation.
+The new Console migration `0047_namespace_d1_homes.sql` stores a required account
+ID, database UUID and original assignment timestamp. An atomic conditional insert
+and primary readback use two D1 calls per reservation attempt. Existing Wallet
+request paths do not call it; their call counts and measured latency are unchanged.
+
+The local Worker/D1 E2E verifies:
+
+- Twelve concurrent requests through two Worker instances proposing two homes:
+  **one reserved, five reused, six conflicts**, with every response reporting the
+  same authoritative assignment.
+- A fresh reservation whose response is deliberately lost survives disposal and
+  restart of the runtime. Exact retry returns the original home and timestamp.
+- A pending reservation rejects changed database or account IDs. Another namespace
+  can share the same database. A region label in place of a UUID is rejected before
+  persistence.
+- Direct SQL update, delete and `INSERT OR REPLACE` are rejected. The final stored
+  assignment is unchanged.
+
+The final run passed this scenario and the existing production Console binding
+read/timing E2E: **2 passed (2.6 seconds)**. Package type-check, Console test
+type-check, type fixtures and targeted ESLint passed. The type fixtures reject
+unparsed literals, direct construction, broad-spread identity changes, mixed
+success/failure outcomes and missing assignments. Initial harness setup failures
+(WASM loader and output directory outside the workerd module root) were corrected
+before the passing runs; they did not reach reservation behavior.
+
+Retained evidence in the private checkout:
+`.artifacts/r152/namespace-home-20261001/` contains `e2e.log`,
+`namespace-home-evidence.json`, `console-binding-evidence.json` and
+`source-sha256.json`. The JSON evidence includes the race responses, SQL guards,
+migration and Worker bundle hashes. Reproduce from `seams-monorepo`:
+
+```sh
+pnpm -C tests exec playwright test -c playwright.relayer.config.ts \
+  relayer/namespace-d1-home.e2e.test.ts \
+  relayer/tenant-deployment-binding.e2e.test.ts \
+  --reporter=line --output=test-results/r152-namespace-home
+```
+
+Scope: the new scenario uses test-only Worker transports around the production
+Console store. Authenticated provisioning does not yet call the reservation;
+canonical bindings and activation do not yet enforce it. Physical database
+identity, regional routing, hosted placement, travel latency and deployment
+cost were not measured here. No remote migration or infrastructure deployment
+was performed. Next, pin existing namespace resources and integrate reservation
+before provisioning side effects, then verify actual Worker bindings before
+activation and regional Gateway routing.

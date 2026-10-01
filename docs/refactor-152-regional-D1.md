@@ -28,6 +28,13 @@ concrete two-database experiment. Both isolated databases are provisioned and
 have the same 39 migrations; measured placement results are recorded in
 [the regional experiment log](refactor-152-results.md).
 
+The Console namespace-home reservation primitive is implemented and verified
+locally in private commit `12784a3`. Concurrent callers share one immutable
+account/database assignment, including after interrupted provisioning and restart.
+Provisioner integration, canonical binding home identity, physical-resource
+verification and runtime routing remain open; this primitive is not active
+regional enforcement.
+
 ## Objective and starting evidence
 
 Use the [R151 empirical results](refactor-151-results.md) as the consolidated
@@ -386,18 +393,29 @@ below remain open.
   freshness: 64 unauthenticated status probes, binding p50 64 ms with APAC versus
   246 ms with WEUR. Full authenticated signing composition remains open; this
   lookup-only cohort does not measure signing latency. See the experiment log.
+- [x] Implement the namespace-wide reservation primitive in the existing Console
+  authority. Private migration `0047_namespace_d1_homes.sql` and the deployment
+  store serialize initial assignment across callers, preserve exact retries and
+  reject changed account/database identities. Local persistent-D1 E2E verifies
+  twelve competing requests, response loss, restart and SQL overwrite guards;
+  see [results](refactor-152-results.md#console-namespace-home-reservation-october-1).
+- [ ] Integrate that reservation into authenticated provisioning before lane
+  side effects. Inventory and pin existing namespaces to their current resource
+  before making the boundary mandatory. Require the assigned home in canonical
+  deployment bindings and verify it during activation, including concurrent lanes.
 - [ ] Reuse existing trusted tenant/environment routing where possible. Define
   required owner, home, and routing-generation identity at the server boundary.
   Reject inconsistent or stale routes before any mutation. Route lookup itself
   must be counted in the complete latency budget.
-  Serialize initial namespace/home assignment across lanes in the existing
-  Console authority. Prove the relationship between the assigned home and the
+  Use the namespace-wide reservation in the existing Console authority.
+  Prove the relationship between the assigned home and the
   actual D1 resource; a lane-level activation CAS or copied identity row is
   insufficient. Preserve authenticated provisioning before first activation.
   The [home identity design](refactor-152-ownership-review.md#home-identity-verification-design)
   specifies provider binding/version inspection plus a fresh database challenge
-  through the runtime service. Implementation and race/failure verification remain
-  open; its runtime identity lookup must be included in latency accounting.
+  through the runtime service. Resource verification and end-to-end provisioning
+  race/failure checks remain open; its runtime identity lookup must be included
+  in latency accounting.
 - [ ] Assign a stable initial home server-side. Browser hints are advisory input;
   browser assertions cannot select an alternative authority. Avoid a mandatory
   home picker, travel profiling, and automatic geographic migration.

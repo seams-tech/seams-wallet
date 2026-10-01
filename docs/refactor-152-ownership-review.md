@@ -430,6 +430,26 @@ and activation ordering still need implementation and race/failure tests. A loca
 database marker supplies an additional mismatch check, not a transfer fence.
 Do not mark the home/resource proof complete from a marker-only E2E.
 
+The first persistence slice is implemented in private Console commit `12784a3`.
+`tenantDeployment/namespaceHome.ts` adds reservation/read operations to the
+existing deployment service. Migration `0047_namespace_d1_homes.sql` keys the
+assignment by namespace, stores the required Cloudflare account/database IDs and
+original assignment time, and rejects update, delete and replacement. An atomic
+insert-if-absent followed by authoritative readback returns reserved, reused or
+conflict. There is no release operation: provisioning failure retains the home.
+Distinct namespaces may share a database. Each reservation attempt uses two D1
+calls; no Wallet request path calls this primitive yet.
+
+A local E2E runs two Worker transports against that production store and one
+persistent D1 authority. Twelve competing requests yielded one new assignment,
+five exact reuses and six conflicts. An injected lost response followed by runtime
+restart preserved both the resource and assignment time. Changed database and
+account IDs conflict; direct SQL update/delete/REPLACE fail. This establishes the
+store's reservation contract. Connecting it to authenticated provisioning,
+binding activation and physical-resource verification remains required before
+regional routing can use it. Evidence and reproduction are recorded in the
+[results](refactor-152-results.md#console-namespace-home-reservation-october-1).
+
 Review evidence: `.artifacts/r152/lifecycle-ownership-20261001/source-inventory.json`
 records SHA-256 hashes of the thirteen reviewed Wallet implementation files.
 The adjacent `table-source-index.json` indexes literal references for 53 of the
