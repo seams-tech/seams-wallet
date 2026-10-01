@@ -7,9 +7,12 @@ and Tokyo ready-material comparisons each favor their nearby primary. Each
 ready-material comparison has 180 verified signatures: 30 owner and 60 linked
 signatures per D1 arm.
 Tokyo retains one additional collection failure with unknown Wallet outcome.
-A separate real-Console Tokyo diagnostic verifies eighteen signatures. Missing
-registration projection, cold unlock, repeated authenticated cohorts, broader
-workloads and production routing remain gated on the checks below. The October 1
+The first real-Console Tokyo diagnostic verifies eighteen signatures. The
+registration projection gap is now fixed in source and verified through hosted
+replay/reply-loss checks. A separate server candidate verifies a reversed-order
+18-signature comparison and cold unlock/burst in both D1 arms (28 candidate
+signatures total). Repeated authenticated cohorts,
+broader workloads and production routing remain gated on the checks below. The October 1
 [ownership review and first experiment](refactor-152-ownership-review.md)
 defines a whole-deployment-namespace diagnostic and records the remaining
 production routing proof. The October 1 implementation request authorizes that
@@ -265,16 +268,33 @@ Use the same workloads and build identities in these arms:
   to WEUR. Record Console calls and Gateway D1 metadata separately. The existing
   harness namespace check is preserved by correcting the private fixture names.
   See the [authenticated diagnostic](refactor-152-results.md#hosted-console-signing-diagnostic-october-1).
-- [ ] Close the demonstrated registration-projection gap before extending this
-  cohort: successful hosted registration creates no Console Wallet index entry.
-  Wallet Server 0.7.3 wires a usage client but no registration projection adapter;
-  activation skips its optional projection hook. Wire the verified registration
-  result through the existing Console service boundary, then exercise actual
-  registration and replay through the composed Gateway and assert one projection
-  with no registration monthly-usage charge. Direct usage-client tests alone do
-  not cover this missing producer path. Preserve the successful frozen cohort.
-- [ ] Verify a separate cold unlock and its Console dependencies, then repeat
-  the matched diagnostic with reversed arm order before extending sample counts.
+- [x] Close the demonstrated registration-projection gap. The managed Gateway
+  now supplies the existing projection adapter through the Console service
+  boundary. Hosted activation plus lost-reply/exact replay creates one Wallet
+  row per registration; the local Console E2E verifies zero registration
+  monthly-active-resource rows and rejects organization/scope mismatch. Preserve
+  the original frozen cohort and keep the unreleased patched candidate separate.
+- [x] Repeat the linked-device diagnostic with reversed arm order. Provider-verified
+  Tokyo completes WEUR then APAC: eighteen verified signatures on one recorded
+  boot, with the same candidate build and fixed APAC Console authority. Owner
+  medians are 3.20s versus 1.93s; linked medians are 2.69s versus 1.57s.
+- [x] Complete initial cold-unlock/first/warm/burst diagnostics in both arms.
+  Ten verified signatures across two fresh wallets include explicit unlock
+  verification after runtime reset and shared-budget exhaustion. The WEUR
+  preflight boot change is retained; its replacement passes under a fresh Tokyo
+  identity. These single samples use different boots and do not establish a
+  controlled latency gain. Server replay/reply-loss checks yield four total new
+  projections across the candidate cohorts, with no monthly billing rows.
+- [ ] Measure unlock's individual Console/D1 calls separately and cover browser
+  recovery after losing the original activation response. Server replay returns
+  `already_committed` and requires explicit unlock; the observer preserved the
+  original issued response for the signing workload.
+- [ ] Extend authenticated sample counts across fresh wallets and boots, then
+  collect the broader workload and region coverage. These small diagnostics do
+  not establish a latency distribution or production readiness. Record refill
+  overlap and Console costs separately; fourteen Gateway rows written per
+  signature and eleven/seven combined owner/linked D1 round trips remain targets
+  for the deferred write/round-trip reduction work.
   Retain failures, reconcile cost, revoke credentials, remove the active binding,
   close ingress and verify restoration after every cohort. Successful signing
   alone does not close the complete authenticated-composition gate or authorize

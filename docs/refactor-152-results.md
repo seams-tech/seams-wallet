@@ -4,9 +4,11 @@ Date: October 1, 2026. Status: repeated London ready-material comparison and
 first-sign/burst diagnostic complete; temporary DO-scheduled probe unblocks verified Tokyo startup
 and signing. Tokyo now also reaches the ready-material sample target: 180 verified
 signatures, with 30 owner and 60 linked signatures per D1 arm. Broader regional
-and production gates remain open. A separate real-Console Tokyo diagnostic now
-verifies eighteen signatures; its missing registration projection, cold unlock
-and repeated sample gates remain open.
+and production gates remain open. The first real-Console Tokyo diagnostic
+verifies eighteen signatures. Its registration projection gap is now fixed and
+verified with hosted reply-loss/replay. A separate server candidate adds an
+eighteen-signature reversed-order comparison and cold-unlock/burst diagnostics;
+repeated authenticated sample and production ownership gates remain open.
 
 This log implements the bounded experiment in
 [the ownership review](refactor-152-ownership-review.md) and preserves evidence
@@ -498,7 +500,7 @@ summed Console call wall time stays 288→279 ms for owner and 145→143 ms for
 linked. These are dependency totals; overlapping client stages must not be added
 to them. Region labels identify broad served regions, not exact D1/DO colocation.
 
-### Remaining registration projection gap
+### Registration projection gap identified in the frozen cohort
 
 Hosted registration succeeds, but readback finds no rows in the Console
 `wallet_index`. The local direct usage-service E2E passing does not establish
@@ -514,7 +516,9 @@ Classification: `production_regression` in hosted Console composition. The
 missing projection remains unfixed in this frozen measurement cohort. The next
 implementation must connect verified registration to the existing Console
 service boundary and test actual activation plus replay, preserving one Wallet
-projection and zero registration monthly-active-resource charges. Do not close
+projection and zero registration monthly-active-resource charges. The
+[subsequent fix and candidate cohort](#registration-projection-fix-and-reversed-order-console-diagnostic-october-1)
+now provide that evidence. Do not close
 the authenticated-composition gate from the eighteen signatures alone. A
 separate cold-unlock check and reversed-order repeat also remain open.
 
@@ -545,6 +549,154 @@ preflight-to-deletion lifetimes is $0.1444, assuming all three candidate instanc
 ran continuously at maximum resources; this is supplemental headroom accounting,
 not a measured charge, and excludes network egress. Preserve the earlier
 $0.5714 bound for the nine Tokyo startup/extension apps separately.
+
+## Registration projection fix and reversed-order Console diagnostic (October 1)
+
+The demonstrated composition regression is fixed in source. The managed Gateway
+now supplies its existing registration projection hook through the private
+`/internal/wallet-console/v1/wallet-projections` operation. Console validates the
+projection at that boundary and uses its existing project/environment and Wallet
+services to persist it. The existing static/self-host binding acknowledges this
+operation. Registration still has no monthly-active-wallet billing effect.
+A failed Console projection reply fails activation visibly; exact activation
+replay reaches the same idempotent projection path.
+
+The local production Console E2E now checks two deliveries, one Wallet row,
+zero monthly-active-resource rows, and rejection of a mismatched organization.
+It passes with fourteen service responses and ten observations. Wallet Server
+build/type-check, intended-contract type-check, Console package/test type-checks,
+focused private lint and the Wallet bloat check pass. Existing service fixtures
+receive the required adapter; no new unit tests are introduced.
+
+### Candidate identity and retained failures
+
+An initial hosted candidate used current Wallet Server dev with the frozen 0.7.3
+browser. Its real registration produced one Console projection, but the browser
+rejected the response with `value contains unexpected fields`; zero signatures
+were verified. Inspection of the retained receipt and the actual frozen decoder
+reproduced the error: later dev removed `publicTranscriptDigest32B64u` from the
+ECDSA bootstrap, while the frozen decoder requires it. This is a mixed-fixture
+`environment_or_infrastructure_failure`. The dev cleanup remains intact.
+Evidence is retained in `console-sign-r5-20261001/diagnosis.json` and the private
+`console-hosted-auth-r6-20261001/` composition records.
+
+The corrected candidate archives Wallet Server/shared TS source at release
+candidate `7b5c95f8557f5398ae0103dd0aeb8e84afe0cf8d`, applies only the four-file
+projection patch, then builds the server. Both arms use those same compiled
+bytes. Gateway WASM comes from the locally generated inputs and differs from
+npm 0.7.3; its hashes are recorded separately. The browser image and all five
+custody-role deployments stay frozen. This is an **unreleased server candidate**;
+its measurements must remain separate from the published-server cohort and the
+static-Console measurements. The private Console continues consuming exact
+published Wallet Server 0.7.3, with the new private handler compiled from source.
+
+The observer retains the initial successful activation response, loses the
+Console reply on the first exact replay after its successful write, and then
+replays twice more. Every completed registration records statuses
+`200 → 500 → 200 → 200` and four successful upstream projection deliveries.
+The browser receives the original issued activation response. This exercises
+server replay/reply-loss behavior; browser activation-loss recovery remains a
+separate contract because an exact replay returns `already_committed` and
+requires explicit unlock.
+
+### Reversed-order signing comparison
+
+Provider-confirmed Tokyo `nrt08` completes WEUR then APAC on one recorded boot.
+Each fresh wallet performs three owner signatures and six signatures across two
+linked-device generations: **18 verified signatures**. Console authority stays
+in APAC. Public SDK call medians include automatic confirmation:
+
+| Foreground measurement | APAC Gateway D1 | WEUR Gateway D1 |
+| --- | ---: | ---: |
+| Owner signing median (3 signatures/arm) | 1,934.6 ms | 3,197.2 ms |
+| Linked signing median (6 signatures/arm) | 1,574.8 ms | 2,687.2 ms |
+| Owner summed Gateway D1 wall median | 571 ms | 1,938 ms |
+| Linked summed Gateway D1 wall median | 503.5 ms | 1,692 ms |
+| Owner summed Console binding wall median | 251 ms | 253 ms |
+| Linked summed Console binding wall median | 121 ms | 124.5 ms |
+
+APAC owner and linked medians are 39.5% and 41.4% lower in this small diagnostic.
+Owner signing still uses seven Gateway D1 calls/eight SQL statements plus four
+Console binding reads; linked signing uses five/six plus two. Both paths still
+write fourteen Gateway rows. Regional placement reduces their network cost;
+write and round-trip reduction remain separate work. Counts exclude overlapping
+background refill traffic.
+
+The same boot also completes the APAC first/warm/burst contract: five verified
+signatures, one explicit `/wallet/unlock/verify` after runtime reset, and exact
+shared-budget exhaustion. Before the WEUR counterpart was dispatched, the probe
+boot ID changed. The preflight identity guard stopped collection, preserving the
+23 successful signatures; the reason for the Container restart is unproven.
+A follow-up harness initially reused an infrastructure-log directory and stopped
+on its create-once `run.json` guard before dispatch. Its logs are separated, and
+`artifact-path-correction.json` records the affected metadata. Completed signing
+artifacts, private responses and replay logs remain intact. The original
+application inventory is recovered from its earlier cleanup observation.
+
+The final fresh Tokyo follow-up (`console-sign-r10`, Console composition `r11`)
+completes the missing WEUR first/warm/burst sample with five verified signatures.
+Both arms perform one explicit unlock verification after runtime reset and
+exhaust the shared burst budget. This brings the corrected candidate total to
+**28 signatures across four fresh wallets** and four new Console Wallet rows.
+Readback finds **zero monthly-active-resource rows**. The original failed
+mixed-version registration contributes one additional retained projection,
+for five total Console rows; it contributes no verified signatures.
+
+| One first/warm/burst diagnostic per arm | APAC | WEUR |
+| --- | ---: | ---: |
+| First sign after registration | 4.195 s | 6.584 s |
+| Warm sign | 2.499 s | 4.076 s |
+| Two-signature concurrent burst after cold unlock | 7.744 s | 13.524 s |
+| Burst server materials complete before start | 0 | 0 |
+
+These are single browser-harness observations including automatic confirmation
+and verification. The warm sign has ready server material in both arms; the burst
+requires refill work. APAC and WEUR use different recorded boots for this pair,
+so no controlled gain estimate or tail guarantee follows from these two samples.
+The reversed-order linked-chain comparison above stays on one boot. Unlock
+success is verified; separate per-call unlock latency attribution remains open.
+
+Two intervening preparation attempts create no Wallet operations: one receives
+an empty HTTP 503 while opening the benchmark window, and another stops at an
+inappropriate readiness check that itself requires a provisioned active binding.
+The final private harness uses an authenticated pre-provision readiness endpoint
+and waits for its HTTP 204 before mutation. Each attempt's outcome and cleanup
+remain in Console `r9`/`r10`/`r11`; no wallet operation is blindly resubmitted.
+
+Final postflight verifies **18 revoked credentials**, zero active experiment
+bindings, original Gateway/Console/custody-role deployments, inactive original
+probes with their original images and sizing, default Gateway placement and
+closed probe/ingress access (403/503). All eight temporary Console-diagnostic
+application/DO-namespace/Worker bundles across these runs are removed. Both
+regional databases and the audit/projection evidence remain retained. The final
+scan of 189 evidence files finds zero matches for thirteen known benchmark access
+tokens and issued publishable keys. No
+staging or production infrastructure is deployed.
+
+Measured cumulative benchmark cost at 10:06:52 UTC is **$1.3255 / $25**. Container
+analytics still omit the temporary applications. A separate conservative
+CPU/memory/disk allowance is **$0.2868** for all eight Console-diagnostic apps,
+assuming the maximum three candidates each ran throughout every application
+lifetime; it excludes network egress and is not an additional measured charge.
+The earlier nine Tokyo recovery apps retain their separate $0.5714 allowance.
+
+Evidence roots are Wallet `.artifacts/r152/console-sign-r6-20261001/` and private
+Console `.artifacts/r152/console-hosted-auth-r7-20261001/`. `summary.json` gives the
+per-signature accounting; `verification.json` records cold unlock and projection
+replay. Recompute them with the private `summarize.py` and `verify-evidence.py`
+under `.runtime/r152-console-sign-r6/`. The latter uses the preceding postflight
+for the original one-row baseline, since the follow-up overwrote the initial
+baseline query file. Candidate source, patch and compiled library/WASM hashes
+are in the Console `sources.json`; `final-harness-sources.json` captures the
+actual follow-up scripts. Final cold-unlock/replay/cleanup/cost evidence is in
+Wallet `console-sign-r10-20261001/` and Console `console-hosted-auth-r11-20261001/`.
+Wrangler's output directories contained only
+a README, so no emitted Worker bundle hash is claimed for this candidate.
+
+The corrected source is committed on `dev`: Wallet `b4884902` and private
+Console `1420581`. Publishing a new Wallet Server version and deploying its matching
+Console handler remain release work; npm 0.7.3 is unchanged. Deploy the handler
+before activating a Gateway version that requires the new operation.
 
 ## Target-image diagnosis and hosted Console lookup (October 1)
 
@@ -1066,8 +1218,9 @@ Use fresh run directories and attempt IDs for any further hosted execution.
 London and Tokyo provide sufficient measured benefit to continue regional ownership
 **design**: each favors its nearby primary in the ready-material workload.
 Regional production activation remains gated on repeated first-sign/
-burst samples, other-region evidence, authenticated Console/signing composition, and the
-complete home/authority proof. Hosted NRT binding timing is now measured separately. The routing work should extend the existing
+burst samples, other-region evidence, repeated authenticated Console/signing
+cohorts and the complete home/authority proof. The initial hosted composition,
+projection replay and cold-unlock diagnostics now pass. Hosted NRT binding timing is now measured separately. The routing work should extend the existing
 canonical deployment binding with an immutable initial home for a complete
 deployment namespace, keeping its organization’s projects together and including
 authenticated internal and scheduled paths.

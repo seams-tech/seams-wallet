@@ -183,8 +183,14 @@ Private E2E commit `afb77c6` verifies duplicate wallet-created usage delivery
 produces one Console Wallet projection without a monthly active-resource charge.
 This establishes local usage replay behavior and hosted root provisioning;
 a subsequent hosted diagnostic verifies eighteen signatures, while exposing
-a missing registration-to-Console Wallet projection path. Production routing
-remains gated on that composition fix, cold unlock and repeated measurements.
+a missing registration-to-Console Wallet projection path. That producer path is
+now connected through a validated private Console operation. Hosted lost-reply
+and exact replay checks create one projection per registration. A separately
+built server candidate verifies eighteen reversed-order linked-chain signatures
+and ten cold-unlock/burst signatures across APAC and WEUR. Four new Wallet
+projections persist with zero monthly-active-resource rows; the two burst
+samples use different recorded boots. Production routing remains gated on repeated
+measurements, remaining workload coverage and the authority proofs below.
 See the [fixture and startup evidence](refactor-152-results.md#hosted-console-fixture-provisioning-october-1).
 
 Reuse the existing deployment lane, canonical binding revision, activation
