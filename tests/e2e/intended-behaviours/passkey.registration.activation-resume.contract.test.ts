@@ -37,9 +37,18 @@ class LostActivationResponse {
 
   private async deliverReplay(route: Route): Promise<void> {
     const body = route.request().postData();
+    const headers = await route.request().allHeaders();
+    if (process.env.SEAMS_INTENDED_EXTERNAL_GATEWAY === '1') {
+      const accessToken = process.env.SEAMS_INTENDED_BENCHMARK_ACCESS_TOKEN;
+      if (!accessToken || accessToken.length < 32) {
+        throw new Error('Hosted activation replay requires benchmark access');
+      }
+      // Direct replay bypasses the browser route that supplies benchmark access.
+      headers['x-r150-benchmark-access'] = accessToken;
+    }
     if (this.originalBody === null) {
       this.originalBody = body;
-      const first = await route.fetch();
+      const first = await route.fetch({ headers });
       expect(first.ok()).toBe(true);
       const committed = await first.json();
       expect(committed.registrationEstablishedSession.kind).toBe('issued');
@@ -51,7 +60,7 @@ class LostActivationResponse {
     } else {
       expect(route.request().postDataJSON()).toEqual(JSON.parse(this.originalBody));
     }
-    const replay = await route.fetch();
+    const replay = await route.fetch({ headers });
     expect(replay.ok()).toBe(true);
     const committed = await replay.json();
     expect(committed.walletId).toBe(this.walletId);
