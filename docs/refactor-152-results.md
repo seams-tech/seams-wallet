@@ -507,6 +507,76 @@ sent. Changing scheduling policy requires a new application and lies outside
 the current experiment's resource authorization. Keep the Tokyo gate open until
 the frozen image starts there and controlled signing measurements complete.
 
+## Placement reset on the original application (October 1)
+
+A further recovery attempt reused the original APAC application and its existing
+probe Durable Object. It kept the Docker manifest `747fdf75…`, frozen SDK and
+2-vCPU / 8-GiB / 16-GB configuration unchanged, temporarily constrained placement
+to WEUR, then restored APAC. The target image started on this same application
+in **London and Hong Kong**. Thus the original application can run the target;
+the remaining unmet requirement is a verified Tokyo placement.
+
+WEUR rollout `ea76e10b-1841-47ae-943c-1e70a379330b` completed at version 38,
+with stable observations at 05:39:39 and 05:39:46 UTC. A fresh boot reported
+`lhr01`, country `GB`, expected source revision `a2c936ed…` and build hash
+`04c22bce…`. The return to APAC, rollout
+`f4a9bd3c-b9b1-4361-b58f-a89531ec1c6e`, completed at version 39 with stable
+observations at 05:45:52 and 05:45:59 UTC. Its fresh boot was `hkg13`, country
+`HK`, boot `eb5d3516-ded6-41df-8a40-fab0236648ad`. The Tokyo gate stopped the run
+before any wallet attempt. This recovered rollout availability without meeting
+the Tokyo measurement gate; no latency samples were collected.
+
+Evidence and private runner are
+`.artifacts/r152/tokyo-relocation-20261001/` and
+`.runtime/r152-tokyo-relocation/run.mjs`. `relocation-weur-identity.json`,
+`cold-starts.json`, both rollout histories, constraint receipts and
+`restoration.json` preserve the transition. Original-image restoration rollout
+`89dd13fb-439b-4686-ac73-b1a32c3fbcd8` completed at version 40. Postflight verified
+both original Worker versions, original images, APAC/WEUR constraints, the
+original probe size, inactive instances, default Gateway placement and closed
+benchmark access.
+
+A separate size experiment then used the same image and original application
+with 1 vCPU, 6 GiB memory and 12 GB disk. Rollout
+`73f4a05b-2e4e-435f-8a41-47dc983f8aaa` completed at version 41, with a stable
+observation at 05:52:27 UTC. Its fresh boot also reported `hkg13`, country `HK`,
+boot `6a84f4fe-e87c-49f8-a1b3-8d73c423d9a9`, and the expected frozen SDK source.
+The Tokyo gate again stopped before dispatch. This does not prove Tokyo capacity
+is sufficient or insufficient; it shows that reducing the requested size did
+not produce Tokyo placement. Evidence is in
+`.artifacts/r152/tokyo-size-20261001/`, with private runner
+`.runtime/r152-tokyo-size/run.mjs`. Both recovery experiments dispatched zero
+wallet attempts and contribute no signing latency samples.
+
+The size experiment restored the original image and size through rollout
+`e10da545-2134-4947-ac0c-27a1791d70fc`, version 42. Final readback verifies
+2 vCPU / 8 GiB / 16 GB, original APAC/WEUR constraints, original images and Worker
+baselines, inactive probes, default Gateway placement, closed access (403/503),
+and unchanged deployments of all five custody roles. The two experiments' scan
+found zero benchmark-token matches in 47 evidence files. Estimated cumulative
+spend at 05:55:52 UTC is $1.2896 of $25, subject to analytics lag.
+
+### Prepared scheduling-policy alternative
+
+A temporary probe using Cloudflare's beta `durable_object` scheduling policy is
+prepared in `.runtime/r152-tokyo-do-policy/`, with `worker.js`, `wrangler.json`
+and a successful Wrangler 4.145.0 deployment dry run in `dry-run.log`. It starts
+the same digest-pinned image through `ctx.container.start()` at `standard-3`,
+uses one fixed probe DO with an APAC location hint, and retains the existing
+expiry/authentication checks. It bypasses the application-wide image rollout.
+Cloudflare documents that this [policy is immutable](https://developers.cloudflare.com/containers/configuration/scheduling-policy/),
+so testing it requires a new application. An APAC hint still cannot guarantee
+Tokyo; two fresh boots with `JP` / `nrt*` identities remain a prerequisite for
+signing measurements.
+
+The proposed resource bundle is Worker `r150-bench-20261001-tokyo-recovery`, its
+`ProbeTokyo` DO namespace and associated Container application. Reuse the
+existing benchmark credential, keep the cumulative $25 cap, leave production
+untouched, preserve redacted evidence and delete only this new resource bundle
+after verification. It is **prepared, not deployed**: approval to expand the
+original existing-resources-only scope is pending. No new scheduling-policy
+result or Tokyo success is claimed.
+
 ## Decision and remaining work
 
 London provides sufficient measured benefit to continue regional ownership

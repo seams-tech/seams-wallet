@@ -187,6 +187,12 @@ Use the same workloads and build identities in these arms:
   Hong Kong startup receipts; use them for provider investigation of the
   original application and Tokyo provisioning path. APAC constraints cannot
   guarantee a Tokyo location. See the [repair attempts](refactor-152-results.md#tokyo-repair-attempts-image-format-and-alternate-application-october-1).
+  A later WEUR→APAC placement reset recovered the original application's target
+  rollout, first in London and then Hong Kong. A smaller 1-vCPU / 6-GiB probe
+  also started in Hong Kong. Both failed the Tokyo location gate before wallet
+  dispatch. A separate probe using Durable Object scheduling has a successful
+  deployment dry run; provisioning its temporary resource bundle awaits approval
+  beyond the original existing-resources-only scope.
 - [ ] Alternate arm order across at least two runs. Target at least 30 completed
   signatures per arm, probe region, and workload; record errors and incomplete
   attempts in the denominator. Distinguish independent fresh-wallet first-sign
