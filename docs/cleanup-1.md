@@ -6,9 +6,9 @@ worker, route and fixture clusters outside R150's files, and split oversized
 files along their seams. R150 is on `dev`, but feature work still changes
 Phase 4's files. A second survey (below) found more to remove outside them. CI
 runs `pnpm report:bloat --check`, which fails when a ratcheted measure grows
-past `scripts/bloat-baseline.json`, now recorded at `36bcabf`. Since the first
-baseline (`7c8a163`), TypeScript code is down 33,726 lines net of new feature
-code, Rust code 22,987 and JavaScript 10,322. Duplication is down from 5.1%
+past `scripts/bloat-baseline.json`, now recorded at `332b18f`. Since the first
+baseline (`7c8a163`), TypeScript code is down 34,446 lines net of new feature
+code, Rust code 25,567 and JavaScript 10,313. Duplication is down from 5.1%
 to 3.1% in TypeScript and from 5.7% to 4.9% in Rust, and files over 2,000
 lines from 82 to 66. The findings below are the
 first baseline's; run `pnpm report:bloat` for current numbers.
@@ -597,19 +597,33 @@ Decided on 2026-10-01, and done:
 - `@noble/hashes`, `tslib` and four unused development dependencies are
   removed, and `miniflare` and `@noble/curves` are declared where they are
   imported (65295a9).
+- What the cosigner mode still left is gone too:
+  - `near_signer`'s three legacy signing requests, with the signer
+    backend, relayer client and types only they reached (0ef5d28, 3,295
+    lines). The wasm is 441,792 bytes, down from 704,828 before 154f0c1.
+    The three result types the Yao flow uses are TypeScript interfaces in
+    `signer-worker.ts`.
+  - wallet-server's signing-session storage (0072121), the
+    `THRESHOLD_NODE_ROLE` setting (b9b75b4) and six coordinator and
+    relayer cosigner settings (332b18f). A node that set the cosigner
+    role now serves ECDSA pool fill, and a config holding only removed
+    settings resolves to no threshold store.
 
 Decisions:
-- What the retired cosigner mode still leaves:
-  - `near_signer`'s three legacy signing request types (transactions,
-    NEP-413, delegate), which no TypeScript sends and which call
-    `/threshold-ed25519/` routes nothing serves: 2,649 lines and a further
-    27% of the wasm. Their result classes are the Yao signing flow's type
-    source, so those types move into TypeScript first.
-  - wallet-server's signing-session storage on four stores, about 450
-    lines that nothing calls; three of its types are exported.
-  - `THRESHOLD_NODE_ROLE=cosigner`, still accepted, which makes the two
-    ECDSA pool-fill handlers answer `not_found`.
-  - Six coordinator and relayer cosigner settings that nothing acts on.
+- `ThresholdStoreDurableObject`'s `getdelIfRelatedMatches` handler: no
+  commit in this repository ever sent it, so only a Worker built before
+  the import could. A 46-line patch removes it once that is ruled out.
+  `registrationCancelTerminal` was sent until cbcfceb and stays.
+- The MPC-session half of the threshold session stores (`putMpcSession`,
+  `readMpcSession`, `claimMpcSession`, `takeMpcSession`, the ECDSA session
+  store and both record parsers) has no caller in any commit, and
+  `createThresholdEd25519SessionStore` is a root export. Three more
+  settings act on nothing: `THRESHOLD_ED25519_SHARE_MODE`,
+  `THRESHOLD_ECDSA_KEYSTORE_PREFIX` and
+  `THRESHOLD_WALLET_SIGNING_BUDGET_SESSION_PREFIX`.
+- `workerTransport.ts` keeps progress-frame and progress/error branches
+  the near-signer worker can no longer reach, and the result tags keep
+  the retired requests' names. Both are in files under feature work.
 - `laneHolderMaterialStore.ts` (421 lines) has no caller, but a published
   entry re-exports it. The ECDSA lane-holder worker request has a handler
   and no sender.
@@ -872,3 +886,8 @@ Found during the cleanup and left unchanged, for their owners to check:
   since `ae9a230`; files over 2,000 lines 82 -> 66; duplicated Rust lines
   19,427 (5.7%) -> 15,722 (4.9%); Rust `allow(dead_code)` 125 -> 91. The
   baseline was re-recorded at `36bcabf`.
+- 2026-10-01: the cosigner mode's remaining pieces (0ef5d28, 0072121,
+  b9b75b4, 332b18f). Against the first baseline, measured at `332b18f`:
+  TypeScript code 539,841 -> 505,395 lines; Rust code 433,451 -> 407,884;
+  Rust `allow(dead_code)` 125 -> 90. The baseline was re-recorded at
+  `332b18f`.
