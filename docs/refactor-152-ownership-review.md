@@ -204,6 +204,17 @@ billing rows. These local-browser observations close diagnostic accounting and
 ECDSA recovery correctness, without establishing regional browser placement or
 production home-routing safety. See the [detailed evidence](refactor-152-results.md#unlock-accounting-and-activation-recovery-october-1).
 
+The following candidate removes the nine initialization calls after verifying
+the canonical migrations and singleton authority guard in both databases.
+Thirty verified signatures cover cold unlock, activation-loss recovery and
+two-generation linking. Cold unlock now uses 30 Gateway D1 calls and recovery
+uses 26, with two Console calls each; remaining query multisets are unchanged.
+Each unlock still reports 33 rows written. This optimization preserves the
+transactional authority boundary and leaves production home-selection and
+stale-writer fencing proofs open. The longer E2E also exposes and fixes an
+IPv6/IPv4 test-service readiness mismatch; failed attempts remain in the log.
+See the [candidate results and cleanup](refactor-152-results.md#removing-request-time-authority-initialization-october-1).
+
 Reuse the existing deployment lane, canonical binding revision, activation
 sequence, and bound tenant namespace as the starting routing model. The shared
 `tenant_deployment_binding_v1` currently carries tenant identity, origins,

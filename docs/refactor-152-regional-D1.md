@@ -13,7 +13,9 @@ replay/reply-loss checks. A separate server candidate verifies a reversed-order
 18-signature comparison and cold unlock/burst in both D1 arms (28 candidate
 signatures total). A separate local-browser follow-up verifies twelve more
 signatures, measures individual cold-unlock calls and proves ECDSA activation-loss
-recovery through hosted Console. Repeated authenticated cohorts,
+recovery through hosted Console. The next candidate removes nine authority
+initialization calls and verifies thirty signatures across cold unlock,
+activation recovery and device linking. Repeated authenticated cohorts,
 broader workloads and production routing remain gated on the checks below. The October 1
 [ownership review and first experiment](refactor-152-ownership-review.md)
 defines a whole-deployment-namespace diagnostic and records the remaining
@@ -302,13 +304,19 @@ Use the same workloads and build identities in these arms:
   uses 35 Gateway D1 calls plus two Console calls. This is correctness evidence;
   provider-verified regional repetition remains open. Preserve the earlier
   diagnostic header-overflow failure separately. See the [recovery evidence](refactor-152-results.md#browser-activation-loss-recovery-through-hosted-console).
-- [ ] Reduce the demonstrated unlock overhead in a separate candidate. Audit
-  authority-store construction and deployment migration guarantees before
-  removing nine request-time schema/initialization calls. Preserve guarded
-  authority inserts, compare per-call counts and writes, and verify cold unlock,
-  activation recovery and signing with the existing E2Es. Keep this optimization
-  separate from the frozen placement comparison and retain the broader
-  write/round-trip reduction task below.
+- [x] Remove the nine demonstrated request-time authority initialization calls
+  in a separate candidate. Migration and remote schema/guard preflights pass;
+  duplicate DDL, schema-on-use state/option and the unused setup helper are
+  deleted. Thirty verified signatures cover cold unlock, activation recovery
+  and second/third-generation linking across both D1 homes. Cold unlock falls
+  39 → 30 Gateway D1 calls; recovery falls 35 → 26, retaining two Console calls.
+  Remaining query multisets are unchanged. Two failed long linking attempts
+  expose a local IPv6/IPv4 readiness mismatch; explicit IPv4 binding fixes the
+  launcher and the repeat passes. See the [candidate evidence](refactor-152-results.md#removing-request-time-authority-initialization-october-1).
+- [ ] Review the remaining unlock reads and writes separately. Each post-change
+  unlock reports 33 D1 rows written; the initialization reduction establishes
+  fewer calls without proving a durable-write reduction. Preserve authoritative
+  quota, freshness and revocation checks when considering further grouping.
 - [ ] Extend authenticated sample counts across fresh wallets and boots, then
   collect the broader workload and region coverage. These small diagnostics do
   not establish a latency distribution or production readiness. Record refill

@@ -863,6 +863,170 @@ Reproduction and evidence:
   wider authenticated workloads, unlock-call reduction and production regional
   ownership/routing proofs remain open.
 
+## Removing request-time authority initialization (October 1)
+
+Wallet commit `3cb44563` removes `D1WalletAuthorityStore`'s schema-on-use state,
+constructor option, initialization calls and duplicate authority DDL. It also deletes the
+now-unused `ensureWalletAuthMethodStoreD1SchemaV2` helper and re-export. The
+canonical D1 migrations already create these tables/indexes and insert the
+singleton `wallet_authority_cas_guard` row. Transactional guard statements and
+all authority read, activation, promotion and revocation logic are unchanged.
+The V2 auth-method schema still serves the separate auth-method store's existing
+provisioning path; this change only removes the authority store's redundant
+runtime initialization and its unused helper.
+
+`0015_r103e_authority_baseline.sql` owns the authority schema and guard seed.
+Read-only preflight against both retained regional databases verifies all eight
+required table/index objects, the singleton guard value `1`, and the applied
+migration list. No migration or stored-record transformation is needed. Consumers
+must apply the supported signer migrations before serving requests. The removed
+V2 initialization helper was exposed by the `cloud-host` export; callers should
+use the migration workflow. This is an unreleased candidate; npm 0.7.3 remains
+unchanged.
+
+The candidate is rebuilt from the prior archived server source, whose built
+files match the preceding projection candidate byte for byte before the change.
+Only the three audited TypeScript files receive this patch. SDK image, generated
+WASM and custody-role deployments remain frozen. Server type-check, candidate
+build, syntax/diff review and the repository bloat check pass. Evidence records
+source patches and complete candidate build hashes rather than calling it the
+released npm binary.
+
+### Measured unlock call reduction
+
+Both regional homes pass cold unlock and activation-loss recovery with the
+candidate. Gateway D1 calls fall **39 → 30** for ordinary cold unlock (23.1%) and
+**35 → 26** for recovery unlock (25.7%). Challenge remains three calls;
+verification falls 36 → 27 and 32 → 23 respectively. Each workload retains two
+Console calls. All nine initialization calls disappear. Query-fingerprint
+comparison in both regions proves the remaining non-initialization query
+multisets are unchanged, including batch grouping.
+
+| Workload | D1 home | Gateway D1 calls before → after | Summed D1 wall before → after |
+| --- | --- | ---: | ---: |
+| Cold unlock | APAC | 39 → 30 | 2,520 → 2,125 ms |
+| Cold unlock | WEUR | 39 → 30 | 9,718 → 7,799 ms |
+| Recovery unlock | APAC | 35 → 26 | 2,230 → 1,702 ms |
+| Recovery unlock | WEUR | 35 → 26 | 8,869 → 6,429 ms |
+
+The original cold-unlock initialization calls alone took 526 ms (APAC) and
+2,178 ms (WEUR). These before/after wall times come from independent fresh-wallet
+runs, with local amd64 browser emulation and no provider-verified browser region.
+They demonstrate the removed calls and observed diagnostic timing; sample counts
+and order do not establish a latency distribution or a causal population-level
+speedup. The successful WEUR repeat also enables private failure tracing.
+
+Every post-change unlock reports 33 rows written: three in challenge and 30 in
+verify. Before the change, nine `exec` calls lacked row-count metadata; their
+removal does not prove a durable-write reduction. All remaining statement
+metadata reports the selected APAC or WEUR primary. Cold unlock has 37 statement
+descriptors and recovery has 31, including challenge. Background refill traffic
+remains separately identified. The remaining reads/writes stay a follow-up
+optimization target; authoritative quota, freshness and revocation checks must
+remain intact.
+
+### Retained browser failure and baseline restoration
+
+The first candidate cohort completes all three APAC workloads (15 verified
+signatures), then the WEUR chained-device workload reaches registration and both
+links but times out on its first signature. The browser action waits 120 seconds;
+confirmation automation tries 149 times without clicking the control. All three
+lifecycle traces contain zero signing prepare/finalize requests and zero recorded
+lifecycle violations. Background refill reaches available depth five. This
+attempt is classified `environment_or_infrastructure_failure` for verification:
+the subsequent diagnostic below identifies the launcher readiness fault, and
+no successful signing sample is counted. The unchanged candidate is repeated with fresh WEUR wallets;
+private Playwright tracing is enabled for any subsequent failure.
+
+Credential revocation and ingress closure succeed, but Gateway rollback twice
+returns Cloudflare code 10210, “Version not found.” The original baseline is
+version 6 and the latest upload is 108, placing it outside the
+[last-100-version rollback window](https://developers.cloudflare.com/changelog/post/2025-09-11-increased-version-rollback-limit/).
+The original modules remain readable. Re-upload retrieves those original bytes
+and restores the original binding values using preserved benchmark secrets.
+Readback verifies identical module hashes, binding metadata and runtime settings
+before activation. An initial hash comparison was order-sensitive; semantic map
+comparison verifies every module hash without depending on multipart order.
+
+The fresh WEUR repeat verifies cold unlock and activation recovery (six
+signatures), then reproduces the long linking test's confirmation timeout. Its
+private Playwright trace and lifecycle evidence are retained. A focused service
+readiness diagnostic identifies the cause: Vite binds `localhost` to IPv6, while
+Node's HTTP probe resolves it to IPv4. The IPv6 endpoint returns 200, but the
+Node localhost probe receives `ECONNREFUSED`. The launcher consequently kills the
+app servers after its 120-second readiness deadline, even though Chromium has
+already started the scenario. Shorter successful workloads finish before that
+deadline.
+
+Commit `271f78c6` updates `start-wallet-intended-services.mjs` to bind localhost
+app servers explicitly to `127.0.0.1`, keeping advertised origins unchanged. The repeated Node localhost
+probe returns 200. The diagnostic image adds exactly one layer copying this
+launcher onto the existing frozen SDK image; no SDK assets or timeout values
+change. A final long WEUR linking run uses this repaired launcher. The two earlier
+attempts remain failures with zero verified signing samples.
+
+The new baseline is **`23058bf2-2bc1-4c15-838e-1567d8561711`**. All future
+benchmark restorations must use this verified version, with the original
+`e1fa8688-6f5a-45bf-862b-442241789e16` retained as historical identity. Check the
+rollback window before further cohorts; refresh from preserved original bytes
+when needed.
+Final readback for this partial cohort verifies 28 revoked credentials, no active
+binding, inactive original regional probes, default placement and closed access.
+Four Wallet projections are added, including the failed linking attempt's
+registration; monthly-active-resource rows remain zero. Evidence is under Wallet
+`.artifacts/r152/console-sign-local-r3-20261001/` and private Console
+`.artifacts/r152/console-hosted-auth-r17-20261001/`. Preserve
+`failed-linking-attempt.json`, the rollback errors and version readbacks, plus
+`gateway-baseline-restored.json` and `restoration-final.json`.
+
+### Candidate completion and retained evidence
+
+The repaired WEUR chained-device contract runs for 182.7 seconds and verifies
+nine signatures, completing **30 verified signatures across six successful
+workloads**: first/warm/burst, activation-loss recovery and second/third-generation
+linking in each regional D1 home. Preserve the two failed WEUR linking attempts
+separately. Prepare/finalize retains five Gateway D1 calls and two Console calls
+for every one of the eighteen chained-workload signatures; overlapping refill
+requests are excluded from that total. Cold-burst quota exhaustion and recovery
+replay/digest/key-identity assertions all pass.
+
+Final postflight verifies **32 revoked experiment credentials**, no active
+binding, original Console/custody-role versions, the verified re-uploaded Gateway
+baseline, inactive original probes, default placement and closed access
+(403/503). Local containers and environment files are removed. Across these
+three cohorts, Console projections increase from ten to eighteen: six successful
+workload registrations and two failed-attempt registrations. Monthly-active-
+resource rows remain zero. No additional Cloudflare Container applications are
+created for these local-browser runs.
+
+Cumulative measured cost at 11:24:03 UTC is **$1.3347 / $25**, from the same
+September 25 start. Analytics lag still applies; the previously recorded
+$0.3707 Console-app and $0.5714 Tokyo-app conservative compute allowances remain
+separate from measured charges and exclude egress. Evidence hygiene scans
+76 files against eleven known credential values, finds zero matches, and verifies
+no local benchmark containers or environment files remain. Private browser traces
+stay under `.runtime`; they are not copied into the redacted evidence.
+
+- Wallet evidence: `.artifacts/r152/console-sign-local-r3-20261001/`, `local-r4`
+  and `local-r5` with the same date suffix. Each contains attempt ledgers,
+  successful contract artifacts and `unlock-recovery-summary.json`. `local-r4`
+  adds `initialization-comparison.json`; `local-r5` adds
+  `candidate-verification.json`, before/after readiness probes,
+  `launcher-overlay.json`, cost and final restoration receipts.
+- Private Console evidence: `.artifacts/r152/console-hosted-auth-r17-20261001/`,
+  `r18` and `r19` with the same date suffix, including source/build hashes,
+  provisioning, projection and restoration receipts. `r17` retains migration/
+  schema preflight and Gateway baseline restoration evidence.
+- Recompute using matching `.runtime/r152-console-sign-local-r*/analyze.py`,
+  `local-r4/compare.py` and `local-r5/verify-cohort.py`. The server source and
+  compiled candidate are preserved under `.runtime/r152-unlock-initialization/`;
+  the launcher-only Docker overlay is `.runtime/r152-console-readiness-image/`.
+
+This completes the measured initialization-call reduction. Repeated authenticated
+regional cohorts, further write/call review, broader workload coverage and the
+production authority/home-routing proofs remain open. These local-browser
+results do not close Tokyo placement or latency-distribution gates.
+
 ## Target-image diagnosis and hosted Console lookup (October 1)
 
 Authenticated pull-only registry inspection verified that the target tag
