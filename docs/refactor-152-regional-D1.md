@@ -2,15 +2,17 @@
 
 Date: September 30, 2026
 
-Status: planned. A controlled same-wallet London comparison now shows that
+Status: implementation in progress. A controlled same-wallet London comparison shows that
 moving the Gateway to Tokyo alone worsens complete signing latency, despite
 shorter D1 calls. Aligning a regional primary with the existing Gateway/custody
 path remains unmeasured. Provisioning and production rollout stay gated on the
 ownership checks and regional experiment below. The October 1
 [ownership review and first experiment](refactor-152-ownership-review.md)
 defines a whole-deployment-namespace diagnostic and records the remaining
-production routing proof. Provisioning two new test databases requires expanding
-the existing-resources-only benchmark authorization.
+production routing proof. The October 1 implementation request authorizes that
+concrete two-database experiment. Both isolated databases are provisioned and
+have the same 39 migrations; measured placement results are recorded in
+[the regional experiment log](refactor-152-results.md).
 
 ## Objective and starting evidence
 
@@ -70,7 +72,8 @@ remain historical baselines.
 The first two placement preflights dispatched no wallet operations because a
 probe image rollout could not become healthy (Tokyo, then the US). Subsequent
 independent regional cohorts completed successfully. Preserve those failed
-preflights as infrastructure evidence. No regional database has been provisioned.
+preflights as infrastructure evidence. The subsequent October 1 experiment
+provisions fresh APAC and WEUR databases, separately from those earlier cohorts.
 
 An independent London cohort completed the A/B Gateway-placement experiment:
 three same-wallet pairs, all signatures verified. Median D1 wall time fell from
@@ -119,12 +122,12 @@ Human decision time and transaction broadcasting are reported separately.
   linked signing uses five. Replay/rejection correctness evidence remains
   separate from successful-signature latency. These are adopted measured
   budgets; a theoretical minimum remains unproven.
-- [ ] Freeze SDK, Gateway, role builds, schema, concurrency, and refill settings
+- [x] Freeze SDK, Gateway, role builds, schema, concurrency, and refill settings
   for each cohort. Record source revisions and distribution hashes.
-- [ ] Reuse the existing isolated benchmark and per-call D1 instrumentation.
+- [x] Reuse the existing isolated benchmark and per-call D1 instrumentation.
   Correlate browser spans, Gateway requests, and role operations without storing
   credentials, signing material, or request bodies in the public evidence.
-- [ ] Record probe location, ingress colo, available Gateway execution-location
+- [x] Record probe location, ingress colo, available Gateway execution-location
   evidence, role DO placement evidence, and every D1 call's served region and
   primary flag. Mark unknown locations explicitly. Ingress colo alone cannot
   establish where application code executed.
@@ -135,9 +138,12 @@ Human decision time and transaction broadcasting are reported separately.
 
 Experiment preparation can proceed alongside R151. A regional ownership decision
 uses the residual cost after supported call reductions have been implemented.
-R151 r16/r17 already freeze builds and instrument the ready-material London
-workload. The unchecked items above require a matched regional treatment and
-the broader workload matrix; historical observations alone do not close them.
+R151 r16/r17 freeze builds and instrument the ready-material London workload.
+The first R152 regional treatment completes the build, instrumentation, and
+placement evidence for that workload: 54 verified signatures, with owner p95
+2,638.4→899.1 ms and linked p95 2,473.0→952.2 ms. Its small cohort remains below
+the acceptance sample target. The broader workload matrix stays open; see
+[results and limitations](refactor-152-results.md).
 
 ## Phase 2: controlled placement comparison
 

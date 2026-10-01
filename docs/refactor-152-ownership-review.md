@@ -76,7 +76,7 @@ presign identities create new wallet/session objects; shared tenant-root objects
 can remain shared. Record those distinctions and aggregate role placement. A D1
 region hint never proves same-datacenter placement with any DO.
 
-## First bounded experiment, ready for provisioning approval
+## First bounded experiment
 
 Start with London, where the latest owner SDK median is 2,680.5 ms and linked
 median is 2,487.0 ms. The owner has seven full-path D1 calls; linked signing has
@@ -129,9 +129,12 @@ cross-database transaction or a globally fresh authorization authority. See
 [D1 batch](https://developers.cloudflare.com/d1/worker-api/d1-database/#batch),
 and [read replication](https://developers.cloudflare.com/d1/best-practices/read-replication/).
 
-The user's takeover scope explicitly allows **existing isolated resources only**.
-The two new databases require an explicit scope expansion. No databases, new
-credentials, or production routing have been created by this review.
+The initial takeover scope allowed existing isolated resources only. After this
+concrete plan was presented, the October 1 instruction to implement R152
+authorized its two new isolated databases. Provisioning and verification are
+recorded in [the experiment log](refactor-152-results.md). The $25 cap remains;
+production activation, existing-owner migration, and new credentials are outside
+this experiment.
 
 ## Verification and remaining proof
 
