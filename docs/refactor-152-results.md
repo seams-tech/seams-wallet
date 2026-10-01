@@ -1027,6 +1027,137 @@ regional cohorts, further write/call review, broader workload coverage and the
 production authority/home-routing proofs remain open. These local-browser
 results do not close Tokyo placement or latency-distribution gates.
 
+## Removing the duplicate session commit readback (October 1)
+
+Implementation commit: `5ac59f45` on `dev`; unreleased.
+
+The remaining-unlock review identifies one direct duplicate in
+`AuthorizationService.issueDirectWalletSessionAuthorizationV2WithReplayMode`.
+Its D1 commit port already reads the winning mint, validates persisted columns
+and capability subjects, and checks the exact session identity and primary
+credential digest before returning `inserted`. The service then performed the
+same mint read and digest comparison again. Remove that second read and document
+the existing commit-port guarantee. The service's pre-commit replay lookup and
+the store's post-commit validation remain.
+
+This removes ten lines of implementation without adding a cache, changing a
+session type, or moving an authorization decision. The removed mint lookup is a
+commit-identity read which deliberately remains readable after retirement;
+it does not perform live quota, expiry, authority or revocation admission.
+The six-statement session replacement batch and subsequent live admission checks
+remain unchanged. Same-mint losers still return the credential-free committed
+answer. D1 is the sole production implementation of this commit port.
+
+The frozen server candidate adds only the `authorization/service.ts` patch to
+the previous initialization-removal candidate. Only `authorization/service.js`
+and its source map change in the compiled bundle. The SDK, custody roles and
+IPv4 test-launcher image are unchanged. Source, patch and build fingerprints are
+retained separately from all earlier cohorts.
+
+### Hosted verification
+
+Six fresh workloads, run WEUR then APAC, verify **30 signatures**: five
+first/warm/burst signatures, one activation-loss recovery signature and nine
+signatures across three linked devices per D1 home. All six pass on the first
+attempt. Cold-burst quota exhaustion, three exact activation replays,
+altered-digest rejection, unchanged registration-request count and recovered
+key identity remain verified. All eighteen chained-workload signatures retain
+five Gateway D1 calls and two Console calls for prepare/finalize.
+
+| Unlock workload | D1 home | Gateway D1 calls before → after | Summed D1 wall before → after | Browser window before → after |
+| --- | --- | ---: | ---: | ---: |
+| Cold | WEUR | 30 → 29 | 7,799 → 7,821 ms | 13,343.5 → 13,627.8 ms |
+| Activation-loss recovery | WEUR | 26 → 25 | 6,429 → 6,284 ms | 7,965.7 → 7,963.1 ms |
+| Cold | APAC | 30 → 29 | 2,125 → 2,208 ms | 6,108.9 → 7,206.6 ms |
+| Activation-loss recovery | APAC | 26 → 25 | 1,702 → 1,696 ms | 2,929.7 → 2,949.8 ms |
+
+Each unlock retains two Console calls and 33 reported written rows. The challenge
+uses three Gateway calls; verify now uses 26 for cold unlock and 22 for recovery.
+Four baseline/candidate comparisons each remove exactly one `first` query with
+fingerprint `86061681a975fdd3f4a39a60`. The remaining call multisets, batch
+boundaries and write metadata match. Every reported unlock statement is served
+by the selected regional primary; traces have no pending or dropped calls.
+
+These single-sample timings **do not establish a latency gain**. The browser
+runs locally under amd64 Docker emulation with unverified location; the result
+establishes call reduction and correctness. Keep it separate from verified Tokyo
+cohorts and from future regional latency distributions. The before samples come
+from `console-sign-local-r3` (APAC) and `local-r4` (WEUR), not simultaneous paired
+runs. Background traffic remains outside the unlock-route totals.
+
+### Remaining write and read boundaries
+
+The post-initialization unlock traces report the following writes. The figures
+are D1 `rows_written`, which includes index maintenance; they do not count only
+application records. See Cloudflare's [query metadata definition](https://developers.cloudflare.com/api/resources/d1/subresources/database/methods/query/).
+
+| Mutation | D1 rows written per measured unlock | Decision |
+| --- | ---: | --- |
+| Create challenge | 3 | Keep the durable challenge binding. |
+| Consume challenge | 1 | Keep one-use authentication semantics. |
+| Advance authenticator counter | 1 | Keep the conditional counter update. |
+| Record credential use | 3 | Preserve activity history and its version check; any reduction needs an explicit activity-semantics decision or reuse of already verified envelope data. |
+| Exhaust predecessor quota | 2 | Keep in the session replacement batch. |
+| Delete predecessor exchanges / retire hosted credentials | 0 in these samples | Keep both statements: a zero-change sample does not establish absence in other lifecycle states. |
+| Retire predecessor session | 6 | Keep retirement coordinated with quota replacement. |
+| Insert quota | 4 | Keep the authority/method guard and exact quota identity. |
+| Insert session | 13 | Keep exact session/credential identity and the matching-quota guard. |
+| **Total** | **33** | **No write reduction claimed.** |
+
+The six replacement statements account for 25 of the 33 reported writes.
+Inspect index usage before considering index removal; the measurements alone do
+not prove an index obsolete. Batching writes further would not remove their
+logical effects or their index costs.
+
+Other repeated reads require their own evidence. Credential activity currently
+re-finds its envelope after the custody lookup; passing an already verified
+projection is a candidate for a later bounded change. Generic versioned-record
+query fingerprints omit bound keys, so repeated hashes do not prove duplicate
+records. Authority and signer reads surrounding session provisioning must retain
+their current freshness boundaries. Keep these candidates separate from the
+production home-routing proof and prioritize the pending authenticated regional
+repeats before expanding this optimization work.
+
+### Cleanup and reproduction
+
+Type-check, frozen server build, diff checks and `pnpm report:bloat --check` pass.
+Final postflight verifies 34 revoked experiment credentials, zero active bindings,
+six new Console wallet projections (18 → 24), and zero monthly-active-resource
+rows. Original Console/custody-role versions and Gateway baseline
+`23058bf2-2bc1-4c15-838e-1567d8561711` are restored. Original probes remain
+inactive with their original images, sizing and regional constraints; Gateway
+placement is default and probe/ingress return 403/503. Local benchmark containers,
+environment files and transient deployment-secret files are removed. No new
+Cloudflare Container application is created.
+
+Cumulative reported cost at 12:12:02 UTC is **$1.3392 / $25**, measured from
+September 25. Analytics lag and the prior separate compute allowances still
+apply. The evidence hygiene check finds zero matches across 25 files against
+seven known credential values. Private traces remain under `.runtime`.
+
+- Wallet artifacts: `.artifacts/r152/console-sign-local-r6-20261001/`, including
+  the six-attempt ledger, behavioral contracts, `unlock-recovery-summary.json`,
+  `commit-readback-comparison.json`, `candidate-verification.json`, script hashes,
+  cost report and final restoration receipt.
+- Private Console artifacts: `.artifacts/r152/console-hosted-auth-r20-20261001/`,
+  including source/build/patch hashes, retained-version preflight, provisioning,
+  projection verification and restoration receipts.
+- Frozen source/build: `.runtime/r152-session-commit-readback/`. The candidate
+  adds only its recorded service patch to `.runtime/r152-unlock-initialization/`.
+
+Recompute the request-level evidence with:
+
+```sh
+python3 .runtime/r152-console-sign-local-r6/analyze.py
+python3 .runtime/r152-console-sign-local-r6/compare.py
+python3 .runtime/r152-console-sign-local-r6/verify-cohort.py
+```
+
+Future hosted repetitions need fresh attempt IDs and run directories. Preserve
+these cohorts, retain the full query/Console accounting, and verify the recorded
+Gateway baseline remains inside the rollback window before another deployment.
+Authenticated regional repetition and production routing remain open.
+
 ## Target-image diagnosis and hosted Console lookup (October 1)
 
 Authenticated pull-only registry inspection verified that the target tag

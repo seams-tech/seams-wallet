@@ -215,6 +215,18 @@ stale-writer fencing proofs open. The longer E2E also exposes and fixes an
 IPv6/IPv4 test-service readiness mismatch; failed attempts remain in the log.
 See the [candidate results and cleanup](refactor-152-results.md#removing-request-time-authority-initialization-october-1).
 
+A follow-up unlock review removes the service's duplicate post-commit mint
+lookup. The D1 commit port retains its persisted-session and credential-digest
+readback; the six-statement replacement transaction retains authority/method
+checks, predecessor quota/session retirement, hosted-child retirement, and new
+quota/session insertion. Mint readback is deliberately available after retirement
+and provides no live-admission freshness guarantee. Reusing the existing commit
+result therefore leaves the authority boundary in D1. The write review accounts
+for all 33 reported rows, including index maintenance: 25 in session replacement
+and eight in challenge, authenticator and credential-activity operations. This
+review supplies no basis for splitting those mutation boundaries across homes.
+See the [readback reduction and write inventory](refactor-152-results.md#removing-the-duplicate-session-commit-readback-october-1).
+
 Reuse the existing deployment lane, canonical binding revision, activation
 sequence, and bound tenant namespace as the starting routing model. The shared
 `tenant_deployment_binding_v1` currently carries tenant identity, origins,

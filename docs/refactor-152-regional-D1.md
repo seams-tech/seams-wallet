@@ -313,10 +313,18 @@ Use the same workloads and build identities in these arms:
   Remaining query multisets are unchanged. Two failed long linking attempts
   expose a local IPv6/IPv4 readiness mismatch; explicit IPv4 binding fixes the
   launcher and the repeat passes. See the [candidate evidence](refactor-152-results.md#removing-request-time-authority-initialization-october-1).
-- [ ] Review the remaining unlock reads and writes separately. Each post-change
-  unlock reports 33 D1 rows written; the initialization reduction establishes
-  fewer calls without proving a durable-write reduction. Preserve authoritative
-  quota, freshness and revocation checks when considering further grouping.
+- [x] Review the remaining unlock reads and writes separately. The D1 commit
+  adapter already verifies the persisted session and primary credential digest;
+  remove the service's duplicate readback. Account for all 33 reported written
+  rows, including index maintenance: 25 in session replacement and eight in
+  challenge, authenticator and activity operations. Preserve the full replacement
+  transaction and live authority/quota checks. Thirty new verified signatures
+  cover both homes: cold unlock now uses 29 Gateway D1 calls and recovery 25,
+  with two Console calls each. The four query comparisons remove exactly one
+  read; writes remain unchanged and no latency gain is established. Further
+  envelope/activity read reuse remains a bounded optimization candidate;
+  generic query fingerprints alone do not prove duplicate bound records. See the
+  [write inventory and readback reduction](refactor-152-results.md#removing-the-duplicate-session-commit-readback-october-1).
 - [ ] Extend authenticated sample counts across fresh wallets and boots, then
   collect the broader workload and region coverage. These small diagnostics do
   not establish a latency distribution or production readiness. Record refill
