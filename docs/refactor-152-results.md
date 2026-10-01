@@ -227,6 +227,30 @@ and unchanged custody-role versions. The scan found zero benchmark-token matches
 in 27 files. Estimated cumulative spend is $1.2510 of $25, including both regional
 databases and subject to analytics lag.
 
+The user-requested run-six Tokyo retry also failed the ten-minute readiness gate,
+with zero wallet attempts. Rollout `54ba6c9b-4930-4dd9-afc6-e124b65153a1` targeted
+application version 32 and reported one starting instance, zero healthy instances,
+and no detailed health errors. An authenticated identity read returned the old
+image in `nrt13`; stopping that instance and requesting a fresh start changed its
+boot ID but still returned the old image. CPU, memory, and disk configuration were
+identical between the current and target images. This points to target-image
+rollout readiness in the APAC application, without establishing an underlying
+allocation, image-pull, or startup cause. It is insufficient evidence to call the
+failures random. The target digest worked in London. The APAC registry repository
+and tag were listed; direct manifest verification returned unauthorized and remains
+unavailable. No registry credentials were created. The bounded Worker error tail
+captured zero events; it cannot rule out platform errors.
+
+Evidence: `.artifacts/r152/regional-d1-20261001-r6/`, including rollout health,
+old-image identity/restart receipts, instance health, diagnostic limitations, and
+`preflight-outcome.json`. Restoration rollout
+`3d8ace9b-f97e-468a-b6f9-be5683eb5129` completed at version 33. Final verification
+confirms original Worker versions/images, inactive probes, default Gateway
+placement, HTTP 403/503 closure, and unchanged custody roles. The scan found zero
+benchmark-token matches in 29 files. Cumulative estimated cost is $1.2621 of $25,
+subject to analytics lag. Diagnose the target rollout/image with these receipts
+before another identical retry; no Tokyo regional-D1 latency result is available.
+
 ## Console composition preparation
 
 Private Console commit `286bc83` adds existing binding/total Gateway timing to
@@ -248,6 +272,39 @@ Verification commands, log hashes, and blockers are retained in the private
 composition harness against public package boundaries and use isolated services
 before measuring actual Console D1/binding costs. The static Console fixture's
 London results cannot close this production-composition gate.
+
+Private commit `78e3132` adds request-scoped Console binding D1 wall/SQL timing
+and available served-region/primary metadata. The single joined binding query now
+uses D1 `all()` to retain metadata; its row selection and validation are unchanged.
+The internal Console response supplies an allowlisted set of Server-Timing metrics,
+and the Gateway forwards them on ECDSA and session-status responses. No row values,
+SQL parameters, or credentials enter these metrics. Missing placement metadata
+remains absent. Metadata fields follow the
+[D1 return-object contract](https://developers.cloudflare.com/d1/worker-api/return-object/).
+
+A new isolated service E2E passes through a consumer Worker, the production Console
+Worker, and fresh local D1. Eight observations cover an empty binding, concurrent
+correct/wrong-lane lookups at two successive revisions, and removal of the active
+binding. Timing survives the service hop; the wrong lane is rejected and subsequent
+reads observe the new revision or unavailability. It shares the existing deployment
+fixture builder. The consumer uses the production resolver; the signing Gateway's
+response forwarding and complete signing lifecycle remain outside this scenario.
+Local D1 provides no region/primary metadata and its timings are not regional
+performance evidence. One loopback `EADDRNOTAVAIL` failure is retained; an unchanged
+rerun passed in 2.5 seconds. Server/Console type-checks, type fixtures, focused lint,
+and Wallet Console build passed. Evidence and log hashes:
+private `.artifacts/r152/console-binding-20261001/`.
+
+Reproduce independently of occupied browser-stack ports:
+
+```sh
+pnpm -C tests exec playwright test -c playwright.relayer.config.ts \
+  relayer/tenant-deployment-binding.e2e.test.ts --reporter=line
+```
+
+The private intended harness migration remains open. This independent service
+scenario advances measurement readiness without restoring private Wallet imports.
+The instrumentation is committed locally and has not been deployed.
 
 ## Decision and remaining work
 

@@ -118,6 +118,14 @@ The timing is complete binding-lookup wall time, not isolated Console SQL time o
 served-region metadata. Measuring those costs still requires an isolated deployment
 of the real Console composition.
 
+Private follow-up `78e3132` now retains D1 metadata from the same joined binding
+query and forwards allowlisted wall/SQL/region/primary timing through the internal
+service response to ECDSA and status responses. Its isolated local service E2E
+verifies fresh revision reads, wrong-lane rejection, unavailable state, and timing
+propagation through the production Console Worker and resolver. This proves the
+measurement path locally; hosted Console latency and regional metadata remain
+unmeasured. See [the Console preparation results](refactor-152-results.md#console-composition-preparation).
+
 The normal prepare/finalize route definitions use session-principal authentication
 and no API-key metering. The exact status handler reads the Wallet Session's
 operation credential directly. Do not blindly add all Console client operations
