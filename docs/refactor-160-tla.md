@@ -191,8 +191,8 @@ separate demonstrated need.
 
 ## References
 
-- [Router A/B signing and response uncertainty](../spec-5-router-ab-threshold-protocol.md)
-- [Wallet intended behavior](../intended-behaviours.md), especially durable ECDSA preprocessing and cancellation after signing starts
-- [Persistent pool lifecycle](../../crates/router-ab-ecdsa-pool/specs/persistent-pool-lifecycle-v1.md)
+- [Router A/B signing and response uncertainty](./spec-5-router-ab-threshold-protocol.md)
+- [Wallet intended behavior](./intended-behaviours.md), especially durable ECDSA preprocessing and cancellation after signing starts
+- [Persistent pool lifecycle](../crates/router-ab-ecdsa-pool/specs/persistent-pool-lifecycle-v1.md)
 - [Official TLA+ CLI tools](https://github.com/tlaplus/tlaplus#use)
 - [What TLA+ can and cannot check](https://buttondown.com/hillelwayne/archive/what-tla-can-and-cant-check/)
