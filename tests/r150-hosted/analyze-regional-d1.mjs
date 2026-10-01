@@ -3,51 +3,64 @@ import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-const [directory] = process.argv.slice(2);
-if (process.argv.length !== 3) {
-  throw new Error('Usage: analyze-regional-d1.mjs <regional-cohort-directory>');
+const [outputPath, ...directories] = process.argv.slice(2);
+if (directories.length === 0) {
+  throw new Error('Usage: analyze-regional-d1.mjs <output.json> <regional-cohort-directory> ...');
 }
-const root = path.resolve(directory);
-const run = readJson(path.join(root, 'run.json'));
-const ledger = readFileSync(path.join(root, 'weur/attempts.jsonl'), 'utf8')
-  .trim()
-  .split('\n')
-  .map(parseJson);
 const attempts = new Map();
 const samples = [];
 const cohorts = [];
-for (const event of ledger) {
-  if (event.event === 'started') {
-    assert(!attempts.has(event.runId), 'Duplicate attempt');
-    assert(['apac', 'weur'].includes(event.arm), 'Unknown database arm');
-    assert.deepEqual(event.database, run.databaseInventory.arms[event.arm]);
-    attempts.set(event.runId, { arm: event.arm, status: 'incomplete' });
-  } else if (event.event === 'finished') {
-    const attempt = attempts.get(event.runId);
-    assert(attempt && attempt.status === 'incomplete', 'Missing or duplicate start');
-    assert.equal(event.arm, attempt.arm);
-    assert(['succeeded', 'failed'].includes(event.status));
-    attempt.status = event.status;
-    if (event.status === 'succeeded') {
-      assert.equal(path.basename(event.artifact), event.artifact);
-      const artifact = readJson(path.join(root, 'weur', event.artifact));
-      assert.equal(artifact.kind, 'gateway_ecdsa_linked_custody_chain_v1');
-      assert.equal(artifact.verifiedSignatures, 9);
-      assert.equal(artifact.signatures.length, 9);
-      const deviceCounts = [0, 0, 0];
-      const cohortSamples = [];
-      for (const signature of artifact.signatures) {
-        cohortSamples.push(analyzeSignature(signature, event));
-        deviceCounts[signature.device - 1]++;
+const runs = [];
+let baseline = null;
+for (const directory of directories) {
+  const root = path.resolve(directory);
+  const run = readJson(path.join(root, 'run.json'));
+  assert.equal(run.workload, 'linked_chain');
+  const identity = {
+    source: run.source,
+    gatewaySource: run.gatewaySource,
+    databaseInventory: run.databaseInventory,
+  };
+  if (baseline === null) baseline = identity;
+  else assert.deepEqual(identity, baseline, 'Cannot pool different builds or database assignments');
+  runs.push({ directory: path.basename(root), armOrder: run.armOrder });
+  const ledger = readFileSync(path.join(root, 'weur/attempts.jsonl'), 'utf8')
+    .trim()
+    .split('\n')
+    .map(parseJson);
+  for (const event of ledger) {
+    if (event.event === 'started') {
+      assert(!attempts.has(event.runId), 'Duplicate attempt');
+      assert(['apac', 'weur'].includes(event.arm), 'Unknown database arm');
+      assert.deepEqual(event.database, run.databaseInventory.arms[event.arm]);
+      attempts.set(event.runId, { arm: event.arm, status: 'incomplete' });
+    } else if (event.event === 'finished') {
+      const attempt = attempts.get(event.runId);
+      assert(attempt && attempt.status === 'incomplete', 'Missing or duplicate start');
+      assert.equal(event.arm, attempt.arm);
+      assert(['succeeded', 'failed'].includes(event.status));
+      attempt.status = event.status;
+      if (event.status === 'succeeded') {
+        assert.equal(path.basename(event.artifact), event.artifact);
+        const artifact = readJson(path.join(root, 'weur', event.artifact));
+        assert.equal(artifact.kind, 'gateway_ecdsa_linked_custody_chain_v1');
+        assert.equal(artifact.verifiedSignatures, 9);
+        assert.equal(artifact.signatures.length, 9);
+        const deviceCounts = [0, 0, 0];
+        const cohortSamples = [];
+        for (const signature of artifact.signatures) {
+          cohortSamples.push(analyzeSignature(signature, event));
+          deviceCounts[signature.device - 1]++;
+        }
+        assert.deepEqual(deviceCounts, [3, 3, 3]);
+        samples.push(...cohortSamples);
+        cohorts.push({
+          runId: event.runId,
+          arm: event.arm,
+          owner: summarize(selectSamples(cohortSamples, event.arm, 'owner')),
+          linked: summarize(selectSamples(cohortSamples, event.arm, 'linked')),
+        });
       }
-      assert.deepEqual(deviceCounts, [3, 3, 3]);
-      samples.push(...cohortSamples);
-      cohorts.push({
-        runId: event.runId,
-        arm: event.arm,
-        owner: summarize(selectSamples(cohortSamples, event.arm, 'owner')),
-        linked: summarize(selectSamples(cohortSamples, event.arm, 'linked')),
-      });
     }
   }
 }
@@ -84,13 +97,14 @@ const output = {
   scope:
     'London ready-material ECDSA signing with automatic confirmation. Fresh wallet per attempt; repeated signatures within each wallet. Background refill excluded from the signature dependency window.',
   percentileMethod: 'Nearest rank; p50 is median. Small cohorts do not establish a tail bound.',
-  armOrder: run.armOrder,
+  runs,
+  buildIdentity: baseline,
   arms,
   comparisons,
   cohorts,
   signatures: samples,
 };
-writeFileSync(path.join(root, 'summary.json'), `${JSON.stringify(output, null, 2)}\n`);
+writeFileSync(outputPath, `${JSON.stringify(output, null, 2)}\n`);
 console.log(JSON.stringify({ arms, comparisons }, null, 2));
 
 function parseJson(value) {

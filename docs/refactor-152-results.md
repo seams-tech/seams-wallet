@@ -105,8 +105,14 @@ Evidence root: `.artifacts/r152/regional-d1-20261001-r1/`.
 Recompute distributions and validate call accounting with:
 
 ```sh
-node tests/r150-hosted/analyze-regional-d1.mjs .artifacts/r152/regional-d1-20261001-r1
+node tests/r150-hosted/analyze-regional-d1.mjs \
+  .artifacts/r152/regional-d1-20261001-r1/summary.json \
+  .artifacts/r152/regional-d1-20261001-r1
 ```
+
+Pass additional cohort directories to pool repeat runs into a separate output
+file. The analyzer rejects duplicate attempt IDs, different SDK/Gateway build
+identities, or different database assignments before combining samples.
 
 Private configuration and orchestration live under `.runtime/r152-regional-r1/`.
 They reuse the existing migration importer and hosted probe; credentials are

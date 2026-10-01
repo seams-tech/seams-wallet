@@ -71,6 +71,34 @@ binding. Its placement result will measure that isolated topology. It cannot
 establish production latency or consistency for remote Console dependencies;
 each affected production route needs a measured dependency inventory.
 
+An October 1 follow-up inspected private Console source at `83eb3301` in
+`seams-monorepo`. Its split Gateway
+(`packages/wallet-console-server-ts/src/router/cloudflare/d1GatewayWorker.ts`)
+resolves the active deployment binding through `WALLET_CONSOLE` before every
+request and scheduled invocation. `tenantDeployment/d1.ts` implements that
+resolution as one joined active-binding/binding D1 read. Thus the four-request
+owner and two-request linked paths imply four and two additional Console D1
+binding reads in that composition, before counting its other Console operations.
+This is a source-derived request inventory, not a hosted production measurement.
+The existing `wallet_gateway_binding` timing can help measure the added leg.
+
+Reuse the existing deployment lane, canonical binding revision, activation
+sequence, and bound tenant namespace as the starting routing model. The shared
+`tenant_deployment_binding_v1` currently carries tenant identity, origins,
+custody lineage, credentials, and policy digest; it carries no D1 database home.
+The runtime binder validates the lane and replaces tenant identity fields while
+leaving `SIGNER_DB` supplied by deployment configuration. Consequently, the
+existing binding revision alone cannot prove database-home identity or fence a
+stale writer. A new home directory should not duplicate this existing authority;
+prove how deployment binding and the actual database are bound together first.
+
+The private `d1WalletRuntimeWorker.ts` is another home-selection boundary. It
+handles runtime inspection against `SIGNER_DB` and internal wallet-control
+requests before resolving the active tenant binding. Registration setup also
+checks the Console cutover-admission gate. Include those authenticated internal
+paths explicitly in the ownership proof; a check added only to the public
+Gateway would leave this control path outside that check.
+
 Custody remains in the existing role-specific DO deployments. Fresh wallet and
 presign identities create new wallet/session objects; shared tenant-root objects
 can remain shared. Record those distinctions and aggregate role placement. A D1
