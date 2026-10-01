@@ -1953,3 +1953,67 @@ Canonical binding identity, direct activation enforcement, physical D1 binding
 verification, completed provisioning/canary behavior and regional routing remain
 open. No infrastructure was deployed and no new hosted latency or cost claim is
 made by this run.
+
+## Activation home enforcement (October 1)
+
+Private source checkpoint: `seams-monorepo` commit `afeea62`. New deployment
+activation requires a parsed namespace/account/database identity. The store
+checks it against the binding namespace and immutable Console reservation;
+the activation INSERT records account/database IDs and a database trigger checks
+that relationship atomically before applying the active pointer. Migration
+`0048_tenant_deployment_activation_homes.sql` also rejects activation replacement.
+
+The new local D1 scenario verifies:
+
+- A historical activation survives migration with its original binding JSON and
+  revision unchanged, and NULL home columns. It cannot become a home-recorded
+  completed retry merely because a namespace reservation is later supplied.
+- After explicit pinning, a fresh activation adopts the same binding with the
+  required home, increments the sequence and supports exact completed retry.
+  The historical row remains unchanged.
+- Direct activation INSERTs with conflicting or missing home IDs fail. Competing
+  matching/wrong-home service calls activate only the matching request.
+- A completed new activation can be retried after its readiness receipt expires.
+  Two competing valid replacements produce one winner and one activation conflict.
+  The old completed request is rejected after replacement. `INSERT OR REPLACE`
+  cannot replace an activation.
+
+The composed run passed **5 E2Es in 7.8 seconds**, covering credential service,
+namespace reservation, activation, provisioning and binding reads. The final
+activation scenario, extended with successful historical adoption, passed in
+**3.3 seconds**. All **8 existing binding tests** passed after their still-valid
+activation fixtures were updated for the required home and migrations. No new
+unit tests were added. Package type-check, Console test type-check, type fixtures
+and targeted lint passed; the type fixture rejects activation without a home.
+
+Evidence in the private checkout:
+`.artifacts/r152/home-activation-20261001/` retains
+`namespace-home-activation-evidence.json`, `activation-final.log`,
+`verification.json`, `source-sha256.json` and the composed E2E evidence. The
+activation JSON records migration hashes, persisted activation resource IDs,
+race outcomes and the explicit unverified gates. Reproduce from `seams-monorepo`:
+
+```sh
+pnpm -C tests exec playwright test -c playwright.relayer.config.ts \
+  relayer/namespace-home-activation.e2e.test.ts \
+  relayer/namespace-home-provisioning.e2e.test.ts \
+  relayer/namespace-d1-home.e2e.test.ts \
+  relayer/tenant-deployment-binding.e2e.test.ts \
+  relayer/console-service-auth.e2e.test.ts \
+  --reporter=line --output=test-results/r152-home-activation
+```
+
+Scope and cost: this scenario calls the production activation store against real
+local Worker D1, using fixture readiness receipts. It does not run hosted custody
+or verify physical database bindings. Fresh activation adds one reservation read;
+the completed-retry path adds three reads (binding, reservation and recorded
+activation home). These are deployment-control calls; hosted unlock/signing paths
+are unchanged. The trigger performs its SQL check inside the activation call.
+
+The canonical binding payload still excludes home identity. Existing immutable
+revisions hash their exact payload, so that format change needs explicit new
+revisions and an adoption procedure. Existing runtime readers and direct
+administrative active-pointer writes are outside this activation-insert check.
+Before rollout, inventory/pin actual resources, complete canonical/runtime home
+enforcement, verify physical Worker bindings, and exercise full provisioning and
+canary success. No remote migration, deployment or latency measurement occurred.

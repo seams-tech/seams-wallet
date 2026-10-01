@@ -35,7 +35,10 @@ Private commit `a09e454` integrates the reservation into authenticated
 provisioning admission: missing or conflicting assignments fail before cutover,
 custody or credential creation. Existing-resource inventory/pinning, canonical
 binding home identity, physical-resource verification and runtime routing remain
-open. Neither implementation has been deployed.
+open. Private commit `afeea62` also requires the reserved resource at activation
+and records it in the activation transaction. Historical activation rows remain
+unattested; a new activation can record their pinned home without rewriting the
+binding. These changes have not been deployed.
 
 ## Objective and starting evidence
 
@@ -410,8 +413,17 @@ below remain open.
   before deploying the mandatory admission boundary. Initialize fresh hosted
   namespaces through deployment control. Local bootstrap alone reserves its
   configured development resource as part of provisioning.
-- [ ] Require the assigned home in canonical deployment bindings and verify it
-  during activation, including concurrent lanes, completed retry and stale routes.
+- [x] Enforce the reserved home in new activation transactions. Required parsed
+  home inputs and a D1 trigger reject missing/conflicting resources. Local E2E
+  verifies competing activations, completed retry after readiness expiry, stale
+  retry rejection, direct SQL home checks and historical adoption through a new
+  activation. This records assignment identity, with physical verification open.
+- [ ] Require home identity in the canonical binding/runtime contract. Existing
+  revisions hash immutable payloads; introduce the new format with explicit
+  replacement revisions and an adoption procedure. Preserve existing binding
+  bytes/history rather than inserting a field under their existing revision.
+  Cover active-binding reuse and all runtime readers so historical activations
+  cannot silently count as verified regional activation.
 - [ ] Reuse existing trusted tenant/environment routing where possible. Define
   required owner, home, and routing-generation identity at the server boundary.
   Reject inconsistent or stale routes before any mutation. Route lookup itself

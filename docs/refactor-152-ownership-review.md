@@ -468,6 +468,24 @@ hosted unlock/signing. Canonical binding resource identity, physical-resource
 proof and activation enforcement remain open. See the
 [authenticated provisioning evidence](refactor-152-results.md#authenticated-home-admission-october-1).
 
+Private commit `afeea62` extends the activation boundary. A required parsed home
+is checked against both the binding namespace and Console reservation. Migration
+`0048_tenant_deployment_activation_homes.sql` records account/database identity
+on each new activation and checks it in the same D1 transaction via a join to
+the immutable namespace assignment. Direct activation inserts with missing or
+conflicting resource identities fail. Activation replacement is also rejected.
+
+Existing activation rows retain NULL home columns at the persistence boundary.
+The application cannot accept them as completed home-recorded retries: an
+explicit new activation is required. The local adoption E2E creates that new
+activation while retaining the original immutable binding bytes and historical
+row. Completed retries of new activations still succeed after readiness expiry;
+stale retries after replacement fail. The canonical binding format and active
+runtime readers are unchanged. Provisioner's existing active-binding reuse is
+not an adoption operation; rollout still needs explicit inventory, adoption and
+runtime verification gates. See the
+[activation evidence](refactor-152-results.md#activation-home-enforcement-october-1).
+
 Review evidence: `.artifacts/r152/lifecycle-ownership-20261001/source-inventory.json`
 records SHA-256 hashes of the thirteen reviewed Wallet implementation files.
 The adjacent `table-source-index.json` indexes literal references for 53 of the
