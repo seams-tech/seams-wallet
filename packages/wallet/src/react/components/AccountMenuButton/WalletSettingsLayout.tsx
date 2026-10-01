@@ -1,5 +1,6 @@
 import React, { Component, type ReactNode } from 'react';
 import { SEAMS_STANDARD_WORDMARK_PATH } from '@/core/signingEngine/uiConfirm/ui/seamsWordmarkPaths';
+import { blinkMenuItem } from '@/utils/menuItemBlink';
 import type { MenuItem, ProfileSettingsMenuItemId } from './types';
 import { PROFILE_MENU_ITEM_IDS } from './types';
 import { GlobeIcon } from './icons/GlobeIcon';
@@ -120,7 +121,15 @@ export class WalletSettingsLayout extends Component<WalletSettingsLayoutProps, L
       this.matchesSelection.bind(null, event.currentTarget.dataset.section),
     );
     if (!item) return;
-    this.setState({ selected: item.id, mobileMenuOpen: false }, this.focusHeading);
+    const commit = (): void => {
+      this.setState({ selected: item.id, mobileMenuOpen: false }, this.focusHeading);
+    };
+    // On mobile the list closes on a choice, so the chosen row blinks first.
+    if (!this.state.mobileMenuOpen) {
+      commit();
+      return;
+    }
+    void blinkMenuItem(event.currentTarget)?.then(commit);
   };
 
   private matchesSelection(id: string | undefined, item: (typeof SETTINGS_ITEMS)[number]): boolean {

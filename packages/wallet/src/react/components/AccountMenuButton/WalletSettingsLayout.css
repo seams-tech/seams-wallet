@@ -109,6 +109,14 @@
 .seams-settings-navigation button[aria-current='page'] {
   background: var(--seams-colors-surface2);
 }
+/* A row chosen from the open mobile list blinks once, highlight off then on,
+   before the list closes (blinkMenuItem). */
+.seams-settings-navigation button[data-blink='off'] {
+  background: transparent;
+}
+.seams-settings-navigation button[data-blink='on'] {
+  background: var(--seams-colors-surface);
+}
 .seams-settings-theme-toggle:focus-visible,
 .seams-settings-navigation button:focus-visible,
 .seams-settings-action:focus-visible,
