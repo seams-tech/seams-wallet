@@ -698,6 +698,171 @@ Console `1420581`. Publishing a new Wallet Server version and deploying its matc
 Console handler remain release work; npm 0.7.3 is unchanged. Deploy the handler
 before activating a Gateway version that requires the new operation.
 
+## Unlock accounting and activation recovery (October 1)
+
+Wallet commit `7402c264` extends the existing first/warm/burst E2E with a separate
+cold-unlock request window using `GatewayRequestEvidence`. It retains individual
+Gateway D1 calls, statements, served-region metadata and Console binding calls,
+with overlapping refill requests listed separately. The existing activation-loss
+contract is also exposed as a hosted probe workload and emits its recovery window
+and one verified signature. No SDK or server behavior changes in this work.
+
+The recovery contract discards the first committed activation response, delivers
+the exact server replay, reloads, rejects an altered activation digest before
+unlock, resumes with the exact passkey, and verifies a signature against the
+original registered key. Direct Playwright replay bypasses the browser's
+benchmark-access interceptor; commit `14a62b68` supplies that header explicitly.
+This is a `valid_test_needs_update` classification for hosted execution. The
+original local behavior remains supported. Type-checking, test discovery in the
+built images and the bloat check pass.
+
+Both diagnostic images layer only tests, the probe workload selector and source
+metadata onto the frozen SDK image
+`747fdf75e8b820377d802ef4aa934af6e6605323679ba83ce611bb36ee88d877`.
+The corrected image's Linux manifest is
+`b2e553bf2f0fff7165f95bb6591a07ec9bd3b27a3a30c65072090012fd8e8f92`;
+the SDK build-input hash remains
+`04c22bce8247167bb0cd7beebb2ad7e29f1ed92b65762f180570a0a520c0ad29`.
+The separately fingerprinted Gateway server candidate from the preceding section
+is unchanged. These images are retained for reproduction.
+
+### Retained preflight failures
+
+- Probe `console-sign-r11` waits for Cloudflare snapshot preparation, then receives
+  HTTP 500 on its first Worker readiness read. It stops before any wallet attempt
+  and removes its application, namespace and Worker. The next private runner
+  retains response bodies and permits bounded retries of read-only readiness.
+- Console composition `console-hosted-auth-r13` receives D1 API HTTP 403 and
+  restoration-readback HTTP 401 from a cached token after deployment. Fresh
+  authentication succeeds, confirms credential revocation and restoration, and
+  records the failure. Subsequent private runners retrieve authentication for
+  each API request. No wallet operation is dispatched.
+- Probe `console-sign-r13` passes Worker readiness but its identity GET times out;
+  provider readback lists no allocated instance. Collection is stopped before
+  the wallet-attempt ledger exists. Manual cleanup removes the exact recorded
+  application, retires its DO namespace and deletes its Worker. Postflight
+  verifies original deployments, inactive original probes, default placement and
+  closed access. All 22 credentials existing at that point are revoked, with
+  no active experiment binding. This is an infrastructure allocation/startup
+  limitation; no Wallet failure or signature sample is attributed to it.
+
+The follow-up uses a local Docker browser with the same frozen SDK against the
+real hosted Gateway, Console and two regional D1 homes. Its browser location is
+unverified and amd64 execution is emulated on the local host. Keep its correctness
+and call-accounting evidence separate from provider-verified Tokyo latency
+cohorts. The provider-verified diagnostic repeat remains open.
+
+### Local-browser cold unlock accounting
+
+The first local cohort completes APAC then WEUR first/warm/burst contracts:
+**ten verified signatures**, with shared-budget exhaustion asserted in each arm.
+Each fresh wallet resets runtime state and completes one explicit unlock. Console
+authority stays in APAC and Gateway D1 uses the selected regional primary.
+
+| Unlock request | Gateway D1 calls | Statement descriptors | APAC D1 wall | WEUR D1 wall | Console calls |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Challenge | 3 | 3 | 205 ms | 739 ms | 1 |
+| Verify | 36 | 43 | 2,315 ms | 8,979 ms | 1 |
+| Total | **39** | **46** | **2,520 ms** | **9,718 ms** | **2** |
+
+The browser unlock windows are 7,511.6 ms and 15,736.7 ms respectively. Each
+Console call reports 63 ms. These are two diagnostic samples from an emulated
+local browser, with fixed arm order; they establish call accounting rather than
+a Tokyo latency distribution or a causal population-level speedup. Request
+windows retain overlapping refill traffic separately. Summed call wall time is
+not interchangeable with complete browser elapsed time.
+
+Verify includes **nine runtime schema/initialization `exec` calls**: eight CREATE
+descriptors and one `INSERT OR IGNORE` for `wallet_authority_cas_guard`. The
+remaining 34 verify statement descriptors report the selected APAC or WEUR
+region; all three challenge descriptors do likewise. D1 `exec` provides no
+SQL-duration, row-count or served-region metadata in this trace. The analyzer
+preserves these nine unknowns, with 30 known verify rows written and three known
+challenge rows written; it does not count missing values as zero. An initial
+analyzer failure on missing metadata was corrected without modifying raw traces.
+
+Follow-up: audit authority-store construction and deployment migrations, then
+remove request-time schema initialization where provisioning already guarantees
+the schema. Preserve guarded inserts and authority invariants; repeat this E2E
+on a separately fingerprinted candidate before claiming any call reduction.
+Review the remaining unlock reads/writes after that concrete target. This work
+is independent of regional-home routing and does not change this frozen cohort.
+
+The third workload (WEUR activation recovery) fails before the intended browser
+recovery assertion: Playwright `route.fetch` reports `Parse Error: Header overflow` while receiving the initial activation response. Node's default header
+limit rejects the benchmark's large D1 diagnostic header. The browser consequently
+receives `Failed to fetch`; this attempt supplies no successful recovery proof.
+The server did commit one additional Wallet projection. Retain it alongside the
+two successful cold-unlock registrations, and use fresh wallets for the repeat.
+Classification: `environment_or_infrastructure_failure` in the diagnostic
+runner. The follow-up sets `--max-http-header-size=131072` for the benchmark's
+Node children and retains all response diagnostics and behavior assertions.
+
+Evidence: Wallet `.artifacts/r152/console-sign-local-r1-20261001/`, especially
+`local/attempts.jsonl`, both successful workload artifacts and
+`unlock-recovery-summary.json`; private Console
+`.artifacts/r152/console-hosted-auth-r15-20261001/`. Postflight verifies all original
+Gateway/Console/role versions restored, all 24 experiment credentials revoked,
+no active experiment binding and no transient deployment secret files. The
+Wallet projection count increases from five to eight, including the failed
+activation attempt's committed row.
+
+### Browser activation-loss recovery through hosted Console
+
+The fresh local-browser repeat runs WEUR then APAC with the same frozen image
+and server candidate, adding only the Node header-limit setting. Both ECDSA-only
+recovery contracts pass: **two more verified signatures**. Each contract discards
+the original issued activation response, delivers an exact `already_committed`
+replay, reloads, rejects an altered activation digest before unlock, then resumes
+with the exact passkey. Assertions verify three exact replays, one explicit
+unlock, no additional registration requests, and a signature recovering the
+original registered address. No Wallet production behavior changes were needed.
+
+Each recovery unlock uses three challenge D1 calls and 32 verify D1 calls:
+**35 Gateway D1 calls plus two Console calls**. The nine initialization `exec`
+calls remain. Summed challenge/verify D1 wall is 2,230 ms for APAC and 8,869 ms
+for WEUR; the successful browser recovery windows are 3,927.1 ms and 9,987.5 ms.
+These windows include the final replay and browser work; they are distinct from
+ordinary cold unlock and from timed signatures. Keep their different 35-call
+and 39-call budgets separate. They remain single local-browser diagnostics,
+without provider-verified browser placement or a regional latency distribution.
+
+Console projection readback increases from eight to ten rows, exactly one for
+each successful recovery registration. Monthly active-resource rows remain
+zero. Final postflight verifies **26 revoked experiment credentials**, zero
+active bindings, all original Gateway/Console/custody-role versions restored,
+inactive original regional probes, original images/sizing, default Gateway
+placement and closed probe/ingress access (403/503). Both local Docker containers
+and their environment files are removed. All ten temporary Console-diagnostic
+Cloudflare application/namespace/Worker bundles from this and previous cohorts
+have deletion receipts. Retained databases and audit rows remain available.
+
+Cumulative analytics at 10:46:57 UTC report **$1.3281 / $25**, using the same
+September 25 start as prior reports. Container analytics still omit temporary
+applications. The separate conservative CPU/memory/disk allowance for all ten
+Console-diagnostic apps is $0.3707, assuming up to three candidates ran for each
+full application lifetime; it excludes egress and is not added as measured
+billing. The earlier nine Tokyo apps retain their separate $0.5714 allowance.
+The final evidence scan checks 113 files against thirteen known credential
+values and finds zero matches. No staging or production deployment is made.
+
+Reproduction and evidence:
+
+- Wallet `.runtime/r152-console-sign-local-r2/run.mjs` and `analyze.py`;
+  `.artifacts/r152/console-sign-local-r2-20261001/` contains both recovery
+  artifacts, the attempt ledger, `unlock-recovery-summary.json`,
+  `runner-sources.json`, cost/compute reports, `restoration-final.json` and
+  `evidence-hygiene.json`.
+- Private Console `.runtime/r152-console-hosted-auth-r16/` contains the
+  provisioning and cleanup runner; corresponding
+  `.artifacts/r152/console-hosted-auth-r16-20261001/` retains `sources.json`,
+  operations, restoration, `projection-verification.json` and postflight.
+- Keep the failed local-r1 activation attempt and all provider startup failures
+  separate. This follow-up completes unlock call accounting and ECDSA browser
+  activation recovery against hosted services. Provider-verified repetitions,
+  wider authenticated workloads, unlock-call reduction and production regional
+  ownership/routing proofs remain open.
+
 ## Target-image diagnosis and hosted Console lookup (October 1)
 
 Authenticated pull-only registry inspection verified that the target tag

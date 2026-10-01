@@ -134,6 +134,8 @@ function startAttempt(attempt) {
   attempts.set(attempt.runId, state);
   const env = {
     ...process.env,
+    // Activation traces can exceed Node's default response-header limit.
+    NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ''} --max-http-header-size=131072`.trim(),
     // The only origins each arm's ingress and Gateway accept.
     SEAMS_INTENDED_APP_URL: 'http://localhost:4201',
     SEAMS_INTENDED_WALLET_ORIGIN: 'http://localhost:4202',

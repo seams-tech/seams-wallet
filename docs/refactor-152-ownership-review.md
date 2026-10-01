@@ -193,6 +193,17 @@ samples use different recorded boots. Production routing remains gated on repeat
 measurements, remaining workload coverage and the authority proofs below.
 See the [fixture and startup evidence](refactor-152-results.md#hosted-console-fixture-provisioning-october-1).
 
+A separate local Docker browser follow-up verifies ten cold-unlock/burst
+signatures and two activation-loss recovery signatures against hosted services.
+Ordinary cold unlock uses 39 Gateway D1 calls plus two Console calls; activation
+recovery uses 35 plus two. Both include nine runtime schema/initialization calls,
+a concrete target for a separately fingerprinted optimization. Recovery rejects
+an altered activation digest, resumes the same wallet/key after reload and
+creates exactly one Console projection per registration, with zero monthly
+billing rows. These local-browser observations close diagnostic accounting and
+ECDSA recovery correctness, without establishing regional browser placement or
+production home-routing safety. See the [detailed evidence](refactor-152-results.md#unlock-accounting-and-activation-recovery-october-1).
+
 Reuse the existing deployment lane, canonical binding revision, activation
 sequence, and bound tenant namespace as the starting routing model. The shared
 `tenant_deployment_binding_v1` currently carries tenant identity, origins,

@@ -11,7 +11,9 @@ The first real-Console Tokyo diagnostic verifies eighteen signatures. The
 registration projection gap is now fixed in source and verified through hosted
 replay/reply-loss checks. A separate server candidate verifies a reversed-order
 18-signature comparison and cold unlock/burst in both D1 arms (28 candidate
-signatures total). Repeated authenticated cohorts,
+signatures total). A separate local-browser follow-up verifies twelve more
+signatures, measures individual cold-unlock calls and proves ECDSA activation-loss
+recovery through hosted Console. Repeated authenticated cohorts,
 broader workloads and production routing remain gated on the checks below. The October 1
 [ownership review and first experiment](refactor-152-ownership-review.md)
 defines a whole-deployment-namespace diagnostic and records the remaining
@@ -285,10 +287,28 @@ Use the same workloads and build identities in these arms:
   identity. These single samples use different boots and do not establish a
   controlled latency gain. Server replay/reply-loss checks yield four total new
   projections across the candidate cohorts, with no monthly billing rows.
-- [ ] Measure unlock's individual Console/D1 calls separately and cover browser
-  recovery after losing the original activation response. Server replay returns
-  `already_committed` and requires explicit unlock; the observer preserved the
-  original issued response for the signing workload.
+- [x] Measure unlock's individual Console/D1 calls separately. A local Docker
+  browser against the frozen hosted candidate verifies ten first/warm/burst
+  signatures. Each unlock uses 39 Gateway D1 calls and two Console calls,
+  including nine runtime schema/initialization calls. Summed Gateway D1 wall is
+  2.520s with APAC and 9.718s with WEUR; unknown `exec` metadata stays unknown.
+  This closes diagnostic call accounting, with provider-verified regional
+  repeats still open. See the [measurement scope and artifacts](refactor-152-results.md#local-browser-cold-unlock-accounting).
+- [x] Cover ECDSA browser recovery after losing the original activation response
+  through hosted Console. Fresh local-browser WEUR/APAC runs each verify three
+  exact replays, altered-digest rejection before unlock, one explicit unlock,
+  unchanged registration-request count and a signature from the original key.
+  Each creates one Console projection, with zero monthly billing rows. Recovery
+  uses 35 Gateway D1 calls plus two Console calls. This is correctness evidence;
+  provider-verified regional repetition remains open. Preserve the earlier
+  diagnostic header-overflow failure separately. See the [recovery evidence](refactor-152-results.md#browser-activation-loss-recovery-through-hosted-console).
+- [ ] Reduce the demonstrated unlock overhead in a separate candidate. Audit
+  authority-store construction and deployment migration guarantees before
+  removing nine request-time schema/initialization calls. Preserve guarded
+  authority inserts, compare per-call counts and writes, and verify cold unlock,
+  activation recovery and signing with the existing E2Es. Keep this optimization
+  separate from the frozen placement comparison and retain the broader
+  write/round-trip reduction task below.
 - [ ] Extend authenticated sample counts across fresh wallets and boots, then
   collect the broader workload and region coverage. These small diagnostics do
   not establish a latency distribution or production readiness. Record refill
