@@ -7,6 +7,7 @@ import {
   ROUTER_AB_ED25519_YAO_REGISTRATION_ADMISSION_PATH_V1,
   ROUTER_AB_ED25519_YAO_REGISTRATION_EXECUTE_PATH_V1,
 } from '@shared/utils/routerAbEd25519Yao';
+import { hasExactKeys } from '@shared/utils/exactKeys';
 import type {
   VersionedJsonObject,
   VersionedJsonRecordPutResult,
@@ -342,7 +343,7 @@ function decodeRouterAbEd25519YaoProductRegistrationBytesV1(
   value: RouterAbEd25519YaoProductRegistrationJsonObjectV1,
 ): DecodeRouterAbEd25519YaoProductRegistrationStateValueV1 {
   if (
-    !hasExactRouterAbEd25519YaoProductRegistrationJsonKeys(value, ['__seamsType', 'values']) ||
+    !hasExactKeys(value, ['__seamsType', 'values']) ||
     value.__seamsType !== BYTES_KIND ||
     !Array.isArray(value.values)
   ) {
@@ -362,7 +363,7 @@ function decodeRouterAbEd25519YaoProductRegistrationMapV1(
   value: RouterAbEd25519YaoProductRegistrationJsonObjectV1,
 ): DecodeRouterAbEd25519YaoProductRegistrationStateValueV1 {
   if (
-    !hasExactRouterAbEd25519YaoProductRegistrationJsonKeys(value, ['__seamsType', 'entries']) ||
+    !hasExactKeys(value, ['__seamsType', 'entries']) ||
     value.__seamsType !== MAP_KIND ||
     !Array.isArray(value.entries)
   ) {
@@ -387,7 +388,7 @@ function decodeRouterAbEd25519YaoProductRegistrationSetV1(
   value: RouterAbEd25519YaoProductRegistrationJsonObjectV1,
 ): DecodeRouterAbEd25519YaoProductRegistrationStateValueV1 {
   if (
-    !hasExactRouterAbEd25519YaoProductRegistrationJsonKeys(value, ['__seamsType', 'values']) ||
+    !hasExactKeys(value, ['__seamsType', 'values']) ||
     value.__seamsType !== SET_KIND ||
     !Array.isArray(value.values)
   ) {
@@ -438,20 +439,7 @@ function exactRouterAbEd25519YaoProductRegistrationStateEnvelopeV1(
   input: unknown,
 ): RouterAbEd25519YaoProductRegistrationJsonObjectV1 | null {
   if (!isRouterAbEd25519YaoProductRegistrationJsonObjectV1(input)) return null;
-  return hasExactRouterAbEd25519YaoProductRegistrationJsonKeys(input, ['kind', 'state'])
-    ? input
-    : null;
-}
-
-function hasExactRouterAbEd25519YaoProductRegistrationJsonKeys(
-  input: RouterAbEd25519YaoProductRegistrationJsonObjectV1,
-  fields: readonly string[],
-): boolean {
-  const actual = Object.keys(input);
-  return (
-    actual.length === fields.length &&
-    actual.every((field) => fields.some((expectedField) => expectedField === field))
-  );
+  return hasExactKeys(input, ['kind', 'state']) ? input : null;
 }
 
 function assertNever(value: never): never {

@@ -11,6 +11,9 @@ export function emailOtpDeviceEnrollmentId(walletId: string, providerSubject: st
   return `email-otp-device-enrollment-v1:${normalizedWalletId}:${normalizedProviderSubject}`;
 }
 
+/** Domain label that opens the AAD binding a released Email OTP factor to its challenge. */
+export const EMAIL_OTP_FACTOR_RELEASE_AAD_DOMAIN_V1 = 'seams/email-otp/factor-release/v1';
+
 const WALLET_UNLOCK_BACKENDS = ['passkey', EMAIL_OTP_CHANNEL] as const;
 
 export type WalletUnlockBackend = (typeof WALLET_UNLOCK_BACKENDS)[number];

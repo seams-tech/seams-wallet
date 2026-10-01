@@ -575,23 +575,11 @@ async function executeRouterAbEcdsaDerivationNormalSigningRoute(
         ? parseRouterAbEcdsaDerivationEvmDigestSigningRequestV1(input.body)
         : parseRouterAbEcdsaDerivationEvmDigestSigningFinalizeRequestV1(input.body);
     const operation = await admitRouterAbEcdsaReusableWalletSessionOperation({
+      phase: input.phase,
       request,
-      materialActivation: authorization.admission.materialActivation,
-      binding:
-        authorization.kind === 'wallet_session_operation_credential_v1'
-          ? {
-              kind: 'wallet_session_operation_credential_v1' as const,
-              context: authorization.validated.admission.context,
-            }
-          : {
-              kind: 'wallet_session_operation_credential_exhausted_candidate_v1' as const,
-              candidate: authorization.candidate,
-            },
+      material: authorization.activeMaterial,
+      binding: authorization,
       authorizedOperations: input.ctx.service.authorizedOperations,
-      resolveEcdsaMaterialActivation:
-        input.ctx.service.walletRegistration.resolveEcdsaMaterialActivation.bind(
-          input.ctx.service.walletRegistration,
-        ),
     });
     if (!operation.ok) {
       const failureBody = operation.error.body;
@@ -633,16 +621,6 @@ async function executeRouterAbEcdsaDerivationNormalSigningRoute(
     }
     if (operation.admission.kind === 'replayed') {
       return routerAbEcdsaReplayResponse(operation.admission.operation);
-    }
-    if (operation.admission.kind === 'claimed' && input.phase === 'finalize') {
-      return json(
-        {
-          ok: false,
-          code: 'authorized_operation_missing',
-          message: 'ECDSA finalize requires a claimed prepare operation',
-        },
-        { status: 409 },
-      );
     }
     const ownerDecision = decideRouterAbEcdsaOwnerOperationAuthorization({
       operation: operation.admission.operation,
@@ -836,7 +814,7 @@ type RouterAbEcdsaResolvedMaterialActivation = Omit<
     Awaited<ReturnType<RouterApiWalletRegistrationService['resolveEcdsaMaterialActivation']>>,
     { readonly ok: true }
   >,
-  'routerAbEcdsaDerivationNormalSigning'
+  'routerAbEcdsaDerivationNormalSigning' | 'readSnapshot'
 >;
 
 type RouterAbEcdsaV2OperationStepUpResolution =
@@ -1019,6 +997,7 @@ async function issueEcdsaOperationStepUpAuthorization(input: {
     v2Resolution.kind === 'admitted'
       ? v2Resolution.activeMaterial
       : await input.ctx.service.walletRegistration.resolveEcdsaMaterialActivation({
+          source: { kind: 'database' },
           walletId: operation.wallet_id,
           materialActivation: operation.material_activation,
         });
@@ -1516,7 +1495,6 @@ type RouterAbEcdsaPoolFillAuthorizationResult =
     };
 
 type EcdsaPresignGatewayTiming = {
-  queue: number | null;
   authenticate: number | null;
   material: number | null;
   admit: number | null;
@@ -1531,7 +1509,6 @@ async function handleEcdsaPoolFillRoute(input: {
 }): Promise<Response> {
   const startedAt = performance.now();
   const timing: EcdsaPresignGatewayTiming = {
-    queue: null,
     authenticate: null,
     material: null,
     admit: null,
@@ -1595,34 +1572,25 @@ async function executeEcdsaPoolFillRoute(
     return json(parsed.body, { status: thresholdEcdsaStatusCode(parsed.body) });
   }
   const request = parsed.request;
-  const queuedAt = performance.now();
-  const gateTicket = await presignPriorityGate.acquire(
-    resolvePresignTrafficClass(request.requestTag),
-  );
-  timing.queue = performance.now() - queuedAt;
-  try {
-    const authorized = await authorizeEcdsaPoolFill({ ctx: input.ctx, request, timing });
-    if (!authorized.ok) {
-      return json(authorized.error.body, { status: authorized.error.status });
-    }
-    const proxyStartedAt = performance.now();
-    const result =
-      'poolFill' in request
-        ? await runtime.initializePoolFill({
-            binding: authorized.binding,
-            request: ecdsaPoolFillInitRuntimeRequest(request),
-            onServerTiming: collectEcdsaPresignWorkerTiming.bind(undefined, workerTimings),
-          })
-        : await runtime.advancePoolFill({
-            binding: authorized.binding,
-            request: ecdsaPoolFillStepRuntimeRequest(request),
-            onServerTiming: collectEcdsaPresignWorkerTiming.bind(undefined, workerTimings),
-          });
-    timing.proxy = performance.now() - proxyStartedAt;
-    return json(result, { status: thresholdEcdsaStatusCode(result) });
-  } finally {
-    gateTicket.release();
+  const authorized = await authorizeEcdsaPoolFill({ ctx: input.ctx, request, timing });
+  if (!authorized.ok) {
+    return json(authorized.error.body, { status: authorized.error.status });
   }
+  const proxyStartedAt = performance.now();
+  const result =
+    'poolFill' in request
+      ? await runtime.initializePoolFill({
+          binding: authorized.binding,
+          request: ecdsaPoolFillInitRuntimeRequest(request),
+          onServerTiming: collectEcdsaPresignWorkerTiming.bind(undefined, workerTimings),
+        })
+      : await runtime.advancePoolFill({
+          binding: authorized.binding,
+          request: ecdsaPoolFillStepRuntimeRequest(request),
+          onServerTiming: collectEcdsaPresignWorkerTiming.bind(undefined, workerTimings),
+        });
+  timing.proxy = performance.now() - proxyStartedAt;
+  return json(result, { status: thresholdEcdsaStatusCode(result) });
 }
 
 function poolFillMaterialActivation(
@@ -1827,6 +1795,7 @@ export async function authorizeEcdsaPoolFill(input: {
       const materialStartedAt = performance.now();
       const activeMaterial =
         await input.ctx.service.walletRegistration.resolveEcdsaMaterialActivation({
+          source: { kind: 'database' },
           walletId: String(session.walletId),
           materialActivation: routerAbMpcMaterialActivationRefToWire(admitted.materialActivation),
         });
@@ -1958,63 +1927,6 @@ function ecdsaPoolFillStepRuntimeRequest(
     ...(request.requestTag === undefined ? {} : { requestTag: request.requestTag }),
   };
 }
-
-type PresignTrafficClass = 'foreground' | 'background';
-
-type PresignPriorityTicket = {
-  release: () => void;
-};
-
-// Workers cannot safely resolve a Promise created by another request context.
-function resolvePresignPriorityTurn(resolve: (value: void | PromiseLike<void>) => void): void {
-  setTimeout(resolve, 5);
-}
-
-function waitForPresignPriorityTurn(): Promise<void> {
-  return new Promise(resolvePresignPriorityTurn);
-}
-
-class PresignPriorityGate {
-  private foregroundInFlight = 0;
-  private backgroundInFlight = 0;
-
-  async acquire(trafficClass: PresignTrafficClass): Promise<PresignPriorityTicket> {
-    if (trafficClass === 'foreground') {
-      this.foregroundInFlight += 1;
-      return this.createTicket('foreground');
-    }
-    while (!this.canRunBackgroundNow()) {
-      await waitForPresignPriorityTurn();
-    }
-    this.backgroundInFlight += 1;
-    return this.createTicket('background');
-  }
-
-  private createTicket(trafficClass: PresignTrafficClass): PresignPriorityTicket {
-    let released = false;
-    return {
-      release: () => {
-        if (released) return;
-        released = true;
-        if (trafficClass === 'foreground') {
-          this.foregroundInFlight = Math.max(0, this.foregroundInFlight - 1);
-        } else {
-          this.backgroundInFlight = Math.max(0, this.backgroundInFlight - 1);
-        }
-      },
-    };
-  }
-
-  private canRunBackgroundNow(): boolean {
-    return this.foregroundInFlight === 0 && this.backgroundInFlight === 0;
-  }
-}
-
-function resolvePresignTrafficClass(requestTag: string | undefined): PresignTrafficClass {
-  return requestTag === 'background_presign_pool_refill' ? 'background' : 'foreground';
-}
-
-const presignPriorityGate = new PresignPriorityGate();
 
 type StrictEcdsaPostRegistrationRequest =
   | {
@@ -2895,6 +2807,7 @@ async function authorizeStrictEcdsaExport(input: {
     }
     const activeMaterial =
       await input.ctx.service.walletRegistration.resolveEcdsaMaterialActivation({
+        source: { kind: 'database' },
         walletId: operation.wallet_id,
         materialActivation: input.request.material_activation,
       });

@@ -1,8 +1,6 @@
-use std::fs;
-use std::path::{Path, PathBuf};
-use std::process::{Command, Output};
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::{SystemTime, UNIX_EPOCH};
+mod support {
+    pub mod ui;
+}
 
 use ed25519_yao_generator::ceremony_context::*;
 use ed25519_yao_generator::lifecycle_domain::{
@@ -10,6 +8,8 @@ use ed25519_yao_generator::lifecycle_domain::{
     RefreshRequestV1, RegistrationRequestV1, UniformLifecycleAbortV1,
 };
 use ed25519_yao_generator::{canonical_ceremony_fixture_dag_v1, RegisteredEd25519PublicKey32V1};
+
+use support::ui::{self, UiHarness};
 
 #[test]
 fn uniform_abort_envelope_has_one_exact_public_shape_for_all_five_branches() {
@@ -218,56 +218,6 @@ fn export_wrapper_owns_the_matching_canonical_dag() {
     assert_eq!(request.validated_dag(), expected);
 }
 
-struct UiHarness {
-    directory: PathBuf,
-}
-
-static UI_HARNESS_SEQUENCE: AtomicU64 = AtomicU64::new(0);
-
-impl UiHarness {
-    fn create() -> Self {
-        let nonce = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("system clock follows Unix epoch")
-            .as_nanos();
-        let sequence = UI_HARNESS_SEQUENCE.fetch_add(1, Ordering::Relaxed);
-        let directory = std::env::temp_dir().join(format!(
-            "ed25519-yao-canonical-lifecycle-ui-{}-{nonce}-{sequence}",
-            std::process::id()
-        ));
-        fs::create_dir_all(directory.join("src")).expect("create UI harness source directory");
-        let manifest_directory = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .canonicalize()
-            .expect("canonical generator path");
-        let dependency_path = manifest_directory.to_string_lossy().replace('\\', "\\\\");
-        fs::write(
-            directory.join("Cargo.toml"),
-            format!(
-                "[package]\nname = \"canonical-lifecycle-ui\"\nversion = \"0.0.0\"\nedition = \"2021\"\n\
-                 [dependencies]\ned25519-yao-generator = {{ path = \"{dependency_path}\" }}\n"
-            ),
-        )
-        .expect("write UI harness manifest");
-        Self { directory }
-    }
-
-    fn check(&self, body: &str) -> Output {
-        fs::write(self.directory.join("src/main.rs"), body).expect("write UI harness source");
-        Command::new(std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into()))
-            .args(["check", "--quiet", "--offline"])
-            .current_dir(&self.directory)
-            .env("CARGO_TARGET_DIR", self.directory.join("target"))
-            .output()
-            .expect("execute UI cargo check")
-    }
-}
-
-impl Drop for UiHarness {
-    fn drop(&mut self) {
-        let _ = fs::remove_dir_all(&self.directory);
-    }
-}
-
 struct CompileFailure<'a> {
     name: &'a str,
     body: &'a str,
@@ -276,19 +226,7 @@ struct CompileFailure<'a> {
 }
 
 fn assert_compile_failure(harness: &UiHarness, case: CompileFailure<'_>) {
-    let output = harness.check(case.body);
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(
-        !output.status.success(),
-        "UI case `{}` unexpectedly compiled",
-        case.name
-    );
-    assert!(
-        stderr.contains(case.code),
-        "UI case `{}` failed without {}:\n{stderr}",
-        case.name,
-        case.code
-    );
+    let stderr = ui::assert_compile_failure(harness, case.body, case.code);
     for needle in case.needles {
         assert!(
             stderr.contains(needle),
@@ -300,7 +238,7 @@ fn assert_compile_failure(harness: &UiHarness, case: CompileFailure<'_>) {
 
 #[test]
 fn external_api_rejects_legacy_construction_and_cross_branch_mixups() {
-    let harness = UiHarness::create();
+    let harness = UiHarness::create("canonical-lifecycle");
     let control = harness.check(
         "use ed25519_yao_generator::lifecycle_domain::{\n\
              ExportRequestV1, RecoveryRequestV1, RefreshRequestV1, RegistrationRequestV1,\n\
@@ -448,7 +386,7 @@ fn external_api_rejects_legacy_construction_and_cross_branch_mixups() {
 
 #[test]
 fn external_api_cannot_cross_blocked_lifecycle_boundaries() {
-    let harness = UiHarness::create();
+    let harness = UiHarness::create("canonical-lifecycle");
     let cases = [
         CompileFailure {
             name: "activation request derivation is internal",
@@ -601,7 +539,7 @@ fn external_api_cannot_cross_blocked_lifecycle_boundaries() {
 
 #[test]
 fn lifecycle_authority_types_are_move_only() {
-    let harness = UiHarness::create();
+    let harness = UiHarness::create("canonical-lifecycle");
     assert_compile_failure(
         &harness,
         CompileFailure {
@@ -690,7 +628,7 @@ fn lifecycle_authority_types_are_move_only() {
 
 #[test]
 fn private_fields_seal_pending_package_commitment_and_persistence_states() {
-    let harness = UiHarness::create();
+    let harness = UiHarness::create("canonical-lifecycle");
     let cases = [
         CompileFailure {
             name: "pending state fields are private",

@@ -27,14 +27,7 @@ fn facts(
 }
 
 fn decode_hex(value: &str) -> Vec<u8> {
-    value
-        .as_bytes()
-        .chunks_exact(2)
-        .map(|pair| {
-            let encoded = core::str::from_utf8(pair).expect("hex is UTF-8");
-            u8::from_str_radix(encoded, 16).expect("valid hex byte")
-        })
-        .collect()
+    hex::decode(value).expect("valid hex byte")
 }
 
 #[test]

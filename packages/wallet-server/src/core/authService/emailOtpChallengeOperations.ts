@@ -6,6 +6,7 @@ import {
   WALLET_EMAIL_OTP_UNLOCK_OPERATION,
 } from '@shared/utils/emailOtpDomain';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
+import { failure } from '@shared/utils/failure';
 import {
   type EmailOtpChannel,
   type EmailOtpGrantStore,
@@ -144,11 +145,7 @@ function createGrantToken(): string | null {
 }
 
 function unsupportedCryptoResult(): { ok: false; code: 'unsupported'; message: string } {
-  return {
-    ok: false,
-    code: 'unsupported',
-    message: 'crypto.getRandomValues is unavailable in this runtime',
-  };
+  return failure('unsupported', 'crypto.getRandomValues is unavailable in this runtime');
 }
 
 export async function createEmailOtpChallenge(

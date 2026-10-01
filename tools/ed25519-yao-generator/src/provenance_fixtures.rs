@@ -272,8 +272,8 @@ fn canonical_artifact_wrapper_goldens() -> Vec<ProvenanceArtifactWrapperGoldenV1
         ProvenanceArtifactWrapperGoldenV1 {
             kind: name.to_owned(),
             kind_tag: kind.tag(),
-            canonical_artifact_hex: encode_hex(canonical_artifact.as_bytes()),
-            digest_sha256_hex: encode_hex(digest.as_bytes()),
+            canonical_artifact_hex: hex::encode(canonical_artifact.as_bytes()),
+            digest_sha256_hex: hex::encode(digest.as_bytes()),
         }
     })
     .collect()
@@ -550,16 +550,16 @@ fn case_vector(
         case_id: case_id.to_owned(),
         circuit_family: family_name(common.family).to_owned(),
         circuit_id: family_circuit_id(common.family).to_owned(),
-        final_circuit_digest_hex: encode_hex(common.circuit_digest.as_bytes()),
-        input_schema_digest_hex: encode_hex(common.input_schema_digest.as_bytes()),
-        public_request_context_digest_hex: encode_hex(
+        final_circuit_digest_hex: hex::encode(common.circuit_digest.as_bytes()),
+        input_schema_digest_hex: hex::encode(common.input_schema_digest.as_bytes()),
+        public_request_context_digest_hex: hex::encode(
             common.ceremony.request_context_digest().as_bytes(),
         ),
-        transcript_digest_hex: encode_hex(common.ceremony.transcript_digest().as_bytes()),
-        authorization_digest_hex: encode_hex(common.ceremony.authorization_digest().as_bytes()),
-        client_envelope_a_artifact_digest_hex: encode_hex(common.envelope_a.as_bytes()),
-        client_envelope_b_artifact_digest_hex: encode_hex(common.envelope_b.as_bytes()),
-        client_envelope_set_digest_hex: encode_hex(common.envelope_set.as_bytes()),
+        transcript_digest_hex: hex::encode(common.ceremony.transcript_digest().as_bytes()),
+        authorization_digest_hex: hex::encode(common.ceremony.authorization_digest().as_bytes()),
+        client_envelope_a_artifact_digest_hex: hex::encode(common.envelope_a.as_bytes()),
+        client_envelope_b_artifact_digest_hex: hex::encode(common.envelope_b.as_bytes()),
+        client_envelope_set_digest_hex: hex::encode(common.envelope_set.as_bytes()),
         deriver_a: role_statement_vector(
             "deriver_a",
             &stable_scope_encoding,
@@ -576,8 +576,8 @@ fn case_vector(
             &b_snapshot_encodings,
             pair.deriver_b(),
         ),
-        pair_encoding_hex: encode_hex(&pair_encoding),
-        pair_digest_sha256_hex: encode_hex(pair_digest.as_bytes()),
+        pair_encoding_hex: hex::encode(&pair_encoding),
+        pair_digest_sha256_hex: hex::encode(pair_digest.as_bytes()),
     };
     BuiltProvenanceCaseV1 { vector, pair }
 }
@@ -595,15 +595,12 @@ fn role_statement_vector<Role: ProvenanceRoleV1>(
     ProvenanceRoleStatementVectorV1 {
         role: role.to_owned(),
         role_tag: Role::TAG,
-        stable_scope_encoding_hex: encode_hex(stable_scope_encoding),
-        ceremony_binding_encoding_hex: encode_hex(ceremony_encoding),
-        branch_encoding_hex: encode_hex(branch_encoding),
-        snapshot_encodings_hex: snapshot_encodings
-            .iter()
-            .map(|encoding| encode_hex(encoding))
-            .collect(),
-        statement_encoding_hex: encode_hex(&statement_encoding),
-        statement_digest_sha256_hex: encode_hex(statement_digest.as_bytes()),
+        stable_scope_encoding_hex: hex::encode(stable_scope_encoding),
+        ceremony_binding_encoding_hex: hex::encode(ceremony_encoding),
+        branch_encoding_hex: hex::encode(branch_encoding),
+        snapshot_encodings_hex: snapshot_encodings.iter().map(hex::encode).collect(),
+        statement_encoding_hex: hex::encode(&statement_encoding),
+        statement_digest_sha256_hex: hex::encode(statement_digest.as_bytes()),
     }
 }
 
@@ -759,14 +756,4 @@ const fn family_circuit_id(family: ProvenanceCircuitFamilyV1) -> &'static str {
         ProvenanceCircuitFamilyV1::Activation => ed25519_yao::ACTIVATION_CIRCUIT_ID_STR,
         ProvenanceCircuitFamilyV1::Export => ed25519_yao::EXPORT_CIRCUIT_ID_STR,
     }
-}
-
-fn encode_hex(bytes: &[u8]) -> String {
-    const HEX: &[u8; 16] = b"0123456789abcdef";
-    let mut encoded = String::with_capacity(bytes.len() * 2);
-    for byte in bytes {
-        encoded.push(char::from(HEX[usize::from(byte >> 4)]));
-        encoded.push(char::from(HEX[usize::from(byte & 0x0f)]));
-    }
-    encoded
 }

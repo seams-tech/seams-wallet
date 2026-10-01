@@ -3,6 +3,7 @@ import type { TransactionContext } from '@/core/types/rpc';
 import type { WalletId } from '../interfaces/ecdsaChainTarget';
 import type { NonceLeaseRef } from '../interfaces/nonceLease';
 import type { PreparedNonceOperationContext } from './nonceTypes';
+import type { ExclusiveUnion } from '@shared/utils/variant';
 
 type NearFundingSubject = Readonly<{
   walletId: WalletId;
@@ -16,16 +17,7 @@ export type NearFundingRequest = Readonly<{
   signatureUses: number;
 }>;
 
-export type NearTransactionReadiness =
-  | {
-      kind: 'context_ready';
-      transactionContext: TransactionContext;
-      nonceLeases: NonceLeaseRef[];
-      request?: never;
-    }
-  | {
-      kind: 'funding_required';
-      request: NearFundingRequest;
-      transactionContext?: never;
-      nonceLeases?: never;
-    };
+export type NearTransactionReadiness = ExclusiveUnion<
+  | { kind: 'context_ready'; transactionContext: TransactionContext; nonceLeases: NonceLeaseRef[] }
+  | { kind: 'funding_required'; request: NearFundingRequest }
+>;

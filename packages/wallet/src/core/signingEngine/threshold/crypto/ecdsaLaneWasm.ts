@@ -1,6 +1,5 @@
 import type {
   EcdsaAdditiveLaneHolderPreparationV1,
-  EcdsaAdditiveLaneHolderRoundV1,
   EcdsaAdditiveLaneJobV1,
   EcdsaLaneProtocolWasmV1,
 } from '@shared/signing-lanes/rotation';
@@ -16,10 +15,6 @@ function parseEcdsaJob(value: unknown): EcdsaAdditiveLaneJobV1 {
     throw new Error('ECDSA lane WASM requires an ECDSA lane job');
   }
   return parsed;
-}
-
-function assertEcdsaHolderRound(value: unknown): EcdsaAdditiveLaneHolderRoundV1 {
-  return parseEcdsaAdditiveLaneHolderRoundV1(value);
 }
 
 function nonEmpty(value: unknown, label: string): string {
@@ -47,7 +42,7 @@ export function parseEcdsaAdditiveLaneHolderPreparationV1(
   }
   return {
     kind,
-    holderRound: assertEcdsaHolderRound(Reflect.get(value, 'holderRound')),
+    holderRound: parseEcdsaAdditiveLaneHolderRoundV1(Reflect.get(value, 'holderRound')),
     holderPackage,
     encryptedDeltaPackageJson: nonEmpty(
       Reflect.get(value, 'encryptedDeltaPackageJson'),

@@ -12,7 +12,7 @@ import {
   parseLaneShareEpoch,
   parseSigningLaneId,
   parseWalletKeyId,
-  type SigningLaneRecord,
+  type OwnerWalletExecutionLaneProjectionV1,
   type WalletKeyRecord,
 } from '@shared/signing-lanes';
 import {
@@ -38,6 +38,7 @@ import type {
   WalletId,
 } from '@shared/utils/domainIds';
 import {
+  mpcMaterialActivationRefsEqual,
   parseEmailOtpProviderUserId,
   parseMpcSigningWorkerRef,
   parseWebAuthnCredentialIdB64u,
@@ -70,16 +71,7 @@ import type {
 const SOURCE_IDENTITY_DOMAIN = 'seams/wallet-execution-lane/source-identity/v1';
 const ED25519_RECEIPT_DOMAIN = 'seams/wallet-execution-lane/ed25519-receipt/v1';
 
-export type ActiveOwnerWalletExecutionLaneProjection = {
-  readonly kind: 'active_owner_wallet_execution_lane_projection_v1';
-  readonly walletKey: WalletKeyRecord;
-  readonly lane: Extract<
-    SigningLaneRecord,
-    { readonly laneKind: 'owner_passkey' | 'owner_email_otp' }
-  >;
-  readonly materialActivation: MpcMaterialActivationRef;
-  readonly verifiedActivationReceiptDigestB64u: DigestB64u;
-};
+export type ActiveOwnerWalletExecutionLaneProjection = OwnerWalletExecutionLaneProjectionV1;
 
 type WalletExecutionLaneProjectionRefusalReason =
   | 'auth_method_missing'
@@ -460,7 +452,7 @@ function signerMatchesMaterialActivation(
       ? signer.activeYaoCapability.activationResult.public_receipt.material_activation
       : signer.walletKey.publicCapability.material_activation;
   try {
-    return sameMaterialActivation(routerAbMpcMaterialActivationRefFromWire(wire), expected);
+    return mpcMaterialActivationRefsEqual(routerAbMpcMaterialActivationRefFromWire(wire), expected);
   } catch {
     return false;
   }
@@ -471,7 +463,7 @@ function assertExpectedActivation(
   expected: MpcMaterialActivationRef,
 ): void {
   const actual = routerAbMpcMaterialActivationRefFromWire(wire);
-  if (!sameMaterialActivation(actual, expected)) {
+  if (!mpcMaterialActivationRefsEqual(actual, expected)) {
     throw new Error('wallet signer material activation changed');
   }
 }
@@ -534,20 +526,6 @@ async function digestPublicIdentity(value: unknown): Promise<DigestB64u> {
 
 async function digestValue(domain: string, value: unknown): Promise<DigestB64u> {
   return sha256Utf8DigestB64u(`${domain}\u0000${alphabetizeStringify(value)}`);
-}
-
-function sameMaterialActivation(
-  left: MpcMaterialActivationRef,
-  right: MpcMaterialActivationRef,
-): boolean {
-  return (
-    left.activationId === right.activationId &&
-    left.capability === right.capability &&
-    left.materialOwner === right.materialOwner &&
-    left.keyBinding === right.keyBinding &&
-    left.lifecycleBinding === right.lifecycleBinding &&
-    left.signingWorker === right.signingWorker
-  );
 }
 
 function requireParsed<T>(

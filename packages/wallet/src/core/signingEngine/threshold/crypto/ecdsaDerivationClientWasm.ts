@@ -1057,20 +1057,23 @@ export async function thresholdEcdsaRoleLocalCommitPresignatureWasm(input: {
   }
 }
 
-export async function thresholdEcdsaRoleLocalListAvailablePresignaturesWasm(input: {
-  poolIdentity: EcdsaClientPresignPoolIdentity;
-  workerCtx: WorkerOperationContext;
-}): Promise<ListedClientPresignature[]> {
+export async function thresholdEcdsaListAvailablePresignaturesWasm(
+  authorityKind: 'role_local_derivation_handle' | 'linked_holder_signing_material',
+  input: {
+    poolIdentity: EcdsaClientPresignPoolIdentity;
+    workerCtx: WorkerOperationContext;
+  },
+): Promise<ListedClientPresignature[]> {
   const response = await requestEcdsaPresignOperation({
     workerCtx: input.workerCtx,
     request: {
       type: EcdsaPresignClientRequestType.ListAvailable,
       timeoutMs: ECDSA_DERIVATION_CLIENT_WORKER_TIMEOUT_MS,
-      payload: { poolIdentity: input.poolIdentity },
+      payload: { authority: { kind: authorityKind }, poolIdentity: input.poolIdentity },
     },
   });
   if (response.type !== EcdsaPresignClientResponseType.ListAvailableSuccess) {
-    throw new Error('ThresholdEcdsaRoleLocalListAvailablePresignatures failed');
+    throw new Error('ThresholdEcdsaListAvailablePresignatures failed');
   }
   return response.payload.map(parseListedClientPresignature);
 }

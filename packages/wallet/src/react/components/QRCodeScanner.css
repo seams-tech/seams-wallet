@@ -394,13 +394,6 @@
   max-width: 220px;
 }
 
-.qr-scanner-mode-controls {
-  margin-top: 20px;
-  display: flex;
-  gap: 10px;
-  justify-content: center;
-}
-
 .qr-scanner-close {
   position: absolute;
   top: 20px;
@@ -434,14 +427,6 @@
 .qr-scanner-close:focus-visible {
   outline: 2px solid var(--seams-colors-primary);
   outline-offset: 3px;
-}
-
-.qr-scanner-error-container {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 300px;
-  padding: 20px;
 }
 
 .qr-scanner-error-message {

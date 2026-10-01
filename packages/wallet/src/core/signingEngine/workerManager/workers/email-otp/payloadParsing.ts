@@ -84,10 +84,6 @@ export function readThresholdEd25519SessionId(
   return parsed.value;
 }
 
-function readEvmFamilySigningKeySlotId(value: unknown, label: string) {
-  return requireEvmFamilySigningKeySlotId(value, label);
-}
-
 export function readNumber(value: unknown, label: string): number {
   const normalized = Number(value);
   if (!Number.isFinite(normalized)) {
@@ -350,7 +346,7 @@ function parseOptionalWorkerEcdsaSessionHandleBinding(
     }
     return {
       evmFamilySigningKeySlotId: String(
-        readEvmFamilySigningKeySlotId(
+        requireEvmFamilySigningKeySlotId(
           obj.evmFamilySigningKeySlotId,
           'ecdsaSessionHandleBinding.evmFamilySigningKeySlotId',
         ),

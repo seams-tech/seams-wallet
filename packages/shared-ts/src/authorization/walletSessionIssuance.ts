@@ -16,6 +16,7 @@ import {
   type WalletAuthorityId,
   type WalletId,
 } from '../utils/domainIds';
+import { hasExactKeys } from '../utils/exactKeys';
 import { isPlainObject } from '../utils/validation';
 
 /**
@@ -35,12 +36,21 @@ export type WalletSessionCommittedIdentityV1 = {
 };
 
 /** The credential-free retry signal shared by issuer response boundaries. */
-type WalletSessionAlreadyCommittedResponseV1 = {
+export type WalletSessionAlreadyCommittedResponseV1 = {
   readonly ok: false;
   readonly code: 'already_committed';
   readonly message: string;
   readonly next: 'unlock_exact_method';
   readonly committed: WalletSessionCommittedIdentityV1;
+};
+
+/** An issuer rejection that carries no committed identity to retry against. */
+export type WalletSessionRejectionV1 = {
+  readonly ok: false;
+  readonly code: string;
+  readonly message: string;
+  readonly next?: never;
+  readonly committed?: never;
 };
 
 const COMMITTED_IDENTITY_FIELDS = [
@@ -73,13 +83,8 @@ const FLAT_RESPONSE_FIELDS = [
 
 const UNLOCK_FLAT_RESPONSE_FIELDS = [...FLAT_RESPONSE_FIELDS, 'unlocked', 'unlockBackend'] as const;
 
-function hasOnlyFields(record: Record<string, unknown>, fields: readonly string[]): boolean {
-  const actual = Object.keys(record);
-  return actual.length === new Set(fields).size && actual.every((field) => fields.includes(field));
-}
-
 function parseCommittedIdentity(value: unknown): WalletSessionCommittedIdentityV1 | null {
-  if (!isPlainObject(value) || !hasOnlyFields(value, COMMITTED_IDENTITY_FIELDS)) return null;
+  if (!isPlainObject(value) || !hasExactKeys(value, COMMITTED_IDENTITY_FIELDS)) return null;
   if (value.kind !== 'already_committed_wallet_session_v1') return null;
   const walletId = parseWalletId(value.walletId);
   const authorityId = parseWalletAuthorityId(value.authorityId);
@@ -134,13 +139,13 @@ function parseFlatCommittedIdentity(
   value: Record<string, unknown>,
 ): WalletSessionCommittedIdentityV1 | null {
   if (
-    !hasOnlyFields(value, FLAT_RESPONSE_FIELDS) &&
-    !hasOnlyFields(value, UNLOCK_FLAT_RESPONSE_FIELDS)
+    !hasExactKeys(value, FLAT_RESPONSE_FIELDS) &&
+    !hasExactKeys(value, UNLOCK_FLAT_RESPONSE_FIELDS)
   ) {
     return null;
   }
   if (
-    hasOnlyFields(value, UNLOCK_FLAT_RESPONSE_FIELDS) &&
+    hasExactKeys(value, UNLOCK_FLAT_RESPONSE_FIELDS) &&
     (value.unlocked !== false ||
       (value.unlockBackend !== 'passkey' && value.unlockBackend !== 'email_otp'))
   ) {
@@ -178,7 +183,7 @@ export function parseWalletSessionAlreadyCommittedResponseV1(
   if (!isPlainObject(value)) return null;
   const envelope = parseResponseEnvelope(value);
   if (!envelope) return null;
-  if (!hasOnlyFields(value, NESTED_RESPONSE_FIELDS)) return null;
+  if (!hasExactKeys(value, NESTED_RESPONSE_FIELDS)) return null;
   const committed = parseCommittedIdentity(value.committed);
   return committed ? buildAlreadyCommittedResponse(envelope, committed) : null;
 }

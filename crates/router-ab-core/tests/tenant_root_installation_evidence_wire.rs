@@ -1,6 +1,5 @@
 mod support;
 
-use curve25519_dalek::scalar::Scalar;
 use router_ab_core::{
     RouterAbDerivationErrorCode, TenantRootCeremonyContextV1, TenantRootCeremonyEpochsV1,
     TenantRootCeremonyNonceV1, TenantRootCeremonySessionIdV1, TenantRootCustodyLineageId,
@@ -9,9 +8,7 @@ use router_ab_core::{
 };
 use sha2::{Digest, Sha256};
 use std::ops::Range;
-use threshold_prf::{
-    prove_root_share_knowledge, SigningRootShare, SigningRootShareCommitment, TwoPartyDeriverRole,
-};
+use threshold_prf::{prove_root_share_knowledge, SigningRootShareCommitment, TwoPartyDeriverRole};
 
 fn context(epochs: TenantRootCeremonyEpochsV1, session_seed: u8) -> TenantRootCeremonyContextV1 {
     TenantRootCeremonyContextV1::new(
@@ -31,11 +28,6 @@ fn context(epochs: TenantRootCeremonyEpochsV1, session_seed: u8) -> TenantRootCe
     .unwrap()
 }
 
-fn fixed_share(role: TwoPartyDeriverRole, scalar: u64) -> SigningRootShare {
-    SigningRootShare::from_canonical_bytes(role.share_id(), Scalar::from(scalar).to_bytes())
-        .unwrap()
-}
-
 fn signed_evidence(
     context: TenantRootCeremonyContextV1,
     role: TwoPartyDeriverRole,
@@ -43,8 +35,8 @@ fn signed_evidence(
     peer_scalar: u64,
     proof_seed: u8,
 ) -> TenantRootSignedShareInstallationEvidenceV1 {
-    let share = fixed_share(role, share_scalar);
-    let peer = fixed_share(role.peer(), peer_scalar);
+    let share = support::fixed_share(role, share_scalar);
+    let peer = support::fixed_share(role.peer(), peer_scalar);
     let transcript = TenantRootShareInstallationTranscriptV1::new(
         context,
         role,

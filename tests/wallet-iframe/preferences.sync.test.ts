@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { setupBasicPasskeyTest, handleInfrastructureErrors, SDK_ESM_PATHS } from '../setup';
+import { setupBasicPasskeyTest, SDK_ESM_PATHS } from '../setup';
 import { buildWalletServiceHtml, registerWalletServiceRoute, waitFor } from './harness';
 
 const WALLET_ORIGIN = 'https://wallet.example.localhost';
@@ -220,7 +220,6 @@ test.describe('Wallet iframe preferences sync', () => {
     );
 
     if (!result.success) {
-      if (handleInfrastructureErrors(result)) return;
       expect(result.success, result.error).toBe(true);
       return;
     }
@@ -435,7 +434,6 @@ test.describe('Wallet iframe preferences sync', () => {
     );
 
     if (!result.success) {
-      if (handleInfrastructureErrors(result)) return;
       expect(result.success, result.error).toBe(true);
       return;
     }

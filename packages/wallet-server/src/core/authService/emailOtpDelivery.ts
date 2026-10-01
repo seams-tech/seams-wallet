@@ -6,6 +6,7 @@ import type {
 import type { NormalizedLogger } from '../logger';
 import type { EmailOtpConfig, EmailOtpDeliveryMode } from './emailOtpConfig';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
+import { failure } from '@shared/utils/failure';
 
 type EmailOtpMemoryOutboxEntry = {
   walletId: string;
@@ -127,11 +128,10 @@ export async function deliverEmailOtpCode(
   input: EmailOtpDeliveryInput,
 ): Promise<EmailOtpDeliveryResult> {
   if (input.production && input.config.deliveryMode !== 'email_provider') {
-    return {
-      ok: false,
-      code: 'email_otp_delivery_not_allowed',
-      message: `Email OTP delivery mode ${input.config.deliveryMode} is disabled in production`,
-    };
+    return failure(
+      'email_otp_delivery_not_allowed',
+      `Email OTP delivery mode ${input.config.deliveryMode} is disabled in production`,
+    );
   }
 
   /* The prompt shows the address in full: the person reading it is the one
@@ -139,11 +139,7 @@ export async function deliverEmailOtpCode(
      tell which account the code went to. */
   const emailHint = input.email;
   if (input.config.deliveryMode === 'email_provider') {
-    return {
-      ok: false,
-      code: 'not_implemented',
-      message: 'Email OTP email_provider delivery is not implemented yet',
-    };
+    return failure('not_implemented', 'Email OTP email_provider delivery is not implemented yet');
   }
 
   if (input.config.deliveryMode === 'memory') {
@@ -203,30 +199,26 @@ export function readEmailOtpOutboxEntry(input: {
   readonly nowMs: number;
 }): EmailOtpOutboxReadResult {
   if (!input.config.devOutboxEnabled) {
-    return {
-      ok: false,
-      code: 'not_found',
-      message: 'Email OTP dev outbox is not enabled',
-    };
+    return failure('not_found', 'Email OTP dev outbox is not enabled');
   }
 
   const challengeId = toOptionalTrimmedString(input.request.challengeId);
   const userId = toOptionalTrimmedString(input.request.userId);
   const walletId = toOptionalTrimmedString(input.request.walletId);
-  if (!challengeId) return { ok: false, code: 'invalid_body', message: 'Missing challengeId' };
-  if (!userId) return { ok: false, code: 'invalid_body', message: 'Missing userId' };
-  if (!walletId) return { ok: false, code: 'invalid_body', message: 'Missing walletId' };
+  if (!challengeId) return failure('invalid_body', 'Missing challengeId');
+  if (!userId) return failure('invalid_body', 'Missing userId');
+  if (!walletId) return failure('invalid_body', 'Missing walletId');
 
   const entry = input.memoryOutbox.get(challengeId);
   if (!entry) {
-    return { ok: false, code: 'not_found', message: 'Email OTP outbox entry was not found' };
+    return failure('not_found', 'Email OTP outbox entry was not found');
   }
   if (entry.userId !== userId || entry.walletId !== walletId) {
-    return { ok: false, code: 'not_found', message: 'Email OTP outbox entry was not found' };
+    return failure('not_found', 'Email OTP outbox entry was not found');
   }
   if (input.nowMs > entry.expiresAtMs) {
     input.memoryOutbox.delete(challengeId);
-    return { ok: false, code: 'not_found', message: 'Email OTP outbox entry expired' };
+    return failure('not_found', 'Email OTP outbox entry expired');
   }
   return {
     ok: true,

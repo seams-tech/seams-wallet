@@ -1,4 +1,5 @@
 import type { RecoveryCodeReservationId } from './recoveryCodeReservation';
+import type { ExclusiveUnion } from '../utils/variant';
 
 /**
  * Lifecycle of one recovery code.
@@ -7,40 +8,20 @@ import type { RecoveryCodeReservationId } from './recoveryCodeReservation';
  * commits only after the replacement credential activates. See
  * `recoveryCodeReservation.ts` for the transitions between these states.
  */
-export type RecoveryCodeLifecycleState =
-  | {
-      state: 'active';
-      issuedAtMs: number;
-      reservationId?: never;
-      reservedAtMs?: never;
-      reservationExpiresAtMs?: never;
-      consumedAtMs?: never;
-      revokedAtMs?: never;
-    }
+export type RecoveryCodeLifecycleState = ExclusiveUnion<
+  | { state: 'active'; issuedAtMs: number }
   | {
       state: 'reserved';
       issuedAtMs: number;
       reservationId: RecoveryCodeReservationId;
       reservedAtMs: number;
       reservationExpiresAtMs: number;
-      consumedAtMs?: never;
-      revokedAtMs?: never;
     }
   | {
       state: 'consumed';
       issuedAtMs: number;
       reservationId: RecoveryCodeReservationId;
       consumedAtMs: number;
-      reservedAtMs?: never;
-      reservationExpiresAtMs?: never;
-      revokedAtMs?: never;
     }
-  | {
-      state: 'revoked';
-      issuedAtMs: number;
-      revokedAtMs: number;
-      reservationId?: never;
-      reservedAtMs?: never;
-      reservationExpiresAtMs?: never;
-      consumedAtMs?: never;
-    };
+  | { state: 'revoked'; issuedAtMs: number; revokedAtMs: number }
+>;

@@ -1,4 +1,5 @@
 import { toOptionalTrimmedString } from '@shared/utils/validation';
+import { failure } from '@shared/utils/failure';
 import type { ScopedD1Prepare } from '../../../../core/emailOtpD1Statements';
 import { NEAR_PUBLIC_KEYS_BY_USER_SQL } from '../../../../core/NearPublicKeyStore';
 import {
@@ -35,18 +36,14 @@ export class CloudflareD1NearPublicKeyStore {
   async listForRelayUser(input: { readonly userId?: unknown }): Promise<D1NearPublicKeyListResult> {
     try {
       const userId = toOptionalTrimmedString(input.userId);
-      if (!userId) return { ok: false, code: 'invalid_args', message: 'Missing userId' };
+      if (!userId) return failure('invalid_args', 'Missing userId');
       const records = await this.listForUser(userId);
       const keys: Extract<D1NearPublicKeyListResult, { readonly ok: true }>['keys'] = records.map(
         nearPublicKeyForRelayResponse,
       );
       return { ok: true, keys };
     } catch (error: unknown) {
-      return {
-        ok: false,
-        code: 'internal',
-        message: nearPublicKeyErrorMessage(error) || 'Failed to list keys',
-      };
+      return failure('internal', nearPublicKeyErrorMessage(error) || 'Failed to list keys');
     }
   }
 

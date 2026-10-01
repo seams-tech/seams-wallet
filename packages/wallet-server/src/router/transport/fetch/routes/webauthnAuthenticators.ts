@@ -1,5 +1,5 @@
 import type { FetchRouterApiContext } from '../createFetchRouter';
-import { json } from '../../../framework/http';
+import { json, jsonFailure } from '../../../framework/http';
 import { extractBearerCredential } from '../../../auth/routerApiKeyAuth';
 
 export async function handleWebAuthnAuthenticators(
@@ -11,10 +11,7 @@ export async function handleWebAuthnAuthenticators(
   try {
     const token = extractBearerCredential(ctx.request.headers);
     if (!token) {
-      return json(
-        { ok: false, code: 'unauthorized', message: 'No valid Wallet Session' },
-        { status: 401 },
-      );
+      return jsonFailure(401, 'unauthorized', 'No valid Wallet Session');
     }
     const nowMs = Date.now();
     const exact =
@@ -26,10 +23,7 @@ export async function handleWebAuthnAuthenticators(
         },
       );
     if (!exact) {
-      return json(
-        { ok: false, code: 'unauthorized', message: 'No valid Wallet Session' },
-        { status: 401 },
-      );
+      return jsonFailure(401, 'unauthorized', 'No valid Wallet Session');
     }
 
     const rpIdFromQuery = String(
@@ -48,9 +42,6 @@ export async function handleWebAuthnAuthenticators(
 
     return json(result, { status: 200 });
   } catch (e: any) {
-    return json(
-      { ok: false, code: 'internal', message: e?.message || 'Internal error' },
-      { status: 500 },
-    );
+    return jsonFailure(500, 'internal', e?.message || 'Internal error');
   }
 }

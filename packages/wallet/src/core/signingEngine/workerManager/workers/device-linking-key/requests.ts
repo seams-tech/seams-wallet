@@ -39,6 +39,7 @@ import {
   type LinkedDeviceId,
   type LinkDeviceSessionId,
 } from '@shared/signing-lanes/ids';
+import { hasExactKeys } from '@shared/utils/exactKeys';
 import { isPlainObject, requireCanonicalString } from '@shared/utils/validation';
 import {
   parseOrdinaryMaterialWorkerPrivateRequestV1,
@@ -143,126 +144,18 @@ type DeviceLinkingKeyWorkerFrameV1 = {
   readonly request: unknown;
 };
 
-type DeviceLinkingSignRequestRecordV1 = {
-  readonly kind: unknown;
-  readonly handleId: unknown;
-  readonly linkSessionId: unknown;
-  readonly method: unknown;
-  readonly canonicalPath: unknown;
-  readonly bodyDigestB64u: unknown;
-  readonly devicePublicKeyDigestB64u: unknown;
-  readonly challengeB64u: unknown;
-  readonly issuedAtMs: unknown;
-  readonly expiresAtMs: unknown;
-};
-
-function isDeviceLinkingSignRequestRecordV1(
-  value: unknown,
-): value is DeviceLinkingSignRequestRecordV1 {
-  return hasExactKeys(
-    value,
-    'bodyDigestB64u|canonicalPath|challengeB64u|devicePublicKeyDigestB64u|expiresAtMs|handleId|issuedAtMs|kind|linkSessionId|method',
-  );
-}
-
-type DeviceLinkingCreateRequestRecordV1 = {
-  readonly kind: unknown;
-};
-
-function isDeviceLinkingCreateRequestRecordV1(
-  value: unknown,
-): value is DeviceLinkingCreateRequestRecordV1 {
-  return hasExactKeys(value, 'kind');
-}
-
-type DeviceLinkingHandleRequestRecordV1 = {
-  readonly kind: unknown;
-  readonly handleId: unknown;
-};
-
-function isDeviceLinkingHandleRequestRecordV1(
-  value: unknown,
-): value is DeviceLinkingHandleRequestRecordV1 {
-  return hasExactKeys(value, 'handleId|kind');
-}
-
-type DeviceLinkingEmailOtpFactorReleaseRequestRecordV1 = {
-  readonly kind: unknown;
-  readonly handleId: unknown;
-  readonly walletId: unknown;
-  readonly linkSessionId: unknown;
-  readonly enrollmentId: unknown;
-  readonly deviceId: unknown;
-  readonly walletAuthMethodId: unknown;
-  readonly baseWalletAuthMethodId: unknown;
-  readonly targetPreparationDigestB64u: unknown;
-  readonly expectedChallengeId: unknown;
-  readonly verificationGrant: unknown;
-  readonly factorRelease: unknown;
-};
-
-function isDeviceLinkingEmailOtpFactorReleaseRequestRecordV1(
-  value: unknown,
-): value is DeviceLinkingEmailOtpFactorReleaseRequestRecordV1 {
-  return hasExactKeys(
-    value,
-    'baseWalletAuthMethodId|deviceId|enrollmentId|expectedChallengeId|factorRelease|handleId|kind|linkSessionId|targetPreparationDigestB64u|verificationGrant|walletAuthMethodId|walletId',
-  );
-}
-
-type DeviceLinkingWalletSessionDeliveryRequestRecordV1 = {
-  readonly kind: unknown;
-  readonly handleId: unknown;
-  readonly delivery: unknown;
-  readonly expected: unknown;
-};
-
-function isDeviceLinkingWalletSessionDeliveryRequestRecordV1(
-  value: unknown,
-): value is DeviceLinkingWalletSessionDeliveryRequestRecordV1 {
-  return hasExactKeys(value, 'delivery|expected|handleId|kind');
-}
-
-type DeviceLinkingWalletSessionExpectedRecordV1 = {
-  readonly linkSessionId: unknown;
-  readonly walletId: unknown;
-  readonly authorityId: unknown;
-  readonly walletAuthMethodId: unknown;
-  readonly authorizationId: unknown;
-  readonly walletSessionId: unknown;
-  readonly quotaId: unknown;
-  readonly deliveryBinding: unknown;
-  readonly credentialDigestB64u: unknown;
-  readonly installationReceiptDigestB64u: unknown;
-  readonly recipientPublicKey65B64u: unknown;
-  readonly issuedAtMs: unknown;
-  readonly expiresAtMs: unknown;
-};
-
-function isDeviceLinkingWalletSessionExpectedRecordV1(
-  value: unknown,
-): value is DeviceLinkingWalletSessionExpectedRecordV1 {
-  return hasExactKeys(
-    value,
-    'authorityId|authorizationId|credentialDigestB64u|deliveryBinding|expiresAtMs|installationReceiptDigestB64u|issuedAtMs|linkSessionId|quotaId|recipientPublicKey65B64u|walletAuthMethodId|walletId|walletSessionId',
-  );
-}
-
-type DeviceLinkingWorkerFrameRecordV1 = {
-  readonly id: unknown;
-  readonly request: unknown;
-};
-
-function isDeviceLinkingWorkerFrameRecordV1(
-  value: unknown,
-): value is DeviceLinkingWorkerFrameRecordV1 {
-  return hasExactKeys(value, 'id|request');
-}
-
-// A plain object whose own keys, sorted and joined with `|`, are exactly `sortedKeys`.
-function hasExactKeys(value: unknown, sortedKeys: string): boolean {
-  return isPlainObject(value) && Object.keys(value).sort().join('|') === sortedKeys;
-}
+const SIGN_REQUEST_FIELDS = [
+  'kind',
+  'handleId',
+  'linkSessionId',
+  'method',
+  'canonicalPath',
+  'bodyDigestB64u',
+  'devicePublicKeyDigestB64u',
+  'challengeB64u',
+  'issuedAtMs',
+  'expiresAtMs',
+] as const;
 
 function parseHandleId(value: unknown): string {
   const handleId = requireCanonicalString(value, 'handleId', 'is required');
@@ -327,7 +220,7 @@ function parseSignRequest(value: unknown): {
   readonly issuedAtMs: number;
   readonly expiresAtMs: number;
 } {
-  if (!isDeviceLinkingSignRequestRecordV1(value)) {
+  if (!hasExactKeys(value, SIGN_REQUEST_FIELDS)) {
     throw new Error('device-linking sign request has invalid fields');
   }
   if (value.kind !== 'device_linking_request_sign_v1') {
@@ -361,7 +254,7 @@ function parseSignRequest(value: unknown): {
 }
 
 export function parseFrame(value: unknown): DeviceLinkingKeyWorkerFrameV1 {
-  if (!isDeviceLinkingWorkerFrameRecordV1(value)) {
+  if (!hasExactKeys(value, ['id', 'request'])) {
     throw new Error('device-linking worker frame has invalid fields');
   }
   const frame = value;
@@ -372,14 +265,14 @@ export function parseFrame(value: unknown): DeviceLinkingKeyWorkerFrameV1 {
 }
 
 export function parseRequest(value: unknown): DeviceLinkingKeyWorkerRequestV1 {
-  if (isDeviceLinkingCreateRequestRecordV1(value)) {
+  if (hasExactKeys(value, ['kind'])) {
     if (value.kind !== 'device_linking_key_material_create_v1') {
       throw new Error('device-linking worker request kind is unsupported');
     }
     return { kind: 'device_linking_key_material_create_v1' };
   }
   if (
-    isDeviceLinkingHandleRequestRecordV1(value) &&
+    hasExactKeys(value, ['kind', 'handleId']) &&
     value.kind === 'device_linking_key_material_discard_v1'
   ) {
     return {
@@ -424,7 +317,7 @@ export function parseRequest(value: unknown): DeviceLinkingKeyWorkerRequestV1 {
     }
   }
   if (
-    isDeviceLinkingHandleRequestRecordV1(value) &&
+    hasExactKeys(value, ['kind', 'handleId']) &&
     value.kind === 'device_linking_email_otp_export_root_recipient_create_v1'
   ) {
     return {
@@ -432,11 +325,26 @@ export function parseRequest(value: unknown): DeviceLinkingKeyWorkerRequestV1 {
       handleId: parseHandleId(value.handleId),
     };
   }
-  if (isDeviceLinkingSignRequestRecordV1(value)) {
+  if (hasExactKeys(value, SIGN_REQUEST_FIELDS)) {
     const parsed = parseSignRequest(value);
     return { kind: 'device_linking_request_sign_v1', ...parsed };
   }
-  if (isDeviceLinkingEmailOtpFactorReleaseRequestRecordV1(value)) {
+  if (
+    hasExactKeys(value, [
+      'kind',
+      'handleId',
+      'walletId',
+      'linkSessionId',
+      'enrollmentId',
+      'deviceId',
+      'walletAuthMethodId',
+      'baseWalletAuthMethodId',
+      'targetPreparationDigestB64u',
+      'expectedChallengeId',
+      'verificationGrant',
+      'factorRelease',
+    ])
+  ) {
     if (value.kind !== 'device_linking_email_otp_factor_release_open_v1') {
       throw new Error('device-linking worker request kind is unsupported');
     }
@@ -474,11 +382,27 @@ export function parseRequest(value: unknown): DeviceLinkingKeyWorkerRequestV1 {
       factorRelease: parseLinkedDeviceEmailOtpFactorReleaseEnvelopeV1(value.factorRelease),
     };
   }
-  if (isDeviceLinkingWalletSessionDeliveryRequestRecordV1(value)) {
+  if (hasExactKeys(value, ['kind', 'handleId', 'delivery', 'expected'])) {
     if (value.kind !== 'device_linking_wallet_session_credential_delivery_open_v1') {
       throw new Error('device-linking worker request kind is unsupported');
     }
-    if (!isDeviceLinkingWalletSessionExpectedRecordV1(value.expected)) {
+    if (
+      !hasExactKeys(value.expected, [
+        'linkSessionId',
+        'walletId',
+        'authorityId',
+        'walletAuthMethodId',
+        'authorizationId',
+        'walletSessionId',
+        'quotaId',
+        'deliveryBinding',
+        'credentialDigestB64u',
+        'installationReceiptDigestB64u',
+        'recipientPublicKey65B64u',
+        'issuedAtMs',
+        'expiresAtMs',
+      ])
+    ) {
       throw new Error(
         'device-linking Wallet Session credential delivery expected identity has invalid fields',
       );

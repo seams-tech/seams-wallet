@@ -1,4 +1,5 @@
 import { EMAIL_OTP_CHANNEL } from '@shared/utils/emailOtpDomain';
+import { failure } from '@shared/utils/failure';
 import type { EmailOtpChallengeRecord } from '../../../../core/EmailOtpStores';
 import { maskEmail } from './d1EmailOtpRecords';
 import type { EmailOtpDeliveryMode, EmailOtpRuntimeConfig } from '../auth/d1RouterApiAuthConfig';
@@ -52,11 +53,10 @@ export class CloudflareD1EmailOtpDeliveryRuntime {
       this.config.deliveryMode !== 'provider_and_demo_code' &&
       this.config.deliveryMode !== 'demo_code_response'
     ) {
-      return {
-        ok: false,
-        code: 'email_otp_delivery_not_allowed',
-        message: `Email OTP delivery mode ${this.config.deliveryMode} is disabled in production`,
-      };
+      return failure(
+        'email_otp_delivery_not_allowed',
+        `Email OTP delivery mode ${this.config.deliveryMode} is disabled in production`,
+      );
     }
     const emailHint = maskEmail(record.email);
     switch (this.config.deliveryMode) {
@@ -88,11 +88,10 @@ export class CloudflareD1EmailOtpDeliveryRuntime {
   ): Promise<EmailOtpProviderDispatchResult> {
     const provider = this.config.deliveryProvider;
     if (!provider) {
-      return {
-        ok: false,
-        code: 'email_otp_delivery_not_configured',
-        message: 'Email OTP email_provider delivery is not configured',
-      };
+      return failure(
+        'email_otp_delivery_not_configured',
+        'Email OTP email_provider delivery is not configured',
+      );
     }
     const result = await provider.deliver({
       challengeId: record.challengeId,
@@ -125,11 +124,10 @@ export class CloudflareD1EmailOtpDeliveryRuntime {
     switch (this.config.deliveryMode) {
       case 'email_provider':
         if (!this.config.deliveryProvider) {
-          return {
-            ok: false,
-            code: 'email_otp_delivery_not_configured',
-            message: 'Email OTP email_provider delivery is not configured',
-          };
+          return failure(
+            'email_otp_delivery_not_configured',
+            'Email OTP email_provider delivery is not configured',
+          );
         }
         return {
           ok: true,
@@ -137,11 +135,10 @@ export class CloudflareD1EmailOtpDeliveryRuntime {
         };
       case 'provider_and_demo_code':
         if (!this.config.deliveryProvider) {
-          return {
-            ok: false,
-            code: 'email_otp_delivery_not_configured',
-            message: 'Email OTP email_provider delivery is not configured',
-          };
+          return failure(
+            'email_otp_delivery_not_configured',
+            'Email OTP email_provider delivery is not configured',
+          );
         }
         return this.resolveDemoCodeDelivery(record, requestOrigin, status, emailHint);
       case 'log':
@@ -170,11 +167,10 @@ export class CloudflareD1EmailOtpDeliveryRuntime {
   ): EmailOtpDeliveryRuntimeResult {
     const origin = typeof requestOrigin === 'string' ? requestOrigin.trim() : '';
     if (!this.config.demoAllowedOrigins.includes(origin)) {
-      return {
-        ok: false,
-        code: 'email_otp_demo_origin_not_allowed',
-        message: 'Email OTP demo code delivery is not allowed for this origin',
-      };
+      return failure(
+        'email_otp_demo_origin_not_allowed',
+        'Email OTP demo code delivery is not allowed for this origin',
+      );
     }
     if (this.config.deliveryMode === 'provider_and_demo_code') {
       return {

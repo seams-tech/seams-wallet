@@ -329,17 +329,3 @@
 .seams-link-device-failure .seams-link-device-btn:focus-visible {
   background: var(--seams-colors-surface2, #f1f5f9);
 }
-
-/* Responsive Design */
-@media (max-width: 768px) {
-  .qr-modal-content {
-    margin: 1rem;
-    max-width: calc(100vw - 2rem);
-  }
-
-  @supports (width: 1dvw) {
-    .qr-modal-content {
-      max-width: calc(100dvw - 2rem);
-    }
-  }
-}

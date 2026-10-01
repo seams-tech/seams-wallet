@@ -1,5 +1,6 @@
 import type { WebAuthnCredentialBindingRecord } from '../WebAuthnCredentialBindingStore';
 import type { ResolvedEd25519WalletBinding } from './webauthnWalletBinding';
+import { failedVerification } from '@shared/utils/failure';
 
 // The core-store and D1 WebAuthn services answer these login and sync situations with the same
 // outcome, so each outcome is written once here and the two services stay in step.
@@ -31,12 +32,10 @@ export function webAuthnAuthenticationFailure(verification: {
   readonly message?: string;
 }): WebAuthnVerificationFailure | null {
   if (!verification.success || !verification.verified) {
-    return {
-      ok: false,
-      verified: false,
-      code: verification.code || 'not_verified',
-      message: verification.message || 'Authentication verification failed',
-    };
+    return failedVerification(
+      verification.code || 'not_verified',
+      verification.message || 'Authentication verification failed',
+    );
   }
   return null;
 }
@@ -55,12 +54,7 @@ export function webAuthnLoginEd25519(
   const firstParticipantId = binding?.participantIds?.[0];
   const secondParticipantId = binding?.participantIds?.[1];
   if (!binding) {
-    return {
-      ok: false,
-      verified: false,
-      code: 'unknown_credential',
-      message: 'Credential has no wallet binding',
-    };
+    return failedVerification('unknown_credential', 'Credential has no wallet binding');
   }
   const ed25519 =
     walletBinding &&
@@ -87,20 +81,13 @@ export function webAuthnSyncCredentialBinding(
   challenge: { readonly expectedUserId?: string },
 ): { ok: true; binding: WebAuthnCredentialBindingRecord } | WebAuthnVerificationFailure {
   if (!binding) {
-    return {
-      ok: false,
-      verified: false,
-      code: 'unknown_credential',
-      message: 'Credential is not registered on this relay',
-    };
+    return failedVerification('unknown_credential', 'Credential is not registered on this relay');
   }
   if (challenge.expectedUserId && binding.userId !== challenge.expectedUserId) {
-    return {
-      ok: false,
-      verified: false,
-      code: 'unknown_credential',
-      message: `Credential is not registered for account ${challenge.expectedUserId}`,
-    };
+    return failedVerification(
+      'unknown_credential',
+      `Credential is not registered for account ${challenge.expectedUserId}`,
+    );
   }
   return { ok: true, binding };
 }

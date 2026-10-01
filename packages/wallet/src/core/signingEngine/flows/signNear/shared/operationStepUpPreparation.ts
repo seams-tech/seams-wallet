@@ -12,6 +12,7 @@ import {
   mpcMaterialActivationRefsEqual,
   type MpcMaterialActivationRef,
 } from '@shared/utils/domainIds';
+import type { ExclusiveUnion } from '@shared/utils/variant';
 
 type PreparedNearOperationStepUpBase = {
   prepare: RouterAbNormalSigningPrepareRequestV2BuildResult;
@@ -29,7 +30,7 @@ export type PreparedNearOperationStepUp =
       unsignedTransactionBorshB64u?: never;
     });
 
-type NearOperationStepUpBuilderInput =
+type NearOperationStepUpBuilderInput = ExclusiveUnion<
   | {
       kind: 'near_transaction';
       transactionContext: TransactionContext;
@@ -37,13 +38,8 @@ type NearOperationStepUpBuilderInput =
       operationFingerprint: string;
       displayDigest: string;
     }
-  | {
-      kind: 'near_signature_only';
-      displayDigest: string;
-      transactionContext?: never;
-      operationId?: never;
-      operationFingerprint?: never;
-    };
+  | { kind: 'near_signature_only'; displayDigest: string }
+>;
 
 type PreparedNearOperationStepUpBuilder = (input: NearOperationStepUpBuilderInput) => Promise<{
   operation: PreparedNearOperationStepUp;

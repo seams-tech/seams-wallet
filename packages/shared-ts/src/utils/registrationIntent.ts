@@ -139,32 +139,20 @@ export function addSignerIntentGrantFromString(value: string): AddSignerIntentGr
   return String(value || '').trim() as AddSignerIntentGrant;
 }
 
-function serializeRegistrationIntentV1(intent: RegistrationIntentV1): string {
-  return alphabetizeStringify(intent);
-}
-
-function serializeAddSignerIntentV1(intent: AddSignerIntentV1): string {
-  return alphabetizeStringify(intent);
-}
-
-function serializeAddAuthMethodIntentV1(intent: AddAuthMethodIntentV1): string {
-  return alphabetizeStringify(intent);
-}
-
 export async function computeRegistrationIntentDigestB64u(
   intent: RegistrationIntentV1,
 ): Promise<string> {
-  return base64UrlEncode(await sha256BytesUtf8(serializeRegistrationIntentV1(intent)));
+  return base64UrlEncode(await sha256BytesUtf8(alphabetizeStringify(intent)));
 }
 
 export async function computeAddSignerIntentDigestB64u(intent: AddSignerIntentV1): Promise<string> {
-  return base64UrlEncode(await sha256BytesUtf8(serializeAddSignerIntentV1(intent)));
+  return base64UrlEncode(await sha256BytesUtf8(alphabetizeStringify(intent)));
 }
 
 export async function computeAddAuthMethodIntentDigestB64u(
   intent: AddAuthMethodIntentV1,
 ): Promise<string> {
-  return base64UrlEncode(await sha256BytesUtf8(serializeAddAuthMethodIntentV1(intent)));
+  return base64UrlEncode(await sha256BytesUtf8(alphabetizeStringify(intent)));
 }
 
 /**

@@ -14,41 +14,35 @@ import {
 import type { ActiveEcdsaCapabilityManifest } from './ecdsaCapabilityManifest';
 import type { SigningSessionSealAuthMethod } from '@shared/utils/signingSessionSeal';
 import type { ExactWalletSessionReadPorts } from '../identity/exactWalletSessionCredential';
+import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 
 // Async composition over the pure correlation in ecdsaSealedRuntime: select the
 // wallet's active capability for a chain target, read that wallet's exact
 // sealed records, and correlate the two halves. Kept separate so the
 // correlation itself stays synchronous and directly testable.
 
-export type ActiveEcdsaCapabilityRuntimeResolution =
+export type ActiveEcdsaCapabilityRuntimeResolution = ReadonlyExclusiveUnion<
   | {
       readonly kind: 'resolved';
       readonly manifest: ActiveEcdsaCapabilityManifest;
       readonly runtime: ExactEcdsaSealedRuntime;
-      readonly reason?: never;
     }
   | {
       readonly kind: 'blocked';
       readonly reason:
         | Extract<ExactEcdsaSealedRuntimeResolution, { kind: 'blocked' }>['reason']
         | 'missing_capability';
-      readonly manifest?: never;
-      readonly runtime?: never;
-    };
+    }
+>;
 
-type ExactEcdsaCapabilityRuntimeResolution =
+type ExactEcdsaCapabilityRuntimeResolution = ReadonlyExclusiveUnion<
   | {
       readonly kind: 'resolved';
       readonly manifest: ActiveEcdsaCapabilityManifest;
       readonly runtime: ExactEcdsaCapabilityRuntime;
-      readonly reason?: never;
     }
-  | {
-      readonly kind: 'blocked';
-      readonly reason: 'chain_mismatch' | 'corrupt';
-      readonly manifest?: never;
-      readonly runtime?: never;
-    };
+  | { readonly kind: 'blocked'; readonly reason: 'chain_mismatch' | 'corrupt' }
+>;
 
 export type ActiveEcdsaCapabilityRuntimeReadPorts = Pick<
   ExactWalletSessionReadPorts,

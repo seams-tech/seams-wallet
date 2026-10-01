@@ -1025,7 +1025,6 @@ pub type DeriverBSigningWorkerScalarActivationPackageDescriptorV1 =
 macro_rules! activation_descriptor_api {
     ($descriptor:ident, $role:ty, $domain:ident) => {
         impl $descriptor<$role> {
-            #[allow(dead_code)]
             pub(crate) const fn scalar_share_point(&self) -> &[u8; 32] {
                 &self.0.scalar_share_point
             }

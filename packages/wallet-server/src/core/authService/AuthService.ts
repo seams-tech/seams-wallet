@@ -164,23 +164,17 @@ import {
   type RecordNearPublicKeyMetadataResult,
 } from './nearPublicKeyMetadata';
 import { type LinkIdentityResult, type UnlinkIdentityResult } from '../IdentityStore';
+import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 
-type AuthServiceRouterAbSigningRuntimeState =
-  | {
-      readonly kind: 'uninitialized';
-      readonly normalSigning?: never;
-      readonly ecdsaPresign?: never;
-    }
-  | {
-      readonly kind: 'unconfigured';
-      readonly normalSigning?: never;
-      readonly ecdsaPresign?: never;
-    }
+type AuthServiceRouterAbSigningRuntimeState = ReadonlyExclusiveUnion<
+  | { readonly kind: 'uninitialized' }
+  | { readonly kind: 'unconfigured' }
   | {
       readonly kind: 'ready';
       readonly normalSigning: RouterAbNormalSigningRuntime;
       readonly ecdsaPresign: RouterAbEcdsaPresignRuntime;
-    };
+    }
+>;
 
 /**
  * Framework-agnostic NEAR account service

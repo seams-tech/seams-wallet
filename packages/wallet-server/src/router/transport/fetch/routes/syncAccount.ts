@@ -1,5 +1,5 @@
 import type { FetchRouterApiContext } from '../createFetchRouter';
-import { json, readJson } from '../../../framework/http';
+import { json, jsonFailure, readJson } from '../../../framework/http';
 import {
   parseSyncAccountOptionsRequest,
   parseSyncAccountVerifyRequest,
@@ -90,13 +90,10 @@ export async function handleSyncAccount(ctx: FetchRouterApiContext): Promise<Res
       // absence here is a server inconsistency, not a client error.
       const custodyKeyManifestDigestB64u = result.custodyKeyManifestDigestB64u;
       if (!custodyKeyManifestDigestB64u) {
-        return json(
-          {
-            ok: false,
-            code: 'internal',
-            message: 'Sync verification did not resolve the wallet key manifest',
-          },
-          { status: 500 },
+        return jsonFailure(
+          500,
+          'internal',
+          'Sync verification did not resolve the wallet key manifest',
         );
       }
       const thresholdEd25519 = result.thresholdEd25519;
@@ -122,13 +119,10 @@ export async function handleSyncAccount(ctx: FetchRouterApiContext): Promise<Res
         String(walletBinding.nearEd25519SigningKeyId) !== nearEd25519SigningKeyId ||
         walletBinding.signerSlot !== signerSlot
       ) {
-        return json(
-          {
-            ok: false,
-            code: 'internal',
-            message: 'verified passkey wallet is missing its Ed25519 Yao identity',
-          },
-          { status: 500 },
+        return jsonFailure(
+          500,
+          'internal',
+          'verified passkey wallet is missing its Ed25519 Yao identity',
         );
       }
       const authority = passkeyWalletAuthAuthorityForMethod({
@@ -148,27 +142,13 @@ export async function handleSyncAccount(ctx: FetchRouterApiContext): Promise<Res
         activeAuthority.walletAuthority.authorityId !== result.walletAuthorityId ||
         activeAuthority.authMethod.walletAuthMethodId !== result.walletAuthMethodId
       ) {
-        return json(
-          {
-            ok: false,
-            code: 'internal',
-            message: 'Verified passkey wallet authority is unavailable',
-          },
-          { status: 500 },
-        );
+        return jsonFailure(500, 'internal', 'Verified passkey wallet authority is unavailable');
       }
       const authorityRef = await walletAuthAuthorityRef({ authority });
       const principalId = parsePrincipalId(walletId);
       const mintId = parseWalletSessionMintId(parsed.request.challengeId);
       if (!principalId.ok || !mintId.ok) {
-        return json(
-          {
-            ok: false,
-            code: 'internal',
-            message: 'Verified passkey Wallet Session identity is invalid',
-          },
-          { status: 500 },
-        );
+        return jsonFailure(500, 'internal', 'Verified passkey Wallet Session identity is invalid');
       }
       const issuedAtMs = Date.now();
       const expiresAtMs = issuedAtMs + DEFAULT_WALLET_SESSION_TTL_MS;
@@ -176,10 +156,7 @@ export async function handleSyncAccount(ctx: FetchRouterApiContext): Promise<Res
       const factorId = parseAuthFactorId(`passkey:${credentialIdB64u}`);
       const credentialId = parseWebAuthnCredentialIdB64u(credentialIdB64u);
       if (!factorId.ok || !credentialId.ok) {
-        return json(
-          { ok: false, code: 'internal', message: 'Verified passkey factor identity is invalid' },
-          { status: 500 },
-        );
+        return jsonFailure(500, 'internal', 'Verified passkey factor identity is invalid');
       }
       const proof = await ctx.service.authorizedOperations.buildVerifiedOwnerProof({
         purpose: 'wallet_session',
@@ -199,10 +176,7 @@ export async function handleSyncAccount(ctx: FetchRouterApiContext): Promise<Res
         }),
       });
       if (proof.purpose !== 'wallet_session') {
-        return json(
-          { ok: false, code: 'internal', message: 'Owner proof purpose is invalid' },
-          { status: 500 },
-        );
+        return jsonFailure(500, 'internal', 'Owner proof purpose is invalid');
       }
       const normalizedResult = {
         ok: true as const,
@@ -251,10 +225,7 @@ export async function handleSyncAccount(ctx: FetchRouterApiContext): Promise<Res
         );
       }
       if (bootstrap.kind === 'error') {
-        return json(
-          { ok: false, code: bootstrap.code, message: bootstrap.message },
-          { status: bootstrap.status },
-        );
+        return jsonFailure(bootstrap.status, bootstrap.code, bootstrap.message);
       }
       responseBody = bootstrap.body;
     }

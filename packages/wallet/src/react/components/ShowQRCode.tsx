@@ -18,6 +18,7 @@ import type {
   LinkedDeviceTargetFactorActivationV1,
   LinkedDeviceTargetFactorV1,
   LinkedDeviceTargetPasskeyActivationV1,
+  StartDevice2LinkingTargetV1,
 } from '../../core/types/linkDevice';
 import {
   isLinkedDeviceTargetEmailAddressV1,
@@ -34,35 +35,25 @@ export interface ShowQRCodeProps {
   onError: (error: Error) => void;
 }
 
-type Device2LinkingTargetV1 =
-  | {
-      readonly targetFactor: Extract<LinkedDeviceTargetFactorV1, { readonly kind: 'passkey_prf' }>;
-      readonly targetEmail?: never;
-    }
-  | {
-      readonly targetFactor: Extract<LinkedDeviceTargetFactorV1, { readonly kind: 'email_otp' }>;
-      readonly targetEmail: string;
-    };
-
 type Device2LinkingSelectFactorStateV1 =
   | ({ readonly kind: 'select_factor' } & Extract<
-      Device2LinkingTargetV1,
+      StartDevice2LinkingTargetV1,
       { readonly targetFactor: { readonly kind: 'passkey_prf' } }
     >)
   | ({ readonly kind: 'select_factor' } & Extract<
-      Device2LinkingTargetV1,
+      StartDevice2LinkingTargetV1,
       { readonly targetFactor: { readonly kind: 'email_otp' } }
     >);
 
 type Device2LinkingState =
   | Device2LinkingSelectFactorStateV1
-  | ({ readonly kind: 'starting' } & Device2LinkingTargetV1)
+  | ({ readonly kind: 'starting' } & StartDevice2LinkingTargetV1)
   | ({
       readonly kind: 'qr';
       readonly qrCodeDataURL: string;
       readonly lastPhase?: string;
       readonly lastMessage?: string;
-    } & Device2LinkingTargetV1)
+    } & StartDevice2LinkingTargetV1)
   | {
       readonly kind: 'passkey_activation';
       readonly targetFactor: Extract<LinkedDeviceTargetFactorV1, { readonly kind: 'passkey_prf' }>;
@@ -80,7 +71,7 @@ type Device2LinkingState =
 
 type ActiveDevice2Flow = {
   readonly sessionId: number;
-} & Device2LinkingTargetV1 & {
+} & StartDevice2LinkingTargetV1 & {
     cancelled: boolean;
   };
 
@@ -132,7 +123,7 @@ function targetFactorFromSelection(value: string): LinkedDeviceTargetFactorV1 | 
 
 function targetSelectionFromFactor(
   targetFactor: LinkedDeviceTargetFactorV1,
-): Device2LinkingTargetV1 {
+): StartDevice2LinkingTargetV1 {
   return targetFactor.kind === 'email_otp' ? { targetFactor, targetEmail: '' } : { targetFactor };
 }
 
@@ -278,7 +269,7 @@ export function ShowQRCode({ isOpen, onClose, onEvent, onError }: ShowQRCodeProp
     if (!isOpen || deviceLinkingState.kind !== 'select_factor') return;
 
     const runtime = flowRuntimeRef.current;
-    let target: Device2LinkingTargetV1;
+    let target: StartDevice2LinkingTargetV1;
     try {
       target =
         deviceLinkingState.targetFactor.kind === 'email_otp'

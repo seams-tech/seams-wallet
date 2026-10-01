@@ -1,4 +1,5 @@
 import type { NormalizedLogger } from '../../../../core/logger';
+import { headersToRecord, readJson } from '../../../../router/framework/http';
 import {
   buildSigningSessionSealApplyPath,
   buildSigningSessionSealRemovePath,
@@ -10,6 +11,7 @@ import {
   resolveSigningSessionSealBasePath,
 } from './shared';
 import type { SigningSessionSealRoutesOptions } from '../signingSessionSeal.types';
+import { failure } from '@shared/utils/failure';
 
 type FetchSigningSessionSealContext = {
   request: Request;
@@ -25,22 +27,6 @@ function json(body: unknown, status = 200): Response {
     status,
     headers: { 'Content-Type': 'application/json; charset=utf-8' },
   });
-}
-
-async function readJsonSafe(request: Request): Promise<unknown> {
-  try {
-    return await request.json();
-  } catch {
-    return null;
-  }
-}
-
-function headersToRecord(headers: Headers): Record<string, string> {
-  const out: Record<string, string> = {};
-  headers.forEach((value, key) => {
-    out[key] = value;
-  });
-  return out;
 }
 
 function errMessage(error: unknown): string {
@@ -68,7 +54,7 @@ export async function handleSigningSessionSealRoutes(
       route: isApply ? applyPath : removePath,
       operation,
     });
-    const body = await readJsonSafe(ctx.request);
+    const body = await readJson(ctx.request);
     const parsed = isApply
       ? parseSigningSessionSealApplyBody(body)
       : parseSigningSessionSealRemoveBody(body);
@@ -80,7 +66,7 @@ export async function handleSigningSessionSealRoutes(
         message: parsed.message,
         durationMs: Math.max(0, Date.now() - startedAtMs),
       });
-      return json({ ok: false, code: parsed.code, message: parsed.message }, 400);
+      return json(failure(parsed.code, parsed.message), 400);
     }
 
     const authorized = await authorizeSigningSessionSealRequest({
@@ -98,11 +84,7 @@ export async function handleSigningSessionSealRoutes(
         durationMs: Math.max(0, Date.now() - startedAtMs),
       });
       return json(
-        {
-          ok: false,
-          code: authorized.code || 'unauthorized',
-          message: authorized.message || 'Unauthorized',
-        },
+        failure(authorized.code || 'unauthorized', authorized.message || 'Unauthorized'),
         signingSessionSealAuthorizeStatusCode(authorized),
       );
     }
@@ -127,6 +109,6 @@ export async function handleSigningSessionSealRoutes(
       message,
       durationMs: Math.max(0, Date.now() - startedAtMs),
     });
-    return json({ ok: false, code: 'internal', message }, 500);
+    return json(failure('internal', message), 500);
   }
 }

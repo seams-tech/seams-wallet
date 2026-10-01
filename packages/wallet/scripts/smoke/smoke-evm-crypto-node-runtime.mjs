@@ -17,7 +17,9 @@ function fail(msg) {
 }
 
 if (!fs.existsSync(wasmPkgJsAbs)) {
-  fail(`Missing wasm-bindgen JS at ${wasmPkgJsAbs}. Run 'pnpm build:sdk-prod' first.`);
+  fail(
+    `Missing wasm-bindgen JS at ${wasmPkgJsAbs}. Run 'pnpm -C packages/wallet build:prod' first.`,
+  );
 }
 if (!fs.existsSync(sourceWasmAbs)) {
   fail(`Missing source WASM at ${sourceWasmAbs}.`);

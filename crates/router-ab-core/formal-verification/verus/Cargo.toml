@@ -10,8 +10,6 @@ vstd = "=0.0.0-2026-03-29-0113"
 
 [dev-dependencies]
 router-ab-core = { path = "../.." }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
 
 [lib]
 name = "router_ab_core_verus"

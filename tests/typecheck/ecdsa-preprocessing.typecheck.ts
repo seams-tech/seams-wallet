@@ -41,3 +41,41 @@ const mismatchedAuth: AuthorizedEcdsaPreprocessingCapability['authorization'] = 
   selectedAuthMethod: emailAuthMethod,
 };
 void mismatchedAuth;
+
+type SigningFlowRuntimeInput = Parameters<
+  typeof import('../../packages/wallet/src/core/signingEngine/flows/signEvmFamily/signingFlowRuntime').createEvmFamilySigningFlowRuntime
+>[0];
+declare const p256RuntimeInput: Extract<
+  SigningFlowRuntimeInput,
+  { senderSignatureAlgorithm: 'webauthnP256' }
+>;
+declare const ecdsaRuntimeInput: Extract<
+  SigningFlowRuntimeInput,
+  { senderSignatureAlgorithm: 'secp256k1' }
+>;
+
+// @ts-expect-error Changing algorithms cannot invent a prepared ECDSA session.
+const missingPreparedSession: SigningFlowRuntimeInput = {
+  ...p256RuntimeInput,
+  senderSignatureAlgorithm: 'secp256k1',
+};
+// @ts-expect-error P256 cannot retain an ECDSA authorization through a spread.
+const mixedRuntimeInput: SigningFlowRuntimeInput = {
+  ...ecdsaRuntimeInput,
+  senderSignatureAlgorithm: 'webauthnP256',
+};
+// @ts-expect-error A direct P256 input cannot carry a prepared ECDSA session.
+const mixedDirectRuntimeInput: SigningFlowRuntimeInput = {
+  deps: p256RuntimeInput.deps,
+  walletSession: p256RuntimeInput.walletSession,
+  request: p256RuntimeInput.request,
+  chainTarget: p256RuntimeInput.chainTarget,
+  senderSignatureAlgorithm: 'webauthnP256',
+  preparedSession: ecdsaRuntimeInput.preparedSession,
+};
+// @ts-expect-error A cast between incompatible algorithm states cannot supply preparation.
+const castRuntimeInput = p256RuntimeInput as typeof ecdsaRuntimeInput;
+void missingPreparedSession;
+void mixedRuntimeInput;
+void mixedDirectRuntimeInput;
+void castRuntimeInput;

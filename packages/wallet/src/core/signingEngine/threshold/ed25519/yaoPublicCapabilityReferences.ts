@@ -13,6 +13,7 @@ import { parseSignerSlot } from '@shared/utils/signerSlot';
 import { requireRecord, requireCanonicalString } from '@shared/utils/validation';
 import { toRpId } from '../../session/identity/evmFamilyEcdsaIdentity';
 import type { SigningLaneAuthBinding } from '../../session/identity/signingLaneAuthBinding';
+import type { ExclusiveUnion } from '@shared/utils/variant';
 
 const ED25519_YAO_PUBLIC_CAPABILITY_REFERENCES_KIND_V1 =
   'ed25519_yao_public_capability_references_v1' as const;
@@ -37,18 +38,14 @@ type Ed25519YaoPublicCapabilityLaneReferenceBaseV1 = Ed25519YaoPublicCapabilityR
 
 export type Ed25519YaoPublicCapabilityLaneReferenceV1 =
   Ed25519YaoPublicCapabilityLaneReferenceBaseV1 &
-    (
+    ExclusiveUnion<
       | {
           auth: Extract<SigningLaneAuthBinding, { kind: 'email_otp' }>;
           remainingUses: number;
           expiresAtMs: number;
         }
-      | {
-          auth: Extract<SigningLaneAuthBinding, { kind: 'passkey' }>;
-          remainingUses?: never;
-          expiresAtMs?: never;
-        }
-    );
+      | { auth: Extract<SigningLaneAuthBinding, { kind: 'passkey' }> }
+    >;
 
 type Ed25519YaoPublicCapabilityReferencesV1 = {
   kind: typeof ED25519_YAO_PUBLIC_CAPABILITY_REFERENCES_KIND_V1;

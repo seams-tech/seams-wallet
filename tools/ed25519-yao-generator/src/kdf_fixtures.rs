@@ -184,21 +184,21 @@ pub fn canonical_kdf_vector_corpus_v1() -> KdfVectorCorpusV1 {
                 near_ed25519_signing_key_id: SYNTHETIC_SIGNING_KEY_ID_V1.to_owned(),
                 signing_root_id: SYNTHETIC_SIGNING_ROOT_ID_V1.to_owned(),
                 key_creation_signer_slot: SYNTHETIC_KEY_CREATION_SIGNER_SLOT_V1,
-                encoded_hex: encode_hex(application_binding_encoding.as_bytes()),
-                digest_sha256_hex: encode_hex(application_binding_digest.as_bytes()),
+                encoded_hex: hex::encode(application_binding_encoding.as_bytes()),
+                digest_sha256_hex: hex::encode(application_binding_digest.as_bytes()),
             },
             synthetic_roots: KdfSyntheticRootsV1 {
-                client_root_hex: encode_hex(&SYNTHETIC_CLIENT_ROOT_V1),
-                deriver_a_root_hex: encode_hex(&SYNTHETIC_DERIVER_A_ROOT_V1),
-                deriver_b_root_hex: encode_hex(&SYNTHETIC_DERIVER_B_ROOT_V1),
+                client_root_hex: hex::encode(SYNTHETIC_CLIENT_ROOT_V1),
+                deriver_a_root_hex: hex::encode(SYNTHETIC_DERIVER_A_ROOT_V1),
+                deriver_b_root_hex: hex::encode(SYNTHETIC_DERIVER_B_ROOT_V1),
             },
             context: KdfStableContextVectorV1 {
-                application_binding_digest_hex: encode_hex(
+                application_binding_digest_hex: hex::encode(
                     material.context.application_binding_digest().as_bytes(),
                 ),
                 participant_ids: material.context.participant_ids().as_array(),
-                encoded_hex: encode_hex(material.context.encode().as_bytes()),
-                binding_sha256_hex: encode_hex(material.context.binding_digest().as_bytes()),
+                encoded_hex: hex::encode(material.context.encode().as_bytes()),
+                binding_sha256_hex: hex::encode(material.context.binding_digest().as_bytes()),
             },
             contributions: kdf_contribution_vector_v1(&material.deriver_a, &material.deriver_b),
             synthetic_clear_reference_trace: kdf_clear_reference_trace_v1(
@@ -276,14 +276,14 @@ pub(crate) fn kdf_contribution_vector_v1(
     deriver_b: &DeriverBContribution,
 ) -> KdfContributionVectorV1 {
     KdfContributionVectorV1 {
-        y_client_a_hex: encode_hex(&deriver_a.y_client().expose_bytes()),
-        tau_client_a_hex: encode_hex(&deriver_a.tau_client().expose_bytes()),
-        y_client_b_hex: encode_hex(&deriver_b.y_client().expose_bytes()),
-        tau_client_b_hex: encode_hex(&deriver_b.tau_client().expose_bytes()),
-        y_server_a_hex: encode_hex(&deriver_a.y_server().expose_bytes()),
-        tau_server_a_hex: encode_hex(&deriver_a.tau_server().expose_bytes()),
-        y_server_b_hex: encode_hex(&deriver_b.y_server().expose_bytes()),
-        tau_server_b_hex: encode_hex(&deriver_b.tau_server().expose_bytes()),
+        y_client_a_hex: hex::encode(deriver_a.y_client().expose_bytes()),
+        tau_client_a_hex: hex::encode(deriver_a.tau_client().expose_bytes()),
+        y_client_b_hex: hex::encode(deriver_b.y_client().expose_bytes()),
+        tau_client_b_hex: hex::encode(deriver_b.tau_client().expose_bytes()),
+        y_server_a_hex: hex::encode(deriver_a.y_server().expose_bytes()),
+        tau_server_a_hex: hex::encode(deriver_a.tau_server().expose_bytes()),
+        y_server_b_hex: hex::encode(deriver_b.y_server().expose_bytes()),
+        tau_server_b_hex: hex::encode(deriver_b.tau_server().expose_bytes()),
     }
 }
 
@@ -311,34 +311,24 @@ pub(crate) fn kdf_clear_reference_trace_v1(
     let tau_b = tau_client_b + tau_server_b;
 
     KdfClearReferenceTraceV1 {
-        y_a_hex: encode_hex(&y_a),
-        y_b_hex: encode_hex(&y_b),
-        joined_seed_hex: encode_hex(&joined_seed),
-        sha512_digest_hex: encode_hex(&material.sha512_digest().expose_bytes()),
-        clamped_scalar_bytes_hex: encode_hex(&material.clamped_scalar_bytes().expose_bytes()),
-        signing_scalar_hex: encode_hex(&material.signing_scalar().expose_bytes()),
-        tau_a_hex: encode_hex(&tau_a.to_bytes()),
-        tau_b_hex: encode_hex(&tau_b.to_bytes()),
-        tau_hex: encode_hex(&material.tau().expose_bytes()),
-        x_client_base_hex: encode_hex(&material.x_client_base().expose_bytes()),
-        x_server_base_hex: encode_hex(&material.x_server_base().expose_bytes()),
-        x_client_point_hex: encode_hex(&material.x_client().expose_bytes()),
-        x_server_point_hex: encode_hex(&material.x_server().expose_bytes()),
-        public_key_hex: encode_hex(&material.public_key().expose_bytes()),
+        y_a_hex: hex::encode(y_a),
+        y_b_hex: hex::encode(y_b),
+        joined_seed_hex: hex::encode(joined_seed),
+        sha512_digest_hex: hex::encode(material.sha512_digest().expose_bytes()),
+        clamped_scalar_bytes_hex: hex::encode(material.clamped_scalar_bytes().expose_bytes()),
+        signing_scalar_hex: hex::encode(material.signing_scalar().expose_bytes()),
+        tau_a_hex: hex::encode(tau_a.to_bytes()),
+        tau_b_hex: hex::encode(tau_b.to_bytes()),
+        tau_hex: hex::encode(material.tau().expose_bytes()),
+        x_client_base_hex: hex::encode(material.x_client_base().expose_bytes()),
+        x_server_base_hex: hex::encode(material.x_server_base().expose_bytes()),
+        x_client_point_hex: hex::encode(material.x_client().expose_bytes()),
+        x_server_point_hex: hex::encode(material.x_server().expose_bytes()),
+        public_key_hex: hex::encode(material.public_key().expose_bytes()),
     }
 }
 
 fn canonical_scalar(bytes: [u8; 32]) -> Scalar {
     Option::<Scalar>::from(Scalar::from_canonical_bytes(bytes))
         .expect("KDF-derived tau is canonical")
-}
-
-fn encode_hex(bytes: &[u8]) -> String {
-    const HEX: &[u8; 16] = b"0123456789abcdef";
-    let mut encoded = String::with_capacity(bytes.len() * 2);
-    for byte in bytes {
-        encoded.push(char::from(HEX[usize::from(byte >> 4)]));
-        encoded.push(char::from(HEX[usize::from(byte & 0x0f)]));
-    }
-    encoded
 }

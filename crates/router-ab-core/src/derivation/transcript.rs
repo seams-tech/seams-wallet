@@ -3,7 +3,8 @@ use sha2::{Digest, Sha256};
 
 use crate::derivation::context::DerivationContext;
 use crate::derivation::error::{
-    RouterAbDerivationError, RouterAbDerivationErrorCode, RouterAbDerivationResult,
+    require_non_empty, RouterAbDerivationError, RouterAbDerivationErrorCode,
+    RouterAbDerivationResult,
 };
 use crate::derivation::material::{PublicDigest32, Role};
 
@@ -374,13 +375,6 @@ impl<'de> Deserialize<'de> for TranscriptBinding {
     }
 }
 
-/// Computes the current transcript binding digest.
-pub fn transcript_binding_digest(
-    binding: &TranscriptBinding,
-) -> RouterAbDerivationResult<[u8; 32]> {
-    Ok(transcript_digest_v1(binding)?.bytes)
-}
-
 /// Computes the V1 transcript digest.
 pub fn transcript_digest_v1(
     binding: &TranscriptBinding,
@@ -429,14 +423,4 @@ fn push_field(hasher: &mut Sha256, value: &[u8]) {
     let len = value.len() as u32;
     hasher.update(len.to_be_bytes());
     hasher.update(value);
-}
-
-fn require_non_empty(field: &'static str, value: &str) -> RouterAbDerivationResult<()> {
-    if value.is_empty() {
-        return Err(RouterAbDerivationError::new(
-            RouterAbDerivationErrorCode::EmptyField,
-            format!("{field} is required"),
-        ));
-    }
-    Ok(())
 }

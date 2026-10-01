@@ -2,6 +2,7 @@ import { parseWebAuthnRpId, type WalletId } from '@shared/utils/domainIds';
 import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';
 import { secureRandomBase64Url } from '@shared/utils/secureRandomId';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
+import { failedVerification, failure } from '@shared/utils/failure';
 import type { RouterApiWebAuthnService } from '../../../framework/authServicePort';
 import { d1HostIsWithinWebAuthnRpId } from '../wallet/d1WalletAuthMethodBoundary';
 import {
@@ -107,11 +108,10 @@ export class CloudflareD1WebAuthnAuthService {
     try {
       const userId = parseD1BoundaryWalletIdResult(input.userId);
       if (!userId.ok) {
-        return {
-          ok: false,
-          code: 'invalid_args',
-          message: userId.code === 'missing' ? 'Missing userId' : 'Invalid userId',
-        };
+        return failure(
+          'invalid_args',
+          userId.code === 'missing' ? 'Missing userId' : 'Invalid userId',
+        );
       }
       const rpId = toOptionalTrimmedString(input.rpId);
       const authRows = await this.webAuthnStore.readAuthenticatorRows(userId.value);
@@ -138,11 +138,7 @@ export class CloudflareD1WebAuthnAuthService {
       authenticators.sort(compareAuthenticatorSlots);
       return { ok: true, authenticators };
     } catch (error: unknown) {
-      return {
-        ok: false,
-        code: 'internal',
-        message: errorMessage(error) || 'Failed to list authenticators',
-      };
+      return failure('internal', errorMessage(error) || 'Failed to list authenticators');
     }
   }
 
@@ -153,13 +149,12 @@ export class CloudflareD1WebAuthnAuthService {
       const userId = parseD1BoundaryWalletIdResult(input.userId ?? input.user_id);
       const rpId = toOptionalTrimmedString(input.rpId ?? input.rp_id);
       if (!userId.ok) {
-        return {
-          ok: false,
-          code: 'invalid_body',
-          message: userId.code === 'missing' ? 'Missing userId' : 'Invalid userId',
-        };
+        return failure(
+          'invalid_body',
+          userId.code === 'missing' ? 'Missing userId' : 'Invalid userId',
+        );
       }
-      if (!rpId) return { ok: false, code: 'invalid_body', message: 'Missing rpId' };
+      if (!rpId) return failure('invalid_body', 'Missing rpId');
 
       const createdAtMs = Date.now();
       const expiresAtMs = createdAtMs + webAuthnLoginChallengeTtlMs(input.ttlMs ?? input.ttl_ms);
@@ -197,11 +192,7 @@ export class CloudflareD1WebAuthnAuthService {
         credentialIds.push(credentialId);
       }
       if (credentialIds.length === 0) {
-        return {
-          ok: false,
-          code: 'unknown_credential',
-          message: 'Wallet has no registered passkey credential',
-        };
+        return failure('unknown_credential', 'Wallet has no registered passkey credential');
       }
       const record: WebAuthnLoginChallengeRecord = {
         version: 'webauthn_login_challenge_v1',
@@ -223,11 +214,7 @@ export class CloudflareD1WebAuthnAuthService {
 
       return { ok: true, challengeId, challengeB64u, credentialIds, expiresAtMs };
     } catch (error: unknown) {
-      return {
-        ok: false,
-        code: 'internal',
-        message: errorMessage(error) || 'Failed to create login options',
-      };
+      return failure('internal', errorMessage(error) || 'Failed to create login options');
     }
   }
 
@@ -236,12 +223,12 @@ export class CloudflareD1WebAuthnAuthService {
   ): Promise<CreateWebAuthnSyncAccountOptionsResult> {
     try {
       const rpId = toOptionalTrimmedString(input.rp_id);
-      if (!rpId) return { ok: false, code: 'invalid_body', message: 'Missing rp_id' };
+      if (!rpId) return failure('invalid_body', 'Missing rp_id');
 
       const expectedUserIdRaw = toOptionalTrimmedString(input.account_id);
       const expectedUserId = expectedUserIdRaw ? parseD1BoundaryWalletId(expectedUserIdRaw) : null;
       if (expectedUserIdRaw && !expectedUserId) {
-        return { ok: false, code: 'invalid_body', message: 'Invalid wallet account_id' };
+        return failure('invalid_body', 'Invalid wallet account_id');
       }
 
       const createdAtMs = Date.now();
@@ -283,11 +270,10 @@ export class CloudflareD1WebAuthnAuthService {
           }
         }
         if (credentialIds.length === 0) {
-          return {
-            ok: false,
-            code: 'unknown_credential',
-            message: 'Wallet has no registered active passkey credential',
-          };
+          return failure(
+            'unknown_credential',
+            'Wallet has no registered active passkey credential',
+          );
         }
       }
 
@@ -317,11 +303,7 @@ export class CloudflareD1WebAuthnAuthService {
         expiresAtMs,
       };
     } catch (error: unknown) {
-      return {
-        ok: false,
-        code: 'internal',
-        message: errorMessage(error) || 'Failed to create sync account options',
-      };
+      return failure('internal', errorMessage(error) || 'Failed to create sync account options');
     }
   }
 
@@ -510,51 +492,35 @@ export class CloudflareD1WebAuthnAuthService {
   async verifyWebAuthnLogin(input: VerifyWebAuthnLoginInput): Promise<VerifyWebAuthnLoginResult> {
     try {
       const challengeId = toOptionalTrimmedString(input.challengeId ?? input.challenge_id);
-      if (!challengeId) return { ok: false, code: 'invalid_body', message: 'Missing challengeId' };
+      if (!challengeId) return failure('invalid_body', 'Missing challengeId');
       const challenge = await this.webAuthnStore.consumeLoginChallenge(challengeId);
       if (!challenge) {
-        return {
-          ok: false,
-          verified: false,
-          code: 'challenge_expired_or_invalid',
-          message: 'Login challenge expired or invalid',
-        };
+        return failedVerification(
+          'challenge_expired_or_invalid',
+          'Login challenge expired or invalid',
+        );
       }
       const expectedOrigin = toOptionalTrimmedString(input.expected_origin);
       if (!expectedOrigin) {
-        return {
-          ok: false,
-          verified: false,
-          code: 'invalid_body',
-          message: 'expected_origin is required for WebAuthn authentication verification',
-        };
+        return failedVerification(
+          'invalid_body',
+          'expected_origin is required for WebAuthn authentication verification',
+        );
       }
       const rpId = parseWebAuthnRpId(challenge.rpId);
       if (!rpId.ok) {
-        return {
-          ok: false,
-          verified: false,
-          code: 'internal',
-          message: `Stored login challenge rpId is invalid: ${rpId.error.message}`,
-        };
+        return failedVerification(
+          'internal',
+          `Stored login challenge rpId is invalid: ${rpId.error.message}`,
+        );
       }
       const credential = parseWebAuthnAuthenticationCredential(input.webauthn_authentication);
       if (!credential) {
-        return {
-          ok: false,
-          verified: false,
-          code: 'invalid_body',
-          message: 'Missing webauthn_authentication',
-        };
+        return failedVerification('invalid_body', 'Missing webauthn_authentication');
       }
       const credentialId = webAuthnCredentialIdB64uFromCredential(credential);
       if (!credentialId.ok) {
-        return {
-          ok: false,
-          verified: false,
-          code: credentialId.code,
-          message: credentialId.message,
-        };
+        return failedVerification(credentialId.code, credentialId.message);
       }
       const activeMethod = await this.walletAuthMethodStore.getPasskeyV2({
         rpId: challenge.rpId,
@@ -568,12 +534,7 @@ export class CloudflareD1WebAuthnAuthService {
         String(activeMethod.rpId) !== String(challenge.rpId) ||
         String(activeMethod.credentialIdB64u) !== String(credentialId.credentialIdB64u)
       ) {
-        return {
-          ok: false,
-          verified: false,
-          code: 'unknown_credential',
-          message: 'Credential is not active for this wallet',
-        };
+        return failedVerification('unknown_credential', 'Credential is not active for this wallet');
       }
       const verification = await this.verifyWebAuthnAuthenticationLite({
         userId: challenge.userId,
@@ -604,12 +565,7 @@ export class CloudflareD1WebAuthnAuthService {
         ed25519: loginSigner.ed25519,
       };
     } catch (error: unknown) {
-      return {
-        ok: false,
-        verified: false,
-        code: 'internal',
-        message: errorMessage(error) || 'Login verification failed',
-      };
+      return failedVerification('internal', errorMessage(error) || 'Login verification failed');
     }
   }
 
@@ -618,33 +574,21 @@ export class CloudflareD1WebAuthnAuthService {
   ): Promise<VerifyWebAuthnSyncAccountResult> {
     try {
       const challengeId = toOptionalTrimmedString(input.challengeId ?? input.challenge_id);
-      if (!challengeId) return { ok: false, code: 'invalid_body', message: 'Missing challengeId' };
+      if (!challengeId) return failure('invalid_body', 'Missing challengeId');
       const challenge = await this.webAuthnStore.consumeSyncChallenge(challengeId);
       if (!challenge) {
-        return {
-          ok: false,
-          verified: false,
-          code: 'challenge_expired_or_invalid',
-          message: 'Sync challenge expired or invalid',
-        };
+        return failedVerification(
+          'challenge_expired_or_invalid',
+          'Sync challenge expired or invalid',
+        );
       }
       const credential = parseWebAuthnAuthenticationCredential(input.webauthn_authentication);
       if (!credential) {
-        return {
-          ok: false,
-          verified: false,
-          code: 'invalid_body',
-          message: 'Missing webauthn_authentication',
-        };
+        return failedVerification('invalid_body', 'Missing webauthn_authentication');
       }
       const credentialId = webAuthnCredentialIdB64uFromCredential(credential);
       if (!credentialId.ok) {
-        return {
-          ok: false,
-          verified: false,
-          code: credentialId.code,
-          message: credentialId.message,
-        };
+        return failedVerification(credentialId.code, credentialId.message);
       }
       const syncBinding = webAuthnSyncCredentialBinding(
         await this.webAuthnStore.readBindingByCredential({
@@ -667,30 +611,21 @@ export class CloudflareD1WebAuthnAuthService {
         String(activeMethod.rpId) !== String(challenge.rpId) ||
         String(activeMethod.credentialIdB64u) !== String(credentialId.credentialIdB64u)
       ) {
-        return {
-          ok: false,
-          verified: false,
-          code: 'unknown_credential',
-          message: 'Credential is not active for this wallet',
-        };
+        return failedVerification('unknown_credential', 'Credential is not active for this wallet');
       }
       const expectedOrigin = toOptionalTrimmedString(input.expected_origin);
       if (!expectedOrigin) {
-        return {
-          ok: false,
-          verified: false,
-          code: 'invalid_body',
-          message: 'expected_origin is required for WebAuthn authentication verification',
-        };
+        return failedVerification(
+          'invalid_body',
+          'expected_origin is required for WebAuthn authentication verification',
+        );
       }
       const rpId = parseWebAuthnRpId(binding.rpId);
       if (!rpId.ok) {
-        return {
-          ok: false,
-          verified: false,
-          code: 'internal',
-          message: `Stored sync credential binding rpId is invalid: ${rpId.error.message}`,
-        };
+        return failedVerification(
+          'internal',
+          `Stored sync credential binding rpId is invalid: ${rpId.error.message}`,
+        );
       }
       const verification = await this.verifyWebAuthnAuthenticationLite({
         userId: binding.userId,
@@ -706,42 +641,28 @@ export class CloudflareD1WebAuthnAuthService {
         credentialIdB64u: credentialId.credentialIdB64u,
       });
       if (!authenticator) {
-        return {
-          ok: false,
-          verified: false,
-          code: 'unknown_credential',
-          message: 'Credential is not registered for user',
-        };
+        return failedVerification('unknown_credential', 'Credential is not registered for user');
       }
       const walletBinding = webAuthnSyncWalletBindingFromCredentialBinding(binding);
       if (!walletBinding) {
-        return {
-          ok: false,
-          verified: false,
-          code: 'internal',
-          message: 'Credential binding is missing wallet identity fields',
-        };
+        return failedVerification(
+          'internal',
+          'Credential binding is missing wallet identity fields',
+        );
       }
       const walletId = parseD1BoundaryWalletId(walletBinding.walletId);
       if (!walletId) {
-        return {
-          ok: false,
-          verified: false,
-          code: 'internal',
-          message: 'Credential binding contains an invalid wallet ID',
-        };
+        return failedVerification('internal', 'Credential binding contains an invalid wallet ID');
       }
       const ed25519Manifest = await this.walletManifestSource.getEd25519KeyManifestBySlot({
         walletId,
         signerSlot: walletBinding.signerSlot,
       });
       if (!ed25519Manifest) {
-        return {
-          ok: false,
-          verified: false,
-          code: 'ed25519_not_provisioned',
-          message: 'Wallet has no Ed25519 signer yet; NEAR provisioning has not completed',
-        };
+        return failedVerification(
+          'ed25519_not_provisioned',
+          'Wallet has no Ed25519 signer yet; NEAR provisioning has not completed',
+        );
       }
       const thresholdEd25519 =
         binding.relayerKeyId && binding.publicKey
@@ -785,12 +706,7 @@ export class CloudflareD1WebAuthnAuthService {
         ...(thresholdEd25519 ? { thresholdEd25519 } : {}),
       };
     } catch (error: unknown) {
-      return {
-        ok: false,
-        verified: false,
-        code: 'internal',
-        message: errorMessage(error) || 'Sync verification failed',
-      };
+      return failedVerification('internal', errorMessage(error) || 'Sync verification failed');
     }
   }
 }

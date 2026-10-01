@@ -111,7 +111,7 @@ type PendingRegistrationRecoveryResult =
 
 const defaultPendingRegistrationRecoveryPorts: PendingRegistrationRecoveryPorts = {
   listPendingWalletRegistrationCommits: listPendingWalletRegistrationCommits,
-  completeWalletRegistrationNearProvisioning: completePendingWalletRegistrationNearProvisioning,
+  completeWalletRegistrationNearProvisioning,
   publishPendingWalletRegistrationCommit: publishPendingWalletRegistrationCommit,
 };
 
@@ -120,18 +120,6 @@ async function listPendingWalletRegistrationCommits(): Promise<
 > {
   await IndexedDBManager.initialize();
   return await IndexedDBManager.listPendingWalletRegistrationCommits();
-}
-
-async function completePendingWalletRegistrationNearProvisioning(
-  input: Parameters<typeof completeWalletRegistrationNearProvisioning>[0],
-): Promise<WalletRegistrationNearProvisioningResponseV2> {
-  return await completeWalletRegistrationNearProvisioning(input);
-}
-
-async function activatePendingWalletRegistration(
-  input: Parameters<typeof activateWalletRegistration>[0],
-): ReturnType<typeof activateWalletRegistration> {
-  return await activateWalletRegistration(input);
 }
 
 async function publishPendingWalletRegistrationCommit(
@@ -614,7 +602,7 @@ export { isEcdsaRegistrationCommit } from './pendingEcdsaRegistrationRecoveryVal
 export type { ResumePendingEcdsaRegistrationResult } from './pendingEcdsaRegistrationRecovery';
 
 const defaultPendingEcdsaRegistrationRecoveryPorts: PendingEcdsaRegistrationRecoveryPorts = {
-  activateWalletRegistration: activatePendingWalletRegistration,
+  activateWalletRegistration,
   publishPendingWalletRegistrationCommit,
   unlockPendingEcdsaRegistration,
 };

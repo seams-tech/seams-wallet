@@ -44,6 +44,7 @@ import {
   createExportUiRequestId,
   emitKeyExportEvent,
   type KeyExportEventCallback,
+  type KeyExportUiOptions,
 } from './keyExportFlow';
 import { mpcMaterialActivationRefsEqual } from '@shared/utils/domainIds';
 import { resolveThresholdEcdsaSigningQueueKey } from '../../threshold/ecdsa/signingQueue';
@@ -117,11 +118,6 @@ export type EcdsaExportFlowDeps = {
   }) => Promise<T>;
 };
 
-type EcdsaExportOptions = {
-  variant?: 'drawer' | 'modal';
-  theme?: 'dark' | 'light';
-};
-
 type DisplayableEcdsaExportLane = ExactEcdsaExportLane;
 type CanonicalEcdsaExportLane = Extract<ExactEcdsaExportLane, { source: 'canonical_capability' }>;
 type ActiveWalletAuthorityEcdsaExportLane = Extract<
@@ -132,7 +128,7 @@ type ActiveWalletAuthorityEcdsaExportLane = Extract<
 type PrepareAndShowEcdsaExportArtifactArgs = {
   readonly walletId: string;
   readonly exportPublicKey: string;
-  readonly options: EcdsaExportOptions;
+  readonly options: KeyExportUiOptions;
   readonly flowId: string;
   readonly onEvent?: KeyExportEventCallback;
   readonly prepareArtifact: () => Promise<EcdsaExportArtifact>;
@@ -187,7 +183,7 @@ async function showEcdsaExportArtifact(
     walletId: string;
     exportLane: DisplayableEcdsaExportLane;
     artifact: EcdsaExportArtifact;
-    options: EcdsaExportOptions;
+    options: KeyExportUiOptions;
     viewerSessionId?: string;
     flowId: string;
     onEvent?: KeyExportEventCallback;
@@ -218,7 +214,7 @@ async function showEcdsaExportLoadingViewer(
     exportLane: DisplayableEcdsaExportLane;
     publicKey: string;
     ethereumAddress: string;
-    options: EcdsaExportOptions;
+    options: KeyExportUiOptions;
     viewerSessionId: string;
     flowId: string;
     onEvent?: KeyExportEventCallback;
@@ -992,7 +988,7 @@ export async function exportThresholdEcdsaKeyWithActiveWalletAuthority(
     readonly walletId: string;
     readonly exportLane: ActiveWalletAuthorityEcdsaExportLane;
     readonly material: ActiveWalletAuthorityEcdsaExportMaterial;
-    readonly options: EcdsaExportOptions;
+    readonly options: KeyExportUiOptions;
     readonly flowId: string;
     readonly onEvent?: KeyExportEventCallback;
   },
@@ -1038,7 +1034,7 @@ export async function exportThresholdEcdsaKeyWithFreshEmailOtpRouteAuth(
     walletId: string;
     exportLane: CanonicalEcdsaExportLane;
     material: FreshEmailOtpEcdsaExportMaterial;
-    options: EcdsaExportOptions;
+    options: KeyExportUiOptions;
     flowId: string;
     onEvent?: KeyExportEventCallback;
   },
@@ -1112,7 +1108,7 @@ export async function exportThresholdEcdsaKeyWithFreshPasskeyAuthorization(
     walletId: string;
     exportLane: CanonicalEcdsaExportLane;
     material: FreshPasskeyEcdsaExportMaterial;
-    options: EcdsaExportOptions;
+    options: KeyExportUiOptions;
     flowId: string;
     onEvent?: KeyExportEventCallback;
   },

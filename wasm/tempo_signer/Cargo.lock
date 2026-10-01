@@ -228,11 +228,8 @@ dependencies = [
 name = "tempo_signer"
 version = "0.1.0"
 dependencies = [
- "num-bigint",
- "num-traits",
  "serde",
  "serde-wasm-bindgen",
- "sha3",
  "signer-core",
  "wasm-bindgen",
 ]

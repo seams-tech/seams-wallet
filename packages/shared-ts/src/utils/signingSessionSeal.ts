@@ -8,6 +8,7 @@ import type {
   WalletAuthAuthorityRef,
 } from './walletAuthAuthority';
 import type { MpcMaterialActivationRef } from './domainIds';
+import type { ThresholdEcdsaChainTarget } from './thresholdEcdsaChainTarget';
 import { SIGNER_AUTH_METHODS, type SignerAuthMethod } from './signerDomain';
 
 export const SIGNING_SESSION_SEALED_RECORD_VERSION = 2 as const;
@@ -52,6 +53,14 @@ export type SigningSessionSealProtocol = {
   algorithm: typeof SIGNING_SESSION_SEAL_ALG;
   groupId: SigningSessionSealGroupId;
 };
+/** The signing-session seal capabilities a relayer publishes in its well-known document. */
+export type WellKnownSigningSessionSealCapabilities =
+  | { mode: 'none' }
+  | {
+      mode: 'sealed_refresh_v1';
+      protocol: SigningSessionSealProtocol;
+      currentKeyVersion: string;
+    };
 export type SealedSigningSessionEcdsaRestoreSource =
   | 'login'
   | 'registration'
@@ -94,21 +103,8 @@ export function requireRouterAbEd25519NormalSigningState(
   return parsed;
 }
 
-type SealedSigningSessionEcdsaChainTarget =
-  | {
-      kind: 'tempo';
-      chainId: number;
-      networkSlug: string;
-    }
-  | {
-      kind: 'evm';
-      namespace: 'eip155';
-      chainId: number;
-      networkSlug: string;
-    };
-
 type SealedSigningSessionEcdsaRestoreMetadataBase = {
-  chainTarget: SealedSigningSessionEcdsaChainTarget;
+  chainTarget: ThresholdEcdsaChainTarget;
   signingRootId: string;
   signingRootVersion: string;
   keyHandle: string;

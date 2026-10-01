@@ -1,4 +1,5 @@
 import type { CfScheduledEvent } from './cloudflare.types';
+import { ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1 } from '../../../core/ThresholdService/routerAb/internalServiceHttp';
 import {
   ROUTER_AB_MPC_ROUTER_ORIGIN,
   type CloudflareServiceBindingFetcher,
@@ -6,7 +7,6 @@ import {
 
 const ROUTER_AB_PREWARM_CRON = '* * * * *';
 const ROUTER_AB_PREWARM_PATH = '/internal/prewarm';
-const ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER = 'x-router-ab-internal-service-auth';
 
 export interface RouterAbPrewarmScheduledEnvV1 {
   readonly MPC_ROUTER: CloudflareServiceBindingFetcher;
@@ -49,7 +49,7 @@ export async function runRouterAbPrewarmScheduledV1(
     new Request(`${ROUTER_AB_MPC_ROUTER_ORIGIN}${ROUTER_AB_PREWARM_PATH}`, {
       method: 'POST',
       headers: {
-        [ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER]: requireRouterAbInternalServiceAuthSecret(env),
+        [ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1]: requireRouterAbInternalServiceAuthSecret(env),
       },
     }),
   );

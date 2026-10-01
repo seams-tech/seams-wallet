@@ -31,6 +31,9 @@ use crate::export_delivery::{HostOnlyExportClientReleaseEvidenceV1, HostOnlyExpo
 use crate::export_evaluation_acceptance_fixtures::{
     canonical_export_acceptance_authorities_v1, canonical_verified_export_acceptance_pair_v1,
 };
+use crate::fixtures::strict_corpus::{
+    canonical_json_bytes, parse_canonical_json, StrictVectorCorpusV1,
+};
 use crate::lifecycle_domain::{
     consume_activation_metadata_v1, AbortedTerminalStateV1, ActivationControlFreshFieldsV1,
     ActivationMetadataConsumptionSuccessV1, ActivationPackageOriginV1, ActivationReceiptEvidenceV1,
@@ -84,39 +87,11 @@ const RECOVERY_ACTIVATION_REQUEST_ID_V1: &str = "activation-recovery-valid";
 const REFRESH_ACTIVATION_REQUEST_ID_V1: &str = "activation-refresh-valid";
 
 /// Strict five-branch semantic lifecycle corpus.
-#[derive(Serialize)]
-pub struct SemanticLifecycleVectorCorpusV1 {
-    schema: String,
-    protocol_id: String,
-    evidence_scope: String,
-    cases: Vec<SemanticLifecycleVectorCaseV1>,
-}
-
-impl SemanticLifecycleVectorCorpusV1 {
-    /// Returns the exact schema identifier.
-    pub fn schema(&self) -> &str {
-        &self.schema
-    }
-
-    /// Returns the fixed protocol identifier.
-    pub fn protocol_id(&self) -> &str {
-        &self.protocol_id
-    }
-
-    /// Returns the narrow host-only evidence scope.
-    pub fn evidence_scope(&self) -> &str {
-        &self.evidence_scope
-    }
-
-    /// Returns the fixed top-level case count.
-    pub fn case_count(&self) -> usize {
-        self.cases.len()
-    }
-}
+pub type SemanticLifecycleVectorCorpusV1 = StrictVectorCorpusV1<SemanticLifecycleVectorCaseV1>;
 
 #[derive(Serialize)]
 #[serde(tag = "request_kind", content = "vector", rename_all = "snake_case")]
-enum SemanticLifecycleVectorCaseV1 {
+pub enum SemanticLifecycleVectorCaseV1 {
     Registration(ActivationArtifactCaseVectorV1),
     Activation(ActivationControlVectorV1),
     Recovery(ActivationArtifactCaseVectorV1),
@@ -125,7 +100,7 @@ enum SemanticLifecycleVectorCaseV1 {
 }
 
 #[derive(Serialize)]
-struct ActivationArtifactCaseVectorV1 {
+pub struct ActivationArtifactCaseVectorV1 {
     case_id: String,
     ceremony: SemanticCeremonyEncodingVectorV1,
     packages: ActivationPackageSetVectorV1,
@@ -134,7 +109,7 @@ struct ActivationArtifactCaseVectorV1 {
 }
 
 #[derive(Serialize)]
-struct ExportArtifactCaseVectorV1 {
+pub struct ExportArtifactCaseVectorV1 {
     case_id: String,
     ceremony: SemanticCeremonyEncodingVectorV1,
     packages: ExportPackageSetVectorV1,
@@ -183,7 +158,7 @@ struct ReceiptBodyVectorV1 {
 }
 
 #[derive(Serialize)]
-struct ActivationControlVectorV1 {
+pub struct ActivationControlVectorV1 {
     case_id: String,
     metadata_consumed: Vec<ActivationMetadataConsumedVectorV1>,
     rejected_attempts: Vec<ActivationRejectedAttemptVectorV1>,
@@ -345,20 +320,15 @@ pub fn canonical_semantic_lifecycle_vector_corpus_v1() -> SemanticLifecycleVecto
 
 /// Encodes the exact canonical corpus with one trailing LF.
 pub fn canonical_semantic_lifecycle_vector_corpus_json_bytes_v1() -> Vec<u8> {
-    let mut encoded = serde_json::to_vec_pretty(&canonical_semantic_lifecycle_vector_corpus_v1())
-        .expect("fixed semantic lifecycle corpus serializes");
-    encoded.push(b'\n');
-    encoded
+    canonical_json_bytes(&canonical_semantic_lifecycle_vector_corpus_v1())
 }
 
 /// Parses only the exact canonical LF-terminated corpus bytes.
 pub fn parse_canonical_semantic_lifecycle_vector_corpus_json_v1(
     encoded: &[u8],
 ) -> Result<SemanticLifecycleVectorCorpusV1, SemanticLifecycleVectorCorpusParseErrorV1> {
-    if encoded != canonical_semantic_lifecycle_vector_corpus_json_bytes_v1() {
-        return Err(SemanticLifecycleVectorCorpusParseErrorV1);
-    }
-    Ok(canonical_semantic_lifecycle_vector_corpus_v1())
+    parse_canonical_json(encoded, canonical_semantic_lifecycle_vector_corpus_v1)
+        .ok_or(SemanticLifecycleVectorCorpusParseErrorV1)
 }
 
 pub(crate) fn registration_pending() -> PendingActivationPreStateV1 {
@@ -675,42 +645,42 @@ fn ceremony_vector(
     let dag = CeremonyValidatedDagV1::from_components(request, authorization, transcript)
         .expect("fixture ceremony is coherent");
     SemanticCeremonyEncodingVectorV1 {
-        public_request_context_encoding_hex: encode_hex(
-            &request.encode().expect("request context encodes"),
+        public_request_context_encoding_hex: hex::encode(
+            request.encode().expect("request context encodes"),
         ),
-        public_request_context_digest_sha256_hex: encode_hex(
+        public_request_context_digest_sha256_hex: hex::encode(
             dag.request_context_digest().as_bytes(),
         ),
-        authorization_encoding_hex: encode_hex(
-            &authorization.encode().expect("authorization encodes"),
+        authorization_encoding_hex: hex::encode(
+            authorization.encode().expect("authorization encodes"),
         ),
-        authorization_digest_sha256_hex: encode_hex(dag.authorization_digest().as_bytes()),
-        transcript_encoding_hex: encode_hex(&transcript.encode().expect("transcript encodes")),
-        transcript_digest_sha256_hex: encode_hex(dag.transcript_digest().as_bytes()),
+        authorization_digest_sha256_hex: hex::encode(dag.authorization_digest().as_bytes()),
+        transcript_encoding_hex: hex::encode(transcript.encode().expect("transcript encodes")),
+        transcript_digest_sha256_hex: hex::encode(dag.transcript_digest().as_bytes()),
     }
 }
 
 fn activation_packages_vector(packages: &ActivationPackageSetV1) -> ActivationPackageSetVectorV1 {
     ActivationPackageSetVectorV1 {
-        deriver_a_client_descriptor_encoding_hex: encode_hex(&packages.deriver_a_client().encode()),
-        deriver_b_client_descriptor_encoding_hex: encode_hex(&packages.deriver_b_client().encode()),
-        deriver_a_signing_worker_descriptor_encoding_hex: encode_hex(
-            &packages.deriver_a_signing_worker().encode(),
+        deriver_a_client_descriptor_encoding_hex: hex::encode(packages.deriver_a_client().encode()),
+        deriver_b_client_descriptor_encoding_hex: hex::encode(packages.deriver_b_client().encode()),
+        deriver_a_signing_worker_descriptor_encoding_hex: hex::encode(
+            packages.deriver_a_signing_worker().encode(),
         ),
-        deriver_b_signing_worker_descriptor_encoding_hex: encode_hex(
-            &packages.deriver_b_signing_worker().encode(),
+        deriver_b_signing_worker_descriptor_encoding_hex: hex::encode(
+            packages.deriver_b_signing_worker().encode(),
         ),
-        package_set_encoding_hex: encode_hex(&packages.encode()),
-        package_set_digest_sha256_hex: encode_hex(packages.digest().as_bytes()),
+        package_set_encoding_hex: hex::encode(packages.encode()),
+        package_set_digest_sha256_hex: hex::encode(packages.digest().as_bytes()),
     }
 }
 
 fn export_packages_vector(packages: &ExportPackageSetV1) -> ExportPackageSetVectorV1 {
     ExportPackageSetVectorV1 {
-        deriver_a_client_descriptor_encoding_hex: encode_hex(&packages.deriver_a_client().encode()),
-        deriver_b_client_descriptor_encoding_hex: encode_hex(&packages.deriver_b_client().encode()),
-        package_set_encoding_hex: encode_hex(&packages.encode()),
-        package_set_digest_sha256_hex: encode_hex(packages.digest().as_bytes()),
+        deriver_a_client_descriptor_encoding_hex: hex::encode(packages.deriver_a_client().encode()),
+        deriver_b_client_descriptor_encoding_hex: hex::encode(packages.deriver_b_client().encode()),
+        package_set_encoding_hex: hex::encode(packages.encode()),
+        package_set_digest_sha256_hex: hex::encode(packages.digest().as_bytes()),
     }
 }
 
@@ -718,15 +688,15 @@ fn activation_receipt_vector(
     receipt: &ActivationOutputCommittedReceiptBodyV1,
 ) -> ReceiptBodyVectorV1 {
     ReceiptBodyVectorV1 {
-        receipt_body_encoding_hex: encode_hex(&receipt.encode()),
-        receipt_body_digest_sha256_hex: encode_hex(receipt.digest().as_bytes()),
+        receipt_body_encoding_hex: hex::encode(receipt.encode()),
+        receipt_body_digest_sha256_hex: hex::encode(receipt.digest().as_bytes()),
     }
 }
 
 fn export_receipt_vector(receipt: &ExportReleasedReceiptBodyV1) -> ReceiptBodyVectorV1 {
     ReceiptBodyVectorV1 {
-        receipt_body_encoding_hex: encode_hex(&receipt.encode()),
-        receipt_body_digest_sha256_hex: encode_hex(receipt.digest().as_bytes()),
+        receipt_body_encoding_hex: hex::encode(receipt.encode()),
+        receipt_body_digest_sha256_hex: hex::encode(receipt.digest().as_bytes()),
     }
 }
 
@@ -744,18 +714,18 @@ fn output_committed_identity_vector(
     OutputCommittedArtifactIdentityVectorV1 {
         origin_kind: origin_vector(identity.origin()),
         origin_request_kind: identity.origin_request_kind(),
-        origin_request_context_digest_hex: encode_hex(
+        origin_request_context_digest_hex: hex::encode(
             identity.origin_request_context_digest().as_bytes(),
         ),
-        origin_authorization_digest_hex: encode_hex(
+        origin_authorization_digest_hex: hex::encode(
             identity.origin_authorization_digest().as_bytes(),
         ),
-        origin_transcript_digest_hex: encode_hex(identity.origin_transcript_digest().as_bytes()),
-        one_use_execution_id_hex: encode_hex(identity.one_use_execution_id().as_bytes()),
-        package_set_digest_hex: encode_hex(identity.package_set_digest().as_bytes()),
-        receipt_digest_hex: encode_hex(identity.receipt_digest().as_bytes()),
+        origin_transcript_digest_hex: hex::encode(identity.origin_transcript_digest().as_bytes()),
+        one_use_execution_id_hex: hex::encode(identity.one_use_execution_id().as_bytes()),
+        package_set_digest_hex: hex::encode(identity.package_set_digest().as_bytes()),
+        receipt_digest_hex: hex::encode(identity.receipt_digest().as_bytes()),
         activation_epoch: identity.activation_epoch().value(),
-        registered_public_key_hex: encode_hex(identity.registered_public_key().as_bytes()),
+        registered_public_key_hex: hex::encode(identity.registered_public_key().as_bytes()),
     }
 }
 
@@ -930,13 +900,13 @@ fn metadata_consumed_projection_vector(
     let projection = MetadataConsumedActivationProjectionV1::from_success(success);
     MetadataConsumedProjectionVectorV1 {
         committed: output_committed_vector(projection.committed()),
-        activation_request_context_digest_hex: encode_hex(
+        activation_request_context_digest_hex: hex::encode(
             projection.activation_request_context_digest().as_bytes(),
         ),
-        activation_authorization_digest_hex: encode_hex(
+        activation_authorization_digest_hex: hex::encode(
             projection.activation_authorization_digest().as_bytes(),
         ),
-        activation_transcript_digest_hex: encode_hex(
+        activation_transcript_digest_hex: hex::encode(
             projection.activation_transcript_digest().as_bytes(),
         ),
     }
@@ -951,12 +921,12 @@ fn rejected_attempt_vector(
 ) -> ActivationRejectedAttemptVectorV1 {
     let fresh_fields = ActivationFreshFieldsVectorV1 {
         request_id: request_id.to_owned(),
-        replay_nonce_hex: encode_hex(&[replay_byte; 32]),
+        replay_nonce_hex: hex::encode([replay_byte; 32]),
         request_expiry: expiry,
-        authorization_record_digest_hex: encode_hex(&[0xb1; 32]),
-        transcript_nonce_hex: encode_hex(&[transcript_byte; 32]),
-        transport_binding_digest_hex: encode_hex(&[0xb2; 32]),
-        artifact_suite_digest_hex: encode_hex(&[0xb3; 32]),
+        authorization_record_digest_hex: hex::encode([0xb1; 32]),
+        transcript_nonce_hex: hex::encode([transcript_byte; 32]),
+        transport_binding_digest_hex: hex::encode([0xb2; 32]),
+        artifact_suite_digest_hex: hex::encode([0xb3; 32]),
     };
     let pending = registration_pending();
     let failure = match ActivationRequestV1::new(
@@ -1002,18 +972,8 @@ fn abort_vector(abort: UniformLifecycleAbortV1) -> UniformLifecycleAbortVectorV1
     };
     UniformLifecycleAbortVectorV1 {
         request_kind: abort.request_kind(),
-        public_transcript_digest_hex: encode_hex(abort.public_transcript_digest().as_bytes()),
+        public_transcript_digest_hex: hex::encode(abort.public_transcript_digest().as_bytes()),
         public_failure_code,
         terminal,
     }
-}
-
-fn encode_hex(bytes: &[u8]) -> String {
-    const HEX: &[u8; 16] = b"0123456789abcdef";
-    let mut encoded = String::with_capacity(bytes.len() * 2);
-    for byte in bytes {
-        encoded.push(HEX[(byte >> 4) as usize] as char);
-        encoded.push(HEX[(byte & 0x0f) as usize] as char);
-    }
-    encoded
 }

@@ -31,22 +31,10 @@ fn single_bit_seed(bit_index: usize) -> [u8; 32] {
     seed
 }
 
-fn decode_hex_nibble(byte: u8) -> u8 {
-    match byte {
-        b'0'..=b'9' => byte - b'0',
-        b'a'..=b'f' => byte - b'a' + 10,
-        _ => panic!("fixture hex is lowercase ASCII"),
-    }
-}
-
-fn decode_hex_array<const N: usize>(hex: &str) -> [u8; N] {
-    assert_eq!(hex.len(), N * 2, "fixture hex has the expected width");
-    let encoded = hex.as_bytes();
+fn decode_hex_array<const N: usize>(value: &str) -> [u8; N] {
+    assert_eq!(value.len(), N * 2, "fixture hex has the expected width");
     let mut decoded = [0u8; N];
-    for (index, output) in decoded.iter_mut().enumerate() {
-        *output = (decode_hex_nibble(encoded[index * 2]) << 4)
-            | decode_hex_nibble(encoded[index * 2 + 1]);
-    }
+    hex::decode_to_slice(value, &mut decoded).expect("fixture hex is lowercase ASCII");
     decoded
 }
 

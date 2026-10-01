@@ -666,19 +666,19 @@ fn build_recovery_continuity_v1(
         host_only_reference: RecoveryHostOnlyReferenceV1 {
             synthetic_roots: synthetic_roots_v1(),
             current_contributions,
-            recovered_client_root_hex: encode_hex(&SYNTHETIC_CLIENT_ROOT_V1),
+            recovered_client_root_hex: hex::encode(SYNTHETIC_CLIENT_ROOT_V1),
             rederived_client_contributions: ClientContributionPairV1 {
-                y_client_a_hex: encode_hex(
-                    &recovered_client.deriver_a().y().expose_fixture_bytes(),
+                y_client_a_hex: hex::encode(
+                    recovered_client.deriver_a().y().expose_fixture_bytes(),
                 ),
-                tau_client_a_hex: encode_hex(
-                    &recovered_client.deriver_a().tau().expose_fixture_bytes(),
+                tau_client_a_hex: hex::encode(
+                    recovered_client.deriver_a().tau().expose_fixture_bytes(),
                 ),
-                y_client_b_hex: encode_hex(
-                    &recovered_client.deriver_b().y().expose_fixture_bytes(),
+                y_client_b_hex: hex::encode(
+                    recovered_client.deriver_b().y().expose_fixture_bytes(),
                 ),
-                tau_client_b_hex: encode_hex(
-                    &recovered_client.deriver_b().tau().expose_fixture_bytes(),
+                tau_client_b_hex: hex::encode(
+                    recovered_client.deriver_b().tau().expose_fixture_bytes(),
                 ),
             },
             after_contributions,
@@ -770,15 +770,15 @@ fn build_refresh_continuity_v1(
             ),
             delta: JointRefreshDeltaV1 {
                 deriver_a: RefreshDeltaContributionV1 {
-                    delta_y_hex: encode_hex(&REFRESH_DERIVER_A_DELTA_Y_V1),
-                    delta_tau_hex: encode_hex(&deriver_a_delta_tau),
+                    delta_y_hex: hex::encode(REFRESH_DERIVER_A_DELTA_Y_V1),
+                    delta_tau_hex: hex::encode(deriver_a_delta_tau),
                 },
                 deriver_b: RefreshDeltaContributionV1 {
-                    delta_y_hex: encode_hex(&REFRESH_DERIVER_B_DELTA_Y_V1),
-                    delta_tau_hex: encode_hex(&deriver_b_delta_tau),
+                    delta_y_hex: hex::encode(REFRESH_DERIVER_B_DELTA_Y_V1),
+                    delta_tau_hex: hex::encode(deriver_b_delta_tau),
                 },
-                combined_delta_y_hex: encode_hex(&REFRESH_DELTA_Y_V1),
-                combined_delta_tau_hex: encode_hex(&delta_tau_bytes),
+                combined_delta_y_hex: hex::encode(REFRESH_DELTA_Y_V1),
+                combined_delta_tau_hex: hex::encode(delta_tau_bytes),
             },
             after_contributions: kdf_contribution_vector_v1(refreshed_a, refreshed_b),
             before_clear_reference_trace: before_trace,
@@ -830,16 +830,16 @@ fn fixture_identity_v1(
             near_ed25519_signing_key_id: SYNTHETIC_SIGNING_KEY_ID_V1.to_owned(),
             signing_root_id: SYNTHETIC_SIGNING_ROOT_ID_V1.to_owned(),
             key_creation_signer_slot: SYNTHETIC_KEY_CREATION_SIGNER_SLOT_V1,
-            encoded_hex: encode_hex(application_binding_encoding.as_bytes()),
-            digest_sha256_hex: encode_hex(application_binding_digest.as_bytes()),
+            encoded_hex: hex::encode(application_binding_encoding.as_bytes()),
+            digest_sha256_hex: hex::encode(application_binding_digest.as_bytes()),
         },
         context: KdfStableContextVectorV1 {
-            application_binding_digest_hex: encode_hex(
+            application_binding_digest_hex: hex::encode(
                 material.context.application_binding_digest().as_bytes(),
             ),
             participant_ids: material.context.participant_ids().as_array(),
-            encoded_hex: encode_hex(material.context.encode().as_bytes()),
-            binding_sha256_hex: encode_hex(material.context.binding_digest().as_bytes()),
+            encoded_hex: hex::encode(material.context.encode().as_bytes()),
+            binding_sha256_hex: hex::encode(material.context.binding_digest().as_bytes()),
         },
         registered_public_key_hex: trace.public_key_hex.clone(),
         x_client_point_hex: trace.x_client_point_hex.clone(),
@@ -872,9 +872,9 @@ fn assert_refresh_trace_continuity_v1(
 
 fn synthetic_roots_v1() -> KdfSyntheticRootsV1 {
     KdfSyntheticRootsV1 {
-        client_root_hex: encode_hex(&SYNTHETIC_CLIENT_ROOT_V1),
-        deriver_a_root_hex: encode_hex(&SYNTHETIC_DERIVER_A_ROOT_V1),
-        deriver_b_root_hex: encode_hex(&SYNTHETIC_DERIVER_B_ROOT_V1),
+        client_root_hex: hex::encode(SYNTHETIC_CLIENT_ROOT_V1),
+        deriver_a_root_hex: hex::encode(SYNTHETIC_DERIVER_A_ROOT_V1),
+        deriver_b_root_hex: hex::encode(SYNTHETIC_DERIVER_B_ROOT_V1),
     }
 }
 
@@ -962,14 +962,4 @@ const fn activation_reference_operation_counts_v1() -> ReferenceOperationCountsV
         export_family_evaluations: 0,
         pending_activation_consumptions: 1,
     }
-}
-
-fn encode_hex(bytes: &[u8]) -> String {
-    const HEX: &[u8; 16] = b"0123456789abcdef";
-    let mut encoded = String::with_capacity(bytes.len() * 2);
-    for byte in bytes {
-        encoded.push(char::from(HEX[usize::from(byte >> 4)]));
-        encoded.push(char::from(HEX[usize::from(byte & 0x0f)]));
-    }
-    encoded
 }

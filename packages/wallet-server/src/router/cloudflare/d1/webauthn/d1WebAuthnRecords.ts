@@ -32,6 +32,7 @@ import {
   parseRecoveryCodeReservationId,
   type RecoveryCodeReservationId,
 } from '@shared/wallet-recovery/recoveryCodeReservation';
+import { hasExactKeys } from '@shared/utils/exactKeys';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
 import {
   parseWebAuthnAuthenticatorDeviceInfoJson,
@@ -45,15 +46,13 @@ import {
 import { normalizeRuntimePolicyScope } from '@shared/threshold/signingRootScope';
 import type { ThresholdRuntimePolicyScope } from '../../../../core/types';
 import type { WebAuthnCredentialBindingRecord as CoreWebAuthnCredentialBindingRecord } from '../../../../core/WebAuthnCredentialBindingStore';
+import type { D1WebAuthnAuthenticatorRow } from '../../../../core/WebAuthnAuthenticatorStore';
+import type { WebAuthnLoginChallengeRecord as CoreWebAuthnLoginChallengeRecord } from '../../../../core/WebAuthnLoginChallengeStore';
+import type { WebAuthnSyncChallengeRecord as CoreWebAuthnSyncChallengeRecord } from '../../../../core/WebAuthnSyncChallengeStore';
+import type { NearPublicKeyAuthBinding } from '../../../../core/NearPublicKeyStore';
+import type { ResolvedEd25519WalletBinding } from '../../../../core/authService/webauthnWalletBinding';
 
-export type D1AuthenticatorRow = {
-  readonly credential_id_b64u?: unknown;
-  readonly credential_public_key_b64u?: unknown;
-  readonly counter?: unknown;
-  readonly created_at_ms?: unknown;
-  readonly updated_at_ms?: unknown;
-  readonly device_info_json?: unknown;
-};
+export type D1AuthenticatorRow = D1WebAuthnAuthenticatorRow;
 
 export type D1RecordJsonRow = {
   readonly record_json?: unknown;
@@ -61,20 +60,9 @@ export type D1RecordJsonRow = {
 
 export type WebAuthnCredentialBindingRecord = CoreWebAuthnCredentialBindingRecord;
 
-export type WebAuthnSyncWalletBinding = {
-  readonly walletId: string;
-  readonly nearAccountId: string;
-  readonly nearEd25519SigningKeyId: string;
-  readonly rpId: string;
-  readonly credentialIdB64u: string;
-  readonly signerSlot: number;
-};
+export type WebAuthnSyncWalletBinding = Readonly<ResolvedEd25519WalletBinding>;
 
-export type NearPublicKeyAuthBinding = {
-  readonly kind: 'passkey';
-  readonly rpId: WebAuthnRpId;
-  readonly credentialIdB64u: string;
-};
+export type { NearPublicKeyAuthBinding };
 
 export type NearPublicKeyRecord = {
   readonly publicKey: string;
@@ -102,25 +90,9 @@ export function parseWebAuthnAuthenticatorRowDeviceInfo(
   return parseWebAuthnAuthenticatorDeviceInfoJson(raw);
 }
 
-export type WebAuthnLoginChallengeRecord = {
-  readonly version: 'webauthn_login_challenge_v1';
-  readonly challengeId: string;
-  readonly userId: string;
-  readonly rpId: string;
-  readonly challengeB64u: string;
-  readonly createdAtMs: number;
-  readonly expiresAtMs: number;
-};
+export type WebAuthnLoginChallengeRecord = Readonly<CoreWebAuthnLoginChallengeRecord>;
 
-export type WebAuthnSyncChallengeRecord = {
-  readonly version: 'webauthn_sync_challenge_v1';
-  readonly challengeId: string;
-  readonly rpId: string;
-  readonly expectedUserId?: string;
-  readonly challengeB64u: string;
-  readonly createdAtMs: number;
-  readonly expiresAtMs: number;
-};
+export type WebAuthnSyncChallengeRecord = Readonly<CoreWebAuthnSyncChallengeRecord>;
 
 /**
  * The exact continuity snapshot selected by prepare. The snapshot is stored
@@ -189,7 +161,7 @@ export function parseWebAuthnLoginChallengeRecord(
   if (prototype !== Object.prototype && prototype !== null) return null;
   const record = candidate as Readonly<Record<string, unknown>>;
   if (
-    !hasExactFields(record, [
+    !hasExactKeys(record, [
       'version',
       'challengeId',
       'userId',
@@ -246,7 +218,7 @@ export function parseWebAuthnSyncChallengeRecord(
         'expiresAtMs',
       ]
     : ['version', 'challengeId', 'rpId', 'challengeB64u', 'createdAtMs', 'expiresAtMs'];
-  if (!hasExactFields(record, expectedFields)) return null;
+  if (!hasExactKeys(record, expectedFields)) return null;
   const version = toOptionalTrimmedString(record.version);
   const challengeId = toOptionalTrimmedString(record.challengeId);
   const rpId = toOptionalTrimmedString(record.rpId);
@@ -519,7 +491,7 @@ function parseWebAuthnRecoveryContinuityEnvelopeAnchor(
   }
   if (kind === 'passkey') {
     if (
-      !hasExactFields(record, [
+      !hasExactKeys(record, [
         'kind',
         'envelopeId',
         'walletId',
@@ -548,7 +520,7 @@ function parseWebAuthnRecoveryContinuityEnvelopeAnchor(
   }
   if (kind === 'email_otp') {
     if (
-      !hasExactFields(record, [
+      !hasExactKeys(record, [
         'kind',
         'envelopeId',
         'walletId',
@@ -584,17 +556,6 @@ function parseRecoveryEnvelopeRevision(input: unknown): EnvelopeRevision | null 
   } catch {
     return null;
   }
-}
-
-function hasExactFields(
-  record: Readonly<Record<string, unknown>>,
-  expectedFields: readonly string[],
-): boolean {
-  const fields = Object.keys(record);
-  return (
-    fields.length === expectedFields.length &&
-    expectedFields.every((field) => fields.includes(field))
-  );
 }
 
 export function parseWebAuthnAuthenticator(
@@ -779,7 +740,7 @@ function parseWebAuthnRuntimePolicyScope(raw: unknown): ThresholdRuntimePolicySc
   }
   if (prototype !== Object.prototype && prototype !== null) return undefined;
   const record = raw as Readonly<Record<string, unknown>>;
-  if (!hasExactFields(record, ['orgId', 'projectId', 'envId', 'signingRootVersion'])) {
+  if (!hasExactKeys(record, ['orgId', 'projectId', 'envId', 'signingRootVersion'])) {
     return undefined;
   }
   try {

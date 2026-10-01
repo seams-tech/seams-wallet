@@ -15,7 +15,7 @@ use threshold_prf::{
 };
 use zeroize::{Zeroize, Zeroizing};
 
-use super::tenant_root_protocol::TenantRootWireDecoderV1;
+use super::tenant_root_protocol::{push_length_prefixed, TenantRootWireDecoderV1};
 use super::x25519_canonical::is_canonical_nonzero_x25519_encoding;
 use super::{
     RouterAbDerivationError, RouterAbDerivationErrorCode, RouterAbDerivationResult,
@@ -1268,11 +1268,11 @@ fn refresh_commitments_equal(
 }
 
 fn push_field(bytes: &mut Vec<u8>, value: &[u8]) -> RouterAbDerivationResult<()> {
-    let length = u32::try_from(value.len())
-        .map_err(|_| malformed("tenant-root recovery transcript field is too long"))?;
-    bytes.extend_from_slice(&length.to_be_bytes());
-    bytes.extend_from_slice(value);
-    Ok(())
+    push_length_prefixed(
+        bytes,
+        value,
+        "tenant-root recovery transcript field is too long",
+    )
 }
 
 fn malformed(message: &'static str) -> RouterAbDerivationError {

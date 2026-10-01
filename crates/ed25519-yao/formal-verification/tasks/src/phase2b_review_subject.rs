@@ -23,6 +23,8 @@ use sha2::{Digest, Sha256};
 use crate::phase2b_protected_inputs::{CHALLENGE_ENV, POLICY_DIGEST_ENV, POLICY_JSON_ENV};
 use crate::{repository_root, TemporaryDirectory};
 
+use crate::hex::{decode_lowercase_hex, encode_hex};
+
 const SUBJECT_SCHEMA: &str = "seams:router-ab:ed25519-yao:phase2b-review-subject:v1";
 const PROTOCOL_ID: &str = "router_ab_ed25519_yao_v1";
 const SUBJECT_SCOPE: &str = "benchmark_only_phase2b_deterministic_core_review_subject_v1";
@@ -1401,23 +1403,7 @@ fn decode_hex<const N: usize>(
     value: &str,
     field: &'static str,
 ) -> Result<[u8; N], ReviewSubjectErrorV1> {
-    if value.len() != N * 2
-        || !value
-            .bytes()
-            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
-    {
-        return Err(ReviewSubjectErrorV1::InvalidHex(field));
-    }
-    let mut output = [0u8; N];
-    for (index, byte) in output.iter_mut().enumerate() {
-        *byte = u8::from_str_radix(&value[index * 2..index * 2 + 2], 16)
-            .map_err(|_| ReviewSubjectErrorV1::InvalidHex(field))?;
-    }
-    Ok(output)
-}
-
-fn encode_hex(bytes: &[u8]) -> String {
-    bytes.iter().map(|byte| format!("{byte:02x}")).collect()
+    decode_lowercase_hex(value).ok_or(ReviewSubjectErrorV1::InvalidHex(field))
 }
 
 #[cfg(test)]

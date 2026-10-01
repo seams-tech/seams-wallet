@@ -8,7 +8,7 @@ use crate::protocol::error::{
     RouterAbProtocolError, RouterAbProtocolErrorCode, RouterAbProtocolResult,
 };
 use crate::protocol::gate::ExpensiveWorkKindV1;
-use crate::protocol::identity::{ServerIdentityV1, SignerIdentityV1};
+use crate::protocol::identity::{require_non_empty, ServerIdentityV1, SignerIdentityV1};
 
 const ROLE_ENVELOPE_AAD_VERSION_V1: &[u8] = b"router-ab-protocol/role-envelope-aad/v1";
 const ROLE_ENCRYPTED_ENVELOPE_DIGEST_VERSION_V1: &[u8] =
@@ -612,16 +612,6 @@ impl<'a> EnvelopeDecoder<'a> {
             "signer-envelope payload has trailing bytes",
         ))
     }
-}
-
-fn require_non_empty(field: &'static str, value: &str) -> RouterAbProtocolResult<()> {
-    if value.is_empty() {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::EmptyField,
-            format!("{field} is required"),
-        ));
-    }
-    Ok(())
 }
 
 #[cfg(test)]

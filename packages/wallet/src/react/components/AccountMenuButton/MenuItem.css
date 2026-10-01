@@ -133,6 +133,23 @@
   background: color-mix(in srgb, var(--seams-colors-focus), transparent 65%);
 }
 
+/* A chosen item blinks once, highlight off then on, before its menu closes
+   (blinkMenuItem). No transition, so each phase lands on its own frame. */
+.seams-dropdown-menu-item[data-blink] {
+  transition: none;
+}
+
+.seams-dropdown-menu-item[data-blink='off'],
+.seams-dropdown-menu-item[data-blink='off']:hover {
+  background: transparent;
+  box-shadow: none;
+}
+
+.seams-dropdown-menu-item[data-blink='on'],
+.seams-dropdown-menu-item[data-blink='on']:hover {
+  background: var(--seams-colors-hover);
+}
+
 /* Menu item animation states (within ProfileDropdown) */
 
 .seams-profile-dropdown-morphed[data-state='closed'] .seams-dropdown-menu-item {

@@ -1,5 +1,6 @@
 import { errorMessage } from '@shared/utils/errors';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
+import { failure } from '@shared/utils/failure';
 import type { IdentityStore, LinkIdentityResult, UnlinkIdentityResult } from '../IdentityStore';
 
 export type ListIdentitiesResult =
@@ -12,14 +13,10 @@ export async function listIdentitiesWithStore(input: {
 }): Promise<ListIdentitiesResult> {
   try {
     const userId = toOptionalTrimmedString(input.userId);
-    if (!userId) return { ok: false, code: 'invalid_args', message: 'Missing userId' };
+    if (!userId) return failure('invalid_args', 'Missing userId');
     return { ok: true, subjects: await input.store.listSubjectsByUserId(userId) };
   } catch (e: unknown) {
-    return {
-      ok: false,
-      code: 'internal',
-      message: errorMessage(e) || 'Failed to list identities',
-    };
+    return failure('internal', errorMessage(e) || 'Failed to list identities');
   }
 }
 
@@ -36,7 +33,7 @@ export async function linkIdentityWithStore(input: {
       allowMoveIfSoleIdentity: input.allowMoveIfSoleIdentity,
     });
   } catch (e: unknown) {
-    return { ok: false, code: 'internal', message: errorMessage(e) || 'Failed to link identity' };
+    return failure('internal', errorMessage(e) || 'Failed to link identity');
   }
 }
 
@@ -51,10 +48,6 @@ export async function unlinkIdentityWithStore(input: {
       subject: input.subject,
     });
   } catch (e: unknown) {
-    return {
-      ok: false,
-      code: 'internal',
-      message: errorMessage(e) || 'Failed to unlink identity',
-    };
+    return failure('internal', errorMessage(e) || 'Failed to unlink identity');
   }
 }

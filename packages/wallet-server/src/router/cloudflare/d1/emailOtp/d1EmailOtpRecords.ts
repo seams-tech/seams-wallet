@@ -1,3 +1,4 @@
+import { hasExactKeys } from '@shared/utils/exactKeys';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
 import { base64UrlDecode } from '@shared/utils/encoders';
 import {
@@ -8,6 +9,7 @@ import {
   WALLET_EMAIL_OTP_UNLOCK_OPERATION,
   isWalletEmailOtpLoginOperation,
 } from '@shared/utils/emailOtpDomain';
+import { failure } from '@shared/utils/failure';
 import {
   parseCurrentEmailOtpChallengeRow,
   parseCurrentEmailOtpGrantRow,
@@ -15,6 +17,7 @@ import {
 } from '../../../../core/EmailOtpRecords';
 import type {
   EmailOtpAuthStateRecord,
+  EmailOtpChallengeAction,
   EmailOtpChallengeOperation,
   EmailOtpChallengeRecord,
   EmailOtpGrantAction,
@@ -23,6 +26,7 @@ import type {
   EmailOtpUnlockChallengeRecord,
   EmailOtpWalletEnrollmentRecord,
 } from '../../../../core/EmailOtpStores';
+import type { EmailOtpRateLimitScope } from '../../../../core/authService/emailOtpConfig';
 import {
   isB64uString,
   nonNegativeSafeInteger,
@@ -30,13 +34,9 @@ import {
   positiveSafeInteger,
 } from '../auth/d1RouterApiAuthBoundary';
 
-export type EmailOtpChallengeIssueAction =
-  | typeof WALLET_EMAIL_OTP_ACTIONS.login
-  | typeof WALLET_EMAIL_OTP_ACTIONS.registration
-  | typeof WALLET_EMAIL_OTP_ACTIONS.recoveryBootstrap
-  | typeof WALLET_EMAIL_OTP_ACTIONS.deviceLink;
+export type EmailOtpChallengeIssueAction = EmailOtpChallengeAction;
 
-export type EmailOtpRateLimitScope = 'challenge' | 'verify' | 'grant' | 'googleRegistrationAttempt';
+export type { EmailOtpRateLimitScope };
 
 export type EmailOtpAuthStatePatch = {
   readonly otpFailureCount?: number | null;
@@ -362,7 +362,7 @@ export function parseEmailOtpRegistrationVerificationReceiptV1(
   const record = parseJsonObject(input);
   if (
     !record ||
-    !hasExactRecordFields(record, [
+    !hasExactKeys(record, [
       'version',
       'requestFingerprint',
       'verified',
@@ -381,7 +381,7 @@ export function parseEmailOtpRegistrationVerificationReceiptV1(
     !requestFingerprint ||
     !isB64uString(requestFingerprint) ||
     !verified ||
-    !hasExactRecordFields(verified, [
+    !hasExactKeys(verified, [
       'challengeId',
       'challengeSubjectId',
       'walletId',
@@ -567,11 +567,7 @@ export function emailOtpChallengeInvalidOrExpired(): {
   code: string;
   message: string;
 } {
-  return {
-    ok: false,
-    code: 'challenge_expired_or_invalid',
-    message: 'Email OTP challenge expired or invalid',
-  };
+  return failure('challenge_expired_or_invalid', 'Email OTP challenge expired or invalid');
 }
 
 export function emailOtpGrantRecord(input: {
@@ -643,50 +639,33 @@ export async function validateEmailOtpEnrollmentMaterial(input: {
     input.material.serverSealedFactorCiphertextB64u,
   );
   if (!enrollmentSealKeyVersion) {
-    return {
-      ok: false,
-      code: 'invalid_body',
-      message: 'enrollmentSealKeyVersion is required',
-    };
+    return failure('invalid_body', 'enrollmentSealKeyVersion is required');
   }
   if (!clientUnlockPublicKeyB64u) {
-    return { ok: false, code: 'invalid_body', message: 'clientUnlockPublicKeyB64u is required' };
+    return failure('invalid_body', 'clientUnlockPublicKeyB64u is required');
   }
   if (!unlockKeyVersion) {
-    return { ok: false, code: 'invalid_body', message: 'unlockKeyVersion is required' };
+    return failure('invalid_body', 'unlockKeyVersion is required');
   }
   if (!serverSealedFactorCiphertextB64u) {
-    return {
-      ok: false,
-      code: 'invalid_body',
-      message: 'serverSealedFactorCiphertextB64u is required',
-    };
+    return failure('invalid_body', 'serverSealedFactorCiphertextB64u is required');
   }
   let unlockPublicKeyBytes: Uint8Array;
   try {
     unlockPublicKeyBytes = base64UrlDecode(clientUnlockPublicKeyB64u);
   } catch {
-    return {
-      ok: false,
-      code: 'invalid_body',
-      message: 'clientUnlockPublicKeyB64u must be valid base64url',
-    };
+    return failure('invalid_body', 'clientUnlockPublicKeyB64u must be valid base64url');
   }
   if (unlockPublicKeyBytes.length !== 33) {
-    return {
-      ok: false,
-      code: 'invalid_body',
-      message: 'clientUnlockPublicKeyB64u must decode to 33 bytes (compressed secp256k1 pubkey)',
-    };
+    return failure(
+      'invalid_body',
+      'clientUnlockPublicKeyB64u must decode to 33 bytes (compressed secp256k1 pubkey)',
+    );
   }
   try {
     await input.validateSecp256k1PublicKey33(unlockPublicKeyBytes);
   } catch {
-    return {
-      ok: false,
-      code: 'invalid_body',
-      message: 'clientUnlockPublicKeyB64u is not a valid secp256k1 public key',
-    };
+    return failure('invalid_body', 'clientUnlockPublicKeyB64u is not a valid secp256k1 public key');
   }
 
   return {
@@ -773,18 +752,6 @@ function optionalNonNegativeSafeIntegerField(
 
 function hasRecordField(record: Record<string, unknown>, field: string): boolean {
   return Object.prototype.hasOwnProperty.call(record, field);
-}
-
-function hasExactRecordFields(
-  record: Record<string, unknown>,
-  expectedFields: readonly string[],
-): boolean {
-  const actualFields = Object.keys(record).sort();
-  const expected = [...expectedFields].sort();
-  return (
-    actualFields.length === expected.length &&
-    actualFields.every((field, index) => field === expected[index])
-  );
 }
 
 function patchedPositiveAuthStateValue(

@@ -85,6 +85,20 @@ E2E enforcement lives in `tests/e2e/intended-behaviours` and follows
   under the existing lease. Exact completed finalization replay returns the
   durable first result, while altered finalization input is rejected.
 
+- Reusable-session ECDSA prepare, finalize, and completed replay evaluate live
+  signing policy. Project denial takes precedence over abuse denial; abuse
+  rejection and rate limiting return their respective errors. Policy denial
+  leaves quota, operation claims, and audit events unchanged. Clearing the
+  denial permits the original request, including exact durable replay.
+
+- Reusable-session ECDSA signing checks that the material verified during
+  authorization still matches when prepare claims the operation and when
+  finalize or replay is admitted. This covers canonical signer records, linked
+  installations, and their canonical custody source. Retirement or replacement
+  before that decision rejects the request without consuming quota or invoking
+  the signing worker. An exact retry with unchanged live material retains the
+  durable replay behavior.
+
 - Retain unused reusable ECDSA presignatures encrypted on both participants for
   up to 90 days, subject to material retirement and revocation. Session expiry
   alone does not invalidate the retained material. Operation-scoped preparation
@@ -191,6 +205,9 @@ Expected behaviour:
   exchange is aborted; recovery starts a fresh ceremony identity. Foreground
   signing retains priority through failed-refill recovery so maintenance cannot
   launch competing generation before that signing operation finishes.
+  Gateway requests remain independent: cancellation of one refill cannot block
+  subsequent background ceremonies. Refill scheduling and foreground priority
+  belong to the client pool; live Gateway authorization still applies per exchange.
 - Deferred mixed-authority publication reconciles ECDSA refill against the newly
   committed authority, including when the session credential is retained. A late
   failure from an older attempt cannot cancel the reconciled refill. Rejection
@@ -444,6 +461,13 @@ Failure behaviour:
 
 ## Transaction Signing
 
+ECDSA reusable Wallet Session finalization requires an already admitted prepare
+for the exact operation. An authenticated finalize with no matching prepare
+returns `authorized_operation_missing` without creating a claim or audit event,
+consuming quota, or invoking custody signing. Repeating that finalize preserves
+the same state. Existing exact-response replay remains available after quota
+exhaustion, subject to live authority and material checks.
+
 ### Passkey authentication
 
 Expected behaviour:
@@ -681,6 +705,15 @@ Expected behaviour:
   ordinary signing, export, reload, lock, unlock, inventory, and revocation
   paths. Those operations do not read the completed link session or repair
   missing material.
+- Successful linked-device activation schedules bounded ECDSA presignature refill
+  under the new device's exact Wallet Session and installed holder. Linking returns
+  without awaiting pool readiness. The first signature uses completed background
+  material when available; preprocessing consumes no signing quota and does not
+  authorize the signature itself.
+- Canonical, directly linked, and subsequently linked devices can each sign
+  repeatedly under their own live Wallet Session. Switching the client presign
+  worker to linked-holder authority retires its previous authority channel;
+  subsequent inventory reads preserve the active linked material.
 - Device inventory is derived from active wallet authorities with
   device-link provenance and their exact auth methods. A completed link
   session is temporary workflow state and is deleted after acknowledgement.

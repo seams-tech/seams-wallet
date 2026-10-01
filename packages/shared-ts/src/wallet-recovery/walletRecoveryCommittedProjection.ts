@@ -233,7 +233,7 @@ function buildGoogleEmailOtpProjection(
         'registrationAuthorityId',
         'is invalid',
       ),
-      enrollment: buildEnrollmentReference(input.enrollment),
+      enrollment: parseEnrollmentReference(input.enrollment),
     },
   };
   assertProjectionShape(projection);
@@ -376,12 +376,6 @@ function parseEnrollmentReference(raw: unknown): WalletRecoveryEmailOtpEnrollmen
       'is invalid',
     ),
   };
-}
-
-function buildEnrollmentReference(
-  value: WalletRecoveryEmailOtpEnrollmentReferenceV1,
-): WalletRecoveryEmailOtpEnrollmentReferenceV1 {
-  return parseEnrollmentReference(value);
 }
 
 function assertExpectedIdentity(

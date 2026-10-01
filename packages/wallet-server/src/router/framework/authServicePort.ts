@@ -1,3 +1,6 @@
+import type { D1EcdsaAdmissionPolicyRead } from '../cloudflare/d1/signingAdmission/d1RouterAbNormalSigningAdmissionStore';
+import type { EcdsaMaterialRead, EcdsaMaterialActivationReadInput } from '../../core/d1EcdsaSignerRead';
+import type { EcdsaMaterialReadSnapshot } from '../../core/ecdsaMaterialReadSnapshot';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import type { TenantRootIdentityV1 } from '@shared/tenant-root/tenantRootIdentity';
 import type {
@@ -205,6 +208,22 @@ export type RouterApiWalletSessionAuthorizationV2ExhaustedCandidateContext = {
   readonly authMethod: ActiveWalletAuthMethodRecordV2;
   readonly retiredAtMs: null;
 };
+
+export type RouterApiWalletSessionSigningCandidate =
+  | {
+      readonly kind: 'active';
+      readonly materialRead: EcdsaMaterialRead;
+      readonly policyRead: D1EcdsaAdmissionPolicyRead;
+      readonly context: RouterApiWalletSessionAuthorizationV2AdmissionContext;
+      readonly candidate?: never;
+    }
+  | {
+      readonly kind: 'exhausted';
+      readonly materialRead: EcdsaMaterialRead;
+      readonly policyRead: D1EcdsaAdmissionPolicyRead;
+      readonly candidate: RouterApiWalletSessionAuthorizationV2ExhaustedCandidateContext;
+      readonly context?: never;
+    };
 
 type RouterApiHostedWalletSessionAuthorizationV2AdmissionContext =
   RouterApiWalletSessionAuthorizationV2AdmissionContext & {
@@ -1165,12 +1184,10 @@ export interface RouterApiWalletRegistrationService {
         readonly message: string;
       }
   >;
-  resolveEcdsaMaterialActivation(input: {
-    readonly walletId: string;
-    readonly materialActivation: RouterAbMpcMaterialActivationRefWire;
-  }): Promise<
+  resolveEcdsaMaterialActivation(input: EcdsaMaterialActivationReadInput): Promise<
     | {
         readonly ok: true;
+        readonly readSnapshot: EcdsaMaterialReadSnapshot;
         readonly materialActivation: RouterAbMpcMaterialActivationRefWire;
         readonly keyHandle: string;
         readonly relayerKeyId: string;
@@ -1591,6 +1608,9 @@ export interface RouterApiServiceBag {
 }
 
 export interface RouterApiAuthorizedOperationService {
+  resolveEcdsaWalletSessionOperation(
+    input: import('../../authorization/ecdsaWalletSessionAdmission').EcdsaWalletSessionAdmissionInput,
+  ): Promise<import('../../authorization/ecdsaWalletSessionAdmission').EcdsaWalletSessionResolutionResult>;
   admitEcdsaWalletSessionOperation(
     input: import('../../authorization/ecdsaWalletSessionAdmission').EcdsaWalletSessionAdmissionInput,
   ): Promise<import('../../authorization/ecdsaWalletSessionAdmission').EcdsaWalletSessionAdmissionResult>;
@@ -1657,6 +1677,12 @@ export interface RouterApiAuthorizationSessionService {
     readonly token: string;
     readonly nowMs: number;
   }) => Promise<RouterApiWalletSessionAuthorizationV2AdmissionContext | null>;
+  readonly readWalletSessionSigningCandidateByOperationCredential: (input: {
+    readonly tenantId: TenantId;
+    readonly token: string;
+    readonly nowMs: number;
+    readonly materialActivation: RouterAbMpcMaterialActivationRefWire;
+  }) => Promise<RouterApiWalletSessionSigningCandidate | null>;
   readonly readWalletSessionExactOperationContextByCredential: (input: {
     readonly tenantId: TenantId;
     readonly token: string;

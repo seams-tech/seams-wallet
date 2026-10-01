@@ -5,33 +5,24 @@ import {
   parseLinkedDeviceWalletSessionCredentialDeliveryV1,
   parseLinkedDeviceWalletSessionCredentialDeliveryBindingV1,
   parseWalletSessionOperationCredentialV1,
-  type LinkedDeviceEmailOtpFactorReleaseEnvelopeV1,
-  type LinkedDeviceEmailOtpVerificationGrantV1,
-  type LinkedDeviceWalletSessionCredentialDeliveryV1,
 } from '@shared/device-linking';
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
 import { parseDigestB64u, type DigestB64u } from '@shared/utils/canonicalPrimitives';
+import { hasExactKeys } from '@shared/utils/exactKeys';
 import {
   parseLinkedDeviceEnrollmentId,
   parseLinkedDeviceId,
   parseLinkDeviceSessionId,
-  type LinkDeviceSessionId,
-  type LinkedDeviceEnrollmentId,
-  type LinkedDeviceId,
 } from '@shared/signing-lanes/ids';
 import {
   parseWalletAuthMethodId,
   parseWalletAuthorityId,
   parseWalletId,
-  type WalletAuthMethodId,
-  type WalletId,
 } from '@shared/utils/domainIds';
 import { resolveWorkerUrl } from '@/core/walletRuntimePaths';
 import {
   createDeviceLinkingOrdinaryMaterialWorkerPortV1,
   type DeviceLinkingOrdinaryMaterialWorkerPortV1,
-  type DeviceLinkingOrdinaryMaterialWorkerPrivateRequestV1,
-  type DeviceLinkingOrdinaryMaterialWorkerRequestV1,
 } from './deviceLinkingOrdinaryMaterialWorker';
 import type {
   DeviceLinkingEmailOtpFactorReleasePortV1,
@@ -39,8 +30,8 @@ import type {
   DeviceLinkingKeyMaterialHandleV1,
   DeviceLinkingKeyMaterialPortV1,
   DeviceLinkingKeyMaterialBundleV1,
-  DeviceLinkingWalletSessionCredentialDeliveryOpenInputV1,
 } from './deviceLinkingPorts';
+import type { DeviceLinkingKeyWorkerRequestV1 } from '@/core/signingEngine/workerManager/workers/device-linking-key/requests';
 
 export type DeviceLinkingWorkerEndpointV1 = {
   postMessage(message: unknown, transfer?: Transferable[]): void;
@@ -56,51 +47,6 @@ type DeviceLinkingWorkerKeyMaterialPortV1 = DeviceLinkingKeyMaterialPortV1 & {
 } & DeviceLinkingEmailOtpFactorReleasePortV1 &
   DeviceLinkingOrdinaryMaterialWorkerPortV1;
 
-type DeviceLinkingWorkerRequestV1 =
-  | DeviceLinkingOrdinaryMaterialWorkerRequestV1
-  | DeviceLinkingOrdinaryMaterialWorkerPrivateRequestV1
-  | { readonly kind: 'device_linking_key_material_create_v1' }
-  | {
-      readonly kind: 'device_linking_email_otp_export_root_recipient_create_v1';
-      readonly handleId: string;
-    }
-  | {
-      readonly kind: 'device_linking_email_otp_factor_release_open_v1';
-      readonly handleId: string;
-      readonly walletId: WalletId;
-      readonly linkSessionId: LinkDeviceSessionId;
-      readonly enrollmentId: LinkedDeviceEnrollmentId;
-      readonly deviceId: LinkedDeviceId;
-      readonly walletAuthMethodId: WalletAuthMethodId;
-      readonly baseWalletAuthMethodId: WalletAuthMethodId;
-      readonly targetPreparationDigestB64u: DigestB64u;
-      readonly expectedChallengeId: string;
-      readonly verificationGrant: LinkedDeviceEmailOtpVerificationGrantV1;
-      readonly factorRelease: LinkedDeviceEmailOtpFactorReleaseEnvelopeV1;
-    }
-  | {
-      readonly kind: 'device_linking_wallet_session_credential_delivery_open_v1';
-      readonly handleId: string;
-      readonly delivery: LinkedDeviceWalletSessionCredentialDeliveryV1;
-      readonly expected: DeviceLinkingWalletSessionCredentialDeliveryOpenInputV1['expected'];
-    }
-  | {
-      readonly kind: 'device_linking_request_sign_v1';
-      readonly handleId: string;
-      readonly linkSessionId: LinkDeviceSessionId;
-      readonly method: 'GET' | 'POST';
-      readonly canonicalPath: string;
-      readonly bodyDigestB64u: DigestB64u;
-      readonly devicePublicKeyDigestB64u: DigestB64u;
-      readonly challengeB64u: string;
-      readonly issuedAtMs: number;
-      readonly expiresAtMs: number;
-    }
-  | {
-      readonly kind: 'device_linking_key_material_discard_v1';
-      readonly handleId: string;
-    };
-
 type DeviceLinkingWorkerResponseFrameV1 =
   | { readonly id: string; readonly ok: true; readonly result: unknown }
   | { readonly id: string; readonly ok: false; readonly error: string };
@@ -110,109 +56,6 @@ type PendingRequestV1 = {
   readonly reject: (error: Error) => void;
   readonly timeoutId: ReturnType<typeof setTimeout>;
 };
-
-type DeviceLinkingKeyHandleRecordV1 = {
-  readonly kind: unknown;
-  readonly handleId: unknown;
-};
-
-function isDeviceLinkingKeyHandleRecordV1(value: unknown): value is DeviceLinkingKeyHandleRecordV1 {
-  return (
-    value !== null &&
-    typeof value === 'object' &&
-    !Array.isArray(value) &&
-    Object.keys(value).sort().join('|') === 'handleId|kind'
-  );
-}
-
-type DeviceLinkingKeyCreateResultRecordV1 = {
-  readonly handleId: unknown;
-  readonly linkPublicKeyB64u: unknown;
-  readonly devicePublicKeyB64u: unknown;
-  readonly deliveryRecipientPublicKey65B64u: unknown;
-};
-
-function isDeviceLinkingKeyCreateResultRecordV1(
-  value: unknown,
-): value is DeviceLinkingKeyCreateResultRecordV1 {
-  return (
-    value !== null &&
-    typeof value === 'object' &&
-    !Array.isArray(value) &&
-    Object.keys(value).sort().join('|') ===
-      'deliveryRecipientPublicKey65B64u|devicePublicKeyB64u|handleId|linkPublicKeyB64u'
-  );
-}
-
-type DeviceLinkingEmailOtpFactorReleaseResultRecordV1 = {
-  readonly kind: unknown;
-  readonly verificationGrant: unknown;
-  readonly factorSecret: unknown;
-};
-
-function isDeviceLinkingEmailOtpFactorReleaseResultRecordV1(
-  value: unknown,
-): value is DeviceLinkingEmailOtpFactorReleaseResultRecordV1 {
-  return (
-    value !== null &&
-    typeof value === 'object' &&
-    !Array.isArray(value) &&
-    Object.keys(value).sort().join('|') === 'factorSecret|kind|verificationGrant'
-  );
-}
-
-type DeviceLinkingRequestSignatureResultRecordV1 = {
-  readonly signatureB64u: unknown;
-};
-
-function isDeviceLinkingRequestSignatureResultRecordV1(
-  value: unknown,
-): value is DeviceLinkingRequestSignatureResultRecordV1 {
-  return (
-    value !== null &&
-    typeof value === 'object' &&
-    !Array.isArray(value) &&
-    Object.keys(value).sort().join('|') === 'signatureB64u'
-  );
-}
-
-type DeviceLinkingWorkerSuccessFrameRecordV1 = {
-  readonly id: unknown;
-  readonly ok: true;
-  readonly result: unknown;
-};
-
-function isDeviceLinkingWorkerSuccessFrameRecordV1(
-  value: unknown,
-): value is DeviceLinkingWorkerSuccessFrameRecordV1 {
-  return (
-    value !== null &&
-    typeof value === 'object' &&
-    !Array.isArray(value) &&
-    Object.keys(value).sort().join('|') === 'id|ok|result' &&
-    'ok' in value &&
-    value.ok === true
-  );
-}
-
-type DeviceLinkingWorkerFailureFrameRecordV1 = {
-  readonly id: unknown;
-  readonly ok: false;
-  readonly error: unknown;
-};
-
-function isDeviceLinkingWorkerFailureFrameRecordV1(
-  value: unknown,
-): value is DeviceLinkingWorkerFailureFrameRecordV1 {
-  return (
-    value !== null &&
-    typeof value === 'object' &&
-    !Array.isArray(value) &&
-    Object.keys(value).sort().join('|') === 'error|id|ok' &&
-    'ok' in value &&
-    value.ok === false
-  );
-}
 
 function nonEmpty(value: unknown, label: string): string {
   if (typeof value !== 'string' || value.trim() !== value || value.length === 0) {
@@ -246,7 +89,7 @@ function parseFixedB64u(value: unknown, length: number, label: string): string {
 }
 
 function parseHandle(value: unknown): DeviceLinkingKeyMaterialHandleV1 {
-  if (!isDeviceLinkingKeyHandleRecordV1(value)) {
+  if (!hasExactKeys(value, ['kind', 'handleId'])) {
     throw new Error('device-linking key handle has invalid fields');
   }
   const record = value;
@@ -260,7 +103,14 @@ function parseHandle(value: unknown): DeviceLinkingKeyMaterialHandleV1 {
 }
 
 function parseCreateResult(value: unknown): DeviceLinkingKeyMaterialBundleV1 {
-  if (!isDeviceLinkingKeyCreateResultRecordV1(value)) {
+  if (
+    !hasExactKeys(value, [
+      'handleId',
+      'linkPublicKeyB64u',
+      'devicePublicKeyB64u',
+      'deliveryRecipientPublicKey65B64u',
+    ])
+  ) {
     throw new Error('device-linking key create response has invalid fields');
   }
   const record = value;
@@ -282,7 +132,7 @@ function parseCreateResult(value: unknown): DeviceLinkingKeyMaterialBundleV1 {
 function parseEmailOtpFactorReleaseResult(
   value: unknown,
 ): DeviceLinkingEmailOtpFactorReleaseResultV1 {
-  if (!isDeviceLinkingEmailOtpFactorReleaseResultRecordV1(value)) {
+  if (!hasExactKeys(value, ['kind', 'verificationGrant', 'factorSecret'])) {
     throw new Error('device-linking Email OTP factor release response has invalid fields');
   }
   const record = value;
@@ -304,7 +154,7 @@ function parseWalletSessionCredentialDeliveryResult(value: unknown) {
 }
 
 function parseSignatureResult(value: unknown): { readonly signatureB64u: string } {
-  if (!isDeviceLinkingRequestSignatureResultRecordV1(value)) {
+  if (!hasExactKeys(value, ['signatureB64u'])) {
     throw new Error('device-linking request signature response has invalid fields');
   }
   const record = value;
@@ -314,12 +164,12 @@ function parseSignatureResult(value: unknown): { readonly signatureB64u: string 
 }
 
 function parseResponseFrame(value: unknown): DeviceLinkingWorkerResponseFrameV1 | null {
-  if (isDeviceLinkingWorkerSuccessFrameRecordV1(value)) {
+  if (hasExactKeys(value, ['id', 'ok', 'result']) && value.ok === true) {
     const id = value.id;
     if (typeof id !== 'string' || id.trim() !== id || id.length === 0) return null;
     return { id, ok: true, result: value.result };
   }
-  if (isDeviceLinkingWorkerFailureFrameRecordV1(value)) {
+  if (hasExactKeys(value, ['id', 'ok', 'error']) && value.ok === false) {
     const id = value.id;
     if (typeof id !== 'string' || id.trim() !== id || id.length === 0) return null;
     if (typeof value.error !== 'string' || !value.error.trim()) return null;
@@ -378,7 +228,7 @@ function assertTimestamp(value: number, label: string): number {
 
 function buildRequest(
   input: Parameters<DeviceLinkingKeyMaterialPortV1['signDeviceSessionRequestV1']>[0],
-): DeviceLinkingWorkerRequestV1 {
+): DeviceLinkingKeyWorkerRequestV1 {
   const parsedSession = parseLinkDeviceSessionId(input.linkSessionId);
   if (!parsedSession.ok) throw new Error(parsedSession.error.message);
   if (input.method !== 'GET' && input.method !== 'POST') throw new Error('method is invalid');
@@ -476,7 +326,7 @@ export function createDeviceLinkingKeyMaterialPortV1(
   };
 
   const request = (
-    input: DeviceLinkingWorkerRequestV1,
+    input: DeviceLinkingKeyWorkerRequestV1,
     transfer?: Transferable[],
   ): Promise<unknown> => {
     if (closed) return Promise.reject(new Error('device-linking worker transport is closed'));

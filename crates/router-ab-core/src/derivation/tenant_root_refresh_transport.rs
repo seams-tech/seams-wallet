@@ -12,7 +12,7 @@ use threshold_prf::{
 };
 use zeroize::{Zeroize, Zeroizing};
 
-use super::tenant_root_protocol::TenantRootWireDecoderV1;
+use super::tenant_root_protocol::{push_len32, TenantRootWireDecoderV1};
 use super::x25519_canonical::is_canonical_nonzero_x25519_encoding;
 use super::{
     RouterAbDerivationError, RouterAbDerivationErrorCode, RouterAbDerivationResult,
@@ -2088,14 +2088,6 @@ fn require_key_id(field: &'static str, value: &str) -> RouterAbDerivationResult<
 fn push_role(out: &mut Vec<u8>, role: TwoPartyDeriverRole) -> RouterAbDerivationResult<()> {
     push_len32(out, role.as_str().as_bytes())?;
     push_len32(out, &role.share_id().get().get().to_be_bytes())
-}
-
-fn push_len32(out: &mut Vec<u8>, value: &[u8]) -> RouterAbDerivationResult<()> {
-    let length = u32::try_from(value.len())
-        .map_err(|_| malformed("tenant-root protocol field is too long"))?;
-    out.extend_from_slice(&length.to_be_bytes());
-    out.extend_from_slice(value);
-    Ok(())
 }
 
 fn push_u64_field(out: &mut Vec<u8>, value: u64) -> RouterAbDerivationResult<()> {

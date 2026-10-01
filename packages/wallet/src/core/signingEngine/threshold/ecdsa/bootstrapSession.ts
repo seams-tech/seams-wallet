@@ -35,6 +35,7 @@ import type {
   ActiveWalletSessionV1,
   WalletSessionOperationCredentialV1,
 } from '@shared/device-linking/contracts';
+import type { ExclusiveUnion } from '@shared/utils/variant';
 
 type BootstrapEcdsaSessionBaseArgs = {
   touchIdPrompt: Pick<ThresholdWebAuthnPromptPort, 'getRpId'>;
@@ -54,19 +55,15 @@ type BootstrapEcdsaExactSessionArgsBase = BootstrapEcdsaSessionBaseArgs & {
 };
 
 type BootstrapEcdsaExactSessionArgs = BootstrapEcdsaExactSessionArgsBase &
-  (
+  ExclusiveUnion<
     | {
         bootstrapAuth: Extract<
           ThresholdEcdsaDerivationRouteAuth,
           { kind: 'opaque_wallet_session_operation_credential_v1' }
         >;
-        sessionActivation?: never;
       }
-    | {
-        sessionActivation: EcdsaPreauthorizedSessionActivation;
-        bootstrapAuth?: never;
-      }
-  );
+    | { sessionActivation: EcdsaPreauthorizedSessionActivation }
+  >;
 
 type BootstrapEcdsaSessionFailure = {
   ok: false;

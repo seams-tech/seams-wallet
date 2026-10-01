@@ -1545,7 +1545,6 @@ dependencies = [
  "hpke-ng",
  "rand_core 0.6.4",
  "rand_core 0.9.5",
- "router-ab-ecdsa-client-protocol",
  "serde",
  "serde_json",
  "sha2 0.10.9",
@@ -1575,10 +1574,7 @@ dependencies = [
 name = "router-ab-ecdsa-derivation"
 version = "0.1.0"
 dependencies = [
- "hex",
  "k256",
- "serde",
- "serde_json",
  "sha2 0.10.9",
  "sha3 0.10.9",
  "zeroize",

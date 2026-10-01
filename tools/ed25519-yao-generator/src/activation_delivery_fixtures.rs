@@ -7,6 +7,9 @@ use serde::Serialize;
 use crate::activation_delivery::{
     HostOnlyActivationRecipientReleaseEvidenceV1, HostOnlyActivationRecipientsReleasedV1,
 };
+use crate::fixtures::strict_corpus::{
+    canonical_json_bytes, parse_canonical_json, StrictVectorCorpusV1,
+};
 use crate::lifecycle_domain::{
     ActivationMetadataConsumptionSuccessV1, ActivationPackageOriginV1, ActivationRequestV1,
     PendingActivationPreStateV1, ZeroReevaluationWitnessV1,
@@ -32,38 +35,10 @@ pub const ACTIVATION_DELIVERY_VECTOR_EVIDENCE_SCOPE_V1: &str =
     "host_only_synthetic_activation_delivery_v1";
 
 /// Strict registration/recovery/refresh activation-delivery corpus.
-#[derive(Serialize)]
-pub struct ActivationDeliveryVectorCorpusV1 {
-    schema: String,
-    protocol_id: String,
-    evidence_scope: String,
-    cases: Vec<ActivationDeliveryVectorCaseV1>,
-}
-
-impl ActivationDeliveryVectorCorpusV1 {
-    /// Returns the fixed corpus schema.
-    pub fn schema(&self) -> &str {
-        &self.schema
-    }
-
-    /// Returns the fixed protocol identifier.
-    pub fn protocol_id(&self) -> &str {
-        &self.protocol_id
-    }
-
-    /// Returns the narrow host-only evidence scope.
-    pub fn evidence_scope(&self) -> &str {
-        &self.evidence_scope
-    }
-
-    /// Returns the exact case count.
-    pub fn case_count(&self) -> usize {
-        self.cases.len()
-    }
-}
+pub type ActivationDeliveryVectorCorpusV1 = StrictVectorCorpusV1<ActivationDeliveryVectorCaseV1>;
 
 #[derive(Serialize)]
-struct ActivationDeliveryVectorCaseV1 {
+pub struct ActivationDeliveryVectorCaseV1 {
     case_id: String,
     origin_request_kind: ActivationOriginRequestKindVectorV1,
     semantic_lifecycle_case_id: String,
@@ -230,20 +205,15 @@ pub fn canonical_activation_delivery_vector_corpus_v1() -> ActivationDeliveryVec
 
 /// Encodes the exact canonical corpus with one trailing LF.
 pub fn canonical_activation_delivery_vector_corpus_json_bytes_v1() -> Vec<u8> {
-    let mut encoded = serde_json::to_vec_pretty(&canonical_activation_delivery_vector_corpus_v1())
-        .expect("fixed activation-delivery corpus serializes");
-    encoded.push(b'\n');
-    encoded
+    canonical_json_bytes(&canonical_activation_delivery_vector_corpus_v1())
 }
 
 /// Parses only the exact canonical LF-terminated corpus bytes.
 pub fn parse_canonical_activation_delivery_vector_corpus_json_v1(
     encoded: &[u8],
 ) -> Result<ActivationDeliveryVectorCorpusV1, ActivationDeliveryVectorCorpusParseErrorV1> {
-    if encoded != canonical_activation_delivery_vector_corpus_json_bytes_v1() {
-        return Err(ActivationDeliveryVectorCorpusParseErrorV1);
-    }
-    Ok(canonical_activation_delivery_vector_corpus_v1())
+    parse_canonical_json(encoded, canonical_activation_delivery_vector_corpus_v1)
+        .ok_or(ActivationDeliveryVectorCorpusParseErrorV1)
 }
 
 fn activation_delivery_case(origin: ActivationPackageOriginV1) -> ActivationDeliveryVectorCaseV1 {
@@ -268,19 +238,19 @@ fn output_committed_vector(origin: ActivationPackageOriginV1) -> ActivationOutpu
     let binding = artifacts.binding();
     let receipt = artifacts.receipt();
     ActivationOutputCommittedVectorV1 {
-        origin_request_context_digest_hex: encode_hex(
+        origin_request_context_digest_hex: hex::encode(
             binding.origin_request_context_digest().as_bytes(),
         ),
-        origin_authorization_digest_hex: encode_hex(
+        origin_authorization_digest_hex: hex::encode(
             binding.origin_authorization_digest().as_bytes(),
         ),
-        origin_transcript_digest_hex: encode_hex(binding.origin_transcript_digest().as_bytes()),
-        package_set_digest_hex: encode_hex(receipt.package_set_digest().as_bytes()),
-        output_committed_receipt_encoding_hex: encode_hex(&receipt.encode()),
-        output_committed_receipt_digest_hex: encode_hex(receipt.digest().as_bytes()),
-        x_client_hex: encode_hex(receipt.x_client()),
-        x_server_hex: encode_hex(receipt.x_server()),
-        registered_public_key_hex: encode_hex(receipt.registered_public_key().as_bytes()),
+        origin_transcript_digest_hex: hex::encode(binding.origin_transcript_digest().as_bytes()),
+        package_set_digest_hex: hex::encode(receipt.package_set_digest().as_bytes()),
+        output_committed_receipt_encoding_hex: hex::encode(receipt.encode()),
+        output_committed_receipt_digest_hex: hex::encode(receipt.digest().as_bytes()),
+        x_client_hex: hex::encode(receipt.x_client()),
+        x_server_hex: hex::encode(receipt.x_server()),
+        registered_public_key_hex: hex::encode(receipt.registered_public_key().as_bytes()),
         activation_authorization_state: ActivationAuthorizationStateVectorV1::NotIssued,
     }
 }
@@ -292,11 +262,11 @@ fn activation_control_admitted_vector(
     let dag = request.validated_dag();
     let artifacts = request.pending().artifacts();
     ActivationControlAdmittedVectorV1 {
-        request_context_digest_hex: encode_hex(dag.request_context_digest().as_bytes()),
-        authorization_digest_hex: encode_hex(dag.authorization_digest().as_bytes()),
-        transcript_digest_hex: encode_hex(dag.transcript_digest().as_bytes()),
-        package_set_digest_hex: encode_hex(artifacts.packages().digest().as_bytes()),
-        output_committed_receipt_digest_hex: encode_hex(artifacts.receipt().digest().as_bytes()),
+        request_context_digest_hex: hex::encode(dag.request_context_digest().as_bytes()),
+        authorization_digest_hex: hex::encode(dag.authorization_digest().as_bytes()),
+        transcript_digest_hex: hex::encode(dag.transcript_digest().as_bytes()),
+        package_set_digest_hex: hex::encode(artifacts.packages().digest().as_bytes()),
+        output_committed_receipt_digest_hex: hex::encode(artifacts.receipt().digest().as_bytes()),
         activation_authorization_state: ActivationAuthorizationStateVectorV1::Unconsumed,
     }
 }
@@ -308,11 +278,11 @@ fn metadata_consumed_vector(
     let dag = metadata.post_state().activation_dag();
     let artifacts = metadata.post_state().artifacts();
     ActivationMetadataConsumedVectorV1 {
-        request_context_digest_hex: encode_hex(dag.request_context_digest().as_bytes()),
-        authorization_digest_hex: encode_hex(dag.authorization_digest().as_bytes()),
-        transcript_digest_hex: encode_hex(dag.transcript_digest().as_bytes()),
-        package_set_digest_hex: encode_hex(artifacts.packages().digest().as_bytes()),
-        output_committed_receipt_digest_hex: encode_hex(artifacts.receipt().digest().as_bytes()),
+        request_context_digest_hex: hex::encode(dag.request_context_digest().as_bytes()),
+        authorization_digest_hex: hex::encode(dag.authorization_digest().as_bytes()),
+        transcript_digest_hex: hex::encode(dag.transcript_digest().as_bytes()),
+        package_set_digest_hex: hex::encode(artifacts.packages().digest().as_bytes()),
+        output_committed_receipt_digest_hex: hex::encode(artifacts.receipt().digest().as_bytes()),
         activation_authorization_state: ActivationAuthorizationStateVectorV1::Consumed,
         zero_private_evaluation_work: zero_work_vector(metadata.zero_reevaluation()),
     }
@@ -327,10 +297,10 @@ fn delivery_uncertain_vector(
     let transcript = metadata.post_state().activation_dag().transcript_digest();
     let pending = metadata.delivery_uncertain_v1();
     ActivationDeliveryUncertainVectorV1 {
-        before_package_set_digest_hex: encode_hex(before.as_bytes()),
-        after_package_set_digest_hex: encode_hex(pending.package_set_digest().as_bytes()),
-        output_committed_receipt_digest_hex: encode_hex(receipt.as_bytes()),
-        activation_transcript_digest_hex: encode_hex(transcript.as_bytes()),
+        before_package_set_digest_hex: hex::encode(before.as_bytes()),
+        after_package_set_digest_hex: hex::encode(pending.package_set_digest().as_bytes()),
+        output_committed_receipt_digest_hex: hex::encode(receipt.as_bytes()),
+        activation_transcript_digest_hex: hex::encode(transcript.as_bytes()),
         activation_authorization_state: ActivationAuthorizationStateVectorV1::Consumed,
         zero_private_evaluation_work: zero_work_vector(pending.zero_private_evaluation_work()),
     }
@@ -357,19 +327,19 @@ fn released_vector(
     let zero = released.zero_private_evaluation_work();
     let (client, worker) = released.into_capabilities();
     ActivationRecipientsReleasedVectorV1 {
-        package_set_digest_hex: encode_hex(client.package_set_digest().as_bytes()),
-        output_committed_receipt_digest_hex: encode_hex(receipt.as_bytes()),
-        activation_transcript_digest_hex: encode_hex(transcript.as_bytes()),
+        package_set_digest_hex: hex::encode(client.package_set_digest().as_bytes()),
+        output_committed_receipt_digest_hex: hex::encode(receipt.as_bytes()),
+        activation_transcript_digest_hex: hex::encode(transcript.as_bytes()),
         client: ActivationClientReleasedCapabilityVectorV1 {
             capability_kind: ActivationClientCapabilityKindVectorV1::ActivationClientScalarRelease,
-            package_set_digest_hex: encode_hex(client.package_set_digest().as_bytes()),
-            delivery_evidence_digest_hex: encode_hex(client.delivery_evidence().as_bytes()),
-            x_client_base_hex: encode_hex(&client.x_client_base().expose_bytes()),
+            package_set_digest_hex: hex::encode(client.package_set_digest().as_bytes()),
+            delivery_evidence_digest_hex: hex::encode(client.delivery_evidence().as_bytes()),
+            x_client_base_hex: hex::encode(client.x_client_base().expose_bytes()),
         },
         signing_worker: ActivationSigningWorkerReleaseAuthorityVectorV1 {
             capability_kind: ActivationSigningWorkerCapabilityKindVectorV1::SigningWorkerActivationReleaseAuthority,
-            package_set_digest_hex: encode_hex(worker.package_set_digest().as_bytes()),
-            delivery_evidence_digest_hex: encode_hex(worker.delivery_evidence().as_bytes()),
+            package_set_digest_hex: hex::encode(worker.package_set_digest().as_bytes()),
+            delivery_evidence_digest_hex: hex::encode(worker.delivery_evidence().as_bytes()),
         },
         activation_authorization_state: ActivationAuthorizationStateVectorV1::Consumed,
         zero_private_evaluation_work: zero_work_vector(zero),
@@ -397,24 +367,24 @@ fn redelivered_vector(origin: ActivationPackageOriginV1) -> ActivationRedelivere
     let zero = redelivery.zero_private_evaluation_work();
     let (client, worker) = redelivery.into_released().into_capabilities();
     ActivationRedeliveredVectorV1 {
-        before_package_set_digest_hex: encode_hex(before.as_bytes()),
-        after_package_set_digest_hex: encode_hex(after.as_bytes()),
-        before_client_scalar_hex: encode_hex(&before_client.expose_bytes()),
-        after_client_scalar_hex: encode_hex(&client.x_client_base().expose_bytes()),
-        before_client_delivery_evidence_digest_hex: encode_hex(before_client_evidence.as_bytes()),
-        after_client_delivery_evidence_digest_hex: encode_hex(
+        before_package_set_digest_hex: hex::encode(before.as_bytes()),
+        after_package_set_digest_hex: hex::encode(after.as_bytes()),
+        before_client_scalar_hex: hex::encode(before_client.expose_bytes()),
+        after_client_scalar_hex: hex::encode(client.x_client_base().expose_bytes()),
+        before_client_delivery_evidence_digest_hex: hex::encode(before_client_evidence.as_bytes()),
+        after_client_delivery_evidence_digest_hex: hex::encode(
             client.delivery_evidence().as_bytes(),
         ),
-        before_signing_worker_delivery_evidence_digest_hex: encode_hex(
+        before_signing_worker_delivery_evidence_digest_hex: hex::encode(
             before_worker_evidence.as_bytes(),
         ),
-        after_signing_worker_delivery_evidence_digest_hex: encode_hex(
+        after_signing_worker_delivery_evidence_digest_hex: hex::encode(
             worker.delivery_evidence().as_bytes(),
         ),
-        before_signing_worker_authority_package_set_digest_hex: encode_hex(
+        before_signing_worker_authority_package_set_digest_hex: hex::encode(
             before_package.as_bytes(),
         ),
-        after_signing_worker_authority_package_set_digest_hex: encode_hex(
+        after_signing_worker_authority_package_set_digest_hex: hex::encode(
             worker.package_set_digest().as_bytes(),
         ),
         activation_authorization_state: ActivationAuthorizationStateVectorV1::Consumed,
@@ -499,14 +469,4 @@ fn zero_work_vector(witness: ZeroReevaluationWitnessV1) -> ZeroPrivateEvaluation
         contribution_derivations: witness.contribution_derivations(),
         output_share_samples: witness.output_share_samples(),
     }
-}
-
-fn encode_hex(bytes: &[u8]) -> String {
-    const HEX: &[u8; 16] = b"0123456789abcdef";
-    let mut encoded = String::with_capacity(bytes.len() * 2);
-    for byte in bytes {
-        encoded.push(char::from(HEX[usize::from(byte >> 4)]));
-        encoded.push(char::from(HEX[usize::from(byte & 0x0f)]));
-    }
-    encoded
 }

@@ -1,4 +1,6 @@
+import type { EcdsaMaterialReadSnapshot } from '../core/ecdsaMaterialReadSnapshot';
 import type { CapabilityOperationEnvelope } from '@shared/authorization/operationFingerprint';
+import type { Variant } from '@shared/utils/variant';
 import type { AuthorizedOperation, AuthorizedOperationInput } from './domain';
 import type { AuthorizedOperationAdmissionRejection, EcdsaMaterialActivationScope } from './service';
 
@@ -11,7 +13,7 @@ export type EcdsaWalletSessionAdmissionInput = {
     readonly authorization: { readonly kind: 'authorization_grant' };
     readonly quota: { readonly kind: 'consume_reusable_wallet_session' };
   };
-  readonly material: EcdsaMaterialActivationScope;
+  readonly material: EcdsaMaterialActivationScope & { readonly readSnapshot: EcdsaMaterialReadSnapshot };
 };
 
 export type PinnedOwnerWalletScope = {
@@ -20,9 +22,9 @@ export type PinnedOwnerWalletScope = {
   readonly projectEnvironmentId: string;
 };
 
-export type EcdsaWalletSessionAdmission =
+type EcdsaWalletSessionExistingOperation =
   | {
-      readonly kind: 'claimed' | 'operation_in_progress';
+      readonly kind: 'operation_in_progress';
       readonly operation: AuthorizedOperation;
       readonly ownerScope: PinnedOwnerWalletScope;
     }
@@ -32,8 +34,28 @@ export type EcdsaWalletSessionAdmission =
       readonly ownerScope?: never;
     };
 
+type EcdsaWalletSessionAdmission = EcdsaWalletSessionExistingOperation
+  | {
+      readonly kind: 'claimed';
+      readonly operation: AuthorizedOperation;
+      readonly ownerScope: PinnedOwnerWalletScope;
+    };
+
+export type EcdsaWalletSessionAdmissionVariant<K extends EcdsaWalletSessionAdmission['kind']> =
+  Variant<EcdsaWalletSessionAdmission, 'kind', K>;
+
+export type EcdsaWalletSessionResolutionResult = EcdsaWalletSessionExistingOperation
+  | ((AuthorizedOperationAdmissionRejection | { readonly kind: 'authorized_operation_missing' }) & {
+      readonly operation?: never;
+      readonly ownerScope?: never;
+    });
+
 export type EcdsaWalletSessionAdmissionResult = EcdsaWalletSessionAdmission
   | (AuthorizedOperationAdmissionRejection & {
       readonly operation?: never;
       readonly ownerScope?: never;
     });
+
+export type EcdsaWalletSessionPhaseAdmission =
+  | { readonly phase: 'prepare'; readonly admission: EcdsaWalletSessionAdmission }
+  | { readonly phase: 'finalize'; readonly admission: EcdsaWalletSessionExistingOperation };

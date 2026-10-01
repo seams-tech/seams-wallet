@@ -12,13 +12,13 @@ import {
   type WalletSessionOperationCredentialV1,
   type LinkDevicePublicKeyB64u,
   type CommittedAuthorityPackagesV1,
-  type CommittedEd25519SignerPackageV1,
   type CommittedEcdsaSignerPackageV1,
   type OrdinarySignerMaterialRecipientRequestV1,
 } from '@shared/device-linking';
 import { computeWalletSessionOperationCredentialDigestB64u } from '@shared/device-linking/digests';
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
 import { alphabetizeStringify } from '@shared/utils/digests';
+import { EMAIL_OTP_FACTOR_RELEASE_AAD_DOMAIN_V1 } from '@shared/utils/emailOtpDomain';
 import { sha256Utf8DigestB64u } from '@shared/utils/canonicalPrimitives';
 import { mpcMaterialActivationRefsEqual } from '@shared/utils/domainIds';
 import { routerAbMpcMaterialActivationRefFromWire } from '@shared/utils/routerAbNormalSigningIdentity';
@@ -212,20 +212,10 @@ const productionOrdinaryMaterialSealer: DeviceLinkingOrdinaryMaterialSealerV1 = 
   },
 };
 
-type OrdinarySignerPackageForWorkerV1 =
-  | {
-      readonly keyFamily: 'ed25519';
-      readonly package: CommittedEd25519SignerPackageV1;
-    }
-  | {
-      readonly keyFamily: 'ecdsa_secp256k1';
-      readonly package: CommittedEcdsaSignerPackageV1;
-    };
-
 function ordinarySignerPackageForPreparation(
   committed: CommittedAuthorityPackagesV1,
   preparation: DeviceLinkingOrdinarySignerMaterialReservationPreparationV1,
-): OrdinarySignerPackageForWorkerV1 {
+): LinkedSignerPackageForMaterialV1 {
   if ('kind' in preparation) {
     if (!committed.signerPackages.ed25519) {
       throw new Error('ordinary Ed25519 signer package is missing');
@@ -271,7 +261,7 @@ function ordinaryRecipientInputForPreparation(
 
 async function openOrdinarySignerMaterial(input: {
   readonly preparation: DeviceLinkingOrdinarySignerMaterialReservationPreparationV1;
-  readonly packageValue: OrdinarySignerPackageForWorkerV1;
+  readonly packageValue: LinkedSignerPackageForMaterialV1;
   readonly recipientInput: DeviceLinkingOrdinarySignerMaterialRecipientInputV1;
 }): Promise<Uint8Array> {
   if (
@@ -983,8 +973,6 @@ async function createEmailOtpEd25519ExportRootRecipient(
   return { recipientPublicKeyB64u: recipient.public_key_b64u() };
 }
 
-const EMAIL_OTP_FACTOR_RELEASE_AAD_PREFIX = 'seams/email-otp/factor-release/v1';
-
 async function decryptEmailOtpFactorReleaseEnvelope(input: {
   readonly slot: DeviceLinkingKeySlotV1;
   readonly walletId: string;
@@ -999,7 +987,7 @@ async function decryptEmailOtpFactorReleaseEnvelope(input: {
     slot: input.slot,
     envelope: release,
     aad: () =>
-      `${EMAIL_OTP_FACTOR_RELEASE_AAD_PREFIX}\0${input.walletId}\0${release.enrollmentId}\0${release.enrollmentSealKeyVersion}\0${release.challengeId}`,
+      `${EMAIL_OTP_FACTOR_RELEASE_AAD_DOMAIN_V1}\0${input.walletId}\0${release.enrollmentId}\0${release.enrollmentSealKeyVersion}\0${release.challengeId}`,
   });
   if (factorSecret.length !== 32) {
     factorSecret.fill(0);

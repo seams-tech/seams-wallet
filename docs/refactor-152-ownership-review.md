@@ -1,0 +1,153 @@
+# Regional D1: ownership review and first experiment
+
+Date: October 1, 2026. Reviewed source: `1165e075`.
+
+## Decision
+
+Use an entire isolated deployment namespace as the owner for the first placement
+experiment. Bind that namespace to exactly one writable database for its whole
+lifetime. Create fresh wallets; retain existing owners at their current database.
+The experiment needs no production home directory, cross-region routing, copied
+wallets, or migration state machine.
+
+A wallet-only partition cannot preserve the current local policy and rate-limit
+boundaries without additional coordination. A project/environment partition is
+also unproven: several authorization identities are scoped to namespace and
+organization, without project/environment in their uniqueness keys. Keep all
+projects of an existing namespace/organization together until that relationship
+is proved at every entry point. The experimental whole-namespace boundary is
+conservative; this review does not establish the smallest production owner.
+
+## Evidence and dependencies
+
+All 39 ordered migrations under `packages/wallet-server/migrations/d1-signer`
+were applied to an empty local SQLite 3.53.3 database. The resulting schema has
+54 tables and 30 triggers; integrity check returned `ok` and foreign-key check
+returned no violations. `.artifacts/r152/ownership-20261001/effective-schema.json`
+records each migration's SHA-256, the effective SQL, foreign keys, and source
+revision. This verifies schema construction, not Cloudflare placement or a
+populated-state migration. Review effective triggers after all migrations: the
+owner claim trigger in migration 0032 is replaced by migration 0034.
+
+| State | Current boundary and invariant | Regional consequence |
+| --- | --- | --- |
+| `wallet_session_authorizations_v2`, `wallet_authorities`, `wallet_auth_methods`, `authorization_wallet_session_quotas` | The claim trigger joins exact session, authority, method, principal, and quota; admission decrements the last use atomically. Quota uniqueness is namespace/tenant/quota and namespace/tenant/session. | These records and operation insertion must stay in one database transaction. A session quota is not evidence of a global project signing quota. |
+| `authorized_operations`, `authorized_operation_audit_events` | Operation ID and fingerprint uniqueness use namespace/tenant. Claim/completion triggers maintain audit and completion semantics. | Keep the durable replay answer and its claim at the same home for retries and completion. |
+| `verified_wallet_operation_evidence_sets`, `verified_owner_proof_consumptions` | Step-up evidence and consumed-proof/replay identities use namespace/tenant. | Preserve one-use proof consumption with the operation admission boundary. |
+| `wallet_signers`, `linked_device_authority_installations` | Canonical and linked material are read in the credential snapshot; guarded admission/finalize statements compare verified material records. | Keep linked provenance and canonical candidates with authorization; preserve fresh retirement checks. |
+| `router_ab_normal_signing_admission_records` | Project policy key includes org/project/environment/signing-root version; abuse adds wallet/material/curve. Policy reads occur before admission on prepare, finalize, and replay. | Project policy is shared across wallets. Independent writable copies could disagree. Existing policy evaluation is a fresh snapshot, not a newly promised transactional policy-update fence. |
+| `email_otp_rate_limits`, `identity_links`, `webauthn_credential_bindings` | Project/environment scoped rate keys include IP, user, provider, wallet, and organization; identity and credential uniqueness also extends beyond one wallet. | A wallet split fragments existing rate limits and uniqueness unless another authority enforces them. These lifecycle paths remain relevant even when timing ECDSA-only signing. |
+| `wallet_auth_method_revocation_replays`, authority/method/session records | Revocation stores its exact answer in the mutation batch. | Admin/revoke retries must reach the same home as signing reads. |
+| Hosted credential/exchange/delivery tables | Effective triggers enforce session parents, immutable identities, retirement, and delivery lifecycle. | Unlock, iframe exchange, and linked delivery must follow the same home. |
+| Registration, recovery, lane journals/locks/receipts, Yao lifecycle, vault and remaining signer tables | Some are outside the measured normal ECDSA path. They are included in the generated schema inventory, without a complete semantic partition proof. | Keep the entire deployment database together for the experiment; do not selectively copy signing tables. Production ownership review remains open for these paths. |
+
+The tenant ID is parsed from `options.orgId` in
+[`d1RouterApiAuthService.ts`](../packages/wallet-server/src/router/cloudflare/d1/auth/d1RouterApiAuthService.ts).
+That service constructs authorization and signer adapters from one database.
+The relevant implementation boundaries are
+[`authorizedOperationStatements.ts`](../packages/wallet-server/src/router/cloudflare/d1/authorization/authorizedOperationStatements.ts),
+[`d1AuthorizationStore.ts`](../packages/wallet-server/src/router/cloudflare/d1/authorization/d1AuthorizationStore.ts),
+[`d1RouterAbNormalSigningAdmissionStore.ts`](../packages/wallet-server/src/router/cloudflare/d1/signingAdmission/d1RouterAbNormalSigningAdmissionStore.ts),
+[`routerAbNormalSigningAdmissionCore.ts`](../packages/wallet-server/src/router/domains/signingOperations/routerAbNormalSigningAdmissionCore.ts),
+and [`d1EmailOtpRateLimitStore.ts`](../packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpRateLimitStore.ts).
+
+## Routing and administration limits
+
+[`hosted-wallet-gateway.ts`](../packages/wallet-server/src/hosted-wallet-gateway.ts)
+selects `SIGNER_DB` and the namespace/org/project/environment from deployment
+configuration. There is no production owner-to-region directory or home
+generation in this path. This supports a statically pinned benchmark deployment;
+it does not prove stale-route rejection or safe failover between databases.
+
+The policy store exposes set/clear methods. The current benchmark policy E2E
+updates isolated SQLite directly. This review found no production call site for
+those setters in the Wallet source or Console apps/packages. Thus a complete
+regional policy administration path remains to be designed and verified.
+
+Production Gateway composition reaches Console through service-binding clients
+for API/publishable-key authorization, environment resolution, usage, and active
+tenant-root lineage. The benchmark substitutes the existing static Console
+binding. Its placement result will measure that isolated topology. It cannot
+establish production latency or consistency for remote Console dependencies;
+each affected production route needs a measured dependency inventory.
+
+Custody remains in the existing role-specific DO deployments. Fresh wallet and
+presign identities create new wallet/session objects; shared tenant-root objects
+can remain shared. Record those distinctions and aggregate role placement. A D1
+region hint never proves same-datacenter placement with any DO.
+
+## First bounded experiment, ready for provisioning approval
+
+Start with London, where the latest owner SDK median is 2,680.5 ms and linked
+median is 2,487.0 ms. The owner has seven full-path D1 calls; linked signing has
+five. Both retain five prepare/finalize calls and two write-bearing calls. Full
+source/build identities and request accounting are in
+[the R151 session-read evidence](refactor-151-session-read.md).
+
+1. Reconcile cost and verify the restored benchmark state immediately before
+   execution. Latest recorded cumulative spend is $1.0530 against $25, subject
+   to accounting lag. Retain the cap and existing Cloudflare-only scope.
+2. Create two empty benchmark databases: `r150-bench-20261001-r152-apac` with
+   `apac`, and `r150-bench-20261001-r152-weur` with `weur`. Apply the same 39
+   migrations to each. Record IDs, migration hashes, and observed served regions.
+   This fresh APAC control avoids attributing database age to location.
+3. Assign distinct deployment namespaces `r152-apac-control` and
+   `r152-weur-treatment`. Keep the existing benchmark org/project/environment and
+   service credentials. Each namespace uses its single database throughout.
+   Reuse existing benchmark Gateway, ingress, role deployments, and London probe
+   sequentially; restore the matching namespace/database pair when switching
+   arms. Preflight the exact config delta, existing role bindings, and readiness
+   before wallet operations. Do not change tenant-root identity merely to change
+   Gateway storage placement.
+4. Freeze SDK `a2c936ed`, Gateway implementation `dad8f5e9`, role builds,
+   migrations, concurrency, refill settings, and static Console fixture. Change
+   database/namespace only. Default Gateway placement is retained. Use fresh
+   wallets in both arms and alternate APAC→WEUR then WEUR→APAC order. Do not reuse
+   wallets across databases or change DO placement as a second treatment.
+5. First run a diagnostic of three three-device cohorts per arm (27 signatures
+   per arm), splitting the order into alternating blocks. Verify every signature,
+   exact seven/five call accounting, served region/primary metadata, precompleted
+   linked presigns, failed-attempt denominator, and stable probe boot/build.
+   Report owner and linked distributions separately; this diagnostic is below
+   the plan's acceptance sample target and cannot close the performance gate.
+6. If the diagnostic succeeds and indicates full-path benefit, extend to at
+   least 30 owner and 30 linked signatures per arm across repeated runs. Run
+   immediate-first, ready-pool, and burst workloads separately before extending
+   to other probe regions. Retain the 20% and 100 ms full-path p95 decision gate
+   and report observed maxima and error rates. A warm-pool win does not establish
+   the 1–2 second maximum.
+7. Close access, stop probes, restore original Workers/images/configuration,
+   and reconcile cost. Preserve the original D1 and all old evidence. Retain the
+   new databases closed to benchmark traffic until evidence review; deletion is
+   a separately explicit cleanup action. Never reset an existing wallet.
+
+Cloudflare location hints apply at database creation and are best effort.
+Verify actual metadata after provisioning. D1 batches execute transactionally
+within one database; read replicas and session bookmarks do not create a
+cross-database transaction or a globally fresh authorization authority. See
+[data location](https://developers.cloudflare.com/d1/configuration/data-location/),
+[D1 batch](https://developers.cloudflare.com/d1/worker-api/d1-database/#batch),
+and [read replication](https://developers.cloudflare.com/d1/best-practices/read-replication/).
+
+The user's takeover scope explicitly allows **existing isolated resources only**.
+The two new databases require an explicit scope expansion. No databases, new
+credentials, or production routing have been created by this review.
+
+## Verification and remaining proof
+
+The focused Workers D1 run passed all three existing scenarios: canonical and
+third-generation policy E2Es plus concurrent last-quota contention (42.2 seconds).
+The policy cases verified six signatures, 18 denials, exact completed replay,
+and unrelated-scope isolation. Evidence is retained alongside the schema in
+`.artifacts/r152/ownership-20261001/`, including `verification-run.json`, both
+`gateway-ecdsa-live-policy-*` artifacts, and `gateway-ecdsa-last-quota-workers_local.json`.
+Reproduce with the intended-behavior runner on
+`passkey.presign-pool.contract.test.ts --grep 'live signing policy denies|third-generation linked signing enforces live policy|distinct concurrent prepares consume the last quota'`.
+These
+checks establish current behavior on one authoritative database. They do not
+test regional routing or dual-writer fencing.
+
+Before production implementation, complete semantic ownership review for every
+lifecycle/admin/scheduled path, define a trusted owner/home identity and stale
+route rejection, inventory Console/shared authority costs, and run concurrent
+entry-region/replay tests. Existing-owner migration remains a separate phase.

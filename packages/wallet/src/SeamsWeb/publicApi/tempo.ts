@@ -123,6 +123,23 @@ export function createTempoSignerCapability(
         chainTarget: resolveTempoChainTarget(deps.configs.network.chains, args.chainTarget),
       }),
     );
+  // An open receipt in the wallet iframe moves to its broadcast step while the
+  // transaction is sent, rather than waiting on "signed" until the network
+  // accepts it. The receipt is display only, so a failed notice never stops
+  // the broadcast.
+  const onBroadcastStarted = (
+    args: Pick<
+      Parameters<TempoSignerCapability['reportBroadcastAccepted']>[0],
+      'walletSession' | 'signedResult'
+    >,
+  ): void => {
+    const walletIframe = deps.getWalletIframe();
+    if (!walletIframe.shouldUseWalletIframe()) return;
+    void walletIframe
+      .requireRouter(toWalletId(args.walletSession.walletId))
+      .then((router) => router.notifyTransactionBroadcastStarted(args.signedResult))
+      .catch(() => {});
+  };
   const reportBroadcastAccepted: TempoSignerCapability['reportBroadcastAccepted'] = async (
     args,
   ) => {
@@ -261,6 +278,7 @@ export function createTempoSignerCapability(
     }
   };
   const lifecycle = {
+    onBroadcastStarted,
     signEvmFamily,
     reportBroadcastAccepted,
     reportBroadcastRejected,

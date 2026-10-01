@@ -7,6 +7,14 @@ import {
 
 export type NearRpcResultDecoder<T> = (value: unknown) => T;
 
+export type NearRpcErrorType =
+  | 'InvalidTxError'
+  | 'ActionError'
+  | 'TxExecutionError'
+  | 'RpcError'
+  | 'Failure'
+  | 'Unknown';
+
 type DecodedNearFunctionCallPermission = {
   FunctionCall: {
     allowance: string;

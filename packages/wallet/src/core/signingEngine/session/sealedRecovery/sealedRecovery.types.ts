@@ -7,6 +7,7 @@ import type {
   RejectedSealedRecoveryRecord,
   SealedRecoveryRecord,
 } from './recoveryRecord';
+import type { ExclusiveUnion } from '@shared/utils/variant';
 
 type RestoreSealedSessionListInput = {
   walletId: string;
@@ -37,15 +38,8 @@ export type RestorePersistedSessionForSigningInput =
     };
   };
 
-export type RestorePersistedSessionForSigningResult =
-  | {
-      kind: 'completed';
-      attempted: number;
-      restored: number;
-      deferred: number;
-      duplicateCount?: never;
-      duplicateRecordSummaries?: never;
-    }
+export type RestorePersistedSessionForSigningResult = ExclusiveUnion<
+  | { kind: 'completed'; attempted: number; restored: number; deferred: number }
   | {
       kind: 'duplicate_records';
       attempted: 0;
@@ -53,7 +47,8 @@ export type RestorePersistedSessionForSigningResult =
       deferred: 0;
       duplicateCount: number;
       duplicateRecordSummaries: readonly Record<string, unknown>[];
-    };
+    }
+>;
 
 export type RestorePersistedSessionPurpose = {
   walletId: string;

@@ -1,6 +1,7 @@
 import { errorMessage } from '@shared/utils/errors';
 import { base64Decode, base64UrlDecode, base64UrlEncode } from '@shared/utils/encoders';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
+import { failure } from '@shared/utils/failure';
 import type { WebAuthnAuthenticationCredential } from '../../core/types';
 
 type WebAuthnCredentialIdParseResult =
@@ -65,21 +66,13 @@ export function webAuthnCredentialIdB64uFromCredential(
   input: unknown,
 ): WebAuthnCredentialIdParseResult {
   if (input === null || typeof input !== 'object' || Array.isArray(input)) {
-    return {
-      ok: false,
-      code: 'invalid_body',
-      message: 'Missing webauthn_authentication.id/rawId',
-    };
+    return failure('invalid_body', 'Missing webauthn_authentication.id/rawId');
   }
   const rawId = toOptionalTrimmedString(Reflect.get(input, 'rawId'));
   const id = toOptionalTrimmedString(Reflect.get(input, 'id'));
   const selected = rawId || id;
   if (!selected) {
-    return {
-      ok: false,
-      code: 'invalid_body',
-      message: 'Missing webauthn_authentication.id/rawId',
-    };
+    return failure('invalid_body', 'Missing webauthn_authentication.id/rawId');
   }
   try {
     return {
@@ -89,11 +82,7 @@ export function webAuthnCredentialIdB64uFromCredential(
       ),
     };
   } catch (error: unknown) {
-    return {
-      ok: false,
-      code: 'invalid_body',
-      message: errorMessage(error) || 'Invalid credential rawId',
-    };
+    return failure('invalid_body', errorMessage(error) || 'Invalid credential rawId');
   }
 }
 

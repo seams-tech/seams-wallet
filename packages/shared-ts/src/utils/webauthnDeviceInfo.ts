@@ -11,9 +11,9 @@
  * so profile UIs can label signers ("Chrome on macOS", "iCloud Keychain").
  */
 
-type WebAuthnDeviceBrowser = 'chrome' | 'safari' | 'firefox' | 'edge' | 'other';
+type WebAuthnDeviceBrowser = (typeof WEBAUTHN_DEVICE_BROWSERS)[number];
 
-type WebAuthnDeviceOs = 'macos' | 'ios' | 'windows' | 'android' | 'linux' | 'other';
+type WebAuthnDeviceOs = (typeof WEBAUTHN_DEVICE_OSES)[number];
 
 export type WebAuthnAuthenticatorDeviceInfo = {
   /** Display-ready label, e.g. "Chrome on macOS". Never empty. */
@@ -56,22 +56,9 @@ const WEBAUTHN_AAGUID_PROVIDERS: Record<string, { id: string; label: string }> =
   '771b48fd-d3d4-4f74-9232-fc157ab0507a': { id: 'edge-on-mac', label: 'Edge on Mac' },
 };
 
-const WEBAUTHN_DEVICE_BROWSERS: readonly WebAuthnDeviceBrowser[] = [
-  'chrome',
-  'safari',
-  'firefox',
-  'edge',
-  'other',
-];
+const WEBAUTHN_DEVICE_BROWSERS = ['chrome', 'safari', 'firefox', 'edge', 'other'] as const;
 
-const WEBAUTHN_DEVICE_OSES: readonly WebAuthnDeviceOs[] = [
-  'macos',
-  'ios',
-  'windows',
-  'android',
-  'linux',
-  'other',
-];
+const WEBAUTHN_DEVICE_OSES = ['macos', 'ios', 'windows', 'android', 'linux', 'other'] as const;
 
 const BROWSER_DISPLAY: Record<WebAuthnDeviceBrowser, string> = {
   chrome: 'Chrome',

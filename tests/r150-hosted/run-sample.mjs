@@ -94,6 +94,7 @@ try {
 
   const selected = input.arms[arm];
   const result = await runOnProbe(input, {
+    workload: 'unforced',
     runId,
     arm,
     region: input.region,

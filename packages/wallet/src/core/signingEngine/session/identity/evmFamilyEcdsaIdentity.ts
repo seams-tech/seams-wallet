@@ -35,6 +35,7 @@ import {
   type EcdsaRoleLocalWorkerHandle,
 } from '../keyMaterialBrands';
 import type { ThresholdRuntimePolicyScope } from '../../threshold/sessionPolicy';
+import type { ExclusiveUnion } from '@shared/utils/variant';
 
 export type {
   EcdsaThresholdKeyId,
@@ -157,19 +158,14 @@ export type ResolvedEvmFamilyEcdsaKey<
   rpId?: never;
 };
 
-type ThresholdEcdsaRoleLocalWorkerMaterial =
-  | {
-      kind: 'worker_loaded';
-      materialRef: EcdsaRoleLocalPersistedMaterialRef;
-      stateBlob?: never;
-      ecdsaRoleLocalReadyRecord?: never;
-    }
+type ThresholdEcdsaRoleLocalWorkerMaterial = ExclusiveUnion<
+  | { kind: 'worker_loaded'; materialRef: EcdsaRoleLocalPersistedMaterialRef }
   | {
       kind: 'ready_state_blob';
       stateBlob: EcdsaRoleLocalReadyStateBlob;
       ecdsaRoleLocalReadyRecord: EcdsaRoleLocalReadyRecord;
-      materialRef?: never;
-    };
+    }
+>;
 
 export type ThresholdEcdsaRoleLocalWorkerShare = {
   kind: 'role_local_worker_share';

@@ -44,6 +44,7 @@ import type {
   LinkedDeviceWalletSessionCredentialDeliveryBindingV1,
   LinkedDeviceWalletSessionCredentialDeliveryV1,
 } from './walletSessionCredentialDelivery';
+import type { ReadonlyExclusiveUnion } from '../utils/variant';
 
 export type {
   LinkedDeviceEcdsaSourceContributionBindingV1,
@@ -656,107 +657,28 @@ export type LinkPrecommitFailureV1 =
   | { readonly kind: 'package_preparation_failed'; readonly reason: string };
 
 /** The only durable states retained by the linear link-session boundary. */
-export type LinkSessionStateV1 =
-  | {
-      readonly state: 'displaying_qr';
-      readonly deviceId?: never;
-      readonly authorityId?: never;
-      readonly packageSetDigestB64u?: never;
-      readonly activatedAtMs?: never;
-      readonly error?: never;
-      readonly cancelledAtMs?: never;
-      readonly expiredAtMs?: never;
-    }
-  | {
-      readonly state: 'claimed';
-      readonly deviceId: DeviceId;
-      readonly authorityId?: never;
-      readonly packageSetDigestB64u?: never;
-      readonly activatedAtMs?: never;
-      readonly error?: never;
-      readonly cancelledAtMs?: never;
-      readonly expiredAtMs?: never;
-    }
-  | {
-      readonly state: 'awaiting_target_factor';
-      readonly deviceId: DeviceId;
-      readonly authorityId?: never;
-      readonly packageSetDigestB64u?: never;
-      readonly activatedAtMs?: never;
-      readonly error?: never;
-      readonly cancelledAtMs?: never;
-      readonly expiredAtMs?: never;
-    }
-  | {
-      readonly state: 'awaiting_source_contribution';
-      readonly deviceId: DeviceId;
-      readonly authorityId?: never;
-      readonly packageSetDigestB64u?: never;
-      readonly activatedAtMs?: never;
-      readonly error?: never;
-      readonly cancelledAtMs?: never;
-      readonly expiredAtMs?: never;
-    }
-  | {
-      readonly state: 'provisioning';
-      readonly deviceId: DeviceId;
-      readonly authorityId?: never;
-      readonly packageSetDigestB64u?: never;
-      readonly activatedAtMs?: never;
-      readonly error?: never;
-      readonly cancelledAtMs?: never;
-      readonly expiredAtMs?: never;
-    }
+export type LinkSessionStateV1 = ReadonlyExclusiveUnion<
+  | { readonly state: 'displaying_qr' }
+  | { readonly state: 'claimed'; readonly deviceId: DeviceId }
+  | { readonly state: 'awaiting_target_factor'; readonly deviceId: DeviceId }
+  | { readonly state: 'awaiting_source_contribution'; readonly deviceId: DeviceId }
+  | { readonly state: 'provisioning'; readonly deviceId: DeviceId }
   | {
       readonly state: 'authority_pending_local_install';
       readonly deviceId: DeviceId;
       readonly authorityId: WalletAuthorityId;
       readonly packageSetDigestB64u: DigestB64u;
-      readonly activatedAtMs?: never;
-      readonly error?: never;
-      readonly cancelledAtMs?: never;
-      readonly expiredAtMs?: never;
     }
   | {
       readonly state: 'active';
       readonly deviceId: DeviceId;
       readonly authorityId: WalletAuthorityId;
       readonly activatedAtMs: number;
-      readonly packageSetDigestB64u?: never;
-      readonly error?: never;
-      readonly cancelledAtMs?: never;
-      readonly expiredAtMs?: never;
     }
-  | {
-      readonly state: 'failed_before_commit';
-      readonly error: LinkPrecommitFailureV1;
-      readonly deviceId?: never;
-      readonly authorityId?: never;
-      readonly packageSetDigestB64u?: never;
-      readonly activatedAtMs?: never;
-      readonly cancelledAtMs?: never;
-      readonly expiredAtMs?: never;
-    }
-  | {
-      readonly state: 'cancelled';
-      readonly cancelledAtMs: number;
-      readonly deviceId?: never;
-      readonly authorityId?: never;
-      readonly packageSetDigestB64u?: never;
-      readonly activatedAtMs?: never;
-      readonly error?: never;
-      readonly expiredAtMs?: never;
-    }
-  | {
-      readonly state: 'expired';
-      readonly expiredAtMs: number;
-      readonly deviceId?: never;
-      readonly authorityId?: never;
-      readonly packageSetDigestB64u?: never;
-      readonly activatedAtMs?: never;
-      readonly error?: never;
-      readonly cancelledAtMs?: never;
-    };
+  | { readonly state: 'failed_before_commit'; readonly error: LinkPrecommitFailureV1 }
+  | { readonly state: 'cancelled'; readonly cancelledAtMs: number }
+  | { readonly state: 'expired'; readonly expiredAtMs: number }
+>;
 
 export type VerifiedSourceAuthorityV1 = {
   readonly authority: ActiveWalletAuthorityV1;
@@ -847,7 +769,7 @@ export type LinkedDeviceTargetCredentialRegistrationResultV1 = {
 };
 
 /** The ordinary session issued by activation and persisted by the browser. */
-export type WalletCapabilitySubjectV1 =
+export type WalletCapabilitySubjectV1 = ReadonlyExclusiveUnion<
   | {
       readonly kind: 'sign';
       readonly keyFamily: 'ed25519' | 'ecdsa_secp256k1';
@@ -858,11 +780,8 @@ export type WalletCapabilitySubjectV1 =
       readonly keyFamily: 'ed25519' | 'ecdsa_secp256k1';
       readonly materialActivation: MpcMaterialActivationRef;
     }
-  | {
-      readonly kind: 'link_devices' | 'revoke_devices';
-      readonly keyFamily?: never;
-      readonly materialActivation?: never;
-    };
+  | { readonly kind: 'link_devices' | 'revoke_devices' }
+>;
 
 export type ActiveWalletSessionV1 = {
   readonly kind: 'active_wallet_session_v1';

@@ -1,3 +1,6 @@
+import type { EcdsaMaterialActivationReadInput } from '../../../../core/d1EcdsaSignerRead';
+import type { EcdsaMaterialReadSnapshot } from '../../../../core/ecdsaMaterialReadSnapshot';
+import type { InstalledEcdsaCustodySnapshotV1 } from '../deviceLinking/d1LinkedDeviceAuthorityInstallService';
 import { parseWalletRegistrationSetupClaims } from '../../../domains/walletRegistration/walletRegistrationSetupPayload';
 import type { VerifiedNearRegistrationContinuationV1 } from '../../../domains/ed25519Yao/registration/routerAbEd25519YaoRegistrationIntentAuthorization';
 import type { WalletRegistrationAuthorityInput } from '../../../../core/registrationContracts';
@@ -413,10 +416,11 @@ type D1LinkedDeviceEd25519AuthorityReaderV1 = {
     readonly authorityId: WalletAuthorityId;
     readonly walletAuthMethodId: WalletAuthMethodId;
   }) => Promise<InstalledLinkedDeviceEcdsaAuthorityProjectionV1 | null>;
-  readInstalledEcdsaAuthorityChainByMaterialActivationV1(input: {
+  readInstalledEcdsaCustodySnapshotV1(input: {
+    readonly source: EcdsaMaterialActivationReadInput['source'];
     readonly walletId: WalletId;
     readonly materialActivation: MpcMaterialActivationRef;
-  }): Promise<readonly InstalledLinkedDeviceEcdsaAuthorityProjectionV1[]>;
+  }): Promise<InstalledEcdsaCustodySnapshotV1 | null>;
 };
 
 function sameEd25519ParticipantIds(
@@ -2348,12 +2352,10 @@ export class CloudflareD1WalletRegistrationService {
     }
   }
 
-  async resolveEcdsaMaterialActivation(input: {
-    readonly walletId: string;
-    readonly materialActivation: RouterAbMpcMaterialActivationRefWire;
-  }): Promise<
+  async resolveEcdsaMaterialActivation(input: EcdsaMaterialActivationReadInput): Promise<
     | {
         readonly ok: true;
+        readonly readSnapshot: EcdsaMaterialReadSnapshot;
         readonly materialActivation: RouterAbMpcMaterialActivationRefWire;
         readonly keyHandle: string;
         readonly relayerKeyId: string;
@@ -2366,12 +2368,15 @@ export class CloudflareD1WalletRegistrationService {
     try {
       const walletId = walletIdFromString(input.walletId);
       const store = this.getWalletStore();
-      const signer = await store.getEcdsaSignerByMaterialActivation({
+      const canonical = await store.readEcdsaSignerMaterialSnapshot({
+        source: input.source,
         walletId,
         materialActivation: input.materialActivation,
       });
-      if (signer) {
+      if (canonical) {
+        const { signer, readSnapshot } = canonical;
         return {
+          readSnapshot,
           ok: true,
           materialActivation: signer.walletKey.publicCapability.material_activation,
           keyHandle: signer.walletKey.keyHandle,
@@ -2386,14 +2391,15 @@ export class CloudflareD1WalletRegistrationService {
       }
 
       const linkedDeviceReader = this.getLinkedDeviceEd25519AuthorityReader();
-      const custodyChain = linkedDeviceReader
-        ? await linkedDeviceReader.readInstalledEcdsaAuthorityChainByMaterialActivationV1({
+      const custodySnapshot = linkedDeviceReader
+        ? await linkedDeviceReader.readInstalledEcdsaCustodySnapshotV1({
+            source: input.source,
             walletId,
             materialActivation: routerAbMpcMaterialActivationRefFromWire(input.materialActivation),
           })
-        : [];
-      const projection = custodyChain[0];
-      if (!projection) {
+        : null;
+      const projection = custodySnapshot?.chain[0];
+      if (!custodySnapshot || !projection) {
         return {
           ok: false,
           code: 'not_found',
@@ -2403,10 +2409,10 @@ export class CloudflareD1WalletRegistrationService {
 
       /* A device linked by another linked device preserves the same key:
          follow its links back to the registration signer they preserve. */
-      const walletSigners = await store.listEcdsaSignersForWallet({ walletId });
+      const { chain, signers } = custodySnapshot;
       let matchingSourceSigners: WalletEcdsaSignerRecord[] = [];
-      for (const custodySource of custodyChain) {
-        matchingSourceSigners = walletSigners.filter(
+      for (const custodySource of chain) {
+        matchingSourceSigners = signers.filter(
           linkedEcdsaProjectionMatchesSigner.bind(null, custodySource),
         );
         if (matchingSourceSigners.length > 0) break;
@@ -2432,6 +2438,7 @@ export class CloudflareD1WalletRegistrationService {
       }
       return {
         ok: true,
+        readSnapshot: custodySnapshot.readSnapshot,
         materialActivation: routerAbMpcMaterialActivationRefToWire(projection.materialActivation),
         keyHandle: canonicalSigner.walletKey.keyHandle,
         relayerKeyId: canonicalSigner.walletKey.relayerKeyId,
@@ -2521,7 +2528,11 @@ export class CloudflareD1WalletRegistrationService {
         readonly message: string;
       }
   > {
-    const activeMaterial = await this.resolveEcdsaMaterialActivation(input);
+    const activeMaterial = await this.resolveEcdsaMaterialActivation({
+      walletId: input.walletId,
+      materialActivation: input.materialActivation,
+      source: { kind: 'database' },
+    });
     if (!activeMaterial.ok) return activeMaterial;
 
     const identity = resolveTenantRootIdentityV1({

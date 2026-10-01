@@ -1,3 +1,4 @@
+import { WalletSessionStatusReadScope } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 import type { WalletIframeExactSessionState } from '../shared/exactSessionState';
 import {
   walletSessionRefFromSession,
@@ -6,10 +7,13 @@ import {
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type { RouterAbEcdsaDerivationLoginPresignaturePrefillResult } from '@/core/signingEngine/session/warmCapabilities/ecdsaLoginPrefill';
 
-export type RestoredSessionPresignaturePrefill = (args: {
-  walletSession: WalletSessionRef;
-  chainTarget: ThresholdEcdsaChainTarget;
-}) => Promise<RouterAbEcdsaDerivationLoginPresignaturePrefillResult>;
+export type RestoredSessionPresignaturePrefill = (
+  args: {
+    walletSession: WalletSessionRef;
+    chainTarget: ThresholdEcdsaChainTarget;
+  },
+  statusReads: WalletSessionStatusReadScope,
+) => Promise<RouterAbEcdsaDerivationLoginPresignaturePrefillResult>;
 
 export async function scheduleRestoredSessionPresignaturePrefills(args: {
   state: WalletIframeExactSessionState;
@@ -31,9 +35,10 @@ export async function scheduleRestoredSessionPresignaturePrefills(args: {
       return;
   }
   const walletSession = walletSessionRefFromSession({ walletId: args.state.walletId });
+  const statusReads = new WalletSessionStatusReadScope();
   const prefills: Promise<RouterAbEcdsaDerivationLoginPresignaturePrefillResult>[] = [];
   for (const chainTarget of args.chainTargets) {
-    prefills.push(args.prefill({ walletSession, chainTarget }));
+    prefills.push(args.prefill({ walletSession, chainTarget }, statusReads));
   }
   await Promise.all(prefills);
 }

@@ -7,7 +7,8 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use crate::derivation::context::{DerivationContext, RootShareEpoch};
 use crate::derivation::error::{
-    RouterAbDerivationError, RouterAbDerivationErrorCode, RouterAbDerivationResult,
+    require_non_empty, RouterAbDerivationError, RouterAbDerivationErrorCode,
+    RouterAbDerivationResult,
 };
 use crate::derivation::material::{OpenedShareKind, PublicDigest32, Role};
 use crate::derivation::transcript::{transcript_digest_v1, TranscriptBinding};
@@ -806,16 +807,6 @@ fn require_len(
         return Err(RouterAbDerivationError::new(
             RouterAbDerivationErrorCode::MalformedInput,
             format!("{field} must be {expected} bytes"),
-        ));
-    }
-    Ok(())
-}
-
-fn require_non_empty(field: &'static str, value: &str) -> RouterAbDerivationResult<()> {
-    if value.is_empty() {
-        return Err(RouterAbDerivationError::new(
-            RouterAbDerivationErrorCode::EmptyField,
-            format!("{field} is required"),
         ));
     }
     Ok(())

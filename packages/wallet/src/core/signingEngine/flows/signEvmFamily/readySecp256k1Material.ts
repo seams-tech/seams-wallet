@@ -41,6 +41,7 @@ import { authorizeEvmFamilyEcdsaSigningCapability } from '../../session/material
 import type { ActiveWalletSessionV1 } from '@shared/device-linking/contracts';
 import type { ActiveWalletAuthorityEcdsaRuntimeV1 } from '../../session/material/activeWalletAuthorityEcdsaRuntime';
 import { routerAbMpcMaterialActivationRefFromWire } from '@shared/utils/routerAbNormalSigningIdentity';
+import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 
 async function hydrateEcdsaRoleLocalMaterialForSigning(args: {
   persistedMaterial: PersistedEcdsaRoleLocalMaterial;
@@ -53,12 +54,8 @@ async function hydrateEcdsaRoleLocalMaterialForSigning(args: {
   });
 }
 
-export type ReadySecp256k1SigningMaterialResolution =
-  | {
-      readonly kind: 'ready';
-      readonly material: ReadySecp256k1SigningMaterial;
-      readonly reason?: never;
-    }
+export type ReadySecp256k1SigningMaterialResolution = ReadonlyExclusiveUnion<
+  | { readonly kind: 'ready'; readonly material: ReadySecp256k1SigningMaterial }
   | {
       readonly kind: 'unavailable';
       readonly reason:
@@ -70,15 +67,11 @@ export type ReadySecp256k1SigningMaterialResolution =
         | 'authorization_exhausted'
         | 'device_link_required'
         | 'material_corrupt';
-      readonly material?: never;
-    };
-
-export type HydratedSecp256k1SigningMaterialResolution =
-  | {
-      readonly kind: 'ready';
-      readonly material: HydratedEcdsaSignerMaterial;
-      readonly reason?: never;
     }
+>;
+
+export type HydratedSecp256k1SigningMaterialResolution = ReadonlyExclusiveUnion<
+  | { readonly kind: 'ready'; readonly material: HydratedEcdsaSignerMaterial }
   | {
       readonly kind: 'unavailable';
       readonly reason:
@@ -88,8 +81,8 @@ export type HydratedSecp256k1SigningMaterialResolution =
         | 'runtime_policy_scope_missing'
         | 'device_link_required'
         | 'material_corrupt';
-      readonly material?: never;
-    };
+    }
+>;
 
 /** Ready ECDSA signing material, assembled from each fact's canonical owner:
  * the manifest names the material and its public facts, the exact durable

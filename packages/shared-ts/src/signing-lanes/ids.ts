@@ -21,20 +21,7 @@ export type EcdsaManifestIdentity = {
   manifestRevision: EcdsaCapabilityManifestRevision;
 };
 
-// Shared-ts cannot depend on the wallet package's platform module. Keep the
-// chain target structural so its ThresholdEcdsaChainTarget remains assignable.
-export type ThresholdEcdsaChainTarget =
-  | {
-      kind: 'evm';
-      namespace: 'eip155';
-      chainId: number;
-      networkSlug: string;
-    }
-  | {
-      kind: 'tempo';
-      chainId: number;
-      networkSlug: string;
-    };
+export type { ThresholdEcdsaChainTarget } from '../utils/thresholdEcdsaChainTarget';
 
 export {
   parseLaneShareEpoch,

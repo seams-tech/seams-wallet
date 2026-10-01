@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::protocol::error::{
     RouterAbProtocolError, RouterAbProtocolErrorCode, RouterAbProtocolResult,
 };
+use crate::protocol::identity::require_non_empty;
 
 /// Expensive-work class protected by Router admission.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -383,14 +384,4 @@ impl ExpensiveWorkGateDecisionV1 {
             }
         }
     }
-}
-
-fn require_non_empty(field: &'static str, value: &str) -> RouterAbProtocolResult<()> {
-    if value.is_empty() {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::EmptyField,
-            format!("{field} is required"),
-        ));
-    }
-    Ok(())
 }

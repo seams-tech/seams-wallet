@@ -11,6 +11,7 @@ import { parseLaneProtocolCommitReceiptV1 } from '@shared/signing-lanes/rotation
 import { parseRotatableSigningLaneJobV1 } from '@shared/signing-lanes/rotationProtocolParsers';
 import type { RouterAbEd25519YaoCeremonyBindingV1 } from '@shared/utils/routerAbEd25519Yao';
 import { mpcMaterialActivationRefsEqual } from '@shared/utils/domainIds';
+import { ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1 } from '../../../core/ThresholdService/routerAb/internalServiceHttp';
 import {
   LaneLifecycleApplicationService,
   type LaneLifecycleAuthorizationPortV1,
@@ -20,7 +21,6 @@ import {
 export const ROUTER_AB_ED25519_YAO_LANE_EXECUTE_PATH_V1 =
   '/router-ab/internal/ed25519-yao/lane/execute' as const;
 
-const INTERNAL_SERVICE_AUTH_HEADER = 'x-router-ab-internal-service-auth';
 const REPLAY_HEADER = 'x-seams-lane-replay';
 const INTERNAL_ROUTER_ORIGIN = 'https://router.router-ab.internal';
 
@@ -269,7 +269,7 @@ async function fetchInternal(
 ): Promise<Response> {
   const headers: Record<string, string> = {
     'content-type': 'application/json',
-    [INTERNAL_SERVICE_AUTH_HEADER]: input.internalServiceAuth,
+    [ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1]: input.internalServiceAuth,
   };
   if (replay) headers[REPLAY_HEADER] = '1';
   return await input.binding.fetch(

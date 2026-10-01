@@ -3,20 +3,12 @@ import { SIGNER_AUTH_METHODS, type SignerAuthMethod } from '@shared/utils/signer
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import type { LinkedDeviceEnrollmentId, LinkedDeviceId } from '@shared/signing-lanes/ids';
 import type { WalletAuthMethodId, WalletAuthorityBindingDigest } from '@shared/utils/domainIds';
+import type { ExclusiveUnion } from '@shared/utils/variant';
 
-export type SigningLaneAuthBinding =
-  | {
-      kind: typeof SIGNER_AUTH_METHODS.passkey;
-      rpId: RpId;
-      credentialIdB64u: string;
-      providerSubjectId?: never;
-    }
-  | {
-      kind: typeof SIGNER_AUTH_METHODS.emailOtp;
-      providerSubjectId: string;
-      rpId?: never;
-      credentialIdB64u?: never;
-    };
+export type SigningLaneAuthBinding = ExclusiveUnion<
+  | { kind: typeof SIGNER_AUTH_METHODS.passkey; rpId: RpId; credentialIdB64u: string }
+  | { kind: typeof SIGNER_AUTH_METHODS.emailOtp; providerSubjectId: string }
+>;
 
 /**
  * Identity that distinguishes one linked Email OTP owner from the wallet-wide

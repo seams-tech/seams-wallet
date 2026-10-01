@@ -23,9 +23,24 @@ import {
 } from '@shared/threshold/participants';
 import type {
   EcdsaDerivationPublicIdentity,
+  ThresholdEcdsaSigningRootMetadata,
   ThresholdEd25519AuthorityScope,
 } from '../types';
 import { parseEcdsaKeyHandle, type EcdsaKeyHandle } from '../keyMaterialBrands';
+import type {
+  ThresholdEcdsaMpcSessionRecord,
+  ThresholdEd25519Commitments,
+  ThresholdEd25519CommitmentsById,
+  ThresholdEd25519CoordinatorSigningSessionRecord,
+  ThresholdEd25519MpcSessionRecord,
+  ThresholdEd25519SigningSessionRecord,
+  ThresholdEd25519SigningShareMaterial,
+} from './stores/SessionStore';
+import type {
+  EcdsaWalletSessionRecord,
+  EcdsaWalletSessionRecordCore,
+  Ed25519WalletSessionRecord,
+} from './stores/WalletSessionStore';
 
 function isValidNumber(v: unknown): v is number {
   return typeof v === 'number' && Number.isFinite(v);
@@ -51,13 +66,6 @@ function parseSec1CompressedPublicKey33B64u(value: unknown): string | null {
   return text;
 }
 
-type ParsedThresholdEcdsaSigningRootMetadata = {
-  signingRootId: string;
-  signingRootVersion?: string;
-  walletKeyVersion: string;
-  derivationVersion: number;
-};
-
 function hasThresholdEcdsaSigningRootMetadata(raw: Record<string, unknown>): boolean {
   return (
     raw.signingRootId !== undefined ||
@@ -69,7 +77,7 @@ function hasThresholdEcdsaSigningRootMetadata(raw: Record<string, unknown>): boo
 
 function parseThresholdEcdsaSigningRootMetadataFields(
   raw: Record<string, unknown>,
-): ParsedThresholdEcdsaSigningRootMetadata | null {
+): ThresholdEcdsaSigningRootMetadata | null {
   const signingRootId = toOptionalString(raw.signingRootId);
   const signingRootVersion = toOptionalString(raw.signingRootVersion);
   const walletKeyVersion = toOptionalString(raw.walletKeyVersion);
@@ -88,7 +96,7 @@ function parseThresholdEcdsaSigningRootMetadataFields(
 
 function parseOptionalThresholdEcdsaSigningRootMetadataFields(
   raw: Record<string, unknown>,
-): { ok: true; value?: ParsedThresholdEcdsaSigningRootMetadata } | { ok: false } {
+): { ok: true; value?: ThresholdEcdsaSigningRootMetadata } | { ok: false } {
   if (!hasThresholdEcdsaSigningRootMetadata(raw)) return { ok: true };
   const value = parseThresholdEcdsaSigningRootMetadataFields(raw);
   return value ? { ok: true, value } : { ok: false };
@@ -247,9 +255,7 @@ export function parseEcdsaDerivationPublicIdentity(
   };
 }
 
-type ParsedThresholdEd25519Commitments = { hiding: string; binding: string };
-
-function parseThresholdEd25519Commitments(raw: unknown): ParsedThresholdEd25519Commitments | null {
+function parseThresholdEd25519Commitments(raw: unknown): ThresholdEd25519Commitments | null {
   if (!isPlainObject(raw)) return null;
   const hiding = toOptionalString(raw.hiding);
   const binding = toOptionalString(raw.binding);
@@ -257,13 +263,11 @@ function parseThresholdEd25519Commitments(raw: unknown): ParsedThresholdEd25519C
   return { hiding, binding };
 }
 
-type ParsedThresholdEd25519CommitmentsById = Record<string, ParsedThresholdEd25519Commitments>;
-
 function parseThresholdEd25519CommitmentsById(
   raw: unknown,
-): ParsedThresholdEd25519CommitmentsById | null {
+): ThresholdEd25519CommitmentsById | null {
   if (!isPlainObject(raw)) return null;
-  const out: ParsedThresholdEd25519CommitmentsById = {};
+  const out: ThresholdEd25519CommitmentsById = {};
   for (const [k, v] of Object.entries(raw)) {
     const key = toTrimmedString(k);
     if (!key) return null;
@@ -354,36 +358,9 @@ export function thresholdEd25519AuthorityScopesMatch(
   return false;
 }
 
-type ParsedThresholdEd25519MpcSessionRecord = {
-  expiresAtMs: number;
-  ecdsaThresholdKeyId?: string;
-  keyHandle?: string;
-  relayerKeyId: string;
-  purpose: string;
-  intentDigestB64u: string;
-  signingDigestB64u: string;
-  userId: string;
-  authorityScope: ThresholdEd25519AuthorityScope;
-  clientVerifyingShareB64u?: string;
-  participantIds: number[];
-} & Partial<ParsedThresholdEcdsaSigningRootMetadata>;
-
-type ParsedThresholdEcdsaMpcSessionRecord = {
-  expiresAtMs: number;
-  ecdsaThresholdKeyId?: string;
-  keyHandle?: string;
-  relayerKeyId: string;
-  purpose: string;
-  intentDigestB64u: string;
-  signingDigestB64u: string;
-  walletId: string;
-  clientVerifyingShareB64u?: string;
-  participantIds: number[];
-} & Partial<ParsedThresholdEcdsaSigningRootMetadata>;
-
 export function parseThresholdEd25519MpcSessionRecord(
   raw: unknown,
-): ParsedThresholdEd25519MpcSessionRecord | null {
+): ThresholdEd25519MpcSessionRecord | null {
   if (!isPlainObject(raw)) return null;
   const expiresAtMs = raw.expiresAtMs;
   const ecdsaThresholdKeyId = toOptionalString(raw.ecdsaThresholdKeyId);
@@ -430,7 +407,7 @@ export function parseThresholdEd25519MpcSessionRecord(
 
 export function parseThresholdEcdsaMpcSessionRecord(
   raw: unknown,
-): ParsedThresholdEcdsaMpcSessionRecord | null {
+): ThresholdEcdsaMpcSessionRecord | null {
   if (!isPlainObject(raw)) return null;
   const expiresAtMs = raw.expiresAtMs;
   const ecdsaThresholdKeyId = toOptionalString(raw.ecdsaThresholdKeyId);
@@ -465,31 +442,9 @@ export function parseThresholdEcdsaMpcSessionRecord(
   };
 }
 
-type ParsedThresholdEd25519SigningShareMaterial =
-  | {
-      kind: 'key_store';
-    }
-  | {
-      kind: 'embedded_cosigner_share';
-      relayerSigningShareB64u: string;
-    };
-
-type ParsedThresholdEd25519SigningSessionRecord = {
-  expiresAtMs: number;
-  mpcSessionId: string;
-  relayerKeyId: string;
-  signingDigestB64u: string;
-  userId: string;
-  authorityScope: ThresholdEd25519AuthorityScope;
-  commitmentsById: ParsedThresholdEd25519CommitmentsById;
-  signingShare: ParsedThresholdEd25519SigningShareMaterial;
-  relayerNoncesB64u: string;
-  participantIds: number[];
-};
-
 export function parseThresholdEd25519SigningSessionRecord(
   raw: unknown,
-): ParsedThresholdEd25519SigningSessionRecord | null {
+): ThresholdEd25519SigningSessionRecord | null {
   if (!isPlainObject(raw)) return null;
   const expiresAtMs = raw.expiresAtMs;
   const mpcSessionId = toOptionalString(raw.mpcSessionId);
@@ -533,7 +488,7 @@ export function parseThresholdEd25519SigningSessionRecord(
 
 function parseThresholdEd25519SigningShareMaterial(
   raw: Record<string, unknown>,
-): ParsedThresholdEd25519SigningShareMaterial | null {
+): ThresholdEd25519SigningShareMaterial | null {
   if (isPlainObject(raw.signingShare)) {
     const kind = toOptionalString(raw.signingShare.kind);
     if (kind === 'key_store') {
@@ -565,26 +520,9 @@ function parseThresholdEd25519StringById(raw: unknown): ParsedThresholdEd25519St
   return Object.keys(out).length ? out : null;
 }
 
-type ParsedThresholdEd25519CoordinatorSigningSessionRecord = {
-  mode: 'cosigner';
-  expiresAtMs: number;
-  mpcSessionId: string;
-  relayerKeyId: string;
-  signingDigestB64u: string;
-  userId: string;
-  authorityScope: ThresholdEd25519AuthorityScope;
-  commitmentsById: ParsedThresholdEd25519CommitmentsById;
-  participantIds: number[];
-  groupPublicKey: string;
-  cosignerIds: number[];
-  cosignerRelayerUrlsById: ParsedThresholdEd25519StringById;
-  cosignerCoordinatorGrantsById: ParsedThresholdEd25519StringById;
-  relayerVerifyingSharesById: ParsedThresholdEd25519StringById;
-};
-
 export function parseThresholdEd25519CoordinatorSigningSessionRecord(
   raw: unknown,
-): ParsedThresholdEd25519CoordinatorSigningSessionRecord | null {
+): ThresholdEd25519CoordinatorSigningSessionRecord | null {
   if (!isPlainObject(raw)) return null;
   const expiresAtMs = raw.expiresAtMs;
   const mpcSessionId = toOptionalString(raw.mpcSessionId);
@@ -643,20 +581,7 @@ export function parseThresholdEd25519CoordinatorSigningSessionRecord(
   };
 }
 
-type ParsedEd25519WalletSessionRecord = {
-  expiresAtMs: number;
-  relayerKeyId: string;
-  userId: string;
-  walletId: string;
-  nearAccountId: string;
-  nearEd25519SigningKeyId: string;
-  authorityScope: ThresholdEd25519AuthorityScope;
-  participantIds: number[];
-} & Partial<ParsedThresholdEcdsaSigningRootMetadata>;
-
-export function parseEd25519WalletSessionRecord(
-  raw: unknown,
-): ParsedEd25519WalletSessionRecord | null {
+export function parseEd25519WalletSessionRecord(raw: unknown): Ed25519WalletSessionRecord | null {
   if (!isPlainObject(raw)) return null;
   const expiresAtMs = raw.expiresAtMs;
   const relayerKeyId = toOptionalString(raw.relayerKeyId);
@@ -695,26 +620,7 @@ export function parseEd25519WalletSessionRecord(
   };
 }
 
-type ParsedEcdsaWalletSessionRecordCore = {
-  expiresAtMs: number;
-  relayerKeyId: string;
-  walletId: string;
-  keyHandle: EcdsaKeyHandle;
-  participantIds: number[];
-};
-
-type ParsedEcdsaWalletSessionRecord = ParsedEcdsaWalletSessionRecordCore &
-  (
-    | {
-        signingRootId?: never;
-        signingRootVersion?: never;
-        walletKeyVersion?: never;
-        derivationVersion?: never;
-      }
-    | ParsedThresholdEcdsaSigningRootMetadata
-  );
-
-export function parseEcdsaWalletSessionRecord(raw: unknown): ParsedEcdsaWalletSessionRecord | null {
+export function parseEcdsaWalletSessionRecord(raw: unknown): EcdsaWalletSessionRecord | null {
   if (!isPlainObject(raw)) return null;
   if ('evmFamilySigningKeySlotId' in raw) return null;
   const expiresAtMs = raw.expiresAtMs;
@@ -733,7 +639,7 @@ export function parseEcdsaWalletSessionRecord(raw: unknown): ParsedEcdsaWalletSe
   if (!signingRootMetadata.ok) return null;
   if (!isValidNumber(expiresAtMs)) return null;
   if (!relayerKeyId || !walletId) return null;
-  const core: ParsedEcdsaWalletSessionRecordCore = {
+  const core: EcdsaWalletSessionRecordCore = {
     expiresAtMs,
     relayerKeyId,
     walletId,

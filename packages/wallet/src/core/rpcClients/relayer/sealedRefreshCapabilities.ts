@@ -3,18 +3,10 @@ import type { SeamsConfigsReadonly } from '@/core/types/seams';
 import {
   SIGNING_SESSION_SEAL_ALG,
   SIGNING_SESSION_SEAL_GROUP_ID,
-  type SigningSessionSealProtocol,
+  type WellKnownSigningSessionSealCapabilities,
 } from '@shared/utils/signingSessionSeal';
 
 type SealedRefreshMode = 'none' | 'sealed_refresh_v1';
-
-type RelayerSigningSessionSealCapabilities =
-  | { mode: 'none' }
-  | {
-      mode: 'sealed_refresh_v1';
-      protocol: SigningSessionSealProtocol;
-      currentKeyVersion: string;
-    };
 
 type VerifySealedRefreshStartupParityArgs = {
   configs: SeamsConfigsReadonly;
@@ -63,7 +55,7 @@ function normalizeMode(value: unknown): SealedRefreshMode | null {
 
 function normalizeSigningSessionSealCapabilities(
   value: unknown,
-): RelayerSigningSessionSealCapabilities | null {
+): WellKnownSigningSessionSealCapabilities | null {
   const fields = decodePlainObject(value);
   if (!fields) return null;
 
@@ -95,7 +87,7 @@ function normalizeSigningSessionSealCapabilities(
 
 function parseWellKnownSigningSessionSealCapabilities(
   payload: unknown,
-): RelayerSigningSessionSealCapabilities {
+): WellKnownSigningSessionSealCapabilities {
   const root = decodePlainObject(payload);
   if (!root) return { mode: 'none' };
 
@@ -145,8 +137,8 @@ function createErrorWithCode(message: string, code: string): Error & { code: str
 function withTimeout(input: {
   timeoutMs: number;
   signal?: AbortSignal;
-  task: (signal: AbortSignal) => Promise<RelayerSigningSessionSealCapabilities>;
-}): Promise<RelayerSigningSessionSealCapabilities> {
+  task: (signal: AbortSignal) => Promise<WellKnownSigningSessionSealCapabilities>;
+}): Promise<WellKnownSigningSessionSealCapabilities> {
   if (input.signal?.aborted) {
     throw createErrorWithCode('Parity check aborted', 'sealed_refresh_parity_aborted');
   }
@@ -180,7 +172,7 @@ function withTimeout(input: {
 
 async function fetchRelayerSigningSessionSealCapabilities(
   args: FetchRelayerSigningSessionSealCapabilitiesArgs,
-): Promise<RelayerSigningSessionSealCapabilities> {
+): Promise<WellKnownSigningSessionSealCapabilities> {
   const relayerUrl = String(args.relayerUrl || '').trim();
   if (!relayerUrl) {
     throw createErrorWithCode(

@@ -1,6 +1,7 @@
 import { base64UrlDecode } from '@shared/utils/encoders';
 import { errorMessage } from '@shared/utils/errors';
 import { toOptionalTrimmedString, isPlainObject } from '@shared/utils/validation';
+import { failedVerification } from '@shared/utils/failure';
 import type { GoogleOidcConfig } from '../types';
 import type { IdentityStore } from '../IdentityStore';
 import { toArrayBufferCopy } from './portableCrypto';
@@ -78,15 +79,6 @@ export function createGoogleJwksState(): GoogleJwksState {
   return { cache: null, fetchPromise: null };
 }
 
-function jwtError(code: string, message: string): {
-  ok: false;
-  verified: false;
-  code: string;
-  message: string;
-} {
-  return { ok: false, verified: false, code, message };
-}
-
 function requireWebCrypto(): boolean {
   return typeof crypto !== 'undefined' && Boolean(crypto.subtle);
 }
@@ -99,16 +91,16 @@ function parseJwtParts(input: {
   | { ok: false; verified: false; code: string; message: string } {
   const parts = input.token.split('.');
   if (parts.length !== 3) {
-    return jwtError('invalid_body', `${input.tokenName} must be a JWT (3 segments)`);
+    return failedVerification('invalid_body', `${input.tokenName} must be a JWT (3 segments)`);
   }
   const [headerB64u, payloadB64u, signatureB64u] = parts;
   const header = parseJwtSegmentJson(headerB64u);
   if (!header) {
-    return jwtError('invalid_body', `Invalid ${input.tokenName} header encoding`);
+    return failedVerification('invalid_body', `Invalid ${input.tokenName} header encoding`);
   }
   const payload = parseJwtSegmentJson(payloadB64u);
   if (!payload) {
-    return jwtError('invalid_body', `Invalid ${input.tokenName} payload encoding`);
+    return failedVerification('invalid_body', `Invalid ${input.tokenName} payload encoding`);
   }
   return { ok: true, value: { headerB64u, payloadB64u, signatureB64u, header, payload } };
 }
@@ -196,7 +188,7 @@ async function verifyJwtSignature(input: {
   try {
     signatureBytes = base64UrlDecode(input.parts.signatureB64u);
   } catch {
-    return jwtError('invalid_body', `Invalid ${input.tokenName} signature encoding`);
+    return failedVerification('invalid_body', `Invalid ${input.tokenName} signature encoding`);
   }
 
   const dataBytes = new TextEncoder().encode(`${input.parts.headerB64u}.${input.parts.payloadB64u}`);
@@ -214,7 +206,7 @@ async function verifyJwtSignature(input: {
     toArrayBufferCopy(dataBytes),
   );
   if (!verified) {
-    return jwtError('invalid_signature', `Invalid ${input.tokenName} signature`);
+    return failedVerification('invalid_signature', `Invalid ${input.tokenName} signature`);
   }
   return { ok: true };
 }
@@ -225,14 +217,16 @@ function verifyGoogleTimeClaims(
   const nowSec = Math.floor(Date.now() / 1000);
   const exp = Number(payload.exp);
   if (!Number.isFinite(exp) || exp <= 0) {
-    return jwtError('invalid_claims', 'Invalid Google id_token exp');
+    return failedVerification('invalid_claims', 'Invalid Google id_token exp');
   }
-  if (nowSec >= exp) return jwtError('expired', 'Google id_token is expired');
+  if (nowSec >= exp) return failedVerification('expired', 'Google id_token is expired');
   const nbfRaw = payload.nbf;
   if (nbfRaw !== undefined) {
     const nbf = Number(nbfRaw);
-    if (!Number.isFinite(nbf)) return jwtError('invalid_claims', 'Invalid Google id_token nbf');
-    if (nowSec < nbf) return jwtError('not_yet_valid', 'Google id_token is not yet valid');
+    if (!Number.isFinite(nbf))
+      return failedVerification('invalid_claims', 'Invalid Google id_token nbf');
+    if (nowSec < nbf)
+      return failedVerification('not_yet_valid', 'Google id_token is not yet valid');
   }
   return { ok: true };
 }
@@ -313,24 +307,28 @@ export async function verifyGoogleIdToken(input: {
   jwksState: GoogleJwksState;
 }): Promise<GoogleLoginVerificationResult> {
   if (!input.config?.clientIds?.length) {
-    return jwtError('not_configured', 'Google OIDC is not configured on this server');
+    return failedVerification('not_configured', 'Google OIDC is not configured on this server');
   }
   const idToken = toOptionalTrimmedString(input.request.idToken ?? input.request.id_token);
-  if (!idToken) return jwtError('invalid_body', 'id_token is required');
+  if (!idToken) return failedVerification('invalid_body', 'id_token is required');
   if (!requireWebCrypto()) {
-    return jwtError('unsupported', 'WebCrypto (crypto.subtle) is unavailable in this runtime');
+    return failedVerification(
+      'unsupported',
+      'WebCrypto (crypto.subtle) is unavailable in this runtime',
+    );
   }
 
   const parts = parseJwtParts({ token: idToken, tokenName: 'id_token' });
   if (!parts.ok) return parts;
   const kid = toOptionalTrimmedString(parts.value.header.kid);
   const alg = toOptionalTrimmedString(parts.value.header.alg);
-  if (!kid) return jwtError('invalid_body', 'id_token header.kid is required');
-  if (alg !== 'RS256') return jwtError('invalid_body', 'id_token header.alg must be RS256');
+  if (!kid) return failedVerification('invalid_body', 'id_token header.kid is required');
+  if (alg !== 'RS256')
+    return failedVerification('invalid_body', 'id_token header.alg must be RS256');
 
   const jwks = await getGoogleJwks(input.jwksState);
   const jwk = jwks.keysByKid.get(kid);
-  if (!jwk) return jwtError('unknown_kid', 'Unknown Google key id (kid)');
+  if (!jwk) return failedVerification('unknown_kid', 'Unknown Google key id (kid)');
   const signature = await verifyJwtSignature({
     jwk,
     parts: parts.value,
@@ -340,27 +338,27 @@ export async function verifyGoogleIdToken(input: {
 
   const iss = toOptionalTrimmedString(parts.value.payload.iss);
   if (iss !== 'https://accounts.google.com' && iss !== 'accounts.google.com') {
-    return jwtError('invalid_issuer', 'Invalid Google id_token issuer');
+    return failedVerification('invalid_issuer', 'Invalid Google id_token issuer');
   }
 
   const time = verifyGoogleTimeClaims(parts.value.payload);
   if (!time.ok) return time;
 
   const aud = parseJwtAud(parts.value.payload.aud);
-  if (!aud.length) return jwtError('invalid_claims', 'Missing Google id_token aud');
+  if (!aud.length) return failedVerification('invalid_claims', 'Missing Google id_token aud');
   const allowedAudSet = new Set(input.config.clientIds);
   if (!aud.some((value) => allowedAudSet.has(value))) {
-    return jwtError('invalid_audience', 'Google id_token audience mismatch');
+    return failedVerification('invalid_audience', 'Google id_token audience mismatch');
   }
 
   const sub = toOptionalTrimmedString(parts.value.payload.sub);
-  if (!sub) return jwtError('invalid_claims', 'Missing Google id_token sub');
+  if (!sub) return failedVerification('invalid_claims', 'Missing Google id_token sub');
 
   const hostedDomain = toOptionalTrimmedString(parts.value.payload.hd);
   if (input.config.hostedDomains?.length) {
     const allowHd = new Set(input.config.hostedDomains.map((d) => d.toLowerCase()));
     if (!hostedDomain || !allowHd.has(hostedDomain.toLowerCase())) {
-      return jwtError('invalid_hosted_domain', 'Google hosted domain is not allowed');
+      return failedVerification('invalid_hosted_domain', 'Google hosted domain is not allowed');
     }
   }
 
@@ -401,11 +399,6 @@ export async function verifyGoogleLoginWithIdentityStore(input: {
     });
     return buildGoogleLoginFacadeSuccess({ verified, userId });
   } catch (e: unknown) {
-    return {
-      ok: false,
-      verified: false,
-      code: 'internal',
-      message: errorMessage(e) || 'Google OIDC verification failed',
-    };
+    return failedVerification('internal', errorMessage(e) || 'Google OIDC verification failed');
   }
 }

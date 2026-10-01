@@ -790,13 +790,7 @@ fn random_staging_name(display_path: &Path) -> Result<String, ProvisionalArtifac
             std::io::Error::other(error.to_string()),
         )
     })?;
-    let mut name = String::with_capacity(ARTIFACT_STAGING_PREFIX.len() + random.len() * 2);
-    name.push_str(ARTIFACT_STAGING_PREFIX);
-    for byte in random {
-        use core::fmt::Write as _;
-        write!(name, "{byte:02x}").expect("writing to a String succeeds");
-    }
-    Ok(name)
+    Ok(format!("{ARTIFACT_STAGING_PREFIX}{}", hex::encode(random)))
 }
 
 fn directory_open_error(path: &Path, error: rustix::io::Errno) -> ProvisionalArtifactBundleErrorV1 {

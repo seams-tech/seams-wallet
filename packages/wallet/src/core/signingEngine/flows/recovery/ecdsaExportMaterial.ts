@@ -215,15 +215,20 @@ function exactEcdsaParticipantIds(value: readonly number[]): readonly [number, n
   return [first, second];
 }
 
-function resolveCanonicalEmailOtpEcdsaExportMaterialForLane(args: {
+// Checks a canonical export lane against its own capability. `label` names the auth method in
+// each error, and `authMatches` compares the lane's auth with the capability's authority.
+function requireCanonicalEcdsaExportLane(args: {
   deps: EcdsaExportSessionStoreDeps;
   exportLane: Extract<ExactEcdsaExportLane, { source: 'canonical_capability' }>;
-}): FreshEmailOtpEcdsaExportMaterial {
-  const { exportLane } = args;
+  label: 'Email OTP' | 'passkey';
+  authMatches: () => boolean;
+}): {
+  durable: CanonicalEvmFamilyEcdsaSigningCapability['manifest']['durableMaterial'];
+  runtimePolicyScope: ThresholdRuntimePolicyScope;
+  relayerUrl: string;
+} {
+  const { exportLane, label } = args;
   const capability = exportLane.capability;
-  if (!isEmailOtpWalletAuthAuthority(capability.authority)) {
-    throw new Error('[SigningEngine][ecdsa-export] Email OTP capability authority mismatch');
-  }
   const signer = capability.manifest.signer;
   if (
     signer.walletId !== exportLane.key.walletId ||
@@ -231,13 +236,10 @@ function resolveCanonicalEmailOtpEcdsaExportMaterialForLane(args: {
       thresholdEcdsaChainTargetsEqual(target, exportLane.chainTarget),
     )
   ) {
-    throw new Error('[SigningEngine][ecdsa-export] Email OTP capability target mismatch');
+    throw new Error(`[SigningEngine][ecdsa-export] ${label} capability target mismatch`);
   }
-  if (
-    exportLane.laneIdentity.auth.kind !== 'email_otp' ||
-    exportLane.laneIdentity.auth.providerSubjectId !== capability.authority.factor.providerUserId
-  ) {
-    throw new Error('[SigningEngine][ecdsa-export] Email OTP capability auth mismatch');
+  if (!args.authMatches()) {
+    throw new Error(`[SigningEngine][ecdsa-export] ${label} capability auth mismatch`);
   }
   if (
     !mpcMaterialActivationRefsEqual(
@@ -245,12 +247,12 @@ function resolveCanonicalEmailOtpEcdsaExportMaterialForLane(args: {
       exportLane.laneIdentity.signer.materialActivation,
     )
   ) {
-    throw new Error('[SigningEngine][ecdsa-export] Email OTP material activation mismatch');
+    throw new Error(`[SigningEngine][ecdsa-export] ${label} material activation mismatch`);
   }
   assertMatchingVerifiedEcdsaPublicFacts({
     expected: exportLane.publicFacts,
-    actual: capability.manifest.signer.registeredPublicFacts,
-    context: 'canonical Email OTP export lane',
+    actual: signer.registeredPublicFacts,
+    context: `canonical ${label} export lane`,
   });
   const materialFacts = capability.material.publicFacts;
   if (
@@ -264,17 +266,38 @@ function resolveCanonicalEmailOtpEcdsaExportMaterialForLane(args: {
       (participantId, index) => participantId !== exportLane.publicFacts.participantIds[index],
     )
   ) {
-    throw new Error('[SigningEngine][ecdsa-export] canonical Email OTP export material mismatch');
+    throw new Error(`[SigningEngine][ecdsa-export] canonical ${label} export material mismatch`);
   }
   const durable = capability.manifest.durableMaterial;
   const runtimePolicyScope = durable.runtimePolicyScope;
   const relayerUrl = String(args.deps.relayerUrl).trim().replace(/\/+$/g, '');
   if (!runtimePolicyScope) {
-    throw new Error('[SigningEngine][ecdsa-export] Email OTP runtime policy scope is missing');
+    throw new Error(`[SigningEngine][ecdsa-export] ${label} runtime policy scope is missing`);
   }
   if (!relayerUrl) {
-    throw new Error('[SigningEngine][ecdsa-export] Email OTP export relayer URL is missing');
+    throw new Error(`[SigningEngine][ecdsa-export] ${label} export relayer URL is missing`);
   }
+  return { durable, runtimePolicyScope, relayerUrl };
+}
+
+function resolveCanonicalEmailOtpEcdsaExportMaterialForLane(args: {
+  deps: EcdsaExportSessionStoreDeps;
+  exportLane: Extract<ExactEcdsaExportLane, { source: 'canonical_capability' }>;
+}): FreshEmailOtpEcdsaExportMaterial {
+  const { exportLane } = args;
+  const capability = exportLane.capability;
+  const authority = capability.authority;
+  if (!isEmailOtpWalletAuthAuthority(authority)) {
+    throw new Error('[SigningEngine][ecdsa-export] Email OTP capability authority mismatch');
+  }
+  const { durable, runtimePolicyScope, relayerUrl } = requireCanonicalEcdsaExportLane({
+    deps: args.deps,
+    exportLane,
+    label: 'Email OTP',
+    authMatches: () =>
+      exportLane.laneIdentity.auth.kind === 'email_otp' &&
+      exportLane.laneIdentity.auth.providerSubjectId === authority.factor.providerUserId,
+  });
   return {
     source: 'canonical_capability',
     kind: 'fresh_email_otp_route_auth_ready',
@@ -288,7 +311,7 @@ function resolveCanonicalEmailOtpEcdsaExportMaterialForLane(args: {
     relayerUrl,
     authorization: {
       kind: 'fresh_operation_authorization_required',
-      authority: capability.authority,
+      authority,
     },
   };
 }
@@ -299,60 +322,18 @@ function resolveCanonicalPasskeyEcdsaExportMaterialForLane(args: {
 }): FreshPasskeyEcdsaExportMaterial {
   const { exportLane } = args;
   const capability = exportLane.capability;
-  if (!isPasskeyWalletAuthAuthority(capability.authority)) {
+  const authority = capability.authority;
+  if (!isPasskeyWalletAuthAuthority(authority)) {
     throw new Error('[SigningEngine][ecdsa-export] passkey capability authority mismatch');
   }
-  const signer = capability.manifest.signer;
-  if (
-    signer.walletId !== exportLane.key.walletId ||
-    !signer.scope.targetMemberships.some((target) =>
-      thresholdEcdsaChainTargetsEqual(target, exportLane.chainTarget),
-    )
-  ) {
-    throw new Error('[SigningEngine][ecdsa-export] passkey capability target mismatch');
-  }
-  if (
-    exportLane.laneIdentity.auth.kind !== 'passkey' ||
-    exportLane.laneIdentity.auth.credentialIdB64u !== capability.authority.factor.credentialIdB64u
-  ) {
-    throw new Error('[SigningEngine][ecdsa-export] passkey capability auth mismatch');
-  }
-  if (
-    !mpcMaterialActivationRefsEqual(
-      capability.manifest.activation.materialActivation,
-      exportLane.laneIdentity.signer.materialActivation,
-    )
-  ) {
-    throw new Error('[SigningEngine][ecdsa-export] passkey material activation mismatch');
-  }
-  assertMatchingVerifiedEcdsaPublicFacts({
-    expected: exportLane.publicFacts,
-    actual: signer.registeredPublicFacts,
-    context: 'canonical passkey export lane',
+  const { durable, runtimePolicyScope, relayerUrl } = requireCanonicalEcdsaExportLane({
+    deps: args.deps,
+    exportLane,
+    label: 'passkey',
+    authMatches: () =>
+      exportLane.laneIdentity.auth.kind === 'passkey' &&
+      exportLane.laneIdentity.auth.credentialIdB64u === authority.factor.credentialIdB64u,
   });
-  const materialFacts = capability.material.publicFacts;
-  if (
-    materialFacts.walletId !== signer.walletId ||
-    String(materialFacts.keyHandle) !== String(exportLane.publicFacts.keyHandle) ||
-    String(materialFacts.groupPublicKey33B64u) !== String(exportLane.publicFacts.publicKeyB64u) ||
-    String(materialFacts.ethereumAddress) !==
-      String(exportLane.publicFacts.thresholdOwnerAddress) ||
-    materialFacts.participantIds.length !== exportLane.publicFacts.participantIds.length ||
-    materialFacts.participantIds.some(
-      (participantId, index) => participantId !== exportLane.publicFacts.participantIds[index],
-    )
-  ) {
-    throw new Error('[SigningEngine][ecdsa-export] canonical passkey export material mismatch');
-  }
-  const durable = capability.manifest.durableMaterial;
-  const runtimePolicyScope = durable.runtimePolicyScope;
-  const relayerUrl = String(args.deps.relayerUrl).trim().replace(/\/+$/g, '');
-  if (!runtimePolicyScope) {
-    throw new Error('[SigningEngine][ecdsa-export] passkey runtime policy scope is missing');
-  }
-  if (!relayerUrl) {
-    throw new Error('[SigningEngine][ecdsa-export] passkey export relayer URL is missing');
-  }
   return {
     source: 'canonical_capability',
     kind: 'fresh_passkey_needs_authorization',

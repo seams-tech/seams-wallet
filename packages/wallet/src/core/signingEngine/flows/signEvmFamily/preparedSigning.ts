@@ -585,13 +585,6 @@ export async function prepareEvmFamilyEcdsaSigningSession(args: {
           diagnostics: selection.diagnostics,
         });
         const committedSelectionAuthMethod = selection.committedLane.authority.factor.kind;
-        const availableLanes = await args.deps.readAvailableSigningLanesForSigning({
-          walletId,
-          curve: 'ecdsa',
-          ecdsaChainTargets: [chainTarget],
-          authMethod: committedSelectionAuthMethod,
-          ownerScope,
-        });
         emitSigningLaneResolutionTrace('evm-family', selection.lane, {
           reason: 'evm_family_ecdsa_selection',
         });
@@ -639,7 +632,7 @@ export async function prepareEvmFamilyEcdsaSigningSession(args: {
             expiresAtMs: readiness.expiresAtMs,
             remainingUses: readiness.remainingUses,
           },
-          availableLanesGeneration: availableLanes.generation,
+          availableLanesGeneration: candidateAvailableLanes.generation,
           metadata: {
             accountAuth: selection.accountAuth,
             authMethod: committedSelectionAuthMethod,
@@ -654,7 +647,7 @@ export async function prepareEvmFamilyEcdsaSigningSession(args: {
                 exactSigningLaneIdentityFromSelectedLane(resolvedLane),
               ),
             },
-            availableLanesGeneration: availableLanes.generation,
+            availableLanesGeneration: candidateAvailableLanes.generation,
           },
         };
       },

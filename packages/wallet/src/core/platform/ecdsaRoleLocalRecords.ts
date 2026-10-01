@@ -8,6 +8,9 @@ import type {
 import type { WalletId } from '@shared/utils/domainIds';
 import type { PlatformResult } from './http';
 import type { RouterAbEcdsaDerivationPublicCapabilityV1 } from '@shared/utils/routerAbEcdsaDerivation';
+import type { EcdsaRoleLocalReadyStateBlob } from './generated/signerCoreCommands';
+import type { ThresholdEcdsaChainTarget } from '@shared/utils/thresholdEcdsaChainTarget';
+import type { ExclusiveUnion } from '@shared/utils/variant';
 
 export type {
   EcdsaThresholdKeyId,
@@ -15,21 +18,15 @@ export type {
   SigningRootVersion,
 } from '@shared/threshold/ecdsaDerivationRoleLocalBootstrap';
 export type { WalletId } from '@shared/utils/domainIds';
-
-export type EvmEip155ChainTarget = {
-  kind: 'evm';
-  namespace: 'eip155';
-  chainId: number;
-  networkSlug: string;
-};
-
-export type TempoChainTarget = {
-  kind: 'tempo';
-  chainId: number;
-  networkSlug: string;
-};
-
-export type ThresholdEcdsaChainTarget = EvmEip155ChainTarget | TempoChainTarget;
+export type {
+  EvmEip155ChainTarget,
+  TempoChainTarget,
+  ThresholdEcdsaChainTarget,
+} from '@shared/utils/thresholdEcdsaChainTarget';
+export type {
+  EcdsaRoleLocalPendingStateBlob,
+  EcdsaRoleLocalReadyStateBlob,
+} from './generated/signerCoreCommands';
 
 export type CredentialIdB64u = string & { readonly __brand: 'CredentialIdB64u' };
 export type RpId = string & { readonly __brand: 'RpId' };
@@ -40,22 +37,6 @@ export type EcdsaGroupPublicKey33B64u = string & {
   readonly __brand: 'EcdsaGroupPublicKey33B64u';
 };
 export type RelayerKeyId = string & { readonly __brand: 'RelayerKeyId' };
-
-export type EcdsaRoleLocalPendingStateBlob = {
-  kind: 'ecdsa_role_local_pending_state_blob_v1';
-  curve: 'secp256k1';
-  encoding: 'base64url';
-  producer: 'signer_core';
-  stateBlobB64u: string;
-};
-
-export type EcdsaRoleLocalReadyStateBlob = {
-  kind: 'ecdsa_role_local_state_blob_v1';
-  curve: 'secp256k1';
-  encoding: 'base64url';
-  producer: 'signer_core';
-  stateBlobB64u: string;
-};
 
 export type EcdsaRoleLocalPublicFacts = {
   walletId: WalletId;
@@ -76,19 +57,10 @@ export type EcdsaRoleLocalPublicFacts = {
   publicCapability: RouterAbEcdsaDerivationPublicCapabilityV1;
 };
 
-export type EcdsaRoleLocalAuthMethod =
-  | {
-      kind: 'passkey';
-      credentialIdB64u: CredentialIdB64u;
-      rpId: RpId;
-      authSubjectId?: never;
-    }
-  | {
-      kind: 'email_otp';
-      authSubjectId: EmailOtpAuthSubjectId;
-      credentialIdB64u?: never;
-      rpId?: never;
-    };
+export type EcdsaRoleLocalAuthMethod = ExclusiveUnion<
+  | { kind: 'passkey'; credentialIdB64u: CredentialIdB64u; rpId: RpId }
+  | { kind: 'email_otp'; authSubjectId: EmailOtpAuthSubjectId }
+>;
 
 export type EcdsaRoleLocalReadyRecord =
   | {
@@ -130,23 +102,19 @@ export type EcdsaRoleLocalMaterialState =
       reauth?: never;
     };
 
-export type EcdsaRoleLocalRecordParseResult =
+export type EcdsaRoleLocalRecordParseResult = ExclusiveUnion<
   | {
       ok: true;
       source: 'ready_record';
       state: Extract<EcdsaRoleLocalMaterialState, { kind: 'ready' | 'reauth_required' }>;
-      code?: never;
-      message?: never;
-      cleanup?: never;
     }
   | {
       ok: false;
       code: 'malformed_record';
       message: string;
       cleanup: CleanupMalformedEcdsaRoleLocalRecordInput;
-      source?: never;
-      state?: never;
-    };
+    }
+>;
 
 export type LoadEcdsaRoleLocalReadyRecordInput = {
   walletId: WalletId;

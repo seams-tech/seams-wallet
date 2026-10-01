@@ -8,6 +8,7 @@ import {
   parseEd25519PublicKeyB64u,
   parseEnvelopeCiphertextB64u,
   parseEnvelopeNonceB64u,
+  requireParsed,
   type Ed25519PublicKeyB64u,
   type EnvelopeCiphertextB64u,
   type EnvelopeNonceB64u,
@@ -219,14 +220,14 @@ export function parseLinkedDeviceEd25519ExportRootRecipientV1(
   requireTransferAlg(record.transferAlg, 'LinkedDeviceEd25519ExportRootRecipientV1.transferAlg');
   return {
     kind: 'linked_device_ed25519_export_root_recipient_v1',
-    linkSessionId: parseRequired(
+    linkSessionId: requireParsed(
       parseLinkDeviceSessionId(record.linkSessionId),
       'LinkedDeviceEd25519ExportRootRecipientV1.linkSessionId',
     ),
-    walletId: parseRequired(parseWalletId(record.walletId), 'walletId'),
-    walletKeyId: parseRequired(parseWalletKeyId(record.walletKeyId), 'walletKeyId'),
-    enrollmentId: parseRequired(parseLinkedDeviceEnrollmentId(record.enrollmentId), 'enrollmentId'),
-    deviceId: parseRequired(parseLinkedDeviceId(record.deviceId), 'deviceId'),
+    walletId: requireParsed(parseWalletId(record.walletId), 'walletId'),
+    walletKeyId: requireParsed(parseWalletKeyId(record.walletKeyId), 'walletKeyId'),
+    enrollmentId: requireParsed(parseLinkedDeviceEnrollmentId(record.enrollmentId), 'enrollmentId'),
+    deviceId: requireParsed(parseLinkedDeviceId(record.deviceId), 'deviceId'),
     transferAlg: LINKED_DEVICE_ED25519_EXPORT_ROOT_TRANSFER_ALG_V1,
     applicationBindingDigestB64u: parseDigestField(
       record.applicationBindingDigestB64u,
@@ -267,11 +268,11 @@ export function parseLinkedDeviceEd25519ExportRootPackageV1(
   }
   return {
     kind: 'linked_device_ed25519_export_root_package_v1',
-    linkSessionId: parseRequired(parseLinkDeviceSessionId(record.linkSessionId), 'linkSessionId'),
-    walletId: parseRequired(parseWalletId(record.walletId), 'walletId'),
-    walletKeyId: parseRequired(parseWalletKeyId(record.walletKeyId), 'walletKeyId'),
-    enrollmentId: parseRequired(parseLinkedDeviceEnrollmentId(record.enrollmentId), 'enrollmentId'),
-    deviceId: parseRequired(parseLinkedDeviceId(record.deviceId), 'deviceId'),
+    linkSessionId: requireParsed(parseLinkDeviceSessionId(record.linkSessionId), 'linkSessionId'),
+    walletId: requireParsed(parseWalletId(record.walletId), 'walletId'),
+    walletKeyId: requireParsed(parseWalletKeyId(record.walletKeyId), 'walletKeyId'),
+    enrollmentId: requireParsed(parseLinkedDeviceEnrollmentId(record.enrollmentId), 'enrollmentId'),
+    deviceId: requireParsed(parseLinkedDeviceId(record.deviceId), 'deviceId'),
     transferAlg: LINKED_DEVICE_ED25519_EXPORT_ROOT_TRANSFER_ALG_V1,
     applicationBindingDigestB64u: parseDigestField(
       record.applicationBindingDigestB64u,
@@ -305,7 +306,7 @@ export function parseLinkedDeviceEd25519ExportRootSubmissionV1(
   }
   return {
     kind: 'linked_device_ed25519_export_root_submission_v1',
-    linkSessionId: parseRequired(parseLinkDeviceSessionId(record.linkSessionId), 'linkSessionId'),
+    linkSessionId: requireParsed(parseLinkDeviceSessionId(record.linkSessionId), 'linkSessionId'),
     package: parseLinkedDeviceEd25519ExportRootPackageV1(record.package),
   };
 }
@@ -373,14 +374,4 @@ function parseUnixMs(value: unknown, label: string): number {
     throw new Error(`${label} must be a positive unix-millisecond timestamp`);
   }
   return value;
-}
-
-function parseRequired<T>(
-  parsed:
-    | { readonly ok: true; readonly value: T }
-    | { readonly ok: false; readonly error: { readonly message: string } },
-  label: string,
-): T {
-  if (!parsed.ok) throw new Error(`${label} ${parsed.error.message}`);
-  return parsed.value;
 }

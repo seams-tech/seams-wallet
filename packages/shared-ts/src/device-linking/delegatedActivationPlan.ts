@@ -1,6 +1,7 @@
 import {
   parseEd25519PublicKeyB64u,
   parseSecp256k1CompressedPublicKeyB64u,
+  requireParsed,
   type Ed25519PublicKeyB64u,
   type Secp256k1CompressedPublicKeyB64u,
 } from '../passkey-custody/primitives';
@@ -240,14 +241,4 @@ function exactRecord(
     if (!(field in record)) throw new Error(`${label}.${field} is required`);
   }
   return record;
-}
-
-function requireParsed<T>(
-  parsed:
-    | { readonly ok: true; readonly value: T }
-    | { readonly ok: false; readonly error: { readonly message: string } },
-  label: string,
-): T {
-  if (!parsed.ok) throw new Error(`${label} ${parsed.error.message}`);
-  return parsed.value;
 }

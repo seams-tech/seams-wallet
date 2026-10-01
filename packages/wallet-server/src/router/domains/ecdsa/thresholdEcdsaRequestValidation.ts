@@ -2,11 +2,10 @@ import { isPlainObject } from '@shared/utils/validation';
 import {
   parseRouterAbEcdsaDerivationNormalSigningScopeV1,
   parseRouterAbEcdsaOperationStepUpPreparationV1,
-  type RouterAbEcdsaOperationStepUpPreparationV1Wire,
 } from '@shared/utils/routerAbEcdsaDerivation';
 import {
   parseRouterAbNormalSigningAuthorization,
-  type RouterAbNormalSigningAuthorizationWire,
+  type RouterAbEcdsaDerivationPoolFillAuthorization,
 } from '@shared/utils/routerAbNormalSigningIdentity';
 import type {
   RouterAbEcdsaDerivationPoolFillInitRequest,
@@ -51,31 +50,15 @@ const POOL_FILL_ENVELOPE_KEYS = [
   'materialExpiresAtMs',
 ] as const;
 
-type RouterAbEcdsaPoolFillAuthorization =
-  | {
-      readonly authorization: Extract<
-        RouterAbNormalSigningAuthorizationWire,
-        { readonly kind: 'reusable_wallet_session' }
-      >;
-      readonly operation?: never;
-    }
-  | {
-      readonly authorization: Extract<
-        RouterAbNormalSigningAuthorizationWire,
-        { readonly kind: 'operation_step_up' }
-      >;
-      readonly operation: RouterAbEcdsaOperationStepUpPreparationV1Wire;
-    };
-
 export type RouterAbEcdsaPoolFillInitRouteRequest = RouterAbEcdsaDerivationPoolFillInitRequest &
-  RouterAbEcdsaPoolFillAuthorization;
+  RouterAbEcdsaDerivationPoolFillAuthorization;
 
 export type RouterAbEcdsaPoolFillStepRouteRequest = RouterAbEcdsaDerivationPoolFillStepRequest &
-  RouterAbEcdsaPoolFillAuthorization;
+  RouterAbEcdsaDerivationPoolFillAuthorization;
 
 function parsePoolFillAuthorization(
   raw: Record<string, unknown>,
-): RouterAbEcdsaPoolFillAuthorization {
+): RouterAbEcdsaDerivationPoolFillAuthorization {
   const authorization = parseRouterAbNormalSigningAuthorization(raw.authorization);
   switch (authorization.kind) {
     case 'reusable_wallet_session':
@@ -176,7 +159,7 @@ export function parseRouterAbEcdsaDerivationPoolFillInitRouteRequest(
   ) {
     return invalidThresholdEcdsaBody('presignSessionId and firstMessageB64u are required');
   }
-  let routeAuthorization: RouterAbEcdsaPoolFillAuthorization;
+  let routeAuthorization: RouterAbEcdsaDerivationPoolFillAuthorization;
   try {
     routeAuthorization = parsePoolFillAuthorization(raw);
   } catch (error: unknown) {
@@ -244,7 +227,7 @@ export function parseRouterAbEcdsaDerivationPoolFillStepRouteRequest(
   const outgoingMessagesB64u = Array.isArray(raw.outgoingMessagesB64u)
     ? raw.outgoingMessagesB64u.filter(isStringValue)
     : undefined;
-  let routeAuthorization: RouterAbEcdsaPoolFillAuthorization;
+  let routeAuthorization: RouterAbEcdsaDerivationPoolFillAuthorization;
   try {
     routeAuthorization = parsePoolFillAuthorization(raw);
   } catch (error: unknown) {

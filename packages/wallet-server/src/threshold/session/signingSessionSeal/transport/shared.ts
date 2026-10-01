@@ -1,6 +1,7 @@
 import { ensureLeadingSlash, asRecord } from '@shared/utils/validation';
 import { WALLET_SESSION_SEAL_BASE_PATH } from '@shared/utils/signingSessionSeal';
 import { parseThresholdSessionId } from '@shared/utils/domainIds';
+import { failure } from '@shared/utils/failure';
 import type {
   SigningSessionSealApplyServerSealRequest,
   SigningSessionSealAuthorizeResult,
@@ -46,25 +47,16 @@ export function parseSigningSessionSealApplyBody(
   body: unknown,
 ): ParseResult<SigningSessionSealApplyServerSealRequest> {
   const obj = asRecord(body);
-  if (!obj)
-    return { ok: false, code: 'invalid_body', message: 'Request body must be a JSON object' };
+  if (!obj) return failure('invalid_body', 'Request body must be a JSON object');
 
   const thresholdSessionId = readRequiredString(obj, 'thresholdSessionId');
   const ciphertext = readRequiredString(obj, 'ciphertext');
   if (!thresholdSessionId || !ciphertext) {
-    return {
-      ok: false,
-      code: 'invalid_body',
-      message: 'thresholdSessionId and ciphertext are required',
-    };
+    return failure('invalid_body', 'thresholdSessionId and ciphertext are required');
   }
   const parsedThresholdSessionId = parseThresholdSessionId(thresholdSessionId);
   if (!parsedThresholdSessionId.ok) {
-    return {
-      ok: false,
-      code: 'invalid_body',
-      message: 'thresholdSessionId is invalid',
-    };
+    return failure('invalid_body', 'thresholdSessionId is invalid');
   }
 
   return {
@@ -101,7 +93,7 @@ export async function authorizeSigningSessionSealRequest(args: {
     } catch (error: unknown) {
       const message =
         error instanceof Error ? error.message : String(error || 'Authorization failed');
-      return { ok: false, code: 'internal', message };
+      return failure('internal', message);
     }
   }
 

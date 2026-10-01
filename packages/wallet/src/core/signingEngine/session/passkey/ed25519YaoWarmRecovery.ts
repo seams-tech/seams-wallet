@@ -13,6 +13,7 @@ import { toAccountId } from '@/core/types/accountIds';
 import { base58Encode } from '@shared/utils/base58';
 import {
   normalizeRuntimePolicyScope,
+  sameRuntimePolicyScope,
   signingRootScopeFromRuntimePolicyScope,
 } from '@shared/threshold/signingRootScope';
 import {
@@ -419,18 +420,6 @@ async function parseJsonResponseOrNull(response: Response): Promise<unknown> {
   } catch {
     return null;
   }
-}
-
-function sameRuntimePolicyScope(
-  left: ReturnType<typeof normalizeRuntimePolicyScope>,
-  right: ReturnType<typeof normalizeRuntimePolicyScope>,
-): boolean {
-  return (
-    left.orgId === right.orgId &&
-    left.projectId === right.projectId &&
-    left.envId === right.envId &&
-    left.signingRootVersion === right.signingRootVersion
-  );
 }
 
 async function parseWarmRecoveryDescriptor(args: {

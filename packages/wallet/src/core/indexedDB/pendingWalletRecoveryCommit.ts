@@ -3,12 +3,13 @@ import {
   isActiveRecoveredWalletAuthorityV1,
   parseWalletAuthorityV1,
   type ActiveRecoveredWalletAuthorityV1,
-  type WalletEcdsaSignerActivationV1,
-  type WalletEd25519SignerActivationV1,
   type WalletSignerActivationSetV1,
 } from '@shared/authorization/walletAuthority';
 import {
-  mpcMaterialActivationRefsEqual,
+  sameWalletEcdsaSignerActivationV1,
+  sameWalletEd25519SignerActivationV1,
+} from '@shared/authorization/walletSignerActivationEquality';
+import {
   parseWalletAuthMethodId,
   parseWalletAuthorityId,
   parseWalletId,
@@ -817,14 +818,14 @@ function samePendingRecoverySignerActivationSetV1(
           right.keyFamilies[0] === 'ed25519' &&
           left.ed25519 !== undefined &&
           right.ed25519 !== undefined &&
-          samePendingRecoveryEd25519SignerActivationV1(left.ed25519, right.ed25519)
+          sameWalletEd25519SignerActivationV1(left.ed25519, right.ed25519)
         );
       case 'ecdsa_secp256k1':
         return (
           right.keyFamilies[0] === 'ecdsa_secp256k1' &&
           left.ecdsa !== undefined &&
           right.ecdsa !== undefined &&
-          samePendingRecoveryEcdsaSignerActivationV1(left.ecdsa, right.ecdsa)
+          sameWalletEcdsaSignerActivationV1(left.ecdsa, right.ecdsa)
         );
       default:
         return assertNeverPendingRecoverySignerFamily(family);
@@ -845,39 +846,8 @@ function samePendingRecoverySignerActivationSetV1(
     return false;
   }
   return (
-    samePendingRecoveryEd25519SignerActivationV1(left.ed25519, right.ed25519) &&
-    samePendingRecoveryEcdsaSignerActivationV1(left.ecdsa, right.ecdsa)
-  );
-}
-
-function samePendingRecoveryEd25519SignerActivationV1(
-  left: WalletEd25519SignerActivationV1,
-  right: WalletEd25519SignerActivationV1,
-): boolean {
-  return (
-    left.kind === right.kind &&
-    left.signer.kind === right.signer.kind &&
-    left.signer.keyFamily === right.signer.keyFamily &&
-    left.signer.walletId === right.signer.walletId &&
-    left.signer.walletKeyId === right.signer.walletKeyId &&
-    left.signer.registeredPublicKeyB64u === right.signer.registeredPublicKeyB64u &&
-    mpcMaterialActivationRefsEqual(left.materialActivation, right.materialActivation)
-  );
-}
-
-function samePendingRecoveryEcdsaSignerActivationV1(
-  left: WalletEcdsaSignerActivationV1,
-  right: WalletEcdsaSignerActivationV1,
-): boolean {
-  return (
-    left.kind === right.kind &&
-    left.signer.kind === right.signer.kind &&
-    left.signer.keyFamily === right.signer.keyFamily &&
-    left.signer.walletId === right.signer.walletId &&
-    left.signer.walletKeyId === right.signer.walletKeyId &&
-    left.signer.thresholdPublicKey33B64u === right.signer.thresholdPublicKey33B64u &&
-    left.signer.evmAddress === right.signer.evmAddress &&
-    mpcMaterialActivationRefsEqual(left.materialActivation, right.materialActivation)
+    sameWalletEd25519SignerActivationV1(left.ed25519, right.ed25519) &&
+    sameWalletEcdsaSignerActivationV1(left.ecdsa, right.ecdsa)
   );
 }
 

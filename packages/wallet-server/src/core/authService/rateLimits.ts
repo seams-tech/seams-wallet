@@ -1,4 +1,5 @@
 import { toOptionalTrimmedString } from '@shared/utils/validation';
+import { failure } from '@shared/utils/failure';
 import {
   resolveSigningSessionSealRateLimitFromEnv,
   type SigningSessionSealRateLimiter,
@@ -94,11 +95,7 @@ function consumedRateLimitError(
     message: string;
     retryAfterMs?: number;
     resetAtMs?: number;
-  } = {
-    ok: false,
-    code: 'rate_limited',
-    message,
-  };
+  } = failure('rate_limited', message);
   if (typeof consumed.retryAfterMs === 'number') result.retryAfterMs = consumed.retryAfterMs;
   if (typeof consumed.resetAtMs === 'number') result.resetAtMs = consumed.resetAtMs;
   return result;

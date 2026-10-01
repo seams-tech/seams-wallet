@@ -60,6 +60,18 @@ export function normalizeRuntimePolicyScopeFields(
   };
 }
 
+export function sameRuntimePolicyScope(
+  left: RuntimePolicyScope,
+  right: RuntimePolicyScope,
+): boolean {
+  return (
+    left.orgId === right.orgId &&
+    left.projectId === right.projectId &&
+    left.envId === right.envId &&
+    left.signingRootVersion === right.signingRootVersion
+  );
+}
+
 export function signingRootScopeFromRuntimePolicyScope(
   scope: RuntimePolicyScope,
 ): SigningRootScope {

@@ -1,8 +1,7 @@
 use ed25519_dalek::SigningKey;
 use router_ab_core::{
     TenantRootCeremonyContextV1, TenantRootCeremonyEpochsV1, TenantRootCeremonyNonceV1,
-    TenantRootCeremonySessionIdV1, TenantRootCustodyLineageId, TenantRootEmptyCreationV1,
-    TenantRootLifecycleReceiptDigestV1, TenantRootManagedRestoreAvailableV1,
+    TenantRootCeremonySessionIdV1, TenantRootEmptyCreationV1, TenantRootManagedRestoreAvailableV1,
     TenantRootManagedRestoreCapabilityV1, TenantRootManagedRestoreRoleV1,
     TenantRootRoleUnavailableReceiptV1, TenantRootShareEpoch,
     TenantRootSignedManagedRestoreCapabilityV1, TenantRootSignedManagedRestoreRoleUnavailableV1,
@@ -13,23 +12,13 @@ use threshold_prf::TwoPartyDeriverRole;
 
 mod support;
 
+use support::activation::lineage;
+use support::{identity, lifecycle_digest as digest};
+
 const ISSUER_KEY_ID: &str = "control-plane-issuer-v1";
 const ISSUER_KEY_BYTES: [u8; 32] = [0x81; 32];
 const ISSUED_AT_MS: u64 = 1_023_000;
 const EXPIRES_AT_MS: u64 = 1_050_000;
-
-fn digest(marker: u8) -> TenantRootLifecycleReceiptDigestV1 {
-    TenantRootLifecycleReceiptDigestV1::from_bytes([marker; 32]).expect("non-zero digest")
-}
-
-fn identity() -> router_ab_core::TenantRootIdentityV1 {
-    router_ab_core::TenantRootIdentityV1::new("org-1", "project-2", "production", "root-main", "v3")
-        .expect("identity")
-}
-
-fn lineage() -> TenantRootCustodyLineageId {
-    TenantRootCustodyLineageId::from_bytes([0x22; 16]).expect("lineage")
-}
 
 fn context() -> TenantRootCeremonyContextV1 {
     TenantRootCeremonyContextV1::new(

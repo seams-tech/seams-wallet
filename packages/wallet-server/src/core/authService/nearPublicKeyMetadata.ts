@@ -1,6 +1,7 @@
 import { errorMessage } from '@shared/utils/errors';
 import { parseWebAuthnRpId } from '@shared/utils/domainIds';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
+import { failure } from '@shared/utils/failure';
 import type { NormalizedLogger } from '../logger';
 import type {
   NearPublicKeyAuthBinding,
@@ -112,11 +113,7 @@ export async function recordNearPublicKeyMetadataWithStore(input: {
   const userId = toOptionalTrimmedString(input.userId);
   const publicKey = toOptionalTrimmedString(input.publicKey);
   if (!userId || !publicKey) {
-    return {
-      ok: false,
-      code: 'invalid_args',
-      message: 'userId and publicKey are required',
-    };
+    return failure('invalid_args', 'userId and publicKey are required');
   }
 
   const authBinding = nearPublicKeyAuthBinding({
@@ -124,7 +121,7 @@ export async function recordNearPublicKeyMetadataWithStore(input: {
     rpIdRaw: toOptionalTrimmedString(input.rpId),
   });
   if (!authBinding.ok) {
-    return { ok: false, code: 'invalid_args', message: authBinding.message };
+    return failure('invalid_args', authBinding.message);
   }
 
   const record = nearPublicKeyRecord({
@@ -145,7 +142,7 @@ export async function recordNearPublicKeyMetadataWithStore(input: {
     const source = toOptionalTrimmedString(input.source) || 'near-public-key-metadata';
     const message = errorMessage(error) || 'Failed to persist NEAR public key metadata';
     input.logger.warn(`[AuthService] ${source} failed for ${userId}`, error);
-    return { ok: false, code: 'internal', message };
+    return failure('internal', message);
   }
 }
 
@@ -155,7 +152,7 @@ export async function listNearPublicKeysForUserWithStore(input: {
 }): Promise<ListNearPublicKeysResult> {
   try {
     const userId = String(input.userId || '').trim();
-    if (!userId) return { ok: false, code: 'invalid_args', message: 'Missing userId' };
+    if (!userId) return failure('invalid_args', 'Missing userId');
 
     const records = await input.store.listByUserId(userId);
     const keys: NearPublicKeyListEntry[] = [];
@@ -164,6 +161,6 @@ export async function listNearPublicKeysForUserWithStore(input: {
     }
     return { ok: true, keys };
   } catch (e: unknown) {
-    return { ok: false, code: 'internal', message: errorMessage(e) || 'Failed to list keys' };
+    return failure('internal', errorMessage(e) || 'Failed to list keys');
   }
 }

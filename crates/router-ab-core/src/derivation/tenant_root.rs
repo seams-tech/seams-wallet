@@ -5,6 +5,9 @@ use rand_core::{CryptoRng, RngCore};
 use serde::{de::Error as DeError, Deserialize, Deserializer, Serialize, Serializer};
 use sha2::{Digest, Sha256};
 
+use super::tenant_root_protocol::{
+    push_length_prefixed, tenant_root_wire_messages, TenantRootWireMessagesV1,
+};
 use crate::derivation::error::{
     RouterAbDerivationError, RouterAbDerivationErrorCode, RouterAbDerivationResult,
 };
@@ -14,6 +17,11 @@ const TENANT_ROOT_LINEAGE_BYTES: usize = 16;
 const TENANT_ROOT_MAX_IDENTIFIER_BYTES_V1: usize = 256;
 const TENANT_ROOT_IDENTITY_MAX_WIRE_BYTES_V1: usize =
     TENANT_ROOT_IDENTITY_DOMAIN_V1.len() + 5 * (4 + TENANT_ROOT_MAX_IDENTIFIER_BYTES_V1);
+const IDENTITY_WIRE: &TenantRootWireMessagesV1 = &TenantRootWireMessagesV1 {
+    offset_overflows: "tenant root identity wire offset overflow",
+    trailing_bytes: "tenant root identity wire has trailing bytes",
+    ..tenant_root_wire_messages!("tenant root identity wire")
+};
 
 /// Frozen peer clock-skew allowance for every tenant-root ceremony and custody binding.
 pub const TENANT_ROOT_MAX_CLOCK_SKEW_MS_V1: u64 = 60_000;
@@ -93,7 +101,7 @@ impl TenantRootIdentityV1 {
         );
         bytes.extend_from_slice(TENANT_ROOT_IDENTITY_DOMAIN_V1);
         for field in fields {
-            push_len32(&mut bytes, field)?;
+            push_length_prefixed(&mut bytes, field, "tenant root identity field is too long")?;
         }
         Ok(bytes)
     }
@@ -103,12 +111,16 @@ impl TenantRootIdentityV1 {
         if bytes.is_empty() || bytes.len() > TENANT_ROOT_IDENTITY_MAX_WIRE_BYTES_V1 {
             return Err(malformed("tenant root identity wire length is invalid"));
         }
-        let mut decoder = TenantRootIdentityWireDecoderV1::new(bytes)?;
-        let org_id = decoder.text_field("orgId")?;
-        let project_id = decoder.text_field("projectId")?;
-        let env_id = decoder.text_field("envId")?;
-        let signing_root_id = decoder.text_field("signingRootId")?;
-        let signing_root_version = decoder.text_field("signingRootVersion")?;
+        let fields = bytes
+            .strip_prefix(TENANT_ROOT_IDENTITY_DOMAIN_V1)
+            .ok_or_else(|| malformed("tenant root identity wire domain is invalid"))?;
+        let mut decoder = IDENTITY_WIRE.decoder(fields);
+        let max = TENANT_ROOT_MAX_IDENTIFIER_BYTES_V1;
+        let org_id = decoder.text_field("orgId", max)?;
+        let project_id = decoder.text_field("projectId", max)?;
+        let env_id = decoder.text_field("envId", max)?;
+        let signing_root_id = decoder.text_field("signingRootId", max)?;
+        let signing_root_version = decoder.text_field("signingRootVersion", max)?;
         decoder.finish()?;
         let identity = Self::new(
             org_id,
@@ -351,81 +363,6 @@ pub(crate) fn require_tenant_root_identifier(
         ));
     }
     Ok(())
-}
-
-fn push_len32(out: &mut Vec<u8>, value: &[u8]) -> RouterAbDerivationResult<()> {
-    let length = u32::try_from(value.len())
-        .map_err(|_| malformed("tenant root identity field is too long"))?;
-    out.extend_from_slice(&length.to_be_bytes());
-    out.extend_from_slice(value);
-    Ok(())
-}
-
-struct TenantRootIdentityWireDecoderV1<'a> {
-    bytes: &'a [u8],
-    offset: usize,
-}
-
-impl<'a> TenantRootIdentityWireDecoderV1<'a> {
-    fn new(bytes: &'a [u8]) -> RouterAbDerivationResult<Self> {
-        if !bytes.starts_with(TENANT_ROOT_IDENTITY_DOMAIN_V1) {
-            return Err(malformed("tenant root identity wire domain is invalid"));
-        }
-        Ok(Self {
-            bytes,
-            offset: TENANT_ROOT_IDENTITY_DOMAIN_V1.len(),
-        })
-    }
-
-    fn field(&mut self, name: &'static str) -> RouterAbDerivationResult<&'a [u8]> {
-        let length_end = self
-            .offset
-            .checked_add(4)
-            .ok_or_else(|| malformed("tenant root identity wire offset overflow"))?;
-        let length_bytes = self
-            .bytes
-            .get(self.offset..length_end)
-            .ok_or_else(|| malformed("tenant root identity wire field length is truncated"))?;
-        let length = u32::from_be_bytes(
-            length_bytes
-                .try_into()
-                .expect("fixed four-byte tenant root identity field length"),
-        ) as usize;
-        let value_end = length_end
-            .checked_add(length)
-            .ok_or_else(|| malformed("tenant root identity wire field length overflows"))?;
-        let value = self
-            .bytes
-            .get(length_end..value_end)
-            .ok_or_else(|| malformed("tenant root identity wire field is truncated"))?;
-        self.offset = value_end;
-        if value.is_empty() {
-            return Err(RouterAbDerivationError::new(
-                RouterAbDerivationErrorCode::EmptyField,
-                format!("{name} is required"),
-            ));
-        }
-        Ok(value)
-    }
-
-    fn text_field(&mut self, name: &'static str) -> RouterAbDerivationResult<String> {
-        let bytes = self.field(name)?;
-        if bytes.len() > TENANT_ROOT_MAX_IDENTIFIER_BYTES_V1 {
-            return Err(malformed(
-                "tenant root identity wire text field is too long",
-            ));
-        }
-        core::str::from_utf8(bytes)
-            .map(str::to_owned)
-            .map_err(|_| malformed("tenant root identity wire text field is invalid UTF-8"))
-    }
-
-    fn finish(self) -> RouterAbDerivationResult<()> {
-        if self.offset != self.bytes.len() {
-            return Err(malformed("tenant root identity wire has trailing bytes"));
-        }
-        Ok(())
-    }
 }
 
 fn malformed(message: &'static str) -> RouterAbDerivationError {

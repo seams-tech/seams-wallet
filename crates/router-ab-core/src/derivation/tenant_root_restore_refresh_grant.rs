@@ -9,7 +9,7 @@ use core::fmt;
 
 use sha2::{Digest, Sha256};
 
-use super::tenant_root_protocol::TenantRootWireDecoderV1;
+use super::tenant_root_protocol::{verified_token_debug, TenantRootWireDecoderV1};
 use super::tenant_root_restore_grant_wire::{
     restore_grant_accessors, TenantRootRestoreGrantWireV1,
 };
@@ -317,15 +317,7 @@ pub struct VerifiedTenantRootRestoreRefreshGrantV1 {
     digest: TenantRootProtocolDigestV1,
 }
 
-impl fmt::Debug for VerifiedTenantRootRestoreRefreshGrantV1 {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter
-            .debug_struct("VerifiedTenantRootRestoreRefreshGrantV1")
-            .field("digest", &self.digest)
-            .field("canonical_bytes", &"[public bytes]")
-            .finish()
-    }
-}
+verified_token_debug!(VerifiedTenantRootRestoreRefreshGrantV1);
 
 impl VerifiedTenantRootRestoreRefreshGrantV1 {
     pub const fn operation(&self) -> &'static str {

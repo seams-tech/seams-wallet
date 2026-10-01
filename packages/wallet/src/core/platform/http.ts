@@ -1,17 +1,8 @@
+import type { ExclusiveUnion } from '@shared/utils/variant';
 
-export type PlatformResult<Ok, Code extends string> =
-  | {
-      ok: true;
-      value: Ok;
-      code?: never;
-      message?: never;
-    }
-  | {
-      ok: false;
-      code: Code;
-      message: string;
-      value?: never;
-    };
+export type PlatformResult<Ok, Code extends string> = ExclusiveUnion<
+  { ok: true; value: Ok } | { ok: false; code: Code; message: string }
+>;
 
 export type HttpTransport = {
   kind: 'http_transport';

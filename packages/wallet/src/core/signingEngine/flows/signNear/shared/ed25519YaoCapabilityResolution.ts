@@ -11,6 +11,7 @@ import type { WebAuthnAuthenticationCredential } from '@/core/types/webauthn';
 import { nearEd25519YaoMaterialActivationFromMetadata } from '../../../session/material/nearEd25519YaoMaterialActivation';
 import { requireNearOperationStepUpMaterialActivation } from './operationStepUpPreparation';
 import type { SignerAuthMethod } from '@shared/utils/signerDomain';
+import type { ExclusiveUnion } from '@shared/utils/variant';
 
 type NearEd25519AuthorizationResult = {
   thresholdSessionId: ThresholdEd25519SessionId;
@@ -150,24 +151,17 @@ export async function prepareNearOperationStepUpMaterial(args: {
   };
 }
 
-type ResolveNearOperationStepUpMaterialArgs =
+type ResolveNearOperationStepUpMaterialArgs = ExclusiveUnion<
   | {
       kind: 'passkey';
       material: Extract<NearOperationStepUpMaterial, { kind: 'passkey_live' | 'passkey_sealed' }>;
       expectedActivation: MpcMaterialActivationRef;
       credential: WebAuthnAuthenticationCredential;
-      normalSigningRequest?: never;
-      displayDigest?: never;
-      proof?: never;
     }
   | {
       kind: 'email_otp_live';
       material: Extract<NearOperationStepUpMaterial, { kind: 'email_otp_live' }>;
       expectedActivation: MpcMaterialActivationRef;
-      normalSigningRequest?: never;
-      displayDigest?: never;
-      proof?: never;
-      credential?: never;
     }
   | {
       kind: 'email_otp_sealed';
@@ -186,8 +180,8 @@ type ResolveNearOperationStepUpMaterialArgs =
           { kind: 'sealed' }
         >['authorizeAndRehydrate']
       >[0]['proof'];
-      credential?: never;
-    };
+    }
+>;
 
 export async function resolveNearOperationStepUpMaterial(
   args: ResolveNearOperationStepUpMaterialArgs,

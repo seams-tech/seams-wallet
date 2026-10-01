@@ -17,14 +17,18 @@ import type {
   ExactEd25519ExportMaterialIdentity,
 } from '../../session/identity/exactSigningLaneIdentity';
 import type { MpcMaterialActivationRef } from '@shared/utils/domainIds';
+import type { ExclusiveUnion } from '@shared/utils/variant';
 
 export type KeyExportEventCallback = (event: KeyExportFlowEvent) => void;
 
-type SigningEngineKeyExportUiOptions = {
+export type KeyExportUiOptions = {
   variant?: 'drawer' | 'modal';
   theme?: 'dark' | 'light';
-  onEvent?: KeyExportEventCallback;
 };
+
+interface SigningEngineKeyExportUiOptions extends KeyExportUiOptions {
+  onEvent?: KeyExportEventCallback;
+}
 
 export type SigningEngineExportKeypairWithUIInput =
   | {
@@ -45,19 +49,10 @@ export type SigningEngineExportKeypairWithUIInput =
       options: SigningEngineKeyExportUiOptions;
     };
 
-export type SigningEngineResolveExactKeyExportLaneInput =
-  | {
-      kind: 'ecdsa';
-      chainTarget: ThresholdEcdsaChainTarget;
-      walletSession: WalletSessionRef;
-      nearAccount?: never;
-    }
-  | {
-      kind: 'ed25519';
-      nearAccount: NearAccountRef;
-      walletSession: WalletSessionRef;
-      chainTarget?: never;
-    };
+export type SigningEngineResolveExactKeyExportLaneInput = ExclusiveUnion<
+  | { kind: 'ecdsa'; chainTarget: ThresholdEcdsaChainTarget; walletSession: WalletSessionRef }
+  | { kind: 'ed25519'; nearAccount: NearAccountRef; walletSession: WalletSessionRef }
+>;
 
 export type SigningEngineResolveExactKeyExportLaneResult =
   | {

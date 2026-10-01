@@ -48,26 +48,11 @@ fn vector(case: &Value) -> &Value {
 
 fn decode_hex(encoded: &str) -> Vec<u8> {
     assert_eq!(encoded.len() % 2, 0, "hex length must be even");
-    (0..encoded.len())
-        .step_by(2)
-        .map(|offset| {
-            u8::from_str_radix(&encoded[offset..offset + 2], 16).expect("canonical lowercase hex")
-        })
-        .collect()
-}
-
-fn encode_hex(bytes: &[u8]) -> String {
-    const HEX: &[u8; 16] = b"0123456789abcdef";
-    let mut encoded = String::with_capacity(bytes.len() * 2);
-    for byte in bytes {
-        encoded.push(HEX[(byte >> 4) as usize] as char);
-        encoded.push(HEX[(byte & 0x0f) as usize] as char);
-    }
-    encoded
+    hex::decode(encoded).expect("canonical lowercase hex")
 }
 
 fn sha256_hex(bytes: &[u8]) -> String {
-    encode_hex(&Sha256::digest(bytes))
+    hex::encode(Sha256::digest(bytes))
 }
 
 fn domain_separated_digest_hex(domain: &[u8], encoding: &[u8]) -> String {

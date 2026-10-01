@@ -51,14 +51,6 @@ pub const TENANT_ROOT_RECOVERY_PACKAGE_MAX_BYTES: usize = TENANT_ROOT_RECOVERY_P
 pub const TENANT_ROOT_RECOVERY_MANIFEST_MAX_BYTES: usize =
     TENANT_ROOT_RECOVERY_MANIFEST_MAX_BYTES_V1;
 
-/// MIME type of a tenant-root recovery package.
-pub const TENANT_ROOT_RECOVERY_PACKAGE_MIME_TYPE: &str =
-    "application/vnd.seams.tenant-root-recovery-package.v1";
-
-/// MIME type of a tenant-root recovery manifest.
-pub const TENANT_ROOT_RECOVERY_MANIFEST_MIME_TYPE: &str =
-    "application/vnd.seams.tenant-root-recovery-manifest.v1+json";
-
 /// Random identifier for one tenant-controlled recovery sharing.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct TenantRootRecoverySetId([u8; TENANT_ROOT_RECOVERY_SET_ID_BYTES]);

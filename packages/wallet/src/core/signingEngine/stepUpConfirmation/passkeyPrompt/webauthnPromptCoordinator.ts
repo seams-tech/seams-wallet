@@ -3,6 +3,7 @@ import type {
   WalletIframeRequestId,
 } from '@/core/types/walletIframeIdentity';
 import { secureRandomBase36 } from '@shared/utils/secureRandomId';
+import type { ExclusiveUnion } from '@shared/utils/variant';
 
 export type WebAuthnPromptReservationId = string & {
   readonly __webAuthnPromptReservationId: unique symbol;
@@ -42,25 +43,11 @@ export type ReservedRegistrationWebAuthnPrompt<
   expiresAtMs: number;
 };
 
-export type WebAuthnPromptCoordinatorState =
-  | {
-      kind: 'idle';
-      reservation?: never;
-      operationId?: never;
-      owner?: never;
-    }
-  | {
-      kind: 'reserved';
-      reservation: ReservedRegistrationWebAuthnPrompt;
-      operationId?: never;
-      owner?: never;
-    }
-  | {
-      kind: 'running';
-      operationId: WebAuthnPromptOperationId;
-      owner: WebAuthnPromptOwner;
-      reservation?: never;
-    };
+export type WebAuthnPromptCoordinatorState = ExclusiveUnion<
+  | { kind: 'idle' }
+  | { kind: 'reserved'; reservation: ReservedRegistrationWebAuthnPrompt }
+  | { kind: 'running'; operationId: WebAuthnPromptOperationId; owner: WebAuthnPromptOwner }
+>;
 
 type WebAuthnPromptCoordinatorErrorCode =
   | 'webauthn_prompt_busy'

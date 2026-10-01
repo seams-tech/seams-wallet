@@ -111,12 +111,6 @@ build_router_ab_ecdsa_client() {
       wasm-pack build --locked --target web --out-dir pkg --out-name router_ab_ecdsa_client --release
 }
 
-build_router_ab_ecdsa_signing_worker() {
-  run_in_dir "$SOURCE_WASM_ECDSA_SIGNING_WORKER" \
-    with_wasm_bindgen_cli_for_lockfile "$SDK_ROOT/$SOURCE_WASM_ECDSA_SIGNING_WORKER/Cargo.lock" \
-      wasm-pack build --locked --target web --out-dir pkg --out-name router_ab_ecdsa_signing_worker --release
-}
-
 with_ecdsa_derivation_hot_path_rustflags() {
   local existing="${RUSTFLAGS:-}"
   local simd_flag="-C target-feature=+simd128"
@@ -227,7 +221,6 @@ print_step "Using $WASM_SDK_BUILD_MODE WASM mode (default profile: $DEFAULT_WASM
 
 GATEWAY_WASM_SOURCES=(
   "$SOURCE_WASM_SIGNER"
-  "$SOURCE_WASM_ECDSA_SIGNING_WORKER"
   "$SOURCE_WASM_EVM_CRYPTO"
   "$SOURCE_WASM_SHAMIR3PASS_RUNTIME"
 )
@@ -256,7 +249,6 @@ else
   print_step "Building WASM packages in parallel..."
   JOB_LOG_DIR="$(mktemp -d)"
   start_job "NEAR signer WASM (release)" build_near_signer
-  start_job "ECDSA server signing worker WASM (release)" build_router_ab_ecdsa_signing_worker
   start_job "EVM crypto WASM ($DEFAULT_WASM_PROFILE_LABEL)" build_profiled_wasm_crate "$SOURCE_WASM_EVM_CRYPTO" evm_crypto
   start_job "Shamir3Pass runtime WASM ($DEFAULT_WASM_PROFILE_LABEL)" build_profiled_wasm_crate "$SOURCE_WASM_SHAMIR3PASS_RUNTIME" shamir3pass_runtime
   if [ "$WASM_SDK_BUILD_TARGET" = "all" ]; then
@@ -284,9 +276,6 @@ print_step "Checking expected WASM package outputs..."
 require_file "$SDK_ROOT/$SOURCE_WASM_SIGNER/pkg/wasm_signer_worker.js"
 require_file "$SDK_ROOT/$SOURCE_WASM_SIGNER/pkg/wasm_signer_worker.d.ts"
 require_file "$SDK_ROOT/$SOURCE_WASM_SIGNER/pkg/wasm_signer_worker_bg.wasm"
-require_file "$SDK_ROOT/$SOURCE_WASM_ECDSA_SIGNING_WORKER/pkg/router_ab_ecdsa_signing_worker.js"
-require_file "$SDK_ROOT/$SOURCE_WASM_ECDSA_SIGNING_WORKER/pkg/router_ab_ecdsa_signing_worker.d.ts"
-require_file "$SDK_ROOT/$SOURCE_WASM_ECDSA_SIGNING_WORKER/pkg/router_ab_ecdsa_signing_worker_bg.wasm"
 require_file "$SDK_ROOT/$SOURCE_WASM_EVM_CRYPTO/pkg/evm_crypto.js"
 require_file "$SDK_ROOT/$SOURCE_WASM_EVM_CRYPTO/pkg/evm_crypto.d.ts"
 require_file "$SDK_ROOT/$SOURCE_WASM_EVM_CRYPTO/pkg/evm_crypto_bg.wasm"

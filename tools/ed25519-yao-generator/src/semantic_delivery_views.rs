@@ -3,29 +3,8 @@
 //! The layer projects public labels from existing host lifecycle evidence. It
 //! does not own any companion state transition or secret value.
 
-#![cfg_attr(not(test), allow(dead_code))]
-#![cfg_attr(test, allow(dead_code))]
-
-use crate::activation_delivery::{
-    HostOnlyActivationRecipientsReleasedV1, HostOnlyActivationRedeliveryPendingV1,
-    HostOnlyActivationRedeliveryV1,
-};
-use crate::activation_recipient_party_views::HostOnlySigningWorkerActivatedPartyViewSetV1;
-use crate::ceremony_context::{CeremonyRequestKindV1, CeremonyValidatedDagV1};
-use crate::evaluation_input_views::{
-    HostOnlyExportEvaluationInputViewSetV1, HostOnlyRecoveryEvaluationInputViewSetV1,
-    HostOnlyRefreshEvaluationInputViewSetV1, HostOnlyRegistrationEvaluationInputViewSetV1,
-};
-use crate::export_delivery::{
-    HostOnlyExportRedeliveryPendingV1, HostOnlyExportRedeliveryV1, HostOnlyExportReleasedV1,
-};
+use crate::ceremony_context::CeremonyRequestKindV1;
 use crate::lifecycle_domain::ActivationPackageOriginV1;
-use crate::lifecycle_domain::HostOnlyExportOutputCommittedV1;
-use crate::lifecycle_persistence::EvaluationAbortedPersistenceProjectionV1;
-use crate::output_party_views::{
-    HostOnlyActivationMetadataConsumedPartyViewSetV1,
-    HostOnlyActivationPackagePreparedPartyViewSetV1,
-};
 use crate::semantic_frame_classes::HostOnlySemanticFrameClassV1;
 
 /// Closed semantic delivery state labels.
@@ -585,10 +564,6 @@ impl HostOnlyActivationSuccessSemanticTraceV1 {
     pub const fn steps(&self) -> &'static [HostOnlySemanticTraceStepV1; 9] {
         activation_success_trace_steps_v1()
     }
-
-    fn for_origin(origin: ActivationPackageOriginV1) -> Self {
-        Self { origin }
-    }
 }
 
 /// Validated export trace through release and subsequent exact redelivery.
@@ -617,125 +592,6 @@ impl HostOnlyEvaluatorAbortSemanticTraceV1 {
     pub const fn steps(&self) -> &[HostOnlySemanticTraceStepV1; 4] {
         &self.steps
     }
-}
-
-/// Source-authority bundle for activation success trace construction.
-pub(crate) struct HostOnlyActivationSuccessTraceSourcesV1<'a> {
-    pub(crate) ceremony: &'a CeremonyValidatedDagV1,
-    pub(crate) output: &'a HostOnlyActivationPackagePreparedPartyViewSetV1,
-    pub(crate) metadata: &'a HostOnlyActivationMetadataConsumedPartyViewSetV1,
-    pub(crate) uncertain: &'a HostOnlyActivationRedeliveryPendingV1,
-    pub(crate) released: &'a HostOnlyActivationRecipientsReleasedV1,
-    pub(crate) redelivery: &'a HostOnlyActivationRedeliveryV1,
-    pub(crate) activated: &'a HostOnlySigningWorkerActivatedPartyViewSetV1,
-}
-
-pub(crate) fn build_registration_success_semantic_trace_v1(
-    sources: HostOnlyActivationSuccessTraceSourcesV1<'_>,
-    _: &HostOnlyRegistrationEvaluationInputViewSetV1,
-) -> Option<HostOnlyActivationSuccessSemanticTraceV1> {
-    build_activation_success_trace(sources, ActivationPackageOriginV1::Registration)
-}
-
-pub(crate) fn build_recovery_success_semantic_trace_v1(
-    sources: HostOnlyActivationSuccessTraceSourcesV1<'_>,
-    _: &HostOnlyRecoveryEvaluationInputViewSetV1,
-) -> Option<HostOnlyActivationSuccessSemanticTraceV1> {
-    build_activation_success_trace(sources, ActivationPackageOriginV1::Recovery)
-}
-
-pub(crate) fn build_refresh_success_semantic_trace_v1(
-    sources: HostOnlyActivationSuccessTraceSourcesV1<'_>,
-    _: &HostOnlyRefreshEvaluationInputViewSetV1,
-) -> Option<HostOnlyActivationSuccessSemanticTraceV1> {
-    build_activation_success_trace(sources, ActivationPackageOriginV1::Refresh)
-}
-
-fn build_activation_success_trace(
-    sources: HostOnlyActivationSuccessTraceSourcesV1<'_>,
-    origin: ActivationPackageOriginV1,
-) -> Option<HostOnlyActivationSuccessSemanticTraceV1> {
-    let HostOnlyActivationSuccessTraceSourcesV1 {
-        ceremony,
-        output,
-        metadata,
-        uncertain,
-        released,
-        redelivery,
-        activated,
-    } = sources;
-    let expected = output.semantic_trace_identity_v1();
-    let identities_match = activation_trace_identities_match(
-        origin,
-        expected,
-        [
-            metadata.semantic_trace_identity_v1(),
-            uncertain.semantic_trace_identity_v1(),
-            released.semantic_trace_identity_v1(),
-            redelivery.semantic_trace_identity_v1(),
-            activated.semantic_trace_identity_v1(),
-        ],
-    );
-    if ceremony.request_kind() == origin.request_kind() && identities_match {
-        Some(HostOnlyActivationSuccessSemanticTraceV1::for_origin(origin))
-    } else {
-        None
-    }
-}
-
-pub(crate) fn build_export_success_semantic_trace_v1(
-    ceremony: &CeremonyValidatedDagV1,
-    _: &HostOnlyExportEvaluationInputViewSetV1,
-    output: &HostOnlyExportOutputCommittedV1,
-    uncertain: &HostOnlyExportRedeliveryPendingV1,
-    released: &HostOnlyExportReleasedV1,
-    redelivery: &HostOnlyExportRedeliveryV1,
-) -> Option<HostOnlyExportSuccessSemanticTraceV1> {
-    let expected = output.semantic_trace_identity_v1();
-    let identities_match = export_trace_identities_match(
-        expected,
-        [
-            uncertain.semantic_trace_identity_v1(),
-            released.semantic_trace_identity_v1(),
-            redelivery.semantic_trace_identity_v1(),
-        ],
-    );
-    if ceremony.request_kind() == CeremonyRequestKindV1::Export && identities_match {
-        Some(HostOnlyExportSuccessSemanticTraceV1)
-    } else {
-        None
-    }
-}
-
-pub(crate) fn build_evaluator_abort_semantic_trace_v1(
-    projection: &EvaluationAbortedPersistenceProjectionV1,
-) -> HostOnlyEvaluatorAbortSemanticTraceV1 {
-    let request_kind = projection.abort().request_kind();
-    let steps = evaluator_abort_trace_steps_v1(request_kind)
-        .copied()
-        .expect("activation performs zero evaluation");
-    HostOnlyEvaluatorAbortSemanticTraceV1 {
-        request_kind,
-        steps,
-    }
-}
-
-type ActivationTraceIdentityV1 = (ActivationPackageOriginV1, [u8; 32], [u8; 32]);
-type ExportTraceIdentityV1 = ([u8; 32], [u8; 32]);
-
-fn activation_trace_identities_match(
-    origin: ActivationPackageOriginV1,
-    expected: ActivationTraceIdentityV1,
-    continuations: [ActivationTraceIdentityV1; 5],
-) -> bool {
-    expected.0 == origin && continuations == [expected; 5]
-}
-
-fn export_trace_identities_match(
-    expected: ExportTraceIdentityV1,
-    continuations: [ExportTraceIdentityV1; 3],
-) -> bool {
-    continuations == [expected; 3]
 }
 
 /// Move-only validated semantic state from which exactly one static role view is projected.
@@ -1399,6 +1255,24 @@ const fn diagnostics_values(_: SemanticStageV1) -> &'static [Value] {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    type ActivationTraceIdentityV1 = (ActivationPackageOriginV1, [u8; 32], [u8; 32]);
+    type ExportTraceIdentityV1 = ([u8; 32], [u8; 32]);
+
+    fn activation_trace_identities_match(
+        origin: ActivationPackageOriginV1,
+        expected: ActivationTraceIdentityV1,
+        continuations: [ActivationTraceIdentityV1; 5],
+    ) -> bool {
+        expected.0 == origin && continuations == [expected; 5]
+    }
+
+    fn export_trace_identities_match(
+        expected: ExportTraceIdentityV1,
+        continuations: [ExportTraceIdentityV1; 3],
+    ) -> bool {
+        continuations == [expected; 3]
+    }
 
     fn stage(stage: SemanticStageV1) -> HostOnlySemanticDeliveryViewSetV1 {
         HostOnlySemanticDeliveryViewSetV1 { stage }

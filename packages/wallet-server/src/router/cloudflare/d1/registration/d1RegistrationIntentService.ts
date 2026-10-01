@@ -9,6 +9,7 @@ import { normalizeAddAuthMethodInput } from '@shared/utils/registrationAuthMetho
 import { secureRandomBase64Url } from '@shared/utils/secureRandomId';
 import { parseWalletAuthMethodId } from '@shared/utils/domainIds';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
+import { failure } from '@shared/utils/failure';
 import type { ThresholdRuntimePolicyScope } from '../../../../core/types';
 import type {
   CreateAddAuthMethodIntentResponse,
@@ -67,7 +68,7 @@ export class CloudflareD1RegistrationIntentService {
       const store = this.getRegistrationCeremonyIntentStore();
       const walletId = parseWalletIdForIntent(input.command.subject.walletId);
       if (!walletId) {
-        return { ok: false, code: 'invalid_body', message: 'walletId is required' };
+        return failure('invalid_body', 'walletId is required');
       }
 
       const signerSelection = normalizeAddSignerSelection(input.command.signerSelection, {
@@ -102,11 +103,7 @@ export class CloudflareD1RegistrationIntentService {
         expiresAtMs,
       };
     } catch (error: unknown) {
-      return {
-        ok: false,
-        code: 'internal',
-        message: errorMessage(error) || 'Failed to create add-signer intent',
-      };
+      return failure('internal', errorMessage(error) || 'Failed to create add-signer intent');
     }
   }
 
@@ -117,11 +114,11 @@ export class CloudflareD1RegistrationIntentService {
       const store = this.getRegistrationCeremonyIntentStore();
       const walletId = parseWalletIdForIntent(input.command.subject.walletId);
       if (!walletId) {
-        return { ok: false, code: 'invalid_body', message: 'walletId is required' };
+        return failure('invalid_body', 'walletId is required');
       }
       const authMethod = normalizeAddAuthMethodInput(input.command.authMethod);
       if (!authMethod) {
-        return { ok: false, code: 'invalid_body', message: 'authMethod is required' };
+        return failure('invalid_body', 'authMethod is required');
       }
 
       const runtimePolicyScope =
@@ -132,7 +129,7 @@ export class CloudflareD1RegistrationIntentService {
         `wallet-auth-method:${secureRandomBase64Url(32)}`,
       );
       if (!targetWalletAuthMethodId.ok) {
-        return { ok: false, code: 'internal', message: 'Failed to allocate a target auth-method id' };
+        return failure('internal', 'Failed to allocate a target auth-method id');
       }
       const intent = buildAddAuthMethodIntent({
         walletId,
@@ -161,11 +158,7 @@ export class CloudflareD1RegistrationIntentService {
         expiresAtMs,
       };
     } catch (error: unknown) {
-      return {
-        ok: false,
-        code: 'internal',
-        message: errorMessage(error) || 'Failed to create add-auth-method intent',
-      };
+      return failure('internal', errorMessage(error) || 'Failed to create add-auth-method intent');
     }
   }
 

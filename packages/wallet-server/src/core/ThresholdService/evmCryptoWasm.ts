@@ -12,6 +12,7 @@ import {
   verify_secp256k1_recoverable_signature_against_public_key_33,
 } from '../../../../../wasm/evm_crypto/pkg/evm_crypto.js';
 import * as evmCryptoWasmModule from '../../../../../wasm/evm_crypto/pkg/evm_crypto.js';
+import type { Eip1559TxWasmJson } from '@shared/utils/eip1559TxWasmJson';
 
 type EvmCryptoWasmInitializer = (input: { readonly module_or_path: unknown }) => Promise<unknown>;
 
@@ -161,18 +162,6 @@ export type ServerEip1559UnsignedTx = {
     address: string;
     storageKeys: string[];
   }>;
-};
-
-type Eip1559TxWasmJson = {
-  chainId: number;
-  nonce: string;
-  maxPriorityFeePerGas: string;
-  maxFeePerGas: string;
-  gasLimit: string;
-  to?: string | null;
-  value: string;
-  data?: string;
-  accessList?: { address: string; storageKeys: string[] }[];
 };
 
 function toDec(value: bigint): string {

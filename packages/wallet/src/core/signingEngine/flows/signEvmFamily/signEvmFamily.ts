@@ -13,7 +13,6 @@ import type { TxDisplayModel } from '../../interfaces/display';
 import {
   exactEcdsaSigningLaneIdentityFromSelectedLane,
   requireEvmFamilyEcdsaSigner,
-  type ExactEcdsaSigningLaneIdentity,
 } from '../../session/identity/exactSigningLaneIdentity';
 import { isEvmFamilyEcdsaMaterialSupersededError } from './signingFlow';
 import {
@@ -477,12 +476,6 @@ async function signEvmFamilyAttempt(
     if (preparedEcdsaSigningSession) return preparedEcdsaSigningSession;
     throw new Error('[SigningEngine][ecdsa] prepared signing session is required');
   };
-  // The signing runtime needs the exact material identity, not a selected
-  // lane: an auth-neutral candidate has the former and never the latter.
-  const getEcdsaSigningLaneIdentity = (): ExactEcdsaSigningLaneIdentity => {
-    const prepared = getPreparedEcdsaSigningSession();
-    return prepared.kind === 'authorized' ? prepared.signingLane.identity : prepared.identity;
-  };
   const getPreparedEcdsaSigningSessionIfEcdsa = ():
     | PreparedEvmFamilyEcdsaSigningSession
     | undefined =>
@@ -585,7 +578,15 @@ async function signEvmFamilyAttempt(
       walletSession: args.walletSession,
       request: args.request,
       chainTarget: requestChainTarget,
-      senderSignatureAlgorithm: args.request.senderSignatureAlgorithm,
+      ...(args.request.senderSignatureAlgorithm === 'secp256k1'
+        ? {
+            senderSignatureAlgorithm: args.request.senderSignatureAlgorithm,
+            preparedSession: getPreparedEcdsaSigningSession(),
+            ...(activeWalletAuthorityFlowRuntime
+              ? { activeWalletAuthority: activeWalletAuthorityFlowRuntime }
+              : {}),
+          }
+        : { senderSignatureAlgorithm: args.request.senderSignatureAlgorithm }),
       ...(signingSessionPlan ? { signingSessionPlan } : {}),
       signingOperation: createTransactionSigningOperation(),
       onSigningOperationTransition: emitEvmFamilySigningOperationTrace,
@@ -594,10 +595,6 @@ async function signEvmFamilyAttempt(
       shouldAbort: args.shouldAbort,
       onEvent: args.onEvent,
       onAuthSideEffectStarted: markFreshAuthRetrySideEffect,
-      getEcdsaSigningLaneIdentity,
-      ...(activeWalletAuthorityFlowRuntime
-        ? { activeWalletAuthority: activeWalletAuthorityFlowRuntime }
-        : {}),
     });
     return { signingAuthPlan, signingSessionPlan, emailOtpSigning, flowArgs };
   };

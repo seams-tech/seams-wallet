@@ -1,6 +1,7 @@
 import { secureRandomBase64Url } from '@shared/utils/secureRandomId';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
 import { EMAIL_OTP_CHANNEL, WALLET_EMAIL_OTP_ACTIONS } from '@shared/utils/emailOtpDomain';
+import { failedVerification, failure } from '@shared/utils/failure';
 import {
   validateSecp256k1PublicKey33,
   verifySecp256k1RecoverableSignatureAgainstPublicKey33,
@@ -168,23 +169,22 @@ function normalizeEmailOtpStrongAuthInput(
 }
 
 function invalidEmailOtpEnrollmentReadBody(message: string): InvalidBodyResult {
-  return { ok: false, code: 'invalid_body', message };
+  return failure('invalid_body', message);
 }
 
 function invalidActiveEmailOtpEnrollmentReadBody(message: string): InvalidBodyResult {
-  return { ok: false, code: 'invalid_body', message };
+  return failure('invalid_body', message);
 }
 
 function invalidEmailOtpStrongAuthBody(message: string): InvalidBodyResult {
-  return { ok: false, code: 'invalid_body', message };
+  return failure('invalid_body', message);
 }
 
 function emailOtpEnrollmentTenantMismatch(): ReadEmailOtpEnrollmentResult {
-  return {
-    ok: false,
-    code: 'tenant_scope_mismatch',
-    message: 'Email OTP enrollment does not match the requested orgId',
-  };
+  return failure(
+    'tenant_scope_mismatch',
+    'Email OTP enrollment does not match the requested orgId',
+  );
 }
 
 export class CloudflareD1EmailOtpRecoveryService {
@@ -215,7 +215,7 @@ export class CloudflareD1EmailOtpRecoveryService {
 
     const enrollment = await this.emailOtpEnrollments.readEnrollment(parsed.value.walletId);
     if (!enrollment) {
-      return { ok: false, code: 'not_found', message: 'Email OTP enrollment not found' };
+      return failure('not_found', 'Email OTP enrollment not found');
     }
     if (enrollment.orgId !== parsed.value.orgId) return emailOtpEnrollmentTenantMismatch();
     return { ok: true, enrollment };
@@ -236,11 +236,10 @@ export class CloudflareD1EmailOtpRecoveryService {
       parsed.value.providerUserId &&
       enrollment.enrollment.providerUserId !== parsed.value.providerUserId
     ) {
-      return {
-        ok: false,
-        code: 'provider_identity_mismatch',
-        message: 'Email OTP enrollment does not match the requested provider user',
-      };
+      return failure(
+        'provider_identity_mismatch',
+        'Email OTP enrollment does not match the requested provider user',
+      );
     }
     return enrollment;
   }
@@ -323,11 +322,10 @@ export class CloudflareD1EmailOtpRecoveryService {
         unlockKeyVersion: enrollment.enrollment.unlockKeyVersion,
       };
     } catch (error: unknown) {
-      return {
-        ok: false,
-        code: 'internal',
-        message: errorMessage(error) || 'Failed to create Email OTP unlock challenge',
-      };
+      return failure(
+        'internal',
+        errorMessage(error) || 'Failed to create Email OTP unlock challenge',
+      );
     }
   }
 
@@ -340,13 +338,13 @@ export class CloudflareD1EmailOtpRecoveryService {
 
       const challenge = await this.emailOtpChallenges.consumeUnlock(parsed.value.challengeId);
       if (!challenge || Date.now() > challenge.expiresAtMs) {
-        return emailOtpUnlockProofRejected(
+        return failedVerification(
           'challenge_expired_or_invalid',
           'Email OTP unlock challenge expired or invalid',
         );
       }
       if (challenge.walletId !== parsed.value.walletId) {
-        return emailOtpUnlockProofRejected(
+        return failedVerification(
           'challenge_binding_mismatch',
           'Email OTP unlock challenge is not valid for this walletId',
         );
@@ -357,13 +355,13 @@ export class CloudflareD1EmailOtpRecoveryService {
         orgId: parsed.value.orgId,
       });
       if (!enrollment.ok) {
-        return emailOtpUnlockProofRejected(enrollment.code, enrollment.message);
+        return failedVerification(enrollment.code, enrollment.message);
       }
       if (
         challenge.userId !== enrollment.enrollment.providerUserId ||
         challenge.orgId !== enrollment.enrollment.orgId
       ) {
-        return emailOtpUnlockProofRejected(
+        return failedVerification(
           'challenge_binding_mismatch',
           'Email OTP unlock challenge is not valid for this enrollment',
         );
@@ -371,15 +369,12 @@ export class CloudflareD1EmailOtpRecoveryService {
 
       const publicKey = decodeFixedBase64Url(parsed.value.publicKeyB64u, 33);
       if (!publicKey) {
-        return emailOtpUnlockProofRejected(
-          'invalid_body',
-          'unlockProof.publicKey must decode to 33 bytes',
-        );
+        return failedVerification('invalid_body', 'unlockProof.publicKey must decode to 33 bytes');
       }
       try {
         await validateSecp256k1PublicKey33(publicKey);
       } catch {
-        return emailOtpUnlockProofRejected(
+        return failedVerification(
           'invalid_body',
           'unlockProof.publicKey is not a valid secp256k1 public key',
         );
@@ -387,24 +382,21 @@ export class CloudflareD1EmailOtpRecoveryService {
 
       const signature = decodeFixedBase64Url(parsed.value.signatureB64u, 65);
       if (!signature) {
-        return emailOtpUnlockProofRejected(
-          'invalid_body',
-          'unlockProof.signature must decode to 65 bytes',
-        );
+        return failedVerification('invalid_body', 'unlockProof.signature must decode to 65 bytes');
       }
       const enrolledPublicKey = decodeFixedBase64Url(
         enrollment.enrollment.clientUnlockPublicKeyB64u,
         33,
       );
       if (!enrolledPublicKey || !bytesEqual(enrolledPublicKey, publicKey)) {
-        return emailOtpUnlockProofRejected(
+        return failedVerification(
           'invalid_unlock_proof',
           'unlockProof.publicKey does not match the enrolled clientUnlockPublicKeyB64u',
         );
       }
       const challengeDigest = decodeFixedBase64Url(challenge.challengeB64u, 32);
       if (!challengeDigest) {
-        return emailOtpUnlockProofRejected(
+        return failedVerification(
           'internal',
           'Stored unlock challenge digest must decode to 32 bytes',
         );
@@ -416,7 +408,7 @@ export class CloudflareD1EmailOtpRecoveryService {
           publicKey,
         );
       } catch {
-        return emailOtpUnlockProofRejected(
+        return failedVerification(
           'invalid_unlock_proof',
           'unlockProof.signature did not verify against unlockProof.publicKey',
         );
@@ -437,12 +429,10 @@ export class CloudflareD1EmailOtpRecoveryService {
         unlockKeyVersion: enrollment.enrollment.unlockKeyVersion,
       };
     } catch (error: unknown) {
-      return {
-        ok: false,
-        verified: false,
-        code: 'internal',
-        message: errorMessage(error) || 'Failed to verify Email OTP unlock proof',
-      };
+      return failedVerification(
+        'internal',
+        errorMessage(error) || 'Failed to verify Email OTP unlock proof',
+      );
     }
   }
 
@@ -477,11 +467,7 @@ export class CloudflareD1EmailOtpRecoveryService {
         otpChannel: EMAIL_OTP_CHANNEL,
       };
     } catch (error: unknown) {
-      return {
-        ok: false,
-        code: 'internal',
-        message: errorMessage(error) || 'Failed to consume Email OTP grant',
-      };
+      return failure('internal', errorMessage(error) || 'Failed to consume Email OTP grant');
     }
   }
 }
@@ -593,37 +579,21 @@ function emailOtpGrantBindingMismatch(
 function invalidUnlockChallengeBody(
   message: string,
 ): ParseResult<NormalizedUnlockChallengeInput, CreateEmailOtpUnlockChallengeResult> {
-  return { ok: false, result: { ok: false, code: 'invalid_body', message } };
+  return { ok: false, result: failure('invalid_body', message) };
 }
 
 function invalidUnlockProofBody(
   message: string,
 ): ParseResult<NormalizedUnlockProofInput, VerifyEmailOtpUnlockProofResult> {
-  return { ok: false, result: { ok: false, verified: false, code: 'invalid_body', message } };
+  return { ok: false, result: failedVerification('invalid_body', message) };
 }
 
 function invalidGrantConsumptionBody(
   message: string,
 ): ParseResult<NormalizedGrantConsumptionInput, ConsumeEmailOtpGrantResult> {
-  return { ok: false, result: { ok: false, code: 'invalid_body', message } };
+  return { ok: false, result: failure('invalid_body', message) };
 }
 
 function emailOtpGrantInvalidOrExpired(): ConsumeEmailOtpGrantResult {
-  return {
-    ok: false,
-    code: 'grant_invalid_or_expired',
-    message: 'Email OTP grant is invalid or expired',
-  };
-}
-
-function emailOtpUnlockProofRejected(
-  code: string,
-  message: string,
-): VerifyEmailOtpUnlockProofResult {
-  return {
-    ok: false,
-    verified: false,
-    code,
-    message,
-  };
+  return failure('grant_invalid_or_expired', 'Email OTP grant is invalid or expired');
 }

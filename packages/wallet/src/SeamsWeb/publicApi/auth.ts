@@ -1,3 +1,4 @@
+import { WalletSessionStatusReadScope } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 import {
   getRecentUnlocksDomain,
   getWalletSessionDomain,
@@ -34,7 +35,11 @@ export function createAuthCapability(deps: {
     hasPasskeyCredential: async (walletId) =>
       await hasPasskeyCredentialDomain(deps.getWalletAuthDeps(), walletId),
     prefillRouterAbEcdsaDerivationPresignaturePool: async (args) =>
-      await prefillRouterAbEcdsaDerivationPresignaturePoolDomain(deps.getWalletAuthDeps(), args),
+      await prefillRouterAbEcdsaDerivationPresignaturePoolDomain(
+        deps.getWalletAuthDeps(),
+        args,
+        new WalletSessionStatusReadScope(),
+      ),
     requestEmailOtpChallenge: deps.domain.requestEmailOtpChallenge,
     requestEmailOtpSigningSessionChallenge: deps.domain.requestEmailOtpSigningSessionChallenge,
     refreshEmailOtpSigningSession: deps.domain.refreshEmailOtpSigningSession,

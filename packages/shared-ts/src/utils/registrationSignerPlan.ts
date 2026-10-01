@@ -8,20 +8,13 @@ import {
 } from './near';
 import { inspectRawObject, trimString } from './registrationAuthMethodInput';
 import type { NearEd25519SigningKeyId } from './registrationIds';
+import type { ThresholdEcdsaChainTargetWire } from './thresholdEcdsaChainTarget';
+import type { ExclusiveUnion } from './variant';
 
-export type RegistrationNearAccountProvisioning =
-  | {
-      kind: 'implicit_account';
-      accountIdSource: 'ed25519_public_key';
-      requestedAccountId?: never;
-      sponsor?: never;
-    }
-  | {
-      kind: 'sponsored_named_account';
-      requestedAccountId: NamedNearAccountId;
-      sponsor: 'relayer';
-      accountIdSource?: never;
-    };
+export type RegistrationNearAccountProvisioning = ExclusiveUnion<
+  | { kind: 'implicit_account'; accountIdSource: 'ed25519_public_key' }
+  | { kind: 'sponsored_named_account'; requestedAccountId: NamedNearAccountId; sponsor: 'relayer' }
+>;
 
 export type ResolvedRegistrationNearAccount =
   | {
@@ -60,18 +53,7 @@ export type ThresholdEd25519AddSignerSpec = {
   derivationVersion: number;
 };
 
-export type ThresholdEcdsaAddSignerChainTarget =
-  | {
-      readonly kind: 'evm';
-      readonly namespace: 'eip155';
-      readonly chainId: number;
-      readonly networkSlug?: string;
-    }
-  | {
-      readonly kind: 'tempo';
-      readonly chainId: number;
-      readonly networkSlug?: string;
-    };
+export type ThresholdEcdsaAddSignerChainTarget = Readonly<ThresholdEcdsaChainTargetWire>;
 
 export type ThresholdEcdsaAddSignerSpec = {
   chainTargets: readonly ThresholdEcdsaAddSignerChainTarget[];
@@ -141,17 +123,10 @@ export type RegistrationSignerPlan = {
   branches: readonly RegistrationSignerPlanBranch[];
 };
 
-export type AddSignerSelection =
-  | {
-      mode: 'ed25519';
-      ed25519: ThresholdEd25519AddSignerSpec;
-      ecdsa?: never;
-    }
-  | {
-      mode: 'ecdsa';
-      ecdsa: ThresholdEcdsaAddSignerSpec;
-      ed25519?: never;
-    };
+export type AddSignerSelection = ExclusiveUnion<
+  | { mode: 'ed25519'; ed25519: ThresholdEd25519AddSignerSpec }
+  | { mode: 'ecdsa'; ecdsa: ThresholdEcdsaAddSignerSpec }
+>;
 
 export function implicitNearAccountProvisioning(): RegistrationNearAccountProvisioning {
   return {
@@ -268,15 +243,11 @@ export function registrationNearEd25519BranchKey(signerSlot: number): Registrati
   return registrationSignerBranchKeyFromString(`near_ed25519:slot:${signerSlot}`);
 }
 
-function registrationEvmFamilyEcdsaTargetKey(target: unknown): string {
-  return alphabetizeStringify(target);
-}
-
 export function registrationEvmFamilyEcdsaBranchKey(
   chainTargets: readonly unknown[],
 ): RegistrationSignerBranchKey {
   return registrationSignerBranchKeyFromString(
-    `evm_family_ecdsa:${chainTargets.map(registrationEvmFamilyEcdsaTargetKey).join('|')}`,
+    `evm_family_ecdsa:${chainTargets.map(alphabetizeStringify).join('|')}`,
   );
 }
 
@@ -393,7 +364,7 @@ function findDuplicateRegistrationEcdsaTarget(
   ecdsaTargetKeys: Set<string>,
 ): NormalizeSignerSelectionResult<RegistrationSignerPlan> | null {
   for (const target of branch.chainTargets) {
-    const targetKey = registrationEvmFamilyEcdsaTargetKey(target);
+    const targetKey = alphabetizeStringify(target);
     if (ecdsaTargetKeys.has(targetKey)) {
       return {
         ok: false,

@@ -365,7 +365,7 @@ export async function requestEmailOtpSigningSessionChallenge(
   });
 }
 
-type RefreshEmailOtpSigningSessionArgs = {
+export type RefreshEmailOtpSigningSessionArgs = {
   walletSession: WalletSessionRef;
   chainTarget: ThresholdEcdsaChainTarget;
   challengeId: string;

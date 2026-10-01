@@ -1,8 +1,6 @@
-use std::ffi::OsString;
-use std::fs;
-use std::path::{Path, PathBuf};
-use std::process::Command;
-use std::time::{SystemTime, UNIX_EPOCH};
+mod support {
+    pub mod ui;
+}
 
 use curve25519_dalek::constants::ED25519_BASEPOINT_POINT;
 use curve25519_dalek::scalar::Scalar;
@@ -23,6 +21,8 @@ use ed25519_yao_generator::{
 };
 use hkdf::Hkdf;
 use sha2::{Digest, Sha256, Sha512};
+
+use support::ui::{assert_compile_failure, UiHarness};
 
 const CLIENT_ROOT_BYTES: [u8; 32] = [0x11; 32];
 const DERIVER_A_ROOT_BYTES: [u8; 32] = [0x22; 32];
@@ -504,73 +504,9 @@ fn output_shares_reconstruct_zero_small_and_boundary_coins() {
     }
 }
 
-struct UiHarness {
-    directory: PathBuf,
-}
-
-impl UiHarness {
-    fn create() -> Self {
-        let nonce = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("system clock must follow Unix epoch")
-            .as_nanos();
-        let directory = std::env::temp_dir().join(format!(
-            "ed25519-yao-registration-ui-{}-{nonce}",
-            std::process::id()
-        ));
-        fs::create_dir_all(directory.join("src")).expect("create UI harness source directory");
-        let manifest_directory = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .canonicalize()
-            .expect("canonical generator path");
-        let dependency_path = manifest_directory.to_string_lossy().replace('\\', "\\\\");
-        fs::write(
-            directory.join("Cargo.toml"),
-            format!(
-                "[package]\nname = \"registration-reference-ui\"\nversion = \"0.0.0\"\nedition = \"2021\"\n\
-                 [dependencies]\ned25519-yao-generator = {{ path = \"{dependency_path}\" }}\n"
-            ),
-        )
-        .expect("write UI harness manifest");
-        Self { directory }
-    }
-
-    fn check(&self, body: &str) -> std::process::Output {
-        fs::write(self.directory.join("src/main.rs"), body).expect("write UI harness source");
-        Command::new(cargo_command())
-            .args(["check", "--quiet", "--offline"])
-            .current_dir(&self.directory)
-            .env("CARGO_TARGET_DIR", self.directory.join("target"))
-            .output()
-            .expect("execute UI cargo check")
-    }
-}
-
-impl Drop for UiHarness {
-    fn drop(&mut self) {
-        let _ = fs::remove_dir_all(&self.directory);
-    }
-}
-
-fn cargo_command() -> OsString {
-    match std::env::var_os("CARGO") {
-        Some(command) => command,
-        None => OsString::from("cargo"),
-    }
-}
-
-fn assert_compile_failure(harness: &UiHarness, body: &str, code: &str) {
-    let output = harness.check(body);
-    assert!(!output.status.success(), "UI case unexpectedly compiled");
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(
-        stderr.contains(code),
-        "UI case failed without {code}:\n{stderr}"
-    );
-}
-
 #[test]
 fn compile_guards_keep_registration_role_typed_and_seed_free() {
-    let harness = UiHarness::create();
+    let harness = UiHarness::create("registration-reference");
     let control = harness.check(
         "use ed25519_yao_generator::HostOnlyPreparedRegistrationReferenceV1;\n\
          fn accept(_: &HostOnlyPreparedRegistrationReferenceV1) {}\nfn main() {}",

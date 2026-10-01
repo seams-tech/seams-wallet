@@ -15,8 +15,9 @@ import type {
   Ed25519WalletSessionStore,
   EcdsaWalletSessionStore,
 } from '../ThresholdService/stores/WalletSessionStore';
+import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 
-export type RouterAbSigningWorkerPrivateTransport =
+export type RouterAbSigningWorkerPrivateTransport = ReadonlyExclusiveUnion<
   | {
       readonly kind: 'configured';
       readonly signingWorkerBaseUrl: string;
@@ -26,12 +27,8 @@ export type RouterAbSigningWorkerPrivateTransport =
       };
       readonly fetchImpl?: typeof fetch;
     }
-  | {
-      readonly kind: 'unconfigured';
-      readonly signingWorkerBaseUrl?: never;
-      readonly auth?: never;
-      readonly fetchImpl?: never;
-    };
+  | { readonly kind: 'unconfigured' }
+>;
 
 export type RouterAbConfiguredSigningWorkerPrivateTransport = Extract<
   RouterAbSigningWorkerPrivateTransport,

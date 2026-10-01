@@ -6,7 +6,7 @@ use crate::protocol::envelope::{role_encrypted_envelope_digest_v1, RoleEncrypted
 use crate::protocol::error::{
     RouterAbProtocolError, RouterAbProtocolErrorCode, RouterAbProtocolResult,
 };
-use crate::protocol::identity::{RoleEnvelopeAssignmentV1, SignerSetV1};
+use crate::protocol::identity::{require_non_empty, RoleEnvelopeAssignmentV1, SignerSetV1};
 use crate::protocol::lifecycle::LifecycleScopeV1;
 use crate::protocol::payload::{
     encode_router_to_signer_payload_v1, router_transcript_digest_v1, RouterEnvelopeDigestSetV1,
@@ -504,14 +504,4 @@ fn digest_bytes(bytes: &[u8]) -> PublicDigest32 {
     let mut out = [0u8; 32];
     out.copy_from_slice(&digest);
     PublicDigest32::new(out)
-}
-
-fn require_non_empty(field: &'static str, value: &str) -> RouterAbProtocolResult<()> {
-    if value.is_empty() {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::EmptyField,
-            format!("{field} is required"),
-        ));
-    }
-    Ok(())
 }

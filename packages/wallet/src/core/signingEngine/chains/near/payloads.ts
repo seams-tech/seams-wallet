@@ -5,7 +5,7 @@ import {
   type TransactionInputWasm,
 } from '@/core/types/actions';
 import type { DelegateActionInput } from '@/core/types/delegate';
-import type { TransactionPayload } from '@/core/types/signer-worker';
+import type { DelegatePayload, TransactionPayload } from '@/core/types/signer-worker';
 
 export type NearTransactionSigningPayload = {
   txSigningRequest: TransactionPayload;
@@ -38,18 +38,9 @@ type NearDelegateConfirmationPayload = {
   maxBlockHeight: DelegateActionInput['maxBlockHeight'];
 };
 
-type NearDelegateWorkerPayload = {
-  senderId: string;
-  receiverId: string;
-  actions: ActionArgsWasm[];
-  nonce: string;
-  maxBlockHeight: string;
-  publicKey: string;
-};
-
 type NearDelegateSigningPayloads = {
   confirmationDelegate: NearDelegateConfirmationPayload;
-  workerDelegate: NearDelegateWorkerPayload;
+  workerDelegate: DelegatePayload;
 };
 
 export function buildNearDelegateSigningPayloads(args: {

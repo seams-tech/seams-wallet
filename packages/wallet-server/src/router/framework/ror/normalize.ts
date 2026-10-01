@@ -1,7 +1,7 @@
 import {
   SIGNING_SESSION_SEAL_ALG,
   SIGNING_SESSION_SEAL_GROUP_ID,
-  type SigningSessionSealProtocol,
+  type WellKnownSigningSessionSealCapabilities,
 } from '@shared/utils/signingSessionSeal';
 import { toOptionalTrimmedString, toRorOriginOrNull } from '@shared/utils/validation';
 
@@ -33,14 +33,6 @@ export function normalizeRorHost(hostRaw: unknown): string | null {
     return null;
   }
 }
-
-type WellKnownSigningSessionSealCapabilities =
-  | { mode: 'none' }
-  | {
-      mode: 'sealed_refresh_v1';
-      protocol: SigningSessionSealProtocol;
-      currentKeyVersion: string;
-    };
 
 function normalizeWellKnownSigningSessionSealCapabilities(
   value: unknown,

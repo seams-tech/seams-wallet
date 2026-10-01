@@ -53,7 +53,7 @@ import {
   type RouterAbEcdsaCredentialFreeSessionActivationResponseV1,
 } from '@shared/utils/routerAbEcdsaDerivation';
 import type { ExactWalletSessionAuthorization } from '../../../session/persistence/walletSessionAuthorizationProjection';
-import type { ThresholdRuntimePolicyScope } from '@/core/signingEngine/threshold/sessionPolicy';
+import { sameRuntimePolicyScope } from '@shared/threshold/signingRootScope';
 import {
   wallet_custody_ceremony_join_v1,
   type WasmCeremonyEvmActivationPendingV1,
@@ -90,18 +90,6 @@ export function bytesToLowerHex(bytes: Uint8Array): string {
   let output = '';
   for (const byte of bytes) output += byte.toString(16).padStart(2, '0');
   return output;
-}
-
-export function sameEmailOtpRuntimePolicyScope(
-  left: ThresholdRuntimePolicyScope,
-  right: ThresholdRuntimePolicyScope,
-): boolean {
-  return (
-    left.orgId === right.orgId &&
-    left.projectId === right.projectId &&
-    left.envId === right.envId &&
-    left.signingRootVersion === right.signingRootVersion
-  );
 }
 
 export type EmailOtpUnlockSecretMaterialRequest =
@@ -607,7 +595,7 @@ export async function restoreEmailOtpEcdsaMaterialFromCustody(args: {
           signer.activationReceipt,
           first.activationReceipt,
         ) ||
-        !sameEmailOtpRuntimePolicyScope(signer.runtimePolicyScope, first.runtimePolicyScope)
+        !sameRuntimePolicyScope(signer.runtimePolicyScope, first.runtimePolicyScope)
       ) {
         throw new Error('Email OTP ECDSA custody continuity conflicts across targets');
       }

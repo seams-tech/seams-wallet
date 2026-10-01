@@ -7,6 +7,7 @@ import {
 } from '@shared/utils/domainIds';
 import { errorMessage } from '@shared/utils/errors';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
+import { failure } from '@shared/utils/failure';
 import type {
   EmailOtpChallengeAction,
   EmailOtpChallengeOperation,
@@ -100,11 +101,10 @@ export async function verifyEmailOtpChallengeCode(
         expectedAction === WALLET_EMAIL_OTP_ACTIONS.registration &&
         !request.registrationChallengeProof
       ) {
-        return {
-          ok: false,
-          code: 'invalid_body',
-          message: 'Email OTP registration verification requires registration challenge proof',
-        };
+        return failure(
+          'invalid_body',
+          'Email OTP registration verification requires registration challenge proof',
+        );
       }
       const verificationIntent = emailOtpChallengeVerificationIntentFromRequest({
         expectedAction,
@@ -118,52 +118,44 @@ export async function verifyEmailOtpChallengeCode(
       });
       const expectedPurpose = expectedEmailOtpStoredChallengePurpose(verificationIntent);
       if (!challengeSubjectId.ok) {
-        return { ok: false, code: 'invalid_body', message: 'Missing challengeSubjectId' };
+        return failure('invalid_body', 'Missing challengeSubjectId');
       }
-      if (!walletId.ok) return { ok: false, code: 'invalid_body', message: 'Missing walletId' };
-      if (!orgId.ok) return { ok: false, code: 'invalid_body', message: 'Missing orgId' };
-      if (!challengeId.ok)
-        return { ok: false, code: 'invalid_body', message: 'Missing challengeId' };
+      if (!walletId.ok) return failure('invalid_body', 'Missing walletId');
+      if (!orgId.ok) return failure('invalid_body', 'Missing orgId');
+      if (!challengeId.ok) return failure('invalid_body', 'Missing challengeId');
       if (
         request.registrationChallengeProof &&
         request.registrationChallengeProof.challengeId !== challengeId.value
       ) {
-        return {
-          ok: false,
-          code: 'challenge_id_mismatch',
-          message: 'Email OTP registration proof does not match challengeId',
-        };
+        return failure(
+          'challenge_id_mismatch',
+          'Email OTP registration proof does not match challengeId',
+        );
       }
       if (
         request.registrationChallengeProof &&
         request.registrationChallengeProof.finalWalletId !== walletId.value
       ) {
-        return {
-          ok: false,
-          code: 'challenge_wallet_mismatch',
-          message: 'Email OTP registration proof does not match walletId',
-        };
+        return failure(
+          'challenge_wallet_mismatch',
+          'Email OTP registration proof does not match walletId',
+        );
       }
       if (
         request.registrationChallengeProof &&
         request.registrationChallengeProof.orgId !== orgId.value
       ) {
-        return {
-          ok: false,
-          code: 'challenge_org_mismatch',
-          message: 'Email OTP registration proof does not match orgId',
-        };
+        return failure(
+          'challenge_org_mismatch',
+          'Email OTP registration proof does not match orgId',
+        );
       }
-      if (!otpCode) return { ok: false, code: 'invalid_body', message: 'Missing otpCode' };
+      if (!otpCode) return failure('invalid_body', 'Missing otpCode');
       if (otpChannel !== EMAIL_OTP_CHANNEL) {
-        return {
-          ok: false,
-          code: 'invalid_body',
-          message: 'otpChannel must be email_otp',
-        };
+        return failure('invalid_body', 'otpChannel must be email_otp');
       }
       if (!ownerProofBindingDigest) {
-        return { ok: false, code: 'invalid_body', message: 'Missing ownerProofBindingDigest' };
+        return failure('invalid_body', 'Missing ownerProofBindingDigest');
       }
       const rateLimit = await input.consumeRateLimit({
         scope: 'verify',
@@ -187,11 +179,10 @@ export async function verifyEmailOtpChallengeCode(
         ? activeEnrollment.enrollment
         : await input.walletEnrollmentStore.get(walletId.value);
       if (enrollment && enrollment.orgId !== orgId.value) {
-        return {
-          ok: false,
-          code: 'tenant_scope_mismatch',
-          message: 'Email OTP enrollment does not match the requested orgId',
-        };
+        return failure(
+          'tenant_scope_mismatch',
+          'Email OTP enrollment does not match the requested orgId',
+        );
       }
       const authStateResult = enrollment
         ? await input.readEnrollmentAuthState(enrollment)
@@ -239,22 +230,14 @@ export async function verifyEmailOtpChallengeCode(
             otpChannel: EMAIL_OTP_CHANNEL,
             action: expectedAction,
           });
-          return {
-            ok: false,
-            code: 'challenge_expired_or_invalid',
-            message: 'Email OTP challenge expired or invalid',
-          };
+          return failure('challenge_expired_or_invalid', 'Email OTP challenge expired or invalid');
         }
       }
 
       if (nowMs > record.expiresAtMs) {
         await challengeStore.del(record.challengeId);
         input.memoryOutbox.delete(record.challengeId);
-        return {
-          ok: false,
-          code: 'challenge_expired_or_invalid',
-          message: 'Email OTP challenge expired or invalid',
-        };
+        return failure('challenge_expired_or_invalid', 'Email OTP challenge expired or invalid');
       }
 
       const storedPurpose = readEmailOtpStoredChallengePurpose(record);
@@ -346,11 +329,10 @@ export async function verifyEmailOtpChallengeCode(
           expectedPurpose,
           storedPurpose,
         });
-        return {
-          ok: false,
-          code: mismatchCode,
-          message: 'Email OTP challenge is not valid for the current owner proof binding',
-        };
+        return failure(
+          mismatchCode,
+          'Email OTP challenge is not valid for the current owner proof binding',
+        );
       }
       if (registrationChallengeCanFollowReroll) {
         input.logger.info('[email-otp] registration reroll challenge validation', {
@@ -447,11 +429,7 @@ export async function verifyEmailOtpChallengeCode(
 
       const verifiedChallengeId = parseEmailOtpChallengeId(record.challengeId);
       if (!verifiedChallengeId.ok) {
-        return {
-          ok: false,
-          code: 'internal',
-          message: 'Email OTP challenge record has an invalid challenge id',
-        };
+        return failure('internal', 'Email OTP challenge record has an invalid challenge id');
       }
       const successBase: VerifiedEmailOtpChallengeCodeSuccessBase = {
         challengeId: verifiedChallengeId.value,
@@ -470,11 +448,10 @@ export async function verifyEmailOtpChallengeCode(
           allowWalletReroll: verificationIntent.allowWalletReroll,
         });
         if (!finalRegistrationChallengeProof) {
-          return {
-            ok: false,
-            code: 'challenge_purpose_mismatch',
-            message: 'Email OTP challenge is not valid for registration',
-          };
+          return failure(
+            'challenge_purpose_mismatch',
+            'Email OTP challenge is not valid for registration',
+          );
         }
         return {
           ok: true,
@@ -489,11 +466,7 @@ export async function verifyEmailOtpChallengeCode(
         intent: verificationIntent.kind,
       };
     } catch (e: unknown) {
-      return {
-        ok: false,
-        code: 'internal',
-        message: errorMessage(e) || 'Failed to verify Email OTP challenge',
-      };
+      return failure('internal', errorMessage(e) || 'Failed to verify Email OTP challenge');
     }
 
 }

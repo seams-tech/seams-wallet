@@ -3,7 +3,8 @@ use serde::{Deserialize, Serialize};
 use crate::derivation::context::{RequestKind, RootShareEpoch};
 use crate::derivation::ecdsa_threshold_prf::MpcPrfOutputRequestV1;
 use crate::derivation::error::{
-    RouterAbDerivationError, RouterAbDerivationErrorCode, RouterAbDerivationResult,
+    require_non_empty, RouterAbDerivationError, RouterAbDerivationErrorCode,
+    RouterAbDerivationResult,
 };
 use crate::derivation::material::{OpenedShareKind, PublicDigest32, Role};
 
@@ -395,16 +396,6 @@ fn require_signer_role(role: Role) -> RouterAbDerivationResult<()> {
             "signer input plaintext recipient role must be a signer",
         )),
     }
-}
-
-fn require_non_empty(field: &'static str, value: &str) -> RouterAbDerivationResult<()> {
-    if value.is_empty() {
-        return Err(RouterAbDerivationError::new(
-            RouterAbDerivationErrorCode::EmptyField,
-            format!("{field} is required"),
-        ));
-    }
-    Ok(())
 }
 
 fn push_string(out: &mut Vec<u8>, value: &str) {

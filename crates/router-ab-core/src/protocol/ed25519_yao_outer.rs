@@ -15,9 +15,6 @@ use crate::protocol::error::{
     RouterAbProtocolError, RouterAbProtocolErrorCode, RouterAbProtocolResult,
 };
 
-/// Version identity for the role-targeted Ed25519 outer protocol.
-pub const ROUTER_AB_ED25519_YAO_OUTER_PROTOCOL_ID_V2: &str = "router_ab_ed25519_yao_outer_v2";
-
 /// Maximum lifetime of an outer preface binding.
 pub const ED25519_YAO_OUTER_MAX_LIFETIME_MS_V2: u64 = 300_000;
 
@@ -571,11 +568,6 @@ impl RouterAbEd25519YaoPrefaceRequestV2 {
         &self.outer_binding
     }
 
-    /// Returns the existing opaque A/B Yao inputs.
-    pub const fn yao_inputs(&self) -> (&Ed25519YaoEncryptedInputV1, &Ed25519YaoEncryptedInputV1) {
-        (&self.deriver_a_input, &self.deriver_b_input)
-    }
-
     /// Returns the encrypted A-to-B target proof.
     pub const fn deriver_a_to_b(&self) -> &Ed25519YaoDeriverAToBTargetProofPayloadV2 {
         &self.deriver_a_to_b
@@ -738,22 +730,6 @@ impl Ed25519YaoDeriverAPrefaceReadyV2 {
     pub fn into_threshold_prf_root(self) -> Ed25519DeriverAThresholdPrfRootV1 {
         self.root
     }
-
-    /// Gates the unchanged A Yao input on the completed preface.
-    pub fn into_yao_input(
-        self,
-        input: Ed25519YaoEncryptedInputV1,
-    ) -> RouterAbProtocolResult<(
-        Ed25519DeriverAThresholdPrfRootV1,
-        Ed25519YaoEncryptedInputV1,
-    )> {
-        validate_yao_input_for_outer_binding(
-            &self.binding,
-            &input,
-            Ed25519YaoDeriverRoleV1::DeriverA,
-        )?;
-        Ok((self.root, input))
-    }
 }
 
 /// B's typed local `preface_ready` capability.
@@ -777,22 +753,6 @@ impl Ed25519YaoDeriverBPrefaceReadyV2 {
     /// Consumes the capability for B's local contribution KDF.
     pub fn into_threshold_prf_root(self) -> Ed25519DeriverBThresholdPrfRootV1 {
         self.root
-    }
-
-    /// Gates the unchanged B Yao input on the completed preface.
-    pub fn into_yao_input(
-        self,
-        input: Ed25519YaoEncryptedInputV1,
-    ) -> RouterAbProtocolResult<(
-        Ed25519DeriverBThresholdPrfRootV1,
-        Ed25519YaoEncryptedInputV1,
-    )> {
-        validate_yao_input_for_outer_binding(
-            &self.binding,
-            &input,
-            Ed25519YaoDeriverRoleV1::DeriverB,
-        )?;
-        Ok((self.root, input))
     }
 }
 
@@ -1044,23 +1004,6 @@ fn validate_yao_input(
         || input.stable_context_binding() != ceremony.stable_key_context_binding.into_bytes()
     {
         return Err(malformed("Ed25519 Yao V2 input does not match ceremony"));
-    }
-    Ok(())
-}
-
-fn validate_yao_input_for_outer_binding(
-    binding: &Ed25519YaoOuterBindingV2,
-    input: &Ed25519YaoEncryptedInputV1,
-    expected_role: Ed25519YaoDeriverRoleV1,
-) -> RouterAbProtocolResult<()> {
-    input.validate()?;
-    if input.deriver() != expected_role
-        || input.session() != binding.pair_session().into_bytes()
-        || input.stable_context_binding() != binding.stable_context_binding().into_bytes()
-    {
-        return Err(malformed(
-            "Ed25519 Yao V2 ready input does not match outer binding",
-        ));
     }
     Ok(())
 }

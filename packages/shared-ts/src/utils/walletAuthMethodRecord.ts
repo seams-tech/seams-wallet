@@ -15,7 +15,7 @@ import {
   type WebAuthnRpId,
 } from './domainIds';
 import { inspectRawObject, trimString } from './registrationAuthMethodInput';
-import type { Variant } from './variant';
+import type { Variant, ReadonlyExclusiveUnion } from './variant';
 
 export type WalletAuthMethodRevocationProof =
   | {
@@ -76,22 +76,11 @@ export type WalletAuthMethodRecord =
       counter?: never;
     };
 
-type WalletAuthMethodLifecycleV1 =
-  | {
-      readonly status: 'pending_local_install';
-      readonly activatedAtMs?: never;
-      readonly revokedAtMs?: never;
-    }
-  | {
-      readonly status: 'active';
-      readonly activatedAtMs: number;
-      readonly revokedAtMs?: never;
-    }
-  | {
-      readonly status: 'revoked';
-      readonly activatedAtMs: number;
-      readonly revokedAtMs: number;
-    };
+type WalletAuthMethodLifecycleV1 = ReadonlyExclusiveUnion<
+  | { readonly status: 'pending_local_install' }
+  | { readonly status: 'active'; readonly activatedAtMs: number }
+  | { readonly status: 'revoked'; readonly activatedAtMs: number; readonly revokedAtMs: number }
+>;
 
 type WalletAuthMethodDraftCommonV1 = {
   readonly walletAuthMethodId: WalletAuthMethodId;

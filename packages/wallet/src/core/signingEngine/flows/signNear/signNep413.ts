@@ -31,6 +31,7 @@ import {
   signNearSignatureOnlyOperation,
   type NearSignatureOnlyOperation,
 } from './shared/signatureOnlySigning';
+import type { ExclusiveUnion } from '@shared/utils/variant';
 
 /**
  * Sign a NEP-413 message using the active threshold-controlled NEAR key.
@@ -38,23 +39,10 @@ import {
  * @param payload - NEP-413 signing parameters including message, recipient, nonce, and state
  * @returns Promise resolving to signing result with account ID, public key, and signature
  */
-type InternalSignNep413MessageResult =
-  | {
-      success: true;
-      accountId: string;
-      publicKey: string;
-      signature: string;
-      state?: string;
-      error?: never;
-    }
-  | {
-      success: false;
-      error: string;
-      accountId?: never;
-      publicKey?: never;
-      signature?: never;
-      state?: never;
-    };
+type InternalSignNep413MessageResult = ExclusiveUnion<
+  | { success: true; accountId: string; publicKey: string; signature: string; state?: string }
+  | { success: false; error: string }
+>;
 
 export async function signNep413Message({
   ctx,

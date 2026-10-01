@@ -223,7 +223,7 @@ function selectedAuthMethodMatchesRuntime(args: {
   }
 }
 
-function exactAuthorizationMatchesCapability(args: {
+export function exactAuthorizationMatchesCapability(args: {
   readonly capability: CanonicalEvmFamilyEcdsaSigningCapability;
   readonly authorization:
     | ExactEvmFamilyWalletSessionAuthorization

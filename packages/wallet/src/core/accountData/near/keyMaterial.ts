@@ -19,21 +19,14 @@ import {
 } from '../../indexedDB/accountKeyMaterial';
 import type { ProfileAccountContextPort } from '../../indexedDB/profileAccountProjection';
 import { buildNearAccountRefs } from './accountRefs';
+import type { ExclusiveUnion } from '@shared/utils/variant';
 
 interface NearKeyMaterialDeps {
   clientDB: ProfileAccountContextPort;
   keyMaterialStore: AccountKeyMaterialStorePort;
 }
 
-type StoreNearKeyMaterialTarget =
-  | {
-      profileId?: never;
-      chainIdKey?: never;
-    }
-  | {
-      profileId: string;
-      chainIdKey: string;
-    };
+type StoreNearKeyMaterialTarget = ExclusiveUnion<{} | { profileId: string; chainIdKey: string }>;
 
 type StoreNearKeyMaterialInputBase = {
   nearAccountId: AccountId;

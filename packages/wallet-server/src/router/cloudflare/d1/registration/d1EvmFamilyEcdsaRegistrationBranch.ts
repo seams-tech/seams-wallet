@@ -10,6 +10,7 @@ import { secureRandomBase64Url } from '@shared/utils/secureRandomId';
 import { parseRootShareEpoch } from '@shared/utils/domainIds';
 import { buildRouterAbEcdsaDerivationActiveStateIdV1 } from '@shared/utils/routerAbEcdsaDerivation';
 import type { WalletId } from '@shared/utils/registrationIntent';
+import { failure } from '@shared/utils/failure';
 import type { ThresholdEcdsaChainTarget, ThresholdRuntimePolicyScope } from '../../../../core/types';
 import type {
   RegistrationPreparationId,
@@ -45,26 +46,14 @@ export async function buildD1EvmFamilyEcdsaRegistrationPrepare(input: {
   | { ok: false; code: string; message: string }
 > {
   if (!input.chainTargets) {
-    return {
-      ok: false,
-      code: 'invalid_body',
-      message: 'ECDSA registration contains an invalid chain target',
-    };
+    return failure('invalid_body', 'ECDSA registration contains an invalid chain target');
   }
   if (input.chainTargets.length === 0) {
-    return {
-      ok: false,
-      code: 'invalid_body',
-      message: 'ECDSA registration requires at least one chain target',
-    };
+    return failure('invalid_body', 'ECDSA registration requires at least one chain target');
   }
   const firstChainTarget = input.chainTargets[0];
   if (!firstChainTarget) {
-    return {
-      ok: false,
-      code: 'invalid_body',
-      message: 'ECDSA registration requires at least one chain target',
-    };
+    return failure('invalid_body', 'ECDSA registration requires at least one chain target');
   }
   const chainTargets: readonly [ThresholdEcdsaChainTarget, ...ThresholdEcdsaChainTarget[]] = [
     firstChainTarget,
@@ -75,11 +64,7 @@ export async function buildD1EvmFamilyEcdsaRegistrationPrepare(input: {
     input.participantIds[0] !== 1 ||
     input.participantIds[1] !== 2
   ) {
-    return {
-      ok: false,
-      code: 'invalid_body',
-      message: 'ECDSA registration requires participant pair [1, 2]',
-    };
+    return failure('invalid_body', 'ECDSA registration requires participant pair [1, 2]');
   }
   const evmFamilySigningKeySlotId = deriveEvmFamilySigningKeySlotId({
     walletId: input.walletId,

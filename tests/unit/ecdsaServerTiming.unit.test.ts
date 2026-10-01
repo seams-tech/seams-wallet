@@ -13,7 +13,7 @@ test('ECDSA diagnostics retain only known finite durations and omit descriptions
       'ecdsa_presign_admit;dur=NaN',
       'ecdsa_presign_proxy;dur=-1',
       'ecdsa_presign_total;dur=Infinity',
-      'ecdsa_presign_queue;dur=',
+      'ecdsa_presign_authenticate;dur=',
     ].join(', '),
   );
 

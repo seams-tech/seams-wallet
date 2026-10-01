@@ -325,29 +325,27 @@ export function storagePayloadFromSealedStoreRow(value: unknown): unknown {
   return obj && SEALED_RECORD_PAYLOAD_FIELD in obj ? obj[SEALED_RECORD_PAYLOAD_FIELD] : value;
 }
 
-function optionalStringForIndex(value: unknown): string | undefined {
-  return normalizeOptionalNonEmptyString(value);
-}
-
 function durableLaneStorageRow(record: CurrentSealedSessionRecord): Record<string, unknown> {
   const ecdsaChainTarget = record.ecdsaRestore?.chainTarget;
-  const ecdsaThresholdSessionId = optionalStringForIndex(record.thresholdSessionIds.ecdsa);
-  const ed25519ThresholdSessionId = optionalStringForIndex(record.thresholdSessionIds.ed25519);
+  const ecdsaThresholdSessionId = normalizeOptionalNonEmptyString(record.thresholdSessionIds.ecdsa);
+  const ed25519ThresholdSessionId = normalizeOptionalNonEmptyString(
+    record.thresholdSessionIds.ed25519,
+  );
   return {
     store_key: record.storeKey,
     wallet_id: record.walletId,
     auth_method: record.authMethod,
     curve: record.curve,
-    signing_root_id: optionalStringForIndex(
+    signing_root_id: normalizeOptionalNonEmptyString(
       'signingRootId' in record ? record.signingRootId : undefined,
     ),
-    signing_root_version: optionalStringForIndex(
+    signing_root_version: normalizeOptionalNonEmptyString(
       'signingRootVersion' in record ? record.signingRootVersion : undefined,
     ),
     ed25519_threshold_session_id: ed25519ThresholdSessionId,
     ecdsa_threshold_session_id: ecdsaThresholdSessionId,
     threshold_session_id: ecdsaThresholdSessionId || ed25519ThresholdSessionId,
-    key_handle: optionalStringForIndex(record.ecdsaRestore?.keyHandle),
+    key_handle: normalizeOptionalNonEmptyString(record.ecdsaRestore?.keyHandle),
     chain_target_key: ecdsaChainTarget ? thresholdEcdsaChainTargetKey(ecdsaChainTarget) : undefined,
     expires_at_ms: record.expiresAtMs,
     updated_at: record.updatedAtMs,

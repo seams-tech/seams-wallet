@@ -8,6 +8,7 @@ import type { RouterAbEd25519YaoActiveClientV1 } from '@/core/signingEngine/thre
 import { toAccountId, type AccountId } from '@/core/types/accountIds';
 import {
   normalizeRuntimePolicyScope,
+  sameRuntimePolicyScope,
   signingRootScopeFromRuntimePolicyScope,
 } from '@shared/threshold/signingRootScope';
 import { type WalletId } from '@shared/utils/registrationIntent';
@@ -237,18 +238,6 @@ function parseExactRecoverySession(
     walletSession,
     operationCredential,
   };
-}
-
-function sameRuntimePolicyScope(
-  left: ReturnType<typeof normalizeRuntimePolicyScope>,
-  right: ReturnType<typeof normalizeRuntimePolicyScope>,
-): boolean {
-  return (
-    left.orgId === right.orgId &&
-    left.projectId === right.projectId &&
-    left.envId === right.envId &&
-    left.signingRootVersion === right.signingRootVersion
-  );
 }
 
 function assertEd25519YaoRecoveryDescriptorStableIdentity(

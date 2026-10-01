@@ -12,6 +12,7 @@ use crate::evaluation_input_view_fixtures::{
     phase2b_export_evaluation_input_projection_v1, Phase2bActivationEvaluationInputProjectionV1,
     Phase2bExportEvaluationInputProjectionV1,
 };
+use crate::fixtures::strict_corpus::{canonical_json_bytes, parse_canonical_json};
 use crate::output_party_view_fixtures::{
     phase2b_activation_output_party_projection_v1, phase2b_export_output_party_projection_v1,
 };
@@ -319,10 +320,8 @@ pub fn canonical_phase2b_core_reconciliation_corpus_json_bytes_v1() -> Vec<u8> {
 pub fn parse_canonical_phase2b_core_reconciliation_corpus_json_v1(
     encoded: &[u8],
 ) -> Result<Phase2bCoreReconciliationCorpusV1, Phase2bCoreReconciliationCorpusParseErrorV1> {
-    if encoded != canonical_phase2b_core_reconciliation_corpus_json_bytes_v1() {
-        return Err(Phase2bCoreReconciliationCorpusParseErrorV1);
-    }
-    Ok(canonical_phase2b_core_reconciliation_corpus_v1())
+    parse_canonical_json(encoded, canonical_phase2b_core_reconciliation_corpus_v1)
+        .ok_or(Phase2bCoreReconciliationCorpusParseErrorV1)
 }
 
 fn benchmark_manifest_binding() -> BenchmarkManifestBindingV1 {
@@ -336,20 +335,20 @@ fn benchmark_manifest_binding() -> BenchmarkManifestBindingV1 {
             schedule_file: component.schedule_filename(),
             input_schema: component.input_schema(),
             output_schema: component.output_schema(),
-            ir_digest_hex: encode_hex(component.ir_digest()),
-            schedule_digest_hex: encode_hex(component.schedule_digest()),
+            ir_digest_hex: hex::encode(component.ir_digest()),
+            schedule_digest_hex: hex::encode(component.schedule_digest()),
         })
         .collect();
     BenchmarkManifestBindingV1 {
         manifest_magic: "EYAOBM01",
         manifest_canonical_bytes: manifest.canonical_encoding().len(),
-        manifest_digest_hex: encode_hex(manifest.digest().as_bytes()),
+        manifest_digest_hex: hex::encode(manifest.digest().as_bytes()),
         compiler_contract: PROVISIONAL_BENCHMARK_COMPILER_CONTRACT_V1,
         bit_order: FIXED_SHA512_32_BIT_ORDER_V1,
         wire_order: PROVISIONAL_BENCHMARK_WIRE_ORDER_V1,
         bundle_index_file: PROVISIONAL_ARTIFACT_BUNDLE_INDEX_FILE_V1,
         bundle_index_canonical_bytes: manifest.bundle_index_bytes(),
-        bundle_index_digest_hex: encode_hex(manifest.bundle_index_digest()),
+        bundle_index_digest_hex: hex::encode(manifest.bundle_index_digest()),
         components,
     }
 }
@@ -743,7 +742,7 @@ fn commitment(
         schema,
         case_count,
         canonical_bytes: bytes.len(),
-        sha256_hex: encode_hex(&Sha256::digest(bytes)),
+        sha256_hex: hex::encode(Sha256::digest(bytes)),
     }
 }
 
@@ -814,23 +813,13 @@ fn domain_digest_hex(domain: &[u8], payload: &[u8]) -> String {
     let mut preimage = Vec::new();
     push_lp32(&mut preimage, domain);
     push_lp32(&mut preimage, payload);
-    encode_hex(&Sha256::digest(preimage))
+    hex::encode(Sha256::digest(preimage))
 }
 
 fn push_lp32(output: &mut Vec<u8>, value: &[u8]) {
     let length = u32::try_from(value.len()).expect("fixed reconciliation field fits LP32");
     output.extend_from_slice(&length.to_be_bytes());
     output.extend_from_slice(value);
-}
-
-fn canonical_json_bytes<T: Serialize>(value: &T) -> Vec<u8> {
-    let mut bytes = serde_json::to_vec_pretty(value).expect("fixed certificate serializes");
-    bytes.push(b'\n');
-    bytes
-}
-
-fn encode_hex(bytes: &[u8]) -> String {
-    bytes.iter().map(|byte| format!("{byte:02x}")).collect()
 }
 
 #[cfg(test)]
@@ -922,7 +911,7 @@ mod tests {
                 commitment["canonical_bytes"].as_u64().expect("byte count")
             );
             assert_eq!(
-                encode_hex(&Sha256::digest(&bytes)),
+                hex::encode(Sha256::digest(&bytes)),
                 commitment["sha256_hex"].as_str().expect("digest")
             );
         }
@@ -939,7 +928,7 @@ mod tests {
         );
         assert_eq!(
             binding["manifest_digest_hex"],
-            encode_hex(manifest.digest().as_bytes())
+            hex::encode(manifest.digest().as_bytes())
         );
         let components = binding["components"].as_array().expect("components");
         assert_eq!(components.len(), 3);

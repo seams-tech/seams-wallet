@@ -49,6 +49,7 @@ import {
 } from '../material/ecdsaRoleLocalMaterialResolver';
 import { type EcdsaRoleLocalPersistedMaterialRef } from '../keyMaterialBrands';
 import type { ActiveEcdsaCapabilityManifest } from '../material/ecdsaCapabilityManifest';
+import type { ExclusiveUnion } from '@shared/utils/variant';
 
 type EmailOtpEcdsaPublicationTimingBucket =
   | 'signingSessionSealApplyMs'
@@ -173,22 +174,15 @@ export type ResolvedEmailOtpExistingEcdsaKey = {
   runtimePolicyScope: ThresholdRuntimePolicyScope;
 };
 
-export type EmailOtpEcdsaScopeSelector =
+export type EmailOtpEcdsaScopeSelector = ExclusiveUnion<
   | {
       kind: 'exact';
       runtimePolicyScope: ThresholdRuntimePolicyScope;
       authorityRef: WalletAuthAuthorityRef;
     }
-  | {
-      kind: 'exact_authority';
-      authorityRef: WalletAuthAuthorityRef;
-      runtimePolicyScope?: never;
-    }
-  | {
-      kind: 'durable_manifest';
-      runtimePolicyScope?: never;
-      authorityRef?: never;
-    };
+  | { kind: 'exact_authority'; authorityRef: WalletAuthAuthorityRef }
+  | { kind: 'durable_manifest' }
+>;
 
 export function projectEmailOtpExistingEcdsaKeyToChainTarget(args: {
   existingKey: ResolvedEmailOtpExistingEcdsaKey;

@@ -19,6 +19,9 @@ export function createD1AuthorizedOperationRouteService(
   }
   return {
     tenantId: tenantId.value,
+    resolveEcdsaWalletSessionOperation: assembly.authorizationStore.resolveEcdsaWalletSessionOperation.bind(
+      assembly.authorizationStore,
+    ),
     admitEcdsaWalletSessionOperation: assembly.authorizationStore.admitEcdsaWalletSessionOperation.bind(
       assembly.authorizationStore,
     ),

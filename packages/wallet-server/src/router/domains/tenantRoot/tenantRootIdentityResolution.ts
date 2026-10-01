@@ -8,6 +8,7 @@ import {
   isTenantRootIdentityFieldCanonicalV1,
   type TenantRootIdentityV1,
 } from '@shared/tenant-root/tenantRootIdentity';
+import { failure } from '@shared/utils/failure';
 import type { RouterApiWalletRegistrationService } from '../../framework/authServicePort';
 
 export type { TenantRootIdentityV1 } from '@shared/tenant-root/tenantRootIdentity';
@@ -165,13 +166,6 @@ function assertNeverServerResolvedMaterial(value: never): never {
   throw new Error(`Unsupported server-resolved tenant-root material: ${String(value)}`);
 }
 
-function mismatch(
-  code: TenantRootIdentityResolutionErrorCodeV1,
-  message: string,
-): TenantRootIdentityResolutionResultV1 {
-  return { ok: false, code, message };
-}
-
 function findForbiddenTenantRootSelectorFieldV1(
   input: object,
 ): ForbiddenTenantRootSelectorFieldV1 | null {
@@ -186,7 +180,7 @@ export function resolveTenantRootIdentityV1(
 ): TenantRootIdentityResolutionResultV1 {
   const forbiddenSelector = findForbiddenTenantRootSelectorFieldV1(input);
   if (forbiddenSelector) {
-    return mismatch(
+    return failure(
       'caller_selected_tenant_root',
       `Caller-supplied tenant-root selector field is forbidden: ${forbiddenSelector}`,
     );
@@ -208,7 +202,7 @@ export function resolveTenantRootIdentityV1(
   }
 
   if (!materialRootBinding.materialActivationMatches) {
-    return mismatch(
+    return failure(
       'material_activation_mismatch',
       'B5 material activation does not match its established material identity',
     );
@@ -216,7 +210,7 @@ export function resolveTenantRootIdentityV1(
 
   const nonCanonicalScopeField = findNonCanonicalRuntimePolicyScopeFieldV1(runtimePolicyScope);
   if (nonCanonicalScopeField) {
-    return mismatch(
+    return failure(
       'non_canonical_tenant_root_field',
       `B5 runtime policy scope field is not canonical: ${nonCanonicalScopeField}`,
     );
@@ -224,13 +218,13 @@ export function resolveTenantRootIdentityV1(
 
   const expectedSigningRoot = signingRootScopeFromRuntimePolicyScope(runtimePolicyScope);
   if (materialRootBinding.signingRootId !== expectedSigningRoot.signingRootId) {
-    return mismatch(
+    return failure(
       'signing_root_id_mismatch',
       'B5 signing-root ID does not match authenticated deployment configuration',
     );
   }
   if (materialRootBinding.signingRootVersion !== expectedSigningRoot.signingRootVersion) {
-    return mismatch(
+    return failure(
       'signing_root_version_mismatch',
       'B5 signing-root version does not match authenticated deployment configuration',
     );
@@ -245,7 +239,7 @@ export function resolveTenantRootIdentityV1(
   });
   if (!identity.ok) {
     const field = identity.error.kind === 'invalid_field' ? identity.error.field : 'identity';
-    return mismatch(
+    return failure(
       'non_canonical_tenant_root_field',
       `Authenticated tenant-root identity field is not canonical: ${field}`,
     );

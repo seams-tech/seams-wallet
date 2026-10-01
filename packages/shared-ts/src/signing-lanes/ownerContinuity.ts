@@ -1,6 +1,6 @@
-import type { DomainIdParseResult, MpcSigningWorkerRef } from '../utils/domainIds';
+import type { MpcSigningWorkerRef } from '../utils/domainIds';
 import { hasWhitespaceOrControlCharacters, parseMpcSigningWorkerRef } from '../utils/domainIds';
-import { parseDigestField } from '../passkey-custody/primitives';
+import { parseDigestField, requireParsed } from '../passkey-custody/primitives';
 import type { DigestB64u } from '../utils/canonicalPrimitives';
 import { base64UrlEncode } from '../utils/base64';
 import { sha256Bytes } from '../utils/digests';
@@ -44,11 +44,6 @@ const OWNER_LANE_PARTICIPANT_CONTINUITY_FIELDS = [
   'sourceIdentityDigestB64u',
 ] as const;
 
-function requireResult<T>(result: DomainIdParseResult<T>, label: string): T {
-  if (result.ok) return result.value;
-  throw new Error(`${label} ${result.error.message}`);
-}
-
 /** Parse the owner signer identity without widening it into a generic string. */
 export function parseWalletSignerId(raw: unknown, label = 'walletSignerId'): WalletSignerId {
   if (typeof raw !== 'string') throw new Error(`${label} must be a string`);
@@ -89,7 +84,7 @@ export function buildOwnerLaneParticipantContinuityV1(args: {
     kind: 'owner_lane_participant_continuity_v1',
     signerId: parseWalletSignerId(args.signerId),
     participantIds,
-    signingWorkerId: requireResult(
+    signingWorkerId: requireParsed(
       parseMpcSigningWorkerRef(args.signingWorkerId),
       'signingWorkerId',
     ),
@@ -116,7 +111,7 @@ export function parseOwnerLaneParticipantContinuityV1(
   return buildOwnerLaneParticipantContinuityV1({
     signerId: parseWalletSignerId(record.signerId, `${label}.signerId`),
     participantIds: parseParticipantIds(record.participantIds, `${label}.participantIds`),
-    signingWorkerId: requireResult(
+    signingWorkerId: requireParsed(
       parseMpcSigningWorkerRef(record.signingWorkerId),
       `${label}.signingWorkerId`,
     ),
@@ -152,5 +147,5 @@ export async function computeOwnerLaneParticipantBindingDigestV1(
   const digest = base64UrlEncode(
     await sha256Bytes(ownerLaneParticipantContinuityCanonicalBytesV1(input)),
   );
-  return requireResult(parseLaneParticipantBindingDigestB64u(digest), 'owner participant digest');
+  return requireParsed(parseLaneParticipantBindingDigestB64u(digest), 'owner participant digest');
 }

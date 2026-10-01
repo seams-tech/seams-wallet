@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { setupBasicPasskeyTest, handleInfrastructureErrors, SDK_ESM_PATHS } from '../setup';
+import { setupBasicPasskeyTest, SDK_ESM_PATHS } from '../setup';
 import { buildWalletServiceHtml, registerWalletServiceRoute, waitFor } from './harness';
 import {
   thresholdEcdsaChainTargetFromChainFamily,
@@ -238,7 +238,6 @@ test.describe('wallet iframe export surface variant', () => {
       );
 
       if (!result.success) {
-        if (handleInfrastructureErrors(result)) return;
         expect(result, result.error).toEqual(expect.objectContaining({ success: true }));
         return;
       }

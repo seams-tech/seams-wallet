@@ -6,8 +6,9 @@ use serde::Serialize;
 
 use crate::ceremony_context::{CeremonyActivationEpochV1, CeremonyRequestKindV1};
 use crate::ceremony_fixtures::canonical_recovery_ceremony_fixture_v1;
-use crate::evaluation_admission_fixtures::{
-    encode_hex, AdmissionRequestVectorV1, StoreResolutionVectorV1,
+use crate::evaluation_admission_fixtures::{AdmissionRequestVectorV1, StoreResolutionVectorV1};
+use crate::fixtures::strict_corpus::{
+    canonical_json_bytes, parse_canonical_json, StrictVectorCorpusV1,
 };
 use crate::lifecycle_domain::{ActivationReceiptEvidenceV1, RecoveryRequestV1};
 use crate::provenance_fixtures::canonical_provenance_fixture_pair_for_registered_key_v1;
@@ -38,39 +39,12 @@ const ACTIVE_STATE_VERSION_V1: u64 = 9;
 const EXECUTION_ID_V1: [u8; 32] = [0x73; 32];
 const SELECTED_MECHANISM_EVIDENCE_V1: [u8; 32] = [0x92; 32];
 
-#[derive(Serialize)]
 /// Strict one-case construction-independent recovery evaluator corpus.
-pub struct RecoveryEvaluatorAdmissionVectorCorpusV1 {
-    schema: String,
-    protocol_id: String,
-    evidence_scope: String,
-    cases: Vec<RecoveryEvaluatorAdmissionVectorCaseV1>,
-}
-
-impl RecoveryEvaluatorAdmissionVectorCorpusV1 {
-    /// Returns the exact corpus schema.
-    pub fn schema(&self) -> &str {
-        &self.schema
-    }
-
-    /// Returns the fixed protocol identifier.
-    pub fn protocol_id(&self) -> &str {
-        &self.protocol_id
-    }
-
-    /// Returns the narrow host-only evidence scope.
-    pub fn evidence_scope(&self) -> &str {
-        &self.evidence_scope
-    }
-
-    /// Returns the exact case count.
-    pub fn case_count(&self) -> usize {
-        self.cases.len()
-    }
-}
+pub type RecoveryEvaluatorAdmissionVectorCorpusV1 =
+    StrictVectorCorpusV1<RecoveryEvaluatorAdmissionVectorCaseV1>;
 
 #[derive(Serialize)]
-struct RecoveryEvaluatorAdmissionVectorCaseV1 {
+pub struct RecoveryEvaluatorAdmissionVectorCaseV1 {
     case_id: String,
     request_kind: RecoveryRequestKindVectorV1,
     source_references: RecoveryEvaluatorSourceReferencesV1,
@@ -181,11 +155,7 @@ pub fn canonical_recovery_evaluator_admission_vector_corpus_v1(
 
 /// Encodes the exact canonical corpus with one trailing LF.
 pub fn canonical_recovery_evaluator_admission_vector_corpus_json_bytes_v1() -> Vec<u8> {
-    let mut encoded =
-        serde_json::to_vec_pretty(&canonical_recovery_evaluator_admission_vector_corpus_v1())
-            .expect("fixed recovery evaluator-admission corpus serializes");
-    encoded.push(b'\n');
-    encoded
+    canonical_json_bytes(&canonical_recovery_evaluator_admission_vector_corpus_v1())
 }
 
 /// Parses only the exact canonical LF-terminated corpus bytes.
@@ -195,10 +165,11 @@ pub fn parse_canonical_recovery_evaluator_admission_vector_corpus_json_v1(
     RecoveryEvaluatorAdmissionVectorCorpusV1,
     RecoveryEvaluatorAdmissionVectorCorpusParseErrorV1,
 > {
-    if encoded != canonical_recovery_evaluator_admission_vector_corpus_json_bytes_v1() {
-        return Err(RecoveryEvaluatorAdmissionVectorCorpusParseErrorV1);
-    }
-    Ok(canonical_recovery_evaluator_admission_vector_corpus_v1())
+    parse_canonical_json(
+        encoded,
+        canonical_recovery_evaluator_admission_vector_corpus_v1,
+    )
+    .ok_or(RecoveryEvaluatorAdmissionVectorCorpusParseErrorV1)
 }
 
 fn recovery_evaluator_admission_case() -> RecoveryEvaluatorAdmissionVectorCaseV1 {
@@ -247,31 +218,33 @@ fn recovery_evaluator_admission_case() -> RecoveryEvaluatorAdmissionVectorCaseV1
             &provenance,
             checked_at.value(),
         ),
-        active_credential_binding_digest_hex: encode_hex(
+        active_credential_binding_digest_hex: hex::encode(
             continuity.active_credential_binding_digest().as_bytes(),
         ),
-        replacement_credential_binding_digest_hex: encode_hex(
+        replacement_credential_binding_digest_hex: hex::encode(
             continuity
                 .replacement_credential_binding_digest()
                 .as_bytes(),
         ),
-        registered_public_key_hex: encode_hex(continuity.registered_public_key().as_bytes()),
-        stable_scope_encoding_hex: encode_hex(
-            &continuity
+        registered_public_key_hex: hex::encode(continuity.registered_public_key().as_bytes()),
+        stable_scope_encoding_hex: hex::encode(
+            continuity
                 .stable_scope()
                 .encode()
                 .expect("stable scope encoding"),
         ),
-        provenance_same_root_artifact_digest_hex: encode_hex(
+        provenance_same_root_artifact_digest_hex: hex::encode(
             continuity.same_root_evidence_artifact_digest().as_bytes(),
         ),
-        selected_mechanism_acceptance_evidence_digest_hex: encode_hex(selected_evidence.as_bytes()),
+        selected_mechanism_acceptance_evidence_digest_hex: hex::encode(
+            selected_evidence.as_bytes(),
+        ),
         current_activation_epoch: CURRENT_ACTIVATION_EPOCH_V1,
         next_activation_epoch: next_epoch.value(),
-        one_use_execution_id_hex: encode_hex(execution.as_bytes()),
+        one_use_execution_id_hex: hex::encode(execution.as_bytes()),
         admission_state: "accepted_terminal_credential_suspended".to_owned(),
-        encoding_hex: encode_hex(admission.terminal().encode()),
-        digest_hex: encode_hex(&admission_digest),
+        encoding_hex: hex::encode(admission.terminal().encode()),
+        digest_hex: hex::encode(admission_digest),
     };
     let session = request
         .begin_host_reference_artifact_session(admission, &provenance)
@@ -323,11 +296,11 @@ fn recovery_evaluator_admission_case() -> RecoveryEvaluatorAdmissionVectorCaseV1
             deriver_b_invocations: 1,
             contribution_derivations: 4,
             output_share_samples: 2,
-            registered_public_key_hex: encode_hex(receipt.registered_public_key().as_bytes()),
-            package_set_digest_hex: encode_hex(receipt.package_set_digest().as_bytes()),
-            output_committed_receipt_encoding_hex: encode_hex(&receipt.encode()),
-            output_committed_receipt_digest_hex: encode_hex(receipt.digest().as_bytes()),
-            output_committed_evaluation_evidence_digest_hex: encode_hex(
+            registered_public_key_hex: hex::encode(receipt.registered_public_key().as_bytes()),
+            package_set_digest_hex: hex::encode(receipt.package_set_digest().as_bytes()),
+            output_committed_receipt_encoding_hex: hex::encode(receipt.encode()),
+            output_committed_receipt_digest_hex: hex::encode(receipt.digest().as_bytes()),
+            output_committed_evaluation_evidence_digest_hex: hex::encode(
                 receipt.evaluation_evidence_digest().as_bytes(),
             ),
             pending_state: "recovery_pending_activation".to_owned(),

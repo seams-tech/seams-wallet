@@ -6,6 +6,7 @@ import {
   WALLET_EMAIL_OTP_REGISTRATION_OPERATION,
   WALLET_EMAIL_OTP_UNLOCK_OPERATION,
 } from '@shared/utils/emailOtpDomain';
+import { failure } from '@shared/utils/failure';
 import type { RouterApiEmailOtpRouteService } from '../../../framework/authServicePort';
 import { emailOtpGrantRecord, maskEmail, parseEmailOtpLoginOperation } from './d1EmailOtpRecords';
 import type { CloudflareD1EmailOtpChallengeIssuer } from './d1EmailOtpChallengeIssuer';
@@ -168,32 +169,16 @@ export class CloudflareD1EmailOtpChallengeService {
         input.googleEmailOtpRegistrationAttemptId,
       );
       if (!providerSubject) {
-        return {
-          ok: false,
-          code: 'invalid_body',
-          message: 'Email OTP registration requires providerSubject',
-        };
+        return failure('invalid_body', 'Email OTP registration requires providerSubject');
       }
       if (!walletId) {
-        return {
-          ok: false,
-          code: 'invalid_body',
-          message: 'Email OTP registration requires walletId',
-        };
+        return failure('invalid_body', 'Email OTP registration requires walletId');
       }
       if (!orgId) {
-        return {
-          ok: false,
-          code: 'invalid_body',
-          message: 'Email OTP registration requires orgId',
-        };
+        return failure('invalid_body', 'Email OTP registration requires orgId');
       }
       if (!challengeId) {
-        return {
-          ok: false,
-          code: 'invalid_body',
-          message: 'Email OTP registration requires challengeId',
-        };
+        return failure('invalid_body', 'Email OTP registration requires challengeId');
       }
 
       const proofEmail = await this.resolveRegistrationProofEmail({
@@ -219,11 +204,10 @@ export class CloudflareD1EmailOtpChallengeService {
 
       const verifiedEmail = toOptionalTrimmedString(verified.email)?.toLowerCase() || '';
       if (!verifiedEmail) {
-        return {
-          ok: false,
-          code: 'internal',
-          message: 'Email OTP enrollment verification did not include a verified email',
-        };
+        return failure(
+          'internal',
+          'Email OTP enrollment verification did not include a verified email',
+        );
       }
 
       const persisted = await this.finalizer.persistVerifiedEnrollment({
@@ -243,11 +227,7 @@ export class CloudflareD1EmailOtpChallengeService {
         enrollment: persisted.enrollment,
       };
     } catch (error: unknown) {
-      return {
-        ok: false,
-        code: 'internal',
-        message: errorMessage(error) || 'Failed to verify Email OTP enrollment',
-      };
+      return failure('internal', errorMessage(error) || 'Failed to verify Email OTP enrollment');
     }
   }
 
@@ -341,13 +321,13 @@ export class CloudflareD1EmailOtpChallengeService {
     input: ReadEmailOtpOutboxEntryInput,
   ): Promise<ReadEmailOtpOutboxEntryResult> {
     if (!this.devOutboxEnabled) {
-      return { ok: false, code: 'not_found', message: 'Email OTP dev outbox is not enabled' };
+      return failure('not_found', 'Email OTP dev outbox is not enabled');
     }
     const challengeId = toOptionalTrimmedString(input.challengeId);
     const userId = toOptionalTrimmedString(input.userId);
     const walletId = toOptionalTrimmedString(input.walletId);
-    if (!userId) return { ok: false, code: 'invalid_body', message: 'Missing userId' };
-    if (!walletId) return { ok: false, code: 'invalid_body', message: 'Missing walletId' };
+    if (!userId) return failure('invalid_body', 'Missing userId');
+    if (!walletId) return failure('invalid_body', 'Missing walletId');
     const record = challengeId
       ? await this.challenges.read(challengeId)
       : await this.challenges.readLatestActiveForSubjectWallet({
@@ -356,11 +336,11 @@ export class CloudflareD1EmailOtpChallengeService {
           nowMs: Date.now(),
         });
     if (!record || record.challengeSubjectId !== userId || record.walletId !== walletId) {
-      return { ok: false, code: 'not_found', message: 'Email OTP outbox entry was not found' };
+      return failure('not_found', 'Email OTP outbox entry was not found');
     }
     if (Date.now() > record.expiresAtMs) {
       await this.challenges.delete(challengeId);
-      return { ok: false, code: 'not_found', message: 'Email OTP outbox entry expired' };
+      return failure('not_found', 'Email OTP outbox entry expired');
     }
     return {
       ok: true,
@@ -383,41 +363,30 @@ export class CloudflareD1EmailOtpChallengeService {
     let proofEmail = toOptionalTrimmedString(input.explicitProofEmail)?.toLowerCase() || '';
     if (!input.registrationAttemptId) {
       if (proofEmail) return { ok: true, email: proofEmail };
-      return {
-        ok: false,
-        code: 'invalid_body',
-        message: 'Email OTP registration requires proofEmail',
-      };
+      return failure('invalid_body', 'Email OTP registration requires proofEmail');
     }
 
     const attempt = await this.registrationAttempts.read(input.registrationAttemptId);
     if (!attempt) {
-      return {
-        ok: false,
-        code: 'registration_attempt_missing',
-        message: 'Google Email OTP registration attempt expired or was not found',
-      };
+      return failure(
+        'registration_attempt_missing',
+        'Google Email OTP registration attempt expired or was not found',
+      );
     }
     if (attempt.providerSubject !== input.providerSubject) {
-      return {
-        ok: false,
-        code: 'challenge_subject_mismatch',
-        message: 'Email OTP registration attempt does not match the provider subject',
-      };
+      return failure(
+        'challenge_subject_mismatch',
+        'Email OTP registration attempt does not match the provider subject',
+      );
     }
     if (attempt.expiresAtMs <= Date.now()) {
-      return {
-        ok: false,
-        code: 'registration_attempt_expired',
-        message: 'Google Email OTP registration attempt expired',
-      };
+      return failure(
+        'registration_attempt_expired',
+        'Google Email OTP registration attempt expired',
+      );
     }
     if (attempt.walletId !== input.walletId) {
-      return {
-        ok: false,
-        code: 'wallet_identity_mismatch',
-        message: 'registrationAttemptId does not match walletId',
-      };
+      return failure('wallet_identity_mismatch', 'registrationAttemptId does not match walletId');
     }
     proofEmail = attempt.email.toLowerCase();
     return { ok: true, email: proofEmail };

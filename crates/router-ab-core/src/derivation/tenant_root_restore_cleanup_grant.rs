@@ -8,7 +8,7 @@ use core::fmt;
 
 use sha2::{Digest, Sha256};
 
-use super::tenant_root_protocol::TenantRootWireDecoderV1;
+use super::tenant_root_protocol::{verified_token_debug, TenantRootWireDecoderV1};
 use super::tenant_root_restore_grant_wire::{
     restore_grant_accessors, TenantRootRestoreGrantWireV1,
 };
@@ -37,10 +37,6 @@ const CLEANUP_GRANT_WIRE: TenantRootRestoreGrantWireV1 = TenantRootRestoreGrantW
 
 /// Exact operation authenticated by a pre-activation restore cleanup grant.
 pub const TENANT_ROOT_RESTORE_CLEANUP_GRANT_OPERATION_V1: &str = "tenant_root_restore_cleanup_v1";
-
-/// Maximum canonical wire size accepted for one cleanup grant.
-pub const TENANT_ROOT_RESTORE_CLEANUP_GRANT_MAX_BYTES_V1: usize =
-    RESTORE_CLEANUP_GRANT_MAX_BYTES_V1;
 
 /// Maximum lifetime accepted for one cleanup grant.
 pub const TENANT_ROOT_RESTORE_CLEANUP_GRANT_MAX_LIFETIME_MS_V1: u64 =
@@ -244,15 +240,7 @@ pub struct VerifiedTenantRootRestoreCleanupGrantV1 {
     digest: TenantRootProtocolDigestV1,
 }
 
-impl fmt::Debug for VerifiedTenantRootRestoreCleanupGrantV1 {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter
-            .debug_struct("VerifiedTenantRootRestoreCleanupGrantV1")
-            .field("digest", &self.digest)
-            .field("canonical_bytes", &"[public bytes]")
-            .finish()
-    }
-}
+verified_token_debug!(VerifiedTenantRootRestoreCleanupGrantV1);
 
 impl VerifiedTenantRootRestoreCleanupGrantV1 {
     pub const fn operation(&self) -> &'static str {

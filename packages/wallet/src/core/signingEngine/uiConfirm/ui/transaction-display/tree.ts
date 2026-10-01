@@ -8,11 +8,8 @@ import type {
 import type { ActionArgs, TransactionInput } from '@/core/types/actions';
 import { formatArgs, formatCodeSize, shortenPubkey } from './formatters';
 import { isString } from '@shared/utils/validation';
-import { isNearDisplayOperation, renderNearDisplayOperation } from './renderers/near';
-import { isEvmDisplayOperation, renderEvmDisplayOperation } from './renderers/evm';
-import { isTempoDisplayOperation, renderTempoDisplayOperation } from './renderers/tempo';
 import { renderFallbackDisplayOperation } from './renderers/fallback';
-import type { RenderDisplayOperation, RenderTreeNode } from './renderers/types';
+import type { RenderTreeNode } from './renderers/types';
 
 type TreeNodeType = 'folder' | 'file';
 
@@ -79,16 +76,8 @@ function buildWarningNodes(warnings?: TxDisplayWarning[]): TreeNode[] {
   ];
 }
 
-function selectOperationRenderer(operation: TxDisplayOperation): RenderDisplayOperation {
-  if (isNearDisplayOperation(operation)) return renderNearDisplayOperation;
-  if (isEvmDisplayOperation(operation)) return renderEvmDisplayOperation;
-  if (isTempoDisplayOperation(operation)) return renderTempoDisplayOperation;
-  return renderFallbackDisplayOperation;
-}
-
 function renderOperationNode(operation: TxDisplayOperation, depth: number, path: string): TreeNode {
-  const renderer = selectOperationRenderer(operation);
-  const rendered = renderer({
+  const rendered = renderFallbackDisplayOperation({
     operation,
     depth,
     path,

@@ -3,6 +3,9 @@ use core::fmt;
 use ed25519_dalek::{Signature, Signer, SigningKey, VerifyingKey};
 use sha2::{Digest, Sha256};
 
+use super::tenant_root_protocol::{
+    tenant_root_wire_messages, TenantRootWireDecoderV1, TenantRootWireMessagesV1,
+};
 use super::{
     require_tenant_root_identifier, MpcPrfShareCommitmentWireV1, RouterAbDerivationError,
     RouterAbDerivationErrorCode, RouterAbDerivationResult, TenantRootActivationReceiptTransitionV1,
@@ -24,6 +27,12 @@ const ECDSA_CURVE_FAMILY_V1: &[u8] = b"ecdsa";
 const ED25519_CURVE_FAMILY_V1: &[u8] = b"ed25519";
 const MAX_IDENTIFIER_BYTES_V1: usize = 256;
 const MAX_REASON_BYTES_V1: usize = 4 * 1024;
+const PROVIDER_CANARY_WIRE: &TenantRootWireMessagesV1 = &naming_fields(tenant_root_wire_messages!(
+    "tenant-root provider canary receipt"
+));
+const ACCEPTED_LOSS_WIRE: &TenantRootWireMessagesV1 = &naming_fields(tenant_root_wire_messages!(
+    "tenant-root accepted-loss authorization"
+));
 
 /// Maximum canonical wire size for one provider canary receipt.
 pub const TENANT_ROOT_PROVIDER_CANARY_RECEIPT_MAX_BYTES_V1: usize = 16 * 1024;
@@ -288,11 +297,8 @@ impl TenantRootSignedProviderCanaryReceiptV1 {
                 "tenant-root provider canary receipt wire length is invalid",
             ));
         }
-        let mut decoder = EvidenceWireDecoderV1::new(bytes);
-        decoder.require_field(
-            PROVIDER_CANARY_RECEIPT_DOMAIN_V1,
-            "tenant-root provider canary receipt domain",
-        )?;
+        let mut decoder = PROVIDER_CANARY_WIRE.decoder(bytes);
+        decoder.require_field(PROVIDER_CANARY_RECEIPT_DOMAIN_V1)?;
         let transition = decode_transition(
             decoder.field("tenant-root provider canary receipt transition")?,
             "tenant-root provider canary receipt transition",
@@ -327,7 +333,7 @@ impl TenantRootSignedProviderCanaryReceiptV1 {
         let expires_at_ms = decoder.u64_field("tenant-root provider canary receipt expiry")?;
         let signature =
             decoder.fixed_field::<64>("tenant-root provider canary receipt signature")?;
-        decoder.finish("tenant-root provider canary receipt")?;
+        decoder.finish()?;
         if signature.iter().all(|byte| *byte == 0) {
             return Err(malformed(
                 "tenant-root provider canary receipt signature must be nonzero",
@@ -861,11 +867,8 @@ impl TenantRootSignedAcceptedPermanentLossAuthorizationV1 {
                 "tenant-root accepted-loss authorization wire length is invalid",
             ));
         }
-        let mut decoder = EvidenceWireDecoderV1::new(bytes);
-        decoder.require_field(
-            ACCEPTED_LOSS_AUTHORIZATION_DOMAIN_V1,
-            "tenant-root accepted-loss authorization domain",
-        )?;
+        let mut decoder = ACCEPTED_LOSS_WIRE.decoder(bytes);
+        decoder.require_field(ACCEPTED_LOSS_AUTHORIZATION_DOMAIN_V1)?;
         let transition = decode_transition(
             decoder.field("tenant-root accepted-loss authorization transition")?,
             "tenant-root accepted-loss authorization transition",
@@ -922,7 +925,7 @@ impl TenantRootSignedAcceptedPermanentLossAuthorizationV1 {
             decoder.fixed_field::<64>("tenant-root accepted-loss authorization first signature")?;
         let second_signature = decoder
             .fixed_field::<64>("tenant-root accepted-loss authorization second signature")?;
-        decoder.finish("tenant-root accepted-loss authorization")?;
+        decoder.finish()?;
         if first_signature.iter().all(|byte| *byte == 0)
             || second_signature.iter().all(|byte| *byte == 0)
         {
@@ -1468,7 +1471,7 @@ fn append_installation_receipts(
 }
 
 fn decode_commitments(
-    decoder: &mut EvidenceWireDecoderV1<'_>,
+    decoder: &mut TenantRootWireDecoderV1<'_>,
     prefix: &str,
 ) -> RouterAbDerivationResult<TenantRootEpochCommitmentsV1> {
     let deriver_a = MpcPrfShareCommitmentWireV1::new(
@@ -1492,7 +1495,7 @@ fn decode_commitments(
 }
 
 fn decode_installation_receipts(
-    decoder: &mut EvidenceWireDecoderV1<'_>,
+    decoder: &mut TenantRootWireDecoderV1<'_>,
 ) -> RouterAbDerivationResult<TenantRootRoleInstallationReceiptsV1> {
     let deriver_a = TenantRootLifecycleReceiptDigestV1::from_bytes(decoder.fixed_field::<32>(
         "tenant-root accepted-loss authorization Deriver A installation receipt",
@@ -1737,89 +1740,16 @@ fn verification_failed(message: &'static str) -> RouterAbDerivationError {
     )
 }
 
-struct EvidenceWireDecoderV1<'a> {
-    bytes: &'a [u8],
-    offset: usize,
-}
-
-impl<'a> EvidenceWireDecoderV1<'a> {
-    const fn new(bytes: &'a [u8]) -> Self {
-        Self { bytes, offset: 0 }
-    }
-
-    fn field(&mut self, name: &'static str) -> RouterAbDerivationResult<&'a [u8]> {
-        let length_end = self
-            .offset
-            .checked_add(4)
-            .ok_or_else(|| malformed("tenant-root activation support evidence offset overflows"))?;
-        let length_bytes = self
-            .bytes
-            .get(self.offset..length_end)
-            .ok_or_else(|| malformed(format!("{name} field length is truncated")))?;
-        let length = u32::from_be_bytes(
-            length_bytes
-                .try_into()
-                .expect("fixed four-byte support evidence field length"),
-        ) as usize;
-        let value_end = length_end
-            .checked_add(length)
-            .ok_or_else(|| malformed(format!("{name} field length overflows")))?;
-        let value = self
-            .bytes
-            .get(length_end..value_end)
-            .ok_or_else(|| malformed(format!("{name} field is truncated")))?;
-        self.offset = value_end;
-        if value.is_empty() {
-            return Err(RouterAbDerivationError::new(
-                RouterAbDerivationErrorCode::EmptyField,
-                format!("{name} is required"),
-            ));
-        }
-        Ok(value)
-    }
-
-    fn require_field(
-        &mut self,
-        expected: &[u8],
-        name: &'static str,
-    ) -> RouterAbDerivationResult<()> {
-        if self.field(name)? != expected {
-            return Err(malformed(format!("{name} is invalid")));
-        }
-        Ok(())
-    }
-
-    fn fixed_field<const N: usize>(
-        &mut self,
-        name: &'static str,
-    ) -> RouterAbDerivationResult<[u8; N]> {
-        self.field(name)?
-            .try_into()
-            .map_err(|_| malformed(format!("{name} fixed field length is invalid")))
-    }
-
-    fn u64_field(&mut self, name: &'static str) -> RouterAbDerivationResult<u64> {
-        Ok(u64::from_be_bytes(self.fixed_field::<8>(name)?))
-    }
-
-    fn text_field(
-        &mut self,
-        name: &'static str,
-        max_bytes: usize,
-    ) -> RouterAbDerivationResult<String> {
-        let value = self.field(name)?;
-        if value.len() > max_bytes {
-            return Err(malformed(format!("{name} is too long")));
-        }
-        core::str::from_utf8(value)
-            .map(str::to_owned)
-            .map_err(|_| malformed(format!("{name} is invalid UTF-8")))
-    }
-
-    fn finish(self, prefix: &'static str) -> RouterAbDerivationResult<()> {
-        if self.offset != self.bytes.len() {
-            return Err(malformed(format!("{prefix} wire has trailing bytes")));
-        }
-        Ok(())
+/// Support evidence errors name the field that failed rather than the artifact.
+const fn naming_fields(messages: TenantRootWireMessagesV1) -> TenantRootWireMessagesV1 {
+    TenantRootWireMessagesV1 {
+        offset_overflows: "tenant-root activation support evidence offset overflows",
+        length_truncated: "{name} field length is truncated",
+        length_overflows: "{name} field length overflows",
+        truncated: "{name} field is truncated",
+        fixed_length_invalid: "{name} fixed field length is invalid",
+        text_too_long: "{name} is too long",
+        text_invalid_utf8: "{name} is invalid UTF-8",
+        ..messages
     }
 }

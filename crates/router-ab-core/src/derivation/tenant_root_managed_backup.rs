@@ -5,7 +5,7 @@ use sha2::{Digest, Sha256};
 use subtle::ConstantTimeEq;
 use threshold_prf::{SigningRootShareCommitment, SigningRootShareWire, TwoPartyDeriverRole};
 
-use super::tenant_root_protocol::TenantRootWireDecoderV1;
+use super::tenant_root_protocol::{push_length_prefixed, TenantRootWireDecoderV1};
 use super::{
     require_tenant_root_identifier, MpcPrfShareCommitmentWireV1, MpcPrfSigningRootShareWireV1,
     RouterAbDerivationError, RouterAbDerivationErrorCode, RouterAbDerivationResult,
@@ -676,11 +676,7 @@ const fn role_share_id(role: TenantRootManagedRestoreRoleV1) -> u16 {
 }
 
 fn push_len32(out: &mut Vec<u8>, value: &[u8]) -> RouterAbDerivationResult<()> {
-    let length = u32::try_from(value.len())
-        .map_err(|_| malformed("tenant-root managed-backup field is too long"))?;
-    out.extend_from_slice(&length.to_be_bytes());
-    out.extend_from_slice(value);
-    Ok(())
+    push_length_prefixed(out, value, "tenant-root managed-backup field is too long")
 }
 
 fn require_ciphertext(ciphertext: &[u8]) -> RouterAbDerivationResult<()> {

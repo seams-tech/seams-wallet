@@ -10,7 +10,10 @@ import {
 } from '@shared/passkey-custody';
 import { parseRouterAbEd25519YaoExportAdmissionRequestV1 } from '@shared/utils/routerAbEd25519Yao';
 import { routerAbMpcMaterialActivationRefToWire } from '@shared/utils/routerAbNormalSigningIdentity';
-import { signingRootScopeFromRuntimePolicyScope } from '@shared/threshold/signingRootScope';
+import {
+  sameRuntimePolicyScope,
+  signingRootScopeFromRuntimePolicyScope,
+} from '@shared/threshold/signingRootScope';
 import { zeroizeBytes } from '@/core/signingEngine/session/emailOtp/zeroize';
 import {
   openWalletCustodyEd25519ActiveClientV1,
@@ -42,7 +45,6 @@ import {
 } from './sessionState';
 import {
   bytesToLowerHex,
-  sameEmailOtpRuntimePolicyScope,
   walletCustodyActivationFactsFromEmailOtpBootstrap,
 } from './custodyRestore';
 import { completeEmailOtpUnlockFromSecret32 } from './unlock';
@@ -80,7 +82,7 @@ function assertEmailOtpEd25519YaoExportCapabilityContinuity(args: {
     capability.applicationBinding.signing_root_id !== signingRoot.signingRootId ||
     capability.lifecycle.accountId !== args.walletId ||
     capability.lifecycle.rootShareEpoch !== args.runtimePolicyScope.signingRootVersion ||
-    !sameEmailOtpRuntimePolicyScope(capability.runtimePolicyScope, args.runtimePolicyScope)
+    !sameRuntimePolicyScope(capability.runtimePolicyScope, args.runtimePolicyScope)
   ) {
     throw new Error('Email OTP Ed25519 Yao export capability changed the exact durable lane');
   }

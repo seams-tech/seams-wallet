@@ -37,6 +37,7 @@ import {
 } from '@shared/threshold/signingRootScope';
 import {
   parseRouterAbEcdsaVerifiedClientActivationFactsV1,
+  sameRouterAbEcdsaVerifiedClientActivationFactsV1,
   type RouterAbEcdsaVerifiedClientActivationFactsV1,
 } from '@shared/utils/routerAbEcdsaDerivation';
 import { requireRecord } from '@shared/utils/validation';
@@ -271,20 +272,6 @@ function requireNonEmptyCanonicalString(value: unknown, label: string): string {
   return value;
 }
 
-function verifiedClientActivationFactsEqual(
-  left: RouterAbEcdsaVerifiedClientActivationFactsV1,
-  right: RouterAbEcdsaVerifiedClientActivationFactsV1,
-): boolean {
-  return (
-    left.registrationRequestDigestB64u === right.registrationRequestDigestB64u &&
-    left.proofTranscriptDigestB64u === right.proofTranscriptDigestB64u &&
-    left.contextBinding32B64u === right.contextBinding32B64u &&
-    left.derivationClientSharePublicKey33B64u === right.derivationClientSharePublicKey33B64u &&
-    left.clientShareRetryCounter === right.clientShareRetryCounter &&
-    left.participantId === right.participantId
-  );
-}
-
 function requireExactKeys(
   record: Record<string, unknown>,
   label: string,
@@ -366,7 +353,7 @@ function assertCanonicalRequestMatchesVerifiedCeremony(input: {
       throw new Error('ECDSA activation operation requires an idempotency key');
     }
     const publicFacts = parseRouterAbEcdsaVerifiedClientActivationFactsV1(request.publicFacts);
-    if (!verifiedClientActivationFactsEqual(publicFacts, input.clientActivation)) {
+    if (!sameRouterAbEcdsaVerifiedClientActivationFactsV1(publicFacts, input.clientActivation)) {
       throw new Error('ECDSA activation operation changed the verified client facts');
     }
     return;
@@ -376,7 +363,7 @@ function assertCanonicalRequestMatchesVerifiedCeremony(input: {
       throw new Error('ECDSA activation operation changed the activation correlation');
     }
     const publicFacts = parseRouterAbEcdsaVerifiedClientActivationFactsV1(request.publicFacts);
-    if (!verifiedClientActivationFactsEqual(publicFacts, input.clientActivation)) {
+    if (!sameRouterAbEcdsaVerifiedClientActivationFactsV1(publicFacts, input.clientActivation)) {
       throw new Error('ECDSA activation operation changed the verified client facts');
     }
     return;
@@ -401,7 +388,7 @@ function assertCanonicalRequestMatchesVerifiedCeremony(input: {
     throw new Error('ECDSA activation commit request changed the prepared request digest');
   }
   const publicFacts = parseRouterAbEcdsaVerifiedClientActivationFactsV1(ecdsa.publicFacts);
-  if (!verifiedClientActivationFactsEqual(publicFacts, input.clientActivation)) {
+  if (!sameRouterAbEcdsaVerifiedClientActivationFactsV1(publicFacts, input.clientActivation)) {
     throw new Error('ECDSA activation commit request changed the verified client facts');
   }
 }

@@ -3,6 +3,7 @@ import {
   parseWalletId,
   type WalletId,
 } from '@shared/utils/domainIds';
+import { toArrayBufferCopy } from '../../../../core/authService/portableCrypto';
 
 type D1BoundaryWalletIdParseResult =
   | {
@@ -87,12 +88,6 @@ export function parseD1NonNegativeCount(input: unknown): number {
 export function d1MutationChanges(result: D1MutationResultLike): number {
   const meta = result.meta;
   return parseD1NonNegativeCount(meta?.changes ?? meta?.rows_written);
-}
-
-export function toArrayBufferCopy(bytes: Uint8Array): ArrayBuffer {
-  const out = new ArrayBuffer(bytes.byteLength);
-  new Uint8Array(out).set(bytes);
-  return out;
 }
 
 export async function sha256BytesPortable(input: Uint8Array): Promise<Uint8Array> {

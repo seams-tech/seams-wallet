@@ -6,84 +6,20 @@ use router_ab_core::{
     MpcPrfPartialProofBundleV1, MpcPrfPartialVerificationInputV1, MpcPrfPartialWireV1,
     MpcPrfShareCommitmentWireV1, MpcPrfSignerPartialInputV1, MpcPrfSignerPartialV1,
     MpcPrfVerifiedPartialV1, OpenedShareKind, RequestKind, Role, RootShareEpoch,
-    RouterAbDerivationErrorCode, SignerSetBinding, TranscriptBinding,
-    MPC_PRF_COMMITMENT_WIRE_V1_LEN, MPC_PRF_DLEQ_PROOF_WIRE_V1_LEN, MPC_PRF_PARTIAL_WIRE_V1_LEN,
+    RouterAbDerivationErrorCode, MPC_PRF_COMMITMENT_WIRE_V1_LEN, MPC_PRF_DLEQ_PROOF_WIRE_V1_LEN,
+    MPC_PRF_PARTIAL_WIRE_V1_LEN,
 };
 
-fn context() -> DerivationContext {
-    let application_binding_digest_b64u = Base64UrlUnpadded::encode_string(&[0x42; 32]);
-    DerivationContext::new(
-        RequestKind::Registration,
-        AccountScope::new(
-            "near-testnet",
-            "alice.testnet",
-            application_binding_digest_b64u,
-        )
-        .expect("account scope"),
-        RootShareEpoch::new("epoch-1").expect("epoch"),
-        "ceremony-1",
-    )
-    .expect("context")
-}
+pub mod mpc_prf_inputs;
 
-fn transcript(context: DerivationContext) -> TranscriptBinding {
-    TranscriptBinding::new(
-        context,
-        "role:router:local:sha256-router",
-        SignerSetBinding::v1_all2(
-            "signer-set-v1",
-            "role:signer-a:local:sha256-a",
-            "key-epoch-a-1",
-            "role:signer-b:local:sha256-b",
-            "key-epoch-b-1",
-        )
-        .expect("signer set"),
-        "role:server:local:sha256-r",
-        "x25519:1111111111111111111111111111111111111111111111111111111111111111",
-        "role:client:local:sha256-c",
-        "x25519:client-ephemeral-public-key",
-    )
-    .expect("transcript")
-}
+use mpc_prf_inputs::{context, output_request, signer_input, transcript};
 
-fn output_request() -> MpcPrfOutputRequestV1 {
-    MpcPrfOutputRequestV1::new(
-        OpenedShareKind::XClientBase,
-        Role::Client,
-        "role:client:local:sha256-c",
-    )
-    .expect("output request")
-}
-
-fn server_output_request() -> MpcPrfOutputRequestV1 {
-    MpcPrfOutputRequestV1::new(
-        OpenedShareKind::XServerBase,
-        Role::Server,
-        "role:server:local:sha256-r",
-    )
-    .expect("server output request")
-}
-
-fn signer_input(role: Role, identity: &str) -> MpcPrfSignerPartialInputV1 {
-    signer_input_with_requests(role, identity, vec![output_request()])
-}
-
-fn signer_input_with_requests(
-    role: Role,
-    identity: &str,
-    output_requests: Vec<MpcPrfOutputRequestV1>,
-) -> MpcPrfSignerPartialInputV1 {
-    let context = context();
-    let transcript = transcript(context.clone());
-    MpcPrfSignerPartialInputV1::new(
-        context,
-        transcript,
+fn client_signer_input(role: Role, identity: &str) -> MpcPrfSignerPartialInputV1 {
+    signer_input(
         role,
         identity,
-        RootShareEpoch::new("epoch-1").expect("epoch"),
-        output_requests,
+        vec![output_request(OpenedShareKind::XClientBase)],
     )
-    .expect("signer input")
 }
 
 fn fixed_share_wire_bytes(role: Role, fill: u8, len: usize) -> Vec<u8> {
@@ -112,7 +48,7 @@ fn verified_partial(role: Role, identity: &str, byte: u8) -> MpcPrfVerifiedParti
 }
 
 fn signer_partial(role: Role, identity: &str, byte: u8) -> MpcPrfSignerPartialV1 {
-    let input = signer_input(role, identity);
+    let input = client_signer_input(role, identity);
     let binding = MpcPrfPartialBindingV1::from_signer_input(&input, &input.output_requests[0])
         .expect("partial binding");
     MpcPrfSignerPartialV1::new(
@@ -151,7 +87,7 @@ fn signer_partial_input_rejects_identity_mismatch() {
         Role::SignerA,
         "role:signer-a:local:sha256-wrong",
         RootShareEpoch::new("epoch-1").expect("epoch"),
-        vec![output_request()],
+        vec![output_request(OpenedShareKind::XClientBase)],
     )
     .expect_err("identity mismatch should fail");
 
@@ -228,9 +164,9 @@ fn proof_wire_constructors_check_lengths() {
 
 #[test]
 fn purpose_binding_plan_is_signer_neutral_for_same_output() {
-    let request = output_request();
-    let signer_a = signer_input(Role::SignerA, "role:signer-a:local:sha256-a");
-    let signer_b = signer_input(Role::SignerB, "role:signer-b:local:sha256-b");
+    let request = output_request(OpenedShareKind::XClientBase);
+    let signer_a = client_signer_input(Role::SignerA, "role:signer-a:local:sha256-a");
+    let signer_b = client_signer_input(Role::SignerB, "role:signer-b:local:sha256-b");
 
     let plan_a = plan_mpc_prf_purpose_binding_v1(&signer_a, &request).expect("plan A");
     let plan_b = plan_mpc_prf_purpose_binding_v1(&signer_b, &request).expect("plan B");
@@ -255,9 +191,9 @@ fn purpose_binding_plan_is_signer_neutral_for_same_output() {
 
 #[test]
 fn purpose_binding_plan_separates_client_and_server_outputs() {
-    let client_request = output_request();
-    let server_request = server_output_request();
-    let signer = signer_input_with_requests(
+    let client_request = output_request(OpenedShareKind::XClientBase);
+    let server_request = output_request(OpenedShareKind::XServerBase);
+    let signer = signer_input(
         Role::SignerA,
         "role:signer-a:local:sha256-a",
         vec![client_request.clone(), server_request.clone()],
@@ -288,9 +224,10 @@ fn purpose_binding_plan_separates_client_and_server_outputs() {
 
 #[test]
 fn purpose_binding_plan_rejects_request_missing_from_signer_input() {
-    let signer = signer_input(Role::SignerA, "role:signer-a:local:sha256-a");
-    let err = plan_mpc_prf_purpose_binding_v1(&signer, &server_output_request())
-        .expect_err("missing request should fail");
+    let signer = client_signer_input(Role::SignerA, "role:signer-a:local:sha256-a");
+    let err =
+        plan_mpc_prf_purpose_binding_v1(&signer, &output_request(OpenedShareKind::XServerBase))
+            .expect_err("missing request should fail");
 
     assert_eq!(err.code(), RouterAbDerivationErrorCode::RecipientMismatch);
 }

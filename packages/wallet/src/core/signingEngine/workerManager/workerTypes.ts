@@ -1493,6 +1493,7 @@ type EcdsaPresignClientCommitResponse = {
 };
 
 type EcdsaPresignClientListAvailableRequest = {
+  authority: { kind: 'role_local_derivation_handle' | 'linked_holder_signing_material' };
   poolIdentity: EcdsaClientPresignPoolIdentity;
 };
 

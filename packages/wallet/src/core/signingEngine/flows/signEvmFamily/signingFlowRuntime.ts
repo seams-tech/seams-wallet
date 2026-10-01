@@ -6,7 +6,8 @@ import type {
 } from '../../session/operationState/types';
 import type { SigningOperationTransitionObserver } from '../shared/signingStateMachine';
 import type { EvmFamilySigningDeps } from '../../interfaces/operationDeps';
-import type { EvmFamilyLifecycleEventCallback, EvmFamilySenderSignatureAlgorithm } from './types';
+import type { EvmFamilyLifecycleEventCallback } from './types';
+import type { PreparedEvmFamilyEcdsaSigningSession } from './preparedSigning';
 import { loadSecp256k1EngineCtor, loadWebAuthnP256EngineCtor } from './signerLoader';
 import type { EcdsaSigningMaterialPlan, SupersededEcdsaSigningMaterial } from './signingFlow';
 import type { EvmFamilyThresholdEcdsaStepUpRuntime } from './requireEvmFamilyStepUpAuth';
@@ -35,7 +36,6 @@ import {
 import type { EvmSigningRequest } from '../../chains/evm/evmSigning.types';
 import type { TempoSigningRequest } from '../../chains/tempo/tempoSigning.types';
 import { requireEvmFamilyEcdsaSigner } from '../../session/identity/exactSigningLaneIdentity';
-import type { ExactEcdsaSigningLaneIdentity } from '../../session/identity/exactSigningLaneIdentity';
 import {
   authorizeEvmFamilyEcdsaOperationStepUp,
   prepareEvmFamilyEcdsaOperationStepUp,
@@ -46,7 +46,10 @@ import type {
   ExactEvmFamilyWalletSessionAuthorization,
   CanonicalEvmFamilyEcdsaSigningCapability,
 } from '../../session/material/ecdsaSigningCapability';
-import { exactEcdsaWalletSessionRuntimesMatch } from '../../session/material/ecdsaSigningCapability';
+import {
+  exactEcdsaWalletSessionRuntimesMatch,
+  exactAuthorizationMatchesCapability,
+} from '../../session/material/ecdsaSigningCapability';
 import type { ActiveEcdsaCapabilityManifest } from '../../session/material/ecdsaCapabilityManifest';
 import type { OperationDigestSet } from '@shared/authorization/operationFingerprint';
 import {
@@ -528,26 +531,33 @@ async function resolveEcdsaSigningMaterialHydrationPlan(args: {
   };
 }
 
-export async function createEvmFamilySigningFlowRuntime(args: {
-  deps: EvmFamilySigningDeps;
-  walletSession: WalletSessionRef;
-  request: TempoSigningRequest | EvmSigningRequest;
-  chainTarget: ThresholdEcdsaChainTarget;
-  senderSignatureAlgorithm: EvmFamilySenderSignatureAlgorithm;
-  signingSessionPlan?: SigningSessionPlan;
-  emailOtpSigningForFlow?: EvmFamilyThresholdEcdsaStepUpRuntime['emailOtpSigning'];
-  confirmationConfigOverride?: unknown;
-  shouldAbort?: () => boolean;
-  onEvent?: EvmFamilyLifecycleEventCallback;
-  onAuthSideEffectStarted?: (sideEffect: EvmFamilySigningAuthSideEffect) => void;
-  signingOperation?: SigningOperationContext;
-  onSigningOperationTransition?: SigningOperationTransitionObserver;
-  // The exact material identity, whether or not an exact Wallet Session
-  // authorizes it. Everything below is resolved from wallet, chain target and
-  // material activation.
-  getEcdsaSigningLaneIdentity: () => ExactEcdsaSigningLaneIdentity;
-  activeWalletAuthority?: ActiveWalletAuthorityEvmFamilyFlowRuntime;
-}) {
+export async function createEvmFamilySigningFlowRuntime(
+  args: {
+    deps: EvmFamilySigningDeps;
+    walletSession: WalletSessionRef;
+    request: TempoSigningRequest | EvmSigningRequest;
+    chainTarget: ThresholdEcdsaChainTarget;
+    signingSessionPlan?: SigningSessionPlan;
+    emailOtpSigningForFlow?: EvmFamilyThresholdEcdsaStepUpRuntime['emailOtpSigning'];
+    confirmationConfigOverride?: unknown;
+    shouldAbort?: () => boolean;
+    onEvent?: EvmFamilyLifecycleEventCallback;
+    onAuthSideEffectStarted?: (sideEffect: EvmFamilySigningAuthSideEffect) => void;
+    signingOperation?: SigningOperationContext;
+    onSigningOperationTransition?: SigningOperationTransitionObserver;
+  } & (
+    | {
+        senderSignatureAlgorithm: 'secp256k1';
+        preparedSession: PreparedEvmFamilyEcdsaSigningSession;
+        activeWalletAuthority?: ActiveWalletAuthorityEvmFamilyFlowRuntime;
+      }
+    | {
+        senderSignatureAlgorithm: 'webauthnP256';
+        preparedSession?: never;
+        activeWalletAuthority?: never;
+      }
+  ),
+) {
   const [Secp256k1Engine, WebAuthnP256Engine] = await Promise.all([
     loadSecp256k1EngineCtor(),
     loadWebAuthnP256EngineCtor(),
@@ -560,7 +570,9 @@ export async function createEvmFamilySigningFlowRuntime(args: {
   const resolvedSigner =
     args.senderSignatureAlgorithm === 'secp256k1'
       ? requireEvmFamilyEcdsaSigner(
-          args.getEcdsaSigningLaneIdentity(),
+          args.preparedSession.kind === 'authorized'
+            ? args.preparedSession.signingLane.identity
+            : args.preparedSession.identity,
           'ECDSA signing material hydration',
         )
       : undefined;
@@ -577,13 +589,22 @@ export async function createEvmFamilySigningFlowRuntime(args: {
           materialActivation: resolvedSigner.materialActivation,
         })
       : undefined;
+  // Lane preparation already read live status. Keep that exact snapshot until
+  // confirmation, then refresh it inside the serialized material-use queue.
+  const preparedAuthorization =
+    args.preparedSession?.kind === 'authorized'
+      ? args.preparedSession.selection.lane.authorization
+      : null;
   const activeAuthorization =
-    resolvedSigner && !args.activeWalletAuthority
-      ? await args.deps.resolveActiveEcdsaWalletSessionAuthorization({
-          walletId: resolvedSigner.walletId,
-          chainTarget: resolvedSigner.chainTarget,
-          materialActivation: resolvedSigner.materialActivation,
-        })
+    capability &&
+    preparedAuthorization &&
+    preparedAuthorization.runtime.remainingUses > 0 &&
+    exactAuthorizationMatchesCapability({
+      capability,
+      authorization: preparedAuthorization,
+      nowMs: Date.now(),
+    })
+      ? preparedAuthorization
       : null;
   const exactOperationCredentialScope =
     resolvedSigner && capability && !args.activeWalletAuthority

@@ -4,7 +4,6 @@ const ECDSA_TIMING_METRICS = new Set([
   'ecdsa_sign_proxy',
   'ecdsa_sign_complete',
   'ecdsa_sign_total',
-  'ecdsa_presign_queue',
   'ecdsa_presign_authenticate',
   'ecdsa_presign_material',
   'ecdsa_presign_admit',

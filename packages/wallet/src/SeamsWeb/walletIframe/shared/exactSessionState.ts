@@ -970,100 +970,22 @@ function parseRequiredNonceStateCounts(
   value: unknown,
 ): NonceCoordinatorDiagnostics['leasesByState'] {
   const record = requireRecordCopy(value, 'nonce state counts');
-  return {
-    [NonceLeaseState.Reserved]: requireNonceStateCount(record, NonceLeaseState.Reserved),
-    [NonceLeaseState.Released]: requireNonceStateCount(record, NonceLeaseState.Released),
-    [NonceLeaseState.Expired]: requireNonceStateCount(record, NonceLeaseState.Expired),
-    [NonceLeaseState.Signed]: requireNonceStateCount(record, NonceLeaseState.Signed),
-    [NonceLeaseState.SignedLeaseExpired]: requireNonceStateCount(
-      record,
-      NonceLeaseState.SignedLeaseExpired,
-    ),
-    [NonceLeaseState.BroadcastAccepted]: requireNonceStateCount(
-      record,
-      NonceLeaseState.BroadcastAccepted,
-    ),
-    [NonceLeaseState.BroadcastRejected]: requireNonceStateCount(
-      record,
-      NonceLeaseState.BroadcastRejected,
-    ),
-    [NonceLeaseState.Finalized]: requireNonceStateCount(record, NonceLeaseState.Finalized),
-    [NonceLeaseState.Dropped]: requireNonceStateCount(record, NonceLeaseState.Dropped),
-    [NonceLeaseState.Replaced]: requireNonceStateCount(record, NonceLeaseState.Replaced),
-    [NonceLeaseState.Reconciled]: requireNonceStateCount(record, NonceLeaseState.Reconciled),
-  };
+  const counts = {} as NonceCoordinatorDiagnostics['leasesByState'];
+  for (const state of Object.values(NonceLeaseState)) {
+    counts[state] = requireNonceStateCount(record, state);
+  }
+  return counts;
 }
 
 function parsePartialNonceStateCounts(
   value: unknown,
 ): NonceCoordinatorDiagnostics['lanes'][number]['states'] {
   const record = requireRecordCopy(value, 'nonce state counts');
-  return {
-    ...(record[NonceLeaseState.Reserved] === undefined
-      ? {}
-      : {
-          [NonceLeaseState.Reserved]: requireNonceStateCount(record, NonceLeaseState.Reserved),
-        }),
-    ...(record[NonceLeaseState.Released] === undefined
-      ? {}
-      : {
-          [NonceLeaseState.Released]: requireNonceStateCount(record, NonceLeaseState.Released),
-        }),
-    ...(record[NonceLeaseState.Expired] === undefined
-      ? {}
-      : {
-          [NonceLeaseState.Expired]: requireNonceStateCount(record, NonceLeaseState.Expired),
-        }),
-    ...(record[NonceLeaseState.Signed] === undefined
-      ? {}
-      : {
-          [NonceLeaseState.Signed]: requireNonceStateCount(record, NonceLeaseState.Signed),
-        }),
-    ...(record[NonceLeaseState.SignedLeaseExpired] === undefined
-      ? {}
-      : {
-          [NonceLeaseState.SignedLeaseExpired]: requireNonceStateCount(
-            record,
-            NonceLeaseState.SignedLeaseExpired,
-          ),
-        }),
-    ...(record[NonceLeaseState.BroadcastAccepted] === undefined
-      ? {}
-      : {
-          [NonceLeaseState.BroadcastAccepted]: requireNonceStateCount(
-            record,
-            NonceLeaseState.BroadcastAccepted,
-          ),
-        }),
-    ...(record[NonceLeaseState.BroadcastRejected] === undefined
-      ? {}
-      : {
-          [NonceLeaseState.BroadcastRejected]: requireNonceStateCount(
-            record,
-            NonceLeaseState.BroadcastRejected,
-          ),
-        }),
-    ...(record[NonceLeaseState.Finalized] === undefined
-      ? {}
-      : {
-          [NonceLeaseState.Finalized]: requireNonceStateCount(record, NonceLeaseState.Finalized),
-        }),
-    ...(record[NonceLeaseState.Dropped] === undefined
-      ? {}
-      : {
-          [NonceLeaseState.Dropped]: requireNonceStateCount(record, NonceLeaseState.Dropped),
-        }),
-    ...(record[NonceLeaseState.Replaced] === undefined
-      ? {}
-      : {
-          [NonceLeaseState.Replaced]: requireNonceStateCount(record, NonceLeaseState.Replaced),
-        }),
-    ...(record[NonceLeaseState.Reconciled] === undefined
-      ? {}
-      : {
-          [NonceLeaseState.Reconciled]: requireNonceStateCount(record, NonceLeaseState.Reconciled),
-        }),
-  };
+  const counts: NonceCoordinatorDiagnostics['lanes'][number]['states'] = {};
+  for (const state of Object.values(NonceLeaseState)) {
+    if (record[state] !== undefined) counts[state] = requireNonceStateCount(record, state);
+  }
+  return counts;
 }
 
 function requireNonceStateCount(record: Record<string, unknown>, state: string): number {

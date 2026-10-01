@@ -46,6 +46,17 @@ function requireCanonicalBase64Url(value: unknown, label: string): Uint8Array {
   return decoded;
 }
 
+// Unwraps a parse result, putting the field's label before its error.
+export function requireParsed<T>(
+  result:
+    | { readonly ok: true; readonly value: T }
+    | { readonly ok: false; readonly error: { readonly message: string } },
+  label: string,
+): T {
+  if (result.ok) return result.value;
+  throw new Error(`${label} ${result.error.message}`);
+}
+
 // Wraps the canonical 32-byte digest parser so a failure names the field that
 // carried the bad digest.
 export function parseDigestField(value: unknown, label: string): DigestB64u {

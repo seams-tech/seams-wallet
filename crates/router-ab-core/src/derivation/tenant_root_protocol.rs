@@ -556,6 +556,24 @@ impl<'de> Deserialize<'de> for TenantRootProtocolDigestV1 {
     }
 }
 
+/// Implements `Debug` for a verified token as its digest, leaving out its
+/// canonical bytes.
+macro_rules! verified_token_debug {
+    ($token:ident) => {
+        impl core::fmt::Debug for $token {
+            fn fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                formatter
+                    .debug_struct(stringify!($token))
+                    .field("digest", &self.digest)
+                    .field("canonical_bytes", &"[public bytes]")
+                    .finish()
+            }
+        }
+    };
+}
+
+pub(super) use verified_token_debug;
+
 /// Verifies the exact A/B evidence for initial tenant-root creation.
 pub fn verify_tenant_root_creation_evidence_v1(
     deriver_a: &VerifiedTenantRootShareInstallationEvidenceV1,
@@ -645,25 +663,95 @@ fn require_nonzero_bytes(bytes: &[u8], message: &'static str) -> RouterAbDerivat
     }
 }
 
+/// Exact wording of one artifact's wire decoding errors.
+///
+/// Each artifact worded its errors on its own, so each keeps its own table,
+/// usually built by `tenant_root_wire_messages!` with its differences
+/// overridden. `{name}` in a message stands for the field being decoded.
+pub(super) struct TenantRootWireMessagesV1 {
+    /// Names the artifact at the start of errors built outside the decoder.
+    pub(super) label: &'static str,
+    pub(super) offset_overflows: &'static str,
+    pub(super) length_truncated: &'static str,
+    pub(super) length_overflows: &'static str,
+    pub(super) truncated: &'static str,
+    /// Name of the leading domain field.
+    pub(super) domain: &'static str,
+    pub(super) domain_invalid: &'static str,
+    pub(super) fixed_length_invalid: &'static str,
+    pub(super) text_too_long: &'static str,
+    pub(super) text_invalid_utf8: &'static str,
+    /// Names of the role label and share id fields.
+    pub(super) role: &'static str,
+    pub(super) role_share_id: &'static str,
+    pub(super) role_invalid: &'static str,
+    pub(super) trailing_bytes: &'static str,
+}
+
+/// Builds the table whose messages all start with `$label` in the wording
+/// most artifacts use.
+macro_rules! tenant_root_wire_messages {
+    ($label:literal) => {
+        $crate::derivation::tenant_root_protocol::TenantRootWireMessagesV1 {
+            label: $label,
+            offset_overflows: concat!($label, " wire offset overflows"),
+            length_truncated: concat!($label, " field length is truncated"),
+            length_overflows: concat!($label, " field length overflows"),
+            truncated: concat!($label, " field is truncated"),
+            domain: concat!($label, " domain"),
+            domain_invalid: concat!($label, " domain is invalid"),
+            fixed_length_invalid: concat!($label, " fixed field length is invalid"),
+            text_too_long: concat!($label, " text field is too long"),
+            text_invalid_utf8: concat!($label, " text field is invalid UTF-8"),
+            role: concat!($label, " role"),
+            role_share_id: concat!($label, " role share id"),
+            role_invalid: concat!($label, " role encoding is invalid"),
+            trailing_bytes: concat!($label, " wire has trailing bytes"),
+        }
+    };
+}
+
+pub(super) use tenant_root_wire_messages;
+
+const TENANT_ROOT_WIRE: &TenantRootWireMessagesV1 = &TenantRootWireMessagesV1 {
+    offset_overflows: "tenant-root wire offset overflow",
+    trailing_bytes: "tenant-root wire has trailing bytes",
+    ..tenant_root_wire_messages!("tenant-root wire")
+};
+
+impl TenantRootWireMessagesV1 {
+    pub(super) const fn decoder<'a>(&'static self, bytes: &'a [u8]) -> TenantRootWireDecoderV1<'a> {
+        TenantRootWireDecoderV1 {
+            messages: self,
+            bytes,
+            offset: 0,
+        }
+    }
+}
+
+/// Decodes fields that are each prefixed with their big-endian `u32` length.
 pub(crate) struct TenantRootWireDecoderV1<'a> {
+    messages: &'static TenantRootWireMessagesV1,
     bytes: &'a [u8],
     offset: usize,
 }
 
 impl<'a> TenantRootWireDecoderV1<'a> {
+    /// Decodes a wire whose errors say "tenant-root wire".
     pub(crate) const fn new(bytes: &'a [u8]) -> Self {
-        Self { bytes, offset: 0 }
+        TENANT_ROOT_WIRE.decoder(bytes)
     }
 
     pub(crate) fn field(&mut self, name: &'static str) -> RouterAbDerivationResult<&'a [u8]> {
+        let messages = self.messages;
         let length_end = self
             .offset
             .checked_add(4)
-            .ok_or_else(|| malformed("tenant-root wire offset overflow"))?;
+            .ok_or_else(|| wire_error(messages.offset_overflows, name))?;
         let length_bytes = self
             .bytes
             .get(self.offset..length_end)
-            .ok_or_else(|| malformed("tenant-root wire field length is truncated"))?;
+            .ok_or_else(|| wire_error(messages.length_truncated, name))?;
         let length = u32::from_be_bytes(
             length_bytes
                 .try_into()
@@ -671,11 +759,11 @@ impl<'a> TenantRootWireDecoderV1<'a> {
         ) as usize;
         let value_end = length_end
             .checked_add(length)
-            .ok_or_else(|| malformed("tenant-root wire field length overflows"))?;
+            .ok_or_else(|| wire_error(messages.length_overflows, name))?;
         let value = self
             .bytes
             .get(length_end..value_end)
-            .ok_or_else(|| malformed("tenant-root wire field is truncated"))?;
+            .ok_or_else(|| wire_error(messages.truncated, name))?;
         self.offset = value_end;
         if value.is_empty() {
             return Err(RouterAbDerivationError::new(
@@ -687,8 +775,9 @@ impl<'a> TenantRootWireDecoderV1<'a> {
     }
 
     pub(crate) fn require_field(&mut self, expected: &[u8]) -> RouterAbDerivationResult<()> {
-        if self.field("tenant-root wire domain")? != expected {
-            return Err(malformed("tenant-root wire domain is invalid"));
+        let messages = self.messages;
+        if self.field(messages.domain)? != expected {
+            return Err(wire_error(messages.domain_invalid, messages.domain));
         }
         Ok(())
     }
@@ -699,7 +788,7 @@ impl<'a> TenantRootWireDecoderV1<'a> {
     ) -> RouterAbDerivationResult<[u8; N]> {
         self.field(name)?
             .try_into()
-            .map_err(|_| malformed("tenant-root wire fixed field length is invalid"))
+            .map_err(|_| wire_error(self.messages.fixed_length_invalid, name))
     }
 
     pub(crate) fn u64_field(&mut self, name: &'static str) -> RouterAbDerivationResult<u64> {
@@ -713,34 +802,86 @@ impl<'a> TenantRootWireDecoderV1<'a> {
     ) -> RouterAbDerivationResult<String> {
         let bytes = self.field(name)?;
         if bytes.len() > max_bytes {
-            return Err(malformed("tenant-root wire text field is too long"));
+            return Err(wire_error(self.messages.text_too_long, name));
         }
         core::str::from_utf8(bytes)
             .map(str::to_owned)
-            .map_err(|_| malformed("tenant-root wire text field is invalid UTF-8"))
+            .map_err(|_| wire_error(self.messages.text_invalid_utf8, name))
     }
 
     pub(crate) fn role(&mut self) -> RouterAbDerivationResult<TwoPartyDeriverRole> {
-        let label = self.field("tenant-root wire role")?;
-        let share_id = self.fixed_field::<2>("tenant-root wire role share id")?;
+        let messages = self.messages;
+        let label = self.field(messages.role)?;
+        let share_id = self.fixed_field::<2>(messages.role_share_id)?;
         match (label, u16::from_be_bytes(share_id)) {
             (b"deriver_a", 1) => Ok(TwoPartyDeriverRole::DeriverA),
             (b"deriver_b", 2) => Ok(TwoPartyDeriverRole::DeriverB),
-            _ => Err(malformed("tenant-root wire role encoding is invalid")),
+            _ => Err(malformed(messages.role_invalid)),
         }
     }
 
     pub(crate) fn finish(self) -> RouterAbDerivationResult<()> {
         if self.offset != self.bytes.len() {
-            return Err(malformed("tenant-root wire has trailing bytes"));
+            return Err(malformed(self.messages.trailing_bytes));
         }
         Ok(())
     }
 }
 
-fn push_len32(out: &mut Vec<u8>, value: &[u8]) -> RouterAbDerivationResult<()> {
-    let length = u32::try_from(value.len())
-        .map_err(|_| malformed("tenant-root protocol field is too long"))?;
+/// Puts the field's name wherever `message` says `{name}`.
+fn wire_error(message: &'static str, name: &str) -> RouterAbDerivationError {
+    RouterAbDerivationError::new(
+        RouterAbDerivationErrorCode::MalformedInput,
+        message.replace("{name}", name),
+    )
+}
+
+/// Appends `value` after its big-endian `u32` length, failing with `too_long`
+/// when the length does not fit.
+pub(super) fn push_length_prefixed(
+    out: &mut Vec<u8>,
+    value: &[u8],
+    too_long: &'static str,
+) -> RouterAbDerivationResult<()> {
+    let length = u32::try_from(value.len()).map_err(|_| malformed(too_long))?;
+    out.extend_from_slice(&length.to_be_bytes());
+    out.extend_from_slice(value);
+    Ok(())
+}
+
+pub(super) fn push_len32(out: &mut Vec<u8>, value: &[u8]) -> RouterAbDerivationResult<()> {
+    push_length_prefixed(out, value, "tenant-root protocol field is too long")
+}
+
+/// Appends a non-empty `value` after its big-endian `u32` length, keeping the
+/// whole wire within `max_bytes`. Every error starts with `label`.
+pub(super) fn push_bounded_field(
+    out: &mut Vec<u8>,
+    value: &[u8],
+    max_bytes: usize,
+    label: &str,
+) -> RouterAbDerivationResult<()> {
+    let malformed = |problem: &str| {
+        RouterAbDerivationError::new(
+            RouterAbDerivationErrorCode::MalformedInput,
+            format!("{label} {problem}"),
+        )
+    };
+    if value.is_empty() {
+        return Err(RouterAbDerivationError::new(
+            RouterAbDerivationErrorCode::EmptyField,
+            format!("{label} field is required"),
+        ));
+    }
+    let length = u32::try_from(value.len()).map_err(|_| malformed("field is too long"))?;
+    let new_len = out
+        .len()
+        .checked_add(4)
+        .and_then(|length| length.checked_add(value.len()))
+        .ok_or_else(|| malformed("wire length overflows"))?;
+    if new_len > max_bytes {
+        return Err(malformed("wire is too long"));
+    }
     out.extend_from_slice(&length.to_be_bytes());
     out.extend_from_slice(value);
     Ok(())

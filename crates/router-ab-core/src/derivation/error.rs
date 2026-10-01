@@ -73,3 +73,14 @@ impl std::error::Error for RouterAbDerivationError {}
 
 /// Result alias used by this crate.
 pub type RouterAbDerivationResult<T> = Result<T, RouterAbDerivationError>;
+
+/// Rejects an empty `value`, naming `field` in the error.
+pub(super) fn require_non_empty(field: &'static str, value: &str) -> RouterAbDerivationResult<()> {
+    if value.is_empty() {
+        return Err(RouterAbDerivationError::new(
+            RouterAbDerivationErrorCode::EmptyField,
+            format!("{field} is required"),
+        ));
+    }
+    Ok(())
+}

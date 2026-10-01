@@ -5,6 +5,7 @@ use ed25519_yao_generator::{
     canonical_output_sharing_vector_corpus_json_bytes_v1, canonical_vector_corpus_v1,
     parse_canonical_output_sharing_vector_corpus_json_v1, VectorCaseV1,
 };
+use hex::FromHex;
 use serde_json::Value;
 
 const COMMITTED_CORPUS: &[u8] = include_bytes!("../vectors/ed25519-yao-output-sharing-v1.json");
@@ -322,13 +323,7 @@ fn scalar(value: &str) -> Scalar {
 }
 
 fn hex_32(value: &str) -> [u8; 32] {
-    assert_eq!(value.len(), 64);
-    let mut bytes = [0; 32];
-    for (index, byte) in bytes.iter_mut().enumerate() {
-        let offset = index * 2;
-        *byte = u8::from_str_radix(&value[offset..offset + 2], 16).expect("fixture hex is valid");
-    }
-    bytes
+    <[u8; 32]>::from_hex(value).expect("fixture hex is valid")
 }
 
 fn wrapping_add_256(left: [u8; 32], right: [u8; 32]) -> [u8; 32] {

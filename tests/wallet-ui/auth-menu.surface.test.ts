@@ -863,6 +863,47 @@ test.describe('wallet-host Preact auth menu surface', () => {
       selectedAccountLayout.clientWidth,
     );
   });
+  test('blinks the chosen account once before the selector closes', async ({ page }) => {
+    const walletA = { walletId: 'wallet-a', authMethod: 'passkey' } as const;
+    const walletB = { walletId: 'wallet-b', authMethod: 'passkey' } as const;
+    await mountAuthMenu(page, {
+      ...loginViewModel(),
+      kind: 'passkey',
+      accountOptions: [walletA, walletB],
+      selectedAccount: walletA,
+    });
+
+    const blink = await page.evaluate(async (tagName) => {
+      const element = document.querySelector(tagName) as HTMLElement;
+      const intents: unknown[] = [];
+      window.__authMenu.onIntent = (intent) => {
+        intents.push(intent);
+      };
+      (element.querySelector('.seams-account-menu-trigger') as HTMLButtonElement).click();
+      await Promise.resolve();
+      const option = element.querySelector('[data-wallet-id="wallet-b"]') as HTMLButtonElement;
+      const phases: (string | null)[] = [];
+      new MutationObserver(() => {
+        phases.push(option.getAttribute('data-blink'));
+      }).observe(option, { attributeFilter: ['data-blink'] });
+      const listIsOpen = () => element.querySelector('.seams-account-menu-popover') !== null;
+
+      option.click();
+      option.click();
+      const intentsDuringClick = intents.length;
+      await new Promise((resolve) => setTimeout(resolve, 40));
+      const openDuringBlink = listIsOpen();
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      return { intentsDuringClick, openDuringBlink, phases, openAfterBlink: listIsOpen() };
+    }, AUTH_MENU_TAG);
+
+    expect(blink).toEqual({
+      intentsDuringClick: 1,
+      openDuringBlink: true,
+      phases: ['off', 'on', null],
+      openAfterBlink: false,
+    });
+  });
   test('shows a dual-method wallet in both groups and enables both methods', async ({ page }) => {
     const passkey = {
       walletId: 'jade-brook',

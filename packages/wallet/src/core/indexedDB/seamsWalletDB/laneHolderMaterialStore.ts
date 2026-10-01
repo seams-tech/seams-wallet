@@ -22,6 +22,7 @@ import {
   type LaneHolderCustodyBindingId,
 } from '@shared/signing-lanes/participants';
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
+import { requireParsed } from '@shared/passkey-custody/primitives';
 import {
   signingSessionSealsRepository,
   type SigningSessionSealsRepository,
@@ -170,16 +171,6 @@ function laneSealedHolderKind(value: unknown): unknown {
   return Reflect.get(value, 'kind');
 }
 
-function parsed<T>(
-  result:
-    | { readonly ok: true; readonly value: T }
-    | { readonly ok: false; readonly error: { readonly message: string } },
-  label: string,
-): T {
-  if (result.ok) return result.value;
-  throw new Error(`${label} ${result.error.message}`);
-}
-
 function parsedDigest(value: unknown, label: string): string {
   try {
     return parseDigestB64u(value);
@@ -213,13 +204,13 @@ function parseDecodedLaneSealedHolderRecord(
   }
   return {
     kind: 'lane_sealed_holder_record_v1',
-    operationId: parsed(parseLaneOperationId(record.operationId), 'operationId'),
-    enrollmentId: parsed(parseLaneEnrollmentId(record.enrollmentId), 'enrollmentId'),
-    walletId: parsed(parseWalletId(record.walletId), 'walletId'),
-    walletKeyId: parsed(parseWalletKeyId(record.walletKeyId), 'walletKeyId'),
-    laneId: parsed(parseSigningLaneId(record.laneId), 'laneId'),
-    laneShareEpoch: parsed(parseLaneShareEpoch(record.laneShareEpoch), 'laneShareEpoch'),
-    targetMaterialActivationId: parsed(
+    operationId: requireParsed(parseLaneOperationId(record.operationId), 'operationId'),
+    enrollmentId: requireParsed(parseLaneEnrollmentId(record.enrollmentId), 'enrollmentId'),
+    walletId: requireParsed(parseWalletId(record.walletId), 'walletId'),
+    walletKeyId: requireParsed(parseWalletKeyId(record.walletKeyId), 'walletKeyId'),
+    laneId: requireParsed(parseSigningLaneId(record.laneId), 'laneId'),
+    laneShareEpoch: requireParsed(parseLaneShareEpoch(record.laneShareEpoch), 'laneShareEpoch'),
+    targetMaterialActivationId: requireParsed(
       parseMpcMaterialActivationId(record.targetMaterialActivationId),
       'targetMaterialActivationId',
     ),
@@ -227,7 +218,7 @@ function parseDecodedLaneSealedHolderRecord(
       record.holderParticipantBindingDigestB64u,
       'holderParticipantBindingDigestB64u',
     ),
-    custodyBindingId: parsed(
+    custodyBindingId: requireParsed(
       parseLaneHolderCustodyBindingId(record.custodyBindingId),
       'custodyBindingId',
     ),
@@ -366,7 +357,7 @@ export class LaneSealedHolderMaterialRepository implements LaneSealedHolderMater
   async listForEnrollmentV1(input: {
     readonly enrollmentId: LaneEnrollmentId;
   }): Promise<readonly LaneSealedHolderRecordV1[]> {
-    const enrollmentId = parsed(parseLaneEnrollmentId(input.enrollmentId), 'enrollmentId');
+    const enrollmentId = requireParsed(parseLaneEnrollmentId(input.enrollmentId), 'enrollmentId');
     const records = new Map<string, LaneSealedHolderRecordV1>();
     for (const [key, record] of this.volatileRecords) {
       if (record.enrollmentId === enrollmentId) records.set(key, record);

@@ -1,4 +1,5 @@
 import type { Address, Hex } from 'viem';
+import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 
 const connectionBrand: unique symbol = Symbol('external EVM connection');
 
@@ -94,25 +95,15 @@ export type ExternalEvmTransactionInput = Readonly<{
   data: Hex;
   value: bigint;
   gas: { readonly kind: 'wallet' } | { readonly kind: 'limit'; readonly limit: bigint };
-  fees:
-    | {
-        readonly kind: 'wallet';
-        readonly gasPrice?: never;
-        readonly maxFeePerGas?: never;
-        readonly maxPriorityFeePerGas?: never;
-      }
-    | {
-        readonly kind: 'legacy';
-        readonly gasPrice: bigint;
-        readonly maxFeePerGas?: never;
-        readonly maxPriorityFeePerGas?: never;
-      }
+  fees: ReadonlyExclusiveUnion<
+    | { readonly kind: 'wallet' }
+    | { readonly kind: 'legacy'; readonly gasPrice: bigint }
     | {
         readonly kind: 'eip1559';
-        readonly gasPrice?: never;
         readonly maxFeePerGas: bigint;
         readonly maxPriorityFeePerGas: bigint;
-      };
+      }
+  >;
 }>;
 
 export type ExternalEvmSubmission = Readonly<{
@@ -122,19 +113,18 @@ export type ExternalEvmSubmission = Readonly<{
   chainId: number;
 }>;
 
-export type ExternalEvmReceipt =
+export type ExternalEvmReceipt = ReadonlyExclusiveUnion<
   | {
       readonly kind: 'confirmed' | 'reverted';
       readonly submission: ExternalEvmSubmission;
       readonly blockNumber: bigint;
-      readonly reason?: never;
     }
   | {
       readonly kind: 'unresolved';
       readonly submission: ExternalEvmSubmission;
       readonly reason: string;
-      readonly blockNumber?: never;
-    };
+    }
+>;
 
 export function connectedExternalEvm(
   generation: number,

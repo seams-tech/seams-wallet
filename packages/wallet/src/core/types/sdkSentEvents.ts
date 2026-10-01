@@ -23,6 +23,7 @@ import { parseWalletSessionId, type WalletSessionId } from '@shared/authorizatio
 import { isWalletAuthMethod, type WalletAuthMethod } from '@shared/utils/signerDomain';
 import type { RouterAbTraceContextV1 } from '@shared/utils/routerAbTraceContext';
 import type { WalletSessionOperationCredentialV1 } from '@shared/device-linking';
+import type { ExclusiveUnion } from '@shared/utils/variant';
 
 export type { WalletSessionId };
 
@@ -939,22 +940,11 @@ export interface LoginHooksOptions {
   onEvent?: EventCallback<UnlockFlowEvent>;
   onError?: (error: Error) => void;
   afterCall?: AfterCall<LoginAndCreateSessionResult>;
-  unlockSelection?:
-    | {
-        mode: 'ed25519_only';
-        ed25519: true;
-        ecdsa?: never;
-      }
-    | {
-        mode: 'ecdsa_only';
-        ecdsa: true;
-        ed25519?: never;
-      }
-    | {
-        mode: 'ed25519_and_ecdsa';
-        ed25519: true;
-        ecdsa: true;
-      };
+  unlockSelection?: ExclusiveUnion<
+    | { mode: 'ed25519_only'; ed25519: true }
+    | { mode: 'ecdsa_only'; ecdsa: true }
+    | { mode: 'ed25519_and_ecdsa'; ed25519: true; ecdsa: true }
+  >;
   ecdsaKeyFactsInventory?:
     | {
         mode: 'wallet_session_operation_credential_v1';
@@ -1006,25 +996,7 @@ export interface ActionHooksOptions {
   confirmationConfig?: Partial<ConfirmationConfig>;
 }
 
-export interface SignAndSendTransactionHooksOptions {
-  onEvent?: EventCallback<SigningFlowEvent>;
-  onError?: (error: Error) => void;
-  waitUntil?: TxExecutionStatus;
-  /**
-   * Optional signer-slot override for this signing request.
-   */
-  signerSlot?: number;
-  /**
-   * Preferred grouping for per-call confirmer copy.
-   */
-  confirmerText?: { title?: string; body?: string };
-
-  afterCall?: AfterCall<ActionResult>;
-  // Per-call confirmation configuration. When provided, overrides user preferences
-  // for this request only (not persisted).
-  // Accept partial config so callers can pass minimal overrides like { uiMode: 'drawer' }
-  confirmationConfig?: Partial<ConfirmationConfig>;
-}
+export interface SignAndSendTransactionHooksOptions extends ActionHooksOptions {}
 
 export interface SignTransactionHooksOptions {
   onEvent?: EventCallback<SigningFlowEvent>;

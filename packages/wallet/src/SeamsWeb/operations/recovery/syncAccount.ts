@@ -74,13 +74,12 @@ import {
   parseRouterAbEcdsaRegistrationActivationReceiptV1,
   sameRouterAbEcdsaDerivationPublicCapabilityV1,
   sameRouterAbEcdsaRegistrationActivationReceiptV1,
-  type RouterAbEcdsaDerivationPublicCapabilityV1,
   type RouterAbEcdsaCredentialFreeSessionActivationResponseV1,
-  type RouterAbEcdsaRegistrationActivationReceiptV1,
 } from '@shared/utils/routerAbEcdsaDerivation';
 import { normalizeRuntimePolicyScope } from '@shared/threshold/signingRootScope';
 import { deriveEvmFamilySigningKeySlotId } from '@shared/signing-lanes';
 import type { ThresholdEcdsaChainTarget } from '@/core/platform/types';
+import type { PasskeySessionEcdsaCustodySignerV1 } from '@/core/rpcClients/near/rpcCalls';
 import { thresholdEcdsaChainTargetKey } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import { sameRuntimePolicyScope } from '../registration/registrationStrictEcdsa';
 import { replaceActiveWalletAuthorityEd25519MaterialActivationV1 } from '@shared/authorization/walletAuthority';
@@ -146,24 +145,6 @@ type PasskeyEd25519YaoUnlockRecoveryV1 =
       readonly credentialIdB64u: WebAuthnCredentialIdB64u;
     };
 
-type ParsedWalletCustodyEcdsaSignerV1 = {
-  readonly chainTarget: ThresholdEcdsaChainTarget;
-  readonly walletKey: {
-    readonly walletId: string;
-    readonly keyHandle: string;
-    readonly ecdsaThresholdKeyId: string;
-    readonly signingRootId: string;
-    readonly signingRootVersion: string;
-    readonly relayerKeyId: string;
-    readonly contextBinding32B64u: string;
-    readonly derivationClientSharePublicKey33B64u: string;
-    readonly participantIds: readonly [number, number];
-    readonly publicCapability: RouterAbEcdsaDerivationPublicCapabilityV1;
-  };
-  readonly activationReceipt: RouterAbEcdsaRegistrationActivationReceiptV1;
-  readonly runtimePolicyScope: ReturnType<typeof normalizeRuntimePolicyScope>;
-};
-
 type ParsedWalletCustodyEcdsaContinuityV1 =
   | {
       readonly kind: 'wallet_custody_ecdsa_sync_continuity_v1';
@@ -175,8 +156,8 @@ type ParsedWalletCustodyEcdsaContinuityV1 =
       readonly kind: 'wallet_custody_ecdsa_sync_continuity_v1';
       readonly state: 'activated';
       readonly signers: readonly [
-        ParsedWalletCustodyEcdsaSignerV1,
-        ...ParsedWalletCustodyEcdsaSignerV1[],
+        PasskeySessionEcdsaCustodySignerV1,
+        ...PasskeySessionEcdsaCustodySignerV1[],
       ];
       readonly sessionActivation: RouterAbEcdsaCredentialFreeSessionActivationResponseV1;
     };
@@ -330,7 +311,7 @@ function parseWalletCustodyEcdsaContinuity(
   if (!Array.isArray(continuity.signers)) {
     throw new Error('sync-account ECDSA custody signer list is invalid');
   }
-  const signers: ParsedWalletCustodyEcdsaSignerV1[] = [];
+  const signers: PasskeySessionEcdsaCustodySignerV1[] = [];
   for (const rawSigner of continuity.signers) {
     if (!isPlainObject(rawSigner) || !isPlainObject(rawSigner.walletKey)) {
       throw new Error('sync-account ECDSA custody signer is invalid');
@@ -950,7 +931,7 @@ function ethereumAddressFromAddress20B64u(value: string): `0x${string}` {
 
 function assertOneEcdsaCustodyIdentity(
   continuity: ParsedWalletCustodyEcdsaContinuityV1,
-): ParsedWalletCustodyEcdsaSignerV1 | null {
+): PasskeySessionEcdsaCustodySignerV1 | null {
   if (continuity.state === 'absent') return null;
   const first = continuity.signers[0];
   const chainTargets = new Set<string>();

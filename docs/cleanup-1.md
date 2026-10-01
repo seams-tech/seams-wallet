@@ -3,12 +3,13 @@
 **Status:** Phases 0 to 3 are complete, apart from moving finished plans,
 which waits for a decision. Phase 2's follow-ups have consolidated the store,
 worker, route and fixture clusters outside R150's files, and split oversized
-files along their seams. Phase 4 waits for R150 to land on `dev`. CI runs
-`pnpm report:bloat --check`, which fails when a ratcheted measure grows past
-`scripts/bloat-baseline.json`, now recorded at `c7033bb`. Since the first
-baseline (`7c8a163`), TypeScript code is down 33,379 lines and Rust code 5,275.
-Duplication is down from 5.1% to 3.3% in TypeScript and from 5.7% to 5.2% in
-Rust, and files over 2,000 lines from 82 to 68. The findings below are the
+files along their seams. R150 is on `dev`, but feature work still changes
+Phase 4's files. A second survey (below) found more to remove outside them. CI
+runs `pnpm report:bloat --check`, which fails when a ratcheted measure grows
+past `scripts/bloat-baseline.json`, now recorded at `ae9a230`. Since the first
+baseline (`7c8a163`), TypeScript code is down 35,630 lines and Rust code 9,724.
+Duplication is down from 5.1% to 3.1% in TypeScript and from 5.7% to 4.8% in
+Rust, and files over 2,000 lines from 82 to 67. The findings below are the
 first baseline's; run `pnpm report:bloat` for current numbers.
 
 This plan reduces the code that has to be read, reviewed and kept consistent,
@@ -52,7 +53,9 @@ files that repeat themselves.
   2026-09-29). Rolled out to device-linking; every other parser module keeps
   its own messages.
 - [ ] Phase 2 follow-ups: the duplicated clusters found after Phase 2's list.
-- [ ] Phase 4: restructure R150's largest files after R150 lands on `dev`.
+- [ ] Phase 4: restructure R150's largest files once feature work in them
+  settles.
+- [ ] The second survey's remaining items, and its decisions.
 
 ## Findings
 
@@ -515,6 +518,103 @@ conflict with the agents changing them.
   (`SeamsWeb/operations/recovery/walletRecoveryCommit.ts`) into `shared-ts`
   beside the server's (47ad761).
 
+## Second survey (2026-09-30)
+
+Six read-only surveys looked past the report's measures: renamed copies in
+TypeScript and in Rust, dead files outside `packages/*/src`, idioms written
+out many times, the test suites, and types declared more than once. Each
+landed change was proven unchanged the way Phase 2's were; the commit
+messages describe how.
+
+Landed:
+- Dead CSS (791 lines whose classes nothing names), files nothing runs or
+  reads, and a test helper for an error nothing emits (81b9f90). The
+  wallet-ui typecheck files are now type-checked (8b9db03).
+- One `hasExactKeys` for 29 joined-key guards and 11 local copies
+  (35d8626). An own key containing `|` no longer stands in for the keys it
+  names.
+- Types declared more than once: wallet-server's store and port copies and
+  the types both sides of the package boundary wrote (0902dd3), and the
+  wallet's copies and enum-like unions with a parallel list (1d733cf).
+- Comparators, helpers and constants copied beside their shared types
+  (8b66650).
+- 27 forwarding functions and the Email OTP coordinator, and the repeated
+  queue, seal-route, export-lane, icon and auth-menu code (569f1e3,
+  e98aca4).
+- router-ab-core's tenant-root wire decoders and encoders (229aee7).
+- The pending registration journal's sub-records and the recovery
+  prepare options parse with `wireSchema`, keeping every observable
+  message (3321c97). The other parser modules it read stay as they are.
+- `ExclusiveUnion` and `ReadonlyExclusiveUnion` write 118 mechanically
+  padded unions (18c70a7). Editors now show a narrowed member as
+  `Flatten<... & ...>`.
+- `failure()`, `failedVerification()` and `jsonFailure()` build 518
+  failure results in wallet-server and shared-ts (1716d97). Files the
+  wallet bundles keep their literals, which keeps the helper off the boot
+  path.
+- router-ab-core's repeated test setup and the merged vector adapter tests
+  (c706a3a); the Yao generator's vectors CLI, compile-fail harness, corpus
+  type and hex helpers (7534b6f), and the FV tasks' hex helpers (28f9bb4).
+- Rust items nothing references, with 14 `allow(dead_code)` (a4d92e1), and
+  37 unused Cargo dependencies (ae9a230). router-ab-dev's three wait for
+  its manifest to settle.
+
+Waiting for feature work in these files to settle:
+- router-ab-cloudflare's five largest files, about 3,500 lines: 74
+  route prologues and 48 inline protocol-error responses, the
+  Ed25519/ECDSA authorized-operation model, the D1 restore-scope keys and
+  AAD structs, and the Durable Object transaction wrappers. `bindings.rs`'s
+  test families, about 550.
+- The intended-behaviours harness and test page: one action and result
+  contract for `page.tsx` and `harness.ts` (about 550), the harness's own
+  repetition and dead code (about 450), and a split into flow layers.
+- The failure literals, `equalBytes` copies and runtime-scope comparators
+  in the registration, auth-method and threshold route files;
+  `flows/registration/public.ts`, a 298-line pure forwarder whose callers
+  are both in active files; and client and server registration types that
+  are identical under different names (about 85).
+
+Decisions:
+- `crates/ed25519-yao-cloudflare-bench` and its helpers, about 24,000
+  lines. Nothing outside it runs it, and its readiness check hashes 12
+  files that no longer exist. Delete it, or keep the R120, 9B and 13A
+  benchmarks rerunnable.
+- `near_signer`'s wasm exports that nothing calls, and signer-core's FROST
+  relayer code that only they reach (1,000 to 1,250 lines), if
+  wallet-server's `cosigner` relayer mode is retired.
+- The Google Email OTP recovery contract test never runs or type-checks,
+  yet `docs/intended-behaviours.md` lists it as covered. Re-enable it or
+  delete it.
+- `seams-embedded`, `signer-embedded-linux` and
+  `router-ab-ecdsa-near-oracle-tests`, which nothing builds; the Yao
+  client's lane holder, unwired on both sides (595 lines); and
+  `benchmarks/router-ab-ecdsa-derivation-wasm`, whose documented script never
+  existed. That benchmark is the only importer of
+  `wasm/router_ab_ecdsa_signing_worker` (788 lines), which no package ships
+  and `pnpm build:wasm` no longer builds.
+- `@noble/hashes` and `tslib`, runtime dependencies of the published
+  packages that nothing imports.
+
+Found along the way, for their owners:
+- shared-ts has two incompatible `EcdsaRelayerKeyId` brands, and two
+  `parseEcdsaRelayerKeyId` functions: one throws, the other returns a result.
+- `registration.ts`'s passkey Ed25519 failure path emits no failed timing
+  summary, and `registrationTiming.ts` lacks `registrationAttemptGateMs`.
+- `tests/unit` has 47 type errors, since nothing type-checks it.
+  `miniflare` and `@noble/curves` are imported but no `package.json`
+  declares them. `pnpm -C packages/wallet test` fails: nine wallet `test*`
+  scripts call scripts that never existed.
+- The yao-protocol, router-ab-ed25519-yao and wasm-bench `Cargo.lock` files
+  are stale.
+
+Checked and not worth doing: a lookup table for 1:1 switches (a `Record`
+lookup returns prototype members for untrusted keys), sharing catch bodies,
+parameter properties, a `Forbid` helper, internal type-alias renames, a
+route scaffold (the routes follow no single template), `tryOr` (style only),
+the remaining validation modules (lenient on purpose, or with a message per
+object), `thiserror` for the Rust `Display` impls, and moving
+`tenant_root_role_d1.rs`'s debug probes (a size seam, not a reduction).
+
 ## Verification
 
 ```bash
@@ -696,3 +796,17 @@ Found during the cleanup and left unchanged, for their owners to check:
   branches (963e12b, 325e817, c7033bb), and dev merged up to the branch
   (68867a0). Files over 2,000 lines: 68. The baseline was re-recorded at
   `c7033bb`.
+- 2026-09-30: the second survey's first batch (81b9f90 to 1d733cf). Against
+  the first baseline, measured at `1d733cf`: TypeScript code 539,841 ->
+  505,883 lines; Rust code 433,451 -> 427,373; duplicated TypeScript lines
+  21,753 (5.1%) -> 12,615 (3.1%); duplicated Rust lines 19,427 -> 17,417;
+  names exported from 2+ files 198 -> 156. The baseline was re-recorded at
+  `1d733cf`.
+- 2026-09-30: the second survey's second batch (3321c97 to ae9a230).
+  Against the first baseline, measured at `ae9a230`: TypeScript code
+  539,841 -> 504,211 lines; Rust code 433,451 -> 423,727; files over 2,000
+  lines 82 -> 67; duplicated TypeScript lines 21,753 (5.1%) -> 12,307
+  (3.1%); duplicated Rust lines 19,427 (5.7%) -> 16,071 (4.8%); validation
+  functions 4,276 -> 3,729 (86,063 -> 73,986 lines); `?: never` lines 2,684
+  -> 1,945; Rust `allow(dead_code)` 125 -> 97. The baseline was re-recorded
+  at `ae9a230`.

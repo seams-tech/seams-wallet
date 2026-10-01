@@ -39,11 +39,12 @@ import type {
 } from '../../../framework/authServicePort';
 import type { FetchRouterApiContext } from '../createFetchRouter';
 import type { DeviceLinkingAuthDeniedV1, DeviceLinkingOwnerRequestInputV1 } from './deviceLinking';
-import { json, readJson } from '../../../framework/http';
+import { json, jsonFailure, readJson } from '../../../framework/http';
 import type { WalletExecutionLaneAuthSource } from '../../../../core/signingLanes/WalletExecutionLaneProjection';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import { sha256DigestB64u } from '@shared/utils/canonicalPrimitives';
 import type { ExactAdministeredSignerManifestV1 } from '@shared/device-linking/delegatedActivationPlan';
+import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 
 export const LINKED_DEVICE_OWNER_AUTHORIZATION_PATH_V1 =
   '/wallet/device-linking/v1/owner-authorization' as const;
@@ -62,7 +63,7 @@ export type DeviceLinkingOwnerAuthorizationResponseV1 = {
   readonly expiresAtMs: number;
 };
 
-export type DeviceLinkingOwnerWalletSessionContextV1 =
+export type DeviceLinkingOwnerWalletSessionContextV1 = ReadonlyExclusiveUnion<
   | {
       readonly walletId: WalletId;
       readonly walletSessionId: WalletSessionId;
@@ -74,8 +75,6 @@ export type DeviceLinkingOwnerWalletSessionContextV1 =
       readonly curve: 'ed25519';
       readonly authority: WalletAuthAuthority;
       readonly authorityScope: ThresholdEd25519AuthorityScope;
-      readonly walletAuthAuthorityRef?: never;
-      readonly authSource?: never;
     }
   | {
       readonly walletId: WalletId;
@@ -88,9 +87,8 @@ export type DeviceLinkingOwnerWalletSessionContextV1 =
       readonly curve: 'ecdsa';
       readonly walletAuthAuthorityRef: WalletAuthAuthorityRef;
       readonly authSource: WalletExecutionLaneAuthSource;
-      readonly authority?: never;
-      readonly authorityScope?: never;
-    };
+    }
+>;
 
 type DeviceLinkingOwnerRequestAuthenticationV1 =
   | {
@@ -207,14 +205,7 @@ export async function handleDeviceLinkingOwnerAuthorization(
   if (ctx.pathname !== LINKED_DEVICE_OWNER_AUTHORIZATION_PATH_V1) return null;
   if (ctx.method !== 'POST') return methodNotAllowedResponse();
   if (!service) {
-    return json(
-      {
-        ok: false,
-        code: 'not_supported',
-        message: 'Linked-device owner authorization is not configured',
-      },
-      { status: 501 },
-    );
+    return jsonFailure(501, 'not_supported', 'Linked-device owner authorization is not configured');
   }
   const nowV1 = Date.now;
   let body: LinkedDeviceOwnerAuthorizationRequestV1;
@@ -226,13 +217,10 @@ export async function handleDeviceLinkingOwnerAuthorization(
     rawBody = await readJson(ctx.request.clone());
     body = parseLinkedDeviceOwnerAuthorizationRequestV1(rawBody);
   } catch (error: unknown) {
-    return json(
-      {
-        ok: false,
-        code: 'invalid_body',
-        message: error instanceof Error ? error.message : 'Owner authorization body is invalid',
-      },
-      { status: 400 },
+    return jsonFailure(
+      400,
+      'invalid_body',
+      error instanceof Error ? error.message : 'Owner authorization body is invalid',
     );
   }
   const validated = await authenticateDeviceLinkingOwnerWalletSessionRequestV1({
@@ -254,14 +242,7 @@ export async function handleDeviceLinkingOwnerAuthorization(
     });
     return json(response, { status: 200 });
   } catch (error: unknown) {
-    return json(
-      {
-        ok: false,
-        code: 'internal',
-        message: error instanceof Error ? error.message : String(error),
-      },
-      { status: 500 },
-    );
+    return jsonFailure(500, 'internal', error instanceof Error ? error.message : String(error));
   }
 }
 
@@ -506,5 +487,5 @@ function authDeniedResponse(
   value: Extract<OwnerValidationResultV1, { readonly kind: 'denied' }>,
 ): Response {
   const status = value.code === 'expired' ? 401 : value.code === 'invalid' ? 403 : 401;
-  return json({ ok: false, code: value.code, message: value.message }, { status });
+  return jsonFailure(status, value.code, value.message);
 }

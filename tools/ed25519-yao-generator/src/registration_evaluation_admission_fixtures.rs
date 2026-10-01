@@ -6,6 +6,9 @@ use serde::Serialize;
 
 use crate::ceremony_context::{CeremonyActivationEpochV1, CeremonyRequestKindV1};
 use crate::ceremony_fixtures::canonical_registration_ceremony_fixture_v1;
+use crate::fixtures::strict_corpus::{
+    canonical_json_bytes, parse_canonical_json, StrictVectorCorpusV1,
+};
 use crate::lifecycle_domain::{
     ActivationReceiptEvidenceV1, RegistrationArtifactIssuanceV1, RegistrationRequestV1,
 };
@@ -36,39 +39,12 @@ const EXECUTION_ID_V1: [u8; 32] = [0x79; 32];
 const SELECTION_ATTEMPT_ID_V1: [u8; 32] = [0x90; 32];
 const SELECTED_MECHANISM_EVIDENCE_V1: [u8; 32] = [0x91; 32];
 
-#[derive(Serialize)]
 /// Strict one-case construction-independent registration evaluator corpus.
-pub struct RegistrationEvaluatorAdmissionVectorCorpusV1 {
-    schema: String,
-    protocol_id: String,
-    evidence_scope: String,
-    cases: Vec<RegistrationEvaluatorAdmissionVectorCaseV1>,
-}
-
-impl RegistrationEvaluatorAdmissionVectorCorpusV1 {
-    /// Returns the exact corpus schema.
-    pub fn schema(&self) -> &str {
-        &self.schema
-    }
-
-    /// Returns the fixed protocol identifier.
-    pub fn protocol_id(&self) -> &str {
-        &self.protocol_id
-    }
-
-    /// Returns the narrow host-only evidence scope.
-    pub fn evidence_scope(&self) -> &str {
-        &self.evidence_scope
-    }
-
-    /// Returns the exact case count.
-    pub fn case_count(&self) -> usize {
-        self.cases.len()
-    }
-}
+pub type RegistrationEvaluatorAdmissionVectorCorpusV1 =
+    StrictVectorCorpusV1<RegistrationEvaluatorAdmissionVectorCaseV1>;
 
 #[derive(Serialize)]
-struct RegistrationEvaluatorAdmissionVectorCaseV1 {
+pub struct RegistrationEvaluatorAdmissionVectorCaseV1 {
     case_id: String,
     request_kind: RegistrationRequestKindVectorV1,
     source_references: RegistrationEvaluatorSourceReferencesV1,
@@ -201,11 +177,7 @@ pub fn canonical_registration_evaluator_admission_vector_corpus_v1(
 
 /// Encodes the exact canonical corpus with one trailing LF.
 pub fn canonical_registration_evaluator_admission_vector_corpus_json_bytes_v1() -> Vec<u8> {
-    let mut encoded =
-        serde_json::to_vec_pretty(&canonical_registration_evaluator_admission_vector_corpus_v1())
-            .expect("fixed registration evaluator-admission corpus serializes");
-    encoded.push(b'\n');
-    encoded
+    canonical_json_bytes(&canonical_registration_evaluator_admission_vector_corpus_v1())
 }
 
 /// Parses only the exact canonical LF-terminated corpus bytes.
@@ -215,10 +187,11 @@ pub fn parse_canonical_registration_evaluator_admission_vector_corpus_json_v1(
     RegistrationEvaluatorAdmissionVectorCorpusV1,
     RegistrationEvaluatorAdmissionVectorCorpusParseErrorV1,
 > {
-    if encoded != canonical_registration_evaluator_admission_vector_corpus_json_bytes_v1() {
-        return Err(RegistrationEvaluatorAdmissionVectorCorpusParseErrorV1);
-    }
-    Ok(canonical_registration_evaluator_admission_vector_corpus_v1())
+    parse_canonical_json(
+        encoded,
+        canonical_registration_evaluator_admission_vector_corpus_v1,
+    )
+    .ok_or(RegistrationEvaluatorAdmissionVectorCorpusParseErrorV1)
 }
 
 fn registration_evaluator_admission_case() -> RegistrationEvaluatorAdmissionVectorCaseV1 {
@@ -255,73 +228,75 @@ fn registration_evaluator_admission_case() -> RegistrationEvaluatorAdmissionVect
     let binding = admission.provenance_binding();
     let admission_vector = RegistrationAdmissionVectorV1 {
         relation: "construction_independent_ideal_acceptance".to_owned(),
-        unregistered_public_identity_scope_encoding_hex: encode_hex(
-            &admission
+        unregistered_public_identity_scope_encoding_hex: hex::encode(
+            admission
                 .unregistered_public_identity_scope()
                 .encode()
                 .expect("identity scope encoding"),
         ),
         request_id: request.request_context().request_id().as_str().to_owned(),
-        replay_nonce_hex: encode_hex(request.request_context().replay_nonce().as_bytes()),
+        replay_nonce_hex: hex::encode(request.request_context().replay_nonce().as_bytes()),
         request_expiry_unix_ms: request.request_context().request_expiry().value(),
         checked_at_unix_ms: checked_at.value(),
-        request_context_digest_hex: encode_hex(
+        request_context_digest_hex: hex::encode(
             request.validated_dag().request_context_digest().as_bytes(),
         ),
-        authorization_record_digest_hex: encode_hex(
+        authorization_record_digest_hex: hex::encode(
             request
                 .authorization()
                 .authorization_record_digest()
                 .as_bytes(),
         ),
-        authorization_digest_hex: encode_hex(
+        authorization_digest_hex: hex::encode(
             request.validated_dag().authorization_digest().as_bytes(),
         ),
-        transcript_digest_hex: encode_hex(request.validated_dag().transcript_digest().as_bytes()),
-        registration_intent_digest_hex: encode_hex(
+        transcript_digest_hex: hex::encode(request.validated_dag().transcript_digest().as_bytes()),
+        registration_intent_digest_hex: hex::encode(
             request
                 .authorization()
                 .registration_intent_digest()
                 .as_bytes(),
         ),
-        provenance_pair_digest_hex: encode_hex(
+        provenance_pair_digest_hex: hex::encode(
             provenance.digest().expect("provenance digest").as_bytes(),
         ),
-        deriver_a_statement_digest_hex: encode_hex(
+        deriver_a_statement_digest_hex: hex::encode(
             provenance
                 .deriver_a()
                 .digest()
                 .expect("A statement digest")
                 .as_bytes(),
         ),
-        deriver_b_statement_digest_hex: encode_hex(
+        deriver_b_statement_digest_hex: hex::encode(
             provenance
                 .deriver_b()
                 .digest()
                 .expect("B statement digest")
                 .as_bytes(),
         ),
-        stable_scope_encoding_hex: encode_hex(
-            &binding
+        stable_scope_encoding_hex: hex::encode(
+            binding
                 .stable_scope()
                 .encode()
                 .expect("stable scope encoding"),
         ),
-        provenance_input_selection_artifact_digest_hex: encode_hex(
+        provenance_input_selection_artifact_digest_hex: hex::encode(
             binding.input_selection_evidence_digest().as_bytes(),
         ),
-        selected_mechanism_acceptance_evidence_digest_hex: encode_hex(
+        selected_mechanism_acceptance_evidence_digest_hex: hex::encode(
             selected_mechanism_evidence.as_bytes(),
         ),
-        client_envelope_set_digest_hex: encode_hex(binding.client_envelope_set_digest().as_bytes()),
+        client_envelope_set_digest_hex: hex::encode(
+            binding.client_envelope_set_digest().as_bytes(),
+        ),
         deriver_a_initial_state: role_state_vector("deriver_a", binding.deriver_a()),
         deriver_b_initial_state: role_state_vector("deriver_b", binding.deriver_b()),
         activation_epoch: activation_epoch.value(),
-        one_use_execution_id_hex: encode_hex(execution_id.as_bytes()),
-        selection_attempt_id_hex: encode_hex(selection_attempt.as_bytes()),
+        one_use_execution_id_hex: hex::encode(execution_id.as_bytes()),
+        selection_attempt_id_hex: hex::encode(selection_attempt.as_bytes()),
         selection_state: "accepted_terminal".to_owned(),
-        encoding_hex: encode_hex(&admission_encoding),
-        digest_hex: encode_hex(&admission_digest),
+        encoding_hex: hex::encode(&admission_encoding),
+        digest_hex: hex::encode(admission_digest),
     };
     let session = request
         .begin_host_reference_artifact_session(
@@ -379,16 +354,16 @@ fn registration_evaluator_admission_case() -> RegistrationEvaluatorAdmissionVect
             deriver_b_invocations: 1,
             contribution_derivations: 0,
             output_share_samples: 2,
-            registered_public_key_hex: encode_hex(candidate.registered_public_key().as_bytes()),
-            package_set_digest_hex: encode_hex(receipt.package_set_digest().as_bytes()),
-            output_committed_receipt_encoding_hex: encode_hex(&receipt.encode()),
-            output_committed_receipt_digest_hex: encode_hex(receipt.digest().as_bytes()),
-            output_committed_evaluation_evidence_digest_hex: encode_hex(
+            registered_public_key_hex: hex::encode(candidate.registered_public_key().as_bytes()),
+            package_set_digest_hex: hex::encode(receipt.package_set_digest().as_bytes()),
+            output_committed_receipt_encoding_hex: hex::encode(receipt.encode()),
+            output_committed_receipt_digest_hex: hex::encode(receipt.digest().as_bytes()),
+            output_committed_evaluation_evidence_digest_hex: hex::encode(
                 receipt.evaluation_evidence_digest().as_bytes(),
             ),
-            candidate_encoding_hex: encode_hex(candidate.encode()),
-            candidate_digest_hex: encode_hex(candidate.digest().as_bytes()),
-            candidate_output_committed_receipt_digest_hex: encode_hex(
+            candidate_encoding_hex: hex::encode(candidate.encode()),
+            candidate_digest_hex: hex::encode(candidate.digest().as_bytes()),
+            candidate_output_committed_receipt_digest_hex: hex::encode(
                 candidate.output_committed_receipt_digest(),
             ),
             pending_state: "registration_pending_activation".to_owned(),
@@ -428,21 +403,12 @@ fn role_state_vector<Role: crate::provenance::ProvenanceRoleV1>(
 ) -> RegistrationRoleStateVectorV1 {
     RegistrationRoleStateVectorV1 {
         role: role.to_owned(),
-        role_root_record_digest_hex: encode_hex(state.role_root_record_digest().as_bytes()),
-        root_binding_artifact_digest_hex: encode_hex(
+        role_root_record_digest_hex: hex::encode(state.role_root_record_digest().as_bytes()),
+        root_binding_artifact_digest_hex: hex::encode(
             state.root_binding_artifact_digest().as_bytes(),
         ),
         role_root_epoch: state.role_root_epoch().value(),
-        input_state_record_digest_hex: encode_hex(state.record_digest().as_bytes()),
+        input_state_record_digest_hex: hex::encode(state.record_digest().as_bytes()),
         input_state_epoch: state.epoch().value(),
     }
-}
-
-fn encode_hex(bytes: &[u8]) -> String {
-    let mut output = String::with_capacity(bytes.len() * 2);
-    for byte in bytes {
-        use core::fmt::Write as _;
-        write!(&mut output, "{byte:02x}").expect("writing to String cannot fail");
-    }
-    output
 }

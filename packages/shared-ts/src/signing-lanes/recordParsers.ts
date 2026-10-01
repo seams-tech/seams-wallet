@@ -1,4 +1,4 @@
-import type { DomainId, DomainIdParseResult, WalletId } from '../utils/domainIds';
+import type { DomainId, WalletId } from '../utils/domainIds';
 import {
   hasWhitespaceOrControlCharacters,
   parseWalletAuthMethodId,
@@ -10,6 +10,7 @@ import {
   parseKeyCreationSignerSlot,
   parseSecp256k1CompressedPublicKeyB64u,
   parseUnixMs,
+  requireParsed,
 } from '../passkey-custody/primitives';
 import { parseNearEd25519SigningKeyId } from '../utils/registrationIds';
 import {
@@ -188,11 +189,6 @@ function signingLaneRecordFields(laneKind: SigningLaneKind): readonly string[] {
     case 'delegated_execution':
       return DELEGATED_SIGNING_LANE_FIELDS;
   }
-}
-
-function requireResult<T>(result: DomainIdParseResult<T>, label: string): T {
-  if (result.ok) return result.value;
-  throw new Error(`${label} ${result.error.message}`);
 }
 
 function parseRequiredDomainId<TName extends string>(raw: unknown, label: string): DomainId<TName> {
@@ -383,10 +379,10 @@ function parseSigningLaneReferenceFields(
   if (record.kind !== 'signing_lane_reference_v1') {
     throw new Error(`${label}.kind must be signing_lane_reference_v1`);
   }
-  const walletId = requireResult(parseWalletId(record.walletId), `${label}.walletId`);
-  const walletKeyId = requireResult(parseWalletKeyId(record.walletKeyId), `${label}.walletKeyId`);
-  const laneId = requireResult(parseSigningLaneId(record.laneId), `${label}.laneId`);
-  const laneShareEpoch = requireResult(
+  const walletId = requireParsed(parseWalletId(record.walletId), `${label}.walletId`);
+  const walletKeyId = requireParsed(parseWalletKeyId(record.walletKeyId), `${label}.walletKeyId`);
+  const laneId = requireParsed(parseSigningLaneId(record.laneId), `${label}.laneId`);
+  const laneShareEpoch = requireParsed(
     parseLaneShareEpoch(record.laneShareEpoch),
     `${label}.laneShareEpoch`,
   );
@@ -396,7 +392,7 @@ function parseSigningLaneReferenceFields(
     laneId,
     laneShareEpoch,
     laneKind: parseSigningLaneKind(record.laneKind, `${label}.laneKind`),
-    participantBindingDigestB64u: requireResult(
+    participantBindingDigestB64u: requireParsed(
       parseLaneParticipantBindingDigestB64u(record.participantBindingDigestB64u),
       `${label}.participantBindingDigestB64u`,
     ),
@@ -426,7 +422,7 @@ function parseOwnerAuthSigningLaneRecordBase(
   const walletAuthMethodId = parseWalletAuthMethodId(record.walletAuthMethodId);
   return {
     ...common,
-    walletAuthMethodId: requireResult(walletAuthMethodId, `${label}.walletAuthMethodId`),
+    walletAuthMethodId: requireParsed(walletAuthMethodId, `${label}.walletAuthMethodId`),
     ownerParticipantContinuity: parseOwnerLaneParticipantContinuityV1(
       record.ownerParticipantContinuity,
       `${label}.ownerParticipantContinuity`,
@@ -713,8 +709,8 @@ export function parseWalletKeyRecord(raw: unknown, label = 'walletKeyRecord'): W
   if (record.keyFamily === 'ed25519') {
     rejectUnknownFields(record, ED25519_WALLET_KEY_FIELDS, label, ALL_WALLET_KEY_FIELDS);
     return buildEd25519WalletKeyRecord({
-      walletId: requireResult(parseWalletId(record.walletId), `${label}.walletId`),
-      walletKeyId: requireResult(parseWalletKeyId(record.walletKeyId), `${label}.walletKeyId`),
+      walletId: requireParsed(parseWalletId(record.walletId), `${label}.walletId`),
+      walletKeyId: requireParsed(parseWalletKeyId(record.walletKeyId), `${label}.walletKeyId`),
       walletKeyVersion: parseWalletKeyVersion(record.walletKeyVersion, `${label}.walletKeyVersion`),
       nearEd25519SigningKeyId: parseNearEd25519SigningKeyId(record.nearEd25519SigningKeyId),
       keyCreationSignerSlot: parseKeyCreationSignerSlot(
@@ -731,8 +727,8 @@ export function parseWalletKeyRecord(raw: unknown, label = 'walletKeyRecord'): W
   if (record.keyFamily === 'ecdsa_secp256k1') {
     rejectUnknownFields(record, EVM_WALLET_KEY_FIELDS, label, ALL_WALLET_KEY_FIELDS);
     return buildEvmFamilyWalletKeyRecord({
-      walletId: requireResult(parseWalletId(record.walletId), `${label}.walletId`),
-      walletKeyId: requireResult(parseWalletKeyId(record.walletKeyId), `${label}.walletKeyId`),
+      walletId: requireParsed(parseWalletId(record.walletId), `${label}.walletId`),
+      walletKeyId: requireParsed(parseWalletKeyId(record.walletKeyId), `${label}.walletKeyId`),
       walletKeyVersion: parseWalletKeyVersion(record.walletKeyVersion, `${label}.walletKeyVersion`),
       evmFamilySigningKeySlotId: requireEvmFamilySigningKeySlotId(
         record.evmFamilySigningKeySlotId,
@@ -778,7 +774,7 @@ export function parseSigningLaneRecord(
         holderParticipant: base.holderParticipant,
         serverParticipant: base.serverParticipant,
         lifecycle: base.lifecycle,
-        linkedDeviceId: requireResult(
+        linkedDeviceId: requireParsed(
           parseLinkedDeviceId(record.linkedDeviceId),
           `${label}.linkedDeviceId`,
         ),

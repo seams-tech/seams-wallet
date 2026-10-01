@@ -3,7 +3,7 @@
  * Report bundle sizes (raw/gzip/brotli) for the root SDK entry and wallet-origin assets.
  *
  * Usage:
- *   pnpm build:sdk-prod
+ *   pnpm -C packages/wallet build:prod
  *   pnpm -C packages/wallet size:lite
  *   pnpm -C packages/wallet size:lite:check
  */
@@ -158,7 +158,7 @@ for (const t of TARGETS) {
 }
 
 if (missing.length) {
-  const hint = `Missing build outputs:\n${missing.map((p) => `  - ${p}`).join('\n')}\n\nDid you run 'pnpm build:sdk-prod' (or 'pnpm build:sdk')?`;
+  const hint = `Missing build outputs:\n${missing.map((p) => `  - ${p}`).join('\n')}\n\nDid you run 'pnpm -C packages/wallet build:prod' (or 'build:sdk')?`;
   if (CHECK) fail(hint);
   console.warn(`\n[report-lite-bundle-sizes] ${hint}`);
 }

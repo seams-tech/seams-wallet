@@ -2,6 +2,7 @@ import type {
   VersionedJsonRecordPutResult,
   VersionedJsonRecordReadResult,
 } from '../../../framework/versionedJsonRecordStore';
+import { hasExactKeys } from '@shared/utils/exactKeys';
 
 export type RouterAbEd25519YaoRegistrationSideEffectOperationV1 =
   | 'finalize'
@@ -144,66 +145,30 @@ export function parseRouterAbEd25519YaoRegistrationSideEffectRecordV2<C, P>(
   const record = readRouterAbEd25519YaoRegistrationSideEffectRecordObjectV1(raw);
   if (record === null || record.operation !== input.operation) return null;
   if (record.kind === 'router_ab_ed25519_yao_registration_side_effect_claim_v1') {
-    if (
-      !hasExactRouterAbEd25519YaoRegistrationSideEffectRecordKeys(record, SIDE_EFFECT_CLAIM_FIELDS)
-    ) {
-      return null;
-    }
-    const requestFingerprint = parseFingerprint(record.requestFingerprint);
-    const preparedArtifactFingerprint = parsePreparedFingerprint(
-      record.preparedArtifactFingerprint,
-    );
-    const claimedAtMs = parseTimestamp(record.claimedAtMs);
-    const prepared = input.parsePrepared(record.prepared);
-    if (
-      requestFingerprint === null ||
-      preparedArtifactFingerprint === null ||
-      claimedAtMs === null ||
-      prepared === null
-    ) {
-      return null;
-    }
-    return {
-      kind: 'router_ab_ed25519_yao_registration_side_effect_claim_v1',
-      operation: input.operation,
-      requestFingerprint,
-      preparedArtifactFingerprint,
-      claimedAtMs,
-      prepared,
-    };
+    return parseRouterAbEd25519YaoRegistrationSideEffectClaimV1(record, input);
   }
   if (
     record.kind !== 'router_ab_ed25519_yao_registration_side_effect_completion_v2' ||
-    !hasExactRouterAbEd25519YaoRegistrationSideEffectRecordKeys(
-      record,
-      SIDE_EFFECT_COMPLETION_V2_FIELDS,
-    )
+    !hasExactKeys(record, SIDE_EFFECT_COMPLETION_V2_FIELDS)
   ) {
     return null;
   }
-  const requestFingerprint = parseFingerprint(record.requestFingerprint);
-  const preparedArtifactFingerprint = parsePreparedFingerprint(record.preparedArtifactFingerprint);
-  const claimedAtMs = parseTimestamp(record.claimedAtMs);
-  const prepared = input.parsePrepared(record.prepared);
-  if (
-    requestFingerprint === null ||
-    preparedArtifactFingerprint === null ||
-    claimedAtMs === null ||
-    prepared === null
-  ) {
-    return null;
-  }
+  const claim = parseRouterAbEd25519YaoRegistrationSideEffectClaimFields(
+    record,
+    input.parsePrepared,
+  );
+  if (claim === null) return null;
   const completedAtMs = parseTimestamp(record.completedAtMs);
   const receipt = input.parseReceipt(record.receipt);
   if (completedAtMs === null || receipt === null) return null;
   return {
     kind: 'router_ab_ed25519_yao_registration_side_effect_completion_v2',
     operation: input.operation,
-    requestFingerprint,
-    preparedArtifactFingerprint,
-    claimedAtMs,
+    requestFingerprint: claim.requestFingerprint,
+    preparedArtifactFingerprint: claim.preparedArtifactFingerprint,
+    claimedAtMs: claim.claimedAtMs,
     completedAtMs,
-    prepared,
+    prepared: claim.prepared,
     receipt,
   };
 }
@@ -219,47 +184,63 @@ export function parseRouterAbEd25519YaoRegistrationSideEffectRecordV1<T, P>(
   const record = readRouterAbEd25519YaoRegistrationSideEffectRecordObjectV1(raw);
   if (record === null || record.operation !== input.operation) return null;
   if (record.kind === 'router_ab_ed25519_yao_registration_side_effect_claim_v1') {
-    if (
-      !hasExactRouterAbEd25519YaoRegistrationSideEffectRecordKeys(record, SIDE_EFFECT_CLAIM_FIELDS)
-    ) {
-      return null;
-    }
-    const requestFingerprint = parseFingerprint(record.requestFingerprint);
-    const preparedArtifactFingerprint = parsePreparedFingerprint(
-      record.preparedArtifactFingerprint,
-    );
-    const claimedAtMs = parseTimestamp(record.claimedAtMs);
-    const prepared = input.parsePrepared(record.prepared);
-    if (
-      requestFingerprint === null ||
-      preparedArtifactFingerprint === null ||
-      claimedAtMs === null ||
-      prepared === null
-    ) {
-      return null;
-    }
-    return {
-      kind: 'router_ab_ed25519_yao_registration_side_effect_claim_v1',
-      operation: input.operation,
-      requestFingerprint,
-      preparedArtifactFingerprint,
-      claimedAtMs,
-      prepared,
-    };
+    return parseRouterAbEd25519YaoRegistrationSideEffectClaimV1(record, input);
   }
   if (
     record.kind !== 'router_ab_ed25519_yao_registration_side_effect_completion_v1' ||
-    !hasExactRouterAbEd25519YaoRegistrationSideEffectRecordKeys(
-      record,
-      SIDE_EFFECT_COMPLETION_V1_FIELDS,
-    )
+    !hasExactKeys(record, SIDE_EFFECT_COMPLETION_V1_FIELDS)
   ) {
     return null;
   }
+  const claim = parseRouterAbEd25519YaoRegistrationSideEffectClaimFields(
+    record,
+    input.parsePrepared,
+  );
+  if (claim === null) return null;
+  const completedAtMs = parseTimestamp(record.completedAtMs);
+  const response = input.parseResponse(record.response);
+  if (completedAtMs === null || response === null) return null;
+  return {
+    kind: 'router_ab_ed25519_yao_registration_side_effect_completion_v1',
+    operation: input.operation,
+    requestFingerprint: claim.requestFingerprint,
+    preparedArtifactFingerprint: claim.preparedArtifactFingerprint,
+    claimedAtMs: claim.claimedAtMs,
+    completedAtMs,
+    prepared: claim.prepared,
+    response,
+  };
+}
+
+// Both journal versions share the claim row and a completion's claim fields.
+function parseRouterAbEd25519YaoRegistrationSideEffectClaimV1<P>(
+  record: RouterAbEd25519YaoRegistrationSideEffectRecordObjectV1,
+  input: {
+    readonly operation: RouterAbEd25519YaoRegistrationSideEffectOperationV1;
+    readonly parsePrepared: (value: unknown) => P | null;
+  },
+): RouterAbEd25519YaoRegistrationSideEffectClaimV1<P> | null {
+  if (!hasExactKeys(record, SIDE_EFFECT_CLAIM_FIELDS)) return null;
+  const claim = parseRouterAbEd25519YaoRegistrationSideEffectClaimFields(
+    record,
+    input.parsePrepared,
+  );
+  if (claim === null) return null;
+  return {
+    kind: 'router_ab_ed25519_yao_registration_side_effect_claim_v1',
+    operation: input.operation,
+    ...claim,
+  };
+}
+
+function parseRouterAbEd25519YaoRegistrationSideEffectClaimFields<P>(
+  record: RouterAbEd25519YaoRegistrationSideEffectRecordObjectV1,
+  parsePrepared: (value: unknown) => P | null,
+): Omit<RouterAbEd25519YaoRegistrationSideEffectClaimV1<P>, 'kind' | 'operation'> | null {
   const requestFingerprint = parseFingerprint(record.requestFingerprint);
   const preparedArtifactFingerprint = parsePreparedFingerprint(record.preparedArtifactFingerprint);
   const claimedAtMs = parseTimestamp(record.claimedAtMs);
-  const prepared = input.parsePrepared(record.prepared);
+  const prepared = parsePrepared(record.prepared);
   if (
     requestFingerprint === null ||
     preparedArtifactFingerprint === null ||
@@ -268,19 +249,7 @@ export function parseRouterAbEd25519YaoRegistrationSideEffectRecordV1<T, P>(
   ) {
     return null;
   }
-  const completedAtMs = parseTimestamp(record.completedAtMs);
-  const response = input.parseResponse(record.response);
-  if (completedAtMs === null || response === null) return null;
-  return {
-    kind: 'router_ab_ed25519_yao_registration_side_effect_completion_v1',
-    operation: input.operation,
-    requestFingerprint,
-    preparedArtifactFingerprint,
-    claimedAtMs,
-    completedAtMs,
-    prepared,
-    response,
-  };
+  return { requestFingerprint, preparedArtifactFingerprint, claimedAtMs, prepared };
 }
 
 /**
@@ -787,17 +756,6 @@ function isRouterAbEd25519YaoRegistrationSideEffectRecordObjectV1(
   value: unknown,
 ): value is RouterAbEd25519YaoRegistrationSideEffectRecordObjectV1 {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function hasExactRouterAbEd25519YaoRegistrationSideEffectRecordKeys(
-  record: RouterAbEd25519YaoRegistrationSideEffectRecordObjectV1,
-  expectedKeys: readonly string[],
-): boolean {
-  const actualKeys = Object.keys(record);
-  return (
-    actualKeys.length === expectedKeys.length &&
-    actualKeys.every((key) => expectedKeys.some((expectedKey) => expectedKey === key))
-  );
 }
 
 function parseFingerprint(value: unknown): string | null {

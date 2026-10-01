@@ -22,6 +22,7 @@ import type {
   RouterAbEd25519YaoCeremonyBindingV1,
 } from '@shared/utils/routerAbEd25519Yao';
 import type { EcdsaThresholdKeyId } from '../signingEngine/session/keyMaterialBrands';
+import type { NonceDurableLeaseLifecycle } from '../signingEngine/nonce/nonceTypes';
 import type {
   MpcMaterialActivationRef,
   VerifiedEmailAddress,
@@ -430,19 +431,8 @@ interface NonceLaneLeaseStoreRecordBaseWithoutLifecycle {
   txIndex?: number;
 }
 
-type NonceLaneLeaseStoreRecordLifecycle<TTransactionHash extends string> =
-  | {
-      state: 'reserved' | 'signed';
-      txHash?: never;
-    }
-  | {
-      state: 'broadcast_accepted';
-      txHash: TTransactionHash;
-    };
-
 type NonceLaneLeaseStoreRecordBase<TTransactionHash extends string> =
-  NonceLaneLeaseStoreRecordBaseWithoutLifecycle &
-    NonceLaneLeaseStoreRecordLifecycle<TTransactionHash>;
+  NonceLaneLeaseStoreRecordBaseWithoutLifecycle & NonceDurableLeaseLifecycle<TTransactionHash>;
 
 export type NonceLaneLeaseStoreRecord =
   | (NonceLaneLeaseStoreRecordBase<`0x${string}`> & {

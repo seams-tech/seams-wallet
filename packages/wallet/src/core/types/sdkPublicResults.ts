@@ -1,10 +1,12 @@
+import type { ExclusiveUnion } from '@shared/utils/variant';
+
 export type SignNEP413MessageParams = {
   message: string;
   recipient: string;
   state?: string;
 };
 
-export type SignNEP413MessageResult =
+export type SignNEP413MessageResult = ExclusiveUnion<
   | {
       success: true;
       accountId: string;
@@ -12,19 +14,11 @@ export type SignNEP413MessageResult =
       signature: string;
       nonce: string;
       state?: string;
-      error?: never;
     }
-  | {
-      success: false;
-      error: string;
-      accountId?: never;
-      publicKey?: never;
-      signature?: never;
-      nonce?: never;
-      state?: never;
-    };
+  | { success: false; error: string }
+>;
 
-export type SyncAccountResult =
+export type SyncAccountResult = ExclusiveUnion<
   | {
       success: true;
       accountId: string;
@@ -36,16 +30,6 @@ export type SyncAccountResult =
       loginState: {
         isLoggedIn: boolean;
       };
-      error?: never;
     }
-  | {
-      success: false;
-      error: string;
-      accountId?: never;
-      walletId?: never;
-      nearAccountId?: never;
-      nearEd25519SigningKeyId?: never;
-      publicKey?: never;
-      message?: never;
-      loginState?: never;
-    };
+  | { success: false; error: string }
+>;

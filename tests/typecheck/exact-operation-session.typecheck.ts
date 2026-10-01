@@ -1,7 +1,23 @@
+import type { D1EcdsaAdmissionPolicyRead } from '../../packages/wallet-server/src/router/cloudflare/d1/signingAdmission/d1RouterAbNormalSigningAdmissionStore';
+import type {
+  EcdsaMaterialRead,
+  EcdsaMaterialReadSource,
+} from '../../packages/wallet-server/src/core/d1EcdsaSignerRead';
+import type {
+  EcdsaWalletSessionAdmissionVariant,
+  EcdsaWalletSessionPhaseAdmission,
+  EcdsaWalletSessionResolutionResult,
+} from '../../packages/wallet-server/src/authorization/ecdsaWalletSessionAdmission';
 import type {
   RouterApiWalletSessionExactOperationContext,
   RouterApiWalletSessionAuthorizationV2AdmissionContext,
+  RouterApiWalletSessionAuthorizationV2ExhaustedCandidateContext,
+  RouterApiWalletSessionSigningCandidate,
 } from '../../packages/wallet-server/src/router/framework/authServicePort';
+import type {
+  WalletSessionAdmissionSnapshotV2,
+  WalletSessionAdmissionSnapshotV2Variant,
+} from '../../packages/wallet-server/src/authorization/domain';
 
 declare const exact: RouterApiWalletSessionExactOperationContext;
 
@@ -20,3 +36,114 @@ const direct: RouterApiWalletSessionAuthorizationV2AdmissionContext = {
 void reusable;
 void spread;
 void direct;
+
+declare const exhausted: RouterApiWalletSessionAuthorizationV2ExhaustedCandidateContext;
+declare const active: RouterApiWalletSessionAuthorizationV2AdmissionContext;
+declare const exhaustedSnapshot: WalletSessionAdmissionSnapshotV2Variant<'exhausted'>;
+
+declare const materialRead: EcdsaMaterialRead;
+declare const policyRead: D1EcdsaAdmissionPolicyRead;
+const candidate: RouterApiWalletSessionSigningCandidate = {
+  materialRead,
+  policyRead,
+  kind: 'exhausted',
+  candidate: exhausted,
+};
+// @ts-expect-error An exhausted candidate cannot carry an active admission context.
+const mixed: RouterApiWalletSessionSigningCandidate = {
+  materialRead,
+  policyRead,
+  kind: 'exhausted',
+  candidate: exhausted,
+  context: active,
+};
+// @ts-expect-error Changing the discriminant through a spread does not create active authority.
+const relabeled: RouterApiWalletSessionSigningCandidate = {
+  ...candidate,
+  kind: 'active',
+  context: active,
+};
+// @ts-expect-error A live snapshot with exhausted quota cannot carry a reusable allowance.
+const widenedSnapshot: WalletSessionAdmissionSnapshotV2 = {
+  ...exhaustedSnapshot,
+  authorization: active.authorization,
+};
+// @ts-expect-error Exhausted identity and reusable authorization are distinct even under a direct cast.
+const castAdmission = exhausted as RouterApiWalletSessionAuthorizationV2AdmissionContext;
+
+void mixed;
+void relabeled;
+void widenedSnapshot;
+void castAdmission;
+
+declare const snapshot: import('../../packages/wallet-server/src/core/ecdsaMaterialReadSnapshot').EcdsaMaterialReadSnapshot;
+declare const sessionOperation: import('../../packages/wallet-server/src/authorization/ecdsaWalletSessionAdmission').EcdsaWalletSessionAdmissionInput['operation'];
+declare const materialScope: import('../../packages/wallet-server/src/authorization/service').EcdsaMaterialActivationScope;
+const missingMaterialSnapshot: import('../../packages/wallet-server/src/authorization/ecdsaWalletSessionAdmission').EcdsaWalletSessionAdmissionInput =
+  // @ts-expect-error An admission requires the snapshot read with its verified material.
+  { operation: sessionOperation, material: materialScope };
+// @ts-expect-error A plain object cannot manufacture the private record-set evidence.
+const fabricatedSnapshot: typeof snapshot = {
+  walletId: snapshot.walletId,
+  condition: snapshot.condition,
+};
+// @ts-expect-error Spreading a snapshot cannot carry its private evidence or prototype methods.
+const spreadSnapshot: typeof snapshot = { ...snapshot };
+// @ts-expect-error Raw serialized data cannot be cast directly to an in-process read snapshot.
+const serializedSnapshot = 'untrusted' as typeof snapshot;
+void [missingMaterialSnapshot, fabricatedSnapshot, spreadSnapshot, serializedSnapshot];
+
+// @ts-expect-error Signing candidates require their joined material evidence.
+const missingMaterialRead: RouterApiWalletSessionSigningCandidate = {
+  kind: 'exhausted',
+  candidate: exhausted,
+};
+// @ts-expect-error Plain objects cannot construct a scoped material read.
+const fabricatedMaterialRead: EcdsaMaterialRead = {
+  walletId: materialRead.walletId,
+  resolve: materialRead.resolve,
+  resolveLinked: materialRead.resolveLinked,
+};
+// @ts-expect-error Spreading a material read loses its private evidence.
+const spreadMaterialRead: EcdsaMaterialRead = { ...materialRead };
+// @ts-expect-error Serialized data cannot become material read evidence through a cast.
+const castMaterialRead = 'stored material' as EcdsaMaterialRead;
+// @ts-expect-error A database read cannot also consume a credential snapshot.
+const mixedMaterialSource: EcdsaMaterialReadSource = { kind: 'database', materialRead };
+void missingMaterialRead;
+void fabricatedMaterialRead;
+void spreadMaterialRead;
+void castMaterialRead;
+void mixedMaterialSource;
+
+declare const newlyClaimed: EcdsaWalletSessionAdmissionVariant<'claimed'>;
+// @ts-expect-error Finalize resolution cannot create a claim.
+const claimedResolution: EcdsaWalletSessionResolutionResult = newlyClaimed;
+// @ts-expect-error Direct construction cannot attach a new claim to finalize.
+const claimedFinalize: EcdsaWalletSessionPhaseAdmission = {
+  phase: 'finalize',
+  admission: newlyClaimed,
+};
+const prepared: EcdsaWalletSessionPhaseAdmission = { phase: 'prepare', admission: newlyClaimed };
+// @ts-expect-error Relabeling a prepare through a spread cannot produce a finalize.
+const relabeledFinalize: EcdsaWalletSessionPhaseAdmission = { ...prepared, phase: 'finalize' };
+// @ts-expect-error A new claim cannot be cast directly to an existing-operation result.
+const castResolution = newlyClaimed as EcdsaWalletSessionResolutionResult;
+// @ts-expect-error A route admission requires its phase.
+const missingPhase: EcdsaWalletSessionPhaseAdmission = { admission: newlyClaimed };
+void [claimedResolution, claimedFinalize, relabeledFinalize, castResolution, missingPhase];
+
+// @ts-expect-error A policy snapshot requires private persistence evidence.
+const fabricatedPolicyRead: D1EcdsaAdmissionPolicyRead = { resolve: policyRead.resolve };
+// @ts-expect-error A spread cannot retain a policy snapshot's private state.
+const spreadPolicyRead: D1EcdsaAdmissionPolicyRead = { ...policyRead };
+// @ts-expect-error Raw data cannot be cast directly to a policy snapshot.
+const castPolicyRead = 'policy' as D1EcdsaAdmissionPolicyRead;
+declare const policyInput: import('../../packages/wallet-server/src/router/domains/signingOperations/routerAbNormalSigningAdmission').RouterAbNormalSigningAdmissionInput & {
+  curve: 'ecdsa';
+};
+// @ts-expect-error Database policy reads cannot carry a credential snapshot.
+const mixedPolicySource: typeof policyInput.policyReadSource = { kind: 'database', policyRead };
+// @ts-expect-error Credential policy reads require their snapshot.
+const missingPolicyRead: typeof policyInput.policyReadSource = { kind: 'credential_snapshot' };
+void [fabricatedPolicyRead, spreadPolicyRead, castPolicyRead, mixedPolicySource, missingPolicyRead];

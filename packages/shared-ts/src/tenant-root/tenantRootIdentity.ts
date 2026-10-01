@@ -3,9 +3,12 @@ import type {
   SigningRootId,
   SigningRootVersion,
 } from '../threshold/ecdsaDerivationRoleLocalBootstrap';
+import {
+  hasControlCharacters,
+  TENANT_ROOT_IDENTITY_MAX_IDENTIFIER_BYTES_V1,
+} from './tenantRootIdentifier';
 
 const TENANT_ROOT_IDENTITY_DOMAIN_V1 = new TextEncoder().encode('seams/tenant-root-identity/v1');
-const TENANT_ROOT_IDENTITY_MAX_IDENTIFIER_BYTES_V1 = 256;
 
 export type TenantRootIdentityFieldV1 =
   | 'orgId'
@@ -139,14 +142,6 @@ function hasLeadingOrTrailingRustWhitespace(value: string): boolean {
     codePoints.length > 0 &&
     (isRustWhitespace(codePoints[0]!) || isRustWhitespace(codePoints[codePoints.length - 1]!))
   );
-}
-
-function hasControlCharacters(value: string): boolean {
-  for (const character of value) {
-    const codePoint = character.codePointAt(0) ?? 0;
-    if (codePoint <= 0x1f || (codePoint >= 0x7f && codePoint <= 0x9f)) return true;
-  }
-  return false;
 }
 
 function hasUnpairedSurrogate(value: string): boolean {

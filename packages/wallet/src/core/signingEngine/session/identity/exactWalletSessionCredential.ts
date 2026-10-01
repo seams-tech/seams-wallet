@@ -38,6 +38,7 @@ import {
   type ExactSigningLaneIdentity,
 } from './exactSigningLaneIdentity';
 import type { ActiveWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
+import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 
 /** The signer material one operation needs the exact session to authorize. */
 type RequiredExactWalletSessionSigningSubject =
@@ -79,17 +80,10 @@ type ResolvedExactWalletSessionCredential = {
   readonly materialActivation: MpcMaterialActivationRef;
 };
 
-type ExactWalletSessionCredentialResolution =
-  | {
-      readonly kind: 'resolved';
-      readonly resolved: ResolvedExactWalletSessionCredential;
-      readonly reason?: never;
-    }
-  | {
-      readonly kind: 'unavailable';
-      readonly reason: ExactWalletSessionCredentialUnavailableReason;
-      readonly resolved?: never;
-    };
+type ExactWalletSessionCredentialResolution = ReadonlyExclusiveUnion<
+  | { readonly kind: 'resolved'; readonly resolved: ResolvedExactWalletSessionCredential }
+  | { readonly kind: 'unavailable'; readonly reason: ExactWalletSessionCredentialUnavailableReason }
+>;
 
 type ResolveExactWalletSessionCredentialInput = {
   readonly walletId: WalletId;

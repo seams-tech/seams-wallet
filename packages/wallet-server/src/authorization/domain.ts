@@ -1,3 +1,4 @@
+import type { Variant } from '@shared/utils/variant';
 import type {
   ActiveWalletAuthMethodRecordV2,
   WalletAuthMethodRecordV2,
@@ -364,10 +365,26 @@ export type ExactWalletSessionStatusV2 =
  * lands between separate reads cannot pair a session with a newer authority.
  */
 export type WalletSessionAdmissionSnapshotV2 = {
-  readonly authorization: IssuedWalletSessionAuthorizationV2;
   readonly authority: WalletAuthorityV1 | null;
   readonly authMethod: WalletAuthMethodRecordV2 | null;
-};
+} & (
+  | {
+      readonly kind: 'active';
+      readonly authorization: IssuedWalletSessionAuthorizationV2;
+      readonly session?: never;
+      readonly quota?: never;
+    }
+  | {
+      readonly kind: 'exhausted';
+      readonly session: WalletSessionAuthorizationV2;
+      readonly quota: ExactWalletSessionQuotaProjectionV1;
+      readonly authorization?: never;
+    }
+);
+
+export type WalletSessionAdmissionSnapshotV2Variant<
+  Kind extends WalletSessionAdmissionSnapshotV2['kind'],
+> = Variant<WalletSessionAdmissionSnapshotV2, 'kind', Kind>;
 
 /** An exact status with the authority and auth method it was judged against. */
 export type ExactWalletSessionStatusSnapshotV2 = {

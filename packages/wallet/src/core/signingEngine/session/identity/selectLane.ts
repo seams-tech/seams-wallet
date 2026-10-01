@@ -271,13 +271,12 @@ function nearEd25519TransactionReauthState(
   return null;
 }
 
-function nearEd25519TransactionReadyAvailableLaneProjection(
+function nearEd25519TransactionAvailableLaneProjection<
+  State extends NearEd25519TransactionSelectableAvailableLane['state'],
+>(
   lane: AuthorizedNearEd25519AvailableLane,
-): NearEd25519TransactionReadyAvailableLane {
-  const state = nearEd25519TransactionReadyState(lane);
-  if (!state) {
-    throw new Error('[SigningSessionSelectLane] Ed25519 lane is not transaction-ready');
-  }
+  state: State,
+): Omit<AuthorizedNearEd25519AvailableLane, 'source'> & { state: State } {
   return {
     auth: lane.auth,
     curve: 'ed25519',
@@ -298,6 +297,16 @@ function nearEd25519TransactionReadyAvailableLaneProjection(
   };
 }
 
+function nearEd25519TransactionReadyAvailableLaneProjection(
+  lane: AuthorizedNearEd25519AvailableLane,
+): NearEd25519TransactionReadyAvailableLane {
+  const state = nearEd25519TransactionReadyState(lane);
+  if (!state) {
+    throw new Error('[SigningSessionSelectLane] Ed25519 lane is not transaction-ready');
+  }
+  return nearEd25519TransactionAvailableLaneProjection(lane, state);
+}
+
 function nearEd25519TransactionReauthAvailableLaneProjection(
   lane: AuthorizedNearEd25519AvailableLane,
 ): NearEd25519TransactionReauthAvailableLane {
@@ -305,24 +314,7 @@ function nearEd25519TransactionReauthAvailableLaneProjection(
   if (!state) {
     throw new Error('[SigningSessionSelectLane] Ed25519 lane is not transaction-reauthable');
   }
-  return {
-    auth: lane.auth,
-    curve: 'ed25519',
-    chain: 'near',
-    materialActivation: lane.materialActivation,
-    walletId: lane.walletId,
-    nearAccountId: lane.nearAccountId,
-    nearEd25519SigningKeyId: lane.nearEd25519SigningKeyId,
-    signerSlot: lane.signerSlot,
-    authorizationState: 'authorized',
-    authorization: lane.authorization,
-    state,
-    thresholdSessionId: lane.thresholdSessionId,
-    ...(lane.remainingUses == null ? {} : { remainingUses: lane.remainingUses }),
-    ...(lane.expiresAtMs == null ? {} : { expiresAtMs: lane.expiresAtMs }),
-    ...(lane.policyHint ? { policyHint: lane.policyHint } : {}),
-    ...(lane.updatedAtMs == null ? {} : { updatedAtMs: lane.updatedAtMs }),
-  };
+  return nearEd25519TransactionAvailableLaneProjection(lane, state);
 }
 
 function selectedEd25519LaneForTransactionCandidate(

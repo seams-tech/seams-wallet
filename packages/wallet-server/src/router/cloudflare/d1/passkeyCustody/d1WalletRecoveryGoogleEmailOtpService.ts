@@ -45,6 +45,7 @@ import {
   parseVerifiedGoogleEmail,
   type WalletId,
 } from '@shared/utils/domainIds';
+import { failure } from '@shared/utils/failure';
 import type { CloudflareD1EmailOtpChallengeIssuer } from '../emailOtp/d1EmailOtpChallengeIssuer';
 import type { CloudflareD1EmailOtpChallengeVerifier } from '../emailOtp/d1EmailOtpChallengeVerifier';
 import type { CloudflareD1EmailOtpEnrollmentStore } from '../emailOtp/d1EmailOtpEnrollmentStore';
@@ -394,11 +395,7 @@ export class CloudflareD1WalletRecoveryGoogleEmailOtpService {
     }
     const workerEphemeralPublicKey65B64u = nonEmpty(input.workerEphemeralPublicKey65B64u);
     if (!workerEphemeralPublicKey65B64u) {
-      return {
-        ok: false,
-        code: 'invalid_body',
-        message: 'Email OTP recovery factor release key is required',
-      };
+      return failure('invalid_body', 'Email OTP recovery factor release key is required');
     }
     const enrollment = await this.enrollments.readEnrollment(String(attempt.walletId));
     if (
@@ -409,22 +406,20 @@ export class CloudflareD1WalletRecoveryGoogleEmailOtpService {
       enrollment.enrollmentId !== attempt.targetEnrollment.enrollmentId ||
       enrollment.enrollmentSealKeyVersion !== attempt.targetEnrollment.enrollmentSealKeyVersion
     ) {
-      return {
-        ok: false,
-        code: 'recovery_conflict',
-        message: 'Email OTP recovery enrollment changed after verification',
-      };
+      return failure(
+        'recovery_conflict',
+        'Email OTP recovery enrollment changed after verification',
+      );
     }
     const unsealed = await this.serverSeal.removeEmailOtpServerSeal({
       wrappedCiphertext: enrollment.serverSealedFactorCiphertextB64u,
     });
     if (!unsealed.ok) return unsealed;
     if (unsealed.enrollmentSealKeyVersion !== enrollment.enrollmentSealKeyVersion) {
-      return {
-        ok: false,
-        code: 'recovery_conflict',
-        message: 'Email OTP recovery enrollment seal changed after verification',
-      };
+      return failure(
+        'recovery_conflict',
+        'Email OTP recovery enrollment seal changed after verification',
+      );
     }
     const sealed = await sealEmailOtpFactorSecretForWorker({
       factorSecret32B64u: unsealed.ciphertext,
@@ -880,20 +875,15 @@ function parseGoogleIdentity(
   result: GoogleVerificationResult,
 ): ({ readonly ok: true } & GoogleIdentity) | GoogleRecoveryFailure {
   if (!result.ok || result.verified !== true) {
-    return {
-      ok: false,
-      code: result.code || 'not_verified',
-      message: result.message || 'Google verification failed',
-    };
+    return failure(result.code || 'not_verified', result.message || 'Google verification failed');
   }
   const providerSubject = parseProviderSubject(result.providerSubject);
   const email = parseVerifiedGoogleEmail(result.email);
   if (!providerSubject.ok || !email.ok || result.emailVerified !== true) {
-    return {
-      ok: false,
-      code: 'provider_identity_mismatch',
-      message: 'Google verification did not provide a verified identity email',
-    };
+    return failure(
+      'provider_identity_mismatch',
+      'Google verification did not provide a verified identity email',
+    );
   }
   return {
     ok: true,
@@ -914,11 +904,10 @@ function resolveTargetEnrollment(input: {
       input.enrollment.providerUserId !== input.identity.providerSubject ||
       input.enrollment.verifiedEmail !== input.identity.verifiedEmail
     ) {
-      return {
-        ok: false,
-        code: 'provider_identity_mismatch',
-        message: 'Google identity does not match the wallet Email enrollment',
-      };
+      return failure(
+        'provider_identity_mismatch',
+        'Google identity does not match the wallet Email enrollment',
+      );
     }
     if (
       input.anchor.envelope.kind === 'email_otp' &&
@@ -926,11 +915,10 @@ function resolveTargetEnrollment(input: {
         input.anchor.envelope.enrollmentSealKeyVersion !==
           input.enrollment.enrollmentSealKeyVersion)
     ) {
-      return {
-        ok: false,
-        code: 'recovery_conflict',
-        message: 'Wallet Email custody enrollment changed after preparation',
-      };
+      return failure(
+        'recovery_conflict',
+        'Wallet Email custody enrollment changed after preparation',
+      );
     }
     return {
       kind: 'existing',
@@ -939,11 +927,10 @@ function resolveTargetEnrollment(input: {
     };
   }
   if (input.anchor.envelope.kind === 'email_otp') {
-    return {
-      ok: false,
-      code: 'recovery_conflict',
-      message: 'Wallet Email custody enrollment is missing after preparation',
-    };
+    return failure(
+      'recovery_conflict',
+      'Wallet Email custody enrollment is missing after preparation',
+    );
   }
   return {
     kind: 'create',
@@ -1022,19 +1009,11 @@ function nonEmpty(value: unknown): string | null {
 }
 
 function recoveryAttemptUnavailable(): GoogleRecoveryFailure {
-  return {
-    ok: false,
-    code: 'recovery_attempt_unavailable',
-    message: 'Wallet recovery operation is unavailable',
-  };
+  return failure('recovery_attempt_unavailable', 'Wallet recovery operation is unavailable');
 }
 
 function recoveryAttemptConflict(): GoogleRecoveryFailure {
-  return {
-    ok: false,
-    code: 'recovery_conflict',
-    message: 'Wallet recovery operation changed; retry recovery',
-  };
+  return failure('recovery_conflict', 'Wallet recovery operation changed; retry recovery');
 }
 
 function recoveryFinalizationRefused(

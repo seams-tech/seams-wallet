@@ -4,6 +4,7 @@ import {
   parseOrgId,
   parseVerifiedGoogleEmail,
 } from '@shared/utils/domainIds';
+import { failure } from '@shared/utils/failure';
 import type { ThresholdRuntimePolicyScope } from '../types';
 import type {
   EmailOtpRegistrationAttemptStore,
@@ -16,7 +17,7 @@ import type {
 } from '../EmailOtpStores';
 import type { IdentityStore } from '../IdentityStore';
 import { readActiveEmailOtpEnrollmentWithStore } from './emailOtpEnrollment';
-import { randomOpaqueId } from './bytes';
+import { randomBase64Url } from './bytes';
 import { GOOGLE_EMAIL_OTP_STALE_IDENTITY_MESSAGE } from './googleEmailOtpErrors';
 
 export type GoogleEmailOtpResolutionMode =
@@ -137,27 +138,15 @@ export async function consumeGoogleEmailOtpRegistrationAttemptRateLimitWithDeps(
   if (accountMode !== 'register') return { ok: true };
   const providerSubject = parseGoogleProviderSubject(input.request.providerSubject);
   if (!providerSubject.ok) {
-    return {
-      ok: false,
-      code: 'invalid_body',
-      message: providerSubject.error.message,
-    };
+    return failure('invalid_body', providerSubject.error.message);
   }
   const email = parseVerifiedGoogleEmail(input.request.email);
   if (!email.ok) {
-    return {
-      ok: false,
-      code: 'invalid_body',
-      message: email.error.message,
-    };
+    return failure('invalid_body', email.error.message);
   }
   const orgId = parseOrgId(input.request.runtimePolicyScope?.orgId);
   if (!orgId.ok) {
-    return {
-      ok: false,
-      code: 'invalid_body',
-      message: orgId.error.message,
-    };
+    return failure('invalid_body', orgId.error.message);
   }
   const restartOffer = isTruthyBoundaryFlag(input.request.restartRegistrationOffer);
   return await input.consumeRateLimit({
@@ -242,11 +231,10 @@ export async function completeGoogleEmailOtpRegistrationAttemptWithStore(input: 
   const walletId = toOptionalTrimmedString(input.walletId);
   const attempt = await input.registrationAttemptStore.get(registrationAttemptId);
   if (!attempt) {
-    return {
-      ok: false,
-      code: 'registration_incomplete',
-      message: 'Google Email OTP registration attempt expired or was not found',
-    };
+    return failure(
+      'registration_incomplete',
+      'Google Email OTP registration attempt expired or was not found',
+    );
   }
   if (attempt.expiresAtMs <= input.nowMs) {
     await input.registrationAttemptStore.put({
@@ -254,26 +242,17 @@ export async function completeGoogleEmailOtpRegistrationAttemptWithStore(input: 
       state: 'expired',
       updatedAtMs: input.nowMs,
     });
-    return {
-      ok: false,
-      code: 'registration_incomplete',
-      message: 'Google Email OTP registration attempt expired',
-    };
+    return failure('registration_incomplete', 'Google Email OTP registration attempt expired');
   }
   if (walletId !== attempt.walletId) {
-    return {
-      ok: false,
-      code: 'wallet_identity_mismatch',
-      message: 'registrationAttemptId does not match walletId',
-    };
+    return failure('wallet_identity_mismatch', 'registrationAttemptId does not match walletId');
   }
   if (attempt.state === 'active') return { ok: true };
   if (attempt.state !== 'started' && attempt.state !== 'key_finalized') {
-    return {
-      ok: false,
-      code: 'registration_incomplete',
-      message: 'Google Email OTP registration attempt is no longer active',
-    };
+    return failure(
+      'registration_incomplete',
+      'Google Email OTP registration attempt is no longer active',
+    );
   }
   const linked = await input.identityStore.linkSubjectToUserId({
     userId: attempt.walletId,
@@ -287,11 +266,7 @@ export async function completeGoogleEmailOtpRegistrationAttemptWithStore(input: 
       failureCode: linked.code,
       updatedAtMs: input.nowMs,
     });
-    return {
-      ok: false,
-      code: linked.code,
-      message: linked.message,
-    };
+    return failure(linked.code, linked.message);
   }
   await input.registrationAttemptStore.put({
     ...attempt,
@@ -314,19 +289,17 @@ export async function validateGoogleEmailOtpRegistrationCandidateWalletWithStore
   const ownerProofBindingDigest = toOptionalTrimmedString(input.ownerProofBindingDigest);
   const providerSubject = toOptionalTrimmedString(input.providerSubject);
   if (!registrationAttemptId || !walletId || !ownerProofBindingDigest || !providerSubject) {
-    return {
-      ok: false,
-      code: 'invalid_body',
-      message: 'Google Email OTP registration candidate validation requires signed session scope',
-    };
+    return failure(
+      'invalid_body',
+      'Google Email OTP registration candidate validation requires signed session scope',
+    );
   }
   const attempt = await input.registrationAttemptStore.get(registrationAttemptId);
   if (!attempt) {
-    return {
-      ok: false,
-      code: 'registration_attempt_missing',
-      message: 'Google Email OTP registration attempt expired or was not found',
-    };
+    return failure(
+      'registration_attempt_missing',
+      'Google Email OTP registration attempt expired or was not found',
+    );
   }
   if (attempt.expiresAtMs <= input.nowMs) {
     await input.registrationAttemptStore.put({
@@ -334,43 +307,35 @@ export async function validateGoogleEmailOtpRegistrationCandidateWalletWithStore
       state: 'expired',
       updatedAtMs: input.nowMs,
     });
-    return {
-      ok: false,
-      code: 'registration_attempt_expired',
-      message: 'Google Email OTP registration attempt expired',
-    };
+    return failure('registration_attempt_expired', 'Google Email OTP registration attempt expired');
   }
   if (attempt.providerSubject !== providerSubject) {
-    return {
-      ok: false,
-      code: 'challenge_subject_mismatch',
-      message: 'Email OTP registration attempt does not match the provider subject',
-    };
+    return failure(
+      'challenge_subject_mismatch',
+      'Email OTP registration attempt does not match the provider subject',
+    );
   }
   if (attempt.ownerProofBindingDigest !== ownerProofBindingDigest) {
-    return {
-      ok: false,
-      code: 'owner_proof_binding_mismatch',
-      message: 'Google Email OTP registration attempt does not match the owner proof binding',
-    };
+    return failure(
+      'owner_proof_binding_mismatch',
+      'Google Email OTP registration attempt does not match the owner proof binding',
+    );
   }
   if (attempt.state !== 'started' && attempt.state !== 'key_finalized') {
-    return {
-      ok: false,
-      code: 'registration_incomplete',
-      message: 'Google Email OTP registration attempt is no longer active',
-    };
+    return failure(
+      'registration_incomplete',
+      'Google Email OTP registration attempt is no longer active',
+    );
   }
   const candidate = findGoogleEmailOtpOfferCandidateByWalletId({
     candidates: attempt.offerCandidates,
     walletId,
   });
   if (!candidate) {
-    return {
-      ok: false,
-      code: 'wallet_identity_mismatch',
-      message: 'walletId is not an active Google Email OTP registration candidate',
-    };
+    return failure(
+      'wallet_identity_mismatch',
+      'walletId is not an active Google Email OTP registration candidate',
+    );
   }
   return { ok: true };
 }
@@ -388,11 +353,10 @@ export async function recordGoogleEmailOtpRegistrationAttemptPublicKeyWithStore(
   const finalizedPublicKey = toOptionalTrimmedString(input.finalizedPublicKey);
   const attempt = await input.registrationAttemptStore.get(registrationAttemptId);
   if (!attempt) {
-    return {
-      ok: false,
-      code: 'registration_incomplete',
-      message: 'Google Email OTP registration attempt expired or was not found',
-    };
+    return failure(
+      'registration_incomplete',
+      'Google Email OTP registration attempt expired or was not found',
+    );
   }
   if (attempt.expiresAtMs <= input.nowMs) {
     await input.registrationAttemptStore.put({
@@ -400,29 +364,20 @@ export async function recordGoogleEmailOtpRegistrationAttemptPublicKeyWithStore(
       state: 'expired',
       updatedAtMs: input.nowMs,
     });
-    return {
-      ok: false,
-      code: 'registration_incomplete',
-      message: 'Google Email OTP registration attempt expired',
-    };
+    return failure('registration_incomplete', 'Google Email OTP registration attempt expired');
   }
   if (walletId !== attempt.walletId) {
-    return {
-      ok: false,
-      code: 'wallet_identity_mismatch',
-      message: 'registrationAttemptId does not match walletId',
-    };
+    return failure('wallet_identity_mismatch', 'registrationAttemptId does not match walletId');
   }
   if (
     attempt.state !== 'started' &&
     attempt.state !== 'key_finalized' &&
     attempt.state !== 'active'
   ) {
-    return {
-      ok: false,
-      code: 'registration_incomplete',
-      message: 'Google Email OTP registration attempt is no longer active',
-    };
+    return failure(
+      'registration_incomplete',
+      'Google Email OTP registration attempt is no longer active',
+    );
   }
   if (attempt.state === 'started') {
     if (!finalizedPublicKey) {
@@ -496,16 +451,12 @@ export async function cleanupGoogleEmailOtpDevRegistrationStateWithStores(input:
   | { ok: false; code: string; message: string }
 > {
   if (input.isProductionEnvironment) {
-    return {
-      ok: false,
-      code: 'not_found',
-      message: 'Google Email OTP dev cleanup is not available',
-    };
+    return failure('not_found', 'Google Email OTP dev cleanup is not available');
   }
 
   const providerSubject = toOptionalTrimmedString(input.providerSubject);
   if (!providerSubject || !providerSubject.startsWith('google:')) {
-    return { ok: false, code: 'invalid_body', message: 'Missing Google provider subject' };
+    return failure('invalid_body', 'Missing Google provider subject');
   }
 
   const requestedWalletId = toOptionalTrimmedString(input.walletId);
@@ -797,7 +748,7 @@ async function createGoogleEmailOtpRegistrationOffer(input: {
 }): Promise<GoogleEmailOtpResolutionResult> {
   const nowMs = Date.now();
   const authProvider = 'google_oidc';
-  const walletIdDerivationNonce = randomOpaqueId(18);
+  const walletIdDerivationNonce = randomBase64Url(18);
   const offerCandidates: GoogleEmailOtpRegistrationOfferCandidateRecord[] = [];
   for (let attempt = 0; attempt < 30 && offerCandidates.length < 5; attempt += 1) {
     const candidate = await input.deriveHostedWalletId({
@@ -821,7 +772,7 @@ async function createGoogleEmailOtpRegistrationOffer(input: {
       continue;
     }
     offerCandidates.push({
-      candidateId: randomOpaqueId(18),
+      candidateId: randomBase64Url(18),
       walletId: candidate,
       collisionCounter: attempt,
     });
@@ -843,7 +794,7 @@ async function createGoogleEmailOtpRegistrationOffer(input: {
     ...remainingOfferCandidates,
   ];
   const walletId = selectedCandidate.walletId;
-  const offerId = randomOpaqueId(18);
+  const offerId = randomBase64Url(18);
   const attempt = await createGoogleEmailOtpRegistrationAttempt({
     registrationAttemptStore: input.registrationAttemptStore,
     providerSubject: input.request.providerSubject,
@@ -886,7 +837,7 @@ async function createGoogleEmailOtpRegistrationAttempt(input: {
   });
   const attempt: GoogleEmailOtpRegistrationAttemptRecord = {
     version: 'google_email_otp_registration_attempt_v1',
-    attemptId: randomOpaqueId(18),
+    attemptId: randomBase64Url(18),
     providerSubject: input.providerSubject,
     email: input.email,
     walletId: input.walletId,
@@ -981,11 +932,7 @@ async function repairGoogleEmailOtpWalletLink(input: {
     allowMoveIfSoleIdentity: true,
   });
   if (!linked.ok) {
-    return {
-      ok: false,
-      code: linked.code,
-      message: linked.message,
-    };
+    return failure(linked.code, linked.message);
   }
   return { ok: true };
 }

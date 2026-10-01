@@ -1,16 +1,10 @@
 import { parseWebAuthnRpId, type WebAuthnRpId } from '../utils/domainIds';
+import type { ReadonlyExclusiveUnion } from '../utils/variant';
 
-export type WalletRecoveryTargetV1 =
-  | {
-      readonly kind: 'passkey';
-      readonly rpId: WebAuthnRpId;
-      readonly googleProvider?: never;
-    }
-  | {
-      readonly kind: 'google_email_otp';
-      readonly googleProvider: 'google';
-      readonly rpId?: never;
-    };
+export type WalletRecoveryTargetV1 = ReadonlyExclusiveUnion<
+  | { readonly kind: 'passkey'; readonly rpId: WebAuthnRpId }
+  | { readonly kind: 'google_email_otp'; readonly googleProvider: 'google' }
+>;
 
 export function parseWalletRecoveryTargetV1(raw: unknown): WalletRecoveryTargetV1 {
   if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {

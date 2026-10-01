@@ -255,17 +255,6 @@ pub struct RegistrationEvaluationAbortedProjectionV1 {
 }
 
 impl RegistrationEvaluationAbortedProjectionV1 {
-    #[allow(dead_code)]
-    fn from_failure(
-        failure: ArtifactEvaluationFailureV1<FailedRegistrationArtifactAttemptV1>,
-    ) -> Self {
-        let abort = failure.abort();
-        Self {
-            abort,
-            retained: failure.into_retained(),
-        }
-    }
-
     /// Returns the unregistered state before evaluation.
     pub const fn before(&self) -> RegistrationEvaluationAbortStateV1 {
         RegistrationEvaluationAbortStateV1::Unregistered
@@ -303,15 +292,6 @@ macro_rules! define_registered_evaluation_abort_projection {
         }
 
         impl $name {
-            #[allow(dead_code)]
-            fn from_failure(failure: ArtifactEvaluationFailureV1<$retained>) -> Self {
-                let abort = failure.abort();
-                Self {
-                    abort,
-                    retained: failure.into_retained(),
-                }
-            }
-
             /// Returns the exact registered state before evaluation.
             pub const fn before(&self) -> &RegisteredLifecyclePreStateV1 {
                 self.retained.state()
@@ -353,15 +333,6 @@ pub struct RefreshEvaluationAbortedProjectionV1 {
 }
 
 impl RefreshEvaluationAbortedProjectionV1 {
-    #[allow(dead_code)]
-    fn from_failure(failure: ArtifactEvaluationFailureV1<FailedRefreshArtifactAttemptV1>) -> Self {
-        let abort = failure.abort();
-        Self {
-            abort,
-            retained: failure.into_retained(),
-        }
-    }
-
     /// Returns the exact registered state before evaluation.
     pub const fn before(&self) -> &RegisteredLifecyclePreStateV1 {
         self.retained.terminal().state().state()
@@ -402,7 +373,6 @@ pub struct RecoveryEvaluationAbortedProjectionV1 {
 }
 
 impl RecoveryEvaluationAbortedProjectionV1 {
-    #[allow(dead_code)]
     fn from_failure(failure: ArtifactEvaluationFailureV1<FailedRecoveryArtifactAttemptV1>) -> Self {
         let abort = failure.abort();
         Self {
@@ -463,16 +433,6 @@ pub enum EvaluationAbortedPersistenceProjectionV1 {
 }
 
 impl EvaluationAbortedPersistenceProjectionV1 {
-    /// Consumes one admitted registration failure into its persistence projection.
-    #[allow(dead_code)]
-    pub(crate) fn from_registration_failure(
-        failure: ArtifactEvaluationFailureV1<FailedRegistrationArtifactAttemptV1>,
-    ) -> Self {
-        Self::Registration(RegistrationEvaluationAbortedProjectionV1::from_failure(
-            failure,
-        ))
-    }
-
     /// Consumes one admitted recovery failure into its persistence projection.
     #[allow(dead_code)]
     pub(crate) fn from_recovery_failure(
@@ -481,22 +441,6 @@ impl EvaluationAbortedPersistenceProjectionV1 {
         Self::Recovery(Box::new(
             RecoveryEvaluationAbortedProjectionV1::from_failure(failure),
         ))
-    }
-
-    /// Consumes one admitted refresh failure into its persistence projection.
-    #[allow(dead_code)]
-    pub(crate) fn from_refresh_failure(
-        failure: ArtifactEvaluationFailureV1<FailedRefreshArtifactAttemptV1>,
-    ) -> Self {
-        Self::Refresh(RefreshEvaluationAbortedProjectionV1::from_failure(failure))
-    }
-
-    /// Consumes one admitted export failure into its persistence projection.
-    #[allow(dead_code)]
-    pub(crate) fn from_export_failure(
-        failure: ArtifactEvaluationFailureV1<FailedExportArtifactAttemptV1>,
-    ) -> Self {
-        Self::Export(ExportEvaluationAbortedProjectionV1::from_failure(failure))
     }
 
     /// Returns the request's retained pre-state class.

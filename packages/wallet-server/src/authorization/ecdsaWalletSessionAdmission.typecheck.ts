@@ -1,5 +1,4 @@
 import type { AuthorizedOperation, AuthorizedOperationInput } from './domain';
-import type { EcdsaMaterialActivationScope } from './service';
 import type {
   EcdsaWalletSessionAdmissionInput,
   EcdsaWalletSessionAdmissionResult,
@@ -8,7 +7,7 @@ import type {
 
 declare const operation: AuthorizedOperation;
 declare const ownerScope: PinnedOwnerWalletScope;
-declare const material: EcdsaMaterialActivationScope;
+declare const material: EcdsaWalletSessionAdmissionInput['material'];
 declare const generalInput: AuthorizedOperationInput;
 declare const raw: unknown;
 

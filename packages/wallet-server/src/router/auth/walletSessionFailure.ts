@@ -1,6 +1,7 @@
 import {
   type WalletSessionFailureCode,
 } from '@shared/utils/walletSessionFailure';
+import { failure } from '@shared/utils/failure';
 
 export type { WalletSessionFailureCode } from '@shared/utils/walletSessionFailure';
 
@@ -51,9 +52,5 @@ export function walletSessionFailureStatus(code: WalletSessionFailureCode): 401 
 export function walletSessionFailure(
   code: WalletSessionFailureCode,
 ): WalletSessionBoundaryFailure {
-  return {
-    ok: false,
-    code,
-    message: walletSessionFailureMessage(code),
-  };
+  return failure(code, walletSessionFailureMessage(code));
 }

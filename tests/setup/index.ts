@@ -38,7 +38,7 @@
 // - Page: Playwright type, no runtime dependencies
 // - type SeamsWeb: TypeScript type only, no runtime code
 // - encoders: Utility functions used in Node.js context, not browser
-import { Page, test } from '@playwright/test';
+import { Page } from '@playwright/test';
 import { executeSequentialSetup } from './bootstrap';
 import { DEFAULT_TEST_CONFIG } from './config';
 import { routePreactModules } from './preact';
@@ -196,37 +196,6 @@ export async function setupBasicPasskeyTest(
   });
 
   // environment ready
-}
-
-// =============================================================================
-// SETUP HELPER FUNCTIONS
-// =============================================================================
-
-/**
- * Step 1: ENVIRONMENT SETUP
- * Configure WebAuthn Virtual Authenticator first
- */
-/**
- * Handles the retained infrastructure skip for shared testnet faucet rate limiting.
- *
- * @param result - The test result object containing success status and error message
- * @returns boolean - true if test was skipped due to infrastructure issues, false otherwise
- */
-export function handleInfrastructureErrors(result: { success: boolean; error?: string }): boolean {
-  if (!result.success && result.error) {
-    if (result.error.includes('429') && result.error.includes('Faucet service error')) {
-      console.warn('⚠️  Test skipped due to testnet faucet rate limiting (HTTP 429)');
-      console.warn('   This is expected when running multiple tests quickly.');
-      console.warn('   Rerun the test later - this is not a test failure.');
-      console.warn(`   Error: ${result.error}`);
-
-      // Skip this test instead of failing
-      test.skip(true, 'Testnet faucet rate limited (HTTP 429) - retry later');
-      return true;
-    }
-  }
-
-  return false;
 }
 
 export type { PasskeyTestConfig, PasskeyTestConfigOverrides } from './types';

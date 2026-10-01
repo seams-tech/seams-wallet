@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { setupBasicPasskeyTest, handleInfrastructureErrors, SDK_ESM_PATHS } from '../setup';
+import { setupBasicPasskeyTest, SDK_ESM_PATHS } from '../setup';
 import {
   buildWalletServiceHtml,
   registerWalletServiceRoute,
@@ -402,7 +402,6 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
     );
 
     if (!result.success) {
-      if (handleInfrastructureErrors(result)) return;
       expect(result.success, result.error).toBe(true);
       return;
     }
@@ -564,7 +563,6 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
     );
 
     if (!result.success) {
-      if (handleInfrastructureErrors(result)) return;
       expect(result.success).toBe(true);
       return;
     }
@@ -644,7 +642,6 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
     );
 
     if (!result.success) {
-      if (handleInfrastructureErrors(result)) return;
       expect(result.success, result.error).toBe(true);
       return;
     }
@@ -802,7 +799,6 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
     );
 
     if (!result.success) {
-      if (handleInfrastructureErrors(result)) return;
       expect(result.success, result.error).toBe(true);
       return;
     }
@@ -880,7 +876,6 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
     );
 
     if (!result.success) {
-      if (handleInfrastructureErrors(result)) return;
       expect(result.success, result.error).toBe(true);
       return;
     }
@@ -978,7 +973,6 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
     );
 
     if (!result.success) {
-      if (handleInfrastructureErrors(result)) return;
       expect(result.success).toBe(true);
       return;
     }

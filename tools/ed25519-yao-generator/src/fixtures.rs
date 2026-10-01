@@ -11,6 +11,8 @@ use crate::{
     StableKeyDerivationContext,
 };
 
+pub(crate) mod strict_corpus;
+
 /// Schema identifier for the first portable Ed25519 Yao vector corpus.
 pub const VECTOR_CORPUS_SCHEMA_V1: &str = "seams:router-ab:ed25519-yao:vectors:v1";
 
@@ -426,12 +428,12 @@ fn build_vector_case_from_inputs(
             let export = evaluate_full_clear_reference_export_v1(&deriver_a, &deriver_b);
             assert_eq!(
                 reference.clear_reference_trace.joined_seed_hex,
-                encode_hex(&export.seed().expose_bytes()),
+                hex::encode(export.seed().expose_bytes()),
                 "export result must equal the joined clear trace"
             );
             VectorCaseV1::Export(VectorExportCaseV1 {
                 reference,
-                authorized_seed_hex: encode_hex(&export.seed().expose_bytes()),
+                authorized_seed_hex: hex::encode(export.seed().expose_bytes()),
             })
         }
     }
@@ -489,23 +491,25 @@ fn case_id(request_kind: CeremonyRequestKindV1) -> &'static str {
 
 fn context_fixture(context: &StableKeyDerivationContext) -> VectorContextV1 {
     VectorContextV1 {
-        application_binding_digest_hex: encode_hex(context.application_binding_digest().as_bytes()),
+        application_binding_digest_hex: hex::encode(
+            context.application_binding_digest().as_bytes(),
+        ),
         participant_ids: context.participant_ids().as_array(),
-        encoded_hex: encode_hex(context.encode().as_bytes()),
-        binding_sha256_hex: encode_hex(context.binding_digest().as_bytes()),
+        encoded_hex: hex::encode(context.encode().as_bytes()),
+        binding_sha256_hex: hex::encode(context.binding_digest().as_bytes()),
     }
 }
 
 fn inputs_fixture(inputs: SyntheticInputs) -> VectorInputsV1 {
     VectorInputsV1 {
-        y_client_a_hex: encode_hex(&inputs.y_client_a),
-        y_server_a_hex: encode_hex(&inputs.y_server_a),
-        y_client_b_hex: encode_hex(&inputs.y_client_b),
-        y_server_b_hex: encode_hex(&inputs.y_server_b),
-        tau_client_a_hex: encode_hex(&inputs.tau_client_a.to_bytes()),
-        tau_server_a_hex: encode_hex(&inputs.tau_server_a.to_bytes()),
-        tau_client_b_hex: encode_hex(&inputs.tau_client_b.to_bytes()),
-        tau_server_b_hex: encode_hex(&inputs.tau_server_b.to_bytes()),
+        y_client_a_hex: hex::encode(inputs.y_client_a),
+        y_server_a_hex: hex::encode(inputs.y_server_a),
+        y_client_b_hex: hex::encode(inputs.y_client_b),
+        y_server_b_hex: hex::encode(inputs.y_server_b),
+        tau_client_a_hex: hex::encode(inputs.tau_client_a.to_bytes()),
+        tau_server_a_hex: hex::encode(inputs.tau_server_a.to_bytes()),
+        tau_client_b_hex: hex::encode(inputs.tau_client_b.to_bytes()),
+        tau_server_b_hex: hex::encode(inputs.tau_server_b.to_bytes()),
     }
 }
 
@@ -523,20 +527,20 @@ fn trace_fixture(
     assert_eq!(joined_tau.to_bytes(), material.tau().expose_bytes());
 
     VectorClearReferenceTraceV1 {
-        y_a_hex: encode_hex(&y_a),
-        y_b_hex: encode_hex(&y_b),
-        joined_seed_hex: encode_hex(&joined_seed),
-        sha512_digest_hex: encode_hex(&material.sha512_digest().expose_bytes()),
-        clamped_scalar_bytes_hex: encode_hex(&material.clamped_scalar_bytes().expose_bytes()),
-        signing_scalar_hex: encode_hex(&material.signing_scalar().expose_bytes()),
-        tau_a_hex: encode_hex(&tau_a.to_bytes()),
-        tau_b_hex: encode_hex(&tau_b.to_bytes()),
-        tau_hex: encode_hex(&material.tau().expose_bytes()),
-        x_client_base_hex: encode_hex(&material.x_client_base().expose_bytes()),
-        x_server_base_hex: encode_hex(&material.x_server_base().expose_bytes()),
-        x_client_point_hex: encode_hex(&material.x_client().expose_bytes()),
-        x_server_point_hex: encode_hex(&material.x_server().expose_bytes()),
-        public_key_hex: encode_hex(&material.public_key().expose_bytes()),
+        y_a_hex: hex::encode(y_a),
+        y_b_hex: hex::encode(y_b),
+        joined_seed_hex: hex::encode(joined_seed),
+        sha512_digest_hex: hex::encode(material.sha512_digest().expose_bytes()),
+        clamped_scalar_bytes_hex: hex::encode(material.clamped_scalar_bytes().expose_bytes()),
+        signing_scalar_hex: hex::encode(material.signing_scalar().expose_bytes()),
+        tau_a_hex: hex::encode(tau_a.to_bytes()),
+        tau_b_hex: hex::encode(tau_b.to_bytes()),
+        tau_hex: hex::encode(material.tau().expose_bytes()),
+        x_client_base_hex: hex::encode(material.x_client_base().expose_bytes()),
+        x_server_base_hex: hex::encode(material.x_server_base().expose_bytes()),
+        x_client_point_hex: hex::encode(material.x_client().expose_bytes()),
+        x_server_point_hex: hex::encode(material.x_server().expose_bytes()),
+        public_key_hex: hex::encode(material.public_key().expose_bytes()),
     }
 }
 
@@ -547,14 +551,4 @@ fn patterned_bytes(start: u8, step: u8) -> [u8; 32] {
         *byte = start.wrapping_add(offset);
     }
     bytes
-}
-
-fn encode_hex(bytes: &[u8]) -> String {
-    const HEX: &[u8; 16] = b"0123456789abcdef";
-    let mut encoded = String::with_capacity(bytes.len() * 2);
-    for byte in bytes {
-        encoded.push(char::from(HEX[usize::from(byte >> 4)]));
-        encoded.push(char::from(HEX[usize::from(byte & 0x0f)]));
-    }
-    encoded
 }

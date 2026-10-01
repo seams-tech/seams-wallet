@@ -11,7 +11,10 @@
     "typecheck/tenant-root-restore-operation.typecheck.ts",
     "typecheck/wallet-signing-lifecycle.typecheck.ts",
     "typecheck/external-evm-state.typecheck.ts",
-    "typecheck/transaction-review.typecheck.ts"
+    "typecheck/transaction-review.typecheck.ts",
+    "wallet-ui/confirm-content.typecheck.ts",
+    "wallet-ui/confirmation-mount.typecheck.ts",
+    "wallet-ui/export-private-key.typecheck.ts"
   ],
   "exclude": ["node_modules"]
 }

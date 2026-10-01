@@ -996,6 +996,11 @@ function fetchWithGlobalThis(input: RequestInfo | URL, init?: RequestInit): Prom
   return globalThis.fetch(input, init);
 }
 
+type RehydratedNearEd25519Capability = {
+  readonly subject: NearEd25519CapabilityRehydrationSubject;
+  readonly material: NearEd25519YaoOperationMaterial;
+};
+
 function currentNearEd25519CapabilityRehydrationSubject(args: {
   subject: NearEd25519CapabilityRehydrationSubject;
   walletSessionState: NearResolvedEd25519SigningSessionState;
@@ -2399,7 +2404,7 @@ export class BrowserSigningSurface {
   private readonly thresholdEd25519CommitQueueByKey: ThresholdEd25519CommitQueueByKey = new Map();
   private readonly nearEd25519CapabilityRehydrationBySubject: Map<
     string,
-    Promise<NearEd25519CapabilityRehydrationSubject>
+    Promise<RehydratedNearEd25519Capability>
   > = new Map();
   private readonly emailOtpSessions: EmailOtpWalletSessionCoordinator;
   private readonly warmSigning: WarmSigningPorts;
@@ -3605,8 +3610,8 @@ export class BrowserSigningSurface {
     const rehydrationKey = nearEd25519CapabilityRehydrationKey(subject);
     const existingRehydration = this.nearEd25519CapabilityRehydrationBySubject.get(rehydrationKey);
     if (existingRehydration) {
-      const reboundSubject = await existingRehydration;
-      const rehydrated = await this.resolveActiveNearEd25519YaoSigningLane(reboundSubject);
+      const rebound = await existingRehydration;
+      const rehydrated = await this.resolveActiveNearEd25519YaoSigningLane(rebound.subject);
       if (rehydrated) return rehydrated;
       throw new Error('[SigningEngine][near] joined rehydration did not publish an active lane');
     }
@@ -3614,10 +3619,7 @@ export class BrowserSigningSurface {
     const rehydration = this.rehydrateNearEd25519YaoCapabilityForSigning(subject);
     this.nearEd25519CapabilityRehydrationBySubject.set(rehydrationKey, rehydration);
     try {
-      const reboundSubject = await rehydration;
-      const rehydrated = await this.resolveActiveNearEd25519YaoSigningLane(reboundSubject);
-      if (rehydrated) return rehydrated;
-      throw new Error('[SigningEngine][near] local material rehydration did not publish a lane');
+      return (await rehydration).material;
     } finally {
       if (this.nearEd25519CapabilityRehydrationBySubject.get(rehydrationKey) === rehydration) {
         this.nearEd25519CapabilityRehydrationBySubject.delete(rehydrationKey);
@@ -5661,7 +5663,7 @@ export class BrowserSigningSurface {
 
   private async rehydrateNearEd25519YaoCapabilityForSigning(
     subject: NearEd25519CapabilityRehydrationSubject,
-  ): Promise<NearEd25519CapabilityRehydrationSubject> {
+  ): Promise<RehydratedNearEd25519Capability> {
     const identity = nearEd25519CapabilityRehydrationMaterialIdentity(subject);
     const lane = await this.resolveNearEd25519YaoSigningLane(subject);
     if (!lane) {
@@ -5716,7 +5718,13 @@ export class BrowserSigningSurface {
         ? { kind: 'available', passkeyPrfFirstB64u: warmSessionClaim.prfFirstB64u }
         : { kind: 'unavailable' },
     });
-    if (liveHydration.kind === 'live') return subject;
+    if (liveHydration.kind === 'live') {
+      const material = await this.resolveActiveNearEd25519YaoSigningLane(subject);
+      if (!material) {
+        throw new Error('[SigningEngine][near] local material rehydration did not publish a lane');
+      }
+      return { subject, material };
+    }
     if (liveHydration.kind === 'rehydrated') {
       if (!warmSessionClaim.ok) {
         liveHydration.activeClient.dispose();
@@ -5755,7 +5763,7 @@ export class BrowserSigningSurface {
             '[SigningEngine][near] local material rehydration did not publish an active lane',
           );
         }
-        return reboundSubject;
+        return { subject: reboundSubject, material: published };
       } catch (error) {
         liveHydration.activeClient.dispose();
         throw error;

@@ -19,7 +19,6 @@ const cargoManifests = [
   'wasm/evm_crypto/Cargo.toml',
   'wasm/near_signer/Cargo.toml',
   'wasm/router_ab_ecdsa_client/Cargo.toml',
-  'wasm/router_ab_ecdsa_signing_worker/Cargo.toml',
   'wasm/shamir3pass_runtime/Cargo.toml',
   'wasm/tempo_signer/Cargo.toml',
   'wasm/wallet_custody_ceremony/Cargo.toml',

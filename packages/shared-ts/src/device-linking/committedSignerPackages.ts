@@ -38,12 +38,14 @@ import {
   parseRouterAbEd25519YaoApplicationBindingFactsV1,
   parseRouterAbEd25519YaoCeremonyBindingV1,
   parseRouterAbEd25519YaoParticipantIdsV1,
+  sameRouterAbEd25519YaoByteSequence,
   type RouterAbEd25519YaoApplicationBindingFactsV1,
   type RouterAbEd25519YaoActivationPublicReceiptV1,
   type RouterAbEd25519YaoActivationClientPackageV1,
   type RouterAbEd25519YaoCeremonyBindingV1,
 } from '../utils/routerAbEd25519Yao';
 import { routerAbMpcMaterialActivationRefFromWire } from '../utils/routerAbNormalSigningIdentity';
+import type { ReadonlyExclusiveUnion } from '../utils/variant';
 
 const COMMITTED_SIGNER_PACKAGE_DOMAIN_V1 = 'seams/wallet/committed-signer-package/v1' as const;
 const COMMITTED_SIGNER_PACKAGE_SET_DOMAIN_V1 =
@@ -67,17 +69,15 @@ export type CommittedEcdsaSignerPackageV1 = {
   readonly activationReceipt: LinkedDeviceEcdsaSourcePreservingActivationReceiptV1;
 };
 
-export type CommittedSignerPackageSetV1 =
+export type CommittedSignerPackageSetV1 = ReadonlyExclusiveUnion<
   | {
       readonly kind: 'committed_signer_package_set_v1';
       readonly keyFamilies: readonly ['ed25519'];
       readonly ed25519: CommittedEd25519SignerPackageV1;
-      readonly ecdsa?: never;
     }
   | {
       readonly kind: 'committed_signer_package_set_v1';
       readonly keyFamilies: readonly ['ecdsa_secp256k1'];
-      readonly ed25519?: never;
       readonly ecdsa: CommittedEcdsaSignerPackageV1;
     }
   | {
@@ -85,7 +85,8 @@ export type CommittedSignerPackageSetV1 =
       readonly keyFamilies: readonly ['ed25519', 'ecdsa_secp256k1'];
       readonly ed25519: CommittedEd25519SignerPackageV1;
       readonly ecdsa: CommittedEcdsaSignerPackageV1;
-    };
+    }
+>;
 
 export type CommittedAuthorityPackagesV1 = {
   readonly kind: 'committed_authority_packages_v1';
@@ -105,31 +106,17 @@ type CommittedAuthorityPackagesWireV1 = {
   readonly packageSetDigestB64u: unknown;
 };
 
-type CommittedSignerPackageSetWireV1 =
-  | {
-      readonly kind: unknown;
-      readonly keyFamilies: unknown;
-      readonly ed25519?: never;
-      readonly ecdsa?: never;
-    }
-  | {
-      readonly kind: unknown;
-      readonly keyFamilies: unknown;
-      readonly ed25519: unknown;
-      readonly ecdsa?: never;
-    }
-  | {
-      readonly kind: unknown;
-      readonly keyFamilies: unknown;
-      readonly ed25519?: never;
-      readonly ecdsa: unknown;
-    }
+type CommittedSignerPackageSetWireV1 = ReadonlyExclusiveUnion<
+  | { readonly kind: unknown; readonly keyFamilies: unknown }
+  | { readonly kind: unknown; readonly keyFamilies: unknown; readonly ed25519: unknown }
+  | { readonly kind: unknown; readonly keyFamilies: unknown; readonly ecdsa: unknown }
   | {
       readonly kind: unknown;
       readonly keyFamilies: unknown;
       readonly ed25519: unknown;
       readonly ecdsa: unknown;
-    };
+    }
+>;
 
 type CommittedEd25519SignerPackageWireV1 = {
   readonly kind: unknown;
@@ -366,8 +353,8 @@ function parseEd25519Package(raw: unknown): CommittedEd25519SignerPackageV1 {
     'deriver_b',
   );
   if (
-    !sameBytes(activationReceipt.transcript, deriverA.transcript) ||
-    !sameBytes(activationReceipt.transcript, deriverB.transcript)
+    !sameRouterAbEd25519YaoByteSequence(activationReceipt.transcript, deriverA.transcript) ||
+    !sameRouterAbEd25519YaoByteSequence(activationReceipt.transcript, deriverB.transcript)
   ) {
     throw new Error('CommittedEd25519SignerPackageV1 receipt transcript does not match packages');
   }
@@ -577,10 +564,6 @@ function parseCommittedEcdsaSignerPackageWireV1(
 
 function inspectRawObject(raw: unknown): object | null {
   return raw !== null && typeof raw === 'object' && !Array.isArray(raw) ? raw : null;
-}
-
-function sameBytes(left: readonly number[], right: readonly number[]): boolean {
-  return left.length === right.length && left.every((value, index) => value === right[index]);
 }
 
 function requireExactWireFields(record: object, keys: readonly string[], label: string): void {

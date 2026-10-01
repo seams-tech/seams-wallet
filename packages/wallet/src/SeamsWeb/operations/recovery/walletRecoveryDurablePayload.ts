@@ -314,10 +314,6 @@ function durableBase64Url(value: unknown, label: string, byteLength?: number): s
   return normalized;
 }
 
-function durableCompressedPublicKey(value: unknown, label: string): string {
-  return parseSecp256k1CompressedPublicKeyB64u(value, label);
-}
-
 function durableSafeInteger(value: unknown, label: string): number {
   if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) {
     throw new Error(label + ' must be a non-negative safe integer');
@@ -459,19 +455,19 @@ function parseWalletRecoveryDurableEcdsaPublicFacts(
       record.contextBinding32B64u,
       'recovery durable ECDSA context binding',
     ),
-    derivationClientSharePublicKey33B64u: durableCompressedPublicKey(
+    derivationClientSharePublicKey33B64u: parseSecp256k1CompressedPublicKeyB64u(
       record.derivationClientSharePublicKey33B64u,
       'recovery durable ECDSA client share',
     ),
-    clientVerifyingShare33B64u: durableCompressedPublicKey(
+    clientVerifyingShare33B64u: parseSecp256k1CompressedPublicKeyB64u(
       record.clientVerifyingShare33B64u,
       'recovery durable ECDSA client verifying share',
     ),
-    relayerPublicKey33B64u: durableCompressedPublicKey(
+    relayerPublicKey33B64u: parseSecp256k1CompressedPublicKeyB64u(
       record.relayerPublicKey33B64u,
       'recovery durable ECDSA relayer public key',
     ),
-    groupPublicKey33B64u: durableCompressedPublicKey(
+    groupPublicKey33B64u: parseSecp256k1CompressedPublicKeyB64u(
       record.groupPublicKey33B64u,
       'recovery durable ECDSA group public key',
     ),

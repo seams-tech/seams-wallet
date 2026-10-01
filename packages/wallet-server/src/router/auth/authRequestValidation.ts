@@ -15,7 +15,7 @@ type PasskeyLoginOptionsRequest = {
   ttl_ms?: number;
 };
 
-type PasskeyLoginVerifyRequest = {
+export type PasskeyVerifyRequest = {
   challengeId: string;
   webauthn_authentication: WebAuthnAuthenticationCredential;
   expected_origin: string;
@@ -36,21 +36,15 @@ type GoogleLoginVerifyRequest = {
   restartRegistrationOffer: boolean;
 };
 
-export type AuthPasskeyStepUpRequest = {
-  challengeId: string;
-  webauthn_authentication: WebAuthnAuthenticationCredential;
-  expected_origin: string;
-};
-
 type AuthLinkIdentityRequest = {
   provider: 'google';
   idToken: string;
-  stepUp: AuthPasskeyStepUpRequest;
+  stepUp: PasskeyVerifyRequest;
 };
 
 type AuthUnlinkIdentityRequest = {
   subject: string;
-  stepUp: AuthPasskeyStepUpRequest;
+  stepUp: PasskeyVerifyRequest;
 };
 
 type AuthIdentityMutationRequest =
@@ -204,7 +198,7 @@ export function parsePasskeyLoginOptionsRequest(
 export function parsePasskeyLoginVerifyRequest(input: {
   body: unknown;
   origin: unknown;
-}): AuthRouteParseResult<PasskeyLoginVerifyRequest> {
+}): AuthRouteParseResult<PasskeyVerifyRequest> {
   const body = requireJsonObject(input.body);
   if (!body.ok) return body;
   const keys = requireOnlyAllowedKeys(body.request, PASSKEY_VERIFY_KEYS, 'passkey login verify');
@@ -279,7 +273,7 @@ export function parseGoogleLoginVerifyRequest(
 function parsePasskeyStepUpRequest(input: {
   body: Record<string, unknown>;
   origin: unknown;
-}): AuthRouteParseResult<AuthPasskeyStepUpRequest> {
+}): AuthRouteParseResult<PasskeyVerifyRequest> {
   const challengeId = requireTrimmedField(input.body, 'step_up_challenge_id');
   if (!challengeId.ok) return challengeId;
   const webauthnAuthentication = parseWebAuthnAuthenticationCredential(

@@ -32,6 +32,7 @@ import {
 import type { EmailOtpWalletAuthAuthority } from '@shared/utils/walletAuthAuthority';
 import type { SigningSessionSealAuthMethod } from '@shared/utils/signingSessionSeal';
 import { routerAbMpcMaterialActivationRefToWire } from '@shared/utils/routerAbNormalSigningIdentity';
+import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 
 // The manifest owns the durable capability and material binding. A sealed
 // record adds restorable signing-session state for prefill and refresh paths;
@@ -114,20 +115,16 @@ export type ExactEcdsaWalletSessionRuntime =
   | ExactEcdsaDirectCapabilityRuntime
   | ExactEcdsaSealedRuntime;
 
-export type ExactEcdsaSealedRuntimeResolution =
-  | {
-      readonly kind: 'resolved';
-      readonly runtime: ExactEcdsaSealedRuntime;
-      readonly reason?: never;
-    }
+export type ExactEcdsaSealedRuntimeResolution = ReadonlyExclusiveUnion<
+  | { readonly kind: 'resolved'; readonly runtime: ExactEcdsaSealedRuntime }
   | {
       readonly kind: 'blocked';
       readonly reason: Extract<
         MpcCapabilityHydrationBlockedReason,
         'missing_material' | 'binding_mismatch' | 'exact_record_conflict' | 'corrupt'
       >;
-      readonly runtime?: never;
-    };
+    }
+>;
 
 function blocked(
   reason: Extract<ExactEcdsaSealedRuntimeResolution, { kind: 'blocked' }>['reason'],

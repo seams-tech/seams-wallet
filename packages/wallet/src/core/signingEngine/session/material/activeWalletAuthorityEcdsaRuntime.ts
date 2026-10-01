@@ -15,12 +15,12 @@ import {
   sameRouterAbEcdsaDerivationNormalSigningScopeV1,
   type RouterAbEcdsaDerivationNormalSigningStateV1,
 } from '@shared/utils/routerAbEcdsaDerivation';
-import type {
-  LinkedDeviceEcdsaSourceContributionBindingV1,
-  LinkedDeviceEcdsaSourceDerivationV1,
-  LinkedDeviceEcdsaSourcePreservingActivationReceiptV1,
-  LinkedDeviceEcdsaSourceSignerIdentityV1,
-  LinkedDeviceEcdsaTargetRecipientPreparationV1,
+import {
+  sameEcdsaSourceSigner,
+  sameEcdsaTarget,
+  type LinkedDeviceEcdsaSourceContributionBindingV1,
+  type LinkedDeviceEcdsaSourceDerivationV1,
+  type LinkedDeviceEcdsaSourcePreservingActivationReceiptV1,
 } from '@shared/device-linking/sourceContribution';
 import {
   isActiveEcdsaWalletAuthorityV1,
@@ -71,6 +71,7 @@ import { toWalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import { computeEcdsaDerivationRoleLocalRelayerKeyId } from '@shared/threshold/ecdsaDerivationRoleLocalBootstrap';
 import type { ExactWalletSessionReadPorts } from '../identity/exactWalletSessionCredential';
 import type { ActiveWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
+import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 
 type ActiveWalletAuthorityEcdsaAuth =
   | {
@@ -168,21 +169,18 @@ type ActiveWalletAuthorityEcdsaRuntimeBlockReason =
   | 'invalid_public_facts'
   | 'persistence_unavailable';
 
-type ActiveWalletAuthorityEcdsaRuntimeResolution =
+type ActiveWalletAuthorityEcdsaRuntimeResolution = ReadonlyExclusiveUnion<
   | {
       readonly kind: 'resolved';
       readonly runtime: ActiveWalletAuthorityEcdsaRuntimeV1;
       readonly lane: ActiveWalletAuthorityEcdsaLaneProjectionV1 | null;
-      readonly reason?: never;
-      readonly message?: never;
     }
   | {
       readonly kind: 'blocked';
       readonly reason: ActiveWalletAuthorityEcdsaRuntimeBlockReason;
       readonly message?: string;
-      readonly runtime?: never;
-      readonly lane?: never;
-    };
+    }
+>;
 
 type ResolveActiveWalletAuthorityEcdsaRuntimeV1Input = {
   readonly walletId: WalletId | string;
@@ -336,32 +334,6 @@ function normalSigningAddress(
   }
 }
 
-function linkedEcdsaSourceSignerIdentitiesEqual(
-  left: LinkedDeviceEcdsaSourceSignerIdentityV1,
-  right: LinkedDeviceEcdsaSourceSignerIdentityV1,
-): boolean {
-  return (
-    mpcMaterialActivationRefsEqual(left.activation, right.activation) &&
-    left.clientPublicKey33B64u === right.clientPublicKey33B64u &&
-    left.relayerPublicKey33B64u === right.relayerPublicKey33B64u &&
-    left.thresholdPublicKey33B64u === right.thresholdPublicKey33B64u &&
-    left.thresholdEthereumAddress20B64u === right.thresholdEthereumAddress20B64u
-  );
-}
-
-function linkedEcdsaTargetRecipientPreparationsEqual(
-  left: LinkedDeviceEcdsaTargetRecipientPreparationV1,
-  right: LinkedDeviceEcdsaTargetRecipientPreparationV1,
-): boolean {
-  return (
-    mpcMaterialActivationRefsEqual(left.activation, right.activation) &&
-    left.targetDeviceId === right.targetDeviceId &&
-    left.targetFactorVerificationDigestB64u === right.targetFactorVerificationDigestB64u &&
-    left.clientRecipientPublicKeyB64u === right.clientRecipientPublicKeyB64u &&
-    left.signingWorkerRecipientPublicKeyB64u === right.signingWorkerRecipientPublicKeyB64u
-  );
-}
-
 function linkedEcdsaSourceContributionBindingsEqual(
   left: LinkedDeviceEcdsaSourceContributionBindingV1,
   right: LinkedDeviceEcdsaSourceContributionBindingV1,
@@ -370,8 +342,8 @@ function linkedEcdsaSourceContributionBindingsEqual(
     left.linkSessionId === right.linkSessionId &&
     left.enrollmentId === right.enrollmentId &&
     left.sourceAuthorityId === right.sourceAuthorityId &&
-    linkedEcdsaSourceSignerIdentitiesEqual(left.source, right.source) &&
-    linkedEcdsaTargetRecipientPreparationsEqual(left.target, right.target) &&
+    sameEcdsaSourceSigner(left.source, right.source) &&
+    sameEcdsaTarget(left.target, right.target) &&
     left.targetClientPublicKey33B64u === right.targetClientPublicKey33B64u
   );
 }

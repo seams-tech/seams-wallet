@@ -3,7 +3,14 @@ import {
   type TenantRootIdentityDecodeErrorV1,
 } from '@shared/tenant-root';
 import type { TenantRootIdentityFieldV1, TenantRootIdentityWireV1 } from '@shared/tenant-root';
-import type { RouterApiCredentialScope } from '../../framework/apiCredentialPorts';
+import type {
+  RouterApiCredentialScope,
+  RouterApiKeyAuthRequest,
+  RouterApiProjectEnvironment,
+  RouterApiPublishableKeyAuthRequest,
+  RouterApiUsageMeterEvent,
+} from '../../framework/apiCredentialPorts';
+import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 
 // The exact private service-binding surface between the Wallet Gateway and
 // the Wallet Console deployment. Five operations cross the binding: API-key
@@ -23,13 +30,7 @@ export const WALLET_CONSOLE_OP_PATHS_V1 = {
   tenantRootActiveLineage: `${WALLET_CONSOLE_OPS_BASE_PATH_V1}/tenant-root/active-lineage`,
 } as const;
 
-export interface WalletConsoleSecretKeyAuthRequestV1 {
-  readonly secret: string;
-  readonly endpoint: string;
-  readonly requiredScopes: RouterApiCredentialScope[];
-  readonly sourceIp?: string;
-  readonly environmentId?: string;
-}
+export interface WalletConsoleSecretKeyAuthRequestV1 extends Readonly<RouterApiKeyAuthRequest> {}
 
 export interface WalletConsolePrincipalV1 {
   readonly apiKeyId: string;
@@ -49,26 +50,12 @@ export type WalletConsoleSecretKeyAuthResponseV1 =
       readonly message: string;
     };
 
-export interface WalletConsolePublishableKeyAuthRequestV1 {
-  readonly secret: string;
-  readonly origin: string;
-  readonly environmentId: string;
-}
+export interface WalletConsolePublishableKeyAuthRequestV1
+  extends Readonly<RouterApiPublishableKeyAuthRequest> {}
 
 export type WalletConsolePublishableKeyAuthResponseV1 = WalletConsoleSecretKeyAuthResponseV1;
 
-export interface WalletConsoleUsageEventV1 {
-  readonly orgId: string;
-  readonly environmentId: string;
-  readonly apiKeyId: string;
-  readonly endpoint: string;
-  readonly walletId: string;
-  readonly action: 'wallet_created';
-  readonly succeeded: boolean;
-  readonly occurredAt?: string;
-  /** Producer-owned idempotency key; replays with the same id must not double-count. */
-  readonly sourceEventId?: string;
-}
+export interface WalletConsoleUsageEventV1 extends Readonly<RouterApiUsageMeterEvent> {}
 
 export interface WalletConsoleUsageEventsResponseV1 {
   readonly ok: boolean;
@@ -87,13 +74,7 @@ export interface WalletConsoleProjectEnvironmentsRequestV1 {
   readonly filters?: { readonly status?: string };
 }
 
-export interface WalletConsoleProjectEnvironmentV1 {
-  readonly id: string;
-  readonly projectId: string;
-  readonly key: string;
-  readonly signingRootVersion: string;
-  readonly status?: string;
-}
+export interface WalletConsoleProjectEnvironmentV1 extends Readonly<RouterApiProjectEnvironment> {}
 
 export interface WalletConsoleProjectEnvironmentsResponseV1 {
   readonly ok: boolean;
@@ -111,21 +92,14 @@ export interface WalletConsoleTenantRootActiveLineageV1 {
   readonly custodyLineageB64u: string;
 }
 
-export type WalletConsoleTenantRootActiveLineageResponseV1 =
-  | {
-      readonly ok: true;
-      readonly identityDigestB64u: string;
-      readonly custodyLineageB64u: string;
-      readonly code?: never;
-      readonly message?: never;
-    }
+export type WalletConsoleTenantRootActiveLineageResponseV1 = ReadonlyExclusiveUnion<
+  | { readonly ok: true; readonly identityDigestB64u: string; readonly custodyLineageB64u: string }
   | {
       readonly ok: false;
       readonly code: 'invalid_body' | 'tenant_root_active_lineage_not_found';
       readonly message: string;
-      readonly identityDigestB64u?: never;
-      readonly custodyLineageB64u?: never;
-    };
+    }
+>;
 
 export type WalletConsoleDecodeResult<T, E> =
   | { readonly ok: true; readonly value: T }

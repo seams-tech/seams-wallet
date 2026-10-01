@@ -29,6 +29,7 @@ import type {
   WalletCapabilitySubjectV1,
 } from '@shared/device-linking/contracts';
 import { parseWalletSessionOperationCredentialV1 } from '@shared/device-linking/activeWalletSession';
+import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 export type {
   ActiveWalletSessionV1,
   WalletSessionOperationCredentialV1,
@@ -62,22 +63,15 @@ export type RetiredWalletSessionV1 = {
 
 export type WalletSessionAuthorizationRecord = ActiveWalletSessionV1 | RetiredWalletSessionV1;
 
-export type WalletSessionAuthorizationExactOperationCredentialReadResult =
+export type WalletSessionAuthorizationExactOperationCredentialReadResult = ReadonlyExclusiveUnion<
   | {
       readonly kind: 'found';
       readonly record: ActiveWalletSessionV1;
       readonly operationCredential: WalletSessionOperationCredentialV1;
     }
-  | {
-      readonly kind: 'missing';
-      readonly record?: never;
-      readonly operationCredential?: never;
-    }
-  | {
-      readonly kind: 'upgrade_required';
-      readonly record?: never;
-      readonly operationCredential?: never;
-    };
+  | { readonly kind: 'missing' }
+  | { readonly kind: 'upgrade_required' }
+>;
 
 export type WalletSessionAuthorizationExactActiveReadResult =
   | Extract<

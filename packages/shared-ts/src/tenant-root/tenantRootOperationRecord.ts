@@ -1,5 +1,6 @@
 import { base64UrlDecode, base64UrlEncode } from '../utils/base64';
 import { alphabetizeStringify, sha256Bytes } from '../utils/digests';
+import { hasExactKeys } from '../utils/exactKeys';
 import {
   isTenantRootIdentityFieldCanonicalV1,
   type TenantRootIdentityV1,
@@ -27,21 +28,7 @@ export const TENANT_ROOT_OPERATION_MAX_LIFETIME_MS_V1 = 600_000;
 export const TENANT_ROOT_DOWNLOAD_MAX_LIFETIME_MS_V1 = 300_000;
 
 /** One console operation on a tenant derivation root. */
-export type TenantRootOperationKindV1 =
-  | 'tenant_root_operational_share_rotation_v1'
-  | 'tenant_root_recovery_governance_change_v1'
-  | 'tenant_root_recovery_recipient_pair_enroll_v1'
-  | 'tenant_root_recovery_recipient_pair_replace_v1'
-  | 'tenant_root_recovery_backup_create_v1'
-  | 'tenant_root_recovery_backup_replace_v1'
-  | 'tenant_root_recovery_role_package_download_v1'
-  | 'tenant_root_recovery_manifest_download_v1'
-  | 'tenant_root_restore_session_start_v1'
-  | 'tenant_root_restore_manifest_register_v1'
-  | 'tenant_root_restore_role_import_key_issue_v1'
-  | 'tenant_root_restore_role_import_v1'
-  | 'tenant_root_restore_activate_v1'
-  | 'tenant_root_source_lineage_retire_v1';
+export type TenantRootOperationKindV1 = (typeof TENANT_ROOT_OPERATION_KINDS_V1)[number];
 
 /** What one operation acts on. */
 export type TenantRootOperationSubjectV1 =
@@ -225,7 +212,7 @@ const DOWNLOAD_OPERATIONS: ReadonlySet<TenantRootOperationKindV1> = new Set([
   'tenant_root_recovery_manifest_download_v1',
 ]);
 
-const OPERATION_KINDS: ReadonlySet<string> = new Set<TenantRootOperationKindV1>([
+const TENANT_ROOT_OPERATION_KINDS_V1 = [
   'tenant_root_operational_share_rotation_v1',
   'tenant_root_recovery_governance_change_v1',
   'tenant_root_recovery_recipient_pair_enroll_v1',
@@ -240,7 +227,11 @@ const OPERATION_KINDS: ReadonlySet<string> = new Set<TenantRootOperationKindV1>(
   'tenant_root_restore_role_import_v1',
   'tenant_root_restore_activate_v1',
   'tenant_root_source_lineage_retire_v1',
-]);
+] as const;
+
+const OPERATION_KINDS: ReadonlySet<string> = new Set<TenantRootOperationKindV1>(
+  TENANT_ROOT_OPERATION_KINDS_V1,
+);
 
 /** Returns the four operations that follow the tenant's recovery governance. */
 export function tenantRootOperationFollowsGovernanceV1(kind: TenantRootOperationKindV1): boolean {
@@ -330,11 +321,6 @@ const RESTORE_ROLE_IMPORT_KEY_RECORD_KEYS_V1 = [
   'subject',
   'tenantRootIdentityDigest',
 ] as const;
-
-function hasExactKeys(record: Record<string, unknown>, keys: readonly string[]): boolean {
-  const actual = Object.keys(record);
-  return actual.length === keys.length && keys.every((key) => actual.includes(key));
-}
 
 function parseRestoreRoleImportKeyIssueRecord(
   raw: Record<string, unknown>,

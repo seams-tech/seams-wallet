@@ -15,6 +15,7 @@ use crate::evaluation_input_view_fixtures::EVALUATION_INPUT_PARTY_VIEW_VECTOR_CO
 use crate::evaluator_abort_view_fixtures::EVALUATOR_ABORT_VIEW_VECTOR_CORPUS_SCHEMA_V1;
 use crate::export_delivery_fixtures::EXPORT_DELIVERY_VECTOR_CORPUS_SCHEMA_V1;
 use crate::export_evaluation_acceptance_fixtures::EXPORT_EVALUATOR_AUTHORIZATION_VECTOR_CORPUS_SCHEMA_V1;
+use crate::fixtures::strict_corpus::{canonical_json_bytes, parse_canonical_json};
 use crate::lifecycle_fixtures::LIFECYCLE_CONTINUITY_CORPUS_SCHEMA_V1;
 use crate::output_party_view_fixtures::OUTPUT_PARTY_VIEW_VECTOR_CORPUS_SCHEMA_V1;
 use crate::provenance_fixtures::PROVENANCE_VECTOR_CORPUS_SCHEMA_V1;
@@ -227,21 +228,18 @@ pub fn canonical_semantic_frame_party_view_vector_corpus_v1() -> SemanticFramePa
 
 /// Encodes the exact canonical corpus with one trailing LF.
 pub fn canonical_semantic_frame_party_view_vector_corpus_json_bytes_v1() -> Vec<u8> {
-    let mut encoded =
-        serde_json::to_vec_pretty(&canonical_semantic_frame_party_view_vector_corpus_v1())
-            .expect("fixed semantic-frame party-view corpus serializes");
-    encoded.push(b'\n');
-    encoded
+    canonical_json_bytes(&canonical_semantic_frame_party_view_vector_corpus_v1())
 }
 
 /// Parses only the exact canonical LF-terminated corpus bytes.
 pub fn parse_canonical_semantic_frame_party_view_vector_corpus_json_v1(
     encoded: &[u8],
 ) -> Result<SemanticFramePartyViewVectorCorpusV1, SemanticFramePartyViewVectorCorpusParseErrorV1> {
-    if encoded != canonical_semantic_frame_party_view_vector_corpus_json_bytes_v1() {
-        return Err(SemanticFramePartyViewVectorCorpusParseErrorV1);
-    }
-    Ok(canonical_semantic_frame_party_view_vector_corpus_v1())
+    parse_canonical_json(
+        encoded,
+        canonical_semantic_frame_party_view_vector_corpus_v1,
+    )
+    .ok_or(SemanticFramePartyViewVectorCorpusParseErrorV1)
 }
 
 fn success_case(

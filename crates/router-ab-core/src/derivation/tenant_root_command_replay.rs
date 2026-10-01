@@ -1,6 +1,7 @@
 use sha2::{Digest, Sha256};
 use threshold_prf::TwoPartyDeriverRole;
 
+use super::tenant_root_protocol::push_length_prefixed;
 use super::{
     RouterAbDerivationError, RouterAbDerivationErrorCode, RouterAbDerivationResult,
     TenantRootCeremonyNonceV1, TenantRootCeremonySessionIdV1, TenantRootCustodyLineageId,
@@ -484,11 +485,7 @@ fn require_terminal_time(reserved_at_ms: u64, terminal_at_ms: u64) -> RouterAbDe
 }
 
 fn push_field(bytes: &mut Vec<u8>, value: &[u8]) -> RouterAbDerivationResult<()> {
-    let length = u32::try_from(value.len())
-        .map_err(|_| malformed("tenant-root role command field is too long"))?;
-    bytes.extend_from_slice(&length.to_be_bytes());
-    bytes.extend_from_slice(value);
-    Ok(())
+    push_length_prefixed(bytes, value, "tenant-root role command field is too long")
 }
 
 fn malformed(message: &'static str) -> RouterAbDerivationError {

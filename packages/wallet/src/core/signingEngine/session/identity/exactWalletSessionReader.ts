@@ -9,8 +9,9 @@ import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import type { WalletAuthMethodId, WalletAuthorityId } from '@shared/utils/domainIds';
 import type { WalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type { ExactWalletSessionReadPorts } from './exactWalletSessionCredential';
+import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 
-export type ExactWalletSessionAuthenticationReadResult =
+export type ExactWalletSessionAuthenticationReadResult = ReadonlyExclusiveUnion<
   | {
       readonly kind: 'authenticated';
       readonly state: Extract<WalletAuthenticationState, { readonly kind: 'authenticated' }>;
@@ -18,16 +19,9 @@ export type ExactWalletSessionAuthenticationReadResult =
           carries the method kind. */
       readonly walletAuthMethodId: WalletAuthMethodId;
     }
-  | {
-      readonly kind: 'missing';
-      readonly state?: never;
-      readonly walletAuthMethodId?: never;
-    }
-  | {
-      readonly kind: 'upgrade_required';
-      readonly state?: never;
-      readonly walletAuthMethodId?: never;
-    };
+  | { readonly kind: 'missing' }
+  | { readonly kind: 'upgrade_required' }
+>;
 
 type ExactWalletSessionAuthorityScope = {
   readonly walletId: WalletId;

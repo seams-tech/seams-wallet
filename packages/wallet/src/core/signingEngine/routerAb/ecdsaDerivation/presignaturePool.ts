@@ -1475,7 +1475,6 @@ async function signRouterAbEcdsaDerivationDigestWithPoolHitAttempt(
     });
 
     emitEcdsaSigningTiming(args.operationId, 'public_key_validation', publicKeyStartedAt);
-
     poolIdentity = makeClientPresignPoolIdentity({
       relayerUrl,
       scope: args.scope,
@@ -1526,6 +1525,7 @@ async function signRouterAbEcdsaDerivationDigestWithPoolHitAttempt(
       });
     }
     if (!presignature && supply.kind === 'on_demand') {
+      const foregroundRefillStartedAt = performance.now();
       let refill = await refillRouterAbEcdsaDerivationClientPresignaturePool({
         ...supply.refill,
         trafficClass: 'foreground',
@@ -1554,6 +1554,7 @@ async function signRouterAbEcdsaDerivationDigestWithPoolHitAttempt(
         clientSigningMaterial: args.clientSigningMaterial,
         workerCtx: args.workerCtx,
       });
+      emitEcdsaSigningTiming(args.operationId, 'foreground_refill', foregroundRefillStartedAt);
     }
     emitSigningSessionFlowTrace('evm-family', {
       event: 'ecdsa_presignature_selection',

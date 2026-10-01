@@ -1,7 +1,6 @@
-use std::fs;
-use std::path::{Path, PathBuf};
-use std::process::Command;
-use std::time::{SystemTime, UNIX_EPOCH};
+mod support {
+    pub mod ui;
+}
 
 use ed25519_yao_generator::{
     HOST_ONLY_CORRUPTION_GAME_INTERFACE_SHAPES_V1, HOST_ONLY_CORRUPTION_KINDS_V1,
@@ -10,67 +9,11 @@ use ed25519_yao_generator::{
     HOST_ONLY_SEMANTIC_ROLES_V1,
 };
 
-struct UiHarness {
-    directory: PathBuf,
-}
-
-impl UiHarness {
-    fn create() -> Self {
-        let nonce = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("system clock")
-            .as_nanos();
-        let directory = std::env::temp_dir().join(format!(
-            "ed25519-yao-semantic-trace-ui-{}-{nonce}",
-            std::process::id()
-        ));
-        fs::create_dir_all(directory.join("src")).expect("create UI harness");
-        let manifest_directory = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .canonicalize()
-            .expect("generator path");
-        let dependency_path = manifest_directory.to_string_lossy().replace('\\', "\\\\");
-        fs::write(
-            directory.join("Cargo.toml"),
-            format!(
-                "[package]\nname = \"semantic-trace-ui\"\nversion = \"0.0.0\"\nedition = \"2021\"\n\
-                 [dependencies]\ned25519-yao-generator = {{ path = \"{dependency_path}\" }}\n\
-                 serde = {{ version = \"1\", features = [\"derive\"] }}\n"
-            ),
-        )
-        .expect("write UI manifest");
-        Self { directory }
-    }
-
-    fn check(&self, source: &str) -> std::process::Output {
-        fs::write(self.directory.join("src/main.rs"), source).expect("write UI source");
-        Command::new(std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into()))
-            .args(["check", "--quiet", "--offline"])
-            .current_dir(&self.directory)
-            .env("CARGO_TARGET_DIR", self.directory.join("target"))
-            .output()
-            .expect("run UI cargo check")
-    }
-}
-
-impl Drop for UiHarness {
-    fn drop(&mut self) {
-        let _ = fs::remove_dir_all(&self.directory);
-    }
-}
-
-fn assert_compile_failure(harness: &UiHarness, source: &str, code: &str) {
-    let output = harness.check(source);
-    assert!(!output.status.success(), "UI case unexpectedly compiled");
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(
-        stderr.contains(code),
-        "UI case failed without {code}:\n{stderr}"
-    );
-}
+use support::ui::{assert_compile_failure, UiHarness};
 
 #[test]
 fn compile_fail_guards_keep_trace_construction_static_and_closed() {
-    let harness = UiHarness::create();
+    let harness = UiHarness::create("semantic-trace");
     let control = harness.check(
         "use ed25519_yao_generator::HostOnlySemanticDeliveryStateV1;\n\
          fn main() { let _ = HostOnlySemanticDeliveryStateV1::ExactRedelivery; }",
@@ -111,10 +54,6 @@ fn compile_fail_guards_keep_trace_construction_static_and_closed() {
         (
             "use ed25519_yao_generator::RouterAndDeriverAAndDeriverBV1;\nfn main() {}",
             "E0432",
-        ),
-        (
-            "use ed25519_yao_generator::semantic_delivery_views::build_export_success_semantic_trace_v1;\nfn main() { let _ = build_export_success_semantic_trace_v1; }",
-            "E0603",
         ),
     ] {
         assert_compile_failure(&harness, source, code);

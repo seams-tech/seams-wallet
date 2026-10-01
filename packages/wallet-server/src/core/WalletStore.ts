@@ -28,11 +28,10 @@ import {
   parseRouterAbEcdsaRegistrationActivationReceiptV1,
   sameRouterAbEcdsaDerivationPublicCapabilityV1,
   sameRouterAbEcdsaDerivationPublicIdentityV1,
-  sameRouterAbServerIdentityV1,
+  sameRegistrationSignerSet,
   type RouterAbEcdsaDerivationActivationRefreshForwardedResponseV1,
   type RouterAbEcdsaDerivationActivationRefreshRequestV1,
   type RouterAbEcdsaDerivationPublicCapabilityV1,
-  type RouterAbEcdsaDerivationSignerSetV1,
   type RouterAbEcdsaRegistrationActivationReceiptV1,
 } from '@shared/utils/routerAbEcdsaDerivation';
 import { resolveStorePrefix } from './d1TenantStore';
@@ -249,23 +248,6 @@ function ecdsaPublicCapabilitiesEqual(
   return sameRouterAbEcdsaDerivationPublicCapabilityV1(left, right);
 }
 
-function sameWalletEcdsaSignerSetV1(
-  left: RouterAbEcdsaDerivationSignerSetV1,
-  right: RouterAbEcdsaDerivationSignerSetV1,
-): boolean {
-  return (
-    left.signer_set_id === right.signer_set_id &&
-    left.policy === right.policy &&
-    left.signer_a.role === right.signer_a.role &&
-    left.signer_a.signer_id === right.signer_a.signer_id &&
-    left.signer_a.key_epoch === right.signer_a.key_epoch &&
-    left.signer_b.role === right.signer_b.role &&
-    left.signer_b.signer_id === right.signer_b.signer_id &&
-    left.signer_b.key_epoch === right.signer_b.key_epoch &&
-    sameRouterAbServerIdentityV1(left.selected_server, right.selected_server)
-  );
-}
-
 export function ecdsaPostRegistrationRequestMatchesCapability(input: {
   request: WalletEcdsaPostRegistrationPublicRequest;
   capability: RouterAbEcdsaDerivationPublicCapabilityV1;
@@ -279,7 +261,7 @@ export function ecdsaPostRegistrationRequestMatchesCapability(input: {
       input.request.public_identity,
       input.capability.public_identity,
     ) &&
-    sameWalletEcdsaSignerSetV1(input.request.signer_set, input.capability.signer_set)
+    sameRegistrationSignerSet(input.request.signer_set, input.capability.signer_set)
   );
 }
 

@@ -1,7 +1,4 @@
-use curve25519_dalek::scalar::Scalar;
 use ed25519_dalek::SigningKey;
-use rand_chacha::ChaCha20Rng;
-use rand_core::SeedableRng;
 use router_ab_core::{
     combine_mpc_prf_stable_proof_bundles_with_threshold_backend_v2,
     combine_mpc_prf_stable_recipient_output_from_proof_bundle_payloads_v2,
@@ -10,11 +7,10 @@ use router_ab_core::{
     plan_mpc_prf_stable_purpose_binding_from_authenticated_custody_digest_v2,
     plan_mpc_prf_stable_purpose_binding_v2, resolve_active_tenant_root_pair_binding_v1,
     resolve_authoritative_active_tenant_root_pair_binding_v1,
-    verify_mpc_prf_stable_partial_with_threshold_backend_v2, MpcPrfSigningRootShareWireV1,
-    MpcPrfStablePurposeBindingPlanV2, MpcPrfStableRecipientProofBundlePayloadV2,
-    MpcPrfStableThresholdCombineInputV2, MpcPrfStableThresholdSignerInputV2, PublicDigest32,
-    RecipientProofBundleEncryptionRequestV1, Role, SignerIdentityV1,
-    StableTenantDerivationContextV2, TenantRootAcceptedLossReceiptV1,
+    verify_mpc_prf_stable_partial_with_threshold_backend_v2, MpcPrfStablePurposeBindingPlanV2,
+    MpcPrfStableRecipientProofBundlePayloadV2, MpcPrfStableThresholdCombineInputV2,
+    MpcPrfStableThresholdSignerInputV2, PublicDigest32, RecipientProofBundleEncryptionRequestV1,
+    Role, SignerIdentityV1, StableTenantDerivationContextV2, TenantRootAcceptedLossReceiptV1,
     TenantRootAcceptedPermanentLossAuthorizationBindingV1, TenantRootActivationReceiptTransitionV1,
     TenantRootActivePairMismatchV1, TenantRootActivePairResolutionV1,
     TenantRootActiveRoleBindingV1, TenantRootActiveRoleResolutionV1, TenantRootActiveRoleRowKeyV1,
@@ -45,31 +41,23 @@ use router_ab_core::{
     TenantRootRefreshFailureV1, TenantRootRefreshRecoveryActionV1, TenantRootRefreshStateV1,
     TenantRootRoleBackupReceiptsV1, TenantRootRoleInstallationReceiptsV1,
     TenantRootRoleRetirementReceiptsV1, TenantRootRoleUnavailableReceiptV1,
-    TenantRootServiceCleanupReceiptV1, TenantRootShareEpoch, TenantRootShareInstallationEvidenceV1,
-    TenantRootShareInstallationTranscriptV1, TenantRootSignedAcceptedPermanentLossAuthorizationV1,
-    TenantRootSignedProviderCanaryReceiptV1, TenantRootSignedShareInstallationEvidenceV1,
+    TenantRootServiceCleanupReceiptV1, TenantRootShareEpoch,
+    TenantRootSignedAcceptedPermanentLossAuthorizationV1, TenantRootSignedProviderCanaryReceiptV1,
     VerifiedTenantRootInitialCreationActivationEvidenceBundleV1,
     VerifiedTenantRootProviderCanaryReceiptV1, VerifiedTenantRootShareInstallationEvidenceV1,
-    VerifiedTenantRootSignedShareInstallationEvidenceWireV1, TENANT_ROOT_MAX_LIFETIME_MS_V1,
+    TENANT_ROOT_MAX_LIFETIME_MS_V1,
 };
 use threshold_prf::{
-    apply_two_party_root_share_refresh, prove_root_share_knowledge, PrfPurpose,
-    RootShareRefreshCoefficient, SigningRootShare, SigningRootShareCommitment,
-    SigningRootShareWire, TwoPartyDeriverRole, TwoPartyRootShareCommitments,
+    apply_two_party_root_share_refresh, PrfPurpose, RootShareRefreshCoefficient, SigningRootShare,
+    TwoPartyDeriverRole, TwoPartyRootShareCommitments,
 };
 
 mod support;
 
-const ISSUED_AT_MS: u64 = 1_000_000;
-const EXPIRES_AT_MS: u64 = 1_030_000;
-
-fn seeded_rng(seed: u8) -> ChaCha20Rng {
-    ChaCha20Rng::from_seed([seed; 32])
-}
-
-fn identity() -> TenantRootIdentityV1 {
-    TenantRootIdentityV1::new("org-1", "project-2", "production", "root-main", "v3").unwrap()
-}
+use support::{
+    fixed_share, identity, lifecycle_digest as digest, rng06, share_wire, signed_installation_wire,
+    EXPIRES_AT_MS, ISSUED_AT_MS,
+};
 
 fn lineage(seed: u8) -> TenantRootCustodyLineageId {
     TenantRootCustodyLineageId::from_bytes([seed; 16]).unwrap()
@@ -273,25 +261,6 @@ fn service_cleanup(digest_seed: u8, completed_at_ms: u64) -> TenantRootServiceCl
     .unwrap()
 }
 
-fn fixed_share(role: TwoPartyDeriverRole, scalar: u64) -> SigningRootShare {
-    SigningRootShare::from_canonical_bytes(role.share_id(), Scalar::from(scalar).to_bytes())
-        .unwrap()
-}
-
-fn backend_share_wire(share: &SigningRootShare) -> MpcPrfSigningRootShareWireV1 {
-    MpcPrfSigningRootShareWireV1::new(SigningRootShareWire::from_share(share).to_bytes().to_vec())
-        .unwrap()
-}
-
-fn signing_key(role: TwoPartyDeriverRole) -> SigningKey {
-    SigningKey::from_bytes(
-        &[match role {
-            TwoPartyDeriverRole::DeriverA => 0x51,
-            TwoPartyDeriverRole::DeriverB => 0x61,
-        }; 32],
-    )
-}
-
 fn authenticated_evidence(
     context: TenantRootCeremonyContextV1,
     role: TwoPartyDeriverRole,
@@ -299,42 +268,9 @@ fn authenticated_evidence(
     peer: &SigningRootShare,
     proof_seed: u8,
 ) -> VerifiedTenantRootShareInstallationEvidenceV1 {
-    authenticated_installation_wire(context, role, share, peer, proof_seed)
+    signed_installation_wire(context, role, share, peer, proof_seed)
         .evidence()
         .clone()
-}
-
-fn authenticated_installation_wire(
-    context: TenantRootCeremonyContextV1,
-    role: TwoPartyDeriverRole,
-    share: &SigningRootShare,
-    peer: &SigningRootShare,
-    proof_seed: u8,
-) -> VerifiedTenantRootSignedShareInstallationEvidenceWireV1 {
-    let transcript = TenantRootShareInstallationTranscriptV1::new(
-        context,
-        role,
-        SigningRootShareCommitment::from_share(share),
-        SigningRootShareCommitment::from_share(peer),
-    )
-    .unwrap();
-    let proof = prove_root_share_knowledge(
-        share,
-        &transcript.canonical_bytes().unwrap(),
-        &mut seeded_rng(proof_seed),
-    )
-    .unwrap();
-    let evidence = TenantRootShareInstallationEvidenceV1::new(transcript, proof).unwrap();
-    let key = signing_key(role);
-    let signed = TenantRootSignedShareInstallationEvidenceV1::sign(evidence, &key.to_bytes())
-        .unwrap()
-        .canonical_bytes()
-        .unwrap();
-    TenantRootSignedShareInstallationEvidenceV1::decode_and_verify_canonical_bytes(
-        &signed,
-        key.verifying_key().as_bytes(),
-    )
-    .unwrap()
 }
 
 fn evidence_pair(
@@ -380,21 +316,58 @@ fn evidence_pair_for_shares(
     )
 }
 
-fn refreshed_share(
-    current: &SigningRootShare,
-    recipient: TwoPartyDeriverRole,
-    coefficient_a: &RootShareRefreshCoefficient,
-    coefficient_b: &RootShareRefreshCoefficient,
-) -> SigningRootShare {
-    let contribution_a = coefficient_a
-        .commitment()
-        .verify_contribution(coefficient_a.contribution_for(recipient))
-        .unwrap();
-    let contribution_b = coefficient_b
-        .commitment()
-        .verify_contribution(coefficient_b.contribution_for(recipient))
-        .unwrap();
-    apply_two_party_root_share_refresh(current, contribution_a, contribution_b).unwrap()
+/// Refreshes both shares with coefficients drawn from seeds `seed` and `seed + 1`.
+fn refreshed_pair(
+    current_a: &SigningRootShare,
+    current_b: &SigningRootShare,
+    seed: u8,
+) -> (SigningRootShare, SigningRootShare) {
+    let coefficient_a =
+        RootShareRefreshCoefficient::random(TwoPartyDeriverRole::DeriverA, &mut rng06(seed));
+    let coefficient_b =
+        RootShareRefreshCoefficient::random(TwoPartyDeriverRole::DeriverB, &mut rng06(seed + 1));
+    let refreshed = |current, recipient| {
+        let contribution_a = coefficient_a
+            .commitment()
+            .verify_contribution(coefficient_a.contribution_for(recipient))
+            .unwrap();
+        let contribution_b = coefficient_b
+            .commitment()
+            .verify_contribution(coefficient_b.contribution_for(recipient))
+            .unwrap();
+        apply_two_party_root_share_refresh(current, contribution_a, contribution_b).unwrap()
+    };
+    (
+        refreshed(current_a, TwoPartyDeriverRole::DeriverA),
+        refreshed(current_b, TwoPartyDeriverRole::DeriverB),
+    )
+}
+
+/// Refreshes the active pair as `refreshed_pair` does and builds the refreshed shares'
+/// activation evidence with proof seeds `seed + 2` and `seed + 3`.
+fn refresh_evidence(
+    context: &TenantRootCeremonyContextV1,
+    active: &router_ab_core::TenantRootActiveRefreshV1,
+    current_a: &SigningRootShare,
+    current_b: &SigningRootShare,
+    seed: u8,
+    expected_control_plane_revision: u64,
+) -> (
+    SigningRootShare,
+    SigningRootShare,
+    support::RefreshActivationEvidenceFixture,
+) {
+    let (next_a, next_b) = refreshed_pair(current_a, current_b, seed);
+    let fixture = support::refresh_activation_evidence_fixture(
+        context.clone(),
+        active.current().verified().commitments(),
+        &next_a,
+        &next_b,
+        seed + 2,
+        seed + 3,
+        expected_control_plane_revision,
+    );
+    (next_a, next_b, fixture)
 }
 
 fn active_refresh_state(
@@ -473,52 +446,21 @@ fn advance_active_refresh(
         next_epoch.get().get(),
         0x7a,
     );
-    let coefficient_a =
-        RootShareRefreshCoefficient::random(TwoPartyDeriverRole::DeriverA, &mut seeded_rng(71));
-    let coefficient_b =
-        RootShareRefreshCoefficient::random(TwoPartyDeriverRole::DeriverB, &mut seeded_rng(72));
-    let next_a = refreshed_share(
-        current_a,
-        TwoPartyDeriverRole::DeriverA,
-        &coefficient_a,
-        &coefficient_b,
-    );
-    let next_b = refreshed_share(
-        current_b,
-        TwoPartyDeriverRole::DeriverB,
-        &coefficient_a,
-        &coefficient_b,
-    );
-    let fixture = support::refresh_activation_evidence_fixture(
-        refresh_context.clone(),
-        active.current().verified().commitments(),
-        &next_a,
-        &next_b,
-        73,
-        74,
-        5,
-    );
-    let support::RefreshActivationEvidenceFixture {
-        bundle,
-        evidence_a,
-        evidence_b,
-        installation_receipts,
-        backup_policy,
-        canary_receipts,
-    } = fixture;
+    let (next_a, next_b, fixture) =
+        refresh_evidence(&refresh_context, &active, current_a, current_b, 71, 5);
     let verified = active
         .start(&refresh_context)
         .unwrap()
         .verify(
-            &evidence_a,
-            &evidence_b,
-            installation_receipts,
-            backup_policy,
-            canary_receipts,
+            &fixture.evidence_a,
+            &fixture.evidence_b,
+            fixture.installation_receipts,
+            fixture.backup_policy,
+            fixture.canary_receipts,
             1_010_000,
         )
         .unwrap();
-    let activation = support::refresh_activation_receipt(&bundle, 1_020_000);
+    let activation = support::refresh_activation_receipt(&fixture.bundle, 1_020_000);
     let active = verified
         .activate(activation)
         .unwrap()
@@ -635,14 +577,10 @@ fn stable_signer_input(
         custody_binding,
         active_pair,
         signer_role,
-        backend_share_wire(share),
+        share_wire(share),
         now_ms,
     )
     .expect("stable signer input")
-}
-
-fn digest(seed: u8) -> TenantRootLifecycleReceiptDigestV1 {
-    TenantRootLifecycleReceiptDigestV1::from_bytes([seed; 32]).unwrap()
 }
 
 fn accepted_loss_authorization(
@@ -724,14 +662,14 @@ fn accepted_initial_activation_fixture(
 ) -> AcceptedInitialActivationFixture {
     let share_a = fixed_share(TwoPartyDeriverRole::DeriverA, 12);
     let share_b = fixed_share(TwoPartyDeriverRole::DeriverB, 19);
-    let installation_a = authenticated_installation_wire(
+    let installation_a = signed_installation_wire(
         context.clone(),
         TwoPartyDeriverRole::DeriverA,
         &share_a,
         &share_b,
         proof_seed_a,
     );
-    let installation_b = authenticated_installation_wire(
+    let installation_b = signed_installation_wire(
         context.clone(),
         TwoPartyDeriverRole::DeriverB,
         &share_b,
@@ -1076,39 +1014,7 @@ fn refresh_restart_projects_abort_or_forward_recovery_from_every_state() {
     let ceremony = refresh_context(custody_lineage, 1, 2, 0x70);
     let ceremony_digest = ceremony.digest().unwrap();
     let pending_epoch = TenantRootShareEpoch::new(2).unwrap();
-    let coefficient_a =
-        RootShareRefreshCoefficient::random(TwoPartyDeriverRole::DeriverA, &mut seeded_rng(0x31));
-    let coefficient_b =
-        RootShareRefreshCoefficient::random(TwoPartyDeriverRole::DeriverB, &mut seeded_rng(0x32));
-    let next_a = refreshed_share(
-        &current_a,
-        TwoPartyDeriverRole::DeriverA,
-        &coefficient_a,
-        &coefficient_b,
-    );
-    let next_b = refreshed_share(
-        &current_b,
-        TwoPartyDeriverRole::DeriverB,
-        &coefficient_a,
-        &coefficient_b,
-    );
-    let fixture = support::refresh_activation_evidence_fixture(
-        ceremony.clone(),
-        active.current().verified().commitments(),
-        &next_a,
-        &next_b,
-        0x33,
-        0x34,
-        5,
-    );
-    let support::RefreshActivationEvidenceFixture {
-        bundle,
-        evidence_a,
-        evidence_b,
-        installation_receipts,
-        backup_policy,
-        canary_receipts,
-    } = fixture;
+    let (_, _, fixture) = refresh_evidence(&ceremony, &active, &current_a, &current_b, 0x31, 5);
     let preparing = active.start(&ceremony).unwrap();
     let preparing_plan = TenantRootRefreshStateV1::from(preparing.clone())
         .recovery_plan()
@@ -1126,11 +1032,11 @@ fn refresh_restart_projects_abort_or_forward_recovery_from_every_state() {
     let verified = preparing
         .clone()
         .verify(
-            &evidence_a,
-            &evidence_b,
-            installation_receipts,
-            backup_policy,
-            canary_receipts,
+            &fixture.evidence_a,
+            &fixture.evidence_b,
+            fixture.installation_receipts,
+            fixture.backup_policy,
+            fixture.canary_receipts,
             1_010_000,
         )
         .unwrap();
@@ -1147,7 +1053,7 @@ fn refresh_restart_projects_abort_or_forward_recovery_from_every_state() {
         }
     );
 
-    let activation = support::refresh_activation_receipt(&bundle, 1_020_000);
+    let activation = support::refresh_activation_receipt(&fixture.bundle, 1_020_000);
     let activation_digest = activation.digest();
     let retiring = verified.clone().activate(activation).unwrap();
     let retiring_plan = TenantRootRefreshStateV1::from(retiring)
@@ -1541,39 +1447,8 @@ fn refresh_is_forward_only_and_returns_to_active_after_both_retirements() {
     let (active, current_a, current_b) = active_refresh_state(lineage);
     let stable_root = *active.current().verified().commitments().root_commitment();
     let refresh_context = refresh_context(lineage, 1, 2, 0x72);
-    let coefficient_a =
-        RootShareRefreshCoefficient::random(TwoPartyDeriverRole::DeriverA, &mut seeded_rng(31));
-    let coefficient_b =
-        RootShareRefreshCoefficient::random(TwoPartyDeriverRole::DeriverB, &mut seeded_rng(32));
-    let next_a = refreshed_share(
-        &current_a,
-        TwoPartyDeriverRole::DeriverA,
-        &coefficient_a,
-        &coefficient_b,
-    );
-    let next_b = refreshed_share(
-        &current_b,
-        TwoPartyDeriverRole::DeriverB,
-        &coefficient_a,
-        &coefficient_b,
-    );
-    let fixture = support::refresh_activation_evidence_fixture(
-        refresh_context.clone(),
-        active.current().verified().commitments(),
-        &next_a,
-        &next_b,
-        33,
-        34,
-        5,
-    );
-    let support::RefreshActivationEvidenceFixture {
-        bundle,
-        evidence_a,
-        evidence_b,
-        installation_receipts,
-        backup_policy,
-        canary_receipts,
-    } = fixture;
+    let (_, _, fixture) =
+        refresh_evidence(&refresh_context, &active, &current_a, &current_b, 31, 5);
 
     let preparing = active.start(&refresh_context).unwrap();
     assert_eq!(
@@ -1582,11 +1457,11 @@ fn refresh_is_forward_only_and_returns_to_active_after_both_retirements() {
     );
     let verified = preparing
         .verify(
-            &evidence_a,
-            &evidence_b,
-            installation_receipts,
-            backup_policy,
-            canary_receipts,
+            &fixture.evidence_a,
+            &fixture.evidence_b,
+            fixture.installation_receipts,
+            fixture.backup_policy,
+            fixture.canary_receipts,
             1_010_000,
         )
         .unwrap();
@@ -1594,7 +1469,7 @@ fn refresh_is_forward_only_and_returns_to_active_after_both_retirements() {
         TenantRootRefreshStateV1::from(verified.clone()).revision(),
         5
     );
-    let activation = support::refresh_activation_receipt(&bundle, 1_020_000);
+    let activation = support::refresh_activation_receipt(&fixture.bundle, 1_020_000);
     let activation_bytes = activation.canonical_bytes().to_vec();
     let activation_digest = activation.digest();
     let activation_time = activation.activated_at_ms();
@@ -1673,22 +1548,7 @@ fn refresh_rejects_epoch_lineage_root_and_ceremony_substitution() {
         )
         .is_err());
 
-    let coefficient_a =
-        RootShareRefreshCoefficient::random(TwoPartyDeriverRole::DeriverA, &mut seeded_rng(37));
-    let coefficient_b =
-        RootShareRefreshCoefficient::random(TwoPartyDeriverRole::DeriverB, &mut seeded_rng(38));
-    let next_a = refreshed_share(
-        &current_a,
-        TwoPartyDeriverRole::DeriverA,
-        &coefficient_a,
-        &coefficient_b,
-    );
-    let next_b = refreshed_share(
-        &current_b,
-        TwoPartyDeriverRole::DeriverB,
-        &coefficient_a,
-        &coefficient_b,
-    );
+    let (next_a, next_b) = refreshed_pair(&current_a, &current_b, 37);
     let other_context = refresh_context(lineage, 1, 2, 0x75);
     let (other_evidence_a, other_evidence_b, _) =
         evidence_pair_for_shares(&other_context, &next_a, &next_b, 39, 40);
@@ -1774,52 +1634,20 @@ fn refresh_failure_keeps_the_old_epoch_and_retirement_cannot_roll_back() {
         7
     );
 
-    let coefficient_a =
-        RootShareRefreshCoefficient::random(TwoPartyDeriverRole::DeriverA, &mut seeded_rng(41));
-    let coefficient_b =
-        RootShareRefreshCoefficient::random(TwoPartyDeriverRole::DeriverB, &mut seeded_rng(42));
-    let next_a = refreshed_share(
-        &current_a,
-        TwoPartyDeriverRole::DeriverA,
-        &coefficient_a,
-        &coefficient_b,
-    );
-    let next_b = refreshed_share(
-        &current_b,
-        TwoPartyDeriverRole::DeriverB,
-        &coefficient_a,
-        &coefficient_b,
-    );
-    let fixture = support::refresh_activation_evidence_fixture(
-        ceremony.clone(),
-        active.current().verified().commitments(),
-        &next_a,
-        &next_b,
-        43,
-        44,
-        5,
-    );
-    let support::RefreshActivationEvidenceFixture {
-        bundle,
-        evidence_a,
-        evidence_b,
-        installation_receipts,
-        backup_policy,
-        canary_receipts,
-    } = fixture;
+    let (_, _, fixture) = refresh_evidence(&ceremony, &active, &current_a, &current_b, 41, 5);
     let verified = active
         .start(&ceremony)
         .unwrap()
         .verify(
-            &evidence_a,
-            &evidence_b,
-            installation_receipts,
-            backup_policy,
-            canary_receipts,
+            &fixture.evidence_a,
+            &fixture.evidence_b,
+            fixture.installation_receipts,
+            fixture.backup_policy,
+            fixture.canary_receipts,
             1_010_000,
         )
         .unwrap();
-    let activation = support::refresh_activation_receipt(&bundle, 1_020_000);
+    let activation = support::refresh_activation_receipt(&fixture.bundle, 1_020_000);
     let retiring = verified.activate(activation).unwrap();
     assert!(retiring
         .finish_retirement(
@@ -1891,50 +1719,19 @@ fn managed_restore_requires_commitment_verification_and_forward_refresh() {
         7
     );
 
-    let coefficient_a =
-        RootShareRefreshCoefficient::random(TwoPartyDeriverRole::DeriverA, &mut seeded_rng(51));
-    let coefficient_b =
-        RootShareRefreshCoefficient::random(TwoPartyDeriverRole::DeriverB, &mut seeded_rng(52));
-    let next_a = refreshed_share(
-        &current_a,
-        TwoPartyDeriverRole::DeriverA,
-        &coefficient_a,
-        &coefficient_b,
-    );
-    let next_b = refreshed_share(
-        &current_b,
-        TwoPartyDeriverRole::DeriverB,
-        &coefficient_a,
-        &coefficient_b,
-    );
-    let fixture = support::refresh_activation_evidence_fixture(
-        forward_context.clone(),
-        active.current().verified().commitments(),
-        &next_a,
-        &next_b,
-        53,
-        54,
-        8,
-    );
-    let support::RefreshActivationEvidenceFixture {
-        bundle,
-        evidence_a,
-        evidence_b,
-        installation_receipts,
-        backup_policy,
-        canary_receipts,
-    } = fixture;
+    let (_, _, fixture) =
+        refresh_evidence(&forward_context, &active, &current_a, &current_b, 51, 8);
     let verified = forward
         .verify(
-            &evidence_a,
-            &evidence_b,
-            installation_receipts,
-            backup_policy,
-            canary_receipts,
+            &fixture.evidence_a,
+            &fixture.evidence_b,
+            fixture.installation_receipts,
+            fixture.backup_policy,
+            fixture.canary_receipts,
             1_030_000,
         )
         .unwrap();
-    let activation = support::refresh_activation_receipt(&bundle, 1_040_000);
+    let activation = support::refresh_activation_receipt(&fixture.bundle, 1_040_000);
     let retiring = verified.activate(activation).unwrap();
     let available = retiring
         .finish_retirement(
@@ -2527,7 +2324,7 @@ fn custody_binding_changes_with_the_active_epoch_while_stable_context_remains_ex
             &share_a,
             ISSUED_AT_MS,
         ),
-        &mut seeded_rng(91),
+        &mut rng06(91),
     )
     .unwrap();
     let epoch_one_b = evaluate_mpc_prf_stable_signer_partial_with_threshold_backend_v2(
@@ -2539,7 +2336,7 @@ fn custody_binding_changes_with_the_active_epoch_while_stable_context_remains_ex
             &share_b,
             ISSUED_AT_MS,
         ),
-        &mut seeded_rng(92),
+        &mut rng06(92),
     )
     .unwrap();
     let epoch_two_a = evaluate_mpc_prf_stable_signer_partial_with_threshold_backend_v2(
@@ -2551,7 +2348,7 @@ fn custody_binding_changes_with_the_active_epoch_while_stable_context_remains_ex
             &refreshed_share_a,
             ISSUED_AT_MS,
         ),
-        &mut seeded_rng(91),
+        &mut rng06(91),
     )
     .unwrap();
     let epoch_two_b = evaluate_mpc_prf_stable_signer_partial_with_threshold_backend_v2(
@@ -2563,7 +2360,7 @@ fn custody_binding_changes_with_the_active_epoch_while_stable_context_remains_ex
             &refreshed_share_b,
             ISSUED_AT_MS,
         ),
-        &mut seeded_rng(92),
+        &mut rng06(92),
     )
     .unwrap();
     assert_ne!(epoch_one_a.proof_wire, epoch_two_a.proof_wire);
@@ -2736,7 +2533,7 @@ fn stable_signer_input_rejects_a_substituted_share() {
         &custody_binding,
         &active_pair,
         Role::SignerA,
-        backend_share_wire(&substituted_share),
+        share_wire(&substituted_share),
         ISSUED_AT_MS,
     )
     .unwrap_err();
@@ -2764,7 +2561,7 @@ fn stable_signer_input_rejects_a_stale_custody_binding() {
         &custody_binding,
         &active_pair,
         Role::SignerA,
-        backend_share_wire(&share_a),
+        share_wire(&share_a),
         EXPIRES_AT_MS + 60_001,
     )
     .unwrap_err();
@@ -2795,7 +2592,7 @@ fn stable_signer_input_rejects_a_pair_from_another_custody_binding() {
         &binding_one,
         &foreign_pair,
         Role::SignerA,
-        backend_share_wire(&share_a),
+        share_wire(&share_a),
         ISSUED_AT_MS,
     )
     .unwrap_err();
@@ -2826,7 +2623,7 @@ fn stable_signer_input_rejects_a_plan_or_receipt_substitution() {
         &binding_one,
         &active_pair,
         Role::SignerA,
-        backend_share_wire(&share_a),
+        share_wire(&share_a),
         ISSUED_AT_MS,
     )
     .unwrap_err();
@@ -2887,7 +2684,7 @@ fn stable_signer_input_rejects_an_invalid_or_mismatched_role() {
         &custody_binding,
         &active_pair,
         Role::Server,
-        backend_share_wire(&share_a),
+        share_wire(&share_a),
         ISSUED_AT_MS,
     )
     .unwrap_err();
@@ -2901,7 +2698,7 @@ fn stable_signer_input_rejects_an_invalid_or_mismatched_role() {
         &custody_binding,
         &active_pair,
         Role::SignerB,
-        backend_share_wire(&share_a),
+        share_wire(&share_a),
         ISSUED_AT_MS,
     )
     .unwrap_err();
@@ -3153,85 +2950,75 @@ fn custody_binding_digest_rejects_public_field_substitution() {
     let stable_context = StableTenantDerivationContextV2::new([0x42; 32]);
     let alternate_context = StableTenantDerivationContextV2::new([0x43; 32]);
     let base = custody_binding(&active, &stable_context).digest().unwrap();
+    let build = |deriver_a: &str,
+                 operation: u8,
+                 session: u8,
+                 nonce: u8,
+                 context: &StableTenantDerivationContextV2,
+                 protocol: u8| {
+        TenantRootCustodyBindingV1::from_active(
+            &active,
+            TenantRootDeriverIdentitiesV1::new(deriver_a, "deriver-b-runtime-9").unwrap(),
+            TenantRootDerivationOperationIdV1::from_bytes([operation; 16]).unwrap(),
+            TenantRootDerivationSessionIdV1::from_bytes([session; 16]).unwrap(),
+            TenantRootDerivationNonceV1::from_bytes([nonce; 32]).unwrap(),
+            ISSUED_AT_MS,
+            EXPIRES_AT_MS,
+            context,
+            TenantRootProtocolDigestV1::from_bytes([protocol; 32])
+                .expect("non-zero protocol digest"),
+        )
+        .unwrap()
+    };
     let substituted = [
-        TenantRootCustodyBindingV1::from_active(
-            &active,
-            TenantRootDeriverIdentitiesV1::new("deriver-a-runtime-8", "deriver-b-runtime-9")
-                .unwrap(),
-            TenantRootDerivationOperationIdV1::from_bytes([0x81; 16]).unwrap(),
-            TenantRootDerivationSessionIdV1::from_bytes([0x82; 16]).unwrap(),
-            TenantRootDerivationNonceV1::from_bytes([0x83; 32]).unwrap(),
-            ISSUED_AT_MS,
-            EXPIRES_AT_MS,
+        build(
+            "deriver-a-runtime-8",
+            0x81,
+            0x82,
+            0x83,
             &stable_context,
-            TenantRootProtocolDigestV1::from_bytes([0x84; 32]).expect("non-zero protocol digest"),
-        )
-        .unwrap(),
-        TenantRootCustodyBindingV1::from_active(
-            &active,
-            TenantRootDeriverIdentitiesV1::new("deriver-a-runtime-7", "deriver-b-runtime-9")
-                .unwrap(),
-            TenantRootDerivationOperationIdV1::from_bytes([0x85; 16]).unwrap(),
-            TenantRootDerivationSessionIdV1::from_bytes([0x82; 16]).unwrap(),
-            TenantRootDerivationNonceV1::from_bytes([0x83; 32]).unwrap(),
-            ISSUED_AT_MS,
-            EXPIRES_AT_MS,
+            0x84,
+        ),
+        build(
+            "deriver-a-runtime-7",
+            0x85,
+            0x82,
+            0x83,
             &stable_context,
-            TenantRootProtocolDigestV1::from_bytes([0x84; 32]).expect("non-zero protocol digest"),
-        )
-        .unwrap(),
-        TenantRootCustodyBindingV1::from_active(
-            &active,
-            TenantRootDeriverIdentitiesV1::new("deriver-a-runtime-7", "deriver-b-runtime-9")
-                .unwrap(),
-            TenantRootDerivationOperationIdV1::from_bytes([0x81; 16]).unwrap(),
-            TenantRootDerivationSessionIdV1::from_bytes([0x86; 16]).unwrap(),
-            TenantRootDerivationNonceV1::from_bytes([0x83; 32]).unwrap(),
-            ISSUED_AT_MS,
-            EXPIRES_AT_MS,
+            0x84,
+        ),
+        build(
+            "deriver-a-runtime-7",
+            0x81,
+            0x86,
+            0x83,
             &stable_context,
-            TenantRootProtocolDigestV1::from_bytes([0x84; 32]).expect("non-zero protocol digest"),
-        )
-        .unwrap(),
-        TenantRootCustodyBindingV1::from_active(
-            &active,
-            TenantRootDeriverIdentitiesV1::new("deriver-a-runtime-7", "deriver-b-runtime-9")
-                .unwrap(),
-            TenantRootDerivationOperationIdV1::from_bytes([0x81; 16]).unwrap(),
-            TenantRootDerivationSessionIdV1::from_bytes([0x82; 16]).unwrap(),
-            TenantRootDerivationNonceV1::from_bytes([0x87; 32]).unwrap(),
-            ISSUED_AT_MS,
-            EXPIRES_AT_MS,
+            0x84,
+        ),
+        build(
+            "deriver-a-runtime-7",
+            0x81,
+            0x82,
+            0x87,
             &stable_context,
-            TenantRootProtocolDigestV1::from_bytes([0x84; 32]).expect("non-zero protocol digest"),
-        )
-        .unwrap(),
-        TenantRootCustodyBindingV1::from_active(
-            &active,
-            TenantRootDeriverIdentitiesV1::new("deriver-a-runtime-7", "deriver-b-runtime-9")
-                .unwrap(),
-            TenantRootDerivationOperationIdV1::from_bytes([0x81; 16]).unwrap(),
-            TenantRootDerivationSessionIdV1::from_bytes([0x82; 16]).unwrap(),
-            TenantRootDerivationNonceV1::from_bytes([0x83; 32]).unwrap(),
-            ISSUED_AT_MS,
-            EXPIRES_AT_MS,
+            0x84,
+        ),
+        build(
+            "deriver-a-runtime-7",
+            0x81,
+            0x82,
+            0x83,
             &alternate_context,
-            TenantRootProtocolDigestV1::from_bytes([0x84; 32]).expect("non-zero protocol digest"),
-        )
-        .unwrap(),
-        TenantRootCustodyBindingV1::from_active(
-            &active,
-            TenantRootDeriverIdentitiesV1::new("deriver-a-runtime-7", "deriver-b-runtime-9")
-                .unwrap(),
-            TenantRootDerivationOperationIdV1::from_bytes([0x81; 16]).unwrap(),
-            TenantRootDerivationSessionIdV1::from_bytes([0x82; 16]).unwrap(),
-            TenantRootDerivationNonceV1::from_bytes([0x83; 32]).unwrap(),
-            ISSUED_AT_MS,
-            EXPIRES_AT_MS,
+            0x84,
+        ),
+        build(
+            "deriver-a-runtime-7",
+            0x81,
+            0x82,
+            0x83,
             &stable_context,
-            TenantRootProtocolDigestV1::from_bytes([0x89; 32]).expect("non-zero protocol digest"),
-        )
-        .unwrap(),
+            0x89,
+        ),
     ];
 
     for binding in substituted {

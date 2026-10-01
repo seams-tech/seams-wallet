@@ -3,9 +3,8 @@ import {
   ROUTER_AB_ECDSA_DERIVATION_PRESIGNATURE_POOL_FILL_INIT_PATH,
   ROUTER_AB_ECDSA_DERIVATION_PRESIGNATURE_POOL_FILL_STEP_PATH,
   type RouterAbEcdsaDerivationNormalSigningScopeV1,
-  type RouterAbEcdsaOperationStepUpPreparationV1Wire,
 } from '@shared/utils/routerAbEcdsaDerivation';
-import type { RouterAbNormalSigningAuthorizationWire } from '@shared/utils/routerAbNormalSigningIdentity';
+import type { RouterAbEcdsaDerivationPoolFillAuthorization } from '@shared/utils/routerAbNormalSigningIdentity';
 import { fetchRouterAbEcdsaDerivationJson } from './httpRequest';
 import { emitEcdsaPresignServerTiming } from '../../session/operationState/trace';
 import type { RouterAbOwnerNormalSigningCredential } from '../../../rpcClients/relayer/routerAbNormalSigning';
@@ -25,21 +24,7 @@ type RouterAbEcdsaDerivationPoolFillAuth = {
   credential: RouterAbOwnerNormalSigningCredential;
 };
 
-export type RouterAbEcdsaDerivationPoolFillAuthorization =
-  | {
-      readonly authorization: Extract<
-        RouterAbNormalSigningAuthorizationWire,
-        { readonly kind: 'reusable_wallet_session' }
-      >;
-      readonly operation?: never;
-    }
-  | {
-      readonly authorization: Extract<
-        RouterAbNormalSigningAuthorizationWire,
-        { readonly kind: 'operation_step_up' }
-      >;
-      readonly operation: RouterAbEcdsaOperationStepUpPreparationV1Wire;
-    };
+export type { RouterAbEcdsaDerivationPoolFillAuthorization };
 
 function resolveRelayerUrl(input: string): string | null {
   const relayerUrl = stripTrailingSlashes(toTrimmedString(input));

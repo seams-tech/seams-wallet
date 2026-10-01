@@ -2,11 +2,8 @@
 //! revocation snapshots, and the three trust results restore admits differently.
 
 use ed25519_dalek::SigningKey;
-use rand_chacha_09::ChaCha20Rng;
-use rand_core_09::SeedableRng;
 use router_ab_core::{
-    seal_tenant_root_recovery_package_v1, sign_tenant_root_recovery_manifest_v1,
-    tenant_root_recovery_restore_trust_admission_v1,
+    sign_tenant_root_recovery_manifest_v1, tenant_root_recovery_restore_trust_admission_v1,
     verify_tenant_root_recovery_artifacts_with_trust_v1,
     verify_tenant_root_recovery_manifest_trust_v1, TenantRootRecoveryManifestV1,
     TenantRootRecoveryOfflineTrustAcknowledgementV1, TenantRootRecoveryPackageV1,
@@ -32,10 +29,6 @@ const OLD_ROOT_KEY_ID: &str = "seams-recovery-root-2025";
 
 fn signing_key(seed: u8) -> SigningKey {
     SigningKey::from_bytes(&[seed; 32])
-}
-
-fn hpke_rng(seed: u8) -> ChaCha20Rng {
-    ChaCha20Rng::from_seed([seed; 32])
 }
 
 fn root_signing_key() -> SigningKey {
@@ -94,38 +87,69 @@ struct ArtifactSet {
     package_b: TenantRootRecoveryPackageV1,
 }
 
+/// The certificate chains a manifest carries for its three signers.
+struct Chains {
+    deriver_a: Vec<String>,
+    deriver_b: Vec<String>,
+    control_plane: Vec<String>,
+}
+
+/// `issuer`'s chains for the fixture's three signers, under the key ids the descriptor
+/// names and valid from `NOT_BEFORE` to `NOT_AFTER`.
+fn chains_issued_by(issuer_key_id: &str, issuer: &SigningKey) -> Chains {
+    let (signing_a, signing_b) = fixture_signers();
+    let role_chain = |subject_key_id, subject: &SigningKey, role| {
+        chain(&certificate(
+            issuer_key_id,
+            issuer,
+            subject_key_id,
+            subject,
+            role,
+            NOT_BEFORE,
+            NOT_AFTER,
+        ))
+    };
+    Chains {
+        deriver_a: role_chain(
+            DERIVER_A_KEY_ID,
+            &signing_a,
+            TenantRootRecoverySignerRoleV1::DeriverA,
+        ),
+        deriver_b: role_chain(
+            DERIVER_B_KEY_ID,
+            &signing_b,
+            TenantRootRecoverySignerRoleV1::DeriverB,
+        ),
+        control_plane: role_chain(
+            CONTROL_PLANE_KEY_ID,
+            &control_plane_signing_key(),
+            TenantRootRecoverySignerRoleV1::ControlPlane,
+        ),
+    }
+}
+
+fn root_chains() -> Chains {
+    chains_issued_by(ROOT_KEY_ID, &root_signing_key())
+}
+
+fn control_plane_signing_key() -> SigningKey {
+    signing_key(0xc1)
+}
+
 /// Builds one complete artifact set whose chains are supplied by the caller, so
 /// a test can inject exactly one wrong certificate and change nothing else.
-fn artifacts_with_chains(
-    chain_a: Vec<String>,
-    chain_b: Vec<String>,
-    chain_control_plane: Vec<String>,
-    control_plane_signing_key: &SigningKey,
-) -> ArtifactSet {
+fn artifacts_with_chains(chains: Chains) -> ArtifactSet {
     let fixture = verified_recovery_artifact_fixture();
+    let (package_a, package_b) = fixture.seal_packages();
     let descriptor = fixture.descriptor;
-    let package_a = seal_tenant_root_recovery_package_v1(
-        &descriptor,
-        &fixture.verified_a,
-        &mut hpke_rng(0x71),
-        &fixture.signing_a.to_bytes(),
-    )
-    .expect("package A");
-    let package_b = seal_tenant_root_recovery_package_v1(
-        &descriptor,
-        &fixture.verified_b,
-        &mut hpke_rng(0x81),
-        &fixture.signing_b.to_bytes(),
-    )
-    .expect("package B");
     let manifest = sign_tenant_root_recovery_manifest_v1(
         descriptor,
         &package_a,
         &package_b,
-        chain_a,
-        chain_b,
-        chain_control_plane,
-        &control_plane_signing_key.to_bytes(),
+        chains.deriver_a,
+        chains.deriver_b,
+        chains.control_plane,
+        &control_plane_signing_key().to_bytes(),
     )
     .expect("manifest");
     ArtifactSet {
@@ -142,39 +166,7 @@ fn fixture_signers() -> (SigningKey, SigningKey) {
 }
 
 fn well_formed_artifacts() -> ArtifactSet {
-    let (signing_a, signing_b) = fixture_signers();
-    let control_plane = signing_key(0xc1);
-    let root = root_signing_key();
-    artifacts_with_chains(
-        chain(&certificate(
-            ROOT_KEY_ID,
-            &root,
-            DERIVER_A_KEY_ID,
-            &signing_a,
-            TenantRootRecoverySignerRoleV1::DeriverA,
-            NOT_BEFORE,
-            NOT_AFTER,
-        )),
-        chain(&certificate(
-            ROOT_KEY_ID,
-            &root,
-            DERIVER_B_KEY_ID,
-            &signing_b,
-            TenantRootRecoverySignerRoleV1::DeriverB,
-            NOT_BEFORE,
-            NOT_AFTER,
-        )),
-        chain(&certificate(
-            ROOT_KEY_ID,
-            &root,
-            CONTROL_PLANE_KEY_ID,
-            &control_plane,
-            TenantRootRecoverySignerRoleV1::ControlPlane,
-            NOT_BEFORE,
-            NOT_AFTER,
-        )),
-        &control_plane,
-    )
+    artifacts_with_chains(root_chains())
 }
 
 fn snapshot(
@@ -300,14 +292,13 @@ fn manifest_trust_derives_signer_keys_from_the_pinned_root() {
 
 #[test]
 fn certificate_must_authorize_the_exact_role_and_signer_key_id() {
-    let (signing_a, signing_b) = fixture_signers();
-    let control_plane = signing_key(0xc1);
+    let (signing_a, _) = fixture_signers();
     let root = root_signing_key();
 
     // Deriver A's key certified for role B: the signature would still verify,
     // so only the role binding can reject this.
-    let role_swapped = artifacts_with_chains(
-        chain(&certificate(
+    let role_swapped = artifacts_with_chains(Chains {
+        deriver_a: chain(&certificate(
             ROOT_KEY_ID,
             &root,
             DERIVER_A_KEY_ID,
@@ -316,26 +307,8 @@ fn certificate_must_authorize_the_exact_role_and_signer_key_id() {
             NOT_BEFORE,
             NOT_AFTER,
         )),
-        chain(&certificate(
-            ROOT_KEY_ID,
-            &root,
-            DERIVER_B_KEY_ID,
-            &signing_b,
-            TenantRootRecoverySignerRoleV1::DeriverB,
-            NOT_BEFORE,
-            NOT_AFTER,
-        )),
-        chain(&certificate(
-            ROOT_KEY_ID,
-            &root,
-            CONTROL_PLANE_KEY_ID,
-            &control_plane,
-            TenantRootRecoverySignerRoleV1::ControlPlane,
-            NOT_BEFORE,
-            NOT_AFTER,
-        )),
-        &control_plane,
-    );
+        ..root_chains()
+    });
     assert!(verify_tenant_root_recovery_manifest_trust_v1(
         &role_swapped.manifest,
         &bundle(),
@@ -344,8 +317,8 @@ fn certificate_must_authorize_the_exact_role_and_signer_key_id() {
     .is_err());
 
     // A certificate for a signer key id the descriptor does not name.
-    let renamed = artifacts_with_chains(
-        chain(&certificate(
+    let renamed = artifacts_with_chains(Chains {
+        deriver_a: chain(&certificate(
             ROOT_KEY_ID,
             &root,
             "deriver-a-signing-key-8",
@@ -354,26 +327,8 @@ fn certificate_must_authorize_the_exact_role_and_signer_key_id() {
             NOT_BEFORE,
             NOT_AFTER,
         )),
-        chain(&certificate(
-            ROOT_KEY_ID,
-            &root,
-            DERIVER_B_KEY_ID,
-            &signing_b,
-            TenantRootRecoverySignerRoleV1::DeriverB,
-            NOT_BEFORE,
-            NOT_AFTER,
-        )),
-        chain(&certificate(
-            ROOT_KEY_ID,
-            &root,
-            CONTROL_PLANE_KEY_ID,
-            &control_plane,
-            TenantRootRecoverySignerRoleV1::ControlPlane,
-            NOT_BEFORE,
-            NOT_AFTER,
-        )),
-        &control_plane,
-    );
+        ..root_chains()
+    });
     assert!(verify_tenant_root_recovery_manifest_trust_v1(
         &renamed.manifest,
         &bundle(),
@@ -384,39 +339,9 @@ fn certificate_must_authorize_the_exact_role_and_signer_key_id() {
 
 #[test]
 fn a_manifest_cannot_introduce_its_own_trust_root() {
-    let (signing_a, signing_b) = fixture_signers();
-    let control_plane = signing_key(0xc1);
+    let (signing_a, _) = fixture_signers();
     let rogue_root = signing_key(0xee);
-    let artifacts = artifacts_with_chains(
-        chain(&certificate(
-            "rogue-root-1",
-            &rogue_root,
-            DERIVER_A_KEY_ID,
-            &signing_a,
-            TenantRootRecoverySignerRoleV1::DeriverA,
-            NOT_BEFORE,
-            NOT_AFTER,
-        )),
-        chain(&certificate(
-            "rogue-root-1",
-            &rogue_root,
-            DERIVER_B_KEY_ID,
-            &signing_b,
-            TenantRootRecoverySignerRoleV1::DeriverB,
-            NOT_BEFORE,
-            NOT_AFTER,
-        )),
-        chain(&certificate(
-            "rogue-root-1",
-            &rogue_root,
-            CONTROL_PLANE_KEY_ID,
-            &control_plane,
-            TenantRootRecoverySignerRoleV1::ControlPlane,
-            NOT_BEFORE,
-            NOT_AFTER,
-        )),
-        &control_plane,
-    );
+    let artifacts = artifacts_with_chains(chains_issued_by("rogue-root-1", &rogue_root));
     assert!(verify_tenant_root_recovery_manifest_trust_v1(
         &artifacts.manifest,
         &bundle(),
@@ -439,12 +364,10 @@ fn a_manifest_cannot_introduce_its_own_trust_root() {
 
 #[test]
 fn certificate_chain_length_is_fixed_at_one() {
-    let (signing_a, signing_b) = fixture_signers();
-    let control_plane = signing_key(0xc1);
-    let root = root_signing_key();
+    let (signing_a, _) = fixture_signers();
     let leaf = certificate(
         ROOT_KEY_ID,
-        &root,
+        &root_signing_key(),
         DERIVER_A_KEY_ID,
         &signing_a,
         TenantRootRecoverySignerRoleV1::DeriverA,
@@ -453,28 +376,10 @@ fn certificate_chain_length_is_fixed_at_one() {
     );
     let mut doubled = chain(&leaf);
     doubled.push(leaf.to_chain_entry().unwrap());
-    let artifacts = artifacts_with_chains(
-        doubled,
-        chain(&certificate(
-            ROOT_KEY_ID,
-            &root,
-            DERIVER_B_KEY_ID,
-            &signing_b,
-            TenantRootRecoverySignerRoleV1::DeriverB,
-            NOT_BEFORE,
-            NOT_AFTER,
-        )),
-        chain(&certificate(
-            ROOT_KEY_ID,
-            &root,
-            CONTROL_PLANE_KEY_ID,
-            &control_plane,
-            TenantRootRecoverySignerRoleV1::ControlPlane,
-            NOT_BEFORE,
-            NOT_AFTER,
-        )),
-        &control_plane,
-    );
+    let artifacts = artifacts_with_chains(Chains {
+        deriver_a: doubled,
+        ..root_chains()
+    });
     assert!(verify_tenant_root_recovery_manifest_trust_v1(
         &artifacts.manifest,
         &bundle(),
@@ -486,14 +391,13 @@ fn certificate_chain_length_is_fixed_at_one() {
 #[test]
 fn artifacts_created_outside_certificate_validity_are_rejected() {
     let (signing_a, signing_b) = fixture_signers();
-    let control_plane = signing_key(0xc1);
     let root = root_signing_key();
     for (not_before, not_after) in [
         ("2026-08-29T10:20:30.124Z", NOT_AFTER),
         (NOT_BEFORE, "2026-08-29T10:20:30.122Z"),
     ] {
-        let artifacts = artifacts_with_chains(
-            chain(&certificate(
+        let artifacts = artifacts_with_chains(Chains {
+            deriver_a: chain(&certificate(
                 ROOT_KEY_ID,
                 &root,
                 DERIVER_A_KEY_ID,
@@ -502,26 +406,8 @@ fn artifacts_created_outside_certificate_validity_are_rejected() {
                 not_before,
                 not_after,
             )),
-            chain(&certificate(
-                ROOT_KEY_ID,
-                &root,
-                DERIVER_B_KEY_ID,
-                &signing_b,
-                TenantRootRecoverySignerRoleV1::DeriverB,
-                NOT_BEFORE,
-                NOT_AFTER,
-            )),
-            chain(&certificate(
-                ROOT_KEY_ID,
-                &root,
-                CONTROL_PLANE_KEY_ID,
-                &control_plane,
-                TenantRootRecoverySignerRoleV1::ControlPlane,
-                NOT_BEFORE,
-                NOT_AFTER,
-            )),
-            &control_plane,
-        );
+            ..root_chains()
+        });
         assert!(verify_tenant_root_recovery_manifest_trust_v1(
             &artifacts.manifest,
             &bundle(),
@@ -531,8 +417,8 @@ fn artifacts_created_outside_certificate_validity_are_rejected() {
     }
 
     // The exact creation instant is inside the interval at both boundaries.
-    let boundary = artifacts_with_chains(
-        chain(&certificate(
+    let boundary = artifacts_with_chains(Chains {
+        deriver_a: chain(&certificate(
             ROOT_KEY_ID,
             &root,
             DERIVER_A_KEY_ID,
@@ -541,7 +427,7 @@ fn artifacts_created_outside_certificate_validity_are_rejected() {
             CREATION_TIME,
             NOT_AFTER,
         )),
-        chain(&certificate(
+        deriver_b: chain(&certificate(
             ROOT_KEY_ID,
             &root,
             DERIVER_B_KEY_ID,
@@ -550,17 +436,8 @@ fn artifacts_created_outside_certificate_validity_are_rejected() {
             NOT_BEFORE,
             CREATION_TIME,
         )),
-        chain(&certificate(
-            ROOT_KEY_ID,
-            &root,
-            CONTROL_PLANE_KEY_ID,
-            &control_plane,
-            TenantRootRecoverySignerRoleV1::ControlPlane,
-            NOT_BEFORE,
-            NOT_AFTER,
-        )),
-        &control_plane,
-    );
+        ..root_chains()
+    });
     assert!(verify_tenant_root_recovery_manifest_trust_v1(
         &boundary.manifest,
         &bundle(),
@@ -770,39 +647,8 @@ fn live_trust_confirmation_requires_a_fresh_snapshot() {
 
 #[test]
 fn root_rotation_keeps_historical_certificates_verifiable() {
-    let (signing_a, signing_b) = fixture_signers();
-    let control_plane = signing_key(0xc1);
     let old_root = old_root_signing_key();
-    let artifacts = artifacts_with_chains(
-        chain(&certificate(
-            OLD_ROOT_KEY_ID,
-            &old_root,
-            DERIVER_A_KEY_ID,
-            &signing_a,
-            TenantRootRecoverySignerRoleV1::DeriverA,
-            NOT_BEFORE,
-            NOT_AFTER,
-        )),
-        chain(&certificate(
-            OLD_ROOT_KEY_ID,
-            &old_root,
-            DERIVER_B_KEY_ID,
-            &signing_b,
-            TenantRootRecoverySignerRoleV1::DeriverB,
-            NOT_BEFORE,
-            NOT_AFTER,
-        )),
-        chain(&certificate(
-            OLD_ROOT_KEY_ID,
-            &old_root,
-            CONTROL_PLANE_KEY_ID,
-            &control_plane,
-            TenantRootRecoverySignerRoleV1::ControlPlane,
-            NOT_BEFORE,
-            NOT_AFTER,
-        )),
-        &control_plane,
-    );
+    let artifacts = artifacts_with_chains(chains_issued_by(OLD_ROOT_KEY_ID, &old_root));
 
     // Without the superseded root pinned, the artifacts are untrusted.
     assert!(verify_tenant_root_recovery_manifest_trust_v1(

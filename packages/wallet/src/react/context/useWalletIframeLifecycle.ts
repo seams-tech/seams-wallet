@@ -118,16 +118,6 @@ async function reconcileExactWalletIframeSessionState(args: {
   });
 }
 
-function reconcileExactWalletIframeSessionStateInBackground(args: {
-  seams: SeamsWeb;
-  lifecycle: WalletIframeReactLifecycle;
-  setLoginState: Dispatch<SetStateAction<LoginState>>;
-}): void {
-  void reconcileExactWalletIframeSessionState(args).catch((error: unknown) => {
-    console.warn('[SeamsContextProvider] WalletIframe state refresh failed:', error);
-  });
-}
-
 export function useWalletIframeLifecycle(args: {
   seams: SeamsWeb;
   setWalletIframeConnected: Dispatch<SetStateAction<boolean>>;
@@ -138,7 +128,6 @@ export function useWalletIframeLifecycle(args: {
   useEffect(() => {
     let offReady: (() => void) | undefined;
     let offLogin: (() => void) | undefined;
-    let offPrefs: (() => void) | undefined;
     const lifecycle: WalletIframeReactLifecycle = { cancelled: false, revision: 0 };
 
     (async () => {
@@ -164,13 +153,6 @@ export function useWalletIframeLifecycle(args: {
           });
         });
 
-        offPrefs = seams.onWalletIframePreferencesChanged(() => {
-          reconcileExactWalletIframeSessionStateInBackground({
-            seams,
-            lifecycle,
-            setLoginState,
-          });
-        });
         await reconcileExactWalletIframeSessionState({
           seams,
           lifecycle,
@@ -186,7 +168,6 @@ export function useWalletIframeLifecycle(args: {
       lifecycle.revision += 1;
       offReady && offReady();
       offLogin && offLogin();
-      offPrefs && offPrefs();
     };
   }, [setLoginState, setWalletIframeConnected, seams]);
 }

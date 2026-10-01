@@ -1,20 +1,9 @@
 import type { Eip1559UnsignedTx } from './evmSigning.types';
+import type { Eip1559TxWasmJson } from '@shared/utils/eip1559TxWasmJson';
 import {
   executeWorkerOperation,
   type WorkerOperationContext,
 } from '../../workerManager/executeWorkerOperation';
-
-type Eip1559TxWasmJson = {
-  chainId: number;
-  nonce: string;
-  maxPriorityFeePerGas: string;
-  maxFeePerGas: string;
-  gasLimit: string;
-  to?: string | null;
-  value: string;
-  data?: string;
-  accessList?: { address: string; storageKeys: string[] }[];
-};
 
 function toDec(v: bigint): string {
   if (v < 0n) throw new Error('[evmCryptoWasm] negative bigint not supported');

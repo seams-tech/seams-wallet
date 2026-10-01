@@ -5,6 +5,7 @@ import {
   type SigningSessionSealProtocol,
 } from '@shared/utils/signingSessionSeal';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
+import { failure } from '@shared/utils/failure';
 import {
   parseSigningSessionSealKeyVersion,
   type SigningSessionSealKeyVersion,
@@ -64,30 +65,24 @@ function toErrorResult(error: unknown): { ok: false; code: string; message: stri
     const message =
       String((error as { message?: unknown }).message || '').trim() ||
       'Signing-session seal cipher failed';
-    return { ok: false, code, message };
+    return failure(code, message);
   }
   const message =
     error instanceof Error ? error.message : String(error || 'Signing-session seal cipher failed');
-  return { ok: false, code: 'internal', message };
+  return failure('internal', message);
 }
 
 function normalizeResult(result: HandlerResult): HandlerResult {
   if (!result.ok) {
-    return {
-      ok: false,
-      code: String(result.code || 'internal').trim() || 'internal',
-      message:
-        String(result.message || 'Signing-session seal cipher failed').trim() ||
+    return failure(
+      String(result.code || 'internal').trim() || 'internal',
+      String(result.message || 'Signing-session seal cipher failed').trim() ||
         'Signing-session seal cipher failed',
-    };
+    );
   }
   const ciphertext = toOptionalTrimmedString(result.ciphertext);
   if (!ciphertext) {
-    return {
-      ok: false,
-      code: 'invalid_ciphertext',
-      message: 'Signing-session seal cipher returned empty ciphertext',
-    };
+    return failure('invalid_ciphertext', 'Signing-session seal cipher returned empty ciphertext');
   }
   return {
     ok: true,
@@ -255,10 +250,6 @@ class SigningSessionSealKeyHandles {
   }
 }
 
-function cipherFailure(code: string, message: string): SigningSessionSealCipherOperationResult {
-  return { ok: false, code, message };
-}
-
 function mapCipherError(
   error: unknown,
   defaultMessage: string,
@@ -266,11 +257,11 @@ function mapCipherError(
   const message =
     toOptionalTrimmedString(error instanceof Error ? error.message : error) || defaultMessage;
   const lowered = message.toLowerCase();
-  if (lowered.includes('keyversion')) return cipherFailure('invalid_key_version', message);
+  if (lowered.includes('keyversion')) return failure('invalid_key_version', message);
   if (lowered.includes('ciphertext') || lowered.includes('base64url') || lowered.includes('group')) {
-    return cipherFailure('invalid_ciphertext', message);
+    return failure('invalid_ciphertext', message);
   }
-  return cipherFailure('internal', message);
+  return failure('internal', message);
 }
 
 export function createSigningSessionSealShamir3PassCipherAdapter(
@@ -285,7 +276,7 @@ export function createSigningSessionSealShamir3PassCipherAdapter(
     applyServerSeal: async (input) => {
       const requestedKeyVersion = toOptionalTrimmedString(input.keyVersion);
       if (requestedKeyVersion && requestedKeyVersion !== config.currentKeyVersion) {
-        return cipherFailure(
+        return failure(
           'invalid_key_version',
           `Requested keyVersion "${requestedKeyVersion}" does not match active keyVersion "${config.currentKeyVersion}"`,
         );
@@ -307,7 +298,7 @@ export function createSigningSessionSealShamir3PassCipherAdapter(
       try {
         const handle = (await handles.get()).get(keyVersion);
         if (handle === undefined) {
-          return cipherFailure('invalid_key_version', `Unknown keyVersion "${keyVersion}"`);
+          return failure('invalid_key_version', `Unknown keyVersion "${keyVersion}"`);
         }
         return {
           ok: true,

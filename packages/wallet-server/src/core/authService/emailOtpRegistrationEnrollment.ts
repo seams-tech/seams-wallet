@@ -5,6 +5,7 @@ import {
 } from '@shared/utils/emailOtpDomain';
 import { parseWalletId } from '@shared/utils/domainIds';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
+import { failure } from '@shared/utils/failure';
 import type {
   EmailOtpAuthStateStore,
   EmailOtpChannel,
@@ -68,32 +69,25 @@ async function resolveEmailOtpRegistrationChallengeProof(input: {
     case 'google_registration_attempt': {
       const attempt = await input.registrationAttemptStore.get(proofInput.registrationAttemptId);
       if (!attempt) {
-        return {
-          ok: false,
-          code: 'registration_attempt_missing',
-          message: 'Google Email OTP registration attempt expired or was not found',
-        };
+        return failure(
+          'registration_attempt_missing',
+          'Google Email OTP registration attempt expired or was not found',
+        );
       }
       if (attempt.providerSubject !== proofInput.providerSubject) {
-        return {
-          ok: false,
-          code: 'challenge_subject_mismatch',
-          message: 'Email OTP registration attempt does not match the provider subject',
-        };
+        return failure(
+          'challenge_subject_mismatch',
+          'Email OTP registration attempt does not match the provider subject',
+        );
       }
       if (attempt.expiresAtMs <= input.nowMs) {
-        return {
-          ok: false,
-          code: 'registration_attempt_expired',
-          message: 'Google Email OTP registration attempt expired',
-        };
+        return failure(
+          'registration_attempt_expired',
+          'Google Email OTP registration attempt expired',
+        );
       }
       if (attempt.walletId !== proofInput.walletId) {
-        return {
-          ok: false,
-          code: 'wallet_identity_mismatch',
-          message: 'registrationAttemptId does not match walletId',
-        };
+        return failure('wallet_identity_mismatch', 'registrationAttemptId does not match walletId');
       }
       return {
         ok: true,
@@ -167,11 +161,10 @@ export async function verifyEmailOtpEnrollment(input: VerifyEmailOtpEnrollmentIn
   if (!verified.ok) return verified;
   const verifiedEmail = toOptionalTrimmedString(verified.email)?.toLowerCase();
   if (!verifiedEmail) {
-    return {
-      ok: false,
-      code: 'internal',
-      message: 'Email OTP enrollment verification did not include a verified email',
-    };
+    return failure(
+      'internal',
+      'Email OTP enrollment verification did not include a verified email',
+    );
   }
   const enrollmentMaterial = await validateEmailOtpEnrollmentMaterial({
     material: request,
@@ -180,30 +173,23 @@ export async function verifyEmailOtpEnrollment(input: VerifyEmailOtpEnrollmentIn
   if (!enrollmentMaterial.ok) return enrollmentMaterial;
   const orgId = toOptionalTrimmedString(verified.orgId) || '';
   if (!orgId) {
-    return {
-      ok: false,
-      code: 'invalid_body',
-      message: 'Email OTP enrollment requires orgId tenant scope',
-    };
+    return failure('invalid_body', 'Email OTP enrollment requires orgId tenant scope');
   }
   const verifiedWalletId = parseWalletId(verified.walletId);
   if (!verifiedWalletId.ok) {
-    return {
-      ok: false,
-      code: 'invalid_body',
-      message: 'Email OTP enrollment verification returned an invalid walletId',
-    };
+    return failure(
+      'invalid_body',
+      'Email OTP enrollment verification returned an invalid walletId',
+    );
   }
   const canonicalWallet = await input.walletStore.getWallet({
     walletId: verifiedWalletId.value,
   });
   if (!canonicalWallet) {
-    return {
-      ok: false,
-      code: 'wallet_registration_incomplete',
-      message:
-        'Email OTP enrollment requires a canonical wallet created by /wallets/register/activate.',
-    };
+    return failure(
+      'wallet_registration_incomplete',
+      'Email OTP enrollment requires a canonical wallet created by /wallets/register/activate.',
+    );
   }
   const existing = await input.walletEnrollmentStore.get(verified.walletId);
   const existingState = await input.authStateStore.get(verified.walletId);

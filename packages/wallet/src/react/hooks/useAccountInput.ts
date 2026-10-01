@@ -9,7 +9,7 @@ import {
   type WalletAuthMethod,
   WALLET_AUTH_METHODS,
 } from '@shared/utils/signerDomain';
-import type { StoredAccountOption } from '../types';
+import type { AccountInputState, StoredAccountOption, UseAccountInputReturn } from '../types';
 
 async function discoverRelayerAccountFromHealthz(relayUrl: string): Promise<string | null> {
   const base = String(relayUrl || '')
@@ -38,24 +38,6 @@ async function discoverRelayerAccountFromHealthz(relayUrl: string): Promise<stri
   }
 }
 
-export interface AccountInputState {
-  inputUsername: string;
-  lastLoggedInUsername: string;
-  lastLoggedInDomain: string;
-  /** Sponsored named NEAR account target used only by named-account registration. */
-  targetAccountId: string;
-  /** Wallet identity used for passkey login/session operations. */
-  targetWalletId: string;
-  displayPostfix: string;
-  isUsingExistingAccount: boolean;
-  /** On-chain NEAR account existence for sponsored named-account registration. */
-  accountExists: boolean;
-  /** Local passkey credential existence for wallet-scoped passkey login. */
-  passkeyCredentialExists: boolean;
-  indexDBAccounts: string[];
-  indexDBAccountOptions: StoredAccountOption[];
-}
-
 interface UseAccountInputOptions {
   seams: SeamsWeb;
   /**
@@ -65,11 +47,6 @@ interface UseAccountInputOptions {
   accountDomain?: string;
   currentWalletId?: string | null;
   isLoggedIn: boolean;
-}
-
-export interface UseAccountInputReturn extends AccountInputState {
-  setInputUsername: (username: string) => void;
-  refreshAccountData: () => Promise<void>;
 }
 
 function extractUsernameFromAccountId(accountId: string | null | undefined): string {

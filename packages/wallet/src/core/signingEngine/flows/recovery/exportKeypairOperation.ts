@@ -336,13 +336,6 @@ async function exportEd25519KeypairWithFlowId(
   });
 }
 
-async function exportEd25519KeypairWithSessionLifecycle(
-  deps: ExportKeypairWithUIDeps,
-  args: Extract<SigningEngineExportKeypairWithUIInput, { kind: 'ed25519' }> & { flowId: string },
-): Promise<ExportKeypairResult> {
-  return await exportEd25519KeypairWithFlowId(deps, args);
-}
-
 export async function exportKeypairWithUI(
   deps: ExportKeypairWithUIDeps,
   input: SigningEngineExportKeypairWithUIInput,
@@ -352,7 +345,7 @@ export async function exportKeypairWithUI(
       case 'ecdsa':
         return await exportEcdsaKeypairWithSessionLifecycle(deps, args, { kind: 'initial' });
       case 'ed25519':
-        return await exportEd25519KeypairWithSessionLifecycle(deps, args);
+        return await exportEd25519KeypairWithFlowId(deps, args);
     }
   });
 }

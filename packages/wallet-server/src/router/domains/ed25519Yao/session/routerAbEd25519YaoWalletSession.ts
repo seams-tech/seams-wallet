@@ -11,17 +11,19 @@ import type { WalletRegistrationEd25519YaoBootstrapSession } from '@shared/utils
 import type { RouterAbEd25519YaoActiveCapabilityDescriptorV1 } from '../recovery/routerAbEd25519YaoRecovery';
 import type {
   MpcWalletSigningQuotaId,
-  WalletSessionMintId,
   WalletSessionAuthorizationId,
   WalletSessionId,
 } from '@shared/authorization/capabilityKinds';
-import type { WalletSessionOperationCredentialV1 } from '@shared/device-linking';
 import type {
-  ThresholdEd25519SessionId,
-  WalletAuthMethodId,
-  WalletAuthorityId,
-  WalletId,
-} from '@shared/utils/domainIds';
+  WalletSessionAlreadyCommittedResponseV1,
+  WalletSessionRejectionV1,
+} from '@shared/authorization/walletSessionIssuance';
+import type { WalletSessionOperationCredentialV1 } from '@shared/device-linking';
+import type { ThresholdEd25519SessionId } from '@shared/utils/domainIds';
+import type {
+  RouterAbEd25519OperationStepUpMaterialRecoveryRequest,
+  RouterAbEd25519OperationStepUpMaterialRecoveryResponse,
+} from '@shared/utils/routerAbNormalSigningIdentity';
 import type { VerifiedOwnerProof } from '../../../../authorization/factorEvidence';
 
 export type RouterAbEd25519YaoSessionPolicyV1 = {
@@ -51,27 +53,10 @@ export type RouterAbEd25519YaoSessionRouteCommandV1 = {
 };
 
 type RouterAbEd25519YaoOperationStepUpMaterialRecoveryRequest =
-  | {
-      readonly kind: 'not_requested';
-    }
-  | {
-      readonly kind: 'email_otp_factor_release_v1';
-      readonly workerEphemeralPublicKey65B64u: string;
-    };
+  Readonly<RouterAbEd25519OperationStepUpMaterialRecoveryRequest>;
 
 export type RouterAbEd25519YaoOperationStepUpMaterialRecoveryResponse =
-  | {
-      readonly kind: 'not_requested';
-    }
-  | {
-      readonly kind: 'email_otp_factor_release_v1';
-      readonly challengeId: string;
-      readonly enrollmentId: string;
-      readonly enrollmentSealKeyVersion: string;
-      readonly serverEphemeralPublicKey65B64u: string;
-      readonly nonce12B64u: string;
-      readonly ciphertextB64u: string;
-    };
+  Readonly<RouterAbEd25519OperationStepUpMaterialRecoveryResponse>;
 
 type RouterAbEd25519YaoOperationStepUpGrantCommandBase = {
   readonly kind: 'router_ab_ed25519_yao_operation_step_up_grant_v1';
@@ -123,37 +108,7 @@ export type RouterAbEd25519YaoBudgetRefreshRequestV1 =
     readonly authorization: RouterAbEd25519YaoBudgetRefreshAuthorizationV1;
   };
 
-/**
- * The committed identity of one Wallet Session issuance attempt whose
- * credential is unreachable. It is credential-free by construction: a replay
- * reads a committed digest, and no digest reproduces plaintext.
- */
-type RouterAbEd25519YaoCommittedWalletSessionV1 = {
-  readonly kind: 'already_committed_wallet_session_v1';
-  readonly walletId: WalletId;
-  readonly authorityId: WalletAuthorityId;
-  readonly walletAuthMethodId: WalletAuthMethodId;
-  readonly mintId: WalletSessionMintId;
-  readonly authorizationId: WalletSessionAuthorizationId;
-  readonly walletSessionId: WalletSessionId;
-  readonly quotaId: MpcWalletSigningQuotaId;
-};
-
-export type RouterAbEd25519YaoAlreadyCommittedResponseV1 = {
-  readonly ok: false;
-  readonly code: 'already_committed';
-  readonly message: string;
-  readonly next: 'unlock_exact_method';
-  readonly committed: RouterAbEd25519YaoCommittedWalletSessionV1;
-};
-
-type RouterAbEd25519YaoWalletSessionRejectionV1 = {
-  readonly ok: false;
-  readonly code: string;
-  readonly message: string;
-  readonly next?: never;
-  readonly committed?: never;
-};
+export type RouterAbEd25519YaoAlreadyCommittedResponseV1 = WalletSessionAlreadyCommittedResponseV1;
 
 type RouterAbEd25519YaoBudgetRefreshSessionV1 = {
   readonly ok: true;
@@ -183,7 +138,7 @@ export type RouterAbEd25519YaoBudgetRefreshResponseV1 =
       readonly operationCredential?: never;
     })
   | RouterAbEd25519YaoAlreadyCommittedResponseV1
-  | RouterAbEd25519YaoWalletSessionRejectionV1;
+  | WalletSessionRejectionV1;
 
 type RouterAbEd25519YaoVerifiedWalletUnlockRequestBaseV1 = {
   readonly walletId: string;
@@ -217,4 +172,4 @@ export type RouterAbEd25519YaoVerifiedWalletUnlockResponseV1 =
       readonly capability: RouterAbEd25519YaoActiveCapabilityDescriptorV1;
     }
   | RouterAbEd25519YaoAlreadyCommittedResponseV1
-  | RouterAbEd25519YaoWalletSessionRejectionV1;
+  | WalletSessionRejectionV1;

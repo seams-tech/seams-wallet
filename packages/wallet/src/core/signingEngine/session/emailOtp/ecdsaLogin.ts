@@ -18,6 +18,7 @@ import {
   toWalletId,
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type { ThresholdRuntimePolicyScope } from '@/core/signingEngine/threshold/sessionPolicy';
+import { sameRuntimePolicyScope } from '@shared/threshold/signingRootScope';
 import type { ActiveEcdsaCapabilityRuntimeResolver } from '../material/activeEcdsaCapabilityRuntime';
 import type {
   EcdsaExplicitExportOperationAuthorization,
@@ -785,24 +786,12 @@ function requireEmailOtpEcdsaCustodySigner(
         signer.activationReceipt,
         first.activationReceipt,
       ) ||
-      !sameEmailOtpRuntimePolicyScope(signer.runtimePolicyScope, first.runtimePolicyScope)
+      !sameRuntimePolicyScope(signer.runtimePolicyScope, first.runtimePolicyScope)
     ) {
       throw new Error('Email OTP ECDSA custody continuity conflicts across targets');
     }
   }
   return first;
-}
-
-function sameEmailOtpRuntimePolicyScope(
-  left: ThresholdRuntimePolicyScope,
-  right: ThresholdRuntimePolicyScope,
-): boolean {
-  return (
-    left.orgId === right.orgId &&
-    left.projectId === right.projectId &&
-    left.envId === right.envId &&
-    left.signingRootVersion === right.signingRootVersion
-  );
 }
 
 function nonEmptyEmailOtpEcdsaChainTargets(
@@ -1132,7 +1121,7 @@ async function provisionEmailOtpExistingKeySessions(args: {
   const additionalBootstraps = await Promise.all(
     args.publicationChainTargets
       .slice(1)
-      .map(provisionEmailOtpAdditionalExistingKeySessionForTarget.bind(null, additionalContext)),
+      .map(provisionEmailOtpExistingKeySessionForTarget.bind(null, additionalContext)),
   );
   const bootstraps = [primaryBootstrap, ...additionalBootstraps];
   if (!primaryBootstrap) {
@@ -1170,13 +1159,6 @@ async function provisionEmailOtpExistingKeySessionForTarget(
       authorization: context.authorization,
     }),
   );
-}
-
-async function provisionEmailOtpAdditionalExistingKeySessionForTarget(
-  context: ProvisionEmailOtpExistingKeySessionContext,
-  chainTarget: ThresholdEcdsaChainTarget,
-): Promise<ThresholdEcdsaSessionBootstrapResult> {
-  return await provisionEmailOtpExistingKeySessionForTarget(context, chainTarget);
 }
 
 type EmailOtpEcdsaLoginAuthorityPorts = {

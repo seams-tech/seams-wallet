@@ -3,6 +3,8 @@ import {
   type MpcMaterialActivationRef,
 } from './domainIds';
 import { requireRecord } from './validation';
+import type { RouterAbEcdsaOperationStepUpPreparationV1Wire } from './routerAbEcdsaDerivation';
+import type { RouterAbMpcMaterialActivationRefV1 } from './generated/routerAbEd25519YaoCore';
 
 export type RouterAbNormalSigningAuthorizationWire =
   | {
@@ -15,15 +17,23 @@ export type RouterAbNormalSigningAuthorizationWire =
       readonly wallet_session_id?: never;
     };
 
-export type RouterAbMpcMaterialActivationRefWire = {
-  readonly kind: 'mpc_material_activation_ref';
-  readonly activation_id: string;
-  readonly capability: string;
-  readonly material_owner: string;
-  readonly key_binding: string;
-  readonly lifecycle_binding: string;
-  readonly signing_worker: string;
-};
+export type RouterAbEcdsaDerivationPoolFillAuthorization =
+  | {
+      readonly authorization: Extract<
+        RouterAbNormalSigningAuthorizationWire,
+        { readonly kind: 'reusable_wallet_session' }
+      >;
+      readonly operation?: never;
+    }
+  | {
+      readonly authorization: Extract<
+        RouterAbNormalSigningAuthorizationWire,
+        { readonly kind: 'operation_step_up' }
+      >;
+      readonly operation: RouterAbEcdsaOperationStepUpPreparationV1Wire;
+    };
+
+export type RouterAbMpcMaterialActivationRefWire = Readonly<RouterAbMpcMaterialActivationRefV1>;
 
 export type RouterAbEd25519OperationStepUpPreparationV1Wire = {
   readonly wallet_id: string;
@@ -41,6 +51,25 @@ export type RouterAbEd25519OperationStepUpPreparationV1Wire = {
   readonly participant_ids: readonly [number, number];
   readonly expires_at_ms: number;
 };
+
+export type RouterAbEd25519OperationStepUpMaterialRecoveryRequest =
+  | { kind: 'not_requested' }
+  | {
+      kind: 'email_otp_factor_release_v1';
+      workerEphemeralPublicKey65B64u: string;
+    };
+
+export type RouterAbEd25519OperationStepUpMaterialRecoveryResponse =
+  | { kind: 'not_requested' }
+  | {
+      kind: 'email_otp_factor_release_v1';
+      challengeId: string;
+      enrollmentId: string;
+      enrollmentSealKeyVersion: string;
+      serverEphemeralPublicKey65B64u: string;
+      nonce12B64u: string;
+      ciphertextB64u: string;
+    };
 
 export type RouterAbEd25519OwnerOperationAuthorizationDecisionV1Wire =
   | {

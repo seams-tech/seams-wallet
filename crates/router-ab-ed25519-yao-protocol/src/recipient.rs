@@ -4,7 +4,6 @@ use curve25519_dalek::{
     constants::ED25519_BASEPOINT_POINT, edwards::CompressedEdwardsY, scalar::Scalar,
     traits::IsIdentity,
 };
-use router_ab_core::{Ed25519YaoDeriverRoleV1, Ed25519YaoPackageKindV1};
 use subtle::ConstantTimeEq;
 use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
@@ -57,16 +56,6 @@ pub enum RecipientPackageError {
     NonCanonicalScalar,
     /// The activation share commitment was malformed or inconsistent.
     ShareCommitment,
-}
-
-/// Returns the distinct lane-materialization circuit digest.
-pub const fn lane_materialization_circuit_digest_v1() -> [u8; 32] {
-    LANE_MATERIALIZATION_CIRCUIT_DIGEST
-}
-
-/// Returns the distinct lane-materialization streaming schedule digest.
-pub const fn lane_materialization_schedule_digest_v1() -> [u8; 32] {
-    LANE_MATERIALIZATION_SCHEDULE_DIGEST
 }
 
 impl fmt::Display for RecipientPackageError {
@@ -282,55 +271,6 @@ fn lane_expected(role_tag: u8, holder: bool) -> ExpectedPackage {
         schedule_digest: LANE_MATERIALIZATION_SCHEDULE_DIGEST,
         payload_bytes: 64,
     }
-}
-
-/// Encodes one fixed-width lane scalar-share package for a target recipient.
-///
-/// The package contains only a canonical scalar share and its public
-/// commitment.  It never carries a seed, derivation root, or activation
-/// export material.
-pub fn encode_lane_scalar_share_package_v1(
-    kind: Ed25519YaoPackageKindV1,
-    deriver: Ed25519YaoDeriverRoleV1,
-    session: [u8; 32],
-    transcript: [u8; 32],
-    scalar_bytes: [u8; 32],
-) -> Result<Vec<u8>, RecipientPackageError> {
-    let holder = match kind {
-        Ed25519YaoPackageKindV1::LaneHolder => true,
-        Ed25519YaoPackageKindV1::LaneSigningWorker => false,
-        _ => return Err(RecipientPackageError::Binding),
-    };
-    let scalar_option = Scalar::from_canonical_bytes(scalar_bytes);
-    let scalar = scalar_option.unwrap_or(Scalar::ZERO);
-    if !bool::from(scalar_option.is_some()) {
-        return Err(RecipientPackageError::NonCanonicalScalar);
-    }
-    let expected = lane_expected(
-        match deriver {
-            Ed25519YaoDeriverRoleV1::DeriverA => DERIVER_A_ROLE_TAG,
-            Ed25519YaoDeriverRoleV1::DeriverB => DERIVER_B_ROLE_TAG,
-        },
-        holder,
-    );
-    let mut payload = [0_u8; 64];
-    payload[..32].copy_from_slice(&scalar_bytes);
-    payload[32..].copy_from_slice((ED25519_BASEPOINT_POINT * scalar).compress().as_bytes());
-    let mut encoded = vec![0_u8; expected.total_bytes];
-    encoded[..8].copy_from_slice(PACKAGE_MAGIC);
-    encoded[8] = PACKAGE_VERSION;
-    encoded[9] = expected.family_tag;
-    encoded[10] = expected.role_tag;
-    encoded[11] = expected.recipient_tag;
-    encoded[12] = expected.output_kind;
-    encoded[16..48].copy_from_slice(&session);
-    encoded[48..80].copy_from_slice(&expected.circuit_digest);
-    encoded[80..112].copy_from_slice(&expected.schedule_digest);
-    encoded[112..144].copy_from_slice(&transcript);
-    encoded[144..148].copy_from_slice(&PACKAGE_ITEM_COUNT.to_be_bytes());
-    encoded[148..152].copy_from_slice(&(payload.len() as u32).to_be_bytes());
-    encoded[152..].copy_from_slice(&payload);
-    Ok(encoded)
 }
 
 const LANE_MATERIALIZATION_CIRCUIT_DIGEST: [u8; 32] = [

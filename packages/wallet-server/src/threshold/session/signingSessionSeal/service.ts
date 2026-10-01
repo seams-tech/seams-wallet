@@ -1,10 +1,12 @@
 import { base64UrlEncode } from '@shared/utils/encoders';
 import { sha256BytesUtf8 } from '@shared/utils/digests';
+import { failure } from '@shared/utils/failure';
 import type {
   CreateSigningSessionSealServiceOptions,
   SigningSessionSealAuthorizationSessionRecord,
   SigningSessionSealOperation,
   SigningSessionSealRouteResult,
+  SigningSessionSealServerSealRequest,
   SigningSessionSealService,
 } from './signingSessionSeal.types';
 
@@ -116,13 +118,6 @@ function emitOperationResultLog(input: {
   logger.warn(`${SIGNING_SESSION_SEAL_LOG_LABEL} ${input.operation} failure`, payload);
 }
 
-type SigningSessionSealRequestInput = {
-  thresholdSessionId: string;
-  ciphertext: string;
-  keyVersion?: string;
-  metadata?: Record<string, unknown>;
-};
-
 type SigningSessionSealAuthInput = {
   userId: string;
   session: SigningSessionSealAuthorizationSessionRecord;
@@ -159,7 +154,7 @@ async function hashCiphertextForIdempotency(ciphertext: string): Promise<string>
 
 async function makeOperationRequestKey(args: {
   operation: SigningSessionSealOperation;
-  request: SigningSessionSealRequestInput;
+  request: SigningSessionSealServerSealRequest;
   auth: SigningSessionSealAuthInput;
 }): Promise<string> {
   const thresholdSessionId = String(args.request.thresholdSessionId || '').trim();
@@ -198,11 +193,7 @@ async function runSealOperation(input: {
 }): Promise<SigningSessionSealRouteResult> {
   const nowMs = input.options.nowMs || Date.now;
   const startedAtMs = nowMs();
-  let result: SigningSessionSealRouteResult = {
-    ok: false,
-    code: 'internal',
-    message: 'Internal error',
-  };
+  let result: SigningSessionSealRouteResult = failure('internal', 'Internal error');
 
   try {
     emitOperationRequestLog({
@@ -216,29 +207,17 @@ async function runSealOperation(input: {
 
     const session = input.auth.session;
     if (signingSessionSealAuthorizationId(session) !== input.request.thresholdSessionId) {
-      result = {
-        ok: false,
-        code: 'forbidden',
-        message: 'Wallet Session does not match requested thresholdSessionId',
-      };
+      result = failure('forbidden', 'Wallet Session does not match requested thresholdSessionId');
       return result;
     }
 
     if (session.userId !== input.auth.userId) {
-      result = {
-        ok: false,
-        code: 'forbidden',
-        message: 'thresholdSessionId does not belong to authenticated user',
-      };
+      result = failure('forbidden', 'thresholdSessionId does not belong to authenticated user');
       return result;
     }
 
     if (isExpired(session, nowMs())) {
-      result = {
-        ok: false,
-        code: 'expired',
-        message: 'threshold session expired',
-      };
+      result = failure('expired', 'threshold session expired');
       return result;
     }
 
@@ -249,11 +228,10 @@ async function runSealOperation(input: {
         auth: input.auth,
       });
       if (!guard.ok) {
-        result = {
-          ok: false,
-          code: toCode(guard.code, 'forbidden'),
-          message: toMessage(guard.message, 'Request rejected'),
-        };
+        result = failure(
+          toCode(guard.code, 'forbidden'),
+          toMessage(guard.message, 'Request rejected'),
+        );
         return result;
       }
     }
@@ -269,11 +247,10 @@ async function runSealOperation(input: {
       auth: { userId: input.auth.userId },
     });
     if (!sealed.ok) {
-      result = {
-        ok: false,
-        code: toCode(sealed.code, 'internal'),
-        message: toMessage(sealed.message, 'Signing-session seal operation failed'),
-      };
+      result = failure(
+        toCode(sealed.code, 'internal'),
+        toMessage(sealed.message, 'Signing-session seal operation failed'),
+      );
       return result;
     }
 
@@ -285,11 +262,10 @@ async function runSealOperation(input: {
     };
     return result;
   } catch (error: unknown) {
-    result = {
-      ok: false,
-      code: 'internal',
-      message: toMessage(error instanceof Error ? error.message : error, 'Internal error'),
-    };
+    result = failure(
+      'internal',
+      toMessage(error instanceof Error ? error.message : error, 'Internal error'),
+    );
     return result;
   } finally {
     const durationMs = Math.max(0, nowMs() - startedAtMs);
@@ -380,7 +356,7 @@ export function createSigningSessionSealService(
 
   const runWithSingleFlight = async (
     operation: SigningSessionSealOperation,
-    request: SigningSessionSealRequestInput,
+    request: SigningSessionSealServerSealRequest,
     auth: SigningSessionSealAuthInput,
   ): Promise<SigningSessionSealRouteResult> => {
     const operationKey = await makeOperationRequestKey({ operation, request, auth });

@@ -20,6 +20,7 @@ import { assertWarmSessionEnvelopeInvariant } from './types';
 import { toWalletId, type WalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import { warmClaimFromRecordPolicy } from '../availability/readiness';
 import type {
+  WarmSessionCapabilityReader,
   WarmSessionEcdsaCapabilityState,
   WarmSessionEd25519CapabilityState,
   WarmSessionEnvelope,
@@ -80,21 +81,6 @@ type WarmSessionCapabilityReaderCoreDeps = {
   ) => Promise<ExactNearEd25519WalletSessionAuthorization | null>;
 };
 
-type WarmSessionCapabilityReaderCore = {
-  getWarmSession: (walletId: WalletId) => Promise<WarmSessionEnvelope>;
-  getEcdsaCapabilityForLane: (args: {
-    lane: ExactEcdsaSigningLaneIdentity;
-    authorization: ExactEvmFamilyWalletSessionAuthorization;
-  }) => Promise<WarmSessionEcdsaCapabilityState | null>;
-  // Lane-qualified, and async because canonical resolution reads persistence.
-  // There is deliberately no threshold-session-id entry point: that id indexes
-  // runtime state and must never select material.
-  resolveEcdsaSealTransportForLane: (args: {
-    lane: ExactEcdsaSigningLaneIdentity;
-    authorization: ExactEvmFamilyWalletSessionAuthorization;
-  }) => Promise<EcdsaSealTransportAuthMaterial | null>;
-};
-
 async function resolveEcdsaAuthorizationForResolution(args: {
   readonly resolve?: ExactEcdsaWalletSessionAuthorizationResolver;
   readonly walletId: WalletId;
@@ -133,7 +119,7 @@ function ecdsaClaimForResolution(
 
 export function createWarmSessionCapabilityReaderCore(
   deps: WarmSessionCapabilityReaderCoreDeps,
-): WarmSessionCapabilityReaderCore {
+): WarmSessionCapabilityReader {
   async function resolveEd25519AuthorizationForWallet(
     walletId: WalletId,
   ): Promise<ExactNearEd25519WalletSessionAuthorization | null> {

@@ -301,6 +301,7 @@ async function resolveWalletEmailOtpChallengeSignerSelection(args: {
     };
   }
   const resolved = await args.ctx.service.walletRegistration.resolveEcdsaMaterialActivation({
+    source: { kind: 'database' },
     walletId: String(args.authority.walletId),
     materialActivation: routerAbMpcMaterialActivationRefToWire(ecdsaActivation.materialActivation),
   });

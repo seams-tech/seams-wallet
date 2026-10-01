@@ -13,6 +13,9 @@ use crate::activation_recipient_party_views::{
     build_host_only_signing_worker_activated_party_view_set_v1,
     HostOnlyActivationRecipientAuthorizationStateV1,
 };
+use crate::fixtures::strict_corpus::{
+    canonical_json_bytes, parse_canonical_json, StrictVectorCorpusV1,
+};
 use crate::lifecycle_domain::{ActivationPackageOriginV1, ZeroReevaluationWitnessV1};
 
 /// Schema identifier for the strict activation recipient-party-view corpus.
@@ -24,38 +27,11 @@ pub const ACTIVATION_RECIPIENT_PARTY_VIEW_VECTOR_EVIDENCE_SCOPE_V1: &str =
     "host_only_synthetic_activation_recipient_party_views_v1";
 
 /// Strict registration/recovery/refresh post-release recipient-view corpus.
-#[derive(Serialize)]
-pub struct ActivationRecipientPartyViewVectorCorpusV1 {
-    schema: String,
-    protocol_id: String,
-    evidence_scope: String,
-    cases: Vec<ActivationRecipientPartyViewVectorCaseV1>,
-}
-
-impl ActivationRecipientPartyViewVectorCorpusV1 {
-    /// Returns the fixed corpus schema.
-    pub fn schema(&self) -> &str {
-        &self.schema
-    }
-
-    /// Returns the fixed protocol identifier.
-    pub fn protocol_id(&self) -> &str {
-        &self.protocol_id
-    }
-
-    /// Returns the narrow host-only evidence scope.
-    pub fn evidence_scope(&self) -> &str {
-        &self.evidence_scope
-    }
-
-    /// Returns the exact case count.
-    pub fn case_count(&self) -> usize {
-        self.cases.len()
-    }
-}
+pub type ActivationRecipientPartyViewVectorCorpusV1 =
+    StrictVectorCorpusV1<ActivationRecipientPartyViewVectorCaseV1>;
 
 #[derive(Serialize)]
-struct ActivationRecipientPartyViewVectorCaseV1 {
+pub struct ActivationRecipientPartyViewVectorCaseV1 {
     case_id: String,
     origin_request_kind: ActivationRecipientOriginRequestKindVectorV1,
     activation_delivery_case_id: String,
@@ -241,11 +217,7 @@ pub fn canonical_activation_recipient_party_view_vector_corpus_v1(
 
 /// Encodes the exact canonical corpus with one trailing LF.
 pub fn canonical_activation_recipient_party_view_vector_corpus_json_bytes_v1() -> Vec<u8> {
-    let mut encoded =
-        serde_json::to_vec_pretty(&canonical_activation_recipient_party_view_vector_corpus_v1())
-            .expect("fixed activation recipient-party-view corpus serializes");
-    encoded.push(b'\n');
-    encoded
+    canonical_json_bytes(&canonical_activation_recipient_party_view_vector_corpus_v1())
 }
 
 /// Parses only the exact canonical LF-terminated corpus bytes.
@@ -255,10 +227,11 @@ pub fn parse_canonical_activation_recipient_party_view_vector_corpus_json_v1(
     ActivationRecipientPartyViewVectorCorpusV1,
     ActivationRecipientPartyViewVectorCorpusParseErrorV1,
 > {
-    if encoded != canonical_activation_recipient_party_view_vector_corpus_json_bytes_v1() {
-        return Err(ActivationRecipientPartyViewVectorCorpusParseErrorV1);
-    }
-    Ok(canonical_activation_recipient_party_view_vector_corpus_v1())
+    parse_canonical_json(
+        encoded,
+        canonical_activation_recipient_party_view_vector_corpus_v1,
+    )
+    .ok_or(ActivationRecipientPartyViewVectorCorpusParseErrorV1)
 }
 
 fn activation_recipient_party_view_case(
@@ -307,11 +280,11 @@ fn recipients_released_views(
         common_public: ActivationRecipientsReleasedCommonVectorV1 {
             stage: ActivationRecipientsReleasedStageVectorV1::RecipientsReleased,
             origin_request_kind: origin_kind(origin),
-            package_set_digest_hex: encode_hex(common.package_set_digest()),
-            output_committed_receipt_digest_hex: encode_hex(
+            package_set_digest_hex: hex::encode(common.package_set_digest()),
+            output_committed_receipt_digest_hex: hex::encode(
                 common.output_committed_receipt_digest(),
             ),
-            activation_transcript_digest_hex: encode_hex(common.activation_transcript_digest()),
+            activation_transcript_digest_hex: hex::encode(common.activation_transcript_digest()),
             activation_authorization_state: ActivationRecipientAuthorizationStateVectorV1::Consumed,
             zero_private_evaluation_work: zero_work(common.zero_private_work()),
         },
@@ -321,8 +294,8 @@ fn recipients_released_views(
             client: client_extension(client),
             signing_worker: ActivationSigningWorkerReleaseAuthorityVectorV1 {
                 extension_kind: ActivationSigningWorkerReleaseExtensionKindVectorV1::SigningWorkerActivationReleaseAuthority,
-                package_set_digest_hex: encode_hex(&worker_package),
-                delivery_evidence_digest_hex: encode_hex(worker_evidence.as_bytes()),
+                package_set_digest_hex: hex::encode(worker_package),
+                delivery_evidence_digest_hex: hex::encode(worker_evidence.as_bytes()),
             },
             router: EmptyActivationRecipientExtensionV1 {},
             observer: EmptyActivationRecipientExtensionV1 {},
@@ -362,28 +335,28 @@ fn signing_worker_activated_views(
         common_public: SigningWorkerActivatedCommonVectorV1 {
             stage: SigningWorkerActivatedStageVectorV1::SigningWorkerActivated,
             origin_request_kind: origin_kind(origin),
-            package_set_digest_hex: encode_hex(common.package_set_digest()),
-            output_committed_receipt_digest_hex: encode_hex(
+            package_set_digest_hex: hex::encode(common.package_set_digest()),
+            output_committed_receipt_digest_hex: hex::encode(
                 common.output_committed_receipt_digest(),
             ),
             activation_epoch: common.activation_epoch().value(),
             signing_worker_id: common.worker().id().as_str().to_owned(),
             signing_worker_recipient_key_epoch: common.worker().key_epoch().value(),
-            registered_public_key_hex: encode_hex(common.registered_public_key().as_bytes()),
-            x_server_hex: encode_hex(common.x_server()),
-            output_storage_evidence_digest_hex: encode_hex(
+            registered_public_key_hex: hex::encode(common.registered_public_key().as_bytes()),
+            x_server_hex: hex::encode(common.x_server()),
+            output_storage_evidence_digest_hex: hex::encode(
                 common.storage_receipt_digest().as_bytes(),
             ),
-            activation_receipt_encoding_hex: encode_hex(common.activation_receipt_encoding()),
-            activation_receipt_digest_hex: encode_hex(
+            activation_receipt_encoding_hex: hex::encode(common.activation_receipt_encoding()),
+            activation_receipt_digest_hex: hex::encode(
                 common.activation_receipt_digest().as_bytes(),
             ),
-            activation_receipt_signature_hex: encode_hex(
+            activation_receipt_signature_hex: hex::encode(
                 common.activation_receipt_signature().as_bytes(),
             ),
             receipt_key_epoch: common.receipt_key_epoch().value(),
-            receipt_key_digest_hex: encode_hex(common.receipt_key_digest()),
-            receipt_verifying_key_hex: encode_hex(common.receipt_verifying_key()),
+            receipt_key_digest_hex: hex::encode(common.receipt_key_digest()),
+            receipt_verifying_key_hex: hex::encode(common.receipt_verifying_key()),
             activation_authorization_state: match common.authorization_state() {
                 HostOnlyActivationRecipientAuthorizationStateV1::Consumed => {
                     ActivationRecipientAuthorizationStateVectorV1::Consumed
@@ -397,7 +370,7 @@ fn signing_worker_activated_views(
             signing_worker: ActivatedSigningWorkerExtensionVectorV1 {
                 extension_kind:
                     ActivatedSigningWorkerExtensionKindVectorV1::SealedSigningWorkerActivatedState,
-                x_server_base_hex: encode_hex(&x_server_base),
+                x_server_base_hex: hex::encode(x_server_base),
             },
             router: EmptyActivationRecipientExtensionV1 {},
             observer: EmptyActivationRecipientExtensionV1 {},
@@ -411,11 +384,11 @@ fn client_extension(
 ) -> ActivationRecipientClientCapabilityVectorV1 {
     ActivationRecipientClientCapabilityVectorV1 {
         extension_kind: ActivationClientExtensionKindVectorV1::ActivationClientScalarRelease,
-        package_set_digest_hex: encode_hex(client.package_set_digest().as_bytes()),
-        delivery_evidence_digest_hex: encode_hex(
+        package_set_digest_hex: hex::encode(client.package_set_digest().as_bytes()),
+        delivery_evidence_digest_hex: hex::encode(
             activation_client_delivery_evidence_v1(client).as_bytes(),
         ),
-        x_client_base_hex: encode_hex(&client.x_client_base().expose_bytes()),
+        x_client_base_hex: hex::encode(client.x_client_base().expose_bytes()),
     }
 }
 
@@ -469,14 +442,4 @@ const fn output_party_view_case_id(origin: ActivationPackageOriginV1) -> &'stati
         ActivationPackageOriginV1::Recovery => "recovery_output_party_views_package_prepared_v1",
         ActivationPackageOriginV1::Refresh => "refresh_output_party_views_package_prepared_v1",
     }
-}
-
-fn encode_hex(bytes: &[u8]) -> String {
-    const HEX: &[u8; 16] = b"0123456789abcdef";
-    let mut encoded = String::with_capacity(bytes.len() * 2);
-    for byte in bytes {
-        encoded.push(char::from(HEX[usize::from(byte >> 4)]));
-        encoded.push(char::from(HEX[usize::from(byte & 0x0f)]));
-    }
-    encoded
 }

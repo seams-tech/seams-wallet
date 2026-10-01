@@ -40,6 +40,7 @@ import {
   type RouterAbJsonRouteResult,
   routerAbStepUpError,
 } from './routerAbNormalSigningAdmission';
+import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 
 export type ActiveEd25519MaterialActivation = Extract<
   Awaited<ReturnType<RouterApiWalletRegistrationService['resolveEd25519MaterialActivation']>>,
@@ -172,20 +173,18 @@ type RouterAbExactOperationStepUpIdentityInput = {
   readonly requestExpiresAtMs: number;
   readonly authorizedOperations: RouterApiAuthorizedOperationService | null | undefined;
   readonly authorizationSessions: RouterApiAuthorizationSessionService | null | undefined;
-} & (
+} & ReadonlyExclusiveUnion<
   | {
       readonly keyFamily: 'ed25519';
       readonly operationKind: Ed25519OperationKind;
       readonly resolveEd25519MaterialActivation: RouterApiWalletRegistrationService['resolveEd25519MaterialActivation'];
-      readonly resolveEcdsaMaterialActivation?: never;
     }
   | {
       readonly keyFamily: 'ecdsa_secp256k1';
       readonly operationKind: 'evm.sign_transaction' | 'evm.export_key';
-      readonly resolveEd25519MaterialActivation?: never;
       readonly resolveEcdsaMaterialActivation: RouterApiWalletRegistrationService['resolveEcdsaMaterialActivation'];
     }
-);
+>;
 
 type RouterAbVerifiedOwnerOperationStepUpIdentityInput = {
   readonly kind: 'verified_owner_proof';
@@ -559,6 +558,7 @@ export async function authenticateRouterAbWalletOperationStepUpIdentity(
     if (admission.curve === 'ecdsa' && input.keyFamily === 'ecdsa_secp256k1') {
       const active = ecdsaStepUpActiveMaterial({
         activeMaterial: await input.resolveEcdsaMaterialActivation({
+          source: { kind: 'database' },
           walletId: input.walletId,
           materialActivation: admittedMaterialActivation,
         }),

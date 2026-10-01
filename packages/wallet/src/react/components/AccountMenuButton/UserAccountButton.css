@@ -26,11 +26,6 @@
   transition: color 0.1s ease;
 }
 
-.seams-user-account-button-trigger:hover .seams-profile-button-icon,
-.seams-user-account-button-trigger:hover .seams-profile-button-username {
-  color: inherit;
-}
-
 .seams-user-account-button-trigger:hover svg {
   color: inherit;
 }

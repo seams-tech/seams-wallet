@@ -6,6 +6,10 @@ import {
   encodeTenantRootIdentityV1,
   type TenantRootIdentityV1,
 } from '@shared/tenant-root/tenantRootIdentity';
+import {
+  hasControlCharacters,
+  TENANT_ROOT_IDENTITY_MAX_IDENTIFIER_BYTES_V1,
+} from '@shared/tenant-root/tenantRootIdentifier';
 
 const GRANT_DOMAIN = new TextEncoder().encode('tenant_root_creation_grant_v1');
 const GRANT_OPERATION = new TextEncoder().encode('tenant_root_authorize_create_v1');
@@ -13,7 +17,6 @@ const GRANT_AUTH_DOMAIN = new TextEncoder().encode('tenant_root_creation_grant_a
 const ED25519_PKCS8_SEED_PREFIX = Uint8Array.from([
   0x30, 0x2e, 0x02, 0x01, 0x00, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x04, 0x22, 0x04, 0x20,
 ]);
-const MAX_IDENTIFIER_BYTES = 256;
 const MAX_GRANT_LIFETIME_MS = 300_000;
 
 export interface TenantRootCreationGrantSigningInputV1 {
@@ -67,21 +70,13 @@ function u64(value: number, label: string): Uint8Array {
   return output;
 }
 
-function hasControlCharacters(value: string): boolean {
-  for (const character of value) {
-    const codePoint = character.codePointAt(0) ?? 0;
-    if (codePoint <= 0x1f || (codePoint >= 0x7f && codePoint <= 0x9f)) return true;
-  }
-  return false;
-}
-
 function identifierBytes(value: string, label: string): Uint8Array {
   if (!value || value.trim() !== value || hasControlCharacters(value)) {
     throw new Error(`${label} is invalid`);
   }
   const bytes = new TextEncoder().encode(value);
-  if (bytes.length > MAX_IDENTIFIER_BYTES) {
-    throw new Error(`${label} exceeds ${MAX_IDENTIFIER_BYTES} UTF-8 bytes`);
+  if (bytes.length > TENANT_ROOT_IDENTITY_MAX_IDENTIFIER_BYTES_V1) {
+    throw new Error(`${label} exceeds ${TENANT_ROOT_IDENTITY_MAX_IDENTIFIER_BYTES_V1} UTF-8 bytes`);
   }
   return bytes;
 }

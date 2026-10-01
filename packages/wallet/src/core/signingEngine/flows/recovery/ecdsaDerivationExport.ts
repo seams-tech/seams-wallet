@@ -41,6 +41,7 @@ import type { RouterAbEcdsaExplicitExportRequestFactsV1 } from '../../workerMana
 import type { WalletSessionOperationCredentialV1 } from '@/core/indexedDB/seamsWalletDB/walletSessionAuthorizationStore';
 import type { ActiveWalletAuthorityEcdsaRuntimeV1 } from '../../session/material/activeWalletAuthorityEcdsaRuntime';
 import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';
+import type { ExclusiveUnion } from '@shared/utils/variant';
 
 const ECDSA_DERIVATION_EXPORT_CONFIRMATION_DIGEST_VERSION =
   'ecdsa-derivation:role-local:product-export-confirmation:v5';
@@ -54,17 +55,14 @@ type EcdsaDerivationExportDeps = {
 
 type ExplicitKeyExportMaterial = ThresholdEcdsaExplicitKeyExportBootstrapResult['material'];
 
-type EcdsaDerivationExportAuthorization =
+type EcdsaDerivationExportAuthorization = ExclusiveUnion<
   | {
       kind: 'passkey';
       passkeyCredentialIdB64u: string;
       credential: WebAuthnAuthenticationCredential;
     }
-  | {
-      kind: 'email_otp_verified';
-      passkeyCredentialIdB64u?: never;
-      credential?: never;
-    };
+  | { kind: 'email_otp_verified' }
+>;
 
 type ActiveWalletAuthorityEcdsaExportTopology = RouterAbEcdsaOperationStepUpExportTopologyV1Wire;
 

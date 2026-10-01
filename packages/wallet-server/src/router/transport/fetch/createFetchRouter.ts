@@ -1,5 +1,5 @@
 import { coerceRouterLogger } from '../../framework/logger';
-import { json, withCors } from '../../framework/http';
+import { json, jsonFailure, withCors } from '../../framework/http';
 import { handleHealth, handleReady } from './routes/health';
 import { handleWalletRegistration } from './routes/walletRegistration';
 import {
@@ -125,6 +125,7 @@ async function signingSessionSealRecordFromExactAdmission(input: {
   switch (admission.curve) {
     case 'ecdsa': {
       const active = await input.walletRegistration.resolveEcdsaMaterialActivation({
+      source: { kind: 'database' },
         walletId,
         materialActivation,
       });
@@ -354,14 +355,7 @@ export function createFetchRouter(
       if (!context.pathname.startsWith(LINKED_DEVICE_MANAGEMENT_BASE_V1)) return null;
       const service = context.service.deviceManagement;
       if (!service) {
-        return json(
-          {
-            ok: false,
-            code: 'not_supported',
-            message: 'Linked-device management is not configured',
-          },
-          { status: 501 },
-        );
+        return jsonFailure(501, 'not_supported', 'Linked-device management is not configured');
       }
       return await handleDeviceManagement(context, service);
     },

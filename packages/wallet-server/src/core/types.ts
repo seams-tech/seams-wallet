@@ -11,7 +11,7 @@ import type { RuntimePolicyScope } from '@shared/threshold/signingRootScope';
 import type {
   EcdsaClientRootPublicKey33B64u,
   DerivationClientSharePublicKey33B64u,
-  EcdsaDerivationRelayerPublicKey33B64u,
+  EcdsaDerivationRoleLocalPublicIdentity,
 } from '@shared/threshold/ecdsaDerivationRoleLocalBootstrap';
 import type { RouterAbEd25519NormalSigningState } from '@shared/utils/signingSessionSeal';
 import type {
@@ -664,12 +664,7 @@ export type EcdsaDerivationRouteResult<T> =
 export type EcdsaDerivationRoleLocalFormatVersion = 'ecdsa-derivation-role-local';
 export type EcdsaDerivationKeyScope = 'evm-family';
 
-export interface EcdsaDerivationPublicIdentity {
-  derivationClientSharePublicKey33B64u: DerivationClientSharePublicKey33B64u;
-  relayerPublicKey33B64u: EcdsaDerivationRelayerPublicKey33B64u;
-  groupPublicKey33B64u: string;
-  ethereumAddress: string;
-}
+export interface EcdsaDerivationPublicIdentity extends EcdsaDerivationRoleLocalPublicIdentity {}
 
 export interface EcdsaDerivationClientRootProof {
   version: 'ecdsa-derivation:role-local:first-bootstrap-root-proof:v2';

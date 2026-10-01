@@ -30,6 +30,7 @@ import {
   parseRouterAbEd25519YaoActivationPublicReceiptV1,
   parseRouterAbEd25519YaoEncryptedPackageV1,
   parseRouterAbEd25519YaoParticipantIdsV1,
+  sameRouterAbEd25519YaoByteSequence,
   type RouterAbEd25519YaoCeremonyBindingV1,
   type RouterAbEd25519YaoActivationAdmissionReceiptV1,
   type RouterAbEd25519YaoActivationPublicReceiptV1,
@@ -257,8 +258,8 @@ export function parseLinkedDeviceEd25519SourcePreservingReservationV1(
     'deriver_b',
   );
   if (
-    !sameBytes(activationReceipt.transcript, deriverA.transcript) ||
-    !sameBytes(activationReceipt.transcript, deriverB.transcript)
+    !sameRouterAbEd25519YaoByteSequence(activationReceipt.transcript, deriverA.transcript) ||
+    !sameRouterAbEd25519YaoByteSequence(activationReceipt.transcript, deriverB.transcript)
   ) {
     throw new Error('linked-device Ed25519 reservation packages have mismatched transcripts');
   }
@@ -633,7 +634,7 @@ function parseEd25519Contribution(
     'sourceRegisteredPublicKeyB64u',
   );
   if (
-    !sameBytes(
+    !sameRouterAbEd25519YaoByteSequence(
       activationReceipt.registered_public_key,
       Array.from(base64UrlDecode(sourceRegisteredPublicKeyB64u)),
     )
@@ -649,8 +650,8 @@ function parseEd25519Contribution(
     'deriver_b',
   );
   if (
-    !sameBytes(activationReceipt.transcript, deriverA.transcript) ||
-    !sameBytes(activationReceipt.transcript, deriverB.transcript)
+    !sameRouterAbEd25519YaoByteSequence(activationReceipt.transcript, deriverA.transcript) ||
+    !sameRouterAbEd25519YaoByteSequence(activationReceipt.transcript, deriverB.transcript)
   ) {
     throw new Error('linked-device Ed25519 source contribution package transcript differs');
   }
@@ -1177,7 +1178,7 @@ function sameEdStableIdentity(
   );
 }
 
-function sameEcdsaSourceSigner(
+export function sameEcdsaSourceSigner(
   left: LinkedDeviceEcdsaSourceSignerIdentityV1,
   right: LinkedDeviceEcdsaSourceSignerIdentityV1,
 ): boolean {
@@ -1203,7 +1204,7 @@ function assertEcdsaSourceTargetActivations(
   }
 }
 
-function sameEcdsaTarget(
+export function sameEcdsaTarget(
   left: LinkedDeviceEcdsaTargetRecipientPreparationV1,
   right: LinkedDeviceEcdsaTargetRecipientPreparationV1,
 ): boolean {
@@ -1274,10 +1275,6 @@ function parseFixedBase64(raw: unknown, byteLength: number, label: string): stri
     throw new Error(`${label} must decode to ${byteLength} bytes`);
   }
   return raw;
-}
-
-function sameBytes(left: readonly number[], right: readonly number[]): boolean {
-  return left.length === right.length && left.every((value, index) => value === right[index]);
 }
 
 function requireText(raw: unknown, label: string): string {

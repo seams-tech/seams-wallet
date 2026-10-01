@@ -17,9 +17,13 @@ import {
 import { base64UrlEncode } from '@shared/utils/encoders';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
 import { errorMessage } from '@shared/utils/errors';
+import { failure } from '@shared/utils/failure';
 import { randomNumericCode } from './bytes';
 import { type EmailOtpConfig } from './emailOtpConfig';
-import type { EmailOtpAuthStateReadResult } from './emailOtpEnrollment';
+import type {
+  EmailOtpAuthStateReadResult,
+  EmailOtpEnrollmentReadResult,
+} from './emailOtpEnrollment';
 import type { EmailOtpDeliveryResult, EmailOtpMemoryOutbox } from './emailOtpDelivery';
 import type { RateLimitResult } from './rateLimits';
 
@@ -92,10 +96,6 @@ export type CreateEmailOtpChallengeWithActionResult =
       resetAtMs?: number;
     };
 
-type EmailOtpChallengeEnrollmentReadResult =
-  | { ok: true; enrollment: EmailOtpWalletEnrollmentRecord }
-  | { ok: false; code: string; message: string };
-
 type EmailOtpChallengeRateLimitConsumer = (input: {
   scope: 'challenge';
   action: EmailOtpChallengeAction;
@@ -124,7 +124,7 @@ type CreateEmailOtpChallengeWithActionInput = {
   readActiveEnrollment: (input: {
     walletId: string;
     orgId: string;
-  }) => Promise<EmailOtpChallengeEnrollmentReadResult>;
+  }) => Promise<EmailOtpEnrollmentReadResult>;
   readEnrollmentAuthState: (
     enrollment: EmailOtpWalletEnrollmentRecord,
   ) => Promise<EmailOtpAuthStateReadResult>;
@@ -232,19 +232,15 @@ export async function createEmailOtpChallengeWithAction(
     });
 
     if (!challengeSubjectId) {
-      return { ok: false, code: 'invalid_body', message: 'Missing challengeSubjectId' };
+      return failure('invalid_body', 'Missing challengeSubjectId');
     }
-    if (!walletId) return { ok: false, code: 'invalid_body', message: 'Missing walletId' };
-    if (!orgId) return { ok: false, code: 'invalid_body', message: 'Missing orgId' };
+    if (!walletId) return failure('invalid_body', 'Missing walletId');
+    if (!orgId) return failure('invalid_body', 'Missing orgId');
     if (otpChannel !== EMAIL_OTP_CHANNEL) {
-      return {
-        ok: false,
-        code: 'invalid_body',
-        message: 'otpChannel must be email_otp',
-      };
+      return failure('invalid_body', 'otpChannel must be email_otp');
     }
     if (!ownerProofBindingDigest) {
-      return { ok: false, code: 'invalid_body', message: 'Missing ownerProofBindingDigest' };
+      return failure('invalid_body', 'Missing ownerProofBindingDigest');
     }
 
     const activeEnrollment =
@@ -261,11 +257,10 @@ export async function createEmailOtpChallengeWithAction(
     const challengeEmail =
       action === WALLET_EMAIL_OTP_ACTIONS.registration ? email : existingEnrollment?.verifiedEmail || '';
     if (!challengeEmail) {
-      return {
-        ok: false,
-        code: 'recovery_email_missing',
-        message: 'Authenticated identity does not include a recovery email',
-      };
+      return failure(
+        'recovery_email_missing',
+        'Authenticated identity does not include a recovery email',
+      );
     }
     if (existingAuthState?.otpLockedUntilMs && existingAuthState.otpLockedUntilMs > Date.now()) {
       return {
@@ -324,11 +319,7 @@ export async function createEmailOtpChallengeWithAction(
     });
     if (!rateLimit.ok) return rateLimit;
     if (typeof crypto === 'undefined' || typeof crypto.getRandomValues !== 'function') {
-      return {
-        ok: false,
-        code: 'unsupported',
-        message: 'crypto.getRandomValues is unavailable in this runtime',
-      };
+      return failure('unsupported', 'crypto.getRandomValues is unavailable in this runtime');
     }
 
     const otpConfig = input.resolveConfig();
@@ -371,11 +362,7 @@ export async function createEmailOtpChallengeWithAction(
     await input.challengeStore.put(challengeRecord);
     const persistedChallenge = await input.challengeStore.get(challengeId);
     if (!persistedChallenge) {
-      return {
-        ok: false,
-        code: 'internal',
-        message: 'Email OTP challenge could not be persisted',
-      };
+      return failure('internal', 'Email OTP challenge could not be persisted');
     }
 
     const delivery = await input.deliverCode({
@@ -416,10 +403,6 @@ export async function createEmailOtpChallengeWithAction(
       },
     };
   } catch (e: unknown) {
-    return {
-      ok: false,
-      code: 'internal',
-      message: errorMessage(e) || 'Failed to create Email OTP challenge',
-    };
+    return failure('internal', errorMessage(e) || 'Failed to create Email OTP challenge');
   }
 }

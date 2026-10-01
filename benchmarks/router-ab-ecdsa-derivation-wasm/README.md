@@ -17,6 +17,13 @@ Runtime:
 - intended as a Cloudflare-worker-adjacent benchmark, not a full worker
   deployment benchmark
 
+Build the signing-worker package first. No package ships it, so
+`pnpm build:wasm` does not build it:
+
+```bash
+(cd wasm/router_ab_ecdsa_signing_worker && wasm-pack build --locked --target web --out-dir pkg --out-name router_ab_ecdsa_signing_worker --release)
+```
+
 Run:
 
 ```bash

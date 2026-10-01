@@ -187,11 +187,7 @@ function isReadyFrame(value: unknown): boolean {
   );
 }
 
-type WasmPrewarmWorkerKind =
-  | 'nearSigner'
-  | 'ecdsaDerivationClient'
-  | 'evmCrypto'
-  | 'tempoSigner';
+type WasmPrewarmWorkerKind = 'nearSigner' | 'ecdsaDerivationClient' | 'evmCrypto' | 'tempoSigner';
 
 type WorkerReadiness = {
   readonly promise: Promise<void>;
@@ -722,16 +718,10 @@ export class WorkerTransport implements SignerWorkerTransportProtocol {
     >,
   ): void {
     if (
-      request.type === EcdsaPresignClientRequestType.ListAvailable &&
-      this.presignAuthorityKind === null
-    ) {
-      this.connectDerivationPresignChannel(
-        this.getOrCreateWorker('ecdsaPresignClient'),
-        'role_local_derivation_handle',
-      );
+      request.type !== EcdsaPresignClientRequestType.ListAvailable &&
+      request.type !== EcdsaPresignClientRequestType.SessionInit
+    )
       return;
-    }
-    if (request.type !== EcdsaPresignClientRequestType.SessionInit) return;
     const presignWorker = this.getOrCreateWorker('ecdsaPresignClient');
     const authorityKind = this.parsePresignAuthorityKind(request.payload);
     switch (authorityKind) {

@@ -1,3 +1,4 @@
+import { IntendedActionTiming } from './signing-timing-evidence';
 import { parseExactWalletSessionStatusResponse } from '../../../packages/wallet/src/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 import {
   parseWalletSessionId,
@@ -796,6 +797,7 @@ type WalletIframeAutoConfirmDiagnostics = {
   otpChallengeMissing?: boolean;
   otpLookupKind?: IntendedEmailOtpCodeRequestForPage['kind'];
   lastOtpError?: string;
+  lastConfirmationError?: string;
   firstIframeAttachedMs?: number;
   firstFrameResolvedMs?: number;
   firstOtpInputVisibleMs?: number;
@@ -1193,6 +1195,8 @@ export class IntendedBehaviourHarness {
   private passkeyPromptCount = 0;
 
   private latestPageSnapshot: IntendedPageSnapshot | null = null;
+
+  private latestActionTiming: IntendedActionTiming | null = null;
 
   private latestWalletIframeAutoConfirmDiagnostics: WalletIframeAutoConfirmDiagnostics | null =
     null;
@@ -3932,6 +3936,20 @@ export class IntendedBehaviourHarness {
     this.reloadIntendedPageBeforeNextAction = false;
   }
 
+  signingActionTimingEvidence() {
+    if (!this.latestActionTiming) throw new Error('Expected action timing evidence');
+    const diagnostics = this.latestWalletIframeAutoConfirmDiagnostics;
+    return {
+      ...this.latestActionTiming.evidence(),
+      confirmationAutomation: {
+        clock: 'milliseconds since confirmation loop start',
+        buttonVisibleMs: diagnostics?.firstButtonVisibleMs ?? null,
+        clickDispatchMs: diagnostics?.firstClickDispatchMs ?? null,
+        clickDurationMs: diagnostics?.firstClickDurationMs ?? null,
+      },
+    };
+  }
+
   async signTempoTransaction(
     stage: IntendedSigningStage,
     options: IntendedSigningActionHooks = {},
@@ -4402,7 +4420,7 @@ export class IntendedBehaviourHarness {
     testInfo: TestInfo,
     attachmentName = 'intended-lifecycle-trace.json',
   ): Promise<void> {
-    if (this.networkMode === 'external_staging') return;
+    if (this.networkMode === 'external_staging' && !shouldPersistIntendedLifecycleTrace()) return;
     const payload: IntendedLifecycleTracePayload = {
       flow: this.flow,
       walletId: this.walletId,
@@ -4589,16 +4607,20 @@ export class IntendedBehaviourHarness {
     if (GOOGLE_ID_TOKEN_ACTIONS.has(action)) {
       requireUsableIntendedGoogleIdToken(this.config);
     }
+    const timing = new IntendedActionTiming();
     await this.ensureIntendedPageOpen();
+    timing.pageReadyAt = performance.now();
     await this.page.getByTestId(buttonTestId).click();
     await this.waitForIntendedPageActionStarted(action);
+    timing.actionObservedAt = performance.now();
     opts?.onActionStarted?.();
     const diagnostics: WalletIframeAutoConfirmDiagnostics = { attempts: 0, clicked: false };
     let diagnosticsRecorded = false;
     try {
       const snapshot = await autoConfirmWalletIframeUntil(
         this.page,
-        this.waitForIntendedPageActionCompletion(action, opts?.expectedOutcome ?? 'success'),
+        this.waitForIntendedPageActionCompletion(action, opts?.expectedOutcome ?? 'success')
+          .then(timing.complete.bind(timing)),
         {
           timeoutMs: 120_000,
           intervalMs: 250,
@@ -4606,10 +4628,13 @@ export class IntendedBehaviourHarness {
           onRecoveryCodes: opts?.onRecoveryCodes,
         },
       );
+      timing.automationFinishedAt = performance.now();
       this.latestPageSnapshot = snapshot;
       if (intendedActionRequiresConfirmationSettlement(action)) {
         await waitForWalletIframeConfirmationSettlement(this.page);
       }
+      timing.settledAt = performance.now();
+      this.latestActionTiming = timing;
       return snapshot;
     } catch (error) {
       this.latestWalletIframeAutoConfirmDiagnostics = diagnostics;
@@ -4895,10 +4920,7 @@ export class IntendedBehaviourHarness {
     const walletSessionId = parseWalletSessionId(captured.walletSessionId);
     const quotaId = parseMpcWalletSigningQuotaId(captured.quotaId);
     if (!walletSessionId.ok || !quotaId.ok) throw new Error('Invalid captured session identity');
-    const response = await this.request.post(captured.url, {
-      headers: { Authorization: captured.authorization, 'Content-Type': captured.contentType },
-      data: captured.body,
-    });
+    const response = await this.requestWalletBudgetStatus(captured);
     if (!response.ok()) throw new Error(`Wallet Session status failed: ${response.status()}`);
     const status = parseExactWalletSessionStatusResponse(await response.json(), {
       walletSessionId: walletSessionId.value,
@@ -4921,13 +4943,7 @@ export class IntendedBehaviourHarness {
   private async replayWalletBudgetStatus(
     captured: CapturedWalletBudgetStatusRequest,
   ): Promise<AuthoritativeWalletBudgetReplay> {
-    const response = await this.request.post(captured.url, {
-      headers: {
-        Authorization: captured.authorization,
-        'Content-Type': captured.contentType,
-      },
-      data: captured.body,
-    });
+    const response = await this.requestWalletBudgetStatus(captured);
     const responseText = await response.text();
     if (!response.ok()) {
       throw new Error(
@@ -4939,6 +4955,19 @@ export class IntendedBehaviourHarness {
       expectedWalletSessionId: captured.walletSessionId,
       expectedQuotaId: captured.quotaId,
     });
+  }
+
+  private requestWalletBudgetStatus(captured: CapturedWalletBudgetStatusRequest) {
+    const headers: Record<string, string> = {
+      Authorization: captured.authorization,
+      'Content-Type': captured.contentType,
+      Origin: new URL(this.config.walletOrigin).origin,
+    };
+    // API requests bypass the browser route that supplies benchmark access.
+    if (this.networkMode === 'external_staging') {
+      headers['x-r150-benchmark-access'] = hostedBenchmarkAccessToken();
+    }
+    return this.request.post(captured.url, { headers, data: captured.body });
   }
 
   private handleResponse(response: Response): void {
@@ -5541,7 +5570,7 @@ async function clearBrowserStorage(): Promise<void> {
   await Promise.all(deletions);
 }
 
-function enableSigningSessionDebugInFrame(): void {
+export function enableSigningSessionDebugInFrame(): void {
   try {
     localStorage.setItem('seams:debug:signing-session', '1');
   } catch {}
@@ -8685,7 +8714,10 @@ async function clickWalletIframeConfirm(
       Date.now() - clickStartedAtMs,
     );
     return true;
-  } catch {
+  } catch (error) {
+    if (opts?.diagnostics) {
+      opts.diagnostics.lastConfirmationError = compactUnknownErrorForDiagnostics(error);
+    }
     return false;
   }
 }

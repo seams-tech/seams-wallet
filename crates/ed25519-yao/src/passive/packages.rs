@@ -620,20 +620,6 @@ pub(super) fn verify_public_activation_receipt(
     )
 }
 
-pub(super) fn derive_public_activation_receipt(
-    a_client: DeriverAClientShareCommitment,
-    b_client: DeriverBClientShareCommitment,
-    a_signing_worker: DeriverASigningWorkerShareCommitment,
-    b_signing_worker: DeriverBSigningWorkerShareCommitment,
-) -> Result<VerifiedActivationReceipt, RecipientPackageError> {
-    derive_public_activation_receipt_bytes(
-        *a_client.as_bytes(),
-        *b_client.as_bytes(),
-        *a_signing_worker.as_bytes(),
-        *b_signing_worker.as_bytes(),
-    )
-}
-
 pub(super) fn derive_public_activation_receipt_bytes(
     a_client: [u8; 32],
     b_client: [u8; 32],

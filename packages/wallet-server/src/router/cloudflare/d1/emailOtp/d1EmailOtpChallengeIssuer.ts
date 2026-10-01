@@ -7,16 +7,17 @@ import {
   WALLET_EMAIL_OTP_UNLOCK_OPERATION,
 } from '@shared/utils/emailOtpDomain';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
+import { failure } from '@shared/utils/failure';
 import type {
   EmailOtpChallengeOperation,
   EmailOtpLoginChallengeOperation,
-  EmailOtpWalletEnrollmentRecord,
 } from '../../../../core/EmailOtpStores';
 import { EMAIL_OTP_CODE_LENGTH } from '../../../../core/authService/emailOtpConfig';
 import type { CloudflareD1EmailOtpChallengeStore } from './d1EmailOtpChallengeStore';
 import type { CloudflareD1EmailOtpDeliveryRuntime } from './d1EmailOtpDeliveryRuntime';
 import type { CloudflareD1EmailOtpEnrollmentStore } from './d1EmailOtpEnrollmentStore';
 import type { CloudflareD1EmailOtpRateLimitStore } from './d1EmailOtpRateLimitStore';
+import type { ActiveEmailOtpEnrollmentResult } from './d1EmailOtpChallengeVerifier';
 import type { EmailOtpChallengeDelivery } from '../../../framework/authServicePort';
 import {
   emailOtpChallengePurposeIsValid,
@@ -81,10 +82,6 @@ export type EmailOtpChallengeIssueResult =
       resetAtMs?: number;
     };
 
-type ActiveEmailOtpEnrollmentResult =
-  | { readonly ok: true; readonly enrollment: EmailOtpWalletEnrollmentRecord }
-  | { readonly ok: false; readonly code: string; readonly message: string };
-
 type EmailOtpChallengeIssuerConfig = {
   readonly challengeTtlMs: number;
   readonly codeLength: typeof EMAIL_OTP_CODE_LENGTH;
@@ -97,19 +94,17 @@ function errorMessage(error: unknown): string {
 }
 
 function emailOtpEnrollmentTenantMismatch(): ActiveEmailOtpEnrollmentResult {
-  return {
-    ok: false,
-    code: 'tenant_scope_mismatch',
-    message: 'Email OTP enrollment does not match the requested orgId',
-  };
+  return failure(
+    'tenant_scope_mismatch',
+    'Email OTP enrollment does not match the requested orgId',
+  );
 }
 
 function emailOtpProviderIdentityMismatch(): ActiveEmailOtpEnrollmentResult {
-  return {
-    ok: false,
-    code: 'provider_identity_mismatch',
-    message: 'Email OTP enrollment does not match the requested provider user',
-  };
+  return failure(
+    'provider_identity_mismatch',
+    'Email OTP enrollment does not match the requested provider user',
+  );
 }
 
 export class CloudflareD1EmailOtpChallengeIssuer {
@@ -144,21 +139,17 @@ export class CloudflareD1EmailOtpChallengeIssuer {
       const clientIp = toOptionalTrimmedString(input.clientIp);
       const action = input.action;
       const operation = input.operation;
-      if (!userId) return { ok: false, code: 'invalid_body', message: 'Missing userId' };
-      if (!walletId) return { ok: false, code: 'invalid_body', message: 'Missing walletId' };
-      if (!orgId) return { ok: false, code: 'invalid_body', message: 'Missing orgId' };
+      if (!userId) return failure('invalid_body', 'Missing userId');
+      if (!walletId) return failure('invalid_body', 'Missing walletId');
+      if (!orgId) return failure('invalid_body', 'Missing orgId');
       if (otpChannel !== EMAIL_OTP_CHANNEL) {
-        return { ok: false, code: 'invalid_body', message: 'otpChannel must be email_otp' };
+        return failure('invalid_body', 'otpChannel must be email_otp');
       }
       if (!ownerProofBindingDigest) {
-        return { ok: false, code: 'invalid_body', message: 'Missing ownerProofBindingDigest' };
+        return failure('invalid_body', 'Missing ownerProofBindingDigest');
       }
       if (!emailOtpChallengePurposeIsValid({ action, operation })) {
-        return {
-          ok: false,
-          code: 'invalid_body',
-          message: 'Email OTP challenge action does not match operation',
-        };
+        return failure('invalid_body', 'Email OTP challenge action does not match operation');
       }
 
       let challengeEmail = email;
@@ -187,11 +178,10 @@ export class CloudflareD1EmailOtpChallengeIssuer {
         challengeEmail = enrollment.enrollment.verifiedEmail;
       }
       if (!challengeEmail) {
-        return {
-          ok: false,
-          code: 'recovery_email_missing',
-          message: 'Authenticated identity does not include a recovery email',
-        };
+        return failure(
+          'recovery_email_missing',
+          'Authenticated identity does not include a recovery email',
+        );
       }
 
       const nowMs = Date.now();
@@ -293,11 +283,7 @@ export class CloudflareD1EmailOtpChallengeIssuer {
         delivery: delivery.delivery,
       };
     } catch (error: unknown) {
-      return {
-        ok: false,
-        code: 'internal',
-        message: errorMessage(error) || 'Failed to create Email OTP challenge',
-      };
+      return failure('internal', errorMessage(error) || 'Failed to create Email OTP challenge');
     }
   }
 
@@ -308,7 +294,7 @@ export class CloudflareD1EmailOtpChallengeIssuer {
   }): Promise<ActiveEmailOtpEnrollmentResult> {
     const enrollment = await this.emailOtpEnrollments.readEnrollment(input.walletId);
     if (!enrollment) {
-      return { ok: false, code: 'not_found', message: 'Email OTP enrollment not found' };
+      return failure('not_found', 'Email OTP enrollment not found');
     }
     if (enrollment.orgId !== input.orgId) return emailOtpEnrollmentTenantMismatch();
     if (enrollment.providerUserId !== input.providerUserId) {

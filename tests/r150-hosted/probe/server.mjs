@@ -8,11 +8,11 @@
 //
 // It runs one attempt at a time: the same Playwright scenario, with the same
 // environment, as a probe host has always run. The arm's access token arrives
-// in the request body and reaches only the browser run's environment; the
-// server writes nothing but the run's own timing artifact.
+// in the request body and reaches only the browser run's environment.
+// Each attempt retains its timing and private lifecycle/failure evidence.
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -55,7 +55,9 @@ const IDENTITY_FIELDS = [
 
 function parseAttempt(body) {
   const request = JSON.parse(body);
-  const { runId, arm, region, selected, expectedIdentity } = request;
+  const { runId, arm, region, selected, expectedIdentity, workload } = request;
+  if (!['unforced', 'first_warm_burst', 'linked_chain', 'placement_pair'].includes(workload))
+    throw new Error('attempt workload is invalid');
   if (!/^[a-z0-9-]+$/u.test(runId ?? '') || !['d1', 'do'].includes(arm)) {
     throw new Error('attempt run id or arm is invalid');
   }
@@ -77,12 +79,49 @@ function parseAttempt(body) {
       throw new Error(`this container's ${name} differs from the probe the attempt names`);
     }
   }
-  return { runId, arm, region, selected };
+  return { runId, arm, region, selected, workload };
+}
+
+function workloadConfiguration(workload) {
+  switch (workload) {
+    case 'unforced':
+      return {
+        artifactPrefix: 'gateway-ecdsa-unforced-timing',
+        directory: 'r150',
+        file: 'passkey.presign-pool.contract.test.ts',
+        selection: 'unforced ECDSA registration and repeated signing',
+      };
+    case 'first_warm_burst':
+      return {
+        artifactPrefix: 'gateway-ecdsa-first-warm-burst',
+        directory: 'r151',
+        file: 'passkey.presign-pool.contract.test.ts',
+        selection: 'first, warm, and concurrent burst',
+      };
+    case 'linked_chain':
+      return {
+        artifactPrefix: 'gateway-ecdsa-linked-chain',
+        directory: 'r151',
+        file: 'passkey.device-linking.contract.test.ts',
+        selection: 'a linked device links a third device on an ECDSA-only wallet',
+      };
+    case 'placement_pair':
+      return {
+        artifactPrefix: 'gateway-ecdsa-placement-pair',
+        directory: 'r151',
+        file: 'passkey.presign-pool.contract.test.ts',
+        selection: 'same wallet warm signing across controlled Gateway placements',
+      };
+    default:
+      throw new Error('attempt workload is invalid');
+  }
 }
 
 function startAttempt(attempt) {
-  const artifactName = `gateway-ecdsa-unforced-timing-hosted_${attempt.arm}-${attempt.region}-${attempt.runId}-0.json`;
-  const artifactPath = path.join(repoRoot, '.artifacts', 'r150', artifactName);
+  const workload = workloadConfiguration(attempt.workload);
+  const artifactName = `${workload.artifactPrefix}-hosted_${attempt.arm}-${attempt.region}-${attempt.runId}-0.json`;
+  const artifactPath = path.join(repoRoot, '.artifacts', workload.directory, artifactName);
+  const diagnosticsDirectory = path.join(repoRoot, '.runtime', 'probe-attempts', attempt.runId);
   if (existsSync(artifactPath)) throw new Error(`artifact ${artifactName} already exists`);
   const state = { status: 'running', startedAt: new Date().toISOString(), result: null };
   attempts.set(attempt.runId, state);
@@ -100,6 +139,9 @@ function startAttempt(attempt) {
     SEAMS_INTENDED_PUBLISHABLE_KEY: attempt.selected.publishableKey,
     SEAMS_INTENDED_SIGNING_WORKER_ID: attempt.selected.signingWorkerId,
     SEAMS_INTENDED_BENCHMARK_ACCESS_TOKEN: attempt.selected.accessToken,
+    SEAMS_INTENDED_PERSIST_TRACE: '1',
+    SEAMS_INTENDED_TRACE_DIR: path.join(diagnosticsDirectory, 'lifecycle'),
+    SEAMS_INTENDED_PLACEMENT_DIRECTORY: path.join(diagnosticsDirectory, 'placement'),
   };
   let output = '';
   const child = spawn(
@@ -112,9 +154,11 @@ function startAttempt(attempt) {
       'test',
       '-c',
       'playwright.wallet-intended.ci.config.ts',
-      'e2e/intended-behaviours/passkey.presign-pool.contract.test.ts',
+      `e2e/intended-behaviours/${workload.file}`,
       '--grep',
-      'unforced ECDSA registration and repeated signing',
+      workload.selection,
+      '--output',
+      path.join(diagnosticsDirectory, 'playwright'),
     ],
     { cwd: repoRoot, env, stdio: ['ignore', 'pipe', 'pipe'] },
   );
@@ -140,6 +184,7 @@ function startAttempt(attempt) {
       signal,
       artifactName,
       artifact,
+      diagnostics: readAttemptDiagnostics(diagnosticsDirectory, attempt.selected.accessToken),
       identity: identity(),
       // The access token is never printed by the run; strip it regardless.
       outputTail: output.split(attempt.selected.accessToken).join('<redacted>'),
@@ -148,9 +193,45 @@ function startAttempt(attempt) {
   });
 }
 
+function readAttemptDiagnostics(directory, accessToken) {
+  const files = [];
+  let remainingBytes = 8 * 1024 * 1024;
+  if (!existsSync(directory)) return files;
+  for (const name of readdirSync(directory, { recursive: true }).sort()) {
+    if (
+      !(name.startsWith(`lifecycle${path.sep}`) && name.endsWith('.json')) &&
+      !name.endsWith('error-context.md')
+    )
+      continue;
+    const filePath = path.join(directory, name);
+    const bytes = statSync(filePath).size;
+    if (bytes > remainingBytes) {
+      files.push({ name, bytes, content: null, omission: 'diagnostic_size_limit' });
+      continue;
+    }
+    remainingBytes -= bytes;
+    files.push({
+      name,
+      bytes,
+      content: readFileSync(filePath, 'utf8').split(accessToken).join('<redacted>'),
+      omission: null,
+    });
+  }
+  return files;
+}
+
 function send(response, status, body) {
   response.writeHead(status, { 'content-type': 'application/json' });
   response.end(JSON.stringify(body));
+}
+
+function placementRequest(runId) {
+  const directory = path.join(repoRoot, '.runtime', 'probe-attempts', runId, 'placement');
+  const requestedFile = path.join(directory, 'requested.json');
+  if (!existsSync(requestedFile)) return null;
+  const { placement } = JSON.parse(readFileSync(requestedFile, 'utf8'));
+  if (!['default', 'tokyo'].includes(placement)) throw new Error('Invalid placement checkpoint');
+  return { placement, released: existsSync(path.join(directory, `${placement}.ready`)) };
 }
 
 createServer((request, response) => {
@@ -162,7 +243,32 @@ createServer((request, response) => {
   const attemptMatch = /^\/attempts\/([a-z0-9-]+)$/u.exec(url.pathname);
   if (request.method === 'GET' && attemptMatch) {
     const state = attempts.get(attemptMatch[1]);
-    send(response, state ? 200 : 404, state ?? { error: 'unknown attempt' });
+    send(
+      response,
+      state ? 200 : 404,
+      state
+        ? { ...state, placement: placementRequest(attemptMatch[1]) }
+        : { error: 'unknown attempt' },
+    );
+    return;
+  }
+  const placementMatch = /^\/attempts\/([a-z0-9-]+)\/placement\/(default|tokyo)$/u.exec(
+    url.pathname,
+  );
+  if (request.method === 'POST' && placementMatch) {
+    const [, runId, placement] = placementMatch;
+    const state = attempts.get(runId);
+    const checkpoint = state ? placementRequest(runId) : null;
+    if (state?.status !== 'running' || checkpoint?.placement !== placement || checkpoint.released) {
+      send(response, 409, { error: 'Placement checkpoint is absent or already released' });
+      return;
+    }
+    writeFileSync(
+      path.join(repoRoot, '.runtime', 'probe-attempts', runId, 'placement', `${placement}.ready`),
+      '',
+      { flag: 'wx' },
+    );
+    send(response, 200, { released: placement });
     return;
   }
   if (request.method === 'POST' && url.pathname === '/attempts') {

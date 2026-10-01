@@ -1,35 +1,24 @@
 import { base64UrlEncode } from './encoders';
 import { alphabetizeStringify, sha256BytesUtf8 } from './digests';
-
-type EcdsaInventoryChainTarget =
-  | {
-      kind: 'evm';
-      namespace: 'eip155';
-      chainId: number;
-      networkSlug?: string;
-    }
-  | {
-      kind: 'tempo';
-      chainId: number;
-      networkSlug?: string;
-    };
+import {
+  thresholdEcdsaChainTargetKey,
+  type ThresholdEcdsaChainTargetWire,
+} from './thresholdEcdsaChainTarget';
 
 type WalletEcdsaKeyFactsInventoryChallengeInput = {
   walletId: string;
   rpId: string;
   keyTargets: readonly {
     keyHandle: string;
-    chainTarget: EcdsaInventoryChainTarget;
+    chainTarget: ThresholdEcdsaChainTargetWire;
   }[];
   runtimePolicyScope?: unknown;
   serverNonceB64u: string;
 };
 
-function chainTargetKey(target: EcdsaInventoryChainTarget): string {
-  return target.kind === 'evm' ? `evm:eip155:${target.chainId}` : `tempo:${target.chainId}`;
-}
-
-function normalizeChainTarget(target: EcdsaInventoryChainTarget): EcdsaInventoryChainTarget {
+function normalizeChainTarget(
+  target: ThresholdEcdsaChainTargetWire,
+): ThresholdEcdsaChainTargetWire {
   if (target.kind === 'evm') {
     return {
       kind: 'evm',
@@ -52,7 +41,7 @@ function canonicalizeWalletEcdsaKeyFactsInventoryChallenge(
     .map((target) => ({
       keyHandle: target.keyHandle,
       chainTarget: normalizeChainTarget(target.chainTarget),
-      targetKey: chainTargetKey(target.chainTarget),
+      targetKey: thresholdEcdsaChainTargetKey(target.chainTarget),
     }))
     .sort((left, right) => {
       const leftKey = `${left.keyHandle}:${left.targetKey}`;

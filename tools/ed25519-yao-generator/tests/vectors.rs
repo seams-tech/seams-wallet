@@ -8,6 +8,7 @@ use ed25519_dalek::{Signer, SigningKey, Verifier};
 use ed25519_yao_generator::{
     canonical_vector_corpus_v1, CeremonyRequestKindV1, VectorCaseV1, VECTOR_CORPUS_SCHEMA_V1,
 };
+use hex::FromHex;
 
 #[test]
 fn corpus_has_one_case_per_request_kind_and_export_only_result() {
@@ -172,11 +173,5 @@ fn decode_point(value: &str) -> EdwardsPoint {
 }
 
 fn decode_hex_32(value: &str) -> [u8; 32] {
-    assert_eq!(value.len(), 64);
-    let mut output = [0u8; 32];
-    for (index, byte) in output.iter_mut().enumerate() {
-        let offset = index * 2;
-        *byte = u8::from_str_radix(&value[offset..offset + 2], 16).expect("valid hex byte");
-    }
-    output
+    <[u8; 32]>::from_hex(value).expect("valid hex byte")
 }

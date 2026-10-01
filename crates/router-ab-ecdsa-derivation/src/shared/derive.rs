@@ -212,19 +212,6 @@ pub fn ecdsa_lane_client_public_key_from_share32_v1(
     private_key_to_public_key33(&client_share32, "client public key")
 }
 
-/// Compute the transient holder-to-relayer delta for a target client share.
-pub fn derive_ecdsa_lane_delta_v1(
-    source_client_share: &ClientRoleShare,
-    target_client_share: &EcdsaLaneClientShare,
-) -> RouterAbEcdsaDerivationResult<EcdsaLaneDelta> {
-    let x_client_source =
-        parse_nonzero_scalar_32_be(&source_client_share.x_client32, "source client share")?;
-    let x_client_target =
-        parse_nonzero_scalar_32_be(target_client_share.secret_bytes(), "target client share")?;
-    let delta = *x_client_source.as_ref() - *x_client_target.as_ref();
-    EcdsaLaneDelta::from_bytes(field_bytes_to_array32(&delta.to_repr()))
-}
-
 /// Computes the transient additive delta from an already-opened client share.
 ///
 /// This boundary is used by the browser lane ceremony after the signer-core
@@ -425,13 +412,6 @@ pub fn rebind_ecdsa_lane_relayer_share_bytes_v1(
     })
 }
 
-pub fn derive_relayer_share(
-    context: &RouterAbEcdsaDerivationStableKeyContext,
-    y_relayer32_le: [u8; 32],
-) -> RouterAbEcdsaDerivationResult<RelayerRoleShare> {
-    derive_relayer_share_with_retry(context, y_relayer32_le, 0)
-}
-
 pub fn derive_relayer_share_for_client_public(
     context: &RouterAbEcdsaDerivationStableKeyContext,
     y_relayer32_le: [u8; 32],
@@ -463,80 +443,6 @@ pub fn derive_relayer_share_for_client_public(
         };
         return Ok((relayer_share, identity));
     }
-}
-
-/// Rebind the relayer share for an additive target lane.
-///
-/// The source identity and target client public commitment are checked before
-/// the target relayer material is returned. The resulting public identity is
-/// guaranteed to retain the source threshold public key and EVM address.
-pub fn rebind_ecdsa_lane_relayer_share_v1(
-    source_relayer_share: &RelayerRoleShare,
-    source_identity: &PublicIdentity,
-    delta: &EcdsaLaneDelta,
-    target_client_public_key33: &[u8; 33],
-    target_client_share_retry_counter: u32,
-    target_relayer_share_retry_counter: u32,
-) -> RouterAbEcdsaDerivationResult<(RelayerRoleShare, PublicIdentity)> {
-    validate_source_identity(source_relayer_share, source_identity)?;
-    let target_client_public_key33 =
-        validate_public_key33(target_client_public_key33, "target client public key")?;
-
-    let delta_scalar = parse_scalar_32_be(delta.as_bytes(), "delta32")?;
-    let source_client_public_key =
-        PublicKey::from_sec1_bytes(&source_identity.derivation_client_share_public_key33).map_err(
-            |_| RouterAbEcdsaDerivationError::decode_error("source client public key is invalid"),
-        )?;
-    let target_client_public_key =
-        target_client_public_key_from_delta(&source_client_public_key, &delta_scalar)?;
-    if target_client_public_key != target_client_public_key33 {
-        return Err(RouterAbEcdsaDerivationError::invalid_input(
-            "target client public key does not match source client public key and delta",
-        ));
-    }
-
-    let source_relayer_scalar =
-        parse_nonzero_scalar_32_be(&source_relayer_share.x_relayer32, "source relayer share")?;
-    let target_relayer_scalar = *source_relayer_scalar.as_ref() + delta_scalar;
-    let target_relayer_scalar = Option::<NonZeroScalar>::from(NonZeroScalar::new(
-        target_relayer_scalar,
-    ))
-    .ok_or_else(|| {
-        RouterAbEcdsaDerivationError::invalid_input(
-            "target relayer share must remain a non-zero scalar",
-        )
-    })?;
-    let target_relayer32 = nonzero_scalar_to_32_be(&target_relayer_scalar);
-    let target_relayer_public_key33 =
-        private_key_to_public_key33(&target_relayer32, "target relayer public key")?;
-    let target_relayer_share = RelayerRoleShare {
-        context_bytes: source_relayer_share.context_bytes.clone(),
-        context_binding32: source_relayer_share.context_binding32,
-        retry_counter: target_relayer_share_retry_counter,
-        x_relayer32: target_relayer32,
-        relayer_public_key33: target_relayer_public_key33,
-    };
-
-    let target_identity = compose_public_identity_from_parts(
-        source_identity.context_bytes.clone(),
-        source_identity.context_binding32,
-        &target_client_public_key33,
-        target_client_share_retry_counter,
-        &target_relayer_share,
-    )?;
-    if target_identity.threshold_public_key33 != source_identity.threshold_public_key33 {
-        return Err(RouterAbEcdsaDerivationError::invalid_input(
-            "target threshold public key does not preserve source identity",
-        ));
-    }
-    if target_identity.threshold_ethereum_address20 != source_identity.threshold_ethereum_address20
-    {
-        return Err(RouterAbEcdsaDerivationError::invalid_input(
-            "target threshold ethereum address does not preserve source identity",
-        ));
-    }
-
-    Ok((target_relayer_share, target_identity))
 }
 
 pub fn compose_public_identity(
@@ -970,75 +876,6 @@ fn target_client_public_key_from_delta(
             .to_vec(),
         "target client public key",
     )
-}
-
-fn validate_source_identity(
-    source_relayer_share: &RelayerRoleShare,
-    source_identity: &PublicIdentity,
-) -> RouterAbEcdsaDerivationResult<()> {
-    if source_relayer_share.context_binding32 != source_identity.context_binding32 {
-        return Err(RouterAbEcdsaDerivationError::invalid_input(
-            "source relayer share context binding does not match public identity",
-        ));
-    }
-    if source_relayer_share.context_bytes != source_identity.context_bytes {
-        return Err(RouterAbEcdsaDerivationError::invalid_input(
-            "source relayer share context does not match public identity",
-        ));
-    }
-    if source_relayer_share.relayer_public_key33 != source_identity.relayer_public_key33 {
-        return Err(RouterAbEcdsaDerivationError::invalid_input(
-            "source relayer public key does not match public identity",
-        ));
-    }
-    if source_relayer_share.retry_counter != source_identity.relayer_share_retry_counter {
-        return Err(RouterAbEcdsaDerivationError::invalid_input(
-            "source relayer retry counter does not match public identity",
-        ));
-    }
-    let source_relayer_public_key33 = private_key_to_public_key33(
-        &source_relayer_share.x_relayer32,
-        "source relayer public key",
-    )?;
-    if source_relayer_public_key33 != source_relayer_share.relayer_public_key33 {
-        return Err(RouterAbEcdsaDerivationError::invalid_input(
-            "source relayer share public key is inconsistent",
-        ));
-    }
-    let context_binding32 = context_binding_from_bytes(&source_identity.context_bytes)?;
-    if context_binding32 != source_identity.context_binding32 {
-        return Err(RouterAbEcdsaDerivationError::invalid_input(
-            "public identity context binding is invalid",
-        ));
-    }
-    let source_client_public_key33 = validate_public_key33(
-        &source_identity.derivation_client_share_public_key33,
-        "source client public key",
-    )?;
-    let source_relayer_public_key33 = validate_public_key33(
-        &source_identity.relayer_public_key33,
-        "source relayer public key",
-    )?;
-    let threshold_public_key33 = add_public_keys_non_identity_33(
-        &source_client_public_key33,
-        &source_relayer_public_key33,
-        "source threshold public key",
-    )?;
-    if threshold_public_key33 != source_identity.threshold_public_key33 {
-        return Err(RouterAbEcdsaDerivationError::invalid_input(
-            "source threshold public key is inconsistent",
-        ));
-    }
-    let threshold_ethereum_address20 = vec_to_fixed_20(
-        secp256k1_public_key_33_to_ethereum_address_20(&threshold_public_key33)?,
-        "source threshold ethereum address",
-    )?;
-    if threshold_ethereum_address20 != source_identity.threshold_ethereum_address20 {
-        return Err(RouterAbEcdsaDerivationError::invalid_input(
-            "source threshold ethereum address is inconsistent",
-        ));
-    }
-    Ok(())
 }
 
 fn validate_public_key33(

@@ -26,6 +26,7 @@ import {
   parseRouterAbEd25519YaoEncryptedPackageV1,
   type RouterAbEd25519YaoActivationClientPackageV1,
   type RouterAbEd25519YaoCeremonyBindingV1,
+  sameRouterAbEd25519YaoByteSequence,
 } from '@shared/utils/routerAbEd25519Yao';
 import { routerAbMpcMaterialActivationRefFromWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import {
@@ -467,8 +468,14 @@ export function parseOrdinaryEd25519SignerMaterialWorkerReservationV1(
   );
   const clientMaterial = parseEd25519ClientMaterialV1(reservation.clientMaterial);
   if (
-    !sameBytes(activationReceipt.transcript, clientMaterial.deriver_a_client_package.transcript) ||
-    !sameBytes(activationReceipt.transcript, clientMaterial.deriver_b_client_package.transcript)
+    !sameRouterAbEd25519YaoByteSequence(
+      activationReceipt.transcript,
+      clientMaterial.deriver_a_client_package.transcript,
+    ) ||
+    !sameRouterAbEd25519YaoByteSequence(
+      activationReceipt.transcript,
+      clientMaterial.deriver_b_client_package.transcript,
+    )
   ) {
     throw new Error('ordinary Ed25519 worker receipt transcript does not match client packages');
   }
@@ -702,10 +709,6 @@ function sameEcdsaTarget(
     left.clientRecipientPublicKeyB64u === right.clientRecipientPublicKeyB64u &&
     left.signingWorkerRecipientPublicKeyB64u === right.signingWorkerRecipientPublicKeyB64u
   );
-}
-
-function sameBytes(left: readonly number[], right: readonly number[]): boolean {
-  return left.length === right.length && left.every((value, index) => value === right[index]);
 }
 
 function parseEd25519ClientPackageV1<Role extends 'deriver_a' | 'deriver_b'>(

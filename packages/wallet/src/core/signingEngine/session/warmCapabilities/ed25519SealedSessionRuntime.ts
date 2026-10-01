@@ -32,24 +32,21 @@ import {
   type WalletAuthAuthorityRef,
 } from '@shared/utils/walletAuthAuthority';
 import type { WalletAuthMethodId } from '@shared/utils/domainIds';
+import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 
-type Ed25519SealedSessionFactor =
+type Ed25519SealedSessionFactor = ReadonlyExclusiveUnion<
   | {
       readonly kind: 'passkey';
       readonly rpId: ReturnType<typeof toRpId>;
       readonly credentialIdB64u: string;
-      readonly provider?: never;
-      readonly providerSubjectId?: never;
-      readonly emailHashHex?: never;
     }
   | {
       readonly kind: 'email_otp';
       readonly provider: 'google' | 'email';
       readonly providerSubjectId: string;
       readonly emailHashHex: string;
-      readonly rpId?: never;
-      readonly credentialIdB64u?: never;
-    };
+    }
+>;
 
 export type ExactEd25519SealedSessionRuntime = {
   readonly kind: 'exact_ed25519_sealed_session_runtime';
@@ -72,45 +69,16 @@ export type ExactEd25519SealedSessionRuntime = {
   readonly routerAbNormalSigning: RouterAbEd25519NormalSigningState;
 };
 
-type Ed25519SealedSessionRuntimeResolution =
-  | {
-      readonly kind: 'resolved';
-      readonly runtime: ExactEd25519SealedSessionRuntime;
-    }
-  | {
-      readonly kind: 'missing';
-      readonly runtime?: never;
-    }
-  | {
-      readonly kind: 'conflict';
-      readonly runtime?: never;
-    }
-  | {
-      readonly kind: 'corrupt';
-      readonly runtime?: never;
-    };
-
 type Ed25519SealedSessionRuntimeResolver = {
   readonly listExactSealedSessionsForWallet: typeof listExactSealedSessionsForWallet;
 };
 
-export type Ed25519WalletSealedSessionRuntimeResolution =
-  | {
-      readonly kind: 'resolved';
-      readonly runtime: ExactEd25519SealedSessionRuntime;
-    }
-  | {
-      readonly kind: 'missing';
-      readonly runtime?: never;
-    }
-  | {
-      readonly kind: 'conflict';
-      readonly runtime?: never;
-    }
-  | {
-      readonly kind: 'corrupt';
-      readonly runtime?: never;
-    };
+export type Ed25519WalletSealedSessionRuntimeResolution = ReadonlyExclusiveUnion<
+  | { readonly kind: 'resolved'; readonly runtime: ExactEd25519SealedSessionRuntime }
+  | { readonly kind: 'missing' }
+  | { readonly kind: 'conflict' }
+  | { readonly kind: 'corrupt' }
+>;
 
 function nonEmptyString(value: unknown): string | null {
   const normalized = String(value ?? '').trim();
@@ -397,7 +365,7 @@ async function resolveExactEd25519SealedSessionRuntimeForLaneWithResolver(
     readonly laneIdentity: ExactEd25519SigningLaneIdentity;
   },
   resolver: Ed25519SealedSessionRuntimeResolver,
-): Promise<Ed25519SealedSessionRuntimeResolution> {
+): Promise<Ed25519WalletSealedSessionRuntimeResolution> {
   const records = await resolver.listExactSealedSessionsForWallet({
     walletId: args.walletId,
     filter: {
@@ -422,7 +390,7 @@ async function resolveExactEd25519SealedSessionRuntimeForLaneWithResolver(
 export async function resolveExactEd25519SealedSessionRuntimeForLane(args: {
   readonly walletId: WalletId;
   readonly laneIdentity: ExactEd25519SigningLaneIdentity;
-}): Promise<Ed25519SealedSessionRuntimeResolution> {
+}): Promise<Ed25519WalletSealedSessionRuntimeResolution> {
   return await resolveExactEd25519SealedSessionRuntimeForLaneWithResolver(args, {
     listExactSealedSessionsForWallet,
   });

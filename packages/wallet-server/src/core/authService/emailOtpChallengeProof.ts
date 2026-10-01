@@ -21,6 +21,7 @@ import {
   type WalletId,
 } from '@shared/utils/domainIds';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
+import { failure } from '@shared/utils/failure';
 import type {
   EmailOtpChallengeAction,
   EmailOtpChallengeOperation,
@@ -393,51 +394,27 @@ export function parseRawEmailOtpRegistrationChallengeProofInput(request: {
 }): EmailOtpRegistrationChallengeProofInputResult {
   const providerSubject = parseProviderSubject(request.providerSubject);
   if (!providerSubject.ok) {
-    return {
-      ok: false,
-      code: 'invalid_body',
-      message: 'Email OTP registration requires providerSubject',
-    };
+    return failure('invalid_body', 'Email OTP registration requires providerSubject');
   }
   const challengeSubjectId = parseChallengeSubjectId(request.providerSubject);
   if (!challengeSubjectId.ok) {
-    return {
-      ok: false,
-      code: 'invalid_body',
-      message: 'Email OTP registration requires challengeSubjectId',
-    };
+    return failure('invalid_body', 'Email OTP registration requires challengeSubjectId');
   }
   const challengeId = parseEmailOtpChallengeId(request.challengeId);
   if (!challengeId.ok) {
-    return {
-      ok: false,
-      code: 'invalid_body',
-      message: 'Email OTP registration requires challengeId',
-    };
+    return failure('invalid_body', 'Email OTP registration requires challengeId');
   }
   const finalWalletId = parseWalletId(request.walletId);
   if (!finalWalletId.ok) {
-    return {
-      ok: false,
-      code: 'invalid_body',
-      message: 'Email OTP registration requires walletId',
-    };
+    return failure('invalid_body', 'Email OTP registration requires walletId');
   }
   const orgId = parseOrgId(request.orgId);
   if (!orgId.ok) {
-    return {
-      ok: false,
-      code: 'invalid_body',
-      message: 'Email OTP registration requires orgId',
-    };
+    return failure('invalid_body', 'Email OTP registration requires orgId');
   }
   const ownerProofBindingDigest = toOptionalTrimmedString(request.ownerProofBindingDigest);
   if (!ownerProofBindingDigest) {
-    return {
-      ok: false,
-      code: 'invalid_body',
-      message: 'Email OTP registration requires ownerProofBindingDigest',
-    };
+    return failure('invalid_body', 'Email OTP registration requires ownerProofBindingDigest');
   }
 
   const registrationAttemptId = parseEmailOtpRegistrationAttemptId(
@@ -459,20 +436,12 @@ export function parseRawEmailOtpRegistrationChallengeProofInput(request: {
     };
   }
   if (registrationAttemptId.error.code === 'invalid') {
-    return {
-      ok: false,
-      code: 'invalid_body',
-      message: 'googleEmailOtpRegistrationAttemptId must be a string',
-    };
+    return failure('invalid_body', 'googleEmailOtpRegistrationAttemptId must be a string');
   }
 
   const proofEmail = toOptionalTrimmedString(request.proofEmail)?.toLowerCase();
   if (!proofEmail) {
-    return {
-      ok: false,
-      code: 'invalid_body',
-      message: 'Email OTP registration requires proofEmail',
-    };
+    return failure('invalid_body', 'Email OTP registration requires proofEmail');
   }
   return {
     ok: true,

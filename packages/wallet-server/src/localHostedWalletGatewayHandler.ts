@@ -1,3 +1,5 @@
+import { localPresignCancellationProbe } from './localIntendedPresignCancellation';
+import { localMaterialAdmissionFault } from './localIntendedMaterialAdmissionFault';
 import {
   createStaticWalletConsoleBindingV1,
   parseStaticWalletConsoleBindingConfigV1,
@@ -252,6 +254,13 @@ export async function handleLocalHostedWalletGatewayRequestV1(
     ...env,
     WALLET_CONSOLE: createStaticWalletConsoleBindingV1(config),
   };
+  const canceledPresign = await localPresignCancellationProbe(
+    request,
+    gatewayEnv,
+    ctx,
+    dependencies,
+  );
+  if (canceledPresign) return canceledPresign;
   const ecdsaFault = request.headers.get(ECDSA_RESPOND_FAULT_HEADER);
   if (ecdsaFault !== null) {
     return await handleEcdsaRespondFault(
@@ -342,6 +351,17 @@ export async function handleLocalHostedWalletGatewayRequestV1(
   const revokeToken = request.headers.get(LOCAL_INTENDED_REVOKE_FAULT_TOKEN_HEADER_V1);
   if (revokeMode !== null || revokeToken !== null) {
     return await handleRevokeFault(request, gatewayEnv, ctx, dependencies, revokeMode, revokeToken);
+  }
+  const materialFault = localMaterialAdmissionFault(request, gatewayEnv.SIGNER_DB);
+  if (materialFault instanceof Response) return materialFault;
+  if (materialFault) {
+    const response = await handleSplitGatewayRequest(
+      materialFault.request,
+      { ...gatewayEnv, SIGNER_DB: materialFault.database },
+      ctx,
+      dependencies,
+    );
+    return materialFault.database.response(response, materialFault.token);
   }
   const admissionMode = request.headers.get(LOCAL_INTENDED_SESSION_ADMISSION_FAULT_HEADER_V1);
   const admissionToken = request.headers.get(
