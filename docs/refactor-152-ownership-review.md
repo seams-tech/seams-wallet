@@ -162,6 +162,19 @@ registration, unlock, refill, step-up, and recovery separately, and measure actu
 service calls. The four/two active-binding reads above remain a source-derived
 minimum for the private owner/linked composition.
 
+Private follow-up `7eef6d4` verifies full Console Worker initialization and the
+real Wallet 0.7.3 service client locally, including credential rotation/revocation
+freshness, origin/environment rejection, environment resolution and missing-root
+rejection. The production fixture audit prevents directly reusing the static
+benchmark: its publishable-key format and `bench` environment are unsupported by
+Console, and its reduced bootstrap receipt lacks the journal/capability digests
+required by the Console grant store. A fresh development fixture must use normal
+Console issuance/provisioning and preserve the full ready response. Keep one
+Console authority fixed across the first authenticated Gateway-home comparison.
+No successful root provisioning, usage ingestion, full signing or regional
+latency is claimed by this local test. See the
+[preflight evidence](refactor-152-results.md#authenticated-console-local-preflight-october-1).
+
 Reuse the existing deployment lane, canonical binding revision, activation
 sequence, and bound tenant namespace as the starting routing model. The shared
 `tenant_deployment_binding_v1` currently carries tenant identity, origins,

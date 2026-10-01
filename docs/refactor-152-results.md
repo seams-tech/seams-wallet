@@ -312,6 +312,63 @@ At that checkpoint the instrumentation was committed locally and undeployed;
 the subsequent hosted cohort below closes the lookup-only measurement gap.
 
 
+## Authenticated Console local preflight (October 1)
+
+Private commit `7eef6d423a519b564091f986fcd6119a2701dae0` adds an isolated
+authentication preflight using Wallet Server 0.7.3's real Console client, a
+consumer Worker, the production Console Worker, and local D1. All 23 current
+Console SQL migration files through `0046` apply to the empty database. The
+complete Console handler initializes with local ephemeral keys, capture-only
+email and unusable Stripe placeholders. A request guard confirms zero outbound
+network or Wallet-runtime calls.
+
+Nine service responses supply eight observations: a Console-issued publishable
+key is accepted; malformed-key, wrong-origin and wrong-environment requests are
+rejected; active environment lookup succeeds; an unprovisioned root returns no
+lineage; rotation rejects the old key and accepts its replacement; revocation
+immediately rejects the replacement. The setup uses the production Console D1
+services for organization/project creation and credential lifecycle operations.
+It does not fabricate persisted active-root records. The test writes redacted
+observations, HTTP statuses, package/bundle hashes and migration hashes.
+
+Both the new authentication E2E and existing binding E2E pass together (two tests,
+3.5 seconds). Console test type-checking and focused lint pass. An initial
+Node/Miniflare request-type mismatch was a `valid_test_needs_update` harness
+failure; explicit request/response conversion fixes it without domain casts.
+No production code changed. Private evidence:
+`seams-monorepo/.artifacts/r152/console-auth-preflight-20261001/` contains
+`console-service-auth-evidence.json`, `console-binding-evidence.json`,
+`fixture-compatibility.json`, and `validation.json`.
+
+Reproduce the composed service checks from the private repository:
+
+```sh
+pnpm -C tests exec playwright test -c playwright.relayer.config.ts \
+  relayer/console-service-auth.e2e.test.ts \
+  relayer/tenant-deployment-binding.e2e.test.ts --reporter=line
+pnpm -C tests run type-check:console
+```
+
+The fixture audit found three concrete gaps before hosted signing:
+
+| Existing static benchmark fixture | Real Console requirement |
+| --- | --- |
+| Its publishable key fails the production credential parser. | Issue a temporary credential through the Console service and revoke it during cleanup. |
+| Its environment key is `bench`, and its environment ID lacks a supported suffix. | Use a fresh development environment. Console accepts `dev`, `staging`, or `prod`; credential issuance requires the corresponding ID suffix. |
+| Its reduced bootstrap receipt omits journal and capability digests. | Persist the full validated creation-grant/ready response through the Console grant service. The reduced receipt alone cannot supply that record. |
+
+The audit invokes the production key parser and credential issuer against private
+fixture data; it records only outcomes and source hashes. Preserve the historical
+static fixture and its latency cohorts. The authenticated cohort needs a separate
+Console-supported identity and full provisioning evidence. The correct internal
+tenant-root environment identity is the full environment ID; the `dev` key is
+separate metadata.
+
+This preflight verifies service composition and credential freshness. It produces
+zero signatures and no regional latency samples; it does not cover successful
+root provisioning, usage-event ingestion, or the full Gateway signing path. No
+Cloudflare resources were created or changed. Those hosted checks remain open.
+
 ## Target-image diagnosis and hosted Console lookup (October 1)
 
 Authenticated pull-only registry inspection verified that the target tag

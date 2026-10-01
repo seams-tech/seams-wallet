@@ -237,6 +237,32 @@ Use the same workloads and build identities in these arms:
   or proceed to regional ownership design. A no-go result completes this phase.
   Restore temporary deployments and clean up only resources owned by this run.
 
+### Next authenticated Console cohort
+
+- [x] Verify full Console Worker initialization and its real credential service
+  client locally. Private commit `7eef6d4` passes credential issuance/authentication,
+  origin/environment rejection, rotation, revocation, environment lookup, and
+  unprovisioned-root rejection. The existing binding E2E also passes. See the
+  [preflight and fixture audit](refactor-152-results.md#authenticated-console-local-preflight-october-1).
+- [ ] Prepare a fresh Console-supported development fixture. The static benchmark
+  uses an unsupported key format and `bench` environment; its reduced root receipt
+  also lacks Console-required ready fields. Use production provisioning services
+  and retain the full root response. Keep the existing static cohorts unchanged.
+- [ ] Keep Console authority in one fixed database while comparing the two
+  Gateway D1 homes. Audit schema overlap and apply required Console migrations
+  without resetting retained Wallet data. Configure the complete isolated Console
+  handler and preserve the frozen custody-role deployments.
+- [ ] Verify registration, unlock, root resolution, usage ingestion and signing
+  through the real Gateway → Console composition before collecting latency.
+  Use fresh wallets; keep the SDK fixed within this new cohort and record the
+  published Gateway dependency/build identity separately from earlier static runs.
+  Capture actual Console service dependencies and Gateway D1 calls per request.
+- [ ] Run a matched diagnostic, then extend only after it passes. Keep Console
+  placement fixed, alternate Gateway database arms, retain all failed attempts,
+  and reconcile cost. Remove the temporary active binding, revoke the experiment
+  credential, close ingress, and verify deployment/resource restoration. This
+  cohort must close authenticated composition before a production routing decision.
+
 ## Phase 3: prove the ownership boundary
 
 Complete the experiment's isolation review before Phase 2C. The
