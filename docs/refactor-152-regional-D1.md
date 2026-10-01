@@ -15,7 +15,11 @@ signatures total). A separate local-browser follow-up verifies twelve more
 signatures, measures individual cold-unlock calls and proves ECDSA activation-loss
 recovery through hosted Console. The next candidate removes nine authority
 initialization calls and verifies thirty signatures across cold unlock,
-activation recovery and device linking. Repeated authenticated cohorts,
+activation recovery and device linking. The subsequent commit-readback candidate
+verifies thirty signatures and removes one further call: cold unlock is now 29
+Gateway calls and activation-loss recovery is 25, each with two Console calls.
+The latest hosted Tokyo repeat failed during Container allocation before any
+browser dispatch; cleanup and restoration are verified. Repeated authenticated cohorts,
 broader workloads and production routing remain gated on the checks below. The October 1
 [ownership review and first experiment](refactor-152-ownership-review.md)
 defines a whole-deployment-namespace diagnostic and records the remaining
@@ -349,6 +353,12 @@ constraint. Proceed with production regional ownership/routing implementation
 only when Phase 2 demonstrates material benefit. The complete production proofs
 below remain open.
 
+- [x] Classify public, internal, scheduled and custody-alarm entry points against
+  their actual storage and side effects. The
+  [entry-point review](refactor-152-ownership-review.md#entry-point-review-and-initial-home-implementation-order)
+  distinguishes Wallet D1 admission, pre-activation inspection/control, Console
+  scheduled custody resumption and role-local expiry. It also identifies the
+  missing namespace-wide assignment constraint across deployment lanes.
 - [ ] Inventory every table, trigger, admission check, revocation, policy update,
   quota, replay key, and administration path touched by a signature. Identify
   which values must participate in the same transaction or freshness boundary.
@@ -373,6 +383,10 @@ below remain open.
   required owner, home, and routing-generation identity at the server boundary.
   Reject inconsistent or stale routes before any mutation. Route lookup itself
   must be counted in the complete latency budget.
+  Serialize initial namespace/home assignment across lanes in the existing
+  Console authority. Prove the relationship between the assigned home and the
+  actual D1 resource; a lane-level activation CAS or copied identity row is
+  insufficient. Preserve authenticated provisioning before first activation.
 - [ ] Assign a stable initial home server-side. Browser hints are advisory input;
   browser assertions cannot select an alternative authority. Avoid a mandatory
   home picker, travel profiling, and automatic geographic migration.

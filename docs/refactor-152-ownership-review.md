@@ -276,6 +276,85 @@ presign identities create new wallet/session objects; shared tenant-root objects
 can remain shared. Record those distinctions and aggregate role placement. A D1
 region hint never proves same-datacenter placement with any DO.
 
+### Entry-point review and initial-home implementation order
+
+Source checkpoint: Wallet `1bce6be0`, private Console `1420581` (October 1).
+This review covers the deployed Worker composition, its scheduled handlers and
+the custody presign alarm. It is source evidence; no regional routing code was
+deployed or exercised by this review. Private paths below are relative to
+`seams-monorepo`; Wallet paths are relative to this repository.
+
+| Entry point | Authority and side effects today | Requirement for an immutable regional home |
+| --- | --- | --- |
+| Private `d1GatewayWorker.ts` fetch | Resolves the active Console binding, then passes the statically configured `SIGNER_DB` to Wallet. Direct Yao dispatch and the composed router both use that environment. | Verify the binding's namespace/home against the actual configured database before constructing either request path. Count the verification cost in hosted measurements. |
+| Private `d1WalletRuntimeWorker.ts` ordinary runtime operations | Resolves the active binding before delegate execution and wallet-identity lookup. The latter reads by namespace/organization and can return identities from multiple projects. | Use the same verified home as public requests; check requested scope against the admitted owner. Preserve project checks within the namespace. |
+| Private runtime readiness inspection | Runs before active binding resolution and reads the supplied source/target scopes from one configured database. | Authenticate a candidate provisioning operation and report observed database/home identity. Preserve inspection before first activation. Project wallet counts and an echoed revision cannot establish namespace ownership or authorize transfer. |
+| Private runtime tenant-root control | Runs before active binding resolution. Wallet `walletControlOps.ts` forwards an allowlisted operation to Router, control plane or derivers using private service authentication; this adapter has no `SIGNER_DB`. Operations include creation, refresh, restore and recovery. | Keep role custody authority separate from Wallet D1. Validate the operation's authenticated tenant/custody scope through the control protocol. Preserve authorized root creation before a deployment becomes active; requiring an active binding for every control request would obstruct provisioning. |
+| Private Gateway cron | Resolves the active binding, then `runRouterAbPrewarmScheduledV1` sends authenticated prewarm to Router. Router fans out to derivers and signing worker. The scheduler does not access `SIGNER_DB`. | Preserve service authentication and role selection. There is no Wallet D1 mutation here to fence. Do not count prewarm as wallet refill or add a Wallet database lookup solely for this scheduler. |
+| Private Console cron | `runConsoleTenantRootRefreshResumptionV1` reads pending operations or scheduled grants from `CONSOLE_DB`, writes Console operation/audit state and dispatches through `WALLET_RUNTIME` control. Email dispatch also uses Console storage. | Keep pending-operation identity, grants, active lineage and audit at the Console authority. Verify resume/retry uses the intended custody deployment; Wallet D1 placement must not reroute these records or replay an operation against a different lineage. |
+| Custody presign DO alarm | `RouterAbSigningWorkerPresignSessionDurableObject::alarm` clears owner presign memory and deletes `owner-presign-authority` from its own DO storage. | Retain role-local expiry and object identity. This alarm does not select a regional Wallet database or move custody. |
+| Combined and standalone adapters | Private `d1RouterApiStagingWorker.ts` resolves binding from its local Console database; its Console bundle also receives `SIGNER_DB`. Wallet `hosted-wallet-gateway-worker.ts` and `local-hosted-wallet-gateway-worker.ts` use static deployment configuration. | Cover every supported adapter in verification. A guard solely in the private split Worker cannot establish a shared Wallet deployment contract. Keep local/VM reference behavior explicit when introducing the boundary. |
+
+The private Worker paths are under
+`packages/wallet-console-server-ts/src/router/cloudflare/`. Relevant additional
+sources are private `tenantDeployment/runtimeInspection.ts`,
+`tenantDeployment/runtimeBinding.ts`, and `tenantDeployment/provisioning.ts`;
+Wallet `packages/wallet-server/src/router/cloudflare/runtime/{walletControlOps,routerAbPrewarm,walletRuntimeOps}.ts`,
+`packages/wallet-server/src/hosted-wallet-gateway.ts`, and
+`crates/router-ab-cloudflare/src/{strict_worker/router,durable_object/mod}.rs`.
+
+**A lane-level activation CAS is insufficient for namespace ownership.** Private
+Console migration `0046_tenant_deployment_bindings.sql` keys the active pointer
+by `deployment_lane`; its activation trigger compares the previous revision and
+sequence for that lane. The binding's namespace index is non-unique. The current
+schema has no home field or namespace-wide assignment constraint. Therefore,
+extending only the binding JSON with a home would leave simultaneous first
+assignments through different lanes unconstrained. This is a requirement for the
+regional extension, not evidence of a current dual-writer incident.
+
+Implement the initial-home boundary in this order after completing the remaining
+lifecycle review:
+
+1. Extend the canonical binding parser, builder and content-derived revision
+   with a required server-assigned home identity. Keep namespace as the owner
+   for this first rollout; all organizations/projects within it stay together.
+   Reuse the existing Console authority to serialize immutable namespace/home
+   assignment across lanes, including pending provisioning. Reject conflicting
+   assignments atomically. Decide the smallest persistence change within that
+   authority; do not introduce an independent routing directory.
+2. Tie each assigned home to the provisioned D1 resource and verified deployment
+   binding. Runtime evidence must come from the database actually being used,
+   with provisioning evidence connecting it to that resource. A region hint,
+   request field, environment label or copied identity row alone cannot establish
+   this. Resolve this trust chain before implementing a per-request guard.
+3. Use precise boundary states for a verified active home and an authenticated
+   provisioning candidate. Only active-home state admits public Wallet work;
+   candidate state permits the narrowly scoped readiness/bootstrap operations.
+   Do not make database identity or binding revision optional in either state.
+   Keep raw binding records and compatibility decoding at persistence boundaries.
+4. Apply the verified boundary to public dispatch and ordinary internal Wallet
+   runtime operations. Verify control/bootstrap custody scope separately as
+   identified above. Unavailable authority and wrong-home bindings fail closed;
+   requests never fall back to a writable copy. Pin existing namespaces to their
+   current resources before enabling new-owner placement.
+5. Reject any subsequent home change for an assigned namespace in the initial
+   rollout. A fresh binding lookup gives request-entry freshness; it does not
+   cancel already-admitted work. Immutable homes keep that work at its original
+   authority. Cross-database transfer and in-flight writer fencing remain Phase 4.
+
+The next behavioral acceptance artifact must cover concurrent assignment of one
+namespace through two lanes, conflicting database bindings, an unavailable home,
+pre-activation inspection/root creation, and Console scheduled resumption. Then
+send a last-quota signing operation through two entry regions and verify one
+consumption, one custody effect and exact replay at the same home. Retain build,
+binding, database and operation identities together with denied-attempt results.
+Use existing service/lifecycle E2Es and domain type fixtures; no source-text guards.
+
+This closes the entry-point classification task. Per-operation semantic review
+of export, linking/material retirement, OTP administration and policy/quota
+administration, the home/resource trust chain, implementation and behavioral
+verification remain open. The deferred call-budget audit remains a separate task.
+
 ## First bounded experiment
 
 The experiment starts from R151's London owner SDK median of 2,680.5 ms and linked
