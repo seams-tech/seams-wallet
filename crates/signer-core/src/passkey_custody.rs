@@ -598,31 +598,6 @@ pub fn derive_passkey_custody_kek_v1(
     Ok(kek)
 }
 
-/// Seals a lane holder share under the factor KEK with AAD recomputed here.
-///
-/// Wallet custody seeds are deliberately not sealable through this entry point:
-/// a seed envelope records the key manifest the seed must reproduce, and
-/// writing one before that manifest has been verified would publish a claim
-/// nothing checked. Seeds go through
-/// [`seal_wallet_custody_seed_envelope_v1`], which requires the proof.
-pub fn seal_passkey_custody_secret_v1(
-    prf_first: &[u8],
-    binding: &PasskeyCustodyEnvelopeBindingV1,
-    nonce: &[u8],
-    custody_secret: &[u8],
-) -> CoreResult<SealedPasskeyCustodyEnvelopeV1> {
-    if matches!(
-        binding.binding.kind(),
-        PasskeyCustodySecretKind::WalletCustodySeed
-            | PasskeyCustodySecretKind::Ed25519YaoClientRoot
-    ) {
-        return Err(SignerCoreError::invalid_input(
-            "wallet custody seeds and Ed25519 Yao Client roots use dedicated seal operations",
-        ));
-    }
-    seal_custody_secret(prf_first, binding, nonce, custody_secret)
-}
-
 /// Seals the wallet custody seed.
 ///
 /// The seed carries no key manifest: key sets are provisioned independently and

@@ -35,9 +35,9 @@ export type HpkePublicKeyDigestB64u = DigestB64u & {
 };
 
 /** Alias retained for callers that need the worker-recipient-specific name. */
-export type SigningWorkerRecipientKeyDigestB64u = HpkePublicKeyDigestB64u;
+type SigningWorkerRecipientKeyDigestB64u = HpkePublicKeyDigestB64u;
 
-export type LaneHolderCustodyIdentityV1 = {
+type LaneHolderCustodyIdentityV1 = {
   readonly kind: 'lane_holder_custody_identity_v1';
   readonly custodyBindingId: LaneHolderCustodyBindingId;
   readonly custodyBindingDigestB64u: LaneCustodyBindingDigestB64u;
@@ -275,7 +275,7 @@ function parseSigningWorkerRecipientIdentityV1(
   });
 }
 
-export function buildLaneHolderParticipantRecordV1(args: {
+function buildLaneHolderParticipantRecordV1(args: {
   readonly participantId: LaneHolderParticipantId;
   readonly custody: LaneHolderCustodyIdentityV1;
   readonly hpkePublicKeyB64u: HpkePublicKeyB64u;

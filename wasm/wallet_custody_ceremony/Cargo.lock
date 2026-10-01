@@ -460,7 +460,6 @@ dependencies = [
  "elliptic-curve 0.13.8",
  "rfc6979",
  "signature",
- "spki 0.7.3",
 ]
 
 [[package]]
@@ -531,7 +530,6 @@ dependencies = [
  "generic-array",
  "group 0.13.0",
  "hkdf 0.12.4",
- "pkcs8 0.10.2",
  "rand_core 0.6.4",
  "sec1 0.7.3",
  "subtle",
@@ -1011,7 +1009,6 @@ dependencies = [
  "cfg-if",
  "ecdsa",
  "elliptic-curve 0.13.8",
- "once_cell",
  "sha2 0.10.9",
  "signature",
 ]
@@ -1499,19 +1496,12 @@ dependencies = [
  "curve25519-dalek",
  "frost-ed25519",
  "getrandom 0.2.17",
- "hex",
  "hkdf 0.12.4",
  "hpke-ng",
  "js-sys",
- "k256",
  "rand_chacha 0.9.0",
- "rand_core 0.6.4",
  "rand_core 0.9.5",
  "router-ab-core",
- "router-ab-ecdsa-client-protocol",
- "router-ab-ecdsa-online",
- "router-ab-ecdsa-presign",
- "router-ab-ecdsa-wire",
  "router-ab-ed25519-yao-protocol",
  "serde",
  "serde-wasm-bindgen",
@@ -1579,7 +1569,6 @@ dependencies = [
  "base16ct 0.2.0",
  "der 0.7.10",
  "generic-array",
- "pkcs8 0.10.2",
  "subtle",
  "zeroize",
 ]

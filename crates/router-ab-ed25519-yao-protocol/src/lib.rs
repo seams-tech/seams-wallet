@@ -24,12 +24,11 @@ use signer_core::ed25519_yao_derivation::{
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 pub use recipient::{
-    combine_client_activation_packages, combine_export_packages, combine_lane_holder_packages_v1,
+    combine_client_activation_packages, combine_export_packages,
     combine_lane_signing_worker_packages_v1, ActivationDeriverAClientPackage,
     ActivationDeriverBClientPackage, ClientBaseScalar, ExportDeriverAClientPackage,
-    ExportDeriverBClientPackage, ExportedSeed32, LaneDeriverAHolderPackage,
-    LaneDeriverASigningWorkerPackage, LaneDeriverBHolderPackage, LaneDeriverBSigningWorkerPackage,
-    LaneHolderScalar, LaneSigningWorkerScalar, RecipientPackageError,
+    ExportDeriverBClientPackage, ExportedSeed32, LaneDeriverASigningWorkerPackage,
+    LaneDeriverBSigningWorkerPackage, LaneSigningWorkerScalar, RecipientPackageError,
 };
 
 /// HPKE info for Client-to-Deriver role-input encryption.

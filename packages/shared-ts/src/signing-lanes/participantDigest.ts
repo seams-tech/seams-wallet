@@ -3,20 +3,15 @@ import { parseDigestB64u, type DigestB64u } from '../utils/canonicalPrimitives';
 import { sha256Bytes } from '../utils/digests';
 import { concat } from '../utils/digestEncoding';
 import {
-  buildLaneHolderParticipantRecordV1,
   buildSigningWorkerParticipantRecordV1,
   parseLaneHolderParticipantRecordV1,
   parseLaneParticipantBindingDigestB64u,
   parseSigningWorkerParticipantRecordV1,
-  type HpkePublicKeyB64u,
-  type LaneHolderCustodyIdentityV1,
-  type LaneHolderParticipantId,
   type LaneHolderParticipantRecordV1,
   type LaneParticipantBindingDigestB64u,
   type SigningWorkerParticipantId,
   type SigningWorkerParticipantRecordV1,
   type SigningWorkerRecipientIdentityV1,
-  type SigningWorkerRecipientKeyDigestB64u,
 } from './participants';
 
 /** Domain tags are part of the wire contract and must never be shortened. */
@@ -27,13 +22,6 @@ const SIGNING_WORKER_PARTICIPANT_BINDING_DOMAIN_V1 =
 /** The lane digest binds the fixed holder-then-SigningWorker participant set. */
 const LANE_PARTICIPANT_SET_BINDING_DOMAIN_V1 =
   'seams/rotatable-signing-lanes/lane-participant-set/v1' as const;
-
-type LaneHolderParticipantBindingInputV1 = {
-  readonly participantId: LaneHolderParticipantId;
-  readonly custody: LaneHolderCustodyIdentityV1;
-  readonly hpkePublicKeyB64u: HpkePublicKeyB64u;
-  readonly hpkePublicKeyDigestB64u: SigningWorkerRecipientKeyDigestB64u;
-};
 
 type SigningWorkerParticipantBindingInputV1 = {
   readonly participantId: SigningWorkerParticipantId;
@@ -152,19 +140,6 @@ async function digestCanonicalBytes(bytes: Uint8Array): Promise<LaneParticipantB
   const parsed = parseLaneParticipantBindingDigestB64u(digest);
   if (!parsed.ok) throw new Error(parsed.error.message);
   return parsed.value;
-}
-
-export async function computeLaneHolderParticipantBindingDigestV1(
-  input: LaneHolderParticipantBindingInputV1,
-): Promise<LaneParticipantBindingDigestB64u> {
-  return await digestCanonicalBytes(
-    laneHolderParticipantCanonicalBytesV1(
-      buildLaneHolderParticipantRecordV1({
-        ...input,
-        participantBindingDigestB64u: placeholderParticipantDigest(),
-      }),
-    ),
-  );
 }
 
 export async function computeLaneParticipantSetBindingDigestV1(input: {

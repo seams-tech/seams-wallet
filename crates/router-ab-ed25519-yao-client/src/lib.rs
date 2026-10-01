@@ -37,8 +37,6 @@ use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
 mod activation_checkpoint;
 mod lane;
-#[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
-mod lane_holder;
 mod local_material;
 mod signing;
 #[cfg(all(target_arch = "wasm32", feature = "wasm-bindings"))]
@@ -67,9 +65,7 @@ pub use wasm::{
     WasmActivatedClientV1, WasmClientSigningShareV1, WasmEd25519YaoClientRootExportSessionV1,
     WasmEd25519YaoLaneClientV1, WasmEd25519YaoLaneSourceV1,
     WasmEd25519YaoSourcePreservingRegistrationSessionV1, WasmExportedEd25519SeedV1,
-    WasmLaneCustodySealV1, WasmLaneHolderEcdsaPresignSessionV1, WasmLaneHolderRecipientV1,
-    WasmLaneHolderSigningMaterialV1, WasmOrdinaryEd25519ActivationClientMaterialV1,
-    WasmWalletCustodySeedExportSessionV1,
+    WasmOrdinaryEd25519ActivationClientMaterialV1, WasmWalletCustodySeedExportSessionV1,
 };
 
 type InputHpkeV1 = Hpke<DhKemX25519HkdfSha256, HkdfSha256, Aes256Gcm>;

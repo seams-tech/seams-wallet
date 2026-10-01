@@ -145,7 +145,6 @@ export type LinkedDeviceEnrollmentId = DomainId<'LinkedDeviceEnrollmentId'>;
 export type WalletRecoveryOperationId = DomainId<'WalletRecoveryOperationId'>;
 export type Ed25519YaoSuiteId = DomainId<'Ed25519YaoSuiteId'>;
 export type EcdsaRelayerKeyId = DomainId<'EcdsaRelayerKeyId'>;
-export type LaneHolderRecipientHandleV1 = DomainId<'LaneHolderRecipientHandleV1'>;
 
 // QR/device-link relay session identity.
 export type LinkDeviceSessionId = DomainId<'LinkDeviceSessionId'>;
@@ -580,12 +579,6 @@ export function parseEd25519YaoSuiteId(raw: unknown): DomainIdParseResult<Ed2551
 
 export function parseEcdsaRelayerKeyId(raw: unknown): DomainIdParseResult<EcdsaRelayerKeyId> {
   return parseDomainId(raw, 'ecdsaRelayerKeyId');
-}
-
-export function parseLaneHolderRecipientHandleV1(
-  raw: unknown,
-): DomainIdParseResult<LaneHolderRecipientHandleV1> {
-  return parseDomainId(raw, 'laneHolderRecipientHandle');
 }
 
 export function parseLinkDeviceSessionId(raw: unknown): DomainIdParseResult<LinkDeviceSessionId> {

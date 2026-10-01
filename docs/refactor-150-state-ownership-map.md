@@ -218,7 +218,7 @@ before any move.
 - **Here:** the lane stores and their application-service factories are
   exported through `cloud-host.ts` and constructed nowhere. The client-side
   lane operation coordinators (`packages/wallet/src/core/signingEngine/session/lanes/operations/`)
-  are not imported by any SDK surface. The Router's
+  were not imported by any SDK surface and have since been deleted. The Router's
   `/router-ab/internal/ed25519-yao/lane/execute` route has no caller.
 - **In seams-monorepo (at `e7e1643`):** nothing calls the lane factories.
   The only reference is a local readiness check that lists the lane tables.

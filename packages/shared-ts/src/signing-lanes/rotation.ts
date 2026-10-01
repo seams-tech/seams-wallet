@@ -5,7 +5,6 @@ import type {
   MpcMaterialActivationRef,
   ThresholdEcdsaSessionId,
   WalletId,
-  LaneHolderRecipientHandleV1,
 } from '../utils/domainIds';
 import type {
   EcdsaCapabilityManifestId,
@@ -908,20 +907,6 @@ export type LaneEnrollmentPreparationResultV1 =
       storedCommandDigestB64u: DigestB64u;
     };
 
-export type EcdsaLaneProtocolWasmV1 = {
-  prepareEcdsaAdditiveLaneHolderRoundV1(
-    input: EcdsaAdditiveLaneJobV1,
-  ): Promise<EcdsaAdditiveLaneHolderPreparationV1>;
-};
-
-export type { LaneHolderRecipientHandleV1 } from '../utils/domainIds';
-
-type LaneHolderRecipientDescriptorV1 = {
-  recipientHandle: LaneHolderRecipientHandleV1;
-  hpkePublicKeyB64u: HpkePublicKeyB64u;
-  hpkePublicKeyDigestB64u: HpkePublicKeyDigestB64u;
-};
-
 export type LaneHolderPackageWireV1 = ExclusiveUnion<
   | {
       kind: 'ed25519_yao_lane_holder_package_set_v1';
@@ -949,24 +934,6 @@ export type Ed25519YaoLaneClientCompletionV1 = {
   >;
 };
 
-type SealedLaneHolderMaterialV1 = {
-  sealedHolderMaterialB64u: string;
-  sealedHolderRecordDigestB64u: DigestB64u;
-  verifiedHolderCiphertextDigestSetB64u: DigestB64u;
-};
-
-type VerifiedLaneHolderPackageV1 = {
-  verifiedHolderCiphertextDigestSetB64u: DigestB64u;
-};
-
-export type WasmEd25519YaoLaneClientV1 = {
-  prepare(input: Ed25519YaoLaneJobV1): Promise<{ requestJson: string }>;
-  complete(input: {
-    job: Ed25519YaoLaneJobV1;
-    responseJson: string;
-  }): Promise<Ed25519YaoLaneClientCompletionV1>;
-};
-
 export type PrepareLaneEnrollmentV1 = {
   manifest: LaneEnrollmentManifestV1;
   children: readonly [RotatableSigningLaneJobV1, ...RotatableSigningLaneJobV1[]];
@@ -992,41 +959,6 @@ export type RecordLaneProtocolCommitV1 = {
 export type ActivateLaneServerMaterialV1 = {
   receipt: LaneServerActivationReceiptV1;
   expectedVersion: number;
-};
-
-export type LaneHolderRecipientWorkerV1 = {
-  createLaneHolderRecipientV1(input: {
-    operationId: LaneOperationId;
-    enrollmentId: LaneEnrollmentId;
-    walletKeyId: WalletKeyId;
-    targetLaneId: SigningLaneId;
-    targetLaneShareEpoch: LaneShareEpoch;
-    targetMaterialActivationId: MpcMaterialActivationId;
-    targetHolderParticipantId: LaneHolderParticipantId;
-    custodyBindingId: LaneHolderCustodyBindingId;
-    custodyBindingDigestB64u: LaneCustodyBindingDigestB64u;
-  }): Promise<LaneHolderRecipientDescriptorV1>;
-  openAndSealLaneHolderPackageV1(input: {
-    job: RotatableSigningLaneJobV1;
-    protocolCommitReceipt: LaneProtocolCommitReceiptV1;
-    holderPackage: LaneHolderPackageWireV1;
-    recipientHandle: LaneHolderRecipientHandleV1;
-  }): Promise<SealedLaneHolderMaterialV1>;
-  verifyLaneHolderPackageCommitmentV1(input: {
-    job: RotatableSigningLaneJobV1;
-    protocolCommitReceipt: LaneProtocolCommitReceiptV1;
-    holderPackage: LaneHolderPackageWireV1;
-  }): Promise<VerifiedLaneHolderPackageV1>;
-  discardLaneHolderRecipientV1(input: {
-    recipientHandle: LaneHolderRecipientHandleV1;
-    operationId: LaneOperationId;
-  }): Promise<void>;
-  invalidateLaneMaterialV1(input: {
-    walletKeyId: WalletKeyId;
-    laneId: SigningLaneId;
-    laneShareEpoch: LaneShareEpoch;
-    materialActivation: MpcMaterialActivationRef;
-  }): Promise<void>;
 };
 
 export type LaneEnrollmentGatewayV1 = {

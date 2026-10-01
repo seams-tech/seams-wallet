@@ -20,11 +20,9 @@ const DERIVER_A_ROLE_TAG: u8 = 0xa1;
 const DERIVER_B_ROLE_TAG: u8 = 0xb2;
 const CLIENT_RECIPIENT_TAG: u8 = 0x01;
 const EXPORT_RECIPIENT_TAG: u8 = 0x03;
-const LANE_HOLDER_RECIPIENT_TAG: u8 = 0x04;
 const LANE_SIGNING_WORKER_RECIPIENT_TAG: u8 = 0x05;
 const CLIENT_SCALAR_SHARE_OUTPUT_KIND: u8 = 0x21;
 const EXPORT_SEED_SHARE_OUTPUT_KIND: u8 = 0x23;
-const LANE_HOLDER_SCALAR_SHARE_OUTPUT_KIND: u8 = 0x31;
 const LANE_SIGNING_WORKER_SCALAR_SHARE_OUTPUT_KIND: u8 = 0x32;
 const PACKAGE_ITEM_COUNT: u32 = 1;
 
@@ -98,8 +96,6 @@ define_recipient_package!(ActivationDeriverAClientPackage, ACTIVATION_PACKAGE_BY
 define_recipient_package!(ActivationDeriverBClientPackage, ACTIVATION_PACKAGE_BYTES);
 define_recipient_package!(ExportDeriverAClientPackage, EXPORT_PACKAGE_BYTES);
 define_recipient_package!(ExportDeriverBClientPackage, EXPORT_PACKAGE_BYTES);
-define_recipient_package!(LaneDeriverAHolderPackage, LANE_PACKAGE_BYTES);
-define_recipient_package!(LaneDeriverBHolderPackage, LANE_PACKAGE_BYTES);
 define_recipient_package!(LaneDeriverASigningWorkerPackage, LANE_PACKAGE_BYTES);
 define_recipient_package!(LaneDeriverBSigningWorkerPackage, LANE_PACKAGE_BYTES);
 
@@ -117,23 +113,6 @@ impl ClientBaseScalar {
 impl fmt::Debug for ClientBaseScalar {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str("ClientBaseScalar([REDACTED])")
-    }
-}
-
-/// Canonical target-holder scalar obtained after combining both lane outputs.
-#[derive(Zeroize, ZeroizeOnDrop)]
-pub struct LaneHolderScalar([u8; 32]);
-
-impl LaneHolderScalar {
-    /// Consumes the scalar into canonical bytes.
-    pub fn into_bytes(mut self) -> [u8; 32] {
-        core::mem::take(&mut self.0)
-    }
-}
-
-impl fmt::Debug for LaneHolderScalar {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str("LaneHolderScalar([REDACTED])")
     }
 }
 
@@ -250,21 +229,13 @@ fn export_expected(role_tag: u8) -> ExpectedPackage {
     }
 }
 
-fn lane_expected(role_tag: u8, holder: bool) -> ExpectedPackage {
+fn lane_signing_worker_expected(role_tag: u8) -> ExpectedPackage {
     ExpectedPackage {
         total_bytes: LANE_PACKAGE_BYTES,
         family_tag: LANE_MATERIALIZATION_FAMILY_TAG,
         role_tag,
-        recipient_tag: if holder {
-            LANE_HOLDER_RECIPIENT_TAG
-        } else {
-            LANE_SIGNING_WORKER_RECIPIENT_TAG
-        },
-        output_kind: if holder {
-            LANE_HOLDER_SCALAR_SHARE_OUTPUT_KIND
-        } else {
-            LANE_SIGNING_WORKER_SCALAR_SHARE_OUTPUT_KIND
-        },
+        recipient_tag: LANE_SIGNING_WORKER_RECIPIENT_TAG,
+        output_kind: LANE_SIGNING_WORKER_SCALAR_SHARE_OUTPUT_KIND,
         // The lane circuit and its streaming schedule have their own stable
         // identities.  They are intentionally unrelated to activation/export.
         circuit_digest: LANE_MATERIALIZATION_CIRCUIT_DIGEST,
@@ -326,18 +297,17 @@ fn decode_export_share(
     Ok(share)
 }
 
-fn decode_lane_share(
+fn decode_lane_signing_worker_share(
     encoded: &[u8],
     session: [u8; 32],
     transcript: [u8; 32],
     role_tag: u8,
-    holder: bool,
 ) -> Result<Zeroizing<[u8; 32]>, RecipientPackageError> {
     let payload = decode_payload(
         encoded,
         session,
         transcript,
-        lane_expected(role_tag, holder),
+        lane_signing_worker_expected(role_tag),
     )?;
     let mut share = Zeroizing::new([0_u8; 32]);
     share.copy_from_slice(&payload[..32]);
@@ -430,43 +400,6 @@ pub fn combine_export_packages(
     Ok(ExportedSeed32(output))
 }
 
-/// Combines the two recipient-isolated target-holder lane shares.
-pub fn combine_lane_holder_packages_v1(
-    session: [u8; 32],
-    final_transcript: [u8; 32],
-    deriver_a: LaneDeriverAHolderPackage,
-    deriver_b: LaneDeriverBHolderPackage,
-) -> Result<LaneHolderScalar, RecipientPackageError> {
-    let mut left = decode_lane_share(
-        deriver_a.as_bytes(),
-        session,
-        final_transcript,
-        DERIVER_A_ROLE_TAG,
-        true,
-    )?;
-    let mut right = decode_lane_share(
-        deriver_b.as_bytes(),
-        session,
-        final_transcript,
-        DERIVER_B_ROLE_TAG,
-        true,
-    )?;
-    let left_option = Scalar::from_canonical_bytes(*left);
-    let right_option = Scalar::from_canonical_bytes(*right);
-    let valid = left_option.is_some() & right_option.is_some();
-    let mut left_scalar = left_option.unwrap_or(Scalar::ZERO);
-    let mut right_scalar = right_option.unwrap_or(Scalar::ZERO);
-    let output = (left_scalar + right_scalar).to_bytes();
-    left_scalar.zeroize();
-    right_scalar.zeroize();
-    left.zeroize();
-    right.zeroize();
-    if !bool::from(valid) {
-        return Err(RecipientPackageError::NonCanonicalScalar);
-    }
-    Ok(LaneHolderScalar(output))
-}
-
 /// Combines the two recipient-isolated target SigningWorker lane shares.
 pub fn combine_lane_signing_worker_packages_v1(
     session: [u8; 32],
@@ -474,19 +407,17 @@ pub fn combine_lane_signing_worker_packages_v1(
     deriver_a: LaneDeriverASigningWorkerPackage,
     deriver_b: LaneDeriverBSigningWorkerPackage,
 ) -> Result<LaneSigningWorkerScalar, RecipientPackageError> {
-    let mut left = decode_lane_share(
+    let mut left = decode_lane_signing_worker_share(
         deriver_a.as_bytes(),
         session,
         final_transcript,
         DERIVER_A_ROLE_TAG,
-        false,
     )?;
-    let mut right = decode_lane_share(
+    let mut right = decode_lane_signing_worker_share(
         deriver_b.as_bytes(),
         session,
         final_transcript,
         DERIVER_B_ROLE_TAG,
-        false,
     )?;
     let left_option = Scalar::from_canonical_bytes(*left);
     let right_option = Scalar::from_canonical_bytes(*right);

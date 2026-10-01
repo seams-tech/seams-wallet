@@ -1,21 +1,8 @@
-import type {
-  EcdsaAdditiveLaneHolderPreparationV1,
-  EcdsaAdditiveLaneJobV1,
-  EcdsaLaneProtocolWasmV1,
-} from '@shared/signing-lanes/rotation';
+import type { EcdsaAdditiveLaneHolderPreparationV1 } from '@shared/signing-lanes/rotation';
 import {
   parseEcdsaAdditiveLaneHolderRoundV1,
   parseLaneHolderPackageWireV1,
-  parseRotatableSigningLaneJobV1,
 } from '@shared/signing-lanes/rotationProtocolParsers';
-
-function parseEcdsaJob(value: unknown): EcdsaAdditiveLaneJobV1 {
-  const parsed = parseRotatableSigningLaneJobV1(value);
-  if (parsed.keyFamily !== 'ecdsa_secp256k1') {
-    throw new Error('ECDSA lane WASM requires an ECDSA lane job');
-  }
-  return parsed;
-}
 
 function nonEmpty(value: unknown, label: string): string {
   if (typeof value !== 'string' || !value.trim()) throw new Error(`${label} is required`);
@@ -49,14 +36,4 @@ export function parseEcdsaAdditiveLaneHolderPreparationV1(
       'encryptedDeltaPackageJson',
     ),
   };
-}
-
-export async function prepareEcdsaAdditiveLaneHolderRoundV1(
-  wasm: EcdsaLaneProtocolWasmV1,
-  input: unknown,
-): Promise<EcdsaAdditiveLaneHolderPreparationV1> {
-  const job = parseEcdsaJob(input);
-  return parseEcdsaAdditiveLaneHolderPreparationV1(
-    await wasm.prepareEcdsaAdditiveLaneHolderRoundV1(job),
-  );
 }
