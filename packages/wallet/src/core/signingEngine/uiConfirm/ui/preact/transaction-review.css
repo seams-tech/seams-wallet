@@ -705,7 +705,20 @@
 :where(.seams-wallet-ui) .seams-drawer-controls:has(.seams-drawer-origin) .seams-drawer-close {
   top: 0.5rem;
 }
+:where(.seams-wallet-ui) .seams-transaction-receipt > .seams-review-technical .seams-review-fields dd {
+  position: relative;
+}
+/* The copy button overlays the value's end so the value itself reaches the row's edge. */
+:where(.seams-wallet-ui) .seams-transaction-receipt > .seams-review-technical .seams-review-fields dd .seams-review-copy:not(.seams-review-copy-address) {
+  position: absolute;
+  inset-inline-end: 0;
+  inset-block-start: 50%;
+  translate: 0 -50%;
+}
 :where(.seams-wallet-ui) .seams-transaction-receipt > .seams-review-technical .seams-review-fields dd .seams-review-copy:not(.seams-review-copy-address) > .copy-icon {
+  border-radius: 6px;
+  background: var(--seams-colors-surface2);
+  box-shadow: 0 0 6px 3px var(--seams-colors-surface2);
   opacity: 0;
 }
 :where(.seams-wallet-ui) .seams-transaction-receipt > .seams-review-technical .seams-review-fields dd:is(:hover, :focus-within) .seams-review-copy:not(.seams-review-copy-address) > .copy-icon,
