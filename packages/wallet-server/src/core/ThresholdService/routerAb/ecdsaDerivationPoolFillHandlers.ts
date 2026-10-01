@@ -19,7 +19,6 @@ import {
   signingRootScopeFromRuntimePolicyScope,
   type RuntimePolicyScope,
 } from '@shared/threshold/signingRootScope';
-import type { ThresholdNodeRole } from '../config';
 import {
   startRouterAbEcdsaPresignSession,
   stepRouterAbEcdsaPresignSession,
@@ -372,18 +371,15 @@ export type RouterAbEcdsaPresignSigningWorkerTransport = {
 };
 
 export class RouterAbEcdsaDerivationPoolFillHandlers {
-  private readonly nodeRole: ThresholdNodeRole;
   private readonly participantIds2p: number[];
   private readonly ensureReady: () => Promise<void>;
   private readonly signingWorkerTransport: RouterAbEcdsaPresignSigningWorkerTransport;
 
   constructor(input: {
-    readonly nodeRole: ThresholdNodeRole;
     readonly participantIds2p: number[];
     readonly ensureReady: () => Promise<void>;
     readonly signingWorkerTransport: RouterAbEcdsaPresignSigningWorkerTransport;
   }) {
-    this.nodeRole = input.nodeRole;
     this.participantIds2p = input.participantIds2p;
     this.ensureReady = input.ensureReady;
     this.signingWorkerTransport = input.signingWorkerTransport;
@@ -571,15 +567,6 @@ export class RouterAbEcdsaDerivationPoolFillHandlers {
     binding: RouterAbEcdsaDerivationPoolFillBinding;
     request: RouterAbEcdsaDerivationPoolFillInitRequest;
   }): Promise<RouterAbEcdsaDerivationPoolFillInitResponse> {
-    if (this.nodeRole !== 'coordinator') {
-      return {
-        ok: false,
-        code: 'not_found',
-        message:
-          'Router A/B ECDSA derivation pool-fill endpoints are not enabled on this server (set THRESHOLD_NODE_ROLE=coordinator)',
-      };
-    }
-
     await this.ensureReady();
 
     const parsedRequest = parseRouterAbEcdsaDerivationPoolFillInitRequest(input.request);
@@ -639,15 +626,6 @@ export class RouterAbEcdsaDerivationPoolFillHandlers {
     readonly binding: RouterAbEcdsaDerivationPoolFillBinding;
     readonly request: RouterAbEcdsaDerivationPoolFillStepRequest;
   }): Promise<RouterAbEcdsaDerivationPoolFillStepResponse> {
-    if (this.nodeRole !== 'coordinator') {
-      return {
-        ok: false,
-        code: 'not_found',
-        message:
-          'Router A/B ECDSA derivation pool-fill endpoints are not enabled on this server (set THRESHOLD_NODE_ROLE=coordinator)',
-      };
-    }
-
     await this.ensureReady();
 
     const parsedRequest = parseRouterAbEcdsaDerivationPoolFillStepRequest(input.request);

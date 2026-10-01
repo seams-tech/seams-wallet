@@ -1,4 +1,3 @@
-import { toOptionalTrimmedString } from '@shared/utils/validation';
 import {
   THRESHOLD_ED25519_2P_PARTICIPANT_IDS,
   THRESHOLD_ED25519_CLIENT_PARTICIPANT_ID,
@@ -6,15 +5,6 @@ import {
   normalizeThresholdEd25519ParticipantId,
   normalizeThresholdEd25519ParticipantIds,
 } from '@shared/threshold/participants';
-
-export type ThresholdNodeRole = 'cosigner' | 'coordinator';
-
-export function coerceThresholdNodeRole(input: unknown): ThresholdNodeRole {
-  const role = toOptionalTrimmedString(input);
-  if (role === 'cosigner') return 'cosigner';
-  if (role === 'coordinator') return 'coordinator';
-  return 'coordinator';
-}
 
 export function parseThresholdEd25519ParticipantIds2p(input: {
   THRESHOLD_ED25519_CLIENT_PARTICIPANT_ID?: unknown;

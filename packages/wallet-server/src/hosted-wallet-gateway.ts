@@ -986,7 +986,6 @@ function createStagingEcdsaPresignRuntime(
   }
   return new RouterAbEcdsaPresignRuntime({
     config: {
-      nodeRole: 'coordinator',
       participantIds: {
         clientParticipantId: 1,
         relayerParticipantId: 2,

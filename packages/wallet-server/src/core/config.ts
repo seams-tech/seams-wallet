@@ -128,7 +128,6 @@ function normalizeThresholdStoreConfig(
   const c = input as Record<string, unknown>;
   const anyProvided = Boolean(
     // Minimal (env-shaped)
-    toOptionalTrimmedString(c.THRESHOLD_NODE_ROLE) ||
     toOptionalTrimmedString(c.THRESHOLD_COORDINATOR_SHARED_SECRET_B64U) ||
     toOptionalTrimmedString(c.THRESHOLD_ED25519_RELAYER_COSIGNERS) ||
     toOptionalTrimmedString(c.THRESHOLD_ED25519_RELAYER_COSIGNER_ID) ||

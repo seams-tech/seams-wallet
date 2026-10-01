@@ -151,12 +151,6 @@ export type ThresholdStoreEnvInput = {
    */
   THRESHOLD_ED25519_RELAYER_PARTICIPANT_ID?: string;
   /**
-   * Threshold node role.
-   * - "coordinator" (default): exposes public registration/session routes and Router A/B bridge handlers.
-   * - "cosigner": exposes internal relayer-fleet t-of-n cosigning endpoints when configured.
-   */
-  THRESHOLD_NODE_ROLE?: string;
-  /**
    * 32-byte base64url shared secret used to authenticate coordinator→peer calls.
    *
    * When set, cosigner relayers can expose internal endpoints that accept
@@ -229,7 +223,7 @@ export type ThresholdStoreEnvInput = {
  * Accepts either:
  * - an env-shaped object (for ergonomics in server examples), or
  * - an explicit `kind` object, optionally augmented with env-shaped overrides
- *   (useful when wiring via code but still wanting env vars like THRESHOLD_NODE_ROLE).
+ *   (useful when wiring via code but still wanting env vars like THRESHOLD_PREFIX).
  */
 export type ThresholdStoreConfigInput =
   | ThresholdStoreEnvInput

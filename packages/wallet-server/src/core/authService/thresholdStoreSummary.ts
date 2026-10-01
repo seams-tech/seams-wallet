@@ -1,6 +1,5 @@
 import { toOptionalTrimmedString } from '@shared/utils/validation';
 import type { AuthServiceConfig } from '../types';
-import { coerceThresholdNodeRole } from '../ThresholdService/config';
 
 function thresholdStoreKind(cfg: NonNullable<AuthServiceConfig['thresholdStore']>): string {
   if ('kind' in cfg) {
@@ -26,12 +25,5 @@ function thresholdStoreKind(cfg: NonNullable<AuthServiceConfig['thresholdStore']
 export function summarizeThresholdStoreConfig(cfg: AuthServiceConfig['thresholdStore']): string {
   if (!cfg) return 'thresholdStore: not configured';
 
-  const nodeRole = coerceThresholdNodeRole(cfg.THRESHOLD_NODE_ROLE);
-  const store = thresholdStoreKind(cfg);
-  const parts = [
-    `thresholdStore: configured`,
-    `nodeRole=${nodeRole}`,
-    `store=${store}`,
-  ];
-  return parts.join(' ');
+  return `thresholdStore: configured store=${thresholdStoreKind(cfg)}`;
 }

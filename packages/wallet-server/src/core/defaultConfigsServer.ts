@@ -3,11 +3,6 @@
 // Keep this separate from `client/src/core/config/defaultConfigs.ts` so browser bundles don't
 // accidentally pull in server-oriented defaults/config.
 
-// Threshold node roles.
-// Coordinator is the default for public registration/session routes and Router A/B bridge handlers.
-export const THRESHOLD_NODE_ROLE_COORDINATOR = 'coordinator' as const;
-export const THRESHOLD_NODE_ROLE_DEFAULT = THRESHOLD_NODE_ROLE_COORDINATOR;
-
 // Threshold store defaults (Cloudflare Workers + Durable Objects).
 export const THRESHOLD_DO_OBJECT_NAME_DEFAULT = 'threshold-store' as const;
 

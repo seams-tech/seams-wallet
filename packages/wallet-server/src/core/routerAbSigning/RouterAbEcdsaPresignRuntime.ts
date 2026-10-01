@@ -1,7 +1,4 @@
-import {
-  coerceThresholdNodeRole,
-  parseThresholdEd25519ParticipantIds2p,
-} from '../ThresholdService/config';
+import { parseThresholdEd25519ParticipantIds2p } from '../ThresholdService/config';
 import {
   RouterAbEcdsaDerivationPoolFillHandlers,
   type RouterAbEcdsaPresignSigningWorkerTransport,
@@ -17,7 +14,6 @@ import type { RouterAbEcdsaSigningWorkerExportShareBindingV1 } from '@shared/uti
 import type { RouterAbConfiguredSigningWorkerPrivateTransport } from './RouterAbNormalSigningRuntime';
 
 export type RouterAbEcdsaPresignRuntimeConfig = {
-  readonly nodeRole: ReturnType<typeof coerceThresholdNodeRole>;
   readonly participantIds: {
     readonly clientParticipantId: number;
     readonly relayerParticipantId: number;
@@ -29,7 +25,6 @@ export function parseRouterAbEcdsaPresignRuntimeConfig(
   input: Record<string, unknown>,
 ): RouterAbEcdsaPresignRuntimeConfig {
   return {
-    nodeRole: coerceThresholdNodeRole(input.THRESHOLD_NODE_ROLE),
     participantIds: parseThresholdEd25519ParticipantIds2p(input),
   };
 }
@@ -90,7 +85,6 @@ export class RouterAbEcdsaPresignRuntime {
   }) {
     this.signingWorkerTransport = resolveSigningWorkerTransport(input.signingWorkerTransport);
     this.handlers = new RouterAbEcdsaDerivationPoolFillHandlers({
-      nodeRole: input.config.nodeRole,
       participantIds2p: input.config.participantIds.participantIds2p,
       ensureReady: input.ensureReady,
       signingWorkerTransport: this.signingWorkerTransport,
