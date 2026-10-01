@@ -4,7 +4,9 @@ Date: October 1, 2026. Status: repeated London ready-material comparison and
 first-sign/burst diagnostic complete; temporary DO-scheduled probe unblocks verified Tokyo startup
 and signing. Tokyo now also reaches the ready-material sample target: 180 verified
 signatures, with 30 owner and 60 linked signatures per D1 arm. Broader regional
-and production gates remain open.
+and production gates remain open. A separate real-Console Tokyo diagnostic now
+verifies eighteen signatures; its missing registration projection, cold unlock
+and repeated sample gates remain open.
 
 This log implements the bounded experiment in
 [the ownership review](refactor-152-ownership-review.md) and preserves evidence
@@ -368,6 +370,181 @@ This preflight verifies service composition and credential freshness. It produce
 zero signatures and no regional latency samples; it does not cover successful
 root provisioning, usage-event ingestion, or the full Gateway signing path. No
 Cloudflare resources were created or changed. Those hosted checks remain open.
+
+## Hosted Console fixture provisioning (October 1)
+
+The next preparation run provisions two fresh development identities through the
+production Console D1 organization/project, credential, root-grant and deployment
+candidate services. Console authority stays in the approved APAC database
+`dfe49f40-25b9-45f2-8cdf-e7d28b7685cd`, namespace
+`r152-console-authority-20261001`. The APAC and WEUR Wallet cohorts have distinct
+organizations, projects, `:dev` environments and Wallet namespaces
+`r152-console-auth-apac` / `r152-console-auth-weur`. They do not create two writable
+copies of one owner's authority.
+
+Both tenant-root creation operations reach `ACTIVE`. The Console grant service
+validates the returned identity/lineage against the issued grant and persists
+the complete ready receipt: revision, root commitment, journal digest and
+capability digest. The experiment reuses the existing isolated grant authority;
+all five custody-role deployment versions remain frozen. Subsequent preparation
+runs reuse those active operations and issue new expiring credentials, with
+revocation during cleanup. The initial preparation run restores both Workers
+and closes ingress after revoking its two credentials. The isolated root and
+Console fixture records remain available for the next cohort.
+
+A local migration rehearsal first applies the frozen 39 Wallet migrations and
+the already-installed Console `0046` migration. Adding the remaining 22 Console
+migration files preserves all 161 existing local schema objects. Remote readback
+then verifies every pre-existing schema object unchanged: APAC has 163→367
+objects, while WEUR remains at 163. Only APAC receives the additional Console
+schema. The remote databases report APAC/WEUR primaries respectively. The schema
+comparison accounts for Wrangler's removal of SQL comments and provider-owned
+migration bookkeeping; it preserves the original application definitions.
+
+Private monorepo commit `afb77c6` also extends the local production Console E2E
+through usage ingestion. Delivering the same wallet-created event twice produces
+one Wallet projection and zero entries in `billing_monthly_active_resources`,
+matching the current exclusion of registration from monthly active-resource
+billing. All eleven service responses and nine observations pass; type-checking,
+focused lint and diff checks pass. The initial test query named the retired
+`billing_monthly_active_wallets` table. Classification: `valid_test_needs_update`;
+the assertion now uses the current table and preserves the billing invariant.
+
+Evidence in the private repository:
+`.artifacts/r152/console-hosted-auth-20261001/` contains schema inventories,
+migration hashes, root provisioning receipts, restoration receipts, and
+`local-usage-preflight/console-service-auth-evidence.json`. These preparation
+results alone establish no signing latency.
+
+### Authenticated cohort startup failures
+
+Three bounded signing-cohort attempts followed the provisioning preflight. The
+first rejected an Osaka (`kix06`) placement, then encountered a provider HTTP 500
+reporting a temporarily unavailable Container connection. The second received
+`Worker not found` during the identity check. Neither dispatched a wallet
+workload. Both removed their temporary Worker, DO namespace and Container
+application and restored the original Gateway and Console deployments.
+
+The third attempt used a fresh temporary Worker name and a short readiness
+settling period. It rejected Osaka, verified `nrt08` through the provider instance
+API, and verified the same Tokyo instance after a restart with a new boot ID.
+The APAC workload was dispatched once, then exited before application startup:
+the frozen benchmark harness requires a project/environment name beginning with
+`r150-bench-20260925-do`, while the new fixture used `r152-console-…`. It produced
+zero signatures and no signing artifact. Classification: `valid_test_needs_update`
+for the private fixture input; the isolation invariant remains supported. The
+correction provisions fresh Console identities under the existing allowed
+benchmark prefix and preserves the harness, frozen SDK image and production
+validation unchanged. This is separate from the provider readiness failures.
+
+The three attempt directories are
+`.artifacts/r152/console-sign-r{1,2,3}-20261001/` in Wallet, paired with
+`.artifacts/r152/console-hosted-auth-r{2,3,4}-20261001/` in the private repository.
+The third postflight confirms all eight issued credentials revoked, zero active
+experiment bindings and zero Wallet projections. All seven Gateway/Console and
+custody-role versions match their original deployments. The original regional
+Container applications are inactive with their original images and configuration;
+original probe access returns 403 and ingress returns 503. Each temporary
+Worker/application/namespace has a deletion readback. No latency claim derives
+from these failed attempts.
+
+## Hosted Console signing diagnostic (October 1)
+
+Correcting the private fixture project names to
+`r150-bench-20260925-do-console-{apac,weur}-20261001` allows the unchanged frozen
+benchmark harness to run. Each is a distinct Console development organization
+and project with a complete active tenant-root receipt. Wallet namespaces remain
+`r152-console-auth-apac` and `r152-console-auth-weur`; Console authority remains
+`r152-console-authority-20261001` in APAC. No existing owner moves between homes.
+
+The temporary probe is provider-verified in `nrt08`, then restarts on the same
+instance with a fresh boot ID before dispatch. APAC runs first and WEUR second
+on that same restarted Container. Each fresh wallet completes registration,
+owner→device 2→device 3 linking and nine signatures verified against its original
+wallet keys. Both attempts succeed: **18 verified signatures**, comprising three
+owner and six linked signatures per database arm. Gateway uses production private
+Console sources at `afb77c6` with published Wallet Server 0.7.3 and a private
+measurement wrapper. The SDK image, build-input hash and five custody-role
+versions remain frozen. These results are separate from the static Console
+cohorts.
+
+| Tokyo public SDK signing latency | APAC Wallet D1 | WEUR Wallet D1 |
+| --- | ---: | ---: |
+| Owner median, 3 signatures per arm | 2,165.2 ms | 3,257.6 ms |
+| Owner maximum | 2,474.5 ms | 3,491.4 ms |
+| Linked median, 6 signatures per arm | 1,649.45 ms | 2,655.3 ms |
+| Linked maximum | 1,735.3 ms | 3,024.5 ms |
+
+SDK timing includes confirmation. This one-wallet-per-arm diagnostic has fixed
+arm order and a small sample; it establishes successful hosted signing and
+supports retaining APAC for Tokyo. It does not replace the repeated cohort gate,
+prove cold-unlock behavior, or establish production rollout readiness.
+
+Every owner signature records four foreground Gateway requests, seven Gateway
+D1 calls/eight SQL statements and four real Console active-binding calls. Every
+linked signature records two foreground requests, five Gateway D1 calls/six SQL
+statements and two real Console active-binding calls. Both paths write fourteen
+Gateway D1 rows. The Console calls each perform the existing joined binding read,
+so the measured foreground database-call totals are **11 for owner and 7 for
+linked**, including Console. Foreground counts exclude overlapping background
+refills; they are not total system work.
+
+Console binding D1 wall-time medians remain 62.5 ms/63.0 ms for the APAC/WEUR
+Wallet arms respectively; corresponding SQL medians are 0.358 ms/0.451 ms. All
+48 foreground Console responses succeed and report APAC primary reads. Gateway
+D1 reports the selected APAC or WEUR primary. Median summed Gateway D1 wall time
+per signature is 563→1,907 ms for owner and 499.5→1,665.5 ms for linked. Median
+summed Console call wall time stays 288→279 ms for owner and 145→143 ms for
+linked. These are dependency totals; overlapping client stages must not be added
+to them. Region labels identify broad served regions, not exact D1/DO colocation.
+
+### Remaining registration projection gap
+
+Hosted registration succeeds, but readback finds no rows in the Console
+`wallet_index`. The local direct usage-service E2E passing does not establish
+that the Gateway registration route emits that event. Source inspection at the
+exact 0.7.3 release candidate (`7b5c95f8`) explains the missing producer path:
+`createCloudflareWalletGatewayRouterV1` supplies `apiKeyUsageMeter`, while the
+registration activation handler calls the separate optional `walletProjection`
+adapter. The hosted composition supplies no such adapter; activation's
+`projectActivatedWallet` returns without projecting when it is absent. The
+configured usage client's `recordEvent` has no caller in the Wallet router.
+
+Classification: `production_regression` in hosted Console composition. The
+missing projection remains unfixed in this frozen measurement cohort. The next
+implementation must connect verified registration to the existing Console
+service boundary and test actual activation plus replay, preserving one Wallet
+projection and zero registration monthly-active-resource charges. Do not close
+the authenticated-composition gate from the eighteen signatures alone. A
+separate cold-unlock check and reversed-order repeat also remain open.
+
+Evidence: Wallet `.artifacts/r152/console-sign-r4-20261001/` contains both signed
+artifacts, `summary.json`, source hashes, attempt ledger, provider identities,
+deployed namespace/database bindings and temporary-resource deletion receipts.
+Private `.artifacts/r152/console-hosted-auth-r5-20261001/` contains provisioning
+receipts, emitted build hashes, frozen role versions, projection queries and
+restoration readback. Reproduce the summary with
+`python3 .runtime/r152-console-sign-r4/summarize.py`; repeat provisioning through
+`.runtime/r152-console-hosted-auth-r5/run-provision.mjs` only after regenerating
+its private expiring deployment secrets with `prepare.mjs` and using fresh
+attempt/artifact identities. Private credential-bearing inputs and lifecycle
+traces remain outside the evidence directories.
+
+Final readback confirms all ten experiment credentials revoked, zero active
+experiment bindings, the original seven Gateway/Console/custody-role deployments
+restored, and all original regional Container applications inactive with their
+original images and configuration. The fourth temporary Worker, DO namespace and
+Container application are absent after deletion at 09:14:08 UTC. Original probe
+access returns 403 and ingress returns 503; transient deployment-secret files
+are removed. The two D1 databases and isolated fixture records remain retained.
+
+The September 25–October 1 09:14:37 UTC usage report estimates $1.3215 of the $25
+cap before shared allowances. Container analytics still omit the recent temporary
+applications. A conservative compute-only bound for these four apps' full
+preflight-to-deletion lifetimes is $0.1444, assuming all three candidate instances
+ran continuously at maximum resources; this is supplemental headroom accounting,
+not a measured charge, and excludes network egress. Preserve the earlier
+$0.5714 bound for the nine Tokyo startup/extension apps separately.
 
 ## Target-image diagnosis and hosted Console lookup (October 1)
 

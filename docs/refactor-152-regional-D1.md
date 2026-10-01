@@ -7,8 +7,9 @@ and Tokyo ready-material comparisons each favor their nearby primary. Each
 ready-material comparison has 180 verified signatures: 30 owner and 60 linked
 signatures per D1 arm.
 Tokyo retains one additional collection failure with unknown Wallet outcome.
-Authenticated Console composition, broader workloads and production routing
-remain gated on the checks below. The October 1
+A separate real-Console Tokyo diagnostic verifies eighteen signatures. Missing
+registration projection, cold unlock, repeated authenticated cohorts, broader
+workloads and production routing remain gated on the checks below. The October 1
 [ownership review and first experiment](refactor-152-ownership-review.md)
 defines a whole-deployment-namespace diagnostic and records the remaining
 production routing proof. The October 1 implementation request authorizes that
@@ -244,24 +245,40 @@ Use the same workloads and build identities in these arms:
   origin/environment rejection, rotation, revocation, environment lookup, and
   unprovisioned-root rejection. The existing binding E2E also passes. See the
   [preflight and fixture audit](refactor-152-results.md#authenticated-console-local-preflight-october-1).
-- [ ] Prepare a fresh Console-supported development fixture. The static benchmark
+- [x] Prepare a fresh Console-supported development fixture. The static benchmark
   uses an unsupported key format and `bench` environment; its reduced root receipt
   also lacks Console-required ready fields. Use production provisioning services
-  and retain the full root response. Keep the existing static cohorts unchanged.
-- [ ] Keep Console authority in one fixed database while comparing the two
+  and retain the full root response. Two fresh development identities now have
+  active roots and complete Console grant receipts; their Wallet namespaces and
+  organizations are disjoint. Keep the existing static cohorts unchanged.
+- [x] Prepare Console authority in one fixed database for the two
   Gateway D1 homes. Audit schema overlap and apply required Console migrations
   without resetting retained Wallet data. Configure the complete isolated Console
-  handler and preserve the frozen custody-role deployments.
-- [ ] Verify registration, unlock, root resolution, usage ingestion and signing
-  through the real Gateway → Console composition before collecting latency.
-  Use fresh wallets; keep the SDK fixed within this new cohort and record the
-  published Gateway dependency/build identity separately from earlier static runs.
-  Capture actual Console service dependencies and Gateway D1 calls per request.
-- [ ] Run a matched diagnostic, then extend only after it passes. Keep Console
-  placement fixed, alternate Gateway database arms, retain all failed attempts,
-  and reconcile cost. Remove the temporary active binding, revoke the experiment
-  credential, close ingress, and verify deployment/resource restoration. This
-  cohort must close authenticated composition before a production routing decision.
+  handler and preserve the frozen custody-role deployments. The migration
+  rehearsal and remote readback preserve all existing schema objects. Console
+  authority stays in APAC; only that database receives the additional 22 Console
+  migration files. See the [hosted fixture evidence](refactor-152-results.md#hosted-console-fixture-provisioning-october-1).
+- [x] Run the first hosted signing diagnostic through the real Gateway → Console
+  composition. Two fresh wallets in provider-verified Tokyo complete registration,
+  two generations of linking and 18 verified signatures with the frozen SDK image
+  and Wallet Server 0.7.3. Console stays in APAC while Gateway D1 changes from APAC
+  to WEUR. Record Console calls and Gateway D1 metadata separately. The existing
+  harness namespace check is preserved by correcting the private fixture names.
+  See the [authenticated diagnostic](refactor-152-results.md#hosted-console-signing-diagnostic-october-1).
+- [ ] Close the demonstrated registration-projection gap before extending this
+  cohort: successful hosted registration creates no Console Wallet index entry.
+  Wallet Server 0.7.3 wires a usage client but no registration projection adapter;
+  activation skips its optional projection hook. Wire the verified registration
+  result through the existing Console service boundary, then exercise actual
+  registration and replay through the composed Gateway and assert one projection
+  with no registration monthly-usage charge. Direct usage-client tests alone do
+  not cover this missing producer path. Preserve the successful frozen cohort.
+- [ ] Verify a separate cold unlock and its Console dependencies, then repeat
+  the matched diagnostic with reversed arm order before extending sample counts.
+  Retain failures, reconcile cost, revoke credentials, remove the active binding,
+  close ingress and verify restoration after every cohort. Successful signing
+  alone does not close the complete authenticated-composition gate or authorize
+  production regional routing.
 
 ## Phase 3: prove the ownership boundary
 

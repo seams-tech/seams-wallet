@@ -175,6 +175,18 @@ No successful root provisioning, usage ingestion, full signing or regional
 latency is claimed by this local test. See the
 [preflight evidence](refactor-152-results.md#authenticated-console-local-preflight-october-1).
 
+Hosted fixture preparation subsequently provisions complete active root receipts
+for fresh, disjoint development organizations. Console authority remains in the
+APAC database while each Wallet namespace is bound to its one APAC or WEUR home.
+The additional Console schema preserves all pre-existing Wallet schema objects.
+Private E2E commit `afb77c6` verifies duplicate wallet-created usage delivery
+produces one Console Wallet projection without a monthly active-resource charge.
+This establishes local usage replay behavior and hosted root provisioning;
+a subsequent hosted diagnostic verifies eighteen signatures, while exposing
+a missing registration-to-Console Wallet projection path. Production routing
+remains gated on that composition fix, cold unlock and repeated measurements.
+See the [fixture and startup evidence](refactor-152-results.md#hosted-console-fixture-provisioning-october-1).
+
 Reuse the existing deployment lane, canonical binding revision, activation
 sequence, and bound tenant namespace as the starting routing model. The shared
 `tenant_deployment_binding_v1` currently carries tenant identity, origins,
