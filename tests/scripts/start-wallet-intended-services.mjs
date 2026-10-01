@@ -108,6 +108,8 @@ function startWalletSystem() {
 
 function startIntendedApp(label, origin, cacheName) {
   const url = new URL(origin);
+  // Node readiness probes and Chromium must reach the same loopback listener.
+  const listenHost = url.hostname === 'localhost' ? '127.0.0.1' : url.hostname;
   const configuredCacheRoot =
     process.env.SEAMS_INTENDED_TEST_APP_VITE_CACHE_DIR ||
     path.join(runtimeRoot, '.runtime', 'vite-app');
@@ -138,7 +140,7 @@ function startIntendedApp(label, origin, cacheName) {
       'exec',
       'vite',
       '--host',
-      url.hostname,
+      listenHost,
       '--port',
       url.port,
       '--strictPort',
