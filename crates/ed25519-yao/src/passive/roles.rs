@@ -56,16 +56,12 @@ const ACTIVATION_ROLE_INPUT_BYTES: usize = ACTIVATION_INPUT_BITS_PER_ROLE / 8;
 const EXPORT_ROLE_INPUT_BYTES: usize = EXPORT_INPUT_BITS_PER_ROLE / 8;
 const ACTIVATION_A_DIRECT_LABEL_BYTES: usize = ACTIVATION_INPUT_BITS_PER_ROLE * LABEL_BYTES;
 const EXPORT_A_DIRECT_LABEL_BYTES: usize = EXPORT_INPUT_BITS_PER_ROLE * LABEL_BYTES;
-const ACTIVATION_B_OT_PAIR_BYTES: usize = ACTIVATION_INPUT_BITS_PER_ROLE * 2 * LABEL_BYTES;
-const EXPORT_B_OT_PAIR_BYTES: usize = EXPORT_INPUT_BITS_PER_ROLE * 2 * LABEL_BYTES;
 const ACTIVATION_B_OUTPUT_DECODE_BYTES: usize = ACTIVATION_OUTPUT_BITS_PER_ROLE / 8;
 const EXPORT_B_OUTPUT_DECODE_BYTES: usize = EXPORT_OUTPUT_BITS_PER_ROLE / 8;
 const ACTIVATION_A_SELECTED_OUTPUT_BYTES: usize = ACTIVATION_OUTPUT_BITS_PER_ROLE * LABEL_BYTES;
 const EXPORT_A_SELECTED_OUTPUT_BYTES: usize = EXPORT_OUTPUT_BITS_PER_ROLE * LABEL_BYTES;
 const LANE_MATERIALIZATION_A_DIRECT_LABEL_BYTES: usize =
     LANE_MATERIALIZATION_INPUT_BITS_PER_ROLE * LABEL_BYTES;
-const LANE_MATERIALIZATION_B_OT_PAIR_BYTES: usize =
-    LANE_MATERIALIZATION_INPUT_BITS_PER_ROLE * 2 * LABEL_BYTES;
 const LANE_MATERIALIZATION_B_OUTPUT_DECODE_BYTES: usize =
     LANE_MATERIALIZATION_OUTPUT_BITS_PER_ROLE / 8;
 const LANE_MATERIALIZATION_A_SELECTED_OUTPUT_BYTES: usize =
@@ -1129,67 +1125,6 @@ define_message_type!(
     LANE_MATERIALIZATION_A_SELECTED_OUTPUT_BYTES
 );
 
-macro_rules! define_bound_secret_payload {
-    ($name:ident, $binding:ident, $payload_bytes:expr) => {
-        pub(super) struct $name {
-            binding: $binding,
-            payload: SecretPayload,
-        }
-
-        impl $name {
-            pub(super) fn from_secret_payload(
-                binding: $binding,
-                payload: &[u8],
-            ) -> Result<Self, RoleBoundaryError> {
-                Ok(Self {
-                    binding,
-                    payload: SecretPayload::copy_exact(payload, $payload_bytes)?,
-                })
-            }
-
-            pub(super) const fn binding(&self) -> $binding {
-                self.binding
-            }
-
-            pub(super) fn secret_payload(&self) -> &[u8] {
-                self.payload.as_slice()
-            }
-        }
-
-        impl fmt::Debug for $name {
-            fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-                formatter.write_str(concat!(stringify!($name), "([REDACTED])"))
-            }
-        }
-    };
-}
-
-define_bound_secret_payload!(
-    ActivationBOtSenderPairs,
-    ActivationSessionBinding,
-    ACTIVATION_B_OT_PAIR_BYTES
-);
-define_bound_secret_payload!(
-    ExportBOtSenderPairs,
-    ExportSessionBinding,
-    EXPORT_B_OT_PAIR_BYTES
-);
-define_bound_secret_payload!(
-    ActivationBSelectedInputLabels,
-    ActivationSessionBinding,
-    ACTIVATION_A_DIRECT_LABEL_BYTES
-);
-define_bound_secret_payload!(
-    ExportBSelectedInputLabels,
-    ExportSessionBinding,
-    EXPORT_A_DIRECT_LABEL_BYTES
-);
-define_bound_secret_payload!(
-    LaneMaterializationBOtSenderPairs,
-    LaneSessionBinding,
-    LANE_MATERIALIZATION_B_OT_PAIR_BYTES
-);
-
 pub(super) struct ActivationBOtChoices {
     binding: ActivationSessionBinding,
     choices: SecretRoleInputBytes,
@@ -1596,31 +1531,6 @@ mod tests {
             &vec![0; EXPORT_A_SELECTED_OUTPUT_BYTES]
         )
         .is_ok());
-    }
-
-    #[test]
-    fn local_ot_material_is_exact_width_and_has_no_wire_codec() {
-        let activation_pairs = ActivationBOtSenderPairs::from_secret_payload(
-            activation_binding(),
-            &vec![0x44; ACTIVATION_B_OT_PAIR_BYTES],
-        )
-        .expect("pairs");
-        assert_eq!(
-            activation_pairs.secret_payload().len(),
-            ACTIVATION_B_OT_PAIR_BYTES
-        );
-        assert_eq!(activation_pairs.binding(), activation_binding());
-
-        let export_selected = ExportBSelectedInputLabels::from_secret_payload(
-            export_binding(),
-            &vec![0x55; EXPORT_A_DIRECT_LABEL_BYTES],
-        )
-        .expect("selected labels");
-        assert_eq!(
-            export_selected.secret_payload().len(),
-            EXPORT_A_DIRECT_LABEL_BYTES
-        );
-        assert_eq!(export_selected.binding(), export_binding());
     }
 
     #[test]

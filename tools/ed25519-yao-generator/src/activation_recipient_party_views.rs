@@ -365,11 +365,6 @@ impl HostOnlySigningWorkerActivationRecipientsReleasedPartyViewV1 {
     ) -> OpaqueHostReferenceActivationSigningWorkerDeliveryEvidenceDigest32V1 {
         self.authority.delivery_evidence()
     }
-
-    /// Consumes this view into the exact SigningWorker activation authority.
-    pub fn into_authority(self) -> HostOnlySigningWorkerActivationReleaseAuthorityV1 {
-        self.authority
-    }
 }
 
 macro_rules! define_empty_released_view {

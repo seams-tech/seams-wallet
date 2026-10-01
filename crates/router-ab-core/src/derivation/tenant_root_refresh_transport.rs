@@ -665,19 +665,6 @@ impl TenantRootSignedRefreshCommitmentV1 {
         )
     }
 
-    /// Verifies a restore-only signed refresh commitment in a create context.
-    pub fn verify_restore(
-        &self,
-        verifying_key_bytes: &[u8; 32],
-    ) -> RouterAbDerivationResult<VerifiedTenantRootRefreshCommitmentV1> {
-        self.verify_restore_strict(
-            self.transcript.context(),
-            self.transcript.source(),
-            self.signing_key_id(),
-            verifying_key_bytes,
-        )
-    }
-
     /// Verifies this commitment against one expected context, role, and key id.
     pub fn verify_strict(
         &self,

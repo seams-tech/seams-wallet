@@ -1,6 +1,5 @@
 use crate::error::{RouterAbEcdsaDerivationError, RouterAbEcdsaDerivationResult};
 
-pub const ROUTER_AB_ECDSA_DERIVATION_CONTEXT_VERSION: &str = "v1";
 pub const ROUTER_AB_ECDSA_DERIVATION_CONTEXT_DOMAIN_TAG: &[u8] =
     b"router-ab-ecdsa-derivation/context/v1";
 pub const ROUTER_AB_ECDSA_DERIVATION_SCHEME_ID: &str = "router-ab-ecdsa-derivation-v1";

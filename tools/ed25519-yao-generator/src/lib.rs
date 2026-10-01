@@ -408,16 +408,15 @@ pub use registration_reference::{
     HostOnlyRegistrationReferenceSuccessV1,
 };
 pub use semantic_delivery_views::{
-    HostOnlyActivationSuccessSemanticTraceV1, HostOnlyClientSemanticDeliveryViewV1,
-    HostOnlyDeriverASemanticDeliveryViewV1, HostOnlyDeriverBSemanticDeliveryViewV1,
-    HostOnlyDiagnosticsSemanticDeliveryViewV1, HostOnlyEvaluatorAbortSemanticTraceV1,
-    HostOnlyExportSuccessSemanticTraceV1, HostOnlyObserverSemanticDeliveryViewV1,
-    HostOnlyRouterSemanticDeliveryViewV1, HostOnlySemanticDeliveryStateV1,
-    HostOnlySemanticDeliveryViewSetV1, HostOnlySemanticPrivateValueClassV1,
-    HostOnlySemanticPublicEventV1, HostOnlySemanticRoleV1, HostOnlySemanticTraceStepV1,
-    HostOnlySemanticValueClassV1, HostOnlySigningWorkerSemanticDeliveryViewV1,
-    HOST_ONLY_SEMANTIC_DELIVERY_STATES_V1, HOST_ONLY_SEMANTIC_PRIVATE_VALUE_CLASSES_V1,
-    HOST_ONLY_SEMANTIC_PUBLIC_EVENTS_V1, HOST_ONLY_SEMANTIC_ROLES_V1,
+    HostOnlyClientSemanticDeliveryViewV1, HostOnlyDeriverASemanticDeliveryViewV1,
+    HostOnlyDeriverBSemanticDeliveryViewV1, HostOnlyDiagnosticsSemanticDeliveryViewV1,
+    HostOnlyObserverSemanticDeliveryViewV1, HostOnlyRouterSemanticDeliveryViewV1,
+    HostOnlySemanticDeliveryStateV1, HostOnlySemanticDeliveryViewSetV1,
+    HostOnlySemanticPrivateValueClassV1, HostOnlySemanticPublicEventV1, HostOnlySemanticRoleV1,
+    HostOnlySemanticTraceStepV1, HostOnlySemanticValueClassV1,
+    HostOnlySigningWorkerSemanticDeliveryViewV1, HOST_ONLY_SEMANTIC_DELIVERY_STATES_V1,
+    HOST_ONLY_SEMANTIC_PRIVATE_VALUE_CLASSES_V1, HOST_ONLY_SEMANTIC_PUBLIC_EVENTS_V1,
+    HOST_ONLY_SEMANTIC_ROLES_V1,
 };
 pub use semantic_frame_classes::{
     HostOnlySemanticFrameClassV1, HostOnlySemanticFrameDirectionV1,

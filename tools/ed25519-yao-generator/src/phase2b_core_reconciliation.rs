@@ -118,11 +118,6 @@ impl Phase2bCoreReconciliationCorpusV1 {
         &self.evidence_scope
     }
 
-    /// Returns the exact Phase 1 commitment count.
-    pub fn phase1_corpus_count(&self) -> usize {
-        self.phase1_corpus_commitments.len()
-    }
-
     /// Returns the exact request-kind reconciliation count.
     pub fn case_count(&self) -> usize {
         self.cases.len()

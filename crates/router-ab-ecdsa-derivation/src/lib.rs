@@ -5,8 +5,7 @@ pub use error::{
     RouterAbEcdsaDerivationError, RouterAbEcdsaDerivationErrorCode, RouterAbEcdsaDerivationResult,
 };
 pub use shared::context::{
-    encode_context, RouterAbEcdsaDerivationStableKeyContext,
-    ROUTER_AB_ECDSA_DERIVATION_CONTEXT_VERSION, ROUTER_AB_ECDSA_DERIVATION_CURVE,
+    encode_context, RouterAbEcdsaDerivationStableKeyContext, ROUTER_AB_ECDSA_DERIVATION_CURVE,
     ROUTER_AB_ECDSA_DERIVATION_PARTICIPANT_IDS, ROUTER_AB_ECDSA_DERIVATION_SCHEME_ID,
 };
 pub use shared::derive::{

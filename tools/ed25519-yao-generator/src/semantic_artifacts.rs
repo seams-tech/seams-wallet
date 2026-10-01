@@ -1731,14 +1731,6 @@ impl ActivationArtifactBindingV1 {
     pub const fn registered_public_key(&self) -> RegisteredEd25519PublicKey32V1 {
         self.registered_public_key
     }
-
-    /// Checks that a sealed origin DAG is the exact ceremony bound by the artifacts.
-    pub fn matches_origin_dag(&self, origin: CeremonyValidatedDagV1) -> bool {
-        self.origin_request_kind == origin.request_kind()
-            && self.origin_request_context_digest == origin.request_context_digest()
-            && self.origin_authorization_digest == origin.authorization_digest()
-            && self.origin_transcript_digest == origin.transcript_digest()
-    }
 }
 
 /// Move-owned activation package set and its exact output-committed receipt.

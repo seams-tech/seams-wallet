@@ -321,13 +321,6 @@ impl TenantRootCreationJournalV1 {
     }
 }
 
-/// Decodes one canonical tenant-root creation journal blob.
-pub fn decode_tenant_root_creation_journal_v1(
-    bytes: &[u8],
-) -> RouterAbDerivationResult<TenantRootCreationJournalV1> {
-    TenantRootCreationJournalV1::decode_canonical_bytes(bytes)
-}
-
 /// Rebuilds one tenant-root creation state from its canonical journal blob.
 pub fn rebuild_tenant_root_creation_state_v1(
     bytes: &[u8],

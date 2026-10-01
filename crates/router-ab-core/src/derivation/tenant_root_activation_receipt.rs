@@ -101,38 +101,6 @@ pub enum TenantRootActivationReceiptAvailabilityV1 {
 }
 
 impl TenantRootActivationReceiptAvailabilityV1 {
-    /// Returns the exact A/B managed-backup receipt digests for this branch.
-    pub const fn current_role_backup_receipts(&self) -> Option<TenantRootRoleBackupReceiptsV1> {
-        match self {
-            Self::CurrentRoleBackups { receipts } => Some(*receipts),
-            Self::AcceptedPermanentDerivationLoss { .. } | Self::TenantHeldExternal { .. } => None,
-        }
-    }
-
-    /// Returns the exact accepted-loss authorization bytes for this branch.
-    pub fn accepted_loss_authorization_bytes(&self) -> Option<&[u8]> {
-        match self {
-            Self::CurrentRoleBackups { .. } | Self::TenantHeldExternal { .. } => None,
-            Self::AcceptedPermanentDerivationLoss {
-                authorization_bytes,
-                ..
-            } => Some(authorization_bytes),
-        }
-    }
-
-    /// Returns the exact accepted-loss authorization digest for this branch.
-    pub const fn accepted_loss_authorization_digest(
-        &self,
-    ) -> Option<&TenantRootAcceptedPermanentLossAuthorizationDigestV1> {
-        match self {
-            Self::CurrentRoleBackups { .. } | Self::TenantHeldExternal { .. } => None,
-            Self::AcceptedPermanentDerivationLoss {
-                authorization_digest,
-                ..
-            } => Some(authorization_digest),
-        }
-    }
-
     /// Returns the verified tenant-held external provenance for this branch.
     pub const fn tenant_held_external_provenance(
         &self,

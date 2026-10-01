@@ -4,7 +4,6 @@
 //! does not own any companion state transition or secret value.
 
 use crate::ceremony_context::CeremonyRequestKindV1;
-use crate::lifecycle_domain::ActivationPackageOriginV1;
 use crate::semantic_frame_classes::HostOnlySemanticFrameClassV1;
 
 /// Closed semantic delivery state labels.
@@ -546,51 +545,6 @@ pub(crate) const fn evaluator_abort_trace_steps_v1(
         | CeremonyRequestKindV1::Refresh => Some(&ACTIVATION_ABORT_TRACE_STEPS),
         CeremonyRequestKindV1::Export => Some(&EXPORT_ABORT_TRACE_STEPS),
         CeremonyRequestKindV1::Activation => None,
-    }
-}
-
-/// Validated registration, recovery, or refresh trace through worker activation.
-pub struct HostOnlyActivationSuccessSemanticTraceV1 {
-    origin: ActivationPackageOriginV1,
-}
-
-impl HostOnlyActivationSuccessSemanticTraceV1 {
-    /// Returns the exact activation-package origin.
-    pub const fn origin(&self) -> ActivationPackageOriginV1 {
-        self.origin
-    }
-
-    /// Returns the fixed nine-step sequence, including redelivery before activation.
-    pub const fn steps(&self) -> &'static [HostOnlySemanticTraceStepV1; 9] {
-        activation_success_trace_steps_v1()
-    }
-}
-
-/// Validated export trace through release and subsequent exact redelivery.
-pub struct HostOnlyExportSuccessSemanticTraceV1;
-
-impl HostOnlyExportSuccessSemanticTraceV1 {
-    /// Returns the fixed seven-step sequence.
-    pub const fn steps(&self) -> &'static [HostOnlySemanticTraceStepV1; 7] {
-        export_success_trace_steps_v1()
-    }
-}
-
-/// Validated branch-typed evaluator-abort trace.
-pub struct HostOnlyEvaluatorAbortSemanticTraceV1 {
-    request_kind: CeremonyRequestKindV1,
-    steps: [HostOnlySemanticTraceStepV1; 4],
-}
-
-impl HostOnlyEvaluatorAbortSemanticTraceV1 {
-    /// Returns the request kind derived from retained abort evidence.
-    pub const fn request_kind(&self) -> CeremonyRequestKindV1 {
-        self.request_kind
-    }
-
-    /// Returns the fixed terminal-abort sequence.
-    pub const fn steps(&self) -> &[HostOnlySemanticTraceStepV1; 4] {
-        &self.steps
     }
 }
 
@@ -1256,24 +1210,6 @@ const fn diagnostics_values(_: SemanticStageV1) -> &'static [Value] {
 mod tests {
     use super::*;
 
-    type ActivationTraceIdentityV1 = (ActivationPackageOriginV1, [u8; 32], [u8; 32]);
-    type ExportTraceIdentityV1 = ([u8; 32], [u8; 32]);
-
-    fn activation_trace_identities_match(
-        origin: ActivationPackageOriginV1,
-        expected: ActivationTraceIdentityV1,
-        continuations: [ActivationTraceIdentityV1; 5],
-    ) -> bool {
-        expected.0 == origin && continuations == [expected; 5]
-    }
-
-    fn export_trace_identities_match(
-        expected: ExportTraceIdentityV1,
-        continuations: [ExportTraceIdentityV1; 3],
-    ) -> bool {
-        continuations == [expected; 3]
-    }
-
     fn stage(stage: SemanticStageV1) -> HostOnlySemanticDeliveryViewSetV1 {
         HostOnlySemanticDeliveryViewSetV1 { stage }
     }
@@ -1417,33 +1353,5 @@ mod tests {
             HostOnlySemanticDeliveryStateV1::EvaluatorAborted
         );
         assert!(abort[3].emitted_frame_classes().is_empty());
-    }
-
-    #[test]
-    fn identity_continuity_rejects_cross_trace_splices() {
-        let expected = (ActivationPackageOriginV1::Registration, [7; 32], [9; 32]);
-        assert!(activation_trace_identities_match(
-            ActivationPackageOriginV1::Registration,
-            expected,
-            [expected; 5]
-        ));
-        let mut spliced = [expected; 5];
-        spliced[3].1 = [8; 32];
-        assert!(!activation_trace_identities_match(
-            ActivationPackageOriginV1::Registration,
-            expected,
-            spliced
-        ));
-        assert!(!activation_trace_identities_match(
-            ActivationPackageOriginV1::Recovery,
-            expected,
-            [expected; 5]
-        ));
-
-        let export = ([3; 32], [4; 32]);
-        assert!(export_trace_identities_match(export, [export; 3]));
-        let mut export_splice = [export; 3];
-        export_splice[1].1 = [5; 32];
-        assert!(!export_trace_identities_match(export, export_splice));
     }
 }

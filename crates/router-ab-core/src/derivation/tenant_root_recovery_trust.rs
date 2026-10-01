@@ -26,7 +26,6 @@ use core::fmt;
 use ed25519_dalek::{Signature, Signer, SigningKey, VerifyingKey};
 use serde::{Deserialize, Serialize, Serializer};
 use serde_json::Value;
-use threshold_prf::TwoPartyDeriverRole;
 
 use super::tenant_root_recovery_artifacts::{
     canonical_json_bytes, decode_base64url_fixed, encode_base64url, json_object, malformed,
@@ -78,7 +77,7 @@ const TENANT_ROOT_RECOVERY_TRUST_MAX_KEY_ID_LEN_V1: usize = 128;
 
 /// Signer role authorized by one recovery certificate.
 ///
-/// Wider than [`TwoPartyDeriverRole`]: the control plane signs the manifest but
+/// Wider than [`threshold_prf::TwoPartyDeriverRole`]: the control plane signs the manifest but
 /// holds no derivation role.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TenantRootRecoverySignerRoleV1 {
@@ -97,14 +96,6 @@ impl TenantRootRecoverySignerRoleV1 {
             Self::DeriverA => "deriver_a",
             Self::DeriverB => "deriver_b",
             Self::ControlPlane => "control_plane",
-        }
-    }
-
-    /// Returns the signer role for one derivation role.
-    pub const fn from_deriver_role(role: TwoPartyDeriverRole) -> Self {
-        match role {
-            TwoPartyDeriverRole::DeriverA => Self::DeriverA,
-            TwoPartyDeriverRole::DeriverB => Self::DeriverB,
         }
     }
 

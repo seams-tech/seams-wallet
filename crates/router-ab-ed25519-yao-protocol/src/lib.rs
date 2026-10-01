@@ -255,15 +255,6 @@ macro_rules! define_lane_role_request {
 define_lane_role_request!(LocalEd25519YaoLaneDeriverARequestV1);
 define_lane_role_request!(LocalEd25519YaoLaneDeriverBRequestV1);
 
-/// Lane provisioning role input alias retained as a distinct semantic type.
-pub type LocalEd25519YaoLaneProvisioningDeriverARequestV1 = LocalEd25519YaoLaneDeriverARequestV1;
-/// Lane provisioning role input alias retained as a distinct semantic type.
-pub type LocalEd25519YaoLaneProvisioningDeriverBRequestV1 = LocalEd25519YaoLaneDeriverBRequestV1;
-/// Lane refresh role input alias retained as a distinct semantic type.
-pub type LocalEd25519YaoLaneRefreshDeriverARequestV1 = LocalEd25519YaoLaneDeriverARequestV1;
-/// Lane refresh role input alias retained as a distinct semantic type.
-pub type LocalEd25519YaoLaneRefreshDeriverBRequestV1 = LocalEd25519YaoLaneDeriverBRequestV1;
-
 /// Stable application-binding construction failure.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct StableKeyDerivationContextError;

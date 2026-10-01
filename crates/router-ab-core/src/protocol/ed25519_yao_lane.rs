@@ -180,11 +180,6 @@ impl Ed25519YaoLaneTargetV1 {
         }
     }
 
-    /// Returns whether this is a creation branch.
-    pub const fn is_creation(&self) -> bool {
-        matches!(self, Self::CreateLane { .. })
-    }
-
     /// Returns the prior activation on a refresh branch.
     pub fn prior_material_activation(&self) -> Option<&MpcMaterialActivationRefV1> {
         match self {
@@ -1356,11 +1351,6 @@ impl Ed25519YaoLaneProtocolCommittedV1 {
     /// Computes the digest-addressed product receipt identity.
     pub fn digest_v1(&self) -> RouterAbProtocolResult<[u8; 32]> {
         Ok(Sha256::digest(self.canonical_bytes_v1()?).into())
-    }
-
-    /// Returns true when a delivery can be redelivered under this receipt.
-    pub fn accepts_redelivery(&self, operation_id: &str, transcript_hash_b64u: &str) -> bool {
-        self.operation_id == operation_id && self.transcript_hash_b64u == transcript_hash_b64u
     }
 }
 
