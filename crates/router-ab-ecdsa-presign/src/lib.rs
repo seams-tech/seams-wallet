@@ -1,8 +1,8 @@
 //! Fixed-role 2-of-2 Router A/B ECDSA presigning.
 //!
 //! The production surface exposes role-local sessions and key-share parsing.
-//! Protocol internals are available only to this crate and the pinned oracle
-//! through the explicit `test-utils` feature.
+//! Protocol internals are private to this crate; its unit tests reach them
+//! through `#[cfg(test)]` accessors.
 //!
 //! ```compile_fail
 //! use router_ab_ecdsa_presign::driver::start_client_driver;
@@ -46,15 +46,9 @@
 
 mod codec;
 mod driver;
-#[cfg(not(any(test, feature = "test-utils")))]
 mod proofs;
-#[cfg(any(test, feature = "test-utils"))]
-pub mod proofs;
 pub mod session;
-#[cfg(not(any(test, feature = "test-utils")))]
 mod triples;
-#[cfg(any(test, feature = "test-utils"))]
-pub mod triples;
 
 use core::fmt;
 
@@ -148,7 +142,7 @@ struct TripleShare {
     c: Scalar,
 }
 
-#[cfg(any(test, feature = "test-utils"))]
+#[cfg(test)]
 impl TripleShare {
     fn from_bytes(a: ScalarBytes, b: ScalarBytes, c: ScalarBytes) -> Result<Self, PresignError> {
         Ok(Self {
@@ -170,7 +164,7 @@ pub struct ValidatedTriple {
     public: TriplePublic,
 }
 
-#[cfg(any(test, feature = "test-utils"))]
+#[cfg(test)]
 impl ValidatedTriple {
     pub fn from_test_parts(
         a: ScalarBytes,

@@ -3,8 +3,9 @@
 Status: bounded Phase D source-to-target inventory. The source corpus is NEAR
 `threshold-signatures` commit
 `db609be5021eb9d794f577601f422818fbdfe246`, tree
-`05f60d54971e2f1e417dab7191f0f5d02f82468c`. The oracle manifest pins every
-source file cited below by SHA-256. This inventory covers the fixed two-role
+`05f60d54971e2f1e417dab7191f0f5d02f82468c`. The oracle manifest that pinned
+every source file cited below by SHA-256 was removed with the oracle test
+crate. This inventory covers the fixed two-role
 triple, presign, rerandomization, and signing call graph selected by the
 refactor. Generic multi-party branches outside that graph are excluded.
 
@@ -110,7 +111,6 @@ review gate. Transport deadlines, authenticated delivery, atomic persistence,
 and independent-account non-collusion retain their deployment and operational
 assumptions.
 
-The machine guard in the oracle crate verifies the complete required ID set,
-the absence of placeholder rows, the pinned source tree, and every cited
-source-file digest. Changes to the fixed-path call graph require a reviewed
-inventory and oracle-manifest update.
+The machine guard for the required ID set and placeholder rows was removed
+with the oracle test crate, so nothing checks this inventory automatically.
+Changes to the fixed-path call graph require a reviewed inventory update.

@@ -17,7 +17,7 @@ triple-generation session. The shape is compile-time fixed:
 
 The APIs encode Client and SigningWorker roles in separate state and message
 types. Every transition consumes its prior state. Outputs remain sealed for
-the MTA layer; extraction exists only under `test-utils`.
+the MTA layer; extraction exists only under unit-test compilation.
 
 ## Protocol
 

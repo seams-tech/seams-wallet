@@ -273,7 +273,7 @@ impl SigningWorkerBaseRotSenderState {
     }
 }
 
-#[cfg(any(test, feature = "test-utils"))]
+#[cfg(test)]
 macro_rules! define_sender_test_parts {
     ($name:ident) => {
         impl $name {
@@ -284,7 +284,7 @@ macro_rules! define_sender_test_parts {
     };
 }
 
-#[cfg(any(test, feature = "test-utils"))]
+#[cfg(test)]
 macro_rules! define_receiver_test_parts {
     ($name:ident) => {
         impl $name {
@@ -295,13 +295,13 @@ macro_rules! define_receiver_test_parts {
     };
 }
 
-#[cfg(any(test, feature = "test-utils"))]
+#[cfg(test)]
 define_sender_test_parts!(ClientBaseRotSenderOutput);
-#[cfg(any(test, feature = "test-utils"))]
+#[cfg(test)]
 define_sender_test_parts!(SigningWorkerBaseRotSenderOutput);
-#[cfg(any(test, feature = "test-utils"))]
+#[cfg(test)]
 define_receiver_test_parts!(ClientBaseRotReceiverOutput);
-#[cfg(any(test, feature = "test-utils"))]
+#[cfg(test)]
 define_receiver_test_parts!(SigningWorkerBaseRotReceiverOutput);
 
 fn start_sender(

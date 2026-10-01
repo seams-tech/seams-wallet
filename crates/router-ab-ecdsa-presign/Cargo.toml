@@ -14,10 +14,6 @@ sha2 = "0.10"
 subtle = "2.6"
 zeroize = { version = "1.8", features = ["zeroize_derive"] }
 
-[features]
-default = []
-test-utils = []
-
 [dev-dependencies]
 rand_chacha = "0.3"
 router-ab-ecdsa-online = { path = "../router-ab-ecdsa-online" }

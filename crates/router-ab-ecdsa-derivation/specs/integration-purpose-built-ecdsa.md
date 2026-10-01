@@ -26,8 +26,8 @@ no backend share mapping or generic threshold-signing representation.
   the SigningWorker signature.
 - Role-specific Wasm crates expose only the operations owned by their runtime.
 
-The pinned NEAR implementation is a dev/test oracle. It is absent from normal
-and build dependency graphs for all production owners.
+The pinned NEAR implementation was a dev/test oracle. Its test crate has been
+removed, and no crate in the repository depends on it.
 
 ## Lifecycle
 

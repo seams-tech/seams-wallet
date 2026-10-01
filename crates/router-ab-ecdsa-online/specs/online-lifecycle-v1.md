@@ -85,7 +85,7 @@ excluded claims.
 | OL-PERSIST-01 | Reserve, commit, consumption, and destruction survive crashes and ambiguous delivery. | `../router-ab-ecdsa-pool/src/lib.rs:218-465`; `packages/wallet/src/core/signingEngine/workerManager/opaqueEcdsaPresignAuthority.ts`; `crates/router-ab-cloudflare/src/ecdsa_pool_lifecycle.rs` | Full local integration | 0.99 |
 | OL-CONTEXT-01 | Wallet, account, scope, pair, and request identities bind the pool record and online receipt. | The online kernel binds `R`, digest, group key, entropy, and fixed participant IDs. The pool contract and both concrete adapters bind wallet, account, scope, pair, role, epochs, protocol, request, and reservation identities. | Full local integration | 0.99 |
 | OL-COIN-01 | Either honest signing role makes rerandomization entropy unpredictable to the corrupt peer. | Prepare request digest binds the Client SHA-256 commitment; SigningWorker samples and persists its contribution only after admission; finalize opens the commitment before material access; the kernel XORs the two contributions before the context-bound HKDF. | Full composed integration | 0.99 |
-| OL-CORPUS-01 | Valid and invalid behavior matches the bounded pinned NEAR oracle corpus. | Four semantic cases, the critical abort corpus, and the final signature parity vectors execute against the digest-pinned oracle manifest. | Full bounded corpus | 1.00 |
+| OL-CORPUS-01 | Valid and invalid behavior matches the bounded pinned NEAR oracle corpus. | The critical abort corpus and the frozen final-signature vector. The four semantic cases and the digest-pinned oracle manifest were removed with the oracle test crate. | Abort corpus and frozen vector only | 1.00 |
 
 Line references describe checkpoint 10 and must be refreshed when the source
 layout changes.
@@ -144,3 +144,7 @@ The static constant-time scanner is heuristic. Compiled-Wasm opcode inspection
 is complete; conditional-branch dataflow and target-runtime timing remain
 explicit non-claims. The production presign Client and SigningWorker wrappers
 use the purpose-built fixed backend and exclude the NEAR dependency graph.
+
+The oracle parity test and the dependency and source guards recorded above
+were later removed with the oracle test crate
+`router-ab-ecdsa-near-oracle-tests`.

@@ -70,8 +70,7 @@ retry with counters `0..255`; exhaustion returns a typed terminal error.
 
 Production proof functions accept a `CryptoRngCore` and generate fresh non-zero
 nonces internally. Caller-supplied nonce APIs and `ProofNonce` exist only under
-unit-test or `test-utils` compilation. The oracle crate is the only current
-consumer of `test-utils`. Production dependency checks reject that feature.
+unit-test compilation.
 
 Secret witness and nonce types expose no `Clone`, `Copy`, `Debug`, or broad
 serialization. They zeroize on drop. Proof statements and outputs are public

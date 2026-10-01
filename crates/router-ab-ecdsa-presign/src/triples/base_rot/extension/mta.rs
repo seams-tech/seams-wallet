@@ -6,7 +6,7 @@ use k256::{
 };
 use rand_core::CryptoRngCore;
 use router_ab_ecdsa_wire::PresignPairContext;
-#[cfg(any(test, feature = "test-utils"))]
+#[cfg(test)]
 use router_ab_ecdsa_wire::ScalarBytes;
 use sha2::{Digest, Sha512};
 use subtle::{Choice, ConditionallySelectable};
@@ -78,7 +78,7 @@ pub struct SigningWorkerMultiplicationOperands(MultiplicationOperands);
 macro_rules! define_operands {
     ($name:ident) => {
         impl $name {
-            #[cfg(any(test, feature = "test-utils"))]
+            #[cfg(test)]
             pub fn from_parts(
                 context: PresignPairContext,
                 triple_index: TripleIndex,
@@ -431,7 +431,7 @@ impl SigningWorkerMtaSenderAwaitingResponse {
     }
 }
 
-#[cfg(any(test, feature = "test-utils"))]
+#[cfg(test)]
 macro_rules! define_share_test_parts {
     ($name:ident) => {
         impl $name {
@@ -446,12 +446,12 @@ macro_rules! define_share_test_parts {
     };
 }
 
-#[cfg(any(test, feature = "test-utils"))]
+#[cfg(test)]
 define_share_test_parts!(ClientMultiplicationShare);
-#[cfg(any(test, feature = "test-utils"))]
+#[cfg(test)]
 define_share_test_parts!(SigningWorkerMultiplicationShare);
 
-#[cfg(any(test, feature = "test-utils"))]
+#[cfg(test)]
 macro_rules! define_two_triple_test_parts {
     ($name:ident) => {
         impl $name {
@@ -468,10 +468,8 @@ macro_rules! define_two_triple_test_parts {
     };
 }
 
-#[cfg(any(test, feature = "test-utils"))]
+#[cfg(test)]
 define_two_triple_test_parts!(ClientTwoTripleMultiplicationShares);
-#[cfg(any(test, feature = "test-utils"))]
-define_two_triple_test_parts!(SigningWorkerTwoTripleMultiplicationShares);
 
 fn start_sender(
     random_ot: ExtensionSenderOutput,

@@ -636,7 +636,7 @@ impl SigningWorkerExtensionReceiverAwaitingAcceptance {
     }
 }
 
-#[cfg(any(test, feature = "test-utils"))]
+#[cfg(test)]
 macro_rules! define_sender_test_parts {
     ($name:ident) => {
         impl $name {
@@ -647,7 +647,7 @@ macro_rules! define_sender_test_parts {
     };
 }
 
-#[cfg(any(test, feature = "test-utils"))]
+#[cfg(test)]
 macro_rules! define_receiver_test_parts {
     ($name:ident) => {
         impl $name {
@@ -658,13 +658,13 @@ macro_rules! define_receiver_test_parts {
     };
 }
 
-#[cfg(any(test, feature = "test-utils"))]
+#[cfg(test)]
 define_sender_test_parts!(ClientRandomOtSenderOutput);
-#[cfg(any(test, feature = "test-utils"))]
+#[cfg(test)]
 define_sender_test_parts!(SigningWorkerRandomOtSenderOutput);
-#[cfg(any(test, feature = "test-utils"))]
+#[cfg(test)]
 define_receiver_test_parts!(ClientRandomOtReceiverOutput);
-#[cfg(any(test, feature = "test-utils"))]
+#[cfg(test)]
 define_receiver_test_parts!(SigningWorkerRandomOtReceiverOutput);
 
 fn start_receiver(

@@ -7,7 +7,7 @@ construction. The complete source dispositions live in
 [`upstream-check-inventory.md`](./upstream-check-inventory.md).
 
 Every evidence name below is a Rust test or compile-fail fixture. The presign,
-online, pool, and oracle suites must all pass together. A returned protocol
+online, and pool suites must all pass together. A returned protocol
 error consumes its role state; the persistence adapters then tombstone the
 reserved or committed pair.
 

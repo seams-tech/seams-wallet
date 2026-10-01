@@ -168,4 +168,4 @@ SigningWorker path, and freezes the SHA-256 digest of the resulting signature:
 
 This vector detects accidental protocol drift. It establishes deterministic
 behavior for the selected inputs; it is not a security proof or a substitute
-for the Phase D oracle and malformed-message corpus.
+for the Phase D malformed-message corpus.

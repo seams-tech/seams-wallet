@@ -153,11 +153,11 @@ impl ProofWitness {
     }
 }
 
-#[cfg(any(test, feature = "test-utils"))]
+#[cfg(test)]
 #[derive(Zeroize, ZeroizeOnDrop)]
 pub struct ProofNonce(Scalar);
 
-#[cfg(any(test, feature = "test-utils"))]
+#[cfg(test)]
 impl ProofNonce {
     pub fn from_bytes(bytes: ScalarBytes) -> Result<Self, ProofError> {
         let scalar = parse_scalar(bytes.into_bytes())?;
@@ -343,7 +343,7 @@ pub fn verify_signing_worker_dlog_eq(
     verify_dlog_eq(ROLE_SIGNING_WORKER, context.0, statement, proof)
 }
 
-#[cfg(any(test, feature = "test-utils"))]
+#[cfg(test)]
 pub fn prove_client_dlog_with_nonce(
     context: ClientDLogContext,
     statement: DLogStatement,
@@ -353,7 +353,7 @@ pub fn prove_client_dlog_with_nonce(
     prove_dlog(ROLE_CLIENT, context.0, statement, witness, nonce.0)
 }
 
-#[cfg(any(test, feature = "test-utils"))]
+#[cfg(test)]
 pub fn prove_signing_worker_dlog_with_nonce(
     context: SigningWorkerDLogContext,
     statement: DLogStatement,
@@ -363,7 +363,7 @@ pub fn prove_signing_worker_dlog_with_nonce(
     prove_dlog(ROLE_SIGNING_WORKER, context.0, statement, witness, nonce.0)
 }
 
-#[cfg(any(test, feature = "test-utils"))]
+#[cfg(test)]
 pub fn prove_client_dlog_eq_with_nonce(
     context: ClientDLogEqContext,
     statement: DLogEqStatement,
@@ -371,16 +371,6 @@ pub fn prove_client_dlog_eq_with_nonce(
     nonce: ProofNonce,
 ) -> Result<DLogEqProof, ProofError> {
     prove_dlog_eq(ROLE_CLIENT, context.0, statement, witness, nonce.0)
-}
-
-#[cfg(any(test, feature = "test-utils"))]
-pub fn prove_signing_worker_dlog_eq_with_nonce(
-    context: SigningWorkerDLogEqContext,
-    statement: DLogEqStatement,
-    witness: ProofWitness,
-    nonce: ProofNonce,
-) -> Result<DLogEqProof, ProofError> {
-    prove_dlog_eq(ROLE_SIGNING_WORKER, context.0, statement, witness, nonce.0)
 }
 
 fn prove_dlog(
