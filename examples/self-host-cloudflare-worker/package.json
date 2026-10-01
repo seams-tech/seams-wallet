@@ -9,7 +9,6 @@
     "wrangler": "4.111.0"
   },
   "dependencies": {
-    "@seams/wallet": "workspace:*",
     "@seams/wallet-server": "workspace:*"
   }
 }

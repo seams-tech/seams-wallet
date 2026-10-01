@@ -158,19 +158,10 @@ const external = [
   /^node:.*/,
 
   // Core dependencies that should be provided by consuming application
-  'borsh',
   'bs58',
   'qrcode',
   'jsqr',
-  '@noble/hashes',
-  // Keep viem's extensionless v1 hash imports bundled with its own dependency.
-  /^@noble\/hashes\/.*\.js$/,
   'idb',
-  'near-api-js',
-
-  // Other common packages
-  'tslib',
-  // UI libs used by React components should be provided by the app bundler
 
   // WASM modules - externalize so bundlers handle them correctly
   /\.wasm$/,

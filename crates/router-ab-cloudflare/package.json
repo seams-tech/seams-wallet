@@ -25,6 +25,8 @@
     "@seams/wallet-server": "workspace:*"
   },
   "devDependencies": {
+    "@noble/curves": "^1.9.1",
+    "miniflare": "4.20260710.0",
     "wrangler": "4.111.0"
   }
 }

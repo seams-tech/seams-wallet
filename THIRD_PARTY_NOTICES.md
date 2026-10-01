@@ -5,7 +5,7 @@ distributed Seams Wallet SDK, server runtime, Wasm, strict Workers, and CLI.
 Dependency license expressions come from their package metadata. Packaged
 license and notice wording is reproduced below with normalized whitespace.
 
-Inventory: 522 dependency records (110 npm, 412 Cargo).
+Inventory: 521 dependency records (109 npm, 412 Cargo).
 
 ## Dependency inventory
 
@@ -430,7 +430,6 @@ Inventory: 522 dependency records (110 npm, 412 Cargo).
 | npm | @noble/ciphers | 1.3.0 | MIT | Paul Miller (https://paulmillr.com) |
 | npm | @noble/curves | 1.9.1 | MIT | Paul Miller (https://paulmillr.com) |
 | npm | @noble/hashes | 1.8.0 | MIT | Paul Miller (https://paulmillr.com) |
-| npm | @noble/hashes | 2.0.1 | MIT | Paul Miller (https://paulmillr.com) |
 | npm | @peculiar/asn1-android | 2.6.0 | MIT | PeculiarVentures, LLC |
 | npm | @peculiar/asn1-cms | 2.6.0 | MIT | PeculiarVentures, LLC |
 | npm | @peculiar/asn1-csr | 2.6.0 | MIT | PeculiarVentures, LLC |
@@ -3819,7 +3818,6 @@ Applies to:
 
 - npm:@noble/curves@1.9.1
 - npm:@noble/hashes@1.8.0
-- npm:@noble/hashes@2.0.1
 - npm:@scure/base@1.2.6
 
     The MIT License (MIT)

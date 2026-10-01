@@ -121,8 +121,7 @@
   "dependencies": {
     "@simplewebauthn/server": "^13.2.2",
     "bs58": "^6.0.0",
-    "express": "^4.21.2",
-    "tslib": "^2.8.1"
+    "express": "^4.21.2"
   },
   "devDependencies": {
     "@near-js/types": "^2.4.0",

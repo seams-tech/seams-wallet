@@ -30,7 +30,6 @@ const external = [
   '@simplewebauthn/server',
   'bs58',
   'express',
-  'tslib',
   /\.wasm$/,
 ];
 
