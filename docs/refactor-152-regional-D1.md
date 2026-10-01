@@ -359,13 +359,20 @@ below remain open.
   distinguishes Wallet D1 admission, pre-activation inspection/control, Console
   scheduled custody resumption and role-local expiry. It also identifies the
   missing namespace-wide assignment constraint across deployment lanes.
+- [x] Extend the lifecycle transaction inventory to both export curves, linked
+  installation/activation/cleanup, method revocation, lane retirement and OTP
+  accounting. Record where custody effects precede a D1 commit and distinguish
+  Wallet Session quotas from Console quotas. See the
+  [lifecycle follow-up](refactor-152-ownership-review.md#lifecycle-ownership-follow-up).
 - [ ] Inventory every table, trigger, admission check, revocation, policy update,
   quota, replay key, and administration path touched by a signature. Identify
   which values must participate in the same transaction or freshness boundary.
-- [ ] Choose the smallest ownership unit containing that state. Prefer an
-  existing tenant/project boundary when quotas or policy are shared. Wallet
-  ownership is valid only after proving that cross-wallet atomic state is absent
-  or remains enforced without losing the measured benefit.
+- [x] Choose the conservative initial ownership unit: the entire deployment
+  namespace, including all its organizations/projects. Schema uniqueness,
+  signing admission and the lifecycle transaction inventory support keeping
+  these records together. Existing namespaces remain pinned. A smaller
+  tenant/project/wallet partition requires a separate proof of its cross-owner
+  state; this decision does not establish the smallest possible partition.
 - [ ] Keep exactly one authoritative writable home for each ownership unit.
   Multiple regional databases hold disjoint owners. Independent writable copies
   of the same quota, revocation state, or operation are excluded.
@@ -387,6 +394,10 @@ below remain open.
   Console authority. Prove the relationship between the assigned home and the
   actual D1 resource; a lane-level activation CAS or copied identity row is
   insufficient. Preserve authenticated provisioning before first activation.
+  The [home identity design](refactor-152-ownership-review.md#home-identity-verification-design)
+  specifies provider binding/version inspection plus a fresh database challenge
+  through the runtime service. Implementation and race/failure verification remain
+  open; its runtime identity lookup must be included in latency accounting.
 - [ ] Assign a stable initial home server-side. Browser hints are advisory input;
   browser assertions cannot select an alternative authority. Avoid a mandatory
   home picker, travel profiling, and automatic geographic migration.

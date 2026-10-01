@@ -350,10 +350,94 @@ consumption, one custody effect and exact replay at the same home. Retain build,
 binding, database and operation identities together with denied-attempt results.
 Use existing service/lifecycle E2Es and domain type fixtures; no source-text guards.
 
-This closes the entry-point classification task. Per-operation semantic review
-of export, linking/material retirement, OTP administration and policy/quota
-administration, the home/resource trust chain, implementation and behavioral
-verification remain open. The deferred call-budget audit remains a separate task.
+This closes the entry-point classification task. The lifecycle review below
+extends the transaction inventory. Home/resource verification, implementation
+and regional behavioral verification remain open. The deferred call-budget audit
+remains a separate task.
+
+### Lifecycle ownership follow-up
+
+Reviewed Wallet `5533e526` and private Console `1420581`. The following boundaries
+extend the earlier registration/recovery inventory. These are current code
+semantics, independent of the frozen performance candidates.
+
+| Lifecycle | Durable boundary and regional requirement |
+| --- | --- |
+| Ed25519 export | `runAuthorization` in `routerAbEd25519YaoExportRequestScopedCloudflare.ts` commits export authorization state, nonce claim and the prepared authorized-operation write together. The D1 partition adapter passes the companion statements into `putManyWithAdditionalStatements`. Exact retry reuses committed authorization while checking expiry and current owner/material identity. Keep lifecycle partitions, proof/operation records and material authority at the same home. Backend execution and terminal persistence remain separate stages. |
+| ECDSA export | `admitStrictEcdsaExportOperationStepUp` in `thresholdEcdsa.ts` reads the existing export operation, requires verified step-up and quota-neutral authorization, compares exact operation/material/digests and re-admits against current material. An ordinary signing session credential alone is rejected. Keep the step-up evidence, replay record, session/material authority and admission store together; export is not a normal signing-quota decrement. |
+| Linked pending installation | `D1LinkedDeviceAuthorityInstallServiceV1.commitPendingAuthorityV1` batches pending authority/method, installation package, optional Email enrollment, allocation statement and link-session CAS. Role material reservation happens before that commit. Keep the records at one home while retaining exact reservation identities across retries. |
+| Linked activation and acknowledgement | `activateInstalledAuthorityV1` activates role reservations before the D1 authority activation batch. That batch includes link-session CAS, Wallet Session/quota statements, installation activation, sealed credential delivery and passkey promotion. Acknowledgement cleanup also batches delivery/receipt changes with session deletion. Preserve stored delivery and exact replay at the original home; a failed Gateway response must not cause activation at another database. |
+| Auth-method revocation | `D1WalletAuthorityStore.revokeWalletAuthMethod` repeats the last-active-method check inside the conditional update and batches CAS, supplied session revocation statements, authority revocation and trailing replay statements. The linked management adapter supplies session/credential revocation and the recorded answer. A preliminary count alone does not establish the invariant. Keep all these records together; retain the existing distinction between method revocation and server material retirement. |
+| Lane retirement and refresh | `D1LaneLifecycleStore` records pending transitions, validates exact server retirement receipts and batches final product-epoch CAS with receipt insertion. Refresh completion also verifies predecessor retirement results. Role effects and D1 completion span separate requests. Route journals, locks, product epochs and receipts to the original home after interruption; regional routing cannot treat a pending effect as an empty owner. |
+| Email OTP issuance, verification and cleanup | Challenge issuer/verifier perform rate accounting and expiry/overflow cleanup in request paths. Each rate key uses a conditional upsert, with multiple keys consumed sequentially. Challenge consumption uses deletion with returned state; registration verification also commits its receipt and guarded challenge deletion in one batch. Keep subject/project-wide keys and challenge/enrollment/recovery records together. Preserve the current per-key semantics; there is no newly established all-keys transaction. |
+| Policy and quota administration | D1 project-policy/abuse setters exist, but a source search finds no production invocations in Wallet or private Console apps/packages. They do not establish a routed admin API. Signing quota state is created/replaced with the Wallet Session, consumed by admission, and exhausted during replacement/revocation. Console credential/billing quotas remain a separate authority. Do not introduce a general quota-edit API or promise transactional policy-update fencing as part of initial placement. |
+
+Wallet source locations under `packages/wallet-server/src/`:
+
+- `router/domains/ed25519Yao/export/routerAbEd25519YaoExportRequestScopedCloudflare.ts`
+- `router/cloudflare/d1/ed25519Yao/d1Ed25519YaoProductRegistrationPartitionedStateStore.ts`
+- `router/transport/fetch/routes/thresholdEcdsa.ts`
+- `router/cloudflare/d1/deviceLinking/d1LinkedDeviceAuthorityInstallService.ts`
+- `router/cloudflare/d1/deviceLinking/d1LinkedDeviceManagementService.ts`
+- `router/cloudflare/d1/wallet/d1WalletAuthorityStore.ts`
+- `router/cloudflare/d1/signingLanes/d1LaneLifecycleStore.ts`
+- `router/cloudflare/d1/emailOtp/d1EmailOtp{ChallengeIssuer,ChallengeVerifier,ChallengeStore,RateLimitStore}.ts`
+- `router/cloudflare/d1/signingAdmission/d1RouterAbNormalSigningAdmissionStore.ts`
+- `router/cloudflare/d1/authorization/d1AuthorizationStore.ts`
+
+These paths support selecting the entire namespace as the conservative initial
+rollout owner, including all its organizations and projects. They do not establish
+a smaller partition or atomicity across role services and D1. The production
+gate still requires routing tests across all affected lifecycle families and
+reconciliation of the complete table inventory against their adapters.
+
+### Home identity verification design
+
+Cloudflare documents the database identifier in the Worker settings D1 binding.
+The documented runtime `D1Database` methods do not provide a resource-ID getter.
+Use provider configuration evidence at provisioning time and a database read
+through the actual runtime binding; an environment variable alone cannot supply
+both facts. Sources checked October 1:
+[Worker script/version settings](https://developers.cloudflare.com/api/resources/workers/subresources/scripts/subresources/script_and_version_settings/methods/get/)
+and [D1 binding methods](https://developers.cloudflare.com/d1/worker-api/d1-database/).
+
+The proposed first implementation uses the existing Console provisioning authority:
+
+1. Reserve one immutable namespace-to-resource assignment in Console before
+   provisioning any lane. Bind the canonical deployment record to that assignment;
+   concurrent lanes must reuse it or conflict. Failed provisioning retains the
+   reservation for exact retry. Existing namespaces require an explicit inventory
+   of their current resource before this boundary becomes mandatory.
+2. During readiness, inspect every writer deployment's actual `SIGNER_DB` binding
+   through the provider API and retain its Worker version and database UUID. Use
+   a fresh provisioning challenge written through that UUID and read through the
+   private runtime service to verify the intended resource is reachable there.
+   Reject mismatches before activating the deployment binding or a public route.
+3. Keep immutable home identity in the selected database and compare it with the
+   resolved assignment before Wallet work. A missing identity fails closed; never
+   initialize it on first public request. Measure this additional lookup and seek
+   safe integration into existing reads only after correctness is established.
+4. Require the same verification for later deployments and rollbacks. Retain
+   existing owners at their current resource and reject assignment changes.
+   Copied databases stay inactive; a copied identity row provides no permission
+   to activate a second writer. All reachable older Worker versions and internal
+   routes must be accounted for before enabling a newly assigned namespace.
+
+This design trusts the provisioning controller and Cloudflare configuration API.
+The challenge establishes the binding at that checkpoint; it cannot detect every
+subsequent out-of-band privileged reconfiguration. The deployment/version check
+and activation ordering still need implementation and race/failure tests. A local
+database marker supplies an additional mismatch check, not a transfer fence.
+Do not mark the home/resource proof complete from a marker-only E2E.
+
+Review evidence: `.artifacts/r152/lifecycle-ownership-20261001/source-inventory.json`
+records SHA-256 hashes of the thirteen reviewed Wallet implementation files.
+The adjacent `table-source-index.json` indexes literal references for 53 of the
+54 application tables; the remaining `authorized_operation_audit_events` table
+is maintained by the effective `authorized_operation_audit_claim` and
+`authorized_operation_audit_complete` triggers. All 39 recorded migration hashes
+match this checkout. This is a source navigation aid, not proof that every
+dynamically constructed query or administrative writer has been covered.
 
 ## First bounded experiment
 

@@ -1797,3 +1797,42 @@ default placement, and HTTP 403/503 access closure before the next diagnostic.
 Its scan found zero benchmark-token matches in 57 evidence files. Cumulative
 estimated cost through the second run is $1.2095, including both regional
 databases and subject to accounting lag.
+
+## Lifecycle ownership verification (October 1)
+
+Source checkpoint: Wallet `5533e526`. The ownership follow-up reviews both export
+curves, linked installation/activation/cleanup, method revocation, lane retirement,
+OTP accounting and policy/quota administration. It selects the entire namespace
+as the initial rollout owner and specifies the provisioning checks needed to bind
+that assignment to an actual database resource. This is design and local
+correctness work; regional routing remains unimplemented.
+
+The existing intended-behavior E2E **“an Ed25519 export interrupted after its
+authorization committed is admitted by the exact retry”** passed with a fresh
+SDK, five custody Worker builds, Wallet Server and local initializer. The runner
+reported **1 passed (13.5m)**, including build/setup time. Its harness asserts the
+injected committed-authorization interruption was observed and the exact retry
+completed export. This verifies the current local Workers behavior that regional
+routing must preserve. It supplies no hosted placement or latency measurement.
+
+Evidence directory: `.artifacts/r152/lifecycle-ownership-20261001/`.
+`export-e2e.log` retains the first run, `source-inventory.json` hashes the thirteen
+reviewed implementation files, and `table-source-index.json` maps the existing
+schema to source references. The recorded 39 migration hashes are unchanged.
+`bloat.log` records the passing required check. Local service ports were released
+after the run; no hosted resources or frozen candidates were changed.
+
+A second fresh-state run reused those builds with lifecycle trace persistence
+enabled and passed in **36.1 seconds**. `export-e2e-evidence.log`, `traces/` and
+`verification.json` retain the result, test/harness hashes and trace digest. The
+retained trace confirms exact interrupted-export retry and zero lifecycle
+violations. These are two correctness runs, not a performance sample series.
+
+Reproduce from Wallet root with trace persistence enabled:
+
+```sh
+SEAMS_INTENDED_PERSIST_TRACE=1 \
+node tests/scripts/run-wallet-intended-isolated.mjs -- \
+  e2e/intended-behaviours/passkey.ed25519-yao-local.contract.test.ts \
+  --grep 'an Ed25519 export interrupted after its authorization committed'
+```
