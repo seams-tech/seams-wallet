@@ -5,7 +5,7 @@ distributed Seams Wallet SDK, server runtime, Wasm, strict Workers, and CLI.
 Dependency license expressions come from their package metadata. Packaged
 license and notice wording is reproduced below with normalized whitespace.
 
-Inventory: 521 dependency records (109 npm, 412 Cargo).
+Inventory: 517 dependency records (109 npm, 408 Cargo).
 
 ## Dependency inventory
 
@@ -26,7 +26,6 @@ Inventory: 521 dependency records (109 npm, 412 Cargo).
 | cargo | base64 | 0.23.1 | MIT OR Apache-2.0 | Marshall Pierce <marshall@mpierce.org> |
 | cargo | base64ct | 1.8.0 | Apache-2.0 OR MIT | RustCrypto Developers |
 | cargo | base64ct | 1.8.3 | Apache-2.0 OR MIT | RustCrypto Developers |
-| cargo | bincode | 1.3.3 | MIT | David Tolnay <dtolnay@gmail.com>; Francesco Mazzoli <f@mazzo.li>; Ty Overby <ty@pre-alpha.com>; Zoey Riordan <zoey@dos.cafe> |
 | cargo | bitflags | 2.13.0 | MIT OR Apache-2.0 | The Rust Project Developers |
 | cargo | bitflags | 2.13.1 | MIT OR Apache-2.0 | The Rust Project Developers |
 | cargo | block-buffer | 0.10.4 | MIT OR Apache-2.0 | RustCrypto Developers |
@@ -157,7 +156,6 @@ Inventory: 521 dependency records (109 npm, 412 Cargo).
 | cargo | hashbrown | 0.17.1 | MIT OR Apache-2.0 |  |
 | cargo | hashlink | 0.9.1 | MIT OR Apache-2.0 | kyren <kerriganw@gmail.com> |
 | cargo | heapless | 0.7.17 | MIT OR Apache-2.0 | Emil Fresk <emil.fresk@gmail.com>; Jorge Aparicio <jorge@japaric.io>; Per Lindgren <per.lindgren@ltu.se> |
-| cargo | hex-literal | 0.4.1 | MIT OR Apache-2.0 | RustCrypto Developers |
 | cargo | hex | 0.4.3 | MIT OR Apache-2.0 | KokaKiwi <kokakiwi@kokakiwi.net> |
 | cargo | hkdf | 0.12.4 | MIT OR Apache-2.0 | RustCrypto Developers |
 | cargo | hkdf | 0.13.0 | MIT OR Apache-2.0 | RustCrypto Developers |
@@ -251,8 +249,6 @@ Inventory: 521 dependency records (109 npm, 412 Cargo).
 | cargo | rand_core | 0.9.5 | MIT OR Apache-2.0 | The Rand Project Developers; The Rust Project Developers |
 | cargo | rfc6979 | 0.4.0 | Apache-2.0 OR MIT | RustCrypto Developers |
 | cargo | ring | 0.17.14 | Apache-2.0 AND ISC |  |
-| cargo | rmp-serde | 1.3.1 | MIT | Evgeny Safronov <division494@gmail.com> |
-| cargo | rmp | 0.8.15 | MIT | Evgeny Safronov <division494@gmail.com>; Kornel <kornel@geekhood.net> |
 | cargo | rusqlite | 0.32.1 | MIT | The rusqlite developers |
 | cargo | rustc_version | 0.4.1 | MIT OR Apache-2.0 |  |
 | cargo | rustls-native-certs | 0.8.4 | Apache-2.0 OR ISC OR MIT |  |
@@ -9737,37 +9733,6 @@ Applies to:
     DEALINGS IN THE SOFTWARE.
 
 
-### 90d7e062634054e6
-
-Packaged as: LICENSE.md
-
-Applies to:
-
-- cargo:bincode@1.3.3
-
-    The MIT License (MIT)
-
-    Copyright (c) 2014 Ty Overby
-
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
-
-    The above copyright notice and this permission notice shall be included in all
-    copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-    SOFTWARE.
-
-
 ### 9117d922e6671255
 
 Packaged as: LICENSE-MIT
@@ -10029,38 +9994,6 @@ Applies to:
     LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
     OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
     THE SOFTWARE.
-
-
-### 979d35e1d1572891
-
-Packaged as: LICENSE
-
-Applies to:
-
-- cargo:rmp-serde@1.3.1
-- cargo:rmp@0.8.15
-
-    MIT License
-
-    Copyright (c) 2017 Evgeny Safronov
-
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
-
-    The above copyright notice and this permission notice shall be included in all
-    copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-    SOFTWARE.
 
 
 ### 98181e7249d0c017
@@ -11370,7 +11303,6 @@ Applies to:
 - cargo:ghash@0.5.1
 - cargo:hash2curve@0.14.0
 - cargo:hash2curve@0.14.0-rc.12
-- cargo:hex-literal@0.4.1
 - cargo:hkdf@0.12.4
 - cargo:hkdf@0.13.0
 - cargo:hmac@0.12.1
@@ -15119,42 +15051,6 @@ Applies to:
 - cargo:scopeguard@1.2.0
 
     Copyright (c) 2016-2019 Ulrik Sverdrup "bluss" and scopeguard developers
-
-    Permission is hereby granted, free of charge, to any
-    person obtaining a copy of this software and associated
-    documentation files (the "Software"), to deal in the
-    Software without restriction, including without
-    limitation the rights to use, copy, modify, merge,
-    publish, distribute, sublicense, and/or sell copies of
-    the Software, and to permit persons to whom the Software
-    is furnished to do so, subject to the following
-    conditions:
-
-    The above copyright notice and this permission notice
-    shall be included in all copies or substantial portions
-    of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
-    ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
-    TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
-    PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
-    SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-    OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
-    IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-    DEALINGS IN THE SOFTWARE.
-
-
-### fbe7b9b51878efdf
-
-Packaged as: LICENSE-MIT
-
-Applies to:
-
-- cargo:hex-literal@0.4.1
-
-    Copyright (c) 2018 Artyom Pavlov
-    Copyright (c) 2018 The RustCrypto Project Developers
 
     Permission is hereby granted, free of charge, to any
     person obtaining a copy of this software and associated
