@@ -141,57 +141,15 @@ export type ThresholdStoreEnvInput = {
   THRESHOLD_ECDSA_SESSION_PREFIX?: string;
   THRESHOLD_ECDSA_WALLET_SESSION_PREFIX?: string;
   /**
-   * Optional override for the client FROST participant identifier (u16, >= 1).
+   * Optional override for the client participant identifier (u16, >= 1).
    * Must be distinct from `THRESHOLD_ED25519_RELAYER_PARTICIPANT_ID`.
    */
   THRESHOLD_ED25519_CLIENT_PARTICIPANT_ID?: string;
   /**
-   * Optional override for the relayer FROST participant identifier (u16, >= 1).
+   * Optional override for the relayer participant identifier (u16, >= 1).
    * Must be distinct from `THRESHOLD_ED25519_CLIENT_PARTICIPANT_ID`.
    */
   THRESHOLD_ED25519_RELAYER_PARTICIPANT_ID?: string;
-  /**
-   * 32-byte base64url shared secret used to authenticate coordinator→peer calls.
-   *
-   * When set, cosigner relayers can expose internal endpoints that accept
-   * coordinator-signed grants (HMAC-SHA256).
-   */
-  THRESHOLD_COORDINATOR_SHARED_SECRET_B64U?: string;
-  /**
-   * Stable identifier for this coordinator instance.
-   *
-   * Used to pin Router A/B ECDSA derivation pool-fill sessions to the instance that
-   * created the live in-memory WASM session object.
-   */
-  THRESHOLD_COORDINATOR_INSTANCE_ID?: string;
-  /**
-   * Optional coordinator peer list (JSON) for cross-instance presign-step forwarding.
-   *
-   * Example:
-   * `THRESHOLD_COORDINATOR_PEERS=[{"instanceId":"coordinator-a","relayerUrl":"https://relay-a.internal"},{"instanceId":"coordinator-b","relayerUrl":"https://relay-b.internal"}]`
-   */
-  THRESHOLD_COORDINATOR_PEERS?: string;
-  /**
-   * Optional relayer-fleet cosigner list (JSON) for internal t-of-n cosigning.
-   *
-   * When configured on a coordinator node, the coordinator can fan out to relayer cosigners
-   * (internal-only nodes) and combine their partials into a single outer relayer signature share.
-   *
-   * Example:
-   * `THRESHOLD_ED25519_RELAYER_COSIGNERS=[{"cosignerId":1,"relayerUrl":"https://cosigner-a.internal"},{"cosignerId":2,"relayerUrl":"https://cosigner-b.internal"},{"cosignerId":3,"relayerUrl":"https://cosigner-c.internal"}]`
-   */
-  THRESHOLD_ED25519_RELAYER_COSIGNERS?: string;
-  /**
-   * Internal relayer cosigner id for this node (u16, >= 1).
-   * Required when running `THRESHOLD_NODE_ROLE=cosigner`.
-   */
-  THRESHOLD_ED25519_RELAYER_COSIGNER_ID?: string;
-  /**
-   * Internal relayer cosigner threshold `T` (integer, >= 1).
-   * When set together with `THRESHOLD_ED25519_RELAYER_COSIGNERS`, the coordinator will wait for
-   * `T` cosigners per signing round.
-   */
-  THRESHOLD_ED25519_RELAYER_COSIGNER_T?: string;
   /**
    * Optional Router A/B Ed25519 normal-signing SigningWorker id accepted by
    * threshold session policy. When unset, Router A/B normal-signing session

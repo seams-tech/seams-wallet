@@ -20,7 +20,7 @@ type ThresholdEd25519ShareDerivation =
   | 'unknown';
 
 export interface ThresholdEd25519ParticipantV1 {
-  /** FROST identifier (1-indexed). */
+  /** Participant identifier (1-indexed). */
   id: number;
   role: ThresholdParticipantRole;
   /** Optional relayer endpoint for this participant (future multi-relayer support). */
