@@ -27,7 +27,7 @@ export function SeamsAuthMenuMock({ initialMode = 'login' }: { initialMode?: Hos
   return (
     <span data-seams-auth-menu-mock="true" aria-hidden="true" style={shellStyle}>
       <strong style={{ fontSize: 24 }}>
-        {initialMode === 'register' ? 'Create a wallet' : 'Sign in'}
+        {initialMode === 'register' ? 'Create a wallet' : 'Unlock wallet'}
       </strong>
       <span style={{ ...rowStyle, height: 12, width: '65%' }} />
       <span style={rowStyle} />

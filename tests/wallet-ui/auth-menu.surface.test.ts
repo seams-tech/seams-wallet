@@ -74,7 +74,7 @@ function recoveryEntryViewModel(
     closeLabel: 'Close authentication menu',
     kind: 'recovery',
     mode: 'login',
-    heading: 'Recover account',
+    heading: 'Recover wallet',
     subtitle: 'Enter a recovery code to recover your wallet.',
     ctaLabel: 'Continue',
     showProgress: true,
@@ -106,8 +106,8 @@ function recoveryGoogleSignInReadyViewModel(): Extract<
 > {
   return {
     ...recoveryEntryViewModel(),
-    subtitle: 'Your Google account is ready to sign in.',
-    ctaLabel: 'Sign in with Google',
+    subtitle: 'Your Google account is ready to unlock your wallet.',
+    ctaLabel: 'Unlock with Google',
     walletId: 'wallet-1.test',
     stage: 'sign_in_ready',
     target: { kind: 'google_email_otp', googleProvider: 'google' },
@@ -121,8 +121,8 @@ function recoveryPasskeySignInReadyViewModel(): Extract<
 > {
   return {
     ...recoveryEntryViewModel(),
-    subtitle: 'Your account is ready, login again with your Passkey',
-    ctaLabel: 'Sign in with new passkey',
+    subtitle: 'Your wallet is ready. Unlock it with your passkey.',
+    ctaLabel: 'Unlock with new passkey',
     walletId: 'wallet-1.test',
     stage: 'sign_in_ready',
     target: parseWalletRecoveryTargetV1({ kind: 'passkey', rpId: 'example.test' }),
@@ -190,7 +190,7 @@ test.describe('wallet-host Preact auth menu surface', () => {
     await expect(page.locator(`${AUTH_MENU_TAG} #seams-auth-menu-login-account`)).toHaveCount(0);
     const primaryAction = page.locator(`${AUTH_MENU_TAG} [data-auth-menu-primary]`);
     await expect(primaryAction).toBeFocused();
-    await expect(primaryAction).toHaveAccessibleName('Sign in with passkey');
+    await expect(primaryAction).toHaveAccessibleName('Unlock with passkey');
   });
 
   test('renders compact registration content and emits typed intents', async ({ page }) => {
@@ -371,11 +371,11 @@ test.describe('wallet-host Preact auth menu surface', () => {
     await mountAuthMenu(page, recoveryGoogleSignInReadyViewModel());
 
     await expect(page.locator(`${AUTH_MENU_TAG} .seams-subhead`)).toHaveText(
-      'Your Google account is ready to sign in.',
+      'Your Google account is ready to unlock your wallet.',
     );
     await expect(page.locator(`${AUTH_MENU_TAG} .seams-recovery-status`)).toHaveCount(0);
     const button = page.locator(`${AUTH_MENU_TAG} [data-auth-menu-primary]`);
-    await expect(button).toHaveText('Sign in with Google');
+    await expect(button).toHaveText('Unlock with Google');
     await expect(button.locator(':scope > svg[aria-hidden="true"]')).toHaveCount(1);
   });
 
@@ -383,7 +383,7 @@ test.describe('wallet-host Preact auth menu surface', () => {
     await mountAuthMenu(page, recoveryPasskeySignInReadyViewModel());
 
     await expect(page.locator(`${AUTH_MENU_TAG} .seams-subhead`)).toHaveText(
-      'Your account is ready, login again with your Passkey',
+      'Your wallet is ready. Unlock it with your passkey.',
     );
     await expect(page.locator(`${AUTH_MENU_TAG} .seams-recovery-status`)).toHaveCount(0);
   });
@@ -516,9 +516,8 @@ test.describe('wallet-host Preact auth menu surface', () => {
 
     expect(result).toEqual({
       title: 'Device linked',
-      alert:
-        'Unable to open the wallet. Return to sign in and try again. Wallet Session renewal failed',
-      action: 'Return to sign in',
+      alert: 'Unable to open the wallet. Go back and try again. Wallet Session renewal failed',
+      action: 'Return to unlock wallet',
       intents: [{ kind: 'back' }],
     });
   });
@@ -526,7 +525,7 @@ test.describe('wallet-host Preact auth menu surface', () => {
   test('keeps the Back control interactive while passkey authentication is running', async ({
     page,
   }) => {
-    await mountAuthMenu(page, loginViewModel({ kind: 'busy', headline: 'Signing in…' }));
+    await mountAuthMenu(page, loginViewModel({ kind: 'busy', headline: 'Unlocking wallet…' }));
     await page.evaluate((tagName) => {
       const element = document.querySelector(tagName);
       if (!element) throw new Error('auth-menu surface is missing');
@@ -546,7 +545,7 @@ test.describe('wallet-host Preact auth menu surface', () => {
   test('Escape backs out of the waiting view but is ignored on the menu itself', async ({
     page,
   }) => {
-    await mountAuthMenu(page, loginViewModel({ kind: 'busy', headline: 'Signing in…' }));
+    await mountAuthMenu(page, loginViewModel({ kind: 'busy', headline: 'Unlocking wallet…' }));
 
     const fromWaiting = await page.evaluate(async () => {
       const received: unknown[] = [];
@@ -611,7 +610,7 @@ test.describe('wallet-host Preact auth menu surface', () => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await mountAuthMenu(
       page,
-      loginViewModel({ kind: 'busy', headline: 'Signing in…', detail: 'Checking passkey' }),
+      loginViewModel({ kind: 'busy', headline: 'Unlocking wallet…', detail: 'Checking passkey' }),
     );
 
     const snapshot = await page.evaluate((tagName) => {
@@ -628,7 +627,7 @@ test.describe('wallet-host Preact auth menu surface', () => {
     expect(snapshot.hasPrimary).toBe(false);
     expect(snapshot.hasPasskeyName).toBe(false);
     expect(snapshot.hasHalo).toBe(false);
-    expect(snapshot.heading).toBe('Signing in…');
+    expect(snapshot.heading).toBe('Unlocking wallet…');
     expect(snapshot.spinnerLabel).toBe('Loading');
   });
 
@@ -863,7 +862,7 @@ test.describe('wallet-host Preact auth menu surface', () => {
     await expect(selectedAccount.locator('.seams-account-menu-account-secondary')).toHaveCount(0);
     await expect(page.locator(`${AUTH_MENU_TAG} .seams-account-menu-trigger`)).toHaveAttribute(
       'aria-label',
-      'Saved accounts. Selected wallet-a',
+      'Saved wallets. Selected wallet-a',
     );
 
     const selected = await page.evaluate(
@@ -901,7 +900,7 @@ test.describe('wallet-host Preact auth menu surface', () => {
     );
     await expect(page.locator(`${AUTH_MENU_TAG} .seams-account-menu-trigger`)).toHaveAttribute(
       'aria-label',
-      'Saved accounts. Selected wallet ID wallet-b, email wallet-b@example.com',
+      'Saved wallets. Selected wallet ID wallet-b, email wallet-b@example.com',
     );
     const selectedAccountLayout = await selectedAccount.evaluate((account) => ({
       clientHeight: account.clientHeight,

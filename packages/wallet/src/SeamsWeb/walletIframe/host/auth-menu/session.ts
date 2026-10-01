@@ -618,12 +618,12 @@ function recoveryViewModel(args: RecoveryViewModelArgs): AuthMenuRecoveryViewMod
     appearance: args.base.appearance,
     hostname: args.base.hostname,
     closeLabel: args.base.closeLabel,
-    heading: 'Recover account',
+    heading: 'Recover wallet',
     subtitle:
       args.stage === 'sign_in_ready'
         ? args.target.kind === 'google_email_otp'
-          ? 'Your Google account is ready to sign in.'
-          : 'Your account is ready, login again with your Passkey'
+          ? 'Your Google account is ready to unlock your wallet.'
+          : 'Your wallet is ready. Unlock it with your passkey.'
         : 'Enter a recovery code to recover your wallet.',
     ctaLabel:
       args.stage === 'passkey_ready'
@@ -634,8 +634,8 @@ function recoveryViewModel(args: RecoveryViewModelArgs): AuthMenuRecoveryViewMod
             ? 'Verify email code'
             : args.stage === 'sign_in_ready'
               ? args.target.kind === 'google_email_otp'
-                ? 'Sign in with Google'
-                : 'Sign in with new passkey'
+                ? 'Unlock with Google'
+                : 'Unlock with new passkey'
               : args.stage === 'preparing'
                 ? args.target.kind === 'google_email_otp'
                   ? 'Recover with Google'
@@ -2449,7 +2449,7 @@ export class AuthMenuSession {
         walletId: String(walletId),
         stage: 'sign_in_ready',
         target: recoveryTarget(state.viewModel),
-        status: { kind: 'busy', headline: 'Preparing sign in…' },
+        status: { kind: 'busy', headline: 'Preparing to unlock…' },
       }),
     };
     this.updateElement();
@@ -2515,7 +2515,7 @@ export class AuthMenuSession {
         status: {
           kind: 'recoverable',
           reason: 'error',
-          message: 'Your account was recovered. Prepare sign in again to continue.',
+          message: 'Your wallet was recovered. Unlock it again to continue.',
         },
       }),
     };
@@ -2704,10 +2704,7 @@ export class AuthMenuSession {
         if (event.error?.code === DeviceLinkingErrorCode.DELIVERY_RECOVERY_REQUIRED) {
           this.showLinkedDeviceActivationError(
             state,
-            new Error(
-              event.message ||
-                'Return to sign in and unlock the new linked method to finish setup.',
-            ),
+            new Error(event.message || 'Go back and unlock the new linked method to finish setup.'),
           );
           return;
         }
@@ -2722,8 +2719,7 @@ export class AuthMenuSession {
             ...state.viewModel,
             linkDevice: {
               kind: 'cancelled',
-              message:
-                'The other device cancelled this linking request. Return to sign in to try again.',
+              message: 'The other device cancelled this linking request. Go back to try again.',
             },
           },
         };

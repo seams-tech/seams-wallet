@@ -57,7 +57,7 @@ function recoveryAnnouncement(viewModel: AuthMenuRecoveryViewModel): string {
   if (viewModel.status.kind === 'busy') return viewModel.status.headline;
   if (viewModel.status.kind === 'recoverable') return viewModel.status.message;
   if (viewModel.stage === 'passkey_ready') return 'Recovery code accepted.';
-  if (viewModel.stage === 'sign_in_ready') return 'Account recovered. Sign in to continue.';
+  if (viewModel.stage === 'sign_in_ready') return 'Wallet recovered. Unlock it to continue.';
   return '';
 }
 
@@ -71,12 +71,16 @@ function modeSwitchCopy(mode: AuthMenuViewModel['mode']): {
   nextMode: 'login' | 'register';
 } {
   return mode === 'register'
-    ? { prompt: 'Already have an account?', action: 'Sign in', nextMode: 'login' }
-    : { prompt: "Don't have an account?", action: 'Sign up', nextMode: 'register' };
+    ? { prompt: 'Already have a wallet?', action: 'Unlock wallet', nextMode: 'login' }
+    : { prompt: "Don't have a wallet?", action: 'Create a wallet', nextMode: 'register' };
 }
 
 function modeLabel(mode: AuthMenuViewModel['mode']): string {
-  return mode === 'register' ? 'Sign up' : 'Sign in';
+  return mode === 'register' ? 'Create a wallet' : 'Unlock wallet';
+}
+
+function passkeyButtonLabel(mode: AuthMenuViewModel['mode']): string {
+  return mode === 'register' ? 'Create wallet with passkey' : 'Unlock with passkey';
 }
 
 /** The failure the footer strip reports. Only the menu itself reports there. */
@@ -229,11 +233,11 @@ function accountSecondaryText(account: AuthMenuAccountOption): string | null {
 }
 
 function savedAccountsTriggerLabel(account: AuthMenuAccountOption | null): string {
-  if (!account) return 'Saved accounts';
+  if (!account) return 'Saved wallets';
   const emailAddress = accountSecondaryText(account);
   return emailAddress
-    ? `Saved accounts. Selected wallet ID ${account.walletId}, email ${emailAddress}`
-    : `Saved accounts. Selected ${account.walletId}`;
+    ? `Saved wallets. Selected wallet ID ${account.walletId}, email ${emailAddress}`
+    : `Saved wallets. Selected ${account.walletId}`;
 }
 
 type AuthMenuAccountGroup = Readonly<{
@@ -733,7 +737,7 @@ export class AuthMenuSurface extends Component<
                   : ''
               }`}
               type="button"
-              aria-label={recovery ? 'Back to sign in' : 'Back'}
+              aria-label={recovery ? 'Back to unlock wallet' : 'Back'}
               data-auth-menu-close
               disabled={recoveryNavigationLocked(viewModel)}
               onClick={this.onBackClick}
@@ -998,7 +1002,7 @@ export class AuthMenuSurface extends Component<
             onClick={this.onPrimaryClick}
           >
             {fingerprintIcon()}
-            <span>{modeLabel(viewModel.mode)} with passkey</span>
+            <span>{passkeyButtonLabel(viewModel.mode)}</span>
           </button>
           {googleEnabled ? (
             <button
@@ -1025,7 +1029,7 @@ export class AuthMenuSurface extends Component<
           <button class="seams-menu-option" type="button" onClick={this.onLinkDeviceOpen}>
             <span class="seams-menu-option-icon">{linkDeviceIcon()}</span>
             <span class="seams-menu-option-text">
-              Link this device <small>Scan a code with a signed-in device</small>
+              Link this device <small>Scan a code with your other device</small>
             </span>
             {chevronIcon()}
           </button>
@@ -1037,7 +1041,7 @@ export class AuthMenuSurface extends Component<
           >
             <span class="seams-menu-option-icon">{recoveryIcon()}</span>
             <span class="seams-menu-option-text">
-              Recover account <small>Use your recovery code</small>
+              Recover wallet <small>Use your recovery code</small>
             </span>
             {chevronIcon()}
           </button>
@@ -1189,7 +1193,7 @@ export class AuthMenuSurface extends Component<
             ? 'Continue with Google, then verify the code sent to your email.'
             : googleTarget
               ? 'Finishing recovery with Google…'
-              : 'Create a new passkey to finish recovering this account.';
+              : 'Create a new passkey to finish recovering this wallet.';
     const action = signIn
       ? this.onRecoverySignIn
       : googleTarget
@@ -1215,8 +1219,8 @@ export class AuthMenuSurface extends Component<
             {googleTarget && !finalizationRetry ? googleIcon() : null}
             {signIn
               ? googleTarget
-                ? 'Sign in with Google'
-                : 'Sign in with new passkey'
+                ? 'Unlock with Google'
+                : 'Unlock with new passkey'
               : finalizationRetry
                 ? 'Retry finalization'
                 : googleTarget
@@ -1296,7 +1300,7 @@ export class AuthMenuSurface extends Component<
         dismiss: 'cancelled',
         title: 'Linking cancelled',
         detail: linkDevice.message,
-        action: 'Return to sign in',
+        action: 'Return to unlock wallet',
       });
     }
     if (linkDevice.kind === 'error' || linkDevice.kind === 'activation_error') {
@@ -1530,7 +1534,7 @@ export class AuthMenuSurface extends Component<
             data-link-device-error-dismiss
             onClick={this.onBackClick}
           >
-            Return to sign in
+            Return to unlock wallet
           </button>
         </>
       );
@@ -1578,11 +1582,11 @@ export class AuthMenuSurface extends Component<
       dismiss: 'error',
       title: activationFailed ? 'Device linked' : "Couldn't link device",
       detail: activationFailed ? (
-        <>Unable to open the wallet. Return to sign in and try again. {linkDevice.message}</>
+        <>Unable to open the wallet. Go back and try again. {linkDevice.message}</>
       ) : (
         linkDevice.message
       ),
-      action: 'Return to sign in',
+      action: 'Return to unlock wallet',
     });
   }
 

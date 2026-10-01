@@ -18,7 +18,7 @@ const recoveryCommon = {
   appearance,
   hostname: 'wallet.example.test',
   closeLabel: 'Close',
-  heading: 'Recover account',
+  heading: 'Recover wallet',
   subtitle: 'Recover this wallet.',
   ctaLabel: 'Continue',
   showProgress: true,

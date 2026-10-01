@@ -8215,7 +8215,7 @@ async function fillHostedRecoveryCode(
   target: IntendedRecoveryTargetKind,
 ): Promise<FrameLocator> {
   const frame = await hostedAuthMenuFrame(page);
-  await frame.getByRole('button', { name: 'Recover account' }).click({ timeout: 15_000 });
+  await frame.getByRole('button', { name: 'Recover wallet' }).click({ timeout: 15_000 });
   await frame.locator('[data-recovery-code]').fill(recoveryCode);
   await frame.locator(`[data-recovery-target="${target}"]`).click({ timeout: 30_000 });
   return frame;
@@ -8228,7 +8228,7 @@ async function waitForHostedPasskeyRecoverySignIn(page: Page, frame: FrameLocato
   while (Date.now() < deadline) {
     const label = (await primary.textContent({ timeout: 100 }).catch(() => null))?.trim() ?? '';
     const message = (await status.textContent({ timeout: 100 }).catch(() => null))?.trim() ?? '';
-    if (label === 'Sign in with new passkey') {
+    if (label === 'Unlock with new passkey') {
       await primary.click({ timeout: 15_000 });
       return;
     }

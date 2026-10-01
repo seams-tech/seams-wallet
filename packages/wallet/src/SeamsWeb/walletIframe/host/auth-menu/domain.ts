@@ -61,7 +61,7 @@ type AuthMenuSurfaceStatus =
 
 /** The waiting headline for the passkey ceremony itself. */
 export function passkeyCeremonyHeadline(mode: 'login' | 'register'): string {
-  return mode === 'register' ? 'Creating passkey wallet…' : 'Signing in…';
+  return mode === 'register' ? 'Creating passkey wallet…' : 'Unlocking wallet…';
 }
 
 const RATE_LIMITED_FAILURE = /\bHTTP 429\b|too many requests|rate limit/i;

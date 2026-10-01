@@ -274,13 +274,13 @@ const DEFAULT_HOSTED_AUTH_MENU_COPY: HostedAuthMenuCopy = {
   login: {
     title: 'Welcome back',
     subtitle: '',
-    passkeyCta: 'Sign in with passkey',
+    passkeyCta: 'Unlock with passkey',
   },
   register: {
-    title: 'Create your account',
+    title: 'Create a wallet',
     subtitle: '',
     passkeyNameLabel: 'Wallet name',
-    passkeyCta: 'Sign up with passkey',
+    passkeyCta: 'Create wallet with passkey',
   },
   common: { closeLabel: 'Close' },
 };
