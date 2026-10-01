@@ -171,9 +171,9 @@ Use the same workloads and build identities in these arms:
   deployed binding pairs, cost, and restoration evidence.
 - [ ] Extend the matched comparison to other probe regions and, when warranted,
   an ENAM primary. Keep registration distribution and object age comparable;
-  retain the original ENAM infrastructure failure separately. The first R152
-  Tokyo attempt dispatched no wallets because Cloudflare could not allocate the
-  probe container; restoration is verified and the preflight failure is retained.
+  retain the original ENAM infrastructure failure separately. Both R152 Tokyo
+  preflights dispatched no wallets because Cloudflare could not allocate the
+  probe container; restoration is verified and both failures are retained.
 - [ ] Alternate arm order across at least two runs. Target at least 30 completed
   signatures per arm, probe region, and workload; record errors and incomplete
   attempts in the denominator. Distinguish independent fresh-wallet first-sign
@@ -217,6 +217,9 @@ below remain open.
 - [ ] Identify globally shared configuration and its consistency requirements.
   If a global authority check still needs a remote round trip, include it in the
   experiment and decision. Do not add asynchronous authority copies to hide it.
+  Private Console now consumes Wallet 0.7.3 and exposes binding wall time on
+  status requests. Actual Console composition measurement remains open: repair
+  stale private test imports and provision an isolated test-service session first.
 - [ ] Reuse existing trusted tenant/environment routing where possible. Define
   required owner, home, and routing-generation identity at the server boundary.
   Reject inconsistent or stale routes before any mutation. Route lookup itself

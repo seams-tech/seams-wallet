@@ -208,6 +208,47 @@ readiness gate. Existing wallets stay at their assigned database; this diagnosti
 provides no same-wallet travel or production routing proof. The infrastructure
 failure remains in the experiment log even if a future startup succeeds.
 
+Run five retried Tokyo with a fresh evidence directory and the same frozen
+builds, six planned chains, and alternating database arms. It again dispatched
+zero wallet attempts: target-image rollout `177104e2-59c6-4fa0-aaa6-f37e267b57dc`
+remained without a healthy target instance and failed the ten-minute gate. The
+additional startup read retained HTTP 500 and an HTML content type; the Worker
+exception again reported that no container instance could be provided. This
+second `environment_or_infrastructure_failure` supplies no Tokyo latency sample.
+Further Tokyo measurements require successful container readiness first.
+
+Evidence: `.artifacts/r152/regional-d1-20261001-r5/`, including
+`preflight-outcome.json`, `rollout-health.json`, `measurement-startup-check.json`,
+and `probe-startup-errors.json`. Restoration rollout
+`06d4d054-b15a-47ff-9d31-5bf4b0e0c548` completed at application version 31 with
+two stable observations. Postflight verifies original Worker versions/images,
+all probes inactive, default Gateway placement, HTTP 403/503 access closure,
+and unchanged custody-role versions. The scan found zero benchmark-token matches
+in 27 files. Estimated cumulative spend is $1.2510 of $25, including both regional
+databases and subject to analytics lag.
+
+## Console composition preparation
+
+Private Console commit `286bc83` adds existing binding/total Gateway timing to
+`/wallet/session/status`, closing a timing gap on the owner signing path. Commit
+`49a45f3` adopts the verified exact Wallet and Wallet Server 0.7.3 packages across
+the private workspace; `919406d` removes an invalid ambient Playwright type entry
+and its redundant Console override. Full production builds, application/server
+type-checks, type fixtures, Console E2E type-checking, and Console import-boundary
+checks pass. These changes are committed locally; they have not been deployed
+or included in the frozen regional cohorts.
+
+The composed intended-test harness still references Wallet source modules that
+moved out of the private repository, and has missing script/Vite declarations.
+Its type-check fails; classify the removed-source references as stale test
+integration. Existing local services also occupy the harness's fixed ports.
+They were preserved, and no composed E2E or wallet reset was dispatched.
+Verification commands, log hashes, and blockers are retained in the private
+`.artifacts/r152/console-readiness-20261001/verification.json`. Repair the private
+composition harness against public package boundaries and use isolated services
+before measuring actual Console D1/binding costs. The static Console fixture's
+London results cannot close this production-composition gate.
+
 ## Decision and remaining work
 
 London provides sufficient measured benefit to continue regional ownership

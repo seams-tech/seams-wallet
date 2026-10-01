@@ -53,6 +53,30 @@ The relevant implementation boundaries are
 [`routerAbNormalSigningAdmissionCore.ts`](../packages/wallet-server/src/router/domains/signingOperations/routerAbNormalSigningAdmissionCore.ts),
 and [`d1EmailOtpRateLimitStore.ts`](../packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpRateLimitStore.ts).
 
+## Namespace and uniqueness audit
+
+A fresh local application of all 39 migrations at Wallet revision `82dad493`
+confirms 54 application tables and 30 effective triggers, with `integrity_check`
+returning `ok` and no foreign-key violations. The resulting
+`.artifacts/r152/ownership-20261001/namespace-boundaries.json` records migration
+hashes, scope columns, primary keys, every unique index, and effective trigger SQL.
+
+Forty-nine tables carry `namespace`; their unique indexes all include that column.
+The remaining five are the local CAS guard tables for registration, linked
+sessions, lanes, wallet authority, and versioned Yao records. They are database
+infrastructure, not independently routable owners.
+
+Six tables have namespace/tenant uniqueness without project/environment:
+`authorization_wallet_session_quotas`, `authorized_operations`,
+`authorized_operation_audit_events`, `verified_owner_proof_consumptions`,
+`verified_wallet_operation_evidence_sets`, and `vault_proxy_secrets`. Their keys
+cover session/quota IDs, operation IDs/fingerprints, audit IDs, one-use proof and
+replay identities, evidence digests, and vault/item IDs. Splitting an organization's
+projects across writable homes would change these existing uniqueness boundaries.
+An entire deployment namespace remains the conservative initial home unit.
+This structural audit does not complete the semantic administration, stale-writer,
+and migration proofs below.
+
 ## Routing and administration limits
 
 [`hosted-wallet-gateway.ts`](../packages/wallet-server/src/hosted-wallet-gateway.ts)
@@ -84,6 +108,24 @@ binding reads in that composition, before counting its other Console operations.
 This is a source-derived request inventory, not a hosted production measurement.
 The existing `wallet_gateway_binding` timing can help measure the added leg.
 
+The follow-up private Gateway change `286bc83` extends the existing
+`wallet_gateway_binding` and `wallet_gateway_total` Server-Timing entries to
+`/wallet/session/status`. The two owner status requests previously omitted those
+metrics, although they performed the same binding lookup. Existing ECDSA route
+timing is retained. Type-checking, lint, and formatting passed. This change is
+committed locally and has not been deployed; none of the hosted cohorts include it.
+The timing is complete binding-lookup wall time, not isolated Console SQL time or
+served-region metadata. Measuring those costs still requires an isolated deployment
+of the real Console composition.
+
+The normal prepare/finalize route definitions use session-principal authentication
+and no API-key metering. The exact status handler reads the Wallet Session's
+operation credential directly. Do not blindly add all Console client operations
+to every signature budget merely because the composition provides them. Inventory
+registration, unlock, refill, step-up, and recovery separately, and measure actual
+service calls. The four/two active-binding reads above remain a source-derived
+minimum for the private owner/linked composition.
+
 Reuse the existing deployment lane, canonical binding revision, activation
 sequence, and bound tenant namespace as the starting routing model. The shared
 `tenant_deployment_binding_v1` currently carries tenant identity, origins,
@@ -100,6 +142,16 @@ requests before resolving the active tenant binding. Registration setup also
 checks the Console cutover-admission gate. Include those authenticated internal
 paths explicitly in the ownership proof; a check added only to the public
 Gateway would leave this control path outside that check.
+
+The existing `tenantDeployment/runtimeInspection.ts` counts source and target
+wallets in the same configured database, scoped to project/environment. It checks
+in-flight ceremonies only in the target scope and returns the requested binding
+revision as its acknowledgement. `tenantDeployment/readiness.ts` uses those
+counts for environment cutover readiness. This establishes neither a whole
+namespace's emptiness/drain status nor the identity of a regional database.
+Regional home assignment needs those additional proofs; the existing readiness
+response cannot authorize moving an existing namespace. This is a limit of
+reusing the current environment-cutover protocol for regional routing.
 
 The Wallet runtime's `readWalletRuntimeIdentities` in `hosted-wallet-gateway.ts`
 also reads multiple wallet signers by namespace and organization, then filters
