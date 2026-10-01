@@ -1,4 +1,5 @@
 import { SigningTimingEvidence } from './signing-timing-evidence';
+import { GatewayRequestEvidence } from './gateway-request-evidence';
 import {
   expect,
   type APIResponse,
@@ -658,6 +659,8 @@ async function measureFirstWarmAndBurstSigning(
   },
   testInfo: TestInfo,
 ): Promise<void> {
+  const gatewayEvidence = new GatewayRequestEvidence();
+  gatewayEvidence.start(context);
   await context.addInitScript(enableSigningSessionDebugInFrame);
   await page.evaluate(enableSigningSessionDebugInFrame);
   const clientTiming = new SigningTimingEvidence();
@@ -689,7 +692,9 @@ async function measureFirstWarmAndBurstSigning(
 
     // A fresh three-use session leaves exactly two uses for the concurrent burst.
     await harness.awaitNearReady();
+    const unlockStartedAt = performance.now();
     await harness.unlockPasskeyWallet();
+    const unlockEndedAt = performance.now();
     await harness.signTempoTransaction('post_unlock');
     const readyBeforeBurst = new Set(await flow.unusedServerPresignatures());
     const burstPrepareStart = flow.preparedPresignatures.length;
@@ -713,6 +718,10 @@ async function measureFirstWarmAndBurstSigning(
       timingScope: 'browser_harness_including_automatic_confirmation_and_signature_verification',
       requestScope: 'gateway_POSTs_during_each_window_including_background_work',
       timingPurpose: 'bounded_diagnostic_not_complete_system_controlled_latency_or_release_gate',
+      coldUnlock: {
+        elapsedMs: unlockEndedAt - unlockStartedAt,
+        gateway: await gatewayEvidence.window(unlockStartedAt, unlockEndedAt),
+      },
       firstSigning: {
         ...firstSigning,
         clientTiming: clientTiming.window(firstStartedAt, firstEndedAt),
@@ -750,6 +759,7 @@ async function measureFirstWarmAndBurstSigning(
     await writeFile(artifactPath, body, 'utf8');
     await testInfo.attach(artifactName, { body, contentType: 'application/json' });
   } finally {
+    gatewayEvidence.stop(context);
     page.off('console', observeTiming);
     context.off('request', record);
     context.off('response', recordResponse);

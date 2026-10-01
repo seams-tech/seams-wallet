@@ -56,7 +56,7 @@ const IDENTITY_FIELDS = [
 function parseAttempt(body) {
   const request = JSON.parse(body);
   const { runId, arm, region, selected, expectedIdentity, workload } = request;
-  if (!['unforced', 'first_warm_burst', 'linked_chain', 'placement_pair'].includes(workload))
+  if (!['unforced', 'first_warm_burst', 'linked_chain', 'placement_pair', 'activation_resume'].includes(workload))
     throw new Error('attempt workload is invalid');
   if (!/^[a-z0-9-]+$/u.test(runId ?? '') || !['d1', 'do'].includes(arm)) {
     throw new Error('attempt run id or arm is invalid');
@@ -104,6 +104,13 @@ function workloadConfiguration(workload) {
         directory: 'r151',
         file: 'passkey.device-linking.contract.test.ts',
         selection: 'a linked device links a third device on an ECDSA-only wallet',
+      };
+    case 'activation_resume':
+      return {
+        artifactPrefix: 'registration-activation-resume-ecdsa_only',
+        directory: 'r150',
+        file: 'passkey.registration.activation-resume.contract.test.ts',
+        selection: 'Passkey ecdsa_only activation response loss resumes the same wallet',
       };
     case 'placement_pair':
       return {

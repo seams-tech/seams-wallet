@@ -4,6 +4,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { isHex, recoverTransactionAddress } from 'viem';
 import { intendedTest as test } from './harness';
+import { GatewayRequestEvidence } from './gateway-request-evidence';
 
 class LostActivationResponse {
   ceremonyId = '';
@@ -85,6 +86,8 @@ for (const signerPlan of ['ecdsa_only', 'mixed'] as const) {
     page,
   }, testInfo) => {
     const lost = new LostActivationResponse();
+    const gateway = new GatewayRequestEvidence();
+    gateway.start(context);
     const handle = lost.handle.bind(lost);
     const observe = lost.observe.bind(lost);
     const activatePath = '**/wallets/register/activate';
@@ -111,8 +114,10 @@ for (const signerPlan of ['ecdsa_only', 'mixed'] as const) {
       await expect(recovery).toHaveAttribute('data-state', 'failed');
       await expect(recovery).toContainText('pending ECDSA activation facts mismatch');
       expect(lost.unlocks).toBe(0);
+      const resumeStartedAt = performance.now();
       await page.getByRole('button', { name: 'Resume with exact passkey', exact: true }).click();
       await expect(recovery).not.toHaveAttribute('data-state', 'pending', { timeout: 60_000 });
+      const resumeEndedAt = performance.now();
       expect(JSON.parse(await recovery.innerText()).kind).toBe('published');
       expect(JSON.parse(await recovery.innerText()).result).toEqual({
         kind: 'published',
@@ -153,6 +158,11 @@ for (const signerPlan of ['ecdsa_only', 'mixed'] as const) {
         activationRequestSha256: lost.requestDigest(),
         exactReplays: lost.exactReplays,
         exactMethodUnlocks: lost.unlocks,
+        recovery: {
+          elapsedMs: resumeEndedAt - resumeStartedAt,
+          gateway: await gateway.window(resumeStartedAt, resumeEndedAt),
+        },
+        verifiedSignatures: 1,
         alteredActivationDigestRejectedBeforeUnlock: true,
         registrationRequestsBeforeResume: registrationRequests,
         registrationRequestsAfterResume: lost.otherRegistrationRequests,
@@ -160,17 +170,31 @@ for (const signerPlan of ['ecdsa_only', 'mixed'] as const) {
         recoveredAddress,
         rawTxHex: signed.rawTxHex,
       };
-      const artifactPath = path.resolve(
-        testInfo.config.rootDir,
-        `../.artifacts/r150/registration-activation-resume-${signerPlan}.json`,
-      );
+      const hosted = process.env.SEAMS_INTENDED_EXTERNAL_GATEWAY === '1';
+      const arm = process.env.SEAMS_INTENDED_BENCHMARK_ARM;
+      const region = process.env.SEAMS_INTENDED_PROBE_REGION;
+      const runId = process.env.SEAMS_INTENDED_BENCHMARK_RUN_ID;
+      if (
+        hosted &&
+        ((arm !== 'd1' && arm !== 'do') ||
+          !region ||
+          !/^[a-z0-9-]+$/u.test(region) ||
+          !runId ||
+          !/^[a-z0-9-]+$/u.test(runId))
+      ) {
+        throw new Error('Hosted activation recovery requires an arm, region and run identity');
+      }
+      const suffix = hosted ? `-hosted_${arm}-${region}-${runId}-${testInfo.repeatEachIndex}` : '';
+      const artifactName = `registration-activation-resume-${signerPlan}${suffix}.json`;
+      const artifactPath = path.resolve(testInfo.config.rootDir, '../.artifacts/r150', artifactName);
       await mkdir(path.dirname(artifactPath), { recursive: true });
       await writeFile(artifactPath, `${JSON.stringify(evidence, null, 2)}\n`);
-      await testInfo.attach(`registration-activation-resume-${signerPlan}.json`, {
+      await testInfo.attach(artifactName, {
         path: artifactPath,
         contentType: 'application/json',
       });
     } finally {
+      gateway.stop(context);
       context.off('request', observe);
       await context.unroute(activatePath, handle);
     }
