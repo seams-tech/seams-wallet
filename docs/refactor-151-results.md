@@ -3,9 +3,10 @@
 Recorded October 1, 2026 (Japan time), for the Wallet 0.7.3 release preparation.
 
 R151's supported read reductions and demonstrated refill fixes are implemented
-and verified. The complete 1–2 second maximum remains unmet. R152 owns the next
-regional-D1 experiment; its benefit has not been measured and no regional
-database has been provisioned. Production deployment is separate from package
+and verified. At R151 closure, the complete 1–2 second maximum remained unmet;
+regional D1 had not been provisioned or measured. The subsequent
+[R152 experiment results](refactor-152-results.md) record the new regional
+placement evidence separately. Production deployment is separate from package
 publication.
 
 ## Measurement scope

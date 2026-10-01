@@ -1,6 +1,7 @@
 # Regional D1 empirical results
 
-Date: October 1, 2026. Status: first London diagnostic complete; larger repeat running.
+Date: October 1, 2026. Status: repeated London ready-material comparison complete;
+immediate-first and burst diagnostic running.
 
 This log implements the bounded experiment in
 [the ownership review](refactor-152-ownership-review.md) and preserves evidence
@@ -81,11 +82,50 @@ signatures per arm across separate runs. Immediate first-sign, concurrent burst,
 other regions, production Console dependencies, ownership routing, and rollout
 remain open. These ready-material samples alone cannot close those gates.
 
-The second run, `.artifacts/r152/regional-d1-20261001-r2/`, uses the same builds,
-databases, and namespaces after independently verified restoration. It starts
-with WEUR and alternates seven fresh chains per arm in reversed-order blocks.
-Together the runs target 30 owner and 60 linked signatures per arm. Every newly
-deployed Gateway version's binding pair is checked before dispatching a wallet.
+## Repeated London ready-material result
+
+The second run, `.artifacts/r152/regional-d1-20261001-r2/`, used the same builds,
+databases, and namespaces after independently verified restoration. It started
+with WEUR and alternated seven fresh chains per arm in reversed-order blocks.
+Every newly deployed Gateway version's binding pair was checked before
+dispatching a wallet. Its probe boot was
+`0106c89d-7a74-4486-a506-f63ddd1e6785`, distinct from the first run.
+
+Both runs together completed all 20 fresh-wallet chains: 180 verified signatures,
+with 30 owner and 60 linked samples per arm, zero failed/incomplete attempts,
+and the same seven/five-call and two-write/14-row budgets. All measured D1
+statements came from the assigned primary. The second run's eight Gateway
+versions were observed executing in LHR, and all five custody-role deployment
+versions were unchanged before/after.
+
+| Device path | Samples per arm | APAC SDK p50 / p95 / max (ms) | WEUR SDK p50 / p95 / max (ms) | p95 reduction |
+| --- | ---: | ---: | ---: | ---: |
+| Owner | 30 | 2,445.1 / 2,638.4 / 2,643.9 | 850.1 / 942.7 / 984.3 | 1,695.7 ms (64.3%) |
+| Linked generations combined | 60 | 2,240.4 / 2,457.7 / 2,517.8 | 798.6 / 927.0 / 1,018.9 | 1,530.7 ms (62.3%) |
+
+Median summed D1 wall time is 1,762.5→114 ms for owners and 1,559.5→88 ms for
+linked devices. Corresponding SQL medians are 14.66→10.34 ms and 13.88→9.83 ms.
+Each run independently exceeds the proposed 20%/100 ms full-path p95 benefit
+threshold: owner reductions are 65.9% and 63.9%; linked reductions are 61.5% and
+62.4%. This satisfies that performance criterion for the London ready-material
+workload. It leaves immediate-first/burst, other regions, production Console,
+home routing, and migration gates open. Each wallet contributes three repeated
+signatures per device; 30 signatures are not 30 independent owner wallets.
+
+The combined evidence is `.artifacts/r152/combined-london-ready.json`. Reproduce:
+
+```sh
+node tests/r150-hosted/analyze-regional-d1.mjs \
+  .artifacts/r152/combined-london-ready.json \
+  .artifacts/r152/regional-d1-20261001-r1 \
+  .artifacts/r152/regional-d1-20261001-r2
+```
+
+The next diagnostic uses the existing immediate-first/warm/concurrent-burst E2E
+on fresh mixed wallets. It verifies five signatures per attempt, including one
+untimed session setup signature and a two-signature burst consuming the last two
+uses of a shared quota. Its evidence stays separate from the ready-material
+linked-chain comparison.
 
 ## Evidence and reproduction
 
@@ -125,3 +165,9 @@ ingress HTTP 503. The evidence scan found zero benchmark-token matches in 47
 files. Cumulative cost increased from $1.0538 to $1.1051 against the $25 cap,
 subject to analytics lag; postflight accounting includes both new database IDs.
 The new databases remain retained for evidence and the authorized repeat.
+
+The second run also restored original Worker versions/images, inactive probes,
+default placement, and HTTP 403/503 access closure before the next diagnostic.
+Its scan found zero benchmark-token matches in 57 evidence files. Cumulative
+estimated cost through the second run is $1.2095, including both regional
+databases and subject to accounting lag.

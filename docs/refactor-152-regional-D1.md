@@ -4,9 +4,9 @@ Date: September 30, 2026
 
 Status: implementation in progress. A controlled same-wallet London comparison shows that
 moving the Gateway to Tokyo alone worsens complete signing latency, despite
-shorter D1 calls. Aligning a regional primary with the existing Gateway/custody
-path remains unmeasured. Provisioning and production rollout stay gated on the
-ownership checks and regional experiment below. The October 1
+shorter D1 calls. The first matched regional-D1 diagnostic now shows a substantial
+ready-material London benefit; broader workloads and production routing remain
+gated on the checks below. The October 1
 [ownership review and first experiment](refactor-152-ownership-review.md)
 defines a whole-deployment-namespace diagnostic and records the remaining
 production routing proof. The October 1 implementation request authorizes that
@@ -87,7 +87,8 @@ and aggregate DO attribution limit the conclusion. Evidence:
 `.artifacts/r151/regional-placement-20260930-r11/`.
 
 R150's D1-versus-DO custody comparison did not measure the benefit of aligning
-the residual Gateway database. There is no measured regional-D1 gain yet.
+the residual Gateway database. R152's subsequent regional-D1 gain is recorded
+separately in [the October 1 experiment results](refactor-152-results.md).
 The complete signing target remains 1–2 seconds, including SDK orchestration,
 authorization, presign waiting, prepare/finalize, and verified signature return.
 Human decision time and transaction broadcasting are reported separately.
@@ -157,11 +158,18 @@ Use the same workloads and build identities in these arms:
 
 - [x] Run A/B first. Include the Gateway-to-DO leg: improving D1 proximity can
   increase custody RPC latency. Confirm the placement treatment took effect.
-- [ ] If residual cost warrants C, provision isolated test databases using APAC,
-  WEUR, and later ENAM hints where verified probes are available. Start with the
-  two-database London diagnostic in the ownership review. Keep fresh data,
-  registration distribution, and object age comparable across arms. Add a
-  matched fresh baseline when necessary to separate placement from data age.
+- [x] Complete the London ready-material regional-D1 comparison across two
+  probe boots and alternating arm order: 30 owner and 60 linked signatures per
+  arm, all verified. Owner/linked p95 improves 64.3%/62.3%, meeting the proposed
+  benefit criterion for this workload. Preserve its static-Console scope and
+  keep the broader workload/region gates below open.
+- [x] Provision the initial fresh APAC control and WEUR treatment with matching
+  schemas, separate namespaces, fixed builds, and comparable fresh-wallet
+  registration. Record database identities, actual primary-region metadata,
+  deployed binding pairs, cost, and restoration evidence.
+- [ ] Extend the matched comparison to other probe regions and, when warranted,
+  an ENAM primary. Keep registration distribution and object age comparable;
+  retain the original ENAM infrastructure failure separately.
 - [ ] Alternate arm order across at least two runs. Target at least 30 completed
   signatures per arm, probe region, and workload; record errors and incomplete
   attempts in the denominator. Distinguish independent fresh-wallet first-sign

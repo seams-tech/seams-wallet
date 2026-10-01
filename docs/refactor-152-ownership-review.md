@@ -67,7 +67,7 @@ regional policy administration path remains to be designed and verified.
 Production Gateway composition reaches Console through service-binding clients
 for API/publishable-key authorization, environment resolution, usage, and active
 tenant-root lineage. The benchmark substitutes the existing static Console
-binding. Its placement result will measure that isolated topology. It cannot
+binding. Its placement result measures that isolated topology. It cannot
 establish production latency or consistency for remote Console dependencies;
 each affected production route needs a measured dependency inventory.
 
@@ -106,8 +106,8 @@ region hint never proves same-datacenter placement with any DO.
 
 ## First bounded experiment
 
-Start with London, where the latest owner SDK median is 2,680.5 ms and linked
-median is 2,487.0 ms. The owner has seven full-path D1 calls; linked signing has
+The experiment starts from R151's London owner SDK median of 2,680.5 ms and linked
+median of 2,487.0 ms. The owner has seven full-path D1 calls; linked signing has
 five. Both retain five prepare/finalize calls and two write-bearing calls. Full
 source/build identities and request accounting are in
 [the R151 session-read evidence](refactor-151-session-read.md).
