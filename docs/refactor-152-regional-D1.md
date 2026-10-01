@@ -14,6 +14,9 @@ the existing-resources-only benchmark authorization.
 
 ## Objective and starting evidence
 
+Use the [R151 empirical results](refactor-151-results.md) as the consolidated
+baseline index; preserve each cohort's scope and build identity when comparing.
+
 Reduce complete system-controlled signing latency by bringing the remaining
 authoritative D1 calls closer to the Gateway and role-separated custody DOs.
 Retain the architecture established by

@@ -2,6 +2,10 @@
 
 Date: September 29, 2026
 
+Consolidated measured results and comparison limits:
+[R151 empirical results](refactor-151-results.md). The detailed checkpoints below
+and linked evidence retain source identities and unsuccessful attempts.
+
 Status: policy, claim/readback, operation/source, and persisted owner-scope
 consolidation are implemented and verified in bounded hosted diagnostics. The
 latest reusable-session ECDSA Gateway prepare/finalize path makes five D1 calls
