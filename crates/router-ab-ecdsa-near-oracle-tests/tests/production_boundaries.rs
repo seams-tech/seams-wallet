@@ -28,13 +28,12 @@ fn repository_root() -> PathBuf {
         .to_path_buf()
 }
 
-fn production_source_roots(root: &Path) -> [PathBuf; 5] {
+fn production_source_roots(root: &Path) -> [PathBuf; 4] {
     [
         root.join("crates/router-ab-ecdsa-wire/src"),
         root.join("crates/router-ab-ecdsa-pool/src"),
         root.join("crates/router-ab-ecdsa-presign/src"),
         root.join("crates/router-ab-ecdsa-online/src"),
-        root.join("wasm/router_ab_ecdsa_signing_worker/src"),
     ]
 }
 

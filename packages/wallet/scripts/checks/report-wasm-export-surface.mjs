@@ -25,7 +25,7 @@ Scans:
 Reports:
   - exports used by runtime code
   - exports used only by build scripts
-  - exports used only by tests/benchmarks
+  - exports used only by tests
   - exports with no observed import usage
   - imports naming something the generated wrapper does not export
 
@@ -43,7 +43,7 @@ Options:
  * until 2026-08-07; none of them existed any more, so the scan matched no files
  * and the report called every export unused — which is why nobody read it.
  */
-const SOURCE_ROOTS = ['packages', 'apps', 'tests', 'benchmarks', 'examples', 'clients', 'tools'];
+const SOURCE_ROOTS = ['packages', 'apps', 'tests', 'examples', 'clients', 'tools'];
 const GENERATED_SKIP_SEGMENTS = ['/dist/', '/node_modules/', '/wasm/', '/target/'];
 
 function toPosix(value) {
@@ -70,7 +70,7 @@ function walkFiles(rootAbs, include) {
 }
 
 function categoryForFile(relPath) {
-  if (relPath.startsWith('tests/') || relPath.startsWith('benchmarks/')) return 'test';
+  if (relPath.startsWith('tests/')) return 'test';
   if (relPath.startsWith('packages/wallet/scripts/') || relPath.endsWith('rolldown.config.ts')) return 'build';
   return 'runtime';
 }

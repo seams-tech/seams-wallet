@@ -586,12 +586,8 @@ Decisions:
   yet `docs/intended-behaviours.md` lists it as covered. Re-enable it or
   delete it.
 - `seams-embedded`, `signer-embedded-linux` and
-  `router-ab-ecdsa-near-oracle-tests`, which nothing builds; the Yao
-  client's lane holder, unwired on both sides (595 lines); and
-  `benchmarks/router-ab-ecdsa-derivation-wasm`, whose documented script never
-  existed. That benchmark is the only importer of
-  `wasm/router_ab_ecdsa_signing_worker` (788 lines), which no package ships
-  and `pnpm build:wasm` no longer builds.
+  `router-ab-ecdsa-near-oracle-tests`, which nothing builds; and the Yao
+  client's lane holder, unwired on both sides (595 lines).
 - `@noble/hashes` and `tslib`, runtime dependencies of the published
   packages that nothing imports.
 
@@ -810,3 +806,9 @@ Found during the cleanup and left unchanged, for their owners to check:
   functions 4,276 -> 3,729 (86,063 -> 73,986 lines); `?: never` lines 2,684
   -> 1,945; Rust `allow(dead_code)` 125 -> 97. The baseline was re-recorded
   at `ae9a230`.
+- 2026-10-01: wallet-server stopped shipping the Router A/B ECDSA
+  signing-worker WASM, which nothing had loaded since 87baab3, and
+  `pnpm build:wasm` stopped building it (fbcb563). The crate
+  `wasm/router_ab_ecdsa_signing_worker` and its only importer,
+  `benchmarks/router-ab-ecdsa-derivation-wasm`, were then deleted (1,289
+  lines of Rust and JavaScript).

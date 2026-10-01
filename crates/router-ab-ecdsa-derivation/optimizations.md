@@ -4,7 +4,10 @@ Last updated: 2026-05-20
 
 Removal note: entries that refer to the old Router A/B ECDSA derivation context version are
 historical. The active crate no longer retains those code paths, fixtures, or
-benchmarks.
+benchmarks. The WASM benchmark (`benchmarks/router-ab-ecdsa-derivation-wasm`)
+was deleted on 2026-10-01 with the signing-worker WASM crate it measured, so
+entries that cite `pnpm benchmark:router-ab-ecdsa-derivation:wasm` are
+historical too.
 
 ## Purpose
 
@@ -26,7 +29,6 @@ No optimization should land without benchmark evidence against this ledger.
 Dedicated benchmark suite:
 
 - [benches/performance_baseline.rs](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/benches/performance_baseline.rs)
-- [benchmarks/router-ab-ecdsa-derivation-wasm/src/runner.mjs](/Users/pta/Dev/rust/simple-threshold-signer/benchmarks/router-ab-ecdsa-derivation-wasm/src/runner.mjs)
 
 Measured paths:
 
@@ -42,12 +44,6 @@ Command:
 
 ```bash
 cargo bench --manifest-path crates/router-ab-ecdsa-derivation/Cargo.toml --bench performance_baseline
-```
-
-WASM command:
-
-```bash
-pnpm benchmark:router-ab-ecdsa-derivation:wasm
 ```
 
 Representative benchmark input:

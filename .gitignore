@@ -46,7 +46,6 @@ packages/wallet/LICENSE.md
 packages/wallet-server/LICENSE.md
 
 # Benchmark artifacts
-benchmarks/router-ab-ecdsa-derivation-wasm/out/
 crates/router-ab-cloudflare/reports/startup-latencies/*.json
 
 # WASM worker outputs

@@ -4,7 +4,9 @@ Date created: April 9, 2026
 Last updated: April 9, 2026
 
 Removal note: this optimization plan is historical. The old Router A/B ECDSA derivation context
-version and its benchmark path were removed after v2 invalidation.
+version and its benchmark path were removed after v2 invalidation. The WASM
+benchmark behind `pnpm benchmark:router-ab-ecdsa-derivation:wasm` was deleted
+on 2026-10-01.
 
 ## Purpose
 
