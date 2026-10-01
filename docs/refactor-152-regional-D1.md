@@ -2,11 +2,13 @@
 
 Date: September 30, 2026
 
-Status: implementation in progress. A controlled same-wallet London comparison shows that
-moving the Gateway to Tokyo alone worsens complete signing latency, despite
-shorter D1 calls. The first matched regional-D1 diagnostic now shows a substantial
-ready-material London benefit; broader workloads and production routing remain
-gated on the checks below. The October 1
+Status: placement investigation and ownership design in progress. Repeated London
+and Tokyo ready-material comparisons each favor their nearby primary. Each
+ready-material comparison has 180 verified signatures: 30 owner and 60 linked
+signatures per D1 arm.
+Tokyo retains one additional collection failure with unknown Wallet outcome.
+Authenticated Console composition, broader workloads and production routing
+remain gated on the checks below. The October 1
 [ownership review and first experiment](refactor-152-ownership-review.md)
 defines a whole-deployment-namespace diagnostic and records the remaining
 production routing proof. The October 1 implementation request authorizes that
@@ -165,6 +167,13 @@ Use the same workloads and build identities in these arms:
   arm, all verified. Owner/linked p95 improves 64.3%/62.3%, meeting the proposed
   benefit criterion for this workload. Preserve its static-Console scope and
   keep the broader workload/region gates below open.
+- [x] Complete the Tokyo ready-material sample target with 30 owner and 60 linked
+  signatures per arm across ten completed wallets per arm. APAC versus WEUR D1
+  lowers owner p95 3,173.6→2,065.6 ms and linked p95 2,970.6→1,637.1 ms
+  (34.9%/44.9%). Count the additional WEUR collection failure in its 11 dispatched
+  attempts, preserve rejected Osaka candidates, and retain the independent-boot,
+  temporal-block and static-Console limitations. See the
+  [sample extension](refactor-152-results.md#tokyo-sample-extension-october-1).
 - [x] Provision the initial fresh APAC control and WEUR treatment with matching
   schemas, separate namespaces, fixed builds, and comparable fresh-wallet
   registration. Record database identities, actual primary-region metadata,
@@ -198,11 +207,15 @@ Use the same workloads and build identities in these arms:
   workload and authenticated Console gates remain open. The initial Tokyo cohort
   verifies 18 signatures (three owner and six linked per D1 arm); owner medians
   are 1,673.8 ms with APAC D1 and 3,010.5 ms with WEUR D1. All temporary resources
-  were deleted after verification. See the [Tokyo results](refactor-152-results.md#tokyo-signing-results-and-cleanup).
+  were deleted after verification. The subsequent extension reaches 180 verified
+  Tokyo signatures; the US and broader workload matrix remain open. See the
+  [Tokyo results](refactor-152-results.md#tokyo-signing-results-and-cleanup).
 - [ ] Alternate arm order across at least two runs. Target at least 30 completed
   signatures per arm, probe region, and workload; record errors and incomplete
   attempts in the denominator. Distinguish independent fresh-wallet first-sign
-  samples from repeated signatures on an existing wallet.
+  samples from repeated signatures on an existing wallet. The ready-material
+  London/Tokyo targets are complete; repeated immediate-first/burst and US
+  workloads remain open.
 - [x] Report p50, p95, observed maximum, sample count, and error rate for the
   completed London workloads. Preserve raw redacted samples. Arms use distinct
   wallets; distributions are unpaired. Continue this accounting for each region.
@@ -210,7 +223,11 @@ Use the same workloads and build identities in these arms:
 - [ ] Use a proposed benefit gate of at least 20% and 100 ms improvement in
   full-path p95 over the best simpler arm across repeated runs. Record uncertainty
   and tail/error regressions in other regions. Revisit the gate explicitly before
-  running if the measured baseline makes it inappropriate.
+  running if the measured baseline makes it inappropriate. London's WEUR
+  treatment meets this latency criterion over the APAC baseline for ready-material
+  signing. Tokyo supports retaining APAC and demonstrates the cost of a WEUR-only
+  placement there. Its owner maximum is 2,069.4 ms, so a universal two-second
+  bound is unproven.
 - [x] Reconcile cumulative Cloudflare experiment cost before provisioning and
   each completed run; continue before every rerun. Keep the existing $25 cap and
   isolated-resource scope. Preserve R150's

@@ -79,6 +79,34 @@ and migration proofs below.
 
 ## Routing and administration limits
 
+### Registration and recovery transaction boundaries
+
+A follow-up source review at Wallet `4ba3544e` identifies the following additional
+local transaction boundaries. These are source-derived requirements for regional
+ownership; the Tokyo signing cohorts do not exercise recovery or code rotation.
+
+| Mutation | Records that must remain at one writable home |
+| --- | --- |
+| Wallet registration commit | Wallet subject, signer records, founding authority/method, passkey authenticator and credential binding when applicable, Email OTP commit statements, and lifecycle decision statements share one D1 batch. |
+| Initial custody commit | The custody envelope, recovery envelope set, backup acknowledgement, and recovery-code locators are inserted together. Their insert-only/version checks prevent replacement of established custody. |
+| Recovery-set rotation | The recovery set and existing backup acknowledgement share version checks with locator collision detection, old-locator deletion, and replacement-locator insertion. |
+| Passkey recovery installation | Recovery-set consumption, the new envelope, authority/method, authenticator and credential binding, challenge consumption, and locator consumption share one guarded batch. Exact replay reads the committed target and consumed reservation from that same authority. |
+| Email OTP recovery installation | Recovery-set consumption, the new envelope, authority/method and enrollment statements, challenge deletion, recovery-attempt finalization, and locator consumption share one guarded batch. |
+
+The implementations are
+[`D1WalletRegistrationCommitStore.commit`](../packages/wallet-server/src/router/cloudflare/d1/registration/d1WalletRegistrationCommitStore.ts),
+the commit/rotation methods of
+[`CloudflareD1WalletCustodyCommitStore`](../packages/wallet-server/src/router/cloudflare/d1/passkeyCustody/d1WalletCustodyCommitStore.ts),
+and their
+[`putManyWithAdditionalStatements`](../packages/wallet-server/src/router/cloudflare/d1/versionedJson/d1VersionedJsonRecordStore.ts)
+batch boundary. These transactions reinforce the whole-namespace experiment
+boundary. Splitting recovery locators, authentication state, or envelope records
+into independent regional authorities would break existing atomicity. This review
+does not establish a whole-registration transaction across separate commits or
+complete the scheduled-work, administration, role-DO, and transfer proofs.
+
+### Runtime routing
+
 [`hosted-wallet-gateway.ts`](../packages/wallet-server/src/hosted-wallet-gateway.ts)
 selects `SIGNER_DB` and the namespace/org/project/environment from deployment
 configuration. There is no production owner-to-region directory or home
@@ -267,3 +295,11 @@ Before production implementation, complete semantic ownership review for every
 lifecycle/admin/scheduled path, define a trusted owner/home identity and stale
 route rejection, inventory Console/shared authority costs, and run concurrent
 entry-region/replay tests. Existing-owner migration remains a separate phase.
+
+The subsequent Tokyo ready-material extension verifies 180 signatures and meets
+the 30-owner/60-linked sample target per arm. Its APAC p95 advantage over WEUR is
+34.9% for owners and 44.9% for linked signing. One additional collection attempt
+failed with unknown Wallet outcome; preserve that denominator and the static
+Console scope. Together with London, this supports continuing the regional home
+design while retaining the correctness and production-composition gates above.
+See the [complete comparison](refactor-152-results.md#tokyo-sample-extension-october-1).

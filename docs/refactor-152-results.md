@@ -1,8 +1,10 @@
 # Regional D1 empirical results
 
-Date: October 1, 2026. Status: repeated London ready-material and first-sign/burst
-comparisons complete; temporary DO-scheduled probe unblocks verified Tokyo startup
-and signing. Broader regional and production gates remain open.
+Date: October 1, 2026. Status: repeated London ready-material comparison and
+first-sign/burst diagnostic complete; temporary DO-scheduled probe unblocks verified Tokyo startup
+and signing. Tokyo now also reaches the ready-material sample target: 180 verified
+signatures, with 30 owner and 60 linked signatures per D1 arm. Broader regional
+and production gates remain open.
 
 This log implements the bounded experiment in
 [the ownership review](refactor-152-ownership-review.md) and preserves evidence
@@ -710,10 +712,126 @@ recorded in `temporary-compute-bound.json`; this is a capacity-based allowance
 for delayed accounting, not an additional measured charge. Preserve the cost
 receipt's analytics-lag limitation.
 
+## Tokyo sample extension (October 1)
+
+The follow-up retains the frozen SDK/Gateway sources, original custody roles,
+database assignments, Docker-format image, probe size, sequential workload and
+static Console composition. Each fresh wallet again exercises three owner,
+three second-device and three third-device signatures. Provider instance records
+verify `nrt08`; independent arms use distinct probe boots and wallets.
+
+The WEUR-first `tokyo-do-policy-r8-20261001` run completed one nine-signature
+cohort. Polling its second dispatched attempt failed with `TypeError: fetch
+failed` at 06:50:21 UTC. The automatic cleanup then could not obtain Wrangler
+authentication. After connectivity/authentication recovered, the attempt endpoint
+returned `404 unknown attempt`; no result for that attempt could be recovered.
+Its ledger retains the collection failure and contributes no verified samples.
+This is an infrastructure/collection failure; the final Wallet operation outcome
+is unknown. Recovery closed ingress, restored the Gateway and deleted the
+temporary application, namespace and Worker, with successful readback.
+
+The next runners allow at most three attempts for a transient network failure
+while reading probe status. Wallet-attempt POSTs remain single-dispatch, HTTP
+errors remain failures, and identity checks still stop a changed boot. The failed
+attempt is retained independently of subsequent successful cohorts.
+
+The APAC `tokyo-do-policy-r9-20261001` run completed nine further wallets and
+81 verified signatures on boot `4026fdc5-5430-445f-99e8-838b4b1549ba`, with no
+failed or incomplete attempts. Together with the original APAC cohort, it reaches
+30 owner and 60 linked signatures across ten fresh wallets. Owner SDK p50/p95/max
+is 1,689.95/2,065.6/2,069.4 ms; linked p50/p95/max is
+1,447.55/1,637.1/1,680.1 ms. All traced calls retain the expected seven/five D1
+budgets and assigned primary region. Its cleanup/readback passed; all five
+custody-role versions remain unchanged.
+
+The matching WEUR extension uses fresh run directory
+`.artifacts/r152/tokyo-do-policy-r10-20261001/`. Its first two candidates started
+in `kix06` and were stopped without wallet dispatch; its third candidate started
+in `nrt08` and passed a fresh restart. All eight wallets and 72 signatures passed
+on boot `64baa1dd-8248-49c2-8f87-2a421bbd9b3d`. The extension adds 162 verified
+signatures to the original 18. Pooling runs r5, r7, r8, r9 and r10 produces the
+following ready-material comparison:
+
+| Device path | Samples per arm | APAC SDK p50 / p95 / max (ms) | WEUR SDK p50 / p95 / max (ms) | APAC p95 reduction relative to WEUR |
+| --- | ---: | ---: | ---: | ---: |
+| Owner | 30 | 1,689.95 / 2,065.6 / 2,069.4 | 2,968.95 / 3,173.6 / 3,206.4 | 1,108.0 ms (34.9%) |
+| Linked generations combined | 60 | 1,447.55 / 1,637.1 / 1,680.1 | 2,614.25 / 2,970.6 / 3,172.8 | 1,333.5 ms (44.9%) |
+
+APAC completed 10/10 dispatched wallets. WEUR completed 10/11; the remaining
+attempt is the r8 collection failure described above (9.1% of its dispatched
+attempts). Its Wallet outcome is unknown. Rejected placement candidates and
+pre-dispatch boot changes remain separate infrastructure evidence. The 180
+verified signatures come from 20 completed fresh wallets, with three owner and
+six linked signatures per wallet; each linked generation contributes 30 samples
+per arm. There are no incomplete ledger entries.
+
+Owner summed D1 wall p50 is 564 ms for APAC versus 1,929 ms for WEUR, while SQL
+p50 is 16.45 versus 15.38 ms. Linked D1 wall p50 is 500 versus 1,713 ms, with SQL
+p50 15.59 versus 14.78 ms. The analyzer validates all 480 dependency-window HTTP
+requests, 1,020 D1 calls and 1,200 SQL statements. Both arms retain two
+write-bearing calls and 14 written rows per signature. Every observed statement
+uses the assigned primary region; no foreground refill appears in these windows.
+
+`gateway-build-comparison.json` verifies byte-identical Gateway JavaScript and
+all three WASM files across all five pooled runs. The frozen SDK identity also
+matches across runs. Cloudflare's adaptive analytics place the r9 and r10 Gateway
+versions in NRT; observed custody DO activity includes NRT and KIX. These aggregate
+records do not identify every signing RPC. They establish no same-datacenter
+claim between D1, Gateway and all custody roles.
+
+The earlier APAC→WEUR diagnostic is followed by WEUR r8, APAC r9, and WEUR r10
+blocks. Arms remain unpaired, with unequal block sizes and independent boots.
+The descriptive wallet-cluster bootstrap in `wallet-bootstrap.json` uses 20,000
+resamples and seed `15200001`, resampling ten completed wallets independently
+within each arm while retaining all nine signatures from each selected wallet.
+Its 95% percentile intervals for the APAC p95 reduction are 1,050.6–1,298.3 ms
+(33.7–40.9%) for owners and 1,093.0–1,525.9 ms (39.6–49.4%) for linked signing.
+These intervals condition on completed wallets and observed boots; they exclude
+the collection failure and do not capture temporal, boot-level, placement-selection
+or future-tail uncertainty. The APAC/WEUR differences exceed 20% and 100 ms for
+this workload. Tokyo's implication is to retain APAC as its initial home;
+London's measured benefit over the APAC baseline motivates adding a WEUR home.
+APAC's 2,069.4-ms owner maximum exceeds two seconds. First-sign/burst, other-region
+and authenticated Console gates stay open.
+
+All nine temporary application/namespace/Worker bundles created across the Tokyo
+recovery and repeat runs are deleted. Final readback verifies the original Worker
+versions, inactive original probe applications with their original images/size/
+constraints, default Gateway placement, closed access (403/503), and unchanged
+custody-role versions. No temporary deployment-secret files remain. The scan of
+146 new evidence files found zero benchmark-token matches.
+
+Reported cumulative spend at 08:01:25 UTC is $1.3141 of $25. The analytics query
+includes all nine temporary application IDs, whose Container usage remains absent
+from the response. `temporary-compute-bound.json` records a conservative $0.5714
+CPU/memory/disk allowance over all application lifetimes, assuming every observed
+candidate ran for its application's entire lifetime. Network transfer is excluded;
+this allowance is separate from measured billing and addresses accounting lag.
+
+Reproduce the pooled analysis with:
+
+```sh
+node tests/r150-hosted/analyze-regional-d1.mjs \
+  .artifacts/r152/tokyo-do-policy-r10-20261001/summary.json apac \
+  .artifacts/r152/tokyo-do-policy-r5-20261001 \
+  .artifacts/r152/tokyo-do-policy-r7-20261001 \
+  .artifacts/r152/tokyo-do-policy-r8-20261001 \
+  .artifacts/r152/tokyo-do-policy-r9-20261001 \
+  .artifacts/r152/tokyo-do-policy-r10-20261001
+python3 .runtime/r152-tokyo-do-policy-r10/bootstrap.py \
+  .artifacts/r152/tokyo-do-policy-r10-20261001/summary.json \
+  .artifacts/r152/tokyo-do-policy-r10-20261001/wallet-bootstrap.json
+```
+
+The private r9/r10 runners and their recorded fingerprints retain the GET retry
+bound, single-dispatch POST behavior, placement checks, frozen inputs and cleanup.
+Use fresh run directories and attempt IDs for any further hosted execution.
+
 ## Decision and remaining work
 
-London provides sufficient measured benefit to continue regional ownership
-**design**. Regional production activation remains gated on repeated first-sign/
+London and Tokyo provide sufficient measured benefit to continue regional ownership
+**design**: each favors its nearby primary in the ready-material workload.
+Regional production activation remains gated on repeated first-sign/
 burst samples, other-region evidence, authenticated Console/signing composition, and the
 complete home/authority proof. Hosted NRT binding timing is now measured separately. The routing work should extend the existing
 canonical deployment binding with an immutable initial home for a complete
