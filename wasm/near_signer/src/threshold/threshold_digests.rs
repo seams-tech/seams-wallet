@@ -109,25 +109,6 @@ fn build_near_transactions_from_payload(
     Ok(transactions)
 }
 
-/// Compute the NEAR transaction signing digests (`sha256(borsh(Transaction))`) for the
-/// provided batch signing payload (tx list + transaction context).
-///
-/// Returns a JS Array of Uint8Array (each 32 bytes), one per tx in order.
-#[wasm_bindgen]
-pub fn threshold_ed25519_compute_near_tx_signing_digests(
-    payload: JsValue,
-) -> Result<JsValue, JsValue> {
-    let payload: NearTxSigningPayload = serde_wasm_bindgen::from_value(payload)
-        .map_err(|e| JsValue::from_str(&format!("Invalid near_tx signingPayload: {e}")))?;
-    let out = js_sys::Array::new();
-    for tx_obj in build_near_transactions_from_payload(payload)?.iter() {
-        let (hash, _size) = tx_obj.get_hash_and_size();
-        out.push(&js_sys::Uint8Array::from(hash.0.as_slice()));
-    }
-
-    Ok(out.into())
-}
-
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct NearTxUnsignedBorshOutput {
@@ -172,16 +153,6 @@ struct FinalizeNearTransactionFromSignatureArgs {
     expected_signer_public_key: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct ValidateNearTransactionArgs {
-    unsigned_transaction_borsh_b64u: String,
-    signing_digest_b64u: String,
-    tx_signing_requests: Vec<NearTxRequest>,
-    expected_near_account_id: String,
-    expected_signer_public_key: String,
-}
-
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct FinalizeNearTransactionFromSignatureOutput {
@@ -202,16 +173,8 @@ struct DecodeSignedNearTransactionBorshOutput {
     transaction_hash: String,
 }
 
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct ValidateNearTransactionOutput {
-    signer_account_id: String,
-    signer_public_key: String,
-    nonce: String,
-}
-
 fn decode_and_validate_near_transaction(
-    args: &ValidateNearTransactionArgs,
+    args: &FinalizeNearTransactionFromSignatureArgs,
 ) -> Result<Transaction, JsValue> {
     let unsigned_bytes = base64_url_decode(args.unsigned_transaction_borsh_b64u.trim())
         .map_err(|e| JsValue::from_str(&format!("Invalid unsignedTransactionBorshB64u: {e}")))?;
@@ -254,52 +217,7 @@ fn decode_and_validate_near_transaction(
             "unsignedTransactionBorshB64u signer public key does not match expectedSignerPublicKey",
         ));
     }
-    if !args.tx_signing_requests.is_empty() {
-        let rebuilt_transactions = build_near_transactions_from_payload(NearTxSigningPayload {
-            tx_signing_requests: args.tx_signing_requests.clone(),
-            transaction_context: NearTxContext {
-                near_public_key_str: args.expected_signer_public_key.trim().to_string(),
-                next_nonce: transaction.nonce.to_string(),
-                tx_block_hash: bs58::encode(transaction.block_hash.to_vec()).into_string(),
-            },
-        })?;
-        if rebuilt_transactions.len() != 1 {
-            return Err(JsValue::from_str(
-                "txSigningRequests must contain exactly one NEAR transaction",
-            ));
-        }
-        let rebuilt_unsigned_bytes = borsh::to_vec(&rebuilt_transactions[0]).map_err(|e| {
-            JsValue::from_str(&format!("Failed to serialize expected transaction: {e}"))
-        })?;
-        if rebuilt_unsigned_bytes.as_slice() != unsigned_bytes.as_slice() {
-            return Err(JsValue::from_str(
-                "unsignedTransactionBorshB64u does not match txSigningRequests",
-            ));
-        }
-    }
     Ok(transaction)
-}
-
-#[wasm_bindgen]
-pub fn threshold_ed25519_validate_near_tx_unsigned_borsh(
-    args: JsValue,
-) -> Result<JsValue, JsValue> {
-    let args: ValidateNearTransactionArgs = serde_wasm_bindgen::from_value(args)
-        .map_err(|e| JsValue::from_str(&format!("Invalid near tx validation args: {e}")))?;
-    let transaction = decode_and_validate_near_transaction(&args)?;
-    let output = ValidateNearTransactionOutput {
-        signer_account_id: transaction.signer_id.0,
-        signer_public_key: format!(
-            "ed25519:{}",
-            bs58::encode(transaction.public_key.key_data).into_string()
-        ),
-        nonce: transaction.nonce.to_string(),
-    };
-    serde_wasm_bindgen::to_value(&output).map_err(|e| {
-        JsValue::from_str(&format!(
-            "Failed to serialize validated NEAR transaction output: {e}"
-        ))
-    })
 }
 
 /// Attach a verified Ed25519 signature to a serialized NEAR Transaction.
@@ -312,13 +230,7 @@ pub fn threshold_ed25519_finalize_near_tx_from_signature(
 ) -> Result<JsValue, JsValue> {
     let args: FinalizeNearTransactionFromSignatureArgs = serde_wasm_bindgen::from_value(args)
         .map_err(|e| JsValue::from_str(&format!("Invalid near tx finalize args: {e}")))?;
-    let transaction = decode_and_validate_near_transaction(&ValidateNearTransactionArgs {
-        unsigned_transaction_borsh_b64u: args.unsigned_transaction_borsh_b64u,
-        signing_digest_b64u: args.signing_digest_b64u,
-        tx_signing_requests: Vec::new(),
-        expected_near_account_id: args.expected_near_account_id,
-        expected_signer_public_key: args.expected_signer_public_key,
-    })?;
+    let transaction = decode_and_validate_near_transaction(&args)?;
     let signature_bytes = base64_url_decode(args.signature_b64u.trim())
         .map_err(|e| JsValue::from_str(&format!("Invalid signatureB64u: {e}")))?;
     if signature_bytes.len() != 64 {

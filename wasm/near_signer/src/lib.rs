@@ -29,7 +29,6 @@ pub use handlers::{
     DelegateSignResult,
     // Threshold Signing
     DeriveThresholdEd25519ClientVerifyingShareRequest,
-    KeyActionResult,
     SignDelegateActionRequest,
     // Sign Nep413 Message
     SignNep413Request,

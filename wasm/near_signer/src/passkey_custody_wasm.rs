@@ -27,18 +27,13 @@ use signer_core::ed25519_yao_client_root_transfer::{
     Ed25519YaoClientRootFromLinkedDeviceTransferV1, Ed25519YaoClientRootTransferBindingV1,
     Ed25519YaoClientRootTransferRecipientV1,
 };
-use signer_core::passkey_custody::open_passkey_custody_secret_v1;
 use signer_core::passkey_custody::{
-    open_verified_passkey_custody_secret_v1, open_wallet_custody_seed_envelope_v1,
-    reseal_wallet_custody_seed_under_new_factor_v1, seal_passkey_custody_secret_v1,
+    open_wallet_custody_seed_envelope_v1, reseal_wallet_custody_seed_under_new_factor_v1,
     PasskeyCustodyEnvelopeBindingV1, PasskeyCustodySecretKind,
     WalletCustodySeedFromSealedEnvelopeV1, PASSKEY_CUSTODY_NONCE_LEN,
 };
 use wasm_bindgen::prelude::*;
 use zeroize::Zeroizing;
-
-/// Largest custody secret this boundary will generate or accept.
-const MAX_CUSTODY_SECRET_LEN: usize = 1024;
 
 fn js_error(message: impl core::fmt::Display) -> JsValue {
     JsValue::from_str(&message.to_string())
@@ -80,8 +75,8 @@ enum WasmCustodyAdmissionV1 {
 pub struct WasmPasskeyCustodyHandleV1 {
     secret: Zeroizing<Vec<u8>>,
     kind: PasskeyCustodySecretKind,
-    /// Present only when this handle came through a verified envelope or an
-    /// authenticated root transfer. The branch-specific proof authorizes the
+    /// Set when the handle is opened, and cleared when it is destroyed or a
+    /// factor seal consumes the proof. The branch-specific proof authorizes the
     /// matching factor-seal operation and never crosses back into JavaScript.
     admitted: Option<WasmCustodyAdmissionV1>,
 }
@@ -108,8 +103,7 @@ impl WasmPasskeyCustodyHandleV1 {
     }
 
     /// Whether this handle may be resealed under another factor. False for a
-    /// lane share, for a seed opened through the unverified path, and for a
-    /// root opened to link another device.
+    /// root opened to link another device, and once the proof is cleared.
     pub fn can_add_factor(&self) -> bool {
         matches!(
             self.admitted,
@@ -121,122 +115,8 @@ impl WasmPasskeyCustodyHandleV1 {
     }
 }
 
-impl WasmPasskeyCustodyHandleV1 {
-    fn new(secret: Zeroizing<Vec<u8>>, kind: PasskeyCustodySecretKind) -> Self {
-        Self {
-            secret,
-            kind,
-            admitted: None,
-        }
-    }
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct SealedEnvelopeWireV1 {
-    sealed_custody_secret_b64u: String,
-    aad_hash_b64u: String,
-    ciphertext_digest_b64u: String,
-}
-
 fn parse_envelope_binding(binding_json: &str) -> Result<PasskeyCustodyEnvelopeBindingV1, JsValue> {
     serde_json::from_str::<PasskeyCustodyEnvelopeBindingV1>(binding_json).map_err(js_error)
-}
-
-/// Generates a random custody secret inside Rust and returns it as a handle.
-///
-/// This is the only way a custody secret enters this boundary: JavaScript can
-/// never supply plaintext custody material, so a caller cannot seal a root it
-/// chose or observed.
-#[wasm_bindgen]
-pub fn passkey_custody_generate_secret_v1(
-    custody_secret_kind: &str,
-    byte_length: usize,
-) -> Result<WasmPasskeyCustodyHandleV1, JsValue> {
-    let kind = PasskeyCustodySecretKind::parse(custody_secret_kind).map_err(js_error)?;
-    if !matches!(
-        kind,
-        PasskeyCustodySecretKind::Ed25519LaneHolderShare
-            | PasskeyCustodySecretKind::EcdsaLaneHolderShare
-    ) {
-        return Err(js_error(
-            "only lane-holder material may be generated through the generic custody operation",
-        ));
-    }
-    if byte_length == 0 || byte_length > MAX_CUSTODY_SECRET_LEN {
-        return Err(js_error("custody secret length is invalid"));
-    }
-    let mut secret = Zeroizing::new(vec![0u8; byte_length]);
-    getrandom::getrandom(&mut secret[..])
-        .map_err(|_| js_error("custody secret randomness is unavailable"))?;
-    Ok(WasmPasskeyCustodyHandleV1::new(secret, kind))
-}
-
-/// Seals a held lane holder share under the KEK derived from `prf_first`.
-///
-/// A wallet custody seed is rejected: its envelope records the key manifest the
-/// seed must reproduce, and only a ceremony that derived the owner roots can
-/// have verified that. Seed envelopes are sealed in the ceremony module.
-#[wasm_bindgen]
-pub fn passkey_custody_seal_v1(
-    passkey_prf_first: &[u8],
-    envelope_binding_json: &str,
-    nonce12: &[u8],
-    handle: &WasmPasskeyCustodyHandleV1,
-) -> Result<JsValue, JsValue> {
-    let binding = parse_envelope_binding(envelope_binding_json)?;
-    if !matches!(
-        binding.binding.kind(),
-        PasskeyCustodySecretKind::Ed25519LaneHolderShare
-            | PasskeyCustodySecretKind::EcdsaLaneHolderShare
-    ) {
-        return Err(js_error(
-            "wallet custody seeds and Ed25519 Yao Client roots use dedicated operations",
-        ));
-    }
-    if binding.binding.kind() != handle.kind {
-        return Err(js_error(
-            "custody handle kind does not match the envelope binding",
-        ));
-    }
-    let prf_first = Zeroizing::new(passkey_prf_first.to_vec());
-    let sealed = seal_passkey_custody_secret_v1(&prf_first, &binding, nonce12, &handle.secret[..])
-        .map_err(js_error)?;
-    serde_wasm_bindgen::to_value(&SealedEnvelopeWireV1 {
-        sealed_custody_secret_b64u: sealed.ciphertext_b64u(),
-        aad_hash_b64u: sealed.aad_hash_b64u(),
-        ciphertext_digest_b64u: sealed.ciphertext_digest_b64u(),
-    })
-    .map_err(js_error)
-}
-
-/// Opens an envelope into a handle. Prefer the verified variant for anything
-/// read from a browser cache.
-#[wasm_bindgen]
-pub fn passkey_custody_open_v1(
-    passkey_prf_first: &[u8],
-    envelope_binding_json: &str,
-    nonce12: &[u8],
-    sealed_custody_secret_b64u: &str,
-) -> Result<WasmPasskeyCustodyHandleV1, JsValue> {
-    let binding = parse_envelope_binding(envelope_binding_json)?;
-    if !matches!(
-        binding.binding.kind(),
-        PasskeyCustodySecretKind::Ed25519LaneHolderShare
-            | PasskeyCustodySecretKind::EcdsaLaneHolderShare
-    ) {
-        return Err(js_error(
-            "wallet custody seeds and Ed25519 Yao Client roots use dedicated operations",
-        ));
-    }
-    let ciphertext = decode_b64u(sealed_custody_secret_b64u, "sealedCustodySecretB64u")?;
-    let prf_first = Zeroizing::new(passkey_prf_first.to_vec());
-    let opened = open_passkey_custody_secret_v1(&prf_first, &binding, nonce12, &ciphertext)
-        .map_err(js_error)?;
-    Ok(WasmPasskeyCustodyHandleV1::new(
-        opened,
-        binding.binding.kind(),
-    ))
 }
 
 /// Opens a wallet custody seed envelope into a handle that can add a factor.
@@ -344,48 +224,6 @@ struct SealedEd25519YaoClientRootEnvelopeWireV1 {
     sealed_export_root_b64u: String,
     aad_hash_b64u: String,
     ciphertext_digest_b64u: String,
-}
-
-/// Opens an envelope only when the record's stored AAD hash and ciphertext
-/// digest match what this binding and ciphertext actually produce. A cache row
-/// that drifted from the server revision fails here instead of decrypting into
-/// stale material.
-#[wasm_bindgen]
-pub fn passkey_custody_open_verified_v1(
-    passkey_prf_first: &[u8],
-    envelope_binding_json: &str,
-    nonce12: &[u8],
-    sealed_custody_secret_b64u: &str,
-    aad_hash_b64u: &str,
-    ciphertext_digest_b64u: &str,
-) -> Result<WasmPasskeyCustodyHandleV1, JsValue> {
-    let binding = parse_envelope_binding(envelope_binding_json)?;
-    if !matches!(
-        binding.binding.kind(),
-        PasskeyCustodySecretKind::Ed25519LaneHolderShare
-            | PasskeyCustodySecretKind::EcdsaLaneHolderShare
-    ) {
-        return Err(js_error(
-            "wallet custody seeds and Ed25519 Yao Client roots use dedicated operations",
-        ));
-    }
-    let ciphertext = decode_b64u(sealed_custody_secret_b64u, "sealedCustodySecretB64u")?;
-    let expected_aad_hash = decode_digest(aad_hash_b64u, "aadHashB64u")?;
-    let expected_ciphertext_digest = decode_digest(ciphertext_digest_b64u, "ciphertextDigestB64u")?;
-    let prf_first = Zeroizing::new(passkey_prf_first.to_vec());
-    let opened = open_verified_passkey_custody_secret_v1(
-        &prf_first,
-        &binding,
-        nonce12,
-        &ciphertext,
-        &expected_aad_hash,
-        &expected_ciphertext_digest,
-    )
-    .map_err(js_error)?;
-    Ok(WasmPasskeyCustodyHandleV1::new(
-        opened,
-        binding.binding.kind(),
-    ))
 }
 
 /// Device 2's one-use X25519 recipient for an Ed25519 Yao Client root.

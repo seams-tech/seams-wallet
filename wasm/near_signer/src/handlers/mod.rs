@@ -14,6 +14,6 @@ pub use handle_sign_delegate_action::{
 };
 pub use handle_sign_nep413_message::{SignNep413Request, SignNep413Result};
 pub use handle_sign_transactions_with_actions::{
-    KeyActionResult, SignTransactionsWithActionsRequest, TransactionPayload,
+    SignTransactionsWithActionsRequest, TransactionPayload,
 };
 pub use handle_threshold_ed25519_derive_client_verifying_share::DeriveThresholdEd25519ClientVerifyingShareRequest;

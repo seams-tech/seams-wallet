@@ -21,50 +21,6 @@ pub enum UserVerificationPolicy {
     Discouraged,
 }
 
-/// Origin policy input for WebAuthn registration (user-provided)
-#[wasm_bindgen]
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub struct OriginPolicyInput {
-    /// Exactly one of these should be set
-    #[serde(skip_serializing_if = "Option::is_none", default)]
-    #[wasm_bindgen(getter_with_clone)]
-    pub single: Option<bool>,
-    #[serde(
-        rename = "allSubdomains",
-        skip_serializing_if = "Option::is_none",
-        default
-    )]
-    #[wasm_bindgen(getter_with_clone)]
-    pub all_subdomains: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none", default)]
-    #[wasm_bindgen(getter_with_clone)]
-    pub multiple: Option<Vec<String>>,
-}
-
-/// Options for configuring WebAuthn authenticator behavior during registration
-#[wasm_bindgen]
-#[wasm_bindgen]
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub struct AuthenticatorOptions {
-    #[wasm_bindgen(getter_with_clone, js_name = "userVerification")]
-    pub user_verification: Option<UserVerificationPolicy>,
-    #[wasm_bindgen(getter_with_clone, js_name = "originPolicy")]
-    pub origin_policy: Option<OriginPolicyInput>,
-}
-
-impl Default for AuthenticatorOptions {
-    fn default() -> Self {
-        Self {
-            user_verification: Some(UserVerificationPolicy::Preferred),
-            origin_policy: Some(OriginPolicyInput {
-                single: None,
-                all_subdomains: Some(true),
-                multiple: None,
-            }),
-        }
-    }
-}
-
 // ******************************************************************************
 // *                                                                            *
 // *                    SHARED VERIFICATION & DECRYPTION TYPES                  *
@@ -162,22 +118,4 @@ impl Default for ConfirmationConfig {
             theme: Some("dark".to_string()),
         }
     }
-}
-
-// === REGISTRATION TYPES ===
-
-#[wasm_bindgen]
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct RegistrationPayload {
-    #[wasm_bindgen(getter_with_clone, js_name = "nearAccountId")]
-    pub near_account_id: String,
-    #[wasm_bindgen(getter_with_clone)]
-    pub nonce: String,
-    #[wasm_bindgen(getter_with_clone, js_name = "blockHash")]
-    pub block_hash: String,
-    #[wasm_bindgen(getter_with_clone, js_name = "deviceNumber")]
-    pub device_number: Option<u8>,
-    #[wasm_bindgen(getter_with_clone, js_name = "authenticatorOptions")]
-    pub authenticator_options: Option<AuthenticatorOptions>,
 }

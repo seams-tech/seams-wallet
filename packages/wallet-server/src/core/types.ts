@@ -523,61 +523,6 @@ export interface ThresholdEd25519SessionResponse {
   routerAbNormalSigning?: RouterAbEd25519NormalSigningState;
 }
 
-// ==========================================
-// Threshold Ed25519 cosign continuation payloads
-// ==========================================
-
-export interface ThresholdEd25519CosignInitRequest {
-  coordinatorGrant: string;
-  signingSessionId: string;
-  /**
-   * Base64url-encoded 32-byte relayer cosigner signing share (a secret share; unweighted).
-   * The cosigner derives its effective outer-protocol share from this and the selected cosigner set.
-   */
-  cosignerShareB64u: string;
-  clientCommitments: {
-    hiding: string;
-    binding: string;
-  };
-}
-
-export interface ThresholdEd25519CosignInitResponse {
-  ok: boolean;
-  code?: string;
-  message?: string;
-  relayerCommitments?: {
-    hiding: string;
-    binding: string;
-  };
-}
-
-export interface ThresholdEd25519CosignFinalizeRequest {
-  coordinatorGrant: string;
-  signingSessionId: string;
-  /**
-   * The selected cosigner id set used for internal Lagrange interpolation.
-   * Must include this cosigner's configured id.
-   */
-  cosignerIds: number[];
-  /** NEAR ed25519 public key string (`ed25519:<base58>`). */
-  groupPublicKey: string;
-  /**
-   * The combined outer-protocol relayer commitments (sum across the selected cosigners).
-   * This must match what the client used for its signing transcript.
-   */
-  relayerCommitments: {
-    hiding: string;
-    binding: string;
-  };
-}
-
-export interface ThresholdEd25519CosignFinalizeResponse {
-  ok: boolean;
-  code?: string;
-  message?: string;
-  relayerSignatureShareB64u?: string;
-}
-
 // ================================
 // Threshold ECDSA (2-party) APIs
 // ================================
@@ -841,36 +786,3 @@ export type RouterAbEcdsaDerivationPoolFillStepResponse = {
   /** Base64url-encoded compressed secp256k1 point (33 bytes) for `R` (only present when `event==='presign_done'`). */
   bigRB64u?: string;
 };
-
-// =======================================
-// Threshold ECDSA cosign continuation payloads
-// =======================================
-
-export interface ThresholdEcdsaCosignInitRequest {
-  coordinatorGrant: string;
-  signingSessionId: string;
-  cosignerShareB64u: string;
-  clientRound1?: unknown;
-}
-
-export interface ThresholdEcdsaCosignInitResponse {
-  ok: boolean;
-  code?: string;
-  message?: string;
-  relayerRound1?: unknown;
-}
-
-export interface ThresholdEcdsaCosignFinalizeRequest {
-  coordinatorGrant: string;
-  signingSessionId: string;
-  cosignerIds: number[];
-  groupPublicKey: string;
-  relayerRound1?: unknown;
-}
-
-export interface ThresholdEcdsaCosignFinalizeResponse {
-  ok: boolean;
-  code?: string;
-  message?: string;
-  relayerRound2?: unknown;
-}

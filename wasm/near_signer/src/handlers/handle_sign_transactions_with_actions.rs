@@ -92,41 +92,6 @@ impl TransactionSignResult {
     }
 }
 
-#[wasm_bindgen]
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct KeyActionResult {
-    pub success: bool,
-    #[wasm_bindgen(getter_with_clone, js_name = "transactionHash")]
-    pub transaction_hash: Option<String>,
-    #[wasm_bindgen(getter_with_clone, js_name = "signedTransaction")]
-    pub signed_transaction: Option<WasmSignedTransaction>,
-    #[wasm_bindgen(getter_with_clone)]
-    pub logs: Vec<String>,
-    #[wasm_bindgen(getter_with_clone)]
-    pub error: Option<String>,
-}
-
-#[wasm_bindgen]
-impl KeyActionResult {
-    #[wasm_bindgen(constructor)]
-    pub fn new(
-        success: bool,
-        transaction_hash: Option<String>,
-        signed_transaction: Option<WasmSignedTransaction>,
-        logs: Vec<String>,
-        error: Option<String>,
-    ) -> KeyActionResult {
-        KeyActionResult {
-            success,
-            transaction_hash,
-            signed_transaction,
-            logs,
-            error,
-        }
-    }
-}
-
 // ******************************************************************************
 // *                           MAIN HANDLER                                   *
 // ******************************************************************************
