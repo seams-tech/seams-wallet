@@ -30,7 +30,8 @@
 :where(.seams-wallet-ui) .seams-receipt-footer svg,
 :where(.seams-wallet-ui) .seams-review-copy svg,
 :where(.seams-wallet-ui) .seams-review-toolbar svg,
-:where(.seams-wallet-ui) .seams-receipt-open svg {
+:where(.seams-wallet-ui) .seams-receipt-open svg,
+:where(.seams-wallet-ui) .seams-receipt-dismiss svg {
   width: 1rem;
   height: 1rem;
   flex: none;
@@ -526,8 +527,27 @@
   border-radius: var(--seams-shape-control, 8px);
   cursor: pointer;
 }
+/* Shown once the transaction has finished. It sits closer to Open than the
+   toast's other items, so the pair reads as the toast's actions. */
+:where(.seams-wallet-ui) .seams-receipt-dismiss {
+  display: grid;
+  place-items: center;
+  flex: none;
+  min-width: 2rem;
+  min-height: 2rem;
+  margin-inline: -0.375rem -0.25rem;
+  padding: 0.25rem;
+  background: transparent;
+  color: var(--seams-colors-textSecondary);
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+}
+:where(.seams-wallet-ui) .seams-receipt-dismiss:hover {
+  background: var(--seams-colors-surface2);
+}
 :where(.seams-wallet-ui[data-receipt-view='toast']) .seams-confirmation-modal--hosted {
-  inline-size: 20rem;
+  inline-size: 22rem;
 }
 :where(.seams-wallet-ui[data-confirmation-kind='transaction'])
   .seams-confirmation-modal

@@ -149,6 +149,16 @@ export class TransactionReceipt extends Component<TransactionReceiptProps> {
           <button type="button" class="seams-receipt-open" onClick={this.expand}>
             Open <ReviewIcon kind="arrow" />
           </button>
+          {!pending && (
+            <button
+              type="button"
+              class="seams-receipt-dismiss"
+              aria-label="Close transaction"
+              onClick={receipt.onDismiss}
+            >
+              <ReviewIcon kind="close" />
+            </button>
+          )}
         </div>
       );
     }

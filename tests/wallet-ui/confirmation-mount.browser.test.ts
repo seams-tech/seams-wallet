@@ -391,6 +391,21 @@ test('confirmed receipts link to the configured block explorer', async ({ page }
   await expect(link).toHaveAttribute('rel', 'noopener noreferrer');
 });
 
+test('a toast offers to close only once its transaction has finished', async ({ page }) => {
+  await page.evaluate(() => {
+    window.__confirmationMount.mount('modal', 'wallet-iframe');
+    window.__confirmationMount.receipt(0, { kind: 'broadcasting' }, 'toast');
+  });
+  const close = page.getByRole('button', { name: 'Close transaction' });
+  await expect(page.getByRole('button', { name: 'Open', exact: true })).toBeVisible();
+  await expect(close).toHaveCount(0);
+  await page.evaluate(() =>
+    window.__confirmationMount.receipt(0, { kind: 'confirmed', hash: null }, 'toast'),
+  );
+  await close.click();
+  expect(await page.evaluate(() => window.__confirmationMount.calls)).toEqual(['receipt-dismiss']);
+});
+
 test('email Confirm Code validates and retries through its native form', async ({ page }) => {
   await page.evaluate(() => {
     window.__confirmationMount.mount('modal', 'wallet-iframe');
