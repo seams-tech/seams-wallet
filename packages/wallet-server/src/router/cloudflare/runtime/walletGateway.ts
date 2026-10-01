@@ -152,6 +152,7 @@ type WalletGatewayManagedRouterOption =
   | 'apiKeyAuth'
   | 'publishableKeyAuth'
   | 'apiKeyUsageMeter'
+  | 'walletProjection'
   | 'orgProjectEnv'
   | 'routerAbNormalSigningAdmission'
   | 'routeExtensions';
@@ -178,6 +179,7 @@ export function createCloudflareWalletGatewayRouterV1(
     apiKeyAuth: consoleOps.apiKeyAuth,
     publishableKeyAuth: consoleOps.publishableKeyAuth,
     apiKeyUsageMeter: consoleOps.usageMeter,
+    walletProjection: consoleOps.walletProjection,
     orgProjectEnv: consoleOps.projectEnvironments,
     routerAbNormalSigningAdmission: createRouterAbNormalSigningAdmissionAdapter(admissionStore),
     routeExtensions: [

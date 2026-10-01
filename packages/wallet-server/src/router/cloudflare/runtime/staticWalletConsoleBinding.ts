@@ -138,6 +138,7 @@ export async function handleStaticWalletConsoleRequestV1(
       return projectEnvironmentsResponse(config, body);
     case WALLET_CONSOLE_OP_PATHS_V1.tenantRootActiveLineage:
       return activeLineageResponse(config, body);
+    case WALLET_CONSOLE_OP_PATHS_V1.walletProjection:
     case WALLET_CONSOLE_OP_PATHS_V1.usageEvents:
       return json({ ok: true });
     default:

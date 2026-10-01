@@ -13,11 +13,9 @@ import type {
 import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 
 // The exact private service-binding surface between the Wallet Gateway and
-// the Wallet Console deployment. Five operations cross the binding: API-key
-// validation, publishable-key validation, idempotent usage-event ingestion,
-// project-environment lookup, and active tenant-root lineage lookup. There is
-// no generic SQL or query operation, and the Gateway never receives the
-// Console database.
+// the Wallet Console deployment. Credential validation, Wallet projection,
+// usage ingestion, environment lookup and tenant-root lineage cross the binding.
+// The Gateway never receives the Console database or a generic query operation.
 
 export const WALLET_CONSOLE_OPS_BASE_PATH_V1 = '/internal/wallet-console/v1';
 export const WALLET_CONSOLE_SERVICE_ORIGIN_V1 = 'https://wallet-console.internal';
@@ -26,6 +24,7 @@ export const WALLET_CONSOLE_OP_PATHS_V1 = {
   secretKeyAuth: `${WALLET_CONSOLE_OPS_BASE_PATH_V1}/secret-key-auth`,
   publishableKeyAuth: `${WALLET_CONSOLE_OPS_BASE_PATH_V1}/publishable-key-auth`,
   usageEvents: `${WALLET_CONSOLE_OPS_BASE_PATH_V1}/usage-events`,
+  walletProjection: `${WALLET_CONSOLE_OPS_BASE_PATH_V1}/wallet-projections`,
   projectEnvironments: `${WALLET_CONSOLE_OPS_BASE_PATH_V1}/project-environments`,
   tenantRootActiveLineage: `${WALLET_CONSOLE_OPS_BASE_PATH_V1}/tenant-root/active-lineage`,
 } as const;
