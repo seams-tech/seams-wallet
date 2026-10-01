@@ -38,8 +38,6 @@ export type {
   ThresholdEd25519KeyRecord,
   ThresholdEd25519SessionStore,
   ThresholdEd25519MpcSessionRecord,
-  ThresholdEd25519SigningSessionRecord,
-  ThresholdEd25519Commitments,
   Ed25519WalletSessionStore,
   Ed25519WalletSessionRecord,
 } from './core/ThresholdService';

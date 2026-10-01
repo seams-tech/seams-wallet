@@ -1,10 +1,7 @@
 import type { Ed25519SessionPolicy, ThresholdEd25519AuthorityScope } from '../types';
 import type { WebAuthnRpId } from '@shared/utils/domainIds';
 import { buildPasskeyWalletAuthAuthority } from '@shared/utils/walletAuthAuthority';
-import type {
-  ThresholdEd25519MpcSessionRecord,
-  ThresholdEd25519SigningSessionRecord,
-} from './stores/SessionStore';
+import type { ThresholdEd25519MpcSessionRecord } from './stores/SessionStore';
 import type {
   ThresholdEd25519KeyRecord,
   ThresholdEd25519ReadyKeyRecord,
@@ -53,32 +50,6 @@ const mpcSession: ThresholdEd25519MpcSessionRecord = {
   participantIds: [1, 2],
 };
 
-const keyStoreShareSigningSession: ThresholdEd25519SigningSessionRecord = {
-  expiresAtMs: 1,
-  mpcSessionId: 'mpc-session-1',
-  relayerKeyId: 'ed25519:relayer',
-  signingDigestB64u: 'digest',
-  userId: 'wallet_alice',
-  authorityScope,
-  commitmentsById: { '1': { hiding: 'hiding', binding: 'binding' } },
-  signingShare: { kind: 'key_store' },
-  relayerNoncesB64u: 'nonces',
-  participantIds: [1, 2],
-};
-
-const embeddedShareSigningSession: ThresholdEd25519SigningSessionRecord = {
-  expiresAtMs: 1,
-  mpcSessionId: 'mpc-session-1',
-  relayerKeyId: 'ed25519:relayer',
-  signingDigestB64u: 'digest',
-  userId: 'wallet_alice',
-  authorityScope,
-  commitmentsById: { '1': { hiding: 'hiding', binding: 'binding' } },
-  signingShare: { kind: 'embedded_cosigner_share', relayerSigningShareB64u: 'signing-share' },
-  relayerNoncesB64u: 'nonces',
-  participantIds: [1, 2],
-};
-
 declare function requireReadyKeyRecord(record: ThresholdEd25519ReadyKeyRecord): void;
 
 const keyRecord: ThresholdEd25519ReadyKeyRecord = {
@@ -102,8 +73,6 @@ const broadKeyRecord: ThresholdEd25519KeyRecord = keyRecord;
 void sessionPolicy;
 void walletSession;
 void mpcSession;
-void keyStoreShareSigningSession;
-void embeddedShareSigningSession;
 void keyRecord;
 void broadKeyRecord;
 requireReadyKeyRecord(keyRecord);
@@ -137,29 +106,6 @@ const invalidMpcSession = {
   // @ts-expect-error Ed25519 MPC session records carry authorityScope, never root rpId.
   rpId: 'wallet.example.test',
 } satisfies ThresholdEd25519MpcSessionRecord;
-
-const invalidKeyStoreShareSigningSession = {
-  ...keyStoreShareSigningSession,
-  signingShare: {
-    kind: 'key_store',
-    // @ts-expect-error key-store Ed25519 signing sessions cannot embed router share material.
-    relayerSigningShareB64u: 'signing-share',
-  },
-} satisfies ThresholdEd25519SigningSessionRecord;
-
-const invalidEmbeddedShareSigningSession: ThresholdEd25519SigningSessionRecord = {
-  expiresAtMs: 1,
-  mpcSessionId: 'mpc-session-1',
-  relayerKeyId: 'ed25519:relayer',
-  signingDigestB64u: 'digest',
-  userId: 'wallet_alice',
-  authorityScope,
-  commitmentsById: { '1': { hiding: 'hiding', binding: 'binding' } },
-  // @ts-expect-error embedded-share Ed25519 signing sessions require router share material.
-  signingShare: { kind: 'embedded_cosigner_share' },
-  relayerNoncesB64u: 'nonces',
-  participantIds: [1, 2],
-};
 
 const invalidKeyRecord = {
   ...keyRecord,
@@ -219,8 +165,6 @@ void invalidSessionPolicyWithWalletId;
 void invalidSessionPolicyWithAuthorityScope;
 void invalidWalletSession;
 void invalidMpcSession;
-void invalidKeyStoreShareSigningSession;
-void invalidEmbeddedShareSigningSession;
 void invalidKeyRecord;
 void invalidReadyKeyRecordMissingRouterMaterial;
 void invalidProvisioningKeyRecordWithRouterMaterial;

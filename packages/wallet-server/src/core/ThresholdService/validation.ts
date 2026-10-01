@@ -7,12 +7,7 @@ import {
   isPasskeyWalletAuthAuthority,
   type WalletAuthAuthority,
 } from '@shared/utils/walletAuthAuthority';
-import {
-  ensureEd25519Prefix,
-  toOptionalString,
-  toTrimmedString,
-  isPlainObject,
-} from '@shared/utils/validation';
+import { ensureEd25519Prefix, toOptionalString, isPlainObject } from '@shared/utils/validation';
 import {
   type DerivationClientSharePublicKey33B64u,
   type EcdsaDerivationRelayerPublicKey33B64u,
@@ -29,12 +24,7 @@ import type {
 import { parseEcdsaKeyHandle, type EcdsaKeyHandle } from '../keyMaterialBrands';
 import type {
   ThresholdEcdsaMpcSessionRecord,
-  ThresholdEd25519Commitments,
-  ThresholdEd25519CommitmentsById,
-  ThresholdEd25519CoordinatorSigningSessionRecord,
   ThresholdEd25519MpcSessionRecord,
-  ThresholdEd25519SigningSessionRecord,
-  ThresholdEd25519SigningShareMaterial,
 } from './stores/SessionStore';
 import type {
   EcdsaWalletSessionRecord,
@@ -255,29 +245,6 @@ export function parseEcdsaDerivationPublicIdentity(
   };
 }
 
-function parseThresholdEd25519Commitments(raw: unknown): ThresholdEd25519Commitments | null {
-  if (!isPlainObject(raw)) return null;
-  const hiding = toOptionalString(raw.hiding);
-  const binding = toOptionalString(raw.binding);
-  if (!hiding || !binding) return null;
-  return { hiding, binding };
-}
-
-function parseThresholdEd25519CommitmentsById(
-  raw: unknown,
-): ThresholdEd25519CommitmentsById | null {
-  if (!isPlainObject(raw)) return null;
-  const out: ThresholdEd25519CommitmentsById = {};
-  for (const [k, v] of Object.entries(raw)) {
-    const key = toTrimmedString(k);
-    if (!key) return null;
-    const commitments = parseThresholdEd25519Commitments(v);
-    if (!commitments) return null;
-    out[key] = commitments;
-  }
-  return Object.keys(out).length ? out : null;
-}
-
 export function parseThresholdEd25519AuthorityScope(
   raw: unknown,
 ): ThresholdEd25519AuthorityScope | null {
@@ -439,145 +406,6 @@ export function parseThresholdEcdsaMpcSessionRecord(
     ...(clientVerifyingShareB64u ? { clientVerifyingShareB64u } : {}),
     participantIds,
     ...(signingRootMetadata.value ? signingRootMetadata.value : {}),
-  };
-}
-
-export function parseThresholdEd25519SigningSessionRecord(
-  raw: unknown,
-): ThresholdEd25519SigningSessionRecord | null {
-  if (!isPlainObject(raw)) return null;
-  const expiresAtMs = raw.expiresAtMs;
-  const mpcSessionId = toOptionalString(raw.mpcSessionId);
-  const relayerKeyId = toOptionalString(raw.relayerKeyId);
-  const signingDigestB64u = toOptionalString(raw.signingDigestB64u);
-  const userId = toOptionalString(raw.userId);
-  const authorityScope = parseThresholdEd25519AuthorityScope(raw.authorityScope);
-  const commitmentsById = parseThresholdEd25519CommitmentsById(raw.commitmentsById);
-  const signingShare = parseThresholdEd25519SigningShareMaterial(raw);
-  const relayerNoncesB64u = toOptionalString(raw.relayerNoncesB64u);
-  const participantIds = normalizeThresholdEd25519ParticipantIds(raw.participantIds) || [
-    ...THRESHOLD_ED25519_2P_PARTICIPANT_IDS,
-  ];
-  if (!isValidNumber(expiresAtMs)) return null;
-  if (Object.prototype.hasOwnProperty.call(raw, 'rpId')) return null;
-  if (
-    !mpcSessionId ||
-    !relayerKeyId ||
-    !signingDigestB64u ||
-    !userId ||
-    !authorityScope ||
-    !commitmentsById ||
-    !signingShare ||
-    !relayerNoncesB64u
-  ) {
-    return null;
-  }
-  return {
-    expiresAtMs,
-    mpcSessionId,
-    relayerKeyId,
-    signingDigestB64u,
-    userId,
-    authorityScope,
-    commitmentsById,
-    signingShare,
-    relayerNoncesB64u,
-    participantIds,
-  };
-}
-
-function parseThresholdEd25519SigningShareMaterial(
-  raw: Record<string, unknown>,
-): ThresholdEd25519SigningShareMaterial | null {
-  if (isPlainObject(raw.signingShare)) {
-    const kind = toOptionalString(raw.signingShare.kind);
-    if (kind === 'key_store') {
-      return toOptionalString(raw.signingShare.relayerSigningShareB64u) ? null : { kind };
-    }
-    if (kind === 'embedded_cosigner_share') {
-      const relayerSigningShareB64u = toOptionalString(raw.signingShare.relayerSigningShareB64u);
-      return relayerSigningShareB64u ? { kind, relayerSigningShareB64u } : null;
-    }
-    return null;
-  }
-  const legacyShare = toOptionalString(raw.relayerSigningShareB64u);
-  return legacyShare
-    ? { kind: 'embedded_cosigner_share', relayerSigningShareB64u: legacyShare }
-    : { kind: 'key_store' };
-}
-
-type ParsedThresholdEd25519StringById = Record<string, string>;
-
-function parseThresholdEd25519StringById(raw: unknown): ParsedThresholdEd25519StringById | null {
-  if (!isPlainObject(raw)) return null;
-  const out: ParsedThresholdEd25519StringById = {};
-  for (const [k, v] of Object.entries(raw)) {
-    const key = toTrimmedString(k);
-    const value = toOptionalString(v);
-    if (!key || !value) return null;
-    out[key] = value;
-  }
-  return Object.keys(out).length ? out : null;
-}
-
-export function parseThresholdEd25519CoordinatorSigningSessionRecord(
-  raw: unknown,
-): ThresholdEd25519CoordinatorSigningSessionRecord | null {
-  if (!isPlainObject(raw)) return null;
-  const expiresAtMs = raw.expiresAtMs;
-  const mpcSessionId = toOptionalString(raw.mpcSessionId);
-  const relayerKeyId = toOptionalString(raw.relayerKeyId);
-  const signingDigestB64u = toOptionalString(raw.signingDigestB64u);
-  const userId = toOptionalString(raw.userId);
-  const authorityScope = parseThresholdEd25519AuthorityScope(raw.authorityScope);
-  const commitmentsById = parseThresholdEd25519CommitmentsById(raw.commitmentsById);
-  const participantIds = normalizeThresholdEd25519ParticipantIds(raw.participantIds) || [
-    ...THRESHOLD_ED25519_2P_PARTICIPANT_IDS,
-  ];
-  const relayerVerifyingSharesById = parseThresholdEd25519StringById(
-    raw.relayerVerifyingSharesById,
-  );
-
-  if (!isValidNumber(expiresAtMs)) return null;
-  if (Object.prototype.hasOwnProperty.call(raw, 'rpId')) return null;
-  if (
-    !mpcSessionId ||
-    !relayerKeyId ||
-    !signingDigestB64u ||
-    !userId ||
-    !authorityScope ||
-    !commitmentsById ||
-    !relayerVerifyingSharesById
-  ) {
-    return null;
-  }
-
-  const mode = toOptionalString(raw.mode);
-  if (mode !== 'cosigner') return null;
-
-  const groupPublicKey = toOptionalString(raw.groupPublicKey);
-  const cosignerIds = normalizeThresholdEd25519ParticipantIds(raw.cosignerIds);
-  const cosignerRelayerUrlsById = parseThresholdEd25519StringById(raw.cosignerRelayerUrlsById);
-  const cosignerCoordinatorGrantsById = parseThresholdEd25519StringById(
-    raw.cosignerCoordinatorGrantsById,
-  );
-  if (!groupPublicKey || !cosignerIds || !cosignerRelayerUrlsById || !cosignerCoordinatorGrantsById)
-    return null;
-  return {
-    mode: 'cosigner',
-    expiresAtMs,
-    mpcSessionId,
-    relayerKeyId,
-    signingDigestB64u,
-    userId,
-    authorityScope,
-    commitmentsById,
-    participantIds,
-    groupPublicKey,
-    cosignerIds,
-    cosignerRelayerUrlsById,
-    cosignerCoordinatorGrantsById,
-    relayerVerifyingSharesById,
   };
 }
 

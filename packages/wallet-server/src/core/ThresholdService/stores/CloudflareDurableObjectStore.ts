@@ -16,10 +16,8 @@ import {
   parseEcdsaWalletSessionRecord,
   parseEd25519WalletSessionRecord,
   parseThresholdEcdsaMpcSessionRecord,
-  parseThresholdEd25519CoordinatorSigningSessionRecord,
   parseThresholdEd25519KeyRecord,
   parseThresholdEd25519MpcSessionRecord,
-  parseThresholdEd25519SigningSessionRecord,
   canonicalThresholdEd25519RelayerKeyId,
   toThresholdEcdsaWalletSessionPrefix,
   toThresholdEcdsaPrefixFromBase,
@@ -43,7 +41,6 @@ import type {
 } from './WalletSessionStore';
 import type { ThresholdEd25519ReadyKeyRecord, ThresholdEd25519KeyStore } from './KeyStore';
 import type {
-  ThresholdEd25519CoordinatorSigningSessionRecord,
   ThresholdEcdsaMpcSessionRecord,
   ThresholdEcdsaSessionStore,
   ThresholdMpcSessionRecord,
@@ -51,7 +48,6 @@ import type {
   ThresholdEd25519MpcSessionRecord,
   ThresholdReadMpcSessionResult,
   ThresholdEd25519SessionStore,
-  ThresholdEd25519SigningSessionRecord,
 } from './SessionStore';
 
 type DoOk<T> = { ok: true; value: T };
@@ -330,7 +326,6 @@ class CloudflareDurableObjectThresholdEd25519SessionStore<
 > {
   private readonly stub: CloudflareDurableObjectStubLike;
   private readonly keyPrefix: string;
-  private readonly coordinatorPrefix: string;
   private readonly parseMpcSessionRecord: CloudflareDoMpcSessionRecordParser<TMpcRecord>;
 
   constructor(input: {
@@ -341,7 +336,6 @@ class CloudflareDurableObjectThresholdEd25519SessionStore<
   }) {
     this.stub = durableObjectStub(input.namespace, input.objectName);
     this.keyPrefix = input.keyPrefix;
-    this.coordinatorPrefix = `${this.keyPrefix}coord:`;
     this.parseMpcSessionRecord =
       input.parseMpcSessionRecord ||
       (parseThresholdEd25519MpcSessionRecord as CloudflareDoMpcSessionRecordParser<TMpcRecord>);
@@ -349,10 +343,6 @@ class CloudflareDurableObjectThresholdEd25519SessionStore<
 
   private key(id: string): string {
     return `${this.keyPrefix}${id}`;
-  }
-
-  private coordKey(id: string): string {
-    return `${this.coordinatorPrefix}${id}`;
   }
 
   async putMpcSession(id: string, record: TMpcRecord, ttlMs: number): Promise<void> {
@@ -400,48 +390,6 @@ class CloudflareDurableObjectThresholdEd25519SessionStore<
     const resp = await callDo<unknown | null>(this.stub, { op: 'getdel', key: this.key(id) });
     if (!resp.ok) return null;
     return this.parseMpcSessionRecord(resp.value);
-  }
-
-  async putSigningSession(
-    id: string,
-    record: ThresholdEd25519SigningSessionRecord,
-    ttlMs: number,
-  ): Promise<void> {
-    const resp = await callDo<void>(this.stub, {
-      op: 'set',
-      key: this.key(id),
-      value: record,
-      ttlMs,
-    });
-    if (!resp.ok) throw new Error(resp.message);
-  }
-
-  async takeSigningSession(id: string): Promise<ThresholdEd25519SigningSessionRecord | null> {
-    const resp = await callDo<unknown | null>(this.stub, { op: 'getdel', key: this.key(id) });
-    if (!resp.ok) return null;
-    return parseThresholdEd25519SigningSessionRecord(resp.value);
-  }
-
-  async putCoordinatorSigningSession(
-    id: string,
-    record: ThresholdEd25519CoordinatorSigningSessionRecord,
-    ttlMs: number,
-  ): Promise<void> {
-    const resp = await callDo<void>(this.stub, {
-      op: 'set',
-      key: this.coordKey(id),
-      value: record,
-      ttlMs,
-    });
-    if (!resp.ok) throw new Error(resp.message);
-  }
-
-  async takeCoordinatorSigningSession(
-    id: string,
-  ): Promise<ThresholdEd25519CoordinatorSigningSessionRecord | null> {
-    const resp = await callDo<unknown | null>(this.stub, { op: 'getdel', key: this.coordKey(id) });
-    if (!resp.ok) return null;
-    return parseThresholdEd25519CoordinatorSigningSessionRecord(resp.value);
   }
 }
 

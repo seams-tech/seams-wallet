@@ -17,24 +17,9 @@ import {
   toThresholdEd25519SessionPrefix,
   toThresholdEd25519PrefixFromBase,
   parseThresholdEd25519MpcSessionRecord,
-  parseThresholdEd25519CoordinatorSigningSessionRecord,
-  parseThresholdEd25519SigningSessionRecord,
 } from '../validation';
 import { createCloudflareDurableObjectThresholdEd25519Stores } from './CloudflareDurableObjectStore';
 import { readNonDurableObjectThresholdStoreKind } from './StoreConfig';
-
-export type ThresholdEd25519Commitments = { hiding: string; binding: string };
-
-export type ThresholdEd25519CommitmentsById = Record<string, ThresholdEd25519Commitments>;
-
-export type ThresholdEd25519SigningShareMaterial =
-  | {
-      kind: 'key_store';
-    }
-  | {
-      kind: 'embedded_cosigner_share';
-      relayerSigningShareB64u: string;
-    };
 
 export type ThresholdEd25519MpcSessionRecord = {
   expiresAtMs: number;
@@ -76,37 +61,6 @@ export type ThresholdClaimMpcSessionResult<TRecord extends ThresholdMpcSessionRe
   | { ok: true; record: TRecord }
   | { ok: false; code: 'not_found' | 'expired' | 'version_mismatch' | 'invalid_record' };
 
-export type ThresholdEd25519SigningSessionRecord = {
-  expiresAtMs: number;
-  mpcSessionId: string;
-  relayerKeyId: string;
-  signingDigestB64u: string;
-  userId: string;
-  authorityScope: ThresholdEd25519AuthorityScope;
-  commitmentsById: ThresholdEd25519CommitmentsById;
-  signingShare: ThresholdEd25519SigningShareMaterial;
-  relayerNoncesB64u: string;
-  participantIds: number[];
-};
-
-export type ThresholdEd25519CoordinatorSigningSessionRecord = {
-  mode: 'cosigner';
-  expiresAtMs: number;
-  mpcSessionId: string;
-  relayerKeyId: string;
-  signingDigestB64u: string;
-  userId: string;
-  authorityScope: ThresholdEd25519AuthorityScope;
-  commitmentsById: ThresholdEd25519CommitmentsById;
-  participantIds: number[];
-  groupPublicKey: string;
-  cosignerIds: number[];
-  cosignerRelayerUrlsById: Record<string, string>;
-  cosignerCoordinatorGrantsById: Record<string, string>;
-  relayerVerifyingSharesById: Record<string, string>;
-};
-
-
 interface ThresholdMpcSessionStore<TRecord extends ThresholdMpcSessionRecord> {
   putMpcSession(id: string, record: TRecord, ttlMs: number): Promise<void>;
   readMpcSession(id: string): Promise<ThresholdReadMpcSessionResult<TRecord> | null>;
@@ -114,23 +68,8 @@ interface ThresholdMpcSessionStore<TRecord extends ThresholdMpcSessionRecord> {
   takeMpcSession(id: string): Promise<TRecord | null>;
 }
 
-export interface ThresholdEd25519SessionStore
-  extends ThresholdMpcSessionStore<ThresholdEd25519MpcSessionRecord> {
-  putSigningSession(
-    id: string,
-    record: ThresholdEd25519SigningSessionRecord,
-    ttlMs: number,
-  ): Promise<void>;
-  takeSigningSession(id: string): Promise<ThresholdEd25519SigningSessionRecord | null>;
-  putCoordinatorSigningSession(
-    id: string,
-    record: ThresholdEd25519CoordinatorSigningSessionRecord,
-    ttlMs: number,
-  ): Promise<void>;
-  takeCoordinatorSigningSession(
-    id: string,
-  ): Promise<ThresholdEd25519CoordinatorSigningSessionRecord | null>;
-}
+export type ThresholdEd25519SessionStore =
+  ThresholdMpcSessionStore<ThresholdEd25519MpcSessionRecord>;
 
 export type ThresholdEcdsaSessionStore =
   ThresholdMpcSessionStore<ThresholdEcdsaMpcSessionRecord>;
@@ -160,7 +99,6 @@ class InMemoryThresholdEd25519SessionStore<
 > {
   private readonly map = new Map<string, { value: unknown; expiresAtMs: number }>();
   private readonly keyPrefix: string;
-  private readonly coordinatorPrefix: string;
   private readonly parseMpcSessionRecord: ThresholdMpcSessionRecordParser<TMpcRecord>;
 
   constructor(input: {
@@ -168,7 +106,6 @@ class InMemoryThresholdEd25519SessionStore<
     parseMpcSessionRecord?: ThresholdMpcSessionRecordParser<TMpcRecord>;
   }) {
     this.keyPrefix = toThresholdEd25519SessionPrefix(input.keyPrefix);
-    this.coordinatorPrefix = `${this.keyPrefix}coord:`;
     this.parseMpcSessionRecord =
       input.parseMpcSessionRecord ||
       (parseThresholdEd25519MpcSessionRecord as ThresholdMpcSessionRecordParser<TMpcRecord>);
@@ -177,11 +114,6 @@ class InMemoryThresholdEd25519SessionStore<
   private key(id: string): string {
     return `${this.keyPrefix}${id}`;
   }
-
-  private coordKey(id: string): string {
-    return `${this.coordinatorPrefix}${id}`;
-  }
-
 
   private getRaw(key: string): unknown | null {
     const entry = this.map.get(key);
@@ -235,43 +167,6 @@ class InMemoryThresholdEd25519SessionStore<
     this.map.delete(key);
     return this.parseMpcSessionRecord(raw);
   }
-
-  async putSigningSession(
-    id: string,
-    record: ThresholdEd25519SigningSessionRecord,
-    ttlMs: number,
-  ): Promise<void> {
-    const key = this.key(id);
-    const expiresAtMs = Date.now() + Math.max(0, Number(ttlMs) || 0);
-    this.map.set(key, { value: record, expiresAtMs });
-  }
-
-  async takeSigningSession(id: string): Promise<ThresholdEd25519SigningSessionRecord | null> {
-    const key = this.key(id);
-    const raw = this.getRaw(key);
-    this.map.delete(key);
-    return parseThresholdEd25519SigningSessionRecord(raw);
-  }
-
-  async putCoordinatorSigningSession(
-    id: string,
-    record: ThresholdEd25519CoordinatorSigningSessionRecord,
-    ttlMs: number,
-  ): Promise<void> {
-    const key = this.coordKey(id);
-    const expiresAtMs = Date.now() + Math.max(0, Number(ttlMs) || 0);
-    this.map.set(key, { value: record, expiresAtMs });
-  }
-
-  async takeCoordinatorSigningSession(
-    id: string,
-  ): Promise<ThresholdEd25519CoordinatorSigningSessionRecord | null> {
-    const key = this.coordKey(id);
-    const raw = this.getRaw(key);
-    this.map.delete(key);
-    return parseThresholdEd25519CoordinatorSigningSessionRecord(raw);
-  }
-
 }
 
 class UpstashRedisRestThresholdEd25519SessionStore<
@@ -279,7 +174,6 @@ class UpstashRedisRestThresholdEd25519SessionStore<
 > {
   private readonly client: UpstashRedisRestClient;
   private readonly keyPrefix: string;
-  private readonly coordinatorPrefix: string;
   private readonly parseMpcSessionRecord: ThresholdMpcSessionRecordParser<TMpcRecord>;
 
   constructor(input: {
@@ -294,7 +188,6 @@ class UpstashRedisRestThresholdEd25519SessionStore<
     if (!token) throw new Error('Upstash session store missing token');
     this.client = new UpstashRedisRestClient({ url, token });
     this.keyPrefix = toThresholdEd25519SessionPrefix(input.keyPrefix);
-    this.coordinatorPrefix = `${this.keyPrefix}coord:`;
     this.parseMpcSessionRecord =
       input.parseMpcSessionRecord ||
       (parseThresholdEd25519MpcSessionRecord as ThresholdMpcSessionRecordParser<TMpcRecord>);
@@ -302,10 +195,6 @@ class UpstashRedisRestThresholdEd25519SessionStore<
 
   private key(id: string): string {
     return `${this.keyPrefix}${id}`;
-  }
-
-  private coordKey(id: string): string {
-    return `${this.coordinatorPrefix}${id}`;
   }
 
   async putMpcSession(
@@ -355,42 +244,6 @@ class UpstashRedisRestThresholdEd25519SessionStore<
     const raw = await this.client.getdelJson(this.key(k));
     return this.parseMpcSessionRecord(raw);
   }
-
-  async putSigningSession(
-    id: string,
-    record: ThresholdEd25519SigningSessionRecord,
-    ttlMs: number,
-  ): Promise<void> {
-    const k = id;
-    if (!k) throw new Error('Missing signingSessionId');
-    await this.client.setJson(this.key(k), record, ttlMs);
-  }
-
-  async takeSigningSession(id: string): Promise<ThresholdEd25519SigningSessionRecord | null> {
-    const k = id;
-    if (!k) return null;
-    const raw = await this.client.getdelJson(this.key(k));
-    return parseThresholdEd25519SigningSessionRecord(raw);
-  }
-
-  async putCoordinatorSigningSession(
-    id: string,
-    record: ThresholdEd25519CoordinatorSigningSessionRecord,
-    ttlMs: number,
-  ): Promise<void> {
-    const k = id;
-    if (!k) throw new Error('Missing coordinator signingSessionId');
-    await this.client.setJson(this.coordKey(k), record, ttlMs);
-  }
-
-  async takeCoordinatorSigningSession(
-    id: string,
-  ): Promise<ThresholdEd25519CoordinatorSigningSessionRecord | null> {
-    const k = id;
-    if (!k) return null;
-    const raw = await this.client.getdelJson(this.coordKey(k));
-    return parseThresholdEd25519CoordinatorSigningSessionRecord(raw);
-  }
 }
 
 class RedisTcpThresholdEd25519SessionStore<
@@ -398,7 +251,6 @@ class RedisTcpThresholdEd25519SessionStore<
 > {
   private readonly client: RedisTcpClient;
   private readonly keyPrefix: string;
-  private readonly coordinatorPrefix: string;
   private readonly parseMpcSessionRecord: ThresholdMpcSessionRecordParser<TMpcRecord>;
 
   constructor(input: {
@@ -410,7 +262,6 @@ class RedisTcpThresholdEd25519SessionStore<
     if (!url) throw new Error('redis-tcp session store missing redisUrl');
     this.client = new RedisTcpClient(url);
     this.keyPrefix = toThresholdEd25519SessionPrefix(input.keyPrefix);
-    this.coordinatorPrefix = `${this.keyPrefix}coord:`;
     this.parseMpcSessionRecord =
       input.parseMpcSessionRecord ||
       (parseThresholdEd25519MpcSessionRecord as ThresholdMpcSessionRecordParser<TMpcRecord>);
@@ -418,10 +269,6 @@ class RedisTcpThresholdEd25519SessionStore<
 
   private key(id: string): string {
     return `${this.keyPrefix}${id}`;
-  }
-
-  private coordKey(id: string): string {
-    return `${this.coordinatorPrefix}${id}`;
   }
 
   async putMpcSession(
@@ -468,43 +315,6 @@ class RedisTcpThresholdEd25519SessionStore<
     const raw = await redisGetdelJson(this.client, this.key(k));
     return this.parseMpcSessionRecord(raw);
   }
-
-  async putSigningSession(
-    id: string,
-    record: ThresholdEd25519SigningSessionRecord,
-    ttlMs: number,
-  ): Promise<void> {
-    const k = id;
-    if (!k) throw new Error('Missing signingSessionId');
-    await redisSetJson(this.client, this.key(k), record, ttlMs);
-  }
-
-  async takeSigningSession(id: string): Promise<ThresholdEd25519SigningSessionRecord | null> {
-    const k = id;
-    if (!k) return null;
-    const raw = await redisGetdelJson(this.client, this.key(k));
-    return parseThresholdEd25519SigningSessionRecord(raw);
-  }
-
-  async putCoordinatorSigningSession(
-    id: string,
-    record: ThresholdEd25519CoordinatorSigningSessionRecord,
-    ttlMs: number,
-  ): Promise<void> {
-    const k = id;
-    if (!k) throw new Error('Missing coordinator signingSessionId');
-    await redisSetJson(this.client, this.coordKey(k), record, ttlMs);
-  }
-
-  async takeCoordinatorSigningSession(
-    id: string,
-  ): Promise<ThresholdEd25519CoordinatorSigningSessionRecord | null> {
-    const k = id;
-    if (!k) return null;
-    const raw = await redisGetdelJson(this.client, this.coordKey(k));
-    return parseThresholdEd25519CoordinatorSigningSessionRecord(raw);
-  }
-
 }
 
 export function createThresholdEd25519SessionStore(input: {

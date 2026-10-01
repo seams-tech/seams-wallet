@@ -7,8 +7,6 @@ export {
   createThresholdEd25519SessionStore,
   type ThresholdEd25519SessionStore,
   type ThresholdEd25519MpcSessionRecord,
-  type ThresholdEd25519SigningSessionRecord,
-  type ThresholdEd25519Commitments,
 } from './stores/SessionStore';
 
 export {
