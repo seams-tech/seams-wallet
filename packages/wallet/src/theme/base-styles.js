@@ -34,7 +34,7 @@ export function createThemeTokens(palette) {
     textPrimary: GREY_COLORS.grey75,
     textSecondary: GREY_COLORS.grey500,
     textMuted: GREY_COLORS.grey650,
-    textButton: GREY_COLORS.grey75,
+    textButton: GREY_COLORS.grey850,
 
     // Surfaces
     colorBackground: GREY_COLORS.grey800,
@@ -45,20 +45,22 @@ export function createThemeTokens(palette) {
     surface4: GREY_COLORS.slate825,
 
     // Canonical palette aliases
-    primary: CHROMA_COLORS.blue650,
-    primaryHover: CHROMA_COLORS.blue600,
+    // The default accent is ink, not a hue: charcoal on the light card, and its
+    // inverse here, because charcoal would vanish into a near-black card.
+    primary: GREY_COLORS.grey100,
+    primaryHover: GREY_COLORS.grey25,
     secondary: CHROMA_COLORS.violet600,
     secondaryHover: CHROMA_COLORS.violet500,
     accent: CHROMA_COLORS.green400,
 
     // Buttons
-    buttonBackground: CHROMA_COLORS.blue500,
-    buttonHoverBackground: CHROMA_COLORS.blue450,
+    buttonBackground: GREY_COLORS.grey100,
+    buttonHoverBackground: GREY_COLORS.grey200,
 
     // Interactive
     hover: GREY_COLORS.grey850,
     active: GREY_COLORS.grey650,
-    focus: CHROMA_COLORS.blue400,
+    focus: GREY_COLORS.grey350,
 
     // Status
     success: CHROMA_COLORS.blue400,
@@ -103,20 +105,20 @@ export function createThemeTokens(palette) {
     surface4: GREY_COLORS.slate250,
 
     // Canonical palette aliases
-    primary: CHROMA_COLORS.blue600,
-    primaryHover: CHROMA_COLORS.blue500,
+    primary: GREY_COLORS.grey750,
+    primaryHover: GREY_COLORS.grey650,
     secondary: CHROMA_COLORS.violet600,
     secondaryHover: CHROMA_COLORS.violet500,
     accent: CHROMA_COLORS.green400,
 
     // Buttons
-    buttonBackground: CHROMA_COLORS.blue500,
-    buttonHoverBackground: CHROMA_COLORS.blue450,
+    buttonBackground: GREY_COLORS.grey750,
+    buttonHoverBackground: GREY_COLORS.grey650,
 
     // Interactive
     hover: GREY_COLORS.grey100,
     active: GREY_COLORS.grey200,
-    focus: CHROMA_COLORS.blue400,
+    focus: GREY_COLORS.grey600,
 
     // Status
     success: CHROMA_COLORS.blue500,
