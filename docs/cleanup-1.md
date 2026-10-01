@@ -6,10 +6,11 @@ worker, route and fixture clusters outside R150's files, and split oversized
 files along their seams. R150 is on `dev`, but feature work still changes
 Phase 4's files. A second survey (below) found more to remove outside them. CI
 runs `pnpm report:bloat --check`, which fails when a ratcheted measure grows
-past `scripts/bloat-baseline.json`, now recorded at `ae9a230`. Since the first
-baseline (`7c8a163`), TypeScript code is down 35,630 lines and Rust code 9,724.
-Duplication is down from 5.1% to 3.1% in TypeScript and from 5.7% to 4.8% in
-Rust, and files over 2,000 lines from 82 to 67. The findings below are the
+past `scripts/bloat-baseline.json`, now recorded at `36bcabf`. Since the first
+baseline (`7c8a163`), TypeScript code is down 33,726 lines net of new feature
+code, Rust code 22,987 and JavaScript 10,322. Duplication is down from 5.1%
+to 3.1% in TypeScript and from 5.7% to 4.9% in Rust, and files over 2,000
+lines from 82 to 66. The findings below are the
 first baseline's; run `pnpm report:bloat` for current numbers.
 
 This plan reduces the code that has to be read, reviewed and kept consistent,
@@ -574,22 +575,48 @@ Waiting for feature work in these files to settle:
   are both in active files; and client and server registration types that
   are identical under different names (about 85).
 
+Decided on 2026-10-01, and done:
+- `crates/ed25519-yao-cloudflare-bench` was to stay only if it could still
+  give a useful benchmark. It could not: it timed a Worker adapter that
+  production has replaced, its bundles no longer build against the pinned
+  tools, and production times the Yao protocol in place. 23944e2 deletes
+  it (23,004 lines), keeps its result reports and the native and wasm
+  kernel benchmarks, and points the constant-time codegen check at the
+  production Deriver builds.
+- The `cosigner` relayer mode is retired: wallet-server serves only the
+  `/router-ab/` Ed25519 routes and the wallet signs through them. 154f0c1
+  removes `near_signer`'s 15 unused wasm exports and 13 classes and all
+  but one function of signer-core's `near_threshold_frost.rs` (1,905
+  lines).
+- The Google Email OTP recovery contract runs from the committed intended
+  config (20bad72). Its exclusion was left over from the extraction.
+- The unwired pieces are gone: `seams-embedded` and `signer-embedded-linux`
+  with signer-core's `near_crypto` (aeee06e), the NEAR oracle tests with
+  presign's `test-utils` feature (7a06b04), and the Yao client's lane
+  holder on both sides (36bcabf).
+- `@noble/hashes`, `tslib` and four unused development dependencies are
+  removed, and `miniflare` and `@noble/curves` are declared where they are
+  imported (65295a9).
+
 Decisions:
-- `crates/ed25519-yao-cloudflare-bench` and its helpers, about 24,000
-  lines. Nothing outside it runs it, and its readiness check hashes 12
-  files that no longer exist. Delete it, or keep the R120, 9B and 13A
-  benchmarks rerunnable.
-- `near_signer`'s wasm exports that nothing calls, and signer-core's FROST
-  relayer code that only they reach (1,000 to 1,250 lines), if
-  wallet-server's `cosigner` relayer mode is retired.
-- The Google Email OTP recovery contract test never runs or type-checks,
-  yet `docs/intended-behaviours.md` lists it as covered. Re-enable it or
-  delete it.
-- `seams-embedded`, `signer-embedded-linux` and
-  `router-ab-ecdsa-near-oracle-tests`, which nothing builds; and the Yao
-  client's lane holder, unwired on both sides (595 lines).
-- `@noble/hashes` and `tslib`, runtime dependencies of the published
-  packages that nothing imports.
+- What the retired cosigner mode still leaves:
+  - `near_signer`'s three legacy signing request types (transactions,
+    NEP-413, delegate), which no TypeScript sends and which call
+    `/threshold-ed25519/` routes nothing serves: 2,649 lines and a further
+    27% of the wasm. Their result classes are the Yao signing flow's type
+    source, so those types move into TypeScript first.
+  - wallet-server's signing-session storage on four stores, about 450
+    lines that nothing calls; three of its types are exported.
+  - `THRESHOLD_NODE_ROLE=cosigner`, still accepted, which makes the two
+    ECDSA pool-fill handlers answer `not_found`.
+  - Six coordinator and relayer cosigner settings that nothing acts on.
+- `laneHolderMaterialStore.ts` (421 lines) has no caller, but a published
+  entry re-exports it. The ECDSA lane-holder worker request has a handler
+  and no sender.
+- The NEAR oracle tests compared the presign and online code with NEAR's
+  upstream vectors. They ran nowhere and are deleted; the specs say the
+  evidence was removed. Restore and run them in CI if that evidence is
+  wanted.
 
 Found along the way, for their owners:
 - shared-ts has two incompatible `EcdsaRelayerKeyId` brands, and two
@@ -597,11 +624,16 @@ Found along the way, for their owners:
 - `registration.ts`'s passkey Ed25519 failure path emits no failed timing
   summary, and `registrationTiming.ts` lacks `registrationAttemptGateMs`.
 - `tests/unit` has 47 type errors, since nothing type-checks it.
-  `miniflare` and `@noble/curves` are imported but no `package.json`
-  declares them. `pnpm -C packages/wallet test` fails: nine wallet `test*`
-  scripts call scripts that never existed.
-- The yao-protocol, router-ab-ed25519-yao and wasm-bench `Cargo.lock` files
-  are stale.
+  `esbuild` is imported by two `tests/r150-hosted` scripts but no
+  `package.json` declares it. `pnpm -C packages/wallet test` fails: nine
+  wallet `test*` scripts call scripts that never existed.
+- `crates/ed25519-yao/README.md` and `docs/formal-verification-plan.md`
+  still say production waits on a Phase 13A "go", whose evaluator went
+  with the bench harness. The wasm kernel benchmark exceeded its 150 ms
+  budget on a loaded machine and needs a run on an idle one.
+- `docs/refactor-150-supported-operations.md` says Google-backed recovery
+  was not run on the VM; the release-readiness record and 20bad72's run
+  say it passes there.
 
 Checked and not worth doing: a lookup table for 1:1 switches (a `Record`
 lookup returns prototype members for untrusted keys), sharing catch bodies,
@@ -830,3 +862,13 @@ Found during the cleanup and left unchanged, for their owners to check:
   router-ab-dev manifest change they were generated with, and three
   predate it. ddb6572 brings them up to date, and 1c860da adds
   `pnpm check:cargo-locks` to CI.
+- 2026-10-01: the second survey's decisions (20bad72 to 36bcabf): the
+  Google recovery contract enabled, unused npm dependencies removed, the
+  retired FROST relayer exports, the Cloudflare bench harness, the two
+  embedded stubs, the NEAR oracle tests and the Yao lane holder deleted.
+  Against the first baseline, measured at `36bcabf`: TypeScript code
+  539,841 -> 506,115 lines, with feature work adding about 1,900 since
+  `ae9a230`; Rust code 433,451 -> 410,464; JavaScript 31,066 -> 20,744
+  since `ae9a230`; files over 2,000 lines 82 -> 66; duplicated Rust lines
+  19,427 (5.7%) -> 15,722 (4.9%); Rust `allow(dead_code)` 125 -> 91. The
+  baseline was re-recorded at `36bcabf`.
