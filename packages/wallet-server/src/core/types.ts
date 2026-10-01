@@ -727,7 +727,6 @@ export interface EcdsaDerivationServerBootstrapResponse {
   publicIdentity: EcdsaDerivationPublicIdentity;
   clientShareRetryCounter: number;
   relayerShareRetryCounter: number;
-  publicTranscriptDigest32B64u: string;
   keyHandle: string;
   signingRootId: string;
   signingRootVersion: string;

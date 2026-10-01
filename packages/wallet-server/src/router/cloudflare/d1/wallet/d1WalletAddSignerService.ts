@@ -303,7 +303,6 @@ function sameEcdsaDerivationServerBootstrapV1(
     sameEcdsaDerivationPublicIdentityV1(left.publicIdentity, right.publicIdentity) &&
     left.clientShareRetryCounter === right.clientShareRetryCounter &&
     left.relayerShareRetryCounter === right.relayerShareRetryCounter &&
-    left.publicTranscriptDigest32B64u === right.publicTranscriptDigest32B64u &&
     left.keyHandle === right.keyHandle &&
     left.signingRootId === right.signingRootId &&
     left.signingRootVersion === right.signingRootVersion &&
@@ -878,7 +877,6 @@ function storedEcdsaAddSignerBootstrap(
     publicIdentity: bootstrap.publicIdentity,
     clientShareRetryCounter: bootstrap.clientShareRetryCounter,
     relayerShareRetryCounter: bootstrap.relayerShareRetryCounter,
-    publicTranscriptDigest32B64u: bootstrap.publicTranscriptDigest32B64u,
     keyHandle: bootstrap.keyHandle,
     signingRootId: bootstrap.signingRootId,
     signingRootVersion: bootstrap.signingRootVersion,

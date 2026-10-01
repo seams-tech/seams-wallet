@@ -2072,7 +2072,6 @@ export function parseD1EcdsaDerivationServerBootstrapResponse(
   const publicIdentity = parseD1EcdsaDerivationPublicIdentity(record.publicIdentity);
   const clientShareRetryCounter = safeInteger(record.clientShareRetryCounter);
   const relayerShareRetryCounter = safeInteger(record.relayerShareRetryCounter);
-  const publicTranscriptDigest32B64u = toOptionalTrimmedString(record.publicTranscriptDigest32B64u);
   const keyHandle = toOptionalTrimmedString(record.keyHandle);
   const signingRootId = toOptionalTrimmedString(record.signingRootId);
   const signingRootVersion = toOptionalTrimmedString(record.signingRootVersion);
@@ -2099,7 +2098,6 @@ export function parseD1EcdsaDerivationServerBootstrapResponse(
     !publicIdentity ||
     clientShareRetryCounter === null ||
     relayerShareRetryCounter === null ||
-    !publicTranscriptDigest32B64u ||
     !keyHandle ||
     !signingRootId ||
     !signingRootVersion ||
@@ -2127,7 +2125,6 @@ export function parseD1EcdsaDerivationServerBootstrapResponse(
     publicIdentity,
     clientShareRetryCounter,
     relayerShareRetryCounter,
-    publicTranscriptDigest32B64u,
     keyHandle,
     signingRootId,
     signingRootVersion,

@@ -44,7 +44,6 @@ export type ThresholdEcdsaDerivationRoleLocalBootstrapValue = {
   publicIdentity: EcdsaDerivationRoleLocalPublicIdentity;
   clientShareRetryCounter: number;
   relayerShareRetryCounter: number;
-  publicTranscriptDigest32B64u: string;
   keyHandle: string;
   signingRootId: string;
   signingRootVersion: string;
@@ -134,7 +133,6 @@ const NON_EXPORT_BOOTSTRAP_RESPONSE_FIELDS = [
   'publicIdentity',
   'clientShareRetryCounter',
   'relayerShareRetryCounter',
-  'publicTranscriptDigest32B64u',
   'keyHandle',
   'signingRootId',
   'signingRootVersion',
@@ -274,10 +272,6 @@ export function parseThresholdEcdsaDerivationRoleLocalBootstrapValue(
     publicIdentity,
     clientShareRetryCounter,
     relayerShareRetryCounter,
-    publicTranscriptDigest32B64u: requireNonEmptyString(
-      readJsonField(record, 'publicTranscriptDigest32B64u', 'value.publicTranscriptDigest32B64u'),
-      'publicTranscriptDigest32B64u',
-    ),
     keyHandle,
     signingRootId,
     signingRootVersion,

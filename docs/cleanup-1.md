@@ -812,3 +812,10 @@ Found during the cleanup and left unchanged, for their owners to check:
   `wasm/router_ab_ecdsa_signing_worker` and its only importer,
   `benchmarks/router-ab-ecdsa-derivation-wasm`, were then deleted (1,289
   lines of Rust and JavaScript).
+- 2026-10-01: the role-local public transcript digest was retired. The
+  derivation crate lost `public_transcript_digest` and its `wire` module,
+  which only a test and a bench still called; its README and specs now
+  describe the public identity instead. The bootstrap response lost
+  `publicTranscriptDigest32B64u`, which carried the threshold-PRF proof
+  transcript digest under the old name and which no client verified. The
+  Lean and Verus models are unchanged and still describe the retired digest.

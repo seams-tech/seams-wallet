@@ -507,7 +507,6 @@ function sameEcdsaDerivationServerBootstrap(
     sameEcdsaDerivationPublicIdentity(left.publicIdentity, right.publicIdentity) &&
     left.clientShareRetryCounter === right.clientShareRetryCounter &&
     left.relayerShareRetryCounter === right.relayerShareRetryCounter &&
-    left.publicTranscriptDigest32B64u === right.publicTranscriptDigest32B64u &&
     left.keyHandle === right.keyHandle &&
     left.signingRootId === right.signingRootId &&
     left.signingRootVersion === right.signingRootVersion &&
@@ -1978,7 +1977,6 @@ export async function buildActivatedEcdsaFamilyBootstrap(input: {
     publicIdentity,
     clientShareRetryCounter: input.publicFacts.clientShareRetryCounter,
     relayerShareRetryCounter: identity.server_share_retry_counter,
-    publicTranscriptDigest32B64u: input.publicFacts.proofTranscriptDigestB64u,
     keyHandle,
     signingRootId: prepare.signingRootId,
     signingRootVersion: prepare.signingRootVersion,
@@ -5585,7 +5583,6 @@ export class CloudflareD1WalletRegistrationService {
             publicIdentity: bootstrap.publicIdentity,
             clientShareRetryCounter: bootstrap.clientShareRetryCounter,
             relayerShareRetryCounter: bootstrap.relayerShareRetryCounter,
-            publicTranscriptDigest32B64u: bootstrap.publicTranscriptDigest32B64u,
             keyHandle: bootstrap.keyHandle,
             signingRootId: bootstrap.signingRootId,
             signingRootVersion: bootstrap.signingRootVersion,
