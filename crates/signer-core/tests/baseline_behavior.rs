@@ -1,11 +1,11 @@
-#[cfg(all(feature = "secp256k1", feature = "near-crypto"))]
+#[cfg(feature = "secp256k1")]
 #[path = "../fixtures/signing-vectors/v1_test_vectors.rs"]
 mod vectors;
 
-#[cfg(all(feature = "secp256k1", feature = "near-crypto"))]
+#[cfg(feature = "secp256k1")]
 use vectors::*;
 
-#[cfg(all(feature = "secp256k1", feature = "near-crypto"))]
+#[cfg(feature = "secp256k1")]
 #[test]
 fn vectors_v1_match_expected_outputs() {
     assert!(VECTORS_JSON.contains("\"version\": \"v1\""));
@@ -68,35 +68,5 @@ fn vectors_v1_match_expected_outputs() {
             .as_slice()
         ),
         ADD_EXPECTED
-    );
-
-    assert_eq!(
-        to_hex(
-            signer_core::near_crypto::derive_kek_from_wrap_key_seed_b64u(
-                WRAP_SEED_B64U,
-                WRAP_SALT_B64U,
-            )
-            .expect("derive kek")
-            .as_slice()
-        ),
-        KEK_EXPECTED
-    );
-
-    let ciphertext = signer_core::near_crypto::encrypt_data_chacha20(
-        CHACHA_PLAIN,
-        from_hex(CHACHA_KEY_HEX).as_slice(),
-        from_hex(CHACHA_NONCE_HEX).as_slice(),
-    )
-    .expect("encrypt chacha20");
-    assert_eq!(to_hex(ciphertext.as_slice()), CHACHA_CIPHERTEXT_EXPECTED);
-
-    assert_eq!(
-        signer_core::near_crypto::decrypt_data_chacha20(
-            ciphertext.as_slice(),
-            from_hex(CHACHA_NONCE_HEX).as_slice(),
-            from_hex(CHACHA_KEY_HEX).as_slice(),
-        )
-        .expect("decrypt chacha20"),
-        CHACHA_PLAIN
     );
 }

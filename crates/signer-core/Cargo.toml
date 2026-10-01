@@ -3,7 +3,7 @@ name = "signer-core"
 version = "0.1.0"
 edition = "2021"
 publish = false
-description = "Shared signer core primitives for web and embedded bindings"
+description = "Shared signer core primitives"
 license = "Apache-2.0"
 
 [lib]
@@ -38,7 +38,6 @@ zeroize = { version = "1.8", features = ["zeroize_derive"] }
 [features]
 default = []
 secp256k1 = ["dep:hkdf", "dep:k256", "dep:sha2", "dep:sha3"]
-near-crypto = ["dep:hkdf", "dep:sha2", "dep:base64ct", "dep:chacha20poly1305"]
 passkey-custody = ["dep:hkdf", "dep:sha2", "dep:base64ct", "dep:chacha20poly1305", "dep:serde"]
 ed25519-yao-client-root-transfer = [
     "passkey-custody",

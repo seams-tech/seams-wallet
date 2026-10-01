@@ -115,33 +115,6 @@ fn vectors_v1_match_expected_outputs() {
         ),
         ADD_EXPECTED
     );
-
-    assert_eq!(
-        to_hex(
-            crate::near_crypto::derive_kek_from_wrap_key_seed_b64u(WRAP_SEED_B64U, WRAP_SALT_B64U)
-                .expect("derive kek")
-                .as_slice()
-        ),
-        KEK_EXPECTED
-    );
-
-    let ciphertext = crate::near_crypto::encrypt_data_chacha20(
-        CHACHA_PLAIN,
-        from_hex(CHACHA_KEY_HEX).as_slice(),
-        from_hex(CHACHA_NONCE_HEX).as_slice(),
-    )
-    .expect("encrypt chacha20");
-    assert_eq!(to_hex(ciphertext.as_slice()), CHACHA_CIPHERTEXT_EXPECTED);
-
-    assert_eq!(
-        crate::near_crypto::decrypt_data_chacha20(
-            ciphertext.as_slice(),
-            from_hex(CHACHA_NONCE_HEX).as_slice(),
-            from_hex(CHACHA_KEY_HEX).as_slice(),
-        )
-        .expect("decrypt chacha20"),
-        CHACHA_PLAIN
-    );
 }
 
 #[cfg(feature = "tx-finalization")]

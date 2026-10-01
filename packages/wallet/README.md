@@ -291,8 +291,7 @@ repo/
 │   ├── wallet-server/            # Server library source
 │   └── shared-ts/                # Shared TypeScript utils/types
 ├── crates/
-│   ├── signer-core/              # Shared signer core primitives
-│   └── seams-embedded/           # Embedded Rust SDK facade
+│   └── signer-core/              # Shared signer core primitives
 ├── wasm/                         # Rust WASM packages
 └── tests/                        # Playwright + unit tests
 ```

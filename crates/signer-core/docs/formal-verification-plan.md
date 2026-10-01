@@ -90,12 +90,6 @@ The initial `signer-core` FV plan should **not** try to prove:
 2. full Keccak or SHA-256 correctness
 3. side-channel resistance
 4. the behavior of the external `threshold-signatures` crate from first principles
-5. a separate formal-verification track for
-   [crates/signer-embedded-linux](/Users/pta/Dev/rust/simple-threshold-signer/crates/signer-embedded-linux)
-
-`signer-embedded-linux` is currently a feature-gated re-export layer, so a
-standalone FV track there would be much lower impact than proving the shared
-helpers in `signer-core`.
 
 ## Recommended Layout
 

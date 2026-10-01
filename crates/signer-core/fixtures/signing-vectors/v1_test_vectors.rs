@@ -15,14 +15,6 @@ pub const VALIDATE_PK_HEX: &str =
 pub const ADD_RIGHT_PK_HEX: &str =
     "032a709888f7c7e1087d472005b99064112c1df5442f53ef9af4beae67f913eaca";
 pub const ADD_EXPECTED: &str = "032516721a026f7e3eddc4cb67c9b24ee897ebc2d94ee78760736beb91b7d2f732";
-pub const WRAP_SEED_B64U: &str = "d3JhcC1zZWVk";
-pub const WRAP_SALT_B64U: &str = "c2FsdA";
-pub const KEK_EXPECTED: &str = "0ab776316f79db94c8125814b46c57e444f668f81ec2324ceae9f91299dfee48";
-pub const CHACHA_PLAIN: &str = "near-private-key";
-pub const CHACHA_KEY_HEX: &str = "0303030303030303030303030303030303030303030303030303030303030303";
-pub const CHACHA_NONCE_HEX: &str = "090909090909090909090909";
-pub const CHACHA_CIPHERTEXT_EXPECTED: &str =
-    "8748d64cedbeb53ec3ccccc105ca1e3f539654c9436a18b6c1e378baa2726beb";
 #[cfg(feature = "tx-finalization")]
 #[allow(dead_code)]
 pub const TEMPO_INVALID_SENDER_SIGNATURE_HEX: &str =

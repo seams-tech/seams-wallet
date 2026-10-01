@@ -18,8 +18,6 @@ pub mod ed25519_yao_client_root_transfer;
 pub mod ed25519_yao_derivation;
 #[cfg(feature = "tx-finalization")]
 pub mod eip1559;
-#[cfg(feature = "near-crypto")]
-pub mod near_crypto;
 #[cfg(any(feature = "near-ed25519-recovery", feature = "near-threshold-ed25519"))]
 pub mod near_ed25519_recovery;
 #[cfg(feature = "near-threshold-ed25519")]
@@ -39,7 +37,7 @@ pub mod wallet_seed_derivation;
 #[cfg(feature = "webauthn-p256")]
 pub mod webauthn_p256;
 
-#[cfg(all(test, feature = "secp256k1", feature = "near-crypto"))]
+#[cfg(all(test, feature = "secp256k1"))]
 mod platform_surface_tests {
     include!("../fixtures/signing-vectors/platform_surface_tests.rs");
 }

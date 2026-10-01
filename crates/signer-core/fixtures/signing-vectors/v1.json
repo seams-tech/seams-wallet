@@ -44,20 +44,6 @@
       "expected_hex": "032516721a026f7e3eddc4cb67c9b24ee897ebc2d94ee78760736beb91b7d2f732"
     }
   },
-  "near_crypto": {
-    "derive_kek": {
-      "wrap_key_seed_b64u": "d3JhcC1zZWVk",
-      "wrap_key_salt_b64u": "c2FsdA",
-      "expected_hex": "0ab776316f79db94c8125814b46c57e444f668f81ec2324ceae9f91299dfee48"
-    },
-    "encrypt_fixed_nonce": {
-      "plain_text": "near-private-key",
-      "key_hex": "0303030303030303030303030303030303030303030303030303030303030303",
-      "nonce_hex": "090909090909090909090909",
-      "expected_ciphertext_hex": "8748d64cedbeb53ec3ccccc105ca1e3f539654c9436a18b6c1e378baa2726beb",
-      "expected_plain_text": "near-private-key"
-    }
-  },
   "tx_finalization": {
     "eip1559": {
       "tx": {
