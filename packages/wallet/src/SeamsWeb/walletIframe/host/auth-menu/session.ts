@@ -9,6 +9,7 @@ import {
   type AuthMenuLinkDeviceViewModel,
   type AuthMenuRecoveryViewModel,
   type AuthMenuViewModel,
+  authMenuFailureStatus,
   authMenuLoginAllowsEmailOtp,
   authMenuLoginAllowsPasskey,
   passkeyCeremonyHeadline,
@@ -294,8 +295,12 @@ const AUTH_MENU_PASSKEY_PREPARATION_TIMEOUT_MS = 20_000;
    glitch rather than as progress, so hold it for a legible beat. The request
    itself still starts immediately; only the settle is deferred. */
 const AUTH_MENU_RESEND_MINIMUM_BUSY_MS = 500;
-const AUTH_MENU_PASSKEY_PREPARATION_TIMEOUT_MESSAGE =
-  'Passkey preparation timed out. Retry to continue.';
+const AUTH_MENU_PASSKEY_PREPARATION_TIMEOUT_MESSAGE = 'Passkey preparation timed out';
+const GOOGLE_SIGN_IN_CANCELLED_STATUS = {
+  kind: 'recoverable',
+  reason: 'error',
+  message: 'Google sign-in was cancelled.',
+} as const;
 
 function createPreparingViewModel(args: {
   request: HostedAuthMenuOpenRequest;
@@ -468,7 +473,7 @@ function presentedAuthMenuError(viewModel: AuthMenuViewModel): PresentedAuthMenu
   switch (viewModel.kind) {
     case 'passkey':
       return viewModel.status.kind === 'recoverable'
-        ? { mode: viewModel.mode, message: viewModel.status.message }
+        ? { mode: viewModel.mode, message: viewModel.status.detail ?? viewModel.status.message }
         : null;
     case 'google_otp_login':
     case 'google_registration':
@@ -480,7 +485,7 @@ function presentedAuthMenuError(viewModel: AuthMenuViewModel): PresentedAuthMenu
       return null;
     case 'recovery':
       return viewModel.stage === 'sign_in_ready' && viewModel.status.kind === 'recoverable'
-        ? { mode: 'login', message: viewModel.status.message }
+        ? { mode: 'login', message: viewModel.status.detail ?? viewModel.status.message }
         : null;
     default: {
       const exhaustive: never = viewModel;
@@ -1066,11 +1071,7 @@ export class AuthMenuSession {
           kind: 'preparing',
           viewModel: {
             ...viewModel,
-            status: {
-              kind: 'recoverable',
-              reason: 'error',
-              message: error instanceof Error ? error.message : String(error),
-            },
+            status: authMenuFailureStatus(errorMessage(error)),
           },
         };
         this.updateElement();
@@ -1168,11 +1169,7 @@ export class AuthMenuSession {
       kind: 'preparing',
       viewModel: {
         ...state.viewModel,
-        status: {
-          kind: 'recoverable',
-          reason: 'error',
-          message: AUTH_MENU_PASSKEY_PREPARATION_TIMEOUT_MESSAGE,
-        },
+        status: authMenuFailureStatus(AUTH_MENU_PASSKEY_PREPARATION_TIMEOUT_MESSAGE),
       },
     };
     this.updateElement();
@@ -1292,7 +1289,7 @@ export class AuthMenuSession {
           kind: 'preparing',
           viewModel: {
             ...baseViewModel,
-            status: { kind: 'recoverable', reason: 'error', message: errorMessage(error) },
+            status: authMenuFailureStatus(errorMessage(error)),
           },
         };
         this.updateElement();
@@ -1380,10 +1377,10 @@ export class AuthMenuSession {
         this.startRecoveryGoogleVerification(state, resolution.evidence.idToken);
         return true;
       }
-      const message =
+      const status =
         resolution.evidence.kind === 'cancelled'
-          ? 'Google sign-in was cancelled'
-          : resolution.evidence.message;
+          ? GOOGLE_SIGN_IN_CANCELLED_STATUS
+          : authMenuFailureStatus(resolution.evidence.message);
       this.stateValue = {
         kind: 'recovery',
         stage: 'google_ready',
@@ -1394,7 +1391,7 @@ export class AuthMenuSession {
           walletId: recoveryWalletId(state.viewModel),
           stage: 'google_ready',
           target: state.operation.target,
-          status: { kind: 'recoverable', reason: 'error', message },
+          status,
         }),
       };
       this.updateElement();
@@ -1415,17 +1412,11 @@ export class AuthMenuSession {
         return true;
       case 'cancelled':
       case 'failed': {
-        const message =
+        const status =
           resolution.evidence.kind === 'cancelled'
-            ? 'Google sign-in was cancelled'
-            : resolution.evidence.message;
-        this.stateValue = {
-          kind: 'preparing',
-          viewModel: {
-            ...state.viewModel,
-            status: { kind: 'recoverable', reason: 'error', message },
-          },
-        };
+            ? GOOGLE_SIGN_IN_CANCELLED_STATUS
+            : authMenuFailureStatus(resolution.evidence.message);
+        this.stateValue = { kind: 'preparing', viewModel: { ...state.viewModel, status } };
         this.updateElement();
         return true;
       }
@@ -3596,12 +3587,7 @@ export class AuthMenuSession {
           status:
             failure.kind === 'dismissed'
               ? { kind: 'idle', interaction: 'actionable' }
-              : {
-                  kind: 'recoverable',
-                  reason: 'error',
-                  message:
-                    failure.error instanceof Error ? failure.error.message : String(failure.error),
-                },
+              : authMenuFailureStatus(errorMessage(failure.error)),
         }),
       };
       this.updateElement();
@@ -3620,13 +3606,9 @@ export class AuthMenuSession {
       this.startPasskeyPreparation();
       return;
     }
-    const message = failure.error instanceof Error ? failure.error.message : String(failure.error);
     this.stateValue = {
       kind: 'preparing',
-      viewModel: {
-        ...viewModel,
-        status: { kind: 'recoverable', reason: 'error', message },
-      },
+      viewModel: { ...viewModel, status: authMenuFailureStatus(errorMessage(failure.error)) },
     };
     this.updateElement();
   }

@@ -53,12 +53,36 @@ type AuthMenuSurfaceStatus =
       /** Renders the form plus a message; the primary control stays live. */
       readonly kind: 'recoverable';
       readonly reason: 'error' | 'expired';
+      /** Written for the person signing in. */
       readonly message: string;
+      /** The underlying error text. Reported to the host app, never rendered. */
+      readonly detail?: string;
     };
 
 /** The waiting headline for the passkey ceremony itself. */
 export function passkeyCeremonyHeadline(mode: 'login' | 'register'): string {
   return mode === 'register' ? 'Creating passkey wallet…' : 'Signing in…';
+}
+
+const RATE_LIMITED_FAILURE = /\bHTTP 429\b|too many requests|rate limit/i;
+const UNREACHABLE_FAILURE =
+  /\bHTTP 5\d\d\b|failed to fetch|load failed|networkerror|network request failed|connection ?closed/i;
+const TIMED_OUT_FAILURE = /timed out|timeout/i;
+
+function authMenuFailureMessage(detail: string): string {
+  if (RATE_LIMITED_FAILURE.test(detail)) return 'Too many attempts. Wait a moment.';
+  if (UNREACHABLE_FAILURE.test(detail)) return 'Can’t reach Seams right now.';
+  if (TIMED_OUT_FAILURE.test(detail)) return 'That took too long.';
+  return 'Something went wrong.';
+}
+
+/**
+ * The status for a failure the menu has no sentence of its own for. Thrown
+ * text is written for developers, so the menu shows one of a few plain
+ * sentences and keeps the original as `detail`.
+ */
+export function authMenuFailureStatus(detail: string): AuthMenuRecoverableStatus {
+  return { kind: 'recoverable', reason: 'error', message: authMenuFailureMessage(detail), detail };
 }
 
 interface AuthMenuViewModelCommon {
