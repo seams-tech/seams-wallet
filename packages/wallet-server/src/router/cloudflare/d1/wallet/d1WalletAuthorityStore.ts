@@ -24,17 +24,14 @@ import {
   type WalletAuthMethodId,
   type WalletId,
 } from '@shared/utils/domainIds';
-import {
-  ensureWalletAuthMethodStoreD1SchemaV2,
-  prepareD1WalletAuthMethodV2PutStatement,
-} from '../../../../core/d1WalletAuthMethodStore';
+import { prepareD1WalletAuthMethodV2PutStatement } from '../../../../core/d1WalletAuthMethodStore';
 import {
   parseWalletAuthMethodRecordV2,
   type ActiveWalletAuthMethodRecordV2,
   type RevokedWalletAuthMethodRecordV2,
   type WalletAuthMethodRecordV2,
 } from '@shared/utils/walletAuthMethodRecord';
-import { d1ChangedRows, formatD1ExecStatement, parseD1JsonColumn } from '../../../../storage/d1Sql';
+import { d1ChangedRows, parseD1JsonColumn } from '../../../../storage/d1Sql';
 import type {
   D1DatabaseLike,
   D1PreparedStatementLike,
@@ -106,132 +103,6 @@ type WalletAuthorityRevocationResultV1 =
     }
   | { readonly kind: 'would_remove_last_wallet_auth_method' }
   | { readonly kind: 'conflict' };
-
-const WALLET_AUTHORITY_STORE_D1_SCHEMA_SQL = Object.freeze([
-  `
-    CREATE TABLE IF NOT EXISTS wallet_authorities (
-      namespace TEXT NOT NULL,
-      org_id TEXT NOT NULL,
-      project_id TEXT NOT NULL,
-      env_id TEXT NOT NULL,
-      authority_id TEXT NOT NULL,
-      wallet_id TEXT NOT NULL,
-      device_id TEXT NOT NULL,
-      provenance_kind TEXT NOT NULL,
-      enrollment_id TEXT,
-      source_authority_id TEXT,
-      link_session_id TEXT,
-      recovery_operation_id TEXT,
-      continuity_authority_id TEXT,
-      lifecycle_state TEXT NOT NULL,
-      permissions_json TEXT NOT NULL,
-      signer_activations_json TEXT NOT NULL,
-      local_install_package_set_digest_b64u TEXT,
-      signer_activation_set_digest_b64u TEXT NOT NULL,
-      authority_digest_b64u TEXT NOT NULL,
-      revocation_epoch INTEGER NOT NULL,
-      record_json TEXT NOT NULL,
-      created_at_ms INTEGER NOT NULL,
-      updated_at_ms INTEGER NOT NULL,
-      activated_at_ms INTEGER,
-      revoked_at_ms INTEGER,
-      PRIMARY KEY (namespace, org_id, project_id, env_id, authority_id),
-      CHECK (length(authority_id) > 0),
-      CHECK (length(wallet_id) > 0),
-      CHECK (length(device_id) > 0),
-      CHECK (provenance_kind IN ('wallet_registration', 'device_link', 'wallet_recovery')),
-      CHECK (lifecycle_state IN ('pending_local_install', 'active', 'revoked')),
-      CHECK (length(permissions_json) > 0 AND json_valid(permissions_json)),
-      CHECK (length(signer_activations_json) > 0 AND json_valid(signer_activations_json)),
-      CHECK (length(record_json) > 0 AND json_valid(record_json)),
-      CHECK (length(signer_activation_set_digest_b64u) > 0),
-      CHECK (length(authority_digest_b64u) > 0),
-      CHECK (revocation_epoch >= 0),
-      CHECK (created_at_ms >= 0),
-      CHECK (updated_at_ms >= created_at_ms),
-      CHECK (
-        (provenance_kind = 'wallet_registration'
-          AND enrollment_id IS NULL
-          AND source_authority_id IS NULL
-          AND link_session_id IS NULL
-          AND recovery_operation_id IS NULL
-          AND continuity_authority_id IS NULL)
-        OR
-        (provenance_kind = 'device_link'
-          AND enrollment_id IS NOT NULL AND length(enrollment_id) > 0
-          AND source_authority_id IS NOT NULL AND length(source_authority_id) > 0
-          AND link_session_id IS NOT NULL AND length(link_session_id) > 0
-          AND recovery_operation_id IS NULL
-          AND continuity_authority_id IS NULL)
-        OR
-        (provenance_kind = 'wallet_recovery'
-          AND enrollment_id IS NULL
-          AND source_authority_id IS NULL
-          AND link_session_id IS NULL
-          AND recovery_operation_id IS NOT NULL
-          AND length(recovery_operation_id) > 0
-          AND continuity_authority_id IS NOT NULL
-          AND length(continuity_authority_id) > 0)
-      ),
-      CHECK (
-        (lifecycle_state = 'pending_local_install'
-          AND local_install_package_set_digest_b64u IS NOT NULL
-          AND length(local_install_package_set_digest_b64u) > 0
-          AND activated_at_ms IS NULL
-          AND revoked_at_ms IS NULL
-          AND revocation_epoch = 0)
-        OR
-        (lifecycle_state = 'active'
-          AND local_install_package_set_digest_b64u IS NULL
-          AND activated_at_ms IS NOT NULL
-          AND revoked_at_ms IS NULL)
-        OR
-        (lifecycle_state = 'revoked'
-          AND local_install_package_set_digest_b64u IS NULL
-          AND activated_at_ms IS NOT NULL
-          AND revoked_at_ms IS NOT NULL)
-      ),
-      CHECK (json_extract(record_json, '$.authorityId') = authority_id),
-      CHECK (json_extract(record_json, '$.walletId') = wallet_id),
-      CHECK (json_extract(record_json, '$.state') = lifecycle_state),
-      CHECK (json_extract(record_json, '$.revocationEpoch') = revocation_epoch),
-      CHECK (json_extract(record_json, '$.authorityDigestB64u') = authority_digest_b64u),
-      CHECK (
-        json_extract(record_json, '$.signerActivationSetDigestB64u')
-          = signer_activation_set_digest_b64u
-      )
-    )
-  `,
-  `
-    CREATE UNIQUE INDEX IF NOT EXISTS wallet_authorities_active_device_uidx
-      ON wallet_authorities (
-        namespace, org_id, project_id, env_id, wallet_id, device_id
-      )
-      WHERE lifecycle_state <> 'revoked'
-  `,
-  `
-    CREATE UNIQUE INDEX IF NOT EXISTS wallet_authorities_enrollment_uidx
-      ON wallet_authorities (
-        namespace, org_id, project_id, env_id, wallet_id, enrollment_id
-      )
-      WHERE enrollment_id IS NOT NULL
-  `,
-  `
-    CREATE INDEX IF NOT EXISTS wallet_authorities_inventory_idx
-      ON wallet_authorities (
-        namespace, org_id, project_id, env_id, wallet_id, lifecycle_state,
-        updated_at_ms, authority_id
-      )
-  `,
-  `
-    CREATE TABLE IF NOT EXISTS wallet_authority_cas_guard (
-      guard_id INTEGER PRIMARY KEY CHECK (guard_id = 1)
-    )
-  `,
-  `
-    INSERT OR IGNORE INTO wallet_authority_cas_guard (guard_id) VALUES (1)
-  `,
-] as const);
 
 type NormalizedScope = D1WalletAuthorityStoreScope;
 type AuthorityRow = {
@@ -806,8 +677,6 @@ export class WalletAuthorityCommitConflictError extends Error {
 export class D1WalletAuthorityStore {
   private readonly database: D1DatabaseLike;
   private readonly scope: NormalizedScope;
-  private readonly ensureSchemaOnUse: boolean;
-  private schemaReady = false;
 
   constructor(input: {
     readonly database: D1DatabaseLike;
@@ -816,7 +685,6 @@ export class D1WalletAuthorityStore {
     readonly orgId?: string;
     readonly projectId?: string;
     readonly envId?: string;
-    readonly ensureSchema?: boolean;
   }) {
     this.database = input.database;
     this.scope = normalizeScope(
@@ -827,16 +695,6 @@ export class D1WalletAuthorityStore {
         envId: input.envId ?? '',
       },
     );
-    this.ensureSchemaOnUse = input.ensureSchema !== false;
-  }
-
-  private async ensureSchema(): Promise<void> {
-    if (!this.ensureSchemaOnUse || this.schemaReady) return;
-    for (const statement of WALLET_AUTHORITY_STORE_D1_SCHEMA_SQL) {
-      await this.database.exec(formatD1ExecStatement(statement));
-    }
-    await ensureWalletAuthMethodStoreD1SchemaV2({ database: this.database });
-    this.schemaReady = true;
   }
 
   /**
@@ -852,7 +710,6 @@ export class D1WalletAuthorityStore {
     readonly walletSigners: readonly WalletSignerRecord[];
     readonly promotionAtMs: number;
   }): Promise<void> {
-    await this.ensureSchema();
     const statements: D1PreparedStatementLike[] = [
       ...input.walletSigners.map((record) =>
         prepareD1WalletPutSignerStatement({
@@ -902,7 +759,6 @@ export class D1WalletAuthorityStore {
   }
 
   async readById(authorityId: WalletAuthorityId): Promise<WalletAuthorityV1 | null> {
-    await this.ensureSchema();
     const row = await this.database
       .prepare(
         `SELECT *
@@ -921,7 +777,6 @@ export class D1WalletAuthorityStore {
     readonly walletId: WalletId;
     readonly deviceId: DeviceId;
   }): Promise<WalletAuthorityV1 | null> {
-    await this.ensureSchema();
     const row = await this.database
       .prepare(
         `SELECT *
@@ -956,7 +811,6 @@ export class D1WalletAuthorityStore {
     },
     additionalStatements: readonly D1PreparedStatementLike[],
   ): Promise<WalletAuthorityCommitResultV1> {
-    await this.ensureSchema();
     assertPendingCommitInput(input);
     if (!(await walletAuthorityDigestsMatchV1(input.authority))) {
       throw new Error('pending wallet authority digest does not match its canonical record');
@@ -1037,7 +891,6 @@ export class D1WalletAuthorityStore {
     },
     additionalStatements: readonly D1PreparedStatementLike[],
   ): Promise<WalletAuthorityActivationResultV1> {
-    await this.ensureSchema();
     assertActivationInput(input);
     if (!(await walletAuthorityDigestsMatchV1(input.pendingAuthority))) {
       return { kind: 'conflict', authorityId: input.pendingAuthority.authorityId };
@@ -1142,7 +995,6 @@ export class D1WalletAuthorityStore {
     readonly limit: number;
     readonly cursor: WalletAuthorityPageCursorV1 | null;
   }): Promise<WalletAuthorityPageV1> {
-    await this.ensureSchema();
     if (!Number.isSafeInteger(input.limit) || input.limit < 1 || input.limit > 1000) {
       throw new Error('wallet authority page limit is invalid');
     }
@@ -1200,7 +1052,6 @@ export class D1WalletAuthorityStore {
      */
     readonly trailingStatements?: readonly D1PreparedStatementLike[];
   }): Promise<WalletAuthorityRevocationResultV1> {
-    await this.ensureSchema();
     const expectedEpoch = requireNonNegativeInteger(
       input.expectedAuthorityRevocationEpoch,
       'expected authority revocation epoch',

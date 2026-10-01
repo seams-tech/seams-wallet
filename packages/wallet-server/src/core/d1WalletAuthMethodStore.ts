@@ -338,12 +338,6 @@ export async function ensureWalletAuthMethodStoreD1Schema(
   await ensureD1Schema(options.database, WALLET_AUTH_METHOD_STORE_D1_SCHEMA_SQL);
 }
 
-export async function ensureWalletAuthMethodStoreD1SchemaV2(
-  options: D1WalletAuthMethodStoreSchemaOptions,
-): Promise<void> {
-  await ensureD1Schema(options.database, WALLET_AUTH_METHOD_STORE_D1_SCHEMA_V2_SQL);
-}
-
 function trimString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
 }

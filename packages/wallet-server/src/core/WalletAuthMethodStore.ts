@@ -19,7 +19,6 @@ export {
   WALLET_AUTH_METHOD_STORE_D1_SCHEMA_SQL,
   WALLET_AUTH_METHOD_STORE_D1_SCHEMA_V2_SQL,
   ensureWalletAuthMethodStoreD1Schema,
-  ensureWalletAuthMethodStoreD1SchemaV2,
   normalizeWalletAuthMethod,
   normalizeWalletAuthMethodV2,
   prepareD1WalletAuthMethodV2PutStatement,
