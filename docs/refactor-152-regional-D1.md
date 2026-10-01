@@ -401,6 +401,16 @@ below remain open.
 - [ ] Assign a stable initial home server-side. Browser hints are advisory input;
   browser assertions cannot select an alternative authority. Avoid a mandatory
   home picker, travel profiling, and automatic geographic migration.
+- [ ] Implement regional Gateways paired with the assigned D1 homes, initially
+  APAC and WEUR. Reuse existing Gateway deployments where possible, bind each to
+  its authoritative database, and configure execution placement near that home.
+  Route requests through trusted namespace/deployment bindings so a Tokyo client
+  using a WEUR namespace reaches its WEUR Gateway. Reuse existing hostname/service
+  routing; introduce an additional global routing Worker only if that routing
+  cannot select the assigned Gateway. Verify actual execution placement, preserve
+  custody-role identities, and measure Gateway-to-DO and Console dependencies.
+  D1 home assignment alone does not place the Gateway or custody DOs. Keep this
+  work subject to the isolated-experiment and production-rollout gates.
 - [ ] Verify every entry point reaches the same home: Gateway, role RPC,
   recovery, linking, revocation, quota administration, scheduled work, and replay.
   Fail closed when authoritative routing or the home is unavailable. Any redirect
@@ -439,6 +449,13 @@ Before transferring existing state:
 - [ ] Add regional routing scenarios with the same operation concurrently sent
   through two entry regions and a stale home. Verify one quota consumption,
   one custody effect, exact replay, and refusal of wrong tenant/environment data.
+- [ ] Measure travel latency using the same WEUR wallet from Europe and Tokyo,
+  holding Gateway, D1 and custody placement and build identities fixed. Repeat
+  for an APAC home with local and remote clients. Separate browser-to-home round
+  trips from internal D1, custody RPC and Console costs; cover ready-material
+  signing and cold unlock/first sign. Alternate client order, retain failures,
+  verify signatures and report distributions. Confirm remote client location
+  never changes the writable home or causes fallback to another database.
 - [ ] For migration, inject failures before and after activation and while an
   operation is in flight. Verify uninterrupted key identity and signature
   validity, preserved denial state, and no dual writer after retry or rollback.
