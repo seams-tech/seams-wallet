@@ -336,6 +336,10 @@ Use the same workloads and build identities in these arms:
   alone does not close the complete authenticated-composition gate or authorize
   production regional routing.
 
+Further call/write optimization is tracked in the
+[deferred lifecycle budget audit](#deferred-follow-up-lifecycle-d1-call-budgets).
+Keep each regional comparison on its frozen candidate while that audit is pending.
+
 ## Phase 3: prove the ownership boundary
 
 Complete the experiment's isolation review before Phase 2C. The
@@ -423,6 +427,40 @@ Before transferring existing state:
 - [ ] Review a concrete rollout: measured gain, operational cost, chosen owner,
   migration scope, failure behavior, staged cohort, and rollback procedure.
   Production activation is a separate decision after these gates pass.
+
+## Deferred follow-up: lifecycle D1 call budgets
+
+Requested October 1, 2026. Perform this audit later, before the next lifecycle
+query-reduction implementation. Numeric targets remain unset until their
+required state transitions and freshness boundaries have been analysed.
+
+- [ ] Inventory unlock, signing, wallet recovery, key export, registration,
+  device linking, auth-method addition/revocation, session status/refresh,
+  recovery-code rotation and background material refill. Split passkey/Email OTP,
+  ECDSA/Ed25519, owner/linked devices, cold/warm state and explicit lane selection
+  where their work differs. Distinguish lost-activation-response recovery from
+  recovery-code-based wallet recovery.
+- [ ] Establish a reproducible baseline for each supported flow using existing
+  behavioral E2Es and request-level traces. Count foreground Gateway D1 calls,
+  Console D1 calls, other-service D1 calls, sequential dependency depth, SQL
+  statements, write-bearing calls and reported row writes separately. Attribute
+  background/refill overlap separately; keep unknown or unmeasured values explicit.
+- [ ] Map each call to its invariant and decision point. Derive a justified
+  lower-bound estimate, a practical next target and any stretch target from
+  join/batch opportunities and removable duplicate work. Preserve fresh authority,
+  revocation/expiry, exact scope, one-use proofs/material, quota contention,
+  durable replay and key-identity guarantees. A necessary check need not imply
+  a separate network call; a lower call count does not imply fewer durable writes.
+- [ ] Publish one tracking table in the results docs: flow/variant, build and
+  evidence, measured baseline, proposed target/range, assumptions/confidence,
+  required writes, blockers, next optimization and latest verified result.
+  Give success, exact replay, rejection and interrupted/retried flows separate
+  budgets. Label design estimates explicitly; do not present them as measured
+  results or proven theoretical minima.
+- [ ] Prioritize by avoidable sequential wall time, frequency and implementation
+  risk. Implement later in bounded changes and update the table with repeatable
+  before/after E2E artifacts. Recheck the relevant race/replay/revocation scenarios
+  and preserve frozen regional cohorts when a candidate changes.
 
 ## Completion
 
