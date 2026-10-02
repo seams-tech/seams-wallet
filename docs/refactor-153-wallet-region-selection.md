@@ -46,12 +46,63 @@ will later invoke.
   destination objects are required, and how placement can be measured.
 - Which D1, Router, Deriver, and SigningWorker state must follow the wallet, and
   whether the resulting topology materially improves end-to-end latency.
-- How custody and every device's material can be preserved, which owner
-  participation is required, and whether offline-device continuity is feasible.
+- Verify the binding-preserving transfer described below with actual signing,
+  sealed-session restoration, and an offline device reconnecting after cutover.
 - Who may change placement, how that action is authenticated, and which supported
   regions and custody configurations are eligible.
 - What interruption is acceptable and how concurrent requests, conflicting moves,
   failed moves, and retries should appear to the owner.
+
+## Binding validation: paused server-side transfer
+
+Question: can a paused, role-preserving server-side transfer keep every wallet
+and device identity intact?
+
+**The current binding contracts permit this, provided the destination remains
+the same logical custody and authorization deployment.** Geography, D1 database
+ID, and Cloudflare physical DO ID are absent from the material bindings examined.
+The production authorization service accepted existing credentials against copied
+records in an independent local D1 database. Complete signing and browser
+continuity after a move still need an assembled E2E demonstration.
+
+Adopt these constraints for the relocation design:
+
+- Preserve wallet IDs, keys/addresses, authority and device IDs, factors,
+  credential digests, session IDs, permissions, quota, and replay history.
+- Preserve material activation references, activation epochs, signing-root
+  metadata, revocation epochs, logical role/server IDs, signer-set identity, and
+  the logical object names authenticated by stored ciphertext. A new placement
+  generation is separate metadata; moving home does not rotate those identities.
+- Preserve each role's encryption keys and versions, recipient/peer identity,
+  and authenticated environment labels. Preserve the Gateway's server-seal
+  secret and required key versions for Email OTP and sealed-session continuity.
+  Provision each destination only with its own role's material and keys.
+- Keep the public relayer URL, wallet/app origins, and passkey RP identity stable.
+  Regional routing happens behind them. Client presign storage includes the
+  relayer URL, and hosted credentials enforce the wallet origin.
+- Change physical D1/DO locators independently from these stable identities.
+  Current deployment tooling derives some protocol IDs from Worker names and
+  encryption environment labels from deployment lanes. A regional deployment
+  must not accidentally change those values or generate replacement keys.
+
+No inspected binding requires an owner seed, device re-enrollment, new wallet
+keys, or a new custody ceremony solely for this physical move. An offline
+device should retain its material and credentials, subject to their existing
+expiry and revocation rules, and resume through the stable endpoint.
+
+The local probe copied two devices' authority/session records and a hosted
+credential. Both devices retained exact authorization state; wrong scope and
+origin were rejected, expiry still applied, and retiring one device's session
+left the other active. It also reproduced a concrete import restriction:
+inserting an already-consumed hosted exchange is rejected by the current schema.
+Historical-state restoration needs an explicit path without reissuing identities
+or replaying authorization transitions.
+
+See the [binding evidence and probe](refactor-153-backend-relocation-validation.md#material-and-authorization-binding-validation)
+for exact source references, reproducible checks, and limitations. Remaining
+work is the transfer/import and fencing operation, role/key provisioning, shared
+authority reconciliation, and an E2E move with both signing curves and an
+offline device. The current code does not yet implement that handover.
 
 After those assumptions are resolved, add the implementation stages and focused
 E2E scenarios with repeatable evidence. Storage schemas, APIs, transfer protocols,

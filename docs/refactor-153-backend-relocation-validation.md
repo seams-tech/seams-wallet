@@ -3,9 +3,11 @@
 Status: initial platform, source, and local-runtime validation, October 2, 2026.
 Hosted placement and complete wallet relocation remain unverified.
 
-Server-side transfer appears feasible. The storage primitives can copy wallet
-data, and the encryption bindings examined do not inherently require owner
-participation merely because the physical region changes. Safe relocation still
+The material and authorization bindings examined permit a role-preserving
+server-side transfer with stable logical identities and keys. The storage
+primitives can copy wallet data, and the production authorization service accepts
+existing credentials against copied records in an independent D1 database.
+Safe relocation still
 needs an application-level ownership handover across several stores. There is
 no documented Cloudflare operation that performs that complete handover.
 
@@ -165,9 +167,10 @@ Preserve A/B/SigningWorker separation. Whether to provision the same role KEK or
 perform a role-local rewrap remains a custody decision; a central transfer
 process should not collect all roles' plaintext material.
 
-Nothing examined establishes a requirement for every owner device to be online
-or for a new custody ceremony solely to change region. End-to-end proof of a
-role-preserving server-only move is still required.
+Nothing examined requires every owner device to be online or a new custody
+ceremony solely to change region. The focused binding validation below records
+the exact preservation contract and the executable authorization evidence.
+End-to-end proof of the assembled server-only handover is still required.
 
 ### 5. Shared root authority retains references to the old objects
 
@@ -203,6 +206,105 @@ relocation must wait. If the switch's response is lost, read its authoritative
 outcome before enabling either side. After destination writes begin, reopening
 the old snapshot would discard new operations and potentially revive consumed
 material. Reversing the move requires another controlled handover.
+
+## Material and authorization binding validation
+
+Follow-up on October 2, 2026, against Wallet revision `f70f088a` and the same
+private Console revision listed above. This answers whether identities can
+survive a paused transfer. It does not claim that transfer/fencing is implemented.
+
+**Yes at the binding-contract level:** the destination can serve the same wallet
+and device identities when it preserves the logical custody deployment. A
+physical location change does not require a cryptographic identity change.
+The following conclusions come from the actual encoders, decryptors, and
+credential readers; authorization acceptance additionally has executable evidence.
+
+| Binding | What must stay stable | Finding and source |
+| --- | --- | --- |
+| SigningWorker at-rest wallet records, including linked-device records | Role KEK and exact key version; environment, purpose, schema, logical wallet/row identity | `SigningWorkerPrivateD1CipherV1::aad` authenticates these values. Physical database/DO IDs and region are absent. Copying bytes between physical wallet stores preserves this binding when these inputs match. [Cipher](../crates/router-ab-cloudflare/src/signing_worker/wallet_cipher.rs), [ECDSA store](../crates/router-ab-cloudflare/src/signing_worker/wallet_ecdsa_store.rs), [Ed25519/linked store](../crates/router-ab-cloudflare/src/durable_object/signing_worker_wallet.rs). |
+| Deriver A/B pair records | Separate role KEKs/versions, environment, role, signer-set/root metadata, schema, logical object/session identity | `RolePairAadV1` and `RolePairCipherV1::open` bind these values. The physical Cloudflare object ID is absent. A and B remain separate owners. [Cipher and record identity](../crates/router-ab-cloudflare/src/ed25519_yao_role_d1.rs), [A logical identity](../crates/router-ab-cloudflare/src/durable_object/deriver_a_pair.rs), [B logical identity](../crates/router-ab-cloudflare/src/durable_object/deriver_b_pair.rs). |
+| Activated material and protocol envelopes | Complete activation reference; logical SigningWorker ID, server key epoch and recipient key; signer-set/peer identities and keys; operation/lifecycle transcript and expiry | `NormalSigningScopeV1` requires the material's SigningWorker to match. ECDSA embeds `ServerIdentityV1`; role envelopes authenticate the selected server. These are logical identities, with no physical location field. [Scopes and activation](../crates/router-ab-core/src/protocol/lifecycle.rs), [ECDSA scope](../crates/router-ab-core/src/protocol/router_ab_ecdsa_derivation.rs), [server identity](../crates/router-ab-core/src/protocol/identity.rs), [envelope](../crates/router-ab-core/src/protocol/envelope.rs). |
+| Primary Wallet Session | Opaque token digest, logical tenant/scope, session, authority, factor, capability subjects, quota, expiry and retirement state | `digestOpaqueValue` is SHA-256 of the token. The D1 reader resolves its digest and checks the live joined authority/method/quota records. No database ID, region, or deployment secret enters that digest. [Service](../packages/wallet-server/src/authorization/service.ts), [D1 reader](../packages/wallet-server/src/router/cloudflare/d1/authorization/d1AuthorizationStore.ts). |
+| Hosted credential and exchange | Parent session, token/code/nonce digests, app and wallet origins, expiry and consumed state | The production reader checks the request's wallet origin. A new physical D1 resource is acceptable; changing the public wallet origin rejects the credential. [Hosted reads and exchange](../packages/wallet-server/src/router/cloudflare/d1/authorization/d1AuthorizationStore.ts). |
+| Linked-device credential delivery and local material | Logical namespace/org/project/environment, wallet/device authority, factor, session/quota, recipient key, activation and package digests | The delivery AAD and local material seal bind these values. Regional storage is absent. Preserve each device's existing binding rather than issuing a replacement credential or activation. [Delivery AAD](../packages/shared-ts/src/device-linking/walletSessionCredentialDelivery.ts), [local material seal](../packages/wallet/src/core/indexedDB/linkedAuthoritySignerMaterial.ts). |
+| Custody and recovery envelopes | Wallet/envelope/factor ownership and revisions; passkey RP/credential or Email OTP enrollment binding; recovery wallet/key identity | The custody and recovery AAD encoders have no backend location input. These ciphertexts can remain byte-identical. The owner seed remains client custody. [Custody AAD](../crates/signer-core/src/passkey_custody.rs), [recovery AAD](../crates/signer-core/src/wallet_recovery_custody.rs). |
+| Server-sealed session and Email OTP material | Existing server-seal root secret, algorithm/group, and required accepted key versions | The server lock derives from the secret and a protocol/version context, without region. Email OTP uses this cipher too. A destination with a freshly generated seal secret cannot open the existing material. [Server-seal cipher](../packages/wallet-server/src/threshold/session/signingSessionSeal/crypto/cipher.ts), [Email OTP runtime](../packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpServerSealRuntime.ts). |
+| Client presign cache and saved session | Public relayer URL and existing material/pool identity | The ECDSA presign AAD contains its pool identity, which includes `relayerUrl`; saved sealed sessions also retain that URL. Keep the public endpoint stable and change internal routing. [Client presign records](../packages/wallet/src/core/indexedDB/seamsWalletDB/ecdsaClientPresignatures.ts), [saved sessions](../packages/shared-ts/src/utils/signingSessionSeal.ts). |
+
+### Deployment changes required to preserve these bindings
+
+The private deployment generator's `buildRegistrationTopology` currently uses
+`configuration.signingWorkerName` as `selected_server.server_id` and the Router
+Worker name as `routerId`. `scripts/deploy-backend.mjs` passes `lane.id` as
+`SIGNING_WORKER_PRIVATE_D1_ENVIRONMENT` and `DERIVER_ROLE_PRIVATE_D1_ENVIRONMENT`.
+The key generator creates fresh role KEKs, envelope/recipient keys, and peer keys;
+Gateway setup also provisions a server-seal root secret. These are source findings
+in `deployment/wallet-system/scripts/generate-github-env-values.mjs`,
+`generate-deployment-keys.mjs`, and `scripts/deploy-backend.mjs` in the private repo.
+
+A destination created as an unrelated deployment with new names, environment
+labels, and keys would break these bindings. The proposed transfer should
+preserve the existing logical configuration and provision the destination as
+another physical location for those same roles. Keep resource names/locators
+separate from protocol identities and authenticated encryption labels where the
+tooling currently derives one from the other. This permits a storage/routing
+change without a redesign of wallet key derivation or device identity.
+
+The current role ciphers load one configured key/version, rather than selecting
+arbitrary per-wallet deployment keys. The simple destination model therefore
+shares the same logical role configuration across eligible regions. Moving into
+an independently keyed custody deployment would require additional key/identity
+handling and falls outside this paused, role-preserving transfer assumption.
+Do not solve that different case by handing a central mover every role's secrets.
+
+Placement generation must remain distinct from material activation epoch,
+signing-root version, root-share epoch, revocation epoch, and operation lease
+generation. Preserve the latter values. A physical home move alone provides no
+reason to change them.
+
+### Executed authorization transfer
+
+Run from the Wallet repository root:
+
+```sh
+node tests/e2e/authorization-storage-transfer.e2e.mjs
+```
+
+The [probe](../tests/e2e/authorization-storage-transfer.e2e.mjs) applies all 41
+signer migrations to two independent local workerd D1 databases. Shared canonical
+fixtures provide the two device authorities; production statement builders and
+`AuthorizationService` create their sessions and a hosted exchange/credential.
+It copies six relevant tables into the destination and invokes the production
+credential readers there with the original tokens. No tokens are reissued for
+the destination, and no token or private material is included in the evidence.
+
+Passed:
+
+- Both devices' primary credentials return the identical authority, factor,
+  capability subjects, session identities, and quota at the destination. The
+  second device supplies no fresh authentication or participation in the copy.
+- The existing hosted credential works with its original wallet origin; changing
+  that origin rejects it. Changing tenant or organization also rejects access.
+- The already-redeemed exchange remains consumed. Expiry is still enforced.
+- Retiring the first device's session invalidates its primary and hosted
+  credentials while the second device's session remains active.
+
+The probe also reproduced `wallet_session_hosted_exchange_initial_state_rejected`
+on a direct insert of consumed exchange history. Its lifecycle guard permits
+only initially issued rows. For the binding experiment, the empty/inactive test
+destination restores that terminal row in a transaction that temporarily removes
+and reinstates this guard; a subsequent insert verifies the guard still rejects
+it. This is a test-only restoration technique. Production import into a shared
+regional database still needs a reviewed historical-state restore path.
+
+Evidence is written to
+`.artifacts/r153/authorization-storage-transfer/evidence.json`, with code/runtime
+versions, production-bundle and migration hashes, table counts, and outcomes.
+This verifies the authorization/storage boundary with fixture device authorities.
+It does not execute MPC signing, browser unlock, WebAuthn, a real linked-device
+enrollment, or a geographically distributed/fenced handover. Crypto portability
+in this section is established from the actual binding contracts; assembled
+signing and offline-browser continuity remain release gates.
 
 ## Operational issues to include in the transfer contract
 
