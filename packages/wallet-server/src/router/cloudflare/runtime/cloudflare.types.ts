@@ -1,4 +1,3 @@
-import type { CloudflareDurableObjectNamespaceLike } from '../../../core/types';
 import type { D1DatabaseLike } from '../../../storage/tenantRoute';
 
 // Minimal Worker runtime types (avoid adding @cloudflare/workers-types dependency here)
@@ -19,7 +18,6 @@ export interface RouterApiCloudflareSignerWorkerEnv {
 
 export interface SeamsD1SignerTenantStorageWorkerEnv {
   SIGNER_DB: D1DatabaseLike;
-  THRESHOLD_STORE: CloudflareDurableObjectNamespaceLike;
 }
 
 export interface CfExecutionContext {
