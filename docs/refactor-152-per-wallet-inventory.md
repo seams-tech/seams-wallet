@@ -407,7 +407,7 @@ but it cannot remain the Gateway's implicit home for every wallet.
 | Private `tenantDeployment/homeChallenge.ts`; public signer migration `0040_namespace_home_challenges.sql`; private provider-binding E2E | Retain fresh provider UUID/version challenge behavior and rename its schema, API and assertions around deployment resource proof. Delete namespace-home terminology; this proof never assigns wallets. |
 | Public `localHostedWalletGatewayHandler.ts`, `nodeHostedWalletGateway.ts` and private `d1LocalDevWorker.ts` | Compose through the same wallet-home contract with one admitted local resource; update fault injection around the selected local store. No separate legacy routing mode. |
 | Private `tests/relayer/tenant-home-challenge.e2e.test.ts`, deployment-binding E2E, `tests/fixtures/tenant-deployment/` and affected type fixtures | Preserve real resource/version verification; replace the single-wallet-home assumption and obsolete names. Verify multiple wallets in one tenant through the final path. |
-| Private `.github/workflows/deploy-live-demo.yml` explicit `0040_namespace_home_challenges.sql` probe and deployment/readiness scripts that require exactly one signer database | Change generated resource checks and schema probes with the cutover. Do not keep a stale migration as a success condition. |
+| Private `.github/workflows/deploy-live-demo.yml` explicit `0042_deployment_resource_challenges.sql` probe and deployment/readiness scripts that require exactly one signer database | Change generated resource checks and schema probes with the cutover. Do not keep a stale migration as a success condition. |
 
 The Console directory's `wallet_homes` table and service do not replace these
 paths by themselves. In particular, `createStagingRouterApiAuthComposition`,
@@ -457,7 +457,7 @@ bodies must be reviewed before splitting any of their dependencies.
 | `linked_device_target_commit_reservations` | Wallet home (including its local transactional guards) |
 | `linked_device_target_credentials` | Wallet home (including its local transactional guards) |
 | `linked_device_wallet_session_credential_deliveries_v1` | Wallet home (including its local transactional guards) |
-| `namespace_home_challenges` | Deployment resource proof; replace namespace ownership terminology |
+| `deployment_resource_challenges` | Deployment resource proof; renamed by signer migration 0042 |
 | `near_public_keys` | Wallet home (including its local transactional guards) |
 | `registration_ceremony_cas_guard` | Wallet home (including its local transactional guards) |
 | `registration_ceremony_records` | Wallet home; classify every dynamic record prefix and pre-wallet allocation |
@@ -522,7 +522,7 @@ bodies must be reviewed before splitting any of their dependencies.
 | `linked_device_target_credentials_credential_idx` | `linked_device_target_credentials` |
 | `linked_device_wallet_session_credential_deliveries_v1_lifecycle_idx` | `linked_device_wallet_session_credential_deliveries_v1` |
 | `linked_device_wallet_session_credential_deliveries_v1_parent_idx` | `linked_device_wallet_session_credential_deliveries_v1` |
-| `namespace_home_challenges_expiry_idx` | `namespace_home_challenges` |
+| `deployment_resource_challenges_expiry_idx` | `deployment_resource_challenges` |
 | `near_public_keys_user_idx` | `near_public_keys` |
 | `registration_completion_credential_inventory_idx` | `router_ab_yao_versioned_json_records` |
 | `wallet_auth_methods_authority_identity_uidx` | `wallet_auth_methods` |
@@ -624,7 +624,7 @@ they do not create an effective legacy ownership path.
 | Private `d1GatewayWorker`, `d1WalletRuntimeWorker`, `d1ConsoleStagingWorker`, `d1LocalDevWorker`, and `render-d1-gateway-config.mjs` | Remove the assumption that `SEAMS_D1_HOME_ACCOUNT_ID` and `SEAMS_D1_HOME_DATABASE_ID` identify the home of every wallet in a tenant. A regional backend may still bind its own `SIGNER_DB` resource after admission. |
 | Private `deployment/wallet-system/targets.json`, `scripts/deploy-backend.mjs`, generated Wrangler config and smoke scripts | Render and verify US, WEUR and APAC resource/backend bindings; remove singular `signerD1` assumptions after the regional set replaces them. Do not commit locally rendered secrets or IDs. |
 | Public `hosted-wallet-gateway.ts`, Cloudflare runtime env and local hosted adapter | Resolve wallet ownership before selecting the regional `SIGNER_DB`; remove direct single-database composition for wallet-scoped paths. |
-| Public `namespace_home_challenges` table/migration and private `tenant-home-challenge.mjs`/`homeChallenge.ts` | Keep the provider challenge as per-resource proof; rename its active storage and call sites so a challenge no longer implies namespace ownership. Preserve old migrations only as ordered history. |
+| Public `deployment_resource_challenges` and private `tenant-resource-challenge.mjs`/`resourceChallenge.ts` | Active storage and challenge contracts renamed on October 3; old storage exists only in ordered migration history. Complete per-region deployment-set verification and admission. |
 | Private `tenant-deployment-binding.e2e`, `tenant-home-challenge.e2e`, helper environments and type fixtures | Replace singular-home assertions with multiple admitted backend resources and per-wallet ownership; retain actual wrong-resource and stale-version rejection. |
 | Private `docs/refactor-127.md` operator commands | Remove or supersede the deleted `adopt-home` instructions before the new regional operator runbook is used. |
 

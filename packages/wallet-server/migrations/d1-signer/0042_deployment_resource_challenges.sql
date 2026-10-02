@@ -1,0 +1,4 @@
+ALTER TABLE namespace_home_challenges RENAME TO deployment_resource_challenges;
+DROP INDEX namespace_home_challenges_expiry_idx;
+CREATE INDEX deployment_resource_challenges_expiry_idx
+  ON deployment_resource_challenges(expires_at_ms);

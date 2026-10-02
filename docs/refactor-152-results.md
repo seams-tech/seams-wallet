@@ -2708,3 +2708,45 @@ registration/signing. **No geographic latency measurement was taken.** The regio
 fixture controls authentication and simulates custody effects. Hashes, commands,
 evidence limits and the remaining deployment/shared-identity work are recorded in
 [the transport checkpoint](./refactor-152-release-review.md#october-3-regional-transport-and-terminal-registration-checkpoint).
+
+## October 3: deployment resource challenge checkpoint
+
+Private implementation commit: `4acf5d2` on `dev`.
+
+The private provider challenge now uses `resourceChallenge.ts`,
+`tenant-resource-challenge.mjs`, `/internal/tenant-deployment/v1/resource-challenge`,
+and the authenticated `verify-resource` endpoint/CLI operation. Operator cutover
+accepts `resourceCheckpoint`; checkpoints identify a `resource`. The old challenge
+paths and shapes have no compatibility handlers. Public signer migration 0042
+renames the effective table to `deployment_resource_challenges` and replaces the
+old index. The deployment workflow requires that migration in the consumed package.
+
+The real Console/Gateway/Runtime Worker E2E proves two independently configured D1
+resources for one namespace, rejects cross-resource proofs, and verifies no old
+challenge table/index survives. Existing wrong-resource, stale-version, expiry,
+one-use activation and lost-response cleanup checks pass. The E2E took 15.7s;
+this is local test duration, with no geographic latency measurement. The test
+uses simulated provider responses and source migrations from the candidate SDK.
+It does not establish live Cloudflare allocation or regional-set activation.
+
+The binding and directory/forwarding E2Es also passed. Candidate-backed server,
+challenge E2E and resource type-fixture compilation passed; public bloat check
+passed. The initial challenge harness build failure was classified
+`valid_test_needs_update`: esbuild needed to preserve the Cloudflare runtime
+module introduced by the named Gateway entrypoint.
+
+Reproduce in `seams-monorepo`:
+
+```sh
+SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server \
+  pnpm --dir tests exec playwright test -c playwright.relayer.config.ts \
+  relayer/tenant-home-challenge.e2e.test.ts --reporter=line
+```
+
+Private receipt: `.artifacts/r152/resource-challenges-20261003/`
+`runtime-resource-challenge-evidence.json`; SHA-256 `a11656d781ea0b8f58eb52bfb69b0460f7f3f19cf59667d1395e6e955a2ed307`.
+
+The singular deployment `home`, activation proof and renderer still need the
+regional-set replacement. Shared locators, internal/deferred enforcement, expiry
+reconciliation and composed hosted verification also remain. Nothing was deployed
+or published; private package pins remain 0.7.3 and release 0.8.0 remains held.
