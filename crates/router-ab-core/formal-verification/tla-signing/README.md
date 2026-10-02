@@ -4,6 +4,45 @@ Pilot run: 2026-10-02. Scope follows [the signing pilot plan](../../../../docs/r
 This is a handwritten distributed lifecycle model. It establishes no
 cryptographic privacy theorem or implementation refinement proof.
 
+## Where TLA+ applies
+
+Use TLA+ for explicit safety properties of the concurrent authorization and
+resource state machine. This follows the invariant/action-property scope in
+[What TLA+ can and can't check](https://buttondown.com/hillelwayne/archive/what-tla-can-and-cant-check/).
+
+| Applicable property | Required rule |
+| --- | --- |
+| Quota accounting | The balance equals the issued allowance minus distinct debited operations; exact retries add no debit. |
+| Presignature lifecycle | Material is taken at most once; consumed material and tombstones remain terminal. |
+| Step-up authorization | Every signing effect has the matching approved operation, and step-up preserves session quota. |
+| Finalization and replay | The first committed outcome remains immutable and eligible exact retries recover it. |
+
+An authorization property can be an ordinary safety invariant even when its
+consequences are security-sensitive. Cryptographic confidentiality,
+indistinguishability, and server blindness require separate protocol arguments;
+this lifecycle model establishes none of them.
+
+The clock represents logical expiry ordering, including approval followed by
+expiry followed by admission. It supplies no wall-clock latency, percentile,
+clock-synchronization, or constant-time execution guarantee.
+
+`audit` counters and first-result fields are auxiliary history variables. They
+support assertions without controlling admission or signing. Keep them separate
+from machine state and keep behavioral guards independent of them, as described
+in [Auxiliary Variables](https://learntla.com/topics/aux-vars.html).
+
+The negated-target qualification checks produce individual reachability
+witnesses. They show that a scenario occurs in the bounded model; they establish
+no recovery guarantee from every initial state or eventual completion of every
+claim. Liveness remains outside this pilot.
+
+Describe a passing run as bounded model-checking evidence under stated
+assumptions. For every check, identify its logical formula, production owner,
+transaction boundaries, and trusted inputs. Relate counterexamples to source and
+confirm production candidates with focused E2E scenarios. Model/code
+correspondence remains a separate obligation, as explained in
+[What if the spec doesn't match the code?](https://buttondown.com/hillelwayne/archive/what-if-the-spec-doesnt-match-the-code/).
+
 ## Scope and assumptions
 
 The model has two competing operations, one wallet/authority/signer/material

@@ -40,6 +40,11 @@ TLA+ models logical ordering and deadline/expiry decisions. Constant-time
 execution, timing side channels, and wall-clock performance require separate
 analysis. They are outside this pilot.
 
+Applicability and interpretation rules are recorded in
+[Where TLA+ applies](../crates/router-ab-core/formal-verification/tla-signing/README.md#where-tla-applies),
+including safety properties, auxiliary history variables, reachability witnesses,
+logical expiry, and the limits of model/code correspondence.
+
 For each checked property, record the behavioral contract, production enforcement
 point, and trusted inputs or atomicity assumptions in the existing pilot README.
 Relate model traces to actual guards and writes, and identify existing E2E
