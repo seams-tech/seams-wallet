@@ -57,10 +57,6 @@ export type DeviceLinkingKeyWorkerRequestV1 =
   | DeviceLinkingOrdinaryMaterialWorkerRequestV1
   | DeviceLinkingOrdinaryMaterialWorkerPrivateRequestV1
   | {
-      readonly kind: 'device_linking_email_otp_export_root_recipient_create_v1';
-      readonly handleId: string;
-    }
-  | {
       readonly kind: 'device_linking_request_sign_v1';
       readonly handleId: string;
       readonly linkSessionId: LinkDeviceSessionId;
@@ -136,7 +132,6 @@ export type DeviceLinkingKeyWorkerResponseV1 =
       readonly devicePublicKeyB64u: LinkDevicePublicKeyB64u;
       readonly deliveryRecipientPublicKey65B64u: string;
     }
-  | { readonly recipientPublicKeyB64u: string }
   | { readonly signatureB64u: string };
 
 type DeviceLinkingKeyWorkerFrameV1 = {
@@ -315,15 +310,6 @@ export function parseRequest(value: unknown): DeviceLinkingKeyWorkerRequestV1 {
       factorSecret?.fill(0);
       throw error;
     }
-  }
-  if (
-    hasExactKeys(value, ['kind', 'handleId']) &&
-    value.kind === 'device_linking_email_otp_export_root_recipient_create_v1'
-  ) {
-    return {
-      kind: 'device_linking_email_otp_export_root_recipient_create_v1',
-      handleId: parseHandleId(value.handleId),
-    };
   }
   if (hasExactKeys(value, SIGN_REQUEST_FIELDS)) {
     const parsed = parseSignRequest(value);

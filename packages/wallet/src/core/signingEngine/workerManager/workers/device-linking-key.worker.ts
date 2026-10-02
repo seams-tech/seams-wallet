@@ -24,10 +24,6 @@ import { mpcMaterialActivationRefsEqual } from '@shared/utils/domainIds';
 import { routerAbMpcMaterialActivationRefFromWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import { parseRouterAbEd25519YaoActivationPublicReceiptV1 } from '@shared/utils/routerAbEd25519Yao';
 import { isPlainObject } from '@shared/utils/validation';
-import initNearSigner, {
-  ed25519_yao_client_root_transfer_recipient_v1,
-  type WasmEd25519YaoClientRootTransferRecipientV1,
-} from '../../../../../../../wasm/near_signer/pkg/wasm_signer_worker.js';
 import type { WalletAuthoritySignerMaterialRecordV1 } from '@/core/indexedDB';
 import {
   sealWalletAuthorityLinkedSignerMaterialV1,
@@ -85,7 +81,6 @@ type DeviceLinkingKeySlotV1 = {
   readonly deliveryRecipientPrivateKey: CryptoKey;
   readonly deliveryRecipientPublicKey65B64u: string;
   emailOtpFactorReleaseChallengeId: string | null;
-  emailOtpExportRootRecipient: WasmEd25519YaoClientRootTransferRecipientV1 | null;
   ordinaryMaterialRecipientPreparation: DeviceLinkingOrdinarySignerMaterialRecipientPreparationStateV1 | null;
   ordinaryMaterial: DeviceLinkingOrdinaryMaterialStateV1 | null;
   ordinaryMaterialSeal: DeviceLinkingOrdinaryMaterialSealStateV1 | null;
@@ -106,7 +101,6 @@ const laneRecipientWasmUrl = resolveWasmUrl(
   'router_ab_ed25519_yao_client_bg.wasm',
   'Ed25519 Yao Client',
 );
-const nearSignerWasmUrl = resolveWasmUrl('wasm_signer_worker_bg.wasm', 'NEAR Signer');
 
 /** Initializes a WASM module once, and again on the next call after a failed attempt. */
 function wasmInitializer(initialize: () => Promise<unknown>): () => Promise<void> {
@@ -128,9 +122,6 @@ function wasmInitializer(initialize: () => Promise<unknown>): () => Promise<void
 const initializeLaneRecipientWasm = wasmInitializer(() =>
   initEd25519YaoClient({ module_or_path: laneRecipientWasmUrl }),
 );
-const initializeNearSignerWasm = wasmInitializer(() =>
-  initNearSigner({ module_or_path: nearSignerWasmUrl }),
-);
 
 function requireKeySlot(handleId: string): DeviceLinkingKeySlotV1 {
   const slot = keySlots.get(handleId);
@@ -141,8 +132,6 @@ function requireKeySlot(handleId: string): DeviceLinkingKeySlotV1 {
 function destroyKeySlot(slot: DeviceLinkingKeySlotV1): void {
   destroyOrdinaryRecipientPreparation(slot);
   destroyOrdinaryMaterial(slot);
-  slot.emailOtpExportRootRecipient?.free();
-  slot.emailOtpExportRootRecipient = null;
 }
 
 const productionOrdinaryMaterialSealer: DeviceLinkingOrdinaryMaterialSealerV1 = {
@@ -405,7 +394,6 @@ async function generateKeySlot(): Promise<{
       deliveryRecipientPrivateKey: deliveryRecipientPair.privateKey,
       deliveryRecipientPublicKey65B64u,
       emailOtpFactorReleaseChallengeId: null,
-      emailOtpExportRootRecipient: null,
       ordinaryMaterialRecipientPreparation: null,
       ordinaryMaterial: null,
       ordinaryMaterialSeal: null,
@@ -960,19 +948,6 @@ function destroyOrdinaryRecipientInputs(
   }
 }
 
-async function createEmailOtpEd25519ExportRootRecipient(
-  handleId: string,
-): Promise<{ readonly recipientPublicKeyB64u: string }> {
-  const slot = requireKeySlot(handleId);
-  if (slot.emailOtpExportRootRecipient) {
-    throw new Error('device-linking Email OTP export-root recipient is already active');
-  }
-  await initializeNearSignerWasm();
-  const recipient = ed25519_yao_client_root_transfer_recipient_v1();
-  slot.emailOtpExportRootRecipient = recipient;
-  return { recipientPublicKeyB64u: recipient.public_key_b64u() };
-}
-
 async function decryptEmailOtpFactorReleaseEnvelope(input: {
   readonly slot: DeviceLinkingKeySlotV1;
   readonly walletId: string;
@@ -1154,8 +1129,6 @@ async function handleRequest(
       return await prepareOrdinarySignerMaterial(request);
     case 'device_linking_ordinary_signer_material_seal_v1':
       return await sealCommittedOrdinarySignerMaterial(request, ordinaryMaterialSealer);
-    case 'device_linking_email_otp_export_root_recipient_create_v1':
-      return await createEmailOtpEd25519ExportRootRecipient(request.handleId);
     case 'device_linking_request_sign_v1':
       return await signRequest(request);
     case 'device_linking_email_otp_factor_release_open_v1':

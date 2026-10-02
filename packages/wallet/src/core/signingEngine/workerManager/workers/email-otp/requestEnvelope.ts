@@ -1,6 +1,5 @@
 /** The worker's request protocol: turns a posted message into a typed request, or rejects it. */
-import { parseMpcMaterialActivationRef, parseWebAuthnRpId } from '@shared/utils/domainIds';
-import { parsePasskeyCustodyEnvelopeRecord } from '@shared/passkey-custody';
+import { parseMpcMaterialActivationRef } from '@shared/utils/domainIds';
 import {
   asRecord,
   asRecordOrArray,
@@ -13,12 +12,8 @@ import {
 } from '@shared/utils/normalize';
 import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';
 import { parseWalletSessionOperationCredentialV1 } from '@shared/device-linking';
-import type {
-  EmailOtpWorkerOperationRequestEnvelope,
-  EmailOtpWorkerOperationMap,
-} from '@/core/signingEngine/workerManager/workerTypes';
+import type { EmailOtpWorkerOperationRequestEnvelope } from '@/core/signingEngine/workerManager/workerTypes';
 import { parseRouterAbEcdsaPostRegistrationSessionActivationPolicyV1 } from '@shared/utils/routerAbEcdsaDerivation';
-import { normalizeRegistrationCredential } from '../../../webauthnAuth/credentials/helpers';
 import {
   optionalWorkerPositiveInteger,
   parseEmailOtpWarmMaterialTarget,
@@ -36,7 +31,6 @@ import {
   readThresholdEd25519SessionId,
   rejectUnknownEmailOtpYaoFields,
   requireFixed32ArrayBuffer,
-  requireWorkerWalletAuthMethodId,
 } from './payloadParsing';
 import {
   EMAIL_OTP_ED25519_RECOVERY_LANE_FIELDS,
@@ -138,19 +132,6 @@ function parseEmailOtpWalletCustodySeedUnlock(
       otpCode: readString(verification.otpCode, 'verification.otpCode'),
     },
   };
-}
-
-function parseEmailOtpPasskeyRegistrationSummary(
-  raw: unknown,
-): EmailOtpWorkerOperationMap['completeEmailOtpPasskeyCustodyLink']['payload']['registration'] {
-  const value = asRecord(raw);
-  if (!value || value.kind !== 'webauthn_add_auth_method_registration_v1') {
-    throw new Error('Email OTP passkey linking requires registration options');
-  }
-  rejectUnknownEmailOtpYaoFields(value, ['kind', 'rpId'], 'registration');
-  const rpId = parseWebAuthnRpId(readString(value.rpId, 'registration.rpId'));
-  if (!rpId.ok) throw new Error(rpId.error.message);
-  return { kind: 'webauthn_add_auth_method_registration_v1', rpId: rpId.value };
 }
 
 /**
@@ -344,53 +325,6 @@ export function parseEmailOtpWorkerRequest(raw: unknown): EmailOtpWorkerRequest 
         type,
         payload: {
           activeClientHandle: readString(payload.activeClientHandle, 'activeClientHandle'),
-        },
-      };
-    case 'prepareEmailOtpPasskeyCustodyLink': {
-      rejectUnknownEmailOtpYaoFields(payload, EMAIL_OTP_CUSTODY_SEED_UNLOCK_FIELDS, type);
-      return {
-        id,
-        type,
-        payload: parseEmailOtpWalletCustodySeedUnlock(
-          payload,
-          type,
-          'Email OTP passkey linking requires OTP verification',
-        ),
-      };
-    }
-    case 'completeEmailOtpPasskeyCustodyLink':
-      rejectUnknownEmailOtpYaoFields(
-        payload,
-        [
-          'pendingHandleId',
-          'existingEnvelope',
-          'walletAuthMethodId',
-          'registration',
-          'registrationCredential',
-        ],
-        type,
-      );
-      return {
-        id,
-        type,
-        payload: {
-          pendingHandleId: readString(payload.pendingHandleId, 'pendingHandleId'),
-          existingEnvelope: parsePasskeyCustodyEnvelopeRecord(payload.existingEnvelope),
-          /* Part of the request allow-list, not an afterthought: a field the
-             parser does not name is rejected, and a rejection here used to
-             escape the responder and hang the caller for its full timeout. */
-          walletAuthMethodId: requireWorkerWalletAuthMethodId(payload.walletAuthMethodId),
-          registration: parseEmailOtpPasskeyRegistrationSummary(payload.registration),
-          registrationCredential: normalizeRegistrationCredential(payload.registrationCredential),
-        },
-      };
-    case 'discardEmailOtpPasskeyCustodyLink':
-      rejectUnknownEmailOtpYaoFields(payload, ['pendingHandleId'], type);
-      return {
-        id,
-        type,
-        payload: {
-          pendingHandleId: readString(payload.pendingHandleId, 'pendingHandleId'),
         },
       };
     case 'rotateEmailOtpWalletRecoverySet': {

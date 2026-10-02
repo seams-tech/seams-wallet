@@ -4,8 +4,6 @@ import init, {
   decode_cose_p256_public_key,
   encode_eip1559_signed_tx_from_signature65,
   init_evm_crypto,
-  secp256k1_private_key_32_to_public_key_33,
-  sign_secp256k1_recoverable,
   validate_secp256k1_public_key_33,
   verify_secp256k1_recoverable_signature_against_public_key_33,
 } from '../../../../../../../wasm/evm_crypto/pkg/evm_crypto.js';
@@ -23,18 +21,8 @@ type EvmCryptoWorkerRequest =
     }
   | {
       id: string;
-      type: 'signSecp256k1Recoverable';
-      payload: { digest32: unknown; privateKey32: unknown };
-    }
-  | {
-      id: string;
       type: 'verifySecp256k1RecoverableSignatureAgainstPublicKey33';
       payload: { digest32: unknown; signature65: unknown; publicKey33: unknown };
-    }
-  | {
-      id: string;
-      type: 'secp256k1PrivateKey32ToPublicKey33';
-      payload: { privateKey32: unknown };
     }
   | {
       id: string;
@@ -100,12 +88,8 @@ function evmCryptoOperationLabel(type: string): string {
       return 'EIP-1559 transaction hash';
     case 'encodeEip1559SignedTxFromSignature65':
       return 'signed EIP-1559 transaction';
-    case 'signSecp256k1Recoverable':
-      return 'recoverable secp256k1 signature';
     case 'verifySecp256k1RecoverableSignatureAgainstPublicKey33':
       return 'recoverable secp256k1 signature verification';
-    case 'secp256k1PrivateKey32ToPublicKey33':
-      return 'secp256k1 public key';
     case 'validateSecp256k1PublicKey33':
       return 'secp256k1 public key validation';
     case 'addSecp256k1PublicKeys33':
@@ -211,20 +195,6 @@ self.addEventListener('message', async (event: MessageEvent) => {
         postOperationSucceeded(msg, ab, [ab]);
         return;
       }
-      case 'signSecp256k1Recoverable': {
-        const digest32 = toU8(msg.payload.digest32);
-        const privateKey32 = toU8(msg.payload.privateKey32);
-        try {
-          const out = sign_secp256k1_recoverable(digest32, privateKey32) as Uint8Array;
-          const ab = out.slice().buffer;
-          zeroizeBytes(out);
-          postOperationSucceeded(msg, ab, [ab]);
-          return;
-        } finally {
-          zeroizeBytes(digest32);
-          zeroizeBytes(privateKey32);
-        }
-      }
       case 'verifySecp256k1RecoverableSignatureAgainstPublicKey33': {
         const digest32 = toU8(msg.payload.digest32);
         const signature65 = toU8(msg.payload.signature65);
@@ -246,18 +216,6 @@ self.addEventListener('message', async (event: MessageEvent) => {
         } finally {
           zeroizeBytes(digest32);
           zeroizeBytes(signature65);
-        }
-      }
-      case 'secp256k1PrivateKey32ToPublicKey33': {
-        const privateKey32 = toU8(msg.payload.privateKey32);
-        try {
-          const out = secp256k1_private_key_32_to_public_key_33(privateKey32) as Uint8Array;
-          const ab = out.slice().buffer;
-          zeroizeBytes(out);
-          postOperationSucceeded(msg, ab, [ab]);
-          return;
-        } finally {
-          zeroizeBytes(privateKey32);
         }
       }
       case 'validateSecp256k1PublicKey33': {

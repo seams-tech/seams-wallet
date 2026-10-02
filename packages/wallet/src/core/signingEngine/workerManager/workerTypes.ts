@@ -24,12 +24,7 @@ import {
 } from '@/core/types/signer-worker';
 import type { MultichainWorkerKind } from '@/core/walletRuntimePaths/multichainWorkers';
 import type { ThresholdEcdsaChainTarget } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
-import type {
-  MpcMaterialActivationRef,
-  ThresholdEd25519SessionId,
-  WebAuthnRpId,
-  WalletAuthMethodId,
-} from '@shared/utils/domainIds';
+import type { MpcMaterialActivationRef, ThresholdEd25519SessionId } from '@shared/utils/domainIds';
 import type {
   PasskeyCustodyEnvelopeRecord,
   WalletCustodyCeremonyCommitPayload,
@@ -114,7 +109,6 @@ import type {
 } from '@shared/signing-lanes/rotation';
 import type { ExactWalletSessionAuthorization } from '../session/persistence/walletSessionAuthorizationProjection';
 import type { WalletRegistrationEd25519YaoSignerRuntimeBootstrap } from '@shared/utils/registrationContracts';
-import type { WebAuthnRegistrationCredential } from '@/core/types/webauthn';
 import type { WalletRecoverySetRotationWorkerResultV1 } from '@shared/wallet-recovery/walletRecoveryRotation';
 import type {
   RouterAbEcdsaCredentialFreeSessionActivationResponseV1,
@@ -425,16 +419,8 @@ interface EvmCryptoWorkerOperationMap {
     payload: { tx: unknown; signature65: ArrayBuffer };
     result: ArrayBuffer;
   };
-  signSecp256k1Recoverable: {
-    payload: { digest32: ArrayBuffer; privateKey32: ArrayBuffer };
-    result: ArrayBuffer;
-  };
   verifySecp256k1RecoverableSignatureAgainstPublicKey33: {
     payload: { digest32: ArrayBuffer; signature65: ArrayBuffer; publicKey33: ArrayBuffer };
-    result: ArrayBuffer;
-  };
-  secp256k1PrivateKey32ToPublicKey33: {
-    payload: { privateKey32: ArrayBuffer };
     result: ArrayBuffer;
   };
   validateSecp256k1PublicKey33: {
@@ -764,50 +750,6 @@ export interface EmailOtpWorkerOperationMap {
   disposeEmailOtpEd25519YaoActiveClient: {
     payload: { activeClientHandle: string };
     result: { removed: boolean };
-  };
-  prepareEmailOtpPasskeyCustodyLink: {
-    payload: {
-      relayUrl: string;
-      walletId: string;
-      userId: string;
-      groupId: string;
-      routePlan: EmailOtpRoutePlan;
-      verification: {
-        kind: 'otp';
-        challengeId: string;
-        otpCode: string;
-      };
-    };
-    result: {
-      pendingHandleId: string;
-      walletId: string;
-      envelopeId: string;
-      envelopeRevision: number;
-      enrollmentId: string;
-      enrollmentSealKeyVersion: string;
-      expiresAtMs: number;
-    };
-  };
-  completeEmailOtpPasskeyCustodyLink: {
-    payload: {
-      pendingHandleId: string;
-      existingEnvelope: PasskeyCustodyEnvelopeRecord;
-      /** The server-allocated target method the resealed envelope belongs to. */
-      walletAuthMethodId: WalletAuthMethodId;
-      registration: {
-        readonly kind: 'webauthn_add_auth_method_registration_v1';
-        readonly rpId: WebAuthnRpId;
-      };
-      registrationCredential: WebAuthnRegistrationCredential;
-    };
-    result: {
-      registrationCredential: WebAuthnRegistrationCredential;
-      custodyEnvelope: PasskeyCustodyEnvelopeRecord;
-    };
-  };
-  discardEmailOtpPasskeyCustodyLink: {
-    payload: { pendingHandleId: string };
-    result: { discarded: boolean };
   };
   rotateEmailOtpWalletRecoverySet: {
     payload: {

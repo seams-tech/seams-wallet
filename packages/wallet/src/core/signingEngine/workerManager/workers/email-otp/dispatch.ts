@@ -52,11 +52,6 @@ import {
   emailOtpWalletRegistrationEcdsaHandleResult,
   enrollmentClientSecret32,
 } from './enrollment';
-import {
-  completeEmailOtpPasskeyCustodyLink,
-  discardEmailOtpPasskeyCustodyLink,
-  prepareEmailOtpPasskeyCustodyLink,
-} from './passkeyCustodyLink';
 import { parseEmailOtpChallengeSignerSelection, requestEmailOtpChallenge } from './otpVerification';
 import { getEmailOtpYaoClient } from './crypto';
 import {
@@ -270,21 +265,6 @@ export async function handleEmailOtpWorkerMessage(event: MessageEvent): Promise<
       case 'disposeEmailOtpEd25519YaoActiveClient': {
         const removed = removeEmailOtpEd25519YaoActiveClient(msg.payload.activeClientHandle);
         postToMainThread({ id: msg.id, ok: true, result: { removed } });
-        return;
-      }
-      case 'prepareEmailOtpPasskeyCustodyLink': {
-        const result = await prepareEmailOtpPasskeyCustodyLink(msg.payload);
-        postToMainThread({ id: msg.id, ok: true, result });
-        return;
-      }
-      case 'completeEmailOtpPasskeyCustodyLink': {
-        const result = completeEmailOtpPasskeyCustodyLink(msg.payload);
-        postToMainThread({ id: msg.id, ok: true, result });
-        return;
-      }
-      case 'discardEmailOtpPasskeyCustodyLink': {
-        const discarded = discardEmailOtpPasskeyCustodyLink(msg.payload.pendingHandleId);
-        postToMainThread({ id: msg.id, ok: true, result: { discarded } });
         return;
       }
       case 'rotateEmailOtpWalletRecoverySet': {

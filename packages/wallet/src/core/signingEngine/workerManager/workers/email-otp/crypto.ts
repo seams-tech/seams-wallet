@@ -20,9 +20,6 @@ import initEmailOtpRuntime, {
   init_email_otp_runtime,
 } from '../../../../../../../../wasm/email_otp_runtime/pkg/email_otp_runtime.js';
 import initWalletCustodyCeremony from '../../../../../../../../wasm/wallet_custody_ceremony/pkg/wallet_custody_ceremony.js';
-import initNearSignerRecoveryWasm, {
-  init_worker as init_near_signer_recovery_worker,
-} from '../../../../../../../../wasm/near_signer/pkg/wasm_signer_worker.js';
 import { getShamir3PassRuntime } from '../shamir3pass/runtime';
 import { readString } from './payloadParsing';
 
@@ -40,13 +37,8 @@ const walletCustodyCeremonyWasmUrl = resolveWasmUrl(
   'wallet_custody_ceremony_bg.wasm',
   'Email OTP Wallet Custody',
 );
-const nearSignerRecoveryWasmUrl = resolveWasmUrl(
-  'wasm_signer_worker_bg.wasm',
-  'Email OTP Recovery Wrap',
-);
 let evmCryptoInitPromise: Promise<void> | null = null;
 let emailOtpRuntimeInitPromise: Promise<void> | null = null;
-let nearSignerRecoveryInitPromise: Promise<void> | null = null;
 let walletCustodyCeremonyInitPromise: Promise<void> | null = null;
 let emailOtpYaoClientInitPromise: Promise<RouterAbEd25519YaoClientV1> | null = null;
 
@@ -100,21 +92,6 @@ export async function ensureWalletCustodyCeremonyWasm(): Promise<void> {
     });
   })();
   return walletCustodyCeremonyInitPromise;
-}
-
-export async function ensureNearSignerRecoveryWasm(): Promise<void> {
-  if (nearSignerRecoveryInitPromise) return nearSignerRecoveryInitPromise;
-  nearSignerRecoveryInitPromise = (async () => {
-    await initializeWasm({
-      workerName: 'Email OTP Recovery Wrap',
-      wasmUrl: nearSignerRecoveryWasmUrl,
-      initFunction: initNearSignerRecoveryWasm as unknown as (
-        wasmModule?: unknown,
-      ) => Promise<void>,
-      validateFunction: () => init_near_signer_recovery_worker(),
-    });
-  })();
-  return nearSignerRecoveryInitPromise;
 }
 
 export async function deriveEmailOtpUnlockAuthSeedInWorker(args: {
