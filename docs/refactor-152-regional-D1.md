@@ -529,6 +529,14 @@ below remain open.
   next version is 0.8.0 for both Wallet packages. Its ECDSA bootstrap wire change
   requires a coordinated client/server cutover, including already-open clients;
   see the [release review](refactor-152-release-review.md).
+- [ ] Make the existing hosted-wallet frontend deployment lane-specific before
+  a testnet-only SDK/backend cutover. Its production wallet-host path currently
+  deploys one artifact to both testnet and mainnet. Verify build/deploy/smoke scope
+  with an E2E that proves the unselected lane is preserved.
+- [ ] Demonstrate the old-client cutover behavior with an already-open 0.7.3
+  client, an actionable reload/upgrade outcome and successful 0.8.0 registration
+  and signing after reload. Both releases advertise iframe protocol `2.0.0`, so
+  the existing handshake cannot establish the required SDK/backend pairing.
 - [ ] Reuse existing trusted tenant/environment routing where possible. Define
   required owner, home, and routing-generation identity at the server boundary.
   Reject inconsistent or stale routes before any mutation. Route lookup itself

@@ -160,6 +160,61 @@ the tested bytes. Earlier live-tree tarballs are retained separately as rejected
 evidence. Private dependency pins remain at the published 0.7.3 release. No
 publication or hosted deployment was performed.
 
+## CI dispatch and macOS Intel validation
+
+The reviewed candidate `335f2878` was pushed to remote `dev` on October 2.
+Both validation runs were dispatched and their `headSha` checked against the
+full candidate revision:
+
+- [Wallet validation](https://github.com/seams-tech/seams-wallet/actions/runs/36960863406)
+- [Router A/B validation](https://github.com/seams-tech/seams-wallet/actions/runs/36960865648)
+
+Both were still running at this checkpoint. Dispatch is not a passing CI result.
+The release publishing workflow was not dispatched, and no PR was created.
+Later local commits and unfinished changes were excluded from the push.
+
+The existing local-tools build script successfully cross-compiled
+`x86_64-apple-darwin` from the archived candidate in **1 minute 6 seconds**.
+The resulting Mach-O x86_64 initializer ran successfully on this Apple Silicon
+host, generating six files, four directories and URLs for all five roles. This
+checks translated execution; it is not a test on physical Intel hardware.
+Its SHA-256 is
+`4ba47932fd058e40519cd1ead06e8e04e225f3eb98a409ce883ea4507312ac95`.
+The previously tested tarballs remain unchanged; this additional binary and its
+receipt are separate local build evidence. Linux validation is still pending CI.
+
+Logs, initializer output and a source/run receipt are retained in
+`.artifacts/r152/release-ci-20261002/`. Reproduce the Intel build with
+`node scripts/build-local-tools.mjs x86_64-apple-darwin` at the selected revision
+after installing that Rust target.
+
+## Concrete hosted cutover constraints
+
+Read-only inspection of private revision `aa1d2ae` identified two constraints to
+resolve before a production-testnet pilot:
+
+1. `node scripts/deploy-surface.mjs plan --site production --component wallet-host`
+   selects both `test.sign.seams.sh` and `sign.seams.sh`. The implementation builds
+   one hosted-wallet artifact and deploys it to every lane in the production site.
+   The frontend workflow's `wallet_revision` input selects public documentation
+   sources; installed exact package pins select the SDK assets. A backend-only
+   testnet upgrade followed by the current production wallet-host workflow could
+   therefore put 0.8.0 client code in front of a 0.7.3 mainnet backend.
+2. Published 0.7.3 and the archived 0.8.0 asset manifests both advertise iframe
+   protocol `2.0.0`. The typed iframe protocol mismatch check does not distinguish
+   this SDK/backend bootstrap change. Generated HTML and JSON use `no-store`,
+   while JavaScript/CSS/WASM use a 300-second revalidation policy; these generated
+   headers do not prove hosted cache behavior and cannot unload existing tabs.
+
+For the testnet-first plan, add lane-specific selection to the existing frontend
+deployment path and verify that build, deploy and smoke target the same selected
+lane. Preserve mainnet's existing deployment. Before admitting traffic, prove the
+chosen treatment of an already-open 0.7.3 client: it must receive an actionable
+reload/upgrade outcome, and a reloaded 0.8.0 client must complete registration and
+signing through the activated backend. Record the affected integrator SDK versions
+and a rollback sequence for both client and backend. A coordinated all-lane
+cutover remains a separate scope decision; this checkpoint does not select it.
+
 Repeat the composed acceptance with the retained extracted package:
 
 ```sh
