@@ -126,11 +126,13 @@ and recorded outcomes in `claim_and_consume_effect`. A second independent store
 has a second independent consumption boundary. The local probe demonstrates
 this storage property with a synthetic ready/consumed record in both D1 and DO.
 
-Transfer the entire lifecycle state: ready, reserved, claimed, consumed, burned,
-revoked, and terminal records where those states exist. Preserve operation IDs,
-request digests, expiry times, quotas, and exact recorded results. An unanswered
-request may already have consumed material or produced an external effect.
-Absence of a response must never cause a fresh attempt under the same identity.
+Account for the entire lifecycle state: ready, reserved, claimed, consumed,
+burned, revoked, and terminal records where those states exist. The owner accepts
+invalidating ready presignatures and regenerating them after a move. Preserve
+operation IDs, request digests, expiry times, quotas, consumption/tombstone history,
+and exact recorded results. An unanswered request may already have consumed
+material or produced an external effect. Absence of a response must never cause
+a fresh attempt under the same identity.
 
 Existing live presign memory cannot be recovered from a database snapshot.
 Drain those sessions or terminate them through a defined protocol that retains
@@ -306,6 +308,52 @@ enrollment, or a geographically distributed/fenced handover. Crypto portability
 in this section is established from the actual binding contracts; assembled
 signing and offline-browser continuity remain release gates.
 
+## Presignature invalidation and compute limits
+
+Follow-up source validation on October 2, 2026, at Wallet revision `c53bc02d`.
+The owner accepts invalidation and regeneration of existing presignatures and
+proposes a minimum interval of one to five minutes between region changes.
+R153 adopts five minutes as the conservative working proposal. This relaxes
+ready-pool continuity while retaining durable wallet/device identities and
+one-use history. These findings are from production code; relocation-specific
+invalidation and cooldown are still unimplemented.
+
+| Question | Current evidence | Consequence for the plan |
+| --- | --- | --- |
+| Can the existing retirement command invalidate pools while preserving material identity? | `CloudflareSigningWorkerEcdsaPoolCommandV1::Retire` and the pool transition accept only `KeyEpochRetired` or `ActivationEpochRetired`. [Command validation](../crates/router-ab-cloudflare/src/ecdsa_pool_lifecycle.rs), [pool transitions](../crates/router-ab-ecdsa-pool/src/lib.rs). | Add an explicit pool invalidation operation. Relocation must not claim a key or activation retired when its durable material remains active. |
+| Is deleting usable rows sufficient? | `PutAvailable` admits an identity when no row exists; an existing consumed or tombstone row rejects replacement. [Lifecycle](../crates/router-ab-cloudflare/src/ecdsa_pool_lifecycle.rs). | Burn usable secrets while retaining terminal identities. Fence delayed refill admissions as well as signing; a refill whose identity was never stored would evade an enumeration-only burn. |
+| Does client cache invalidation cover all devices and restarts? | The coordinator checks a pool generation before publishing refill output, but stores that generation in a module-local `Map`. The durable pool identity contains no placement generation. [Coordinator](../packages/wallet/src/core/signingEngine/routerAb/ecdsaDerivation/presignaturePool.ts), [identity](../packages/wallet/src/core/signingEngine/workerManager/ecdsaPresignPoolIdentity.ts). | Reuse local cancellation behavior, and add authoritative placement reconciliation for cached durable and resident entries. Server rejection must work even when an offline device or another tab still has the old pool. |
+| Can the server regenerate every device's paired presignatures by itself? | `runPresignHandshake` drives both the client signing-material port and server pool-fill rounds; client admission checks the matching `bigR`. [Handshake](../packages/wallet/src/core/signingEngine/routerAb/ecdsaDerivation/presignaturePool.ts), [server admission](../crates/router-ab-cloudflare/src/ecdsa_presign_session.rs). | Backend relocation can finish with empty pools. Fresh paired material needs client participation when each device reconnects or signs. No additional custody ceremony follows solely from this invalidation. |
+| May a retry start signing again after the pools are cleared? | `claim_and_consume_effect` looks up the existing effect before consuming material and returns its terminal response or `InProgress`. [Wallet store](../crates/router-ab-cloudflare/src/signing_worker/wallet_ecdsa_store.rs). | Preserve effect claims and results. Reconciliation of unfinished claims remains a release gate; clearing usable pools cannot authorize a second effect or quota charge for the original request. |
+
+The same audit includes the linked-device presign session's completed KV records
+and one-use claims, in addition to the owner wallet's SQL pool. Cover them in the
+freeze and invalidation inventory. Session memory cannot be copied into a new
+object, and completing a delayed protocol round must not recreate usable
+material under an obsolete home.
+[Presign session object](../crates/router-ab-cloudflare/src/durable_object/ecdsa_presign_live_session.rs).
+
+Enforce the proposed five-minute minimum at wallet relocation admission in the
+authoritative directory, across all devices and both placement modes. Serialize
+moves, treat selecting the current home as a transfer no-op, and deduplicate
+retries by the same move identity. Keep this state outside the data being moved.
+Bound failed-attempt retries and regeneration too: a limit that records only
+successful cutovers does not bound expensive failed attempts. Exact timing and
+backoff semantics remain open.
+
+Five minutes is a proposed rate limit, without measured compute-cost evidence.
+It permits up to twelve new relocation admissions per hour per wallet, so normal
+bounded pool depth, per-move deduplication, and demand-driven device refill still
+matter. Measure compute per refill, number of active device pools, retry work,
+and the first signing delay before settling that interval. R154's sustained-move
+policy needs its own observation and benefit thresholds; the shared minimum
+does not establish a useful automatic relocation cadence.
+
+Both existing storage and authorization transfer probes passed again during
+this follow-up and refreshed their repeatable artifacts. They continue to
+establish copy/credential behavior, without executing relocation fencing,
+presignature invalidation, regeneration after a move, or geographic placement.
+
 ## Operational issues to include in the transfer contract
 
 | Issue | Required behavior / validation |
@@ -315,10 +363,10 @@ signing and offline-browser continuity remain release gates.
 | Serialization | Preserve BLOBs, nulls, Unicode, integer precision, and exact signed/ciphertext bytes. The probe preserves an integer above JavaScript's safe range by transporting it as decimal text. Its JSON KV example covers JSON-compatible values only. |
 | Alarms and expiry | Alarms can run at least once and retry; deleting an alarm does not stop an already-running handler. Source handlers need the same authority fence. Preserve deadlines without extending grants, and explicitly decide which work should resume at the destination. [Alarms](https://developers.cloudflare.com/durable-objects/api/alarms/), [storage](https://developers.cloudflare.com/durable-objects/api/sqlite-storage-api/). |
 | Cleanup and restore | `deleteAll()` erases the retirement marker too; with the tested compatibility date it also removes the alarm. Retain an authoritative fence that survives cleanup, restart, and restoring an old snapshot. Backup retention makes immediate erasure a separate claim. [Storage](https://developers.cloudflare.com/durable-objects/api/sqlite-storage-api/), [D1 retention](https://developers.cloudflare.com/d1/platform/limits/). |
-| Offline devices and cached routes | Preserve wallet keys/addresses, device authority, revocations, session semantics, and operation IDs. A stale device must rediscover the current home before an effect. Verify token/key configuration, credential lookup before wallet resolution, and any endpoint identity bindings. |
+| Offline devices and cached routes | Preserve wallet keys/addresses, device authority, revocations, session semantics, and operation IDs. A stale device must rediscover the current home before an effect and discard invalidated presignatures. Refill paired material when that device participates again. Verify token/key configuration, credential lookup before wallet resolution, and any endpoint identity bindings. |
 | Shared load and limits | Bound transfer pages and transactions. D1 has statement/parameter/row limits and a 30-second query limit; each database serializes queries. DOs also impose object-size and CPU limits. Measure pause duration and interference with unrelated wallets. [D1 limits](https://developers.cloudflare.com/d1/platform/limits/), [DO limits](https://developers.cloudflare.com/durable-objects/platform/limits/). |
 | Transport and permissions | Restrict export/import to the authenticated move, wallet, role, destination, and expected generation. Reject another tenant's data and stale/repeated commands. Avoid ciphertext or secret dumps in evidence logs. Cross-account bindings and custody configurations require separate eligibility checks. |
-| Repeated moves | Serialize competing device requests. Moving back to a previous region must not reactivate its old state. Preserve monotonic ownership through cleanup, cancellation, and later moves. |
+| Repeated moves | Serialize competing device requests and enforce the proposed wallet-wide five-minute admission interval across manual and automatic mode. Bound failed attempts and deduplicate the same move's retries/refills. Moving back to a previous region must not reactivate its old state. Preserve monotonic ownership through cleanup, cancellation, and later moves. |
 | Actual benefit | Verify destination D1 placement evidence and role-object routing separately from ingress Worker location. Measure the full signing path, including retained shared authorities, from representative regions. Successful copying alone says nothing about latency improvement. |
 
 ## Executed checks
@@ -349,10 +397,13 @@ storage scenario, except the explicitly identified schema census.
    from representative client regions. Do not infer DO location from the ingress
    request's colo. Verify actual account/binding access and data round trips.
 3. **Demonstrate an actual wallet move with a brief pause.** Preserve role and
-   wallet identities; cover ECDSA and Ed25519, ready and consumed material,
-   completed retries, session quota, revoked factors, and an offline owner
-   device. Verify signatures and unchanged addresses after transfer. Include
-   interrupted presigning and reconcile all claim/import-trigger cases.
+   wallet identities; cover ECDSA and Ed25519, invalidated ready pools and
+   preserved consumed-material history, completed retries, session quota,
+   revoked factors, and an offline owner device. Verify signatures and unchanged
+   addresses after transfer. Include
+   interrupted presigning, stale cache restoration after a browser restart,
+   delayed refill completion, and fresh paired regeneration on reconnect.
+   Reconcile all claim/import-trigger cases.
 4. **Inject faults at each handover boundary.** Crash after each source fence,
    during each copy, after destination verification, around directory commit,
    and during cleanup. Deliver delayed source requests and duplicate move
@@ -363,8 +414,10 @@ storage scenario, except the explicitly identified schema census.
    to its previous region, and restore a pre-move snapshot in an isolated test.
    Confirm stale state never authorizes work and the unrelated wallet is intact.
 6. **Measure operational suitability.** Capture pause duration, bytes, database
-   load, end-to-end latency, and failed-move recovery. Establish supported
-   custody/account/jurisdiction combinations before exposing the setting.
+   load, end-to-end latency, first-signature refill delay, regeneration compute,
+   cooldown enforcement across devices/modes, and failed-move recovery.
+   Establish supported custody/account/jurisdiction combinations before
+   exposing the setting.
 
 Each hosted scenario should produce a repeatable artifact containing revisions,
 resource identities, move/generation transitions, record digests, operation IDs,

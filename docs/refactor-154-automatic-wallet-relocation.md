@@ -31,6 +31,13 @@ as R153. This phase adds the policy deciding when to request a move.
   policy. Location observations alone confer no authority to move custody.
 - Carry forward the clean wallet reset and preservation requirements from R153.
   Existing-wallet migration and compatibility paths remain outside scope.
+- Use R153's presignature invalidation and regeneration behavior, one active move,
+  and proposed server-enforced five-minute minimum between wallet relocation
+  admissions. Manual and automatic requests share this limit across all devices;
+  failed attempts and duplicate requests must not create unbounded refill work.
+- A move can complete while other devices are offline. Their fresh presignatures
+  are generated when they reconnect or next sign through the normal client/server
+  protocol. Measure the temporary signing latency alongside the regional benefit.
 
 ## Assumptions to resolve and validate
 
@@ -43,7 +50,9 @@ as R153. This phase adds the policy deciding when to request a move.
 - How to estimate an end-to-end latency benefit using actual regional resources
   and travel measurements, including shared-authority and custody calls.
 - What observation period, confidence, minimum benefit, and cooldown prevent
-  unnecessary movement. Leave numerical thresholds open until measured.
+  unnecessary movement. Keep these policy thresholds open until measured;
+  R153's proposed five-minute minimum is a shared compute guard. A sustained-move
+  policy can require a much longer interval between automatic relocations.
 - How automatic mode is enabled and authorized, its default, eligible regions,
   owner notifications, and behavior when the preferred destination is unavailable.
 - How preference changes interact with queued or already-running relocations.
