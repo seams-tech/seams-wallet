@@ -100,6 +100,27 @@ paths must adopt the same contract. Shared credential/recovery routing indexes
 and their transaction reconciliation remain open, followed by hosted routing
 replacement. This checkpoint does not close those gates.
 
+### Configured-resource admission checkpoint
+
+Private commit `1586f68` adds a three-region resource catalog and an internal
+Console service-binding endpoint for finding, reserving and completing wallet
+homes. A reservation supplies a region decision; Console selects the configured
+US, WEUR or APAC D1 resource itself and rejects an arbitrary database UUID.
+The first committed choice remains immutable across a retry from another
+region. The endpoint validates its request at the boundary and uses Console D1
+for the same transactional directory. An ingress selector is available to read
+Cloudflare's `request.cf` metadata and ignores app-supplied region hints. The
+service is mounted on the private Console Worker but **has no hosted Gateway
+caller yet**, and its catalog has not been added to deployment rendering. No
+regional wallet execution or geographic latency claim follows from this step.
+
+The persistent two-Worker E2E now covers the service path, a conflicting
+completion, an unadmitted resource, and app-hint spoofing. Console type-check,
+type fixtures and focused lint pass. Reproduce with
+`pnpm -C tests test:relayer wallet-home-directory.e2e.test.ts`; retained receipt:
+`.artifacts/r152/service-admission-20261002/wallet-home-evidence.json`
+(SHA-256 `fb36938e1c82dac6b579b580aa8ff0f40a4e87e69ef05a65a59b037a183b8ad0`).
+
 ## Namespace assignment removal checkpoint
 
 The private Console no longer reserves one database for a whole namespace.

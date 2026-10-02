@@ -107,6 +107,10 @@ items above stay open until route and cross-authority contracts are complete.
   device and auth-method IDs with the wallet/home reservation. Regional retry
   candidates receive the same allocation after races or lost replies; SQL
   rejects later mutation. This is directory storage only, not hosted routing.
+- [x] Add a configured three-region admission catalog and internal Console
+  service-binding endpoint. Reservations choose the configured resource for a
+  region and reject arbitrary D1 UUIDs; a retry retains the first home. The
+  hosted Gateway caller and deployment catalog rendering remain open.
 - [ ] Connect authenticated registration and shared-identity admission to this
   directory, then switch all hosted and lifecycle paths together with removal
   of namespace placement. The new directory is not yet used by hosted requests.
