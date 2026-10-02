@@ -114,15 +114,15 @@ RecordEvidence ==
     /\ UNCHANGED <<startingUses, method, factorInput, clock, worker, audit,
                     restarts, lastEvent>>
 
-\* The route carries its earlier nowMs through verification and D1 admission.
+\* D1 checks expiry against its clock in the atomic admission write.
 AdmitStepUp(op, field) ==
     /\ volatile.approval = "recorded"
     /\ gateway.claims[op] = NoClaim
     /\ Request(op, field) = gateway.evidence
-    /\ volatile.sampledAt < Deadline
+    /\ clock < Deadline
     /\ gateway' = [gateway EXCEPT
           !.claims[op] = [source |-> "step_up", binding |-> Request(op, field),
-                          checkedAt |-> volatile.sampledAt, admittedAt |-> clock,
+                          checkedAt |-> clock, admittedAt |-> clock,
                           result |-> NoResult]]
     /\ UNCHANGED <<startingUses, method, factorInput, clock, worker, volatile,
                     audit, restarts, lastEvent>>

@@ -537,6 +537,23 @@ Expected behaviour:
 
 ## Step-Up Auth
 
+### Admission expiry
+
+- New step-up claims require matching, unexpired evidence at the atomic
+  admission write. Delays during verification, evidence persistence, or database
+  execution cannot extend the approved operation's deadline.
+- ECDSA factor verification records its completion time and rejects an operation
+  or Email OTP grant that expired during verification.
+- Exact retries of pending claims require live evidence. Already-admitted work
+  may finish after expiry; completed outcomes stay immutable and eligible exact
+  retries recover the committed result without another quota debit.
+- Expiry before admission or failed verification creates no operation claim and
+  preserves Wallet Session identity, quota identity, balance, and expiry. A signing OTP grant
+  consumed before expiry rejection remains consumed.
+
+The controlled HTTP contract is `tests/e2e/step-up-expiry.e2e.mjs`; it checks VM
+SQLite and local Cloudflare D1 and writes `.artifacts/tla-signing/admission-e2e/after.json`.
+
 ### Passkey authentication
 
 Expected behaviour:

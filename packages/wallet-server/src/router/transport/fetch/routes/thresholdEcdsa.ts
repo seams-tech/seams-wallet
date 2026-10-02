@@ -100,7 +100,6 @@ import {
 } from '@shared/utils/walletAuthAuthority';
 import { walletIdFromString } from '@shared/utils/registrationIds';
 import {
-  parseAuthFactorId,
   parseAuthorizationAuditEventId,
   parseAuthorizedOperationId,
   parseCapabilityId,
@@ -119,12 +118,7 @@ import {
   type VerifiedOwnerProof,
   type WalletSessionCapabilitySubjectsV1,
 } from '../../../../authorization/domain';
-import {
-  buildVerifiedWalletOperationEmailOtpFactorResult,
-  buildVerifiedWalletOperationPasskeyFactorResult,
-  type VerifiedWalletOperationFactorResult,
-} from '../../../../authorization/factorEvidence';
-import { alphabetizeStringify, sha256BytesUtf8 } from '@shared/utils/digests';
+import { verifyEcdsaOperationStepUpFactor } from './ecdsaOperationStepUpFactor';
 import { base64UrlEncode } from '@shared/utils/encoders';
 import { resolveWalletAuthMethodIdForAuthority } from '../../../../core/signingLanes/WalletExecutionLaneProjection';
 
@@ -142,23 +136,12 @@ async function verifyActiveEcdsaOperationStepUpAuthority(
       throw new Error('Unsupported ECDSA operation step-up proof');
   }
 }
-import {
-  parseEmailOtpChallengeId,
-  parseOrgId,
-  parseWalletId,
-  parseProviderSubject,
-} from '@shared/utils/domainIds';
-import {
-  EMAIL_OTP_CHANNEL,
-  WALLET_EMAIL_OTP_EXPORT_OPERATION,
-  WALLET_EMAIL_OTP_TRANSACTION_SIGN_OPERATION,
-} from '@shared/utils/emailOtpDomain';
+import { parseWalletId } from '@shared/utils/domainIds';
 
 type VerifiedOwnerWalletSessionProof = Extract<
   VerifiedOwnerProof,
   { readonly purpose: 'wallet_session' }
 >;
-import { hashEmailOtpOperationBinding } from '../../../domains/emailOtp/emailOtpSessionRouteHelpers';
 import {
   proxyNormalSigningRequestToMpcRouter,
   proxyOwnerLaneAdmittedNormalSigningRequest,
@@ -1131,7 +1114,6 @@ async function issueEcdsaOperationStepUpAuthorization(input: {
     );
   }
   const expectedChallenge = await computeRouterAbEcdsaOperationStepUpChallengeB64u(operation);
-  const nowMs = Date.now();
   const requestId = operation.operation_id;
   let freshMaterial: RouterAbEcdsaResolvedMaterialActivation;
   if (v2Resolution.kind === 'admitted') {
@@ -1214,160 +1196,25 @@ async function issueEcdsaOperationStepUpAuthorization(input: {
   );
   const expiresAtMs = operation.expires_at_ms;
   const requestOrigin = authenticated.requestOrigin;
-  let emailOtpUnseal: { readonly grant: string; readonly challengeId: string } | undefined;
-  let factor!: VerifiedWalletOperationFactorResult;
-  switch (proof.kind) {
-    case 'passkey': {
-      if (
-        authenticated.session.laneAuthorization.authSource.kind !== 'passkey' ||
-        proof.authority.factor.credentialIdB64u !==
-          authenticated.session.laneAuthorization.authSource.credentialIdB64u
-      ) {
-        return json(
-          { ok: false, code: 'scope_mismatch', message: 'Passkey authority changed' },
-          { status: 403 },
-        );
-      }
-      const credential = proof.webauthn_authentication;
-      const credentialId = String(credential.rawId || credential.id).trim();
-      if (credentialId !== authenticated.session.laneAuthorization.authSource.credentialIdB64u) {
-        return json(
-          { ok: false, code: 'unauthorized', message: 'Passkey credential changed' },
-          { status: 401 },
-        );
-      }
-      const verified = await input.ctx.service.webAuthn.verifyWebAuthnAuthenticationLite({
-        userId: authenticated.session.walletId,
-        rpId: proof.authority.verifier.rpId,
-        expectedChallenge,
-        expected_origin: requestOrigin,
-        webauthn_authentication: credential,
-      });
-      if (!verified.success || !verified.verified) {
-        return json(
-          {
-            ok: false,
-            code: verified.code || 'not_verified',
-            message: verified.message || 'WebAuthn authentication verification failed',
-          },
-          { status: 401 },
-        );
-      }
-      factor = buildVerifiedWalletOperationPasskeyFactorResult({
-        tenantId: authenticated.session.tenantId,
-        principalId: authenticated.session.principalId,
-        walletId: walletIdFromString(authenticated.session.walletId),
-        requestOrigin,
-        audience: requestOrigin,
-        factorId: requireAuthorizationValue(
-          parseAuthFactorId(
-            `passkey:${authenticated.session.laneAuthorization.authSource.credentialIdB64u}`,
-          ),
-        ),
-        authorityRef: authenticated.authorityRef,
-        operation: envelope,
-        credentialIdB64u: proof.authority.factor.credentialIdB64u,
-        assertionDigest: parseDigestB64u(
-          base64UrlEncode(await sha256BytesUtf8(alphabetizeStringify(credential))),
-        ),
-        verifiedAtMs: nowMs,
-        expiresAtMs,
-      });
-      break;
-    }
-    case 'email_otp': {
-      const operationBinding = await hashEmailOtpOperationBinding({
-        walletId: authenticated.session.walletId,
-        providerUserId: proof.authority.factor.providerUserId,
-        orgId: authenticated.session.tenantId,
-        operation:
-          operation.operation_kind === 'evm.export_key'
-            ? WALLET_EMAIL_OTP_EXPORT_OPERATION
-            : WALLET_EMAIL_OTP_TRANSACTION_SIGN_OPERATION,
-        requestOrigin,
-        audience: requestOrigin,
-        authorityRef: authenticated.authorityRef,
-        ...(operation.operation_kind === 'evm.sign_transaction'
-          ? { operationFingerprintDigest: envelope.digests.laneDigest }
-          : {}),
-      });
-      const verified = await input.ctx.service.emailOtp.verifyEmailOtpChallenge({
-        userId: proof.authority.factor.providerUserId,
-        walletId: authenticated.session.walletId,
-        orgId: authenticated.session.tenantId,
-        challengeId: proof.challenge_id,
-        otpCode: proof.otp_code,
-        otpChannel: EMAIL_OTP_CHANNEL,
-        ownerProofBindingDigest: operationBinding,
-        operation:
-          operation.operation_kind === 'evm.export_key'
-            ? WALLET_EMAIL_OTP_EXPORT_OPERATION
-            : WALLET_EMAIL_OTP_TRANSACTION_SIGN_OPERATION,
-      });
-      if (!verified.ok) {
-        return json(verified, { status: verified.code === 'invalid_body' ? 400 : 401 });
-      }
-      const consumed =
-        operation.operation_kind === 'evm.export_key'
-          ? null
-          : await input.ctx.service.emailOtp.consumeEmailOtpGrant({
-              subject: {
-                kind: 'provider_identity',
-                orgId: requireAuthorizationValue(parseOrgId(authenticated.session.tenantId)),
-                providerSubject: requireAuthorizationValue(
-                  parseProviderSubject(proof.authority.factor.providerUserId),
-                ),
-                walletId: walletIdFromString(authenticated.session.walletId),
-              },
-              loginGrant: verified.loginGrant,
-              otpChannel: EMAIL_OTP_CHANNEL,
-            });
-      if (consumed && !consumed.ok) {
-        return json(consumed, { status: consumed.code === 'invalid_body' ? 400 : 401 });
-      }
-      if (operation.operation_kind === 'evm.export_key') {
-        emailOtpUnseal = {
-          grant: verified.loginGrant,
-          challengeId: verified.challengeId,
-        };
-      }
-      const verifiedChallengeId = consumed?.ok ? consumed.challengeId : verified.challengeId;
-      factor = buildVerifiedWalletOperationEmailOtpFactorResult({
-        tenantId: authenticated.session.tenantId,
-        principalId: authenticated.session.principalId,
-        walletId: walletIdFromString(authenticated.session.walletId),
-        requestOrigin,
-        audience: requestOrigin,
-        factorId: requireAuthorizationValue(
-          parseAuthFactorId(
-            `email_otp:${proof.authority.factor.provider}:${proof.authority.factor.providerUserId}`,
-          ),
-        ),
-        authorityRef: authenticated.authorityRef,
-        operation: envelope,
-        challengeId: requireAuthorizationValue(parseEmailOtpChallengeId(verifiedChallengeId)),
-        verificationReceiptDigest: parseDigestB64u(
-          base64UrlEncode(
-            await sha256BytesUtf8(
-              alphabetizeStringify({
-                challengeId: verifiedChallengeId,
-                operationFingerprint: expectedChallenge,
-              }),
-            ),
-          ),
-        ),
-        verifiedAtMs: nowMs,
-        expiresAtMs: Math.min(expiresAtMs, verified.grantExpiresAtMs),
-      });
-      break;
-    }
-  }
+  const verifiedFactor = await verifyEcdsaOperationStepUpFactor({
+    proof,
+    operation: envelope,
+    walletId: walletIdFromString(authenticated.session.walletId),
+    authorityRef: authenticated.authorityRef,
+    authSource: authenticated.session.laneAuthorization.authSource,
+    requestOrigin,
+    expectedChallenge,
+    expiresAtMs,
+    webAuthn: input.ctx.service.webAuthn,
+    emailOtp: input.ctx.service.emailOtp,
+  });
+  if (!verifiedFactor.ok) return verifiedFactor.response;
   const evidenceSet =
     await input.ctx.service.authorizedOperations.recordVerifiedWalletOperationFactorEvidenceSet({
       operation: envelope,
       evidenceId,
       evidenceSetId,
-      factor,
+      factor: verifiedFactor.factor,
     });
   const authorizedOperationId = requireAuthorizationValue(
     parseAuthorizedOperationId(`ecdsa-step-up-authorized-operation:${operation.operation_id}`),
@@ -1385,7 +1232,7 @@ async function issueEcdsaOperationStepUpAuthorization(input: {
         evidenceSetDigest: evidenceSet.evidenceSetDigest,
       },
       quota: { kind: 'quota_neutral' },
-      claimedAtMs: nowMs,
+      claimedAtMs: Date.now(),
     },
     material: {
       walletId: walletIdFromString(authenticated.session.walletId),
@@ -1431,13 +1278,7 @@ async function issueEcdsaOperationStepUpAuthorization(input: {
   const responseAuthorization = {
     kind: 'operation_step_up' as const,
     evidence_set_digest: evidenceSet.evidenceSetDigest,
-    unseal: emailOtpUnseal
-      ? {
-          kind: 'email_otp_grant' as const,
-          grant: emailOtpUnseal.grant,
-          challenge_id: emailOtpUnseal.challengeId,
-        }
-      : { kind: 'not_requested' as const },
+    unseal: verifiedFactor.unseal,
   };
   if (operation.operation_kind === 'evm.export_key') {
     const exportTopology =

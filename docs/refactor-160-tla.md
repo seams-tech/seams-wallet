@@ -1,12 +1,14 @@
 # Router A/B formal verification strategy and signing pilot
 
-Status: bounded pilot implemented on 2026-10-02; production follow-up pending.
+Status: bounded pilot and focused admission-expiry fix implemented on 2026-10-02.
 Time box: one working day, including setup and reporting.
 
 Results and reproduction: [TLA+ signing pilot](../crates/router-ab-core/formal-verification/tla-signing/README.md).
-The model retains a live step-up admission expiry counterexample. Worker build
-selection, timestamp freshness, and automatic startup recovery enforcement remain
-correspondence questions; the pilot does not establish those production guarantees.
+The pilot exposed a stale-time step-up admission defect, reproduced through the
+production HTTP route and authorization store. The fix checks the database clock
+at atomic admission; all 13 invariants now pass. Worker build selection, timestamp
+freshness, and automatic startup recovery enforcement remain correspondence
+questions; the pilot does not establish those production guarantees.
 
 Run a small TLA+ pilot to check whether modeling adds useful evidence about our
 signing budgets, one-use presignatures, and step-up authorization. Focus on
@@ -197,6 +199,31 @@ or trustworthy correspondence with production needs substantial new tooling.
 A green bounded model alone does not establish implementation correctness.
 Keep useful findings and reproduction instructions without adding ongoing CI
 or maintenance obligations. Any larger follow-up gets its own scope.
+
+## Focused follow-up
+
+The demonstrated expiry defect justified one small production change:
+
+1. Reproduce admission after delayed Passkey and Email OTP verification, evidence
+   recording, and claim execution; inspect durable claims and unchanged quota.
+2. Sample verification time after awaited factor work, reject expired evidence,
+   and enforce expiry with the database clock inside the atomic admission write.
+   Apply the same current-time rule to pending retry eligibility.
+3. Exercise the actual HTTP route, authorization store, and full migration chain
+   on VM SQLite and local Cloudflare D1. Preserve completed-result replay and
+   verify legitimate browser signing/export flows through the existing contracts.
+4. Update the admission action without weakening its invariant. Recheck all 13
+   properties, the 30 reachability witnesses, and five deliberate faults,
+   including restoring the stale-time admission guard.
+
+The controlled expiry E2E passes 22 cases across both storage hosts. The bounded
+model passes over 1,536,642 distinct states. See the pilot README for browser
+verification results and retained artifacts. Deployments must apply signer
+migration `0041_step_up_admission_expiry.sql` to enforce the new atomic guard.
+
+Recommendation: retain this small model and stop expanding the pilot. Revisit it
+when changing these admission/lifecycle boundaries. Address the separate worker
+clock and startup-recovery questions only through a separately scoped review.
 
 ## References
 
