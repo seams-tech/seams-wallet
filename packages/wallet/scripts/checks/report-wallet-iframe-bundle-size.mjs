@@ -196,6 +196,21 @@ const workerTargets = [
   ['shamir3PassWorker', 'Shamir3Pass worker', 'dist/workers/shamir3pass.worker.js'],
   ['shamir3PassWasm', 'Shamir3Pass WASM', 'dist/workers/shamir3pass_runtime_bg.wasm'],
   ['emailOtpRuntimeWasm', 'Email OTP runtime WASM', 'dist/workers/email_otp_runtime_bg.wasm'],
+  [
+    'walletCustodyCeremonyWorker',
+    'Wallet custody ceremony worker',
+    'dist/workers/wallet-custody-ceremony.worker.js',
+  ],
+  [
+    'walletCustodyCeremonyWasm',
+    'Wallet custody ceremony WASM',
+    'dist/workers/wallet_custody_ceremony_bg.wasm',
+  ],
+  [
+    'deviceLinkingKeyWorker',
+    'Device linking key worker',
+    'dist/workers/device-linking-key.worker.js',
+  ],
 ];
 
 const missing = [];

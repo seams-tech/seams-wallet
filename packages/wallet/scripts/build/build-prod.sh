@@ -86,7 +86,7 @@ if "$BUN_BIN" build "$SOURCE_SIGNING_WORKERS/near-signer.worker.ts" --outdir "$B
   && "$BUN_BIN" build "$SOURCE_SIGNING_WORKERS/passkey-confirm.worker.ts" --outdir "$BUILD_WORKERS" --format esm --target browser --minify --root "$REPO_ROOT" --entry-naming '[name].[ext]' \
   && "$BUN_BIN" build "$SOURCE_SIGNING_WORKERS/passkey-mpc-session.worker.ts" --outdir "$BUILD_WORKERS" --format esm --target browser --minify --root "$REPO_ROOT" --entry-naming '[name].[ext]' \
   && "$BUN_BIN" build "$SOURCE_SIGNING_WORKERS/passkey-mpc-export.worker.ts" --outdir "$BUILD_WORKERS" --format esm --target browser --minify --root "$REPO_ROOT" --entry-naming '[name].[ext]' \
-  && "$BUN_BIN" build "$SOURCE_SIGNING_WORKERS/wallet-custody-ceremony.worker.ts" --outdir "$BUILD_WORKERS" --format esm --target browser --root "$REPO_ROOT" --entry-naming '[name].[ext]' \
+  && "$BUN_BIN" build "$SOURCE_SIGNING_WORKERS/wallet-custody-ceremony.worker.ts" --outdir "$BUILD_WORKERS" --format esm --target browser --minify --root "$REPO_ROOT" --entry-naming '[name].[ext]' \
   && "$BUN_BIN" build "$SOURCE_SIGNING_WORKERS/email-otp.worker.ts" --outdir "$BUILD_WORKERS" --format esm --target browser --minify --root "$REPO_ROOT" --entry-naming '[name].[ext]' \
   && "$BUN_BIN" build "$SOURCE_SIGNING_WORKERS/shamir3pass.worker.ts" --outdir "$BUILD_WORKERS" --format esm --target browser --minify --root "$REPO_ROOT" --entry-naming '[name].[ext]' \
   && "$BUN_BIN" build "$SOURCE_SIGNING_WORKERS/evm-crypto.worker.ts" --outdir "$BUILD_WORKERS" --format esm --target browser --minify --root "$REPO_ROOT" --entry-naming '[name].[ext]' \
