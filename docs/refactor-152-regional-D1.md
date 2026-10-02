@@ -80,7 +80,7 @@ hosted rollout execution and remaining writer coverage are still open. See the
 The October 2 release preparation now freezes candidate `94b4c988`, including
 the wallet-management upgrade gate and live step-up expiry enforcement. Local
 package, Console home-challenge, published-client reload, Email OTP lifecycle
-and sustained-signing checks pass. Both exact-revision CI workflows are running.
+and sustained-signing checks pass. Both exact-revision CI workflows have passed.
 The first 40 signer migrations are unchanged; 0041 is added. Publication, exact
 private consumption and hosted cutover remain open. See the
 [protocol candidate acceptance](refactor-152-release-review.md#protocol-candidate-acceptance--october-2)
@@ -487,6 +487,9 @@ below remain open.
   rejects registration and auth-method intent requests through both changed
   writer versions before JSON parsing, with unchanged signer application state;
   see [ordinary writer admission evidence](refactor-152-results.md#ordinary-writer-admission-coverage--october-2).
+  Local Gateway scheduled admission also passes: the current version dispatches
+  one authenticated prewarm request and the stale version dispatches none; see
+  [scheduled writer evidence](refactor-152-results.md#scheduled-writer-admission--october-2).
   Cover remaining internal
   control/inspection, discovery and administrative paths before claiming every
   entry point enforces home identity. Preserve pre-activation custody bootstrap.

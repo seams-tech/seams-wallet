@@ -2538,3 +2538,28 @@ Worker reachability. Those gates remain open. Exact candidate CI is still runnin
 Wallet has reached its production build, and Router entrypoint and Cloudflare
 adapter jobs have passed. No publication, deployment or latency measurement was
 performed during this follow-up.
+
+
+## Scheduled writer admission — October 2
+
+Private commit `2f204a9` extends the existing three-Worker acceptance scenario
+with the real Gateway scheduled handler. Prewarm is enabled and its downstream
+Router service is a controlled recorder. The activated Gateway completes its
+cron event and sends exactly one authenticated POST to `/internal/prewarm`.
+A Gateway with changed version metadata returns scheduled outcome `exception`
+and sends no additional prewarm request. The signer application-table digest
+remains unchanged across the ordinary stale-request and scheduled probes.
+
+The composed E2E passes in **15.6 seconds** against the frozen `94b4c988`
+Wallet Server candidate. Console type checking, ESLint and formatting pass.
+The repeatable receipt `scheduled-writer-admission.json` records both scheduled
+outcomes and the captured request, retained in private
+`.artifacts/r152/release-0.8.0-protocol-20261002/`. Run the same candidate command
+from the preceding section with `--output=test-results/r152-scheduled-admission`.
+
+This closes local scheduled Gateway admission coverage. The controlled downstream
+response does not exercise custody prewarm itself. Hosted cron, in-flight work,
+privileged operator scripts, custody/bootstrap ownership and historical Worker
+reachability remain distinct checks. Both candidate CI workflows are now green;
+see the [publication handoff](refactor-152-release-review.md#green-candidate-ci-and-publication-handoff--october-2).
+No hosted infrastructure or published packages changed.

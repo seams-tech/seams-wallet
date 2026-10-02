@@ -482,3 +482,40 @@ an already-open old client, reload and rollback. Then continue the remaining
 writer-path coverage, namespace adoption, regional routing and travel-latency
 measurements. Private package pins remain 0.7.3. No package publication or hosted
 infrastructure deployment occurred in this step.
+
+
+## Green candidate CI and publication handoff — October 2
+
+Both exact-revision workflows completed successfully at
+`94b4c98845c188f26403488fea757abf1421d845`:
+
+- [Wallet validation](https://github.com/seams-tech/seams-wallet/actions/runs/36972255800)
+  completed at 16:04 JST, including the production build, type checks,
+  representative browser/lifecycle checks, packaging, docs/examples and self-host smoke.
+- [Router A/B validation](https://github.com/seams-tech/seams-wallet/actions/runs/36972258585)
+  completed at 15:22 JST, including core/dev, Cloudflare adapter, entrypoint and
+  startup dry-run jobs.
+
+Registry checks still report 0.7.3 as latest for both packages. Remote `dev`
+points to the validated candidate; remote `main` remains the 0.7.3 release merge
+`2bc58391ddeef44eb1432ccd15be8a0d31332d55`. The latter is not an ancestor of dev,
+because dev does not contain the release merge commits. A read-only
+`git merge-tree --write-tree` check succeeds without conflicts and produces
+`b1ab8a457309161d3811b567d3dc5a87f64a063c`, exactly the validated candidate's tree.
+No branch was changed by that check.
+
+The concrete publication step is to promote a merge containing both histories,
+verify that its tree equals the validated candidate tree, and dispatch
+`release-wallet-packages.yml` on `main` with version `0.8.0`. Recheck remote heads
+before promotion; do not force-push or include later source changes implicitly.
+Retain the release run and verify both npm package versions and integrity after
+publication. The workflow rebuilds all three host-tool targets and publishes
+both packages through the npm-release environment. Promotion and npm publication
+have not occurred; the prior explicit release authorization covered 0.7.3, while
+the 0.8.0 response selected the preparation version.
+
+After publication, consume exact 0.8.0 packages in the private repository and
+complete the coordinated production-testnet backend/frontend cutover, including
+migration 0041 as well as 0040, hosted old-client/reload treatment and rollback.
+Publishing the SDK does not authorize admitting hosted traffic before those
+checks. Keep production mainnet outside the testnet rollout scope.
