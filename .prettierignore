@@ -12,6 +12,3 @@
 
 wasm/**/pkg/**
 wasm/**/target/**
-
-examples/seams-docs/public/**
-

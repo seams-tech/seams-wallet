@@ -44,7 +44,7 @@ pnpm -C packages/wallet dev       # Watch mode
 **Test**:
 
 ```bash
-pnpm -C packages/wallet test           # Playwright tests
+pnpm test:wallet-browser               # Playwright tests
 pnpm -C packages/wallet run type-check # TypeScript validation
 ```
 

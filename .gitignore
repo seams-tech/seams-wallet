@@ -11,23 +11,12 @@ node_modules
 apps/docs/certs
 apps/docs/public
 apps/docs/dist
-apps/docs/docs/dist
 apps/docs/src/.vitepress/cache
-apps/seams-site/.caddy.log
-apps/web-client/.caddy.log
-apps/web-server/dist
-apps/web-server/grace-keys.json
-apps/web-server/.provision-cache.json
-examples/relay-cloudflare-worker/.wrangler
-packages/console-server-ts/.wrangler/
 .runtime/
 .local/
 
-# Local Wrangler secrets. Use packages/console-server-ts/dev.vars as the checked-in template.
-packages/console-server-ts/.dev.vars
+# Local Wrangler secrets.
 packages/wallet-server/.dev.vars
-packages/wallet-console-server-ts/wrangler.d1-staging-console.toml
-packages/wallet-console-server-ts/wrangler.d1-staging-gateway.toml
 sqlite/
 packages/wallet-server/.wrangler/
 packages/wallet-server/cloudflare-router-ab/
@@ -73,10 +62,6 @@ crates/ed25519-yao/wasm-bench/target
 crates/*/formal-verification/**/target
 crates/*/formal-verification/**/.lake
 crates/*/formal-verification/lean-boundary/tools/
-
-# Transpiled server artifacts emitted into source tree during local runs
-server/src/**/*.js
-server/src/**/*.js.map
 
 # Local tooling caches
 .tooling/
