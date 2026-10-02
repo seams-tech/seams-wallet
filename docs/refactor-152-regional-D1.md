@@ -71,9 +71,10 @@ and activation enforcement remain open. See the
 
 Private commit `a367716` consumes that evidence atomically with activation and
 enforces the activated versions on split Gateway requests/scheduled work and
-bound Wallet Runtime requests. The nine related local E2Es pass. Hosted rollout
-ordering, the migration release and remaining internal writer-path coverage are
-still open. See the
+bound Wallet Runtime requests. The nine related local E2Es pass. The subsequent
+local follow-up fixes production-testnet rollout ordering and verifies readiness
+before/after activation and stale-version rejection. The migration release,
+hosted rollout execution and remaining writer coverage are still open. See the
 [activation evidence](refactor-152-results.md#activation-consumption-and-runtime-version-admission-october-2).
 
 ## Objective and starting evidence
@@ -506,11 +507,17 @@ below remain open.
   operator cutover commands now submit fresh verification. Bound Gateway/Runtime
   requests and Gateway cron enforce recorded versions in the existing binding
   lookup. The standalone checkpoint retains `activationAuthorized: false`.
+- [x] Coordinate production-testnet deployment so verification, activation and
+  canary precede Wallet/Console smoke. Require the packaged challenge migration
+  before any deployment job. Both deployment CLI commands use the protected
+  coordinator with an explicit environment ID; the backend child is reusable
+  only. Wallet smoke rejects unavailable bindings. Local E2E evidence covers
+  readiness before/after activation and a changed writer version. This is local
+  rollout preparation; hosted execution and other-lane activation remain open.
 - [ ] Publish and consume an exact Wallet Server release containing signer
   migration 0040, then coordinate Console migration 0050, service bindings, Worker deployment
   and historical adoption. Run the fresh challenge live and join both checkpoints
-  to the immutable Console reservation. Revise pre-cutover smoke ordering so new
-  versions receive their verified activation before bound traffic is tested.
+  to the immutable Console reservation.
   Validate the fence on hosted Workers and cover other reachable older/internal
   writer paths before claiming complete regional enforcement.
 - [ ] Reuse existing trusted tenant/environment routing where possible. Define

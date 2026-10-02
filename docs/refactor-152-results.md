@@ -2434,3 +2434,62 @@ internal/control/admin writer paths. Older activations have no version evidence
 and cannot admit updated split writers until a verified activation replaces them.
 Runtime admission constrains these entrypoints; it cannot constrain privileged
 replacement code that ignores the check.
+
+## Coordinated deployment readiness (October 2)
+
+Private commit `111e69e` updates the production-testnet deployment sequence. It
+now requires the packaged signer
+challenge migration before deployment authorization, deploys Console and Wallet,
+obtains fresh combined verification, activates and runs the canary, then smokes
+Wallet and Console. The backend child workflow is reusable only; standalone
+Console dispatch offers the other lanes. Both production-testnet CLI authorities
+select `deploy-live-demo.yml` and require `--environment-id`. Other lanes retain
+their dispatch routes and still need their own operator activation integration.
+
+Wallet readiness now requires a 2xx response. The former exception accepting
+`503 tenant_deployment_unavailable` is removed. Existing propagation retries
+remain. This sequence deliberately fails closed between writer deployment and
+activation; it does not demonstrate zero-downtime rollout.
+
+**Two E2Es passed in 22.8 seconds**, covering the three production Worker sources
+and protected operator adoption. The extended challenge E2E invokes the production
+readiness runner in a Node subprocess over a local HTTP bridge to the Gateway.
+Before activation its public projection returns 503 and smoke fails. After fresh
+verified activation the projection returns 200 and smoke passes. A changed Gateway
+version refuses admission; the bridge represents the Worker exception as 500 and
+smoke fails. This is local admission evidence with synthetic version metadata and
+controlled provider HTTP, not a hosted Cloudflare status-code measurement.
+
+The six remaining existing readiness tests passed in 559 ms. The retired
+pre-binding-success test was removed because its invariant conflicts with the
+new post-activation sequence. Four CLI dispatch scenarios passed using a captured
+GitHub CLI transport, and both production-testnet authorities reject a missing
+environment ID before dispatch. No GitHub workflow was dispatched. Actionlint,
+targeted lint and Console-test type-checking passed. The E2E's initial direct
+JavaScript import lacked a TypeScript declaration; invoking the production script
+through Node resolved this test-harness issue without changing production types.
+
+Static review of the canonical split entrypoints and pinned Wallet Server 0.7.3
+finds that pre-admission challenge/readiness paths only read `SIGNER_DB`. Private
+custody-control requests forward to authenticated custody service bindings without
+accessing `SIGNER_DB`. Those bootstrap operations remain reachable before a first
+activation. This review does not close privileged administrative writer coverage
+or inventory historical deployed Workers.
+
+Private evidence is retained in `.artifacts/r152/coordinated-rollout-20261002/`:
+`e2e.log`, `existing-smoke-tests.log`, `activation-smoke-evidence.json`, combined
+home and adoption receipts, `dispatch-evidence.json`, the repeatable CLI transport
+check, and source hashes. Reproduce the composed acceptance flow:
+
+```sh
+pnpm -C tests exec playwright test -c playwright.relayer.config.ts \
+  relayer/tenant-home-challenge.e2e.test.ts \
+  relayer/tenant-home-adoption-operator.e2e.test.ts \
+  --reporter=line --output=test-results/r152-coordinated-rollout
+```
+
+The installed 0.7.3 package lacks migration 0040 and cannot pass the new deployment
+preflight. Publish/consume a new exact Wallet Server release before hosted rollout.
+Console migration 0050, hosted verification/adoption/canaries, regional routing,
+broader authenticated cohorts and migration/failure proofs remain outstanding.
+No deployment, hosted challenge or new latency measurement occurred in this milestone.

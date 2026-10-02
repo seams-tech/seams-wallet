@@ -499,8 +499,27 @@ admission rejects a later changed version using these entrypoints; privileged
 replacement code that ignores admission and internal/bootstrap paths outside
 bound admission remain separate concerns. Nine local E2Es pass, including actual
 challenge consumption and stale-version rejection, with synthetic version metadata
-and controlled provider transport. Hosted verification, migration/release sequencing,
-pre-cutover smoke ordering and remaining writer coverage remain rollout prerequisites.
+and controlled provider transport. Hosted verification, migration/release sequencing
+and remaining writer coverage remain rollout prerequisites.
+
+The October 2 deployment follow-up moves production-testnet Wallet and Console
+smoke after combined verification, activation and canary. Both deployment CLI
+authorities select the protected coordinator and require an environment ID. The
+backend child is reusable only; standalone Console dispatch offers other lanes.
+A dependency preflight requires packaged signer migration 0040 before deployment
+authorization. The pinned 0.7.3 package cannot pass this preflight. Wallet smoke
+now rejects unavailable bindings, and the three-Worker E2E exercises failed
+pre-activation readiness, successful activated readiness and stale-version refusal.
+
+The canonical entrypoint review finds three pre-admission paths: the private home
+challenge and readiness inspection only read `SIGNER_DB`; private custody control
+forwards an allowlisted request to Router/control-plane/Deriver service bindings
+with internal service authentication. The latter does not access `SIGNER_DB` in
+the pinned Wallet Server 0.7.3 implementation and remains necessary for bootstrap.
+Gateway requests and cron, plus ordinary Wallet Runtime requests, pass version
+admission. This static review does not prove custody-service ownership, inventory
+all privileged D1 operator scripts, or establish which historical Workers are
+still deployed. Those remain separate enforcement and hosted inventory work.
 
 The first persistence slice is implemented in private Console commit `12784a3`.
 `tenantDeployment/namespaceHome.ts` adds reservation/read operations to the
