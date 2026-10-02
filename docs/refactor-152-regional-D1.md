@@ -103,6 +103,10 @@ items above stay open until route and cross-authority contracts are complete.
   explicit provided/server-allocated identity branch. Concurrent generated
   candidates reuse the first committed wallet; changed requests conflict.
   Expanded persistent-D1 E2E and type fixtures pass (`8da3c38`, private).
+- [x] Persist the first committed ceremony, preparation, founding authority,
+  device and auth-method IDs with the wallet/home reservation. Regional retry
+  candidates receive the same allocation after races or lost replies; SQL
+  rejects later mutation. This is directory storage only, not hosted routing.
 - [ ] Connect authenticated registration and shared-identity admission to this
   directory, then switch all hosted and lifecycle paths together with removal
   of namespace placement. The new directory is not yet used by hosted requests.
