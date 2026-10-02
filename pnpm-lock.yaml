@@ -79,16 +79,6 @@ importers:
         specifier: ^8.0.0
         version: 8.0.0(@types/node@24.2.0)(jiti@2.6.1)(tsx@4.20.5)(yaml@2.8.1)
 
-  examples/self-host-cloudflare-worker:
-    dependencies:
-      '@seams/wallet-server':
-        specifier: workspace:*
-        version: link:../../packages/wallet-server
-    devDependencies:
-      wrangler:
-        specifier: 4.111.0
-        version: 4.111.0(bufferutil@4.0.9)(utf-8-validate@5.0.10)
-
   examples/wallet-console-lite:
     dependencies:
       '@seams/wallet':

@@ -116,7 +116,6 @@ For local development, run `pnpm router` and `pnpm site` in separate terminals.
 Together they start the public Wallet services, hosted UI, and console-lite
 example.
 
-Start with [Wallet Console Lite](../examples/wallet-console-lite/README.md)
-or the [self-hosting example](../examples/self-host-cloudflare-worker).
+Start with [Wallet Console Lite](../examples/wallet-console-lite/README.md).
 The [provider guides](auth-provider-integrations/README.md) cover configuration
 for individual identity services.
