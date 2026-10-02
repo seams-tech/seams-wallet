@@ -2497,3 +2497,44 @@ No deployment, hosted challenge or new latency measurement occurred in this mile
 
 The subsequent [packed Wallet Server acceptance](refactor-152-package-readiness.md)
 records candidate packaging, migration integrity and consumer-upgrade verification.
+
+
+## Ordinary writer admission coverage — October 2
+
+The existing composed Console/Gateway/Wallet Runtime E2E now includes a changed
+Wallet Runtime version alongside the changed Gateway version. After verified
+activation, both stale versions receive POST requests for registration setup and
+add-auth-method intent. All four calls reject with the specific runtime-version
+admission error before parsing the deliberately malformed JSON body. A digest of
+all signer application-table contents is identical before and after the probes;
+SQLite and Cloudflare internal metadata tables are excluded. The same scenario
+retains positive current-version admission and successful activated discovery.
+
+The E2E passed in **14.0 seconds** against the extracted Wallet Server 0.8.0
+candidate built from `94b4c98845c188f26403488fea757abf1421d845`. Console test type
+checking, ESLint and formatting checks pass. No production source changed.
+`stale-writer-admission.json` records the four paths and before/after digests,
+retained with logs in private
+`.artifacts/r152/release-0.8.0-protocol-20261002/`.
+
+Two initial test-helper expectations were corrected: the schema scan attempted
+to read protected Cloudflare metadata, and the rejection assertion expected an
+HTTP wrapper rather than the exception propagated by the service binding. Both
+are `valid_test_needs_update`; neither required a production change.
+
+Reproduce from `seams-monorepo`:
+
+```sh
+SEAMS_WALLET_SERVER_CANDIDATE="$PWD/.artifacts/r152/release-0.8.0-protocol-20261002/package" \
+  pnpm -C tests exec playwright test -c playwright.relayer.config.ts \
+  relayer/tenant-home-challenge.e2e.test.ts --reporter=line \
+  --output=test-results/r152-writer-admission
+```
+
+This is local request-admission evidence with synthetic version metadata. It does
+not establish hosted HTTP error rendering, cron execution, in-flight mutation
+fencing, custody/bootstrap ownership, privileged operator scripts or historical
+Worker reachability. Those gates remain open. Exact candidate CI is still running;
+Wallet has reached its production build, and Router entrypoint and Cloudflare
+adapter jobs have passed. No publication, deployment or latency measurement was
+performed during this follow-up.

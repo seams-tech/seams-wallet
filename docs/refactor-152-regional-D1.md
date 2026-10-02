@@ -483,7 +483,11 @@ below remain open.
 - [ ] Complete coordinated operator adoption/deployment with physical binding
   verification and real hosted canary evidence. Ordinary readers reject old
   bindings and the current deployment job smokes readiness before cutover;
-  rollout sequencing must handle that transition. Cover remaining internal
+  rollout sequencing must handle that transition. Local composed acceptance now
+  rejects registration and auth-method intent requests through both changed
+  writer versions before JSON parsing, with unchanged signer application state;
+  see [ordinary writer admission evidence](refactor-152-results.md#ordinary-writer-admission-coverage--october-2).
+  Cover remaining internal
   control/inspection, discovery and administrative paths before claiming every
   entry point enforces home identity. Preserve pre-activation custody bootstrap.
 - [x] Implement the provider configuration checkpoint: inspect all versions in
