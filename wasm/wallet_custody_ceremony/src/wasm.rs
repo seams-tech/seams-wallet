@@ -452,20 +452,6 @@ impl WasmCeremonyProtocolPreparedV1 {
         })
     }
 
-    pub fn complete_evm_family(
-        self,
-        relayer_public_identity_json: &str,
-    ) -> Result<WasmCeremonyProtocolCompletedV1, JsValue> {
-        let wire = serde_json::from_str::<RelayerPublicIdentityV1>(relayer_public_identity_json)
-            .map_err(js_error)?;
-        Ok(WasmCeremonyProtocolCompletedV1 {
-            inner: self
-                .inner
-                .complete_evm_family(relayer_identity(wire).map_err(js_error)?)
-                .map_err(ceremony_error)?,
-        })
-    }
-
     /// Seals new custody before activation while retaining only ECDSA pending state.
     pub fn prepare_evm_activation_establishing_custody(
         self,
