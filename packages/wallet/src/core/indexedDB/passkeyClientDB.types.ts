@@ -103,12 +103,6 @@ type AccountModel = 'near-native' | 'threshold-ecdsa' | string;
 type AccountSignerType = 'passkey' | 'threshold' | 'session' | 'recovery' | string;
 export type AccountSignerStatus = 'active' | 'pending' | 'revoked';
 export type { SignerAuthMethod, SignerKind, SignerSource };
-export interface AccountModelCapabilities {
-  supportsMultiSigner: boolean;
-  supportsAddRemoveSigner: boolean;
-  supportsSessionSigner: boolean;
-  supportsRecoverySigner: boolean;
-}
 
 export type DBConstraintErrorCode =
   | 'MISSING_PROFILE'
@@ -380,23 +374,6 @@ export type UpsertChainAccountInput = {
   isPrimary?: boolean;
 };
 
-export type UpsertAccountSignerInput = {
-  profileId: ProfileId;
-  chainIdKey: ChainIdKey;
-  accountAddress: AccountAddress;
-  signerId: SignerId;
-  signerSlot: number;
-  signerType: AccountSignerType;
-  signerKind: SignerKind;
-  signerAuthMethod: SignerAuthMethod;
-  signerSource: SignerSource;
-  status: AccountSignerStatus;
-  removedAt?: number;
-  revocationReason?: string;
-  metadata?: Record<string, unknown>;
-  mutation?: SignerMutationOptions;
-};
-
 export type EnqueueSignerOperationInput = {
   opId: string;
   idempotencyKey: string;
@@ -448,12 +425,3 @@ export type NonceLaneLeaseStoreRecord =
       nearAccountId: string;
       publicKey: string;
     });
-
-export interface NonceLaneLockStoreRecord {
-  lockKey: string;
-  ownerId: string;
-  fencingToken: string;
-  acquiredAtMs: number;
-  expiresAtMs: number;
-  updatedAtMs: number;
-}

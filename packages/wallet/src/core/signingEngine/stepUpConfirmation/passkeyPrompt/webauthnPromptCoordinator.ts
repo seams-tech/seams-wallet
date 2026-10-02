@@ -113,10 +113,6 @@ class WebAuthnPromptCoordinator {
   private reservationExpiryTimer: ReturnType<typeof setTimeout> | null = null;
   private consumedReservationIds = new Set<WebAuthnPromptReservationId>();
 
-  snapshot(): WebAuthnPromptCoordinatorState {
-    return this.state;
-  }
-
   async reserveRegistrationPrompt<Owner extends RegistrationWebAuthnPromptOwner>(args: {
     owner: Owner;
     expiresAtMs: number;

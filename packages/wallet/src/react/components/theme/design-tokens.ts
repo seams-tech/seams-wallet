@@ -1,5 +1,5 @@
 // Consolidate color sources to base-styles
-import { CHROMA_COLORS, GREY_COLORS, GRADIENTS, LIGHT_THEME, DARK_THEME } from '@/base-styles';
+import { CHROMA_COLORS, LIGHT_THEME, DARK_THEME } from '@/base-styles';
 
 /**
  * About these tokens and CSS variables
@@ -25,9 +25,6 @@ import { CHROMA_COLORS, GREY_COLORS, GRADIENTS, LIGHT_THEME, DARK_THEME } from '
  * Where they’re used:
  * - Theme injects variables inline on a boundary element; components
  *   reference them with var(--seams-colors-primary), etc.
- * - Component-specific helpers (e.g., PROFILE_BUTTON_TOKENS, PROFILE_TOGGLE_TOKENS)
- *   derive from LIGHT_TOKENS/DARK_TOKENS and are read by components directly
- *   or mapped to CSS vars via their own applyStyles helpers.
  */
 
 // ============================================================================
@@ -462,56 +459,5 @@ export const DARK_TOKENS: DesignTokens = {
     md: '0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.3)',
     lg: '0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3)',
     xl: '0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 10px 10px -5px rgba(0, 0, 0, 0.3)',
-  },
-};
-
-// ============================================================================
-// CSS CUSTOM PROPERTY GENERATOR
-// ============================================================================
-
-// ============================================================================
-// COMPONENT-SPECIFIC THEME HELPERS
-// ============================================================================
-
-// ============================================================================
-// PROFILE TOGGLE TOKENS
-// ============================================================================
-interface ToggleColorTokens {
-  activeBackground: string;
-  activeShadow: string;
-  inactiveBackground: string;
-  inactiveShadow: string;
-  disabledBackground: string;
-  disabledCircle: string;
-  textColor: string;
-  disabledTextColor: string;
-  circleColor: string;
-}
-
-export const PROFILE_TOGGLE_TOKENS: { light: ToggleColorTokens; dark: ToggleColorTokens } = {
-  light: {
-    activeBackground: GRADIENTS.blue,
-    activeShadow: LIGHT_TOKENS.shadows.md,
-    // Slightly darker off state in light mode
-    inactiveBackground: LIGHT_TOKENS.colors.borderHover,
-    inactiveShadow: LIGHT_TOKENS.shadows.sm,
-    disabledBackground: LIGHT_TOKENS.colors.borderSecondary,
-    disabledCircle: 'transparent', // Transparent knob when disabled
-    textColor: LIGHT_TOKENS.colors.textPrimary,
-    disabledTextColor: LIGHT_TOKENS.colors.textMuted,
-    // Slightly greyer knob in light mode (instead of pure white)
-    circleColor: GREY_COLORS.grey100,
-  },
-  dark: {
-    activeBackground: GRADIENTS.blue,
-    activeShadow: DARK_TOKENS.shadows.md,
-    inactiveBackground: DARK_TOKENS.colors.borderHover,
-    inactiveShadow: DARK_TOKENS.shadows.sm,
-    disabledBackground: DARK_TOKENS.colors.borderSecondary,
-    disabledCircle: 'transparent', // Transparent knob when disabled
-    textColor: DARK_TOKENS.colors.textPrimary,
-    disabledTextColor: DARK_TOKENS.colors.textSecondary,
-    // Slightly lighter knob in dark mode for better visibility
-    circleColor: DARK_TOKENS.colors.grey800,
   },
 };

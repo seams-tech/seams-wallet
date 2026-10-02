@@ -97,17 +97,6 @@ export const NonceCoordinatorFallback = {
 export type NonceCoordinatorFallback =
   (typeof NonceCoordinatorFallback)[keyof typeof NonceCoordinatorFallback];
 
-export const NearNonceOutcomeKind = {
-  Finalized: 'finalized',
-  AcceptedNonfinal: 'accepted_nonfinal',
-  NonceAdvancedHashMissing: 'nonce_advanced_hash_missing',
-  ExpiredHashMissingNonceNotAdvanced: 'expired_hash_missing_nonce_not_advanced',
-  InvalidOrRejected: 'invalid_or_rejected',
-  Unknown: 'unknown',
-} as const;
-
-export type NearNonceOutcomeKind = (typeof NearNonceOutcomeKind)[keyof typeof NearNonceOutcomeKind];
-
 export const NearNonceReconcileReason = {
   NonceAdvancedHashMissing: 'near_nonce_advanced_hash_missing',
   HashMissingNonceNotAdvanced: 'near_hash_missing_nonce_not_advanced',

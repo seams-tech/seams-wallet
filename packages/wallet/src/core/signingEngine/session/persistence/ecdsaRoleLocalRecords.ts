@@ -15,12 +15,10 @@ import {
   toEmailOtpAuthSubjectId,
 } from '../identity/emailOtpEcdsaDerivationIdentity';
 import type {
-  CleanupMalformedEcdsaRoleLocalRecordInput,
   CredentialIdB64u,
   EcdsaGroupPublicKey33B64u,
   EcdsaRoleLocalAuthMethod,
   EcdsaRoleLocalPublicFacts,
-  EcdsaRoleLocalRecordParseResult,
   EcdsaRoleLocalReadyRecord,
   EcdsaRoleLocalReadyStateBlob,
   LoadEcdsaRoleLocalReadyRecordInput,
@@ -415,66 +413,6 @@ function serializeAuthMethod(authMethod: EcdsaRoleLocalAuthMethod): Record<strin
       };
     default:
       return assertNever(authMethod);
-  }
-}
-
-export function buildEcdsaRoleLocalReadyRecord(input: {
-  stateBlob: EcdsaRoleLocalReadyStateBlob;
-  publicFacts: EcdsaRoleLocalPublicFacts;
-  authMethod: EcdsaRoleLocalAuthMethod;
-}): EcdsaRoleLocalReadyRecord {
-  return readyRecordFromParts({
-    stateBlob: parseReadyStateBlob(input.stateBlob),
-    publicFacts: parsePublicFacts(input.publicFacts),
-    authMethod: input.authMethod,
-  });
-}
-
-function cleanupInputFromLookup(args: {
-  lookup: LoadEcdsaRoleLocalReadyRecordInput;
-  reason: string;
-}): CleanupMalformedEcdsaRoleLocalRecordInput {
-  return {
-    ...args.lookup,
-    reason: args.reason,
-  };
-}
-
-export function parseRawEcdsaRoleLocalRecord(input: {
-  raw: unknown;
-  lookup: LoadEcdsaRoleLocalReadyRecordInput;
-}): EcdsaRoleLocalRecordParseResult {
-  try {
-    const record = parseEcdsaRoleLocalReadyRecord(input.raw);
-    if (!ecdsaRoleLocalReadyRecordMatchesInput({ record, input: input.lookup })) {
-      const message =
-        '[platform][ecdsa-role-local] ready record identity does not match lookup input';
-      return {
-        ok: false,
-        code: 'malformed_record',
-        message,
-        cleanup: cleanupInputFromLookup({ lookup: input.lookup, reason: message }),
-      };
-    }
-    return {
-      ok: true,
-      source: 'ready_record',
-      state: {
-        kind: 'ready',
-        record,
-      },
-    };
-  } catch (error) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : '[platform][ecdsa-role-local] malformed role-local record';
-    return {
-      ok: false,
-      code: 'malformed_record',
-      message,
-      cleanup: cleanupInputFromLookup({ lookup: input.lookup, reason: message }),
-    };
   }
 }
 

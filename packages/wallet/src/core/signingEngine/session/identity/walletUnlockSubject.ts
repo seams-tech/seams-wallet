@@ -35,12 +35,3 @@ export type WalletUnlockSubjectSet = {
   readonly walletId: WalletId;
   readonly subjects: readonly [WalletUnlockSubject, ...WalletUnlockSubject[]];
 };
-
-export type EvmFamilyEcdsaWalletUnlockSubjectSet = {
-  readonly kind: 'wallet_unlock_subject_set';
-  readonly walletId: WalletId;
-  readonly subjects: readonly [
-    EvmFamilyEcdsaWalletUnlockSubject,
-    ...EvmFamilyEcdsaWalletUnlockSubject[],
-  ];
-};

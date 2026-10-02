@@ -1,28 +1,16 @@
 import type {
   EcdsaClientVerifyingShareB64u,
-  EcdsaDerivationKeyVersion,
   EcdsaKeyHandle,
   EcdsaRelayerKeyId,
   EcdsaThresholdKeyId,
-  Ed25519ClientVerifyingShareB64u,
-  Ed25519RelayerKeyId,
   SigningSessionSealKeyVersion,
 } from './keyMaterialBrands';
 import {
-  formatEcdsaClientVerifyingShareB64uForWire,
-  formatEcdsaDerivationKeyVersionForWire,
   formatEcdsaKeyHandleForWire,
-  formatEcdsaRelayerKeyIdForWire,
-  formatEcdsaThresholdKeyIdForWire,
-  formatEd25519ClientVerifyingShareB64uForWire,
-  formatEd25519RelayerKeyIdForWire,
   formatSigningSessionSealKeyVersionForWire,
   parseEcdsaClientVerifyingShareB64u,
-  parseEcdsaDerivationKeyVersion,
   parseEcdsaKeyHandle,
   parseEcdsaRelayerKeyId,
-  parseEcdsaThresholdKeyId,
-  parseEd25519RelayerKeyId,
   parseSigningSessionSealKeyVersion,
 } from './keyMaterialBrands';
 import { parseWebAuthnRpId, type WebAuthnRpId } from '@shared/utils/domainIds';
@@ -31,44 +19,29 @@ import {
   type NearEd25519SigningKeyId,
 } from '@shared/utils/registrationIds';
 
-const ecdsa = parseEcdsaDerivationKeyVersion('ecdsa-derivation-material-test-v1');
 const seal = parseSigningSessionSealKeyVersion('signing-session-seal-kek-test-r1');
 const ecdsaVerifier = parseEcdsaClientVerifyingShareB64u('ecdsa-client-verifier');
-const ed25519RelayerKeyId = parseEd25519RelayerKeyId('ed25519-relayer-key-id');
 const ecdsaRelayerKeyId = parseEcdsaRelayerKeyId('ecdsa-relayer-key-id');
-const ecdsaThresholdKeyId = parseEcdsaThresholdKeyId('ecdsa-threshold-key-id');
 const ecdsaKeyHandle = parseEcdsaKeyHandle('ecdsa-key-handle');
 const webAuthnRpIdResult = parseWebAuthnRpId('wallet.example.test');
 if (!webAuthnRpIdResult.ok) throw new Error(webAuthnRpIdResult.error.message);
 const webAuthnRpId = webAuthnRpIdResult.value;
 const nearEd25519SigningKeyId = parseNearEd25519SigningKeyId('ed25519ks_fixture');
 
-function acceptsEcdsa(value: EcdsaDerivationKeyVersion) {
-  return formatEcdsaDerivationKeyVersionForWire(value);
-}
-
 function acceptsSeal(value: SigningSessionSealKeyVersion) {
   return formatSigningSessionSealKeyVersionForWire(value);
 }
 
-function acceptsEd25519Verifier(value: Ed25519ClientVerifyingShareB64u) {
-  return formatEd25519ClientVerifyingShareB64uForWire(value);
-}
-
 function acceptsEcdsaVerifier(value: EcdsaClientVerifyingShareB64u) {
-  return formatEcdsaClientVerifyingShareB64uForWire(value);
-}
-
-function acceptsEd25519RelayerKeyId(value: Ed25519RelayerKeyId) {
-  return formatEd25519RelayerKeyIdForWire(value);
+  return value;
 }
 
 function acceptsEcdsaRelayerKeyId(value: EcdsaRelayerKeyId) {
-  return formatEcdsaRelayerKeyIdForWire(value);
+  return value;
 }
 
 function acceptsEcdsaThresholdKeyId(value: EcdsaThresholdKeyId) {
-  return formatEcdsaThresholdKeyIdForWire(value);
+  return value;
 }
 
 function acceptsEcdsaKeyHandle(value: EcdsaKeyHandle) {
@@ -83,24 +56,15 @@ function acceptsNearEd25519SigningKeyId(value: NearEd25519SigningKeyId) {
   return value;
 }
 
-acceptsEcdsa(ecdsa);
 acceptsSeal(seal);
 acceptsEcdsaVerifier(ecdsaVerifier);
-acceptsEd25519RelayerKeyId(ed25519RelayerKeyId);
 acceptsEcdsaRelayerKeyId(ecdsaRelayerKeyId);
-acceptsEcdsaThresholdKeyId(ecdsaThresholdKeyId);
 acceptsEcdsaKeyHandle(ecdsaKeyHandle);
 acceptsWebAuthnRpId(webAuthnRpId);
 acceptsNearEd25519SigningKeyId(nearEd25519SigningKeyId);
 
 // @ts-expect-error raw strings must be parsed at a boundary before core use.
 acceptsSeal('signing-session-seal-kek-test-r1');
-
-// @ts-expect-error ECDSA verifying shares are not Ed25519 verifying shares.
-acceptsEd25519Verifier(ecdsaVerifier);
-
-// @ts-expect-error ECDSA relayer keys are not Ed25519 relayer keys.
-acceptsEd25519RelayerKeyId(ecdsaRelayerKeyId);
 
 // @ts-expect-error ECDSA key handles are not threshold key ids.
 acceptsEcdsaThresholdKeyId(ecdsaKeyHandle);

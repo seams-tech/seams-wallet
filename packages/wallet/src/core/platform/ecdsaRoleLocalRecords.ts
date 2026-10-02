@@ -36,7 +36,6 @@ export type EmailOtpAuthSubjectId = string & {
 export type EcdsaGroupPublicKey33B64u = string & {
   readonly __brand: 'EcdsaGroupPublicKey33B64u';
 };
-export type RelayerKeyId = string & { readonly __brand: 'RelayerKeyId' };
 
 export type EcdsaRoleLocalPublicFacts = {
   walletId: WalletId;
@@ -101,20 +100,6 @@ export type EcdsaRoleLocalMaterialState =
       record?: never;
       reauth?: never;
     };
-
-export type EcdsaRoleLocalRecordParseResult = ExclusiveUnion<
-  | {
-      ok: true;
-      source: 'ready_record';
-      state: Extract<EcdsaRoleLocalMaterialState, { kind: 'ready' | 'reauth_required' }>;
-    }
-  | {
-      ok: false;
-      code: 'malformed_record';
-      message: string;
-      cleanup: CleanupMalformedEcdsaRoleLocalRecordInput;
-    }
->;
 
 export type LoadEcdsaRoleLocalReadyRecordInput = {
   walletId: WalletId;

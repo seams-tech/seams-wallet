@@ -1,5 +1,4 @@
 import {
-  AUTH_FACTOR_KINDS,
   CAPABILITY_KINDS,
   EVM_ECDSA_MPC_OPERATION_KINDS,
   AUTHORIZATION_EVIDENCE_KINDS,
@@ -45,9 +44,6 @@ const canonicalRequirement: AuthorizationEvidenceRequirement = {
   evidenceKinds: [AUTHORIZATION_EVIDENCE_KINDS.seamsSession],
 };
 void canonicalRequirement;
-
-const authFactorKinds = [AUTH_FACTOR_KINDS.passkey, AUTH_FACTOR_KINDS.emailOtp] as const;
-void authFactorKinds;
 
 // @ts-expect-error A vault capability cannot carry a NEAR operation.
 const invalidVaultOperation: CapabilityOperationRef = {

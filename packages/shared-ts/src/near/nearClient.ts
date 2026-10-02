@@ -53,10 +53,8 @@ type FunctionCallAccessKey = Omit<AccessKeyInfoView, 'access_key'> & {
 
 enum RpcCallType {
   Query = 'query',
-  View = 'view',
   Send = 'send_tx',
   Block = 'block',
-  Call = 'call_function',
 }
 
 const DEFAULT_SEND_WAIT_UNTIL: TxExecutionStatus = 'EXECUTED_OPTIMISTIC';

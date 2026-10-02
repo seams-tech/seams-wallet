@@ -169,17 +169,6 @@ export class CloudflareD1RegistrationCeremonyIntentStore {
     });
   }
 
-  async takeCeremony(
-    registrationCeremonyId: string,
-  ): Promise<StoredWalletRegistrationCeremony | null> {
-    const id = toOptionalTrimmedString(registrationCeremonyId);
-    if (!id) return null;
-    const value = await this.getDel('ceremony', id);
-    const ceremony = parseD1StoredWalletRegistrationCeremony(value);
-    if (!ceremony || ceremony.expiresAtMs <= Date.now()) return null;
-    return ceremony;
-  }
-
   async deleteCeremony(registrationCeremonyId: string): Promise<boolean> {
     const id = toOptionalTrimmedString(registrationCeremonyId);
     if (!id) return false;

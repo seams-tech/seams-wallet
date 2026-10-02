@@ -2,12 +2,7 @@ import type {
   WebAuthnAuthenticationCredential,
   WebAuthnRegistrationCredential,
 } from '../types/webauthn';
-import type {
-  ThresholdEcdsaChainTarget,
-  WalletId,
-} from '../signingEngine/interfaces/ecdsaChainTarget';
 import type { RpId } from '../signingEngine/session/identity/evmFamilyEcdsaIdentity';
-import type { EcdsaThresholdKeyId } from '../signingEngine/session/identity/emailOtpEcdsaDerivationIdentity';
 import type {
   DerivationClientSharePublicKey33B64u,
   EcdsaDerivationRelayerPublicKey33B64u,
@@ -20,7 +15,6 @@ import type {
   PrepareEcdsaClientBootstrapErrorCode as GeneratedPrepareEcdsaClientBootstrapErrorCode,
   PrepareEcdsaClientBootstrapOutput as GeneratedPrepareEcdsaClientBootstrapOutput,
 } from './generated/signerCoreCommands';
-import type { ThresholdRuntimePolicyScope } from '../signingEngine/threshold/sessionPolicy';
 import type {
   CloseRouterAbEcdsaRegistrationCeremonyRequestV1,
   CloseRouterAbEcdsaRegistrationCeremonyResultV1,
@@ -37,16 +31,12 @@ import type { PlatformResult } from './http';
 import type {
   CleanupMalformedEcdsaRoleLocalRecordInput,
   CleanupMalformedEcdsaRoleLocalRecordResult,
-  EcdsaGroupPublicKey33B64u,
-  EcdsaRoleLocalAuthMethod,
   EcdsaRoleLocalPendingStateBlob,
-  EcdsaRoleLocalReadyRecord,
   EcdsaRoleLocalReadyStateBlob,
   LoadEcdsaRoleLocalReadyRecordInput,
   LoadEcdsaRoleLocalReadyRecordResult,
   PersistEcdsaRoleLocalReadyRecordInput,
   PersistEcdsaRoleLocalReadyRecordResult,
-  RelayerKeyId,
 } from './ecdsaRoleLocalRecords';
 import type { EcdsaRoleLocalWorkerHandle } from '../signingEngine/session/keyMaterialBrands';
 import type { EcdsaBootstrapSecretSource } from './secretSources';
@@ -229,21 +219,6 @@ export type EcdsaPreparePublicFacts = {
   clientVerifyingShareB64u: GeneratedPrepareEcdsaClientBootstrapOutput['publicFacts']['clientVerifyingShareB64u'];
 };
 
-export type EcdsaRelayerPublicIdentity = {
-  relayerKeyId: RelayerKeyId;
-  relayerPublicKey33B64u: EcdsaDerivationRelayerPublicKey33B64u;
-  groupPublicKey33B64u: EcdsaGroupPublicKey33B64u;
-  ethereumAddress: `0x${string}`;
-};
-
-export type EcdsaProvisioningFailureCode =
-  | 'authenticator_failed'
-  | 'signer_crypto_command_failed'
-  | 'signer_crypto_invocation_failed'
-  | 'relayer_failed'
-  | 'storage_failed'
-  | 'invalid_state';
-
 export type PrepareEcdsaClientBootstrapOutput = {
   pendingStateBlob: EcdsaRoleLocalPendingStateBlob;
   clientBootstrap: EcdsaClientBootstrapFacts;
@@ -289,54 +264,6 @@ export type StoreEcdsaRoleLocalSigningMaterialOutput = {
 };
 
 export type StoreEcdsaRoleLocalSigningMaterialErrorCode = 'invalid_ready_state' | 'crypto_failure';
-
-export type EcdsaProvisioningState =
-  | {
-      kind: 'needs_secret_source';
-      walletId: WalletId;
-      rpId: RpId;
-      chainTarget: ThresholdEcdsaChainTarget;
-      keyHandle: string;
-      ecdsaThresholdKeyId: EcdsaThresholdKeyId;
-      runtimePolicyScope: ThresholdRuntimePolicyScope;
-      authMethod: EcdsaRoleLocalAuthMethod;
-    }
-  | {
-      kind: 'preparing_client_bootstrap';
-      input: PrepareEcdsaClientBootstrapInput;
-      storageKeyFacts: LoadEcdsaRoleLocalReadyRecordInput;
-    }
-  | {
-      kind: 'awaiting_relayer_identity';
-      pendingStateBlob: EcdsaRoleLocalPendingStateBlob;
-      clientBootstrap: EcdsaClientBootstrapFacts;
-      preparePublicFacts: EcdsaPreparePublicFacts;
-      storageKeyFacts: LoadEcdsaRoleLocalReadyRecordInput;
-    }
-  | {
-      kind: 'finalizing_ready_state';
-      pendingStateBlob: EcdsaRoleLocalPendingStateBlob;
-      relayerPublicIdentity: EcdsaRelayerPublicIdentity;
-      storageKeyFacts: LoadEcdsaRoleLocalReadyRecordInput;
-    }
-  | {
-      kind: 'persisting_ready_record';
-      record: EcdsaRoleLocalReadyRecord;
-      storageKeyFacts: LoadEcdsaRoleLocalReadyRecordInput;
-    }
-  | {
-      kind: 'ready';
-      record: EcdsaRoleLocalReadyRecord;
-      storageKeyFacts?: never;
-    }
-  | {
-      kind: 'failed';
-      code: EcdsaProvisioningFailureCode;
-      message: string;
-      retryable: boolean;
-      record?: never;
-      storageKeyFacts?: never;
-    };
 
 export type SignerCryptoPort = {
   kind: 'signer_crypto';

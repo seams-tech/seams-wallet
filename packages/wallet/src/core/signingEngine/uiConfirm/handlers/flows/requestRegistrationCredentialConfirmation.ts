@@ -11,7 +11,7 @@ import {
   parseAndValidateRegistrationCredentialConfirmationPayload,
   type RegistrationCredentialConfirmationPayload,
 } from '@/core/signingEngine/workerManager/validation';
-import type { UiConfirmContext, UiConfirmRequestConfirmationPort } from '../../uiConfirm.types';
+import type { UiConfirmContext } from '../../uiConfirm.types';
 import { determineConfirmationConfig } from '../determineConfirmationConfig';
 import { handleRegistrationFlow } from './registration';
 import { assertNoForbiddenMainThreadSigningSecrets, getIntentDigest } from './adapters/request';
@@ -44,31 +44,6 @@ type RegistrationCredentialDecisionInput = {
   registrationDiagnostics?: unknown;
   error?: string;
 };
-
-export async function requestRegistrationCredentialConfirmation({
-  touchConfirm,
-  walletId,
-  nearAccountId,
-  signerSlot,
-  confirmerText,
-  confirmationConfig,
-  challengeB64u,
-  registrationOptions,
-}: {
-  touchConfirm: Pick<UiConfirmRequestConfirmationPort, 'requestUserConfirmation'>;
-} & RegistrationCredentialConfirmationArgs): Promise<RegistrationCredentialConfirmationPayload> {
-  const request = buildRegistrationCredentialConfirmationRequest({
-    walletId,
-    nearAccountId,
-    signerSlot,
-    confirmerText,
-    confirmationConfig,
-    challengeB64u,
-    registrationOptions,
-  });
-  const decision = await touchConfirm.requestUserConfirmation(request);
-  return parseRegistrationCredentialDecision({ requestId: request.requestId, decision });
-}
 
 export async function requestRegistrationCredentialConfirmationOnMainThread({
   ctx,

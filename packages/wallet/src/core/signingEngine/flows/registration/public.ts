@@ -6,10 +6,7 @@ import type {
 import type { NearProvisioningState, NearProvisioningWriteV1 } from '@/core/types/seams';
 import type { AccountId } from '@/core/types/accountIds';
 import type { WalletId } from '@shared/utils/registrationIntent';
-import type {
-  WebAuthnAuthenticationCredential,
-  WebAuthnRegistrationCredential,
-} from '@/core/types';
+import type { WebAuthnAuthenticationCredential } from '@/core/types';
 import type { ConfirmationConfig } from '@/core/types/signer-worker';
 import type { WalletAddAuthMethodRegistrationOptions } from '@/core/rpcClients/relayer/walletRegistration';
 import type { RegistrationCredentialConfirmationPayload } from '../../workerManager/validation';
@@ -20,7 +17,6 @@ import type {
   RegistrationSessionDeps,
 } from '../../interfaces/operationDeps';
 import {
-  atomicStoreRegistrationData as atomicStoreRegistrationDataValue,
   getAllUsers as getAllUsersValue,
   getLastUser as getLastUserValue,
   getUserBySignerSlot as getUserBySignerSlotValue,
@@ -170,20 +166,6 @@ export function hasPasskeyCredential(
   nearAccountId: AccountId,
 ): Promise<boolean> {
   return hasPasskeyCredentialValue(deps.accountLifecycle, nearAccountId);
-}
-
-export function atomicStoreRegistrationData(
-  deps: RegistrationPublicDeps,
-  args: {
-    walletId: WalletId;
-    nearAccountId: AccountId;
-    credential: WebAuthnRegistrationCredential;
-    credentialPublicKeyB64u: string;
-    operationalPublicKey: string;
-    nearEd25519SigningKeyId: string;
-  },
-): Promise<StoredRegistrationData> {
-  return atomicStoreRegistrationDataValue(deps.accountLifecycle, args);
 }
 
 export function storeWalletEd25519RegistrationData(

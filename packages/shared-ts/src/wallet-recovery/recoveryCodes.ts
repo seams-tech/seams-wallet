@@ -21,9 +21,7 @@ export type {
    *identity* is not: an Email OTP id is bound to an enrollment, which a
    passkey wallet does not have. See `recoveryKeyId.ts`. */
 export {
-  deriveWalletRecoveryKeyId,
   deriveWalletRecoveryKeyIdFromBytes,
-  isDerivedWalletRecoveryKeyId,
   parseDerivedWalletRecoveryKeyId,
   WALLET_RECOVERY_KEY_ID_PREFIX_V1,
 } from './recoveryKeyId';
@@ -35,15 +33,6 @@ export type { DerivedWalletRecoveryKeyId } from './recoveryKeyId';
 export { issueWalletRecoveryCodes, zeroizeIssuedWalletRecoveryCodes } from './recoveryCodeIssuance';
 
 export type { IssuedWalletRecoveryCodes } from './recoveryCodeIssuance';
-
-/* The attempt that binds a code's lifecycle to its activation outcome. */
-export { runWalletRecoveryWithCode } from './recoveryCodeAttempt';
-
-/* All-or-nothing promotion across the wallet's key sets. */
-export type {
-  WalletRecoveryActivationResult,
-  WalletRecoveryAttemptOutcome,
-} from './recoveryCodeAttempt';
 
 export {
   buildWalletRecoveryBackupAcknowledgementV1,

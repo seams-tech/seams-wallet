@@ -16,7 +16,6 @@ import {
 import type { WorkerOperationContext } from '../../workerManager/executeWorkerOperation';
 import { routerAbEcdsaDerivationActiveStateId } from '@shared/utils/routerAbEcdsaDerivation';
 import { buildRouterAbEcdsaDerivationSigningMaterialRef } from '../../routerAb/ecdsaDerivation/signingMaterialRef';
-import { laneCandidateStateFromRuntimePolicy } from '../../session/identity/laneIdentity';
 import {
   thresholdEcdsaChainTargetsEqual,
   toWalletId,
@@ -26,14 +25,12 @@ import { projectEcdsaRoleLocalPublicFactsToChainTarget } from '../../session/per
 import type {
   ExactEcdsaCapabilityRuntime,
   ExactEcdsaMaterialRuntime,
-  ExactEcdsaSealedRuntime,
 } from '../../session/material/ecdsaSealedRuntime';
 import {
   buildReadySecp256k1SigningMaterial,
   type ReadySecp256k1SigningMaterial,
 } from './signers/secp256k1';
 import type {
-  AuthorizedEvmFamilyEcdsaSigningCapability,
   CanonicalEvmFamilyEcdsaSigningCapability,
   ExactEvmFamilyWalletSessionAuthorization,
 } from '../../session/material/ecdsaSigningCapability';
@@ -206,44 +203,6 @@ export async function resolveHydratedSecp256k1SigningMaterial(args: {
   return {
     kind: 'ready',
     material: signerSession,
-  };
-}
-
-export async function resolveReadySecp256k1SigningMaterial(args: {
-  authorized: AuthorizedEvmFamilyEcdsaSigningCapability;
-  runtime: ExactEcdsaSealedRuntime;
-  chainTarget: ThresholdEcdsaChainTarget;
-  materialActivation: MpcMaterialActivationRef;
-  nowMs: number;
-  workerCtx: WorkerOperationContext;
-}): Promise<ReadySecp256k1SigningMaterialResolution> {
-  const runtimeState = laneCandidateStateFromRuntimePolicy({
-    remainingUses: args.runtime.remainingUses,
-    expiresAtMs: args.runtime.expiresAtMs,
-    nowMs: args.nowMs,
-  });
-  if (runtimeState === 'expired') {
-    return { kind: 'unavailable', reason: 'authorization_expired' };
-  }
-  if (runtimeState === 'exhausted') {
-    return { kind: 'unavailable', reason: 'authorization_exhausted' };
-  }
-  const hydrated = await resolveHydratedSecp256k1SigningMaterial({
-    capability: args.authorized.capability,
-    runtime: args.runtime,
-    chainTarget: args.chainTarget,
-    materialActivation: args.materialActivation,
-    workerCtx: args.workerCtx,
-  });
-  if (hydrated.kind === 'unavailable') return hydrated;
-  return {
-    kind: 'ready',
-    material: attachExactEcdsaWalletSessionAuthorization({
-      material: hydrated.material,
-      capability: args.authorized.capability,
-      authorization: args.authorized.authorization,
-      nowMs: args.nowMs,
-    }),
   };
 }
 

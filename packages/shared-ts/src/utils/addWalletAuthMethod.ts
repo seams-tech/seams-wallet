@@ -11,30 +11,11 @@
  * an attempt to add a family the authority already has is resolved as
  * `already_configured` at admission — before any target verification or local
  * write — rather than travelling through the operation as a rejected case.
- *
- * Every identity a branch depends on is required and branded. The raw wire and
- * storage values are parsed once by {@link parseAddWalletAuthMethodSourceV1}
- * and {@link parseAddWalletAuthMethodIntentIdentityV1} at their boundary; core
- * code below them receives branded identities and one verified branch, and
- * never compares raw identity strings.
  */
 
-import { parseDeviceId, parseWalletSessionId } from '../authorization/capabilityKinds';
-import type { DeviceId, WalletSessionId } from '../authorization/capabilityKinds';
-import { parseDigestB64u } from './canonicalPrimitives';
-import type { DigestB64u } from './canonicalPrimitives';
-import {
-  parseWalletAuthMethodId,
-  parseWalletAuthorityId,
-  parseWalletId,
-  type WalletAuthMethodId,
-  type WalletAuthorityId,
-  type WalletId,
-} from './domainIds';
+import { type WalletAuthMethodId } from './domainIds';
 import type {
   ActiveWalletAuthMethodRecordV2,
-  EmailOtpWalletAuthMethodDraftV1,
-  PasskeyWalletAuthMethodDraftV1,
   WalletAuthMethodRecordV2,
 } from './walletAuthMethodRecord';
 import type { WalletAuthMethod } from './signerDomain';
@@ -67,139 +48,6 @@ void familyMatchesRecordKind;
 export type AddWalletAuthMethodBranchV1 = 'passkey_to_email_otp' | 'email_otp_to_passkey';
 
 /**
- * A validated authority generation. Branding it stops a revocation epoch from
- * being read as any other integer on the authority — a signer slot, a counter,
- * a timestamp — at the boundaries where all of them arrive as bare numbers.
- */
-type WalletAuthorityRevocationEpochV1 = number & {
-  readonly __walletAuthorityRevocationEpochBrand: 'WalletAuthorityRevocationEpochV1';
-};
-
-/**
- * One server-allocated addition ceremony. The server mints it, binds the
- * target method ID to it, and a client request can neither nominate nor
- * substitute one.
- */
-type AddWalletAuthMethodCeremonyIdV1 = string & {
-  readonly __addWalletAuthMethodCeremonyIdBrand: 'AddWalletAuthMethodCeremonyIdV1';
-};
-
-/**
- * Everything the active Wallet Session names about the source.
- *
- * The caller supplies none of it: the selected session names the exact source
- * method, and the server resolves the wallet, authority, device, digest, and
- * epoch from that method. Each field is required, so a branch cannot be built
- * from a partially resolved session.
- */
-export type AddWalletAuthMethodSourceV1 = {
-  readonly walletId: WalletId;
-  readonly walletAuthorityId: WalletAuthorityId;
-  readonly sourceWalletAuthMethodId: WalletAuthMethodId;
-  readonly sourceWalletSessionId: WalletSessionId;
-  readonly deviceId: DeviceId;
-  readonly authorityDigestB64u: DigestB64u;
-  readonly revocationEpoch: WalletAuthorityRevocationEpochV1;
-};
-
-/**
- * The intent identity every stage revalidates against.
- *
- * `targetWalletAuthMethodId` is allocated by the server during preparation and
- * bound into the Passkey creation options or the Email OTP grant, so a retry
- * that reuses this intent converges on the same target method instead of
- * creating a second one.
- */
-export type AddWalletAuthMethodIntentIdentityV1 = {
-  readonly addAuthMethodCeremonyId: AddWalletAuthMethodCeremonyIdV1;
-  readonly intentDigestB64u: DigestB64u;
-  readonly targetWalletAuthMethodId: WalletAuthMethodId;
-  readonly expiresAtMs: number;
-};
-
-/**
- * Fresh source authorization for this exact intent.
- *
- * Both variants carry the digest they were collected against, which is what
- * binds the proof to one wallet, authority, source method, source session,
- * target method ID, and authority state rather than to the operation kind.
- */
-export type VerifiedAddWalletAuthMethodSourceProofV1 =
-  | {
-      readonly kind: 'verified_passkey_source_proof_v1';
-      readonly walletAuthMethodId: WalletAuthMethodId;
-      readonly boundIntentDigestB64u: DigestB64u;
-      readonly verifiedAtMs: number;
-    }
-  | {
-      readonly kind: 'verified_email_otp_source_proof_v1';
-      readonly walletAuthMethodId: WalletAuthMethodId;
-      readonly boundIntentDigestB64u: DigestB64u;
-      readonly verifiedAtMs: number;
-    };
-
-/**
- * The independently verified target factor plus its exact draft.
- *
- * A source proof can never appear here: the target is verified on its own
- * evidence — a created credential, or a consumed one-use Email OTP grant — and
- * the two are separate fields on the branch so neither can stand in for the
- * other.
- */
-export type VerifiedAddWalletAuthMethodTargetV1 =
-  | {
-      readonly kind: 'verified_passkey_target_v1';
-      readonly authMethod: PasskeyWalletAuthMethodDraftV1;
-      readonly verificationDigestB64u: DigestB64u;
-      readonly verifiedAtMs: number;
-    }
-  | {
-      readonly kind: 'verified_email_otp_target_v1';
-      readonly authMethod: EmailOtpWalletAuthMethodDraftV1;
-      readonly verificationDigestB64u: DigestB64u;
-      readonly verifiedAtMs: number;
-    };
-
-type VerifiedPasskeySourceProofV1 = Extract<
-  VerifiedAddWalletAuthMethodSourceProofV1,
-  { readonly kind: 'verified_passkey_source_proof_v1' }
->;
-type VerifiedEmailOtpSourceProofV1 = Extract<
-  VerifiedAddWalletAuthMethodSourceProofV1,
-  { readonly kind: 'verified_email_otp_source_proof_v1' }
->;
-type VerifiedPasskeyTargetV1 = Extract<
-  VerifiedAddWalletAuthMethodTargetV1,
-  { readonly kind: 'verified_passkey_target_v1' }
->;
-type VerifiedEmailOtpTargetV1 = Extract<
-  VerifiedAddWalletAuthMethodTargetV1,
-  { readonly kind: 'verified_email_otp_target_v1' }
->;
-
-type AddWalletAuthMethodInputCommonV1 = {
-  readonly source: AddWalletAuthMethodSourceV1;
-  readonly intent: AddWalletAuthMethodIntentIdentityV1;
-};
-
-/**
- * What core code accepts after verification, and the only shape the activation
- * stage reads. The proof/target pairing is fixed per branch, so a verified
- * Passkey source cannot arrive alongside a verified Passkey target.
- */
-export type VerifiedAddWalletAuthMethodInputV1 =
-  | (AddWalletAuthMethodInputCommonV1 & {
-      readonly branch: 'passkey_to_email_otp';
-      readonly sourceProof: VerifiedPasskeySourceProofV1;
-      readonly target: VerifiedEmailOtpTargetV1;
-    })
-  | (AddWalletAuthMethodInputCommonV1 & {
-      readonly branch: 'email_otp_to_passkey';
-      readonly sourceProof: VerifiedEmailOtpSourceProofV1;
-      readonly target: VerifiedPasskeyTargetV1;
-    });
-
-/**
  * Admission: what the operation does before it verifies anything.
  *
  * `already_configured` is a first-class outcome rather than a failure, because
@@ -215,40 +63,8 @@ type AddWalletAuthMethodAdmissionV1 =
       readonly existingWalletAuthMethodId: WalletAuthMethodId;
     };
 
-export function unreachableAddWalletAuthMethodBranch(value: never): never {
-  throw new Error(`Unhandled add-auth-method branch: ${String(value)}`);
-}
-
 function unreachableAuthMethodFamily(value: never): never {
   throw new Error(`Unhandled wallet auth-method family: ${String(value)}`);
-}
-
-/** The family a branch fills in. */
-export function addWalletAuthMethodTargetFamily(
-  branch: AddWalletAuthMethodBranchV1,
-): WalletAuthMethodFamilyV1 {
-  switch (branch) {
-    case 'passkey_to_email_otp':
-      return 'email_otp';
-    case 'email_otp_to_passkey':
-      return 'passkey';
-    default:
-      return unreachableAddWalletAuthMethodBranch(branch);
-  }
-}
-
-/** The family the branch authorizes from. */
-export function addWalletAuthMethodSourceFamily(
-  branch: AddWalletAuthMethodBranchV1,
-): WalletAuthMethodFamilyV1 {
-  switch (branch) {
-    case 'passkey_to_email_otp':
-      return 'passkey';
-    case 'email_otp_to_passkey':
-      return 'email_otp';
-    default:
-      return unreachableAddWalletAuthMethodBranch(branch);
-  }
 }
 
 /**
@@ -282,90 +98,4 @@ export function admitAddWalletAuthMethod(input: {
     default:
       return unreachableAuthMethodFamily(input.sourceMethod);
   }
-}
-
-function requireSafeNonNegativeInteger(value: unknown, label: string): number {
-  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) {
-    throw new Error(`${label} must be a non-negative safe integer`);
-  }
-  return value;
-}
-
-export function parseWalletAuthorityRevocationEpochV1(
-  value: unknown,
-): WalletAuthorityRevocationEpochV1 {
-  return requireSafeNonNegativeInteger(
-    value,
-    'revocationEpoch',
-  ) as WalletAuthorityRevocationEpochV1;
-}
-
-export function parseAddWalletAuthMethodCeremonyIdV1(
-  value: unknown,
-): AddWalletAuthMethodCeremonyIdV1 {
-  if (typeof value !== 'string' || value.trim() !== value || value.length === 0) {
-    throw new Error('addAuthMethodCeremonyId must be a non-empty canonical string');
-  }
-  return value as AddWalletAuthMethodCeremonyIdV1;
-}
-
-function requireBrandedId<T>(
-  parsed: { ok: true; value: T } | { ok: false; error: { message: string } },
-  label: string,
-): T {
-  if (!parsed.ok) throw new Error(`${label} is invalid: ${parsed.error.message}`);
-  return parsed.value;
-}
-
-/**
- * The one place raw source identity becomes branded. Every field is read from
- * the resolved session and authority, so a caller cannot widen the source by
- * supplying an extra one.
- */
-function parseAddWalletAuthMethodSourceV1(raw: {
-  readonly walletId: unknown;
-  readonly walletAuthorityId: unknown;
-  readonly sourceWalletAuthMethodId: unknown;
-  readonly sourceWalletSessionId: unknown;
-  readonly deviceId: unknown;
-  readonly authorityDigestB64u: unknown;
-  readonly revocationEpoch: unknown;
-}): AddWalletAuthMethodSourceV1 {
-  return {
-    walletId: requireBrandedId(parseWalletId(raw.walletId), 'walletId'),
-    walletAuthorityId: requireBrandedId(
-      parseWalletAuthorityId(raw.walletAuthorityId),
-      'walletAuthorityId',
-    ),
-    sourceWalletAuthMethodId: requireBrandedId(
-      parseWalletAuthMethodId(raw.sourceWalletAuthMethodId),
-      'sourceWalletAuthMethodId',
-    ),
-    sourceWalletSessionId: requireBrandedId(
-      parseWalletSessionId(raw.sourceWalletSessionId),
-      'sourceWalletSessionId',
-    ),
-    deviceId: requireBrandedId(parseDeviceId(raw.deviceId), 'deviceId'),
-    authorityDigestB64u: parseDigestB64u(raw.authorityDigestB64u),
-    revocationEpoch: parseWalletAuthorityRevocationEpochV1(raw.revocationEpoch),
-  };
-}
-
-function parseAddWalletAuthMethodIntentIdentityV1(raw: {
-  readonly addAuthMethodCeremonyId: unknown;
-  readonly intentDigestB64u: unknown;
-  readonly targetWalletAuthMethodId: unknown;
-  readonly expiresAtMs: unknown;
-}): AddWalletAuthMethodIntentIdentityV1 {
-  const expiresAtMs = requireSafeNonNegativeInteger(raw.expiresAtMs, 'expiresAtMs');
-  if (expiresAtMs === 0) throw new Error('expiresAtMs must be a positive safe integer');
-  return {
-    addAuthMethodCeremonyId: parseAddWalletAuthMethodCeremonyIdV1(raw.addAuthMethodCeremonyId),
-    intentDigestB64u: parseDigestB64u(raw.intentDigestB64u),
-    targetWalletAuthMethodId: requireBrandedId(
-      parseWalletAuthMethodId(raw.targetWalletAuthMethodId),
-      'targetWalletAuthMethodId',
-    ),
-    expiresAtMs,
-  };
 }

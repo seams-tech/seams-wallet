@@ -180,7 +180,7 @@ type HandshakeOptions = {
   walletServiceUrl: URL;
   expectedProtocolVersion: WalletProtocolVersion;
   getTargetOrigin: (attempt: number) => string;
-  onAttempt?: (attempt: number, elapsedMs: number) => void;
+  onAttempt?: (attempt: number) => void;
   scheduler?: HandshakeScheduler;
   signal?: AbortSignal;
 };
@@ -228,7 +228,7 @@ export async function performHandshake(opts: HandshakeOptions): Promise<MessageP
     }
 
     attempt += 1;
-    opts.onAttempt?.(attempt, elapsed);
+    opts.onAttempt?.(attempt);
     const channel = new MessageChannel();
     const port1 = channel.port1;
     const port2 = channel.port2;

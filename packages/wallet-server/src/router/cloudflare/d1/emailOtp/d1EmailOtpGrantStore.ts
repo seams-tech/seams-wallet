@@ -19,15 +19,4 @@ export class CloudflareD1EmailOtpGrantStore {
       .first<D1EmailOtpGrantRow>();
     return parseEmailOtpGrantRow(row);
   }
-
-  async read(grantToken: string): Promise<EmailOtpGrantRecord | null> {
-    const row = await emailOtpGrantRows
-      .select(this.prepare, grantToken)
-      .first<D1EmailOtpGrantRow>();
-    return parseEmailOtpGrantRow(row);
-  }
-
-  async delete(grantToken: string): Promise<void> {
-    await emailOtpGrantRows.delete(this.prepare, grantToken).run();
-  }
 }

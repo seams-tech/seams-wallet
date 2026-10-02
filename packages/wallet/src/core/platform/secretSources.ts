@@ -9,8 +9,6 @@ import {
   toEmailOtpAuthSubjectId,
   type EmailOtpAuthSubjectId,
 } from '../signingEngine/session/identity/emailOtpEcdsaDerivationIdentity';
-import type { RelayerKeyId } from './ecdsaRoleLocalRecords';
-import { base64UrlDecode } from '@shared/utils/base64';
 
 const clientSecretSourceBrand: unique symbol = Symbol('ClientSecretSource');
 const emailOtpWorkerSessionHandleBrand: unique symbol = Symbol('EmailOtpWorkerSessionHandle');
@@ -32,19 +30,6 @@ export type ThresholdPrfXClientBaseSecretSource =
     kind: 'threshold_prf_x_client_base';
     xClientBaseB64u: string;
   };
-
-export type SecureEnclaveWrappedSecretSource =
-  ClientSecretSourceBrand<'secure_enclave_wrapped_secret'> & {
-    kind: 'secure_enclave_wrapped_secret';
-    keyId: string;
-    accessGroup: string;
-  };
-
-export type Fido2HmacSecretSource = ClientSecretSourceBrand<'fido2_hmac_secret'> & {
-  kind: 'fido2_hmac_secret';
-  credentialIdB64u: string;
-  rpId: RpId;
-};
 
 type EmailOtpWorkerIssuedSessionHandleBrand = {
   readonly [emailOtpWorkerSessionHandleBrand]: 'email_otp_worker_session_handle';
@@ -95,12 +80,6 @@ export type EmailOtpEcdsaExportWorkerIssuedSessionHandle = Extract<
   { action: 'threshold_ecdsa_bootstrap' }
 > & { operation: 'export' };
 
-export type EmailOtpWorkerSessionSecretSource =
-  ClientSecretSourceBrand<'email_otp_worker_session'> & {
-    kind: 'email_otp_worker_session';
-    handle: EmailOtpWorkerIssuedSessionHandle;
-  };
-
 type EmailOtpEcdsaWorkerIssuedSessionHandleInputBase = {
   sessionId: string;
   walletId: WalletId;
@@ -132,32 +111,12 @@ export type EmailOtpWorkerIssuedSessionHandleInput =
       chainTarget?: never;
     };
 
-export type ClientSecretSource =
-  | WebAuthnPrfFirstSecretSource
-  | SecureEnclaveWrappedSecretSource
-  | Fido2HmacSecretSource
-  | EmailOtpWorkerSessionSecretSource;
-
 export type EcdsaBootstrapSecretSource = ThresholdPrfXClientBaseSecretSource;
 
 function requirePlatformString(value: string, field: string): string {
   const normalized = String(value || '').trim();
   if (!normalized) {
     throw new Error(`[platform] ${field} is required`);
-  }
-  return normalized;
-}
-
-function requirePlatformBase64UrlFixed(value: string, field: string, byteLength: number): string {
-  const normalized = requirePlatformString(value, field);
-  let decoded: Uint8Array;
-  try {
-    decoded = base64UrlDecode(normalized);
-  } catch {
-    throw new Error(`[platform] ${field} must be unpadded base64url`);
-  }
-  if (decoded.length !== byteLength) {
-    throw new Error(`[platform] ${field} must decode to ${byteLength} bytes`);
   }
   return normalized;
 }
@@ -196,16 +155,6 @@ export function buildWebAuthnPrfFirstSecretSourceFromParts(input: {
     rpId: input.rpId,
     credentialIdB64u: requirePlatformString(input.credentialIdB64u, 'credentialIdB64u'),
     [clientSecretSourceBrand]: 'webauthn_prf_first',
-  };
-}
-
-export function buildThresholdPrfXClientBaseSecretSource(input: {
-  xClientBaseB64u: string;
-}): ThresholdPrfXClientBaseSecretSource {
-  return {
-    kind: 'threshold_prf_x_client_base',
-    xClientBaseB64u: requirePlatformBase64UrlFixed(input.xClientBaseB64u, 'xClientBaseB64u', 32),
-    [clientSecretSourceBrand]: 'threshold_prf_x_client_base',
   };
 }
 
@@ -345,42 +294,4 @@ export function parseEmailOtpEcdsaExportWorkerIssuedSessionHandle(
     throw new Error('[platform] Email OTP ECDSA export requires an export worker handle');
   }
   return handle;
-}
-
-export function buildEmailOtpWorkerSessionSecretSource(
-  handle: EmailOtpWorkerIssuedSessionHandle,
-): EmailOtpWorkerSessionSecretSource {
-  return {
-    kind: 'email_otp_worker_session',
-    handle,
-    [clientSecretSourceBrand]: 'email_otp_worker_session',
-  };
-}
-
-export function buildRelayerKeyId(input: unknown): RelayerKeyId {
-  return requirePlatformString(String(input || ''), 'relayerKeyId') as RelayerKeyId;
-}
-
-export function buildSecureEnclaveWrappedSecretSource(input: {
-  keyId: string;
-  accessGroup: string;
-}): SecureEnclaveWrappedSecretSource {
-  return {
-    kind: 'secure_enclave_wrapped_secret',
-    keyId: requirePlatformString(input.keyId, 'keyId'),
-    accessGroup: requirePlatformString(input.accessGroup, 'accessGroup'),
-    [clientSecretSourceBrand]: 'secure_enclave_wrapped_secret',
-  };
-}
-
-export function buildFido2HmacSecretSource(input: {
-  credentialIdB64u: string;
-  rpId: RpId;
-}): Fido2HmacSecretSource {
-  return {
-    kind: 'fido2_hmac_secret',
-    credentialIdB64u: requirePlatformString(input.credentialIdB64u, 'credentialIdB64u'),
-    rpId: input.rpId,
-    [clientSecretSourceBrand]: 'fido2_hmac_secret',
-  };
 }

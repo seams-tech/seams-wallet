@@ -29,15 +29,3 @@ export type RuntimePorts = {
   clock: ClockPort;
   random: RandomSource;
 };
-
-export function assertNeverRuntimePortsKind(value: never): never {
-  throw new Error(`Unhandled runtime ports branch: ${String(value)}`);
-}
-
-export function runtimePortsKindLabel(kind: RuntimePortsKind): string {
-  switch (kind) {
-    case 'browser':
-      return 'Browser';
-  }
-  return assertNeverRuntimePortsKind(kind);
-}

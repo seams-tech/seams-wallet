@@ -9,11 +9,7 @@ import type {
 
 type PasskeyStepUpRunner<TLane extends { authMethod: string }, TOperation, TAuthorization> = {
   method: 'passkey';
-  prepare(input: {
-    operation: TOperation;
-    selectedLane: TLane;
-    policy: StepUpPolicy;
-  }): Promise<PasskeyPromptPlan>;
+  prepare(): Promise<PasskeyPromptPlan>;
   complete(input: {
     operation: TOperation;
     selectedLane: TLane;

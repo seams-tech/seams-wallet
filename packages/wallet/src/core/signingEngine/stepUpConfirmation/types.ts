@@ -269,20 +269,6 @@ export type EmailOtpStepUpConfirmation = {
   otpCode: string;
 };
 
-export type StepUpAuthorizationResult<TPasskeyAuthorization, TEmailOtpAuthorization> =
-  | {
-      method: 'warm_session';
-      authorization: StepUpWarmSessionAuthorization;
-    }
-  | {
-      method: 'passkey';
-      authorization: TPasskeyAuthorization;
-    }
-  | {
-      method: 'email_otp';
-      authorization: TEmailOtpAuthorization;
-    };
-
 export type WarmSessionStepUpAuthorization<TSigningAuthPlan extends WarmSessionSigningAuthPlan> =
   TSigningAuthPlan extends Ed25519WarmSessionSigningAuthPlan
     ? {

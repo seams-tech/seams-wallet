@@ -6,31 +6,12 @@ import type {
   EmailOtpStepUpConfirmation,
   PasskeyPromptPlan,
   PasskeyStepUpConfirmation,
-  StepUpAuthorizationResult,
   StepUpPolicy,
   StepUpWarmSessionAuthorization,
 } from './types';
 
 type SelectableLane = {
   authMethod: 'passkey' | 'email_otp';
-};
-
-type RequireStepUpAuthRequest<
-  TLane extends SelectableLane,
-  TOperation,
-  TPasskeyAuthorization,
-  TEmailOtpAuthorization,
-> = {
-  operation: TOperation;
-  selectedLane: TLane;
-  policy: StepUpPolicy;
-  confirmation: {
-    confirmPasskey(input: {
-      prompt: { title?: string; body?: string };
-    }): Promise<PasskeyStepUpConfirmation>;
-    confirmEmailOtp(input: { prompt: EmailOtpConfirmPrompt }): Promise<EmailOtpStepUpConfirmation>;
-  };
-  methods: StepUpMethodRunners<TLane, TOperation, TPasskeyAuthorization, TEmailOtpAuthorization>;
 };
 
 type PreparedStepUpAuth<TPasskeyAuthorization, TEmailOtpAuthorization> =
@@ -74,11 +55,7 @@ export async function prepareStepUpAuth<
   }
 
   if (route.method === 'passkey') {
-    const prompt = await route.runner.prepare({
-      operation: args.operation,
-      selectedLane: args.selectedLane,
-      policy: args.policy,
-    });
+    const prompt = await route.runner.prepare();
     return {
       method: 'passkey',
       prompt,
@@ -123,42 +100,5 @@ export async function prepareStepUpAuth<
         prompt,
         confirmation,
       }),
-  };
-}
-
-export async function requireStepUpAuth<
-  TLane extends SelectableLane,
-  TOperation,
-  TPasskeyAuthorization,
-  TEmailOtpAuthorization,
->(
-  args: RequireStepUpAuthRequest<TLane, TOperation, TPasskeyAuthorization, TEmailOtpAuthorization>,
-): Promise<StepUpAuthorizationResult<TPasskeyAuthorization, TEmailOtpAuthorization>> {
-  const prepared = await prepareStepUpAuth({
-    operation: args.operation,
-    selectedLane: args.selectedLane,
-    policy: args.policy,
-    methods: args.methods,
-  });
-
-  if (prepared.method === 'warm_session') {
-    return {
-      method: 'warm_session',
-      authorization: prepared.authorization,
-    };
-  }
-
-  if (prepared.method === 'passkey') {
-    const confirmation = await args.confirmation.confirmPasskey({ prompt: prepared.prompt });
-    return {
-      method: 'passkey',
-      authorization: await prepared.complete(confirmation),
-    };
-  }
-
-  const confirmation = await args.confirmation.confirmEmailOtp({ prompt: prepared.prompt });
-  return {
-    method: 'email_otp',
-    authorization: await prepared.complete(confirmation),
   };
 }

@@ -56,11 +56,6 @@ export type CapabilityOperationRef = {
   };
 }[CapabilityKind];
 
-export const AUTH_FACTOR_KINDS = {
-  passkey: 'passkey',
-  emailOtp: 'email_otp',
-} as const;
-
 export const AUTHORIZATION_EVIDENCE_KINDS = {
   seamsSession: 'seams_session',
   passkeyAssertion: 'passkey_assertion',

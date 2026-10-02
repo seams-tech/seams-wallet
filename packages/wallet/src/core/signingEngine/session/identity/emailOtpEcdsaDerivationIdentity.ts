@@ -21,8 +21,6 @@ export type {
   ThresholdOwnerAddress,
 };
 
-export type WalletSessionUserId = string & { readonly __brand: 'WalletSessionUserId' };
-
 function requiredEmailOtpDerivationString(value: unknown, field: string): string {
   const normalized = String(value ?? '').trim();
   if (!normalized) {

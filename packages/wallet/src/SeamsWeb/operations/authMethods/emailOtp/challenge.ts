@@ -91,56 +91,12 @@ function requireObjectJson(value: unknown, label: string): JsonObject {
   return value as JsonObject;
 }
 
-export function parseEmailOtpEnrollmentResult(value: unknown): EmailOtpEnrollmentResult {
-  const response = requireObjectJson(value, 'Email OTP enrollment result');
-  return {
-    challengeId: readString(response.challengeId, 'challengeId'),
-    otpChannel: EMAIL_OTP_CHANNEL,
-    enrollmentId: readString(response.enrollmentId, 'enrollmentId'),
-    enrollmentSealKeyVersion: readString(
-      response.enrollmentSealKeyVersion,
-      'enrollmentSealKeyVersion',
-    ),
-    serverSealedFactorCiphertextB64u: readString(
-      response.serverSealedFactorCiphertextB64u,
-      'serverSealedFactorCiphertextB64u',
-    ),
-    clientUnlockPublicKeyB64u: readString(
-      response.clientUnlockPublicKeyB64u,
-      'clientUnlockPublicKeyB64u',
-    ),
-    unlockKeyVersion: readString(response.unlockKeyVersion, 'unlockKeyVersion'),
-  };
-}
-
 export function readString(value: unknown, label: string): string {
   return requireTrimmedString(value, label);
 }
 
 export function readOptionalString(value: unknown): string | undefined {
   return toOptionalTrimmedNonEmptyString(value);
-}
-
-export function zeroizeBytes(bytes?: Uint8Array | null): void {
-  if (!(bytes instanceof Uint8Array)) return;
-  bytes.fill(0);
-}
-
-export function requireWorkerCtx(workerCtx?: WorkerOperationContext): WorkerOperationContext {
-  if (!workerCtx || typeof workerCtx.requestWorkerOperation !== 'function') {
-    throw new Error('Email OTP secret-bearing operations require the dedicated emailOtp worker');
-  }
-  return workerCtx;
-}
-
-export function cloneFixed32Bytes(value: Uint8Array, label: string): Uint8Array {
-  if (!(value instanceof Uint8Array)) {
-    throw new Error(`${label} must be a Uint8Array`);
-  }
-  if (value.length !== 32) {
-    throw new Error(`${label} must contain 32 bytes`);
-  }
-  return Uint8Array.from(value);
 }
 
 function buildAuthHeaders(args: { publishableKey?: string }): HeadersInit {

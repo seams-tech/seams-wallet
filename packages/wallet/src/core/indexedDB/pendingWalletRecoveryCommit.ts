@@ -957,9 +957,3 @@ export function pendingWalletRecoveryCommitAppStateRowsMatch(
     samePendingRecoveryCommitRecordV1(actualRecordFields, expectedRecord)
   );
 }
-
-export function pendingWalletRecoveryProjectionExpectation(
-  record: Extract<PendingWalletRecoveryCommitV1, { readonly stage: 'server_promoted' }>,
-): WalletRecoveryCommittedProjectionExpectationV1 {
-  return projectionExpectation(record);
-}

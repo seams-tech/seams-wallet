@@ -1,13 +1,9 @@
 import type { ActiveWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
-import type { CorrelationId } from '@shared/utils/canonicalPrimitives';
-import type { RouterAbEcdsaVerifiedClientActivationFactsV1 } from '@shared/utils/routerAbEcdsaDerivation';
 import type {
   WalletRegistrationEcdsaPreparePayload,
   WalletRegistrationFinalizeSuccess,
   WalletRegistrationStartRequest,
-  WalletRegistrationAuthorityInput,
   WalletRegistrationStartResponse,
-  WalletRegistrationFinalizeRequest,
   WalletRegistrationEcdsaActivationResponse,
   WalletRegistrationEcdsaWalletKey,
   WalletRegistrationEd25519YaoPublicResult,
@@ -78,8 +74,6 @@ type SetupEd25519Work =
   }
     ? T
     : never;
-type ActivateIdempotencyKey = WalletRegistrationFinalizeRequest['idempotencyKey'];
-type FinalizeRequestBase = WalletRegistrationFinalizeRequest;
 type EcdsaFinalizeSuccess = Extract<
   WalletRegistrationFinalizeSuccess,
   { kind: 'evm_family_ecdsa' }
@@ -231,60 +225,6 @@ export type WalletRegistrationSetupResponseV2 =
   | WalletRegistrationRouteErrorV2;
 
 /**
- * Route 2 — authenticated respond.
- *
- * The request discriminates on the signer plan, exhaustively, because an
- * Ed25519-only ceremony has no ECDSA registration to send. A single object
- * type with a required `ecdsa` made that request impossible to construct.
- * The parser validates this discriminant against the plan the signed setup
- * and ceremony actually recorded, so a caller cannot pick an arm the ceremony
- * was not created for.
- */
-type WalletRegistrationRespondRequestBaseV2 = {
-  registrationCeremonyId: string;
-  signedSetup: SignedSetupPayloadB64u;
-};
-
-type WalletRegistrationRespondAuthorityProofV2 =
-  | {
-      webauthn_registration: Extract<
-        WalletRegistrationAuthorityInput,
-        { kind: 'passkey' }
-      >['webauthnRegistration'];
-      emailOtpRegistrationProof?: never;
-    }
-  | {
-      emailOtpRegistrationProof: Extract<
-        WalletRegistrationAuthorityInput,
-        { kind: 'email_otp' }
-      >['emailOtpRegistrationProof'];
-      webauthn_registration?: never;
-    };
-
-export type RespondEcdsaRegistrationWorkV2 = {
-  kind: 'router_ab_ecdsa_registration_v1';
-  strictRegistration: unknown; // RouterAbEcdsaRegistrationRequestV1; bound at the parser
-  /** Canonical Router request digest produced by the client ceremony WASM. */
-  requestDigestB64u: string;
-};
-
-export type WalletRegistrationRespondRequestV2 = WalletRegistrationRespondAuthorityProofV2 &
-  (
-    | (WalletRegistrationRespondRequestBaseV2 & {
-        kind: 'evm_family_ecdsa';
-        ecdsa: RespondEcdsaRegistrationWorkV2;
-      })
-    | (WalletRegistrationRespondRequestBaseV2 & {
-        kind: 'near_ed25519_and_evm_family_ecdsa';
-        ecdsa: RespondEcdsaRegistrationWorkV2;
-      })
-    | (WalletRegistrationRespondRequestBaseV2 & {
-        kind: 'near_ed25519';
-        ecdsa?: never;
-      })
-  );
-
-/**
  * What respond returns for the ceremony's signer plan.
  *
  * Respond verifies the authority first, then derives the authority-bound Yao
@@ -347,58 +287,6 @@ export type WalletRegistrationNearAdmissionResponseV2 =
       readonly ed25519: RespondEd25519DeferredWorkV2;
     }
   | WalletRegistrationRouteErrorV2;
-
-/**
- * Route 3 — activate-and-finalize; the operation row is the replay record.
- *
- * Two independent discriminants, because they vary independently: the signer
- * plan decides whether there is ECDSA activation to send, and the auth method
- * decides whether Email OTP enrollment is required. Enrollment is *not* an
- * ECDSA concern — an Ed25519-only wallet registered with Email OTP still
- * enrolls — so deriving those fields from the ECDSA work, as this type
- * previously did, mismodelled them.
- *
- * Passkey activation carrying enrollment fields fails to compile, and Email
- * OTP activation missing them fails to compile. Neither is optional, because
- * neither is genuinely optional at runtime.
- */
-type WalletRegistrationActivateAuthWorkV2 =
-  | {
-      authMethod: 'passkey';
-      emailOtpEnrollment?: never;
-    }
-  | {
-      authMethod: 'email_otp';
-      emailOtpEnrollment: NonNullable<FinalizeRequestBase['emailOtpEnrollment']>;
-    };
-
-type WalletRegistrationActivateRequestBaseV2 = {
-  registrationCeremonyId: string;
-  signedSetup: SignedSetupPayloadB64u;
-  idempotencyKey: ActivateIdempotencyKey;
-};
-
-export type ActivateEcdsaWorkV2 = {
-  activationCorrelationId: CorrelationId;
-  clientActivation: RouterAbEcdsaVerifiedClientActivationFactsV1;
-};
-
-export type WalletRegistrationActivateRequestV2 = WalletRegistrationActivateRequestBaseV2 &
-  WalletRegistrationActivateAuthWorkV2 &
-  (
-    | { kind: 'evm_family_ecdsa'; ecdsa: ActivateEcdsaWorkV2 }
-    | { kind: 'near_ed25519_and_evm_family_ecdsa'; ecdsa: ActivateEcdsaWorkV2 }
-    | {
-        /**
-         * Ed25519-only activate persists the pending wallet and nothing else.
-         * It sends no ECDSA activation and — deliberately — no Ed25519
-         * activation reference either: Yao has not resolved yet, and its
-         * result arrives later at `/wallets/register/near-provisioning`.
-         */
-        kind: 'near_ed25519';
-        ecdsa?: never;
-      }
-  );
 
 /**
  * Activate's terminal response is both legs merged.

@@ -43,10 +43,3 @@ export function thresholdEcdsaChainTargetFromValue(
   }
   return null;
 }
-
-export function thresholdEcdsaChainTargetsEqual(
-  left: ThresholdEcdsaChainTarget,
-  right: ThresholdEcdsaChainTarget,
-): boolean {
-  return thresholdEcdsaChainTargetKey(left) === thresholdEcdsaChainTargetKey(right);
-}

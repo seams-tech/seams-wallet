@@ -1,9 +1,5 @@
 import { encodeSigningSessionHkdfTuple } from '../utils/signingSessionSeal';
 import { base64UrlEncode } from '../utils/encoders';
-import {
-  decodeEmailOtpRecoveryKey as decodeWalletRecoveryCode,
-  normalizeEmailOtpRecoveryKey as normalizeWalletRecoveryCode,
-} from '../utils/emailOtpRecoveryKey';
 
 /**
  * The identity of one recovery code inside a wallet's custody set.
@@ -51,44 +47,13 @@ export function parseDerivedWalletRecoveryKeyId(
   return value as DerivedWalletRecoveryKeyId;
 }
 
-export function isDerivedWalletRecoveryKeyId(value: unknown): value is DerivedWalletRecoveryKeyId {
-  return typeof value === 'string' && DERIVED_WALLET_RECOVERY_KEY_ID_PATTERN.test(value);
-}
-
 /**
- * Derives one code's id within a wallet's recovery set.
+ * Derives one code's id within a wallet's recovery set, from the decoded code
+ * bytes the ceremony already holds.
  *
  * Bound to the wallet and the set version, so the same code typed against a
  * different wallet produces a different id and finds no wrap. Length-delimited
  * fields under a fixed context, so no two inputs encode alike.
- *
- * The decoded code bytes are zeroized before returning, including on failure —
- * the code is the factor that opens the seed, and it must not outlive this
- * call in a buffer the caller cannot see.
- */
-export async function deriveWalletRecoveryKeyId(args: {
-  readonly recoveryCode: string;
-  readonly walletId: string;
-  readonly setVersion?: string;
-}): Promise<DerivedWalletRecoveryKeyId> {
-  const codeBytes = decodeWalletRecoveryCode(normalizeWalletRecoveryCode(args.recoveryCode));
-  try {
-    return await deriveWalletRecoveryKeyIdFromBytes({
-      codeBytes,
-      walletId: args.walletId,
-      ...(args.setVersion === undefined ? {} : { setVersion: args.setVersion }),
-    });
-  } finally {
-    zeroize(codeBytes);
-  }
-}
-
-/**
- * The same derivation from decoded bytes.
- *
- * Separate entry point because the ceremony seals wraps from bytes it already
- * holds, while a user typing a code arrives as a string. Both must reach one
- * id, so both go through this.
  */
 export async function deriveWalletRecoveryKeyIdFromBytes(args: {
   readonly codeBytes: Uint8Array;

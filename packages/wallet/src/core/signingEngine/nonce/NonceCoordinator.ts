@@ -96,7 +96,6 @@ export { buildNearNonceLane } from './nearNonceLaneIdentity';
 export type { NearFundingRequest, NearTransactionReadiness } from './nearTransactionReadiness';
 export {
   EvmNonceOutcomeReason,
-  NearNonceOutcomeKind,
   NearNonceReconcileReason,
   NonceCoordinatorDegradationReason,
   NonceCoordinatorFallback,

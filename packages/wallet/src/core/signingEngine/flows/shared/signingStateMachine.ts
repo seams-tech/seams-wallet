@@ -190,11 +190,6 @@ type SigningOperationPlan = {
   commands: SigningOperationCommandSequence;
 };
 
-export type SigningOperationMachine = {
-  initialState: SigningOperationState;
-  run(): SigningOperationStep[];
-};
-
 export type SigningOperationCommandExecutor = OperationCommandExecutor<SigningOperationCommand>;
 export type SigningOperationTransitionObserver =
   OperationTransitionObserver<SigningOperationTransitionEvent>;

@@ -816,52 +816,6 @@ export async function hasPasskeyCredential(
   return authenticators.length > 0;
 }
 
-export async function atomicStoreRegistrationData(
-  deps: RegistrationAccountLifecycleDeps,
-  args: {
-    walletId: WalletId;
-    nearAccountId: AccountId;
-    credential: WebAuthnRegistrationCredential;
-    credentialPublicKeyB64u: string;
-    operationalPublicKey: string;
-    nearEd25519SigningKeyId: string;
-  },
-): Promise<StoredRegistrationData> {
-  const credentialId: string = args.credential.rawId;
-  const transports: string[] = args.credential.response?.transports;
-  const credentialPublicKey = verifiedCredentialPublicKeyBytes(
-    args.credentialPublicKeyB64u,
-    'credentialPublicKeyB64u',
-  );
-
-  const activation = await storeUserData(deps, {
-    walletId: args.walletId,
-    nearAccountId: args.nearAccountId,
-    signerSlot: 1,
-    operationalPublicKey: args.operationalPublicKey,
-    nearEd25519SigningKeyId: args.nearEd25519SigningKeyId,
-    lastUpdated: Date.now(),
-    passkeyCredential: {
-      id: args.credential.id,
-      rawId: credentialId,
-    },
-    version: 2,
-  });
-
-  await storeAuthenticator(deps, {
-    nearAccountId: args.nearAccountId,
-    credentialId: credentialId,
-    credentialPublicKey,
-    transports,
-    name: `Passkey for ${extractUsername(args.nearAccountId)}`,
-    registered: new Date().toISOString(),
-    syncedAt: new Date().toISOString(),
-    signerSlot: activation.signerSlot,
-  });
-
-  return { signerSlot: activation.signerSlot };
-}
-
 function keyMaterialForSignerActivation(args: {
   activation: ActivateAccountSignerInput;
   signerSlot: number;

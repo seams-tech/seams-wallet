@@ -279,18 +279,6 @@ export class SigningSessionSealsRepository {
       return null;
     }
   }
-
-  async clearAll(): Promise<void> {
-    const db = await getSigningSessionSealsDb();
-    if (!db) return;
-    const tx = db.transaction(
-      [SIGNING_SESSION_SEALS_STORE_NAME, SIGNING_SESSION_RESTORE_LEASES_STORE_NAME],
-      'readwrite',
-    );
-    tx.objectStore(SIGNING_SESSION_SEALS_STORE_NAME).clear();
-    tx.objectStore(SIGNING_SESSION_RESTORE_LEASES_STORE_NAME).clear();
-    await transactionDone(tx).catch(() => undefined);
-  }
 }
 
 export const signingSessionSealsRepository = new SigningSessionSealsRepository();

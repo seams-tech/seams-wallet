@@ -194,10 +194,6 @@ export function buildEmailOtpWalletAuthMethodBinding(args: {
   };
 }
 
-export function walletAuthMethodBindingId(binding: WalletAuthMethodBinding): WalletAuthMethodId {
-  return binding.walletAuthMethodId;
-}
-
 export function walletAuthMethodBindingFromRaw(
   raw: unknown,
 ): WalletCapabilityBindingParseResult<WalletAuthMethodBinding> {

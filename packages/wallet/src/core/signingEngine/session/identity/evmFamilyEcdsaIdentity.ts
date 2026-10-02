@@ -366,10 +366,6 @@ export function toRpId(value: unknown): RpId {
   return normalizeRpId(value);
 }
 
-export function toEmailOtpAuthSubjectId(value: unknown): EmailOtpAuthSubjectId {
-  return normalizeEmailOtpAuthSubjectId(value);
-}
-
 export function toEvmFamilyEcdsaKeyHandle(value: unknown): EvmFamilyEcdsaKeyHandle {
   return requiredString(value, 'keyHandle') as EvmFamilyEcdsaKeyHandle;
 }

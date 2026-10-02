@@ -116,10 +116,6 @@ type Ed25519ExportPrivateKeyDisplayEntry = {
   address?: never;
 };
 
-export type ExportPrivateKeyDisplayEntry =
-  | Secp256k1ExportPrivateKeyDisplayEntry
-  | Ed25519ExportPrivateKeyDisplayEntry;
-
 type ThresholdEcdsaExportViewerBaseArgs = {
   walletId: string;
   chainTarget: ThresholdEcdsaChainTarget;

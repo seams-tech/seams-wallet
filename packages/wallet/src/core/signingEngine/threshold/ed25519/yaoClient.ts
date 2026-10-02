@@ -4,7 +4,6 @@ import {
   WasmWalletCustodySeedExportSessionV1,
   openWalletCustodyEd25519MaterialV1,
   default as initializeYaoClientWasm,
-  type InitInput,
 } from '../../../../../../../crates/router-ab-ed25519-yao-client/pkg/router_ab_ed25519_yao_client.js';
 import {
   ROUTER_AB_ED25519_YAO_RECOVERY_ACTIVATE_PATH_V1,
@@ -768,10 +767,6 @@ export class RouterAbEd25519YaoHttpActivationTransportV1
     this.config = parseHttpTransportConfig(config);
   }
 
-  traceContext(): RouterAbTraceContextV1 {
-    return this.config.traceContext;
-  }
-
   async send(
     request:
       | RouterAbEd25519YaoRegistrationAdmissionTransportRequestV1
@@ -1075,13 +1070,6 @@ export class RouterAbEd25519YaoClientV1 {
 
   static async initializeBundled(): Promise<RouterAbEd25519YaoClientV1> {
     await initializeYaoClientWasm();
-    return new RouterAbEd25519YaoClientV1();
-  }
-
-  static async initialize(
-    moduleOrPath: InitInput | Promise<InitInput>,
-  ): Promise<RouterAbEd25519YaoClientV1> {
-    await initializeYaoClientWasm({ module_or_path: moduleOrPath });
     return new RouterAbEd25519YaoClientV1();
   }
 

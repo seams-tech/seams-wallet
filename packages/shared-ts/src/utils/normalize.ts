@@ -146,11 +146,3 @@ export function toRorOriginOrNull(value: unknown): string | null {
     return null;
   }
 }
-
-/** Collapse a string into a single line by normalizing whitespace. */
-export function toSingleLine(value: unknown): string {
-  return String(value ?? '')
-    .replace(/[\r\n]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}

@@ -101,41 +101,6 @@ export class UpstashRedisRestClient {
     }
   }
 
-  async incrby(key: string, delta: number): Promise<number> {
-    const k = encodeURIComponent(key);
-    const d = encodeURIComponent(String(Math.trunc(Number(delta) || 0)));
-    const json = await this.call(`/incrby/${k}/${d}`, 'POST');
-    const raw = readResult(json);
-    const n = typeof raw === 'number' ? raw : Number(raw);
-    if (!Number.isFinite(n)) {
-      throw new Error(`Upstash INCRBY returned non-number result: ${String(raw)}`);
-    }
-    return n;
-  }
-
-  async rpush(key: string, value: string): Promise<number> {
-    const k = encodeURIComponent(key);
-    const v = encodeURIComponent(value);
-    const json = await this.call(`/rpush/${k}/${v}`, 'POST');
-    const raw = readResult(json);
-    const n = typeof raw === 'number' ? raw : Number(raw);
-    if (!Number.isFinite(n)) {
-      throw new Error(`Upstash RPUSH returned non-number result: ${String(raw)}`);
-    }
-    return n;
-  }
-
-  async lpop(key: string): Promise<string | null> {
-    const k = encodeURIComponent(key);
-    const json = await this.call(`/lpop/${k}`, 'POST');
-    const raw = readResult(json);
-    if (raw === null || raw === undefined) return null;
-    if (typeof raw === 'string') return raw;
-    // Some Upstash variants return arrays for list pops; accept the first item.
-    if (Array.isArray(raw) && typeof raw[0] === 'string') return raw[0];
-    return String(raw);
-  }
-
   async eval(script: string, keys: string[], args: string[]): Promise<unknown | null> {
     const keyList = Array.isArray(keys) ? keys : [];
     const argList = Array.isArray(args) ? args : [];

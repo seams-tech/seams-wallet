@@ -24,7 +24,7 @@ interface ScanQRCodeFlowEvents {
   onEvent?: (event: LinkDeviceFlowEvent) => void;
   onQRDetected?: (qrData: QrLinkedDeviceSessionPayloadV5) => void;
   onError?: (error: Error) => void;
-  onCameraReady?: (stream: MediaStream) => void;
+  onCameraReady?: () => void;
   onScanProgress?: (duration: number) => void; // Called periodically during scanning
 }
 
@@ -55,8 +55,6 @@ export class ScanQRCodeFlow {
   private timeoutId: NodeJS.Timeout | null = null;
   private progressIntervalId: NodeJS.Timeout | null = null;
   private scanStartTime: number = 0;
-  private currentError: Error | null = null;
-  private detectedQRData: QrLinkedDeviceSessionPayloadV5 | null = null;
   private startGeneration = 0;
 
   constructor(
@@ -69,25 +67,6 @@ export class ScanQRCodeFlow {
       throw new Error('Unable to get canvas 2D context');
     }
     this.ctx = ctx;
-  }
-
-  /**
-   * Get current flow state
-   */
-  getState(): {
-    state: ScanQRCodeFlowState;
-    isScanning: boolean;
-    scanDuration: number;
-    error: Error | null;
-    qrData: QrLinkedDeviceSessionPayloadV5 | null;
-  } {
-    return {
-      state: this.state,
-      isScanning: this.state === ScanQRCodeFlowState.SCANNING,
-      scanDuration: this.scanStartTime ? Date.now() - this.scanStartTime : 0,
-      error: this.currentError,
-      qrData: this.detectedQRData,
-    };
   }
 
   /**
@@ -109,8 +88,6 @@ export class ScanQRCodeFlow {
     const generation = ++this.startGeneration;
 
     this.setState(ScanQRCodeFlowState.INITIALIZING);
-    this.currentError = null;
-    this.detectedQRData = null;
 
     try {
       // Build camera constraints
@@ -140,7 +117,7 @@ export class ScanQRCodeFlow {
       if (this.isSupersededStart(generation)) return;
 
       // Notify camera is ready
-      this.events.onCameraReady?.(this.mediaStream);
+      this.events.onCameraReady?.();
 
       this.setState(ScanQRCodeFlowState.SCANNING);
       this.scanStartTime = Date.now();
@@ -319,14 +296,12 @@ export class ScanQRCodeFlow {
 
   private handleSuccess(qrData: QrLinkedDeviceSessionPayloadV5): void {
     this.setState(ScanQRCodeFlowState.SUCCESS);
-    this.detectedQRData = qrData;
     this.cleanup();
     this.events.onQRDetected?.(qrData);
   }
 
   private handleError(error: Error): void {
     this.setState(ScanQRCodeFlowState.ERROR);
-    this.currentError = error;
     this.cleanup();
     this.events.onError?.(error);
   }

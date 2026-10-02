@@ -48,7 +48,7 @@ type RecoveryCodeTransitionResult =
   | { ok: true; lifecycle: RecoveryCodeLifecycleState }
   | { ok: false; code: RecoveryCodeTransitionRejection; message: string };
 
-export type RecoveryCodeTransitionRejection =
+type RecoveryCodeTransitionRejection =
   | 'already_consumed'
   | 'revoked'
   | 'already_reserved'
@@ -116,31 +116,6 @@ export function reserveRecoveryCode(args: {
       reservationExpiresAtMs: args.nowMs + args.reservationTtlMs,
     },
   };
-}
-
-/**
- * Releases a hold after a failed pre-commit recovery, returning the code to the
- * active pool. Releasing a consumed code is refused: consumption is terminal
- * and a post-commit failure must not hand the code back.
- */
-export function releaseRecoveryCodeReservation(args: {
-  lifecycle: RecoveryCodeLifecycleState;
-  reservationId: RecoveryCodeReservationId;
-}): RecoveryCodeTransitionResult {
-  const { lifecycle } = args;
-  if (lifecycle.state === 'consumed') {
-    return reject('already_consumed', 'a consumed recovery code cannot be released');
-  }
-  if (lifecycle.state === 'revoked') {
-    return reject('revoked', 'recovery code has been revoked');
-  }
-  if (lifecycle.state !== 'reserved') {
-    return reject('not_reserved', 'recovery code is not reserved');
-  }
-  if (lifecycle.reservationId !== args.reservationId) {
-    return reject('reservation_mismatch', 'reservation id does not hold this recovery code');
-  }
-  return { ok: true, lifecycle: { state: 'active', issuedAtMs: lifecycle.issuedAtMs } };
 }
 
 /**

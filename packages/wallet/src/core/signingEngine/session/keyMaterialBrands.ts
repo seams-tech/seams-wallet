@@ -11,28 +11,18 @@ import {
 
 export type { EcdsaThresholdKeyId };
 export {
-  formatEcdsaClientVerifyingShareB64uForWire,
-  formatEcdsaDerivationKeyVersionForWire,
   formatEcdsaKeyHandleForWire,
-  formatEcdsaRelayerKeyIdForWire,
-  formatEcdsaThresholdKeyIdForWire,
-  formatEd25519RelayerKeyIdForWire,
   formatSigningSessionSealKeyVersionForWire,
   parseEcdsaClientVerifyingShareB64u,
-  parseEcdsaDerivationKeyVersion,
   parseEcdsaKeyHandle,
   parseEcdsaRelayerKeyId,
-  parseEd25519RelayerKeyId,
   parseSigningSessionSealKeyVersion,
   type EcdsaClientVerifyingShareB64u,
-  type EcdsaDerivationKeyVersion,
   type EcdsaKeyHandle,
   type EcdsaRelayerKeyId,
-  type Ed25519RelayerKeyId,
   type SigningSessionSealKeyVersion,
 } from '@shared/threshold/keyMaterialBrands';
 
-export type Ed25519KeyVersion = Brand<string, 'Ed25519KeyVersion'>;
 export type EcdsaClientVerifyingPublicKey33B64u = Brand<
   string,
   'EcdsaClientVerifyingPublicKey33B64u'
@@ -157,14 +147,4 @@ export function parseEcdsaRoleLocalWorkerHandle(value: unknown): EcdsaRoleLocalW
     bindingDigest: parseEcdsaRoleLocalBindingDigest(record.bindingDigest),
     durableMaterialRef: parseEcdsaRoleLocalDurableMaterialRef(record.durableMaterialRef),
   };
-}
-
-export function formatEd25519KeyVersionForWire(value: Ed25519KeyVersion): string {
-  return value;
-}
-
-export function formatEcdsaClientVerifyingPublicKey33B64uForWire(
-  value: EcdsaClientVerifyingPublicKey33B64u,
-): string {
-  return value;
 }

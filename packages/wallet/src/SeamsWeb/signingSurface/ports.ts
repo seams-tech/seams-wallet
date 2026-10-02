@@ -964,8 +964,6 @@ export type WalletSessionWebContext = SeamsWebBaseContext<WalletSessionReadSurfa
 
 export type LoginWebContext = SeamsWebBaseContext<LoginUnlockSigningSurface>;
 
-export type LockWebContext = SeamsWebBaseContext<LockSigningSurface>;
-
 export type RecentUnlocksWebContext = SeamsWebBaseContext<RecentUnlocksSigningSurface>;
 
 export type WalletAuthWebContext = SeamsWebBaseContext<
@@ -975,8 +973,6 @@ export type WalletAuthWebContext = SeamsWebBaseContext<
     RegistrationAccountSurface &
     EcdsaLoginSessionSurface
 >;
-
-export type LocalLoginStateWebContext = SeamsWebBaseContext<LocalLoginStateSurface>;
 
 export type AccountSyncWebContext = SeamsWebBaseContext<AccountSyncSigningSurface>;
 

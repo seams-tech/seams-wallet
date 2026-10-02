@@ -57,13 +57,6 @@ export type WarmCapabilitiesPublicDeps = {
   >[0]['routerAbEcdsaDerivationPresignaturePoolPolicy'];
 };
 
-export async function persistThresholdEcdsaBootstrapForWalletTarget(
-  deps: WarmCapabilitiesPublicDeps,
-  args: PersistThresholdEcdsaBootstrapForWalletTargetInput,
-): Promise<void> {
-  await deps.persistThresholdEcdsaBootstrapForWalletTarget(args);
-}
-
 export async function getWarmThresholdEd25519SessionStatus(
   deps: WarmCapabilitiesPublicDeps,
   args: {

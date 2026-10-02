@@ -2,7 +2,7 @@
  * Centralized error handling utilities for the Passkey SDK
  */
 
-export { formatNearRpcError, getNearShortErrorMessage } from './near';
+export { getNearShortErrorMessage } from './near';
 
 /**
  * Best-effort error message extractor without relying on `any`.

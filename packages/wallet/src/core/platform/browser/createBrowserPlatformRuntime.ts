@@ -797,10 +797,3 @@ export function createBrowserPlatformRuntime(
     random: createBrowserRandomSource(deps.crypto || globalThis.crypto),
   };
 }
-
-export function getBrowserPlatformIndexedDB(runtime: RuntimePorts): typeof IndexedDBManager {
-  if (runtime.kind !== 'browser' || !('indexedDB' in runtime.storage)) {
-    throw new Error('Browser IndexedDB manager is unavailable for these runtime ports');
-  }
-  return (runtime.storage as BrowserDurableRecordStore).indexedDB;
-}

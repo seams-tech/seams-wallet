@@ -454,28 +454,6 @@ function parseExactWalletSessionRecord(value: unknown): WalletSessionAuthorizati
   return null;
 }
 
-export function buildActiveWalletSessionV1(
-  input: Omit<ActiveWalletSessionV1, 'kind'>,
-): ActiveWalletSessionV1 {
-  const record = parseExactWalletSessionRecord({
-    kind: 'active_wallet_session_v1',
-    walletId: input.walletId,
-    authorityId: input.authorityId,
-    authMethodId: input.authMethodId,
-    authorizationId: input.authorizationId,
-    quotaId: input.quotaId,
-    authorityDigestB64u: input.authorityDigestB64u,
-    authorityRevocationEpoch: input.authorityRevocationEpoch,
-    capabilitySubjects: input.capabilitySubjects,
-    issuedAtMs: input.issuedAtMs,
-    expiresAtMs: input.expiresAtMs,
-  });
-  if (!record || record.kind !== 'active_wallet_session_v1') {
-    throw new Error('Active Wallet Session v1 is invalid');
-  }
-  return record;
-}
-
 export function retireWalletSessionV1(args: {
   readonly active: ActiveWalletSessionV1;
   readonly reason: WalletSessionAuthorizationRetirementReason;

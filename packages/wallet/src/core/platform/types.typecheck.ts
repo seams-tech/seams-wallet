@@ -16,16 +16,10 @@ import {
 } from '@/core/signingEngine/session/persistence/ecdsaRoleLocalRecords';
 import {
   buildEmailOtpWorkerIssuedSessionHandle,
-  buildEmailOtpWorkerSessionSecretSource,
-  buildFido2HmacSecretSource,
-  buildSecureEnclaveWrappedSecretSource,
-  buildThresholdPrfXClientBaseSecretSource,
   parseEmailOtpEcdsaExportWorkerIssuedSessionHandle,
 } from './types';
 import type {
   AuthenticatorResult,
-  ClientSecretSource,
-  EcdsaProvisioningState,
   EcdsaRoleLocalPendingStateBlob,
   EcdsaRoleLocalPublicFacts,
   EcdsaRoleLocalReadyRecord,
@@ -39,6 +33,7 @@ import type {
   PrepareEcdsaClientBootstrapInput,
   RequiredPrfAuthenticatorSuccess,
   SignerCryptoResult,
+  WebAuthnPrfFirstSecretSource,
 } from './types';
 import type {
   DerivationClientSharePublicKey33B64u,
@@ -48,12 +43,11 @@ import type {
   WebAuthnAuthenticationCredential,
   WebAuthnRegistrationCredential,
 } from '../types/webauthn';
-import type { ThresholdRuntimePolicyScope } from '../signingEngine/threshold/sessionPolicy';
 
 declare const runtime: RuntimePorts;
 declare const platformResult: PlatformResult<{ value: string }, 'failed'>;
 declare const signerResult: SignerCryptoResult<{ value: string }, 'invalid_context'>;
-declare const secretSource: ClientSecretSource;
+declare const bootstrapSecretSource: PrepareEcdsaClientBootstrapInput['secretSource'];
 declare const registrationCredential: WebAuthnRegistrationCredential;
 declare const authenticationCredential: WebAuthnAuthenticationCredential;
 declare const derivationClientSharePublicKey33B64u: DerivationClientSharePublicKey33B64u;
@@ -61,7 +55,6 @@ declare const relayerPublicKey33B64u: EcdsaDerivationRelayerPublicKey33B64u;
 declare const pendingBlob: EcdsaRoleLocalPendingStateBlob;
 declare const readyBlob: EcdsaRoleLocalReadyStateBlob;
 declare const publicFacts: EcdsaRoleLocalPublicFacts;
-declare const runtimePolicyScope: ThresholdRuntimePolicyScope;
 declare const passkeyReadyRecord: Extract<
   EcdsaRoleLocalReadyRecord,
   { kind: 'ecdsa_role_local_ready_passkey_v1' }
@@ -107,9 +100,7 @@ const prepareInput = {
     relayerParticipantId: 2,
     participantIds: [1, 2],
   },
-  secretSource: buildThresholdPrfXClientBaseSecretSource({
-    xClientBaseB64u: 'BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc',
-  }),
+  secretSource: bootstrapSecretSource,
 } satisfies PrepareEcdsaClientBootstrapInput;
 
 runtime.signerCrypto.prepareEcdsaClientBootstrap(prepareInput);
@@ -151,39 +142,6 @@ if (signerResult.ok) {
     | 'native_binding_failure'
     | 'timeout';
 }
-
-switch (secretSource.kind) {
-  case 'webauthn_prf_first':
-    secretSource.credentialIdB64u;
-    break;
-  case 'secure_enclave_wrapped_secret':
-    secretSource.accessGroup;
-    break;
-  case 'fido2_hmac_secret':
-    secretSource.rpId;
-    break;
-  case 'email_otp_worker_session':
-    secretSource.handle.sessionId;
-    break;
-}
-
-runtime.signerCrypto.prepareEcdsaClientBootstrap({
-  ...prepareInput,
-  // @ts-expect-error ECDSA bootstrap accepts only a prepared threshold-PRF Client base.
-  secretSource: buildSecureEnclaveWrappedSecretSource({
-    keyId: 'key',
-    accessGroup: 'group',
-  }),
-});
-
-runtime.signerCrypto.prepareEcdsaClientBootstrap({
-  ...prepareInput,
-  // @ts-expect-error ECDSA bootstrap accepts only a prepared threshold-PRF Client base.
-  secretSource: buildFido2HmacSecretSource({
-    credentialIdB64u: 'credential',
-    rpId: toRpId('wallet.example'),
-  }),
-});
 
 runtime.signerCrypto.prepareEcdsaClientBootstrap({
   ...prepareInput,
@@ -249,22 +207,13 @@ const missingRequiredPrf = {
 } satisfies AuthenticatorResult;
 void missingRequiredPrf;
 
-const mixedSecretSource = {
-  kind: 'email_otp_worker_session',
-  handle: emailOtpWorkerIssuedSessionHandleFromBuilder,
-  credentialIdB64u: 'credential',
-};
-// @ts-expect-error Email OTP worker-session sources cannot include passkey fields or bypass builders
-mixedSecretSource satisfies ClientSecretSource;
-void mixedSecretSource;
-
 const missingSecretSourceIdentity = {
   kind: 'webauthn_prf_first',
   prfFirstB64u: 'first',
   credentialIdB64u: 'credential',
 };
 // @ts-expect-error WebAuthn PRF secret sources require rpId
-missingSecretSourceIdentity satisfies ClientSecretSource;
+missingSecretSourceIdentity satisfies WebAuthnPrfFirstSecretSource;
 void missingSecretSourceIdentity;
 
 const directWebAuthnSecretSource = {
@@ -273,19 +222,14 @@ const directWebAuthnSecretSource = {
   rpId: toRpId('wallet.example'),
   credentialIdB64u: 'credential',
 };
-// @ts-expect-error ClientSecretSource branches are builder-only and carry a private brand
-directWebAuthnSecretSource satisfies ClientSecretSource;
+// @ts-expect-error secret sources are builder-only and carry a private brand
+directWebAuthnSecretSource satisfies WebAuthnPrfFirstSecretSource;
 
 const broadSpreadSecretSource = {
   ...directWebAuthnSecretSource,
 };
-// @ts-expect-error broad object spreads cannot forge builder-only secret-source branches
-broadSpreadSecretSource satisfies ClientSecretSource;
-
-const emailOtpWorkerSecretSource = buildEmailOtpWorkerSessionSecretSource(
-  emailOtpWorkerIssuedSessionHandleFromBuilder,
-);
-void emailOtpWorkerSecretSource;
+// @ts-expect-error broad object spreads cannot forge builder-only secret sources
+broadSpreadSecretSource satisfies WebAuthnPrfFirstSecretSource;
 
 const directEmailOtpWorkerSessionHandle = {
   kind: 'email_otp_worker_session_handle_v1',
@@ -466,44 +410,6 @@ const ecdsaPersistWithoutStorageKeyFacts = {
 };
 // @ts-expect-error ECDSA ready-record persistence requires explicit storageKeyFacts
 ecdsaPersistWithoutStorageKeyFacts satisfies PersistEcdsaRoleLocalReadyRecordInput;
-
-const provisioningReady = {
-  kind: 'ready',
-  record: passkeyReadyRecordLiteral,
-} satisfies EcdsaProvisioningState;
-void provisioningReady;
-
-const provisioningNeedsSecretSource = {
-  kind: 'needs_secret_source',
-  walletId: toWalletId('wallet_alice'),
-  rpId: toRpId('wallet.example'),
-  chainTarget: thresholdEcdsaChainTargetFromChainFamily({ chain: 'tempo', chainId: 42431 }),
-  keyHandle: 'key-handle',
-  ecdsaThresholdKeyId: toEcdsaDerivationThresholdKeyId('ederivation-key'),
-  runtimePolicyScope,
-  authMethod: buildEcdsaRoleLocalPasskeyAuthMethod({
-    credentialIdB64u: 'credential',
-    rpId: toRpId('wallet.example'),
-  }),
-} satisfies EcdsaProvisioningState;
-void provisioningNeedsSecretSource;
-
-const provisioningNeedsSecretSourceWithSigningRoot = {
-  ...provisioningNeedsSecretSource,
-  // @ts-expect-error ECDSA provisioning state derives signing-root identity from runtimePolicyScope.
-  signingRootId: toEcdsaDerivationSigningRootId('root'),
-} satisfies EcdsaProvisioningState;
-void provisioningNeedsSecretSourceWithSigningRoot;
-
-const provisioningFailedWithRecord = {
-  kind: 'failed',
-  code: 'invalid_state',
-  message: 'failed',
-  retryable: false,
-  record: passkeyReadyRecordLiteral,
-};
-// @ts-expect-error failed provisioning states cannot carry ready records
-provisioningFailedWithRecord satisfies EcdsaProvisioningState;
 
 const incompleteRuntimePorts = {
   kind: 'browser',

@@ -1,31 +1,13 @@
-import type { EcdsaSessionProvisionPlan } from './ecdsaProvisionPlan';
 import type { WarmSessionEcdsaCapabilityState, WarmSessionEd25519CapabilityState, WarmSessionPrfClaim } from './types';
 import type { ThresholdEcdsaSecp256k1KeyRef } from '../../interfaces/signing';
 import type { ExactEd25519SealedSessionRuntime } from './ed25519SealedSessionRuntime';
 
-type FreshEcdsaSessionProvisionPlan = Extract<
-  EcdsaSessionProvisionPlan,
-  { kind: 'passkey_ecdsa_session_provision' | 'email_otp_ecdsa_session_provision' }
->;
-export type PasskeyEcdsaSessionProvisionPlan = Extract<
-  EcdsaSessionProvisionPlan,
-  { kind: 'passkey_ecdsa_session_provision' }
->;
-export type EmailOtpEcdsaSessionProvisionPlan = Extract<
-  EcdsaSessionProvisionPlan,
-  { kind: 'email_otp_ecdsa_session_provision' }
->;
-export type ReconnectEcdsaSessionProvisionPlan = Extract<
-  EcdsaSessionProvisionPlan,
-  { kind: 'wallet_session_ecdsa_reconnect' }
->;
 type PresentWarmSessionEcdsaCapabilityState = Exclude<
   WarmSessionEcdsaCapabilityState,
   { state: 'missing' }
 >;
 type WarmPrfClaim = Extract<WarmSessionPrfClaim, { state: 'warm' }>;
 type UnavailablePrfClaim = Extract<WarmSessionPrfClaim, { state: 'unavailable' }>;
-declare const freshPlan: FreshEcdsaSessionProvisionPlan;
 declare const exactEd25519Runtime: ExactEd25519SealedSessionRuntime;
 declare const keyRef: ThresholdEcdsaSecp256k1KeyRef;
 declare const activeEcdsaManifest: NonNullable<PresentWarmSessionEcdsaCapabilityState['manifest']>;
@@ -44,8 +26,6 @@ keyRef.thresholdSessionKind;
 keyRef.mpcSessionId;
 // @ts-expect-error material key references never carry threshold-session identity.
 keyRef.thresholdSessionId;
-
-void freshPlan;
 
 const invalidReadyEd25519CapabilityWithoutJwt = {
   capability: 'ed25519',

@@ -16,7 +16,6 @@ export {
   toBasePath,
   toOriginOrUndefined,
   toRorOriginOrNull,
-  toSingleLine,
   normalizeInteger,
   normalizePositiveInteger,
 } from './normalize';

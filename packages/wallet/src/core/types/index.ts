@@ -1,12 +1,3 @@
-import type { PasskeyErrorDetails } from './errors';
-
-/**
- * Generic Result type for better error handling throughout the SDK
- */
-export type Result<T, E = PasskeyErrorDetails> =
-  | { success: true; data: T }
-  | { success: false; error: E };
-
 /**
  * WASM Bindgen generates a `free` method and a `[Symbol.dispose]` method on all structs.
  * This helper strips those so we can use plain object shapes for worker payloads.

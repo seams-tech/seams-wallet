@@ -165,10 +165,6 @@ export interface WarmSessionRehydratePayload {
   transport: WarmSessionSealTransportInput;
 }
 
-export interface WarmSessionStatusBatchReadPayload {
-  thresholdSessionIds: string[];
-}
-
 export type WarmSessionStatusBatchResult = {
   results: Array<{
     thresholdSessionId: string;

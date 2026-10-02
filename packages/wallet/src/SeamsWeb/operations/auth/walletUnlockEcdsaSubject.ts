@@ -3,10 +3,7 @@ import type { EcdsaWalletActivationSelectorListResult } from '@/core/indexedDB/s
 import type { EvmFamilyEcdsaWalletUnlockSubject } from '@/core/signingEngine/session/identity/walletUnlockSubject';
 import { type WalletId } from '@shared/utils/domainIds';
 
-export type {
-  EvmFamilyEcdsaWalletUnlockSubject,
-  EvmFamilyEcdsaWalletUnlockSubjectSet,
-} from '@/core/signingEngine/session/identity/walletUnlockSubject';
+export type { EvmFamilyEcdsaWalletUnlockSubject } from '@/core/signingEngine/session/identity/walletUnlockSubject';
 
 export type WalletUnlockCapabilitySubjectResolutionFailure =
   | 'capability_subject_lookup_failed'
