@@ -34,7 +34,7 @@ import {
   parseWalletAuthAuthorityRef,
   type WalletAuthAuthorityRef,
 } from '@shared/utils/walletAuthAuthority';
-import { buildEcdsaRoleLocalPublicFacts } from '@/core/platform';
+import { buildEcdsaRoleLocalPublicFacts } from '@/core/signingEngine/session/persistence/ecdsaRoleLocalRecords';
 import {
   buildVerifiedEcdsaPublicFacts,
   toEvmFamilyEcdsaKeyHandle,

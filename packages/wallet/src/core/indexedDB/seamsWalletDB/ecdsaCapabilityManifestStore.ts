@@ -25,7 +25,8 @@ import {
   type RouterAbEcdsaDerivationNormalSigningStateV1,
 } from '@shared/utils/routerAbEcdsaDerivation';
 import type { WalletAuthAuthorityRef } from '@shared/utils/walletAuthAuthority';
-import { buildEcdsaRoleLocalPublicFacts, type EcdsaRoleLocalPublicFacts } from '@/core/platform';
+import { buildEcdsaRoleLocalPublicFacts } from '@/core/signingEngine/session/persistence/ecdsaRoleLocalRecords';
+import type { EcdsaRoleLocalPublicFacts } from '@/core/platform';
 import {
   parseEcdsaClientVerifyingPublicKey33B64u,
   parseEcdsaRoleLocalPersistedMaterialRef,

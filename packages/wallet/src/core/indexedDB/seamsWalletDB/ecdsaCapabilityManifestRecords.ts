@@ -49,7 +49,8 @@ import {
   type WalletAuthAuthorityRef,
 } from '@shared/utils/walletAuthAuthority';
 import { thresholdEcdsaChainTargetFromRequest } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
-import { buildEcdsaRoleLocalPublicFacts, type EcdsaRoleLocalPublicFacts } from '@/core/platform';
+import { buildEcdsaRoleLocalPublicFacts } from '@/core/signingEngine/session/persistence/ecdsaRoleLocalRecords';
+import type { EcdsaRoleLocalPublicFacts } from '@/core/platform';
 import {
   buildVerifiedEcdsaPublicFacts,
   toEvmFamilyEcdsaKeyHandle,
