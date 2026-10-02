@@ -9,6 +9,10 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { WalletSessionStatusEvidence } from './walletSessionStatusEvidence';
 import { intendedTest as test, type IntendedBehaviourHarness } from './harness';
+import { verifyFreshUnlockWins, verifyLockWins } from './session-restore-lock';
+
+test('a cross-tab lock prevents delayed restoration from recreating its credential', verifyLockWins);
+test('a fresh unlock survives a delayed restoration response from another tab', verifyFreshUnlockWins);
 
 async function observePasskeyUnlock(
   harness: IntendedBehaviourHarness,

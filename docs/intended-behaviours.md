@@ -410,6 +410,9 @@ Expected behaviour:
   without a user prompt.
 - Refresh must preserve exact auth method, curve, chain target, session ids, and
   budget identity.
+- A completed lock in another tab removes the old local session credential.
+  A delayed restoration response must leave that credential absent and preserve
+  any newer exact session installed by a fresh unlock.
 - If restored warm sessions are still valid, NEAR, Tempo, and EVM transaction
   signing should proceed without unlock or step-up prompts.
 - If restored warm sessions are expired, exhausted, invalid, or missing, the

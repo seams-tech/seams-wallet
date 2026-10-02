@@ -28,7 +28,10 @@ import type {
   WalletSessionOperationCredentialV1,
   WalletCapabilitySubjectV1,
 } from '@shared/device-linking/contracts';
-import { parseWalletSessionOperationCredentialV1 } from '@shared/device-linking/activeWalletSession';
+import {
+  activeWalletSessionV1RecordsEqual,
+  parseWalletSessionOperationCredentialV1,
+} from '@shared/device-linking/activeWalletSession';
 import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 export type {
   ActiveWalletSessionV1,
@@ -717,6 +720,60 @@ export class WalletSessionAuthorizationRepository {
       operationCredential,
     });
     return parsed;
+  }
+
+  async refreshExactWithOperationCredential(input: {
+    readonly expected: ActiveWalletSessionV1;
+    readonly record: ActiveWalletSessionV1;
+    readonly operationCredential: WalletSessionOperationCredentialV1;
+  }): Promise<'updated' | 'superseded'> {
+    const expected = parseExactWalletSessionRecord(input.expected);
+    const incoming = parseExactWalletSessionRecord(input.record);
+    if (
+      !expected ||
+      expected.kind !== 'active_wallet_session_v1' ||
+      !incoming ||
+      incoming.kind !== 'active_wallet_session_v1'
+    ) {
+      throw new Error('Active Wallet Session refresh is invalid');
+    }
+    for (const field of EXACT_ACTIVE_FIELDS) {
+      if (field === 'kind' || field === 'capabilitySubjects') continue;
+      if (expected[field] !== incoming[field]) {
+        throw new Error('Wallet Session refresh changed its exact identity');
+      }
+    }
+    const operationCredential = parseWalletSessionOperationCredentialV1(input.operationCredential);
+    const incomingRow = toStoredExactWalletSessionAuthorizationRowV6(incoming, operationCredential);
+    const db = await this.manager.getDB();
+    const tx = db.transaction(STORE, 'readwrite');
+    const store = tx.objectStore(STORE);
+    try {
+      const raw = await store.get(operationCredential.walletSessionId);
+      if (raw === undefined) {
+        await tx.done;
+        return 'superseded';
+      }
+      const current = parseStoredExactWalletSessionAuthorizationRowV6(raw);
+      if (!current) throw new Error('Stored Wallet Session authorization v6 is corrupt');
+      // Compare and update share the transaction with lock's deletion of this row.
+      if (
+        !activeWalletSessionV1RecordsEqual(current.record, expected) ||
+        current.operationCredential.token !== operationCredential.token
+      ) {
+        await tx.done;
+        return 'superseded';
+      }
+      await store.put(incomingRow);
+      await tx.done;
+      return 'updated';
+    } catch (error) {
+      try {
+        tx.abort();
+      } catch {}
+      await settleAbortedTransaction(tx);
+      throw error;
+    }
   }
 
   async readExact(

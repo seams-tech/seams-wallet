@@ -64,8 +64,8 @@ function exactSessionReadDependenciesForRelay(
       walletSessionAuthorizations,
     ),
     readStatus: readWalletIframeExactSessionStatus.bind(null, relayUrl, reads),
-    writeExactWithOperationCredential:
-      walletSessionAuthorizations.writeExactWithOperationCredential.bind(
+    refreshExactWithOperationCredential:
+      walletSessionAuthorizations.refreshExactWithOperationCredential.bind(
         walletSessionAuthorizations,
       ),
     nowMs: Date.now,

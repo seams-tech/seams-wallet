@@ -29,10 +29,11 @@ export type WalletIframeExactSessionReconciliationDependencies = Pick<
     walletId: string,
     walletAuthMethodId: string,
   ) => Promise<ResolveSelectedWalletAuthorityResultV1>;
-  readonly writeExactWithOperationCredential: (input: {
+  readonly refreshExactWithOperationCredential: (input: {
+    readonly expected: ActiveWalletSessionV1;
     readonly record: ActiveWalletSessionV1;
     readonly operationCredential: WalletSessionOperationCredentialV1;
-  }) => Promise<ActiveWalletSessionV1>;
+  }) => Promise<'updated' | 'superseded'>;
 };
 
 type WalletIframeExactSessionReconciliationResult =
@@ -45,11 +46,6 @@ type ReconciliationContext = {
   readonly walletId: WalletId;
   readonly selected: ResolvedWalletAuthority;
 };
-
-type SessionReconciliationResult =
-  | { readonly kind: 'reconciled'; readonly updated: boolean }
-  | { readonly kind: 'skipped' }
-  | { readonly kind: 'failed'; readonly reason: 'invalid' | 'unavailable' };
 
 /**
  * Reconciles every locally stored exact session for the selected authority.
@@ -77,13 +73,9 @@ export async function reconcileWalletIframeExactSessions(
   }
 
   const seenMethodIds = new Set<string>();
-  let updatedSessionCount = 0;
   for (const method of methods) {
     const methodResult = await reconcileMethod({ context, method, seenMethodIds }, dependencies);
     if (methodResult.kind === 'failed') return methodResult;
-    if (methodResult.kind === 'reconciled' && methodResult.updated) {
-      updatedSessionCount += 1;
-    }
   }
   return { kind: 'reconciled' };
 }
@@ -125,7 +117,7 @@ async function reconcileMethod(
     readonly seenMethodIds: Set<string>;
   },
   dependencies: WalletIframeExactSessionReconciliationDependencies,
-): Promise<SessionReconciliationResult> {
+): Promise<WalletIframeExactSessionReconciliationResult> {
   const { context, method, seenMethodIds } = input;
   const methodId = String(method.walletAuthMethodId);
   if (seenMethodIds.has(methodId)) return { kind: 'failed', reason: 'invalid' };
@@ -204,16 +196,18 @@ async function reconcileMethod(
     )
   ) {
     try {
-      await dependencies.writeExactWithOperationCredential({
+      const refreshed = await dependencies.refreshExactWithOperationCredential({
+        expected: authorizationRead.record,
         record: observedAuthorization.authorization,
         operationCredential: authorizationRead.operationCredential,
       });
+      if (refreshed === 'superseded') return { kind: 'skipped' };
     } catch {
       return { kind: 'failed', reason: 'unavailable' };
     }
-    return { kind: 'reconciled', updated: true };
+    return { kind: 'reconciled' };
   }
-  return { kind: 'reconciled', updated: false };
+  return { kind: 'reconciled' };
 }
 
 function resolvedMethodMatchesContext(

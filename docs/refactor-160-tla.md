@@ -241,6 +241,28 @@ Keep this independent of the signing pilot. Concurrent new session issuance,
 signing versus revocation, multiple authorities, and delayed add/unlock/restore
 publication are separate questions.
 
+## Cross-tab lock and restoration follow-up
+
+This separately scoped check models one wallet, one authority and auth method,
+two tabs, one lock, and one delayed session-status response. It includes an
+optional fresh verified unlock after lock completes. Restoration must preserve
+the shared lock generation, exact session and quota identity, and budgets;
+delayed reconciliation must leave deleted credentials absent and preserve a
+newer exact session.
+
+The baseline model exposed a late-upsert race, reproduced through the existing
+browser harness: reconciliation recreated the credential after lock deleted it.
+Reconciliation now conditionally refreshes the original row and credential in
+one IndexedDB transaction. A missing or changed row supersedes the response.
+Issuance keeps its existing separate write path.
+
+Bounds, results, browser evidence, atomicity assumptions, qualification, and
+reproduction are recorded in the
+[cross-tab restoration model](../crates/router-ab-core/formal-verification/tla-session-restore/README.md).
+Keep this check small. Global instantaneous UI synchronization, cancellation of
+already-started signing, and unlock competing with unfinished lock cleanup are
+separate questions.
+
 ## References
 
 - [Signing admission and response uncertainty](./spec-5-router-ab-threshold-protocol.md)
