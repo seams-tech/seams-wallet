@@ -225,6 +225,22 @@ Recommendation: retain this small model and stop expanding the pilot. Revisit it
 when changing these admission/lifecycle boundaries. Address the separate worker
 clock and startup-recovery questions only through a separately scoped review.
 
+## Narrow revocation follow-up
+
+The next separately scoped check models one wallet, one authority, a Passkey and
+an Email OTP method, two opposing revocations, and one delayed response. Both
+requests can pass preflight before either commits. Check that a live authorized
+source and at least one surviving method are required at the database commit;
+target sessions, quota, hosted children, envelope, proof spend, and exact replay
+commit together. A delayed reply must preserve an SDK-observed revocation.
+
+Results, production correspondence, finite bounds, fault qualification, and
+reproduction are recorded in the
+[narrow revocation model](../crates/router-ab-core/formal-verification/tla-revocation/README.md).
+Keep this independent of the signing pilot. Concurrent new session issuance,
+signing versus revocation, multiple authorities, and delayed add/unlock/restore
+publication are separate questions.
+
 ## References
 
 - [Signing admission and response uncertainty](./spec-5-router-ab-threshold-protocol.md)
