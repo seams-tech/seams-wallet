@@ -15,6 +15,90 @@ This log implements the bounded experiment in
 for [R152](refactor-152-regional-D1.md). The production ownership and rollout
 gates remain open.
 
+## Consolidated performance summary (October 2)
+
+These observations compare remote and nearer D1 placement in the recorded
+experimental topologies. They remain valid evidence for regional placement;
+acceptance of the replacement per-wallet home architecture requires new E2Es and
+hosted measurements. The [current implementation plan](refactor-152-regional-D1.md#authoritative-replacement-phase-per-wallet-regional-homes)
+owns that remaining work. All reductions below are calculated from the unrounded
+recorded medians; displayed seconds are rounded.
+
+| Probe / signing operation | Remote D1 median | Nearer D1 median | Median reduction |
+| --- | ---: | ---: | ---: |
+| London owner, ready material | APAC 2.4451 s | WEUR 0.8501 s | 65.2% |
+| London linked devices, ready material | APAC 2.2404 s | WEUR 0.7986 s | 64.4% |
+| London immediate first signature | APAC 4.8396 s | WEUR 1.1519 s | 76.2% |
+| London concurrent burst | APAC 7.8671 s | WEUR 1.3336 s | 83.0% |
+| Tokyo owner, ready material | WEUR 2.96895 s | APAC 1.68995 s | 43.1% |
+| Tokyo linked devices, ready material | WEUR 2.61425 s | APAC 1.44755 s | 44.6% |
+
+London's repeated ready-material cohorts verified **180 signatures across 20
+fresh wallets**, with 30 owner and 60 linked signatures per arm and zero
+failed/incomplete attempts. Owner p95 fell **2.6384 → 0.9427 s** (64.3%);
+linked p95 fell **2.4577 → 0.9270 s** (62.3%).
+[Full London evidence and reproduction](#repeated-london-ready-material-result).
+
+The London first-sign/burst diagnostic verified **30 additional signatures across
+six fresh wallets**, with zero failed/incomplete attempts. There were only three
+timed first signs and six timed burst signatures per arm. The median gains were
+4.2× and 5.9× respectively; the maximum WEUR burst was **2.0172 s**. Faster
+background refill contributed to this end-to-end benefit: APAC needed seven or
+eight foreground refill steps per burst, while WEUR needed none. This small
+cohort establishes neither a universal two-second bound nor the repeated
+first-sign/burst acceptance gate. [Diagnostic evidence](#london-first-sign-and-concurrent-burst-diagnostic).
+
+Tokyo's repeated ready-material cohorts verified **180 signatures across 20
+completed fresh wallets**, also with 30 owner and 60 linked signatures per arm.
+Owner p95 fell **3.1736 → 2.0656 s** (34.9%); linked p95 fell
+**2.9706 → 1.6371 s** (44.9%). One additional WEUR attempt lost its result during
+a collection failure; its Wallet outcome remains unknown and is excluded from
+the latency distribution. Repeated signatures within each wallet are correlated.
+[Full Tokyo evidence, failure ledger and analysis](#tokyo-sample-extension-october-1).
+
+### Where the time went
+
+| Probe / path | Remote summed D1 wall median | Nearer summed D1 wall median | Remote → nearer SQL median |
+| --- | ---: | ---: | ---: |
+| London owner | 1,762.5 ms | 114 ms | 14.66 → 10.34 ms |
+| London linked | 1,559.5 ms | 88 ms | 13.88 → 9.83 ms |
+| Tokyo owner | 1,929 ms | 564 ms | 15.38 → 16.45 ms |
+| Tokyo linked | 1,713 ms | 500 ms | 14.78 → 15.59 ms |
+
+The placement benefit is dominated by reduced D1 waiting rather than SQL
+execution changes. These timings do not attribute every millisecond to network
+transport or establish that every custody DO shared a datacenter with D1.
+The repeated signing comparisons used static Console composition and retained
+the same seven owner / five linked D1-call budgets within their measured windows.
+Reducing calls and writes remains a separate optimization target.
+
+### Hosted Console measurements are separate cohorts
+
+Real hosted Console diagnostics also observed a Tokyo benefit with APAC Wallet
+D1, while Console authority stayed in APAC:
+
+| Diagnostic / SDK median | Remote WEUR Wallet D1 | Nearer APAC Wallet D1 |
+| --- | ---: | ---: |
+| Published-server owner signing | 3.2576 s | 2.1652 s |
+| Published-server linked signing | 2.6553 s | 1.64945 s |
+| Unreleased-candidate owner signing, reversed arm order | 3.1972 s | 1.9346 s |
+| Unreleased-candidate linked signing, reversed arm order | 2.6872 s | 1.5748 s |
+
+Each diagnostic verified 18 signatures from one fresh wallet per arm (three owner
+and six linked signatures per arm). Timings include confirmation. Preserve these
+as separate small cohorts because their server builds differ; neither closes the
+repeated authenticated hosted acceptance gate.
+[Published-server diagnostic](#hosted-console-signing-diagnostic-october-1) ·
+[Candidate reversed-order comparison](#reversed-order-signing-comparison).
+
+A separate Console-placement experiment issued **64 unauthenticated status
+requests**, returning the expected HTTP 401 after successful binding lookup.
+Among 30 warm observations per arm, complete Gateway binding-lookup median fell
+**246 → 64 ms** (74.0%) with APAC Console D1; p95 fell **260 → 149 ms**.
+Client request median fell **267.7 → 88.9 ms**. This measures lookup overhead;
+no signatures were measured in that cohort. Raw distributions and reproduction
+artifacts remain in the hosted Console placement section below.
+
 ## Provisioning and schema
 
 | Arm | Database | ID | Deployment namespace |
