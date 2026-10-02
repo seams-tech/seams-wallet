@@ -1,16 +1,16 @@
 {
-  "commit": "0e647b1",
+  "commit": "bdfb5f0",
   "date": "2026-10-02",
   "metrics": {
-    "tsCodeLines": 502005,
-    "rustCodeLines": 407888,
-    "jsCodeLines": 21267,
+    "tsCodeLines": 502207,
+    "rustCodeLines": 406115,
+    "jsCodeLines": 21293,
     "filesOver2000": 66,
-    "linesInFilesOver2000": 302684,
+    "linesInFilesOver2000": 301988,
     "tsDuplicatedPercent": 3,
     "tsDuplicatedLines": 12107,
-    "rustDuplicatedPercent": 4.9,
-    "rustDuplicatedLines": 15700,
+    "rustDuplicatedPercent": 4.8,
+    "rustDuplicatedLines": 15517,
     "deadExports": 0,
     "deadExportLines": 0,
     "testOnlyExports": 161,
@@ -23,7 +23,7 @@
     "neverPaddingLines": 1923,
     "rustAllowDeadCode": 90,
     "refactorPlanDocs": 44,
-    "refactorPlanDocLines": 21405,
+    "refactorPlanDocLines": 21687,
     "refactorCitations": 27
   }
 }

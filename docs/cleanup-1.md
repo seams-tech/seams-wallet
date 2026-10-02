@@ -6,10 +6,10 @@ worker, route and fixture clusters outside R150's files, and split oversized
 files along their seams. R150 is on `dev`, but feature work still changes
 Phase 4's files. A second survey (below) found more to remove outside them. CI
 runs `pnpm report:bloat --check`, which fails when a ratcheted measure grows
-past `scripts/bloat-baseline.json`, now recorded at `0e647b1`. Since the first
-baseline (`7c8a163`), TypeScript code is down 37,836 lines net of new feature
-code, Rust code 25,563 and JavaScript 9,799. Duplication is down from 5.1%
-to 3.0% in TypeScript and from 5.7% to 4.9% in Rust, and files over 2,000
+past `scripts/bloat-baseline.json`, now recorded at `bdfb5f0`. Since the first
+baseline (`7c8a163`), TypeScript code is down 37,634 lines net of new feature
+code, Rust code 27,336 and JavaScript 9,773. Duplication is down from 5.1%
+to 3.0% in TypeScript and from 5.7% to 4.8% in Rust, and files over 2,000
 lines from 82 to 66. The findings below are the
 first baseline's; run `pnpm report:bloat` for current numbers.
 
@@ -57,7 +57,7 @@ files that repeat themselves.
 - [ ] Phase 4: restructure R150's largest files once feature work in them
   settles.
 - [ ] The second survey's remaining items, and its decisions.
-- [ ] The third survey's decisions, and the Rust survey's findings.
+- [ ] The third survey's decisions.
 
 ## Findings
 
@@ -663,7 +663,6 @@ object), `thiserror` for the Rust `Display` impls, and moving
 Eight surveys covered what the first two did not: protocol dead ends,
 dead Rust behind `pub`, legacy paths and settings, members below the export
 level, structure, code health, docs and configuration, and shipped bytes.
-The Rust survey is still running.
 
 Landed:
 - Broken doc links (237 unresolved to 2), nine wallet test scripts that
@@ -680,6 +679,9 @@ Landed:
 - The base58 re-exports that sat on the wallet iframe's boot path
   (4fbf962: boot 24.7 to 21.5 kB gzip, 8.5 kB off the workers) and the
   wallet's largest import cycle (335f287).
+- 408 Rust items dead in every build (67d20a6) and 106 suppressions that
+  suppressed nothing (bdfb5f0). Narrowing every `pub` nothing else names
+  let rustc report what a name-based scan could not.
 
 Decisions, largest first:
 - Features that are built and unreached. Finish or delete each:
@@ -722,6 +724,20 @@ Decisions, largest first:
   moves (66 to 47); the plan's rule is that a split must follow a seam.
 - The 27 "R120" and refactor citations: rename them in prose, or exempt
   R120 as a protocol name.
+- Rust that only tests reach, about 14,000 lines in files nobody is
+  changing (router-ab-core 8,575, the generator 2,332): delete it with its
+  tests, or move it behind a test-support feature. Some mirrors
+  TypeScript logic for fixture parity.
+- Wasm exports nothing calls in router_ab_ecdsa_client (8 of 47),
+  near_signer, the custody ceremony and the Yao client, and two worker
+  requests with no sender (the ECDSA lane holder, and near_signer's last
+  request, whose only sender nothing reads): the ECDSA client wasm would
+  shrink 14.9% and near_signer 6.8%. The pkg `.d.ts` changes, so two
+  type aliases become hand-written interfaces.
+- 5,175 `pub` items and fields no other crate names. Narrowing them to
+  `pub(crate)` lets rustc report dead Rust from then on. 128 dead items in
+  files under active work, and 13 behind a `pub use` in such a file,
+  wait.
 
 Possible defects, for their owners:
 - `core/authService/oidcVerification.ts` swallows a failed identity-store
@@ -992,3 +1008,6 @@ Found during the cleanup and left unchanged, for their owners to check:
   -> 149; validation functions 4,276 -> 3,701 (86,063 -> 73,427 lines).
   The wallet iframe's boot path is 21.5 kB gzip, down from 24.7. The
   baseline was re-recorded at `0e647b1`.
+- 2026-10-02: the Rust survey's no-decision part (67d20a6, bdfb5f0). Rust
+  code 433,451 -> 406,115 lines against the first baseline; duplicated
+  Rust lines 19,427 -> 15,517. The baseline was re-recorded at `bdfb5f0`.
