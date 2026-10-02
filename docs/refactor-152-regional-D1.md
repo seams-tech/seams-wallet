@@ -72,8 +72,10 @@ Inventory completion checklist:
 - [ ] Enumerate every effective signer table/index/trigger after **all** migrations,
   including 0041; assign each an authoritative owner and record all cross-table
   transactions. Include dynamically constructed/versioned JSON records.
-- [ ] Inventory all registration paths and their current durable idempotency keys;
+- [x] Inventory all registration paths and their current durable idempotency keys;
   specify the first durable allocation point and behavior after a lost response.
+  The [registration operation inventory](refactor-152-per-wallet-inventory.md#registration-operation-ids-and-first-durable-write)
+  covers direct, hosted-passkey, low-level and Google offer entry points.
 - [ ] Inventory public/internal routes, cron/alarm/queue jobs and role RPCs: wallet
   identity available, identity verified where, home resolved where, store touched,
   and failure behavior. Explicitly cover routes with no wallet ID.

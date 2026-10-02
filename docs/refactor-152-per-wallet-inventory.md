@@ -218,11 +218,23 @@ releasing an index entry. The exact service contracts remain an open inventory i
 
 ### Registration operation IDs and first durable write
 
+| Entry path | Current replay identity | Gap and required cutover behavior |
+| --- | --- | --- |
+| SDK direct passkey ECDSA or mixed registration | Volatile `finalizeIdempotencyKey`, created before setup and used by activation | Persist one pre-setup operation ID; a lost setup reply must replay the same Console reservation and regional preparation. |
+| SDK direct Email OTP Ed25519-only registration | Volatile `finalizeIdempotencyKey`, created before setup | Use the same pre-setup operation contract; the Email OTP authority and selected wallet must remain bound through retry. |
+| SDK direct passkey Ed25519-only registration | Volatile `finalizeIdempotencyKey`, created before setup | Use the same pre-setup operation contract and recover the same ceremony identity. |
+| Hosted passkey preparation (`prepareHostedPasskeyRegistration`) | `authMenuSessionId` and `requestId` own the in-memory prompt; the finalization key is created only when registration continues | Create and durably record the setup operation before hosted preparation. Cancellation must close its reservation; a restarted UI must identify the prior attempt explicitly. |
+| Low-level `setupWalletRegistration` client and `/wallets/register/setup` route | No setup operation ID on the wire | Require a stable ID from the caller; validate it at the authenticated route and bind it to the normalized request and Origin. |
+| Google Email OTP registration offer | Durable `registrationAttemptId` and `ownerProofBindingDigest`; `restartRegistrationOffer` abandons an offer intentionally | Keep the offer and candidate uniqueness in shared authority. The selected candidate must use one setup operation and one permanent wallet/home reservation. |
+
 `/wallets/register/setup` currently has no request-carried setup operation ID.
 The route validates the publishable key, exact Origin, environment and body,
 then calls `setupWalletRegistration`. That service generates a wallet ID for the
 server-allocated branch, founding authority/auth-method IDs, ceremony and
 preparation IDs in memory before custody preparation and ceremony persistence.
+`buildD1EvmFamilyEcdsaRegistrationPrepare` can call the Router before
+`putCeremony` makes the current local setup durable. This ordering must change
+when the shared reservation is installed.
 The browser-side `finalizeIdempotencyKey` is generated before setup in each
 registration branch, but currently binds **finalization only** and is not
 persisted across a browser restart. Reusing its string as a setup key without
@@ -234,12 +246,19 @@ that existing store with its own precise lifecycle and cleanup.
 The Console directory reservation must be the first durable wallet/home
 allocation for both supplied and generated wallet IDs. The hosted setup
 boundary must derive the request digest from the verified tenant, Origin and
-normalized request,
-reserve once, and use the winning wallet, home and five stored setup IDs before
-regional custody preparation. The setup operation ID must survive response loss
+normalized request, reserve once, and use the winning wallet, home and five
+stored setup IDs before regional custody preparation. The setup operation ID
+must survive response loss
 and browser restart; a replay must return the winning allocation. Setup effects
 and ceremony persistence need their own idempotent continuation, because a
 directory replay alone cannot prove that regional preparation committed.
+If a reply is lost before the directory commits, replay may propose a fresh
+candidate. If it is lost after commit, replay must receive the stored wallet,
+home and setup IDs. If regional preparation ran but the ceremony write did not,
+the stored preparation ID must resume or reconcile that exact Router operation.
+Once a ceremony exists, replay reads and verifies it before returning its
+original identity. Expired or cancelled operations return a terminal outcome;
+they never select a new home for the same wallet.
 
 Google Email OTP has an additional durable `registrationAttemptId` and
 `ownerProofBindingDigest`. `findStarted` reuses an active offer for the same
@@ -462,9 +481,22 @@ changing store composition.
 
 ## Deletion obligations still open
 
-Remove `NamespaceD1HomeV1`, its store methods and effective reservation schema;
-singular binding home ownership; provisioning's namespace reservation gate;
-automatic namespace adoption in `homeChallenge`; `homeAdoption` and CLI/API
-adoption modes; historical-binding decoders; and obsolete namespace-only tests.
-Retain actual resource/version verification and ordinary namespace authorization.
-The main replacement plan lists the affected files and deployment configuration.
+The namespace reservation API, `NamespaceD1HomeV1`, adoption route/CLI and
+effective `namespace_d1_homes` table were removed in the private `0052` cutover
+checkpoint. Earlier numbered migrations remain as ordered persistence history;
+they do not create an effective legacy ownership path.
+
+| Surviving source or configuration | Replacement or deletion |
+| --- | --- |
+| Private shared `tenant-deployment/index.ts`, server `tenantDeployment/{types,runtimeBinding,provisioning,d1,homeVerification}.ts` | Replace singular binding `home`/hash and one-resource activation with an admitted regional resource set; retain version and provider proof for each backend. |
+| Private `d1GatewayWorker`, `d1WalletRuntimeWorker`, `d1ConsoleStagingWorker`, `d1LocalDevWorker`, and `render-d1-gateway-config.mjs` | Remove the assumption that `SEAMS_D1_HOME_ACCOUNT_ID` and `SEAMS_D1_HOME_DATABASE_ID` identify the home of every wallet in a tenant. A regional backend may still bind its own `SIGNER_DB` resource after admission. |
+| Private `deployment/wallet-system/targets.json`, `scripts/deploy-backend.mjs`, generated Wrangler config and smoke scripts | Render and verify US, WEUR and APAC resource/backend bindings; remove singular `signerD1` assumptions after the regional set replaces them. Do not commit locally rendered secrets or IDs. |
+| Public `hosted-wallet-gateway.ts`, Cloudflare runtime env and local hosted adapter | Resolve wallet ownership before selecting the regional `SIGNER_DB`; remove direct single-database composition for wallet-scoped paths. |
+| Public `namespace_home_challenges` table/migration and private `tenant-home-challenge.mjs`/`homeChallenge.ts` | Keep the provider challenge as per-resource proof; rename its active storage and call sites so a challenge no longer implies namespace ownership. Preserve old migrations only as ordered history. |
+| Private `tenant-deployment-binding.e2e`, `tenant-home-challenge.e2e`, helper environments and type fixtures | Replace singular-home assertions with multiple admitted backend resources and per-wallet ownership; retain actual wrong-resource and stale-version rejection. |
+| Private `docs/refactor-127.md` operator commands | Remove or supersede the deleted `adopt-home` instructions before the new regional operator runbook is used. |
+
+Retain ordinary namespace authorization and resource/version verification. The
+final deletion sweep must search source, tests, scripts, config renderers and
+generated outputs after the replacement is wired, then verify no obsolete
+runtime path remains.
