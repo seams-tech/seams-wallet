@@ -5,7 +5,6 @@ export * from './core/ThresholdService/evmCryptoWasm';
 export * from './core/d1WalletStore';
 export * from './core/d1WalletAuthMethodStore';
 export * from './core/logger';
-export * from './core/signingLanes/LaneLifecycleApplicationService';
 export * from './core/routerAbSigning/RouterAbEcdsaPresignRuntime';
 export * from './core/types';
 export * from './delegateAction';
@@ -44,11 +43,7 @@ export * from './router/cloudflare/d1/ed25519Yao/d1Ed25519YaoCapabilityPersisten
 export * from './router/cloudflare/d1/oidc/d1OidcBoundary';
 export * from './router/cloudflare/d1/auth/d1RouterApiAuthConfig';
 export * from './router/cloudflare/d1/auth/d1RouterApiAuthService';
-export * from './router/cloudflare/d1/signingLanes';
 export * from './router/cloudflare/d1/deviceLinking';
-export * from './router/cloudflare/signingLanes/cloudflareLaneCurveExecution';
-export * from './router/cloudflare/signingLanes/cloudflareLaneProtocolCommitter';
-export * from './router/cloudflare/signingLanes/linkedDeviceEd25519CeremonyBinding';
 export * from './router/cloudflare/signingLanes/cloudflareOrdinaryInactiveSignerMaterialReservation';
 export * from './router/cloudflare/d1/webauthn/d1WebAuthnAuthService';
 export * from './router/cloudflare/d1/webauthn/d1WebAuthnStore';
@@ -118,7 +113,6 @@ export {
   type RouterAbEd25519NormalSigningScopeV2,
   type RouterAbEd25519PrivateSigningPath,
   type RouterAbEd25519PrivateSigningWorkerBody,
-  routerAbNormalSigningMaterialSourceFromActiveLaneV1,
   type RouterAbNormalSigningMaterialSourceV1,
 } from './router/domains/signingOperations/routerAbPrivateSigningWorker';
 export * from './router/domains/signingOperations/routerAbEd25519NormalSigningRoute';
@@ -183,13 +177,6 @@ export {
   encodeTenantRootIdentityV1,
   type TenantRootIdentityV1,
 } from '@shared/tenant-root/tenantRootIdentity';
-export { buildSigningWorkerParticipantRecordWithDigestV1 } from '@shared/signing-lanes/participantDigest';
-export {
-  parseHpkePublicKeyB64u,
-  parseSigningWorkerParticipantId,
-  parseSigningWorkerRecipientKeyDigestB64u,
-  parseSigningWorkerRecipientKeyId,
-} from '@shared/signing-lanes/participants';
 export { keccak256Bytes } from '@shared/utils/keccak';
 export {
   normalizeBoundedPositiveInteger,

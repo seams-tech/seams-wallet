@@ -61,8 +61,6 @@ import type {
   VerifyRouterAbEcdsaPostRegistrationProofsResultV1,
   SignWalletRecoveryEcdsaMaterialPossessionProofRequestV1,
   SignWalletRecoveryEcdsaMaterialPossessionProofResultV1,
-  PrepareEcdsaAdditiveLaneHolderRequestV1,
-  PrepareEcdsaAdditiveLaneHolderResultV1,
   PrepareLinkedDeviceEcdsaSourceContributionRequestV1,
   PrepareLinkedDeviceEcdsaSourceContributionResultV1,
   CreateEcdsaHolderOrdinaryExportRequestV1,
@@ -96,15 +94,10 @@ import type {
 import {
   ROUTER_AB_ED25519_YAO_EMAIL_OTP_RECOVERY_BOOTSTRAP_KIND_V1,
   type RouterAbEd25519YaoApplicationBindingFactsV1,
-  type RouterAbEd25519YaoCeremonyBindingV1,
   type RouterAbEd25519YaoActivationAdmissionReceiptV1,
   type RouterAbEd25519YaoBytes32V1,
   type RouterAbEd25519YaoRegistrationAdmissionRequestV1,
 } from '@shared/utils/routerAbEd25519Yao';
-import type {
-  Ed25519YaoLaneClientCompletionV1,
-  Ed25519YaoLaneJobV1,
-} from '@shared/signing-lanes/rotation';
 import type { ExactWalletSessionAuthorization } from '../session/persistence/walletSessionAuthorizationProjection';
 import type { WalletRegistrationEd25519YaoSignerRuntimeBootstrap } from '@shared/utils/registrationContracts';
 import type { WalletRecoverySetRotationWorkerResultV1 } from '@shared/wallet-recovery/walletRecoveryRotation';
@@ -1168,7 +1161,6 @@ export const EcdsaDerivationClientCustomRequestType = {
   PrewarmEcdsaRegistrationCrypto: 70_018,
   VerifyRouterAbEcdsaPostRegistrationProofs: 70_019,
   SignWalletRecoveryEcdsaMaterialPossessionProof: 70_020,
-  PrepareEcdsaAdditiveLaneHolder: 70_021,
   PrepareLinkedDeviceEcdsaSourceContribution: 70_022,
   StoreLinkedDeviceEcdsaHolderMaterial: 70_023,
   DisposeLinkedDeviceEcdsaHolderMaterials: 70_024,
@@ -1196,7 +1188,6 @@ export const EcdsaDerivationClientCustomResponseType = {
   PrewarmEcdsaRegistrationCryptoSuccess: 70_118,
   VerifyRouterAbEcdsaPostRegistrationProofsSuccess: 70_119,
   SignWalletRecoveryEcdsaMaterialPossessionProofSuccess: 70_120,
-  PrepareEcdsaAdditiveLaneHolderSuccess: 70_121,
   PrepareLinkedDeviceEcdsaSourceContributionSuccess: 70_122,
   StoreLinkedDeviceEcdsaHolderMaterialSuccess: 70_123,
   DisposeLinkedDeviceEcdsaHolderMaterialsSuccess: 70_124,
@@ -1599,14 +1590,6 @@ type EcdsaDerivationClientCustomOperationMap = {
       diagnostics?: WorkerResponseDiagnostics;
     };
   };
-  [EcdsaDerivationClientCustomRequestType.PrepareEcdsaAdditiveLaneHolder]: {
-    payload: PrepareEcdsaAdditiveLaneHolderRequestV1;
-    result: {
-      type: typeof EcdsaDerivationClientCustomResponseType.PrepareEcdsaAdditiveLaneHolderSuccess;
-      payload: PrepareEcdsaAdditiveLaneHolderResultV1;
-      diagnostics?: WorkerResponseDiagnostics;
-    };
-  };
   [EcdsaDerivationClientCustomRequestType.PrepareLinkedDeviceEcdsaSourceContribution]: {
     payload: PrepareLinkedDeviceEcdsaSourceContributionRequestV1;
     result: {
@@ -1733,7 +1716,6 @@ export type EcdsaDerivationRoleLocalMaterialOperationType =
   | typeof EcdsaDerivationClientCustomRequestType.StoreThresholdEcdsaRoleLocalSigningMaterial
   | typeof EcdsaDerivationClientCustomRequestType.RehydrateEcdsaRoleLocalSigningMaterial
   | typeof EcdsaDerivationClientCustomRequestType.SignWalletRecoveryEcdsaMaterialPossessionProof
-  | typeof EcdsaDerivationClientCustomRequestType.PrepareEcdsaAdditiveLaneHolder
   | typeof EcdsaDerivationClientCustomRequestType.PrepareLinkedDeviceEcdsaSourceContribution
   | typeof EcdsaDerivationClientCustomRequestType.StoreLinkedDeviceEcdsaHolderMaterial
   | typeof EcdsaDerivationClientCustomRequestType.DisposeLinkedDeviceEcdsaHolderMaterials;
@@ -1844,18 +1826,6 @@ export interface WalletCustodyCeremonyWorkerOperationMap {
         };
     result: { sourceHandle: string };
   };
-  prepareEd25519YaoLane: {
-    payload: {
-      sourceHandle: string;
-      job: Ed25519YaoLaneJobV1;
-      ceremonyBinding: RouterAbEd25519YaoCeremonyBindingV1;
-      applicationBinding: RouterAbEd25519YaoApplicationBindingFactsV1;
-      participantIds: readonly [number, number];
-      deriverAInputPublicKeyB64u: string;
-      deriverBInputPublicKeyB64u: string;
-    };
-    result: { sessionHandle: string; requestJson: string };
-  };
   prepareEd25519YaoSourcePreservingRegistration: {
     payload: {
       sourceHandle: string;
@@ -1866,10 +1836,6 @@ export interface WalletCustodyCeremonyWorkerOperationMap {
       targetClientRecipientPublicKeyB64u: string;
     };
     result: { requestJson: string };
-  };
-  completeEd25519YaoLane: {
-    payload: { sessionHandle: string; responseJson: string };
-    result: Ed25519YaoLaneClientCompletionV1;
   };
   discardEd25519YaoLaneSource: {
     payload: { sourceHandle: string };

@@ -208,7 +208,6 @@ type SealedSessionRecordClassificationReason =
   | 'invalid_payload'
   | 'invalid_header'
   | 'invalid_identity'
-  | 'owned_by_lane_holder_store'
   | 'missing_participant_ids'
   | 'missing_restore_metadata';
 
@@ -225,7 +224,6 @@ type EcdsaInactiveSealedMaterialRecordClassification = {
 type NonCurrentSealedSessionRecordClassificationKind =
   | 'delete_required'
   | 'rebuild_required'
-  | 'unrelated_record'
   | 'malformed';
 
 type NonCurrentSealedSessionRecordClassification = {
@@ -733,9 +731,6 @@ export function classifyRawSealedSessionRecord(raw: unknown): SealedSessionRecor
   raw = storagePayloadFromSealedStoreRow(raw);
   const obj = asRecord(raw);
   if (!obj) return classifyNonCurrentRecord('malformed', null, 'invalid_payload');
-  if (obj.kind === 'lane_sealed_holder_record_v1') {
-    return classifyNonCurrentRecord('unrelated_record', obj, 'owned_by_lane_holder_store');
-  }
   if (hasRetiredAuthorizationIdentityField(obj)) {
     return classifyNonCurrentRecord('delete_required', obj, 'invalid_identity');
   }
@@ -1164,7 +1159,6 @@ export function logSealedSessionClassification(args: {
 }): void {
   if (args.classification.kind === 'ecdsa_inactive_material') return;
   if (args.classification.kind === 'rebuild_required') return;
-  if (args.classification.kind === 'unrelated_record') return;
   const outcome = args.classification.kind === 'malformed' ? 'malformed' : 'rejected';
   const payload = {
     operation: args.operation,

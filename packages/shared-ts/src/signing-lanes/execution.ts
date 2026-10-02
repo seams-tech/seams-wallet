@@ -2,7 +2,6 @@ import type { AuthorizedOperationId, CapabilityId } from '../authorization/capab
 import type { CapabilityOperationFingerprintDigest } from '../authorization/operationFingerprint';
 import type { DigestB64u } from '../utils/canonicalPrimitives';
 import type { MpcMaterialActivationRef } from '../utils/domainIds';
-import type { LinkedDeviceEnrollmentId } from './ids';
 import type { ActiveSigningLaneReference, SigningLaneRecord, WalletKeyRecord } from './records';
 
 export type OwnerWalletExecutionLaneProjectionV1 = {
@@ -35,15 +34,6 @@ export type PreparedOwnerWalletExecution = PreparedWalletExecutionBase & {
     readonly laneKind: PreparedOwnerWalletExecution['laneKind'];
   };
   readonly linkedDeviceEnrollmentId?: never;
-  readonly delegatedAuthorizationId?: never;
-  readonly budgetClaim?: never;
-};
-
-export type PreparedLinkedDeviceWalletExecution = PreparedWalletExecutionBase & {
-  readonly kind: 'prepared_linked_device_wallet_execution';
-  readonly laneKind: 'linked_device';
-  readonly lane: ActiveSigningLaneReference & { readonly laneKind: 'linked_device' };
-  readonly linkedDeviceEnrollmentId: LinkedDeviceEnrollmentId;
   readonly delegatedAuthorizationId?: never;
   readonly budgetClaim?: never;
 };

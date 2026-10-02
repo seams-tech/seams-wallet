@@ -49,16 +49,6 @@ export type {
   PendingWalletRecoveryTargetIdentityV1,
 } from './pendingWalletRecoveryCommit';
 export {
-  LaneSealedHolderMaterialRepository,
-  laneSealedHolderMaterialRepository,
-  laneSealedHolderStoreKeyV1,
-} from './seamsWalletDB/laneHolderMaterialStore';
-export type {
-  LaneSealedHolderMaterialRepositoryV1,
-  LaneSealedHolderRecordV1,
-  LaneSealedHolderRecordLookupV1,
-} from './seamsWalletDB/laneHolderMaterialStore';
-export {
   WALLET_SESSION_AUTHORIZATION_RECORD_VERSION_V6,
   WalletSessionAuthorizationRepository,
   WalletSessionAuthorizationUpgradeRequiredError,

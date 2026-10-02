@@ -18,7 +18,7 @@ import type {
 } from './EmailOtpStores';
 
 /** Parses JSON text; any other value, and text that is not JSON, comes back unchanged. */
-export function parseJsonRecord(raw: unknown): unknown {
+function parseJsonRecord(raw: unknown): unknown {
   if (typeof raw !== 'string') return raw;
   try {
     return JSON.parse(raw);

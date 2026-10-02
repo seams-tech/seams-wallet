@@ -126,7 +126,7 @@ export function parseOwnerLaneParticipantContinuityV1(
   });
 }
 
-export function ownerLaneParticipantContinuityCanonicalBytesV1(
+function ownerLaneParticipantContinuityCanonicalBytesV1(
   input: OwnerLaneParticipantContinuityV1,
 ): Uint8Array {
   const record = parseOwnerLaneParticipantContinuityV1(input);

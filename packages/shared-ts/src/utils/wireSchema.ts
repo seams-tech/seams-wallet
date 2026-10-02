@@ -2,7 +2,7 @@
 // and its output, and the record's type is inferred from it. Build schemas in functions, and
 // mark a module-level combinator call /* @__PURE__ */: Bun, which bundles the workers, keeps
 // any other module-level call, so the schema would ship in every worker importing its module.
-import { requireArray, requireRecord } from './validation';
+import { requireRecord } from './validation';
 import { exactRecord } from './exactRecord';
 
 /** Parses one wire value; `label` is the value's path, for its error messages. */
@@ -102,21 +102,6 @@ export function wireUnion<
 /** `null`, or a value `parse` accepts. */
 export function wireNullable<T>(parse: WireParser<T>): WireParser<T | null> {
   return (raw, label) => (raw === null ? null : parse(raw, label));
-}
-
-/** A non-empty array of `item`; `refine` checks rules that span the items. */
-export function wireNonEmptyArray<T>(
-  item: WireParser<T>,
-  refine?: (items: readonly [T, ...T[]], label: string) => void,
-): WireParser<readonly [T, ...T[]]> {
-  return (raw, label) => {
-    const entries = requireArray(raw, label);
-    if (entries.length === 0) throw new Error(`${label} must be non-empty`);
-    const [first, ...rest] = entries.map((entry, index) => item(entry, `${label}[${index}]`));
-    const items: readonly [T, ...T[]] = [first, ...rest];
-    refine?.(items, label);
-    return items;
-  };
 }
 
 /** Adapts a parser that returns a result, putting the field's label before its error. */

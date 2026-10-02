@@ -5,7 +5,6 @@ import initEcdsaDerivationClient, {
   finalize_ecdsa_client_bootstrap_v1,
   prepare_ecdsa_client_bootstrap_v1,
   sign_ecdsa_wallet_recovery_material_possession_proof_v1,
-  EcdsaLaneHolderSessionV1,
   LinkedDeviceEcdsaSourceContributionSessionV1,
   RouterAbEcdsaClientCeremonyV1,
 } from '../../../../../../../wasm/router_ab_ecdsa_client/pkg/router_ab_ecdsa_client.js';
@@ -62,9 +61,6 @@ import {
   type VerifyRouterAbEcdsaPostRegistrationProofsResultV1,
   type SignWalletRecoveryEcdsaMaterialPossessionProofRequestV1,
   type SignWalletRecoveryEcdsaMaterialPossessionProofResultV1,
-  parsePrepareEcdsaAdditiveLaneHolderRequestV1,
-  type PrepareEcdsaAdditiveLaneHolderRequestV1,
-  type PrepareEcdsaAdditiveLaneHolderResultV1,
   parsePrepareLinkedDeviceEcdsaSourceContributionRequestV1,
   parsePrepareLinkedDeviceEcdsaSourceContributionResultV1,
   type PrepareLinkedDeviceEcdsaSourceContributionRequestV1,
@@ -76,11 +72,6 @@ import {
   type OpaqueEcdsaPresignAuthorityRequestV1,
   type OpaqueEcdsaPresignAuthorityResponseV1,
 } from '../ecdsaClientWorkerChannels';
-import {
-  prepareEcdsaLaneHolderInWorkerV1,
-  type CanonicalEcdsaLaneSourceMaterialV1,
-  type EcdsaLaneHolderSessionFactoryV1,
-} from './ecdsaLaneHolderWorkerRuntime';
 import type {
   CloseRouterAbEcdsaRegistrationCeremonyRequestV1,
   CloseRouterAbEcdsaRegistrationCeremonyResultV1,
@@ -1290,34 +1281,6 @@ function signWalletRecoveryEcdsaMaterialPossessionProof(
   };
 }
 
-function collectCanonicalEcdsaLaneSourceMaterials(): CanonicalEcdsaLaneSourceMaterialV1[] {
-  const candidates: CanonicalEcdsaLaneSourceMaterialV1[] = [];
-  for (const material of ecdsaRoleLocalSigningMaterialStore.values()) {
-    if (!material.materialActivation) continue;
-    if (material.activationBinding.kind !== 'strict_router_ab_activation_v1') continue;
-    candidates.push({
-      materialActivation: material.materialActivation,
-      stateBlobB64u: material.stateBlobB64u,
-    });
-  }
-  return candidates;
-}
-
-const ecdsaLaneHolderSessionFactory: EcdsaLaneHolderSessionFactoryV1 = {
-  create(stateBlobB64u) {
-    return new EcdsaLaneHolderSessionV1(stateBlobB64u);
-  },
-};
-
-function prepareEcdsaAdditiveLaneHolder(raw: unknown): PrepareEcdsaAdditiveLaneHolderResultV1 {
-  const request = parsePrepareEcdsaAdditiveLaneHolderRequestV1(raw);
-  return prepareEcdsaLaneHolderInWorkerV1({
-    request,
-    candidates: collectCanonicalEcdsaLaneSourceMaterials(),
-    sessionFactory: ecdsaLaneHolderSessionFactory,
-  });
-}
-
 function resolveLinkedDeviceEcdsaSourceMaterial(
   preparation: PrepareLinkedDeviceEcdsaSourceContributionRequestV1['preparation'],
 ): StoredEcdsaRoleLocalSigningMaterial {
@@ -1932,7 +1895,6 @@ async function initializeEcdsaDerivationOperationWasm(
     case EcdsaDerivationClientCustomRequestType.PrepareThresholdEcdsaDerivationRoleLocalClientBootstrap:
     case EcdsaDerivationClientCustomRequestType.FinalizeThresholdEcdsaDerivationRoleLocalClientBootstrap:
     case EcdsaDerivationClientCustomRequestType.SignWalletRecoveryEcdsaMaterialPossessionProof:
-    case EcdsaDerivationClientCustomRequestType.PrepareEcdsaAdditiveLaneHolder:
     case EcdsaDerivationClientCustomRequestType.PrepareLinkedDeviceEcdsaSourceContribution:
     case EcdsaDerivationClientCustomRequestType.StoreLinkedDeviceEcdsaHolderMaterial:
     case EcdsaDerivationClientCustomRequestType.CreateEcdsaHolderOrdinaryExportRequest:
@@ -2036,11 +1998,6 @@ async function executeEcdsaDerivationRequest(
         type: EcdsaDerivationClientCustomResponseType.FinalizeThresholdEcdsaDerivationRoleLocalClientBootstrapSuccess,
         payload: JSON.parse(finalize_ecdsa_client_bootstrap_v1(JSON.stringify(request.payload))),
       };
-    case EcdsaDerivationClientCustomRequestType.PrepareEcdsaAdditiveLaneHolder:
-      return {
-        type: EcdsaDerivationClientCustomResponseType.PrepareEcdsaAdditiveLaneHolderSuccess,
-        payload: prepareEcdsaAdditiveLaneHolder(request.payload),
-      };
     case EcdsaDerivationClientCustomRequestType.PrepareLinkedDeviceEcdsaSourceContribution:
       return {
         type: EcdsaDerivationClientCustomResponseType.PrepareLinkedDeviceEcdsaSourceContributionSuccess,
@@ -2091,7 +2048,6 @@ function parseEcdsaDerivationOperationType(value: unknown): EcdsaDerivationWorke
     case EcdsaDerivationClientCustomRequestType.SignWalletRecoveryEcdsaMaterialPossessionProof:
     case EcdsaDerivationClientCustomRequestType.PrepareThresholdEcdsaDerivationRoleLocalClientBootstrap:
     case EcdsaDerivationClientCustomRequestType.FinalizeThresholdEcdsaDerivationRoleLocalClientBootstrap:
-    case EcdsaDerivationClientCustomRequestType.PrepareEcdsaAdditiveLaneHolder:
     case EcdsaDerivationClientCustomRequestType.PrepareLinkedDeviceEcdsaSourceContribution:
     case EcdsaDerivationClientCustomRequestType.StoreLinkedDeviceEcdsaHolderMaterial:
     case EcdsaDerivationClientCustomRequestType.DisposeLinkedDeviceEcdsaHolderMaterials:
@@ -2606,12 +2562,6 @@ function parseEcdsaDerivationClientWorkerRequest(
         type: requestType,
         payload: parseGeneratedFinalizeEcdsaClientBootstrapCommand(record.payload),
       };
-    case EcdsaDerivationClientCustomRequestType.PrepareEcdsaAdditiveLaneHolder:
-      return {
-        id: requestId,
-        type: requestType,
-        payload: parsePrepareEcdsaAdditiveLaneHolderRequestV1(record.payload),
-      };
     case EcdsaDerivationClientCustomRequestType.PrepareLinkedDeviceEcdsaSourceContribution:
       return {
         id: requestId,
@@ -2778,11 +2728,6 @@ type EcdsaDerivationClientWorkerRpcRequest =
       readonly id: string;
       readonly type: typeof EcdsaDerivationClientCustomRequestType.FinalizeThresholdEcdsaDerivationRoleLocalClientBootstrap;
       readonly payload: WasmFinalizeThresholdEcdsaDerivationRoleLocalClientBootstrapRequest;
-    }
-  | {
-      readonly id: string;
-      readonly type: typeof EcdsaDerivationClientCustomRequestType.PrepareEcdsaAdditiveLaneHolder;
-      readonly payload: PrepareEcdsaAdditiveLaneHolderRequestV1;
     }
   | {
       readonly id: string;

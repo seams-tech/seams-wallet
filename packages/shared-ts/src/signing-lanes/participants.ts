@@ -15,10 +15,10 @@ export type SigningWorkerParticipantId = DomainId<'SigningWorkerParticipantId'>;
 export type SigningWorkerRecipientKeyId = DomainId<'SigningWorkerRecipientKeyId'>;
 
 /** The custody identity to which a holder package is sealed. */
-export type LaneHolderCustodyBindingId = DomainId<'LaneHolderCustodyBindingId'>;
+type LaneHolderCustodyBindingId = DomainId<'LaneHolderCustodyBindingId'>;
 
 /** HPKE public keys are opaque suite-specific bytes carried as canonical base64url. */
-export type HpkePublicKeyB64u = string & {
+type HpkePublicKeyB64u = string & {
   readonly __signingLaneHpkePublicKeyB64uBrand: 'SigningLaneHpkePublicKeyB64u';
 };
 
@@ -26,11 +26,11 @@ export type LaneParticipantBindingDigestB64u = DigestB64u & {
   readonly __laneParticipantBindingDigestB64uBrand: 'LaneParticipantBindingDigestB64u';
 };
 
-export type LaneCustodyBindingDigestB64u = DigestB64u & {
+type LaneCustodyBindingDigestB64u = DigestB64u & {
   readonly __laneCustodyBindingDigestB64uBrand: 'LaneCustodyBindingDigestB64u';
 };
 
-export type HpkePublicKeyDigestB64u = DigestB64u & {
+type HpkePublicKeyDigestB64u = DigestB64u & {
   readonly __hpkePublicKeyDigestB64uBrand: 'HpkePublicKeyDigestB64u';
 };
 
@@ -43,7 +43,7 @@ type LaneHolderCustodyIdentityV1 = {
   readonly custodyBindingDigestB64u: LaneCustodyBindingDigestB64u;
 };
 
-export type SigningWorkerRecipientIdentityV1 = {
+type SigningWorkerRecipientIdentityV1 = {
   readonly kind: 'signing_worker_recipient_identity_v1';
   readonly recipientKeyId: SigningWorkerRecipientKeyId;
   readonly hpkePublicKeyB64u: HpkePublicKeyB64u;
@@ -150,34 +150,26 @@ function rejectUnknownFields(
   }
 }
 
-export function parseLaneHolderParticipantId(
-  raw: unknown,
-): DomainIdParseResult<LaneHolderParticipantId> {
+function parseLaneHolderParticipantId(raw: unknown): DomainIdParseResult<LaneHolderParticipantId> {
   return parseIdentityId<LaneHolderParticipantId>(raw, 'laneHolderParticipantId');
 }
 
-export function parseSigningWorkerParticipantId(
+function parseSigningWorkerParticipantId(
   raw: unknown,
 ): DomainIdParseResult<SigningWorkerParticipantId> {
   return parseIdentityId<SigningWorkerParticipantId>(raw, 'signingWorkerParticipantId');
 }
 
-export function parseSigningWorkerRecipientKeyId(
+function parseSigningWorkerRecipientKeyId(
   raw: unknown,
 ): DomainIdParseResult<SigningWorkerRecipientKeyId> {
   return parseIdentityId<SigningWorkerRecipientKeyId>(raw, 'signingWorkerRecipientKeyId');
 }
 
-export function parseLaneHolderCustodyBindingId(
+function parseLaneHolderCustodyBindingId(
   raw: unknown,
 ): DomainIdParseResult<LaneHolderCustodyBindingId> {
   return parseIdentityId<LaneHolderCustodyBindingId>(raw, 'laneHolderCustodyBindingId');
-}
-
-export function parseHpkePublicKeyB64u(
-  raw: unknown,
-): DomainIdParseResult<HpkePublicKeyB64u> {
-  return parseHpkePublicKey(raw, 'hpkePublicKeyB64u');
 }
 
 export function parseLaneParticipantBindingDigestB64u(
@@ -186,13 +178,13 @@ export function parseLaneParticipantBindingDigestB64u(
   return parseDigest(raw, 'participantBindingDigestB64u', brandParticipantDigest);
 }
 
-export function parseLaneCustodyBindingDigestB64u(
+function parseLaneCustodyBindingDigestB64u(
   raw: unknown,
 ): DomainIdParseResult<LaneCustodyBindingDigestB64u> {
   return parseDigest(raw, 'custodyBindingDigestB64u', brandLaneCustodyDigest);
 }
 
-export function parseSigningWorkerRecipientKeyDigestB64u(
+function parseSigningWorkerRecipientKeyDigestB64u(
   raw: unknown,
 ): DomainIdParseResult<SigningWorkerRecipientKeyDigestB64u> {
   return parseDigest(raw, 'hpkePublicKeyDigestB64u', brandRecipientDigest);
@@ -293,7 +285,7 @@ function buildLaneHolderParticipantRecordV1(args: {
   };
 }
 
-export function buildSigningWorkerParticipantRecordV1(args: {
+function buildSigningWorkerParticipantRecordV1(args: {
   readonly participantId: SigningWorkerParticipantId;
   readonly recipient: SigningWorkerRecipientIdentityV1;
   readonly participantBindingDigestB64u: LaneParticipantBindingDigestB64u;

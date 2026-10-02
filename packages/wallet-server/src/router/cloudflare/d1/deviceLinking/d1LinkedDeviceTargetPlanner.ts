@@ -17,12 +17,7 @@ import {
 } from '@shared/utils/signingSessionSeal';
 import { parseWalletAuthMethodId, parseWebAuthnRpId } from '@shared/utils/domainIds';
 import type { MpcMaterialActivationRef, WebAuthnRpId } from '@shared/utils/domainIds';
-import type {
-  ActiveLaneProtocolSourceV1,
-  EcdsaTargetCapabilityBindingV1,
-  LaneTargetSigningWorkerV1,
-} from '@shared/signing-lanes/rotation';
-import type { LaneHolderParticipantId } from '@shared/signing-lanes/participants';
+import type { ActiveLaneProtocolSourceV1 } from '@shared/signing-lanes/rotation';
 import type { EvmFamilySigningKeySlotId } from '@shared/signing-lanes/evmFamilySigningKeySlotId';
 import type { KeyCreationSignerSlot } from '@shared/passkey-custody/primitives';
 import type { Ed25519PublicKeyB64u } from '@shared/passkey-custody/primitives';
@@ -79,20 +74,6 @@ type LinkedDeviceOwnerEcdsaSourceChildResolutionV1 =
 export type LinkedDeviceOwnerSourceChildResolutionV1 =
   | LinkedDeviceOwnerEd25519SourceChildResolutionV1
   | LinkedDeviceOwnerEcdsaSourceChildResolutionV1;
-
-export type LinkedDeviceTargetEnrichedChildResolutionV1 =
-  | (LinkedDeviceOwnerEd25519SourceChildResolutionV1 & {
-      readonly targetHolderParticipantId: LaneHolderParticipantId;
-      readonly targetSigningWorker: LaneTargetSigningWorkerV1;
-      readonly yaoSuiteId: import('@shared/signing-lanes/ids').Ed25519YaoSuiteId;
-      readonly circuitDigestB64u: string;
-    })
-  | (LinkedDeviceOwnerEcdsaSourceChildResolutionV1 & {
-      readonly targetHolderParticipantId: LaneHolderParticipantId;
-      readonly targetSigningWorker: LaneTargetSigningWorkerV1;
-      readonly targetCapability: EcdsaTargetCapabilityBindingV1;
-      readonly reshareChannelBindingDigestB64u: string;
-    });
 
 export type LinkedDeviceTargetPreparationResolutionV1 = LinkedDeviceOwnerSourceChildResolutionV1;
 

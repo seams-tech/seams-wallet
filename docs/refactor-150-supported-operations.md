@@ -51,7 +51,9 @@ The remaining decisions are listed at the end.
 | **ECDSA export** | Same | Served | Served | Same | Same |
 
 Served but not reached by any surface in this repository (inferred):
-- **Router signing lanes.** See the [ownership map](./refactor-150-state-ownership-map.md).
+- **Router signing lanes.** Their TypeScript side was deleted on 2026-10-02; the
+  Router and SigningWorker lane routes have no sender. See the
+  [ownership map](./refactor-150-state-ownership-map.md).
 - **The Router's dedicated linked-device signing branches.** Device 2 signs
   through ordinary owner sessions instead.
 - **ECDSA activation refresh.** Its SDK client has no caller.
@@ -98,6 +100,6 @@ Served but not reached by any surface in this repository (inferred):
 2. **Source retirement.** Keep it reachable as is, gate it until the drain
    rule exists, or keep it with an explicit decision. It deletes material with
    no drain and no coverage.
-3. **Unreached code.** For Router signing lanes, the linked-device Router
-   branches and ECDSA activation refresh, decide between removal and a
-   recorded reason to keep them.
+3. **Unreached code.** Router signing lanes are being removed (decided
+   2026-10-02). For the linked-device Router branches and ECDSA activation
+   refresh, decide between removal and a recorded reason to keep them.

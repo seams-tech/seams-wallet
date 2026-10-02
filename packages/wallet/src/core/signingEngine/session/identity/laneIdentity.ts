@@ -50,8 +50,6 @@ import type { ExclusiveUnion } from '@shared/utils/variant';
 
 export type { SigningCurve };
 export type { EcdsaThresholdKeyId };
-export type SigningRootId = string & { readonly __brand?: 'SigningRootId' };
-export type SigningRootVersion = string & { readonly __brand?: 'SigningRootVersion' };
 
 export type ThresholdEcdsaSessionStoreSource =
   | 'login'

@@ -111,33 +111,7 @@ async function collectRawSealedRecordEntriesByThresholdSessionIdFromStore(
   return await collectAllRawSealedRecordEntriesFromStore(store).catch(() => []);
 }
 
-export class SigningSessionSealsRepository {
-  async getRawSealedRecordEntry(primaryKey: string): Promise<StoredRawSealedRecordEntry | null> {
-    const db = await getSigningSessionSealsDb();
-    if (!db) return null;
-    const tx = db.transaction(SIGNING_SESSION_SEALS_STORE_NAME, 'readonly');
-    const value = await requestToPromise(
-      tx.objectStore(SIGNING_SESSION_SEALS_STORE_NAME).get(primaryKey),
-    );
-    await transactionDone(tx).catch(() => undefined);
-    return value === undefined ? null : { primaryKey, value };
-  }
-
-  async collectRawSealedRecordEntriesByEnrollmentId(
-    enrollmentId: string,
-  ): Promise<StoredRawSealedRecordEntry[]> {
-    const db = await getSigningSessionSealsDb();
-    if (!db) return [];
-    const tx = db.transaction(SIGNING_SESSION_SEALS_STORE_NAME, 'readonly');
-    const store = tx.objectStore(SIGNING_SESSION_SEALS_STORE_NAME);
-    const entries = await collectIndexedRawSealedRecordEntries(
-      store.index(SEAMS_WALLET_INDEXES.enrollmentId),
-      enrollmentId,
-    );
-    await transactionDone(tx).catch(() => undefined);
-    return entries;
-  }
-
+class SigningSessionSealsRepository {
   async collectAllRawSealedRecordEntries(): Promise<StoredRawSealedRecordEntry[]> {
     const db = await getSigningSessionSealsDb();
     if (!db) return [];
@@ -161,15 +135,6 @@ export class SigningSessionSealsRepository {
     );
     await transactionDone(tx).catch(() => undefined);
     return entries;
-  }
-
-  async putSealedRecord(row: Record<string, unknown>): Promise<boolean> {
-    const db = await getSigningSessionSealsDb();
-    if (!db) return false;
-    const tx = db.transaction(SIGNING_SESSION_SEALS_STORE_NAME, 'readwrite');
-    tx.objectStore(SIGNING_SESSION_SEALS_STORE_NAME).put(row);
-    await transactionDone(tx);
-    return true;
   }
 
   async replaceSealedRecord(args: {

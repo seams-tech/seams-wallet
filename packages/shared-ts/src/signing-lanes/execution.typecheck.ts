@@ -1,15 +1,15 @@
 import {
   buildPreparedOwnerWalletExecution,
   type ClaimedWalletExecutionAuthorization,
-  type PreparedLinkedDeviceWalletExecution,
   type PreparedOwnerWalletExecution,
 } from './execution';
+import type { ActiveSigningLaneReference } from './records';
 import type { MpcMaterialActivationRef } from '../utils/domainIds';
 
 declare const authorization: ClaimedWalletExecutionAuthorization;
 declare const materialActivation: MpcMaterialActivationRef;
 declare const ownerLane: PreparedOwnerWalletExecution['lane'];
-declare const linkedLane: PreparedLinkedDeviceWalletExecution['lane'];
+declare const linkedLane: ActiveSigningLaneReference & { readonly laneKind: 'linked_device' };
 
 buildPreparedOwnerWalletExecution({ authorization, materialActivation, lane: ownerLane });
 

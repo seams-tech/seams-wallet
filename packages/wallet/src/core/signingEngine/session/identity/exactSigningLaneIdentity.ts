@@ -139,10 +139,6 @@ type EvmFamilyEcdsaSignerBindingInput = {
   materialActivation: MpcMaterialActivationRef;
 };
 
-type ExactSigningLaneIdentityInput =
-  | ExactEd25519SigningLaneIdentityInput
-  | ExactEcdsaSigningLaneIdentityInput;
-
 function assertNeverExactLane(value: never): never {
   throw new Error(`[SigningSession] unsupported exact signing lane branch: ${String(value)}`);
 }
@@ -517,32 +513,6 @@ export function exactEcdsaSigningLaneIdentity(
   };
 }
 
-export function exactSigningLaneIdentity(
-  lane: ExactSigningLaneIdentityInput,
-): ExactSigningLaneIdentity {
-  const signer = lane.signer;
-  switch (signer.kind) {
-    case 'near_ed25519_signer':
-      if (!('walletSessionId' in lane) || !('quotaId' in lane) || !('thresholdSessionId' in lane)) {
-        throw new Error('[SigningSession] Ed25519 exact lane requires session identity');
-      }
-      return exactEd25519SigningLaneIdentity({
-        signer,
-        auth: lane.auth,
-        walletSessionId: lane.walletSessionId,
-        quotaId: lane.quotaId,
-        thresholdSessionId: lane.thresholdSessionId,
-      });
-    case 'evm_family_ecdsa_signer':
-      return exactEcdsaSigningLaneIdentity({
-        signer,
-        auth: lane.auth,
-      });
-    default:
-      return assertNeverExactLane(signer);
-  }
-}
-
 export function exactSigningLaneIdentityFromSelectedLane(
   lane: SelectedLane | ExactSigningLaneIdentityCarrier,
 ): ExactSigningLaneIdentity {
@@ -650,12 +620,6 @@ function parseExactSigningLaneIdentity(value: unknown): ExactSigningLaneIdentity
     default:
       throw new Error('[SigningSession] exact signing lane signer kind is unsupported');
   }
-}
-
-export function isExactEd25519SigningLaneIdentity(
-  identity: ExactSigningLaneIdentity,
-): identity is ExactEd25519SigningLaneIdentity {
-  return identity.signer.kind === 'near_ed25519_signer';
 }
 
 export function isExactEcdsaSigningLaneIdentity(

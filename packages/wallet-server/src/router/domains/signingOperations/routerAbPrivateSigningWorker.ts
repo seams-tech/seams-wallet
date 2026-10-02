@@ -13,7 +13,6 @@ import {
 } from '@shared/utils/routerAbEcdsaDerivation';
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/encoders';
 import type { RuntimePolicyScope } from '@shared/threshold/signingRootScope';
-import type { SigningWorkerLaneMaterialIdentityV1 } from '../../../core/signingLanes/signingWorkerLaneMaterialIdentity';
 import type { AuthorizedOperationReplayResponse } from '../../../authorization/domain';
 import type { RouterAbNormalSigningAuthorizationWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import type { MpcMaterialActivationId } from '@shared/utils/domainIds';
@@ -245,24 +244,14 @@ export type RouterAbEcdsaDerivationPrivateSigningWorkerBody =
   | RouterAbEcdsaDerivationPrivatePrepareSigningWorkerBody
   | RouterAbEcdsaDerivationPrivateFinalizeSigningWorkerBody;
 
-export type RouterAbNormalSigningMaterialSourceV1 =
-  | {
-      readonly kind: 'registration_activation';
-      readonly lookup: {
-        readonly account_id: string;
-        readonly material_activation_id: string;
-        readonly signing_worker_id: string;
-      };
-      readonly group_public_key?: never;
-    }
-  | {
-      readonly kind: 'rotatable_lane';
-      readonly lookup: {
-        readonly identity: SigningWorkerLaneMaterialIdentityV1;
-        readonly admittedLaneIdentityDigestB64u: string;
-      };
-      readonly group_public_key: string;
-    };
+export type RouterAbNormalSigningMaterialSourceV1 = {
+  readonly kind: 'registration_activation';
+  readonly lookup: {
+    readonly account_id: string;
+    readonly material_activation_id: string;
+    readonly signing_worker_id: string;
+  };
+};
 
 function registrationMaterialSourceV1(input: {
   readonly accountId: string;
@@ -276,23 +265,6 @@ function registrationMaterialSourceV1(input: {
       material_activation_id: input.materialActivationId,
       signing_worker_id: input.signingWorkerId,
     },
-  };
-}
-
-export function routerAbNormalSigningMaterialSourceFromActiveLaneV1(input: {
-  readonly identity: SigningWorkerLaneMaterialIdentityV1;
-  readonly admittedLaneIdentityDigestB64u: string;
-  readonly groupPublicKey: string;
-}): RouterAbNormalSigningMaterialSourceV1 {
-  const groupPublicKey = input.groupPublicKey.trim();
-  if (groupPublicKey.length === 0) throw new Error('active lane group public key is required');
-  return {
-    kind: 'rotatable_lane',
-    lookup: {
-      identity: input.identity,
-      admittedLaneIdentityDigestB64u: input.admittedLaneIdentityDigestB64u,
-    },
-    group_public_key: groupPublicKey,
   };
 }
 
@@ -896,7 +868,6 @@ type RouterAbEd25519PrivateSigningWorkerBuildInput =
       readonly body: Record<string, unknown>;
       readonly authorization: RouterAbPrivateSigningAuthorization;
       readonly headers: Record<string, string | string[] | undefined>;
-      readonly materialSource?: RouterAbNormalSigningMaterialSourceV1;
       readonly effectClaim?: never;
     }
   | {
@@ -905,7 +876,6 @@ type RouterAbEd25519PrivateSigningWorkerBuildInput =
       readonly authorization: RouterAbPrivateSigningAuthorization;
       readonly headers: Record<string, string | string[] | undefined>;
       readonly effectClaim: RouterAbNormalSigningEffectClaimV1;
-      readonly materialSource?: RouterAbNormalSigningMaterialSourceV1;
     };
 
 export async function buildRouterAbEd25519PrivateSigningWorkerBody(
@@ -914,13 +884,11 @@ export async function buildRouterAbEd25519PrivateSigningWorkerBody(
   const scope = parseRouterAbEd25519NormalSigningScopeV2(input.body.scope);
   const signingContext = privateSigningAuthorizationContext(scope, input.authorization);
   const trustedSourceDigest = await privateSigningTrustedSourceDigest(input.headers);
-  const materialSource =
-    input.materialSource ??
-    registrationMaterialSourceV1({
-      accountId: scope.account_id,
-      materialActivationId: scope.material_activation.activation_id,
-      signingWorkerId: scope.signing_worker_id,
-    });
+  const materialSource = registrationMaterialSourceV1({
+    accountId: scope.account_id,
+    materialActivationId: scope.material_activation.activation_id,
+    signingWorkerId: scope.signing_worker_id,
+  });
   if (input.phase === 'finalize') {
     validateRouterAbNormalSigningEffectClaim(input.effectClaim, scope, signingContext);
     const prepareBinding = requirePrivateSigningRecord(
@@ -1033,7 +1001,6 @@ export async function buildRouterAbEcdsaDerivationPrivateSigningWorkerBody(input
   body: Record<string, unknown>;
   authorization: RouterAbPrivateSigningAuthorization;
   headers: Record<string, string | string[] | undefined>;
-  materialSource?: RouterAbNormalSigningMaterialSourceV1;
 }): Promise<RouterAbEcdsaDerivationPrivateSigningWorkerBody> {
   const signingContext = privateSigningAuthorizationContextFromAuthorization(input.authorization);
   const trustedSourceDigest = await privateSigningTrustedSourceDigest(input.headers);
@@ -1045,7 +1012,6 @@ export async function buildRouterAbEcdsaDerivationPrivateSigningWorkerBody(input
       requestDigest: await routerAbEcdsaDerivationEvmDigestSigningRequestDigestV1(request),
       signingContext,
       trustedSourceDigest,
-      materialSource: input.materialSource,
     });
   }
   const request = parseRouterAbEcdsaDerivationEvmDigestSigningFinalizeRequestV1(input.body);
@@ -1056,7 +1022,6 @@ export async function buildRouterAbEcdsaDerivationPrivateSigningWorkerBody(input
       await routerAbEcdsaDerivationEvmDigestSigningFinalizeCoreRequestDigestV1(request),
     signingContext,
     trustedSourceDigest,
-    materialSource: input.materialSource,
   });
 }
 
@@ -1067,7 +1032,6 @@ function privateEcdsaDerivationSigningWorkerBody<
   readonly requestDigest: RouterAbPublicDigest32V1Wire;
   readonly signingContext: RouterAbPrivateSigningAuthorizationContext;
   readonly trustedSourceDigest: RouterAbPublicDigest32V1Wire;
-  readonly materialSource: RouterAbNormalSigningMaterialSourceV1 | undefined;
 }) {
   return {
     request: input.request,
@@ -1078,13 +1042,11 @@ function privateEcdsaDerivationSigningWorkerBody<
       intentDigest: input.requestDigest,
       trustedSourceDigest: input.trustedSourceDigest,
     }),
-    material_source:
-      input.materialSource ??
-      registrationMaterialSourceV1({
-        accountId: input.request.scope.wallet_id,
-        materialActivationId: input.request.scope.material_activation.activation_id,
-        signingWorkerId: input.request.scope.signing_worker.server_id,
-      }),
+    material_source: registrationMaterialSourceV1({
+      accountId: input.request.scope.wallet_id,
+      materialActivationId: input.request.scope.material_activation.activation_id,
+      signingWorkerId: input.request.scope.signing_worker.server_id,
+    }),
   };
 }
 

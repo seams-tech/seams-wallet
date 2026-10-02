@@ -30,7 +30,7 @@ function isEvmFamilySigningKeySlotIdShape(value: string): boolean {
   );
 }
 
-export function parseEvmFamilySigningKeySlotId(
+function parseEvmFamilySigningKeySlotId(
   raw: unknown,
 ): DomainIdParseResult<EvmFamilySigningKeySlotId> {
   const parsed = parseWalletKeyId(raw);

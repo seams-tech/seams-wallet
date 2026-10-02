@@ -22,7 +22,6 @@ import {
   exactEcdsaSigningLaneIdentity,
   exactEd25519SigningLaneIdentity,
   exactSigningLaneIdentityKey,
-  isExactEd25519SigningLaneIdentity,
   type ExactEcdsaSigningLaneIdentity,
   type ExactEd25519SigningLaneIdentity,
   type ExactSigningLaneIdentity,
@@ -188,12 +187,6 @@ const invalidEcdsaRootKey: ExactEcdsaSigningLaneIdentity = {
   key: ecdsaKey,
 };
 void invalidEcdsaRootKey;
-
-function requireEd25519ThresholdSessionId(identity: ExactSigningLaneIdentity) {
-  if (!isExactEd25519SigningLaneIdentity(identity)) return null;
-  return identity.thresholdSessionId;
-}
-void requireEd25519ThresholdSessionId(ed25519Identity);
 
 const invalidEcdsaWithAuthorization: ExactEcdsaSigningLaneIdentity = {
   ...ecdsaIdentity,

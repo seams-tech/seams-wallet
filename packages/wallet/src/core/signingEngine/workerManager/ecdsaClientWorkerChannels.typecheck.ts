@@ -1,10 +1,7 @@
 import type {
   OpaqueEcdsaPresignAuthorityResponseV1,
-  PrepareEcdsaAdditiveLaneHolderRequestV1,
-  PrepareEcdsaAdditiveLaneHolderResultV1,
   RehydrateEcdsaRoleLocalSigningMaterialRequestV1,
 } from './ecdsaClientWorkerChannels';
-import type { EcdsaAdditiveLaneJobV1 } from '@shared/signing-lanes/rotation';
 import type { MpcMaterialActivationRef } from '@shared/utils/domainIds';
 import type { WalletAuthAuthorityRef } from '@shared/utils/walletAuthAuthority';
 import type { EcdsaRoleLocalPersistedMaterialRef } from '../session/keyMaterialBrands';
@@ -12,25 +9,6 @@ import type { EcdsaRoleLocalPersistedMaterialRef } from '../session/keyMaterialB
 declare const authority: WalletAuthAuthorityRef;
 declare const materialActivation: MpcMaterialActivationRef;
 declare const materialRef: EcdsaRoleLocalPersistedMaterialRef;
-declare const ecdsaLaneJob: EcdsaAdditiveLaneJobV1;
-declare const ecdsaLaneHolderResult: PrepareEcdsaAdditiveLaneHolderResultV1;
-
-void ({
-  kind: 'prepare_ecdsa_additive_lane_holder_v1',
-  job: ecdsaLaneJob,
-  holderCommittedAtMs: 2_000,
-} satisfies PrepareEcdsaAdditiveLaneHolderRequestV1);
-
-void ({
-  kind: 'prepare_ecdsa_additive_lane_holder_v1',
-  job: ecdsaLaneJob,
-  holderCommittedAtMs: 2_000,
-  // @ts-expect-error Ready-state blobs stay inside the derivation worker.
-  stateBlobB64u: 'forbidden-secret',
-} satisfies PrepareEcdsaAdditiveLaneHolderRequestV1);
-
-// @ts-expect-error Lane holder results never expose a source scalar.
-void ecdsaLaneHolderResult.sourceShare32B64u;
 
 void ({
   kind: 'open_ecdsa_role_local_signing_material_v1',

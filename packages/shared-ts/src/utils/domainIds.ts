@@ -131,15 +131,9 @@ export type LaneShareEpoch = DomainId<'LaneShareEpoch'>;
 // share.
 export type LinkedDeviceId = DomainId<'LinkedDeviceId'>;
 
-// Immutable identities for one rotatable signing-lane protocol operation and
-// its aggregate enrollment.
-export type LaneOperationId = DomainId<'LaneOperationId'>;
-export type LaneEnrollmentId = DomainId<'LaneEnrollmentId'>;
-export type LaneOperationIdempotencyKey = DomainId<'LaneOperationIdempotencyKey'>;
 export type LinkedDeviceEnrollmentId = DomainId<'LinkedDeviceEnrollmentId'>;
 // One immutable recovery operation that owns the fresh recovered-device authority.
 export type WalletRecoveryOperationId = DomainId<'WalletRecoveryOperationId'>;
-export type Ed25519YaoSuiteId = DomainId<'Ed25519YaoSuiteId'>;
 export type EcdsaRelayerKeyId = DomainId<'EcdsaRelayerKeyId'>;
 
 // QR/device-link relay session identity.
@@ -537,20 +531,6 @@ export function parseLinkedDeviceId(raw: unknown): DomainIdParseResult<LinkedDev
   return parseDomainId(raw, 'linkedDeviceId');
 }
 
-export function parseLaneOperationId(raw: unknown): DomainIdParseResult<LaneOperationId> {
-  return parseDomainId(raw, 'laneOperationId');
-}
-
-export function parseLaneEnrollmentId(raw: unknown): DomainIdParseResult<LaneEnrollmentId> {
-  return parseDomainId(raw, 'laneEnrollmentId');
-}
-
-export function parseLaneOperationIdempotencyKey(
-  raw: unknown,
-): DomainIdParseResult<LaneOperationIdempotencyKey> {
-  return parseDomainId(raw, 'laneOperationIdempotencyKey');
-}
-
 export function parseLinkedDeviceEnrollmentId(
   raw: unknown,
 ): DomainIdParseResult<LinkedDeviceEnrollmentId> {
@@ -561,10 +541,6 @@ export function parseWalletRecoveryOperationId(
   raw: unknown,
 ): DomainIdParseResult<WalletRecoveryOperationId> {
   return parseDomainId(raw, 'walletRecoveryOperationId');
-}
-
-export function parseEd25519YaoSuiteId(raw: unknown): DomainIdParseResult<Ed25519YaoSuiteId> {
-  return parseDomainId(raw, 'ed25519YaoSuiteId');
 }
 
 export function parseEcdsaRelayerKeyId(raw: unknown): DomainIdParseResult<EcdsaRelayerKeyId> {

@@ -21,7 +21,6 @@ import initNearSigner, {
 } from '../../../../../../../wasm/near_signer/pkg/wasm_signer_worker.js';
 import initEd25519YaoClient, {
   ed25519_yao_lane_source_from_wallet_seed_v1,
-  WasmEd25519YaoLaneClientV1,
   WasmEd25519YaoLaneSourceV1,
   WasmEd25519YaoSourcePreservingRegistrationSessionV1,
 } from '../../../../../../../crates/router-ab-ed25519-yao-client/pkg/router_ab_ed25519_yao_client.js';
@@ -38,7 +37,6 @@ import {
   parseWalletCustodyEvmFamilyCommitPayload,
 } from '@shared/passkey-custody';
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
-import { assertEd25519YaoLaneCeremonyBindingParityV1 } from '@/core/signingEngine/threshold/crypto/ed25519YaoLaneWasm';
 import type {
   UnlockedEd25519ExportRootLinkingCapabilityV1,
   WalletCustodyCeremonyWorkerOperationMap,
@@ -103,10 +101,6 @@ type CeremonyState =
 const ceremonies = new Map<string, CeremonyState>();
 const MAX_ACTIVE_LANE_SOURCES = 8;
 const ed25519YaoLaneSources = new Map<string, WasmEd25519YaoLaneSourceV1>();
-const ed25519YaoLaneSessions = new Map<
-  string,
-  { readonly sourceHandle: string; readonly client: WasmEd25519YaoLaneClientV1 }
->();
 
 /**
  * Device 2's export-root recipient keys, held here for the same reason
@@ -183,10 +177,8 @@ type DiscardTransferRecipientRequest =
   WorkerRequest<'discardLinkedDeviceEd25519ExportRootRecipient'>;
 type RotateRecoverySetRequest = WorkerRequest<'rotateWalletRecoverySet'>;
 type OpenEd25519YaoLaneSourceRequest = WorkerRequest<'openEd25519YaoLaneSource'>;
-type PrepareEd25519YaoLaneRequest = WorkerRequest<'prepareEd25519YaoLane'>;
 type PrepareEd25519YaoSourcePreservingRegistrationRequest =
   WorkerRequest<'prepareEd25519YaoSourcePreservingRegistration'>;
-type CompleteEd25519YaoLaneRequest = WorkerRequest<'completeEd25519YaoLane'>;
 type DiscardEd25519YaoLaneSourceRequest = WorkerRequest<'discardEd25519YaoLaneSource'>;
 
 type WalletCustodyCeremonyWorkerRequest =
@@ -206,9 +198,7 @@ type WalletCustodyCeremonyWorkerRequest =
   | DiscardTransferRecipientRequest
   | RotateRecoverySetRequest
   | OpenEd25519YaoLaneSourceRequest
-  | PrepareEd25519YaoLaneRequest
   | PrepareEd25519YaoSourcePreservingRegistrationRequest
-  | CompleteEd25519YaoLaneRequest
   | DiscardEd25519YaoLaneSourceRequest;
 
 function postToMainThread(message: unknown): void {
@@ -453,48 +443,6 @@ async function openEd25519YaoLaneSource(
   }
 }
 
-async function prepareEd25519YaoLane(
-  request: PrepareEd25519YaoLaneRequest,
-): Promise<{ sessionHandle: string; requestJson: string }> {
-  await initializeEd25519YaoClientWasm();
-  const sourceHandle = requireOpaqueHandle(request.payload.sourceHandle, 'sourceHandle');
-  const source = ed25519YaoLaneSources.get(sourceHandle);
-  if (!source) throw new Error('Ed25519 Yao lane source handle is unknown or discarded');
-  const client = new WasmEd25519YaoLaneClientV1();
-  const [deriverASealSeed, deriverBSealSeed] = distinctLaneSealSeeds();
-  try {
-    await assertEd25519YaoLaneCeremonyBindingParityV1({
-      job: request.payload.job,
-      ceremonyBinding: request.payload.ceremonyBinding,
-      applicationBinding: request.payload.applicationBinding,
-      participantIds: request.payload.participantIds,
-    });
-    const prepared = client.prepare(
-      JSON.stringify(request.payload.job),
-      JSON.stringify(request.payload.ceremonyBinding),
-      JSON.stringify(request.payload.applicationBinding),
-      request.payload.participantIds[0],
-      request.payload.participantIds[1],
-      source,
-      base64UrlDecode(request.payload.deriverAInputPublicKeyB64u),
-      base64UrlDecode(request.payload.deriverBInputPublicKeyB64u),
-      deriverASealSeed,
-      deriverBSealSeed,
-    ) as { requestJson?: unknown };
-    const requestJson = String(prepared.requestJson || '').trim();
-    if (!requestJson) throw new Error('Ed25519 Yao lane preparation returned no request JSON');
-    const sessionHandle = secureOpaqueHandle('ed25519-yao-lane-session-v1');
-    ed25519YaoLaneSessions.set(sessionHandle, { sourceHandle, client });
-    return { sessionHandle, requestJson };
-  } catch (error) {
-    client.free();
-    throw error;
-  } finally {
-    deriverASealSeed.fill(0);
-    deriverBSealSeed.fill(0);
-  }
-}
-
 async function prepareEd25519YaoSourcePreservingRegistration(
   request: PrepareEd25519YaoSourcePreservingRegistrationRequest,
 ): Promise<
@@ -528,29 +476,10 @@ async function prepareEd25519YaoSourcePreservingRegistration(
   }
 }
 
-async function completeEd25519YaoLane(
-  request: CompleteEd25519YaoLaneRequest,
-): Promise<WalletCustodyCeremonyWorkerOperationMap['completeEd25519YaoLane']['result']> {
-  const sessionHandle = requireOpaqueHandle(request.payload.sessionHandle, 'sessionHandle');
-  const session = ed25519YaoLaneSessions.get(sessionHandle);
-  if (!session) throw new Error('Ed25519 Yao lane session handle is unknown or consumed');
-  ed25519YaoLaneSessions.delete(sessionHandle);
-  try {
-    return session.client.complete({ responseJson: request.payload.responseJson });
-  } finally {
-    session.client.free();
-  }
-}
-
 function discardEd25519YaoLaneSource(request: DiscardEd25519YaoLaneSourceRequest): {
   discarded: boolean;
 } {
   const sourceHandle = requireOpaqueHandle(request.payload.sourceHandle, 'sourceHandle');
-  for (const [sessionHandle, session] of ed25519YaoLaneSessions) {
-    if (session.sourceHandle !== sourceHandle) continue;
-    session.client.free();
-    ed25519YaoLaneSessions.delete(sessionHandle);
-  }
   const source = ed25519YaoLaneSources.get(sourceHandle);
   if (!source) return { discarded: false };
   ed25519YaoLaneSources.delete(sourceHandle);
@@ -1272,14 +1201,8 @@ async function handleRequest(request: WalletCustodyCeremonyWorkerRequest): Promi
     case 'openEd25519YaoLaneSource':
       postSucceeded(request.id, await openEd25519YaoLaneSource(request));
       return;
-    case 'prepareEd25519YaoLane':
-      postSucceeded(request.id, await prepareEd25519YaoLane(request));
-      return;
     case 'prepareEd25519YaoSourcePreservingRegistration':
       postSucceeded(request.id, await prepareEd25519YaoSourcePreservingRegistration(request));
-      return;
-    case 'completeEd25519YaoLane':
-      postSucceeded(request.id, await completeEd25519YaoLane(request));
       return;
     case 'discardEd25519YaoLaneSource':
       postSucceeded(request.id, discardEd25519YaoLaneSource(request));

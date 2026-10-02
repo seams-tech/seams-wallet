@@ -33,7 +33,7 @@ SQL for the retained shared Gateway and tenant-wide groups.
 | `router_ab_yao_versioned_json_records` with lifecycle-keyed Yao ceremony partitions in `SIGNER_DB` | Gateway | Gateway D1, the final boundary: every transition that writes a ceremony record commits it with tenant-wide Gateway facts in one batch (see the cross-owner finalization plan) | Claim and advance each ceremony partition with one version check: the admission, its intent credential, and the tenant root pinned at admission |
 | `yao_lifecycle_decisions` in `SIGNER_DB` | Gateway | Gateway D1: one finalization decision per Yao lifecycle | Insert the decision once, in the batch that writes the signer row the finalization makes visible; a lifecycle already decided commits nothing |
 | Yao registration execution records: claim, lease and generation, pinned request, terminal outcome, consumer binding | Router | Router wallet DO SQLite (`ROUTER_WALLET_DO`); VM: `local_router_wallet_objects` in Router SQLite | Claim the execution under a lease and generation; record the terminal outcome, under the current generation only, before replying; bind the first consumer once |
-| `lane_enrollments`, `lane_protocol_operations`, `lane_product_epochs`, `lane_receipts`, `lane_locks`, `lane_effect_journal`, `lane_cas_guard` in `SIGNER_DB` | Router | **Unfinished infrastructure, not migrated.** No supported product flow reaches these tables (see below). If rotatable lanes ship, the target is a Router wallet store that executes whole lifecycle transitions locally | Claim one lane operation, transition its generation/lock, and record its receipt or effect identity atomically |
+| `lane_enrollments`, `lane_protocol_operations`, `lane_product_epochs`, `lane_receipts`, `lane_locks`, `lane_effect_journal`, `lane_cas_guard` in `SIGNER_DB` | None | **Unused, not migrated.** The TypeScript lane lifecycle that read and wrote these tables was deleted on 2026-10-02 (see below). The tables stay in the schema until its removal is decided | None: nothing reads or writes them |
 | `wallet_ecdsa_pending_session_activations` in `SIGNER_DB` | Router | Router wallet DO SQLite | Claim paired activation once, with a durable terminal outcome |
 | `router_ab_normal_signing_admission_records` in `SIGNER_DB` | Gateway | Gateway D1: tenant project policy and abuse decisions | Keep project-wide policy and abuse decisions with their shared scope |
 | `wallet_session_authorizations_v2`, `wallet_session_hosted_credentials_v2`, `wallet_session_hosted_exchange_codes_v2`, `hosted_wallet_session_exchange_codes`, `reusable_wallet_sessions`, `authorization_sessions`, `authorization_wallet_session_quotas` in `SIGNER_DB` | Gateway | Gateway D1: session and credential authority | Issue, retire, or exchange a credential with its session and quota in one D1 transaction |
@@ -177,8 +177,8 @@ before release. No hosted resources or production routing were changed.
 - Reuse the pure Rust protocol transitions in `router-ab-core`, including its
   clock, random, key-store, peer-transport, and audit host traits. The role
   adapters still need domain-specific atomic claim/commit operations.
-- Reuse the existing TS registration ceremony and signing-lane store interfaces
-  where their compare-and-swap semantics match the target. Their D1 adapters
+- Reuse the existing TS registration ceremony store interfaces where their
+  compare-and-swap semantics match the target. Their D1 adapters
   remain only during development comparison and are retired when the DO-only
   path is verified. New DO and VM adapters implement the same behavioral
   contracts without sharing a writable backing record.
@@ -212,10 +212,16 @@ before release. No hosted resources or production routing were changed.
 
 ## Router signing lanes: no product consumer (2026-09-25)
 
+Deleted on 2026-10-02: the TypeScript side of the rotatable signing-lane
+lifecycle is gone (the lane stores and application services, their Gateway
+senders, the shared rotation parsers, and the client worker requests and
+holder store). The seven `lane_*` tables remain in the schema with no reader
+or writer. The rest of this section records the trace behind that decision.
+
 The rotatable signing-lane lifecycle was traced across both repositories
 before any move.
 
-- **Here:** the lane stores and their application-service factories are
+- **Here:** the lane stores and their application-service factories were
   exported through `cloud-host.ts` and constructed nowhere. The client-side
   lane operation coordinators (`packages/wallet/src/core/signingEngine/session/lanes/operations/`)
   were not imported by any SDK surface and have since been deleted. The Router's
@@ -240,7 +246,7 @@ If lanes become a supported flow, these conditions apply first:
 - Review each tenant-wide constraint before partitioning: manifest digest,
   `target_material_activation_id`, operation and effect identity.
 
-That run also found two defects in the D1 store. Neither is reachable today.
+That run also found two defects in the D1 store. Both were deleted with the store.
 
 1. Product-epoch updates stamp `updated_at_ms` with request times, against
    a host-clock `created_at_ms`. A lagging caller clock therefore fails the
