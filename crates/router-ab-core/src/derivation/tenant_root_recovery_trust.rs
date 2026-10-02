@@ -52,10 +52,6 @@ const TENANT_ROOT_RECOVERY_TRUST_BRIDGE_DOMAIN_V1: &[u8] =
 const TENANT_ROOT_RECOVERY_REVOCATION_SNAPSHOT_DOMAIN_V1: &[u8] =
     b"seams/tenant-root-recovery-revocation-snapshot/v1";
 
-/// Warning version recorded when restore proceeds without current revocation status.
-pub const TENANT_ROOT_RECOVERY_OFFLINE_TRUST_WARNING_V1: &str =
-    "tenant_root_recovery_offline_trust_v1";
-
 /// Maximum encoded bytes accepted for one signer certificate.
 pub const TENANT_ROOT_RECOVERY_SIGNER_CERTIFICATE_MAX_BYTES: usize = 2 * 1024;
 /// Maximum encoded bytes accepted for one pinned trust bundle.
@@ -1144,45 +1140,6 @@ impl fmt::Display for TenantRootRecoveryTrustLevelV1 {
     }
 }
 
-/// A destination operator's explicit acknowledgement that revocation status was unavailable.
-///
-/// Restore preserves this in its activation receipt so the weaker check stays
-/// visible after the fact.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TenantRootRecoveryOfflineTrustAcknowledgementV1 {
-    acknowledged_by: String,
-    acknowledged_at: String,
-    warning_version: String,
-}
-
-impl TenantRootRecoveryOfflineTrustAcknowledgementV1 {
-    /// Records one acknowledgement of unavailable revocation status.
-    pub fn new(
-        acknowledged_by: impl Into<String>,
-        acknowledged_at: impl Into<String>,
-    ) -> RouterAbDerivationResult<Self> {
-        let acknowledged_by = acknowledged_by.into();
-        let acknowledged_at = acknowledged_at.into();
-        if acknowledged_by.is_empty() {
-            return Err(malformed(
-                "tenant root recovery offline trust acknowledgement actor is required",
-            ));
-        }
-        validate_rfc3339_millis(&acknowledged_at, "offline trust acknowledgement time")?;
-        epoch_millis(&acknowledged_at, "offline trust acknowledgement time")?;
-        Ok(Self {
-            acknowledged_by,
-            acknowledged_at,
-            warning_version: TENANT_ROOT_RECOVERY_OFFLINE_TRUST_WARNING_V1.to_owned(),
-        })
-    }
-
-    /// Returns the fixed warning version.
-    pub fn warning_version(&self) -> &str {
-        &self.warning_version
-    }
-}
-
 /// One recovery signer verified against pinned roots at an artifact's creation time.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VerifiedTenantRootRecoverySignerV1 {
@@ -1368,48 +1325,6 @@ pub fn verify_tenant_root_recovery_role_package_with_trust_v1(
     let trust = verify_tenant_root_recovery_manifest_trust_v1(manifest, bundle, evidence)?;
     manifest.verify_role_package(package, &trust.keys)?;
     Ok(trust)
-}
-
-/// Decides whether one trust result admits restore.
-///
-/// `current_trust_confirmed` is admitted outright. A saved snapshot is admitted
-/// only when it was issued at or after the artifact was created, so a snapshot
-/// predating the artifact cannot vouch for it. Offline verification needs an
-/// explicit destination acknowledgement that revocation status was unavailable.
-pub fn tenant_root_recovery_restore_trust_admission_v1(
-    level: &TenantRootRecoveryTrustLevelV1,
-    artifact_creation_time: &str,
-    offline_acknowledgement: Option<&TenantRootRecoveryOfflineTrustAcknowledgementV1>,
-) -> RouterAbDerivationResult<()> {
-    validate_rfc3339_millis(artifact_creation_time, "artifact creation time")?;
-    let created = epoch_millis(artifact_creation_time, "artifact creation time")?;
-    match level {
-        TenantRootRecoveryTrustLevelV1::CurrentTrustConfirmed { .. } => Ok(()),
-        TenantRootRecoveryTrustLevelV1::ValidAtTrustSnapshot {
-            snapshot_issued_at, ..
-        } => {
-            let issued = epoch_millis(snapshot_issued_at, "trust snapshot issuedAt")?;
-            if issued < created {
-                return Err(verification_failed(
-                    "tenant root recovery trust snapshot predates the artifact it must vouch for",
-                ));
-            }
-            Ok(())
-        }
-        TenantRootRecoveryTrustLevelV1::CryptographicallyValidOffline => {
-            let acknowledgement = offline_acknowledgement.ok_or_else(|| {
-                verification_failed(
-                    "tenant root recovery restore requires an offline-trust acknowledgement",
-                )
-            })?;
-            if acknowledgement.warning_version != TENANT_ROOT_RECOVERY_OFFLINE_TRUST_WARNING_V1 {
-                return Err(verification_failed(
-                    "tenant root recovery offline-trust acknowledgement version is unsupported",
-                ));
-            }
-            Ok(())
-        }
-    }
 }
 
 fn evaluate_trust_evidence<'a>(

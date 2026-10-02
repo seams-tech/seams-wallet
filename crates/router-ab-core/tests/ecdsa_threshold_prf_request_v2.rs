@@ -1,5 +1,4 @@
 use router_ab_core::{
-    decode_ecdsa_threshold_prf_outer_request_v2, decode_ecdsa_threshold_prf_private_request_v2,
     evaluate_mpc_prf_stable_signer_partial_with_threshold_backend_v2,
     plan_mpc_prf_stable_purpose_binding_v2, EcdsaThresholdPrfOuterRequestV2,
     EcdsaThresholdPrfPrivateRequestV2, EcdsaThresholdPrfPurposeV2, EncryptedPayloadV1,
@@ -126,25 +125,9 @@ fn authenticated_deriver_a_share() -> (
 }
 
 #[test]
-fn private_request_canonical_bytes_round_trip_strictly() {
-    let request = private_request();
-    let bytes = request.canonical_bytes();
-    let decoded = decode_ecdsa_threshold_prf_private_request_v2(&bytes).unwrap();
-    assert_eq!(decoded, request);
-    assert_eq!(decoded.canonical_bytes(), bytes);
-
-    let mut with_trailing_bytes = bytes;
-    with_trailing_bytes.push(0);
-    assert!(decode_ecdsa_threshold_prf_private_request_v2(&with_trailing_bytes).is_err());
-}
-
-#[test]
-fn outer_request_canonical_bytes_round_trip_and_role_swaps_fail() {
-    let request = outer_request();
-    let bytes = request.canonical_bytes();
-    let decoded = decode_ecdsa_threshold_prf_outer_request_v2(&bytes).unwrap();
-    assert_eq!(decoded, request);
-    assert_eq!(decoded.canonical_bytes(), bytes);
+fn outer_request_role_swaps_fail() {
+    // The same request with its envelopes in role order is accepted.
+    outer_request();
     assert!(EcdsaThresholdPrfOuterRequestV2::new(
         TenantRootDerivationNonceV1::from_bytes([0x51; 32]).unwrap(),
         support::ISSUED_AT_MS,

@@ -3,15 +3,13 @@
 
 use ed25519_dalek::SigningKey;
 use router_ab_core::{
-    sign_tenant_root_recovery_manifest_v1, tenant_root_recovery_restore_trust_admission_v1,
-    verify_tenant_root_recovery_artifacts_with_trust_v1,
+    sign_tenant_root_recovery_manifest_v1, verify_tenant_root_recovery_artifacts_with_trust_v1,
     verify_tenant_root_recovery_manifest_trust_v1, TenantRootRecoveryManifestV1,
-    TenantRootRecoveryOfflineTrustAcknowledgementV1, TenantRootRecoveryPackageV1,
-    TenantRootRecoveryRevocationEntryV1, TenantRootRecoveryRevocationSnapshotV1,
-    TenantRootRecoverySignerCertificateV1, TenantRootRecoverySignerRoleV1,
-    TenantRootRecoveryTrustBridgeV1, TenantRootRecoveryTrustBundleV1,
-    TenantRootRecoveryTrustEvidenceV1, TenantRootRecoveryTrustLevelV1,
-    TenantRootRecoveryTrustRootV1,
+    TenantRootRecoveryPackageV1, TenantRootRecoveryRevocationEntryV1,
+    TenantRootRecoveryRevocationSnapshotV1, TenantRootRecoverySignerCertificateV1,
+    TenantRootRecoverySignerRoleV1, TenantRootRecoveryTrustBridgeV1,
+    TenantRootRecoveryTrustBundleV1, TenantRootRecoveryTrustEvidenceV1,
+    TenantRootRecoveryTrustLevelV1, TenantRootRecoveryTrustRootV1,
 };
 
 mod support;
@@ -739,61 +737,5 @@ fn trust_bundles_reject_unsigned_and_inconsistent_rotation() {
     assert!(
         TenantRootRecoveryTrustBundleV1::new(5, trust_root(), vec![trust_root()], Vec::new())
             .is_err()
-    );
-}
-
-#[test]
-fn restore_admits_the_three_trust_results_differently() {
-    let acknowledgement =
-        TenantRootRecoveryOfflineTrustAcknowledgementV1::new("owner-1", "2026-09-02T00:00:00.000Z")
-            .expect("acknowledgement");
-
-    assert!(tenant_root_recovery_restore_trust_admission_v1(
-        &TenantRootRecoveryTrustLevelV1::CurrentTrustConfirmed {
-            snapshot_version: 1,
-            snapshot_issued_at: "2026-09-01T00:00:00.000Z".to_owned(),
-            checked_at: "2026-09-01T00:01:00.000Z".to_owned(),
-        },
-        CREATION_TIME,
-        None,
-    )
-    .is_ok());
-
-    // A snapshot issued at or after creation vouches for the artifact.
-    assert!(tenant_root_recovery_restore_trust_admission_v1(
-        &TenantRootRecoveryTrustLevelV1::ValidAtTrustSnapshot {
-            snapshot_version: 1,
-            snapshot_issued_at: CREATION_TIME.to_owned(),
-        },
-        CREATION_TIME,
-        None,
-    )
-    .is_ok());
-    assert!(tenant_root_recovery_restore_trust_admission_v1(
-        &TenantRootRecoveryTrustLevelV1::ValidAtTrustSnapshot {
-            snapshot_version: 1,
-            snapshot_issued_at: "2026-08-29T10:20:30.122Z".to_owned(),
-        },
-        CREATION_TIME,
-        None,
-    )
-    .is_err());
-
-    // Offline verification needs the explicit destination acknowledgement.
-    assert!(tenant_root_recovery_restore_trust_admission_v1(
-        &TenantRootRecoveryTrustLevelV1::CryptographicallyValidOffline,
-        CREATION_TIME,
-        None,
-    )
-    .is_err());
-    assert!(tenant_root_recovery_restore_trust_admission_v1(
-        &TenantRootRecoveryTrustLevelV1::CryptographicallyValidOffline,
-        CREATION_TIME,
-        Some(&acknowledgement),
-    )
-    .is_ok());
-    assert_eq!(
-        acknowledgement.warning_version(),
-        "tenant_root_recovery_offline_trust_v1"
     );
 }

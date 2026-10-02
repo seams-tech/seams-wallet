@@ -5,15 +5,10 @@ use crate::derivation::{
     StableTenantDerivationContextV2, TenantRootCustodyBindingV1, TenantRootDerivationNonceV1,
     TenantRootProtocolDigestV1, TENANT_ROOT_MAX_CLOCK_SKEW_MS_V1, TENANT_ROOT_MAX_LIFETIME_MS_V1,
 };
-use crate::protocol::envelope::{EncryptedPayloadV1, RoleEncryptedEnvelopeV1};
+use crate::protocol::envelope::RoleEncryptedEnvelopeV1;
 use crate::protocol::error::{
     RouterAbProtocolError, RouterAbProtocolErrorCode, RouterAbProtocolResult,
 };
-
-const ECDSA_THRESHOLD_PRF_PRIVATE_REQUEST_VERSION_V2: &[u8] =
-    b"router-ab-protocol/ecdsa-threshold-prf-private-request/v2";
-const ECDSA_THRESHOLD_PRF_OUTER_REQUEST_VERSION_V2: &[u8] =
-    b"router-ab-protocol/ecdsa-threshold-prf-outer-request/v2";
 
 /// Fixed version for the stable tenant-root ECDSA request boundary.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -21,15 +16,6 @@ const ECDSA_THRESHOLD_PRF_OUTER_REQUEST_VERSION_V2: &[u8] =
 pub enum EcdsaThresholdPrfRequestVersionV2 {
     /// The stable tenant-root request shape.
     V2,
-}
-
-impl EcdsaThresholdPrfRequestVersionV2 {
-    /// Returns the canonical version label.
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::V2 => "v2",
-        }
-    }
 }
 
 /// Fixed ECDSA threshold-PRF purpose accepted by the V2 request boundary.
@@ -51,15 +37,6 @@ impl EcdsaThresholdPrfPurposeV2 {
             Self::XClientBase => PrfPurpose::RouterAbXClientBaseV1,
             Self::XServerBase => PrfPurpose::RouterAbXServerBaseV1,
             Self::YServer => PrfPurpose::RouterAbEcdsaDerivationYServer,
-        }
-    }
-
-    /// Returns the canonical threshold-PRF purpose label.
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::XClientBase => "router-ab/x_client_base/v1",
-            Self::XServerBase => "router-ab/x_server_base/v1",
-            Self::YServer => "router-ab-ecdsa-derivation/y-server/v1",
         }
     }
 }
@@ -159,22 +136,6 @@ impl EcdsaThresholdPrfPrivateRequestV2 {
     /// Returns the fixed threshold-PRF purpose.
     pub const fn purpose(&self) -> EcdsaThresholdPrfPurposeV2 {
         self.purpose
-    }
-
-    /// Returns strict canonical request bytes.
-    pub fn canonical_bytes(&self) -> Vec<u8> {
-        let mut out = Vec::new();
-        push_field(&mut out, ECDSA_THRESHOLD_PRF_PRIVATE_REQUEST_VERSION_V2);
-        push_field(&mut out, self.version.as_str().as_bytes());
-        push_field(
-            &mut out,
-            self.stable_context
-                .application_binding_digest_b64u()
-                .as_bytes(),
-        );
-        push_field(&mut out, self.custody_binding_digest.as_bytes());
-        push_field(&mut out, self.purpose.as_str().as_bytes());
-        out
     }
 }
 
@@ -313,20 +274,6 @@ impl EcdsaThresholdPrfOuterRequestV2 {
     pub const fn signer_b_envelope(&self) -> &RoleEncryptedEnvelopeV1 {
         &self.signer_b_envelope
     }
-
-    /// Returns strict canonical outer-request bytes.
-    pub fn canonical_bytes(&self) -> Vec<u8> {
-        let mut out = Vec::new();
-        push_field(&mut out, ECDSA_THRESHOLD_PRF_OUTER_REQUEST_VERSION_V2);
-        push_field(&mut out, self.version.as_str().as_bytes());
-        push_field(&mut out, self.request_nonce.as_bytes());
-        push_u64(&mut out, self.issued_at_ms);
-        push_u64(&mut out, self.expires_at_ms);
-        push_field(&mut out, &self.private_request.canonical_bytes());
-        push_role_envelope(&mut out, &self.signer_a_envelope);
-        push_role_envelope(&mut out, &self.signer_b_envelope);
-        out
-    }
 }
 
 #[derive(Deserialize)]
@@ -364,100 +311,6 @@ impl<'de> Deserialize<'de> for EcdsaThresholdPrfOuterRequestV2 {
     }
 }
 
-/// Encodes strict canonical bytes for one V2 private request.
-pub fn encode_ecdsa_threshold_prf_private_request_v2(
-    request: &EcdsaThresholdPrfPrivateRequestV2,
-) -> Vec<u8> {
-    request.canonical_bytes()
-}
-
-/// Decodes strict canonical bytes for one V2 private request.
-pub fn decode_ecdsa_threshold_prf_private_request_v2(
-    bytes: &[u8],
-) -> RouterAbProtocolResult<EcdsaThresholdPrfPrivateRequestV2> {
-    let mut decoder = RequestDecoder::new(bytes);
-    decoder.expect_field(
-        ECDSA_THRESHOLD_PRF_PRIVATE_REQUEST_VERSION_V2,
-        "private request version",
-    )?;
-    decoder.expect_field(b"v2", "private request protocol version")?;
-    let application_binding_digest = decoder.read_string("stable context application digest")?;
-    let stable_context = StableTenantDerivationContextV2::from_application_binding_digest_b64u(
-        &application_binding_digest,
-    )
-    .map_err(map_derivation_error)?;
-    let custody_binding_digest = decoder.read_protocol_digest("custody binding digest")?;
-    let purpose = parse_purpose(&decoder.read_string("threshold-PRF purpose")?)?;
-    decoder.finish()?;
-    let request =
-        EcdsaThresholdPrfPrivateRequestV2::new(stable_context, custody_binding_digest, purpose)?;
-    if request.canonical_bytes() != bytes {
-        return Err(malformed(
-            "ECDSA threshold-PRF V2 private request is not canonical",
-        ));
-    }
-    Ok(request)
-}
-
-/// Encodes strict canonical bytes for one V2 outer request.
-pub fn encode_ecdsa_threshold_prf_outer_request_v2(
-    request: &EcdsaThresholdPrfOuterRequestV2,
-) -> Vec<u8> {
-    request.canonical_bytes()
-}
-
-/// Decodes strict canonical bytes for one V2 outer request.
-pub fn decode_ecdsa_threshold_prf_outer_request_v2(
-    bytes: &[u8],
-) -> RouterAbProtocolResult<EcdsaThresholdPrfOuterRequestV2> {
-    let mut decoder = RequestDecoder::new(bytes);
-    decoder.expect_field(
-        ECDSA_THRESHOLD_PRF_OUTER_REQUEST_VERSION_V2,
-        "outer request version",
-    )?;
-    decoder.expect_field(b"v2", "outer request protocol version")?;
-    let request_nonce =
-        TenantRootDerivationNonceV1::from_bytes(decoder.read_fixed_32("outer request nonce")?)
-            .map_err(map_derivation_error)?;
-    let issued_at_ms = decoder.read_u64("outer request issue time")?;
-    let expires_at_ms = decoder.read_u64("outer request expiry")?;
-    let private_request =
-        decode_ecdsa_threshold_prf_private_request_v2(decoder.read_field("private request")?)?;
-    let signer_a_envelope = decoder.read_role_envelope("Signer A envelope")?;
-    let signer_b_envelope = decoder.read_role_envelope("Signer B envelope")?;
-    decoder.finish()?;
-    let request = EcdsaThresholdPrfOuterRequestV2::new(
-        request_nonce,
-        issued_at_ms,
-        expires_at_ms,
-        private_request,
-        signer_a_envelope,
-        signer_b_envelope,
-    )?;
-    if request.canonical_bytes() != bytes {
-        return Err(malformed(
-            "ECDSA threshold-PRF V2 outer request is not canonical",
-        ));
-    }
-    Ok(request)
-}
-
-fn parse_purpose(value: &str) -> RouterAbProtocolResult<EcdsaThresholdPrfPurposeV2> {
-    match value {
-        "router-ab/x_client_base/v1" => Ok(EcdsaThresholdPrfPurposeV2::XClientBase),
-        "router-ab/x_server_base/v1" => Ok(EcdsaThresholdPrfPurposeV2::XServerBase),
-        "router-ab-ecdsa-derivation/y-server/v1" => Ok(EcdsaThresholdPrfPurposeV2::YServer),
-        _ => Err(malformed("unknown ECDSA threshold-PRF V2 purpose")),
-    }
-}
-
-fn push_role_envelope(out: &mut Vec<u8>, envelope: &RoleEncryptedEnvelopeV1) {
-    push_field(out, envelope.recipient_role.as_str().as_bytes());
-    push_field(out, envelope.header_digest.as_bytes());
-    push_field(out, envelope.aad_digest.as_bytes());
-    push_field(out, envelope.ciphertext.as_bytes());
-}
-
 fn map_derivation_error(
     error: crate::derivation::RouterAbDerivationError,
 ) -> RouterAbProtocolError {
@@ -469,123 +322,4 @@ fn map_derivation_error(
 
 fn malformed(message: &'static str) -> RouterAbProtocolError {
     RouterAbProtocolError::new(RouterAbProtocolErrorCode::MalformedWirePayload, message)
-}
-
-fn push_field(out: &mut Vec<u8>, bytes: &[u8]) {
-    out.extend_from_slice(&(bytes.len() as u32).to_be_bytes());
-    out.extend_from_slice(bytes);
-}
-
-fn push_u64(out: &mut Vec<u8>, value: u64) {
-    out.extend_from_slice(&value.to_be_bytes());
-}
-
-struct RequestDecoder<'a> {
-    bytes: &'a [u8],
-    offset: usize,
-}
-
-impl<'a> RequestDecoder<'a> {
-    fn new(bytes: &'a [u8]) -> Self {
-        Self { bytes, offset: 0 }
-    }
-
-    fn expect_field(&mut self, expected: &[u8], field: &'static str) -> RouterAbProtocolResult<()> {
-        let actual = self.read_field(field)?;
-        if actual != expected {
-            return Err(malformed("ECDSA threshold-PRF V2 request version mismatch"));
-        }
-        Ok(())
-    }
-
-    fn read_field(&mut self, field: &'static str) -> RouterAbProtocolResult<&'a [u8]> {
-        let length = self.read_u32(field)? as usize;
-        let end = self
-            .offset
-            .checked_add(length)
-            .ok_or_else(|| malformed("ECDSA threshold-PRF V2 request length overflow"))?;
-        if end > self.bytes.len() {
-            return Err(malformed(
-                "ECDSA threshold-PRF V2 request field is truncated",
-            ));
-        }
-        let value = &self.bytes[self.offset..end];
-        self.offset = end;
-        Ok(value)
-    }
-
-    fn read_string(&mut self, field: &'static str) -> RouterAbProtocolResult<String> {
-        String::from_utf8(self.read_field(field)?.to_vec())
-            .map_err(|_| malformed("ECDSA threshold-PRF V2 request field is not UTF-8"))
-    }
-
-    fn read_fixed_32(&mut self, field: &'static str) -> RouterAbProtocolResult<[u8; 32]> {
-        self.read_field(field)?
-            .try_into()
-            .map_err(|_| malformed("ECDSA threshold-PRF V2 request fixed field has invalid length"))
-    }
-
-    fn read_protocol_digest(
-        &mut self,
-        field: &'static str,
-    ) -> RouterAbProtocolResult<TenantRootProtocolDigestV1> {
-        TenantRootProtocolDigestV1::from_bytes(self.read_fixed_32(field)?)
-            .map_err(map_derivation_error)
-    }
-
-    fn read_u32(&mut self, _field: &'static str) -> RouterAbProtocolResult<u32> {
-        let bytes = self
-            .bytes
-            .get(self.offset..self.offset.saturating_add(4))
-            .ok_or_else(|| malformed("ECDSA threshold-PRF V2 request integer is truncated"))?;
-        if bytes.len() != 4 {
-            return Err(malformed(
-                "ECDSA threshold-PRF V2 request integer is truncated",
-            ));
-        }
-        self.offset += 4;
-        Ok(u32::from_be_bytes(
-            bytes.try_into().expect("four-byte slice"),
-        ))
-    }
-
-    fn read_u64(&mut self, _field: &'static str) -> RouterAbProtocolResult<u64> {
-        let bytes = self
-            .bytes
-            .get(self.offset..self.offset.saturating_add(8))
-            .ok_or_else(|| malformed("ECDSA threshold-PRF V2 request timestamp is truncated"))?;
-        if bytes.len() != 8 {
-            return Err(malformed(
-                "ECDSA threshold-PRF V2 request timestamp is truncated",
-            ));
-        }
-        self.offset += 8;
-        Ok(u64::from_be_bytes(
-            bytes.try_into().expect("eight-byte slice"),
-        ))
-    }
-
-    fn read_role_envelope(
-        &mut self,
-        field: &'static str,
-    ) -> RouterAbProtocolResult<RoleEncryptedEnvelopeV1> {
-        let recipient_role = match self.read_string(field)?.as_str() {
-            "signer_a" => crate::derivation::Role::SignerA,
-            "signer_b" => crate::derivation::Role::SignerB,
-            _ => return Err(malformed("ECDSA threshold-PRF V2 envelope role is invalid")),
-        };
-        let header_digest = crate::derivation::PublicDigest32::new(self.read_fixed_32(field)?);
-        let aad_digest = crate::derivation::PublicDigest32::new(self.read_fixed_32(field)?);
-        let ciphertext = EncryptedPayloadV1::new(self.read_field(field)?.to_vec())?;
-        RoleEncryptedEnvelopeV1::new(recipient_role, header_digest, aad_digest, ciphertext)
-    }
-
-    fn finish(&self) -> RouterAbProtocolResult<()> {
-        if self.offset != self.bytes.len() {
-            return Err(malformed(
-                "ECDSA threshold-PRF V2 request has trailing bytes",
-            ));
-        }
-        Ok(())
-    }
 }

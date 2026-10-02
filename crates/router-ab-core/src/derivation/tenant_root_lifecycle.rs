@@ -511,20 +511,6 @@ pub struct TenantRootCreationFailureV1 {
     failed_at_ms: u64,
 }
 
-impl TenantRootCreationFailureV1 {
-    /// Creates one non-zero-time failure receipt.
-    pub fn new(
-        digest: TenantRootLifecycleReceiptDigestV1,
-        failed_at_ms: u64,
-    ) -> RouterAbDerivationResult<Self> {
-        require_timestamp("tenant-root creation failure timestamp", failed_at_ms)?;
-        Ok(Self {
-            digest,
-            failed_at_ms,
-        })
-    }
-}
-
 /// Both role receipts proving pending share and key cleanup.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -585,59 +571,6 @@ pub enum TenantRootPendingCleanupFailureV1 {
         /// Time at which incomplete cleanup was observed.
         observed_at_ms: u64,
     },
-}
-
-impl TenantRootPendingCleanupFailureV1 {
-    /// Creates the branch where neither role completed cleanup.
-    pub fn both_roles_incomplete(
-        failure_digest: TenantRootLifecycleReceiptDigestV1,
-        observed_at_ms: u64,
-    ) -> RouterAbDerivationResult<Self> {
-        require_timestamp("tenant-root cleanup failure timestamp", observed_at_ms)?;
-        Ok(Self::BothRolesIncomplete {
-            failure_digest,
-            observed_at_ms,
-        })
-    }
-
-    /// Creates the branch where Deriver A remains incomplete.
-    pub fn deriver_a_incomplete(
-        deriver_b_receipt: TenantRootLifecycleReceiptDigestV1,
-        failure_digest: TenantRootLifecycleReceiptDigestV1,
-        observed_at_ms: u64,
-    ) -> RouterAbDerivationResult<Self> {
-        require_distinct_role_receipts(deriver_b_receipt, failure_digest)?;
-        require_timestamp("tenant-root cleanup failure timestamp", observed_at_ms)?;
-        Ok(Self::DeriverAIncomplete {
-            deriver_b_receipt,
-            failure_digest,
-            observed_at_ms,
-        })
-    }
-
-    /// Creates the branch where Deriver B remains incomplete.
-    pub fn deriver_b_incomplete(
-        deriver_a_receipt: TenantRootLifecycleReceiptDigestV1,
-        failure_digest: TenantRootLifecycleReceiptDigestV1,
-        observed_at_ms: u64,
-    ) -> RouterAbDerivationResult<Self> {
-        require_distinct_role_receipts(deriver_a_receipt, failure_digest)?;
-        require_timestamp("tenant-root cleanup failure timestamp", observed_at_ms)?;
-        Ok(Self::DeriverBIncomplete {
-            deriver_a_receipt,
-            failure_digest,
-            observed_at_ms,
-        })
-    }
-
-    /// Returns the observation time for the incomplete cleanup.
-    pub const fn observed_at_ms(self) -> u64 {
-        match self {
-            Self::BothRolesIncomplete { observed_at_ms, .. }
-            | Self::DeriverAIncomplete { observed_at_ms, .. }
-            | Self::DeriverBIncomplete { observed_at_ms, .. } => observed_at_ms,
-        }
-    }
 }
 
 /// Public creation attempt retained after a pre-activation failure.
@@ -768,40 +701,6 @@ impl TenantRootPreparingCreationV1 {
             revision: verified_revision,
         })
     }
-
-    /// Records a failed attempt after both roles prove pending cleanup.
-    pub fn fail_with_cleanup(
-        self,
-        failure: TenantRootCreationFailureV1,
-        cleanup: TenantRootPendingCleanupReceiptV1,
-    ) -> RouterAbDerivationResult<TenantRootFailedBeforeActivationCreationV1> {
-        require_failure_order(self.next.issued_at_ms(), failure, cleanup.cleaned_at_ms())?;
-        Ok(TenantRootFailedBeforeActivationCreationV1 {
-            identity: self.identity,
-            custody_lineage: self.custody_lineage,
-            next: FailedTenantRootEpochV1::Preparing(self.next),
-            failure,
-            cleanup,
-            revision: next_revision(self.revision)?,
-        })
-    }
-
-    /// Records a failed attempt whose pending cleanup remains incomplete.
-    pub fn fail_with_incomplete_cleanup(
-        self,
-        failure: TenantRootCreationFailureV1,
-        cleanup: TenantRootPendingCleanupFailureV1,
-    ) -> RouterAbDerivationResult<TenantRootCleanupIncompleteCreationV1> {
-        require_failure_order(self.next.issued_at_ms(), failure, cleanup.observed_at_ms())?;
-        Ok(TenantRootCleanupIncompleteCreationV1 {
-            identity: self.identity,
-            custody_lineage: self.custody_lineage,
-            next: FailedTenantRootEpochV1::Preparing(self.next),
-            failure,
-            cleanup,
-            revision: next_revision(self.revision)?,
-        })
-    }
 }
 
 /// Creation branch whose epoch is ready for one forward activation.
@@ -828,44 +727,6 @@ impl TenantRootVerifiedCreationV1 {
                 verified: self.next,
                 activation,
             },
-            revision: next_revision(self.revision)?,
-        })
-    }
-
-    /// Records a verified epoch that failed before activation and was fully cleaned.
-    pub fn fail_with_cleanup(
-        self,
-        failure: TenantRootCreationFailureV1,
-        cleanup: TenantRootPendingCleanupReceiptV1,
-    ) -> RouterAbDerivationResult<TenantRootFailedBeforeActivationCreationV1> {
-        require_failure_order(self.next.verified_at_ms(), failure, cleanup.cleaned_at_ms())?;
-        Ok(TenantRootFailedBeforeActivationCreationV1 {
-            identity: self.identity,
-            custody_lineage: self.custody_lineage,
-            next: FailedTenantRootEpochV1::Verified(Box::new(self.next)),
-            failure,
-            cleanup,
-            revision: next_revision(self.revision)?,
-        })
-    }
-
-    /// Records a verified epoch whose pending cleanup remains incomplete.
-    pub fn fail_with_incomplete_cleanup(
-        self,
-        failure: TenantRootCreationFailureV1,
-        cleanup: TenantRootPendingCleanupFailureV1,
-    ) -> RouterAbDerivationResult<TenantRootCleanupIncompleteCreationV1> {
-        require_failure_order(
-            self.next.verified_at_ms(),
-            failure,
-            cleanup.observed_at_ms(),
-        )?;
-        Ok(TenantRootCleanupIncompleteCreationV1 {
-            identity: self.identity,
-            custody_lineage: self.custody_lineage,
-            next: FailedTenantRootEpochV1::Verified(Box::new(self.next)),
-            failure,
-            cleanup,
             revision: next_revision(self.revision)?,
         })
     }
@@ -954,34 +815,6 @@ pub struct TenantRootFailedBeforeActivationCreationV1 {
     revision: u64,
 }
 
-impl TenantRootFailedBeforeActivationCreationV1 {
-    /// Starts a fresh creation ceremony after complete cleanup of the failed attempt.
-    pub fn retry(
-        self,
-        context: &TenantRootCeremonyContextV1,
-    ) -> RouterAbDerivationResult<TenantRootPreparingCreationV1> {
-        if self.identity.digest()? != context.identity_digest()
-            || self.custody_lineage != context.custody_lineage()
-        {
-            return Err(malformed(
-                "tenant-root retry ceremony does not match its allocated identity and lineage",
-            ));
-        }
-        let next = PendingTenantRootEpochV1::from_creation_context(context)?;
-        if next.ceremony_digest() == self.next.pending().ceremony_digest() {
-            return Err(malformed(
-                "tenant-root retry requires a fresh creation ceremony",
-            ));
-        }
-        Ok(TenantRootPreparingCreationV1 {
-            identity: self.identity,
-            custody_lineage: self.custody_lineage,
-            next,
-            revision: next_revision(self.revision)?,
-        })
-    }
-}
-
 /// Operationally blocked branch after incomplete pending cleanup.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -992,28 +825,6 @@ pub struct TenantRootCleanupIncompleteCreationV1 {
     failure: TenantRootCreationFailureV1,
     cleanup: TenantRootPendingCleanupFailureV1,
     revision: u64,
-}
-
-impl TenantRootCleanupIncompleteCreationV1 {
-    /// Accepts the eventual complete cleanup proof and unblocks a fresh retry.
-    pub fn complete_cleanup(
-        self,
-        cleanup: TenantRootPendingCleanupReceiptV1,
-    ) -> RouterAbDerivationResult<TenantRootFailedBeforeActivationCreationV1> {
-        if cleanup.cleaned_at_ms() < self.cleanup.observed_at_ms() {
-            return Err(malformed(
-                "tenant-root cleanup completion predates the incomplete-cleanup observation",
-            ));
-        }
-        Ok(TenantRootFailedBeforeActivationCreationV1 {
-            identity: self.identity,
-            custody_lineage: self.custody_lineage,
-            next: self.next,
-            failure: self.failure,
-            cleanup,
-            revision: next_revision(self.revision)?,
-        })
-    }
 }
 
 /// Exhaustive public control-plane state for initial tenant-root creation.
@@ -1034,74 +845,6 @@ pub enum TenantRootCreationStateV1 {
     CleanupIncomplete(TenantRootCleanupIncompleteCreationV1),
 }
 
-/// Exact recovery action after reloading a persisted creation lifecycle state.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-#[serde(tag = "kind", rename_all = "snake_case")]
-pub enum TenantRootCreationRecoveryActionV1 {
-    /// No role material exists; a fresh creation ceremony may start.
-    StartFreshCeremony,
-    /// Pending material must be removed before another ceremony may start.
-    AbortPendingEpoch {
-        /// Epoch whose role-local pending material must be removed.
-        pending_epoch: TenantRootShareEpoch,
-        /// Exact ceremony whose pending material is being removed.
-        ceremony_digest: TenantRootProtocolDigestV1,
-    },
-    /// Cleanup was already completed; retry must use a fresh ceremony.
-    StartFreshCeremonyAfterCleanup {
-        /// Epoch from the failed attempt.
-        failed_epoch: TenantRootShareEpoch,
-        /// Exact failed ceremony that cannot be replayed.
-        failed_ceremony_digest: TenantRootProtocolDigestV1,
-    },
-    /// At least one role still has pending material from the failed attempt.
-    ResumePendingCleanup {
-        /// Epoch whose cleanup remains incomplete.
-        pending_epoch: TenantRootShareEpoch,
-        /// Exact failed ceremony whose cleanup must finish.
-        ceremony_digest: TenantRootProtocolDigestV1,
-    },
-    /// Creation completed and the active epoch remains authoritative.
-    KeepActive {
-        /// Active custody epoch.
-        active_epoch: TenantRootShareEpoch,
-        /// Signed activation receipt accepted by the control plane.
-        activation_receipt_digest: TenantRootLifecycleReceiptDigestV1,
-    },
-}
-
-/// Identity-bound recovery plan derived from one persisted creation state.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TenantRootCreationRecoveryPlanV1 {
-    identity_digest: super::TenantRootIdentityDigestV1,
-    custody_lineage: TenantRootCustodyLineageId,
-    revision: u64,
-    action: TenantRootCreationRecoveryActionV1,
-}
-
-impl TenantRootCreationRecoveryPlanV1 {
-    /// Returns the server-resolved tenant-root identity digest.
-    pub const fn identity_digest(&self) -> super::TenantRootIdentityDigestV1 {
-        self.identity_digest
-    }
-
-    /// Returns the physical custody lineage.
-    pub const fn custody_lineage(&self) -> TenantRootCustodyLineageId {
-        self.custody_lineage
-    }
-
-    /// Returns the exact persisted lifecycle revision.
-    pub const fn revision(&self) -> u64 {
-        self.revision
-    }
-
-    /// Returns the only permitted recovery action for the persisted branch.
-    pub const fn action(&self) -> TenantRootCreationRecoveryActionV1 {
-        self.action
-    }
-}
-
 impl TenantRootCreationStateV1 {
     /// Returns the monotonic lifecycle revision.
     pub const fn revision(&self) -> u64 {
@@ -1113,63 +856,6 @@ impl TenantRootCreationStateV1 {
             Self::FailedBeforeActivation(state) => state.revision,
             Self::CleanupIncomplete(state) => state.revision,
         }
-    }
-
-    /// Projects one deterministic crash-recovery action from the persisted branch.
-    pub fn recovery_plan(&self) -> RouterAbDerivationResult<TenantRootCreationRecoveryPlanV1> {
-        let (identity, custody_lineage, action) = match self {
-            Self::Empty(state) => (
-                &state.identity,
-                state.custody_lineage,
-                TenantRootCreationRecoveryActionV1::StartFreshCeremony,
-            ),
-            Self::Preparing(state) => (
-                &state.identity,
-                state.custody_lineage,
-                TenantRootCreationRecoveryActionV1::AbortPendingEpoch {
-                    pending_epoch: state.next.epoch(),
-                    ceremony_digest: state.next.ceremony_digest(),
-                },
-            ),
-            Self::Verified(state) => (
-                &state.identity,
-                state.custody_lineage,
-                TenantRootCreationRecoveryActionV1::AbortPendingEpoch {
-                    pending_epoch: state.next.pending().epoch(),
-                    ceremony_digest: state.next.pending().ceremony_digest(),
-                },
-            ),
-            Self::Active(state) => (
-                &state.identity,
-                state.custody_lineage,
-                TenantRootCreationRecoveryActionV1::KeepActive {
-                    active_epoch: state.current.epoch(),
-                    activation_receipt_digest: state.current.activation_receipt_digest(),
-                },
-            ),
-            Self::FailedBeforeActivation(state) => (
-                &state.identity,
-                state.custody_lineage,
-                TenantRootCreationRecoveryActionV1::StartFreshCeremonyAfterCleanup {
-                    failed_epoch: state.next.pending().epoch(),
-                    failed_ceremony_digest: state.next.pending().ceremony_digest(),
-                },
-            ),
-            Self::CleanupIncomplete(state) => (
-                &state.identity,
-                state.custody_lineage,
-                TenantRootCreationRecoveryActionV1::ResumePendingCleanup {
-                    pending_epoch: state.next.pending().epoch(),
-                    ceremony_digest: state.next.pending().ceremony_digest(),
-                },
-            ),
-        };
-        Ok(TenantRootCreationRecoveryPlanV1 {
-            identity_digest: identity.digest()?,
-            custody_lineage,
-            revision: self.revision(),
-            action,
-        })
     }
 }
 
@@ -1273,13 +959,6 @@ impl TenantRootRoleRetirementReceiptsV1 {
 pub struct RetiringTenantRootEpochV1 {
     active: ActiveTenantRootEpochV1,
     retirement_started_at_ms: u64,
-}
-
-impl RetiringTenantRootEpochV1 {
-    /// Returns the previous active epoch.
-    pub const fn active(&self) -> &ActiveTenantRootEpochV1 {
-        &self.active
-    }
 }
 
 /// Stable active branch between refresh operations.
@@ -1550,28 +1229,6 @@ impl TenantRootPreparingRefreshV1 {
             revision: next_revision(self.revision)?,
         })
     }
-
-    /// Records a failed refresh whose pending cleanup remains incomplete.
-    pub fn fail_with_incomplete_cleanup(
-        self,
-        failure: TenantRootRefreshFailureV1,
-        cleanup: TenantRootPendingCleanupFailureV1,
-    ) -> RouterAbDerivationResult<TenantRootCleanupIncompleteRefreshV1> {
-        require_event_order(
-            self.next.issued_at_ms(),
-            failure.failed_at_ms(),
-            cleanup.observed_at_ms(),
-        )?;
-        Ok(TenantRootCleanupIncompleteRefreshV1 {
-            identity: self.identity,
-            custody_lineage: self.custody_lineage,
-            current: self.current,
-            next: FailedTenantRootEpochV1::Preparing(self.next),
-            failure,
-            cleanup,
-            revision: next_revision(self.revision)?,
-        })
-    }
 }
 
 /// Refresh branch whose next epoch passed every pre-activation gate.
@@ -1609,50 +1266,6 @@ impl TenantRootVerifiedRefreshV1 {
                 activation,
             },
             previous,
-            revision: next_revision(self.revision)?,
-        })
-    }
-
-    /// Records a verified next epoch that failed before activation and was fully cleaned.
-    pub fn fail_with_cleanup(
-        self,
-        failure: TenantRootRefreshFailureV1,
-        cleanup: TenantRootPendingCleanupReceiptV1,
-    ) -> RouterAbDerivationResult<TenantRootFailedBeforeActivationRefreshV1> {
-        require_event_order(
-            self.next.verified_at_ms(),
-            failure.failed_at_ms(),
-            cleanup.cleaned_at_ms(),
-        )?;
-        Ok(TenantRootFailedBeforeActivationRefreshV1 {
-            identity: self.identity,
-            custody_lineage: self.custody_lineage,
-            current: self.current,
-            next: FailedTenantRootEpochV1::Verified(Box::new(self.next)),
-            failure,
-            cleanup,
-            revision: next_revision(self.revision)?,
-        })
-    }
-
-    /// Records a verified next epoch whose pending cleanup remains incomplete.
-    pub fn fail_with_incomplete_cleanup(
-        self,
-        failure: TenantRootRefreshFailureV1,
-        cleanup: TenantRootPendingCleanupFailureV1,
-    ) -> RouterAbDerivationResult<TenantRootCleanupIncompleteRefreshV1> {
-        require_event_order(
-            self.next.verified_at_ms(),
-            failure.failed_at_ms(),
-            cleanup.observed_at_ms(),
-        )?;
-        Ok(TenantRootCleanupIncompleteRefreshV1 {
-            identity: self.identity,
-            custody_lineage: self.custody_lineage,
-            current: self.current,
-            next: FailedTenantRootEpochV1::Verified(Box::new(self.next)),
-            failure,
-            cleanup,
             revision: next_revision(self.revision)?,
         })
     }
@@ -1800,16 +1413,6 @@ pub struct TenantRootRetiringRefreshV1 {
 }
 
 impl TenantRootRetiringRefreshV1 {
-    /// Returns the newly active epoch used by derivation ceremonies.
-    pub const fn current(&self) -> &ActiveTenantRootEpochV1 {
-        &self.current
-    }
-
-    /// Returns the previous epoch awaiting destruction.
-    pub const fn previous(&self) -> &RetiringTenantRootEpochV1 {
-        &self.previous
-    }
-
     /// Returns the current lifecycle revision.
     pub const fn revision(&self) -> u64 {
         self.revision
@@ -1909,238 +1512,6 @@ impl TenantRootCleanupIncompleteRefreshV1 {
     pub const fn revision(&self) -> u64 {
         self.revision
     }
-
-    /// Accepts eventual complete cleanup and unblocks a fresh refresh attempt.
-    pub fn complete_cleanup(
-        self,
-        cleanup: TenantRootPendingCleanupReceiptV1,
-    ) -> RouterAbDerivationResult<TenantRootFailedBeforeActivationRefreshV1> {
-        if cleanup.cleaned_at_ms() < self.cleanup.observed_at_ms() {
-            return Err(malformed(
-                "tenant-root cleanup completion predates the incomplete-cleanup observation",
-            ));
-        }
-        Ok(TenantRootFailedBeforeActivationRefreshV1 {
-            identity: self.identity,
-            custody_lineage: self.custody_lineage,
-            current: self.current,
-            next: self.next,
-            failure: self.failure,
-            cleanup,
-            revision: next_revision(self.revision)?,
-        })
-    }
-}
-
-/// Exhaustive public control-plane state for proactive tenant-root refresh.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[serde(tag = "kind", content = "state", rename_all = "snake_case")]
-pub enum TenantRootRefreshStateV1 {
-    /// One current epoch and no mutation in progress.
-    Active(TenantRootActiveRefreshV1),
-    /// The old epoch is active while the next epoch is prepared.
-    Preparing(TenantRootPreparingRefreshV1),
-    /// The next epoch passed every pre-activation gate.
-    Verified(TenantRootVerifiedRefreshV1),
-    /// The next epoch is active while the previous epoch is destroyed.
-    Retiring(TenantRootRetiringRefreshV1),
-    /// Refresh failed, pending material was cleaned, and the old epoch remains active.
-    FailedBeforeActivation(TenantRootFailedBeforeActivationRefreshV1),
-    /// Refresh failed and incomplete pending cleanup blocks another mutation.
-    CleanupIncomplete(TenantRootCleanupIncompleteRefreshV1),
-}
-
-/// Exact recovery action after reloading a persisted refresh lifecycle state.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-#[serde(tag = "kind", rename_all = "snake_case")]
-pub enum TenantRootRefreshRecoveryActionV1 {
-    /// The current epoch is stable and a new operation may be accepted.
-    KeepActive {
-        /// Active custody epoch.
-        active_epoch: TenantRootShareEpoch,
-    },
-    /// A pre-activation next epoch must be deleted while the old epoch stays active.
-    AbortPendingEpoch {
-        /// Epoch that remains authoritative during cleanup.
-        active_epoch: TenantRootShareEpoch,
-        /// Pending epoch whose role-local material must be removed.
-        pending_epoch: TenantRootShareEpoch,
-        /// Exact ceremony whose pending material is being removed.
-        ceremony_digest: TenantRootProtocolDigestV1,
-    },
-    /// Cleanup completed and the next attempt must use a fresh ceremony.
-    StartFreshRefreshAfterCleanup {
-        /// Epoch that remained active through the failed attempt.
-        active_epoch: TenantRootShareEpoch,
-        /// Failed pending epoch that cannot be replayed.
-        failed_epoch: TenantRootShareEpoch,
-        /// Exact failed ceremony that cannot be replayed.
-        failed_ceremony_digest: TenantRootProtocolDigestV1,
-    },
-    /// At least one role still has pending material from the failed attempt.
-    ResumePendingCleanup {
-        /// Epoch that remains authoritative during cleanup.
-        active_epoch: TenantRootShareEpoch,
-        /// Pending epoch whose cleanup remains incomplete.
-        pending_epoch: TenantRootShareEpoch,
-        /// Exact failed ceremony whose cleanup must finish.
-        ceremony_digest: TenantRootProtocolDigestV1,
-    },
-    /// Forward activation committed; destruction of the previous epoch must resume.
-    ResumeRetirement {
-        /// Newly active custody epoch.
-        active_epoch: TenantRootShareEpoch,
-        /// Previous epoch that must never become active again.
-        retiring_epoch: TenantRootShareEpoch,
-        /// Signed forward-activation receipt accepted by the control plane.
-        activation_receipt_digest: TenantRootLifecycleReceiptDigestV1,
-    },
-}
-
-/// Identity-bound recovery plan derived from one persisted refresh state.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TenantRootRefreshRecoveryPlanV1 {
-    identity_digest: super::TenantRootIdentityDigestV1,
-    custody_lineage: TenantRootCustodyLineageId,
-    revision: u64,
-    action: TenantRootRefreshRecoveryActionV1,
-}
-
-impl TenantRootRefreshRecoveryPlanV1 {
-    /// Returns the server-resolved tenant-root identity digest.
-    pub const fn identity_digest(&self) -> super::TenantRootIdentityDigestV1 {
-        self.identity_digest
-    }
-
-    /// Returns the physical custody lineage.
-    pub const fn custody_lineage(&self) -> TenantRootCustodyLineageId {
-        self.custody_lineage
-    }
-
-    /// Returns the exact persisted lifecycle revision.
-    pub const fn revision(&self) -> u64 {
-        self.revision
-    }
-
-    /// Returns the only permitted recovery action for the persisted branch.
-    pub const fn action(&self) -> TenantRootRefreshRecoveryActionV1 {
-        self.action
-    }
-}
-
-impl TenantRootRefreshStateV1 {
-    /// Returns the monotonic lifecycle revision.
-    pub const fn revision(&self) -> u64 {
-        match self {
-            Self::Active(state) => state.revision,
-            Self::Preparing(state) => state.revision,
-            Self::Verified(state) => state.revision,
-            Self::Retiring(state) => state.revision,
-            Self::FailedBeforeActivation(state) => state.revision,
-            Self::CleanupIncomplete(state) => state.revision,
-        }
-    }
-
-    /// Projects one deterministic crash-recovery action from the persisted branch.
-    pub fn recovery_plan(&self) -> RouterAbDerivationResult<TenantRootRefreshRecoveryPlanV1> {
-        let (identity, custody_lineage, action) = match self {
-            Self::Active(state) => (
-                &state.identity,
-                state.custody_lineage,
-                TenantRootRefreshRecoveryActionV1::KeepActive {
-                    active_epoch: state.current.epoch(),
-                },
-            ),
-            Self::Preparing(state) => (
-                &state.identity,
-                state.custody_lineage,
-                TenantRootRefreshRecoveryActionV1::AbortPendingEpoch {
-                    active_epoch: state.current.epoch(),
-                    pending_epoch: state.next.epoch(),
-                    ceremony_digest: state.next.ceremony_digest(),
-                },
-            ),
-            Self::Verified(state) => (
-                &state.identity,
-                state.custody_lineage,
-                TenantRootRefreshRecoveryActionV1::AbortPendingEpoch {
-                    active_epoch: state.current.epoch(),
-                    pending_epoch: state.next.pending().epoch(),
-                    ceremony_digest: state.next.pending().ceremony_digest(),
-                },
-            ),
-            Self::Retiring(state) => (
-                &state.identity,
-                state.custody_lineage,
-                TenantRootRefreshRecoveryActionV1::ResumeRetirement {
-                    active_epoch: state.current.epoch(),
-                    retiring_epoch: state.previous.active().epoch(),
-                    activation_receipt_digest: state.current.activation_receipt_digest(),
-                },
-            ),
-            Self::FailedBeforeActivation(state) => (
-                &state.identity,
-                state.custody_lineage,
-                TenantRootRefreshRecoveryActionV1::StartFreshRefreshAfterCleanup {
-                    active_epoch: state.current.epoch(),
-                    failed_epoch: state.next.pending().epoch(),
-                    failed_ceremony_digest: state.next.pending().ceremony_digest(),
-                },
-            ),
-            Self::CleanupIncomplete(state) => (
-                &state.identity,
-                state.custody_lineage,
-                TenantRootRefreshRecoveryActionV1::ResumePendingCleanup {
-                    active_epoch: state.current.epoch(),
-                    pending_epoch: state.next.pending().epoch(),
-                    ceremony_digest: state.next.pending().ceremony_digest(),
-                },
-            ),
-        };
-        Ok(TenantRootRefreshRecoveryPlanV1 {
-            identity_digest: identity.digest()?,
-            custody_lineage,
-            revision: self.revision(),
-            action,
-        })
-    }
-}
-
-impl From<TenantRootActiveRefreshV1> for TenantRootRefreshStateV1 {
-    fn from(state: TenantRootActiveRefreshV1) -> Self {
-        Self::Active(state)
-    }
-}
-
-impl From<TenantRootPreparingRefreshV1> for TenantRootRefreshStateV1 {
-    fn from(state: TenantRootPreparingRefreshV1) -> Self {
-        Self::Preparing(state)
-    }
-}
-
-impl From<TenantRootVerifiedRefreshV1> for TenantRootRefreshStateV1 {
-    fn from(state: TenantRootVerifiedRefreshV1) -> Self {
-        Self::Verified(state)
-    }
-}
-
-impl From<TenantRootRetiringRefreshV1> for TenantRootRefreshStateV1 {
-    fn from(state: TenantRootRetiringRefreshV1) -> Self {
-        Self::Retiring(state)
-    }
-}
-
-impl From<TenantRootFailedBeforeActivationRefreshV1> for TenantRootRefreshStateV1 {
-    fn from(state: TenantRootFailedBeforeActivationRefreshV1) -> Self {
-        Self::FailedBeforeActivation(state)
-    }
-}
-
-impl From<TenantRootCleanupIncompleteRefreshV1> for TenantRootRefreshStateV1 {
-    fn from(state: TenantRootCleanupIncompleteRefreshV1) -> Self {
-        Self::CleanupIncomplete(state)
-    }
 }
 
 fn parse_share_commitment(
@@ -2170,14 +1541,6 @@ fn require_timestamp(field: &'static str, value: u64) -> RouterAbDerivationResul
     } else {
         Ok(())
     }
-}
-
-fn require_failure_order(
-    earliest_failure_at_ms: u64,
-    failure: TenantRootCreationFailureV1,
-    cleanup_at_ms: u64,
-) -> RouterAbDerivationResult<()> {
-    require_event_order(earliest_failure_at_ms, failure.failed_at_ms, cleanup_at_ms)
 }
 
 fn require_event_order(

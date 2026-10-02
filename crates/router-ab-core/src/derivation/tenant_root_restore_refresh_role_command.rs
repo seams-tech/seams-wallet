@@ -26,9 +26,6 @@ const TENANT_ROOT_RESTORE_REFRESH_ROLE_COMMAND_AUTH_DOMAIN_V1: &[u8] =
 const TENANT_ROOT_RESTORE_REFRESH_ROLE_OPERATION_V1: &[u8] = b"restore_refresh_role";
 const TENANT_ROOT_RESTORE_REFRESH_ROLE_ISSUER_KEY_ID_MAX_BYTES_V1: usize = 256;
 
-/// Exact operation authenticated by a restore-to-creation refresh role command.
-pub const TENANT_ROOT_RESTORE_REFRESH_ROLE_COMMAND_OPERATION_V1: &str = "restore_refresh_role";
-
 /// Maximum canonical wire size accepted for one restore refresh role command.
 pub const TENANT_ROOT_RESTORE_REFRESH_ROLE_COMMAND_MAX_BYTES_V1: usize = 24 * 1024;
 

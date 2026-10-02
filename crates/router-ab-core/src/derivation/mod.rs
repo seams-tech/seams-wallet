@@ -19,7 +19,6 @@ mod tenant_root_activation_support_evidence;
 mod tenant_root_active_binding;
 mod tenant_root_command_replay;
 mod tenant_root_command_terminal_receipt;
-mod tenant_root_console_state;
 mod tenant_root_creation_capability;
 mod tenant_root_creation_grant;
 mod tenant_root_creation_journal;
@@ -35,7 +34,6 @@ mod tenant_root_managed_restore_lifecycle;
 mod tenant_root_managed_restore_state_transport;
 mod tenant_root_managed_restore_transport;
 mod tenant_root_online_sealing;
-mod tenant_root_operation_authorization;
 mod tenant_root_protocol;
 mod tenant_root_recovery_artifacts;
 mod tenant_root_recovery_recipient_proof;
@@ -94,12 +92,9 @@ pub use self::ecdsa_threshold_prf_backend::{
 pub use self::error::{
     RouterAbDerivationError, RouterAbDerivationErrorCode, RouterAbDerivationResult,
 };
-pub use self::material::{
-    OpenedShareKind, PublicDigest32, PublicMaterial32, Role, SecretMaterial32,
-};
+pub use self::material::{OpenedShareKind, PublicDigest32, Role, SecretMaterial32};
 pub use self::signer_plaintext::{
-    decode_signer_input_plaintext_v1, encode_signer_input_plaintext_v1, SignerInputPlaintextV1,
-    SignerInputQuorumPolicyV1,
+    encode_signer_input_plaintext_v1, SignerInputPlaintextV1, SignerInputQuorumPolicyV1,
 };
 pub(crate) use self::tenant_root::require_tenant_root_identifier;
 pub use self::tenant_root::{
@@ -112,12 +107,6 @@ pub use self::tenant_root_activation_support_evidence::*;
 pub use self::tenant_root_active_binding::*;
 pub use self::tenant_root_command_replay::*;
 pub use self::tenant_root_command_terminal_receipt::*;
-pub use self::tenant_root_console_state::{
-    TenantRootConsoleStateV1, TenantRootOutstandingCleanupV1, TenantRootReceiptDigestV1,
-    TenantRootRecipientEnrolmentV1, TenantRootRecipientPairV1, TenantRootRecoveryBackupV1,
-    TenantRootRecoverySetStateV1, TenantRootRestoreSessionV1, TenantRootRoleImportProgressV1,
-    TenantRootRoleReceiptsV1, TenantRootRotationJobV1, TenantRootSourceCustodyDispositionV1,
-};
 pub use self::tenant_root_creation_capability::*;
 pub use self::tenant_root_creation_grant::*;
 pub use self::tenant_root_creation_journal::*;
@@ -125,11 +114,7 @@ pub use self::tenant_root_creation_role_command::*;
 pub use self::tenant_root_custody_binding::*;
 pub use self::tenant_root_deletion_lifecycle::*;
 pub use self::tenant_root_destination_bootstrap::{
-    authenticate_destination_bootstrap_v1, issue_role_import_key_v1,
-    restore_session_binding_digest_v1, restore_session_expired_v1, role_import_key_is_current_v1,
-    DestinationBootstrapAuthorityV1, DestinationBootstrapTokenV1, RestoreAdministrationSessionV1,
-    RoleImportKeyIssuanceV1, RoleImportKeyIssueRefusalV1,
-    TENANT_ROOT_ACTIVATION_REAUTH_MAX_AGE_MS_V1, TENANT_ROOT_RESTORE_ADMIN_SESSION_MS_V1,
+    restore_session_expired_v1, DestinationBootstrapAuthorityV1, DestinationBootstrapTokenV1,
     TENANT_ROOT_RESTORE_SESSION_MS_V1, TENANT_ROOT_ROLE_IMPORT_KEY_MS_V1,
 };
 pub use self::tenant_root_initial_role_attempt::*;
@@ -140,16 +125,6 @@ pub use self::tenant_root_managed_restore_lifecycle::*;
 pub use self::tenant_root_managed_restore_state_transport::*;
 pub use self::tenant_root_managed_restore_transport::*;
 pub use self::tenant_root_online_sealing::*;
-pub use self::tenant_root_operation_authorization::{
-    authorize_tenant_root_operation_v1, tenant_root_governance_transition_quorum_v1,
-    AuthorizedTenantRootOperationV1, TenantRootOperationApprovalV1,
-    TenantRootOperationCapabilityV1, TenantRootOperationDigestV1, TenantRootOperationIssuerKeysV1,
-    TenantRootOperationKindV1, TenantRootOperationNonceV1, TenantRootOperationRecordV1,
-    TenantRootOperationSubjectV1, TenantRootRecoveryGovernanceV1, TenantRootStepUpEvidenceV1,
-    TENANT_ROOT_DOWNLOAD_MAX_LIFETIME_MS_V1, TENANT_ROOT_OPERATION_MAX_LIFETIME_MS_V1,
-    TENANT_ROOT_OPERATION_RECORD_MAX_BYTES_V1, TENANT_ROOT_SINGLE_OWNER_WARNING_V1,
-    TENANT_ROOT_STEP_UP_MAX_AGE_MS_V1,
-};
 pub use self::tenant_root_protocol::{
     verify_tenant_root_creation_evidence_v1, verify_tenant_root_refresh_evidence_v1,
     TenantRootCeremonyContextV1, TenantRootCeremonyEpochsV1, TenantRootCeremonyNonceV1,
@@ -188,19 +163,16 @@ pub use self::tenant_root_recovery_reshare::{
     VerifiedTenantRootRecoveryResharePairV1, VerifiedTenantRootRecoveryShareV1,
 };
 pub use self::tenant_root_recovery_trust::{
-    tenant_root_recovery_restore_trust_admission_v1,
     verify_tenant_root_recovery_artifacts_with_trust_v1,
     verify_tenant_root_recovery_manifest_trust_v1,
     verify_tenant_root_recovery_role_package_with_trust_v1,
     verify_tenant_root_recovery_signer_chain_v1, TenantRootRecoveryManifestTrustV1,
-    TenantRootRecoveryOfflineTrustAcknowledgementV1, TenantRootRecoveryRevocationEntryV1,
-    TenantRootRecoveryRevocationKindV1, TenantRootRecoveryRevocationSnapshotV1,
-    TenantRootRecoverySignerCertificateV1, TenantRootRecoverySignerRoleV1,
-    TenantRootRecoveryTrustBridgeV1, TenantRootRecoveryTrustBundleV1,
-    TenantRootRecoveryTrustEvidenceV1, TenantRootRecoveryTrustLevelV1,
-    TenantRootRecoveryTrustRootV1, VerifiedTenantRootRecoverySignerV1,
-    TENANT_ROOT_RECOVERY_OFFLINE_TRUST_WARNING_V1,
-    TENANT_ROOT_RECOVERY_REVOCATION_SNAPSHOT_MAX_BYTES,
+    TenantRootRecoveryRevocationEntryV1, TenantRootRecoveryRevocationKindV1,
+    TenantRootRecoveryRevocationSnapshotV1, TenantRootRecoverySignerCertificateV1,
+    TenantRootRecoverySignerRoleV1, TenantRootRecoveryTrustBridgeV1,
+    TenantRootRecoveryTrustBundleV1, TenantRootRecoveryTrustEvidenceV1,
+    TenantRootRecoveryTrustLevelV1, TenantRootRecoveryTrustRootV1,
+    VerifiedTenantRootRecoverySignerV1, TENANT_ROOT_RECOVERY_REVOCATION_SNAPSHOT_MAX_BYTES,
     TENANT_ROOT_RECOVERY_SIGNER_CERTIFICATE_MAX_BYTES, TENANT_ROOT_RECOVERY_SIGNER_CHAIN_LEN_V1,
     TENANT_ROOT_RECOVERY_TRUST_BUNDLE_MAX_BYTES,
 };
@@ -239,13 +211,11 @@ pub use self::tenant_root_restore_import::{
 pub use self::tenant_root_restore_refresh_grant::{
     tenant_root_restore_refresh_ceremony_session_id_v1, TenantRootRestoreRefreshGrantV1,
     VerifiedTenantRootRestoreRefreshGrantV1, TENANT_ROOT_RESTORE_REFRESH_GRANT_MAX_BYTES_V1,
-    TENANT_ROOT_RESTORE_REFRESH_GRANT_OPERATION_V1,
 };
 pub use self::tenant_root_restore_refresh_role_command::{
     tenant_root_restore_refresh_context_nonce_v1, TenantRootRestoreRefreshRoleCommandV1,
     VerifiedTenantRootRestoreRefreshRoleCommandV1,
     TENANT_ROOT_RESTORE_REFRESH_ROLE_COMMAND_MAX_BYTES_V1,
-    TENANT_ROOT_RESTORE_REFRESH_ROLE_COMMAND_OPERATION_V1,
 };
 pub use self::tenant_root_retention_key::{
     TenantRootRetainedPackageV1, TenantRootRetentionKeyIdV1, TenantRootRetentionKeySecretV1,

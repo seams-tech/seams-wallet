@@ -11,8 +11,7 @@ import {
  *
  * The console builds these records in TypeScript and the control plane
  * consumes their digests in Rust, so both sides must produce identical
- * canonical bytes. The encoding is pinned by the cross-runtime fixtures in
- * `crates/router-ab-core/tests/fixtures/tenant-root-operation`.
+ * canonical bytes.
  *
  * A record is the unit of authorization: changing any field changes the
  * digest, so a capability minted for one record cannot be carried to another

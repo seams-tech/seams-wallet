@@ -32,8 +32,6 @@ pub use self::ecdsa_threshold_prf_request::{
     EcdsaThresholdPrfRequestVersionV1,
 };
 pub use self::ecdsa_threshold_prf_request_v2::{
-    decode_ecdsa_threshold_prf_outer_request_v2, decode_ecdsa_threshold_prf_private_request_v2,
-    encode_ecdsa_threshold_prf_outer_request_v2, encode_ecdsa_threshold_prf_private_request_v2,
     EcdsaThresholdPrfOuterRequestV2, EcdsaThresholdPrfPrivateRequestV2, EcdsaThresholdPrfPurposeV2,
     EcdsaThresholdPrfRequestVersionV2,
 };
@@ -46,10 +44,10 @@ pub use self::ed25519_yao::{
     RouterAbEd25519YaoActivationAdmissionReceiptV1, RouterAbEd25519YaoActivationExecuteRequestV1,
     RouterAbEd25519YaoActivationKeysetV1, RouterAbEd25519YaoActivationPublicReceiptV1,
     RouterAbEd25519YaoActivationResultV1, RouterAbEd25519YaoApplicationBindingFactsV1,
-    RouterAbEd25519YaoExportAdmissionReceiptV1, RouterAbEd25519YaoExportAuthorizationV1,
-    RouterAbEd25519YaoExportBindingV1, RouterAbEd25519YaoExportExecuteRequestV1,
-    RouterAbEd25519YaoExportResultV1, RouterAbEd25519YaoLifecycleScopeV1,
-    RouterAbEd25519YaoRegistrationAdmissionRequestV1, ED25519_YAO_CONTROL_CIPHERTEXT_MAX_BYTES_V1,
+    RouterAbEd25519YaoExportAdmissionReceiptV1, RouterAbEd25519YaoExportBindingV1,
+    RouterAbEd25519YaoExportExecuteRequestV1, RouterAbEd25519YaoExportResultV1,
+    RouterAbEd25519YaoLifecycleScopeV1, RouterAbEd25519YaoRegistrationAdmissionRequestV1,
+    ED25519_YAO_CONTROL_CIPHERTEXT_MAX_BYTES_V1,
     ROUTER_AB_ED25519_YAO_REGISTRATION_ADMISSION_PATH_V1,
     ROUTER_AB_ED25519_YAO_REGISTRATION_EXECUTE_PATH_V1,
 };
@@ -136,9 +134,6 @@ pub use self::normal_signing::{
     derive_router_ab_ed25519_normal_signing_admission_material_v2,
     parse_router_ab_ed25519_normal_signing_finalize_request_v2_json,
     parse_router_ab_ed25519_normal_signing_prepare_request_v2_json,
-    parse_router_ab_ed25519_presign_pool_hit_finalize_request_v2_json,
-    parse_router_ab_ed25519_presign_pool_prepare_request_v2_json,
-    parse_router_ab_ed25519_presign_pool_prepare_response_v2_json,
     router_ab_delegate_action_fingerprint_from_canonical_borsh_b64u_v2,
     router_ab_ed25519_nep413_canonical_message_b64u_v2,
     router_ab_near_transaction_action_fingerprint_from_unsigned_borsh_b64u_v2,
@@ -147,10 +142,7 @@ pub use self::normal_signing::{
     RouterAbEd25519NormalSigningAdmissionMaterialV2,
     RouterAbEd25519NormalSigningFinalizeProtocolV2, RouterAbEd25519NormalSigningFinalizeRequestV2,
     RouterAbEd25519NormalSigningIntentV2, RouterAbEd25519NormalSigningPrepareBindingV2,
-    RouterAbEd25519NormalSigningPrepareRequestV2, RouterAbEd25519PresignPoolAcceptedEntryV2,
-    RouterAbEd25519PresignPoolClientOfferV2, RouterAbEd25519PresignPoolHitBindingV2,
-    RouterAbEd25519PresignPoolHitFinalizeRequestV2, RouterAbEd25519PresignPoolPrepareRequestV2,
-    RouterAbEd25519PresignPoolPrepareResponseV2, RouterAbEd25519SigningPayloadV2,
+    RouterAbEd25519NormalSigningPrepareRequestV2, RouterAbEd25519SigningPayloadV2,
     RouterAbEd25519TwoPartyFrostFinalizeProtocolV2, RouterAbNearDelegateActionIntentV1,
     RouterAbNearNetworkIdV2, RouterAbNearTransactionIntentV1,
 };
@@ -185,7 +177,6 @@ pub use self::payload::{
     encode_ecdsa_threshold_prf_proof_batch_payload_v1, encode_mpc_prf_stable_proof_bundle_wire_v2,
     encode_mpc_prf_stable_recipient_proof_bundle_payload_v2,
     encode_recipient_proof_bundle_payload_v1, encode_router_to_signer_payload_v1,
-    mpc_prf_stable_proof_bundle_wire_digest_v2,
     mpc_prf_stable_recipient_proof_bundle_payload_digest_v2,
     recipient_proof_bundle_payload_digest_v1, router_to_signer_payload_digest_v1,
     router_transcript_binding_v1, router_transcript_digest_v1,

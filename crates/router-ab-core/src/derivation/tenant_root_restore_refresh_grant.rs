@@ -38,9 +38,6 @@ const REFRESH_GRANT_WIRE: TenantRootRestoreGrantWireV1 = TenantRootRestoreGrantW
     key_id_max_bytes: RESTORE_REFRESH_GRANT_KEY_ID_MAX_BYTES_V1,
 };
 
-/// Exact operation authenticated by a restore refresh grant.
-pub const TENANT_ROOT_RESTORE_REFRESH_GRANT_OPERATION_V1: &str = "tenant_root_restore_refresh_v1";
-
 /// Maximum canonical wire size accepted for one restore refresh grant.
 pub const TENANT_ROOT_RESTORE_REFRESH_GRANT_MAX_BYTES_V1: usize =
     RESTORE_REFRESH_GRANT_MAX_BYTES_V1;

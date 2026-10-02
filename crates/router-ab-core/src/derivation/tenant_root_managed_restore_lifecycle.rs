@@ -381,25 +381,6 @@ pub struct TenantRootManagedRestoreCleanupFailureV1 {
     observed_at_ms: u64,
 }
 
-impl TenantRootManagedRestoreCleanupFailureV1 {
-    /// Creates one role-specific incomplete-cleanup observation.
-    pub fn new(
-        digest: TenantRootLifecycleReceiptDigestV1,
-        role: TenantRootManagedRestoreRoleV1,
-        observed_at_ms: u64,
-    ) -> RouterAbDerivationResult<Self> {
-        require_timestamp(
-            "tenant-root managed-restore incomplete-cleanup timestamp",
-            observed_at_ms,
-        )?;
-        Ok(Self {
-            digest,
-            role,
-            observed_at_ms,
-        })
-    }
-}
-
 /// Exact failed restore stage retained until cleanup completes.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(
@@ -813,15 +794,6 @@ impl TenantRootManagedRestoreRestoringAV1 {
     ) -> RouterAbDerivationResult<TenantRootManagedRestoreRoleUnavailableV1> {
         fail_installation_with_cleanup(self.core, failure, cleanup)
     }
-
-    /// Blocks further restore while failed-installation cleanup is incomplete.
-    pub fn fail_with_incomplete_cleanup(
-        self,
-        failure: TenantRootManagedRestoreFailureV1,
-        cleanup: TenantRootManagedRestoreCleanupFailureV1,
-    ) -> RouterAbDerivationResult<TenantRootManagedRestoreCleanupIncompleteV1> {
-        fail_installation_with_incomplete_cleanup(self.core, failure, cleanup)
-    }
 }
 
 /// Deriver B role-local installation branch.
@@ -902,26 +874,6 @@ pub struct TenantRootManagedRestoreCleanupIncompleteV1 {
     failure: TenantRootManagedRestoreFailureV1,
     cleanup: TenantRootManagedRestoreCleanupFailureV1,
     revision: u64,
-}
-
-impl TenantRootManagedRestoreCleanupIncompleteV1 {
-    /// Accepts eventual complete cleanup and returns to the same unavailable role.
-    pub fn complete_cleanup(
-        self,
-        cleanup: TenantRootManagedRestoreCleanupReceiptV1,
-    ) -> RouterAbDerivationResult<TenantRootManagedRestoreRoleUnavailableV1> {
-        validate_cleanup_role_and_order(self.attempt.role(), self.cleanup.observed_at_ms, cleanup)?;
-        Ok(TenantRootManagedRestoreRoleUnavailableV1 {
-            active: self.active,
-            evidence: TenantRootRoleUnavailabilityEvidenceV1::RestoreAttemptCleaned {
-                observed: self.evidence.observed(),
-                attempt: Box::new(self.attempt),
-                failure: self.failure,
-                cleanup,
-            },
-            revision: next_revision(self.revision)?,
-        })
-    }
 }
 
 /// Forward refresh after restore has begun and the next epoch is pending.
@@ -1194,24 +1146,6 @@ fn fail_installation_with_cleanup(
     )
 }
 
-fn fail_installation_with_incomplete_cleanup(
-    core: TenantRootManagedRestoreInstallingCoreV1,
-    failure: TenantRootManagedRestoreFailureV1,
-    cleanup: TenantRootManagedRestoreCleanupFailureV1,
-) -> RouterAbDerivationResult<TenantRootManagedRestoreCleanupIncompleteV1> {
-    fail_attempt_with_incomplete_cleanup(
-        core.active,
-        core.evidence,
-        TenantRootManagedRestoreFailedAttemptV1::Installing {
-            capability: core.capability,
-            started_at_ms: core.started_at_ms,
-        },
-        core.revision,
-        failure,
-        cleanup,
-    )
-}
-
 fn fail_attempt_with_cleanup(
     active: TenantRootActiveRefreshV1,
     evidence: TenantRootRoleUnavailabilityEvidenceV1,
@@ -1229,25 +1163,6 @@ fn fail_attempt_with_cleanup(
             failure,
             cleanup,
         },
-        revision: next_revision(revision)?,
-    })
-}
-
-fn fail_attempt_with_incomplete_cleanup(
-    active: TenantRootActiveRefreshV1,
-    evidence: TenantRootRoleUnavailabilityEvidenceV1,
-    attempt: TenantRootManagedRestoreFailedAttemptV1,
-    revision: u64,
-    failure: TenantRootManagedRestoreFailureV1,
-    cleanup: TenantRootManagedRestoreCleanupFailureV1,
-) -> RouterAbDerivationResult<TenantRootManagedRestoreCleanupIncompleteV1> {
-    validate_failure_order(&attempt, failure, cleanup.role, cleanup.observed_at_ms)?;
-    Ok(TenantRootManagedRestoreCleanupIncompleteV1 {
-        active,
-        evidence,
-        attempt,
-        failure,
-        cleanup,
         revision: next_revision(revision)?,
     })
 }
@@ -1365,19 +1280,6 @@ fn validate_failure_order(
     {
         return Err(malformed(
             "tenant-root managed-restore failure and cleanup evidence are inconsistent",
-        ));
-    }
-    Ok(())
-}
-
-fn validate_cleanup_role_and_order(
-    expected_role: TenantRootManagedRestoreRoleV1,
-    observed_at_ms: u64,
-    cleanup: TenantRootManagedRestoreCleanupReceiptV1,
-) -> RouterAbDerivationResult<()> {
-    if cleanup.role != expected_role || cleanup.cleaned_at_ms < observed_at_ms {
-        return Err(malformed(
-            "tenant-root managed-restore cleanup completion is inconsistent",
         ));
     }
     Ok(())

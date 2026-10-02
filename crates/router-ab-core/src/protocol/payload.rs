@@ -1078,13 +1078,6 @@ pub fn decode_mpc_prf_stable_proof_bundle_wire_v2(
     )
 }
 
-/// Computes the public digest of one stable proof-bundle wire.
-pub fn mpc_prf_stable_proof_bundle_wire_digest_v2(
-    wire: &MpcPrfStableProofBundleWireV2,
-) -> PublicDigest32 {
-    digest_bytes(&encode_mpc_prf_stable_proof_bundle_wire_v2(wire))
-}
-
 /// Encodes a stable tenant-root recipient proof-bundle payload.
 pub fn encode_mpc_prf_stable_recipient_proof_bundle_payload_v2(
     payload: &MpcPrfStableRecipientProofBundlePayloadV2,

@@ -82,21 +82,6 @@ impl fmt::Debug for SecretMaterial32 {
     }
 }
 
-/// Public 32-byte material.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "typescript-bindings", derive(ts_rs::TS))]
-pub struct PublicMaterial32 {
-    /// Public bytes.
-    pub bytes: [u8; 32],
-}
-
-impl PublicMaterial32 {
-    /// Creates public material.
-    pub fn new(bytes: [u8; 32]) -> Self {
-        Self { bytes }
-    }
-}
-
 /// Public 32-byte digest.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "typescript-bindings", derive(ts_rs::TS))]
