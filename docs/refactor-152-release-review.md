@@ -206,14 +206,65 @@ resolve before a production-testnet pilot:
    while JavaScript/CSS/WASM use a 300-second revalidation policy; these generated
    headers do not prove hosted cache behavior and cannot unload existing tabs.
 
-For the testnet-first plan, add lane-specific selection to the existing frontend
-deployment path and verify that build, deploy and smoke target the same selected
-lane. Preserve mainnet's existing deployment. Before admitting traffic, prove the
+The first constraint is resolved locally by private commit `709daa3`, as detailed
+below. Before admitting traffic, prove the
 chosen treatment of an already-open 0.7.3 client: it must receive an actionable
 reload/upgrade outcome, and a reloaded 0.8.0 client must complete registration and
 signing through the activated backend. Record the affected integrator SDK versions
 and a rollback sequence for both client and backend. A coordinated all-lane
 cutover remains a separate scope decision; this checkpoint does not select it.
+
+### Lane-specific frontend deployment evidence — 2026-10-02
+
+Private commit `709daa3` adds `--lane production-testnet` to the existing
+`scripts/deploy-surface.mjs` command for `--site production --component wallet-host`.
+Use the same selection for `build`, `deploy` and `smoke`. Its artifact directory is
+`.release-artifacts/wallet-host/production-testnet`; mainnet and whole-site builds
+have separate directories. Omitting `--lane` deliberately selects every lane in
+the site. A lane outside the selected site, repeated lane arguments, or a lane
+combined with another component fails before deployment.
+
+Both existing frontend workflows expose `wallet_lane`, defaulting to `all`.
+Select `surface=wallet-host` and `wallet_lane=production-testnet` for a production
+testnet-only deployment. Site-wide frontend concurrency prevents overlapping
+whole-site and selected-lane workflow runs. Installed exact package pins still
+select the SDK version; this change leaves the private pins at 0.7.3.
+
+The E2E executes the real deployment CLI and Vite build, intercepts only the Pages
+upload into a local provider emulator, and performs HTTP smoke checks against
+the resulting assets. Outbound smoke requests outside the expected wallet hosts
+are rejected. The final run passed in 2.2 seconds and established:
+
+- Exactly one Pages deployment, to the testnet fixture project, using the
+  testnet-specific build directory.
+- All five readiness requests targeted testnet.
+- The existing mainnet page remained accessible with unchanged content and
+  SHA-256 digest.
+- Invalid lane selections failed, and a subsequent mainnet deploy could not
+  consume the existing testnet build. No additional Pages uploads occurred.
+
+Seven existing frontend checks, ESLint, the E2E TypeScript check, and both workflow
+YAML/shell syntax checks also passed. This verifies deployment scope using the
+installed 0.7.3 package; it does not establish hosted 0.8.0 cutover or Cloudflare
+cache behavior. No infrastructure deployment was performed.
+
+Reproduce from `seams-monorepo`:
+
+```sh
+pnpm -C tests exec playwright test -c playwright.relayer.config.ts \
+  relayer/frontend-lane-deployment.e2e.test.ts --reporter=line \
+  --output=test-results/r152-frontend-lane
+```
+
+The output directory retains `frontend-lane-evidence.json`, build/deploy/smoke
+logs, the isolated build checkout and local Pages contents. A copy of the receipt
+and logs is retained in `.artifacts/r152/frontend-lane-20261002/` in the private
+repository. Candidate CI remains tied to public revision `335f2878`; this private
+change and documentation update do not alter that release candidate.
+At this checkpoint, the [Router A/B CI run](https://github.com/seams-tech/seams-wallet/actions/runs/36960865648)
+completed successfully, including the entrypoint, Cloudflare adapter, core/dev
+and startup dry-run jobs. The [Wallet CI run](https://github.com/seams-tech/seams-wallet/actions/runs/36960863406)
+was still in progress. Publication and hosted deployment remain pending.
 
 Repeat the composed acceptance with the retained extracted package:
 

@@ -529,10 +529,14 @@ below remain open.
   next version is 0.8.0 for both Wallet packages. Its ECDSA bootstrap wire change
   requires a coordinated client/server cutover, including already-open clients;
   see the [release review](refactor-152-release-review.md).
-- [ ] Make the existing hosted-wallet frontend deployment lane-specific before
-  a testnet-only SDK/backend cutover. Its production wallet-host path currently
-  deploys one artifact to both testnet and mainnet. Verify build/deploy/smoke scope
-  with an E2E that proves the unselected lane is preserved.
+- [x] Make the existing hosted-wallet frontend deployment lane-specific before
+  a testnet-only SDK/backend cutover. Private commit `709daa3` adds `--lane` to
+  build/deploy/smoke and a `wallet_lane` input to the existing workflows. Each
+  selection has its own artifact directory. A real Vite build and local Pages
+  emulator E2E passed on 2026-10-02: exactly one testnet project deployed, all five
+  smoke requests targeted testnet, and mainnet's content and digest stayed
+  unchanged. Invalid selections and using a testnet build for mainnet were
+  rejected. This establishes local deployment scope; hosted cutover remains open.
 - [ ] Demonstrate the old-client cutover behavior with an already-open 0.7.3
   client, an actionable reload/upgrade outcome and successful 0.8.0 registration
   and signing after reload. Both releases advertise iframe protocol `2.0.0`, so
