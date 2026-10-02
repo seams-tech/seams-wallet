@@ -690,7 +690,7 @@ export class AuthService {
    * - and that `clientDataJSON.origin` is within the RP ID domain.
    *
    * Notes:
-   * - This intentionally does not involve on-chain challenge proofs or `verify_authentication_response`.
+   * - This intentionally does not involve on-chain challenge proofs.
    * - Replay protection is handled by upstream protocol bindings (e.g., unique sessionPolicyDigest32 via sessionId).
    */
   async verifyWebAuthnAuthenticationLite(input: {

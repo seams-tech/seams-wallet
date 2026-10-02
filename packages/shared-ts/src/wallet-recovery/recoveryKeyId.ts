@@ -4,9 +4,9 @@ import { base64UrlEncode } from '../utils/base64';
 /**
  * The identity of one recovery code inside a wallet's custody set.
  *
- * **Wallet-scoped, and factor-neutral on purpose.** The Email OTP id it
- * replaces (`deriveEmailOtpRecoveryKeyId`) puts `enrollmentVersion` and
- * `enrollmentSealKeyVersion` in its tuple, so it cannot mint an id for a
+ * **Wallet-scoped, and factor-neutral on purpose.** The tuple holds the code,
+ * the wallet id and the set version, and no Email OTP enrollment field
+ * (`enrollmentVersion`, `enrollmentSealKeyVersion`), so it can mint an id for a
  * passkey wallet — which has no enrollment at all. A wallet custody recovery
  * set belongs to the wallet, not to whichever factor happened to establish it,
  * exactly as the seed and the continuity cache do.

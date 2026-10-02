@@ -628,10 +628,10 @@ pub fn seal_wallet_custody_seed_envelope_v1(
 /// that was established when the envelope was first written, and this proof
 /// only carries the claim forward unchanged.
 ///
-/// Deliberately a different type from [`VerifiedWalletKeyManifestDigestV1`].
-/// Adding a factor and establishing a wallet are different states, and sharing
-/// one token would let an admitted seed reach the registration seal, or a fresh
-/// verification reach a reseal that is supposed to preserve an existing record.
+/// Establishing a wallet takes no such proof:
+/// [`seal_wallet_custody_seed_envelope_v1`] seals a fresh seed. Adding a factor
+/// is a different state, and a reseal is supposed to preserve an existing
+/// record, so it requires this proof of a verified open.
 ///
 /// Not `Clone` or `Serialize`: it is a within-session capability, and it must
 /// not cross the wasm boundary.

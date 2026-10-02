@@ -12,16 +12,6 @@ export interface WebAuthnAuthenticationCredential {
   };
   // Dual PRF outputs extracted in main thread just before transferring to worker
   clientExtensionResults: AuthenticationExtensionsClientOutputs;
-  // clientExtensionResults: {
-  //   prf: {
-  //     results: {
-  //       // base64url-encoded PRF output for ChaChat20
-  //       first: string | undefined;
-  //       // base64url-encoded PRF output for Ed25519
-  //       second: string | undefined;
-  //     }
-  //   }
-  // }
 }
 
 /** WebAuthn registration data structure for relay/private registration verification */
@@ -37,16 +27,6 @@ export interface WebAuthnRegistrationCredential {
   };
   // Dual PRF outputs extracted in main thread just before transferring to worker
   clientExtensionResults: AuthenticationExtensionsClientOutputs;
-  // clientExtensionResults: {
-  //   prf: {
-  //     results: {
-  //       // base64url-encoded PRF output for ChaChat20
-  //       first: string | undefined;
-  //       // base64url-encoded PRF output for Ed25519
-  //       second: string | undefined;
-  //     }
-  //   }
-  // }
 }
 
 // === WEBAUTHN EXTENSION TYPES (Based on WebAuthn Level 2 Specification) ===
