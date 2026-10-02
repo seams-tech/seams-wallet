@@ -261,10 +261,7 @@ export async function linkWalletPasskeyCustody(input: {
     registration: WalletAddAuthMethodRegistrationOptions,
   ) => Promise<WebAuthnRegistrationCredential>;
   readonly nowMs?: () => number;
-}): Promise<{
-  readonly finalized: Awaited<ReturnType<typeof finalizeWalletAddAuthMethod>>;
-  readonly registration: PasskeyRegistrationCredential;
-}> {
+}): Promise<{ readonly finalized: Awaited<ReturnType<typeof finalizeWalletAddAuthMethod>> }> {
   const started = await startWalletAddAuthMethod({
     relayerUrl: input.relayerUrl,
     walletId: input.walletId,
@@ -297,5 +294,5 @@ export async function linkWalletPasskeyCustody(input: {
     webauthnRegistration: linked.registration,
     custodyEnvelope: linked.custodyEnvelope,
   });
-  return { finalized, registration: linked.registration };
+  return { finalized };
 }

@@ -189,7 +189,6 @@ async function readDirectRegistrationAuthorization(input: {
   readonly authorizationService: RegistrationEstablishedSessionIssuerAuthorizationService;
   readonly authorizationTenantId: TenantId;
   readonly authority: WalletAuthAuthority;
-  readonly registrationCeremonyId: string;
   readonly committed: Extract<DirectV2IssueResult, { readonly kind: 'already_committed' }>;
 }): Promise<IssuedWalletSessionAuthorizationV2> {
   const mintRead = await input.authorizationService.readWalletSessionAuthorizationV2ByMint({
@@ -559,7 +558,6 @@ export async function issueDirectRegistrationEstablishedEcdsaSession(
         authorizationService: input.authorizationService,
         authorizationTenantId: input.authorizationTenantId,
         authority: input.authority,
-        registrationCeremonyId: input.registrationCeremonyId,
         committed: directIssue,
       });
       break;
@@ -664,7 +662,6 @@ export async function issueDirectRegistrationEstablishedEd25519Session(
         authorizationService: input.authorizationService,
         authorizationTenantId: input.authorizationTenantId,
         authority: input.authority,
-        registrationCeremonyId: input.registrationCeremonyId,
         committed: directIssue,
       });
       authorization =

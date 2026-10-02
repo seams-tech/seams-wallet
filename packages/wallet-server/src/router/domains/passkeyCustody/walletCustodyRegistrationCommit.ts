@@ -60,13 +60,13 @@ export type WalletCustodyRegistrationCommitOutcome =
       Extract<WalletCustodyRegistrationCommitResult, { kind: 'committed' }>,
       'kind'
     >)
-  | { readonly kind: 'already_exists'; readonly key: string }
+  | { readonly kind: 'already_exists' }
   /**
    * Another ceremony established this wallet's custody first. The route should
    * tell the client to discard its run's seed and re-enter as a join of the
    * existing envelope — the key set it was provisioning is still unrecorded.
    */
-  | { readonly kind: 'custody_already_established'; readonly walletId: WalletId }
+  | { readonly kind: 'custody_already_established' }
   | { readonly kind: 'rejected'; readonly reason: string };
 
 function requireNonEmpty(value: unknown, label: string): string {
@@ -289,9 +289,9 @@ export async function commitWalletCustodyRegistration(input: {
         recoverySetStoreVersion: stored.recoverySetStoreVersion,
       };
     case 'already_exists':
-      return { kind: 'already_exists', key: stored.key };
+      return { kind: 'already_exists' };
     case 'custody_already_established':
-      return { kind: 'custody_already_established', walletId: stored.walletId };
+      return { kind: 'custody_already_established' };
     case 'inconsistent':
       return { kind: 'rejected', reason: stored.reason };
   }

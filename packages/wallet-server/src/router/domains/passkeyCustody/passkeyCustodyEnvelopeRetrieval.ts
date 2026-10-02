@@ -62,8 +62,8 @@ export type PasskeyCustodyEnvelopeRetrievalResult =
   | { readonly kind: 'prf_disclosed'; readonly message: string }
   | { readonly kind: 'assertion_rejected'; readonly code: string; readonly message: string }
   | { readonly kind: 'credential_mismatch' }
-  | { readonly kind: 'retired'; readonly retiredAtMs: number }
-  | { readonly kind: 'revoked'; readonly revokedAtMs: number }
+  | { readonly kind: 'retired' }
+  | { readonly kind: 'revoked' }
   | { readonly kind: 'missing' }
   | { readonly kind: 'digest_mismatch' };
 
@@ -197,9 +197,9 @@ export async function retrievePasskeyCustodyEnvelope(input: {
     case 'active':
       return { kind: 'active', envelope: lookup.envelope, storeVersion: lookup.storeVersion };
     case 'retired':
-      return { kind: 'retired', retiredAtMs: lookup.retiredAtMs };
+      return { kind: 'retired' };
     case 'revoked':
-      return { kind: 'revoked', revokedAtMs: lookup.revokedAtMs };
+      return { kind: 'revoked' };
     case 'digest_mismatch':
       input.logger.error('[passkey-custody] stored envelope failed its ciphertext digest', {
         walletId: String(request.locator.walletId),

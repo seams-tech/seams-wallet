@@ -18,25 +18,16 @@ import type { SelectedEd25519Lane } from '@/core/signingEngine/session/identity/
 import type { NearEd25519YaoSigningPreparation } from '@/core/signingEngine/session/material/nearEd25519YaoSigningPreparation';
 import type { ThresholdEd25519SessionId } from '@shared/utils/domainIds';
 
-type NearSigningSessionAuthPlan = {
-  thresholdSessionId: ThresholdEd25519SessionId;
-  lane: NearTransactionSigningLane;
-  signingAuthPlan: SigningAuthPlan;
-  confirmationAuthPayload: { signingAuthPlan: SigningAuthPlan };
-  warmSessionReady: boolean;
-};
+type NearSigningSessionAuthPlan = { signingAuthPlan: SigningAuthPlan };
 
 type NearSigningSessionAuthContext = {
   thresholdSessionId: ThresholdEd25519SessionId;
-  walletId: string;
-  nearAccountId: string;
   lane: NearTransactionSigningLane;
   coordinatorInput: {
     lane: NearTransactionSigningLane;
     readiness: Ed25519SigningSessionReadiness;
     expiresAtMs: number;
     remainingUses: number;
-    usesNeeded: number;
     forceFreshAuth: boolean;
   };
 };
@@ -166,7 +157,7 @@ export function resolveNearSigningSessionAuthContext(args: {
   forceFreshAuth: boolean;
   requiredSignatureUses?: number;
 }): NearSigningSessionAuthContext {
-  const subject = requireSelectedLaneSubject(args);
+  requireSelectedLaneSubject(args);
   const requiredSignatureUses = Math.max(1, Math.floor(Number(args.requiredSignatureUses) || 1));
   const lane = buildPlanningLane(args);
   const resolved = readinessFromPreparation({
@@ -179,15 +170,12 @@ export function resolveNearSigningSessionAuthContext(args: {
     thresholdSessionId: SigningSessionIds.thresholdEd25519Session(
       args.selectedLane.thresholdSessionId,
     ),
-    walletId: subject.walletId,
-    nearAccountId: subject.nearAccountId,
     lane,
     coordinatorInput: {
       lane,
       readiness: resolved.readiness,
       expiresAtMs: resolved.expiresAtMs,
       remainingUses: resolved.remainingUses,
-      usesNeeded: requiredSignatureUses,
       forceFreshAuth: args.forceFreshAuth || resolved.forceFreshAuth,
     },
   };
@@ -197,7 +185,7 @@ export function buildNearSigningSessionAuthPlan(args: {
   context: NearSigningSessionAuthContext;
   resolvedSigningSession: ResolveSigningSessionAuthPlanFromReadinessResult;
 }): NearSigningSessionAuthPlan {
-  const { thresholdSessionId, lane } = args.context;
+  const { lane } = args.context;
   const resolvedSigningSession = args.resolvedSigningSession;
   const plan = resolvedSigningSession.signingSessionPlan;
   if (plan.kind === SigningSessionPlanKind.NotReady) {
@@ -211,11 +199,5 @@ export function buildNearSigningSessionAuthPlan(args: {
     expiresAtMs: resolvedSigningSession.expiresAtMs,
     remainingUses: resolvedSigningSession.remainingUses,
   });
-  return {
-    thresholdSessionId,
-    lane,
-    signingAuthPlan,
-    confirmationAuthPayload: { signingAuthPlan },
-    warmSessionReady: plan.kind === SigningSessionPlanKind.WarmSession,
-  };
+  return { signingAuthPlan };
 }

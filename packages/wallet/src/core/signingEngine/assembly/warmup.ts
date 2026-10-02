@@ -97,11 +97,6 @@ async function resolveWarmupSignerSlot(
   }
 }
 
-export function prewarmSignerWorkers(deps: WorkerResourceWarmupDeps): void {
-  if (!shouldPrewarmWorkers(deps)) return;
-  deps.prewarmWorkers().catch(() => {});
-}
-
 export async function warmCriticalResources(
   deps: WorkerResourceWarmupDeps,
   accountContext: WorkerResourceWarmupAccountContext = { kind: 'none' },

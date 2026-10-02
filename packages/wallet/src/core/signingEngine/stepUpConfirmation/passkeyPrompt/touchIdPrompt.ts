@@ -208,9 +208,7 @@ export class TouchIdPrompt {
 
     try {
       const credentialMaybe = (await executeWebAuthnWithParentFallbacksSafari('get', publicKey, {
-        rpId,
         inIframe: TouchIdPrompt._inIframe(),
-        timeoutMs: publicKey.timeout as number | undefined,
         abortSignal: this.abortController.signal,
       })) as unknown;
 
@@ -351,10 +349,8 @@ export class TouchIdPrompt {
         };
     try {
       const result = await executeWebAuthnWithParentFallbacksSafari('create', publicKey, {
-        rpId,
         inIframe: TouchIdPrompt._inIframe(),
         registrationOriginPolicy: 'wallet_origin_only',
-        timeoutMs: publicKey.timeout as number | undefined,
         // Pass AbortSignal through when supported; Safari bridge path may ignore it.
         abortSignal: this.abortController.signal,
       });

@@ -109,7 +109,6 @@ function emailOtpEd25519SessionIdentity(material: EmailOtpEd25519SessionMaterial
 }
 
 function assertEmailOtpEd25519SessionMaterialIdentity(args: {
-  walletId: string;
   material: EmailOtpEd25519SessionMaterialRequest;
 }): void {
   const sessionRequest = emailOtpEd25519SessionRequest(args.material);
@@ -120,7 +119,6 @@ function assertEmailOtpEd25519SessionMaterialIdentity(args: {
 }
 
 export function assertEmailOtpUnlockMaterialRouteAuth(args: {
-  walletId: string;
   routePlan: EmailOtpRoutePlan;
   material: EmailOtpWalletUnlockMaterialRequest;
 }): void {
@@ -136,10 +134,7 @@ export function assertEmailOtpUnlockMaterialRouteAuth(args: {
     case 'ecdsa':
       return;
     case 'wallet_unlock_capabilities':
-      assertEmailOtpEd25519SessionMaterialIdentity({
-        walletId: args.walletId,
-        material: args.material,
-      });
+      assertEmailOtpEd25519SessionMaterialIdentity({ material: args.material });
       if (
         args.material.ecdsa.sessionHandleBinding.authSubjectId !==
           args.material.ed25519Yao.providerSubject ||
@@ -149,10 +144,7 @@ export function assertEmailOtpUnlockMaterialRouteAuth(args: {
       }
       return;
     case 'ed25519_yao_recovery': {
-      assertEmailOtpEd25519SessionMaterialIdentity({
-        walletId: args.walletId,
-        material: args.material,
-      });
+      assertEmailOtpEd25519SessionMaterialIdentity({ material: args.material });
       /* Two legitimate carriers. A cold wallet unlock presents a fresh OTP as
          its proof and has no session to authenticate with — the same
          activation a combined wallet performs through
@@ -309,8 +301,6 @@ export async function unlockEmailOtpAuthorityWallet(
           throw new Error('Email OTP authority unlock lost its factor secret');
         }
         const restored = await restoreEmailOtpEd25519FromCustodyCache({
-          relayUrl,
-          walletId,
           projection: walletCustody,
           material: {
             kind: 'ed25519_yao_recovery',
@@ -623,8 +613,6 @@ export async function completeEmailOtpUnlockFromSecret32(args: {
         args.material.kind === 'wallet_unlock_capabilities')
     ) {
       const restored = await restoreEmailOtpEd25519FromCustodyCache({
-        relayUrl: args.relayUrl,
-        walletId,
         projection: walletCustody,
         material: args.material,
         bootstrap: ed25519YaoBootstrap,
@@ -881,11 +869,7 @@ export async function loginWithEmailOtpAndUnlockWallet(args: {
         );
       }
     }
-    const userId = resolveEmailOtpAuthSubjectId({
-      walletId,
-      userId: args.userId,
-      routePlan: args.routePlan,
-    });
+    const userId = resolveEmailOtpAuthSubjectId({ userId: args.userId });
     const released = await releaseEmailOtpFactorSecret({
       relayUrl,
       walletId,

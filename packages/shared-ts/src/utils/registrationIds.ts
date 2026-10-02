@@ -32,10 +32,7 @@ type ServerAllocatedWalletIdParseResult =
   | { ok: true; value: ServerAllocatedWalletId }
   | {
       ok: false;
-      error: {
-        code: 'missing' | 'invalid';
-        message: string;
-      };
+      error: { message: string };
     };
 
 const SERVER_ALLOCATED_WALLET_ADJECTIVES = [
@@ -214,7 +211,6 @@ function parseServerAllocatedWalletId(raw: unknown): ServerAllocatedWalletIdPars
     return {
       ok: false,
       error: {
-        code: 'invalid',
         message:
           'server-allocated walletId must match the approved readable word-word-suffix allocation format',
       },

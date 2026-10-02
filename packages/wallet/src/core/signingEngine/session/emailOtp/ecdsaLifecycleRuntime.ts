@@ -45,7 +45,6 @@ export class EmailOtpEcdsaLifecycleRuntime {
     args: LoginEmailOtpEcdsaCapabilityForSigningArgs,
   ): Promise<EmailOtpThresholdEcdsaLoginResult> {
     return await loginWithEmailOtpEcdsaCapabilityForSigning(args, {
-      requireRelayUrl: () => this.ports.runtimeConfig.requireRelayUrl(),
       resolveCurrentEcdsaCapabilityRuntime: this.ports.resolveCurrentEcdsaCapabilityRuntime,
       loginWithEcdsaCapabilityInternal: (request) => this.loginWithEcdsaCapabilityInternal(request),
     });
@@ -67,7 +66,6 @@ export class EmailOtpEcdsaLifecycleRuntime {
         this.ports.runtimeConfig.requireSigningSessionSealGroupId(),
       ownerLaneScopeStores: this.ports.ownerLaneScopeStores,
       resolveSelectedWalletAuthority: this.ports.resolveSelectedWalletAuthority,
-      resolveCurrentEcdsaCapabilityRuntime: this.ports.resolveCurrentEcdsaCapabilityRuntime,
       publicationPorts: this.ports.publicationPorts(),
     });
   }
@@ -88,7 +86,6 @@ export class EmailOtpEcdsaLifecycleRuntime {
         this.ports.runtimeConfig.requireSigningSessionSealGroupId(),
       ownerLaneScopeStores: this.ports.ownerLaneScopeStores,
       resolveSelectedWalletAuthority: this.ports.resolveSelectedWalletAuthority,
-      resolveCurrentEcdsaCapabilityRuntime: this.ports.resolveCurrentEcdsaCapabilityRuntime,
       publicationPorts: this.ports.publicationPorts(),
     });
   }

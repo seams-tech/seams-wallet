@@ -82,11 +82,7 @@ export async function completeEmailOtpEnrollmentFromSecret32(args: {
   const runtime = await getShamir3PassRuntime();
   const relayUrl = readString(args.relayUrl, 'relayUrl');
   const walletId = readString(args.walletId, 'walletId');
-  const userId = resolveEmailOtpAuthSubjectId({
-    walletId,
-    userId: args.userId,
-    routePlan: args.routePlan,
-  });
+  const userId = resolveEmailOtpAuthSubjectId({ userId: args.userId });
   readSigningSessionSealGroupId(args.groupId);
   const otpCode = args.skipServerFinalize ? '' : readString(args.otpCode, 'otpCode');
   const keyHandle = readString(

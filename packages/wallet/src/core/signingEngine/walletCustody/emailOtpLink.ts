@@ -91,10 +91,7 @@ export async function linkWalletEmailOtpCustody(input: {
   readonly providerSubject: string;
   readonly worker: WalletCustodyCeremonyTransportPort;
   readonly nowMs?: () => number;
-}): Promise<{
-  readonly finalized: Awaited<ReturnType<typeof finalizeWalletAddAuthMethod>>;
-  readonly enrollmentId: string;
-}> {
+}): Promise<{ readonly finalized: Awaited<ReturnType<typeof finalizeWalletAddAuthMethod>> }> {
   const started = await startWalletAddAuthMethod({
     relayerUrl: input.relayerUrl,
     walletId: input.walletId,
@@ -211,5 +208,5 @@ export async function linkWalletEmailOtpCustody(input: {
        OTP factor release can hand back. */
     emailOtpTarget: { kind: 'new_enrollment', enrollment: enrollment.emailOtpEnrollment },
   });
-  return { finalized, enrollmentId: enrollment.enrollmentId };
+  return { finalized };
 }

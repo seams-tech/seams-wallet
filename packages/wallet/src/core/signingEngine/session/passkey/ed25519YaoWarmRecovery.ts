@@ -89,13 +89,6 @@ type PasskeyEd25519WarmRecoverySubject = {
   readonly materialActivation: MpcMaterialActivationRef;
 };
 
-type PasskeyEd25519YaoWarmRecoveryUnavailableReason =
-  | 'sealed_session_missing'
-  | 'sealed_session_expired'
-  | 'sealed_session_exhausted'
-  | 'wallet_session_expired'
-  | 'wallet_custody_envelope_missing';
-
 export type PasskeyEd25519YaoExportMaterialV1 = Omit<
   ParsedPasskeyEd25519YaoRecoveryDescriptorV1,
   'session' | 'capability'
@@ -129,20 +122,11 @@ export type PasskeyEd25519YaoExportContextResolutionV1 =
       readonly kind: 'ready';
       readonly context: PasskeyEd25519YaoExportContextV1;
     }
-  | {
-      readonly kind: 'capability_recovery_required';
-      readonly reason: PasskeyEd25519YaoWarmRecoveryUnavailableReason;
-    };
+  | { readonly kind: 'capability_recovery_required' };
 
 type WarmRecoveryRecordResult =
   | { readonly kind: 'ready'; readonly record: CurrentEd25519SealedSessionRecord }
-  | {
-      readonly kind: 'unavailable';
-      readonly reason: Exclude<
-        PasskeyEd25519YaoWarmRecoveryUnavailableReason,
-        'wallet_session_expired'
-      >;
-    };
+  | { readonly kind: 'unavailable' };
 
 type WarmRecoveryBootstrapResult =
   | {
@@ -241,14 +225,14 @@ async function resolveExactWarmRecoveryRecord(
         subject.materialActivation,
       ))
   ) {
-    return { kind: 'unavailable', reason: 'sealed_session_missing' };
+    return { kind: 'unavailable' };
   }
-  if (!record) return { kind: 'unavailable', reason: 'sealed_session_missing' };
+  if (!record) return { kind: 'unavailable' };
   if (record.expiresAtMs <= runtime.nowMs()) {
-    return { kind: 'unavailable', reason: 'sealed_session_expired' };
+    return { kind: 'unavailable' };
   }
   if (record.remainingUses < 1) {
-    return { kind: 'unavailable', reason: 'sealed_session_exhausted' };
+    return { kind: 'unavailable' };
   }
   return { kind: 'ready', record };
 }
@@ -544,10 +528,7 @@ export async function resolvePasskeyEd25519YaoExportContextV1(
 ): Promise<PasskeyEd25519YaoExportContextResolutionV1> {
   const exactRecord = await resolveExactWarmRecoveryRecord(input.subject, runtime);
   if (exactRecord.kind === 'unavailable') {
-    return {
-      kind: 'capability_recovery_required',
-      reason: exactRecord.reason,
-    };
+    return { kind: 'capability_recovery_required' };
   }
   const walletId = parseWalletId(exactRecord.record.walletId);
   if (!walletId.ok) {
@@ -565,16 +546,10 @@ export async function resolvePasskeyEd25519YaoExportContextV1(
       credentialIdB64u,
     });
   } catch {
-    return {
-      kind: 'capability_recovery_required',
-      reason: 'wallet_session_expired',
-    };
+    return { kind: 'capability_recovery_required' };
   }
   if (!expectedAuthorityRef) {
-    return {
-      kind: 'capability_recovery_required',
-      reason: 'wallet_session_expired',
-    };
+    return { kind: 'capability_recovery_required' };
   }
   const selectedAuthorization = await readExactSelectedPasskeyWalletSessionAuthorization({
     walletId: walletId.value,
@@ -584,10 +559,7 @@ export async function resolvePasskeyEd25519YaoExportContextV1(
     runtime,
   });
   if (!selectedAuthorization) {
-    return {
-      kind: 'capability_recovery_required',
-      reason: 'wallet_session_expired',
-    };
+    return { kind: 'capability_recovery_required' };
   }
   const authorization = await requirePasskeyEd25519RestoreAuthorization({
     record: exactRecord.record,
@@ -599,10 +571,7 @@ export async function resolvePasskeyEd25519YaoExportContextV1(
     nowMs: runtime.nowMs(),
   });
   if (!authorization) {
-    return {
-      kind: 'capability_recovery_required',
-      reason: 'wallet_session_expired',
-    };
+    return { kind: 'capability_recovery_required' };
   }
   const bootstrap = await fetchWarmRecoveryBootstrap({
     request: ownerWarmRecoveryBootstrapRequest(
@@ -617,10 +586,7 @@ export async function resolvePasskeyEd25519YaoExportContextV1(
     fetch: input.fetch,
   });
   if (bootstrap.kind === 'unavailable') {
-    return {
-      kind: 'capability_recovery_required',
-      reason: bootstrap.reason,
-    };
+    return { kind: 'capability_recovery_required' };
   }
   const descriptor = bootstrap.descriptor;
   const walletCustodyEnvelope = await runtime.readPasskeyCustodySessionEnvelope({
@@ -628,10 +594,7 @@ export async function resolvePasskeyEd25519YaoExportContextV1(
     credentialIdB64u: descriptor.credentialIdB64u,
   });
   if (!walletCustodyEnvelope || walletCustodyEnvelope.binding.kind !== 'wallet_custody_seed_v1') {
-    return {
-      kind: 'capability_recovery_required',
-      reason: 'wallet_custody_envelope_missing',
-    };
+    return { kind: 'capability_recovery_required' };
   }
   return {
     kind: 'ready',

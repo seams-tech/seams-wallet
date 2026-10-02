@@ -51,7 +51,6 @@ type AbiFunctionLookup = {
 
 type AbiDecodeResult = {
   functionLabel: string;
-  selector: string;
   decodedArgumentsJsonText?: string;
 };
 
@@ -448,25 +447,16 @@ export function decodeCallDataWithAbi(args: {
   try {
     const bytes = hexToBytes(normalizedDataHex);
     if (bytes.length < 4) {
-      return {
-        functionLabel: `${matched.name}()`,
-        selector: matched.selector,
-      };
+      return { functionLabel: `${matched.name}()` };
     }
     argsBytes = bytes.slice(4);
   } catch {
-    return {
-      functionLabel: `${matched.name}()`,
-      selector: matched.selector,
-    };
+    return { functionLabel: `${matched.name}()` };
   }
 
   const decodedValues = decodeTupleComponents(matched.inputs, argsBytes, 0);
   if (!decodedValues) {
-    return {
-      functionLabel: `${matched.name}()`,
-      selector: matched.selector,
-    };
+    return { functionLabel: `${matched.name}()` };
   }
 
   const decodedArguments = matched.inputs.map((input, index) => ({
@@ -476,7 +466,6 @@ export function decodeCallDataWithAbi(args: {
 
   return {
     functionLabel: `${matched.name}()`,
-    selector: matched.selector,
     decodedArgumentsJsonText: formatDecodedArgumentsJsonText(decodedArguments),
   };
 }

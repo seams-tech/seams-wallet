@@ -177,7 +177,6 @@ export async function resolveHydratedSecp256k1SigningMaterial(args: {
     walletId: manifest.signer.walletId,
     materialActivation: manifest.activation.materialActivation,
     publicFacts: manifest.signer.registeredPublicFacts,
-    chainTarget: roleLocalFacts.chainTarget,
     transport: {
       kind: 'threshold_ecdsa_signer_transport',
       relayerUrl: runtime.relayerUrl,
@@ -299,7 +298,6 @@ export function buildActiveWalletAuthorityReadySecp256k1Material(args: {
     walletId: toWalletId(runtime.walletId),
     materialActivation: runtime.materialActivation,
     publicFacts: authorityRuntime.publicFacts,
-    chainTarget: args.chainTarget,
     transport: {
       kind: 'threshold_ecdsa_signer_transport',
       relayerUrl,

@@ -99,7 +99,6 @@ function resolveThresholdOwnerNonceSenderIdentity(args: {
 function requireRawEip1559ThresholdOwnerNonceSenderIdentity(args: {
   state: EvmFamilyExecutorThresholdEcdsaState;
   walletId: string;
-  chainTarget: ThresholdEcdsaChainTarget;
 }): EvmFamilyManagedNonceSenderIdentity {
   if (args.state.kind === 'not_required') {
     throw new Error(
@@ -197,7 +196,6 @@ export async function executeEvmFamilyTransactionSigning(args: {
         ? requireRawEip1559ThresholdOwnerNonceSenderIdentity({
             state: args.thresholdEcdsaState,
             walletId: args.walletId,
-            chainTarget: args.chainTarget,
           })
         : undefined;
     const preparedSenderIdentity = resolveThresholdOwnerNonceSenderIdentity({

@@ -13,7 +13,6 @@ type EmailOtpCorruptLocalCustodyFailure = {
   readonly code: 'corrupt_local_custody';
   readonly reason: 'invalid_escrow_plaintext_length';
   readonly expectedLength: typeof EMAIL_OTP_ESCROW_SECRET_LENGTH;
-  readonly actualLength: number;
   readonly message: string;
 };
 
@@ -28,7 +27,6 @@ function corruptPlaintextLength(actualLength: number): EmailOtpCorruptLocalCusto
     code: 'corrupt_local_custody',
     reason: 'invalid_escrow_plaintext_length',
     expectedLength: EMAIL_OTP_ESCROW_SECRET_LENGTH,
-    actualLength,
     message: `Email OTP local custody plaintext has invalid length: expected at most 32 bytes, received ${actualLength}`,
   };
 }

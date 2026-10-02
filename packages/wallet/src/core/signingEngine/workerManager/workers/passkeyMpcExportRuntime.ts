@@ -434,7 +434,6 @@ function requireExportWalletId(raw: string): string {
 }
 
 function localOnlyExportSubjectForTarget(args: {
-  exportTarget: ExportWorkerTarget;
   exportSubjectId: string;
 }): LocalOnlyExportSubject {
   return {
@@ -825,10 +824,7 @@ export async function runPasskeyMpcExportWithUi(
     exportSubjectId,
     exportTarget,
   });
-  const localOnlySubject = localOnlyExportSubjectForTarget({
-    exportTarget,
-    exportSubjectId,
-  });
+  const localOnlySubject = localOnlyExportSubjectForTarget({ exportSubjectId });
 
   const exportKeys: Secp256k1ExportPrivateKeyDisplayEntry[] = [];
   let loadingViewerOpened = false;

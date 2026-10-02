@@ -351,7 +351,6 @@ export async function prepareNearSignatureOnlyStepUp(
         ctx: operation.ctx,
         thresholdSessionId: materialFacts.thresholdSessionId,
         materialFacts,
-        thresholdKeyMaterial: operation.thresholdKeyMaterial,
         walletId: operation.walletId,
         nearAccountId: operation.nearAccountId,
         materialActivation: material.materialActivation,
@@ -459,7 +458,6 @@ export async function resolveNearSignatureOnlySigningMaterial(
 ): Promise<NearSignatureOnlySigningMaterial> {
   if (authorization.kind === 'warm_session') {
     const resolved = await resolveConfirmedNearEd25519YaoCapability({
-      authorization: authorization.stepUpAuthorization,
       preparation: operation.preparation,
       executor: operation.executor,
     });

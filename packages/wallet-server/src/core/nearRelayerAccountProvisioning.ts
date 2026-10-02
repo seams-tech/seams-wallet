@@ -98,7 +98,6 @@ type DecodedSponsoredNearAccountCreation = {
       };
     },
   ];
-  readonly signedTransactionBorshB64u: string;
 };
 
 type ValidatedFundingInput = FundImplicitNearAccountRequest &
@@ -194,7 +193,6 @@ function requireDecodedSponsoredNearAccountCreation(
         },
       },
     ],
-    signedTransactionBorshB64u,
   };
 }
 
@@ -483,7 +481,7 @@ export type PreparedSponsoredNearAccountCreationV1 = {
 
 type PrepareSponsoredNearAccountCreationResultV1 =
   | { readonly ok: true; readonly prepared: PreparedSponsoredNearAccountCreationV1 }
-  | { readonly ok: false; readonly error: string; readonly message: string };
+  | { readonly ok: false; readonly message: string };
 
 /**
  * Builds and signs the sponsored account-creation transaction without
@@ -531,7 +529,7 @@ export async function prepareSponsoredNearAccountCreationWithRelayer(
     };
   } catch (error: unknown) {
     const message = errorMessage(error) || 'Failed to prepare NEAR account creation';
-    return { ok: false, error: message, message };
+    return { ok: false, message };
   }
 }
 

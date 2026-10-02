@@ -13,7 +13,6 @@
  * write — rather than travelling through the operation as a rejected case.
  */
 
-import { type WalletAuthMethodId } from './domainIds';
 import type {
   ActiveWalletAuthMethodRecordV2,
   WalletAuthMethodRecordV2,
@@ -56,11 +55,10 @@ export type AddWalletAuthMethodBranchV1 = 'passkey_to_email_otp' | 'email_otp_to
  * never reaches target verification or a local write.
  */
 type AddWalletAuthMethodAdmissionV1 =
-  | { readonly kind: 'proceed'; readonly branch: AddWalletAuthMethodBranchV1 }
+  | { readonly kind: 'proceed' }
   | {
       readonly kind: 'already_configured';
       readonly family: WalletAuthMethodFamilyV1;
-      readonly existingWalletAuthMethodId: WalletAuthMethodId;
     };
 
 function unreachableAuthMethodFamily(value: never): never {
@@ -87,14 +85,13 @@ export function admitAddWalletAuthMethod(input: {
     return {
       kind: 'already_configured',
       family: input.targetFamily,
-      existingWalletAuthMethodId: present.walletAuthMethodId,
     };
   }
   switch (input.sourceMethod.kind) {
     case 'passkey':
-      return { kind: 'proceed', branch: 'passkey_to_email_otp' };
+      return { kind: 'proceed' };
     case 'email_otp':
-      return { kind: 'proceed', branch: 'email_otp_to_passkey' };
+      return { kind: 'proceed' };
     default:
       return unreachableAuthMethodFamily(input.sourceMethod);
   }

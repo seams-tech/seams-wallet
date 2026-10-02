@@ -13,17 +13,6 @@ import type {
 } from '@shared/authorization/capabilityKinds';
 import type { ExactEvmFamilyWalletSessionAuthorization } from '../material/ecdsaSigningCapability';
 
-type WalletSessionAuthorizationUnavailableReason =
-  | 'network'
-  | 'server_unavailable'
-  | 'persistence_unavailable';
-
-type WalletSessionAuthorizationInvalidReason =
-  | 'malformed'
-  | 'signature_invalid'
-  | 'scope_mismatch'
-  | 'authority_mismatch';
-
 type CommonWalletSessionAuthorizationIdentity = {
   readonly walletId: WalletId;
   readonly authMethod: SignerAuthMethod;
@@ -55,14 +44,8 @@ type WalletSessionAuthorizationObservationKind =
   | {
       readonly kind: 'missing';
     }
-  | {
-      readonly kind: 'unavailable';
-      readonly reason: WalletSessionAuthorizationUnavailableReason;
-    }
-  | {
-      readonly kind: 'invalid';
-      readonly reason: WalletSessionAuthorizationInvalidReason;
-    };
+  | { readonly kind: 'unavailable' }
+  | { readonly kind: 'invalid' };
 
 export type WalletSessionAuthorizationObservation =
   WalletSessionAuthorizationObservationKind & {
@@ -88,12 +71,10 @@ type MissingWalletSessionAuthorizationState = WalletSessionAuthorizationIdentity
 
 type UnavailableWalletSessionAuthorizationState = WalletSessionAuthorizationIdentity & {
   readonly kind: 'unavailable';
-  readonly reason: WalletSessionAuthorizationUnavailableReason;
 };
 
 type InvalidWalletSessionAuthorizationState = WalletSessionAuthorizationIdentity & {
   readonly kind: 'invalid';
-  readonly reason: WalletSessionAuthorizationInvalidReason;
 };
 
 export type WalletSessionAuthorizationState =
@@ -127,13 +108,11 @@ function authorizationIdentity(
 
 function invalidAuthorization(args: {
   readonly source: WalletSessionAuthorizationIdentitySource;
-  readonly reason: WalletSessionAuthorizationInvalidReason;
 }): InvalidWalletSessionAuthorizationState {
   const identity = authorizationIdentity(args.source);
   return {
     kind: 'invalid',
     ...identity,
-    reason: args.reason,
   };
 }
 
@@ -174,10 +153,7 @@ function parseFoundAuthorization(args: {
 }): WalletSessionAuthorizationState {
   const expiresAtMs = parseBoundaryTime(args.observation.expiresAtMs);
   if (expiresAtMs === null || expiresAtMs === 0) {
-    return invalidAuthorization({
-      source: args.observation.source,
-      reason: 'malformed',
-    });
+    return invalidAuthorization({ source: args.observation.source });
   }
   const identity = authorizationIdentity(args.observation.source);
   if (expiresAtMs <= args.nowMs) {
@@ -201,10 +177,7 @@ export function parseWalletSessionAuthorizationBoundary(args: {
 }): WalletSessionAuthorizationState {
   const nowMs = parseBoundaryTime(args.nowMs);
   if (nowMs === null) {
-    return invalidAuthorization({
-      source: args.observation.source,
-      reason: 'malformed',
-    });
+    return invalidAuthorization({ source: args.observation.source });
   }
   switch (args.observation.kind) {
     case 'found':
@@ -221,14 +194,10 @@ export function parseWalletSessionAuthorizationBoundary(args: {
       return {
         kind: 'unavailable',
         ...unavailableIdentity,
-        reason: args.observation.reason,
       };
     }
     case 'invalid':
-      return invalidAuthorization({
-        source: args.observation.source,
-        reason: args.observation.reason,
-      });
+      return invalidAuthorization({ source: args.observation.source });
     default: {
       const exhaustive: never = args.observation;
       return exhaustive;

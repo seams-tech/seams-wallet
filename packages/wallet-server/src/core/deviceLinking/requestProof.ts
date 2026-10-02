@@ -47,10 +47,7 @@ export type LinkedDeviceRequestProofNonceStoreV1 = {
 };
 
 type LinkedDeviceRequestProofVerificationResultV1 =
-  | {
-      readonly kind: 'authorized';
-      readonly proofDigestB64u: DigestB64u;
-    }
+  | { readonly kind: 'authorized' }
   | {
       readonly kind: 'denied';
       readonly code: 'invalid' | 'expired' | 'replayed';
@@ -114,7 +111,7 @@ export class LinkedDeviceRequestProofVerifierV1 {
           message: 'device request proof was already used',
         };
       }
-      return { kind: 'authorized', proofDigestB64u };
+      return { kind: 'authorized' };
     } catch (error: unknown) {
       const message = errorMessage(error);
       return {

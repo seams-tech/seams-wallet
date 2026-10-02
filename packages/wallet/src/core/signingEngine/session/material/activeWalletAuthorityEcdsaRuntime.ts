@@ -33,7 +33,6 @@ import {
 import type {
   WalletAuthorityLinkedSignerMaterialRecordV1,
   WalletAuthoritySignerMaterialRecordV1,
-  WalletSelectionRecordV1,
 } from '@/core/indexedDB/passkeyClientDB.types';
 import type { WalletCapabilitySubjectV1 } from '@shared/device-linking/contracts';
 import type {
@@ -158,7 +157,6 @@ type ActiveWalletAuthorityEcdsaRuntimeBlockReason =
   | 'authority_identity_mismatch'
   | 'missing_wallet_session'
   | 'upgrade_required'
-  | 'wallet_session_inactive'
   | 'wallet_session_expired'
   | 'wallet_session_identity_mismatch'
   | 'wallet_session_capability_mismatch'
@@ -191,7 +189,6 @@ type ResolveActiveWalletAuthorityEcdsaRuntimeV1Input = {
 };
 
 type ResolvedSelectedWalletAuthority = {
-  readonly selection: WalletSelectionRecordV1;
   readonly authMethod: ActiveWalletAuthMethodRecordV2;
   readonly authority: ActiveWalletAuthorityV1;
   readonly signerMaterials: readonly WalletAuthoritySignerMaterialRecordV1[];
@@ -254,7 +251,6 @@ function exactAuthorityResolution(
   if (value.authMethod.status !== 'active') return blocked('auth_method_inactive');
   if (value.authority.state !== 'active') return blocked('authority_inactive');
   return {
-    selection: value.selection,
     authMethod: value.authMethod,
     authority: value.authority,
     signerMaterials: value.signerMaterials,

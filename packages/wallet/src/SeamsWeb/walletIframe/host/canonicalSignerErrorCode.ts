@@ -137,7 +137,6 @@ export function isCanonicalSignerSessionBoundaryCode(code: unknown): boolean {
 
 function inferCanonicalCodeFromRawCode(args: {
   rawCode: string;
-  requestType?: unknown;
 }): CanonicalWalletSignerErrorCode | null {
   const { rawCode } = args;
   if (!rawCode) return null;
@@ -347,10 +346,7 @@ function resolveCanonicalWalletSignerErrorCode(args: {
     return fromMessage;
   }
 
-  const fromCode = inferCanonicalCodeFromRawCode({
-    rawCode: normalizeCodeToken(args.rawCode),
-    requestType: args.requestType,
-  });
+  const fromCode = inferCanonicalCodeFromRawCode({ rawCode: normalizeCodeToken(args.rawCode) });
   if (fromCode) return fromCode;
 
   return fromMessage;

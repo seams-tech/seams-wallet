@@ -731,7 +731,6 @@ function parseWalletRegistrationFinalizeEcdsaResult(args: { value: unknown; wall
 
 function parseWalletRegistrationFinalizeNearResult(args: {
   response: Record<string, unknown>;
-  walletId: WalletId;
   authority: WalletAuthAuthority;
 }): {
   authorityScope: Ed25519AuthorityScope;
@@ -887,7 +886,6 @@ export function parseWalletRegistrationFinalizeResponse(args: {
       }
       const near = parseWalletRegistrationFinalizeNearResult({
         response,
-        walletId,
         authority,
       });
       if (authorityBranch.kind === 'passkey') {

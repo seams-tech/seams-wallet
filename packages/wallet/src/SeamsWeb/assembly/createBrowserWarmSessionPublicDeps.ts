@@ -40,7 +40,6 @@ export function createBrowserWarmSessionPublicDeps(args: {
       seamsWebConfigs: args.seamsWebConfigs,
       credentialStore: args.stores.recoveryAndDeviceLinking.credentialStore,
       touchIdPrompt: args.touchIdPrompt,
-      touchConfirm: args.touchConfirm,
       passkeyMpcSession: args.passkeyMpcSession,
       warmSigning: args.warmSigning,
       thresholdEcdsaBootstrapQueueByWallet: args.thresholdEcdsaBootstrapQueueByWallet,
@@ -51,7 +50,6 @@ export function createBrowserWarmSessionPublicDeps(args: {
     warmCapabilitiesPublicDeps: createWarmCapabilitiesPublicDeps({
       seamsWebConfigs: args.seamsWebConfigs,
       bootstrapStore: args.stores.walletProfileAndSignerRecords.ecdsaBootstrapStore,
-      touchConfirm: args.touchConfirm,
       passkeyMpcSession: args.passkeyMpcSession,
       warmSigning: args.warmSigning,
       walletSessionActivationDeps: args.enginePorts.walletSessionActivationDeps,

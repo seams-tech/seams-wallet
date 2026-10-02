@@ -16,7 +16,6 @@ import { type DigestB64u } from '@shared/utils/canonicalPrimitives';
 import {
   mpcMaterialActivationRefsEqual,
   type MpcMaterialActivationRef,
-  type WalletAuthorityId,
   type WalletId,
   type WalletKeyId,
 } from '@shared/utils/domainIds';
@@ -183,7 +182,6 @@ export type WalletSessionAuthorizationV2AdministrationAdmissionResult =
   | {
       readonly ok: true;
       readonly operationKind: 'link_devices';
-      readonly authorityId: WalletAuthorityId;
     }
   | {
       readonly ok: false;
@@ -344,7 +342,6 @@ export function resolveWalletSessionAuthorizationV2AdministrationAdmission(input
       return {
         ok: true,
         operationKind: 'link_devices',
-        authorityId: input.authority.authorityId,
       };
     }
     default:

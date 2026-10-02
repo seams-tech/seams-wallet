@@ -27,7 +27,7 @@ function getResultTypeFor<K extends BridgeKind>(kind: K): ResultTypeFor<K> {
 }
 
 type BridgeOk = { ok: true; credential: unknown };
-type BridgeErr = { ok: false; error?: string; timeout?: boolean };
+type BridgeErr = { ok: false; error?: string };
 type BridgeResponse = BridgeOk | BridgeErr;
 
 type AnyPublicKeyOptions = PublicKeyCredentialCreationOptions | PublicKeyCredentialRequestOptions;
@@ -42,9 +42,7 @@ type ParentDomainWebAuthnClient = {
 };
 
 interface OrchestratorDepsBase {
-  rpId: string;
   inIframe: boolean;
-  timeoutMs?: number;
   bridgeClient?: ParentDomainWebAuthnClient;
   // Optional AbortSignal to cancel native navigator.credentials operations.
   // Note: parent-bridge path may not be abortable.
@@ -170,7 +168,7 @@ export class WindowParentDomainWebAuthnClient implements ParentDomainWebAuthnCli
       window.parent?.postMessage(envelope, '*');
       setTimeout(() => {
         window.removeEventListener('message', onMessage);
-        finish({ ok: false, timeout: true });
+        finish({ ok: false });
       }, timeoutMs);
     });
   }

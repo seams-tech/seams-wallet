@@ -1,5 +1,4 @@
 /** User confirmation and Passkey MPC worker types. */
-import type { SigningSessionPersistenceMode } from './seams';
 import type { ThresholdEcdsaChainTarget } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type { SigningSessionSealKeyVersion } from '@/core/signingEngine/session/keyMaterialBrands';
 import type { ThresholdRuntimePolicyScope } from '@/core/signingEngine/threshold/sessionPolicy';
@@ -50,7 +49,6 @@ export interface UiConfirmManagerConfig {
   workerUrl?: string;
   workerTimeout?: number;
   debug?: boolean;
-  signingSessionPersistenceMode?: SigningSessionPersistenceMode;
   signingSessionSealKeyVersion?: SigningSessionSealKeyVersion;
   signingSessionSealGroupId?: string;
 }

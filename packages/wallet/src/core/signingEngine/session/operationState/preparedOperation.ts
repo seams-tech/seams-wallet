@@ -63,7 +63,6 @@ export type PreparedThresholdSigningOperation<
   TLane extends SelectedSigningSessionPlanningLane = SelectedSigningSessionPlanningLane,
   TMetadata extends object = Record<string, never>,
 > = {
-  intent: ThresholdSigningIntent;
   operation?: SigningOperationContext;
   lane: TLane;
   authMethod: SignerAuthMethod;
@@ -80,7 +79,7 @@ export type ThresholdSigningLifecycleAdapter<
   TLane extends SelectedSigningSessionPlanningLane = SelectedSigningSessionPlanningLane,
   TMetadata extends object = Record<string, never>,
 > = {
-  prepare(input: { intent: ThresholdSigningIntent; operation?: SigningOperationContext }): Promise<{
+  prepare(input: { operation?: SigningOperationContext }): Promise<{
     lane: TLane;
     readiness: ThresholdSigningReadinessInput;
     availableLanesGeneration?: number;
@@ -103,7 +102,6 @@ export async function prepareThresholdSigningOperation<
   onPlannerTrace?: (event: SigningPlannerDecisionTraceEvent) => void;
 }): Promise<PreparedThresholdSigningOperation<TLane, TMetadata>> {
   const lifecycle = await args.lifecycleAdapter.prepare({
-    intent: args.intent,
     ...(args.operation ? { operation: args.operation } : {}),
   });
   if (lifecycle.lane.curve !== lifecycle.readiness.readiness.curve) {
@@ -128,7 +126,6 @@ export async function prepareThresholdSigningOperation<
   );
 
   return {
-    intent: args.intent,
     ...(args.operation ? { operation: args.operation } : {}),
     lane: lifecycle.lane,
     authMethod: signingLaneAuthMethod(lifecycle.lane.auth),

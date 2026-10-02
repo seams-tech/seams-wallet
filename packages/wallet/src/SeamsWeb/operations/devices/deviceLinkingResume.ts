@@ -296,7 +296,7 @@ export function parseDeviceLinkingCommittedResumeV1(
 
 export type DeviceLinkingDurableAcknowledgementReplayResultV1 =
   | { readonly kind: 'none' }
-  | { readonly kind: 'replayed'; readonly count: number };
+  | { readonly kind: 'replayed' };
 
 /**
  * Bootstrap recovery for a page reload or a lost recipient worker handle.
@@ -343,7 +343,7 @@ export async function replayPendingDeviceLinkingAcknowledgementsV1(input: {
       authorityId: acknowledgement.authorityId,
     });
   }
-  return { kind: 'replayed', count: matchingAcknowledgements.length };
+  return { kind: 'replayed' };
 }
 
 function asPlainDeviceLinkingResumeRecord(value: unknown): PlainDeviceLinkingResumeRecord | null {

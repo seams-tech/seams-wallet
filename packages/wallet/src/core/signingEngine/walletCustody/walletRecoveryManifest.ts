@@ -188,7 +188,6 @@ export async function recoverWalletCustodyManifestV1(input: {
             factorReplacement: replacement,
             nearEd25519SigningKeyId:
               entry.recoveryBasis.applicationBinding.near_ed25519_signing_key_id,
-            recoveryLifecycleId: request.scope.lifecycle_id,
             yaoAdmission: admitted.receipt,
             yaoApplication: admitted.request.application_binding,
             participantIds: admitted.request.participant_ids,

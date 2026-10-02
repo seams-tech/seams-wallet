@@ -99,7 +99,7 @@ export async function requestDurableObjectJson(
   }
 }
 
-type DoResp<T> = { ok: true; value: T } | { ok: false; code: string; message: string };
+type DoResp<T> = { ok: true; value: T } | { ok: false; message: string };
 
 type DoRequest =
   | { op: 'get' | 'getdel' | 'del'; key: string }
@@ -115,9 +115,8 @@ async function callDo<T>(
     throw new Error(`${storeName} DO store returned invalid JSON shape`);
   }
   if (json.ok === true) return json as DoResp<T>;
-  const code = toOptionalTrimmedString(json.code);
   const message = toOptionalTrimmedString(json.message);
-  return { ok: false, code: code || 'internal', message: message || `${storeName} DO store error` };
+  return { ok: false, message: message || `${storeName} DO store error` };
 }
 
 // ---- Key-value records ----------------------------------------------------------------------

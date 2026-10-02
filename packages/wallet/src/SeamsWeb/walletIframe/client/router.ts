@@ -887,7 +887,6 @@ type HostedWalletSeamsSessionExchangeDelivery = {
   readonly nonce: string;
   readonly appOrigin: string;
   readonly walletOrigin: string;
-  readonly expiresAtMs: number;
 };
 
 type HostedWalletSeamsSessionRedemption = {
@@ -981,7 +980,6 @@ function parseHostedWalletExchangeDelivery(
     nonce: requireCompactExchangeValue(delivery.nonce, 'delivery.nonce'),
     appOrigin,
     walletOrigin,
-    expiresAtMs,
   };
 }
 

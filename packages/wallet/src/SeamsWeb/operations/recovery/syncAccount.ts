@@ -134,9 +134,7 @@ type PasskeyEd25519YaoUnlockRecoveryV1 =
   | {
       readonly kind: 'recovered';
       readonly recovery: PasskeyEd25519YaoRecoveryResultV1;
-      readonly credential: WebAuthnAuthenticationCredential;
       readonly verifiedBinding: RecoveryResolvedWalletBinding;
-      readonly ecdsaContinuity: ParsedWalletCustodyEcdsaContinuityV1;
     }
   | {
       readonly kind: 'already_committed';
@@ -1121,9 +1119,7 @@ async function recoverPasskeyEd25519YaoForUnlockV1(
     return {
       kind: 'recovered',
       recovery,
-      credential,
       verifiedBinding,
-      ecdsaContinuity,
     };
   } finally {
     ownedFactorSecret.fill(0);

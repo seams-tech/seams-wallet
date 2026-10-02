@@ -11,13 +11,11 @@ import type {
   ActiveWalletAuthMethodRecordV2,
   WalletAuthMethodRecordV2,
 } from '@shared/utils/walletAuthMethodRecord';
-import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import type {
   MpcMaterialActivationRef,
   WalletAuthMethodId,
   WalletAuthorityId,
   WalletId,
-  WalletKeyId,
 } from '@shared/utils/domainIds';
 
 export type WalletAuthorityOperationV1 =
@@ -54,7 +52,6 @@ export type ResolveWalletAuthorityOperationInputV1 = {
 
 type ResolvedWalletAuthorityOperationCommonV1 = {
   readonly kind: 'resolved';
-  readonly operation: WalletAuthorityOperationV1['operation'];
   readonly walletId: WalletId;
   readonly authorityId: WalletAuthorityId;
   readonly authMethodId: WalletAuthMethodId;
@@ -64,60 +61,27 @@ type ResolvedWalletAuthorityOperationCommonV1 = {
 export type ResolvedWalletAuthorityOperationV1 =
   | (ResolvedWalletAuthorityOperationCommonV1 & {
       readonly keyFamily: 'ed25519';
-      readonly walletKeyId: WalletKeyId;
       readonly registeredPublicKeyB64u: string;
       readonly thresholdPublicKey33B64u?: never;
       readonly evmAddress?: never;
     })
   | (ResolvedWalletAuthorityOperationCommonV1 & {
       readonly keyFamily: 'ecdsa_secp256k1';
-      readonly walletKeyId: WalletKeyId;
       readonly thresholdPublicKey33B64u: string;
       readonly evmAddress: string;
       readonly registeredPublicKeyB64u?: never;
     });
 
 export type WalletAuthorityOperationResolutionFailureV1 =
-  | {
-      readonly kind: 'wallet_id_mismatch';
-      readonly authorityWalletId: WalletId;
-      readonly authMethodWalletId: WalletId;
-    }
-  | {
-      readonly kind: 'authority_id_mismatch';
-      readonly authorityId: WalletAuthorityId;
-      readonly authMethodAuthorityId: WalletAuthorityId;
-    }
-  | { readonly kind: 'authority_not_active'; readonly authorityId: WalletAuthorityId }
-  | { readonly kind: 'auth_method_not_active'; readonly authMethodId: WalletAuthMethodId }
-  | {
-      readonly kind: 'authority_activation_set_digest_mismatch';
-      readonly authorityId: WalletAuthorityId;
-      readonly expected: DigestB64u;
-      readonly actual: DigestB64u;
-    }
-  | {
-      readonly kind: 'authority_digest_mismatch';
-      readonly authorityId: WalletAuthorityId;
-      readonly expected: DigestB64u;
-      readonly actual: DigestB64u;
-    }
-  | {
-      readonly kind: 'permission_missing';
-      readonly authorityId: WalletAuthorityId;
-      readonly requiredPermission: 'sign' | 'export_keys';
-      readonly operation: WalletAuthorityOperationV1['operation'];
-    }
-  | {
-      readonly kind: 'signer_family_unavailable';
-      readonly authorityId: WalletAuthorityId;
-      readonly keyFamily: WalletAuthorityOperationV1['keyFamily'];
-    }
-  | {
-      readonly kind: 'signer_wallet_id_mismatch';
-      readonly authorityId: WalletAuthorityId;
-      readonly signerWalletId: WalletId;
-    };
+  | { readonly kind: 'wallet_id_mismatch' }
+  | { readonly kind: 'authority_id_mismatch' }
+  | { readonly kind: 'authority_not_active' }
+  | { readonly kind: 'auth_method_not_active' }
+  | { readonly kind: 'authority_activation_set_digest_mismatch' }
+  | { readonly kind: 'authority_digest_mismatch' }
+  | { readonly kind: 'permission_missing' }
+  | { readonly kind: 'signer_family_unavailable' }
+  | { readonly kind: 'signer_wallet_id_mismatch' };
 
 export type ResolveWalletAuthorityOperationResultV1 =
   | { readonly kind: 'resolved'; readonly value: ResolvedWalletAuthorityOperationV1 }
@@ -130,33 +94,25 @@ export async function resolveWalletAuthorityOperation(
   if (authority.state !== 'active') {
     return {
       kind: 'rejected',
-      reason: { kind: 'authority_not_active', authorityId: authority.authorityId },
+      reason: { kind: 'authority_not_active' },
     };
   }
   if (authMethod.status !== 'active') {
     return {
       kind: 'rejected',
-      reason: { kind: 'auth_method_not_active', authMethodId: authMethod.walletAuthMethodId },
+      reason: { kind: 'auth_method_not_active' },
     };
   }
   if (authority.walletId !== authMethod.walletId) {
     return {
       kind: 'rejected',
-      reason: {
-        kind: 'wallet_id_mismatch',
-        authorityWalletId: authority.walletId,
-        authMethodWalletId: authMethod.walletId,
-      },
+      reason: { kind: 'wallet_id_mismatch' },
     };
   }
   if (authority.authorityId !== authMethod.walletAuthorityId) {
     return {
       kind: 'rejected',
-      reason: {
-        kind: 'authority_id_mismatch',
-        authorityId: authority.authorityId,
-        authMethodAuthorityId: authMethod.walletAuthorityId,
-      },
+      reason: { kind: 'authority_id_mismatch' },
     };
   }
 
@@ -166,24 +122,14 @@ export async function resolveWalletAuthorityOperation(
   if (activationDigest !== authority.signerActivationSetDigestB64u) {
     return {
       kind: 'rejected',
-      reason: {
-        kind: 'authority_activation_set_digest_mismatch',
-        authorityId: authority.authorityId,
-        expected: authority.signerActivationSetDigestB64u,
-        actual: activationDigest,
-      },
+      reason: { kind: 'authority_activation_set_digest_mismatch' },
     };
   }
   const authorityDigest = await computeWalletAuthorityDigestB64u(authority);
   if (authorityDigest !== authority.authorityDigestB64u) {
     return {
       kind: 'rejected',
-      reason: {
-        kind: 'authority_digest_mismatch',
-        authorityId: authority.authorityId,
-        expected: authority.authorityDigestB64u,
-        actual: authorityDigest,
-      },
+      reason: { kind: 'authority_digest_mismatch' },
     };
   }
 
@@ -191,22 +137,17 @@ export async function resolveWalletAuthorityOperation(
   if (!authority.permissions.includes(requiredPermission)) {
     return {
       kind: 'rejected',
-      reason: {
-        kind: 'permission_missing',
-        authorityId: authority.authorityId,
-        requiredPermission,
-        operation: input.operation.operation,
-      },
+      reason: { kind: 'permission_missing' },
     };
   }
 
   switch (input.operation.kind) {
     case 'near_sign':
     case 'near_export':
-      return resolveEd25519Operation(input.operation, authority, authMethod);
+      return resolveEd25519Operation(authority, authMethod);
     case 'evm_sign':
     case 'evm_export':
-      return resolveEcdsaOperation(input.operation, authority, authMethod);
+      return resolveEcdsaOperation(authority, authMethod);
     default:
       return assertNeverOperation(input.operation);
   }
@@ -228,7 +169,6 @@ function requiredPermissionForOperation(
 }
 
 function resolveEd25519Operation(
-  operation: Extract<WalletAuthorityOperationV1, { readonly keyFamily: 'ed25519' }>,
   authority: ActiveWalletAuthorityV1,
   authMethod: ActiveWalletAuthMethodRecordV2,
 ): ResolveWalletAuthorityOperationResultV1 {
@@ -236,41 +176,30 @@ function resolveEd25519Operation(
   if (activation === null) {
     return {
       kind: 'rejected',
-      reason: {
-        kind: 'signer_family_unavailable',
-        authorityId: authority.authorityId,
-        keyFamily: operation.keyFamily,
-      },
+      reason: { kind: 'signer_family_unavailable' },
     };
   }
   if (activation.signer.walletId !== authority.walletId) {
     return {
       kind: 'rejected',
-      reason: {
-        kind: 'signer_wallet_id_mismatch',
-        authorityId: authority.authorityId,
-        signerWalletId: activation.signer.walletId,
-      },
+      reason: { kind: 'signer_wallet_id_mismatch' },
     };
   }
   return {
     kind: 'resolved',
     value: {
       kind: 'resolved',
-      operation: operation.operation,
       keyFamily: 'ed25519',
       walletId: authority.walletId,
       authorityId: authority.authorityId,
       authMethodId: authMethod.walletAuthMethodId,
       materialActivation: activation.materialActivation,
-      walletKeyId: activation.signer.walletKeyId,
       registeredPublicKeyB64u: activation.signer.registeredPublicKeyB64u,
     },
   };
 }
 
 function resolveEcdsaOperation(
-  operation: Extract<WalletAuthorityOperationV1, { readonly keyFamily: 'ecdsa_secp256k1' }>,
   authority: ActiveWalletAuthorityV1,
   authMethod: ActiveWalletAuthMethodRecordV2,
 ): ResolveWalletAuthorityOperationResultV1 {
@@ -278,34 +207,24 @@ function resolveEcdsaOperation(
   if (activation === null) {
     return {
       kind: 'rejected',
-      reason: {
-        kind: 'signer_family_unavailable',
-        authorityId: authority.authorityId,
-        keyFamily: operation.keyFamily,
-      },
+      reason: { kind: 'signer_family_unavailable' },
     };
   }
   if (activation.signer.walletId !== authority.walletId) {
     return {
       kind: 'rejected',
-      reason: {
-        kind: 'signer_wallet_id_mismatch',
-        authorityId: authority.authorityId,
-        signerWalletId: activation.signer.walletId,
-      },
+      reason: { kind: 'signer_wallet_id_mismatch' },
     };
   }
   return {
     kind: 'resolved',
     value: {
       kind: 'resolved',
-      operation: operation.operation,
       keyFamily: 'ecdsa_secp256k1',
       walletId: authority.walletId,
       authorityId: authority.authorityId,
       authMethodId: authMethod.walletAuthMethodId,
       materialActivation: activation.materialActivation,
-      walletKeyId: activation.signer.walletKeyId,
       thresholdPublicKey33B64u: activation.signer.thresholdPublicKey33B64u,
       evmAddress: activation.signer.evmAddress,
     },

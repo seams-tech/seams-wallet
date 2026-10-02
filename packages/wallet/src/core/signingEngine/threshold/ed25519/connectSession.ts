@@ -116,7 +116,6 @@ export async function connectEd25519Session(args: {
   touchIdPrompt: ThresholdWebAuthnPromptPort;
   relayerUrl: string;
   relayerKeyId: string;
-  walletId: string;
   nearAccountId: string;
   nearEd25519SigningKeyId: string;
   authority: Ed25519SessionPolicyAuthority;

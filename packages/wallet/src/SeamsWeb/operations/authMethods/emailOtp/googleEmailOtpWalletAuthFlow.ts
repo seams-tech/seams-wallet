@@ -101,7 +101,6 @@ export type GoogleEmailOtpLinkedUnlockSelection =
   | { readonly kind: 'rejected'; readonly message: string };
 
 type GoogleSessionState = {
-  idToken: string;
   walletId: WalletId;
   offer?: GoogleEmailOtpRegistrationOffer;
   providerSubject: string;
@@ -352,7 +351,6 @@ async function resolveGoogleEmailOtpProviderForAuthFlow(args: {
 }
 
 function resolveSessionState(input: {
-  idToken: string;
   authInput: GoogleEmailOtpWalletAuthStartInput;
   resolution: GoogleEmailOtpProviderResolution;
 }): GoogleSessionState {
@@ -378,7 +376,6 @@ function resolveSessionState(input: {
     ? selectedGoogleEmailOtpRegistrationCandidate(offer).walletId
     : walletId;
   return {
-    idToken: input.idToken,
     walletId: resolvedWalletId,
     ...(offer ? { offer } : {}),
     providerSubject: requireProviderSubject(input.resolution),
@@ -652,7 +649,6 @@ export async function beginGoogleEmailOtpWalletAuth(
       input,
     });
     sessionState = resolveSessionState({
-      idToken: input.idToken,
       authInput: input,
       resolution,
     });

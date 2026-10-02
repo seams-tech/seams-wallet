@@ -183,7 +183,6 @@ class UiConfirmWorkerManagerImpl implements UiConfirmManager {
       workerUrl: BUILD_PATHS.RUNTIME.TOUCH_CONFIRM_WORKER,
       workerTimeout: 60_000,
       debug: false,
-      signingSessionPersistenceMode: 'none',
       ...config,
     };
     this.context = {

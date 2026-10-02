@@ -91,7 +91,6 @@ export class EmailOtpWalletSessionCoordinator {
     });
     const restoreEcdsaSigningSessionMaterialFromSealedRecord =
       createEmailOtpEcdsaSigningSessionMaterialRestorer({
-        configs: deps.configs,
         withThresholdEcdsaSigningQueue: deps.withThresholdEcdsaSigningQueue,
         getSignerWorkerContext: deps.getSignerWorkerContext,
         resolveSelectedWalletAuthority: deps.resolveSelectedWalletAuthority,

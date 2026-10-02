@@ -703,7 +703,6 @@ type RecoverNearEd25519CustodyInput = WalletRecoveryCustodyInput & {
   readonly runStep: WalletCustodyCeremonyStepRunner;
   readonly walletId: string;
   readonly nearEd25519SigningKeyId: string;
-  readonly recoveryLifecycleId: string;
   readonly yaoAdmission: unknown;
   readonly yaoApplication: unknown;
   readonly participantIds: readonly [number, number];

@@ -52,11 +52,7 @@ export function assertNeverEmailOtpWorker(value: never): never {
   throw new Error(`Unexpected Email OTP worker state: ${String(value)}`);
 }
 
-export function resolveEmailOtpAuthSubjectId(args: {
-  walletId: string;
-  userId?: unknown;
-  routePlan: EmailOtpRoutePlan;
-}): string {
+export function resolveEmailOtpAuthSubjectId(args: { userId?: unknown }): string {
   return readString(args.userId, 'userId');
 }
 

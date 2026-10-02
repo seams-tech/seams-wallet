@@ -76,12 +76,6 @@ import { storeEmailOtpEd25519YaoActiveClient } from './sessionState';
 export type EmailOtpWalletCustodyUnlockProjection = {
   readonly kind: 'wallet_custody_email_otp_unlock_v1';
   readonly walletId: string;
-  readonly enrollmentId: string;
-  readonly enrollmentSealKeyVersion: string;
-  readonly envelopeVersion: string;
-  readonly envelopeRevision: number;
-  readonly storeVersion: string;
-  readonly activeKeySetIds: readonly string[];
   readonly keyManifest: WalletCustodyUnlockKeyManifest;
   readonly envelope: PasskeyCustodyEnvelopeRecord;
 };
@@ -422,7 +416,7 @@ export function parseEmailOtpWalletCustodyUnlockProjection(args: {
   if (envelopeRevision !== Number(envelope.envelopeRevision)) {
     throw new Error('Email OTP wallet custody envelope revision changed');
   }
-  const storeVersion = readString(projection.storeVersion, 'walletCustody.storeVersion');
+  readString(projection.storeVersion, 'walletCustody.storeVersion');
   const keyManifest = parseWalletCustodyUnlockKeyManifest(projection.keyManifest, walletId);
   if (!Array.isArray(projection.activeKeySetIds) || projection.activeKeySetIds.length === 0) {
     throw new Error('Email OTP wallet custody projection omitted active key sets');
@@ -442,12 +436,6 @@ export function parseEmailOtpWalletCustodyUnlockProjection(args: {
   return {
     kind: 'wallet_custody_email_otp_unlock_v1',
     walletId,
-    enrollmentId,
-    enrollmentSealKeyVersion,
-    envelopeVersion,
-    envelopeRevision,
-    storeVersion,
-    activeKeySetIds,
     keyManifest,
     envelope,
   };
@@ -665,8 +653,6 @@ type EmailOtpEd25519WalletCustodyRestoreResult =
   | { kind: 'cache_absent' };
 
 export async function restoreEmailOtpEd25519FromCustodyCache(args: {
-  relayUrl: string;
-  walletId: string;
   projection: EmailOtpWalletCustodyUnlockProjection;
   material:
     | Extract<EmailOtpUnlockSecretMaterialRequest, { kind: 'ed25519_yao_recovery' }>

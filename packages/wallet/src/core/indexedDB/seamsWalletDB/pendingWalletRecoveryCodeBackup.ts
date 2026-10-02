@@ -19,7 +19,6 @@ type PendingWalletRecoveryCodeBackupRow = {
 
 type PendingWalletRecoveryCodeBackup = {
   readonly walletId: string;
-  readonly issuedAtMs: number;
   readonly recoveryCodes: WalletRecoveryCodeSet;
 };
 
@@ -188,7 +187,6 @@ class PendingWalletRecoveryCodeBackupRepository {
       if (!Array.isArray(decoded)) throw new Error('Pending recovery-code backup is invalid');
       return {
         walletId,
-        issuedAtMs: row.recovery_codes_issued_at_ms,
         recoveryCodes: buildWalletRecoveryCodeSet(decoded.map(String)),
       };
     } finally {

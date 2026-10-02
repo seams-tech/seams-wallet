@@ -11,10 +11,7 @@ const WALLET_SESSION_QUOTA_EXHAUSTED_ERROR =
 const WALLET_SESSION_QUOTA_IN_FLIGHT_ERROR =
   '[WalletSessionQuotaAdmission] wallet-session quota is reserved by an in-flight operation';
 
-type WalletSessionQuotaAdmissionFailureSource =
-  | 'local_projection'
-  | 'server_prepare'
-  | 'trusted_status';
+type WalletSessionQuotaAdmissionFailureSource = 'local_projection' | 'server_prepare';
 
 type WalletSessionQuotaAdmissionRetryReason = 'exhausted' | 'stale_projection';
 

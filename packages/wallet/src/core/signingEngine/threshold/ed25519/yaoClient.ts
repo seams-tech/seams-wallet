@@ -48,8 +48,6 @@ export const ROUTER_AB_ED25519_YAO_ACTIVE_CLIENT_KIND_V1 =
 
 type RouterAbEd25519YaoRegistrationTransportFailureV1 = {
   ok: false;
-  code: 'transport_failed' | 'router_rejected' | 'invalid_router_response';
-  status: number;
   message: string;
 };
 
@@ -161,7 +159,6 @@ export type RouterAbEd25519YaoExportEmailOtpFactorReleaseV1 = {
   readonly kind: 'email_otp_login_grant';
   readonly challengeId: string;
   readonly loginGrant: string;
-  readonly expiresAtMs: number;
 };
 
 type RouterAbEd25519YaoExportCustodyEnvelopeFieldsV1 = {
@@ -217,11 +214,6 @@ type RouterAbEd25519YaoExportResultClientV1 =
 
 type RouterAbEd25519YaoRegistrationFailureV1 = {
   ok: false;
-  code:
-    | RouterAbEd25519YaoRegistrationTransportFailureV1['code']
-    | 'invalid_factor_secret'
-    | 'invalid_client_result';
-  status: number;
   message: string;
 };
 
@@ -479,7 +471,6 @@ function parseRouterAbEd25519YaoClientEmailOtpFactorReleaseV1(
     kind: 'email_otp_login_grant',
     challengeId,
     loginGrant,
-    expiresAtMs,
   };
 }
 
@@ -704,8 +695,6 @@ async function parseHttpResponse(
   } catch (error) {
     return {
       ok: false,
-      code: 'invalid_router_response',
-      status: response.status,
       message: error instanceof Error ? error.message : String(error),
     };
   }
@@ -715,8 +704,6 @@ async function parseHttpResponse(
   }
   return {
     ok: false,
-    code: 'router_rejected',
-    status: response.status,
     message: JSON.stringify(value),
   };
 }
@@ -807,8 +794,6 @@ export class RouterAbEd25519YaoHttpActivationTransportV1
     } catch (error) {
       return {
         ok: false,
-        code: 'transport_failed',
-        status: 0,
         message: error instanceof Error ? error.message : String(error),
       };
     }
@@ -1117,16 +1102,12 @@ export class RouterAbEd25519YaoClientV1 {
     } catch (error: unknown) {
       return {
         ok: false,
-        code: 'invalid_router_response',
-        status: 0,
         message: error instanceof Error ? error.message : String(error),
       };
     }
     if (!exportAdmissionMatchesRequest(args.request, admissionEnvelope.protocol)) {
       return {
         ok: false,
-        code: 'invalid_router_response',
-        status: 0,
         message: 'Router export admission does not match the requested exact capability',
       };
     }
@@ -1136,8 +1117,6 @@ export class RouterAbEd25519YaoClientV1 {
       if (admissionEnvelope.kind !== 'protocol_only') {
         return {
           ok: false,
-          code: 'invalid_router_response',
-          status: 0,
           message: 'Passkey export admission returned an Email OTP factor release',
         };
       }
@@ -1146,8 +1125,6 @@ export class RouterAbEd25519YaoClientV1 {
       if (admissionEnvelope.kind !== 'protocol_with_factor_release') {
         return {
           ok: false,
-          code: 'invalid_router_response',
-          status: 0,
           message: 'Email OTP export admission did not return the matching factor release',
         };
       }
@@ -1155,8 +1132,6 @@ export class RouterAbEd25519YaoClientV1 {
       if (!factorRelease || factorRelease.challengeId !== args.authorization.challengeId) {
         return {
           ok: false,
-          code: 'invalid_router_response',
-          status: 0,
           message: 'Email OTP export admission did not return the matching factor release',
         };
       }
@@ -1165,8 +1140,6 @@ export class RouterAbEd25519YaoClientV1 {
       } catch (error) {
         return {
           ok: false,
-          code: 'invalid_factor_secret',
-          status: 0,
           message: error instanceof Error ? error.message : String(error),
         };
       }
@@ -1185,8 +1158,6 @@ export class RouterAbEd25519YaoClientV1 {
     } catch (error) {
       return {
         ok: false,
-        code: 'invalid_client_result',
-        status: 0,
         message: error instanceof Error ? error.message : String(error),
       };
     } finally {
@@ -1201,8 +1172,6 @@ export class RouterAbEd25519YaoClientV1 {
       if (!executeRequest.ok) {
         return {
           ok: false,
-          code: 'invalid_client_result',
-          status: 0,
           message: executeRequest.message,
         };
       }
@@ -1216,7 +1185,7 @@ export class RouterAbEd25519YaoClientV1 {
       if (!executeResponse.ok) return executeResponse;
       const result = parseRouterAbEd25519YaoExportResultV1(executeResponse.value);
       if (!result.ok) {
-        return { ok: false, code: 'invalid_router_response', status: 0, message: result.message };
+        return { ok: false, message: result.message };
       }
       const exported = session.complete(JSON.stringify(result.value));
       try {
@@ -1232,8 +1201,6 @@ export class RouterAbEd25519YaoClientV1 {
     } catch (error) {
       return {
         ok: false,
-        code: 'invalid_client_result',
-        status: 0,
         message: error instanceof Error ? error.message : String(error),
       };
     } finally {

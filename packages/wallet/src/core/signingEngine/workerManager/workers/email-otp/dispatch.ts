@@ -276,7 +276,7 @@ export async function handleEmailOtpWorkerMessage(event: MessageEvent): Promise<
         const routePlan = readRoutePlan(msg.payload.routePlan, 'loginWithEmailOtpWallet');
         const material = msg.payload.material;
         const walletId = readString(msg.payload.walletId, 'walletId');
-        assertEmailOtpUnlockMaterialRouteAuth({ walletId, routePlan, material });
+        assertEmailOtpUnlockMaterialRouteAuth({ routePlan, material });
         const orgId = emailOtpUnlockMaterialOrgId(material);
         const result = await loginWithEmailOtpAndUnlockWallet({
           relayUrl: readString(msg.payload.relayUrl, 'relayUrl'),

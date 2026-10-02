@@ -187,10 +187,7 @@ export async function signNep413Message({
 
 type ThresholdNep413SigningContext = {
   nearPublicKey: string;
-  threshold: {
-    relayerUrl: string;
-    thresholdKeyMaterial: ThresholdEd25519KeyMaterial;
-  };
+  threshold: { thresholdKeyMaterial: ThresholdEd25519KeyMaterial };
 };
 
 function validateAndPrepareNep413SigningContext(args: {
@@ -224,9 +221,6 @@ function validateAndPrepareNep413SigningContext(args: {
 
   return {
     nearPublicKey: thresholdPublicKey,
-    threshold: {
-      relayerUrl,
-      thresholdKeyMaterial,
-    },
+    threshold: { thresholdKeyMaterial },
   };
 }

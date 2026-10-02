@@ -126,7 +126,6 @@ export function createPasskeyPublicDeps(args: {
   };
   credentialStore: WalletSessionActivationDeps['credentialStore'];
   touchIdPrompt: TouchIdPrompt;
-  touchConfirm: UiConfirmRuntimeBridgePort;
   passkeyMpcSession: PasskeyMpcSessionPort;
   warmSigning: Pick<WarmSigningPorts, 'ecdsaSessions' | 'capabilityReader' | 'statusReader'>;
   thresholdEcdsaBootstrapQueueByWallet: Map<string, Promise<void>>;
@@ -178,7 +177,6 @@ export function createWarmCapabilitiesPublicDeps(args: {
     signing: SeamsConfigsReadonly['signing'];
   };
   bootstrapStore: ThresholdEcdsaBootstrapStorePort;
-  touchConfirm: UiConfirmRuntimeBridgePort;
   passkeyMpcSession: PasskeyMpcSessionPort;
   warmSigning: Pick<WarmSigningPorts, 'ecdsaSessions' | 'capabilityReader' | 'statusReader'>;
   walletSessionActivationDeps: WalletSessionActivationDeps;

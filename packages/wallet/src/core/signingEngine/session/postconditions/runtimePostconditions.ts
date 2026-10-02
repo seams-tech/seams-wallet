@@ -72,8 +72,6 @@ type RestorableUsableRuntimeLane = Extract<
 type UsableRuntimeLane = ActiveUsableRuntimeLane | RestorableUsableRuntimeLane;
 
 export type WalletRuntimeInventory = {
-  walletId: string;
-  authMethod: SigningSessionSealAuthMethod;
   ed25519?: UsableRuntimeLane;
   ecdsaByTarget: ReadonlyMap<string, UsableRuntimeLane>;
 };
@@ -295,8 +293,6 @@ async function readWalletRuntimePostconditions(args: {
   return {
     ok: true,
     inventory: {
-      walletId,
-      authMethod,
       ...(ed25519 ? { ed25519 } : {}),
       ecdsaByTarget,
     },

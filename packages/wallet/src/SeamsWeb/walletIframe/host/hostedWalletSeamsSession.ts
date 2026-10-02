@@ -19,7 +19,6 @@ export type HostedWalletSessionOperationCredentialV1 = {
 
 type HostedWalletSeamsSession = {
   readonly kind: 'active_hosted_wallet_seams_session';
-  readonly walletSessionId: WalletSessionId;
   readonly operationCredential: HostedWalletSessionOperationCredentialV1;
   readonly expiresAtMs: number;
   readonly relayUrl: string;
@@ -138,7 +137,6 @@ function parseHostedOperationCredential(value: unknown): HostedWalletSessionOper
 }
 
 function parseRedeemedWalletSession(value: unknown): {
-  readonly walletSessionId: WalletSessionId;
   readonly operationCredential: HostedWalletSessionOperationCredentialV1;
   readonly expiresAtMs: number;
 } {
@@ -157,7 +155,6 @@ function parseRedeemedWalletSession(value: unknown): {
     );
   }
   return {
-    walletSessionId,
     operationCredential,
     expiresAtMs: parseExpiry(response.expiresAtMs),
   };
@@ -234,7 +231,6 @@ export async function redeemHostedWalletSeamsSession(
   const redeemed = parseRedeemedWalletSession(raw);
   const session: HostedWalletSeamsSession = {
     kind: 'active_hosted_wallet_seams_session',
-    walletSessionId: redeemed.walletSessionId,
     operationCredential: redeemed.operationCredential,
     expiresAtMs: redeemed.expiresAtMs,
     relayUrl: requestedRelayUrl,

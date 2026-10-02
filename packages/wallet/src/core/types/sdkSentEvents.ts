@@ -16,7 +16,6 @@ import type { SyncAccountResult, SignNEP413MessageResult } from '@/core/types/sd
 import {
   parseLinkedDeviceEnrollmentId,
   parseWalletId,
-  type LinkedDeviceEnrollmentId,
   type WalletId,
 } from '@shared/utils/domainIds';
 import { parseWalletSessionId, type WalletSessionId } from '@shared/authorization/capabilityKinds';
@@ -458,7 +457,6 @@ type LinkDeviceFlowOutcome =
   | {
       readonly kind: 'active';
       readonly walletId: WalletId;
-      readonly enrollmentId: LinkedDeviceEnrollmentId;
     }
   | { readonly kind: 'invalid_active' }
   | { readonly kind: 'failed' }
@@ -490,7 +488,7 @@ export function classifyLinkDeviceFlowEvent(event: LinkDeviceFlowEvent): LinkDev
   const walletId = parseWalletId(String(event.walletId ?? ''));
   const enrollmentId = parseLinkedDeviceEnrollmentId(event.data?.enrollmentId);
   return walletId.ok && enrollmentId.ok
-    ? { kind: 'active', walletId: walletId.value, enrollmentId: enrollmentId.value }
+    ? { kind: 'active', walletId: walletId.value }
     : { kind: 'invalid_active' };
 }
 

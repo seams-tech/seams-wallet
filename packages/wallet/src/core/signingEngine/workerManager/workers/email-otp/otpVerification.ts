@@ -132,7 +132,6 @@ export async function releaseEmailOtpFactorSecret(
       }
   ),
 ): Promise<{
-  challengeId: string;
   enrollmentId: string;
   enrollmentSealKeyVersion: string;
   factorSecret32: Uint8Array;
@@ -199,7 +198,6 @@ export async function releaseEmailOtpFactorSecret(
       throw new Error('Email OTP factor release returned an invalid ciphertext');
     }
     return {
-      challengeId: releasedChallengeId,
       enrollmentId,
       enrollmentSealKeyVersion,
       factorSecret32: await openEmailOtpFactorReleaseCiphertext({

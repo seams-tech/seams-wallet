@@ -146,7 +146,6 @@ function sealedRecordPurpose(args: {
 }
 
 function persistenceSingleFlightKey(args: {
-  thresholdSessionId: string;
   transport: PasskeyWarmSessionSealTransportInput;
 }): string {
   if (args.transport.curve === 'ecdsa') {
@@ -452,10 +451,7 @@ export class PasskeyMpcSessionDurableState {
         message: 'Passkey seal persistence requires one exact record purpose',
       };
     }
-    const singleFlightKey = persistenceSingleFlightKey({
-      thresholdSessionId,
-      transport: args.transport,
-    });
+    const singleFlightKey = persistenceSingleFlightKey({ transport: args.transport });
     const inFlight = signingSessionSealPersistSingleFlight.get(singleFlightKey);
     if (inFlight) return await inFlight;
 

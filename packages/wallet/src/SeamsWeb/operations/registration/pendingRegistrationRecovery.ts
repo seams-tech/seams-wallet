@@ -35,7 +35,6 @@ import { base58Encode } from '@shared/utils/base58';
 import { base64UrlDecode } from '@shared/utils/base64';
 import { mpcMaterialActivationRefsEqual, type WalletId } from '@shared/utils/domainIds';
 import { toAccountId } from '@/core/types/accountIds';
-import type { RegistrationEstablishedSessionResultV2 } from '@shared/utils/registrationEstablishedSession';
 import { parseEmailOtpWalletAuthAuthority } from '@shared/utils/walletAuthAuthority';
 import type {
   PendingEcdsaRegistrationCommit,
@@ -80,18 +79,11 @@ type PendingRegistrationRecoveryResult =
   | {
       readonly kind: 'published';
       readonly registrationCeremonyId: string;
-      readonly walletId: WalletId;
-      readonly sessionResult: RegistrationEstablishedSessionResultV2['kind'];
     }
   | {
       readonly kind: 'unlock_required';
       readonly registrationCeremonyId: string;
-      readonly walletId: WalletId;
       readonly keyFamilies: PendingEcdsaRegistrationKeyFamilies;
-      readonly activationJournalId: PendingEcdsaRegistrationCommit['localMaterial']['ecdsa']['activationJournalId'];
-      readonly activationRequestDigestB64u: PendingEcdsaRegistrationCommit['localMaterial']['ecdsa']['activationRequestDigestB64u'];
-      readonly clientActivation: PendingEcdsaRegistrationCommit['localMaterial']['ecdsa']['clientActivation'];
-      readonly walletAuthMethodId: PendingEcdsaRegistrationCommit['walletAuthMethodId'];
       readonly next: 'unlock_exact_method';
       readonly reason: 'ecdsa_local_finalization';
     }
@@ -99,8 +91,6 @@ type PendingRegistrationRecoveryResult =
       readonly kind: 'unlock_required';
       readonly reason: 'near_provisioning';
       readonly registrationCeremonyId: string;
-      readonly walletId: WalletId;
-      readonly walletAuthMethodId: PendingWalletRegistrationCommitV1['walletAuthMethodId'];
       readonly next: 'unlock_exact_method';
     }
   | {
@@ -531,8 +521,6 @@ async function replayPendingNearProvisioning(args: {
   return {
     kind: 'published',
     registrationCeremonyId: args.pending.registrationCeremonyId,
-    walletId: args.pending.walletId,
-    sessionResult: finalized.registrationEstablishedSession.kind,
   };
 }
 
@@ -548,12 +536,7 @@ export async function resumePendingNearRegistrations(args: {
       results.push({
         kind: 'unlock_required',
         registrationCeremonyId: pending.registrationCeremonyId,
-        walletId: pending.walletId,
         keyFamilies: pending.localMaterial.keyFamilies,
-        activationJournalId: pending.localMaterial.ecdsa.activationJournalId,
-        activationRequestDigestB64u: pending.localMaterial.ecdsa.activationRequestDigestB64u,
-        clientActivation: pending.localMaterial.ecdsa.clientActivation,
-        walletAuthMethodId: pending.walletAuthMethodId,
         next: 'unlock_exact_method',
         reason: 'ecdsa_local_finalization',
       });
@@ -567,8 +550,6 @@ export async function resumePendingNearRegistrations(args: {
         kind: 'unlock_required',
         reason: 'near_provisioning',
         registrationCeremonyId: pending.registrationCeremonyId,
-        walletId: pending.walletId,
-        walletAuthMethodId: pending.walletAuthMethodId,
         next: 'unlock_exact_method',
       });
       continue;

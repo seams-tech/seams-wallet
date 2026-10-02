@@ -51,7 +51,6 @@ type D1RegistrationCeremonyRecordMutation = {
 type D1RegistrationCeremonyAtomicBranchClaim = {
   readonly value: Record<string, unknown>;
   readonly version: number;
-  readonly expiresAtMs: number;
 };
 
 type StoredRow = {
@@ -220,7 +219,6 @@ export class D1RegistrationCeremonyRecordStore {
     return {
       value: parsed.value,
       version: parsed.version,
-      expiresAtMs: parsed.expiresAtMs,
     };
   }
 
@@ -388,7 +386,6 @@ export class D1RegistrationCeremonyRecordStore {
 
 type StorageKey = { readonly scope: string; readonly id: string };
 type PreparedValue = {
-  readonly value: Record<string, unknown>;
   readonly recordJson: string;
   readonly expiresAtMs: number;
 };
@@ -400,7 +397,7 @@ function prepareValue(value: Record<string, unknown>, expiresAtMs: number): Prep
   if (!Number.isSafeInteger(normalizedExpiresAtMs) || normalizedExpiresAtMs <= Date.now()) {
     throw new Error('Registration ceremony record expiry must be in the future');
   }
-  return { value, recordJson: alphabetizeStringify(value), expiresAtMs: normalizedExpiresAtMs };
+  return { recordJson: alphabetizeStringify(value), expiresAtMs: normalizedExpiresAtMs };
 }
 
 function parseStoredRow(row: StoredRow): D1RegistrationCeremonyStoredRecord {

@@ -183,7 +183,6 @@ type HydratePasskeyEd25519YaoLocalMaterialResultV1 =
   | {
       kind: 'live';
       plan: Extract<MpcCapabilityHydrationPlan, { kind: 'use_live_runtime' }>;
-      material: NearEd25519YaoOperationMaterial;
       activeClient?: never;
     }
   | {
@@ -935,7 +934,7 @@ export async function hydratePasskeyEd25519YaoLocalMaterialV1(input: {
       ) {
         throw new Error('Near Ed25519 live hydration plan lost its exact runtime');
       }
-      return { kind: 'live', plan, material };
+      return { kind: 'live', plan };
     }
     case 'rehydrate_material_activation': {
       if (input.unlockSource.kind !== 'available') {

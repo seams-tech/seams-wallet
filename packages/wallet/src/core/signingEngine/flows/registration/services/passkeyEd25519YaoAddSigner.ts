@@ -176,7 +176,6 @@ export async function admitVerifiedPasskeyEd25519YaoAddSignerV1(
 ): Promise<{
   readonly request: RouterAbEd25519YaoRegistrationAdmissionRequestV1;
   readonly receipt: RouterAbEd25519YaoActivationAdmissionReceiptV1<'registration'>;
-  readonly transportConfig: RouterAbEd25519YaoHttpTransportConfigV1;
 }> {
   const prepared = await prepareVerifiedPasskeyEd25519YaoAddSignerV1(input);
   const transport = new RouterAbEd25519YaoHttpActivationTransportV1(prepared.transportConfig);
@@ -191,6 +190,5 @@ export async function admitVerifiedPasskeyEd25519YaoAddSignerV1(
   return {
     request: prepared.request,
     receipt: receipt.value,
-    transportConfig: prepared.transportConfig,
   };
 }

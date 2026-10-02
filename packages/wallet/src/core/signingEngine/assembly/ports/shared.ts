@@ -57,7 +57,6 @@ import {
 } from '../../flows/signEvmFamily/signerLoader';
 import type { SignerWorkerManager } from '../../workerManager/SignerWorkerManager';
 import {
-  prewarmSignerWorkers as prewarmSignerWorkersValue,
   warmCriticalResources as warmCriticalResourcesValue,
   type WorkerResourceWarmupAccountContext,
   type WorkerResourceWarmupDiagnostics,
@@ -83,7 +82,6 @@ export type SignTempoPortInput = {
 
 export type SigningEngineConveniencePorts = {
   signTempo: (args: SignTempoPortInput) => Promise<TempoSignedResult | EvmSignedResult>;
-  prewarmSignerWorkers: () => void;
   warmCriticalResources: (
     accountContext?: WorkerResourceWarmupAccountContext,
   ) => Promise<WorkerResourceWarmupDiagnostics>;
@@ -234,7 +232,6 @@ export function createManagerConveniencePortsFactory(args: {
   const { createArgs, getWorkerResourceWarmupDeps } = args;
   return () => ({
     signTempo: createArgs.signTempo,
-    prewarmSignerWorkers: () => prewarmSignerWorkersValue(getWorkerResourceWarmupDeps()),
     warmCriticalResources: (accountContext?: WorkerResourceWarmupAccountContext) =>
       warmCriticalResourcesValue(getWorkerResourceWarmupDeps(), accountContext),
   });

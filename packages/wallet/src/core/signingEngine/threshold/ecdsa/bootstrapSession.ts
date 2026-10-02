@@ -77,16 +77,12 @@ type BootstrapEcdsaSessionSuccessCommon = {
   keygenSessionId: string;
   rpId: string;
   keyHandle: string;
-  ecdsaThresholdKeyId: string;
   clientVerifyingShareB64u: string;
   thresholdEcdsaPublicKeyB64u: string;
   ethereumAddress: string;
   relayerKeyId: string;
   relayerVerifyingShareB64u: string;
-  clientShareRetryCounter: number;
-  relayerShareRetryCounter: number;
   participantIds: number[];
-  chainId: number;
   thresholdSessionId: string;
   authorizationSessionId: EcdsaAuthorizationSessionId;
   authorizationId: WalletSessionAuthorizationId;
@@ -188,16 +184,12 @@ async function bootstrapStrictExistingEcdsaSession(
       secureRandomId('tecdsa-keygen', 32, 'threshold ECDSA session IDs'),
     rpId,
     keyHandle: String(args.keyHandle),
-    ecdsaThresholdKeyId: String(args.key.ecdsaThresholdKeyId),
     clientVerifyingShareB64u: publicIdentity.derivation_client_share_public_key33_b64u,
     thresholdEcdsaPublicKeyB64u: publicIdentity.threshold_public_key33_b64u,
     ethereumAddress: bytesToHex(base64UrlDecode(publicIdentity.ethereum_address20_b64u)),
     relayerKeyId,
     relayerVerifyingShareB64u: publicIdentity.server_public_key33_b64u,
-    clientShareRetryCounter: publicIdentity.client_share_retry_counter,
-    relayerShareRetryCounter: publicIdentity.server_share_retry_counter,
     participantIds: args.key.participantIds.map(Number),
-    chainId: args.lanePolicy.chainTarget.chainId,
     thresholdSessionId: session.thresholdSessionId,
     authorizationSessionId: session.authorizationSessionId,
     authorizationId: session.authorizationId,

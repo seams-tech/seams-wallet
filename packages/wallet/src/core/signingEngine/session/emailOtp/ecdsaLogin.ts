@@ -240,7 +240,6 @@ async function disposeEmailOtpEd25519YaoWorkerResultAfterFailure(args: {
 
 export type EmailOtpThresholdEcdsaExportPreparation = {
   bootstrap: ThresholdEcdsaExplicitKeyExportActivationResult;
-  timings: EmailOtpThresholdEcdsaLoginTimings;
 };
 
 type EmailOtpEcdsaCapabilityRunResult =
@@ -670,10 +669,7 @@ function buildAuthoritativeEmailOtpMixedWalletSigningBudget(args: {
 }
 
 function resolveEmailOtpLoginSigningBudget(args: {
-  ecdsaResult: EmailOtpEcdsaWorkerResult;
   ed25519YaoResult: EmailOtpEd25519YaoUnlockResult | null;
-  emailOtpAuthPolicy: EmailOtpAuthPolicy;
-  routePlan: EmailOtpRoutePlan;
   requestedTtlMs: number | undefined;
   requestedRemainingUses: number;
 }): EmailOtpLoginSessionPolicy {
@@ -1186,7 +1182,6 @@ type EmailOtpEcdsaLoginPorts = EmailOtpEcdsaLoginAuthorityPorts & {
   ) => Promise<EmailOtpEcdsaExplicitExportBootstrapResult>;
   requireRelayUrl: () => string;
   requireSigningSessionSealGroupId: () => string;
-  resolveCurrentEcdsaCapabilityRuntime: ActiveEcdsaCapabilityRuntimeResolver;
   publicationPorts: EmailOtpEcdsaPublicationPorts;
 };
 
@@ -1304,7 +1299,6 @@ async function buildEmailOtpEcdsaSigningRefreshFacts(args: {
 export async function loginWithEmailOtpEcdsaCapabilityForSigning(
   args: LoginEmailOtpEcdsaCapabilityForSigningArgs,
   ports: {
-    requireRelayUrl: () => string;
     resolveCurrentEcdsaCapabilityRuntime: ActiveEcdsaCapabilityRuntimeResolver;
     loginWithEcdsaCapabilityInternal: (
       args: LoginEmailOtpEcdsaCapabilityArgs,
@@ -1691,10 +1685,7 @@ async function runEmailOtpEcdsaCapability(
           remainingUses,
         })
       : resolveEmailOtpLoginSigningBudget({
-          ecdsaResult: workerResult,
           ed25519YaoResult,
-          emailOtpAuthPolicy,
-          routePlan,
           requestedTtlMs: args.ttlMs,
           requestedRemainingUses: remainingUses,
         });
@@ -1713,7 +1704,7 @@ async function runEmailOtpEcdsaCapability(
       addEmailOtpThresholdEcdsaLoginTiming(timings, 'ecdsaMaterialRestoreMs', timingStartedAtMs);
       return {
         kind: 'transient_export',
-        value: { bootstrap, timings },
+        value: { bootstrap },
       };
     }
     const bootstraps = await provisionEmailOtpExistingKeySessions({

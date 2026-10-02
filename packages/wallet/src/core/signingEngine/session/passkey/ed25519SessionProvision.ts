@@ -224,7 +224,6 @@ export async function provisionThresholdEd25519Session(
     touchIdPrompt: deps.touchIdPrompt,
     relayerUrl,
     relayerKeyId: args.relayerKeyId,
-    walletId: protocol.walletId,
     nearEd25519SigningKeyId: protocol.nearEd25519SigningKeyId,
     authority: args.authority,
     ...(args.auth ? { auth: args.auth } : {}),

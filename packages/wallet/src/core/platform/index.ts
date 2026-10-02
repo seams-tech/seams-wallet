@@ -55,7 +55,6 @@ export {
 } from './types';
 export {
   createBrowserPlatformRuntime,
-  type BrowserDurableRecordStore,
   type BrowserRuntimePorts,
 } from './browser/createBrowserPlatformRuntime';
 export {

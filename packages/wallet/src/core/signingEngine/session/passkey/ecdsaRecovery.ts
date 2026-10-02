@@ -6,10 +6,7 @@ import {
   thresholdEcdsaChainTargetsEqual,
   toWalletId,
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
-import type {
-  ActiveEcdsaCapabilityRuntimeResolver,
-  ActiveEcdsaCapabilityRuntimeResolution,
-} from '../material/activeEcdsaCapabilityRuntime';
+import type { ActiveEcdsaCapabilityRuntimeResolver } from '../material/activeEcdsaCapabilityRuntime';
 import { mpcMaterialActivationRefsEqual } from '@shared/utils/domainIds';
 import {
   parseSigningSessionSealKeyVersion,
@@ -34,10 +31,7 @@ function shouldDeletePasskeyEcdsaSealedRecordAfterRestoreFailure(
 }
 
 type PasskeyEcdsaRestoreRuntimeCheck =
-  | {
-      kind: 'current';
-      resolution: Extract<ActiveEcdsaCapabilityRuntimeResolution, { kind: 'resolved' }>;
-    }
+  | { kind: 'current' }
   | { kind: 'superseded'; status: Extract<WarmSessionStatusResult, { ok: false }> };
 
 async function checkCurrentPasskeyEcdsaRuntime(args: {
@@ -55,7 +49,7 @@ async function checkCurrentPasskeyEcdsaRuntime(args: {
       args.record.roleLocalMaterialRef.materialActivation,
     )
   ) {
-    return { kind: 'current', resolution };
+    return { kind: 'current' };
   }
   const reason = resolution.kind === 'blocked' ? resolution.reason : 'material_activation_mismatch';
   return {

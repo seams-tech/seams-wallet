@@ -2,7 +2,6 @@ import type {
   NearEmailOtpEd25519OperationStepUpCapabilityPreparation,
   NearEd25519YaoMaterialExecutor,
   NearEd25519YaoOperationMaterial,
-  NearEd25519StepUpAuthorization,
 } from '../../../interfaces/near';
 import type { ResolvedRouterAbEd25519WalletSessionState } from '../../../session/warmCapabilities/routerAbEd25519WalletSessionState';
 import type { NearEd25519YaoSigningPreparation } from '../../../session/material/nearEd25519YaoSigningPreparation';
@@ -225,7 +224,6 @@ export async function resolveNearOperationStepUpMaterial(
 }
 
 export async function resolveConfirmedNearEd25519YaoCapability(args: {
-  authorization: Extract<NearEd25519StepUpAuthorization, { kind: 'warm_session' }>;
   preparation: NearEd25519YaoSigningPreparation;
   executor: NearEd25519YaoMaterialExecutor;
 }): Promise<NearEd25519AuthorizationResult> {

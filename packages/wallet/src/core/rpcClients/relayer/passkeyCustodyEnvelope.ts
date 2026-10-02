@@ -30,18 +30,16 @@ type PasskeyCustodyEnvelopeFetchResult =
       readonly kind: 'active';
       /** The sealed record is structurally validated before it reaches the worker. */
       readonly envelope: PasskeyCustodyEnvelopeRecord;
-      /** The revision a cached copy must match before it is trusted. */
-      readonly storeVersion: string;
     }
   /** The credential is not this wallet's, or no longer opens it. */
-  | { readonly kind: 'credential_rejected'; readonly code: string; readonly message: string }
+  | { readonly kind: 'credential_rejected'; readonly message: string }
   /** This wallet has no envelope for this credential — enrolment, not unlock. */
   | { readonly kind: 'missing'; readonly message: string }
   /** Superseded; the wallet's current credential is the one to use. */
   | { readonly kind: 'retired'; readonly message: string }
   /** The stored record failed its own digest. Never retried, never derived. */
   | { readonly kind: 'corrupt'; readonly message: string }
-  | { readonly kind: 'request_rejected'; readonly code: string; readonly message: string }
+  | { readonly kind: 'request_rejected'; readonly message: string }
   | { readonly kind: 'transport_failed'; readonly message: string };
 
 export async function fetchPasskeyCustodyEnvelope(args: {
@@ -84,7 +82,7 @@ export async function fetchPasskeyCustodyEnvelope(args: {
   if (response.status === 200 && responseDeclaresSuccess(bodyUnknown)) {
     try {
       const body = decodePasskeyCustodyEnvelopeResponse(bodyUnknown);
-      return { kind: 'active', envelope: body.envelope, storeVersion: body.storeVersion };
+      return { kind: 'active', envelope: body.envelope };
     } catch {
       /* A 200 that cannot be used is treated as corrupt rather than active:
          unlocking against a half-read response would fail later and further
@@ -106,7 +104,6 @@ export async function fetchPasskeyCustodyEnvelope(args: {
     case 403:
       return {
         kind: 'credential_rejected',
-        code: code || 'credential_rejected',
         message: message || 'this credential does not open the wallet',
       };
     case 500:
@@ -120,7 +117,6 @@ export async function fetchPasskeyCustodyEnvelope(args: {
     default:
       return {
         kind: 'request_rejected',
-        code: code || 'invalid_request',
         message: message || `custody envelope request rejected (HTTP ${response.status})`,
       };
   }
@@ -139,10 +135,10 @@ export async function fetchPasskeyCustodyEnvelope(args: {
  * still opens, and the next unlock tries again. The caller logs and moves on.
  */
 type WalletCustodyEnvelopeOwnershipUpgradeOutcome =
-  | { readonly kind: 'upgraded'; readonly envelopeRevision: number }
+  | { readonly kind: 'upgraded' }
   /** The envelope already names this method — an earlier attempt landed. */
   | { readonly kind: 'already_owned' }
-  | { readonly kind: 'rejected'; readonly code: string; readonly message: string }
+  | { readonly kind: 'rejected'; readonly message: string }
   | { readonly kind: 'transport_failed'; readonly message: string };
 
 export async function upgradeWalletCustodyEnvelopeOwnership(args: {
@@ -185,11 +181,10 @@ export async function upgradeWalletCustodyEnvelopeOwnership(args: {
       if (!Number.isSafeInteger(envelopeRevision) || envelopeRevision <= 0) {
         throw new Error('invalid envelope revision');
       }
-      return { kind: 'upgraded', envelopeRevision };
+      return { kind: 'upgraded' };
     } catch {
       return {
         kind: 'rejected',
-        code: 'invalid_response',
         message: 'custody envelope upgrade returned an invalid response',
       };
     }
@@ -198,7 +193,6 @@ export async function upgradeWalletCustodyEnvelopeOwnership(args: {
   const failure = decodeFailureResponse(bodyUnknown, 'custody envelope upgrade response');
   return {
     kind: 'rejected',
-    code: failure.code || 'upgrade_rejected',
     message: failure.message || `custody envelope upgrade rejected (HTTP ${response.status})`,
   };
 }

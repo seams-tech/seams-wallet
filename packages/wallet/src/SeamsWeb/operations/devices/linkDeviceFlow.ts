@@ -333,14 +333,12 @@ export class LinkDeviceFlow {
   private async resolveLinkIdentityV1(
     linkSessionId: import('@shared/signing-lanes/ids').LinkDeviceSessionId,
   ): Promise<{
-    readonly walletId: LinkedDeviceTargetPreparationV1['walletId'];
     readonly enrollmentId: LinkedDeviceTargetPreparationV1['enrollmentId'];
     readonly deviceId: LinkedDeviceTargetPreparationV1['deviceId'];
   }> {
     const cached = this.targetCredentialRegistrationResult;
     if (cached && cached.linkSessionId === linkSessionId) {
       return {
-        walletId: cached.walletId,
         enrollmentId: cached.enrollmentId,
         deviceId: cached.deviceId,
       };
@@ -350,7 +348,6 @@ export class LinkDeviceFlow {
       deliveryRecipientPublicKey65B64u: this.requireDeliveryRecipientPublicKey65B64u(),
     });
     return {
-      walletId: preparation.walletId,
       enrollmentId: preparation.enrollmentId,
       deviceId: preparation.deviceId,
     };

@@ -97,7 +97,6 @@ function assertBootstrapIdentity(args: {
 
 async function buildWalletSessionState(args: {
   bootstrap: EmailOtpEd25519YaoRecoveryBootstrapV1;
-  identity: ActivationIdentity;
   operationCredential: WalletSessionOperationCredentialV1;
   providerSubject: string;
   relayerUrl: string;
@@ -219,7 +218,6 @@ export async function activateWalletCustodyEd25519CapabilityV1(args: {
   }
   const walletSessionState = await buildWalletSessionState({
     bootstrap: args.bootstrap,
-    identity,
     operationCredential: args.operationCredential,
     providerSubject: args.providerSubject,
     relayerUrl: args.relayerUrl,

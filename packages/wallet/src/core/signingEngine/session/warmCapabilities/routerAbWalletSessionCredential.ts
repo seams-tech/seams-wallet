@@ -1,24 +1,12 @@
 import type { RouterAbWalletSessionCredential } from '@/core/rpcClients/relayer/routerAbNormalSigning';
 import type { ThresholdEd25519KeyMaterial } from '@/core/accountData/near/nearAccountData.types';
-import type { ThresholdRuntimePolicyScope } from '@/core/signingEngine/threshold/sessionPolicy';
-import type { RouterAbEd25519NormalSigningState } from '@/core/signingEngine/threshold/ed25519/routerAbNormalSigningState';
 import type { ResolvedRouterAbEd25519WalletSessionState } from './routerAbEd25519WalletSessionState';
 
 type RouterAbEd25519NormalSigningReadyState = {
   kind: 'router_ab_ed25519_normal_signing_ready_state_v1';
-  walletSessionId: string;
-  quotaId: string;
-  thresholdSessionId: string;
-  nearAccountId: string;
   relayerUrl: string;
-  routerAbNormalSigning: RouterAbEd25519NormalSigningState;
   signingWorkerId: string;
   signerPublicKey: string;
-  signingRootId: string;
-  signingRootVersion: string;
-  remainingUses: number;
-  expiresAtMs: number;
-  runtimePolicyScope: ThresholdRuntimePolicyScope;
   credential: RouterAbWalletSessionCredential;
 };
 
@@ -87,7 +75,6 @@ export function requireRouterAbEd25519NormalSigningReadyState(args: {
   );
 
   const routerAbState = signingWalletSession.routerAbNormalSigning;
-  const runtimePolicyScope = signingWalletSession.runtimePolicyScope;
   const walletSessionToken = requireNonEmpty(
     signingWalletSession.auth.walletSessionToken,
     'Wallet Session bearer token',
@@ -115,7 +102,7 @@ export function requireRouterAbEd25519NormalSigningReadyState(args: {
     routerAbState.signingWorkerId,
     'signingWorkerId',
   );
-  const expiresAtMs = requireFutureEpochMs(signingWalletSession.expiresAtMs, 'expiresAtMs');
+  requireFutureEpochMs(signingWalletSession.expiresAtMs, 'expiresAtMs');
   const remainingUses = requirePositiveInteger(
     signingWalletSession.remainingUses,
     'remainingUses',
@@ -126,19 +113,9 @@ export function requireRouterAbEd25519NormalSigningReadyState(args: {
 
   return {
     kind: 'router_ab_ed25519_normal_signing_ready_state_v1',
-    walletSessionId,
-    quotaId,
-    thresholdSessionId,
-    nearAccountId,
     relayerUrl: requireNonEmpty(state.relayerUrl, 'relayerUrl'),
-    routerAbNormalSigning: routerAbState,
     signingWorkerId: requireNonEmpty(routerAbState.signingWorkerId, 'signingWorkerId'),
     signerPublicKey: requireNonEmpty(args.thresholdKeyMaterial.publicKey, 'signerPublicKey'),
-    signingRootId,
-    signingRootVersion,
-    remainingUses,
-    expiresAtMs,
-    runtimePolicyScope,
     credential: {
       kind: 'wallet_session_opaque',
       walletSessionToken,

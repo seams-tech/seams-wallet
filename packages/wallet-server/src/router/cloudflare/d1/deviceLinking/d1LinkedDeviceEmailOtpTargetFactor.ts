@@ -18,7 +18,6 @@ import type {
   LinkedDeviceEmailOtpBaseFactorResolutionV1,
   LinkedDeviceEmailOtpVerificationGrantV1,
   LinkedDeviceTargetPreparationV1,
-  LinkedDeviceEmailOtpEnrollmentSelectionV1,
 } from '@shared/device-linking/contracts';
 import { computeLinkedDeviceTargetPreparationDigestV1 } from '@shared/device-linking/digests';
 import { base64UrlEncode } from '@shared/utils/base64';
@@ -78,10 +77,6 @@ type ResolvedChallengeContextV1 =
       readonly kind: 'existing_enrollment';
       readonly resolved: ResolvedBaseFactorV1;
       readonly targetEmail: VerifiedEmailAddress;
-      readonly enrollment: Extract<
-        LinkedDeviceEmailOtpEnrollmentSelectionV1,
-        { readonly kind: 'existing_enrollment' }
-      >;
       readonly targetPreparationDigestB64u: ReturnType<typeof parseDigestB64u>;
       readonly walletAuthMethodId: WalletAuthMethodId;
       readonly authorityDigestB64u: ReturnType<typeof parseDigestB64u>;
@@ -90,10 +85,6 @@ type ResolvedChallengeContextV1 =
   | {
       readonly kind: 'new_enrollment';
       readonly targetEmail: VerifiedEmailAddress;
-      readonly enrollment: Extract<
-        LinkedDeviceEmailOtpEnrollmentSelectionV1,
-        { readonly kind: 'new_enrollment' }
-      >;
       readonly targetPreparationDigestB64u: ReturnType<typeof parseDigestB64u>;
       readonly walletAuthMethodId: WalletAuthMethodId;
       readonly authorityDigestB64u: ReturnType<typeof parseDigestB64u>;
@@ -727,7 +718,6 @@ export class D1LinkedDeviceEmailOtpTargetFactorV1 implements DeviceLinkingEmailO
         kind: 'existing_enrollment',
         resolved,
         targetEmail,
-        enrollment: { kind: 'existing_enrollment' },
         targetPreparationDigestB64u,
         walletAuthMethodId,
         authorityDigestB64u,
@@ -773,7 +763,6 @@ export class D1LinkedDeviceEmailOtpTargetFactorV1 implements DeviceLinkingEmailO
     return {
       kind: 'new_enrollment',
       targetEmail,
-      enrollment: { kind: 'new_enrollment' },
       targetPreparationDigestB64u,
       walletAuthMethodId,
       authorityDigestB64u,

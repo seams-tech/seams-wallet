@@ -109,7 +109,6 @@ function requireEd25519YaoClientRootEnvelopeV1(
 export type ResolvedWalletCustodyEd25519ExportV1 = {
   readonly kind: 'wallet_custody_ed25519_export_context_v1';
   readonly lane: ExactEd25519ExportMaterialIdentity<EmailOtpEd25519LaneAuth>;
-  readonly selectedLaneMaterialActivation: MpcMaterialActivationRef;
   readonly authorization: ExactWalletSessionAuthorizationForEd25519ExportV1;
   readonly material:
     | {
@@ -744,7 +743,6 @@ export async function resolveWalletCustodyEd25519ExportContextV1(input: {
     return {
       kind: 'wallet_custody_ed25519_export_context_v1',
       lane: input.subject,
-      selectedLaneMaterialActivation: input.expectedMaterialActivation,
       authorization: exactAuthorization,
       material: {
         kind: 'sealed_export_root',
@@ -761,7 +759,6 @@ export async function resolveWalletCustodyEd25519ExportContextV1(input: {
     return {
       kind: 'wallet_custody_ed25519_export_context_v1',
       lane: input.subject,
-      selectedLaneMaterialActivation: input.expectedMaterialActivation,
       authorization: exactAuthorization,
       material: {
         kind: 'active_capability',
@@ -787,7 +784,6 @@ export async function resolveWalletCustodyEd25519ExportContextV1(input: {
   return {
     kind: 'wallet_custody_ed25519_export_context_v1',
     lane: input.subject,
-    selectedLaneMaterialActivation: input.expectedMaterialActivation,
     authorization: exactAuthorization,
     material: {
       kind: 'sealed_custody',

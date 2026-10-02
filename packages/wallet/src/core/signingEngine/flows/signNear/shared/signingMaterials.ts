@@ -1,16 +1,10 @@
 import type { ThresholdEd25519KeyMaterial } from '@/core/accountData/near/nearAccountData.types';
-import type { AccountId } from '@/core/types/accountIds';
 import { toAccountId } from '@/core/types/accountIds';
 import type { NearAccountRef } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type { NearEd25519YaoMaterialExecutor } from '@/core/signingEngine/interfaces/near';
 import { parseSignerSlot } from '@/core/signingEngine/webauthnAuth/device/signerSlot';
 
-type ResolvedNearSigningMaterials = {
-  nearAccountId: AccountId;
-  resolvedSignerSlot: number;
-  thresholdKeyMaterial: ThresholdEd25519KeyMaterial | null;
-  warnings: string[];
-};
+type ResolvedNearSigningMaterials = { thresholdKeyMaterial: ThresholdEd25519KeyMaterial | null };
 
 export async function resolveNearSigningMaterials(args: {
   materialExecutor: NearEd25519YaoMaterialExecutor;
@@ -21,7 +15,6 @@ export async function resolveNearSigningMaterials(args: {
   warnings?: string[];
 }): Promise<ResolvedNearSigningMaterials> {
   const nearAccountId = toAccountId(args.nearAccount.accountId);
-  const warnings = args.warnings ?? [];
 
   const resolvedSignerSlot = parseSignerSlot(args.signerSlot, { min: 1 });
   if (resolvedSignerSlot === null) {
@@ -43,10 +36,5 @@ export async function resolveNearSigningMaterials(args: {
   ) {
     throw new Error('[SigningEngine] threshold key material does not match the selected lane');
   }
-  return {
-    nearAccountId,
-    resolvedSignerSlot,
-    thresholdKeyMaterial,
-    warnings,
-  };
+  return { thresholdKeyMaterial };
 }

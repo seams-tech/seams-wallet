@@ -338,10 +338,7 @@ export async function runNearDelegateActionSigning({
 type ThresholdDelegateSigningContext = {
   signingNearPublicKeyStr: string;
   delegatePublicKeyStr: string;
-  threshold: {
-    relayerUrl: string;
-    thresholdKeyMaterial: ThresholdEd25519KeyMaterial;
-  };
+  threshold: { thresholdKeyMaterial: ThresholdEd25519KeyMaterial };
 };
 
 function validateAndPrepareDelegateSigningContext(args: {
@@ -388,9 +385,6 @@ function validateAndPrepareDelegateSigningContext(args: {
   return {
     signingNearPublicKeyStr: thresholdPublicKey,
     delegatePublicKeyStr: thresholdPublicKey,
-    threshold: {
-      relayerUrl,
-      thresholdKeyMaterial,
-    },
+    threshold: { thresholdKeyMaterial },
   };
 }

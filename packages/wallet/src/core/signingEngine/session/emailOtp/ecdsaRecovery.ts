@@ -1,4 +1,3 @@
-import type { SeamsConfigsReadonly } from '@/core/types/seams';
 import {
   buildEmailOtpAuthContextForWalletAuthMethod,
   emailOtpAuthContextProviderUserId,
@@ -58,7 +57,6 @@ import {
 } from '../material/ecdsaSigningCapability';
 
 export type EmailOtpThresholdEcdsaRehydrateResult = {
-  bootstrap: ThresholdEcdsaSessionBootstrapResult;
   authorization: ExactEvmFamilyWalletSessionAuthorization;
   remainingUses: number;
   expiresAtMs: number;
@@ -80,7 +78,6 @@ export type EmailOtpEcdsaSealedRecoveryRecordInput = {
 };
 
 type EmailOtpEcdsaSealedRecoveryPorts = {
-  configs: SeamsConfigsReadonly;
   withThresholdEcdsaSigningQueue: <T>(args: {
     queueKey: string;
     walletId: WalletId;
@@ -123,8 +120,6 @@ export type EmailOtpEcdsaRestoreSource = {
   relayerUrl: string;
   chainTarget: ThresholdEcdsaChainTarget;
   keyHandle: string;
-  relayerKeyId: string;
-  participantIds: readonly number[];
   signingSessionSealKeyVersion: string;
   signingSessionSealGroupId: string;
   runtimePolicyScope?: EmailOtpEcdsaSealedRecoveryRecord['runtimePolicyScope'];
@@ -241,8 +236,6 @@ function buildSealedRecordEmailOtpEcdsaRestoreSource(args: {
     relayerUrl: sealedRecord.relayerUrl,
     chainTarget: sealedRecord.chainTarget,
     keyHandle: sealedRecord.keyHandle,
-    relayerKeyId: sealedRecord.relayerKeyId,
-    participantIds: [...sealedRecord.participantIds],
     ...transport,
     ...(sealedRecord.runtimePolicyScope
       ? { runtimePolicyScope: sealedRecord.runtimePolicyScope }
@@ -511,7 +504,6 @@ async function restoreEmailOtpEcdsaSigningSessionMaterialFromSealedRecordInQueue
     nowMs: Date.now(),
   });
   return {
-    bootstrap: committed.bootstrap,
     authorization: committedAuthorization,
     remainingUses: committed.bootstrap.session.remainingUses,
     expiresAtMs: committed.bootstrap.session.expiresAtMs,

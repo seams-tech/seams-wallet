@@ -71,8 +71,6 @@ export type ExactWalletSessionCredentialUnavailableReason =
   | 'persistence_unavailable';
 
 type ResolvedExactWalletSessionCredential = {
-  readonly walletId: WalletId;
-  readonly authority: ActiveWalletAuthorityV1;
   readonly authMethod: ActiveWalletAuthMethodRecordV2;
   readonly session: ActiveWalletSessionV1;
   readonly operationCredential: WalletSessionOperationCredentialV1;
@@ -272,8 +270,6 @@ export async function resolveExactWalletSessionOperationCredential(args: {
   return {
     kind: 'resolved',
     resolved: {
-      walletId: input.walletId,
-      authority: selected.authority,
       authMethod: selected.authMethod,
       session,
       operationCredential,

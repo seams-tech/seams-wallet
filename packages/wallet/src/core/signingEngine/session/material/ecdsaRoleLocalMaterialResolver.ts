@@ -50,7 +50,6 @@ type EcdsaRoleLocalMaterialSource =
     };
 
 type EcdsaRoleLocalMaterialResolved = {
-  readonly purpose: EcdsaRoleLocalMaterialResolutionPurpose;
   readonly liveHandle: EcdsaRoleLocalWorkerHandle;
   readonly materialRef: EcdsaRoleLocalPersistedMaterialRef;
   readonly reason?: never;
@@ -65,7 +64,6 @@ export type EcdsaRoleLocalMaterialResolution =
   | ResolvedEcdsaRoleLocalSigningMaterial
   | {
       readonly kind: 'device_link_required';
-      readonly purpose: EcdsaRoleLocalMaterialResolutionPurpose;
       readonly reason: 'missing_local_material';
       readonly liveHandle?: never;
       readonly materialRef?: never;
@@ -73,7 +71,6 @@ export type EcdsaRoleLocalMaterialResolution =
     }
   | {
       readonly kind: 'corrupt';
-      readonly purpose: EcdsaRoleLocalMaterialResolutionPurpose;
       readonly reason:
         | 'expired'
         | 'binding_mismatch'
@@ -107,44 +104,37 @@ function errorMessage(error: unknown): string {
 }
 
 function corruptResolution(args: {
-  purpose: EcdsaRoleLocalMaterialResolutionPurpose;
   reason: Extract<EcdsaRoleLocalMaterialResolution, { kind: 'corrupt' }>['reason'];
   message: string;
 }): Extract<EcdsaRoleLocalMaterialResolution, { kind: 'corrupt' }> {
   return {
     kind: 'corrupt',
-    purpose: args.purpose,
     reason: args.reason,
     message: args.message,
   };
 }
 
 function resolutionFromRehydrationFailure(args: {
-  purpose: EcdsaRoleLocalMaterialResolutionPurpose;
   failure: Extract<OpenEcdsaRoleLocalSigningMaterialWasmResult, { ok: false }>;
 }): Extract<EcdsaRoleLocalMaterialResolution, { kind: 'device_link_required' | 'corrupt' }> {
   switch (args.failure.reason) {
     case 'missing':
       return {
         kind: 'device_link_required',
-        purpose: args.purpose,
         reason: 'missing_local_material',
       };
     case 'expired':
       return corruptResolution({
-        purpose: args.purpose,
         reason: 'expired',
         message: 'ECDSA role-local persisted material has expired',
       });
     case 'binding_mismatch':
       return corruptResolution({
-        purpose: args.purpose,
         reason: 'binding_mismatch',
         message: 'ECDSA role-local persisted material binding does not match its public facts',
       });
     case 'corrupt':
       return corruptResolution({
-        purpose: args.purpose,
         reason: 'corrupt_persistence',
         message: 'ECDSA role-local persisted material is corrupt',
       });
@@ -203,7 +193,6 @@ export async function resolveEcdsaRoleLocalMaterial(input: {
     case 'unavailable':
       return {
         kind: 'device_link_required',
-        purpose: input.purpose,
         reason: input.source.reason,
       };
     case 'persisted': {
@@ -214,10 +203,7 @@ export async function resolveEcdsaRoleLocalMaterial(input: {
           workerCtx: input.workerCtx,
         });
         if (!rehydrated.ok) {
-          return resolutionFromRehydrationFailure({
-            purpose: input.purpose,
-            failure: rehydrated,
-          });
+          return resolutionFromRehydrationFailure({ failure: rehydrated });
         }
         if (
           !mpcMaterialActivationRefsEqual(
@@ -227,27 +213,23 @@ export async function resolveEcdsaRoleLocalMaterial(input: {
           !materialRefMatchesPublicFacts(rehydrated.materialRef, input.source.publicFacts)
         ) {
           return corruptResolution({
-            purpose: input.purpose,
             reason: 'worker_identity_mismatch',
             message: 'ECDSA role-local worker restored a different material identity',
           });
         }
         if (!liveHandleMatchesMaterialRef(rehydrated.liveHandle, rehydrated.materialRef)) {
           return corruptResolution({
-            purpose: input.purpose,
             reason: 'worker_identity_mismatch',
             message: 'ECDSA role-local worker restored a different durable material',
           });
         }
         return {
           kind: 'rehydrated',
-          purpose: input.purpose,
           liveHandle: rehydrated.liveHandle,
           materialRef: rehydrated.materialRef,
         };
       } catch (error: unknown) {
         return corruptResolution({
-          purpose: input.purpose,
           reason: 'persistence_unavailable',
           message: errorMessage(error),
         });

@@ -280,7 +280,6 @@ export class IframeTransport {
       const port = await performHandshake({
         iframe,
         connectTimeoutMs: this.opts.connectTimeoutMs,
-        walletOrigin: this.walletOrigin,
         walletServiceUrl: this.walletServiceUrl,
         expectedProtocolVersion: WALLET_PROTOCOL_VERSION,
         getTargetOrigin: (attempt) => this.getConnectTargetOrigin(attempt),

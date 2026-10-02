@@ -141,7 +141,6 @@ export async function buildWalletRegistrationSetupSignature(input: {
   readonly expectedOrigin: string;
 }): Promise<{
   readonly signedSetup: Awaited<ReturnType<typeof mintSignedWalletRegistrationSetup>>;
-  readonly setupDigestB64u: string;
 }> {
   const signingRootId = toOptionalTrimmedString(input.ceremony.signingRootId) || '';
   const signingRootVersion = toOptionalTrimmedString(input.ceremony.signingRootVersion) || '';
@@ -165,7 +164,7 @@ export async function buildWalletRegistrationSetupSignature(input: {
     setupDigestB64u,
     expiresAtMs: input.ceremony.expiresAtMs,
   });
-  return { signedSetup, setupDigestB64u };
+  return { signedSetup };
 }
 
 export async function walletRegistrationSetupIntentDigest(

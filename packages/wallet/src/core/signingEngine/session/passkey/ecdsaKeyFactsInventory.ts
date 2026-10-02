@@ -123,7 +123,6 @@ function resolveProfileContinuityEcdsaKeyHandle(metadata: Record<string, unknown
 }
 
 function parseProfileContinuityEvmFamilyEcdsaWalletKey(args: {
-  walletId: WalletId;
   metadata: Record<string, unknown>;
   keyHandle: string;
   chainTarget: ThresholdEcdsaChainTarget;
@@ -231,7 +230,6 @@ export function parseProfileContinuityEcdsaWarmKey(args: {
     };
   }
   const walletKey = parseProfileContinuityEvmFamilyEcdsaWalletKey({
-    walletId: args.walletId,
     metadata,
     keyHandle: keyHandleResolution.keyHandle,
     chainTarget,

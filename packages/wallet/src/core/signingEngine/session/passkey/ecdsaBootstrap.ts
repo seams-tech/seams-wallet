@@ -333,7 +333,6 @@ function toActivateEcdsaSessionRequest(
       ...(exactRequest.requestId ? { requestId: exactRequest.requestId } : {}),
       ...auth,
       ...(walletSessionRouteAuth ? { walletSessionRouteAuth } : {}),
-      runtimeScopeBootstrap: exactRequest.runtimeScopeBootstrap,
     };
   };
   const preauthorizedExactSessionRequest = (
@@ -351,7 +350,6 @@ function toActivateEcdsaSessionRequest(
     authKind: 'passkey',
     passkeyCredentialIdB64u: exactRequest.passkeyCredentialIdB64u,
     preauthorizedSessionActivation: exactRequest.sessionActivation,
-    runtimeScopeBootstrap: exactRequest.runtimeScopeBootstrap,
   });
   switch (request.kind) {
     case 'passkey_fresh_ecdsa_bootstrap': {
@@ -387,7 +385,6 @@ function toActivateEcdsaSessionRequest(
             ...(request.requestId ? { requestId: request.requestId } : {}),
             ...auth,
             preauthorizedSessionActivation: request.sessionActivation,
-            runtimeScopeBootstrap: request.runtimeScopeBootstrap,
           }
         : exactSessionRequest(request, request.routeAuth, auth);
     }

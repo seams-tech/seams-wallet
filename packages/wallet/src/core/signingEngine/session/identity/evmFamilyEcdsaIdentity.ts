@@ -202,7 +202,6 @@ export type HydratedEcdsaSignerMaterial = {
   readonly walletId: WalletId;
   readonly materialActivation: MpcMaterialActivationRef;
   readonly publicFacts: VerifiedEcdsaPublicFacts;
-  readonly chainTarget: ThresholdEcdsaChainTarget;
   readonly transport: HydratedEcdsaSignerTransport;
   readonly clientShare: ThresholdEcdsaSignerClientShare;
   readonly routerAbEcdsaDerivationNormalSigning: HydratedRouterAbEcdsaDerivationNormalSigning;
@@ -287,7 +286,6 @@ type BuildHydratedEcdsaSignerMaterialInput = {
   readonly walletId: WalletId;
   readonly materialActivation: MpcMaterialActivationRef;
   readonly publicFacts: VerifiedEcdsaPublicFacts;
-  readonly chainTarget: ThresholdEcdsaChainTarget;
   readonly transport: HydratedEcdsaSignerTransport;
   readonly clientShare: ThresholdEcdsaSignerClientShare;
   readonly routerAbEcdsaDerivationNormalSigning: HydratedRouterAbEcdsaDerivationNormalSigning;
@@ -642,7 +640,6 @@ export function buildHydratedEcdsaSignerMaterial(
     walletId: input.walletId,
     materialActivation: input.materialActivation,
     publicFacts: input.publicFacts,
-    chainTarget: input.chainTarget,
     transport: input.transport,
     clientShare: input.clientShare,
     routerAbEcdsaDerivationNormalSigning: input.routerAbEcdsaDerivationNormalSigning,

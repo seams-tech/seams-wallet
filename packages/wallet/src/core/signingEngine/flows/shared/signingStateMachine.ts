@@ -198,12 +198,10 @@ type RunSigningOperationCommandStepsResult =
   | {
       ok: true;
       finalState: SigningOperationState;
-      steps: SigningOperationStep[];
     }
   | {
       ok: false;
       finalState: Extract<SigningOperationState, { kind: typeof SigningOperationStateKind.Failed }>;
-      steps: SigningOperationStep[];
       error: unknown;
     };
 
@@ -517,7 +515,6 @@ export async function runSigningOperationCommandSteps(args: {
             SigningOperationState,
             { kind: typeof SigningOperationStateKind.Failed }
           >,
-          steps: executedSteps,
           error,
         };
       }
@@ -530,7 +527,6 @@ export async function runSigningOperationCommandSteps(args: {
       return {
         ok: true,
         finalState: step.to,
-        steps: executedSteps,
       };
     }
   }
@@ -543,7 +539,6 @@ export async function runSigningOperationCommandSteps(args: {
   return {
     ok: true,
     finalState,
-    steps: executedSteps,
   };
 }
 

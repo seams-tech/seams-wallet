@@ -55,7 +55,7 @@ async function readEd25519ClientWalletSessionAuthorization(
     selected = await deps.resolveSelectedWalletAuthority(String(walletId));
   } catch {
     return parseWalletSessionAuthorizationBoundary({
-      observation: { kind: 'unavailable', source, reason: 'persistence_unavailable' },
+      observation: { kind: 'unavailable', source },
       nowMs: request.nowMs,
     });
   }
@@ -63,14 +63,14 @@ async function readEd25519ClientWalletSessionAuthorization(
     return parseWalletSessionAuthorizationBoundary({
       observation:
         selected.kind === 'integrity_error'
-          ? { kind: 'invalid', source, reason: 'malformed' }
+          ? { kind: 'invalid', source }
           : { kind: 'missing', source },
       nowMs: request.nowMs,
     });
   }
   if (!selectedAuthorityMatchesEd25519Lane(selected, identity)) {
     return parseWalletSessionAuthorizationBoundary({
-      observation: { kind: 'invalid', source, reason: 'scope_mismatch' },
+      observation: { kind: 'invalid', source },
       nowMs: request.nowMs,
     });
   }
@@ -83,7 +83,7 @@ async function readEd25519ClientWalletSessionAuthorization(
     });
   } catch {
     return parseWalletSessionAuthorizationBoundary({
-      observation: { kind: 'unavailable', source, reason: 'persistence_unavailable' },
+      observation: { kind: 'unavailable', source },
       nowMs: request.nowMs,
     });
   }
@@ -96,12 +96,12 @@ async function readEd25519ClientWalletSessionAuthorization(
     case 'corrupt':
     case 'upgrade_required':
       return parseWalletSessionAuthorizationBoundary({
-        observation: { kind: 'invalid', source, reason: 'malformed' },
+        observation: { kind: 'invalid', source },
         nowMs: request.nowMs,
       });
     case 'persistence_unavailable':
       return parseWalletSessionAuthorizationBoundary({
-        observation: { kind: 'unavailable', source, reason: 'persistence_unavailable' },
+        observation: { kind: 'unavailable', source },
         nowMs: request.nowMs,
       });
     case 'found':
@@ -115,7 +115,7 @@ async function readEd25519ClientWalletSessionAuthorization(
     authorization.record.quotaId !== identity.quotaId
   ) {
     return parseWalletSessionAuthorizationBoundary({
-      observation: { kind: 'invalid', source, reason: 'scope_mismatch' },
+      observation: { kind: 'invalid', source },
       nowMs: request.nowMs,
     });
   }
@@ -124,7 +124,7 @@ async function readEd25519ClientWalletSessionAuthorization(
     authorization.record.authorityRevocationEpoch !== selected.authority.revocationEpoch
   ) {
     return parseWalletSessionAuthorizationBoundary({
-      observation: { kind: 'invalid', source, reason: 'authority_mismatch' },
+      observation: { kind: 'invalid', source },
       nowMs: request.nowMs,
     });
   }

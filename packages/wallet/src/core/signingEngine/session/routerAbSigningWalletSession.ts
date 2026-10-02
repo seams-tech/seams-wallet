@@ -37,20 +37,14 @@ export type RouterAbEd25519SigningWalletSession = {
 };
 
 type RouterAbSigningWalletSessionParseFailureReason =
-  | 'missing_record'
-  | 'cookie_session'
   | 'missing_session_identity'
   | 'missing_wallet_session_token'
   | 'missing_quota_id'
   | 'missing_threshold_session_id'
   | 'missing_signing_root'
   | 'signing_root_mismatch'
-  | 'missing_client_verifying_share'
-  | 'material_identity_mismatch'
   | 'wallet_binding_mismatch'
-  | 'missing_runtime_policy_scope'
   | 'missing_router_ab_state'
-  | 'invalid_router_ab_state'
   | 'invalid_budget'
   | 'expired'
   | 'exhausted';
@@ -76,9 +70,9 @@ function inactiveSigningSessionState(args: {
   remainingUses: number;
   expiresAtMs: number;
   nowMs: number;
-}): { kind: 'expired'; expiresAtMs: number } | { kind: 'exhausted'; remainingUses: number } | null {
-  if (args.expiresAtMs <= args.nowMs) return { kind: 'expired', expiresAtMs: args.expiresAtMs };
-  if (args.remainingUses <= 0) return { kind: 'exhausted', remainingUses: args.remainingUses };
+}): { kind: 'expired' } | { kind: 'exhausted' } | null {
+  if (args.expiresAtMs <= args.nowMs) return { kind: 'expired' };
+  if (args.remainingUses <= 0) return { kind: 'exhausted' };
   return null;
 }
 

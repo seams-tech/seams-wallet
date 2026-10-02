@@ -33,13 +33,11 @@ type WalletUnlockSubjectSetResolution =
     }
   | {
       readonly kind: 'missing_requested_capability_subject';
-      readonly walletId: WalletId;
       readonly subjectSet?: never;
       readonly reason?: never;
     }
   | {
       readonly kind: 'capability_subject_resolution_failed';
-      readonly walletId: WalletId;
       readonly reason: WalletUnlockCapabilitySubjectResolutionFailure;
       readonly subjectSet?: never;
     };
@@ -68,7 +66,6 @@ export type WalletCapabilitySubjectResolution = ExclusiveUnion<
       kind: 'no_session_for_wallet';
       walletId: WalletId;
       reason: 'missing_requested_capability_subject';
-      source: WalletIdentitySource;
     }
   | { kind: 'unresolvable'; walletId: WalletId; reason: WalletIdentityResolveFailure }
   | { kind: 'unresolvable_profile'; profileId: string; reason: WalletIdentityResolveFailure }
@@ -375,10 +372,7 @@ function buildWalletUnlockSubjectSet(
 ): WalletUnlockSubjectSetResolution {
   const first = subjects[0];
   if (!first) {
-    return {
-      kind: 'missing_requested_capability_subject',
-      walletId,
-    };
+    return { kind: 'missing_requested_capability_subject' };
   }
   return {
     kind: 'resolved',
@@ -411,7 +405,6 @@ export async function resolveWalletUnlockSubjectSet(args: {
       if (nearResolution.kind === 'failed') {
         return {
           kind: 'capability_subject_resolution_failed',
-          walletId: normalizedWalletId,
           reason: nearResolution.reason,
         };
       }
@@ -432,7 +425,6 @@ export async function resolveWalletUnlockSubjectSet(args: {
   if (ecdsaResolution.kind === 'failed') {
     return {
       kind: 'capability_subject_resolution_failed',
-      walletId: normalizedWalletId,
       reason: ecdsaResolution.reason,
     };
   }
@@ -474,7 +466,6 @@ export async function resolveWalletCapabilitySubjectResolution(
       kind: 'no_session_for_wallet',
       walletId: resolvedWalletId,
       reason: 'missing_requested_capability_subject',
-      source,
     };
   }
   if (subjectResolution.kind === 'capability_subject_resolution_failed') {

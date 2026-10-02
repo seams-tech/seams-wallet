@@ -176,7 +176,6 @@ export async function waitForBootHint(
 type HandshakeOptions = {
   iframe: HTMLIFrameElement;
   connectTimeoutMs: number;
-  walletOrigin: string;
   walletServiceUrl: URL;
   expectedProtocolVersion: WalletProtocolVersion;
   getTargetOrigin: (attempt: number) => string;

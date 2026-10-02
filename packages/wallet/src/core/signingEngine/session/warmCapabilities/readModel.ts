@@ -304,10 +304,6 @@ export function resolveEcdsaSealTransport(args: {
   const groupId = String(args.groupId || '').trim();
   return {
     curve: 'ecdsa',
-    walletId: String(args.runtime.walletId),
-    chainTarget: args.runtime.chainTarget,
-    relayerUrl,
-    walletSessionToken,
     ...(args.signingSessionSealKeyVersion
       ? { signingSessionSealKeyVersion: args.signingSessionSealKeyVersion }
       : {}),

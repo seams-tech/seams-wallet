@@ -350,7 +350,6 @@ function resolveCanonicalPasskeyEcdsaExportMaterialForLane(args: {
 }
 
 function sealedEmailOtpExportMaterial(args: {
-  deps: EcdsaExportSessionStoreDeps;
   exportLane: ExactEcdsaExportLane;
   resolution: Extract<ActiveEcdsaCapabilityRuntimeResolution, { kind: 'resolved' }>;
 }): FreshEmailOtpEcdsaExportMaterial {
@@ -525,7 +524,7 @@ export async function resolveFreshEmailOtpEcdsaExportMaterialForLane(
       `[SigningEngine][ecdsa-export] Email OTP capability runtime unavailable: ${resolution.reason}`,
     );
   }
-  return sealedEmailOtpExportMaterial({ deps, exportLane, resolution });
+  return sealedEmailOtpExportMaterial({ exportLane, resolution });
 }
 
 export async function resolveEcdsaExportMaterialForLane(

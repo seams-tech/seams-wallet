@@ -1,4 +1,3 @@
-import type { AccountId } from '@/core/types/accountIds';
 import type { ResolveSelectedWalletAuthorityResultV1 } from '@/core/indexedDB/seamsWalletDB/repositories';
 import { type VerifiedEcdsaPublicFacts } from '@/core/signingEngine/session/identity/evmFamilyEcdsaIdentity';
 import type {
@@ -139,7 +138,6 @@ async function requestEmailOtpChallengeWithRoutePlan(
     | {
         kind: 'near_account';
         walletSession: WalletSessionRef;
-        nearAccountId: AccountId;
         routePlan: EmailOtpRoutePlan;
         operationFingerprintDigest?: DigestB64u;
       },
@@ -192,7 +190,6 @@ export async function requestTransactionSigningChallenge(
       ? await requestEmailOtpChallengeWithRoutePlan(ports, {
           kind: 'near_account',
           walletSession: args.walletSession,
-          nearAccountId: args.nearAccountId,
           routePlan,
           ...(args.operationFingerprintDigest
             ? { operationFingerprintDigest: args.operationFingerprintDigest }
@@ -249,7 +246,6 @@ export async function requestExportChallenge(
       ? await requestEmailOtpChallengeWithRoutePlan(ports, {
           kind: 'near_account',
           walletSession: args.walletSession,
-          nearAccountId: args.nearAccountId,
           routePlan,
         })
       : args.kind === 'wallet_export_challenge'

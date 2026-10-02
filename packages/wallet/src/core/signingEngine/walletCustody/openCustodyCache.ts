@@ -166,10 +166,8 @@ type WalletCustodyUnlockResultV1 =
   | {
       readonly kind: 'opened';
       readonly activeClient: RouterAbEd25519YaoActiveClientV1;
-      /** Whether this unlock avoided the Router round. */
-      readonly usedCache: boolean;
     }
-  | { readonly kind: 'rejoin_required'; readonly reason: string };
+  | { readonly kind: 'rejoin_required' };
 
 /**
  * Chooses between opening the cache and rejoining the key set.
@@ -204,11 +202,7 @@ export async function openOrRejoinWalletCustodyEd25519V1(input: {
     /* The factor secret is zeroed here because the callee that normally does
        it is never reached. A rejoin obtains its own. */
     input.ownedFactorSecret.fill(0);
-    return {
-      kind: 'rejoin_required',
-      reason:
-        cached.kind === 'absent' ? 'no cached custody material on this device' : cached.reason,
-    };
+    return { kind: 'rejoin_required' };
   }
 
   const activeClient = await openWalletCustodyEd25519ActiveClientV1({
@@ -217,5 +211,5 @@ export async function openOrRejoinWalletCustodyEd25519V1(input: {
     envelope: input.envelope,
     ownedFactorSecret: input.ownedFactorSecret,
   });
-  return { kind: 'opened', activeClient, usedCache: true };
+  return { kind: 'opened', activeClient };
 }

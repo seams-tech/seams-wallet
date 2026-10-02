@@ -31,38 +31,38 @@ export type WalletRecoveryBackupAcknowledgementV1 = {
 
 type WalletRecoveryBackupAcknowledgementParseResult =
   | { readonly ok: true; readonly record: WalletRecoveryBackupAcknowledgementV1 }
-  | { readonly ok: false; readonly reason: string };
+  | { readonly ok: false };
 
 export function parseWalletRecoveryBackupAcknowledgementV1(
   raw: unknown,
   options: { readonly expectedWalletId: string },
 ): WalletRecoveryBackupAcknowledgementParseResult {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
-    return { ok: false, reason: 'backup acknowledgement must be an object' };
+    return { ok: false };
   }
   const record = raw as Record<string, unknown>;
   if (record.kind !== 'wallet_recovery_backup_acknowledgement_v1') {
-    return { ok: false, reason: 'backup acknowledgement kind is invalid' };
+    return { ok: false };
   }
 
   const walletId = String(record.walletId || '').trim();
-  if (!walletId) return { ok: false, reason: 'backup acknowledgement must name its wallet' };
+  if (!walletId) return { ok: false };
   /* Bound to the wallet the caller asked for, never to what the row says: a
      row stored under one wallet naming another would silence the prompt for
      the wrong person. */
   if (walletId !== String(options.expectedWalletId).trim()) {
-    return { ok: false, reason: 'backup acknowledgement is outside the requested wallet' };
+    return { ok: false };
   }
 
   const issuedAtMs = timestamp(record.issuedAtMs);
   const acknowledgedAtMs = timestamp(record.acknowledgedAtMs);
   if (issuedAtMs === null || acknowledgedAtMs === null) {
-    return { ok: false, reason: 'backup acknowledgement needs valid timestamps' };
+    return { ok: false };
   }
   if (acknowledgedAtMs < issuedAtMs) {
     /* Acknowledging codes before they existed describes something that cannot
        have happened, and is how a stale row from a previous issuance shows up. */
-    return { ok: false, reason: 'backup acknowledgement predates the issuance it names' };
+    return { ok: false };
   }
 
   return {

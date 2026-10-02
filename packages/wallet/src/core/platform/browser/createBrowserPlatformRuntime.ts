@@ -83,14 +83,7 @@ type BrowserRuntimePortsDeps = {
   nowMs?: () => number;
 };
 
-export type BrowserDurableRecordStore = DurableRecordStore & {
-  indexedDB: typeof IndexedDBManager;
-};
-
-export type BrowserRuntimePorts = RuntimePorts & {
-  kind: 'browser';
-  storage: BrowserDurableRecordStore;
-};
+export type BrowserRuntimePorts = RuntimePorts & { kind: 'browser' };
 
 function unavailable<T>(message: string): PlatformResult<T, 'unavailable'> {
   return { ok: false, code: 'unavailable', message };
@@ -213,12 +206,9 @@ function mapFinalizeEcdsaCommandError(
   return signerCryptoCommandFailure('invalid_pending_state', message);
 }
 
-function createBrowserDurableRecordStore(
-  indexedDB: typeof IndexedDBManager,
-): BrowserDurableRecordStore {
+function createBrowserDurableRecordStore(indexedDB: typeof IndexedDBManager): DurableRecordStore {
   return {
     kind: 'durable_record_store',
-    indexedDB,
     async loadEcdsaRoleLocalReadyRecord(input): Promise<LoadEcdsaRoleLocalReadyRecordResult> {
       const storageKey = ecdsaRoleLocalReadyRecordStorageKey(input);
       try {

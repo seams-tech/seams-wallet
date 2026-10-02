@@ -36,7 +36,7 @@ export type WalletIframeExactSessionReconciliationDependencies = Pick<
 };
 
 type WalletIframeExactSessionReconciliationResult =
-  | { readonly kind: 'reconciled'; readonly updatedSessionCount: number }
+  | { readonly kind: 'reconciled' }
   | { readonly kind: 'skipped' }
   | { readonly kind: 'failed'; readonly reason: 'invalid' | 'unavailable' };
 
@@ -85,7 +85,7 @@ export async function reconcileWalletIframeExactSessions(
       updatedSessionCount += 1;
     }
   }
-  return { kind: 'reconciled', updatedSessionCount };
+  return { kind: 'reconciled' };
 }
 
 function reconciliationContext(

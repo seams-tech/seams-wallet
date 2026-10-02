@@ -132,10 +132,6 @@ export type ActivateEcdsaSessionAuth = ActivateEcdsaPasskeyAuth | ActivateEcdsaE
 type ActivateEcdsaSessionRequestCommon = {
   relayerUrl: string;
   requestId?: string;
-  runtimeScopeBootstrap?: {
-    projectEnvironmentId: string;
-    publishableKey: string;
-  };
 };
 
 type ActivateEcdsaExistingSessionRequestBase = ActivateEcdsaSessionRequestCommon & {

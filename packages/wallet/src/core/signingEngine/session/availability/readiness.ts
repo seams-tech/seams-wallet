@@ -730,7 +730,6 @@ async function readWalletScopedLaneClaimsForLanes(args: {
 export async function readDirectSigningSessionStatusForTargets(args: {
   deps: WalletSessionReadinessDeps;
   walletSessionId: WalletSessionId;
-  quotaId: MpcWalletSigningQuotaId;
   targetThresholdSessionIds?: Iterable<string>;
 }): Promise<SigningSessionStatus | null> {
   const walletSessionId = args.walletSessionId;
@@ -759,7 +758,6 @@ export async function readDirectSigningSessionStatusForTargets(args: {
 
 export function statusFromClaim(args: {
   walletSessionId: WalletSessionId;
-  quotaId: MpcWalletSigningQuotaId;
   lanes: DiscoveredSigningSessionLane[];
   claim: WarmSessionPrfClaim | null;
 }): SigningSessionStatus {

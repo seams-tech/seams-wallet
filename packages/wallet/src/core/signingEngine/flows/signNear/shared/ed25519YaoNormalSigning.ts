@@ -146,21 +146,18 @@ type RouterAbEd25519NearTransactionNormalSigningResult =
       authorization: 'operation_step_up';
       issuedAuthorization: NearEd25519OperationStepUpAuthorization;
       okResponse: WorkerSuccessResponse<typeof WorkerRequestType.SignTransactionsWithActions>;
-      transactionHash: string;
     }
   | {
       kind: 'router_ab_ed25519_near_transaction_normal_signing_result_v1';
       authorization: 'reusable_wallet_session';
       issuedAuthorization?: never;
       okResponse: WorkerSuccessResponse<typeof WorkerRequestType.SignTransactionsWithActions>;
-      transactionHash: string;
     };
 
 type RouterAbEd25519SignatureOnlyNormalSigningResult =
   | {
       kind: 'router_ab_ed25519_signature_only_normal_signing_result_v1';
       authorization: 'operation_step_up';
-      operationId: string;
       signatureB64u: string;
       signerPublicKey: string;
       issuedAuthorization: NearEd25519OperationStepUpAuthorization;
@@ -168,7 +165,6 @@ type RouterAbEd25519SignatureOnlyNormalSigningResult =
   | {
       kind: 'router_ab_ed25519_signature_only_normal_signing_result_v1';
       authorization: 'reusable_wallet_session';
-      operationId: string;
       signatureB64u: string;
       signerPublicKey: string;
     };
@@ -239,7 +235,6 @@ function routerAbNormalSigningExpiresAtMs(args: {
 }
 
 function buildRouterAbNormalSigningScope(args: {
-  thresholdSessionId: string;
   activeClient: RouterAbEd25519YaoActiveClientV1;
   walletSessionState: AuthorizedRouterAbEd25519WalletSessionState;
   walletId: WalletId;
@@ -836,7 +831,6 @@ export async function prepareRouterAbEd25519SignatureOnlyOperationStepUp(args: {
   ctx: NearSigningRuntimeDeps;
   thresholdSessionId: string;
   materialFacts: NearEd25519YaoOperationMaterialFacts;
-  thresholdKeyMaterial: ThresholdEd25519KeyMaterial;
   walletId: WalletId;
   nearAccountId: string;
   materialActivation: MpcMaterialActivationRef;
@@ -1060,13 +1054,11 @@ export async function tryFinalizeRouterAbEd25519SignatureOnlyNormalSigning(
     return {
       kind: 'router_ab_ed25519_signature_only_normal_signing_result_v1',
       authorization: 'operation_step_up',
-      operationId: args.operationId,
       issuedAuthorization: issued,
       ...finalized,
     };
   }
   const scope = buildRouterAbNormalSigningScope({
-    thresholdSessionId: args.thresholdSessionId,
     activeClient: args.activeClient,
     walletSessionState: args.walletSessionState,
     walletId: args.walletId,
@@ -1109,7 +1101,6 @@ export async function tryFinalizeRouterAbEd25519SignatureOnlyNormalSigning(
   return {
     kind: 'router_ab_ed25519_signature_only_normal_signing_result_v1',
     authorization: 'reusable_wallet_session',
-    operationId: args.operationId,
     ...finalized,
   };
 }
@@ -1325,7 +1316,6 @@ export async function tryFinalizeRouterAbEd25519NearTransactionNormalSigning(
     issuedAuthorization = issued;
   } else {
     const scope = buildRouterAbNormalSigningScope({
-      thresholdSessionId: args.thresholdSessionId,
       activeClient: args.activeClient,
       walletSessionState: args.walletSessionState,
       walletId: args.walletId,
@@ -1423,14 +1413,12 @@ export async function tryFinalizeRouterAbEd25519NearTransactionNormalSigning(
       kind: 'router_ab_ed25519_near_transaction_normal_signing_result_v1',
       authorization: 'operation_step_up',
       issuedAuthorization,
-      transactionHash,
       okResponse,
     };
   }
   return {
     kind: 'router_ab_ed25519_near_transaction_normal_signing_result_v1',
     authorization: 'reusable_wallet_session',
-    transactionHash,
     okResponse,
   };
 }

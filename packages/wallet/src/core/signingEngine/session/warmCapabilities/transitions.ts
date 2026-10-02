@@ -19,7 +19,6 @@ type WarmSessionTransitionCapabilitySnapshot = {
 };
 
 type WarmSessionTransitionSnapshot = {
-  walletId: WalletId;
   capabilities: {
     ed25519: WarmSessionTransitionCapabilitySnapshot;
     ecdsa: {
@@ -27,7 +26,6 @@ type WarmSessionTransitionSnapshot = {
       tempo: WarmSessionTransitionCapabilitySnapshot;
     };
   };
-  updatedAtMs: number;
 };
 
 export type WarmSessionTransitionEvent =
@@ -73,7 +71,6 @@ export function summarizeWarmSessionTransition(
   envelope: WarmSessionEnvelope,
 ): WarmSessionTransitionSnapshot {
   return {
-    walletId: envelope.walletId,
     capabilities: {
       ed25519: summarizeWarmSessionCapabilityTransition(envelope.capabilities.ed25519),
       ecdsa: {
@@ -81,7 +78,6 @@ export function summarizeWarmSessionTransition(
         tempo: summarizeWarmSessionCapabilityTransition(envelope.capabilities.ecdsa.tempo),
       },
     },
-    updatedAtMs: envelope.updatedAtMs,
   };
 }
 

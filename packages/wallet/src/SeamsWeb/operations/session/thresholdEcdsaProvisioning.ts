@@ -5,15 +5,9 @@ import {
   thresholdEcdsaChainTargetKey,
   type ThresholdEcdsaChainTarget,
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
-import type {
-  EcdsaSignerProvisioningDefaults,
-  EcdsaSignerProvisioningPolicy,
-} from '@/core/types/ecdsaSignerProvisioningDefaults';
+import type { EcdsaSignerProvisioningDefaults } from '@/core/types/ecdsaSignerProvisioningDefaults';
 
-type ThresholdEcdsaProvisionTarget = {
-  chainTarget: ThresholdEcdsaChainTarget;
-  options: EcdsaSignerProvisioningPolicy;
-};
+type ThresholdEcdsaProvisionTarget = { chainTarget: ThresholdEcdsaChainTarget };
 
 type EcdsaSessionPublicationTarget = {
   chainTarget: ThresholdEcdsaChainTarget;
@@ -53,7 +47,7 @@ export function listThresholdEcdsaProvisionTargets(args: {
     const key = thresholdEcdsaChainTargetKey(chainTarget);
     if (seen.has(key)) continue;
     seen.add(key);
-    targets.push({ chainTarget, options });
+    targets.push({ chainTarget });
   }
   return targets;
 }

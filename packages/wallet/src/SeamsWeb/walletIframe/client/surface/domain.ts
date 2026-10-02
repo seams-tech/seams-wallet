@@ -229,16 +229,6 @@ export type WalletIframeSurfaceEvent =
       authMenuSessionId: HostedAuthMenuSessionId;
     })
   | (RequestOwnedEvent & {
-      kind: 'auth_menu_request_completed';
-      presentation?: never;
-      authMenuSessionId: HostedAuthMenuSessionId;
-    })
-  | (RequestOwnedEvent & {
-      kind: 'auth_menu_request_closed';
-      presentation?: never;
-      authMenuSessionId: HostedAuthMenuSessionId;
-    })
-  | (RequestOwnedEvent & {
       kind: 'auth_menu_request_cancelled';
       presentation?: never;
       authMenuSessionId: HostedAuthMenuSessionId;
@@ -611,8 +601,6 @@ export function reduceWalletIframeSurface(
           }),
         ),
       );
-    case 'auth_menu_request_completed':
-    case 'auth_menu_request_closed':
     case 'auth_menu_request_cancelled':
       return authMenuEventOwnsSurface(current, event)
         ? { kind: 'applied', surface: hiddenWalletIframeSurface() }

@@ -380,7 +380,6 @@ export class SigningSessionCoordinator implements SigningSessionStatusPort {
       return await readDirectSigningSessionStatusForTargets({
         deps: this.walletSessionDeps,
         walletSessionId,
-        quotaId: args.quotaId,
         targetThresholdSessionIds: targetThreshold,
       });
     };
@@ -417,7 +416,7 @@ export class SigningSessionCoordinator implements SigningSessionStatusPort {
       claims.find((candidate) => candidate?.state === 'unavailable') ||
       claims.find((candidate) => candidate?.state === 'warm') ||
       null;
-    return statusFromClaim({ walletSessionId, quotaId: args.quotaId, lanes: statusLanes, claim });
+    return statusFromClaim({ walletSessionId, lanes: statusLanes, claim });
   }
 
   async getLaneClaimsForWallet(

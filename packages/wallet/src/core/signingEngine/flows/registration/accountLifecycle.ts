@@ -271,11 +271,7 @@ function verifiedCredentialPublicKeyBytes(value: string, field: string): Uint8Ar
 async function resolveNearProfileContext(
   deps: RegistrationAccountLifecycleDeps,
   nearAccountId: AccountId,
-): Promise<{
-  profileId: NearAccountProjectionProfileId;
-  chainIdKey: string;
-  accountAddress: string;
-} | null> {
+): Promise<{ profileId: NearAccountProjectionProfileId } | null> {
   const accountId = toAccountId(nearAccountId);
   const context = await resolveProfileAccountContextFromCandidates(
     deps.accountStore,
@@ -284,17 +280,13 @@ async function resolveNearProfileContext(
   if (!context?.profileId) return null;
   const profileId = parseNearAccountProjectionProfileId(context.profileId);
   if (!profileId.ok) return null;
-  return {
-    profileId: profileId.value,
-    chainIdKey: context.accountRef.chainIdKey,
-    accountAddress: context.accountRef.accountAddress,
-  };
+  return { profileId: profileId.value };
 }
 
 export async function storeUserData(
   deps: RegistrationAccountLifecycleDeps,
   userData: StoreUserDataInput,
-): Promise<{ signerSlot: number }> {
+): Promise<void> {
   const nearAccountId = toAccountId(userData.nearAccountId);
   const signerSlot = Number(userData.signerSlot);
   if (!Number.isSafeInteger(signerSlot) || signerSlot < 1) {
@@ -358,8 +350,6 @@ export async function storeUserData(
     });
   }
   await deps.accountStore.setLastProfileStateForProfile(profileId, activation.signerSlot);
-
-  return { signerSlot: activation.signerSlot };
 }
 
 export function getAllUsers(deps: RegistrationAccountLifecycleDeps): Promise<ClientUserData[]> {
