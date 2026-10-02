@@ -2493,3 +2493,7 @@ preflight. Publish/consume a new exact Wallet Server release before hosted rollo
 Console migration 0050, hosted verification/adoption/canaries, regional routing,
 broader authenticated cohorts and migration/failure proofs remain outstanding.
 No deployment, hosted challenge or new latency measurement occurred in this milestone.
+
+
+The subsequent [packed Wallet Server acceptance](refactor-152-package-readiness.md)
+records candidate packaging, migration integrity and consumer-upgrade verification.

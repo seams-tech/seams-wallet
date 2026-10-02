@@ -520,6 +520,12 @@ below remain open.
   to the immutable Console reservation.
   Validate the fence on hosted Workers and cover other reachable older/internal
   writer paths before claiming complete regional enforcement.
+  Local package acceptance now runs the composed three-Worker home-verification
+  E2E against extracted candidate JavaScript and all forty packaged migrations.
+  The original 39 migration files are unchanged. The private local Worker now
+  uses the SDK configuration parser, eliminating its retired `nodeRole` field.
+  Full release validation and hosted execution remain distinct gates; see the
+  [package-readiness evidence](refactor-152-package-readiness.md).
 - [ ] Reuse existing trusted tenant/environment routing where possible. Define
   required owner, home, and routing-generation identity at the server boundary.
   Reject inconsistent or stale routes before any mutation. Route lookup itself
