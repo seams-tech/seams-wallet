@@ -99,6 +99,10 @@ items above stay open until route and cross-authority contracts are complete.
   in D1, with idempotent completion and rejection of late cancelled completion.
 - [x] Verify the directory through a persistent-D1/two-Worker E2E and retain a
   hashed JSON receipt; verify invalid domain-state combinations with type fixtures.
+- [x] Bind each reservation and completion to a required request digest and
+  explicit provided/server-allocated identity branch. Concurrent generated
+  candidates reuse the first committed wallet; changed requests conflict.
+  Expanded persistent-D1 E2E and type fixtures pass (`8da3c38`, private).
 - [ ] Connect authenticated registration and shared-identity admission to this
   directory, then switch all hosted and lifecycle paths together with removal
   of namespace placement. The new directory is not yet used by hosted requests.

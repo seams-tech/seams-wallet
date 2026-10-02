@@ -44,6 +44,48 @@ pnpm -C tests test:relayer wallet-home-directory.e2e.test.ts
 Retained private evidence:
 `.artifacts/r152/per-wallet-directory-20261002/wallet-home-evidence.json`.
 
+## Registration replay checkpoint
+
+Private commit `8da3c38` adds required request-digest and allocation-mode binding
+to the directory. A caller-supplied wallet ID must match the existing reservation;
+a server-allocated candidate may lose a race and reuse the winner's wallet ID.
+Different generated candidates for the same operation converge on one wallet and
+home. A generated candidate that collides with another operation is rejected so
+the allocator can generate a new candidate without replacing that wallet.
+
+The digest is a lowercase SHA-256 hex value persisted with the registration ID.
+The authenticated registration boundary must compute it from the canonical
+normalized request and verified caller/origin context. Never accept a browser's
+declared digest as proof of request equality. Exclude transient ingress location
+and the uncommitted server-generated candidate, so travel and allocation races
+can replay the original request. Persisted allocation mode prevents switching a
+provided-ID request into a generated-ID retry. Completion checks the same digest.
+
+The expanded directory E2E passed (2.4 seconds): nine concurrent generated-ID
+candidates across two Worker transports converge; changed digest/allocation mode
+conflicts; collision retry, response loss, restart and different-region replay
+retain the winner; a mismatched completion leaves the reservation pending; SQL
+cannot change the digest even as part of an otherwise valid lifecycle transition.
+Server type-check, all private type fixtures and focused ESLint passed. All 28
+Console migration files also applied to empty SQLite with clean integrity and
+foreign-key checks. The undeployed `0051` baseline was updated in place; no
+hosted database has received either version.
+
+Reproduce with the same commands above. Retained private receipt and logs:
+`.artifacts/r152/registration-reservation-20261002/`.
+
+### Next integration boundary
+
+The directory still has no hosted caller. Before enabling routing, registration
+setup must supply a stable request ID and compute the digest after credential,
+origin and request validation. It must use the winning wallet/home and stable
+ceremony/founding-authority identities before any custody preparation. Retrying
+only the directory reservation does not make existing random ceremony allocation
+or custody preparation idempotent. Both supplied-ID and Google candidate-selection
+paths must adopt the same contract. Shared credential/recovery routing indexes
+and their transaction reconciliation remain open, followed by hosted routing and
+namespace-path deletion. This checkpoint does not close those gates.
+
 ## Authority and transaction seams
 
 | Boundary | Current invariant and replacement obligation |
