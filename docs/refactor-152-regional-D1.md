@@ -84,6 +84,28 @@ Inventory completion checklist:
   limits, tenant policy, wallet quota, revocation, recovery and one-use material.
   Resolve every cross-database transaction dependency before implementing it.
 
+### Implementation checkpoint: wallet directory foundation (October 2)
+
+The [per-wallet implementation inventory](refactor-152-per-wallet-inventory.md)
+now enumerates the effective 55-table / 64-index / 30-trigger signer schema and
+records registration, lookup and transaction seams. The remaining R0 review
+items above stay open until route and cross-authority contracts are complete.
+
+- [x] Implement a Console D1 directory keyed by namespace, organization, project,
+  environment and wallet ID, with per-tenant registration-operation uniqueness.
+- [x] Preserve the first committed home through concurrent region proposals,
+  lost replies and restart; reject conflicting wallet/registration ownership.
+- [x] Enforce reserved → established/cancelled transitions and immutable identity
+  in D1, with idempotent completion and rejection of late cancelled completion.
+- [x] Verify the directory through a persistent-D1/two-Worker E2E and retain a
+  hashed JSON receipt; verify invalid domain-state combinations with type fixtures.
+- [ ] Connect authenticated registration and shared-identity admission to this
+  directory, then switch all hosted and lifecycle paths together with removal
+  of namespace placement. The new directory is not yet used by hosted requests.
+
+This foundation does not close R1–R7, does not measure geographic latency, and
+leaves the release held. No hosted schema reset, deployment or publication occurred.
+
 ### R1. Define one wallet-home and registration contract
 
 - [ ] Define the canonical wallet ownership key from verified tenant scope and
