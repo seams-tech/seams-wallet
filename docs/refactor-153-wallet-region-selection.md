@@ -3,6 +3,10 @@
 Status: intent draft, October 2, 2026. Assumptions and platform capabilities need
 validation before implementation details are added.
 
+[Initial backend relocation validation](refactor-153-backend-relocation-validation.md)
+records the Cloudflare capabilities, current storage hazards, local probe
+results, and remaining hosted checks.
+
 ## Intent
 
 Add a Wallet region setting so an owner who expects to spend time in another

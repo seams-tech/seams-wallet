@@ -1,0 +1,276 @@
+# R153: backend relocation validation
+
+Status: initial platform, source, and local-runtime validation, October 2, 2026.
+Hosted placement and complete wallet relocation remain unverified.
+
+Server-side transfer appears feasible. The storage primitives can copy wallet
+data, and the encryption bindings examined do not inherently require owner
+participation merely because the physical region changes. Safe relocation still
+needs an application-level ownership handover across several stores. There is
+no documented Cloudflare operation that performs that complete handover.
+
+This investigation supports the intent in
+[R153](refactor-153-wallet-region-selection.md). It leaves the implementation
+protocol open. Existing wallets will be deleted before rollout; these findings
+concern subsequent moves of newly created wallets.
+
+## Evidence and limits
+
+- Cloudflare documentation checked on October 2, 2026; sources appear beside
+  the relevant claims below.
+- Wallet source: `267efd5147fcb3245b858d927ac8a6fb0cf69c6d`.
+- Private Console source: `f93c01599baa89cccdda3e9c3a1281ecd0f401d1`.
+- Local workerd probe: Node `v26.4.0`, Miniflare `4.20260710.0`, compatibility
+  date `2026-06-12`. Two independent D1 databases and two SQLite DO namespaces
+  were exercised through Worker requests, then restarted with persisted data.
+- All 41 signer migrations were applied to fresh Node SQLite to inspect the
+  effective schema: 55 tables, 64 explicit indexes, and 30 triggers. This is a
+  schema census, not a claim that every table has a live product consumer.
+
+Reproduce from the Wallet repository root:
+
+```sh
+node tests/e2e/backend-storage-transfer.e2e.mjs
+```
+
+The [probe](../tests/e2e/backend-storage-transfer.e2e.mjs) writes
+`.artifacts/r153/backend-storage-transfer.json`, including runtime versions,
+runner/Worker hashes, migration hashes, the effective schema, and observations.
+It uses disposable local storage and synthetic records. It does not run the
+wallet signing protocol, prove actual geography, or measure regional latency.
+Its fixture exposes raw SQL only inside this local test; it must never be
+deployed as a hosted transfer service.
+
+## Cloudflare capabilities
+
+| Question | Established behavior | Consequence for relocation |
+| --- | --- | --- |
+| Can an existing DO be given a new location hint? | DOs currently retain their initial placement. Only the first `get()` respects a hint, and hints are best effort. [DO data location](https://developers.cloudflare.com/durable-objects/reference/data-location/) | Create a fresh physical object identity at the destination. Changing routing or a hint for the old identity does not move its data. Avoid accidentally creating the destination without its intended hint. |
+| Does a DO class transfer solve this? | The documented operation transfers an entire namespace between Workers in the same account. [Class transfers](https://developers.cloudflare.com/durable-objects/reference/durable-objects-migrations/) | It does not establish a per-wallet geographical relocation primitive. A regional Worker deployment alone also does not relocate an existing DO. |
+| Can D1 change its write home in place? | Placement hints and jurisdictions are supplied at creation; the documented partial-update API changes read replication. No documented in-place primary relocation operation was found. [D1 location](https://developers.cloudflare.com/d1/configuration/data-location/), [update API](https://developers.cloudflare.com/api/resources/d1/subresources/database/methods/edit/) | Use a destination database and copy the wallet-owned subset. With regional shared databases, moving the whole source database would affect other wallets. |
+| Are replicas sufficient? | D1 replicas provide geographically distributed reads. [D1 location](https://developers.cloudflare.com/d1/configuration/data-location/) | Read replication does not transfer wallet write/signing ownership. Source snapshot and cutover decisions need authoritative reads. |
+| Can SQL export capture the whole wallet? | D1 supports database/table SQL export; export blocks other database requests and has virtual-table and numeric precision limitations. [Import/export](https://developers.cloudflare.com/d1/best-practices/import-export-data/) | Whole-database export is unsuitable as the default per-wallet move from a shared database. Application-owned extraction needs a complete ownership inventory and an exact value encoding. |
+| Is DO SQL the entire DO? | KV values live in hidden `__cf_kv`, inaccessible through SQL. SQL, KV, alarms, and PITR have separate APIs. [DO storage](https://developers.cloudflare.com/durable-objects/api/sqlite-storage-api/) | Extract user SQL and KV explicitly. Decide alarm handling separately. PITR restores the existing object's history; it is not a documented arbitrary-object clone API. |
+| Can one transaction cover the move? | D1 `batch()` is transactional within one database; DO transactions apply to that object's storage. [D1 API](https://developers.cloudflare.com/d1/worker-api/d1-database/), [DO storage](https://developers.cloudflare.com/durable-objects/api/sqlite-storage-api/) | Neither covers source D1, destination D1, all role objects, and the directory together. Each stage must recover after partial completion. |
+
+The user-facing US/WEUR/APAC choice must map explicitly to supported hints and
+eligible infrastructure. DO and D1 hint sets differ. A preference for APAC does
+not guarantee Tokyo or a particular data center. Jurisdictions are stronger,
+distinct constraints; a wallet constrained to the EU cannot become APAC-eligible
+just because its owner changes a preference.
+[DO location](https://developers.cloudflare.com/durable-objects/reference/data-location/),
+[D1 location](https://developers.cloudflare.com/d1/configuration/data-location/).
+
+## Findings in the current wallet implementation
+
+### 1. The relocation boundary spans multiple authorities
+
+Gateway signer D1 contains wallet identity, authorities, factors, sessions,
+quotas, authorized operations, replay records, and lifecycle journals. Some
+records are indirect children identified by a session, credential, operation,
+or structured key. Filtering every table by `wallet_id` cannot enumerate them.
+`router_ab_yao_versioned_json_records` also mixes wallet-related families with
+shared tenant capability and replay state. The historical
+[ownership map](refactor-150-state-ownership-map.md) is useful context; the
+effective schema in the probe is the current schema evidence.
+
+R152 must finish defining which facts become wallet-local and how their atomic
+relationships to shared policy and identity uniqueness are maintained. Copying
+a shared uniqueness index into each region would create separate authorities.
+Keep tenant roots, tenant policy, and shared identity constraints with their
+shared owners. A wallet appearing in a row does not by itself establish that
+the row can move independently.
+
+The role stores add the following boundaries:
+
+| Owner | Current storage and relocation-sensitive content | Source |
+| --- | --- | --- |
+| Router wallet object | KV owner binding, execution claims/leases, pinned requests, terminal outcomes, consumer bindings. Its operation generation is distinct from home ownership. | [DO adapter](../crates/router-ab-cloudflare/src/durable_object/router_wallet.rs), [domain store](../crates/router-ab-cloudflare/src/router_wallet.rs) |
+| Deriver A and B wallet objects | Separate role-private SQL pair state, revisions, admission fences, and owner binding. | [A object](../crates/router-ab-cloudflare/src/durable_object/deriver_a_pair.rs), [B object](../crates/router-ab-cloudflare/src/durable_object/deriver_b_pair.rs) |
+| SigningWorker wallet object | Registrations, retired activations, round-one records, ECDSA pool/effect records, activations, linked-device material, and terminal responses. | [Wallet object](../crates/router-ab-cloudflare/src/durable_object/signing_worker_wallet.rs), [ECDSA store](../crates/router-ab-cloudflare/src/signing_worker/wallet_ecdsa_store.rs) |
+| SigningWorker presign session objects | Durable claims plus live MPC session memory and expiry alarms. These are additional objects outside the main wallet object. | [Session object](../crates/router-ab-cloudflare/src/durable_object/mod.rs), [owner presign](../crates/router-ab-cloudflare/src/durable_object/ecdsa_presign_live_session.rs) |
+| Shared role-root D1 | Root epochs, admissions, retirement authority, and references to wallet pair objects. Remains with the shared role authority. | [Role-root store](../crates/router-ab-cloudflare/src/tenant_root_role_d1.rs) |
+
+### 2. Importing rows can execute authorization again
+
+The effective signer schema contains active business triggers:
+
+- `authorized_operation_owner_grant_claim_atomic` validates live session,
+  authority, and factor state when a claimed operation is inserted. A reusable
+  session claim decrements its quota. Importing such a row into already-copied
+  quota state can charge a second use or reject the import.
+  [Migration 0034](../packages/wallet-server/migrations/d1-signer/0034_r103f_exact_wallet_session_cutover.sql).
+- `authorized_operation_step_up_claim_atomic` compares evidence expiry with
+  the database's current clock. Importing a previously valid, still-claimed
+  operation after its evidence expires can fail.
+  [Migration 0041](../packages/wallet-server/migrations/d1-signer/0041_step_up_admission_expiry.sql).
+- Claim insertion also creates an audit record; inserting copied audit rows
+  separately can conflict. Lifecycle, uniqueness, and foreign-key constraints
+  impose additional ordering requirements. The effective trigger definitions
+  are included in the probe artifact.
+
+These are source-confirmed import hazards, not failures reproduced against a
+complete wallet transfer. The named claim triggers apply to `claimed` rows;
+importing terminal rows does not automatically retrigger every claim action.
+First establish whether every claimed operation can be reconciled to a terminal
+state before moving. Then demonstrate an import that preserves history, quota,
+and constraints exactly. Disabling triggers across a live shared destination
+database would affect unrelated wallets and is unsuitable.
+
+### 3. Copying usable signing material creates two usable copies
+
+The ECDSA wallet store locally couples material consumption with effect claims
+and recorded outcomes in `claim_and_consume_effect`. A second independent store
+has a second independent consumption boundary. The local probe demonstrates
+this storage property with a synthetic ready/consumed record in both D1 and DO.
+
+Transfer the entire lifecycle state: ready, reserved, claimed, consumed, burned,
+revoked, and terminal records where those states exist. Preserve operation IDs,
+request digests, expiry times, quotas, and exact recorded results. An unanswered
+request may already have consumed material or produced an external effect.
+Absence of a response must never cause a fresh attempt under the same identity.
+
+Existing live presign memory cannot be recovered from a database snapshot.
+Drain those sessions or terminate them through a defined protocol that retains
+their consumed identities. The destination must not recreate abandoned live
+MPC state from a pre-claim snapshot.
+
+### 4. Physical routing and cryptographic identity are coupled in today's helpers
+
+The wallet objects use deterministic names and fixed namespace bindings via
+`get_by_name`. Their routing helpers currently have no wallet-placement
+generation. Selecting another D1 resource leaves those DO calls unchanged.
+
+SigningWorker encryption authenticates environment, purpose, schema, and row
+identity. That identity includes the deterministic logical wallet object name.
+Deriver pair encryption additionally binds role/root metadata; its record
+identity also includes the logical object name. The examined bindings do not
+directly include geographical region or Cloudflare's physical object ID.
+[SigningWorker cipher](../crates/router-ab-cloudflare/src/signing_worker/wallet_cipher.rs),
+[row identity](../crates/router-ab-cloudflare/src/signing_worker/wallet_ecdsa_store.rs),
+[Deriver cipher](../crates/router-ab-cloudflare/src/ed25519_yao_role_d1.rs).
+
+Consequently, a new physical destination can plausibly retain the logical
+identity and open the same ciphertext with the correct role key and version.
+Changing the existing logical-name function to include a move generation could
+break decryption. Separate physical routing from the identity authenticated by
+stored material. Changing storage schema labels also needs explicit handling.
+
+Destination configuration is part of this validation: role KEKs, server signing
+identity, recipient keys, environment labels, and accepted protocol identities
+must remain compatible. The protocol checks the selected SigningWorker identity.
+[Normal signing](../crates/router-ab-core/src/protocol/normal_signing.rs).
+Copying ciphertext to a new deployment with unrelated keys is insufficient.
+Preserve A/B/SigningWorker separation. Whether to provision the same role KEK or
+perform a role-local rewrap remains a custody decision; a central transfer
+process should not collect all roles' plaintext material.
+
+Nothing examined establishes a requirement for every owner device to be online
+or for a new custody ceremony solely to change region. End-to-end proof of a
+role-preserving server-only move is still required.
+
+### 5. Shared root authority retains references to the old objects
+
+`tenant_root_root_use_admissions` records `pair_object_name`. Root retirement
+uses those references to reconcile or fence wallet pair state. A new namespace
+with the same object name can resolve to a different physical object; changing
+the name can leave the shared reference pointing at the old one.
+[Admission storage](../crates/router-ab-cloudflare/src/tenant_root_role_d1.rs),
+[retirement reconciliation](../crates/router-ab-cloudflare/src/tenant_root_role_runtime.rs).
+
+Relocation must settle outstanding references before cutover or make their
+resolution follow the correct authority. Test this during root refresh and
+retirement. Successful wallet signing alone would miss this dependency.
+
+### 6. A directory update cannot fence an already-running backend
+
+The private Console's current `walletPlacement/home.ts` models reserved,
+established, and cancelled assignments. Migration `0051_wallet_homes.sql`
+prohibits changing or deleting an established home. Neither currently expresses
+a relocation generation or handover. R153 must deliberately replace this
+fixed-home rule.
+
+A move must durably stop admissions and account for already-authorized work at
+every participating writer before enabling its destination. Include direct role
+requests, delayed internal messages, cleanup jobs, alarms, and old deployments.
+Checking a generation only at the public Gateway leaves those paths exposed.
+An old backend comparing a request against its own stale generation also fails
+to establish exclusive authority.
+
+The directory's conditional ownership switch must follow verifiable source
+quiescence and complete destination preparation. If the source cannot be fenced,
+relocation must wait. If the switch's response is lost, read its authoritative
+outcome before enabling either side. After destination writes begin, reopening
+the old snapshot would discard new operations and potentially revive consumed
+material. Reversing the move requires another controlled handover.
+
+## Operational issues to include in the transfer contract
+
+| Issue | Required behavior / validation |
+| --- | --- |
+| Consistent snapshot | Pausing only browser requests leaves background work running. Establish a stable wallet snapshot across all participating stores. An online pre-copy also needs deletion tracking and a final consistent delta; start with a paused copy if measured sizes permit. |
+| Partial import or schema mismatch | Keep incomplete destinations inactive. Resume the same move after a crash; verify expected schema, scope, record counts, revisions, and content digests before activation. Exercise a mid-batch failure and a repeated import. |
+| Serialization | Preserve BLOBs, nulls, Unicode, integer precision, and exact signed/ciphertext bytes. The probe preserves an integer above JavaScript's safe range by transporting it as decimal text. Its JSON KV example covers JSON-compatible values only. |
+| Alarms and expiry | Alarms can run at least once and retry; deleting an alarm does not stop an already-running handler. Source handlers need the same authority fence. Preserve deadlines without extending grants, and explicitly decide which work should resume at the destination. [Alarms](https://developers.cloudflare.com/durable-objects/api/alarms/), [storage](https://developers.cloudflare.com/durable-objects/api/sqlite-storage-api/). |
+| Cleanup and restore | `deleteAll()` erases the retirement marker too; with the tested compatibility date it also removes the alarm. Retain an authoritative fence that survives cleanup, restart, and restoring an old snapshot. Backup retention makes immediate erasure a separate claim. [Storage](https://developers.cloudflare.com/durable-objects/api/sqlite-storage-api/), [D1 retention](https://developers.cloudflare.com/d1/platform/limits/). |
+| Offline devices and cached routes | Preserve wallet keys/addresses, device authority, revocations, session semantics, and operation IDs. A stale device must rediscover the current home before an effect. Verify token/key configuration, credential lookup before wallet resolution, and any endpoint identity bindings. |
+| Shared load and limits | Bound transfer pages and transactions. D1 has statement/parameter/row limits and a 30-second query limit; each database serializes queries. DOs also impose object-size and CPU limits. Measure pause duration and interference with unrelated wallets. [D1 limits](https://developers.cloudflare.com/d1/platform/limits/), [DO limits](https://developers.cloudflare.com/durable-objects/platform/limits/). |
+| Transport and permissions | Restrict export/import to the authenticated move, wallet, role, destination, and expected generation. Reject another tenant's data and stale/repeated commands. Avoid ciphertext or secret dumps in evidence logs. Cross-account bindings and custody configurations require separate eligibility checks. |
+| Repeated moves | Serialize competing device requests. Moving back to a previous region must not reactivate its old state. Preserve monotonic ownership through cleanup, cancellation, and later moves. |
+| Actual benefit | Verify destination D1 placement evidence and role-object routing separately from ingress Worker location. Measure the full signing path, including retained shared authorities, from representative regions. Successful copying alone says nothing about latency improvement. |
+
+## Executed checks
+
+All checks below passed in the local probe. Each is limited to the synthetic
+storage scenario, except the explicitly identified schema census.
+
+| Check | Observed result |
+| --- | --- |
+| Apply current signer migration chain | 41 migrations applied; effective schema and migration hashes recorded. |
+| Select and transfer one wallet | Exact selected rows arrived in independent D1 and DO stores; the unrelated wallet was absent. |
+| Transfer byte/value edge cases | BLOB bytes, null, Unicode, and text-encoded int64 survived. |
+| Fail a local multi-statement mutation | D1 batch and DO SQL transaction rolled back the earlier write when a duplicate insert failed. |
+| Consume after copying | Source and destination each consumed the copied ready record once. Source rejected its second consumption. This demonstrates why local single-use checks do not provide global exclusivity. |
+| Copy only DO user SQL | Destination had neither the source KV records nor its alarm. Direct SQL access to `__cf_kv` was rejected. |
+| Copy KV/alarm and restart | Destination rows, KV, alarm, and physical ID persisted. The in-memory request counter restarted. |
+| Change a hint / use a separate namespace | Changing the hint retained the source ID; the other namespace had a different ID. Local execution makes no geographical claim. |
+| Delete source DO state | The retirement marker and alarm were removed along with its storage. |
+
+## Remaining validation gates
+
+1. **Freeze the R152 ownership inventory.** Trace each supported operation to its
+   wallet and shared writes, including indirect keys and presign session objects.
+   Resolve cross-store atomicity before choosing export boundaries.
+2. **Validate a disposable hosted placement probe.** Create separate WEUR/APAC
+   D1 resources and fresh per-role DO identities with first-touch hints. Record
+   resource IDs, code versions, placement evidence where available, and latency
+   from representative client regions. Do not infer DO location from the ingress
+   request's colo. Verify actual account/binding access and data round trips.
+3. **Demonstrate an actual wallet move with a brief pause.** Preserve role and
+   wallet identities; cover ECDSA and Ed25519, ready and consumed material,
+   completed retries, session quota, revoked factors, and an offline owner
+   device. Verify signatures and unchanged addresses after transfer. Include
+   interrupted presigning and reconcile all claim/import-trigger cases.
+4. **Inject faults at each handover boundary.** Crash after each source fence,
+   during each copy, after destination verification, around directory commit,
+   and during cleanup. Deliver delayed source requests and duplicate move
+   commands. Evidence must show one current authority and no duplicate material
+   consumption or quota charge, including after both services restart.
+5. **Exercise shared-authority and repeat-move cases.** Refresh/retire tenant
+   roots during relocation, keep a second wallet active, return the first wallet
+   to its previous region, and restore a pre-move snapshot in an isolated test.
+   Confirm stale state never authorizes work and the unrelated wallet is intact.
+6. **Measure operational suitability.** Capture pause duration, bytes, database
+   load, end-to-end latency, and failed-move recovery. Establish supported
+   custody/account/jurisdiction combinations before exposing the setting.
+
+Each hosted scenario should produce a repeatable artifact containing revisions,
+resource identities, move/generation transitions, record digests, operation IDs,
+verification results, and fault injection points, with private material excluded.
+No hosted resources or wallet data were changed in this investigation.
+
+R153 is therefore a cross-cutting backend change before it is a region selector.
+The smallest candidate is a paused, role-preserving copy with explicit fencing
+and exact replay preservation. Live delta replication can wait for measurements
+showing that a paused copy is insufficient. R154 can remain a small policy layer
+over the same relocation operation once these gates pass.
