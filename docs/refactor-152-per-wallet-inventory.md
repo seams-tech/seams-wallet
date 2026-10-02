@@ -137,6 +137,14 @@ focused lint and formatting checks passed. Receipt:
 `.artifacts/r152/service-admission-20261002/wallet-home-evidence.json`
 (SHA-256 `8d6b540fc506bdb25caae643110732948ca9ad8d7a71f17b502006f18b47bc15`).
 The lookup is still unused by hosted traffic.
+Private commit `9792bca` requires placement service calls to present the active
+Gateway or Wallet Runtime role and exact authorized Worker version. The real
+Console Worker E2E rejects missing and stale versions with 403 and accepts an
+active-version reservation. Its retained receipt is
+`.artifacts/r152/wallet-home-writer-admission-20261002/wallet-home-writer-admission.json`
+(SHA-256 `5242020ee7a9bc7718250714e50285b115818fb4657e86396ada730f6e0f75b0`).
+The package still has no production caller, and the existing singular deployment
+resource binding has not been replaced with a regional resource set.
 
 ## Namespace assignment removal checkpoint
 
