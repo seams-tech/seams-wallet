@@ -11,6 +11,7 @@ import { unstable_splitSqlQuery } from 'wrangler';
 import { buildWorkerdCompatiblePhase1Bridge } from '../../packages/wallet-server/scripts/d1-local-migrate-signer.mjs';
 
 const output = '.artifacts/tla-signing/admission-e2e';
+const signerMigrationsDirectory = 'packages/wallet-server/migrations/d1-signer';
 await mkdir(output, { recursive: true });
 const bundle = await build({
   bundle: true,
@@ -41,7 +42,9 @@ await writeFile(`${output}/fixture.mjs`, bundle.outputFiles[0].text);
 const api = await import(pathToFileURL(`${process.cwd()}/${output}/fixture.mjs`));
 
 async function waitPast(deadline) {
-  while (Date.now() <= deadline) await delay(Math.max(1, deadline - Date.now() + 10));
+  while (Date.now() <= deadline) {
+    await delay(Math.max(1, deadline - Date.now() + 10));
+  }
 }
 
 async function handleD1Request(request, env) {
@@ -51,7 +54,9 @@ async function handleD1Request(request, env) {
     for (const statement of input.statements) {
       statements.push(env.DB.prepare(statement.sql).bind(...statement.values));
     }
-    if (input.kind === 'batch') return Response.json(await env.DB.batch(statements));
+    if (input.kind === 'batch') {
+      return Response.json(await env.DB.batch(statements));
+    }
     return Response.json(await statements[0].all());
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
@@ -69,7 +74,9 @@ class D1HttpDatabase {
       body: JSON.stringify(input),
     });
     const result = await response.json();
-    if (!response.ok) throw new Error(result.error);
+    if (!response.ok) {
+      throw new Error(result.error);
+    }
     return result;
   }
 
@@ -78,15 +85,18 @@ class D1HttpDatabase {
   }
 
   async batch(statements) {
-    const values = [];
-    for (const statement of statements)
-      values.push({ sql: statement.sql, values: statement.values });
-    return await this.send({ kind: 'batch', statements: values });
+    const serializedStatements = [];
+    for (const statement of statements) {
+      serializedStatements.push({ sql: statement.sql, values: statement.values });
+    }
+    return await this.send({ kind: 'batch', statements: serializedStatements });
   }
 
   async exec(sql) {
     const statements = [];
-    for (const query of unstable_splitSqlQuery(sql)) statements.push(this.prepare(query));
+    for (const query of unstable_splitSqlQuery(sql)) {
+      statements.push(this.prepare(query));
+    }
     return await this.batch(statements);
   }
 }
@@ -123,17 +133,22 @@ class D1HttpStatement {
 async function openDatabase(host) {
   if (host === 'vm_sqlite') {
     const sqlite = new DatabaseSync(':memory:');
-    const connection = api.nodeSqliteConnection(sqlite);
-    const migrations = api.applySignerSqlMigrationsV1(
-      connection,
-      'packages/wallet-server/migrations/d1-signer',
-      Date.now(),
-    );
-    return {
-      database: api.createSyncSqliteDatabase(connection),
-      migrations: migrations.applied,
-      close: sqlite.close.bind(sqlite),
-    };
+    try {
+      const connection = api.nodeSqliteConnection(sqlite);
+      const migrations = api.applySignerSqlMigrationsV1(
+        connection,
+        signerMigrationsDirectory,
+        Date.now(),
+      );
+      return {
+        database: api.createSyncSqliteDatabase(connection),
+        migrations: migrations.applied,
+        close: sqlite.close.bind(sqlite),
+      };
+    } catch (error) {
+      sqlite.close();
+      throw error;
+    }
   }
   const worker = new Miniflare({
     modules: true,
@@ -145,12 +160,12 @@ async function openDatabase(host) {
   try {
     await worker.ready;
     const database = new D1HttpDatabase(worker);
-    const folder = 'packages/wallet-server/migrations/d1-signer';
-    const migrations = (await readdir(folder)).filter(isSqlMigration).sort();
+    const migrations = (await readdir(signerMigrationsDirectory)).filter(isSqlMigration).sort();
     for (const name of migrations) {
-      let sql = await readFile(`${folder}/${name}`, 'utf8');
-      if (name === '0028_r103f_phase1_additive_schema_bridge.sql')
+      let sql = await readFile(`${signerMigrationsDirectory}/${name}`, 'utf8');
+      if (name === '0028_r103f_phase1_additive_schema_bridge.sql') {
         sql = buildWorkerdCompatiblePhase1Bridge(sql);
+      }
       await database.exec(sql);
     }
     return { database, migrations, close: worker.dispose.bind(worker) };
@@ -181,15 +196,17 @@ class DelayedAuthorizationStore extends api.CloudflareD1AuthorizationStore {
 
   async putVerifiedEvidenceSet(evidence) {
     await super.putVerifiedEvidenceSet(evidence);
-    if (this.scenario.pause === 'evidence') await waitPast(evidence.expiresAtMs);
+    if (this.scenario.pause === 'evidence') {
+      await waitPast(evidence.expiresAtMs);
+    }
   }
 
   async admitAuthorizedOperation(input) {
     this.scenario.claimInput = input;
-    if (this.scenario.pause === 'admission') await waitPast(this.scenario.deadline);
-    const result = await super.admitAuthorizedOperation(input);
-    this.scenario.admission = result;
-    return result;
+    if (this.scenario.pause === 'admission') {
+      await waitPast(this.scenario.deadline);
+    }
+    return await super.admitAuthorizedOperation(input);
   }
 }
 
@@ -213,7 +230,9 @@ class ExpiryRoute {
   async verifyFactor() {
     this.factorCalls += 1;
     this.scenario.verificationStartedAtMs = Date.now();
-    if (this.scenario.pause === 'verification') await waitPast(this.scenario.deadline);
+    if (this.scenario.pause === 'verification') {
+      await waitPast(this.scenario.deadline);
+    }
     this.scenario.verificationFinishedAtMs = Date.now();
     if (this.scenario.pause === 'failed-factor') {
       return { success: false, verified: false, code: 'not_verified' };
@@ -223,7 +242,9 @@ class ExpiryRoute {
 
   async verifyOtp() {
     await this.verifyFactor();
-    if (this.scenario.pause === 'failed-factor') return { ok: false, code: 'not_verified' };
+    if (this.scenario.pause === 'failed-factor') {
+      return { ok: false, code: 'not_verified' };
+    }
     if (this.scenario.pause === 'grant-expiry') {
       await waitPast(this.scenario.grantDeadline);
       this.scenario.verificationFinishedAtMs = Date.now();
@@ -311,13 +332,20 @@ function proofFor(method, walletId) {
 
 async function scenario(host, method, pause) {
   const opened = await openDatabase(host);
-  const database = opened.database;
+  try {
+    return await exerciseStepUpExpiry(opened, host, method, pause);
+  } finally {
+    await opened.close();
+  }
+}
+
+async function exerciseStepUpExpiry({ database, migrations }, host, method, pause) {
   const base = await api.buildEcdsaSigningRequestFixture();
+  const nowMs = Date.now();
   const state = {
-    method,
     pause,
-    deadline: Date.now() + (pause === 'none' || pause === 'grant-expiry' ? 2_000 : 500),
-    grantDeadline: Date.now() + (pause === 'none' ? 2_000 : 500),
+    deadline: nowMs + (pause === 'none' || pause === 'grant-expiry' ? 2_000 : 500),
+    grantDeadline: nowMs + (pause === 'none' ? 2_000 : 500),
   };
   const signing = api.buildRouterAbEcdsaDerivationEvmDigestSigningRequestV1({
     scope: base.scope,
@@ -453,7 +481,7 @@ async function scenario(host, method, pause) {
       audits,
       quota,
       grantConsumed: route.grantConsumed,
-      migrations: opened.migrations,
+      migrations,
     };
     assert.equal(route.factorCalls, 1, JSON.stringify(body));
     assert.equal(quota.remaining_uses, 0);
@@ -523,7 +551,6 @@ async function scenario(host, method, pause) {
     server.close();
     server.closeAllConnections();
     await closed;
-    await opened.close();
   }
 }
 

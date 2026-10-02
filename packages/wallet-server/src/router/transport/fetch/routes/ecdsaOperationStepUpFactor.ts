@@ -107,7 +107,9 @@ export async function verifyEcdsaOperationStepUpFactor(input: {
         base64UrlEncode(await sha256BytesUtf8(alphabetizeStringify(credential))),
       );
       const verifiedAtMs = Date.now();
-      if (input.expiresAtMs <= verifiedAtMs) return expiredStepUpFactor();
+      if (input.expiresAtMs <= verifiedAtMs) {
+        return expiredStepUpFactor();
+      }
       const factorId = parseAuthFactorId(`passkey:${input.authSource.credentialIdB64u}`);
       if (!factorId.ok) throw new Error(factorId.error.message);
       return {
@@ -131,13 +133,14 @@ export async function verifyEcdsaOperationStepUpFactor(input: {
     }
     case 'email_otp': {
       const isExport = input.operation.operation.operationKind === 'evm.export_key';
+      const emailOtpOperation = isExport
+        ? WALLET_EMAIL_OTP_EXPORT_OPERATION
+        : WALLET_EMAIL_OTP_TRANSACTION_SIGN_OPERATION;
       const operationBinding = await hashEmailOtpOperationBinding({
         walletId: input.walletId,
         providerUserId: proof.authority.factor.providerUserId,
         orgId: input.operation.tenantId,
-        operation: isExport
-          ? WALLET_EMAIL_OTP_EXPORT_OPERATION
-          : WALLET_EMAIL_OTP_TRANSACTION_SIGN_OPERATION,
+        operation: emailOtpOperation,
         requestOrigin: input.requestOrigin,
         audience: input.requestOrigin,
         authorityRef: input.authorityRef,
@@ -151,50 +154,50 @@ export async function verifyEcdsaOperationStepUpFactor(input: {
         otpCode: proof.otp_code,
         otpChannel: EMAIL_OTP_CHANNEL,
         ownerProofBindingDigest: operationBinding,
-        operation: isExport
-          ? WALLET_EMAIL_OTP_EXPORT_OPERATION
-          : WALLET_EMAIL_OTP_TRANSACTION_SIGN_OPERATION,
+        operation: emailOtpOperation,
       });
-      if (!verified.ok)
+      if (!verified.ok) {
         return {
           ok: false,
           response: json(verified, { status: verified.code === 'invalid_body' ? 400 : 401 }),
         };
-      const orgId = parseOrgId(input.operation.tenantId);
-      const providerSubject = parseProviderSubject(proof.authority.factor.providerUserId);
-      if (!orgId.ok) throw new Error(orgId.error.message);
-      if (!providerSubject.ok) throw new Error(providerSubject.error.message);
-      const consumed = isExport
-        ? null
-        : await input.emailOtp.consumeEmailOtpGrant({
-            subject: {
-              kind: 'provider_identity',
-              orgId: orgId.value,
-              providerSubject: providerSubject.value,
-              walletId: input.walletId,
-            },
-            loginGrant: verified.loginGrant,
-            otpChannel: EMAIL_OTP_CHANNEL,
-          });
-      if (consumed && !consumed.ok)
-        return {
-          ok: false,
-          response: json(consumed, { status: consumed.code === 'invalid_body' ? 400 : 401 }),
-        };
-      const verifiedChallengeId = consumed?.ok ? consumed.challengeId : verified.challengeId;
+      }
+      let verifiedChallengeId = verified.challengeId;
+      if (!isExport) {
+        const orgId = parseOrgId(input.operation.tenantId);
+        const providerSubject = parseProviderSubject(proof.authority.factor.providerUserId);
+        if (!orgId.ok) throw new Error(orgId.error.message);
+        if (!providerSubject.ok) throw new Error(providerSubject.error.message);
+        const consumed = await input.emailOtp.consumeEmailOtpGrant({
+          subject: {
+            kind: 'provider_identity',
+            orgId: orgId.value,
+            providerSubject: providerSubject.value,
+            walletId: input.walletId,
+          },
+          loginGrant: verified.loginGrant,
+          otpChannel: EMAIL_OTP_CHANNEL,
+        });
+        if (!consumed.ok) {
+          return {
+            ok: false,
+            response: json(consumed, { status: consumed.code === 'invalid_body' ? 400 : 401 }),
+          };
+        }
+        verifiedChallengeId = consumed.challengeId;
+      }
+      const verificationReceipt = {
+        challengeId: verifiedChallengeId,
+        operationFingerprint: input.expectedChallenge,
+      };
       const verificationReceiptDigest = parseDigestB64u(
-        base64UrlEncode(
-          await sha256BytesUtf8(
-            alphabetizeStringify({
-              challengeId: verifiedChallengeId,
-              operationFingerprint: input.expectedChallenge,
-            }),
-          ),
-        ),
+        base64UrlEncode(await sha256BytesUtf8(alphabetizeStringify(verificationReceipt))),
       );
       const verifiedAtMs = Date.now();
       const expiresAtMs = Math.min(input.expiresAtMs, verified.grantExpiresAtMs);
-      if (expiresAtMs <= verifiedAtMs) return expiredStepUpFactor();
+      if (expiresAtMs <= verifiedAtMs) {
+        return expiredStepUpFactor();
+      }
       const factorId = parseAuthFactorId(
         `email_otp:${proof.authority.factor.provider}:${proof.authority.factor.providerUserId}`,
       );

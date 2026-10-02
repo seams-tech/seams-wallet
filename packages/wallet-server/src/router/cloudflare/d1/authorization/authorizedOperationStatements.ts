@@ -153,7 +153,9 @@ export function prepareAuthorizedOperationAdmissionRead(input: {
                    AND evidence.intent_digest = operation.intent_digest
                    AND evidence.display_digest = operation.display_digest
                    AND evidence.assurance = 'step_up'
-                   AND evidence.expires_at_ms > MAX(?, CAST(round(unixepoch('subsec') * 1000) AS INTEGER))
+                   AND evidence.expires_at_ms > MAX(
+                     ?, CAST(round(unixepoch('subsec') * 1000) AS INTEGER)
+                   )
               )
               ELSE 0
             END AS authorization_source_active
