@@ -23,6 +23,22 @@ Console accounts, billing, credentials and custody configuration unless their
 reset is explicitly included in the reviewed reset scope. This plan authorizes
 no immediate data deletion or deployment.
 
+### Measured performance baseline to preserve
+
+The [consolidated empirical summary](refactor-152-results.md#consolidated-performance-summary-october-2)
+records the observed regional-placement gains, sample sizes, tail latencies,
+D1/SQL breakdowns and limitations. London steady owner signing improved from
+2.4451 to 0.8501 seconds median; Tokyo from 2.96895 to 1.68995 seconds median,
+with 180 verified ready-material signatures in each city. London's smaller
+first-sign/burst diagnostic improved medians from 4.8396 to 1.1519 seconds and
+7.8671 to 1.3336 seconds respectively.
+
+These are baselines for the new per-wallet implementation. Keep the static
+Console, published-server hosted Console and unreleased-candidate measurements
+separate. R6 must measure the completed hosted route across wallet homes and
+travel locations with frozen sources, explicit call budgets and retained failures.
+The earlier measurements do not close that acceptance gate or justify release.
+
 ### R0. Inventory before implementation
 
 The following source inventory was inspected on October 2. `private` means

@@ -7,6 +7,12 @@
 > governs implementation and removal of the old paths. Release 0.8.0 is held.
 
 
+Performance evidence: the [consolidated R152 timing summary](refactor-152-results.md#consolidated-performance-summary-october-2)
+records London and Tokyo signing medians/p95s, first-sign/burst results, D1 versus
+SQL time, and separate hosted Console diagnostics. Those measured placement gains
+remain valid for the recorded experiments. Per-wallet routing and repeated
+hosted acceptance remain open; these timings do not establish release readiness.
+
 Date: October 1, 2026. Reviewed source: `1165e075`.
 
 ## Decision
