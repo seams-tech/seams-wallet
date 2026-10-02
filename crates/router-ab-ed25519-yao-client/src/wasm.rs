@@ -289,13 +289,10 @@ pub struct WasmActivatedClientV1 {
 /// Worker-owned Client material completed from one exact ordinary activation.
 ///
 /// The scalar share remains in Rust until the worker explicitly consumes it
-/// for its local factor-sealing operation. Package metadata is retained so a
-/// caller cannot accidentally seal material under another transcript.
+/// for its local factor-sealing operation.
 #[wasm_bindgen]
 pub struct WasmOrdinaryEd25519ActivationClientMaterialV1 {
     client_scalar_share: Option<Zeroizing<[u8; 32]>>,
-    session: [u8; 32],
-    transcript: [u8; 32],
 }
 
 #[wasm_bindgen]
@@ -331,7 +328,7 @@ impl WasmOrdinaryEd25519ActivationClientMaterialV1 {
             recipient_private_key,
             "Ed25519 activation recipient private key",
         )?);
-        let (client_scalar_share, transcript) = complete_client_activation_packages_v1(
+        let (client_scalar_share, _transcript) = complete_client_activation_packages_v1(
             &binding,
             participant_ids,
             &public_receipt,
@@ -342,19 +339,7 @@ impl WasmOrdinaryEd25519ActivationClientMaterialV1 {
         .map_err(js_error)?;
         Ok(Self {
             client_scalar_share: Some(client_scalar_share),
-            session: binding.session_id.into_bytes(),
-            transcript,
         })
-    }
-
-    /// Returns the exact activation session bound to the opened packages.
-    pub fn session(&self) -> Vec<u8> {
-        self.session.to_vec()
-    }
-
-    /// Returns the exact Router transcript bound to the opened packages.
-    pub fn transcript(&self) -> Vec<u8> {
-        self.transcript.to_vec()
     }
 
     /// Consumes the local scalar for the worker's factor-sealing primitive.
