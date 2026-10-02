@@ -402,3 +402,83 @@ SEAMS_INTENDED_SKIP_BUILD=1 \
   pnpm -C .artifacts/r152/release-0.8.0-20261002/snapshot/tests \
   test:intended:representative --grep 'sustained Tempo and Arc'
 ```
+
+
+## Protocol candidate acceptance — October 2
+
+The next frozen 0.8.0 candidate is
+`94b4c98845c188f26403488fea757abf1421d845`. Both repositories remain on `dev`.
+Validation uses an artifact-directory source snapshot, with no branch or worktree.
+The prior `335f2878` checkpoint and its successful CI remain separate evidence.
+
+The intervening review includes the internal-field cleanup, cast removals,
+comment/test-hook cleanup, step-up expiry fix and wallet-management protocol
+gate. An independent esbuild comparison of all 122 cast-cleanup files found
+identical normalized JavaScript. The field cleanup preserves the reviewed
+validation calls and authority/recovery rejection branches. The new expiry
+behavior checks the time after factor verification and at database admission;
+its dedicated acceptance test passes on SQLite and Workers D1 emulation.
+These checks support candidate inclusion; hosted rollout gates remain open.
+
+All **2,898 archived non-document source files** match their Git blobs, excluding
+the regenerated package manifest. Local native outputs are reused from the
+previous validated build: subsequent native-source changes are Rust doc comments
+and formal-model/documentation changes. Both TypeScript packages were rebuilt
+inside the snapshot. Exact-revision CI must rebuild the native artifacts.
+The dependency lockfile is unchanged and local checks use existing dependencies;
+a redundant install attempt stopped at pnpm's noninteractive directory prompt.
+
+| Package | Local tarball SHA-256 |
+| --- | --- |
+| `@seams/wallet@0.8.0` | `e3fa63b6dc1f5a0a324144e910bf6ea5492de460a44602973dd6121d63cddc49` |
+| `@seams/wallet-server@0.8.0` | `dd78ce6ce7823a4faaa7fad46f54c26bdd0a3a81dd7e83bded294ce8a50fa122` |
+
+All **104 package manifest records** verify. The first **40 migrations** are
+byte-identical to the previous candidate, including the first 39 from npm 0.7.3.
+Migration **0041** is the sole addition. Its signer migration fingerprint is
+`60f934398a2c4f68a6f9b5f580d512ead31e76487f64d66829b18bd9f2d090e7`.
+
+Local acceptance against the frozen source and tarballs:
+
+- Package builds, packed-boundary checks and full public TypeScript checks pass.
+- Private Console server and frontend type-check against the extracted packages.
+- Published 0.7.3 rejection, visible upgrade message, matching reload/registration
+  and verified Tempo/Arc signatures pass in **35.0 seconds**.
+- The configured Google service-account credential refresh succeeds. The
+  passkey-to-Email-OTP lifecycle case passes in **48.4 seconds**, covering lost
+  finalize-reply retry, duplicate-factor rejection, reload/unlock, signing,
+  budget step-up, key export, revocation and rejection of the revoked method.
+  This resolves the earlier token-expiry blocker for this local case.
+- Sustained Tempo/Arc signing beyond pool capacity passes in **1.2 minutes**.
+- Packed Server home-challenge acceptance passes in **15.2 seconds** against
+  private revision `888c9199220fe5cfd0347f81060f06c8d2e67757`.
+  Its initial invocation failed before assertions because the supplied output
+  path escaped Workerd's starting directory through `..`. Classification:
+  `environment_or_infrastructure_failure`. The normal test-results path passes
+  without any production or test-source change.
+- All **20 representative browser cases** pass across Chromium, Firefox and
+  WebKit in **15.3 seconds**. A final protocol repeat passes in **33.3 seconds**
+  and retains `wallet-protocol-cutover.json` beside the candidate logs.
+- Bloat checks pass. An accidentally unfiltered 698-case browser run was stopped;
+  it is excluded from passing evidence.
+
+The exact candidate was pushed to `dev`, and both validation workflows were
+confirmed running on that SHA:
+
+- [Wallet validation](https://github.com/seams-tech/seams-wallet/actions/runs/36972255800)
+- [Router A/B validation](https://github.com/seams-tech/seams-wallet/actions/runs/36972258585)
+
+These runs were in progress when dispatched; the previous candidate's green CI
+does not establish their result. Evidence is retained under
+`.artifacts/r152/release-0.8.0-protocol-20261002/` in both repositories: source
+verification, review and cast comparison, tarballs, build/type-check and browser
+logs, step-up expiry receipt, package manifest verification and Console home
+receipts. Local test durations are acceptance timings, not hosted latency data.
+
+Next: check both exact-revision CI results; finish the concrete release and
+hosted-cutover gates before publication; consume exact 0.8.0 packages privately;
+perform the coordinated testnet migration/backend/frontend rollout and verify
+an already-open old client, reload and rollback. Then continue the remaining
+writer-path coverage, namespace adoption, regional routing and travel-latency
+measurements. Private package pins remain 0.7.3. No package publication or hosted
+infrastructure deployment occurred in this step.

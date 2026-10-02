@@ -77,6 +77,15 @@ before/after activation and stale-version rejection. The migration release,
 hosted rollout execution and remaining writer coverage are still open. See the
 [activation evidence](refactor-152-results.md#activation-consumption-and-runtime-version-admission-october-2).
 
+The October 2 release preparation now freezes candidate `94b4c988`, including
+the wallet-management upgrade gate and live step-up expiry enforcement. Local
+package, Console home-challenge, published-client reload, Email OTP lifecycle
+and sustained-signing checks pass. Both exact-revision CI workflows are running.
+The first 40 signer migrations are unchanged; 0041 is added. Publication, exact
+private consumption and hosted cutover remain open. See the
+[protocol candidate acceptance](refactor-152-release-review.md#protocol-candidate-acceptance--october-2)
+for hashes, scope, timings and CI links.
+
 ## Objective and starting evidence
 
 Use the [R151 empirical results](refactor-151-results.md) as the consolidated
