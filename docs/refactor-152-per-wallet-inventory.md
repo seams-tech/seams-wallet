@@ -119,7 +119,9 @@ completion, an unadmitted resource, and app-hint spoofing. Console type-check,
 type fixtures and focused lint pass. Reproduce with
 `pnpm -C tests test:relayer wallet-home-directory.e2e.test.ts`; retained receipt:
 `.artifacts/r152/service-admission-20261002/wallet-home-evidence.json`
-(SHA-256 `fb36938e1c82dac6b579b580aa8ff0f40a4e87e69ef05a65a59b037a183b8ad0`).
+(SHA-256 `f4775b4387c013e67e7d6e743bcd60fbe230b29aa18b9e14622f7e50b13d5795`).
+Private review commit `30d0f9c` makes an absent catalog return a fail-closed
+503 and rejects unknown internal paths before parsing request bodies.
 
 ## Namespace assignment removal checkpoint
 
