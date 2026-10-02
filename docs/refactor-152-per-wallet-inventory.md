@@ -160,7 +160,11 @@ on each request.
 The same two-Worker E2E exercises reserve, wallet and ceremony lookup, missing
 wallet, cross-project rejection and completion through that client. It still
 has no hosted Gateway caller. Refreshed receipt SHA-256:
-`a85b00726d838d87f716fe61863b89811d9a78089c070e1b21ed804ad8208c0d`.
+`6d5a5d1e0f4fdfda1e47d95e753454214bc767aa7065c34d7cdd6847c9b9d803`.
+Private commit `5ce1c27` adds a lost-response replay to that two-Worker path.
+The first generated candidate commits in WEUR, its client response is discarded,
+and a retry proposes a different wallet and US ingress. The service returns the
+first wallet, WEUR home and setup allocation.
 
 ## Namespace assignment removal checkpoint
 
@@ -201,6 +205,29 @@ interruption leaves a pending claim that blocks conflicting ownership until
 reconciliation; it must never make an uncommitted credential usable. Reconciliation
 must verify the operation identity and regional outcome before publishing or
 releasing an index entry. The exact service contracts remain an open inventory item.
+
+### Invariant-to-authority cutover matrix
+
+| Invariant | Present atomic owner | Target owner and transaction boundary |
+| --- | --- | --- |
+| Wallet ID and registration-operation uniqueness | One signer D1 plus the new Console directory, which hosted setup does not yet call | Console wallet directory commits wallet/home/setup identity before Router preparation. A regional ceremony uses that allocation only. |
+| Passkey credential uniqueness and discoverability | Signer D1 `webauthn_credential_bindings`; local `webauthn_authenticators` tracks counters | Console reserves tenant + RP + credential and resolves it to a wallet; wallet home commits the method and counter. Publish the shared locator only after a verified regional receipt. |
+| Google/provider subject and Email OTP offer selection | Signer D1 `identity_links`, `email_otp_registration_attempts` and enrollment rows | Shared identity authority owns subject-to-wallet links and offer candidates. The selected wallet is reserved once; regional enrollment remains wallet-local. Preserve supported multiple-wallet discovery. |
+| IP, user, wallet, provider and organization Email OTP limits | Signer D1 `email_otp_rate_limits`; `consume` walks each generated key sequentially | Keep every rate key in one shared authority during the cutover, including wallet-keyed counters. Challenge/grant state stays at home; region count cannot multiply an allowance. Define retry identity before changing consumption semantics. |
+| Project signing policy and wallet-scoped abuse decision | Signer D1 `router_ab_normal_signing_admission_records`; a SQL read joins `project_policy` and wallet-keyed `abuse` records to a session | Shared authority owns current project policy. The wallet home owns its wallet-keyed abuse decision and claims one session operation and quota. A policy admission must carry exact scope, decision/version and expiry into the local claim. |
+| Wallet signing quota, authorization and one-use owner proof | Signer D1 `authorization_wallet_session_quotas`, `authorized_operations`, `verified_owner_proof_consumptions` and their triggers | One wallet home owns quota decrement, operation claim/completion, replay and proof consumption in the same local batch. Never replicate a quota independently across regional databases. |
+| Auth-method revocation | Signer D1 wallet authority/method rows and credential lookup | Wallet home commits revocation and session invalidation. Shared credential routing entry must be retired or marked inactive only against an exact regional receipt; stale lookup cannot authorize a revoked method. |
+| Recovery code locator uniqueness and one-use consumption | `d1WalletCustodyCommitStore` inserts envelope, recovery set, acknowledgement and locators in one D1 batch; rotation removes old locators and inserts replacements in that batch | Console reserves routing locators before regional commit. Wallet home keeps recovery wraps, held-code consumption and replacement authority atomic. Reconciliation publishes/retire locators only after the exact home receipt, with pending claims blocking duplicates. |
+| Hosted exchange, linked delivery and other opaque one-use IDs | Signer D1 parent/child lifecycle rows and triggers | A shared lookup or authenticated envelope resolves the parent wallet; issuance, redemption, acknowledgement and retirement remain one-use at the wallet home. Lookup alone cannot consume or authorize the bearer. |
+
+The matrix identifies the transaction cuts. The shared reservation/commit
+interfaces and failure reconciliation for passkeys, recovery locators, policy
+and rate limits still need implementation before the signer database can split.
+Moving only wallet-keyed Email OTP counters to regional D1 would split the
+current multi-key `consume` operation and create partial-consumption behavior
+across databases. Keeping the whole rate-limit table shared is the smaller
+initial change; its existing sequential-key behavior remains a separate
+write/roundtrip optimization target.
 
 ## Registration and no-wallet-ID entrypoints
 

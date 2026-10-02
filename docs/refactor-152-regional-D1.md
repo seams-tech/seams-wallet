@@ -159,8 +159,11 @@ leaves the release held. No hosted schema reset, deployment or publication occur
   custody envelopes and wallet-local recovery state at the assigned home.
 - [ ] Keep tenant/project policy, cross-wallet credential/identity uniqueness,
   aggregate rate limits and tenant-wide quotas authoritative at their defined
-  shared scope. Split wallet-only counters from shared counters explicitly;
-  regionalization must not multiply an existing allowance by three.
+  shared scope. Keep every Email OTP rate-limit key in shared authority for the
+  initial cutover: the current consume operation walks IP, user, wallet,
+  provider and organization keys together. A later counter split needs explicit
+  idempotent consumption semantics; regionalization must not multiply an
+  existing allowance by three.
 - [ ] Preserve atomicity for recovery/identity changes. Where the old transaction
   crosses the new ownership boundary, define durable reservation, idempotent
   regional commit and completion/reconciliation states; prohibit duplicate
