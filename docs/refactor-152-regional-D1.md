@@ -541,6 +541,11 @@ below remain open.
   client, an actionable reload/upgrade outcome and successful 0.8.0 registration
   and signing after reload. Both releases advertise iframe protocol `2.0.0`, so
   the existing handshake cannot establish the required SDK/backend pairing.
+  A Chromium transport probe on 2026-10-02 confirmed both published 0.7.3 and
+  frozen 0.8.0 propagate a fixture server's 409 upgrade message after one
+  registration setup request, without retry. UI rendering and the complete
+  cutover remain unverified. Choose an explicit protocol check/new candidate or
+  coordinated maintenance before implementation; see the release review.
 - [ ] Reuse existing trusted tenant/environment routing where possible. Define
   required owner, home, and routing-generation identity at the server boundary.
   Reject inconsistent or stale routes before any mutation. Route lookup itself

@@ -264,7 +264,48 @@ change and documentation update do not alter that release candidate.
 At this checkpoint, the [Router A/B CI run](https://github.com/seams-tech/seams-wallet/actions/runs/36960865648)
 completed successfully, including the entrypoint, Cloudflare adapter, core/dev
 and startup dry-run jobs. The [Wallet CI run](https://github.com/seams-tech/seams-wallet/actions/runs/36960863406)
-was still in progress. Publication and hosted deployment remain pending.
+subsequently completed successfully at the same exact revision. Both candidate
+CI runs are now green. Publication and hosted deployment remain pending.
+
+### Published-client upgrade rejection probe — 2026-10-02
+
+A Chromium experiment bundled the installed npm 0.7.3 registration client and
+the frozen 0.8.0 registration client separately. Each called its real
+`setupWalletRegistration` transport over HTTP against a local fixture returning
+409 with `{ ok: false, code: 'wallet_protocol_mismatch', message }`. Both clients
+threw the exact server-provided message after one request, with no retry:
+
+> Your wallet application needs an update. Reload this page and try again. If the
+> problem continues, ask the application developer to upgrade the Wallet SDK.
+
+The fixture was corrected to use positive NEAR signer slot 1 before the passing
+run. No production changes were needed for this experiment. This establishes
+error propagation through the published registration transport. It does not
+prove application UI rendering, a production protocol fence, or successful
+registration/signing after reload.
+
+The repeatable script and receipt, including both source SHA-256 digests and
+observed requests, are retained in private
+`.artifacts/r152/client-cutover-20261002/{probe.mjs,results.json}`. Reproduce from
+`seams-monorepo` with
+`node .artifacts/r152/client-cutover-20261002/probe.mjs`.
+
+The cutover decision is pending: add an explicit request protocol check and
+validate a new candidate, or coordinate maintenance and integrator upgrades
+before admitting traffic. The recommended implementation is an explicit wire
+protocol contract, checked before incompatible wallet operations mutate state.
+Missing or unsupported protocol values should return the actionable error
+above. The matching client must send the contract value, and both Fetch/Express
+adapters, Gateway forwarding and CORS must preserve it. This is a proposed
+boundary change; no version marker or server rejection has been implemented.
+
+After selecting that approach, verify an already-loaded published client receives
+the upgrade outcome, then reload the new client and complete registration and
+signing against its matching server. Include unsupported protocol rejection and
+absence of mutation on rejected requests. Rebuild and freeze the resulting
+candidate, re-run package acceptance and CI, and keep the existing `335f2878`
+artifacts as the previous validated checkpoint. A page reload alone cannot
+upgrade an integrator's SDK package pin.
 
 Repeat the composed acceptance with the retained extracted package:
 
