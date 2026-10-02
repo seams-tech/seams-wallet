@@ -189,7 +189,7 @@ CTA belong to the wallet origin.
 
 ### Wallet-management protocol
 
-- Wallet-management requests send `X-Seams-Wallet-Protocol: 1`. This wire
+- Wallet-management requests send `X-Seams-Wallet-Protocol: 2`. This wire
   contract covers registration, signer setup and inventory, auth-method
   management, and implicit NEAR funding through the wallet-management routes.
 - Missing or unsupported values return HTTP 409 with code
@@ -202,6 +202,24 @@ CTA belong to the wallet origin.
   to an older SDK must upgrade its package; a reload cannot change that pin.
 - Preflight requests allow the protocol header. Fetch and Express expose the
   same contract. Signing, recovery and export routes retain their own contracts.
+
+### Registration setup delivery
+
+- Before the first setup request, the SDK durably records a random
+  `registrationOperationId`, scoped to Gateway URL, publishable key, environment
+  and the normalized registration request. Matching retries and concurrent tabs
+  reuse that operation after a lost reply or reload. Storage failure prevents
+  the request from being sent.
+- The local journal stores digests and operation/accepted wallet/ceremony IDs.
+  It never stores the publishable key or authentication proof. A later setup
+  response cannot change an already accepted wallet or ceremony.
+- Successful local registration publication clears that exact wallet/ceremony
+  from the setup journal, including publication resumed after a reload. Failed
+  cleanup cannot undo an already committed registration.
+- This delivery contract does not establish server-side replay: the regional
+  rollout remains held until setup uses the Console reservation and resumes the
+  same regional preparation. Server expiry/cancellation and an explicit fresh
+  attempt must be connected to that authority before rollout.
 
 ### Passkey authentication
 

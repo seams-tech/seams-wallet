@@ -8,13 +8,17 @@ import {
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { build } from 'esbuild';
-import { WALLET_MANAGEMENT_PROTOCOL_HEADER } from '../../../packages/shared-ts/src/utils/walletManagementProtocol';
+import {
+  WALLET_MANAGEMENT_PROTOCOL_HEADER,
+  WALLET_MANAGEMENT_PROTOCOL_VERSION,
+} from '../../../packages/shared-ts/src/utils/walletManagementProtocol';
 import type { IntendedBehaviourHarness } from './harness';
 
 class PreviousProtocolRequest {
   requests = 0;
   url = '';
   headers: Record<string, string> = {};
+  body = '';
 
   async forward(route: Route): Promise<void> {
     if (route.request().method() !== 'POST') {
@@ -23,6 +27,7 @@ class PreviousProtocolRequest {
     }
     this.requests += 1;
     this.url = route.request().url();
+    this.body = route.request().postData() ?? '';
     this.headers = await route.request().allHeaders();
     delete this.headers[WALLET_MANAGEMENT_PROTOCOL_HEADER.toLowerCase()];
     await route.continue({ headers: this.headers });
@@ -72,6 +77,21 @@ async function callPublishedRegistration(input: {
   } catch (error) {
     return error instanceof Error ? error.message : String(error);
   }
+}
+
+async function readAcceptedSetupOperations(
+  _body: HTMLElement,
+  modulePath: string,
+): Promise<string[]> {
+  const { seamsWalletDB } = await import(modulePath);
+  const database = await seamsWalletDB.getDB();
+  const prefix = 'wallet_registration_setup:';
+  const rows = await database.getAll('app_state', IDBKeyRange.bound(prefix, `${prefix}\uffff`));
+  const accepted: string[] = [];
+  for (const row of rows) {
+    if (row.value.state === 'accepted') accepted.push(row.value.operationId);
+  }
+  return accepted;
 }
 
 async function verifyPublishedClientRejection(
@@ -140,6 +160,32 @@ export async function verifyWalletProtocolCutover(
   expect(unsupported.status()).toBe(409);
   expect(await unsupported.json()).toMatchObject({ ok: false, code: 'wallet_protocol_mismatch' });
 
+  const previousVersion = await context.request.post(previous.url, {
+    headers: { ...previous.headers, [WALLET_MANAGEMENT_PROTOCOL_HEADER]: '1' },
+    data: '{invalid JSON',
+  });
+  expect(previousVersion.status()).toBe(409);
+  expect(await previousVersion.json()).toMatchObject({
+    ok: false,
+    code: 'wallet_protocol_mismatch',
+  });
+
+  const missingOperation = JSON.parse(previous.body);
+  delete missingOperation.registrationOperationId;
+  const rejectedOperation = await context.request.post(previous.url, {
+    headers: {
+      ...previous.headers,
+      [WALLET_MANAGEMENT_PROTOCOL_HEADER]: WALLET_MANAGEMENT_PROTOCOL_VERSION,
+    },
+    data: missingOperation,
+  });
+  expect(rejectedOperation.status()).toBe(400);
+  expect(await rejectedOperation.json()).toMatchObject({
+    ok: false,
+    code: 'invalid_body',
+    message: 'registrationOperationId is required',
+  });
+
   const preflight = await context.request.fetch(previous.url, {
     method: 'OPTIONS',
     headers: {
@@ -157,6 +203,15 @@ export async function verifyWalletProtocolCutover(
   await harness.registerPasskeyWallet();
   await harness.signTempoTransaction('post_registration');
   await harness.signArcEvmTransaction('post_registration');
+  await harness.awaitNearReady();
+  const databaseModule = `/@fs/${path.resolve(import.meta.dirname, '../../../packages/wallet/dist/esm/core/indexedDB/singletons.js')}`;
+  const acceptedSetupOperations = await page
+    .locator('iframe[allow*="publickey-credentials-get"]')
+    .last()
+    .contentFrame()
+    .locator('body')
+    .evaluate(readAcceptedSetupOperations, databaseModule);
+  expect(acceptedSetupOperations).toEqual([]);
   await writeFile(
     testInfo.outputPath('wallet-protocol-cutover.json'),
     JSON.stringify(
@@ -167,8 +222,11 @@ export async function verifyWalletProtocolCutover(
         published073Client: publishedRoot ? 'rejected with upgrade message' : 'not requested',
         upgradeMessageVisible: true,
         unsupportedProtocolRejectedBeforeJsonParsing: true,
+        previousProtocolRejectedBeforeJsonParsing: true,
+        missingSetupOperationRejected: true,
         preflightAccepted: true,
         registrationAfterReload: 'passed',
+        acceptedSetupOperationsAfterPublication: acceptedSetupOperations,
         verifiedSignatures: ['Tempo', 'Arc'],
       },
       null,

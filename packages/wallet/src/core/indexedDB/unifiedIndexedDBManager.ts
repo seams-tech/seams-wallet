@@ -1,4 +1,5 @@
 import { SIGNER_KINDS } from '@shared/utils/signerDomain';
+import { RegistrationSetupRepository } from './seamsWalletDB/registrationSetup';
 import { toTrimmedString } from '@shared/utils/validation';
 import type { WalletAuthMethodId } from '@shared/utils/domainIds';
 import type { AccountId } from '../types/accountIds';
@@ -101,6 +102,7 @@ const KEY_MATERIAL_SIGNER_KINDS = new Set<string>(Object.values(SIGNER_KINDS));
 export class UnifiedIndexedDBManager {
   public readonly seamsWalletDB: SeamsWalletDBManager;
   private readonly seamsWalletRepositories: SeamsWalletRepositories;
+  private readonly registrationSetupRepository: RegistrationSetupRepository;
   private readonly eventListeners: Set<(event: IndexedDBEvent) => void> = new Set();
   private _initialized = false;
   private lastUserScope: string | null = null;
@@ -108,6 +110,7 @@ export class UnifiedIndexedDBManager {
   constructor(deps?: Partial<UnifiedIndexedDBManagerDeps>) {
     this.seamsWalletDB = deps?.seamsWalletDB || seamsWalletDB;
     this.seamsWalletRepositories = new SeamsWalletRepositories(this.seamsWalletDB);
+    this.registrationSetupRepository = new RegistrationSetupRepository(this.seamsWalletDB);
   }
 
   async initialize(): Promise<void> {
@@ -604,7 +607,13 @@ export class UnifiedIndexedDBManager {
   async publishPendingWalletRegistrationCommit(
     input: PublishPendingWalletRegistrationCommitInputV1,
   ): Promise<StoreWalletRegistrationFinalizeBatchResult> {
-    return this.seamsWalletRepositories.publishPendingWalletRegistrationCommit(input);
+    const result = await this.seamsWalletRepositories.publishPendingWalletRegistrationCommit(input);
+    try {
+      await this.registrationSetupRepository.complete(input.pending);
+    } catch (error) {
+      console.warn('Wallet registration committed; setup journal cleanup remains pending', error);
+    }
+    return result;
   }
 
   async publishPendingWalletRegistrationCommitAndRetain(

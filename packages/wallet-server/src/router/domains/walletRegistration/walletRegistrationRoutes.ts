@@ -1,3 +1,4 @@
+import { parseRegistrationSetupOperationId } from '@shared/utils/registrationSetupOperation';
 import type {
   WalletRegistrationNearProvisioningResponseV2,
   WalletRegistrationNearAdmissionResponseV2,
@@ -530,6 +531,10 @@ function parseWalletRegistrationSetupWallet(
 function parseWalletRegistrationSetupRequest(
   body: Record<string, unknown>,
 ): ParseResult<WalletRegistrationSetupRequest> {
+  const registrationOperationId = parseRegistrationSetupOperationId(body.registrationOperationId);
+  if (!registrationOperationId) {
+    return { ok: false, code: 'invalid_body', message: 'registrationOperationId is required' };
+  }
   const signerSelection = parseRegistrationSignerSet(body.signerSelection);
   if (!signerSelection.ok) return signerSelection;
   const authMethod = normalizeRegistrationAuthMethodInput(body.authMethod);
@@ -541,6 +546,7 @@ function parseWalletRegistrationSetupRequest(
   return {
     ok: true,
     value: {
+      registrationOperationId,
       ...(wallet.value ? { wallet: wallet.value } : {}),
       signerSelection: signerSelection.value.selection,
       authMethod,
@@ -2030,14 +2036,6 @@ export async function handleRouterApiWalletAddSignerIntent(
   return routeJson(result.ok ? 200 : 400, result);
 }
 
-/**
- * `POST /wallets/register/setup` — the single admitted entry point that
- * replaces the bootstrap grant, the intent, and start.
- *
- * Authentication is the same API-credential plane the intent route used, so
- * origin and environment binding are unchanged; what is gone is the stored
- * grant that used to sit between the check and its only reader.
- */
 export async function handleRouterApiWalletRegistrationSetup(
   input: RouterApiWalletRegistrationInput,
 ): Promise<RouteResponse<WalletRegistrationSetupResponseV2 | RouteErrorBody>> {

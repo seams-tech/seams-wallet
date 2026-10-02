@@ -235,7 +235,7 @@ write/roundtrip optimization target.
 
 | Source (public unless labelled private) | Current behavior / required change |
 | --- | --- |
-| `d1WalletRegistrationService.setupWalletRegistration` | Allocates wallet ID, founding auth method, ceremony and preparation IDs before custody preparation. No durable client request key currently binds an initial setup retry. Introduce one boundary-normalized registration identity before regional effects and keep allocated IDs stable. |
+| `d1WalletRegistrationService.setupWalletRegistration` | Allocates wallet ID, founding auth method, ceremony and preparation IDs before custody preparation. The SDK now persists and sends a setup operation ID; the service still needs to use it for Console reservation and stable regional preparation. |
 | `d1WalletRegistrationSetup.resolveWalletRegistrationSetupWalletId` | Supports supplied and server-allocated wallet IDs. Both need the shared reservation. |
 | `d1GoogleEmailOtpSessionResolver.createFreshRegistrationAttempt` | Offers locally checked candidate wallets before selecting one. Shared authority must own offers/selection and existing-provider discovery; only the selected wallet gets its permanent home. |
 | `walletRegistrationSetupPayload` | Setup claims bind ceremony, wallet and signing context. Bind the reserved home/operation in the verified continuation context. |
@@ -249,14 +249,24 @@ write/roundtrip optimization target.
 
 | Entry path | Current replay identity | Gap and required cutover behavior |
 | --- | --- | --- |
-| SDK direct passkey ECDSA or mixed registration | Volatile `finalizeIdempotencyKey`, created before setup and used by activation | Persist one pre-setup operation ID; a lost setup reply must replay the same Console reservation and regional preparation. |
-| SDK direct Email OTP Ed25519-only registration | Volatile `finalizeIdempotencyKey`, created before setup | Use the same pre-setup operation contract; the Email OTP authority and selected wallet must remain bound through retry. |
-| SDK direct passkey Ed25519-only registration | Volatile `finalizeIdempotencyKey`, created before setup | Use the same pre-setup operation contract and recover the same ceremony identity. |
-| Hosted passkey preparation (`prepareHostedPasskeyRegistration`) | `authMenuSessionId` and `requestId` own the in-memory prompt; the finalization key is created only when registration continues | Create and durably record the setup operation before hosted preparation. Cancellation must close its reservation; a restarted UI must identify the prior attempt explicitly. |
-| Low-level `setupWalletRegistration` client and `/wallets/register/setup` route | No setup operation ID on the wire | Require a stable ID from the caller; validate it at the authenticated route and bind it to the normalized request and Origin. |
+| SDK direct passkey ECDSA or mixed registration | Persisted setup operation; separate `finalizeIdempotencyKey` used by activation | Connect the setup operation to the same Console reservation and regional preparation after reply loss. |
+| SDK direct Email OTP Ed25519-only registration | Persisted setup operation; separate finalization identity | Keep the Email OTP authority and selected wallet bound through authoritative replay. |
+| SDK direct passkey Ed25519-only registration | Persisted setup operation; separate finalization identity | Recover the same reserved ceremony identity at the server. |
+| Hosted passkey preparation (`prepareHostedPasskeyRegistration`) | Common setup client persists the operation; `authMenuSessionId` and `requestId` own the in-memory prompt | Connect cancellation to its reservation and expose an explicit fresh attempt after a terminal server outcome. |
+| Low-level `setupWalletRegistration` client and `/wallets/register/setup` route | Protocol 2 requires `registrationOperationId`; IndexedDB persists it before sending, keyed by scope/request digests | Boundary validation is implemented. Bind it to the verified tenant, normalized request and Origin in Console before regional effects. |
 | Google Email OTP registration offer | Durable `registrationAttemptId` and `ownerProofBindingDigest`; `restartRegistrationOffer` abandons an offer intentionally | Keep the offer and candidate uniqueness in shared authority. The selected candidate must use one setup operation and one permanent wallet/home reservation. |
 
-`/wallets/register/setup` currently has no request-carried setup operation ID.
+`/wallets/register/setup` now requires a request-carried setup operation ID.
+The SDK persists this random identity in an atomic IndexedDB transaction before
+fetch, sharing matching attempts across tabs. The scope digest includes Gateway
+URL, publishable key and environment; the request digest covers the normalized
+wallet choice, authentication method and signer selection. Only digests and IDs
+are persisted. After acceptance, changing the wallet or ceremony fails closed.
+Shared registration publication removes the exact wallet/ceremony, including
+publication resumed from the existing pending-commit journal. Corrupt storage
+prevents sending a replacement operation. Cancellation/expiry and deliberate
+fresh-attempt handling remain dependent on the authoritative server integration.
+
 The route validates the publishable key, exact Origin, environment and body,
 then calls `setupWalletRegistration`. That service generates a wallet ID for the
 server-allocated branch, founding authority/auth-method IDs, ceremony and
@@ -268,8 +278,8 @@ The browser-side `finalizeIdempotencyKey` is generated before setup in each
 registration branch, but currently binds **finalization only** and is not
 persisted across a browser restart. Reusing its string as a setup key without
 a durable browser operation journal would not repair a lost setup response.
-The SDK already has generic IndexedDB `appState` storage. Its pending-registration
-commit journal starts after setup, so a pre-setup operation record belongs in
+The SDK uses generic IndexedDB `appState` storage for the pre-setup operation.
+Its pending-registration commit journal starts after setup. The new record uses
 that existing store with its own precise lifecycle and cleanup.
 
 The Console directory reservation must be the first durable wallet/home

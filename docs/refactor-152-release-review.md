@@ -603,3 +603,68 @@ composed scenario. This is local correctness evidence. Hosted per-wallet
 registration reservation, shared identity authority, regional fan-out and
 lifecycle enforcement remain open. Private package pins remain 0.7.3 pending the
 coordinated release. No hosted migration, reset, deployment or publication ran.
+
+## October 2: durable setup delivery prerequisite (protocol 2)
+
+The browser now commits a setup operation ID to IndexedDB before its first
+request. Matching requests share the ID across tabs and reloads; scope and
+normalized-request digests prevent accidental reuse across environments or
+different requests. Accepted replies pin both wallet and ceremony. The journal
+stores digests and IDs, with no raw authentication proof or publishable key.
+
+Review found that cleanup in the normal success handler would miss resumed
+registration. Cleanup now runs after the shared local commit-publication method,
+using its own database manager and exact wallet/ceremony identity. Cleanup
+failure cannot undo the committed wallet. The response parser also preserves
+the validated `WalletId` type instead of widening it back to a string.
+
+The candidate wallet-management protocol is now **2**. Setup requires
+`registrationOperationId`; missing/old protocol requests keep the actionable
+upgrade error. Console's direct provisioning canary sends the matching header
+and operation field. This supersedes protocol 1 in the earlier candidate notes.
+
+Local verification:
+
+- Chromium, Firefox and WebKit passed the browser delivery scenario: concurrent
+  tabs, lost replies, reload, changed-wallet/ceremony rejection, environment
+  isolation, exact cleanup, a subsequent fresh operation, and corrupt storage
+  rejected before network effects. Each run emits a JSON receipt.
+- The full local protocol-cutover contract passed: missing/unsupported/protocol-1
+  requests rejected before parsing; missing setup operation rejected; upgrade
+  message visible; reload followed by successful registration, verified Tempo
+  and Arc signatures, NEAR readiness, and no accepted setup entries remaining.
+  The 12.9-minute command duration includes rebuilding the Rust/WASM services;
+  it is not a wallet latency measurement. The optional published-0.7.3 package
+  probe was not requested in this run.
+- Wallet and server type checks, lifecycle type fixtures, intended-contract
+  type checks, SDK/server builds, and the public bloat check passed.
+- Console's candidate-backed server type check and persistent-D1 writer-binding
+  E2E passed (15.5 seconds). Protocol-2 requests still fail at writer admission
+  when their deployed version is unauthorized. Private evidence is under
+  `.artifacts/r152/setup-delivery-20261002/`; this run used the freshly built
+  local server package via `SEAMS_WALLET_SERVER_CANDIDATE`.
+
+Public repository evidence is retained under
+`.artifacts/r152/setup-delivery-20261002/`, including three browser receipts and
+their hashes in `browser-receipts.json`, build/check logs and
+`wallet-protocol-cutover.json`. The latter's SHA-256 is
+`3748746d646254c39aaa7b6d88834031fe3be42f24adaf1243b320efd213d91d`.
+Repeat from the public repository:
+
+```sh
+pnpm --dir tests exec playwright test -c playwright.wallet-browser.config.ts \
+  wallet-ui/registration-setup.browser.test.ts
+pnpm --dir tests exec node scripts/run-wallet-intended-isolated.mjs \
+  e2e/intended-behaviours/passkey.registration.contract.test.ts \
+  --grep 'wallet protocol rejection'
+```
+
+**Server reservation replay remains open.** The service still independently
+allocates setup identities. Next, use the operation ID plus verified tenant,
+Origin and normalized request to reserve through Console before Router effects;
+resume the winning regional preparation/ceremony; then wire terminal
+expiry/cancellation and an explicit fresh attempt. Do not release this
+prerequisite as completed server idempotency or per-wallet regional routing.
+Regional continuation routing, shared identity authority, lifecycle enforcement
+and namespace-placement removal remain held together under R152. No deployment
+or publication occurred; private package pins remain 0.7.3.

@@ -1,2 +1,2 @@
 export const WALLET_MANAGEMENT_PROTOCOL_HEADER = 'X-Seams-Wallet-Protocol';
-export const WALLET_MANAGEMENT_PROTOCOL_VERSION = '1';
+export const WALLET_MANAGEMENT_PROTOCOL_VERSION = '2';

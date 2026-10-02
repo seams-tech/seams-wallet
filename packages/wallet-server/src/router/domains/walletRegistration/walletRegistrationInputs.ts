@@ -19,6 +19,7 @@ import type {
 } from './walletRegistrationSetupPayload';
 
 export type WalletRegistrationSetupRequest = {
+  readonly registrationOperationId: string;
   readonly wallet?: RegisterWalletInput;
   readonly signerSelection: RegistrationSignerSetSelection;
   readonly authMethod: RegistrationAuthMethodInput;

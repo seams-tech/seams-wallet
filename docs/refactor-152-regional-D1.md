@@ -125,6 +125,14 @@ role RPC and cross-authority contract has a final owner and failure behavior.
 - [ ] Connect authenticated registration and shared-identity admission to this
   directory, then switch all hosted and lifecycle paths together with removal
   of namespace placement. The new directory is not yet used by hosted requests.
+- [x] Persist a browser setup operation before sending the request; preserve it
+  through lost replies, concurrent tabs and reload. Bind accepted responses to
+  one wallet/ceremony and clear the journal at shared registration publication,
+  including resumed commits. Protocol 2 requires the operation field.
+- [ ] Bind that operation to the authenticated Console reservation before any
+  Router preparation. Return/reconcile the original ceremony and preparation;
+  connect terminal expiry/cancellation and deliberate fresh-attempt behavior.
+  The browser journal alone does not provide server idempotency.
 - [x] Remove Console's namespace reservation gate, historical home-adoption
   path and effective-schema table, while preserving provider writer proof and
   binding/resource checks. Private focused E2Es and type checks passed. Hosted

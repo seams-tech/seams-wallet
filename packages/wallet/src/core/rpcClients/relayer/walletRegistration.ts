@@ -1,3 +1,7 @@
+import {
+  registrationSetupRepository,
+  registrationSetupScopeDigest,
+} from '@/core/indexedDB/seamsWalletDB/registrationSetup';
 import type {
   AddAuthMethodIntentGrant,
   AddAuthMethodIntentCallerV1,
@@ -627,17 +631,14 @@ export type WalletRegistrationStartResponse = WalletRegistrationStartResponseBas
       }
   );
 
-/**
- * The `/wallets/register/setup` response.
- *
- * `signedSetup` is opaque to the client: it is carried to routes 2 and 3 and
+/** `signedSetup` is opaque to the client: it is carried to routes 2 and 3 and
  * echoed verbatim, never parsed. `registrationIntentDigestB64u` is the
  * challenge the WebAuthn create must sign.
  */
 type WalletRegistrationSetupSuccessBase = {
   ok: true;
   registrationCeremonyId: string;
-  walletId: string;
+  walletId: WalletId;
   walletAuthMethodId: WalletAuthMethodId;
   registrationIntentDigestB64u: string;
   intent: RegistrationIntentV1;
@@ -2432,6 +2433,7 @@ type WalletRegistrationSetupRequestForBinding = {
 function normalizeWalletRegistrationSetupRequestForBinding(
   request: WalletRegistrationSetupRequestForBinding,
 ): {
+  readonly wallet: RegisterWalletInput;
   readonly authMethod: RegistrationAuthMethodInput;
   readonly signerSelection: RegistrationSignerSetSelection;
 } {
@@ -2451,7 +2453,11 @@ function normalizeWalletRegistrationSetupRequestForBinding(
       `Wallet registration setup request signerSelection is invalid: ${signerSelection.message}`,
     );
   }
-  return { authMethod, signerSelection: signerSelection.value };
+  return {
+    wallet: request.wallet ?? { kind: 'server_allocated' },
+    authMethod,
+    signerSelection: signerSelection.value,
+  };
 }
 
 function registrationIntentWithExpectedSetupRequest(
@@ -3033,14 +3039,6 @@ function parseWalletEcdsaKeyFactsInventoryResponse(args: {
   };
 }
 
-/**
- * `POST /wallets/register/setup` — the single admitted entry point replacing
- * the grant, intent, and start calls below.
- *
- * It is called *before* the WebAuthn create prompt, because its response
- * carries the challenge that create must sign. The server-side preparation
- * therefore overlaps the user's authenticator interaction.
- */
 export async function setupWalletRegistration(args: {
   relayerUrl: string;
   request: {
@@ -3048,12 +3046,6 @@ export async function setupWalletRegistration(args: {
     signerSelection: CreateRegistrationIntentRequest['signerSelection'];
     authMethod: CreateRegistrationIntentRequest['authMethod'];
   };
-  /**
-   * The route's auth plane is `api_credentials` with `publishable_key` only —
-   * no bootstrap token to mint first, and no secret-key fallback on a route
-   * the browser calls directly. The key travels as a Bearer token and the
-   * environment id as `X-Seams-Environment-Id`; the browser adds Origin.
-   */
   auth: { publishableKey: string; environmentId: string };
   headers?: Record<string, string>;
   onServerTiming?: (header: string | null) => void;
@@ -3067,7 +3059,13 @@ export async function setupWalletRegistration(args: {
       message: 'registration setup requires a publishable key and environment id',
     };
   }
-  const normalizedRequest = normalizeWalletRegistrationSetupRequestForBinding(args.request);
+  const request = normalizeWalletRegistrationSetupRequestForBinding(args.request);
+  const scopeDigest = await registrationSetupScopeDigest({
+    relayerUrl: args.relayerUrl,
+    publishableKey,
+    environmentId,
+  });
+  const attempt = await registrationSetupRepository.begin(scopeDigest, request);
   const response = await postJson({
     relayerUrl: args.relayerUrl,
     path: WALLET_REGISTRATION_SETUP_PATH,
@@ -3077,9 +3075,10 @@ export async function setupWalletRegistration(args: {
       [ROUTER_API_ENVIRONMENT_ID_HEADER]: environmentId,
     },
     body: {
-      ...(args.request.wallet ? { wallet: args.request.wallet } : {}),
-      signerSelection: normalizedRequest.signerSelection,
-      authMethod: normalizedRequest.authMethod,
+      registrationOperationId: attempt.operationId,
+      wallet: request.wallet,
+      signerSelection: request.signerSelection,
+      authMethod: request.authMethod,
     },
     ...(args.onServerTiming ? { onServerTiming: args.onServerTiming } : {}),
   });
@@ -3088,8 +3087,9 @@ export async function setupWalletRegistration(args: {
   await assertWalletRegistrationSetupRequestBindings({
     response: parsed,
     ...(args.request.wallet ? { requestedWallet: args.request.wallet } : {}),
-    request: normalizedRequest,
+    request,
   });
+  await registrationSetupRepository.accept(attempt, parsed);
   return parsed;
 }
 
