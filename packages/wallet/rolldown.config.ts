@@ -326,6 +326,34 @@ const emitWalletServiceStaticPlugin = {
   },
 };
 
+// The wallet iframe host must stay React-free. Its chunks are minified and carry no
+// module markers, so the check runs here, where each chunk's module list is known.
+const WALLET_IFRAME_HOST_FORBIDDEN_MODULE_PATTERNS = [
+  /(?:^|\/)src\/react(?:\/|$)/i,
+  /(?:^|\/)node_modules\/(?:react|react-dom|lucide-react)(?:\/|$)/i,
+];
+
+const assertWalletIframeHostReactFreePlugin = {
+  name: 'assert-wallet-iframe-host-react-free',
+  generateBundle(_options: unknown, bundle: Record<string, any>) {
+    const offenders: string[] = [];
+    for (const output of Object.values(bundle)) {
+      if (output.type !== 'chunk') continue;
+      for (const moduleId of output.moduleIds as string[]) {
+        const modulePath = toPosixPath(path.relative(SDK_ROOT_ABS, moduleId));
+        if (
+          WALLET_IFRAME_HOST_FORBIDDEN_MODULE_PATTERNS.some((pattern) => pattern.test(modulePath))
+        ) {
+          offenders.push(`${output.fileName} bundles ${modulePath}`);
+        }
+      }
+    }
+    if (offenders.length > 0) {
+      throw new Error(`Wallet iframe host bundles React modules:\n  ${offenders.join('\n  ')}`);
+    }
+  },
+};
+
 const collectCssFiles = (dir: string, files: string[] = []): string[] => {
   if (!fs.existsSync(dir)) return files;
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -693,13 +721,13 @@ const configs = [
       format: 'esm',
       entryFileNames: 'sdk/[name].js',
       chunkFileNames: 'sdk/[name]-[hash].js',
+      minify: true,
     },
     external: embeddedExternal,
     resolve: {
       alias: aliasConfig,
     },
-    // Minification is controlled via CLI flags; no config option in current Rolldown types
-    plugins: [...prodPlugins, emitWalletServiceStaticPlugin],
+    plugins: [...prodPlugins, assertWalletIframeHostReactFreePlugin, emitWalletServiceStaticPlugin],
   },
   // Vite plugin ESM build (source moved to src/plugins)
   {

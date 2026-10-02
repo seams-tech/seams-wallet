@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { readModuleImports } from './browser-module-graph.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -38,12 +39,8 @@ const forbiddenWalletIframeHostPathPatterns = [
   /(^|\/)lucide-react(?:\/|[-.]|$)/i,
   /(?:^|\/)packages\/wallet\/src\/react(?:\/|$)/i,
 ];
-const forbiddenWalletIframeHostSourcePatterns = [
-  /(?:^|\r?\n)\s*\/\/#region\s+(?:(?:\.\.\/|[^/\r\n]+[\\/]))*src[\\/]react(?:[\\/]|$)/i,
-  /(?:^|\r?\n)\s*\/\/#region\s+(?:(?:\.\.\/|[^/\r\n]+[\\/]))*node_modules[\\/](?:react|react-dom|lucide-react)(?:[\\/]|$)/i,
-  /(?:^|[^\w$])(?:var|let|const)\s+React(?:DOM)?\s*=/,
-];
-const inlinedReactSymbolPattern = /Symbol\.for\(\s*['"]react\.(?:element|fragment)['"]\s*\)/;
+// The minifier writes string literals with backticks, so those count as quotes here.
+const inlinedReactSymbolPattern = /Symbol\.for\(\s*['"`]react\.(?:element|fragment)['"`]\s*\)/;
 const inlinedReactRuntimePattern =
   /\b(?:ReactCurrentDispatcher|ReactCurrentOwner|ReactSharedInternals|__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED|createRoot|hydrateRoot|jsxDEV|jsxs|createElement)\b/;
 const forbiddenWalletIframeHostSourcePredicates = [
@@ -76,21 +73,18 @@ function resolveRelativeImport(fromFile, specifier) {
   );
 }
 
-function importSpecifiers(source, { includeDynamicImports = false } = {}) {
+const requireSpecifierPattern = /\b(?:require|module\.require)\s*\(\s*['"`]([^'"`]+)['"`]\s*\)/g;
+
+// Imports come from the parsed module, so minified chunks are walked like readable ones.
+function importSpecifiers(file, source, { includeDynamicImports = false } = {}) {
   const specifiers = [];
-  const patterns = [
-    /\bimport\s+(?:[^'"]*?\s+from\s+)?['"]([^'"]+)['"]/g,
-    /\bexport\s+(?:[^'"]*?\s+from\s+)['"]([^'"]+)['"]/g,
-    /\b(?:require|module\.require)\s*\(\s*['"]([^'"]+)['"]\s*\)/g,
-  ];
-  if (includeDynamicImports) {
-    patterns.push(/\bimport\s*\(\s*(?:\/\*[\s\S]*?\*\/\s*)?['"]([^'"]+)['"]\s*\)/g);
+  for (const dependency of readModuleImports(file)) {
+    if (dependency.specifier === null) continue;
+    if (dependency.dynamic && !includeDynamicImports) continue;
+    specifiers.push(dependency.specifier);
   }
-  for (const pattern of patterns) {
-    let match;
-    while ((match = pattern.exec(source))) {
-      specifiers.push(match[1]);
-    }
+  for (const match of source.matchAll(requireSpecifierPattern)) {
+    specifiers.push(match[1]);
   }
   return specifiers;
 }
@@ -117,7 +111,7 @@ function collectEntryGraphOffenders(
   function importSpecifiersCached(file, source) {
     const cached = specifierCache.get(file);
     if (cached) return cached;
-    const specifiers = importSpecifiers(source, { includeDynamicImports });
+    const specifiers = importSpecifiers(file, source, { includeDynamicImports });
     specifierCache.set(file, specifiers);
     return specifiers;
   }
@@ -192,7 +186,9 @@ export function collectWalletIframeHostGraphOffenders(
     entries,
     {
       forbiddenPathPatterns: forbiddenWalletIframeHostPathPatterns,
-      forbiddenSourcePatterns: forbiddenWalletIframeHostSourcePatterns,
+      // The host chunks are minified: which modules they bundle is checked by the host
+      // build itself (rolldown.config.ts), which still has each chunk's module list.
+      forbiddenSourcePatterns: [],
       forbiddenSourcePredicates: forbiddenWalletIframeHostSourcePredicates,
       forbiddenSpecifierPatterns: [
         /^(?:react|react-dom|lucide-react)(?:\/|$)/i,

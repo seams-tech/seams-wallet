@@ -3,6 +3,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { readModuleImports } from './browser-module-graph.mjs';
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const SDK_ROOT = path.resolve(SCRIPT_DIR, '../..');
@@ -74,13 +75,12 @@ const WASM_FREE_WORKER_ROUTES = new Set([
   '/sdk/workers/ecdsa-presign-client.worker.js',
   '/sdk/workers/passkey-confirm.worker.js',
 ]);
+// Asset URLs that are not module imports; imports come from the parsed module. The
+// minifier writes string literals with backticks, so those count as quotes here.
 const JS_REFERENCE_PATTERNS = [
-  /\bimport\s+(?:[^'"]+\s+from\s+)?["']([^"']+)["']/g,
-  /\bexport\s+[^'"]+\s+from\s+["']([^"']+)["']/g,
-  /\bimport\(\s*["']([^"']+)["']\s*\)/g,
-  /\bnew URL\(\s*["']([^"']+)["']\s*,\s*import\.meta\.url\s*\)/g,
-  /\bresolveWasmUrl\(\s*["']([^"']+)["']/g,
-  /\b[A-Za-z_$][\w$]*\(\s*["']([^"']+\.(?:worker\.js|wasm))["']/g,
+  /\bnew URL\(\s*["'`]([^"'`]+)["'`]\s*,\s*import\.meta\.url\s*\)/g,
+  /\bresolveWasmUrl\(\s*["'`]([^"'`]+)["'`]/g,
+  /\b[A-Za-z_$][\w$]*\(\s*["'`]([^"'`]+\.(?:worker\.js|wasm))["'`]/g,
 ];
 const HTML_REFERENCE_PATTERN = /\b(?:href|src)="([^"]+)"/g;
 const CSS_URL_PATTERN = /\burl\(\s*(['"]?)([^'")]+)\1\s*\)/g;
@@ -171,6 +171,9 @@ function referencesForAsset(asset, content) {
     addPatternReferences(references, content, HTML_REFERENCE_PATTERN);
   }
   if (asset.routeClass === 'javascript') {
+    for (const dependency of readModuleImports(sourceFileToFilePath(asset.sourceFile))) {
+      if (dependency.specifier !== null) references.add(dependency.specifier);
+    }
     for (const pattern of JS_REFERENCE_PATTERNS) {
       addPatternReferences(references, content, pattern);
     }
