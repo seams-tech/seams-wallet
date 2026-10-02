@@ -198,6 +198,8 @@ deployments still require implementation and verification.
 | Opaque session/exchange tokens | Local lifecycle parent triggers must remain with session rows. Gateway lookup without wallet ID needs a verified routing envelope or authoritative index before regional access. |
 | Vault | `vault_proxy_secrets` is keyed by namespace + tenant + vault + item, with no wallet identity. Keep its existing shared tenant authority; never infer wallet ownership from a capability ID. |
 | Tenant-root control | Creation, restore, backup and prewarm can occur before any wallet exists. Keep explicit tenant-scoped control authorization separate from wallet execution. |
+| Email OTP registration receipt | `d1EmailOtpChallengeStore.consumeRegistrationWithReceipt` conditionally inserts into `registration_ceremony_records` from a matching `email_otp_challenges` row and deletes that challenge in one D1 batch. An opaque challenge ID may precede wallet allocation. Keep challenge/receipt consumption under one authority until a verified wallet-bound continuation exists; splitting either table without an equivalent one-use claim breaks this atomic handoff. |
+| Google Email OTP recovery | `d1WalletCustodyCommitStore` checks `email_otp_challenges`, `email_otp_wallet_enrollments` and a `wallet-recovery-google-email-otp:` versioned-JSON attempt while finalizing recovery. The challenge and attempt must bind the same wallet/home before the local custody mutation. An unresolved shared challenge cannot authorize a regional commit. |
 
 Cross-authority completion must be idempotent: reserve shared identity, commit the
 wallet-local mutation once, then acknowledge the exact regional receipt. An
@@ -322,6 +324,72 @@ already been implemented.
 remain the critical mixed/shared seams. Each needs a concrete owner and an
 idempotent cross-authority sequence before splitting the current signer D1.
 The route-by-route and role-RPC inventory remains open in R0.
+
+### Hosted execution paths inspected for the cutover
+
+`createRouterApiRouteDefinitions` currently declares 69 route definitions (including
+optional health, readiness and seal routes). The table above covers their
+placement decisions; the groups below make the paths that bypass a wallet ID in
+the URL explicit. Route authentication is still performed by the existing route
+handler. Placement must follow the verified identity and precede construction of
+any `SIGNER_DB`-backed service.
+
+| Source and routes | Identity at ingress; current store | Required cutover admission |
+| --- | --- | --- |
+| `routeDefinitions.ts`: registration setup, respond, near-admission, activate and near-provisioning | Publishable-key scope and Origin for setup; signed setup or ceremony/preparation IDs on continuation. The registration service and ceremony store use the singular signer D1; ECDSA setup calls Router before its first D1 write. | Reserve the operation/wallet/home through Console before Router preparation. Resolve later ceremony IDs through the Console index, then verify signed claims at the selected home. |
+| `routeDefinitions.ts`: `wallet_custody_*`, `wallet_recovery_*`, `passkey_custody_envelope_retrieve` | Some paths include `:walletId`; challenge, code, recovery and envelope routes derive identity from body, proof or locator. Credential and recovery locators plus custody state currently share one signer D1. | Resolve wallet ID or shared locator before regional state access. Proof remains verified at the home. Pending shared locator claims fail closed. |
+| `routeDefinitions.ts`: `wallet_add_signer_*`, `wallet_add_auth_method_*`, `wallet_revoke_auth_method`, `wallet_ecdsa_key_facts_inventory`, `wallet_near_implicit_account_fund` | Path wallet ID with route-specific proof or session; wallet-local authority, signer and custody stores use signer D1. | Resolve the verified tenant-scoped wallet key once and carry the admitted home through the operation. |
+| `routeDefinitions.ts`: `wallet_unlock_*`, `wallet_email_otp_*`, `auth_provider_action`, `sync_account_*`, `auth_identities`, `auth_link`, `auth_unlink`, `webauthn_authenticators`, `near_public_keys` | Credential, provider identity, challenge, session or body may be the only initial key. Identity, Email OTP, WebAuthn, session and wallet stores all use signer D1 today. | Shared credential/provider/challenge lookup identifies the wallet without regional broadcast. Verify the resulting proof and wallet state at its home. Tenant-wide rate limits remain shared. |
+| `routeDefinitions.ts`: `wallet_session_exchange_*`, Ed25519/ECDSA session, signing, refresh, export, activation and presignature pool-fill routes; seal apply/remove | Opaque exchange/session/capability or wallet ID; session, quota, operation and pool records use signer D1 and Router/DO services. | Resolve a signed/admitted parent wallet before touching home state; bind Router/DO and deferred refill to that same home. An opaque token alone is not a region choice. |
+| `routeDefinitions.ts`: health, readiness, WebAuthn manifest, Router keysets and derivation health | No wallet. Public/configuration diagnostics; no wallet-local D1 selection. | Keep wallet-home admission out of these routes. Tenant-root readiness still verifies its own deployment resources. |
+| `hosted-wallet-gateway.ts`: nine direct Ed25519-Yao registration, recovery and export operations in `yaoDirectOperationForRequest` | Direct partitioned handler runs before `createSplitGatewayRouterHandler`, constructs request-scoped D1 state from `env.SIGNER_DB`; registration continuation may have only lifecycle ID and credential. | Admit a verified wallet/home before constructing the partitioned store. Registration continuation uses the ceremony index; recovery/export use an authenticated wallet or shared locator. This branch cannot rely on enforcement inside `routeDefinitions.ts`. |
+| `walletRuntimeOpsHandler.ts`: `execute-signed-delegate`, `relayer-account`, `wallet-identities` | Signed delegate has an operation wallet; identities accepts a wallet list; relayer account is tenant control. `readWalletRuntimeIdentities` queries `wallet_signers` directly on `env.SIGNER_DB`. | Dispatch delegate to its admitted wallet home; resolve and group each identity-list wallet by home; keep relayer account under tenant-scoped control. |
+| `walletControlOps.ts`: tenant-root creation, refresh, status, destination bootstrap, restore, recovery and deriver operations | Internal service-auth and tenant-root identity; no wallet yet. The Wallet Runtime forwards exact allowlisted calls to Router, control plane or derivers. | Keep an authenticated tenant-control context. Do not derive a wallet home from a missing wallet ID or treat control authorization as wallet admission. |
+| `walletConsoleOpsHandler.ts`: key auth, environment lookup, usage, wallet projections and tenant-root lineage | Console tenant/key identity and Console D1. Wallet projections are usage-derived; they are not a routing authority. | Keep shared auth, tenant policy and lineage in Console. Resolve actual wallet homes through the directory; never infer them from projections. |
+| Private Gateway/Wallet Runtime Worker `fetch`, Gateway `scheduled`, Console `scheduled`; public hosted/local Gateway `scheduled` | Both private Workers bind one `SIGNER_DB` after one active deployment lookup. Gateway cron calls Router prewarm; Console cron resumes tenant-root refresh and dispatches Console email. No relevant Worker `queue` or `alarm` handler occurs in these examined entrypoints. | Gateway and Wallet Runtime must select the wallet's regional backend before composing signer services. Prewarm and tenant-root/Console cron retain explicit tenant-control scope; any later wallet-scoped deferred work carries its persisted home. |
+
+The critical constructor boundary is `createStagingRouterApiAuthComposition`:
+it passes `env.SIGNER_DB` to the registration and route services. The direct
+Ed25519-Yao branch constructs its partitioned store separately, and the Wallet
+Runtime identity reader executes SQL directly. Changing only
+`setupWalletRegistration` would leave these two paths and existing-wallet flows
+on the singular database. The private Gateway currently consumes published
+`@seams/wallet-server@0.7.3`, so its future regional contract and the public
+server/SDK wire change must be validated together before the 0.8.0 candidate is
+frozen.
+
+The `wallet-identities` request carries `{projectId, walletId}` pairs, yet
+`readWalletRuntimeIdentities` and the Console balance refresh both currently
+index results by `walletId` alone; the response omits `projectId`. A matching
+wallet string in two projects can select or overwrite the wrong identity. The
+cutover must return and join the full tenant-scoped wallet key, then query each
+admitted home for the exact pair. This is an existing internal contract defect,
+independent of geographic placement, and requires a paired public/private
+change rather than a response-only patch.
+
+### Singular-home symbols and replacement sweep
+
+The surviving singular resource contract is concentrated in these source and
+configuration families. The names below are deletion targets for the final
+cutover; `SIGNER_DB` may remain as the regional backend's local binding name,
+but it cannot remain the Gateway's implicit home for every wallet.
+
+| Current symbol or file family | Replacement or deletion |
+| --- | --- |
+| Private `SEAMS_D1_HOME_ACCOUNT_ID`, `SEAMS_D1_HOME_DATABASE_ID` in Gateway, Wallet Runtime, Console, local Worker, `tenantDeployment/runtimeBinding.ts` and `scripts/render-d1-gateway-config.mjs` | Name and verify a physical regional resource without implying that the binding is the namespace's wallet home. |
+| Private `gateway-deployment-config.mjs`, `deployment/wallet-system/targets.json`, `generate-github-env-values.mjs`: one `resources.signerD1` per lane | Render a typed US/WEUR/APAC resource catalog and regional Gateway/Wallet Runtime bindings; keep environment/lane separate from region. |
+| Private `d1GatewayWorker.ts`, `d1WalletRuntimeWorker.ts`; public `hosted-wallet-gateway.ts`: one `env.SIGNER_DB` in request composition | Resolve/admit each wallet's home before constructing its local store; dispatch to the backend for that exact resource. A no-wallet control request uses explicit tenant scope. |
+| Private `tenantDeployment/homeChallenge.ts`; public signer migration `0040_namespace_home_challenges.sql`; private provider-binding E2E | Retain fresh provider UUID/version challenge behavior and rename its schema, API and assertions around deployment resource proof. Delete namespace-home terminology; this proof never assigns wallets. |
+| Public `localHostedWalletGatewayHandler.ts`, `nodeHostedWalletGateway.ts` and private `d1LocalDevWorker.ts` | Compose through the same wallet-home contract with one admitted local resource; update fault injection around the selected local store. No separate legacy routing mode. |
+| Private `tests/relayer/tenant-home-challenge.e2e.test.ts`, deployment-binding E2E, `tests/fixtures/tenant-deployment/` and affected type fixtures | Preserve real resource/version verification; replace the single-wallet-home assumption and obsolete names. Verify multiple wallets in one tenant through the final path. |
+| Private `.github/workflows/deploy-live-demo.yml` explicit `0040_namespace_home_challenges.sql` probe and deployment/readiness scripts that require exactly one signer database | Change generated resource checks and schema probes with the cutover. Do not keep a stale migration as a success condition. |
+
+The Console directory's `wallet_homes` table and service do not replace these
+paths by themselves. In particular, `createStagingRouterApiAuthComposition`,
+direct Yao operations and `readWalletRuntimeIdentities` currently receive the
+single signer binding. A source and generated-bundle sweep must confirm that no
+namespace-home allocation, implicit signer D1 selection, or old schema name
+survives after their replacement.
 
 ## Effective signer schema
 
@@ -461,6 +529,18 @@ bodies must be reviewed before splitting any of their dependencies.
 | `webauthn_credential_bindings_user_idx` | `webauthn_credential_bindings` |
 
 ### Effective trigger inventory
+
+The 30 effective triggers were read from SQLite after applying all 41 migrations.
+Cross-table trigger references are limited to these groups: `authorized_operations`
+audits into `authorized_operation_audit_events`, checks quota/authority/method/
+session rows during owner-grant claims, and checks
+`verified_wallet_operation_evidence_sets` for step-up; linked-device delivery
+checks `linked_device_authority_installations` and
+`wallet_session_authorizations_v2`; hosted credential/exchange lifecycle checks
+parent `wallet_session_authorizations_v2`, and exchange child updates check
+`wallet_session_hosted_credentials_v2`. Each group must stay in one wallet-home
+database with its parent and child rows. This trigger list does not cover SQL
+batches assembled in TypeScript, including the Email OTP and recovery cuts above.
 
 | Name | Table |
 | --- | --- |

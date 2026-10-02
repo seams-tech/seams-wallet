@@ -90,8 +90,11 @@ Inventory completion checklist:
 
 The [per-wallet implementation inventory](refactor-152-per-wallet-inventory.md)
 now enumerates the effective 55-table / 64-index / 30-trigger signer schema and
-records registration, lookup and transaction seams. The remaining R0 review
-items above stay open until route and cross-authority contracts are complete.
+records registration, lookup and transaction seams. It now also maps the main
+hosted route families, nine direct Yao operations, internal Wallet Runtime and
+Console service calls, scheduled control work, and surviving singular-home
+symbols. The remaining R0 review items above stay open until each mixed table,
+role RPC and cross-authority contract has a final owner and failure behavior.
 
 - [x] Implement a Console D1 directory keyed by namespace, organization, project,
   environment and wallet ID, with per-tenant registration-operation uniqueness.
