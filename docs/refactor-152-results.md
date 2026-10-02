@@ -2084,3 +2084,78 @@ and inspection requests that run before binding resolution remain unmodified to
 preserve custody bootstrap; discovery/admin paths and historical activation
 attestation also need the full entry-point review. No deployment, hosted latency
 measurement or provider API operation occurred.
+
+## Operator home adoption (October 2)
+
+Private source checkpoint: `seams-monorepo` commit `97e0426`. The explicit
+`/internal/tenant-deployment/v1/adopt-home` route uses the existing protected
+GitHub OIDC scope. The operator supplies the lane, stable operation ID and exact
+previous revision/activation sequence. Console supplies the configured resource
+and requires its immutable reservation. No client home override is accepted.
+
+The replacement retains the original binding's custody, credential, policy and
+surfaces. Production readiness checks them against current Console authority
+and Wallet responses. Historical ownership scope is read from the persistence
+boundary without decoding the old record as a runtime binding. Adoption still
+verifies the historical canonical hash and columns before writing a replacement.
+Pending retries refresh readiness; activation uses the existing transactional
+compare-and-swap. Once active, every retry runs the canary again and verifies the
+active pointer before and after it. Successful verification appends an audit
+event. A canary failure returns an error while retaining the durable activation;
+the same operation ID resumes verification without another activation.
+
+The local E2E uses the actual Console Worker, all Console D1 migrations, durable
+environment/credential/policy/root records, the production readiness adapter,
+and the production HTTP canary client. A signed fixture JWT and controlled JWKS
+exercise the OIDC gate. External root-status, runtime-inventory and canary
+responses are controlled test boundaries; no cryptographic custody ceremony or
+real hosted registration was performed.
+
+Observed results:
+
+- An unauthenticated adoption was rejected; adding a client home field was
+  rejected before custody or runtime work.
+- One reported in-flight ceremony blocked readiness and left the historical
+  pointer at sequence 1. Clearing that condition allowed fresh readiness and
+  exactly one activation to the deterministic replacement at sequence 2.
+- An injected HTTP 503 canary failed visibly after activation. Retrying the same
+  operation succeeded; repeating after a simulated lost success response ran the
+  canary again. All three canary calls retained sequence 2 and one activation row.
+- A new operation using the stale previous pointer was rejected before a canary.
+  Original binding JSON stayed unchanged, one credential remained, and the
+  Wallet dependency accepted only status/readiness operations.
+
+Validation: **7 E2Es passed in 10.5 seconds**, all **8 existing binding tests**
+passed, and both existing snapshot tests passed on a focused rerun (**1.5 seconds**).
+The first existing-test run found a valid snapshot fixture missing the required
+home introduced by the previous contract change; it now uses the shared home
+builder. Server, Console-test and type-fixture checks, targeted lint and four CLI
+boundary checks passed. No new unit tests were added.
+
+Private evidence: `.artifacts/r152/operator-home-adoption-20261002/` contains
+`e2e.log`, `existing-tests.log`, `snapshot-tests-rerun.log`,
+`operator-home-adoption-evidence.json`, the other E2E evidence, CLI validation,
+source hashes and verification metadata. Reproduce the new scenario:
+
+```sh
+pnpm -C tests exec playwright test -c playwright.relayer.config.ts \
+  relayer/tenant-home-adoption-operator.e2e.test.ts \
+  --reporter=line --output=test-results/r152-operator-adoption
+```
+
+The private operator runbook in `docs/refactor-127.md` documents:
+
+```text
+pnpm tenant:cutover adopt-home --lane production-testnet \
+  --revision tdb_RECORDED_PREVIOUS_REVISION --activation-sequence 1 \
+  --operation-id tco_STABLE_OPERATOR_OPERATION
+```
+
+This command requires the protected deployment workflow's OIDC token. The
+automatic deployment job has not been changed to invoke it. Its current smoke
+check runs before cutover and cannot decode a historical active binding with the
+new contract, so coordinated rollout sequencing remains mandatory. Physical
+Worker/database verification, hosted canary evidence and remaining entry-point
+coverage are still open. The scope query replaces the prior readiness query and
+adds no unlock/signing calls. No deployment, provider mutation or new hosted
+latency measurement occurred.

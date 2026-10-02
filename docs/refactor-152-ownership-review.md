@@ -497,9 +497,19 @@ home agrees with the canonical binding, in the activation transaction.
 
 Bound runtime environments compare their configured account/database IDs with
 the binding. Provisioning rejects mismatched active reuse and candidates. These
-comparisons add no request-time D1 calls. The local E2E proves mechanics using a
-fixture readiness receipt; production adoption orchestration still needs fresh
-readiness against the historical source scope. Internal control/inspection paths
+comparisons add no request-time D1 calls. The initial local E2E proves mechanics
+using a fixture readiness receipt. Private commit `97e0426` subsequently adds
+operator orchestration with the production readiness adapter and a narrow read
+of persisted active ownership scope. This read replaces the readiness binding
+query; it does not authorize runtime requests or supply a historical home.
+The protected operation verifies the historical hash/reservation, preserves root
+and credential, refreshes readiness before activation, and retries the canary
+after durable activation. Its local production-Console E2E covers ceremony blocking,
+canary outage, lost-response retry and stale operator requests. External Wallet
+status/inventory and registration responses remain controlled fixtures. See the
+[operator results](refactor-152-results.md#operator-home-adoption-october-2).
+Physical resource verification and coordinated hosted adoption remain open.
+Internal control/inspection paths
 that precede binding resolution retain bootstrap behavior. This is not physical
 resource verification or complete entry-point enforcement. See the
 [October 2 results](refactor-152-results.md#canonical-home-contract-and-adoption-october-2).

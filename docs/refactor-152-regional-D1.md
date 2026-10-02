@@ -42,9 +42,11 @@ binding. These changes have not been deployed.
 
 October 2 private commit `dd6f5bf` makes home identity required in the canonical
 binding hash, adds explicit historical-binding adoption to a new revision, and
-checks configured resource identity in bound runtime consumers. Operator-driven
-adoption with fresh readiness, physical-resource verification and remaining
-entry-point coverage are still rollout gates. See the
+checks configured resource identity in bound runtime consumers. Private commit
+`97e0426` adds explicit operator adoption, fresh production readiness and canary
+retry handling, verified locally through the production Console Worker. Physical
+resource verification, coordinated adoption/deployment with hosted canary evidence,
+and remaining entry-point coverage are still rollout gates. See the
 [contract/adoption evidence](refactor-152-results.md#canonical-home-contract-and-adoption-october-2).
 
 ## Objective and starting evidence
@@ -435,10 +437,16 @@ below remain open.
   candidate creation and active reuse also check the configured home. Generated
   configurations carry the same signer-D1 identity. This is configuration
   consistency; actual resource verification remains open.
-- [ ] Complete the operator-driven adoption workflow with fresh production
-  readiness and canary evidence, including the old source scope needed during
-  readiness. Ordinary readers now reject old bindings, so rollout must coordinate
-  replacement activation and consumer deployment. Cover remaining internal
+- [x] Implement explicit operator adoption with fresh production readiness and
+  historical source-scope handling. The OIDC-protected route and CLI resume saved
+  cutovers, rerun the canary after activation/response failure, preserve the old
+  binding and reject stale requests. Local production-Console E2E uses controlled
+  external Wallet/canary responses; see the
+  [operator evidence](refactor-152-results.md#operator-home-adoption-october-2).
+- [ ] Complete coordinated operator adoption/deployment with physical binding
+  verification and real hosted canary evidence. Ordinary readers reject old
+  bindings and the current deployment job smokes readiness before cutover;
+  rollout sequencing must handle that transition. Cover remaining internal
   control/inspection, discovery and administrative paths before claiming every
   entry point enforces home identity. Preserve pre-activation custody bootstrap.
 - [ ] Reuse existing trusted tenant/environment routing where possible. Define
