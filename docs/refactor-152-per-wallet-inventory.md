@@ -119,9 +119,14 @@ completion, an unadmitted resource, and app-hint spoofing. Console type-check,
 type fixtures and focused lint pass. Reproduce with
 `pnpm -C tests test:relayer wallet-home-directory.e2e.test.ts`; retained receipt:
 `.artifacts/r152/service-admission-20261002/wallet-home-evidence.json`
-(SHA-256 `f4775b4387c013e67e7d6e743bcd60fbe230b29aa18b9e14622f7e50b13d5795`).
+(SHA-256 `2578c099785196bbdd70d124b10f52ec7c40d38e23916910e66809ff686f84f2`).
 Private review commit `30d0f9c` makes an absent catalog return a fail-closed
 503 and rejects unknown internal paths before parsing request bodies.
+Private commit `df3eb53` binds each service request to the active deployment's
+exact tenant scope and applies its existing registration pause before a
+reservation. The same E2E rejects a cross-project request and a paused setup;
+private `pnpm check` passes. These controls do not replace the missing hosted
+Gateway caller, verified regional resource set, or shared lookup authority.
 
 ## Namespace assignment removal checkpoint
 
