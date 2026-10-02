@@ -212,7 +212,7 @@ releasing an index entry. The exact service contracts remain an open inventory i
 
 | Invariant | Present atomic owner | Target owner and transaction boundary |
 | --- | --- | --- |
-| Wallet ID and registration-operation uniqueness | One signer D1 plus the new Console directory, which hosted setup does not yet call | Console wallet directory commits wallet/home/setup identity before Router preparation. A regional ceremony uses that allocation only. |
+| Wallet ID and registration-operation uniqueness | Console reservation admission plus one regional signer D1 setup snapshot | Console wallet directory commits wallet/home/setup identity before Router preparation. A regional ceremony uses that allocation only. |
 | Passkey credential uniqueness and discoverability | Signer D1 `webauthn_credential_bindings`; local `webauthn_authenticators` tracks counters | Console reserves tenant + RP + credential and resolves it to a wallet; wallet home commits the method and counter. Publish the shared locator only after a verified regional receipt. |
 | Google/provider subject and Email OTP offer selection | Signer D1 `identity_links`, `email_otp_registration_attempts` and enrollment rows | Shared identity authority owns subject-to-wallet links and offer candidates. The selected wallet is reserved once; regional enrollment remains wallet-local. Preserve supported multiple-wallet discovery. |
 | IP, user, wallet, provider and organization Email OTP limits | Signer D1 `email_otp_rate_limits`; `consume` walks each generated key sequentially | Keep every rate key in one shared authority during the cutover, including wallet-keyed counters. Challenge/grant state stays at home; region count cannot multiply an allowance. Define retry identity before changing consumption semantics. |
@@ -268,12 +268,16 @@ prevents sending a replacement operation. Cancellation/expiry and deliberate
 fresh-attempt handling remain dependent on the authoritative server integration.
 
 The route validates the publishable key, exact Origin, environment and body,
-then calls `setupWalletRegistration`. That service generates a wallet ID for the
-server-allocated branch, founding authority/auth-method IDs, ceremony and
-preparation IDs in memory before custody preparation and ceremony persistence.
-`buildD1EvmFamilyEcdsaRegistrationPrepare` can call the Router before
-`putCeremony` makes the current local setup durable. This ordering must change
-when the shared reservation is installed.
+then calls `setupWalletRegistration`. As of October 3, the candidate Gateway
+reserves the operation through Console and consumes the winning wallet and five
+setup IDs. The selected regional D1 stores an immutable setup snapshot before
+returning a token, then inserts or reads the mutable ceremony without resetting
+its progress. A missing authority or mismatched physical home fails closed.
+
+Correction to the earlier inventory: `buildD1EvmFamilyEcdsaRegistrationPrepare`
+computes preparation facts from topology locally; it does not call Router. The
+immutable snapshot is needed to retain its random session ID, nonce and expiry
+across retries. Regional forwarding and continuation admission remain open.
 The browser-side `finalizeIdempotencyKey` is generated before setup in each
 registration branch, but currently binds **finalization only** and is not
 persisted across a browser restart. Reusing its string as a setup key without
@@ -346,7 +350,7 @@ any `SIGNER_DB`-backed service.
 
 | Source and routes | Identity at ingress; current store | Required cutover admission |
 | --- | --- | --- |
-| `routeDefinitions.ts`: registration setup, respond, near-admission, activate and near-provisioning | Publishable-key scope and Origin for setup; signed setup or ceremony/preparation IDs on continuation. The registration service and ceremony store use the singular signer D1; ECDSA setup calls Router before its first D1 write. | Reserve the operation/wallet/home through Console before Router preparation. Resolve later ceremony IDs through the Console index, then verify signed claims at the selected home. |
+| `routeDefinitions.ts`: registration setup, respond, near-admission, activate and near-provisioning | Publishable-key scope and Origin for setup; signed setup or ceremony/preparation IDs on continuation. Setup consumes the Console reservation and stores immutable preparation facts at its matching D1; preparation computes locally. Continuations still use the singular signer D1. | Reserve the operation/wallet/home through Console before Router preparation. Resolve later ceremony IDs through the Console index, then verify signed claims at the selected home. |
 | `routeDefinitions.ts`: `wallet_custody_*`, `wallet_recovery_*`, `passkey_custody_envelope_retrieve` | Some paths include `:walletId`; challenge, code, recovery and envelope routes derive identity from body, proof or locator. Credential and recovery locators plus custody state currently share one signer D1. | Resolve wallet ID or shared locator before regional state access. Proof remains verified at the home. Pending shared locator claims fail closed. |
 | `routeDefinitions.ts`: `wallet_add_signer_*`, `wallet_add_auth_method_*`, `wallet_revoke_auth_method`, `wallet_ecdsa_key_facts_inventory`, `wallet_near_implicit_account_fund` | Path wallet ID with route-specific proof or session; wallet-local authority, signer and custody stores use signer D1. | Resolve the verified tenant-scoped wallet key once and carry the admitted home through the operation. |
 | `routeDefinitions.ts`: `wallet_unlock_*`, `wallet_email_otp_*`, `auth_provider_action`, `sync_account_*`, `auth_identities`, `auth_link`, `auth_unlink`, `webauthn_authenticators`, `near_public_keys` | Credential, provider identity, challenge, session or body may be the only initial key. Identity, Email OTP, WebAuthn, session and wallet stores all use signer D1 today. | Shared credential/provider/challenge lookup identifies the wallet without regional broadcast. Verify the resulting proof and wallet state at its home. Tenant-wide rate limits remain shared. |

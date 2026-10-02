@@ -66,13 +66,62 @@ export class CloudflareD1RegistrationCeremonyIntentStore {
     this.storage = new D1RegistrationCeremonyRecordStore(input);
   }
 
-  async putCeremony(ceremony: StoredWalletRegistrationCeremony): Promise<void> {
-    await this.put({
-      scope: 'ceremony',
-      id: ceremony.registrationCeremonyId,
-      record: ceremony,
-      expiresAtMs: ceremony.expiresAtMs,
+  async getSetupCeremony(ceremonyId: string): Promise<StoredWalletRegistrationCeremony | null> {
+    const stored = await this.storage.get('setup-ceremony', ceremonyId);
+    if (!stored) return null;
+    const ceremony = parseD1StoredWalletRegistrationCeremony(stored.value);
+    if (!ceremony) throw new Error('Registration setup snapshot is invalid');
+    return ceremony;
+  }
+
+  async reserveSetupCeremony(
+    proposed: StoredWalletRegistrationCeremony,
+  ): Promise<StoredWalletRegistrationCeremony> {
+    const stored = await this.storage.insertOrRead({
+      scope: 'setup-ceremony',
+      id: proposed.registrationCeremonyId,
+      value: encodeRecord(proposed),
+      expiresAtMs: proposed.expiresAtMs,
     });
+    const ceremony = parseD1StoredWalletRegistrationCeremony(stored.value);
+    if (
+      !ceremony ||
+      ceremony.registrationCeremonyId !== proposed.registrationCeremonyId ||
+      ceremony.expiresAtMs !== proposed.expiresAtMs ||
+      ceremony.orgId !== proposed.orgId ||
+      ceremony.digestB64u !== proposed.digestB64u ||
+      ceremony.foundingWalletAuthorityId !== proposed.foundingWalletAuthorityId ||
+      ceremony.foundingDeviceId !== proposed.foundingDeviceId ||
+      ceremony.foundingWalletAuthMethodId !== proposed.foundingWalletAuthMethodId ||
+      ceremony.expectedOrigin !== proposed.expectedOrigin
+    ) {
+      throw new Error('Registration setup snapshot conflicts with its reservation');
+    }
+    await this.ensureSetupCeremony(ceremony);
+    return ceremony;
+  }
+
+  async ensureSetupCeremony(setup: StoredWalletRegistrationCeremony): Promise<void> {
+    const stored = await this.storage.insertOrRead({
+      scope: 'ceremony',
+      id: setup.registrationCeremonyId,
+      value: encodeRecord(setup),
+      expiresAtMs: setup.expiresAtMs,
+    });
+    const current = parseD1StoredWalletRegistrationCeremony(stored.value);
+    if (
+      !current ||
+      current.registrationCeremonyId !== setup.registrationCeremonyId ||
+      current.expiresAtMs !== setup.expiresAtMs ||
+      current.orgId !== setup.orgId ||
+      current.digestB64u !== setup.digestB64u ||
+      current.foundingWalletAuthorityId !== setup.foundingWalletAuthorityId ||
+      current.foundingDeviceId !== setup.foundingDeviceId ||
+      current.foundingWalletAuthMethodId !== setup.foundingWalletAuthMethodId ||
+      current.expectedOrigin !== setup.expectedOrigin
+    ) {
+      throw new Error('Registration ceremony conflicts with its setup snapshot');
+    }
   }
 
   async getCeremony(

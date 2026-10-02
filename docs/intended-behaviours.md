@@ -216,10 +216,15 @@ CTA belong to the wallet origin.
 - Successful local registration publication clears that exact wallet/ceremony
   from the setup journal, including publication resumed after a reload. Failed
   cleanup cannot undo an already committed registration.
-- This delivery contract does not establish server-side replay: the regional
-  rollout remains held until setup uses the Console reservation and resumes the
-  same regional preparation. Server expiry/cancellation and an explicit fresh
-  attempt must be connected to that authority before rollout.
+- Setup consumes the authoritative reservation for its authenticated tenant,
+  Origin and normalized request. A replay returns the winning wallet, ceremony,
+  founding IDs and preparation facts. Replaying setup after registration advances
+  must preserve the current ceremony state. A changed request conflicts; replay
+  does not extend the original setup expiry.
+- Hosted setup fails closed without its reservation authority or at a different
+  physical D1 resource. The local standalone host provides a persistent local
+  authority for development. Regional forwarding, terminal cancellation and
+  deliberate fresh-attempt handling remain release gates.
 
 ### Passkey authentication
 

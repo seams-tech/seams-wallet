@@ -1,3 +1,5 @@
+import { LocalRegistrationSetupAuthority } from './localRegistrationSetupAuthority';
+import { requireCanonicalString } from '@shared/utils/validation';
 import { localPresignCancellationProbe } from './localIntendedPresignCancellation';
 import { localMaterialAdmissionFault } from './localIntendedMaterialAdmissionFault';
 import {
@@ -250,6 +252,16 @@ export async function handleLocalHostedWalletGatewayRequestV1(
   const config = parseStaticWalletConsoleBindingConfigV1(
     JSON.parse(env.WALLET_LOCAL_DEPLOYMENT_JSON),
   );
+  dependencies = {
+    emailOtpDeliveryProvider: dependencies?.emailOtpDeliveryProvider,
+    signerWasm: dependencies?.signerWasm,
+    registrationSetupReservation: new LocalRegistrationSetupAuthority(env.SIGNER_DB, {
+      namespace: requireCanonicalString(env.SEAMS_TENANT_STORAGE_NAMESPACE, 'Local namespace'),
+      orgId: config.deployment.orgId,
+      projectId: config.deployment.projectId,
+      envId: config.deployment.environmentKey,
+    }),
+  };
   const gatewayEnv: CloudflareD1GatewayEnv = {
     ...env,
     WALLET_CONSOLE: createStaticWalletConsoleBindingV1(config),

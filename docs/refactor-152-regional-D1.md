@@ -115,7 +115,8 @@ role RPC and cross-authority contract has a final owner and failure behavior.
 - [x] Add a configured three-region admission catalog and internal Console
   service-binding endpoint. Reservations choose the configured resource for a
   region and reject arbitrary D1 UUIDs; a retry retains the first home. The
-  hosted Gateway caller and deployment catalog rendering remain open.
+  Gateway now consumes reservations at its matching physical D1 resource;
+  regional forwarding and deployment catalog rendering remain open.
 - [x] Correct the existing wallet-identity collapse in Runtime and Console:
   exact project/environment/wallet queries and replies; explicit Console
   environment-ID → runtime-key lookup; scoped projection/cache constraints,
@@ -124,15 +125,21 @@ role RPC and cross-authority contract has a final owner and failure behavior.
   Per-wallet regional fan-out is still part of the hosted integration below.
 - [ ] Connect authenticated registration and shared-identity admission to this
   directory, then switch all hosted and lifecycle paths together with removal
-  of namespace placement. The new directory is not yet used by hosted requests.
+  of namespace placement. Registration setup now uses the directory in the
+  candidate Gateway; the complete regional dispatch remains open.
 - [x] Persist a browser setup operation before sending the request; preserve it
   through lost replies, concurrent tabs and reload. Bind accepted responses to
   one wallet/ceremony and clear the journal at shared registration publication,
   including resumed commits. Protocol 2 requires the operation field.
-- [ ] Bind that operation to the authenticated Console reservation before any
-  Router preparation. Return/reconcile the original ceremony and preparation;
-  connect terminal expiry/cancellation and deliberate fresh-attempt behavior.
-  The browser journal alone does not provide server idempotency.
+- [x] Bind the setup operation to authenticated Console reservation admission.
+  Use its winning wallet and five setup IDs; persist an immutable regional setup
+  snapshot and reconcile retries without overwriting a progressed ceremony.
+  Local E2Es cover lost replies, concurrent replay and replay after commit.
+  Current ECDSA setup computes preparation facts locally; Router work begins later.
+- [ ] Dispatch setup to its reserved home, render the Gateway region catalog,
+  bind continuations to that home, and connect terminal completion/cancellation
+  plus deliberate fresh attempts. Fixed setup expiry is enforced; terminal
+  directory lifecycle integration remains open.
 - [x] Remove Console's namespace reservation gate, historical home-adoption
   path and effective-schema table, while preserving provider writer proof and
   binding/resource checks. Private focused E2Es and type checks passed. Hosted

@@ -4,6 +4,7 @@ import {
   type Page,
   type Route,
   type TestInfo,
+  type APIRequestContext,
 } from '@playwright/test';
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -39,6 +40,47 @@ class PublishedClientModule {
 
   async serve(route: Route): Promise<void> {
     await route.fulfill({ contentType: 'text/javascript', body: this.source });
+  }
+}
+
+function setupFacts(raw: Record<string, unknown>): Record<string, unknown> {
+  const { signedSetup: _signedSetup, ...facts } = raw;
+  return facts;
+}
+
+class SetupReplayProbe {
+  url = '';
+  headers: Record<string, string> = {};
+  body = '';
+  facts: Record<string, unknown> | null = null;
+  beforeCommitReplays = 0;
+
+  async handle(route: Route): Promise<void> {
+    this.url = route.request().url();
+    this.headers = await route.request().allHeaders();
+    this.body = route.request().postData() ?? '';
+    const [discarded, concurrent] = await Promise.all([route.fetch(), route.fetch()]);
+    expect(discarded.ok(), await discarded.text()).toBe(true);
+    this.facts = setupFacts(await discarded.json());
+    const replays = [concurrent, await route.fetch()];
+    for (const replay of replays) {
+      expect(replay.ok(), await replay.text()).toBe(true);
+      expect(setupFacts(await replay.json())).toEqual(this.facts);
+      this.beforeCommitReplays += 1;
+    }
+    await route.fulfill({ response: replays[0] });
+  }
+
+  async verifyAfterCommit(request: APIRequestContext): Promise<void> {
+    expect(this.facts).not.toBeNull();
+    const replay = await request.post(this.url, { headers: this.headers, data: this.body });
+    expect(replay.ok(), await replay.text()).toBe(true);
+    expect(setupFacts(await replay.json())).toEqual(this.facts);
+    const changed = JSON.parse(this.body);
+    changed.wallet = { kind: 'provided', walletId: 'changed-setup-request' };
+    const conflict = await request.post(this.url, { headers: this.headers, data: changed });
+    expect(conflict.ok()).toBe(false);
+    expect(await conflict.json()).toMatchObject({ ok: false, code: 'request_conflict' });
   }
 }
 
@@ -200,10 +242,15 @@ export async function verifyWalletProtocolCutover(
   );
 
   await page.reload();
+  const setupReplay = new SetupReplayProbe();
+  const replaySetup = setupReplay.handle.bind(setupReplay);
+  await context.route(setup, replaySetup);
   await harness.registerPasskeyWallet();
+  await context.unroute(setup, replaySetup);
   await harness.signTempoTransaction('post_registration');
   await harness.signArcEvmTransaction('post_registration');
   await harness.awaitNearReady();
+  await setupReplay.verifyAfterCommit(context.request);
   const databaseModule = `/@fs/${path.resolve(import.meta.dirname, '../../../packages/wallet/dist/esm/core/indexedDB/singletons.js')}`;
   const acceptedSetupOperations = await page
     .locator('iframe[allow*="publickey-credentials-get"]')
@@ -227,6 +274,10 @@ export async function verifyWalletProtocolCutover(
         preflightAccepted: true,
         registrationAfterReload: 'passed',
         acceptedSetupOperationsAfterPublication: acceptedSetupOperations,
+        discardedSetupReplyReplayed: true,
+        concurrentSetupReplays: setupReplay.beforeCommitReplays,
+        setupReplayAfterCommit: true,
+        changedSetupRequestRejected: true,
         verifiedSignatures: ['Tempo', 'Arc'],
       },
       null,

@@ -1,10 +1,6 @@
 import { decodeTenantRootIdentityWireV1 } from '@shared/tenant-root';
 import { resolveRuntimeTenantRootLineage } from './cloud-host';
-import {
-  parseD1JsonColumn,
-  type D1DatabaseLike,
-  type D1Row,
-} from './cloud-host';
+import { parseD1JsonColumn, type D1DatabaseLike, type D1Row } from './cloud-host';
 import { withCors } from './cloud-host';
 import {
   createCloudflareWalletGatewayRouterV1,
@@ -37,10 +33,7 @@ import { loadCloudflareSignerWasmModule } from './cloud-host';
 import { createSigningSessionSealOptions } from './cloud-host';
 import { RouterAbEcdsaPresignRuntime } from './cloud-host';
 import type { SigningSessionSealRoutesOptions } from './cloud-host';
-import type {
-  CfExecutionContext,
-  FetchHandler,
-} from './cloud-host';
+import type { CfExecutionContext, FetchHandler } from './cloud-host';
 import {
   createRouterAbEd25519YaoHttpRegistrationBackendFromEnv,
   type RouterAbEd25519YaoGatewaySpanV1,
@@ -65,10 +58,7 @@ import {
   requireEnvironmentString as requireEnvString,
 } from './cloud-host';
 import { createEd25519SessionAdapter } from './cloud-host';
-import {
-  parseRouterAbPublicKeysetV2,
-  type RouterAbPublicKeysetV2,
-} from './cloud-host';
+import { parseRouterAbPublicKeysetV2, type RouterAbPublicKeysetV2 } from './cloud-host';
 import { base64UrlEncode, parseWalletId } from './cloud-host';
 import {
   createRouterAbServiceBindingFetch,
@@ -172,6 +162,7 @@ export interface CloudflareD1GatewayEnv extends CloudflareD1GatewayBaseEnv {
 }
 
 export interface HostedWalletGatewayDependenciesV1 {
+  readonly registrationSetupReservation?: CloudflareD1RouterApiAuthServiceOptions['registrationSetupReservation'];
   readonly emailOtpDeliveryProvider?: CloudflareD1RouterApiAuthServiceOptions['emailOtpDeliveryProvider'];
   /** Host loader for the signer WASM; defaults to the Workers module import. */
   readonly signerWasm?: CloudflareD1RouterApiAuthServiceOptions['signerWasmModuleOrPath'];
@@ -481,6 +472,7 @@ async function createStagingRouterApiAuthComposition(
   });
   const service = createCloudflareD1RouterApiAuthService({
     database: env.SIGNER_DB,
+    registrationSetupReservation: dependencies.registrationSetupReservation,
     namespace: scope.namespace,
     orgId: scope.orgId,
     projectId: scope.projectId,
@@ -669,7 +661,10 @@ function stagingLinkedDeviceSessionComposition(
       sourceContributionRouter: createCloudflareLinkedDeviceEd25519SourcePreservingRouterEndpointV1(
         {
           fetch: serviceFetch,
-          internalServiceAuthSecret: requireEnvString(env, 'ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET'),
+          internalServiceAuthSecret: requireEnvString(
+            env,
+            'ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET',
+          ),
           resolveTenantRoot: createStagingLinkedDeviceTenantRootResolver(
             scope,
             tenantRootCustodyLineage,
@@ -700,14 +695,13 @@ export async function createHostedWalletGatewayCompositionV1(
     env,
     createStagingRegistrationTenantRootResolver(scope, tenantRootCustodyLineage),
   );
-  const { service, ecdsaStrictPostRegistration } =
-    await createStagingRouterApiAuthComposition(
-      env,
-      scope,
-      yaoRuntime,
-      tenantRootCustodyLineage,
-      dependencies,
-    );
+  const { service, ecdsaStrictPostRegistration } = await createStagingRouterApiAuthComposition(
+    env,
+    scope,
+    yaoRuntime,
+    tenantRootCustodyLineage,
+    dependencies,
+  );
   const handler = createCloudflareWalletGatewayRouterV1({
     service,
     walletConsole: env.WALLET_CONSOLE,
@@ -1145,8 +1139,17 @@ async function authorizeStagingNearRegistrationContinuation(
   input: { readonly lifecycleId: string; readonly credential: string },
 ) {
   const scope = stagingTenantScope(env);
-  const yaoRuntime = createStagingYaoRequestScopedRuntime(env, createStagingRegistrationTenantRootResolver(scope, tenantRootCustodyLineage));
-  const { service } = await createStagingRouterApiAuthComposition(env, scope, yaoRuntime, tenantRootCustodyLineage, dependencies);
+  const yaoRuntime = createStagingYaoRequestScopedRuntime(
+    env,
+    createStagingRegistrationTenantRootResolver(scope, tenantRootCustodyLineage),
+  );
+  const { service } = await createStagingRouterApiAuthComposition(
+    env,
+    scope,
+    yaoRuntime,
+    tenantRootCustodyLineage,
+    dependencies,
+  );
   return await service.walletRegistration.authorizeNearRegistrationContinuation(input);
 }
 
@@ -1162,7 +1165,12 @@ async function handlePartitionedD1Operation(
     case 'registration_execute':
       return await handleRouterAbEd25519YaoRegistrationRequestScopedCloudflareV1({
         request,
-        authorizeContinuation: authorizeStagingNearRegistrationContinuation.bind(undefined, env, tenantRootCustodyLineage, dependencies),
+        authorizeContinuation: authorizeStagingNearRegistrationContinuation.bind(
+          undefined,
+          env,
+          tenantRootCustodyLineage,
+          dependencies,
+        ),
         store: createStagingYaoPartitionedStateStore(env),
         backend: createStagingEd25519YaoBackend(
           env,

@@ -1703,6 +1703,7 @@ function createCloudflareD1RouterApiAuthAssembly(
   });
   const signedDelegateExecutor = new CloudflareD1SignedDelegateExecutor(options);
   const walletRegistrations = new CloudflareD1WalletRegistrationService({
+    setupReservation: options.registrationSetupReservation ?? null,
     authorizationService,
     authorizationTenantId: authorizationTenantId.value,
     createSponsoredNamedNearAccount,
@@ -1914,7 +1915,10 @@ function createD1WalletRegistrationRouteService(
     assembly.walletStore,
   );
   return {
-    authorizeNearRegistrationContinuation: assembly.walletRegistrations.authorizeNearRegistrationContinuation.bind(assembly.walletRegistrations),
+    authorizeNearRegistrationContinuation:
+      assembly.walletRegistrations.authorizeNearRegistrationContinuation.bind(
+        assembly.walletRegistrations,
+      ),
     resolveActiveOwnerWalletExecutionLane: resolveD1ActiveOwnerWalletExecutionLane.bind(
       undefined,
       laneProjectionSource,
@@ -2435,10 +2439,14 @@ function createD1AuthorizationSessionRouteService(
       assembly.authorizationService.issueDirectWalletSessionAuthorizationV2.bind(
         assembly.authorizationService,
       ),
-    readWalletSessionAuthorizationV2ByOperationCredential:
-      readActiveWalletSessionCredential.bind(null, assembly.authorizationService),
-    readWalletSessionSigningCandidateByOperationCredential:
-      readWalletSessionSigningCandidate.bind(null, assembly.authorizationService),
+    readWalletSessionAuthorizationV2ByOperationCredential: readActiveWalletSessionCredential.bind(
+      null,
+      assembly.authorizationService,
+    ),
+    readWalletSessionSigningCandidateByOperationCredential: readWalletSessionSigningCandidate.bind(
+      null,
+      assembly.authorizationService,
+    ),
     readWalletSessionExactOperationContextByCredential:
       assembly.authorizationService.readWalletSessionExactOperationContextByCredential.bind(
         assembly.authorizationService,

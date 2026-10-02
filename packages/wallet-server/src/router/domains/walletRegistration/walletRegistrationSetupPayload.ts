@@ -1,8 +1,8 @@
 /**
  * The opaque payload `/wallets/register/setup` mints and routes 2 and 3 verify.
  *
- * Setup admits the application, allocates the wallet, and runs the Router
- * preparation in one request. Routes 2 and 3 then need to know that the
+ * Setup admits the application, reserves the wallet, and persists the initial
+ * preparation facts in one request. Routes 2 and 3 then need to know that the
  * ceremony they are being driven with is the one setup admitted, and with the
  * parameters setup admitted — without paying another storage round trip to
  * find out. The client carries this string and never parses it.
@@ -38,7 +38,9 @@ export type WalletRegistrationSetupMinter = {
 /* Matches `SessionService.verifyJwt` exactly rather than introducing a second
    verification shape for the same key material. */
 export type WalletRegistrationSetupVerifier = {
-  verifyJwt(token: string): Promise<
+  verifyJwt(
+    token: string,
+  ): Promise<
     { readonly valid: true; readonly payload: Record<string, unknown> } | { readonly valid: false }
   >;
 };

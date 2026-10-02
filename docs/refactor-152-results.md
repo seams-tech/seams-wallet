@@ -2677,3 +2677,18 @@ existing readiness checks pass. An initial unit-config invocation selected no
 tests because that config excludes script tests; the explicit base-config retry
 ran the intended file successfully. No production failure was hidden by that
 harness correction.
+
+## October 3: setup reservation replay correctness
+
+The per-wallet registration candidate now consumes the Console reservation and
+persists an immutable setup snapshot in regional D1. The Console/D1 E2E verifies
+three independently assigned wallet homes within one tenant, competing Workers,
+lost replies, travel replay, wrong-resource rejection and changed-Origin conflict.
+The public lifecycle E2E races initial setup calls, discards a response, completes
+registration and signing, then checks replay after commit without resetting state.
+
+This is local correctness evidence. No new geographic latency measurement or
+hosted deployment occurred. The full evidence, repeat commands, limitations and
+receipt hash are in [the October 3 release review](./refactor-152-release-review.md#october-3-authoritative-setup-admission-and-immutable-replay).
+Regional dispatch, continuation admission and terminal reservation lifecycle
+remain release gates.

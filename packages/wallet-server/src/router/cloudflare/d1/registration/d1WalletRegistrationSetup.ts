@@ -33,80 +33,32 @@
  */
 
 import {
-  computeRegistrationIntentDigestB64u,
-  type WalletId,
-} from '@shared/utils/registrationIntent';
+  normalizeRegistrationAuthMethodInput,
+  type RegistrationAuthMethodInput,
+} from '@shared/utils/registrationAuthMethodInput';
+import { computeRegistrationIntentDigestB64u } from '@shared/utils/registrationIntent';
 import {
   normalizeRegistrationSignerPlan,
   registrationSignerSetSelectionFromPlan,
   type RegistrationSignerSetSelection,
 } from '@shared/utils/registrationSignerPlan';
-import {
-  normalizeRegistrationAuthMethodInput,
-  type RegisterWalletInput,
-  type RegistrationAuthMethodInput,
-} from '@shared/utils/registrationAuthMethodInput';
-import { secureRandomBase64Url } from '@shared/utils/secureRandomId';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
+import type { StoredWalletRegistrationCeremony } from '../../../../core/RegistrationCeremonyStore';
 import type {
   RespondEd25519DeferredWorkV2,
   WalletRegistrationRespondResponseV2,
   WalletRegistrationSetupResponseV2,
 } from '../../../../core/threeRouteRegistrationContracts';
-import type { StoredWalletRegistrationCeremony } from '../../../../core/RegistrationCeremonyStore';
 import { thresholdEcdsaChainTargetFromValue } from '../../../../core/thresholdEcdsaChainTarget';
+import type { WalletRegistrationSetupRequest } from '../../../domains/walletRegistration/walletRegistrationInputs';
 import {
   computeWalletRegistrationSetupDigestB64u,
   mintSignedWalletRegistrationSetup,
   type WalletRegistrationSetupMinter,
 } from '../../../domains/walletRegistration/walletRegistrationSetupPayload';
-import type { WalletRegistrationSetupRequest } from '../../../domains/walletRegistration/walletRegistrationInputs';
 
 /** Setup's ceremony lives only as long as an authenticator prompt plausibly takes. */
 const WALLET_REGISTRATION_SETUP_TTL_MS = 10 * 60_000;
-
-export function walletRegistrationSetupIds(): {
-  readonly registrationCeremonyId: string;
-  readonly registrationPreparationId: string;
-} {
-  /* Both ids are freshly random. Start derived them from the intent grant so a
-     duplicate start could reconcile to the same ceremony; setup has no earlier
-     leg to reconcile with, so there is nothing to derive them from. */
-  return {
-    registrationCeremonyId: `wrc_${secureRandomBase64Url(32)}`,
-    registrationPreparationId: `regprep_${secureRandomBase64Url(32)}`,
-  };
-}
-
-/**
- * Resolves the wallet id without reserving it.
- *
- * A provided id is taken as given; an absent or server-allocated one is
- * generated. There is no existence pre-check: it cost a serialized read on
- * every registration to catch a collision that the commit-time uniqueness
- * constraint catches anyway, and for a freshly generated random id it could
- * essentially never fire.
- */
-export function resolveWalletRegistrationSetupWalletId(input: {
-  readonly wallet: RegisterWalletInput | undefined;
-  readonly parseProvided: (raw: unknown) => WalletId | null;
-  readonly createServerAllocated: () => WalletId;
-}):
-  | { readonly ok: true; readonly walletId: WalletId }
-  | { readonly ok: false; readonly code: string; readonly message: string } {
-  const wallet = input.wallet;
-  if (!wallet || wallet.kind === 'server_allocated') {
-    return { ok: true, walletId: input.createServerAllocated() };
-  }
-  if (wallet.kind === 'provided') {
-    const walletId = input.parseProvided(wallet.walletId);
-    if (!walletId) {
-      return { ok: false, code: 'invalid_body', message: 'walletId is required' };
-    }
-    return { ok: true, walletId };
-  }
-  return { ok: false, code: 'invalid_body', message: 'wallet.kind is unsupported' };
-}
 
 export function normalizeWalletRegistrationSetupRequest(request: WalletRegistrationSetupRequest):
   | {

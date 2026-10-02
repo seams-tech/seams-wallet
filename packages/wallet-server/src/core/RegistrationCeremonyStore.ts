@@ -704,7 +704,6 @@ export interface RegistrationCeremonyStore {
   putAddSignerIntent(intent: StoredAddSignerIntent): Promise<void>;
   getAddSignerIntent(grant: AddSignerIntentGrant): Promise<StoredAddSignerIntent | null>;
   takeAddSignerIntent(grant: AddSignerIntentGrant): Promise<ConsumedAddSignerIntent | null>;
-  putCeremony(ceremony: StoredWalletRegistrationCeremony): Promise<void>;
   getCeremony(registrationCeremonyId: string): Promise<StoredWalletRegistrationCeremony | null>;
   updateCeremony(ceremony: StoredWalletRegistrationCeremony): Promise<void>;
   takeCeremony(registrationCeremonyId: string): Promise<StoredWalletRegistrationCeremony | null>;

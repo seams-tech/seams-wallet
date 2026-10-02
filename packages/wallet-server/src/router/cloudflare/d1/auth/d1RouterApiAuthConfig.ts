@@ -1,3 +1,4 @@
+import type { WalletRegistrationSetupReservationPort } from '../../../domains/walletRegistration/walletRegistrationReservation';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
 import { parseWebAuthnRpId } from '@shared/utils/domainIds';
 import type { LinkedDevicePasskeyTargetConfigurationFieldsV1 } from '@shared/device-linking/contracts';
@@ -144,6 +145,7 @@ export type CloudflareD1GithubOAuthConfig = {
 };
 
 export interface CloudflareD1RouterApiAuthServiceOptions {
+  readonly registrationSetupReservation?: WalletRegistrationSetupReservationPort;
   readonly database: D1DatabaseLike;
   readonly namespace: string;
   readonly orgId: string;
@@ -328,6 +330,7 @@ export function normalizeD1RouterApiAuthOptions(
   }
   return {
     database: input.database,
+    registrationSetupReservation: input.registrationSetupReservation,
     namespace: requireD1RouterApiAuthScopeString(input.namespace, 'namespace'),
     orgId: requireD1RouterApiAuthScopeString(input.orgId, 'orgId'),
     projectId: requireD1RouterApiAuthScopeString(input.projectId, 'projectId'),

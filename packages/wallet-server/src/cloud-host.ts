@@ -212,3 +212,11 @@ export type { RuntimePolicyScope } from '@shared/threshold/signingRootScope';
 export type { WalletEmailOtpOperation } from '@shared/utils/emailOtpDomain';
 export { decodeJsonRpcEnvelope } from '@shared/utils/jsonRpc';
 export * from '@shared/utils/evmRpcResults';
+
+export {
+  parseWalletRegistrationSetupReservation,
+  proposeWalletRegistrationSetup,
+  walletRegistrationSetupRequestDigest,
+  type WalletRegistrationSetupReservation,
+  type WalletRegistrationSetupReservationPort,
+} from './router/domains/walletRegistration/walletRegistrationReservation';

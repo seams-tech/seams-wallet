@@ -117,6 +117,17 @@ export class D1RegistrationCeremonyRecordStore {
     throw conflict('Registration ceremony record conflicts with the stored value');
   }
 
+  async insertOrRead(
+    mutation: D1RegistrationCeremonyRecordMutation,
+  ): Promise<D1RegistrationCeremonyStoredRecord> {
+    const key = this.normalizeKey(mutation.scope, mutation.id);
+    const prepared = prepareValue(mutation.value, mutation.expiresAtMs);
+    await this.insert(key, prepared);
+    const stored = await this.get(mutation.scope, mutation.id);
+    if (!stored) throw conflict('Registration setup expired during persistence');
+    return stored;
+  }
+
   async updateExpected(input: {
     readonly scope: string;
     readonly id: string;

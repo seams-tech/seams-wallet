@@ -668,3 +668,63 @@ prerequisite as completed server idempotency or per-wallet regional routing.
 Regional continuation routing, shared identity authority, lifecycle enforcement
 and namespace-placement removal remain held together under R152. No deployment
 or publication occurred; private package pins remain 0.7.3.
+
+## October 3: authoritative setup admission and immutable replay
+
+This supersedes the October 2 server-reservation prerequisite above. Authenticated
+Gateway setup now calls Console's wallet-home authority using the operation ID and
+a digest of the exact tenant, Origin and normalized request. It consumes the
+winning wallet, ceremony, preparation, authority, device and auth-method IDs.
+A Gateway whose physical account/database differs from the reservation fails
+closed. The standalone local host has an explicit persistent local authority.
+
+Regional D1 now keeps an immutable setup snapshot alongside the mutable ceremony.
+Insert-or-read selects the initial preparation; retries reconcile a missing
+ceremony without resetting an existing ceremony's progress. The original expiry
+is retained. The old independent setup allocator and `putCeremony` API were
+removed. Review added exact ceremony/organization/expiry checks to the stored
+snapshot checks and kept asynchronous signing failures within the setup error
+boundary.
+
+Correction: ECDSA setup builds preparation facts locally from Router topology;
+it does not invoke Router. Its random session ID and replay nonce still require
+durable replay. Later registration stages perform Router work.
+
+Verification covers two distinct boundaries:
+
+- Public local lifecycle: simultaneous initial setup requests, a discarded reply,
+  replay of identical preparation facts, registration after reload, verified Tempo
+  and Arc signatures, NEAR readiness, and setup replay after commit. A changed
+  request conflicts. The standalone authority is a local development composition.
+- Private persistent-D1 composition: the production Console admission adapter and
+  service reserve three independent US/WEUR/APAC wallets in one tenant. Lost
+  replies and competing Workers preserve each allocation. A travelled retry
+  retains its home; another physical D1 is rejected; changed Origin conflicts.
+  Existing directory restart, ownership and writer-admission checks also pass.
+  Receipt SHA-256: `f83bdb08f9d31597c47f1dd2b451016ca281b32fe930c926ac80971e69d83d29`.
+
+Evidence and check logs live in each repository under
+`.artifacts/r152/registration-admission-20261003/`. Public server build,
+server/intended type checks and bloat checks pass. Private server and admission
+fixture type checks use the built candidate's declarations. The private E2E took
+3.3 seconds; the final public lifecycle test passed in 28.7 seconds with the
+fresh server build and cached Rust/SDK builds. These are test runtimes. Public
+receipt SHA-256: `3886b893c64670c45b61527dd236609dbce099ac9ea555ee8849ba59166989df`.
+
+Repeat the private test with the candidate built:
+
+```sh
+SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server \
+  pnpm --dir tests exec playwright test -c playwright.relayer.config.ts \
+  relayer/wallet-home-directory.e2e.test.ts --reporter=line
+```
+
+Repeat the public protocol/registration lifecycle command from the October 2
+section. Its receipt now also records setup replay and changed-request rejection.
+
+**R152 remains incomplete and 0.8.0 remains held.** Next: render the three-region
+Gateway catalog and dispatch setup to the reserved home; route and bind all
+continuations/lifecycle operations to that home; connect terminal completion,
+cancellation and deliberate fresh attempts; complete shared-identity authority
+and remove remaining namespace placement. These local tests do not establish
+hosted routing or geographic latency. No deployment or publication occurred.
