@@ -73,7 +73,7 @@ available earlier while NEAR remains durable and recoverable.
 
 References:
 
-- [Independent NEAR registration plan](./plan-independent-near-registration.md)
+- [Independent NEAR registration plan](./archive/plan-independent-near-registration.md)
 - [Independent registration latency report](./independent-near-registration-latency.md)
 - [Intended lifecycle behavior](./intended-behaviours.md)
 
@@ -164,7 +164,7 @@ spent.
 These results meet the 1–3-second target for the tested cached cohorts. They do
 not establish production p95 or empty-pool acceptance.
 
-Reference: [session-authorized refill design and checkpoint](./refactor-129-presignatures-refill.md).
+Reference: [session-authorized refill design and checkpoint](./archive/refactor-129-presignatures-refill.md).
 
 ### Fewer presign exchanges and cached preflight
 

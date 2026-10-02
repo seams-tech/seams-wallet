@@ -68,7 +68,7 @@ The balanced 20-pair benchmark passed all 40 runs. Median registration return
 improved from 848.5 to 601.0 ms (29%), and durable NEAR readiness improved from
 1059.3 to 1007.0 ms (5%). Authentication medians were 211 / 214 ms. The test-only
 serialized gate uses the same build/backend; no production flag is added.
-See [the latency report](./independent-near-registration-latency.md) for p95s,
+See [the latency report](../independent-near-registration-latency.md) for p95s,
 first-pair and warmed results, stage timings, reproducibility, and limitations.
 These local measurements use automated authentication and stubbed public chain
 RPC; deployed acceptance remains release work.
@@ -119,12 +119,12 @@ Session-seal pipelining is a separate optimization.
 
 Primary implementation files:
 
-- [registration.ts](../packages/wallet/src/SeamsWeb/operations/registration/registration.ts)
-- [pendingWalletRegistrationCommit.ts](../packages/wallet/src/core/indexedDB/pendingWalletRegistrationCommit.ts)
-- [IndexedDB repositories](../packages/wallet/src/core/indexedDB/seamsWalletDB/repositories.ts)
-- [pendingRegistrationRecovery.ts](../packages/wallet/src/SeamsWeb/operations/registration/pendingRegistrationRecovery.ts), [ECDSA recovery validation](../packages/wallet/src/SeamsWeb/operations/registration/pendingEcdsaRegistrationRecoveryValidation.ts)
-- [D1 registration service](../packages/wallet-server/src/router/cloudflare/d1/registration/d1WalletRegistrationService.ts)
-- [Yao registration authorization](../packages/wallet-server/src/router/domains/ed25519Yao/registration/routerAbEd25519YaoRegistrationIntentAuthorization.ts)
+- [registration.ts](../../packages/wallet/src/SeamsWeb/operations/registration/registration.ts)
+- [pendingWalletRegistrationCommit.ts](../../packages/wallet/src/core/indexedDB/pendingWalletRegistrationCommit.ts)
+- [IndexedDB repositories](../../packages/wallet/src/core/indexedDB/seamsWalletDB/repositories.ts)
+- [pendingRegistrationRecovery.ts](../../packages/wallet/src/SeamsWeb/operations/registration/pendingRegistrationRecovery.ts), [ECDSA recovery validation](../../packages/wallet/src/SeamsWeb/operations/registration/pendingEcdsaRegistrationRecoveryValidation.ts)
+- [D1 registration service](../../packages/wallet-server/src/router/cloudflare/d1/registration/d1WalletRegistrationService.ts)
+- [Yao registration authorization](../../packages/wallet-server/src/router/domains/ed25519Yao/registration/routerAbEd25519YaoRegistrationIntentAuthorization.ts)
 
 ## Execution model
 
@@ -247,10 +247,10 @@ lifecycle is not a recovery strategy.
    boundaries to detect concurrent recovery or authority replacement.
 
 Source areas for checkpoint work are
-[custody orchestration](../packages/wallet/src/core/signingEngine/walletCustody/registrationCeremony.ts),
-[custody worker](../packages/wallet/src/core/signingEngine/workerManager/workers/wallet-custody-ceremony.worker.ts),
-[custody WASM](../wasm/wallet_custody_ceremony), and
-[Yao client state](../crates/router-ab-ed25519-yao-client/src/lib.rs).
+[custody orchestration](../../packages/wallet/src/core/signingEngine/walletCustody/registrationCeremony.ts),
+[custody worker](../../packages/wallet/src/core/signingEngine/workerManager/workers/wallet-custody-ceremony.worker.ts),
+[custody WASM](../../wasm/wallet_custody_ceremony), and
+[Yao client state](../../crates/router-ab-ed25519-yao-client/src/lib.rs).
 
 ## Client orchestration and failure isolation
 
@@ -322,7 +322,7 @@ flow and remove obsolete format handling once its retirement condition is met.
 
 ## Verification and performance acceptance
 
-Update [intended behaviours](intended-behaviours.md)
+Update [intended behaviours](../intended-behaviours.md)
 and the relevant persistence/session specifications with implementation.
 Use public lifecycle contracts for both auth methods; use focused repository
 tests for transactions, parsers, and reconciliation. Build domain fixtures
@@ -356,8 +356,8 @@ registration, unlock, and recovery lifecycle suites. Run all Rust commands from
 `seams-wallet`.
 
 Extend the existing
-[registration benchmark](../tests/e2e/intended-behaviours/passkey.registration.benchmark.test.ts)
-and [timing module](../packages/wallet/src/SeamsWeb/operations/registration/registrationTiming.ts).
+[registration benchmark](../../tests/e2e/intended-behaviours/passkey.registration.benchmark.test.ts)
+and [timing module](../../packages/wallet/src/SeamsWeb/operations/registration/registrationTiming.ts).
 Measure SDK entry → registration return, SDK entry → durable NEAR readiness,
 return → NEAR readiness, both branch spans, and confirmation waits. Once Yao is
 deferred, its timing must be included in the NEAR continuation span rather than

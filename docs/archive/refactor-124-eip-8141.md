@@ -105,7 +105,7 @@ contract location.
 
 ### Account identity and custody
 
-The existing [EVM-family address invariant](threshold-ecdsa/evm-family-address-invariant.md)
+The existing [EVM-family address invariant](../threshold-ecdsa/evm-family-address-invariant.md)
 defines a stable threshold-owner address across EVM-family targets and requires
 raw EIP-1559 signing to use that owner for funding and nonce resolution.
 

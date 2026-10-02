@@ -636,7 +636,7 @@ Why it matters:
 Current stance:
 
 - answered for the current crate direction in:
-  - [share-derivation-design-memo.md](share-derivation-design-memo.md)
+  - [../plans/share-derivation-design-memo.md](../plans/share-derivation-design-memo.md)
 
 ### 3. Can the current threshold-signatures-based EVM threshold ECDSA backend
 consume deterministic share derivation cleanly?

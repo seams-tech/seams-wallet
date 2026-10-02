@@ -123,7 +123,7 @@ The crate-local implementation includes:
 
 The crate is ready for crate-level review. Product rollout, QA, and integration
 tracking live in
-[docs/plans/sdk-server-integration-plan.md](docs/plans/sdk-server-integration-plan.md).
+[docs/archive/sdk-server-integration-plan.md](docs/archive/sdk-server-integration-plan.md).
 
 Current performance notes:
 
@@ -147,6 +147,6 @@ Current performance notes:
   [specs/export.md](specs/export.md)
 - Integration with the purpose-built fixed ECDSA backend:
   [specs/integration-purpose-built-ecdsa.md](specs/integration-purpose-built-ecdsa.md)
-- Historical design and optimization notes remain under `docs/plans/` and
-  `optimizations.md`; they are superseded by the active specs above and
-  refactor-89 (`docs/refactor-89-slimmer-near-ecdsa.md`).
+- Historical design and optimization notes remain under `docs/plans/`,
+  `docs/archive/` and `optimizations.md`; they are superseded by the active
+  specs above and refactor-89 (`docs/refactor-89-slimmer-near-ecdsa.md`).

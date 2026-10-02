@@ -357,7 +357,10 @@ function classifyExports({ declarations, reexportAll }) {
 }
 
 function countResidue() {
-  const planDocs = tracked.filter((f) => /(^|\/)refactor-\d+[^/]*\.md$/.test(f) && read(f));
+  // Archived plans are history, so they do not count as live plan docs.
+  const planDocs = tracked.filter(
+    (f) => /(^|\/)refactor-\d+[^/]*\.md$/.test(f) && !f.includes('/archive/') && read(f),
+  );
   const planDocLines = planDocs.reduce((sum, f) => sum + read(f).split('\n').length, 0);
   let citations = 0;
   let allowDeadCode = 0;

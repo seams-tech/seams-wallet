@@ -3,7 +3,7 @@
 Status: implemented in `codex/refactor-140-custom-components`, based on checkpoint
 `55f091d`. The explicit React host, all six bound transaction adapters, shared FIFO
 reservation, wallet activation/admission, expiry and disposal paths are connected
-and exported. Consumer setup is in [transaction-review.md](transaction-review.md).
+and exported. Consumer setup is in [../transaction-review.md](../transaction-review.md).
 Credential-backed intended contracts and release checks are recorded below.
 
 ## Goal and chosen architecture

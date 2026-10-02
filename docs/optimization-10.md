@@ -1015,7 +1015,7 @@ Both packages are prepared as `0.5.25` in
 not been published or deployed. Release CI and deployed comparison remain open;
 the local lifecycle results do not establish the production latency target.
 
-Reuse the [durable presignature cache](./refactor-126-durable-presignature-cache.md),
+Reuse the [durable presignature cache](./archive/refactor-126-durable-presignature-cache.md),
 [login prefill](../packages/wallet/src/core/signingEngine/session/warmCapabilities/ecdsaLoginPrefill.ts),
 pool scheduler, and reusable-session post-sign refill in the
 [secp256k1 signer](../packages/wallet/src/core/signingEngine/flows/signEvmFamily/signers/secp256k1.ts).
@@ -1040,7 +1040,7 @@ the initial pool. Immediate signing is tested without a warmup delay.
 
 #### 4.5 Five-entry durable pools with session-authorized refill
 
-The revised plan is [refactor-129](refactor-129-presignatures-refill.md). The user selected the
+The revised plan is [refactor-129](archive/refactor-129-presignatures-refill.md). The user selected the
 simpler policy: retain reusable material for 90 days, restore and fill each exact
 client pool to five while the client can execute with a valid session, and refill
 after every consumption. This supersedes the separate long-lived preprocessing
@@ -1440,7 +1440,7 @@ for the baseline.
 The 0.5.27 persistence gap has two identified causes: comparing capability-instance
 and MPC capability identifiers during admission, and connecting the durable-store
 worker channel only during generation. The follow-up corrects both; see
-[refactor-129-presignatures-refill.md](refactor-129-presignatures-refill.md#durable-restoration-follow-up-0528).
+[refactor-129-presignatures-refill.md](archive/refactor-129-presignatures-refill.md#durable-restoration-follow-up-0528).
 
 A fresh virtual-passkey wallet on hosted testnet verified authorization separately
 from persistence. After funding's `setUserToken` confirmation, six Tempo signatures

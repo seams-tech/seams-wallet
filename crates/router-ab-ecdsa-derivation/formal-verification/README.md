@@ -172,7 +172,7 @@ generated digest corpus.
 - Verus bootstrap:
   [verus/README.md](verus/README.md)
 - crate implementation plan:
-  [../docs/plans/implementation-plan.md](../docs/plans/implementation-plan.md)
+  [../docs/archive/implementation-plan.md](../docs/archive/implementation-plan.md)
 - share-derivation design memo:
   [../docs/plans/share-derivation-design-memo.md](../docs/plans/share-derivation-design-memo.md)
 - protocol spec:
