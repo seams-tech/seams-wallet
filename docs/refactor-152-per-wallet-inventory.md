@@ -82,6 +82,9 @@ parsed at the boundary. The persistent-D1 E2E and type fixtures pass. This
 allocation is not yet called by hosted registration; it closes only the
 directory's replay-data gap.
 
+Retained private receipt: `.artifacts/r152/setup-allocation-20261002/wallet-home-evidence.json`.
+Reproduce with `pnpm -C tests test:relayer wallet-home-directory.e2e.test.ts`.
+
 Reproduce with the same commands above. Retained private receipt and logs:
 `.artifacts/r152/registration-reservation-20261002/`.
 
@@ -94,8 +97,8 @@ ceremony/founding-authority identities before any custody preparation. Retrying
 only the directory reservation does not make custody preparation or the regional
 ceremony write idempotent. Both supplied-ID and Google candidate-selection
 paths must adopt the same contract. Shared credential/recovery routing indexes
-and their transaction reconciliation remain open, followed by hosted routing and
-namespace-path deletion. This checkpoint does not close those gates.
+and their transaction reconciliation remain open, followed by hosted routing
+replacement. This checkpoint does not close those gates.
 
 ## Namespace assignment removal checkpoint
 
