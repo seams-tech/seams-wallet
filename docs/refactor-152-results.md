@@ -2225,3 +2225,74 @@ Provider contracts checked October 2:
 [deployment ordering and traffic versions](https://developers.cloudflare.com/api/resources/workers/subresources/scripts/subresources/deployments/methods/list/),
 [version resource bindings](https://developers.cloudflare.com/api/resources/workers/subresources/scripts/subresources/versions/methods/get/),
 and [D1 binding UUIDs](https://developers.cloudflare.com/workers/configuration/multipart-upload-metadata/#bindings).
+
+## Runtime home challenge and live provider check (October 2)
+
+Private implementation: `seams-monorepo` commit `022e1a9`. Public signer migration:
+`0040_namespace_home_challenges.sql`, SHA-256
+`9b63d4b2841086bf96ec7bc23008b52036a0921344ea5575192122ae8340b580`.
+
+The new operator command is `pnpm tenant:cutover verify-home --lane production-testnet`.
+It writes a random five-minute challenge through the configured D1 provider UUID.
+The OIDC-protected Console route compares its home to the immutable namespace
+reservation, then verifies reads through the Gateway and Wallet Runtime bindings.
+The private writer requests contain the challenge ID and namespace, excluding the
+expected proof. The receipt excludes proof material and records
+`activationAuthorized: false`. Cleanup deletes the exact challenge after success
+or failure, including when an INSERT committed before its response was lost.
+Process termination can leave an expired row, which is rejected by verification.
+This operator-only path adds no unlock or signing database calls.
+
+**Nine related E2Es passed in 19.9 seconds.** The new scenario bundles the actual
+Console, Gateway and Wallet Runtime Workers and applies all forty signer
+migrations to two real local D1 databases. Eleven rejection cases cover missing
+authentication/reservation, public access, proof echo payloads, wrong database,
+wrong configured home, wrong proof, expired/future validity windows, a stale
+database copy and a deleted challenge. The actual operator CLI also completed a
+successful verification and rejected a lost INSERT response; both records were
+cleaned up, with two INSERTs and two DELETEs. No activation rows were created.
+Provider HTTP transport in this E2E is a controlled loopback bridge to local D1.
+
+Server, Console-test and type-fixture checks, targeted lint, renderer service-binding
+checks and the Wallet bloat check passed. No unit tests were added. The E2E reads
+the sibling Wallet checkout's migration sources and records their hashes; this
+does not establish that the installed 0.7.3 package contains migration 0040.
+Reproduce the new scenario from the private repository:
+
+```sh
+pnpm -C tests exec playwright test -c playwright.relayer.config.ts \
+  relayer/tenant-home-challenge.e2e.test.ts \
+  --reporter=line --output=test-results/r152-runtime-challenge
+```
+
+A separate **live read-only provider check passed at 2026-10-02 00:39:14.065 UTC
+(09:39 JST)** for namespace `seams-production-testnet`. Saved Wrangler OAuth
+credentials were available. The preceding report about absent shell variables
+did not establish that credentials were unavailable. Credentials were captured
+in memory for the child verifier; no token was printed or written to evidence.
+
+Both Workers' actual `SIGNER_DB` bindings point to database
+`dea0a6fe-4a0e-4893-8308-e8a06e12ee88` in account
+`ba924da36f2ffc3839e8d323000b66b4`:
+
+| Worker | Deployment ID | Serving version (100%) |
+| --- | --- | --- |
+| `seams-sdk-d1-gateway-testnet` | `2a1a2c0c-a84a-4f4e-90d9-d4d01826a3ee` | `7cd24b4c-f207-4525-842d-dfac9728e90b` |
+| `seams-sdk-d1-wallet-runtime-testnet` | `51055c84-711d-43aa-bced-8a0957dbc0bf` | `5fe2f562-7652-4638-bb04-bd17c6bb1341` |
+
+Deployment IDs, versions and traffic weights remained stable across the check.
+The artifact keeps `runtimeChallengeVerified: false` and
+`activationAuthorized: false`. This live check used provider GETs only. The new
+challenge was exercised locally; no live D1 write, migration or deployment occurred.
+
+Private evidence: `.artifacts/r152/runtime-home-challenge-20261002/` contains
+`live-provider-testnet.json`, `runtime-home-challenge-evidence.json`, related E2E
+receipts, `e2e.log`, generated Console configuration, `bloat.log`, source hashes
+and verification metadata. There is no new hosted latency result.
+
+Remaining rollout dependencies: publish and consume a new exact Wallet Server
+release containing migration 0040; coordinate migration/service-binding/Worker
+deployment and historical adoption; run the challenge live; join fresh runtime
+proof and stable provider versions to activation; cover remaining writer paths.
+Neither separate checkpoint establishes an activation fence, and a copied fresh
+challenge alone does not establish physical database identity.

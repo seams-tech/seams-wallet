@@ -440,9 +440,33 @@ and activation authorization false. It does not read the Console reservation or
 prove other older/internal writers are unreachable. Provider responses are
 reduced to the selected database and deployment/version IDs so unrelated secrets
 never enter the evidence. A ten-scenario local CLI E2E passed against a controlled
-HTTP provider fixture. Live Cloudflare verification remains unrun because the
-execution shell lacks the account/token variables. See the
+HTTP provider fixture. A subsequent live production-testnet check passed October 2
+at 09:39 JST using saved Wrangler OAuth credentials. Both serving versions use
+the intended D1 UUID and deployments remained stable during inspection. The earlier
+shell-variable check did not establish that Cloudflare credentials were unavailable. See the
 [provider checkpoint results](refactor-152-results.md#provider-binding-checkpoint-october-2).
+
+Private commit `022e1a9` implements the fresh runtime challenge checkpoint.
+The operator writes independent random challenge ID/proof values through the D1
+provider UUID, with a five-minute expiry. The OIDC-protected Console route first
+compares its configured home to the immutable namespace reservation, then asks
+both Gateway and Wallet Runtime to read the challenge through their own bindings.
+Those private calls carry only namespace and challenge ID; the expected proof
+stays at Console. Both observations must match the home, proof and validity window.
+The receipt omits the proof and retains `activationAuthorized: false`. Operator
+cleanup also runs when a committed INSERT loses its response. An interrupted
+process can leave an expired row; expiry prevents accepting it as evidence.
+
+The local production-Worker E2E applies all forty signer migrations to two D1
+databases and rejects a stale copy, wrong binding, wrong configured home, invalid
+proof and invalid time windows. It also exercises the actual operator CLI and
+cleanup after a lost response. No unlock or signing D1 call is added. Signer
+migration 0040 must ship in a new exact Wallet Server release before coordinated
+deployment; the private repository currently consumes 0.7.3. A live challenge,
+stable provider-version evidence spanning that challenge, activation fencing and
+remaining writer-path coverage are still required. A copied fresh challenge alone
+cannot establish physical resource identity. See the
+[runtime checkpoint results](refactor-152-results.md#runtime-home-challenge-and-live-provider-check-october-2).
 
 The first persistence slice is implemented in private Console commit `12784a3`.
 `tenantDeployment/namespaceHome.ts` adds reservation/read operations to the

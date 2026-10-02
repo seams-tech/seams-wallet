@@ -52,8 +52,13 @@ and remaining entry-point coverage are still rollout gates. See the
 Private commit `877890d` adds a read-only provider binding checkpoint for every
 serving version of the lane's Gateway and Wallet Runtime, including gradual
 rollouts and deployment-drift detection. The local CLI E2E covers ten scenarios.
-Live inventory, Console-reservation comparison and the fresh runtime database
-challenge remain open; this checkpoint cannot authorize activation. See the
+The live production-testnet provider check passed October 2 using saved Wrangler
+OAuth credentials. Private commit `022e1a9` implements a fresh database challenge
+and comparison with Console's immutable reservation, verified locally through
+the production Console, Gateway and Wallet Runtime Workers. Its signer migration
+0040 requires a new exact Wallet Server release before deployment; the private
+repository currently consumes 0.7.3. Live runtime verification and joining both
+checkpoints to activation remain open. Neither checkpoint authorizes activation. See the
 [provider checkpoint evidence](refactor-152-results.md#provider-binding-checkpoint-october-2).
 
 ## Objective and starting evidence
@@ -461,10 +466,21 @@ below remain open.
   with the lane manifest and reject deployment/weight changes during inspection.
   Local CLI E2E verifies minority-version mismatches, malformed/missing bindings,
   provider denial, secret exclusion and preserved output identity.
-- [ ] Run the live provider checkpoint and join it to the immutable Console
-  reservation and a fresh challenge written through the intended database UUID
-  and read through each actual writer binding. Fence activation to the verified
-  deployment generation; include other reachable older/internal writer paths.
+- [x] Run the live production-testnet provider checkpoint. At October 2 09:39 JST,
+  both serving Gateway/Wallet Runtime versions bound `SIGNER_DB` to the intended
+  UUID and their deployments remained stable across inspection. Saved Wrangler
+  OAuth credentials provided access; no provider mutation was performed.
+- [x] Implement the fresh runtime challenge and immutable Console-reservation
+  comparison. The operator writes a random five-minute proof through the intended
+  database UUID, verifies both actual runtime bindings and deletes the proof even
+  after a lost INSERT response. Nine related local E2Es pass, including two real
+  D1 databases and all forty signer migrations. See the
+  [runtime challenge evidence](refactor-152-results.md#runtime-home-challenge-and-live-provider-check-october-2).
+- [ ] Publish and consume an exact Wallet Server release containing signer
+  migration 0040, then coordinate migrations, service bindings, Worker deployment
+  and historical adoption. Run the fresh challenge live and join both checkpoints
+  to the immutable Console reservation. Fence activation to the verified deployment
+  generation; include other reachable older/internal writer paths.
 - [ ] Reuse existing trusted tenant/environment routing where possible. Define
   required owner, home, and routing-generation identity at the server boundary.
   Reject inconsistent or stale routes before any mutation. Route lookup itself
