@@ -4,7 +4,8 @@ import {
   parseThresholdEd25519ParticipantsV1,
   type ThresholdEd25519ParticipantV1,
 } from '@shared/threshold/participants';
-import { ensureEd25519Prefix, toTrimmedString } from '@shared/utils/validation';
+import { toTrimmedString } from '@shared/utils/validation';
+import { ensureEd25519Prefix } from '@shared/utils/near';
 import type { ThresholdEd25519KeyMaterial } from './nearAccountData.types';
 import type {
   KeyMaterialAlgorithm,

@@ -6,7 +6,7 @@ import {
   mpcMaterialActivationRefsEqual,
   type MpcMaterialActivationRef,
 } from '@shared/utils/domainIds';
-import { base64UrlEncode } from '@shared/utils/encoders';
+import { base64UrlEncode } from '@shared/utils/base64';
 import { secureRandomId } from '@shared/utils/secureRandomId';
 import type { Variant } from '@shared/utils/variant';
 import { asRecordOrArray } from '@shared/utils/validation';

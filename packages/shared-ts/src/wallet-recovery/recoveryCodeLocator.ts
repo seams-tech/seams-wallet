@@ -1,5 +1,5 @@
 import { sha256Bytes } from '../utils/digests';
-import { base64UrlEncode } from '../utils/encoders';
+import { base64UrlEncode } from '../utils/base64';
 import { parseDigestB64u, type DigestB64u } from '../utils/canonicalPrimitives';
 import { EMAIL_OTP_RECOVERY_KEY_BYTE_LENGTH } from '../utils/emailOtpRecoveryKey';
 

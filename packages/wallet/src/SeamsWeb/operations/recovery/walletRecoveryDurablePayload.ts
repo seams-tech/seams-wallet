@@ -26,7 +26,7 @@ import {
   type WalletCustodyEd25519MaterialBindingV1,
   type WalletCustodySealedEd25519MaterialV1,
 } from '@/core/signingEngine/walletCustody/ed25519SeedMaterial';
-import { base64UrlDecode, base64UrlEncode } from '@shared/utils/encoders';
+import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
 import { parseDeviceId, type DeviceId } from '@shared/authorization/capabilityKinds';
 import {
   parseEmailOtpProviderUserId,

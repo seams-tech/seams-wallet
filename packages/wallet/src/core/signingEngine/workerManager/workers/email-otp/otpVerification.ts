@@ -1,5 +1,5 @@
 /** OTP challenges and the factor release that a verified OTP, grant or Wallet Session unlocks. */
-import { base64UrlDecode, base64UrlEncode } from '@shared/utils/encoders';
+import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
 import { asRecord } from '@shared/utils/validation';
 import { normalizeOptionalTrimmedString } from '@shared/utils/normalize';
 import type { WalletEmailOtpOperation } from '@shared/utils/emailOtpDomain';

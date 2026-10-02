@@ -1,4 +1,4 @@
-import { base64UrlDecode, base64UrlEncode } from '@shared/utils/encoders';
+import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
 import { sha256Bytes } from '@shared/utils/digests';
 import {
   issueWalletRecoveryCodes,

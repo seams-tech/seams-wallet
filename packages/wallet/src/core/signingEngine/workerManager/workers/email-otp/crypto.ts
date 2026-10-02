@@ -3,7 +3,7 @@
  * seals and the ECDH/AES-GCM factor-release channel.
  */
 import { initializeWasm, resolveWasmUrl } from '@/core/walletRuntimePaths/wasm-loader';
-import { base64UrlDecode } from '@shared/utils/encoders';
+import { base64UrlDecode } from '@shared/utils/base64';
 import { EMAIL_OTP_FACTOR_RELEASE_AAD_DOMAIN_V1 } from '@shared/utils/emailOtpDomain';
 import type { LinkedDeviceEmailOtpFactorReleaseEnvelopeV1 } from '@shared/device-linking/contracts';
 import {

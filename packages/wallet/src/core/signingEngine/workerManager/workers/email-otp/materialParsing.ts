@@ -7,7 +7,7 @@ import {
   parseMpcMaterialActivationRef,
   type MpcMaterialActivationRef,
 } from '@shared/utils/domainIds';
-import { base64UrlEncode } from '@shared/utils/encoders';
+import { base64UrlEncode } from '@shared/utils/base64';
 import {
   parseMpcWalletSigningQuotaId,
   parseWalletSessionAuthorizationId,

@@ -1,8 +1,6 @@
-/**
+/*
  * Centralized error handling utilities for the Passkey SDK
  */
-
-export { getNearShortErrorMessage } from './near';
 
 /**
  * Best-effort error message extractor without relying on `any`.

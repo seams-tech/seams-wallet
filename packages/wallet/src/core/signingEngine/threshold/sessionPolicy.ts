@@ -1,5 +1,5 @@
 import { alphabetizeStringify, sha256BytesUtf8 } from '@shared/utils/digests';
-import { base64UrlEncode } from '@shared/utils/encoders';
+import { base64UrlEncode } from '@shared/utils/base64';
 import { secureRandomId } from '@shared/utils/secureRandomId';
 import { normalizeThresholdEd25519ParticipantIds } from '@shared/threshold/participants';
 import {

@@ -3,7 +3,7 @@
  * Ed25519 signing material from custody.
  */
 import { mpcMaterialActivationRefsEqual } from '@shared/utils/domainIds';
-import { base64UrlDecode, base64UrlEncode } from '@shared/utils/encoders';
+import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
 import {
   parsePasskeyCustodyEnvelopeRecord,
   parseWalletCustodyEvmFamilyActivationCompletion,

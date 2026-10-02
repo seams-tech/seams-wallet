@@ -31,7 +31,8 @@ import {
   type PasskeyWalletAuthAuthority,
   type WalletAuthAuthorityRef,
 } from '@shared/utils/walletAuthAuthority';
-import { base58Encode, base64UrlDecode } from '@shared/utils/encoders';
+import { base64UrlDecode } from '@shared/utils/base64';
+import { base58Encode } from '@shared/utils/base58';
 import { computeEcdsaDerivationRoleLocalRelayerKeyId } from '@shared/threshold/ecdsaDerivationRoleLocalBootstrap';
 import { routerAbMpcMaterialActivationRefFromWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import { buildEcdsaRoleLocalPublicFacts } from '@/core/signingEngine/session/persistence/ecdsaRoleLocalRecords';

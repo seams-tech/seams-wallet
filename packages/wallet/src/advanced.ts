@@ -11,7 +11,7 @@ export {
   type EvmBlockHeader,
   type WaitForEvmTransactionReceiptArgs,
 } from './core/rpcClients/evm/EvmClient';
-export { base64UrlEncode, base64UrlDecode } from '@shared/utils/encoders';
+export { base64UrlEncode, base64UrlDecode } from '@shared/utils/base64';
 export { keccak256Bytes } from '@shared/utils/keccak';
 export { normalizeLowercaseString, normalizeTrimmedString } from '@shared/utils/normalize';
 export {

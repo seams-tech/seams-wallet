@@ -8,7 +8,7 @@ import {
   type WalletAuthorityId,
   type WalletId,
 } from './domainIds';
-import { base64UrlEncode } from './encoders';
+import { base64UrlEncode } from './base64';
 import {
   type AddAuthMethodInput,
   inspectRawObject,

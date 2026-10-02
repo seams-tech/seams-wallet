@@ -21,7 +21,7 @@ import type {
   RecoveredWalletCustodyManifestV1,
   WalletRecoveryReplacementFactorInput,
 } from '@/core/signingEngine/walletCustody/walletRecoveryManifest';
-import { base64UrlEncode } from '@shared/utils/encoders';
+import { base64UrlEncode } from '@shared/utils/base64';
 import {
   parseEmailOtpChallengeId,
   parseWebAuthnRpId,

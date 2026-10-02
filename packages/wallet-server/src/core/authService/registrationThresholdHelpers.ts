@@ -1,5 +1,6 @@
 import { ActionType, type ActionArgsWasm } from '@shared/near/actions';
-import { ensureEd25519Prefix, toOptionalTrimmedString } from '@shared/utils/validation';
+import { toOptionalTrimmedString } from '@shared/utils/validation';
+import { ensureEd25519Prefix } from '@shared/utils/near';
 
 export function buildFullAccessAddKeyAction(publicKey: string): ActionArgsWasm {
   return {

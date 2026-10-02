@@ -10,7 +10,7 @@
  * - "simple.testnet"
  */
 
-import { validateNearAccountId } from '@shared/utils/validation';
+import { validateNearAccountId } from '@shared/utils/near';
 
 // AccountId is a validated string at runtime. The optional brand keeps editor hints
 // without making test fixtures and external string inputs unassignable.

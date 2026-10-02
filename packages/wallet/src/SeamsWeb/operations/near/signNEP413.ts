@@ -6,7 +6,7 @@ import type {
   SignNEP413MessageResult,
 } from '@/core/types/sdkPublicResults';
 import type { AccountId } from '@/core/types/accountIds';
-import { base64Encode } from '@shared/utils/encoders';
+import { base64Encode } from '@shared/utils/base64';
 import type { WalletSessionRef } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import { emitNearSigningEvent } from './signingEventHelpers';
 import { resolveNearCommandSubject } from './commandSubject';

@@ -1,5 +1,5 @@
 import { ROUTER_AB_ECDSA_PRESIGN_CEREMONY_MAX_LIFETIME_MS } from '@shared/utils/routerAbEcdsaDerivation';
-import { base64UrlDecode, base64UrlEncode } from '@shared/utils/encoders';
+import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
 import { secureRandomId } from '@shared/utils/secureRandomId';
 import {
   buildRouterAbEcdsaDerivationEvmDigestSigningFinalizeRequestV1,

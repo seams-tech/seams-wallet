@@ -3,7 +3,7 @@ import { signWalletRecoveryEcdsaMaterialPossessionProofWasm } from '@/core/signi
 import type { WalletRecoveryPreparationKeyManifestEntry } from '@/core/rpcClients/relayer/walletRecoveryPrepare';
 import type { WalletCustodyEvmFamilyPublicFacts } from '@shared/passkey-custody';
 import { alphabetizeStringify, sha256BytesUtf8 } from '@shared/utils/digests';
-import { base64UrlDecode, base64UrlEncode } from '@shared/utils/encoders';
+import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
 import {
   parseRouterAbEcdsaDerivationPublicCapabilityV1,
   parseRouterAbEcdsaRegistrationActivationReceiptV1,

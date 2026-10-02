@@ -15,7 +15,7 @@ import { requestWalletCustodyEmailOtpChallenge } from '@/core/rpcClients/relayer
 import { SIGNING_SESSION_SEAL_GROUP_ID } from '@shared/utils/signingSessionSeal';
 import { buildEmailOtpRoutePlan } from '@/core/signingEngine/stepUpConfirmation/otpPrompt/authLane';
 import { WALLET_EMAIL_OTP_UNLOCK_OPERATION } from '@shared/utils/emailOtpDomain';
-import { base64UrlDecode } from '@shared/utils/encoders';
+import { base64UrlDecode } from '@shared/utils/base64';
 import { fetchPasskeyCustodyEnvelope } from '@/core/rpcClients/relayer/passkeyCustodyEnvelope';
 import { joinNormalizedUrl } from '@shared/utils/normalize';
 import { computeWalletCustodyAdminChallengeDigest } from '@shared/authorization/walletCustodyOperation';

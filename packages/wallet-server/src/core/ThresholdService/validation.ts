@@ -7,7 +7,8 @@ import {
   isPasskeyWalletAuthAuthority,
   type WalletAuthAuthority,
 } from '@shared/utils/walletAuthAuthority';
-import { ensureEd25519Prefix, toOptionalString, isPlainObject } from '@shared/utils/validation';
+import { toOptionalString, isPlainObject } from '@shared/utils/validation';
+import { ensureEd25519Prefix } from '@shared/utils/near';
 import {
   type DerivationClientSharePublicKey33B64u,
   type EcdsaDerivationRelayerPublicKey33B64u,

@@ -1,4 +1,4 @@
-import { base64UrlDecode, base64UrlEncode } from './encoders';
+import { base64UrlDecode, base64UrlEncode } from './base64';
 import { alphabetizeStringify, sha256BytesUtf8 } from './digests';
 import {
   normalizeRuntimePolicyScope,

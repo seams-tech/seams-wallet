@@ -9,7 +9,7 @@ import {
 } from '@shared/wallet-recovery/walletRecoveryRotation';
 import { deriveRecoveryCodeLocatorV1FromBytes } from '@shared/wallet-recovery/recoveryCodeLocator';
 import type { PasskeyCustodyEnvelopeRecord } from '@shared/passkey-custody';
-import { base64UrlEncode } from '@shared/utils/encoders';
+import { base64UrlEncode } from '@shared/utils/base64';
 import { joinCustodyWireFromEnvelopeRecord } from './joinCustodyWire';
 import {
   readWalletRecoveryCodeStatus,

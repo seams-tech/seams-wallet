@@ -2,7 +2,7 @@
  * Wallet unlock with a released Email OTP factor: signs the unlock challenge, verifies it with
  * the Router and returns the material the requested capabilities need.
  */
-import { base64UrlDecode, base64UrlEncode } from '@shared/utils/encoders';
+import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
 import type { Variant } from '@shared/utils/variant';
 import type { PasskeyCustodyEnvelopeRecord } from '@shared/passkey-custody';
 import { toOptionalTrimmedNonEmptyString } from '@shared/utils/validation';

@@ -2,7 +2,8 @@ import { normalizeRegistrationCredential } from '@/core/signingEngine/webauthnAu
 import type { WebAuthnRegistrationCredential } from '@/core/types/webauthn';
 import type { TransactionContext } from '@/core/types/rpc';
 import type { RegistrationConfirmationDiagnostics } from '@/core/signingEngine/stepUpConfirmation/types';
-import { isObject, assertString, ensureEd25519Prefix } from '@shared/utils/validation';
+import { isObject, assertString } from '@shared/utils/validation';
+import { ensureEd25519Prefix } from '@shared/utils/near';
 import { DelegateActionInput } from '@/core/types/delegate';
 import { base58Encode } from '@shared/utils/base58';
 export { ensureEd25519Prefix };

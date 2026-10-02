@@ -7,7 +7,7 @@ import {
   type MpcMaterialActivationRef,
   type ThresholdEd25519SessionId,
 } from '@shared/utils/domainIds';
-import { base64UrlEncode } from '@shared/utils/encoders';
+import { base64UrlEncode } from '@shared/utils/base64';
 import { base58Encode } from '@shared/utils/base58';
 import { asRecord } from '@shared/utils/validation';
 import { normalizePositiveInteger } from '@shared/utils/normalize';

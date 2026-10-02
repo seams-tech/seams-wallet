@@ -50,7 +50,7 @@ import type {
 } from '../../../session/warmCapabilities/routerAbEd25519WalletSessionState';
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
 import { base58Decode } from '@shared/utils/base58';
-import { ensureEd25519Prefix } from '@shared/utils/validation';
+import { ensureEd25519Prefix } from '@shared/utils/near';
 import {
   parseThresholdEd25519NearTransaction,
   thresholdEd25519NearTransactionOperationFingerprint,

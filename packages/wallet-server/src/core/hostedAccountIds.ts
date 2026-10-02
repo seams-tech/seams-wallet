@@ -1,5 +1,6 @@
 import { parseWalletId, type WalletId } from '@shared/utils/domainIds';
-import { isValidAccountId, toOptionalTrimmedString } from '@shared/utils/validation';
+import { toOptionalTrimmedString } from '@shared/utils/validation';
+import { isValidAccountId } from '@shared/utils/near';
 
 const DOMAIN = 'near_account_slug_v1';
 

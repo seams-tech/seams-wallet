@@ -8,7 +8,7 @@ import {
   finalizeRouterAbEcdsaExplicitExportWasm,
 } from '../../threshold/crypto/ecdsaDerivationClientWasm';
 import { alphabetizeStringify, sha256BytesUtf8 } from '@shared/utils/digests';
-import { base64UrlEncode } from '@shared/utils/encoders';
+import { base64UrlEncode } from '@shared/utils/base64';
 import {
   routerAbMpcMaterialActivationRefToWire,
   routerAbMpcMaterialActivationRefFromWire,

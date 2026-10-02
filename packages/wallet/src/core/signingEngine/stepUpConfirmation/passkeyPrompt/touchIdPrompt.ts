@@ -1,4 +1,4 @@
-import { base64UrlDecode } from '@shared/utils/encoders';
+import { base64UrlDecode } from '@shared/utils/base64';
 import {
   serializeAuthenticationCredentialWithPRF,
   getPrfFirstSaltV1,

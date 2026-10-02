@@ -1,8 +1,5 @@
 import { normalizeOptionalTrimmedString, normalizeTrimmedString } from './normalize';
 
-export type { NearAccountValidationOptions } from './near';
-export { ensureEd25519Prefix, validateNearAccountId, isValidAccountId } from './near';
-
 // ==============================
 // Normalization helpers (shared)
 // ==============================

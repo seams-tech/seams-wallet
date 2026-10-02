@@ -60,7 +60,7 @@ import {
   type WalletRecoveryOperationId,
 } from '@shared/utils/domainIds';
 import { parseDeviceId, type DeviceId } from '@shared/authorization/capabilityKinds';
-import { base64UrlDecode, base64UrlEncode } from '@shared/utils/encoders';
+import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
 import {
   PASSKEY_PRF_FIRST_SALT_V1,
   PASSKEY_PRF_SECOND_SALT_V1,

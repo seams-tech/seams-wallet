@@ -1,5 +1,5 @@
 import type { WebAuthnRegistrationCredential } from '@/core/types/webauthn';
-import { base64UrlDecode } from '@shared/utils/encoders';
+import { base64UrlDecode } from '@shared/utils/base64';
 import {
   parseWebAuthnCredentialIdB64u,
   type WebAuthnCredentialIdB64u,

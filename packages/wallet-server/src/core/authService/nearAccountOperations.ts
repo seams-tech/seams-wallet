@@ -6,7 +6,7 @@ import {
   validateActionArgsWasm,
 } from '@shared/near/actions';
 import { errorMessage } from '@shared/utils/errors';
-import { isValidAccountId } from '@shared/utils/validation';
+import { isValidAccountId } from '@shared/utils/near';
 import type { NormalizedLogger } from '../logger';
 import type { MinimalNearClient, SignedTransaction } from '../rpcClients/near/NearClient';
 import { fundImplicitNearAccountWithRelayer } from '../nearRelayerAccountProvisioning';

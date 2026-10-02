@@ -23,7 +23,7 @@ import init, {
   threshold_ed25519_finalize_near_tx_from_signature,
 } from '../../../../../../../wasm/near_signer/pkg/wasm_signer_worker.js';
 import { resolveWasmUrl } from '@/core/walletRuntimePaths/wasm-loader';
-import { base64UrlEncode } from '@shared/utils/encoders';
+import { base64UrlEncode } from '@shared/utils/base64';
 import { errorLogSummary, safeErrorMessage } from '@shared/utils/errors';
 import { WorkerControlMessage } from '../workerTypes';
 

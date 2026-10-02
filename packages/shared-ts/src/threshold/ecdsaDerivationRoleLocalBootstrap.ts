@@ -1,5 +1,5 @@
 import { alphabetizeStringify, sha256Bytes, sha256BytesUtf8 } from '../utils/digests';
-import { base64UrlDecode, base64UrlEncode } from '../utils/encoders';
+import { base64UrlDecode, base64UrlEncode } from '../utils/base64';
 import type { WalletId } from '../utils/domainIds';
 import { deriveEvmFamilySigningKeySlotId } from '../signing-lanes/evmFamilySigningKeySlotId';
 

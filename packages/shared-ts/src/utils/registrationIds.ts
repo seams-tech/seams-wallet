@@ -7,7 +7,7 @@ import {
   type WalletId,
   type WebAuthnRpId,
 } from './domainIds';
-import { base64UrlEncode } from './encoders';
+import { base64UrlEncode } from './base64';
 import type { RegistrationAuthority } from './registrationAuthMethodInput';
 import type { ThresholdEd25519RegistrationSpec } from './registrationSignerPlan';
 import type { EmailOtpProvider } from './walletAuthAuthority';

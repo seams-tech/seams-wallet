@@ -1,5 +1,5 @@
 import { encodeSigningSessionHkdfTuple } from '../utils/signingSessionSeal';
-import { base64UrlEncode } from '../utils/encoders';
+import { base64UrlEncode } from '../utils/base64';
 
 /**
  * The identity of one recovery code inside a wallet's custody set.

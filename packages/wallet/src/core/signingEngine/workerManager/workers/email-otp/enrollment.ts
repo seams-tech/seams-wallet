@@ -1,5 +1,5 @@
 /** Email OTP enrollment: seals a new factor secret with the Router and derives its unlock key. */
-import { base64UrlEncode } from '@shared/utils/encoders';
+import { base64UrlEncode } from '@shared/utils/base64';
 import { toOptionalTrimmedNonEmptyString } from '@shared/utils/validation';
 import {
   EMAIL_OTP_CHANNEL,
