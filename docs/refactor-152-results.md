@@ -2692,3 +2692,19 @@ hosted deployment occurred. The full evidence, repeat commands, limitations and
 receipt hash are in [the October 3 release review](./refactor-152-release-review.md#october-3-authoritative-setup-admission-and-immutable-replay).
 Regional dispatch, continuation admission and terminal reservation lifecycle
 remain release gates.
+
+## October 3: regional forwarding and terminal-state correctness
+
+Local transport verification now spans three regional Workers and three distinct
+signer D1 databases. Each independently assigned wallet's setup and continuation
+reach its selected database despite another ingress region or later travel.
+Concurrent replay, target outage, redirect rejection, a misdirected binding that
+cannot forward again, and idempotent terminal-state reconciliation are verified.
+The public lifecycle test also proves completed setup replay cannot recreate a
+cleaned ceremony.
+
+Final local E2E runtimes were 4.0s for the Console/transport scenario and 28.6s for
+registration/signing. **No geographic latency measurement was taken.** The regional
+fixture controls authentication and simulates custody effects. Hashes, commands,
+evidence limits and the remaining deployment/shared-identity work are recorded in
+[the transport checkpoint](./refactor-152-release-review.md#october-3-regional-transport-and-terminal-registration-checkpoint).

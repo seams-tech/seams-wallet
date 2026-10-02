@@ -5,7 +5,6 @@ import type {
   WalletRegistrationActivateRouteResponseV2,
   WalletRegistrationActivateResponseV2,
   WalletRegistrationRespondResponseV2,
-  WalletRegistrationSetupResponseV2,
 } from '../../../core/threeRouteRegistrationContracts';
 import type { RouterAbEcdsaRegistrationRequestV1 } from '@shared/utils/routerAbEcdsaDerivation';
 import type { WalletRegistrationAuthorityInput } from '../../../core/registrationContracts';
@@ -2038,7 +2037,7 @@ export async function handleRouterApiWalletAddSignerIntent(
 
 export async function handleRouterApiWalletRegistrationSetup(
   input: RouterApiWalletRegistrationInput,
-): Promise<RouteResponse<WalletRegistrationSetupResponseV2 | RouteErrorBody>> {
+): Promise<RouteResponse> {
   if (!isPlainObject(input.body)) {
     return routeError(400, 'invalid_body', 'JSON body required');
   }
@@ -2103,7 +2102,7 @@ export async function handleRouterApiWalletRegistrationSetup(
   }
   const request = parseWalletRegistrationSetupRequest(input.body);
   if (!request.ok) return routeError(400, request.code, request.message);
-  const result = await input.services.walletRegistration.setupWalletRegistration({
+  return input.services.walletRegistration.setupWalletRegistration({
     request: request.value,
     orgId: principal.orgId,
     expectedOrigin: origin,
@@ -2116,7 +2115,6 @@ export async function handleRouterApiWalletRegistrationSetup(
         }
       : {}),
   });
-  return routeJson(result.ok ? 200 : 400, result);
 }
 
 /**

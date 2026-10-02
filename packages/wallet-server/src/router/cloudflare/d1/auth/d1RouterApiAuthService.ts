@@ -1,3 +1,4 @@
+import { dispatchWalletRegistrationSetup } from '../../../framework/registrationSetupDispatch';
 import {
   readActiveWalletSessionCredential,
   readExhaustedWalletSessionCredential,
@@ -279,6 +280,7 @@ type CloudflareD1RouterApiAuthAssembly = {
 
 type D1WalletRegistrationRouteServiceAssembly = Pick<
   CloudflareD1RouterApiAuthAssembly,
+  | 'options'
   | 'emailOtpRecoveryService'
   | 'registrationIntents'
   | 'walletAuthMethodStore'
@@ -1703,7 +1705,7 @@ function createCloudflareD1RouterApiAuthAssembly(
   });
   const signedDelegateExecutor = new CloudflareD1SignedDelegateExecutor(options);
   const walletRegistrations = new CloudflareD1WalletRegistrationService({
-    setupReservation: options.registrationSetupReservation ?? null,
+    registrationAuthority: options.registrationAuthority ?? null,
     authorizationService,
     authorizationTenantId: authorizationTenantId.value,
     createSponsoredNamedNearAccount,
@@ -1804,6 +1806,7 @@ function createCloudflareD1RouterApiAuthAssembly(
     authorizationService,
     authorizationStore,
     walletRegistration: createD1WalletRegistrationRouteService({
+      options,
       emailOtpRecoveryService,
       registrationIntents,
       walletAuthMethodStore,
@@ -1950,9 +1953,10 @@ function createD1WalletRegistrationRouteService(
       assembly.emailOtpRecoveryService.readActiveEmailOtpEnrollment.bind(
         assembly.emailOtpRecoveryService,
       ),
-    setupWalletRegistration: assembly.walletRegistrations.setupWalletRegistration.bind(
-      assembly.walletRegistrations,
-    ),
+    setupWalletRegistration: dispatchWalletRegistrationSetup.bind(undefined, {
+      dispatcher: assembly.options.registrationSetupDispatcher ?? null,
+      local: assembly.walletRegistrations,
+    }),
     respondWalletRegistration: assembly.walletRegistrations.respondWalletRegistration.bind(
       assembly.walletRegistrations,
     ),

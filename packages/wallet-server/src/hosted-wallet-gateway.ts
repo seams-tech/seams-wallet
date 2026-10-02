@@ -162,7 +162,8 @@ export interface CloudflareD1GatewayEnv extends CloudflareD1GatewayBaseEnv {
 }
 
 export interface HostedWalletGatewayDependenciesV1 {
-  readonly registrationSetupReservation?: CloudflareD1RouterApiAuthServiceOptions['registrationSetupReservation'];
+  readonly registrationSetupDispatcher?: CloudflareD1RouterApiAuthServiceOptions['registrationSetupDispatcher'];
+  readonly registrationAuthority?: CloudflareD1RouterApiAuthServiceOptions['registrationAuthority'];
   readonly emailOtpDeliveryProvider?: CloudflareD1RouterApiAuthServiceOptions['emailOtpDeliveryProvider'];
   /** Host loader for the signer WASM; defaults to the Workers module import. */
   readonly signerWasm?: CloudflareD1RouterApiAuthServiceOptions['signerWasmModuleOrPath'];
@@ -472,7 +473,8 @@ async function createStagingRouterApiAuthComposition(
   });
   const service = createCloudflareD1RouterApiAuthService({
     database: env.SIGNER_DB,
-    registrationSetupReservation: dependencies.registrationSetupReservation,
+    registrationAuthority: dependencies.registrationAuthority,
+    registrationSetupDispatcher: dependencies.registrationSetupDispatcher,
     namespace: scope.namespace,
     orgId: scope.orgId,
     projectId: scope.projectId,

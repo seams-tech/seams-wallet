@@ -13,7 +13,7 @@ import {
   type RouterAbEcdsaStrictRegistrationPort,
 } from '../../../domains/ecdsa/routerAbEcdsaStrictRegistration';
 import type { WalletRegistrationSetupInput } from '../../../domains/walletRegistration/walletRegistrationInputs';
-import type { WalletRegistrationSetupReservationPort } from '../../../domains/walletRegistration/walletRegistrationReservation';
+import type { WalletRegistrationReservationAuthority } from '../../../domains/walletRegistration/walletRegistrationReservation';
 import { buildD1EvmFamilyEcdsaRegistrationPrepare } from './d1EvmFamilyEcdsaRegistrationBranch';
 import {
   buildRegistrationIntent,
@@ -37,7 +37,7 @@ import {
 export async function executeD1WalletRegistrationSetup(
   input: WalletRegistrationSetupInput,
   dependencies: {
-    readonly reservation: WalletRegistrationSetupReservationPort | null;
+    readonly reservation: WalletRegistrationReservationAuthority | null;
     readonly store: CloudflareD1RegistrationCeremonyIntentStore;
     readonly ecdsaStrictRegistration: RouterAbEcdsaStrictRegistrationPort;
   },
@@ -111,9 +111,14 @@ export async function executeD1WalletRegistrationSetup(
           'reservation_conflict',
           'Registration setup conflicts with its reservation',
         );
-      await dependencies.store.ensureSetupCeremony(existing);
+      if (admitted.lifecycle === 'reserved') await dependencies.store.ensureSetupCeremony(existing);
       return await setupResponseFromCeremony(input, existing);
     }
+    if (admitted.lifecycle === 'established')
+      return walletRegistrationSetupError(
+        'registration_closed',
+        'Completed registration setup snapshot is unavailable',
+      );
     const branches = registrationIntentSignerBranches(intent);
     if (!branches.ok) return walletRegistrationSetupError(branches.code, branches.message);
     const ecdsaBranch = branches.value.evmFamilyEcdsa;

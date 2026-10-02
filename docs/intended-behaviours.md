@@ -223,8 +223,18 @@ CTA belong to the wallet origin.
   does not extend the original setup expiry.
 - Hosted setup fails closed without its reservation authority or at a different
   physical D1 resource. The local standalone host provides a persistent local
-  authority for development. Regional forwarding, terminal cancellation and
-  deliberate fresh-attempt handling remain release gates.
+  authority for development.
+- After a committed registration receipt, Console must confirm the wallet's
+  established state before ceremony cleanup. A lost completion reply is reconciled
+  idempotently. Definitive registration cancellation records the terminal outcome
+  before local deletion; cancelled operations cannot resume. Established setup
+  replay returns the saved response without recreating a mutable ceremony.
+- Candidate setup forwarding occurs after publishable-key, Origin and policy
+  admission. It selects a fixed regional service binding from Console's assignment;
+  the receiving service rechecks admission and never forwards again. Unknown,
+  cancelled, mismatched or unavailable homes fail closed on the covered paths.
+  Shared identity routing, deployment-set activation, expiry reconciliation and
+  explicit fresh attempts remain release gates.
 
 ### Passkey authentication
 

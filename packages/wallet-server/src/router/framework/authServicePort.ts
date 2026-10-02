@@ -1,5 +1,9 @@
+import type { RouteResponse } from './routeExecutionContext';
 import type { D1EcdsaAdmissionPolicyRead } from '../cloudflare/d1/signingAdmission/d1RouterAbNormalSigningAdmissionStore';
-import type { EcdsaMaterialRead, EcdsaMaterialActivationReadInput } from '../../core/d1EcdsaSignerRead';
+import type {
+  EcdsaMaterialRead,
+  EcdsaMaterialActivationReadInput,
+} from '../../core/d1EcdsaSignerRead';
 import type { EcdsaMaterialReadSnapshot } from '../../core/ecdsaMaterialReadSnapshot';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import type { TenantRootIdentityV1 } from '@shared/tenant-root/tenantRootIdentity';
@@ -17,7 +21,6 @@ import type {
   WalletRegistrationNearAdmissionResponseV2,
   WalletRegistrationActivateResponseV2,
   WalletRegistrationRespondResponseV2,
-  WalletRegistrationSetupResponseV2,
 } from '../../core/threeRouteRegistrationContracts';
 import type {
   WalletRegistrationNearProvisioningInput,
@@ -1133,7 +1136,10 @@ export interface RouterApiWalletRegistrationService {
   authorizeNearRegistrationContinuation(input: {
     readonly lifecycleId: string;
     readonly credential: string;
-  }): Promise<import('../domains/ed25519Yao/registration/routerAbEd25519YaoRegistrationIntentAuthorization').VerifiedNearRegistrationContinuationV1 | null>;
+  }): Promise<
+    | import('../domains/ed25519Yao/registration/routerAbEd25519YaoRegistrationIntentAuthorization').VerifiedNearRegistrationContinuationV1
+    | null
+  >;
 
   resolveActiveOwnerWalletExecutionLane(input: {
     readonly walletId: WalletId;
@@ -1219,9 +1225,7 @@ export interface RouterApiWalletRegistrationService {
   readActiveEmailOtpEnrollment(
     input: RouterApiMethodTypes['readActiveEmailOtpEnrollment']['input'],
   ): Promise<RouterApiMethodTypes['readActiveEmailOtpEnrollment']['result']>;
-  setupWalletRegistration(
-    input: WalletRegistrationSetupInput,
-  ): Promise<WalletRegistrationSetupResponseV2>;
+  setupWalletRegistration(input: WalletRegistrationSetupInput): Promise<RouteResponse>;
   respondWalletRegistration(
     input: WalletRegistrationRespondInput,
     traceContext?: RouterAbTraceContextV1,
@@ -1610,10 +1614,14 @@ export interface RouterApiServiceBag {
 export interface RouterApiAuthorizedOperationService {
   resolveEcdsaWalletSessionOperation(
     input: import('../../authorization/ecdsaWalletSessionAdmission').EcdsaWalletSessionAdmissionInput,
-  ): Promise<import('../../authorization/ecdsaWalletSessionAdmission').EcdsaWalletSessionResolutionResult>;
+  ): Promise<
+    import('../../authorization/ecdsaWalletSessionAdmission').EcdsaWalletSessionResolutionResult
+  >;
   admitEcdsaWalletSessionOperation(
     input: import('../../authorization/ecdsaWalletSessionAdmission').EcdsaWalletSessionAdmissionInput,
-  ): Promise<import('../../authorization/ecdsaWalletSessionAdmission').EcdsaWalletSessionAdmissionResult>;
+  ): Promise<
+    import('../../authorization/ecdsaWalletSessionAdmission').EcdsaWalletSessionAdmissionResult
+  >;
   readonly tenantId: TenantId;
   readPinnedOwnerWalletScope(input: {
     readonly operation: AuthorizedOperation;

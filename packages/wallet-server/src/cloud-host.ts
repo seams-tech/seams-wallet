@@ -218,5 +218,7 @@ export {
   proposeWalletRegistrationSetup,
   walletRegistrationSetupRequestDigest,
   type WalletRegistrationSetupReservation,
-  type WalletRegistrationSetupReservationPort,
+  type WalletRegistrationReservationAuthority,
 } from './router/domains/walletRegistration/walletRegistrationReservation';
+
+export type { WalletRegistrationSetupDispatcher } from './router/framework/registrationSetupDispatch';

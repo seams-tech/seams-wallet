@@ -136,10 +136,21 @@ role RPC and cross-authority contract has a final owner and failure behavior.
   snapshot and reconcile retries without overwriting a progressed ceremony.
   Local E2Es cover lost replies, concurrent replay and replay after commit.
   Current ECDSA setup computes preparation facts locally; Router work begins later.
-- [ ] Dispatch setup to its reserved home, render the Gateway region catalog,
-  bind continuations to that home, and connect terminal completion/cancellation
-  plus deliberate fresh attempts. Fixed setup expiry is enforced; terminal
-  directory lifecycle integration remains open.
+- [x] Add authenticated setup forwarding through fixed regional service bindings
+  and a one-hop receiving entrypoint; dispatch the four registration continuation
+  routes and explicit wallet-path lifecycle routes through the directory.
+  Verify the transport with three local Workers and three separate signer D1s.
+- [x] Confirm Console establishment after the durable registration receipt and
+  before ceremony cleanup; reconcile lost completion replies. Persist definitive
+  cancellation before deletion; reject cancelled continuation. Established setup
+  replay never recreates a deleted mutable ceremony.
+- [ ] Activate/render the regional backend resource and writer set. The current
+  deployment binding still describes one physical D1; the new service bindings
+  and named receiving entrypoint are not yet rendered for a hosted cutover.
+- [ ] Finish routing for shared credential/recovery/session locators, direct Yao
+  and Wallet Runtime operations, deferred work, expiry reconciliation and deliberate
+  fresh attempts. Remove the remaining single-D1 deployment assumptions only after
+  their regional resource-proof replacements are installed.
 - [x] Remove Console's namespace reservation gate, historical home-adoption
   path and effective-schema table, while preserving provider writer proof and
   binding/resource checks. Private focused E2Es and type checks passed. Hosted

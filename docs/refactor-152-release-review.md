@@ -728,3 +728,80 @@ continuations/lifecycle operations to that home; connect terminal completion,
 cancellation and deliberate fresh attempts; complete shared-identity authority
 and remove remaining namespace placement. These local tests do not establish
 hosted routing or geographic latency. No deployment or publication occurred.
+
+## October 3: regional transport and terminal registration checkpoint
+
+Candidate setup now reserves after publishable-key, exact-Origin and policy
+admission, then selects a fixed US/WEUR/APAC service binding. A receiving
+`WalletHomeGateway` entrypoint re-runs authentication and cannot forward again.
+The hop state comes from the entrypoint, independent of client headers. This uses
+Cloudflare's [named service entrypoints](https://developers.cloudflare.com/workers/runtime-apis/bindings/service-bindings/rpc/#named-entrypoints).
+The request-scoped reservation result is reused for local setup execution.
+
+Directory dispatch also covers registration respond, activate, near-admission,
+near-provisioning and the explicit `/wallets/:walletId/` custody, signer,
+auth-method, recovery-status and NEAR-funding paths. Destination route proof
+verification remains in place. OPTIONS bypasses directory lookup, and early
+forwarding responses receive configured CORS headers. An unavailable target
+returns `regional_gateway_unavailable` (503); redirects are rejected. A binding
+that points at the wrong home receives `wallet_home_mismatch` (409), without a
+second hop or fallback write.
+
+Registration's four continuation services now check their ceremony/wallet against
+the assigned physical resource before effects. Console establishment follows the
+durable registration receipt and precedes cleanup. A lost completion response
+can replay idempotently; an already-terminal matching state avoids an additional
+completion write. Definitive registration failure records cancellation before
+local deletion. Conflicting terminal outcomes return typed failures. Expiry does
+not automatically cancel potentially in-flight work; reconciliation and explicit
+fresh attempts remain open.
+
+Review fixed a lifecycle defect: setup replay previously could reinstall the
+initial mutable ceremony after successful cleanup. Reservation admission now
+carries required `reserved`/`established` state. Established replay returns the
+immutable snapshot without recreating a ceremony. Type fixtures reject missing
+lifecycle, cancelled admission and failure objects carrying executable state.
+
+Verification:
+
+- The public Chromium lifecycle passed in **28.6s**: initial setup race, discarded
+  reply, registration/signing, NEAR readiness, setup replay after commit and a
+  subsequent respond request rejected because the cleaned ceremony stays deleted.
+  Receipt SHA-256:
+  `8fe0bc5f2e4015086dc66b9dc4f205e824689b06a3b6679ebf5c0ee7affe74e9`.
+- The private persistent-D1 E2E passed in **4.0s**. It exercises the Console
+  authority with two ingress Workers, three regional Workers and three separate
+  signer databases. US/WEUR/APAC setup enters through a different region,
+  concurrent travelled retries retain the winning allocation, continuation
+  completes at that home, and each signer D1 has exactly its own wallet effect.
+  Misdirected bindings, redirects, unavailable targets, lost terminal replies,
+  late cancelled continuation and terminal outcome conflicts are covered.
+  Receipt SHA-256:
+  `1f8f8ec06d8c63d8dcc0c885c806c9ec524c521f1456a681d23ffa2174c31bbb`.
+- Server build, public intended/lifecycle type checks, private candidate-backed
+  server and fixture type checks, and bloat checks pass. Both repositories retain
+  receipts/logs under `.artifacts/r152/regional-forwarding-20261003/`.
+
+Use the repeat commands in the preceding October 3 section. The public run used
+fresh server artifacts and cached SDK/Rust builds. These durations measure test
+execution, not regional latency. The private regional transport fixture uses
+controlled application authentication and simulated custody effects; it does not
+prove the complete hosted Gateway/custody deployment. The local public lifecycle
+uses the real local registration/signing composition.
+
+**The requested cutover is not complete.** Remaining work is concrete:
+
+1. Replace the single-resource deployment binding and writer activation with the
+   admitted regional backend set, preserving fresh provider-bound challenges and
+   stale-writer rejection. Render the catalog, regional service bindings and named
+   entrypoints for Gateway and Wallet Runtime.
+2. Move shared credential/provider/recovery/exchange identity admission to its
+   authority, then route opaque-token and wallet-less paths without regional scans
+   or multiplied tenant quotas.
+3. Enforce home across direct Yao, Wallet Runtime, custody RPC and deferred work;
+   complete expiry/retry/fresh-attempt handling and failure-window reconciliation.
+4. Delete remaining single-D1 deployment assumptions, regenerate fixtures/configs,
+   reset disposable test data, and run composed hosted/travel measurements.
+
+No infrastructure was deployed and no package was published. Private package pins
+remain 0.7.3; the 0.8.0 release remains held.

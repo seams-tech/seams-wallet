@@ -255,7 +255,7 @@ export async function handleLocalHostedWalletGatewayRequestV1(
   dependencies = {
     emailOtpDeliveryProvider: dependencies?.emailOtpDeliveryProvider,
     signerWasm: dependencies?.signerWasm,
-    registrationSetupReservation: new LocalRegistrationSetupAuthority(env.SIGNER_DB, {
+    registrationAuthority: new LocalRegistrationSetupAuthority(env.SIGNER_DB, {
       namespace: requireCanonicalString(env.SEAMS_TENANT_STORAGE_NAMESPACE, 'Local namespace'),
       orgId: config.deployment.orgId,
       projectId: config.deployment.projectId,

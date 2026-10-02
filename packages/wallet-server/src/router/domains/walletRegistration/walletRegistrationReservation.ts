@@ -24,11 +24,36 @@ export type WalletRegistrationSetupReservation = {
 };
 
 export type WalletRegistrationSetupReservationResult =
-  | { readonly ok: true; readonly reservation: WalletRegistrationSetupReservation }
+  | {
+      readonly ok: true;
+      readonly reservation: WalletRegistrationSetupReservation;
+      readonly lifecycle: 'reserved' | 'established';
+      readonly code?: never;
+      readonly message?: never;
+    }
+  | {
+      readonly ok: false;
+      readonly code: string;
+      readonly message: string;
+      readonly reservation?: never;
+      readonly lifecycle?: never;
+    };
+
+type ReservationOutcome =
+  | { readonly ok: true }
   | { readonly ok: false; readonly code: string; readonly message: string };
 
-export interface WalletRegistrationSetupReservationPort {
+export interface WalletRegistrationReservationAuthority {
   reserve(input: WalletRegistrationSetupInput): Promise<WalletRegistrationSetupReservationResult>;
+  admitHome(input: {
+    readonly ceremonyId: string;
+    readonly walletId: WalletId;
+  }): Promise<ReservationOutcome>;
+  complete(input: {
+    readonly ceremonyId: string;
+    readonly walletId: WalletId;
+    readonly outcome: 'established' | 'cancelled';
+  }): Promise<ReservationOutcome>;
 }
 
 function requireId<T>(
@@ -105,4 +130,30 @@ export async function walletRegistrationSetupRequestDigest(
       signerSelection: input.request.signerSelection,
     }),
   );
+}
+
+export async function completeRegistrationReservation(
+  authority: WalletRegistrationReservationAuthority | null,
+  input: Parameters<WalletRegistrationReservationAuthority['complete']>[0],
+): Promise<ReservationOutcome> {
+  if (!authority)
+    return {
+      ok: false,
+      code: 'registration_authority_unavailable',
+      message: 'Registration reservation authority is required',
+    };
+  return authority.complete(input);
+}
+
+export async function admitRegistrationReservationHome(
+  authority: WalletRegistrationReservationAuthority | null,
+  input: Parameters<WalletRegistrationReservationAuthority['admitHome']>[0],
+): Promise<ReservationOutcome> {
+  if (!authority)
+    return {
+      ok: false,
+      code: 'registration_authority_unavailable',
+      message: 'Registration reservation authority is required',
+    };
+  return authority.admitHome(input);
 }

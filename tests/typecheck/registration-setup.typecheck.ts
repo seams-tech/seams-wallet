@@ -1,6 +1,10 @@
 import type { registrationSetupRepository } from '../../packages/wallet/src/core/indexedDB/seamsWalletDB/registrationSetup';
 import type { WalletId } from '../../packages/shared-ts/src/utils/domainIds';
 import type { Variant } from '../../packages/shared-ts/src/utils/variant';
+import type {
+  WalletRegistrationSetupReservation,
+  WalletRegistrationSetupReservationResult,
+} from '../../packages/wallet-server/src/router/domains/walletRegistration/walletRegistrationReservation';
 
 type SetupAttempt = Awaited<ReturnType<typeof registrationSetupRepository.begin>>;
 declare const pending: Variant<SetupAttempt, 'state', 'pending'>;
@@ -29,3 +33,21 @@ const pendingWithCeremony: SetupAttempt = {
 };
 
 void [pendingWithWallet, missingCeremony, rawWallet, pendingWithCeremony];
+
+declare const reservation: WalletRegistrationSetupReservation;
+declare const reserved: Variant<WalletRegistrationSetupReservationResult, 'ok', true>;
+// @ts-expect-error Every admitted setup requires its authoritative lifecycle state.
+const missingLifecycle: WalletRegistrationSetupReservationResult = { ok: true, reservation };
+const cancelledAdmission: WalletRegistrationSetupReservationResult = {
+  ...reserved,
+  // @ts-expect-error Cancelled reservations cannot become executable setup admissions.
+  lifecycle: 'cancelled',
+};
+// @ts-expect-error Failure cannot retain an executable reservation through a broad spread.
+const failedAdmission: WalletRegistrationSetupReservationResult = {
+  ...reserved,
+  ok: false,
+  code: 'cancelled',
+  message: 'Cancelled',
+};
+void [missingLifecycle, cancelledAdmission, failedAdmission];

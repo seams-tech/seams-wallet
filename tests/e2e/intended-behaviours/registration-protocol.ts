@@ -54,6 +54,18 @@ class SetupReplayProbe {
   body = '';
   facts: Record<string, unknown> | null = null;
   beforeCommitReplays = 0;
+  respondRequest: { url: string; headers: Record<string, string>; body: string } | null = null;
+
+  async captureRespond(route: Route): Promise<void> {
+    if (route.request().method() === 'POST') {
+      this.respondRequest = {
+        url: route.request().url(),
+        headers: await route.request().allHeaders(),
+        body: route.request().postData() ?? '',
+      };
+    }
+    await route.continue();
+  }
 
   async handle(route: Route): Promise<void> {
     this.url = route.request().url();
@@ -81,6 +93,13 @@ class SetupReplayProbe {
     const conflict = await request.post(this.url, { headers: this.headers, data: changed });
     expect(conflict.ok()).toBe(false);
     expect(await conflict.json()).toMatchObject({ ok: false, code: 'request_conflict' });
+    if (!this.respondRequest) throw new Error('Registration respond request was not captured');
+    const lateRespond = await request.post(this.respondRequest.url, {
+      headers: this.respondRequest.headers,
+      data: this.respondRequest.body,
+    });
+    expect(lateRespond.ok()).toBe(false);
+    expect(await lateRespond.json()).toMatchObject({ ok: false, code: 'not_found' });
   }
 }
 
@@ -243,6 +262,8 @@ export async function verifyWalletProtocolCutover(
 
   await page.reload();
   const setupReplay = new SetupReplayProbe();
+  const captureRespond = setupReplay.captureRespond.bind(setupReplay);
+  await context.route('**/wallets/register/respond', captureRespond);
   const replaySetup = setupReplay.handle.bind(setupReplay);
   await context.route(setup, replaySetup);
   await harness.registerPasskeyWallet();
@@ -251,6 +272,7 @@ export async function verifyWalletProtocolCutover(
   await harness.signArcEvmTransaction('post_registration');
   await harness.awaitNearReady();
   await setupReplay.verifyAfterCommit(context.request);
+  await context.unroute('**/wallets/register/respond', captureRespond);
   const databaseModule = `/@fs/${path.resolve(import.meta.dirname, '../../../packages/wallet/dist/esm/core/indexedDB/singletons.js')}`;
   const acceptedSetupOperations = await page
     .locator('iframe[allow*="publickey-credentials-get"]')
@@ -277,6 +299,7 @@ export async function verifyWalletProtocolCutover(
         discardedSetupReplyReplayed: true,
         concurrentSetupReplays: setupReplay.beforeCommitReplays,
         setupReplayAfterCommit: true,
+        completedCeremonyNotRecreated: true,
         changedSetupRequestRejected: true,
         verifiedSignatures: ['Tempo', 'Arc'],
       },

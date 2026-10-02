@@ -277,7 +277,9 @@ its progress. A missing authority or mismatched physical home fails closed.
 Correction to the earlier inventory: `buildD1EvmFamilyEcdsaRegistrationPrepare`
 computes preparation facts from topology locally; it does not call Router. The
 immutable snapshot is needed to retain its random session ID, nonce and expiry
-across retries. Regional forwarding and continuation admission remain open.
+across retries. Candidate setup forwarding, ceremony/path-wallet dispatch, and registration
+home admission are now wired. Regional deployment-set activation and the
+shared-identity/direct/internal paths remain open.
 The browser-side `finalizeIdempotencyKey` is generated before setup in each
 registration branch, but currently binds **finalization only** and is not
 persisted across a browser restart. Reusing its string as a setup key without
@@ -350,7 +352,7 @@ any `SIGNER_DB`-backed service.
 
 | Source and routes | Identity at ingress; current store | Required cutover admission |
 | --- | --- | --- |
-| `routeDefinitions.ts`: registration setup, respond, near-admission, activate and near-provisioning | Publishable-key scope and Origin for setup; signed setup or ceremony/preparation IDs on continuation. Setup consumes the Console reservation and stores immutable preparation facts at its matching D1; preparation computes locally. Continuations still use the singular signer D1. | Reserve the operation/wallet/home through Console before Router preparation. Resolve later ceremony IDs through the Console index, then verify signed claims at the selected home. |
+| `routeDefinitions.ts`: registration setup, respond, near-admission, activate and near-provisioning | Publishable-key scope and Origin for setup; signed setup or ceremony/preparation IDs on continuation. Setup consumes the Console reservation and stores immutable preparation facts at its matching D1; preparation computes locally. The four registration continuation routes now resolve the directory before dispatch, then recheck wallet/home after proof verification. Other direct and opaque-locator paths remain open. | Reserve the operation/wallet/home through Console before Router preparation. Resolve later ceremony IDs through the Console index, then verify signed claims at the selected home. |
 | `routeDefinitions.ts`: `wallet_custody_*`, `wallet_recovery_*`, `passkey_custody_envelope_retrieve` | Some paths include `:walletId`; challenge, code, recovery and envelope routes derive identity from body, proof or locator. Credential and recovery locators plus custody state currently share one signer D1. | Resolve wallet ID or shared locator before regional state access. Proof remains verified at the home. Pending shared locator claims fail closed. |
 | `routeDefinitions.ts`: `wallet_add_signer_*`, `wallet_add_auth_method_*`, `wallet_revoke_auth_method`, `wallet_ecdsa_key_facts_inventory`, `wallet_near_implicit_account_fund` | Path wallet ID with route-specific proof or session; wallet-local authority, signer and custody stores use signer D1. | Resolve the verified tenant-scoped wallet key once and carry the admitted home through the operation. |
 | `routeDefinitions.ts`: `wallet_unlock_*`, `wallet_email_otp_*`, `auth_provider_action`, `sync_account_*`, `auth_identities`, `auth_link`, `auth_unlink`, `webauthn_authenticators`, `near_public_keys` | Credential, provider identity, challenge, session or body may be the only initial key. Identity, Email OTP, WebAuthn, session and wallet stores all use signer D1 today. | Shared credential/provider/challenge lookup identifies the wallet without regional broadcast. Verify the resulting proof and wallet state at its home. Tenant-wide rate limits remain shared. |
@@ -630,3 +632,32 @@ Retain ordinary namespace authorization and resource/version verification. The
 final deletion sweep must search source, tests, scripts, config renderers and
 generated outputs after the replacement is wired, then verify no obsolete
 runtime path remains.
+
+
+### October 3 continuation and dispatch checkpoint
+
+The private Gateway now invokes setup transport after the public route authenticates
+its publishable key, Origin and policy. `ConsoleRegistrationHomeAdmission` reuses
+that request's reservation result for local execution. A fixed US/WEUR/APAC binding
+forwards to the named `WalletHomeGateway` entrypoint; the entrypoint passes a trusted
+home-hop state rather than trusting a request header. A mismatched receiver fails
+instead of forwarding again. Provider failures become 503 and redirects are rejected.
+
+Directory dispatch covers registration respond/activate/near-admission/near-provisioning
+and existing explicit `/wallets/:walletId/` custody, signer, auth-method, recovery-status
+and NEAR-funding paths. This is transport selection; destination route authentication
+remains mandatory. OPTIONS bypasses directory lookup. Shared locators, opaque sessions,
+all direct Yao paths, Wallet Runtime fan-out and deferred work still require coverage.
+
+Registration respond, NEAR admission, activation and NEAR provisioning also verify
+ceremony/wallet/home through the authority before their effects. Successful operation
+receipts reconcile Console establishment before local cleanup. Definitive cancellation
+reconciles its Console tombstone before deletion. Establishment and cancellation are
+idempotent; conflicting terminal outcomes fail. Setup replay of an established wallet
+never reinstalls an initial mutable ceremony.
+
+Next structural changes are the deployment binding/decoder's single `home`,
+`bindTenantDeploymentToRuntimeEnvironmentV1` resource selection, writer activation and
+provider challenge verification over the complete regional backend set, and the
+configuration renderer. Those checks must continue rejecting stale/unproven writers
+throughout the replacement. No regional deployment has been activated by this checkpoint.
