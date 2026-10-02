@@ -12,9 +12,11 @@ needs an application-level ownership handover across several stores. There is
 no documented Cloudflare operation that performs that complete handover.
 
 This investigation supports the intent in
-[R153](refactor-153-wallet-region-selection.md). It leaves the implementation
-protocol open. Existing wallets will be deleted before rollout; these findings
-concern subsequent moves of newly created wallets.
+[R153](refactor-153-wallet-region-selection.md). Its
+[implementation stages and parallel ownership](refactor-153-wallet-region-selection.md#implementation-stages)
+turn these findings into work and acceptance gates; exact protocol decisions
+are settled before parallel implementation. Existing wallets will be deleted
+before rollout; these findings concern subsequent moves of newly created wallets.
 
 ## Evidence and limits
 
