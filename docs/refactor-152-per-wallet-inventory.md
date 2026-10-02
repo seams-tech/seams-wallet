@@ -358,14 +358,23 @@ on the singular database. The private Gateway currently consumes published
 server/SDK wire change must be validated together before the 0.8.0 candidate is
 frozen.
 
-The `wallet-identities` request carries `{projectId, walletId}` pairs, yet
-`readWalletRuntimeIdentities` and the Console balance refresh both currently
-index results by `walletId` alone; the response omits `projectId`. A matching
-wallet string in two projects can select or overwrite the wrong identity. The
-cutover must return and join the full tenant-scoped wallet key, then query each
-admitted home for the exact pair. This is an existing internal contract defect,
-independent of geographic placement, and requires a paired public/private
-change rather than a response-only patch.
+The demonstrated identity-collapse defect is fixed in paired public/private
+source (October 2). `wallet-identities` now requires and returns
+`{projectId, envId, walletId}` within its configured namespace and requested
+organization. Signer SQL selects exact tuples. Console resolves its environment
+database ID to the runtime `env_key` through the same namespace, organization
+and project before making that call, and rejects unexpected/duplicate reply keys.
+Projection primary/address keys, cache keys, lookup requests, pagination cursors
+and dashboard row keys now preserve project and environment. Console migration
+0053 rebuilds the projection keys and invalidates old derived balances/snapshots.
+
+The packed-candidate composed D1 E2E covers same-ID wallets across projects,
+environments, namespaces and organizations, six pagination orderings, cache hits,
+wrong-scope replies, missing scope, failed RPC refresh and a populated migration.
+See the [release review receipt](refactor-152-release-review.md#wallet-identity-scope-acceptance--october-2).
+Regional fan-out still needs to resolve every wallet's admitted home before
+calling its regional Runtime. This correction closes the identity-collapse
+prerequisite; hosted home dispatch and shared authority integration remain open.
 
 ### Singular-home symbols and replacement sweep
 

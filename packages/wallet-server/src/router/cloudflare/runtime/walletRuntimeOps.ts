@@ -324,11 +324,14 @@ export interface WalletRuntimeWalletIdentityRequest {
   readonly wallets: readonly {
     readonly walletId: string;
     readonly projectId: string;
+    readonly envId: string;
   }[];
 }
 
 export interface WalletRuntimeWalletIdentity {
   readonly walletId: string;
+  readonly projectId: string;
+  readonly envId: string;
   readonly nearAccountId: string;
   readonly evmAddress: `0x${string}`;
 }
@@ -352,14 +355,15 @@ export function parseWalletRuntimeWalletIdentityRequest(
   if (!orgId || !Array.isArray(rawWallets) || rawWallets.length === 0 || rawWallets.length > 10) {
     return null;
   }
-  const wallets: Array<{ walletId: string; projectId: string }> = [];
+  const wallets: Array<{ walletId: string; projectId: string; envId: string }> = [];
   for (const rawWallet of rawWallets) {
     const wallet = inspectRawObject(rawWallet);
-    if (!wallet || !hasExactKeys(wallet, ['walletId', 'projectId'])) return null;
+    if (!wallet || !hasExactKeys(wallet, ['walletId', 'projectId', 'envId'])) return null;
     const walletId = parseNonEmptyText(readRawField(wallet, 'walletId'));
     const projectId = parseNonEmptyText(readRawField(wallet, 'projectId'));
-    if (!walletId || !projectId) return null;
-    wallets.push({ walletId, projectId });
+    const envId = parseNonEmptyText(readRawField(wallet, 'envId'));
+    if (!walletId || !projectId || !envId) return null;
+    wallets.push({ walletId, projectId, envId });
   }
   return { orgId, wallets };
 }
@@ -374,14 +378,19 @@ export function parseWalletRuntimeWalletIdentitiesResult(
   const identities: WalletRuntimeWalletIdentity[] = [];
   for (const rawIdentity of rawIdentities) {
     const identity = inspectRawObject(rawIdentity);
-    if (!identity || !hasExactKeys(identity, ['walletId', 'nearAccountId', 'evmAddress'])) {
+    if (
+      !identity ||
+      !hasExactKeys(identity, ['walletId', 'projectId', 'envId', 'nearAccountId', 'evmAddress'])
+    ) {
       return null;
     }
     const walletId = parseNonEmptyText(readRawField(identity, 'walletId'));
+    const projectId = parseNonEmptyText(readRawField(identity, 'projectId'));
+    const envId = parseNonEmptyText(readRawField(identity, 'envId'));
     const nearAccountId = parseNonEmptyText(readRawField(identity, 'nearAccountId'));
     const evmAddress = parseEvmAddress(readRawField(identity, 'evmAddress'));
-    if (!walletId || !nearAccountId || !evmAddress) return null;
-    identities.push({ walletId, nearAccountId, evmAddress });
+    if (!walletId || !projectId || !envId || !nearAccountId || !evmAddress) return null;
+    identities.push({ walletId, projectId, envId, nearAccountId, evmAddress });
   }
   return { identities };
 }

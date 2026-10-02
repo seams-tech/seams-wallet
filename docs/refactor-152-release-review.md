@@ -542,3 +542,64 @@ entry-point enforcement, and regional concurrency/travel-latency verification.
 All existing wallets are disposable test wallets, so existing-wallet migration
 is excluded. Do not publish the green intermediate candidate under the earlier
 conditional approval. No publication or deployment was performed.
+
+
+## Wallet identity scope acceptance — October 2
+
+The paired public/private correction replaces wallet-ID-only joins in the
+Runtime balance reader and Console projections (private commit `0aa5ef9`).
+The Runtime contract now requires
+`{projectId, envId, walletId}` for every requested and returned identity. Signer
+queries bind the configured namespace, requested organization, and exact tuples.
+Identity reads no longer initialize unrelated signing services. Console resolves
+its environment database IDs to runtime environment keys in one batched lookup
+for stale wallets, verifies reply scope, and skips Runtime entirely for a fully
+cached or empty selection.
+
+Console migration 0053 preserves projection metadata under the full scoped key,
+resets derived balances, and discards snapshots produced by the old lookup.
+Address uniqueness, cache foreign keys, single-wallet lookup/refresh requests,
+pagination cursors and dashboard merge/expansion keys now preserve project and
+environment. ID-only request and cursor compatibility paths were removed.
+
+Local acceptance against an extracted `@seams/wallet-server@0.8.0` candidate:
+
+- The real Console route → service binding → Runtime → D1 scenario passes
+  (`tests/relayer/wallet-identity-scope.e2e.test.ts`, 7.7 seconds on this run).
+  Three same-ID wallets per namespace retain their distinct project/environment
+  identities. Namespace A balances are `[1, 2, 3]`; namespace B balances are
+  `[11, 12, 13]`. An organization-scoped Runtime request returns its own three
+  identities; Console requests for absent organization wallets expose none.
+- All three sort fields in both directions paginate without losing same-ID
+  wallets. Missing scope is rejected. Cached refresh performs no RPC calls;
+  wrong-scope replies fail before RPC/write effects. RPC failure preserves the
+  three separate last-good balances. A nonexistent NEAR account yields zero.
+- Applying the full Console migration chain to a populated old projection/cache
+  preserves its metadata, resets its derived balance, and removes the old cache.
+  Six new scoped snapshots survive readback; `PRAGMA foreign_key_check` is empty.
+- Server and frontend candidate type checks pass. The new type fixture rejects
+  ID-only lookups, partial-key spreads, incomplete refresh keys and unscoped
+  Runtime requests/replies. The public server build and bloat check pass.
+- The existing persistent-D1 wallet-directory E2E also passes (7.4 seconds),
+  including the full Console migration chain with 0053.
+
+Evidence is retained in the private repository under
+`.artifacts/r152/wallet-identity-20261002/`: extracted candidate, type-check
+configs/logs, build/bloat logs and `wallet-identity-evidence.json`. The receipt
+SHA-256 is `02c79c0afa76021dd1e90360523d26569c215b62b7391bbe157634b4571a0a70`;
+the candidate tarball SHA-256 is
+`7b58e044f2b19e84a370f571f037eab315b03683a4983198089158bf55bb004b`.
+Repeat from the private repository with the candidate extracted locally:
+
+```sh
+SEAMS_WALLET_SERVER_CANDIDATE=/absolute/path/to/extracted/package \
+  pnpm exec playwright test --config tests/playwright.relayer.config.ts \
+  tests/relayer/wallet-identity-scope.e2e.test.ts --reporter=line
+```
+
+The two superseded hand-built balance/identity tests were retired after moving
+their supported cache, absent-account and failed-refresh behavior into this
+composed scenario. This is local correctness evidence. Hosted per-wallet
+registration reservation, shared identity authority, regional fan-out and
+lifecycle enforcement remain open. Private package pins remain 0.7.3 pending the
+coordinated release. No hosted migration, reset, deployment or publication ran.

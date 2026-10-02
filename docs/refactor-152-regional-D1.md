@@ -116,6 +116,12 @@ role RPC and cross-authority contract has a final owner and failure behavior.
   service-binding endpoint. Reservations choose the configured resource for a
   region and reject arbitrary D1 UUIDs; a retry retains the first home. The
   hosted Gateway caller and deployment catalog rendering remain open.
+- [x] Correct the existing wallet-identity collapse in Runtime and Console:
+  exact project/environment/wallet queries and replies; explicit Console
+  environment-ID → runtime-key lookup; scoped projection/cache constraints,
+  lookup and refresh requests, cursors and dashboard keys. Packed-candidate D1
+  E2E and type fixtures verify collisions, cache isolation and migration 0053.
+  Per-wallet regional fan-out is still part of the hosted integration below.
 - [ ] Connect authenticated registration and shared-identity admission to this
   directory, then switch all hosted and lifecycle paths together with removal
   of namespace placement. The new directory is not yet used by hosted requests.

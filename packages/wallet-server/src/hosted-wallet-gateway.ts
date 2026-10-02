@@ -755,29 +755,40 @@ export async function handleSplitGatewayWalletRuntimeRequest(
 ): Promise<Response | null> {
   const controlResponse = await handleWalletControlRequest(request, env);
   if (controlResponse) return controlResponse;
-  const handler = createWalletRuntimeOpsHandler(async () => {
-    const scope = stagingTenantScope(env);
-    const tenantRootCustodyLineage = createStagingTenantRootCustodyLineage(
-      createWalletConsoleOpsClient(env.WALLET_CONSOLE),
-    );
-    const yaoRuntime = createStagingYaoRequestScopedRuntime(
-      env,
-      createStagingRegistrationTenantRootResolver(scope, tenantRootCustodyLineage),
-    );
-    const { service } = await createStagingRouterApiAuthComposition(
-      env,
-      scope,
-      yaoRuntime,
-      tenantRootCustodyLineage,
-      dependencies,
-    );
-    return {
-      executeSignedDelegate: service.executeSignedDelegate.bind(service),
-      getRelayerAccount: service.router.getRelayerAccount.bind(service.router),
-      getWalletIdentities: (input) => readWalletRuntimeIdentities(env, input),
-    };
-  });
+  const handler = createWalletRuntimeOpsHandler(async () => ({
+    async executeSignedDelegate(input) {
+      const service = await resolveWalletExecutionService(env, dependencies);
+      return await service.executeSignedDelegate(input);
+    },
+    async getRelayerAccount() {
+      const service = await resolveWalletExecutionService(env, dependencies);
+      return service.router.getRelayerAccount();
+    },
+    getWalletIdentities: readWalletRuntimeIdentities.bind(undefined, env),
+  }));
   return await handler(request);
+}
+
+async function resolveWalletExecutionService(
+  env: CloudflareD1GatewayEnv,
+  dependencies: HostedWalletGatewayDependenciesV1,
+) {
+  const scope = stagingTenantScope(env);
+  const tenantRootCustodyLineage = createStagingTenantRootCustodyLineage(
+    createWalletConsoleOpsClient(env.WALLET_CONSOLE),
+  );
+  const yaoRuntime = createStagingYaoRequestScopedRuntime(
+    env,
+    createStagingRegistrationTenantRootResolver(scope, tenantRootCustodyLineage),
+  );
+  const { service } = await createStagingRouterApiAuthComposition(
+    env,
+    scope,
+    yaoRuntime,
+    tenantRootCustodyLineage,
+    dependencies,
+  );
+  return service;
 }
 
 function isJsonRecord(value: unknown): value is Record<string, unknown> {
@@ -788,29 +799,25 @@ async function readWalletRuntimeIdentities(
   env: CloudflareD1GatewayEnv,
   input: WalletRuntimeWalletIdentityRequest,
 ): Promise<WalletRuntimeWalletIdentitiesResult> {
-  const placeholders = input.wallets.map(() => '?').join(', ');
+  const selectors = input.wallets.map(() => '(project_id = ? AND env_id = ? AND wallet_id = ?)');
   const rows = await env.SIGNER_DB.prepare(
-    `SELECT project_id, wallet_id, signer_family, record_json
+    `SELECT project_id, env_id, wallet_id, signer_family, record_json
        FROM wallet_signers
-      WHERE namespace = ?
-        AND org_id = ?
-        AND wallet_id IN (${placeholders})`,
+      WHERE namespace = ? AND org_id = ?
+        AND (${selectors.join(' OR ')})`,
   )
     .bind(
       requireEnvString(env, 'SEAMS_TENANT_STORAGE_NAMESPACE'),
       input.orgId,
-      ...input.wallets.map((wallet) => wallet.walletId),
+      ...input.wallets.flatMap((wallet) => [wallet.projectId, wallet.envId, wallet.walletId]),
     )
     .all<D1Row>();
-  const requestedWallets = new Map(input.wallets.map((wallet) => [wallet.walletId, wallet]));
   const identities = new Map<string, { nearAccountId: string; evmAddress: `0x${string}` | null }>();
   for (const row of rows.results || []) {
-    const walletId = String(row.wallet_id || '').trim();
-    const requested = requestedWallets.get(walletId);
-    if (!requested || requested.projectId !== String(row.project_id || '').trim()) continue;
+    const key = JSON.stringify([row.project_id, row.env_id, row.wallet_id]);
     const record = parseD1JsonColumn(row.record_json);
     if (!isJsonRecord(record)) continue;
-    const current = identities.get(walletId) || { nearAccountId: '', evmAddress: null };
+    const current = identities.get(key) || { nearAccountId: '', evmAddress: null };
     if (String(row.signer_family || '').trim() === 'ed25519') {
       current.nearAccountId = String(record.nearAccountId || '').trim();
     }
@@ -820,15 +827,24 @@ async function readWalletRuntimeIdentities(
         .toLowerCase();
       if (/^0x[0-9a-f]{40}$/.test(address)) current.evmAddress = address as `0x${string}`;
     }
-    identities.set(walletId, current);
+    identities.set(key, current);
   }
-  return {
-    identities: Array.from(identities.entries()).flatMap(([walletId, identity]) =>
-      identity.nearAccountId && identity.evmAddress
-        ? [{ walletId, nearAccountId: identity.nearAccountId, evmAddress: identity.evmAddress }]
-        : [],
-    ),
-  };
+  const result: WalletRuntimeWalletIdentitiesResult['identities'][number][] = [];
+  for (const wallet of input.wallets) {
+    const identity = identities.get(
+      JSON.stringify([wallet.projectId, wallet.envId, wallet.walletId]),
+    );
+    if (identity?.nearAccountId && identity.evmAddress) {
+      result.push({
+        walletId: wallet.walletId,
+        projectId: wallet.projectId,
+        envId: wallet.envId,
+        nearAccountId: identity.nearAccountId,
+        evmAddress: identity.evmAddress,
+      });
+    }
+  }
+  return { identities: result };
 }
 
 export async function handleSplitGatewayRequest(
