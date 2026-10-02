@@ -165,7 +165,7 @@ function normalizeThresholdStoreConfig(
 
   // Apply sane defaults for common serverless/Worker configurations.
   //
-  const normalized: Record<string, unknown> = { ...(input as Record<string, unknown>) };
+  const normalized: Record<string, unknown> = { ...input };
   const kind = toOptionalTrimmedString(normalized.kind);
   if (kind === 'cloudflare-do') {
     const name = toOptionalTrimmedString(normalized.name);
@@ -182,7 +182,7 @@ function normalizeThresholdStoreConfig(
     }
   }
 
-  return normalized as AuthServiceConfig['thresholdStore'];
+  return normalized;
 }
 
 export function createAuthServiceConfig(input: AuthServiceConfigInput): AuthServiceConfig {

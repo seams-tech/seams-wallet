@@ -85,7 +85,7 @@ export function createCspStylesheetManager(opts: {
   };
 
   const adoptSheets = (sheets: CSSStyleSheet[]): void => {
-    const current = (doc.adoptedStyleSheets || []) as CSSStyleSheet[];
+    const current = doc.adoptedStyleSheets || [];
     const next = [...current];
     for (const sheet of sheets) {
       if (!current.includes(sheet)) next.push(sheet);

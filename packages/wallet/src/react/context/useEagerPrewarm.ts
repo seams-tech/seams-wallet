@@ -1,18 +1,13 @@
 import { useEffect } from 'react';
 import type { SeamsWeb } from '@/SeamsWeb';
 
-type IdleCapableWindow = Window & {
-  requestIdleCallback?: (cb: () => void, opts?: { timeout?: number }) => number;
-  cancelIdleCallback?: (id: number) => void;
-};
-
 export function useEagerPrewarm(seams: SeamsWeb, eager?: boolean) {
   useEffect(() => {
     if (!eager) return;
     if (typeof window === 'undefined') return;
 
     let cancelled = false;
-    const win = window as IdleCapableWindow;
+    const win = window;
 
     const run = async () => {
       if (cancelled) return;
@@ -32,7 +27,7 @@ export function useEagerPrewarm(seams: SeamsWeb, eager?: boolean) {
           void run();
         },
         { timeout: 1500 },
-      ) as number;
+      );
     } else {
       timeoutId = window.setTimeout(() => {
         void run();

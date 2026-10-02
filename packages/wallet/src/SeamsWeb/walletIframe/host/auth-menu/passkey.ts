@@ -148,9 +148,7 @@ function passkeyAllowCredential(input: {
   return {
     id: String(input.credentialId || '').trim(),
     type: 'public-key',
-    transports: Array.isArray(input.transports)
-      ? (input.transports as AuthenticatorTransport[])
-      : [],
+    transports: Array.isArray(input.transports) ? input.transports : [],
   };
 }
 

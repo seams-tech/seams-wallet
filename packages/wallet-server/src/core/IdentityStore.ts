@@ -66,8 +66,8 @@ function parseIdentitySubjectRecord(raw: unknown): IdentitySubjectRecord | null 
   const version = toOptionalTrimmedString(raw.version);
   const subject = toOptionalTrimmedString(raw.subject);
   const userId = toOptionalTrimmedString(raw.userId);
-  const createdAtMsRaw = (raw as { createdAtMs?: unknown }).createdAtMs;
-  const updatedAtMsRaw = (raw as { updatedAtMs?: unknown }).updatedAtMs;
+  const createdAtMsRaw = raw.createdAtMs;
+  const updatedAtMsRaw = raw.updatedAtMs;
   const createdAtMs = typeof createdAtMsRaw === 'number' ? createdAtMsRaw : Number(createdAtMsRaw);
   const updatedAtMs = typeof updatedAtMsRaw === 'number' ? updatedAtMsRaw : Number(updatedAtMsRaw);
   if (version !== 'identity_subject_v1') return null;
@@ -87,12 +87,12 @@ function parseIdentityUserRecord(raw: unknown): IdentityUserRecord | null {
   if (!isObject(raw)) return null;
   const version = toOptionalTrimmedString(raw.version);
   const userId = toOptionalTrimmedString(raw.userId);
-  const subjectsRaw = (raw as { subjects?: unknown }).subjects;
+  const subjectsRaw = raw.subjects;
   const subjects = Array.isArray(subjectsRaw)
     ? subjectsRaw.map((s) => (typeof s === 'string' ? s.trim() : '')).filter(Boolean)
     : null;
-  const createdAtMsRaw = (raw as { createdAtMs?: unknown }).createdAtMs;
-  const updatedAtMsRaw = (raw as { updatedAtMs?: unknown }).updatedAtMs;
+  const createdAtMsRaw = raw.createdAtMs;
+  const updatedAtMsRaw = raw.updatedAtMs;
   const createdAtMs = typeof createdAtMsRaw === 'number' ? createdAtMsRaw : Number(createdAtMsRaw);
   const updatedAtMs = typeof updatedAtMsRaw === 'number' ? updatedAtMsRaw : Number(updatedAtMsRaw);
   if (version !== 'identity_user_v1') return null;

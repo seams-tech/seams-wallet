@@ -10,7 +10,7 @@ function resolveOrgIdFromClaims(
 ): string | null {
   if (!claims || typeof claims !== 'object') return null;
   for (const key of keys) {
-    const value = toOptionalTrimmedString((claims as Record<string, unknown>)[key]);
+    const value = toOptionalTrimmedString(claims[key]);
     if (value) return value;
   }
   return null;

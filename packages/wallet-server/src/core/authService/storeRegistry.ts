@@ -38,7 +38,6 @@ import {
   type WebAuthnSyncChallengeStore,
 } from '../WebAuthnSyncChallengeStore';
 import type { SigningSessionSealRateLimiter } from '../../threshold/session/signingSessionSeal';
-import type { AuthServiceConfigSource } from './configValues';
 import { createEmailOtpRateLimiter } from './rateLimits';
 
 type AuthServiceStoreRegistryInput = {
@@ -156,7 +155,7 @@ export class AuthServiceStoreRegistry {
 
   getEmailOtpRateLimiter(): SigningSessionSealRateLimiter {
     this.emailOtpRateLimiter ??= createEmailOtpRateLimiter({
-      thresholdStore: this.input.config.thresholdStore as AuthServiceConfigSource,
+      thresholdStore: this.input.config.thresholdStore,
     });
     return this.emailOtpRateLimiter;
   }

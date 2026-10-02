@@ -57,7 +57,7 @@ const isSafari = (): boolean => {
 const isIOS = (): boolean => {
   try {
     const ua = navigator.userAgent;
-    const platform = (navigator as any).platform || '';
+    const platform = navigator.platform || '';
     const maxTouch = Number(navigator.maxTouchPoints || 0);
     const iOSUA = /iPad|iPhone|iPod/.test(ua);
     const iPadOSMacLike = /Macintosh/.test(ua) && maxTouch > 1; // iPadOS masquerading as Mac
@@ -74,7 +74,7 @@ const isIOS = (): boolean => {
  */
 const hasActiveUserActivation = (): boolean => {
   try {
-    const ua = (navigator as any).userActivation;
+    const ua = navigator.userActivation;
     return !!(ua && typeof ua.isActive === 'boolean' && ua.isActive);
   } catch {
     return false;

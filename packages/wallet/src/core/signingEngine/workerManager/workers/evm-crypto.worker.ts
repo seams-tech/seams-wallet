@@ -132,18 +132,7 @@ function postOperationSucceeded(
   postToMainThread({ id: msg.id, ok: true, result }, transfer);
 }
 
-const buildWebauthnP256SignatureWasm = (
-  evmCryptoWasmModule as unknown as {
-    build_webauthn_p256_signature?: (
-      challenge32: Uint8Array,
-      authenticatorData: Uint8Array,
-      clientDataJSON: Uint8Array,
-      signatureDer: Uint8Array,
-      pubKeyX32: Uint8Array,
-      pubKeyY32: Uint8Array,
-    ) => Uint8Array;
-  }
-).build_webauthn_p256_signature;
+const buildWebauthnP256SignatureWasm = evmCryptoWasmModule.build_webauthn_p256_signature;
 
 const wasmUrl = resolveWasmUrl('evm_crypto.wasm', 'Eth Signer');
 let wasmInitPromise: Promise<void> | null = null;
@@ -181,7 +170,7 @@ self.addEventListener('message', async (event: MessageEvent) => {
     await ensureWasm();
     switch (msg.type) {
       case 'computeEip1559TxHash': {
-        const out = compute_eip1559_tx_hash(msg.payload.tx) as Uint8Array;
+        const out = compute_eip1559_tx_hash(msg.payload.tx);
         const ab = out.slice().buffer;
         postOperationSucceeded(msg, ab, [ab]);
         return;
@@ -190,7 +179,7 @@ self.addEventListener('message', async (event: MessageEvent) => {
         const out = encode_eip1559_signed_tx_from_signature65(
           msg.payload.tx,
           toU8(msg.payload.signature65),
-        ) as Uint8Array;
+        );
         const ab = out.slice().buffer;
         postOperationSucceeded(msg, ab, [ab]);
         return;
@@ -204,7 +193,7 @@ self.addEventListener('message', async (event: MessageEvent) => {
             digest32,
             signature65,
             publicKey33,
-          ) as Uint8Array;
+          );
           if (out.length !== 33) {
             throw new Error(
               `verify_secp256k1_recoverable_signature_against_public_key_33 must return 33 bytes (got ${out.length})`,
@@ -220,7 +209,7 @@ self.addEventListener('message', async (event: MessageEvent) => {
       }
       case 'validateSecp256k1PublicKey33': {
         const publicKey33 = toU8(msg.payload.publicKey33);
-        const out = validate_secp256k1_public_key_33(publicKey33) as Uint8Array;
+        const out = validate_secp256k1_public_key_33(publicKey33);
         if (out.length !== 33) {
           throw new Error(
             `validate_secp256k1_public_key_33 must return 33 bytes (got ${out.length})`,
@@ -233,7 +222,7 @@ self.addEventListener('message', async (event: MessageEvent) => {
       case 'addSecp256k1PublicKeys33': {
         const left33 = toU8(msg.payload.left33);
         const right33 = toU8(msg.payload.right33);
-        const out = add_secp256k1_public_keys_33(left33, right33) as Uint8Array;
+        const out = add_secp256k1_public_keys_33(left33, right33);
         if (out.length !== 33) {
           throw new Error(`add_secp256k1_public_keys_33 must return 33 bytes (got ${out.length})`);
         }
@@ -252,13 +241,13 @@ self.addEventListener('message', async (event: MessageEvent) => {
           toU8(msg.payload.signatureDer),
           toU8(msg.payload.pubKeyX32),
           toU8(msg.payload.pubKeyY32),
-        ) as Uint8Array;
+        );
         const ab = out.slice().buffer;
         postOperationSucceeded(msg, ab, [ab]);
         return;
       }
       case 'decodeCoseP256PublicKey': {
-        const out = decode_cose_p256_public_key(toU8(msg.payload.cosePublicKey)) as Uint8Array;
+        const out = decode_cose_p256_public_key(toU8(msg.payload.cosePublicKey));
         if (out.length !== 64) {
           throw new Error(`decode_cose_p256_public_key must return 64 bytes (got ${out.length})`);
         }

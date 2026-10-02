@@ -47,7 +47,7 @@ export function setEmbeddedBase(url: string): void {
   if (typeof window === 'undefined') return;
   const w = window as unknown as WalletSDKBase;
   w[SEAMS_WALLET_SDK_BASE_KEY] = url;
-  window.dispatchEvent(new CustomEvent(SEAMS_WALLET_SDK_BASE_EVENT as any, { detail: url }));
+  window.dispatchEvent(new CustomEvent(SEAMS_WALLET_SDK_BASE_EVENT, { detail: url }));
 }
 
 export function getEmbeddedAssetVersion(): string | undefined {

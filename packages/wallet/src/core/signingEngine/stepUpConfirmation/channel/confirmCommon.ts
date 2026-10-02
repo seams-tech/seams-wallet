@@ -21,7 +21,7 @@ export function parseTransactionSummary(summaryData: unknown): TransactionSummar
     try {
       const parsed = JSON.parse(raw);
       if (isObject(parsed) && !Array.isArray(parsed)) {
-        return parsed as TransactionSummary;
+        return parsed;
       }
       return {};
     } catch {
@@ -31,7 +31,7 @@ export function parseTransactionSummary(summaryData: unknown): TransactionSummar
   if (!isObject(summaryData) || Array.isArray(summaryData)) {
     throw new Error('Invalid secure confirm request summary: expected an object');
   }
-  return summaryData as TransactionSummary;
+  return summaryData;
 }
 
 // ===== Utility: postMessage sanitization (exported in case flows need to respond directly) =====
@@ -57,7 +57,7 @@ export function sanitizeForPostMessage<T>(data: T): ShallowPostMessageSafe<T> {
     }
     return out as ShallowPostMessageSafe<T>;
   }
-  return data as ShallowPostMessageSafe<T>;
+  return data;
 }
 
 // ===== Shared worker response + UI close helpers =====
@@ -127,7 +127,7 @@ export function sendConfirmProgress(
   const envelope: UserConfirmProgressEnvelope = {
     type: UserConfirmMessageType.USER_PASSKEY_CONFIRM_PROGRESS,
     requestId,
-    data: sanitized as UserConfirmProgressEvent,
+    data: sanitized,
     ...(channelToken ? { channelToken } : {}),
   };
   worker.postMessage(envelope);

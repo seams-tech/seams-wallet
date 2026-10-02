@@ -49,7 +49,7 @@ export class SessionService<TClaims extends Record<string, unknown> = Record<str
   private cfg: NonNullable<SessionConfig>;
 
   constructor(cfg: NonNullable<SessionConfig>) {
-    this.cfg = cfg || ({} as any);
+    this.cfg = cfg || {};
   }
 
   getCookieName(): string {
@@ -100,12 +100,10 @@ export class SessionService<TClaims extends Record<string, unknown> = Record<str
   async signJwt(sub: string, extraClaims?: Record<string, unknown>): Promise<string> {
     const jwt = this.cfg?.jwt || {};
     const built = (await Promise.resolve(jwt.buildClaims?.({ sub, context: extraClaims }))) || {};
-    const payload = { sub, ...(extraClaims || {}), ...(built || {}) } as Record<string, unknown>;
+    const payload = { sub, ...(extraClaims || {}), ...(built || {}) };
     if (typeof jwt.signToken === 'function') {
       // Full override of signing: user supplies the complete token
-      const token = await Promise.resolve(
-        jwt.signToken({ header: { typ: 'JWT' }, payload } as any),
-      );
+      const token = await Promise.resolve(jwt.signToken({ header: { typ: 'JWT' }, payload }));
       return token;
     }
     throw new Error('SessionService: No JWT signing hook or provider configured');

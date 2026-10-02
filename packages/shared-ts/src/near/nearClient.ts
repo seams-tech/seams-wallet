@@ -138,12 +138,12 @@ function toArrayBufferFromUnknownBytes(bytes: unknown): ArrayBuffer | SharedArra
 
   // Plain number[]
   if (Array.isArray(bytes)) {
-    return new Uint8Array(bytes as number[]).buffer;
+    return new Uint8Array(bytes).buffer;
   }
 
   // Typed arrays / DataView
   if (ArrayBuffer.isView(bytes)) {
-    const view = bytes as ArrayBufferView;
+    const view = bytes;
     return view.buffer.slice(view.byteOffset, view.byteOffset + view.byteLength);
   }
 
@@ -164,24 +164,22 @@ export function encodeSignedTransactionBase64(signed: EncodableSignedTx): string
 
   // 1) If the payload exposes a .base64Encode() helper (our SignedTransaction class),
   //    use it directly. Bind `this` so the method can safely call this.encode().
-  const maybeBase64 = (txPayload as { base64Encode?: unknown }).base64Encode;
+  const maybeBase64 = txPayload.base64Encode;
   if (isFunction(maybeBase64)) {
-    return (maybeBase64 as () => string).call(txPayload);
+    return maybeBase64.call(txPayload);
   }
 
   // 2) Otherwise, fall back to a generic encode() → ArrayBuffer method if present.
-  const maybeEncode = (txPayload as { encode?: unknown }).encode;
+  const maybeEncode = txPayload.encode;
   if (isFunction(maybeEncode)) {
-    const buf = (maybeEncode as () => ArrayBuffer).call(txPayload);
+    const buf = maybeEncode.call(txPayload);
     return base64Encode(buf);
   }
 
   // 3) Finally, accept raw borsh bytes in multiple shapes / field names.
   //    This keeps the serializer resilient across runtimes that may not
   //    hydrate SignedTransaction instances but still provide borsh_bytes/Bytes.
-  const snakeBuf = toArrayBufferFromUnknownBytes(
-    (txPayload as { borsh_bytes?: unknown }).borsh_bytes,
-  );
+  const snakeBuf = toArrayBufferFromUnknownBytes(txPayload.borsh_bytes);
   if (snakeBuf) {
     return base64Encode(snakeBuf);
   }

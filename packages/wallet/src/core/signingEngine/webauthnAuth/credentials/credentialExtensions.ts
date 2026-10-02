@@ -49,5 +49,5 @@ export function redactCredentialExtensionOutputs<C extends CredentialWithExtensi
     ...credential,
     response: responseWithoutExtensions,
     clientExtensionResults: null,
-  } as C;
+  };
 }

@@ -71,7 +71,7 @@ function publicKeyCreationOptions(
           second: base64UrlDecode(options.extensions.prf.eval.secondB64u),
         },
       },
-    } as AuthenticationExtensionsClientInputs,
+    },
   };
 }
 

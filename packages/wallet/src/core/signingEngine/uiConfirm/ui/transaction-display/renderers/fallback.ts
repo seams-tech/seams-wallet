@@ -23,7 +23,7 @@ export const renderFallbackDisplayOperation: RenderDisplayOperation = ({
     : [];
 
   if (operation.kind === 'raw.fallback') {
-    const rawValue = String((operation as { raw?: string }).raw || '').trim();
+    const rawValue = String(operation.raw || '').trim();
     if (rawValue) {
       metadataNodes.push({
         id: `${opId}-raw`,

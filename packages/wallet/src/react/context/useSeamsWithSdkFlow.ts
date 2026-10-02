@@ -228,7 +228,7 @@ export function useSeamsWithSdkFlow(args: {
     return new Proxy(seams, {
       get(target, prop, receiver) {
         if (prop === 'auth') {
-          const auth = Reflect.get(target as object, prop, receiver) as AuthCapability;
+          const auth = Reflect.get(target, prop, receiver);
           return {
             ...auth,
             unlock: loginWithSdkFlow,
@@ -239,15 +239,11 @@ export function useSeamsWithSdkFlow(args: {
               auth.hasPasskeyCredential(...args),
             getRecentUnlocks: (...args: Parameters<AuthCapability['getRecentUnlocks']>) =>
               auth.getRecentUnlocks(...args),
-          } as AuthCapability;
+          };
         }
 
         if (prop === 'registration') {
-          const registration = Reflect.get(
-            target as object,
-            prop,
-            receiver,
-          ) as RegistrationCapability;
+          const registration = Reflect.get(target, prop, receiver);
           return {
             ...registration,
             addWalletSigner: addWalletSignerWithSdkFlow,
@@ -258,7 +254,7 @@ export function useSeamsWithSdkFlow(args: {
         }
 
         if (prop === 'recovery') {
-          const recovery = Reflect.get(target as object, prop, receiver) as RecoveryCapability;
+          const recovery = Reflect.get(target, prop, receiver);
           return {
             syncAccount: syncAccountWithSdkFlow,
             getWalletRecoveryCodeStatus: (
@@ -280,7 +276,7 @@ export function useSeamsWithSdkFlow(args: {
           return setThemeWithHost;
         }
 
-        const value: unknown = Reflect.get(target as object, prop, receiver);
+        const value: unknown = Reflect.get(target, prop, receiver);
         // For non-wrapped methods, bind to preserve `this` on the class instance.
         if (typeof value === 'function')
           return (value as (...args: unknown[]) => unknown).bind(target);

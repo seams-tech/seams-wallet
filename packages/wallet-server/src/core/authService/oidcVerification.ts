@@ -115,7 +115,7 @@ function jwkFromRaw(rawKey: unknown): { kid: string; jwk: JsonWebKey } | null {
   const e = toOptionalTrimmedString(rawKey.e);
   if (!kid || kty !== 'RSA' || !n || !e) return null;
   if (use !== 'sig' || alg !== 'RS256') return null;
-  return { kid, jwk: rawKey as unknown as JsonWebKey };
+  return { kid, jwk: rawKey };
 }
 
 async function fetchJwks(input: {

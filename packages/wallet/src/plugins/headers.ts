@@ -44,7 +44,7 @@ export function buildWalletCsp(
   const frame = (opts.frameSrc || []).filter(Boolean);
   const scriptAllow = (opts.scriptSrcAllowlist || [])
     .map((s) => toOriginOrUndefined(s) || s)
-    .filter(Boolean) as string[];
+    .filter(Boolean);
   const scriptWasmUnsafeEval = " 'wasm-unsafe-eval'";
   const scriptUnsafeInline = mode === 'compatible' ? " 'unsafe-inline'" : '';
   const styleUnsafeInline = mode === 'compatible' ? " 'unsafe-inline'" : '';

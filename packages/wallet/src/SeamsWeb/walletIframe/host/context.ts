@@ -279,7 +279,7 @@ export function ensureSeamsWeb(ctx: HostContext): SeamsWeb {
     void ctx.seamsWeb.prewarm({ workers: true }).catch(() => {});
     updateThemeBridge(ctx);
   }
-  return ctx.seamsWeb!;
+  return ctx.seamsWeb;
 }
 
 function updateThemeBridge(ctx: HostContext): void {
@@ -294,7 +294,7 @@ function updateThemeBridge(ctx: HostContext): void {
 }
 
 export function applyWalletConfig(ctx: HostContext, payload: PMSetConfigPayload): void {
-  const prev = ctx.walletConfigs || ({} as SeamsConfigsInput);
+  const prev = ctx.walletConfigs || {};
   const prevRuntimeResetFingerprint = buildWalletRuntimeResetFingerprint(ctx.walletConfigs);
   const nextSigningSessionPersistenceMode =
     payload?.signingSessionPersistenceMode ?? prev.signingSessionPersistenceMode;
@@ -333,7 +333,7 @@ export function applyWalletConfig(ctx: HostContext, payload: PMSetConfigPayload)
       ...(payload?.iframeWallet || {}),
     },
     appearance: nextAppearance,
-  } as SeamsConfigsInput;
+  };
   ctx.walletConfigs = sanitizeWalletHostConfigs(base);
   const nextRuntimeResetFingerprint = buildWalletRuntimeResetFingerprint(ctx.walletConfigs);
 
@@ -357,7 +357,7 @@ export function applyWalletConfig(ctx: HostContext, payload: PMSetConfigPayload)
 
   // Configure the base URL used by SDK-hosted UI assets.
   try {
-    const assetsBaseUrl = payload?.assetsBaseUrl as string | undefined;
+    const assetsBaseUrl = payload?.assetsBaseUrl;
     const safeOrigin = window.location.origin || window.location.href;
     const defaultRoot = (() => {
       try {

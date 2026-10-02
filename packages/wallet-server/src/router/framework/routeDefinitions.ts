@@ -174,7 +174,7 @@ function normalizeRequiredServices(
     }
     if (seen.has(value)) continue;
     seen.add(value);
-    next.push(value as RouteServiceKey);
+    next.push(value);
   }
   return next.length > 0 ? next : undefined;
 }

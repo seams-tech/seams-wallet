@@ -58,9 +58,7 @@ export const ROUTER_AB_ECDSA_DERIVATION_PRIVATE_SIGNING_PATHS = {
 
 function resolveRouterAbSigningWorkerFetch(input?: typeof fetch): typeof fetch | null {
   if (input) return input;
-  return typeof globalThis.fetch === 'function'
-    ? (globalThis.fetch.bind(globalThis) as typeof fetch)
-    : null;
+  return typeof globalThis.fetch === 'function' ? globalThis.fetch.bind(globalThis) : null;
 }
 
 type RouterAbConfiguredSigningWorkerPrivateTransport = Extract<

@@ -270,7 +270,7 @@ export function createNearPublicKeyStore(input: {
   logger: NormalizedLogger;
   isNode: boolean;
 }): NearPublicKeyStore {
-  const config = (isObject(input.config) ? input.config : {}) as Record<string, unknown>;
+  const config = isObject(input.config) ? input.config : {};
   const namespace =
     toOptionalTrimmedString(config.NEAR_PUBLIC_KEY_NAMESPACE) ||
     toOptionalTrimmedString(config.THRESHOLD_PREFIX) ||

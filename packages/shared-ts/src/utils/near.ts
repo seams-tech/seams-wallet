@@ -223,7 +223,7 @@ export function getNearShortErrorMessage(error: unknown): string | undefined {
     const txExec = details.TxExecutionError as unknown;
     if (isObj(txExec)) {
       if (isObj(txExec.InvalidTxError)) {
-        const inv = txExec.InvalidTxError as Record<string, unknown>;
+        const inv = txExec.InvalidTxError;
         if (isObj(inv.ActionsValidation)) {
           const kind = Object.keys(inv.ActionsValidation)[0];
           if (kind) return `InvalidTxError: ${kind}`;
@@ -233,8 +233,8 @@ export function getNearShortErrorMessage(error: unknown): string | undefined {
         return 'InvalidTxError';
       }
       if (isObj(txExec.ActionError)) {
-        const ae = txExec.ActionError as Record<string, unknown>;
-        const kindObj = isObj(ae.kind) ? (ae.kind as Record<string, unknown>) : undefined;
+        const ae = txExec.ActionError;
+        const kindObj = isObj(ae.kind) ? ae.kind : undefined;
         const kind = kindObj ? Object.keys(kindObj)[0] : undefined;
         if (kind) return `ActionError: ${kind}`;
         return 'ActionError';
@@ -244,7 +244,7 @@ export function getNearShortErrorMessage(error: unknown): string | undefined {
     const failure = details.Failure as unknown;
     if (isObj(failure)) {
       if (isObj(failure.InvalidTxError)) {
-        const inv = failure.InvalidTxError as Record<string, unknown>;
+        const inv = failure.InvalidTxError;
         if (isObj(inv.ActionsValidation)) {
           const kind = Object.keys(inv.ActionsValidation)[0];
           if (kind) return `InvalidTxError: ${kind}`;
@@ -254,8 +254,8 @@ export function getNearShortErrorMessage(error: unknown): string | undefined {
         return 'InvalidTxError';
       }
       if (isObj(failure.ActionError)) {
-        const ae = failure.ActionError as Record<string, unknown>;
-        const kindObj = isObj(ae.kind) ? (ae.kind as Record<string, unknown>) : undefined;
+        const ae = failure.ActionError;
+        const kindObj = isObj(ae.kind) ? ae.kind : undefined;
         const kind = kindObj ? Object.keys(kindObj)[0] : undefined;
         if (kind) return `ActionError: ${kind}`;
         return 'ActionError';

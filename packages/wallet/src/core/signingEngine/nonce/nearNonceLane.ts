@@ -1035,7 +1035,7 @@ export function shouldPrefetchNearContext(input: {
 export function isAccessKeyViewLike(value: unknown): value is AccessKeyView {
   if (!isObject(value)) return false;
   try {
-    normalizeBigint((value as { nonce?: unknown }).nonce, 'near access-key nonce');
+    normalizeBigint(value.nonce, 'near access-key nonce');
     return true;
   } catch {
     return false;
@@ -1043,12 +1043,7 @@ export function isAccessKeyViewLike(value: unknown): value is AccessKeyView {
 }
 
 function normalizeAccessKeyView(value: AccessKeyView): AccessKeyView {
-  const record = value as {
-    nonce?: unknown;
-    permission?: unknown;
-    block_hash?: unknown;
-    block_height?: unknown;
-  };
+  const record = value;
   return {
     nonce: normalizeBigint(record.nonce, 'near access-key nonce'),
     permission: normalizeAccessKeyPermission(record.permission),
@@ -1077,7 +1072,7 @@ function normalizeAccessKeyPermission(value: unknown): AccessKeyView['permission
 function isBlockResultLike(value: unknown): value is BlockResult {
   const record = value as Partial<BlockResult> | null;
   if (!record || typeof record !== 'object') return false;
-  const header = record.header as Partial<BlockResult['header']> | undefined;
+  const header = record.header;
   return !!header && typeof header.hash === 'string' && header.height !== undefined;
 }
 

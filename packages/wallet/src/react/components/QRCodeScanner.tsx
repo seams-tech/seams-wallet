@@ -337,7 +337,7 @@ export const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
   }, [reportClose]);
 
   const stopPropagationNative = useCallback((event: React.SyntheticEvent<HTMLElement>) => {
-    const nativeEvent = event.nativeEvent as Event & { stopImmediatePropagation?: () => void };
+    const nativeEvent = event.nativeEvent;
     if (typeof nativeEvent.stopImmediatePropagation === 'function') {
       nativeEvent.stopImmediatePropagation();
     }

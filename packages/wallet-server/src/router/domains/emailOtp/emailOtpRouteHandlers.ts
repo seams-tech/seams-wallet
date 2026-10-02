@@ -75,11 +75,11 @@ export async function sealEmailOtpFactorSecretForWorker(input: {
       false,
       [],
     );
-    const serverKeyPair = (await crypto.subtle.generateKey(
+    const serverKeyPair = await crypto.subtle.generateKey(
       { name: 'ECDH', namedCurve: 'P-256' },
       false,
       ['deriveKey'],
-    )) as CryptoKeyPair;
+    );
     const encryptionKey = await crypto.subtle.deriveKey(
       { name: 'ECDH', public: workerPublicKey },
       serverKeyPair.privateKey,

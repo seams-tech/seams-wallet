@@ -20,7 +20,7 @@ export function getNearChainCandidates(accountId: AccountId): string[] {
 export function buildNearAccountRefs(nearAccountId: AccountId): AccountRef[] {
   const accountAddress = String(nearAccountId || '').trim().toLowerCase();
   if (!accountAddress) return [];
-  return getNearChainCandidates(accountAddress as AccountId).map((chainIdKey) => ({
+  return getNearChainCandidates(accountAddress).map((chainIdKey) => ({
     chainIdKey,
     accountAddress,
   }));

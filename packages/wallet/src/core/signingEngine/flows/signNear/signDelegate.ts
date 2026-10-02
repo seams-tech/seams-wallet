@@ -9,7 +9,6 @@ import {
   type SigningFlowEvent,
 } from '@/core/types/sdkSentEvents';
 import {
-  RpcCallPayload,
   WorkerRequestType,
   WorkerResponseType,
   type WorkerSuccessResponse,
@@ -127,7 +126,7 @@ export async function runNearDelegateActionSigning({
       rpcCall.nearRpcUrl ||
       resolvePrimaryNearRpcUrl(PASSKEY_MANAGER_DEFAULT_CONFIGS.network.chains),
     nearAccountId,
-  } as RpcCallPayload;
+  };
 
   const warnings: string[] = [];
   const touchConfirm = ctx.touchConfirm;

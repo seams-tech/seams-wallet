@@ -150,7 +150,7 @@ function mapThresholdNearKey(
   rec: KeyMaterialRecord | null,
 ): ThresholdEd25519KeyMaterial | null {
   if (!rec) return null;
-  const payload = (rec.payload || {}) as Record<string, unknown>;
+  const payload = rec.payload || {};
   const publicKey = normalizeThresholdEd25519PublicKey(rec.publicKey);
   const relayerKeyId = canonicalThresholdEd25519RelayerKeyId({
     publicKey,
@@ -219,7 +219,7 @@ async function storeNearKeyMaterial(
 
   const explicitChainIdKey = toTrimmedString(input.chainIdKey || '').toLowerCase();
   const explicitProfileId = toTrimmedString(input.profileId || '');
-  const accountRefs = buildNearAccountRefs(accountAddress as AccountId);
+  const accountRefs = buildNearAccountRefs(accountAddress);
 
   if (explicitProfileId || explicitChainIdKey) {
     if (!explicitProfileId || !explicitChainIdKey) {

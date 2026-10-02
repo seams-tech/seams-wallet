@@ -119,7 +119,7 @@ export class UserPreferencesManager {
     base: Partial<ConfirmationConfig>,
     patch: Partial<ConfirmationConfig>,
   ): ConfirmationConfig {
-    const merged = { ...base, ...patch } as Partial<ConfirmationConfig>;
+    const merged = { ...base, ...patch };
     return {
       uiMode: merged.uiMode ?? DEFAULT_CONFIRMATION_CONFIG.uiMode,
       behavior: merged.behavior ?? DEFAULT_CONFIRMATION_CONFIG.behavior,

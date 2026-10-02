@@ -122,12 +122,12 @@ export class IframeTransport {
   private readonly onWindowMessage = (e: MessageEvent): void => {
     const data = e.data as unknown;
     if (!isObject(data)) return;
-    const type = (data as { type?: unknown }).type;
+    const type = data.type;
     if (type === IframeMessage.HostDebugOrigin) {
       if (this.debug) {
         console.debug('[IframeTransport][host-origin]', {
-          origin: (data as { origin?: unknown }).origin,
-          href: (data as { href?: unknown }).href,
+          origin: data.origin,
+          href: data.href,
           eventOrigin: e.origin,
         });
       }
@@ -140,16 +140,12 @@ export class IframeTransport {
     }
     if (type === IframeMessage.HostLog) {
       if (this.debug) {
-        console.debug('[IframeTransport][wallet-log]', (data as { payload?: unknown }).payload);
+        console.debug('[IframeTransport][wallet-log]', data.payload);
       }
       return;
     }
     if (type === WebAuthnBridgeMessage.Create || type === WebAuthnBridgeMessage.Get) {
-      handleWebAuthnBridgeMessage(
-        type as typeof WebAuthnBridgeMessage.Create | typeof WebAuthnBridgeMessage.Get,
-        data,
-        e,
-      );
+      handleWebAuthnBridgeMessage(type, data, e);
     }
   };
 

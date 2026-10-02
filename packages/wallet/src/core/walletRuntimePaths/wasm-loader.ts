@@ -43,10 +43,10 @@ interface WasmLoaderOptions {
   testFunction?: () => void | Promise<void>;
 }
 
-function getGlobalSelf(): (typeof globalThis & { location?: Location; WASM_BASE_URL?: string }) | null {
-  return typeof self !== 'undefined'
-    ? ((self as typeof globalThis & { location?: Location; WASM_BASE_URL?: string }) ?? null)
-    : null;
+function getGlobalSelf():
+  | (typeof globalThis & { location?: Location; WASM_BASE_URL?: string })
+  | null {
+  return typeof self !== 'undefined' ? (self ?? null) : null;
 }
 
 function getGlobalLocationHref(): string | undefined {
@@ -87,12 +87,12 @@ export function resolveWasmUrl(
   if (customBaseUrl) {
     return new URL(wasmFilename, customBaseUrl);
   }
-  if (typeof process !== 'undefined' && (process as any).env?.WASM_BASE_URL) {
-    return new URL(wasmFilename, (process as any).env.WASM_BASE_URL);
+  if (typeof process !== 'undefined' && process.env?.WASM_BASE_URL) {
+    return new URL(wasmFilename, process.env.WASM_BASE_URL);
   }
   const workerEnvVar = workerName.toUpperCase().replace(/[^A-Z]/g, '_') + '_WASM_BASE_URL';
-  if (typeof process !== 'undefined' && (process as any).env?.[workerEnvVar]) {
-    return new URL(wasmFilename, (process as any).env[workerEnvVar]);
+  if (typeof process !== 'undefined' && process.env?.[workerEnvVar]) {
+    return new URL(wasmFilename, process.env[workerEnvVar]);
   }
   const globalSelf = getGlobalSelf();
   if (globalSelf?.WASM_BASE_URL) {
@@ -110,10 +110,7 @@ export function resolveWasmUrl(
   try {
     let metaUrl: string | null = null;
     try {
-      metaUrl =
-        typeof import.meta !== 'undefined' && (import.meta as any)?.url
-          ? ((import.meta as any).url as string)
-          : null;
+      metaUrl = typeof import.meta !== 'undefined' && import.meta?.url ? import.meta.url : null;
     } catch {
       metaUrl = null;
     }

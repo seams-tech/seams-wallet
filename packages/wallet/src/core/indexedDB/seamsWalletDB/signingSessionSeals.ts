@@ -40,7 +40,7 @@ function transactionDone(tx: IDBTransaction): Promise<void> {
 async function getSigningSessionSealsDb(): Promise<IDBDatabase | null> {
   if (seamsWalletDB.isDisabled()) return null;
   try {
-    return unwrap(await seamsWalletDB.getDB()) as IDBDatabase;
+    return unwrap(await seamsWalletDB.getDB());
   } catch {
     return null;
   }

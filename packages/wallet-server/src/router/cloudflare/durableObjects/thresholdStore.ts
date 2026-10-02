@@ -129,9 +129,7 @@ function jsonValueContains(actual: unknown, expected: unknown): boolean {
   }
   if (isPlainObject(expected)) {
     if (!isPlainObject(actual)) return false;
-    return Object.entries(expected).every(([key, value]) =>
-      jsonValueContains((actual as Record<string, unknown>)[key], value),
-    );
+    return Object.entries(expected).every(([key, value]) => jsonValueContains(actual[key], value));
   }
   return Object.is(actual, expected);
 }
@@ -172,14 +170,14 @@ function newVersionedJsonRecordVersion(): string {
 
 function parseAuthEntry(raw: unknown): AuthEntry | null {
   if (!isPlainObject(raw)) return null;
-  const record = (raw as { record?: unknown }).record;
-  const remainingUses = (raw as { remainingUses?: unknown }).remainingUses;
-  const expiresAtMs = (raw as { expiresAtMs?: unknown }).expiresAtMs;
+  const record = raw.record;
+  const remainingUses = raw.remainingUses;
+  const expiresAtMs = raw.expiresAtMs;
   if (!isPlainObject(record)) return null;
   if (typeof remainingUses !== 'number' || !Number.isFinite(remainingUses)) return null;
   if (typeof expiresAtMs !== 'number' || !Number.isFinite(expiresAtMs)) return null;
   // Minimal record shape check (full validation happens on the service layer).
-  const rec = record as Record<string, unknown>;
+  const rec = record;
   if (typeof rec.expiresAtMs !== 'number' || !Number.isFinite(rec.expiresAtMs)) return null;
   if (rec.participantIds !== undefined && !Array.isArray(rec.participantIds)) return null;
   if (typeof rec.relayerKeyId !== 'string') return null;
@@ -238,7 +236,7 @@ export class ThresholdStoreDurableObject {
       body = null;
     }
     if (!isPlainObject(body)) return json(failure('invalid_body', 'Expected JSON object'));
-    const op = (body as { op?: unknown }).op;
+    const op = body.op;
     if (typeof op !== 'string') return json(failure('invalid_body', 'Missing op'));
 
     const req = body as DoReq;
@@ -629,9 +627,7 @@ export class ThresholdStoreDurableObject {
         }
         const raw = await store.get(key);
         const existingExpiresAtMs =
-          raw && typeof raw === 'object' && 'expiresAtMs' in raw
-            ? Number((raw as { expiresAtMs?: unknown }).expiresAtMs)
-            : NaN;
+          raw && typeof raw === 'object' && 'expiresAtMs' in raw ? Number(raw.expiresAtMs) : NaN;
         if (Number.isFinite(existingExpiresAtMs) && existingExpiresAtMs > nowMs) {
           return failure('export_nonce_replay', 'Export authorization nonce already used');
         }

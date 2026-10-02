@@ -5,11 +5,6 @@ import initShamir3PassWasm, {
   shamir3pass_destroy_lock_key_handle,
   shamir3pass_remove_lock,
 } from '../../../../../../../wasm/shamir3pass_runtime/pkg/shamir3pass_runtime.js';
-import type { InitInput } from '../../../../../../../wasm/shamir3pass_runtime/pkg/shamir3pass_runtime.js';
-
-type Shamir3PassWasmModuleImport = {
-  readonly default?: WebAssembly.Module;
-};
 
 const SHAMIR3PASS_WASM_PATH_CANDIDATES = [
   '../../wasm/shamir3pass_runtime/pkg/shamir3pass_runtime_bg.wasm',
@@ -36,15 +31,15 @@ function wasmUrls(): URL[] {
 }
 
 async function initializeCompiledModule(module: WebAssembly.Module): Promise<void> {
-  await initShamir3PassWasm({ module_or_path: module as unknown as InitInput });
+  await initShamir3PassWasm({ module_or_path: module });
   init_shamir3pass_runtime();
 }
 
 async function loadBundledModule(): Promise<WebAssembly.Module | null> {
   try {
-    const imported = (await import(
+    const imported = await import(
       '../../../../../../../wasm/shamir3pass_runtime/pkg/shamir3pass_runtime_bg.wasm'
-    )) as Shamir3PassWasmModuleImport;
+    );
     return imported.default instanceof WebAssembly.Module ? imported.default : null;
   } catch {
     return null;
@@ -76,7 +71,7 @@ async function initializeWorkerRuntime(): Promise<void> {
   let lastError: unknown = null;
   for (const url of wasmUrls()) {
     try {
-      await initShamir3PassWasm({ module_or_path: url as unknown as InitInput });
+      await initShamir3PassWasm({ module_or_path: url });
       init_shamir3pass_runtime();
       return;
     } catch (error: unknown) {

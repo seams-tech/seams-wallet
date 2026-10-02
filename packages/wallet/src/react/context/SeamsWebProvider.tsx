@@ -175,7 +175,7 @@ export const SeamsWebProvider: React.FC<SeamsWebProviderProps> = ({
     theme: rootTheme,
     setTheme,
     tokens: mergedTokens,
-    ...(themeOverrides as Omit<ThemeProps, 'children' | 'theme'>),
+    ...themeOverrides,
   };
   return (
     <SeamsContextProvider

@@ -38,7 +38,7 @@ export function useDrawInStrokeIcon(
           stroke: mounted ? 'currentColor' : fromColor,
           transition: `stroke-dashoffset ${animationDuration} cubic-bezier(0.22, 1, 0.36, 1), stroke ${animationDuration} ease`,
           ...style,
-        } as React.CSSProperties,
+        },
       }
     : { style };
 

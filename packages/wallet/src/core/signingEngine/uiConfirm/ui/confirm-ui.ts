@@ -6,12 +6,7 @@ import { __isWalletIframeHostMode } from '@/core/browser/walletIframe/host-mode'
 import { retainTransactionActivity } from './transaction-activity';
 import type { UserConfirmSecurityContext, TransactionInputWasm } from '@/core/types';
 import type { AppearanceConfig, ThemeMode } from '@/core/types/seams';
-import {
-  isActionArgsWasm,
-  toActionArgsWasm,
-  type ActionArgs,
-  type ActionArgsWasm,
-} from '@/core/types/actions';
+import { isActionArgsWasm, toActionArgsWasm } from '@/core/types/actions';
 import { resolveExplorerUrlForChainFamily } from '@/core/config/chains';
 import type { TxDisplayModel } from '@/core/signingEngine/interfaces/display';
 import { computeUiIntentDigestFromTxs, orderActionForDigest } from '@/utils/intentDigest';
@@ -117,10 +112,8 @@ function normalizeTxSigningRequestsForDigest(
   return (txSigningRequests || []).map((tx) => ({
     receiverId: tx.receiverId,
     actions: (tx.actions || [])
-      .map((action) =>
-        isActionArgsWasm(action) ? action : toActionArgsWasm(action as unknown as ActionArgs),
-      )
-      .map((action) => orderActionForDigest(action as ActionArgsWasm) as ActionArgsWasm),
+      .map((action) => (isActionArgsWasm(action) ? action : toActionArgsWasm(action)))
+      .map((action) => orderActionForDigest(action)),
   }));
 }
 
@@ -165,12 +158,12 @@ function cleanupExistingConfirmers(): void {
     disconnectConfirmSurfaceMeasurementReporter(element);
     element.remove();
   }
-  const portal = document.getElementById(CONFIRM_PORTAL_ID) as HTMLElement | null;
+  const portal = document.getElementById(CONFIRM_PORTAL_ID);
   if (portal) updateConfirmPortalState(portal);
 }
 
 function ensureConfirmPortal(): HTMLElement {
-  let portal = document.getElementById(CONFIRM_PORTAL_ID) as HTMLElement | null;
+  let portal = document.getElementById(CONFIRM_PORTAL_ID);
   if (!portal) {
     portal = document.createElement('div');
     portal.id = CONFIRM_PORTAL_ID;
@@ -186,7 +179,7 @@ function removeHostConfirmerElement(element: HTMLElement): void {
   confirmationTreeBuildVersions.delete(element);
   disconnectConfirmSurfaceMeasurementReporter(element);
   element.remove();
-  const portal = document.getElementById(CONFIRM_PORTAL_ID) as HTMLElement | null;
+  const portal = document.getElementById(CONFIRM_PORTAL_ID);
   if (portal) updateConfirmPortalState(portal);
 }
 

@@ -89,7 +89,7 @@ export async function validateDelegateExpiryAndNonce(params: {
   }
 
   const block = await nearClient.viewBlock({ finality: 'final' });
-  const currentHeight = BigInt((block as any)?.header?.height ?? 0);
+  const currentHeight = BigInt(block?.header?.height ?? 0);
   if (currentHeight <= 0n) {
     throw new Error('invalid_block_height');
   }
@@ -219,7 +219,7 @@ export async function executeSignedDelegateWithRelayer(params: {
     // submits to NEAR. The nonce here is the relayer access key nonce and is
     // completely separate from the delegate_action.nonce inside SignedDelegate.
     const block = await nearClient.viewBlock({ finality: 'final' });
-    const blockHash = String((block as any)?.header?.hash || '');
+    const blockHash = String(block?.header?.hash || '');
     if (!blockHash) {
       throw new Error('missing_block_hash');
     }

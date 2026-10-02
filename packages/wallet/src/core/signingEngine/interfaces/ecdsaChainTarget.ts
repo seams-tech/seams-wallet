@@ -112,7 +112,7 @@ export function walletSessionRefFromSession(value: {
 }
 
 export function nearAccountRefFromAccountId(value: unknown): NearAccountRef {
-  const accountId = requireNonEmptyString(value, 'NEAR account id') as AccountId;
+  const accountId = requireNonEmptyString(value, 'NEAR account id');
   return accountId.length === 64 && /^[0-9a-f]+$/i.test(accountId)
     ? { kind: 'implicit', accountId }
     : { kind: 'named', accountId };

@@ -330,7 +330,7 @@ export class CloudflareD1PasskeyCustodyEnvelopeStore {
       new CloudflareD1VersionedJsonRecordStore<WalletCredentialActivityRecordV1>({
         database: options.database,
         scope: options.scope,
-        encode: (value) => value as unknown as VersionedJsonObject,
+        encode: (value) => value,
         parse: parseActivityRecordOrNull,
         keyPrefix: PASSKEY_CREDENTIAL_ACTIVITY_KEY_PREFIX,
       });

@@ -76,11 +76,11 @@ export type PasskeyCustodyEnvelopeRetrievalResult =
  * pass unnoticed.
  */
 function disclosedExtensionOutputs(credential: WebAuthnAuthenticationCredential): string | null {
-  const top = (credential as { clientExtensionResults?: unknown }).clientExtensionResults;
+  const top = credential.clientExtensionResults;
   if (isPlainObject(top) && Object.keys(top).length > 0) {
     return 'webauthn_authentication.clientExtensionResults must be redacted before retrieval';
   }
-  const response = (credential as { response?: unknown }).response;
+  const response = credential.response;
   if (isPlainObject(response)) {
     const nested = (response as { clientExtensionResults?: unknown }).clientExtensionResults;
     if (isPlainObject(nested) && Object.keys(nested).length > 0) {
@@ -93,8 +93,8 @@ function disclosedExtensionOutputs(credential: WebAuthnAuthenticationCredential)
 function assertionCredentialIdB64u(
   credential: WebAuthnAuthenticationCredential,
 ): WebAuthnCredentialIdB64u | null {
-  const raw = (credential as { rawId?: unknown; id?: unknown }).rawId;
-  const fallback = (credential as { id?: unknown }).id;
+  const raw = credential.rawId;
+  const fallback = credential.id;
   const chosen =
     typeof raw === 'string' && raw.trim()
       ? raw.trim()

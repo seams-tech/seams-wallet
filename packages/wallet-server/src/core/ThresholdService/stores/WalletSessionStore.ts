@@ -292,9 +292,7 @@ class InMemoryWalletSessionStore<
 /** A backend failure as an `internal` result: the error's message, else `fallback`. */
 function walletSessionStoreFailure(error: unknown, fallback: string): WalletSessionStoreFailure {
   const message = String(
-    error && typeof error === 'object' && 'message' in error
-      ? (error as { message?: unknown }).message
-      : error || fallback,
+    error && typeof error === 'object' && 'message' in error ? error.message : error || fallback,
   );
   return failure('internal', message);
 }

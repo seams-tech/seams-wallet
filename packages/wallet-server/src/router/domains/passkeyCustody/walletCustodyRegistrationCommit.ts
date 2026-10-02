@@ -138,13 +138,13 @@ function buildWalletCustodyRegistrationRecords(args: {
   // The ceremony serialises the whole envelope binding, whose `binding` field is
   // the custody-secret branch the parsers own.
   const binding = parsePasskeyCustodySecretBinding(
-    (rawBinding as { binding?: unknown }).binding,
+    rawBinding.binding,
     'walletCustodyCommit.binding',
   );
   if (binding.kind !== 'wallet_custody_seed_v1') {
     throw new Error('a registration commit carries a wallet custody seed envelope');
   }
-  if (String((rawBinding as { walletId?: unknown }).walletId ?? '') !== String(walletId)) {
+  if (String(rawBinding.walletId ?? '') !== String(walletId)) {
     throw new Error('envelope binding does not carry the payload wallet id');
   }
 
@@ -154,7 +154,7 @@ function buildWalletCustodyRegistrationRecords(args: {
      method than it sealed under would already have failed to open — reading it
      here is what keeps server and ciphertext from disagreeing. */
   const ownership = ownershipFromSealedBinding(
-    (rawBinding as { ownership?: unknown }).ownership,
+    rawBinding.ownership,
     'walletCustodyCommit.ownership',
   );
   const envelope = buildPasskeyCustodyEnvelopeRecord({

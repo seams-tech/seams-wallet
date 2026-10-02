@@ -10,7 +10,7 @@ function tryParseJson(raw: string): unknown | null {
 
 function readResult(json: unknown): unknown | null {
   if (!isPlainObject(json) || !('result' in json)) return null;
-  const v = (json as Record<string, unknown>).result;
+  const v = json.result;
   return v === undefined || v === null ? null : v;
 }
 
@@ -108,8 +108,8 @@ export class UpstashRedisRestClient {
       encodeURIComponent(String(part)),
     );
     const json = await this.call(`/${segments.join('/')}`, 'POST');
-    if (isPlainObject(json) && typeof (json as Record<string, unknown>).error === 'string') {
-      throw new Error(`Upstash EVAL error: ${(json as Record<string, unknown>).error as string}`);
+    if (isPlainObject(json) && typeof json.error === 'string') {
+      throw new Error(`Upstash EVAL error: ${json.error}`);
     }
     return readResult(json);
   }

@@ -66,11 +66,11 @@ function buildAbiFunctionEntries(abi: EvmContractAbi): AbiFunctionEntryNormalize
   const out: AbiFunctionEntryNormalized[] = [];
   for (const entry of abi) {
     if (!entry || typeof entry !== 'object') continue;
-    const type = String((entry as { type?: unknown }).type || 'function').trim();
+    const type = String(entry.type || 'function').trim();
     if (type !== '' && type !== 'function') continue;
-    const name = String((entry as { name?: unknown }).name || '').trim();
+    const name = String(entry.name || '').trim();
     if (!name) continue;
-    const rawInputs = (entry as { inputs?: unknown }).inputs;
+    const rawInputs = entry.inputs;
     const inputs = Array.isArray(rawInputs) ? rawInputs : [];
     const signature = `${name}(${inputs.map((input) => canonicalAbiTypeFromParameter(input)).join(',')})`;
     const selector = selectorFromSignature(signature);
@@ -116,7 +116,7 @@ function canonicalAbiTypeFromParameter(input: unknown): string {
   if (!type) return '';
 
   const components = Array.isArray((input as { components?: unknown })?.components)
-    ? ((input as { components: unknown[] }).components as unknown[])
+    ? (input as { components: unknown[] }).components
     : [];
   if (type.startsWith('tuple')) {
     const suffix = type.slice('tuple'.length);

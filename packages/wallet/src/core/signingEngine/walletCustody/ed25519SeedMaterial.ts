@@ -148,7 +148,7 @@ export async function loadWalletCustodyEd25519MaterialV1(input: {
     return { kind: 'unusable', reason: 'cached custody material was sealed under another key' };
   }
 
-  const binding = (record.payload as { binding?: unknown } | undefined)?.binding;
+  const binding = record.payload?.binding;
   if (!binding || typeof binding !== 'object') {
     return { kind: 'unusable', reason: 'cached custody material has no binding' };
   }

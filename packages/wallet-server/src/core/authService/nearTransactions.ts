@@ -168,7 +168,7 @@ export async function checkNearAccountExistsWithClient(input: {
       const view = await input.nearClient.viewAccount(input.accountId);
       return Boolean(view);
     } catch (error: unknown) {
-      const parsedError = toError(error) as Error & { details?: unknown };
+      const parsedError = toError(error);
       lastError = parsedError;
       const message = parsedError.message;
       const combined = `${message}\n${errorDetailsBlob(parsedError)}`;

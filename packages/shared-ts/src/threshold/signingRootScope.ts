@@ -55,7 +55,7 @@ export function normalizeRuntimePolicyScopeFields(
     projectId: requireScopeField('projectId', scope.projectId),
     envId: requireScopeField('envId', scope.envId),
     ...(toOptionalTrimmedString(scope.signingRootVersion)
-      ? { signingRootVersion: toOptionalTrimmedString(scope.signingRootVersion)! }
+      ? { signingRootVersion: toOptionalTrimmedString(scope.signingRootVersion) }
       : {}),
   };
 }

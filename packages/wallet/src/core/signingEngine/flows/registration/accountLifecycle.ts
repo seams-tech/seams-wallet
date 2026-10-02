@@ -626,9 +626,7 @@ export async function setWalletNearProvisioningState(
           }
         : { status: write.status, updatedAtMs };
   await deps.accountStore.upsertProfile({
-    profileId: profileId as Parameters<
-      NearProvisioningWriteDeps['accountStore']['upsertProfile']
-    >[0]['profileId'],
+    profileId: profileId,
     nearProvisioning: state,
   });
 }

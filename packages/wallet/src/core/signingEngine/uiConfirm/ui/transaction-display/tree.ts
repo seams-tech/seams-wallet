@@ -9,7 +9,6 @@ import type { ActionArgs, TransactionInput } from '@/core/types/actions';
 import { formatArgs, formatCodeSize, shortenPubkey } from './formatters';
 import { isString } from '@shared/utils/validation';
 import { renderFallbackDisplayOperation } from './renderers/fallback';
-import type { RenderTreeNode } from './renderers/types';
 
 type TreeNodeType = 'folder' | 'file';
 
@@ -82,9 +81,9 @@ function renderOperationNode(operation: TxDisplayOperation, depth: number, path:
     depth,
     path,
     renderChild: (childOperation, childDepth, childPath) =>
-      renderOperationNode(childOperation, childDepth, childPath) as RenderTreeNode,
+      renderOperationNode(childOperation, childDepth, childPath),
   });
-  return rendered as TreeNode;
+  return rendered;
 }
 
 function hideFolderChevrons(node: TreeNode): TreeNode {
@@ -184,8 +183,8 @@ function buildActionNode(action: ActionArgs, idx: number): TreeNode {
     }
 
     case 'DeployGlobalContract': {
-      const code = (action as unknown as { code?: unknown }).code;
-      const deployMode = (action as unknown as { deployMode?: unknown }).deployMode;
+      const code = action.code;
+      const deployMode = action.deployMode;
       const codeSize = formatCodeSize(code as string);
       actionNodes = [
         {
@@ -205,8 +204,8 @@ function buildActionNode(action: ActionArgs, idx: number): TreeNode {
     }
 
     case 'UseGlobalContract': {
-      const accountId = (action as unknown as { accountId?: unknown }).accountId;
-      const codeHash = (action as unknown as { codeHash?: unknown }).codeHash;
+      const accountId = action.accountId;
+      const codeHash = action.codeHash;
       let label: string;
       if (accountId) {
         label = `by account: ${String(accountId)}`;

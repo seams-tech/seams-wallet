@@ -91,7 +91,7 @@ export async function executeWebAuthnWithParentFallbacksSafari(
       });
     }
     return await navigator.credentials.get({
-      publicKey: publicKeyForAttempt as PublicKeyCredentialRequestOptions,
+      publicKey: publicKeyForAttempt,
       ...(deps.abortSignal ? { signal: deps.abortSignal } : {}),
     });
   } catch (error: unknown) {
@@ -119,11 +119,7 @@ export async function requestParentDomainWebAuthn(
       timeoutMs,
     );
   }
-  return client.request(
-    WebAuthnBridgeMessage.Get,
-    publicKeyForBridge as PublicKeyCredentialRequestOptions,
-    timeoutMs,
-  );
+  return client.request(WebAuthnBridgeMessage.Get, publicKeyForBridge, timeoutMs);
 }
 
 // Default bridge client using window.parent postMessage protocol
@@ -177,7 +173,7 @@ export class WindowParentDomainWebAuthnClient implements ParentDomainWebAuthnCli
 function clonePublicKeyOptions(kind: Kind, publicKey: AnyPublicKeyOptions): AnyPublicKeyOptions {
   return kind === 'create'
     ? cloneCreationOptions(publicKey as PublicKeyCredentialCreationOptions)
-    : cloneRequestOptions(publicKey as PublicKeyCredentialRequestOptions);
+    : cloneRequestOptions(publicKey);
 }
 
 function cloneCreationOptions(
@@ -219,7 +215,7 @@ function cloneCredentialExtensions<T extends AuthenticationExtensionsClientInput
   extensions: T,
 ): T {
   if (!extensions) return extensions;
-  const cloned = { ...extensions } as Record<string, unknown>;
+  const cloned = { ...extensions };
   const prf = cloned.prf;
   if (prf && typeof prf === 'object') {
     const prfRecord = { ...(prf as Record<string, unknown>) };
@@ -240,7 +236,7 @@ function cloneCredentialExtensions<T extends AuthenticationExtensionsClientInput
     }
     cloned.prf = prfRecord;
   }
-  return cloned as T;
+  return cloned;
 }
 
 function clonePrfEval(input: Record<string, unknown>): Record<string, unknown> {

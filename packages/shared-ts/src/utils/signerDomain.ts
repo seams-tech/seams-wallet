@@ -58,7 +58,7 @@ export const SIGNER_SOURCES = {
 
 export type SignerSource = (typeof SIGNER_SOURCES)[keyof typeof SIGNER_SOURCES];
 
-const WALLET_AUTH_METHOD_VALUES = Object.values(WALLET_AUTH_METHODS) as readonly WalletAuthMethod[];
+const WALLET_AUTH_METHOD_VALUES = Object.values(WALLET_AUTH_METHODS);
 
 function normalized(value: unknown): string {
   return normalizeOptionalTrimmedString(value)?.toLowerCase() || '';

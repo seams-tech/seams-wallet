@@ -235,7 +235,7 @@ async function postEcdsaPresignInit(
   } catch (e: unknown) {
     const msg = String(
       e && typeof e === 'object' && 'message' in e
-        ? (e as { message?: unknown }).message
+        ? e.message
         : e || 'Failed Router A/B ECDSA derivation pool-fill init',
     );
     return { ok: false, code: 'network_error', message: msg };
@@ -355,7 +355,7 @@ async function postEcdsaPresignStep(
   } catch (e: unknown) {
     const msg = String(
       e && typeof e === 'object' && 'message' in e
-        ? (e as { message?: unknown }).message
+        ? e.message
         : e || 'Failed Router A/B ECDSA derivation pool-fill step',
     );
     return { ok: false, code: 'network_error', message: msg };

@@ -18,7 +18,7 @@ export function createPreferencesWalletIframeHandlers(deps: HandlerDeps): Handle
     PM_SET_CONFIRMATION_CONFIG: async (req: Req<'PM_SET_CONFIRMATION_CONFIG'>) => {
       const pm = deps.getSeamsWeb();
       const { walletId } = req.payload || {};
-      const incoming = (req.payload?.config || {}) as Record<string, unknown>;
+      const incoming = req.payload?.config || {};
       let patch: Record<string, unknown> = { ...incoming };
       if (walletId) {
         pm.preferences.setCurrentWallet(toWalletId(walletId));

@@ -161,7 +161,7 @@ function fail<T>(
   const message = error instanceof Error && error.message ? error.message : String(error || code);
   const retryAfterMs =
     error && typeof error === 'object' && 'retryAfterMs' in error
-      ? Number((error as { retryAfterMs?: unknown }).retryAfterMs)
+      ? Number(error.retryAfterMs)
       : NaN;
   const failure: GoogleEmailOtpWalletAuthFailure = {
     code,
@@ -191,9 +191,7 @@ function failWithMessage<T>(
 
 function classifyEmailOtpSubmitError(error: unknown): GoogleEmailOtpWalletAuthFailureCode {
   const code =
-    error && typeof error === 'object' && 'code' in error
-      ? String((error as { code?: unknown }).code || '')
-      : '';
+    error && typeof error === 'object' && 'code' in error ? String(error.code || '') : '';
   if (code.includes('rate')) return 'email_otp_rate_limited';
   if (code.includes('expired')) return 'email_otp_expired';
   if (code.includes('invalid') || code.includes('otp')) return 'email_otp_invalid_code';
@@ -206,9 +204,7 @@ function classifyEmailOtpSubmitError(error: unknown): GoogleEmailOtpWalletAuthFa
 
 function classifyRegistrationError(error: unknown): GoogleEmailOtpWalletAuthFailureCode {
   const code =
-    error && typeof error === 'object' && 'code' in error
-      ? String((error as { code?: unknown }).code || '')
-      : '';
+    error && typeof error === 'object' && 'code' in error ? String(error.code || '') : '';
   if (code === 'already_finalized_restore_required') return 'registration_restore_required';
   const message = error instanceof Error ? error.message.toLowerCase() : '';
   if (message.includes('already finalized') || message.includes('restore or unlock')) {
@@ -288,7 +284,7 @@ function resolveGoogleEmailOtpAuthMode(
 
 function isMissingGoogleEmailOtpEnrollment(error: unknown): boolean {
   if (!error || typeof error !== 'object' || !('code' in error)) return false;
-  const code = String((error as { code?: unknown }).code || '').trim();
+  const code = String(error.code || '').trim();
   const message =
     error instanceof Error
       ? error.message
@@ -456,7 +452,7 @@ async function requestLoginChallenge(args: {
       ? { walletAuthMethodId: args.state.linkedEmailOtpSelection.walletAuthMethodId }
       : {}),
     ...(args.relayUrl ? { relayUrl: args.relayUrl } : {}),
-    ...(args.onEvent ? { onEvent: args.onEvent as (event: UnlockFlowEvent) => void } : {}),
+    ...(args.onEvent ? { onEvent: args.onEvent } : {}),
   });
   return {
     challengeId: result.challengeId,
@@ -511,7 +507,7 @@ function registrationOptionsFromInput(args: {
   recoveryCodeBackup?: GoogleEmailOtpWalletAuthStartInput['recoveryCodeBackup'];
 }): RegistrationHooksOptions {
   return {
-    ...(args.onEvent ? { onEvent: args.onEvent as (event: RegistrationFlowEvent) => void } : {}),
+    ...(args.onEvent ? { onEvent: args.onEvent } : {}),
     ...(args.recoveryCodeBackup ? { recoveryCodeBackup: args.recoveryCodeBackup } : {}),
   };
 }
@@ -569,9 +565,7 @@ async function loginWithConfiguredTargets(args: {
     otpCode: args.otpCode,
     ...(args.input.relayUrl ? { relayUrl: args.input.relayUrl } : {}),
     ...(args.input.emailOtpAuthPolicy ? { emailOtpAuthPolicy: args.input.emailOtpAuthPolicy } : {}),
-    ...(args.input.onEvent
-      ? { onEvent: args.input.onEvent as (event: UnlockFlowEvent) => void }
-      : {}),
+    ...(args.input.onEvent ? { onEvent: args.input.onEvent } : {}),
   };
   if (args.challenge.signerSelection.kind !== 'ecdsa') {
     throw new Error('Selected Email OTP authority has no ECDSA signer');

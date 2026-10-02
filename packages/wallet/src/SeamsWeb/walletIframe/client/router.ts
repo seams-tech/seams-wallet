@@ -132,7 +132,6 @@ import type { MultichainSigningRequest } from '@/core/signingEngine/chains/tempo
 import { requireTempoFeeTokenPreferenceSigningRequest } from '@/core/signingEngine/chains/tempo/feeToken';
 import type { EvmSignedResult } from '@/core/signingEngine/chains/evm/evmAdapter';
 import type { TempoSignedResult } from '@/core/signingEngine/chains/tempo/tempoAdapter';
-import type { NonceLeaseRef } from '@/core/signingEngine/nonce/NonceCoordinator';
 import type { RouterAbEcdsaDerivationLoginPresignaturePrefillResult } from '@/core/signingEngine/session/warmCapabilities/ecdsaLoginPrefill';
 import type { DemoEmailOtpCodeResponse } from '@/core/signingEngine/session/emailOtp/publicTypes';
 import type { ThresholdEcdsaSessionBootstrapResult } from '@/core/signingEngine/threshold/ecdsa/activation';
@@ -1238,7 +1237,7 @@ function sanitizeEmailOtpIframeResult<T>(value: T): T {
   }
 
   const out: Record<string, unknown> = {};
-  for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
+  for (const [key, entry] of Object.entries(value)) {
     if (EMAIL_OTP_APP_ORIGIN_FORBIDDEN_RESULT_KEYS.has(key)) {
       continue;
     }
@@ -1655,7 +1654,7 @@ export class WalletIframeRouter {
     const defaultRouterId = `seams-${Date.now()}-${secureRandomBase36(6, 'wallet iframe router IDs')}`;
     const testOptions = {
       routerId: defaultRouterId,
-      ownerTag: undefined as string | undefined,
+      ownerTag: undefined,
       autoMount: true,
       ...(options?.testOptions || {}),
     };
@@ -4983,9 +4982,7 @@ export class WalletIframeRouter {
 
         try {
           // Step 6: Strip non-cloneable fields (functions) from envelope options before posting
-          const stickyVal = isObject(options)
-            ? (options as { sticky?: unknown }).sticky
-            : undefined;
+          const stickyVal = isObject(options) ? options.sticky : undefined;
           const wireOptions = isBoolean(stickyVal) ? { sticky: stickyVal } : undefined;
           const serializableFull = wireOptions
             ? { ...full, options: wireOptions }
@@ -5184,11 +5181,8 @@ function isKeyExportFlowEvent(p: ProgressPayload): p is KeyExportFlowEvent {
 function normalizeSignedTransactionResult(result: SignTransactionResult): SignTransactionResult {
   const signedTransaction = result.signedTransaction;
   if (!isPlainSignedTransactionLike(signedTransaction)) return result;
-  const nonceLease =
-    (signedTransaction as { nonceLease?: NonceLeaseRef }).nonceLease || result.nonceLease;
-  const serverDispatch = (
-    signedTransaction as { serverDispatch?: SignedTransaction['serverDispatch'] }
-  ).serverDispatch;
+  const nonceLease = signedTransaction.nonceLease || result.nonceLease;
+  const serverDispatch = signedTransaction.serverDispatch;
   return {
     ...result,
     signedTransaction: SignedTransaction.fromPlain({

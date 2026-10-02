@@ -144,7 +144,7 @@ export async function completeEmailOtpEnrollmentFromSecret32(args: {
       clientSecret32,
       walletId,
     });
-    unlockPublicKey33 = secp256k1_private_key_32_to_public_key_33(unlockPrivateKey32) as Uint8Array;
+    unlockPublicKey33 = secp256k1_private_key_32_to_public_key_33(unlockPrivateKey32);
     const clientUnlockPublicKeyB64u = base64UrlEncode(unlockPublicKey33);
     const enrollmentId = emailOtpDeviceEnrollmentId(walletId, userId);
     if (!args.skipServerFinalize) {

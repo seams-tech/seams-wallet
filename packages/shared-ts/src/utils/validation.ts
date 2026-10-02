@@ -155,14 +155,14 @@ export function isPlainSignedTransactionLike(x: unknown): x is PlainSignedTransa
   if (!isObject(x)) return false;
   const hasTx = 'transaction' in x;
   const hasSig = 'signature' in x;
-  const bytes = x as { borsh_bytes?: unknown; borshBytes?: unknown };
+  const bytes = x;
   const hasBytes = Array.isArray(bytes.borsh_bytes) || bytes.borshBytes instanceof Uint8Array;
-  const hasMethod = typeof (x as { base64Encode?: unknown }).base64Encode === 'function';
+  const hasMethod = typeof x.base64Encode === 'function';
   return hasTx && hasSig && hasBytes && !hasMethod;
 }
 
 export function extractBorshBytesFromPlainSignedTx(x: PlainSignedTransactionLike): number[] {
-  const asArray = Array.isArray(x.borsh_bytes) ? (x.borsh_bytes as number[]) : undefined;
+  const asArray = Array.isArray(x.borsh_bytes) ? x.borsh_bytes : undefined;
   if (asArray) return asArray;
   const asU8 = x.borshBytes instanceof Uint8Array ? x.borshBytes : undefined;
   return Array.from(asU8 || new Uint8Array());

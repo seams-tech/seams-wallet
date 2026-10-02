@@ -1,11 +1,6 @@
 import initSignerWasm, {
   init_worker,
 } from '../../../../wasm/near_signer/pkg/wasm_signer_worker.js';
-import type { InitInput } from '../../../../wasm/near_signer/pkg/wasm_signer_worker.js';
-
-type NearSignerWasmModuleImport = {
-  readonly default?: WebAssembly.Module;
-};
 
 const SIGNER_WASM_PATH_CANDIDATES = [
   '../wasm/near_signer/pkg/wasm_signer_worker_bg.wasm',
@@ -43,17 +38,14 @@ function getSignerWasmUrls(): URL[] {
 }
 
 async function initSignerFromCompiledModule(module: WebAssembly.Module): Promise<void> {
-  await initSignerWasm({ module_or_path: module as unknown as InitInput });
+  await initSignerWasm({ module_or_path: module });
   init_worker();
   signerWasmReady = true;
 }
 
 async function loadBundledNearSignerWasmModule(): Promise<WebAssembly.Module | null> {
   try {
-    const imported =
-      (await import(
-        '../../../../wasm/near_signer/pkg/wasm_signer_worker_bg.wasm'
-      )) as NearSignerWasmModuleImport;
+    const imported = await import('../../../../wasm/near_signer/pkg/wasm_signer_worker_bg.wasm');
     return imported.default instanceof WebAssembly.Module ? imported.default : null;
   } catch {
     return null;
@@ -75,16 +67,13 @@ async function compileWasmFromUrl(url: URL): Promise<WebAssembly.Module> {
     throw new Error('[near-signer] fetch is not available to load signer WASM');
   }
   const response = await fetchFn(url.toString());
-  if (!response || typeof (response as { arrayBuffer?: unknown }).arrayBuffer !== 'function') {
+  if (!response || typeof response.arrayBuffer !== 'function') {
     throw new Error('[near-signer] signer WASM fetch returned a non-Response object');
   }
-  const status =
-    typeof (response as { status?: unknown }).status === 'number'
-      ? (response as { status: number }).status
-      : 0;
+  const status = typeof response.status === 'number' ? response.status : 0;
   const ok =
-    typeof (response as { ok?: unknown }).ok === 'boolean'
-      ? (response as { ok: boolean }).ok
+    typeof response.ok === 'boolean'
+      ? response.ok
       : status === 0 || (status >= 200 && status < 300);
   if (!ok) {
     throw new Error(`[near-signer] signer WASM fetch failed with status ${status}`);

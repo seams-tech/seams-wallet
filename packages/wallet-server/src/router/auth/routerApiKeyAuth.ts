@@ -4,9 +4,9 @@ function readHeader(headers: HeaderBag, name: string): string {
   if (headers instanceof Headers) {
     return String(headers.get(name) || '').trim();
   }
-  const direct = (headers as Record<string, unknown>)[name];
-  const lower = (headers as Record<string, unknown>)[name.toLowerCase()];
-  const upper = (headers as Record<string, unknown>)[name.toUpperCase()];
+  const direct = headers[name];
+  const lower = headers[name.toLowerCase()];
+  const upper = headers[name.toUpperCase()];
   const value = direct ?? lower ?? upper;
   if (typeof value === 'string') return value.trim();
   if (Array.isArray(value)) return String(value[0] || '').trim();

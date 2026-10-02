@@ -1,14 +1,4 @@
-import type {
-  ActionHooksOptions,
-  DelegateActionHooksOptions,
-  RegistrationHooksOptions,
-  SendTransactionHooksOptions,
-  SignAndSendTransactionHooksOptions,
-  SignNEP413HooksOptions,
-  SignTransactionHooksOptions,
-} from '@/core/types/sdkSentEvents';
-import type { AddPasskeyHooksOptions } from '@/SeamsWeb/operations/authMethods/passkey/addPasskey';
-import type { AddEmailOtpHooksOptions } from '@/SeamsWeb/operations/authMethods/emailOtp/addEmailOtp';
+import type { ActionHooksOptions } from '@/core/types/sdkSentEvents';
 import {
   type PMExecuteActionPayload,
   type PMFundImplicitNearAccountForTestingPayload,
@@ -116,11 +106,7 @@ export function createNearWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
       const pm = deps.getSeamsWeb();
       const payload = req.payload!;
       if (deps.respondIfCancelled(req.requestId)) return;
-      const hooksOptions = withRegistrationProgress(
-        deps,
-        req.requestId,
-        payload.options || {},
-      ) as RegistrationHooksOptions;
+      const hooksOptions = withRegistrationProgress(deps, req.requestId, payload.options || {});
       const result = await pm.registration.registerWallet({
         authMethod: walletOriginRegistrationAuthMethod(payload.authMethod),
         wallet: payload.wallet,
@@ -148,11 +134,7 @@ export function createNearWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
       const pm = deps.getSeamsWeb();
       const payload = req.payload!;
       if (deps.respondIfCancelled(req.requestId)) return;
-      const hooksOptions = withProgress(
-        deps,
-        req.requestId,
-        payload.options || {},
-      ) as RegistrationHooksOptions;
+      const hooksOptions = withProgress(deps, req.requestId, payload.options || {});
       const result = await pm.registration.addWalletSigner({
         walletId: payload.walletId,
         rpId: payload.rpId,
@@ -170,11 +152,7 @@ export function createNearWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
       const pm = deps.getSeamsWeb();
       const payload = req.payload!;
       if (deps.respondIfCancelled(req.requestId)) return;
-      const hooksOptions = withProgress(
-        deps,
-        req.requestId,
-        payload.options || {},
-      ) as AddPasskeyHooksOptions;
+      const hooksOptions = withProgress(deps, req.requestId, payload.options || {});
       const result = await pm.registration.addPasskey({
         walletId: payload.walletId,
         rpId: payload.rpId,
@@ -191,11 +169,7 @@ export function createNearWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
       const pm = deps.getSeamsWeb();
       const payload = req.payload!;
       if (deps.respondIfCancelled(req.requestId)) return;
-      const hooksOptions = withProgress(
-        deps,
-        req.requestId,
-        payload.options || {},
-      ) as AddEmailOtpHooksOptions;
+      const hooksOptions = withProgress(deps, req.requestId, payload.options || {});
       const result = await pm.registration.addEmailOtp({
         walletId: payload.walletId,
         emailAddress: payload.emailAddress,
@@ -248,7 +222,7 @@ export function createNearWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
         transaction,
         options: {
           ...withProgress(deps, req.requestId, options || {}),
-        } as SignTransactionHooksOptions,
+        },
       });
 
       if (deps.respondIfCancelled(req.requestId)) return;
@@ -265,7 +239,7 @@ export function createNearWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
         actions: transaction.actions,
         options: {
           ...withProgress(deps, req.requestId, options || {}),
-        } as SignAndSendTransactionHooksOptions,
+        },
       });
 
       if (deps.respondIfCancelled(req.requestId)) return;
@@ -298,7 +272,7 @@ export function createNearWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
         signedTransaction: normalizeSignedTransaction(signedTransaction) as SignedTransaction,
         options: {
           ...withProgress(deps, req.requestId, options || {}),
-        } as SendTransactionHooksOptions,
+        },
       });
 
       if (deps.respondIfCancelled(req.requestId)) return;
@@ -313,7 +287,7 @@ export function createNearWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
         walletSession: walletSessionFromWalletId(walletId),
         nearAccount: nearAccountRefFromAccountId(nearAccountId),
         receiverId: receiverId as string,
-        actionArgs: (actionArgs as ActionArgs | ActionArgs[])!,
+        actionArgs: actionArgs as ActionArgs | ActionArgs[],
         options: {
           ...withProgress(deps, req.requestId, options || {}),
         } as ActionHooksOptions,
@@ -331,7 +305,7 @@ export function createNearWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
         delegate,
         options: {
           ...withProgress(deps, req.requestId, options || {}),
-        } as DelegateActionHooksOptions,
+        },
       });
       if (deps.respondIfCancelled(req.requestId)) return;
       respondOkResult(deps, req.requestId, result);
@@ -346,7 +320,7 @@ export function createNearWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
         params,
         options: {
           ...withProgress(deps, req.requestId, options || {}),
-        } as SignNEP413HooksOptions,
+        },
       });
       if (deps.respondIfCancelled(req.requestId)) return;
       respondOkResult(deps, req.requestId, result);

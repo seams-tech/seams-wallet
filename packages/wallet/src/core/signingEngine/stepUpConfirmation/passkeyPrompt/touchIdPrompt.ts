@@ -185,23 +185,23 @@ export class TouchIdPrompt {
     const challengeBytes = decodeChallengeB64u(challengeB64u);
 
     const publicKey: PublicKeyCredentialRequestOptions = {
-      challenge: challengeBytes as BufferSource,
+      challenge: challengeBytes,
       rpId,
-      userVerification: 'preferred' as UserVerificationRequirement,
+      userVerification: 'preferred',
       timeout: 60000,
       extensions: {
         prf: {
           eval: {
-            first: getPrfFirstSaltV1() as BufferSource,
-            second: getPrfSecondSaltV1() as BufferSource,
+            first: getPrfFirstSaltV1(),
+            second: getPrfSecondSaltV1(),
           },
         },
       },
     };
     if (allowCredentials.length > 0) {
       publicKey.allowCredentials = allowCredentials.map((credential) => ({
-        id: base64UrlDecode(credential.id) as BufferSource,
-        type: 'public-key' as PublicKeyCredentialType,
+        id: base64UrlDecode(credential.id),
+        type: 'public-key',
         transports: credential.transports,
       }));
     }
@@ -286,10 +286,10 @@ export class TouchIdPrompt {
     }
     const publicKey: PublicKeyCredentialCreationOptions = serverRegistration
       ? {
-          challenge: decodeChallengeB64u(serverRegistration.challengeB64u) as BufferSource,
+          challenge: decodeChallengeB64u(serverRegistration.challengeB64u),
           rp: { name: 'Seams Wallet', id: rpId },
           user: {
-            id: base64UrlDecode(serverRegistration.user.idB64u) as BufferSource,
+            id: base64UrlDecode(serverRegistration.user.idB64u),
             name: serverRegistration.user.name,
             displayName: serverRegistration.user.displayName,
           },
@@ -302,22 +302,18 @@ export class TouchIdPrompt {
           extensions: {
             prf: {
               eval: {
-                first: base64UrlDecode(
-                  serverRegistration.extensions.prf.eval.firstB64u,
-                ) as BufferSource,
-                second: base64UrlDecode(
-                  serverRegistration.extensions.prf.eval.secondB64u,
-                ) as BufferSource,
+                first: base64UrlDecode(serverRegistration.extensions.prf.eval.firstB64u),
+                second: base64UrlDecode(serverRegistration.extensions.prf.eval.secondB64u),
               },
             },
           },
           excludeCredentials: serverRegistration.excludeCredentials.map((descriptor) => ({
             type: descriptor.type,
-            id: base64UrlDecode(descriptor.id) as BufferSource,
+            id: base64UrlDecode(descriptor.id),
           })),
         }
       : {
-          challenge: decodeChallengeB64u(requireWalletRegistrationChallenge(args)) as BufferSource,
+          challenge: decodeChallengeB64u(requireWalletRegistrationChallenge(args)),
           rp: {
             name: 'WebAuthn Passkey',
             id: rpId,
@@ -341,8 +337,8 @@ export class TouchIdPrompt {
             prf: {
               eval: {
                 // Fixed, versioned salts. Account-scoping happens at the HKDF derivation layer.
-                first: getPrfFirstSaltV1() as BufferSource,
-                second: getPrfSecondSaltV1() as BufferSource,
+                first: getPrfFirstSaltV1(),
+                second: getPrfSecondSaltV1(),
               },
             },
           },

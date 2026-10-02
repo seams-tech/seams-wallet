@@ -752,7 +752,7 @@ function commandForPlan<
   TPlan extends Pick<SigningOperationPlan, 'commands' | 'operation'>,
   TCommand extends SigningOperationCommand,
 >(operationPlan: TPlan, command: TCommand): TCommand | undefined {
-  const commands = operationPlan.commands as SigningOperationCommandSequence;
+  const commands = operationPlan.commands;
   if (!commands.includes(command.kind)) return undefined;
   return withOperation(command, operationPlan.operation);
 }
@@ -761,7 +761,7 @@ function withOperation<TCommand extends SigningOperationCommand>(
   command: TCommand,
   operation: SigningOperationContext | null,
 ): TCommand {
-  return operation ? ({ ...command, operation } as TCommand) : command;
+  return operation ? { ...command, operation } : command;
 }
 
 function getExecutionErrorReason(error: unknown): string {

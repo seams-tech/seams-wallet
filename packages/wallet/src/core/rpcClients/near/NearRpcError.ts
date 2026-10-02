@@ -89,9 +89,7 @@ function describeDetails(
   short?: string;
 } {
   const d = isObj(details) ? details : undefined;
-  const txExec = isObj(d?.TxExecutionError)
-    ? (d!.TxExecutionError as Record<string, unknown>)
-    : undefined;
+  const txExec = isObj(d?.TxExecutionError) ? d.TxExecutionError : undefined;
   if (!txExec) {
     const detail =
       typeof details === 'string' && details.trim()
@@ -115,12 +113,12 @@ function describeFailure(
   index?: number;
   short?: string;
 } {
-  const f = isObj(failure) ? (failure as Record<string, unknown>) : undefined;
+  const f = isObj(failure) ? failure : undefined;
   if (!f) {
     return { message: `${operationName} failed (Unknown Failure)` };
   }
   // Reuse TxExecutionError shape if available
-  return describeTxExecution(operationName, f as Record<string, unknown>);
+  return describeTxExecution(operationName, f);
 }
 
 function describeTxExecution(
@@ -135,10 +133,10 @@ function describeTxExecution(
 } {
   // InvalidTxError
   if (isObj(exec.InvalidTxError)) {
-    const inv = exec.InvalidTxError as Record<string, unknown>;
+    const inv = exec.InvalidTxError;
     let kind = firstKey(inv) || 'InvalidTxError';
     if (isObj(inv.ActionsValidation)) {
-      kind = `ActionsValidation.${firstKey(inv.ActionsValidation as Record<string, unknown>)}`;
+      kind = `ActionsValidation.${firstKey(inv.ActionsValidation)}`;
     }
     const short = kind.startsWith('ActionsValidation.')
       ? `InvalidTxError: ${kind.split('.')[1] || 'ActionsValidation'}`
@@ -153,9 +151,9 @@ function describeTxExecution(
 
   // ActionError
   if (isObj(exec.ActionError)) {
-    const ae = exec.ActionError as Record<string, unknown>;
+    const ae = exec.ActionError;
     const idx = typeof (ae.index as unknown) === 'number' ? (ae.index as number) : undefined;
-    const kobj = isObj(ae.kind) ? (ae.kind as Record<string, unknown>) : undefined;
+    const kobj = isObj(ae.kind) ? ae.kind : undefined;
     const kind = firstKey(kobj) || 'ActionError';
     const idxStr = typeof idx === 'number' ? ` at action ${idx}` : '';
     const short = `ActionError: ${kind}`;

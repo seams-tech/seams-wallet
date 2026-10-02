@@ -401,10 +401,7 @@ function transactionHashFromOutcome(
   outcome: FinalExecutionOutcome,
   fallback: string,
 ): string | undefined {
-  const record = outcome as unknown as {
-    transaction?: { hash?: unknown };
-    transaction_outcome?: { id?: unknown };
-  };
+  const record = outcome;
   return (
     String(record.transaction?.hash || record.transaction_outcome?.id || fallback || '').trim() ||
     undefined

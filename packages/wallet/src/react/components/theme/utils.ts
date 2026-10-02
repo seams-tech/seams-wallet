@@ -38,7 +38,7 @@ export function createCSSVariables(tokens: DesignTokens, prefix = '--seams'): Re
   }
 
   // React CSSProperties style: map to --custom-prop keys
-  const style: React.CSSProperties = {} as any;
+  const style: React.CSSProperties = {};
   Object.entries(vars).forEach(([k, v]) => {
     (style as any)[k] = v;
   });

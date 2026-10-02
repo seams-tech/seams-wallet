@@ -144,12 +144,7 @@ export async function handleLocalOnlyFlow(
   // SHOW_SECURE_PRIVATE_KEY_UI: purely visual; keep UI open and return confirmed immediately
   if (request.type === UserConfirmationType.SHOW_SECURE_PRIVATE_KEY_UI) {
     try {
-      await mountExportViewer(
-        ctx,
-        request.payload as ShowSecurePrivateKeyUiPayload,
-        confirmationConfig,
-        theme,
-      );
+      await mountExportViewer(ctx, request.payload, confirmationConfig, theme);
       // Keep viewer open; do not close here.
       session.confirmAndCloseModal({
         requestId: request.requestId,
@@ -179,8 +174,7 @@ export async function handleLocalOnlyFlow(
       : confirmationConfig;
 
     const challengeB64u =
-      String((request.payload as { challengeB64u?: unknown })?.challengeB64u || '').trim() ||
-      createRandomChallengeB64u();
+      String(request.payload?.challengeB64u || '').trim() || createRandomChallengeB64u();
     // When this flow is initiated via worker→host messaging (wallet-iframe mode),
     // there is typically no transient user activation. If confirmationConfig chooses
     // a visible UI mode (modal/drawer), prompt first so the click lands inside the
@@ -212,7 +206,7 @@ export async function handleLocalOnlyFlow(
     try {
       const credential = await collectLocalOnlyExportCredentialWithPRF({
         ctx,
-        payload: request.payload as AuthorizeKeyExportPayload,
+        payload: request.payload,
         challengeB64u,
       });
       // No modal to keep open; export viewer will be shown by a subsequent request.

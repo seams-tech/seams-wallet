@@ -329,9 +329,9 @@ export async function handleRegistrationFlow(
     const serialized: WebAuthnRegistrationCredential = isSerializedRegistrationCredential(
       credential,
     )
-      ? (credential as unknown as WebAuthnRegistrationCredential)
+      ? credential
       : serializeRegistrationCredentialWithPRF({
-          credential: credential! as PublicKeyCredential,
+          credential: credential,
           firstPrfOutput: true,
           secondPrfOutput: true,
         });

@@ -376,7 +376,7 @@ export function fromActionArgsWasm(a: ActionArgsWasm): ActionArgs {
     case ActionType.UseGlobalContract:
       return { type: ActionType.UseGlobalContract, accountId: a.account_id, codeHash: a.code_hash };
     default:
-      throw new Error(`Unsupported wasm action_type: ${(a as any)?.action_type}`);
+      throw new Error(`Unsupported wasm action_type: ${a?.action_type}`);
   }
 }
 

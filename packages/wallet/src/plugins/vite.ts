@@ -370,11 +370,10 @@ export function seamsBuildHeaders(
                   '',
                 ]),
           ];
-          const configuredAcaOrigin = (
+          const configuredAcaOrigin =
             opts.cors && typeof opts.cors.accessControlAllowOrigin === 'string'
               ? opts.cors.accessControlAllowOrigin.trim()
-              : undefined
-          ) as string | undefined;
+              : undefined;
           if (configuredAcaOrigin) {
             contentLines.push(
               `${sdkBasePath}/*`,
@@ -425,7 +424,7 @@ export function seamsBuildHeaders(
     },
   };
 
-  return plugin as unknown as VitePlugin;
+  return plugin;
 }
 
 export function computeDevPermissionsPolicy(walletOrigin?: string): string {
@@ -455,7 +454,7 @@ export function seamsApp(
         walletHostVariant: devOpts.walletHostVariant,
       })
     : undefined;
-  return [app, hdr].filter(Boolean) as any[];
+  return [app, hdr].filter(Boolean);
 }
 
 export function seamsWallet(
@@ -469,5 +468,5 @@ export function seamsWallet(
         walletHostVariant: devOpts.walletHostVariant,
       })
     : undefined;
-  return [wallet, hdr].filter(Boolean) as any[];
+  return [wallet, hdr].filter(Boolean);
 }

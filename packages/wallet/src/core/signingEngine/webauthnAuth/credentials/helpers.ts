@@ -38,7 +38,7 @@ function serializeRegistrationCredential(
   // Safari and some platforms may not implement getTransports(); guard it.
   let transports: string[] = [];
   try {
-    const fn = (response as { getTransports?: () => string[] })?.getTransports;
+    const fn = response?.getTransports;
     if (typeof fn === 'function') {
       transports = fn.call(response) || [];
     }
@@ -81,9 +81,7 @@ function serializeAuthenticationCredential(
       clientDataJSON: base64UrlEncode(response.clientDataJSON),
       authenticatorData: base64UrlEncode(response.authenticatorData),
       signature: base64UrlEncode(response.signature),
-      userHandle: response.userHandle
-        ? base64UrlEncode(response.userHandle as ArrayBuffer)
-        : undefined,
+      userHandle: response.userHandle ? base64UrlEncode(response.userHandle) : undefined,
     },
     clientExtensionResults: {
       prf: {
@@ -171,7 +169,7 @@ export function serializeAuthenticationCredentialWithPRF({
 export function normalizeRegistrationCredential(input: unknown): WebAuthnRegistrationCredential {
   if (!isObject(input)) throw new Error('Invalid credential: not an object');
 
-  const candidate = input as Record<string, unknown>;
+  const candidate = input;
   const normalized: Record<string, unknown> = { ...candidate };
 
   if (!isString(normalized.id)) throw new Error('Invalid credential.id');
@@ -186,7 +184,7 @@ export function normalizeRegistrationCredential(input: unknown): WebAuthnRegistr
   }
 
   const response: Record<string, unknown> = isObject(normalized.response)
-    ? { ...(normalized.response as Record<string, unknown>) }
+    ? { ...normalized.response }
     : {};
 
   if (!isString(response.clientDataJSON)) response.clientDataJSON = '';
@@ -210,7 +208,7 @@ export function normalizeAuthenticationCredential(
 ): WebAuthnAuthenticationCredential {
   if (!isObject(input)) throw new Error('Invalid credential: not an object');
 
-  const candidate = input as Record<string, unknown>;
+  const candidate = input;
   const normalized: Record<string, unknown> = { ...candidate };
 
   if (!isString(normalized.id)) throw new Error('Invalid credential.id');
@@ -225,7 +223,7 @@ export function normalizeAuthenticationCredential(
   }
 
   const response: Record<string, unknown> = isObject(normalized.response)
-    ? { ...(normalized.response as Record<string, unknown>) }
+    ? { ...normalized.response }
     : {};
 
   if (!isString(response.clientDataJSON)) response.clientDataJSON = '';
@@ -254,23 +252,14 @@ export function isSerializedRegistrationCredential(
   x: unknown,
 ): x is WebAuthnRegistrationCredential {
   if (!isObject(x)) return false;
-  const candidate = x as {
-    id?: unknown;
-    rawId?: unknown;
-    type?: unknown;
-    response?: unknown;
-  };
+  const candidate = x;
 
   if (!isString(candidate.id) || !isString(candidate.rawId) || !isString(candidate.type)) {
     return false;
   }
 
   if (!isObject(candidate.response)) return false;
-  const response = candidate.response as {
-    clientDataJSON?: unknown;
-    attestationObject?: unknown;
-    transports?: unknown;
-  };
+  const response = candidate.response;
 
   if (!isString(response.clientDataJSON) || !isString(response.attestationObject)) {
     return false;
@@ -379,8 +368,7 @@ function extractPrfFromCredential({
 /** Get extension results from credential (live or serialized) */
 function getExtensionResults(credential: CredentialWithExtensions): ExtensionResults | undefined {
   try {
-    const fn = (credential as { getClientExtensionResults?: () => unknown })
-      .getClientExtensionResults;
+    const fn = credential.getClientExtensionResults;
     if (typeof fn === 'function') {
       return fn.call(credential) as ExtensionResults;
     }
@@ -467,34 +455,33 @@ function normalizePrfValueToBase64Url(value: unknown): string | undefined {
 function normalizeClientExtensionOutputs(input: unknown): AuthenticationExtensionsClientOutputs {
   const out: AuthenticationExtensionsClientOutputs = {
     prf: { results: { first: undefined, second: undefined } },
-  } as AuthenticationExtensionsClientOutputs;
+  };
 
-  const src = isObject(input) ? (input as Record<string, unknown>) : {};
+  const src = isObject(input) ? input : {};
   // appid
-  if (typeof src.appid === 'boolean') out.appid = src.appid as boolean;
+  if (typeof src.appid === 'boolean') out.appid = src.appid;
   // appidExclude
-  if (typeof src.appidExclude === 'boolean') out.appidExclude = src.appidExclude as boolean;
+  if (typeof src.appidExclude === 'boolean') out.appidExclude = src.appidExclude;
   // hmacCreateSecret
-  if (typeof src.hmacCreateSecret === 'boolean')
-    out.hmacCreateSecret = src.hmacCreateSecret as boolean;
+  if (typeof src.hmacCreateSecret === 'boolean') out.hmacCreateSecret = src.hmacCreateSecret;
   // credProps
   if (isObject(src.credProps)) {
-    const cp = src.credProps as Record<string, unknown>;
+    const cp = src.credProps;
     const outCp: CredentialPropertiesOutput = {};
-    if (typeof cp.rk === 'boolean') outCp.rk = cp.rk as boolean;
+    if (typeof cp.rk === 'boolean') outCp.rk = cp.rk;
     out.credProps = outCp;
   }
   // uvm: expect array of 3-number tuples; tolerate nested arrays loosely
   if (isArray(src.uvm)) {
-    const uvmArr = (src.uvm as unknown[])
+    const uvmArr = src.uvm
       .filter(isArray)
       .map((t) => {
-        const a = t as unknown[];
-        const n0 = typeof a[0] === 'number' ? (a[0] as number) : undefined;
-        const n1 = typeof a[1] === 'number' ? (a[1] as number) : undefined;
-        const n2 = typeof a[2] === 'number' ? (a[2] as number) : undefined;
+        const a = t;
+        const n0 = typeof a[0] === 'number' ? a[0] : undefined;
+        const n1 = typeof a[1] === 'number' ? a[1] : undefined;
+        const n2 = typeof a[2] === 'number' ? a[2] : undefined;
         return typeof n0 === 'number' && typeof n1 === 'number' && typeof n2 === 'number'
-          ? ([n0, n1, n2] as [number, number, number])
+          ? [n0, n1, n2]
           : undefined;
       })
       .filter((x): x is [number, number, number] => Array.isArray(x));
@@ -502,8 +489,8 @@ function normalizeClientExtensionOutputs(input: unknown): AuthenticationExtensio
   }
   // prf
   if (isObject(src.prf)) {
-    const prf = src.prf as Record<string, unknown>;
-    const results = isObject(prf.results) ? (prf.results as Record<string, unknown>) : {};
+    const prf = src.prf;
+    const results = isObject(prf.results) ? prf.results : {};
     const first = results.first;
     const second = results.second;
     out.prf = {

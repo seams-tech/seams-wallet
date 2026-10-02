@@ -1,4 +1,3 @@
-import type { SyncAccountHooksOptions } from '@/core/types/sdkSentEvents';
 import type { HandlerDeps, HandlerMap, Req } from './walletIframeHandler.types';
 import { respondOkResult, withProgress } from './shared';
 
@@ -12,7 +11,7 @@ export function createRecoveryWalletIframeHandlers(deps: HandlerDeps): HandlerMa
         ...(walletId ? { walletId } : {}),
         options: {
           ...withProgress(deps, req.requestId, {}),
-        } as SyncAccountHooksOptions,
+        },
       });
       if (deps.respondIfCancelled(req.requestId)) return;
       respondOkResult(deps, req.requestId, result);

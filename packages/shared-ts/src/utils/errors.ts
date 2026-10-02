@@ -106,7 +106,7 @@ export function toError(e: unknown): Error {
   try {
     const src = e as { name?: unknown; stack?: unknown; code?: unknown; details?: unknown };
     if (typeof src?.name === 'string') err.name = src.name;
-    if (typeof src?.stack === 'string') (err as { stack?: string }).stack = src.stack;
+    if (typeof src?.stack === 'string') err.stack = src.stack;
     if (src && typeof src.code !== 'undefined') (err as { code?: unknown }).code = src.code;
     if (src && typeof src.details !== 'undefined')
       (err as { details?: unknown }).details = src.details;

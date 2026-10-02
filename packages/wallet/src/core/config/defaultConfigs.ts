@@ -1,4 +1,4 @@
-import { UserVerificationPolicy, type AuthenticatorOptions } from '../types/authenticatorOptions';
+import { UserVerificationPolicy } from '../types/authenticatorOptions';
 import type { EcdsaSignerProvisioningDefaults } from '../types/ecdsaSignerProvisioningDefaults';
 import { ECDSA_CLIENT_PRESIGNATURE_CAPACITY } from '../signingEngine/workerManager/ecdsaPresignLifecycle';
 import { DEFAULT_THRESHOLD_SESSION_TTL_MS } from '../signingEngine/threshold/sessionPolicy';
@@ -164,7 +164,7 @@ export const PASSKEY_MANAGER_DEFAULT_CONFIGS: SeamsConfigsReadonly = {
         all_subdomains: true,
         multiple: undefined,
       },
-    } as AuthenticatorOptions,
+    },
   },
   ui: {
     appearance: {

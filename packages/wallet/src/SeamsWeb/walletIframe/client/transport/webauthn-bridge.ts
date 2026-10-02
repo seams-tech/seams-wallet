@@ -70,7 +70,7 @@ async function handleWebAuthnCreate(req: CreateReq, e: MessageEvent): Promise<vo
     return;
   }
   try {
-    const src = req.publicKey as PublicKeyCredentialCreationOptions;
+    const src = req.publicKey;
     const rpName = src.rp?.name || 'WebAuthn';
     const rpId = src.rp?.id || window.location.hostname;
     const pub: PublicKeyCredentialCreationOptions = { ...src, rp: { name: rpName, id: rpId } };
@@ -124,7 +124,7 @@ async function handleWebAuthnGet(req: GetReq, e: MessageEvent): Promise<void> {
   }
   try {
     console.info('[WebAuthnPrompt] parent executing authentication', { requestId });
-    const src = req.publicKey as PublicKeyCredentialRequestOptions;
+    const src = req.publicKey;
     const rpId = src.rpId || window.location.hostname;
     const pub: PublicKeyCredentialRequestOptions = { ...src, rpId };
     const cred = (await navigator.credentials.get({ publicKey: pub })) as PublicKeyCredential;

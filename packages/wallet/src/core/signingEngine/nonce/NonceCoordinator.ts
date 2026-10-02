@@ -773,7 +773,7 @@ export function createNonceCoordinator(deps: NonceCoordinatorDeps): NonceCoordin
         if (taskError === error) {
           throw error;
         }
-        const code = isObject(error) ? String((error as { code?: unknown }).code || '') : '';
+        const code = isObject(error) ? String(error.code || '') : '';
         emitCoordinationDegradedOnce(
           code === NonceCoordinatorDegradationReason.DurableLockTimeout
             ? NonceCoordinatorDegradationReason.DurableLockTimeout

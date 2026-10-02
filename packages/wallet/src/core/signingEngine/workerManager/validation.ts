@@ -37,7 +37,7 @@ function sanitizeRegistrationConfirmationDiagnosticsMaybe(
   if (input == null) return undefined;
   if (!isObject(input)) return undefined;
 
-  const record = input as Record<keyof RegistrationConfirmationDiagnostics, unknown>;
+  const record = input;
   if (record.kind !== 'registration_confirmation_diagnostics_v1') return undefined;
 
   const workerReadyMs = sanitizeDiagnosticDuration(record.workerReadyMs);
@@ -105,13 +105,7 @@ function validateTransactionContextMaybe(input: unknown): TransactionContext | u
     throw new Error('Invalid transactionContext: expected object');
   }
 
-  const { nearPublicKeyStr, nextNonce, txBlockHeight, txBlockHash, accessKeyInfo } = input as {
-    nearPublicKeyStr?: unknown;
-    nextNonce?: unknown;
-    txBlockHeight?: unknown;
-    txBlockHash?: unknown;
-    accessKeyInfo?: unknown;
-  };
+  const { nearPublicKeyStr, nextNonce, txBlockHeight, txBlockHash, accessKeyInfo } = input;
 
   // Minimal structural validation; AccessKeyView is complex. Be tolerant because the WASM struct omits it.
   const normalizedNearPublicKeyStr = assertString(
@@ -148,12 +142,7 @@ function validateCredentialMaybe(input: unknown): WebAuthnRegistrationCredential
     throw new Error('Invalid credential.type: expected "public-key"');
   }
 
-  const { id, rawId, response, authenticatorAttachment } = cred as {
-    id?: unknown;
-    rawId?: unknown;
-    response?: unknown;
-    authenticatorAttachment?: unknown;
-  };
+  const { id, rawId, response, authenticatorAttachment } = cred;
 
   // Core field/type validation (serialized shapes should be base64url strings)
   assertString(id, 'credential.id');
@@ -163,11 +152,7 @@ function validateCredentialMaybe(input: unknown): WebAuthnRegistrationCredential
     throw new Error('Invalid credential.response: expected object');
   }
 
-  const { clientDataJSON, attestationObject, transports } = response as {
-    clientDataJSON?: unknown;
-    attestationObject?: unknown;
-    transports?: unknown;
-  };
+  const { clientDataJSON, attestationObject, transports } = response;
 
   assertString(clientDataJSON, 'credential.response.clientDataJSON');
   assertString(attestationObject, 'credential.response.attestationObject');
@@ -207,15 +192,7 @@ export function parseAndValidateRegistrationCredentialConfirmationPayload(
     transactionContext,
     registrationDiagnostics,
     error,
-  } = payload as {
-    confirmed?: unknown;
-    requestId?: unknown;
-    intentDigest?: unknown;
-    credential?: unknown;
-    transactionContext?: unknown;
-    registrationDiagnostics?: unknown;
-    error?: unknown;
-  };
+  } = payload;
 
   const normalizedRequestId = assertString(requestId, 'requestId');
 

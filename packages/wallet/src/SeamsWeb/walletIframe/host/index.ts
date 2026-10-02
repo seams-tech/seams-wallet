@@ -22,7 +22,6 @@ import {
   WALLET_IFRAME_PROTOCOL_VERSION_MISMATCH,
   WALLET_PROTOCOL_VERSION,
 } from '../shared/messages';
-import type { SeamsConfigsInput } from '@/core/types/seams';
 import { WalletIframeDomEvents } from '@/core/browser/walletIframe/events';
 import { isObject, isPlainObject } from '@shared/utils/validation';
 import { errorMessage } from '@shared/utils/errors';
@@ -189,7 +188,7 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
   };
 
   const onPortMessage = async (e: MessageEvent<ParentToChildEnvelope>) => {
-    const req = e.data as ParentToChildEnvelope;
+    const req = e.data;
     if (!req || !isObject(req)) return;
     const requestId = req.requestId;
 
@@ -255,9 +254,9 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
             return;
           case 'PM_SET_CONFIG':
             state.walletConfigs = {
-              ...(state.walletConfigs || ({} as SeamsConfigsInput)),
+              ...(state.walletConfigs || {}),
               ...(route.request.payload as PMSetConfigPayload),
-            } as SeamsConfigsInput;
+            };
             if (CONFIRM_UI_SURFACES.some(({ selector }) => document.querySelector(selector))) {
               const runtimeContext = await import('./runtimeContext');
               runtimeContext.syncActiveWalletHostRuntimeConfig(state);
@@ -367,10 +366,7 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
     } catch (err: unknown) {
       if (reviewAdmission?.cancelled) return;
       const canonicalSignerErrors = await import('./canonicalSignerErrorCode');
-      const codeRaw =
-        err && typeof err === 'object' && 'code' in err
-          ? (err as { code?: unknown }).code
-          : undefined;
+      const codeRaw = err && typeof err === 'object' && 'code' in err ? err.code : undefined;
       const message = errorMessage(err);
       const code = canonicalSignerErrors.resolveWalletBoundaryErrorCode({
         requestType: req.type,

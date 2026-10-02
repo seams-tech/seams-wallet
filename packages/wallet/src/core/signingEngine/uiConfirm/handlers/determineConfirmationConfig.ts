@@ -55,11 +55,11 @@ export function determineConfirmationConfig(
   // Important: drop undefined/null fields from the override so they don't clobber
   // persisted preferences (e.g., behavior) with an undefined value.
   const configBase = ctx.userPreferencesManager.getConfirmationConfig();
-  const rawOverride = (request?.confirmationConfig || {}) as Partial<ConfirmationConfig>;
+  const rawOverride = request?.confirmationConfig || {};
   const cleanedOverride = Object.fromEntries(
     Object.entries(rawOverride).filter(([, v]) => v !== undefined && v !== null),
-  ) as Partial<ConfirmationConfig>;
-  let cfg: ConfirmationConfig = { ...configBase, ...cleanedOverride } as ConfirmationConfig;
+  );
+  let cfg: ConfirmationConfig = { ...configBase, ...cleanedOverride };
 
   // Default decrypt-private-key confirmations to 'none' UI. The flow collects
   // WebAuthn credentials silently and the worker may follow up with a
@@ -84,7 +84,7 @@ export function determineConfirmationConfig(
       ...cfg,
       uiMode: cfg.uiMode === 'none' ? 'modal' : cfg.uiMode,
       behavior: 'requireClick',
-    } as ConfirmationConfig;
+    };
   }
 
   // Detect if running inside an iframe (wallet host context)
@@ -101,7 +101,7 @@ export function determineConfirmationConfig(
       ...cfg,
       uiMode: newUiMode,
       behavior: 'requireClick',
-    } as ConfirmationConfig;
+    };
   }
 
   // In wallet-iframe host context, registration/link flows require an explicit

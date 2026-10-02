@@ -149,7 +149,7 @@ function browserPasskeyCreationOptions(
           second: base64UrlDecode(options.extensions.prf.eval.secondB64u),
         },
       },
-    } as AuthenticationExtensionsClientInputs,
+    },
   };
 }
 
@@ -327,7 +327,7 @@ function prfExtensionInput(): AuthenticationExtensionsClientInputs {
         second: PASSKEY_PRF_SECOND_SALT_V1,
       },
     },
-  } as AuthenticationExtensionsClientInputs;
+  };
 }
 
 function requiredPrfFailure(): AuthenticatorResult {
@@ -371,7 +371,7 @@ async function runBrowserCredentialOperation(
   if (!isCrossOriginIframe()) {
     return kind === 'create'
       ? credentials.create({ publicKey: publicKey as PublicKeyCredentialCreationOptions })
-      : credentials.get({ publicKey: publicKey as PublicKeyCredentialRequestOptions });
+      : credentials.get({ publicKey: publicKey });
   }
   const result = await requestParentDomainWebAuthn(
     kind,

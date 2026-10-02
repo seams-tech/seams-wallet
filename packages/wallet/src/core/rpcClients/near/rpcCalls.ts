@@ -106,10 +106,7 @@ export async function checkNearAccountExistsBestEffort(
       return true;
     } catch (err: unknown) {
       const msg = errorMessage(err);
-      const details =
-        err && typeof err === 'object' && 'details' in err
-          ? (err as { details?: unknown }).details
-          : undefined;
+      const details = err && typeof err === 'object' && 'details' in err ? err.details : undefined;
       let detailsBlob = '';
       if (details) {
         try {

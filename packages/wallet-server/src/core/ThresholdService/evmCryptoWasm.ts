@@ -16,9 +16,7 @@ import type { Eip1559TxWasmJson } from '@shared/utils/eip1559TxWasmJson';
 
 type EvmCryptoWasmInitializer = (input: { readonly module_or_path: unknown }) => Promise<unknown>;
 
-const importedEvmCryptoInitializer = (
-  evmCryptoWasmModule as unknown as { readonly default?: EvmCryptoWasmInitializer }
-).default;
+const importedEvmCryptoInitializer = evmCryptoWasmModule.default;
 const initEvmCryptoWasm: EvmCryptoWasmInitializer | undefined =
   typeof importedEvmCryptoInitializer === 'function' ? importedEvmCryptoInitializer : undefined;
 
@@ -27,10 +25,6 @@ const EVM_CRYPTO_WASM_PATH_CANDIDATES = [
   '../wasm/evm_crypto/pkg/evm_crypto_bg.wasm',
   '../../../../../wasm/evm_crypto/pkg/evm_crypto_bg.wasm',
 ];
-
-type EvmCryptoWasmModuleImport = {
-  readonly default?: WebAssembly.Module;
-};
 
 let evmCryptoWasmInitPromise: Promise<void> | null = null;
 let evmCryptoWasmReady = false;
@@ -63,8 +57,7 @@ function getEvmCryptoWasmUrls(): URL[] {
 
 async function loadBundledEvmCryptoWasmModule(): Promise<WebAssembly.Module | null> {
   try {
-    const imported =
-      (await import('../../../../../wasm/evm_crypto/pkg/evm_crypto_bg.wasm')) as EvmCryptoWasmModuleImport;
+    const imported = await import('../../../../../wasm/evm_crypto/pkg/evm_crypto_bg.wasm');
     return imported.default instanceof WebAssembly.Module ? imported.default : null;
   } catch {
     return null;
@@ -203,13 +196,13 @@ function toWasmEip1559Tx(tx: ServerEip1559UnsignedTx): Eip1559TxWasmJson {
 
 export function sha256BytesSync(input: Uint8Array): Uint8Array {
   requireEvmCryptoReady();
-  const out = sha256_bytes(input) as Uint8Array;
+  const out = sha256_bytes(input);
   return checkedBytes('sha256_bytes output', out, 32);
 }
 
 export async function computeEip1559TxHash(tx: ServerEip1559UnsignedTx): Promise<Uint8Array> {
   await ensureEvmCryptoWasm();
-  const out = compute_eip1559_tx_hash(toWasmEip1559Tx(tx)) as Uint8Array;
+  const out = compute_eip1559_tx_hash(toWasmEip1559Tx(tx));
   return checkedBytes('compute_eip1559_tx_hash output', out, 32);
 }
 
@@ -218,7 +211,7 @@ export async function signSecp256k1Recoverable(
   privateKey32: Uint8Array,
 ): Promise<Uint8Array> {
   await ensureEvmCryptoWasm();
-  const out = sign_secp256k1_recoverable(digest32, privateKey32) as Uint8Array;
+  const out = sign_secp256k1_recoverable(digest32, privateKey32);
   return checkedBytes('sign_secp256k1_recoverable output', out, 65);
 }
 
@@ -232,7 +225,7 @@ export async function verifySecp256k1RecoverableSignatureAgainstPublicKey33(
     digest32,
     signature65,
     publicKey33,
-  ) as Uint8Array;
+  );
   return checkedBytes(
     'verify_secp256k1_recoverable_signature_against_public_key_33 output',
     out,
@@ -253,7 +246,7 @@ export async function verifySecp256k1Bip340SignatureAgainstPublicKey33(
     checkedDigest,
     checkedSignature,
     checkedPublicKey,
-  ) as Uint8Array;
+  );
   checkedBytes('verify_secp256k1_bip340_signature_against_public_key_33 output', out, 0);
 }
 
@@ -265,13 +258,13 @@ export async function encodeEip1559SignedTxFromSignature65(input: {
   const out = encode_eip1559_signed_tx_from_signature65(
     toWasmEip1559Tx(input.tx),
     input.signature65,
-  ) as Uint8Array;
+  );
   return out.slice();
 }
 
 export async function validateSecp256k1PublicKey33(input: Uint8Array): Promise<Uint8Array> {
   await ensureEvmCryptoWasm();
-  const out = validate_secp256k1_public_key_33(input) as Uint8Array;
+  const out = validate_secp256k1_public_key_33(input);
   return checkedBytes('validate_secp256k1_public_key_33 output', out, 33);
 }
 
@@ -280,7 +273,7 @@ export async function addSecp256k1PublicKeys33(input: {
   right33: Uint8Array;
 }): Promise<Uint8Array> {
   await ensureEvmCryptoWasm();
-  const out = add_secp256k1_public_keys_33(input.left33, input.right33) as Uint8Array;
+  const out = add_secp256k1_public_keys_33(input.left33, input.right33);
   return checkedBytes('add_secp256k1_public_keys_33 output', out, 33);
 }
 
@@ -288,7 +281,7 @@ export async function secp256k1PrivateKey32ToPublicKey33(
   privateKey32: Uint8Array,
 ): Promise<Uint8Array> {
   await ensureEvmCryptoWasm();
-  const out = secp256k1_private_key_32_to_public_key_33(privateKey32) as Uint8Array;
+  const out = secp256k1_private_key_32_to_public_key_33(privateKey32);
   return checkedBytes('secp256k1_private_key_32_to_public_key_33 output', out, 33);
 }
 
@@ -296,7 +289,7 @@ export async function secp256k1PublicKey33ToEthereumAddress(
   publicKey33: Uint8Array,
 ): Promise<string> {
   await ensureEvmCryptoWasm();
-  const out = secp256k1_public_key_33_to_ethereum_address_20(publicKey33) as Uint8Array;
+  const out = secp256k1_public_key_33_to_ethereum_address_20(publicKey33);
   const address20 = checkedBytes('secp256k1_public_key_33_to_ethereum_address_20 output', out, 20);
   return `0x${Array.from(address20)
     .map((b) => b.toString(16).padStart(2, '0'))

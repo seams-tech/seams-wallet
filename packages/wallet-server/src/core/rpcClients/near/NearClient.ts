@@ -116,9 +116,7 @@ function describeDetails(
   const details = error.data;
   const rpcMessage = typeof error.message === 'string' ? error.message : '';
   const d = isObj(details) ? details : undefined;
-  const txExec = isObj(d?.TxExecutionError)
-    ? (d.TxExecutionError as Record<string, unknown>)
-    : undefined;
+  const txExec = isObj(d?.TxExecutionError) ? d.TxExecutionError : undefined;
   const directExecution = d && ('InvalidTxError' in d || 'ActionError' in d) ? d : undefined;
   if (txExec) return describeTxExecution(operationName, txExec);
   if (directExecution) return describeTxExecution(operationName, directExecution);
@@ -176,7 +174,7 @@ function describeFailure(
   short?: string;
   failureKind: NearRpcFailureKind;
 } {
-  const f = isObj(failure) ? (failure as Record<string, unknown>) : undefined;
+  const f = isObj(failure) ? failure : undefined;
   if (!f) {
     return {
       message: `${operationName} failed (Unknown Failure)`,
@@ -212,9 +210,9 @@ function describeTxExecution(
   }
 
   if (isObj(exec.ActionError)) {
-    const ae = exec.ActionError as Record<string, unknown>;
+    const ae = exec.ActionError;
     const idx = typeof (ae.index as unknown) === 'number' ? (ae.index as number) : undefined;
-    const kobj = isObj(ae.kind) ? (ae.kind as Record<string, unknown>) : undefined;
+    const kobj = isObj(ae.kind) ? ae.kind : undefined;
     const kind = firstKey(kobj) || 'ActionError';
     const idxStr = typeof idx === 'number' ? ` at action ${idx}` : '';
     return {

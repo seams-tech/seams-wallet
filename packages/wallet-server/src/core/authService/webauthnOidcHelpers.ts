@@ -57,16 +57,16 @@ export async function loadSimpleWebAuthnServer(): Promise<SimpleWebAuthnServerMo
       verifyRegistrationResponse:
         typeof mod.verifyRegistrationResponse === 'function'
           ? async (args) =>
-              (await mod.verifyRegistrationResponse(
+              await mod.verifyRegistrationResponse(
                 args as Parameters<typeof mod.verifyRegistrationResponse>[0],
-              )) as SimpleWebAuthnRegistrationVerification
+              )
           : undefined,
       verifyAuthenticationResponse:
         typeof mod.verifyAuthenticationResponse === 'function'
           ? async (args) =>
-              (await mod.verifyAuthenticationResponse(
+              await mod.verifyAuthenticationResponse(
                 args as Parameters<typeof mod.verifyAuthenticationResponse>[0],
-              )) as SimpleWebAuthnAuthenticationVerification
+              )
           : undefined,
     };
   } catch (error) {

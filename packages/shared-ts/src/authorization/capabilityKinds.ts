@@ -106,19 +106,11 @@ export type AuthorizationAuditEventId = DomainId<'AuthorizationAuditEventId'>;
 export type VaultId = DomainId<'VaultId'>;
 export type VaultItemId = DomainId<'VaultItemId'>;
 
-const CAPABILITY_KIND_VALUES = Object.values(CAPABILITY_KINDS) as readonly CapabilityKind[];
-const VAULT_OPERATION_KIND_VALUES = Object.values(
-  VAULT_OPERATION_KINDS,
-) as readonly VaultOperationKind[];
-const NEAR_ED25519_MPC_OPERATION_KIND_VALUES = Object.values(
-  NEAR_ED25519_MPC_OPERATION_KINDS,
-) as readonly NearEd25519MpcOperationKind[];
-const EVM_ECDSA_MPC_OPERATION_KIND_VALUES = Object.values(
-  EVM_ECDSA_MPC_OPERATION_KINDS,
-) as readonly EvmEcdsaMpcOperationKind[];
-const AUTHORIZATION_EVIDENCE_KIND_VALUES = Object.values(
-  AUTHORIZATION_EVIDENCE_KINDS,
-) as readonly AuthorizationEvidenceKind[];
+const CAPABILITY_KIND_VALUES = Object.values(CAPABILITY_KINDS);
+const VAULT_OPERATION_KIND_VALUES = Object.values(VAULT_OPERATION_KINDS);
+const NEAR_ED25519_MPC_OPERATION_KIND_VALUES = Object.values(NEAR_ED25519_MPC_OPERATION_KINDS);
+const EVM_ECDSA_MPC_OPERATION_KIND_VALUES = Object.values(EVM_ECDSA_MPC_OPERATION_KINDS);
+const AUTHORIZATION_EVIDENCE_KIND_VALUES = Object.values(AUTHORIZATION_EVIDENCE_KINDS);
 
 function isCapabilityKind(value: unknown): value is CapabilityKind {
   return typeof value === 'string' && CAPABILITY_KIND_VALUES.includes(value as CapabilityKind);

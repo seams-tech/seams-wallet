@@ -96,7 +96,7 @@ export function createWarmSessionAwarePasskeyMpcSession(args: {
       const value = Reflect.get(target, prop, receiver);
       return typeof value === 'function' ? value.bind(target) : value;
     },
-  }) as PasskeyMpcSessionPort;
+  });
 }
 
 export function createWarmSessionStatusOnlyUiConfirm(args: {

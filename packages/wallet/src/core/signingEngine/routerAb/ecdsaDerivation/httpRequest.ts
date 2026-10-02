@@ -8,9 +8,7 @@ function resolveRequestTimeoutMs(timeoutMs: number | undefined): number {
 
 function toErrorMessage(error: unknown): string {
   return String(
-    error && typeof error === 'object' && 'message' in error
-      ? (error as { message?: unknown }).message
-      : error || '',
+    error && typeof error === 'object' && 'message' in error ? error.message : error || '',
   );
 }
 

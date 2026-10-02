@@ -219,7 +219,7 @@ function normalizePasskeyEcdsaRestoreSource(
 }
 
 function normalizeRawObject<TValue extends object>(value: unknown): Partial<TValue> | null {
-  return value && typeof value === 'object' ? (value as Partial<TValue>) : null;
+  return value && typeof value === 'object' ? value : null;
 }
 
 function normalizeThresholdSessionIds(
@@ -502,7 +502,7 @@ export function normalizeSealedRecoveryRecord(
           routerAbEcdsaDerivationNormalSigning,
           publicCapability,
           clientVerifyingShareB64u: passkeyClientVerifyingShareB64u!,
-          roleLocalMaterialRef: roleLocalMaterialRef!,
+          roleLocalMaterialRef: roleLocalMaterialRef,
         }
       : {
           storeKey,

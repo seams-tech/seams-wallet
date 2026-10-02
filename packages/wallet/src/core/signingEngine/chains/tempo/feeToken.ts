@@ -65,7 +65,7 @@ export function parseTempoEvmAddress(label: string, value: unknown): EvmAddress 
 export function encodeTempoSetUserTokenCalldata(token: EvmAddress): Hex {
   const normalizedToken = parseTempoEvmAddress('fee token address', token).slice(2).toLowerCase();
   const tokenWord = normalizedToken.padStart(ABI_WORD_HEX_LENGTH, '0');
-  return `${TEMPO_SET_USER_TOKEN_SELECTOR}${tokenWord}` as Hex;
+  return `${TEMPO_SET_USER_TOKEN_SELECTOR}${tokenWord}`;
 }
 
 export function requireTempoFeeTokenPreferenceSigningRequest(args: {
@@ -115,7 +115,7 @@ export function requireTempoFeeTokenPreferenceSigningRequest(args: {
 export function encodeTempoUserTokensCalldata(user: EvmAddress): Hex {
   const normalizedUser = parseTempoEvmAddress('user address', user).slice(2).toLowerCase();
   const userWord = normalizedUser.padStart(ABI_WORD_HEX_LENGTH, '0');
-  return `${TEMPO_USER_TOKENS_SELECTOR}${userWord}` as Hex;
+  return `${TEMPO_USER_TOKENS_SELECTOR}${userWord}`;
 }
 
 export function decodeTempoUserTokenResult(resultHex: string): EvmAddress | null {
@@ -137,7 +137,7 @@ export function decodeTempoUserTokenResult(resultHex: string): EvmAddress | null
     throw new Error('[tempo] invalid userTokens(address) result: malformed address word');
   }
   if (/^0+$/.test(addressHex)) return null;
-  return `0x${addressHex}` as EvmAddress;
+  return `0x${addressHex}`;
 }
 
 export function buildTempoSetUserTokenCall(args: {

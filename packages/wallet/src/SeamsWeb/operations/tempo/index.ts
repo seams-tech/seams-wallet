@@ -7,7 +7,7 @@ export function toSerializableTempoError(
   if (error == null) return undefined;
   if (typeof error === 'string') return { message: error };
   if (error instanceof Error) {
-    const code = 'code' in error ? String((error as { code?: unknown }).code || '').trim() : '';
+    const code = 'code' in error ? String(error.code || '').trim() : '';
     return {
       ...(code ? { code } : {}),
       message: String(error.message || ''),

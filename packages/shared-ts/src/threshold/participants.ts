@@ -68,7 +68,7 @@ export function parseThresholdEd25519ParticipantsV1(
 
     const participant: ThresholdEd25519ParticipantV1 = {
       id,
-      role: role as ThresholdParticipantRole,
+      role: role,
     };
 
     const relayerUrl = toOptionalTrimmedString(rec.relayerUrl);

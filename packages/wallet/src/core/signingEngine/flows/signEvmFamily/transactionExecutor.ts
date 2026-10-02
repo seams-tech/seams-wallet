@@ -279,7 +279,7 @@ export async function executeEvmFamilyTransactionSigning(args: {
   return await executeConfiguredEvmFamilyTransactionSigning(
     {
       ...args,
-      request: args.request as TempoSigningRequest,
+      request: args.request,
     },
     {
       targetKind: 'tempo',

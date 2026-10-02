@@ -25,10 +25,10 @@ import { preconnectWalletAssets } from '../../SeamsWeb/assembly/preconnectWallet
 // - `/wallet-service` may 308 → `/wallet-service/` on Pages; both are fine.
 export function usePreconnectWalletAssets(config: SeamsContextProviderProps['config']): void {
   // Derive stable primitives to avoid re-running the effect on object identity changes.
-  const walletOrigin = config?.iframeWallet?.walletOrigin as string | undefined;
+  const walletOrigin = config?.iframeWallet?.walletOrigin;
   const servicePath = config?.iframeWallet?.walletServicePath || '/wallet-service';
   const sdkBasePath = config?.iframeWallet?.sdkBasePath || '/sdk';
-  const relayerUrl = config?.relayer?.url as string | undefined;
+  const relayerUrl = config?.relayer?.url;
 
   React.useEffect(() => {
     preconnectWalletAssets({

@@ -242,11 +242,10 @@ function parseWebAuthnCredentialBindingRecord(
   const nearAccountId = toOptionalTrimmedString(raw.nearAccountId);
   const nearEd25519SigningKeyId = toOptionalTrimmedString(raw.nearEd25519SigningKeyId);
   const publicKey = toOptionalTrimmedString(raw.publicKey);
-  const signerSlotRaw = (raw as { signerSlot?: unknown }).signerSlot;
-  const signerSlot =
-    typeof signerSlotRaw === 'number' ? signerSlotRaw : Number(signerSlotRaw);
-  const createdAtMsRaw = (raw as { createdAtMs?: unknown }).createdAtMs;
-  const updatedAtMsRaw = (raw as { updatedAtMs?: unknown }).updatedAtMs;
+  const signerSlotRaw = raw.signerSlot;
+  const signerSlot = typeof signerSlotRaw === 'number' ? signerSlotRaw : Number(signerSlotRaw);
+  const createdAtMsRaw = raw.createdAtMs;
+  const updatedAtMsRaw = raw.updatedAtMs;
   const createdAtMs = typeof createdAtMsRaw === 'number' ? createdAtMsRaw : Number(createdAtMsRaw);
   const updatedAtMs = typeof updatedAtMsRaw === 'number' ? updatedAtMsRaw : Number(updatedAtMsRaw);
 
@@ -272,14 +271,12 @@ function parseWebAuthnCredentialBindingRecord(
   if (!Number.isFinite(createdAtMs) || createdAtMs <= 0) return null;
   if (!Number.isFinite(updatedAtMs) || updatedAtMs <= 0) return null;
 
-  const relayerKeyId = toOptionalTrimmedString((raw as { relayerKeyId?: unknown }).relayerKeyId);
-  const keyVersion = toOptionalTrimmedString((raw as { keyVersion?: unknown }).keyVersion);
+  const relayerKeyId = toOptionalTrimmedString(raw.relayerKeyId);
+  const keyVersion = toOptionalTrimmedString(raw.keyVersion);
   const recoveryExportCapable =
-    typeof (raw as { recoveryExportCapable?: unknown }).recoveryExportCapable === 'boolean'
-      ? Boolean((raw as { recoveryExportCapable?: unknown }).recoveryExportCapable)
-      : undefined;
-  const clientParticipantIdRaw = (raw as { clientParticipantId?: unknown }).clientParticipantId;
-  const relayerParticipantIdRaw = (raw as { relayerParticipantId?: unknown }).relayerParticipantId;
+    typeof raw.recoveryExportCapable === 'boolean' ? Boolean(raw.recoveryExportCapable) : undefined;
+  const clientParticipantIdRaw = raw.clientParticipantId;
+  const relayerParticipantIdRaw = raw.relayerParticipantId;
   const clientParticipantId =
     typeof clientParticipantIdRaw === 'number'
       ? clientParticipantIdRaw
@@ -288,14 +285,14 @@ function parseWebAuthnCredentialBindingRecord(
     typeof relayerParticipantIdRaw === 'number'
       ? relayerParticipantIdRaw
       : Number(relayerParticipantIdRaw);
-  const participantIdsRaw = (raw as { participantIds?: unknown }).participantIds;
+  const participantIdsRaw = raw.participantIds;
   const participantIds = Array.isArray(participantIdsRaw)
     ? participantIdsRaw
         .map((v) => (typeof v === 'number' ? v : Number(v)))
         .filter((n) => Number.isFinite(n) && n >= 1)
         .map((n) => Math.floor(n))
     : null;
-  const runtimePolicyScopeRaw = (raw as { runtimePolicyScope?: unknown }).runtimePolicyScope;
+  const runtimePolicyScopeRaw = raw.runtimePolicyScope;
   const runtimePolicyScope = isObject(runtimePolicyScopeRaw)
     ? (() => {
         try {

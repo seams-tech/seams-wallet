@@ -117,7 +117,7 @@ type SignerWorkerRpcRequest = {
 };
 
 self.onmessage = async (event: MessageEvent<SignerWorkerRpcRequest>): Promise<void> => {
-  const requestId = String((event.data as { id?: unknown })?.id || '').trim();
+  const requestId = String(event.data?.id || '').trim();
   if (!requestId) {
     console.warn('[signer-worker]: Ignoring message without request id');
     return;

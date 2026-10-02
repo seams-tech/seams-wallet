@@ -31,14 +31,12 @@ function toEvmFamilyManagedNonceReservationFromSignedResult(args: {
   signedResult: TempoSignedResult | EvmSignedResult;
   walletId: string;
 }): EvmFamilyManagedNonceReservation {
-  const snapshot = (args.signedResult as { managedNonce?: unknown }).managedNonce;
+  const snapshot = args.signedResult.managedNonce;
   if (!snapshot || typeof snapshot !== 'object') {
     throw new Error('[SigningEngine][evm-family] managedNonce is required for nonce lifecycle');
   }
   try {
-    const parsed = fromManagedNonceReservationSnapshot(
-      snapshot as Parameters<typeof fromManagedNonceReservationSnapshot>[0],
-    );
+    const parsed = fromManagedNonceReservationSnapshot(snapshot);
     void args.walletId;
     return parsed;
   } catch (error: unknown) {

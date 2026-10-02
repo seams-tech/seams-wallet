@@ -27,9 +27,7 @@ export type ThresholdEcdsaBootstrapParityArgs = {
 
 export function isRetryableSealedRefreshCapabilityFetchError(error: unknown): boolean {
   const code =
-    error && typeof error === 'object' && 'code' in error
-      ? String((error as { code?: unknown }).code || '').trim()
-      : '';
+    error && typeof error === 'object' && 'code' in error ? String(error.code || '').trim() : '';
   if (
     code === 'sealed_refresh_parity_fetch_failed' ||
     code === 'sealed_refresh_parity_http_error' ||

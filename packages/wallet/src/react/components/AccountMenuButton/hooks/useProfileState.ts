@@ -26,10 +26,7 @@ export const useProfileState = (options?: UseProfileStateOptions) => {
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node;
-      const path =
-        typeof (event as any).composedPath === 'function'
-          ? ((event as any).composedPath() as Node[])
-          : [];
+      const path = typeof event.composedPath === 'function' ? (event.composedPath() as Node[]) : [];
 
       const isInPath = (el: HTMLElement | null) => {
         if (!el) return false;
@@ -37,8 +34,8 @@ export const useProfileState = (options?: UseProfileStateOptions) => {
         return path.includes(el);
       };
 
-      const clickedInsideButton = isInPath(buttonRef.current as any);
-      const clickedInsideDropdown = isInPath(dropdownRef.current as any);
+      const clickedInsideButton = isInPath(buttonRef.current);
+      const clickedInsideDropdown = isInPath(dropdownRef.current);
       if (clickedInsideButton || clickedInsideDropdown) return;
 
       // Allow interactions with portaled overlays without closing the menu
@@ -78,8 +75,7 @@ export const useProfileState = (options?: UseProfileStateOptions) => {
 
   const setOpen = useCallback(
     (next: boolean | ((prev: boolean) => boolean)) => {
-      const resolved =
-        typeof next === 'function' ? (next as (prev: boolean) => boolean)(isOpen) : next;
+      const resolved = typeof next === 'function' ? next(isOpen) : next;
       if (!isControlled) {
         setUncontrolledOpen(resolved);
       }

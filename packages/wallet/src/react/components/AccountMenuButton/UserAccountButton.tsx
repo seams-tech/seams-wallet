@@ -32,7 +32,7 @@ export const UserAccountButton: React.FC<UserAccountButtonProps> = ({
         tabIndex={0}
         aria-haspopup="menu"
         aria-expanded={isOpen}
-        {...(menuId ? ({ 'aria-controls': menuId } as any) : {})}
+        {...(menuId ? { 'aria-controls': menuId } : {})}
         onKeyDown={onKeyDown}
         {...(onMouseEnter && { onMouseEnter })}
         {...(onMouseLeave && { onMouseLeave })}

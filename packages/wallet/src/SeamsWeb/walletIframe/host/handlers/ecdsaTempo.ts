@@ -1,4 +1,3 @@
-import type { ProgressPayload } from '../../shared/messages';
 import type { HandlerDeps, HandlerMap, Req } from './walletIframeHandler.types';
 import { respondOk, respondOkResult } from './shared';
 import type { EvmSignedResult } from '@/core/signingEngine/chains/evm/evmAdapter';
@@ -31,7 +30,7 @@ export function createEcdsaTempoWalletIframeHandlers(deps: HandlerDeps): Handler
         confirmationConfig: options?.confirmationConfig,
         shouldAbort: () => deps.isCancelled(req.requestId),
         onEvent: (ev: Parameters<typeof deps.postProgress>[1]) => {
-          deps.postProgress(req.requestId, ev as unknown as ProgressPayload);
+          deps.postProgress(req.requestId, ev);
         },
       };
       let result: TempoSignedResult | EvmSignedResult;
@@ -102,7 +101,7 @@ export function createEcdsaTempoWalletIframeHandlers(deps: HandlerDeps): Handler
         signedResult,
         txHash,
         options: {
-          onEvent: (ev) => deps.postProgress(req.requestId, ev as unknown as ProgressPayload),
+          onEvent: (ev) => deps.postProgress(req.requestId, ev),
         },
       });
       if (deps.respondIfCancelled(req.requestId)) return;
@@ -118,7 +117,7 @@ export function createEcdsaTempoWalletIframeHandlers(deps: HandlerDeps): Handler
         signedResult,
         ...(error ? { error } : {}),
         options: {
-          onEvent: (ev) => deps.postProgress(req.requestId, ev as unknown as ProgressPayload),
+          onEvent: (ev) => deps.postProgress(req.requestId, ev),
         },
       });
       if (deps.respondIfCancelled(req.requestId)) return;
@@ -135,7 +134,7 @@ export function createEcdsaTempoWalletIframeHandlers(deps: HandlerDeps): Handler
         ...(txHash ? { txHash } : {}),
         ...(receiptStatus ? { receiptStatus } : {}),
         options: {
-          onEvent: (ev) => deps.postProgress(req.requestId, ev as unknown as ProgressPayload),
+          onEvent: (ev) => deps.postProgress(req.requestId, ev),
         },
       });
       if (deps.respondIfCancelled(req.requestId)) return;
@@ -154,7 +153,7 @@ export function createEcdsaTempoWalletIframeHandlers(deps: HandlerDeps): Handler
         reason,
         ...(txHash ? { txHash } : {}),
         options: {
-          onEvent: (ev) => deps.postProgress(req.requestId, ev as unknown as ProgressPayload),
+          onEvent: (ev) => deps.postProgress(req.requestId, ev),
         },
       });
       if (deps.respondIfCancelled(req.requestId)) return;
@@ -169,7 +168,7 @@ export function createEcdsaTempoWalletIframeHandlers(deps: HandlerDeps): Handler
         walletSession,
         signedResult,
         options: {
-          onEvent: (ev) => deps.postProgress(req.requestId, ev as unknown as ProgressPayload),
+          onEvent: (ev) => deps.postProgress(req.requestId, ev),
         },
       });
       if (deps.respondIfCancelled(req.requestId)) return;

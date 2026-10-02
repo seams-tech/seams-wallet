@@ -259,7 +259,7 @@ export async function orchestrateSigningConfirmation(
       const normalizedTxs = txSigningRequests.map((tx) => ({
         receiverId: tx.receiverId,
         actions: tx.actions.map(orderActionForDigest),
-      })) as TransactionInputWasm[];
+      }));
       const summaryBase: TransactionSummary = {
         receiverId: txSigningRequests[0]?.receiverId,
         totalAmount: computeTotalAmountYocto(txSigningRequests),

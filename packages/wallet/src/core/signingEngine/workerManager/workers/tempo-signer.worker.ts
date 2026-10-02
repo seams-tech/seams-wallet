@@ -111,16 +111,13 @@ self.addEventListener('message', async (event: MessageEvent) => {
     await ensureWasm();
     switch (msg.type) {
       case 'computeTempoSenderHash': {
-        const out = compute_tempo_sender_hash(msg.payload.tx) as Uint8Array;
+        const out = compute_tempo_sender_hash(msg.payload.tx);
         const ab = out.slice().buffer;
         postOperationSucceeded(msg, ab, [ab]);
         return;
       }
       case 'encodeTempoSignedTx': {
-        const out = encode_tempo_signed_tx(
-          msg.payload.tx,
-          toU8(msg.payload.senderSignature),
-        ) as Uint8Array;
+        const out = encode_tempo_signed_tx(msg.payload.tx, toU8(msg.payload.senderSignature));
         const ab = out.slice().buffer;
         postOperationSucceeded(msg, ab, [ab]);
         return;

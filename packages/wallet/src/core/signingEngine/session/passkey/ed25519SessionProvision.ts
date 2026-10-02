@@ -343,9 +343,7 @@ export async function provisionThresholdEd25519Session(
       });
     } catch (error: unknown) {
       const details = String(
-        error && typeof error === 'object' && 'message' in error
-          ? (error as { message?: unknown }).message
-          : error || '',
+        error && typeof error === 'object' && 'message' in error ? error.message : error || '',
       ).trim();
       return {
         ok: false,

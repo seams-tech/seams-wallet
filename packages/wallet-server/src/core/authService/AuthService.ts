@@ -52,11 +52,7 @@ import {
   type WebAuthnSyncAccountOptionsResult,
   type WebAuthnLoginVerificationResult,
 } from './webauthn';
-import {
-  isAuthServiceProductionEnvironment,
-  readAuthServiceConfigValue,
-  type AuthServiceConfigSource,
-} from './configValues';
+import { isAuthServiceProductionEnvironment, readAuthServiceConfigValue } from './configValues';
 import {
   resolveEmailOtpConfig as resolveEmailOtpConfigFromSource,
   resolveEmailOtpRateLimitPolicies as resolveEmailOtpRateLimitPoliciesFromSource,
@@ -494,7 +490,7 @@ export class AuthService {
 
   private readConfigValue(name: string): string {
     return readAuthServiceConfigValue({
-      thresholdStore: this.config.thresholdStore as AuthServiceConfigSource,
+      thresholdStore: this.config.thresholdStore,
       name,
     });
   }
@@ -506,7 +502,7 @@ export class AuthService {
     googleRegistrationAttempt: { limit: number; windowMs: number };
   } {
     return resolveEmailOtpRateLimitPoliciesFromSource({
-      thresholdStore: this.config.thresholdStore as AuthServiceConfigSource,
+      thresholdStore: this.config.thresholdStore,
       production: this.isProductionEnvironment(),
     });
   }
@@ -544,7 +540,7 @@ export class AuthService {
 
   private resolveEmailOtpConfig(): EmailOtpConfig {
     return resolveEmailOtpConfigFromSource({
-      thresholdStore: this.config.thresholdStore as AuthServiceConfigSource,
+      thresholdStore: this.config.thresholdStore,
       production: this.isProductionEnvironment(),
     });
   }

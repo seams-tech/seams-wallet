@@ -127,10 +127,10 @@ async function callDo<T>(
   if (!isPlainObject(json)) {
     throw new Error('Threshold DO store returned invalid JSON shape');
   }
-  const ok = (json as { ok?: unknown }).ok;
+  const ok = json.ok;
   if (ok === true) return json as DoOk<T>;
-  const code = toOptionalTrimmedString((json as { code?: unknown }).code);
-  const message = toOptionalTrimmedString((json as { message?: unknown }).message);
+  const code = toOptionalTrimmedString(json.code);
+  const message = toOptionalTrimmedString(json.message);
   return { ok: false, code: code || 'internal', message: message || 'Threshold DO store error' };
 }
 
@@ -225,9 +225,9 @@ class CloudflareDurableObjectWalletSessionStore<
     const resp = await callDo<unknown | null>(this.stub, { op: 'get', key: this.key(id) });
     if (!resp.ok) return null;
     const raw = resp.value;
-    const entry = isPlainObject(raw) ? (raw as Record<string, unknown>) : null;
-    const record = entry ? this.parseRecord((entry as { record?: unknown }).record) : null;
-    const expiresAtMs = entry ? (entry as { expiresAtMs?: unknown }).expiresAtMs : null;
+    const entry = isPlainObject(raw) ? raw : null;
+    const record = entry ? this.parseRecord(entry.record) : null;
+    const expiresAtMs = entry ? entry.expiresAtMs : null;
     if (!record || typeof expiresAtMs !== 'number' || !Number.isFinite(expiresAtMs)) return null;
     if (expiresAtMs <= Date.now()) return null;
     return record;
@@ -501,8 +501,7 @@ export function createCloudflareDurableObjectThresholdEcdsaStores(input: {
   }
 
   const configuredObjectName =
-    toOptionalTrimmedString((config as { objectName?: unknown }).objectName) ||
-    toOptionalTrimmedString((config as { name?: unknown }).name);
+    toOptionalTrimmedString(config.objectName) || toOptionalTrimmedString(config.name);
   const ecdsaObjectName = configuredObjectName || 'threshold-ecdsa-store';
   const walletSessionObjectName = configuredObjectName || THRESHOLD_DO_OBJECT_NAME_DEFAULT;
 

@@ -49,7 +49,7 @@ function validateTransactionWithActionsRequest(
   }
   const legacyTransactions = (payload as { transactions?: unknown }).transactions;
   if (Array.isArray(legacyTransactions)) {
-    rejectNearMultiTransactionSigning(legacyTransactions as TransactionInputWasm[]);
+    rejectNearMultiTransactionSigning(legacyTransactions);
   }
   validateNearTransactionInput(payload.transaction, 0);
 }

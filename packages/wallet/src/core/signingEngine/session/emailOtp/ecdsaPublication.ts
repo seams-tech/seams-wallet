@@ -593,7 +593,7 @@ export async function persistEmailOtpEcdsaSigningSessionForRefresh(
     throw new Error('Email OTP sealed refresh requires worker-owned warm material');
   }
   const emailOtpWorkerSessionId = readyPersistenceInput.material.workerSessionId;
-  const actualChainTarget = keyRef.chainTarget as ThresholdEcdsaChainTarget | undefined;
+  const actualChainTarget = keyRef.chainTarget;
   if (!actualChainTarget) {
     throw new Error('Email OTP sealed refresh requires exact ECDSA chain target');
   }

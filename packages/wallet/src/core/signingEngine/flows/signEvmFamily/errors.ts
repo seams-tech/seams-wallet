@@ -51,7 +51,7 @@ function normalizeToken(value: unknown): string {
 
 export function extractErrorCode(error: unknown): string {
   if (!error || typeof error !== 'object' || !('code' in error)) return '';
-  return normalizeToken((error as { code?: unknown }).code);
+  return normalizeToken(error.code);
 }
 
 function extractErrorMessage(error: unknown): string {
@@ -59,7 +59,7 @@ function extractErrorMessage(error: unknown): string {
   if (typeof error === 'string') return error.trim();
   if (error instanceof Error) return String(error.message || '').trim();
   if (typeof error === 'object' && 'message' in error) {
-    return String((error as { message?: unknown }).message || '').trim();
+    return String(error.message || '').trim();
   }
   return String(error).trim();
 }
@@ -118,7 +118,7 @@ function createEvmFamilySigningNonceConflictError(args: {
   };
   if (args.cause !== undefined) {
     try {
-      (err as Error & { cause?: unknown }).cause = args.cause;
+      err.cause = args.cause;
     } catch {}
   }
   return err;
@@ -147,7 +147,7 @@ export function createEvmFamilySigningNonceLaneBlockedError(args: {
   };
   if (args.cause !== undefined) {
     try {
-      (err as Error & { cause?: unknown }).cause = args.cause;
+      err.cause = args.cause;
     } catch {}
   }
   return err;

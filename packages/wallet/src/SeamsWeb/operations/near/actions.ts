@@ -21,7 +21,7 @@ import { emitNearSigningEvent } from './signingEventHelpers';
 import { resolveNearCommandSubject } from './commandSubject';
 
 function signedTransactionSignerId(signedTransaction: SignedTransaction): string {
-  const tx = signedTransaction.transaction as { signerId?: unknown };
+  const tx = signedTransaction.transaction;
   const signerId = String(tx.signerId || '').trim();
   if (!signerId) {
     throw new Error('Signed transaction is missing signerId');
@@ -535,7 +535,7 @@ async function signTransactionWithActionsInternal({
     // WebAuthn challenge digest and NEAR data are computed in the confirmation flow
     // - Nonce will be fetched within the confirmation flow
     // This eliminates the ~500ms blocking operations before modal display
-    const results = (await context.signingEngine.signNear({
+    const results = await context.signingEngine.signNear({
       chain: 'near',
       kind: 'transactionWithActions',
       args: {
@@ -551,7 +551,7 @@ async function signTransactionWithActionsInternal({
         body: confirmerText?.body,
         onEvent,
       },
-    })) as SignTransactionResult;
+    });
     if (!results?.signedTransaction) {
       throw new Error('NEAR signing returned no signed transaction');
     }

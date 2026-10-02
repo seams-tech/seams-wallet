@@ -55,7 +55,7 @@ async function initSignerWasmForNode(candidates: readonly URL[]): Promise<void> 
   for (const url of candidates) {
     try {
       const filePath = fileURLToPath(url);
-      await initSignerWasm({ module_or_path: filePath as unknown as InitInput });
+      await initSignerWasm({ module_or_path: filePath });
       return;
     } catch {
       // try the next path candidate
@@ -77,7 +77,7 @@ async function initSignerWasmFromCandidates(input: {
   let lastError: unknown = null;
   for (const candidate of input.candidates) {
     try {
-      await initSignerWasm({ module_or_path: candidate as InitInput });
+      await initSignerWasm({ module_or_path: candidate });
       return;
     } catch (error: unknown) {
       lastError = error;
@@ -100,7 +100,7 @@ export async function ensureSignerWasmRuntime(input: {
   if (input.override) {
     try {
       const moduleOrPath = await resolveSignerWasmOverride(input.override);
-      await initSignerWasm({ module_or_path: moduleOrPath as InitInput });
+      await initSignerWasm({ module_or_path: moduleOrPath });
       return { signerWasmReady: true };
     } catch (error: unknown) {
       input.logger.error('Failed to initialize signer WASM via provided override:', error);

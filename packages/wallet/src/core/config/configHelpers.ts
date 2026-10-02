@@ -225,7 +225,7 @@ function resolveChainConfig(args: {
   input: SeamsChainConfigInput;
   fallback?: SeamsChainConfig;
 }): SeamsChainConfig {
-  const network = resolveChainNetwork((args.input as { network?: unknown }).network);
+  const network = resolveChainNetwork(args.input.network);
   const rpcUrl = resolveRequiredString({
     value: args.input.rpcUrl,
     fallback: args.fallback?.rpcUrl,
@@ -286,9 +286,9 @@ export function resolveChains(
     const byNetwork = new Map<SeamsChainNetwork, SeamsChainConfig>();
     const orderedNetworks: SeamsChainNetwork[] = [];
     for (const override of overrides) {
-      const network = resolveChainNetwork((override as { network?: unknown }).network);
+      const network = resolveChainNetwork(override.network);
       const resolved = resolveChainConfig({
-        input: override as SeamsChainConfigInput,
+        input: override,
         fallback: defaultsByNetwork.get(network),
       });
       byNetwork.set(network, resolved);

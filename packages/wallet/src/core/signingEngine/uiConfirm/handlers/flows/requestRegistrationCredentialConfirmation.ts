@@ -218,7 +218,7 @@ function parseDirectRegistrationDecisionMessage(
   if (!isObject(message)) {
     return { ok: false, message: 'Registration confirmation returned a malformed response' };
   }
-  const envelope = message as { type?: unknown; requestId?: unknown; data?: unknown };
+  const envelope = message;
   if (envelope.type !== UserConfirmMessageType.USER_PASSKEY_CONFIRM_RESPONSE) {
     return { ok: false, message: 'Registration confirmation returned an unexpected response type' };
   }
@@ -229,15 +229,7 @@ function parseDirectRegistrationDecisionMessage(
   if (!isObject(envelope.data)) {
     return { ok: false, message: 'Registration confirmation returned missing decision data' };
   }
-  const data = envelope.data as {
-    requestId?: unknown;
-    intentDigest?: unknown;
-    confirmed?: unknown;
-    credential?: unknown;
-    transactionContext?: unknown;
-    registrationDiagnostics?: unknown;
-    error?: unknown;
-  };
+  const data = envelope.data;
   const decisionRequestId = isString(data.requestId) ? data.requestId.trim() : '';
   if (decisionRequestId !== expectedRequestId) {
     return { ok: false, message: 'Registration confirmation decision requestId mismatch' };

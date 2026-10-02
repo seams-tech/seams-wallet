@@ -23,7 +23,7 @@ function buildAllowAttr(walletOrigin: string): string {
 }
 
 function isOverlayForOrigin(el: HTMLIFrameElement, walletOrigin: string): boolean {
-  const dsOrigin = (el as { dataset?: { seamsOrigin?: string } }).dataset?.seamsOrigin;
+  const dsOrigin = el.dataset?.seamsOrigin;
   if (dsOrigin) return dsOrigin === walletOrigin;
   try {
     return new URL(el.src).origin === walletOrigin;
@@ -42,7 +42,7 @@ export function removeExistingOverlaysForOrigin(walletOrigin: string): void {
 
   if (isDevHost()) {
     const routerIds = matches
-      .map((el) => (el as { dataset?: { seamsRouterId?: string } }).dataset?.seamsRouterId)
+      .map((el) => el.dataset?.seamsRouterId)
       .filter((v): v is string => typeof v === 'string' && v.length > 0);
     console.warn(
       `[IframeTransport] Found existing wallet overlay iframe(s) for ${walletOrigin}. This usually indicates multiple SDK instances. Removing old iframe(s) to avoid duplicates.`,

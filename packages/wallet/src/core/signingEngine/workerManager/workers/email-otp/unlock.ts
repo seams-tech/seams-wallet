@@ -222,11 +222,8 @@ export async function unlockEmailOtpAuthorityWallet(
       clientSecret32: factorSecret32,
       walletId,
     });
-    unlockPublicKey33 = secp256k1_private_key_32_to_public_key_33(unlockPrivateKey32) as Uint8Array;
-    unlockSignature65 = sign_secp256k1_recoverable(
-      challengeDigest32,
-      unlockPrivateKey32,
-    ) as Uint8Array;
+    unlockPublicKey33 = secp256k1_private_key_32_to_public_key_33(unlockPrivateKey32);
+    unlockSignature65 = sign_secp256k1_recoverable(challengeDigest32, unlockPrivateKey32);
     const verified = await postEmailOtpJson({
       relayUrl,
       route: '/wallet/unlock/verify',
@@ -528,11 +525,8 @@ export async function completeEmailOtpUnlockFromSecret32(args: {
       clientSecret32: args.clientSecret32,
       walletId,
     });
-    unlockPublicKey33 = secp256k1_private_key_32_to_public_key_33(unlockPrivateKey32) as Uint8Array;
-    unlockSignature65 = sign_secp256k1_recoverable(
-      challengeDigest32,
-      unlockPrivateKey32,
-    ) as Uint8Array;
+    unlockPublicKey33 = secp256k1_private_key_32_to_public_key_33(unlockPrivateKey32);
+    unlockSignature65 = sign_secp256k1_recoverable(challengeDigest32, unlockPrivateKey32);
 
     const clientUnlockPublicKeyB64u = base64UrlEncode(unlockPublicKey33);
     const unlockSignatureB64u = base64UrlEncode(unlockSignature65);

@@ -95,10 +95,10 @@ function enrichOperation(operation: TxDisplayOperation): TxDisplayOperation {
   const operationWithChildren =
     children === operation.children
       ? operation
-      : ({
+      : {
           ...operation,
           children,
-        } as TxDisplayOperation);
+        };
 
   if (!isGenericContractCallOperation(operationWithChildren)) {
     return operationWithChildren;

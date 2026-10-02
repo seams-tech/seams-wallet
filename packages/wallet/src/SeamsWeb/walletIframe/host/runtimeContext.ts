@@ -98,7 +98,7 @@ function pinnedHostSurfaceVariantForRequest(
   req: ParentToChildEnvelope,
 ): 'modal' | 'drawer' | undefined {
   if (req.type !== 'PM_EXPORT_KEYPAIR_UI') return undefined;
-  const payload = req.payload as { options?: { variant?: unknown } } | undefined;
+  const payload = req.payload;
   const variant = payload?.options?.variant;
   return variant === 'modal' || variant === 'drawer' ? variant : 'drawer';
 }
@@ -188,7 +188,7 @@ export function syncActiveWalletHostRuntimeConfig(state: WalletHostRuntimeState)
 
 function ensureHostSeamsWeb(ctx: HostContext, input: WalletHostRuntimeRequest): SeamsWeb {
   const previous = ctx.seamsWeb;
-  const seamsWeb = ensureSeamsWeb(ctx) as SeamsWeb;
+  const seamsWeb = ensureSeamsWeb(ctx);
   ensureWalletHostLifecycleSubscription(ctx, seamsWeb);
   if (previous === seamsWeb) return seamsWeb;
 
@@ -271,7 +271,7 @@ export async function handleWalletHostRuntimeRequestWithHandlers(
       handlerMaps.set(createHandlers, handlers);
     }
 
-    const handler = handlers[input.req.type as ParentToChildType] as unknown as
+    const handler = handlers[input.req.type] as unknown as
       | ((r: ParentToChildEnvelope) => Promise<void>)
       | undefined;
     if (!handler) {

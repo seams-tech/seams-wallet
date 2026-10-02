@@ -537,8 +537,8 @@ const AccountMenuButtonInner: React.FC<
     const el = refs.menuItemsRef.current?.[highlightedIndex];
     if (!el) return;
     const focusItem = () => {
-      if (typeof (el as any).focus === 'function') {
-        (el as any).focus();
+      if (typeof el.focus === 'function') {
+        el.focus();
       }
     };
     if (typeof window === 'undefined') {
@@ -702,7 +702,7 @@ const AccountMenuButtonInner: React.FC<
             }}
             onEvent={(event) => deviceLinkingScannerParams?.onEvent?.(event)}
           />,
-          portalHost!,
+          portalHost,
         )}
 
       {/* Linked Devices Modal (portaled alongside the other account-menu modals) */}
@@ -713,7 +713,7 @@ const AccountMenuButtonInner: React.FC<
             isOpen={showAuthenticationMethods}
             onClose={() => setShowAuthenticationMethods(false)}
           />,
-          portalHost!,
+          portalHost,
         )}
 
       {canPortal &&
@@ -723,7 +723,7 @@ const AccountMenuButtonInner: React.FC<
             isOpen={showLinkedDevices}
             onClose={() => setShowLinkedDevices(false)}
           />,
-          portalHost!,
+          portalHost,
         )}
     </div>
   );
