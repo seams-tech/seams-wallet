@@ -10,7 +10,6 @@ import { pathToFileURL } from 'url';
 // export maps (e.g. `dist/esm/index.js`, `dist/esm/core/...`).
 const SDK_ROOT_ABS = process.cwd();
 const CLIENT_SRC_ROOT_ABS = path.resolve(SDK_ROOT_ABS, 'src');
-const CLIENT_REACT_ROOT_ABS = path.resolve(SDK_ROOT_ABS, 'src/react');
 const CLIENT_PLUGINS_ROOT_ABS = path.resolve(SDK_ROOT_ABS, 'src/plugins');
 const WALLET_STATIC_ASSETS_ROOT_ABS = path.resolve(SDK_ROOT_ABS, 'src/static/wallet-assets');
 const WALLET_STATIC_ASSET_FILES = ['wallet-shims.js', 'wallet-service.css'] as const;
@@ -67,15 +66,14 @@ const stripLeadingDotDots = (p: string): string => {
   while (out.startsWith('../')) out = out.slice(3);
   return out;
 };
-const preservedModuleOut = (opts: { facadeModuleId: string; rootAbs: string; prefix: string }) => {
+const preservedModuleOut = (opts: { facadeModuleId: string; rootAbs: string }) => {
   const facadeAbs = path.resolve(opts.facadeModuleId);
   if (facadeAbs === NEAR_SIGNER_WASM_JS_ABS) return NEAR_SIGNER_WASM_JS_OUT;
   if (facadeAbs === ED25519_YAO_CLIENT_WASM_JS_ABS) return ED25519_YAO_CLIENT_WASM_JS_OUT;
   if (facadeAbs === ECDSA_CLIENT_WASM_JS_ABS) return ECDSA_CLIENT_WASM_JS_OUT;
 
   const rel = toPosixPath(path.relative(opts.rootAbs, facadeAbs));
-  const relNoExt = stripExt(stripLeadingDotDots(rel));
-  return opts.prefix ? `${opts.prefix}/${relNoExt}.js` : `${relNoExt}.js`;
+  return `${stripExt(stripLeadingDotDots(rel))}.js`;
 };
 
 const ensureEd25519YaoClientNamedInitExport = (code: string): string => {
@@ -472,14 +470,10 @@ const inlineCssImports = (filePath: string, seen = new Set<string>()): string =>
 const emitReactCssAssets = (sdkRoot = process.cwd()): void => {
   const srcReactRoot = path.join(sdkRoot, 'src/react');
   const destReactRoot = path.join(sdkRoot, `${BUILD_PATHS.BUILD.ESM}/react`);
-  const destModuleRoot = path.join(sdkRoot, BUILD_PATHS.BUILD.ESM);
   for (const src of collectCssFiles(srcReactRoot)) {
-    const rel = path.relative(srcReactRoot, src);
-    for (const root of [destReactRoot, destModuleRoot]) {
-      const dest = path.join(root, rel);
-      fs.mkdirSync(path.dirname(dest), { recursive: true });
-      fs.copyFileSync(src, dest);
-    }
+    const dest = path.join(destReactRoot, path.relative(srcReactRoot, src));
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    fs.copyFileSync(src, dest);
   }
   const stylesOut = path.join(destReactRoot, 'styles/styles.css');
   fs.mkdirSync(path.dirname(stylesOut), { recursive: true });
@@ -542,6 +536,13 @@ const configs = [
       'src/core/signingEngine/uiConfirm/ui/preact/ConfirmationModal.tsx',
       'src/core/signingEngine/uiConfirm/ui/preact/ConfirmationDrawer.tsx',
       'src/core/signingEngine/uiConfirm/ui/preact/mountConfirmationSurface.tsx',
+      // React entries share this module tree, so an app that imports both `@seams/wallet`
+      // and `@seams/wallet/react` loads each SDK module once.
+      'src/react/index.ts',
+      'src/react/context/SeamsWebProvider.tsx',
+      // Ensure public subpath entrypoints exist in dist even when re-exports are flattened.
+      'src/react/components/HostedSeamsAuthMenu/public.ts',
+      'src/react/externalEvm.tsx',
     ],
     output: {
       dir: BUILD_PATHS.BUILD.ESM,
@@ -553,7 +554,6 @@ const configs = [
         return preservedModuleOut({
           facadeModuleId: chunk.facadeModuleId,
           rootAbs: CLIENT_SRC_ROOT_ABS,
-          prefix: '',
         });
       },
       chunkFileNames: (chunk) => {
@@ -561,7 +561,6 @@ const configs = [
         return preservedModuleOut({
           facadeModuleId: chunk.facadeModuleId,
           rootAbs: CLIENT_SRC_ROOT_ABS,
-          prefix: '',
         });
       },
       sourcemap: true,
@@ -593,43 +592,6 @@ const configs = [
       dir: BUILD_PATHS.BUILD.ESM,
       format: 'esm',
       entryFileNames: 'plugins/next.js',
-      sourcemap: true,
-    },
-    external,
-    resolve: {
-      alias: aliasConfig,
-    },
-  },
-  // React ESM build
-  {
-    input: [
-      'src/react/index.ts',
-      'src/react/context/SeamsWebProvider.tsx',
-      // Ensure public subpath entrypoints exist in dist even when re-exports are flattened.
-      'src/react/components/HostedSeamsAuthMenu/public.ts',
-      'src/react/externalEvm.tsx',
-    ],
-    output: {
-      dir: BUILD_PATHS.BUILD.ESM,
-      format: 'esm',
-      preserveModules: true,
-      preserveModulesRoot: CLIENT_REACT_ROOT_ABS,
-      entryFileNames: (chunk) => {
-        if (!chunk.facadeModuleId) return `react/${chunk.name}.js`;
-        return preservedModuleOut({
-          facadeModuleId: chunk.facadeModuleId,
-          rootAbs: CLIENT_REACT_ROOT_ABS,
-          prefix: 'react',
-        });
-      },
-      chunkFileNames: (chunk) => {
-        if (!chunk.facadeModuleId) return `react/${chunk.name}.js`;
-        return preservedModuleOut({
-          facadeModuleId: chunk.facadeModuleId,
-          rootAbs: CLIENT_REACT_ROOT_ABS,
-          prefix: 'react',
-        });
-      },
       sourcemap: true,
     },
     external,

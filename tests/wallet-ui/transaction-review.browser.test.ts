@@ -426,7 +426,7 @@ for (const phase of ['reviewing', 'wallet_approval'] as const) {
     }
     await page.evaluate(async () => {
       const { getTransactionReviewBridge } =
-        await import('/_test-sdk/esm/react/SeamsWeb/publicApi/transactionReview.js');
+        await import('/_test-sdk/esm/SeamsWeb/publicApi/transactionReview.js');
       const state = window as any;
       const router = await getTransactionReviewBridge(state.reviewSeams.near)!
         .getWalletIframe()
@@ -1063,7 +1063,7 @@ test('same-wallet session replacement cancels active and queued reviews and rele
   });
   await page.evaluate(async () => {
     const { getTransactionReviewBridge } =
-      await import('/_test-sdk/esm/react/SeamsWeb/publicApi/transactionReview.js');
+      await import('/_test-sdk/esm/SeamsWeb/publicApi/transactionReview.js');
     const state = window as any;
     state.reviewRouter = await getTransactionReviewBridge(state.reviewSeams.near)!
       .getWalletIframe()
@@ -1247,7 +1247,7 @@ test('cancelAll preserves a signing review until its real result settles', async
   await expect.poll(() => page.evaluate(() => (window as any).reviewSigned)).toBe(1);
   await page.evaluate(async () => {
     const { getTransactionReviewBridge } =
-      await import('/_test-sdk/esm/react/SeamsWeb/publicApi/transactionReview.js');
+      await import('/_test-sdk/esm/SeamsWeb/publicApi/transactionReview.js');
     const router = await getTransactionReviewBridge((window as any).reviewSeams.near)!
       .getWalletIframe()
       .requireTransportRouter();
@@ -1266,7 +1266,7 @@ test('cancelAll removes queued reviews before releasing the active review', asyn
   await expect(page.getByText('Purchase context preserved')).toBeVisible();
   await page.evaluate(async () => {
     const { getTransactionReviewBridge } =
-      await import('/_test-sdk/esm/react/SeamsWeb/publicApi/transactionReview.js');
+      await import('/_test-sdk/esm/SeamsWeb/publicApi/transactionReview.js');
     (window as any).reviewRouter = await getTransactionReviewBridge(
       (window as any).reviewSeams.near,
     )!
