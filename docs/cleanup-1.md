@@ -6,10 +6,10 @@ worker, route and fixture clusters outside R150's files, and split oversized
 files along their seams. R150 is on `dev`, but feature work still changes
 Phase 4's files. A second survey (below) found more to remove outside them. CI
 runs `pnpm report:bloat --check`, which fails when a ratcheted measure grows
-past `scripts/bloat-baseline.json`, now recorded at `332b18f`. Since the first
-baseline (`7c8a163`), TypeScript code is down 34,446 lines net of new feature
-code, Rust code 25,567 and JavaScript 10,313. Duplication is down from 5.1%
-to 3.1% in TypeScript and from 5.7% to 4.9% in Rust, and files over 2,000
+past `scripts/bloat-baseline.json`, now recorded at `0e647b1`. Since the first
+baseline (`7c8a163`), TypeScript code is down 37,836 lines net of new feature
+code, Rust code 25,563 and JavaScript 9,799. Duplication is down from 5.1%
+to 3.0% in TypeScript and from 5.7% to 4.9% in Rust, and files over 2,000
 lines from 82 to 66. The findings below are the
 first baseline's; run `pnpm report:bloat` for current numbers.
 
@@ -57,6 +57,7 @@ files that repeat themselves.
 - [ ] Phase 4: restructure R150's largest files once feature work in them
   settles.
 - [ ] The second survey's remaining items, and its decisions.
+- [ ] The third survey's decisions, and the Rust survey's findings.
 
 ## Findings
 
@@ -657,6 +658,99 @@ the remaining validation modules (lenient on purpose, or with a message per
 object), `thiserror` for the Rust `Display` impls, and moving
 `tenant_root_role_d1.rs`'s debug probes (a size seam, not a reduction).
 
+## Third survey (2026-10-02)
+
+Eight surveys covered what the first two did not: protocol dead ends,
+dead Rust behind `pub`, legacy paths and settings, members below the export
+level, structure, code health, docs and configuration, and shipped bytes.
+The Rust survey is still running.
+
+Landed:
+- Broken doc links (237 unresolved to 2), nine wallet test scripts that
+  never worked, stale ignore entries, the generated files' regenerate
+  commands, and READMEs naming deleted files (a9e5bd7, 70149a9, 4a94c2a,
+  d1067df).
+- Six stale tests brought back in line with the code; the unit suite
+  passes 240 of 240 (282cace).
+- Three worker request groups nothing sent (6f86c1b); 128 declarations,
+  11 methods and 26 members nothing references by symbol (7269547); 203
+  never-read fields on internal types (ede89d9); 379 casts the compiler
+  does not need (f9c293e); commented-out code and an unset test hook
+  (0e647b1).
+- The base58 re-exports that sat on the wallet iframe's boot path
+  (4fbf962: boot 24.7 to 21.5 kB gzip, 8.5 kB off the workers) and the
+  wallet's largest import cycle (335f287).
+
+Decisions, largest first:
+- Features that are built and unreached. Finish or delete each:
+  - Signing lanes: about 28,700 lines across TypeScript, Rust, SQL and the
+    client, and a 2.8 MB lane-materialization schedule.
+    `docs/refactor-150-state-ownership-map.md` calls them unfinished
+    infrastructure.
+  - ECDSA activation refresh (about 1,850), linked-device ECDSA signing
+    and presign (about 1,960), and the tenant-root cutover store (about
+    1,616 and a 768-line test).
+  - The root-epoch V1 local protocol (about 4,300 and 1,500 of tests),
+    reached only by five router-ab-dev binaries nothing names; the debug
+    role-store probe (1,868), at a path nothing posts to.
+- The `AuthService` class server stack, about 13,400 lines. Every gateway
+  builds the D1 router service; only the self-host example constructs
+  `AuthService`, and that example does not type-check. Retiring it also
+  settles the threshold session stores, the Durable Object handlers and
+  about 25 settings nothing sets, and removes two of the defects below.
+- 22 of 111 public wallet-server routes with no caller (about 2,700), and
+  about 780 lines of `ThresholdStoreDurableObject` operations no commit
+  ever sent.
+- Schema: nine store files hold 37 create-if-missing statements (about
+  800 lines) that have drifted from the migrations and re-create four
+  indexes migration 0015 dropped. Squashing the signer migrations would
+  take 9,211 lines to about 3,100 and breaks local ledgers; it belongs
+  with the planned clean reset.
+- Plan docs: 11 are finished (7,405 lines) and 8 never started with no
+  code (2,887). Proposed rule: a plan is finished when its status says
+  implemented, released or closed; fold what is still true into its spec
+  and move it to `docs/archive/` with one index line.
+- Shipped bytes: minify the iframe host (boot 24.9 to 17.1 kB gzip, first
+  runtime request 1,065 to 735 kB gzip, at the cost of readable stack
+  traces), strip comments from `wallet-ui.css` (9.9 kB gzip), minify the
+  custody ceremony worker (10.6 kB gzip), stop the React build re-emitting
+  the SDK, load `jsqr` on demand (47 kB gzip), and drop name sections from
+  the role Workers' wasm.
+- 147 uncalled methods on public classes (2,156 lines) and 1,968
+  never-read fields on public types (6,153 lines).
+- 19 oversized files nobody is changing come under 2,000 lines by pure
+  moves (66 to 47); the plan's rule is that a split must follow a seam.
+- The 27 "R120" and refactor citations: rename them in prose, or exempt
+  R120 as a protocol name.
+
+Possible defects, for their owners:
+- `core/authService/oidcVerification.ts` swallows a failed identity-store
+  read, so the login proceeds under the bare Google subject instead of
+  the linked user. The D1 service propagates the failure.
+- `BrowserSigningSurface.ts` clears warm signing material after a signing
+  failure inside six empty catches; `lock()` runs the same steps and
+  rethrows.
+- `ThresholdService/kv.ts` falls back to GET then DEL when GETDEL fails,
+  and WebAuthn challenges are consumed through it (Upstash only).
+- Two `passkey-mpc-session.worker.ts` handlers post no reply when they
+  reject.
+- The Raw data disclosure in `TransactionReview.tsx` toggles without
+  announcing a resize, so the card is clipped for about ten frames. One
+  tree-growth test fails on it.
+- The wallet posts to `/wallet/email-otp/registration/challenge` and
+  `/finalize`, which no server in this repository has ever served.
+- `RecoveredCapabilityOwnershipV1`'s `caller_owned` is never produced.
+- Nothing in CI or the release workflow runs the production build; the
+  release uses dev mode and unminified workers. The
+  `./web/wallet-iframe-client-html` export points at a file the build
+  does not emit. The Yao client wasm is fetched under two URLs.
+
+Checked and not worth doing: parameters always passed the same value,
+forwarders with several callers, merging modules with one importer,
+type-only import cycles, wrangler and tsconfig duplication, per-worker
+splits of shared-ts modules (the bundler already trims them), and
+renames without a split.
+
 ## Verification
 
 ```bash
@@ -891,3 +985,10 @@ Found during the cleanup and left unchanged, for their owners to check:
   TypeScript code 539,841 -> 505,395 lines; Rust code 433,451 -> 407,884;
   Rust `allow(dead_code)` 125 -> 90. The baseline was re-recorded at
   `332b18f`.
+- 2026-10-02: the third survey's first batch (a9e5bd7 to 0e647b1). Against
+  the first baseline, measured at `0e647b1`: TypeScript code 539,841 ->
+  502,005 lines; duplicated TypeScript lines 21,753 (5.1%) -> 12,107
+  (3.0%); test-only exports 272 -> 161; names exported from 2+ files 198
+  -> 149; validation functions 4,276 -> 3,701 (86,063 -> 73,427 lines).
+  The wallet iframe's boot path is 21.5 kB gzip, down from 24.7. The
+  baseline was re-recorded at `0e647b1`.
