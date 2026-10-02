@@ -2353,3 +2353,84 @@ freshness/home/version checks, and enforces activated version identity at runtim
 Before/after provider reads alone cannot prevent a later privileged change.
 The SDK migration release, coordinated deployment and hosted validation remain
 open; this checkpoint does not yet gate the existing activation path.
+
+## Activation consumption and runtime version admission (October 2)
+
+Private implementation: `seams-monorepo` commit `a367716`. Both operator provisioning
+and `adopt-home` now run combined home verification and submit the checkpoint to
+the existing protected GitHub OIDC route. Console validates it at that boundary,
+then carries a validated domain object into activation. The protected workflow's
+cutover step receives the existing Cloudflare account/token secrets. No workflow
+was dispatched and no credentials were printed or changed.
+
+Console migration `0050_tenant_deployment_home_verification.sql` adds immutable
+verification evidence to activation rows and a unique challenge-ID index. The
+activation INSERT, existing active-pointer/cutover transition and proof consumption
+share the transaction. The evidence names its reserved namespace/home, lane,
+challenge, validity window and writer deployment/version IDs. Reusing the same
+challenge for another operation fails. Expiry is checked in application code and
+against SQLite's clock during insertion, conservatively requiring validity beyond
+the current second. Exact completed activation retries still succeed after expiry
+when their original evidence and active pointer match. Already active deployments
+do not expire when the verification window ends.
+
+Split Gateway requests and cron work, plus bound Wallet Runtime requests, report
+their version metadata during Console admission. The existing binding query now
+joins activation evidence and rejects unmatched or unattested versions. An index
+supports that join. **No extra signing/unlock D1 roundtrip is introduced**; hosted
+latency of the expanded query has not yet been measured. A new protected deployment
+with unchanged wallet configuration refreshes activation while preserving its
+canonical binding, custody and credential. Historical conversion remains confined
+to the explicit adoption boundary.
+
+Hosted onboarding can reuse an active deployment; it cannot create a new hosted
+activation without the protected operator's verification. The local combined
+development Worker retains its bootstrap authority through a distinct validated
+local proof. SQL rejects that authority for production bindings; the hosted
+operator boundary rejects local proofs and split runtime admission requires
+Cloudflare evidence. The operator's JSON checkpoint is trusted through GitHub OIDC;
+it is not a signed attestation issued by Cloudflare.
+
+**Nine related E2Es passed in 21.9 seconds.** The extended challenge scenario runs
+production Console/Gateway/Runtime sources with two real local D1 databases, all
+forty signer migrations, synthetic version metadata and controlled provider HTTP.
+It consumes the actual combined CLI receipt through activation, proves a second
+operation cannot reuse it, verifies a completed retry after expiry, admits both
+recorded writer roles, and rejects a Gateway running a different version. It also
+rejects local verification for a production binding. Challenge cleanup still
+records five INSERTs and five DELETEs across the successful and failed CLI cases.
+
+The protected adoption E2E verifies failed-canary and lost-response retries without
+reactivation, then performs a fresh same-binding operator redeploy. The latter
+creates one additional activation, retains one credential and preserves the
+original historical binding. The eight existing binding tests passed in 1.7 seconds.
+Server, Console-test and type-fixture checks, targeted lint, formatting and the
+Wallet bloat check passed. No new unit tests were added.
+
+Two failures were resolved during development: a valid direct-SQL fixture needed
+the newly required verification to reach its canonical-home assertion; the new
+redeploy path initially routed canonical bindings through the historical decoder.
+The latter was a production regression in the new code. The persistence boundary
+now validates and reuses a canonical binding, and the redeploy E2E passes.
+
+Private evidence: `.artifacts/r152/activation-verification-20261002/` contains
+`e2e.log`, `existing-binding-tests.log`, challenge/adoption/binding receipts,
+`activated-home-verification.json`, `combined-home-checkpoint.json`, bloat output,
+source hashes and verification metadata. Reproduce the central flow:
+
+```sh
+pnpm -C tests exec playwright test -c playwright.relayer.config.ts \
+  relayer/tenant-home-challenge.e2e.test.ts \
+  relayer/tenant-home-adoption-operator.e2e.test.ts \
+  --reporter=line --output=test-results/r152-activation-verification
+```
+
+This milestone is local verification only. No provider check, hosted challenge,
+deployment or new latency measurement was performed. Remaining rollout work:
+publish/consume the exact Wallet Server release with signer migration 0040; apply
+Console migration 0050 through a coordinated deployment; revise the current
+pre-cutover smoke ordering; run hosted verification/canaries; and review remaining
+internal/control/admin writer paths. Older activations have no version evidence
+and cannot admit updated split writers until a verified activation replaces them.
+Runtime admission constrains these entrypoints; it cannot constrain privileged
+replacement code that ignores the check.

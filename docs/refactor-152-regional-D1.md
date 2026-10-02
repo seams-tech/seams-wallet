@@ -69,6 +69,13 @@ writer; it rejects gradual rollouts before writing the challenge. Live execution
 and activation enforcement remain open. See the
 [version-bound checkpoint evidence](refactor-152-results.md#version-bound-home-checkpoint-october-2).
 
+Private commit `a367716` consumes that evidence atomically with activation and
+enforces the activated versions on split Gateway requests/scheduled work and
+bound Wallet Runtime requests. The nine related local E2Es pass. Hosted rollout
+ordering, the migration release and remaining internal writer-path coverage are
+still open. See the
+[activation evidence](refactor-152-results.md#activation-consumption-and-runtime-version-admission-october-2).
+
 ## Objective and starting evidence
 
 Use the [R151 empirical results](refactor-151-results.md) as the consolidated
@@ -489,18 +496,23 @@ below remain open.
   must match the serving versions, and provider deployments must stay unchanged
   across the challenge. Missing metadata, wrong versions and deployment drift
   fail. Combined verification requires one version per writer at 100% traffic.
-- [ ] Bind the combined evidence to a specific cutover operation through the
+- [x] Bind the combined evidence to a specific cutover operation through the
   protected operator authority. Persist the namespace/home, verified deployments
   and versions, operation identity and expiry. Consume fresh matching evidence
   in the activation transaction and reject replay into a different operation.
   Enforce the activated version identity in runtime admission, covering retries,
-  expiry and deployment changes after verification. The current CLI checkpoint
-  retains `activationAuthorized: false` and does not gate existing cutover calls.
+  expiry and deployment changes after verification. Console migration 0050 stores
+  immutable evidence in the activation row and makes challenge IDs unique. Both
+  operator cutover commands now submit fresh verification. Bound Gateway/Runtime
+  requests and Gateway cron enforce recorded versions in the existing binding
+  lookup. The standalone checkpoint retains `activationAuthorized: false`.
 - [ ] Publish and consume an exact Wallet Server release containing signer
-  migration 0040, then coordinate migrations, service bindings, Worker deployment
+  migration 0040, then coordinate Console migration 0050, service bindings, Worker deployment
   and historical adoption. Run the fresh challenge live and join both checkpoints
-  to the immutable Console reservation. Fence activation to the verified deployment
-  generation; include other reachable older/internal writer paths.
+  to the immutable Console reservation. Revise pre-cutover smoke ordering so new
+  versions receive their verified activation before bound traffic is tested.
+  Validate the fence on hosted Workers and cover other reachable older/internal
+  writer paths before claiming complete regional enforcement.
 - [ ] Reuse existing trusted tenant/environment routing where possible. Define
   required owner, home, and routing-generation identity at the server boundary.
   Reject inconsistent or stale routes before any mutation. Route lookup itself

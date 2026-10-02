@@ -475,14 +475,32 @@ and expiry fail verification. The combined command requires one serving version
 at 100% per writer so a single read covers each writer's serving code. The separate
 read-only provider command still inspects every version in a gradual rollout.
 
-This checkpoint remains an observation with `activationAuthorized: false`.
-Activation enforcement must persist trusted evidence for the exact cutover
-operation, consume it with home/version/expiry checks in the activation transaction
-and enforce the activated versions at runtime admission. The existing cutover
-path does not yet consume this checkpoint. Provider observations cannot be atomic
-with the Console D1 activation, so before/after reads alone cannot prevent a later
-privileged deployment change. Local tests use synthetic version metadata and a
-controlled provider transport; hosted verification remains a rollout prerequisite.
+The standalone checkpoint remains an observation with `activationAuthorized: false`.
+Private commit `a367716` now makes both operator cutover commands submit it through
+the protected GitHub OIDC route. Console trusts that deployment authority's provider
+evidence; the JSON receipt is not an independently signed Cloudflare attestation.
+Migration 0050 records parsed home, lane, challenge, expiry and writer deployments/
+versions in the immutable activation row. A unique challenge-ID index prevents
+consumption by another operation. The activation transaction checks expiry using
+both the activation timestamp and SQLite's current clock. Exact completed retries
+remain valid after proof expiry while their original evidence and active pointer match.
+
+Split Gateway request/cron and bound Wallet Runtime admission now compare their
+version metadata to the activated evidence in the existing Console D1 lookup.
+No signing-path D1 roundtrip is added. A protected redeploy with an unchanged
+binding refreshes activation while preserving custody and credentials. Hosted
+onboarding may reuse an active deployment; a fresh hosted activation requires
+operator evidence. Local combined development bootstrap records a distinct local
+authority, accepted by the SQL gate only for development bindings and rejected
+by the hosted operator boundary and split runtime admission.
+
+Before/after provider reads cannot be atomic with Console D1 activation. Version
+admission rejects a later changed version using these entrypoints; privileged
+replacement code that ignores admission and internal/bootstrap paths outside
+bound admission remain separate concerns. Nine local E2Es pass, including actual
+challenge consumption and stale-version rejection, with synthetic version metadata
+and controlled provider transport. Hosted verification, migration/release sequencing,
+pre-cutover smoke ordering and remaining writer coverage remain rollout prerequisites.
 
 The first persistence slice is implemented in private Console commit `12784a3`.
 `tenantDeployment/namespaceHome.ts` adds reservation/read operations to the
