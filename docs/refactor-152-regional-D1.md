@@ -525,7 +525,10 @@ below remain open.
   The original 39 migration files are unchanged. The private local Worker now
   uses the SDK configuration parser, eliminating its retired `nodeRole` field.
   Full release validation and hosted execution remain distinct gates; see the
-  [package-readiness evidence](refactor-152-package-readiness.md).
+  [package-readiness evidence](refactor-152-package-readiness.md). The selected
+  next version is 0.8.0 for both Wallet packages. Its ECDSA bootstrap wire change
+  requires a coordinated client/server cutover, including already-open clients;
+  see the [release review](refactor-152-release-review.md).
 - [ ] Reuse existing trusted tenant/environment routing where possible. Define
   required owner, home, and routing-generation identity at the server boundary.
   Reject inconsistent or stale routes before any mutation. Route lookup itself

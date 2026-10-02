@@ -79,10 +79,17 @@ unchanged from the initial candidate. The fresh Worker build stamps, manifest,
 tarball digest, bundle inputs and challenge/activation/readiness receipts are
 retained. The normal development test also remains green. Bloat checks pass.
 
-This completes local package preparation for the tested source revision. It does
-not close release review, cross-platform release CI or the full lifecycle release
-suite. The existing release workflow builds additional local-tool platforms that
-were not built on this host. Choose and validate the next package version, review
-the complete source range, then publish and consume the exact release before
-hosted adoption. R152's deployment preflight still rejects the currently installed
+Source-provenance correction: cleanup commits `6f86c1bb` and `72695473` landed
+during this full build. Its start revision alone cannot identify all compiled
+inputs. The tarball hash and acceptance results remain valid evidence for those
+exact bytes, but this rebuild must not be attributed to immutable revision
+`76c3a2e0`. The initial TypeScript candidate above and this full rebuild are
+separate artifacts. A release candidate needs a fresh build with unchanged source
+inputs throughout.
+
+The user selected **0.8.0** for the next Wallet and Wallet Server release. The
+[release review](refactor-152-release-review.md) records the broader change scope,
+coordinated client/server upgrade requirement and subsequent validation. The
+existing release workflow also builds local-tool platforms that were not built
+on this host. R152's deployment preflight still rejects the currently installed
 npm 0.7.3 package because it lacks migration 0040.
