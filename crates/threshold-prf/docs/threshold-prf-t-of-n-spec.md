@@ -5,7 +5,7 @@ Last updated: June 13, 2026
 ## Scope
 
 This document specifies the active configurable `t-of-N` threshold-prf API for
-[crates/threshold-prf](/Users/pta/Dev/rust/simple-threshold-signer/crates/threshold-prf).
+[crates/threshold-prf](../).
 
 The crate derives project-scoped server Router A/B ECDSA derivation and Router/A/B input bytes from
 threshold signing-root shares. Router A/B ECDSA derivation crates consume the resulting 32-byte values
@@ -312,4 +312,4 @@ just threshold-prf-wasm-bench
 
 Integration should also record the native and optional local WASM benchmarks
 listed in
-[benchmarks.md](/Users/pta/Dev/rust/simple-threshold-signer/crates/threshold-prf/docs/benchmarks.md).
+[benchmarks.md](benchmarks.md).

@@ -6,9 +6,9 @@ SDK-owned `application_binding_digest` plus fixed protocol constants for
 role-local derivation.
 
 This file is the security-focused entrypoint for
-[crates/router-ab-ecdsa-derivation](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation).
+[crates/router-ab-ecdsa-derivation](./).
 Protocol shape and lifecycle live in
-[specs/protocol.md](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/specs/protocol.md).
+[specs/protocol.md](specs/protocol.md).
 
 The target `router-ab-ecdsa-derivation` design uses role-local additive derivation:
 
@@ -421,12 +421,12 @@ Still intentionally out of scope:
 ## Related Docs
 
 - Protocol shape:
-  [specs/protocol.md](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/specs/protocol.md)
+  [specs/protocol.md](specs/protocol.md)
 - Export semantics:
-  [specs/export.md](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/specs/export.md)
+  [specs/export.md](specs/export.md)
 - Integration with the current backend:
   [specs/integration-purpose-built-ecdsa.md](specs/integration-purpose-built-ecdsa.md)
 - Implementation plan:
-  [docs/plans/implementation-plan.md](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/docs/plans/implementation-plan.md)
+  [docs/plans/implementation-plan.md](docs/plans/implementation-plan.md)
 - Share-derivation design memo:
-  [docs/plans/share-derivation-design-memo.md](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/docs/plans/share-derivation-design-memo.md)
+  [docs/plans/share-derivation-design-memo.md](docs/plans/share-derivation-design-memo.md)

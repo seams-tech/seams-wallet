@@ -7,7 +7,7 @@ This is the crate-local implementation plan for the active
 
 The source plan lives at:
 
-- [`../../docs/formal-verification-plan.md`](/Users/pta/Dev/rust/simple-threshold-signer/crates/signer-core/docs/formal-verification-plan.md)
+- [`../../docs/formal-verification-plan.md`](../../docs/formal-verification-plan.md)
 
 ## Decision
 

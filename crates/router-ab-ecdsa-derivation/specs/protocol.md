@@ -449,7 +449,7 @@ These are main protocol identity checks.
 
 The joined-root fixture corpus has been removed. The active fixture emitter is:
 
-- [emit_fixture_json.rs](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/src/bin/emit_fixture_json.rs)
+- `crates/router-ab-ecdsa-derivation/src/bin/emit_fixture_json.rs`
 
 The next committed role-local fixture corpus should cover:
 
@@ -522,7 +522,7 @@ This protocol excludes:
 
 The implementation pass should use the framed digest formats in this document
 and in
-[docs/plans/true-server-blindness.md](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/docs/plans/true-server-blindness.md).
+[docs/plans/true-server-blindness.md](../docs/plans/true-server-blindness.md).
 The public transcript digest defined in that plan is retired; the crate does
 not implement it.
 
@@ -536,8 +536,8 @@ document are the design source of truth.
 ## Related Docs
 
 - Security model:
-  [security.md](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/security.md)
+  [security.md](../security.md)
 - Export semantics:
-  [export.md](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/specs/export.md)
+  [export.md](export.md)
 - Integration shape:
   [integration-purpose-built-ecdsa.md](integration-purpose-built-ecdsa.md)

@@ -2,7 +2,7 @@
 
 This directory contains the completed formal-verification tracks for the agreed
 current `router-ab-ecdsa-derivation` scope in
-[crates/router-ab-ecdsa-derivation](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation).
+[crates/router-ab-ecdsa-derivation](../).
 
 ## Recommended Verification Split
 
@@ -69,16 +69,16 @@ Current state:
 
 - root scope docs exist
 - proof inventory exists at:
-  [docs/proof-inventory.md](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/formal-verification/docs/proof-inventory.md)
+  [docs/proof-inventory.md](docs/proof-inventory.md)
 - Verus bootstrap crate exists at:
-  [verus/](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/formal-verification/verus)
+  [verus/](verus)
 - Lean boundary extraction track now exists at:
-  [lean-boundary/](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/formal-verification/lean-boundary)
+  [lean-boundary/](lean-boundary)
 - the pinned Aeneas/Charon toolchain is installed locally for that track
 - the first Rust-derived Lean boundary artifact now exists for the narrow
   staged server boundary
 - a separate Lean privacy track now exists at:
-  [lean-privacy/](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/formal-verification/lean-privacy)
+  [lean-privacy/](lean-privacy)
   for the completed privacy slice over the frozen staged boundary
 - the Lean privacy track now includes:
   - server non-derivability of client secrets over full states that share the
@@ -146,7 +146,7 @@ implementation-facing algebra remain out of this Lean track.
 
 The important caveat is that some Verus theorems still rely on explicit
 trusted axioms at production-boundary seams. See
-[docs/proof-inventory.md](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/formal-verification/docs/proof-inventory.md)
+[docs/proof-inventory.md](docs/proof-inventory.md)
 for the exact list.
 
 The two former broad trusted seams for:
@@ -166,18 +166,18 @@ generated digest corpus.
 ## Docs
 
 - implementation plan:
-  [docs/implementation-plan.md](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/formal-verification/docs/implementation-plan.md)
+  [docs/implementation-plan.md](docs/implementation-plan.md)
 - proof inventory:
-  [docs/proof-inventory.md](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/formal-verification/docs/proof-inventory.md)
+  [docs/proof-inventory.md](docs/proof-inventory.md)
 - Verus bootstrap:
-  [verus/README.md](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/formal-verification/verus/README.md)
+  [verus/README.md](verus/README.md)
 - crate implementation plan:
-  [../docs/plans/implementation-plan.md](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/docs/plans/implementation-plan.md)
+  [../docs/plans/implementation-plan.md](../docs/plans/implementation-plan.md)
 - share-derivation design memo:
-  [../docs/plans/share-derivation-design-memo.md](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/docs/plans/share-derivation-design-memo.md)
+  [../docs/plans/share-derivation-design-memo.md](../docs/plans/share-derivation-design-memo.md)
 - protocol spec:
-  [../specs/protocol.md](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/specs/protocol.md)
+  [../specs/protocol.md](../specs/protocol.md)
 - export spec:
-  [../specs/export.md](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/specs/export.md)
+  [../specs/export.md](../specs/export.md)
 - integration spec:
   [../specs/integration-purpose-built-ecdsa.md](../specs/integration-purpose-built-ecdsa.md)

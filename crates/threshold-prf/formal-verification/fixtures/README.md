@@ -5,8 +5,8 @@ This directory references committed anti-drift vectors for the
 
 Canonical current corpora:
 
-- [`../../fixtures/protocol-t-of-n.json`](/Users/pta/Dev/rust/simple-threshold-signer/crates/threshold-prf/fixtures/protocol-t-of-n.json)
-- [`../../fixtures/protocol-wire.json`](/Users/pta/Dev/rust/simple-threshold-signer/crates/threshold-prf/fixtures/protocol-wire.json)
+- [`../../fixtures/protocol-t-of-n.json`](../../fixtures/protocol-t-of-n.json)
+- [`../../fixtures/protocol-wire.json`](../../fixtures/protocol-wire.json)
 
 The threshold-policy corpus includes:
 

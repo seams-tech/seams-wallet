@@ -119,12 +119,12 @@ Session-seal pipelining is a separate optimization.
 
 Primary implementation files:
 
-- [registration.ts](/Users/pta/Dev/rust/seams-wallet/packages/wallet/src/SeamsWeb/operations/registration/registration.ts)
-- [pendingWalletRegistrationCommit.ts](/Users/pta/Dev/rust/seams-wallet/packages/wallet/src/core/indexedDB/pendingWalletRegistrationCommit.ts)
-- [IndexedDB repositories](/Users/pta/Dev/rust/seams-wallet/packages/wallet/src/core/indexedDB/seamsWalletDB/repositories.ts)
-- [pendingRegistrationRecovery.ts](/Users/pta/Dev/rust/seams-wallet/packages/wallet/src/SeamsWeb/operations/registration/pendingRegistrationRecovery.ts), [ECDSA recovery validation](/Users/pta/Dev/rust/seams-wallet/packages/wallet/src/SeamsWeb/operations/registration/pendingEcdsaRegistrationRecoveryValidation.ts)
-- [D1 registration service](/Users/pta/Dev/rust/seams-wallet/packages/wallet-server/src/router/cloudflare/d1/registration/d1WalletRegistrationService.ts)
-- [Yao registration authorization](/Users/pta/Dev/rust/seams-wallet/packages/wallet-server/src/router/domains/ed25519Yao/registration/routerAbEd25519YaoRegistrationIntentAuthorization.ts)
+- [registration.ts](../packages/wallet/src/SeamsWeb/operations/registration/registration.ts)
+- [pendingWalletRegistrationCommit.ts](../packages/wallet/src/core/indexedDB/pendingWalletRegistrationCommit.ts)
+- [IndexedDB repositories](../packages/wallet/src/core/indexedDB/seamsWalletDB/repositories.ts)
+- [pendingRegistrationRecovery.ts](../packages/wallet/src/SeamsWeb/operations/registration/pendingRegistrationRecovery.ts), [ECDSA recovery validation](../packages/wallet/src/SeamsWeb/operations/registration/pendingEcdsaRegistrationRecoveryValidation.ts)
+- [D1 registration service](../packages/wallet-server/src/router/cloudflare/d1/registration/d1WalletRegistrationService.ts)
+- [Yao registration authorization](../packages/wallet-server/src/router/domains/ed25519Yao/registration/routerAbEd25519YaoRegistrationIntentAuthorization.ts)
 
 ## Execution model
 
@@ -247,10 +247,10 @@ lifecycle is not a recovery strategy.
    boundaries to detect concurrent recovery or authority replacement.
 
 Source areas for checkpoint work are
-[custody orchestration](/Users/pta/Dev/rust/seams-wallet/packages/wallet/src/core/signingEngine/walletCustody/registrationCeremony.ts),
-[custody worker](/Users/pta/Dev/rust/seams-wallet/packages/wallet/src/core/signingEngine/workerManager/workers/wallet-custody-ceremony.worker.ts),
-[custody WASM](/Users/pta/Dev/rust/seams-wallet/wasm/wallet_custody_ceremony), and
-[Yao client state](/Users/pta/Dev/rust/seams-wallet/crates/router-ab-ed25519-yao-client/src/lib.rs).
+[custody orchestration](../packages/wallet/src/core/signingEngine/walletCustody/registrationCeremony.ts),
+[custody worker](../packages/wallet/src/core/signingEngine/workerManager/workers/wallet-custody-ceremony.worker.ts),
+[custody WASM](../wasm/wallet_custody_ceremony), and
+[Yao client state](../crates/router-ab-ed25519-yao-client/src/lib.rs).
 
 ## Client orchestration and failure isolation
 
@@ -322,7 +322,7 @@ flow and remove obsolete format handling once its retirement condition is met.
 
 ## Verification and performance acceptance
 
-Update [intended behaviours](/Users/pta/Dev/rust/seams-wallet/docs/intended-behaviours.md)
+Update [intended behaviours](intended-behaviours.md)
 and the relevant persistence/session specifications with implementation.
 Use public lifecycle contracts for both auth methods; use focused repository
 tests for transactions, parsers, and reconciliation. Build domain fixtures
@@ -356,8 +356,8 @@ registration, unlock, and recovery lifecycle suites. Run all Rust commands from
 `seams-wallet`.
 
 Extend the existing
-[registration benchmark](/Users/pta/Dev/rust/seams-wallet/tests/e2e/intended-behaviours/passkey.registration.benchmark.test.ts)
-and [timing module](/Users/pta/Dev/rust/seams-wallet/packages/wallet/src/SeamsWeb/operations/registration/registrationTiming.ts).
+[registration benchmark](../tests/e2e/intended-behaviours/passkey.registration.benchmark.test.ts)
+and [timing module](../packages/wallet/src/SeamsWeb/operations/registration/registrationTiming.ts).
 Measure SDK entry → registration return, SDK entry → durable NEAR readiness,
 return → NEAR readiness, both branch spans, and confirmation waits. Once Yao is
 deferred, its timing must be included in the NEAR continuation span rather than

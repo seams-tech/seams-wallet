@@ -32,7 +32,7 @@ The refactor goal is therefore:
 - stop exposing legacy bootstrap assumptions at the SDK/server boundary
 
 This plan is product-facing. It is not the crate-only plan in
-[implementation-plan.md](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/docs/plans/implementation-plan.md).
+[implementation-plan.md](implementation-plan.md).
 
 ## Architectural Stance
 
@@ -57,39 +57,39 @@ This refactor should follow these rules:
 The current client path still bootstraps threshold ECDSA from the legacy share
 lane:
 
-- [bootstrapEcdsaSession.ts](/Users/pta/Dev/rust/simple-threshold-signer/client/src/core/signingEngine/threshold/workflows/bootstrapEcdsaSession.ts)
+- `client/src/core/signingEngine/threshold/workflows/bootstrapEcdsaSession.ts`
   derives `clientVerifyingShareB64u` from passkey material and posts it to
   `/threshold-ecdsa/bootstrap`
-- [thresholdActivation.ts](/Users/pta/Dev/rust/simple-threshold-signer/client/src/core/signingEngine/orchestration/thresholdActivation.ts)
+- `client/src/core/signingEngine/orchestration/thresholdActivation.ts`
   persists `relayerKeyId`, `clientVerifyingShareB64u`,
   `thresholdEcdsaPublicKeyB64u`, and `relayerVerifyingShareB64u` as the key ref
   identity
-- [thresholdEcdsaCoordinator.ts](/Users/pta/Dev/rust/simple-threshold-signer/client/src/core/signingEngine/orchestration/walletOrigin/thresholdEcdsaCoordinator.ts)
+- `client/src/core/signingEngine/orchestration/walletOrigin/thresholdEcdsaCoordinator.ts`
   keys presign pools and sign orchestration off `relayerUrl`, `relayerKeyId`,
   `clientVerifyingShareB64u`, and `participantIds`
-- [registration.ts](/Users/pta/Dev/rust/simple-threshold-signer/client/src/core/SeamsPasskey/registration.ts),
-  [login.ts](/Users/pta/Dev/rust/simple-threshold-signer/client/src/core/SeamsPasskey/login.ts),
+- `client/src/core/SeamsPasskey/registration.ts`,
+  `client/src/core/SeamsPasskey/login.ts`,
   and
-  [evm/linkDeviceThresholdEcdsa.ts](/Users/pta/Dev/rust/simple-threshold-signer/client/src/core/SeamsPasskey/evm/linkDeviceThresholdEcdsa.ts)
+  `client/src/core/SeamsPasskey/evm/linkDeviceThresholdEcdsa.ts`
   all repeat the same legacy bootstrap assumptions
 
 ### Server-Side Shape Today
 
 The current server path is also anchored on that same legacy seam:
 
-- [types.ts](/Users/pta/Dev/rust/simple-threshold-signer/server/src/core/types.ts)
+- [types.ts](../../../../packages/wallet-server/src/core/types.ts)
   defines `ThresholdEcdsaBootstrapRequest` and related requests around
   `clientVerifyingShareB64u`
-- [thresholdEcdsa.ts](/Users/pta/Dev/rust/simple-threshold-signer/server/src/router/cloudflare/routes/thresholdEcdsa.ts)
+- `server/src/router/cloudflare/routes/thresholdEcdsa.ts`
   and
-  [thresholdEcdsa.ts](/Users/pta/Dev/rust/simple-threshold-signer/server/src/router/express/routes/thresholdEcdsa.ts)
+  `server/src/router/express/routes/thresholdEcdsa.ts`
   expose `/threshold-ecdsa/bootstrap` as the public key-material entrypoint
-- [ThresholdSigningService.ts](/Users/pta/Dev/rust/simple-threshold-signer/server/src/core/ThresholdService/ThresholdSigningService.ts)
+- `server/src/core/ThresholdService/ThresholdSigningService.ts`
   still derives the relayer share and relayer verifying share from the relayer
   master secret plus `clientVerifyingShareB64u`
-- [ecdsaSigningHandlers.ts](/Users/pta/Dev/rust/simple-threshold-signer/server/src/core/ThresholdService/ecdsaSigningHandlers.ts)
+- `server/src/core/ThresholdService/ecdsaSigningHandlers.ts`
   re-derives relayer signing material on demand from `relayerKeyId`
-- [AuthService.ts](/Users/pta/Dev/rust/simple-threshold-signer/server/src/core/AuthService.ts)
+- [AuthService.ts](../../../../packages/wallet-server/src/core/AuthService.ts)
   repeats the legacy seam during registration, link-device, and session minting
 
 ### What This Means
@@ -310,9 +310,9 @@ Todo:
 - [x] decide which existing sign-time endpoints keep their paths and which get
       request-shape changes
 - [x] define the server-owned `router-ab-ecdsa-derivation` EVM key record shape in
-      [server/src/core/types.ts](/Users/pta/Dev/rust/simple-threshold-signer/server/src/core/types.ts)
+      [server/src/core/types.ts](../../../../packages/wallet-server/src/core/types.ts)
 - [x] define the new client key-ref shape in
-      [client/src/core/signingEngine/interfaces/signing.ts](/Users/pta/Dev/rust/simple-threshold-signer/client/src/core/signingEngine/interfaces/signing.ts)
+      [client/src/core/signingEngine/interfaces/signing.ts](../../../../packages/wallet/src/core/signingEngine/interfaces/signing.ts)
 - [x] explicitly mark `clientVerifyingShareB64u` and `relayerKeyId` as
       backend-integration details, not product identity
 
@@ -325,12 +325,12 @@ Goal:
 Todo:
 
 - [x] add server request/response types for staged Router A/B ECDSA derivation bootstrap in
-      [server/src/core/types.ts](/Users/pta/Dev/rust/simple-threshold-signer/server/src/core/types.ts)
+      [server/src/core/types.ts](../../../../packages/wallet-server/src/core/types.ts)
 - [x] add staged route definitions in:
-      - [server/src/router/cloudflare/routes/thresholdEcdsa.ts](/Users/pta/Dev/rust/simple-threshold-signer/server/src/router/cloudflare/routes/thresholdEcdsa.ts)
-      - [server/src/router/express/routes/thresholdEcdsa.ts](/Users/pta/Dev/rust/simple-threshold-signer/server/src/router/express/routes/thresholdEcdsa.ts)
+      - `server/src/router/cloudflare/routes/thresholdEcdsa.ts`
+      - `server/src/router/express/routes/thresholdEcdsa.ts`
 - [x] add `router-ab-ecdsa-derivation` prepare/respond/finalize service methods in
-      [server/src/core/ThresholdService/ThresholdSigningService.ts](/Users/pta/Dev/rust/simple-threshold-signer/server/src/core/ThresholdService/ThresholdSigningService.ts)
+      `server/src/core/ThresholdService/ThresholdSigningService.ts`
 - [x] add a server-owned ceremony store for staged `router-ab-ecdsa-derivation` bootstrap state
 - [x] bind staged operations explicitly:
       - registration bootstrap
@@ -364,17 +364,17 @@ Goal:
 Todo:
 
 - [x] add client RPC helpers for the staged Router A/B ECDSA derivation endpoints in
-      [client/src/core/rpcClients/relayer/thresholdEcdsa.ts](/Users/pta/Dev/rust/simple-threshold-signer/client/src/core/rpcClients/relayer/thresholdEcdsa.ts)
+      [client/src/core/rpcClients/relayer/thresholdEcdsa.ts](../../../../packages/wallet/src/core/rpcClients/relayer/thresholdEcdsa.ts)
 - [x] replace the atomic bootstrap flow in
-      [client/src/core/signingEngine/threshold/workflows/bootstrapEcdsaSession.ts](/Users/pta/Dev/rust/simple-threshold-signer/client/src/core/signingEngine/threshold/workflows/bootstrapEcdsaSession.ts)
+      `client/src/core/signingEngine/threshold/workflows/bootstrapEcdsaSession.ts`
       with staged `router-ab-ecdsa-derivation` bootstrap
 - [x] change
-      [client/src/core/signingEngine/orchestration/thresholdActivation.ts](/Users/pta/Dev/rust/simple-threshold-signer/client/src/core/signingEngine/orchestration/thresholdActivation.ts)
+      `client/src/core/signingEngine/orchestration/thresholdActivation.ts`
       to activate from `ecdsaThresholdKeyId`-based identity
 - [x] update
-      [client/src/core/signingEngine/api/thresholdLifecycle/thresholdSessionActivation.ts](/Users/pta/Dev/rust/simple-threshold-signer/client/src/core/signingEngine/api/thresholdLifecycle/thresholdSessionActivation.ts)
+      `client/src/core/signingEngine/api/thresholdLifecycle/thresholdSessionActivation.ts`
       and
-      [client/src/core/signingEngine/api/thresholdLifecycle/thresholdSessionStore.ts](/Users/pta/Dev/rust/simple-threshold-signer/client/src/core/signingEngine/api/thresholdLifecycle/thresholdSessionStore.ts)
+      `client/src/core/signingEngine/api/thresholdLifecycle/thresholdSessionStore.ts`
       to persist the new identity shape
 - [x] keep any client verifying-share derivative only where the current backend
       still strictly needs it
@@ -392,10 +392,10 @@ Todo:
 - [x] change presign-init request types to key off `ecdsaThresholdKeyId`
       instead of `clientVerifyingShareB64u`
 - [x] update
-      [client/src/core/signingEngine/orchestration/walletOrigin/thresholdEcdsaCoordinator.ts](/Users/pta/Dev/rust/simple-threshold-signer/client/src/core/signingEngine/orchestration/walletOrigin/thresholdEcdsaCoordinator.ts)
+      `client/src/core/signingEngine/orchestration/walletOrigin/thresholdEcdsaCoordinator.ts`
       so pool keys and runtime identity use the new threshold key id
 - [x] update
-      [server/src/core/ThresholdService/ecdsaSigningHandlers.ts](/Users/pta/Dev/rust/simple-threshold-signer/server/src/core/ThresholdService/ecdsaSigningHandlers.ts)
+      `server/src/core/ThresholdService/ecdsaSigningHandlers.ts`
       to load relayer-side backend input from the persisted `router-ab-ecdsa-derivation` key
       record instead of re-deriving it from the legacy seam
 - [x] preserve the existing signer-core presign/sign runtime unless a concrete
@@ -412,17 +412,17 @@ Todo:
 - [x] replace
       `ecdsaRegistrationKeygenFromClientVerifyingShare(...)`
       usage in
-      [server/src/core/AuthService.ts](/Users/pta/Dev/rust/simple-threshold-signer/server/src/core/AuthService.ts)
+      [server/src/core/AuthService.ts](../../../../packages/wallet-server/src/core/AuthService.ts)
       with staged `router-ab-ecdsa-derivation` registration bootstrap
 - [x] replace
       `mintEcdsaSessionFromRegistration(...)`
       with staged `router-ab-ecdsa-derivation` session bootstrap output
 - [x] update
-      [client/src/core/SeamsPasskey/registration.ts](/Users/pta/Dev/rust/simple-threshold-signer/client/src/core/SeamsPasskey/registration.ts)
+      `client/src/core/SeamsPasskey/registration.ts`
       to use the staged `router-ab-ecdsa-derivation` bootstrap as the source of truth for new
       ECDSA identity
 - [x] update
-      [client/src/core/SeamsPasskey/login.ts](/Users/pta/Dev/rust/simple-threshold-signer/client/src/core/SeamsPasskey/login.ts)
+      `client/src/core/SeamsPasskey/login.ts`
       to warm sessions from staged `router-ab-ecdsa-derivation` bootstrap
 - [x] update link-device and recovery flows to consume the same staged ECDSA
       Router A/B ECDSA derivation bootstrap path
@@ -553,7 +553,7 @@ Notes:
    narrowed to first-time bootstrap only:
    - `deriveEcdsaKeyMaterialForFirstBootstrapFromClientRootShare(...)`
    in
-   [ThresholdSigningService.ts](/Users/pta/Dev/rust/simple-threshold-signer/server/src/core/ThresholdService/ThresholdSigningService.ts)
+   `server/src/core/ThresholdService/ThresholdSigningService.ts`
    it is intentionally used for:
    - `registration_bootstrap`
    - first-time deferred `session_bootstrap` when no `ecdsaThresholdKeyId`
@@ -690,10 +690,10 @@ Review summary:
 
 - File placement is mostly corrected now:
   - ECDSA-specific link-device persistence moved to
-    [client/src/core/SeamsPasskey/evm/linkDeviceThresholdEcdsa.ts](/Users/pta/Dev/rust/simple-threshold-signer/client/src/core/SeamsPasskey/evm/linkDeviceThresholdEcdsa.ts),
+    `client/src/core/SeamsPasskey/evm/linkDeviceThresholdEcdsa.ts`,
     which is the right boundary for EVM threshold signing.
   - staged ECDSA relay RPC helpers live in
-    [client/src/core/rpcClients/relayer/thresholdEcdsa.ts](/Users/pta/Dev/rust/simple-threshold-signer/client/src/core/rpcClients/relayer/thresholdEcdsa.ts),
+    [client/src/core/rpcClients/relayer/thresholdEcdsa.ts](../../../../packages/wallet/src/core/rpcClients/relayer/thresholdEcdsa.ts),
     which is also the right boundary.
   - some EVM-touching flows still live under `near/`, but those are account
     lifecycle owners rather than signer implementations, so they are acceptable
@@ -714,8 +714,8 @@ Findings:
 
 1. The staged Router A/B ECDSA derivation bootstrap still is not the full distributed root-share
    `router-ab-ecdsa-derivation` transport.
-   - [client/src/core/signingEngine/threshold/workflows/bootstrapEcdsaSession.ts:34](/Users/pta/Dev/rust/simple-threshold-signer/client/src/core/signingEngine/threshold/workflows/bootstrapEcdsaSession.ts#L34)
-   - [server/src/core/ThresholdService/ThresholdSigningService.ts:2590](/Users/pta/Dev/rust/simple-threshold-signer/server/src/core/ThresholdService/ThresholdSigningService.ts#L2590)
+   - `client/src/core/signingEngine/threshold/workflows/bootstrapEcdsaSession.ts:34`
+   - `server/src/core/ThresholdService/ThresholdSigningService.ts:2590`
    - The client now sends only hidden-eval staged envelopes carrying
      `clientEvalRequestB64u`, and finalize is bound to the staged server
      response plus `clientEvalFinalizeB64u`.
@@ -729,9 +729,9 @@ Findings:
 2. The remaining server-side work is now focused on replacing the staged
    bootstrap payload with true distributed `router-ab-ecdsa-derivation` transport, not on sign
    runtime identity.
-   - [server/src/core/ThresholdService/ThresholdSigningService.ts:2026](/Users/pta/Dev/rust/simple-threshold-signer/server/src/core/ThresholdService/ThresholdSigningService.ts#L2026)
-   - [server/src/core/ThresholdService/ThresholdSigningService.ts:2525](/Users/pta/Dev/rust/simple-threshold-signer/server/src/core/ThresholdService/ThresholdSigningService.ts#L2525)
-   - [server/src/core/ThresholdService/ecdsaSigningHandlers.ts:632](/Users/pta/Dev/rust/simple-threshold-signer/server/src/core/ThresholdService/ecdsaSigningHandlers.ts#L632)
+   - `server/src/core/ThresholdService/ThresholdSigningService.ts:2026`
+   - `server/src/core/ThresholdService/ThresholdSigningService.ts:2525`
+   - `server/src/core/ThresholdService/ecdsaSigningHandlers.ts:632`
    - `relayerBackendInputB64u` now stores the relayer threshold signing share
      bytes.
    - Presign init now loads that persisted backend input instead of re-deriving
@@ -742,15 +742,15 @@ Findings:
 
 3. The old host-supplied canonical export artifact resolver seam has been
    removed.
-   - [client/src/core/SeamsPasskey/thresholdEcdsaCanonicalExportArtifact.ts](/Users/pta/Dev/rust/simple-threshold-signer/client/src/core/SeamsPasskey/thresholdEcdsaCanonicalExportArtifact.ts)
-   - [client/src/core/SeamsPasskey/interfaces.ts:193](/Users/pta/Dev/rust/simple-threshold-signer/client/src/core/SeamsPasskey/interfaces.ts#L193)
-   - [client/src/core/SeamsPasskey/index.ts:255](/Users/pta/Dev/rust/simple-threshold-signer/client/src/core/SeamsPasskey/index.ts#L255)
+   - `client/src/core/SeamsPasskey/thresholdEcdsaCanonicalExportArtifact.ts`
+   - `client/src/core/SeamsPasskey/interfaces.ts:193`
+   - `client/src/core/SeamsPasskey/index.ts:255`
    - Registration/login were already no longer using it as the source of truth.
    - The helper file and public API seam are now deleted.
 
 4. The public `threshold-ecdsa-secp256k1` key ref now requires
    `ecdsaThresholdKeyId`.
-   - [client/src/core/signingEngine/interfaces/signing.ts:23](/Users/pta/Dev/rust/simple-threshold-signer/client/src/core/signingEngine/interfaces/signing.ts#L23)
+   - [client/src/core/signingEngine/interfaces/signing.ts:23](../../../../packages/wallet/src/core/signingEngine/interfaces/signing.ts)
    - `ecdsaThresholdKeyId` is now required on the public key ref.
    - `relayerKeyId` and `clientVerifyingShareB64u` remain present only as
      backend bridge fields and are no longer the public identity seam.
@@ -766,7 +766,7 @@ Todo:
 - [x] switch sign-time relayer material loading to persisted backend input
       instead of re-deriving from `relayerKeyId`
 - [x] delete the dead canonical export artifact resolver seam:
-      [client/src/core/SeamsPasskey/thresholdEcdsaCanonicalExportArtifact.ts](/Users/pta/Dev/rust/simple-threshold-signer/client/src/core/SeamsPasskey/thresholdEcdsaCanonicalExportArtifact.ts)
+      `client/src/core/SeamsPasskey/thresholdEcdsaCanonicalExportArtifact.ts`
       and related interface/API surface
 - [x] make the public threshold ECDSA key ref require `ecdsaThresholdKeyId`
       and demote backend-required legacy fields from the public identity seam

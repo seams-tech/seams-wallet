@@ -4,7 +4,7 @@ Last updated: 2026-04-16
 
 This inventory tracks implemented and planned proof targets for:
 
-- [`crates/signer-core`](/Users/pta/Dev/rust/simple-threshold-signer/crates/signer-core)
+- [`crates/signer-core`](../../)
 
 ## Current Posture
 

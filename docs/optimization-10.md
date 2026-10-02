@@ -1040,7 +1040,7 @@ the initial pool. Immediate signing is tested without a warmup delay.
 
 #### 4.5 Five-entry durable pools with session-authorized refill
 
-The revised plan is [refactor-128](./refactor-128.md). The user selected the
+The revised plan is [refactor-129](refactor-129-presignatures-refill.md). The user selected the
 simpler policy: retain reusable material for 90 days, restore and fill each exact
 client pool to five while the client can execute with a valid session, and refill
 after every consumption. This supersedes the separate long-lived preprocessing
@@ -1440,7 +1440,7 @@ for the baseline.
 The 0.5.27 persistence gap has two identified causes: comparing capability-instance
 and MPC capability identifiers during admission, and connecting the durable-store
 worker channel only during generation. The follow-up corrects both; see
-[refactor-128.md](refactor-128.md#durable-restoration-follow-up-0528).
+[refactor-129-presignatures-refill.md](refactor-129-presignatures-refill.md#durable-restoration-follow-up-0528).
 
 A fresh virtual-passkey wallet on hosted testnet verified authorization separately
 from persistence. After funding's `setUserToken` confirmation, six Tempo signatures

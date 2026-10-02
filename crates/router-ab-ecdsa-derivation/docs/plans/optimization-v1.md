@@ -16,7 +16,7 @@ It converts the current benchmark evidence into a ranked list of refactors to
 test one by one, with explicit keep/reject criteria.
 
 The detailed benchmark ledger lives in
-[optimizations.md](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/optimizations.md).
+[optimizations.md](../../optimizations.md).
 
 ## Current Performance Picture
 
@@ -182,7 +182,7 @@ Expected change shape:
   - native focused sign benchmark
   - wasm benchmark
 - [x] accept or reject the change in
-      [optimizations.md](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/optimizations.md)
+      [optimizations.md](../../optimizations.md)
 
 Current result:
 
@@ -195,14 +195,14 @@ Current result:
 - [x] inspect clone-heavy paths in:
   - upstream `do_generation_many::<2>`
   - `start_presign()` in
-    [threshold_ecdsa.rs](/Users/pta/Dev/rust/simple-threshold-signer/crates/signer-core/src/threshold_ecdsa.rs)
+    `crates/signer-core/src/threshold_ecdsa.rs`
 - [x] patch the smallest low-risk clone reduction
 - [x] rerun:
   - `cargo test --manifest-path crates/router-ab-ecdsa-derivation/Cargo.toml`
   - native focused sign benchmark
   - wasm benchmark
 - [x] accept or reject the change in
-      [optimizations.md](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/optimizations.md)
+      [optimizations.md](../../optimizations.md)
 
 Current result:
 
@@ -223,7 +223,7 @@ Current result:
   - native focused sign benchmark
   - wasm benchmark
 - [x] accept or reject the change in
-      [optimizations.md](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/optimizations.md)
+      [optimizations.md](../../optimizations.md)
 
 Current result:
 
@@ -244,7 +244,7 @@ Current result:
   - native focused sign benchmark
   - wasm benchmark
 - [x] accept or reject the change in
-      [optimizations.md](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/optimizations.md)
+      [optimizations.md](../../optimizations.md)
 
 Current result:
 
@@ -266,7 +266,7 @@ Current result:
   - native focused sign benchmark
   - wasm benchmark
 - [x] accept or reject the change in
-      [optimizations.md](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/optimizations.md)
+      [optimizations.md](../../optimizations.md)
 
 Current result:
 

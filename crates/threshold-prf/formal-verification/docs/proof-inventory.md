@@ -14,7 +14,7 @@ just threshold-prf-fv
 ## Verus Proof Surface
 
 Implemented in
-[`verus/src/model.rs`](/Users/pta/Dev/rust/simple-threshold-signer/crates/threshold-prf/formal-verification/verus/src/model.rs):
+[`verus/src/model.rs`](../verus/src/model.rs):
 
 - threshold-policy validity:
   `1 <= threshold <= share_count <= MAX_SHARE_COUNT`
@@ -48,7 +48,7 @@ Remaining trust:
 ## Executable Anti-Drift
 
 Implemented in
-[`verus/tests/anti_drift.rs`](/Users/pta/Dev/rust/simple-threshold-signer/crates/threshold-prf/formal-verification/verus/tests/anti_drift.rs)
+[`verus/tests/anti_drift.rs`](../verus/tests/anti_drift.rs)
 and the production crate tests:
 
 - committed `2-of-3` vector parity
@@ -66,7 +66,7 @@ and the production crate tests:
 ## Lean Proof Surface
 
 Implemented in
-[`lean-privacy`](/Users/pta/Dev/rust/simple-threshold-signer/crates/threshold-prf/formal-verification/lean-privacy):
+[`lean-privacy`](../lean-privacy):
 
 - one-server mode is not a privacy boundary
 - one two-server participant does not hold enough plaintext shares to reconstruct

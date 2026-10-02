@@ -39,10 +39,10 @@ seam:
 
 - the signer core accepts externally provided private-share material and public
   key material in
-  [threshold_ecdsa.rs](/Users/pta/Dev/rust/simple-threshold-signer/crates/signer-core/src/threshold_ecdsa.rs)
+  `crates/signer-core/src/threshold_ecdsa.rs`
 - the codebase already maps additive 2-party secp256k1 shares into the
   `near/threshold-signatures` share encoding in
-  [secp256k1.rs](/Users/pta/Dev/rust/simple-threshold-signer/crates/signer-core/src/secp256k1.rs)
+  [secp256k1.rs](../../../signer-core/src/secp256k1.rs)
 - current ECDSA presign/sign performance is already acceptable enough that we
   should avoid replacing the backend unless reuse fails
 
@@ -109,7 +109,7 @@ The main proof burden is:
 
 This aligns well with the existing proof inventory item around additive-share
 mapping in
-[proof-inventory.md](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/formal-verification/docs/proof-inventory.md).
+[proof-inventory.md](../../formal-verification/docs/proof-inventory.md).
 
 ### Performance Expectation
 
@@ -346,7 +346,7 @@ That gives:
 - [On the Security of ECDSA with Additive Key Derivation and Presignatures](https://eprint.iacr.org/2021/1330.pdf)
 - [Non-interactive Distributed Key Generation and Key Resharing](https://eprint.iacr.org/2021/339)
 - local backend references:
-  - [ethSignerWasm.ts](/Users/pta/Dev/rust/simple-threshold-signer/server/src/core/ThresholdService/ethSignerWasm.ts)
-  - [threshold_ecdsa.rs](/Users/pta/Dev/rust/simple-threshold-signer/crates/signer-core/src/threshold_ecdsa.rs)
-  - [ecdsa_threshold_signing.md](/Users/pta/Dev/rust/simple-threshold-signer/docs/ecdsa_threshold_signing.md)
-  - [proof-inventory.md](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/formal-verification/docs/proof-inventory.md)
+  - `server/src/core/ThresholdService/ethSignerWasm.ts`
+  - `crates/signer-core/src/threshold_ecdsa.rs`
+  - `docs/ecdsa_threshold_signing.md`
+  - [proof-inventory.md](../../formal-verification/docs/proof-inventory.md)

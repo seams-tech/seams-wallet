@@ -7,7 +7,7 @@ slice.
 
 The wider formal-verification strategy still lives at:
 
-- [../../docs/implementation-plan.md](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/formal-verification/docs/implementation-plan.md)
+- [../../docs/implementation-plan.md](../../docs/implementation-plan.md)
 
 ## Scope
 

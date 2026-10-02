@@ -30,18 +30,18 @@ policy-shaped boundary used by production Rust and WASM callers.
 ## Current Surface
 
 The canonical inventory is
-[`docs/proof-inventory.md`](/Users/pta/Dev/rust/simple-threshold-signer/crates/threshold-prf/formal-verification/docs/proof-inventory.md).
+[`docs/proof-inventory.md`](docs/proof-inventory.md).
 
 Implemented tracks:
 
-- [`verus/`](/Users/pta/Dev/rust/simple-threshold-signer/crates/threshold-prf/formal-verification/verus):
+- [`verus/`](verus):
   abstract threshold-policy, subset, wire, proof-bundle ID-binding, and
   reconstruction claims plus production anti-drift parity tests
-- [`lean-privacy/`](/Users/pta/Dev/rust/simple-threshold-signer/crates/threshold-prf/formal-verification/lean-privacy):
+- [`lean-privacy/`](lean-privacy):
   structural visibility model for one-runtime and two-runtime execution states
-- [`lean-boundary/`](/Users/pta/Dev/rust/simple-threshold-signer/crates/threshold-prf/formal-verification/lean-boundary):
+- [`lean-boundary/`](lean-boundary):
   deferred extraction track
-- [`fixtures/`](/Users/pta/Dev/rust/simple-threshold-signer/crates/threshold-prf/formal-verification/fixtures):
+- [`fixtures/`](fixtures):
   notes for vector-backed anti-drift coverage
 
 Current high-impact remaining work:

@@ -14,6 +14,6 @@ The wallet server then issues an opaque, budgeted Wallet Session. It does not
 exchange Auth0, Better Auth, Clerk, Firebase, Google, Okta, or Supabase tokens
 for wallet authority.
 
-See [Bring Your Own Application Authentication](../saas/bring-you-own-auth.md)
+See Bring Your Own Application Authentication (`docs/saas/bring-you-own-auth.md`)
 for the complete boundary. Customer-configured owner-verification webhooks are
 deferred to a later refactor.

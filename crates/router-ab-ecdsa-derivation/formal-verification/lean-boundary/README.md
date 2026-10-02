@@ -21,15 +21,15 @@ Current status:
 - the Lean workspace exists and builds locally
 - the pinned `aeneas` and `charon` toolchain is installed locally
 - the Rust extraction artifact is generated under:
-  - [`generated/visible-boundary-input/router_ab_ecdsa_derivation.llbc`](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/formal-verification/lean-boundary/generated/visible-boundary-input/router_ab_ecdsa_derivation.llbc)
-  - [`generated/visible-boundary-package/RouterAbEcdsaDerivation/Funs.lean`](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/formal-verification/lean-boundary/generated/visible-boundary-package/RouterAbEcdsaDerivation/Funs.lean)
+  - [`generated/visible-boundary-input/router_ab_ecdsa_derivation.llbc`](generated/visible-boundary-input/router_ab_ecdsa_derivation.llbc)
+  - [`generated/visible-boundary-package/RouterAbEcdsaDerivation/Funs.lean`](generated/visible-boundary-package/RouterAbEcdsaDerivation/Funs.lean)
 - the checked-in generated package lives in:
-  - [`RouterAbEcdsaDerivation/Funs.lean`](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/formal-verification/lean-boundary/RouterAbEcdsaDerivation/Funs.lean)
-  - [`RouterAbEcdsaDerivation/Types.lean`](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/formal-verification/lean-boundary/RouterAbEcdsaDerivation/Types.lean)
+  - [`RouterAbEcdsaDerivation/Funs.lean`](RouterAbEcdsaDerivation/Funs.lean)
+  - [`RouterAbEcdsaDerivation/Types.lean`](RouterAbEcdsaDerivation/Types.lean)
 - the handwritten boundary model is typed to that generated field layout in:
-  - [`RouterAbEcdsaDerivationBoundary/Scope.lean`](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/formal-verification/lean-boundary/RouterAbEcdsaDerivationBoundary/Scope.lean)
+  - [`RouterAbEcdsaDerivationBoundary/Scope.lean`](RouterAbEcdsaDerivationBoundary/Scope.lean)
 - the bridge lemmas live in:
-  - [`RouterAbEcdsaDerivationBoundary/GeneratedVisibleBoundary.lean`](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/formal-verification/lean-boundary/RouterAbEcdsaDerivationBoundary/GeneratedVisibleBoundary.lean)
+  - [`RouterAbEcdsaDerivationBoundary/GeneratedVisibleBoundary.lean`](RouterAbEcdsaDerivationBoundary/GeneratedVisibleBoundary.lean)
 - the generated boundary matches the handwritten boundary model for:
   - operation-to-output-kind boundary shape
   - non-export visible output shape
@@ -67,15 +67,15 @@ verification, the Aeneas boundary extraction, and the Lean privacy workspace.
 
 The setup script for the extraction toolchain is:
 
-- [`scripts/setup-aeneas.sh`](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/formal-verification/lean-boundary/scripts/setup-aeneas.sh)
+- [`scripts/setup-aeneas.sh`](scripts/setup-aeneas.sh)
 
 The pinned toolchain metadata lives in:
 
-- [`aeneas-toolchain.toml`](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/formal-verification/lean-boundary/aeneas-toolchain.toml)
+- [`aeneas-toolchain.toml`](aeneas-toolchain.toml)
 
 The reproducible extraction script is:
 
-- [`scripts/extract-visible-boundary.sh`](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/formal-verification/lean-boundary/scripts/extract-visible-boundary.sh)
+- [`scripts/extract-visible-boundary.sh`](scripts/extract-visible-boundary.sh)
 
 ## Layout
 
@@ -88,5 +88,5 @@ The reproducible extraction script is:
 
 See:
 
-- [`docs/implementation-plan.md`](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/formal-verification/lean-boundary/docs/implementation-plan.md)
+- [`docs/implementation-plan.md`](docs/implementation-plan.md)
 

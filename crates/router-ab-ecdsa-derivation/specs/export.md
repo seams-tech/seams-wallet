@@ -272,8 +272,8 @@ into browser storage.
 ## Related Docs
 
 - Protocol shape:
-  [protocol.md](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/specs/protocol.md)
+  [protocol.md](protocol.md)
 - Security model:
-  [security.md](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/security.md)
+  [security.md](../security.md)
 - Integration shape:
   [integration-purpose-built-ecdsa.md](integration-purpose-built-ecdsa.md)

@@ -326,7 +326,7 @@ Sealed refresh lets a page reload preserve an already-authenticated signing
 session when server budget remains valid.
 
 The auth-method-neutral sealed-refresh spec lives in
-[../signing-session-architecture/sealed-refresh.md](../signing-session-architecture/sealed-refresh.md).
+`docs/signing-session-architecture/sealed-refresh.md`.
 
 Rules:
 
@@ -441,7 +441,7 @@ Rules:
    rotate.
 
 The proposed verification-before-reveal contract for the backup UI lives in
-[Recovery-code backup and reveal](../refactor-113-recovery-code-reveal-step-up.md).
+Recovery-code backup and reveal (`docs/refactor-113-recovery-code-reveal-step-up.md`).
 
 ## Logging And Observability
 
@@ -476,12 +476,12 @@ Required validation:
 ## Related Specs
 
 1. Signing-session architecture:
-   [../signing-session-architecture/](../signing-session-architecture/).
+   `docs/signing-session-architecture/`.
 2. Route auth planes:
-   [../auth-gating-routes.md](../auth-gating-routes.md).
+   `docs/auth-gating-routes.md`.
 3. Wallet Session V2 and Router A/B auth:
    [Router A/B protocol](../router-ab/protocol.md).
 4. Proposed recovery-code reveal verification:
-   [Recovery-code backup and reveal](../refactor-113-recovery-code-reveal-step-up.md).
+   Recovery-code backup and reveal (`docs/refactor-113-recovery-code-reveal-step-up.md`).
 5. Future Email OTP/passkey add-key product plan:
-   [addkey-otp-passkey-accounts.md](addkey-otp-passkey-accounts.md).
+   `docs/otp/addkey-otp-passkey-accounts.md`.

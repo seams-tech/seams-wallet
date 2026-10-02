@@ -8,7 +8,7 @@ marketing and the dashboard share the parent site.
 
 ```bash
 pnpm -C apps/docs type-check
-node apps/docs/scripts/check-links.mjs
+pnpm -C apps/docs check:links
 node apps/docs/scripts/check-code-fences.mjs
 pnpm -C apps/docs build
 ```

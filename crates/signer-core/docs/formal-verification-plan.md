@@ -5,7 +5,7 @@ Last updated: 2026-04-16
 ## Decision
 
 The recommended verification strategy for
-[crates/signer-core](/Users/pta/Dev/rust/simple-threshold-signer/crates/signer-core)
+[crates/signer-core](../)
 is:
 
 - **Verus first**
@@ -20,9 +20,9 @@ justify an Aeneas + Lean stack by themselves.
 
 `signer-core` is the shared cryptographic helper layer beneath:
 
-- [crates/router-ab-ecdsa-derivation](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation)
-- [crates/ed25519-yao](/Users/pta/Dev/rust/seams-sdk/crates/ed25519-yao)
-- [crates/router-ab-ed25519-yao](/Users/pta/Dev/rust/seams-sdk/crates/router-ab-ed25519-yao)
+- [crates/router-ab-ecdsa-derivation](../../router-ab-ecdsa-derivation)
+- [crates/ed25519-yao](../../ed25519-yao)
+- [crates/router-ab-ed25519-yao](../../router-ab-ed25519-yao)
 - wasm consumers
 - platform bindings that re-export these helpers
 
@@ -54,7 +54,7 @@ So the recommended sequence is:
 ### Priority 1: `secp256k1`
 
 The first `signer-core` FV pass should focus on
-[src/secp256k1.rs](/Users/pta/Dev/rust/simple-threshold-signer/crates/signer-core/src/secp256k1.rs):
+[src/secp256k1.rs](../src/secp256k1.rs):
 
 1. reduction of 64-byte HKDF output into a valid non-zero secp256k1 scalar
 2. derivation of the threshold relayer signing share from `(master_secret, relayer_key_id)`
@@ -71,7 +71,7 @@ This is the highest-impact slice because it sits directly under:
 ### Priority 2: `near_threshold_ed25519`
 
 The second `signer-core` FV pass should focus on
-[src/near_threshold_ed25519.rs](/Users/pta/Dev/rust/simple-threshold-signer/crates/signer-core/src/near_threshold_ed25519.rs):
+[src/near_threshold_ed25519.rs](../src/near_threshold_ed25519.rs):
 
 1. deterministic threshold client-share derivation from `(wrap_key_seed, near_account_id)`
 2. non-zero share guarantees for the derived client signing share
@@ -129,7 +129,7 @@ Current implementation status:
 ## Initial Proof Inventory
 
 See
-[formal-verification-proof-inventory.md](/Users/pta/Dev/rust/simple-threshold-signer/crates/signer-core/docs/formal-verification-proof-inventory.md)
+[formal-verification-proof-inventory.md](formal-verification-proof-inventory.md)
 for the first concrete theorem targets.
 
 ## Phased Todo List

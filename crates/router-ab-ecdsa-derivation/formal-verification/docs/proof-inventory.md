@@ -3,7 +3,7 @@
 Last updated: 2026-05-17
 
 This inventory tracks the narrow stable-slice proof targets for
-[crates/router-ab-ecdsa-derivation](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation).
+[crates/router-ab-ecdsa-derivation](../../).
 
 The current verification posture is:
 
@@ -14,7 +14,7 @@ The current verification posture is:
 ## Current Status
 
 - Verus bootstrap crate exists under:
-  [verus/](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/formal-verification/verus)
+  [verus/](../verus)
 - current scope is intentionally limited to:
   - `encode_context_v2`
   - role-local client and relayer derivation shape
@@ -46,7 +46,7 @@ Property:
 
 Planned Verus module:
 
-- [verus/src/shared/context.rs](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/formal-verification/verus/src/shared/context.rs)
+- [verus/src/shared/context.rs](../verus/src/shared/context.rs)
 
 Status:
 
@@ -68,7 +68,7 @@ Property:
 
 Planned Verus module:
 
-- [verus/src/shared/derivation.rs](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/formal-verification/verus/src/shared/derivation.rs)
+- [verus/src/shared/derivation.rs](../verus/src/shared/derivation.rs)
 
 Status:
 
@@ -97,7 +97,7 @@ Property:
 
 Planned Verus module:
 
-- [verus/src/shared/derivation.rs](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/formal-verification/verus/src/shared/derivation.rs)
+- [verus/src/shared/derivation.rs](../verus/src/shared/derivation.rs)
 
 Status:
 
@@ -130,7 +130,7 @@ all refer to the same logical key.
 
 Planned Verus modules:
 
-- [verus/src/shared/derivation.rs](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/formal-verification/verus/src/shared/derivation.rs)
+- [verus/src/shared/derivation.rs](../verus/src/shared/derivation.rs)
 - [verus/src/shared/true_blind_boundary.rs](../verus/src/shared/true_blind_boundary.rs)
 
 Status:
@@ -153,7 +153,7 @@ Property:
 
 Planned Verus module:
 
-- [verus/src/server/policy.rs](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/formal-verification/verus/src/server/policy.rs)
+- [verus/src/server/policy.rs](../verus/src/server/policy.rs)
 
 Status:
 
@@ -276,7 +276,7 @@ Planned track:
 Status:
 
 - initial Lean scaffold exists at
-  [lean-privacy/RouterAbEcdsaDerivationPrivacy/TrueBlind.lean](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/formal-verification/lean-privacy/RouterAbEcdsaDerivationPrivacy/TrueBlind.lean)
+  [lean-privacy/RouterAbEcdsaDerivationPrivacy/TrueBlind.lean](../lean-privacy/RouterAbEcdsaDerivationPrivacy/TrueBlind.lean)
 - current scaffold includes role-local input/share models, non-export
   client/server views, explicit-export views, exclusion theorems, and named
   algebraic obligations for additive public-key agreement and export verification
@@ -306,7 +306,7 @@ Status:
   digest, with proofs that transcripts expose no root/share/canonical-secret
   payloads
 - the Lean role-local boundary contract now exists at
-  [lean-privacy/RouterAbEcdsaDerivationPrivacy/TrueBlindBoundary.lean](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/formal-verification/lean-privacy/RouterAbEcdsaDerivationPrivacy/TrueBlindBoundary.lean)
+  [lean-privacy/RouterAbEcdsaDerivationPrivacy/TrueBlindBoundary.lean](../lean-privacy/RouterAbEcdsaDerivationPrivacy/TrueBlindBoundary.lean)
 - the boundary contract models client bootstrap wire, server bootstrap wire,
   role-local retained client/server state, explicit export wire, and client
   export reconstruction
@@ -337,7 +337,7 @@ Status:
 - state-derived signing-session theorems now prove the composed role-local scalar
   matches the ideal reconstructed scalar and verifies against public key `X`
 - the Verus mirror now exists at
-  [verus/src/shared/true_blind_boundary.rs](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/formal-verification/verus/src/shared/true_blind_boundary.rs)
+  [verus/src/shared/true_blind_boundary.rs](../verus/src/shared/true_blind_boundary.rs)
 - Verus mirror proofs cover active wire forbidden-field exclusion,
   explicit-export authorization binding, explicit-export-only relayer-share
   release, and role-local signing-session identity/context binding

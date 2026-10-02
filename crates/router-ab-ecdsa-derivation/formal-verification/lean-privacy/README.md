@@ -12,7 +12,7 @@ boundary bridge:
   frozen client-visible boundary
 
 This track sits above
-[lean-boundary/](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/formal-verification/lean-boundary)
+[lean-boundary/](../lean-boundary)
 and uses its generated boundary bridge rather than rebuilding a second Rust
 model.
 
@@ -84,9 +84,9 @@ Current decision:
 ## True-Blind Scaffold
 
 The true server-blindness scaffold starts in
-[RouterAbEcdsaDerivationPrivacy/TrueBlind.lean](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/formal-verification/lean-privacy/RouterAbEcdsaDerivationPrivacy/TrueBlind.lean).
+[RouterAbEcdsaDerivationPrivacy/TrueBlind.lean](RouterAbEcdsaDerivationPrivacy/TrueBlind.lean).
 The role-local boundary contract lives in
-[RouterAbEcdsaDerivationPrivacy/TrueBlindBoundary.lean](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/formal-verification/lean-privacy/RouterAbEcdsaDerivationPrivacy/TrueBlindBoundary.lean).
+[RouterAbEcdsaDerivationPrivacy/TrueBlindBoundary.lean](RouterAbEcdsaDerivationPrivacy/TrueBlindBoundary.lean).
 
 That module is the Lean-first target for the next Router A/B ECDSA derivation protocol shape:
 
@@ -133,5 +133,5 @@ Lean model.
 
 See:
 
-- [docs/implementation-plan.md](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/formal-verification/docs/implementation-plan.md)
+- [docs/implementation-plan.md](../docs/implementation-plan.md)
 

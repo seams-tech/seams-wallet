@@ -28,7 +28,7 @@ No optimization should land without benchmark evidence against this ledger.
 
 Dedicated benchmark suite:
 
-- [benches/performance_baseline.rs](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/benches/performance_baseline.rs)
+- [benches/performance_baseline.rs](benches/performance_baseline.rs)
 
 Measured paths:
 
@@ -243,9 +243,9 @@ For wasm specifically, this also means:
 - date: 2026-04-09
 - change:
   - added a profiled wasm sign entrypoint through
-    [wasm/eth_signer/src/router_ab_ecdsa_derivation.rs](/Users/pta/Dev/rust/simple-threshold-signer/wasm/eth_signer/src/router_ab_ecdsa_derivation.rs)
+    `wasm/eth_signer/src/router_ab_ecdsa_derivation.rs`
   - extended the wasm runner to report internal sign buckets in
-    [benchmarks/router-ab-ecdsa-derivation-wasm/src/runner.mjs](/Users/pta/Dev/rust/simple-threshold-signer/benchmarks/router-ab-ecdsa-derivation-wasm/src/runner.mjs)
+    `benchmarks/router-ab-ecdsa-derivation-wasm/src/runner.mjs`
 - command:
   - `pnpm benchmark:router-ab-ecdsa-derivation:wasm`
 - result:
@@ -344,13 +344,13 @@ For wasm specifically, this also means:
 - change:
   - removed extra pending-queue churn in the 2-party presign driver
   - relayed outgoing messages directly between client and relayer sessions in:
-    - [src/integration/mod.rs](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/src/integration/mod.rs)
-    - [benches/performance_baseline.rs](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/benches/performance_baseline.rs)
+    - `crates/router-ab-ecdsa-derivation/src/integration/mod.rs`
+    - [benches/performance_baseline.rs](benches/performance_baseline.rs)
 - rationale:
   - code inspection showed the expensive pre-`start_presign` phase lives in
     `signer-core`'s `PresignStage::Triples`, driven by:
     - `generate_triple_many::<2>(...)` in
-      [threshold_ecdsa.rs](/Users/pta/Dev/rust/simple-threshold-signer/crates/signer-core/src/threshold_ecdsa.rs)
+      `crates/signer-core/src/threshold_ecdsa.rs`
     - repeated `proto.poke()` calls during `PresignStage::Triples`
   - the wrapper was adding avoidable queue/drain overhead on top of that path
 - commands:
@@ -381,8 +381,8 @@ For wasm specifically, this also means:
   - added an allocation-light internal advance path for the 2-party presign
     loop, then rewired `router-ab-ecdsa-derivation` to use it
 - files touched during the attempt:
-  - [crates/signer-core/src/threshold_ecdsa.rs](/Users/pta/Dev/rust/simple-threshold-signer/crates/signer-core/src/threshold_ecdsa.rs)
-  - [src/integration/mod.rs](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/src/integration/mod.rs)
+  - `crates/signer-core/src/threshold_ecdsa.rs`
+  - `crates/router-ab-ecdsa-derivation/src/integration/mod.rs`
 - commands:
   - `cargo test --manifest-path crates/router-ab-ecdsa-derivation/Cargo.toml`
   - `cargo bench --manifest-path crates/router-ab-ecdsa-derivation/Cargo.toml --bench performance_baseline -- 'sign_bridge_full|presign_protocol_roundtrip|presign_before_start'`
@@ -409,7 +409,7 @@ For wasm specifically, this also means:
   - inspected the upstream threshold-signatures triples implementation to pin
     the next backend-level target
 - files inspected:
-  - [crates/signer-core/src/threshold_ecdsa.rs](/Users/pta/Dev/rust/simple-threshold-signer/crates/signer-core/src/threshold_ecdsa.rs)
+  - `crates/signer-core/src/threshold_ecdsa.rs`
   - `~/.cargo/git/checkouts/threshold-signatures-947608b8269c8901/db609be/src/ecdsa/ot_based_ecdsa/triples/generation.rs`
   - `~/.cargo/git/checkouts/threshold-signatures-947608b8269c8901/db609be/benches/advanced_ot_based_ecdsa.rs`
 - result:
@@ -436,8 +436,8 @@ For wasm specifically, this also means:
     `ThresholdEcdsaPresignProgress` by changing `stage` and `event` to
     borrowed static strings
 - files touched during the attempt:
-  - [crates/signer-core/src/threshold_ecdsa.rs](/Users/pta/Dev/rust/simple-threshold-signer/crates/signer-core/src/threshold_ecdsa.rs)
-  - [wasm/eth_signer/src/threshold.rs](/Users/pta/Dev/rust/simple-threshold-signer/wasm/eth_signer/src/threshold.rs)
+  - `crates/signer-core/src/threshold_ecdsa.rs`
+  - `wasm/eth_signer/src/threshold.rs`
 - commands:
   - `cargo test --manifest-path crates/router-ab-ecdsa-derivation/Cargo.toml`
   - `cargo check --manifest-path wasm/eth_signer/Cargo.toml`
@@ -462,10 +462,10 @@ For wasm specifically, this also means:
 - date: 2026-04-09
 - change:
   - added a non-allocating internal presign event path in
-    [crates/signer-core/src/threshold_ecdsa.rs](/Users/pta/Dev/rust/simple-threshold-signer/crates/signer-core/src/threshold_ecdsa.rs)
+    `crates/signer-core/src/threshold_ecdsa.rs`
   - switched the `router-ab-ecdsa-derivation` sign driver to use that internal path plus
     `is_triples_done()` instead of hot-loop string comparisons in
-    [crates/router-ab-ecdsa-derivation/src/integration/mod.rs](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/src/integration/mod.rs)
+    `crates/router-ab-ecdsa-derivation/src/integration/mod.rs`
 - commands:
   - `cargo test --manifest-path crates/router-ab-ecdsa-derivation/Cargo.toml`
   - `cargo bench --manifest-path crates/router-ab-ecdsa-derivation/Cargo.toml --bench performance_baseline -- 'sign_bridge_full|presign_protocol_roundtrip|presign_before_start'`
@@ -491,8 +491,8 @@ For wasm specifically, this also means:
 - change:
   - attempted to reuse outgoing message buffers across internal presign polls
     in:
-    - [crates/signer-core/src/threshold_ecdsa.rs](/Users/pta/Dev/rust/simple-threshold-signer/crates/signer-core/src/threshold_ecdsa.rs)
-    - [crates/router-ab-ecdsa-derivation/src/integration/mod.rs](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/src/integration/mod.rs)
+    - `crates/signer-core/src/threshold_ecdsa.rs`
+    - `crates/router-ab-ecdsa-derivation/src/integration/mod.rs`
 - commands:
   - `cargo test --manifest-path crates/router-ab-ecdsa-derivation/Cargo.toml`
   - `cargo bench --manifest-path crates/router-ab-ecdsa-derivation/Cargo.toml --bench performance_baseline -- 'sign_bridge_full|presign_protocol_roundtrip|presign_before_start'`
@@ -657,8 +657,8 @@ For wasm specifically, this also means:
 - change:
   - attempted a deeper same-process driver refactor by adding an owned-message
     delivery path in:
-    - [crates/signer-core/src/threshold_ecdsa.rs](/Users/pta/Dev/rust/simple-threshold-signer/crates/signer-core/src/threshold_ecdsa.rs)
-    - [crates/router-ab-ecdsa-derivation/src/integration/mod.rs](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/src/integration/mod.rs)
+    - `crates/signer-core/src/threshold_ecdsa.rs`
+    - `crates/router-ab-ecdsa-derivation/src/integration/mod.rs`
   - the goal was to move outgoing `Vec<u8>` protocol payloads directly between
     the two local presign sessions without cloning them back through `&[u8]`
 - commands:

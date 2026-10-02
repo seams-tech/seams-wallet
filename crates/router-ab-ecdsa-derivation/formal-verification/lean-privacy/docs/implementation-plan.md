@@ -87,10 +87,10 @@ use the following concrete sequence.
 ### Phase P1: Explicit Secret-State Model
 
 - [x] Extend
-      [RouterAbEcdsaDerivationPrivacy/Model.lean](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/formal-verification/lean-privacy/RouterAbEcdsaDerivationPrivacy/Model.lean)
+      [RouterAbEcdsaDerivationPrivacy/Model.lean](../RouterAbEcdsaDerivationPrivacy/Model.lean)
       with explicit `ClientSecretState`.
 - [x] Extend
-      [RouterAbEcdsaDerivationPrivacy/Model.lean](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/formal-verification/lean-privacy/RouterAbEcdsaDerivationPrivacy/Model.lean)
+      [RouterAbEcdsaDerivationPrivacy/Model.lean](../RouterAbEcdsaDerivationPrivacy/Model.lean)
       with explicit `ServerSecretState`.
 - [x] Freeze the minimum client-secret set for the widened model:
       `y_client`, `x_client`, and any client-only explicit-export material if
@@ -106,10 +106,10 @@ use the following concrete sequence.
 ### Phase P2: Explicit Client/Server Views
 
 - [x] Extend
-      [RouterAbEcdsaDerivationPrivacy/Views.lean](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/formal-verification/lean-privacy/RouterAbEcdsaDerivationPrivacy/Views.lean)
+      [RouterAbEcdsaDerivationPrivacy/Views.lean](../RouterAbEcdsaDerivationPrivacy/Views.lean)
       with `ClientObservableProfile`.
 - [x] Extend
-      [RouterAbEcdsaDerivationPrivacy/Views.lean](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/formal-verification/lean-privacy/RouterAbEcdsaDerivationPrivacy/Views.lean)
+      [RouterAbEcdsaDerivationPrivacy/Views.lean](../RouterAbEcdsaDerivationPrivacy/Views.lean)
       with `ServerObservableProfile`.
 - [x] Define non-export client/server view projections.
 - [x] Define explicit-export client/server view projections.
@@ -122,7 +122,7 @@ use the following concrete sequence.
 ### Phase P3: Simulator And Compatibility Layer
 
 - [x] Add
-      [RouterAbEcdsaDerivationPrivacy/Simulators.lean](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/formal-verification/lean-privacy/RouterAbEcdsaDerivationPrivacy/Simulators.lean).
+      [RouterAbEcdsaDerivationPrivacy/Simulators.lean](../RouterAbEcdsaDerivationPrivacy/Simulators.lean).
 - [x] Define client-view compatibility under server-secret variation.
 - [x] Define server-view compatibility under client-secret variation.
 - [x] Define simulator inputs for the non-export boundary.
@@ -134,7 +134,7 @@ use the following concrete sequence.
 ### Phase P4: Indistinguishability Assumptions
 
 - [x] Strengthen
-      [RouterAbEcdsaDerivationPrivacy/Assumptions.lean](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/formal-verification/lean-privacy/RouterAbEcdsaDerivationPrivacy/Assumptions.lean)
+      [RouterAbEcdsaDerivationPrivacy/Assumptions.lean](../RouterAbEcdsaDerivationPrivacy/Assumptions.lean)
       from raw equality of server-observable profiles to explicit
       indistinguishability relations.
 - [x] Add client-view indistinguishability under server-secret variation.
@@ -146,10 +146,10 @@ use the following concrete sequence.
 ### Phase P5: Secret-Reconstruction Goals
 
 - [x] Extend
-      [RouterAbEcdsaDerivationPrivacy/Goals.lean](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/formal-verification/lean-privacy/RouterAbEcdsaDerivationPrivacy/Goals.lean)
+      [RouterAbEcdsaDerivationPrivacy/Goals.lean](../RouterAbEcdsaDerivationPrivacy/Goals.lean)
       with `ServerCannotDeriveClientSecrets`.
 - [x] Extend
-      [RouterAbEcdsaDerivationPrivacy/Goals.lean](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/formal-verification/lean-privacy/RouterAbEcdsaDerivationPrivacy/Goals.lean)
+      [RouterAbEcdsaDerivationPrivacy/Goals.lean](../RouterAbEcdsaDerivationPrivacy/Goals.lean)
       with `ClientCannotDeriveServerSecrets`.
 - [x] Add an explicit theorem for `ServerCannotDeriveCanonicalSecret`.
 - [x] Add an explicit theorem for `ServerCannotDeriveClientThresholdShare`.
@@ -170,10 +170,10 @@ use the following concrete sequence.
 ### Phase P7: Generated-Boundary Lift
 
 - [x] Extend
-      [RouterAbEcdsaDerivationPrivacy/AeneasBridge.lean](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/formal-verification/lean-privacy/RouterAbEcdsaDerivationPrivacy/AeneasBridge.lean)
+      [RouterAbEcdsaDerivationPrivacy/AeneasBridge.lean](../RouterAbEcdsaDerivationPrivacy/AeneasBridge.lean)
       with generated-boundary client-view mappings.
 - [x] Extend
-      [RouterAbEcdsaDerivationPrivacy/AeneasBridge.lean](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/formal-verification/lean-privacy/RouterAbEcdsaDerivationPrivacy/AeneasBridge.lean)
+      [RouterAbEcdsaDerivationPrivacy/AeneasBridge.lean](../RouterAbEcdsaDerivationPrivacy/AeneasBridge.lean)
       with generated-boundary server-view mappings.
 - [x] Prove the generated non-export boundary matches the widened handwritten
       privacy view model.
@@ -194,9 +194,9 @@ use the following concrete sequence.
 The current proof boundary is intentionally frozen at:
 
 - the handwritten staged boundary model in
-  [../../lean-boundary/RouterAbEcdsaDerivationBoundary/Scope.lean](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/formal-verification/lean-boundary/RouterAbEcdsaDerivationBoundary/Scope.lean)
+  [../../lean-boundary/RouterAbEcdsaDerivationBoundary/Scope.lean](../../lean-boundary/RouterAbEcdsaDerivationBoundary/Scope.lean)
 - the generated Rust boundary bridge in
-  [../../lean-boundary/RouterAbEcdsaDerivationBoundary/GeneratedVisibleBoundary.lean](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/formal-verification/lean-boundary/RouterAbEcdsaDerivationBoundary/GeneratedVisibleBoundary.lean)
+  [../../lean-boundary/RouterAbEcdsaDerivationBoundary/GeneratedVisibleBoundary.lean](../../lean-boundary/RouterAbEcdsaDerivationBoundary/GeneratedVisibleBoundary.lean)
 
 This privacy pass does not attempt to prove hidden-eval compilation, transport,
 or runtime orchestration semantics.

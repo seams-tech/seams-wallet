@@ -259,7 +259,7 @@ This phase is the Lean-first track for replacing joined-root Router A/B ECDSA de
 derivation with role-local additive share derivation.
 
 - [x] add the initial Lean scaffold in
-      [lean-privacy/RouterAbEcdsaDerivationPrivacy/TrueBlind.lean](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/formal-verification/lean-privacy/RouterAbEcdsaDerivationPrivacy/TrueBlind.lean)
+      [lean-privacy/RouterAbEcdsaDerivationPrivacy/TrueBlind.lean](../lean-privacy/RouterAbEcdsaDerivationPrivacy/TrueBlind.lean)
 - [x] model role-local client and server private inputs
 - [x] model role-local `x_client` and `x_relayer` derived shares
 - [x] model non-export client and server views

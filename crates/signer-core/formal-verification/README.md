@@ -4,8 +4,8 @@ This directory contains the `signer-core` formal-verification track.
 
 The current implementation follows the plan in:
 
-- [`../docs/formal-verification-plan.md`](/Users/pta/Dev/rust/simple-threshold-signer/crates/signer-core/docs/formal-verification-plan.md)
-- [`../docs/formal-verification-proof-inventory.md`](/Users/pta/Dev/rust/simple-threshold-signer/crates/signer-core/docs/formal-verification-proof-inventory.md)
+- [`../docs/formal-verification-plan.md`](../docs/formal-verification-plan.md)
+- [`../docs/formal-verification-proof-inventory.md`](../docs/formal-verification-proof-inventory.md)
 
 ## Current Strategy
 
@@ -74,6 +74,6 @@ just fv
 
 ## Layout
 
-- [`docs/implementation-plan.md`](/Users/pta/Dev/rust/simple-threshold-signer/crates/signer-core/formal-verification/docs/implementation-plan.md)
-- [`docs/proof-inventory.md`](/Users/pta/Dev/rust/simple-threshold-signer/crates/signer-core/formal-verification/docs/proof-inventory.md)
-- [`verus/`](/Users/pta/Dev/rust/simple-threshold-signer/crates/signer-core/formal-verification/verus)
+- [`docs/implementation-plan.md`](docs/implementation-plan.md)
+- [`docs/proof-inventory.md`](docs/proof-inventory.md)
+- [`verus/`](verus)

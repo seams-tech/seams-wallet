@@ -7,7 +7,7 @@ WebAuthn, cross-origin iframe isolation, and WASM-based cryptography.
 Strong fits include marketplaces, trading platforms, games, payout and
 remittance products, stablecoin accounts, rewards networks, and applications
 that sponsor or automate onchain operations. Read the
-[wallet vision](../../docs/vision.md) for the complete use-case boundary.
+wallet vision (`docs/vision.md`) for the complete use-case boundary.
 
 Featuring:
 
@@ -298,7 +298,7 @@ repo/
 
 ## License
 
-MIT License - see [LICENSE](../../LICENSE) for details.
+MIT License - see [LICENSE](../../LICENSE.md) for details.
 
 ## Support
 

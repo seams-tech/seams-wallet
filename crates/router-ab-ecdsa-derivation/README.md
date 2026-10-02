@@ -123,7 +123,7 @@ The crate-local implementation includes:
 
 The crate is ready for crate-level review. Product rollout, QA, and integration
 tracking live in
-[docs/plans/sdk-server-integration-plan.md](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/docs/plans/sdk-server-integration-plan.md).
+[docs/plans/sdk-server-integration-plan.md](docs/plans/sdk-server-integration-plan.md).
 
 Current performance notes:
 
@@ -136,17 +136,17 @@ Current performance notes:
 ## Docs
 
 - Security model:
-  [security.md](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/security.md)
+  [security.md](security.md)
 - Optimization ledger:
-  [optimizations.md](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/optimizations.md)
+  [optimizations.md](optimizations.md)
 - Formal verification plan:
-  [formal-verification/README.md](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/formal-verification/README.md)
+  [formal-verification/README.md](formal-verification/README.md)
 - Protocol shape:
-  [specs/protocol.md](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/specs/protocol.md)
+  [specs/protocol.md](specs/protocol.md)
 - Export semantics:
-  [specs/export.md](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/specs/export.md)
+  [specs/export.md](specs/export.md)
 - Integration with the purpose-built fixed ECDSA backend:
   [specs/integration-purpose-built-ecdsa.md](specs/integration-purpose-built-ecdsa.md)
 - Historical design and optimization notes remain under `docs/plans/` and
   `optimizations.md`; they are superseded by the active specs above and
-  [refactor-89](../../docs/refactor-89-slimmer-near-ecdsa.md).
+  refactor-89 (`docs/refactor-89-slimmer-near-ecdsa.md`).

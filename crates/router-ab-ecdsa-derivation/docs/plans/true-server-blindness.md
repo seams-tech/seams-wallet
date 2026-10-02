@@ -12,7 +12,7 @@ transcript digest and operation kinds defined below were removed from the crate
 on 2026-10-01; no production path called them.
 
 This plan updates
-[crates/router-ab-ecdsa-derivation](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation)
+[crates/router-ab-ecdsa-derivation](../../)
 so Router A/B ECDSA derivation enforces true server blindness for non-export flows and explicit
 export.
 
@@ -43,17 +43,17 @@ and avoid compatibility branches.
 Relevant existing material:
 
 - active protocol spec:
-  [specs/protocol.md](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/specs/protocol.md)
+  [specs/protocol.md](../../specs/protocol.md)
 - security model:
-  [security.md](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/security.md)
+  [security.md](../../security.md)
 - export semantics:
-  [specs/export.md](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/specs/export.md)
+  [specs/export.md](../../specs/export.md)
 - threshold backend integration:
   [specs/integration-purpose-built-ecdsa.md](../../specs/integration-purpose-built-ecdsa.md)
 - formal verification area:
-  [formal-verification](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/formal-verification)
+  [formal-verification](../../formal-verification)
 - current native benchmark:
-  [benches/performance_baseline.rs](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/benches/performance_baseline.rs)
+  [benches/performance_baseline.rs](../../benches/performance_baseline.rs)
 
 ## Replacement Design
 
@@ -163,7 +163,7 @@ Post-MVP work:
 Do proof work before changing production Rust.
 
 - [x] Add the initial true-blind Lean scaffold:
-  [TrueBlind.lean](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/formal-verification/lean-privacy/RouterAbEcdsaDerivationPrivacy/TrueBlind.lean).
+  [TrueBlind.lean](../../formal-verification/lean-privacy/RouterAbEcdsaDerivationPrivacy/TrueBlind.lean).
 - [x] Add scalar-addition and public-key agreement relations for the true-blind model.
 - [x] Define `F_router_ab_ecdsa_derivation_true_blind` as the ideal functionality.
 - [x] Freeze the new ideal functionality in Lean:
@@ -213,7 +213,7 @@ Do proof work before changing production Rust.
   lake build RouterAbEcdsaDerivationPrivacy.TrueBlindBoundary
   ```
 - [x] Add the Lean role-local boundary contract:
-  [TrueBlindBoundary.lean](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/formal-verification/lean-privacy/RouterAbEcdsaDerivationPrivacy/TrueBlindBoundary.lean).
+  [TrueBlindBoundary.lean](../../formal-verification/lean-privacy/RouterAbEcdsaDerivationPrivacy/TrueBlindBoundary.lean).
 - [x] Model client bootstrap wire, server bootstrap wire, role-local retained
   client/server state, explicit export wire, and client export reconstruction.
 - [x] Prove those boundary shapes exclude forbidden root/share/canonical-secret
@@ -250,20 +250,20 @@ Do proof work before changing production Rust.
 Turn the Lean model into a concrete implementation contract.
 
 - [x] Update
-  [formal-verification/docs/proof-inventory.md](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/formal-verification/docs/proof-inventory.md)
+  [formal-verification/docs/proof-inventory.md](../../formal-verification/docs/proof-inventory.md)
   with the true-blind proof targets.
 - [x] Update
-  [formal-verification/docs/implementation-plan.md](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/formal-verification/docs/implementation-plan.md)
+  [formal-verification/docs/implementation-plan.md](../../formal-verification/docs/implementation-plan.md)
   with the Lean-first order.
 - [x] Update
-  [specs/protocol.md](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/specs/protocol.md)
+  [specs/protocol.md](../../specs/protocol.md)
   so the production protocol is defined by role-local additive derivation.
 - [x] Update
-  [specs/export.md](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/specs/export.md)
+  [specs/export.md](../../specs/export.md)
   so export is client-side reconstruction from `x_client` and an export-authorized
   relayer share.
 - [x] Update
-  [security.md](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/security.md)
+  [security.md](../../security.md)
   with the hard invariant that the live server process cannot reconstruct
   canonical `x`.
 - [x] Define one active role-local wire shape in Lean.
@@ -272,7 +272,7 @@ Turn the Lean model into a concrete implementation contract.
 - [x] Define the Lean same-identity/session-binding contract for non-export
   role-local signing.
 - [x] Add an initial Verus mirror for the settled Lean boundary contract:
-  [true_blind_boundary.rs](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/formal-verification/verus/src/shared/true_blind_boundary.rs).
+  [true_blind_boundary.rs](../../formal-verification/verus/src/shared/true_blind_boundary.rs).
 - [x] Prove Verus mirror claims for active wire forbidden-field exclusion,
   explicit-export authorization binding, explicit-export-only relayer-share
   release, and role-local signing-session identity/context binding.
@@ -332,24 +332,24 @@ changes and remains pending.
 MVP implementation order:
 
 1. Update
-   [src/shared/derive.rs](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/src/shared/derive.rs)
+   [src/shared/derive.rs](../../src/shared/derive.rs)
    with role-local client and relayer share derivation helpers:
    `derive_client_share`, `derive_relayer_share`, public identity composition,
    and client-side export reconstruction.
 2. Update
-   [src/wire/mod.rs](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/src/wire/mod.rs)
+   `crates/router-ab-ecdsa-derivation/src/wire/mod.rs`
    so server request types carry public client commitments and transcript
    metadata instead of plaintext client root material.
 3. Update
-   [src/server/mod.rs](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/src/server/mod.rs)
+   `crates/router-ab-ecdsa-derivation/src/server/mod.rs`
    so `prepare` derives and retains only relayer-owned share state, and
    `respond` composes public identity without reconstructing canonical `x`.
 4. Update
-   [src/client/mod.rs](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/src/client/mod.rs)
+   `crates/router-ab-ecdsa-derivation/src/client/mod.rs`
    so non-export client output is produced from local client share state plus
    server public identity, and explicit export reconstructs `x` client-side.
 5. Update
-   [src/integration/mod.rs](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/src/integration/mod.rs)
+   `crates/router-ab-ecdsa-derivation/src/integration/mod.rs`
    so Cait-Sith adapter construction receives role-local client material from
    the client side and relayer material from retained server state.
 6. Delete production APIs that accept both role roots or canonical `x`.
@@ -566,23 +566,23 @@ Public key validation:
 
 Module ownership:
 
-- [src/shared/derive.rs](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/src/shared/derive.rs)
+- [src/shared/derive.rs](../../src/shared/derive.rs)
   owns scalar derivation, public-key derivation, public identity composition,
   export reconstruction, and Cait-Sith share mapping helpers.
-- [src/wire/mod.rs](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/src/wire/mod.rs)
+- `crates/router-ab-ecdsa-derivation/src/wire/mod.rs`
   owns request/response shapes. Wire types should carry public commitments,
   transcript fields, operation kinds, and export authorization envelopes.
-- [src/client/mod.rs](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/src/client/mod.rs)
+- `crates/router-ab-ecdsa-derivation/src/client/mod.rs`
   owns client-retained state, client bootstrap output, non-export client
   material, and explicit-export reconstruction.
-- [src/server/mod.rs](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/src/server/mod.rs)
+- `crates/router-ab-ecdsa-derivation/src/server/mod.rs`
   owns relayer derivation, relayer-retained state, server public output, and
   export-share release.
-- [src/integration/mod.rs](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/src/integration/mod.rs)
+- `crates/router-ab-ecdsa-derivation/src/integration/mod.rs`
   owns Cait-Sith adapter construction from already-derived role-local material.
-- [src/fixtures.rs](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/src/fixtures.rs)
+- `crates/router-ab-ecdsa-derivation/src/fixtures.rs`
   and
-  [src/bin/emit_fixture_json.rs](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/src/bin/emit_fixture_json.rs)
+  `crates/router-ab-ecdsa-derivation/src/bin/emit_fixture_json.rs`
   are the only acceptable homes for reference-only full-key reconstruction.
 
 Target internal types:
@@ -830,7 +830,7 @@ Reference-only guardrails:
 
 - place full-key reconstruction under a `reference` or `fixtures` module gated
   to tests, benches, or the fixture-emitter binary
-- do not re-export reference helpers from [src/lib.rs](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/src/lib.rs)
+- do not re-export reference helpers from [src/lib.rs](../../src/lib.rs)
   as production API
 - add a static import check or targeted test that server/client production
   modules do not import reference helpers
@@ -1022,25 +1022,25 @@ Constant-time validation gate:
 
 - [x] Add role-local client/relayer share derivation helpers, public identity
   composition, and client-side explicit export reconstruction in
-  [src/shared/derive.rs](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/src/shared/derive.rs).
+  [src/shared/derive.rs](../../src/shared/derive.rs).
 - [x] Replace canonical derivation from joined roots in
-  [src/shared/derive.rs](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/src/shared/derive.rs)
+  [src/shared/derive.rs](../../src/shared/derive.rs)
   with role-local additive share derivation.
 - [x] Remove production APIs that accept both `y_client` and `y_relayer` in one
   process.
 - [x] Replace
-  [src/wire/mod.rs](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/src/wire/mod.rs)
+  `crates/router-ab-ecdsa-derivation/src/wire/mod.rs`
   request types so the server never receives plaintext client root material.
 - [x] Replace
-  [src/client/mod.rs](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/src/client/mod.rs)
+  `crates/router-ab-ecdsa-derivation/src/client/mod.rs`
   transport outputs so non-export returns public verification data only while the
   client retains `x_client` locally.
 - [x] Replace
-  [src/server/mod.rs](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/src/server/mod.rs)
+  `crates/router-ab-ecdsa-derivation/src/server/mod.rs`
   retained state so it stores only `x_relayer`, `X_relayer`, shared public key
   `X`, address, and verification data.
 - [x] Update
-  [src/integration/mod.rs](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/src/integration/mod.rs)
+  `crates/router-ab-ecdsa-derivation/src/integration/mod.rs`
   so Cait-Sith receives mapped shares derived from role-local additive shares.
 - [x] Update explicit export so the server response carries a relayer export
   share payload instead of canonical `x`.
@@ -1231,7 +1231,7 @@ Bridge procedure:
 3. Keep the generated extraction small: public wire structs, retained role-local
    states, export authorization envelope, and public identity composition.
 4. Write handwritten bridge lemmas from generated types into
-   [TrueBlindBoundary.lean](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/formal-verification/lean-privacy/RouterAbEcdsaDerivationPrivacy/TrueBlindBoundary.lean).
+   [TrueBlindBoundary.lean](../../formal-verification/lean-privacy/RouterAbEcdsaDerivationPrivacy/TrueBlindBoundary.lean).
 5. Add anti-drift checks before broad proof work so accidental secret-field
    additions fail early.
 6. Re-run the Lean target and Verus target after each extracted boundary change.
@@ -1260,7 +1260,7 @@ Post-MVP checklist:
 - [x] Run Aeneas extraction for the new visible boundary slice after the MVP API
   stabilizes and the facade exists.
 - [x] Update generated Lean boundary artifacts under
-  [formal-verification/lean-boundary/generated](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/formal-verification/lean-boundary/generated).
+  [formal-verification/lean-boundary/generated](../../formal-verification/lean-boundary/generated).
 - [x] Prove bridge lemmas from generated boundary types to the Lean privacy
   model.
 - [x] Add proof/model hooks for context frame field order and context-binding

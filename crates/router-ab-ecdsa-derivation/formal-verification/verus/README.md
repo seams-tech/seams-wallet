@@ -1,7 +1,7 @@
 # `router-ab-ecdsa-derivation` Verus Track
 
 This directory is the Verus implementation-proof track for the narrow stable
-slice of [crates/router-ab-ecdsa-derivation](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation).
+slice of [crates/router-ab-ecdsa-derivation](../../).
 
 Current bootstrap scope after old-context removal:
 
@@ -41,7 +41,7 @@ pretending the full protocol is already implemented.
   - `src/server/policy.rs`
   - `src/server/state.rs`
 - proof inventory exists at:
-  [../docs/proof-inventory.md](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/formal-verification/docs/proof-inventory.md)
+  [../docs/proof-inventory.md](../docs/proof-inventory.md)
 - the old executable fixture parity and hidden-eval anti-drift tests were
   removed with the old context version; new parity checks should target the
   active v2 crate API.
@@ -80,4 +80,4 @@ Remaining outside this scope:
 
 See:
 
-- [docs/implementation-plan.md](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/formal-verification/verus/docs/implementation-plan.md)
+- [docs/implementation-plan.md](docs/implementation-plan.md)

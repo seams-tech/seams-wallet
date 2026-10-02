@@ -3,7 +3,7 @@
 Last updated: 2026-04-16
 
 This inventory tracks the recommended first proof targets for
-[crates/signer-core](/Users/pta/Dev/rust/simple-threshold-signer/crates/signer-core).
+[crates/signer-core](../).
 
 The current recommendation is:
 

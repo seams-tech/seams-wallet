@@ -636,7 +636,7 @@ Why it matters:
 Current stance:
 
 - answered for the current crate direction in:
-  - [share-derivation-design-memo.md](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/docs/plans/share-derivation-design-memo.md)
+  - [share-derivation-design-memo.md](share-derivation-design-memo.md)
 
 ### 3. Can the current threshold-signatures-based EVM threshold ECDSA backend
 consume deterministic share derivation cleanly?
@@ -932,7 +932,7 @@ separate buckets.
 ### Product cutover work, not part of crate completion
 
 - SDK/server refactor work is tracked in
-  [sdk-server-integration-plan.md](/Users/pta/Dev/rust/simple-threshold-signer/crates/router-ab-ecdsa-derivation/docs/plans/sdk-server-integration-plan.md)
+  [sdk-server-integration-plan.md](sdk-server-integration-plan.md)
 - remove the separate `prfSecond`-derived export lane once replacement is
   actually live
 - remove legacy product assumptions after cutover
