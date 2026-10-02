@@ -9,7 +9,7 @@ import { buildWalletServiceHtml, registerWalletServiceRoute } from './harness';
  * Host-driven tree growth across the REAL wallet-iframe boundary.
  *
  * The parent router, the cross-origin wallet frame, the parent's resize ease,
- * and the real confirmer (wrapper → modal → content → tree) all take part; the
+ * and the real confirmer (wrapper → modal → content → review) all take part; the
  * only stand-in is the wallet-service host runtime, whose stub hands the
  * signing request straight to `mountConfirmUI`. Same-process harnesses cannot
  * see what this boundary does — the parent forces a layout at the destination
@@ -86,8 +86,8 @@ type MotionTrace = {
 
 /** The interior changes this surface can make, each through the same seam. */
 type MotionAction =
-  | { kind: 'folder'; open: boolean }
-  | { kind: 'file-content-mode' }
+  | { kind: 'details'; open: boolean }
+  | { kind: 'raw-data' }
   | { kind: 'error-banner'; message: string };
 
 async function openRealModal(page: Page, options: { greeting?: string } = {}): Promise<Frame> {
@@ -178,11 +178,26 @@ async function openRealModal(page: Page, options: { greeting?: string } = {}): P
         .join(', ')}`,
     );
   await frame.waitForFunction(
-    () =>
-      (window as any).__mounted === true && !!document.querySelector('.seams-tx-tree details.folder'),
+    () => {
+      const state = window as unknown as { __mounted?: boolean; __mountError?: string };
+      if (state.__mountError) throw new Error(`mountConfirmUI failed: ${state.__mountError}`);
+      return state.__mounted === true && !!document.querySelector('.seams-review-technical');
+    },
     undefined,
     { timeout: 30_000 },
   );
+  // An unstyled confirmer does not hug its box, and every geometry assertion
+  // would then fail for that reason alone.
+  const styled = await frame.evaluate(
+    () =>
+      !!document.querySelector<HTMLLinkElement>('link[href="/sdk/wallet-ui.css"]')?.sheet?.cssRules
+        .length,
+  );
+  if (!styled)
+    throw new Error(
+      '/sdk/wallet-ui.css did not load. The route serves packages/wallet/dist/public: build it ' +
+        'with `pnpm -C packages/wallet build:static-wallet-assets` after the SDK build.',
+    );
   // Let the confirmer's own settling (headings, halo) finish before measuring.
   await page.waitForTimeout(600);
   return frame;
@@ -230,15 +245,11 @@ async function recordMotion(frame: Frame, action: MotionAction): Promise<MotionT
       target.click();
     };
     switch (action.kind) {
-      case 'folder':
-        click(
-          action.open
-            ? '.seams-tx-tree details.folder:not([open]) > summary'
-            : '.seams-tx-tree details.folder[open]:not(:has(> .folder-children > details.folder[open])) > summary',
-        );
+      case 'details':
+        click(`.seams-review-technical${action.open ? ':not([open])' : '[open]'} > summary`);
         break;
-      case 'file-content-mode':
-        click('.seams-tx-tree .file-content-mode-toggle');
+      case 'raw-data':
+        click('.seams-review-technical .seams-review-raw > summary');
         break;
       case 'error-banner':
         const handle = (window as unknown as {
@@ -325,25 +336,27 @@ test.describe('wallet iframe host-driven interior motion', () => {
     await page.unroute(WALLET_SERVICE_ROUTE).catch(() => {});
   });
 
-  test('a tree node fills the easing box on open and close, one measurement each', async ({
+  test('the transaction details fill the easing box on open and close, one measurement each', async ({
     page,
   }) => {
     const frame = await openRealModal(page);
 
-    assertMotionInvariants(await recordMotion(frame, { kind: 'folder', open: true }), { sign: 1 });
+    assertMotionInvariants(await recordMotion(frame, { kind: 'details', open: true }), { sign: 1 });
     await page.waitForTimeout(400);
-    assertMotionInvariants(await recordMotion(frame, { kind: 'folder', open: false }), {
+    assertMotionInvariants(await recordMotion(frame, { kind: 'details', open: false }), {
       sign: -1,
     });
   });
 
-  test('swapping decoded calldata for bytes moves the box, not the card', async ({ page }) => {
-    // Long enough that the decoded JSON and the hex differ by more than a line.
+  test('revealing the raw calldata moves the box, not the card', async ({ page }) => {
+    // Tall enough that the parent does not clamp the box short of the raw bytes.
+    await page.setViewportSize({ width: 1280, height: 1200 });
+    // Long enough that the raw bytes wrap over several lines.
     const frame = await openRealModal(page, { greeting: `Hello Tempo ${'x'.repeat(120)}` });
-    await recordMotion(frame, { kind: 'folder', open: true });
+    await recordMotion(frame, { kind: 'details', open: true });
     await page.waitForTimeout(400);
 
-    assertMotionInvariants(await recordMotion(frame, { kind: 'file-content-mode' }));
+    assertMotionInvariants(await recordMotion(frame, { kind: 'raw-data' }));
   });
 
   test('an error banner arriving moves the box, not the card', async ({ page }) => {
@@ -358,7 +371,7 @@ test.describe('wallet iframe host-driven interior motion', () => {
     // units would then make the content a function of the box the parent gave
     // it, and the two would chase each other.
     const frame = await openRealModal(page, { greeting: `Hello Tempo ${'y'.repeat(600)}` });
-    await recordMotion(frame, { kind: 'folder', open: true });
+    await recordMotion(frame, { kind: 'details', open: true });
     await page.waitForTimeout(400);
 
     const hostHeight = () =>

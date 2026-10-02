@@ -4,6 +4,18 @@ import { injectImportMap } from '../setup/bootstrap';
 async function mountSettingsLayout(page: Page): Promise<void> {
   await page.goto('about:blank');
   await injectImportMap(page);
+  // The header's theme toggle reads the wallet from the SDK context.
+  await page.route('**/_test-sdk/esm/react/context/index.js', async (route) => {
+    await route.fulfill({
+      contentType: 'application/javascript',
+      body: `
+        const seams = { setTheme() {} };
+        export function useSeams() {
+          return { seams };
+        }
+      `,
+    });
+  });
   await page.evaluate(async () => {
     const React = await import('react');
     const { createRoot } = await import('react-dom/client');

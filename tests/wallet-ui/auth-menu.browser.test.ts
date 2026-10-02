@@ -89,9 +89,11 @@ for (const variant of ['modal', 'drawer'] as const) {
         window.__authBrowser.confirmationDecision = handle.takeDecision();
       }, variant);
       await expect(page.locator('.seams-auth-menu-surface')).toHaveCount(0);
+      // The drawer has no review toolbar: its own Close control cancels.
+      const cancelName = variant === 'drawer' ? 'Close' : 'Cancel handoff';
       await page
         .getByRole('button', {
-          name: confirmed ? 'Approve handoff' : 'Cancel handoff',
+          name: confirmed ? 'Approve handoff' : cancelName,
           exact: true,
         })
         .click();
