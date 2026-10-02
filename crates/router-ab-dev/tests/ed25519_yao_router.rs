@@ -4,12 +4,10 @@ use router_ab_core::{
     MpcMaterialActivationRefV1, RootShareEpoch,
 };
 use router_ab_dev::{
-    admit_local_ed25519_yao_export_v1, admit_local_ed25519_yao_registration_v1,
-    LocalEd25519YaoRecoveryCredentialBindingV1, LocalEd25519YaoRefreshActiveEpochsV1,
-    LocalEd25519YaoRouterExportAdmissionRequestV1, LocalEd25519YaoRouterRecoveryAdmissionRequestV1,
-    LocalEd25519YaoRouterRecoveryStateV1, LocalEd25519YaoRouterRefreshAdmissionRequestV1,
-    LocalEd25519YaoRouterRefreshStateV1, RouterAbEd25519YaoApplicationBindingFactsV1,
-    RouterAbEd25519YaoLifecycleScopeV1, RouterAbEd25519YaoRegistrationAdmissionRequestV1,
+    admit_local_ed25519_yao_registration_v1, LocalEd25519YaoRefreshActiveEpochsV1,
+    LocalEd25519YaoRouterRefreshAdmissionRequestV1, LocalEd25519YaoRouterRefreshStateV1,
+    RouterAbEd25519YaoApplicationBindingFactsV1, RouterAbEd25519YaoLifecycleScopeV1,
+    RouterAbEd25519YaoRegistrationAdmissionRequestV1,
 };
 
 #[test]
@@ -33,27 +31,6 @@ fn router_admits_registration_into_fresh_bound_role_requests() {
 }
 
 #[test]
-fn router_admits_export_into_the_export_family_only() {
-    let admitted =
-        admit_local_ed25519_yao_export_v1(LocalEd25519YaoRouterExportAdmissionRequestV1 {
-            scope: scope("export-1"),
-            application_binding: application(),
-            participant_ids: [1, 2],
-        })
-        .expect("export");
-
-    assert_eq!(admitted.binding.operation, Ed25519YaoOperationV1::Export);
-    assert_eq!(
-        admitted.binding.lifecycle.work_kind,
-        ExpensiveWorkKindV1::KeyExport
-    );
-    assert_eq!(
-        admitted.binding.circuit_family(),
-        Ed25519YaoCircuitFamilyV1::Export
-    );
-}
-
-#[test]
 fn router_rejects_ambiguous_participant_and_scope_inputs() {
     let mut invalid_participants =
         serde_json::to_value(registration_request()).expect("registration JSON");
@@ -72,30 +49,6 @@ fn router_rejects_ambiguous_participant_and_scope_inputs() {
         serde_json::from_value::<RouterAbEd25519YaoRegistrationAdmissionRequestV1>(invalid_scope)
             .is_err()
     );
-}
-
-#[test]
-fn recovery_suspends_then_retires_the_old_credential() {
-    let old = LocalEd25519YaoRecoveryCredentialBindingV1::new([0x61; 32]).expect("old");
-    let replacement =
-        LocalEd25519YaoRecoveryCredentialBindingV1::new([0x62; 32]).expect("replacement");
-    let public_key = [0x71; 32];
-    let mut state =
-        LocalEd25519YaoRouterRecoveryStateV1::new(old, public_key).expect("recovery state");
-    let admission = state
-        .begin(recovery_request(old, replacement))
-        .expect("admission");
-    assert_eq!(admission.binding.operation, Ed25519YaoOperationV1::Recovery);
-    assert!(state.begin(recovery_request(old, replacement)).is_err());
-    assert!(state.promote(&admission.binding, [0x72; 32]).is_err());
-
-    let receipt = state
-        .promote(&admission.binding, public_key)
-        .expect("promotion");
-    assert_eq!(receipt.active_credential, replacement);
-    assert_eq!(receipt.retired_credential, old);
-    assert!(state.is_tombstoned(old));
-    assert!(state.begin(recovery_request(old, replacement)).is_err());
 }
 
 #[test]
@@ -282,19 +235,6 @@ fn application() -> RouterAbEd25519YaoApplicationBindingFactsV1 {
         1,
     )
     .expect("application binding")
-}
-
-fn recovery_request(
-    active_credential: LocalEd25519YaoRecoveryCredentialBindingV1,
-    replacement_credential: LocalEd25519YaoRecoveryCredentialBindingV1,
-) -> LocalEd25519YaoRouterRecoveryAdmissionRequestV1 {
-    LocalEd25519YaoRouterRecoveryAdmissionRequestV1 {
-        scope: scope("recovery-1"),
-        application_binding: application(),
-        participant_ids: [1, 2],
-        active_credential,
-        replacement_credential,
-    }
 }
 
 fn refresh_request(

@@ -71,50 +71,12 @@ pub fn seal_local_ed25519_yao_activation_deriver_b_input_v1(
     )
 }
 
-pub fn seal_local_ed25519_yao_export_deriver_a_input_v1(
-    request: &LocalEd25519YaoExportDeriverARequestV1,
-    public_key: [u8; 32],
-) -> RouterAbProtocolResult<Ed25519YaoEncryptedInputV1> {
-    seal_input(
-        Ed25519YaoInputKindV1::Export,
-        Ed25519YaoDeriverRoleV1::DeriverA,
-        &request.binding,
-        public_key,
-        request,
-    )
-}
-
-pub fn seal_local_ed25519_yao_export_deriver_b_input_v1(
-    request: &LocalEd25519YaoExportDeriverBRequestV1,
-    public_key: [u8; 32],
-) -> RouterAbProtocolResult<Ed25519YaoEncryptedInputV1> {
-    seal_input(
-        Ed25519YaoInputKindV1::Export,
-        Ed25519YaoDeriverRoleV1::DeriverB,
-        &request.binding,
-        public_key,
-        request,
-    )
-}
-
 pub fn seal_local_ed25519_yao_refresh_deriver_a_input_v1(
     request: &LocalEd25519YaoRefreshDeriverARequestV1,
     public_key: [u8; 32],
 ) -> RouterAbProtocolResult<LocalEd25519YaoEncryptedRefreshInputV1> {
     seal_refresh_input(
         Ed25519YaoDeriverRoleV1::DeriverA,
-        &request.binding,
-        public_key,
-        request,
-    )
-}
-
-pub fn seal_local_ed25519_yao_refresh_deriver_b_input_v1(
-    request: &LocalEd25519YaoRefreshDeriverBRequestV1,
-    public_key: [u8; 32],
-) -> RouterAbProtocolResult<LocalEd25519YaoEncryptedRefreshInputV1> {
-    seal_refresh_input(
-        Ed25519YaoDeriverRoleV1::DeriverB,
         &request.binding,
         public_key,
         request,

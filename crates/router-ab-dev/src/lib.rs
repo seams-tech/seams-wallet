@@ -137,15 +137,11 @@ pub use local_ed25519_yao_input::{
     open_local_ed25519_yao_refresh_deriver_b_input_v1,
     seal_local_ed25519_yao_activation_deriver_a_input_v1,
     seal_local_ed25519_yao_activation_deriver_b_input_v1,
-    seal_local_ed25519_yao_export_deriver_a_input_v1,
-    seal_local_ed25519_yao_export_deriver_b_input_v1,
-    seal_local_ed25519_yao_refresh_deriver_a_input_v1,
-    seal_local_ed25519_yao_refresh_deriver_b_input_v1, LocalEd25519YaoEncryptedRefreshInputV1,
+    seal_local_ed25519_yao_refresh_deriver_a_input_v1, LocalEd25519YaoEncryptedRefreshInputV1,
 };
 pub use local_ed25519_yao_pair::{
-    LocalEd25519YaoPairLifecycleSnapshotV1, LocalEd25519YaoPairLifecycleStateV1,
-    LocalEd25519YaoPairLifecycleV1, LocalEd25519YaoPairSigningKeysV1,
-    LocalEd25519YaoRoleReadinessReceiptV1,
+    LocalEd25519YaoPairLifecycleStateV1, LocalEd25519YaoPairLifecycleV1,
+    LocalEd25519YaoPairSigningKeysV1, LocalEd25519YaoRoleReadinessReceiptV1,
 };
 pub use local_ed25519_yao_pair_sqlite::LocalDeriverAPairSqliteV1;
 pub use local_ed25519_yao_refresh::{
@@ -157,11 +153,7 @@ pub use local_ed25519_yao_refresh::{
     LocalEd25519YaoDeriverBRefreshDeltaWireV1,
 };
 pub use local_ed25519_yao_router::{
-    admit_local_ed25519_yao_export_v1, admit_local_ed25519_yao_registration_v1,
-    LocalEd25519YaoRecoveryCredentialBindingV1, LocalEd25519YaoRefreshActiveEpochsV1,
-    LocalEd25519YaoRouterExportAdmissionRequestV1, LocalEd25519YaoRouterExportAdmissionV1,
-    LocalEd25519YaoRouterRecoveryAdmissionRequestV1, LocalEd25519YaoRouterRecoveryAdmissionV1,
-    LocalEd25519YaoRouterRecoveryPromotionReceiptV1, LocalEd25519YaoRouterRecoveryStateV1,
+    admit_local_ed25519_yao_registration_v1, LocalEd25519YaoRefreshActiveEpochsV1,
     LocalEd25519YaoRouterRefreshAdmissionRequestV1, LocalEd25519YaoRouterRefreshStateV1,
     LocalEd25519YaoRouterRegistrationAdmissionV1,
 };

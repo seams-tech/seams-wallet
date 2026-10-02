@@ -10,49 +10,7 @@ use router_ab_core::{
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 
-#[derive(Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct LocalEd25519YaoRouterExportAdmissionRequestV1 {
-    pub scope: RouterAbEd25519YaoLifecycleScopeV1,
-    pub application_binding: RouterAbEd25519YaoApplicationBindingFactsV1,
-    pub participant_ids: [u16; 2],
-}
-
 pub struct LocalEd25519YaoRouterRegistrationAdmissionV1 {
-    pub binding: Ed25519YaoCeremonyBindingV1,
-}
-
-pub struct LocalEd25519YaoRouterExportAdmissionV1 {
-    pub binding: Ed25519YaoCeremonyBindingV1,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-#[serde(transparent)]
-pub struct LocalEd25519YaoRecoveryCredentialBindingV1([u8; 32]);
-
-impl LocalEd25519YaoRecoveryCredentialBindingV1 {
-    pub fn new(binding: [u8; 32]) -> RouterAbProtocolResult<Self> {
-        if binding.iter().all(|byte| *byte == 0) {
-            return Err(invalid_recovery(
-                "recovery credential binding must be nonzero",
-            ));
-        }
-        Ok(Self(binding))
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct LocalEd25519YaoRouterRecoveryAdmissionRequestV1 {
-    pub scope: RouterAbEd25519YaoLifecycleScopeV1,
-    pub application_binding: RouterAbEd25519YaoApplicationBindingFactsV1,
-    pub participant_ids: [u16; 2],
-    pub active_credential: LocalEd25519YaoRecoveryCredentialBindingV1,
-    pub replacement_credential: LocalEd25519YaoRecoveryCredentialBindingV1,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct LocalEd25519YaoRouterRecoveryAdmissionV1 {
     pub binding: Ed25519YaoCeremonyBindingV1,
 }
 
@@ -280,139 +238,6 @@ fn next_refresh_epochs(
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct LocalEd25519YaoRouterRecoveryPromotionReceiptV1 {
-    pub binding: Ed25519YaoCeremonyBindingV1,
-    pub registered_public_key: [u8; 32],
-    pub active_credential: LocalEd25519YaoRecoveryCredentialBindingV1,
-    pub retired_credential: LocalEd25519YaoRecoveryCredentialBindingV1,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-enum LocalEd25519YaoRecoveryLifecycleV1 {
-    Active {
-        credential: LocalEd25519YaoRecoveryCredentialBindingV1,
-        registered_public_key: [u8; 32],
-    },
-    Suspended {
-        binding: Ed25519YaoCeremonyBindingV1,
-        active_credential: LocalEd25519YaoRecoveryCredentialBindingV1,
-        replacement_credential: LocalEd25519YaoRecoveryCredentialBindingV1,
-        registered_public_key: [u8; 32],
-    },
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct LocalEd25519YaoRouterRecoveryStateV1 {
-    lifecycle: LocalEd25519YaoRecoveryLifecycleV1,
-    tombstones: BTreeSet<LocalEd25519YaoRecoveryCredentialBindingV1>,
-}
-
-impl LocalEd25519YaoRouterRecoveryStateV1 {
-    pub fn new(
-        active_credential: LocalEd25519YaoRecoveryCredentialBindingV1,
-        registered_public_key: [u8; 32],
-    ) -> RouterAbProtocolResult<Self> {
-        if registered_public_key.iter().all(|byte| *byte == 0) {
-            return Err(invalid_recovery("registered public key must be nonzero"));
-        }
-        Ok(Self {
-            lifecycle: LocalEd25519YaoRecoveryLifecycleV1::Active {
-                credential: active_credential,
-                registered_public_key,
-            },
-            tombstones: BTreeSet::new(),
-        })
-    }
-
-    pub fn begin(
-        &mut self,
-        request: LocalEd25519YaoRouterRecoveryAdmissionRequestV1,
-    ) -> RouterAbProtocolResult<LocalEd25519YaoRouterRecoveryAdmissionV1> {
-        let LocalEd25519YaoRouterRecoveryAdmissionRequestV1 {
-            scope,
-            application_binding,
-            participant_ids,
-            active_credential,
-            replacement_credential,
-        } = request;
-        let LocalEd25519YaoRecoveryLifecycleV1::Active {
-            credential,
-            registered_public_key,
-        } = &self.lifecycle
-        else {
-            return Err(invalid_recovery(
-                "another recovery credential transition is already suspended",
-            ));
-        };
-        if *credential != active_credential || self.tombstones.contains(&active_credential) {
-            return Err(invalid_recovery(
-                "recovery credential is not the active credential",
-            ));
-        }
-        if replacement_credential == active_credential
-            || self.tombstones.contains(&replacement_credential)
-        {
-            return Err(invalid_recovery(
-                "replacement recovery credential must be fresh",
-            ));
-        }
-        let binding = admitted_binding(
-            scope,
-            &application_binding,
-            participant_ids,
-            Ed25519YaoOperationV1::Recovery,
-        )?;
-        let registered_public_key = *registered_public_key;
-        self.lifecycle = LocalEd25519YaoRecoveryLifecycleV1::Suspended {
-            binding: binding.clone(),
-            active_credential,
-            replacement_credential,
-            registered_public_key,
-        };
-        Ok(LocalEd25519YaoRouterRecoveryAdmissionV1 { binding })
-    }
-
-    pub fn promote(
-        &mut self,
-        binding: &Ed25519YaoCeremonyBindingV1,
-        recovered_public_key: [u8; 32],
-    ) -> RouterAbProtocolResult<LocalEd25519YaoRouterRecoveryPromotionReceiptV1> {
-        let LocalEd25519YaoRecoveryLifecycleV1::Suspended {
-            binding: suspended_binding,
-            active_credential,
-            replacement_credential,
-            registered_public_key,
-        } = &self.lifecycle
-        else {
-            return Err(invalid_recovery("no recovery transition is suspended"));
-        };
-        if suspended_binding != binding || *registered_public_key != recovered_public_key {
-            return Err(invalid_recovery(
-                "recovery result does not preserve its admitted binding and public identity",
-            ));
-        }
-        let retired_credential = *active_credential;
-        let active_credential = *replacement_credential;
-        let registered_public_key = *registered_public_key;
-        self.tombstones.insert(retired_credential);
-        self.lifecycle = LocalEd25519YaoRecoveryLifecycleV1::Active {
-            credential: active_credential,
-            registered_public_key,
-        };
-        Ok(LocalEd25519YaoRouterRecoveryPromotionReceiptV1 {
-            binding: binding.clone(),
-            registered_public_key,
-            active_credential,
-            retired_credential,
-        })
-    }
-
-    pub fn is_tombstoned(&self, credential: LocalEd25519YaoRecoveryCredentialBindingV1) -> bool {
-        self.tombstones.contains(&credential)
-    }
-}
-
 pub fn admit_local_ed25519_yao_registration_v1(
     request: RouterAbEd25519YaoRegistrationAdmissionRequestV1,
 ) -> RouterAbProtocolResult<LocalEd25519YaoRouterRegistrationAdmissionV1> {
@@ -424,23 +249,6 @@ pub fn admit_local_ed25519_yao_registration_v1(
         Ed25519YaoOperationV1::Registration,
     )?;
     Ok(LocalEd25519YaoRouterRegistrationAdmissionV1 { binding })
-}
-
-pub fn admit_local_ed25519_yao_export_v1(
-    request: LocalEd25519YaoRouterExportAdmissionRequestV1,
-) -> RouterAbProtocolResult<LocalEd25519YaoRouterExportAdmissionV1> {
-    let LocalEd25519YaoRouterExportAdmissionRequestV1 {
-        scope,
-        application_binding,
-        participant_ids,
-    } = request;
-    let binding = admitted_binding(
-        scope,
-        &application_binding,
-        participant_ids,
-        Ed25519YaoOperationV1::Export,
-    )?;
-    Ok(LocalEd25519YaoRouterExportAdmissionV1 { binding })
 }
 
 fn admitted_binding(
@@ -474,10 +282,6 @@ fn fresh_session_id() -> RouterAbProtocolResult<[u8; 32]> {
             return Ok(session);
         }
     }
-}
-
-fn invalid_recovery(message: &'static str) -> RouterAbProtocolError {
-    RouterAbProtocolError::new(RouterAbProtocolErrorCode::InvalidLifecycleState, message)
 }
 
 fn invalid_refresh(message: &'static str) -> RouterAbProtocolError {
