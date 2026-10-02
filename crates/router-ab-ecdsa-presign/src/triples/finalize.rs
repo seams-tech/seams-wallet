@@ -139,7 +139,6 @@ impl TripleContributionParts {
         }
     }
 
-    #[allow(clippy::type_complexity)]
     pub fn into_parts(
         self,
     ) -> (
@@ -560,7 +559,6 @@ fn finalize_one(
     })
 }
 
-#[allow(clippy::too_many_arguments)]
 fn prove_dlog_for_role(
     role: u8,
     context: PresignPairContext,

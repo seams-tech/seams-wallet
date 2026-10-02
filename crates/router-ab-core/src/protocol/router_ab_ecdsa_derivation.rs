@@ -673,7 +673,6 @@ pub struct RouterAbEcdsaDerivationPublicIdentityV1 {
 
 impl RouterAbEcdsaDerivationPublicIdentityV1 {
     /// Creates a validated public identity.
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         context_binding_b64u: impl Into<String>,
         derivation_client_share_public_key33_b64u: impl Into<String>,

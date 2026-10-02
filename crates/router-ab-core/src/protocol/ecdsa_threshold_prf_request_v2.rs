@@ -218,7 +218,6 @@ pub struct EcdsaThresholdPrfOuterRequestV2 {
 
 impl EcdsaThresholdPrfOuterRequestV2 {
     /// Creates one exact validated outer request.
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         request_nonce: TenantRootDerivationNonceV1,
         issued_at_ms: u64,

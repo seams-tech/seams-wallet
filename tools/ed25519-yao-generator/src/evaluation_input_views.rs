@@ -5,8 +5,6 @@
 //! no production protocol, wire format, protocol randomness, frame, entropy
 //! source, durable transition, or real/ideal security claim.
 
-#![cfg_attr(not(test), allow(dead_code))]
-
 use core::fmt;
 
 use crate::ceremony_context::{

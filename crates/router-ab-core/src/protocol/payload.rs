@@ -711,7 +711,6 @@ impl core::fmt::Debug for RecipientProofBundlePayloadV1 {
 
 impl RecipientProofBundlePayloadV1 {
     /// Creates a validated recipient proof-bundle payload.
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         lifecycle_id: impl Into<String>,
         signer: SignerIdentityV1,
@@ -834,7 +833,6 @@ impl core::fmt::Debug for MpcPrfStableProofBundleWireV2 {
 
 impl MpcPrfStableProofBundleWireV2 {
     /// Creates a validated canonical proof-bundle wire.
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         stable_context_digest: TenantRootProtocolDigestV1,
         custody_binding_digest: TenantRootProtocolDigestV1,

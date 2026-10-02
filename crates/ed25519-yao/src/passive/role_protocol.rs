@@ -1908,8 +1908,6 @@ impl CompletedRoleB<LaneMaterializationStream> {
 #[cfg(feature = "local-protocol")]
 #[doc(hidden)]
 pub mod benchmark {
-    #![allow(missing_docs)]
-
     use super::*;
     use crate::passive::packages::{
         derive_public_activation_receipt_bytes, verify_public_activation_receipt_bytes,

@@ -289,7 +289,6 @@ pub fn ed25519_yao_lane_target_id_digest_v1(
 }
 
 /// Opens one exact holder or SigningWorker lane recipient package.
-#[allow(clippy::too_many_arguments)]
 pub fn open_ed25519_yao_lane_recipient_package_v1(
     envelope: &Ed25519YaoEncryptedPackageV1,
     private_key: &Ed25519YaoRecipientPrivateKeyV1,

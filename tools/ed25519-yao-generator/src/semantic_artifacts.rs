@@ -566,7 +566,6 @@ struct SemanticCeremonyBindingV1 {
 }
 
 impl SemanticCeremonyBindingV1 {
-    #[cfg_attr(not(test), allow(dead_code))]
     fn new(
         request: &CeremonyPublicRequestContextV1,
         authorization: &CeremonyAuthorizationV1,
@@ -667,8 +666,6 @@ pub struct RegistrationActivationSemanticArtifactContextV1(ActivationSemanticArt
 
 impl RegistrationActivationSemanticArtifactContextV1 {
     /// Ties registration provenance to the exact registration ceremony DAG.
-    #[allow(clippy::too_many_arguments)]
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn new(
         request: &CeremonyPublicRequestContextV1,
         authorization: &CeremonyRegistrationAuthorizationV1,
@@ -717,8 +714,6 @@ pub struct RecoveryActivationSemanticArtifactContextV1(ActivationSemanticArtifac
 
 impl RecoveryActivationSemanticArtifactContextV1 {
     /// Ties same-root recovery provenance to the exact recovery ceremony DAG.
-    #[allow(clippy::too_many_arguments)]
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn new(
         request: &CeremonyPublicRequestContextV1,
         authorization: &CeremonyRecoveryAuthorizationV1,
@@ -767,8 +762,6 @@ pub struct RefreshActivationSemanticArtifactContextV1(ActivationSemanticArtifact
 
 impl RefreshActivationSemanticArtifactContextV1 {
     /// Ties opposite-delta refresh provenance to the exact refresh ceremony DAG.
-    #[allow(clippy::too_many_arguments)]
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn new(
         request: &CeremonyPublicRequestContextV1,
         authorization: &CeremonyRefreshAuthorizationV1,
@@ -840,7 +833,6 @@ impl HostOnlyPackagedExportV1 {
 
 impl ExportSemanticArtifactContextV1 {
     /// Validates an export ceremony binding.
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn new(
         request: &CeremonyPublicRequestContextV1,
         authorization: &CeremonyExportAuthorizationV1,
@@ -893,7 +885,6 @@ impl ExportSemanticArtifactContextV1 {
     }
 }
 
-#[cfg_attr(not(test), allow(dead_code))]
 fn validate_input_provenance_for_ceremony(
     ceremony: CeremonyValidatedDagV1,
     input_provenance: &RoleInputProvenancePairV1,

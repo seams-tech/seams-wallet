@@ -4,8 +4,6 @@
 //! lifecycle branch. They do not model entropy, protocol randomness, garbling,
 //! oblivious transfer, output translation, or production security.
 
-#![cfg_attr(not(test), allow(dead_code))]
-
 use crate::{HostOnlyActivationOutputCoinsV1, HostOnlySeedOutputCoinV1};
 
 /// Registration-owned ideal coins for two activation-family output shares.

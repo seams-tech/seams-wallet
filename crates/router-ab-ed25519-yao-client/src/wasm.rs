@@ -460,7 +460,6 @@ impl WasmActivatedClientV1 {
     }
 
     /// Creates a signature share while retaining the Client scalar inside WASM.
-    #[allow(clippy::too_many_arguments)]
     pub fn create_signing_share(
         &self,
         client_participant_id: u16,
@@ -657,7 +656,6 @@ impl WasmClientSigningShareV1 {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 fn build_client_signing_share(
     client_scalar_share: &[u8; 32],
     registered_public_key: &[u8; 32],
@@ -771,7 +769,6 @@ pub struct WasmEd25519YaoLaneSourceV1 {
 impl WasmEd25519YaoLaneSourceV1 {
     /// Opens the custody envelope and retains only the derived Client root.
     #[wasm_bindgen(constructor)]
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         factor_secret: &[u8],
         envelope_binding_json: &str,

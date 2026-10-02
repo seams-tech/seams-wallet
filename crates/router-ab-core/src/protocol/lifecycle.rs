@@ -177,7 +177,6 @@ pub struct MpcMaterialActivationRefV1 {
 
 impl MpcMaterialActivationRefV1 {
     /// Creates a validated material-activation reference.
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         activation_id: impl Into<String>,
         capability: impl Into<String>,

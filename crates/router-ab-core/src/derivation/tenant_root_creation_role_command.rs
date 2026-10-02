@@ -343,7 +343,6 @@ impl TenantRootRoleCreationCommandV1 {
     }
 
     /// Verifies this command against the exact Started journal and ceremony context.
-    #[allow(clippy::too_many_arguments)]
     pub fn verify(
         &self,
         expected_started_journal: &TenantRootCreationJournalV1,
@@ -598,7 +597,6 @@ struct CommandBindingsV1 {
 }
 
 impl CommandBindingsV1 {
-    #[allow(clippy::too_many_arguments)]
     fn from_sources(
         started_journal: &TenantRootCreationJournalV1,
         creation_context: &TenantRootCeremonyContextV1,

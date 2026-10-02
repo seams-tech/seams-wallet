@@ -1500,7 +1500,6 @@ impl RoleInputProvenancePairV1 {
         &self.deriver_b
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn ceremony_request_context_digest(&self) -> PublicRequestContextDigest32V1 {
         self.deriver_a
             .common()
@@ -1508,17 +1507,14 @@ impl RoleInputProvenancePairV1 {
             .public_request_context_digest
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn ceremony_authorization_digest(&self) -> AuthorizationDigest32V1 {
         self.deriver_a.common().ceremony.authorization_digest
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn ceremony_transcript_digest(&self) -> CeremonyTranscriptDigest32V1 {
         self.deriver_a.common().ceremony.transcript_digest
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn registered_public_key(&self) -> Option<RegisteredEd25519PublicKey32V1> {
         match &self.deriver_a {
             RoleInputProvenanceStatementV1::Registration(_) => None,
@@ -1554,7 +1550,6 @@ impl RoleInputProvenancePairV1 {
         }
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn recovery_registered_state_binding(
         &self,
     ) -> Result<RegisteredStateProvenanceBindingV1, RegisteredStateProvenanceErrorV1> {
@@ -1585,7 +1580,6 @@ impl RoleInputProvenancePairV1 {
         }
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn refresh_registered_state_binding(
         &self,
     ) -> Result<RefreshStateProvenanceBindingV1, RegisteredStateProvenanceErrorV1> {
@@ -1620,7 +1614,6 @@ impl RoleInputProvenancePairV1 {
         }
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn export_registered_state_binding(
         &self,
     ) -> Result<RegisteredStateProvenanceBindingV1, RegisteredStateProvenanceErrorV1> {
@@ -1661,7 +1654,6 @@ impl RoleInputProvenancePairV1 {
     }
 }
 
-#[cfg_attr(not(test), allow(dead_code))]
 fn role_state_binding<Role: ProvenanceRoleV1>(
     snapshot: &RoleInputSnapshotV1<Role>,
 ) -> ProvenanceRoleStateBindingV1<Role> {
@@ -1674,7 +1666,6 @@ fn role_state_binding<Role: ProvenanceRoleV1>(
     }
 }
 
-#[cfg_attr(not(test), allow(dead_code))]
 fn registered_state_binding(
     stable_scope: StableKdfScopeV1,
     registered_public_key: RegisteredEd25519PublicKey32V1,

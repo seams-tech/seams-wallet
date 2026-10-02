@@ -242,7 +242,6 @@ pub struct RouterAbNearDelegateActionIntentV1 {
 
 impl RouterAbNearDelegateActionIntentV1 {
     /// Creates validated delegate-action intent metadata.
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         sender_id: impl Into<String>,
         receiver_id: impl Into<String>,

@@ -42,7 +42,6 @@ pub struct Ed25519YaoActivationRoleExecutionV1 {
 
 impl Ed25519YaoActivationRoleExecutionV1 {
     /// Creates and validates one complete activation role result.
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         binding: Ed25519YaoCeremonyBindingV1,
         deriver: Ed25519YaoDeriverRoleV1,

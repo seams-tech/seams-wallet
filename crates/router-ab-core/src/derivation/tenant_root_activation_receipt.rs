@@ -288,7 +288,6 @@ pub struct TenantRootInitialCreationActivationReceiptBindingV1 {
 
 impl TenantRootInitialCreationActivationReceiptBindingV1 {
     /// Builds the exact initial-creation binding from verified activation evidence.
-    #[allow(clippy::too_many_arguments)]
     pub fn from_verified_bundle(
         bundle: &VerifiedTenantRootInitialCreationActivationEvidenceBundleV1,
         activated_at_ms: u64,
@@ -394,7 +393,6 @@ pub struct TenantRootRefreshSwapActivationReceiptBindingV1 {
 
 impl TenantRootRefreshSwapActivationReceiptBindingV1 {
     /// Builds the exact refresh-swap binding from verified activation evidence.
-    #[allow(clippy::too_many_arguments)]
     pub fn from_verified_bundle(
         bundle: &VerifiedTenantRootRefreshSwapActivationEvidenceBundleV1,
         activated_at_ms: u64,
@@ -649,7 +647,6 @@ pub struct TenantRootSignedActivationReceiptV1 {
 
 impl TenantRootSignedActivationReceiptV1 {
     /// Signs an activation whose binding is derived from verified creation evidence.
-    #[allow(clippy::too_many_arguments)]
     pub fn sign_initial_creation(
         bundle: &VerifiedTenantRootInitialCreationActivationEvidenceBundleV1,
         activated_at_ms: u64,
@@ -670,7 +667,6 @@ impl TenantRootSignedActivationReceiptV1 {
     }
 
     /// Signs an activation whose binding is derived from verified refresh evidence.
-    #[allow(clippy::too_many_arguments)]
     pub fn sign_refresh_swap(
         bundle: &VerifiedTenantRootRefreshSwapActivationEvidenceBundleV1,
         activated_at_ms: u64,
@@ -868,7 +864,6 @@ impl TenantRootSignedActivationReceiptV1 {
     }
 
     /// Verifies an initial-creation receipt against verified evidence and authority metadata.
-    #[allow(clippy::too_many_arguments)]
     pub fn verify_initial_creation(
         self,
         bundle: &VerifiedTenantRootInitialCreationActivationEvidenceBundleV1,
@@ -890,7 +885,6 @@ impl TenantRootSignedActivationReceiptV1 {
     }
 
     /// Verifies a refresh-swap receipt against verified evidence and authority metadata.
-    #[allow(clippy::too_many_arguments)]
     pub fn verify_refresh_swap(
         self,
         bundle: &VerifiedTenantRootRefreshSwapActivationEvidenceBundleV1,

@@ -179,7 +179,6 @@ pub struct CloudflareRouterTrustedRequestMetadataV1 {
 
 impl CloudflareRouterTrustedRequestMetadataV1 {
     /// Creates validated trusted request metadata.
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         work_kind: ExpensiveWorkKindV1,
         org_id: impl Into<String>,
@@ -632,7 +631,6 @@ pub struct CloudflareRouterVerifiedJwtClaimsV1 {
 
 impl CloudflareRouterVerifiedJwtClaimsV1 {
     /// Creates validated claims from an already verified JWT/session boundary.
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         subject_id: impl Into<String>,
         session_id: impl Into<String>,

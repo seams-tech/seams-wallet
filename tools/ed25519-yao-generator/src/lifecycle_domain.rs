@@ -222,7 +222,6 @@ pub struct RegisteredLifecyclePreStateV1 {
 impl RegisteredLifecyclePreStateV1 {
     /// Creates a synthetic host-reference projection for lifecycle relation tests.
     #[allow(clippy::too_many_arguments)]
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) const fn from_host_reference_store_projection(
         registered_public_key: RegisteredEd25519PublicKey32V1,
         active_credential_binding_digest: ActiveCredentialBindingDigest32V1,
@@ -603,14 +602,12 @@ pub(crate) fn validate_registered_state_fields(
 }
 
 /// Host-reference first activation epoch and one-use identity for registration.
-#[cfg_attr(not(test), allow(dead_code))]
 pub(crate) struct RegistrationArtifactIssuanceV1 {
     activation_epoch: CeremonyActivationEpochV1,
     one_use_execution_id: OneUseExecutionId32V1,
     admission: AcceptedRegistrationAdmissionV1,
 }
 
-#[cfg_attr(not(test), allow(dead_code))]
 impl RegistrationArtifactIssuanceV1 {
     /// Establishes the first activation epoch for one unregistered request.
     pub(crate) const fn new(
@@ -627,14 +624,12 @@ impl RegistrationArtifactIssuanceV1 {
 }
 
 /// Export one-use issuance consuming the store-resolved registered state.
-#[cfg_attr(not(test), allow(dead_code))]
 pub(crate) struct ExportArtifactIssuanceV1 {
     state: AuthenticatedRegisteredStoreResolutionV1,
     one_use_execution_id: OneUseExecutionId32V1,
     acceptance_authorities: ExportAuthorizationAcceptanceAuthoritiesV1,
 }
 
-#[cfg_attr(not(test), allow(dead_code))]
 impl ExportArtifactIssuanceV1 {
     /// Binds one registered state resolution to one export execution.
     pub(crate) const fn new(
@@ -689,7 +684,6 @@ pub struct ActivationReceiptEvidenceV1 {
 
 impl ActivationReceiptEvidenceV1 {
     /// Creates complete role-separated activation receipt evidence.
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) const fn new(
         deriver_a: OpaqueHostReferenceDeriverAReceiptEvidenceDigest32V1,
         deriver_b: OpaqueHostReferenceDeriverBReceiptEvidenceDigest32V1,
@@ -710,7 +704,6 @@ pub struct ExportOutputCommitmentEvidenceV1 {
 
 impl ExportOutputCommitmentEvidenceV1 {
     /// Creates complete role-separated export output-commitment evidence.
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) const fn new(
         deriver_a: OpaqueHostReferenceDeriverAReceiptEvidenceDigest32V1,
         deriver_b: OpaqueHostReferenceDeriverBReceiptEvidenceDigest32V1,
@@ -733,7 +726,6 @@ pub struct BurnedArtifactAttemptV1 {
 }
 
 impl BurnedArtifactAttemptV1 {
-    #[cfg_attr(not(test), allow(dead_code))]
     fn from_dag(dag: CeremonyValidatedDagV1, one_use_execution_id: OneUseExecutionId32V1) -> Self {
         Self {
             request_kind: dag.request_kind(),
@@ -937,7 +929,6 @@ impl<Retained> fmt::Debug for ArtifactEvaluationFailureV1<Retained> {
 }
 
 /// Single-use registration semantic artifact session.
-#[cfg_attr(not(test), allow(dead_code))]
 pub(crate) struct RegistrationArtifactSessionV1 {
     request: RegistrationRequestV1,
     one_use_execution_id: OneUseExecutionId32V1,
@@ -946,7 +937,6 @@ pub(crate) struct RegistrationArtifactSessionV1 {
 }
 
 /// Single-use recovery semantic artifact session.
-#[cfg_attr(not(test), allow(dead_code))]
 pub(crate) struct RecoveryArtifactSessionV1 {
     request: RecoveryRequestV1,
     terminal: TerminalRecoveryEvaluationV1,
@@ -954,7 +944,6 @@ pub(crate) struct RecoveryArtifactSessionV1 {
 }
 
 /// Single-use refresh semantic artifact session.
-#[cfg_attr(not(test), allow(dead_code))]
 pub(crate) struct RefreshArtifactSessionV1 {
     request: RefreshRequestV1,
     terminal: TerminalRefreshEvaluationV1,
@@ -962,7 +951,6 @@ pub(crate) struct RefreshArtifactSessionV1 {
 }
 
 /// Single-use export semantic artifact session.
-#[cfg_attr(not(test), allow(dead_code))]
 pub(crate) struct ExportArtifactSessionV1 {
     request: ExportRequestV1,
     state: AuthenticatedRegisteredStoreResolutionV1,
@@ -972,7 +960,6 @@ pub(crate) struct ExportArtifactSessionV1 {
 
 impl RegistrationRequestV1 {
     /// Consumes this request into its only semantic artifact session.
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn begin_host_reference_artifact_session(
         self,
         issuance: RegistrationArtifactIssuanceV1,
@@ -1020,7 +1007,6 @@ impl RegistrationRequestV1 {
 
 impl RecoveryRequestV1 {
     /// Consumes this request and one accepted admission into a recovery session.
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn begin_host_reference_artifact_session(
         self,
         admission: AcceptedRecoveryAdmissionV1,
@@ -1061,7 +1047,6 @@ impl RecoveryRequestV1 {
 
 impl RefreshRequestV1 {
     /// Consumes this request and one accepted admission into a refresh session.
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn begin_host_reference_artifact_session(
         self,
         admission: AcceptedRefreshAdmissionV1,
@@ -1100,7 +1085,6 @@ impl RefreshRequestV1 {
 
 impl ExportRequestV1 {
     /// Consumes this request and store state into one export artifact session.
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn begin_host_reference_artifact_session(
         self,
         issuance: ExportArtifactIssuanceV1,
@@ -1314,7 +1298,6 @@ impl PendingActivationPreStateV1 {
         }
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
     fn origin_request_context(&self) -> &CeremonyPublicRequestContextV1 {
         match self {
             Self::Registration(pending) => pending.origin.request_context(),
@@ -1323,7 +1306,6 @@ impl PendingActivationPreStateV1 {
         }
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
     fn origin_transcript(&self) -> &CeremonyTranscriptV1 {
         match self {
             Self::Registration(pending) => pending.origin.transcript(),
@@ -1332,7 +1314,6 @@ impl PendingActivationPreStateV1 {
         }
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
     const fn origin_dag(&self) -> CeremonyValidatedDagV1 {
         match self {
             Self::Registration(pending) => pending.origin.validated_dag(),
@@ -1342,7 +1323,6 @@ impl PendingActivationPreStateV1 {
     }
 }
 
-#[cfg_attr(not(test), allow(dead_code))]
 fn commit_activation_artifacts(
     packaged: HostOnlyPackagedActivationV1,
     evidence: ActivationReceiptEvidenceV1,
@@ -1355,7 +1335,6 @@ fn commit_activation_artifacts(
 
 impl RegistrationArtifactSessionV1 {
     /// Evaluates, commits, and returns registration-origin pending metadata.
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn evaluate_and_commit_host_reference(
         self,
         inputs: HostOnlyRegistrationReferenceInputsV1<'_>,
@@ -1417,7 +1396,6 @@ impl RegistrationArtifactSessionV1 {
 
 impl RecoveryArtifactSessionV1 {
     /// Evaluates, commits, and returns recovery-origin pending metadata.
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn evaluate_and_commit_host_reference(
         self,
         inputs: HostOnlyRecoveryReferenceInputsV1<'_>,
@@ -1471,7 +1449,6 @@ impl RecoveryArtifactSessionV1 {
 
 impl RefreshArtifactSessionV1 {
     /// Evaluates, commits, and returns refresh-origin pending metadata.
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn evaluate_and_commit_host_reference(
         self,
         inputs: HostOnlyRefreshReferenceInputsV1<'_>,
@@ -1518,7 +1495,6 @@ impl RefreshArtifactSessionV1 {
 }
 
 /// Export output commitment retaining request authority, exact shares, and registered state.
-#[cfg_attr(not(test), allow(dead_code))]
 pub struct HostOnlyExportOutputCommittedV1 {
     request: ExportRequestV1,
     state: AuthenticatedRegisteredStoreResolutionV1,
@@ -1526,7 +1502,6 @@ pub struct HostOnlyExportOutputCommittedV1 {
     shares: HostOnlySeedExportSharesV1,
 }
 
-#[cfg_attr(not(test), allow(dead_code))]
 impl HostOnlyExportOutputCommittedV1 {
     /// Returns the still-unconsumed export request and authorization.
     pub const fn request(&self) -> &ExportRequestV1 {
@@ -1557,7 +1532,6 @@ impl HostOnlyExportOutputCommittedV1 {
 
 impl ExportArtifactSessionV1 {
     /// Evaluates and commits one export package set without releasing it.
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn evaluate_and_commit_host_reference(
         self,
         inputs: HostOnlyExportReferenceInputsV1<'_>,
@@ -1601,7 +1575,6 @@ impl ExportArtifactSessionV1 {
 }
 
 /// Attempt-local public fields for host-reference activation metadata consumption.
-#[cfg_attr(not(test), allow(dead_code))]
 pub struct ActivationControlFreshFieldsV1 {
     request_id: CeremonyRequestIdV1,
     replay_nonce: CeremonyReplayNonce32V1,
@@ -1614,8 +1587,6 @@ pub struct ActivationControlFreshFieldsV1 {
 
 impl ActivationControlFreshFieldsV1 {
     /// Creates the complete attempt-local field set.
-    #[allow(clippy::too_many_arguments)]
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) const fn new(
         request_id: CeremonyRequestIdV1,
         replay_nonce: CeremonyReplayNonce32V1,
@@ -1646,7 +1617,6 @@ struct ActivationCeremonyV1 {
 }
 
 impl ActivationCeremonyV1 {
-    #[cfg_attr(not(test), allow(dead_code))]
     fn derive(
         fresh: ActivationControlFreshFieldsV1,
         pending: &PendingActivationPreStateV1,
@@ -1775,7 +1745,6 @@ impl fmt::Debug for RejectedActivationControlProposalV1 {
 }
 
 /// Internal failure while constructing an admitted activation attempt.
-#[cfg_attr(not(test), allow(dead_code))]
 pub(crate) struct ActivationControlConstructionFailureV1 {
     source: CeremonyContextErrorV1,
     pending: PendingActivationPreStateV1,
@@ -1791,7 +1760,6 @@ impl fmt::Debug for ActivationControlConstructionFailureV1 {
     }
 }
 
-#[cfg_attr(not(test), allow(dead_code))]
 impl ActivationControlConstructionFailureV1 {
     pub(crate) fn into_pending(self) -> PendingActivationPreStateV1 {
         self.pending
@@ -1799,7 +1767,6 @@ impl ActivationControlConstructionFailureV1 {
 }
 
 /// Crate-private activation attempt failure; external callers cannot distinguish internals.
-#[cfg_attr(not(test), allow(dead_code))]
 pub(crate) enum ActivationRequestFailureV1 {
     Rejected(RejectedActivationControlProposalV1),
     Construction(ActivationControlConstructionFailureV1),
@@ -1817,13 +1784,11 @@ impl fmt::Debug for ActivationRequestFailureV1 {
 /// Canonical activation-control ceremony plus its pending metadata.
 pub struct ActivationRequestV1 {
     ceremony: ActivationCeremonyV1,
-    #[cfg_attr(not(test), allow(dead_code))]
     pending: PendingActivationPreStateV1,
 }
 
 impl ActivationRequestV1 {
     /// Derives a host-reference activation metadata attempt.
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn new(
         fresh: ActivationControlFreshFieldsV1,
         pending: PendingActivationPreStateV1,
@@ -2041,7 +2006,6 @@ pub struct ZeroReevaluationWitnessV1 {
 }
 
 impl ZeroReevaluationWitnessV1 {
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) const fn no_private_evaluation_work() -> Self {
         Self {
             yao_evaluations: 0,
@@ -2102,7 +2066,6 @@ impl ActivationMetadataConsumptionSuccessV1 {
 }
 
 /// Consumes activation metadata without opening or activating worker packages.
-#[cfg_attr(not(test), allow(dead_code))]
 pub(crate) fn consume_activation_metadata_v1(
     request: ActivationRequestV1,
 ) -> ActivationMetadataConsumptionSuccessV1 {

@@ -934,7 +934,6 @@ pub struct TenantRootManagedRestoreForwardPreparingV1 {
 
 impl TenantRootManagedRestoreForwardPreparingV1 {
     /// Verifies the next epoch using the normal refresh continuity contract.
-    #[allow(clippy::too_many_arguments)]
     pub fn verify(
         self,
         deriver_a: &VerifiedTenantRootShareInstallationEvidenceV1,

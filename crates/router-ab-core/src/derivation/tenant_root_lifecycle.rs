@@ -714,7 +714,6 @@ pub struct TenantRootPreparingCreationV1 {
 
 impl TenantRootPreparingCreationV1 {
     /// Verifies exact A/B installation evidence and every activation prerequisite.
-    #[allow(clippy::too_many_arguments)]
     pub fn verify(
         self,
         deriver_a: &VerifiedTenantRootShareInstallationEvidenceV1,
@@ -1478,7 +1477,6 @@ impl TenantRootPreparingRefreshV1 {
     }
 
     /// Verifies exact refreshed A/B evidence, root continuity, availability, and canaries.
-    #[allow(clippy::too_many_arguments)]
     pub fn verify(
         self,
         deriver_a: &VerifiedTenantRootShareInstallationEvidenceV1,

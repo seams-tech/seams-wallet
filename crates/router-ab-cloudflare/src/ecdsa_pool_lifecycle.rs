@@ -663,7 +663,6 @@ impl CloudflareSigningWorkerEcdsaPoolLifecycleRecordV1 {
     }
 
     /// Reserves available material for one exact prepare request.
-    #[allow(clippy::too_many_arguments)]
     pub fn reserve(
         self,
         request_digest: PublicDigest32,

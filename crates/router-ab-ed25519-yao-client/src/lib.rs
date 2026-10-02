@@ -377,7 +377,6 @@ pub fn prepare_client_registration_with_root_v1(
 /// Prepares a source-preserving registration request for a target-owned
 /// recipient. The source root and client contributions remain inside this
 /// function; only recipient-encrypted Deriver inputs are returned.
-#[allow(clippy::too_many_arguments)]
 pub fn prepare_client_registration_source_preserving_with_root_v1(
     admission: &RouterAbEd25519YaoActivationAdmissionReceiptV1,
     application: &RouterAbEd25519YaoApplicationBindingFactsV1,

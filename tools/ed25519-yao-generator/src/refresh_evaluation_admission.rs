@@ -112,7 +112,6 @@ struct RefreshAdmissionCommonV1 {
 }
 
 impl RefreshAdmissionCommonV1 {
-    #[allow(clippy::too_many_arguments)]
     fn validate(
         request: &RefreshRequestV1,
         provenance: &RoleInputProvenancePairV1,
@@ -362,7 +361,6 @@ impl AcceptedRefreshAdmissionV1 {
 }
 
 /// Accepts one signed registered-state resolution into the ideal refresh evaluator.
-#[allow(clippy::too_many_arguments)]
 pub fn accept_host_only_refresh_admission_v1(
     request: &RefreshRequestV1,
     provenance: &RoleInputProvenancePairV1,

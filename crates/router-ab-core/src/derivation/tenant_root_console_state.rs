@@ -521,7 +521,6 @@ impl TenantRootSourceCustodyDispositionV1 {
     }
 
     /// Records one fully verified retirement.
-    #[allow(clippy::too_many_arguments)]
     pub fn verified_retired(
         destruction_receipts: TenantRootRoleReceiptsV1,
         decrypt_probe_receipts: TenantRootRoleReceiptsV1,

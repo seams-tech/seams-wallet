@@ -1145,7 +1145,6 @@ impl fmt::Debug for TenantRootRecoveryManifestV1 {
 
 impl TenantRootRecoveryManifestV1 {
     /// Signs a manifest over one exact descriptor and its A/B package digests and lengths.
-    #[allow(clippy::too_many_arguments)]
     pub fn sign(
         descriptor: TenantRootRecoveryDescriptorV1,
         package_a: &TenantRootRecoveryPackageV1,
@@ -1452,7 +1451,6 @@ pub fn decode_tenant_root_recovery_package_v1(
 }
 
 /// Signs one public manifest over both role packages and certificate chains.
-#[allow(clippy::too_many_arguments)]
 pub fn sign_tenant_root_recovery_manifest_v1(
     descriptor: TenantRootRecoveryDescriptorV1,
     package_a: &TenantRootRecoveryPackageV1,

@@ -38,7 +38,6 @@ pub struct TenantRootRecoveryAccessGrantV1 {
 }
 impl TenantRootRecoveryAccessGrantV1 {
     /// Signs one explicit operation with a maximum five-minute lifetime.
-    #[allow(clippy::too_many_arguments)]
     pub fn sign(
         command: &VerifiedTenantRootRecoveryReshareRoleCommandV1,
         operation: TenantRootRecoveryAccessOperationV1,

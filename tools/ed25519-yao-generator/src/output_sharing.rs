@@ -231,7 +231,6 @@ impl HostOnlyActivationOutputSharesV1 {
         &self.deriver_b
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn into_role_shares(
         self,
     ) -> (
@@ -259,7 +258,6 @@ impl HostOnlySeedExportSharesV1 {
         &self.deriver_b
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn into_role_shares(
         self,
     ) -> (

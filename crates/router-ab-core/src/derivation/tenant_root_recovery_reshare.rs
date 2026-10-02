@@ -470,7 +470,6 @@ impl fmt::Debug for TenantRootSignedRecoveryReshareContributionV1 {
 
 impl TenantRootSignedRecoveryReshareContributionV1 {
     /// Encrypts and signs one exact peer contribution after the commit stage.
-    #[allow(clippy::too_many_arguments)]
     pub fn seal<R>(
         context: &TenantRootRecoveryReshareContextV1,
         coefficient: &RootShareRefreshCoefficient,

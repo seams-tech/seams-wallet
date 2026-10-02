@@ -97,7 +97,6 @@ pub struct Ed25519YaoOuterBindingV2 {
 
 impl Ed25519YaoOuterBindingV2 {
     /// Creates a validated outer binding. Stable context bytes never cross this boundary.
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         pair_session: Ed25519YaoPairSessionIdV2,
         stable_context_binding: Ed25519YaoStableKeyContextBindingV1,

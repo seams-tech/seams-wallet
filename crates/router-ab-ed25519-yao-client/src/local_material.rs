@@ -406,7 +406,6 @@ pub fn ed25519_local_material_binding_v1(
 /// Any factor works, which is the whole point: the record was sealed under the
 /// seed, so a factor enrolled long after registration opens the same cache as
 /// the one that created it.
-#[allow(clippy::too_many_arguments)]
 pub fn open_wallet_custody_ed25519_material_v1(
     input: OpenWalletCustodyEd25519MaterialV1<'_>,
 ) -> LocalMaterialResult<ActivatedClientV1> {

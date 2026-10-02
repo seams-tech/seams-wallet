@@ -867,7 +867,6 @@ impl CeremonyPublicRequestContextV1 {
         self.client_ephemeral_public_key
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn derive_activation_control_request_for_attempt(
         &self,
         request_id: CeremonyRequestIdV1,
@@ -1177,7 +1176,6 @@ pub struct CeremonyActivationAuthorizationV1 {
 
 impl CeremonyActivationAuthorizationV1 {
     /// Binds activation control to one origin transcript and package set.
-    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         request: &CeremonyPublicRequestContextV1,
         authorization_record_digest: CeremonyAuthorizationRecordDigest32V1,
@@ -1262,7 +1260,6 @@ pub struct CeremonyRefreshAuthorizationV1 {
 
 impl CeremonyRefreshAuthorizationV1 {
     /// Validates and binds both strictly advancing role input-state epochs.
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         request: &CeremonyPublicRequestContextV1,
         authorization_record_digest: CeremonyAuthorizationRecordDigest32V1,
@@ -1292,28 +1289,24 @@ impl CeremonyRefreshAuthorizationV1 {
         })
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) const fn current_deriver_a_input_state_epoch(
         &self,
     ) -> CeremonyCurrentDeriverAInputStateEpochV1 {
         self.current_deriver_a_input_state_epoch
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) const fn next_deriver_a_input_state_epoch(
         &self,
     ) -> CeremonyNextDeriverAInputStateEpochV1 {
         self.next_deriver_a_input_state_epoch
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) const fn current_deriver_b_input_state_epoch(
         &self,
     ) -> CeremonyCurrentDeriverBInputStateEpochV1 {
         self.current_deriver_b_input_state_epoch
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) const fn next_deriver_b_input_state_epoch(
         &self,
     ) -> CeremonyNextDeriverBInputStateEpochV1 {

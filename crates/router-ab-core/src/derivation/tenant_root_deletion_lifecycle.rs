@@ -128,7 +128,6 @@ pub struct TenantRootManagedRoleDestructionReceiptV1 {
 
 impl TenantRootManagedRoleDestructionReceiptV1 {
     /// Creates role-local permanent-destruction evidence.
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         role: TenantRootManagedRestoreRoleV1,
         online_key_destruction_digest: TenantRootLifecycleReceiptDigestV1,
@@ -289,7 +288,6 @@ pub struct TenantRootServiceCleanupReceiptV1 {
 
 impl TenantRootServiceCleanupReceiptV1 {
     /// Creates exhaustive service-held cleanup evidence for one lineage.
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         commands_digest: TenantRootLifecycleReceiptDigestV1,
         capabilities_digest: TenantRootLifecycleReceiptDigestV1,
