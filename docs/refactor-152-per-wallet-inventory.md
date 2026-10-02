@@ -128,6 +128,16 @@ reservation. The same E2E rejects a cross-project request and a paused setup;
 private `pnpm check` passes. These controls do not replace the missing hosted
 Gateway caller, verified regional resource set, or shared lookup authority.
 
+Private commit `df7dda5` makes ceremony IDs unique across a namespace and adds
+an internal, tenant-scoped ceremony-to-home lookup for registration continuations
+that have no wallet ID. A duplicate ceremony cannot replace another reservation.
+A cancelled registration now rejects a setup retry and cannot be resolved for a
+continuation. The persistent two-Worker E2E, Console type-check, type fixtures,
+focused lint and formatting checks passed. Receipt:
+`.artifacts/r152/service-admission-20261002/wallet-home-evidence.json`
+(SHA-256 `8d6b540fc506bdb25caae643110732948ca9ad8d7a71f17b502006f18b47bc15`).
+The lookup is still unused by hosted traffic.
+
 ## Namespace assignment removal checkpoint
 
 The private Console no longer reserves one database for a whole namespace.
