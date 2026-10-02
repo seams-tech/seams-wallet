@@ -1,7 +1,7 @@
 # `router-ab-core` Formal Verification
 
 This directory tracks formal verification for the fixed Router A/B ECDSA
-threshold-PRF construction.
+threshold-PRF construction and a bounded distributed signing lifecycle pilot.
 
 The intended structure follows the existing `threshold-prf` and `router-ab-ecdsa-derivation`
 tracks:
@@ -11,6 +11,9 @@ tracks:
 - `verus/`
 - `lean-boundary/`
 - `lean-privacy/`
+- [`tla-signing/`](tla-signing/) — quota, presignature, and step-up lifecycle
+  checks, with explicit production correspondence limits and a retained expiry
+  counterexample
 
 ## Strategy
 

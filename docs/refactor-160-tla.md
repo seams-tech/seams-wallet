@@ -1,6 +1,12 @@
 # Router A/B formal verification strategy and signing pilot
 
-Status: TLA+ pilot planned. Time box: one working day, including setup and reporting.
+Status: bounded pilot implemented on 2026-10-02; production follow-up pending.
+Time box: one working day, including setup and reporting.
+
+Results and reproduction: [TLA+ signing pilot](../crates/router-ab-core/formal-verification/tla-signing/README.md).
+The model retains a live step-up admission expiry counterexample. Worker build
+selection, timestamp freshness, and automatic startup recovery enforcement remain
+correspondence questions; the pilot does not establish those production guarantees.
 
 Run a small TLA+ pilot to check whether modeling adds useful evidence about our
 signing budgets, one-use presignatures, and step-up authorization. Focus on
