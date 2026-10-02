@@ -1,5 +1,12 @@
 # R152 / Wallet 0.8.0 release preparation
 
+> Superseded ownership decision (October 2): production placement is per wallet,
+> selected from trusted registration ingress location across US, WEUR and APAC.
+> Namespace-wide ownership is historical experiment evidence only. The active
+> [R152 replacement inventory and checklist](refactor-152-regional-D1.md#authoritative-replacement-phase-per-wallet-regional-homes)
+> governs implementation and removal of the old paths. Release 0.8.0 is held.
+
+
 Date: October 2, 2026. Status: local preparation; unpublished.
 
 The user selected 0.8.0 for both `@seams/wallet` and `@seams/wallet-server`.

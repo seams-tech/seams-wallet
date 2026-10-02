@@ -1,5 +1,231 @@
 # Refactor 152: regional D1 ownership and placement
 
+## Authoritative replacement phase: per-wallet regional homes
+
+**Decision, October 2, 2026:** each wallet receives its own home when registration
+starts, selected server-side from trusted original ingress location. US, Europe
+and Tokyo users in the **same tenant, project, environment and namespace** must
+be able to register wallets in US, WEUR and APAC respectively. One user's location
+must never choose another wallet's home. Travel, unlock, recovery, export, linking
+and retries retain the wallet's original home.
+
+This phase supersedes namespace-wide placement and all older completion claims
+about production ownership below. Earlier placement measurements remain empirical
+evidence for their recorded topology. Namespace-wide reservation/activation tests
+prove that old design only; they do not count as per-wallet routing acceptance.
+The old green `94b4c988` candidate is a checkpoint, **not the final 0.8.0 candidate**.
+Release 0.8.0 only after this replacement's code and required verification pass.
+
+Existing wallets are disposable test data. No migration of existing wallet state,
+namespace fallback, dual routing mode, legacy flag or old-binding adoption path
+will remain. A scoped reset/reprovision replaces those paths. Preserve unrelated
+Console accounts, billing, credentials and custody configuration unless their
+reset is explicitly included in the reviewed reset scope. This plan authorizes
+no immediate data deletion or deployment.
+
+### R0. Inventory before implementation
+
+The following source inventory was inspected on October 2. `private` means
+`seams-monorepo`; `public` means `seams-wallet`. Paths are repository-relative.
+This is the initial change inventory, not a claim that every call site or table
+has already been classified. Complete the remaining inventory checkboxes before
+changing the placement architecture.
+
+| Area / current source | Required refactor | End state / deletion obligation |
+| --- | --- | --- |
+| Private `tenantDeployment/namespaceHome.ts`, `service.ts`, `d1.ts` (under `packages/wallet-console-server-ts/src/`) | Replace namespace-to-database reservation with a wallet home directory keyed by authenticated tenant scope and canonical wallet identity. | Delete `NamespaceD1HomeV1`, namespace assignment APIs and their single-home enforcement. Keep namespace only where it scopes identity/auth, never as the placement owner. |
+| Private `packages/wallet-console-server-ts/migrations/d1-console/0047_namespace_d1_homes.sql` through `0050_tenant_deployment_home_verification.sql` | Inventory every trigger, index and activation-column dependency on namespace home. Separate deployment resource verification from wallet ownership. | Remove obsolete tables/triggers/columns from the final effective schema through the repository's schema-reset/migration procedure. No obsolete schema retained for compatibility. Preserve unrelated activation invariants. |
+| Private `packages/wallet-console-shared-ts/src/tenant-deployment/index.ts`; server `tenantDeployment/{types,runtimeBinding,homeVerification}.ts` | A deployment may serve many wallet homes. Binding hashes and writer admission must identify permitted regional resources/versions independently of each wallet's assignment. | Delete the singular deployment `home` contract and namespace-home hash/admission assumptions; rebuild canonical factories and type fixtures. |
+| Private `tenantDeployment/{homeChallenge,productionReadiness,runtimeInspection}.ts`; `scripts/{verify-tenant-d1-bindings,tenant-home-challenge}.mjs` | Reuse provider UUID inspection, live database challenge and serving-version verification for each regional backend. | Proof means “this regional backend reaches this resource”, never “every wallet in the namespace lives here”. Remove automatic namespace assignment from `homeChallenge.ts`. |
+| Private `tenantDeployment/{homeAdoption,provisioning,automationRoute}.ts`; `scripts/tenant-cutover.mjs` | Separate deploying/admitting a regional backend from assigning a new wallet. | Delete old-home adoption endpoints, request types, command modes and persistence decoders; retain unrelated authenticated deployment control. |
+| Private `router/cloudflare/{d1GatewayWorker,d1WalletRuntimeWorker,d1ConsoleStagingWorker,d1LocalDevWorker}.ts` | Resolve wallet home through trusted authority, dispatch once to that region, and require the regional execution context before wallet-local reads/writes. Local mode uses the same contract with one configured resource. | No namespace-default database, no second combined hosted path, no acceptance of a browser-chosen database/region. Already removed combined entrypoints stay deleted. |
+| Public `router/cloudflare/d1/registration/{d1WalletRegistrationService,d1WalletRegistrationSetup,d1RegistrationCeremonyRecords}.ts` under `packages/wallet-server/src/` | Allocate canonical wallet identity and home before regional ceremony effects. Both supplied and server-allocated IDs need atomic reservation and exact retry semantics. | A regional registration service cannot independently allocate an unreserved wallet or silently pick its local database. |
+| Public `router/cloudflare/d1/emailOtp/d1GoogleEmailOtpSessionResolver.ts` | Its separate wallet-ID allocation and candidate-offer flow must use the same global allocation/identity authority. | No independently region-local identity uniqueness or offer allocation. Reserve the selected wallet once; retries preserve the offered/selected registration identity. |
+| Public `router/domains/walletRegistration/{walletRegistrationRoutes,walletRegistrationSetupPayload}.ts`, shared registration contracts and SDK relayer clients | Bind registration operation, wallet, tenant and home in the verified setup context. Inventory current retry tokens before adding any wire field. | Remove old setup shapes when replaced; protocol version and intended-behavior specification change together if the wire changes. |
+| Public signer D1 migrations and `router/cloudflare/d1/{authorization,passkeyCustody,deviceLinking,emailOtp,ed25519Yao,versionedJson}/` | Classify the effective schema's tables, keys, triggers, batches and every mutation by wallet-local or shared authority. | Wallet-local atomic batches stay on one home. No duplicate shared uniqueness/quota authority across regional databases. |
+| Public identity, passkey, Email OTP, recovery-code locator, session exchange and delivery lookups | Inventory every entry route that lacks wallet ID, including opaque token/credential/locator resolution. | Resolve through an authoritative index or verified routing envelope before accessing wallet state; no broadcast search across regions. |
+| Private `serviceBinding/walletConsoleOpsHandler.ts`, `router/routerApiKeyAuth.ts`, Console identity/policy services; public Console service clients | Reuse authenticated service bindings for shared identity admission, tenant policy, cross-wallet limits and home lookup. | Console projections/usage events remain projections, never the authority used to infer a missing home. No secrets copied into the directory. |
+| Public `hosted-wallet-gateway.ts`, `router/cloudflare/runtime/{walletControlOps,routerAbPrewarm}.ts`, custody Router/role dispatch; private cron/control paths | Inventory all public, service-binding, scheduled and custody paths and distinguish wallet-scoped work from tenant-root bootstrap/control. | Wallet-scoped work requires the same home-bound context; non-wallet control has an explicit authenticated tenant scope, not a blanket bypass. |
+| Private `deployment/{wallet-system,console}/targets.json`, `scripts/{deployment-targets,deploy-backend,deploy-surface,deployment-smoke}.mjs`, config parser/renderers and workflows | Provision US/WEUR/APAC backend resource sets and trusted service routes using existing deployment configuration. Separate network/environment from physical region. | Multiple homes can serve one project/environment. No hard-coded one-lane/one-database assumption, no per-user Worker deployment. |
+| Private `tests/relayer/*home*.e2e.test.ts`, `namespace-home-provisioning.e2e.test.ts`, provider tests, `tests/fixtures/tenant-deployment/`, `tests/typecheck/namespace-d1-home.typecheck.ts`; public intended contracts and hosted probes | Rebuild fixtures and E2Es around multiple wallets in one tenant using different homes. Retain resource/version verification assertions that still apply. | Delete namespace-wide uniqueness/adoption fixtures and stale assertions. No unit tests added; use behavioral E2Es and domain type fixtures. |
+
+Inventory completion checklist:
+
+- [x] Locate namespace ownership, registration allocation, regional resource proof,
+  deployment routing and existing acceptance-test entry points listed above.
+- [ ] Enumerate every effective signer table/index/trigger after **all** migrations,
+  including 0041; assign each an authoritative owner and record all cross-table
+  transactions. Include dynamically constructed/versioned JSON records.
+- [ ] Inventory all registration paths and their current durable idempotency keys;
+  specify the first durable allocation point and behavior after a lost response.
+- [ ] Inventory public/internal routes, cron/alarm/queue jobs and role RPCs: wallet
+  identity available, identity verified where, home resolved where, store touched,
+  and failure behavior. Explicitly cover routes with no wallet ID.
+- [ ] Enumerate old symbols, imports, scripts, config keys, generated outputs,
+  schema references and tests to remove. Record a replacement or deletion for
+  each; do not equate a file rename with architectural replacement.
+- [ ] Finish an invariant-to-authority matrix for identity uniqueness, email/IP
+  limits, tenant policy, wallet quota, revocation, recovery and one-use material.
+  Resolve every cross-database transaction dependency before implementing it.
+
+### R1. Define one wallet-home and registration contract
+
+- [ ] Define the canonical wallet ownership key from verified tenant scope and
+  wallet ID, preserving the actual existing uniqueness scope. Project/environment
+  isolation must be explicit; equal wallet strings in different scopes cannot
+  route or authorize each other.
+- [ ] Define a typed region/resource catalog for US, WEUR and APAC. Stable home
+  identity names the actual authoritative resource; physical Worker versions and
+  deployment revisions are distinct from wallet identity.
+- [ ] Select the closest eligible home from trusted original edge location at
+  registration. Strip client routing/location overrides and preserve provenance
+  through service hops. Record the region decision, not unnecessary raw location.
+  Use a documented configured default only when **new-registration** location is
+  unavailable. Never use that default to recover an unknown existing wallet.
+- [ ] Define branch-specific registration state: reserved, established, failed or
+  cancelled, with required identities and legal transitions. Persist reservation
+  before any regional custody/credential side effect. Concurrent and retried
+  attempts for the same registration return the same wallet/home.
+- [ ] Keep a wallet's home immutable. A failed/retried registration cannot reuse
+  its identity at another region. Define cleanup of abandoned attempts without
+  allowing late messages to recreate or move that wallet.
+- [ ] Use precise parsed/built domain types and Result-style recoverable failures.
+  Add type fixtures rejecting forged admitted contexts, broad-spread lifecycle
+  construction and invalid branch combinations. Diagnostics do not grant access.
+
+### R2. Separate shared authority from wallet-local state
+
+- [ ] Put the wallet directory and pre-wallet allocation/identity uniqueness in
+  the existing Console authority, behind authenticated service interfaces.
+  Do not maintain three independent copies of a globally unique identity index.
+- [ ] Keep wallet sessions, wallet signing quotas, authorities/auth methods,
+  revocation, operation admission/completion/replay, material lifecycle journals,
+  custody envelopes and wallet-local recovery state at the assigned home.
+- [ ] Keep tenant/project policy, cross-wallet credential/identity uniqueness,
+  aggregate rate limits and tenant-wide quotas authoritative at their defined
+  shared scope. Split wallet-only counters from shared counters explicitly;
+  regionalization must not multiply an existing allowance by three.
+- [ ] Preserve atomicity for recovery/identity changes. Where the old transaction
+  crosses the new ownership boundary, define durable reservation, idempotent
+  regional commit and completion/reconciliation states; prohibit duplicate
+  claims and replayed proofs. Do not assume a cross-D1 transaction exists.
+- [ ] Specify which checks are fresh per request and which verified admissions
+  may be reused for an operation, including expiry, revocation and replay.
+  Count every added authority lookup/write and its latency; avoid redundant
+  directory reads once a request has a verified execution context.
+
+### R3. Replace registration and lookup routing
+
+- [ ] Route passkey, Email OTP/OIDC and supplied-ID registrations through the
+  same reservation authority. Complete their region-local ceremonies using the
+  allocated wallet/home context; persist completion idempotently.
+- [ ] Implement trusted lookup for unlock/discoverable passkey, verified external
+  identity, recovery code, exchange token and delivery identifiers that arrive
+  without wallet ID. Preserve non-enumerating errors and credential secrecy.
+- [ ] Treat any client-carried routing hint as untrusted until it is bound to
+  authenticated tenant/wallet authority. A home identifier never authorizes an
+  operation. Reject disagreement before wallet mutation.
+- [ ] Use existing Gateway/service-binding infrastructure to dispatch to the
+  assigned regional backend. Dispatch at most once; never forward credentials
+  to a request-provided URL or follow an unvalidated redirect.
+- [ ] Remove the old namespace-home admission and registration allocation paths
+  in the same changes that install their replacements; do not add a mode flag.
+
+### R4. Enforce home at every execution boundary
+
+- [ ] Require a verified wallet-home execution context when constructing the
+  wallet-local store/service graph. Check tenant, wallet, actual resource and
+  admitted regional deployment identity before effects.
+- [ ] Apply it to registration completion, unlock/session exchange, both signing
+  curves, prepare/finalize/replay, recovery, export, add/revoke auth method,
+  device linking, refresh/retirement and wallet-scoped administration.
+- [ ] Carry the same identity through custody role RPCs and deferred work.
+  Wallet-scoped cron/alarm/refill/retry jobs use persisted wallet home, never
+  current client location or a process-wide namespace default.
+- [ ] Inventory tenant-root creation/backup/control separately. Keep legitimate
+  pre-wallet bootstrap possible under explicit authenticated tenant authority;
+  wallet operations cannot enter that path to bypass home admission.
+- [ ] Fail closed for unknown/unavailable/conflicting homes and stale workers.
+  Do not silently fall back to a different regional database. Define treatment
+  of already-admitted in-flight operations during backend deployment changes.
+- [ ] Remove obsolete direct/internal entrypoints and prohibit deployment of
+  surviving unfenced writers. Retain local development through the same domain
+  contract with a single-region adapter, not an alternate ownership model.
+
+### R5. Deployment and deletion closure
+
+- [ ] Render and verify US/WEUR/APAC Gateway, Wallet Runtime and required custody
+  service placements/bindings. Configure placement near each home and verify
+  actual execution; a region label alone is insufficient.
+- [ ] Reuse fresh provider-bound database challenges and version checks per
+  regional resource. Deployment activation admits a backend resource set;
+  wallet assignment selects one admitted home within it.
+- [ ] Define the scoped reset of disposable wallet data, registrations, sessions,
+  routing indexes and associated test custody material. Do not leave a stale
+  session, worker, locator or replay record able to resurrect discarded data.
+- [ ] Delete namespace-home classes/stores, immutable namespace reservation
+  schema, home-adoption handlers/CLI modes, compatibility decoders and old
+  one-home deployment fields. Preserve ordinary namespace tenant isolation.
+- [ ] Rebuild schemas/configs/generated bindings and package artifacts through
+  their generators. No hand-edited generated manifests or stale schema retained
+  solely to load discarded wallets. Respect published migration history; use an
+  explicit reset/new baseline or removal migration as applicable.
+- [ ] Replace/delete old fixtures, type tests, E2Es, snapshots and docs assertions.
+  Historical experiment receipts may remain clearly labelled evidence outside
+  active code/configuration. No legacy implementation is retained as an example.
+- [ ] Inspect final exports/imports, source searches and generated bundles for
+  retired ownership symbols, routes and schema. This is a deletion audit, not
+  a new source-text guard suite. No unexplained matches may remain in active code.
+
+### R6. Behavioral verification and measurement
+
+- [ ] Register US, European and Tokyo users in the **same** tenant/project/
+  environment/namespace and prove three independent home assignments. Permute
+  registration order to prove the first user has no influence on others.
+- [ ] Run concurrent registration, duplicate identities, lost replies and restart
+  across ingress regions. Assert one durable wallet/home per operation, current
+  uniqueness semantics and no orphaned duplicate custody effect.
+- [ ] Send conflicting last-quota operations and duplicate prepare/finalize/replay
+  from multiple ingress regions to one wallet. Verify one quota use per admitted
+  operation, one custody effect, exact replay and unchanged key identity.
+- [ ] Verify spoofed region/resource/wallet/tenant, stale deployment, wrong bound
+  database, unavailable directory and region outage. Assert no fallback write
+  and retain before/after state plus outbound-dispatch evidence.
+- [ ] Run unlock, recovery, export, linking, revocation and deferred work after
+  client travel. Repeat no-wallet-ID entry cases; all reach the original home.
+- [ ] Verify shared identity collision and aggregate rate/quota enforcement across
+  different homes; changing ingress or wallet home cannot evade shared limits.
+- [ ] Extend the existing hosted probes for a fixed wallet from local and remote
+  clients in US/Europe/Tokyo. Alternate client order; keep build, home and custody
+  identities fixed. Cover warm signing, cold unlock/first sign and bursts; verify
+  signatures and retain failures, sample counts and latency distributions.
+- [ ] Break down client-to-home, directory/shared-authority, Gateway-to-D1 and
+  custody calls. Distinguish simulated concurrency from geographically hosted
+  measurements. Do not claim travel-latency improvement from emulator timings.
+- [ ] Produce repeatable E2E artifacts containing source/build identities,
+  selected homes, actual resource/version/served-region observations, operation
+  IDs, quota/replay assertions and redacted traces. Add no unit tests.
+
+### R7. Completion and release gate
+
+- [ ] Every inventory item has a verified replacement or deletion; all entry
+  points have a documented owner and admission check. No namespace placement
+  fallback, adoption path, legacy flag or dual ownership implementation remains.
+- [ ] Update intended-behavior specification and matching contracts together;
+  update integration docs to describe per-wallet placement and travel behavior.
+- [ ] Review all intervening source commits, freeze a new exact 0.8.0 candidate,
+  rebuild packages and run public/private acceptance plus exact-revision CI.
+  Prior green CI cannot validate the replacement architecture.
+- [ ] Complete the agreed code and verification scope before requesting/reusing
+  release authorization. No 0.8.0 publication under the superseded intermediate
+  candidate approval. Existing-wallet migration stays excluded.
+
+## Historical namespace experiment and implementation record
+
+The remainder records earlier evidence and the superseded namespace-wide plan.
+Its checked boxes are historical milestones, not acceptance of the replacement.
+Use R0–R7 above as the active implementation and deletion checklist.
+
 Date: September 30, 2026
 
 Status: placement investigation and ownership design in progress. Repeated London

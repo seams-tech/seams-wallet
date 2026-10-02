@@ -1,5 +1,12 @@
 # Regional D1: ownership review and first experiment
 
+> Superseded ownership decision (October 2): production placement is per wallet,
+> selected from trusted registration ingress location across US, WEUR and APAC.
+> Namespace-wide ownership is historical experiment evidence only. The active
+> [R152 replacement inventory and checklist](refactor-152-regional-D1.md#authoritative-replacement-phase-per-wallet-regional-homes)
+> governs implementation and removal of the old paths. Release 0.8.0 is held.
+
+
 Date: October 1, 2026. Reviewed source: `1165e075`.
 
 ## Decision
