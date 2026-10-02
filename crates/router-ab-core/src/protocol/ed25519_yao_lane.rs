@@ -101,20 +101,6 @@ impl Ed25519YaoLaneAuthorizationV1 {
             }
         }
     }
-
-    /// Returns the operation identifier bound by this authorization.
-    pub fn authorized_operation_id(&self) -> &str {
-        match self {
-            Self::LinkedDeviceEnrollment {
-                authorized_operation_id,
-                ..
-            }
-            | Self::OwnerLaneRefresh {
-                authorized_operation_id,
-                ..
-            } => authorized_operation_id,
-        }
-    }
 }
 
 /// Target branch for one lane job.  The enum keeps creation and refresh
@@ -177,17 +163,6 @@ impl Ed25519YaoLaneTargetV1 {
             | Self::RefreshLane {
                 lane_share_epoch, ..
             } => lane_share_epoch,
-        }
-    }
-
-    /// Returns the prior activation on a refresh branch.
-    pub fn prior_material_activation(&self) -> Option<&MpcMaterialActivationRefV1> {
-        match self {
-            Self::CreateLane { .. } => None,
-            Self::RefreshLane {
-                prior_material_activation,
-                ..
-            } => Some(prior_material_activation),
         }
     }
 }
@@ -722,11 +697,6 @@ impl Ed25519YaoLaneJobV1 {
         Ok(())
     }
 
-    /// Returns the operation idempotency key.
-    pub fn idempotency_key(&self) -> &str {
-        &self.idempotency_key
-    }
-
     /// Returns the target lane identifier.
     pub fn target_lane_id(&self) -> &str {
         self.target.lane_id()
@@ -913,21 +883,6 @@ impl RouterAbEd25519YaoLaneExecuteRequestV1 {
             deriver_a_input,
             deriver_b_input,
         })
-    }
-
-    /// Returns the immutable lane job.
-    pub const fn job(&self) -> &Ed25519YaoLaneJobV1 {
-        &self.job
-    }
-
-    /// Returns Deriver A's opaque input.
-    pub const fn deriver_a_input(&self) -> &Ed25519YaoEncryptedInputV1 {
-        &self.deriver_a_input
-    }
-
-    /// Returns Deriver B's opaque input.
-    pub const fn deriver_b_input(&self) -> &Ed25519YaoEncryptedInputV1 {
-        &self.deriver_b_input
     }
 }
 

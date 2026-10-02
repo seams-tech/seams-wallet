@@ -6,11 +6,11 @@ use super::{
     TenantRootBackupPolicyV1, TenantRootCanaryReceiptsV1, TenantRootCeremonyContextV1,
     TenantRootCleanupIncompleteRefreshV1, TenantRootCustodyLineageId,
     TenantRootFailedBeforeActivationRefreshV1, TenantRootIdentityDigestV1,
-    TenantRootLifecycleReceiptDigestV1, TenantRootPendingCleanupFailureV1,
-    TenantRootPendingCleanupReceiptV1, TenantRootPreparingRefreshV1, TenantRootRefreshFailureV1,
-    TenantRootRetiringRefreshV1, TenantRootRoleInstallationReceiptsV1,
-    TenantRootRoleRetirementReceiptsV1, TenantRootShareEpoch, TenantRootVerifiedRefreshV1,
-    VerifiedTenantRootShareInstallationEvidenceV1, VerifiedTenantRootSignedActivationReceiptV1,
+    TenantRootLifecycleReceiptDigestV1, TenantRootPendingCleanupReceiptV1,
+    TenantRootPreparingRefreshV1, TenantRootRefreshFailureV1, TenantRootRetiringRefreshV1,
+    TenantRootRoleInstallationReceiptsV1, TenantRootRoleRetirementReceiptsV1, TenantRootShareEpoch,
+    TenantRootVerifiedRefreshV1, VerifiedTenantRootShareInstallationEvidenceV1,
+    VerifiedTenantRootSignedActivationReceiptV1,
 };
 
 /// One role eligible for service-managed current-epoch recovery.
@@ -838,24 +838,6 @@ impl TenantRootManagedRestoreRestoringBV1 {
     ) -> RouterAbDerivationResult<TenantRootManagedRestoreVerifyingV1> {
         accept_installation(self.core, receipt)
     }
-
-    /// Returns to role-unavailable after complete failed-installation cleanup.
-    pub fn fail_with_cleanup(
-        self,
-        failure: TenantRootManagedRestoreFailureV1,
-        cleanup: TenantRootManagedRestoreCleanupReceiptV1,
-    ) -> RouterAbDerivationResult<TenantRootManagedRestoreRoleUnavailableV1> {
-        fail_installation_with_cleanup(self.core, failure, cleanup)
-    }
-
-    /// Blocks further restore while failed-installation cleanup is incomplete.
-    pub fn fail_with_incomplete_cleanup(
-        self,
-        failure: TenantRootManagedRestoreFailureV1,
-        cleanup: TenantRootManagedRestoreCleanupFailureV1,
-    ) -> RouterAbDerivationResult<TenantRootManagedRestoreCleanupIncompleteV1> {
-        fail_installation_with_incomplete_cleanup(self.core, failure, cleanup)
-    }
 }
 
 /// Restored-role installation is present and awaits peer/current commitment verification.
@@ -896,44 +878,6 @@ impl TenantRootManagedRestoreVerifyingV1 {
             .start(context)?;
         Ok(TenantRootManagedRestoreForwardPreparingV1 { restored, refresh })
     }
-
-    /// Returns to role-unavailable after complete cleanup of the installed share.
-    pub fn fail_with_cleanup(
-        self,
-        failure: TenantRootManagedRestoreFailureV1,
-        cleanup: TenantRootManagedRestoreCleanupReceiptV1,
-    ) -> RouterAbDerivationResult<TenantRootManagedRestoreRoleUnavailableV1> {
-        fail_attempt_with_cleanup(
-            self.active,
-            self.evidence,
-            TenantRootManagedRestoreFailedAttemptV1::Installed {
-                capability: self.capability,
-                installation: self.installation,
-            },
-            self.revision,
-            failure,
-            cleanup,
-        )
-    }
-
-    /// Blocks further restore while cleanup of the installed share is incomplete.
-    pub fn fail_with_incomplete_cleanup(
-        self,
-        failure: TenantRootManagedRestoreFailureV1,
-        cleanup: TenantRootManagedRestoreCleanupFailureV1,
-    ) -> RouterAbDerivationResult<TenantRootManagedRestoreCleanupIncompleteV1> {
-        fail_attempt_with_incomplete_cleanup(
-            self.active,
-            self.evidence,
-            TenantRootManagedRestoreFailedAttemptV1::Installed {
-                capability: self.capability,
-                installation: self.installation,
-            },
-            self.revision,
-            failure,
-            cleanup,
-        )
-    }
 }
 
 /// Public proof that one restored share and its peer matched the active epoch.
@@ -946,18 +890,6 @@ pub struct TenantRootManagedRestoreVerificationEvidenceV1 {
     installation_receipt_digest: TenantRootLifecycleReceiptDigestV1,
     peer_receipt_digest: TenantRootLifecycleReceiptDigestV1,
     verified_at_ms: u64,
-}
-
-impl TenantRootManagedRestoreVerificationEvidenceV1 {
-    /// Returns the recovered role.
-    pub const fn role(&self) -> TenantRootManagedRestoreRoleV1 {
-        self.role
-    }
-
-    /// Returns the recovered current epoch.
-    pub const fn epoch(&self) -> TenantRootShareEpoch {
-        self.epoch
-    }
 }
 
 /// Managed restore is blocked until the failed role-local installation is removed.
@@ -1036,20 +968,6 @@ impl TenantRootManagedRestoreForwardPreparingV1 {
             refresh: self.refresh.fail_with_cleanup(failure, cleanup)?,
         })
     }
-
-    /// Records a failed forward refresh whose pending cleanup remains incomplete.
-    pub fn fail_with_incomplete_cleanup(
-        self,
-        failure: TenantRootRefreshFailureV1,
-        cleanup: TenantRootPendingCleanupFailureV1,
-    ) -> RouterAbDerivationResult<TenantRootManagedRestoreForwardCleanupIncompleteV1> {
-        Ok(TenantRootManagedRestoreForwardCleanupIncompleteV1 {
-            restored: self.restored,
-            refresh: self
-                .refresh
-                .fail_with_incomplete_cleanup(failure, cleanup)?,
-        })
-    }
 }
 
 /// Forward refresh passed all pre-activation gates.
@@ -1061,11 +979,6 @@ pub struct TenantRootManagedRestoreForwardVerifiedV1 {
 }
 
 impl TenantRootManagedRestoreForwardVerifiedV1 {
-    /// Returns the verified refresh state awaiting activation.
-    pub const fn refresh(&self) -> &TenantRootVerifiedRefreshV1 {
-        &self.refresh
-    }
-
     /// Activates the next epoch and enters mandatory old-epoch retirement.
     pub fn activate(
         self,
@@ -1074,32 +987,6 @@ impl TenantRootManagedRestoreForwardVerifiedV1 {
         Ok(TenantRootManagedRestoreForwardRetiringV1 {
             restored: self.restored,
             refresh: self.refresh.activate(activation)?,
-        })
-    }
-
-    /// Records a failed verified refresh after complete pending cleanup.
-    pub fn fail_with_cleanup(
-        self,
-        failure: TenantRootRefreshFailureV1,
-        cleanup: TenantRootPendingCleanupReceiptV1,
-    ) -> RouterAbDerivationResult<TenantRootManagedRestoreForwardFailedV1> {
-        Ok(TenantRootManagedRestoreForwardFailedV1 {
-            restored: self.restored,
-            refresh: self.refresh.fail_with_cleanup(failure, cleanup)?,
-        })
-    }
-
-    /// Records a failed verified refresh whose cleanup remains incomplete.
-    pub fn fail_with_incomplete_cleanup(
-        self,
-        failure: TenantRootRefreshFailureV1,
-        cleanup: TenantRootPendingCleanupFailureV1,
-    ) -> RouterAbDerivationResult<TenantRootManagedRestoreForwardCleanupIncompleteV1> {
-        Ok(TenantRootManagedRestoreForwardCleanupIncompleteV1 {
-            restored: self.restored,
-            refresh: self
-                .refresh
-                .fail_with_incomplete_cleanup(failure, cleanup)?,
         })
     }
 }
@@ -1149,19 +1036,6 @@ impl TenantRootManagedRestoreForwardFailedV1 {
 pub struct TenantRootManagedRestoreForwardCleanupIncompleteV1 {
     restored: TenantRootManagedRestoreVerificationEvidenceV1,
     refresh: TenantRootCleanupIncompleteRefreshV1,
-}
-
-impl TenantRootManagedRestoreForwardCleanupIncompleteV1 {
-    /// Completes pending cleanup while keeping the tenant fenced for refresh retry.
-    pub fn complete_cleanup(
-        self,
-        cleanup: TenantRootPendingCleanupReceiptV1,
-    ) -> RouterAbDerivationResult<TenantRootManagedRestoreForwardFailedV1> {
-        Ok(TenantRootManagedRestoreForwardFailedV1 {
-            restored: self.restored,
-            refresh: self.refresh.complete_cleanup(cleanup)?,
-        })
-    }
 }
 
 /// Exhaustive nested state while mandatory post-restore refresh is in flight.

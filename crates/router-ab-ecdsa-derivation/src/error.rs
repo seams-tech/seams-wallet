@@ -40,10 +40,6 @@ impl RouterAbEcdsaDerivationError {
         Self::new(RouterAbEcdsaDerivationErrorCode::CryptoError, message)
     }
 
-    pub fn utf8_error(message: impl Into<String>) -> Self {
-        Self::new(RouterAbEcdsaDerivationErrorCode::Utf8Error, message)
-    }
-
     pub fn internal(message: impl Into<String>) -> Self {
         Self::new(RouterAbEcdsaDerivationErrorCode::Internal, message)
     }

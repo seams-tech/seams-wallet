@@ -208,18 +208,6 @@ pub struct TerminalRegistrationSelectionV1 {
 }
 
 impl TerminalRegistrationSelectionV1 {
-    /// Returns the fixed selection-attempt identity.
-    pub const fn attempt_id(&self) -> RegistrationSelectionAttemptId32V1 {
-        self.attempt_id
-    }
-
-    /// Returns the opaque selected-mechanism evidence slot.
-    pub const fn selected_mechanism_evidence_digest(
-        &self,
-    ) -> OpaqueRegistrationInputSelectionEvidenceDigest32V1 {
-        self.selected_mechanism_evidence_digest
-    }
-
     /// Returns the admission digest that transitively binds semantic artifacts.
     pub const fn admission_digest(&self) -> &[u8; 32] {
         &self.admission_digest
@@ -238,11 +226,6 @@ impl TerminalRegistrationSelectionV1 {
     /// Returns the frozen registration provenance binding.
     pub const fn provenance_binding(&self) -> RegistrationProvenanceBindingV1 {
         self.common.binding
-    }
-
-    /// Returns the first activation epoch fixed at admission.
-    pub const fn activation_epoch(&self) -> CeremonyActivationEpochV1 {
-        self.common.activation_epoch
     }
 
     /// Returns the one-use evaluator execution fixed at admission.

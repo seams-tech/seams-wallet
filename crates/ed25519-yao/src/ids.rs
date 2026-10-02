@@ -47,13 +47,3 @@ pub enum CircuitFamily {
     /// Explicitly authorized seed export.
     Export,
 }
-
-impl CircuitFamily {
-    /// Returns the fixed identifier for this family.
-    pub const fn circuit_id(self) -> CircuitId {
-        match self {
-            Self::Activation => ACTIVATION_CIRCUIT_ID,
-            Self::Export => EXPORT_CIRCUIT_ID,
-        }
-    }
-}

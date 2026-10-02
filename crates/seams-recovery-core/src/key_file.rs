@@ -19,10 +19,6 @@ pub struct TenantRootRecoveryKeyMaterialV1 {
     recipient: TenantRootRecoveryRecipientKeypairV1,
 }
 impl TenantRootRecoveryKeyMaterialV1 {
-    /// The holder role.
-    pub const fn role(&self) -> TwoPartyDeriverRole {
-        self.role
-    }
     /// The recipient used to open backup packages.
     pub const fn recipient(&self) -> &TenantRootRecoveryRecipientKeypairV1 {
         &self.recipient

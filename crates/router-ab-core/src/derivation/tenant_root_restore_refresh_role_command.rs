@@ -231,11 +231,6 @@ impl TenantRootRestoreRefreshRoleCommandV1 {
         Ok(command)
     }
 
-    /// Returns the fixed operation authenticated by this command.
-    pub const fn operation(&self) -> &'static str {
-        TENANT_ROOT_RESTORE_REFRESH_ROLE_COMMAND_OPERATION_V1
-    }
-
     /// Returns the create ceremony context authenticated by this command.
     pub const fn context(&self) -> &TenantRootCeremonyContextV1 {
         &self.data.context
@@ -342,10 +337,6 @@ pub struct VerifiedTenantRootRestoreRefreshRoleCommandV1 {
 verified_token_debug!(VerifiedTenantRootRestoreRefreshRoleCommandV1);
 
 impl VerifiedTenantRootRestoreRefreshRoleCommandV1 {
-    pub const fn operation(&self) -> &'static str {
-        self.command.operation()
-    }
-
     pub const fn context(&self) -> &TenantRootCeremonyContextV1 {
         self.command.context()
     }
@@ -410,10 +401,6 @@ impl VerifiedTenantRootRestoreRefreshRoleCommandV1 {
 
     pub const fn digest(&self) -> TenantRootProtocolDigestV1 {
         self.digest
-    }
-
-    pub fn into_canonical_bytes(self) -> Vec<u8> {
-        self.canonical_bytes
     }
 
     /// Requires the signed restore refresh command to be inside its fresh window.

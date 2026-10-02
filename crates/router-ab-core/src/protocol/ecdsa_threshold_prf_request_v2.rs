@@ -1,5 +1,4 @@
 use serde::{de::Error as DeError, Deserialize, Deserializer, Serialize};
-use sha2::{Digest, Sha256};
 use threshold_prf::PrfPurpose;
 
 use crate::derivation::{
@@ -147,11 +146,6 @@ impl EcdsaThresholdPrfPrivateRequestV2 {
         Ok(())
     }
 
-    /// Returns the fixed request version.
-    pub const fn version(&self) -> EcdsaThresholdPrfRequestVersionV2 {
-        self.version
-    }
-
     /// Returns the stable context consumed by threshold-PRF.
     pub const fn stable_context(&self) -> &StableTenantDerivationContextV2 {
         &self.stable_context
@@ -181,13 +175,6 @@ impl EcdsaThresholdPrfPrivateRequestV2 {
         push_field(&mut out, self.custody_binding_digest.as_bytes());
         push_field(&mut out, self.purpose.as_str().as_bytes());
         out
-    }
-
-    /// Returns the digest of strict canonical private-request bytes.
-    pub fn digest(&self) -> RouterAbProtocolResult<TenantRootProtocolDigestV1> {
-        self.validate()?;
-        TenantRootProtocolDigestV1::from_bytes(Sha256::digest(self.canonical_bytes()).into())
-            .map_err(map_derivation_error)
     }
 }
 
@@ -318,21 +305,6 @@ impl EcdsaThresholdPrfOuterRequestV2 {
         &self.private_request
     }
 
-    /// Returns the request nonce used for replay admission.
-    pub const fn request_nonce(&self) -> TenantRootDerivationNonceV1 {
-        self.request_nonce
-    }
-
-    /// Returns the issue timestamp.
-    pub const fn issued_at_ms(&self) -> u64 {
-        self.issued_at_ms
-    }
-
-    /// Returns the expiry timestamp.
-    pub const fn expires_at_ms(&self) -> u64 {
-        self.expires_at_ms
-    }
-
     /// Returns the role-A encrypted envelope.
     pub const fn signer_a_envelope(&self) -> &RoleEncryptedEnvelopeV1 {
         &self.signer_a_envelope
@@ -355,13 +327,6 @@ impl EcdsaThresholdPrfOuterRequestV2 {
         push_role_envelope(&mut out, &self.signer_a_envelope);
         push_role_envelope(&mut out, &self.signer_b_envelope);
         out
-    }
-
-    /// Returns the digest of strict canonical outer-request bytes.
-    pub fn digest(&self) -> RouterAbProtocolResult<TenantRootProtocolDigestV1> {
-        self.validate()?;
-        TenantRootProtocolDigestV1::from_bytes(Sha256::digest(self.canonical_bytes()).into())
-            .map_err(map_derivation_error)
     }
 }
 

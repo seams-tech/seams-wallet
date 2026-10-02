@@ -308,14 +308,6 @@ impl TenantRootRecoveryGovernanceV1 {
         matches!(self, Self::TwoPersonV1 { .. })
     }
 
-    /// Returns the canonical branch label.
-    pub const fn as_str(&self) -> &'static str {
-        match self {
-            Self::SingleOwnerV1 { .. } => "single_owner_v1",
-            Self::TwoPersonV1 { .. } => "two_person_v1",
-        }
-    }
-
     /// Returns SHA-256 over the canonical governance record.
     pub fn digest(&self) -> RouterAbDerivationResult<[u8; 32]> {
         use sha2::{Digest, Sha256};
@@ -406,11 +398,6 @@ pub fn tenant_root_governance_transition_quorum_v1(
 pub struct TenantRootOperationDigestV1([u8; 32]);
 
 impl TenantRootOperationDigestV1 {
-    /// Wraps exact digest bytes.
-    pub const fn from_bytes(bytes: [u8; 32]) -> Self {
-        Self(bytes)
-    }
-
     /// Returns the digest bytes.
     pub const fn as_bytes(&self) -> &[u8; 32] {
         &self.0
@@ -586,49 +573,6 @@ impl TenantRootOperationRecordV1 {
     /// Returns the operation kind.
     pub const fn kind(&self) -> TenantRootOperationKindV1 {
         self.kind
-    }
-
-    /// Returns the bound tenant identity digest.
-    pub const fn identity_digest(&self) -> TenantRootIdentityDigestV1 {
-        self.identity_digest
-    }
-
-    /// Returns the bound custody lineage.
-    pub const fn custody_lineage(&self) -> TenantRootCustodyLineageId {
-        self.custody_lineage
-    }
-
-    /// Returns what the operation acts on.
-    pub const fn subject(&self) -> &TenantRootOperationSubjectV1 {
-        &self.subject
-    }
-
-    /// Returns the bound role for a role-local operation.
-    pub const fn role(&self) -> Option<TwoPartyDeriverRole> {
-        match &self.state {
-            TenantRootOperationRecordStateV1::ActiveRoot { role, .. } => *role,
-            TenantRootOperationRecordStateV1::RestoreRoleImportKeyIssue { role, .. } => Some(*role),
-        }
-    }
-
-    /// Returns the requesting actor.
-    pub fn requester_actor_id(&self) -> &str {
-        &self.requester_actor_id
-    }
-
-    /// Returns the idempotency key.
-    pub fn idempotency_key(&self) -> &str {
-        &self.idempotency_key
-    }
-
-    /// Returns the issue time.
-    pub fn issued_at(&self) -> &str {
-        &self.issued_at
-    }
-
-    /// Returns the expiry.
-    pub fn expires_at(&self) -> &str {
-        &self.expires_at
     }
 
     /// Returns the exact canonical record bytes.
@@ -1132,16 +1076,6 @@ impl TenantRootStepUpEvidenceV1 {
         &self.session_id
     }
 
-    /// Returns the step-up method.
-    pub fn method(&self) -> &str {
-        &self.method
-    }
-
-    /// Returns when step-up completed.
-    pub fn verified_at(&self) -> &str {
-        &self.verified_at
-    }
-
     /// Verifies the issuer signature and the freshness bound.
     pub fn verify(
         &self,
@@ -1223,26 +1157,6 @@ impl TenantRootOperationCapabilityV1 {
             .sign(&capability.signature_input())
             .to_bytes();
         Ok(capability)
-    }
-
-    /// Returns the authorized operation digest.
-    pub const fn digest(&self) -> TenantRootOperationDigestV1 {
-        self.digest
-    }
-
-    /// Returns the one-use nonce the control plane consumes.
-    pub const fn nonce(&self) -> TenantRootOperationNonceV1 {
-        self.nonce
-    }
-
-    /// Returns the issuing key identifier.
-    pub fn issuer_key_id(&self) -> &str {
-        &self.issuer_key_id
-    }
-
-    /// Returns the capability expiry.
-    pub fn expires_at(&self) -> &str {
-        &self.expires_at
     }
 
     /// Verifies the issuer signature and that the capability is live.
@@ -1327,21 +1241,6 @@ impl TenantRootOperationApprovalV1 {
             .sign(&approval.signature_input())
             .to_bytes();
         Ok(approval)
-    }
-
-    /// Returns the approved operation digest.
-    pub const fn digest(&self) -> TenantRootOperationDigestV1 {
-        self.digest
-    }
-
-    /// Returns the approving owner's step-up evidence.
-    pub const fn approver(&self) -> &TenantRootStepUpEvidenceV1 {
-        &self.approver
-    }
-
-    /// Returns when the approval was recorded.
-    pub fn approved_at(&self) -> &str {
-        &self.approved_at
     }
 
     fn verify(
@@ -1429,11 +1328,6 @@ impl fmt::Debug for AuthorizedTenantRootOperationV1 {
 }
 
 impl AuthorizedTenantRootOperationV1 {
-    /// Returns the authorized operation digest.
-    pub const fn digest(&self) -> TenantRootOperationDigestV1 {
-        self.digest
-    }
-
     /// Returns the authorized operation kind.
     pub const fn kind(&self) -> TenantRootOperationKindV1 {
         self.kind

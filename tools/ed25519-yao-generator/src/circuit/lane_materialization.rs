@@ -204,11 +204,6 @@ impl LaneMaterializationCoreV1 {
         LaneMaterializationCoreDigest32V1(self.circuit.digest())
     }
 
-    /// Returns canonical circuit bytes.
-    pub fn canonical_encoding(&self) -> &[u8] {
-        self.circuit.canonical_encoding()
-    }
-
     /// Returns liveness schedule metrics.
     pub const fn schedule_metrics(&self) -> ProvisionalScheduleMetricsV1 {
         self.schedule.metrics()

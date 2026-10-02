@@ -515,16 +515,6 @@ impl DraftProtocolManifest {
     pub const fn protocol_id(self) -> ProtocolId {
         PROTOCOL_ID
     }
-
-    /// Returns the draft activation-family manifest.
-    pub const fn activation(self) -> DraftActivationCircuitManifest {
-        self.activation
-    }
-
-    /// Returns the draft export-family manifest.
-    pub const fn export(self) -> DraftExportCircuitManifest {
-        self.export
-    }
 }
 
 fn encode_draft_manifest_preimage<const LENGTH: usize>(

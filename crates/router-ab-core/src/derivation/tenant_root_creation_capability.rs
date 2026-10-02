@@ -1,7 +1,6 @@
 use core::fmt;
 
 use ed25519_dalek::{Signature, Signer, SigningKey, VerifyingKey};
-use rand_core::{CryptoRng, RngCore};
 use sha2::{Digest, Sha256};
 
 use super::tenant_root_protocol::{
@@ -52,11 +51,6 @@ impl TenantRootControlPlaneAuthorityIdV1 {
     pub const fn as_bytes(&self) -> &[u8; TENANT_ROOT_CONTROL_PLANE_AUTHORITY_ID_LEN_V1] {
         &self.0
     }
-
-    /// Consumes the identifier and returns its exact bytes.
-    pub const fn into_bytes(self) -> [u8; TENANT_ROOT_CONTROL_PLANE_AUTHORITY_ID_LEN_V1] {
-        self.0
-    }
 }
 
 impl fmt::Debug for TenantRootControlPlaneAuthorityIdV1 {
@@ -85,28 +79,9 @@ impl TenantRootCreationCapabilityNonceV1 {
         Ok(Self(bytes))
     }
 
-    /// Samples one fresh non-zero capability nonce.
-    pub fn random<R>(rng: &mut R) -> Self
-    where
-        R: RngCore + CryptoRng,
-    {
-        loop {
-            let mut bytes = [0_u8; TENANT_ROOT_CREATION_CAPABILITY_NONCE_LEN_V1];
-            rng.fill_bytes(&mut bytes);
-            if let Ok(nonce) = Self::from_bytes(bytes) {
-                return nonce;
-            }
-        }
-    }
-
     /// Returns the exact nonce bytes.
     pub const fn as_bytes(&self) -> &[u8; TENANT_ROOT_CREATION_CAPABILITY_NONCE_LEN_V1] {
         &self.0
-    }
-
-    /// Consumes the nonce and returns its exact bytes.
-    pub const fn into_bytes(self) -> [u8; TENANT_ROOT_CREATION_CAPABILITY_NONCE_LEN_V1] {
-        self.0
     }
 }
 

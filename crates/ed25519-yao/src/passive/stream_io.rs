@@ -385,18 +385,6 @@ where
         Ok(Some(output))
     }
 
-    pub(super) const fn body_bytes(&self) -> u64 {
-        self.manifest.body_bytes()
-    }
-
-    pub(super) const fn frame_count(&self) -> u32 {
-        self.manifest.frame_count()
-    }
-
-    pub(super) const fn maximum_frame_payload_bytes(&self) -> usize {
-        C::MAX_PAYLOAD_BYTES
-    }
-
     pub(super) fn finish(mut self) -> Result<(R, ExactTableStreamReceipt<F, C>), StreamIoError> {
         self.header_buffer.zeroize();
         self.payload_buffer.as_mut_slice().zeroize();

@@ -362,19 +362,6 @@ impl Transaction {
         hash_array.copy_from_slice(&hash_bytes);
         (CryptoHash::from_bytes(hash_array), bytes.len() as u64)
     }
-
-    // WASM-friendly getters
-    pub fn get_signer_id(&self) -> String {
-        self.signer_id.0.clone()
-    }
-
-    pub fn get_receiver_id(&self) -> String {
-        self.receiver_id.0.clone()
-    }
-
-    pub fn get_block_hash(&self) -> Vec<u8> {
-        self.block_hash.to_vec()
-    }
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -395,11 +382,6 @@ impl SignedTransaction {
     /// Convert to borsh bytes for transmission
     pub fn to_borsh_bytes(&self) -> Result<Vec<u8>, String> {
         borsh::to_vec(self).map_err(|e| format!("Failed to serialize to borsh: {}", e))
-    }
-
-    /// Create from borsh bytes
-    pub fn from_borsh_bytes(bytes: &[u8]) -> Result<Self, String> {
-        borsh::from_slice(bytes).map_err(|e| format!("Failed to deserialize from borsh: {}", e))
     }
 }
 

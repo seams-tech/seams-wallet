@@ -381,11 +381,6 @@ impl TenantRootRoleRefreshCommandV1 {
         self.data.expires_at_ms
     }
 
-    /// Returns the derived issuer authorization payload digest.
-    pub const fn authorization_payload_digest(&self) -> TenantRootProtocolDigestV1 {
-        self.data.authorization_payload_digest
-    }
-
     /// Returns the issuer key identifier authenticated by the signature.
     pub fn issuer_key_id(&self) -> &str {
         &self.data.issuer_key_id
@@ -652,16 +647,6 @@ impl VerifiedTenantRootRoleRefreshCommandV1 {
     /// Returns the authenticated expiry timestamp.
     pub const fn expires_at_ms(&self) -> u64 {
         self.command.expires_at_ms()
-    }
-
-    /// Returns the derived issuer authorization payload digest.
-    pub const fn authorization_payload_digest(&self) -> TenantRootProtocolDigestV1 {
-        self.command.authorization_payload_digest()
-    }
-
-    /// Returns the issuer key identifier authenticated by this command.
-    pub fn issuer_key_id(&self) -> &str {
-        self.command.issuer_key_id()
     }
 
     /// Returns the exact canonical signed command bytes accepted by verification.

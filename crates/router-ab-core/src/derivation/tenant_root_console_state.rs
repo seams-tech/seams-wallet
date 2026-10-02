@@ -113,16 +113,6 @@ impl TenantRootOutstandingCleanupV1 {
         require_tenant_root_identifier("outstanding cleanup description", &description)?;
         Ok(Self { roles, description })
     }
-
-    /// Returns the roles still requiring cleanup.
-    pub fn roles(&self) -> &[TwoPartyDeriverRole] {
-        &self.roles
-    }
-
-    /// Returns the operator-facing description.
-    pub fn description(&self) -> &str {
-        &self.description
-    }
 }
 
 /// Exhaustive state of one operational-share rotation job.
@@ -298,26 +288,6 @@ impl TenantRootRecoverySetStateV1 {
             created_at,
             manifest_digest,
         })
-    }
-
-    /// Returns the recovery set identifier.
-    pub const fn recovery_set_id(&self) -> TenantRootRecoverySetId {
-        self.recovery_set_id
-    }
-
-    /// Returns the verified recipient pair.
-    pub const fn recipient_pair(&self) -> TenantRootRecipientPairV1 {
-        self.recipient_pair
-    }
-
-    /// Returns the creation time.
-    pub fn created_at(&self) -> &str {
-        &self.created_at
-    }
-
-    /// Returns the signed manifest digest.
-    pub const fn manifest_digest(&self) -> TenantRootReceiptDigestV1 {
-        self.manifest_digest
     }
 }
 
@@ -717,16 +687,6 @@ impl TenantRootConsoleStateV1 {
             ));
         }
         Ok(state)
-    }
-
-    /// Returns the rotation job, when one exists.
-    pub const fn rotation(&self) -> Option<&TenantRootRotationJobV1> {
-        self.rotation.as_ref()
-    }
-
-    /// Returns the recovery backup state.
-    pub const fn backup(&self) -> &TenantRootRecoveryBackupV1 {
-        &self.backup
     }
 
     /// Returns the restore session, when one exists.

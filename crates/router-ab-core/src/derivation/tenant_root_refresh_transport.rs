@@ -82,13 +82,6 @@ impl TenantRootCreationCommitmentTranscriptV1 {
         creation_commitment_transcript_canonical_bytes(&self.context, self.role, self.commitment)
     }
 
-    /// Returns a public digest of the exact creation commitment transcript.
-    pub fn digest(&self) -> RouterAbDerivationResult<super::TenantRootProtocolDigestV1> {
-        super::TenantRootProtocolDigestV1::from_bytes(
-            Sha256::digest(self.canonical_bytes()?).into(),
-        )
-    }
-
     /// Returns the exact creation ceremony context.
     pub const fn context(&self) -> &TenantRootCeremonyContextV1 {
         &self.context
@@ -335,11 +328,6 @@ impl VerifiedTenantRootCreationCommitmentV1 {
     /// Returns the digest of the exact canonical signed wire bytes.
     pub const fn digest(&self) -> super::TenantRootProtocolDigestV1 {
         self.digest
-    }
-
-    /// Consumes this token into the exact canonical signed wire bytes.
-    pub fn into_canonical_bytes(self) -> Vec<u8> {
-        self.canonical_bytes
     }
 }
 
@@ -835,11 +823,6 @@ impl VerifiedTenantRootRefreshCommitmentV1 {
         &self.canonical_bytes
     }
 
-    /// Returns the digest of the exact canonical signed wire bytes.
-    pub const fn digest(&self) -> super::TenantRootProtocolDigestV1 {
-        self.digest
-    }
-
     /// Consumes this token into the exact canonical signed wire bytes.
     pub fn into_canonical_bytes(self) -> Vec<u8> {
         self.canonical_bytes
@@ -1215,11 +1198,6 @@ impl TenantRootEncryptedRefreshContributionV1 {
         self.recipient
     }
 
-    /// Returns the public AAD digest.
-    pub const fn aad_digest(&self) -> TenantRootRefreshContributionAadDigestV1 {
-        self.aad_digest
-    }
-
     fn validate_against_aad(
         &self,
         aad: &TenantRootRefreshContributionAadV1,
@@ -1489,19 +1467,9 @@ impl VerifiedTenantRootSignedRefreshContributionV1 {
         self.signed.envelope.recipient()
     }
 
-    /// Returns the exact recipient-bound encrypted envelope.
-    pub const fn envelope(&self) -> &TenantRootEncryptedRefreshContributionV1 {
-        self.signed.envelope()
-    }
-
     /// Returns the exact canonical signed contribution wire bytes.
     pub fn canonical_bytes(&self) -> &[u8] {
         &self.canonical_bytes
-    }
-
-    /// Consumes the token into the exact canonical signed contribution wire bytes.
-    pub fn into_canonical_bytes(self) -> Vec<u8> {
-        self.canonical_bytes
     }
 }
 

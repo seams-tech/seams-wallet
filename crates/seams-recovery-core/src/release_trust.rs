@@ -67,11 +67,6 @@ impl ReleaseTrustRootV1 {
         &self.key_id
     }
 
-    /// Returns the root Ed25519 verifying key.
-    pub const fn verifying_key(&self) -> &[u8; 32] {
-        &self.verifying_key
-    }
-
     /// Parses one pinned release root from its canonical JSON.
     ///
     /// The recovery root is required for the same reason as in [`Self::new`]:
@@ -184,11 +179,6 @@ impl ReleaseChecksumManifestV1 {
     /// Returns the minimum protocol version this release speaks.
     pub fn minimum_protocol_version(&self) -> &str {
         &self.minimum_protocol_version
-    }
-
-    /// Returns the described artifacts.
-    pub fn entries(&self) -> &[ReleaseArtifactEntryV1] {
-        &self.entries
     }
 
     /// Returns the exact canonical signed manifest bytes.

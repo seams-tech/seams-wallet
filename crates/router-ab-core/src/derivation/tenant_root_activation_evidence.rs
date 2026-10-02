@@ -598,11 +598,6 @@ impl VerifiedTenantRootRefreshSwapActivationEvidenceBundleV1 {
 
     activation_evidence_bundle_methods!("refresh", current_commitments);
 
-    /// Returns the exact refresh epoch branch authenticated by the ceremony.
-    pub const fn epochs(&self) -> TenantRootCeremonyEpochsV1 {
-        self.common.epochs()
-    }
-
     /// Returns the active epoch before this swap.
     pub const fn current_epoch(&self) -> TenantRootShareEpoch {
         self.current_epoch

@@ -664,29 +664,9 @@ impl RouterAbEd25519YaoExportAuthorizationV1 {
         })
     }
 
-    /// Returns the user-confirmation digest.
-    pub const fn confirmation_digest(&self) -> [u8; 32] {
-        self.confirmation_digest
-    }
-
     /// Returns the exact export-authorization digest.
     pub const fn authorization_digest(&self) -> [u8; 32] {
         self.authorization_digest
-    }
-
-    /// Returns the one-use replay nonce.
-    pub const fn nonce(&self) -> [u8; 32] {
-        self.nonce
-    }
-
-    /// Returns the authorization issue time.
-    pub const fn issued_at_ms(&self) -> u64 {
-        self.issued_at_ms
-    }
-
-    /// Returns the authorization expiry time.
-    pub const fn expires_at_ms(&self) -> u64 {
-        self.expires_at_ms
     }
 }
 
@@ -903,16 +883,6 @@ impl RouterAbEd25519YaoExportBindingV1 {
     /// Returns the registered public identity that the exported seed must reproduce.
     pub const fn registered_public_key(&self) -> [u8; 32] {
         self.registered_public_key
-    }
-
-    /// Returns the exact active state epoch.
-    pub const fn state_epoch(&self) -> Ed25519YaoStateEpochV1 {
-        self.state_epoch
-    }
-
-    /// Returns the exact runtime-policy binding.
-    pub const fn runtime_policy_binding(&self) -> [u8; 32] {
-        self.runtime_policy_binding
     }
 
     /// Returns the fresh explicit authorization digest.
@@ -1279,21 +1249,6 @@ impl RouterAbEd25519YaoExportExecuteRequestV1 {
             deriver_a_input,
             deriver_b_input,
         })
-    }
-
-    /// Returns the exact admitted export binding.
-    pub const fn binding(&self) -> &RouterAbEd25519YaoExportBindingV1 {
-        &self.binding
-    }
-
-    /// Returns the Deriver A opaque input.
-    pub const fn deriver_a_input(&self) -> &Ed25519YaoEncryptedInputV1 {
-        &self.deriver_a_input
-    }
-
-    /// Returns the Deriver B opaque input.
-    pub const fn deriver_b_input(&self) -> &Ed25519YaoEncryptedInputV1 {
-        &self.deriver_b_input
     }
 }
 

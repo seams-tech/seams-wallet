@@ -329,11 +329,6 @@ impl TenantRootSignedRecoveryReshareCommitmentV1 {
             hpke_public_key: self.hpke_public_key,
         })
     }
-
-    /// Returns the signed coefficient commitment.
-    pub const fn commitment(&self) -> RootShareRefreshCoefficientCommitment {
-        self.commitment
-    }
 }
 
 /// Verified commit-stage capability required before contribution encryption.
@@ -826,16 +821,6 @@ impl TenantRootRecoveryShareInstallationEvidenceV1 {
     /// Returns this evidence's fixed role.
     pub const fn role(&self) -> TwoPartyDeriverRole {
         self.role
-    }
-
-    /// Returns this role's recovery-share commitment.
-    pub const fn commitment(&self) -> SigningRootShareCommitment {
-        self.commitment
-    }
-
-    /// Returns the peer recovery-share commitment.
-    pub const fn peer_commitment(&self) -> SigningRootShareCommitment {
-        self.peer_commitment
     }
 
     fn verify(&self, context: &TenantRootRecoveryReshareContextV1) -> RouterAbDerivationResult<()> {

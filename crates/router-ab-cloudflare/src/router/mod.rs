@@ -1107,27 +1107,6 @@ pub struct CloudflareRouterVerifiedPreAuthSessionV1 {
 }
 
 impl CloudflareRouterVerifiedPreAuthSessionV1 {
-    /// Creates a validated pre-auth session boundary.
-    pub fn new(
-        pre_auth_session_id: impl Into<String>,
-        org_id: impl Into<String>,
-        project_id: impl Into<String>,
-        environment: impl Into<String>,
-        account_id: impl Into<String>,
-        trusted_source_digest: PublicDigest32,
-    ) -> RouterAbProtocolResult<Self> {
-        let session = Self {
-            pre_auth_session_id: pre_auth_session_id.into(),
-            org_id: org_id.into(),
-            project_id: project_id.into(),
-            environment: environment.into(),
-            account_id: account_id.into(),
-            trusted_source_digest,
-        };
-        session.validate()?;
-        Ok(session)
-    }
-
     /// Validates pre-auth identity and policy-scope fields.
     pub fn validate(&self) -> RouterAbProtocolResult<()> {
         require_non_empty("pre_auth_session_id", &self.pre_auth_session_id)?;
@@ -1178,15 +1157,6 @@ impl CloudflareRouterVerifiedSessionV1 {
         let session = Self::Jwt { claims };
         session.validate()?;
         Ok(session)
-    }
-
-    /// Creates a verified pre-auth session variant.
-    pub fn pre_auth(
-        session: CloudflareRouterVerifiedPreAuthSessionV1,
-    ) -> RouterAbProtocolResult<Self> {
-        let verified = Self::PreAuth { session };
-        verified.validate()?;
-        Ok(verified)
     }
 
     /// Validates the verified session branch.
@@ -1338,13 +1308,6 @@ impl CloudflareRouterEd25519JwksJwtVerifierV1 {
             }
             keys.push(key);
         }
-        let verifier = Self { keys };
-        verifier.validate()?;
-        Ok(verifier)
-    }
-
-    /// Creates a verifier from already parsed Ed25519 JWKs.
-    pub fn new(keys: Vec<CloudflareRouterEd25519JwkV1>) -> RouterAbProtocolResult<Self> {
         let verifier = Self { keys };
         verifier.validate()?;
         Ok(verifier)
@@ -2181,25 +2144,6 @@ pub enum CloudflareRouterNormalSigningAuthorizationV2 {
 }
 
 impl CloudflareRouterNormalSigningAuthorizationV2 {
-    pub fn kind_label(&self) -> &'static str {
-        match self {
-            Self::ReusableWalletSession { .. } => "reusable_wallet_session",
-            Self::OperationStepUp { .. } => "operation_step_up",
-        }
-    }
-
-    pub fn authorization_id(&self) -> RouterAbProtocolResult<&str> {
-        match self {
-            Self::ReusableWalletSession {
-                authorization_id, ..
-            } => Ok(authorization_id),
-            Self::OperationStepUp { .. } => Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidGateDecision,
-                "operation step-up authority has no public authorization id",
-            )),
-        }
-    }
-
     /// Creates reusable Wallet Session authority.
     pub fn reusable_wallet_session(
         authorization_id: impl Into<String>,

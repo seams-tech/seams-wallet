@@ -123,16 +123,6 @@ pub struct Ed25519YaoLaneClientCompletionV1 {
 }
 
 impl Ed25519YaoLaneClientCompletionV1 {
-    /// Returns the exact protocol commit receipt.
-    pub const fn protocol_commit_receipt(&self) -> &Ed25519YaoLaneProtocolCommittedV1 {
-        &self.protocol_commit_receipt
-    }
-
-    /// Returns the opaque holder package set.
-    pub const fn holder_package(&self) -> &Ed25519YaoLaneHolderPackageWireV1 {
-        &self.holder_package
-    }
-
     fn validate(&self) -> Result<(), ClientLaneError> {
         self.protocol_commit_receipt
             .validate()
@@ -188,21 +178,9 @@ pub struct PreparedClientLaneDispatchV1 {
 }
 
 impl PreparedClientLaneDispatchV1 {
-    /// Returns the exact opaque request accepted by the internal Router adapter.
-    pub const fn execute_request(&self) -> &RouterAbEd25519YaoLaneExecuteRequestV1 {
-        &self.execute_request
-    }
-
     /// Consumes the dispatch into its opaque request and completion state.
     pub fn into_parts(self) -> (RouterAbEd25519YaoLaneExecuteRequestV1, PreparedClientLaneV1) {
         (self.execute_request, self.completion)
-    }
-}
-
-impl PreparedClientLaneV1 {
-    /// Returns the prepared job identity without exposing private material.
-    pub const fn job(&self) -> &Ed25519YaoLaneJobV1 {
-        &self.job
     }
 }
 

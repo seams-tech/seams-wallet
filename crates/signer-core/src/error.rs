@@ -55,10 +55,6 @@ impl SignerCoreError {
         Self::new(SignerCoreErrorCode::Utf8Error, message)
     }
 
-    pub fn unsupported(message: impl Into<String>) -> Self {
-        Self::new(SignerCoreErrorCode::Unsupported, message)
-    }
-
     pub fn internal(message: impl Into<String>) -> Self {
         Self::new(SignerCoreErrorCode::Internal, message)
     }

@@ -138,16 +138,6 @@ impl PoolRecordKey {
             protocol,
         }
     }
-
-    /// Returns the role owning this record.
-    pub const fn role(&self) -> PoolRole {
-        self.role
-    }
-
-    /// Returns the presignature-pair identifier.
-    pub const fn pair_id(&self) -> PresignPairId {
-        self.pair_id
-    }
 }
 
 /// Monotonic record revision used for compare-and-swap persistence.
@@ -591,16 +581,6 @@ impl TombstoneRecord {
     pub const fn origin(&self) -> TombstoneOrigin {
         self.origin
     }
-
-    /// Returns the creation timestamp retained for audit.
-    pub const fn created_at_ms(&self) -> u64 {
-        self.created_at_ms
-    }
-
-    /// Returns the terminal timestamp retained for audit.
-    pub const fn terminal_at_ms(&self) -> u64 {
-        self.terminal_at_ms
-    }
 }
 
 /// Exact discriminated persisted record state.
@@ -723,11 +703,6 @@ impl PoolMutation {
     /// Returns the revision that must still be persisted.
     pub const fn expected_revision(&self) -> Revision {
         self.expected_revision
-    }
-
-    /// Returns the replacement record.
-    pub const fn replacement(&self) -> &PoolRecord {
-        &self.replacement
     }
 
     /// Returns the exact material operation to apply in the CAS transaction.

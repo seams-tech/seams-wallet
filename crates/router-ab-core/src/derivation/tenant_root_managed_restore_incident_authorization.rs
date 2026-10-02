@@ -8,7 +8,6 @@
 use core::fmt;
 
 use ed25519_dalek::{Signature, Signer, SigningKey, VerifyingKey};
-use rand_core::{CryptoRng, RngCore};
 use sha2::{Digest, Sha256};
 use threshold_prf::TwoPartyDeriverRole;
 
@@ -59,28 +58,9 @@ impl TenantRootManagedRestoreIncidentNonceV1 {
         Ok(Self(bytes))
     }
 
-    /// Samples one fresh non-zero incident nonce.
-    pub fn random<R>(rng: &mut R) -> Self
-    where
-        R: RngCore + CryptoRng,
-    {
-        loop {
-            let mut bytes = [0_u8; TENANT_ROOT_MANAGED_RESTORE_INCIDENT_NONCE_LEN_V1];
-            rng.fill_bytes(&mut bytes);
-            if let Ok(nonce) = Self::from_bytes(bytes) {
-                return nonce;
-            }
-        }
-    }
-
     /// Returns the exact nonce bytes.
     pub const fn as_bytes(&self) -> &[u8; TENANT_ROOT_MANAGED_RESTORE_INCIDENT_NONCE_LEN_V1] {
         &self.0
-    }
-
-    /// Consumes the nonce and returns its exact bytes.
-    pub const fn into_bytes(self) -> [u8; TENANT_ROOT_MANAGED_RESTORE_INCIDENT_NONCE_LEN_V1] {
-        self.0
     }
 }
 
@@ -193,19 +173,9 @@ impl TenantRootManagedRestoreIncidentAuthorizationBindingV1 {
         self.nonce
     }
 
-    /// Returns the incident-operations authority identifier.
-    pub const fn operations_authority_id(&self) -> TenantRootControlPlaneAuthorityIdV1 {
-        self.operations_authority_id
-    }
-
     /// Returns the incident-operations signing-key identifier.
     pub fn operations_key_id(&self) -> &str {
         &self.operations_key_id
-    }
-
-    /// Returns the unavailable role's custody authority identifier.
-    pub const fn custody_authority_id(&self) -> TenantRootControlPlaneAuthorityIdV1 {
-        self.custody_authority_id
     }
 
     /// Returns the unavailable role's custody signing-key identifier.
@@ -478,27 +448,12 @@ impl TenantRootSignedManagedRestoreIncidentAuthorizationV1 {
         &self.binding
     }
 
-    /// Returns the operations authority signature.
-    pub const fn operations_signature(&self) -> &[u8; 64] {
-        &self.operations_signature
-    }
-
-    /// Returns the unavailable-role custody signature.
-    pub const fn custody_signature(&self) -> &[u8; 64] {
-        &self.custody_signature
-    }
-
     /// Returns the exact canonical signed authorization bytes.
     pub fn canonical_bytes(&self) -> RouterAbDerivationResult<Vec<u8>> {
         let mut bytes = self.binding.canonical_bytes()?;
         push_field(&mut bytes, &self.operations_signature)?;
         push_field(&mut bytes, &self.custody_signature)?;
         Ok(bytes)
-    }
-
-    /// Returns the digest of the exact canonical signed authorization bytes.
-    pub fn digest(&self) -> RouterAbDerivationResult<TenantRootProtocolDigestV1> {
-        TenantRootProtocolDigestV1::from_bytes(Sha256::digest(self.canonical_bytes()?).into())
     }
 
     /// Verifies both signatures against one exact expected binding.
@@ -620,26 +575,6 @@ impl VerifiedTenantRootManagedRestoreIncidentAuthorizationV1 {
     /// Returns the one-use nonce authenticated by this token.
     pub const fn nonce(&self) -> TenantRootManagedRestoreIncidentNonceV1 {
         self.binding().nonce()
-    }
-
-    /// Returns the incident-operations authority authenticated by this token.
-    pub const fn operations_authority_id(&self) -> TenantRootControlPlaneAuthorityIdV1 {
-        self.binding().operations_authority_id()
-    }
-
-    /// Returns the incident-operations signing-key identifier authenticated by this token.
-    pub fn operations_key_id(&self) -> &str {
-        self.binding().operations_key_id()
-    }
-
-    /// Returns the unavailable role's custody authority authenticated by this token.
-    pub const fn custody_authority_id(&self) -> TenantRootControlPlaneAuthorityIdV1 {
-        self.binding().custody_authority_id()
-    }
-
-    /// Returns the unavailable role's custody signing-key identifier authenticated by this token.
-    pub fn custody_key_id(&self) -> &str {
-        self.binding().custody_key_id()
     }
 
     /// Returns the exact canonical signed bytes accepted by verification.

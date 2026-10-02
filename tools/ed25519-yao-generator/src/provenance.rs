@@ -403,11 +403,6 @@ impl ComputedProvenanceArtifactDigestV1 {
         })
     }
 
-    /// Returns the bound artifact kind.
-    pub const fn kind(&self) -> ProvenanceArtifactKindV1 {
-        self.kind
-    }
-
     /// Returns the computed digest bytes.
     pub const fn as_bytes(&self) -> &[u8; 32] {
         self.digest.as_bytes()
@@ -1164,11 +1159,6 @@ impl<Role: ProvenanceRoleV1> RoleInputProvenanceStatementV1<Role> {
             Self::Refresh(_) => ProvenanceRequestKindV1::Refresh,
             Self::Export(_) => ProvenanceRequestKindV1::Export,
         }
-    }
-
-    /// Returns the sealed role discriminant.
-    pub const fn role(&self) -> ProvenanceRoleKindV1 {
-        Role::KIND
     }
 
     /// Returns the circuit family derived from the branch.

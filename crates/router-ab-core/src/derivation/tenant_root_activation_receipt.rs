@@ -808,11 +808,6 @@ impl TenantRootSignedActivationReceiptV1 {
         self.binding.issuer_key_id()
     }
 
-    /// Returns the exact issuer signature bytes.
-    pub const fn signature(&self) -> &[u8; 64] {
-        &self.signature
-    }
-
     /// Returns the exact canonical signed receipt bytes.
     pub fn canonical_bytes(&self) -> RouterAbDerivationResult<Vec<u8>> {
         self.binding.validate()?;
@@ -997,11 +992,6 @@ impl VerifiedTenantRootSignedActivationReceiptV1 {
     /// Returns the authenticated issuer key identifier.
     pub fn issuer_key_id(&self) -> &str {
         self.receipt.issuer_key_id()
-    }
-
-    /// Returns the exact issuer signature bytes authenticated by this token.
-    pub const fn signature(&self) -> &[u8; 64] {
-        self.receipt.signature()
     }
 
     /// Returns the exact canonical signed receipt bytes accepted by verification.

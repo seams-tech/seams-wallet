@@ -270,14 +270,6 @@ pub enum SeamsResultV1 {
 }
 
 impl SeamsResultV1 {
-    /// Returns the exit code this result maps to.
-    pub fn exit_code(&self, failure: Option<SeamsExitCodeV1>) -> SeamsExitCodeV1 {
-        match self {
-            Self::Failed { .. } => failure.unwrap_or(SeamsExitCodeV1::InternalInvariantFailure),
-            _ => SeamsExitCodeV1::Success,
-        }
-    }
-
     /// Render human-readable output, coloring successful backup checks when requested.
     pub fn render_terminal_text(&self, color: bool) -> String {
         let text = self.render_text();

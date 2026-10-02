@@ -869,18 +869,6 @@ impl RouterAbEd25519PresignPoolPrepareRequestV2 {
         Ok(())
     }
 
-    /// Validates the pool refill request against Router time.
-    pub fn validate_at(&self, now_unix_ms: u64) -> RouterAbProtocolResult<()> {
-        self.validate()?;
-        if now_unix_ms >= self.expires_at_ms {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::ExpiredLocalRequest,
-                "presign pool refill request expired",
-            ));
-        }
-        Ok(())
-    }
-
     /// Returns a message-agnostic digest binding one client offer to this pool refill scope.
     pub fn pool_entry_binding_digest(
         &self,
@@ -1455,18 +1443,6 @@ impl RouterAbEd25519PresignPoolHitFinalizeRequestV2 {
         self.protocol.validate()
     }
 
-    /// Validates the pool-hit finalize request against Router time.
-    pub fn validate_at(&self, now_unix_ms: u64) -> RouterAbProtocolResult<()> {
-        self.validate()?;
-        if now_unix_ms >= self.expires_at_ms {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::ExpiredLocalRequest,
-                "pool-hit finalize request expired",
-            ));
-        }
-        Ok(())
-    }
-
     /// Returns Router-derived admission material for this pool-hit finalize.
     pub fn admission_material(
         &self,
@@ -1572,15 +1548,6 @@ pub fn router_ab_ed25519_nep413_canonical_message_b64u_v2(
 pub enum NormalSigningSignatureSchemeV1 {
     /// Ed25519 account signature.
     Ed25519V1,
-}
-
-impl NormalSigningSignatureSchemeV1 {
-    /// Returns the canonical signature-scheme label.
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::Ed25519V1 => "ed25519_v1",
-        }
-    }
 }
 
 /// Public FROST round-1 commitments.

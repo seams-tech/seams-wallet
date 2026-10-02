@@ -167,33 +167,9 @@ impl TenantRootSignedManagedRestoreCapabilityV1 {
         Ok(signed)
     }
 
-    /// Decodes and verifies one canonical managed role-restore capability wire.
-    pub fn decode_and_verify_canonical_bytes(
-        bytes: &[u8],
-        expected_state: &TenantRootManagedRestoreRoleUnavailableV1,
-        expected_issuer_key_id: &str,
-        trusted_issuer_verifying_key: &[u8; 32],
-    ) -> RouterAbDerivationResult<VerifiedTenantRootManagedRestoreCapabilityV1> {
-        Self::decode_canonical_bytes(bytes)?.verify(
-            expected_state,
-            expected_issuer_key_id,
-            trusted_issuer_verifying_key,
-        )
-    }
-
     /// Returns the exact operation authenticated by this capability.
     pub const fn operation(&self) -> &'static str {
         TENANT_ROOT_MANAGED_RESTORE_CAPABILITY_OPERATION_V1
-    }
-
-    /// Returns the lifecycle capability carried by this signed transport.
-    pub const fn capability(&self) -> &TenantRootManagedRestoreCapabilityV1 {
-        &self.data.capability
-    }
-
-    /// Returns the one-use lifecycle capability digest.
-    pub const fn capability_digest(&self) -> TenantRootLifecycleReceiptDigestV1 {
-        self.data.capability.digest()
     }
 
     /// Returns the issuer signing-key identifier.
@@ -205,11 +181,6 @@ impl TenantRootSignedManagedRestoreCapabilityV1 {
     pub fn canonical_bytes(&self) -> RouterAbDerivationResult<Vec<u8>> {
         let unsigned = unsigned_canonical_bytes(&self.data)?;
         canonical_bytes_from_unsigned(unsigned, &self.data.signature)
-    }
-
-    /// Returns the digest of the exact canonical signed wire bytes.
-    pub fn digest(&self) -> RouterAbDerivationResult<TenantRootProtocolDigestV1> {
-        TenantRootProtocolDigestV1::from_bytes(Sha256::digest(self.canonical_bytes()?).into())
     }
 
     /// Verifies issuer signature and exact current managed-restore lifecycle binding.
@@ -280,16 +251,6 @@ impl fmt::Debug for VerifiedTenantRootManagedRestoreCapabilityV1 {
 }
 
 impl VerifiedTenantRootManagedRestoreCapabilityV1 {
-    /// Returns the exact operation authenticated by this token.
-    pub const fn operation(&self) -> &'static str {
-        TENANT_ROOT_MANAGED_RESTORE_CAPABILITY_OPERATION_V1
-    }
-
-    /// Returns the verified lifecycle capability.
-    pub const fn capability(&self) -> &TenantRootManagedRestoreCapabilityV1 {
-        &self.capability
-    }
-
     /// Returns the verified one-use lifecycle capability digest.
     pub const fn capability_digest(&self) -> TenantRootLifecycleReceiptDigestV1 {
         self.capability.digest()
@@ -330,11 +291,6 @@ impl VerifiedTenantRootManagedRestoreCapabilityV1 {
         self.capability.expires_at_ms()
     }
 
-    /// Returns the verified issuer signing-key identifier.
-    pub fn issuer_key_id(&self) -> &str {
-        &self.issuer_key_id
-    }
-
     /// Returns the exact canonical signed wire accepted by verification.
     pub fn canonical_bytes(&self) -> &[u8] {
         &self.canonical_bytes
@@ -358,11 +314,6 @@ impl VerifiedTenantRootManagedRestoreCapabilityV1 {
     /// Consumes verification and returns the exact lifecycle capability.
     pub fn into_capability(self) -> TenantRootManagedRestoreCapabilityV1 {
         self.capability
-    }
-
-    /// Consumes verification and returns the exact canonical signed wire bytes.
-    pub fn into_canonical_bytes(self) -> Vec<u8> {
-        self.canonical_bytes
     }
 }
 

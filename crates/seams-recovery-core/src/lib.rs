@@ -101,18 +101,6 @@ impl RecoveryCoreErrorCode {
             Self::RetryableServiceFailure => "retryable_service_failure",
         }
     }
-
-    /// Returns the CLI exit code for this category.
-    pub const fn exit_code(self) -> i32 {
-        match self {
-            Self::InvalidLocalInput => 2,
-            Self::ArtifactVerificationFailed => 4,
-            Self::KeyProviderFailure => 5,
-            Self::FilesystemDurabilityFailure => 8,
-            Self::AuthorizationFailure => 3,
-            Self::RetryableServiceFailure => 7,
-        }
-    }
 }
 
 /// Result alias for the native recovery core.

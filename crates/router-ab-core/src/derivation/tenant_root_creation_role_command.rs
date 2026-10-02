@@ -326,11 +326,6 @@ impl TenantRootRoleCreationCommandV1 {
         self.data.expires_at_ms
     }
 
-    /// Returns the derived issuer authorization payload digest.
-    pub const fn authorization_payload_digest(&self) -> TenantRootProtocolDigestV1 {
-        self.data.authorization_payload_digest
-    }
-
     /// Returns the issuer key identifier authenticated by the signature.
     pub fn issuer_key_id(&self) -> &str {
         &self.data.issuer_key_id
@@ -560,11 +555,6 @@ impl VerifiedTenantRootRoleCreationCommandV1 {
         self.command.expires_at_ms()
     }
 
-    /// Returns the derived issuer authorization payload digest.
-    pub const fn authorization_payload_digest(&self) -> TenantRootProtocolDigestV1 {
-        self.command.authorization_payload_digest()
-    }
-
     /// Returns the issuer key identifier authenticated by this command.
     pub fn issuer_key_id(&self) -> &str {
         self.command.issuer_key_id()
@@ -578,11 +568,6 @@ impl VerifiedTenantRootRoleCreationCommandV1 {
     /// Returns the digest of the exact canonical signed command bytes.
     pub const fn digest(&self) -> TenantRootProtocolDigestV1 {
         self.digest
-    }
-
-    /// Consumes this token into the exact canonical signed command bytes.
-    pub fn into_canonical_bytes(self) -> Vec<u8> {
-        self.canonical_bytes
     }
 
     /// Requires the command to be within its inclusive issue-to-expiry window.

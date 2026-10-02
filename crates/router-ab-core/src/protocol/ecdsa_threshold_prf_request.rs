@@ -127,18 +127,6 @@ impl EcdsaThresholdPrfRequestContextV1 {
         Ok(())
     }
 
-    /// Validates context shape and expiry against Router time.
-    pub fn validate_at(&self, now_unix_ms: u64) -> RouterAbProtocolResult<()> {
-        self.validate()?;
-        if now_unix_ms >= self.expires_at_ms {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::ExpiredLocalRequest,
-                "public Router request context expired",
-            ));
-        }
-        Ok(())
-    }
-
     /// Returns canonical pre-envelope context bytes.
     pub fn canonical_bytes(&self) -> Vec<u8> {
         let mut out = Vec::new();

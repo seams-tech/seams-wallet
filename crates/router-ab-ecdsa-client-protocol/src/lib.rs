@@ -494,11 +494,6 @@ impl EcdsaStablePrfPublicContextV2 {
     pub fn custody_binding_digest(&self) -> [u8; 32] {
         self.custody_binding_digest
     }
-
-    /// Returns the exact stable context bytes supplied to threshold-PRF.
-    pub fn canonical_context_bytes(&self) -> &[u8] {
-        &self.context_bytes
-    }
 }
 
 /// Canonical public proof material for one stable tenant-root client partial.

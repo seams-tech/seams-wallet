@@ -119,25 +119,6 @@ impl NormalSigningAuthorizationV1 {
         }
     }
 
-    /// Returns the canonical wire label of the authorization branch.
-    pub fn kind_label(&self) -> &'static str {
-        match self {
-            Self::ReusableWalletSession { .. } => "reusable_wallet_session",
-            Self::OperationStepUp => "operation_step_up",
-        }
-    }
-
-    /// Returns the exact identifier carried by the authorization branch.
-    pub fn authorization_id(&self) -> RouterAbProtocolResult<&str> {
-        match self {
-            Self::ReusableWalletSession { wallet_session_id } => Ok(wallet_session_id),
-            Self::OperationStepUp => Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidGateDecision,
-                "operation step-up authority has no public authorization id",
-            )),
-        }
-    }
-
     /// Returns the exact reusable Wallet Session id or fails closed for step-up authority.
     pub fn reusable_wallet_session_id(&self) -> RouterAbProtocolResult<&str> {
         self.validate()?;

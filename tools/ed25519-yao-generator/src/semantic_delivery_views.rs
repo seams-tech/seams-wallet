@@ -291,16 +291,6 @@ pub enum HostOnlySemanticValueClassV1 {
     Private(HostOnlySemanticPrivateValueClassV1),
 }
 
-impl HostOnlySemanticValueClassV1 {
-    /// Returns the exact authoritative label without a translation table.
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Public(value) => value.as_str(),
-            Self::Private(value) => value.as_str(),
-        }
-    }
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum EvaluationFamilyV1 {
     Activation,

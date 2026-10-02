@@ -1,5 +1,4 @@
 pub mod error;
-pub mod operation;
 
 pub mod codec;
 #[cfg(all(

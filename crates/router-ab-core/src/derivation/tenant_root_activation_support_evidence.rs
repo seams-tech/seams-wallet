@@ -389,11 +389,6 @@ impl TenantRootSignedProviderCanaryReceiptV1 {
         self.binding.target_epoch()
     }
 
-    /// Returns the exact epoch commitments authenticated by this receipt.
-    pub const fn commitments(&self) -> &TenantRootEpochCommitmentsV1 {
-        self.binding.commitments()
-    }
-
     /// Returns the curve family authenticated by this receipt.
     pub const fn curve_family(&self) -> TenantRootCanaryCurveFamilyV1 {
         self.binding.curve_family()
@@ -404,34 +399,9 @@ impl TenantRootSignedProviderCanaryReceiptV1 {
         self.binding.provider_key_version_ref()
     }
 
-    /// Returns the provider completion time authenticated by this receipt.
-    pub const fn completed_at_ms(&self) -> u64 {
-        self.binding.completed_at_ms()
-    }
-
-    /// Returns the authority authenticated by this receipt.
-    pub const fn authority_id(&self) -> TenantRootControlPlaneAuthorityIdV1 {
-        self.binding.authority_id()
-    }
-
     /// Returns the signing key identifier authenticated by this receipt.
     pub fn signing_key_id(&self) -> &str {
         self.binding.signing_key_id()
-    }
-
-    /// Returns the issue time authenticated by this receipt.
-    pub const fn issued_at_ms(&self) -> u64 {
-        self.binding.issued_at_ms()
-    }
-
-    /// Returns the expiry time authenticated by this receipt.
-    pub const fn expires_at_ms(&self) -> u64 {
-        self.binding.expires_at_ms()
-    }
-
-    /// Returns the exact signature bytes.
-    pub const fn signature(&self) -> &[u8; 64] {
-        &self.signature
     }
 
     /// Returns the exact canonical signed receipt bytes.
@@ -585,11 +555,6 @@ impl VerifiedTenantRootProviderCanaryReceiptV1 {
         }
         Ok(())
     }
-
-    /// Consumes the token into the exact accepted canonical bytes.
-    pub fn into_canonical_bytes(self) -> Vec<u8> {
-        self.canonical_bytes
-    }
 }
 
 /// Public fields for an explicit accepted-permanent-loss authorization.
@@ -721,11 +686,6 @@ impl TenantRootAcceptedPermanentLossAuthorizationBindingV1 {
         &self.incident_id
     }
 
-    /// Returns the operator reason bound to this authorization.
-    pub fn reason(&self) -> &str {
-        &self.reason
-    }
-
     /// Returns the authorization issue time.
     pub const fn issued_at_ms(&self) -> u64 {
         self.issued_at_ms
@@ -736,19 +696,9 @@ impl TenantRootAcceptedPermanentLossAuthorizationBindingV1 {
         self.expires_at_ms
     }
 
-    /// Returns the first approving control-plane authority.
-    pub const fn first_authority_id(&self) -> TenantRootControlPlaneAuthorityIdV1 {
-        self.first_authority_id
-    }
-
     /// Returns the first approving key identifier.
     pub fn first_signing_key_id(&self) -> &str {
         &self.first_signing_key_id
-    }
-
-    /// Returns the second approving control-plane authority.
-    pub const fn second_authority_id(&self) -> TenantRootControlPlaneAuthorityIdV1 {
-        self.second_authority_id
     }
 
     /// Returns the second approving key identifier.
@@ -1015,21 +965,6 @@ impl TenantRootSignedAcceptedPermanentLossAuthorizationV1 {
         self.binding.result_control_plane_revision()
     }
 
-    /// Returns the one-use policy identifier authenticated by this authorization.
-    pub fn one_use_policy_id(&self) -> &str {
-        self.binding.one_use_policy_id()
-    }
-
-    /// Returns the incident identifier authenticated by this authorization.
-    pub fn incident_id(&self) -> &str {
-        self.binding.incident_id()
-    }
-
-    /// Returns the reason authenticated by this authorization.
-    pub fn reason(&self) -> &str {
-        self.binding.reason()
-    }
-
     /// Returns the authorization issue time authenticated by this authorization.
     pub const fn issued_at_ms(&self) -> u64 {
         self.binding.issued_at_ms()
@@ -1038,36 +973,6 @@ impl TenantRootSignedAcceptedPermanentLossAuthorizationV1 {
     /// Returns the authorization expiry authenticated by this authorization.
     pub const fn expires_at_ms(&self) -> u64 {
         self.binding.expires_at_ms()
-    }
-
-    /// Returns the first approving authority authenticated by this authorization.
-    pub const fn first_authority_id(&self) -> TenantRootControlPlaneAuthorityIdV1 {
-        self.binding.first_authority_id()
-    }
-
-    /// Returns the first approving key identifier authenticated by this authorization.
-    pub fn first_signing_key_id(&self) -> &str {
-        self.binding.first_signing_key_id()
-    }
-
-    /// Returns the second approving authority authenticated by this authorization.
-    pub const fn second_authority_id(&self) -> TenantRootControlPlaneAuthorityIdV1 {
-        self.binding.second_authority_id()
-    }
-
-    /// Returns the second approving key identifier authenticated by this authorization.
-    pub fn second_signing_key_id(&self) -> &str {
-        self.binding.second_signing_key_id()
-    }
-
-    /// Returns the first control-plane signature.
-    pub const fn first_signature(&self) -> &[u8; 64] {
-        &self.first_signature
-    }
-
-    /// Returns the second control-plane signature.
-    pub const fn second_signature(&self) -> &[u8; 64] {
-        &self.second_signature
     }
 
     /// Returns the exact canonical signed authorization bytes.
@@ -1167,96 +1072,6 @@ impl VerifiedTenantRootAcceptedPermanentLossAuthorizationV1 {
     /// Returns the exact binding authenticated by this token.
     pub const fn binding(&self) -> &TenantRootAcceptedPermanentLossAuthorizationBindingV1 {
         self.authorization.binding()
-    }
-
-    /// Returns the tenant identity authenticated by this token.
-    pub const fn identity_digest(&self) -> TenantRootIdentityDigestV1 {
-        self.binding().identity_digest()
-    }
-
-    /// Returns the custody lineage authenticated by this token.
-    pub const fn custody_lineage(&self) -> TenantRootCustodyLineageId {
-        self.binding().custody_lineage()
-    }
-
-    /// Returns the activation transition authenticated by this token.
-    pub const fn transition(&self) -> TenantRootActivationReceiptTransitionV1 {
-        self.binding().transition()
-    }
-
-    /// Returns the target epoch authenticated by this token.
-    pub const fn target_epoch(&self) -> TenantRootShareEpoch {
-        self.binding().target_epoch()
-    }
-
-    /// Returns the exact ceremony context digest authenticated by this token.
-    pub const fn context_digest(&self) -> TenantRootProtocolDigestV1 {
-        self.binding().context_digest()
-    }
-
-    /// Returns the exact target A/B and joined-root commitments authenticated by this token.
-    pub const fn commitments(&self) -> &TenantRootEpochCommitmentsV1 {
-        self.binding().commitments()
-    }
-
-    /// Returns the exact A/B installation receipt digests authenticated by this token.
-    pub const fn installation_receipts(&self) -> TenantRootRoleInstallationReceiptsV1 {
-        self.binding().installation_receipts()
-    }
-
-    /// Returns the expected lifecycle revision authenticated by this token.
-    pub const fn expected_control_plane_revision(&self) -> u64 {
-        self.binding().expected_control_plane_revision()
-    }
-
-    /// Returns the result lifecycle revision authenticated by this token.
-    pub const fn result_control_plane_revision(&self) -> u64 {
-        self.binding().result_control_plane_revision()
-    }
-
-    /// Returns the one-use policy identifier authenticated by this token.
-    pub fn one_use_policy_id(&self) -> &str {
-        self.binding().one_use_policy_id()
-    }
-
-    /// Returns the incident identifier authenticated by this token.
-    pub fn incident_id(&self) -> &str {
-        self.binding().incident_id()
-    }
-
-    /// Returns the reason authenticated by this token.
-    pub fn reason(&self) -> &str {
-        self.binding().reason()
-    }
-
-    /// Returns the authorization issue time authenticated by this token.
-    pub const fn issued_at_ms(&self) -> u64 {
-        self.binding().issued_at_ms()
-    }
-
-    /// Returns the authorization expiry authenticated by this token.
-    pub const fn expires_at_ms(&self) -> u64 {
-        self.binding().expires_at_ms()
-    }
-
-    /// Returns the first approving authority authenticated by this token.
-    pub const fn first_authority_id(&self) -> TenantRootControlPlaneAuthorityIdV1 {
-        self.binding().first_authority_id()
-    }
-
-    /// Returns the first approving key identifier authenticated by this token.
-    pub fn first_signing_key_id(&self) -> &str {
-        self.binding().first_signing_key_id()
-    }
-
-    /// Returns the second approving authority authenticated by this token.
-    pub const fn second_authority_id(&self) -> TenantRootControlPlaneAuthorityIdV1 {
-        self.binding().second_authority_id()
-    }
-
-    /// Returns the second approving key identifier authenticated by this token.
-    pub fn second_signing_key_id(&self) -> &str {
-        self.binding().second_signing_key_id()
     }
 
     /// Returns the exact canonical signed bytes accepted by verification.

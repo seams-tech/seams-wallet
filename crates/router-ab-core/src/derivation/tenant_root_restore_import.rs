@@ -77,20 +77,6 @@ impl TenantRootRestoreAuthorizationNonceV1 {
         Ok(Self(bytes))
     }
 
-    /// Draws one fresh authorization nonce.
-    pub fn random<R>(rng: &mut R) -> Self
-    where
-        R: RngCore + CryptoRng,
-    {
-        loop {
-            let mut bytes = [0_u8; RESTORE_ROLE_IMPORT_NONCE_BYTES_V1];
-            rng.fill_bytes(&mut bytes);
-            if let Ok(nonce) = Self::from_bytes(bytes) {
-                return nonce;
-            }
-        }
-    }
-
     /// Returns the exact nonce bytes.
     pub const fn as_bytes(&self) -> &[u8; RESTORE_ROLE_IMPORT_NONCE_BYTES_V1] {
         &self.0
@@ -336,10 +322,6 @@ impl TenantRootRestoreRoleImportGrantV1 {
         )
     }
 
-    pub fn digest(&self) -> RouterAbDerivationResult<TenantRootProtocolDigestV1> {
-        TenantRootProtocolDigestV1::from_bytes(Sha256::digest(self.canonical_bytes()?).into())
-    }
-
     /// Verifies the grant under the verifier's configured grant authority.
     pub fn verify(
         &self,
@@ -380,7 +362,6 @@ impl TenantRootRestoreRoleImportGrantV1 {
             TenantRootProtocolDigestV1::from_bytes(Sha256::digest(&canonical_bytes).into())?;
         Ok(VerifiedTenantRootRestoreRoleImportGrantV1 {
             grant: self.clone(),
-            canonical_bytes,
             digest,
         })
     }
@@ -389,7 +370,6 @@ impl TenantRootRestoreRoleImportGrantV1 {
 /// A restore role-import grant verified under the control plane's configured authority.
 pub struct VerifiedTenantRootRestoreRoleImportGrantV1 {
     grant: TenantRootRestoreRoleImportGrantV1,
-    canonical_bytes: Vec<u8>,
     digest: TenantRootProtocolDigestV1,
 }
 
@@ -444,16 +424,8 @@ impl VerifiedTenantRootRestoreRoleImportGrantV1 {
         self.grant.expires_at_ms()
     }
 
-    pub fn grant_key_id(&self) -> &str {
-        self.grant.grant_key_id()
-    }
-
     pub const fn digest(&self) -> TenantRootProtocolDigestV1 {
         self.digest
-    }
-
-    pub fn canonical_bytes(&self) -> &[u8] {
-        &self.canonical_bytes
     }
 
     pub fn require_fresh(&self, now_ms: u64) -> RouterAbDerivationResult<()> {
@@ -836,10 +808,6 @@ impl TenantRootRestoreRoleImportCommandV1 {
         )
     }
 
-    pub fn digest(&self) -> RouterAbDerivationResult<TenantRootProtocolDigestV1> {
-        TenantRootProtocolDigestV1::from_bytes(Sha256::digest(self.canonical_bytes()?).into())
-    }
-
     /// Verifies this command under the control plane issuer configured by the Deriver.
     pub fn verify(
         &self,
@@ -878,7 +846,6 @@ impl TenantRootRestoreRoleImportCommandV1 {
             TenantRootProtocolDigestV1::from_bytes(Sha256::digest(&canonical_bytes).into())?;
         Ok(VerifiedTenantRootRestoreRoleImportCommandV1 {
             command: self.clone(),
-            canonical_bytes,
             digest,
         })
     }
@@ -887,7 +854,6 @@ impl TenantRootRestoreRoleImportCommandV1 {
 /// An issuer-signed restore role-import command verified at a Deriver boundary.
 pub struct VerifiedTenantRootRestoreRoleImportCommandV1 {
     command: TenantRootRestoreRoleImportCommandV1,
-    canonical_bytes: Vec<u8>,
     digest: TenantRootProtocolDigestV1,
 }
 
@@ -982,16 +948,8 @@ impl VerifiedTenantRootRestoreRoleImportCommandV1 {
         self.command.expires_at_ms()
     }
 
-    pub fn issuer_key_id(&self) -> &str {
-        self.command.issuer_key_id()
-    }
-
     pub const fn digest(&self) -> TenantRootProtocolDigestV1 {
         self.digest
-    }
-
-    pub fn canonical_bytes(&self) -> &[u8] {
-        &self.canonical_bytes
     }
 
     pub fn require_fresh(&self, now_ms: u64) -> RouterAbDerivationResult<()> {
@@ -1375,11 +1333,6 @@ impl ExpectedTenantRootRestoreImportV1 {
             )?,
             import_public_key,
         })
-    }
-
-    /// Returns the exact source and destination metadata authorized for this import.
-    pub const fn binding(&self) -> &TenantRootRestoreImportBindingV1 {
-        &self.binding
     }
 
     fn validate(&self) -> RouterAbDerivationResult<()> {

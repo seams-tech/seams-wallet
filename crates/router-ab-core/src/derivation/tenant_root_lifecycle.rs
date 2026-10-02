@@ -234,25 +234,6 @@ impl TenantRootAcceptedLossReceiptV1 {
     pub const fn digest(&self) -> TenantRootAcceptedPermanentLossAuthorizationDigestV1 {
         self.authorization_digest
     }
-
-    /// Requires the retained authorization to be inside its signed freshness window.
-    pub fn require_fresh(&self, now_ms: u64) -> RouterAbDerivationResult<()> {
-        let authorization =
-            TenantRootSignedAcceptedPermanentLossAuthorizationV1::decode_canonical_bytes(
-                &self.authorization_bytes,
-            )?;
-        if authorization.digest()? != self.authorization_digest {
-            return Err(malformed(
-                "tenant-root accepted-loss authorization digest does not match its bytes",
-            ));
-        }
-        if now_ms < authorization.issued_at_ms() || now_ms > authorization.expires_at_ms() {
-            return Err(replay_mismatch(
-                "tenant-root accepted-loss authorization is outside its freshness window",
-            ));
-        }
-        Ok(())
-    }
 }
 
 impl Serialize for TenantRootAcceptedLossReceiptV1 {
@@ -432,19 +413,9 @@ impl VerifiedTenantRootEpochV1 {
         &self.commitments
     }
 
-    /// Returns both role installation receipts.
-    pub const fn installation_receipts(&self) -> TenantRootRoleInstallationReceiptsV1 {
-        self.installation_receipts
-    }
-
     /// Returns the activation availability branch.
     pub fn backup_policy(&self) -> TenantRootBackupPolicyV1 {
         self.backup_policy.clone()
-    }
-
-    /// Returns both continuity-canary receipts.
-    pub const fn canary_receipts(&self) -> TenantRootCanaryReceiptsV1 {
-        self.canary_receipts
     }
 
     /// Returns the verification time.
@@ -551,16 +522,6 @@ impl TenantRootCreationFailureV1 {
             digest,
             failed_at_ms,
         })
-    }
-
-    /// Returns the signed failure receipt digest.
-    pub const fn digest(&self) -> TenantRootLifecycleReceiptDigestV1 {
-        self.digest
-    }
-
-    /// Returns the failure time.
-    pub const fn failed_at_ms(&self) -> u64 {
-        self.failed_at_ms
     }
 }
 
@@ -855,26 +816,6 @@ pub struct TenantRootVerifiedCreationV1 {
 }
 
 impl TenantRootVerifiedCreationV1 {
-    /// Returns the allocated tenant-root identity.
-    pub const fn identity(&self) -> &TenantRootIdentityV1 {
-        &self.identity
-    }
-
-    /// Returns the custody lineage selected for creation.
-    pub const fn custody_lineage(&self) -> TenantRootCustodyLineageId {
-        self.custody_lineage
-    }
-
-    /// Returns the verified epoch awaiting activation.
-    pub const fn next(&self) -> &VerifiedTenantRootEpochV1 {
-        &self.next
-    }
-
-    /// Returns the current lifecycle revision.
-    pub const fn revision(&self) -> u64 {
-        self.revision
-    }
-
     /// Activates epoch 1 using one issuer-verified control-plane receipt.
     pub fn activate(
         self,
@@ -989,26 +930,6 @@ impl TenantRootActiveCreationV1 {
     /// Returns the final creation revision.
     pub const fn revision(&self) -> u64 {
         self.revision
-    }
-
-    /// Returns the exact active epoch projection.
-    pub const fn current_epoch(&self) -> &ActiveTenantRootEpochV1 {
-        &self.current
-    }
-
-    /// Returns the exact canonical signed activation receipt bytes.
-    pub fn activation_receipt_bytes(&self) -> &[u8] {
-        self.current.activation_receipt_bytes()
-    }
-
-    /// Returns the digest of the exact canonical signed activation receipt.
-    pub const fn activation_receipt_digest(&self) -> TenantRootLifecycleReceiptDigestV1 {
-        self.current.activation_receipt_digest()
-    }
-
-    /// Returns the authenticated activation time.
-    pub const fn activation_time_ms(&self) -> u64 {
-        self.current.activation_time_ms()
     }
 
     /// Moves the successfully created root into its steady-state refresh machine.
@@ -1310,11 +1231,6 @@ impl TenantRootRefreshFailureV1 {
         })
     }
 
-    /// Returns the signed failure receipt digest.
-    pub const fn digest(&self) -> TenantRootLifecycleReceiptDigestV1 {
-        self.digest
-    }
-
     /// Returns the failure time.
     pub const fn failed_at_ms(&self) -> u64 {
         self.failed_at_ms
@@ -1364,11 +1280,6 @@ impl RetiringTenantRootEpochV1 {
     /// Returns the previous active epoch.
     pub const fn active(&self) -> &ActiveTenantRootEpochV1 {
         &self.active
-    }
-
-    /// Returns the forward-activation time that began retirement.
-    pub const fn retirement_started_at_ms(&self) -> u64 {
-        self.retirement_started_at_ms
     }
 }
 
@@ -1677,26 +1588,6 @@ pub struct TenantRootVerifiedRefreshV1 {
 }
 
 impl TenantRootVerifiedRefreshV1 {
-    /// Returns the server-resolved tenant-root identity.
-    pub const fn identity(&self) -> &TenantRootIdentityV1 {
-        &self.identity
-    }
-
-    /// Returns the custody lineage selected for refresh.
-    pub const fn custody_lineage(&self) -> TenantRootCustodyLineageId {
-        self.custody_lineage
-    }
-
-    /// Returns the active epoch retained during the swap.
-    pub const fn current(&self) -> &ActiveTenantRootEpochV1 {
-        &self.current
-    }
-
-    /// Returns the verified epoch awaiting activation.
-    pub const fn next(&self) -> &VerifiedTenantRootEpochV1 {
-        &self.next
-    }
-
     /// Returns the current lifecycle revision.
     pub const fn revision(&self) -> u64 {
         self.revision

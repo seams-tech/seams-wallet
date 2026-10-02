@@ -71,11 +71,6 @@ impl TenantRootRefreshCommitmentCheckpointActiveBindingV1 {
         })
     }
 
-    /// Returns the resolved public active A/B pair.
-    pub const fn active_pair(&self) -> &TenantRootActiveRootPairV1 {
-        &self.active_pair
-    }
-
     /// Returns the authoritative lifecycle revision.
     pub const fn expected_control_plane_revision(&self) -> u64 {
         self.expected_control_plane_revision.get()
@@ -443,32 +438,6 @@ pub enum TenantRootRefreshCommitmentCheckpointStateV1 {
 }
 
 impl TenantRootRefreshCommitmentCheckpointStateV1 {
-    /// Returns the first role for a one-role state.
-    pub const fn role(&self) -> Option<TwoPartyDeriverRole> {
-        match self {
-            Self::OneRoleCommitted { role, .. } => Some(*role),
-            Self::BothRolesCommitted { .. } => None,
-        }
-    }
-
-    /// Returns the exact first-role command digest for one-role state.
-    pub const fn command_digest(&self) -> Option<TenantRootProtocolDigestV1> {
-        match self {
-            Self::OneRoleCommitted { command_digest, .. } => Some(*command_digest),
-            Self::BothRolesCommitted { .. } => None,
-        }
-    }
-
-    /// Returns the exact first-role commitment wire for one-role state.
-    pub fn signed_commitment(&self) -> Option<&[u8]> {
-        match self {
-            Self::OneRoleCommitted {
-                signed_commitment, ..
-            } => Some(signed_commitment),
-            Self::BothRolesCommitted { .. } => None,
-        }
-    }
-
     /// Returns Deriver A's exact commitment wire when both roles are present.
     pub fn deriver_a_signed_commitment(&self) -> Option<&[u8]> {
         match self {

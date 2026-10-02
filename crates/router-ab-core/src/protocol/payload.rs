@@ -357,20 +357,6 @@ impl RouterToSignerPayloadV1 {
         }
     }
 
-    /// Returns envelope digests used for role-assignment validation.
-    pub fn envelope_digest_set(&self) -> RouterEnvelopeDigestSetV1 {
-        match self {
-            Self::SignerA {
-                envelope_digest_set,
-                ..
-            }
-            | Self::SignerB {
-                envelope_digest_set,
-                ..
-            } => *envelope_digest_set,
-        }
-    }
-
     /// Validates that this payload targets the expected signer role.
     pub fn require_recipient_role(
         &self,
@@ -896,16 +882,6 @@ impl MpcPrfStableProofBundleWireV2 {
             &self.commitment_wire,
             &self.proof_wire,
         )
-    }
-
-    /// Returns the canonical proof-bundle bytes.
-    pub fn canonical_bytes(&self) -> Vec<u8> {
-        encode_mpc_prf_stable_proof_bundle_wire_v2(self)
-    }
-
-    /// Returns the SHA-256 digest of canonical proof-bundle bytes.
-    pub fn digest(&self) -> PublicDigest32 {
-        mpc_prf_stable_proof_bundle_wire_digest_v2(self)
     }
 
     /// Converts this public wire into a V2 backend bundle under one expected plan.

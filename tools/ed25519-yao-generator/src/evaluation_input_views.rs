@@ -43,19 +43,6 @@ pub enum HostOnlyEvaluationInputStageV1 {
     ExportEvaluationAccepted,
 }
 
-impl HostOnlyEvaluationInputStageV1 {
-    /// Returns the frozen snake-case stage label.
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::RegistrationEvaluationAccepted => "registration_evaluation_accepted",
-            Self::ActivationContinuationAccepted => "activation_continuation_accepted",
-            Self::RecoveryEvaluationAccepted => "recovery_evaluation_accepted",
-            Self::RefreshEvaluationAccepted => "refresh_evaluation_accepted",
-            Self::ExportEvaluationAccepted => "export_evaluation_accepted",
-        }
-    }
-}
-
 /// Construction-independent evaluator plan fixed by a lifecycle branch.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HostOnlyEvaluationPlanV1 {
@@ -65,17 +52,6 @@ pub enum HostOnlyEvaluationPlanV1 {
     ZeroEvaluationContinuation,
     /// Exactly one export-family ideal evaluation.
     OneExportEvaluation,
-}
-
-impl HostOnlyEvaluationPlanV1 {
-    /// Returns the frozen snake-case plan label.
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::OneActivationEvaluation => "one_activation_evaluation",
-            Self::ZeroEvaluationContinuation => "zero_evaluation_continuation",
-            Self::OneExportEvaluation => "one_export_evaluation",
-        }
-    }
 }
 
 /// Typed evaluator-window operation counts derived from the fixed plan.
@@ -162,25 +138,6 @@ pub enum HostOnlyEvaluationInputExtensionKindV1 {
     ObserverEmpty,
     /// Empty diagnostics extension.
     DiagnosticsEmpty,
-}
-
-impl HostOnlyEvaluationInputExtensionKindV1 {
-    /// Returns the frozen snake-case extension-kind label.
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::DeriverAActivationEvaluationInputs => "deriver_a_activation_evaluation_inputs",
-            Self::DeriverBActivationEvaluationInputs => "deriver_b_activation_evaluation_inputs",
-            Self::DeriverAExportEvaluationInputs => "deriver_a_export_evaluation_inputs",
-            Self::DeriverBExportEvaluationInputs => "deriver_b_export_evaluation_inputs",
-            Self::DeriverAEmpty => "deriver_a_empty",
-            Self::DeriverBEmpty => "deriver_b_empty",
-            Self::ClientEmpty => "client_empty",
-            Self::SigningWorkerEmpty => "signing_worker_empty",
-            Self::RouterEmpty => "router_empty",
-            Self::ObserverEmpty => "observer_empty",
-            Self::DiagnosticsEmpty => "diagnostics_empty",
-        }
-    }
 }
 
 /// Failure while binding a sealed ceremony to an ordered provenance pair.
@@ -429,11 +386,6 @@ impl HostOnlyDeriverAExportEvaluationInputViewV1 {
         &self.common
     }
 
-    /// Returns the fixed role-extension kind.
-    pub const fn kind(&self) -> HostOnlyEvaluationInputExtensionKindV1 {
-        HostOnlyEvaluationInputExtensionKindV1::DeriverAExportEvaluationInputs
-    }
-
     /// Returns Deriver A's client-labelled seed contribution.
     pub const fn y_client(&self) -> &DeriverAClientY {
         &self.y_client
@@ -456,11 +408,6 @@ impl HostOnlyDeriverBExportEvaluationInputViewV1 {
     /// Returns the common public export binding.
     pub const fn common(&self) -> &HostOnlyExportEvaluationInputCommonV1 {
         &self.common
-    }
-
-    /// Returns the fixed role-extension kind.
-    pub const fn kind(&self) -> HostOnlyEvaluationInputExtensionKindV1 {
-        HostOnlyEvaluationInputExtensionKindV1::DeriverBExportEvaluationInputs
     }
 
     /// Returns Deriver B's client-labelled seed contribution.

@@ -73,20 +73,6 @@ impl TenantRootRecoverySetId {
         Ok(Self(bytes))
     }
 
-    /// Samples one fresh non-zero recovery-set identifier.
-    pub fn random<R>(rng: &mut R) -> Self
-    where
-        R: rand_core::RngCore + rand_core::CryptoRng,
-    {
-        loop {
-            let mut bytes = [0_u8; TENANT_ROOT_RECOVERY_SET_ID_BYTES];
-            rng.fill_bytes(&mut bytes);
-            if let Ok(value) = Self::from_bytes(bytes) {
-                return value;
-            }
-        }
-    }
-
     /// Parses the exact unpadded base64url boundary encoding.
     pub fn from_base64url(value: &str) -> RouterAbDerivationResult<Self> {
         let mut bytes = [0_u8; TENANT_ROOT_RECOVERY_SET_ID_BYTES];
@@ -110,11 +96,6 @@ impl TenantRootRecoverySetId {
     /// Returns the exact identifier bytes.
     pub const fn as_bytes(&self) -> &[u8; TENANT_ROOT_RECOVERY_SET_ID_BYTES] {
         &self.0
-    }
-
-    /// Returns a copy of the exact identifier bytes.
-    pub const fn into_bytes(self) -> [u8; TENANT_ROOT_RECOVERY_SET_ID_BYTES] {
-        self.0
     }
 }
 
@@ -220,11 +201,6 @@ impl TenantRootRecoveryRecipientFingerprintV1 {
     /// Returns the exact fingerprint bytes.
     pub const fn as_bytes(&self) -> &[u8; TENANT_ROOT_RECOVERY_RECIPIENT_FINGERPRINT_BYTES] {
         &self.0
-    }
-
-    /// Returns a copy of the exact fingerprint bytes.
-    pub const fn into_bytes(self) -> [u8; TENANT_ROOT_RECOVERY_RECIPIENT_FINGERPRINT_BYTES] {
-        self.0
     }
 }
 
@@ -365,11 +341,6 @@ pub struct TenantRootRecoveryRoleDescriptorV1 {
 }
 
 impl TenantRootRecoveryRoleDescriptorV1 {
-    /// Returns the fixed role.
-    pub const fn role(&self) -> TwoPartyDeriverRole {
-        self.role
-    }
-
     /// Returns the fixed role share identifier.
     pub const fn share_id(&self) -> ThresholdShareId {
         self.share_id
@@ -503,11 +474,6 @@ impl TenantRootRecoveryDescriptorV1 {
         self.stable_root_commitment
     }
 
-    /// Returns the fixed HPKE suite identifier.
-    pub const fn hpke_suite() -> &'static str {
-        TENANT_ROOT_RECOVERY_HPKE_SUITE_V1
-    }
-
     /// Returns the role-specific descriptor without allowing role substitution.
     pub const fn role(&self, role: TwoPartyDeriverRole) -> &TenantRootRecoveryRoleDescriptorV1 {
         match role {
@@ -634,80 +600,15 @@ pub struct TenantRootRecoveryPackageHeaderV1 {
 }
 
 impl TenantRootRecoveryPackageHeaderV1 {
-    /// Returns the fixed package format version.
-    pub fn format_version(&self) -> &str {
-        &self.format_version
-    }
-
-    /// Returns the bound descriptor digest.
-    pub const fn descriptor_digest(&self) -> TenantRootRecoveryDescriptorDigestV1 {
-        self.descriptor_digest
-    }
-
-    /// Returns the bound tenant identity digest.
-    pub const fn tenant_root_identity_digest(&self) -> TenantRootIdentityDigestV1 {
-        self.identity_digest
-    }
-
-    /// Returns the bound source lineage.
-    pub const fn source_custody_lineage(&self) -> TenantRootCustodyLineageId {
-        self.source_custody_lineage
-    }
-
     /// Returns the bound recovery-set identifier.
     pub const fn recovery_set_id(&self) -> TenantRootRecoverySetId {
         self.recovery_set_id
-    }
-
-    /// Returns the fixed package role.
-    pub const fn role(&self) -> TwoPartyDeriverRole {
-        self.role
-    }
-
-    /// Returns the fixed package share id.
-    pub const fn share_id(&self) -> ThresholdShareId {
-        self.share_id
-    }
-
-    /// Returns the bound recipient fingerprint.
-    pub const fn recipient_fingerprint(&self) -> TenantRootRecoveryRecipientFingerprintV1 {
-        self.recipient_fingerprint
-    }
-
-    /// Returns the bound recovery-share commitment.
-    pub const fn recovery_share_commitment(&self) -> SigningRootShareCommitment {
-        self.recovery_share_commitment
-    }
-
-    /// Returns the bound stable root commitment.
-    pub const fn stable_root_commitment(&self) -> TwoPartyRootCommitment {
-        self.stable_root_commitment
-    }
-
-    /// Returns the exact creation time.
-    pub fn creation_time(&self) -> &str {
-        &self.creation_time
-    }
-
-    /// Returns the fixed package HPKE suite identifier.
-    pub fn hpke_suite(&self) -> &str {
-        &self.hpke_suite
-    }
-
-    /// Returns the Deriver signing-key identifier.
-    pub fn deriver_signing_key_id(&self) -> &str {
-        &self.deriver_signing_key_id
     }
 
     /// Returns the exact canonical RFC 8785 header bytes.
     pub fn canonical_json(&self) -> RouterAbDerivationResult<Vec<u8>> {
         self.validate()?;
         canonical_json_bytes(&package_header_value(self))
-    }
-
-    /// Returns the exact canonical package-header bytes.
-    pub fn canonical_bytes(&self) -> RouterAbDerivationResult<Vec<u8>> {
-        self.canonical_json()
     }
 
     fn from_descriptor(
@@ -899,11 +800,6 @@ impl TenantRootRecoveryPackageV1 {
         &self.header
     }
 
-    /// Returns the exact encapsulated HPKE key.
-    pub const fn encapsulated_key(&self) -> &[u8; TENANT_ROOT_RECOVERY_RECIPIENT_KEY_BYTES] {
-        &self.encapsulated_key
-    }
-
     /// Returns the ciphertext length without exposing plaintext material.
     /// Returns the role this package belongs to.
     ///
@@ -915,11 +811,6 @@ impl TenantRootRecoveryPackageV1 {
 
     pub fn ciphertext_len(&self) -> usize {
         self.ciphertext.len()
-    }
-
-    /// Returns the fixed package signature bytes.
-    pub const fn signature(&self) -> &[u8; TENANT_ROOT_RECOVERY_PACKAGE_SIGNATURE_BYTES] {
-        &self.signature
     }
 
     /// Encodes the complete binary package file.
@@ -946,11 +837,6 @@ impl TenantRootRecoveryPackageV1 {
         bytes.extend_from_slice(&self.ciphertext);
         bytes.extend_from_slice(&self.signature);
         Ok(bytes)
-    }
-
-    /// Alias used by digest and binary transport callers for the complete file bytes.
-    pub fn canonical_bytes(&self) -> RouterAbDerivationResult<Vec<u8>> {
-        self.to_bytes()
     }
 
     /// Returns SHA-256 over the complete binary package file.
@@ -1342,13 +1228,6 @@ impl TenantRootRecoveryManifestV1 {
     /// Returns the public control-plane signer certificate chain without treating it as a trust root.
     pub fn control_plane_signer_certificate_chain(&self) -> &[String] {
         &self.control_plane_signer_certificate_chain
-    }
-
-    /// Returns the control-plane signature bytes.
-    pub const fn control_plane_signature(
-        &self,
-    ) -> &[u8; TENANT_ROOT_RECOVERY_PACKAGE_SIGNATURE_BYTES] {
-        &self.control_plane_signature
     }
 
     /// Returns the exact unsigned canonical manifest bytes used by the signature.

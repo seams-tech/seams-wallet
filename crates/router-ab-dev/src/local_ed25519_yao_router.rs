@@ -39,10 +39,6 @@ impl LocalEd25519YaoRecoveryCredentialBindingV1 {
         }
         Ok(Self(binding))
     }
-
-    pub const fn into_bytes(self) -> [u8; 32] {
-        self.0
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -172,24 +168,6 @@ impl LocalEd25519YaoRouterRefreshStateV1 {
             binding: binding.clone(),
         };
         Ok(binding)
-    }
-
-    pub fn abort_prepared(
-        &mut self,
-        binding: &Ed25519YaoRefreshBindingV1,
-    ) -> RouterAbProtocolResult<()> {
-        let LocalEd25519YaoRefreshLifecycleV1::Prepared { binding: prepared } = &self.lifecycle
-        else {
-            return Err(invalid_refresh("only a prepared refresh may abort"));
-        };
-        if prepared != binding {
-            return Err(invalid_refresh("prepared refresh binding does not match"));
-        }
-        self.lifecycle = LocalEd25519YaoRefreshLifecycleV1::Active {
-            registered_public_key: *binding.registered_public_key(),
-            epochs: current_refresh_epochs(binding),
-        };
-        Ok(())
     }
 
     pub fn mark_output_committed(

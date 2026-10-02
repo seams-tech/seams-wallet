@@ -197,16 +197,6 @@ impl TenantRootSignedManagedRestoreRoleUnavailableV1 {
         &self.data.identity
     }
 
-    /// Returns the exact role-unavailability observation carried by this package.
-    pub const fn unavailable_receipt(&self) -> TenantRootRoleUnavailableReceiptV1 {
-        self.data.unavailable
-    }
-
-    /// Returns the prior-attempt cleanup fence carried by this package.
-    pub fn cleanup_fence(&self) -> TenantRootManagedRestorePriorAttemptCleanupFenceV1 {
-        self.data.cleanup_fence.clone()
-    }
-
     /// Returns the lifecycle revision carried by this package.
     pub const fn lifecycle_revision(&self) -> u64 {
         self.data.lifecycle_revision
@@ -221,11 +211,6 @@ impl TenantRootSignedManagedRestoreRoleUnavailableV1 {
     pub fn canonical_bytes(&self) -> RouterAbDerivationResult<Vec<u8>> {
         let unsigned = unsigned_canonical_bytes(&self.data)?;
         canonical_bytes_from_unsigned(unsigned, &self.data.signature)
-    }
-
-    /// Returns the digest of the exact canonical signed public-state wire.
-    pub fn digest(&self) -> RouterAbDerivationResult<TenantRootProtocolDigestV1> {
-        TenantRootProtocolDigestV1::from_bytes(Sha256::digest(self.canonical_bytes()?).into())
     }
 
     /// Verifies this package and reconstructs the exact unavailable lifecycle state.
@@ -313,11 +298,6 @@ impl fmt::Debug for VerifiedTenantRootManagedRestoreRoleUnavailableV1 {
 }
 
 impl VerifiedTenantRootManagedRestoreRoleUnavailableV1 {
-    /// Returns the exact operation authenticated by this token.
-    pub const fn operation(&self) -> &'static str {
-        TENANT_ROOT_MANAGED_RESTORE_PUBLIC_STATE_OPERATION_V1
-    }
-
     /// Returns the reconstructed role-unavailable lifecycle state.
     pub const fn state(&self) -> &TenantRootManagedRestoreRoleUnavailableV1 {
         &self.state
@@ -356,16 +336,6 @@ impl VerifiedTenantRootManagedRestoreRoleUnavailableV1 {
     ) -> RouterAbDerivationResult<TenantRootManagedRestoreInstallingV1> {
         self.state
             .start_restore(capability.into_capability(), started_at_ms)
-    }
-
-    /// Consumes verification into the reconstructed lifecycle state.
-    pub fn into_state(self) -> TenantRootManagedRestoreRoleUnavailableV1 {
-        self.state
-    }
-
-    /// Consumes verification into the exact canonical signed wire bytes.
-    pub fn into_canonical_bytes(self) -> Vec<u8> {
-        self.canonical_bytes
     }
 }
 

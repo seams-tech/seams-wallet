@@ -43,15 +43,6 @@ pub enum Ed25519YaoOuterProtocolVersionV2 {
     V2,
 }
 
-impl Ed25519YaoOuterProtocolVersionV2 {
-    /// Returns the stable wire version label.
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::V2 => "v2",
-        }
-    }
-}
-
 /// One non-zero pair-session identity for the V2 outer protocol.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(transparent)]
@@ -169,11 +160,6 @@ impl Ed25519YaoOuterBindingV2 {
             ));
         }
         Ok(())
-    }
-
-    /// Returns the V2 wire version.
-    pub const fn version(&self) -> Ed25519YaoOuterProtocolVersionV2 {
-        self.version
     }
 
     /// Returns the exact pair-session identity.
@@ -557,26 +543,6 @@ impl RouterAbEd25519YaoPrefaceRequestV2 {
         self.deriver_b_to_a
             .validate_for_binding(&self.outer_binding)
     }
-
-    /// Returns the ceremony binding used by unchanged Yao artifacts.
-    pub const fn ceremony(&self) -> &Ed25519YaoCeremonyBindingV1 {
-        &self.ceremony
-    }
-
-    /// Returns the V2 epoch-bound outer binding.
-    pub const fn outer_binding(&self) -> &Ed25519YaoOuterBindingV2 {
-        &self.outer_binding
-    }
-
-    /// Returns the encrypted A-to-B target proof.
-    pub const fn deriver_a_to_b(&self) -> &Ed25519YaoDeriverAToBTargetProofPayloadV2 {
-        &self.deriver_a_to_b
-    }
-
-    /// Returns the encrypted B-to-A target proof.
-    pub const fn deriver_b_to_a(&self) -> &Ed25519YaoDeriverBToATargetProofPayloadV2 {
-        &self.deriver_b_to_a
-    }
 }
 
 #[derive(Deserialize)]
@@ -837,29 +803,6 @@ impl Ed25519YaoPrefaceStateV2 {
             | Self::Burned { .. } => {
                 Err(malformed("Ed25519 Yao V2 B preface state is not awaiting"))
             }
-        }
-    }
-
-    /// Burns this one-use pair and drops any role-local secret state.
-    pub fn burn(self, reason: Ed25519YaoPrefaceBurnReasonV2) -> Self {
-        let session = match &self {
-            Self::DeriverAAwaiting(state) => state.binding.pair_session(),
-            Self::DeriverBAwaiting(state) => state.binding.pair_session(),
-            Self::DeriverAReady(state) => state.binding.pair_session(),
-            Self::DeriverBReady(state) => state.binding.pair_session(),
-            Self::Burned { session, .. } => *session,
-        };
-        Self::Burned { session, reason }
-    }
-
-    /// Returns the pair-session identity without exposing secret state.
-    pub const fn session(&self) -> Ed25519YaoPairSessionIdV2 {
-        match self {
-            Self::DeriverAAwaiting(state) => state.binding.pair_session(),
-            Self::DeriverBAwaiting(state) => state.binding.pair_session(),
-            Self::DeriverAReady(state) => state.binding.pair_session(),
-            Self::DeriverBReady(state) => state.binding.pair_session(),
-            Self::Burned { session, .. } => *session,
         }
     }
 }

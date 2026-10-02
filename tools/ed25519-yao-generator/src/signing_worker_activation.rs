@@ -470,11 +470,6 @@ impl PreparedSigningWorkerActivationV1 {
         self.receipt_body.encode()
     }
 
-    /// Returns the public receipt body awaiting signature verification.
-    pub const fn receipt_body(&self) -> &SigningWorkerActivationReceiptBodyV1 {
-        &self.receipt_body
-    }
-
     /// Strictly verifies the worker signature before releasing activated state.
     pub fn verify_receipt(
         self,
@@ -588,17 +583,6 @@ impl SigningWorkerActivationSuccessV1 {
     /// Returns the exact trusted authority used for strict receipt verification.
     pub const fn receipt_authority(&self) -> &SigningWorkerReceiptVerifyingKeyV1 {
         &self.receipt_authority
-    }
-
-    /// Consumes the success into activated state and verified receipt.
-    pub fn into_parts(
-        self,
-    ) -> (
-        ActivatedSigningWorkerStateV1,
-        VerifiedSigningWorkerActivationReceiptV1,
-        SigningWorkerReceiptVerifyingKeyV1,
-    ) {
-        (self.state, self.receipt, self.receipt_authority)
     }
 }
 

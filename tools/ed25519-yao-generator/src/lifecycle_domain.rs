@@ -28,11 +28,10 @@ use crate::export_evaluation_acceptance::{
     ExportAuthorizationAcceptanceAuthoritiesV1, VerifiedExportAuthorizationAcceptancePairV1,
 };
 use crate::provenance::{
-    DeriverAProvenanceRoleV1, DeriverBProvenanceRoleV1, ProvenanceRoleStateBindingV1,
-    RecoveryContinuityArtifactDigest32V1, RegisteredStateProvenanceBindingV1,
-    RegisteredStateProvenanceErrorV1, RoleInputProvenancePairV1, RoleInputStateEpochV1,
-    RoleInputStateRecordDigest32V1, RoleRootEpochV1, RoleRootRecordDigest32V1,
-    RootBindingArtifactDigest32V1, StableKdfScopeV1,
+    DeriverAProvenanceRoleV1, DeriverBProvenanceRoleV1, RecoveryContinuityArtifactDigest32V1,
+    RegisteredStateProvenanceBindingV1, RegisteredStateProvenanceErrorV1,
+    RoleInputProvenancePairV1, RoleInputStateEpochV1, RoleInputStateRecordDigest32V1,
+    RoleRootEpochV1, RoleRootRecordDigest32V1, RootBindingArtifactDigest32V1, StableKdfScopeV1,
 };
 use crate::recovery_credential_transition::AuthenticatedRecoveryCredentialSuspensionV1;
 use crate::recovery_evaluation_admission::{
@@ -71,17 +70,6 @@ pub enum ActivationPackageOriginV1 {
     Recovery,
     /// Opposite-delta refresh-created artifacts.
     Refresh,
-}
-
-impl ActivationPackageOriginV1 {
-    /// Returns the canonical request kind for this origin.
-    pub const fn request_kind(self) -> CeremonyRequestKindV1 {
-        match self {
-            Self::Registration => CeremonyRequestKindV1::Registration,
-            Self::Recovery => CeremonyRequestKindV1::Recovery,
-            Self::Refresh => CeremonyRequestKindV1::Refresh,
-        }
-    }
 }
 
 macro_rules! define_evaluation_request {
@@ -775,11 +763,6 @@ impl BurnedArtifactAttemptV1 {
         self.authorization_digest
     }
 
-    /// Returns the burned transcript digest.
-    pub const fn transcript_digest(&self) -> crate::ceremony_context::CeremonyTranscriptDigest32V1 {
-        self.transcript_digest
-    }
-
     /// Returns the burned one-use execution identifier.
     pub const fn one_use_execution_id(&self) -> OneUseExecutionId32V1 {
         self.one_use_execution_id
@@ -1246,16 +1229,6 @@ impl RecoveryPendingActivationV1 {
         &self.origin
     }
 
-    /// Returns the registered metadata beneath the credential suspension.
-    pub const fn state(&self) -> &RegisteredLifecyclePreStateV1 {
-        self.terminal.suspension().state()
-    }
-
-    /// Returns the exact authenticated credential suspension.
-    pub const fn suspension(&self) -> &AuthenticatedRecoveryCredentialSuspensionV1 {
-        self.terminal.suspension()
-    }
-
     /// Returns the exact terminal evaluator admission.
     pub const fn terminal(&self) -> &TerminalRecoveryEvaluationV1 {
         &self.terminal
@@ -1278,25 +1251,6 @@ impl RefreshPendingActivationV1 {
     /// Returns the consumed host-reference refresh ceremony.
     pub const fn origin(&self) -> &RefreshRequestV1 {
         &self.origin
-    }
-
-    /// Returns the unchanged current registered metadata projection.
-    pub const fn state(&self) -> &RegisteredLifecyclePreStateV1 {
-        self.terminal.state().state()
-    }
-
-    /// Returns proposed, unauthenticated Deriver A next-state metadata.
-    pub const fn proposed_next_deriver_a(
-        &self,
-    ) -> ProvenanceRoleStateBindingV1<DeriverAProvenanceRoleV1> {
-        self.terminal.proposed_next_deriver_a()
-    }
-
-    /// Returns proposed, unauthenticated Deriver B next-state metadata.
-    pub const fn proposed_next_deriver_b(
-        &self,
-    ) -> ProvenanceRoleStateBindingV1<DeriverBProvenanceRoleV1> {
-        self.terminal.proposed_next_deriver_b()
     }
 
     /// Returns the exact terminal evaluator admission.
@@ -1808,11 +1762,6 @@ impl RejectedActivationControlProposalV1 {
     pub const fn pending(&self) -> &PendingActivationPreStateV1 {
         &self.pending
     }
-
-    /// Recovers the exact pending metadata for a fresh attempt.
-    pub fn into_pending(self) -> PendingActivationPreStateV1 {
-        self.pending
-    }
 }
 
 impl fmt::Debug for RejectedActivationControlProposalV1 {
@@ -1957,11 +1906,6 @@ impl MetadataConsumedRegistrationActivationV1 {
         self.origin.request_context()
     }
 
-    /// Returns the unchanged registration candidate retained after metadata consumption.
-    pub const fn candidate(&self) -> &RegistrationCandidateStateV1 {
-        &self.candidate
-    }
-
     /// Recovers the origin ceremony and retained committed artifacts.
     pub fn into_parts(
         self,
@@ -1985,16 +1929,6 @@ impl MetadataConsumedRecoveryActivationV1 {
         &self,
     ) -> AuthenticatedRecoveryCredentialContinuityEvidenceV1 {
         self.terminal.credential_continuity()
-    }
-
-    /// Returns the retained authenticated credential suspension.
-    pub const fn suspension(&self) -> &AuthenticatedRecoveryCredentialSuspensionV1 {
-        self.terminal.suspension()
-    }
-
-    /// Returns the exact terminal evaluator admission.
-    pub const fn terminal(&self) -> &TerminalRecoveryEvaluationV1 {
-        &self.terminal
     }
 
     /// Recovers the origin, terminal admission, and committed artifacts.

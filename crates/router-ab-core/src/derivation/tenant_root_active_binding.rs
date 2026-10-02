@@ -38,26 +38,6 @@ impl TenantRootActiveRoleRowKeyV1 {
             role,
         }
     }
-
-    /// Returns the server-resolved logical tenant-root identity digest.
-    pub const fn identity_digest(&self) -> TenantRootIdentityDigestV1 {
-        self.identity_digest
-    }
-
-    /// Returns the deployment-local custody lineage owning this row.
-    pub const fn custody_lineage(&self) -> TenantRootCustodyLineageId {
-        self.custody_lineage
-    }
-
-    /// Returns the active custody epoch.
-    pub const fn epoch(&self) -> TenantRootShareEpoch {
-        self.epoch
-    }
-
-    /// Returns the role whose private store holds this row.
-    pub const fn role(&self) -> TenantRootManagedRestoreRoleV1 {
-        self.role
-    }
 }
 
 /// One observed active role row and the public share commitment stored with it.
@@ -88,11 +68,6 @@ impl TenantRootActiveRoleBindingV1 {
             share_commitment,
             activation_receipt_digest,
         })
-    }
-
-    /// Returns the public coordinates of the bound row.
-    pub const fn row(&self) -> &TenantRootActiveRoleRowKeyV1 {
-        &self.row
     }
 
     /// Returns the public share commitment stored with the bound row.

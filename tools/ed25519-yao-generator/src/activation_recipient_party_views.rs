@@ -262,11 +262,6 @@ pub struct RejectedHostOnlyActivationRecipientsReleasedPartyViewsV1 {
 }
 
 impl RejectedHostOnlyActivationRecipientsReleasedPartyViewsV1 {
-    /// Returns the public rejection reason.
-    pub const fn reason(&self) -> HostOnlyActivationRecipientPartyViewErrorV1 {
-        self.reason
-    }
-
     /// Recovers both exact released capabilities.
     pub fn into_capabilities(
         self,
@@ -339,11 +334,6 @@ impl HostOnlyClientActivationRecipientsReleasedPartyViewV1 {
     /// Returns only the Client release capability.
     pub const fn capability(&self) -> &HostOnlyActivationClientReleasedV1 {
         &self.capability
-    }
-
-    /// Consumes this view into the Client release capability.
-    pub fn into_capability(self) -> HostOnlyActivationClientReleasedV1 {
-        self.capability
     }
 }
 
@@ -457,15 +447,6 @@ impl HostOnlyActivationRecipientsReleasedPartyViewSetV1 {
             common: self.common,
         }
     }
-
-    /// Consumes the set into diagnostics' public-only view.
-    pub fn observe_diagnostics_v1(
-        self,
-    ) -> HostOnlyDiagnosticsActivationRecipientsReleasedPartyViewV1 {
-        HostOnlyDiagnosticsActivationRecipientsReleasedPartyViewV1 {
-            common: self.common,
-        }
-    }
 }
 
 /// Client view retained after SigningWorker activation.
@@ -484,11 +465,6 @@ impl HostOnlyClientSigningWorkerActivatedPartyViewV1 {
     pub const fn capability(&self) -> &HostOnlyActivationClientReleasedV1 {
         &self.capability
     }
-
-    /// Consumes this view into the retained Client release capability.
-    pub fn into_capability(self) -> HostOnlyActivationClientReleasedV1 {
-        self.capability
-    }
 }
 
 /// SigningWorker view owning one receipt-verified activated state.
@@ -506,11 +482,6 @@ impl HostOnlySigningWorkerActivatedPartyViewV1 {
     /// Returns the public activated worker state without a secret-scalar accessor.
     pub const fn activation(&self) -> &SigningWorkerActivationSuccessV1 {
         &self.activation
-    }
-
-    /// Consumes this view into the receipt-verified worker activation.
-    pub fn into_activation(self) -> SigningWorkerActivationSuccessV1 {
-        self.activation
     }
 }
 
@@ -589,23 +560,9 @@ impl HostOnlySigningWorkerActivatedPartyViewSetV1 {
         }
     }
 
-    /// Consumes the set into the Router's public-only view.
-    pub fn observe_router_v1(self) -> HostOnlyRouterSigningWorkerActivatedPartyViewV1 {
-        HostOnlyRouterSigningWorkerActivatedPartyViewV1 {
-            common: self.common,
-        }
-    }
-
     /// Consumes the set into the observer's public-only view.
     pub fn observe_observer_v1(self) -> HostOnlyObserverSigningWorkerActivatedPartyViewV1 {
         HostOnlyObserverSigningWorkerActivatedPartyViewV1 {
-            common: self.common,
-        }
-    }
-
-    /// Consumes the set into diagnostics' public-only view.
-    pub fn observe_diagnostics_v1(self) -> HostOnlyDiagnosticsSigningWorkerActivatedPartyViewV1 {
-        HostOnlyDiagnosticsSigningWorkerActivatedPartyViewV1 {
             common: self.common,
         }
     }

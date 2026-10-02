@@ -2348,40 +2348,8 @@ pub mod benchmark {
     }
 
     impl StreamMetrics {
-        pub const fn table_payload_bytes(self) -> usize {
-            self.table_payload_bytes
-        }
-
-        pub const fn body_bytes(self) -> u64 {
-            self.body_bytes
-        }
-
         pub const fn frame_count(self) -> u32 {
             self.frame_count
-        }
-
-        pub const fn peak_table_buffer_bytes(self) -> usize {
-            self.peak_table_buffer_bytes
-        }
-
-        pub const fn peak_arena_bytes(self) -> usize {
-            self.peak_arena_bytes
-        }
-
-        pub const fn runtime_chunk_to_wire_copy_bytes(self) -> usize {
-            self.runtime_chunk_to_wire_copy_bytes
-        }
-
-        pub const fn wire_frame_allocation_bytes(self) -> u64 {
-            self.wire_frame_allocation_bytes
-        }
-
-        pub const fn peak_wire_frame_allocation_bytes(self) -> usize {
-            self.peak_wire_frame_allocation_bytes
-        }
-
-        pub const fn combined_peak_table_buffer_bytes(self) -> usize {
-            self.combined_peak_table_buffer_bytes
         }
     }
 
@@ -2486,38 +2454,6 @@ pub mod benchmark {
             }
         }
 
-        pub const fn table_payload_bytes(self) -> u64 {
-            self.table_payload_bytes
-        }
-
-        pub const fn table_framing_payload_bytes(self) -> u64 {
-            self.table_framing_payload_bytes
-        }
-
-        pub const fn table_protocol_bytes(self) -> u64 {
-            self.table_protocol_bytes
-        }
-
-        pub const fn ot_payload_bytes(self) -> u64 {
-            self.ot_payload_bytes
-        }
-
-        pub const fn other_control_payload_bytes(self) -> u64 {
-            self.other_control_payload_bytes
-        }
-
-        pub const fn envelope_header_bytes(self) -> u64 {
-            self.envelope_header_bytes
-        }
-
-        pub const fn table_transport_bytes(self) -> u64 {
-            self.table_transport_bytes
-        }
-
-        pub const fn control_transport_bytes(self) -> u64 {
-            self.control_transport_bytes
-        }
-
         pub const fn deriver_a_to_b_transport_bytes(self) -> u64 {
             self.deriver_a_to_b_transport_bytes
         }
@@ -2528,18 +2464,6 @@ pub mod benchmark {
 
         pub const fn total_ab_transport_bytes(self) -> u64 {
             self.total_ab_transport_bytes
-        }
-
-        pub const fn ot_message_count(self) -> u32 {
-            self.ot_message_count
-        }
-
-        pub const fn ot_sequential_round_count(self) -> u32 {
-            self.ot_sequential_round_count
-        }
-
-        pub const fn transport_message_count(self) -> u32 {
-            self.transport_message_count
         }
     }
 

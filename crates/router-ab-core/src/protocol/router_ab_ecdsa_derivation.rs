@@ -762,11 +762,6 @@ impl RouterAbEcdsaDerivationPublicIdentityV1 {
         push_u32(&mut out, self.server_share_retry_counter);
         Ok(out)
     }
-
-    /// Returns the public identity digest.
-    pub fn public_identity_digest(&self) -> RouterAbProtocolResult<PublicDigest32> {
-        Ok(public_digest(&self.canonical_public_identity_bytes()?))
-    }
 }
 
 /// Public registration fields that are committed before role envelopes are sealed.

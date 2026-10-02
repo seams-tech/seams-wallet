@@ -241,13 +241,6 @@ pub enum EvaluationAbortPreStateClassV1 {
     Registered,
 }
 
-/// Closed registration state effect after an admitted evaluation abort.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum RegistrationEvaluationAbortStateV1 {
-    /// No registered state was created.
-    Unregistered,
-}
-
 /// Registration abort after the request and one-use attempt were burned.
 pub struct RegistrationEvaluationAbortedProjectionV1 {
     abort: UniformLifecycleAbortV1,
@@ -255,16 +248,6 @@ pub struct RegistrationEvaluationAbortedProjectionV1 {
 }
 
 impl RegistrationEvaluationAbortedProjectionV1 {
-    /// Returns the unregistered state before evaluation.
-    pub const fn before(&self) -> RegistrationEvaluationAbortStateV1 {
-        RegistrationEvaluationAbortStateV1::Unregistered
-    }
-
-    /// Returns the identical unregistered state after evaluation aborts.
-    pub const fn after(&self) -> RegistrationEvaluationAbortStateV1 {
-        RegistrationEvaluationAbortStateV1::Unregistered
-    }
-
     /// Returns the burned request and one-use attempt identity.
     pub const fn burned(&self) -> BurnedArtifactAttemptV1 {
         self.retained.burned()
@@ -395,13 +378,6 @@ impl RecoveryEvaluationAbortedProjectionV1 {
         self.retained.suspension()
     }
 
-    /// Returns the exact terminal evaluator admission retained by the abort.
-    pub const fn terminal(
-        &self,
-    ) -> &crate::recovery_evaluation_admission::TerminalRecoveryEvaluationV1 {
-        self.retained.terminal()
-    }
-
     /// Returns the burned request and one-use attempt identity.
     pub const fn burned(&self) -> BurnedArtifactAttemptV1 {
         self.retained.burned()
@@ -449,16 +425,6 @@ impl EvaluationAbortedPersistenceProjectionV1 {
             Self::Registration(_) => EvaluationAbortPreStateClassV1::Unregistered,
             Self::Recovery(_) => EvaluationAbortPreStateClassV1::RecoveryCredentialSuspended,
             Self::Refresh(_) | Self::Export(_) => EvaluationAbortPreStateClassV1::Registered,
-        }
-    }
-
-    /// Returns the burned request and one-use attempt identity.
-    pub const fn burned(&self) -> BurnedArtifactAttemptV1 {
-        match self {
-            Self::Registration(projection) => projection.burned(),
-            Self::Recovery(projection) => projection.burned(),
-            Self::Refresh(projection) => projection.burned(),
-            Self::Export(projection) => projection.burned(),
         }
     }
 

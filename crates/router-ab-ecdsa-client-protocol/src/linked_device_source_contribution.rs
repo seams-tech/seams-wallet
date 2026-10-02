@@ -250,11 +250,6 @@ impl LinkedDeviceEcdsaEncryptedSourceContributionV1 {
         lp(&mut out, &ciphertext);
         Ok(out)
     }
-
-    /// Returns the envelope digest.
-    pub fn digest(&self) -> Result<[u8; 32], EcdsaClientProtocolError> {
-        digest32(&self.canonical_bytes()?)
-    }
 }
 
 /// Device 1's one-use source contribution package.
@@ -292,11 +287,6 @@ impl LinkedDeviceEcdsaSourceContributionPackageV1 {
             }
         }
         Ok(())
-    }
-
-    /// Returns the binding digest.
-    pub fn binding_digest(&self) -> Result<[u8; 32], EcdsaClientProtocolError> {
-        self.binding.digest()
     }
 }
 

@@ -211,10 +211,6 @@ impl Ed25519YaoStableKeyDerivationContextV1 {
         &self.application_binding_digest
     }
 
-    pub const fn participant_ids(&self) -> Ed25519YaoParticipantIdsV1 {
-        self.participant_ids
-    }
-
     pub fn encode(&self) -> [u8; ED25519_YAO_STABLE_KEY_CONTEXT_ENCODED_LEN_V1] {
         let mut bytes = [0_u8; ED25519_YAO_STABLE_KEY_CONTEXT_ENCODED_LEN_V1];
         let domain_end = ED25519_YAO_STABLE_KEY_CONTEXT_DOMAIN_V1.len();

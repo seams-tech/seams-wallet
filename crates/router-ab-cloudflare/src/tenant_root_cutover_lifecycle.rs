@@ -17,11 +17,6 @@ impl TenantRootCutoverAttemptIdV1 {
         }
         Ok(Self(bytes))
     }
-
-    /// Returns the exact attempt bytes.
-    pub const fn as_bytes(&self) -> &[u8; 16] {
-        &self.0
-    }
 }
 
 impl<'de> Deserialize<'de> for TenantRootCutoverAttemptIdV1 {
@@ -167,11 +162,6 @@ impl TenantRootCutoverCanaryReceiptV1 {
             receipt_digest,
             completed_at_ms,
         })
-    }
-
-    /// Returns the canary's curve family.
-    pub const fn curve(&self) -> TenantRootCutoverCanaryCurveV1 {
-        self.curve
     }
 }
 
@@ -530,11 +520,6 @@ impl TenantRootCutoverOpenV1 {
             attempt_id,
             prerequisites,
         }
-    }
-
-    /// Returns the attempt identifier that the runtime receipt verifier must bind.
-    pub const fn attempt_id(&self) -> TenantRootCutoverAttemptIdV1 {
-        self.attempt_id
     }
 
     /// Closes the derivation-only fence. Normal signing remains outside this state.

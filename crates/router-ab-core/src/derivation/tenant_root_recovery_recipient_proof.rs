@@ -147,11 +147,6 @@ impl TenantRootRecoveryRecipientProofBindingV1 {
         self.recipient_fingerprint
     }
 
-    /// Returns the exact actor identifier.
-    pub fn actor_id(&self) -> &str {
-        &self.actor_id
-    }
-
     /// Returns the positive lifecycle revision.
     pub const fn lifecycle_revision(&self) -> NonZeroU64 {
         self.lifecycle_revision
@@ -173,11 +168,6 @@ impl TenantRootRecoveryRecipientProofBindingV1 {
         let mut bytes = Vec::new();
         append_binding_domain_and_fields(&mut bytes, RECOVERY_RECIPIENT_PROOF_AAD_DOMAIN_V1, self)?;
         Ok(bytes)
-    }
-
-    /// Returns the exact canonical bytes used as HPKE authenticated data.
-    pub fn canonical_bytes(&self) -> RouterAbDerivationResult<Vec<u8>> {
-        self.canonical_aad_bytes()
     }
 
     /// Returns the separately domain-separated confirmation transcript bytes.
@@ -214,11 +204,6 @@ impl TenantRootRecoveryRecipientProofConfirmationV1 {
     /// Returns the exact confirmation bytes.
     pub const fn as_bytes(&self) -> &[u8; RECOVERY_RECIPIENT_PROOF_HMAC_BYTES] {
         &self.0
-    }
-
-    /// Returns a copy of the exact confirmation bytes.
-    pub const fn into_bytes(self) -> [u8; RECOVERY_RECIPIENT_PROOF_HMAC_BYTES] {
-        self.0
     }
 }
 
@@ -321,16 +306,6 @@ impl TenantRootRecoveryRecipientProofEnvelopeV1 {
     /// Returns the exact public challenge binding.
     pub const fn binding(&self) -> &TenantRootRecoveryRecipientProofBindingV1 {
         &self.binding
-    }
-
-    /// Returns the exact HPKE encapsulated key.
-    pub const fn encapsulated_key(&self) -> &[u8; RECOVERY_RECIPIENT_PROOF_KEY_BYTES] {
-        &self.encapsulated_key
-    }
-
-    /// Returns the fixed ciphertext bytes without exposing decrypted material.
-    pub const fn ciphertext(&self) -> &[u8; RECOVERY_RECIPIENT_PROOF_CIPHERTEXT_BYTES] {
-        &self.ciphertext
     }
 
     /// Returns the exact canonical envelope bytes.

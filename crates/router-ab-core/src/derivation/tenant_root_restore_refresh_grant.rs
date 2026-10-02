@@ -215,11 +215,6 @@ impl TenantRootRestoreRefreshGrantV1 {
         Ok(grant)
     }
 
-    /// Returns the fixed operation authenticated by this grant.
-    pub const fn operation(&self) -> &'static str {
-        TENANT_ROOT_RESTORE_REFRESH_GRANT_OPERATION_V1
-    }
-
     /// Returns the operation digest bound by this grant.
     pub const fn operation_digest(&self) -> TenantRootProtocolDigestV1 {
         self.data.operation_digest
@@ -258,21 +253,6 @@ impl TenantRootRestoreRefreshGrantV1 {
     /// Returns Deriver B's exact accepted-import receipt digest.
     pub const fn deriver_b_acceptance_receipt_digest(&self) -> TenantRootLifecycleReceiptDigestV1 {
         self.data.deriver_b_acceptance_receipt_digest
-    }
-
-    /// Returns one role's exact accepted-import receipt digest.
-    pub const fn acceptance_receipt(
-        &self,
-        role: threshold_prf::TwoPartyDeriverRole,
-    ) -> TenantRootLifecycleReceiptDigestV1 {
-        match role {
-            threshold_prf::TwoPartyDeriverRole::DeriverA => {
-                self.deriver_a_acceptance_receipt_digest()
-            }
-            threshold_prf::TwoPartyDeriverRole::DeriverB => {
-                self.deriver_b_acceptance_receipt_digest()
-            }
-        }
     }
 
     restore_grant_accessors!(grant);
@@ -320,10 +300,6 @@ pub struct VerifiedTenantRootRestoreRefreshGrantV1 {
 verified_token_debug!(VerifiedTenantRootRestoreRefreshGrantV1);
 
 impl VerifiedTenantRootRestoreRefreshGrantV1 {
-    pub const fn operation(&self) -> &'static str {
-        self.grant.operation()
-    }
-
     pub const fn operation_digest(&self) -> TenantRootProtocolDigestV1 {
         self.grant.operation_digest()
     }
@@ -354,13 +330,6 @@ impl VerifiedTenantRootRestoreRefreshGrantV1 {
 
     pub const fn deriver_b_acceptance_receipt_digest(&self) -> TenantRootLifecycleReceiptDigestV1 {
         self.grant.deriver_b_acceptance_receipt_digest()
-    }
-
-    pub const fn acceptance_receipt(
-        &self,
-        role: threshold_prf::TwoPartyDeriverRole,
-    ) -> TenantRootLifecycleReceiptDigestV1 {
-        self.grant.acceptance_receipt(role)
     }
 
     restore_grant_accessors!(verified);

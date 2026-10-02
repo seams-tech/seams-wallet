@@ -206,36 +206,6 @@ impl TenantRootRecoverySignerCertificateV1 {
         Ok(certificate)
     }
 
-    /// Returns the issuing pinned-root key identifier.
-    pub fn issuer_key_id(&self) -> &str {
-        &self.issuer_key_id
-    }
-
-    /// Returns the certified signer key identifier.
-    pub fn subject_key_id(&self) -> &str {
-        &self.subject_key_id
-    }
-
-    /// Returns the certified Ed25519 signer verifying key.
-    pub const fn subject_verifying_key(&self) -> &[u8; 32] {
-        &self.subject_verifying_key
-    }
-
-    /// Returns the single role this certificate authorizes.
-    pub const fn authorized_role(&self) -> TenantRootRecoverySignerRoleV1 {
-        self.authorized_role
-    }
-
-    /// Returns the inclusive start of the validity interval.
-    pub fn not_before(&self) -> &str {
-        &self.not_before
-    }
-
-    /// Returns the inclusive end of the validity interval.
-    pub fn not_after(&self) -> &str {
-        &self.not_after
-    }
-
     /// Returns the exact unsigned canonical bytes covered by the signature.
     pub fn unsigned_canonical_json(&self) -> RouterAbDerivationResult<Vec<u8>> {
         self.validate_shape()?;
@@ -441,21 +411,6 @@ impl TenantRootRecoveryTrustBridgeV1 {
             .to_bytes();
         bridge.verify()?;
         Ok(bridge)
-    }
-
-    /// Returns the superseded root.
-    pub const fn from_root(&self) -> &TenantRootRecoveryTrustRootV1 {
-        &self.from_root
-    }
-
-    /// Returns the succeeding root.
-    pub const fn to_root(&self) -> &TenantRootRecoveryTrustRootV1 {
-        &self.to_root
-    }
-
-    /// Returns the rotation time.
-    pub fn issued_at(&self) -> &str {
-        &self.issued_at
     }
 
     /// Verifies that both roots signed this exact rotation.
@@ -877,16 +832,6 @@ impl TenantRootRecoveryRevocationEntryV1 {
         })
     }
 
-    /// Returns the revoked signer key identifier.
-    pub fn subject_key_id(&self) -> &str {
-        &self.subject_key_id
-    }
-
-    /// Returns the revocation branch.
-    pub const fn kind(&self) -> &TenantRootRecoveryRevocationKindV1 {
-        &self.kind
-    }
-
     fn to_value(&self) -> Value {
         let mut entries = vec![
             ("kind", Value::String(self.kind.as_str().to_owned())),
@@ -935,26 +880,6 @@ impl TenantRootRecoveryRevocationSnapshotV1 {
             ))
             .to_bytes();
         Ok(snapshot)
-    }
-
-    /// Returns the monotonic snapshot version.
-    pub const fn snapshot_version(&self) -> u64 {
-        self.snapshot_version
-    }
-
-    /// Returns the snapshot issue time.
-    pub fn issued_at(&self) -> &str {
-        &self.issued_at
-    }
-
-    /// Returns the signing root key identifier.
-    pub fn signer_key_id(&self) -> &str {
-        &self.signer_key_id
-    }
-
-    /// Returns the revoked signer entries.
-    pub fn entries(&self) -> &[TenantRootRecoveryRevocationEntryV1] {
-        &self.entries
     }
 
     /// Verifies this snapshot against the bundle's current pinned root.
@@ -1252,16 +1177,6 @@ impl TenantRootRecoveryOfflineTrustAcknowledgementV1 {
         })
     }
 
-    /// Returns the acknowledging actor.
-    pub fn acknowledged_by(&self) -> &str {
-        &self.acknowledged_by
-    }
-
-    /// Returns the acknowledgement time.
-    pub fn acknowledged_at(&self) -> &str {
-        &self.acknowledged_at
-    }
-
     /// Returns the fixed warning version.
     pub fn warning_version(&self) -> &str {
         &self.warning_version
@@ -1275,28 +1190,6 @@ pub struct VerifiedTenantRootRecoverySignerV1 {
     key_id: String,
     verifying_key: [u8; 32],
     level: TenantRootRecoveryTrustLevelV1,
-}
-
-impl VerifiedTenantRootRecoverySignerV1 {
-    /// Returns the authorized signer role.
-    pub const fn role(&self) -> TenantRootRecoverySignerRoleV1 {
-        self.role
-    }
-
-    /// Returns the certified signer key identifier.
-    pub fn key_id(&self) -> &str {
-        &self.key_id
-    }
-
-    /// Returns the certified Ed25519 verifying key.
-    pub const fn verifying_key(&self) -> &[u8; 32] {
-        &self.verifying_key
-    }
-
-    /// Returns the trust result this verification obtained.
-    pub const fn level(&self) -> &TenantRootRecoveryTrustLevelV1 {
-        &self.level
-    }
 }
 
 /// All three manifest signers verified against pinned roots.

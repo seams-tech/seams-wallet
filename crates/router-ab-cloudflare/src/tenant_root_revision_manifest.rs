@@ -251,11 +251,6 @@ impl TenantRootRevisionParticipantV1 {
         })
     }
 
-    /// Returns the participant's fixed role.
-    pub const fn role(&self) -> TenantRootRevisionParticipantRoleV1 {
-        self.role
-    }
-
     fn append_canonical_bytes(&self, bytes: &mut Vec<u8>) -> RouterAbProtocolResult<()> {
         push_text(bytes, self.role.as_str())?;
         push_text(bytes, &self.release_id)?;

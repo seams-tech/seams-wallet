@@ -1,4 +1,3 @@
-use rand_core::{CryptoRng, RngCore};
 use serde::{de::Error as DeError, Deserialize, Deserializer, Serialize};
 use sha2::{Digest, Sha256};
 use threshold_prf::{
@@ -30,20 +29,6 @@ impl TenantRootCeremonySessionIdV1 {
         Ok(Self(bytes))
     }
 
-    /// Samples one fresh non-zero session identifier.
-    pub fn random<R>(rng: &mut R) -> Self
-    where
-        R: RngCore + CryptoRng,
-    {
-        loop {
-            let mut bytes = [0_u8; TENANT_ROOT_SESSION_ID_LEN];
-            rng.fill_bytes(&mut bytes);
-            if let Ok(session) = Self::from_bytes(bytes) {
-                return session;
-            }
-        }
-    }
-
     /// Returns the exact session bytes.
     pub const fn as_bytes(&self) -> &[u8; TENANT_ROOT_SESSION_ID_LEN] {
         &self.0
@@ -59,20 +44,6 @@ impl TenantRootCeremonyNonceV1 {
     pub fn from_bytes(bytes: [u8; TENANT_ROOT_NONCE_LEN]) -> RouterAbDerivationResult<Self> {
         require_nonzero_bytes(&bytes, "tenant-root ceremony nonce must be non-zero")?;
         Ok(Self(bytes))
-    }
-
-    /// Samples one fresh non-zero ceremony nonce.
-    pub fn random<R>(rng: &mut R) -> Self
-    where
-        R: RngCore + CryptoRng,
-    {
-        loop {
-            let mut bytes = [0_u8; TENANT_ROOT_NONCE_LEN];
-            rng.fill_bytes(&mut bytes);
-            if let Ok(nonce) = Self::from_bytes(bytes) {
-                return nonce;
-            }
-        }
     }
 
     /// Returns the exact nonce bytes.
@@ -456,11 +427,6 @@ impl TenantRootShareInstallationTranscriptV1 {
     /// Returns the peer share commitment.
     pub const fn peer_commitment(&self) -> SigningRootShareCommitment {
         self.peer_commitment
-    }
-
-    /// Returns a public SHA-256 transcript digest.
-    pub fn digest(&self) -> RouterAbDerivationResult<TenantRootProtocolDigestV1> {
-        TenantRootProtocolDigestV1::from_bytes(Sha256::digest(self.canonical_bytes()?).into())
     }
 }
 

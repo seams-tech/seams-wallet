@@ -176,44 +176,9 @@ impl EcdsaRegistrationLifecycleV1 {
         })
     }
 
-    /// Returns the Router-assigned lifecycle id.
-    pub fn lifecycle_id(&self) -> &str {
-        &self.lifecycle_id
-    }
-
-    /// Returns the fixed registration work-kind label.
-    pub fn work_kind(&self) -> &'static str {
-        REGISTRATION_WORK_KIND_V1
-    }
-
-    /// Returns the fixed registration primitive-kind label.
-    pub fn primitive_request_kind(&self) -> &'static str {
-        REGISTRATION_PRIMITIVE_KIND_V1
-    }
-
     /// Returns the signing-root share epoch.
     pub fn root_share_epoch(&self) -> &str {
         &self.root_share_epoch
-    }
-
-    /// Returns the canonical wallet or account id.
-    pub fn account_id(&self) -> &str {
-        &self.account_id
-    }
-
-    /// Returns the canonical session id.
-    pub fn session_id(&self) -> &str {
-        &self.session_id
-    }
-
-    /// Returns the transcript-bound signer-set id.
-    pub fn signer_set_id(&self) -> &str {
-        &self.signer_set_id
-    }
-
-    /// Returns the selected SigningWorker id.
-    pub fn selected_server_id(&self) -> &str {
-        &self.selected_server_id
     }
 }
 
@@ -343,16 +308,6 @@ impl EcdsaRegistrationHeaderV1 {
     /// Returns the product registration purpose.
     pub fn registration_purpose(&self) -> EcdsaRegistrationPurposeV1 {
         self.input.registration_purpose
-    }
-
-    /// Returns the stable application binding.
-    pub fn context(&self) -> &EcdsaStableKeyContextV1 {
-        &self.input.context
-    }
-
-    /// Returns the registration lifecycle.
-    pub fn lifecycle(&self) -> &EcdsaRegistrationLifecycleV1 {
-        &self.input.lifecycle
     }
 
     /// Returns the selected signer set.

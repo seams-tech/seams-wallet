@@ -113,11 +113,6 @@ impl Phase2bCoreReconciliationCorpusV1 {
         &self.schema
     }
 
-    /// Returns the benchmark-only evidence scope.
-    pub fn evidence_scope(&self) -> &str {
-        &self.evidence_scope
-    }
-
     /// Returns the exact request-kind reconciliation count.
     pub fn case_count(&self) -> usize {
         self.cases.len()

@@ -1,7 +1,6 @@
 use core::{fmt, num::NonZeroU64};
 
 use base64ct::{Base64UrlUnpadded, Encoding};
-use rand_core::{CryptoRng, RngCore};
 use serde::{de::Error as DeError, Deserialize, Deserializer, Serialize, Serializer};
 use sha2::{Digest, Sha256};
 
@@ -219,20 +218,6 @@ impl TenantRootCustodyLineageId {
             return Err(malformed("tenant root custody lineage must be non-zero"));
         }
         Ok(Self(bytes))
-    }
-
-    /// Samples a fresh non-zero custody-lineage identifier.
-    pub fn random<R>(rng: &mut R) -> Self
-    where
-        R: RngCore + CryptoRng,
-    {
-        loop {
-            let mut bytes = [0_u8; TENANT_ROOT_LINEAGE_BYTES];
-            rng.fill_bytes(&mut bytes);
-            if let Ok(lineage) = Self::from_bytes(bytes) {
-                return lineage;
-            }
-        }
     }
 
     /// Parses the exact unpadded base64url boundary encoding.

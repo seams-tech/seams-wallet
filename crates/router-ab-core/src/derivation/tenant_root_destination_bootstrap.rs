@@ -198,21 +198,6 @@ impl fmt::Debug for RestoreAdministrationSessionV1 {
 }
 
 impl RestoreAdministrationSessionV1 {
-    /// Returns the deployment this session administers.
-    pub const fn deployment_fingerprint(&self) -> TenantRootRestoreDestinationFingerprintV1 {
-        self.deployment_fingerprint
-    }
-
-    /// Returns when the bootstrap credential was presented.
-    pub const fn authenticated_at_ms(&self) -> i64 {
-        self.authenticated_at_ms
-    }
-
-    /// Returns the session expiry.
-    pub const fn expires_at_ms(&self) -> i64 {
-        self.expires_at_ms
-    }
-
     /// Returns whether the session is live at one instant.
     pub const fn is_live_at(&self, now_ms: i64) -> bool {
         now_ms < self.expires_at_ms
@@ -256,11 +241,6 @@ pub struct RoleImportKeyIssuanceV1 {
 }
 
 impl RoleImportKeyIssuanceV1 {
-    /// Returns the role this key serves.
-    pub const fn role(&self) -> TwoPartyDeriverRole {
-        self.role
-    }
-
     /// Returns the key identifier.
     pub fn key_id(&self) -> &str {
         &self.key_id
@@ -272,11 +252,6 @@ impl RoleImportKeyIssuanceV1 {
     /// that visible to the destination role.
     pub const fn generation(&self) -> NonZeroU64 {
         self.generation
-    }
-
-    /// Returns the key expiry.
-    pub const fn expires_at_ms(&self) -> i64 {
-        self.expires_at_ms
     }
 
     /// Returns whether this key is still usable at one instant.

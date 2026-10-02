@@ -254,11 +254,6 @@ pub struct PreparedClientExportV1 {
 }
 
 impl PreparedClientExportV1 {
-    /// Returns the opaque export execution request sent to Router.
-    pub const fn execute_request(&self) -> &RouterAbEd25519YaoExportExecuteRequestV1 {
-        &self.execute_request
-    }
-
     /// Consumes preparation into its public request and Client-only state.
     pub fn into_parts(
         self,
@@ -275,11 +270,6 @@ impl PreparedClientExportV1 {
 pub struct ExportedEd25519SeedV1([u8; 32]);
 
 impl ExportedEd25519SeedV1 {
-    /// Returns the verified seed inside the trusted Client boundary.
-    pub const fn as_bytes(&self) -> &[u8; 32] {
-        &self.0
-    }
-
     /// Consumes the secret into its fixed-width seed bytes.
     pub fn into_bytes(mut self) -> [u8; 32] {
         core::mem::take(&mut self.0)
@@ -293,11 +283,6 @@ impl fmt::Debug for ExportedEd25519SeedV1 {
 }
 
 impl PreparedClientActivationV1 {
-    /// Returns the opaque A/B execution request sent to the SDK Router.
-    pub const fn execute_request(&self) -> &RouterAbEd25519YaoActivationExecuteRequestV1 {
-        &self.execute_request
-    }
-
     /// Consumes preparation into the Router request and Client-only completion state.
     pub fn into_parts(
         self,

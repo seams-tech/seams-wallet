@@ -441,14 +441,6 @@ impl TenantRootCommandTerminalReceiptV1 {
         }
     }
 
-    /// Returns the authenticated role signing-key identifier.
-    pub fn role_signing_key_id(&self) -> &str {
-        match self {
-            Self::Success(receipt) => receipt.role_signing_key_id(),
-            Self::Failure(receipt) => receipt.role_signing_key_id(),
-        }
-    }
-
     /// Returns the exact canonical signed receipt bytes.
     pub fn canonical_bytes(&self) -> RouterAbDerivationResult<Vec<u8>> {
         match self {

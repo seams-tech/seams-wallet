@@ -446,11 +446,6 @@ impl VerifiedTenantRootManagedBackupV1 {
         &self.canonical_bytes
     }
 
-    /// Consumes the token into the exact canonical signed artifact bytes.
-    pub fn into_canonical_bytes(self) -> Vec<u8> {
-        self.canonical_bytes
-    }
-
     /// Returns the exact AAD the provider must authenticate while decrypting.
     pub fn aad(&self) -> RouterAbDerivationResult<Vec<u8>> {
         self.binding.canonical_bytes()
@@ -507,21 +502,6 @@ impl VerifiedTenantRootManagedBackupShareV1 {
     /// Returns the exact role owning the opened share.
     pub const fn role(&self) -> TenantRootManagedRestoreRoleV1 {
         self.binding.role()
-    }
-
-    /// Returns the exact tenant-root identity bound to the opened share.
-    pub const fn identity_digest(&self) -> TenantRootIdentityDigestV1 {
-        self.binding.identity_digest()
-    }
-
-    /// Returns the exact custody lineage bound to the opened share.
-    pub const fn custody_lineage(&self) -> TenantRootCustodyLineageId {
-        self.binding.custody_lineage()
-    }
-
-    /// Returns the exact custody epoch bound to the opened share.
-    pub const fn epoch(&self) -> TenantRootShareEpoch {
-        self.binding.epoch()
     }
 
     /// Returns the public commitment reproduced by the opened share.

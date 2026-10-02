@@ -141,13 +141,6 @@ impl RefreshPromotionReceiptBodyV1 {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct RefreshPromotionReceiptDigest32V1([u8; 32]);
 
-impl RefreshPromotionReceiptDigest32V1 {
-    /// Returns the exact digest bytes.
-    pub const fn as_bytes(&self) -> &[u8; 32] {
-        &self.0
-    }
-}
-
 /// Refresh activation and next state awaiting a store-authority signature.
 pub struct PreparedRefreshPromotionV1 {
     activation: SigningWorkerActivationSuccessV1,
@@ -160,11 +153,6 @@ impl PreparedRefreshPromotionV1 {
     /// Returns the exact bytes the store authority must sign.
     pub fn signing_bytes(&self) -> Result<Vec<u8>, RefreshPromotionErrorV1> {
         self.body.encode()
-    }
-
-    /// Returns the deterministic public promotion body.
-    pub const fn receipt_body(&self) -> &RefreshPromotionReceiptBodyV1 {
-        &self.body
     }
 
     /// Strictly verifies the authority signature and releases promoted state.
@@ -261,16 +249,6 @@ impl VerifiedRefreshPromotionReceiptV1 {
     /// Returns the exact signed body.
     pub const fn body(&self) -> &RefreshPromotionReceiptBodyV1 {
         &self.body
-    }
-
-    /// Returns the promotion-receipt digest.
-    pub const fn digest(&self) -> RefreshPromotionReceiptDigest32V1 {
-        self.digest
-    }
-
-    /// Returns the verified signature bytes.
-    pub const fn signature(&self) -> StoreAuthoritySignature64V1 {
-        self.signature
     }
 }
 

@@ -34,14 +34,6 @@ pub fn u256_bytes_be_from_dec(s: &str) -> CoreResult<Vec<u8>> {
     Ok(v.to_bytes_be())
 }
 
-pub fn strip_leading_zeros_vec(mut bytes: Vec<u8>) -> Vec<u8> {
-    let first_nonzero = bytes.iter().position(|b| *b != 0).unwrap_or(bytes.len());
-    if first_nonzero == 0 {
-        return bytes;
-    }
-    bytes.split_off(first_nonzero)
-}
-
 pub fn strip_leading_zeros_slice(bytes: &[u8]) -> &[u8] {
     let mut i = 0;
     while i < bytes.len() && bytes[i] == 0 {

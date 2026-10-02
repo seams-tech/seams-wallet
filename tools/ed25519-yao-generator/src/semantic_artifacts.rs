@@ -2126,11 +2126,6 @@ impl ReleasedExportArtifactsV1 {
         &self.packages
     }
 
-    /// Returns the preceding output-committed receipt.
-    pub const fn output_committed_receipt(&self) -> &ExportOutputCommittedReceiptBodyV1 {
-        &self.output_committed_receipt
-    }
-
     /// Returns the terminal released receipt.
     pub const fn receipt(&self) -> &ExportReleasedReceiptBodyV1 {
         &self.receipt

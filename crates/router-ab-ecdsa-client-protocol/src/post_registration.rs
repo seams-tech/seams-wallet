@@ -145,49 +145,9 @@ impl EcdsaPostRegistrationLifecycleV1 {
         })
     }
 
-    /// Returns the ceremony branch.
-    pub fn ceremony(&self) -> EcdsaPostRegistrationCeremonyV1 {
-        self.ceremony
-    }
-
-    /// Returns the lifecycle id.
-    pub fn lifecycle_id(&self) -> &str {
-        &self.lifecycle_id
-    }
-
-    /// Returns the canonical work-kind label.
-    pub fn work_kind(&self) -> &'static str {
-        self.ceremony.work_kind()
-    }
-
-    /// Returns the canonical primitive request-kind label.
-    pub fn primitive_request_kind(&self) -> &'static str {
-        self.ceremony.primitive_kind()
-    }
-
     /// Returns the root-share epoch.
     pub fn root_share_epoch(&self) -> &str {
         &self.root_share_epoch
-    }
-
-    /// Returns the wallet or account id.
-    pub fn account_id(&self) -> &str {
-        &self.account_id
-    }
-
-    /// Returns the session id.
-    pub fn session_id(&self) -> &str {
-        &self.session_id
-    }
-
-    /// Returns the signer-set id.
-    pub fn signer_set_id(&self) -> &str {
-        &self.signer_set_id
-    }
-
-    /// Returns the selected SigningWorker id.
-    pub fn selected_server_id(&self) -> &str {
-        &self.selected_server_id
     }
 }
 
@@ -237,39 +197,9 @@ impl EcdsaPublicIdentityV1 {
         })
     }
 
-    /// Returns the context-binding digest string.
-    pub fn context_binding_b64u(&self) -> &str {
-        &self.input.context_binding_b64u
-    }
-
-    /// Returns the client compressed public key.
-    pub fn derivation_client_share_public_key33_b64u(&self) -> &str {
-        &self.input.derivation_client_share_public_key33_b64u
-    }
-
-    /// Returns the SigningWorker compressed public key.
-    pub fn server_public_key33_b64u(&self) -> &str {
-        &self.input.server_public_key33_b64u
-    }
-
-    /// Returns the threshold compressed public key.
-    pub fn threshold_public_key33_b64u(&self) -> &str {
-        &self.input.threshold_public_key33_b64u
-    }
-
-    /// Returns the Ethereum address bytes.
-    pub fn ethereum_address20_b64u(&self) -> &str {
-        &self.input.ethereum_address20_b64u
-    }
-
     /// Returns the client-share retry counter.
     pub fn client_share_retry_counter(&self) -> u32 {
         self.input.client_share_retry_counter
-    }
-
-    /// Returns the server-share retry counter.
-    pub fn server_share_retry_counter(&self) -> u32 {
-        self.input.server_share_retry_counter
     }
 
     /// Returns canonical backend-compatible public-identity bytes.
@@ -515,21 +445,6 @@ impl EcdsaPostRegistrationHeaderV1 {
         self.input.lifecycle.ceremony
     }
 
-    /// Returns the stable context.
-    pub fn context(&self) -> &EcdsaStableKeyContextV1 {
-        &self.input.context
-    }
-
-    /// Returns the exact lifecycle.
-    pub fn lifecycle(&self) -> &EcdsaPostRegistrationLifecycleV1 {
-        &self.input.lifecycle
-    }
-
-    /// Returns the stable public identity.
-    pub fn public_identity(&self) -> &EcdsaPublicIdentityV1 {
-        &self.input.public_identity
-    }
-
     /// Returns the selected signer set.
     pub fn signer_set(&self) -> &EcdsaRegistrationSignerSetV1 {
         &self.input.signer_set
@@ -543,11 +458,6 @@ impl EcdsaPostRegistrationHeaderV1 {
     /// Returns the client or operator identity.
     pub fn client_id(&self) -> &str {
         &self.input.client_id
-    }
-
-    /// Returns the exact output recipient.
-    pub fn recipient(&self) -> &EcdsaPostRegistrationRecipientV1 {
-        &self.input.recipient
     }
 
     /// Returns ceremony authorization and replay fields.
