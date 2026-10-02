@@ -200,6 +200,10 @@ A green bounded model alone does not establish implementation correctness.
 Keep useful findings and reproduction instructions without adding ongoing CI
 or maintenance obligations. Any larger follow-up gets its own scope.
 
+Recovery-code reservation and finalization is excluded from planned follow-ups.
+Recovery codes may become reusable; settle the intended retry and reuse behavior
+before reconsidering a model for that lifecycle.
+
 ## Focused follow-up
 
 The demonstrated expiry defect justified one small production change:
