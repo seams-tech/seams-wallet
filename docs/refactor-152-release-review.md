@@ -97,8 +97,9 @@ build and packed acceptance are recorded separately below when complete.
 
 ## Remaining release and R152 gates
 
-1. Complete local release checks, rebuild 0.8.0 with stable inputs and run packed
-   Console/Gateway/Runtime acceptance against its packaged migrations.
+1. Preserve the reviewed candidate revision below. Review later `dev` changes
+   before including them in a release; current working-tree contents are not the
+   frozen candidate.
 2. Run cross-platform release CI against the exact approved revision. Obtain
    release authorization before publication; preparing 0.8.0 does not publish it.
 3. Publish both packages and update private consumers to their exact versions.
@@ -107,3 +108,72 @@ build and packed acceptance are recorded separately below when complete.
 5. Finish remaining writer-path coverage, existing namespace inventory/adoption,
    regional routing and the final operational/latency rollout decision recorded
    in the [R152 plan](refactor-152-regional-D1.md).
+
+## Versioned candidate and source isolation
+
+The version manifests and release preparation were committed as `04a7c17c`.
+The candidate source is **`335f2878d73ec86a35d041f99de256160c5ca0f6`**.
+Two subsequent import-cleanup commits, `4fbf962a` and `335f2878`, were reviewed:
+52 TypeScript files change imports/re-exports, with no implementation-statement
+changes. Imports now reach the same existing base64, NEAR and session-fact
+implementations directly, reducing unnecessary dependencies and an import cycle.
+
+The full production build passed for browser WASM, all five custody Workers,
+host-local tools and both SDK packages. The import cleanups landed during that
+build. All native source inputs remained unchanged; the TypeScript packages were
+rebuilt after review. A later, uncommitted migration 0041 then appeared during
+packing. The forty-migration acceptance check rejected that live-tree tarball.
+A live-tree signing rerun also stopped at an unused-import type error in another
+task's unfinished route edit. Neither result is attributed to the frozen candidate.
+
+The accepted packages were therefore built from a `git archive` snapshot of
+`335f2878` inside the artifact directory. No branch or worktree was created.
+Fresh native outputs from the production build were copied into that snapshot;
+the SDK packages were rebuilt there and passed the packed-package boundary check.
+All **2,893 archived non-document source files** match their Git blobs, excluding
+the regenerated artifact manifest. This keeps later uncommitted work outside the
+candidate. Cross-platform CI must still rebuild the exact chosen revision.
+
+| Package | Local tarball SHA-256 |
+| --- | --- |
+| `@seams/wallet@0.8.0` | `14b92c67822897852cb0359f9a3fdf57a140172376f48e301877a2753c6de824` |
+| `@seams/wallet-server@0.8.0` | `889e719010d10cf3f5dc9eddea3e3b1eddf544dac8569e89435065f44cf5b927` |
+
+The packed Server composed E2E passed in **21.8 seconds** against private revision
+`aa1d2ae6c5cf9fa1703872761793e86a4d9b8e51`. It verifies fresh proof through both
+actual local D1 bindings, immutable reservation, activation, replay, expiry,
+deployment drift, stale-version rejection and readiness. All **103 manifest file
+records** verify. The original **39 signer migrations** remain byte-identical to
+npm 0.7.3; **0040 is the only added migration** in this candidate. The fingerprint
+remains `ee4dce77798594d88e526ad2e9130666af26aadd1d3c41aa30c7afeed95af48d`.
+Private Console server and frontend type-check against the packed 0.8.0
+declarations. The archived public source also passes the full type-check and
+documentation build. Its sustained Tempo/Arc signing scenario passes in **1.2
+minutes**, exercising fresh presignatures beyond pool capacity. All **20 browser
+cases** pass against the archived candidate across Chromium, Firefox and WebKit
+in **22.3 seconds**. These are local test durations, not hosted latency benchmarks.
+
+Evidence lives in `.artifacts/r152/release-0.8.0-20261002/` in both repositories.
+The public `snapshot-packs/` tarballs, `snapshot-source-verification.json`, import
+review, build/check logs and private package-verification and E2E receipts identify
+the tested bytes. Earlier live-tree tarballs are retained separately as rejected
+evidence. Private dependency pins remain at the published 0.7.3 release. No
+publication or hosted deployment was performed.
+
+Repeat the composed acceptance with the retained extracted package:
+
+```sh
+SEAMS_WALLET_SERVER_CANDIDATE="$PWD/.artifacts/r152/release-0.8.0-20261002/package" \
+  pnpm -C tests exec playwright test -c playwright.relayer.config.ts \
+  relayer/tenant-home-challenge.e2e.test.ts --reporter=line \
+  --output=test-results/r152-release-080
+```
+
+Run that command from `seams-monorepo`. In `seams-wallet`, repeat the archived
+signing case with:
+
+```sh
+SEAMS_INTENDED_SKIP_BUILD=1 \
+  pnpm -C .artifacts/r152/release-0.8.0-20261002/snapshot/tests \
+  test:intended:representative --grep 'sustained Tempo and Arc'
+```
