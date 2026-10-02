@@ -19,5 +19,4 @@ serializers, nonce managers, or worker implementations.
 ## Entrypoints
 
 Current entrypoints: `index.ts` for the public interface export surface,
-`runtime.ts`, `signing.ts`, `near.ts`, `nearKeyOps.ts`, and
-`ecdsaChainTarget.ts`.
+`runtime.ts`, `signing.ts`, `near.ts`, and `ecdsaChainTarget.ts`.

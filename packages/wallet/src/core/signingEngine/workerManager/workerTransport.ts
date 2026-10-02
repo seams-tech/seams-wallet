@@ -2,16 +2,7 @@ import { errorMessage } from '@shared/utils/errors';
 import { secureRandomId } from '@shared/utils/secureRandomId';
 import { isObject } from '@shared/utils/validation';
 import { dropUnlockedWalletEd25519ExportRootCapabilityReferenceV1 } from '@/core/signingEngine/walletCustody/unlockedEd25519ExportRootCapability';
-import {
-  type NearWorkerProgressEvent,
-  type WorkerErrorResponse,
-  type WorkerProgressResponse,
-  type RequestResponseMap,
-  type WorkerResponseForRequest,
-  isWorkerError,
-  isWorkerProgress,
-  isWorkerSuccess,
-} from '@/core/types/signer-worker';
+import type { NearWorkerProgressEvent } from '@/core/types/signer-worker';
 import { SIGNER_WORKER_MANAGER_CONFIG } from '@/config';
 import {
   resolveMultichainWorkerUrl,
@@ -92,7 +83,6 @@ type PendingEntry = {
   reject: (error: Error) => void;
   onEvent?: (update: unknown) => void;
   timeoutId?: ReturnType<typeof setTimeout>;
-  nearDirectResult?: boolean;
 };
 
 type NearWorkerOperationArgs<T extends NearWorkerOperationType = NearWorkerOperationType> = {
@@ -566,7 +556,6 @@ export class WorkerTransport implements SignerWorkerTransportProtocol {
         reject,
         onEvent: onEvent ? (update) => onEvent(update as NearWorkerProgressEvent) : undefined,
         timeoutId,
-        nearDirectResult: typeof type === 'string',
       });
 
       try {
@@ -1067,61 +1056,7 @@ export class WorkerTransport implements SignerWorkerTransportProtocol {
     const pending = this.getPendingMap('nearSigner').get(requestId);
     if (!pending) return;
 
-    if (pending.nearDirectResult) {
-      this.resolveRequest('nearSigner', requestId, response);
-      return;
-    }
-
-    const workerResponse = response as WorkerResponseForRequest<keyof RequestResponseMap>;
-
-    if (isWorkerProgress(workerResponse)) {
-      const progressResponse = workerResponse as WorkerProgressResponse;
-      pending.onEvent?.(progressResponse.payload);
-      return;
-    }
-
-    if (isWorkerError(workerResponse)) {
-      const errorResponse = workerResponse as WorkerErrorResponse;
-      this.rejectRequest(
-        'nearSigner',
-        requestId,
-        new SignerWorkerOperationError({
-          message: errorResponse.payload.error,
-          code: String(errorResponse.payload.errorCode || '').trim() || undefined,
-          workerKind: 'nearSigner',
-        }),
-      );
-      return;
-    }
-
-    if (isWorkerSuccess(workerResponse)) {
-      this.resolveRequest('nearSigner', requestId, workerResponse);
-      return;
-    }
-
-    if (isObject(response) && 'message' in response && 'stack' in response) {
-      const message = String((response as { message?: unknown }).message ?? 'Unknown error');
-      this.rejectRequest(
-        'nearSigner',
-        requestId,
-        new SignerWorkerOperationError({
-          message: `Worker sent generic error: ${message}`,
-          code: 'WORKER_PROTOCOL_ERROR',
-          workerKind: 'nearSigner',
-        }),
-      );
-      return;
-    }
-
-    this.rejectRequest(
-      'nearSigner',
-      requestId,
-      new SignerWorkerOperationError({
-        message: `Unknown worker response format: ${JSON.stringify(response)}`,
-        code: 'WORKER_PROTOCOL_ERROR',
-        workerKind: 'nearSigner',
-      }),
-    );
+    this.resolveRequest('nearSigner', requestId, response);
   }
 
   private handleWorkerError(kind: SignerWorkerKind, event: ErrorEvent): void {

@@ -1,19 +1,13 @@
 /**
  * NEAR signer worker.
  *
- * Numeric request types go to the Rust message handler, which returns one result per request.
- * String request types call the transaction, delegate and NEP-413 helpers exported by the
- * same WASM module directly.
+ * Each request names one of the transaction, delegate and NEP-413 helpers the signer WASM
+ * exports, and gets one result.
  */
 
-import {
-  NearSignerWorkerCustomRequestType,
-  WorkerRequestType,
-  type SignerWorkerRequestType,
-} from '@/core/types/signer-worker';
+import { NearSignerWorkerCustomRequestType } from '@/core/types/signer-worker';
 // Import WASM binary directly
 import init, {
-  handle_signer_message,
   threshold_ed25519_build_delegate_signing_payload,
   threshold_ed25519_build_near_tx_unsigned_borsh,
   threshold_ed25519_compute_delegate_signing_digest,
@@ -85,15 +79,12 @@ async function processWorkerMessage(event: MessageEvent): Promise<void> {
   try {
     const requestType = (event.data as { type?: unknown })?.type;
     // Guardrail: raw PRF fields must never traverse into signer payloads
-    assertNoPrfSecretsInSignerPayload(event.data, requestType);
+    assertNoPrfSecretsInSignerPayload(event.data);
     await initializeWasm();
-    const response =
-      typeof requestType === 'string'
-        ? await handleCustomNearSignerRequest(
-            requestType,
-            (event.data as { payload?: unknown }).payload,
-          )
-        : await handle_signer_message(event.data);
+    const response = await handleCustomNearSignerRequest(
+      requestType,
+      (event.data as { payload?: unknown }).payload,
+    );
     self.postMessage({
       id: requestId,
       ok: true,
@@ -112,7 +103,7 @@ async function processWorkerMessage(event: MessageEvent): Promise<void> {
 
 type SignerWorkerRpcRequest = {
   id: string;
-  type: SignerWorkerRequestType;
+  type: NearSignerWorkerCustomRequestType;
   payload: unknown;
 };
 
@@ -135,7 +126,7 @@ self.onmessage = async (event: MessageEvent<SignerWorkerRpcRequest>): Promise<vo
   await messageQueue;
 };
 
-async function handleCustomNearSignerRequest(type: string, payload: unknown): Promise<unknown> {
+async function handleCustomNearSignerRequest(type: unknown, payload: unknown): Promise<unknown> {
   switch (type) {
     case NearSignerWorkerCustomRequestType.ThresholdEd25519ComputeNep413SigningDigest:
       return {
@@ -253,7 +244,7 @@ function requireSignedNearTxOutput(output: unknown): unknown {
   return output;
 }
 
-function assertNoPrfSecretsInSignerPayload(data: unknown, requestType: unknown): void {
+function assertNoPrfSecretsInSignerPayload(data: unknown): void {
   const payload =
     data && typeof data === 'object' ? (data as { payload?: unknown }).payload : undefined;
   if (!payload || typeof payload !== 'object') return;
@@ -274,11 +265,7 @@ function assertNoPrfSecretsInSignerPayload(data: unknown, requestType: unknown):
     secretB64uField('seed'),
     secretB64uField('signingShare32'),
   ];
-  const requestForbiddenKeys =
-    requestType === WorkerRequestType.DeriveThresholdEd25519ClientVerifyingShare
-      ? forbiddenKeys.filter((key) => key !== secretB64uField('prfFirst'))
-      : forbiddenKeys;
-  for (const key of requestForbiddenKeys) {
+  for (const key of forbiddenKeys) {
     if (payloadRecord[key] !== undefined) {
       throw new Error(`Forbidden secret field in signer payload: ${key}`);
     }

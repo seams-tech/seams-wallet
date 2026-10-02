@@ -35,7 +35,6 @@ serde-wasm-bindgen = "0.6"
 wasm-bindgen = "0.2"
 log = { version = "0.4", features = ["release_max_level_info"] }
 zeroize = "1.8"
-wasm-bindgen-futures = "0.4"
 js-sys = "0.3"
 signer-core = { path = "../../crates/signer-core", features = ["near-threshold-ed25519", "passkey-custody", "ed25519-yao-client-root-transfer", "typescript-bindings"] }
 

@@ -15,9 +15,7 @@ import type {
 import type { UserPreferencesManager } from '../session/userPreferences';
 import type { NonceCoordinator } from '../nonce/NonceCoordinator';
 import type { ThemeMode, SeamsChainConfig } from '@/core/types/seams';
-import type { NearSigningKeyOps } from '../interfaces/nearKeyOps';
 import type { WorkerTransport } from './workerTransport';
-import { createNearKeyOps } from './nearKeyOps/createNearKeyOps';
 import type { EcdsaClientPresignCleanupTarget } from './ecdsaPresignLifecycle';
 
 export interface SignerWorkerManagerContext extends NearSigningRuntimeDeps {
@@ -69,7 +67,6 @@ export class SignerWorkerManager {
   private evmExplorerUrl?: string;
   private getTheme?: () => ThemeMode;
   private workerTransport: WorkerTransport;
-  readonly nearKeyOps: NearSigningKeyOps;
 
   constructor(deps: SignerWorkerManagerDeps) {
     this.resolveOperationStepUpCredential = deps.resolveOperationStepUpCredential;
@@ -87,7 +84,6 @@ export class SignerWorkerManager {
     this.evmExplorerUrl = deps.evmExplorerUrl;
     this.getTheme = deps.getTheme;
     this.workerTransport = deps.workerTransport;
-    this.nearKeyOps = createNearKeyOps(() => this.getContext());
   }
 
   setWorkerBaseOrigin(origin: string | undefined): void {

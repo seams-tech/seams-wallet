@@ -1,9 +1,3 @@
-// === IMPORT AUTO-GENERATED WASM TYPES ===
-// These are the source of truth generated from Rust structs via wasm-bindgen
-// Import as instance types from the WASM module classes
-import type * as wasmModule from '../../../../../wasm/near_signer/pkg/wasm_signer_worker.js';
-
-import type { StripFree } from './index.js';
 import type { TransactionContext } from './rpc.js';
 import type { ActionArgsWasm } from './actions.js';
 import type {
@@ -13,29 +7,66 @@ import type {
   PrepareEcdsaClientBootstrapOutput as GeneratedPrepareEcdsaClientBootstrapOutput,
 } from '../platform/generated/signerCoreCommands.js';
 
-export type WasmTransaction = wasmModule.WasmTransaction;
-export type WasmSignature = wasmModule.WasmSignature;
+// The NEAR transaction and delegate shapes the signer WASM returns. It serializes plain
+// objects; these types are the ones its bindings declared when the same structs were also
+// exported as classes, so `free` and `to_borsh_bytes` stay part of the declared shape.
+interface WasmPublicKey {
+  free(): void;
+  keyType: number;
+  keyData: Uint8Array;
+}
+
+export interface WasmSignature {
+  free(): void;
+  keyType: number;
+  signatureData: Uint8Array;
+}
+
+export interface WasmTransaction {
+  free(): void;
+  signerId: string;
+  publicKey: WasmPublicKey;
+  nonce: bigint;
+  receiverId: string;
+  blockHash: Uint8Array;
+  actions: any;
+}
+
+interface WasmSignedTransaction {
+  free(): void;
+  transaction: WasmTransaction;
+  signature: WasmSignature;
+  borshBytes: Uint8Array;
+}
+
+interface WasmDelegateAction {
+  free(): void;
+  senderId: string;
+  receiverId: string;
+  actions: any;
+  nonce: bigint;
+  maxBlockHeight: bigint;
+  publicKey: WasmPublicKey;
+}
+
+export interface WasmSignedDelegate {
+  free(): void;
+  to_borsh_bytes(): Uint8Array;
+  delegateAction: WasmDelegateAction;
+  signature: WasmSignature;
+  borshBytes: Uint8Array;
+}
 
 export enum WorkerRequestType {
   SignTransactionsWithActions = 0,
   SignNep413Message = 1,
   SignDelegateAction = 2,
-  DeriveThresholdEd25519ClientVerifyingShare = 3,
 }
 
 export enum WorkerResponseType {
   SignTransactionsWithActionsSuccess = 0,
   SignNep413MessageSuccess = 1,
   SignDelegateActionSuccess = 2,
-  SignTransactionsWithActionsFailure = 3,
-  SignNep413MessageFailure = 4,
-  SignDelegateActionFailure = 5,
-  RegistrationProgress = 6,
-  RegistrationComplete = 7,
-  ExecuteActionsProgress = 8,
-  ExecuteActionsComplete = 9,
-  DeriveThresholdEd25519ClientVerifyingShareSuccess = 10,
-  DeriveThresholdEd25519ClientVerifyingShareFailure = 11,
 }
 
 export const NearSignerWorkerCustomRequestType = {
@@ -51,7 +82,6 @@ export const NearSignerWorkerCustomRequestType = {
 export type NearSignerWorkerCustomRequestType =
   (typeof NearSignerWorkerCustomRequestType)[keyof typeof NearSignerWorkerCustomRequestType];
 
-export type SignerWorkerRequestType = WorkerRequestType | NearSignerWorkerCustomRequestType;
 type SignerWorkerResponseType = WorkerResponseType;
 
 export type ThresholdEd25519ComputeNep413SigningDigestRequest = {
@@ -130,13 +160,6 @@ export interface RpcCallPayload {
  * }
  */
 
-type DirectPrfFields = {
-  prfFirstB64u?: string;
-  wrapKeySalt?: string;
-};
-
-type WasmDeriveThresholdEd25519ClientVerifyingShareRequest =
-  StripFree<wasmModule.DeriveThresholdEd25519ClientVerifyingShareRequest> & DirectPrfFields;
 export type WasmPrepareThresholdEcdsaDerivationRoleLocalClientBootstrapRequest =
   GeneratedPrepareEcdsaClientBootstrapCommand;
 export type WasmPrepareThresholdEcdsaDerivationRoleLocalClientBootstrapResult =
@@ -153,10 +176,6 @@ export interface DelegatePayload {
   maxBlockHeight: string;
   publicKey: string;
 }
-
-// WASM Worker Response Types
-type WasmSignedTransaction = InstanceType<typeof wasmModule.WasmSignedTransaction>;
-export type WasmSignedDelegate = wasmModule.WasmSignedDelegate;
 
 // The NEAR signing results the Router A/B flows build. The signer WASM used to return these
 // shapes, so the accessor pairs and `free` are the ones its bindings declared.
@@ -191,21 +210,6 @@ interface NearNep413SignResult {
   signature: string;
   get state(): string | undefined;
   set state(value: string | null | undefined);
-}
-
-// wasm-bindgen may generate classes with private constructors, which breaks
-// `InstanceType<typeof Class>`. Use the class name directly for the instance type.
-export type WasmDeriveThresholdEd25519ClientVerifyingShareResult =
-  wasmModule.DeriveThresholdEd25519ClientVerifyingShareResult;
-
-// === WORKER REQUEST TYPE MAPPING ===
-// Define the complete type mapping for each worker request
-export interface WorkerRequestTypeMap {
-  [WorkerRequestType.DeriveThresholdEd25519ClientVerifyingShare]: {
-    type: WorkerRequestType.DeriveThresholdEd25519ClientVerifyingShare;
-    request: WasmDeriveThresholdEd25519ClientVerifyingShareRequest;
-    result: WasmDeriveThresholdEd25519ClientVerifyingShareResult;
-  };
 }
 
 /**
@@ -261,8 +265,7 @@ interface BaseWorkerResponse<TPayload = unknown> {
 }
 
 // Map request types to their expected success response payloads (WASM types)
-export interface RequestResponseMap {
-  [WorkerRequestType.DeriveThresholdEd25519ClientVerifyingShare]: WasmDeriveThresholdEd25519ClientVerifyingShareResult;
+interface RequestResponseMap {
   [WorkerRequestType.SignTransactionsWithActions]: NearTransactionSignResult;
   [WorkerRequestType.SignDelegateAction]: NearDelegateSignResult;
   [WorkerRequestType.SignNep413Message]: NearNep413SignResult;
@@ -292,71 +295,3 @@ export type WorkerResponseDiagnostics = {
   responsePayloadBreakdown: Record<string, number>;
   wasmOperationTimings?: Record<string, number>;
 };
-
-// Generic error response type
-export interface WorkerErrorResponse extends BaseWorkerResponse<{
-  error: string;
-  errorCode?: WorkerErrorCode;
-  context?: Record<string, unknown>;
-}> {
-  type: SignerWorkerResponseType;
-}
-
-enum WorkerErrorCode {
-  WASM_INIT_FAILED = 'WASM_INIT_FAILED',
-  INVALID_REQUEST = 'INVALID_REQUEST',
-  TIMEOUT = 'TIMEOUT',
-  ENCRYPTION_FAILED = 'ENCRYPTION_FAILED',
-  DECRYPTION_FAILED = 'DECRYPTION_FAILED',
-  SIGNING_FAILED = 'SIGNING_FAILED',
-  STORAGE_FAILED = 'STORAGE_FAILED',
-  UNKNOWN_ERROR = 'UNKNOWN_ERROR',
-}
-
-export interface WorkerProgressResponse extends BaseWorkerResponse<NearWorkerProgressEvent> {
-  type: SignerWorkerResponseType;
-}
-
-// === MAIN RESPONSE TYPE ===
-
-export type WorkerResponseForRequest<T extends RequestTypeKey> =
-  | WorkerSuccessResponse<T>
-  | WorkerErrorResponse
-  | WorkerProgressResponse;
-
-// === TYPE GUARDS FOR GENERIC RESPONSES ===
-
-export function isWorkerProgress<T extends RequestTypeKey>(
-  response: WorkerResponseForRequest<T>,
-): response is WorkerProgressResponse {
-  return (
-    response.type === WorkerResponseType.RegistrationProgress ||
-    response.type === WorkerResponseType.RegistrationComplete ||
-    response.type === WorkerResponseType.ExecuteActionsProgress ||
-    response.type === WorkerResponseType.ExecuteActionsComplete
-  );
-}
-
-export function isWorkerSuccess<T extends RequestTypeKey>(
-  response: WorkerResponseForRequest<T>,
-): response is WorkerSuccessResponse<T> {
-  return (
-    response.type === WorkerResponseType.SignTransactionsWithActionsSuccess ||
-    response.type === WorkerResponseType.SignDelegateActionSuccess ||
-    response.type === WorkerResponseType.SignNep413MessageSuccess ||
-    response.type === WorkerResponseType.DeriveThresholdEd25519ClientVerifyingShareSuccess
-  );
-}
-
-export function isWorkerError<T extends RequestTypeKey>(
-  response: WorkerResponseForRequest<T>,
-): response is WorkerErrorResponse {
-  return (
-    response.type === WorkerResponseType.SignTransactionsWithActionsFailure ||
-    response.type === WorkerResponseType.SignDelegateActionFailure ||
-    response.type === WorkerResponseType.SignNep413MessageFailure ||
-    response.type === WorkerResponseType.DeriveThresholdEd25519ClientVerifyingShareFailure
-  );
-}
-
-// === SPECIFIC TYPE GUARDS FOR COMMON OPERATIONS ===

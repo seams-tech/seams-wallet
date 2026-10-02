@@ -12,9 +12,7 @@ import {
   type ThresholdEd25519NearTxUnsignedBorsh,
   type ThresholdEd25519DecodeSignedNearTxBorshRequest,
   type ThresholdEd25519DecodeSignedNearTxBorshResult,
-  type WorkerRequestTypeMap,
   type WorkerResponseDiagnostics,
-  type WorkerResponseForRequest,
   type DelegatePayload,
   type WasmSignedDelegate,
   type WasmPrepareThresholdEcdsaDerivationRoleLocalClientBootstrapRequest,
@@ -1107,16 +1105,7 @@ export type MultichainWorkerOperationResult<
   T extends MultichainOperationType<K>,
 > = MultichainWorkerOperationEntry<K, T>['result'];
 
-type NearSignerWorkerPublicWasmOperationType = keyof WorkerRequestTypeMap;
-
-type NearSignerWorkerWasmOperationMap = {
-  [T in NearSignerWorkerPublicWasmOperationType]: {
-    payload: WorkerRequestTypeMap[T]['request'];
-    result: WorkerResponseForRequest<T>;
-  };
-};
-
-type NearSignerWorkerCustomOperationMap = {
+type NearSignerWorkerOperationMap = {
   [NearSignerWorkerCustomRequestType.ThresholdEd25519ComputeNep413SigningDigest]: {
     payload: ThresholdEd25519ComputeNep413SigningDigestRequest;
     result: ThresholdEd25519ComputeSigningDigestResult;
@@ -1146,9 +1135,6 @@ type NearSignerWorkerCustomOperationMap = {
     result: ThresholdEd25519DecodeSignedNearTxBorshResult;
   };
 };
-
-type NearSignerWorkerOperationMap = NearSignerWorkerWasmOperationMap &
-  NearSignerWorkerCustomOperationMap;
 
 export type NearWorkerOperationType = keyof NearSignerWorkerOperationMap;
 

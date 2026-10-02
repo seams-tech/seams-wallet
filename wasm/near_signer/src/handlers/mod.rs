@@ -1,4 +1,0 @@
-pub mod handle_threshold_ed25519_derive_client_verifying_share;
-
-pub use handle_threshold_ed25519_derive_client_verifying_share::handle_threshold_ed25519_derive_client_verifying_share;
-pub use handle_threshold_ed25519_derive_client_verifying_share::DeriveThresholdEd25519ClientVerifyingShareRequest;

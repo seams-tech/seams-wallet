@@ -111,17 +111,6 @@ pub fn derive_threshold_client_verifying_share_bytes_v1_from_wrap_key_seed_b64u(
     )
 }
 
-pub fn derive_threshold_client_verifying_share_b64u_v1_from_wrap_key_seed_b64u(
-    wrap_key_seed_b64u: &str,
-    near_account_id: &str,
-) -> CoreResult<String> {
-    let bytes = derive_threshold_client_verifying_share_bytes_v1_from_wrap_key_seed_b64u(
-        wrap_key_seed_b64u,
-        near_account_id,
-    )?;
-    Ok(encode_base64_url(&bytes))
-}
-
 pub fn derive_client_key_package_from_wrap_key_seed_b64u(
     wrap_key_seed_b64u: &str,
     near_account_id: &str,

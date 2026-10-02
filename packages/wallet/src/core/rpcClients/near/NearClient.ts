@@ -7,10 +7,7 @@ import {
   type NearClient as SharedNearClient,
 } from '@shared/near/nearClient';
 import { NearRpcError } from './NearRpcError';
-import {
-  WasmTransaction,
-  WasmSignature,
-} from '../../../../../../wasm/near_signer/pkg/wasm_signer_worker.js';
+import type { WasmTransaction, WasmSignature } from '@/core/types/signer-worker';
 import type { NonceLeaseRef } from '@/core/signingEngine/nonce/NonceCoordinator';
 
 export { encodeSignedTransactionBase64 } from '@shared/near/nearClient';

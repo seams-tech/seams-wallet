@@ -90,7 +90,6 @@ CRITICAL_FILES=(
     "src/core/signingEngine/uiConfirm/UiConfirmManager.ts"
     "src/core/signingEngine/workerManager/SignerWorkerManager.ts"
     "src/core/signingEngine/workerManager/validation.ts"
-    "src/core/signingEngine/workerManager/nearKeyOps"
     "src/core/signingEngine/chains/near"
     "src/core/signingEngine/chains/tempo"
     "src/core/signingEngine/chains"

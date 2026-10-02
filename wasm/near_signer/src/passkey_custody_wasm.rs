@@ -83,35 +83,12 @@ pub struct WasmPasskeyCustodyHandleV1 {
 
 #[wasm_bindgen]
 impl WasmPasskeyCustodyHandleV1 {
-    /// The custody-secret branch this handle restores.
-    pub fn kind(&self) -> String {
-        self.kind.as_str().to_string()
-    }
-
-    /// Byte length of the held secret. Exposed for length assertions only; it
-    /// reveals nothing about the secret's value.
-    pub fn byte_length(&self) -> usize {
-        self.secret.len()
-    }
-
     /// Zeroizes the held secret immediately, before the handle is dropped.
     /// Callers use this at lock, page lifecycle termination, success, and
     /// failure rather than waiting for garbage collection.
     pub fn destroy(&mut self) {
         self.secret = Zeroizing::new(Vec::new());
         self.admitted = None;
-    }
-
-    /// Whether this handle may be resealed under another factor. False for a
-    /// root opened to link another device, and once the proof is cleared.
-    pub fn can_add_factor(&self) -> bool {
-        matches!(
-            self.admitted,
-            Some(
-                WasmCustodyAdmissionV1::SealedEnvelope(_)
-                    | WasmCustodyAdmissionV1::Ed25519YaoClientRootTransfer(_)
-            )
-        )
     }
 }
 

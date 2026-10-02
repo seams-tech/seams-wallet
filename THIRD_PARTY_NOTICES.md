@@ -5,7 +5,7 @@ distributed Seams Wallet SDK, server runtime, Wasm, strict Workers, and CLI.
 Dependency license expressions come from their package metadata. Packaged
 license and notice wording is reproduced below with normalized whitespace.
 
-Inventory: 517 dependency records (109 npm, 408 Cargo).
+Inventory: 515 dependency records (109 npm, 406 Cargo).
 
 ## Dependency inventory
 
@@ -350,7 +350,6 @@ Inventory: 517 dependency records (109 npm, 408 Cargo).
 | cargo | wasi | 0.11.1+wasi-snapshot-preview1 | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT | The Cranelift Project Developers |
 | cargo | wasip2 | 1.0.4+wasi-0.2.12 | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT |  |
 | cargo | wasm-bindgen-backend | 0.2.100 | MIT OR Apache-2.0 | The wasm-bindgen Developers |
-| cargo | wasm-bindgen-futures | 0.4.50 | MIT OR Apache-2.0 | The wasm-bindgen Developers |
 | cargo | wasm-bindgen-futures | 0.4.73 | MIT OR Apache-2.0 | The wasm-bindgen Developers |
 | cargo | wasm-bindgen-macro-support | 0.2.100 | MIT OR Apache-2.0 | The wasm-bindgen Developers |
 | cargo | wasm-bindgen-macro-support | 0.2.108 | MIT OR Apache-2.0 | The wasm-bindgen Developers |
@@ -383,7 +382,6 @@ Inventory: 517 dependency records (109 npm, 408 Cargo).
 | cargo | wasm-bindgen | 0.2.123 | MIT OR Apache-2.0 | The wasm-bindgen Developers |
 | cargo | wasm-bindgen | 0.2.126 | MIT OR Apache-2.0 | The wasm-bindgen Developers |
 | cargo | wasm-bindgen | 0.2.128 | MIT OR Apache-2.0 | The wasm-bindgen Developers |
-| cargo | web-sys | 0.3.77 | MIT OR Apache-2.0 | The wasm-bindgen Developers |
 | cargo | webpki-root-certs | 1.0.9 | CDLA-Permissive-2.0 |  |
 | cargo | webpki-roots | 1.0.9 | CDLA-Permissive-2.0 |  |
 | cargo | winapi-util | 0.1.11 | Unlicense OR MIT | Andrew Gallant <jamslam@gmail.com> |
@@ -4129,7 +4127,6 @@ Applies to:
 - cargo:openssl-probe@0.2.1
 - cargo:pkg-config@0.3.33
 - cargo:wasm-bindgen-backend@0.2.100
-- cargo:wasm-bindgen-futures@0.4.50
 - cargo:wasm-bindgen-futures@0.4.73
 - cargo:wasm-bindgen-macro-support@0.2.100
 - cargo:wasm-bindgen-macro-support@0.2.108
@@ -4162,7 +4159,6 @@ Applies to:
 - cargo:wasm-bindgen@0.2.123
 - cargo:wasm-bindgen@0.2.126
 - cargo:wasm-bindgen@0.2.128
-- cargo:web-sys@0.3.77
 
     Copyright (c) 2014 Alex Crichton
 
@@ -10439,7 +10435,6 @@ Applies to:
 - cargo:wasi@0.11.1+wasi-snapshot-preview1
 - cargo:wasip2@1.0.4+wasi-0.2.12
 - cargo:wasm-bindgen-backend@0.2.100
-- cargo:wasm-bindgen-futures@0.4.50
 - cargo:wasm-bindgen-futures@0.4.73
 - cargo:wasm-bindgen-macro-support@0.2.100
 - cargo:wasm-bindgen-macro-support@0.2.108
@@ -10472,7 +10467,6 @@ Applies to:
 - cargo:wasm-bindgen@0.2.123
 - cargo:wasm-bindgen@0.2.126
 - cargo:wasm-bindgen@0.2.128
-- cargo:web-sys@0.3.77
 - cargo:wit-bindgen@0.57.1
 
                                   Apache License

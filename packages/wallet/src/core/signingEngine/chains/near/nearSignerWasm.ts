@@ -1,14 +1,11 @@
 import {
   NearSignerWorkerCustomRequestType,
-  WorkerRequestType,
-  WorkerResponseType,
   type DelegatePayload,
   type ThresholdEd25519BuildDelegateSigningPayloadResult,
   type ThresholdEd25519ComputeSigningDigestResult,
   type ThresholdEd25519FinalizeNearTxFromSignatureResult,
   type ThresholdEd25519NearTxUnsignedBorsh,
   type ThresholdEd25519DecodeSignedNearTxBorshResult,
-  type WasmDeriveThresholdEd25519ClientVerifyingShareResult,
   type WasmSignedDelegate,
   type TransactionPayload,
 } from '@/core/types/signer-worker';
@@ -243,53 +240,4 @@ function requireThresholdEd25519DecodeSignedNearTxBorshResult(
     throw new Error('near signer worker returned invalid Ed25519 signed tx decode result');
   }
   return parsed;
-}
-
-export async function deriveThresholdEd25519ClientVerifyingShareWasm(args: {
-  sessionId: string;
-  nearAccountId: string;
-  prfFirstB64u: string;
-  wrapKeySalt: string;
-  workerCtx: WorkerOperationContext;
-}): Promise<{ nearAccountId: string; clientVerifyingShareB64u: string }> {
-  const sessionId = String(args.sessionId || '').trim();
-  const nearAccountId = String(args.nearAccountId || '').trim();
-  const prfFirstB64u = String(args.prfFirstB64u || '').trim();
-  const wrapKeySalt = String(args.wrapKeySalt || '').trim();
-
-  if (!sessionId) throw new Error('Missing sessionId');
-  if (!nearAccountId) throw new Error('Missing nearAccountId');
-  if (!prfFirstB64u || !wrapKeySalt) {
-    throw new Error('Missing PRF.first or wrapKeySalt for share derivation');
-  }
-
-  const response = await executeWorkerOperation({
-    ctx: args.workerCtx,
-    kind: 'nearSigner',
-    request: {
-      type: WorkerRequestType.DeriveThresholdEd25519ClientVerifyingShare,
-      timeoutMs: NEAR_SIGNER_WORKER_TIMEOUT_MS,
-      payload: {
-        sessionId,
-        nearAccountId,
-        prfFirstB64u,
-        wrapKeySalt,
-      },
-    },
-  });
-
-  if (response.type !== WorkerResponseType.DeriveThresholdEd25519ClientVerifyingShareSuccess) {
-    throw new Error('DeriveThresholdEd25519ClientVerifyingShare failed');
-  }
-
-  const wasmResult = response.payload as WasmDeriveThresholdEd25519ClientVerifyingShareResult;
-  const clientVerifyingShareB64u = String(wasmResult?.clientVerifyingShareB64u || '').trim();
-  if (!clientVerifyingShareB64u) {
-    throw new Error('Missing clientVerifyingShareB64u in worker response');
-  }
-
-  return {
-    nearAccountId,
-    clientVerifyingShareB64u,
-  };
 }
