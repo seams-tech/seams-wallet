@@ -290,6 +290,84 @@ const buildPreactConfirmationCss = (sdkRoot: string): string => {
   }).join('\n')}\n`;
 };
 
+// Drops comments and the whitespace CSS does not need. Every selector, at-rule and value
+// keeps its tokens: strings, url() and escapes are copied as written, a run of whitespace
+// becomes one space, and that space goes only at the edges of a prelude or a value.
+const stripCssCommentsAndWhitespace = (css: string): string => {
+  let out = '';
+  let segment = '';
+  let pendingSpace = false;
+  let pendingSemicolon = false;
+  let parenDepth = 0;
+  let valueStart = -1;
+  const append = (text: string): void => {
+    if (pendingSpace && segment) segment += ' ';
+    pendingSpace = false;
+    segment += text;
+  };
+  const endSegment = (): void => {
+    if (valueStart >= 0) {
+      const name = segment.slice(0, valueStart).trimEnd();
+      segment = `${name}:${segment.slice(valueStart + 1).trimStart()}`;
+    }
+    if (segment && pendingSemicolon) out += ';';
+    if (segment) pendingSemicolon = false;
+    out += segment;
+    segment = '';
+    pendingSpace = false;
+    parenDepth = 0;
+    valueStart = -1;
+  };
+  for (let i = 0; i < css.length; i += 1) {
+    const char = css[i];
+    const atTokenStart = pendingSpace || !/[\w-]$/.test(segment);
+    if (char === '/' && css[i + 1] === '*') {
+      const end = css.indexOf('*/', i + 2);
+      const next = end < 0 ? css.length : end + 2;
+      // A comment with no whitespace on either side is all that separates two tokens.
+      if (!pendingSpace && segment && next < css.length && !/[\s{};]/.test(css[next])) {
+        append('/**/');
+      }
+      i = next - 1;
+    } else if (/\s/.test(char)) {
+      pendingSpace = true;
+    } else if (char === '"' || char === "'") {
+      let end = i + 1;
+      while (end < css.length && css[end] !== char) end += css[end] === '\\' ? 2 : 1;
+      append(css.slice(i, end + 1));
+      i = end;
+    } else if (char === '\\') {
+      append(css.slice(i, i + 2));
+      i += 1;
+    } else if (atTokenStart && /^url\(\s*[^\s"')]/i.test(css.slice(i, i + 16))) {
+      const end = css.indexOf(')', i);
+      append(css.slice(i, end < 0 ? css.length : end + 1));
+      i = end < 0 ? css.length : end;
+    } else if (parenDepth === 0 && char === '{') {
+      valueStart = -1;
+      endSegment();
+      out += '{';
+    } else if (parenDepth === 0 && char === ';') {
+      const hadStatement = segment !== '';
+      endSegment();
+      if (hadStatement) pendingSemicolon = true;
+    } else if (parenDepth === 0 && char === '}') {
+      endSegment();
+      pendingSemicolon = false;
+      out += '}';
+    } else {
+      if (char === '(') parenDepth += 1;
+      if (char === ')' && parenDepth > 0) parenDepth -= 1;
+      append(char);
+      if (char === ':' && parenDepth === 0 && valueStart < 0 && !segment.startsWith('@')) {
+        valueStart = segment.length - 1;
+      }
+    }
+  }
+  endSegment();
+  return pendingSemicolon ? `${out};` : out;
+};
+
 const buildWalletUiCss = async (sdkRoot: string): Promise<string> => {
   const read = (relativePath: string): string =>
     fs.readFileSync(path.join(sdkRoot, relativePath), 'utf-8');
@@ -307,7 +385,9 @@ const buildWalletUiCss = async (sdkRoot: string): Promise<string> => {
     ],
     ['copy-controls', read('src/core/signingEngine/uiConfirm/ui/preact/copy-icon.css')],
   ];
-  return `${sections.map(([name, css]) => `/* ${name} */\n${css}`).join('\n')}\n`;
+  return stripCssCommentsAndWhitespace(
+    `${sections.map(([name, css]) => `/* ${name} */\n${css}`).join('\n')}\n`,
+  );
 };
 
 const emitWalletServiceStaticAssets = async (sdkRoot = process.cwd()): Promise<void> => {
