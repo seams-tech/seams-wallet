@@ -74,6 +74,14 @@ Console migration files also applied to empty SQLite with clean integrity and
 foreign-key checks. The undeployed `0051` baseline was updated in place; no
 hosted database has received either version.
 
+The reservation now also stores the first committed setup allocation: ceremony,
+preparation, founding authority, device and auth-method IDs. Later candidates
+for the same registration receive that exact allocation, including after a
+lost reply and authority restart. Its five fields are immutable in D1 and
+parsed at the boundary. The persistent-D1 E2E and type fixtures pass. This
+allocation is not yet called by hosted registration; it closes only the
+directory's replay-data gap.
+
 Reproduce with the same commands above. Retained private receipt and logs:
 `.artifacts/r152/registration-reservation-20261002/`.
 
@@ -81,10 +89,10 @@ Reproduce with the same commands above. Retained private receipt and logs:
 
 The directory still has no hosted caller. Before enabling routing, registration
 setup must supply a stable request ID and compute the digest after credential,
-origin and request validation. It must use the winning wallet/home and stable
+origin and request validation. It must use the winning wallet/home and stored
 ceremony/founding-authority identities before any custody preparation. Retrying
-only the directory reservation does not make existing random ceremony allocation
-or custody preparation idempotent. Both supplied-ID and Google candidate-selection
+only the directory reservation does not make custody preparation or the regional
+ceremony write idempotent. Both supplied-ID and Google candidate-selection
 paths must adopt the same contract. Shared credential/recovery routing indexes
 and their transaction reconciliation remain open, followed by hosted routing and
 namespace-path deletion. This checkpoint does not close those gates.
