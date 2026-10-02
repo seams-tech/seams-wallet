@@ -123,7 +123,6 @@ export function prepareLocalHostedWalletGatewayConfig(input) {
     ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET: gatewayToRouterAuthSecret,
     ROUTER_AB_GATEWAY_TO_SIGNING_WORKER_PRESIGN_AUTH_SECRET:
       gatewayToSigningWorkerPresignAuthSecret,
-    ROUTER_AB_NORMAL_SIGNING_WORKER_ID: requiredEnv(routerEnv, 'SIGNING_WORKER_ID'),
     ROUTER_AB_PUBLIC_KEYSET_JSON: localPublicKeysetJson({
       routerEnv,
       deriverAEnv,

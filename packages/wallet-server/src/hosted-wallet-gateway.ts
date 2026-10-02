@@ -123,7 +123,6 @@ export interface CloudflareD1GatewayBaseEnv
   readonly GITHUB_OAUTH_CLIENT_SECRET?: string;
   readonly GITHUB_OAUTH_CALLBACK_URL?: string;
   readonly ACCOUNT_ID_DERIVATION_SECRET?: string;
-  readonly ROUTER_AB_NORMAL_SIGNING_WORKER_ID?: string;
   readonly SIGNING_WORKER_ID?: string;
   readonly ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET?: string;
   readonly ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET?: string;
