@@ -519,3 +519,13 @@ complete the coordinated production-testnet backend/frontend cutover, including
 migration 0041 as well as 0040, hosted old-client/reload treatment and rollback.
 Publishing the SDK does not authorize admitting hosted traffic before those
 checks. Keep production mainnet outside the testnet rollout scope.
+
+
+## Release held for complete regional implementation — October 2
+
+The user requires all remaining R152 code before publishing 0.8.0: APAC/WEUR
+Gateway routing and automatic home assignment, complete internal/lifecycle
+entry-point enforcement, and regional concurrency/travel-latency verification.
+All existing wallets are disposable test wallets, so existing-wallet migration
+is excluded. Do not publish the green intermediate candidate under the earlier
+conditional approval. No publication or deployment was performed.

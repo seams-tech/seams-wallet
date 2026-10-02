@@ -86,6 +86,15 @@ private consumption and hosted cutover remain open. See the
 [protocol candidate acceptance](refactor-152-release-review.md#protocol-candidate-acceptance--october-2)
 for hashes, scope, timings and CI links.
 
+## Current release scope — October 2
+
+Finish regional Gateway routing and automatic initial-home assignment, complete
+internal/lifecycle admission enforcement, and implement regional concurrency
+and travel-latency verification before publishing 0.8.0. Existing test wallets
+may be discarded; no existing-wallet migration implementation is required.
+The previously green SDK candidate remains a checkpoint, not authorization to
+publish while this implementation is unfinished.
+
 ## Objective and starting evidence
 
 Use the [R151 empirical results](refactor-151-results.md) as the consolidated
@@ -583,7 +592,10 @@ below remain open.
   through the runtime service. Resource verification and end-to-end provisioning
   race/failure checks remain open; its runtime identity lookup must be included
   in latency accounting.
-- [ ] Assign a stable initial home server-side. Browser hints are advisory input;
+- [ ] Complete APAC/WEUR selection policy and regional deployment routing.
+  Automatic immutable resource assignment now runs after authenticated proof
+  from both configured writers, with concurrent first-time requests verified.
+  Browser hints are advisory input;
   browser assertions cannot select an alternative authority. Avoid a mandatory
   home picker, travel profiling, and automatic geographic migration.
 - [ ] Implement regional Gateways paired with the assigned D1 homes, initially
@@ -601,30 +613,15 @@ below remain open.
   Fail closed when authoritative routing or the home is unavailable. Any redirect
   must be bounded and validated before credentials are sent onward.
 
-## Phase 4: migration and failure rules
+## Existing-wallet migration: excluded from this rollout
 
-Start a rollout with newly created ownership units if that avoids migration.
-Keep existing owners at their current home until a separately verified transfer
-exists. Do not introduce migration machinery solely for the initial experiment.
-
-Before transferring existing state:
-
-- [ ] Model explicit transfer states and required branch-specific data. Fence
-  source writes, drain or resolve admitted operations, copy a consistent state,
-  verify it, activate the target generation, and retain a source routing tombstone.
-  Source and target must never accept writes for the same active generation.
-- [ ] Include quotas, revocations, expiries, material retirement, linked-device
-  provenance, pending claims, completed replay responses, and one-use material
-  references in the transfer proof. Account for in-flight work already accepted
-  by role DOs and bind its completion to the authoritative operation.
-- [ ] Prove fencing at every mutation boundary, including stale Gateways and
-  direct/internal entry points. A routing-directory change alone is insufficient.
-- [ ] Define recovery for failure at every transfer transition. Before target
-  activation, resume the source only after proving target writes never started.
-  After activation, rollback is another fenced transfer; a stale source or
-  asynchronous replica cannot become an automatic fallback writer.
-- [ ] Preserve role-specific custody ownership. Any DO relocation or custody
-  transfer requires its own protocol proof and measured cost.
+On October 2 the user confirmed that all existing wallets are disposable test
+wallets. Existing-wallet state transfer, transfer rollback, custody relocation
+and migration compatibility are outside R152's release scope. Use fresh
+namespaces and wallets for the APAC/WEUR rollout. Preserve one authoritative
+home for each new namespace and reject stale or conflicting assignments.
+A reset may discard the designated test wallets; this scope decision does not
+require deleting databases immediately or weakening quota/replay enforcement.
 
 ## Phase 5: verification and rollout decision
 
@@ -641,9 +638,6 @@ Before transferring existing state:
   signing and cold unlock/first sign. Alternate client order, retain failures,
   verify signatures and report distributions. Confirm remote client location
   never changes the writable home or causes fallback to another database.
-- [ ] For migration, inject failures before and after activation and while an
-  operation is in flight. Verify uninterrupted key identity and signature
-  validity, preserved denial state, and no dual writer after retry or rollback.
 - [ ] Exercise shared behavior on Workers D1, wallet-DO composition, and the VM
   reference when shared contracts change. Keep placement in the deployment
   adapter. Use existing type fixtures for domain-state guarantees; add no unit

@@ -2563,3 +2563,33 @@ privileged operator scripts, custody/bootstrap ownership and historical Worker
 reachability remain distinct checks. Both candidate CI workflows are now green;
 see the [publication handoff](refactor-152-release-review.md#green-candidate-ci-and-publication-handoff--october-2).
 No hosted infrastructure or published packages changed.
+
+
+## Automatic verified home assignment — October 2
+
+Authenticated deployment verification now assigns a previously unassigned
+namespace after both configured writers return the correct fresh D1 proof.
+An existing conflicting assignment rejects before writer verification; an atomic
+reservation resolves competing first assignments without moving an existing
+home. A proof failure cannot reserve a resource. Ordinary wallet provisioning
+continues to require that verified reservation before custody or credentials.
+
+The composed E2E passes in **14.0 seconds** against the frozen 0.8.0 package.
+Three concurrent first-time verification requests succeed against one immutable
+home; unauthenticated, wrong-database, wrong-configuration, missing-version and
+tampered-proof attempts leave the namespace unassigned. Existing activation,
+replay and stale request/cron checks also pass. Receipt and logs are in private
+`tests/test-results/r152-auto-home/` and
+`.artifacts/r152/release-0.8.0-protocol-20261002/auto-home.log`.
+This assigns the trusted configured resource; APAC/WEUR selection and complete
+regional routing remain separate implementation work.
+
+The unused combined hosted Wallet entrypoints were removed. Their active-binding
+read did not enforce writer versions; deployment generation and readiness checks
+already select the split Gateway/Runtime paths. A stale source assertion about
+the deleted combined entrypoint was removed, and the existing readiness fixture
+now names the supported Gateway. Server/Console type checks, ESLint and all eleven
+existing readiness checks pass. An initial unit-config invocation selected no
+tests because that config excludes script tests; the explicit base-config retry
+ran the intended file successfully. No production failure was hidden by that
+harness correction.
