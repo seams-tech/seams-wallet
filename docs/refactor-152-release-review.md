@@ -290,22 +290,100 @@ observed requests, are retained in private
 `seams-monorepo` with
 `node .artifacts/r152/client-cutover-20261002/probe.mjs`.
 
-The cutover decision is pending: add an explicit request protocol check and
-validate a new candidate, or coordinate maintenance and integrator upgrades
-before admitting traffic. The recommended implementation is an explicit wire
-protocol contract, checked before incompatible wallet operations mutate state.
-Missing or unsupported protocol values should return the actionable error
-above. The matching client must send the contract value, and both Fetch/Express
-adapters, Gateway forwarding and CORS must preserve it. This is a proposed
-boundary change; no version marker or server rejection has been implemented.
+### Selected protocol boundary and rollout order
 
-After selecting that approach, verify an already-loaded published client receives
-the upgrade outcome, then reload the new client and complete registration and
-signing against its matching server. Include unsupported protocol rejection and
-absence of mutation on rejected requests. Rebuild and freeze the resulting
-candidate, re-run package acceptance and CI, and keep the existing `335f2878`
-artifacts as the previous validated checkpoint. A page reload alone cannot
-upgrade an integrator's SDK package pin.
+The subsequent instruction to proceed selects the recommended explicit protocol
+check. Wallet-management requests now require `X-Seams-Wallet-Protocol: 1`.
+The SDK adds it in the shared registration/management transport. The server
+checks it after matching a wallet-management route and before reading the body
+or calling its route services. Missing, unsupported or combined header values
+return HTTP 409 with `wallet_protocol_mismatch` and the upgrade message above.
+The header is a wire declaration and grants no authority.
+
+This covers registration, signer setup/inventory, auth-method management and
+implicit NEAR funding. Signing, recovery and export endpoints retain their own
+contracts. Express delegates to the same Fetch router, and the CORS allow list
+includes the header. The private deployment registration canary sends it in
+commit `888c919`; direct HTTP integrators must also send it.
+
+Use this order for the selected lane after fresh candidate validation:
+
+1. Deploy the enforcing server and verify missing/unsupported protocol requests
+   receive an actionable rejection. Retain the unchanged mainnet lane.
+2. Deploy the matching SDK assets to that lane and verify registration and
+   signatures through the real hosted Console path. Inspect generated and hosted
+   cache behavior, and verify an already-open tab's error and subsequent reload.
+3. Confirm each integrator has upgraded its package pin. Reloading a page cannot
+   upgrade an integrator's installed SDK. During the interval between the first
+   two steps, older wallet-management calls are deliberately rejected.
+
+The new client cannot enforce this contract on a 0.7.3 server, which predates the
+check. Do not deploy the new client first or blindly roll the backend back while
+new tabs remain active. A rollback across that boundary requires pausing affected
+traffic and restoring a verified matching client/server pair, including the
+already-open-client treatment. The existing registration-setup pause alone does
+not establish that condition for all wallet-management routes. Hosted rollback
+verification remains a release gate.
+
+Rebuild and freeze the resulting candidate, re-run package acceptance and CI,
+and keep the existing `335f2878` artifacts as the previous validated checkpoint.
+Its green CI does not cover the protocol check. Review subsequent dev commits
+before including them; the protocol change does not authorize inclusion of all
+concurrent source changes.
+
+### Local protocol acceptance — 2026-10-02
+
+The composed browser/Gateway test passed in **30.3 seconds**, including the
+actual installed npm 0.7.3 registration module and the rebuilt current SDK:
+
+- Removing the protocol header from a live registration request produced one
+  rejected request and an actionable message in the intended app's error output.
+- The published 0.7.3 module independently received the upgrade message from the
+  real local Gateway. It did not receive an incompatible bootstrap response.
+- An unsupported protocol with malformed JSON returned 409 before JSON parsing.
+- CORS preflight allowed the header. Reloading the matching client completed
+  registration, followed by cryptographically verified Tempo and Arc signatures.
+
+SDK and Server builds, both package type checks, intended-test type checking,
+packed-package boundary checks and the bloat check passed. Private deployment
+canary adoption/retry acceptance passed in **3.9 seconds**. These are local
+working-tree checks; a new frozen release and hosted Console acceptance remain
+required. Later concurrent step-up changes were committed as `6d486fdd` after
+these package builds and must be reviewed before a new release selection.
+
+The wider registration suite completed eleven cases, then stalled in a NEAR-hold
+scenario and was stopped. The first direct retry used the harness's default app
+URL on port 4001 and loaded the public site; that retry is classified as
+`environment_or_infrastructure_failure`. With explicit local app/Gateway/wallet
+URLs, both remaining NEAR-hold cases passed in **35.4 seconds**, without a
+production or test-logic change. All thirteen registration cases have passing
+coverage across those runs. The initial stall's cause was not established; this
+is not a claim that the original uninterrupted suite completed successfully.
+
+An additional passkey-to-Email-OTP auth-method scenario was attempted but is not
+counted as passing. The configured Google test token was expired or near expiry
+under the isolated test's lifetime requirement. This is an
+`environment_or_infrastructure_failure`; a fresh usable Google test token is
+required to complete that extra check. No production behavior was changed for it.
+
+Reproduce the published-client check from `seams-wallet`, setting the package
+root to an installed or extracted npm 0.7.3 package (the test verifies its name
+and version):
+
+```sh
+SEAMS_PUBLISHED_WALLET_ROOT=/absolute/path/to/old-wallet-package \
+SEAMS_INTENDED_SKIP_BUILD=1 \
+  pnpm -C tests test:intended:representative --grep 'wallet protocol rejection'
+```
+
+Rebuild Wallet Server and the Wallet SDK first when source changes. Omitting the
+published-package variable still exercises the missing-header request shape,
+visible error, unsupported protocol, preflight, reload and verified signatures.
+The receipt explicitly reports whether the published client was included.
+Logs, `wallet-protocol-cutover.json`, the standalone published-client probe,
+source/compiled-file hashes and the generated package manifest are retained in
+`.artifacts/r152/protocol-20261002/`. This does not prove how every deployed
+integrator renders an SDK error or how its assets update on reload.
 
 Repeat the composed acceptance with the retained extracted package:
 

@@ -4,11 +4,13 @@ import { LINKED_DEVICE_REQUEST_PROOF_HEADER_V1 } from '@shared/device-linking';
 import { ROUTER_AB_ED25519_YAO_RECOVERY_CHALLENGE_ID_HEADER_V1 } from '@shared/utils/routerAbEd25519Yao';
 import { ROUTER_AB_TRACE_ID_HEADER_V1 } from '@shared/utils/routerAbTraceContext';
 import { failure } from '@shared/utils/failure';
+import { WALLET_MANAGEMENT_PROTOCOL_HEADER } from '@shared/utils/walletManagementProtocol';
 
 const CORS_ALLOW_METHODS = 'GET,POST,PUT,PATCH,DELETE,OPTIONS';
 const CORS_PREFLIGHT_MAX_AGE_SECONDS = 600;
 const CORS_ALLOW_HEADERS = [
   'Content-Type',
+  WALLET_MANAGEMENT_PROTOCOL_HEADER,
   'Authorization',
   'X-Seams-Benchmark-Diagnostics',
   LINKED_DEVICE_REQUEST_PROOF_HEADER_V1,

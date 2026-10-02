@@ -118,6 +118,10 @@ import type {
 } from './thresholdEcdsa';
 import { parseThresholdEcdsaDerivationRoleLocalBootstrapValue } from './thresholdEcdsa';
 import {
+  WALLET_MANAGEMENT_PROTOCOL_HEADER,
+  WALLET_MANAGEMENT_PROTOCOL_VERSION,
+} from '@shared/utils/walletManagementProtocol';
+import {
   buildBearerAuthorizationHeader,
   buildRelayerJsonPostRequestInit,
   normalizeRelayerBaseUrl,
@@ -265,7 +269,10 @@ async function postJson(args: {
     const response = await fetch(
       `${normalizeRelayerBaseUrl(args.relayerUrl, { trim: false })}${args.path}`,
       buildRelayerJsonPostRequestInit({
-        headers: args.headers,
+        headers: {
+          ...args.headers,
+          [WALLET_MANAGEMENT_PROTOCOL_HEADER]: WALLET_MANAGEMENT_PROTOCOL_VERSION,
+        },
         body: args.body,
         bodyJson: requestBody,
       }),

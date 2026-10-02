@@ -22,6 +22,14 @@ application authentication is intentionally outside this package.
 
 ## Primary wallet routes
 
+Wallet-management routes (registration, signer setup/inventory, auth-method
+management and implicit NEAR funding) require `X-Seams-Wallet-Protocol: 1`.
+Missing or unsupported values return HTTP 409, `wallet_protocol_mismatch`, with
+reload/upgrade instructions before parsing the body or invoking route services.
+The current Wallet SDK sends this header automatically. Direct HTTP clients,
+including deployment registration canaries, must send it explicitly. The header
+declares the wire contract and does not replace authentication.
+
 - `POST /wallets/register/setup`
 - `POST /wallets/register/respond`
 - `POST /wallets/register/activate`

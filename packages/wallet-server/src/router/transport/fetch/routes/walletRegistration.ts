@@ -27,7 +27,11 @@ import {
   type RouteDefinition,
 } from '../../../framework/routeDefinitions';
 import { toFetchRouteResponse } from '../../../framework/routeResponses';
-import { readJson } from '../../../framework/http';
+import { jsonFailure, readJson } from '../../../framework/http';
+import {
+  WALLET_MANAGEMENT_PROTOCOL_HEADER,
+  WALLET_MANAGEMENT_PROTOCOL_VERSION,
+} from '@shared/utils/walletManagementProtocol';
 
 const ROUTE_IDS = [
   'wallet_registration_setup',
@@ -74,6 +78,17 @@ export async function handleWalletRegistration(
 ): Promise<Response | null> {
   const route = resolveWalletRegistrationRoute(ctx);
   if (!route) return null;
+
+  if (
+    ctx.request.headers.get(WALLET_MANAGEMENT_PROTOCOL_HEADER) !==
+    WALLET_MANAGEMENT_PROTOCOL_VERSION
+  ) {
+    return jsonFailure(
+      409,
+      'wallet_protocol_mismatch',
+      'Your wallet application needs an update. Reload this page and try again. If the problem continues, ask the application developer to upgrade the Wallet SDK.',
+    );
+  }
 
   const body = await readJson(ctx.request);
   const common = {

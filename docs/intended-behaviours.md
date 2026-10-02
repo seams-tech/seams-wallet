@@ -187,6 +187,22 @@ CTA belong to the wallet origin.
 
 ## Registration
 
+### Wallet-management protocol
+
+- Wallet-management requests send `X-Seams-Wallet-Protocol: 1`. This wire
+  contract covers registration, signer setup and inventory, auth-method
+  management, and implicit NEAR funding through the wallet-management routes.
+- Missing or unsupported values return HTTP 409 with code
+  `wallet_protocol_mismatch` before body parsing or wallet-management service
+  execution. The message asks the user to reload and, if necessary, asks the
+  integrator to upgrade its Wallet SDK. Authentication remains independently
+  required; the protocol header does not authorize an operation.
+- The SDK preserves the server's actionable error. Reloading a page that serves
+  the matching SDK must restore registration and signing. An integrator pinned
+  to an older SDK must upgrade its package; a reload cannot change that pin.
+- Preflight requests allow the protocol header. Fetch and Express expose the
+  same contract. Signing, recovery and export routes retain their own contracts.
+
 ### Passkey authentication
 
 Expected behaviour:

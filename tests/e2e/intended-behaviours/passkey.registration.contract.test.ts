@@ -1,4 +1,5 @@
 import { assertIndependentNearRegistration } from './registration-near-gate';
+import { verifyWalletProtocolCutover } from './registration-protocol';
 import {
   ROUTER_AB_ED25519_YAO_REGISTRATION_ADMISSION_PATH_V1,
   ROUTER_AB_ED25519_YAO_REGISTRATION_EXECUTE_PATH_V1,
@@ -24,6 +25,11 @@ import { GatewayRequestEvidence } from './gateway-request-evidence';
 
 const ECDSA_RESPOND_FAULT_HEADER = 'x-seams-intended-ecdsa-respond-fault-v1';
 const ECDSA_RESPOND_FAULT_PROOF_HEADER = 'x-seams-intended-ecdsa-respond-proof-v1';
+
+test(
+  'wallet protocol rejection shows an upgrade message and reload restores registration and signing',
+  verifyWalletProtocolCutover,
+);
 
 class GatewayEcdsaRespondPinProbe {
   retries = 0;

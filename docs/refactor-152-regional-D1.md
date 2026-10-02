@@ -537,15 +537,23 @@ below remain open.
   smoke requests targeted testnet, and mainnet's content and digest stayed
   unchanged. Invalid selections and using a testnet build for mainnet were
   rejected. This establishes local deployment scope; hosted cutover remains open.
-- [ ] Demonstrate the old-client cutover behavior with an already-open 0.7.3
+- [ ] Demonstrate the hosted old-client cutover behavior with an already-open 0.7.3
   client, an actionable reload/upgrade outcome and successful 0.8.0 registration
   and signing after reload. Both releases advertise iframe protocol `2.0.0`, so
   the existing handshake cannot establish the required SDK/backend pairing.
   A Chromium transport probe on 2026-10-02 confirmed both published 0.7.3 and
   frozen 0.8.0 propagate a fixture server's 409 upgrade message after one
   registration setup request, without retry. UI rendering and the complete
-  cutover remain unverified. Choose an explicit protocol check/new candidate or
-  coordinated maintenance before implementation; see the release review.
+  cutover remain separate gates. The recommended explicit protocol check is now
+  selected and implemented at the wallet-management request boundary, with the
+  matching header in the SDK and private deployment canary. Local and hosted
+  verification scopes are recorded in the release review. New candidate
+  acceptance and hosted rollback verification remain required.
+  Local composed acceptance passed in 30.3 seconds: published 0.7.3 received the
+  upgrade error, the intended app surfaced the missing-header error, unsupported
+  protocol failed before JSON parsing, CORS passed, and reload completed
+  registration plus verified Tempo/Arc signatures. The old candidate's green
+  CI does not cover this new protocol requirement.
 - [ ] Reuse existing trusted tenant/environment routing where possible. Define
   required owner, home, and routing-generation identity at the server boundary.
   Reject inconsistent or stale routes before any mutation. Route lookup itself
