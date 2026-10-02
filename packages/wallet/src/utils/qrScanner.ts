@@ -2,8 +2,8 @@ import {
   parseQrLinkedDeviceSessionTextV5,
   type QrLinkedDeviceSessionPayloadV5,
 } from '@shared/device-linking';
-import jsQR from 'jsqr';
 import { validateQrLinkedDeviceSessionPayloadV5 } from '../SeamsWeb/operations/devices/scanDevice';
+import { DeviceLinkingError, DeviceLinkingErrorCode } from '@/core/types/linkDevice';
 import type { LinkDeviceFlowEvent } from '@/core/types/sdkSentEvents';
 
 // ===========================
@@ -81,7 +81,7 @@ export class ScanQRCodeFlow {
       return; // Already running
     }
 
-    // Starting the camera spans two awaits the user can close the scanner
+    // Starting a scan spans three awaits the user can close the scanner
     // across. Anything stopping or restarting the flow bumps this, so a start
     // that lost the race can tell the difference between "the camera failed"
     // and "nobody is waiting for this camera any more".
@@ -89,10 +89,30 @@ export class ScanQRCodeFlow {
 
     this.setState(ScanQRCodeFlowState.INITIALIZING);
 
-    try {
-      // Build camera constraints
-      const constraints = this.buildCameraConstraints();
+    // Build camera constraints
+    const constraints = this.buildCameraConstraints();
 
+    // jsqr is an optional package and a large one, so it loads when a scan
+    // starts rather than with every page that can show the account menu. It
+    // loads before the camera is asked for: a granted camera with nothing to
+    // decode its frames would leave the light on for no scan.
+    let decodeQr: QrDecoder;
+    try {
+      decodeQr = (await import('jsqr')).default;
+    } catch {
+      if (this.isSupersededStart(generation)) return;
+      this.handleError(
+        new DeviceLinkingError(
+          'Device-link QR scanning requires the optional jsqr package',
+          DeviceLinkingErrorCode.UNSUPPORTED,
+          'authorization',
+        ),
+      );
+      return;
+    }
+    if (this.isSupersededStart(generation)) return;
+
+    try {
       // Get camera stream
       const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
 
@@ -139,7 +159,7 @@ export class ScanQRCodeFlow {
       }
 
       // Start scanning loop
-      this.scanFrame();
+      this.scanFrame(decodeQr);
     } catch (error: unknown) {
       // Closing the scanner tears the video down under the pending play(),
       // which rejects with an AbortError. The user chose that, so it is a
@@ -251,7 +271,7 @@ export class ScanQRCodeFlow {
     }, 100); // Update every 100ms
   }
 
-  private async scanFrame(): Promise<void> {
+  private async scanFrame(decodeQr: QrDecoder): Promise<void> {
     if (this.state !== ScanQRCodeFlowState.SCANNING || !this.video || !this.mediaStream) {
       return;
     }
@@ -266,7 +286,7 @@ export class ScanQRCodeFlow {
 
         // Scan for QR code
         const imageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
-        const qrData = await this.scanQRFromImageData(imageData);
+        const qrData = await this.scanQRFromImageData(decodeQr, imageData);
 
         if (qrData) {
           const parsedData = this.parseAndValidateQRData(qrData);
@@ -282,12 +302,15 @@ export class ScanQRCodeFlow {
 
     // Schedule next frame
     if (this.state === ScanQRCodeFlowState.SCANNING) {
-      this.animationId = requestAnimationFrame(() => this.scanFrame());
+      this.animationId = requestAnimationFrame(() => this.scanFrame(decodeQr));
     }
   }
 
-  private async scanQRFromImageData(imageData: ImageData): Promise<string | null> {
-    return scanQRFromImageData(imageData);
+  private async scanQRFromImageData(
+    decodeQr: QrDecoder,
+    imageData: ImageData,
+  ): Promise<string | null> {
+    return scanQRFromImageData(decodeQr, imageData);
   }
 
   private parseAndValidateQRData(qrData: string): QrLinkedDeviceSessionPayloadV5 {
@@ -420,8 +443,13 @@ export function detectFrontCamera(camera: MediaDeviceInfo): boolean {
 // PRIVATE HELPER FUNCTIONS
 // ===========================
 
-async function scanQRFromImageData(imageData: ImageData): Promise<string | null> {
-  const code = jsQR(imageData.data, imageData.width, imageData.height, {
+type QrDecoder = (typeof import('jsqr'))['default'];
+
+async function scanQRFromImageData(
+  decodeQr: QrDecoder,
+  imageData: ImageData,
+): Promise<string | null> {
+  const code = decodeQr(imageData.data, imageData.width, imageData.height, {
     inversionAttempts: 'dontInvert',
   });
   return code ? code.data : null;
