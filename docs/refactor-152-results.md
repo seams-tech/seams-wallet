@@ -2296,3 +2296,60 @@ deployment and historical adoption; run the challenge live; join fresh runtime
 proof and stable provider versions to activation; cover remaining writer paths.
 Neither separate checkpoint establishes an activation fence, and a copied fresh
 challenge alone does not establish physical database identity.
+
+## Version-bound home checkpoint (October 2)
+
+Private source checkpoint: `seams-monorepo` commit `5dca209`. The existing
+`pnpm tenant:cutover verify-home --lane production-testnet` command now combines
+the provider and runtime checks. It verifies actual provider D1 bindings, writes
+a fresh challenge, checks the immutable Console reservation and both runtime
+reads, then verifies provider bindings and deployment identity again. Each writer
+reports its own `CF_VERSION_METADATA.id`; both must match the serving versions.
+The final provider check must finish before the challenge expires. The generated
+Gateway and Wallet Runtime configurations include the metadata binding described
+in [Cloudflare's version metadata contract](https://developers.cloudflare.com/workers/runtime-apis/bindings/version-metadata/).
+
+The combined check requires one version at 100% per writer and rejects gradual
+rollouts before a D1 write. The separate provider-only command retains support
+for inspecting every gradual-rollout version. A successful combined run uses
+twelve provider GETs, one challenge INSERT and one DELETE. Its redacted
+`tenant_d1_home_checkpoint_v1` receipt records the provider check times, deployment
+IDs, serving versions, answering versions and `runtimeChallengeVerified: true`;
+`activationAuthorized` remains false. No unlock or signing call is added.
+
+**Four related E2Es passed in 18.4 seconds**, covering the provider checker,
+combined challenge, operator adoption and deployment binding. The combined
+scenario uses production Worker sources, two local D1 databases with all forty
+signer migrations, synthetic version metadata and controlled provider HTTP
+transport. It rejects missing runtime metadata, a wrong answering version, a
+deployment-ID change after the challenge, a serving-version change after the
+challenge, and a gradual rollout. Existing proof/home/expiry/authorization checks
+remain covered. The successful CLI case and four failure cases that write a
+challenge leave zero challenge rows: five INSERTs and five DELETEs, including
+the lost-INSERT-response case. Gradual rollout fails before inserting a row.
+
+Server, Console-test and type-fixture checks, targeted lint, formatting, generated
+version-binding checks and the Wallet bloat check passed. The first type-fixture
+run correctly rejected a missing runtime version but reported its error on a
+different line from the new `@ts-expect-error` comment; moving that comment fixed
+the fixture. No production behavior was changed to accommodate it.
+
+Private evidence: `.artifacts/r152/version-bound-home-20261002/` contains the
+combined success receipt, repeatable runtime/provider/adoption/binding evidence,
+`e2e.log`, generated writer configurations, bloat output, source hashes and
+verification metadata. Reproduce the combined scenario with:
+
+```sh
+pnpm -C tests exec playwright test -c playwright.relayer.config.ts \
+  relayer/tenant-home-challenge.e2e.test.ts \
+  --reporter=line --output=test-results/r152-version-bound-home
+```
+
+No new live provider check, hosted challenge, deployment or latency measurement
+was performed in this milestone. The October 2 09:39 JST live provider result
+above remains the latest recorded live evidence. The next implementation binds
+trusted evidence to a cutover operation, consumes it transactionally with
+freshness/home/version checks, and enforces activated version identity at runtime.
+Before/after provider reads alone cannot prevent a later privileged change.
+The SDK migration release, coordinated deployment and hosted validation remain
+open; this checkpoint does not yet gate the existing activation path.

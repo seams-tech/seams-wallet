@@ -61,6 +61,14 @@ repository currently consumes 0.7.3. Live runtime verification and joining both
 checkpoints to activation remain open. Neither checkpoint authorizes activation. See the
 [provider checkpoint evidence](refactor-152-results.md#provider-binding-checkpoint-october-2).
 
+Private commit `5dca209` joins provider and runtime evidence in one operator
+checkpoint. It matches each answering Worker version to Cloudflare's serving
+version and verifies stable deployments before and after the fresh challenge.
+Four related local E2Es pass. The combined check requires one serving version per
+writer; it rejects gradual rollouts before writing the challenge. Live execution
+and activation enforcement remain open. See the
+[version-bound checkpoint evidence](refactor-152-results.md#version-bound-home-checkpoint-october-2).
+
 ## Objective and starting evidence
 
 Use the [R151 empirical results](refactor-151-results.md) as the consolidated
@@ -476,6 +484,18 @@ below remain open.
   after a lost INSERT response. Nine related local E2Es pass, including two real
   D1 databases and all forty signer migrations. See the
   [runtime challenge evidence](refactor-152-results.md#runtime-home-challenge-and-live-provider-check-october-2).
+- [x] Join runtime proof to provider-verified Worker versions. Generated writer
+  configurations expose Cloudflare version metadata; both runtime observations
+  must match the serving versions, and provider deployments must stay unchanged
+  across the challenge. Missing metadata, wrong versions and deployment drift
+  fail. Combined verification requires one version per writer at 100% traffic.
+- [ ] Bind the combined evidence to a specific cutover operation through the
+  protected operator authority. Persist the namespace/home, verified deployments
+  and versions, operation identity and expiry. Consume fresh matching evidence
+  in the activation transaction and reject replay into a different operation.
+  Enforce the activated version identity in runtime admission, covering retries,
+  expiry and deployment changes after verification. The current CLI checkpoint
+  retains `activationAuthorized: false` and does not gate existing cutover calls.
 - [ ] Publish and consume an exact Wallet Server release containing signer
   migration 0040, then coordinate migrations, service bindings, Worker deployment
   and historical adoption. Run the fresh challenge live and join both checkpoints

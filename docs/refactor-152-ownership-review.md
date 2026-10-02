@@ -463,10 +463,26 @@ proof and invalid time windows. It also exercises the actual operator CLI and
 cleanup after a lost response. No unlock or signing D1 call is added. Signer
 migration 0040 must ship in a new exact Wallet Server release before coordinated
 deployment; the private repository currently consumes 0.7.3. A live challenge,
-stable provider-version evidence spanning that challenge, activation fencing and
-remaining writer-path coverage are still required. A copied fresh challenge alone
+activation fencing and remaining writer-path coverage are still required. A copied fresh challenge alone
 cannot establish physical resource identity. See the
 [runtime checkpoint results](refactor-152-results.md#runtime-home-challenge-and-live-provider-check-october-2).
+
+Private commit `5dca209` implements stable provider-version evidence spanning the
+challenge. Both writers report their Cloudflare version metadata IDs; the operator
+matches them to the provider's serving versions and repeats provider verification
+after the runtime reads. Missing metadata, version mismatches, deployment changes
+and expiry fail verification. The combined command requires one serving version
+at 100% per writer so a single read covers each writer's serving code. The separate
+read-only provider command still inspects every version in a gradual rollout.
+
+This checkpoint remains an observation with `activationAuthorized: false`.
+Activation enforcement must persist trusted evidence for the exact cutover
+operation, consume it with home/version/expiry checks in the activation transaction
+and enforce the activated versions at runtime admission. The existing cutover
+path does not yet consume this checkpoint. Provider observations cannot be atomic
+with the Console D1 activation, so before/after reads alone cannot prevent a later
+privileged deployment change. Local tests use synthetic version metadata and a
+controlled provider transport; hosted verification remains a rollout prerequisite.
 
 The first persistence slice is implemented in private Console commit `12784a3`.
 `tenantDeployment/namespaceHome.ts` adds reservation/read operations to the
