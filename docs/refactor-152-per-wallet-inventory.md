@@ -153,6 +153,15 @@ new setup and paused replay. The two focused Worker E2Es and private `pnpm check
 pass. Refreshed directory receipt SHA-256:
 `d90c1e5b2422b98772f80aab2223caf253de7be93a735c154f43cba4866864fe`.
 
+Private commit `9f8921a` adds a service client that revalidates JSON assignments
+into the wallet, home and setup-allocation domain types, checks tenant scope
+and the configured resource catalog, and sends the active writer role/version
+on each request.
+The same two-Worker E2E exercises reserve, wallet and ceremony lookup, missing
+wallet, cross-project rejection and completion through that client. It still
+has no hosted Gateway caller. Refreshed receipt SHA-256:
+`a85b00726d838d87f716fe61863b89811d9a78089c070e1b21ed804ad8208c0d`.
+
 ## Namespace assignment removal checkpoint
 
 The private Console no longer reserves one database for a whole namespace.
@@ -206,6 +215,67 @@ releasing an index entry. The exact service contracts remain an open inventory i
 | Hosted session exchange and linked delivery | Opaque code/session identifiers require a routing index or verified envelope; never query all regional databases. |
 | Private `d1WalletRuntimeWorker` | Wallet-identities operation accepts multiple wallets. Group by their resolved homes and combine only validated responses; relayer account and tenant-root operations retain explicit tenant scope. |
 | Private `d1GatewayWorker` / scheduled prewarm | Replace namespace binding with per-wallet admission for wallet requests; prewarm stays explicit tenant control. Preserve role/version/resource admission. |
+
+### Registration operation IDs and first durable write
+
+`/wallets/register/setup` currently has no request-carried setup operation ID.
+The route validates the publishable key, exact Origin, environment and body,
+then calls `setupWalletRegistration`. That service generates a wallet ID for the
+server-allocated branch, founding authority/auth-method IDs, ceremony and
+preparation IDs in memory before custody preparation and ceremony persistence.
+The browser-side `finalizeIdempotencyKey` is generated before setup in each
+registration branch, but currently binds **finalization only** and is not
+persisted across a browser restart. Reusing its string as a setup key without
+a durable browser operation journal would not repair a lost setup response.
+The SDK already has generic IndexedDB `appState` storage. Its pending-registration
+commit journal starts after setup, so a pre-setup operation record belongs in
+that existing store with its own precise lifecycle and cleanup.
+
+The Console directory reservation must be the first durable wallet/home
+allocation for both supplied and generated wallet IDs. The hosted setup
+boundary must derive the request digest from the verified tenant, Origin and
+normalized request,
+reserve once, and use the winning wallet, home and five stored setup IDs before
+regional custody preparation. The setup operation ID must survive response loss
+and browser restart; a replay must return the winning allocation. Setup effects
+and ceremony persistence need their own idempotent continuation, because a
+directory replay alone cannot prove that regional preparation committed.
+
+Google Email OTP has an additional durable `registrationAttemptId` and
+`ownerProofBindingDigest`. `findStarted` reuses an active offer for the same
+verified provider/binding, while `createFreshRegistrationAttempt` checks up to
+30 candidate wallet IDs against its current D1 and stores an offer with up to
+five candidates. Those local collision checks cannot establish global
+uniqueness after regional splitting. Preserve the offer/selected-attempt
+identity in shared authority, then reserve only the selected wallet's home.
+
+### Hosted route and deferred-work admission map
+
+The source of truth for public route names and auth policy is
+`packages/wallet-server/src/router/framework/routeDefinitions.ts`; the private
+Gateway calls `handleSplitGatewayRequest` after resolving one active deployment
+binding. The groups below identify the routing identity required **before** a
+regional store is opened. They do not claim that proof or home enforcement has
+already been implemented.
+
+| Entrypoint family | Initial identity | Required home resolution and failure |
+| --- | --- | --- |
+| Registration setup | Verified publishable-key tenant, Origin, stable setup operation; supplied wallet ID or generated candidate | Reserve through Console first. A changed digest conflicts; no regional preparation on unavailable authority. |
+| Registration respond, activate and NEAR continuation | Signed setup/ceremony or preparation identity | Resolve the Console ceremony index, then verify its wallet/home against signed claims before regional mutation. Unknown/cancelled ceremony fails. |
+| `/wallets/:walletId/*` custody, signer, auth-method and recovery status | Path wallet ID plus route proof/session | Resolve tenant-scoped wallet directory, then verify proof at its home. A body/path disagreement fails before effects. |
+| Unlock and discoverable passkey | Challenge, credential or verified provider identity, sometimes no wallet ID | Resolve shared credential/provider binding to one wallet; then resolve its home. Never search regional D1s. |
+| Recovery prepare/finalize and code locator | Recovery code locator or server-issued recovery operation | Resolve shared locator/operation index, retain one-use proof and custody commit at wallet home. Missing/conflicting index fails without revealing wallet existence. |
+| Hosted session exchange and linked-device delivery | Opaque session, exchange code or link-session identity | Resolve a shared index or authenticated routing envelope; verify parent wallet and home before opening local lifecycle rows. |
+| Ed25519/ECDSA signing, export, refresh and pool-fill | Exact wallet session/capability or wallet ID | Resolve and verify wallet home once at Gateway admission; carry the bound context through Router/DO RPC and deferred continuation. |
+| Wallet Runtime service operations | Wallet ID or a list of wallet IDs; some tenant-root controls have none | Resolve each wallet independently and group by home; tenant-root control uses its own authenticated tenant authority. |
+| Scheduled prewarm, retry, refill, alarm and queue work | Persisted wallet operation/session or tenant-root control identity | Wallet work carries its original home. Control work uses explicit tenant scope. No current client location is available or relevant. |
+| Public health, keyset and well-known routes | No wallet | Serve without wallet state under their existing public policy. |
+
+`router_ab_normal_signing_admission_records`, `email_otp_rate_limits`,
+`webauthn_credential_bindings`, recovery locators and hosted exchange parents
+remain the critical mixed/shared seams. Each needs a concrete owner and an
+idempotent cross-authority sequence before splitting the current signer D1.
+The route-by-route and role-RPC inventory remains open in R0.
 
 ## Effective signer schema
 
