@@ -135,7 +135,7 @@ A cancelled registration now rejects a setup retry and cannot be resolved for a
 continuation. The persistent two-Worker E2E, Console type-check, type fixtures,
 focused lint and formatting checks passed. Receipt:
 `.artifacts/r152/service-admission-20261002/wallet-home-evidence.json`
-(SHA-256 `8d6b540fc506bdb25caae643110732948ca9ad8d7a71f17b502006f18b47bc15`).
+(the receipt was refreshed by the cutover-admission checkpoint below).
 The lookup is still unused by hosted traffic.
 Private commit `9792bca` requires placement service calls to present the active
 Gateway or Wallet Runtime role and exact authorized Worker version. The real
@@ -145,6 +145,13 @@ active-version reservation. Its retained receipt is
 (SHA-256 `5242020ee7a9bc7718250714e50285b115818fb4657e86396ada730f6e0f75b0`).
 The package still has no production caller, and the existing singular deployment
 resource binding has not been replaced with a regional resource set.
+Private commit `d923391` closes a setup-admission race: the cutover pause is
+checked in the same Console D1 statement that inserts a wallet reservation.
+The service also rejects an existing reservation replay while setup is paused.
+The directory E2E now applies every Console migration and tests both paused
+new setup and paused replay. The two focused Worker E2Es and private `pnpm check`
+pass. Refreshed directory receipt SHA-256:
+`d90c1e5b2422b98772f80aab2223caf253de7be93a735c154f43cba4866864fe`.
 
 ## Namespace assignment removal checkpoint
 
