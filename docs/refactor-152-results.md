@@ -2159,3 +2159,69 @@ Worker/database verification, hosted canary evidence and remaining entry-point
 coverage are still open. The scope query replaces the prior readiness query and
 adds no unlock/signing calls. No deployment, provider mutation or new hosted
 latency measurement occurred.
+
+## Provider binding checkpoint (October 2)
+
+Private source checkpoint: `seams-monorepo` commit `877890d`. The new read-only
+command uses the existing deployment target configuration:
+
+```text
+pnpm tenant:verify-d1-bindings --lane production-testnet \
+  --output .artifacts/d1-binding-checkpoint-UNIQUE_RUN.json
+```
+
+With `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` set, it reads the current
+Gateway and Wallet Runtime deployments, inspects `SIGNER_DB` on every serving
+version, and compares the actual UUID to the lane's configured signer database.
+It then rereads both deployments and rejects changes to deployment IDs, version
+sets or traffic weights. The API token needs Worker deployment/version read
+permissions. Calls use GET only, a fixed Cloudflare API origin, rejected redirects
+and bounded request timeouts. The command does not query or mutate D1 data.
+
+The success artifact records `provider_bindings_match`, the namespace/account/
+database, serving deployment/version IDs and percentages. It always records
+`runtimeChallengeVerified: false` and `activationAuthorized: false`. Unrelated
+bindings and provider response bodies are excluded from success/failure evidence.
+The output must be a new file; failed checks record failure and interrupted runs
+retain a checking state. A repeated output path fails before making API calls.
+
+The actual Node CLI E2E passed **ten provider scenarios in one 1.0-second run**:
+matching two-version deployments on both writers; a wrong database only on the
+minority Wallet Runtime version; missing and duplicate `SIGNER_DB` bindings;
+a mismatched returned version ID; deployment ID drift; traffic-weight drift;
+weights failing to total 100; invalid JSON; and provider HTTP 403. The matching 75%/25% case
+made eight GETs: two initial deployments, four versions, two final deployments.
+Only matching stable bindings produced a success checkpoint. Secret markers in
+unrelated bindings and error bodies did not appear in artifacts. A retry with
+the same output path made no additional requests or modifications.
+
+Targeted lint, Console test type-check, and a direct Wallet Runtime renderer smoke
+passed. The renderer still produces the expected Worker name and an identical
+declared-home/database-binding UUID after its naming helper became importable.
+An intermediate E2E rerun failed at test discovery because of Playwright's
+required destructured fixture argument; correcting that test declaration restored
+the passing run. No unit tests were added.
+
+Private evidence: `.artifacts/r152/provider-bindings-20261002/` contains `e2e.log`,
+`provider-binding-checkpoint-evidence.json`, the individual scenario artifacts,
+the synthetic-account runtime configuration, source hashes and verification
+metadata. Reproduce:
+
+```sh
+pnpm -C tests exec playwright test -c playwright.relayer.config.ts \
+  relayer/tenant-d1-provider-bindings.e2e.test.ts \
+  --reporter=line --output=test-results/r152-provider-bindings
+```
+
+The provider HTTP service was a controlled loopback fixture. No live Cloudflare
+verification occurred: neither account ID nor API token was configured in the
+execution shell. Live inventory, comparison with Console's immutable assignment,
+a fresh challenge through each actual runtime binding, activation ordering and
+other reachable older/internal writer paths remain open. This check observes
+configuration during its window; it cannot prevent later privileged changes or
+authorize regional rollout. No deployment or hosted latency measurement occurred.
+
+Provider contracts checked October 2:
+[deployment ordering and traffic versions](https://developers.cloudflare.com/api/resources/workers/subresources/scripts/subresources/deployments/methods/list/),
+[version resource bindings](https://developers.cloudflare.com/api/resources/workers/subresources/scripts/subresources/versions/methods/get/),
+and [D1 binding UUIDs](https://developers.cloudflare.com/workers/configuration/multipart-upload-metadata/#bindings).

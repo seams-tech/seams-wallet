@@ -49,6 +49,13 @@ resource verification, coordinated adoption/deployment with hosted canary eviden
 and remaining entry-point coverage are still rollout gates. See the
 [contract/adoption evidence](refactor-152-results.md#canonical-home-contract-and-adoption-october-2).
 
+Private commit `877890d` adds a read-only provider binding checkpoint for every
+serving version of the lane's Gateway and Wallet Runtime, including gradual
+rollouts and deployment-drift detection. The local CLI E2E covers ten scenarios.
+Live inventory, Console-reservation comparison and the fresh runtime database
+challenge remain open; this checkpoint cannot authorize activation. See the
+[provider checkpoint evidence](refactor-152-results.md#provider-binding-checkpoint-october-2).
+
 ## Objective and starting evidence
 
 Use the [R151 empirical results](refactor-151-results.md) as the consolidated
@@ -449,6 +456,15 @@ below remain open.
   rollout sequencing must handle that transition. Cover remaining internal
   control/inspection, discovery and administrative paths before claiming every
   entry point enforces home identity. Preserve pre-activation custody bootstrap.
+- [x] Implement the provider configuration checkpoint: inspect all versions in
+  current Gateway/Wallet Runtime deployments, compare actual `SIGNER_DB` UUIDs
+  with the lane manifest and reject deployment/weight changes during inspection.
+  Local CLI E2E verifies minority-version mismatches, malformed/missing bindings,
+  provider denial, secret exclusion and preserved output identity.
+- [ ] Run the live provider checkpoint and join it to the immutable Console
+  reservation and a fresh challenge written through the intended database UUID
+  and read through each actual writer binding. Fence activation to the verified
+  deployment generation; include other reachable older/internal writer paths.
 - [ ] Reuse existing trusted tenant/environment routing where possible. Define
   required owner, home, and routing-generation identity at the server boundary.
   Reject inconsistent or stale routes before any mutation. Route lookup itself

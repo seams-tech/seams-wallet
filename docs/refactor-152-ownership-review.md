@@ -430,6 +430,20 @@ and activation ordering still need implementation and race/failure tests. A loca
 database marker supplies an additional mismatch check, not a transfer fence.
 Do not mark the home/resource proof complete from a marker-only E2E.
 
+The provider configuration portion is implemented in private commit `877890d`.
+`pnpm tenant:verify-d1-bindings --lane production-testnet --output <new-path>`
+reads the existing deployment manifest and Cloudflare's current deployments and
+version resources. It checks every serving Gateway/Wallet Runtime version's
+`SIGNER_DB`, then rereads deployment IDs, version sets and traffic weights to
+reject detected drift. The result explicitly keeps runtime challenge verification
+and activation authorization false. It does not read the Console reservation or
+prove other older/internal writers are unreachable. Provider responses are
+reduced to the selected database and deployment/version IDs so unrelated secrets
+never enter the evidence. A ten-scenario local CLI E2E passed against a controlled
+HTTP provider fixture. Live Cloudflare verification remains unrun because the
+execution shell lacks the account/token variables. See the
+[provider checkpoint results](refactor-152-results.md#provider-binding-checkpoint-october-2).
+
 The first persistence slice is implemented in private Console commit `12784a3`.
 `tenantDeployment/namespaceHome.ts` adds reservation/read operations to the
 existing deployment service. Migration `0047_namespace_d1_homes.sql` keys the
