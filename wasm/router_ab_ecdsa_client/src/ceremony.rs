@@ -1,8 +1,7 @@
 use base64ct::{Base64UrlUnpadded, Encoding};
 use router_ab_ecdsa_client_protocol::{
     build_ecdsa_post_registration_request_v1, build_ecdsa_registration_request_v1,
-    decode_ecdsa_signer_envelope_hpke_payload_v1, derive_ecdsa_client_ephemeral_keypair_v1,
-    open_ecdsa_signer_envelope_v1, open_ecdsa_signing_worker_export_share_v1,
+    derive_ecdsa_client_ephemeral_keypair_v1, open_ecdsa_signing_worker_export_share_v1,
     EcdsaClientEphemeralKeyPairV1, EcdsaClientProtocolError, EcdsaDeriverRoleV1,
     EcdsaMaterialActivationRefKindV1, EcdsaMaterialActivationRefV1,
     EcdsaPostRegistrationCeremonyV1, EcdsaPostRegistrationHeaderInputV1,
@@ -23,7 +22,7 @@ use signer_core::ecdsa_role_local_client::{
     EcdsaRoleLocalExportReconstructionInput, EcdsaRoleLocalReadyStateBlob,
 };
 use wasm_bindgen::prelude::*;
-use zeroize::{Zeroize, Zeroizing};
+use zeroize::Zeroize;
 
 use crate::client_proof_verifier::{
     finalize_encrypted_client_proof_output_v1, finalize_encrypted_client_proof_output_v2,
@@ -50,25 +49,6 @@ impl RouterAbEcdsaClientCeremonyV1 {
         seed.zeroize();
         Ok(Self {
             keypair: Some(keypair.map_err(js_error)?),
-            registration_binding: None,
-            explicit_export_request_digest: None,
-            activation_refresh_request_digest: None,
-            post_registration_application_binding_digest: None,
-        })
-    }
-
-    /// Recreates a ceremony around the exact private recipient key retained
-    /// by a browser worker during request preparation.
-    #[wasm_bindgen(js_name = fromRecipientPrivateKey)]
-    pub fn from_recipient_private_key(
-        recipient_private_key: &[u8],
-    ) -> Result<RouterAbEcdsaClientCeremonyV1, JsValue> {
-        let key_material = parse_32(recipient_private_key, "ECDSA client recipient private key")?;
-        let keypair = EcdsaClientEphemeralKeyPairV1::from_private_key_bytes(key_material)
-            .map_err(protocol_error)
-            .map_err(js_error)?;
-        Ok(Self {
-            keypair: Some(keypair),
             registration_binding: None,
             explicit_export_request_digest: None,
             activation_refresh_request_digest: None,
@@ -225,74 +205,6 @@ impl RouterAbEcdsaClientCeremonyV1 {
         Ok(())
     }
 
-    /// Opens the two committed role envelopes for one exact registration
-    /// request. The browser X25519 private key stays inside this ceremony.
-    pub fn open_committed_role_envelopes(
-        &self,
-        input_json: &str,
-    ) -> Result<WasmOrdinaryEcdsaClientMaterialV1, JsValue> {
-        let input: OrdinaryRoleEnvelopeOpenInputV1 = parse_json(input_json)?;
-        if input.material_activation_id.trim().is_empty()
-            || input.material_activation_id.trim() != input.material_activation_id
-        {
-            return Err(JsValue::from_str(
-                "ECDSA committed role envelope activation id is invalid",
-            ));
-        }
-        let keypair = self.active_keypair()?;
-        if input.registration_request.client_ephemeral_public_key != keypair.public_key() {
-            return Err(JsValue::from_str(
-                "ECDSA committed role envelopes target another client ceremony",
-            ));
-        }
-        let purpose = EcdsaRegistrationPurposeV1::from_wire_label(
-            &input.registration_request.registration_purpose,
-        )
-        .map_err(protocol_error)
-        .map_err(js_error)?;
-        let header = EcdsaRegistrationHeaderV1::new(EcdsaRegistrationHeaderInputV1 {
-            registration_purpose: purpose,
-            context: parse_context(&input.registration_request.context)?,
-            lifecycle: EcdsaRegistrationLifecycleV1::from_wire(
-                input.registration_request.lifecycle.clone().into(),
-            )
-            .map_err(protocol_error)
-            .map_err(js_error)?,
-            signer_set: parse_signer_set(&input.registration_request.signer_set)?,
-            router_id: input.registration_request.router_id.clone(),
-            client_id: input.registration_request.client_id.clone(),
-            client_ephemeral_public_key: input.registration_request.client_ephemeral_public_key,
-            replay_nonce: input.registration_request.replay_nonce.clone(),
-            expires_at_ms: input.registration_request.expires_at_ms,
-        })
-        .map_err(protocol_error)
-        .map_err(js_error)?;
-        let deriver_a = open_committed_role_envelope(
-            &header,
-            &input.deriver_a_client_package,
-            EcdsaDeriverRoleV1::A,
-            keypair.public_key(),
-            keypair.private_key_bytes(),
-        )?;
-        let deriver_b = open_committed_role_envelope(
-            &header,
-            &input.deriver_b_client_package,
-            EcdsaDeriverRoleV1::B,
-            keypair.public_key(),
-            keypair.private_key_bytes(),
-        )?;
-        let transcript = header
-            .transcript_digest()
-            .map_err(protocol_error)
-            .map_err(js_error)?;
-        Ok(WasmOrdinaryEcdsaClientMaterialV1 {
-            deriver_a: Some(deriver_a),
-            deriver_b: Some(deriver_b),
-            transcript,
-            activation_id: input.material_activation_id,
-        })
-    }
-
     /// Returns the canonical explicit-export request digest held by this ceremony.
     pub fn explicit_export_request_digest_b64u(&self) -> Result<String, JsValue> {
         let digest = self.explicit_export_request_digest.ok_or_else(|| {
@@ -415,109 +327,6 @@ pub(crate) fn build_explicit_export_request_with_keypair(
         .map_err(js_error)?;
     let serialized = serialize_export_request(input, request, keypair.public_key())?;
     Ok((serialized, digest, transcript_digest))
-}
-
-/// Worker-owned plaintext produced by opening one committed ECDSA role pair.
-/// The two role payloads stay in WASM until the worker consumes the material.
-#[wasm_bindgen]
-pub struct WasmOrdinaryEcdsaClientMaterialV1 {
-    deriver_a: Option<Zeroizing<Vec<u8>>>,
-    deriver_b: Option<Zeroizing<Vec<u8>>>,
-    transcript: [u8; 32],
-    activation_id: String,
-}
-
-#[wasm_bindgen]
-impl WasmOrdinaryEcdsaClientMaterialV1 {
-    /// Returns the exact registration transcript authenticated by both roles.
-    pub fn transcript(&self) -> Vec<u8> {
-        self.transcript.to_vec()
-    }
-
-    /// Returns the exact planned activation id carried by the worker input.
-    pub fn activation_id(&self) -> String {
-        self.activation_id.clone()
-    }
-
-    /// Consumes both opened role payloads for the worker's factor-sealing
-    /// boundary. The returned bytes are held only by the worker caller.
-    pub fn take_client_material(&mut self) -> Result<Vec<u8>, JsValue> {
-        let deriver_a = self
-            .deriver_a
-            .take()
-            .ok_or_else(|| JsValue::from_str("ECDSA role material was consumed"))?;
-        let deriver_b = self
-            .deriver_b
-            .take()
-            .ok_or_else(|| JsValue::from_str("ECDSA role material was consumed"))?;
-        let a_len = u32::try_from(deriver_a.len())
-            .map_err(|_| JsValue::from_str("ECDSA Deriver A material is too large"))?;
-        let b_len = u32::try_from(deriver_b.len())
-            .map_err(|_| JsValue::from_str("ECDSA Deriver B material is too large"))?;
-        let mut output = Vec::with_capacity(8 + deriver_a.len() + deriver_b.len());
-        output.extend_from_slice(&a_len.to_be_bytes());
-        output.extend_from_slice(&deriver_a);
-        output.extend_from_slice(&b_len.to_be_bytes());
-        output.extend_from_slice(&deriver_b);
-        Ok(output)
-    }
-
-    /// Zeroizes any role material retained by this handle.
-    pub fn destroy(&mut self) {
-        if let Some(mut deriver_a) = self.deriver_a.take() {
-            deriver_a.zeroize();
-        }
-        if let Some(mut deriver_b) = self.deriver_b.take() {
-            deriver_b.zeroize();
-        }
-        self.activation_id.zeroize();
-    }
-}
-
-fn open_committed_role_envelope(
-    header: &EcdsaRegistrationHeaderV1,
-    envelope: &EnvelopeWireV1,
-    expected_role: EcdsaDeriverRoleV1,
-    expected_recipient_public_key: &str,
-    recipient_private_key: &[u8; 32],
-) -> Result<Zeroizing<Vec<u8>>, JsValue> {
-    let aad = header
-        .role_aad(expected_role)
-        .map_err(protocol_error)
-        .map_err(js_error)?;
-    if envelope.recipient_role != expected_role.wire_label()
-        || envelope.header_digest.bytes
-            != header.digest().map_err(protocol_error).map_err(js_error)?
-        || envelope.aad_digest.bytes != aad.digest().map_err(protocol_error).map_err(js_error)?
-    {
-        return Err(JsValue::from_str(
-            "ECDSA committed role envelope public binding does not match registration",
-        ));
-    }
-    let payload = decode_ecdsa_signer_envelope_hpke_payload_v1(&envelope.ciphertext.bytes)
-        .map_err(protocol_error)
-        .map_err(js_error)?;
-    let expected_identity = match expected_role {
-        EcdsaDeriverRoleV1::A => header.signer_set().signer_a(),
-        EcdsaDeriverRoleV1::B => header.signer_set().signer_b(),
-    };
-    if payload.recipient_role != expected_role
-        || payload.key_epoch != expected_identity.key_epoch
-        || payload.recipient_public_key != expected_recipient_public_key
-        || payload.aad_digest != envelope.aad_digest.bytes
-    {
-        return Err(JsValue::from_str(
-            "ECDSA committed role envelope role or AAD digest is invalid",
-        ));
-    }
-    let plaintext = open_ecdsa_signer_envelope_v1(&payload, &aad, recipient_private_key)
-        .map_err(protocol_error)
-        .map_err(js_error)?;
-    header
-        .validate_deriver_plaintext_v1(expected_role, &plaintext)
-        .map_err(protocol_error)
-        .map_err(js_error)?;
-    Ok(Zeroizing::new(plaintext))
 }
 
 #[derive(Debug, Deserialize)]
@@ -864,15 +673,6 @@ struct RegistrationRequestWireV1 {
     deriver_b_envelope: EnvelopeWireV1,
 }
 
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct OrdinaryRoleEnvelopeOpenInputV1 {
-    registration_request: RegistrationRequestWireV1,
-    material_activation_id: String,
-    deriver_a_client_package: EnvelopeWireV1,
-    deriver_b_client_package: EnvelopeWireV1,
-}
-
 #[derive(Serialize)]
 struct ExplicitExportRequestWireV1 {
     context: ContextInputV1,
@@ -1128,12 +928,6 @@ fn decode_fixed_base64<const N: usize>(value: &str, field_name: &str) -> Result<
     decoded
         .try_into()
         .map_err(|_| js_error(format!("{field_name} must decode to {N} bytes")))
-}
-
-fn parse_32(value: &[u8], field_name: &str) -> Result<[u8; 32], JsValue> {
-    value
-        .try_into()
-        .map_err(|_| js_error(format!("{field_name} must contain exactly 32 bytes")))
 }
 
 fn decode_hex_fixed<const N: usize>(value: &str, field_name: &str) -> Result<[u8; N], JsValue> {
