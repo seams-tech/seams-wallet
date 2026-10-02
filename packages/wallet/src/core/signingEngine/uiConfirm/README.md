@@ -17,22 +17,22 @@
 
 ## Must Not Import
 
-`SigningEngine.ts`, `assembly/*`, `flows/*`, retired folders, or broad internal
+`assembly/*`, `flows/*`, retired folders, or broad internal
 barrels.
 
 ## Entrypoints
 
 - `UiConfirmManager.ts`
-- `types.ts`
+- `uiConfirm.types.ts`
 - `awaitUserConfirmation.ts`
 - `warmSessionUiConfirm.ts`
 
 ## Current Structure
 
 ```text
-client/src/core/signingEngine/uiConfirm/
+packages/wallet/src/core/signingEngine/uiConfirm/
 ├── README.md
-├── types.ts                     # public uiConfirm ports/types
+├── uiConfirm.types.ts           # public uiConfirm ports/types
 ├── UiConfirmManager.ts          # concrete manager implementation
 ├── awaitUserConfirmation.ts     # worker-side handshake bridge (awaitUserConfirmationV2)
 ├── handlers/
@@ -54,8 +54,8 @@ client/src/core/signingEngine/uiConfirm/
     └── preact/*
 ```
 
-Transaction display formatting now lives under `client/src/core/signingEngine/chains/*`.
-The shared display model lives in `client/src/core/signingEngine/interfaces/display.ts`.
+Transaction display formatting now lives under `packages/wallet/src/core/signingEngine/chains/*`.
+The shared display model lives in `packages/wallet/src/core/signingEngine/interfaces/display.ts`.
 
 ## Runtime Sequence
 

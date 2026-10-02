@@ -11,14 +11,14 @@ and Email OTP prompt/auth-plan flows.
 
 ## Must Not Import
 
-`SigningEngine.ts`, `assembly/*`, `flows/*`, session lifecycle modules,
+`assembly/*`, `flows/*`, session lifecycle modules,
 `session/emailOtp/*`, `threshold/*`, `chains/*`, `nonce/*`, `workerManager/*`,
 or concrete `uiConfirm/*` runtime internals.
 
 ## Entrypoints
 
 Current entrypoints: `confirmOperation.ts`, `types.ts`, `channel/confirmTypes.ts`,
-`intentDigestPreparation.ts`, `walletAuthPolicyError.ts`, `passkeyPrompt/*`,
+`intentDigestPreparation.ts`, `passkeyPrompt/*`,
 and `otpPrompt/*`.
 
 ## Auth Method Rule

@@ -12,7 +12,7 @@ material, and protocol crypto helper material.
 
 ## Must Not Import
 
-`SigningEngine.ts`, `assembly/*`, `flows/*`, `stepUpConfirmation/*`, `chains/*`,
+`assembly/*`, `flows/*`, `stepUpConfirmation/*`, `chains/*`,
 `nonce/*`, or session lifecycle modules.
 
 ## Entrypoints

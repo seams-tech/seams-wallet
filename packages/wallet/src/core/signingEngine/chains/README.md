@@ -13,7 +13,7 @@ needed.
 
 ## Must Not Import
 
-`SigningEngine.ts`, `assembly/*`, `flows/*`, `stepUpConfirmation/*`, `threshold/*`,
+`assembly/*`, `flows/*`, `stepUpConfirmation/*`, `threshold/*`,
 or session lifecycle modules.
 
 ## Entrypoints

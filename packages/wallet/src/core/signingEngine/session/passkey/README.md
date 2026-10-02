@@ -15,16 +15,13 @@ threshold types.
 
 ## Must Not Import
 
-`SigningEngine.ts`, `assembly/*`, `flows/*`, `stepUpConfirmation/*`, or
+`assembly/*`, `flows/*`, `stepUpConfirmation/*`, or
 `session/emailOtp/*`.
 
 ## Entrypoints
 
 - `public.ts`
 - `prfCache.ts`
-- `prfClaim.ts`
-- `runtime.ts`
-- `ecdsaProvisioner.ts`
 - `ed25519Provisioner.ts`
 - `ecdsaBootstrap.ts`
 - `ecdsaWarmCapabilityBootstrap.ts`

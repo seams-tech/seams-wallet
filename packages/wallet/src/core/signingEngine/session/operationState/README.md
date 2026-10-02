@@ -12,7 +12,7 @@ types.
 
 ## Must Not Import
 
-`SigningEngine.ts`, `assembly/*`, `flows/*`, chain operation modules,
+`assembly/*`, `flows/*`, chain operation modules,
 `threshold/*`, concrete confirmation runtime modules, or worker managers.
 
 ## Entrypoints
@@ -20,7 +20,5 @@ types.
 - `types.ts`
 - `lanes.ts`
 - `preparedOperation.ts`
-- `postSignPolicy.ts`
-- `warmSessionPolicyAdapter.ts`
 - `transactionState.ts`
 - `trace.ts`

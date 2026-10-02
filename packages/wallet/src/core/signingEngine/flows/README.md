@@ -17,7 +17,6 @@
 
 ## Must Not Import
 
-- `SigningEngine.ts`
 - `assembly/*`
 - old `api/*`
 - old `orchestration/*`
@@ -29,7 +28,6 @@
 - `signNear/*`: NEAR signing flows.
 - `registration/*`: registration-facing credential confirmation and account lifecycle.
 - `shared/signingStateMachine.ts`: shared operation runner.
-- `shared/operationState.ts`: shared operation lifecycle state types.
 
 ## ECDSA Call Graph
 

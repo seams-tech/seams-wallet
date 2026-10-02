@@ -12,7 +12,7 @@ Shared SDK types and primitive runtime contracts.
 
 ## Must Not Import
 
-`SigningEngine.ts`, `assembly/*`, `flows/*`, concrete session lifecycle
+`assembly/*`, `flows/*`, concrete session lifecycle
 modules, confirmation runtimes, type-only protocol result contracts, chain
 serializers, nonce managers, or worker implementations.
 

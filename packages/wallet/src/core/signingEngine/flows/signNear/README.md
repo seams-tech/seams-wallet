@@ -14,7 +14,7 @@ normalization.
 
 ## Must Not Import
 
-`SigningEngine.ts`, `assembly/*`, EVM-family operation modules, old `api/*`, or
+`assembly/*`, EVM-family operation modules, old `api/*`, or
 old `orchestration/*`.
 
 ## Entrypoints
@@ -27,8 +27,7 @@ Supporting entrypoints: `signTransactions.ts`, `signDelegate.ts`,
 ## Stage Order
 
 1. Input normalization: `signNear.ts`.
-2. Lane selection and auth mode: `shared/signingSessionAuthMode.ts`,
-   `shared/routerAbEd25519WalletSessionState.ts`.
+2. Lane selection and auth mode: `shared/signingSessionAuthMode.ts`.
 3. Auth planning and confirmation: `signTransactions.ts`, `signDelegate.ts`,
    `signNep413.ts`. The delegate and NEP-413 flows share these steps in
    `shared/signatureOnlySigning.ts`.

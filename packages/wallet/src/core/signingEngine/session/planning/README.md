@@ -12,7 +12,7 @@ neutral digest helpers.
 
 ## Must Not Import
 
-Operation flows, `SigningEngine.ts`, assembly construction, persistence writes,
+Operation flows, assembly construction, persistence writes,
 threshold protocol entrypoints, or warm-session lifecycle modules.
 
 ## Entrypoints

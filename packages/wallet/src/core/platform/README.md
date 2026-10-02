@@ -9,7 +9,6 @@ randomness without letting core signing code import browser implementations.
 
 - `browser/`: web implementation backed by browser APIs and browser signing
   workers.
-- `embedded/`: device-local runtime notes for the separate Rust embedded SDK.
 - `generated/`: signer-core command schemas generated from Rust.
 
 ## Rules

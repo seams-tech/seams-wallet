@@ -14,7 +14,7 @@ ports, runtime startup, and resource warmup.
 
 ## Must Not Import
 
-`SigningEngine.ts`, retired `api/*`, retired `orchestration/*`, and broad
+Retired `api/*`, retired `orchestration/*`, and broad
 internal barrels. `assembly/*` may depend on flow-facing public entrypoints and
 typed operation binders; it should not reach into unrelated deep flow internals
 as a convenience layer.
@@ -25,5 +25,4 @@ as a convenience layer.
 - `createPorts.ts`
 - `ports/*`
 - `ports/stepUpRuntime.ts`
-- `createSigningEngineRuntime.ts`
 - `warmup.ts`

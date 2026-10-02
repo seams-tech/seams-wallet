@@ -15,7 +15,7 @@ verification, and policy checks live under `session/sealedRecovery/*`.
 
 ## Must Not Import
 
-`SigningEngine.ts`, `assembly/*`, `flows/*`, broad `stepUpConfirmation/*` imports outside
+`assembly/*`, `flows/*`, broad `stepUpConfirmation/*` imports outside
 `otpPrompt/*`, or
 `session/passkey/*`.
 

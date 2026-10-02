@@ -12,7 +12,7 @@ types.
 
 ## Must Not Import
 
-`SigningEngine.ts`, `assembly/*`, `flows/*`, `stepUpConfirmation/*`, `chains/*`, or
+`assembly/*`, `flows/*`, `stepUpConfirmation/*`, `chains/*`, or
 chain operation modules.
 
 ## Entrypoints
@@ -21,7 +21,7 @@ chain operation modules.
 NEAR restore and available-lane reads.
 
 Current child owners are explicit folders:
-`identity/*`, `availability/*`, `planning/*`, `budget/*`, `persistence/*`,
+`identity/*`, `availability/*`, `planning/*`, `persistence/*`,
 `sealedRecovery/*`, `operationState/*`, `warmCapabilities/*`, `passkey/*`, and
 `emailOtp/*`.
 
@@ -38,7 +38,7 @@ Current child owners are explicit folders:
 - Budget status: `budget/budget.ts` and `budget/budgetStatusReader.ts`; the
   relayer owns authorized-operation admission and quota consumption.
 - Signing operation state: `operationState/types.ts`,
-  `operationState/preparedOperation.ts`, `operationState/postSignPolicy.ts`,
+  `operationState/preparedOperation.ts`,
   `operationState/transactionState.ts`, and `operationState/trace.ts`.
 - Sealed recovery and persistence: `sealedRecovery/restoreCoordinator.ts`,
   `sealedRecovery/sealedRecovery.types.ts`, `sealedRecovery/exactRecordLookup.ts`,
@@ -58,8 +58,7 @@ Current child owners are explicit folders:
 - Warm capabilities: `warmCapabilities/*` for warm-session material,
   sealed-refresh parity, provisioning, runtime reads, status reads, capability
   state, and the warm-session public facade in `warmCapabilities/public.ts`.
-- Passkey method helpers: `passkey/prfCache.ts`, `passkey/runtime.ts`,
-  `passkey/ecdsaProvisioner.ts`, `passkey/ed25519Provisioner.ts`,
+- Passkey method helpers: `passkey/prfCache.ts`, `passkey/ed25519Provisioner.ts`,
   `passkey/ecdsaBootstrap.ts`, `passkey/ecdsaWarmCapabilityBootstrap.ts`,
   `passkey/ecdsaSessionProvision.ts`, `passkey/ed25519SessionProvision.ts`,
   and `passkey/ecdsaRecovery.ts`.

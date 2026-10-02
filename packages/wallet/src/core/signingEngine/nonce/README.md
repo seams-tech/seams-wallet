@@ -10,7 +10,7 @@ Nonce persistence/RPC dependencies and primitive types.
 
 ## Must Not Import
 
-`SigningEngine.ts`, `assembly/*`, `flows/*`, `session/*`, `stepUpConfirmation/*`,
+`assembly/*`, `flows/*`, `session/*`, `stepUpConfirmation/*`,
 `threshold/*`, or `chains/*`.
 
 ## Entrypoints

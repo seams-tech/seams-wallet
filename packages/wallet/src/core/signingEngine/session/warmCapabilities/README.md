@@ -14,7 +14,7 @@ to persist or claim warm material.
 
 ## Must Not Import
 
-`SigningEngine.ts`, `assembly/*`, `flows/*`, chain operation modules, or UI
+`assembly/*`, `flows/*`, chain operation modules, or UI
 prompt construction modules.
 
 ## Entrypoints
@@ -22,6 +22,5 @@ prompt construction modules.
 - `public.ts`
 - `statusReader.ts`
 - `capabilityReader.ts`
-- `persistence.ts`
 - `ecdsaBootstrapPersistence.ts`
 - `ecdsaLoginPrefill.ts`

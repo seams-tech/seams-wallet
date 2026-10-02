@@ -12,7 +12,7 @@ primitives, and `workerManager/*` validation contracts.
 
 ## Must Not Import
 
-`SigningEngine.ts`, `assembly/*`, `session/*`, `threshold/*`, `nonce/*`, or
+`assembly/*`, `session/*`, `threshold/*`, `nonce/*`, or
 unrelated signing operation folders.
 
 ## Entrypoints

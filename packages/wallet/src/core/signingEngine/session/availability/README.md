@@ -12,7 +12,7 @@ read models, planning primitives, budget primitives, and runtime status ports.
 
 ## Must Not Import
 
-Operation flows, `SigningEngine.ts`, assembly construction, or threshold
+Operation flows, assembly construction, or threshold
 protocol entrypoints.
 
 ## Entrypoints

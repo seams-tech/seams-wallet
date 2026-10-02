@@ -63,9 +63,7 @@ When you call methods like `registerPasskey()` or `signTransaction()`, the reque
 
 #### 5. **Supporting Infrastructure**
 
-- **`validation.ts`** - Type guards and validation utilities for message payloads
 - **`sanitization.ts`** - Security utilities for HTML and URL sanitization
-- **`env.ts`** - Environment variable reading for wallet configuration
 - **`html.ts`** - Generates minimal HTML for the wallet service page
 
 ### Data Flow Architecture

@@ -13,7 +13,7 @@ shared validation helpers.
 
 ## Must Not Import
 
-`SigningEngine.ts`, `assembly/*`, `flows/*`, `session/*`, `threshold/*`,
+`assembly/*`, `flows/*`, `session/*`, `threshold/*`,
 `chains/*`, `nonce/*`, `stepUpConfirmation/*` orchestration logic, or
 confirmation/runtime flow modules.
 
