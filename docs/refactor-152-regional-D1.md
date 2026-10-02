@@ -106,6 +106,10 @@ items above stay open until route and cross-authority contracts are complete.
 - [ ] Connect authenticated registration and shared-identity admission to this
   directory, then switch all hosted and lifecycle paths together with removal
   of namespace placement. The new directory is not yet used by hosted requests.
+- [x] Remove Console's namespace reservation gate, historical home-adoption
+  path and effective-schema table, while preserving provider writer proof and
+  binding/resource checks. Private focused E2Es and type checks passed. Hosted
+  routing remains single-D1 until the directory integration is complete.
 
 This foundation does not close R1–R7, does not measure geographic latency, and
 leaves the release held. No hosted schema reset, deployment or publication occurred.

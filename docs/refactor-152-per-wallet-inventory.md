@@ -20,7 +20,10 @@ the reservation and prevents a late completion from establishing it elsewhere.
 The directory is an internal persistence primitive. Its inputs must come from the
 authenticated placement service; parsing a key or resource does not authenticate
 it or prove deployment admission. Hosted entrypoints are not switched yet.
-The old namespace ownership is still present pending replacement of its callers.
+The old namespace reservation gate and its adoption route were removed from
+Console code and the effective schema by private migration `0052`; deployment
+resource verification remains. Hosted Gateway and Wallet Runtime still use one
+signer D1 binding per lane, so no wallet request uses the new directory yet.
 No migration or deployment has been run against hosted databases.
 
 The private `wallet-home-directory.e2e.test.ts` uses two Worker transports and
@@ -85,6 +88,22 @@ or custody preparation idempotent. Both supplied-ID and Google candidate-selecti
 paths must adopt the same contract. Shared credential/recovery routing indexes
 and their transaction reconciliation remain open, followed by hosted routing and
 namespace-path deletion. This checkpoint does not close those gates.
+
+## Namespace assignment removal checkpoint
+
+The private Console no longer reserves one database for a whole namespace.
+`0052_drop_namespace_placement.sql` removes the old table and activation trigger
+from the effective schema. Activation still checks the canonical binding resource
+and a fresh proof from both serving Workers. The historical binding-home adoption
+endpoint, operator mode, parser, persistence conversion and tests of namespace
+exclusivity were deleted. The parsed deployment resource identity has its own
+name, separate from a wallet home.
+
+Focused E2Es passed for regional writer challenges, binding reads/activation,
+and three independent wallet homes in one tenant. Console, fixture and shared
+type checks and private `pnpm check` passed. This does not close R1–R7: the
+hosted registration path, lookup indexes, wallet-local routing and regional
+deployments still require implementation and verification.
 
 ## Authority and transaction seams
 
