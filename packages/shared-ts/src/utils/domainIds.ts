@@ -34,10 +34,6 @@ export type ChallengeSubjectId = DomainId<'ChallengeSubjectId'>;
 // must not be used as the provider subject that owns the challenge.
 export type EmailOtpChallengeId = DomainId<'EmailOtpChallengeId'>;
 
-// Hosted Email OTP registration-attempt handle. This is a server-side attempt
-// pointer, distinct from both the OTP challenge id and the wallet id.
-export type EmailOtpRegistrationAttemptId = DomainId<'EmailOtpRegistrationAttemptId'>;
-
 // Tenant or organization scope for hosted auth and wallet records. This must
 // stay separate from wallet ids and provider subjects.
 export type OrgId = DomainId<'OrgId'>;
@@ -276,12 +272,6 @@ export function parseChallengeSubjectId(raw: unknown): DomainIdParseResult<Chall
 
 export function parseEmailOtpChallengeId(raw: unknown): DomainIdParseResult<EmailOtpChallengeId> {
   return parseDomainId(raw, 'emailOtpChallengeId');
-}
-
-export function parseEmailOtpRegistrationAttemptId(
-  raw: unknown,
-): DomainIdParseResult<EmailOtpRegistrationAttemptId> {
-  return parseDomainId(raw, 'emailOtpRegistrationAttemptId');
 }
 
 export function parseOrgId(raw: unknown): DomainIdParseResult<OrgId> {

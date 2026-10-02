@@ -1,28 +1,8 @@
-// The tenant-scoped D1 plumbing the core stores share: a store's key prefix, which is also its D1
-// namespace; its tenant scope; its schema, created on first use; and statements that bind the
-// scope ahead of their own values.
+// The tenant-scoped D1 plumbing the core stores share: a store's tenant scope; its schema, created
+// on first use; and statements that bind the scope ahead of their own values.
 import { toOptionalTrimmedString } from '@shared/utils/validation';
-import { THRESHOLD_PREFIX_DEFAULT } from './defaultConfigsServer';
-import { toPrefixWithColon } from './ThresholdService/validation';
 import { formatD1ExecStatement } from '../storage/d1Sql';
 import type { D1DatabaseLike, D1PreparedStatementLike } from '../storage/tenantRoute';
-
-/**
- * A store's key prefix, which is also its D1 namespace: the first of `explicitKeys` set in
- * `config`, else `<THRESHOLD_PREFIX>:<segment>`. It always ends with a colon.
- */
-export function resolveStorePrefix(
-  config: Record<string, unknown>,
-  explicitKeys: readonly string[],
-  segment: string,
-): string {
-  for (const key of explicitKeys) {
-    const explicit = toOptionalTrimmedString(config[key]);
-    if (explicit) return toPrefixWithColon(explicit, '');
-  }
-  const base = toOptionalTrimmedString(config.THRESHOLD_PREFIX) || THRESHOLD_PREFIX_DEFAULT;
-  return `${toPrefixWithColon(base, `${THRESHOLD_PREFIX_DEFAULT}:`)}${segment}`;
-}
 
 /** The tenant scope that leads the key of every D1 table. */
 export type D1TenantScope = {
@@ -61,23 +41,6 @@ function requireD1TenantScope(
     projectId: field(input.projectId, 'projectId'),
     envId: field(input.envId, 'envId'),
   };
-}
-
-/** The scope env-shaped store config names (`orgId` or `ORG_ID`, and so on) under `namespace`. */
-export function d1TenantScopeFromConfig(
-  config: Record<string, unknown>,
-  namespace: string,
-  store: string,
-): D1TenantScope {
-  return requireD1TenantScope(
-    {
-      namespace,
-      orgId: config.orgId || config.ORG_ID,
-      projectId: config.projectId || config.PROJECT_ID,
-      envId: config.envId || config.ENV_ID,
-    },
-    store,
-  );
 }
 
 export async function ensureD1Schema(

@@ -5,7 +5,6 @@ import {
   OriginPolicyInput,
 } from '@shared/utils/authenticatorOptions';
 import type { InitInput } from '../../../../wasm/near_signer/pkg/wasm_signer_worker.js';
-import type { Logger } from './logger';
 import type { Ed25519AuthorityScope } from '@shared/threshold/sessionPolicy';
 import type { RuntimePolicyScope } from '@shared/threshold/signingRootScope';
 import type {
@@ -54,26 +53,6 @@ export type SignerWasmModuleSupplier =
   | Promise<InitInput>
   | (() => InitInput | Promise<InitInput>);
 
-export interface SignerWasmConfig {
-  /**
-   * Optional override for locating the signer WASM module. Useful for serverless
-   * runtimes (e.g. Workers) where filesystem-relative URLs are unavailable.
-   * Accepts any value supported by `initSignerWasm({ module_or_path })` or a
-   * function that resolves to one.
-   */
-  moduleOrPath?: SignerWasmModuleSupplier;
-}
-
-// ================================
-// Threshold Ed25519 key persistence
-// ================================
-
-export type ThresholdEd25519KeyStoreKind =
-  | 'in-memory'
-  | 'upstash-redis-rest'
-  | 'redis-tcp'
-  | 'cloudflare-do';
-
 // Structural types so Workers can pass Durable Object bindings without depending on CF type packages.
 export interface CloudflareDurableObjectStubLike {
   fetch(input: RequestInfo, init?: RequestInit): Promise<Response>;
@@ -84,191 +63,10 @@ export interface CloudflareDurableObjectNamespaceLike {
   get(id: unknown): CloudflareDurableObjectStubLike;
 }
 
-export type ThresholdStoreConfig =
-  | { kind: 'in-memory' }
-  | { kind: 'upstash-redis-rest'; url: string; token: string; keyPrefix?: string }
-  | { kind: 'redis-tcp'; redisUrl: string; keyPrefix?: string }
-  | {
-      kind: 'cloudflare-do';
-      /**
-       * Durable Object namespace binding (e.g. `env.THRESHOLD_STORE`).
-       * Must point to a DO class implementing the SDK's threshold store protocol.
-       */
-      namespace: CloudflareDurableObjectNamespaceLike;
-      /**
-       * Optional DO instance name. Defaults to `threshold-store`.
-       * Use different names to isolate environments within the same Worker script.
-       */
-      name?: string;
-    };
-
-/**
- * Env-shaped input for threshold key store selection.
- * - Upstash REST (Cloudflare-friendly): UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN
- * - Redis TCP (Node-only): REDIS_URL
- */
-export type ThresholdStoreEnvInput = {
-  UPSTASH_REDIS_REST_URL?: string;
-  UPSTASH_REDIS_REST_TOKEN?: string;
-  REDIS_URL?: string;
-  /**
-   * Optional global base prefix for all threshold keyspaces.
-   *
-   * When set, and the more specific `THRESHOLD_ED25519_*_PREFIX` variables are not set,
-   * the SDK derives:
-   * - `THRESHOLD_ED25519_WALLET_SESSION_PREFIX` = `${THRESHOLD_PREFIX}:threshold-ed25519:wallet-session:`
-   * - `THRESHOLD_ED25519_SESSION_PREFIX` = `${THRESHOLD_PREFIX}:threshold-ed25519:sess:`
-   * - `THRESHOLD_ED25519_KEYSTORE_PREFIX` = `${THRESHOLD_PREFIX}:threshold-ed25519:key:`
-   * - `THRESHOLD_WALLET_SIGNING_BUDGET_SESSION_PREFIX` = `${THRESHOLD_PREFIX}:wallet-session:budget:`
-   *
-   * Trailing `:` is optional.
-   */
-  THRESHOLD_PREFIX?: string;
-  THRESHOLD_ED25519_KEYSTORE_PREFIX?: string;
-  THRESHOLD_ED25519_SESSION_PREFIX?: string;
-  THRESHOLD_ED25519_WALLET_SESSION_PREFIX?: string;
-  THRESHOLD_WALLET_SIGNING_BUDGET_SESSION_PREFIX?: string;
-  /**
-   * Ed25519 relayer-share source mode. This remains Ed25519-specific because
-   * it controls the Ed25519 threshold signing protocol, not the shared store.
-   */
-  THRESHOLD_ED25519_SHARE_MODE?: string;
-  /**
-   * Optional prefixes for threshold ECDSA key/session/Wallet Session storage.
-   * Defaults derive from `THRESHOLD_PREFIX` with a `threshold-ecdsa:*` namespace when unset.
-   */
-  THRESHOLD_ECDSA_KEYSTORE_PREFIX?: string;
-  THRESHOLD_ECDSA_SESSION_PREFIX?: string;
-  THRESHOLD_ECDSA_WALLET_SESSION_PREFIX?: string;
-  /**
-   * Optional override for the client participant identifier (u16, >= 1).
-   * Must be distinct from `THRESHOLD_ED25519_RELAYER_PARTICIPANT_ID`.
-   */
-  THRESHOLD_ED25519_CLIENT_PARTICIPANT_ID?: string;
-  /**
-   * Optional override for the relayer participant identifier (u16, >= 1).
-   * Must be distinct from `THRESHOLD_ED25519_CLIENT_PARTICIPANT_ID`.
-   */
-  THRESHOLD_ED25519_RELAYER_PARTICIPANT_ID?: string;
-  /**
-   * Optional Router A/B Ed25519 normal-signing SigningWorker id accepted by
-   * threshold session policy. When unset, Router A/B normal-signing session
-   * policy is rejected.
-   */
-  ROUTER_AB_NORMAL_SIGNING_WORKER_ID?: string;
-  /** Private Router A/B SigningWorker base URL. */
-  ROUTER_AB_SIGNING_WORKER_URL?: string;
-  /** Secret value sent in `x-router-ab-internal-service-auth` to private workers. */
-  ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET?: string;
-  /** Fetch transport for hosted runtimes that reach the SigningWorker through a service binding. */
-  routerAbSigningWorkerFetch?: typeof globalThis.fetch;
-  /** Signing-session seal root plus public rotation configuration. */
-  SIGNING_SESSION_SEAL_ROOT_SECRET_B64U?: string;
-  SIGNING_SESSION_SEAL_CURRENT_KEY_VERSION?: string;
-  SIGNING_SESSION_SEAL_ACCEPTED_WARM_KEY_VERSIONS?: string;
-  /** Optional signing session-seal idempotency backend configuration. */
-  SIGNING_SESSION_SEAL_IDEMPOTENCY_KIND?: string;
-  SIGNING_SESSION_SEAL_IDEMPOTENCY_UPSTASH_URL?: string;
-  SIGNING_SESSION_SEAL_IDEMPOTENCY_UPSTASH_TOKEN?: string;
-  SIGNING_SESSION_SEAL_IDEMPOTENCY_REDIS_URL?: string;
-  SIGNING_SESSION_SEAL_IDEMPOTENCY_KEY_PREFIX?: string;
-  SIGNING_SESSION_SEAL_IDEMPOTENCY_TTL_MS?: string;
-};
-
-/**
- * Threshold key store config input.
- *
- * Accepts either:
- * - an env-shaped object (for ergonomics in server examples), or
- * - an explicit `kind` object, optionally augmented with env-shaped overrides
- *   (useful when wiring via code but still wanting env vars like THRESHOLD_PREFIX).
- */
-export type ThresholdStoreConfigInput =
-  | ThresholdStoreEnvInput
-  | (ThresholdStoreConfig & Partial<ThresholdStoreEnvInput>);
-
-export interface AuthServiceConfig {
-  relayerAccount: string;
-  relayerPrivateKey: string;
-  nearRpcUrl: string;
-  networkId: string;
-  accountInitialBalance: string;
-  createAccountAndRegisterGas: string;
-  signerWasm?: SignerWasmConfig;
-  /**
-   * Optional persistence for relayer-held threshold signing shares.
-   * Defaults to in-memory unless env-shaped config enables Redis/Upstash.
-   */
-  thresholdStore?: ThresholdStoreConfigInput;
-  /**
-   * Optional logger. When unset, the server SDK is silent (no `console.*`).
-   * Pass `logger: console` to enable default logging.
-   */
-  logger?: Logger | null;
-  /**
-   * Optional Google OIDC configuration for verifying Google `id_token` login sessions.
-   */
-  googleOidc?: GoogleOidcConfig;
-  /**
-   * Optional GitHub OAuth configuration for exchanging authorization codes.
-   */
-  githubOAuth?: GithubOAuthConfig;
-}
-
-export type GoogleOidcConfig = {
-  /** Allowed OAuth client ids (audiences) for Google ID tokens. */
-  clientIds: string[];
-  /** Optional hosted domain allowlist (the `hd` claim). */
-  hostedDomains?: string[];
-};
-
-export interface GoogleOidcConfigEnvInput {
-  /** Single client id convenience. */
-  GOOGLE_OIDC_CLIENT_ID?: string;
-  /** Comma-separated client ids. */
-  GOOGLE_OIDC_CLIENT_IDS?: string;
-  /** Optional comma-separated hosted domains (`hd` claim). */
-  GOOGLE_OIDC_HOSTED_DOMAINS?: string;
-}
-
-export type GoogleOidcConfigInput = GoogleOidcConfig | GoogleOidcConfigEnvInput;
-
 export type GithubOAuthConfig = {
   clientId: string;
   clientSecret: string;
   callbackUrl: string;
-};
-
-export interface GithubOAuthConfigEnvInput {
-  GITHUB_OAUTH_CLIENT_ID?: string;
-  GITHUB_OAUTH_CLIENT_SECRET?: string;
-  GITHUB_OAUTH_CALLBACK_URL?: string;
-}
-
-export type GithubOAuthConfigInput = GithubOAuthConfig | GithubOAuthConfigEnvInput;
-
-/**
- * User-facing input shape for `AuthService`. Fields that have SDK defaults are optional here.
- *
- * Defaults are applied by `createAuthServiceConfig(...)` and the AuthService constructor.
- */
-export type AuthServiceConfigInput = Omit<
-  AuthServiceConfig,
-  | 'nearRpcUrl'
-  | 'networkId'
-  | 'accountInitialBalance'
-  | 'createAccountAndRegisterGas'
-  | 'thresholdStore'
-  | 'googleOidc'
-  | 'githubOAuth'
-> & {
-  nearRpcUrl?: string;
-  networkId?: string;
-  accountInitialBalance?: string;
-  createAccountAndRegisterGas?: string;
-  thresholdStore?: ThresholdStoreConfigInput;
-  googleOidc?: GoogleOidcConfigInput;
-  githubOAuth?: GithubOAuthConfigInput;
 };
 
 // Account creation and registration types shared by Router API flows.

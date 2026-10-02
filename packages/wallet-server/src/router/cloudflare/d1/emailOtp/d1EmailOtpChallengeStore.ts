@@ -44,7 +44,7 @@ type EmailOtpRegistrationVerificationReceiptConsumeResult =
   | { readonly kind: 'conflict' }
   | { readonly kind: 'challenge_missing' };
 
-export type EmailOtpChallengeContextInput = {
+type EmailOtpChallengeContextInput = {
   readonly challengeSubjectId: string;
   readonly walletId: string;
   readonly orgId: string;

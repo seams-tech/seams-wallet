@@ -4,7 +4,6 @@ import type {
   DomainIdParseResult,
   EcdsaActiveStateId,
   EmailOtpChallengeId,
-  EmailOtpRegistrationAttemptId,
   GoogleProviderSubject,
   LaneShareEpoch,
   LinkedDeviceId,
@@ -64,7 +63,6 @@ declare const verifiedGoogleEmail: VerifiedGoogleEmail;
 declare const challengeSubjectId: ChallengeSubjectId;
 declare const orgId: OrgId;
 declare const emailOtpChallengeId: EmailOtpChallengeId;
-declare const registrationAttemptId: EmailOtpRegistrationAttemptId;
 declare const walletSessionId: WalletSessionId;
 declare const thresholdEd25519SessionId: ThresholdEd25519SessionId;
 declare const thresholdEcdsaSessionId: ThresholdEcdsaSessionId;
@@ -125,10 +123,6 @@ function acceptsChallengeSubjectId(value: ChallengeSubjectId): void {
 }
 
 function acceptsEmailOtpChallengeId(value: EmailOtpChallengeId): void {
-  void value;
-}
-
-function acceptsEmailOtpRegistrationAttemptId(value: EmailOtpRegistrationAttemptId): void {
   void value;
 }
 
@@ -226,7 +220,6 @@ acceptsVerifiedGoogleEmail(verifiedGoogleEmail);
 acceptsChallengeSubjectId(challengeSubjectId);
 acceptsOrgId(orgId);
 acceptsEmailOtpChallengeId(emailOtpChallengeId);
-acceptsEmailOtpRegistrationAttemptId(registrationAttemptId);
 acceptsWalletSessionId(walletSessionId);
 acceptsThresholdEd25519SessionId(thresholdEd25519SessionId);
 acceptsThresholdEcdsaSessionId(thresholdEcdsaSessionId);
@@ -317,12 +310,6 @@ acceptsChallengeSubjectId(emailOtpChallengeId);
 
 // @ts-expect-error Organization ids are not wallet ids.
 acceptsWalletId(orgId);
-
-// @ts-expect-error Registration attempt ids are not OTP challenge ids.
-acceptsEmailOtpChallengeId(registrationAttemptId);
-
-// @ts-expect-error OTP challenge ids are not registration attempt ids.
-acceptsEmailOtpRegistrationAttemptId(emailOtpChallengeId);
 
 // @ts-expect-error Wallet Session ids are not threshold Ed25519 session ids.
 acceptsThresholdEd25519SessionId(walletSessionId);

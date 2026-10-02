@@ -6,7 +6,6 @@ import {
   MAX_WALLET_SESSION_TTL_MS,
 } from '@shared/threshold/sessionPolicy';
 import {
-  parseRouterAbNormalSigningServerPolicy,
   validateRouterAbNormalSigningServerPolicy,
   type ParseResult,
   type RouterAbNormalSigningServerPolicy,
@@ -34,17 +33,6 @@ export type RouterAbConfiguredSigningWorkerPrivateTransport = Extract<
   RouterAbSigningWorkerPrivateTransport,
   { readonly kind: 'configured' }
 >;
-
-export function requireRouterAbConfiguredSigningWorkerPrivateTransport(
-  transport: RouterAbSigningWorkerPrivateTransport,
-): RouterAbConfiguredSigningWorkerPrivateTransport {
-  if (transport.kind !== 'configured') {
-    throw new Error(
-      'InvalidLocalServiceConfig: ROUTER_AB_SIGNING_WORKER_URL and ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET are required for Router A/B ECDSA presign',
-    );
-  }
-  return transport;
-}
 
 type RouterAbNormalSigningRuntimeConfig = {
   readonly policy: RouterAbNormalSigningServerPolicy;
@@ -81,43 +69,6 @@ type RouterAbClampedSessionPolicy = {
   readonly ttlMs: number;
   readonly remainingUses: number;
 };
-
-function parseSigningWorkerTransport(
-  config: Readonly<Record<string, unknown>>,
-): RouterAbSigningWorkerPrivateTransport {
-  const signingWorkerBaseUrl = toOptionalTrimmedString(config.ROUTER_AB_SIGNING_WORKER_URL);
-  const secret = toOptionalTrimmedString(config.ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET);
-  const fetchImpl =
-    typeof config.routerAbSigningWorkerFetch === 'function'
-      ? (config.routerAbSigningWorkerFetch as typeof fetch)
-      : undefined;
-  if (!signingWorkerBaseUrl && !secret) return { kind: 'unconfigured' };
-  if (!signingWorkerBaseUrl) {
-    throw new Error(
-      'ROUTER_AB_SIGNING_WORKER_URL is required when Router A/B internal service auth is configured',
-    );
-  }
-  if (!secret) {
-    throw new Error(
-      'ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET is required when Router A/B SigningWorker URL is configured',
-    );
-  }
-  return {
-    kind: 'configured',
-    signingWorkerBaseUrl,
-    auth: { kind: 'internal_service_auth_secret', secret },
-    ...(fetchImpl ? { fetchImpl } : {}),
-  };
-}
-
-export function parseRouterAbNormalSigningRuntimeConfig(
-  config: Readonly<Record<string, unknown>>,
-): RouterAbNormalSigningRuntimeConfig {
-  return {
-    policy: parseRouterAbNormalSigningServerPolicy(config),
-    signingWorkerTransport: parseSigningWorkerTransport(config),
-  };
-}
 
 export class RouterAbNormalSigningRuntime {
   private readonly walletSessionStore: Ed25519WalletSessionStore;

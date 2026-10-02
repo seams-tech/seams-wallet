@@ -12,7 +12,7 @@ type WebAuthnVerificationFailure = {
   message: string;
 };
 
-export type WebAuthnLoginEd25519 =
+type WebAuthnLoginEd25519 =
   | { readonly kind: 'absent' }
   | {
       readonly kind: 'active';

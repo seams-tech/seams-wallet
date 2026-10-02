@@ -1,6 +1,5 @@
-// The Email OTP statements that both the core D1 stores (EmailOtpStores.ts) and the Cloudflare
-// D1 stores (router/cloudflare/d1/emailOtp) run. Each binds the tenant scope first, through the
-// caller's `prepare`, and the statement's own values after it.
+// The Email OTP statements the Cloudflare D1 stores (router/cloudflare/d1/emailOtp) run. Each binds
+// the tenant scope first, through the caller's `prepare`, and the statement's own values after it.
 import { EMAIL_OTP_CHANNEL } from '@shared/utils/emailOtpDomain';
 import type { D1PreparedStatementLike } from '../storage/tenantRoute';
 import { runtimePolicyScopeKey } from './EmailOtpRecords';
@@ -38,7 +37,7 @@ const INSERT_CHALLENGE_SQL = `INSERT INTO email_otp_challenges (
       )
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
-// The core store binds a parsed record, whose channel is always EMAIL_OTP_CHANNEL.
+// Binds a parsed record, whose channel is always EMAIL_OTP_CHANNEL.
 function challengeValues(record: EmailOtpChallengeRecord): readonly unknown[] {
   return [
     record.challengeId,
@@ -60,25 +59,6 @@ function challengeValues(record: EmailOtpChallengeRecord): readonly unknown[] {
 export const emailOtpChallengeRows = {
   insert: (prepare: ScopedD1Prepare, record: EmailOtpChallengeRecord) =>
     prepare(INSERT_CHALLENGE_SQL, challengeValues(record)),
-
-  upsert: (prepare: ScopedD1Prepare, record: EmailOtpChallengeRecord) =>
-    prepare(
-      `${INSERT_CHALLENGE_SQL}
-      ON CONFLICT (namespace, org_id, project_id, env_id, challenge_id)
-      DO UPDATE SET
-        challenge_subject_id = EXCLUDED.challenge_subject_id,
-        wallet_id = EXCLUDED.wallet_id,
-        record_org_id = EXCLUDED.record_org_id,
-        otp_channel = EXCLUDED.otp_channel,
-        owner_proof_binding_digest = EXCLUDED.owner_proof_binding_digest,
-        action = EXCLUDED.action,
-        operation = EXCLUDED.operation,
-        otp_code = EXCLUDED.otp_code,
-        record_json = EXCLUDED.record_json,
-        created_at_ms = EXCLUDED.created_at_ms,
-        expires_at_ms = EXCLUDED.expires_at_ms`,
-      challengeValues(record),
-    ),
 
   delete: (prepare: ScopedD1Prepare, challengeId: string) =>
     prepare(
@@ -128,35 +108,6 @@ export const emailOtpGrantRows = {
   insert: (prepare: ScopedD1Prepare, record: EmailOtpGrantRecord) =>
     prepare(INSERT_GRANT_SQL, grantValues(record)),
 
-  upsert: (prepare: ScopedD1Prepare, record: EmailOtpGrantRecord) =>
-    prepare(
-      `${INSERT_GRANT_SQL}
-      ON CONFLICT (namespace, org_id, project_id, env_id, grant_token)
-      DO UPDATE SET
-        user_id = EXCLUDED.user_id,
-        wallet_id = EXCLUDED.wallet_id,
-        record_org_id = EXCLUDED.record_org_id,
-        challenge_id = EXCLUDED.challenge_id,
-        action = EXCLUDED.action,
-        record_json = EXCLUDED.record_json,
-        issued_at_ms = EXCLUDED.issued_at_ms,
-        expires_at_ms = EXCLUDED.expires_at_ms`,
-      grantValues(record),
-    ),
-
-  select: (prepare: ScopedD1Prepare, grantToken: string) =>
-    prepare(
-      `SELECT record_json, expires_at_ms
-         FROM email_otp_grants
-        WHERE namespace = ?
-          AND org_id = ?
-          AND project_id = ?
-          AND env_id = ?
-          AND grant_token = ?
-        LIMIT 1`,
-      [grantToken],
-    ),
-
   consume: (prepare: ScopedD1Prepare, grantToken: string) =>
     prepare(
       `DELETE FROM email_otp_grants
@@ -166,17 +117,6 @@ export const emailOtpGrantRows = {
           AND env_id = ?
           AND grant_token = ?
       RETURNING record_json, expires_at_ms`,
-      [grantToken],
-    ),
-
-  delete: (prepare: ScopedD1Prepare, grantToken: string) =>
-    prepare(
-      `DELETE FROM email_otp_grants
-        WHERE namespace = ?
-          AND org_id = ?
-          AND project_id = ?
-          AND env_id = ?
-          AND grant_token = ?`,
       [grantToken],
     ),
 };
@@ -318,20 +258,6 @@ function unlockChallengeValues(record: EmailOtpUnlockChallengeRecord): readonly 
 export const emailOtpUnlockChallengeRows = {
   insert: (prepare: ScopedD1Prepare, record: EmailOtpUnlockChallengeRecord) =>
     prepare(INSERT_UNLOCK_CHALLENGE_SQL, unlockChallengeValues(record)),
-
-  upsert: (prepare: ScopedD1Prepare, record: EmailOtpUnlockChallengeRecord) =>
-    prepare(
-      `${INSERT_UNLOCK_CHALLENGE_SQL}
-      ON CONFLICT (namespace, org_id, project_id, env_id, challenge_id)
-      DO UPDATE SET
-        wallet_id = EXCLUDED.wallet_id,
-        user_id = EXCLUDED.user_id,
-        record_org_id = EXCLUDED.record_org_id,
-        record_json = EXCLUDED.record_json,
-        created_at_ms = EXCLUDED.created_at_ms,
-        expires_at_ms = EXCLUDED.expires_at_ms`,
-      unlockChallengeValues(record),
-    ),
 
   consume: (prepare: ScopedD1Prepare, challengeId: string) =>
     prepare(

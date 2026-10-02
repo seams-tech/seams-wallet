@@ -1,8 +1,8 @@
 # Server Package
 
-`AuthService` and the Router API implement wallet registration, built-in owner
-verification, opaque Wallet Sessions, signing admission, and recovery. Wallet
-application authentication is intentionally outside this package.
+The Router API implements wallet registration, built-in owner verification,
+opaque Wallet Sessions, signing admission, and recovery. Wallet application
+authentication is intentionally outside this package.
 
 ## Authorization model
 

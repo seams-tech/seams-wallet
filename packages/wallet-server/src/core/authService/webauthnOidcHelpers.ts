@@ -138,33 +138,3 @@ export function isHostWithinRpId(host: string, rpId: WebAuthnRpId): boolean {
   }
   return h === r || h.endsWith(`.${r}`);
 }
-
-export function parseCacheControlMaxAgeSec(cacheControl: string | null): number | null {
-  const s = String(cacheControl || '').trim();
-  if (!s) return null;
-  const m = s.match(/(?:^|,)\s*max-age=(\d+)\s*(?:,|$)/i);
-  if (!m) return null;
-  const n = Number(m[1]);
-  if (!Number.isFinite(n) || n <= 0) return null;
-  return Math.floor(n);
-}
-
-export function parseJwtSegmentJson(input: string): Record<string, unknown> | null {
-  try {
-    const raw = new TextDecoder().decode(base64UrlDecode(input));
-    const parsed = raw ? JSON.parse(raw) : null;
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
-      ? (parsed as Record<string, unknown>)
-      : null;
-  } catch {
-    return null;
-  }
-}
-
-export function parseJwtAud(input: unknown): string[] {
-  if (Array.isArray(input)) {
-    return input.map((v) => (typeof v === 'string' ? v.trim() : '')).filter(Boolean);
-  }
-  const single = String(input || '').trim();
-  return single ? [single] : [];
-}

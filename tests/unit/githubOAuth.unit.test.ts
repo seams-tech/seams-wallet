@@ -1,13 +1,26 @@
 import { expect, test } from '@playwright/test';
+import { DatabaseSync } from 'node:sqlite';
 import { verifyGithubOAuthCodeWithIdentityStore } from '../../packages/wallet-server/src/core/authService/githubOAuth';
-import { createIdentityStore } from '../../packages/wallet-server/src/core/IdentityStore';
-import { normalizeLogger } from '../../packages/wallet-server/src/core/logger';
+import { D1IdentityStore } from '../../packages/wallet-server/src/core/d1IdentityStore';
+import { nodeSqliteConnection } from '../../packages/wallet-server/src/router/node/nodeSqlite';
+import { createSyncSqliteDatabase } from '../../packages/wallet-server/src/storage/syncSqlite';
 
 const CONFIG = {
   clientId: 'github-client-id',
   clientSecret: 'github-client-secret',
   callbackUrl: 'https://example.localhost/dashboard/login',
 };
+
+/** The gateways' identity store, over an in-memory SQLite database. */
+function createIdentityStoreFixture(): D1IdentityStore {
+  return new D1IdentityStore({
+    database: createSyncSqliteDatabase(nodeSqliteConnection(new DatabaseSync(':memory:'))),
+    namespace: 'test',
+    orgId: 'org',
+    projectId: 'project',
+    envId: 'env',
+  });
+}
 
 async function mockGithubFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const url = String(input);
@@ -35,11 +48,7 @@ async function mockGithubFetch(input: RequestInfo | URL, init?: RequestInit): Pr
 }
 
 test('GitHub OAuth code exchange resolves and links a stable provider identity', async () => {
-  const identityStore = createIdentityStore({
-    config: { kind: 'in-memory' },
-    logger: normalizeLogger(null),
-    isNode: true,
-  });
+  const identityStore = createIdentityStoreFixture();
   const result = await verifyGithubOAuthCodeWithIdentityStore({
     request: { code: 'temporary-code' },
     config: CONFIG,
@@ -61,11 +70,7 @@ test('GitHub OAuth code exchange resolves and links a stable provider identity',
 });
 
 test('GitHub OAuth code exchange fails closed without complete configuration', async () => {
-  const identityStore = createIdentityStore({
-    config: { kind: 'in-memory' },
-    logger: normalizeLogger(null),
-    isNode: true,
-  });
+  const identityStore = createIdentityStoreFixture();
   await expect(
     verifyGithubOAuthCodeWithIdentityStore({
       request: { code: 'temporary-code' },

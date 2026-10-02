@@ -1,5 +1,4 @@
 import type { RouterAbEd25519NormalSigningState } from '@shared/utils/signingSessionSeal';
-import { toOptionalTrimmedString } from '@shared/utils/validation';
 import { failure } from '@shared/utils/failure';
 
 export type ParseOk<T> = { ok: true; value: T };
@@ -11,21 +10,6 @@ export type RouterAbNormalSigningServerPolicy =
     mode: 'enabled';
     signingWorkerId: string;
   };
-
-export function parseRouterAbNormalSigningServerPolicy(
-  config: Record<string, unknown>,
-): RouterAbNormalSigningServerPolicy {
-  const signingWorkerId = toOptionalTrimmedString(config.ROUTER_AB_NORMAL_SIGNING_WORKER_ID);
-  if (!signingWorkerId) {
-    throw new Error(
-      'Missing required server config: ROUTER_AB_NORMAL_SIGNING_WORKER_ID',
-    );
-  }
-  return {
-    mode: 'enabled',
-    signingWorkerId,
-  };
-}
 
 export function validateRouterAbNormalSigningServerPolicy(args: {
   requested: RouterAbEd25519NormalSigningState | undefined;

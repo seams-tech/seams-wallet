@@ -109,13 +109,6 @@ export function isD1DatabaseLike(value: unknown): value is D1DatabaseLike {
   );
 }
 
-export function resolveD1DatabaseFromConfig(config: Record<string, unknown>): D1DatabaseLike | null {
-  if (isD1DatabaseLike(config.database)) return config.database;
-  if (isD1DatabaseLike(config.metadataDatabase)) return config.metadataDatabase;
-  if (isD1DatabaseLike(config.SIGNER_DB)) return config.SIGNER_DB;
-  return null;
-}
-
 /**
  * Aborts the D1 batch it is in when the statement just before it changed no
  * row: it collides with the guard table's immutable singleton, and the

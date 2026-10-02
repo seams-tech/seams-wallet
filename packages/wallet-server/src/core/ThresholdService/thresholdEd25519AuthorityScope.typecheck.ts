@@ -1,11 +1,6 @@
 import type { Ed25519SessionPolicy, ThresholdEd25519AuthorityScope } from '../types';
 import type { WebAuthnRpId } from '@shared/utils/domainIds';
 import { buildPasskeyWalletAuthAuthority } from '@shared/utils/walletAuthAuthority';
-import type { ThresholdEd25519MpcSessionRecord } from './stores/SessionStore';
-import type {
-  ThresholdEd25519KeyRecord,
-  ThresholdEd25519ReadyKeyRecord,
-} from './stores/KeyStore';
 import type { Ed25519WalletSessionRecord } from './stores/WalletSessionStore';
 
 declare const rpId: WebAuthnRpId;
@@ -39,43 +34,8 @@ const walletSession: Ed25519WalletSessionRecord = {
   participantIds: [1, 2],
 };
 
-const mpcSession: ThresholdEd25519MpcSessionRecord = {
-  expiresAtMs: 1,
-  relayerKeyId: 'ed25519:relayer',
-  purpose: 'near_tx',
-  intentDigestB64u: 'intent',
-  signingDigestB64u: 'digest',
-  userId: 'wallet_alice',
-  authorityScope,
-  participantIds: [1, 2],
-};
-
-declare function requireReadyKeyRecord(record: ThresholdEd25519ReadyKeyRecord): void;
-
-const keyRecord: ThresholdEd25519ReadyKeyRecord = {
-  kind: 'ready',
-  walletId: 'wallet_alice',
-  nearAccountId: 'alice.near',
-  nearEd25519SigningKeyId: 'ed25519:wallet_alice:1',
-  authorityScope,
-  publicKey: 'ed25519:relayer',
-  routerMaterial: {
-    signingShareB64u: 'signing-share',
-    verifyingShareB64u: 'verifying-share',
-  },
-  keyVersion: 'key-v1',
-  recoveryExportCapable: true,
-};
-
-const broadKeyRecord: ThresholdEd25519KeyRecord = keyRecord;
-
-
 void sessionPolicy;
 void walletSession;
-void mpcSession;
-void keyRecord;
-void broadKeyRecord;
-requireReadyKeyRecord(keyRecord);
 
 const invalidSessionPolicy = {
   ...sessionPolicy,
@@ -101,49 +61,6 @@ const invalidWalletSession = {
   rpId: 'wallet.example.test',
 } satisfies Ed25519WalletSessionRecord;
 
-const invalidMpcSession = {
-  ...mpcSession,
-  // @ts-expect-error Ed25519 MPC session records carry authorityScope, never root rpId.
-  rpId: 'wallet.example.test',
-} satisfies ThresholdEd25519MpcSessionRecord;
-
-const invalidKeyRecord = {
-  ...keyRecord,
-  // @ts-expect-error Ed25519 key-store records carry authorityScope, never root rpId.
-  rpId: 'wallet.example.test',
-} satisfies ThresholdEd25519KeyRecord;
-
-// @ts-expect-error ready Ed25519 key records require router material.
-const invalidReadyKeyRecordMissingRouterMaterial: ThresholdEd25519ReadyKeyRecord = {
-  kind: 'ready',
-  walletId: 'wallet_alice',
-  nearAccountId: 'alice.near',
-  nearEd25519SigningKeyId: 'ed25519:wallet_alice:1',
-  authorityScope,
-  publicKey: 'ed25519:relayer',
-  keyVersion: 'key-v1',
-  recoveryExportCapable: true,
-};
-
-// @ts-expect-error provisioning Ed25519 key records cannot carry router material.
-const invalidProvisioningKeyRecordWithRouterMaterial: ThresholdEd25519KeyRecord = {
-  kind: 'provisioning',
-  walletId: 'wallet_alice',
-  nearAccountId: 'alice.near',
-  nearEd25519SigningKeyId: 'ed25519:wallet_alice:1',
-  authorityScope,
-  publicKey: 'ed25519:relayer',
-  keyVersion: 'key-v1',
-  routerMaterial: {
-    signingShareB64u: 'signing-share',
-    verifyingShareB64u: 'verifying-share',
-  },
-};
-
-// @ts-expect-error core signing/session code must receive a ready key record.
-requireReadyKeyRecord({} as ThresholdEd25519KeyRecord);
-
-
 const invalidEmailOtpAuthorityScopeWithProofKind = {
   kind: 'email_otp',
   provider: 'google',
@@ -164,9 +81,5 @@ void invalidSessionPolicy;
 void invalidSessionPolicyWithWalletId;
 void invalidSessionPolicyWithAuthorityScope;
 void invalidWalletSession;
-void invalidMpcSession;
-void invalidKeyRecord;
-void invalidReadyKeyRecordMissingRouterMaterial;
-void invalidProvisioningKeyRecordWithRouterMaterial;
 void invalidEmailOtpAuthorityScopeWithProofKind;
 void invalidEmailOtpAuthorityScopeWithChallengeId;

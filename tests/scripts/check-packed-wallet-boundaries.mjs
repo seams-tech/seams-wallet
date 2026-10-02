@@ -147,7 +147,7 @@ async function smokePackedEntries() {
   const walletServer = await import(
     path.join(nodeModulesDirectory, '@seams/wallet-server/dist/esm/index.js')
   );
-  assert.equal(typeof walletServer.AuthService, 'function');
+  assert.equal(typeof walletServer.SessionService, 'function');
 
   const artifactManifest = JSON.parse(
     fs.readFileSync(

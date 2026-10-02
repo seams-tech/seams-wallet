@@ -1,6 +1,5 @@
-// The WebAuthn statements that both the core D1 stores (WebAuthnAuthenticatorStore.ts,
-// WebAuthnCredentialBindingStore.ts and webAuthnStoreBackends.ts) and the Cloudflare D1 store
-// (router/cloudflare/d1/webauthn/d1WebAuthnStore.ts) run. Each binds the tenant scope first.
+// The WebAuthn statements the Cloudflare D1 store runs
+// (router/cloudflare/d1/webauthn/d1WebAuthnStore.ts). Each binds the tenant scope first.
 import type { ScopedD1Prepare } from './emailOtpD1Statements';
 
 /** Binds the scope, then the user and the record's seven columns. */

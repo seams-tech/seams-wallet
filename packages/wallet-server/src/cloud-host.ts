@@ -52,7 +52,6 @@ export * from './router/cloudflare/signingLanes/linkedDeviceEd25519CeremonyBindi
 export * from './router/cloudflare/signingLanes/cloudflareOrdinaryInactiveSignerMaterialReservation';
 export * from './router/cloudflare/d1/webauthn/d1WebAuthnAuthService';
 export * from './router/cloudflare/d1/webauthn/d1WebAuthnStore';
-export * from './router/cloudflare/durableObjects/thresholdStore';
 export * from './router/cloudflare/runtime/cloudflareSignerWasm';
 export * from './router/cloudflare/runtime/ed25519SessionAdapter';
 export * from './router/cloudflare/runtime/routerAbServiceBindings';

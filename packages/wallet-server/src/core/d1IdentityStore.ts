@@ -21,7 +21,7 @@ export interface D1IdentityStoreOptions extends D1TenantStoreOptions {
 }
 
 /** Names the identity store in D1 scope errors. */
-export const IDENTITY_D1_STORE = 'identity store';
+const IDENTITY_D1_STORE = 'identity store';
 
 type D1IdentityLinkRow = {
   readonly subject?: unknown;

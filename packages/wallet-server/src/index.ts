@@ -1,28 +1,16 @@
 // Server package exports - Core NEAR Account Service
 export * from './core/types';
 export * from './core/config';
-export * from './core/defaultConfigsServer';
 export {
   formatSigningSessionSealKeyVersionForWire,
   parseSigningSessionSealKeyVersion,
   type SigningSessionSealKeyVersion,
 } from './core/keyMaterialBrands';
-export { AuthService } from './core/AuthService';
 export * from './authorization/domain';
 export * from './authorization/service';
 export * from './authorization/vaultProxyUse';
 export { SessionService, parseCsvList, buildCorsOrigins } from './core/SessionService';
 export type { SessionConfig } from './core/SessionService';
-export {
-  createThresholdEd25519KeyStore,
-  createThresholdEd25519SessionStore,
-  createEd25519WalletSessionStore,
-  createEcdsaWalletSessionStore,
-} from './core/ThresholdService';
-export {
-  createRouterAbSigningRuntimes,
-  type RouterAbSigningRuntimeBundle,
-} from './core/routerAbSigning/createRouterAbSigningRuntimes';
 export { RouterAbEcdsaPresignRuntime } from './core/routerAbSigning/RouterAbEcdsaPresignRuntime';
 export {
   ensureEvmCryptoWasm,
@@ -34,20 +22,14 @@ export {
 } from './core/ThresholdService/evmCryptoWasm';
 export type { ServerEip1559UnsignedTx } from './core/ThresholdService/evmCryptoWasm';
 export type {
-  ThresholdEd25519KeyStore,
-  ThresholdEd25519KeyRecord,
-  ThresholdEd25519SessionStore,
-  ThresholdEd25519MpcSessionRecord,
   Ed25519WalletSessionStore,
   Ed25519WalletSessionRecord,
 } from './core/ThresholdService';
 export * from './core/signingMaterial/ordinaryInactiveSignerMaterialReservation';
 export {
   D1WalletAuthMethodStore,
-  createWalletAuthMethodStore,
   ensureWalletAuthMethodStoreD1Schema,
   normalizeWalletAuthMethod,
-  resolveWalletAuthMethodStoreNamespace,
   WALLET_AUTH_METHOD_STORE_D1_SCHEMA_SQL,
   type D1WalletAuthMethodStoreOptions,
   type D1WalletAuthMethodStoreSchemaOptions,
@@ -59,9 +41,7 @@ export {
   WALLET_STORE_D1_SCHEMA_SQL,
   buildWalletEcdsaSignerRecord,
   buildWalletEd25519SignerId,
-  createWalletStore,
   ensureWalletStoreD1Schema,
-  resolveWalletStoreNamespace,
   type D1WalletStoreOptions,
   type D1WalletStoreSchemaOptions,
   type WalletEcdsaSignerRecord,
@@ -71,72 +51,27 @@ export {
   type WalletStore,
 } from './core/WalletStore';
 export {
-  D1WebAuthnAuthenticatorStore,
-  WEBAUTHN_AUTHENTICATOR_STORE_D1_SCHEMA_SQL,
-  createWebAuthnAuthenticatorStore,
-  ensureWebAuthnAuthenticatorStoreD1Schema,
-  resolveWebAuthnAuthenticatorStoreNamespace,
-  type D1WebAuthnAuthenticatorStoreOptions,
-  type D1WebAuthnAuthenticatorStoreSchemaOptions,
   type WebAuthnAuthenticatorRecord,
   type WebAuthnAuthenticatorStore,
 } from './core/WebAuthnAuthenticatorStore';
 export {
-  D1WebAuthnCredentialBindingStore,
-  WEBAUTHN_CREDENTIAL_BINDING_STORE_D1_SCHEMA_SQL,
-  createWebAuthnCredentialBindingStore,
-  ensureWebAuthnCredentialBindingStoreD1Schema,
-  resolveWebAuthnCredentialBindingStoreNamespace,
-  type D1WebAuthnCredentialBindingStoreOptions,
-  type D1WebAuthnCredentialBindingStoreSchemaOptions,
   type WebAuthnCredentialBindingRecord,
   type WebAuthnCredentialBindingStore,
 } from './core/WebAuthnCredentialBindingStore';
-export {
-  D1WebAuthnLoginChallengeStore,
-  WEBAUTHN_LOGIN_CHALLENGE_STORE_D1_SCHEMA_SQL,
-  createWebAuthnLoginChallengeStore,
-  ensureWebAuthnLoginChallengeStoreD1Schema,
-  type D1WebAuthnLoginChallengeStoreOptions,
-  type D1WebAuthnLoginChallengeStoreSchemaOptions,
-  type WebAuthnLoginChallengeRecord,
-  type WebAuthnLoginChallengeStore,
-} from './core/WebAuthnLoginChallengeStore';
-export {
-  D1WebAuthnSyncChallengeStore,
-  WEBAUTHN_SYNC_CHALLENGE_STORE_D1_SCHEMA_SQL,
-  createWebAuthnSyncChallengeStore,
-  ensureWebAuthnSyncChallengeStoreD1Schema,
-  type D1WebAuthnSyncChallengeStoreOptions,
-  type D1WebAuthnSyncChallengeStoreSchemaOptions,
-  type WebAuthnSyncChallengeRecord,
-  type WebAuthnSyncChallengeStore,
-} from './core/WebAuthnSyncChallengeStore';
+export { type WebAuthnLoginChallengeRecord } from './core/WebAuthnLoginChallengeStore';
+export { type WebAuthnSyncChallengeRecord } from './core/WebAuthnSyncChallengeStore';
 export {
   D1IdentityStore,
   IDENTITY_STORE_D1_SCHEMA_SQL,
-  createIdentityStore,
   ensureIdentityStoreD1Schema,
-  resolveIdentityStoreNamespace,
   type D1IdentityStoreOptions,
   type D1IdentityStoreSchemaOptions,
   type IdentityStore,
   type IdentitySubjectRecord,
-  type IdentityUserRecord,
   type LinkIdentityResult,
   type UnlinkIdentityResult,
 } from './core/IdentityStore';
-export {
-  D1NearPublicKeyStore,
-  NEAR_PUBLIC_KEY_STORE_D1_SCHEMA_SQL,
-  createNearPublicKeyStore,
-  ensureNearPublicKeyStoreD1Schema,
-  type D1NearPublicKeyStoreOptions,
-  type D1NearPublicKeyStoreSchemaOptions,
-  type NearPublicKeyKind,
-  type NearPublicKeyRecord,
-  type NearPublicKeyStore,
-} from './core/NearPublicKeyStore';
+export { type NearPublicKeyKind } from './core/NearPublicKeyStore';
 export {
   InMemoryRouterAbNormalSigningAdmissionStore,
   createInMemoryRouterAbNormalSigningAdmissionAdapter,

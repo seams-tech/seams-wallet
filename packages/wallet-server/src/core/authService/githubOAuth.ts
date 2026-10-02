@@ -9,7 +9,7 @@ export type GithubOAuthPublicConfig =
   | { configured: false }
   | { configured: true; clientId: string; callbackUrl: string };
 
-export type GithubOAuthCodeFacadeResult =
+type GithubOAuthCodeFacadeResult =
   | {
       ok: true;
       verified: true;

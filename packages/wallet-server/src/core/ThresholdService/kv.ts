@@ -86,21 +86,6 @@ export class UpstashRedisRestClient {
     await this.setRaw(key, JSON.stringify(value), ttlMs);
   }
 
-  async getdelJson(key: string): Promise<unknown | null> {
-    const k = encodeURIComponent(key);
-    try {
-      const json = await this.call(`/getdel/${k}`, 'POST');
-      const raw = readResult(json);
-      if (raw === null) return null;
-      if (typeof raw === 'string') return tryParseJson(raw);
-      return raw;
-    } catch {
-      const raw = await this.getJson(key);
-      if (raw) await this.del(key);
-      return raw;
-    }
-  }
-
   async eval(script: string, keys: string[], args: string[]): Promise<unknown | null> {
     const keyList = Array.isArray(keys) ? keys : [];
     const argList = Array.isArray(args) ? args : [];
@@ -297,7 +282,7 @@ export async function redisGetJson(client: RedisTcpClient, key: string): Promise
   return raw ? tryParseJson(raw) : null;
 }
 
-export async function redisGetRaw(client: RedisTcpClient, key: string): Promise<string | null> {
+async function redisGetRaw(client: RedisTcpClient, key: string): Promise<string | null> {
   const resp = await client.send(['GET', key]);
   if (resp.type === 'bulk') {
     if (!resp.value) return null;
@@ -327,37 +312,4 @@ export async function redisSetJson(
   const ttlSeconds = Math.max(1, Math.ceil(Math.max(0, Number(ttlMs) || 0) / 1000));
   const resp = await client.send(['SET', key, JSON.stringify(value), 'EX', String(ttlSeconds)]);
   if (resp.type === 'error') throw new Error(`Redis SET error: ${resp.value}`);
-}
-
-export async function redisGetdelJson(
-  client: RedisTcpClient,
-  key: string,
-): Promise<unknown | null> {
-  const resp = await client.send(['GETDEL', key]);
-  if (resp.type === 'bulk') {
-    if (!resp.value) return null;
-    return tryParseJson(resp.value);
-  }
-  if (resp.type === 'error') {
-    const msg = resp.value;
-    // Redis <6.2 doesn't support GETDEL.
-    if (/unknown\s+command|ERR\s+unknown\s+command/i.test(msg)) {
-      const raw = await redisGetJson(client, key);
-      if (raw) await redisDel(client, key);
-      return raw;
-    }
-    throw new Error(`Redis GETDEL error: ${resp.value}`);
-  }
-  return null;
-}
-
-export async function redisEval(
-  client: RedisTcpClient,
-  script: string,
-  keys: string[],
-  args: string[],
-): Promise<RedisResp> {
-  const resp = await client.send(['EVAL', script, String(keys.length), ...keys, ...args]);
-  if (resp.type === 'error') throw new Error(`Redis EVAL error: ${resp.value}`);
-  return resp;
 }

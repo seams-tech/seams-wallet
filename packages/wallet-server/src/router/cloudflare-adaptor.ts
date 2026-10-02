@@ -180,7 +180,6 @@ export {
   createSelfHostedCloudflareSigningRouter,
   createSelfHostedCloudflareSigningWorker,
 } from './cloudflare/runtime/createSelfHostedCloudflareSigningWorker';
-export { ThresholdStoreDurableObject } from './cloudflare/durableObjects/thresholdStore';
 export {
   CloudflareDurableObjectVersionedJsonRecordStore,
   CloudflareVersionedJsonRecordStoreError,
