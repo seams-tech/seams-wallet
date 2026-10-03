@@ -65,6 +65,7 @@ import type { AuthorizationService } from '../../../../authorization/service';
 import {
   createD1AuthorizationAssembly,
   createD1IdentityStore,
+  createD1EmailOtpRateLimits,
   createD1GoogleRegistrationAttempts,
   createD1WebAuthnAssembly,
   createD1WalletCustodyStore,
@@ -80,7 +81,6 @@ import { CloudflareD1EmailOtpChallengeStore } from '../emailOtp/d1EmailOtpChalle
 import { CloudflareD1EmailOtpDeliveryRuntime } from '../emailOtp/d1EmailOtpDeliveryRuntime';
 import { CloudflareD1EmailOtpEnrollmentStore } from '../emailOtp/d1EmailOtpEnrollmentStore';
 import { CloudflareD1EmailOtpGrantStore } from '../emailOtp/d1EmailOtpGrantStore';
-import { CloudflareD1EmailOtpRateLimitStore } from '../emailOtp/d1EmailOtpRateLimitStore';
 import { CloudflareD1EmailOtpServerSealRuntime } from '../emailOtp/d1EmailOtpServerSealRuntime';
 import { CloudflareD1EmailOtpRegistrationEnrollmentFinalizer } from '../emailOtp/d1EmailOtpRegistrationEnrollmentFinalizer';
 import { CloudflareD1EmailOtpChallengeVerifier } from '../emailOtp/d1EmailOtpChallengeVerifier';
@@ -1548,10 +1548,7 @@ function createCloudflareD1RouterApiAuthAssembly(
   const emailOtpDelivery = new CloudflareD1EmailOtpDeliveryRuntime(options.emailOtp);
   const emailOtpEnrollments = new CloudflareD1EmailOtpEnrollmentStore({ prepare });
   const emailOtpGrants = new CloudflareD1EmailOtpGrantStore({ prepare });
-  const emailOtpRateLimits = new CloudflareD1EmailOtpRateLimitStore({
-    prepare,
-    rateLimits: options.emailOtp.rateLimits,
-  });
+  const emailOtpRateLimits = createD1EmailOtpRateLimits(options, prepare);
   const emailOtpServerSeal = new CloudflareD1EmailOtpServerSealRuntime(options.emailOtpServerSeal);
   const googleEmailOtpSessions = new CloudflareD1GoogleEmailOtpSessionResolver({
     emailOtpEnrollments,

@@ -1024,3 +1024,15 @@ Shared offer authority exposes no unrestricted delete operation. Automatic
 malformed-record cleanup removes only unclaimed offers. An expired pending claim
 continues to occupy its offered wallet identities until authoritative reconciliation,
 so ordinary allocation cannot treat it as abandoned merely because time elapsed.
+
+### Hosted terminal registration and rate-limit authority
+
+Only the assigned regional writer may establish or cancel a wallet home.
+Cancellation atomically releases pending shared Google registration offers and
+retains the immutable home tombstone. An active shared offer prevents cancellation.
+The writer must reconcile regional custody before choosing a terminal outcome.
+
+Hosted Email OTP challenge, verification, grant and Google-registration policies
+consume counters in shared tenant authority. Requests through different regional
+Gateways share an allowance; tenant scopes remain independent. An unavailable
+shared counter fails the request without a regional counter fallback.

@@ -1056,3 +1056,13 @@ command union and service handler. Malformed-record cleanup is private and its
 SQL deletes only unclaimed rows. Wallet-allocation checks treat a pending candidate
 claim as occupied after offer expiry. This closes ordinary cleanup bypasses;
 authoritative cleanup after a terminal home/custody decision remains unfinished.
+
+### October 3 counter and terminal-boundary checkpoint
+
+Hosted Email OTP policy counters now use Console authority via the injected
+EmailOtpRateLimitCounter; standalone D1 retains its own counter implementation.
+The four policy scopes share atomic counters, scoped by admitted tenant identity.
+Other cross-wallet quotas still require inventory. Console migrations 0062/0063
+provide terminal offer cleanup and the counter table. Full custody crash/replay,
+shared passkey reservations, linked-device bootstrap and internal/deferred routing
+remain open. See refactor-152-results.md for repeatable composition evidence.

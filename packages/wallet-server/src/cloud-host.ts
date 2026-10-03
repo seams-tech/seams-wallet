@@ -252,3 +252,6 @@ export { CloudflareD1GoogleEmailOtpRegistrationAttemptStore } from './router/clo
 export type { GoogleEmailOtpRegistrationAttemptStore } from './router/cloudflare/d1/emailOtp/d1GoogleEmailOtpRegistrationAttemptStore';
 export { parseGoogleEmailOtpRegistrationAttemptRecord, parseGoogleEmailOtpRegistrationOfferCandidates, requireRuntimePolicyScope } from './router/cloudflare/d1/emailOtp/d1GoogleEmailOtpRegistrationRecords';
 export { prepareD1TenantStatement } from './core/d1TenantStore';
+
+export { D1EmailOtpRateLimitCounter } from './router/cloudflare/d1/emailOtp/d1EmailOtpRateLimitStore';
+export type { EmailOtpRateLimitCounter } from './router/cloudflare/d1/emailOtp/d1EmailOtpRateLimitStore';

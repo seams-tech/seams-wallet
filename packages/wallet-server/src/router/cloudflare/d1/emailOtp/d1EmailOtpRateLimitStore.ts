@@ -25,37 +25,51 @@ type EmailOtpRateLimitConsumeInput = {
 type EmailOtpRateLimitConsumeResult = Readonly<RateLimitResult>;
 
 export class CloudflareD1EmailOtpRateLimitStore {
-  private readonly prepare: ScopedD1Prepare;
   private readonly rateLimits: EmailOtpRateLimitPolicies;
+  private readonly counter: EmailOtpRateLimitCounter;
 
   constructor(input: {
     readonly prepare: ScopedD1Prepare;
     readonly rateLimits: EmailOtpRateLimitPolicies;
+    readonly counter?: EmailOtpRateLimitCounter;
   }) {
-    this.prepare = input.prepare;
     this.rateLimits = input.rateLimits;
+    this.counter = input.counter ?? new D1EmailOtpRateLimitCounter(input.prepare);
   }
 
   async consume(input: EmailOtpRateLimitConsumeInput): Promise<EmailOtpRateLimitConsumeResult> {
     const policy = this.rateLimits[input.scope];
     const keys = emailOtpRateLimitKeys({ ...input, policy });
     for (const key of keys) {
-      const consumed = await this.consumeKey({
+      const consumed = await this.counter.consume({
         key,
-        policy,
-        nowMs: Date.now(),
+        limit: policy.limit,
+        windowMs: policy.windowMs,
       });
       if (!consumed.ok) return consumed;
     }
     return { ok: true };
   }
+}
 
-  private async consumeKey(input: {
+export interface EmailOtpRateLimitCounter {
+  consume(input: {
     readonly key: string;
-    readonly policy: EmailOtpRateLimitPolicy;
-    readonly nowMs: number;
+    readonly limit: number;
+    readonly windowMs: number;
+  }): Promise<EmailOtpRateLimitConsumeResult>;
+}
+
+export class D1EmailOtpRateLimitCounter implements EmailOtpRateLimitCounter {
+  constructor(private readonly prepare: ScopedD1Prepare) {}
+
+  async consume(input: {
+    readonly key: string;
+    readonly limit: number;
+    readonly windowMs: number;
   }): Promise<EmailOtpRateLimitConsumeResult> {
-    const resetAtMs = input.nowMs + input.policy.windowMs;
+    const nowMs = Date.now();
+    const resetAtMs = nowMs + input.windowMs;
     const row = await this.prepare(
       `INSERT INTO email_otp_rate_limits (
         namespace,
@@ -84,17 +98,7 @@ export class CloudflareD1EmailOtpRateLimitStore {
       WHERE email_otp_rate_limits.reset_at_ms <= ?
          OR email_otp_rate_limits.consumed_count < ?
       RETURNING consumed_count, reset_at_ms`,
-      [
-        input.key,
-        resetAtMs,
-        input.nowMs,
-        input.nowMs,
-        input.nowMs,
-        resetAtMs,
-        input.nowMs,
-        input.nowMs,
-        input.policy.limit,
-      ],
+      [input.key, resetAtMs, nowMs, nowMs, nowMs, resetAtMs, nowMs, nowMs, input.limit],
     ).first<D1EmailOtpRateLimitRow>();
     if (row) return { ok: true };
     const existing = await this.prepare(

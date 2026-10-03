@@ -65,8 +65,12 @@ The earlier measurements do not close that acceptance gate or justify release.
 - [ ] Verify the complete regional commit/crash/replay path and reconcile terminal
   claims with wallet-home reservations. Retained claims need authoritative cleanup;
   time-based expiry alone must not discard possible committed work.
-- [ ] Share passkey credential uniqueness and rate limits; finish linked-device
-  coordination and internal/deferred enforcement.
+- [x] Require the assigned writer for terminal home transitions; atomically release
+  pending Google offers on cancellation and refuse cancellation of active offers.
+- [x] Share Email OTP challenge, verification, grant and Google-registration rate
+  counters across regional Gateways; verify contention, tenant isolation and outages.
+- [ ] Share passkey credential uniqueness; finish linked-device coordination,
+  inventory other cross-wallet limits and complete internal/deferred enforcement.
 
 This checkpoint is a prerequisite to discovery routing. It does not close the
 replacement phase. Hosted acceptance and release 0.8.0 remain pending.

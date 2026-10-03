@@ -3522,3 +3522,36 @@ node tests/e2e/regional-session-routing.e2e.mjs
 Receipt: `.artifacts/r152/claim-cleanup-20261003/regional-session-routing-evidence.json`.
 SHA-256: `76f27251f169d2034fe74df7baec3a5b97596d0fa69f12ad5324c8e22fc53192`.
 Build/bloat logs are retained alongside it. No deployment or release occurred.
+
+### October 3: terminal cleanup and shared rate counters
+
+Console migration 0062 atomically releases pending registration offers when the
+assigned writer cancels their home. Active offers block cancellation; immutable
+home tombstones remain. The service rejects foreign terminal writers before the
+home transition. This protects shared state; full regional custody crash/replay
+and proof of safe cancellation remain acceptance gates.
+
+Migration 0063 holds shared Email OTP counters. Production policy/key generation
+uses the authenticated Console counter from all three regional Gateways. For each
+of challenge, verify, grant and googleRegistrationAttempt, six concurrent requests
+consume one allowance of three: 24 requests total, 12 accepted and 12 limited.
+A separate project has an independent allowance. Console outages fail closed and
+all regional counter tables remain empty. This verifies admitted-client composition;
+hosted HTTP retry headers and deployment policy consistency remain unmeasured.
+
+SDK build, public/private candidate type checks, focused lint, bloat check and the
+persistent home-directory E2E passed. The directory fixture now uses its assigned
+writer for successful completion and expects 403 for a foreign writer.
+
+Repeat from seams-monorepo:
+
+```sh
+SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server \
+SEAMS_TEST_ARTIFACT_DIR=.artifacts/r152/shared-limits-20261003 \
+node tests/e2e/regional-session-routing.e2e.mjs
+```
+
+Receipt: `.artifacts/r152/shared-limits-20261003/regional-session-routing-evidence.json`.
+SHA-256: `3ed48444a033967bf5916ad95df5a009f5266dad70a6bcb18e4d882f3d5f63a4`.
+Build/bloat logs and the persistent-directory receipt are retained alongside it.
+No deployment, reset or release occurred.

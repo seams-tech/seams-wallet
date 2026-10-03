@@ -1174,3 +1174,12 @@ claims. Expired claimed wallets remain occupied during allocation checks. Shared
 composition verifies rejection of the removed command followed by successful
 intent/home-bound completion. Terminal reconciliation and the other R152 gates remain
 open; no deployment or release occurred.
+
+### October 3: terminal cleanup and shared limits checkpoint
+
+Terminal home writer enforcement, atomic pending-offer cancellation and shared
+Email OTP counters passed local regional composition and persistent-directory E2E.
+All four Email OTP policy scopes were exercised with concurrent regional callers.
+This closes the shared Email OTP counter implementation item only. Full custody
+crash/replay, global passkey reservations, linked-device coordination, deferred
+routing and hosted acceptance still block 0.8.0. No deployment was performed.

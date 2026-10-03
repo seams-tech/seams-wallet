@@ -1,3 +1,4 @@
+import { CloudflareD1EmailOtpRateLimitStore } from '../emailOtp/d1EmailOtpRateLimitStore';
 import { CloudflareD1GoogleEmailOtpRegistrationAttemptStore } from '../emailOtp/d1GoogleEmailOtpRegistrationAttemptStore';
 import type { ScopedD1Prepare } from '../../../../core/emailOtpD1Statements';
 import { D1IdentityStore } from '../../../../core/d1IdentityStore';
@@ -94,4 +95,15 @@ export function createD1GoogleRegistrationAttempts(
       orgId: options.orgId,
     })
   );
+}
+
+export function createD1EmailOtpRateLimits(
+  options: NormalizedCloudflareD1RouterApiAuthServiceOptions,
+  prepare: ScopedD1Prepare,
+) {
+  return new CloudflareD1EmailOtpRateLimitStore({
+    prepare,
+    rateLimits: options.emailOtp.rateLimits,
+    counter: options.emailOtpRateLimitCounter,
+  });
 }
