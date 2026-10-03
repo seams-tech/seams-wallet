@@ -5291,3 +5291,60 @@ This verifies production Console authority, regional HTTP dispatch and D1 cleanu
 with signed requests and synthetic owner signer material. Terminal-row removal is
 injected directly; scheduled pruning, browser expiry, process restart and hosted
 regional execution remain separate acceptance work. No deployment or release occurred.
+
+### October 4: Google recovery across Gateway/Console process restart
+
+The browser recovery matrix now runs Gateway and Console handlers in a child
+process with persistent local D1. Once Google recovery finalization commits, the
+runner drains requests, disposes the D1 runtime and waits for the child to exit.
+A fresh process reopens the same Console and three signer databases without
+rerunning migrations. Only test request observations are restored in memory;
+production services and bindings are constructed anew from D1. The browser then
+receives the simulated lost response and resets its own runtime before replay.
+
+Both runs passed all three homes: the initial run in **2.1 minutes**, and the final
+runner in **2.6 minutes**. Every home retains finalization statuses `[200, 200]`,
+exact client operation/target replay, pending-journal cleanup and consumed-code
+rejection. The recovered method unlocks and signs NEAR plus concurrent Tempo/Arc,
+including the existing budget-exhaustion check. Home-only records remain one
+wallet, three signers and two active authorities; Console contains one Google
+identity locator. All old process exit codes are zero and all new process IDs
+differ from the old IDs.
+
+Review found a test-runner startup cleanup gap: attempting to close an
+uninitialized scenario could obscure the original error and retain the child.
+The child now accepts close after initialization fails,
+and the parent has bounded IPC waits and an owned-process-group cleanup fallback.
+A missing-candidate startup probe confirmed that the original error survives,
+child shutdown completes and temporary D1 state is removed. Its receipt is
+`.artifacts/r152/recovery-process-restart-20261004/startup-failure-cleanup.json`.
+ESLint, formatting and public bloat checks passed.
+
+Final private artifacts:
+`.artifacts/r152/recovery-process-restart-final-20261004/`, containing protocol/lint
+logs, lifecycle traces and the following per-home receipts. SHA-256:
+
+| Home | `recovery-evidence.json` | `restart-evidence.json` |
+| --- | --- | --- |
+| US | `de1597f31b1267f070248622e11e94642a79aa6f89ceab192f89d6fc6ecf4e69` | `fd75e1021066ac3beb735f1ce88c4db4621fe65be349b68e1fb86c5b7b86fb99` |
+| WEUR | `19d7830f7ce49d852e41eb4036f5a53407b1de96eae9fe96083397c03dd1e928` | `da4b11aa48302f00ce29c58ff5301728023cf002c6fe97992938940b39295193` |
+| APAC | `2364d27515f057d7acbf66b1a8499a5705b32ed49bfbaff642991449f3828ce9` | `5ca3fc498b549a3e62b3e4fa58b4139c84cccb2e169ead06344c4d6135530155` |
+
+Reproduce from `seams-monorepo` after refreshing the configured intended Google
+token in the public checkout:
+
+```sh
+SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server \
+SEAMS_INTENDED_SKIP_BUILD=1 SEAMS_INTENDED_PERSIST_TRACE=1 \
+SEAMS_INTENDED_TRACE_DIR=.artifacts/r152/recovery-restart-repeat/lifecycle \
+SEAMS_TEST_ARTIFACT_DIR=.artifacts/r152/recovery-restart-repeat \
+node tests/scripts/run-regional-real.mjs --grep 'interrupted Google Email OTP' --max-failures=1
+```
+
+The initial run remains under `.artifacts/r152/recovery-process-restart-20261004/`.
+Public bloat output is `.artifacts/r152/recovery-process-restart-bloat-20261004.log`.
+The private runner and matrix are committed in `seams-monorepo` revision `96a15f2`.
+Temporary D1 state is deleted on completion; receipts contain no bearer credentials
+or material payloads. Router roles stay running. Linked-device restart, other
+recovery origins, Router restart, crashes during transactions and hosted execution
+remain open. No deployment or release occurred.

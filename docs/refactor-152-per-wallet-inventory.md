@@ -1727,3 +1727,24 @@ retaining 24 fresh replay guards; signer nonce tables remain empty. See private
 `linkHttp.expiry`. The scenario uses synthetic owner signer material and direct
 terminal-row removal; browser expiry, scheduled terminal pruning and process
 restart are outside this evidence.
+
+### October 4: Google recovery replay after Gateway/Console process restart
+
+The regional Google recovery browser matrix now runs its Gateway/Console handlers
+in a separate Node process with four persisted D1 databases. After finalization
+commits, the process drains requests, disposes its D1 runtime and exits. A fresh
+process reopens those databases before the client receives the simulated lost
+response. Production services and bindings are reconstructed; only the test's
+request observations are restored for cross-process assertions.
+
+US/WEUR/APAC recovery still replays the same operation, clears the client journal,
+unlocks, signs NEAR and concurrent Tempo/Arc, and rejects the consumed recovery code.
+Each home retains one wallet, three signers and two active authorities; foreign
+signer databases contain none of those wallet records. Console retains one Google
+identity locator. Per-home `restart-evidence.json` records distinct process IDs and
+successful old-process exit alongside `recovery-evidence.json` in private
+`.artifacts/r152/recovery-process-restart-final-20261004/`.
+
+Router roles remain running. This closes the orderly Gateway/Console restart case
+for Google recovery after commit; linked-device restart, other recovery origins,
+Router restart and crashes during transactions remain separate acceptance work.

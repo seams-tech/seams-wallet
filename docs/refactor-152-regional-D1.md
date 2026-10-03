@@ -109,8 +109,8 @@ older implementation checkpoints and must be read with their later evidence.
    Lost passkey-recovery finalization replies now pass for all three homes:
    the client journal survives runtime reset, replays the same operation and
    target, and clears after acknowledgement. Both-family signing and the browser's
-   consumed-code error also pass. This covers client runtime reset; server-process
-   restart and other interruption stages remain open. Added Email OTP methods now
+   consumed-code error also pass. This covers client runtime reset; passkey recovery
+   server-process restart and other interruption stages remain open. Added Email OTP methods now
    pass addition, duplicate-add refusal, lock/reload, unlock and both-family
    signing through foreign ingress for every home. Revocation persists only at
    home, the SDK refuses the revoked method, and the original passkey still signs.
@@ -121,8 +121,12 @@ older implementation checkpoints and must be read with their later evidence.
    a lost committed finalization reply and client runtime reset at every home,
    with exact operation replay, journal cleanup and no duplicate authority or
    identity locator. The interrupted-recovery matrix also retains subsequent
-   concurrent Tempo/Arc signing and budget-exhaustion checks. Other recovery origins,
-   server-process restart and remaining
+   concurrent Tempo/Arc signing and budget-exhaustion checks. Google recovery also
+   passes an orderly Gateway/Console process restart after finalization commits:
+   a fresh process reopens the four persisted databases before client replay, then
+   unlock, signing and consumed-code rejection still pass in all three homes.
+   Router roles remain running during this check. Other recovery origins,
+   Router restart, crashes during transactions and remaining
    shared credential/identity reconciliation still need composed acceptance.
    Method finalization and revocation
    reply loss now pass at every home: both mutations replay the exact request and
