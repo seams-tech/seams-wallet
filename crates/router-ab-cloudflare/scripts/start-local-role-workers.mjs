@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { generateKeyPairSync } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
-import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
 import { tmpdir } from 'node:os';
@@ -11,9 +11,8 @@ import { prepareRouterAbStrictLocalRuntimeConfigs } from './prepare-local-runtim
 
 const repoRoot = process.cwd();
 const runtimeRoot = fileURLToPath(new URL('../', import.meta.url));
-const workerBuildDirectory = process.env.ROUTER_AB_WORKER_BUILD_PROFILE === 'dev'
-  ? 'build/dev'
-  : 'build';
+const workerBuildDirectory =
+  process.env.ROUTER_AB_WORKER_BUILD_PROFILE === 'dev' ? 'build/dev' : 'build';
 const options = parseArguments(process.argv.slice(2));
 const localRoot = path.resolve(
   options.root || path.join(tmpdir(), `${path.basename(repoRoot)}-wallet-router-ab`),
@@ -29,6 +28,10 @@ const workerEnv = {
   WRANGLER_REGISTRY_PATH: path.join(localRoot, '.local', 'worker-registry'),
 };
 const children = [];
+const workerRoles = new Map();
+const retiringChildren = new Set();
+let generation = 0;
+let restarting = false;
 let stopping = false;
 
 await main().catch(handleFatalError);
@@ -49,7 +52,8 @@ async function main() {
   applyPrivateD1Migrations(runtime);
   startWorkers(runtime);
   await waitForWorkers(runtime);
-  writeFileSync(workersReadyPath, 'ready\n');
+  writeReadyReceipt();
+  process.on('SIGUSR2', requestRestart.bind(undefined, runtime));
   if (process.stdout.isTTY) {
     console.log('Local Wallet role Workers ready.');
   } else {
@@ -94,11 +98,7 @@ function initializeLocalIdentity() {
   runRequired(
     'Router A/B local identity initialization',
     process.execPath,
-    [
-      fileURLToPath(new URL('./initialize-local-wallet.mjs', import.meta.url)),
-      '--root',
-      localRoot,
-    ],
+    [fileURLToPath(new URL('./initialize-local-wallet.mjs', import.meta.url)), '--root', localRoot],
     repoRoot,
   );
 }
@@ -228,7 +228,8 @@ function startWorker(config) {
     },
   );
   children.push(child);
-  child.once('exit', handleChildExit.bind(undefined, config.role));
+  workerRoles.set(child, config.role);
+  child.once('exit', handleChildExit.bind(undefined, config.role, child));
   child.once('error', handleChildError.bind(undefined, config.role));
 }
 
@@ -241,6 +242,59 @@ async function waitForWorkers(runtime) {
 
 function describeWorker(config) {
   return { role: config.role, url: config.url };
+}
+
+function writeReadyReceipt() {
+  generation += 1;
+  const temporary = `${workersReadyPath}.tmp`;
+  writeFileSync(
+    temporary,
+    JSON.stringify({
+      root: localRoot,
+      supervisorPid: process.pid,
+      generation,
+      workers: children.map(describeRunningWorker),
+    }) + '\n',
+  );
+  renameSync(temporary, workersReadyPath);
+}
+
+function describeRunningWorker(child) {
+  return { role: workerRoles.get(child), pid: child.pid };
+}
+
+function requestRestart(runtime) {
+  if (stopping || restarting) return;
+  restarting = true;
+  restartWorkers(runtime).catch(handleFatalError);
+}
+
+async function restartWorkers(runtime) {
+  const previous = [...children];
+  for (const child of previous) {
+    retiringChildren.add(child);
+    stopChild(child);
+  }
+  await delay(2_000);
+  for (const child of previous) forceStopChild(child);
+  const deadline = Date.now() + 5_000;
+  while (previous.some(isRunningChild)) {
+    if (Date.now() >= deadline) throw new Error('Role Workers did not stop for restart');
+    await delay(50);
+  }
+  if (stopping) return;
+  children.splice(0, previous.length);
+  for (const child of previous) workerRoles.delete(child);
+  startWorkers(runtime);
+  await waitForWorkers(runtime);
+  if (stopping) return;
+  writeReadyReceipt();
+  restarting = false;
+  console.log(`Local Wallet role Workers restarted (generation ${generation}).`);
+}
+
+function isRunningChild(child) {
+  return child.exitCode === null && child.signalCode === null;
 }
 
 async function waitForHttp(url, timeoutMs, requireOk) {
@@ -301,7 +355,8 @@ function handleSigterm() {
   shutdown(143);
 }
 
-function handleChildExit(role, code, signal) {
+function handleChildExit(role, child, code, signal) {
+  if (retiringChildren.delete(child)) return;
   if (stopping) return;
   console.error(`${role} stopped (${signal || String(code ?? 'unknown')})`);
   shutdown(typeof code === 'number' && code > 0 ? code : 1);
@@ -339,13 +394,15 @@ function stopChild(child) {
 }
 
 function forceStopChildren(exitCode) {
-  for (const child of children) {
-    // Detached workers can outlive the package-manager process that launched them.
-    if (!child.pid) continue;
-    try {
-      if (process.platform !== 'win32' && child.pid) process.kill(-child.pid, 'SIGKILL');
-      else child.kill('SIGKILL');
-    } catch {}
-  }
+  for (const child of children) forceStopChild(child);
   process.exit(exitCode);
+}
+
+function forceStopChild(child) {
+  // Detached workers can outlive the package-manager process that launched them.
+  if (!child.pid) return;
+  try {
+    if (process.platform !== 'win32') process.kill(-child.pid, 'SIGKILL');
+    else child.kill('SIGKILL');
+  } catch {}
 }
