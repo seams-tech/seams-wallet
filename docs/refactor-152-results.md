@@ -5245,3 +5245,49 @@ separate gates.
 The concurrent-registration and extended Google-recovery cases are committed in
 private `seams-monorepo` revision `79eca94`; the injectable public recovery harness
 and extracted journal reader are in `seams-wallet` revision `8907386d`.
+
+### October 4: regional linked-device expiry and shared nonce pruning
+
+The regional HTTP/D1 composition passed six expiry cases: unclaimed QR and
+approved/prepared links for each US, WEUR and APAC home. The test waits for actual
+QR and request-proof expiry, then sends fresh signed requests through foreign
+ingress. Repeated polls return the terminal `expired` state (HTTP 200), and
+approval delivery returns `invalid_state` (HTTP 409).
+
+Each prepared link has one target preparation and two transcript rows before
+expiry. Expiry removes those records; all six checked workflow tables are empty
+for each link across all three signer databases. A minimal terminal session
+remains only at its assigned home. After direct removal of that terminal row,
+polling returns 404, the shared route still names the original wallet, and an
+attempt to recreate the link with renewed QR timestamps returns 409. Unclaimed
+links also reject renewed-timestamp recreation and never acquire a wallet route.
+
+All **6 original shared proof nonces** are pruned after expiry by subsequent device
+requests; **24 fresh nonce guards** remain in Console. Each signer nonce table
+stays empty. The initial expiry run and the extended nonce-pruning run both passed;
+the existing regional session-routing scenarios also completed. ESLint and the
+public bloat check passed. No production behavior change was needed.
+
+Final private receipt:
+`.artifacts/r152/link-expiry-pruning-20261004/regional-session-routing-evidence.json`
+(observations under `linkHttp.expiry`), SHA-256
+`c6e94cc2693ad32fefc8a518d35b7783af1b03abefbb8eb1d9e6c237e18100cf`.
+Production bundle SHA-256:
+`3dec2b0bb9d312fd71bb7894240cd44ec75da7c911958326086b8619b3aa237b`.
+The directory retains `protocol.log` and `lint.log`; the initial receipt is under
+`.artifacts/r152/link-expiry-20261004/`. Public bloat output is retained at
+`.artifacts/r152/link-expiry-pruning-bloat-20261004.log`.
+The scenario and reproduction instructions are committed in private revision `81fb373`.
+
+Reproduce from `seams-monorepo`:
+
+```sh
+SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server \
+SEAMS_TEST_ARTIFACT_DIR=.artifacts/r152/link-expiry-repeat \
+node tests/e2e/regional-session-routing.e2e.mjs
+```
+
+This verifies production Console authority, regional HTTP dispatch and D1 cleanup
+with signed requests and synthetic owner signer material. Terminal-row removal is
+injected directly; scheduled pruning, browser expiry, process restart and hosted
+regional execution remain separate acceptance work. No deployment or release occurred.

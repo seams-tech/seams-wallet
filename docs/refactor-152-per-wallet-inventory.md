@@ -1710,3 +1710,20 @@ Tempo/Arc signing plus budget-exhaustion checks retained (three homes, 2.2 minut
 Every finalization still has exactly one commit and one replay, with one shared
 Google identity locator and custody rows confined to the wallet home. Receipts are
 under private `.artifacts/r152/google-replay-concurrent-signing-20261004/`.
+
+### October 4: linked-device expiry ownership and retention
+
+Unclaimed and prepared links now pass actual elapsed expiry through foreign
+ingress for all three homes. The production terminal transition removes target
+preparation and transcript rows at home; all six inspected workflow tables are
+empty across the signer databases. Claimed terminal sessions remain only at home.
+Deleting that minimal terminal row directly does not erase the Console route or
+allow renewed QR timestamps to recreate the link. Unclaimed terminal bootstrap
+records remain shared and likewise reject recreation without acquiring a route.
+
+Subsequent signed requests prune the six expired Console proof nonces while
+retaining 24 fresh replay guards; signer nonce tables remain empty. See private
+`.artifacts/r152/link-expiry-pruning-20261004/regional-session-routing-evidence.json`,
+`linkHttp.expiry`. The scenario uses synthetic owner signer material and direct
+terminal-row removal; browser expiry, scheduled terminal pruning and process
+restart are outside this evidence.

@@ -60,8 +60,12 @@ older implementation checkpoints and must be read with their later evidence.
    proof nonces are verified in Console; signer nonce tables remain empty.
    Real Router execution response loss also passes in this composition, replaying
    the same reservation before activation and acknowledgement losses. Process
-   restart and expiry pruning remain open. Actual regional Router placement is
-   unverified.
+   restart remains open. Regional protocol acceptance now covers real elapsed
+   expiry of unclaimed and prepared links in all three homes: repeated foreign
+   polling, approval rejection, home-only terminal cleanup and refusal to recreate
+   a pruned link with renewed QR timestamps. Shared proof nonce expiry pruning also
+   passes while fresh replay guards remain. These checks use synthetic owner signer
+   material; browser expiry and actual regional Router placement remain unverified.
    Local protocol contracts already prove response-loss cleanup; carry those
    assertions into this regional composition rather than infer them from signing.
    The real registration boundary is now checked before that local linking test:
