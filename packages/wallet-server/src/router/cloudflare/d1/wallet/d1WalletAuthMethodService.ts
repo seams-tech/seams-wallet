@@ -1432,7 +1432,7 @@ export class CloudflareD1WalletAuthMethodService {
               deviceInfo: credential.device,
             },
           }),
-          this.webAuthnStore.prepareCredentialBindingInsertStatement(binding),
+          await this.webAuthnStore.prepareCredentialBindingInsertStatement(binding),
           ...this.getWalletAuthMethodStore().prepareV2InsertStatements(authMethod),
           ...replayStatements,
           // Last, so the session CAS guard sees `changes()` from its own

@@ -561,6 +561,7 @@ function createD1LinkedDeviceComposition(input: {
       source: verifiedLinkSourceReader,
     };
     const authorityInstall = new D1LinkedDeviceAuthorityInstallServiceV1({
+      credentialClaims: input.options.credentialClaims,
       database: input.options.database,
       scope,
       authorityStore,
@@ -1663,6 +1664,7 @@ function createCloudflareD1RouterApiAuthAssembly(
     envId: options.envId,
   });
   const walletRegistrationCommitStore = new CloudflareD1WalletRegistrationCommitStore({
+    credentialClaims: options.credentialClaims,
     database: options.database,
     namespace: options.namespace,
     orgId: options.orgId,

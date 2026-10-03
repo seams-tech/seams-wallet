@@ -1,3 +1,7 @@
+import {
+  reservePasskeyCredential,
+  type PasskeyCredentialClaims,
+} from '../../../../core/passkeyCredentialClaims';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
 import type { D1DatabaseLike, D1PreparedStatementLike } from '../../../../storage/tenantRoute';
 import { prepareD1TenantStatement, type D1TenantScope } from '../../../../core/d1TenantStore';
@@ -77,14 +81,17 @@ export function prepareD1WebAuthnAuthenticatorInsertStatement(
 export class CloudflareD1WebAuthnStore {
   private readonly database: D1DatabaseLike;
   private readonly scope: D1TenantScope;
+  private readonly credentialClaims: PasskeyCredentialClaims | undefined;
 
   constructor(input: {
+    readonly credentialClaims?: PasskeyCredentialClaims;
     readonly database: D1DatabaseLike;
     readonly namespace: string;
     readonly orgId: string;
     readonly projectId: string;
     readonly envId: string;
   }) {
+    this.credentialClaims = input.credentialClaims;
     this.database = input.database;
     this.scope = {
       namespace: input.namespace,
@@ -197,9 +204,14 @@ export class CloudflareD1WebAuthnStore {
     });
   }
 
-  prepareCredentialBindingInsertStatement(
+  async prepareCredentialBindingInsertStatement(
     record: WebAuthnCredentialBindingRecord,
-  ): D1PreparedStatementLike {
+  ): Promise<D1PreparedStatementLike> {
+    await reservePasskeyCredential(this.credentialClaims, {
+      walletId: record.userId,
+      rpId: record.rpId,
+      credentialIdB64u: record.credentialIdB64u,
+    });
     return prepareD1WebAuthnCredentialBindingInsertStatement({
       database: this.database,
       scope: this.scope,

@@ -1,3 +1,4 @@
+import type { PasskeyCredentialClaims } from '../../../../core/passkeyCredentialClaims';
 import type { EmailOtpRateLimitCounter } from '../emailOtp/d1EmailOtpRateLimitStore';
 import type { GoogleEmailOtpRegistrationAttemptStore } from '../emailOtp/d1GoogleEmailOtpRegistrationAttemptStore';
 import type { IdentityStore } from '../../../../core/IdentityStore';
@@ -154,6 +155,7 @@ export type CloudflareD1GithubOAuthConfig = {
 export interface CloudflareD1RouterApiAuthServiceOptions {
   readonly identityStore?: IdentityStore;
   readonly emailOtpRateLimitCounter?: EmailOtpRateLimitCounter;
+  readonly credentialClaims?: PasskeyCredentialClaims;
   readonly googleRegistrationAttempts?: GoogleEmailOtpRegistrationAttemptStore;
   readonly sessionRouting?: WalletSessionRoutingPublisher;
   readonly lifecycleRouting?: WalletLifecycleRoutingPublisher;
@@ -346,6 +348,7 @@ export function normalizeD1RouterApiAuthOptions(
     database: input.database,
     identityStore: input.identityStore,
     emailOtpRateLimitCounter: input.emailOtpRateLimitCounter,
+    credentialClaims: input.credentialClaims,
     googleRegistrationAttempts: input.googleRegistrationAttempts,
     sessionRouting: input.sessionRouting,
     recoveryRouting: input.recoveryRouting,

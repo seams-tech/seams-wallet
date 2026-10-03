@@ -255,3 +255,5 @@ export { prepareD1TenantStatement } from './core/d1TenantStore';
 
 export { D1EmailOtpRateLimitCounter } from './router/cloudflare/d1/emailOtp/d1EmailOtpRateLimitStore';
 export type { EmailOtpRateLimitCounter } from './router/cloudflare/d1/emailOtp/d1EmailOtpRateLimitStore';
+
+export type { PasskeyCredentialClaims } from './core/passkeyCredentialClaims';

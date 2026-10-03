@@ -1183,3 +1183,11 @@ All four Email OTP policy scopes were exercised with concurrent regional callers
 This closes the shared Email OTP counter implementation item only. Full custody
 crash/replay, global passkey reservations, linked-device coordination, deferred
 routing and hosted acceptance still block 0.8.0. No deployment was performed.
+
+### October 3: passkey claims checkpoint
+
+All four regional passkey-binding write paths now claim shared ownership first.
+Three-region binding composition passed contention, interruption/retry, foreign
+writer and outage checks. Claims alone cannot authenticate. Committed discovery
+publication and terminal reconciliation remain open; this checkpoint does not
+close full ceremony acceptance or permit SDK 0.8.0 release.

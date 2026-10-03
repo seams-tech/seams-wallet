@@ -1066,3 +1066,15 @@ Other cross-wallet quotas still require inventory. Console migrations 0062/0063
 provide terminal offer cleanup and the counter table. Full custody crash/replay,
 shared passkey reservations, linked-device bootstrap and internal/deferred routing
 remain open. See refactor-152-results.md for repeatable composition evidence.
+
+### October 3 passkey write-path inventory
+
+The hosted credentialClaims dependency now reaches all binding mutations:
+`d1WalletRegistrationCommitStore.commit`, WebAuthn binding insertion used by
+`d1WalletAuthMethodService`, recovery installation in `d1WalletCustodyCommitStore`,
+and credential promotion in `d1LinkedDeviceAuthorityInstallService`.
+Console `wallet_passkey_claims` owns immutable scoped RP/credential-to-wallet claims;
+regional binding, counter and authority records stay transactional with custody.
+Claims survive ambiguous regional failure and confer no authentication authority.
+Publication/discovery and terminal reconciliation remain open, as do full lifecycle
+acceptance runs exercising the shared authority at each of these four call sites.

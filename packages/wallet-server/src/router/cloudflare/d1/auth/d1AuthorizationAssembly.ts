@@ -39,6 +39,7 @@ export function createD1WalletCustodyStore(
   options: NormalizedCloudflareD1RouterApiAuthServiceOptions,
 ) {
   return new CloudflareD1WalletCustodyCommitStore({
+    credentialClaims: options.credentialClaims,
     database: options.database,
     scope: {
       namespace: options.namespace,
@@ -56,6 +57,7 @@ export function createD1WebAuthnAssembly(
   walletManifestSource: D1WebAuthnWalletManifestSource,
 ) {
   const webAuthnStore = new CloudflareD1WebAuthnStore({
+    credentialClaims: options.credentialClaims,
     database: options.database,
     namespace: options.namespace,
     orgId: options.orgId,

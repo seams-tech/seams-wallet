@@ -69,8 +69,13 @@ The earlier measurements do not close that acceptance gate or justify release.
   pending Google offers on cancellation and refuse cancellation of active offers.
 - [x] Share Email OTP challenge, verification, grant and Google-registration rate
   counters across regional Gateways; verify contention, tenant isolation and outages.
-- [ ] Share passkey credential uniqueness; finish linked-device coordination,
-  inventory other cross-wallet limits and complete internal/deferred enforcement.
+- [x] Reserve tenant + RP + passkey credential ownership in Console before regional
+  registration, add-method, recovery and linked-device binding writes. Verify
+  cross-region contention, retained reservation retry and foreign-writer rejection.
+- [ ] Complete credential publication/discovery and terminal claim reconciliation;
+  exercise all four full lifecycle flows against shared authority.
+- [ ] Finish linked-device coordination, inventory other cross-wallet limits and
+  complete internal/deferred enforcement.
 
 This checkpoint is a prerequisite to discovery routing. It does not close the
 replacement phase. Hosted acceptance and release 0.8.0 remain pending.

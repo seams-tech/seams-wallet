@@ -1036,3 +1036,16 @@ Hosted Email OTP challenge, verification, grant and Google-registration policies
 consume counters in shared tenant authority. Requests through different regional
 Gateways share an allowance; tenant scopes remain independent. An unavailable
 shared counter fails the request without a regional counter fallback.
+
+### Hosted passkey ownership reservation
+
+Before a hosted regional credential-binding write, the assigned home writer claims
+tenant + relying-party ID + credential ID for the wallet in shared authority.
+Registration, adding a passkey, recovery and linked-device installation use this
+boundary. A competing wallet cannot acquire the claim. The original wallet and
+home may retry. Shared-authority failure prevents the regional binding write.
+
+A claim alone grants no authentication or custody authority. Local authenticator,
+method and custody state must still commit and pass their existing checks. Claims
+survive uncertain regional outcomes and have no automatic expiry or reassignment;
+terminal reconciliation and committed discovery publication remain release gates.

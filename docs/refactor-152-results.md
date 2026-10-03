@@ -3555,3 +3555,33 @@ Receipt: `.artifacts/r152/shared-limits-20261003/regional-session-routing-eviden
 SHA-256: `3ed48444a033967bf5916ad95df5a009f5266dad70a6bcb18e4d882f3d5f63a4`.
 Build/bloat logs and the persistent-directory receipt are retained alongside it.
 No deployment, reset or release occurred.
+
+### October 3: shared passkey ownership reservation
+
+Console migration 0064 adds scoped RP/credential ownership claims bound to a wallet
+home. All four SDK credential-binding write paths request the claim before their
+regional transaction: registration, add-method, recovery and linked-device install.
+
+The regional composition exercised production WebAuthn binding promotion against
+three admitted regional writers. Three competing wallets produced exactly one
+committed binding. Interruption after reservation left no local binding, blocked a
+competing wallet and allowed the original wallet to retry. A foreign writer was
+rejected. Console outage rejected the operation before a local write.
+
+This is binding-write composition evidence, not full ceremony or hosted acceptance.
+Committed credential discovery publication, terminal reservation reconciliation and
+full registration/recovery/linking failure scenarios remain open. Claims are retained
+without time-based expiry; no automatic ownership transfer or cleanup is provided.
+
+SDK build, public/private candidate type checks, focused private lint and bloat check
+passed. Repeat from seams-monorepo:
+
+```sh
+SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server \
+SEAMS_TEST_ARTIFACT_DIR=.artifacts/r152/passkey-claims-20261003 \
+node tests/e2e/regional-session-routing.e2e.mjs
+```
+
+Receipt: `.artifacts/r152/passkey-claims-20261003/regional-session-routing-evidence.json`.
+SHA-256: `b89d74347cf9a4a9ceea8a1a9c185a2934c2d7ef1888c5d06378f4f5170e84fa`.
+Build/bloat logs are retained alongside it. No deployment or release occurred.

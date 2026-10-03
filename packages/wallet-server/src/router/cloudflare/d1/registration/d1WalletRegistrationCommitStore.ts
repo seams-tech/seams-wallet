@@ -1,3 +1,7 @@
+import {
+  reservePasskeyCredential,
+  type PasskeyCredentialClaims,
+} from '../../../../core/passkeyCredentialClaims';
 import type {
   ActiveWalletAuthorityV1,
   WalletEcdsaSignerActivationV1,
@@ -484,20 +488,30 @@ export class CloudflareD1WalletRegistrationCommitStore
 {
   private readonly database: D1DatabaseLike;
   private readonly scope: D1WalletRegistrationCommitScope;
+  private readonly credentialClaims: PasskeyCredentialClaims | undefined;
 
   constructor(input: {
+    readonly credentialClaims?: PasskeyCredentialClaims;
     readonly database: D1DatabaseLike;
     readonly namespace: string;
     readonly orgId: string;
     readonly projectId: string;
     readonly envId: string;
   }) {
+    this.credentialClaims = input.credentialClaims;
     this.database = input.database;
     this.scope = normalizeScope(input);
   }
 
   async commit(input: D1WalletRegistrationCommitInput): Promise<void> {
     assertCommitWalletIdentity(input);
+    if (input.authority.kind === 'passkey') {
+      await reservePasskeyCredential(this.credentialClaims, {
+        walletId: input.authority.walletId,
+        rpId: input.authority.rpId,
+        credentialIdB64u: input.authority.credentialIdB64u,
+      });
+    }
     const foundingStatements = await prepareFoundingStatements({
       database: this.database,
       scope: this.scope,

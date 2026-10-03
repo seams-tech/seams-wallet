@@ -1,3 +1,7 @@
+import {
+  reservePasskeyCredential,
+  type PasskeyCredentialClaims,
+} from '../../../../core/passkeyCredentialClaims';
 import { routerAbMpcMaterialActivationRefToWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import { isPlainObject } from '@shared/utils/validation';
 import { EcdsaMaterialReadSnapshot } from '../../../../core/ecdsaMaterialReadSnapshot';
@@ -193,6 +197,7 @@ export type OrdinaryInactiveSignerMaterialActivationPortV1 = {
 };
 
 export type D1LinkedDeviceAuthorityInstallServiceOptionsV1 = {
+  readonly credentialClaims?: PasskeyCredentialClaims;
   readonly database: D1DatabaseLike;
   readonly scope: D1WalletAuthorityStoreScope;
   readonly authorityStore: D1WalletAuthorityStore;
@@ -663,6 +668,7 @@ export class D1LinkedDeviceAuthorityInstallServiceV1 {
       const activeAuthority = await buildActiveAuthority(authority, receipt.installedAtMs);
       const activeAuthMethod = buildActiveAuthMethod(authMethod, receipt.installedAtMs);
       const passkeyCredentialStatements = await buildPasskeyCredentialPromotionStatements({
+        credentialClaims: this.options.credentialClaims,
         database: this.options.database,
         scope: this.options.scope,
         listWalletEd25519Signers: this.options.listWalletEd25519Signers,
@@ -2828,6 +2834,7 @@ function buildActiveAuthMethod(
 }
 
 async function buildPasskeyCredentialPromotionStatements(input: {
+  readonly credentialClaims: PasskeyCredentialClaims | undefined;
   readonly database: D1DatabaseLike;
   readonly scope: D1WalletAuthorityStoreScope;
   readonly listWalletEd25519Signers: ListWalletEd25519SignersV1;
@@ -2836,6 +2843,11 @@ async function buildPasskeyCredentialPromotionStatements(input: {
   readonly activatedAtMs: number;
 }): Promise<readonly D1PreparedStatementLike[]> {
   if (input.authMethod.kind !== 'passkey') return [];
+  await reservePasskeyCredential(input.credentialClaims, {
+    walletId: input.authMethod.walletId,
+    rpId: input.authMethod.rpId,
+    credentialIdB64u: input.authMethod.credentialIdB64u,
+  });
   const signer = await resolveLinkedDeviceEd25519Signer({
     authority: input.authority,
     listWalletEd25519Signers: input.listWalletEd25519Signers,

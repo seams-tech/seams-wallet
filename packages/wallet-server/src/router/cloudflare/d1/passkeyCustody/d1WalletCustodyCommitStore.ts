@@ -1,3 +1,7 @@
+import {
+  reservePasskeyCredential,
+  type PasskeyCredentialClaims,
+} from '../../../../core/passkeyCredentialClaims';
 import type { WalletRecoveryRoutingPublisher } from '../../../../authorization/recoveryRouting';
 import type { WalletRecoveryOperationId } from '@shared/utils/domainIds';
 import {
@@ -168,6 +172,7 @@ type WalletCustodyCommitRecord =
   | WalletRecoveryBackupAcknowledgementV1;
 
 type CloudflareD1WalletCustodyCommitStoreOptions = {
+  readonly credentialClaims?: PasskeyCredentialClaims;
   readonly recoveryRouting?: WalletRecoveryRoutingPublisher;
   readonly database: D1DatabaseLike;
   readonly scope: CloudflareD1VersionedJsonRecordScopeV1;
@@ -366,6 +371,7 @@ function isRecoveryCodeLocatorCollision(error: unknown): boolean {
 
 export class CloudflareD1WalletCustodyCommitStore {
   private readonly recoveryRouting: WalletRecoveryRoutingPublisher | undefined;
+  private readonly credentialClaims: PasskeyCredentialClaims | undefined;
   private readonly database: D1DatabaseLike;
   private readonly scope: CloudflareD1VersionedJsonRecordScopeV1;
   private readonly records: CloudflareD1VersionedJsonRecordStore<WalletCustodyCommitRecord>;
@@ -373,6 +379,7 @@ export class CloudflareD1WalletCustodyCommitStore {
   private readonly walletAuthorityStore: Pick<D1WalletAuthorityStore, 'readById'>;
 
   constructor(options: CloudflareD1WalletCustodyCommitStoreOptions) {
+    this.credentialClaims = options.credentialClaims;
     this.recoveryRouting = options.recoveryRouting;
     this.database = options.database;
     this.scope = options.scope;
@@ -1157,6 +1164,11 @@ export class CloudflareD1WalletCustodyCommitStore {
       scope: this.tenantScope(),
       userId: input.authenticatorCommit.userId,
       record: input.authenticatorCommit.authenticator,
+    });
+    await reservePasskeyCredential(this.credentialClaims, {
+      walletId: targetMethod.walletId,
+      rpId: targetMethod.rpId,
+      credentialIdB64u: targetMethod.credentialIdB64u,
     });
     const bindingStatement = prepareD1WebAuthnCredentialBindingInsertStatement({
       database: this.database,
