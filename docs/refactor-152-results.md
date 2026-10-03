@@ -4375,3 +4375,28 @@ The regional execution rejection uses an invalid empty body to verify terminal
 state wins before protocol parsing; it does not execute cryptographic material.
 Real contribution execution and final installation across separate regional homes
 remain open. No deployment or release occurred.
+
+
+## October 3: regional export-root relay checkpoint
+
+The composed regional linking E2E now registers an X25519 recipient through APAC,
+reads it through US with owner authentication, submits the export-root package
+through US and retrieves it through APAC with a signed device request. All writes
+reach WEUR. Exact recipient/package retries replay through the other ingress;
+changed recipient keys and package bytes return 409. Delivery matches the submitted
+package and only WEUR contains the transfer row (US/APAC each contain zero).
+
+This uses production HTTP authentication, regional dispatch and D1 relay storage,
+with preparation facts from the production target planner. Package bytes are an
+opaque fixture: this checkpoint does not prove encryption, decryption, contribution
+execution, installation or cleanup. Terminal relay handling and recipient binding
+to the approved preparation remain explicit audit tasks.
+
+Regional E2E and focused ESLint passed. Receipt in the private repository:
+`.artifacts/r152/export-root-relay-20261003/regional-session-routing-evidence.json`.
+SHA-256: `85e63ba02bddab1e9a55d4c7acb90904ec2d28c6b59d16a55072c530c6392ba5`.
+The adjacent `e2e.log` and `lint.log` retain verification output. Reproduce with
+`SEAMS_WALLET_SERVER_CANDIDATE=/Users/pta/Dev/rust/seams-wallet/packages/wallet-server
+SEAMS_TEST_ARTIFACT_DIR=.artifacts/r152/export-root-relay-20261003
+node tests/e2e/regional-session-routing.e2e.mjs` from the private checkout.
+No deployment, release or geographic latency measurement occurred.

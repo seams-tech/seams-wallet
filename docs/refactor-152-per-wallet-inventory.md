@@ -1469,3 +1469,13 @@ or dispatching the Router. The exhaustive shared state predicate preserves activ
 and in-progress retry behavior. Regional cancellation checks and the real local
 lost-execution/activation-response contract pass. Complete installation across
 regional databases remains open; see the results document for evidence.
+
+
+### October 3: export-root relay storage evidence
+
+`linked_device_ed25519_export_root_transfers` is now exercised through the regional
+HTTP composition: a WEUR wallet receives recipient/package writes from US/APAC,
+with exact replay, conflicting replacements and signed delivery verified. The row
+exists only in WEUR. See the export-root relay checkpoint in the results document.
+Opaque fixture ciphertext limits this evidence to transport/persistence. Terminal
+relay handling, preparation binding and complete installation cleanup remain open.

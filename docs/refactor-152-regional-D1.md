@@ -49,6 +49,10 @@ older implementation checkpoints and must be read with their later evidence.
    activation and cleanup. Prove final state exists only at the assigned home,
    including lost responses and restart. Real local protocol contracts already
    pass; they do not prove separate regional database isolation.
+   Regional export-root relay delivery/replay/conflict and home-only D1 persistence
+   now pass (October 3 export-root relay receipt in the results document). Terminal
+   relay handling and preparation-to-recipient binding still need audit; full
+   cryptographic installation and cleanup remain open.
 2. Close full lifecycle acceptance and terminal reconciliation for registration,
    discovery/unlock, recovery, export and add/revoke methods. Exercise browser
    proofs and shared credential/identity claims through commit, failure and replay.
